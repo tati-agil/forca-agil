@@ -1051,26 +1051,22 @@ document.getElementById('kyber-start').onclick = kyberStartGame;
 document.getElementById('kyber-next').onclick = kyberNextChallenge;
 </script>
 
-<!-- Firebase SDK -->
-<script src="https://www.gstatic.com/firebasejs/10.7.0/firebase-app.js"></script>
-<script src="https://www.gstatic.com/firebasejs/10.7.0/firebase-database.js"></script>
+<!-- Firebase SDK (compat version — funciona com firebase.database()) -->
+<script src="https://www.gstatic.com/firebasejs/10.7.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.7.0/firebase-database-compat.js"></script>
 <script>
-  // Inicializar Firebase com as credenciais do projeto "Kyber Agil"
   const firebaseConfig = {
     apiKey: "AIzaSyAmnQTedd2eqL0d-3kMD2oWNeg0rwP6Lx0",
     authDomain: "kyber-agil.firebaseapp.com",
     databaseURL: "https://kyber-agil-default-rtdb.firebaseio.com",
-    projectId: "kyber-agil",
-    storageBucket: "kyber-agil.appspot.com",
-    messagingSenderId: "1000000000000",
-    appId: "1:1000000000000:web:abcd1234efgh5678ijkl"
+    projectId: "kyber-agil"
   };
 
   try {
     firebase.initializeApp(firebaseConfig);
     console.log('✅ Firebase inicializado com sucesso!');
   } catch (err) {
-    console.warn('⚠️ Firebase não disponível ou já inicializado:', err.message);
+    console.warn('⚠️ Firebase:', err.message);
   }
 </script>
 
