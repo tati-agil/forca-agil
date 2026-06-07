@@ -81,28 +81,26 @@
       <!-- sombra no chão -->
       <ellipse cx="60" cy="210" rx="32" ry="6" fill="#000" opacity=".35"/>
 
+      <!-- PESCOÇO + OMBROS (bridge cabeça→corpo) -->
+      <rect x="46" y="97" width="28" height="16" rx="4" fill="#c8d0dc"/>
+      <path d="M28 110 Q60 102 92 110 L92 126 Q60 118 28 126Z" fill="#a0aabb"/>
+
       <!-- CORPO: túnica branca curta -->
-      <path d="M60 108 C42 110 30 128 24 162 L24 205 L96 205 L96 162 C90 128 78 110 60 108Z" fill="url(#robe0b)"/>
+      <path d="M60 118 C42 120 30 136 24 166 L24 205 L96 205 L96 166 C90 136 78 120 60 118Z" fill="url(#robe0b)"/>
       <!-- dobras da túnica -->
-      <line x1="60" y1="112" x2="60" y2="205" stroke="#a0aabb" stroke-width="1.5" opacity=".5"/>
-      <path d="M44 148 Q40 176 44 205" fill="none" stroke="#a0aabb" stroke-width="1.2" opacity=".4"/>
-      <path d="M76 148 Q80 176 76 205" fill="none" stroke="#a0aabb" stroke-width="1.2" opacity=".4"/>
+      <line x1="60" y1="122" x2="60" y2="205" stroke="#a0aabb" stroke-width="1.5" opacity=".5"/>
+      <path d="M44 152 Q40 178 44 205" fill="none" stroke="#a0aabb" stroke-width="1.2" opacity=".4"/>
+      <path d="M76 152 Q80 178 76 205" fill="none" stroke="#a0aabb" stroke-width="1.2" opacity=".4"/>
       <!-- cinto simples -->
-      <rect x="34" y="152" width="52" height="8" rx="3" fill="#8a95a8"/>
-      <rect x="56" y="151" width="8" height="10" rx="2" fill="#6a7488"/>
+      <rect x="34" y="156" width="52" height="8" rx="3" fill="#8a95a8"/>
+      <rect x="56" y="155" width="8" height="10" rx="2" fill="#6a7488"/>
 
       <!-- BRAÇOS -->
-      <path d="M30 120 Q18 138 20 158" fill="none" stroke="#c8d0dc" stroke-width="12" stroke-linecap="round"/>
-      <path d="M90 120 Q102 138 100 158" fill="none" stroke="#c8d0dc" stroke-width="12" stroke-linecap="round"/>
+      <path d="M28 118 Q16 138 18 158" fill="none" stroke="#c8d0dc" stroke-width="12" stroke-linecap="round"/>
+      <path d="M92 118 Q104 138 102 158" fill="none" stroke="#c8d0dc" stroke-width="12" stroke-linecap="round"/>
       <!-- mãos -->
-      <ellipse cx="20" cy="160" rx="7" ry="6" fill="url(#face0)"/>
-      <ellipse cx="100" cy="160" rx="7" ry="6" fill="url(#face0)"/>
-
-      <!-- PESCOÇO -->
-      <rect x="52" y="96" width="16" height="14" rx="4" fill="url(#face0)"/>
-
-      <!-- GOLA -->
-      <path d="M38 108 Q60 100 82 108 L82 118 Q60 110 38 118Z" fill="#a0aabb"/>
+      <ellipse cx="18" cy="160" rx="7" ry="6" fill="url(#face0)"/>
+      <ellipse cx="102" cy="160" rx="7" ry="6" fill="url(#face0)"/>
 
       <!-- CABEÇA: capacete de treino arredondado -->
       <ellipse cx="60" cy="72" rx="26" ry="28" fill="#c8d0dc"/>
@@ -146,36 +144,38 @@
       <rect x="6" y="14" width="108" height="192" rx="20" fill="url(#aura1)"/>
       <ellipse cx="60" cy="210" rx="34" ry="6" fill="#000" opacity=".35"/>
 
-      <!-- CAPA / MANTO externo -->
-      <path d="M60 104 C34 106 18 126 14 168 L14 205 L106 205 L106 168 C102 126 86 106 60 104Z" fill="#0f3830"/>
-      <!-- TÚNICA interna (mais clara) -->
-      <path d="M60 108 C42 110 32 128 28 165 L28 205 L92 205 L92 165 C88 128 78 110 60 108Z" fill="url(#robe1b)"/>
-      <!-- dobras -->
-      <line x1="60" y1="112" x2="60" y2="205" stroke="#0a2820" stroke-width="1.5" opacity=".6"/>
-      <path d="M46 146 Q42 174 46 205" fill="none" stroke="#0a2820" stroke-width="1.2" opacity=".5"/>
-      <path d="M74 146 Q78 174 74 205" fill="none" stroke="#0a2820" stroke-width="1.2" opacity=".5"/>
-      <!-- cinto com fivela -->
-      <rect x="32" y="150" width="56" height="9" rx="3" fill="#1a5048"/>
-      <rect x="55" y="149" width="10" height="11" rx="2" fill="#0e3028"/>
-      <rect x="57" y="151" width="6" height="7" rx="1" fill="#7af0e8" opacity=".6"/>
+      <!-- CAPUZ (desenhado primeiro, atrás do corpo) -->
+      <path d="M34 72 Q34 32 60 26 Q86 32 86 72 Q86 78 80 82 L40 82 Q34 78 34 72Z" fill="#1a5a52"/>
 
-      <!-- BRAÇOS com manto -->
-      <path d="M28 118 Q14 140 16 162" fill="none" stroke="#0f3830" stroke-width="14" stroke-linecap="round"/>
-      <path d="M92 118 Q106 140 104 162" fill="none" stroke="#0f3830" stroke-width="14" stroke-linecap="round"/>
-      <ellipse cx="16" cy="163" rx="8" ry="7" fill="url(#face1)"/>
-      <ellipse cx="104" cy="163" rx="8" ry="7" fill="url(#face1)"/>
+      <!-- PESCOÇO + OMBROS largos (bridge hood→body) -->
+      <rect x="46" y="80" width="28" height="16" rx="3" fill="url(#face1)"/>
+      <path d="M24 94 Q60 86 96 94 L96 114 Q60 106 24 114Z" fill="#0f3830"/>
 
       <!-- TRANÇA Padawan -->
-      <path d="M38 92 Q30 112 32 132 Q30 144 34 152" fill="none" stroke="#b88840" stroke-width="4" stroke-linecap="round"/>
-      <path d="M38 92 Q30 112 32 132 Q30 144 34 152" fill="none" stroke="#d4aa60" stroke-width="1.5" stroke-linecap="round" opacity=".7"/>
-      <circle cx="34" cy="154" r="3.5" fill="#18c2ba"/>
+      <path d="M38 86 Q28 110 30 134 Q28 148 32 158" fill="none" stroke="#b88840" stroke-width="4" stroke-linecap="round"/>
+      <path d="M38 86 Q28 110 30 134 Q28 148 32 158" fill="none" stroke="#d4aa60" stroke-width="1.5" stroke-linecap="round" opacity=".7"/>
+      <circle cx="32" cy="160" r="3.5" fill="#18c2ba"/>
 
-      <!-- PESCOÇO -->
-      <rect x="52" y="96" width="16" height="14" rx="4" fill="url(#face1)"/>
+      <!-- CAPA / MANTO externo -->
+      <path d="M60 106 C34 108 18 128 14 170 L14 205 L106 205 L106 170 C102 128 86 108 60 106Z" fill="#0f3830"/>
+      <!-- TÚNICA interna (mais clara) -->
+      <path d="M60 110 C42 112 32 130 28 167 L28 205 L92 205 L92 167 C88 130 78 112 60 110Z" fill="url(#robe1b)"/>
+      <!-- dobras -->
+      <line x1="60" y1="114" x2="60" y2="205" stroke="#0a2820" stroke-width="1.5" opacity=".6"/>
+      <path d="M46 150 Q42 176 46 205" fill="none" stroke="#0a2820" stroke-width="1.2" opacity=".5"/>
+      <path d="M74 150 Q78 176 74 205" fill="none" stroke="#0a2820" stroke-width="1.2" opacity=".5"/>
+      <!-- cinto com fivela -->
+      <rect x="32" y="154" width="56" height="9" rx="3" fill="#1a5048"/>
+      <rect x="55" y="153" width="10" height="11" rx="2" fill="#0e3028"/>
+      <rect x="57" y="155" width="6" height="7" rx="1" fill="#7af0e8" opacity=".6"/>
 
-      <!-- CAPUZ (parcialmente aberto atrás) -->
-      <path d="M34 72 Q34 32 60 26 Q86 32 86 72 Q86 78 80 82 L40 82 Q34 78 34 72Z" fill="#1a5a52"/>
-      <!-- borda interna do capuz -->
+      <!-- BRAÇOS com manto -->
+      <path d="M24 110 Q10 136 12 160" fill="none" stroke="#0f3830" stroke-width="14" stroke-linecap="round"/>
+      <path d="M96 110 Q110 136 108 160" fill="none" stroke="#0f3830" stroke-width="14" stroke-linecap="round"/>
+      <ellipse cx="12" cy="162" rx="8" ry="7" fill="url(#face1)"/>
+      <ellipse cx="108" cy="162" rx="8" ry="7" fill="url(#face1)"/>
+
+      <!-- borda interna do capuz (por cima) -->
       <path d="M40 82 Q60 76 80 82" fill="none" stroke="#7af0e8" stroke-width="1.5" opacity=".6"/>
 
       <!-- ROSTO -->
@@ -214,38 +214,40 @@
       <rect x="6" y="14" width="108" height="192" rx="20" fill="url(#aura2)"/>
       <ellipse cx="60" cy="210" rx="36" ry="6" fill="#000" opacity=".36"/>
 
+      <!-- CABEÇA: capuz azul aberto (primeiro) -->
+      <path d="M34 68 Q34 28 60 22 Q86 28 86 68 Q86 76 80 80 L40 80 Q34 76 34 68Z" fill="#1e3a62"/>
+
+      <!-- PESCOÇO + OMBROS largos -->
+      <rect x="46" y="78" width="28" height="18" rx="3" fill="url(#face2)"/>
+      <path d="M20 92 Q60 84 100 92 L100 114 Q60 106 20 114Z" fill="#0c1e3a"/>
+
       <!-- CAPA longa azul escura -->
-      <path d="M60 102 C30 104 12 126 10 170 L10 205 L110 205 L110 170 C108 126 90 104 60 102Z" fill="#0c1e3a"/>
+      <path d="M60 106 C30 108 12 128 10 172 L10 205 L110 205 L110 172 C108 128 90 108 60 106Z" fill="#0c1e3a"/>
       <!-- TÚNICA azul -->
-      <path d="M60 106 C38 108 26 128 22 168 L22 205 L98 205 L98 168 C94 128 82 108 60 106Z" fill="url(#robe2b)"/>
+      <path d="M60 110 C38 112 26 130 22 170 L22 205 L98 205 L98 170 C94 130 82 112 60 110Z" fill="url(#robe2b)"/>
       <!-- dobras túnica -->
-      <line x1="60" y1="110" x2="60" y2="205" stroke="#0a1828" stroke-width="1.5" opacity=".6"/>
-      <path d="M44 148 Q40 178 44 205" fill="none" stroke="#0a1828" stroke-width="1.2" opacity=".5"/>
-      <path d="M76 148 Q80 178 76 205" fill="none" stroke="#0a1828" stroke-width="1.2" opacity=".5"/>
+      <line x1="60" y1="114" x2="60" y2="205" stroke="#0a1828" stroke-width="1.5" opacity=".6"/>
+      <path d="M44 152 Q40 180 44 205" fill="none" stroke="#0a1828" stroke-width="1.2" opacity=".5"/>
+      <path d="M76 152 Q80 180 76 205" fill="none" stroke="#0a1828" stroke-width="1.2" opacity=".5"/>
 
       <!-- OMBREIRAS (pauldrons) -->
-      <path d="M22 112 Q10 122 12 144 L28 136 Q24 120 34 116Z" fill="#162a4a"/>
-      <path d="M98 112 Q110 122 108 144 L92 136 Q96 120 86 116Z" fill="#162a4a"/>
-      <path d="M22 112 Q10 122 12 144" fill="none" stroke="#2a4a7a" stroke-width="1.5"/>
-      <path d="M98 112 Q110 122 108 144" fill="none" stroke="#2a4a7a" stroke-width="1.5"/>
+      <path d="M20 108 Q8 120 10 144 L26 136 Q22 118 32 112Z" fill="#162a4a"/>
+      <path d="M100 108 Q112 120 110 144 L94 136 Q98 118 88 112Z" fill="#162a4a"/>
+      <path d="M20 108 Q8 120 10 144" fill="none" stroke="#2a4a7a" stroke-width="1.5"/>
+      <path d="M100 108 Q112 120 110 144" fill="none" stroke="#2a4a7a" stroke-width="1.5"/>
 
       <!-- CINTO com detalhe -->
-      <rect x="28" y="150" width="64" height="10" rx="3" fill="#162a4a"/>
-      <rect x="54" y="149" width="12" height="12" rx="2" fill="#0c1e3a"/>
-      <rect x="56" y="151" width="8" height="8" rx="1" fill="#2f74d6" opacity=".7"/>
+      <rect x="28" y="154" width="64" height="10" rx="3" fill="#162a4a"/>
+      <rect x="54" y="153" width="12" height="12" rx="2" fill="#0c1e3a"/>
+      <rect x="56" y="155" width="8" height="8" rx="1" fill="#2f74d6" opacity=".7"/>
 
       <!-- BRAÇOS postura de combate -->
-      <path d="M22 118 Q8 142 10 165" fill="none" stroke="#0c1e3a" stroke-width="16" stroke-linecap="round"/>
-      <path d="M98 118 Q106 132 102 150" fill="none" stroke="#0c1e3a" stroke-width="16" stroke-linecap="round"/>
-      <ellipse cx="10" cy="166" rx="9" ry="8" fill="url(#face2)"/>
-      <!-- mão direita segurando sabre (mais alta) -->
-      <ellipse cx="100" cy="148" rx="9" ry="8" fill="url(#face2)"/>
+      <path d="M20 114 Q6 140 8 165" fill="none" stroke="#0c1e3a" stroke-width="16" stroke-linecap="round"/>
+      <path d="M100 114 Q108 130 104 150" fill="none" stroke="#0c1e3a" stroke-width="16" stroke-linecap="round"/>
+      <ellipse cx="8" cy="167" rx="9" ry="8" fill="url(#face2)"/>
+      <ellipse cx="102" cy="150" rx="9" ry="8" fill="url(#face2)"/>
 
-      <!-- PESCOÇO -->
-      <rect x="52" y="94" width="16" height="14" rx="4" fill="url(#face2)"/>
-
-      <!-- CABEÇA: capuz azul aberto -->
-      <path d="M34 68 Q34 28 60 22 Q86 28 86 68 Q86 76 80 80 L40 80 Q34 76 34 68Z" fill="#1e3a62"/>
+      <!-- borda interna do capuz (por cima) -->
       <path d="M40 80 Q60 74 80 80" fill="none" stroke="#4f86d4" stroke-width="1.5" opacity=".7"/>
 
       <!-- ROSTO determinado -->
@@ -289,47 +291,49 @@
       <circle cx="60" cy="100" r="54" fill="none" stroke="#f5c518" stroke-width="1" opacity=".25"/>
       <ellipse cx="60" cy="210" rx="38" ry="7" fill="#000" opacity=".38"/>
 
-      <!-- MANTO dourado amplo -->
-      <path d="M60 100 C28 102 8 126 6 172 L6 205 L114 205 L114 172 C112 126 92 102 60 100Z" fill="#3a2c08"/>
-      <!-- TÚNICA interna ouro -->
-      <path d="M60 104 C36 106 22 128 18 170 L18 205 L102 205 L102 170 C98 128 84 106 60 104Z" fill="url(#robe3b)"/>
-      <!-- dobras ricas do manto -->
-      <line x1="60" y1="108" x2="60" y2="205" stroke="#2a1e04" stroke-width="2" opacity=".5"/>
-      <path d="M42 148 Q36 178 40 205" fill="none" stroke="#2a1e04" stroke-width="1.5" opacity=".5"/>
-      <path d="M78 148 Q84 178 80 205" fill="none" stroke="#2a1e04" stroke-width="1.5" opacity=".5"/>
-      <!-- detalhes bordado dourado -->
-      <path d="M40 148 L60 158 L80 148" fill="none" stroke="#f5c518" stroke-width="1.5" opacity=".7"/>
-      <path d="M48 168 L60 174 L72 168" fill="none" stroke="#f5c518" stroke-width="1" opacity=".5"/>
-
-      <!-- CINTO ornamentado -->
-      <rect x="24" y="150" width="72" height="10" rx="3" fill="#2a1e04"/>
-      <rect x="54" y="149" width="12" height="12" rx="2" fill="#1a1204"/>
-      <!-- cristal kyber dourado no cinto -->
-      <path d="M58 151 L60 157 L62 151 L60 149Z" fill="#f5c518"/>
-
-      <!-- BASTÃO do Mestre (esquerda) -->
+      <!-- BASTÃO do Mestre (desenhado primeiro, atrás) -->
       <path d="M18 60 Q22 110 18 155 Q20 180 18 205" fill="none" stroke="#5a4010" stroke-width="7" stroke-linecap="round"/>
       <path d="M18 60 Q22 110 18 155 Q20 180 18 205" fill="none" stroke="#a8802a" stroke-width="2.5" stroke-linecap="round" opacity=".6"/>
-      <!-- cabeça do bastão (cristal) -->
-      <path d="M14 56 L18 44 L22 56 L18 62Z" fill="#8b6914"/>
-      <path d="M16 54 L18 48 L20 54 L18 58Z" fill="#f5c518" opacity=".7"/>
       <!-- nó do bastão -->
       <rect x="14" y="100" width="8" height="6" rx="2" fill="#7a6020"/>
       <rect x="14" y="148" width="8" height="6" rx="2" fill="#7a6020"/>
 
-      <!-- BRAÇOS com manto largo -->
-      <path d="M18 115 Q6 140 8 168" fill="none" stroke="#3a2c08" stroke-width="18" stroke-linecap="round"/>
-      <path d="M102 115 Q114 140 112 168" fill="none" stroke="#3a2c08" stroke-width="18" stroke-linecap="round"/>
-      <ellipse cx="8" cy="170" rx="10" ry="9" fill="url(#face3)"/>
-      <ellipse cx="112" cy="170" rx="10" ry="9" fill="url(#face3)"/>
-
-      <!-- PESCOÇO -->
-      <rect x="52" y="92" width="16" height="14" rx="4" fill="url(#face3)"/>
-
-      <!-- CAPUZ com bordado dourado -->
+      <!-- CAPUZ com bordado dourado (antes do corpo) -->
       <path d="M32 66 Q32 22 60 16 Q88 22 88 66 Q88 76 82 80 L38 80 Q32 76 32 66Z" fill="#5a4010"/>
+
+      <!-- PESCOÇO + OMBROS largos -->
+      <rect x="46" y="78" width="28" height="18" rx="3" fill="url(#face3)"/>
+      <path d="M16 94 Q60 86 104 94 L104 116 Q60 108 16 116Z" fill="#3a2c08"/>
+
+      <!-- MANTO dourado amplo -->
+      <path d="M60 108 C28 110 8 132 6 174 L6 205 L114 205 L114 174 C112 132 92 110 60 108Z" fill="#3a2c08"/>
+      <!-- TÚNICA interna ouro -->
+      <path d="M60 112 C36 114 22 134 18 172 L18 205 L102 205 L102 172 C98 134 84 114 60 112Z" fill="url(#robe3b)"/>
+      <!-- dobras ricas do manto -->
+      <line x1="60" y1="116" x2="60" y2="205" stroke="#2a1e04" stroke-width="2" opacity=".5"/>
+      <path d="M42 156 Q36 180 40 205" fill="none" stroke="#2a1e04" stroke-width="1.5" opacity=".5"/>
+      <path d="M78 156 Q84 180 80 205" fill="none" stroke="#2a1e04" stroke-width="1.5" opacity=".5"/>
+      <!-- detalhes bordado dourado -->
+      <path d="M40 156 L60 166 L80 156" fill="none" stroke="#f5c518" stroke-width="1.5" opacity=".7"/>
+      <path d="M48 174 L60 180 L72 174" fill="none" stroke="#f5c518" stroke-width="1" opacity=".5"/>
+
+      <!-- CINTO ornamentado -->
+      <rect x="24" y="156" width="72" height="10" rx="3" fill="#2a1e04"/>
+      <rect x="54" y="155" width="12" height="12" rx="2" fill="#1a1204"/>
+      <path d="M58 157 L60 163 L62 157 L60 155Z" fill="#f5c518"/>
+
+      <!-- BRAÇOS com manto largo -->
+      <path d="M16 112 Q4 140 6 168" fill="none" stroke="#3a2c08" stroke-width="18" stroke-linecap="round"/>
+      <path d="M104 112 Q116 140 114 168" fill="none" stroke="#3a2c08" stroke-width="18" stroke-linecap="round"/>
+      <ellipse cx="6" cy="170" rx="10" ry="9" fill="url(#face3)"/>
+      <ellipse cx="114" cy="170" rx="10" ry="9" fill="url(#face3)"/>
+
+      <!-- borda interna do capuz + detalhe (por cima de tudo) -->
       <path d="M38 80 Q60 72 82 80" fill="none" stroke="#f5c518" stroke-width="2" opacity=".8"/>
       <path d="M36 66 Q36 28 60 22 Q84 28 84 66" fill="none" stroke="#f5c518" stroke-width="1" opacity=".4"/>
+      <!-- cabeça do bastão (cristal, por cima) -->
+      <path d="M14 56 L18 44 L22 56 L18 62Z" fill="#8b6914"/>
+      <path d="M16 54 L18 48 L20 54 L18 58Z" fill="#f5c518" opacity=".7"/>
 
       <!-- ROSTO ancião sábio -->
       <ellipse cx="60" cy="62" rx="22" ry="25" fill="url(#face3)"/>
