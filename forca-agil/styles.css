@@ -660,7 +660,7 @@ html:not(.js) .reveal { opacity: 1 !important; transform: none !important; }
 
 /* Missions */
 .missions { display:grid; grid-template-columns: repeat(auto-fill,minmax(310px,1fr)); gap:12px; margin-top: 28px; }
-.mission { display:grid; grid-template-columns: auto 1fr auto; align-items:center; gap:15px; text-align:left; padding:16px 18px; border-radius:12px; border:1px solid var(--line); background: rgba(12,21,40,.5); cursor:pointer; transition: border-color .25s, transform .25s, background .25s; font: inherit; color: inherit; }
+.mission { display:grid; grid-template-columns: auto 1fr auto auto; align-items:center; gap:15px; text-align:left; padding:16px 18px; border-radius:12px; border:1px solid var(--line); background: rgba(12,21,40,.5); cursor:pointer; transition: border-color .25s, transform .25s, background .25s; font: inherit; color: inherit; width:100%; box-sizing:border-box; }
 .mission:hover { border-color: var(--line-strong); transform: translateY(-2px); }
 .m-check { width:26px; height:26px; border-radius:7px; border:2px solid var(--line-strong); display:grid; place-items:center; color: var(--space-0); transition: background .25s, border-color .25s; }
 .m-check svg { width:16px; height:16px; opacity:0; transform: scale(.4); transition: opacity .25s, transform .25s; }
@@ -671,6 +671,31 @@ html:not(.js) .reveal { opacity: 1 !important; transform: none !important; }
 .m-desc { display:block; color: var(--ink-3); font-size:.86rem; margin-top:3px; }
 .mission.done .m-title { color: var(--accent); }
 .m-xp { font-family: var(--font-mono); font-size:.74rem; color: var(--accent); white-space:nowrap; }
+
+/* Mission wrap — expande para mostrar perguntas */
+.mission-wrap { border-radius:12px; border:1px solid var(--line); background: rgba(12,21,40,.5); overflow:hidden; transition: border-color .25s; }
+.mission-wrap:hover { border-color: var(--line-strong); }
+.mission-wrap.open { border-color: var(--accent); }
+.mission-wrap .mission { border:none; background:transparent; border-radius:0; }
+.mission-wrap .mission:hover { transform: none; }
+.mission-chevron { display:grid; place-items:center; color: var(--ink-3); transition: transform .25s; }
+.mission-wrap.open .mission-chevron { transform: rotate(180deg); }
+/* Painel de questões */
+.m-panel { display:none; padding:0 18px 18px; }
+.mission-wrap.open .m-panel { display:block; }
+.m-question { margin-top:16px; }
+.m-q-text { font-size:.9rem; color: var(--ink); font-weight:600; margin-bottom:10px; }
+.m-q-opts { display:grid; gap:7px; }
+.m-q-opt { text-align:left; padding:10px 14px; border-radius:8px; border:1px solid var(--line); background: rgba(255,255,255,.03); color: var(--ink-2); font-size:.84rem; cursor:pointer; transition: border-color .2s, background .2s, color .2s; }
+.m-q-opt:hover:not(:disabled) { border-color: var(--accent); color: var(--ink); background: rgba(245,197,24,.06); }
+.m-q-opt:disabled { cursor:default; }
+.m-q-opt.m-opt-correct { border-color:#4caf50; background: rgba(76,175,80,.12); color:#4caf50; }
+.m-q-opt.m-opt-wrong   { border-color:#f44336; background: rgba(244,67,54,.10); color:#f44336; }
+.m-q-opt.m-opt-neutral { opacity:.45; }
+.m-q-feedback { margin-top:7px; font-size:.82rem; font-family: var(--font-mono); }
+.m-fb-correct { color:#4caf50; }
+.m-fb-wrong   { color:#f44336; }
+
 .game-actions { margin-top: 28px; }
 
 /* Previ discreet mark */
