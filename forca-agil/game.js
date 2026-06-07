@@ -289,11 +289,8 @@
   function compute() {
     const answered = state.quiz.filter(v => v != null).length;
     const quizDone = answered === DIMS.length;
-    let quizXP = 0;
-    if (quizDone) {
-      const sum = state.quiz.reduce((a, b) => a + b, 0);
-      quizXP = Math.round((sum - DIMS.length) / (DIMS.length * 3) * QUIZ_MAX);
-    }
+    // 5 XP por dimensão respondida, independente do nível escolhido (máx 30)
+    const quizXP = answered * 5;
     const mXP  = MISSIONS.reduce((acc, m) => acc + missionXP(m), 0);
     const mDone = MISSIONS.filter(m => missionDone(m)).length;
     const xp   = Math.min(100, quizXP + mXP);
