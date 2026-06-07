@@ -38,71 +38,151 @@
     <symbol id="i-chev-d" viewBox="0 0 24 24"><path d="M6 9l6 6 6-6" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></symbol>
     <symbol id="i-lock" viewBox="0 0 24 24"><rect x="5" y="10" width="14" height="10" rx="2" fill="none" stroke="currentColor" stroke-width="2"/><path d="M8 10V7a4 4 0 0 1 8 0v3" fill="none" stroke="currentColor" stroke-width="2"/></symbol>
     <symbol id="i-check" viewBox="0 0 24 24"><path d="M5 13l4 4 10-11" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+    <symbol id="i-play" viewBox="0 0 48 48"><rect x="6" y="10" width="36" height="28" rx="4" fill="none" stroke="currentColor" stroke-width="2"/><path d="M20 19l9 5-9 5z" fill="currentColor"/></symbol>
+    <symbol id="i-doc" viewBox="0 0 48 48"><path d="M12 6h16l8 8v28H12z" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/><path d="M28 6v8h8M18 26h12M18 32h12" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></symbol>
+    <symbol id="i-link" viewBox="0 0 48 48"><path d="M20 28a7 7 0 0 0 10 0l6-6a7 7 0 0 0-10-10l-3 3" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"/><path d="M28 20a7 7 0 0 0-10 0l-6 6a7 7 0 0 0 10 10l3-3" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"/></symbol>
+    <symbol id="i-tool" viewBox="0 0 48 48"><path d="M30 8a8 8 0 0 0-10 10L8 30a4 4 0 0 0 6 6l12-12A8 8 0 0 0 38 16l-6 6-6-6z" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linejoin="round"/></symbol>
+    <symbol id="i-plus" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"/></symbol>
+    <symbol id="i-x" viewBox="0 0 24 24"><path d="M6 6l12 12M18 6L6 18" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"/></symbol>
+    <symbol id="i-ext" viewBox="0 0 24 24"><path d="M14 5h5v5M19 5l-9 9M16 13v5H6V8h5" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></symbol>
 
-    <!-- ===== Character avatars (original cloaked-Jedi line art) ===== -->
+    <!-- ===== Character avatars (original stylized Jedi busts) ===== -->
+    <radialGradient id="skinA" cx="42%" cy="36%" r="68%"><stop offset="0" stop-color="#ffd9b4"/><stop offset="1" stop-color="#b07a4f"/></radialGradient>
+    <radialGradient id="skinB" cx="42%" cy="36%" r="68%"><stop offset="0" stop-color="#f0c49a"/><stop offset="1" stop-color="#9c633c"/></radialGradient>
+    <radialGradient id="skinC" cx="42%" cy="36%" r="68%"><stop offset="0" stop-color="#e8b489"/><stop offset="1" stop-color="#7e4d2c"/></radialGradient>
+    <radialGradient id="skinD" cx="42%" cy="34%" r="70%"><stop offset="0" stop-color="#ffe6c4"/><stop offset="1" stop-color="#bb8556"/></radialGradient>
+    <linearGradient id="robe0" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#48566f"/><stop offset="1" stop-color="#222b3c"/></linearGradient>
+    <linearGradient id="robe1" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#1f5b59"/><stop offset="1" stop-color="#16242f"/></linearGradient>
+    <linearGradient id="robe2" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#264a78"/><stop offset="1" stop-color="#13203a"/></linearGradient>
+    <linearGradient id="robe3" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#7a5a1c"/><stop offset="1" stop-color="#2c2410"/></linearGradient>
+    <radialGradient id="aura0" cx="50%" cy="42%" r="60%"><stop offset="0" stop-color="#8b9ab8" stop-opacity=".18"/><stop offset="1" stop-color="#8b9ab8" stop-opacity="0"/></radialGradient>
+    <radialGradient id="aura1" cx="50%" cy="42%" r="60%"><stop offset="0" stop-color="#18c2ba" stop-opacity=".3"/><stop offset="1" stop-color="#18c2ba" stop-opacity="0"/></radialGradient>
+    <radialGradient id="aura2" cx="50%" cy="42%" r="60%"><stop offset="0" stop-color="#2f74d6" stop-opacity=".32"/><stop offset="1" stop-color="#2f74d6" stop-opacity="0"/></radialGradient>
+    <radialGradient id="aura3" cx="50%" cy="42%" r="62%"><stop offset="0" stop-color="#f5c518" stop-opacity=".42"/><stop offset="1" stop-color="#f5c518" stop-opacity="0"/></radialGradient>
+
     <symbol id="char-0" viewBox="0 0 120 220">
-      <ellipse cx="60" cy="206" rx="34" ry="7" fill="#8b9ab8" opacity=".12"/>
-      <g fill="none" stroke="#8b9ab8" stroke-width="2.4" stroke-linejoin="round" stroke-linecap="round">
-        <path d="M40 80 L30 196 Q60 188 90 196 L80 80 Q60 68 40 80 Z"/>
-        <path d="M60 76 L55 196 M60 76 L65 196"/>
-        <path d="M42 66 Q40 30 60 24 Q80 30 78 66 Q60 78 42 66 Z"/>
-        <path d="M42 80 Q60 72 78 80"/>
-        <path d="M80 94 Q90 104 92 124"/>
-      </g>
-      <path d="M47 56 Q60 72 73 56 Q71 36 60 34 Q49 36 47 56 Z" fill="rgba(2,6,16,.85)"/>
-      <rect x="46" y="46" width="28" height="7" rx="3" fill="#8b9ab8"/>
-      <rect x="88" y="120" width="8" height="20" rx="2" fill="none" stroke="#b9c6e0" stroke-width="2"/>
-      <line x1="92" y1="120" x2="92" y2="92" stroke="#9fb0cc" stroke-width="5" stroke-linecap="round"/>
-      <line x1="92" y1="120" x2="92" y2="92" stroke="#eef3ff" stroke-width="1.6" stroke-linecap="round" opacity=".8"/>
+      <rect x="6" y="14" width="108" height="192" rx="20" fill="url(#aura0)"/>
+      <ellipse cx="60" cy="208" rx="36" ry="7" fill="#000" opacity=".3"/>
+      <!-- short novice robe -->
+      <path d="M60 100 C40 104 28 124 22 168 C18 196 20 210 20 210 L100 210 C100 210 102 196 98 168 C92 124 80 104 60 100 Z" fill="url(#robe0)"/>
+      <path d="M60 108 L60 210 M46 152 Q42 182 48 210 M74 152 Q78 182 72 210" stroke="#0e1422" stroke-width="2" fill="none" opacity=".5"/>
+      <path d="M60 108 L50 150 L60 158 L70 150 Z" fill="#1a2233"/>
+      <!-- collar -->
+      <path d="M60 100 C44 102 36 112 34 124 L60 116 L86 124 C84 112 76 102 60 100 Z" fill="#39455c"/>
+      <!-- neck + chin -->
+      <ellipse cx="60" cy="80" rx="15" ry="13" fill="url(#skinA)"/>
+      <path d="M50 84 Q60 92 70 84" fill="none" stroke="#9c6b45" stroke-width="1.4" opacity=".5"/>
+      <!-- training helmet dome -->
+      <path d="M34 64 C34 38 46 23 60 23 C74 23 86 38 86 64 C86 70 84 74 80 77 L40 77 C36 74 34 70 34 64 Z" fill="#b9c2d4"/>
+      <path d="M34 64 C34 38 46 23 60 23 C74 23 86 38 86 64" fill="none" stroke="#7e8da8" stroke-width="2"/>
+      <path d="M60 23 L60 50 M44 30 Q60 22 76 30" stroke="#8d99b0" stroke-width="2" fill="none" opacity=".75"/>
+      <!-- ear pods -->
+      <rect x="29" y="57" width="9" height="17" rx="4" fill="#9aa6bd" stroke="#7e8da8" stroke-width="1"/>
+      <rect x="82" y="57" width="9" height="17" rx="4" fill="#9aa6bd" stroke="#7e8da8" stroke-width="1"/>
+      <!-- blast shield over eyes -->
+      <rect x="38" y="61" width="44" height="13" rx="6" fill="#23303f"/>
+      <rect x="38" y="61" width="44" height="13" rx="6" fill="none" stroke="#566076" stroke-width="1.4"/>
+      <line x1="44" y1="67.5" x2="76" y2="67.5" stroke="#3a4658" stroke-width="1.4"/>
+      <!-- antenna -->
+      <line x1="60" y1="23" x2="60" y2="15" stroke="#9aa6bd" stroke-width="2"/>
+      <circle cx="60" cy="13" r="2.4" fill="#7af0e8"/>
+      <!-- short training saber -->
+      <rect x="89" y="150" width="8" height="20" rx="2" fill="#aeb9cf" stroke="#7e8da8" stroke-width="1"/>
+      <line x1="93" y1="150" x2="93" y2="124" stroke="#7af0e8" stroke-width="4.5" stroke-linecap="round"/>
+      <line x1="93" y1="150" x2="93" y2="124" stroke="#eafffb" stroke-width="1.5" stroke-linecap="round" opacity=".85"/>
+      <!-- floating training remote -->
+      <circle cx="25" cy="92" r="7" fill="#cdd6e6" stroke="#7e8da8" stroke-width="1"/>
+      <circle cx="23" cy="90" r="1.5" fill="#2a3445"/>
+      <circle cx="28" cy="92" r="1.2" fill="#ff6a3c"/>
+      <path d="M33 92 q4 0 7 2" stroke="#ff6a3c" stroke-width="1.4" fill="none" opacity=".7" stroke-dasharray="2 2"/>
     </symbol>
     <symbol id="char-1" viewBox="0 0 120 220">
-      <ellipse cx="60" cy="206" rx="34" ry="7" fill="#57d3ff" opacity=".14"/>
-      <g fill="none" stroke="#57d3ff" stroke-width="2.4" stroke-linejoin="round" stroke-linecap="round">
-        <path d="M40 80 L30 196 Q60 188 90 196 L80 80 Q60 68 40 80 Z"/>
-        <path d="M60 76 L55 196 M60 76 L65 196"/>
-        <path d="M42 66 Q40 30 60 24 Q80 30 78 66 Q60 78 42 66 Z"/>
-        <path d="M42 80 Q60 72 78 80"/>
-        <path d="M80 94 Q90 104 92 120"/>
-        <path d="M76 60 Q86 86 82 108"/>
-      </g>
-      <path d="M47 56 Q60 72 73 56 Q71 36 60 34 Q49 36 47 56 Z" fill="rgba(2,6,16,.85)"/>
-      <rect x="88" y="120" width="8" height="20" rx="2" fill="none" stroke="#b9c6e0" stroke-width="2"/>
-      <line x1="92" y1="120" x2="92" y2="62" stroke="#57d3ff" stroke-width="5.5" stroke-linecap="round"/>
-      <line x1="92" y1="120" x2="92" y2="62" stroke="#dffaff" stroke-width="1.8" stroke-linecap="round" opacity=".85"/>
+      <rect x="6" y="14" width="108" height="192" rx="20" fill="url(#aura1)"/>
+      <ellipse cx="60" cy="208" rx="38" ry="7" fill="#000" opacity=".3"/>
+      <path d="M60 96 C38 100 24 122 18 168 C14 196 16 210 16 210 L104 210 C104 210 106 196 102 168 C96 122 82 100 60 96 Z" fill="url(#robe1)"/>
+      <path d="M60 104 L60 210 M44 150 Q40 180 46 210 M76 150 Q80 180 74 210" stroke="#0c1c1c" stroke-width="2" fill="none" opacity=".55"/>
+      <path d="M60 104 L48 150 L60 158 L72 150 Z" fill="#13302f"/>
+      <path d="M60 22 C84 22 96 44 96 78 C96 104 84 116 60 118 C36 116 24 104 24 78 C24 44 36 22 60 22 Z" fill="#1c4c4a"/>
+      <ellipse cx="60" cy="70" rx="20" ry="24" fill="url(#skinB)"/>
+      <path d="M60 46 C72 46 80 58 80 72 C80 86 72 96 60 96 Z" fill="#000" opacity=".16"/>
+      <!-- padawan braid -->
+      <path d="M44 84 Q40 104 42 120" stroke="#c9a06a" stroke-width="3" fill="none" stroke-linecap="round"/>
+      <circle cx="42" cy="122" r="2.4" fill="#18c2ba"/>
+      <path d="M60 18 C88 18 100 44 100 80 C100 70 92 50 78 46 C74 36 68 32 60 32 C52 32 46 36 42 46 C28 50 20 70 20 80 C20 44 32 18 60 18 Z" fill="#236b68"/>
+      <path d="M42 46 Q60 30 78 46" fill="none" stroke="#39b7b0" stroke-width="2" opacity=".7"/>
+      <path d="M20 80 C20 60 30 30 60 22" fill="none" stroke="#7af0e8" stroke-width="1.6" opacity=".5"/>
+      <ellipse cx="52" cy="70" rx="2.4" ry="3" fill="#243a39"/>
+      <ellipse cx="68" cy="70" rx="2.4" ry="3" fill="#243a39"/>
+      <path d="M48 64 Q52 61 56 64 M64 64 Q68 61 72 64" stroke="#5a4632" stroke-width="1.6" fill="none" stroke-linecap="round"/>
+      <path d="M60 76 L58 82 L62 82" fill="none" stroke="#9c6b45" stroke-width="1.4" opacity=".7"/>
+      <path d="M54 88 Q60 91 66 88" fill="none" stroke="#7a5236" stroke-width="1.4" stroke-linecap="round" opacity=".7"/>
+      <rect x="89" y="150" width="8" height="20" rx="2" fill="#aeb9cf" stroke="#7e8da8" stroke-width="1"/>
+      <line x1="93" y1="150" x2="93" y2="98" stroke="#18c2ba" stroke-width="5.5" stroke-linecap="round"/>
+      <line x1="93" y1="150" x2="93" y2="98" stroke="#dffaf7" stroke-width="1.8" stroke-linecap="round" opacity=".85"/>
     </symbol>
     <symbol id="char-2" viewBox="0 0 120 220">
-      <ellipse cx="60" cy="206" rx="36" ry="7" fill="#2e86e6" opacity=".16"/>
-      <g fill="none" stroke="#2e86e6" stroke-width="2.6" stroke-linejoin="round" stroke-linecap="round">
-        <path d="M38 80 L26 196 Q60 188 94 196 L82 80 Q60 66 38 80 Z"/>
-        <path d="M60 74 L54 196 M60 74 L66 196"/>
-        <path d="M41 64 Q39 28 60 22 Q81 28 79 64 Q60 76 41 64 Z"/>
-        <path d="M38 82 Q60 72 82 82"/>
-        <path d="M82 94 Q92 104 94 122"/>
-        <path d="M38 82 Q33 90 36 100"/>
-        <path d="M82 82 Q87 90 84 100"/>
-      </g>
-      <path d="M46 54 Q60 70 74 54 Q72 34 60 32 Q48 34 46 54 Z" fill="rgba(2,6,16,.85)"/>
-      <path d="M60 96 l6 8 -6 8 -6 -8 Z" fill="none" stroke="#9fc4ff" stroke-width="1.8"/>
-      <rect x="90" y="122" width="8" height="20" rx="2" fill="none" stroke="#cdd9f0" stroke-width="2"/>
-      <line x1="94" y1="122" x2="94" y2="54" stroke="#2e86e6" stroke-width="6" stroke-linecap="round"/>
-      <line x1="94" y1="122" x2="94" y2="54" stroke="#cfe4ff" stroke-width="2" stroke-linecap="round" opacity=".85"/>
+      <rect x="6" y="14" width="108" height="192" rx="20" fill="url(#aura2)"/>
+      <ellipse cx="60" cy="208" rx="40" ry="8" fill="#000" opacity=".32"/>
+      <path d="M60 94 C36 98 22 120 16 168 C12 196 14 210 14 210 L106 210 C106 210 108 196 104 168 C98 120 84 98 60 94 Z" fill="url(#robe2)"/>
+      <path d="M60 102 L60 210 M42 148 Q38 180 44 210 M78 148 Q82 180 76 210" stroke="#0c1424" stroke-width="2" fill="none" opacity=".55"/>
+      <!-- shoulder pauldrons -->
+      <path d="M30 116 Q22 126 24 142 L40 134 Z" fill="#1b3050"/>
+      <path d="M90 116 Q98 126 96 142 L80 134 Z" fill="#1b3050"/>
+      <path d="M60 102 L46 150 L60 158 L74 150 Z" fill="#14233c"/>
+      <path d="M60 20 C86 20 98 42 98 78 C98 104 86 116 60 118 C34 116 22 104 22 78 C22 42 34 20 60 20 Z" fill="#1d3a62"/>
+      <ellipse cx="60" cy="68" rx="20.5" ry="24.5" fill="url(#skinC)"/>
+      <path d="M60 44 C73 44 81 56 81 70 C81 85 73 94 60 94 Z" fill="#000" opacity=".18"/>
+      <path d="M60 16 C88 16 100 42 100 80 C100 70 92 48 78 44 C74 34 68 30 60 30 C52 30 46 34 42 44 C28 48 20 70 20 80 C20 42 32 16 60 16 Z" fill="#2a5590"/>
+      <path d="M42 44 Q60 28 78 44" fill="none" stroke="#4f86d4" stroke-width="2" opacity=".75"/>
+      <path d="M20 80 C20 58 32 28 60 20" fill="none" stroke="#9fc4ff" stroke-width="1.8" opacity=".55"/>
+      <!-- determined eyes + beard hint -->
+      <ellipse cx="52" cy="68" rx="2.6" ry="3" fill="#1f2c3d"/>
+      <ellipse cx="68" cy="68" rx="2.6" ry="3" fill="#1f2c3d"/>
+      <path d="M47 62 Q52 59 57 62 M63 62 Q68 59 73 62" stroke="#4a3826" stroke-width="1.8" fill="none" stroke-linecap="round"/>
+      <path d="M60 74 L57 81 L63 81" fill="none" stroke="#7a4e30" stroke-width="1.5"/>
+      <path d="M50 86 Q60 96 70 86 Q66 92 60 92 Q54 92 50 86 Z" fill="#3a2a1c" opacity=".55"/>
+      <!-- long knight saber -->
+      <rect x="90" y="150" width="9" height="22" rx="2" fill="#cdd6e6" stroke="#7e8da8" stroke-width="1"/>
+      <rect x="90" y="158" width="9" height="2" fill="#7e8da8"/>
+      <line x1="94.5" y1="150" x2="94.5" y2="64" stroke="#2f74d6" stroke-width="6" stroke-linecap="round"/>
+      <line x1="94.5" y1="150" x2="94.5" y2="64" stroke="#cfe4ff" stroke-width="2" stroke-linecap="round" opacity=".9"/>
     </symbol>
     <symbol id="char-3" viewBox="0 0 120 220">
-      <circle cx="60" cy="110" r="62" fill="none" stroke="#f5c518" stroke-width="1" opacity=".22"/>
-      <ellipse cx="60" cy="206" rx="38" ry="8" fill="#f5c518" opacity=".18"/>
-      <g fill="none" stroke="#f5c518" stroke-width="2.6" stroke-linejoin="round" stroke-linecap="round">
-        <path d="M36 80 L24 196 Q60 188 96 196 L84 80 Q60 64 36 80 Z"/>
-        <path d="M60 72 L53 196 M60 72 L67 196"/>
-        <path d="M40 62 Q38 26 60 20 Q82 26 80 62 Q60 76 40 62 Z"/>
-        <path d="M36 82 Q60 70 84 82"/>
-        <path d="M84 94 Q94 104 96 122"/>
-      </g>
-      <path d="M46 52 Q60 66 74 52 Q72 32 60 30 Q48 32 46 52 Z" fill="rgba(2,6,16,.85)"/>
-      <path d="M50 60 Q60 86 70 60" fill="none" stroke="#f5c518" stroke-width="2" opacity=".8"/>
-      <rect x="92" y="124" width="9" height="22" rx="2" fill="none" stroke="#e7d59a" stroke-width="2"/>
-      <line x1="96.5" y1="124" x2="96.5" y2="44" stroke="#f5c518" stroke-width="6.5" stroke-linecap="round"/>
-      <line x1="96.5" y1="124" x2="96.5" y2="44" stroke="#fff3c4" stroke-width="2.2" stroke-linecap="round" opacity=".9"/>
-      <g fill="#ffe27a"><circle cx="30" cy="70" r="2"/><circle cx="92" cy="40" r="1.6"/><circle cx="40" cy="120" r="1.4"/></g>
+      <circle cx="60" cy="96" r="58" fill="url(#aura3)"/>
+      <g stroke="#f5c518" stroke-width="1" opacity=".3" fill="none"><circle cx="60" cy="96" r="56"/></g>
+      <ellipse cx="60" cy="208" rx="42" ry="8" fill="#000" opacity=".34"/>
+      <!-- gnarled master staff -->
+      <path d="M21 58 Q26 100 21 142 Q26 182 23 202" fill="none" stroke="#6e5a2e" stroke-width="5" stroke-linecap="round"/>
+      <path d="M21 58 Q26 100 21 142 Q26 182 23 202" fill="none" stroke="#a8923f" stroke-width="1.6" stroke-linecap="round" opacity=".7"/>
+      <path d="M21 58 q-6 -4 -2 -10 q6 2 4 10" fill="#6e5a2e" stroke="#a8923f" stroke-width="1"/>
+      <circle cx="24" cy="100" r="2.4" fill="#a8923f" opacity=".8"/>
+      <circle cx="22" cy="150" r="2" fill="#a8923f" opacity=".7"/>
+      <path d="M60 92 C34 96 20 120 14 168 C10 198 12 210 12 210 L108 210 C108 210 110 198 106 168 C100 120 86 96 60 92 Z" fill="url(#robe3)"/>
+      <path d="M60 100 L60 210 M40 146 Q36 180 42 210 M80 146 Q84 180 78 210" stroke="#1a1408" stroke-width="2" fill="none" opacity=".5"/>
+      <path d="M60 100 L44 150 L60 158 L76 150 Z" fill="#2a2110"/>
+      <!-- gold trim collar -->
+      <path d="M44 150 L60 158 L76 150" fill="none" stroke="#f5c518" stroke-width="2" opacity=".7"/>
+      <path d="M60 18 C88 18 100 40 100 78 C100 104 88 118 60 120 C32 118 20 104 20 78 C20 40 32 18 60 18 Z" fill="#5a4414"/>
+      <ellipse cx="60" cy="66" rx="21" ry="25" fill="url(#skinD)"/>
+      <path d="M60 41 C74 41 82 54 82 68 C82 84 74 93 60 93 Z" fill="#000" opacity=".14"/>
+      <!-- wise brow + eyes -->
+      <ellipse cx="51" cy="66" rx="2.6" ry="3" fill="#2a2417"/>
+      <ellipse cx="69" cy="66" rx="2.6" ry="3" fill="#2a2417"/>
+      <path d="M45 59 Q51 56 57 60 M63 60 Q69 56 75 59" stroke="#cfcabf" stroke-width="1.8" fill="none" stroke-linecap="round"/>
+      <path d="M60 72 L56 80 L64 80" fill="none" stroke="#9c7a52" stroke-width="1.5"/>
+      <!-- white beard -->
+      <path d="M44 80 Q46 104 60 112 Q74 104 76 80 Q70 92 60 92 Q50 92 44 80 Z" fill="#e8e2d4"/>
+      <path d="M52 90 Q60 98 68 90" fill="none" stroke="#cfc8b8" stroke-width="1.4"/>
+      <!-- hood front, gold rim light -->
+      <path d="M60 14 C90 14 102 40 102 80 C102 68 94 46 78 42 C74 32 68 28 60 28 C52 28 46 32 42 42 C26 46 18 68 18 80 C18 40 30 14 60 14 Z" fill="#6b5118"/>
+      <path d="M42 42 Q60 26 78 42" fill="none" stroke="#f5c518" stroke-width="2.4"/>
+      <path d="M18 80 C18 56 30 26 60 16 C90 26 102 56 102 80" fill="none" stroke="#ffe27a" stroke-width="2" opacity=".7"/>
+      <!-- full master saber -->
+      <rect x="91" y="152" width="10" height="24" rx="2" fill="#e7d59a" stroke="#a8923f" stroke-width="1"/>
+      <rect x="91" y="161" width="10" height="2" fill="#a8923f"/>
+      <line x1="96" y1="152" x2="96" y2="40" stroke="#f5c518" stroke-width="6.5" stroke-linecap="round"/>
+      <line x1="96" y1="152" x2="96" y2="40" stroke="#fff6cf" stroke-width="2.2" stroke-linecap="round" opacity=".95"/>
+      <g fill="#ffe27a"><circle cx="26" cy="60" r="2"/><circle cx="96" cy="34" r="1.6"/><circle cx="34" cy="128" r="1.6"/><circle cx="88" cy="122" r="1.4"/></g>
     </symbol>
   </defs>
 </svg>
@@ -124,6 +204,8 @@
     <a href="#arquetipos">Arquétipos</a>
     <a href="#sombrio">Lado Sombrio</a>
     <a href="#missao">A Missão</a>
+    <a href="#kyber">Kyber Game</a>
+    <a href="#arquivo">Arquivo</a>
     <a class="nav-cta" href="#cta">Ative a Força</a>
   </div>
 </nav>
@@ -143,10 +225,7 @@
   </svg>
   <div class="hero-inner">
     <div class="hero-kicker">A AGILIDADE DESPERTOU</div>
-    <svg class="hero-wordmark" viewBox="0 0 780 350" role="img" aria-label="Força Ágil">
-      <text x="390" y="160" class="sw-text" text-anchor="middle">FORÇA</text>
-      <text x="390" y="324" class="sw-text" text-anchor="middle">ÁGIL</text>
-    </svg>
+    <h1 class="hero-wordmark"><span>FORÇA</span><span class="wm-2">ÁGIL</span></h1>
     <div class="hero-sub">Desperte o Futuro Sustentável</div>
     <div class="hero-meta">
       <span>Oficina · <b>do Estratégico ao Operacional</b></span>
@@ -157,12 +236,6 @@
       <a class="btn btn--primary" href="#crawl">Iniciar a jornada</a>
       <a class="btn" href="#missao">Ver a missão</a>
     </div>
-  </div>
-  <!-- naves voando -->
-  <div class="ships" aria-hidden="true">
-    <svg class="ship ship-1" viewBox="0 0 64 32"><g fill="#d7e2f5" stroke="#7e8fb4" stroke-width=".6"><path d="M3 16 L42 9 L62 16 L42 23 Z"/><path d="M41 9 L55 1 L48 12 Z"/><path d="M41 23 L55 31 L48 20 Z"/></g><circle cx="5" cy="16" r="2.4" fill="#7af0e8"/></svg>
-    <svg class="ship ship-2" viewBox="0 0 64 32"><g fill="#c2d0ea" stroke="#6b7c9e" stroke-width=".6"><path d="M3 16 L42 9 L62 16 L42 23 Z"/><path d="M41 9 L55 1 L48 12 Z"/><path d="M41 23 L55 31 L48 20 Z"/></g><circle cx="5" cy="16" r="2.4" fill="#f5c518"/></svg>
-    <svg class="ship ship-3" viewBox="0 0 64 32"><g fill="#aebcd8" stroke="#5a6a8c" stroke-width=".6"><path d="M3 16 L42 9 L62 16 L42 23 Z"/><path d="M41 9 L55 1 L48 12 Z"/><path d="M41 23 L55 31 L48 20 Z"/></g><circle cx="5" cy="16" r="2.2" fill="#57d3ff"/></svg>
   </div>
   <div class="scroll-cue"><span>Role para começar</span><span class="bar"></span></div>
 </header>
@@ -367,6 +440,229 @@
   </div>
 </section>
 
+<div class="divider"><svg width="14" height="14"><use href="#i-mark"/></svg></div>
+
+<!-- ===== A MISSÃO (workshop) ===== -->
+<section class="section" id="missao">
+  <div class="reveal">
+    <span class="eyebrow">A Missão</span>
+    <h2 class="sec-title">A <span class="glow-gold">Oficina de Agilidade Organizacional</span></h2>
+    <p class="sec-lead">Eficiência com foco no futuro sustentável: trabalhar de forma mais simples e colaborativa, priorizando o que realmente gera valor, reduzindo desperdícios e usando melhor nossos recursos — para que cada entrega faça diferença na vida dos associados, hoje e no futuro.</p>
+  </div>
+
+  <div class="phases">
+    <div class="phase reveal">
+      <svg class="ph-ico"><use href="#i-rocket"/></svg>
+      <div class="ph-k">FASE 1</div>
+      <h3>Imersão</h3>
+      <div class="ph-s">Simplifique &amp; Priorize — fundamentos, mentalidade e os valores que sustentam a jornada.</div>
+    </div>
+    <div class="phase reveal" data-d="1">
+      <svg class="ph-ico"><use href="#i-box"/></svg>
+      <div class="ph-k">FASE 2</div>
+      <h3>Box</h3>
+      <div class="ph-s">Ferramentas &amp; Ação — colocar o ágil em prática no dia a dia, muito além de frameworks em times pequenos.</div>
+    </div>
+  </div>
+
+  <div class="themes-row">
+    <div class="theme-chip reveal"><div class="tn">TEMA 01</div><h4>Fundamentos da Agilidade Organizacional</h4></div>
+    <div class="theme-chip reveal" data-d="1"><div class="tn">TEMA 02</div><h4>Liderança e Transformação</h4></div>
+    <div class="theme-chip reveal" data-d="2"><div class="tn">TEMA 03</div><h4>Estratégia, Métricas e Governança</h4></div>
+    <div class="theme-chip reveal" data-d="3"><div class="tn">TEMA 04</div><h4>Execução Ágil · Lean, Fluxo, Kanban &amp; Kaizen</h4></div>
+  </div>
+
+  <!-- Agenda -->
+  <div class="reveal" style="margin-top:72px">
+    <span class="eyebrow">Plano de Voo · 5 dias</span>
+    <h3 class="sec-title" style="font-size:clamp(1.6rem,4vw,2.6rem)">A jornada dia a dia</h3>
+  </div>
+  <div class="agenda">
+    <div class="day open reveal">
+      <div class="day-head"><span class="dnum">D1</span><span class="dttl">O Despertar — Imersão, OKR &amp; foco</span><svg class="dchev" width="20" height="20"><use href="#i-chev-d"/></svg></div>
+      <div class="day-body"><ul>
+        <li><span class="dur">15min</span> Imersão storytelling: o despertar da Força — dar o tom · <i>VUCA/BANI, ágil vs. cascata</i></li>
+        <li><span class="dur">30min</span> Quebra-gelo: apresentação pessoal (sem cargo) — <i>"sem crachá, sem hierarquia"</i></li>
+        <li><span class="dur">10min</span> Exercício de atenção plena — treinar foco · <i>mindfulness</i></li>
+        <li><span class="dur">15min</span> Teste "Qual seu nível na Força Ágil?" — autodiagnóstico · <i>empoderamento</i></li>
+        <li><span class="dur">20min</span> Dinâmica de vieses ("Não pode") — <i>vieses inconscientes</i></li>
+        <li><span class="dur">40min</span> OKR: brainstorming, votação e enunciado de Objetivo e Key Results · <i>OKR</i></li>
+        <li><span class="dur">15min</span> Intervalo — como funciona o cérebro</li>
+        <li><span class="dur">15min</span> Separação em grupos — <i>times pequenos &amp; trabalho em equipe</i></li>
+        <li><span class="dur">20min</span> Review do dia — <i>Scrum, ciclos curtos, controle de WIP</i></li>
+        <li><span class="dur">30min</span> Retrospectiva — <i>melhoria contínua</i></li>
+      </ul></div>
+    </div>
+    <div class="day reveal">
+      <div class="day-head"><span class="dnum">D2</span><span class="dttl">Entendimento de cenário &amp; Código Jedi</span><svg class="dchev" width="20" height="20"><use href="#i-chev-d"/></svg></div>
+      <div class="day-body"><ul>
+        <li><span class="dur">15min</span> Planning do dia — <i>Scrum, ciclos curtos, WIP</i></li>
+        <li><span class="dur">20min</span> Matriz CSD (Certezas, Suposições, Dúvidas) — entendimento de cenário · <i>Design Thinking</i></li>
+        <li><span class="dur">15min</span> FOFA (SWOT) — leitura do ambiente</li>
+        <li><span class="dur">15min</span> Mapa de Stakeholders — ferramenta visual</li>
+        <li><span class="dur">15min</span> "É / Não é · Faz / Não faz" — <i>Lean Inception</i></li>
+        <li><span class="dur">15min</span> Intervalo</li>
+        <li><span class="dur">20min</span> Código Jedi: valores e princípios — <i>Manifesto Ágil</i></li>
+        <li><span class="dur">20min</span> Review &amp; Retrospectiva — verificar entregas e melhorias</li>
+      </ul></div>
+    </div>
+    <div class="day reveal">
+      <div class="day-head"><span class="dnum">D3</span><span class="dttl">Definição do problema — Design Thinking</span><svg class="dchev" width="20" height="20"><use href="#i-chev-d"/></svg></div>
+      <div class="day-body"><ul>
+        <li><span class="dur">15min</span> Planning do dia — Scrum, ciclos curtos</li>
+        <li><span class="dur">10min</span> Atenção plena — treinar foco · <i>mindfulness</i></li>
+        <li><span class="dur">20min</span> Quebra-gelo "super poder" — autoconhecimento · <i>habilidades profissionais</i></li>
+        <li><span class="dur">15min</span> 5 Porquês — investigação de causa raiz</li>
+        <li><span class="dur">20min</span> Brainstorming — definição do problema · <i>DT (divergência)</i></li>
+        <li><span class="dur">15min</span> Votação e seleção — <i>DT (convergência)</i></li>
+        <li><span class="dur">20min</span> Duplo Diamante — entender o conceito</li>
+        <li><span class="dur">20min</span> Review &amp; Retrospectiva</li>
+      </ul></div>
+    </div>
+    <div class="day reveal">
+      <div class="day-head"><span class="dnum">D4</span><span class="dttl">Liderança Ágil &amp; Priorização</span><svg class="dchev" width="20" height="20"><use href="#i-chev-d"/></svg></div>
+      <div class="day-body"><ul>
+        <li><span class="dur">15min</span> Planning do dia — Scrum, ciclos curtos</li>
+        <li><span class="dur">10min</span> Atenção plena — treinar foco</li>
+        <li><span class="dur">20min</span> Priorização — o que gera mais valor primeiro</li>
+        <li><span class="dur">trilha</span> Liderança Ágil: aprimoramento de soft skills</li>
+        <li><span class="dur">trilha</span> Liderança transformacional: criando uma cultura de excelência</li>
+        <li><span class="dur">trilha</span> Team Building: técnicas e práticas para times ágeis</li>
+        <li><span class="dur">trilha</span> Gestão de mudanças: uma visão comportamental</li>
+        <li><span class="dur">20min</span> Review &amp; Retrospectiva</li>
+      </ul></div>
+    </div>
+    <div class="day reveal">
+      <div class="day-head"><span class="dnum">D5</span><span class="dttl">Prototipação, entrega &amp; encerramento</span><svg class="dchev" width="20" height="20"><use href="#i-chev-d"/></svg></div>
+      <div class="day-body"><ul>
+        <li><span class="dur">15min</span> Planning do dia — Scrum, ciclos curtos</li>
+        <li><span class="dur">10min</span> Atenção plena — treinar foco</li>
+        <li><span class="dur">40min</span> Prototipação — materializar as entregas · <i>DT (prototipação)</i></li>
+        <li><span class="dur">40min</span> Apresentação final dos times — apresentar resultados obtidos</li>
+        <li><span class="dur">15min</span> Teste "Qual seu nível na Força Ágil?" — autodiagnóstico de avanço</li>
+        <li><span class="dur">20min</span> Review &amp; encerramento da jornada</li>
+      </ul></div>
+    </div>
+  </div>
+
+  <!-- Turmas -->
+  <div class="reveal" style="margin-top:72px">
+    <span class="eyebrow">Esquadrões</span>
+    <h3 class="sec-title" style="font-size:clamp(1.6rem,4vw,2.6rem)">Escolha sua turma</h3>
+  </div>
+  <div class="turmas">
+    <div class="turma reveal"><svg class="ti"><use href="#i-rocket"/></svg><div class="tk">TURMA 1</div><div class="tm">Agosto</div><div class="td">11 · 12 · 18 · 19 · 20</div></div>
+    <div class="turma reveal" data-d="1"><svg class="ti"><use href="#i-cal"/></svg><div class="tk">TURMA 2</div><div class="tm">Setembro</div><div class="td">09 · 10 · 11 · 15 · 16</div><div class="tx">Box: 31/08 a 03/09</div></div>
+    <div class="turma reveal" data-d="2"><svg class="ti"><use href="#i-clock"/></svg><div class="tk">TURMA 3</div><div class="tm">Novembro</div><div class="td">17 · 18 · 19 · 24 · 25</div></div>
+  </div>
+</section>
+
+<div class="divider"><svg width="14" height="14"><use href="#i-mark"/></svg></div>
+
+<!-- ===== OPERAÇÃO KYBER ÁGIL (minigame + ranking Firebase) ===== -->
+<section class="kyber-section" id="kyber">
+  <div class="kyber-header">
+    <span class="eyebrow">Minigame Interativo</span>
+    <h2>Operação Kyber Ágil</h2>
+    <p>O Império capturou os planos da base Rebelde. Você é um agente da Resistência. Tome decisões rápidas, adapte-se e ganhe pontos. Cada escolha ágil te aproxima do topo do ranking dos Heróis da Galáxia — visível para toda a turma em tempo real.</p>
+  </div>
+
+  <div class="kyber-arena" id="kyber-arena">
+
+    <!-- Setup screen -->
+    <div class="kyber-setup" id="kyber-setup">
+      <h3>🚀 Inicialize sua Missão</h3>
+      <div class="input-grid">
+        <div class="input-wide">
+          <label class="input-label" for="kyber-player-name">Seu nome, Agente</label>
+          <input type="text" id="kyber-player-name" placeholder="Como te chamamos?" autocomplete="off" />
+        </div>
+        <div>
+          <label class="input-label" for="kyber-player-area">Área / Gerência</label>
+          <input type="text" id="kyber-player-area" placeholder="Ex.: TI, Benefícios…" autocomplete="off" />
+        </div>
+        <div>
+          <label class="input-label" for="kyber-player-turma">Turma</label>
+          <select id="kyber-player-turma">
+            <option value="">Selecione…</option>
+            <option value="Turma 1 · Agosto">Turma 1 · Agosto</option>
+            <option value="Turma 2 · Setembro">Turma 2 · Setembro</option>
+            <option value="Turma 3 · Novembro">Turma 3 · Novembro</option>
+          </select>
+        </div>
+      </div>
+      <button class="btn btn--primary" id="kyber-start">Começar Operação →</button>
+    </div>
+
+    <!-- Challenge screen -->
+    <div class="kyber-challenge" id="kyber-challenge" style="display:none;">
+      <div class="kyber-header-row">
+        <span class="kyber-progress" id="kyber-progress">Desafio 1/25</span>
+        <span class="kyber-score"    id="kyber-score">Pontuação: 0 pts</span>
+        <span class="kyber-timer"    id="kyber-timer">30s</span>
+      </div>
+      <div class="kyber-situation" id="kyber-situation"></div>
+      <div class="kyber-context"   id="kyber-context"></div>
+      <div class="kyber-options"   id="kyber-options"></div>
+      <div class="kyber-feedback"  id="kyber-feedback"></div>
+      <div class="kyber-actions">
+        <button class="btn btn--primary" id="kyber-next" style="display:none;">Próximo Desafio →</button>
+      </div>
+    </div>
+
+    <!-- Game Over screen -->
+    <div class="kyber-gameover" id="kyber-gameover" style="display:none;"></div>
+
+    <!-- Leaderboard (Firebase tempo real) -->
+    <div class="kyber-leaderboard" id="kyber-leaderboard"></div>
+
+  </div>
+</section>
+
+<div class="divider"><svg width="14" height="14"><use href="#i-mark"/></svg></div>
+
+<!-- ===== ARQUIVO HOLOCRON (repositório) ===== -->
+<section class="section" id="arquivo">
+  <div class="reveal">
+    <span class="eyebrow">Arquivo Holocron</span>
+    <h2 class="sec-title">Repositório de <span class="glow-cyan">conhecimento</span></h2>
+    <p class="sec-lead">A biblioteca da Sociedade Jedi: vídeos de agilidade, documentos da oficina, ferramentas e links úteis. Adicione novos recursos — eles ficam guardados neste holocron (no seu navegador).</p>
+  </div>
+
+  <div class="repo-bar reveal">
+    <div class="repo-filters" id="repoFilters">
+      <button class="repo-chip active" data-f="all">Todos</button>
+      <button class="repo-chip" data-f="video"><svg width="13" height="13"><use href="#i-play"/></svg> Vídeos</button>
+      <button class="repo-chip" data-f="doc"><svg width="13" height="13"><use href="#i-doc"/></svg> Documentos</button>
+      <button class="repo-chip" data-f="tool"><svg width="13" height="13"><use href="#i-tool"/></svg> Ferramentas</button>
+      <button class="repo-chip" data-f="link"><svg width="13" height="13"><use href="#i-link"/></svg> Links</button>
+    </div>
+    <button class="btn btn--primary repo-add-btn" id="repoAddBtn"><svg width="14" height="14"><use href="#i-plus"/></svg> Adicionar recurso</button>
+  </div>
+
+  <!-- add form (hidden by default) -->
+  <form class="repo-form reveal" id="repoForm" hidden>
+    <div class="repo-form-grid">
+      <label>Título<input type="text" id="rfTitle" placeholder="Ex.: Manifesto Ágil em 3 minutos" required /></label>
+      <label>Tipo<select id="rfType">
+        <option value="video">Vídeo</option>
+        <option value="doc">Documento</option>
+        <option value="tool">Ferramenta</option>
+        <option value="link">Link</option>
+      </select></label>
+      <label class="rf-wide">Link (URL)<input type="url" id="rfUrl" placeholder="https://…" required /></label>
+      <label class="rf-wide">Descrição<input type="text" id="rfDesc" placeholder="Para que serve / por que é útil" /></label>
+    </div>
+    <div class="repo-form-actions">
+      <button type="submit" class="btn btn--primary">Guardar no holocron</button>
+      <button type="button" class="btn" id="repoCancel">Cancelar</button>
+    </div>
+  </form>
+
+  <div class="repo-grid" id="repoGrid"></div>
+  <p class="repo-empty" id="repoEmpty" hidden>Nenhum recurso nesta categoria ainda. Use <b>Adicionar recurso</b> para começar.</p>
+</section>
+
 <!-- ===== LADO SOMBRIO ===== -->
 <section class="darkside">
   <div class="section" id="sombrio">
@@ -427,159 +723,6 @@
 
 <div class="divider"><svg width="14" height="14"><use href="#i-mark"/></svg></div>
 
-<!-- ===== A MISSÃO (workshop) ===== -->
-<section class="section" id="missao">
-  <div class="reveal">
-    <span class="eyebrow">A Missão</span>
-    <h2 class="sec-title">O Bootcamp <span class="glow-gold">Força Ágil</span></h2>
-    <p class="sec-lead">Eficiência com foco no futuro sustentável: trabalhar de forma mais simples e colaborativa, priorizando o que realmente gera valor, reduzindo desperdícios e usando melhor nossos recursos — para que cada entrega faça diferença na vida dos associados, hoje e no futuro.</p>
-  </div>
-
-  <div class="phases">
-    <div class="phase reveal">
-      <svg class="ph-ico"><use href="#i-rocket"/></svg>
-      <div class="ph-k">FASE 1</div>
-      <h3>Bootcamp</h3>
-      <div class="ph-s">Simplifique &amp; Priorize — fundamentos, mentalidade e os valores que sustentam a jornada.</div>
-    </div>
-    <div class="phase reveal" data-d="1">
-      <svg class="ph-ico"><use href="#i-box"/></svg>
-      <div class="ph-k">FASE 2</div>
-      <h3>Box</h3>
-      <div class="ph-s">Ferramentas &amp; Ação — colocar o ágil em prática no dia a dia, muito além de frameworks em times pequenos.</div>
-    </div>
-  </div>
-
-  <div class="themes-row">
-    <div class="theme-chip reveal"><div class="tn">TEMA 01</div><h4>Fundamentos da Agilidade Organizacional</h4></div>
-    <div class="theme-chip reveal" data-d="1"><div class="tn">TEMA 02</div><h4>Liderança e Transformação</h4></div>
-    <div class="theme-chip reveal" data-d="2"><div class="tn">TEMA 03</div><h4>Estratégia, Métricas e Governança</h4></div>
-    <div class="theme-chip reveal" data-d="3"><div class="tn">TEMA 04</div><h4>Execução Ágil · Lean, Fluxo, Kanban &amp; Kaizen</h4></div>
-  </div>
-
-  <!-- Agenda -->
-  <div class="reveal" style="margin-top:72px">
-    <span class="eyebrow">Plano de Voo · 5 dias</span>
-    <h3 class="sec-title" style="font-size:clamp(1.6rem,4vw,2.6rem)">A jornada dia a dia</h3>
-  </div>
-  <div class="agenda">
-    <div class="day open reveal">
-      <div class="day-head"><span class="dnum">D1</span><span class="dttl">O Despertar — mentalidade e essência</span><svg class="dchev" width="20" height="20"><use href="#i-chev-d"/></svg></div>
-      <div class="day-body"><ul>
-        <li>Quebra-gelo inicial — apresentação pessoal, horizontalização e "sem crachá" nos processos do ágil.</li>
-        <li>Autodiagnóstico de mentalidade ágil — categorizar os participantes e reavaliar a mudança ao final.</li>
-        <li>Montagem da CSD — trabalhar o entendimento do problema (Certezas, Suposições, Dúvidas).</li>
-        <li>Os 4 valores e os 12 princípios — demonstrando a essência do ágil.</li>
-      </ul></div>
-    </div>
-    <div class="day reveal">
-      <div class="day-head"><span class="dnum">D2</span><span class="dttl">Cenário, valor e vieses</span><svg class="dchev" width="20" height="20"><use href="#i-chev-d"/></svg></div>
-      <div class="day-body"><ul>
-        <li>Ferramentas de entendimento de cenário — trabalhar o primeiro valor do ágil.</li>
-        <li>Apresentação da agilidade organizacional.</li>
-        <li>Situação-problema apresentada para cada grupo (cenários diferentes).</li>
-        <li>Quebra-gelo — dinâmica sobre vieses (o jogo do "não pode").</li>
-      </ul></div>
-    </div>
-    <div class="day reveal">
-      <div class="day-head"><span class="dnum">D3</span><span class="dttl">Liderança e influência</span><svg class="dchev" width="20" height="20"><use href="#i-chev-d"/></svg></div>
-      <div class="day-body"><ul>
-        <li>Atividade em equipe — reflexão sobre liderança e influência.</li>
-      </ul></div>
-    </div>
-    <div class="day reveal">
-      <div class="day-head"><span class="dnum">D4</span><span class="dttl">Comunicação e colaboração</span><svg class="dchev" width="20" height="20"><use href="#i-chev-d"/></svg></div>
-      <div class="day-body"><ul>
-        <li>Quebra-gelo — dinâmica de comunicação.</li>
-        <li><em>Programação em construção.</em></li>
-      </ul></div>
-    </div>
-    <div class="day reveal">
-      <div class="day-head"><span class="dnum">D5</span><span class="dttl">Encerramento &amp; próximos passos</span><svg class="dchev" width="20" height="20"><use href="#i-chev-d"/></svg></div>
-      <div class="day-body"><ul>
-        <li>Fechamento da jornada e plano de ação. <em>Data e roteiro em definição.</em></li>
-      </ul></div>
-    </div>
-  </div>
-
-  <!-- Turmas -->
-  <div class="reveal" style="margin-top:72px">
-    <span class="eyebrow">Esquadrões</span>
-    <h3 class="sec-title" style="font-size:clamp(1.6rem,4vw,2.6rem)">Escolha sua turma</h3>
-  </div>
-  <div class="turmas">
-    <div class="turma reveal"><svg class="ti"><use href="#i-rocket"/></svg><div class="tk">TURMA 1</div><div class="tm">Agosto</div><div class="td">11 · 12 · 18 · 19 · 20</div></div>
-    <div class="turma reveal" data-d="1"><svg class="ti"><use href="#i-cal"/></svg><div class="tk">TURMA 2</div><div class="tm">Setembro</div><div class="td">09 · 10 · 11 · 15 · 16</div><div class="tx">Box: 31/08 a 03/09</div></div>
-    <div class="turma reveal" data-d="2"><svg class="ti"><use href="#i-clock"/></svg><div class="tk">TURMA 3</div><div class="tm">Novembro</div><div class="td">17 · 18 · 19 · 24 · 25</div></div>
-  </div>
-</section>
-
-<div class="divider"><svg width="14" height="14"><use href="#i-mark"/></svg></div>
-
-<!-- ===== MAPAS DO IMPÉRIO ===== -->
-<section class="section" id="mapas">
-  <div class="reveal">
-    <span class="eyebrow">Os Mapas do Império</span>
-    <h2 class="sec-title">A <span class="glow-cyan">Estrela da Morte</span> dos processos</h2>
-    <p class="sec-lead">Estes são mapas reais da Concessão de Benefícios de Aposentadoria (fluxos AAWEB e BENEF). São o tipo de processo denso, centralizado e cheio de etapas que a Força Ágil vem simplificar — transformando grandes estruturas rígidas em fluxos de valor.</p>
-  </div>
-  <div class="holo-frame reveal">
-    <div class="holo-top"><span class="dot"></span> TRANSMISSÃO HOLOGRÁFICA · ARQUIVO PREVI · BENEF / AAWEB</div>
-    <div class="holo-img"><img src="forca-agil/assets/mapa-processos.png" alt="Mapas de processo da Concessão de Benefícios de Aposentadoria — fluxos AAWEB e BENEF" loading="lazy" /></div>
-  </div>
-  <p class="holo-cap">Na oficina, mapas como este viram alvo das práticas ágeis: simplificar, priorizar e fazer o valor fluir.</p>
-</section>
-
-<div class="divider"><svg width="14" height="14"><use href="#i-mark"/></svg></div>
-
-<!-- ===== OPERAÇÃO KYBER ÁGIL ===== -->
-<section class="kyber-section" id="kyber">
-  <div class="kyber-header">
-    <span class="eyebrow">Minigame Interativo</span>
-    <h2>Operação Kyber Ágil</h2>
-    <p>O Império capturou os planos da base Rebelde. Você é um agente da Resistência. Tome decisões rápidas, adapte-se aos ataques e ganhe pontos. Cada escolha ágil te aproxima do topo do ranking dos Heróis da Galáxia.</p>
-  </div>
-
-  <div class="kyber-arena" id="kyber-arena">
-    <!-- Setup screen -->
-    <div class="kyber-setup" id="kyber-setup">
-      <h3>🚀 Inicialize sua Missão</h3>
-      <div class="input-row">
-        <input type="text" id="kyber-player-name" placeholder="Digite seu nome, Agente..." />
-        <button class="btn btn--primary" id="kyber-start">Começar Operação</button>
-      </div>
-    </div>
-
-    <!-- Challenge screen -->
-    <div class="kyber-challenge" id="kyber-challenge" style="display:none;">
-      <div class="kyber-header-row">
-        <span class="kyber-progress" id="kyber-progress">Desafio 1/6</span>
-        <span class="kyber-score" id="kyber-score">Pontuação: 0 pts</span>
-        <span class="kyber-timer" id="kyber-timer">30s</span>
-      </div>
-
-      <div class="kyber-situation" id="kyber-situation"></div>
-      <div class="kyber-context" id="kyber-context"></div>
-
-      <div class="kyber-options" id="kyber-options"></div>
-
-      <div class="kyber-feedback" id="kyber-feedback"></div>
-
-      <div class="kyber-actions">
-        <button class="btn btn--primary" id="kyber-next">Próximo Desafio →</button>
-      </div>
-    </div>
-
-    <!-- Game Over screen -->
-    <div class="kyber-gameover" id="kyber-gameover"></div>
-
-    <!-- Leaderboard -->
-    <div class="kyber-leaderboard" id="kyber-leaderboard"></div>
-  </div>
-</section>
-
-<div class="divider"><svg width="14" height="14"><use href="#i-mark"/></svg></div>
-
 <!-- ===== CTA ===== -->
 <section class="cta section" id="cta">
   <div class="reveal">
@@ -608,467 +751,16 @@
 
 <script src="forca-agil/stars.js"></script>
 <script src="forca-agil/app.js"></script>
+<script src="forca-agil/repo.js"></script>
 <script src="forca-agil/game.js"></script>
 
-<!-- Operação Kyber Ágil - Jogo Funcional -->
-<script>
-const CHALLENGES = [
-  // ===== MANIFESTO ÁGIL =====
-  {
-    situation: "O Império lançou um ataque à base. Você tem 2 horas para decidir como reagir.",
-    context: "Como proceder?",
-    options: [
-      { text: "Reunir lideranças, mapear tudo e montar plano perfeito em 90 min.", correct: false, agile: "Planejamento rígido — exatamente o que o Império espera." },
-      { text: "Dividir em 3 squads, cada um decide sua rota em 15 min, ajusta conforme o inimigo se move.", correct: true, agile: "Entrega rápida, adaptação contínua, decisão distribuída — ágil!" },
-      { text: "Enviar mensagens de status a cada 10 min, mas não mexer em nada.", correct: false, agile: "Overhead de comunicação sem ação — paralisia." },
-      { text: "Esperar mais 30 min para ter TODAS as informações antes de agir.", correct: false, agile: "Perfeição da informação = derrota. Ágil é decidir com ~70% da info." }
-    ]
-  },
-  {
-    situation: "Um novo droides defensor foi desenvolvido. Teste completo em 3 meses ou MVP em 2 semanas?",
-    context: "Como maximizar valor à Resistência?",
-    options: [
-      { text: "Esperar 3 meses. Um produto perfeito é melhor.", correct: false, agile: "Modo waterfall — risco total. Defesa pode chegar antes." },
-      { text: "Lançar MVP em 2 semanas, recolher feedback dos Rebeldes, iterar rapidamente.", correct: true, agile: "Produto funcionando, aprendizado real, adaptação rápida = ágil." },
-      { text: "Lançar em 4 meses — meio termo que agrada ninguém.", correct: false, agile: "Nem rápido, nem bem testado. Pior dos dois mundos." },
-      { text: "Fazer piloto secreto por 1 mês sem contar a ninguém.", correct: false, agile: "Falta transparência e colaboração com o time." }
-    ]
-  },
-  {
-    situation: "1 mês para defender uma base. 15 pessoas. Lista de 'imprescindíveis' tem 45 tarefas.",
-    context: "Como priorizar?",
-    options: [
-      { text: "Fazer tudo. Adicionar mais gente. Trabalhar 24h.", correct: false, agile: "Burnout, qualidade ruim, erros. Desastre." },
-      { text: "Cliente sentado no time. Escolher top 12 tarefas que entregam máximo valor. Descartar o resto.", correct: true, agile: "Foco, simplicidade, valor real = ágil puro." },
-      { text: "Fazer as 45 em ordem, sem questionar prioridade.", correct: false, agile: "Sem pensar em valor. Modo 'lista de tarefas'." },
-      { text: "Delegar todas as decisões para o Império.", correct: false, agile: "Rendição, não agilidade." }
-    ]
-  },
-  {
-    situation: "Squad encontra erro crítico nos escudos. Corrigir leva 2 sprints. Liderança quer ignorar.",
-    context: "Você é o Scrum Master. O que faz?",
-    options: [
-      { text: "Obedecer silenciosamente.", correct: false, agile: "Falta coragem. Facilitador que não facilita." },
-      { text: "Levantar o problema com transparência, mostrar impacto, deixar liderança decidir.", correct: true, agile: "Liderança servidora, transparência, decisão informada = ágil." },
-      { text: "Consertar em segredo sem avisar ninguém.", correct: false, agile: "Falta comunicação. Surpresas ruins depois." },
-      { text: "Criar 47 documentos explicando e enviar pra 5 níveis de aprovação.", correct: false, agile: "Burocracia pura. Antágil." }
-    ]
-  },
-  {
-    situation: "Daily de 15 min virou discussão de 1h sobre arquitetura. Time frustrado.",
-    context: "Como restaurar o foco?",
-    options: [
-      { text: "Deixar como está. Discussões longas são sinal de engajamento.", correct: false, agile: "Desperdício de tempo. Timebox é timebox." },
-      { text: "Cortar a discussão, marcar reunião separada, volta a 15 min.", correct: true, agile: "Respeito ao timebox, foco, reuniões com propósito = ágil." },
-      { text: "Proibir qualquer discussão profunda.", correct: false, agile: "Perdeu aprendizado e colaboração." },
-      { text: "Fazer duas dailies: uma de 15 min e outra 'real' de 1h.", correct: false, agile: "Duplicação, confusão, perda de tempo." }
-    ]
-  },
-  {
-    situation: "Time terminou tarefas com qualidade excelente. Faltam 2 dias de sprint.",
-    context: "O que fazer?",
-    options: [
-      { text: "Relaxar. Vocês já terminaram.", correct: false, agile: "Desperdiça oportunidade de aprender e melhorar." },
-      { text: "Puxar mais tarefas do backlog. Conversar com cliente sobre máximo valor.", correct: true, agile: "Entregar continuamente, colaboração com cliente, fluxo constante = ágil." },
-      { text: "Criar tarefas fictícias para parecer ocupado.", correct: false, agile: "Desonesto. Mata confiança." },
-      { text: "Forçar tarefas de débito técnico que ninguém pediu.", correct: false, agile: "Sem validação do cliente. Pode ser desperdício." }
-    ]
-  },
+<!-- Operação Kyber Ágil -->
+<script src="forca-agil/kyber.js"></script>
 
-  // ===== KANBAN =====
-  {
-    situation: "O quadro Kanban mostra: 15 tarefas em 'A Fazer', 30 em 'Em Andamento', 5 em 'Pronto'.",
-    context: "Qual é o problema?",
-    options: [
-      { text: "Não há problema. Quanto mais trabalho em andamento, melhor a produtividade.", correct: false, kanban: "WIP alto = gargalos, contexto switching, qualidade ruim." },
-      { text: "WIP está muito alto! Limitar a 6-8 tarefas em andamento simultaneamente.", correct: true, kanban: "WIP limitado = fluxo fluido, qualidade melhor, menos desperdício." },
-      { text: "Adicionar mais coluna 'Em Análise' pra melhor organização.", correct: false, kanban: "Mais colunas = mais complexidade, não resolve WIP." },
-      { text: "Pedir para o time trabalhar mais rápido.", correct: false, kanban: "Pressão pura. Não resolve o gargalo." }
-    ]
-  },
-  {
-    situation: "Tarefas em 'Em Andamento' nunca saem porque sempre surge algo urgente.",
-    context: "Como fluir melhor?",
-    options: [
-      { text: "Criar uma coluna 'Urgências' separada para não bagunçar o fluxo.", correct: false, kanban: "Só esconde o problema. Urgências entram de qualquer jeito." },
-      { text: "Proteger o fluxo: não puxar nova tarefa enquanto não termina a atual.", correct: true, kanban: "Fluxo contínuo, cumprimento de prazos, menos contexto switching." },
-      { text: "Aumentar o time pra fazer tudo simultaneamente.", correct: false, kanban: "Mais gente = mais caos se não controlar WIP." },
-      { text: "Esperar até 'Em Andamento' vazio pra puxar tudo de uma vez.", correct: false, kanban: "Batch grande = atraso. Kanban é fluxo, não lotes." }
-    ]
-  },
-  {
-    situation: "O time puxa 40 tarefas por sprint, mas entrega só 25. Cliente frustrado.",
-    context: "Como melhorar previsibilidade?",
-    options: [
-      { text: "Puxar 50 tarefas pra compensar as que não terminam.", correct: false, kanban: "Piora WIP, piora a situação." },
-      { text: "Usar histórico para ajustar WIP e ser mais realista com capacidade.", correct: true, kanban: "Dados → WIP realista → previsibilidade → cliente feliz." },
-      { text: "Culpar o time por ser lento.", correct: false, kanban: "Culpa não muda fluxo. Dados mudam." },
-      { text: "Usar diferentes cores de post-its pra tarefas 'fáceis' e 'difíceis'.", correct: false, kanban: "Cosmético. Não resolve capacidade." }
-    ]
-  },
-  {
-    situation: "Descoberta: 60% do tempo do time é gasto em reuniões, não em trabalho real.",
-    context: "Kanban deveria revelar isso?",
-    options: [
-      { text: "Não, Kanban é só para tarefas. Reuniões são 'fora do quadro'.", correct: false, kanban: "Errado! Se tira tempo, entra no quadro." },
-      { text: "Sim! Adicionar 'Reuniões' como coluna ou bloqueador pra visualizar desperdício.", correct: true, kanban: "Visualizar tudo = encontrar ineficiências = melhorar fluxo." },
-      { text: "Continuar ignorando e esperar que passe.", correct: false, kanban: "Desperdício invisível = desperdício permanente." },
-      { text: "Proibir todas as reuniões.", correct: false, kanban: "Nem todas são desperdício. Medir, depois otimizar." }
-    ]
-  },
-
-  // ===== LEAN =====
-  {
-    situation: "O processo tem 15 etapas. Cliente espera o resultado da etapa 3, mas só recebe após a etapa 15.",
-    context: "Qual valor é gerado nas etapas 3-14?",
-    options: [
-      { text: "Qualidade. Etapas 3-14 garantem perfeição.", correct: false, lean: "Perfeição desnecessária = desperdício Lean." },
-      { text: "Nenhum valor direto ao cliente! Isso é desperdício puro que pode ser eliminado.", correct: true, lean: "Lean: elimine o que cliente não paga. Valor rápido > perfeição lenta." },
-      { text: "Tempo para corrigir erros que surgem nas etapas 3-14.", correct: false, lean: "Se há erros, o processo está quebrado, não é valor." },
-      { text: "Documentação que ninguém lê depois.", correct: false, lean: "Documentação sem uso = desperdício Lean clássico." }
-    ]
-  },
-  {
-    situation: "Time gasta 2 semanas revisando código. Código depois é commitado em 2 minutos.",
-    context: "Qual é o desperdício Lean?",
-    options: [
-      { text: "Nenhum. Review é essencial para qualidade.", correct: false, lean: "Review tem valor, mas 2 semanas > 2 minutos commit = ineficiência." },
-      { text: "Review automático com ferramentas + review humana ágil = qualidade rápida.", correct: true, lean: "Eliminar tempo ocioso, manter valor = Lean." },
-      { text: "Aumentar o time de review.", correct: false, lean: "Mais gente no gargalo não o elimina." },
-      { text: "Ignorar review completamente.", correct: false, lean: "Perder qualidade também é desperdício." }
-    ]
-  },
-  {
-    situation: "Processo antigo: Requisição → Análise (4 semanas) → Desenvolvimento (2 semanas).",
-    context: "Problema Lean?",
-    options: [
-      { text: "Nenhum. Análise profunda garante bom desenvolvimento.", correct: false, lean: "Gargalo! 4 semanas análise = cliente esperando valor." },
-      { text: "Análise paralela ao desenvolvimento reduz tempo total e gera valor mais rápido.", correct: true, lean: "Fluxo Lean: reduzir espera, maximizar valor, eliminar ineficiência." },
-      { text: "Análise é essencial, não pode reduzir.", correct: false, lean: "Pode otimizar sem perder qualidade." },
-      { text: "Aumentar analistas.", correct: false, lean: "Mais gente num gargalo = custo maior, mesmo tempo." }
-    ]
-  },
-  {
-    situation: "Relatório mensal de despesas: 40 horas para dados que ninguém usa depois.",
-    context: "Ação Lean?",
-    options: [
-      { text: "Continuar — é tradição da empresa.", correct: false, lean: "Tradição sem valor = desperdício Lean." },
-      { text: "Eliminar completamente. Se ninguém usa, não gera valor.", correct: true, lean: "Lean: elimine o que ninguém paga ou usa." },
-      { text: "Fazer relatório a cada semana em vez de mês.", correct: false, lean: "Ainda é desperdício, só mais frequente." },
-      { text: "Automatizar para 5 horas.", correct: false, lean: "Se é desperdício, automatizar não é solução." }
-    ]
-  },
-
-  // ===== KAIZEN =====
-  {
-    situation: "Time demora 1 hora para fazer deploy. Ninguém reclama — 'sempre foi assim'.",
-    context: "Oportunidade de Kaizen?",
-    options: [
-      { text: "Não. Se ninguém reclama, está bom.", correct: false, kaizen: "Kaizen busca melhoria contínua, não apenas resolver crises." },
-      { text: "Sim! Kaizen: pequenos passos. Entender o fluxo, remover 10 min por semana.", correct: true, kaizen: "Melhoria contínua = 1h → 30min → 15min ao longo de meses." },
-      { text: "Só mexer se virar crise (deploy cai).", correct: false, kaizen: "Kaizen é proativo, não reativo." },
-      { text: "Contratar especialista para redesenhar tudo de uma vez.", correct: false, kaizen: "Kaizen é incremental, não revolução." }
-    ]
-  },
-  {
-    situation: "Reunião diária leva 40 minutos. 'Sempre levou, é o padrão'.",
-    context: "Como Kaizen?",
-    options: [
-      { text: "Continuar — padrões não se mexem.", correct: false, kaizen: "Padrões ruins = oportunidade de melhoria." },
-      { text: "Reduzir 5 min/mês: cortar tangentes, foco no essencial. Meta: 15 min em 6 meses.", correct: true, kaizen: "Pequenos passos = 40min → 35 → 30 → 20 → 15 com envolvimento do time." },
-      { text: "Eliminá-la completamente.", correct: false, kaizen: "Daily tem valor. Otimize, não elimine." },
-      { text: "Aumentar para 1h pra mais discussão.", correct: false, kaizen: "Oposto de melhoria contínua." }
-    ]
-  },
-  {
-    situation: "Bug recorrente: toda sprint aparece a mesma falha em validação. Time 'já acostumou'.",
-    context: "Postura Kaizen?",
-    options: [
-      { text: "Acostumar-se é normal em software.", correct: false, kaizen: "Kaizen: problema recorrente = investigar raiz, melhorar." },
-      { text: "Investigar por que bug volta, corrigir raiz. Retrospectiva identifica padrão.", correct: true, kaizen: "Melhoria contínua elimina recorrências." },
-      { text: "Aumentar testes (solução grande).", correct: false, kaizen: "Kaizen começa pequeno: entender → pequena mudança → verificar." },
-      { text: "Ignorar e pedir ao cliente para aceitar.", correct: false, kaizen: "Pior postura contra melhoria contínua." }
-    ]
-  },
-  {
-    situation: "Planilha Excel que ninguém entende, mas todos usam — 'ninguém quer mexer'.",
-    context: "Kaizen aqui?",
-    options: [
-      { text: "Deixar. Funciona, mesmo que confuso.", correct: false, kaizen: "Ineficiência invisível = oportunidade Kaizen." },
-      { text: "Mês 1: documentar. Mês 2: remover coluna confusa. Mês 3: automatizar. Incremental.", correct: true, kaizen: "Pequenos passos = mudança sem trauma, todo time aprende." },
-      { text: "Reescrever tudo em sistema novo (grande investimento).", correct: false, kaizen: "Kaizen é incremental, não big bang." },
-      { text: "Treinar todo mundo melhor.", correct: false, kaizen: "Problema é a ferramenta, não as pessoas." }
-    ]
-  },
-
-  // ===== SCRUM/SPRINTS =====
-  {
-    situation: "Sprint com 5 dias. Time termina tudo no dia 3. Dias 4-5 ficam ociosos.",
-    context: "Problema?",
-    options: [
-      { text: "Não. Time descansou, bom para saúde mental.", correct: false, agile: "Desperdício de capacidade. Melhor validar e iterar." },
-      { text: "Converter em 3-dia sprint com 2 dias de validação com cliente.", correct: true, agile: "Fluxo contínuo, feedback rápido, valor real." },
-      { text: "Aumentar escopo pra 10 dias de trabalho.", correct: false, agile: "Forçar barra = qualidade ruim." },
-      { text: "Manter 5 dias mas adicionar burocracia.", correct: false, agile: "Piora a coisa." }
-    ]
-  },
-  {
-    situation: "Retrospectiva: mesmo problema aparece 5 sprints seguidas. Ninguém muda nada.",
-    context: "O que falta?",
-    options: [
-      { text: "Retros não funcionam. Eliminar cerimônia.", correct: false, agile: "Retro funciona se há ação real." },
-      { text: "Atribuir proprietário por ação: 'João muda X até sprint 10'. Rastrear progresso.", correct: true, agile: "Ação → responsabilidade → resultado → real melhoria." },
-      { text: "Pedir pra todo mundo 'melhorar' vaguamente.", correct: false, agile: "Vago = nada muda." },
-      { text: "Responsabilizar o ScrumMaster por tudo.", correct: false, agile: "Mudança é coletiva." }
-    ]
-  },
-  {
-    situation: "Velocidade do time: Sprint 1=40pts, Sprint 2=35pts, Sprint 3=50pts, Sprint 4=38pts.",
-    context: "Como interpretar?",
-    options: [
-      { text: "Time é inconsistente. Precisa de disciplina.", correct: false, agile: "Variação pequena é normal. Ver padrão antes de julgar." },
-      { text: "Média ~40pts. Usar isso para planejar futuras sprints. Investigar outliers.", correct: true, agile: "Dados históricos = previsibilidade realista." },
-      { text: "Aumentar velocidade forçando horas extras.", correct: false, agile: "Qualidade cai, não rende." },
-      { text: "Ignorar e achar que dá pra rodar 100pts.", correct: false, agile: "Fantasy planning = falhas garantidas." }
-    ]
-  },
-  {
-    situation: "Sprint 1 tem 3 tarefas 'críticas' de outros times que entram no meio.",
-    context: "Proteção do sprint?",
-    options: [
-      { text: "Aceitar tudo. Nunca se sabe quando é realmente crítico.", correct: false, agile: "Sprint sem foco = nada termina bem." },
-      { text: "Buffer 20%: planejar 80% de capacidade, deixar 20% para emergências reais.", correct: true, agile: "Foco protegido + flexibilidade = melhor resultado." },
-      { text: "Rejeitar tudo — 'sprint é sagrado'.", correct: false, agile: "Nem sempre é possível; buffer é mais realista." },
-      { text: "Criar backlog infinito de 'críticas' e executar em ordem.", correct: false, agile: "Sem prioridade = caos." }
-    ]
-  },
-
-  // ===== VALORES LEAN + WASTES =====
-  {
-    situation: "Produto leva 6 meses pra chegar ao cliente. Destes, 5.5 meses o time aguarda aprovação de stakeholders.",
-    context: "Qual Lean waste?",
-    options: [
-      { text: "Defeitos. Precisa de mais testes.", correct: false, lean: "Não é defeito, é gargalo de aprovação." },
-      { text: "Espera (waiting). Tempo sem agregar valor. Paralizar produção.", correct: true, lean: "Principais 7 wastes Lean: espera é um dos piores." },
-      { text: "Movimento. Time se mexe pouco.", correct: false, lean: "Time está parado, não é movimento." },
-      { text: "Transporte. Aprovações demora pra chegar.", correct: false, lean: "Transporte é movimento físico/dados, não fluxo de aprovação." }
-    ]
-  },
-  {
-    situation: "Spec document tem 200 páginas. Dev lê 30 e começa. Depois descobre erros.",
-    context: "Waste Lean?",
-    options: [
-      { text: "Superprodução. Especificação demais ninguém lê toda.", correct: true, lean: "Over-documentation = waste clássico Lean." },
-      { text: "Movimento. Muita gente mexendo no documento.", correct: false, lean: "Não é movimento." },
-      { text: "Transporte. Enviar documento pro dev.", correct: false, lean: "Enviar é comunicação, não é waste se bem feito." },
-      { text: "Talento subutilizado. Dev não lê tudo.", correct: false, lean: "Não é esse o problema neste caso." }
-    ]
-  },
-  {
-    situation: "Dev passa 1 dia reescrevendo código porque arquitetura mudou e ninguém avisou.",
-    context: "Qual waste?",
-    options: [
-      { text: "Defeitos. Código estava errado.", correct: false, lean: "Código estava bom. Problema foi comunicação." },
-      { text: "Retrabalho (defects). Fazer algo de novo porque foi mal comunicado.", correct: true, lean: "Retrabalho não é defeito, é comunicação ruim = waste." },
-      { text: "Espera. Dev esperou arquitetura mudar.", correct: false, lean: "Dev não esperou, trabalhou sem saber." },
-      { text: "Talento subutilizado. Dev não era bom.", correct: false, lean: "Dev era competente. Sistema falhou." }
-    ]
-  }
-];
-
-let gameState = {
-  currentChallenge: 0,
-  totalScore: 0,
-  playerName: '',
-  answered: false,
-  timeLeft: 30,
-  timerInterval: null
-};
-
-let rankings = JSON.parse(localStorage.getItem('kyber-ranking') || '[]');
-
-function kyberStartGame() {
-  const name = document.getElementById('kyber-player-name').value.trim();
-  if (!name) { alert('Digite seu nome!'); return; }
-  gameState.playerName = name;
-  gameState.totalScore = 0;
-  gameState.currentChallenge = 0;
-  document.getElementById('kyber-setup').style.display = 'none';
-  document.getElementById('kyber-challenge').style.display = 'block';
-  kyberShowChallenge();
-}
-
-function kyberShowChallenge() {
-  if (gameState.currentChallenge >= CHALLENGES.length) {
-    kyberFinishGame();
-    return;
-  }
-  gameState.answered = false;
-  gameState.timeLeft = 30;
-  clearInterval(gameState.timerInterval);
-  const ch = CHALLENGES[gameState.currentChallenge];
-  document.getElementById('kyber-situation').textContent = ch.situation;
-  document.getElementById('kyber-context').textContent = ch.context;
-  document.getElementById('kyber-progress').textContent = `Desafio ${gameState.currentChallenge + 1}/${CHALLENGES.length}`;
-  document.getElementById('kyber-score').textContent = `Pontuação: ${gameState.totalScore} pts`;
-  document.getElementById('kyber-feedback').className = 'kyber-feedback';
-  document.getElementById('kyber-feedback').textContent = '';
-  document.getElementById('kyber-next').style.display = 'none';
-  const opts = document.getElementById('kyber-options');
-  opts.innerHTML = '';
-  ch.options.forEach((opt, idx) => {
-    const btn = document.createElement('button');
-    btn.className = 'kyber-option';
-    btn.innerHTML = `<span class="opt-letter">${String.fromCharCode(65+idx)}</span><span class="opt-text">${opt.text}</span>`;
-    btn.onclick = () => kyberAnswerQuestion(idx, opt);
-    opts.appendChild(btn);
-  });
-  kyberUpdateTimer();
-  gameState.timerInterval = setInterval(kyberUpdateTimer, 1000);
-}
-
-function kyberUpdateTimer() {
-  const el = document.getElementById('kyber-timer');
-  el.textContent = gameState.timeLeft + 's';
-  el.classList.remove('warning', 'danger');
-  if (gameState.timeLeft <= 10) el.classList.add('warning');
-  if (gameState.timeLeft <= 5) el.classList.add('danger');
-  gameState.timeLeft--;
-  if (gameState.timeLeft < 0) {
-    clearInterval(gameState.timerInterval);
-    if (!gameState.answered) kyberAnswerQuestion(-1, null);
-  }
-}
-
-function kyberAnswerQuestion(idx, option) {
-  if (gameState.answered) return;
-  gameState.answered = true;
-  clearInterval(gameState.timerInterval);
-  const fb = document.getElementById('kyber-feedback');
-  fb.classList.add('show');
-  if (option === null) {
-    fb.classList.add('wrong');
-    fb.innerHTML = '<div class="fb-result">⏱ TEMPO ESGOTADO</div><div class="fb-agile">Rápida decisão é essencial na agilidade!</div>';
-  } else {
-    const ch = CHALLENGES[gameState.currentChallenge];
-    const points = option.correct ? Math.round(1000 * (gameState.timeLeft / 30)) : 0;
-    gameState.totalScore += points;
-    fb.classList.add(option.correct ? 'correct' : 'wrong');
-    fb.innerHTML = `<div class="fb-result">${option.correct ? '✓ CORRETO' : '✗ ERRADO'}</div><div class="fb-points">${points > 0 ? '+' + points + ' XP' : '0 XP'}</div><div class="fb-agile">${option.agile}</div>`;
-    const opts = document.querySelectorAll('.kyber-option');
-    opts.forEach((el, i) => {
-      if (i === idx) el.classList.add(option.correct ? 'selected-correct' : 'selected-wrong');
-      else if (ch.options[i].correct) el.classList.add('correct-answer');
-    });
-  }
-  document.getElementById('kyber-score').textContent = `Pontuação: ${gameState.totalScore} pts`;
-  document.getElementById('kyber-next').style.display = 'inline-block';
-}
-
-function kyberNextChallenge() {
-  gameState.currentChallenge++;
-  if (gameState.currentChallenge >= CHALLENGES.length) {
-    kyberFinishGame();
-  } else {
-    kyberShowChallenge();
-  }
-}
-
-function kyberFinishGame() {
-  clearInterval(gameState.timerInterval);
-  document.getElementById('kyber-challenge').style.display = 'none';
-  const entry = { name: gameState.playerName, score: gameState.totalScore, date: new Date().toISOString() };
-
-  // Salvar no Firebase
-  if (typeof firebase !== 'undefined' && firebase.database()) {
-    const rankingsRef = firebase.database().ref('rankings');
-    rankingsRef.push(entry).then(() => {
-      console.log('Ranking salvo no Firebase!');
-    }).catch(err => {
-      console.warn('Erro ao salvar no Firebase:', err);
-      // Fallback para localStorage se Firebase falhar
-      rankings.push(entry);
-      rankings.sort((a, b) => b.score - a.score);
-      rankings = rankings.slice(0, 10);
-      localStorage.setItem('kyber-ranking', JSON.stringify(rankings));
-    });
-  } else {
-    // Fallback para localStorage
-    rankings.push(entry);
-    rankings.sort((a, b) => b.score - a.score);
-    rankings = rankings.slice(0, 10);
-    localStorage.setItem('kyber-ranking', JSON.stringify(rankings));
-  }
-
-  // Renderizar rankings (será atualizado em tempo real via listener)
-  kyberRenderRanking();
-}
-
-function kyberRenderRanking() {
-  const list = document.getElementById('kyber-leaderboard');
-  list.innerHTML = '<h4>🏆 Top Heróis da Galáxia</h4>';
-
-  // Se Firebase está disponível, carregar em tempo real
-  if (typeof firebase !== 'undefined' && firebase.database()) {
-    const rankingsRef = firebase.database().ref('rankings');
-    rankingsRef.orderByChild('score').limitToLast(100).on('value', snapshot => {
-      const data = snapshot.val();
-      rankings = [];
-
-      if (data) {
-        Object.values(data).forEach(entry => {
-          rankings.push(entry);
-        });
-      }
-
-      rankings.sort((a, b) => b.score - a.score);
-      rankings = rankings.slice(0, 10);
-
-      // Renderizar
-      list.innerHTML = '<h4>🏆 Top Heróis da Galáxia</h4>';
-      rankings.forEach((entry, i) => {
-        const row = document.createElement('div');
-        row.className = 'rank-row';
-        if (entry.name === gameState.playerName) row.classList.add('highlight');
-        row.innerHTML = `<span class="rank-pos">#${i+1}</span><span class="rank-name">${entry.name}</span><span class="rank-score">${entry.score} pts</span>`;
-        list.appendChild(row);
-      });
-    });
-  } else {
-    // Fallback para localStorage
-    rankings.forEach((entry, i) => {
-      const row = document.createElement('div');
-      row.className = 'rank-row';
-      if (entry.name === gameState.playerName) row.classList.add('highlight');
-      row.innerHTML = `<span class="rank-pos">#${i+1}</span><span class="rank-name">${entry.name}</span><span class="rank-score">${entry.score} pts</span>`;
-      list.appendChild(row);
-    });
-  }
-}
-
-document.addEventListener('DOMContentLoaded', kyberRenderRanking);
-document.getElementById('kyber-start').onclick = kyberStartGame;
-document.getElementById('kyber-next').onclick = kyberNextChallenge;
-</script>
-
-<!-- Firebase SDK (compat version — funciona com firebase.database()) -->
+<!-- Firebase SDK (compat — obrigatório para firebase.database()) -->
 <script src="https://www.gstatic.com/firebasejs/10.7.0/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.7.0/firebase-database-compat.js"></script>
-<script>
-  const firebaseConfig = {
-    apiKey: "AIzaSyAmnQTedd2eqL0d-3kMD2oWNeg0rwP6Lx0",
-    authDomain: "kyber-agil.firebaseapp.com",
-    databaseURL: "https://kyber-agil-default-rtdb.firebaseio.com",
-    projectId: "kyber-agil"
-  };
-
-  try {
-    firebase.initializeApp(firebaseConfig);
-    console.log('✅ Firebase inicializado com sucesso!');
-  } catch (err) {
-    console.warn('⚠️ Firebase:', err.message);
-  }
-</script>
+<script src="forca-agil/firebase.js"></script>
 
 <!-- Tweaks (React island) -->
 <script src="https://unpkg.com/react@18.3.1/umd/react.development.js" integrity="sha384-hD6/rw4ppMLGNu3tX5cjIb+uRZ7UkRJ6BPkLpg4hAu/6onKUg4lLsHAs9EBPT82L" crossorigin="anonymous"></script>
