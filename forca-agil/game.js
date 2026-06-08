@@ -288,10 +288,7 @@
       const mXP = Math.round(totalCorrect / totalQuestions * MISS_MAX);
       localStorage.setItem('fa-missions-xp', String(mXP));
     } catch(e) {}
-    // sincroniza XP com Firebase após cada interação
-    setTimeout(function() {
-      if (typeof window.faSyncPlayer === 'function') window.faSyncPlayer();
-    }, 200);
+    // XP salvo localmente — Firebase só sincroniza quando pessoa clicar "Revelar Patente"
   };
 
   // inicializa estado de missão se ainda não existe

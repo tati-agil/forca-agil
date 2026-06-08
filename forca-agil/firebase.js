@@ -116,7 +116,7 @@
         '</div>';
     }
 
-    window.faSyncPlayer();
+    // XP do kyber salvo localmente — Firebase sincroniza só ao clicar "Revelar Patente"
     window.kyberRenderRanking();
 
     setTimeout(function() {
@@ -179,14 +179,48 @@
     return localStorage.getItem('fa-kyber-done') === '1';
   };
 
-  // ---- Init ----
+  // ---- Revelar Patente Final ----
   document.addEventListener('DOMContentLoaded', function() {
     kyberRenderRanking();
-    setTimeout(window.faSyncPlayer, 800);
-  });
 
-  window.addEventListener('fa-player-registered', function() {
-    setTimeout(window.faSyncPlayer, 300);
+    var revelarBtn    = document.getElementById('revelarBtn');
+    var revelarConfirm= document.getElementById('revelarConfirm');
+    var revelarOk     = document.getElementById('revelarOk');
+    var revelarCancel = document.getElementById('revelarCancel');
+    var revelarPatente= document.getElementById('revelarPatente');
+
+    if (revelarBtn) revelarBtn.addEventListener('click', function() {
+      var p = getPlayer();
+      if (!p || !p.name) {
+        var btn = document.getElementById('openRegister');
+        if (btn) btn.click();
+        return;
+      }
+      var gxp   = getGameXP();
+      var kxp   = getKyberXP();
+      var total = Math.min(100, gxp.xpAuto + gxp.xpMissoes + kxp);
+      var patente = getRank(total);
+      if (revelarPatente) revelarPatente.textContent = patente + ' · ' + total + ' XP';
+      if (revelarConfirm) revelarConfirm.hidden = false;
+    });
+
+    if (revelarCancel) revelarCancel.addEventListener('click', function() {
+      if (revelarConfirm) revelarConfirm.hidden = true;
+    });
+
+    if (revelarOk) revelarOk.addEventListener('click', function() {
+      if (revelarConfirm) revelarConfirm.hidden = true;
+      window.faSyncPlayer();
+      // troca botão por mensagem de confirmação
+      var wrap = document.getElementById('revelarWrap');
+      if (wrap) wrap.innerHTML =
+        '<p style="font-family:var(--font-mono);font-size:.9rem;color:var(--accent);text-align:center;padding:24px">' +
+        '✓ Patente publicada no ranking da galáxia!</p>';
+      setTimeout(function() {
+        var lb = document.getElementById('kyber-leaderboard');
+        if (lb) lb.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      }, 400);
+    });
   });
 
 })();
