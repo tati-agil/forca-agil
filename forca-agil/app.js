@@ -112,15 +112,20 @@
   }
   function closeModal() { if (modal) modal.hidden = true; }
 
-  if (btnOpen) btnOpen.addEventListener('click', function() {
+  function handleActivate() {
     var p = getPlayer();
     if (p && p.name) {
-      // já cadastrado — vai direto para o game
-      document.getElementById('treinamento') && document.getElementById('treinamento').scrollIntoView({ behavior: 'smooth' });
+      var dest = document.getElementById('treinamento');
+      if (dest) dest.scrollIntoView({ behavior: 'smooth' });
     } else {
       openModal();
     }
-  });
+  }
+
+  if (btnOpen) btnOpen.addEventListener('click', handleActivate);
+
+  var heroBtn = document.getElementById('heroRegister');
+  if (heroBtn) heroBtn.addEventListener('click', handleActivate);
 
   if (btnClose) btnClose.addEventListener('click', closeModal);
   if (modal) modal.addEventListener('click', function(e) { if (e.target === modal) closeModal(); });
