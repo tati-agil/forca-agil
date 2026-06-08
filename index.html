@@ -396,9 +396,9 @@
     <a href="#arquetipos">Arquétipos</a>
     <a href="#sombrio">Lado Sombrio</a>
     <a href="#trilogia">A Trilogia</a>
+    <a href="#arquivo">Arquivo</a>
     <a href="#treinamento">Treinamento</a>
     <a href="#missao">A Missão</a>
-    <a href="#arquivo">Arquivo</a>
     <button class="nav-cta" id="openRegister">Ative a Força</button>
   </div>
 </nav>
@@ -737,6 +737,52 @@
   </div>
 </section>
 
+<div class="divider"><svg width="14" height="14"><use href="#i-mark"/></svg></div>
+
+<!-- ===== ARQUIVO HOLOCRON (repositório) ===== -->
+<section class="section" id="arquivo">
+  <div class="reveal">
+    <span class="eyebrow">Arquivo Holocron</span>
+    <h2 class="sec-title">Repositório de <span class="glow-cyan">conhecimento</span></h2>
+    <p class="sec-lead">A biblioteca da Sociedade Jedi: vídeos de agilidade, documentos da oficina, ferramentas e links úteis. Qualquer agente cadastrado pode adicionar recursos — visíveis para toda a turma em tempo real.</p>
+  </div>
+
+  <div class="repo-bar reveal">
+    <div class="repo-filters" id="repoFilters">
+      <button class="repo-chip active" data-f="all">Todos</button>
+      <button class="repo-chip" data-f="video"><svg width="13" height="13"><use href="#i-play"/></svg> Vídeos</button>
+      <button class="repo-chip" data-f="doc"><svg width="13" height="13"><use href="#i-doc"/></svg> Documentos</button>
+      <button class="repo-chip" data-f="tool"><svg width="13" height="13"><use href="#i-tool"/></svg> Ferramentas</button>
+      <button class="repo-chip" data-f="link"><svg width="13" height="13"><use href="#i-link"/></svg> Links</button>
+    </div>
+    <button class="btn btn--primary repo-add-btn" id="repoAddBtn"><svg width="14" height="14"><use href="#i-plus"/></svg> Adicionar recurso</button>
+  </div>
+
+  <!-- add form (hidden by default) -->
+  <form class="repo-form reveal" id="repoForm" hidden>
+    <div class="repo-form-grid">
+      <label>Título<input type="text" id="rfTitle" placeholder="Ex.: Manifesto Ágil em 3 minutos" required /></label>
+      <label>Tipo<select id="rfType">
+        <option value="video">Vídeo</option>
+        <option value="doc">Documento</option>
+        <option value="tool">Ferramenta</option>
+        <option value="link">Link</option>
+      </select></label>
+      <label class="rf-wide">Link (URL)<input type="url" id="rfUrl" placeholder="https://…" required /></label>
+      <label class="rf-wide">Descrição<input type="text" id="rfDesc" placeholder="Para que serve / por que é útil" /></label>
+    </div>
+    <div class="repo-form-actions">
+      <button type="submit" class="btn btn--primary">Guardar no holocron</button>
+      <button type="button" class="btn" id="repoCancel">Cancelar</button>
+    </div>
+  </form>
+
+  <div class="repo-grid" id="repoGrid"></div>
+  <p class="repo-empty" id="repoEmpty" hidden>Nenhum recurso nesta categoria ainda. Use <b>Adicionar recurso</b> para começar.</p>
+</section>
+
+<div class="divider"><svg width="14" height="14"><use href="#i-mark"/></svg></div>
+
 <!-- ===== A MISSÃO (workshop) ===== -->
 <section class="section" id="missao">
   <div class="reveal">
@@ -850,52 +896,6 @@
     <div class="turma reveal" data-d="1"><svg class="ti"><use href="#i-cal"/></svg><div class="tk">TURMA 2</div><div class="tm">Setembro</div><div class="td">09 · 10 · 11 · 15 · 16</div></div>
     <div class="turma reveal" data-d="2"><svg class="ti"><use href="#i-clock"/></svg><div class="tk">TURMA 3</div><div class="tm">Novembro</div><div class="td">17 · 18 · 19 · 24 · 25</div></div>
   </div>
-</section>
-
-<div class="divider"><svg width="14" height="14"><use href="#i-mark"/></svg></div>
-
-<div class="divider"><svg width="14" height="14"><use href="#i-mark"/></svg></div>
-
-<!-- ===== ARQUIVO HOLOCRON (repositório) ===== -->
-<section class="section" id="arquivo">
-  <div class="reveal">
-    <span class="eyebrow">Arquivo Holocron</span>
-    <h2 class="sec-title">Repositório de <span class="glow-cyan">conhecimento</span></h2>
-    <p class="sec-lead">A biblioteca da Sociedade Jedi: vídeos de agilidade, documentos da oficina, ferramentas e links úteis. Qualquer agente cadastrado pode adicionar recursos — visíveis para toda a turma em tempo real.</p>
-  </div>
-
-  <div class="repo-bar reveal">
-    <div class="repo-filters" id="repoFilters">
-      <button class="repo-chip active" data-f="all">Todos</button>
-      <button class="repo-chip" data-f="video"><svg width="13" height="13"><use href="#i-play"/></svg> Vídeos</button>
-      <button class="repo-chip" data-f="doc"><svg width="13" height="13"><use href="#i-doc"/></svg> Documentos</button>
-      <button class="repo-chip" data-f="tool"><svg width="13" height="13"><use href="#i-tool"/></svg> Ferramentas</button>
-      <button class="repo-chip" data-f="link"><svg width="13" height="13"><use href="#i-link"/></svg> Links</button>
-    </div>
-    <button class="btn btn--primary repo-add-btn" id="repoAddBtn"><svg width="14" height="14"><use href="#i-plus"/></svg> Adicionar recurso</button>
-  </div>
-
-  <!-- add form (hidden by default) -->
-  <form class="repo-form reveal" id="repoForm" hidden>
-    <div class="repo-form-grid">
-      <label>Título<input type="text" id="rfTitle" placeholder="Ex.: Manifesto Ágil em 3 minutos" required /></label>
-      <label>Tipo<select id="rfType">
-        <option value="video">Vídeo</option>
-        <option value="doc">Documento</option>
-        <option value="tool">Ferramenta</option>
-        <option value="link">Link</option>
-      </select></label>
-      <label class="rf-wide">Link (URL)<input type="url" id="rfUrl" placeholder="https://…" required /></label>
-      <label class="rf-wide">Descrição<input type="text" id="rfDesc" placeholder="Para que serve / por que é útil" /></label>
-    </div>
-    <div class="repo-form-actions">
-      <button type="submit" class="btn btn--primary">Guardar no holocron</button>
-      <button type="button" class="btn" id="repoCancel">Cancelar</button>
-    </div>
-  </form>
-
-  <div class="repo-grid" id="repoGrid"></div>
-  <p class="repo-empty" id="repoEmpty" hidden>Nenhum recurso nesta categoria ainda. Use <b>Adicionar recurso</b> para começar.</p>
 </section>
 
 <!-- ===== CTA ===== -->
