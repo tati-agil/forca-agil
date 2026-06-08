@@ -757,6 +757,7 @@ html:not(.js) .reveal { opacity: 1 !important; transform: none !important; }
 .repo-card:hover .rc-del { opacity: 1; }
 .repo-card .rc-del:hover { color: var(--red); border-color: var(--red); }
 .repo-card .rc-seed { position: absolute; top: 14px; right: 14px; font-family: var(--font-mono); font-size: .54rem; letter-spacing: .12em; text-transform: uppercase; color: var(--ink-3); opacity: .6; }
+.repo-card .rc-author { display: block; margin-top: 8px; font-family: var(--font-mono); font-size: .65rem; color: var(--accent); opacity: .75; }
 .repo-empty { text-align: center; color: var(--ink-3); margin-top: 40px; font-family: var(--font-mono); font-size: .9rem; }
 
 /* ---------- (Binary suns removed — background is always the universe) ---------- */
