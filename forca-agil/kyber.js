@@ -297,20 +297,11 @@ function kyberStartGame() {
     return;
   }
 
-  // requer cadastro
+  // requer cadastro — abre modal direto
   var p = kyberGetPlayer();
   if (!p || !p.name) {
-    var setupEl2 = document.getElementById('kyber-setup');
-    if (setupEl2) {
-      var msg = setupEl2.querySelector('.kyber-no-player');
-      if (!msg) {
-        msg = document.createElement('p');
-        msg.className = 'kyber-no-player';
-        msg.style.cssText = 'color:var(--accent);font-family:var(--font-mono);font-size:.85rem;margin-top:12px;text-align:center';
-        msg.textContent = '⚠ Clique em "Ative a Força" no topo para se identificar primeiro.';
-        setupEl2.appendChild(msg);
-      }
-    }
+    var btn = document.getElementById('openRegister');
+    if (btn) btn.click();
     return;
   }
 
