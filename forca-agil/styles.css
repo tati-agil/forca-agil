@@ -186,10 +186,10 @@ h1,h2,h3,h4 { font-family: var(--font-head); font-weight: 600; line-height: 1.02
 }
 .nav-links a:hover { color: var(--ink); background: rgba(120,160,220,.1); }
 .nav-cta {
-  font-family: var(--font-mono); font-size: .72rem; letter-spacing: .12em; text-transform: uppercase;
-  color: var(--space-0) !important; background: var(--accent); padding: 10px 16px !important;
-  border-radius: 7px; font-weight: 700;
-  box-shadow: 0 0 20px -4px var(--accent);
+  font-family: var(--font-mono); font-size: .68rem; letter-spacing: .1em; text-transform: uppercase;
+  color: var(--space-0) !important; background: var(--accent); padding: 7px 14px !important;
+  border-radius: 6px; font-weight: 700; white-space: nowrap;
+  box-shadow: 0 0 16px -4px var(--accent);
 }
 .nav-cta:hover { background: var(--accent) !important; filter: brightness(1.1); }
 .nav-toggle { display: none; }
