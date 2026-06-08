@@ -265,6 +265,16 @@
   function getPlayer() {
     try { return JSON.parse(localStorage.getItem('fa-player') || 'null') || {}; } catch(e) { return {}; }
   }
+
+  // Garante cadastro antes de qualquer interação — abre modal se não registrado
+  function requirePlayer() {
+    const p = getPlayer();
+    if (p && p.name) return true;
+    // dispara o modal de cadastro (definido em app.js)
+    const btn = document.getElementById('openRegister');
+    if (btn) btn.click();
+    return false;
+  }
   const save = () => {
     try { localStorage.setItem(STORE, JSON.stringify(state)); } catch (e) {}
     // salva missions XP separado para firebase.js ler
@@ -352,7 +362,7 @@
       const b = document.createElement('button');
       b.type = 'button'; b.className = 'q-opt'; b.textContent = lv;
       b.dataset.q = qi; b.dataset.v = li + 1;
-      b.addEventListener('click', () => { state.quiz[qi] = li + 1; save(); render(); });
+      b.addEventListener('click', () => { if (!requirePlayer()) return; state.quiz[qi] = li + 1; save(); render(); });
       opts.appendChild(b);
     });
     item.appendChild(label); item.appendChild(opts);
@@ -381,6 +391,7 @@
       '<span class="m-chevron"><svg width="16" height="16" viewBox="0 0 24 24"><path d="M6 9l6 6 6-6" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg></span>';
 
     header.addEventListener('click', () => {
+      if (!requirePlayer()) return;
       const isOpen = wrap.classList.contains('open');
       // fecha todos
       document.querySelectorAll('.mission-wrap').forEach(w => w.classList.remove('open'));
@@ -413,6 +424,7 @@
         btn.textContent = optText;
 
         btn.addEventListener('click', () => {
+          if (!requirePlayer()) return;
           const ms = state.missions[m.id];
           // já respondida — bloqueia
           if (ms.answers[qi] !== null) return;
