@@ -153,17 +153,17 @@
   function updateNavBtn() {
     var p = getPlayer();
     if (p && p.name) {
-      if (btnOpen) btnOpen.textContent = '⚔ ' + p.name.split(' ')[0];
+      if (btnOpen) btnOpen.textContent = '★' + p.name.split(' ')[0];
       var info = document.getElementById('kyber-player-info');
-      if (info) info.textContent = '⚔ ' + p.name + (p.turma ? ' · ' + p.turma : '') + (p.area ? ' · ' + p.area : '');
+      if (info) info.textContent = '★' + p.name + (p.turma ? ' · ' + p.turma : '') + (p.area ? ' · ' + p.area : '');
     }
   }
   updateNavBtn();
 
   window.addEventListener('fa-player-registered', function(e) {
-    if (btnOpen) btnOpen.textContent = '⚔ ' + e.detail.name.split(' ')[0];
+    if (btnOpen) btnOpen.textContent = '★' + e.detail.name.split(' ')[0];
     var info = document.getElementById('kyber-player-info');
-    if (info) info.textContent = '⚔ ' + e.detail.name + (e.detail.turma ? ' · ' + e.detail.turma : '') + (e.detail.area ? ' · ' + e.detail.area : '');
+    if (info) info.textContent = '★' + e.detail.name + (e.detail.turma ? ' · ' + e.detail.turma : '') + (e.detail.area ? ' · ' + e.detail.area : '');
   });
 
 })();
