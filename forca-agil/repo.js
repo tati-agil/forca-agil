@@ -146,16 +146,27 @@
   const addBtn    = document.getElementById('repoAddBtn');
   const cancelBtn = document.getElementById('repoCancel');
 
+  function openRepoForm() {
+    if (!form) return;
+    form.hidden = false;
+    document.getElementById('rfTitle').focus();
+    form.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+  }
+
   addBtn && addBtn.addEventListener('click', function() {
-    // exige cadastro
     var p = getPlayer();
     if (!p || !p.name) {
-      var btn = document.getElementById('openRegister');
-      if (btn) btn.click();
+      // abre modal de cadastro e, após cadastro, abre o form automaticamente
+      window._pendingRepoForm = true;
+      var overlay = document.getElementById('registerModal');
+      if (overlay) {
+        overlay.hidden = false;
+        var nameField = document.getElementById('reg-name');
+        if (nameField) nameField.focus();
+      }
       return;
     }
-    form.hidden = !form.hidden;
-    if (!form.hidden) document.getElementById('rfTitle').focus();
+    openRepoForm();
   });
 
   cancelBtn && cancelBtn.addEventListener('click', function() {
@@ -205,6 +216,14 @@
         .catch(function(err) { console.warn('Firebase push error:', err); });
     } catch(err) {
       console.warn('Firebase unavailable:', err);
+    }
+  });
+
+  // ---- Após cadastro: abre form se estava pendente ----
+  window.addEventListener('fa-player-registered', function() {
+    if (window._pendingRepoForm) {
+      window._pendingRepoForm = false;
+      setTimeout(openRepoForm, 300);
     }
   });
 
