@@ -134,13 +134,12 @@
   if (btnSubmit) btnSubmit.addEventListener('click', function() {
     var name  = (document.getElementById('reg-name').value || '').trim();
     var area  = (document.getElementById('reg-area').value || '').trim();
-    var turma = document.getElementById('reg-turma').value;
-    if (!name || !area || !turma) {
+    if (!name || !area) {
       if (errMsg) errMsg.hidden = false;
       return;
     }
     if (errMsg) errMsg.hidden = true;
-    var player = { name: name, area: area, turma: turma };
+    var player = { name: name, area: area, turma: '' };
     savePlayer(player);
     closeModal();
     // notifica outros módulos
