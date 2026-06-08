@@ -554,7 +554,7 @@
         <h2 class="glow-title">Sociedade Jedi</h2>
         <div class="jb-rule"></div>
       </div>
-      <p class="jb-sub">Faça o autodiagnóstico, cumpra missões práticas e ganhe XP para evoluir de Youngling a Mestre. Seu progresso fica gravado neste holocron — volte quando quiser.</p>
+      <p class="jb-sub">Sua patente é formada por três etapas: <strong>Autodiagnóstico</strong> (até 20 XP) → <strong>Missões</strong> (até 48 XP) → <strong>Kyber Game</strong> (até 32 XP). Complete as três para chegar a 100 XP e conquistar o posto de Mestre.</p>
     </div>
 
     <!-- Droide guide -->
@@ -630,6 +630,48 @@
     <div class="game-actions reveal">
       <button class="btn" id="resetGame">↻ Reiniciar holocron</button>
     </div>
+  </div>
+</section>
+
+<!-- ===== OPERAÇÃO KYBER ÁGIL (minigame + ranking Firebase) ===== -->
+<section class="kyber-section" id="kyber">
+  <div class="kyber-header">
+    <span class="eyebrow">Fase 3 · Kyber Game · até 32 XP</span>
+    <h2>Operação Kyber Ágil</h2>
+    <p>A etapa final da sua pontuação. Você completou o autodiagnóstico e as missões — agora teste seus reflexos ágeis em tempo real. Tome decisões rápidas sob pressão e veja sua patente subir no ranking da galáxia.</p>
+  </div>
+
+  <div class="kyber-arena" id="kyber-arena">
+
+    <!-- Setup screen -->
+    <div class="kyber-setup" id="kyber-setup">
+      <h3>🚀 Inicialize sua Missão</h3>
+      <p id="kyber-player-info" style="font-family:var(--font-mono);font-size:.85rem;color:var(--ink-3);margin-bottom:20px"></p>
+      <button class="btn btn--primary" id="kyber-start">Começar Operação →</button>
+    </div>
+
+    <!-- Challenge screen -->
+    <div class="kyber-challenge" id="kyber-challenge" style="display:none;">
+      <div class="kyber-header-row">
+        <span class="kyber-progress" id="kyber-progress">Desafio 1/25</span>
+        <span class="kyber-score"    id="kyber-score">Pontuação: 0 pts</span>
+        <span class="kyber-timer"    id="kyber-timer">30s</span>
+      </div>
+      <div class="kyber-situation" id="kyber-situation"></div>
+      <div class="kyber-context"   id="kyber-context"></div>
+      <div class="kyber-options"   id="kyber-options"></div>
+      <div class="kyber-feedback"  id="kyber-feedback"></div>
+      <div class="kyber-actions">
+        <button class="btn btn--primary" id="kyber-next" style="display:none;">Próximo Desafio →</button>
+      </div>
+    </div>
+
+    <!-- Game Over screen -->
+    <div class="kyber-gameover" id="kyber-gameover" style="display:none;"></div>
+
+    <!-- Leaderboard (Firebase tempo real) -->
+    <div class="kyber-leaderboard" id="kyber-leaderboard"></div>
+
   </div>
 </section>
 
@@ -774,48 +816,6 @@
 </section>
 
 <div class="divider"><svg width="14" height="14"><use href="#i-mark"/></svg></div>
-
-<!-- ===== OPERAÇÃO KYBER ÁGIL (minigame + ranking Firebase) ===== -->
-<section class="kyber-section" id="kyber">
-  <div class="kyber-header">
-    <span class="eyebrow">Minigame Interativo</span>
-    <h2>Operação Kyber Ágil</h2>
-    <p>O Império capturou os planos da base Rebelde. Você é um agente da Resistência. Tome decisões rápidas, adapte-se e ganhe pontos. Cada escolha ágil te aproxima do topo do ranking dos Heróis da Galáxia — visível para toda a turma em tempo real.</p>
-  </div>
-
-  <div class="kyber-arena" id="kyber-arena">
-
-    <!-- Setup screen -->
-    <div class="kyber-setup" id="kyber-setup">
-      <h3>🚀 Inicialize sua Missão</h3>
-      <p id="kyber-player-info" style="font-family:var(--font-mono);font-size:.85rem;color:var(--ink-3);margin-bottom:20px"></p>
-      <button class="btn btn--primary" id="kyber-start">Começar Operação →</button>
-    </div>
-
-    <!-- Challenge screen -->
-    <div class="kyber-challenge" id="kyber-challenge" style="display:none;">
-      <div class="kyber-header-row">
-        <span class="kyber-progress" id="kyber-progress">Desafio 1/25</span>
-        <span class="kyber-score"    id="kyber-score">Pontuação: 0 pts</span>
-        <span class="kyber-timer"    id="kyber-timer">30s</span>
-      </div>
-      <div class="kyber-situation" id="kyber-situation"></div>
-      <div class="kyber-context"   id="kyber-context"></div>
-      <div class="kyber-options"   id="kyber-options"></div>
-      <div class="kyber-feedback"  id="kyber-feedback"></div>
-      <div class="kyber-actions">
-        <button class="btn btn--primary" id="kyber-next" style="display:none;">Próximo Desafio →</button>
-      </div>
-    </div>
-
-    <!-- Game Over screen -->
-    <div class="kyber-gameover" id="kyber-gameover" style="display:none;"></div>
-
-    <!-- Leaderboard (Firebase tempo real) -->
-    <div class="kyber-leaderboard" id="kyber-leaderboard"></div>
-
-  </div>
-</section>
 
 <div class="divider"><svg width="14" height="14"><use href="#i-mark"/></svg></div>
 
