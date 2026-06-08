@@ -399,7 +399,7 @@
     <a href="#kyber">Kyber Game</a>
     <a href="#arquivo">Arquivo</a>
     <a href="#trilogia">A Trilogia</a>
-    <a class="nav-cta" href="#cta">Ative a Força</a>
+    <button class="nav-cta" id="openRegister">Ative a Força</button>
   </div>
 </nav>
 
@@ -788,25 +788,7 @@
     <!-- Setup screen -->
     <div class="kyber-setup" id="kyber-setup">
       <h3>🚀 Inicialize sua Missão</h3>
-      <div class="input-grid">
-        <div class="input-wide">
-          <label class="input-label" for="kyber-player-name">Seu nome, Agente</label>
-          <input type="text" id="kyber-player-name" placeholder="Como te chamamos?" autocomplete="off" />
-        </div>
-        <div>
-          <label class="input-label" for="kyber-player-area">Área / Gerência</label>
-          <input type="text" id="kyber-player-area" placeholder="Ex.: TI, Benefícios…" autocomplete="off" />
-        </div>
-        <div>
-          <label class="input-label" for="kyber-player-turma">Turma</label>
-          <select id="kyber-player-turma">
-            <option value="">Selecione…</option>
-            <option value="Turma 1 · Agosto">Turma 1 · Agosto</option>
-            <option value="Turma 2 · Setembro">Turma 2 · Setembro</option>
-            <option value="Turma 3 · Novembro">Turma 3 · Novembro</option>
-          </select>
-        </div>
-      </div>
+      <p id="kyber-player-info" style="font-family:var(--font-mono);font-size:.85rem;color:var(--ink-3);margin-bottom:20px"></p>
       <button class="btn btn--primary" id="kyber-start">Começar Operação →</button>
     </div>
 
@@ -939,6 +921,37 @@
 </footer>
 
 </div><!-- /wrap -->
+
+<!-- ===== MODAL DE CADASTRO ===== -->
+<div id="registerModal" class="modal-overlay" hidden aria-modal="true" role="dialog">
+  <div class="modal-box">
+    <button class="modal-close" id="modalClose" aria-label="Fechar">✕</button>
+    <span class="eyebrow" style="justify-content:center;margin-bottom:8px">Sociedade Jedi</span>
+    <h3 class="modal-title">Ative sua Força Ágil</h3>
+    <p class="modal-sub">Identifique-se uma vez para sua patente ser registrada em toda a jornada.</p>
+    <div class="modal-form">
+      <div class="modal-field">
+        <label for="reg-name">Nome</label>
+        <input type="text" id="reg-name" placeholder="Seu nome" autocomplete="off"/>
+      </div>
+      <div class="modal-field">
+        <label for="reg-area">Área</label>
+        <input type="text" id="reg-area" placeholder="Ex: TI, Negócios, RH…" autocomplete="off"/>
+      </div>
+      <div class="modal-field">
+        <label for="reg-turma">Turma</label>
+        <select id="reg-turma">
+          <option value="">Selecione sua turma</option>
+          <option value="Turma 1 Agosto">Turma 1 · Agosto</option>
+          <option value="Turma 2 Setembro">Turma 2 · Setembro</option>
+          <option value="Turma 3 Novembro">Turma 3 · Novembro</option>
+        </select>
+      </div>
+      <p class="modal-err" id="reg-err" hidden>Preencha todos os campos para continuar.</p>
+      <button class="btn btn--primary" id="reg-submit" style="width:100%;margin-top:8px">Ativar a Força →</button>
+    </div>
+  </div>
+</div>
 
 <div id="tweaks-root"></div>
 

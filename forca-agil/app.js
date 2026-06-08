@@ -89,4 +89,77 @@
     document.querySelectorAll('.hero-kicker,.hero-sub,.hero-meta,.hero-actions,.scroll-cue,.hero-title span')
       .forEach(el => { el.style.opacity = '1'; });
   }, 1400));
+  // ---- Modal de cadastro ----
+  const PLAYER_KEY = 'fa-player';
+
+  function getPlayer() {
+    try { return JSON.parse(localStorage.getItem(PLAYER_KEY) || 'null'); } catch(e) { return null; }
+  }
+  function savePlayer(p) {
+    try { localStorage.setItem(PLAYER_KEY, JSON.stringify(p)); } catch(e) {}
+  }
+
+  const modal   = document.getElementById('registerModal');
+  const btnOpen = document.getElementById('openRegister');
+  const btnClose= document.getElementById('modalClose');
+  const btnSubmit=document.getElementById('reg-submit');
+  const errMsg  = document.getElementById('reg-err');
+
+  function openModal() {
+    if (!modal) return;
+    modal.hidden = false;
+    document.getElementById('reg-name').focus();
+  }
+  function closeModal() { if (modal) modal.hidden = true; }
+
+  if (btnOpen) btnOpen.addEventListener('click', function() {
+    var p = getPlayer();
+    if (p && p.name) {
+      // já cadastrado — vai direto para o game
+      document.getElementById('treinamento') && document.getElementById('treinamento').scrollIntoView({ behavior: 'smooth' });
+    } else {
+      openModal();
+    }
+  });
+
+  if (btnClose) btnClose.addEventListener('click', closeModal);
+  if (modal) modal.addEventListener('click', function(e) { if (e.target === modal) closeModal(); });
+  document.addEventListener('keydown', function(e) { if (e.key === 'Escape') closeModal(); });
+
+  if (btnSubmit) btnSubmit.addEventListener('click', function() {
+    var name  = (document.getElementById('reg-name').value || '').trim();
+    var area  = (document.getElementById('reg-area').value || '').trim();
+    var turma = document.getElementById('reg-turma').value;
+    if (!name || !area || !turma) {
+      if (errMsg) errMsg.hidden = false;
+      return;
+    }
+    if (errMsg) errMsg.hidden = true;
+    var player = { name: name, area: area, turma: turma };
+    savePlayer(player);
+    closeModal();
+    // notifica outros módulos
+    window.dispatchEvent(new CustomEvent('fa-player-registered', { detail: player }));
+    // rola para o game
+    var dest = document.getElementById('treinamento') || document.getElementById('missao');
+    if (dest) dest.scrollIntoView({ behavior: 'smooth' });
+  });
+
+  // Atualiza botão nav e info do kyber se já cadastrado
+  function updateNavBtn() {
+    var p = getPlayer();
+    if (p && p.name) {
+      if (btnOpen) btnOpen.textContent = '⚔ ' + p.name.split(' ')[0];
+      var info = document.getElementById('kyber-player-info');
+      if (info) info.textContent = '⚔ ' + p.name + (p.turma ? ' · ' + p.turma : '') + (p.area ? ' · ' + p.area : '');
+    }
+  }
+  updateNavBtn();
+
+  window.addEventListener('fa-player-registered', function(e) {
+    if (btnOpen) btnOpen.textContent = '⚔ ' + e.detail.name.split(' ')[0];
+    var info = document.getElementById('kyber-player-info');
+    if (info) info.textContent = '⚔ ' + e.detail.name + (e.detail.turma ? ' · ' + e.detail.turma : '') + (e.detail.area ? ' · ' + e.detail.area : '');
+  });
+
 })();

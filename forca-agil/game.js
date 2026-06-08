@@ -251,7 +251,9 @@
     }
   ];
 
-  const QUIZ_MAX = 30;
+  const QUIZ_MAX  = 20;  // autodiagnóstico: até 20 XP
+  const MISS_MAX  = 48;  // missões: até 48 XP (18 respostas)
+  const KYBER_MAX = 32;  // kyber game: até 32 XP (via firebase.js)
 
   // ---- State ----
   // missions agora armazena { answers: [null|idx, null|idx, null|idx] } por id
@@ -260,7 +262,27 @@
     const saved = JSON.parse(localStorage.getItem(STORE) || 'null');
     if (saved && Array.isArray(saved.quiz)) state = { quiz: saved.quiz, missions: saved.missions || {} };
   } catch (e) { /* ignore */ }
-  const save = () => { try { localStorage.setItem(STORE, JSON.stringify(state)); } catch (e) {} };
+  function getPlayer() {
+    try { return JSON.parse(localStorage.getItem('fa-player') || 'null') || {}; } catch(e) { return {}; }
+  }
+  const save = () => {
+    try { localStorage.setItem(STORE, JSON.stringify(state)); } catch (e) {}
+    // salva missions XP separado para firebase.js ler
+    try {
+      const totalCorrect = MISSIONS.reduce((acc, m) => {
+        const ms = state.missions[m.id];
+        if (!ms || !ms.answers) return acc;
+        return acc + ms.answers.filter((a, i) => a === m.questions[i].correct).length;
+      }, 0);
+      const totalQuestions = MISSIONS.reduce((acc, m) => acc + m.questions.length, 0);
+      const mXP = Math.round(totalCorrect / totalQuestions * MISS_MAX);
+      localStorage.setItem('fa-missions-xp', String(mXP));
+    } catch(e) {}
+    // sincroniza XP com Firebase após cada interação
+    setTimeout(function() {
+      if (typeof window.faSyncPlayer === 'function') window.faSyncPlayer();
+    }, 200);
+  };
 
   // inicializa estado de missão se ainda não existe
   MISSIONS.forEach(m => {
@@ -289,14 +311,23 @@
   function compute() {
     const answered = state.quiz.filter(v => v != null).length;
     const quizDone = answered === DIMS.length;
-    // 5 XP por dimensão respondida, independente do nível escolhido (máx 30)
-    const quizXP = answered * 5;
-    const mXP  = MISSIONS.reduce((acc, m) => acc + missionXP(m), 0);
+    // 20 XP distribuídos pelas 6 dimensões respondidas
+    const quizXP = Math.round(answered / DIMS.length * QUIZ_MAX);
+    // missões: total de acertos / 18 * 48 XP
+    const totalCorrect = MISSIONS.reduce((acc, m) => {
+      const ms = state.missions[m.id];
+      if (!ms || !ms.answers) return acc;
+      return acc + ms.answers.filter((a, i) => a === m.questions[i].correct).length;
+    }, 0);
+    const totalQuestions = MISSIONS.reduce((acc, m) => acc + m.questions.length, 0);
+    const mXP  = Math.round(totalCorrect / totalQuestions * MISS_MAX);
     const mDone = MISSIONS.filter(m => missionDone(m)).length;
-    const xp   = Math.min(100, quizXP + mXP);
+    // kyberXP vem do localStorage (salvo por firebase.js após o game)
+    const kyberXP = (() => { try { return parseInt(localStorage.getItem('fa-kyber-xp') || '0', 10) || 0; } catch(e) { return 0; } })();
+    const xp   = Math.min(100, quizXP + mXP + kyberXP);
     let rankIdx = 0;
     for (let i = 0; i < RANKS.length; i++) if (xp >= RANKS[i].min) rankIdx = i;
-    return { xp, quizXP, mXP, quizDone, mDone, rankIdx };
+    return { xp, quizXP, mXP, kyberXP, quizDone, mDone, rankIdx };
   }
 
   // ---- DOM refs ----
@@ -574,4 +605,7 @@
 
   prevRankIdx = compute().rankIdx;
   render();
+
+  // expõe render globalmente para firebase.js atualizar HUD após kyber
+  window.faGameRender = render;
 })();

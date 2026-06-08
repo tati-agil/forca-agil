@@ -279,17 +279,44 @@ var gameState = {
   timerInterval: null
 };
 
+function kyberGetPlayer() {
+  try { return JSON.parse(localStorage.getItem('fa-player') || 'null') || null; } catch(e) { return null; }
+}
+
 function kyberStartGame() {
-  const name  = document.getElementById('kyber-player-name').value.trim();
-  const area  = document.getElementById('kyber-player-area').value.trim();
-  const turma = document.getElementById('kyber-player-turma').value;
+  // bloqueia replay
+  if (typeof window.kyberAlreadyPlayed === 'function' && window.kyberAlreadyPlayed()) {
+    var setupEl = document.getElementById('kyber-setup');
+    if (setupEl) {
+      setupEl.innerHTML =
+        '<div class="kyber-already-played">' +
+          '<p>⚔️ Você já completou o Kyber Game!</p>' +
+          '<p style="font-size:.9rem;opacity:.7">Sua pontuação está salva no ranking da galáxia.</p>' +
+        '</div>';
+    }
+    return;
+  }
 
-  if (!name)  { alert('Digite seu nome, Agente!'); return; }
-  if (!turma) { alert('Selecione sua turma!'); return; }
+  // requer cadastro
+  var p = kyberGetPlayer();
+  if (!p || !p.name) {
+    var setupEl2 = document.getElementById('kyber-setup');
+    if (setupEl2) {
+      var msg = setupEl2.querySelector('.kyber-no-player');
+      if (!msg) {
+        msg = document.createElement('p');
+        msg.className = 'kyber-no-player';
+        msg.style.cssText = 'color:var(--accent);font-family:var(--font-mono);font-size:.85rem;margin-top:12px;text-align:center';
+        msg.textContent = '⚠ Clique em "Ative a Força" no topo para se identificar primeiro.';
+        setupEl2.appendChild(msg);
+      }
+    }
+    return;
+  }
 
-  gameState.playerName  = name;
-  gameState.playerArea  = area;
-  gameState.playerTurma = turma;
+  gameState.playerName  = p.name;
+  gameState.playerArea  = p.area  || '';
+  gameState.playerTurma = p.turma || '';
   gameState.totalScore  = 0;
   gameState.currentChallenge = 0;
 
