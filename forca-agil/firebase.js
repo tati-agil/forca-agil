@@ -189,6 +189,47 @@
     var revelarCancel = document.getElementById('revelarCancel');
     var revelarPatente= document.getElementById('revelarPatente');
 
+    function checkProgress() {
+      try {
+        var state = JSON.parse(localStorage.getItem('fa-game-v2') || 'null');
+        var autoDone = state && state.quiz && state.quiz.filter(function(v){ return v != null; }).length === 6;
+        var missoesDone = state && state.missions && Object.keys(state.missions).length === 6 &&
+          Object.values(state.missions).every(function(m) {
+            return m && m.answers && m.answers.every(function(a){ return a !== null; });
+          });
+        var kyberDone = localStorage.getItem('fa-kyber-done') === '1';
+        return { autoDone: autoDone, missoesDone: missoesDone, kyberDone: kyberDone,
+                 allDone: autoDone && missoesDone && kyberDone };
+      } catch(e) { return { autoDone: false, missoesDone: false, kyberDone: false, allDone: false }; }
+    }
+
+    function updateRevelarBtn() {
+      if (!revelarBtn) return;
+      var prog = checkProgress();
+      if (prog.allDone) {
+        revelarBtn.disabled = false;
+        revelarBtn.style.opacity = '';
+        revelarBtn.title = '';
+        var hint = document.querySelector('.revelar-hint');
+        if (hint) hint.innerHTML =
+          '<span style="color:var(--accent)">✓ Autodiagnóstico</span> · ' +
+          '<span style="color:var(--accent)">✓ Missões</span> · ' +
+          '<span style="color:var(--accent)">✓ Kyber Game</span><br>Você completou as 3 etapas! Publique sua patente.';
+      } else {
+        revelarBtn.disabled = true;
+        revelarBtn.style.opacity = '0.4';
+        var hint = document.querySelector('.revelar-hint');
+        if (hint) hint.innerHTML =
+          (prog.autoDone ? '<span style="color:var(--accent)">✓' : '<span style="color:var(--ink-3)">✗') + ' Autodiagnóstico</span> · ' +
+          (prog.missoesDone ? '<span style="color:var(--accent)">✓' : '<span style="color:var(--ink-3)">✗') + ' Missões</span> · ' +
+          (prog.kyberDone ? '<span style="color:var(--accent)">✓' : '<span style="color:var(--ink-3)">✗') + ' Kyber Game</span><br>Complete as 3 etapas para revelar sua patente.';
+      }
+    }
+
+    updateRevelarBtn();
+    window.addEventListener('fa-player-registered', updateRevelarBtn);
+    window.addEventListener('storage', updateRevelarBtn);
+
     if (revelarBtn) revelarBtn.addEventListener('click', function() {
       var p = getPlayer();
       if (!p || !p.name) {
@@ -196,6 +237,8 @@
         if (btn) btn.click();
         return;
       }
+      var prog = checkProgress();
+      if (!prog.allDone) return;
       var gxp   = getGameXP();
       var kxp   = getKyberXP();
       var total = Math.min(100, gxp.xpAuto + gxp.xpMissoes + kxp);
