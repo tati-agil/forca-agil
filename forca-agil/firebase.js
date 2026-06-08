@@ -140,16 +140,19 @@
         return;
       }
       players.forEach(function(e, i) {
-        var isMe = myEntry && e.name === myEntry.name && e.turma === myEntry.turma;
+        var isMe = myEntry && e.name === myEntry.name && e.area === myEntry.area;
         var row = document.createElement('div');
         row.className = 'rank-row' + (isMe ? ' highlight' : '');
+        // patente visível só para a própria pessoa
+        var patenteHtml = isMe
+          ? '<span class="rank-patente" style="color:var(--accent);font-family:var(--font-mono);font-size:.75rem">' + (e.patente || '') + '</span>'
+          : '';
         row.innerHTML =
           '<span class="rank-pos">#' + (i + 1) + '</span>' +
           '<span class="rank-name">' + e.name +
-            (e.turma ? '<span class="rank-turma">' + e.turma + '</span>' : '') +
-            (e.area  ? '<span class="rank-area">'  + e.area  + '</span>' : '') +
+            (e.area ? '<span class="rank-area">' + e.area + '</span>' : '') +
           '</span>' +
-          '<span class="rank-patente" style="color:var(--accent);font-family:var(--font-mono);font-size:.75rem">' + (e.patente || '') + '</span>' +
+          patenteHtml +
           '<span class="rank-score">' + (e.totalXP || 0) + ' XP</span>';
         list.appendChild(row);
       });
