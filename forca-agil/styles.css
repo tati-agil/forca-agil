@@ -757,6 +757,10 @@ html:not(.js) .reveal { opacity: 1 !important; transform: none !important; }
 .cs-list.open { display:block; }
 .cs-list li { padding:10px 16px; cursor:pointer; font-size:.95rem; color:var(--ink-2); list-style:none; }
 .cs-list li:hover { background:rgba(255,255,255,.07); color:var(--ink); }
+.cs-list::-webkit-scrollbar { width:4px; }
+.cs-list::-webkit-scrollbar-track { background:transparent; }
+.cs-list::-webkit-scrollbar-thumb { background:var(--line-strong); border-radius:4px; }
+.cs-list::-webkit-scrollbar-thumb:hover { background:var(--accent); }
 .modal-err { color:#f44336; font-size:.82rem; margin:4px 0 8px; font-family:var(--font-mono); }
 
 .repo-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px,1fr)); gap: 14px; margin-top: 26px; }
