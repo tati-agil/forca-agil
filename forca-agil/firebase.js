@@ -104,7 +104,7 @@
     try { localStorage.setItem('fa-kyber-done', '1'); } catch(e) {}
 
     // converte score em XP (0–32)
-    var kyberXP = Math.min(32, Math.round(gameState.totalScore / 20000 * 32));
+    var kyberXP = Math.min(50, Math.round(gameState.totalScore / 20000 * 50));
     try { localStorage.setItem('fa-kyber-xp', String(kyberXP)); } catch(e) {}
 
     var p     = getPlayer() || { name: gameState.playerName || 'Agente', area: '', turma: '' };
@@ -283,7 +283,9 @@
       if (!prog.allDone) return;
       var gxp   = getGameXP();
       var kxp   = getKyberXP();
-      var total = Math.min(100, gxp.xpAuto + gxp.xpMissoes + kxp);
+      var cxp   = getContentXP();
+      var rxp   = getRepoXP();
+      var total = Math.min(100, gxp.xpAuto + gxp.xpMissoes + kxp + cxp + rxp);
       var patente = getRank(total);
       if (revelarPatente) revelarPatente.textContent = patente + ' · ' + total + ' XP';
       if (revelarConfirm) revelarConfirm.hidden = false;

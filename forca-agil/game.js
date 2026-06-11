@@ -251,9 +251,9 @@
     }
   ];
 
-  const QUIZ_MAX  = 20;  // autodiagnóstico: até 20 XP
-  const MISS_MAX  = 48;  // missões: até 48 XP (18 respostas)
-  const KYBER_MAX = 32;  // kyber game: até 32 XP (via firebase.js)
+  const QUIZ_MAX  = 15;  // autodiagnóstico: até 15 XP
+  const MISS_MAX  = 35;  // missões: até 35 XP (18 respostas)
+  const KYBER_MAX = 50;  // kyber game: até 50 XP (via firebase.js)
 
   // ---- State ----
   // missions agora armazena { answers: [null|idx, null|idx, null|idx] } por id
