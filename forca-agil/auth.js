@@ -34,7 +34,7 @@
   function register(data, cb) {
     var email = (data.email || '').trim().toLowerCase();
     var pwd   = (data.password || '');
-    var name  = (data.name || '').trim();
+    var name  = (data.name || '').trim().toUpperCase();
     var area  = (data.area || '').trim();
 
     if (!isPrevi(email))  return cb({ error: 'Use seu e-mail @previ.com.br.' });
