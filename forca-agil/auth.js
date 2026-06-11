@@ -113,7 +113,7 @@
     var ctaEl     = document.getElementById('navCta');
     var profileEl = document.getElementById('navProfile');
     var adminLink = document.getElementById('navAdmin');
-    if (ctaEl)     { ctaEl.hidden = !!sess; ctaEl.style.display = sess ? 'none' : ''; }
+    if (ctaEl)     { ctaEl.hidden = !!sess; ctaEl.style.display = sess ? 'none' : 'inline-flex'; }
     if (profileEl) {
       profileEl.hidden = !sess;
       profileEl.style.display = sess ? '' : 'none';
