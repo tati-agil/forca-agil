@@ -207,11 +207,7 @@ h1,h2,h3,h4 { font-family: var(--font-head); font-weight: 600; line-height: 1.02
 .nav-toggle { display: none; }
 .nav-actions { display: flex; align-items: center; gap: 8px; margin-left: auto; }
 
-@media (max-width: 1280px) {
-  .brand-sub { display: none; }
-}
-
-@media (max-width: 1280px) {
+@media (max-width: 920px) {
   .nav-links {
     position: fixed; inset: 64px 0 auto 0; flex-direction: column; gap: 0;
     background: rgba(5,9,18,.97); border-bottom: 1px solid var(--line);
