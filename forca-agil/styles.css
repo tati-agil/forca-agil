@@ -132,9 +132,9 @@ h1,h2,h3,h4 { font-family: var(--font-head); font-weight: 600; line-height: 1.02
 .eyebrow::before { content:""; width: 26px; height: 1px; background: currentColor; opacity:.7; }
 
 .section {
-  max-width: var(--maxw); margin: 0 auto; padding: 120px 28px;
+  max-width: var(--maxw); margin: 0 auto; padding: 72px 28px;
 }
-.section--tight { padding: 80px 28px; }
+.section--tight { padding: 48px 28px; }
 
 .sec-title {
   font-family: var(--font-display);
