@@ -21,7 +21,7 @@
 
   /* ---- Reveal on scroll (rAF-less scroll event, ultra-reliable) ---- */
   var reveals = [];
-  function collectReveals() { reveals = Array.from(document.querySelectorAll('.reveal')); }
+  function collectReveals() { reveals = Array.from(document.querySelectorAll('.reveal:not(.in)')); }
   function revealInView() {
     var vh = innerHeight || document.documentElement.clientHeight;
     for (var i = 0; i < reveals.length; i++) {
