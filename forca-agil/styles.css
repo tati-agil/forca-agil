@@ -193,6 +193,7 @@ h1,h2,h3,h4 { font-family: var(--font-head); font-weight: 600; line-height: 1.02
 }
 .nav-cta:hover { background: var(--accent) !important; filter: brightness(1.1); }
 .nav-toggle { display: none; }
+.nav-actions { display: flex; align-items: center; gap: 8px; margin-left: auto; }
 
 @media (max-width: 920px) {
   .nav-links {

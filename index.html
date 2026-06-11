@@ -230,7 +230,6 @@
       </span>
     </span>
   </a>
-  <button class="nav-toggle" aria-label="Menu"><span></span><span></span><span></span></button>
   <div class="nav-links">
     <a href="#home"        data-nav-page="home">Início</a>
     <a href="#turmas"      data-nav-page="turmas">Turmas</a>
@@ -239,17 +238,19 @@
     <a href="#gamificacao" data-nav-page="gamificacao">Treinamento Jedi</a>
     <a href="#ranking" data-nav-page="ranking">Ranking</a>
     <a href="#admin"       data-nav-page="admin" id="navAdmin" hidden>Admin</a>
+  </div>
 
-    <!-- Not logged in -->
+  <!-- Sempre visível no nav, fora do menu mobile -->
+  <div class="nav-actions">
     <button class="nav-cta" id="navCta">Juntar-se à Força</button>
-
-    <!-- Logged in -->
     <div class="nav-profile" id="navProfile" hidden>
       <div class="nav-profile-avatar"></div>
       <span class="nav-profile-name"></span>
       <button id="navLogout" class="nav-logout-btn">Sair</button>
     </div>
   </div>
+
+  <button class="nav-toggle" aria-label="Menu"><span></span><span></span><span></span></button>
 </nav>
 
 <div id="app">
