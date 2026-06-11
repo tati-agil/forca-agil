@@ -89,6 +89,13 @@
   function logout() {
     clearSession();
     try { localStorage.removeItem('fa-player'); } catch(e) {}
+    // Força esconder o perfil imediatamente, sem depender de eventos
+    var profileEl = document.getElementById('navProfile');
+    var ctaEl     = document.getElementById('navCta');
+    var adminLink = document.getElementById('navAdmin');
+    if (profileEl) profileEl.hidden = true;
+    if (ctaEl)     ctaEl.hidden = false;
+    if (adminLink) adminLink.hidden = true;
     updateNavState();
     window.dispatchEvent(new CustomEvent('fa-auth-change', { detail: null }));
     if (window.faRouter) window.faRouter.navigate('home');
@@ -228,7 +235,7 @@
 
     /* Logout */
     var lo = document.getElementById('navLogout');
-    if (lo) lo.addEventListener('click', function (e) { e.preventDefault(); logout(); });
+    if (lo) lo.addEventListener('click', function (e) { e.preventDefault(); e.stopPropagation(); logout(); });
 
     /* Profile div → gamificacao */
     var np = document.getElementById('navProfile');
