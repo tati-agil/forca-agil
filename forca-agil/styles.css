@@ -748,8 +748,15 @@ html:not(.js) .reveal { opacity: 1 !important; transform: none !important; }
 .modal-field label { display:block; font-family:var(--font-mono); font-size:.7rem; letter-spacing:.1em; text-transform:uppercase; color:var(--ink-3); margin-bottom:7px; }
 .modal-field input, .modal-field select { width:100%; padding:13px 16px; background:rgba(255,255,255,.04); border:1px solid var(--line-strong); border-radius:10px; color:var(--ink); font:inherit; font-size:.95rem; box-sizing:border-box; transition:border-color .2s; }
 .modal-field input:focus, .modal-field select:focus { outline:none; border-color:var(--accent); box-shadow:0 0 0 3px rgba(245,197,24,.12); }
-.modal-field select option { background:#0a1426; }
-.modal-field select { color-scheme: dark; }
+.custom-select { position:relative; width:100%; }
+.cs-trigger { width:100%; padding:13px 16px; background:rgba(255,255,255,.04); border:1px solid var(--line-strong); border-radius:10px; color:var(--ink-3); font:inherit; font-size:.95rem; box-sizing:border-box; cursor:pointer; display:flex; justify-content:space-between; align-items:center; }
+.cs-trigger::after { content:'▾'; font-size:.8rem; opacity:.6; }
+.cs-trigger.selected { color:var(--ink); }
+.cs-trigger.open { border-color:var(--accent); box-shadow:0 0 0 3px rgba(245,197,24,.12); }
+.cs-list { display:none; position:absolute; top:calc(100% + 4px); left:0; right:0; background:#0a1426; border:1px solid var(--line-strong); border-radius:10px; max-height:200px; overflow-y:auto; z-index:999; padding:4px 0; }
+.cs-list.open { display:block; }
+.cs-list li { padding:10px 16px; cursor:pointer; font-size:.95rem; color:var(--ink-2); list-style:none; }
+.cs-list li:hover { background:rgba(255,255,255,.07); color:var(--ink); }
 .modal-err { color:#f44336; font-size:.82rem; margin:4px 0 8px; font-family:var(--font-mono); }
 
 .repo-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px,1fr)); gap: 14px; margin-top: 26px; }

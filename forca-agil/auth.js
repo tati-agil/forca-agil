@@ -297,6 +297,24 @@
     if (toLogin) toLogin.addEventListener('click', function (e) { e.preventDefault(); switchTab('login'); });
     if (toReg)   toReg.addEventListener('click',   function (e) { e.preventDefault(); switchTab('register'); });
 
+    /* Custom select — gerência */
+    var cs = document.getElementById('regAreaSelect');
+    if (cs) {
+      var trigger = cs.querySelector('.cs-trigger');
+      var list    = cs.querySelector('.cs-list');
+      var hidden  = document.getElementById('regArea');
+      trigger.addEventListener('click', function(e) { e.stopPropagation(); list.classList.toggle('open'); trigger.classList.toggle('open'); });
+      list.querySelectorAll('li').forEach(function(li) {
+        li.addEventListener('click', function() {
+          hidden.value = li.dataset.val;
+          trigger.textContent = li.dataset.val;
+          trigger.classList.add('selected'); trigger.classList.remove('open');
+          list.classList.remove('open');
+        });
+      });
+      document.addEventListener('click', function() { list.classList.remove('open'); trigger.classList.remove('open'); });
+    }
+
     window.faOpenAuthModal  = openModal;
     window.faCloseAuthModal = closeModal;
   });
