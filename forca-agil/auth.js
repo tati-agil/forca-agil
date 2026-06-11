@@ -173,7 +173,13 @@
     tabs.forEach(function (t) { t.addEventListener('click', function () { switchTab(t.dataset.tab); }); });
     if (closeBtn) closeBtn.addEventListener('click', closeModal);
     // Não fecha ao clicar fora — evita perda de formulário preenchido
-    document.addEventListener('keydown', function (e) { if (e.key === 'Escape' && modal && !modal.hidden) closeModal(); });
+    document.addEventListener('keydown', function (e) {
+      if (e.key !== 'Escape' || !modal || modal.hidden) return;
+      // Só fecha com Esc se nenhum campo tiver conteúdo digitado
+      var inputs = modal.querySelectorAll('input');
+      var hasContent = Array.prototype.some.call(inputs, function(i) { return i.value.length > 0; });
+      if (!hasContent) closeModal();
+    });
 
     /* Botão Entrar → abre modal de login */
     var navLoginBtn = document.getElementById('navLogin');
