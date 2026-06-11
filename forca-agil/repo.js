@@ -25,7 +25,14 @@
 
   // ---- Helpers ----
   function getPlayer() {
+    // Prefer new auth session, fall back to legacy fa-player
+    var sess = window.faAuth && window.faAuth.getSession && window.faAuth.getSession();
+    if (sess) return { name: sess.name, area: sess.area || '', turma: '', email: sess.email };
     try { return JSON.parse(localStorage.getItem('fa-player') || 'null') || null; } catch(e) { return null; }
+  }
+  function fmtDate(d) {
+    if (!d) return '';
+    try { return new Date(d).toLocaleDateString('pt-BR'); } catch(e) { return ''; }
   }
   function host(url) { try { return new URL(url).hostname.replace(/^www\./, ''); } catch(e) { return 'abrir'; } }
   function esc(s) {
@@ -49,8 +56,13 @@
   function card(item, isSeed, firebaseKey) {
     const k  = KIND[item.type] || KIND.link;
     const me = getPlayer();
-    const isMine = !isSeed && me && item.authorKey &&
-      item.authorKey === (sanitizeKey(me.name) + '__' + sanitizeKey(me.turma));
+    const sess = window.faAuth && window.faAuth.getSession && window.faAuth.getSession();
+    const isAdminUser = sess && window.faAuth.isAdmin && window.faAuth.isAdmin(sess.email);
+    const isMine = !isSeed && me && (
+      (item.authorEmail && sess && item.authorEmail === sess.email) ||
+      (!item.authorEmail && me && item.authorKey &&
+        item.authorKey === (sanitizeKey(me.name) + '__' + sanitizeKey(me.turma)))
+    );
 
     const el = document.createElement('article');
     el.className = 'repo-card';
@@ -69,10 +81,10 @@
         ? '<span class="rc-seed">curado</span>'
         : '<span class="rc-author">' +
             esc(item.authorName || 'Agente') +
-            (item.authorTurma ? ' · ' + esc(item.authorTurma) : '') +
+            (item.createdAt ? '<span class="rc-date">' + fmtDate(item.createdAt) + '</span>' : '') +
           '</span>') +
-      (isMine
-        ? '<button class="rc-del" title="Remover meu recurso" data-key="' + esc(firebaseKey) + '">' +
+      ((isMine || isAdminUser) && !isSeed
+        ? '<button class="rc-del" title="Remover recurso" data-key="' + esc(firebaseKey) + '">' +
             '<svg width="14" height="14"><use href="#i-x"/></svg>' +
           '</button>'
         : '');
@@ -156,14 +168,8 @@
   addBtn && addBtn.addEventListener('click', function() {
     var p = getPlayer();
     if (!p || !p.name) {
-      // abre modal de cadastro e, após cadastro, abre o form automaticamente
       window._pendingRepoForm = true;
-      var overlay = document.getElementById('registerModal');
-      if (overlay) {
-        overlay.hidden = false;
-        var nameField = document.getElementById('reg-name');
-        if (nameField) nameField.focus();
-      }
+      if (window.faOpenAuthModal) window.faOpenAuthModal('register');
       return;
     }
     openRepoForm();
@@ -190,15 +196,16 @@
     if (!title || !url) return;
     if (!/^https?:\/\//i.test(url)) url = 'https://' + url;
 
+    var sess  = window.faAuth && window.faAuth.getSession && window.faAuth.getSession();
     var entry = {
       type:        type,
       title:       title,
       url:         url,
       desc:        desc,
       authorName:  p.name,
-      authorTurma: p.turma || '',
+      authorEmail: (sess && sess.email) || '',
       authorArea:  p.area  || '',
-      authorKey:   sanitizeKey(p.name) + '__' + sanitizeKey(p.turma),
+      authorKey:   sanitizeKey(p.name) + '__' + sanitizeKey(p.turma || ''),
       createdAt:   new Date().toISOString()
     };
 
@@ -207,11 +214,14 @@
         .then(function() {
           form.reset();
           form.hidden = true;
-          // muda filtro para "todos" para o novo card aparecer
           filter = 'all';
           filters && filters.querySelectorAll('.repo-chip').forEach(function(c) {
             c.classList.toggle('active', c.dataset.f === 'all');
           });
+          // Award repo XP
+          var cur = parseInt(localStorage.getItem('fa-repo-xp') || '0', 10) || 0;
+          try { localStorage.setItem('fa-repo-xp', String(Math.min(20, cur + 10))); } catch(e) {}
+          if (window.faSyncPlayer) window.faSyncPlayer();
         })
         .catch(function(err) { console.warn('Firebase push error:', err); });
     } catch(err) {
@@ -219,13 +229,15 @@
     }
   });
 
-  // ---- Após cadastro: abre form se estava pendente ----
-  window.addEventListener('fa-player-registered', function() {
+  // ---- Após cadastro/login: abre form se estava pendente ----
+  function onAuthReady() {
     if (window._pendingRepoForm) {
       window._pendingRepoForm = false;
       setTimeout(openRepoForm, 300);
     }
-  });
+  }
+  window.addEventListener('fa-player-registered', onAuthReady);
+  window.addEventListener('fa-auth-change', onAuthReady);
 
   // ---- Init ----
   listenFirebase();

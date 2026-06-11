@@ -55,8 +55,14 @@
       return { xpAuto: xpAuto, xpMissoes: xpMissoes };
     } catch(e) { return { xpAuto: 0, xpMissoes: 0 }; }
   }
-  function getKyberXP() {
-    return parseInt(localStorage.getItem('fa-kyber-xp') || '0', 10) || 0;
+  function getKyberXP()   { return parseInt(localStorage.getItem('fa-kyber-xp')   || '0', 10) || 0; }
+  function getContentXP() { return parseInt(localStorage.getItem('fa-content-xp') || '0', 10) || 0; }
+  function getRepoXP()    { return parseInt(localStorage.getItem('fa-repo-xp')    || '0', 10) || 0; }
+
+  function escHtml(s) {
+    return String(s || '').replace(/[&<>"]/g, function(c) {
+      return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c];
+    });
   }
 
   // ---- Sync player record to Firebase ----
@@ -65,7 +71,9 @@
     if (!p || !p.name) return;
     var gxp   = getGameXP();
     var kxp   = getKyberXP();
-    var total = Math.min(100, gxp.xpAuto + gxp.xpMissoes + kxp);
+    var cxp   = getContentXP();
+    var rxp   = getRepoXP();
+    var total = Math.min(100, gxp.xpAuto + gxp.xpMissoes + kxp + cxp + rxp);
     var entry = {
       name:      p.name,
       area:      p.area  || '',
@@ -73,6 +81,8 @@
       xpAuto:    gxp.xpAuto,
       xpMissoes: gxp.xpMissoes,
       xpKyber:   kxp,
+      xpContent: cxp,
+      xpRepo:    rxp,
       totalXP:   total,
       patente:   getRank(total),
       updatedAt: new Date().toISOString()
@@ -179,6 +189,38 @@
     return localStorage.getItem('fa-kyber-done') === '1';
   };
 
+  // ---- Home ranking mini (top 5) ----
+  window.faRenderHomeRanking = function() {
+    var list = document.getElementById('homeRanking');
+    if (!list) return;
+    list.innerHTML = '<p style="color:var(--ink-3);font-size:.82rem">Carregando…</p>';
+    if (!fbReady) {
+      list.innerHTML = '<p style="color:var(--ink-3);font-size:.82rem">Seja o primeiro no ranking!</p>';
+      return;
+    }
+    firebase.database().ref('players').orderByChild('totalXP').limitToLast(5)
+      .on('value', function(snapshot) {
+        var data = snapshot.val();
+        list.innerHTML = '';
+        if (!data) {
+          list.innerHTML = '<p style="color:var(--ink-3);font-size:.82rem">Seja o primeiro no ranking!</p>';
+          return;
+        }
+        var players = Object.values(data).sort(function(a,b) { return (b.totalXP||0) - (a.totalXP||0); });
+        players.slice(0, 5).forEach(function(p, i) {
+          var row = document.createElement('div');
+          row.className = 'rank-row';
+          row.innerHTML =
+            '<span class="rank-pos">#' + (i+1) + '</span>' +
+            '<span class="rank-name">' + escHtml(p.name || '—') +
+              (p.area ? '<span class="rank-area">' + escHtml(p.area) + '</span>' : '') +
+            '</span>' +
+            '<span class="rank-score">' + (p.totalXP || 0) + ' XP</span>';
+          list.appendChild(row);
+        });
+      });
+  };
+
   // ---- Revelar Patente Final ----
   document.addEventListener('DOMContentLoaded', function() {
     kyberRenderRanking();
@@ -264,6 +306,13 @@
         if (lb) lb.scrollIntoView({ behavior: 'smooth', block: 'center' });
       }, 400);
     });
+
+    // Register home ranking with router (works even if router ran DOMContentLoaded first)
+    if (window.faRouter) {
+      window.faRouter.onPageInit('home', function() {
+        window.faRenderHomeRanking && window.faRenderHomeRanking();
+      });
+    }
   });
 
 })();

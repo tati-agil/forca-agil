@@ -1,167 +1,206 @@
-/* App interactions for Força Ágil */
+/* ============================================================
+   Força Ágil — App UI interactions
+   Nav, reveals, crawl, accordions, anchor navigation
+   ============================================================ */
 (function () {
-  // ---- Nav scroll state + mobile toggle ----
-  const nav = document.querySelector('.nav');
-  const onScroll = () => nav && nav.classList.toggle('scrolled', window.scrollY > 40);
-  onScroll(); addEventListener('scroll', onScroll, { passive: true });
 
-  const toggle = document.querySelector('.nav-toggle');
-  const links = document.querySelector('.nav-links');
+  /* ---- Nav scroll + mobile toggle ---- */
+  var nav    = document.querySelector('.nav');
+  var onScr  = function () { nav && nav.classList.toggle('scrolled', window.scrollY > 40); };
+  onScr();
+  addEventListener('scroll', onScr, { passive: true });
+
+  var toggle = document.querySelector('.nav-toggle');
+  var links  = document.querySelector('.nav-links');
   if (toggle && links) {
-    toggle.addEventListener('click', () => links.classList.toggle('open'));
-    links.querySelectorAll('a').forEach(a => a.addEventListener('click', () => links.classList.remove('open')));
+    toggle.addEventListener('click', function () { links.classList.toggle('open'); });
+    links.querySelectorAll('a, button').forEach(function (el) {
+      el.addEventListener('click', function () { links.classList.remove('open'); });
+    });
   }
 
-  // ---- Reveal on scroll (rAF/scroll based — reliable, never leaves content hidden) ----
-  const reveals = [...document.querySelectorAll('.reveal')];
-  const revealInView = () => {
-    const vh = innerHeight || document.documentElement.clientHeight;
-    for (const el of reveals) {
+  /* ---- Reveal on scroll (rAF-less scroll event, ultra-reliable) ---- */
+  var reveals = [];
+  function collectReveals() { reveals = Array.from(document.querySelectorAll('.reveal')); }
+  function revealInView() {
+    var vh = innerHeight || document.documentElement.clientHeight;
+    for (var i = 0; i < reveals.length; i++) {
+      var el = reveals[i];
       if (el.classList.contains('in')) continue;
-      const r = el.getBoundingClientRect();
+      var r = el.getBoundingClientRect();
       if (r.top < vh * 1.05 && r.bottom > -80) el.classList.add('in');
     }
-  };
-  revealInView();
-  addEventListener('scroll', revealInView, { passive: true });
-  addEventListener('resize', revealInView);
-  addEventListener('load', revealInView);
-
-  // ---- Hero letters split ----
-  document.querySelectorAll('.hero-title [data-split]').forEach(line => {
-    const txt = line.textContent; line.textContent = '';
-    [...txt].forEach((ch, i) => {
-      const s = document.createElement('span');
-      s.textContent = ch === ' ' ? '\u00A0' : ch;
-      s.style.animationDelay = (0.35 + i * 0.05) + 's';
-      line.appendChild(s);
-    });
-  });
-
-  // ---- Opening crawl ----
-  const crawl = document.querySelector('.crawl-content');
-  const replay = document.querySelector('.crawl-replay');
-  const reduce = matchMedia('(prefers-reduced-motion: reduce)').matches;
-  if (crawl && !reduce) {
-    const startCrawl = () => {
-      crawl.classList.remove('run'); void crawl.offsetWidth; crawl.classList.add('run');
-    };
-    const crawlIO = new IntersectionObserver((es) => {
-      es.forEach(e => { if (e.isIntersecting) { startCrawl(); crawlIO.disconnect(); } });
-    }, { threshold: 0.4 });
-    crawlIO.observe(document.querySelector('.crawl-section'));
-    replay && replay.addEventListener('click', startCrawl);
-  } else if (replay) {
-    replay.style.display = 'none';
   }
+  document.addEventListener('DOMContentLoaded', function () { collectReveals(); revealInView(); });
+  addEventListener('scroll',  revealInView, { passive: true });
+  addEventListener('resize',  revealInView);
+  addEventListener('load', function () { collectReveals(); revealInView(); });
+  /* Re-collect when a new page section becomes visible */
+  window.addEventListener('hashchange', function () {
+    setTimeout(function () { collectReveals(); revealInView(); }, 120);
+  });
 
-  // ---- Jedi progression / self-diagnosis ----
-  const ranks = document.querySelectorAll('.rank');
-  const bar = document.querySelector('.rank-bar i');
-  ranks.forEach((r, i) => {
-    r.addEventListener('click', () => {
-      ranks.forEach(x => x.classList.remove('active'));
-      r.classList.add('active');
-      if (bar) bar.style.width = ((i + 1) / ranks.length * 100) + '%';
+  /* ---- Opening crawl ---- */
+  document.addEventListener('DOMContentLoaded', function () {
+    var crawl   = document.querySelector('.crawl-content');
+    var replay  = document.querySelector('.crawl-replay');
+    var reduce  = matchMedia('(prefers-reduced-motion: reduce)').matches;
+    if (crawl && !reduce) {
+      var startCrawl = function () { crawl.classList.remove('run'); void crawl.offsetWidth; crawl.classList.add('run'); };
+      var crawlIO = new IntersectionObserver(function (es) {
+        es.forEach(function (e) { if (e.isIntersecting) { startCrawl(); crawlIO.disconnect(); } });
+      }, { threshold: 0.4 });
+      var cs = document.querySelector('.crawl-section');
+      if (cs) crawlIO.observe(cs);
+      if (replay) replay.addEventListener('click', startCrawl);
+    } else if (replay) {
+      replay.style.display = 'none';
+    }
+  });
+
+  /* ---- Agenda accordions ---- */
+  document.addEventListener('click', function (e) {
+    var h = e.target.closest('.day-head');
+    if (h) h.parentElement.classList.toggle('open');
+  });
+
+  /* ---- Nav anchor links (Ranking → gamificacao + scroll to leaderboard) ---- */
+  document.addEventListener('click', function (e) {
+    var link = e.target.closest('[data-anchor]');
+    if (!link || !link.dataset.anchor) return;
+    e.preventDefault();
+    var page   = link.dataset.navPage || 'gamificacao';
+    var anchor = link.dataset.anchor;
+    if (window.faRouter) window.faRouter.navigate(page, { anchor: anchor });
+  });
+
+  /* ---- Hero entrance failsafe ---- */
+  addEventListener('load', function () {
+    setTimeout(function () {
+      document.querySelectorAll('.hero-kicker,.hero-sub,.hero-meta,.hero-actions,.scroll-cue,.hero-title span')
+        .forEach(function (el) { el.style.opacity = '1'; });
+    }, 1400);
+  });
+
+  /* ---- "Conhecer a iniciativa" scroll ---- */
+  document.addEventListener('DOMContentLoaded', function () {
+    var knowBtn = document.getElementById('heroKnow');
+    if (knowBtn) knowBtn.addEventListener('click', function (e) {
+      e.preventDefault();
+      var target = document.getElementById('o-que-e');
+      if (target) target.scrollIntoView({ behavior: 'smooth' });
     });
   });
 
-  // ---- Agenda accordions ----
-  document.querySelectorAll('.day-head').forEach(h => {
-    h.addEventListener('click', () => h.parentElement.classList.toggle('open'));
-  });
+  /* ---- Content XP tracking (conteúdos page) ---- */
+  var CONTENT_SECTIONS = ['galaxia','forca','arquetipos','sombrio','trilogia'];
+  var XP_PER_SECTION   = 5;
 
-  // ---- Active nav link highlight ----
-  const navA = [...document.querySelectorAll('.nav-links a[href^="#"]')];
-  const map = new Map();
-  navA.forEach(a => { const s = document.querySelector(a.getAttribute('href')); if (s) map.set(s, a); });
-  const spy = new IntersectionObserver((entries) => {
-    entries.forEach(e => {
-      if (e.isIntersecting) {
-        navA.forEach(a => a.style.color = '');
-        const a = map.get(e.target);
-        if (a) a.style.color = 'var(--accent)';
+  function initContentTracking() {
+    var sess = window.faAuth && window.faAuth.getSession();
+    if (!sess) return;
+
+    var read = [];
+    try { read = JSON.parse(localStorage.getItem('fa-content-read') || '[]'); } catch(e) {}
+
+    CONTENT_SECTIONS.forEach(function (id) {
+      var el = document.getElementById('content-' + id);
+      if (!el) return;
+
+      /* Mark already-read badge */
+      var badge = document.getElementById('xp-badge-' + id);
+      if (read.indexOf(id) !== -1) {
+        if (badge) { badge.textContent = '✓ +' + XP_PER_SECTION + ' XP'; badge.classList.add('visible'); }
+        return;
       }
+
+      /* Observe for first read */
+      var obs = new IntersectionObserver(function (entries) {
+        entries.forEach(function (entry) {
+          if (!entry.isIntersecting) return;
+          obs.disconnect();
+          read.push(id);
+          try { localStorage.setItem('fa-content-read', JSON.stringify(read)); } catch(e2) {}
+          var cur = parseInt(localStorage.getItem('fa-content-xp') || '0', 10) || 0;
+          try { localStorage.setItem('fa-content-xp', String(cur + XP_PER_SECTION)); } catch(e3) {}
+          if (window.faSyncPlayer) window.faSyncPlayer();
+          if (badge) {
+            badge.textContent = '✓ +' + XP_PER_SECTION + ' XP';
+            badge.classList.add('visible');
+          }
+        });
+      }, { threshold: 0.6 });
+      obs.observe(el);
     });
-  }, { threshold: 0.5 });
-  // ---- Hero entrance failsafe: ensure visible even if CSS animations are frozen ----
-  addEventListener('load', () => setTimeout(() => {
-    document.querySelectorAll('.hero-kicker,.hero-sub,.hero-meta,.hero-actions,.scroll-cue,.hero-title span')
-      .forEach(el => { el.style.opacity = '1'; });
-  }, 1400));
-  // ---- Modal de cadastro ----
-  const PLAYER_KEY = 'fa-player';
-
-  function getPlayer() {
-    try { return JSON.parse(localStorage.getItem(PLAYER_KEY) || 'null'); } catch(e) { return null; }
-  }
-  function savePlayer(p) {
-    try { localStorage.setItem(PLAYER_KEY, JSON.stringify(p)); } catch(e) {}
   }
 
-  const modal   = document.getElementById('registerModal');
-  const btnOpen = document.getElementById('openRegister');
-  const btnClose= document.getElementById('modalClose');
-  const btnSubmit=document.getElementById('reg-submit');
-  const errMsg  = document.getElementById('reg-err');
-
-  function openModal() {
-    if (!modal) return;
-    modal.hidden = false;
-    document.getElementById('reg-name').focus();
-  }
-  function closeModal() { if (modal) modal.hidden = true; }
-
-  function handleActivate() {
-    var p = getPlayer();
-    if (p && p.name) {
-      var dest = document.getElementById('treinamento');
-      if (dest) dest.scrollIntoView({ behavior: 'smooth' });
-    } else {
-      openModal();
+  document.addEventListener('DOMContentLoaded', function () {
+    if (window.faRouter) {
+      window.faRouter.onPageInit('conteudos', initContentTracking);
     }
-  }
-
-  if (btnOpen) btnOpen.addEventListener('click', handleActivate);
-
-  var heroBtn = document.getElementById('heroRegister');
-  if (heroBtn) heroBtn.addEventListener('click', handleActivate);
-
-  if (btnClose) btnClose.addEventListener('click', closeModal);
-  if (modal) modal.addEventListener('click', function(e) { if (e.target === modal) closeModal(); });
-  document.addEventListener('keydown', function(e) { if (e.key === 'Escape') closeModal(); });
-
-  if (btnSubmit) btnSubmit.addEventListener('click', function() {
-    var name  = (document.getElementById('reg-name').value || '').trim();
-    var area  = (document.getElementById('reg-area').value || '').trim();
-    if (!name || !area) {
-      if (errMsg) errMsg.hidden = false;
-      return;
-    }
-    if (errMsg) errMsg.hidden = true;
-    var player = { name: name, area: area, turma: '' };
-    savePlayer(player);
-    closeModal();
-    // notifica outros módulos
-    window.dispatchEvent(new CustomEvent('fa-player-registered', { detail: player }));
-    // rola para o game
-    var dest = document.getElementById('treinamento') || document.getElementById('missao');
-    if (dest) dest.scrollIntoView({ behavior: 'smooth' });
+    /* Also wire auth-change: if user logs in while on conteúdos, start tracking */
+    window.addEventListener('fa-auth-change', function () {
+      if (window.faRouter && window.faRouter.current() === 'conteudos') initContentTracking();
+    });
   });
 
-  // Atualiza info do kyber se já cadastrado (botão nav não muda)
-  function updateNavBtn() {
-    var p = getPlayer();
-    if (p && p.name) {
-      var info = document.getElementById('kyber-player-info');
-      if (info) info.textContent = p.name + (p.area ? ' · ' + p.area : '');
-    }
-  }
-  updateNavBtn();
+  /* ---- Turma interest buttons ---- */
+  document.addEventListener('DOMContentLoaded', function () {
+    function initTurmaInterest() {
+      document.querySelectorAll('.btn--interest').forEach(function (btn) {
+        var turmaKey = btn.dataset.turma;
+        if (!turmaKey) return;
 
-  window.addEventListener('fa-player-registered', function(e) {
-    var info = document.getElementById('kyber-player-info');
-    if (info) info.textContent = e.detail.name + (e.detail.area ? ' · ' + e.detail.area : '');
+        /* Check if already registered */
+        var sess = window.faAuth && window.faAuth.getSession();
+        if (sess) checkInterestState(btn, turmaKey, sess.email);
+
+        btn.addEventListener('click', function () {
+          var s = window.faAuth && window.faAuth.getSession();
+          if (!s) { if (window.faOpenAuthModal) window.faOpenAuthModal('register'); return; }
+          registerInterest(btn, turmaKey, s);
+        });
+      });
+    }
+
+    function checkInterestState(btn, turmaKey, email) {
+      var key = emailKey(email);
+      firebase && firebase.database &&
+        firebase.database().ref('turmas-interesse/' + turmaKey + '/' + key).once('value', function (snap) {
+          if (snap.exists()) setDone(btn, turmaKey);
+        });
+    }
+
+    function registerInterest(btn, turmaKey, sess) {
+      if (btn.classList.contains('done')) return;
+      var key   = emailKey(sess.email);
+      var entry = { name: sess.name, email: sess.email, area: sess.area || '', date: new Date().toISOString() };
+      firebase.database().ref('turmas-interesse/' + turmaKey + '/' + key).set(entry, function (err) {
+        if (!err) setDone(btn, turmaKey);
+        else showMsg(turmaKey, 'Erro ao registrar. Tente novamente.');
+      });
+    }
+
+    function setDone(btn, turmaKey) {
+      btn.textContent = '✓ Interesse registrado';
+      btn.classList.add('done');
+      btn.disabled = true;
+      showMsg(turmaKey, 'Sua intenção foi registrada! Usaremos para dimensionar as turmas.');
+    }
+
+    function showMsg(turmaKey, msg) {
+      var el = document.getElementById('intent-msg-' + turmaKey);
+      if (el) el.textContent = msg;
+    }
+
+    function emailKey(e) {
+      return (e || '').toLowerCase().replace(/[@.]/g, '_').replace(/[^a-z0-9_]/g, '').slice(0, 64);
+    }
+
+    if (window.faRouter) window.faRouter.onPageInit('turmas', initTurmaInterest);
+    window.addEventListener('fa-auth-change', function () {
+      if (window.faRouter && window.faRouter.current() === 'turmas') initTurmaInterest();
+    });
   });
 
 })();
