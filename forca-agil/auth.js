@@ -93,8 +93,8 @@
     var profileEl = document.getElementById('navProfile');
     var ctaEl     = document.getElementById('navCta');
     var adminLink = document.getElementById('navAdmin');
-    if (profileEl) profileEl.hidden = true;
-    if (ctaEl)     ctaEl.hidden = false;
+    if (profileEl) { profileEl.hidden = true; profileEl.style.display = 'none'; }
+    if (ctaEl)     { ctaEl.hidden = false; ctaEl.style.display = ''; }
     if (adminLink) adminLink.hidden = true;
     updateNavState();
     window.dispatchEvent(new CustomEvent('fa-auth-change', { detail: null }));
@@ -113,9 +113,10 @@
     var ctaEl     = document.getElementById('navCta');
     var profileEl = document.getElementById('navProfile');
     var adminLink = document.getElementById('navAdmin');
-    if (ctaEl)     ctaEl.hidden = !!sess;
+    if (ctaEl)     { ctaEl.hidden = !!sess; ctaEl.style.display = sess ? 'none' : ''; }
     if (profileEl) {
       profileEl.hidden = !sess;
+      profileEl.style.display = sess ? '' : 'none';
       if (sess) {
         var nameEl = profileEl.querySelector('.nav-profile-name');
         if (nameEl) nameEl.textContent = sess.name.split(' ')[0];
