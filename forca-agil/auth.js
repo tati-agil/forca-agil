@@ -126,6 +126,11 @@
     if (adminLink) adminLink.hidden = !sess || !isAdmin((sess || {}).email);
   }
 
+  /* Roda imediatamente para evitar flash de estado errado */
+  if (document.readyState !== 'loading') {
+    updateNavState();
+  }
+
   /* ---------- Modal UI ---------- */
   document.addEventListener('DOMContentLoaded', function () {
     updateNavState();
