@@ -182,8 +182,8 @@ h1,h2,h3,h4 { font-family: var(--font-head); font-weight: 600; line-height: 1.02
 
 .nav-links { display: flex; gap: 4px; align-items: center; }
 .nav-links a {
-  font-family: var(--font-mono); font-size: .72rem; letter-spacing: .12em; text-transform: uppercase;
-  color: var(--ink-2); text-decoration: none; padding: 9px 12px; border-radius: 6px;
+  font-family: var(--font-mono); font-size: .65rem; letter-spacing: .08em; text-transform: uppercase;
+  color: var(--ink-2); text-decoration: none; padding: 9px 8px; border-radius: 6px;
   transition: color .2s, background .2s;
 }
 .nav-links a:hover { color: var(--ink); background: rgba(120,160,220,.1); }
