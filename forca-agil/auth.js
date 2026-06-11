@@ -218,7 +218,7 @@
       }, function (r) {
         btn.disabled = false; btn.textContent = 'Ativar a Força →';
         if (r.error) { if (regErr) { regErr.textContent = r.error; regErr.hidden = false; } }
-        else { closeModal(); if (window.faRouter) window.faRouter.navigate('gamificacao'); }
+        else { closeModal(); /* fica na página atual — não redireciona */ }
       });
     });
 
