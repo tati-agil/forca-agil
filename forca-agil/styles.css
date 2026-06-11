@@ -753,7 +753,7 @@ html:not(.js) .reveal { opacity: 1 !important; transform: none !important; }
 .cs-trigger::after { content:'▾'; font-size:.8rem; opacity:.6; }
 .cs-trigger.selected { color:var(--ink); }
 .cs-trigger.open { border-color:var(--accent); box-shadow:0 0 0 3px rgba(245,197,24,.12); }
-.cs-list { display:none; position:absolute; top:calc(100% + 4px); left:0; right:0; background:#0a1426; border:1px solid var(--line-strong); border-radius:10px; max-height:200px; overflow-y:auto; z-index:999; padding:4px 0; }
+.cs-list { display:none; position:absolute; top:calc(100% + 4px); left:0; right:0; background:#0a1426; border:1px solid var(--line-strong); border-radius:10px; max-height:200px; overflow-y:auto; z-index:999; padding:4px 0; scrollbar-width:thin; scrollbar-color:var(--line-strong) transparent; }
 .cs-list.open { display:block; }
 .cs-list li { padding:10px 16px; cursor:pointer; font-size:.95rem; color:var(--ink-2); list-style:none; }
 .cs-list li:hover { background:rgba(255,255,255,.07); color:var(--ink); }
