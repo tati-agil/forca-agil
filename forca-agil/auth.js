@@ -196,12 +196,23 @@
         if (regErr) { regErr.textContent = 'Aceite os termos para continuar.'; regErr.hidden = false; }
         return;
       }
+      var pwd    = document.getElementById('regPassword').value;
+      var pwdCfm = document.getElementById('regPasswordConfirm');
+      if (pwdCfm && pwdCfm.value !== pwd) {
+        if (regErr) { regErr.textContent = 'As senhas não coincidem.'; regErr.hidden = false; }
+        return;
+      }
+      var emailVal = (document.getElementById('regEmail').value || '').trim().toLowerCase();
+      if (!isPrevi(emailVal)) {
+        if (regErr) { regErr.textContent = 'Use seu e-mail corporativo @previ.com.br.'; regErr.hidden = false; }
+        return;
+      }
       var btn = rf.querySelector('[type=submit]');
       btn.disabled = true; btn.textContent = 'Aguarde…';
       register({
         name:        document.getElementById('regName').value,
-        email:       document.getElementById('regEmail').value,
-        password:    document.getElementById('regPassword').value,
+        email:       emailVal,
+        password:    pwd,
         area:        document.getElementById('regArea').value,
         optinTurmas: !!(document.getElementById('regOptin') && document.getElementById('regOptin').checked)
       }, function (r) {
@@ -229,6 +240,16 @@
     if (fp) fp.addEventListener('click', function (e) {
       e.preventDefault();
       alert('Para redefinir sua senha, entre em contato:\ntatianefdirene@previ.com.br');
+    });
+
+    /* Olhinho — mostrar/ocultar senha */
+    document.addEventListener('click', function (e) {
+      var btn = e.target.closest('.pwd-eye');
+      if (!btn) return;
+      var input = document.getElementById(btn.dataset.target);
+      if (!input) return;
+      input.type = input.type === 'password' ? 'text' : 'password';
+      btn.textContent = input.type === 'password' ? '👁' : '🙈';
     });
 
     /* Switch link: "já tenho conta" / "criar conta" */

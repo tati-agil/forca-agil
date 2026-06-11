@@ -1145,7 +1145,10 @@
         </label>
         <label class="auth-label">
           Senha
-          <input type="password" id="loginPassword" placeholder="••••••••" autocomplete="current-password" />
+          <div class="pwd-wrap">
+            <input type="password" id="loginPassword" placeholder="••••••••" autocomplete="current-password" />
+            <button type="button" class="pwd-eye" data-target="loginPassword" aria-label="Mostrar senha">👁</button>
+          </div>
         </label>
         <a href="#" id="forgotPassword" class="auth-link">Esqueci minha senha</a>
         <p class="auth-err" id="loginErr" hidden></p>
@@ -1168,7 +1171,17 @@
         </label>
         <label class="auth-label">
           Senha (mínimo 8 caracteres)
-          <input type="password" id="regPassword" placeholder="Crie uma senha forte" autocomplete="new-password" />
+          <div class="pwd-wrap">
+            <input type="password" id="regPassword" placeholder="Crie uma senha forte" autocomplete="new-password" />
+            <button type="button" class="pwd-eye" data-target="regPassword" aria-label="Mostrar senha">👁</button>
+          </div>
+        </label>
+        <label class="auth-label">
+          Confirmar senha
+          <div class="pwd-wrap">
+            <input type="password" id="regPasswordConfirm" placeholder="Repita a senha" autocomplete="new-password" />
+            <button type="button" class="pwd-eye" data-target="regPasswordConfirm" aria-label="Mostrar senha">👁</button>
+          </div>
         </label>
         <label class="auth-label">
           Área / Setor

@@ -75,6 +75,16 @@
 }
 .auth-label input:focus { outline: none; border-color: var(--accent); }
 
+.pwd-wrap { position: relative; margin-top: 2px; }
+.pwd-wrap input { width: 100%; padding-right: 42px; box-sizing: border-box; margin-top: 0; }
+.pwd-eye {
+  position: absolute; right: 10px; top: 50%; transform: translateY(-50%);
+  background: none; border: none; cursor: pointer; font-size: 1rem;
+  color: var(--ink-3); padding: 4px; line-height: 1; opacity: .6;
+  transition: opacity .2s;
+}
+.pwd-eye:hover { opacity: 1; }
+
 .checkbox-row {
   display: flex; align-items: flex-start; gap: 10px;
   font-size: .84rem; color: var(--ink-2); cursor: pointer; line-height: 1.5;
