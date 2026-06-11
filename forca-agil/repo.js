@@ -22,7 +22,7 @@
     { type: 'video', title: 'O que é Agilidade? (busca)',            url: 'https://www.youtube.com/results?search_query=o+que+%C3%A9+agilidade+business+agility',       desc: 'Vídeos introdutórios sobre agilidade e business agility.' },
     { type: 'tool',  title: 'OKR — Objetivos e Key Results',         url: 'https://www.youtube.com/results?search_query=como+escrever+okr+objetivo+key+results',        desc: 'Como escrever bons Objetivos e Key Results — dinâmica do Dia 1.' },
     { type: 'tool',  title: 'Design Thinking & Duplo Diamante',      url: 'https://www.youtube.com/results?search_query=duplo+diamante+design+thinking',                desc: 'Divergir e convergir: o conceito trabalhado no Dia 3.' },
-    { type: 'book',  title: 'Team OKR em Ação: Como Times de Verdade Transformam Estratégia em Resultados', url: 'https://caroli.org/livro/team-okr/', desc: 'Indicação: Maira.' }
+    { type: 'book',  title: 'Team OKR em Ação: Como Times de Verdade Transformam Estratégia em Resultados', url: 'https://caroli.org/livro/team-okr/', desc: '' }
   ];
 
   // ---- Helpers ----
