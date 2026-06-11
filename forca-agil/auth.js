@@ -5,7 +5,7 @@
 (function () {
   'use strict';
 
-  var ADMIN    = ['tatianefdirene@previ.com.br', 'danilfrazao@previ.com.br'];
+  var ADMIN    = ['tatianefdirene@previ.com.br', 'danielfrazao@previ.com.br'];
   var SESS_KEY = 'fa-session';
 
   function hashPwd(email, pwd) {
