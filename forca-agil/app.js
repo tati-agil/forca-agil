@@ -114,19 +114,27 @@
         return;
       }
 
-      /* Observe for first read */
+      /* Observe for first read — requires 10s visible before awarding XP */
+      var readTimer = null;
       var obs = new IntersectionObserver(function (entries) {
         entries.forEach(function (entry) {
-          if (!entry.isIntersecting) return;
-          obs.disconnect();
-          read.push(id);
-          try { localStorage.setItem('fa-content-read', JSON.stringify(read)); } catch(e2) {}
-          var cur = parseInt(localStorage.getItem('fa-content-xp') || '0', 10) || 0;
-          try { localStorage.setItem('fa-content-xp', String(cur + XP_PER_SECTION)); } catch(e3) {}
-          if (window.faSyncPlayer) window.faSyncPlayer();
-          if (badge) {
-            badge.textContent = '✓ +' + XP_PER_SECTION + ' XP';
-            badge.classList.add('visible');
+          if (entry.isIntersecting) {
+            if (readTimer) return;
+            readTimer = setTimeout(function () {
+              obs.disconnect();
+              read.push(id);
+              try { localStorage.setItem('fa-content-read', JSON.stringify(read)); } catch(e2) {}
+              var cur = parseInt(localStorage.getItem('fa-content-xp') || '0', 10) || 0;
+              try { localStorage.setItem('fa-content-xp', String(cur + XP_PER_SECTION)); } catch(e3) {}
+              if (window.faSyncPlayer) window.faSyncPlayer();
+              if (badge) {
+                badge.textContent = '✓ +' + XP_PER_SECTION + ' XP';
+                badge.classList.add('visible');
+              }
+            }, 10000);
+          } else {
+            clearTimeout(readTimer);
+            readTimer = null;
           }
         });
       }, { threshold: 0.6 });
