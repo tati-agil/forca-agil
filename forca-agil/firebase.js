@@ -297,6 +297,7 @@
 
     if (revelarOk) revelarOk.addEventListener('click', function() {
       if (revelarConfirm) revelarConfirm.hidden = true;
+      try { localStorage.setItem('fa-patente-revealed', '1'); } catch(e) {}
       window.faSyncPlayer();
       // troca botão por mensagem de confirmação
       var wrap = document.getElementById('revelarWrap');

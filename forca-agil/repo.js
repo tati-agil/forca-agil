@@ -245,10 +245,12 @@
           filters && filters.querySelectorAll('.repo-chip').forEach(function(c) {
             c.classList.toggle('active', c.dataset.f === 'all');
           });
-          // Award repo XP
-          var cur = parseInt(localStorage.getItem('fa-repo-xp') || '0', 10) || 0;
-          try { localStorage.setItem('fa-repo-xp', String(Math.min(20, cur + 10))); } catch(e) {}
-          if (window.faSyncPlayer) window.faSyncPlayer();
+          // Award repo XP — só conta se patente ainda não foi revelada
+          if (localStorage.getItem('fa-patente-revealed') !== '1') {
+            var cur = parseInt(localStorage.getItem('fa-repo-xp') || '0', 10) || 0;
+            try { localStorage.setItem('fa-repo-xp', String(Math.min(20, cur + 10))); } catch(e) {}
+            if (window.faSyncPlayer) window.faSyncPlayer();
+          }
         })
         .catch(function(err) { console.warn('Firebase push error:', err); });
     }
