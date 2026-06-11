@@ -177,7 +177,7 @@ h1,h2,h3,h4 { font-family: var(--font-head); font-weight: 600; line-height: 1.02
 }
 .brand-name b { color: var(--accent); font-weight: inherit; }
 .brand-sub { display:block; font-family: var(--font-mono); font-size: .56rem; letter-spacing: .18em; color: var(--ink-3); margin-top: 3px; }
-.brand-previ { color: #1ab2ae !important; letter-spacing: .04em; font-weight: 700; font-size: .62rem; margin-right: 6px; }
+.brand-previ-logo { display:inline-block; background:#fff; border-radius:3px; padding:1px 4px; margin-right:6px; vertical-align:middle; line-height:1; }
 
 .nav-links { display: flex; gap: 4px; align-items: center; }
 .nav-links a {
