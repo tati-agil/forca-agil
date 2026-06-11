@@ -235,15 +235,19 @@
 
     /* Logout */
     var lo = document.getElementById('navLogout');
-    if (lo) lo.addEventListener('click', function (e) { e.preventDefault(); e.stopPropagation(); logout(); });
+    if (lo) lo.addEventListener('click', function (e) {
+      e.preventDefault();
+      e.stopPropagation();
+      e.stopImmediatePropagation();
+      logout();
+    });
 
     /* Profile div → gamificacao */
     var np = document.getElementById('navProfile');
     if (np) np.addEventListener('click', function (e) {
-      if (!e.target.closest('#navLogout')) {
-        e.preventDefault();
-        if (window.faRouter) window.faRouter.navigate('gamificacao');
-      }
+      if (e.target.closest('#navLogout')) return;
+      e.preventDefault();
+      if (window.faRouter) window.faRouter.navigate('gamificacao');
     });
 
     /* Forgot password */
