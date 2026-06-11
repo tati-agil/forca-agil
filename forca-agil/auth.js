@@ -172,7 +172,7 @@
 
     tabs.forEach(function (t) { t.addEventListener('click', function () { switchTab(t.dataset.tab); }); });
     if (closeBtn) closeBtn.addEventListener('click', closeModal);
-    if (modal) modal.addEventListener('click', function (e) { if (e.target === modal) closeModal(); });
+    // Não fecha ao clicar fora — evita perda de formulário preenchido
     document.addEventListener('keydown', function (e) { if (e.key === 'Escape' && modal && !modal.hidden) closeModal(); });
 
     /* Botão Entrar → abre modal de login */
