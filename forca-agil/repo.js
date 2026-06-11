@@ -209,9 +209,36 @@
       createdAt:   new Date().toISOString()
     };
 
+    var btn = rf.querySelector('[type=submit]');
+    if (btn) { btn.disabled = true; btn.textContent = 'Verificando…'; }
+
+    function normalizeUrl(u) { return (u || '').toLowerCase().replace(/\/+$/, ''); }
+
     try {
+      firebase.database().ref('holocron').once('value', function(snap) {
+        var data = snap.val();
+        if (data) {
+          var exists = Object.values(data).some(function(item) {
+            return normalizeUrl(item.url) === normalizeUrl(url);
+          });
+          if (exists) {
+            btn.disabled = false; btn.textContent = 'Guardar no Holocron';
+            var errEl = document.getElementById('repoFormErr');
+            if (errEl) { errEl.textContent = 'Este recurso já foi adicionado ao Holocron.'; errEl.hidden = false; }
+            return;
+          }
+        }
+        saveEntry();
+      }).catch(function() { saveEntry(); });
+    } catch(err) {
+      console.warn('Firebase unavailable:', err);
+    }
+
+    function saveEntry() {
+      if (btn) { btn.disabled = true; btn.textContent = 'Guardando…'; }
       firebase.database().ref('holocron').push(entry)
         .then(function() {
+          if (btn) { btn.disabled = false; btn.textContent = 'Guardar no Holocron'; }
           form.reset();
           form.hidden = true;
           filter = 'all';
@@ -224,8 +251,6 @@
           if (window.faSyncPlayer) window.faSyncPlayer();
         })
         .catch(function(err) { console.warn('Firebase push error:', err); });
-    } catch(err) {
-      console.warn('Firebase unavailable:', err);
     }
   });
 
