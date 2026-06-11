@@ -332,11 +332,8 @@ h1,h2,h3,h4 { font-family: var(--font-head); font-weight: 600; line-height: 1.02
 .crawl-content p { font-size: clamp(1.25rem, 3vw, 1.9rem); font-weight: 600; margin-bottom: 1.1em; line-height: 1.35; font-family: var(--font-head); }
 @keyframes crawl { 0% { top: 100%; } 100% { top: -260%; } }
 .crawl-replay {
-  position: absolute; bottom: 22px; left: 50%; transform: translateX(-50%); z-index: 4;
-  /* aparece após o texto sumir — não sobrepõe o crawl */
-  opacity: 0; animation: crawl-btn-appear 90s linear forwards;
+  display: block; margin: 24px auto 0; text-align: center; position: relative; z-index: 4;
 }
-@keyframes crawl-btn-appear { 0%,85% { opacity: 0; pointer-events: none; } 100% { opacity: 1; pointer-events: auto; } }
 @media (prefers-reduced-motion: reduce) {
   .crawl-stage { perspective: none; height: auto; mask-image: none; -webkit-mask-image: none; padding: 80px 0; }
   .crawl-content { position: static; transform: none; width: min(720px,88vw); margin: 0 auto; text-align: left; }
