@@ -64,6 +64,12 @@
     if (h) h.parentElement.classList.toggle('open');
   });
 
+  /* ---- Yoda episode accordions ---- */
+  document.addEventListener('click', function (e) {
+    var h = e.target.closest('.yep-head');
+    if (h) h.parentElement.classList.toggle('open');
+  });
+
   /* ---- Nav anchor links (Ranking → gamificacao + scroll to leaderboard) ---- */
   document.addEventListener('click', function (e) {
     var link = e.target.closest('[data-anchor]');
