@@ -9,7 +9,8 @@
     video: { label: 'Vídeo',       icon: '#i-play' },
     doc:   { label: 'Documento',   icon: '#i-doc'  },
     tool:  { label: 'Ferramenta',  icon: '#i-tool' },
-    link:  { label: 'Link',        icon: '#i-link' }
+    link:  { label: 'Link',        icon: '#i-link' },
+    book:  { label: 'Livro',       icon: '#i-book' }
   };
 
   // Recursos curados (sempre visíveis, não editáveis)
@@ -20,7 +21,8 @@
     { type: 'video', title: 'Agile Product Ownership in a Nutshell', url: 'https://www.youtube.com/results?search_query=agile+product+ownership+in+a+nutshell+kniberg', desc: 'Henrik Kniberg explica Product Ownership ágil em ~15 min.' },
     { type: 'video', title: 'O que é Agilidade? (busca)',            url: 'https://www.youtube.com/results?search_query=o+que+%C3%A9+agilidade+business+agility',       desc: 'Vídeos introdutórios sobre agilidade e business agility.' },
     { type: 'tool',  title: 'OKR — Objetivos e Key Results',         url: 'https://www.youtube.com/results?search_query=como+escrever+okr+objetivo+key+results',        desc: 'Como escrever bons Objetivos e Key Results — dinâmica do Dia 1.' },
-    { type: 'tool',  title: 'Design Thinking & Duplo Diamante',      url: 'https://www.youtube.com/results?search_query=duplo+diamante+design+thinking',                desc: 'Divergir e convergir: o conceito trabalhado no Dia 3.' }
+    { type: 'tool',  title: 'Design Thinking & Duplo Diamante',      url: 'https://www.youtube.com/results?search_query=duplo+diamante+design+thinking',                desc: 'Divergir e convergir: o conceito trabalhado no Dia 3.' },
+    { type: 'book',  title: 'Team OKR em Ação: Como Times de Verdade Transformam Estratégia em Resultados', url: 'https://caroli.org/livro/team-okr/', desc: 'A Jornada da Eficiência — princípios Lean e OKR aplicados: eliminar desperdícios, estabelecer fluxo contínuo, aprender e evoluir com disciplina. Indicação: Maira.' }
   ];
 
   // ---- Helpers ----
