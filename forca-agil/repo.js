@@ -220,7 +220,7 @@
           });
           // Award repo XP
           var cur = parseInt(localStorage.getItem('fa-repo-xp') || '0', 10) || 0;
-          try { localStorage.setItem('fa-repo-xp', String(Math.min(20, cur + 10))); } catch(e) {}
+          try { localStorage.setItem('fa-repo-xp', String(cur + 10)); } catch(e) {}
           if (window.faSyncPlayer) window.faSyncPlayer();
         })
         .catch(function(err) { console.warn('Firebase push error:', err); });
