@@ -188,7 +188,7 @@ h1,h2,h3,h4 { font-family: var(--font-head); font-weight: 600; line-height: 1.02
 .nav-cta[hidden] { display: none !important; }
 #navGuest[hidden] { display: none !important; }
 #navGuest { display: flex; align-items: center; gap: 8px; }
-#navGuest button { display: inline-flex; align-items: center; justify-content: center; }
+#navGuest button { display: inline-flex; align-items: center; justify-content: center; height: 32px; box-sizing: border-box; }
 .nav-btn-login {
   font-family: var(--font-mono); font-size: .68rem; letter-spacing: .1em; text-transform: uppercase;
   color: var(--ink-2); background: none; border: 1px solid var(--line-strong);
