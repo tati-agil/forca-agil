@@ -504,7 +504,7 @@
   function guideText(c, leveledUp) {
     if (leveledUp) return 'Patente desbloqueada: ' + RANKS[c.rankIdx].name + '! Continue cumprindo missões para evoluir ainda mais.';
     if (c.rankIdx === 3) return 'Você alcançou o posto de Mestre! Agora seu papel é formar novos Jedi e disseminar a mentalidade ágil pela Previ.';
-    if (!c.quizDone) return 'Olá! Eu sou o PV-1. Comece pelo autodiagnóstico abaixo — escolha seu nível em cada dimensão para revelar sua patente inicial.';
+    if (!c.quizDone) return 'Olá! Eu sou o Previx. Comece pelo autodiagnóstico abaixo — escolha seu nível em cada dimensão para revelar sua patente inicial.';
     if (c.mDone === 0) return 'Autodiagnóstico concluído! Clique em uma missão para expandir os 3 desafios e ganhar XP.';
     if (c.rankIdx < RANKS.length - 1) return 'Bom trabalho! Faltam ' + (RANKS[c.rankIdx + 1].min - c.xp) + ' XP para virar ' + RANKS[c.rankIdx + 1].name + '. Siga em frente!';
     return 'Você alcançou o posto de Mestre! Parabéns, a Força Ágil está com você.';
