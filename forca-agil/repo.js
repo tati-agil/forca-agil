@@ -23,7 +23,8 @@
     { type: 'tool',  title: 'OKR — Objetivos e Key Results',         url: 'https://www.youtube.com/results?search_query=como+escrever+okr+objetivo+key+results',        desc: 'Como escrever bons Objetivos e Key Results — dinâmica do Dia 1.' },
     { type: 'tool',  title: 'Design Thinking & Duplo Diamante',      url: 'https://www.youtube.com/results?search_query=duplo+diamante+design+thinking',                desc: 'Divergir e convergir: o conceito trabalhado no Dia 3.' },
     { type: 'book',  title: 'Team OKR em Ação: Como Times de Verdade Transformam Estratégia em Resultados', url: 'https://caroli.org/livro/team-okr/', desc: '' },
-    { type: 'book',  title: 'O Poder da Simplicidade no Mundo Ágil — Susanne Andrade', url: 'https://www.amazon.com.br/s?k=O+poder+da+simplicidade+no+mundo+%C3%A1gil+Susanne+Andrade', desc: '"Agilidade é diferente de correria." Uma leitura leve e acessível que mostra o ágil como cuidado com pessoas e colaboração com propósito — ótima porta de entrada para quem está começando a jornada.' }
+    { type: 'book',  title: 'O Poder da Simplicidade no Mundo Ágil — Susanne Andrade', url: 'https://www.amazon.com.br/s?k=O+poder+da+simplicidade+no+mundo+%C3%A1gil+Susanne+Andrade', desc: '"Agilidade é diferente de correria." Uma leitura leve e acessível que mostra o ágil como cuidado com pessoas e colaboração com propósito — ótima porta de entrada para quem está começando a jornada.' },
+    { type: 'video', title: 'XBA em Liderança Exponencial e Transformação Digital (Udemy)', url: 'https://www.udemy.com/course/xba-em-lideranca-exponencial-e-transformacao-digital/', desc: 'Liderança colaborativa, times autogerenciáveis e agilidade na prática — conteúdo baseado em casos reais de atendimentos gravados em sala de aula. Indicado por Daniel Frazão.' }
   ];
 
   // ---- Helpers ----
