@@ -332,7 +332,8 @@ h1,h2,h3,h4 { font-family: var(--font-head); font-weight: 600; line-height: 1.02
 .crawl-content p { font-size: clamp(1.25rem, 3vw, 1.9rem); font-weight: 600; margin-bottom: 1.1em; line-height: 1.35; font-family: var(--font-head); }
 @keyframes crawl { 0% { top: 100%; } 100% { top: -260%; } }
 .crawl-replay {
-  display: block; margin: 24px auto 0; text-align: center; position: relative; z-index: 4;
+  display: table; margin: 20px auto 40px; padding: 8px 20px;
+  font-size: .8rem; opacity: .6; position: relative; z-index: 4;
 }
 @media (prefers-reduced-motion: reduce) {
   .crawl-stage { perspective: none; height: auto; mask-image: none; -webkit-mask-image: none; padding: 80px 0; }
