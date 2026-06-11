@@ -748,7 +748,6 @@ html:not(.js) .reveal { opacity: 1 !important; transform: none !important; }
 .modal-field input:focus, .modal-field select:focus { outline:none; border-color:var(--accent); box-shadow:0 0 0 3px rgba(245,197,24,.12); }
 .modal-field select option { background:#0a1426; }
 .modal-err { color:#f44336; font-size:.82rem; margin:4px 0 8px; font-family:var(--font-mono); }
-.nav-cta { cursor:pointer; }
 
 .repo-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px,1fr)); gap: 14px; margin-top: 26px; }
 .repo-card { position: relative; display: flex; flex-direction: column; gap: 12px; padding: 22px; border-radius: 14px; border: 1px solid var(--line); background: linear-gradient(180deg, var(--panel), var(--panel-2)); transition: transform .25s var(--ease), border-color .25s, box-shadow .25s; }
