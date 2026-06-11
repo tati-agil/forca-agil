@@ -95,6 +95,8 @@
     var adminLink = document.getElementById('navAdmin');
     if (profileEl) profileEl.hidden = true;
     if (ctaEl)     ctaEl.hidden = false;
+    var guestEl2 = document.getElementById('navGuest');
+    if (guestEl2)  guestEl2.hidden = false;
     if (adminLink) adminLink.hidden = true;
     updateNavState();
     window.dispatchEvent(new CustomEvent('fa-auth-change', { detail: null }));
@@ -113,6 +115,8 @@
     var ctaEl     = document.getElementById('navCta');
     var profileEl = document.getElementById('navProfile');
     var adminLink = document.getElementById('navAdmin');
+    var guestEl = document.getElementById('navGuest');
+    if (guestEl)   guestEl.hidden = !!sess;
     if (ctaEl)     ctaEl.hidden = !!sess;
     if (profileEl) {
       profileEl.hidden = !sess;
@@ -170,6 +174,15 @@
     if (closeBtn) closeBtn.addEventListener('click', closeModal);
     if (modal) modal.addEventListener('click', function (e) { if (e.target === modal) closeModal(); });
     document.addEventListener('keydown', function (e) { if (e.key === 'Escape' && modal && !modal.hidden) closeModal(); });
+
+    /* Botão Entrar → abre modal de login */
+    var navLoginBtn = document.getElementById('navLogin');
+    if (navLoginBtn) navLoginBtn.addEventListener('click', function (e) {
+      e.preventDefault();
+      var s = getSession();
+      if (s) { if (window.faRouter) window.faRouter.navigate('gamificacao'); }
+      else openModal('login');
+    });
 
     /* CTA buttons → open register or go to game */
     ['navCta', 'heroJoin', 'heroRegister', 'openRegister'].forEach(function (id) {

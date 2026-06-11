@@ -242,11 +242,16 @@
 
   <!-- Sempre visível no nav, fora do menu mobile -->
   <div class="nav-actions">
-    <button class="nav-cta" id="navCta">Juntar-se à Força</button>
+    <!-- Não logado -->
+    <div id="navGuest">
+      <button class="nav-btn-login" id="navLogin">Entrar</button>
+      <button class="nav-cta" id="navCta">Cadastrar</button>
+    </div>
+    <!-- Logado -->
     <div class="nav-profile" id="navProfile" hidden>
       <div class="nav-profile-avatar"></div>
       <span class="nav-profile-name"></span>
-      <button id="navLogout" class="nav-logout-btn">Sair</button>
+      <button id="navLogout">Sair</button>
     </div>
   </div>
 
