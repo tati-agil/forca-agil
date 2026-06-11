@@ -211,7 +211,7 @@ h1,h2,h3,h4 { font-family: var(--font-head); font-weight: 600; line-height: 1.02
   .brand-sub { display: none; }
 }
 
-@media (max-width: 1060px) {
+@media (max-width: 1280px) {
   .nav-links {
     position: fixed; inset: 64px 0 auto 0; flex-direction: column; gap: 0;
     background: rgba(5,9,18,.97); border-bottom: 1px solid var(--line);
