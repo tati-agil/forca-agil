@@ -74,9 +74,9 @@
 
     waitDB(function () {
       firebase.database().ref('fa-users/' + emailKey(email)).once('value', function (snap) {
-        if (!snap.exists()) return cb({ error: 'E-mail não encontrado. Faça seu cadastro.' });
+        if (!snap.exists()) return cb({ error: 'E-mail ou senha inválidos.' });
         var u = snap.val();
-        if (u.passwordHash !== hashPwd(email, pwd)) return cb({ error: 'Senha incorreta.' });
+        if (u.passwordHash !== hashPwd(email, pwd)) return cb({ error: 'E-mail ou senha inválidos.' });
         var sess = { email: u.email, name: u.name, area: u.area };
         saveSession(sess);
         _afterLogin(sess);
