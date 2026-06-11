@@ -13,29 +13,32 @@
 /* Nav profile (logged in state) */
 .nav-profile[hidden] { display: none !important; }
 .nav-profile {
-  display: flex; align-items: center; gap: 8px;
-  cursor: pointer; padding: 4px 10px; border-radius: 8px;
-  border: 1px solid var(--line-strong); position: relative;
-  text-decoration: none;
+  display: flex; align-items: center; gap: 10px;
+  padding: 5px 12px; border-radius: 8px;
+  border: 1px solid var(--line-strong);
+  background: rgba(255,255,255,.04);
 }
-.nav-profile:hover { border-color: var(--accent); }
+.nav-profile:hover { border-color: var(--accent); background: rgba(255,255,255,.07); }
 .nav-profile-avatar {
-  width: 26px; height: 26px; border-radius: 50%;
-  background: var(--navy); border: 1.5px solid var(--accent);
+  width: 28px; height: 28px; border-radius: 50%;
+  background: var(--accent); color: var(--space-0);
   display: flex; align-items: center; justify-content: center;
-  font-size: .7rem; font-family: var(--font-mono); color: var(--accent);
+  font-size: .75rem; font-family: var(--font-mono); font-weight: 700;
   flex-shrink: 0;
 }
 .nav-profile-name {
-  font-family: var(--font-mono); font-size: .76rem; color: var(--ink-2);
-  max-width: 90px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  font-family: var(--font-mono); font-size: .76rem; color: var(--ink);
+  max-width: 100px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  font-weight: 600;
 }
 #navLogout {
-  font-size: .7rem; font-family: var(--font-mono); color: var(--ink-3);
-  background: none; border: none; cursor: pointer; padding: 0;
+  font-size: .68rem; font-family: var(--font-mono); color: var(--ink-3);
+  background: none; border: 1px solid var(--line-strong); cursor: pointer;
+  padding: 3px 8px; border-radius: 5px;
   text-transform: uppercase; letter-spacing: .04em;
+  transition: color .2s, border-color .2s;
 }
-#navLogout:hover { color: var(--red); }
+#navLogout:hover { color: var(--red); border-color: var(--red); }
 #navAdmin {
   font-size: .78rem; font-family: var(--font-mono); color: var(--gold);
   text-transform: uppercase; letter-spacing: .04em;
