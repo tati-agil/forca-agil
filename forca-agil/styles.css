@@ -629,6 +629,10 @@ html:not(.js) .reveal { opacity: 1 !important; transform: none !important; }
   border-radius: 4px; padding: 2px 7px;
 }
 
+/* ---------- Manifesto external link ---------- */
+.manifesto-link { display:inline-block; margin-top:20px; font-family:var(--font-mono); font-size:.78rem; letter-spacing:.06em; color:var(--accent); text-decoration:none; border-bottom:1px solid rgba(245,197,24,.3); padding-bottom:2px; transition:border-color .2s, opacity .2s; }
+.manifesto-link:hover { border-color:var(--accent); opacity:.8; }
+
 /* ---------- Section divider star ---------- */
 .divider { display:flex; align-items:center; justify-content:center; gap: 16px; color: var(--accent); opacity:.5; padding: 0 var(--pad-x); margin: -24px 0; }
 .divider::before, .divider::after { content:""; height:1px; flex:1; max-width: 240px; background: linear-gradient(90deg, transparent, var(--line-strong)); }

@@ -15,8 +15,6 @@
 
   // Recursos curados (sempre visíveis, não editáveis)
   const SEEDS = [
-    { type: 'doc',   title: 'Manifesto Ágil (PT-BR)',               url: 'https://agilemanifesto.org/iso/ptbr/manifesto.html',                                         desc: 'Os 4 valores que abrem a jornada — a Força em sua forma original.' },
-    { type: 'doc',   title: 'Os 12 Princípios do Manifesto',         url: 'https://agilemanifesto.org/iso/ptbr/principles.html',                                        desc: 'O Código Jedi completo: os princípios por trás dos valores.' },
     { type: 'doc',   title: 'The Scrum Guide',                       url: 'https://scrumguides.org/',                                                                    desc: 'Guia oficial do Scrum — papéis, eventos e artefatos.' },
     { type: 'video', title: 'Agile Product Ownership in a Nutshell', url: 'https://www.youtube.com/results?search_query=agile+product+ownership+in+a+nutshell+kniberg', desc: 'Henrik Kniberg explica Product Ownership ágil em ~15 min.' },
     { type: 'video', title: 'O que é Agilidade? (busca)',            url: 'https://www.youtube.com/results?search_query=o+que+%C3%A9+agilidade+business+agility',       desc: 'Vídeos introdutórios sobre agilidade e business agility.' },
