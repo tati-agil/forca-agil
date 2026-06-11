@@ -307,10 +307,42 @@
       }, 400);
     });
 
-    // Register home ranking with router (works even if router ran DOMContentLoaded first)
+    // Register home ranking with router
     if (window.faRouter) {
       window.faRouter.onPageInit('home', function() {
         window.faRenderHomeRanking && window.faRenderHomeRanking();
+      });
+      // Página de ranking completo
+      window.faRouter.onPageInit('ranking', function() {
+        var list = document.getElementById('rankingPageList');
+        if (!list) return;
+        list.innerHTML = '<p style="color:var(--ink-3);font-size:.9rem">Carregando…</p>';
+        if (!fbReady) { list.innerHTML = '<p style="color:var(--ink-3)">Firebase indisponível.</p>'; return; }
+        firebase.database().ref('players').orderByChild('totalXP')
+          .on('value', function(snapshot) {
+            var data = snapshot.val();
+            list.innerHTML = '';
+            if (!data) {
+              list.innerHTML = '<p style="color:var(--ink-3)">Nenhum agente no ranking ainda.</p>';
+              return;
+            }
+            var players = Object.values(data).sort(function(a,b){ return (b.totalXP||0)-(a.totalXP||0); });
+            var myEntry = null;
+            try { myEntry = JSON.parse(localStorage.getItem('fa-my-entry')||'null'); } catch(e){}
+            players.forEach(function(p, i) {
+              var isMe = myEntry && p.name === myEntry.name;
+              var row = document.createElement('div');
+              row.className = 'rank-row' + (isMe ? ' highlight' : '');
+              row.innerHTML =
+                '<span class="rank-pos">#' + (i+1) + '</span>' +
+                '<span class="rank-name">' + escHtml(p.name||'—') +
+                  (p.area ? '<span class="rank-area">' + escHtml(p.area) + '</span>' : '') +
+                '</span>' +
+                (isMe ? '<span class="rank-patente" style="color:var(--accent);font-family:var(--font-mono);font-size:.75rem">' + escHtml(p.patente||'') + '</span>' : '') +
+                '<span class="rank-score">' + (p.totalXP||0) + ' XP</span>';
+              list.appendChild(row);
+            });
+          });
       });
     }
   });

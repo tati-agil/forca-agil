@@ -4,13 +4,12 @@
 (function () {
   'use strict';
 
-  var PAGES   = ['home','turmas','conteudos','gamificacao','repositorio','admin'];
+  var PAGES   = ['home','turmas','conteudos','gamificacao','repositorio','ranking','admin'];
   var inits   = {};
   var current = null;
 
   function route() {
     var h = (location.hash || '').replace(/^#\/?/, '').split('?')[0] || 'home';
-    if (h === 'ranking') return 'gamificacao';
     return PAGES.indexOf(h) !== -1 ? h : 'home';
   }
 
