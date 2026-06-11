@@ -40,7 +40,19 @@
     document.querySelectorAll('.page-section').forEach(function (el) { el.hidden = true; });
 
     var el = document.getElementById('page-' + page);
-    if (el) { el.hidden = false; window.scrollTo({ top: 0, behavior: 'auto' }); }
+    if (el) {
+      el.hidden = false;
+      window.scrollTo({ top: 0, behavior: 'auto' });
+      // Força elementos já revelados a aparecerem sem transição (evita re-trigger ao sair de display:none)
+      el.querySelectorAll('.reveal').forEach(function (r) {
+        r.style.transition = 'none';
+        r.classList.add('in');
+        // Re-habilita transição após o browser pintar o frame
+        requestAnimationFrame(function () {
+          requestAnimationFrame(function () { r.style.transition = ''; });
+        });
+      });
+    }
 
     document.querySelectorAll('[data-nav-page]').forEach(function (a) {
       a.classList.toggle('nav-active', a.dataset.navPage === page);
