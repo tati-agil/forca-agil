@@ -185,6 +185,7 @@ h1,h2,h3,h4 { font-family: var(--font-head); font-weight: 600; line-height: 1.02
   transition: color .2s, background .2s;
 }
 .nav-links a:hover { color: var(--ink); background: rgba(120,160,220,.1); }
+.nav-cta[hidden] { display: none !important; }
 .nav-cta {
   font-family: var(--font-mono); font-size: .68rem; letter-spacing: .1em; text-transform: uppercase;
   color: var(--space-0) !important; background: var(--accent); padding: 7px 14px !important;
