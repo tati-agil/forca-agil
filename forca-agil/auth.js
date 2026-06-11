@@ -31,7 +31,10 @@
   }
 
   /* ---------- Register ---------- */
+  var _registering = false;
   function register(data, cb) {
+    if (_registering) return;
+    _registering = true;
     var email = (data.email || '').trim().toLowerCase();
     var pwd   = (data.password || '');
     var name  = (data.name || '').trim().toUpperCase();
@@ -45,7 +48,7 @@
     waitDB(function () {
       var ref = firebase.database().ref('fa-users/' + emailKey(email));
       ref.once('value', function (snap) {
-        if (snap.exists()) return cb({ error: 'E-mail já cadastrado. Faça login.' });
+        if (snap.exists()) { _registering = false; return cb({ error: 'E-mail já cadastrado. Faça login.' }); }
         var user = {
           email: email, name: name, area: area,
           passwordHash: hashPwd(email, pwd),
@@ -53,6 +56,7 @@
           createdAt: new Date().toISOString()
         };
         ref.set(user, function (err) {
+          _registering = false;
           if (err) return cb({ error: 'Erro no servidor. Tente novamente.' });
           var sess = { email: email, name: name, area: area };
           saveSession(sess);
