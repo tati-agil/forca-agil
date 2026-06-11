@@ -46,6 +46,7 @@
   --hero-haze: rgba(20,181,174,.18);
 
   --maxw: 1180px;
+  --pad-x: clamp(20px, 4vw, 40px);
   --ease: cubic-bezier(.22,.61,.36,1); /* @kind other */
 
   --font-display: 'Anton', 'Oswald', sans-serif;
@@ -132,9 +133,9 @@ h1,h2,h3,h4 { font-family: var(--font-head); font-weight: 600; line-height: 1.02
 .eyebrow::before { content:""; width: 26px; height: 1px; background: currentColor; opacity:.7; }
 
 .section {
-  max-width: var(--maxw); margin: 0 auto; padding: 56px 28px;
+  max-width: var(--maxw); margin: 0 auto; padding: 56px var(--pad-x);
 }
-.section--tight { padding: 36px 28px; }
+.section--tight { padding: 36px var(--pad-x); }
 
 .sec-title {
   font-family: var(--font-display);
@@ -155,7 +156,7 @@ h1,h2,h3,h4 { font-family: var(--font-head); font-weight: 600; line-height: 1.02
 .nav {
   position: fixed; top: 0; left: 0; right: 0; z-index: 50;
   display: flex; align-items: center; justify-content: space-between;
-  padding: 16px clamp(18px, 4vw, 40px);
+  padding: 16px var(--pad-x);
   background: linear-gradient(180deg, rgba(3,5,13,.85), rgba(3,5,13,0));
   backdrop-filter: blur(2px);
   transition: background .4s var(--ease), border-color .4s;
@@ -176,7 +177,7 @@ h1,h2,h3,h4 { font-family: var(--font-head); font-weight: 600; line-height: 1.02
   text-transform: uppercase; line-height: 1;
 }
 .brand-name b { color: var(--accent); font-weight: inherit; }
-.brand-sub { display:block; font-family: var(--font-mono); font-size: .56rem; letter-spacing: .18em; color: var(--ink-3); margin-top: 3px; }
+.brand-sub { display:block; font-family: var(--font-mono); font-size: .56rem; letter-spacing: .18em; color: var(--ink-3); margin-top: 3px; white-space: nowrap; }
 .brand-previ-img { height:11px; display:inline-block; vertical-align:middle; margin-right:4px; filter: brightness(0) saturate(100%) invert(63%) sepia(40%) saturate(600%) hue-rotate(138deg) brightness(95%); }
 
 .nav-links { display: flex; gap: 4px; align-items: center; }
@@ -240,7 +241,7 @@ h1,h2,h3,h4 { font-family: var(--font-head); font-weight: 600; line-height: 1.02
 /* ---------- HERO ---------- */
 .hero {
   position: relative; min-height: 100svh; display: grid; place-items: center;
-  text-align: center; padding: 120px 24px 80px; overflow: hidden;
+  text-align: center; padding: 120px var(--pad-x) 80px; overflow: hidden;
 }
 .hero-inner { position: relative; z-index: 3; max-width: 980px; }.hero-kicker {
   font-family: var(--font-mono); font-size: clamp(.7rem,1.6vw,.92rem); letter-spacing: .5em;
@@ -565,11 +566,11 @@ html:not(.js) .reveal { opacity: 1 !important; transform: none !important; }
 @media (max-width:680px){ .cta-steps { grid-template-columns: 1fr; } }
 
 /* ---------- Footer ---------- */
-.footer { border-top: 1px solid var(--line); padding: 40px 28px; text-align: center; color: var(--ink-3); font-family: var(--font-mono); font-size: .74rem; letter-spacing: .1em; }
+.footer { border-top: 1px solid var(--line); padding: 40px var(--pad-x); text-align: center; color: var(--ink-3); font-family: var(--font-mono); font-size: .74rem; letter-spacing: .1em; }
 .footer b { color: var(--accent); font-weight: 400; }
 
 /* ---------- Section divider star ---------- */
-.divider { display:flex; align-items:center; justify-content:center; gap: 16px; color: var(--accent); opacity:.5; padding: 0 28px; margin: -24px 0; }
+.divider { display:flex; align-items:center; justify-content:center; gap: 16px; color: var(--accent); opacity:.5; padding: 0 var(--pad-x); margin: -24px 0; }
 .divider::before, .divider::after { content:""; height:1px; flex:1; max-width: 240px; background: linear-gradient(90deg, transparent, var(--line-strong)); }
 
 /* Utility */
