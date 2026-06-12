@@ -133,7 +133,7 @@ h1,h2,h3,h4 { font-family: var(--font-head); font-weight: 600; line-height: 1.02
 .eyebrow::before { content:""; width: 26px; height: 1px; background: currentColor; opacity:.7; }
 
 .section {
-  max-width: var(--maxw); margin: 0 auto; padding: 56px var(--pad-x); position: relative; overflow: hidden;
+  max-width: var(--maxw); margin: 0 auto; padding: 56px var(--pad-x); position: relative;
 }
 .section--tight { padding: 36px var(--pad-x); }
 
