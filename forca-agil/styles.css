@@ -418,7 +418,8 @@ html:not(.js) .reveal { opacity: 1 !important; transform: none !important; }
 .principle span:last-child { color: var(--ink-2); font-size: .92rem; }
 
 /* ---------- Archetypes ---------- */
-.arch-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(250px,1fr)); gap: 16px; margin-top: 48px; }
+.arch-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; margin-top: 48px; }
+@media (max-width: 640px) { .arch-grid { grid-template-columns: 1fr; } }
 .arch {
   padding: 24px; border-radius: 14px; background: linear-gradient(180deg, var(--panel), var(--panel-2));
   border: 1px solid var(--line); transition: transform .3s var(--ease), border-color .3s;
