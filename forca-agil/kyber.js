@@ -9,8 +9,8 @@ const CHALLENGES = [
     situation: "O Império lançou um ataque à base. Você tem 2 horas para decidir como reagir.",
     context: "Como proceder?",
     options: [
-      { text: "Reunir lideranças, mapear tudo e montar plano perfeito em 90 min.", correct: false, agile: "Planejamento rígido — exatamente o que o Império espera." },
       { text: "Dividir em 3 squads, cada um decide sua rota em 15 min, ajusta conforme o inimigo se move.", correct: true, agile: "Entrega rápida, adaptação contínua, decisão distribuída — ágil!" },
+      { text: "Reunir lideranças, mapear tudo e montar plano perfeito em 90 min.", correct: false, agile: "Planejamento rígido — exatamente o que o Império espera." },
       { text: "Enviar mensagens de status a cada 10 min, mas não mexer em nada.", correct: false, agile: "Overhead de comunicação sem ação — paralisia." },
       { text: "Esperar mais 30 min para ter TODAS as informações antes de agir.", correct: false, agile: "Perfeição da informação = derrota. Ágil é decidir com ~70% da info." }
     ]
@@ -30,8 +30,8 @@ const CHALLENGES = [
     context: "Como priorizar?",
     options: [
       { text: "Fazer tudo. Adicionar mais gente. Trabalhar 24h.", correct: false, agile: "Burnout, qualidade ruim, erros. Desastre." },
-      { text: "Cliente sentado no time. Escolher top 12 tarefas que entregam máximo valor. Descartar o resto.", correct: true, agile: "Foco, simplicidade, valor real = ágil puro." },
       { text: "Fazer as 45 em ordem, sem questionar prioridade.", correct: false, agile: "Sem pensar em valor. Modo 'lista de tarefas'." },
+      { text: "Cliente sentado no time. Escolher top 12 tarefas que entregam máximo valor. Descartar o resto.", correct: true, agile: "Foco, simplicidade, valor real = ágil puro." },
       { text: "Delegar todas as decisões para o Império.", correct: false, agile: "Rendição, não agilidade." }
     ]
   },
@@ -40,17 +40,17 @@ const CHALLENGES = [
     context: "Você é o Scrum Master. O que faz?",
     options: [
       { text: "Obedecer silenciosamente.", correct: false, agile: "Falta coragem. Facilitador que não facilita." },
-      { text: "Levantar o problema com transparência, mostrar impacto, deixar liderança decidir.", correct: true, agile: "Liderança servidora, transparência, decisão informada = ágil." },
       { text: "Consertar em segredo sem avisar ninguém.", correct: false, agile: "Falta comunicação. Surpresas ruins depois." },
-      { text: "Criar 47 documentos explicando e enviar pra 5 níveis de aprovação.", correct: false, agile: "Burocracia pura. Antágil." }
+      { text: "Criar 47 documentos explicando e enviar pra 5 níveis de aprovação.", correct: false, agile: "Burocracia pura. Antágil." },
+      { text: "Levantar o problema com transparência, mostrar impacto, deixar liderança decidir.", correct: true, agile: "Liderança servidora, transparência, decisão informada = ágil." }
     ]
   },
   {
     situation: "Daily de 15 min virou discussão de 1h sobre arquitetura. Time frustrado.",
     context: "Como restaurar o foco?",
     options: [
-      { text: "Deixar como está. Discussões longas são sinal de engajamento.", correct: false, agile: "Desperdício de tempo. Timebox é timebox." },
       { text: "Cortar a discussão, marcar reunião separada, volta a 15 min.", correct: true, agile: "Respeito ao timebox, foco, reuniões com propósito = ágil." },
+      { text: "Deixar como está. Discussões longas são sinal de engajamento.", correct: false, agile: "Desperdício de tempo. Timebox é timebox." },
       { text: "Proibir qualquer discussão profunda.", correct: false, agile: "Perdeu aprendizado e colaboração." },
       { text: "Fazer duas dailies: uma de 15 min e outra 'real' de 1h.", correct: false, agile: "Duplicação, confusão, perda de tempo." }
     ]
@@ -72,8 +72,8 @@ const CHALLENGES = [
     context: "Qual é o problema?",
     options: [
       { text: "Não há problema. Quanto mais trabalho em andamento, melhor a produtividade.", correct: false, agile: "WIP alto = gargalos, contexto switching, qualidade ruim." },
-      { text: "WIP está muito alto! Limitar a 6-8 tarefas em andamento simultaneamente.", correct: true, agile: "WIP limitado = fluxo fluido, qualidade melhor, menos desperdício." },
       { text: "Adicionar mais coluna 'Em Análise' pra melhor organização.", correct: false, agile: "Mais colunas = mais complexidade, não resolve WIP." },
+      { text: "WIP está muito alto! Limitar a 6-8 tarefas em andamento simultaneamente.", correct: true, agile: "WIP limitado = fluxo fluido, qualidade melhor, menos desperdício." },
       { text: "Pedir para o time trabalhar mais rápido.", correct: false, agile: "Pressão pura. Não resolve o gargalo." }
     ]
   },
@@ -82,17 +82,17 @@ const CHALLENGES = [
     context: "Como fluir melhor?",
     options: [
       { text: "Criar uma coluna 'Urgências' separada para não bagunçar o fluxo.", correct: false, agile: "Só esconde o problema. Urgências entram de qualquer jeito." },
-      { text: "Proteger o fluxo: não puxar nova tarefa enquanto não termina a atual.", correct: true, agile: "Fluxo contínuo, cumprimento de prazos, menos contexto switching." },
       { text: "Aumentar o time pra fazer tudo simultaneamente.", correct: false, agile: "Mais gente = mais caos se não controlar WIP." },
-      { text: "Esperar até 'Em Andamento' vazio pra puxar tudo de uma vez.", correct: false, agile: "Batch grande = atraso. Kanban é fluxo, não lotes." }
+      { text: "Esperar até 'Em Andamento' vazio pra puxar tudo de uma vez.", correct: false, agile: "Batch grande = atraso. Kanban é fluxo, não lotes." },
+      { text: "Proteger o fluxo: não puxar nova tarefa enquanto não termina a atual.", correct: true, agile: "Fluxo contínuo, cumprimento de prazos, menos contexto switching." }
     ]
   },
   {
     situation: "O time puxa 40 tarefas por sprint, mas entrega só 25. Cliente frustrado.",
     context: "Como melhorar previsibilidade?",
     options: [
-      { text: "Puxar 50 tarefas pra compensar as que não terminam.", correct: false, agile: "Piora WIP, piora a situação." },
       { text: "Usar histórico para ajustar WIP e ser mais realista com capacidade.", correct: true, agile: "Dados → WIP realista → previsibilidade → cliente feliz." },
+      { text: "Puxar 50 tarefas pra compensar as que não terminam.", correct: false, agile: "Piora WIP, piora a situação." },
       { text: "Culpar o time por ser lento.", correct: false, agile: "Culpa não muda fluxo. Dados mudam." },
       { text: "Usar diferentes cores de post-its pra tarefas 'fáceis' e 'difíceis'.", correct: false, agile: "Cosmético. Não resolve capacidade." }
     ]
@@ -114,8 +114,8 @@ const CHALLENGES = [
     context: "Qual valor é gerado nas etapas 3-14?",
     options: [
       { text: "Qualidade. Etapas 3-14 garantem perfeição.", correct: false, agile: "Perfeição desnecessária = desperdício Lean." },
-      { text: "Nenhum valor direto ao cliente! Isso é desperdício puro que pode ser eliminado.", correct: true, agile: "Lean: elimine o que cliente não paga. Valor rápido > perfeição lenta." },
       { text: "Tempo para corrigir erros que surgem nas etapas 3-14.", correct: false, agile: "Se há erros, o processo está quebrado, não é valor." },
+      { text: "Nenhum valor direto ao cliente! Isso é desperdício puro que pode ser eliminado.", correct: true, agile: "Lean: elimine o que cliente não paga. Valor rápido > perfeição lenta." },
       { text: "Documentação que ninguém lê depois.", correct: false, agile: "Documentação sem uso = desperdício Lean clássico." }
     ]
   },
@@ -124,17 +124,17 @@ const CHALLENGES = [
     context: "Qual é o desperdício Lean?",
     options: [
       { text: "Nenhum. Review é essencial para qualidade.", correct: false, agile: "Review tem valor, mas 2 semanas > 2 minutos commit = ineficiência." },
-      { text: "Review automático com ferramentas + review humana ágil = qualidade rápida.", correct: true, agile: "Eliminar tempo ocioso, manter valor = Lean." },
       { text: "Aumentar o time de review.", correct: false, agile: "Mais gente no gargalo não o elimina." },
-      { text: "Ignorar review completamente.", correct: false, agile: "Perder qualidade também é desperdício." }
+      { text: "Ignorar review completamente.", correct: false, agile: "Perder qualidade também é desperdício." },
+      { text: "Review automático com ferramentas + review humana ágil = qualidade rápida.", correct: true, agile: "Eliminar tempo ocioso, manter valor = Lean." }
     ]
   },
   {
     situation: "Processo antigo: Requisição → Análise (4 semanas) → Desenvolvimento (2 semanas).",
     context: "Problema Lean?",
     options: [
-      { text: "Nenhum. Análise profunda garante bom desenvolvimento.", correct: false, agile: "Gargalo! 4 semanas análise = cliente esperando valor." },
       { text: "Análise paralela ao desenvolvimento reduz tempo total e gera valor mais rápido.", correct: true, agile: "Fluxo Lean: reduzir espera, maximizar valor, eliminar ineficiência." },
+      { text: "Nenhum. Análise profunda garante bom desenvolvimento.", correct: false, agile: "Gargalo! 4 semanas análise = cliente esperando valor." },
       { text: "Análise é essencial, não pode reduzir.", correct: false, agile: "Pode otimizar sem perder qualidade." },
       { text: "Aumentar analistas.", correct: false, agile: "Mais gente num gargalo = custo maior, mesmo tempo." }
     ]
@@ -156,8 +156,8 @@ const CHALLENGES = [
     context: "Oportunidade de Kaizen?",
     options: [
       { text: "Não. Se ninguém reclama, está bom.", correct: false, agile: "Kaizen busca melhoria contínua, não apenas resolver crises." },
-      { text: "Sim! Kaizen: pequenos passos. Entender o fluxo, remover 10 min por semana.", correct: true, agile: "Melhoria contínua = 1h → 30min → 15min ao longo de meses." },
       { text: "Só mexer se virar crise (deploy cai).", correct: false, agile: "Kaizen é proativo, não reativo." },
+      { text: "Sim! Kaizen: pequenos passos. Entender o fluxo, remover 10 min por semana.", correct: true, agile: "Melhoria contínua = 1h → 30min → 15min ao longo de meses." },
       { text: "Contratar especialista para redesenhar tudo de uma vez.", correct: false, agile: "Kaizen é incremental, não revolução." }
     ]
   },
@@ -166,17 +166,17 @@ const CHALLENGES = [
     context: "Como Kaizen?",
     options: [
       { text: "Continuar — padrões não se mexem.", correct: false, agile: "Padrões ruins = oportunidade de melhoria." },
-      { text: "Reduzir 5 min/mês: cortar tangentes, foco no essencial. Meta: 15 min em 6 meses.", correct: true, agile: "Pequenos passos = 40min → 35 → 30 → 20 → 15 com envolvimento do time." },
       { text: "Eliminá-la completamente.", correct: false, agile: "Daily tem valor. Otimize, não elimine." },
-      { text: "Aumentar para 1h pra mais discussão.", correct: false, agile: "Oposto de melhoria contínua." }
+      { text: "Aumentar para 1h pra mais discussão.", correct: false, agile: "Oposto de melhoria contínua." },
+      { text: "Reduzir 5 min/mês: cortar tangentes, foco no essencial. Meta: 15 min em 6 meses.", correct: true, agile: "Pequenos passos = 40min → 35 → 30 → 20 → 15 com envolvimento do time." }
     ]
   },
   {
     situation: "Bug recorrente: toda sprint aparece a mesma falha em validação. Time 'já acostumou'.",
     context: "Postura Kaizen?",
     options: [
-      { text: "Acostumar-se é normal em software.", correct: false, agile: "Kaizen: problema recorrente = investigar raiz, melhorar." },
       { text: "Investigar por que bug volta, corrigir raiz. Retrospectiva identifica padrão.", correct: true, agile: "Melhoria contínua elimina recorrências." },
+      { text: "Acostumar-se é normal em software.", correct: false, agile: "Kaizen: problema recorrente = investigar raiz, melhorar." },
       { text: "Aumentar testes (solução grande).", correct: false, agile: "Kaizen começa pequeno: entender → pequena mudança → verificar." },
       { text: "Ignorar e pedir ao cliente para aceitar.", correct: false, agile: "Pior postura contra melhoria contínua." }
     ]
@@ -198,8 +198,8 @@ const CHALLENGES = [
     context: "Problema?",
     options: [
       { text: "Não. Time descansou, bom para saúde mental.", correct: false, agile: "Desperdício de capacidade. Melhor validar e iterar." },
-      { text: "Converter em 3-dia sprint com 2 dias de validação com cliente.", correct: true, agile: "Fluxo contínuo, feedback rápido, valor real." },
       { text: "Aumentar escopo pra 10 dias de trabalho.", correct: false, agile: "Forçar barra = qualidade ruim." },
+      { text: "Converter em 3-dia sprint com 2 dias de validação com cliente.", correct: true, agile: "Fluxo contínuo, feedback rápido, valor real." },
       { text: "Manter 5 dias mas adicionar burocracia.", correct: false, agile: "Piora a coisa." }
     ]
   },
@@ -208,17 +208,17 @@ const CHALLENGES = [
     context: "O que falta?",
     options: [
       { text: "Retros não funcionam. Eliminar cerimônia.", correct: false, agile: "Retro funciona se há ação real." },
-      { text: "Atribuir proprietário por ação: 'João muda X até sprint 10'. Rastrear progresso.", correct: true, agile: "Ação → responsabilidade → resultado → real melhoria." },
       { text: "Pedir pra todo mundo 'melhorar' vaguamente.", correct: false, agile: "Vago = nada muda." },
-      { text: "Responsabilizar o ScrumMaster por tudo.", correct: false, agile: "Mudança é coletiva." }
+      { text: "Responsabilizar o ScrumMaster por tudo.", correct: false, agile: "Mudança é coletiva." },
+      { text: "Atribuir proprietário por ação: 'João muda X até sprint 10'. Rastrear progresso.", correct: true, agile: "Ação → responsabilidade → resultado → real melhoria." }
     ]
   },
   {
     situation: "Velocidade do time: Sprint 1=40pts, 2=35pts, 3=50pts, 4=38pts.",
     context: "Como interpretar?",
     options: [
-      { text: "Time é inconsistente. Precisa de disciplina.", correct: false, agile: "Variação pequena é normal. Ver padrão antes de julgar." },
       { text: "Média ~40pts. Usar isso para planejar futuras sprints. Investigar outliers.", correct: true, agile: "Dados históricos = previsibilidade realista." },
+      { text: "Time é inconsistente. Precisa de disciplina.", correct: false, agile: "Variação pequena é normal. Ver padrão antes de julgar." },
       { text: "Aumentar velocidade forçando horas extras.", correct: false, agile: "Qualidade cai, não rende." },
       { text: "Ignorar e achar que dá pra rodar 100pts.", correct: false, agile: "Fantasy planning = falhas garantidas." }
     ]
@@ -240,8 +240,8 @@ const CHALLENGES = [
     context: "Qual Lean waste?",
     options: [
       { text: "Defeitos. Precisa de mais testes.", correct: false, agile: "Não é defeito, é gargalo de aprovação." },
-      { text: "Espera (waiting). Tempo sem agregar valor. Paralisar produção.", correct: true, agile: "Principais 7 wastes Lean: espera é um dos piores." },
       { text: "Movimento. Time se mexe pouco.", correct: false, agile: "Time está parado, não é movimento." },
+      { text: "Espera (waiting). Tempo sem agregar valor. Paralisar produção.", correct: true, agile: "Principais 7 wastes Lean: espera é um dos piores." },
       { text: "Transporte. Aprovações demoram pra chegar.", correct: false, agile: "Transporte é movimento físico/dados, não fluxo de aprovação." }
     ]
   },
@@ -260,9 +260,9 @@ const CHALLENGES = [
     context: "Qual waste?",
     options: [
       { text: "Defeitos. Código estava errado.", correct: false, agile: "Código estava bom. Problema foi comunicação." },
-      { text: "Retrabalho (defects). Fazer algo de novo porque foi mal comunicado.", correct: true, agile: "Retrabalho não é defeito, é comunicação ruim = waste." },
       { text: "Espera. Dev esperou arquitetura mudar.", correct: false, agile: "Dev não esperou, trabalhou sem saber." },
-      { text: "Talento subutilizado. Dev não era bom.", correct: false, agile: "Dev era competente. Sistema falhou." }
+      { text: "Talento subutilizado. Dev não era bom.", correct: false, agile: "Dev era competente. Sistema falhou." },
+      { text: "Retrabalho (defects). Fazer algo de novo porque foi mal comunicado.", correct: true, agile: "Retrabalho não é defeito, é comunicação ruim = waste." }
     ]
   }
 ];
