@@ -582,9 +582,6 @@ html:not(.js) .reveal { opacity: 1 !important; transform: none !important; }
 .footer b { color: var(--accent); font-weight: 400; }
 
 /* ---------- Ensinamentos de Yoda ---------- */
-.yoda-header { position: relative; overflow: hidden; border-radius: 16px; margin-bottom: 48px; }
-.yoda-header-bg { position: absolute; right: -40px; top: 50%; transform: translateY(-50%); height: 140%; width: auto; opacity: .12; pointer-events: none; user-select: none; filter: blur(2px); }
-.yoda-header-content { position: relative; z-index: 2; padding: 8px 0; }
 .yoda-episodes { display: grid; gap: 10px; margin-top: 32px; }
 .yep { background: var(--panel); border: 1px solid var(--line); border-radius: 12px; overflow: hidden; }
 .yep-head {
