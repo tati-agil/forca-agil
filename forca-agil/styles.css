@@ -133,7 +133,7 @@ h1,h2,h3,h4 { font-family: var(--font-head); font-weight: 600; line-height: 1.02
 .eyebrow::before { content:""; width: 26px; height: 1px; background: currentColor; opacity:.7; }
 
 .section {
-  max-width: var(--maxw); margin: 0 auto; padding: 56px var(--pad-x);
+  max-width: var(--maxw); margin: 0 auto; padding: 56px var(--pad-x); position: relative; overflow: hidden;
 }
 .section--tight { padding: 36px var(--pad-x); }
 
@@ -582,8 +582,7 @@ html:not(.js) .reveal { opacity: 1 !important; transform: none !important; }
 .footer b { color: var(--accent); font-weight: 400; }
 
 /* ---------- Ensinamentos de Yoda ---------- */
-.yoda-orb-wrap { display: flex; justify-content: center; margin: 40px 0 0; }
-.yoda-orb { width: 80px; height: 80px; object-fit: cover; border-radius: 50%; filter: drop-shadow(0 0 14px rgba(245,197,24,.4)) drop-shadow(0 0 4px rgba(245,197,24,.2)); opacity: .9; }
+.yoda-watermark { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); width: 320px; height: 320px; object-fit: contain; opacity: .08; pointer-events: none; user-select: none; border-radius: 50%; }
 .yoda-episodes { display: grid; gap: 10px; margin-top: 32px; }
 .yep { background: var(--panel); border: 1px solid var(--line); border-radius: 12px; overflow: hidden; }
 .yep-head {
