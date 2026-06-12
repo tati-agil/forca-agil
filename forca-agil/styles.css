@@ -582,8 +582,8 @@ html:not(.js) .reveal { opacity: 1 !important; transform: none !important; }
 .footer b { color: var(--accent); font-weight: 400; }
 
 /* ---------- Ensinamentos de Yoda ---------- */
-.yoda-orb-wrap { display: flex; justify-content: center; margin-top: 48px; }
-.yoda-orb { width: 160px; height: 160px; object-fit: cover; border-radius: 50%; filter: drop-shadow(0 0 24px rgba(245,197,24,.35)) drop-shadow(0 0 8px rgba(245,197,24,.2)); }
+.yoda-orb-wrap { display: flex; justify-content: center; margin: 40px 0 0; }
+.yoda-orb { width: 80px; height: 80px; object-fit: cover; border-radius: 50%; filter: drop-shadow(0 0 14px rgba(245,197,24,.4)) drop-shadow(0 0 4px rgba(245,197,24,.2)); opacity: .9; }
 .yoda-episodes { display: grid; gap: 10px; margin-top: 32px; }
 .yep { background: var(--panel); border: 1px solid var(--line); border-radius: 12px; overflow: hidden; }
 .yep-head {
