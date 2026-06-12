@@ -121,7 +121,7 @@ body {
   background: linear-gradient(180deg, rgba(3,5,13,.30) 0%, rgba(3,5,13,.55) 60%, var(--space-0) 100%);
 }
 
-.wrap { position: relative; z-index: 2; }
+.wrap { position: relative; z-index: 2; max-width: var(--maxw); margin: 0 auto; padding: 56px var(--pad-x); }
 
 /* ---------- Type ---------- */
 h1,h2,h3,h4 { font-family: var(--font-head); font-weight: 600; line-height: 1.02; letter-spacing: .01em; }
