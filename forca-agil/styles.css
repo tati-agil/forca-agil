@@ -307,6 +307,11 @@ h1,h2,h3,h4 { font-family: var(--font-head); font-weight: 600; line-height: 1.02
 .hero-proof-item { display: inline-flex; align-items: center; gap: 5px; font-family: var(--font-mono); font-size: .65rem; letter-spacing: .08em; color: var(--ink-3); text-transform: uppercase; }
 .hero-proof-item svg { color: var(--accent); flex-shrink: 0; }
 .hero-proof-sep { color: var(--line-strong); font-size: .8rem; }
+@media (max-width: 600px) {
+  .hero { padding-bottom: 180px; }
+  .hero-proof-sep { display: none; }
+  .hero-proof { flex-direction: column; gap: 6px; }
+}
 
 /* wireframe planet behind hero */
 .planet {
