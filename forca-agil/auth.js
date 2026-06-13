@@ -16,6 +16,13 @@
   }
   function isPrevi(e) { return /^[^\s@]+@previ\.com\.br$/i.test(e || ''); }
   function isAdmin(e) { return ADMIN.indexOf((e || '').toLowerCase()) !== -1; }
+  function isColaborador(e, cb) {
+    var key = emailKey(e || '');
+    if (!key) { cb && cb(false); return; }
+    try {
+      firebase.database().ref('fa-colaboradores/' + key).once('value', function (snap) { cb && cb(snap.exists()); });
+    } catch(err) { cb && cb(false); }
+  }
 
   function getSession() {
     try { return JSON.parse(localStorage.getItem(SESS_KEY) || 'null'); } catch(e) { return null; }
@@ -319,5 +326,5 @@
     window.faCloseAuthModal = closeModal;
   });
 
-  window.faAuth = { getSession: getSession, isAdmin: isAdmin, isPrevi: isPrevi, register: register, login: login, logout: logout };
+  window.faAuth = { getSession: getSession, isAdmin: isAdmin, isPrevi: isPrevi, isColaborador: isColaborador, register: register, login: login, logout: logout };
 })();

@@ -20,11 +20,33 @@
     });
   });
 
+  var COLAB_SEED = [
+    { email: 'luiz.spinelli@previ.com.br',      name: 'Luiz Antonio Fernandes Spinelli' },
+    { email: 'mpl@previ.com.br',                name: 'Maira Prado Louvison' },
+    { email: 'giselebatista@previ.com.br',       name: 'Gisele Batista de Souza' },
+    { email: 'cris@previ.com.br',               name: 'Cristiane Toledo de Andrade' },
+    { email: 'marcoagarcia@previ.com.br',        name: 'Marco Antonio Garcia Jorge' },
+    { email: 'jusan@previ.com.br',              name: 'Marcelo Jusan Fernandes' },
+    { email: 'tulioalves@previ.com.br',          name: 'Tulio Alves Ferreira Junior' },
+    { email: 'ronicesar@previ.com.br',           name: 'Roni Cesar de Paulo Cruz Iracema' },
+    { email: 'rodolfo@previ.com.br',             name: 'Rodolfo Credi Dio de Oliveira Goncalves' },
+    { email: 'pedro.ferrari@capgemini.com',      name: 'Pedro Henrique Ferrari' },
+    { email: 'vanisa.miksucas@montreal.com.br',  name: 'Vanisa Miksucas' },
+    { email: 'caduh@previ.com.br',              name: 'Carlos Eduardo Schuch Pinto' },
+    { email: 'tatianefdirene@previ.com.br',      name: 'Tatiane Faro Direne' },
+    { email: 'danielfrazao@previ.com.br',        name: 'Daniel Frazão' }
+  ];
+
+  function emailKey(e) {
+    return (e || '').toLowerCase().replace(/[@.]/g, '_').replace(/[^a-z0-9_]/g, '').slice(0, 64);
+  }
+
   function initAdmin() {
     var sess = window.faAuth && window.faAuth.getSession();
     if (!sess || !window.faAuth.isAdmin(sess.email)) return;
     loadInterests();
     loadRepoAdmin();
+    loadColaboradores();
   }
 
   /* ---- Interested per turma ---- */
@@ -106,6 +128,99 @@
         c.appendChild(row);
       });
     });
+  }
+
+  /* ---- Colaboradores ---- */
+  function loadColaboradores() {
+    var c = document.getElementById('adminColab');
+    if (!c) return;
+
+    function render() {
+      firebase.database().ref('fa-colaboradores').once('value', function (snap) {
+        var data = snap.val() || {};
+        var list = Object.values(data).sort(function (a, b) { return (a.name || '').localeCompare(b.name || '', 'pt'); });
+        c.innerHTML = '';
+
+        /* Header */
+        var hdr = document.createElement('div');
+        hdr.className = 'admin-colab-header';
+        hdr.innerHTML =
+          '<h4>Colaboradores <span class="admin-badge">' + list.length + '</span></h4>' +
+          (list.length === 0
+            ? '<button class="btn btn--primary admin-seed-btn">Importar lista inicial (' + COLAB_SEED.length + ' pessoas)</button>'
+            : '');
+        c.appendChild(hdr);
+
+        if (list.length === 0) {
+          c.querySelector('.admin-seed-btn').addEventListener('click', function () {
+            var btn = c.querySelector('.admin-seed-btn');
+            btn.disabled = true; btn.textContent = 'Importando…';
+            var updates = {};
+            COLAB_SEED.forEach(function (p) {
+              updates['fa-colaboradores/' + emailKey(p.email)] = { email: p.email, name: p.name, addedAt: new Date().toISOString() };
+            });
+            firebase.database().ref().update(updates, function () { render(); });
+          });
+          c.innerHTML += '<p class="admin-empty">Nenhum colaborador cadastrado. Use o botão acima para importar a lista inicial.</p>';
+          return;
+        }
+
+        /* Tabela */
+        var tbl = document.createElement('table');
+        tbl.className = 'admin-table';
+        tbl.innerHTML = '<thead><tr><th>Nome</th><th>E-mail</th><th>Desde</th><th></th></tr></thead>';
+        var tbody = document.createElement('tbody');
+        list.forEach(function (p) {
+          var tr = document.createElement('tr');
+          tr.innerHTML =
+            '<td>' + esc(p.name || '—') + '</td>' +
+            '<td>' + esc(p.email || '—') + '</td>' +
+            '<td>' + fmtDate(p.addedAt) + '</td>' +
+            '<td><button class="admin-del-btn" data-key="' + esc(emailKey(p.email)) + '">Remover</button></td>';
+          tr.querySelector('.admin-del-btn').addEventListener('click', function (e) {
+            var key = e.target.dataset.key;
+            if (!confirm('Remover ' + esc(p.name || p.email) + ' dos colaboradores?')) return;
+            firebase.database().ref('fa-colaboradores/' + key).remove(function () { render(); });
+          });
+          tbody.appendChild(tr);
+        });
+        tbl.appendChild(tbody);
+        c.appendChild(tbl);
+
+        /* Formulário de adição */
+        var form = document.createElement('div');
+        form.className = 'admin-colab-form';
+        form.innerHTML =
+          '<h4 style="margin-top:32px">Adicionar colaborador</h4>' +
+          '<div class="admin-colab-row">' +
+            '<input id="colabEmail" type="email" placeholder="e-mail" />' +
+            '<input id="colabName"  type="text"  placeholder="Nome completo" />' +
+            '<button class="btn btn--primary" id="colabAddBtn">Adicionar</button>' +
+          '</div>' +
+          '<p id="colabMsg" style="margin-top:8px;font-size:.8rem;color:var(--cyan)"></p>';
+        c.appendChild(form);
+
+        document.getElementById('colabAddBtn').addEventListener('click', function () {
+          var email = (document.getElementById('colabEmail').value || '').trim().toLowerCase();
+          var name  = (document.getElementById('colabName').value  || '').trim();
+          var msg   = document.getElementById('colabMsg');
+          if (!email || !name) { msg.textContent = 'Preencha e-mail e nome.'; return; }
+          var key = emailKey(email);
+          firebase.database().ref('fa-colaboradores/' + key).set(
+            { email: email, name: name, addedAt: new Date().toISOString() },
+            function (err) {
+              if (err) { msg.textContent = 'Erro ao salvar. Tente novamente.'; return; }
+              document.getElementById('colabEmail').value = '';
+              document.getElementById('colabName').value  = '';
+              msg.textContent = name + ' adicionado(a).';
+              render();
+            }
+          );
+        });
+      });
+    }
+
+    render();
   }
 
   /* ---- Helpers ---- */
