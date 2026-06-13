@@ -96,6 +96,23 @@
       var target = document.getElementById('o-que-e');
       if (target) target.scrollIntoView({ behavior: 'smooth' });
     });
+
+    /* ---- Contador de agentes ativos no hero ---- */
+    function updateAgentCount() {
+      var el = document.getElementById('heroAgentCount');
+      if (!el) return;
+      try {
+        firebase.database().ref('fa-users').once('value', function (snap) {
+          var count = snap.numChildren ? snap.numChildren() : 0;
+          el.textContent = count > 0 ? count : '—';
+        });
+      } catch(e) {}
+    }
+    if (typeof firebase !== 'undefined' && firebase.apps && firebase.apps.length) {
+      updateAgentCount();
+    } else {
+      setTimeout(updateAgentCount, 3000);
+    }
   });
 
   /* ---- Content XP tracking (conteúdos page) ---- */
