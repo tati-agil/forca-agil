@@ -134,93 +134,90 @@
   function loadColaboradores() {
     var c = document.getElementById('adminColab');
     if (!c) return;
+    c.innerHTML = '<p class="loading-msg">Carregando…</p>';
 
-    function render() {
-      firebase.database().ref('fa-colaboradores').once('value', function (snap) {
-        var data = snap.val() || {};
-        var list = Object.values(data).sort(function (a, b) { return (a.name || '').localeCompare(b.name || '', 'pt'); });
-        c.innerHTML = '';
-
-        /* Header */
-        var hdr = document.createElement('div');
-        hdr.className = 'admin-colab-header';
-        hdr.innerHTML =
-          '<h4>Colaboradores <span class="admin-badge">' + list.length + '</span></h4>' +
-          (list.length === 0
-            ? '<button class="btn btn--primary admin-seed-btn">Importar lista inicial (' + COLAB_SEED.length + ' pessoas)</button>'
-            : '');
-        c.appendChild(hdr);
-
-        if (list.length === 0) {
-          c.querySelector('.admin-seed-btn').addEventListener('click', function () {
-            var btn = c.querySelector('.admin-seed-btn');
-            btn.disabled = true; btn.textContent = 'Importando…';
-            var updates = {};
-            COLAB_SEED.forEach(function (p) {
-              updates['fa-colaboradores/' + emailKey(p.email)] = { email: p.email, name: p.name, addedAt: new Date().toISOString() };
-            });
-            firebase.database().ref().update(updates, function () { render(); });
-          });
-          c.innerHTML += '<p class="admin-empty">Nenhum colaborador cadastrado. Use o botão acima para importar a lista inicial.</p>';
-          return;
-        }
-
-        /* Tabela */
-        var tbl = document.createElement('table');
-        tbl.className = 'admin-table';
-        tbl.innerHTML = '<thead><tr><th>Nome</th><th>E-mail</th><th>Desde</th><th></th></tr></thead>';
-        var tbody = document.createElement('tbody');
-        list.forEach(function (p) {
-          var tr = document.createElement('tr');
-          tr.innerHTML =
-            '<td>' + esc(p.name || '—') + '</td>' +
-            '<td>' + esc(p.email || '—') + '</td>' +
-            '<td>' + fmtDate(p.addedAt) + '</td>' +
-            '<td><button class="admin-del-btn" data-key="' + esc(emailKey(p.email)) + '">Remover</button></td>';
-          tr.querySelector('.admin-del-btn').addEventListener('click', function (e) {
-            var key = e.target.dataset.key;
-            if (!confirm('Remover ' + esc(p.name || p.email) + ' dos colaboradores?')) return;
-            firebase.database().ref('fa-colaboradores/' + key).remove(function () { render(); });
-          });
-          tbody.appendChild(tr);
+    firebase.database().ref('fa-colaboradores').once('value', function (snap) {
+      var data = snap.val() || {};
+      if (Object.keys(data).length === 0) {
+        /* Auto-seed na primeira vez */
+        var updates = {};
+        COLAB_SEED.forEach(function (p) {
+          updates['fa-colaboradores/' + emailKey(p.email)] = { email: p.email, name: p.name, addedAt: new Date().toISOString() };
         });
-        tbl.appendChild(tbody);
-        c.appendChild(tbl);
-
-        /* Formulário de adição */
-        var form = document.createElement('div');
-        form.className = 'admin-colab-form';
-        form.innerHTML =
-          '<h4 style="margin-top:32px">Adicionar colaborador</h4>' +
-          '<div class="admin-colab-row">' +
-            '<input id="colabEmail" type="email" placeholder="e-mail" />' +
-            '<input id="colabName"  type="text"  placeholder="Nome completo" />' +
-            '<button class="btn btn--primary" id="colabAddBtn">Adicionar</button>' +
-          '</div>' +
-          '<p id="colabMsg" style="margin-top:8px;font-size:.8rem;color:var(--cyan)"></p>';
-        c.appendChild(form);
-
-        document.getElementById('colabAddBtn').addEventListener('click', function () {
-          var email = (document.getElementById('colabEmail').value || '').trim().toLowerCase();
-          var name  = (document.getElementById('colabName').value  || '').trim();
-          var msg   = document.getElementById('colabMsg');
-          if (!email || !name) { msg.textContent = 'Preencha e-mail e nome.'; return; }
-          var key = emailKey(email);
-          firebase.database().ref('fa-colaboradores/' + key).set(
-            { email: email, name: name, addedAt: new Date().toISOString() },
-            function (err) {
-              if (err) { msg.textContent = 'Erro ao salvar. Tente novamente.'; return; }
-              document.getElementById('colabEmail').value = '';
-              document.getElementById('colabName').value  = '';
-              msg.textContent = name + ' adicionado(a).';
-              render();
-            }
-          );
+        firebase.database().ref().update(updates, function () {
+          firebase.database().ref('fa-colaboradores').once('value', function (s2) { renderColab(c, s2.val() || {}); });
         });
+      } else {
+        renderColab(c, data);
+      }
+    });
+  }
+
+  function renderColab(c, data) {
+    var list = Object.values(data).sort(function (a, b) { return (a.name || '').localeCompare(b.name || '', 'pt'); });
+    c.innerHTML = '';
+
+    /* Título */
+    var hdr = document.createElement('h4');
+    hdr.innerHTML = 'Colaboradores <span class="admin-badge">' + list.length + '</span>';
+    c.appendChild(hdr);
+
+    /* Tabela */
+    var tbl = document.createElement('table');
+    tbl.className = 'admin-table';
+    tbl.innerHTML = '<thead><tr><th>Nome</th><th>E-mail</th><th>Desde</th><th></th></tr></thead>';
+    var tbody = document.createElement('tbody');
+    list.forEach(function (p) {
+      var tr = document.createElement('tr');
+      tr.innerHTML =
+        '<td>' + esc(p.name || '—') + '</td>' +
+        '<td>' + esc(p.email || '—') + '</td>' +
+        '<td>' + fmtDate(p.addedAt) + '</td>' +
+        '<td><button class="admin-del-btn" data-key="' + esc(emailKey(p.email)) + '" data-name="' + esc(p.name || p.email) + '">Remover</button></td>';
+      tbody.appendChild(tr);
+    });
+    tbl.appendChild(tbody);
+    c.appendChild(tbl);
+
+    /* Delegação de eventos para remover */
+    tbody.addEventListener('click', function (e) {
+      var btn = e.target.closest('.admin-del-btn');
+      if (!btn) return;
+      if (!confirm('Remover ' + btn.dataset.name + ' dos colaboradores?')) return;
+      firebase.database().ref('fa-colaboradores/' + btn.dataset.key).remove(function () {
+        firebase.database().ref('fa-colaboradores').once('value', function (s) { renderColab(c, s.val() || {}); });
       });
-    }
+    });
 
-    render();
+    /* Formulário de adição */
+    var form = document.createElement('div');
+    form.className = 'admin-colab-form';
+    form.innerHTML =
+      '<h4 style="margin-top:32px">Adicionar colaborador</h4>' +
+      '<div class="admin-colab-row">' +
+        '<input id="colabName"  type="text"  placeholder="Nome completo" />' +
+        '<input id="colabEmail" type="email" placeholder="e-mail" />' +
+        '<button class="btn btn--primary" id="colabAddBtn">Adicionar</button>' +
+      '</div>' +
+      '<p id="colabMsg" style="margin-top:8px;font-size:.8rem;color:var(--cyan)"></p>';
+    c.appendChild(form);
+
+    document.getElementById('colabAddBtn').addEventListener('click', function () {
+      var name  = (document.getElementById('colabName').value  || '').trim();
+      var email = (document.getElementById('colabEmail').value || '').trim().toLowerCase();
+      var msg   = document.getElementById('colabMsg');
+      if (!name || !email) { msg.style.color = 'var(--accent)'; msg.textContent = 'Preencha nome e e-mail.'; return; }
+      firebase.database().ref('fa-colaboradores/' + emailKey(email)).set(
+        { email: email, name: name, addedAt: new Date().toISOString() },
+        function (err) {
+          if (err) { msg.style.color = 'var(--accent)'; msg.textContent = 'Erro ao salvar.'; return; }
+          document.getElementById('colabName').value  = '';
+          document.getElementById('colabEmail').value = '';
+          msg.style.color = 'var(--cyan)'; msg.textContent = name + ' adicionado(a).';
+          firebase.database().ref('fa-colaboradores').once('value', function (s) { renderColab(c, s.val() || {}); });
+        }
+      );
+    });
   }
 
   /* ---- Helpers ---- */
