@@ -83,11 +83,17 @@
         '<span class="rc-ico"><svg><use href="' + k.icon + '"/></svg></span>' +
         '<span><span class="rc-kind">' + k.label + '</span><h4>' + esc(item.title) + '</h4></span>' +
       '</div>' +
-      (item.desc
-        ? (item.desc.length > 120
-          ? '<p class="rc-desc rc-desc--collapsed">' + esc(item.desc) + '</p><button class="rc-more">ver mais</button>'
-          : '<p class="rc-desc">' + esc(item.desc) + '</p>')
-        : '<p class="rc-desc"></p>') +
+      (function() {
+        var raw = item.desc || '';
+        var indMatch = raw.match(/\s*Indicado por ([^.]+)\.?\s*$/);
+        var indBy = indMatch ? indMatch[1].trim() : null;
+        var body = indBy ? raw.slice(0, raw.lastIndexOf(indMatch[0])).trim() : raw;
+        var pHtml = body.length > 120
+          ? '<p class="rc-desc rc-desc--collapsed">' + esc(body) + '</p><button class="rc-more">ver mais</button>'
+          : '<p class="rc-desc">' + esc(body) + '</p>';
+        var indHtml = indBy ? '<span class="rc-indicated">Indicado por ' + esc(indBy) + '</span>' : '';
+        return pHtml + indHtml;
+      })() +
       '<a class="rc-open" href="' + esc(item.url) + '" target="_blank" rel="noopener noreferrer">' +
         '<svg><use href="#i-ext"/></svg> ' + esc(host(item.url)) +
       '</a>' +
