@@ -99,12 +99,13 @@
 
     /* ---- Contador de agentes ativos no hero ---- */
     function updateAgentCount() {
-      var el = document.getElementById('heroAgentCount');
-      if (!el) return;
       try {
         firebase.database().ref('fa-users').once('value', function (snap) {
           var count = snap.numChildren ? snap.numChildren() : 0;
-          el.textContent = count > 0 ? count : '—';
+          var el = document.getElementById('heroAgentCount');
+          if (el) el.textContent = count > 0 ? count : '—';
+          var hint = document.getElementById('navAgentHint');
+          if (hint && count > 0) hint.textContent = 'Junte-se a ' + count + ' agentes';
         });
       } catch(e) {}
     }

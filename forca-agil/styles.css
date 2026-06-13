@@ -190,6 +190,8 @@ h1,h2,h3,h4 { font-family: var(--font-head); font-weight: 600; line-height: 1.02
 .nav-cta[hidden] { display: none !important; }
 #navGuest[hidden] { display: none !important; }
 #navGuest { display: flex; align-items: center; gap: 8px; }
+.nav-cta-wrap { display: flex; flex-direction: column; align-items: center; gap: 2px; }
+.nav-agent-hint { font-family: var(--font-mono); font-size: .5rem; letter-spacing: .06em; color: var(--ink-3); text-transform: uppercase; white-space: nowrap; min-height: .8em; }
 #navGuest button { display: inline-flex; align-items: center; justify-content: center; margin: 0; vertical-align: middle; }
 .nav-btn-login {
   font-family: var(--font-mono); font-size: .68rem; letter-spacing: .1em; text-transform: uppercase;
