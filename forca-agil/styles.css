@@ -889,6 +889,9 @@ html:not(.js) .reveal { opacity: 1 !important; transform: none !important; }
 .repo-card .rc-del { position: absolute; top: 12px; right: 12px; width: 26px; height: 26px; display: grid; place-items: center; border-radius: 7px; border: 1px solid var(--line); background: rgba(4,9,18,.5); color: var(--ink-3); cursor: pointer; opacity: 0; transition: opacity .2s, color .2s, border-color .2s; }
 .repo-card:hover .rc-del { opacity: 1; }
 .repo-card .rc-del:hover { color: var(--red); border-color: var(--red); }
+.rc-desc--collapsed { display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; }
+.rc-more { background: none; border: none; color: var(--cyan); font-size: .72rem; font-family: var(--font-mono); cursor: pointer; padding: 2px 0 8px; letter-spacing: .06em; }
+.rc-more:hover { text-decoration: underline; }
 .repo-card .rc-seed { position: absolute; top: 14px; right: 14px; font-family: var(--font-mono); font-size: .54rem; letter-spacing: .12em; text-transform: uppercase; color: var(--ink-3); opacity: .6; }
 .repo-card .rc-author { display: block; margin-top: 8px; font-family: var(--font-mono); font-size: .65rem; color: var(--accent); opacity: .75; }
 .repo-empty { text-align: center; color: var(--ink-3); margin-top: 40px; font-family: var(--font-mono); font-size: .9rem; }

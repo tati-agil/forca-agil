@@ -83,7 +83,11 @@
         '<span class="rc-ico"><svg><use href="' + k.icon + '"/></svg></span>' +
         '<span><span class="rc-kind">' + k.label + '</span><h4>' + esc(item.title) + '</h4></span>' +
       '</div>' +
-      (item.desc ? '<p>' + esc(item.desc) + '</p>' : '<p></p>') +
+      (item.desc
+        ? (item.desc.length > 120
+          ? '<p class="rc-desc rc-desc--collapsed">' + esc(item.desc) + '</p><button class="rc-more">ver mais</button>'
+          : '<p class="rc-desc">' + esc(item.desc) + '</p>')
+        : '<p class="rc-desc"></p>') +
       '<a class="rc-open" href="' + esc(item.url) + '" target="_blank" rel="noopener noreferrer">' +
         '<svg><use href="#i-ext"/></svg> ' + esc(host(item.url)) +
       '</a>' +
@@ -118,6 +122,15 @@
     });
 
     if (emptyMsg) emptyMsg.hidden = shown.length > 0;
+
+    // ver mais / ver menos
+    grid.querySelectorAll('.rc-more').forEach(function(btn) {
+      btn.addEventListener('click', function() {
+        var p = btn.previousElementSibling;
+        var collapsed = p.classList.toggle('rc-desc--collapsed');
+        btn.textContent = collapsed ? 'ver mais' : 'ver menos';
+      });
+    });
 
     // botões de deletar (só nos próprios)
     grid.querySelectorAll('.rc-del').forEach(function(btn) {
