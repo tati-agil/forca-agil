@@ -182,10 +182,10 @@ h1,h2,h3,h4 { font-family: var(--font-head); font-weight: 600; line-height: 1.02
 .brand-sub { position: absolute; top: 100%; left: 0; margin-top: 2px; font-family: var(--font-mono); font-size: .68rem; letter-spacing: .12em; color: var(--ink-3); white-space: nowrap; }
 .brand-previ-img { height:14px; display:inline-block; vertical-align:middle; margin-right:5px; filter: brightness(0) saturate(100%) invert(63%) sepia(40%) saturate(600%) hue-rotate(138deg) brightness(95%); }
 
-.nav-links { display: flex; gap: 4px; align-items: center; }
+.nav-links { display: flex; gap: 4px; align-items: center; margin-left: 32px; }
 .nav-links a {
   font-family: var(--font-mono); font-size: .72rem; letter-spacing: .12em; text-transform: uppercase;
-  color: var(--ink-2); text-decoration: none; padding: 9px 12px; border-radius: 6px;
+  color: var(--ink-3); text-decoration: none; padding: 9px 12px; border-radius: 6px;
   transition: color .2s, background .2s;
 }
 .nav-links a:hover { color: var(--ink); background: rgba(120,160,220,.1); }
