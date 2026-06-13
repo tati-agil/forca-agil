@@ -5,7 +5,8 @@
 (function () {
   'use strict';
 
-  var ADMIN    = ['tatianefdirene@previ.com.br', 'danielfrazao@previ.com.br'];
+  var ADMIN    = ['tatianefdirene@previ.com.br', 'danielfrazao@previ.com.br']; // super-admins fixos
+  var _dbAdmins = []; // admins adicionais via Firebase
   var SESS_KEY = 'fa-session';
 
   function hashPwd(email, pwd) {
@@ -15,7 +16,10 @@
     return (e || '').toLowerCase().replace(/[@.]/g, '_').replace(/[^a-z0-9_]/g, '').slice(0, 64);
   }
   function isPrevi(e) { return /^[^\s@]+@previ\.com\.br$/i.test(e || ''); }
-  function isAdmin(e) { return ADMIN.indexOf((e || '').toLowerCase()) !== -1; }
+  function isAdmin(e) {
+    var em = (e || '').toLowerCase();
+    return ADMIN.indexOf(em) !== -1 || _dbAdmins.indexOf(em) !== -1;
+  }
   function isColaborador(e, cb) {
     var key = emailKey(e || '');
     if (!key) { cb && cb(false); return; }
@@ -36,6 +40,14 @@
     if (n > 80) return cb(new Error('Firebase timeout'));
     setTimeout(function () { waitDB(cb, n + 1); }, 200);
   }
+
+  /* Pré-carrega admins do Firebase para isAdmin() continuar síncrono */
+  waitDB(function () {
+    firebase.database().ref('fa-admins').on('value', function (snap) {
+      var data = snap.val() || {};
+      _dbAdmins = Object.values(data).map(function (p) { return (p.email || '').toLowerCase(); });
+    });
+  });
 
   /* ---------- Register ---------- */
   var _registering = false;

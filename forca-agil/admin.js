@@ -41,12 +41,15 @@
     return (e || '').toLowerCase().replace(/[@.]/g, '_').replace(/[^a-z0-9_]/g, '').slice(0, 64);
   }
 
+  var SUPER_ADMINS = ['tatianefdirene@previ.com.br', 'danielfrazao@previ.com.br'];
+
   function initAdmin() {
     var sess = window.faAuth && window.faAuth.getSession();
     if (!sess || !window.faAuth.isAdmin(sess.email)) return;
     loadInterests();
     loadRepoAdmin();
     loadColaboradores();
+    loadAdmins();
   }
 
   /* ---- Interested per turma ---- */
@@ -218,6 +221,94 @@
         }
       );
     });
+  }
+
+  /* ---- Administradores ---- */
+  function loadAdmins() {
+    var c = document.getElementById('adminAdmins');
+    if (!c) return;
+
+    function render() {
+      firebase.database().ref('fa-admins').once('value', function (snap) {
+        var data = snap.val() || {};
+        var dbList = Object.values(data).sort(function (a, b) { return (a.name || '').localeCompare(b.name || '', 'pt'); });
+        c.innerHTML = '';
+
+        /* Aviso sobre super-admins fixos */
+        var info = document.createElement('p');
+        info.className = 'admin-empty';
+        info.style.marginBottom = '20px';
+        info.innerHTML = '<b>Super-admins fixos</b> (não removíveis via painel): ' +
+          SUPER_ADMINS.map(function (e) { return esc(e); }).join(', ');
+        c.appendChild(info);
+
+        var hdr = document.createElement('h4');
+        hdr.innerHTML = 'Administradores adicionais <span class="admin-badge">' + dbList.length + '</span>';
+        c.appendChild(hdr);
+
+        if (!dbList.length) {
+          var empty = document.createElement('p');
+          empty.className = 'admin-empty';
+          empty.textContent = 'Nenhum administrador adicional cadastrado.';
+          c.appendChild(empty);
+        } else {
+          var tbl = document.createElement('table');
+          tbl.className = 'admin-table';
+          tbl.innerHTML = '<thead><tr><th>Nome</th><th>E-mail</th><th>Desde</th><th></th></tr></thead>';
+          var tbody = document.createElement('tbody');
+          dbList.forEach(function (p) {
+            var tr = document.createElement('tr');
+            tr.innerHTML =
+              '<td>' + esc(p.name || '—') + '</td>' +
+              '<td>' + esc(p.email || '—') + '</td>' +
+              '<td>' + fmtDate(p.addedAt) + '</td>' +
+              '<td><button class="admin-del-btn" data-key="' + esc(emailKey(p.email)) + '" data-name="' + esc(p.name || p.email) + '">Remover</button></td>';
+            tbody.appendChild(tr);
+          });
+          tbl.appendChild(tbody);
+          c.appendChild(tbl);
+
+          tbody.addEventListener('click', function (e) {
+            var btn = e.target.closest('.admin-del-btn');
+            if (!btn) return;
+            if (!confirm('Remover ' + btn.dataset.name + ' dos administradores?')) return;
+            firebase.database().ref('fa-admins/' + btn.dataset.key).remove(function () { render(); });
+          });
+        }
+
+        /* Formulário de adição */
+        var form = document.createElement('div');
+        form.className = 'admin-colab-form';
+        form.innerHTML =
+          '<h4 style="margin-top:32px">Adicionar administrador</h4>' +
+          '<div class="admin-colab-row">' +
+            '<input id="adminName"  type="text"  placeholder="Nome completo" />' +
+            '<input id="adminEmail" type="email" placeholder="e-mail" />' +
+            '<button class="btn btn--primary" id="adminAddBtn">Adicionar</button>' +
+          '</div>' +
+          '<p id="adminMsg" style="margin-top:8px;font-size:.8rem;color:var(--cyan)"></p>';
+        c.appendChild(form);
+
+        document.getElementById('adminAddBtn').addEventListener('click', function () {
+          var name  = (document.getElementById('adminName').value  || '').trim();
+          var email = (document.getElementById('adminEmail').value || '').trim().toLowerCase();
+          var msg   = document.getElementById('adminMsg');
+          if (!name || !email) { msg.style.color = 'var(--accent)'; msg.textContent = 'Preencha nome e e-mail.'; return; }
+          firebase.database().ref('fa-admins/' + emailKey(email)).set(
+            { email: email, name: name, addedAt: new Date().toISOString() },
+            function (err) {
+              if (err) { msg.style.color = 'var(--accent)'; msg.textContent = 'Erro ao salvar.'; return; }
+              document.getElementById('adminName').value  = '';
+              document.getElementById('adminEmail').value = '';
+              msg.style.color = 'var(--cyan)'; msg.textContent = name + ' adicionado(a) como administrador(a).';
+              render();
+            }
+          );
+        });
+      });
+    }
+
+    render();
   }
 
   /* ---- Helpers ---- */
