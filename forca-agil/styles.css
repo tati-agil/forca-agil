@@ -319,7 +319,6 @@ h1,h2,h3,h4 { font-family: var(--font-head); font-weight: 600; line-height: 1.02
   .hero-proof { flex-direction: column; gap: 6px; }
   .hero-kicker { text-align: center; max-width: 100%; }
   .nav-agent-hint { display: none !important; }
-  .brand-sub { display: none; }
 }
 @media (max-width: 400px) {
   #navLogin { display: none !important; }
