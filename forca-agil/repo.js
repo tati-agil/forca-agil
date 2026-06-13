@@ -40,6 +40,7 @@
     try { return new Date(d).toLocaleDateString('pt-BR'); } catch(e) { return ''; }
   }
   function host(url) { try { return new URL(url).hostname.replace(/^www\./, ''); } catch(e) { return 'abrir'; } }
+  function firstName2(name) { var p = (name || '').trim().split(/\s+/); return p.slice(0, 2).join(' '); }
   function esc(s) {
     return String(s || '').replace(/[&<>"]/g, function(c) {
       return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c];
@@ -100,7 +101,7 @@
       (isSeed
         ? '<span class="rc-seed">curado</span>'
         : '<span class="rc-author">' +
-            esc(item.authorName || 'Agente') +
+            esc(firstName2(item.authorName || 'Agente')) +
             (item.createdAt ? '<span class="rc-date">' + fmtDate(item.createdAt) + '</span>' : '') +
           '</span>') +
       ((isMine || isAdminUser) && !isSeed
