@@ -352,21 +352,21 @@ h1,h2,h3,h4 { font-family: var(--font-head); font-weight: 600; line-height: 1.02
 .crawl-section { position: relative; padding: 0; }
 .crawl-stage {
   position: relative; height: 100svh; min-height: 620px; overflow: hidden;
-  perspective: 420px; display: flex; justify-content: center;
+  perspective: 600px; display: flex; justify-content: center;
   -webkit-mask-image: linear-gradient(180deg, transparent 0%, #000 28%, #000 100%);
           mask-image: linear-gradient(180deg, transparent 0%, #000 28%, #000 100%);
 }
 .crawl-content {
   position: absolute; bottom: -16%; width: min(760px, 84vw); color: var(--gold);
-  transform-origin: 50% 100%; transform: rotateX(26deg);
+  transform-origin: 50% 100%; transform: rotateX(22deg);
   text-align: justify;
 }
 .crawl-content.run { animation: crawl 90s linear forwards; }
 .crawl-content h3 {
   font-family: var(--font-head); font-weight: 600; text-align: center; text-transform: uppercase;
-  font-size: clamp(1.6rem, 4vw, 2.6rem); letter-spacing: .08em; margin-bottom: 36px;
+  font-size: clamp(1.9rem, 4.5vw, 3rem); letter-spacing: .08em; margin-bottom: 36px;
 }
-.crawl-content p { font-size: clamp(1.25rem, 3vw, 1.9rem); font-weight: 600; margin-bottom: 1.1em; line-height: 1.35; font-family: var(--font-head); }
+.crawl-content p { font-size: clamp(1.5rem, 3.5vw, 2.2rem); font-weight: 600; margin-bottom: 1.1em; line-height: 1.35; font-family: var(--font-head); }
 @keyframes crawl { 0% { top: 100%; } 100% { top: -260%; } }
 .crawl-replay {
   display: table; margin: 20px auto 40px; padding: 8px 20px;
