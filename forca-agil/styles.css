@@ -892,7 +892,7 @@ html:not(.js) .reveal { opacity: 1 !important; transform: none !important; }
 .rc-desc--collapsed { display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; }
 .rc-more { background: none; border: none; color: var(--cyan); font-size: .72rem; font-family: var(--font-mono); cursor: pointer; padding: 2px 0 8px; letter-spacing: .06em; }
 .rc-more:hover { text-decoration: underline; }
-.rc-indicated { display: block; margin-top: 6px; font-family: var(--font-mono); font-size: .65rem; color: var(--accent); opacity: .75; }
+.rc-indicated { display: block; margin-top: 6px; font-family: var(--font-mono); font-size: .65rem; color: var(--ink-3); opacity: .8; }
 .repo-card .rc-seed { position: absolute; top: 14px; right: 14px; font-family: var(--font-mono); font-size: .54rem; letter-spacing: .12em; text-transform: uppercase; color: var(--ink-3); opacity: .6; }
 .repo-card .rc-author { display: block; margin-top: 8px; font-family: var(--font-mono); font-size: .65rem; color: var(--accent); opacity: .75; }
 .repo-empty { text-align: center; color: var(--ink-3); margin-top: 40px; font-family: var(--font-mono); font-size: .9rem; }
