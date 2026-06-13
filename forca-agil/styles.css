@@ -190,8 +190,7 @@ h1,h2,h3,h4 { font-family: var(--font-head); font-weight: 600; line-height: 1.02
 .nav-cta[hidden] { display: none !important; }
 #navGuest[hidden] { display: none !important; }
 #navGuest { display: flex; align-items: center; gap: 8px; }
-.nav-cta-wrap { position: relative; }
-.nav-agent-hint { position: absolute; top: calc(100% + 3px); left: 50%; transform: translateX(-50%); font-family: var(--font-mono); font-size: .5rem; letter-spacing: .06em; color: var(--ink-3); text-transform: uppercase; white-space: nowrap; }
+.nav-agent-hint { display: block; font-family: var(--font-mono); font-size: .48rem; letter-spacing: .06em; color: rgba(3,5,13,.7); text-transform: uppercase; white-space: nowrap; line-height: 1; margin-top: 2px; }
 #navGuest button { display: inline-flex; align-items: center; justify-content: center; margin: 0; vertical-align: middle; }
 .nav-btn-login {
   font-family: var(--font-mono); font-size: .68rem; letter-spacing: .1em; text-transform: uppercase;
