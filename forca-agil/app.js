@@ -58,10 +58,27 @@
     }
   });
 
-  /* ---- Agenda accordions ---- */
+  /* ---- Agenda accordions — só colaboradores e admins podem expandir ---- */
+  function updateAgendaAccess() {
+    var agenda = document.querySelector('.agenda');
+    if (!agenda) return;
+    var sess = window.faAuth && window.faAuth.getSession();
+    if (!sess) { agenda.classList.remove('agenda--unlocked'); return; }
+    var isAdmin = window.faAuth.isAdmin && window.faAuth.isAdmin(sess.email);
+    if (isAdmin) { agenda.classList.add('agenda--unlocked'); return; }
+    window.faAuth.isColaborador(sess.email, function (ok) {
+      agenda.classList.toggle('agenda--unlocked', ok);
+    });
+  }
+  updateAgendaAccess();
+  window.addEventListener('fa-auth-change', updateAgendaAccess);
+
   document.addEventListener('click', function (e) {
     var h = e.target.closest('.day-head');
-    if (h) h.parentElement.classList.toggle('open');
+    if (!h) return;
+    var agenda = h.closest('.agenda');
+    if (!agenda || !agenda.classList.contains('agenda--unlocked')) return;
+    h.parentElement.classList.toggle('open');
   });
 
   /* ---- Yoda episode accordions ---- */
