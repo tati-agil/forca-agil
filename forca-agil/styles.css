@@ -83,7 +83,7 @@
 
 /* ---------- Reset ---------- */
 * { box-sizing: border-box; margin: 0; padding: 0; }
-html { scroll-behavior: smooth; }
+html { scroll-behavior: smooth; overflow-x: hidden; max-width: 100%; }
 @media (prefers-reduced-motion: reduce) { html { scroll-behavior: auto; } }
 
 body {
@@ -92,6 +92,7 @@ body {
   color: var(--ink);
   line-height: 1.55;
   overflow-x: hidden;
+  max-width: 100%;
   -webkit-font-smoothing: antialiased;
   text-rendering: optimizeLegibility;
 }
