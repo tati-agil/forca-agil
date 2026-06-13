@@ -241,7 +241,7 @@ h1,h2,h3,h4 { font-family: var(--font-head); font-weight: 600; line-height: 1.02
 /* ---------- HERO ---------- */
 .hero {
   position: relative; min-height: 100svh; display: grid; place-items: center;
-  text-align: center; padding: 120px var(--pad-x) 80px; overflow: hidden;
+  text-align: center; padding: 120px var(--pad-x) 120px; overflow: hidden;
 }
 .hero-inner { position: relative; z-index: 3; max-width: 980px; }.hero-kicker {
   font-family: var(--font-mono); font-size: clamp(.7rem,1.6vw,.92rem); letter-spacing: .5em;
