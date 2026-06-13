@@ -311,6 +311,8 @@ h1,h2,h3,h4 { font-family: var(--font-head); font-weight: 600; line-height: 1.02
   .hero { padding-bottom: 180px; }
   .hero-proof-sep { display: none; }
   .hero-proof { flex-direction: column; gap: 6px; }
+  .hero-kicker { letter-spacing: .2em; }
+  .nav-agent-hint { display: none; }
 }
 
 /* wireframe planet behind hero */
