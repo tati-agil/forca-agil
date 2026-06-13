@@ -89,46 +89,104 @@
     });
   }
 
+  var REPO_SEEDS = [
+    { type: 'doc',   title: 'The Scrum Guide',                       url: 'https://scrumguides.org/' },
+    { type: 'video', title: 'Agile Product Ownership in a Nutshell', url: 'https://www.youtube.com/results?search_query=agile+product+ownership+in+a+nutshell+kniberg' },
+    { type: 'video', title: 'O que é Agilidade? (busca)',            url: 'https://www.youtube.com/results?search_query=o+que+%C3%A9+agilidade+business+agility' },
+    { type: 'tool',  title: 'OKR — Objetivos e Key Results',         url: 'https://www.youtube.com/results?search_query=como+escrever+okr+objetivo+key+results' },
+    { type: 'tool',  title: 'Design Thinking & Duplo Diamante',      url: 'https://www.youtube.com/results?search_query=duplo+diamante+design+thinking' },
+    { type: 'book',  title: 'Team OKR em Ação',                      url: 'https://caroli.org/livro/team-okr/' },
+    { type: 'book',  title: 'O Poder da Simplicidade no Mundo Ágil — Susanne Andrade', url: 'https://susanneandrade.com.br/livros-2' },
+    { type: 'video', title: 'MBA em Liderança Exponencial e Transformação Digital (Udemy)', url: 'https://www.udemy.com/course/xba-em-lideranca-exponencial-e-transformacao-digital/' },
+    { type: 'book',  title: 'Kanban: Mudança Evolucionária de Sucesso — David J. Anderson', url: 'https://shop.leankanban.com/collections/kanban-mudanca-evolucionaria-de-sucesso-para-seu-negocio-de-tecnologia-david-j-anderson-portuguese/david-anderson' },
+    { type: 'video', title: 'Fome de Poder — Processos (Lean com analogias a Star Wars)', url: 'https://www.youtube.com/watch?v=8Xt63PHuMqU' },
+    { type: 'video', title: 'Desdobramento de OKR na prática',       url: 'https://www.youtube.com/watch?v=jP35UFXDnzA' }
+  ];
+
+  function seedKey(url) {
+    return (url || '').toLowerCase().replace(/[^a-z0-9]/g, '_').slice(0, 80);
+  }
+
   /* ---- Repo items for admin ---- */
   function loadRepoAdmin() {
     var c = document.getElementById('adminRepo');
     if (!c) return;
     c.innerHTML = '<p class="loading-msg">Carregando repositório…</p>';
 
-    firebase.database().ref('holocron').once('value', function (snap) {
-      var data    = snap.val() || {};
-      var entries = Object.entries(data);
-      c.innerHTML = '';
+    firebase.database().ref('fa-seeds-hidden').once('value', function (snapH) {
+      var hidden = snapH.val() || {};
 
-      if (!entries.length) {
-        c.innerHTML = '<p class="admin-empty">Repositório vazio.</p>';
-        return;
-      }
+      firebase.database().ref('holocron').once('value', function (snap) {
+        var data    = snap.val() || {};
+        var fbEntries = Object.entries(data);
+        c.innerHTML = '';
 
-      var h4 = document.createElement('h4');
-      h4.innerHTML = 'Itens no Repositório <span class="admin-badge">' + entries.length + '</span>';
-      c.appendChild(h4);
+        var total = REPO_SEEDS.length + fbEntries.length;
+        var h4 = document.createElement('h4');
+        h4.innerHTML = 'Todos os recursos <span class="admin-badge">' + total + '</span>';
+        c.appendChild(h4);
 
-      entries.forEach(function (e) {
-        var key = e[0], item = e[1];
-        var row = document.createElement('div');
-        row.className = 'admin-repo-row';
-        row.innerHTML =
-          '<div class="admin-repo-info">' +
-            '<span class="admin-repo-title">' + esc(item.title || '—') + '</span>' +
-            '<span class="admin-repo-by">' + esc(item.authorName || '—') +
-              (item.createdAt ? ' · ' + fmtDate(item.createdAt) : '') +
-            '</span>' +
-          '</div>' +
-          '<button class="admin-del-btn" data-key="' + esc(key) + '">Deletar</button>';
-        row.querySelector('.admin-del-btn').addEventListener('click', function () {
-          if (!confirm('Deletar "' + esc(item.title || '') + '" do repositório?')) return;
-          firebase.database().ref('holocron/' + key).remove(function (err) {
-            if (!err) row.remove();
-            else alert('Erro ao deletar. Tente novamente.');
+        /* Seeds curados */
+        var seedSec = document.createElement('div');
+        seedSec.innerHTML = '<p style="font-size:.75rem;color:var(--ink-3);margin:16px 0 8px;text-transform:uppercase;letter-spacing:.1em">Curados (seed)</p>';
+        c.appendChild(seedSec);
+
+        REPO_SEEDS.forEach(function (item) {
+          var sk  = seedKey(item.url);
+          var row = document.createElement('div');
+          row.className = 'admin-repo-row';
+          if (hidden[sk]) row.style.opacity = '.4';
+          row.innerHTML =
+            '<div class="admin-repo-info">' +
+              '<span class="admin-repo-title">' + esc(item.title) + '</span>' +
+              '<span class="admin-repo-by">curado · ' + esc(item.type) + (hidden[sk] ? ' · <em>oculto</em>' : '') + '</span>' +
+            '</div>' +
+            (hidden[sk]
+              ? '<button class="admin-del-btn" style="background:var(--cyan)" data-sk="' + esc(sk) + '">Restaurar</button>'
+              : '<button class="admin-del-btn" data-sk="' + esc(sk) + '">Ocultar</button>');
+          row.querySelector('.admin-del-btn').addEventListener('click', function () {
+            var btn = row.querySelector('.admin-del-btn');
+            if (hidden[sk]) {
+              if (!confirm('Restaurar "' + item.title + '" no repositório público?')) return;
+              firebase.database().ref('fa-seeds-hidden/' + sk).remove(function () { loadRepoAdmin(); });
+            } else {
+              if (!confirm('Ocultar "' + item.title + '" do repositório público?')) return;
+              firebase.database().ref('fa-seeds-hidden/' + sk).set(true, function () { loadRepoAdmin(); });
+            }
           });
+          seedSec.appendChild(row);
         });
-        c.appendChild(row);
+
+        /* Itens enviados por usuários */
+        var userSec = document.createElement('div');
+        userSec.innerHTML = '<p style="font-size:.75rem;color:var(--ink-3);margin:24px 0 8px;text-transform:uppercase;letter-spacing:.1em">Enviados por usuários</p>';
+        c.appendChild(userSec);
+
+        if (!fbEntries.length) {
+          userSec.innerHTML += '<p class="admin-empty">Nenhum item enviado ainda.</p>';
+        } else {
+          fbEntries.forEach(function (e) {
+            var key = e[0], item = e[1];
+            var row = document.createElement('div');
+            row.className = 'admin-repo-row';
+            row.innerHTML =
+              '<div class="admin-repo-info">' +
+                '<span class="admin-repo-title">' + esc(item.title || '—') + '</span>' +
+                '<span class="admin-repo-by">' + esc(item.authorName || '—') +
+                  (item.createdAt ? ' · ' + fmtDate(item.createdAt) : '') +
+                '</span>' +
+              '</div>' +
+              '<button class="admin-del-btn" data-key="' + esc(key) + '">Deletar</button>';
+            row.querySelector('.admin-del-btn').addEventListener('click', function () {
+              if (!confirm('Deletar "' + esc(item.title || '') + '" do repositório?')) return;
+              firebase.database().ref('holocron/' + key).remove(function (err) {
+                if (!err) row.remove();
+                else alert('Erro ao deletar. Tente novamente.');
+              });
+            });
+            userSec.appendChild(row);
+          });
+        }
       });
     });
   }

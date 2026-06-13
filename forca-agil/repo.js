@@ -52,6 +52,11 @@
   // ---- Estado ----
   let filter = 'all';
   let firebaseItems = []; // itens vindos do Firebase
+  let hiddenSeeds = {};   // seeds ocultos pelo admin
+
+  function seedKey(url) {
+    return (url || '').toLowerCase().replace(/[^a-z0-9]/g, '_').slice(0, 80);
+  }
 
   const grid      = document.getElementById('repoGrid');
   const emptyMsg  = document.getElementById('repoEmpty');
@@ -100,7 +105,9 @@
   // ---- Render ----
   function render() {
     grid.innerHTML = '';
-    const seeds = SEEDS.map(function(s) { return { item: s, seed: true, key: null }; });
+    const seeds = SEEDS
+      .filter(function(s) { return !hiddenSeeds[seedKey(s.url)]; })
+      .map(function(s) { return { item: s, seed: true, key: null }; });
     const user  = firebaseItems.map(function(x) { return { item: x.data, seed: false, key: x.key }; });
     const all   = seeds.concat(user);
     const shown = all.filter(function(x) { return filter === 'all' || x.item.type === filter; });
@@ -272,6 +279,12 @@
   window.addEventListener('fa-auth-change', onAuthReady);
 
   // ---- Init ----
+  try {
+    firebase.database().ref('fa-seeds-hidden').on('value', function(snap) {
+      hiddenSeeds = snap.val() || {};
+      render();
+    });
+  } catch(e) {}
   listenFirebase();
 
 })();
