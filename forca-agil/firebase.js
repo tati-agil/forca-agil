@@ -414,7 +414,7 @@
                 '<span class="rank-name">' + escHtml(p.name||'—') +
                   (p.area ? '<span class="rank-area">' + escHtml(p.area) + '</span>' : '') +
                 '</span>' +
-                (p.patente ? '<span class="rank-patente" style="color:var(--accent);font-family:var(--font-mono);font-size:.75rem">' + escHtml(p.patente) + '</span>' : '') +
+                '<span class="rank-patente" style="color:var(--accent);font-family:var(--font-mono);font-size:.75rem">' + escHtml(p.patente || getRank(p.totalXP || 0)) + '</span>' +
                 '<span class="rank-score">' + (p.totalXP||0) + ' XP</span>';
               list.appendChild(row);
             });
