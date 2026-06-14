@@ -88,7 +88,7 @@
         { label: 'Cadastrar conta (@previ.com.br)',           p: ['visitante'] },
         { label: 'Fazer login',                               p: ['visitante'] },
         { label: 'Esqueci minha senha — link por e-mail',     p: ['visitante'] },
-        { label: 'Ver perfil (substitui botões de acesso no menu)', p: ['logado','colaborador','admin'] },
+        { label: 'Inicial e nome no menu — no lugar dos botões Entrar/Cadastrar', p: ['logado','colaborador','admin'] },
         { label: 'Ver link "Admin" no menu de navegação',     p: ['admin'] },
         { label: 'Botão Sair',                                p: ['logado','colaborador','admin'] },
       ]
