@@ -156,15 +156,24 @@
 
     /* Grid de páginas */
     html += '<div class="mapa-grid">';
-    PAGES.forEach(function (page) {
-      html += '<div class="mapa-page" style="--pc:' + page.color + '">';
-      html += '<div class="mapa-page-title">' + page.label + '</div>';
+    PAGES.forEach(function (page, idx) {
+      html += '<div class="mapa-page' + (idx === 0 ? ' open' : '') + '" style="--pc:' + page.color + '">';
+      html += '<div class="mapa-page-title"><span>' + page.label + '</span><span class="mapa-page-arrow">▾</span></div>';
+      html += '<div class="mapa-page-body">';
       page.features.forEach(function (f) {
         html += '<div class="mapa-feature"><span class="mapa-feature-label">' + f.label + '</span>' + levelBadge(f.p) + '</div>';
       });
       html += '</div>';
+      html += '</div>';
     });
     html += '</div>';
+
+    /* Acordeão — delega ao container para evitar re-bind */
+    container.addEventListener('click', function (e) {
+      const title = e.target.closest('.mapa-page-title');
+      if (!title) return;
+      title.closest('.mapa-page').classList.toggle('open');
+    });
 
     html += '</div>';
 
