@@ -72,6 +72,12 @@
   loadGameState();
   loadRankings();
 
+  // Ordem embaralhada das questões — gerada uma vez por sessão
+  let challengeOrder = [];
+  function shuffleChallenges() {
+    challengeOrder = KYBER_CHALLENGES.map((_, i) => i).sort(() => Math.random() - 0.5);
+  }
+
   // Start game
   function startGame() {
     if (!kyberNameInput || !kyberNameInput.value.trim()) {
@@ -82,6 +88,7 @@
     gameState.currentChallenge = 0;
     gameState.totalScore = 0;
     gameState.gameOver = false;
+    shuffleChallenges();
     kyberArena.classList.add('active');
     showChallenge();
   }
@@ -98,7 +105,7 @@
     gameState.timeLeft = TIME_LIMIT;
     saveGameState();
 
-    const ch = KYBER_CHALLENGES[gameState.currentChallenge];
+    const ch = KYBER_CHALLENGES[challengeOrder[gameState.currentChallenge]];
     kyberSituation.textContent = ch.situation;
     kyberContext.textContent = ch.context;
     kyberProgress.textContent = `Desafio ${gameState.currentChallenge + 1}/${MAX_CHALLENGES}`;
@@ -173,7 +180,7 @@
     // Highlight options — usa o texto da opção correta para identificar posição após embaralhamento
     document.querySelectorAll('.kyber-option').forEach((btn, i) => {
       if (i === idx) btn.classList.add(option.correct ? 'selected-correct' : 'selected-wrong');
-      else if (btn.querySelector('.opt-text').textContent === KYBER_CHALLENGES[gameState.currentChallenge].options.find(o => o.correct).text) {
+      else if (btn.querySelector('.opt-text').textContent === KYBER_CHALLENGES[challengeOrder[gameState.currentChallenge]].options.find(o => o.correct).text) {
         btn.classList.add('correct-answer');
       }
     });
@@ -194,7 +201,7 @@
       <div class="fb-agile">O Império te rastreou. Rápida decisão é essencial na agilidade!</div>
     `;
 
-    const correctText = KYBER_CHALLENGES[gameState.currentChallenge].options.find(o => o.correct).text;
+    const correctText = KYBER_CHALLENGES[challengeOrder[gameState.currentChallenge]].options.find(o => o.correct).text;
     document.querySelectorAll('.kyber-option').forEach((btn) => {
       if (btn.querySelector('.opt-text').textContent === correctText) btn.classList.add('correct-answer');
     });
