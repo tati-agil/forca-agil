@@ -107,8 +107,22 @@
           try { localStorage.removeItem(k); } catch(e) {} // chave legada sem prefixo
         });
       }
+      if (window.faCleanRanking) window.faCleanRanking();
       if (cb) cb();
     }).catch(function() { if (cb) cb(); });
+  };
+
+  // ---- Remove entrada do ranking se patente não foi revelada ----
+  window.faCleanRanking = function() {
+    if (!fbReady) return;
+    const p = getPlayer();
+    if (!p) return;
+    const revealed = _st().getItem('fa-patente-revealed') === '1';
+    if (!revealed) {
+      const key = playerKey(p);
+      if (key) firebase.database().ref('players/' + key).remove()
+        .catch(function() {});
+    }
   };
 
   // ---- Sync player record to Firebase ----
@@ -134,7 +148,9 @@
       updatedAt: new Date().toISOString()
     };
     const key = playerKey(p);
-    if (fbReady) {
+    /* Só publica no ranking se a patente foi revelada explicitamente */
+    const revealed = _st().getItem('fa-patente-revealed') === '1';
+    if (fbReady && revealed) {
       firebase.database().ref('players/' + key).set(entry)
         .catch(function(err) { console.warn('Firebase sync error:', err); });
     }
