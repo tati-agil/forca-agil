@@ -108,6 +108,10 @@
   function logout() {
     clearSession();
     try { localStorage.removeItem('fa-player'); } catch(e) {}
+    // Limpa dados de jogo do usuário anterior
+    var gameKeys = ['fa-kyber-done','fa-kyber-xp','fa-game-v2','fa-patente-revealed',
+                    'fa-content-read','fa-content-xp','fa-repo-xp','kyber-game-v1','kyber-ranking-v1'];
+    gameKeys.forEach(function(k) { try { localStorage.removeItem(k); } catch(e) {} });
     // Força esconder o perfil imediatamente, sem depender de eventos
     var profileEl = document.getElementById('navProfile');
     var ctaEl     = document.getElementById('navCta');
