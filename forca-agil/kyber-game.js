@@ -245,7 +245,7 @@
   // Render leaderboard
   function renderLeaderboard() {
     if (!kyberLeaderboard) return;
-    kyberLeaderboard.innerHTML = '<h4>🏆 Top Heróis da Galáxia</h4>';
+    kyberLeaderboard.innerHTML = '<h4>🏆 Resultado do Kyber Game</h4>';
     rankings.slice(0, 10).forEach((entry, i) => {
       const row = document.createElement('div');
       row.className = 'rank-row';

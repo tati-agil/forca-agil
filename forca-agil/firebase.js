@@ -138,7 +138,7 @@
   window.kyberRenderRanking = function() {
     var list = document.getElementById('kyber-leaderboard');
     if (!list) return;
-    list.innerHTML = '<h4>🏆 Ranking da Galáxia</h4><p style="color:var(--ink-3);font-size:.9rem">Carregando…</p>';
+    list.innerHTML = '<h4>🏆 Resultado do Kyber Game</h4><p style="color:var(--ink-3);font-size:.9rem">Carregando…</p>';
 
     function renderRows(players) {
       list.innerHTML = '<h4>🏆 Ranking da Galáxia</h4>';
