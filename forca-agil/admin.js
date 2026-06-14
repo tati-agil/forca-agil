@@ -52,6 +52,7 @@
     loadColaboradores();
     loadAdmins();
     if (window.faInitManual) window.faInitManual();
+    if (window.faInitMapa) window.faInitMapa();
   }
 
   function migrateNameCase() {

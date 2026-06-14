@@ -945,3 +945,34 @@ html:not(.js) .reveal { opacity: 1 !important; transform: none !important; }
 .manual-badge.active { background: color-mix(in srgb, var(--badge-col, #888) 22%, transparent); font-weight: 700; }
 
 /* ---------- (Binary suns removed — background is always the universe) ---------- */
+
+/* ---------- Mapa do Site + Hierarquia ---------- */
+.mapa-wrap { padding: 8px 0 56px; }
+.mapa-title { font-family: var(--font-head); font-size: 1.4rem; text-transform: uppercase; letter-spacing: .06em; color: var(--ink); margin: 0 0 8px; }
+.mapa-sub { color: var(--ink-3); font-size: .88rem; margin: 0 0 28px; }
+
+/* Hierarquia — staircase de baixo pra cima */
+.mapa-hierarchy { display: flex; flex-direction: column; gap: 0; }
+.mapa-level { border-left: 4px solid var(--lc); background: color-mix(in srgb, var(--lc) 8%, transparent); border-radius: 0 12px 12px 0; padding: 16px 20px; margin-bottom: 4px; min-width: 260px; transition: background .2s; }
+.mapa-level:hover { background: color-mix(in srgb, var(--lc) 14%, transparent); }
+.mapa-level-head { display: flex; align-items: baseline; gap: 12px; margin-bottom: 8px; }
+.mapa-level-name { font-family: var(--font-head); font-size: 1rem; text-transform: uppercase; letter-spacing: .06em; color: var(--lc); }
+.mapa-level-desc { font-size: .78rem; color: var(--ink-3); }
+.mapa-level-adds { margin: 0; padding: 0 0 0 16px; list-style: disc; }
+.mapa-level-adds li { font-size: .82rem; color: var(--ink-2); line-height: 1.7; }
+
+/* Legenda */
+.mapa-legend { display: flex; flex-wrap: wrap; gap: 12px 24px; margin-bottom: 20px; }
+.mapa-legend-item { display: flex; align-items: center; gap: 8px; font-size: .82rem; color: var(--ink-2); }
+
+/* Dot */
+.mapa-dot { display: inline-block; width: 12px; height: 12px; border-radius: 50%; flex-shrink: 0; }
+
+/* Grid de páginas */
+.mapa-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 16px; }
+.mapa-page { border: 1px solid color-mix(in srgb, var(--pc) 35%, transparent); border-radius: 14px; overflow: hidden; background: color-mix(in srgb, var(--pc) 5%, var(--surface)); }
+.mapa-page-title { background: color-mix(in srgb, var(--pc) 18%, transparent); color: var(--pc); font-family: var(--font-head); font-size: .78rem; letter-spacing: .1em; text-transform: uppercase; padding: 10px 16px; border-bottom: 1px solid color-mix(in srgb, var(--pc) 20%, transparent); }
+.mapa-feature { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 8px 16px; border-bottom: 1px solid var(--line); }
+.mapa-feature:last-child { border-bottom: none; }
+.mapa-feature-label { font-size: .78rem; color: var(--ink-2); line-height: 1.4; flex: 1; }
+.mapa-dots { display: flex; gap: 5px; flex-shrink: 0; }

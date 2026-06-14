@@ -1449,6 +1449,7 @@
         <button class="admin-tab-btn" data-panel="adminPanelColab">Colaboradores</button>
         <button class="admin-tab-btn" data-panel="adminPanelAdmins">Administradores</button>
         <button class="admin-tab-btn" data-panel="adminPanelManual">Manual</button>
+        <button class="admin-tab-btn" data-panel="adminPanelMapa">Mapa</button>
       </div>
 
       <div class="admin-tab-panel active" id="adminPanelInteresses">
@@ -1477,6 +1478,10 @@
 
       <div class="admin-tab-panel" id="adminPanelManual">
         <div id="adminManual"></div>
+      </div>
+
+      <div class="admin-tab-panel" id="adminPanelMapa">
+        <div id="adminMapa"></div>
       </div>
     </div>
   </div>
@@ -1612,6 +1617,7 @@
 <!-- Admin (último — depende de auth e router) -->
 <script src="forca-agil/admin.js"></script>
 <script src="forca-agil/manual.js"></script>
+<script src="forca-agil/mapa.js"></script>
 
 <!-- Admin guard: show/hide content based on auth -->
 <script>
