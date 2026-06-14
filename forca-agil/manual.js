@@ -53,7 +53,7 @@
       body: 'O botão vira "Aguarde…" e fica desabilitado enquanto a autenticação ocorre.' },
     { section: 'auth', personas: ['visitante'],
       title: 'Login — esqueci minha senha',
-      body: 'Abre painel inline no modal. Usuário digita o e-mail @previ.com.br e recebe um link de redefinição diretamente no e-mail (enviado pelo Firebase). Autoatendimento — não depende do admin.' },
+      body: 'Abre painel inline no modal. Usuário digita o e-mail @previ.com.br e recebe um link de redefinição diretamente no e-mail (enviado pelo Firebase). Autoatendimento — não depende do admin. Se o e-mail não estiver cadastrado, exibe "E-mail não encontrado." Se não for @previ.com.br, exibe "Use seu e-mail @previ.com.br."' },
     { section: 'auth', personas: ['admin'],
       title: 'Admin — redefinir senha de colaborador',
       body: 'Botão "Redefinir senha" na aba Colaboradores dispara o mesmo e-mail de redefinição do Firebase para o e-mail do colaborador. Só funciona se o colaborador já tiver feito o primeiro cadastro.' },
