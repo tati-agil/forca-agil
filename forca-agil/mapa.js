@@ -242,7 +242,7 @@
     ];
 
     ARCH.forEach(function (section) {
-      html += '<div class="arch-section open">';
+      html += '<div class="arch-section">';
       html += '<div class="arch-section-label" style="--ac:' + section.color + '"><span>' + section.label + '</span><span class="arch-arrow">▾</span></div>';
       html += '<div class="arch-section-body"><div class="arch-grid">';
       section.items.forEach(function (item) {
@@ -285,7 +285,7 @@
     ];
 
     REGRAS.forEach(function (section) {
-      html += '<div class="arch-section open">';
+      html += '<div class="arch-section">';
       html += '<div class="arch-section-label" style="--ac:' + section.color + '"><span>' + section.label + '</span><span class="arch-arrow">▾</span></div>';
       html += '<div class="arch-section-body"><div class="arch-grid">';
       section.items.forEach(function (item) {
