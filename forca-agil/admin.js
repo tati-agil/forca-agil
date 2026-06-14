@@ -53,6 +53,7 @@
     loadAdmins();
     if (window.faInitManual) window.faInitManual();
     if (window.faInitMapa) window.faInitMapa();
+    if (window.faInitTestes) window.faInitTestes();
   }
 
   function migrateNameCase() {
