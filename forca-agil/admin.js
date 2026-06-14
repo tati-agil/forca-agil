@@ -143,7 +143,7 @@
 
         var total = REPO_SEEDS.length + fbEntries.length;
         var h4 = document.createElement('h4');
-        h4.innerHTML = 'Todos os recursos <span class="admin-badge">' + total + '</span>';
+        h4.innerHTML = 'Todos os conteúdos <span class="admin-badge">' + total + '</span>';
         c.appendChild(h4);
 
         /* Seeds curados */

@@ -105,7 +105,7 @@
             (item.createdAt ? '<span class="rc-date">' + fmtDate(item.createdAt) + '</span>' : '') +
           '</span>') +
       ((isMine || isAdminUser) && !isSeed
-        ? '<button class="rc-del" title="Remover recurso" data-key="' + esc(firebaseKey) + '">' +
+        ? '<button class="rc-del" title="Remover conteúdo" data-key="' + esc(firebaseKey) + '">' +
             '<svg width="14" height="14"><use href="#i-x"/></svg>' +
           '</button>'
         : '');
@@ -144,7 +144,7 @@
       btn.addEventListener('click', function() {
         var key = btn.dataset.key;
         if (!key) return;
-        if (!confirm('Remover este recurso do holocron?')) return;
+        if (!confirm('Remover este conteúdo do holocron?')) return;
         try {
           firebase.database().ref('holocron/' + key).remove();
         } catch(e) { console.warn('Firebase remove error:', e); }
@@ -256,7 +256,7 @@
           if (exists) {
             btn.disabled = false; btn.textContent = 'Guardar no Holocron';
             var errEl = document.getElementById('repoFormErr');
-            if (errEl) { errEl.textContent = 'Este recurso já foi adicionado ao Holocron.'; errEl.hidden = false; }
+            if (errEl) { errEl.textContent = 'Este conteúdo já foi adicionado ao Holocron.'; errEl.hidden = false; }
             return;
           }
         }
