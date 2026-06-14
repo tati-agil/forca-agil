@@ -393,8 +393,8 @@
 
     header.addEventListener('click', () => {
       if (!requirePlayer()) return;
+      if (missionDone(m)) return; // missão concluída — não pode reabrir para responder
       const isOpen = wrap.classList.contains('open');
-      // fecha todos
       document.querySelectorAll('.mission-wrap').forEach(w => w.classList.remove('open'));
       if (!isOpen) wrap.classList.add('open');
     });
@@ -518,10 +518,21 @@
   function render() {
     const c = compute();
 
-    // quiz
+    // quiz — bloqueia após concluído
     qList.querySelectorAll('.q-opt').forEach(b => {
       b.classList.toggle('sel', state.quiz[+b.dataset.q] === +b.dataset.v);
+      b.disabled = c.quizDone;
     });
+    if (quizResult && c.quizDone) {
+      var quizLock = document.getElementById('quizLockMsg');
+      if (!quizLock) {
+        quizLock = document.createElement('p');
+        quizLock.id = 'quizLockMsg';
+        quizLock.style.cssText = 'font-family:var(--font-mono);font-size:.7rem;color:var(--ink-3);margin-top:6px;';
+        quizLock.textContent = '🔒 Autodiagnóstico concluído — não pode ser refeito.';
+        quizResult.parentNode.insertBefore(quizLock, quizResult.nextSibling);
+      }
+    }
 
     // missões — header check + xp earned
     document.querySelectorAll('.mission-wrap').forEach(wrap => {
@@ -617,6 +628,7 @@
   });
 
   const resetGame = $('resetGame');
+  if (resetGame) resetGame.style.display = 'none'; // bloqueado — autodiag e missões são definitivos
   if (resetGame) resetGame.addEventListener('click', () => {
     state = { quiz: Array(DIMS.length).fill(null), missions: {} };
     MISSIONS.forEach(m => { state.missions[m.id] = { answers: Array(m.questions.length).fill(null) }; });
