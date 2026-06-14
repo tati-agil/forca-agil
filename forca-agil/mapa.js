@@ -146,10 +146,10 @@
 
     /* Legenda dos badges */
     html += '<div class="mapa-legend">';
-    html += '<span class="mapa-legend-item"><span class="mapa-badge" style="--bc:#888">Visitante</span> apenas visitantes</span>';
-    html += '<span class="mapa-legend-item"><span class="mapa-badge" style="--bc:#1ab2ae">Logado +</span> logado, colaborador e admin</span>';
-    html += '<span class="mapa-legend-item"><span class="mapa-badge" style="--bc:#f5c542">Colaborador +</span> colaborador e admin</span>';
-    html += '<span class="mapa-legend-item"><span class="mapa-badge" style="--bc:#ff5252">Admin</span> somente admin</span>';
+    html += '<span class="mapa-legend-item"><span class="mapa-badge" style="--bc:#888">Visitante</span> não autenticado (exclusivo para quem não entrou)</span>';
+    html += '<span class="mapa-legend-item"><span class="mapa-badge" style="--bc:#1ab2ae">Logado +</span> qualquer usuário autenticado — colaboradores e admins também são logados</span>';
+    html += '<span class="mapa-legend-item"><span class="mapa-badge" style="--bc:#f5c542">Colaborador +</span> logado com perfil de colaborador — admins também são colaboradores</span>';
+    html += '<span class="mapa-legend-item"><span class="mapa-badge" style="--bc:#ff5252">Admin</span> colaborador com acesso administrativo</span>';
     html += '</div>';
 
     /* Grid de páginas */
