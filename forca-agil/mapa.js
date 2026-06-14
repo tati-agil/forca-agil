@@ -170,9 +170,10 @@
 
     /* Acordeão — delega ao container para evitar re-bind */
     container.addEventListener('click', function (e) {
-      const title = e.target.closest('.mapa-page-title');
-      if (!title) return;
-      title.closest('.mapa-page').classList.toggle('open');
+      const pageTitle = e.target.closest('.mapa-page-title');
+      if (pageTitle) { pageTitle.closest('.mapa-page').classList.toggle('open'); return; }
+      const archLabel = e.target.closest('.arch-section-label');
+      if (archLabel) { archLabel.closest('.arch-section').classList.toggle('open'); }
     });
 
     html += '</div>';
@@ -241,16 +242,16 @@
     ];
 
     ARCH.forEach(function (section) {
-      html += '<div class="arch-section">';
-      html += '<div class="arch-section-label" style="--ac:' + section.color + '">' + section.label + '</div>';
-      html += '<div class="arch-grid">';
+      html += '<div class="arch-section open">';
+      html += '<div class="arch-section-label" style="--ac:' + section.color + '"><span>' + section.label + '</span><span class="arch-arrow">▾</span></div>';
+      html += '<div class="arch-section-body"><div class="arch-grid">';
       section.items.forEach(function (item) {
         html += '<div class="arch-item">';
         html += '<div class="arch-item-name" style="--ac:' + section.color + '">' + item.name + '</div>';
         html += '<div class="arch-item-desc">' + item.desc + '</div>';
         html += '</div>';
       });
-      html += '</div></div>';
+      html += '</div></div></div>';
     });
 
     html += '</div>';
@@ -284,16 +285,16 @@
     ];
 
     REGRAS.forEach(function (section) {
-      html += '<div class="arch-section">';
-      html += '<div class="arch-section-label" style="--ac:' + section.color + '">' + section.label + '</div>';
-      html += '<div class="arch-grid">';
+      html += '<div class="arch-section open">';
+      html += '<div class="arch-section-label" style="--ac:' + section.color + '"><span>' + section.label + '</span><span class="arch-arrow">▾</span></div>';
+      html += '<div class="arch-section-body"><div class="arch-grid">';
       section.items.forEach(function (item) {
         html += '<div class="arch-item">';
         html += '<div class="arch-item-name" style="--ac:' + section.color + '">' + item.name + '</div>';
         html += '<div class="arch-item-desc">' + item.desc + '</div>';
         html += '</div>';
       });
-      html += '</div></div>';
+      html += '</div></div></div>';
     });
 
     html += '</div>';
