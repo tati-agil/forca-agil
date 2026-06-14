@@ -11,13 +11,13 @@
 
   var HIERARCHY = [
     { key: 'visitante',   label: 'Visitante',      color: '#888888',
-      adds: ['Ver páginas públicas (Início, Turmas, Conteúdos, Repositório, Ranking)', 'Cadastrar conta', 'Fazer login'] },
+      adds: ['Ver páginas públicas (Início, Turmas, Conteúdos, Repositório, Ranking)', 'Cadastrar conta (@previ.com.br)', 'Fazer login', 'Recuperar senha por e-mail (autoatendimento)'] },
     { key: 'logado',      label: 'Usuário logado', color: '#1ab2ae',
       adds: ['Acessar e jogar o Quiz Jedi', 'Ganhar XP por conteúdos lidos', 'Adicionar e remover conteúdos no Repositório', 'Registrar interesse em turmas', 'Revelar patente e entrar no ranking'] },
     { key: 'colaborador', label: 'Colaborador',    color: '#f5c542',
       adds: ['Expandir Agenda D1–D5 na página Turmas'] },
     { key: 'admin',       label: 'Admin',          color: '#ff5252',
-      adds: ['Acessar o Painel Admin', 'Gerenciar colaboradores e admins', 'Ver interessados por turma', 'Moderar Repositório (ocultar/restaurar/deletar)', 'Resetar progresso de qualquer colaborador'] },
+      adds: ['Acessar o Painel Admin', 'Gerenciar colaboradores e admins', 'Ver interessados por turma', 'Moderar Repositório (ocultar/restaurar/deletar)', 'Resetar progresso de qualquer colaborador', 'Enviar e-mail de redefinição de senha para colaboradores'] },
   ];
 
   var PAGES = [
@@ -83,12 +83,20 @@
     },
     { label: 'CADASTRAR / ENTRAR', color: '#9b7fff',
       features: [
-        { label: 'Ver botões no menu',                   p: ['visitante'] },
-        { label: 'Cadastrar conta (@previ.com.br)',      p: ['visitante'] },
-        { label: 'Fazer login',                          p: ['visitante'] },
-        { label: 'Ver perfil no menu',                   p: ['logado','colaborador','admin'] },
-        { label: 'Ver link Admin no menu',               p: ['admin'] },
-        { label: 'Botão Sair',                           p: ['logado','colaborador','admin'] },
+        { label: 'Ver botões no menu',                        p: ['visitante'] },
+        { label: 'Cadastrar conta (@previ.com.br)',           p: ['visitante'] },
+        { label: 'Fazer login',                               p: ['visitante'] },
+        { label: 'Esqueci minha senha — link por e-mail',     p: ['visitante'] },
+        { label: 'Ver perfil no menu',                        p: ['logado','colaborador','admin'] },
+        { label: 'Ver link Admin no menu',                    p: ['admin'] },
+        { label: 'Botão Sair',                                p: ['logado','colaborador','admin'] },
+      ]
+    },
+    { label: 'ADMIN — COLABORADORES', color: '#ff5252',
+      features: [
+        { label: 'Redefinir senha (envia e-mail)',            p: ['admin'] },
+        { label: 'Resetar progresso do jogo',                 p: ['admin'] },
+        { label: 'Adicionar / remover colaborador',           p: ['admin'] },
       ]
     },
   ];
