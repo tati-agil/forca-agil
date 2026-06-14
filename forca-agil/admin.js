@@ -288,6 +288,7 @@
       var email = (document.getElementById('colabEmail').value || '').trim().toLowerCase();
       var msg   = document.getElementById('colabMsg');
       if (!name || !email) { msg.style.color = 'var(--accent)'; msg.textContent = 'Preencha nome e e-mail.'; return; }
+      if (!/^[^\s@]+@previ\.com\.br$/i.test(email)) { msg.style.color = 'var(--accent)'; msg.textContent = 'Use um e-mail @previ.com.br.'; return; }
       firebase.database().ref('fa-colaboradores/' + emailKey(email)).set(
         { email: email, name: name, addedAt: new Date().toISOString() },
         function (err) {
@@ -372,6 +373,7 @@
           var email = (document.getElementById('adminEmail').value || '').trim().toLowerCase();
           var msg   = document.getElementById('adminMsg');
           if (!name || !email) { msg.style.color = 'var(--accent)'; msg.textContent = 'Preencha nome e e-mail.'; return; }
+          if (!/^[^\s@]+@previ\.com\.br$/i.test(email)) { msg.style.color = 'var(--accent)'; msg.textContent = 'Use um e-mail @previ.com.br.'; return; }
           firebase.database().ref('fa-admins/' + emailKey(email)).set(
             { email: email, name: name, addedAt: new Date().toISOString() },
             function (err) {
