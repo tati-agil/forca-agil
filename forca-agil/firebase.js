@@ -305,8 +305,9 @@
         '<p style="font-family:var(--font-mono);font-size:.9rem;color:var(--accent);text-align:center;padding:24px">' +
         '✓ Patente publicada no ranking da galáxia!</p>';
       setTimeout(function() {
-        if (window.faRouter) window.faRouter.navigate('ranking');
-      }, 600);
+        var hud = document.getElementById('rankHud');
+        if (hud) hud.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      }, 400);
     });
 
     // Register home ranking with router
