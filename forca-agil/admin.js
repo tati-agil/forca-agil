@@ -216,75 +216,42 @@
   }
 
   /* ---- Colaboradores ---- */
-  function hashPwdAdmin(email, pwd) {
-    return btoa(unescape(encodeURIComponent(email + '::' + pwd)));
-  }
-
   function loadColaboradores() {
     var c = document.getElementById('adminColab');
     if (!c) return;
     c.innerHTML = '<p class="loading-msg">Carregando…</p>';
 
-    /* Solicitações de redefinição pendentes */
-    firebase.database().ref('fa-reset-requests').once('value', function (rsnap) {
-      var requests = rsnap.val() || {};
-      var rkeys = Object.keys(requests);
-      if (rkeys.length > 0) {
-        var banner = document.createElement('div');
-        banner.className = 'admin-reset-banner';
-        banner.innerHTML = '<strong>⚠ Solicitações de redefinição de senha pendentes (' + rkeys.length + ')</strong>';
-        var ul = document.createElement('ul');
-        rkeys.forEach(function (k) {
-          var r = requests[k];
-          var li = document.createElement('li');
-          li.innerHTML = '<span>' + esc(r.name || r.email) + ' · ' + esc(r.email) + '</span>' +
-            '<button class="admin-del-btn admin-pwd-btn" data-key="' + esc(k) + '" data-email="' + esc(r.email) + '" data-name="' + esc(r.name || r.email) + '">Redefinir senha</button>';
-          ul.appendChild(li);
+    firebase.database().ref('fa-colaboradores').once('value', function (snap) {
+      var data = snap.val() || {};
+      if (Object.keys(data).length === 0) {
+        var updates = {};
+        COLAB_SEED.forEach(function (p) {
+          updates['fa-colaboradores/' + emailKey(p.email)] = { email: p.email, name: p.name, addedAt: new Date().toISOString() };
         });
-        banner.appendChild(ul);
-        c.innerHTML = '';
-        c.appendChild(banner);
-        /* delegação de clique no banner */
-        banner.addEventListener('click', function (e) {
-          var btn = e.target.closest('.admin-pwd-btn');
-          if (btn) handlePwdReset(btn, c);
+        firebase.database().ref().update(updates, function () {
+          firebase.database().ref('fa-colaboradores').once('value', function (s2) { renderColab(c, s2.val() || {}); });
         });
       } else {
-        c.innerHTML = '';
+        renderColab(c, data);
       }
-      firebase.database().ref('fa-colaboradores').once('value', function (snap) {
-        var data = snap.val() || {};
-        if (Object.keys(data).length === 0) {
-          var updates = {};
-          COLAB_SEED.forEach(function (p) {
-            updates['fa-colaboradores/' + emailKey(p.email)] = { email: p.email, name: p.name, addedAt: new Date().toISOString() };
-          });
-          firebase.database().ref().update(updates, function () {
-            firebase.database().ref('fa-colaboradores').once('value', function (s2) { renderColab(c, s2.val() || {}); });
-          });
-        } else {
-          renderColab(c, data);
-        }
-      });
     });
   }
 
-  function handlePwdReset(btn, container) {
+  function handlePwdReset(btn) {
     var email = btn.dataset.email;
     var name  = btn.dataset.name;
-    var key   = btn.dataset.key;
-    if (!confirm('Redefinir a senha de ' + name + '?\n\nUma senha temporária será gerada. Você precisará comunicá-la ao colaborador.')) return;
-    var tempPwd = 'Forca@' + (Math.floor(Math.random() * 9000) + 1000);
-    var hashFn = window.faHashPwd || hashPwdAdmin;
-    var updates = {};
-    updates['fa-users/' + key + '/passwordHash'] = hashFn(email, tempPwd);
-    updates['fa-users/' + key + '/mustChangePassword'] = true;
-    updates['fa-reset-requests/' + key] = null;
-    firebase.database().ref().update(updates, function (err) {
-      if (err) { alert('Erro ao redefinir. Tente novamente.'); return; }
-      alert('Senha temporária de ' + name + ':\n\n' + tempPwd + '\n\nEnvie esta senha ao colaborador.\nNo primeiro login, o sistema irá obrigá-lo a definir uma senha própria.');
-      loadColaboradores();
-    });
+    if (!confirm('Enviar e-mail de redefinição de senha para ' + name + ' (' + email + ')?')) return;
+    firebase.auth().sendPasswordResetEmail(email)
+      .then(function () {
+        alert('E-mail enviado para ' + email + '.\n' + name + ' receberá o link em alguns minutos para definir uma nova senha.');
+      })
+      .catch(function (err) {
+        if (err.code === 'auth/user-not-found') {
+          alert(name + ' ainda não tem cadastro ativo. O colaborador precisa fazer o primeiro login no sistema antes de poder redefinir a senha.');
+        } else {
+          alert('Erro ao enviar: ' + err.message);
+        }
+      });
   }
 
   function renderColab(c, data) {
@@ -320,7 +287,7 @@
       var btn = e.target.closest('button');
       if (!btn) return;
       if (btn.classList.contains('admin-pwd-btn')) {
-        handlePwdReset(btn, c);
+        handlePwdReset(btn);
         return;
       }
       if (btn.classList.contains('admin-reset-btn')) {
