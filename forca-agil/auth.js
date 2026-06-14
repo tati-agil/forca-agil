@@ -330,7 +330,7 @@
       sendPasswordReset(email, function (r) {
         btn.disabled = false; btn.textContent = 'Enviar link →';
         if (r.error) { err.textContent = r.error; err.hidden = false; }
-        else { ok.textContent = 'Link enviado! Verifique seu e-mail para redefinir a senha.'; ok.hidden = false; forgotForm.reset(); }
+        else { ok.textContent = 'Se este e-mail estiver cadastrado, você receberá o link de redefinição em breve.'; ok.hidden = false; forgotForm.reset(); }
       });
     });
 
