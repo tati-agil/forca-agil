@@ -286,10 +286,12 @@
         revelarBtn.style.opacity = '0.45';
         revelarBtn.dataset.locked = '1';
         var hint = document.querySelector('.revelar-hint');
+        var _faltam = [!prog.autoDone && 'autodiagnóstico', !prog.missoesDone && 'missões', !prog.kyberDone && 'Kyber Game'].filter(Boolean);
+        var _faltaMsg = _faltam.length === 1 ? 'Falta completar: ' + _faltam[0] + '.' : 'Faltam: ' + _faltam.join(' e ') + '.';
         if (hint) hint.innerHTML =
           (prog.autoDone ? '<span style="color:var(--accent)">✓' : '<span style="color:var(--ink-3)">✗') + ' Autodiagnóstico</span> · ' +
           (prog.missoesDone ? '<span style="color:var(--accent)">✓' : '<span style="color:var(--ink-3)">✗') + ' Missões</span> · ' +
-          (prog.kyberDone ? '<span style="color:var(--accent)">✓' : '<span style="color:var(--ink-3)">✗') + ' Kyber Game</span><br>Complete as 3 etapas para revelar sua patente.';
+          (prog.kyberDone ? '<span style="color:var(--accent)">✓' : '<span style="color:var(--ink-3)">✗') + ' Kyber Game</span><br>' + _faltaMsg;
       }
     }
 
