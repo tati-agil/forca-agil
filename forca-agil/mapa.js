@@ -56,8 +56,8 @@
     { label: 'QUIZ JEDI', color: '#e05c7f',
       features: [
         { label: 'Acessar (visitante → cadastro)',        p: ['visitante'] },
-        { label: 'Autodiagnóstico (1×, não refaz)',       p: ['logado','colaborador','admin'] },
-        { label: 'Missões (1× por missão)',               p: ['logado','colaborador','admin'] },
+        { label: 'Autodiagnóstico (1×)',                   p: ['logado','colaborador','admin'] },
+        { label: 'Missões (1×)',                          p: ['logado','colaborador','admin'] },
         { label: 'Kyber Game (1×)',                       p: ['logado','colaborador','admin'] },
         { label: 'Ver painel de patente em tempo real',  p: ['logado','colaborador','admin'] },
         { label: 'Revelar patente',                      p: ['logado','colaborador','admin'] },
