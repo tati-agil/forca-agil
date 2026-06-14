@@ -1014,8 +1014,8 @@ html:not(.js) .reveal { opacity: 1 !important; transform: none !important; }
 .testes-summary.running { background: color-mix(in srgb, #f5c542 10%, transparent); border: 1px solid color-mix(in srgb, #f5c542 30%, transparent); color: #f5c542; }
 .testes-group { margin-bottom: 20px; }
 .testes-group-label { font-size: .72rem; text-transform: uppercase; letter-spacing: .1em; color: var(--ink-3); margin-bottom: 8px; font-weight: 600; }
-.testes-group-toggle { cursor: pointer; user-select: none; display: flex; align-items: center; justify-content: space-between; margin-bottom: 0; padding: 10px 14px; border-radius: 8px; border: 1px solid var(--line); background: var(--surface); transition: background .15s; }
-.testes-group-toggle:hover { background: color-mix(in srgb, var(--accent) 8%, var(--surface)); border-color: var(--accent); }
+.testes-group-toggle { cursor: pointer; user-select: none; display: flex; align-items: center; justify-content: space-between; margin-bottom: 0; padding: 10px 16px; background: color-mix(in srgb, var(--accent) 5%, var(--surface)); border: 1px solid color-mix(in srgb, var(--accent) 25%, transparent); border-radius: 8px; color: var(--accent); font-family: var(--font-head); font-size: .78rem; letter-spacing: .1em; text-transform: uppercase; transition: background .15s; }
+.testes-group-toggle:hover { background: color-mix(in srgb, var(--accent) 12%, var(--surface)); }
 .testes-group-arrow { font-size: 1rem; transition: transform .2s; color: var(--accent); }
 .testes-group--collapsible:not(.open) .testes-group-arrow { transform: rotate(-90deg); }
 .testes-group-body { display: none; padding-top: 6px; }
@@ -1039,9 +1039,9 @@ html:not(.js) .reveal { opacity: 1 !important; transform: none !important; }
 
 /* ---------- Arquitetura Técnica ---------- */
 .arch-section { margin-bottom: 32px; }
-.arch-section-label { font-family: var(--font-head); font-size: .8rem; text-transform: uppercase; letter-spacing: .1em; color: var(--ac, #888); padding: 10px 14px; margin-bottom: 0; cursor: pointer; user-select: none; display: flex; align-items: center; justify-content: space-between; border-radius: 8px; border: 1px solid var(--line); background: var(--surface); transition: background .15s; }
-.arch-section-label:hover { background: color-mix(in srgb, var(--accent) 8%, var(--surface)); border-color: var(--accent); }
-.arch-arrow { transition: transform .2s; font-size: 1rem; color: var(--accent); }
+.arch-section-label { font-family: var(--font-head); font-size: .78rem; text-transform: uppercase; letter-spacing: .1em; color: var(--ac, #888); padding: 10px 16px; margin-bottom: 0; cursor: pointer; user-select: none; display: flex; align-items: center; justify-content: space-between; border-radius: 8px; border: 1px solid color-mix(in srgb, var(--ac, #888) 25%, transparent); background: color-mix(in srgb, var(--ac, #888) 5%, var(--surface)); transition: background .15s; }
+.arch-section-label:hover { background: color-mix(in srgb, var(--ac, #888) 12%, var(--surface)); }
+.arch-arrow { transition: transform .2s; font-size: 1rem; color: var(--ac, #888); }
 .arch-section:not(.open) .arch-arrow { transform: rotate(-90deg); }
 .arch-section-body { display: none; padding-top: 12px; }
 .arch-section.open .arch-section-body { display: block; }
