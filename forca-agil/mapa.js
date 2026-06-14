@@ -108,7 +108,7 @@
     /* herança contínua: do mínimo até o topo (admin = índice 3) */
     const isChain = (maxIdx === P_ORDER.length - 1) && (indices.length === P_ORDER.length - minIdx);
     const minKey  = P_ORDER[minIdx];
-    const col     = P_COLOR[minKey];
+    let col     = P_COLOR[minKey];
     let lbl     = P_LABEL[minKey];
     let suffix  = (isChain && minIdx < P_ORDER.length - 1) ? ' +' : '';
     if (personas.length === P_ORDER.length) { lbl = 'Todos'; suffix = ''; col = '#ffffff'; }
