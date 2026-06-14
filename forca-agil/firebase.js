@@ -127,12 +127,27 @@
           '<div class="gameover-rank">+' + kyberXP + ' XP Kyber · Patente: <strong>' + getRank(total) + '</strong></div>' +
           '<div class="gameover-rank" style="font-size:.85rem;opacity:.7">' + p.name + (p.turma ? ' · ' + p.turma : '') + '</div>' +
           '<div class="gameover-actions">' +
-            (_allDone
-              ? '<button class="btn btn--primary" onclick="var l=document.getElementById(\'ladder\');if(l)l.scrollIntoView({behavior:\'smooth\',block:\'center\'})">Ver minha patente na escada</button>'
-              : '<p style="font-size:.78rem;color:var(--ink-3);font-family:var(--font-mono);margin-top:8px">Complete também o autodiagnóstico e as missões para revelar sua patente final.</p>'
-            ) +
+            '<button class="btn btn--primary" id="kyberVerPatente"' + (_allDone ? '' : ' style="opacity:.45"') + '>Ver minha patente na escada</button>' +
+            (!_allDone ? '<p id="kyberVerPatenteMsg" style="display:none;font-size:.75rem;color:var(--ink-3);font-family:var(--font-mono);margin-top:10px">' +
+              (!_autoDone ? '✗ Autodiagnóstico pendente<br>' : '✓ Autodiagnóstico concluído<br>') +
+              (!_missoesDone ? '✗ Missões pendentes' : '✓ Missões concluídas') +
+            '</p>' : '') +
           '</div>' +
         '</div>';
+    }
+
+    // Botão ver patente na escada
+    var _verBtn = document.getElementById('kyberVerPatente');
+    if (_verBtn) {
+      _verBtn.addEventListener('click', function() {
+        if (_allDone) {
+          var l = document.getElementById('ladder');
+          if (l) l.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        } else {
+          var msg = document.getElementById('kyberVerPatenteMsg');
+          if (msg) msg.style.display = msg.style.display === 'none' ? 'block' : 'none';
+        }
+      });
     }
 
     // XP do kyber salvo localmente — Firebase sincroniza só ao clicar "Revelar Patente"
