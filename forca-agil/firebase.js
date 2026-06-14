@@ -128,11 +128,7 @@
           '<div class="gameover-rank">+' + kyberXP + ' XP Kyber · Patente: <strong>' + getRank(total) + '</strong></div>' +
           '<div class="gameover-rank" style="font-size:.85rem;opacity:.7">' + p.name + (p.turma ? ' · ' + p.turma : '') + '</div>' +
           '<div class="gameover-actions">' +
-            '<button class="btn btn--primary" id="kyberVerPatente"' + (_allDone ? '' : ' style="opacity:.45"') + '>Ver minha patente na escada</button>' +
-            (!_allDone ? '<p id="kyberVerPatenteMsg" style="display:none;font-size:.75rem;color:var(--ink-3);font-family:var(--font-mono);margin-top:10px">' +
-              (!_autoDone ? '✗ Autodiagnóstico pendente<br>' : '✓ Autodiagnóstico concluído<br>') +
-              (!_missoesDone ? '✗ Missões pendentes' : '✓ Missões concluídas') +
-            '</p>' : '') +
+            (_allDone ? '<button class="btn btn--primary" id="kyberVerPatente">Ver minha patente na escada</button>' : '') +
           '</div>' +
         '</div>';
     }
