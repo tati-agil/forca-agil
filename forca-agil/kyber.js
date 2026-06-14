@@ -291,7 +291,7 @@ function kyberStartGame() {
       setupEl.innerHTML =
         '<div class="kyber-already-played">' +
           '<p>⚔️ Você já completou o Kyber Game!</p>' +
-          '<p style="font-size:.9rem;opacity:.7">Sua pontuação está salva no ranking da galáxia.</p>' +
+          '<p style="font-size:.9rem;opacity:.7">Sua pontuação será contabilizada no ranking ao revelar sua patente final.</p>' +
         '</div>';
     }
     return;
