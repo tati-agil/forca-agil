@@ -241,7 +241,7 @@
       createdAt:   new Date().toISOString()
     };
 
-    var btn = rf.querySelector('[type=submit]');
+    var btn = form.querySelector('[type=submit]');
     if (btn) { btn.disabled = true; btn.textContent = 'Verificando…'; }
 
     function normalizeUrl(u) { return (u || '').toLowerCase().replace(/\/+$/, ''); }
