@@ -898,6 +898,10 @@ html:not(.js) .reveal { opacity: 1 !important; transform: none !important; }
 .repo-card .rc-seed { position: absolute; top: 14px; right: 14px; font-family: var(--font-mono); font-size: .54rem; letter-spacing: .12em; text-transform: uppercase; color: var(--ink-3); opacity: .6; }
 .repo-card .rc-author { display: block; margin-top: 8px; font-family: var(--font-mono); font-size: .65rem; color: var(--accent); opacity: .75; }
 .repo-empty { text-align: center; color: var(--ink-3); margin-top: 40px; font-family: var(--font-mono); font-size: .9rem; }
+.admin-hide-btn { background: transparent; border: 1px solid var(--line); color: var(--ink-3); font-size: .72rem; font-family: var(--font-mono); padding: 4px 10px; border-radius: 6px; cursor: pointer; letter-spacing: .06em; transition: border-color .2s, color .2s; }
+.admin-hide-btn:hover { border-color: var(--accent); color: var(--accent); }
+.admin-restore-btn { background: transparent; border: 1px solid var(--cyan); color: var(--cyan); font-size: .72rem; font-family: var(--font-mono); padding: 4px 10px; border-radius: 6px; cursor: pointer; letter-spacing: .06em; transition: opacity .2s; }
+.admin-restore-btn:hover { opacity: .75; }
 
 /* ---------- Revelar Patente Final ---------- */
 .revelar-wrap { text-align: center; padding: 48px 24px 24px; }

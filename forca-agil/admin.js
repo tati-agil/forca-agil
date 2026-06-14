@@ -162,8 +162,8 @@
               '<span class="admin-repo-by">curado · ' + esc(item.type) + (hidden[sk] ? ' · <em>oculto</em>' : '') + '</span>' +
             '</div>' +
             (hidden[sk]
-              ? '<button class="admin-del-btn" style="background:var(--cyan)" data-sk="' + esc(sk) + '">Restaurar</button>'
-              : '<button class="admin-del-btn" data-sk="' + esc(sk) + '">Ocultar</button>');
+              ? '<button class="admin-del-btn admin-restore-btn" data-sk="' + esc(sk) + '">Restaurar</button>'
+              : '<button class="admin-del-btn admin-hide-btn" data-sk="' + esc(sk) + '">Ocultar</button>');
           row.querySelector('.admin-del-btn').addEventListener('click', function () {
             var btn = row.querySelector('.admin-del-btn');
             if (hidden[sk]) {
