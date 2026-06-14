@@ -109,8 +109,23 @@
     var sess = getSession();
     return sess && sess.email ? 'fa-u-' + emailKey(sess.email) + '-' : '';
   }
+  var _GAME_KEYS = ['fa-game-v2','fa-missions-xp','fa-kyber-done','fa-kyber-xp',
+                    'fa-patente-revealed','fa-content-read','fa-content-xp','fa-repo-xp',
+                    'kyber-game-v1','kyber-ranking-v1'];
   window.faStore = {
-    getItem:    function(k) { try { return localStorage.getItem(_storePrefix() + k); } catch(e) { return null; } },
+    getItem: function(k) {
+      try {
+        var pre = _storePrefix();
+        if (!pre) return localStorage.getItem(k);
+        var val = localStorage.getItem(pre + k);
+        // migração: se chave com prefixo não existe mas a antiga existe, migra
+        if (val === null && _GAME_KEYS.indexOf(k) !== -1) {
+          var old = localStorage.getItem(k);
+          if (old !== null) { localStorage.setItem(pre + k, old); return old; }
+        }
+        return val;
+      } catch(e) { return null; }
+    },
     setItem:    function(k, v) { try { localStorage.setItem(_storePrefix() + k, v); } catch(e) {} },
     removeItem: function(k) { try { localStorage.removeItem(_storePrefix() + k); } catch(e) {} }
   };
