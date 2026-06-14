@@ -124,6 +124,8 @@
     { type: 'video', title: 'Desdobramento de OKR na prática',       url: 'https://www.youtube.com/watch?v=jP35UFXDnzA',                                                                                                                            desc: 'Indicado por Rodolfo Credi.' }
   ];
 
+  var TYPE_LABEL = { doc: 'documento', video: 'vídeo', book: 'livro', tool: 'ferramenta', link: 'link' };
+
   function seedKey(url) {
     return (url || '').toLowerCase().replace(/[^a-z0-9]/g, '_').slice(0, 80);
   }
@@ -160,7 +162,7 @@
           row.innerHTML =
             '<div class="admin-repo-info">' +
               '<span class="admin-repo-title">' + esc(item.title) + '</span>' +
-              '<span class="admin-repo-by">curado · ' + esc(item.type) + (function(){ var m = (item.desc||'').match(/Indicado por ([^.]+)/); return m ? ' · Indicado por ' + esc(m[1].trim()) : ''; })() + (hidden[sk] ? ' · <em>oculto</em>' : '') + '</span>' +
+              '<span class="admin-repo-by">curado · ' + esc(TYPE_LABEL[item.type] || item.type) + (function(){ var m = (item.desc||'').match(/Indicado por ([^.]+)/); return m ? ' · Indicado por ' + esc(m[1].trim()) : ''; })() + (hidden[sk] ? ' · <em>oculto</em>' : '') + '</span>' +
             '</div>' +
             (hidden[sk]
               ? '<button class="admin-del-btn admin-restore-btn" data-sk="' + esc(sk) + '">Restaurar</button>'
