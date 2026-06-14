@@ -1015,3 +1015,12 @@ html:not(.js) .reveal { opacity: 1 !important; transform: none !important; }
 .testes-icon { flex-shrink: 0; font-size: .9rem; line-height: 1.4; }
 .testes-label { color: var(--ink-2); flex: 1; line-height: 1.4; }
 .testes-err { font-size: .78rem; color: #ff5252; margin-top: 2px; display: block; }
+
+/* ---------- Testes — ajustes adicionais ---------- */
+.testes-actions { display: flex; gap: 10px; flex-wrap: wrap; margin-bottom: 24px; }
+.testes-manual-wrap { margin-top: 36px; border-top: 1px solid var(--line); padding-top: 24px; }
+.testes-manual-title { font-family: var(--font-head); font-size: 1rem; text-transform: uppercase; letter-spacing: .06em; color: var(--ink-2); margin: 0 0 8px; }
+.testes-manual-desc { font-size: .83rem; color: var(--ink-3); margin: 0 0 20px; line-height: 1.5; }
+.testes-row.manual { background: color-mix(in srgb, #888 6%, transparent); align-items: flex-start; }
+.testes-manual-item { display: flex; flex-direction: column; gap: 3px; flex: 1; }
+.testes-motivo { font-size: .76rem; color: var(--ink-3); font-style: italic; line-height: 1.4; }
