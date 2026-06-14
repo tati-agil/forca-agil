@@ -113,6 +113,12 @@
 
     var go = document.getElementById('kyber-gameover');
     if (go) {
+      var _state = (function() { try { return JSON.parse(localStorage.getItem('fa-game-v2') || 'null'); } catch(e) { return null; } })();
+      var _autoDone = _state && _state.quiz && _state.quiz.filter(function(v){ return v != null; }).length === 6;
+      var _missoesDone = _state && _state.missions && Object.keys(_state.missions).length === 6 &&
+        Object.values(_state.missions).every(function(m){ return m && m.answers && m.answers.every(function(a){ return a !== null; }); });
+      var _allDone = _autoDone && _missoesDone;
+
       go.style.display = 'block';
       go.innerHTML =
         '<div class="gameover-content">' +
@@ -121,7 +127,10 @@
           '<div class="gameover-rank">+' + kyberXP + ' XP Kyber · Patente: <strong>' + getRank(total) + '</strong></div>' +
           '<div class="gameover-rank" style="font-size:.85rem;opacity:.7">' + p.name + (p.turma ? ' · ' + p.turma : '') + '</div>' +
           '<div class="gameover-actions">' +
-            '<button class="btn btn--primary" onclick="document.getElementById(\'rankHud\') && document.getElementById(\'rankHud\').scrollIntoView({behavior:\'smooth\',block:\'center\'})">Ver minha patente</button>' +
+            (_allDone
+              ? '<button class="btn btn--primary" onclick="var l=document.getElementById(\'ladder\');if(l)l.scrollIntoView({behavior:\'smooth\',block:\'center\'})">Ver minha patente na escada</button>'
+              : '<p style="font-size:.78rem;color:var(--ink-3);font-family:var(--font-mono);margin-top:8px">Complete também o autodiagnóstico e as missões para revelar sua patente final.</p>'
+            ) +
           '</div>' +
         '</div>';
     }
