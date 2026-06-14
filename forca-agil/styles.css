@@ -1039,9 +1039,9 @@ html:not(.js) .reveal { opacity: 1 !important; transform: none !important; }
 
 /* ---------- Arquitetura Técnica ---------- */
 .arch-section { margin-bottom: 32px; }
-.arch-section-label { font-family: var(--font-head); font-size: .8rem; text-transform: uppercase; letter-spacing: .1em; color: var(--ac, #888); border-left: 3px solid var(--ac, #888); padding: 10px 14px 10px 14px; margin-bottom: 0; cursor: pointer; user-select: none; display: flex; align-items: center; justify-content: space-between; border-radius: 8px; border: 1px solid var(--line); border-left: 3px solid var(--ac, #888); background: var(--surface); transition: background .15s; }
-.arch-section-label:hover { background: color-mix(in srgb, var(--ac, #888) 10%, var(--surface)); }
-.arch-arrow { transition: transform .2s; font-size: 1rem; color: var(--ac, #888); }
+.arch-section-label { font-family: var(--font-head); font-size: .8rem; text-transform: uppercase; letter-spacing: .1em; color: var(--ac, #888); padding: 10px 14px; margin-bottom: 0; cursor: pointer; user-select: none; display: flex; align-items: center; justify-content: space-between; border-radius: 8px; border: 1px solid var(--line); background: var(--surface); transition: background .15s; }
+.arch-section-label:hover { background: color-mix(in srgb, var(--accent) 8%, var(--surface)); border-color: var(--accent); }
+.arch-arrow { transition: transform .2s; font-size: 1rem; color: var(--accent); }
 .arch-section:not(.open) .arch-arrow { transform: rotate(-90deg); }
 .arch-section-body { display: none; padding-top: 12px; }
 .arch-section.open .arch-section-body { display: block; }
