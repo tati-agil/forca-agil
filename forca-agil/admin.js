@@ -46,10 +46,30 @@
   function initAdmin() {
     var sess = window.faAuth && window.faAuth.getSession();
     if (!sess || !window.faAuth.isAdmin(sess.email)) return;
+    migrateNameCase();
     loadInterests();
     loadRepoAdmin();
     loadColaboradores();
     loadAdmins();
+  }
+
+  function migrateNameCase() {
+    ['fa-colaboradores', 'fa-admins'].forEach(function (path) {
+      firebase.database().ref(path).once('value', function (snap) {
+        var data = snap.val() || {};
+        var updates = {};
+        Object.entries(data).forEach(function (entry) {
+          var key = entry[0], p = entry[1];
+          var newName  = (p.name  || '').toUpperCase();
+          var newEmail = (p.email || '').toLowerCase();
+          if (p.name !== newName || p.email !== newEmail) {
+            updates[path + '/' + key + '/name']  = newName;
+            updates[path + '/' + key + '/email'] = newEmail;
+          }
+        });
+        if (Object.keys(updates).length) firebase.database().ref().update(updates);
+      });
+    });
   }
 
   /* ---- Interested per turma ---- */
