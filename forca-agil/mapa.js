@@ -93,11 +93,24 @@
     },
   ];
 
-  function dots(personas) {
-    return PERSONAS.map(function (p) {
-      var has = personas.indexOf(p.key) !== -1;
-      return '<span class="mapa-dot" title="' + p.label + '" style="background:' + (has ? p.color : 'rgba(255,255,255,.08)') + ';box-shadow:' + (has ? '0 0 6px ' + p.color + '66' : 'none') + '"></span>';
-    }).join('');
+  /* Badge de nível mínimo para o mapa do site */
+  var P_ORDER = ['visitante', 'logado', 'colaborador', 'admin'];
+  var P_COLOR = { visitante: '#888888', logado: '#1ab2ae', colaborador: '#f5c542', admin: '#ff5252' };
+  var P_LABEL = { visitante: 'Visitante', logado: 'Logado', colaborador: 'Colaborador', admin: 'Admin' };
+
+  function levelBadge(personas) {
+    if (!personas || !personas.length) return '';
+    var indices = personas.map(function (k) { return P_ORDER.indexOf(k); }).filter(function (i) { return i >= 0; });
+    var minIdx = Math.min.apply(null, indices);
+    var maxIdx = Math.max.apply(null, indices);
+    /* herança contínua: do mínimo até o topo (admin = índice 3) */
+    var isChain = (maxIdx === P_ORDER.length - 1) && (indices.length === P_ORDER.length - minIdx);
+    var minKey  = P_ORDER[minIdx];
+    var col     = P_COLOR[minKey];
+    var lbl     = P_LABEL[minKey];
+    var suffix  = (isChain && minIdx < P_ORDER.length - 1) ? ' +' : '';
+    if (personas.length === P_ORDER.length) { lbl = 'Todos'; suffix = ''; col = '#1ab2ae'; }
+    return '<span class="mapa-badge" style="--bc:' + col + '">' + lbl + suffix + '</span>';
   }
 
   function render() {
@@ -108,15 +121,22 @@
 
     /* ── Hierarquia ── */
     html += '<h3 class="mapa-title">Hierarquia de Personas</h3>';
-    html += '<p class="mapa-sub">Cada nível herda tudo do anterior e ganha os acessos abaixo.</p>';
+    html += '<p class="mapa-sub">Cada nível inclui tudo do anterior e acrescenta os itens abaixo.</p>';
     html += '<div class="mapa-hierarchy">';
 
-    HIERARCHY.forEach(function (level) {
+    HIERARCHY.forEach(function (level, i) {
+      var prev = i > 0 ? HIERARCHY[i - 1] : null;
       html += '<div class="mapa-level" style="--lc:' + level.color + '">';
+      if (prev) {
+        html += '<div class="mapa-level-inherit">↳ tudo de <strong>' + prev.label + '</strong>, mais:</div>';
+      }
       html += '<div class="mapa-level-head"><span class="mapa-level-name">' + level.label + '</span></div>';
       html += '<ul class="mapa-level-adds">';
       level.adds.forEach(function (a) { html += '<li>' + a + '</li>'; });
       html += '</ul></div>';
+      if (i < HIERARCHY.length - 1) {
+        html += '<div class="mapa-level-arrow">▲</div>';
+      }
     });
 
     html += '</div>';
@@ -124,11 +144,12 @@
     /* ── Mapa do site ── */
     html += '<h3 class="mapa-title" style="margin-top:48px">Mapa do Site</h3>';
 
-    /* Legenda */
+    /* Legenda dos badges */
     html += '<div class="mapa-legend">';
-    PERSONAS.forEach(function (p) {
-      html += '<span class="mapa-legend-item"><span class="mapa-dot" style="background:' + p.color + '"></span>' + p.label + '</span>';
-    });
+    html += '<span class="mapa-legend-item"><span class="mapa-badge" style="--bc:#888">Visitante</span> apenas visitantes</span>';
+    html += '<span class="mapa-legend-item"><span class="mapa-badge" style="--bc:#1ab2ae">Logado +</span> logado, colaborador e admin</span>';
+    html += '<span class="mapa-legend-item"><span class="mapa-badge" style="--bc:#f5c542">Colaborador +</span> colaborador e admin</span>';
+    html += '<span class="mapa-legend-item"><span class="mapa-badge" style="--bc:#ff5252">Admin</span> somente admin</span>';
     html += '</div>';
 
     /* Grid de páginas */
@@ -137,7 +158,7 @@
       html += '<div class="mapa-page" style="--pc:' + page.color + '">';
       html += '<div class="mapa-page-title">' + page.label + '</div>';
       page.features.forEach(function (f) {
-        html += '<div class="mapa-feature"><span class="mapa-feature-label">' + f.label + '</span><span class="mapa-dots">' + dots(f.p) + '</span></div>';
+        html += '<div class="mapa-feature"><span class="mapa-feature-label">' + f.label + '</span>' + levelBadge(f.p) + '</div>';
       });
       html += '</div>';
     });
