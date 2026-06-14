@@ -100,6 +100,9 @@
           var fk = k.replace(/-/g, '_');
           if (data[fk] != null) window.faStore.setItem(k, data[fk]);
         });
+      } else if (!data && window.faStore) {
+        /* Sem progresso no Firebase — limpa localStorage para evitar dados órfãos */
+        _PROGRESS_KEYS.forEach(function(k) { window.faStore.removeItem(k); });
       }
       if (cb) cb();
     }).catch(function() { if (cb) cb(); });
