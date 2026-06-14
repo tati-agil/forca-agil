@@ -109,7 +109,7 @@
     var col     = P_COLOR[minKey];
     var lbl     = P_LABEL[minKey];
     var suffix  = (isChain && minIdx < P_ORDER.length - 1) ? ' +' : '';
-    if (personas.length === P_ORDER.length) { lbl = 'Todos'; suffix = ''; col = '#aaaaaa'; }
+    if (personas.length === P_ORDER.length) { lbl = 'Todos'; suffix = ''; col = '#ffffff'; }
     return '<span class="mapa-badge" style="--bc:' + col + '">' + lbl + suffix + '</span>';
   }
 
