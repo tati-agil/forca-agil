@@ -66,6 +66,45 @@
     });
   }
 
+  // ---- Sync progress to Firebase (para restaurar em qualquer browser) ----
+  var _PROGRESS_KEYS = ['fa-game-v2','fa-missions-xp','fa-kyber-done','fa-kyber-xp',
+                        'fa-patente-revealed','fa-content-read','fa-content-xp','fa-repo-xp',
+                        'kyber-game-v1','kyber-ranking-v1'];
+  window.faSyncProgress = function() {
+    if (!fbReady) return;
+    var p = getPlayer();
+    if (!p || !p.email) {
+      var sess = window.faAuth && window.faAuth.getSession && window.faAuth.getSession();
+      if (!sess || !sess.email) return;
+      p = sess;
+    }
+    var st = _st();
+    var data = { updatedAt: new Date().toISOString() };
+    _PROGRESS_KEYS.forEach(function(k) {
+      var v = st.getItem(k);
+      if (v !== null) data[k.replace(/-/g, '_')] = v;
+    });
+    var eKey = (p.email || '').toLowerCase().replace(/[@.]/g, '_').replace(/[^a-z0-9_]/g, '').slice(0, 64);
+    firebase.database().ref('fa-progress/' + eKey).set(data)
+      .catch(function(e) { console.warn('faSyncProgress error:', e); });
+  };
+
+  // ---- Load progress from Firebase on login ----
+  window.faLoadProgress = function(email, cb) {
+    if (!fbReady) { if (cb) cb(); return; }
+    var eKey = (email || '').toLowerCase().replace(/[@.]/g, '_').replace(/[^a-z0-9_]/g, '').slice(0, 64);
+    firebase.database().ref('fa-progress/' + eKey).once('value', function(snap) {
+      var data = snap.val();
+      if (data && window.faStore) {
+        _PROGRESS_KEYS.forEach(function(k) {
+          var fk = k.replace(/-/g, '_');
+          if (data[fk] != null) window.faStore.setItem(k, data[fk]);
+        });
+      }
+      if (cb) cb();
+    }).catch(function() { if (cb) cb(); });
+  };
+
   // ---- Sync player record to Firebase ----
   window.faSyncPlayer = function() {
     var p = getPlayer();
@@ -107,6 +146,7 @@
     // converte score em XP (0–32)
     var kyberXP = Math.min(50, Math.round(gameState.totalScore / 20000 * 50));
     try { _st().setItem('fa-kyber-xp', String(kyberXP)); } catch(e) {}
+    if (window.faSyncProgress) window.faSyncProgress();
 
     var p     = getPlayer() || { name: gameState.playerName || 'Agente', area: '', turma: '' };
     var gxp   = getGameXP();

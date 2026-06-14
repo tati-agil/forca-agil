@@ -169,6 +169,7 @@
               var cur = parseInt(_ast.getItem('fa-content-xp') || '0', 10) || 0;
               try { _ast.setItem('fa-content-xp', String(cur + XP_PER_SECTION)); } catch(e3) {}
               if (window.faSyncPlayer) window.faSyncPlayer();
+              if (window.faSyncProgress) window.faSyncProgress();
               if (badge) {
                 badge.textContent = '✓ +' + XP_PER_SECTION + ' XP';
                 badge.classList.add('visible');

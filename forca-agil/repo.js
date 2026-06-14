@@ -283,6 +283,7 @@
             var cur = parseInt(_rst.getItem('fa-repo-xp') || '0', 10) || 0;
             try { _rst.setItem('fa-repo-xp', String(Math.min(20, cur + 10))); } catch(e) {}
             if (window.faSyncPlayer) window.faSyncPlayer();
+            if (window.faSyncProgress) window.faSyncProgress();
           }
         })
         .catch(function(err) { console.warn('Firebase push error:', err); });

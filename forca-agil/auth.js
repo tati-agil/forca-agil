@@ -152,7 +152,14 @@
   function _afterLogin(sess) {
     try { localStorage.setItem('fa-player', JSON.stringify({ name: sess.name, area: sess.area, turma: '' })); } catch(e) {}
     updateNavState();
-    window.dispatchEvent(new CustomEvent('fa-auth-change', { detail: sess }));
+    // Carrega progresso do Firebase antes de disparar fa-auth-change
+    if (window.faLoadProgress) {
+      window.faLoadProgress(sess.email, function() {
+        window.dispatchEvent(new CustomEvent('fa-auth-change', { detail: sess }));
+      });
+    } else {
+      window.dispatchEvent(new CustomEvent('fa-auth-change', { detail: sess }));
+    }
   }
 
   /* ---------- Nav state ---------- */
