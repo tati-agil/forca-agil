@@ -245,6 +245,49 @@
     });
 
     html += '</div>';
+
+    /* ── Regras Operacionais ── */
+    html += '<h3 class="mapa-title" style="margin-top:56px">Regras Operacionais</h3>';
+    html += '<p class="mapa-sub">Decisões e restrições registradas sobre como o projeto deve ser mantido.</p>';
+
+    const REGRAS = [
+      {
+        label: 'Deploy', color: '#e8854a',
+        items: [
+          { name: 'Pasta de trabalho',  desc: 'Sempre usar "Design System (2)". Nunca usar "Design System (3)" ou qualquer outra.' },
+          { name: 'Processo de deploy', desc: 'git push para o branch main — o Firebase Hosting atualiza automaticamente. Nunca publicar de outra forma.' },
+        ]
+      },
+      {
+        label: 'Cache', color: '#ff5252',
+        items: [
+          { name: 'Sempre no-cache',     desc: 'firebase.json deve ter Cache-Control: no-cache para JS, CSS e HTML. Usuária não sabe dar refresh manual — o site nunca pode depender de cache do browser.' },
+          { name: 'Sem ?v=N nos scripts', desc: 'Não usar query string de versão como solução de cache. A configuração no firebase.json resolve de forma permanente e automática.' },
+        ]
+      },
+      {
+        label: 'Autonomia', color: '#1ab2ae',
+        items: [
+          { name: 'Usuária não executa nada', desc: 'Claude faz tudo — commits, deploys, edições. A usuária nunca roda comandos manualmente.' },
+          { name: 'Sem alterações não autorizadas', desc: 'Nunca mudar funcionalidades existentes sem autorização explícita. Só implementar o que foi pedido.' },
+        ]
+      },
+    ];
+
+    REGRAS.forEach(function (section) {
+      html += '<div class="arch-section">';
+      html += '<div class="arch-section-label" style="--ac:' + section.color + '">' + section.label + '</div>';
+      html += '<div class="arch-grid">';
+      section.items.forEach(function (item) {
+        html += '<div class="arch-item">';
+        html += '<div class="arch-item-name" style="--ac:' + section.color + '">' + item.name + '</div>';
+        html += '<div class="arch-item-desc">' + item.desc + '</div>';
+        html += '</div>';
+      });
+      html += '</div></div>';
+    });
+
+    html += '</div>';
     container.innerHTML = html;
   }
 
