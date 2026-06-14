@@ -39,9 +39,11 @@
     {
       group: 'XP & Progresso',
       tests: [
-        { id: 'xp-store',  label: 'faStore disponível',           run: function () { return typeof window.faStore === 'object' && typeof window.faStore.getItem === 'function'; } },
-        { id: 'xp-load',   label: 'faLoadProgress disponível',    run: function () { return typeof window.faLoadProgress === 'function'; } },
-        { id: 'xp-save',   label: 'faSaveProgress disponível',    run: function () { return typeof window.faSaveProgress === 'function'; } }
+        { id: 'xp-store',        label: 'faStore disponível',                                        run: function () { return typeof window.faStore === 'object' && typeof window.faStore.getItem === 'function'; } },
+        { id: 'xp-load',         label: 'faLoadProgress disponível',                                 run: function () { return typeof window.faLoadProgress === 'function'; } },
+        { id: 'xp-save',         label: 'faSaveProgress disponível',                                 run: function () { return typeof window.faSaveProgress === 'function'; } },
+        { id: 'xp-sync',         label: 'faSyncPlayer disponível',                                   run: function () { return typeof window.faSyncPlayer === 'function'; } },
+        { id: 'xp-clean-rank',   label: 'faCleanRanking disponível (remove entrada sem reveal)',      run: function () { return typeof window.faCleanRanking === 'function'; } }
       ]
     },
     {
