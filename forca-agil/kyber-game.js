@@ -104,8 +104,11 @@
     kyberProgress.textContent = `Desafio ${gameState.currentChallenge + 1}/${MAX_CHALLENGES}`;
     kyberScore.textContent = `Pontuação: ${gameState.totalScore} pts`;
 
+    // Embaralha alternativas aleatoriamente
+    const shuffled = ch.options.slice().sort(() => Math.random() - 0.5);
+
     kyberOptions.innerHTML = '';
-    ch.options.forEach((opt, idx) => {
+    shuffled.forEach((opt, idx) => {
       const btn = document.createElement('button');
       btn.className = 'kyber-option';
       btn.innerHTML = `<span class="opt-letter">${String.fromCharCode(65 + idx)}</span><span class="opt-text">${opt.text}</span>`;
@@ -167,10 +170,10 @@
       <div class="fb-agile">${option.agile}</div>
     `;
 
-    // Highlight options
+    // Highlight options — usa o texto da opção correta para identificar posição após embaralhamento
     document.querySelectorAll('.kyber-option').forEach((btn, i) => {
       if (i === idx) btn.classList.add(option.correct ? 'selected-correct' : 'selected-wrong');
-      else if (i === KYBER_CHALLENGES[gameState.currentChallenge].options.findIndex(o => o.correct)) {
+      else if (btn.querySelector('.opt-text').textContent === KYBER_CHALLENGES[gameState.currentChallenge].options.find(o => o.correct).text) {
         btn.classList.add('correct-answer');
       }
     });
@@ -191,9 +194,9 @@
       <div class="fb-agile">O Império te rastreou. Rápida decisão é essencial na agilidade!</div>
     `;
 
-    const correctIdx = KYBER_CHALLENGES[gameState.currentChallenge].options.findIndex(o => o.correct);
-    document.querySelectorAll('.kyber-option').forEach((btn, i) => {
-      if (i === correctIdx) btn.classList.add('correct-answer');
+    const correctText = KYBER_CHALLENGES[gameState.currentChallenge].options.find(o => o.correct).text;
+    document.querySelectorAll('.kyber-option').forEach((btn) => {
+      if (btn.querySelector('.opt-text').textContent === correctText) btn.classList.add('correct-answer');
     });
 
     kyberScore.textContent = `Pontuação: ${gameState.totalScore} pts`;
