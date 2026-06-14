@@ -73,12 +73,13 @@
     },
     { label: 'ADMIN', color: '#ff5252',
       features: [
-        { label: 'Ver link no menu',                     p: ['admin'] },
-        { label: 'Interessados por turma',               p: ['admin'] },
-        { label: 'Moderar repositório',                  p: ['admin'] },
-        { label: 'Adicionar / remover colaboradores',    p: ['admin'] },
-        { label: 'Resetar progresso de colaborador',     p: ['admin'] },
-        { label: 'Adicionar / remover admins',           p: ['admin'] },
+        { label: 'Ver link no menu',                          p: ['admin'] },
+        { label: 'Ver interessados por turma',                p: ['admin'] },
+        { label: 'Moderar repositório',                       p: ['admin'] },
+        { label: 'Adicionar / remover colaboradores',         p: ['admin'] },
+        { label: 'Redefinir senha de colaborador (e-mail)',   p: ['admin'] },
+        { label: 'Resetar progresso de colaborador',          p: ['admin'] },
+        { label: 'Adicionar / remover admins',                p: ['admin'] },
       ]
     },
     { label: 'CADASTRAR / ENTRAR', color: '#9b7fff',
@@ -90,13 +91,6 @@
         { label: 'Ver perfil no menu',                        p: ['logado','colaborador','admin'] },
         { label: 'Ver link Admin no menu',                    p: ['admin'] },
         { label: 'Botão Sair',                                p: ['logado','colaborador','admin'] },
-      ]
-    },
-    { label: 'ADMIN — COLABORADORES', color: '#ff5252',
-      features: [
-        { label: 'Redefinir senha (envia e-mail)',            p: ['admin'] },
-        { label: 'Resetar progresso do jogo',                 p: ['admin'] },
-        { label: 'Adicionar / remover colaborador',           p: ['admin'] },
       ]
     },
   ];
