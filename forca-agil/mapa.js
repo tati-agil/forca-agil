@@ -2,14 +2,14 @@
 (function () {
   'use strict';
 
-  var PERSONAS = [
+  const PERSONAS = [
     { key: 'visitante',   label: 'Visitante',      color: '#888888', desc: 'Não cadastrado / não logado' },
     { key: 'logado',      label: 'Usuário logado', color: '#1ab2ae', desc: 'Cadastrado com @previ.com.br' },
     { key: 'colaborador', label: 'Colaborador',    color: '#f5c542', desc: 'Indicado como colaborador pelo Admin' },
     { key: 'admin',       label: 'Admin',          color: '#ff5252', desc: 'Colaborador com acesso administrativo' },
   ];
 
-  var HIERARCHY = [
+  const HIERARCHY = [
     { key: 'visitante',   label: 'Visitante',      color: '#888888',
       adds: ['Ver páginas públicas (Início, Turmas, Conteúdos, Repositório, Ranking)', 'Cadastrar conta (@previ.com.br)', 'Fazer login', 'Recuperar senha por e-mail (autoatendimento)'] },
     { key: 'logado',      label: 'Usuário logado', color: '#1ab2ae',
@@ -20,7 +20,7 @@
       adds: ['Acessar o Painel Admin', 'Gerenciar colaboradores e admins', 'Ver interessados por turma', 'Moderar Repositório (ocultar/restaurar/deletar)', 'Resetar progresso de qualquer colaborador', 'Enviar e-mail de redefinição de senha para colaboradores'] },
   ];
 
-  var PAGES = [
+  const PAGES = [
     { label: 'INÍCIO', color: '#1ab2ae',
       features: [
         { label: 'Ver página completa',                  p: ['visitante','logado','colaborador','admin'] },
@@ -96,30 +96,30 @@
   ];
 
   /* Badge de nível mínimo para o mapa do site */
-  var P_ORDER = ['visitante', 'logado', 'colaborador', 'admin'];
-  var P_COLOR = { visitante: '#888888', logado: '#1ab2ae', colaborador: '#f5c542', admin: '#ff5252' };
-  var P_LABEL = { visitante: 'Visitante', logado: 'Logado', colaborador: 'Colaborador', admin: 'Admin' };
+  const P_ORDER = ['visitante', 'logado', 'colaborador', 'admin'];
+  const P_COLOR = { visitante: '#888888', logado: '#1ab2ae', colaborador: '#f5c542', admin: '#ff5252' };
+  const P_LABEL = { visitante: 'Visitante', logado: 'Logado', colaborador: 'Colaborador', admin: 'Admin' };
 
   function levelBadge(personas) {
     if (!personas || !personas.length) return '';
-    var indices = personas.map(function (k) { return P_ORDER.indexOf(k); }).filter(function (i) { return i >= 0; });
-    var minIdx = Math.min.apply(null, indices);
-    var maxIdx = Math.max.apply(null, indices);
+    const indices = personas.map(function (k) { return P_ORDER.indexOf(k); }).filter(function (i) { return i >= 0; });
+    const minIdx = Math.min.apply(null, indices);
+    const maxIdx = Math.max.apply(null, indices);
     /* herança contínua: do mínimo até o topo (admin = índice 3) */
-    var isChain = (maxIdx === P_ORDER.length - 1) && (indices.length === P_ORDER.length - minIdx);
-    var minKey  = P_ORDER[minIdx];
-    var col     = P_COLOR[minKey];
-    var lbl     = P_LABEL[minKey];
-    var suffix  = (isChain && minIdx < P_ORDER.length - 1) ? ' +' : '';
+    const isChain = (maxIdx === P_ORDER.length - 1) && (indices.length === P_ORDER.length - minIdx);
+    const minKey  = P_ORDER[minIdx];
+    const col     = P_COLOR[minKey];
+    let lbl     = P_LABEL[minKey];
+    let suffix  = (isChain && minIdx < P_ORDER.length - 1) ? ' +' : '';
     if (personas.length === P_ORDER.length) { lbl = 'Todos'; suffix = ''; col = '#ffffff'; }
     return '<span class="mapa-badge" style="--bc:' + col + '">' + lbl + suffix + '</span>';
   }
 
   function render() {
-    var container = document.getElementById('adminMapa');
+    const container = document.getElementById('adminMapa');
     if (!container) return;
 
-    var html = '<div class="mapa-wrap">';
+    let html = '<div class="mapa-wrap">';
 
     /* ── Hierarquia ── */
     html += '<h3 class="mapa-title">Hierarquia de Personas</h3>';
@@ -127,7 +127,7 @@
     html += '<div class="mapa-hierarchy">';
 
     HIERARCHY.forEach(function (level, i) {
-      var prev = i > 0 ? HIERARCHY[i - 1] : null;
+      const prev = i > 0 ? HIERARCHY[i - 1] : null;
       html += '<div class="mapa-level" style="--lc:' + level.color + '">';
       if (prev) {
         html += '<div class="mapa-level-inherit">↳ tudo de <strong>' + prev.label + '</strong>, mais:</div>';

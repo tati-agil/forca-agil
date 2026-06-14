@@ -31,7 +31,7 @@
   // ---- Helpers ----
   function getPlayer() {
     // Prefer new auth session, fall back to legacy fa-player
-    var sess = window.faAuth && window.faAuth.getSession && window.faAuth.getSession();
+    const sess = window.faAuth && window.faAuth.getSession && window.faAuth.getSession();
     if (sess) return { name: sess.name, area: sess.area || '', turma: '', email: sess.email };
     try { return JSON.parse(localStorage.getItem('fa-player') || 'null') || null; } catch(e) { return null; }
   }
@@ -85,14 +85,14 @@
         '<span><span class="rc-kind">' + k.label + '</span><h4>' + esc(item.title) + '</h4></span>' +
       '</div>' +
       (function() {
-        var raw = item.desc || '';
-        var indMatch = raw.match(/\s*Indicado por ([^.]+)\.?\s*$/);
-        var indBy = indMatch ? indMatch[1].trim() : null;
-        var body = indBy ? raw.slice(0, raw.lastIndexOf(indMatch[0])).trim() : raw;
-        var pHtml = body.length > 120
+        const raw = item.desc || '';
+        const indMatch = raw.match(/\s*Indicado por ([^.]+)\.?\s*$/);
+        const indBy = indMatch ? indMatch[1].trim() : null;
+        const body = indBy ? raw.slice(0, raw.lastIndexOf(indMatch[0])).trim() : raw;
+        const pHtml = body.length > 120
           ? '<p class="rc-desc rc-desc--collapsed">' + esc(body) + '</p><button class="rc-more">ver mais</button>'
           : '<p class="rc-desc">' + esc(body) + '</p>';
-        var indHtml = indBy ? '<span class="rc-indicated">Indicado por ' + esc(indBy) + '</span>' : '';
+        const indHtml = indBy ? '<span class="rc-indicated">Indicado por ' + esc(indBy) + '</span>' : '';
         return pHtml + indHtml;
       })() +
       '<a class="rc-open" href="' + esc(item.url) + '" target="_blank" rel="noopener noreferrer">' +
@@ -124,7 +124,7 @@
     const shown = all.filter(function(x) { return filter === 'all' || x.item.type === filter; });
 
     shown.forEach(function(x) {
-      var el = card(x.item, x.seed, x.key);
+      const el = card(x.item, x.seed, x.key);
       grid.appendChild(el);
     });
 
@@ -133,8 +133,8 @@
     // ver mais / ver menos
     grid.querySelectorAll('.rc-more').forEach(function(btn) {
       btn.addEventListener('click', function() {
-        var p = btn.previousElementSibling;
-        var collapsed = p.classList.toggle('rc-desc--collapsed');
+        const p = btn.previousElementSibling;
+        const collapsed = p.classList.toggle('rc-desc--collapsed');
         btn.textContent = collapsed ? 'ver mais' : 'ver menos';
       });
     });
@@ -142,7 +142,7 @@
     // botões de deletar (só nos próprios)
     grid.querySelectorAll('.rc-del').forEach(function(btn) {
       btn.addEventListener('click', function() {
-        var key = btn.dataset.key;
+        const key = btn.dataset.key;
         if (!key) return;
         if (!confirm('Remover este conteúdo do holocron?')) return;
         try {
@@ -157,7 +157,7 @@
     try {
       firebase.database().ref('holocron').orderByChild('createdAt')
         .on('value', function(snapshot) {
-          var data = snapshot.val();
+          const data = snapshot.val();
           firebaseItems = [];
           if (data) {
             Object.keys(data).forEach(function(k) {
@@ -177,7 +177,7 @@
   // ---- Filtros ----
   const filters = document.getElementById('repoFilters');
   filters && filters.addEventListener('click', function(e) {
-    var chip = e.target.closest('.repo-chip');
+    const chip = e.target.closest('.repo-chip');
     if (!chip) return;
     filters.querySelectorAll('.repo-chip').forEach(function(c) { c.classList.remove('active'); });
     chip.classList.add('active');
@@ -198,7 +198,7 @@
   }
 
   addBtn && addBtn.addEventListener('click', function() {
-    var p = getPlayer();
+    const p = getPlayer();
     if (!p || !p.name) {
       window._pendingRepoForm = true;
       if (window.faOpenAuthModal) window.faOpenAuthModal('register');
@@ -214,22 +214,22 @@
 
   form && form.addEventListener('submit', function(e) {
     e.preventDefault();
-    var p = getPlayer();
+    const p = getPlayer();
     if (!p || !p.name) {
-      var btn = document.getElementById('openRegister');
+      const btn = document.getElementById('openRegister');
       if (btn) btn.click();
       return;
     }
 
-    var title = document.getElementById('rfTitle').value.trim();
-    var url   = document.getElementById('rfUrl').value.trim();
-    var type  = document.getElementById('rfType').value;
-    var desc  = document.getElementById('rfDesc').value.trim();
+    let title = document.getElementById('rfTitle').value.trim();
+    let url   = document.getElementById('rfUrl').value.trim();
+    const type  = document.getElementById('rfType').value;
+    const desc  = document.getElementById('rfDesc').value.trim();
     if (!title || !url) return;
     if (!/^https?:\/\//i.test(url)) url = 'https://' + url;
 
-    var sess  = window.faAuth && window.faAuth.getSession && window.faAuth.getSession();
-    var entry = {
+    const sess  = window.faAuth && window.faAuth.getSession && window.faAuth.getSession();
+    const entry = {
       type:        type,
       title:       title,
       url:         url,
@@ -241,21 +241,21 @@
       createdAt:   new Date().toISOString()
     };
 
-    var btn = form.querySelector('[type=submit]');
+    const btn = form.querySelector('[type=submit]');
     if (btn) { btn.disabled = true; btn.textContent = 'Verificando…'; }
 
     function normalizeUrl(u) { return (u || '').toLowerCase().replace(/\/+$/, ''); }
 
     try {
       firebase.database().ref('holocron').once('value', function(snap) {
-        var data = snap.val();
+        const data = snap.val();
         if (data) {
-          var exists = Object.values(data).some(function(item) {
+          const exists = Object.values(data).some(function(item) {
             return normalizeUrl(item.url) === normalizeUrl(url);
           });
           if (exists) {
             btn.disabled = false; btn.textContent = 'Guardar no Holocron';
-            var errEl = document.getElementById('repoFormErr');
+            const errEl = document.getElementById('repoFormErr');
             if (errEl) { errEl.textContent = 'Este conteúdo já foi adicionado ao Holocron.'; errEl.hidden = false; }
             return;
           }
@@ -278,9 +278,9 @@
             c.classList.toggle('active', c.dataset.f === 'all');
           });
           // Award repo XP — só conta se patente ainda não foi revelada
-          var _rst = window.faStore || localStorage;
+          const _rst = window.faStore || localStorage;
           if (_rst.getItem('fa-patente-revealed') !== '1') {
-            var cur = parseInt(_rst.getItem('fa-repo-xp') || '0', 10) || 0;
+            const cur = parseInt(_rst.getItem('fa-repo-xp') || '0', 10) || 0;
             try { _rst.setItem('fa-repo-xp', String(Math.min(20, cur + 10))); } catch(e) {}
             if (window.faSyncPlayer) window.faSyncPlayer();
             if (window.faSyncProgress) window.faSyncProgress();

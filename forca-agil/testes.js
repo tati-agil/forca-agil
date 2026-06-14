@@ -6,7 +6,7 @@
      GRUPO 1 — TÉCNICOS
      Verificam se os componentes de infraestrutura estão disponíveis.
   ================================================================ */
-  var TECNICOS = [
+  const TECNICOS = [
     {
       group: 'Firebase',
       tests: [
@@ -32,7 +32,7 @@
         { id: 'auth-api',     label: 'API faAuth disponível',                        run: function () { return typeof window.faAuth === 'object' && typeof window.faAuth.getSession === 'function'; } },
         { id: 'auth-sess',    label: 'Sessão ativa (usuário logado)',                 run: function () { return !!(window.faAuth && window.faAuth.getSession()); } },
         { id: 'auth-admin',   label: 'Usuário atual é admin',                        run: function () { return !!(window.faAuth && window.faAuth.isAdmin()); } },
-        { id: 'auth-email',   label: 'E-mail da sessão é @previ.com.br',             run: function () { var s = window.faAuth && window.faAuth.getSession(); return !!(s && s.email && s.email.endsWith('@previ.com.br')); } },
+        { id: 'auth-email',   label: 'E-mail da sessão é @previ.com.br',             run: function () { const s = window.faAuth && window.faAuth.getSession(); return !!(s && s.email && s.email.endsWith('@previ.com.br')); } },
         { id: 'auth-logout',  label: 'Botão "Sair" presente no DOM',                 run: function () { return !!document.getElementById('navLogout'); } }
       ]
     },
@@ -62,13 +62,13 @@
      Verificam regras do manual que podem ser checadas via DOM/JS.
      Executados como admin logado — algumas checagens são contextuais.
   ================================================================ */
-  var COMPORTAMENTO_AUTO = [
+  const COMPORTAMENTO_AUTO = [
     {
       group: 'Menu — Cadastrar / Entrar',
       tests: [
-        { id: 'c-menu-profile',    label: '[Logado] Perfil visível no menu (substitui Entrar/Cadastrar)',  run: function () { var el = document.getElementById('navProfile'); return el && !el.hidden; } },
-        { id: 'c-menu-guest-hide', label: '[Logado] Botões Entrar/Cadastrar ocultos',                     run: function () { var el = document.getElementById('navGuest');   return el && el.hidden; } },
-        { id: 'c-menu-admin-link', label: '[Admin] Link "Admin" visível no menu',                         run: function () { var el = document.getElementById('navAdmin');   return el && !el.hidden; } }
+        { id: 'c-menu-profile',    label: '[Logado] Perfil visível no menu (substitui Entrar/Cadastrar)',  run: function () { const el = document.getElementById('navProfile'); return el && !el.hidden; } },
+        { id: 'c-menu-guest-hide', label: '[Logado] Botões Entrar/Cadastrar ocultos',                     run: function () { const el = document.getElementById('navGuest');   return el && el.hidden; } },
+        { id: 'c-menu-admin-link', label: '[Admin] Link "Admin" visível no menu',                         run: function () { const el = document.getElementById('navAdmin');   return el && !el.hidden; } }
       ]
     },
     {
@@ -76,9 +76,9 @@
       tests: [
         { id: 'c-reg-area',     label: 'Campo área/setor com opções das gerências (GEPAR, AUDIT…)',
           run: function () {
-            var sel = document.getElementById('registerArea') || document.querySelector('select[name="area"]');
+            const sel = document.getElementById('registerArea') || document.querySelector('select[name="area"]');
             if (!sel) return false;
-            var opts = Array.from(sel.options).map(function (o) { return o.value; });
+            const opts = Array.from(sel.options).map(function (o) { return o.value; });
             return opts.indexOf('GEPAR') !== -1 && opts.indexOf('AUDIT') !== -1;
           }
         },
@@ -168,7 +168,7 @@
      Regras que NÃO podem ser verificadas automaticamente.
      Exibidas com motivo explicado para validação humana.
   ================================================================ */
-  var COMPORTAMENTO_MANUAL = [
+  const COMPORTAMENTO_MANUAL = [
     { section: 'Cadastrar / Entrar',
       title: 'Modal não fecha ao clicar fora',
       motivo: 'Requer simulação de clique fora do modal — comportamento transiente não verificável sem interação real.' },
@@ -289,17 +289,17 @@
      ENGINE DE EXECUÇÃO
   ================================================================ */
   function runSuite(suite, onProgress, onDone) {
-    var results = [];
-    var allTests = [];
+    const results = [];
+    const allTests = [];
     suite.forEach(function (g) {
       g.tests.forEach(function (t) {
         allTests.push({ group: g.group, test: t });
       });
     });
-    var i = 0;
+    let i = 0;
     function next() {
       if (i >= allTests.length) { onDone(results); return; }
-      var item = allTests[i++];
+      const item = allTests[i++];
       function finish(passed, err) {
         results.push({ group: item.group, id: item.test.id, label: item.test.label, passed: passed, err: err || null });
         onProgress(results);
@@ -320,7 +320,7 @@
      RENDER
   ================================================================ */
   function render(container) {
-    var html = '<div class="testes-wrap">';
+    let html = '<div class="testes-wrap">';
     html += '<p class="testes-desc">Execute cada grupo independentemente ou todos de uma vez. Os testes rodam na sessão atual (admin logado).</p>';
 
     html += '<div class="testes-actions">';
@@ -335,7 +335,7 @@
     html += '<h4 class="testes-manual-title">📋 Regras que exigem validação manual (' + COMPORTAMENTO_MANUAL.length + ')</h4>';
     html += '<p class="testes-manual-desc">Estas regras não podem ser verificadas automaticamente. Valide-as manualmente ao testar o site.</p>';
 
-    var bySection = {};
+    const bySection = {};
     COMPORTAMENTO_MANUAL.forEach(function (r) {
       if (!bySection[r.section]) bySection[r.section] = [];
       bySection[r.section].push(r);
@@ -359,12 +359,12 @@
 
     container.querySelectorAll('.testes-run-btn').forEach(function (btn) {
       btn.addEventListener('click', function () {
-        var suite = btn.dataset.suite;
-        var el = document.getElementById('testesResultados');
+        const suite = btn.dataset.suite;
+        const el = document.getElementById('testesResultados');
         container.querySelectorAll('.testes-run-btn').forEach(function (b) { b.disabled = true; });
         el.innerHTML = '<p class="testes-running">⏳ Executando…</p>';
 
-        var chosen = suite === 'tecnicos' ? TECNICOS
+        const chosen = suite === 'tecnicos' ? TECNICOS
                    : suite === 'comportamento' ? COMPORTAMENTO_AUTO
                    : TECNICOS.concat(COMPORTAMENTO_AUTO);
 
@@ -381,11 +381,11 @@
   }
 
   function renderResults(el, results, done) {
-    var passed = results.filter(function (r) { return r.passed; }).length;
-    var total  = results.length;
-    var allOk  = done && passed === total;
+    const passed = results.filter(function (r) { return r.passed; }).length;
+    const total  = results.length;
+    const allOk  = done && passed === total;
 
-    var html = '<div class="testes-summary ' + (done ? (allOk ? 'ok' : 'fail') : 'running') + '">';
+    let html = '<div class="testes-summary ' + (done ? (allOk ? 'ok' : 'fail') : 'running') + '">';
     if (done) {
       html += allOk
         ? '✅ Todos os ' + total + ' testes passaram'
@@ -395,7 +395,7 @@
     }
     html += '</div>';
 
-    var groups = {};
+    const groups = {};
     results.forEach(function (r) {
       if (!groups[r.group]) groups[r.group] = [];
       groups[r.group].push(r);

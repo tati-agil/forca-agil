@@ -2,10 +2,10 @@
 (function () {
   'use strict';
 
-  var activeSection = 'all';
-  var activePersona = 'all';
+  let activeSection = 'all';
+  let activePersona = 'all';
 
-  var SECTIONS = [
+  const SECTIONS = [
     { key: 'all',         label: 'Tudo',               color: 'var(--ink-2)' },
     { key: 'auth',        label: 'Cadastrar / Entrar',  color: '#9b7fff' },
     { key: 'inicio',      label: 'Início',              color: '#1ab2ae' },
@@ -17,7 +17,7 @@
     { key: 'admin',       label: 'Admin',               color: '#ff5252' },
   ];
 
-  var PERSONAS = [
+  const PERSONAS = [
     { key: 'all',         label: 'Todas as personas',  color: 'var(--ink-2)' },
     { key: 'visitante',   label: 'Visitante',          color: '#888' },
     { key: 'logado',      label: 'Usuário logado',     color: '#1ab2ae' },
@@ -25,7 +25,7 @@
     { key: 'admin',       label: 'Admin',              color: '#ff5252' },
   ];
 
-  var RULES = [
+  const RULES = [
     /* ── CADASTRAR / ENTRAR ── */
     { section: 'auth', personas: ['visitante'],
       title: 'Quem vê ENTRAR e CADASTRAR no menu',
@@ -264,33 +264,33 @@
   }
 
   function sectionColor(key) {
-    var s = SECTIONS.find(function (x) { return x.key === key; });
+    const s = SECTIONS.find(function (x) { return x.key === key; });
     return s ? s.color : '#888';
   }
 
   function render() {
-    var container = document.getElementById('adminManual');
+    const container = document.getElementById('adminManual');
     if (!container) return;
 
-    var filtered = RULES.filter(function (r) {
+    const filtered = RULES.filter(function (r) {
       var secOk = activeSection === 'all' || r.section === activeSection;
       var perOk = activePersona === 'all' || r.personas.indexOf(activePersona) !== -1;
       return secOk && perOk;
     });
 
     /* Group by section preserving SECTIONS order */
-    var grouped = {};
+    const grouped = {};
     SECTIONS.forEach(function (s) { if (s.key !== 'all') grouped[s.key] = []; });
     filtered.forEach(function (r) { if (grouped[r.section]) grouped[r.section].push(r); });
 
     /* Build HTML */
-    var html = '<div class="manual-wrap">';
+    let html = '<div class="manual-wrap">';
     html += '<h3 class="manual-title">Manual da Força Ágil</h3>';
 
     /* Section chips */
     html += '<div class="manual-filter-row"><span class="manual-filter-label">Seção</span><div class="manual-chips">';
     SECTIONS.forEach(function (s) {
-      var active = activeSection === s.key;
+      const active = activeSection === s.key;
       html += '<button class="manual-chip' + (active ? ' active' : '') + '" data-type="section" data-key="' + s.key + '" style="--chip-col:' + s.color + '">' + s.label + '</button>';
     });
     html += '</div></div>';
@@ -298,7 +298,7 @@
     /* Persona chips */
     html += '<div class="manual-filter-row"><span class="manual-filter-label">Persona</span><div class="manual-chips">';
     PERSONAS.forEach(function (p) {
-      var active = activePersona === p.key;
+      const active = activePersona === p.key;
       html += '<button class="manual-chip' + (active ? ' active' : '') + '" data-type="persona" data-key="' + p.key + '" style="--chip-col:' + p.color + '">' + p.label + '</button>';
     });
     html += '</div></div>';
@@ -313,7 +313,7 @@
     } else {
       SECTIONS.forEach(function (s) {
         if (s.key === 'all') return;
-        var items = grouped[s.key];
+        const items = grouped[s.key];
         if (!items || !items.length) return;
 
         if (activeSection === 'all') {
@@ -322,11 +322,11 @@
         }
 
         items.forEach(function (rule) {
-          var col = sectionColor(rule.section);
-          var badges = rule.personas.map(function (pk) {
-            var p = PERSONAS.find(function (x) { return x.key === pk; });
+          const col = sectionColor(rule.section);
+          const badges = rule.personas.map(function (pk) {
+            const p = PERSONAS.find(function (x) { return x.key === pk; });
             if (!p || p.key === 'all') return '';
-            var isActive = activePersona === pk;
+            const isActive = activePersona === pk;
             return '<span class="manual-badge' + (isActive ? ' active' : '') + '" style="--badge-col:' + p.color + '">' + p.label + '</span>';
           }).join('');
 

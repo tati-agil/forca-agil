@@ -10,17 +10,17 @@
     // Tab switching inside admin
     document.querySelectorAll('.admin-tab-btn').forEach(function (btn) {
       btn.addEventListener('click', function () {
-        var target = btn.dataset.panel;
+        const target = btn.dataset.panel;
         document.querySelectorAll('.admin-tab-btn').forEach(function (b) { b.classList.remove('active'); });
         document.querySelectorAll('.admin-tab-panel').forEach(function (p) { p.classList.remove('active'); });
         btn.classList.add('active');
-        var panel = document.getElementById(target);
+        const panel = document.getElementById(target);
         if (panel) panel.classList.add('active');
       });
     });
   });
 
-  var COLAB_SEED = [
+  const COLAB_SEED = [
     { email: 'luiz.spinelli@previ.com.br',      name: 'Luiz Antonio Fernandes Spinelli' },
     { email: 'mpl@previ.com.br',                name: 'Maira Prado Louvison' },
     { email: 'giselebatista@previ.com.br',       name: 'Gisele Batista de Souza' },
@@ -41,7 +41,7 @@
     return (e || '').toLowerCase().replace(/[@.]/g, '_').replace(/[^a-z0-9_]/g, '').slice(0, 64);
   }
 
-  var SUPER_ADMINS = ['tatianefdirene@previ.com.br', 'danielfrazao@previ.com.br'];
+  const SUPER_ADMINS = ['tatianefdirene@previ.com.br', 'danielfrazao@previ.com.br'];
 
   function initAdmin() {
     var sess = window.faAuth && window.faAuth.getSession();
@@ -59,12 +59,12 @@
   function migrateNameCase() {
     ['fa-colaboradores', 'fa-admins'].forEach(function (path) {
       firebase.database().ref(path).once('value', function (snap) {
-        var data = snap.val() || {};
-        var updates = {};
+        const data = snap.val() || {};
+        const updates = {};
         Object.entries(data).forEach(function (entry) {
-          var key = entry[0], p = entry[1];
-          var newName  = (p.name  || '').toUpperCase();
-          var newEmail = (p.email || '').toLowerCase();
+          const key = entry[0], p = entry[1];
+          const newName  = (p.name  || '').toUpperCase();
+          const newEmail = (p.email || '').toLowerCase();
           if (p.name !== newName || p.email !== newEmail) {
             updates[path + '/' + key + '/name']  = newName;
             updates[path + '/' + key + '/email'] = newEmail;
@@ -77,30 +77,30 @@
 
   /* ---- Interested per turma ---- */
   function loadInterests() {
-    var c = document.getElementById('adminInterests');
+    const c = document.getElementById('adminInterests');
     if (!c) return;
     c.innerHTML = '<p class="loading-msg">Carregando dados…</p>';
 
     firebase.database().ref('turmas-interesse').once('value', function (snap) {
-      var data = snap.val() || {};
+      const data = snap.val() || {};
       c.innerHTML = '';
 
-      var TURMAS = [
+      const TURMAS = [
         { key: 't1', label: 'Turma 1 — Agosto (11·12·18·19·20)' },
         { key: 't2', label: 'Turma 2 — Setembro (09·10·11·15·16)' },
         { key: 't3', label: 'Turma 3 — Novembro (17·18·19·24·25)' }
       ];
 
       TURMAS.forEach(function (t) {
-        var records = data[t.key] ? Object.values(data[t.key]) : [];
-        var section = document.createElement('div');
+        const records = data[t.key] ? Object.values(data[t.key]) : [];
+        const section = document.createElement('div');
         section.className = 'admin-section';
         section.innerHTML = '<h4>' + t.label + ' <span class="admin-badge">' + records.length + '</span></h4>';
 
         if (!records.length) {
           section.innerHTML += '<p class="admin-empty">Nenhum interesse registrado.</p>';
         } else {
-          var tbl = '<table class="admin-table"><thead><tr><th>Nome</th><th>E-mail</th><th>Área</th><th>Data</th></tr></thead><tbody>';
+          let tbl = '<table class="admin-table"><thead><tr><th>Nome</th><th>E-mail</th><th>Área</th><th>Data</th></tr></thead><tbody>';
           records.forEach(function (r) {
             tbl += '<tr><td>' + esc(r.name) + '</td><td>' + esc(r.email) + '</td><td>' + esc(r.area || '—') + '</td><td>' + fmtDate(r.date) + '</td></tr>';
           });
@@ -112,7 +112,7 @@
     });
   }
 
-  var REPO_SEEDS = [
+  const REPO_SEEDS = [
     { type: 'doc',   title: 'The Scrum Guide',                       url: 'https://scrumguides.org/',                                                                                                                                              desc: '' },
     { type: 'video', title: 'Agile Product Ownership in a Nutshell', url: 'https://www.youtube.com/results?search_query=agile+product+ownership+in+a+nutshell+kniberg',                                                                           desc: '' },
     { type: 'video', title: 'O que é Agilidade? (busca)',            url: 'https://www.youtube.com/results?search_query=o+que+%C3%A9+agilidade+business+agility',                                                                                  desc: '' },
@@ -126,7 +126,7 @@
     { type: 'video', title: 'Desdobramento de OKR na prática',       url: 'https://www.youtube.com/watch?v=jP35UFXDnzA',                                                                                                                            desc: 'Indicado por Rodolfo Credi.' }
   ];
 
-  var TYPE_LABEL = { doc: 'documento', video: 'vídeo', book: 'livro', tool: 'ferramenta', link: 'link' };
+  const TYPE_LABEL = { doc: 'documento', video: 'vídeo', book: 'livro', tool: 'ferramenta', link: 'link' };
 
   function seedKey(url) {
     return (url || '').toLowerCase().replace(/[^a-z0-9]/g, '_').slice(0, 80);
@@ -134,31 +134,31 @@
 
   /* ---- Repo items for admin ---- */
   function loadRepoAdmin() {
-    var c = document.getElementById('adminRepo');
+    const c = document.getElementById('adminRepo');
     if (!c) return;
     c.innerHTML = '<p class="loading-msg">Carregando repositório…</p>';
 
     firebase.database().ref('fa-seeds-hidden').once('value', function (snapH) {
-      var hidden = snapH.val() || {};
+      const hidden = snapH.val() || {};
 
       firebase.database().ref('holocron').once('value', function (snap) {
-        var data    = snap.val() || {};
-        var fbEntries = Object.entries(data);
+        const data    = snap.val() || {};
+        const fbEntries = Object.entries(data);
         c.innerHTML = '';
 
-        var total = REPO_SEEDS.length + fbEntries.length;
-        var h4 = document.createElement('h4');
+        const total = REPO_SEEDS.length + fbEntries.length;
+        const h4 = document.createElement('h4');
         h4.innerHTML = 'Todos os conteúdos <span class="admin-badge">' + total + '</span>';
         c.appendChild(h4);
 
         /* Seeds curados */
-        var seedSec = document.createElement('div');
+        const seedSec = document.createElement('div');
         seedSec.innerHTML = '<p style="font-size:.75rem;color:var(--ink-3);margin:16px 0 8px;text-transform:uppercase;letter-spacing:.1em">Curados (seed)</p>';
         c.appendChild(seedSec);
 
         REPO_SEEDS.forEach(function (item) {
-          var sk  = seedKey(item.url);
-          var row = document.createElement('div');
+          const sk  = seedKey(item.url);
+          const row = document.createElement('div');
           row.className = 'admin-repo-row';
           if (hidden[sk]) row.style.opacity = '.4';
           row.innerHTML =
@@ -170,7 +170,7 @@
               ? '<button class="admin-del-btn admin-restore-btn" data-sk="' + esc(sk) + '">Restaurar</button>'
               : '<button class="admin-del-btn admin-hide-btn" data-sk="' + esc(sk) + '">Ocultar</button>');
           row.querySelector('.admin-del-btn').addEventListener('click', function () {
-            var btn = row.querySelector('.admin-del-btn');
+            const btn = row.querySelector('.admin-del-btn');
             if (hidden[sk]) {
               if (!confirm('Restaurar "' + item.title + '" no repositório público?')) return;
               firebase.database().ref('fa-seeds-hidden/' + sk).remove(function () { loadRepoAdmin(); });
@@ -183,7 +183,7 @@
         });
 
         /* Itens enviados por usuários */
-        var userSec = document.createElement('div');
+        const userSec = document.createElement('div');
         userSec.innerHTML = '<p style="font-size:.75rem;color:var(--ink-3);margin:24px 0 8px;text-transform:uppercase;letter-spacing:.1em">Enviados por usuários</p>';
         c.appendChild(userSec);
 
@@ -191,8 +191,8 @@
           userSec.innerHTML += '<p class="admin-empty">Nenhum item enviado ainda.</p>';
         } else {
           fbEntries.forEach(function (e) {
-            var key = e[0], item = e[1];
-            var row = document.createElement('div');
+            const key = e[0], item = e[1];
+            const row = document.createElement('div');
             row.className = 'admin-repo-row';
             row.innerHTML =
               '<div class="admin-repo-info">' +
@@ -218,14 +218,14 @@
 
   /* ---- Colaboradores ---- */
   function loadColaboradores() {
-    var c = document.getElementById('adminColab');
+    const c = document.getElementById('adminColab');
     if (!c) return;
     c.innerHTML = '<p class="loading-msg">Carregando…</p>';
 
     firebase.database().ref('fa-colaboradores').once('value', function (snap) {
-      var data = snap.val() || {};
+      const data = snap.val() || {};
       if (Object.keys(data).length === 0) {
-        var updates = {};
+        const updates = {};
         COLAB_SEED.forEach(function (p) {
           updates['fa-colaboradores/' + emailKey(p.email)] = { email: p.email, name: p.name, addedAt: new Date().toISOString() };
         });
@@ -239,8 +239,8 @@
   }
 
   function handlePwdReset(btn) {
-    var email = btn.dataset.email;
-    var name  = btn.dataset.name;
+    const email = btn.dataset.email;
+    const name  = btn.dataset.name;
     if (!confirm('Enviar e-mail de redefinição de senha para ' + name + ' (' + email + ')?')) return;
     firebase.auth().sendPasswordResetEmail(email)
       .then(function () {
@@ -256,21 +256,21 @@
   }
 
   function renderColab(c, data) {
-    var list = Object.values(data).sort(function (a, b) { return (a.name || '').localeCompare(b.name || '', 'pt'); });
+    const list = Object.values(data).sort(function (a, b) { return (a.name || '').localeCompare(b.name || '', 'pt'); });
     c.innerHTML = '';
 
     /* Título */
-    var hdr = document.createElement('h4');
+    const hdr = document.createElement('h4');
     hdr.innerHTML = 'Colaboradores <span class="admin-badge">' + list.length + '</span>';
     c.appendChild(hdr);
 
     /* Tabela */
-    var tbl = document.createElement('table');
+    const tbl = document.createElement('table');
     tbl.className = 'admin-table';
     tbl.innerHTML = '<thead><tr><th>Nome</th><th>E-mail</th><th>Desde</th><th></th><th></th><th></th></tr></thead>';
-    var tbody = document.createElement('tbody');
+    const tbody = document.createElement('tbody');
     list.forEach(function (p) {
-      var tr = document.createElement('tr');
+      const tr = document.createElement('tr');
       tr.innerHTML =
         '<td>' + esc(p.name || '—') + '</td>' +
         '<td>' + esc(p.email || '—') + '</td>' +
@@ -293,13 +293,13 @@
       }
       if (btn.classList.contains('admin-reset-btn')) {
         if (!confirm('Resetar TODO o progresso do jogo de ' + btn.dataset.name + '?\n\nIsso apaga autodiagnóstico, missões, Kyber Game e patente. Essa ação não pode ser desfeita.')) return;
-        var eKey = btn.dataset.key;
-        var updates = {};
+        const eKey = btn.dataset.key;
+        const updates = {};
         updates['fa-progress/' + eKey] = null;
         updates['players/' + eKey] = null;
         firebase.database().ref().update(updates, function (err) {
           if (err) { alert('Erro ao resetar. Tente novamente.'); return; }
-          var msg = document.getElementById('colabMsg');
+          const msg = document.getElementById('colabMsg');
           if (msg) { msg.style.color = 'var(--cyan)'; msg.textContent = btn.dataset.name + ': progresso resetado.'; }
         });
         return;
@@ -313,7 +313,7 @@
     });
 
     /* Formulário de adição */
-    var form = document.createElement('div');
+    const form = document.createElement('div');
     form.className = 'admin-colab-form';
     form.innerHTML =
       '<h4 style="margin-top:32px">Adicionar colaborador</h4>' +
@@ -326,9 +326,9 @@
     c.appendChild(form);
 
     document.getElementById('colabAddBtn').addEventListener('click', function () {
-      var name  = (document.getElementById('colabName').value  || '').trim().toUpperCase();
-      var email = (document.getElementById('colabEmail').value || '').trim().toLowerCase();
-      var msg   = document.getElementById('colabMsg');
+      const name  = (document.getElementById('colabName').value  || '').trim().toUpperCase();
+      const email = (document.getElementById('colabEmail').value || '').trim().toLowerCase();
+      const msg   = document.getElementById('colabMsg');
       if (!name || !email) { msg.style.color = 'var(--accent)'; msg.textContent = 'Preencha nome e e-mail.'; return; }
       if (!/^[^\s@]+@previ\.com\.br$/i.test(email)) { msg.style.color = 'var(--accent)'; msg.textContent = 'Use um e-mail @previ.com.br.'; return; }
       firebase.database().ref('fa-colaboradores/' + emailKey(email)).set(
@@ -346,39 +346,39 @@
 
   /* ---- Administradores ---- */
   function loadAdmins() {
-    var c = document.getElementById('adminAdmins');
+    const c = document.getElementById('adminAdmins');
     if (!c) return;
 
     function render() {
       firebase.database().ref('fa-admins').once('value', function (snap) {
-        var data = snap.val() || {};
-        var dbList = Object.values(data).sort(function (a, b) { return (a.name || '').localeCompare(b.name || '', 'pt'); });
+        const data = snap.val() || {};
+        const dbList = Object.values(data).sort(function (a, b) { return (a.name || '').localeCompare(b.name || '', 'pt'); });
         c.innerHTML = '';
 
         /* Aviso sobre super-admins fixos */
-        var info = document.createElement('p');
+        const info = document.createElement('p');
         info.className = 'admin-empty';
         info.style.marginBottom = '20px';
         info.innerHTML = '<b>Super-admins fixos</b> (não removíveis via painel): ' +
           SUPER_ADMINS.map(function (e) { return esc(e); }).join(', ');
         c.appendChild(info);
 
-        var hdr = document.createElement('h4');
+        const hdr = document.createElement('h4');
         hdr.innerHTML = 'Administradores adicionais <span class="admin-badge">' + dbList.length + '</span>';
         c.appendChild(hdr);
 
         if (!dbList.length) {
-          var empty = document.createElement('p');
+          const empty = document.createElement('p');
           empty.className = 'admin-empty';
           empty.textContent = 'Nenhum administrador adicional cadastrado.';
           c.appendChild(empty);
         } else {
-          var tbl = document.createElement('table');
+          const tbl = document.createElement('table');
           tbl.className = 'admin-table';
           tbl.innerHTML = '<thead><tr><th>Nome</th><th>E-mail</th><th>Desde</th><th></th></tr></thead>';
-          var tbody = document.createElement('tbody');
+          const tbody = document.createElement('tbody');
           dbList.forEach(function (p) {
-            var tr = document.createElement('tr');
+            const tr = document.createElement('tr');
             tr.innerHTML =
               '<td>' + esc(p.name || '—') + '</td>' +
               '<td>' + esc(p.email || '—') + '</td>' +
@@ -390,7 +390,7 @@
           c.appendChild(tbl);
 
           tbody.addEventListener('click', function (e) {
-            var btn = e.target.closest('.admin-del-btn');
+            const btn = e.target.closest('.admin-del-btn');
             if (!btn) return;
             if (!confirm('Remover ' + btn.dataset.name + ' dos administradores?')) return;
             firebase.database().ref('fa-admins/' + btn.dataset.key).remove(function () { render(); });
@@ -398,7 +398,7 @@
         }
 
         /* Formulário de adição */
-        var form = document.createElement('div');
+        const form = document.createElement('div');
         form.className = 'admin-colab-form';
         form.innerHTML =
           '<h4 style="margin-top:32px">Adicionar administrador</h4>' +
@@ -411,9 +411,9 @@
         c.appendChild(form);
 
         document.getElementById('adminAddBtn').addEventListener('click', function () {
-          var name  = (document.getElementById('adminName').value  || '').trim().toUpperCase();
-          var email = (document.getElementById('adminEmail').value || '').trim().toLowerCase();
-          var msg   = document.getElementById('adminMsg');
+          const name  = (document.getElementById('adminName').value  || '').trim().toUpperCase();
+          const email = (document.getElementById('adminEmail').value || '').trim().toLowerCase();
+          const msg   = document.getElementById('adminMsg');
           if (!name || !email) { msg.style.color = 'var(--accent)'; msg.textContent = 'Preencha nome e e-mail.'; return; }
           if (!/^[^\s@]+@previ\.com\.br$/i.test(email)) { msg.style.color = 'var(--accent)'; msg.textContent = 'Use um e-mail @previ.com.br.'; return; }
           firebase.database().ref('fa-admins/' + emailKey(email)).set(

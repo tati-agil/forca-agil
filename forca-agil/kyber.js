@@ -268,7 +268,7 @@ const CHALLENGES = [
 ];
 
 // ---- Estado do jogo ----
-var gameState = {
+const gameState = {
   currentChallenge: 0,
   totalScore: 0,
   playerName: '',
@@ -286,7 +286,7 @@ function kyberGetPlayer() {
 function kyberStartGame() {
   // bloqueia replay
   if (typeof window.kyberAlreadyPlayed === 'function' && window.kyberAlreadyPlayed()) {
-    var setupEl = document.getElementById('kyber-setup');
+    const setupEl = document.getElementById('kyber-setup');
     if (setupEl) {
       setupEl.innerHTML =
         '<div class="kyber-already-played">' +
@@ -298,9 +298,9 @@ function kyberStartGame() {
   }
 
   // requer cadastro — abre modal direto
-  var p = kyberGetPlayer();
+  const p = kyberGetPlayer();
   if (!p || !p.name) {
-    var btn = document.getElementById('openRegister');
+    const btn = document.getElementById('openRegister');
     if (btn) btn.click();
     return;
   }
@@ -410,8 +410,8 @@ function kyberNextChallenge() {
 
 // Botões — aguarda DOM
 document.addEventListener('DOMContentLoaded', function() {
-  var btnStart = document.getElementById('kyber-start');
-  var btnNext  = document.getElementById('kyber-next');
+  const btnStart = document.getElementById('kyber-start');
+  const btnNext  = document.getElementById('kyber-next');
   if (btnStart) btnStart.onclick = kyberStartGame;
   if (btnNext)  btnNext.onclick  = kyberNextChallenge;
 });

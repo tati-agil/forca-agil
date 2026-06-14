@@ -5,13 +5,13 @@
 (function () {
 
   /* ---- Nav scroll + mobile toggle ---- */
-  var nav    = document.querySelector('.nav');
-  var onScr  = function () { nav && nav.classList.toggle('scrolled', window.scrollY > 40); };
+  const nav    = document.querySelector('.nav');
+  const onScr  = function () { nav && nav.classList.toggle('scrolled', window.scrollY > 40); };
   onScr();
   addEventListener('scroll', onScr, { passive: true });
 
-  var toggle = document.querySelector('.nav-toggle');
-  var links  = document.querySelector('.nav-links');
+  const toggle = document.querySelector('.nav-toggle');
+  const links  = document.querySelector('.nav-links');
   if (toggle && links) {
     toggle.addEventListener('click', function () { links.classList.toggle('open'); });
     links.querySelectorAll('a, button').forEach(function (el) {
@@ -20,14 +20,14 @@
   }
 
   /* ---- Reveal on scroll (rAF-less scroll event, ultra-reliable) ---- */
-  var reveals = [];
+  let reveals = [];
   function collectReveals() { reveals = Array.from(document.querySelectorAll('.reveal:not(.in)')); }
   function revealInView() {
-    var vh = innerHeight || document.documentElement.clientHeight;
-    for (var i = 0; i < reveals.length; i++) {
-      var el = reveals[i];
+    const vh = innerHeight || document.documentElement.clientHeight;
+    for (let i = 0; i < reveals.length; i++) {
+      const el = reveals[i];
       if (el.classList.contains('in')) continue;
-      var r = el.getBoundingClientRect();
+      const r = el.getBoundingClientRect();
       if (r.top < vh * 1.05 && r.bottom > -80) el.classList.add('in');
     }
   }
@@ -42,15 +42,15 @@
 
   /* ---- Opening crawl ---- */
   document.addEventListener('DOMContentLoaded', function () {
-    var crawl   = document.querySelector('.crawl-content');
-    var replay  = document.querySelector('.crawl-replay');
-    var reduce  = matchMedia('(prefers-reduced-motion: reduce)').matches;
+    const crawl   = document.querySelector('.crawl-content');
+    const replay  = document.querySelector('.crawl-replay');
+    const reduce  = matchMedia('(prefers-reduced-motion: reduce)').matches;
     if (crawl && !reduce) {
-      var startCrawl = function () { crawl.classList.remove('run'); void crawl.offsetWidth; crawl.classList.add('run'); };
-      var crawlIO = new IntersectionObserver(function (es) {
+      const startCrawl = function () { crawl.classList.remove('run'); void crawl.offsetWidth; crawl.classList.add('run'); };
+      const crawlIO = new IntersectionObserver(function (es) {
         es.forEach(function (e) { if (e.isIntersecting) { startCrawl(); crawlIO.disconnect(); } });
       }, { threshold: 0.4 });
-      var cs = document.querySelector('.crawl-section');
+      const cs = document.querySelector('.crawl-section');
       if (cs) crawlIO.observe(cs);
       if (replay) replay.addEventListener('click', startCrawl);
     } else if (replay) {
@@ -60,11 +60,11 @@
 
   /* ---- Agenda accordions — só colaboradores e admins podem expandir ---- */
   function updateAgendaAccess() {
-    var agenda = document.querySelector('.agenda');
+    const agenda = document.querySelector('.agenda');
     if (!agenda) return;
-    var sess = window.faAuth && window.faAuth.getSession();
+    const sess = window.faAuth && window.faAuth.getSession();
     if (!sess) { agenda.classList.remove('agenda--unlocked'); return; }
-    var isAdmin = window.faAuth.isAdmin && window.faAuth.isAdmin(sess.email);
+    const isAdmin = window.faAuth.isAdmin && window.faAuth.isAdmin(sess.email);
     if (isAdmin) { agenda.classList.add('agenda--unlocked'); return; }
     window.faAuth.isColaborador(sess.email, function (ok) {
       agenda.classList.toggle('agenda--unlocked', ok);
@@ -74,9 +74,9 @@
   window.addEventListener('fa-auth-change', updateAgendaAccess);
 
   document.addEventListener('click', function (e) {
-    var h = e.target.closest('.day-head');
+    const h = e.target.closest('.day-head');
     if (!h) return;
-    var agenda = h.closest('.agenda');
+    const agenda = h.closest('.agenda');
     if (!agenda || !agenda.classList.contains('agenda--unlocked')) return;
     h.parentElement.classList.toggle('open');
   });
@@ -89,11 +89,11 @@
 
   /* ---- Nav anchor links (Ranking → gamificacao + scroll to leaderboard) ---- */
   document.addEventListener('click', function (e) {
-    var link = e.target.closest('[data-anchor]');
+    const link = e.target.closest('[data-anchor]');
     if (!link || !link.dataset.anchor) return;
     e.preventDefault();
-    var page   = link.dataset.navPage || 'gamificacao';
-    var anchor = link.dataset.anchor;
+    const page   = link.dataset.navPage || 'gamificacao';
+    const anchor = link.dataset.anchor;
     if (window.faRouter) window.faRouter.navigate(page, { anchor: anchor });
   });
 
@@ -107,7 +107,7 @@
 
   /* ---- "Conhecer a iniciativa" scroll ---- */
   document.addEventListener('DOMContentLoaded', function () {
-    var knowBtn = document.getElementById('heroKnow');
+    const knowBtn = document.getElementById('heroKnow');
     if (knowBtn) knowBtn.addEventListener('click', function (e) {
       e.preventDefault();
       var target = document.getElementById('o-que-e');
@@ -118,12 +118,12 @@
     function updateAgentCount() {
       try {
         firebase.database().ref('fa-users').once('value', function (snap) {
-          var count = snap.numChildren ? snap.numChildren() : 0;
-          var el = document.getElementById('heroAgentCount');
+          const count = snap.numChildren ? snap.numChildren() : 0;
+          const el = document.getElementById('heroAgentCount');
           if (el) el.textContent = count > 0 ? count : '—';
-          var lbl = document.getElementById('heroAgentLabel');
+          const lbl = document.getElementById('heroAgentLabel');
           if (lbl && count > 0) lbl.textContent = count === 1 ? 'agente ativo' : 'agentes ativos';
-          var hint = document.getElementById('navAgentHint');
+          const hint = document.getElementById('navAgentHint');
           if (hint && count > 0) hint.textContent = 'Junte-se a ' + count + ' agentes';
         });
       } catch(e) {}
@@ -136,31 +136,31 @@
   });
 
   /* ---- Content XP tracking (conteúdos page) ---- */
-  var CONTENT_SECTIONS = ['galaxia','forca','arquetipos','sombrio','trilogia'];
-  var XP_PER_SECTION   = 5;
+  const CONTENT_SECTIONS = ['galaxia','forca','arquetipos','sombrio','trilogia'];
+  const XP_PER_SECTION   = 5;
 
   function initContentTracking() {
-    var sess = window.faAuth && window.faAuth.getSession();
+    const sess = window.faAuth && window.faAuth.getSession();
     if (!sess) return;
 
-    var _ast = window.faStore || localStorage;
-    var read = [];
+    const _ast = window.faStore || localStorage;
+    let read = [];
     try { read = JSON.parse(_ast.getItem('fa-content-read') || '[]'); } catch(e) {}
 
     CONTENT_SECTIONS.forEach(function (id) {
-      var el = document.getElementById('content-' + id);
+      const el = document.getElementById('content-' + id);
       if (!el) return;
 
       /* Mark already-read badge */
-      var badge = document.getElementById('xp-badge-' + id);
+      const badge = document.getElementById('xp-badge-' + id);
       if (read.indexOf(id) !== -1) {
         if (badge) { badge.textContent = '✓ +' + XP_PER_SECTION + ' XP'; badge.classList.add('visible'); }
         return;
       }
 
       /* Observe for first read — requires 10s visible before awarding XP */
-      var readTimer = null;
-      var obs = new IntersectionObserver(function (entries) {
+      let readTimer = null;
+      const obs = new IntersectionObserver(function (entries) {
         entries.forEach(function (entry) {
           if (entry.isIntersecting) {
             if (readTimer) return;
@@ -168,7 +168,7 @@
               obs.disconnect();
               read.push(id);
               try { _ast.setItem('fa-content-read', JSON.stringify(read)); } catch(e2) {}
-              var cur = parseInt(_ast.getItem('fa-content-xp') || '0', 10) || 0;
+              const cur = parseInt(_ast.getItem('fa-content-xp') || '0', 10) || 0;
               try { _ast.setItem('fa-content-xp', String(cur + XP_PER_SECTION)); } catch(e3) {}
               if (window.faSyncPlayer) window.faSyncPlayer();
               if (window.faSyncProgress) window.faSyncProgress();
@@ -201,15 +201,15 @@
   document.addEventListener('DOMContentLoaded', function () {
     function initTurmaInterest() {
       document.querySelectorAll('.btn--interest').forEach(function (btn) {
-        var turmaKey = btn.dataset.turma;
+        const turmaKey = btn.dataset.turma;
         if (!turmaKey) return;
 
         /* Check if already registered */
-        var sess = window.faAuth && window.faAuth.getSession();
+        const sess = window.faAuth && window.faAuth.getSession();
         if (sess) checkInterestState(btn, turmaKey, sess.email);
 
         btn.addEventListener('click', function () {
-          var s = window.faAuth && window.faAuth.getSession();
+          const s = window.faAuth && window.faAuth.getSession();
           if (!s) { if (window.faOpenAuthModal) window.faOpenAuthModal('register'); return; }
           registerInterest(btn, turmaKey, s);
         });
@@ -217,7 +217,7 @@
     }
 
     function checkInterestState(btn, turmaKey, email) {
-      var key = emailKey(email);
+      const key = emailKey(email);
       firebase && firebase.database &&
         firebase.database().ref('turmas-interesse/' + turmaKey + '/' + key).once('value', function (snap) {
           if (snap.exists()) setDone(btn, turmaKey);
@@ -226,8 +226,8 @@
 
     function registerInterest(btn, turmaKey, sess) {
       if (btn.classList.contains('done')) return;
-      var key   = emailKey(sess.email);
-      var entry = { name: sess.name, email: sess.email, area: sess.area || '', date: new Date().toISOString() };
+      const key   = emailKey(sess.email);
+      const entry = { name: sess.name, email: sess.email, area: sess.area || '', date: new Date().toISOString() };
       firebase.database().ref('turmas-interesse/' + turmaKey + '/' + key).set(entry, function (err) {
         if (!err) setDone(btn, turmaKey);
         else showMsg(turmaKey, 'Erro ao registrar. Tente novamente.');
@@ -242,7 +242,7 @@
     }
 
     function showMsg(turmaKey, msg) {
-      var el = document.getElementById('intent-msg-' + turmaKey);
+      const el = document.getElementById('intent-msg-' + turmaKey);
       if (el) el.textContent = msg;
     }
 

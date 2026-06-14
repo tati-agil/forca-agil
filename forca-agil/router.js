@@ -4,18 +4,18 @@
 (function () {
   'use strict';
 
-  var PAGES   = ['home','turmas','conteudos','gamificacao','repositorio','ranking','admin'];
-  var inits   = {};
-  var current = null;
+  const PAGES   = ['home','turmas','conteudos','gamificacao','repositorio','ranking','admin'];
+  const inits   = {};
+  let current = null;
 
   function route() {
-    var h = (location.hash || '').replace(/^#\/?/, '').split('?')[0] || 'home';
+    const h = (location.hash || '').replace(/^#\/?/, '').split('?')[0] || 'home';
     return PAGES.indexOf(h) !== -1 ? h : 'home';
   }
 
   function navigate(page, opts) {
     if (page === 'admin') {
-      var s = window.faAuth && window.faAuth.getSession();
+      const s = window.faAuth && window.faAuth.getSession();
       if (!s || !window.faAuth.isAdmin(s.email)) { location.hash = '#home'; return; }
     }
     location.hash = '#' + page;
@@ -29,7 +29,7 @@
 
   function show(page) {
     if (page === 'admin') {
-      var s = window.faAuth && window.faAuth.getSession();
+      const s = window.faAuth && window.faAuth.getSession();
       if (!s || !window.faAuth.isAdmin(s.email)) {
         page = 'home';
         history.replaceState(null, '', '#home');
@@ -38,7 +38,7 @@
 
     document.querySelectorAll('.page-section').forEach(function (el) { el.hidden = true; });
 
-    var el = document.getElementById('page-' + page);
+    const el = document.getElementById('page-' + page);
     if (el) {
       el.hidden = false;
       window.scrollTo({ top: 0, behavior: 'auto' });

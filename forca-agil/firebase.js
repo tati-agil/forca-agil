@@ -4,14 +4,14 @@
    ============================================================ */
 (function () {
 
-  var firebaseConfig = {
+  const firebaseConfig = {
     apiKey:      "AIzaSyAmnQTedd2eqL0d-3kMD2oWNeg0rwP6Lx0",
     authDomain:  "kyber-agil.firebaseapp.com",
     databaseURL: "https://kyber-agil-default-rtdb.firebaseio.com",
     projectId:   "kyber-agil"
   };
 
-  var fbReady = false;
+  let fbReady = false;
   try {
     firebase.initializeApp(firebaseConfig);
     fbReady = true;
@@ -21,15 +21,15 @@
   }
 
   // ---- Ranks ----
-  var RANKS = [
+  const RANKS = [
     { name: 'Youngling', min: 0  },
     { name: 'Padawan',   min: 25 },
     { name: 'Cavaleiro', min: 50 },
     { name: 'Mestre',    min: 75 }
   ];
   function getRank(xp) {
-    var r = RANKS[0];
-    for (var i = 0; i < RANKS.length; i++) { if (xp >= RANKS[i].min) r = RANKS[i]; }
+    let r = RANKS[0];
+    for (let i = 0; i < RANKS.length; i++) { if (xp >= RANKS[i].min) r = RANKS[i]; }
     return r.name;
   }
 
@@ -48,11 +48,11 @@
   function _st() { return window.faStore || localStorage; }
   function getGameXP() {
     try {
-      var s = JSON.parse(_st().getItem('fa-game-v2') || 'null');
+      const s = JSON.parse(_st().getItem('fa-game-v2') || 'null');
       if (!s) return { xpAuto: 0, xpMissoes: 0 };
-      var answered = (s.quiz || []).filter(function(v) { return v != null; }).length;
-      var xpAuto   = Math.round(answered / 6 * 20);
-      var xpMissoes = parseInt(_st().getItem('fa-missions-xp') || '0', 10) || 0;
+      const answered = (s.quiz || []).filter(function(v) { return v != null; }).length;
+      const xpAuto   = Math.round(answered / 6 * 20);
+      const xpMissoes = parseInt(_st().getItem('fa-missions-xp') || '0', 10) || 0;
       return { xpAuto: xpAuto, xpMissoes: xpMissoes };
     } catch(e) { return { xpAuto: 0, xpMissoes: 0 }; }
   }
@@ -67,24 +67,24 @@
   }
 
   // ---- Sync progress to Firebase (para restaurar em qualquer browser) ----
-  var _PROGRESS_KEYS = ['fa-game-v2','fa-missions-xp','fa-kyber-done','fa-kyber-xp',
+  const _PROGRESS_KEYS = ['fa-game-v2','fa-missions-xp','fa-kyber-done','fa-kyber-xp',
                         'fa-patente-revealed','fa-content-read','fa-content-xp','fa-repo-xp',
                         'kyber-game-v1','kyber-ranking-v1'];
   window.faSyncProgress = function() {
     if (!fbReady) return;
-    var p = getPlayer();
+    let p = getPlayer();
     if (!p || !p.email) {
-      var sess = window.faAuth && window.faAuth.getSession && window.faAuth.getSession();
+      const sess = window.faAuth && window.faAuth.getSession && window.faAuth.getSession();
       if (!sess || !sess.email) return;
       p = sess;
     }
-    var st = _st();
-    var data = { updatedAt: new Date().toISOString() };
+    const st = _st();
+    const data = { updatedAt: new Date().toISOString() };
     _PROGRESS_KEYS.forEach(function(k) {
       var v = st.getItem(k);
       if (v !== null) data[k.replace(/-/g, '_')] = v;
     });
-    var eKey = (p.email || '').toLowerCase().replace(/[@.]/g, '_').replace(/[^a-z0-9_]/g, '').slice(0, 64);
+    const eKey = (p.email || '').toLowerCase().replace(/[@.]/g, '_').replace(/[^a-z0-9_]/g, '').slice(0, 64);
     firebase.database().ref('fa-progress/' + eKey).set(data)
       .catch(function(e) { console.warn('faSyncProgress error:', e); });
   };
@@ -92,12 +92,12 @@
   // ---- Load progress from Firebase on login ----
   window.faLoadProgress = function(email, cb) {
     if (!fbReady) { if (cb) cb(); return; }
-    var eKey = (email || '').toLowerCase().replace(/[@.]/g, '_').replace(/[^a-z0-9_]/g, '').slice(0, 64);
+    const eKey = (email || '').toLowerCase().replace(/[@.]/g, '_').replace(/[^a-z0-9_]/g, '').slice(0, 64);
     firebase.database().ref('fa-progress/' + eKey).once('value', function(snap) {
-      var data = snap.val();
+      const data = snap.val();
       if (data && window.faStore) {
         _PROGRESS_KEYS.forEach(function(k) {
-          var fk = k.replace(/-/g, '_');
+          const fk = k.replace(/-/g, '_');
           if (data[fk] != null) window.faStore.setItem(k, data[fk]);
         });
       } else if (!data && window.faStore) {
@@ -113,14 +113,14 @@
 
   // ---- Sync player record to Firebase ----
   window.faSyncPlayer = function() {
-    var p = getPlayer();
+    const p = getPlayer();
     if (!p || !p.name) return;
-    var gxp   = getGameXP();
-    var kxp   = getKyberXP();
-    var cxp   = getContentXP();
-    var rxp   = getRepoXP();
-    var total = Math.min(100, gxp.xpAuto + gxp.xpMissoes + kxp + cxp + rxp);
-    var entry = {
+    const gxp   = getGameXP();
+    const kxp   = getKyberXP();
+    const cxp   = getContentXP();
+    const rxp   = getRepoXP();
+    const total = Math.min(100, gxp.xpAuto + gxp.xpMissoes + kxp + cxp + rxp);
+    const entry = {
       name:      p.name,
       area:      p.area  || '',
       turma:     p.turma || '',
@@ -133,7 +133,7 @@
       patente:   getRank(total),
       updatedAt: new Date().toISOString()
     };
-    var key = playerKey(p);
+    const key = playerKey(p);
     if (fbReady) {
       firebase.database().ref('players/' + key).set(entry)
         .catch(function(err) { console.warn('Firebase sync error:', err); });
@@ -150,21 +150,21 @@
     try { _st().setItem('fa-kyber-done', '1'); } catch(e) {}
 
     // converte score em XP (0–32)
-    var kyberXP = Math.min(50, Math.round(gameState.totalScore / 20000 * 50));
+    const kyberXP = Math.min(50, Math.round(gameState.totalScore / 20000 * 50));
     try { _st().setItem('fa-kyber-xp', String(kyberXP)); } catch(e) {}
     if (window.faSyncProgress) window.faSyncProgress();
 
-    var p     = getPlayer() || { name: gameState.playerName || 'Agente', area: '', turma: '' };
-    var gxp   = getGameXP();
-    var total = Math.min(100, gxp.xpAuto + gxp.xpMissoes + kyberXP);
+    const p     = getPlayer() || { name: gameState.playerName || 'Agente', area: '', turma: '' };
+    const gxp   = getGameXP();
+    const total = Math.min(100, gxp.xpAuto + gxp.xpMissoes + kyberXP);
 
-    var go = document.getElementById('kyber-gameover');
+    const go = document.getElementById('kyber-gameover');
     if (go) {
-      var _state = (function() { try { return JSON.parse(_st().getItem('fa-game-v2') || 'null'); } catch(e) { return null; } })();
-      var _autoDone = _state && _state.quiz && _state.quiz.filter(function(v){ return v != null; }).length === 6;
-      var _missoesDone = _state && _state.missions && Object.keys(_state.missions).length === 6 &&
+      const _state = (function() { try { return JSON.parse(_st().getItem('fa-game-v2') || 'null'); } catch(e) { return null; } })();
+      const _autoDone = _state && _state.quiz && _state.quiz.filter(function(v){ return v != null; }).length === 6;
+      const _missoesDone = _state && _state.missions && Object.keys(_state.missions).length === 6 &&
         Object.values(_state.missions).every(function(m){ return m && m.answers && m.answers.every(function(a){ return a !== null; }); });
-      var _allDone = _autoDone && _missoesDone;
+      const _allDone = _autoDone && _missoesDone;
 
       go.style.display = 'block';
       go.innerHTML =
@@ -180,14 +180,14 @@
     }
 
     // Botão ver patente na escada
-    var _verBtn = document.getElementById('kyberVerPatente');
+    const _verBtn = document.getElementById('kyberVerPatente');
     if (_verBtn) {
       _verBtn.addEventListener('click', function() {
         if (_allDone) {
-          var l = document.getElementById('ladder');
+          const l = document.getElementById('ladder');
           if (l) l.scrollIntoView({ behavior: 'smooth', block: 'center' });
         } else {
-          var msg = document.getElementById('kyberVerPatenteMsg');
+          const msg = document.getElementById('kyberVerPatenteMsg');
           if (msg) msg.style.display = msg.style.display === 'none' ? 'block' : 'none';
         }
       });
@@ -203,13 +203,13 @@
 
   // ---- Ranking ----
   window.kyberRenderRanking = function() {
-    var list = document.getElementById('kyber-leaderboard');
+    const list = document.getElementById('kyber-leaderboard');
     if (!list) return;
     list.innerHTML = '<h4>🏆 Resultado do Kyber Game</h4><p style="color:var(--ink-3);font-size:.9rem">Carregando…</p>';
 
     function renderRows(players) {
       list.innerHTML = '<h4>🏆 Ranking da Galáxia</h4>';
-      var myEntry = null;
+      let myEntry = null;
       try { myEntry = JSON.parse(localStorage.getItem('fa-my-entry') || 'null'); } catch(e) {}
 
       if (!players.length) {
@@ -217,11 +217,11 @@
         return;
       }
       players.forEach(function(e, i) {
-        var isMe = myEntry && e.name === myEntry.name && e.area === myEntry.area;
-        var row = document.createElement('div');
+        const isMe = myEntry && e.name === myEntry.name && e.area === myEntry.area;
+        const row = document.createElement('div');
         row.className = 'rank-row' + (isMe ? ' highlight' : '');
         // patente visível só para a própria pessoa
-        var patenteHtml = isMe
+        const patenteHtml = isMe
           ? '<span class="rank-patente" style="color:var(--accent);font-family:var(--font-mono);font-size:.75rem">' + (e.patente || '') + '</span>'
           : '';
         row.innerHTML =
@@ -238,14 +238,14 @@
     if (fbReady) {
       firebase.database().ref('players')
         .orderByChild('totalXP').on('value', function(snapshot) {
-          var data = snapshot.val();
-          var players = data ? Object.values(data) : [];
+          const data = snapshot.val();
+          const players = data ? Object.values(data) : [];
           players.sort(function(a, b) { return (b.totalXP || 0) - (a.totalXP || 0); });
           renderRows(players.slice(0, 20));
         });
     } else {
       try {
-        var mine = JSON.parse(localStorage.getItem('fa-my-entry') || 'null');
+        const mine = JSON.parse(localStorage.getItem('fa-my-entry') || 'null');
         renderRows(mine ? [mine] : []);
       } catch(e) { renderRows([]); }
     }
@@ -258,7 +258,7 @@
 
   // ---- Home ranking mini (top 5) ----
   window.faRenderHomeRanking = function() {
-    var list = document.getElementById('homeRanking');
+    const list = document.getElementById('homeRanking');
     if (!list) return;
     list.innerHTML = '<p style="color:var(--ink-3);font-size:.82rem">Carregando…</p>';
     if (!fbReady) {
@@ -267,15 +267,15 @@
     }
     firebase.database().ref('players').orderByChild('totalXP').limitToLast(5)
       .on('value', function(snapshot) {
-        var data = snapshot.val();
+        const data = snapshot.val();
         list.innerHTML = '';
         if (!data) {
           list.innerHTML = '<p style="color:var(--ink-3);font-size:.82rem">Seja o primeiro no ranking!</p>';
           return;
         }
-        var players = Object.values(data).sort(function(a,b) { return (b.totalXP||0) - (a.totalXP||0); });
+        const players = Object.values(data).sort(function(a,b) { return (b.totalXP||0) - (a.totalXP||0); });
         players.slice(0, 5).forEach(function(p, i) {
-          var row = document.createElement('div');
+          const row = document.createElement('div');
           row.className = 'rank-row';
           row.innerHTML =
             '<span class="rank-pos">#' + (i+1) + '</span>' +
@@ -292,21 +292,21 @@
   document.addEventListener('DOMContentLoaded', function() {
     kyberRenderRanking();
 
-    var revelarBtn    = document.getElementById('revelarBtn');
-    var revelarConfirm= document.getElementById('revelarConfirm');
-    var revelarOk     = document.getElementById('revelarOk');
-    var revelarCancel = document.getElementById('revelarCancel');
-    var revelarPatente= document.getElementById('revelarPatente');
+    const revelarBtn    = document.getElementById('revelarBtn');
+    const revelarConfirm= document.getElementById('revelarConfirm');
+    const revelarOk     = document.getElementById('revelarOk');
+    const revelarCancel = document.getElementById('revelarCancel');
+    const revelarPatente= document.getElementById('revelarPatente');
 
     function checkProgress() {
       try {
-        var state = JSON.parse(_st().getItem('fa-game-v2') || 'null');
-        var autoDone = state && state.quiz && state.quiz.filter(function(v){ return v != null; }).length === 6;
-        var missoesDone = state && state.missions && Object.keys(state.missions).length === 6 &&
+        const state = JSON.parse(_st().getItem('fa-game-v2') || 'null');
+        const autoDone = state && state.quiz && state.quiz.filter(function(v){ return v != null; }).length === 6;
+        const missoesDone = state && state.missions && Object.keys(state.missions).length === 6 &&
           Object.values(state.missions).every(function(m) {
             return m && m.answers && m.answers.every(function(a){ return a !== null; });
           });
-        var kyberDone = _st().getItem('fa-kyber-done') === '1';
+        const kyberDone = _st().getItem('fa-kyber-done') === '1';
         return { autoDone: autoDone, missoesDone: missoesDone, kyberDone: kyberDone,
                  allDone: autoDone && missoesDone && kyberDone };
       } catch(e) { return { autoDone: false, missoesDone: false, kyberDone: false, allDone: false }; }
@@ -314,12 +314,12 @@
 
     function updateRevelarBtn() {
       if (!revelarBtn) return;
-      var prog = checkProgress();
+      const prog = checkProgress();
       if (prog.allDone) {
         revelarBtn.disabled = false;
         revelarBtn.style.opacity = '';
         revelarBtn.title = '';
-        var hint = document.querySelector('.revelar-hint');
+        let hint = document.querySelector('.revelar-hint');
         if (hint) hint.innerHTML =
           '<span style="color:var(--accent)">✓ Autodiagnóstico</span> · ' +
           '<span style="color:var(--accent)">✓ Missões</span> · ' +
@@ -328,9 +328,9 @@
         revelarBtn.disabled = false;
         revelarBtn.style.opacity = '0.45';
         revelarBtn.dataset.locked = '1';
-        var hint = document.querySelector('.revelar-hint');
-        var _faltam = [!prog.autoDone && 'autodiagnóstico', !prog.missoesDone && 'missões', !prog.kyberDone && 'Kyber Game'].filter(Boolean);
-        var _faltaMsg = _faltam.length === 1 ? 'Falta completar: ' + _faltam[0] + '.' : 'Faltam: ' + _faltam.join(' e ') + '.';
+        const hint = document.querySelector('.revelar-hint');
+        const _faltam = [!prog.autoDone && 'autodiagnóstico', !prog.missoesDone && 'missões', !prog.kyberDone && 'Kyber Game'].filter(Boolean);
+        const _faltaMsg = _faltam.length === 1 ? 'Falta completar: ' + _faltam[0] + '.' : 'Faltam: ' + _faltam.join(' e ') + '.';
         if (hint) hint.innerHTML =
           (prog.autoDone ? '<span style="color:var(--accent)">✓' : '<span style="color:var(--ink-3)">✗') + ' Autodiagnóstico</span> · ' +
           (prog.missoesDone ? '<span style="color:var(--accent)">✓' : '<span style="color:var(--ink-3)">✗') + ' Missões</span> · ' +
@@ -344,7 +344,7 @@
 
     if (revelarBtn) revelarBtn.addEventListener('click', function() {
       if (revelarBtn.dataset.locked === '1') {
-        var hint = document.querySelector('.revelar-hint');
+        const hint = document.querySelector('.revelar-hint');
         if (hint) {
           hint.style.transition = 'color .2s';
           hint.style.color = 'var(--accent)';
@@ -352,20 +352,20 @@
         }
         return;
       }
-      var p = getPlayer();
+      const p = getPlayer();
       if (!p || !p.name) {
-        var btn = document.getElementById('openRegister');
+        const btn = document.getElementById('openRegister');
         if (btn) btn.click();
         return;
       }
-      var prog = checkProgress();
+      const prog = checkProgress();
       if (!prog.allDone) return;
-      var gxp   = getGameXP();
-      var kxp   = getKyberXP();
-      var cxp   = getContentXP();
-      var rxp   = getRepoXP();
-      var total = Math.min(100, gxp.xpAuto + gxp.xpMissoes + kxp + cxp + rxp);
-      var patente = getRank(total);
+      const gxp   = getGameXP();
+      const kxp   = getKyberXP();
+      const cxp   = getContentXP();
+      const rxp   = getRepoXP();
+      const total = Math.min(100, gxp.xpAuto + gxp.xpMissoes + kxp + cxp + rxp);
+      const patente = getRank(total);
       if (revelarPatente) revelarPatente.textContent = patente + ' · ' + total + ' XP';
       if (revelarConfirm) revelarConfirm.hidden = false;
     });
@@ -379,7 +379,7 @@
       try { _st().setItem('fa-patente-revealed', '1'); } catch(e) {}
       window.faSyncPlayer();
       // troca botão por mensagem de confirmação
-      var wrap = document.getElementById('revelarWrap');
+      const wrap = document.getElementById('revelarWrap');
       if (wrap) wrap.innerHTML =
         '<p style="font-family:var(--font-mono);font-size:.9rem;color:var(--accent);text-align:center;padding:24px">' +
         '✓ Patente publicada no ranking da galáxia!</p>';
@@ -396,24 +396,24 @@
       });
       // Página de ranking completo
       window.faRouter.onPageInit('ranking', function() {
-        var list = document.getElementById('rankingPageList');
+        const list = document.getElementById('rankingPageList');
         if (!list) return;
         list.innerHTML = '<p style="color:var(--ink-3);font-size:.9rem">Carregando…</p>';
         if (!fbReady) { list.innerHTML = '<p style="color:var(--ink-3)">Firebase indisponível.</p>'; return; }
         firebase.database().ref('players').orderByChild('totalXP')
           .on('value', function(snapshot) {
-            var data = snapshot.val();
+            const data = snapshot.val();
             list.innerHTML = '';
             if (!data) {
               list.innerHTML = '<p style="color:var(--ink-3)">Nenhum agente no ranking ainda.</p>';
               return;
             }
-            var players = Object.values(data).sort(function(a,b){ return (b.totalXP||0)-(a.totalXP||0); });
-            var myEntry = null;
+            const players = Object.values(data).sort(function(a,b){ return (b.totalXP||0)-(a.totalXP||0); });
+            let myEntry = null;
             try { myEntry = JSON.parse(localStorage.getItem('fa-my-entry')||'null'); } catch(e){}
             players.forEach(function(p, i) {
-              var isMe = myEntry && p.name === myEntry.name;
-              var row = document.createElement('div');
+              const isMe = myEntry && p.name === myEntry.name;
+              const row = document.createElement('div');
               row.className = 'rank-row' + (isMe ? ' highlight' : '');
               row.innerHTML =
                 '<span class="rank-pos">#' + (i+1) + '</span>' +

@@ -524,7 +524,7 @@
       b.disabled = c.quizDone;
     });
     if (quizResult && c.quizDone) {
-      var quizLock = document.getElementById('quizLockMsg');
+      let quizLock = document.getElementById('quizLockMsg');
       if (!quizLock) {
         quizLock = document.createElement('p');
         quizLock.id = 'quizLockMsg';
@@ -564,7 +564,7 @@
       : 'Patente máxima alcançada';
 
     // Aviso de patente provisória
-    var hudProvisorio = document.getElementById('hudProvisorio');
+    let hudProvisorio = document.getElementById('hudProvisorio');
     if (!hudProvisorio) {
       hudProvisorio = document.createElement('p');
       hudProvisorio.id = 'hudProvisorio';
