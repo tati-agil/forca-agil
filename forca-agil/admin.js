@@ -160,7 +160,7 @@
           row.innerHTML =
             '<div class="admin-repo-info">' +
               '<span class="admin-repo-title">' + esc(item.title) + '</span>' +
-              '<span class="admin-repo-by">curado · ' + esc(item.type) + (hidden[sk] ? ' · <em>oculto</em>' : '') + '</span>' +
+              '<span class="admin-repo-by">curado · ' + esc(item.type) + (function(){ var m = (item.desc||'').match(/Indicado por ([^.]+)/); return m ? ' · Indicado por ' + esc(m[1].trim()) : ''; })() + (hidden[sk] ? ' · <em>oculto</em>' : '') + '</span>' +
             '</div>' +
             (hidden[sk]
               ? '<button class="admin-del-btn admin-restore-btn" data-sk="' + esc(sk) + '">Restaurar</button>'
