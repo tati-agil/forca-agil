@@ -298,7 +298,7 @@
         if (!items || !items.length) return;
 
         if (activeSection === 'all') {
-          html += '<details class="manual-section-group" open>';
+          html += '<details class="manual-section-group">';
           html += '<summary class="manual-section-header" style="border-color:' + s.color + ';color:' + s.color + '">' + s.label + '<svg class="manual-chev manual-sec-chev" width="14" height="14" viewBox="0 0 14 14"><polyline points="2,4 7,10 12,4" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg></summary>';
         }
 
