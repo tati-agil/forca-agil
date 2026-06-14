@@ -1,0 +1,336 @@
+/* Força Ágil — Manual Interativo */
+(function () {
+  'use strict';
+
+  var activeSection = 'all';
+  var activePersona = 'all';
+
+  var SECTIONS = [
+    { key: 'all',         label: 'Tudo',               color: 'var(--ink-2)' },
+    { key: 'auth',        label: 'Cadastrar / Entrar',  color: '#9b7fff' },
+    { key: 'inicio',      label: 'Início',              color: '#1ab2ae' },
+    { key: 'turmas',      label: 'Turmas',              color: '#f5c542' },
+    { key: 'conteudos',   label: 'Conteúdos',           color: '#4caf7d' },
+    { key: 'repositorio', label: 'Repositório',          color: '#e8854a' },
+    { key: 'quiz',        label: 'Quiz Jedi',            color: '#e05c7f' },
+    { key: 'ranking',     label: 'Ranking',              color: '#57aaff' },
+    { key: 'admin',       label: 'Admin',               color: '#ff5252' },
+  ];
+
+  var PERSONAS = [
+    { key: 'all',         label: 'Todas as personas',  color: 'var(--ink-2)' },
+    { key: 'visitante',   label: 'Visitante',          color: '#888' },
+    { key: 'logado',      label: 'Usuário logado',     color: '#1ab2ae' },
+    { key: 'colaborador', label: 'Colaborador',        color: '#f5c542' },
+    { key: 'admin',       label: 'Admin',              color: '#ff5252' },
+  ];
+
+  var RULES = [
+    /* ── CADASTRAR / ENTRAR ── */
+    { section: 'auth', personas: ['visitante'],
+      title: 'Quem vê ENTRAR e CADASTRAR no menu',
+      body: 'Somente visitantes (não logados) veem os botões ENTRAR e CADASTRAR no canto superior direito do menu.' },
+    { section: 'auth', personas: ['logado', 'colaborador', 'admin'],
+      title: 'Menu para usuário logado',
+      body: 'Os botões ENTRAR e CADASTRAR somem. No lugar aparece o perfil com a inicial e o primeiro nome do usuário.' },
+    { section: 'auth', personas: ['admin'],
+      title: 'Link Admin no menu',
+      body: 'O link "Admin" no menu só aparece para administradores.' },
+    { section: 'auth', personas: ['visitante', 'logado', 'colaborador', 'admin'],
+      title: 'Modal não fecha ao clicar fora',
+      body: 'Evita perda do formulário preenchido. Fecha com o botão ✕ ou com ESC — mas só se todos os campos estiverem vazios.' },
+    { section: 'auth', personas: ['visitante', 'logado', 'colaborador', 'admin'],
+      title: 'Botão olhinho nos campos de senha',
+      body: 'Disponível em todos os campos de senha. Alterna entre ocultar (👁) e mostrar (🙈) o texto digitado.' },
+    { section: 'auth', personas: ['visitante'],
+      title: 'Login — e-mail obrigatório @previ.com.br',
+      body: 'Qualquer domínio diferente de @previ.com.br é rejeitado imediatamente, antes mesmo de consultar o banco.' },
+    { section: 'auth', personas: ['visitante'],
+      title: 'Login — erro de credenciais',
+      body: 'Mensagem genérica: "E-mail ou senha inválidos." — não informa qual dos dois está errado (segurança).' },
+    { section: 'auth', personas: ['visitante'],
+      title: 'Login — botão durante autenticação',
+      body: 'O botão vira "Aguarde…" e fica desabilitado enquanto a autenticação ocorre.' },
+    { section: 'auth', personas: ['visitante'],
+      title: 'Login — esqueci minha senha',
+      body: 'Exibe um alerta pedindo para contatar tatianefdirene@previ.com.br para redefinição.' },
+    { section: 'auth', personas: ['visitante'],
+      title: 'Cadastro — e-mail obrigatório @previ.com.br',
+      body: 'Exige e-mail @previ.com.br. Outros domínios são rejeitados.' },
+    { section: 'auth', personas: ['visitante'],
+      title: 'Cadastro — senha',
+      body: 'Mínimo 8 caracteres. O campo "Confirmar senha" deve ser idêntico — se divergir, exibe "As senhas não coincidem."' },
+    { section: 'auth', personas: ['visitante'],
+      title: 'Cadastro — área/setor',
+      body: 'Lista suspensa com as gerências: GEPAR, GERAI, GEINT, GEPRO, GECON, GETHO, INFOR, GECAP, GEROP, GEBEN, GECAT, GERAT, GESOP, OUVIR, ASJUR, CONIN, GABIN, PNSEG, AUDIT, SECEX.' },
+    { section: 'auth', personas: ['visitante'],
+      title: 'Cadastro — checkbox de termos (obrigatório)',
+      body: 'O usuário deve aceitar que seu nome apareça no ranking e no repositório. Sem marcar, bloqueia com "Aceite os termos para continuar."' },
+    { section: 'auth', personas: ['visitante'],
+      title: 'Cadastro — checkbox de opt-in (opcional)',
+      body: 'Permite receber novidades sobre turmas e conteúdos. Não é obrigatório.' },
+    { section: 'auth', personas: ['visitante'],
+      title: 'Cadastro — e-mail já existente',
+      body: 'Se o e-mail já estiver cadastrado, exibe: "E-mail já cadastrado. Faça login."' },
+    { section: 'auth', personas: ['visitante'],
+      title: 'Cadastro — formatação automática',
+      body: 'Nome salvo em MAIÚSCULO. E-mail salvo em minúsculo.' },
+    { section: 'auth', personas: ['visitante'],
+      title: 'Cadastro — botão durante envio',
+      body: 'O botão vira "Aguarde…" durante o cadastro. Ao concluir: modal fecha e o usuário permanece na página atual.' },
+    { section: 'auth', personas: ['logado', 'colaborador', 'admin'],
+      title: 'Clicar no perfil no menu',
+      body: 'Clicar no perfil (fora do botão Sair) navega para o Quiz Jedi.' },
+    { section: 'auth', personas: ['logado', 'colaborador', 'admin'],
+      title: 'Sair',
+      body: 'Botão "Sair" visível no menu de perfil. Encerra a sessão e redireciona para o INÍCIO.' },
+
+    /* ── INÍCIO ── */
+    { section: 'inicio', personas: ['visitante', 'logado', 'colaborador', 'admin'],
+      title: 'Acesso geral',
+      body: 'Toda a página INÍCIO é visível para todos, inclusive visitantes. Nenhum conteúdo é bloqueado por login.' },
+    { section: 'inicio', personas: ['visitante'],
+      title: 'Botão "Juntar-se à Força →" (Hero e CTA Final)',
+      body: 'Aparece em dois lugares. Para visitante: abre modal de cadastro.' },
+    { section: 'inicio', personas: ['logado', 'colaborador', 'admin'],
+      title: 'Botão "Juntar-se à Força →" (Hero e CTA Final)',
+      body: 'Aparece em dois lugares. Para usuário logado: navega direto para o Quiz Jedi.' },
+    { section: 'inicio', personas: ['visitante', 'logado', 'colaborador', 'admin'],
+      title: 'Botão "Conhecer a iniciativa"',
+      body: 'Rola a página para a seção "O que é a Força Ágil". Funciona igual para todos.' },
+    { section: 'inicio', personas: ['visitante', 'logado', 'colaborador', 'admin'],
+      title: 'Ranking mini (bloco Destaques)',
+      body: 'Carrega os dados reais do Firebase em tempo real. Visível para todos.' },
+
+    /* ── TURMAS ── */
+    { section: 'turmas', personas: ['visitante', 'logado', 'colaborador', 'admin'],
+      title: 'Acesso geral',
+      body: 'Toda a página Turmas é visível para todos — turmas, datas, descrição da oficina, temas e agenda D1–D5.' },
+    { section: 'turmas', personas: ['visitante'],
+      title: 'Botão "Tenho interesse"',
+      body: 'Para visitante: ao clicar, abre modal de cadastro.' },
+    { section: 'turmas', personas: ['logado', 'colaborador', 'admin'],
+      title: 'Botão "Tenho interesse"',
+      body: 'Registra o interesse no Firebase. Botão vira "✓ Interesse registrado". Não pode registrar interesse duas vezes na mesma turma.' },
+    { section: 'turmas', personas: ['visitante', 'logado'],
+      title: 'Agenda D1–D5 — bloqueada',
+      body: 'Visitante e Usuário logado veem os títulos dos dias mas não conseguem expandir o conteúdo.' },
+    { section: 'turmas', personas: ['colaborador', 'admin'],
+      title: 'Agenda D1–D5 — liberada',
+      body: 'Colaborador e Admin podem expandir e ver o conteúdo completo de cada dia.' },
+
+    /* ── CONTEÚDOS ── */
+    { section: 'conteudos', personas: ['visitante'],
+      title: 'Acesso',
+      body: 'Visitante vê todas as 5 seções (Galáxia, Força, Arquétipos, Lado Sombrio, Trilogia) — somente leitura, sem XP.' },
+    { section: 'conteudos', personas: ['logado', 'colaborador', 'admin'],
+      title: 'XP por leitura',
+      body: '+5 XP por seção lida. A seção precisa ficar 60% visível na tela por 10 segundos consecutivos para o XP ser contabilizado.' },
+    { section: 'conteudos', personas: ['logado', 'colaborador', 'admin'],
+      title: 'Badge de leitura',
+      body: 'Ao ganhar o XP, a seção fica marcada com "✓ +5 XP". Em visitas futuras o badge já aparece marcado — não gera XP novamente.' },
+    { section: 'conteudos', personas: ['logado', 'colaborador', 'admin'],
+      title: 'Publicação do XP',
+      body: 'O XP de conteúdos só aparece no ranking ao revelar a patente final.' },
+
+    /* ── REPOSITÓRIO ── */
+    { section: 'repositorio', personas: ['visitante'],
+      title: 'Acesso',
+      body: 'Visitante vê todos os conteúdos (curados e de usuários) — somente leitura. Botão "Adicionar ao Holocron" → abre modal de cadastro.' },
+    { section: 'repositorio', personas: ['logado', 'colaborador', 'admin'],
+      title: 'Adicionar conteúdo',
+      body: 'Pode adicionar quantos conteúdos quiser ao Holocron.' },
+    { section: 'repositorio', personas: ['logado', 'colaborador', 'admin'],
+      title: 'XP por contribuição',
+      body: '+10 XP por contribuição, máximo de 20 XP. Apenas as 2 primeiras contribuições feitas antes de revelar a patente contam para XP.' },
+    { section: 'repositorio', personas: ['logado', 'colaborador', 'admin'],
+      title: 'Contribuições após revelar patente',
+      body: 'Continuam aparecendo no Holocron para todos, mas não geram XP.' },
+    { section: 'repositorio', personas: ['logado', 'colaborador', 'admin'],
+      title: 'Remover conteúdo próprio',
+      body: 'O autor pode remover seus próprios conteúdos enviados. Não pode remover conteúdos curados.' },
+    { section: 'repositorio', personas: ['admin'],
+      title: 'Moderação (Admin)',
+      body: 'Pode remover qualquer conteúdo enviado por usuários. Pode ocultar ou restaurar conteúdos curados.' },
+    { section: 'repositorio', personas: ['visitante', 'logado', 'colaborador', 'admin'],
+      title: 'Identificação dos conteúdos',
+      body: 'Curados: marcados com badge "curado", sem autor. Enviados por usuários: exibem nome do autor e data de envio.' },
+
+    /* ── QUIZ JEDI ── */
+    { section: 'quiz', personas: ['visitante'],
+      title: 'Acesso negado',
+      body: 'Visitante não acessa o Quiz Jedi. Ao tentar entrar, é redirecionado para o modal de cadastro.' },
+    { section: 'quiz', personas: ['logado', 'colaborador', 'admin'],
+      title: 'Acesso completo',
+      body: 'Acesso a autodiagnóstico, missões, Kyber Game, painel de patente e revelar patente.' },
+    { section: 'quiz', personas: ['logado', 'colaborador', 'admin'],
+      title: 'Autodiagnóstico',
+      body: 'Pode fazer uma vez apenas — não pode refazer. 6 dimensões. XP máximo: 15 XP proporcional às dimensões respondidas.' },
+    { section: 'quiz', personas: ['logado', 'colaborador', 'admin'],
+      title: 'Missões',
+      body: 'Cada missão pode ser feita uma vez — não pode refazer. 6 missões × 3 perguntas × 4 XP por acerto. XP máximo total: 35 XP.' },
+    { section: 'quiz', personas: ['logado', 'colaborador', 'admin'],
+      title: 'Kyber Game',
+      body: 'Pode jogar uma vez apenas — não pode refazer. 25 desafios com timer de 30s cada. XP máximo: 50 XP.' },
+    { section: 'quiz', personas: ['logado', 'colaborador', 'admin'],
+      title: 'Painel de patente',
+      body: 'Visível em tempo real no Quiz Jedi. Enquanto faltar etapa: "⚠ Patente provisória — faltam: X". Após revelar: mostra a patente definitiva.' },
+    { section: 'quiz', personas: ['logado', 'colaborador', 'admin'],
+      title: 'Revelar patente — pré-requisitos',
+      body: 'Exige completar as 3 etapas: autodiagnóstico + todas as missões + Kyber Game. Nenhum XP aparece no ranking antes de revelar.' },
+    { section: 'quiz', personas: ['logado', 'colaborador', 'admin'],
+      title: 'Revelar patente — publicação',
+      body: 'Ao revelar: autodiagnóstico + missões + Kyber + conteúdos + repositório são publicados de uma vez. XP máximo 100. Definitivo — não pode ser alterado.' },
+    { section: 'quiz', personas: ['admin'],
+      title: 'Reset de progresso (Admin)',
+      body: 'Admin pode resetar o progresso de qualquer colaborador. Apaga: autodiagnóstico, missões, Kyber, patente, XP. Remove do ranking. Ação irreversível.' },
+
+    /* ── RANKING ── */
+    { section: 'ranking', personas: ['visitante', 'logado', 'colaborador', 'admin'],
+      title: 'Acesso',
+      body: 'Ranking visível para todos, inclusive visitantes. Sem restrição de acesso.' },
+    { section: 'ranking', personas: ['visitante', 'logado', 'colaborador', 'admin'],
+      title: 'Quem aparece no ranking',
+      body: 'Só aparece quem revelou a patente final. Ordenado por XP total (máx 100 XP), do maior para o menor.' },
+    { section: 'ranking', personas: ['visitante', 'logado', 'colaborador', 'admin'],
+      title: 'Dados exibidos',
+      body: 'Cada linha mostra: posição · nome · área · XP total.' },
+    { section: 'ranking', personas: ['logado', 'colaborador', 'admin'],
+      title: 'Destaque da própria linha',
+      body: 'O usuário logado vê sua própria linha destacada visualmente.' },
+    { section: 'ranking', personas: ['logado', 'colaborador', 'admin'],
+      title: 'Patente no ranking',
+      body: 'Cada usuário vê sua própria patente exibida na sua linha. Os outros não veem a patente dos demais.' },
+    { section: 'ranking', personas: ['visitante', 'logado', 'colaborador', 'admin'],
+      title: 'Atualização em tempo real',
+      body: 'O ranking atualiza automaticamente via Firebase — sem precisar recarregar a página.' },
+
+    /* ── ADMIN ── */
+    { section: 'admin', personas: ['visitante', 'logado', 'colaborador'],
+      title: 'Acesso negado',
+      body: 'Visitante, Usuário logado e Colaborador não veem o link "Admin" no menu. Se acessarem a URL diretamente, veem mensagem de acesso restrito e botão para voltar ao início.' },
+    { section: 'admin', personas: ['admin'],
+      title: 'Aba: Interessados por turma',
+      body: 'Lista todos que clicaram "Tenho interesse" em cada turma, com nome, e-mail, área e data.' },
+    { section: 'admin', personas: ['admin'],
+      title: 'Aba: Repositório — conteúdos curados',
+      body: 'Botão "Ocultar" → some do repositório público. Botão "Restaurar" → volta a aparecer.' },
+    { section: 'admin', personas: ['admin'],
+      title: 'Aba: Repositório — conteúdos de usuários',
+      body: 'Botão "Deletar" → remove permanentemente do Holocron.' },
+    { section: 'admin', personas: ['admin'],
+      title: 'Aba: Colaboradores — listar',
+      body: 'Lista todos os colaboradores com nome, e-mail e data de adição.' },
+    { section: 'admin', personas: ['admin'],
+      title: 'Aba: Colaboradores — resetar progresso',
+      body: 'Apaga autodiagnóstico, missões, Kyber Game, patente, XP e remove do ranking. Ação irreversível — pede confirmação antes de executar.' },
+    { section: 'admin', personas: ['admin'],
+      title: 'Aba: Colaboradores — remover',
+      body: 'Remove o colaborador. Perde acesso à agenda expandida e funcionalidades de colaborador.' },
+    { section: 'admin', personas: ['admin'],
+      title: 'Aba: Colaboradores — adicionar',
+      body: 'Formulário exige nome completo e e-mail @previ.com.br.' },
+    { section: 'admin', personas: ['admin'],
+      title: 'Aba: Administradores — super-admins fixos',
+      body: 'tatianefdirene@previ.com.br e danielfrazao@previ.com.br são super-admins fixos — não removíveis via painel.' },
+    { section: 'admin', personas: ['admin'],
+      title: 'Aba: Administradores — admins adicionais',
+      body: 'Podem ser adicionados e removidos via painel. Formulário exige nome completo e e-mail @previ.com.br.' },
+  ];
+
+  function esc(s) {
+    return String(s || '').replace(/[&<>"]/g, function (c) {
+      return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c];
+    });
+  }
+
+  function sectionColor(key) {
+    var s = SECTIONS.find(function (x) { return x.key === key; });
+    return s ? s.color : '#888';
+  }
+
+  function render() {
+    var container = document.getElementById('adminManual');
+    if (!container) return;
+
+    var filtered = RULES.filter(function (r) {
+      var secOk = activeSection === 'all' || r.section === activeSection;
+      var perOk = activePersona === 'all' || r.personas.indexOf(activePersona) !== -1;
+      return secOk && perOk;
+    });
+
+    /* Group by section preserving SECTIONS order */
+    var grouped = {};
+    SECTIONS.forEach(function (s) { if (s.key !== 'all') grouped[s.key] = []; });
+    filtered.forEach(function (r) { if (grouped[r.section]) grouped[r.section].push(r); });
+
+    /* Build HTML */
+    var html = '<div class="manual-wrap">';
+    html += '<h3 class="manual-title">Manual da Força Ágil</h3>';
+
+    /* Section chips */
+    html += '<div class="manual-filter-row"><span class="manual-filter-label">Seção</span><div class="manual-chips">';
+    SECTIONS.forEach(function (s) {
+      var active = activeSection === s.key;
+      html += '<button class="manual-chip' + (active ? ' active' : '') + '" data-type="section" data-key="' + s.key + '" style="--chip-col:' + s.color + '">' + s.label + '</button>';
+    });
+    html += '</div></div>';
+
+    /* Persona chips */
+    html += '<div class="manual-filter-row"><span class="manual-filter-label">Persona</span><div class="manual-chips">';
+    PERSONAS.forEach(function (p) {
+      var active = activePersona === p.key;
+      html += '<button class="manual-chip' + (active ? ' active' : '') + '" data-type="persona" data-key="' + p.key + '" style="--chip-col:' + p.color + '">' + p.label + '</button>';
+    });
+    html += '</div></div>';
+
+    /* Count */
+    html += '<p class="manual-count">' + filtered.length + ' regra' + (filtered.length !== 1 ? 's' : '') + ' encontrada' + (filtered.length !== 1 ? 's' : '') + '</p>';
+
+    /* Rules */
+    html += '<div class="manual-rules">';
+    if (filtered.length === 0) {
+      html += '<p style="color:var(--ink-3);padding:32px 0;font-family:var(--font-mono);font-size:.85rem">Nenhuma regra encontrada para esta combinação de filtros.</p>';
+    } else {
+      SECTIONS.forEach(function (s) {
+        if (s.key === 'all') return;
+        var items = grouped[s.key];
+        if (!items || !items.length) return;
+
+        if (activeSection === 'all') {
+          html += '<div class="manual-section-header" style="border-color:' + s.color + ';color:' + s.color + '">' + s.label + '</div>';
+        }
+
+        items.forEach(function (rule) {
+          var col = sectionColor(rule.section);
+          var badges = rule.personas.map(function (pk) {
+            var p = PERSONAS.find(function (x) { return x.key === pk; });
+            if (!p || p.key === 'all') return '';
+            var isActive = activePersona === pk;
+            return '<span class="manual-badge' + (isActive ? ' active' : '') + '" style="--badge-col:' + p.color + '">' + p.label + '</span>';
+          }).join('');
+
+          html += '<div class="manual-card" style="--card-col:' + col + '">';
+          html += '<div class="manual-card-title">' + esc(rule.title) + '</div>';
+          html += '<div class="manual-card-body">' + esc(rule.body) + '</div>';
+          html += '<div class="manual-card-personas">' + badges + '</div>';
+          html += '</div>';
+        });
+      });
+    }
+    html += '</div></div>';
+
+    container.innerHTML = html;
+
+    /* Wire filter chips */
+    container.querySelectorAll('.manual-chip').forEach(function (btn) {
+      btn.addEventListener('click', function () {
+        if (btn.dataset.type === 'section') activeSection = btn.dataset.key;
+        else activePersona = btn.dataset.key;
+        render();
+      });
+    });
+  }
+
+  window.faInitManual = render;
+})();

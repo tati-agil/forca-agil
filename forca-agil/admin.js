@@ -51,6 +51,7 @@
     loadRepoAdmin();
     loadColaboradores();
     loadAdmins();
+    if (window.faInitManual) window.faInitManual();
   }
 
   function migrateNameCase() {

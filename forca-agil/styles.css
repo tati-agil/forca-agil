@@ -915,4 +915,24 @@ html:not(.js) .reveal { opacity: 1 !important; transform: none !important; }
 .revelar-aviso { color: var(--ink-3); font-size: .85rem; margin: 16px 0 24px; line-height: 1.5; }
 .revelar-actions { display: flex; gap: 12px; justify-content: center; flex-wrap: wrap; }
 
+/* ---------- Manual Interativo ---------- */
+.manual-wrap { padding: 8px 0 48px; }
+.manual-title { font-family: var(--font-head); font-size: 1.5rem; text-transform: uppercase; letter-spacing: .06em; color: var(--ink); margin-bottom: 24px; }
+.manual-filter-row { display: flex; align-items: flex-start; gap: 12px; margin-bottom: 10px; }
+.manual-filter-label { font-family: var(--font-mono); font-size: .65rem; letter-spacing: .14em; text-transform: uppercase; color: var(--ink-3); min-width: 54px; padding-top: 7px; }
+.manual-chips { display: flex; flex-wrap: wrap; gap: 6px; }
+.manual-chip { font-family: var(--font-mono); font-size: .7rem; letter-spacing: .06em; padding: 5px 12px; border-radius: 20px; border: 1px solid var(--line); background: transparent; color: var(--ink-3); cursor: pointer; transition: border-color .18s, color .18s, background .18s; }
+.manual-chip:hover { border-color: var(--chip-col, var(--accent)); color: var(--chip-col, var(--accent)); }
+.manual-chip.active { border-color: var(--chip-col, var(--accent)); color: var(--chip-col, var(--accent)); background: color-mix(in srgb, var(--chip-col, var(--accent)) 12%, transparent); }
+.manual-count { font-family: var(--font-mono); font-size: .72rem; color: var(--ink-3); margin: 16px 0 20px; letter-spacing: .04em; }
+.manual-rules { display: flex; flex-direction: column; gap: 8px; }
+.manual-section-header { font-family: var(--font-head); font-size: .78rem; letter-spacing: .14em; text-transform: uppercase; padding: 20px 0 8px; border-bottom: 1px solid; margin-bottom: 4px; }
+.manual-card { border: 1px solid var(--line); border-left: 3px solid var(--card-col, var(--accent)); border-radius: 10px; padding: 14px 16px; background: var(--panel); transition: border-color .2s; }
+.manual-card:hover { border-color: var(--line-strong); border-left-color: var(--card-col, var(--accent)); }
+.manual-card-title { font-family: var(--font-mono); font-size: .8rem; letter-spacing: .04em; color: var(--ink); margin-bottom: 6px; font-weight: 600; }
+.manual-card-body { font-size: .875rem; color: var(--ink-2); line-height: 1.55; margin-bottom: 10px; }
+.manual-card-personas { display: flex; flex-wrap: wrap; gap: 5px; }
+.manual-badge { font-family: var(--font-mono); font-size: .6rem; letter-spacing: .08em; text-transform: uppercase; padding: 3px 8px; border-radius: 12px; border: 1px solid var(--badge-col, #888); color: var(--badge-col, #888); background: color-mix(in srgb, var(--badge-col, #888) 10%, transparent); }
+.manual-badge.active { background: color-mix(in srgb, var(--badge-col, #888) 22%, transparent); font-weight: 700; }
+
 /* ---------- (Binary suns removed — background is always the universe) ---------- */
