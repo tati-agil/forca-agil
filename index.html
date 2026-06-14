@@ -1534,6 +1534,22 @@
       <p class="auth-switch">Não tem conta? <a href="#" id="authToRegister">Criar conta gratuita</a></p>
     </div>
 
+    <!-- ESQUECI MINHA SENHA -->
+    <div class="auth-panel" id="auth-forgot" hidden>
+      <h3>Redefinir senha</h3>
+      <p class="auth-sub">Informe seu e-mail. O administrador receberá a solicitação e enviará uma senha temporária.</p>
+      <form id="forgotForm" novalidate>
+        <label class="auth-label">
+          E-mail corporativo
+          <input type="email" id="forgotEmail" placeholder="seu@previ.com.br" autocomplete="email" />
+        </label>
+        <p class="auth-err" id="forgotErr" hidden></p>
+        <p class="auth-ok"  id="forgotOk"  hidden></p>
+        <button type="submit" class="btn btn--primary w-full">Solicitar redefinição →</button>
+      </form>
+      <p class="auth-switch"><a href="#" id="backToLogin">← Voltar para o login</a></p>
+    </div>
+
     <!-- CADASTRO -->
     <div class="auth-panel" id="auth-register" hidden>
       <h3>Juntar-se à Força</h3>

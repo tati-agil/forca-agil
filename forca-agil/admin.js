@@ -216,25 +216,74 @@
   }
 
   /* ---- Colaboradores ---- */
+  function hashPwdAdmin(email, pwd) {
+    return btoa(unescape(encodeURIComponent(email + '::' + pwd)));
+  }
+
   function loadColaboradores() {
     var c = document.getElementById('adminColab');
     if (!c) return;
     c.innerHTML = '<p class="loading-msg">Carregando…</p>';
 
-    firebase.database().ref('fa-colaboradores').once('value', function (snap) {
-      var data = snap.val() || {};
-      if (Object.keys(data).length === 0) {
-        /* Auto-seed na primeira vez */
-        var updates = {};
-        COLAB_SEED.forEach(function (p) {
-          updates['fa-colaboradores/' + emailKey(p.email)] = { email: p.email, name: p.name, addedAt: new Date().toISOString() };
+    /* Solicitações de redefinição pendentes */
+    firebase.database().ref('fa-reset-requests').once('value', function (rsnap) {
+      var requests = rsnap.val() || {};
+      var rkeys = Object.keys(requests);
+      if (rkeys.length > 0) {
+        var banner = document.createElement('div');
+        banner.className = 'admin-reset-banner';
+        banner.innerHTML = '<strong>⚠ Solicitações de redefinição de senha pendentes (' + rkeys.length + ')</strong>';
+        var ul = document.createElement('ul');
+        rkeys.forEach(function (k) {
+          var r = requests[k];
+          var li = document.createElement('li');
+          li.innerHTML = '<span>' + esc(r.name || r.email) + ' · ' + esc(r.email) + '</span>' +
+            '<button class="admin-del-btn admin-pwd-btn" data-key="' + esc(k) + '" data-email="' + esc(r.email) + '" data-name="' + esc(r.name || r.email) + '">Redefinir senha</button>';
+          ul.appendChild(li);
         });
-        firebase.database().ref().update(updates, function () {
-          firebase.database().ref('fa-colaboradores').once('value', function (s2) { renderColab(c, s2.val() || {}); });
+        banner.appendChild(ul);
+        c.innerHTML = '';
+        c.appendChild(banner);
+        /* delegação de clique no banner */
+        banner.addEventListener('click', function (e) {
+          var btn = e.target.closest('.admin-pwd-btn');
+          if (btn) handlePwdReset(btn, c);
         });
       } else {
-        renderColab(c, data);
+        c.innerHTML = '';
       }
+      firebase.database().ref('fa-colaboradores').once('value', function (snap) {
+        var data = snap.val() || {};
+        if (Object.keys(data).length === 0) {
+          var updates = {};
+          COLAB_SEED.forEach(function (p) {
+            updates['fa-colaboradores/' + emailKey(p.email)] = { email: p.email, name: p.name, addedAt: new Date().toISOString() };
+          });
+          firebase.database().ref().update(updates, function () {
+            firebase.database().ref('fa-colaboradores').once('value', function (s2) { renderColab(c, s2.val() || {}); });
+          });
+        } else {
+          renderColab(c, data);
+        }
+      });
+    });
+  }
+
+  function handlePwdReset(btn, container) {
+    var email = btn.dataset.email;
+    var name  = btn.dataset.name;
+    var key   = btn.dataset.key;
+    if (!confirm('Redefinir a senha de ' + name + '?\n\nUma senha temporária será gerada. Você precisará comunicá-la ao colaborador.')) return;
+    var tempPwd = 'Forca@' + (Math.floor(Math.random() * 9000) + 1000);
+    var hashFn = window.faHashPwd || hashPwdAdmin;
+    var updates = {};
+    updates['fa-users/' + key + '/passwordHash'] = hashFn(email, tempPwd);
+    updates['fa-users/' + key + '/mustChangePassword'] = true;
+    updates['fa-reset-requests/' + key] = null;
+    firebase.database().ref().update(updates, function (err) {
+      if (err) { alert('Erro ao redefinir. Tente novamente.'); return; }
+      alert('Senha temporária de ' + name + ':\n\n' + tempPwd + '\n\nEnvie esta senha ao colaborador.\nNo primeiro login, o sistema irá obrigá-lo a definir uma senha própria.');
+      loadColaboradores();
     });
   }
 
@@ -250,7 +299,7 @@
     /* Tabela */
     var tbl = document.createElement('table');
     tbl.className = 'admin-table';
-    tbl.innerHTML = '<thead><tr><th>Nome</th><th>E-mail</th><th>Desde</th><th></th><th></th></tr></thead>';
+    tbl.innerHTML = '<thead><tr><th>Nome</th><th>E-mail</th><th>Desde</th><th></th><th></th><th></th></tr></thead>';
     var tbody = document.createElement('tbody');
     list.forEach(function (p) {
       var tr = document.createElement('tr');
@@ -258,6 +307,7 @@
         '<td>' + esc(p.name || '—') + '</td>' +
         '<td>' + esc(p.email || '—') + '</td>' +
         '<td>' + fmtDate(p.addedAt) + '</td>' +
+        '<td><button class="admin-del-btn admin-pwd-btn" data-key="' + esc(emailKey(p.email)) + '" data-email="' + esc(p.email || '') + '" data-name="' + esc(p.name || p.email) + '">Redefinir senha</button></td>' +
         '<td><button class="admin-del-btn admin-reset-btn" data-key="' + esc(emailKey(p.email)) + '" data-email="' + esc(p.email || '') + '" data-name="' + esc(p.name || p.email) + '">Resetar progresso</button></td>' +
         '<td><button class="admin-del-btn" data-key="' + esc(emailKey(p.email)) + '" data-name="' + esc(p.name || p.email) + '">Remover</button></td>';
       tbody.appendChild(tr);
@@ -265,10 +315,14 @@
     tbl.appendChild(tbody);
     c.appendChild(tbl);
 
-    /* Delegação de eventos para remover e resetar */
+    /* Delegação de eventos para remover, resetar e redefinir senha */
     tbody.addEventListener('click', function (e) {
       var btn = e.target.closest('button');
       if (!btn) return;
+      if (btn.classList.contains('admin-pwd-btn')) {
+        handlePwdReset(btn, c);
+        return;
+      }
       if (btn.classList.contains('admin-reset-btn')) {
         if (!confirm('Resetar TODO o progresso do jogo de ' + btn.dataset.name + '?\n\nIsso apaga autodiagnóstico, missões, Kyber Game e patente. Essa ação não pode ser desfeita.')) return;
         var eKey = btn.dataset.key;

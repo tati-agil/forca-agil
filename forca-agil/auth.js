@@ -86,6 +86,9 @@
     });
   }
 
+  /* Expõe hashPwd para admin.js usar ao gerar senha temporária */
+  window.faHashPwd = hashPwd;
+
   /* ---------- Login ---------- */
   function login(email, pwd, cb) {
     email = (email || '').trim().toLowerCase();
@@ -96,10 +99,63 @@
         if (!snap.exists()) return cb({ error: 'E-mail ou senha inválidos.' });
         var u = snap.val();
         if (u.passwordHash !== hashPwd(email, pwd)) return cb({ error: 'E-mail ou senha inválidos.' });
+        if (u.mustChangePassword) return cb({ mustChangePassword: true, email: u.email, name: u.name, area: u.area });
         var sess = { email: u.email, name: u.name, area: u.area };
         saveSession(sess);
         _afterLogin(sess);
         cb({ success: true, user: sess });
+      });
+    });
+  }
+
+  /* ---------- Forçar troca de senha ---------- */
+  function showForceChangePwd(email, name, area) {
+    var overlay = document.createElement('div');
+    overlay.id = 'forcePwdOverlay';
+    overlay.className = 'force-pwd-overlay';
+    overlay.innerHTML =
+      '<div class="force-pwd-box">' +
+        '<div class="force-pwd-icon">🔐</div>' +
+        '<h3 class="force-pwd-title">Defina sua senha</h3>' +
+        '<p class="force-pwd-sub">Você está usando uma senha temporária. Crie uma senha pessoal para continuar.</p>' +
+        '<label class="auth-label">Nova senha' +
+          '<div class="pwd-wrap"><input type="password" id="forcePwd1" placeholder="Mínimo 8 caracteres" />' +
+          '<button type="button" class="pwd-eye" data-target="forcePwd1" aria-label="Mostrar senha">👁</button></div>' +
+        '</label>' +
+        '<label class="auth-label">Confirmar senha' +
+          '<div class="pwd-wrap"><input type="password" id="forcePwd2" placeholder="Repita a senha" />' +
+          '<button type="button" class="pwd-eye" data-target="forcePwd2" aria-label="Mostrar senha">👁</button></div>' +
+        '</label>' +
+        '<p class="auth-err" id="forcePwdErr" hidden></p>' +
+        '<button class="btn btn--primary w-full" id="forcePwdBtn">Definir senha →</button>' +
+      '</div>';
+    document.body.appendChild(overlay);
+    document.body.style.overflow = 'hidden';
+
+    document.getElementById('forcePwdBtn').addEventListener('click', function () {
+      var p1  = document.getElementById('forcePwd1').value;
+      var p2  = document.getElementById('forcePwd2').value;
+      var err = document.getElementById('forcePwdErr');
+      err.hidden = true;
+      if (p1.length < 8) { err.textContent = 'Senha deve ter mínimo 8 caracteres.'; err.hidden = false; return; }
+      if (p1 !== p2)     { err.textContent = 'As senhas não coincidem.'; err.hidden = false; return; }
+      var btn = document.getElementById('forcePwdBtn');
+      btn.disabled = true; btn.textContent = 'Salvando…';
+      firebase.database().ref('fa-users/' + emailKey(email)).update({
+        passwordHash: hashPwd(email, p1),
+        mustChangePassword: null
+      }, function (dbErr) {
+        if (dbErr) {
+          btn.disabled = false; btn.textContent = 'Definir senha →';
+          document.getElementById('forcePwdErr').textContent = 'Erro ao salvar. Tente novamente.';
+          document.getElementById('forcePwdErr').hidden = false;
+          return;
+        }
+        overlay.remove();
+        document.body.style.overflow = '';
+        var sess = { email: email, name: name, area: area };
+        saveSession(sess);
+        _afterLogin(sess);
       });
     });
   }
@@ -270,6 +326,7 @@
         function (r) {
           btn.disabled = false; btn.textContent = 'Entrar →';
           if (r.error) { if (loginErr) { loginErr.textContent = r.error; loginErr.hidden = false; } }
+          else if (r.mustChangePassword) { closeModal(); showForceChangePwd(r.email, r.name, r.area); }
           else { closeModal(); }
         }
       );
@@ -327,11 +384,47 @@
       if (window.faRouter) window.faRouter.navigate('gamificacao');
     });
 
-    /* Forgot password */
+    /* Esqueci minha senha — exibe painel inline */
     var fp = document.getElementById('forgotPassword');
     if (fp) fp.addEventListener('click', function (e) {
       e.preventDefault();
-      alert('Para redefinir sua senha, entre em contato:\ntatianefdirene@previ.com.br');
+      var lp = document.getElementById('auth-login');
+      var fgp = document.getElementById('auth-forgot');
+      if (lp && fgp) { lp.hidden = true; fgp.hidden = false; clearErrs(); }
+    });
+
+    /* Painel "Esqueci" — form de solicitação */
+    var forgotForm = document.getElementById('forgotForm');
+    if (forgotForm) forgotForm.addEventListener('submit', function (e) {
+      e.preventDefault();
+      var email = (document.getElementById('forgotEmail').value || '').trim().toLowerCase();
+      var err = document.getElementById('forgotErr');
+      var ok  = document.getElementById('forgotOk');
+      err.hidden = true; ok.hidden = true;
+      if (!isPrevi(email)) { err.textContent = 'Use seu e-mail @previ.com.br.'; err.hidden = false; return; }
+      var btn = forgotForm.querySelector('[type=submit]');
+      btn.disabled = true; btn.textContent = 'Aguarde…';
+      waitDB(function () {
+        firebase.database().ref('fa-users/' + emailKey(email)).once('value', function (snap) {
+          btn.disabled = false; btn.textContent = 'Solicitar redefinição →';
+          if (!snap.exists()) { err.textContent = 'E-mail não encontrado.'; err.hidden = false; return; }
+          firebase.database().ref('fa-reset-requests/' + emailKey(email)).set({
+            email: email, name: snap.val().name || email, requestedAt: new Date().toISOString()
+          }, function () {
+            ok.textContent = 'Solicitação enviada! O administrador irá redefinir sua senha em breve.';
+            ok.hidden = false;
+            forgotForm.reset();
+          });
+        });
+      });
+    });
+
+    /* Painel "Esqueci" — link voltar */
+    var backToLogin = document.getElementById('backToLogin');
+    if (backToLogin) backToLogin.addEventListener('click', function (e) {
+      e.preventDefault();
+      document.getElementById('auth-forgot').hidden = true;
+      document.getElementById('auth-login').hidden = false;
     });
 
     /* Olhinho — mostrar/ocultar senha */
