@@ -264,7 +264,7 @@
     c.appendChild(form);
 
     document.getElementById('colabAddBtn').addEventListener('click', function () {
-      var name  = (document.getElementById('colabName').value  || '').trim();
+      var name  = (document.getElementById('colabName').value  || '').trim().toUpperCase();
       var email = (document.getElementById('colabEmail').value || '').trim().toLowerCase();
       var msg   = document.getElementById('colabMsg');
       if (!name || !email) { msg.style.color = 'var(--accent)'; msg.textContent = 'Preencha nome e e-mail.'; return; }
@@ -348,7 +348,7 @@
         c.appendChild(form);
 
         document.getElementById('adminAddBtn').addEventListener('click', function () {
-          var name  = (document.getElementById('adminName').value  || '').trim();
+          var name  = (document.getElementById('adminName').value  || '').trim().toUpperCase();
           var email = (document.getElementById('adminEmail').value || '').trim().toLowerCase();
           var msg   = document.getElementById('adminMsg');
           if (!name || !email) { msg.style.color = 'var(--accent)'; msg.textContent = 'Preencha nome e e-mail.'; return; }
