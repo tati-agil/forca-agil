@@ -298,7 +298,8 @@
         if (!items || !items.length) return;
 
         if (activeSection === 'all') {
-          html += '<div class="manual-section-header" style="border-color:' + s.color + ';color:' + s.color + '">' + s.label + '</div>';
+          html += '<details class="manual-section-group" open>';
+          html += '<summary class="manual-section-header" style="border-color:' + s.color + ';color:' + s.color + '">' + s.label + '<svg class="manual-chev manual-sec-chev" width="14" height="14" viewBox="0 0 14 14"><polyline points="2,4 7,10 12,4" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg></summary>';
         }
 
         items.forEach(function (rule) {
@@ -316,6 +317,8 @@
           html += '<div class="manual-card-personas">' + badges + '</div>';
           html += '</details>';
         });
+
+        if (activeSection === 'all') html += '</details>';
       });
     }
     html += '</div></div>';
