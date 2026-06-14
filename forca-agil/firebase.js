@@ -282,8 +282,9 @@
           '<span style="color:var(--accent)">✓ Missões</span> · ' +
           '<span style="color:var(--accent)">✓ Kyber Game</span><br>Você completou as 3 etapas! Publique sua patente.';
       } else {
-        revelarBtn.disabled = true;
-        revelarBtn.style.opacity = '0.4';
+        revelarBtn.disabled = false;
+        revelarBtn.style.opacity = '0.45';
+        revelarBtn.dataset.locked = '1';
         var hint = document.querySelector('.revelar-hint');
         if (hint) hint.innerHTML =
           (prog.autoDone ? '<span style="color:var(--accent)">✓' : '<span style="color:var(--ink-3)">✗') + ' Autodiagnóstico</span> · ' +
@@ -297,6 +298,15 @@
     window.addEventListener('storage', updateRevelarBtn);
 
     if (revelarBtn) revelarBtn.addEventListener('click', function() {
+      if (revelarBtn.dataset.locked === '1') {
+        var hint = document.querySelector('.revelar-hint');
+        if (hint) {
+          hint.style.transition = 'color .2s';
+          hint.style.color = 'var(--accent)';
+          setTimeout(function() { hint.style.color = ''; }, 1200);
+        }
+        return;
+      }
       var p = getPlayer();
       if (!p || !p.name) {
         var btn = document.getElementById('openRegister');
