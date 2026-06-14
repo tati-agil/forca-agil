@@ -1024,3 +1024,11 @@ html:not(.js) .reveal { opacity: 1 !important; transform: none !important; }
 .testes-row.manual { background: color-mix(in srgb, #888 6%, transparent); align-items: flex-start; }
 .testes-manual-item { display: flex; flex-direction: column; gap: 3px; flex: 1; }
 .testes-motivo { font-size: .76rem; color: var(--ink-3); font-style: italic; line-height: 1.4; }
+
+/* ---------- Arquitetura Técnica ---------- */
+.arch-section { margin-bottom: 32px; }
+.arch-section-label { font-family: var(--font-head); font-size: .8rem; text-transform: uppercase; letter-spacing: .1em; color: var(--ac, #888); border-left: 3px solid var(--ac, #888); padding-left: 12px; margin-bottom: 12px; }
+.arch-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 10px; }
+.arch-item { background: var(--surface); border: 1px solid var(--line); border-radius: 10px; padding: 14px 16px; }
+.arch-item-name { font-family: var(--font-mono); font-size: .8rem; color: var(--ac, #888); margin-bottom: 6px; font-weight: 600; }
+.arch-item-desc { font-size: .82rem; color: var(--ink-3); line-height: 1.5; }

@@ -167,6 +167,84 @@
     html += '</div>';
 
     html += '</div>';
+
+    /* ── Arquitetura Técnica ── */
+    html += '<h3 class="mapa-title" style="margin-top:56px">Arquitetura Técnica</h3>';
+    html += '<p class="mapa-sub">Visão geral das tecnologias, estrutura e processo de deploy do projeto.</p>';
+
+    const ARCH = [
+      {
+        label: 'Linguagens', color: '#9b7fff',
+        items: [
+          { name: 'HTML5',       desc: 'Estrutura única — toda a aplicação está em um único index.html (SPA)' },
+          { name: 'CSS3',        desc: 'Estilos em forca-agil/styles.css com variáveis CSS (custom properties)' },
+          { name: 'JavaScript',  desc: 'ES6+ (const/let, arrow functions, Promises, IntersectionObserver) — Vanilla JS, sem framework' },
+        ]
+      },
+      {
+        label: 'Tecnologias & Serviços', color: '#1ab2ae',
+        items: [
+          { name: 'Firebase Authentication', desc: 'Login e cadastro por e-mail/senha. Redefinição de senha via link automático. Gratuito (Spark plan)' },
+          { name: 'Firebase Realtime Database', desc: 'Armazena perfis (fa-users), progresso de XP, ranking, repositório (fa-holocron), colaboradores, admins e interesses por turma' },
+          { name: 'Firebase Hosting',        desc: 'Hospedagem do site em kyber-agil.web.app. CDN global, HTTPS automático' },
+          { name: 'GitHub',                  desc: 'Repositório do código-fonte. Branch principal: main' },
+        ]
+      },
+      {
+        label: 'Estrutura de Arquivos', color: '#f5c542',
+        items: [
+          { name: 'index.html',              desc: 'Entrada única da aplicação. Contém todo o HTML, carrega os scripts e gerencia as seções por hash (#inicio, #turmas…)' },
+          { name: 'forca-agil/auth.js',      desc: 'Autenticação — login, cadastro, logout, redefinição de senha. API pública: window.faAuth' },
+          { name: 'forca-agil/firebase.js',  desc: 'Progresso e XP — salva/carrega dados do Firebase Realtime Database. API: window.faLoadProgress, window.faSaveProgress' },
+          { name: 'forca-agil/router.js',    desc: 'Roteamento por hash — controla qual seção da página está visível. API: window.faRouter' },
+          { name: 'forca-agil/app.js',       desc: 'Interações de UI — nav scroll, reveals, acordeões de agenda, contador de agentes, rastreamento de XP de conteúdos' },
+          { name: 'forca-agil/game.js',      desc: 'Quiz Jedi — autodiagnóstico e missões, painel de patente, revelar patente' },
+          { name: 'forca-agil/kyber.js',     desc: 'Kyber Game — 25 desafios com timer de 30s, cálculo de XP' },
+          { name: 'forca-agil/repo.js',      desc: 'Repositório (Holocron) — listagem, adição, remoção de conteúdos, XP por contribuição' },
+          { name: 'forca-agil/admin.js',     desc: 'Painel Admin — interessados, moderação de repositório, gestão de colaboradores e admins' },
+          { name: 'forca-agil/manual.js',    desc: 'Manual interativo — 71 regras filtráveis por seção e persona. Dados declarativos em array RULES' },
+          { name: 'forca-agil/mapa.js',      desc: 'Mapa do site e hierarquia de personas. Dados declarativos em arrays PAGES e HIERARCHY' },
+          { name: 'forca-agil/testes.js',    desc: 'Testes automatizados de regressão — técnicos e de comportamento, com lista de regras manuais' },
+          { name: 'forca-agil/stars.js',     desc: 'Animação de estrelas do fundo (canvas)' },
+          { name: 'forca-agil/styles.css',   desc: 'Estilos globais — design tokens, layout, componentes, responsividade' },
+        ]
+      },
+      {
+        label: 'Padrões de Código', color: '#4caf7d',
+        items: [
+          { name: 'IIFE + strict mode',      desc: 'Cada arquivo JS é um módulo isolado em (function(){ "use strict"; })() — sem poluição do escopo global' },
+          { name: 'API pública via window',  desc: 'Comunicação entre módulos por window.faAuth, window.faRouter, window.faStore etc. — interface explícita e controlada' },
+          { name: 'Dados declarativos',      desc: 'Manual, Mapa e Testes são arrays de objetos JS — fáceis de editar sem mexer na lógica de renderização' },
+          { name: 'const/let',              desc: 'Sem var — variáveis imutáveis são const, mutáveis são let. Evita bugs de escopo de função' },
+          { name: 'Sem bundler',             desc: 'Scripts carregados via tags <script> no HTML. Sem Node.js, npm ou build step — deploy direto' },
+        ]
+      },
+      {
+        label: 'Deploy', color: '#e8854a',
+        items: [
+          { name: 'Processo',    desc: 'git push para o branch main no GitHub → Firebase Hosting atualiza automaticamente o site em segundos' },
+          { name: 'URL',         desc: 'https://kyber-agil.web.app (produção)' },
+          { name: 'Hospedagem',  desc: 'Firebase Hosting — gratuito no Spark plan, CDN global, HTTPS automático, sem servidor para gerenciar' },
+          { name: 'Banco',       desc: 'Firebase Realtime Database — gratuito até 1 GB de dados e 10 GB/mês de transferência (Spark plan)' },
+          { name: 'Auth',        desc: 'Firebase Authentication — gratuito ilimitado para Email/Password no Spark plan' },
+        ]
+      },
+    ];
+
+    ARCH.forEach(function (section) {
+      html += '<div class="arch-section">';
+      html += '<div class="arch-section-label" style="--ac:' + section.color + '">' + section.label + '</div>';
+      html += '<div class="arch-grid">';
+      section.items.forEach(function (item) {
+        html += '<div class="arch-item">';
+        html += '<div class="arch-item-name" style="--ac:' + section.color + '">' + item.name + '</div>';
+        html += '<div class="arch-item-desc">' + item.desc + '</div>';
+        html += '</div>';
+      });
+      html += '</div></div>';
+    });
+
+    html += '</div>';
     container.innerHTML = html;
   }
 
