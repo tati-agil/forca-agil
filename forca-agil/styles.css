@@ -953,7 +953,7 @@ html:not(.js) .reveal { opacity: 1 !important; transform: none !important; }
 
 /* Hierarquia — staircase de baixo pra cima */
 .mapa-hierarchy { display: flex; flex-direction: column; gap: 0; }
-.mapa-level { border-left: 4px solid var(--lc); background: color-mix(in srgb, var(--lc) 8%, transparent); border-radius: 0 12px 12px 0; padding: 16px 20px; margin-bottom: 4px; min-width: 260px; transition: background .2s; }
+.mapa-level { border-left: 4px solid var(--lc); background: color-mix(in srgb, var(--lc) 8%, transparent); border-radius: 0 12px 12px 0; padding: 16px 20px; margin-bottom: 4px; width: 100% !important; transition: background .2s; }
 .mapa-level:hover { background: color-mix(in srgb, var(--lc) 14%, transparent); }
 .mapa-level-head { display: flex; align-items: baseline; gap: 12px; margin-bottom: 8px; }
 .mapa-level-name { font-family: var(--font-head); font-size: 1rem; text-transform: uppercase; letter-spacing: .06em; color: var(--lc); }

@@ -111,10 +111,9 @@
     html += '<p class="mapa-sub">Cada nível herda tudo do anterior e ganha os acessos abaixo.</p>';
     html += '<div class="mapa-hierarchy">';
 
-    HIERARCHY.forEach(function (level, i) {
-      var width = 30 + i * 17; /* visitante=30%, logado=47%, colaborador=64%, admin=81% */
-      html += '<div class="mapa-level" style="--lc:' + level.color + ';width:' + width + '%">';
-      html += '<div class="mapa-level-head"><span class="mapa-level-name">' + level.label + '</span><span class="mapa-level-desc">' + level.desc + '</span></div>';
+    HIERARCHY.forEach(function (level) {
+      html += '<div class="mapa-level" style="--lc:' + level.color + '">';
+      html += '<div class="mapa-level-head"><span class="mapa-level-name">' + level.label + '</span></div>';
       html += '<ul class="mapa-level-adds">';
       level.adds.forEach(function (a) { html += '<li>' + a + '</li>'; });
       html += '</ul></div>';
