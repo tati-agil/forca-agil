@@ -156,6 +156,22 @@
       title: 'Identificação dos conteúdos',
       body: 'Curados: marcados com badge "curado", sem autor. Enviados por usuários: exibem nome do autor e data de envio.' },
 
+    { section: 'repositorio', personas: ['visitante'],
+      title: 'Formulário "Adicionar Conteúdo" — acesso',
+      body: 'Visitante: ao clicar em "+ Adicionar Conteúdo", abre modal de cadastro. Após cadastrar, o formulário abre automaticamente.' },
+    { section: 'repositorio', personas: ['logado', 'colaborador', 'admin'],
+      title: 'Formulário "Adicionar Conteúdo" — campos',
+      body: 'Campos: Título (obrigatório) · Tipo (Vídeo, Documento, Ferramenta, Livro) · Link/URL (obrigatório) · Descrição (opcional). Título e URL são obrigatórios — sem eles o formulário não envia.' },
+    { section: 'repositorio', personas: ['logado', 'colaborador', 'admin'],
+      title: 'Formulário "Adicionar Conteúdo" — URL',
+      body: 'Se a URL não começar com http:// ou https://, o sistema adiciona "https://" automaticamente.' },
+    { section: 'repositorio', personas: ['logado', 'colaborador', 'admin'],
+      title: 'Formulário "Adicionar Conteúdo" — conteúdo duplicado',
+      body: 'Antes de salvar, o sistema verifica se a URL já existe no Holocron. Se já foi adicionada, exibe "Este conteúdo já foi adicionado ao Holocron." e bloqueia o envio.' },
+    { section: 'repositorio', personas: ['logado', 'colaborador', 'admin'],
+      title: 'Formulário "Adicionar Conteúdo" — cancelar',
+      body: 'Botão "Cancelar" fecha o formulário e limpa todos os campos.' },
+
     /* ── QUIZ JEDI ── */
     { section: 'quiz', personas: ['visitante'],
       title: 'Acesso negado',
