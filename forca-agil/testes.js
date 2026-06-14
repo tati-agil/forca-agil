@@ -343,8 +343,10 @@
       bySection[r.section].push(r);
     });
     Object.keys(bySection).forEach(function (sec) {
-      html += '<div class="testes-group">';
-      html += '<div class="testes-group-label">' + sec + '</div>';
+      const count = bySection[sec].length;
+      html += '<div class="testes-group testes-group--collapsible">';
+      html += '<div class="testes-group-label testes-group-toggle"><span>' + sec + ' <span class="testes-group-count">(' + count + ')</span></span><span class="testes-group-arrow">▾</span></div>';
+      html += '<div class="testes-group-body">';
       bySection[sec].forEach(function (r) {
         html += '<div class="testes-row manual">';
         html += '<span class="testes-icon">🔍</span>';
@@ -353,11 +355,18 @@
         html += '</div>';
       });
       html += '</div>';
+      html += '</div>';
     });
     html += '</div>';
     html += '</div>';
 
     container.innerHTML = html;
+
+    container.querySelectorAll('.testes-group-toggle').forEach(function (toggle) {
+      toggle.addEventListener('click', function () {
+        toggle.closest('.testes-group--collapsible').classList.toggle('open');
+      });
+    });
 
     container.querySelectorAll('.testes-run-btn').forEach(function (btn) {
       btn.addEventListener('click', function () {
