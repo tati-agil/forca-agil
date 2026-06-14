@@ -3,7 +3,7 @@
   const STORE_KEY = 'kyber-game-v1';
   const STORE_RANK = 'kyber-ranking-v1';
   const TIME_LIMIT = 30; // segundos
-  const MAX_CHALLENGES = 6;
+  const MAX_CHALLENGES = 25;
   const reduce = matchMedia('(prefers-reduced-motion: reduce)').matches;
 
   let gameState = {
