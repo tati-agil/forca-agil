@@ -19,10 +19,12 @@
 
   let rankings = [];
 
+  function _st() { return window.faStore || localStorage; }
+
   // Load rankings from localStorage
   function loadRankings() {
     try {
-      rankings = JSON.parse(localStorage.getItem(STORE_RANK) || '[]');
+      rankings = JSON.parse(_st().getItem(STORE_RANK) || '[]');
     } catch (e) {
       rankings = [];
     }
@@ -30,19 +32,19 @@
 
   function saveRankings() {
     try {
-      localStorage.setItem(STORE_RANK, JSON.stringify(rankings));
+      _st().setItem(STORE_RANK, JSON.stringify(rankings));
     } catch (e) {}
   }
 
   function saveGameState() {
     try {
-      localStorage.setItem(STORE_KEY, JSON.stringify(gameState));
+      _st().setItem(STORE_KEY, JSON.stringify(gameState));
     } catch (e) {}
   }
 
   function loadGameState() {
     try {
-      const saved = JSON.parse(localStorage.getItem(STORE_KEY) || 'null');
+      const saved = JSON.parse(_st().getItem(STORE_KEY) || 'null');
       if (saved) gameState = saved;
     } catch (e) {}
   }

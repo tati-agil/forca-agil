@@ -259,7 +259,7 @@
   // missions agora armazena { answers: [null|idx, null|idx, null|idx] } por id
   let state = { quiz: Array(DIMS.length).fill(null), missions: {} };
   try {
-    const saved = JSON.parse(localStorage.getItem(STORE) || 'null');
+    const saved = JSON.parse((window.faStore || localStorage).getItem(STORE) || 'null');
     if (saved && Array.isArray(saved.quiz)) state = { quiz: saved.quiz, missions: saved.missions || {} };
   } catch (e) { /* ignore */ }
   function getPlayer() {
@@ -276,7 +276,8 @@
     return false;
   }
   const save = () => {
-    try { localStorage.setItem(STORE, JSON.stringify(state)); } catch (e) {}
+    const st = window.faStore || localStorage;
+    try { st.setItem(STORE, JSON.stringify(state)); } catch (e) {}
     // salva missions XP separado para firebase.js ler
     try {
       const totalCorrect = MISSIONS.reduce((acc, m) => {
@@ -286,7 +287,7 @@
       }, 0);
       const totalQuestions = MISSIONS.reduce((acc, m) => acc + m.questions.length, 0);
       const mXP = Math.round(totalCorrect / totalQuestions * MISS_MAX);
-      localStorage.setItem('fa-missions-xp', String(mXP));
+      st.setItem('fa-missions-xp', String(mXP));
     } catch(e) {}
     // XP salvo localmente — Firebase só sincroniza quando pessoa clicar "Revelar Patente"
   };
@@ -330,7 +331,7 @@
     const mXP  = Math.round(totalCorrect / totalQuestions * MISS_MAX);
     const mDone = MISSIONS.filter(m => missionDone(m)).length;
     // kyberXP vem do localStorage (salvo por firebase.js após o game)
-    const kyberXP = (() => { try { return parseInt(localStorage.getItem('fa-kyber-xp') || '0', 10) || 0; } catch(e) { return 0; } })();
+    const kyberXP = (() => { try { return parseInt((window.faStore || localStorage).getItem('fa-kyber-xp') || '0', 10) || 0; } catch(e) { return 0; } })();
     const xp   = Math.min(100, quizXP + mXP + kyberXP);
     let rankIdx = 0;
     for (let i = 0; i < RANKS.length; i++) if (xp >= RANKS[i].min) rankIdx = i;

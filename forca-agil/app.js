@@ -141,8 +141,9 @@
     var sess = window.faAuth && window.faAuth.getSession();
     if (!sess) return;
 
+    var _ast = window.faStore || localStorage;
     var read = [];
-    try { read = JSON.parse(localStorage.getItem('fa-content-read') || '[]'); } catch(e) {}
+    try { read = JSON.parse(_ast.getItem('fa-content-read') || '[]'); } catch(e) {}
 
     CONTENT_SECTIONS.forEach(function (id) {
       var el = document.getElementById('content-' + id);
@@ -164,9 +165,9 @@
             readTimer = setTimeout(function () {
               obs.disconnect();
               read.push(id);
-              try { localStorage.setItem('fa-content-read', JSON.stringify(read)); } catch(e2) {}
-              var cur = parseInt(localStorage.getItem('fa-content-xp') || '0', 10) || 0;
-              try { localStorage.setItem('fa-content-xp', String(cur + XP_PER_SECTION)); } catch(e3) {}
+              try { _ast.setItem('fa-content-read', JSON.stringify(read)); } catch(e2) {}
+              var cur = parseInt(_ast.getItem('fa-content-xp') || '0', 10) || 0;
+              try { _ast.setItem('fa-content-xp', String(cur + XP_PER_SECTION)); } catch(e3) {}
               if (window.faSyncPlayer) window.faSyncPlayer();
               if (badge) {
                 badge.textContent = '✓ +' + XP_PER_SECTION + ' XP';

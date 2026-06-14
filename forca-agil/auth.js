@@ -104,14 +104,22 @@
     });
   }
 
+  /* ---------- Store com escopo por usuário ---------- */
+  function _storePrefix() {
+    var sess = getSession();
+    return sess && sess.email ? 'fa-u-' + emailKey(sess.email) + '-' : '';
+  }
+  window.faStore = {
+    getItem:    function(k) { try { return localStorage.getItem(_storePrefix() + k); } catch(e) { return null; } },
+    setItem:    function(k, v) { try { localStorage.setItem(_storePrefix() + k, v); } catch(e) {} },
+    removeItem: function(k) { try { localStorage.removeItem(_storePrefix() + k); } catch(e) {} }
+  };
+
   /* ---------- Logout ---------- */
   function logout() {
     clearSession();
     try { localStorage.removeItem('fa-player'); } catch(e) {}
-    // Limpa dados de jogo do usuário anterior
-    var gameKeys = ['fa-kyber-done','fa-kyber-xp','fa-game-v2','fa-patente-revealed',
-                    'fa-content-read','fa-content-xp','fa-repo-xp','kyber-game-v1','kyber-ranking-v1'];
-    gameKeys.forEach(function(k) { try { localStorage.removeItem(k); } catch(e) {} });
+    // Dados de jogo ficam no localStorage com prefixo do usuário — não apagar
     // Força esconder o perfil imediatamente, sem depender de eventos
     var profileEl = document.getElementById('navProfile');
     var ctaEl     = document.getElementById('navCta');

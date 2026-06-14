@@ -45,19 +45,20 @@
   }
 
   // ---- XP helpers ----
+  function _st() { return window.faStore || localStorage; }
   function getGameXP() {
     try {
-      var s = JSON.parse(localStorage.getItem('fa-game-v2') || 'null');
+      var s = JSON.parse(_st().getItem('fa-game-v2') || 'null');
       if (!s) return { xpAuto: 0, xpMissoes: 0 };
       var answered = (s.quiz || []).filter(function(v) { return v != null; }).length;
       var xpAuto   = Math.round(answered / 6 * 20);
-      var xpMissoes = parseInt(localStorage.getItem('fa-missions-xp') || '0', 10) || 0;
+      var xpMissoes = parseInt(_st().getItem('fa-missions-xp') || '0', 10) || 0;
       return { xpAuto: xpAuto, xpMissoes: xpMissoes };
     } catch(e) { return { xpAuto: 0, xpMissoes: 0 }; }
   }
-  function getKyberXP()   { return parseInt(localStorage.getItem('fa-kyber-xp')   || '0', 10) || 0; }
-  function getContentXP() { return parseInt(localStorage.getItem('fa-content-xp') || '0', 10) || 0; }
-  function getRepoXP()    { return parseInt(localStorage.getItem('fa-repo-xp')    || '0', 10) || 0; }
+  function getKyberXP()   { return parseInt(_st().getItem('fa-kyber-xp')   || '0', 10) || 0; }
+  function getContentXP() { return parseInt(_st().getItem('fa-content-xp') || '0', 10) || 0; }
+  function getRepoXP()    { return parseInt(_st().getItem('fa-repo-xp')    || '0', 10) || 0; }
 
   function escHtml(s) {
     return String(s || '').replace(/[&<>"]/g, function(c) {
@@ -101,11 +102,11 @@
     document.getElementById('kyber-challenge').style.display = 'none';
 
     // bloqueia replay
-    try { localStorage.setItem('fa-kyber-done', '1'); } catch(e) {}
+    try { _st().setItem('fa-kyber-done', '1'); } catch(e) {}
 
     // converte score em XP (0–32)
     var kyberXP = Math.min(50, Math.round(gameState.totalScore / 20000 * 50));
-    try { localStorage.setItem('fa-kyber-xp', String(kyberXP)); } catch(e) {}
+    try { _st().setItem('fa-kyber-xp', String(kyberXP)); } catch(e) {}
 
     var p     = getPlayer() || { name: gameState.playerName || 'Agente', area: '', turma: '' };
     var gxp   = getGameXP();
@@ -113,7 +114,7 @@
 
     var go = document.getElementById('kyber-gameover');
     if (go) {
-      var _state = (function() { try { return JSON.parse(localStorage.getItem('fa-game-v2') || 'null'); } catch(e) { return null; } })();
+      var _state = (function() { try { return JSON.parse(_st().getItem('fa-game-v2') || 'null'); } catch(e) { return null; } })();
       var _autoDone = _state && _state.quiz && _state.quiz.filter(function(v){ return v != null; }).length === 6;
       var _missoesDone = _state && _state.missions && Object.keys(_state.missions).length === 6 &&
         Object.values(_state.missions).every(function(m){ return m && m.answers && m.answers.every(function(a){ return a !== null; }); });
@@ -210,7 +211,7 @@
 
   // ---- Kyber bloqueado se já jogou ----
   window.kyberAlreadyPlayed = function() {
-    return localStorage.getItem('fa-kyber-done') === '1';
+    return _st().getItem('fa-kyber-done') === '1';
   };
 
   // ---- Home ranking mini (top 5) ----
@@ -257,13 +258,13 @@
 
     function checkProgress() {
       try {
-        var state = JSON.parse(localStorage.getItem('fa-game-v2') || 'null');
+        var state = JSON.parse(_st().getItem('fa-game-v2') || 'null');
         var autoDone = state && state.quiz && state.quiz.filter(function(v){ return v != null; }).length === 6;
         var missoesDone = state && state.missions && Object.keys(state.missions).length === 6 &&
           Object.values(state.missions).every(function(m) {
             return m && m.answers && m.answers.every(function(a){ return a !== null; });
           });
-        var kyberDone = localStorage.getItem('fa-kyber-done') === '1';
+        var kyberDone = _st().getItem('fa-kyber-done') === '1';
         return { autoDone: autoDone, missoesDone: missoesDone, kyberDone: kyberDone,
                  allDone: autoDone && missoesDone && kyberDone };
       } catch(e) { return { autoDone: false, missoesDone: false, kyberDone: false, allDone: false }; }
@@ -333,7 +334,7 @@
 
     if (revelarOk) revelarOk.addEventListener('click', function() {
       if (revelarConfirm) revelarConfirm.hidden = true;
-      try { localStorage.setItem('fa-patente-revealed', '1'); } catch(e) {}
+      try { _st().setItem('fa-patente-revealed', '1'); } catch(e) {}
       window.faSyncPlayer();
       // troca botão por mensagem de confirmação
       var wrap = document.getElementById('revelarWrap');

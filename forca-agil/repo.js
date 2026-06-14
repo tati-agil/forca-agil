@@ -278,9 +278,10 @@
             c.classList.toggle('active', c.dataset.f === 'all');
           });
           // Award repo XP — só conta se patente ainda não foi revelada
-          if (localStorage.getItem('fa-patente-revealed') !== '1') {
-            var cur = parseInt(localStorage.getItem('fa-repo-xp') || '0', 10) || 0;
-            try { localStorage.setItem('fa-repo-xp', String(Math.min(20, cur + 10))); } catch(e) {}
+          var _rst = window.faStore || localStorage;
+          if (_rst.getItem('fa-patente-revealed') !== '1') {
+            var cur = parseInt(_rst.getItem('fa-repo-xp') || '0', 10) || 0;
+            try { _rst.setItem('fa-repo-xp', String(Math.min(20, cur + 10))); } catch(e) {}
             if (window.faSyncPlayer) window.faSyncPlayer();
           }
         })
