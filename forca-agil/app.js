@@ -121,6 +121,8 @@
           var count = snap.numChildren ? snap.numChildren() : 0;
           var el = document.getElementById('heroAgentCount');
           if (el) el.textContent = count > 0 ? count : '—';
+          var lbl = document.getElementById('heroAgentLabel');
+          if (lbl && count > 0) lbl.textContent = count === 1 ? 'agente ativo' : 'agentes ativos';
           var hint = document.getElementById('navAgentHint');
           if (hint && count > 0) hint.textContent = 'Junte-se a ' + count + ' agentes';
         });
