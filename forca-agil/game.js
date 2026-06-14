@@ -332,10 +332,12 @@
     const mDone = MISSIONS.filter(m => missionDone(m)).length;
     // kyberXP vem do localStorage (salvo por firebase.js após o game)
     const kyberXP = (() => { try { return parseInt((window.faStore || localStorage).getItem('fa-kyber-xp') || '0', 10) || 0; } catch(e) { return 0; } })();
+    const kyberDone = (window.faStore || localStorage).getItem('fa-kyber-done') === '1';
+    const allDone = quizDone && mDone === MISSIONS.length && kyberDone;
     const xp   = Math.min(100, quizXP + mXP + kyberXP);
     let rankIdx = 0;
     for (let i = 0; i < RANKS.length; i++) if (xp >= RANKS[i].min) rankIdx = i;
-    return { xp, quizXP, mXP, kyberXP, quizDone, mDone, rankIdx };
+    return { xp, quizXP, mXP, kyberXP, quizDone, mDone, kyberDone, allDone, rankIdx };
   }
 
   // ---- DOM refs ----
@@ -548,6 +550,23 @@
     xpNext.textContent  = c.rankIdx < RANKS.length - 1
       ? 'Próxima: ' + RANKS[c.rankIdx + 1].name + ' · ' + RANKS[c.rankIdx + 1].min + ' XP'
       : 'Patente máxima alcançada';
+
+    // Aviso de patente provisória
+    var hudProvisorio = document.getElementById('hudProvisorio');
+    if (!hudProvisorio) {
+      hudProvisorio = document.createElement('p');
+      hudProvisorio.id = 'hudProvisorio';
+      hudProvisorio.style.cssText = 'font-family:var(--font-mono);font-size:.65rem;color:var(--ink-3);margin-top:6px;opacity:.8;';
+      rankHud && rankHud.querySelector('.rh-body') && rankHud.querySelector('.rh-body').appendChild(hudProvisorio);
+    }
+    if (hudProvisorio) {
+      if (c.allDone) {
+        hudProvisorio.textContent = '';
+      } else {
+        const faltam = [!c.quizDone && 'autodiagnóstico', c.mDone < MISSIONS.length && 'missões', !c.kyberDone && 'Kyber Game'].filter(Boolean);
+        hudProvisorio.textContent = '⚠ Patente provisória — falta' + (faltam.length > 1 ? 'm' : '') + ': ' + faltam.join(', ') + '.';
+      }
+    }
 
     // ladder
     document.querySelectorAll('.char-card').forEach(card => {
