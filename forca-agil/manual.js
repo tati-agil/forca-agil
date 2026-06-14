@@ -310,11 +310,11 @@
             return '<span class="manual-badge' + (isActive ? ' active' : '') + '" style="--badge-col:' + p.color + '">' + p.label + '</span>';
           }).join('');
 
-          html += '<div class="manual-card" style="--card-col:' + col + '">';
-          html += '<div class="manual-card-title">' + esc(rule.title) + '</div>';
+          html += '<details class="manual-card" style="--card-col:' + col + '">';
+          html += '<summary class="manual-card-summary"><span class="manual-card-title">' + esc(rule.title) + '</span><svg class="manual-chev" width="14" height="14" viewBox="0 0 14 14"><polyline points="2,4 7,10 12,4" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg></summary>';
           html += '<div class="manual-card-body">' + esc(rule.body) + '</div>';
           html += '<div class="manual-card-personas">' + badges + '</div>';
-          html += '</div>';
+          html += '</details>';
         });
       });
     }

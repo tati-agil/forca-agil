@@ -927,11 +927,17 @@ html:not(.js) .reveal { opacity: 1 !important; transform: none !important; }
 .manual-count { font-family: var(--font-mono); font-size: .72rem; color: var(--ink-3); margin: 16px 0 20px; letter-spacing: .04em; }
 .manual-rules { display: flex; flex-direction: column; gap: 8px; }
 .manual-section-header { font-family: var(--font-head); font-size: .78rem; letter-spacing: .14em; text-transform: uppercase; padding: 20px 0 8px; border-bottom: 1px solid; margin-bottom: 4px; }
-.manual-card { border: 1px solid var(--line); border-left: 3px solid var(--card-col, var(--accent)); border-radius: 10px; padding: 14px 16px; background: var(--panel); transition: border-color .2s; }
+.manual-card { border: 1px solid var(--line); border-left: 3px solid var(--card-col, var(--accent)); border-radius: 10px; background: var(--panel); transition: border-color .2s; overflow: hidden; }
 .manual-card:hover { border-color: var(--line-strong); border-left-color: var(--card-col, var(--accent)); }
-.manual-card-title { font-family: var(--font-mono); font-size: .8rem; letter-spacing: .04em; color: var(--ink); margin-bottom: 6px; font-weight: 600; }
-.manual-card-body { font-size: .875rem; color: var(--ink-2); line-height: 1.55; margin-bottom: 10px; }
-.manual-card-personas { display: flex; flex-wrap: wrap; gap: 5px; }
+.manual-card[open] { border-color: var(--line-strong); }
+.manual-card-summary { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 13px 16px; cursor: pointer; list-style: none; user-select: none; }
+.manual-card-summary::-webkit-details-marker { display: none; }
+.manual-card-summary:hover .manual-card-title { color: var(--card-col, var(--accent)); }
+.manual-chev { color: var(--ink-3); flex-shrink: 0; transition: transform .2s; }
+.manual-card[open] .manual-chev { transform: rotate(180deg); }
+.manual-card-title { font-family: var(--font-mono); font-size: .8rem; letter-spacing: .04em; color: var(--ink); font-weight: 600; transition: color .15s; }
+.manual-card-body { font-size: .875rem; color: var(--ink-2); line-height: 1.55; padding: 0 16px 10px; }
+.manual-card-personas { display: flex; flex-wrap: wrap; gap: 5px; padding: 0 16px 13px; }
 .manual-badge { font-family: var(--font-mono); font-size: .6rem; letter-spacing: .08em; text-transform: uppercase; padding: 3px 8px; border-radius: 12px; border: 1px solid var(--badge-col, #888); color: var(--badge-col, #888); background: color-mix(in srgb, var(--badge-col, #888) 10%, transparent); }
 .manual-badge.active { background: color-mix(in srgb, var(--badge-col, #888) 22%, transparent); font-weight: 700; }
 
