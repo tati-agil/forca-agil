@@ -67,7 +67,7 @@
     { label: 'RANKING', color: '#57aaff',
       features: [
         { label: 'Ver ranking completo',                 p: ['visitante','logado','colaborador','admin'] },
-        { label: 'Ver própria linha destacada',          p: ['logado','colaborador','admin'] },
+        { label: 'Identificação da própria linha no ranking', p: ['logado','colaborador','admin'] },
         { label: 'Ver patente de todos',                 p: ['visitante','logado','colaborador','admin'] },
       ]
     },
