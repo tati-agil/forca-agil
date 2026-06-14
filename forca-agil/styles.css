@@ -902,6 +902,8 @@ html:not(.js) .reveal { opacity: 1 !important; transform: none !important; }
 .admin-hide-btn:hover { border-color: var(--accent); color: var(--accent); }
 .admin-restore-btn { background: transparent; border: 1px solid var(--cyan); color: var(--cyan); font-size: .72rem; font-family: var(--font-mono); padding: 4px 10px; border-radius: 6px; cursor: pointer; letter-spacing: .06em; transition: opacity .2s; }
 .admin-restore-btn:hover { opacity: .75; }
+.admin-reset-btn { background: transparent; border: 1px solid var(--accent); color: var(--accent); font-size: .72rem; font-family: var(--font-mono); padding: 4px 10px; border-radius: 6px; cursor: pointer; letter-spacing: .06em; transition: opacity .2s; }
+.admin-reset-btn:hover { opacity: .75; }
 
 /* ---------- Revelar Patente Final ---------- */
 .revelar-wrap { text-align: center; padding: 48px 24px 24px; }

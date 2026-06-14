@@ -168,7 +168,7 @@
           '<div class="gameover-rank">+' + kyberXP + ' XP Kyber · Patente: <strong>' + getRank(total) + '</strong></div>' +
           '<div class="gameover-rank" style="font-size:.85rem;opacity:.7">' + p.name + (p.turma ? ' · ' + p.turma : '') + '</div>' +
           '<div class="gameover-actions">' +
-            '<button class="btn btn--primary" onclick="var r=document.getElementById(\'revelarWrap\');if(r)r.scrollIntoView({behavior:\'smooth\',block:\'center\'})">Revelar minha Patente Final</button>' +
+            (_allDone ? '<button class="btn btn--primary" onclick="var r=document.getElementById(\'revelarWrap\');if(r)r.scrollIntoView({behavior:\'smooth\',block:\'center\'})">Revelar minha Patente Final</button>' : '') +
           '</div>' +
         '</div>';
     }

@@ -627,24 +627,6 @@
     quizResult.textContent = 'Patente revelada: ' + RANKS[c.rankIdx].name + ' · +' + c.quizXP + ' XP';
   });
 
-  const resetGame = $('resetGame');
-  if (resetGame) resetGame.style.display = 'none'; // bloqueado — autodiag e missões são definitivos
-  if (resetGame) resetGame.addEventListener('click', () => {
-    state = { quiz: Array(DIMS.length).fill(null), missions: {} };
-    MISSIONS.forEach(m => { state.missions[m.id] = { answers: Array(m.questions.length).fill(null) }; });
-    prevRankIdx = null; save(); render();
-    // fecha todos os painéis
-    document.querySelectorAll('.mission-wrap').forEach(w => w.classList.remove('open'));
-    // limpa feedbacks
-    MISSIONS.forEach(m => {
-      const wrap  = document.querySelector('.mission-wrap[data-id="' + m.id + '"]');
-      if (!wrap) return;
-      const panel = wrap.querySelector('.m-panel');
-      if (panel) renderMissionPanel(m, panel);
-    });
-    if (guideMsg) guideMsg.textContent = 'Holocron reiniciado. Vamos começar de novo!';
-  });
-
   prevRankIdx = compute().rankIdx;
   render();
 

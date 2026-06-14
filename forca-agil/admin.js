@@ -246,7 +246,7 @@
     /* Tabela */
     var tbl = document.createElement('table');
     tbl.className = 'admin-table';
-    tbl.innerHTML = '<thead><tr><th>Nome</th><th>E-mail</th><th>Desde</th><th></th></tr></thead>';
+    tbl.innerHTML = '<thead><tr><th>Nome</th><th>E-mail</th><th>Desde</th><th></th><th></th></tr></thead>';
     var tbody = document.createElement('tbody');
     list.forEach(function (p) {
       var tr = document.createElement('tr');
@@ -254,20 +254,36 @@
         '<td>' + esc(p.name || '—') + '</td>' +
         '<td>' + esc(p.email || '—') + '</td>' +
         '<td>' + fmtDate(p.addedAt) + '</td>' +
+        '<td><button class="admin-del-btn admin-reset-btn" data-key="' + esc(emailKey(p.email)) + '" data-email="' + esc(p.email || '') + '" data-name="' + esc(p.name || p.email) + '">Resetar progresso</button></td>' +
         '<td><button class="admin-del-btn" data-key="' + esc(emailKey(p.email)) + '" data-name="' + esc(p.name || p.email) + '">Remover</button></td>';
       tbody.appendChild(tr);
     });
     tbl.appendChild(tbody);
     c.appendChild(tbl);
 
-    /* Delegação de eventos para remover */
+    /* Delegação de eventos para remover e resetar */
     tbody.addEventListener('click', function (e) {
-      var btn = e.target.closest('.admin-del-btn');
+      var btn = e.target.closest('button');
       if (!btn) return;
-      if (!confirm('Remover ' + btn.dataset.name + ' dos colaboradores?')) return;
-      firebase.database().ref('fa-colaboradores/' + btn.dataset.key).remove(function () {
-        firebase.database().ref('fa-colaboradores').once('value', function (s) { renderColab(c, s.val() || {}); });
-      });
+      if (btn.classList.contains('admin-reset-btn')) {
+        if (!confirm('Resetar TODO o progresso do jogo de ' + btn.dataset.name + '?\n\nIsso apaga autodiagnóstico, missões, Kyber Game e patente. Essa ação não pode ser desfeita.')) return;
+        var eKey = btn.dataset.key;
+        var updates = {};
+        updates['fa-progress/' + eKey] = null;
+        updates['players/' + eKey] = null;
+        firebase.database().ref().update(updates, function (err) {
+          if (err) { alert('Erro ao resetar. Tente novamente.'); return; }
+          var msg = document.getElementById('colabMsg');
+          if (msg) { msg.style.color = 'var(--cyan)'; msg.textContent = btn.dataset.name + ': progresso resetado.'; }
+        });
+        return;
+      }
+      if (btn.classList.contains('admin-del-btn')) {
+        if (!confirm('Remover ' + btn.dataset.name + ' dos colaboradores?')) return;
+        firebase.database().ref('fa-colaboradores/' + btn.dataset.key).remove(function () {
+          firebase.database().ref('fa-colaboradores').once('value', function (s) { renderColab(c, s.val() || {}); });
+        });
+      }
     });
 
     /* Formulário de adição */
