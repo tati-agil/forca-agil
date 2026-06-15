@@ -76,8 +76,15 @@
     {
       group: 'Formulário de Cadastro',
       tests: [
-        { id: 'c-reg-area',     label: 'Campo área/setor com opções das gerências (GEPAR, AUDIT…)',
-          run: function () { return !!document.querySelector('[data-val="GEPAR"]') && !!document.querySelector('[data-val="AUDIT"]'); }
+        { id: 'c-reg-area',     label: 'Campo área/setor com gerências em ordem alfabética (ASJUR primeiro, SECEX último)',
+          run: function () {
+            var items = Array.from(document.querySelectorAll('#regAreaSelect [data-val]'));
+            if (!items.length) return false;
+            var vals = items.map(function (el) { return el.dataset.val; });
+            var sorted = vals.slice().sort();
+            return vals[0] === 'ASJUR' && vals[vals.length - 1] === 'SECEX' &&
+                   JSON.stringify(vals) === JSON.stringify(sorted);
+          }
         },
         { id: 'c-reg-terms',    label: 'Checkbox de termos (obrigatório) presente',
           run: function () { return !!document.getElementById('regTerms'); }
