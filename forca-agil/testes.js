@@ -77,18 +77,13 @@
       group: 'Formulário de Cadastro',
       tests: [
         { id: 'c-reg-area',     label: 'Campo área/setor com opções das gerências (GEPAR, AUDIT…)',
-          run: function () {
-            const sel = document.getElementById('registerArea') || document.querySelector('select[name="area"]');
-            if (!sel) return false;
-            const opts = Array.from(sel.options).map(function (o) { return o.value; });
-            return opts.indexOf('GEPAR') !== -1 && opts.indexOf('AUDIT') !== -1;
-          }
+          run: function () { return !!document.querySelector('[data-val="GEPAR"]') && !!document.querySelector('[data-val="AUDIT"]'); }
         },
         { id: 'c-reg-terms',    label: 'Checkbox de termos (obrigatório) presente',
-          run: function () { return !!document.getElementById('registerTerms') || !!document.querySelector('input[name="terms"]'); }
+          run: function () { return !!document.getElementById('regTerms'); }
         },
         { id: 'c-reg-optin',    label: 'Checkbox opt-in de novidades (opcional) presente',
-          run: function () { return !!document.getElementById('registerOptIn') || !!document.querySelector('input[name="optin"]'); }
+          run: function () { return !!document.getElementById('regOptin'); }
         },
         { id: 'c-pwd-toggle',   label: 'Botão "olhinho" em campos de senha',
           run: function () { return document.querySelectorAll('.pwd-toggle, [data-toggle-pwd], .eye-btn, button[aria-label*="senha"]').length > 0 || document.querySelectorAll('button').length > 0; }
@@ -120,22 +115,22 @@
             });
           }
         },
-        { id: 'c-repo-container', label: 'Container do repositório presente no DOM', run: function () { return !!document.getElementById('repoList') || !!document.querySelector('.repo-list, .holocron-list, #repositorio'); } }
+        { id: 'c-repo-container', label: 'Container do repositório presente no DOM', run: function () { return !!document.getElementById('repoGrid'); } }
       ]
     },
     {
       group: 'Página Quiz Jedi',
       tests: [
-        { id: 'c-quiz-patente',   label: 'Painel de patente presente',          run: function () { return !!document.querySelector('.patente-card, .patente-wrap, #patentePanel, .patente'); } },
-        { id: 'c-quiz-patentes',  label: '4 patentes exibidas (Youngling→Mestre)', run: function () { return document.querySelectorAll('.patente-item, .patente-card, [data-patente]').length >= 4 || !!document.querySelector('.patente'); } },
-        { id: 'c-quiz-previx',    label: 'Droide Previx (guia) presente',       run: function () { return !!document.querySelector('.previx, .droide-guia, [data-previx]'); } }
+        { id: 'c-quiz-patente',   label: 'Painel de patente presente',             run: function () { return !!document.getElementById('rankHud'); } },
+        { id: 'c-quiz-patentes',  label: '4 patentes exibidas (Youngling→Mestre)', run: function () { return document.querySelectorAll('.char-card').length >= 4; } },
+        { id: 'c-quiz-previx',    label: 'Droide Previx (guia) presente',          run: function () { return !!document.querySelector('.guide-droide') || !!document.getElementById('guideMsg'); } }
       ]
     },
     {
       group: 'Página Ranking',
       tests: [
         { id: 'c-rank-container', label: 'Container do ranking presente',              run: function () { return !!document.getElementById('rankingPageList'); } },
-        { id: 'c-rank-destaque',  label: 'Linha da própria usuária destacada (logado)', run: function () { return !!document.querySelector('.ranking-own, .rank-highlight, .rank-row--own, [data-own="true"]'); } }
+        { id: 'c-rank-destaque',  label: 'Linha da própria usuária destacada (logado)', run: function () { return !!document.querySelector('.rank-row.highlight'); } }
       ]
     },
     {
