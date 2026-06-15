@@ -398,6 +398,20 @@
     }
     html += '</div>';
 
+    const RES_COLOR = {
+      'Firebase':                    '#1ab2ae',
+      'Autenticação':                '#9b7fff',
+      'XP & Progresso':              '#f5c542',
+      'Painel Admin':                '#ff5252',
+      'Menu — Cadastrar / Entrar':   '#9b7fff',
+      'Formulário de Cadastro':      '#9b7fff',
+      'Página Início':               '#1ab2ae',
+      'Página Repositório':          '#e8854a',
+      'Página Quiz Jedi':            '#e05c7f',
+      'Página Ranking':              '#57aaff',
+      'Painel Admin — Integridade':  '#ff5252',
+    };
+
     const groups = {};
     results.forEach(function (r) {
       if (!groups[r.group]) groups[r.group] = [];
@@ -405,8 +419,13 @@
     });
 
     Object.keys(groups).forEach(function (g) {
-      html += '<div class="testes-group">';
-      html += '<div class="testes-group-label">' + g + '</div>';
+      const col = RES_COLOR[g] || 'var(--accent)';
+      const groupPassed = groups[g].filter(function (r) { return r.passed; }).length;
+      const groupTotal  = groups[g].length;
+      const countLabel  = done ? ' (' + groupPassed + '/' + groupTotal + ')' : ' (' + groupPassed + '/' + groupTotal + ')';
+      html += '<div class="testes-group testes-group--collapsible open">';
+      html += '<div class="testes-group-label testes-group-toggle" style="color:' + col + ';border-color:' + col + '"><span>' + g + '<span class="testes-group-count">' + countLabel + '</span></span><span class="testes-group-arrow">▾</span></div>';
+      html += '<div class="testes-group-body">';
       groups[g].forEach(function (r) {
         html += '<div class="testes-row ' + (r.passed ? 'pass' : 'fail') + '">';
         html += '<span class="testes-icon">' + (r.passed ? '✅' : '❌') + '</span>';
@@ -414,10 +433,15 @@
         if (!r.passed && r.err) html += '<span class="testes-err">' + r.err + '</span>';
         html += '</div>';
       });
-      html += '</div>';
+      html += '</div></div>';
     });
 
     el.innerHTML = html;
+    el.querySelectorAll('.testes-group-toggle').forEach(function (toggle) {
+      toggle.addEventListener('click', function () {
+        toggle.closest('.testes-group--collapsible').classList.toggle('open');
+      });
+    });
   }
 
   window.faInitTestes = function () {
