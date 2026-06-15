@@ -168,14 +168,6 @@
     });
     html += '</div>';
 
-    /* Acordeão — delega ao container para evitar re-bind */
-    container.addEventListener('click', function (e) {
-      const pageTitle = e.target.closest('.mapa-page-title');
-      if (pageTitle) { pageTitle.closest('.mapa-page').classList.toggle('open'); return; }
-      const archLabel = e.target.closest('.arch-section-label');
-      if (archLabel) { archLabel.closest('.arch-section').classList.toggle('open'); }
-    });
-
     html += '</div>';
 
     /* ── Arquitetura Técnica ── */
@@ -301,5 +293,16 @@
     container.innerHTML = html;
   }
 
-  window.faInitMapa = render;
+  window.faInitMapa = function () {
+    render();
+    const container = document.getElementById('adminMapa');
+    if (!container || container._mapaListenerBound) return;
+    container._mapaListenerBound = true;
+    container.addEventListener('click', function (e) {
+      const pageTitle = e.target.closest('.mapa-page-title');
+      if (pageTitle) { pageTitle.closest('.mapa-page').classList.toggle('open'); return; }
+      const archLabel = e.target.closest('.arch-section-label');
+      if (archLabel) { archLabel.closest('.arch-section').classList.toggle('open'); }
+    });
+  };
 })();
