@@ -129,15 +129,16 @@
     HIERARCHY.forEach(function (level, i) {
       const prev = i > 0 ? HIERARCHY[i - 1] : null;
       html += '<div class="mapa-level" style="--lc:' + level.color + '">';
+      html += '<div class="mapa-level-head"><span class="mapa-level-name">' + level.label + '</span><span class="mapa-level-arrow">▾</span></div>';
+      html += '<div class="mapa-level-body">';
       if (prev) {
         html += '<div class="mapa-level-inherit">↳ tudo de <strong>' + prev.label + '</strong>, mais:</div>';
       }
-      html += '<div class="mapa-level-head"><span class="mapa-level-name">' + level.label + '</span></div>';
       html += '<ul class="mapa-level-adds">';
       level.adds.forEach(function (a) { html += '<li>' + a + '</li>'; });
-      html += '</ul></div>';
+      html += '</ul></div></div>';
       if (i < HIERARCHY.length - 1) {
-        html += '<div class="mapa-level-arrow">▲</div>';
+        html += '<div class="mapa-hierarchy-arrow">▲</div>';
       }
     });
 
@@ -302,7 +303,9 @@
       const pageTitle = e.target.closest('.mapa-page-title');
       if (pageTitle) { pageTitle.closest('.mapa-page').classList.toggle('open'); return; }
       const archLabel = e.target.closest('.arch-section-label');
-      if (archLabel) { archLabel.closest('.arch-section').classList.toggle('open'); }
+      if (archLabel) { archLabel.closest('.arch-section').classList.toggle('open'); return; }
+      const levelHead = e.target.closest('.mapa-level-head');
+      if (levelHead) { levelHead.closest('.mapa-level').classList.toggle('open'); }
     });
   };
 })();
