@@ -42,6 +42,7 @@
   }
 
   const SUPER_ADMINS = ['tatianefdirene@previ.com.br', 'danielfrazao@previ.com.br'];
+  window.faSuperAdmins = SUPER_ADMINS;
 
   function initAdmin() {
     var sess = window.faAuth && window.faAuth.getSession();

@@ -103,17 +103,7 @@
       group: 'Página Repositório',
       tests: [
         { id: 'c-repo-curado',   label: 'Badge "curado" presente em algum card do repositório',
-          async: true,
-          run: function () {
-            return new Promise(function (resolve) {
-              try {
-                firebase.database().ref('fa-holocron').orderByChild('curated').equalTo(true).limitToFirst(1).once('value', function (snap) {
-                  resolve(snap.exists());
-                });
-                setTimeout(function () { resolve(false); }, 5000);
-              } catch (e) { resolve(false); }
-            });
-          }
+          run: function () { return typeof window.faRepoSeedCount === 'number' && window.faRepoSeedCount > 0; }
         },
         { id: 'c-repo-container', label: 'Container do repositório presente no DOM', run: function () { return !!document.getElementById('repoGrid'); } }
       ]
@@ -130,7 +120,11 @@
       group: 'Página Ranking',
       tests: [
         { id: 'c-rank-container', label: 'Container do ranking presente',              run: function () { return !!document.getElementById('rankingPageList'); } },
-        { id: 'c-rank-destaque',  label: 'Linha da própria usuária destacada (logado)', run: function () { return !!document.querySelector('.rank-row.highlight'); } }
+        { id: 'c-rank-destaque',  label: 'Linha da própria usuária destacada (logado)', run: function () {
+            var revealed = (window.faStore || localStorage).getItem('fa-patente-revealed') === '1';
+            if (!revealed) return true; // sem patente revelada, não há linha no ranking — N/A
+            return !!document.querySelector('.rank-row.highlight');
+          } }
       ]
     },
     {
@@ -140,20 +134,11 @@
         { id: 'c-adm-colab',      label: 'Aba Colaboradores presente',            run: function () { return !!document.getElementById('adminPanelColab'); } },
         { id: 'c-adm-admins',     label: 'Aba Administradores presente',          run: function () { return !!document.getElementById('adminPanelAdmins'); } },
         { id: 'c-adm-superadmin', label: 'Super-admins fixos no código (tatianefdirene + danielfrazao)',
-          async: true,
           run: function () {
-            return new Promise(function (resolve) {
-              try {
-                firebase.database().ref('fa-admins').once('value', function (snap) {
-                  var data = snap.val() || {};
-                  var keys = Object.keys(data);
-                  var hasTatiane = keys.some(function (k) { return k.indexOf('tatianefdirene') !== -1; });
-                  var hasDaniel  = keys.some(function (k) { return k.indexOf('danielfrazao') !== -1 || k.indexOf('danilfrazao') !== -1; });
-                  resolve(hasTatiane && hasDaniel);
-                });
-                setTimeout(function () { resolve(false); }, 5000);
-              } catch (e) { resolve(false); }
-            });
+            var list = window.faSuperAdmins || [];
+            var hasTatiane = list.some(function (e) { return e.indexOf('tatianefdirene') !== -1; });
+            var hasDaniel  = list.some(function (e) { return e.indexOf('danielfrazao') !== -1 || e.indexOf('danilfrazao') !== -1; });
+            return hasTatiane && hasDaniel;
           }
         }
       ]

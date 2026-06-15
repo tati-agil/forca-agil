@@ -27,6 +27,7 @@
     { type: 'video', title: 'Fome de Poder — Processos (Lean com analogias a Star Wars)', url: 'https://www.youtube.com/watch?v=8Xt63PHuMqU', desc: 'Como eliminar desperdícios, criar fluxo contínuo e padronizar processos — os princípios Lean narrados com analogias diretas à saga Star Wars. Organizações ágeis não dependem de heróis; dependem de sistemas. Indicado por Daniel Frazão.' },
     { type: 'video', title: 'Desdobramento de OKR na prática', url: 'https://www.youtube.com/watch?v=jP35UFXDnzA', desc: 'A explicação mais clara sobre desdobramento de OKR: OKR não é meta de manutenção (isso é indicador) — é desejo de melhoria. OKRs devem ser poucos e receber atenção máxima. O desdobramento segue a árvore de indicadores da empresa: Anual (KR Estratégico) → Semestral (KR Tático) → Trimestral (KR do Squad). Um OKR só está realmente desdobrado quando existem planos de ação claros ligados a ele. Indicado por Rodolfo Credi.' }
   ];
+  window.faRepoSeedCount = SEEDS.length;
 
   // ---- Helpers ----
   function getPlayer() {
