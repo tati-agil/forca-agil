@@ -671,7 +671,7 @@ html:not(.js) .reveal { opacity: 1 !important; transform: none !important; }
 .manifesto-link:hover { border-color:var(--accent); opacity:.8; }
 
 /* ---------- Section divider star ---------- */
-.divider { display:flex; align-items:center; justify-content:center; gap: 16px; color: var(--accent); opacity:.5; padding: 0 var(--pad-x); margin: -24px 0; }
+.divider { display:flex; align-items:center; justify-content:center; gap: 16px; color: var(--accent); opacity:.5; padding: 0 var(--pad-x); margin: 16px 0; }
 .divider::before, .divider::after { content:""; height:1px; flex:1; max-width: 240px; background: linear-gradient(90deg, transparent, var(--line-strong)); }
 
 /* Utility */
