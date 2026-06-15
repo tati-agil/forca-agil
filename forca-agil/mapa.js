@@ -205,7 +205,7 @@
         items: [
           { name: 'index.html',              desc: 'Entrada única da aplicação. Contém todo o HTML, carrega os scripts e gerencia as seções por hash (#inicio, #turmas…)' },
           { name: 'forca-agil/auth.js',      desc: 'Autenticação — login, cadastro, logout, redefinição de senha. API pública: window.faAuth' },
-          { name: 'forca-agil/firebase.js',  desc: 'Progresso e XP — salva/carrega dados do Firebase Realtime Database. API: window.faLoadProgress, window.faSaveProgress' },
+          { name: 'forca-agil/firebase.js',  desc: 'Progresso, XP e ranking — salva/carrega dados do Firebase. API: window.faLoadProgress, window.faSyncProgress, window.faSyncPlayer, window.faCleanRanking' },
           { name: 'forca-agil/router.js',    desc: 'Roteamento por hash — controla qual seção da página está visível. API: window.faRouter' },
           { name: 'forca-agil/app.js',       desc: 'Interações de UI — nav scroll, reveals, acordeões de agenda, contador de agentes, rastreamento de XP de conteúdos' },
           { name: 'forca-agil/game.js',      desc: 'Quiz Jedi — autodiagnóstico e missões, painel de patente, revelar patente' },
