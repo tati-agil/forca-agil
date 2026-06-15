@@ -157,7 +157,7 @@
     /* Grid de páginas */
     html += '<div class="mapa-grid">';
     PAGES.forEach(function (page, idx) {
-      html += '<div class="mapa-page' + (idx === 0 ? ' open' : '') + '" style="--pc:' + page.color + '">';
+      html += '<div class="mapa-page" style="--pc:' + page.color + '">';
       html += '<div class="mapa-page-title"><span>' + page.label + '</span><span class="mapa-page-arrow">▾</span></div>';
       html += '<div class="mapa-page-body">';
       page.features.forEach(function (f) {
