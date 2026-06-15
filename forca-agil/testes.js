@@ -337,6 +337,17 @@
     html += '<h4 class="testes-manual-title">📋 Regras que exigem validação manual (' + COMPORTAMENTO_MANUAL.length + ')</h4>';
     html += '<p class="testes-manual-desc">Estas regras não podem ser verificadas automaticamente. Valide-as manualmente ao testar o site.</p>';
 
+    const SEC_COLOR = {
+      'Cadastrar / Entrar': '#9b7fff',
+      'Início':             '#1ab2ae',
+      'Turmas':             '#f5c542',
+      'Conteúdos':          '#4caf7d',
+      'Repositório':        '#e8854a',
+      'Quiz Jedi':          '#e05c7f',
+      'Ranking':            '#57aaff',
+      'Admin':              '#ff5252',
+    };
+
     const bySection = {};
     COMPORTAMENTO_MANUAL.forEach(function (r) {
       if (!bySection[r.section]) bySection[r.section] = [];
@@ -344,8 +355,9 @@
     });
     Object.keys(bySection).forEach(function (sec) {
       const count = bySection[sec].length;
+      const col = SEC_COLOR[sec] || 'var(--accent)';
       html += '<div class="testes-group testes-group--collapsible">';
-      html += '<div class="testes-group-label testes-group-toggle"><span>' + sec + ' <span class="testes-group-count">(' + count + ')</span></span><span class="testes-group-arrow">▾</span></div>';
+      html += '<div class="testes-group-label testes-group-toggle" style="color:' + col + ';border-color:' + col + '"><span>' + sec + ' <span class="testes-group-count">(' + count + ')</span></span><span class="testes-group-arrow">▾</span></div>';
       html += '<div class="testes-group-body">';
       bySection[sec].forEach(function (r) {
         html += '<div class="testes-row manual">';
