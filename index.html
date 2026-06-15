@@ -3,15 +3,15 @@
 <html lang="pt-BR" data-theme="imperio">
 <head>
 <meta charset="UTF-8" />
-<script>document.documentElement.classList.add('js');</script>
+<script src="forca-agil/head-init.js"></script>
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 <title>Força Ágil · Oficina de Agilidade Organizacional — Previ</title>
 <link rel="preconnect" href="https://fonts.googleapis.com" />
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
 <link href="https://fonts.googleapis.com/css2?family=Anton&family=Oswald:wght@300;400;500;600;700&family=Barlow:wght@300;400;500;600;700&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet" />
-<link rel="stylesheet" href="forca-agil/styles.css?v=4" />
-<link rel="stylesheet" href="forca-agil/kyber-styles.css?v=4" />
-<link rel="stylesheet" href="forca-agil/pages.css?v=4" />
+<link rel="stylesheet" href="forca-agil/styles.css" />
+<link rel="stylesheet" href="forca-agil/kyber-styles.css" />
+<link rel="stylesheet" href="forca-agil/pages.css" />
 </head>
 <body style="font-family:system-ui">
 
@@ -1641,20 +1641,7 @@
 <script src="forca-agil/testes.js"></script>
 
 <!-- Admin guard: show/hide content based on auth -->
-<script>
-document.addEventListener('DOMContentLoaded', function () {
-  function updateAdminPage() {
-    var sess = window.faAuth && window.faAuth.getSession();
-    var isAdmin = sess && window.faAuth.isAdmin && window.faAuth.isAdmin(sess.email);
-    var guard   = document.getElementById('adminGuard');
-    var content = document.getElementById('adminContent');
-    if (guard)   guard.hidden   = !!isAdmin;
-    if (content) content.hidden = !isAdmin;
-  }
-  updateAdminPage();
-  window.addEventListener('fa-auth-change', updateAdminPage);
-});
-</script>
+<script src="forca-agil/init.js"></script>
 
 </body>
 </html>
