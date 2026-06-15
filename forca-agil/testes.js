@@ -76,14 +76,13 @@
     {
       group: 'Formulário de Cadastro',
       tests: [
-        { id: 'c-reg-area',     label: 'Campo área/setor com gerências em ordem alfabética (ASJUR primeiro, SECEX último)',
+        { id: 'c-reg-area',     label: 'Campo área/setor com 20 gerências carregadas em ordem alfabética',
           run: function () {
             var items = Array.from(document.querySelectorAll('#regAreaSelect [data-val]'));
-            if (!items.length) return false;
+            if (items.length !== 20) return false;
             var vals = items.map(function (el) { return el.dataset.val; });
             var sorted = vals.slice().sort();
-            return vals[0] === 'ASJUR' && vals[vals.length - 1] === 'SECEX' &&
-                   JSON.stringify(vals) === JSON.stringify(sorted);
+            return JSON.stringify(vals) === JSON.stringify(sorted);
           }
         },
         { id: 'c-reg-terms',    label: 'Checkbox de termos (obrigatório) presente',
