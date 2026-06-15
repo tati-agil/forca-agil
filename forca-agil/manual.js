@@ -65,7 +65,7 @@
       body: 'Mínimo 8 caracteres. O campo "Confirmar senha" deve ser idêntico — se divergir, exibe "As senhas não coincidem."' },
     { section: 'auth', personas: ['visitante'],
       title: 'Cadastro — área/setor',
-      body: 'Lista suspensa com as gerências: GEPAR, GERAI, GEINT, GEPRO, GECON, GETHO, INFOR, GECAP, GEROP, GEBEN, GECAT, GERAT, GESOP, OUVIR, ASJUR, CONIN, GABIN, PNSEG, AUDIT, SECEX.' },
+      body: 'Lista suspensa com as gerências em ordem alfabética: ASJUR, AUDIT, CONIN, GABIN, GEBEN, GECAP, GECAT, GECON, GEINT, GEPAR, GEPRO, GERAI, GERAT, GEROP, GESOP, GETHO, INFOR, OUVIR, PNSEG, SECEX.' },
     { section: 'auth', personas: ['visitante'],
       title: 'Cadastro — checkbox de termos (obrigatório)',
       body: 'O usuário deve aceitar que seu nome apareça no ranking e no repositório. Sem marcar, bloqueia com "Aceite os termos para continuar."' },
