@@ -54,8 +54,12 @@
         { id: 'adm-tabs',   label: 'Abas Admin presentes (≥7)', run: function () { return document.querySelectorAll('.admin-tab-btn').length >= 7; } },
         { id: 'adm-manual-panel', label: 'Painel Manual presente', run: function () { return !!document.getElementById('adminPanelManual'); } },
         { id: 'adm-mapa-panel',   label: 'Painel Mapa presente',   run: function () { return !!document.getElementById('adminPanelMapa'); } },
-        { id: 'adm-mapa-cards',   label: 'Mapa: 8 cards de página renderizados', run: function () { return document.querySelectorAll('#adminMapa .mapa-page').length === 8; } },
+        { id: 'adm-mapa-cards',   label: 'Mapa: 8 cards de página renderizados', run: function () {
+          if (window.faInitMapa) window.faInitMapa();
+          return document.querySelectorAll('#adminMapa .mapa-page').length === 8;
+        } },
         { id: 'adm-mapa-features', label: 'Mapa: todos os cards têm features', run: function () {
+          if (window.faInitMapa) window.faInitMapa();
           var cards = document.querySelectorAll('#adminMapa .mapa-page');
           if (cards.length !== 8) return false;
           return Array.from(cards).every(function (c) { return c.querySelectorAll('.mapa-feature').length > 0; });
