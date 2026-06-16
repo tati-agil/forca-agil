@@ -403,9 +403,6 @@
       title: 'Login — esqueci minha senha (fluxo completo)',
       motivo: 'Requer receber e-mail real do Firebase. Possível testar só o início (abertura do painel), mas não o recebimento do link.' },
     { section: 'Cadastrar / Entrar',
-      title: 'Admin — redefinir senha de qualquer cadastrado',
-      motivo: 'Requer que a pessoa já tenha conta ativa e verifica e-mail externo.' },
-    { section: 'Cadastrar / Entrar',
       title: 'Cadastro — e-mail já existente (mensagem de erro)',
       motivo: 'Requer tentar cadastrar e-mail duplicado — causaria chamada real ao Firebase Auth.' },
     { section: 'Cadastrar / Entrar',
@@ -494,7 +491,10 @@
       motivo: 'Gravaria no Firebase e exigiria limpeza manual após o teste.' },
     { section: 'Admin',
       title: 'Cadastrados — resetar progresso',
-      motivo: 'Ação destrutiva e irreversível no Firebase.' }
+      motivo: 'Ação destrutiva e irreversível no Firebase.' },
+    { section: 'Admin',
+      title: 'Cadastrados — redefinir senha',
+      motivo: 'Requer que a pessoa já tenha conta ativa e verifica e-mail externo.' }
   ];
 
   /* ================================================================
