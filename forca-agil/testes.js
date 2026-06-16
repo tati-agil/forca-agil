@@ -487,14 +487,14 @@
       title: 'Acesso negado para visitante/logado/colaborador (URL direta)',
       motivo: 'Requer testar com diferentes níveis de acesso — não pode ser validado na sessão admin atual.' },
     { section: 'Admin',
-      title: 'Colaboradores — resetar progresso',
-      motivo: 'Ação destrutiva e irreversível no Firebase.' },
-    { section: 'Admin',
       title: 'Colaboradores — remover colaborador',
       motivo: 'Ação destrutiva. Removeria acesso real de um colaborador.' },
     { section: 'Admin',
       title: 'Colaboradores — adicionar (formulário)',
-      motivo: 'Gravaria no Firebase e exigiria limpeza manual após o teste.' }
+      motivo: 'Gravaria no Firebase e exigiria limpeza manual após o teste.' },
+    { section: 'Admin',
+      title: 'Cadastrados — resetar progresso',
+      motivo: 'Ação destrutiva e irreversível no Firebase.' }
   ];
 
   /* ================================================================
