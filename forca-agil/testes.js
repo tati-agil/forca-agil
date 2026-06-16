@@ -203,7 +203,46 @@
           if (cards.length !== 8) return false;
           return Array.from(cards).every(function (c) { return c.querySelectorAll('.mapa-feature').length > 0; });
         } },
-        { id: 'adm-testes-panel', label: 'Painel Testes presente', run: function () { return !!document.getElementById('adminPanelTestes'); } }
+        { id: 'adm-testes-panel', label: 'Painel Testes presente', run: function () { return !!document.getElementById('adminPanelTestes'); } },
+        { id: 'adm-cadastrados-panel', label: 'Painel Cadastrados presente', run: function () { return !!document.getElementById('adminPanelCadastrados') && !!document.getElementById('adminCadastrados'); } },
+        { id: 'adm-cadastrados-lista', label: 'Cadastrados: tabela renderizada com badge de contagem correta', run: function () {
+          var c = document.getElementById('adminCadastrados');
+          if (!c) return false;
+          var badge = c.querySelector('.admin-badge');
+          var rows = c.querySelectorAll('tbody tr');
+          if (!badge) return false;
+          var n = parseInt(badge.textContent, 10);
+          return n === rows.length;
+        } },
+        { id: 'adm-cadastrados-filtro', label: 'Cadastrados: filtro reduz a lista de forma consistente', run: function () {
+          var c = document.getElementById('adminCadastrados');
+          var input = document.getElementById('cadastradosFiltro');
+          if (!c || !input) return false;
+          var rowsAntes = c.querySelectorAll('tbody tr').length;
+          if (rowsAntes === 0) return true; // nada cadastrado ainda — não há o que filtrar
+          var primeiraEmail = c.querySelector('tbody tr td:nth-child(2)').textContent;
+          var termo = primeiraEmail.slice(0, 4);
+          input.value = termo;
+          input.dispatchEvent(new Event('input'));
+          var linhas = Array.from(c.querySelectorAll('tbody tr'));
+          var todasContemTermo = linhas.length > 0 && linhas.every(function (tr) {
+            var nome = tr.querySelector('td:nth-child(1)').textContent.toLowerCase();
+            var email = tr.querySelector('td:nth-child(2)').textContent.toLowerCase();
+            return nome.indexOf(termo.toLowerCase()) !== -1 || email.indexOf(termo.toLowerCase()) !== -1;
+          });
+          var reduziu = linhas.length <= rowsAntes;
+          // restaura
+          input.value = '';
+          input.dispatchEvent(new Event('input'));
+          return todasContemTermo && reduziu;
+        } },
+        { id: 'adm-colab-sem-reset-redefinir', label: 'Colaboradores: não tem botões de resetar progresso/redefinir senha', run: function () {
+          var c = document.getElementById('adminColab');
+          if (!c) return false;
+          var semPwd = !c.querySelector('.admin-pwd-btn');
+          var semReset = !c.querySelector('.admin-reset-btn');
+          return semPwd && semReset;
+        } }
       ]
     }
   ];
