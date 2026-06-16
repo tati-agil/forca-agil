@@ -49,8 +49,6 @@
         { label: '"Adicionar" → abre cadastro',          p: ['visitante'] },
         { label: 'Adicionar conteúdo ao Holocron',       p: ['logado','colaborador','admin'] },
         { label: 'Remover próprio conteúdo',             p: ['logado','colaborador','admin'] },
-        { label: 'Ocultar/restaurar curados',            p: ['admin'] },
-        { label: 'Deletar conteúdo de qualquer usuário',p: ['admin'] },
       ]
     },
     { label: 'QUIZ JEDI', color: '#e05c7f',
@@ -61,7 +59,6 @@
         { label: 'Kyber Game (1×)',                       p: ['logado','colaborador','admin'] },
         { label: 'Ver painel de patente em tempo real',  p: ['logado','colaborador','admin'] },
         { label: 'Revelar patente',                      p: ['logado','colaborador','admin'] },
-        { label: 'Resetar progresso de outros (qualquer cadastrado)', p: ['admin'] },
       ]
     },
     { label: 'RANKING', color: '#57aaff',
@@ -74,7 +71,8 @@
     { label: 'ADMIN', color: '#ff5252',
       features: [
         { label: 'Ver interessados por turma',                p: ['admin'] },
-        { label: 'Moderar repositório',                       p: ['admin'] },
+        { label: 'Moderar repositório — ocultar/restaurar curados (aba Repositório do Admin)', p: ['admin'] },
+        { label: 'Moderar repositório — deletar conteúdo de qualquer usuário (aba Repositório do Admin)', p: ['admin'] },
         { label: 'Adicionar / remover colaboradores',         p: ['admin'] },
         { label: 'Ver todos os cadastrados, com filtro de busca', p: ['admin'] },
         { label: 'Redefinir senha de qualquer cadastrado (e-mail)', p: ['admin'] },
