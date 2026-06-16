@@ -17,7 +17,7 @@
     { key: 'colaborador', label: 'Colaborador',    color: '#f5c542',
       adds: ['Expandir Agenda D1–D5 na página Turmas'] },
     { key: 'admin',       label: 'Admin',          color: '#ff5252',
-      adds: ['Acessar o Painel Admin', 'Gerenciar colaboradores e admins', 'Ver interessados por turma', 'Moderar Repositório (ocultar/restaurar/deletar)', 'Resetar progresso de qualquer colaborador', 'Enviar e-mail de redefinição de senha para colaboradores'] },
+      adds: ['Acessar o Painel Admin', 'Gerenciar colaboradores e admins', 'Ver todos os cadastrados (não só colaboradores)', 'Ver interessados por turma', 'Moderar Repositório (ocultar/restaurar/deletar)', 'Resetar progresso de qualquer cadastrado', 'Enviar e-mail de redefinição de senha para qualquer cadastrado'] },
   ];
 
   const PAGES = [
@@ -61,7 +61,7 @@
         { label: 'Kyber Game (1×)',                       p: ['logado','colaborador','admin'] },
         { label: 'Ver painel de patente em tempo real',  p: ['logado','colaborador','admin'] },
         { label: 'Revelar patente',                      p: ['logado','colaborador','admin'] },
-        { label: 'Resetar progresso de outros',          p: ['admin'] },
+        { label: 'Resetar progresso de outros (qualquer cadastrado)', p: ['admin'] },
       ]
     },
     { label: 'RANKING', color: '#57aaff',
@@ -77,8 +77,9 @@
         { label: 'Ver interessados por turma',                p: ['admin'] },
         { label: 'Moderar repositório',                       p: ['admin'] },
         { label: 'Adicionar / remover colaboradores',         p: ['admin'] },
-        { label: 'Redefinir senha de colaborador (e-mail)',   p: ['admin'] },
-        { label: 'Resetar progresso de colaborador',          p: ['admin'] },
+        { label: 'Ver todos os cadastrados, com filtro de busca', p: ['admin'] },
+        { label: 'Redefinir senha de qualquer cadastrado (e-mail)', p: ['admin'] },
+        { label: 'Resetar progresso de qualquer cadastrado',  p: ['admin'] },
         { label: 'Adicionar / remover admins',                p: ['admin'] },
       ]
     },
