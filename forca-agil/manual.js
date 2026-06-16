@@ -199,7 +199,7 @@
       body: 'Exige completar as 3 etapas: autodiagnóstico + todas as missões + Kyber Game. Nenhum XP aparece no ranking antes de revelar.' },
     { section: 'quiz', personas: ['logado', 'colaborador', 'admin'],
       title: 'Revelar patente — status em tempo real',
-      body: 'O botão REVELAR exibe ✓/✗ para cada uma das 3 etapas. O status é atualizado automaticamente após o login (o carregamento do progresso do Firebase é assíncrono — o botão aguarda o evento fa-auth-change para refletir o estado real).' },
+      body: 'O botão REVELAR exibe ✓/✗ para cada uma das 3 etapas. O status é atualizado automaticamente após o login (o carregamento do progresso do Firebase é assíncrono — o botão aguarda o evento fa-auth-change para refletir o estado real). Além disso, ao concluir o autodiagnóstico, uma missão ou o Kyber Game na mesma sessão, o evento fa-progress-change é disparado (dentro de faSyncProgress) e o botão atualiza na hora, sem precisar recarregar a página.' },
     { section: 'quiz', personas: ['logado', 'colaborador', 'admin'],
       title: 'Revelar patente — publicação',
       body: 'Ao revelar: autodiagnóstico + missões + Kyber + conteúdos + repositório são publicados de uma vez. XP máximo 100. Definitivo — não pode ser alterado.' },

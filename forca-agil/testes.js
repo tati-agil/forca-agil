@@ -87,6 +87,37 @@
           if (backup.kyber !== null) st.setItem('fa-kyber-done', backup.kyber); else st.removeItem('fa-kyber-done');
           window.dispatchEvent(new CustomEvent('fa-auth-change', { detail: null }));
           return liberado && mostraCheck;
+        } },
+        { id: 'xp-revelar-progress-change', label: 'REVELAR atualiza na hora via fa-progress-change (sem precisar refresh)', run: function () {
+          var btn = document.getElementById('revelarBtn');
+          var hint = document.querySelector('.revelar-hint');
+          if (!btn || !hint) return false;
+          if (!window.faGameData) return false;
+          var st = window.faStore || localStorage;
+          // salva estado atual
+          var backup = { game: st.getItem('fa-game-v2'), kyber: st.getItem('fa-kyber-done') };
+          // garante estado pendente primeiro (simula sessão antes de concluir)
+          st.setItem('fa-game-v2', JSON.stringify({ quiz: Array(6).fill(null), missions: {} }));
+          st.setItem('fa-kyber-done', '0');
+          window.dispatchEvent(new CustomEvent('fa-auth-change', { detail: null }));
+          var pendenteAntes = btn.dataset.locked === '1';
+          // agora força conclusão das 3 etapas e dispara SOMENTE fa-progress-change
+          // (o mesmo evento que faSyncProgress dispara ao salvar progresso em tempo real)
+          var missions = {};
+          window.faGameData.MISSIONS.forEach(function (m) {
+            missions[m.id] = { answers: m.questions.map(function () { return 0; }) };
+          });
+          var quiz = window.faGameData.DIMS.map(function () { return 1; });
+          st.setItem('fa-game-v2', JSON.stringify({ quiz: quiz, missions: missions }));
+          st.setItem('fa-kyber-done', '1');
+          window.dispatchEvent(new CustomEvent('fa-progress-change'));
+          var liberadoSemRefresh = btn.dataset.locked !== '1';
+          var mostraCheck = hint.innerHTML.indexOf('✓') !== -1;
+          // restaura estado original
+          if (backup.game !== null) st.setItem('fa-game-v2', backup.game); else st.removeItem('fa-game-v2');
+          if (backup.kyber !== null) st.setItem('fa-kyber-done', backup.kyber); else st.removeItem('fa-kyber-done');
+          window.dispatchEvent(new CustomEvent('fa-auth-change', { detail: null }));
+          return pendenteAntes && liberadoSemRefresh && mostraCheck;
         } }
       ]
     },
