@@ -527,19 +527,26 @@
           var backupDone = st.getItem('fa-kyber-done');
           var backupXP = st.getItem('fa-kyber-xp');
           var backupScore = gameState.totalScore;
-          gameState.totalScore = 12345;
-          window.kyberFinishGame();
-          var go = document.getElementById('kyber-gameover');
-          var html = go ? go.innerHTML : '';
-          // "Patente" pode aparecer no botão de navegação — verifica que nenhum RANQUE calculado aparece
-          var semPatente = !/(Youngling|Padawan|Cavaleiro Jedi|Mestre Jedi|Mestre do Conselho)/.test(html);
-          var temScore = html.indexOf('12345') !== -1;
-          var temXP = /\+\d+ XP Kyber/.test(html);
-          gameState.totalScore = backupScore;
-          if (backupDone !== null) st.setItem('fa-kyber-done', backupDone); else st.removeItem('fa-kyber-done');
-          if (backupXP !== null) st.setItem('fa-kyber-xp', backupXP); else st.removeItem('fa-kyber-xp');
-          if (go) go.style.display = 'none';
-          return semPatente && temScore && temXP;
+          // Stuba faSyncProgress para não escrever no Firebase real durante o teste
+          var origSyncProgress = window.faSyncProgress;
+          window.faSyncProgress = function() {};
+          try {
+            gameState.totalScore = 12345;
+            window.kyberFinishGame();
+            var go = document.getElementById('kyber-gameover');
+            var html = go ? go.innerHTML : '';
+            // "Patente" pode aparecer no botão de navegação — verifica que nenhum RANQUE calculado aparece
+            var semPatente = !/(Youngling|Padawan|Cavaleiro Jedi|Mestre Jedi|Mestre do Conselho)/.test(html);
+            var temScore = html.indexOf('12345') !== -1;
+            var temXP = /\+\d+ XP Kyber/.test(html);
+            if (go) go.style.display = 'none';
+            return semPatente && temScore && temXP;
+          } finally {
+            window.faSyncProgress = origSyncProgress;
+            gameState.totalScore = backupScore;
+            if (backupDone !== null) st.setItem('fa-kyber-done', backupDone); else st.removeItem('fa-kyber-done');
+            if (backupXP !== null) st.setItem('fa-kyber-xp', backupXP); else st.removeItem('fa-kyber-xp');
+          }
         } },
         { id: 'c-quiz-patente-inclui-conteudo-repo', label: 'Painel de patente soma XP de Conteúdos e Repositório (não só auto/missões/kyber)', run: function () {
           if (typeof window.faGameReload !== 'function') return false;
