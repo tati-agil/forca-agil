@@ -295,6 +295,8 @@
     container.innerHTML = html;
   }
 
+  window.faMapaPages = PAGES;
+
   window.faInitMapa = function () {
     render();
     const container = document.getElementById('adminMapa');

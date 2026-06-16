@@ -203,6 +203,19 @@
           if (cards.length !== 8) return false;
           return Array.from(cards).every(function (c) { return c.querySelectorAll('.mapa-feature').length > 0; });
         } },
+        { id: 'adm-mapa-features-completas', label: 'Mapa: nenhum card renderiza menos features do que o definido (sem clipping)', run: function () {
+          if (window.faInitMapa) window.faInitMapa();
+          if (!window.faMapaPages) return false;
+          var cards = document.querySelectorAll('#adminMapa .mapa-page');
+          if (cards.length !== window.faMapaPages.length) return false;
+          return Array.from(cards).every(function (c, i) {
+            var titulo = c.querySelector('.mapa-page-title').textContent.trim().toLowerCase();
+            var esperado = window.faMapaPages[i].label.toLowerCase();
+            var rendered = c.querySelectorAll('.mapa-feature').length;
+            var definido = window.faMapaPages[i].features.length;
+            return titulo.indexOf(esperado) === 0 && rendered === definido;
+          });
+        } },
         { id: 'adm-testes-panel', label: 'Painel Testes presente', run: function () { return !!document.getElementById('adminPanelTestes'); } },
         { id: 'adm-cadastrados-panel', label: 'Painel Cadastrados presente', run: function () { return !!document.getElementById('adminPanelCadastrados') && !!document.getElementById('adminCadastrados'); } },
         { id: 'adm-cadastrados-lista', label: 'Cadastrados: tabela renderizada com badge de contagem correta', run: function () {
