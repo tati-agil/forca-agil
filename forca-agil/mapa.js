@@ -73,7 +73,6 @@
     },
     { label: 'ADMIN', color: '#ff5252',
       features: [
-        { label: 'Ver link no menu',                          p: ['admin'] },
         { label: 'Ver interessados por turma',                p: ['admin'] },
         { label: 'Moderar repositório',                       p: ['admin'] },
         { label: 'Adicionar / remover colaboradores',         p: ['admin'] },
