@@ -32,7 +32,8 @@
         { label: 'Card "Como funciona" → Conteúdos / Repositório / Treinamento Jedi', p: ['visitante','logado','colaborador','admin'] },
         { label: 'Mini Próximas Turmas (Destaques) → link para Turmas', p: ['visitante','logado','colaborador','admin'] },
         { label: 'Mini Conteúdos (Destaques) → navega para Conteúdos', p: ['visitante','logado','colaborador','admin'] },
-        { label: 'Ranking mini em tempo real (Destaques)', p: ['visitante','logado','colaborador','admin'] },
+        { label: 'Ranking mini (Destaques) em tempo real → link para Ranking', p: ['visitante','logado','colaborador','admin'] },
+        { label: 'Link no rodapé para previ.com.br (externo)', p: ['visitante','logado','colaborador','admin'] },
       ]
     },
     { label: 'TURMAS', color: '#f5c542',

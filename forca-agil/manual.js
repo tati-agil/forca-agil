@@ -118,7 +118,10 @@
       body: 'Lista os 5 conteúdos curados. Clicar em qualquer item navega para a página Conteúdos. Link "Explorar conteúdos" faz o mesmo. Visível para todos.' },
     { section: 'inicio', personas: ['visitante', 'logado', 'colaborador', 'admin'],
       title: 'Ranking mini (bloco Destaques)',
-      body: 'Carrega os dados reais do Firebase em tempo real. Visível para todos.' },
+      body: 'Carrega os dados reais do Firebase em tempo real. Link "Ver ranking completo" navega para a página Ranking. Visível para todos.' },
+    { section: 'inicio', personas: ['visitante', 'logado', 'colaborador', 'admin'],
+      title: 'Link no rodapé para previ.com.br',
+      body: 'Abre o site da Previ em nova aba (link externo). Visível para todos, na parte inferior da página Início.' },
 
     /* ── TURMAS ── */
     { section: 'turmas', personas: ['visitante', 'logado', 'colaborador', 'admin'],

@@ -337,6 +337,11 @@
           if (!document.getElementById('page-ranking')) return false;
           var link = card.querySelector('a[href="#ranking"]');
           return !!link;
+        } },
+        { id: 'c-footer-previ', label: 'Rodapé: link externo para previ.com.br presente e abre em nova aba', run: function () {
+          var link = document.querySelector('.footer-previ');
+          if (!link) return false;
+          return link.getAttribute('href') === 'https://www.previ.com.br' && link.getAttribute('target') === '_blank';
         } }
       ]
     },
