@@ -43,7 +43,15 @@
         { id: 'xp-load',         label: 'faLoadProgress disponível',                                 run: function () { return typeof window.faLoadProgress === 'function'; } },
         { id: 'xp-save',         label: 'faSyncProgress disponível',                                 run: function () { return typeof window.faSyncProgress === 'function'; } },
         { id: 'xp-sync',         label: 'faSyncPlayer disponível',                                   run: function () { return typeof window.faSyncPlayer === 'function'; } },
-        { id: 'xp-clean-rank',   label: 'faCleanRanking disponível (remove entrada sem reveal)',      run: function () { return typeof window.faCleanRanking === 'function'; } }
+        { id: 'xp-clean-rank',   label: 'faCleanRanking disponível (remove entrada sem reveal)',      run: function () { return typeof window.faCleanRanking === 'function'; } },
+        { id: 'xp-revelar-btn',  label: 'Botão REVELAR presente no DOM',                              run: function () { return !!document.getElementById('revelarBtn'); } },
+        { id: 'xp-revelar-hint', label: 'REVELAR: atualiza status ao receber fa-auth-change',         run: function () {
+          var hint = document.querySelector('.revelar-hint');
+          if (!hint) return false;
+          var antes = hint.innerHTML;
+          window.dispatchEvent(new CustomEvent('fa-auth-change', { detail: null }));
+          return hint.innerHTML !== '' && typeof hint.innerHTML === 'string';
+        } }
       ]
     },
     {
