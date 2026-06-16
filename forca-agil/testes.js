@@ -735,9 +735,20 @@
         allTests.push({ group: g.group, test: t });
       });
     });
+    // Stub global: impede que qualquer teste escreva no Firebase real durante a execução.
+    // Testes que precisam verificar chamadas ao Firebase fazem seu próprio stub interno.
+    const _origSyncProgress = window.faSyncProgress;
+    const _origSyncPlayer   = window.faSyncPlayer;
+    window.faSyncProgress = function() {};
+    window.faSyncPlayer   = function() {};
     let i = 0;
     function next() {
-      if (i >= allTests.length) { onDone(results); return; }
+      if (i >= allTests.length) {
+        window.faSyncProgress = _origSyncProgress;
+        window.faSyncPlayer   = _origSyncPlayer;
+        onDone(results);
+        return;
+      }
       const item = allTests[i++];
       function finish(passed, err) {
         results.push({ group: item.group, id: item.test.id, label: item.test.label, passed: passed, err: err || null });
