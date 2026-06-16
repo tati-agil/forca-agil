@@ -44,13 +44,47 @@
         { id: 'xp-save',         label: 'faSyncProgress disponível',                                 run: function () { return typeof window.faSyncProgress === 'function'; } },
         { id: 'xp-sync',         label: 'faSyncPlayer disponível',                                   run: function () { return typeof window.faSyncPlayer === 'function'; } },
         { id: 'xp-clean-rank',   label: 'faCleanRanking disponível (remove entrada sem reveal)',      run: function () { return typeof window.faCleanRanking === 'function'; } },
-        { id: 'xp-revelar-btn',  label: 'Botão REVELAR presente no DOM',                              run: function () { return !!document.getElementById('revelarBtn'); } },
-        { id: 'xp-revelar-hint', label: 'REVELAR: atualiza status ao receber fa-auth-change',         run: function () {
+        { id: 'xp-revelar-bloqueado', label: 'REVELAR bloqueado enquanto etapas pendentes', run: function () {
+          var btn = document.getElementById('revelarBtn');
           var hint = document.querySelector('.revelar-hint');
-          if (!hint) return false;
-          var antes = hint.innerHTML;
+          if (!btn || !hint) return false;
+          var st = window.faStore || localStorage;
+          // salva estado atual
+          var backup = { game: st.getItem('fa-game-v2'), kyber: st.getItem('fa-kyber-done') };
+          // força estado vazio (nenhuma etapa concluída)
+          st.setItem('fa-game-v2', JSON.stringify({ quiz: Array(6).fill(null), missions: {} }));
+          st.setItem('fa-kyber-done', '0');
           window.dispatchEvent(new CustomEvent('fa-auth-change', { detail: null }));
-          return hint.innerHTML !== '' && typeof hint.innerHTML === 'string';
+          var bloqueado = btn.dataset.locked === '1';
+          var mostraX = hint.innerHTML.indexOf('✗') !== -1;
+          // restaura estado original
+          if (backup.game !== null) st.setItem('fa-game-v2', backup.game); else st.removeItem('fa-game-v2');
+          if (backup.kyber !== null) st.setItem('fa-kyber-done', backup.kyber); else st.removeItem('fa-kyber-done');
+          window.dispatchEvent(new CustomEvent('fa-auth-change', { detail: null }));
+          return bloqueado && mostraX;
+        } },
+        { id: 'xp-revelar-liberado', label: 'REVELAR desbloqueado com 3 etapas completas', run: function () {
+          var btn = document.getElementById('revelarBtn');
+          var hint = document.querySelector('.revelar-hint');
+          if (!btn || !hint) return false;
+          var st = window.faStore || localStorage;
+          // salva estado atual
+          var backup = { game: st.getItem('fa-game-v2'), kyber: st.getItem('fa-kyber-done') };
+          // força estado completo (todas as etapas concluídas)
+          var missions = {};
+          Array.from({length: 6}, function(_, i) {
+            missions['m' + (i+1)] = { answers: [0, 0, 0] };
+          });
+          st.setItem('fa-game-v2', JSON.stringify({ quiz: [1,2,3,1,2,3], missions: missions }));
+          st.setItem('fa-kyber-done', '1');
+          window.dispatchEvent(new CustomEvent('fa-auth-change', { detail: null }));
+          var liberado = btn.dataset.locked !== '1';
+          var mostraCheck = hint.innerHTML.indexOf('✓') !== -1;
+          // restaura estado original
+          if (backup.game !== null) st.setItem('fa-game-v2', backup.game); else st.removeItem('fa-game-v2');
+          if (backup.kyber !== null) st.setItem('fa-kyber-done', backup.kyber); else st.removeItem('fa-kyber-done');
+          window.dispatchEvent(new CustomEvent('fa-auth-change', { detail: null }));
+          return liberado && mostraCheck;
         } }
       ]
     },
