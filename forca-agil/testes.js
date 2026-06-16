@@ -118,6 +118,70 @@
           if (backup.kyber !== null) st.setItem('fa-kyber-done', backup.kyber); else st.removeItem('fa-kyber-done');
           window.dispatchEvent(new CustomEvent('fa-auth-change', { detail: null }));
           return pendenteAntes && liberadoSemRefresh && mostraCheck;
+        } },
+        { id: 'xp-revelar-parciais', label: 'REVELAR: mensagem correta para 1 ou 2 etapas pendentes', run: function () {
+          var btn = document.getElementById('revelarBtn');
+          var hint = document.querySelector('.revelar-hint');
+          if (!btn || !hint) return false;
+          if (!window.faGameData) return false;
+          var st = window.faStore || localStorage;
+          var backup = { game: st.getItem('fa-game-v2'), kyber: st.getItem('fa-kyber-done') };
+          var missions = {};
+          window.faGameData.MISSIONS.forEach(function (m) {
+            missions[m.id] = { answers: m.questions.map(function () { return 0; }) };
+          });
+          var quizDone = window.faGameData.DIMS.map(function () { return 1; });
+          var quizPend = Array(window.faGameData.DIMS.length).fill(null);
+          function setState(auto, miss, kyber) {
+            st.setItem('fa-game-v2', JSON.stringify({ quiz: auto ? quizDone : quizPend, missions: miss ? missions : {} }));
+            st.setItem('fa-kyber-done', kyber ? '1' : '0');
+            window.dispatchEvent(new CustomEvent('fa-progress-change'));
+            return { locked: btn.dataset.locked === '1', html: hint.innerHTML };
+          }
+          // só falta 1 etapa: deve mostrar "Falta completar: <etapa>." e ficar bloqueado
+          var soFaltaKyber = setState(true, true, false);
+          var soFaltaMissoes = setState(true, false, true);
+          var soFaltaAuto = setState(false, true, true);
+          // faltam 2 etapas: deve mostrar "Faltam: X e Y." e ficar bloqueado
+          var faltam2 = setState(false, false, true);
+          // restaura estado original
+          if (backup.game !== null) st.setItem('fa-game-v2', backup.game); else st.removeItem('fa-game-v2');
+          if (backup.kyber !== null) st.setItem('fa-kyber-done', backup.kyber); else st.removeItem('fa-kyber-done');
+          window.dispatchEvent(new CustomEvent('fa-auth-change', { detail: null }));
+          return soFaltaKyber.locked && soFaltaKyber.html.indexOf('Falta completar: Kyber Game.') !== -1 &&
+            soFaltaMissoes.locked && soFaltaMissoes.html.indexOf('Falta completar: missões.') !== -1 &&
+            soFaltaAuto.locked && soFaltaAuto.html.indexOf('Falta completar: autodiagnóstico.') !== -1 &&
+            faltam2.locked && faltam2.html.indexOf('Faltam: autodiagnóstico e missões.') !== -1;
+        } },
+        { id: 'xp-revelar-ordem-livre', label: 'REVELAR: libera com as 3 etapas completas em qualquer ordem', run: function () {
+          var btn = document.getElementById('revelarBtn');
+          var hint = document.querySelector('.revelar-hint');
+          if (!btn || !hint) return false;
+          if (!window.faGameData) return false;
+          var st = window.faStore || localStorage;
+          var backup = { game: st.getItem('fa-game-v2'), kyber: st.getItem('fa-kyber-done') };
+          var missions = {};
+          window.faGameData.MISSIONS.forEach(function (m) {
+            missions[m.id] = { answers: m.questions.map(function () { return 0; }) };
+          });
+          var quizDone = window.faGameData.DIMS.map(function () { return 1; });
+          var quizPend = Array(window.faGameData.DIMS.length).fill(null);
+          function setState(auto, miss, kyber) {
+            st.setItem('fa-game-v2', JSON.stringify({ quiz: auto ? quizDone : quizPend, missions: miss ? missions : {} }));
+            st.setItem('fa-kyber-done', kyber ? '1' : '0');
+            window.dispatchEvent(new CustomEvent('fa-progress-change'));
+          }
+          // simula a pessoa completando na ordem Kyber -> Missões -> Autodiagnóstico
+          setState(false, false, false);
+          setState(false, false, true);
+          setState(false, true, true);
+          setState(true, true, true);
+          var liberado = btn.dataset.locked !== '1';
+          var mostraTexto = hint.innerHTML.indexOf('completou as 3 etapas') !== -1;
+          if (backup.game !== null) st.setItem('fa-game-v2', backup.game); else st.removeItem('fa-game-v2');
+          if (backup.kyber !== null) st.setItem('fa-kyber-done', backup.kyber); else st.removeItem('fa-kyber-done');
+          window.dispatchEvent(new CustomEvent('fa-auth-change', { detail: null }));
+          return liberado && mostraTexto;
         } }
       ]
     },

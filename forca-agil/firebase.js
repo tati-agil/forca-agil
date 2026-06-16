@@ -348,7 +348,8 @@
         revelarBtn.dataset.locked = '1';
         const hint = document.querySelector('.revelar-hint');
         const _faltam = [!prog.autoDone && 'autodiagnóstico', !prog.missoesDone && 'missões', !prog.kyberDone && 'Kyber Game'].filter(Boolean);
-        const _faltaMsg = _faltam.length === 1 ? 'Falta completar: ' + _faltam[0] + '.' : 'Faltam: ' + _faltam.join(' e ') + '.';
+        const _faltaLista = _faltam.length <= 2 ? _faltam.join(' e ') : _faltam.slice(0, -1).join(', ') + ' e ' + _faltam[_faltam.length - 1];
+        const _faltaMsg = _faltam.length === 1 ? 'Falta completar: ' + _faltam[0] + '.' : 'Faltam: ' + _faltaLista + '.';
         if (hint) hint.innerHTML =
           (prog.autoDone ? '<span style="color:var(--accent)">✓' : '<span style="color:var(--ink-3)">✗') + ' Autodiagnóstico</span> · ' +
           (prog.missoesDone ? '<span style="color:var(--accent)">✓' : '<span style="color:var(--ink-3)">✗') + ' Missões</span> · ' +
