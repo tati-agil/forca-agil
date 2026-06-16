@@ -102,6 +102,12 @@
       title: 'Botão "Conhecer a iniciativa"',
       body: 'Rola a página para a seção "O que é a Força Ágil". Funciona igual para todos.' },
     { section: 'inicio', personas: ['visitante', 'logado', 'colaborador', 'admin'],
+      title: 'Botão "Repetir abertura"',
+      body: 'Reinicia a animação do crawl de abertura ("Episódio I — O Despertar da Agilidade"). Funciona igual para todos, não depende de login.' },
+    { section: 'inicio', personas: ['visitante', 'logado', 'colaborador', 'admin'],
+      title: 'Contador de agentes ativos (Hero)',
+      body: 'Mostra o número de agentes ativos em tempo real, com label no singular/plural dinâmico ("agente ativo" / "agentes ativos"). Carrega do Firebase.' },
+    { section: 'inicio', personas: ['visitante', 'logado', 'colaborador', 'admin'],
       title: 'Ranking mini (bloco Destaques)',
       body: 'Carrega os dados reais do Firebase em tempo real. Visível para todos.' },
 
