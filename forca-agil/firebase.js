@@ -68,7 +68,7 @@
 
   // ---- Sync progress to Firebase (para restaurar em qualquer browser) ----
   const _PROGRESS_KEYS = ['fa-game-v2','fa-missions-xp','fa-kyber-done','fa-kyber-xp',
-                        'fa-patente-revealed','fa-content-read','fa-content-xp','fa-repo-xp',
+                        'fa-patente-revealed','fa-patente-publicada','fa-content-read','fa-content-xp','fa-repo-xp',
                         'kyber-game-v1','kyber-ranking-v1'];
   window.faSyncProgress = function() {
     if (!fbReady) return;
@@ -113,13 +113,13 @@
     }).catch(function() { if (cb) cb(); });
   };
 
-  // ---- Remove entrada do ranking se patente não foi revelada ----
+  // ---- Remove entrada do ranking se patente não foi publicada ----
   window.faCleanRanking = function() {
     if (!fbReady) return;
     const p = getPlayer();
     if (!p) return;
-    const revealed = _st().getItem('fa-patente-revealed') === '1';
-    if (!revealed) {
+    const publicada = _st().getItem('fa-patente-publicada') === '1';
+    if (!publicada) {
       const key = playerKey(p);
       if (key) firebase.database().ref('players/' + key).remove()
         .catch(function() {});
@@ -149,9 +149,9 @@
       updatedAt: new Date().toISOString()
     };
     const key = playerKey(p);
-    /* Só publica no ranking se a patente foi revelada explicitamente */
-    const revealed = _st().getItem('fa-patente-revealed') === '1';
-    if (fbReady && revealed) {
+    /* Só publica no ranking se a pessoa optou explicitamente por publicar (passo separado de revelar) */
+    const publicada = _st().getItem('fa-patente-publicada') === '1';
+    if (fbReady && publicada) {
       firebase.database().ref('players/' + key).set(entry)
         .catch(function(err) { console.warn('Firebase sync error:', err); });
     }
@@ -339,7 +339,7 @@
         if (hint) hint.innerHTML =
           '<span style="color:var(--accent)">✓ Autodiagnóstico</span> · ' +
           '<span style="color:var(--accent)">✓ Missões</span> · ' +
-          '<span style="color:var(--accent)">✓ Kyber Game</span><br>Você completou as 3 etapas! Publique sua patente.';
+          '<span style="color:var(--accent)">✓ Kyber Game</span><br>Você completou as 3 etapas! Revele sua patente.';
       } else {
         revelarBtn.disabled = false;
         revelarBtn.style.opacity = '0.45';
@@ -355,11 +355,60 @@
       }
     }
 
-    updateRevelarBtn();
-    window.addEventListener('fa-player-registered', updateRevelarBtn);
-    window.addEventListener('fa-auth-change', updateRevelarBtn);
-    window.addEventListener('fa-progress-change', updateRevelarBtn);
-    window.addEventListener('storage', updateRevelarBtn);
+    // ---- Pós-revelação: patente fixada, publicação no ranking é etapa separada e opcional ----
+    function currentTotalEPatente() {
+      const gxp = getGameXP();
+      const kxp = getKyberXP();
+      const cxp = getContentXP();
+      const rxp = getRepoXP();
+      const total = Math.min(100, gxp.xpAuto + gxp.xpMissoes + kxp + cxp + rxp);
+      return { total: total, patente: getRank(total) };
+    }
+
+    function renderRevealedState() {
+      const wrap = document.getElementById('revelarWrap');
+      if (!wrap) return;
+      const tp = currentTotalEPatente();
+      const publicada = _st().getItem('fa-patente-publicada') === '1';
+      if (publicada) {
+        wrap.innerHTML =
+          '<p style="font-family:var(--font-mono);font-size:.9rem;color:var(--accent);text-align:center;padding:24px">' +
+          '✓ Patente revelada: <strong>' + tp.patente + ' · ' + tp.total + ' XP</strong><br>Publicada no ranking da galáxia!</p>';
+        return;
+      }
+      wrap.innerHTML =
+        '<div class="revelar-box">' +
+          '<div class="revelar-patente">' + tp.patente + ' · ' + tp.total + ' XP</div>' +
+          '<p class="revelar-aviso">Sua patente já foi revelada — esse resultado é só seu. Publicar no ranking é opcional: seu nome e XP ficarão visíveis para toda a turma.</p>' +
+          '<div class="revelar-actions">' +
+            '<button class="btn btn--primary" id="publicarRankingBtn">Publicar no ranking →</button>' +
+          '</div>' +
+        '</div>';
+      const publicarBtn = document.getElementById('publicarRankingBtn');
+      if (publicarBtn) publicarBtn.addEventListener('click', function() {
+        try { _st().setItem('fa-patente-publicada', '1'); } catch(e) {}
+        window.faSyncPlayer();
+        renderRevealedState();
+        setTimeout(function() {
+          var hud = document.getElementById('rankHud');
+          if (hud) hud.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        }, 400);
+      });
+    }
+
+    function refreshRevelarUI() {
+      if (_st().getItem('fa-patente-revealed') === '1') {
+        renderRevealedState();
+      } else {
+        updateRevelarBtn();
+      }
+    }
+
+    refreshRevelarUI();
+    window.addEventListener('fa-player-registered', refreshRevelarUI);
+    window.addEventListener('fa-auth-change', refreshRevelarUI);
+    window.addEventListener('fa-progress-change', refreshRevelarUI);
+    window.addEventListener('storage', refreshRevelarUI);
 
     if (revelarBtn) revelarBtn.addEventListener('click', function() {
       if (revelarBtn.dataset.locked === '1') {
@@ -379,13 +428,8 @@
       }
       const prog = checkProgress();
       if (!prog.allDone) return;
-      const gxp   = getGameXP();
-      const kxp   = getKyberXP();
-      const cxp   = getContentXP();
-      const rxp   = getRepoXP();
-      const total = Math.min(100, gxp.xpAuto + gxp.xpMissoes + kxp + cxp + rxp);
-      const patente = getRank(total);
-      if (revelarPatente) revelarPatente.textContent = patente + ' · ' + total + ' XP';
+      const tp = currentTotalEPatente();
+      if (revelarPatente) revelarPatente.textContent = tp.patente + ' · ' + tp.total + ' XP';
       if (revelarConfirm) revelarConfirm.hidden = false;
     });
 
@@ -396,16 +440,7 @@
     if (revelarOk) revelarOk.addEventListener('click', function() {
       if (revelarConfirm) revelarConfirm.hidden = true;
       try { _st().setItem('fa-patente-revealed', '1'); } catch(e) {}
-      window.faSyncPlayer();
-      // troca botão por mensagem de confirmação
-      const wrap = document.getElementById('revelarWrap');
-      if (wrap) wrap.innerHTML =
-        '<p style="font-family:var(--font-mono);font-size:.9rem;color:var(--accent);text-align:center;padding:24px">' +
-        '✓ Patente publicada no ranking da galáxia!</p>';
-      setTimeout(function() {
-        var hud = document.getElementById('rankHud');
-        if (hud) hud.scrollIntoView({ behavior: 'smooth', block: 'center' });
-      }, 400);
+      renderRevealedState();
     });
 
     // Register home ranking with router

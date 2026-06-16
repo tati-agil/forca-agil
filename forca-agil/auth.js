@@ -66,7 +66,7 @@
     return _session && _session.email ? 'fa-u-' + emailKey(_session.email) + '-' : '';
   }
   const _GAME_KEYS = ['fa-game-v2', 'fa-missions-xp', 'fa-kyber-done', 'fa-kyber-xp',
-                    'fa-patente-revealed', 'fa-content-read', 'fa-content-xp', 'fa-repo-xp',
+                    'fa-patente-revealed', 'fa-patente-publicada', 'fa-content-read', 'fa-content-xp', 'fa-repo-xp',
                     'kyber-game-v1', 'kyber-ranking-v1'];
   window.faStore = {
     getItem: function (k) {

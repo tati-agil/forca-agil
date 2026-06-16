@@ -13,7 +13,7 @@
     { key: 'visitante',   label: 'Visitante',      color: '#888888',
       adds: ['Ver páginas públicas (Início, Turmas, Conteúdos, Repositório, Ranking)', 'Cadastrar conta (@previ.com.br)', 'Fazer login', 'Recuperar senha por e-mail (autoatendimento)'] },
     { key: 'logado',      label: 'Usuário logado', color: '#1ab2ae',
-      adds: ['Acessar e jogar o Treinamento Jedi', 'Ganhar XP por conteúdos lidos', 'Adicionar e remover conteúdos no Repositório', 'Registrar interesse em turmas', 'Revelar patente e entrar no ranking'] },
+      adds: ['Acessar e jogar o Treinamento Jedi', 'Ganhar XP por conteúdos lidos', 'Adicionar e remover conteúdos no Repositório', 'Registrar interesse em turmas', 'Revelar patente (resultado fixo, só seu)', 'Publicar no ranking (opcional, separado de revelar)'] },
     { key: 'colaborador', label: 'Colaborador',    color: '#f5c542',
       adds: ['Expandir Agenda D1–D5 na página Turmas'] },
     { key: 'admin',       label: 'Admin',          color: '#ff5252',
@@ -68,7 +68,8 @@
         { label: 'Missões (1×)',                          p: ['logado','colaborador','admin'] },
         { label: 'Kyber Game (1×)',                       p: ['logado','colaborador','admin'] },
         { label: 'Ver painel de patente em tempo real',  p: ['logado','colaborador','admin'] },
-        { label: 'Revelar patente',                      p: ['logado','colaborador','admin'] },
+        { label: 'Revelar patente (fixa resultado, só para si — não publica)', p: ['logado','colaborador','admin'] },
+        { label: 'Publicar no ranking (opcional, exige ter revelado)', p: ['logado','colaborador','admin'] },
       ]
     },
     { label: 'RANKING', color: '#57aaff',

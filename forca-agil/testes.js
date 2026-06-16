@@ -182,6 +182,61 @@
           if (backup.kyber !== null) st.setItem('fa-kyber-done', backup.kyber); else st.removeItem('fa-kyber-done');
           window.dispatchEvent(new CustomEvent('fa-auth-change', { detail: null }));
           return liberado && mostraTexto;
+        } },
+        { id: 'xp-revelar-publicar-separados', label: 'Revelar e Publicar são ações separadas — revelar não publica no ranking', run: function () {
+          if (!window.faGameData) return false;
+          var st = window.faStore || localStorage;
+          var backup = {
+            game: st.getItem('fa-game-v2'), kyber: st.getItem('fa-kyber-done'),
+            revealed: st.getItem('fa-patente-revealed'), publicada: st.getItem('fa-patente-publicada'),
+            player: localStorage.getItem('fa-player')
+          };
+          var origDb = window.firebase && window.firebase.database;
+          var setCalled = false;
+          try {
+            if (window.firebase) {
+              window.firebase.database = function () {
+                return { ref: function () { return { set: function (data, cb) { setCalled = true; if (cb) cb(); return Promise.resolve(); } }; } };
+              };
+            }
+            var missions = {};
+            window.faGameData.MISSIONS.forEach(function (m) {
+              missions[m.id] = { answers: m.questions.map(function () { return 0; }) };
+            });
+            st.setItem('fa-game-v2', JSON.stringify({ quiz: window.faGameData.DIMS.map(function () { return 1; }), missions: missions }));
+            st.setItem('fa-kyber-done', '1');
+            st.removeItem('fa-patente-revealed');
+            st.removeItem('fa-patente-publicada');
+            localStorage.setItem('fa-player', JSON.stringify({ name: 'Teste Automatizado XYZ', turma: 'XX', area: 'XX' }));
+            window.dispatchEvent(new CustomEvent('fa-progress-change'));
+
+            var revelarBtn = document.getElementById('revelarBtn');
+            if (!revelarBtn || revelarBtn.dataset.locked === '1') return false;
+            revelarBtn.click();
+            var revelarOk = document.getElementById('revelarOk');
+            if (!revelarOk) return false;
+            revelarOk.click();
+
+            var revelado = st.getItem('fa-patente-revealed') === '1';
+            var aindaNaoPublicada = st.getItem('fa-patente-publicada') !== '1';
+            var semFirebaseAoRevelar = !setCalled;
+            var btnPublicar = document.getElementById('publicarRankingBtn');
+            var temBotaoPublicar = !!btnPublicar;
+
+            if (btnPublicar) btnPublicar.click();
+            var publicadaAposClicar = st.getItem('fa-patente-publicada') === '1';
+            var chamouFirebaseAoPublicar = setCalled;
+
+            return revelado && aindaNaoPublicada && semFirebaseAoRevelar && temBotaoPublicar && publicadaAposClicar && chamouFirebaseAoPublicar;
+          } finally {
+            if (window.firebase && origDb) window.firebase.database = origDb;
+            if (backup.game !== null) st.setItem('fa-game-v2', backup.game); else st.removeItem('fa-game-v2');
+            if (backup.kyber !== null) st.setItem('fa-kyber-done', backup.kyber); else st.removeItem('fa-kyber-done');
+            if (backup.revealed !== null) st.setItem('fa-patente-revealed', backup.revealed); else st.removeItem('fa-patente-revealed');
+            if (backup.publicada !== null) st.setItem('fa-patente-publicada', backup.publicada); else st.removeItem('fa-patente-publicada');
+            if (backup.player !== null) localStorage.setItem('fa-player', backup.player); else localStorage.removeItem('fa-player');
+            window.dispatchEvent(new CustomEvent('fa-progress-change'));
+          }
         } }
       ]
     },
@@ -602,8 +657,11 @@
       title: 'Visitante é redirecionado para cadastro ao tentar entrar',
       motivo: 'Requer estar deslogado.' },
     { section: 'Treinamento Jedi',
-      title: 'Revelar patente — publicação definitiva',
-      motivo: 'Ação completamente irreversível — publicaria patente no ranking.' },
+      title: 'Revelar patente — confirmação real',
+      motivo: 'Ação irreversível (fixa o resultado definitivamente) — não deve ser executada em teste automatizado com dado real.' },
+    { section: 'Treinamento Jedi',
+      title: 'Publicar no ranking — publicação real',
+      motivo: 'Ação irreversível (não tem como "despublicar") e escreveria no Firebase de produção — não deve ser executada em teste automatizado com dado real.' },
     { section: 'Treinamento Jedi',
       title: 'Reset de progresso (Admin) — apaga e remove do ranking',
       motivo: 'Ação destrutiva real. Não deve ser executada em teste automatizado.' },
