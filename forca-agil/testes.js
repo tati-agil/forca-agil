@@ -270,21 +270,21 @@
         { id: 'c-quiz-patentes',  label: '4 patentes exibidas (Youngling→Mestre)', run: function () { return document.querySelectorAll('.char-card').length >= 4; } },
         { id: 'c-quiz-previx',    label: 'Droide Previx (guia) presente',          run: function () { return !!document.querySelector('.guide-droide') || !!document.getElementById('guideMsg'); } },
         { id: 'c-quiz-auto-1x', label: 'Autodiagnóstico (1×): opções bloqueadas após concluído', run: function () {
-          if (!window.faGameData || !window.faGameRender) return false;
+          if (!window.faGameData || !window.faGameReload) return false;
           var st = window.faStore || localStorage;
           var backup = st.getItem('fa-game-v2');
           var current = (function () { try { return JSON.parse(backup || 'null'); } catch (e) { return null; } })() || { quiz: [], missions: {} };
           var quizCompleto = window.faGameData.DIMS.map(function () { return 1; });
           st.setItem('fa-game-v2', JSON.stringify({ quiz: quizCompleto, missions: current.missions || {} }));
-          window.faGameRender();
+          window.faGameReload();
           var opts = document.querySelectorAll('.q-opt');
           var todasBloqueadas = opts.length > 0 && Array.from(opts).every(function (b) { return b.disabled; });
           if (backup !== null) st.setItem('fa-game-v2', backup); else st.removeItem('fa-game-v2');
-          window.faGameRender();
+          window.faGameReload();
           return todasBloqueadas;
         } },
         { id: 'c-quiz-missao-1x', label: 'Missões (1×): missão concluída não reabre ao clicar', run: function () {
-          if (!window.faGameData || !window.faGameRender) return false;
+          if (!window.faGameData || !window.faGameReload) return false;
           var st = window.faStore || localStorage;
           var backup = st.getItem('fa-game-v2');
           var current = (function () { try { return JSON.parse(backup || 'null'); } catch (e) { return null; } })() || { quiz: [], missions: {} };
@@ -292,7 +292,7 @@
           var missions = {};
           missions[primeira.id] = { answers: primeira.questions.map(function () { return 0; }) };
           st.setItem('fa-game-v2', JSON.stringify({ quiz: current.quiz || [], missions: missions }));
-          window.faGameRender();
+          window.faGameReload();
           var wrap = document.querySelector('.mission-wrap[data-id="' + primeira.id + '"]');
           var header = wrap && wrap.querySelector('.mission');
           var bloqueada = false;
@@ -302,7 +302,7 @@
             bloqueada = !wrap.classList.contains('open');
           }
           if (backup !== null) st.setItem('fa-game-v2', backup); else st.removeItem('fa-game-v2');
-          window.faGameRender();
+          window.faGameReload();
           return !!header && bloqueada;
         } },
         { id: 'c-quiz-kyber-1x', label: 'Kyber Game (1×): bloqueado para replay após concluído', run: function () {

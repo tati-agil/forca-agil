@@ -393,4 +393,15 @@
 
   // expõe render globalmente para firebase.js atualizar HUD após kyber
   window.faGameRender = render;
+  // recarrega o estado do localStorage/faStore (ex.: após reset do admin) e re-renderiza
+  window.faGameReload = function () {
+    try {
+      const saved = JSON.parse((window.faStore || localStorage).getItem(STORE) || 'null');
+      state = (saved && Array.isArray(saved.quiz)) ? { quiz: saved.quiz, missions: saved.missions || {} } : { quiz: Array(DIMS.length).fill(null), missions: {} };
+    } catch (e) { state = { quiz: Array(DIMS.length).fill(null), missions: {} }; }
+    MISSIONS.forEach(m => {
+      if (!state.missions[m.id]) state.missions[m.id] = { answers: Array(m.questions.length).fill(null) };
+    });
+    render();
+  };
 })();
