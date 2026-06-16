@@ -29,7 +29,7 @@
         { label: 'Botão "Conhecer a iniciativa" → rola até "O que é"', p: ['visitante','logado','colaborador','admin'] },
         { label: 'Botão "Repetir abertura" → replay do crawl de intro', p: ['visitante','logado','colaborador','admin'] },
         { label: 'Contador de agentes ativos em tempo real', p: ['visitante','logado','colaborador','admin'] },
-        { label: 'Card "Como funciona" → Conteúdos / Repositório / Treinamento Jedi', p: ['visitante','logado','colaborador','admin'] },
+        { label: '3 cards "Como funciona" → links para Conteúdos / Repositório / Treinamento Jedi', p: ['visitante','logado','colaborador','admin'] },
         { label: 'Mini Próximas Turmas (Destaques) → link para Turmas', p: ['visitante','logado','colaborador','admin'] },
         { label: 'Mini Conteúdos (Destaques) → navega para Conteúdos', p: ['visitante','logado','colaborador','admin'] },
         { label: 'Ranking mini (Destaques) em tempo real → link para Ranking', p: ['visitante','logado','colaborador','admin'] },
