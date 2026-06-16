@@ -87,6 +87,7 @@
     const eKey = (p.email || '').toLowerCase().replace(/[@.]/g, '_').replace(/[^a-z0-9_]/g, '').slice(0, 64);
     firebase.database().ref('fa-progress/' + eKey).set(data)
       .catch(function(e) { console.warn('faSyncProgress error:', e); });
+    window.dispatchEvent(new CustomEvent('fa-progress-change'));
   };
 
   // ---- Load progress from Firebase on login ----
@@ -357,6 +358,7 @@
     updateRevelarBtn();
     window.addEventListener('fa-player-registered', updateRevelarBtn);
     window.addEventListener('fa-auth-change', updateRevelarBtn);
+    window.addEventListener('fa-progress-change', updateRevelarBtn);
     window.addEventListener('storage', updateRevelarBtn);
 
     if (revelarBtn) revelarBtn.addEventListener('click', function() {
