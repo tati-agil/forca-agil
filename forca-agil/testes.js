@@ -67,15 +67,17 @@
           var btn = document.getElementById('revelarBtn');
           var hint = document.querySelector('.revelar-hint');
           if (!btn || !hint) return false;
+          if (!window.faGameData) return false;
           var st = window.faStore || localStorage;
           // salva estado atual
           var backup = { game: st.getItem('fa-game-v2'), kyber: st.getItem('fa-kyber-done') };
-          // força estado completo (todas as etapas concluídas)
+          // força estado completo usando IDs e quantidade de perguntas reais
           var missions = {};
-          Array.from({length: 6}, function(_, i) {
-            missions['m' + (i+1)] = { answers: [0, 0, 0] };
+          window.faGameData.MISSIONS.forEach(function (m) {
+            missions[m.id] = { answers: m.questions.map(function () { return 0; }) };
           });
-          st.setItem('fa-game-v2', JSON.stringify({ quiz: [1,2,3,1,2,3], missions: missions }));
+          var quiz = window.faGameData.DIMS.map(function () { return 1; });
+          st.setItem('fa-game-v2', JSON.stringify({ quiz: quiz, missions: missions }));
           st.setItem('fa-kyber-done', '1');
           window.dispatchEvent(new CustomEvent('fa-auth-change', { detail: null }));
           var liberado = btn.dataset.locked !== '1';
