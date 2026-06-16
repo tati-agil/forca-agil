@@ -434,6 +434,23 @@
           var bloqueado = window.kyberAlreadyPlayed() === true;
           if (backup !== null) st.setItem('fa-kyber-done', backup); else st.removeItem('fa-kyber-done');
           return bloqueado;
+        } },
+        { id: 'c-quiz-patente-inclui-conteudo-repo', label: 'Painel de patente soma XP de Conteúdos e Repositório (não só auto/missões/kyber)', run: function () {
+          if (typeof window.faGameReload !== 'function') return false;
+          var st = window.faStore || localStorage;
+          var backup = { contentXP: st.getItem('fa-content-xp'), repoXP: st.getItem('fa-repo-xp') };
+          st.setItem('fa-content-xp', '0');
+          st.setItem('fa-repo-xp', '0');
+          window.faGameReload();
+          var nomeAntes = document.getElementById('hudName').textContent;
+          st.setItem('fa-content-xp', '100');
+          st.setItem('fa-repo-xp', '100');
+          window.faGameReload();
+          var nomeDepois = document.getElementById('hudName').textContent;
+          if (backup.contentXP !== null) st.setItem('fa-content-xp', backup.contentXP); else st.removeItem('fa-content-xp');
+          if (backup.repoXP !== null) st.setItem('fa-repo-xp', backup.repoXP); else st.removeItem('fa-repo-xp');
+          window.faGameReload();
+          return nomeDepois === 'Mestre' && nomeAntes !== 'Mestre';
         } }
       ]
     },

@@ -92,11 +92,13 @@
     const totalQuestions = MISSIONS.reduce((acc, m) => acc + m.questions.length, 0);
     const mXP  = Math.round(totalCorrect / totalQuestions * MISS_MAX);
     const mDone = MISSIONS.filter(m => missionDone(m)).length;
-    // kyberXP vem do localStorage (salvo por firebase.js após o game)
+    // kyberXP, contentXP e repoXP vêm do localStorage (salvos por firebase.js)
     const kyberXP = (() => { try { return parseInt((window.faStore || localStorage).getItem('fa-kyber-xp') || '0', 10) || 0; } catch(e) { return 0; } })();
+    const contentXP = (() => { try { return parseInt((window.faStore || localStorage).getItem('fa-content-xp') || '0', 10) || 0; } catch(e) { return 0; } })();
+    const repoXP = (() => { try { return parseInt((window.faStore || localStorage).getItem('fa-repo-xp') || '0', 10) || 0; } catch(e) { return 0; } })();
     const kyberDone = (window.faStore || localStorage).getItem('fa-kyber-done') === '1';
     const allDone = quizDone && mDone === MISSIONS.length && kyberDone;
-    const xp   = Math.min(100, quizXP + mXP + kyberXP);
+    const xp   = Math.min(100, quizXP + mXP + kyberXP + contentXP + repoXP);
     let rankIdx = 0;
     for (let i = 0; i < RANKS.length; i++) if (xp >= RANKS[i].min) rankIdx = i;
     return { xp, quizXP, mXP, kyberXP, quizDone, mDone, kyberDone, allDone, rankIdx };

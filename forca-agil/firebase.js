@@ -173,7 +173,9 @@
 
     const p     = getPlayer() || { name: gameState.playerName || 'Agente', area: '', turma: '' };
     const gxp   = getGameXP();
-    const total = Math.min(100, gxp.xpAuto + gxp.xpMissoes + kyberXP);
+    const cxp   = getContentXP();
+    const rxp   = getRepoXP();
+    const total = Math.min(100, gxp.xpAuto + gxp.xpMissoes + kyberXP + cxp + rxp);
 
     const go = document.getElementById('kyber-gameover');
     if (go) {
