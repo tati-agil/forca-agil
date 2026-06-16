@@ -435,6 +435,25 @@
           if (backup !== null) st.setItem('fa-kyber-done', backup); else st.removeItem('fa-kyber-done');
           return bloqueado;
         } },
+        { id: 'c-kyber-sem-patente-na-tela', label: 'Kyber Game: tela de conclusão mostra pontuação/XP, mas não "Patente" (estado transitório)', run: function () {
+          if (typeof window.kyberFinishGame !== 'function' || typeof gameState === 'undefined') return false;
+          var st = window.faStore || localStorage;
+          var backupDone = st.getItem('fa-kyber-done');
+          var backupXP = st.getItem('fa-kyber-xp');
+          var backupScore = gameState.totalScore;
+          gameState.totalScore = 12345;
+          window.kyberFinishGame();
+          var go = document.getElementById('kyber-gameover');
+          var html = go ? go.innerHTML : '';
+          var semPatente = html.indexOf('Patente') === -1;
+          var temScore = html.indexOf('12345') !== -1;
+          var temXP = /\+\d+ XP Kyber/.test(html);
+          gameState.totalScore = backupScore;
+          if (backupDone !== null) st.setItem('fa-kyber-done', backupDone); else st.removeItem('fa-kyber-done');
+          if (backupXP !== null) st.setItem('fa-kyber-xp', backupXP); else st.removeItem('fa-kyber-xp');
+          if (go) go.style.display = 'none';
+          return semPatente && temScore && temXP;
+        } },
         { id: 'c-quiz-patente-inclui-conteudo-repo', label: 'Painel de patente soma XP de Conteúdos e Repositório (não só auto/missões/kyber)', run: function () {
           if (typeof window.faGameReload !== 'function') return false;
           var st = window.faStore || localStorage;

@@ -172,10 +172,6 @@
     if (window.faSyncProgress) window.faSyncProgress();
 
     const p     = getPlayer() || { name: gameState.playerName || 'Agente', area: '', turma: '' };
-    const gxp   = getGameXP();
-    const cxp   = getContentXP();
-    const rxp   = getRepoXP();
-    const total = Math.min(100, gxp.xpAuto + gxp.xpMissoes + kyberXP + cxp + rxp);
 
     const go = document.getElementById('kyber-gameover');
     if (go) {
@@ -190,7 +186,7 @@
         '<div class="gameover-content">' +
           '<h3>Missão Completa!</h3>' +
           '<div class="gameover-score">Pontuação: <strong>' + gameState.totalScore + ' pts</strong></div>' +
-          '<div class="gameover-rank">+' + kyberXP + ' XP Kyber · Patente: <strong>' + getRank(total) + '</strong></div>' +
+          '<div class="gameover-rank">+' + kyberXP + ' XP Kyber</div>' +
           '<div class="gameover-rank" style="font-size:.85rem;opacity:.7">' + p.name + (p.turma ? ' · ' + p.turma : '') + '</div>' +
           '<div class="gameover-actions">' +
             (_allDone ? '<button class="btn btn--primary" onclick="var r=document.getElementById(\'revelarWrap\');if(r)r.scrollIntoView({behavior:\'smooth\',block:\'center\'})">Revelar minha Patente Final</button>' : '') +
