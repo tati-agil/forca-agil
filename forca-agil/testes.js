@@ -190,7 +190,7 @@
       tests: [
         { id: 'adm-manual', label: 'faInitManual disponível',   run: function () { return typeof window.faInitManual === 'function'; } },
         { id: 'adm-mapa',   label: 'faInitMapa disponível',     run: function () { return typeof window.faInitMapa === 'function'; } },
-        { id: 'adm-tabs',   label: 'Abas Admin presentes (≥7)', run: function () { return document.querySelectorAll('.admin-tab-btn').length >= 7; } },
+        { id: 'adm-tabs',   label: 'Abas Admin presentes (8: Interessados/Repositório/Colaboradores/Cadastrados/Administradores/Manual/Mapa/Testes)', run: function () { return document.querySelectorAll('.admin-tab-btn').length === 8; } },
         { id: 'adm-manual-panel', label: 'Painel Manual presente', run: function () { return !!document.getElementById('adminPanelManual'); } },
         { id: 'adm-mapa-panel',   label: 'Painel Mapa presente',   run: function () { return !!document.getElementById('adminPanelMapa'); } },
         { id: 'adm-mapa-cards',   label: 'Mapa: 8 cards de página renderizados', run: function () {
@@ -298,6 +298,19 @@
       ]
     },
     {
+      group: 'Página Conteúdos',
+      tests: [
+        { id: 'c-conteudos-valores-link', label: 'Link "Ler os 4 valores na íntegra" presente e correto', run: function () {
+          var link = Array.from(document.querySelectorAll('#page-conteudos .manifesto-link')).find(function (a) { return /4 valores/i.test(a.textContent); });
+          return !!link && link.getAttribute('href') === 'https://agilemanifesto.org/iso/ptbr/manifesto.html' && link.getAttribute('target') === '_blank';
+        } },
+        { id: 'c-conteudos-principios-link', label: 'Link "Ler os 12 princípios na íntegra" presente e correto', run: function () {
+          var link = Array.from(document.querySelectorAll('#page-conteudos .manifesto-link')).find(function (a) { return /12 princípios/i.test(a.textContent); });
+          return !!link && link.getAttribute('href') === 'https://agilemanifesto.org/iso/ptbr/principles.html' && link.getAttribute('target') === '_blank';
+        } }
+      ]
+    },
+    {
       group: 'Página Início',
       tests: [
         { id: 'c-hero',         label: 'Hero com título "Força Ágil" presente',         run: function () { return !!document.querySelector('.hero-title, .hero'); } },
@@ -351,7 +364,24 @@
         { id: 'c-repo-curado',   label: 'Badge "curado" presente em algum card do repositório',
           run: function () { return typeof window.faRepoSeedCount === 'number' && window.faRepoSeedCount > 0; }
         },
-        { id: 'c-repo-container', label: 'Container do repositório presente no DOM', run: function () { return !!document.getElementById('repoGrid'); } }
+        { id: 'c-repo-container', label: 'Container do repositório presente no DOM', run: function () { return !!document.getElementById('repoGrid'); } },
+        { id: 'c-repo-chips', label: 'Filtro de tipo: 5 chips presentes (Todos/Vídeos/Documentos/Ferramentas/Livros)', run: function () {
+          var chips = document.querySelectorAll('#repoFilters .repo-chip');
+          if (chips.length !== 5) return false;
+          var tipos = Array.from(chips).map(function (c) { return c.dataset.f; });
+          return ['all', 'video', 'doc', 'tool', 'book'].every(function (t) { return tipos.indexOf(t) !== -1; });
+        } },
+        { id: 'c-repo-filtro-funciona', label: 'Filtro de tipo: clicar em "Vídeos" mostra só cards do tipo vídeo', run: function () {
+          var chips = document.querySelectorAll('#repoFilters .repo-chip');
+          var videoChip = Array.from(chips).find(function (c) { return c.dataset.f === 'video'; });
+          var allChip = Array.from(chips).find(function (c) { return c.dataset.f === 'all'; });
+          if (!videoChip || !allChip) return false;
+          videoChip.click();
+          var cards = document.querySelectorAll('#repoGrid .repo-card');
+          var soVideo = cards.length > 0 && Array.from(cards).every(function (c) { return c.dataset.type === 'video'; });
+          allChip.click();
+          return soVideo;
+        } }
       ]
     },
     {

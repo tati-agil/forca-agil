@@ -33,7 +33,7 @@
         { label: 'Mini Próximas Turmas (Destaques) → link para Turmas', p: ['visitante','logado','colaborador','admin'] },
         { label: 'Mini Conteúdos (Destaques) → navega para Conteúdos', p: ['visitante','logado','colaborador','admin'] },
         { label: 'Ranking mini (Destaques) em tempo real → link para Ranking', p: ['visitante','logado','colaborador','admin'] },
-        { label: 'Link no rodapé para previ.com.br (externo)', p: ['visitante','logado','colaborador','admin'] },
+        { label: 'Link no rodapé para previ.com.br (externo, presente em todas as páginas)', p: ['visitante','logado','colaborador','admin'] },
       ]
     },
     { label: 'TURMAS', color: '#f5c542',
@@ -48,11 +48,14 @@
       features: [
         { label: 'Ler as 5 seções',                      p: ['visitante','logado','colaborador','admin'] },
         { label: 'Ganhar +5 XP por seção lida',          p: ['logado','colaborador','admin'] },
+        { label: 'Link externo "Ler os 4 valores na íntegra" (agilemanifesto.org)', p: ['visitante','logado','colaborador','admin'] },
+        { label: 'Link externo "Ler os 12 princípios na íntegra" (agilemanifesto.org)', p: ['visitante','logado','colaborador','admin'] },
       ]
     },
     { label: 'REPOSITÓRIO', color: '#e8854a',
       features: [
         { label: 'Ver todos os conteúdos',               p: ['visitante','logado','colaborador','admin'] },
+        { label: 'Filtrar por tipo (Todos/Vídeos/Documentos/Ferramentas/Livros)', p: ['visitante','logado','colaborador','admin'] },
         { label: '"Adicionar" → abre cadastro',          p: ['visitante'] },
         { label: 'Adicionar conteúdo ao Holocron',       p: ['logado','colaborador','admin'] },
         { label: 'Remover próprio conteúdo',             p: ['logado','colaborador','admin'] },
@@ -85,6 +88,9 @@
         { label: 'Redefinir senha de qualquer cadastrado (e-mail)', p: ['admin'] },
         { label: 'Resetar progresso de qualquer cadastrado',  p: ['admin'] },
         { label: 'Adicionar / remover admins',                p: ['admin'] },
+        { label: 'Aba Manual — checklist de regras de comportamento', p: ['admin'] },
+        { label: 'Aba Mapa — este mapa do site e hierarquia de personas', p: ['admin'] },
+        { label: 'Aba Testes — testes automatizados e checklist manual', p: ['admin'] },
       ]
     },
     { label: 'CADASTRAR / ENTRAR', color: '#9b7fff',

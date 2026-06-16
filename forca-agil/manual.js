@@ -121,7 +121,7 @@
       body: 'Carrega os dados reais do Firebase em tempo real. Link "Ver ranking completo" navega para a página Ranking. Visível para todos.' },
     { section: 'inicio', personas: ['visitante', 'logado', 'colaborador', 'admin'],
       title: 'Link no rodapé para previ.com.br',
-      body: 'Abre o site da Previ em nova aba (link externo). Visível para todos, na parte inferior da página Início.' },
+      body: 'Abre o site da Previ em nova aba (link externo). Visível para todos. Presente no rodapé de todas as páginas, não só Início.' },
 
     /* ── TURMAS ── */
     { section: 'turmas', personas: ['visitante', 'logado', 'colaborador', 'admin'],
@@ -153,6 +153,9 @@
     { section: 'conteudos', personas: ['logado', 'colaborador', 'admin'],
       title: 'Publicação do XP',
       body: 'O XP de conteúdos só aparece no ranking ao revelar a patente final.' },
+    { section: 'conteudos', personas: ['visitante', 'logado', 'colaborador', 'admin'],
+      title: 'Links externos "Ler na íntegra"',
+      body: 'Nas seções dos 4 valores e dos 12 princípios, links abrem o Manifesto Ágil oficial (agilemanifesto.org) em nova aba. Não geram XP, visível para todos.' },
 
     /* ── REPOSITÓRIO ── */
     { section: 'repositorio', personas: ['visitante'],
@@ -176,6 +179,9 @@
     { section: 'repositorio', personas: ['visitante', 'logado', 'colaborador', 'admin'],
       title: 'Identificação dos conteúdos',
       body: 'Curados: marcados com badge "curado", sem autor. Enviados por usuários: exibem nome do autor e data de envio.' },
+    { section: 'repositorio', personas: ['visitante', 'logado', 'colaborador', 'admin'],
+      title: 'Filtrar por tipo',
+      body: 'Chips "Todos / Vídeos / Documentos / Ferramentas / Livros" filtram a lista exibida. Não afeta XP nem precisa de login.' },
 
     { section: 'repositorio', personas: ['visitante'],
       title: 'Formulário "Adicionar Conteúdo" — acesso',
@@ -285,6 +291,15 @@
     { section: 'admin', personas: ['admin'],
       title: 'Aba: Administradores — admins adicionais',
       body: 'Podem ser adicionados e removidos via painel. Formulário exige nome completo e e-mail @previ.com.br.' },
+    { section: 'admin', personas: ['admin'],
+      title: 'Aba: Manual',
+      body: 'Checklist de regras de comportamento do sistema, organizado por seção e por persona. Documentação viva — deve ser atualizada junto de qualquer mudança de comportamento.' },
+    { section: 'admin', personas: ['admin'],
+      title: 'Aba: Mapa',
+      body: 'Mostra a hierarquia de personas (Visitante → Logado → Colaborador → Admin) e o mapa de todas as páginas do site com suas features e o nível mínimo de acesso de cada uma.' },
+    { section: 'admin', personas: ['admin'],
+      title: 'Aba: Testes',
+      body: 'Roda os testes automatizados (técnicos e de comportamento) e exibe o checklist de regras que exigem validação manual.' },
   ];
 
   function esc(s) {
