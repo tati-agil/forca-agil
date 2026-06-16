@@ -304,6 +304,12 @@
         { id: 'c-hero-counter', label: 'Contador de agentes no hero presente',           run: function () { return !!document.getElementById('heroAgentCount'); } },
         { id: 'c-hero-label',   label: 'Label agente(s) ativo(s) com plural dinâmico',  run: function () { return !!document.getElementById('heroAgentLabel'); } },
         { id: 'c-cta-btn',      label: 'Botão "Juntar-se à Força" presente',            run: function () { return !!document.querySelector('.btn-juntar, [data-cta-juntar], .hero .btn, a[href="#gamificacao"]'); } },
+        { id: 'c-como-funciona', label: 'Como funciona: 3 cards com links para Conteúdos/Repositório/Quiz Jedi', run: function () {
+          var cards = document.querySelectorAll('.how-grid .how-card');
+          if (cards.length !== 3) return false;
+          var hrefs = Array.from(cards).map(function (c) { return c.getAttribute('href'); });
+          return hrefs.indexOf('#conteudos') !== -1 && hrefs.indexOf('#repositorio') !== -1 && hrefs.indexOf('#gamificacao') !== -1;
+        } },
         { id: 'c-destaques-turmas', label: 'Destaques: mini Próximas Turmas com 3 turmas e link para Turmas', run: function () {
           var cards = document.querySelectorAll('#destaques .hl-card');
           var card = Array.from(cards).find(function (c) { return /Próximas Turmas/i.test(c.querySelector('h3') ? c.querySelector('h3').textContent : ''); });
@@ -462,6 +468,9 @@
     { section: 'Início',
       title: 'Botão "Repetir abertura" → reinicia animação do crawl',
       motivo: 'Comportamento visual/transiente (animação de texto) — não verificável de forma confiável por teste automatizado.' },
+    { section: 'Início',
+      title: 'Cards "Como funciona" → cada um navega para sua página',
+      motivo: 'Clicar navegaria para fora da página Admin, interrompendo a sessão de testes em execução.' },
     { section: 'Início',
       title: 'Mini Próximas Turmas → link navega para Turmas',
       motivo: 'Clicar navegaria para fora da página Admin, interrompendo a sessão de testes em execução.' },
