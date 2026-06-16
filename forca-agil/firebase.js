@@ -356,6 +356,7 @@
 
     updateRevelarBtn();
     window.addEventListener('fa-player-registered', updateRevelarBtn);
+    window.addEventListener('fa-auth-change', updateRevelarBtn);
     window.addEventListener('storage', updateRevelarBtn);
 
     if (revelarBtn) revelarBtn.addEventListener('click', function() {
