@@ -303,7 +303,30 @@
         { id: 'c-hero',         label: 'Hero com título "Força Ágil" presente',         run: function () { return !!document.querySelector('.hero-title, .hero'); } },
         { id: 'c-hero-counter', label: 'Contador de agentes no hero presente',           run: function () { return !!document.getElementById('heroAgentCount'); } },
         { id: 'c-hero-label',   label: 'Label agente(s) ativo(s) com plural dinâmico',  run: function () { return !!document.getElementById('heroAgentLabel'); } },
-        { id: 'c-cta-btn',      label: 'Botão "Juntar-se à Força" presente',            run: function () { return !!document.querySelector('.btn-juntar, [data-cta-juntar], .hero .btn, a[href="#gamificacao"]'); } }
+        { id: 'c-cta-btn',      label: 'Botão "Juntar-se à Força" presente',            run: function () { return !!document.querySelector('.btn-juntar, [data-cta-juntar], .hero .btn, a[href="#gamificacao"]'); } },
+        { id: 'c-destaques-turmas', label: 'Destaques: mini Próximas Turmas com 3 turmas e link para Turmas', run: function () {
+          var cards = document.querySelectorAll('#destaques .hl-card');
+          var card = Array.from(cards).find(function (c) { return /Próximas Turmas/i.test(c.querySelector('h3') ? c.querySelector('h3').textContent : ''); });
+          if (!card) return false;
+          var n = card.querySelectorAll('.hl-turma').length;
+          var link = card.querySelector('a[href="#turmas"]');
+          return n === 3 && !!link;
+        } },
+        { id: 'c-destaques-conteudos', label: 'Destaques: mini Conteúdos com 5 itens e link para Conteúdos', run: function () {
+          var cards = document.querySelectorAll('#destaques .hl-card');
+          var card = Array.from(cards).find(function (c) { return /^Conteúdos$/i.test(c.querySelector('h3') ? c.querySelector('h3').textContent.trim() : ''); });
+          if (!card) return false;
+          var n = card.querySelectorAll('.hl-content-item').length;
+          var link = card.querySelector('a[href="#conteudos"]');
+          return n === 5 && !!link;
+        } },
+        { id: 'c-destaques-ranking', label: 'Destaques: mini Ranking presente com link para Ranking', run: function () {
+          var cards = document.querySelectorAll('#destaques .hl-card');
+          var card = Array.from(cards).find(function (c) { return c.querySelector('#homeRanking'); });
+          if (!card) return false;
+          var link = card.querySelector('a[href="#ranking"]');
+          return !!link;
+        } }
       ]
     },
     {
@@ -439,6 +462,12 @@
     { section: 'Início',
       title: 'Botão "Repetir abertura" → reinicia animação do crawl',
       motivo: 'Comportamento visual/transiente (animação de texto) — não verificável de forma confiável por teste automatizado.' },
+    { section: 'Início',
+      title: 'Mini Próximas Turmas → link navega para Turmas',
+      motivo: 'Clicar navegaria para fora da página Admin, interrompendo a sessão de testes em execução.' },
+    { section: 'Início',
+      title: 'Mini Conteúdos → clique no item navega para Conteúdos',
+      motivo: 'Clicar navegaria para fora da página Admin, interrompendo a sessão de testes em execução.' },
     { section: 'Início',
       title: 'Ranking mini em tempo real (bloco Destaques)',
       motivo: 'Requer múltiplos usuários com patente revelada para ter dados reais a verificar.' },

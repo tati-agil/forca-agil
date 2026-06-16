@@ -108,6 +108,12 @@
       title: 'Contador de agentes ativos (Hero)',
       body: 'Mostra o número de agentes ativos em tempo real, com label no singular/plural dinâmico ("agente ativo" / "agentes ativos"). Carrega do Firebase.' },
     { section: 'inicio', personas: ['visitante', 'logado', 'colaborador', 'admin'],
+      title: 'Mini Próximas Turmas (bloco Destaques)',
+      body: 'Lista as turmas curadas (estático, não vem do Firebase). Link "Ver turmas e demonstrar interesse" navega para a página Turmas. Visível para todos.' },
+    { section: 'inicio', personas: ['visitante', 'logado', 'colaborador', 'admin'],
+      title: 'Mini Conteúdos (bloco Destaques)',
+      body: 'Lista os 5 conteúdos curados. Clicar em qualquer item navega para a página Conteúdos. Link "Explorar conteúdos" faz o mesmo. Visível para todos.' },
+    { section: 'inicio', personas: ['visitante', 'logado', 'colaborador', 'admin'],
       title: 'Ranking mini (bloco Destaques)',
       body: 'Carrega os dados reais do Firebase em tempo real. Visível para todos.' },
 
