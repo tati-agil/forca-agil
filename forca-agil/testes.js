@@ -304,32 +304,37 @@
         { id: 'c-hero-counter', label: 'Contador de agentes no hero presente',           run: function () { return !!document.getElementById('heroAgentCount'); } },
         { id: 'c-hero-label',   label: 'Label agente(s) ativo(s) com plural dinâmico',  run: function () { return !!document.getElementById('heroAgentLabel'); } },
         { id: 'c-cta-btn',      label: 'Botão "Juntar-se à Força" presente',            run: function () { return !!document.querySelector('.btn-juntar, [data-cta-juntar], .hero .btn, a[href="#gamificacao"]'); } },
-        { id: 'c-como-funciona', label: 'Como funciona: 3 cards com links para Conteúdos/Repositório/Quiz Jedi', run: function () {
+        { id: 'c-como-funciona', label: 'Como funciona: os 3 links apontam para páginas reais e com o título certo', run: function () {
           var cards = document.querySelectorAll('.how-grid .how-card');
           if (cards.length !== 3) return false;
-          var hrefs = Array.from(cards).map(function (c) { return c.getAttribute('href'); });
-          return hrefs.indexOf('#conteudos') !== -1 && hrefs.indexOf('#repositorio') !== -1 && hrefs.indexOf('#gamificacao') !== -1;
+          var map = { conteudos: 'Conteúdos', repositorio: 'Repositório Colaborativo', gamificacao: 'Treinamento Jedi' };
+          return Array.from(cards).every(function (c) {
+            var page = (c.getAttribute('href') || '').replace('#', '');
+            var titulo = c.querySelector('h3') ? c.querySelector('h3').textContent.trim() : '';
+            return !!map[page] && titulo === map[page] && !!document.getElementById('page-' + page);
+          });
         } },
-        { id: 'c-destaques-turmas', label: 'Destaques: mini Próximas Turmas com 3 turmas e link para Turmas', run: function () {
+        { id: 'c-destaques-turmas', label: 'Destaques: mini Próximas Turmas com 3 turmas e link válido para Turmas', run: function () {
           var cards = document.querySelectorAll('#destaques .hl-card');
           var card = Array.from(cards).find(function (c) { return /Próximas Turmas/i.test(c.querySelector('h3') ? c.querySelector('h3').textContent : ''); });
           if (!card) return false;
           var n = card.querySelectorAll('.hl-turma').length;
           var link = card.querySelector('a[href="#turmas"]');
-          return n === 3 && !!link;
+          return n === 3 && !!link && !!document.getElementById('page-turmas');
         } },
-        { id: 'c-destaques-conteudos', label: 'Destaques: mini Conteúdos com 5 itens e link para Conteúdos', run: function () {
+        { id: 'c-destaques-conteudos', label: 'Destaques: mini Conteúdos com 5 itens e link válido para Conteúdos', run: function () {
           var cards = document.querySelectorAll('#destaques .hl-card');
           var card = Array.from(cards).find(function (c) { return /^Conteúdos$/i.test(c.querySelector('h3') ? c.querySelector('h3').textContent.trim() : ''); });
           if (!card) return false;
           var n = card.querySelectorAll('.hl-content-item').length;
           var link = card.querySelector('a[href="#conteudos"]');
-          return n === 5 && !!link;
+          return n === 5 && !!link && !!document.getElementById('page-conteudos');
         } },
-        { id: 'c-destaques-ranking', label: 'Destaques: mini Ranking presente com link para Ranking', run: function () {
+        { id: 'c-destaques-ranking', label: 'Destaques: mini Ranking presente com link válido para Ranking', run: function () {
           var cards = document.querySelectorAll('#destaques .hl-card');
           var card = Array.from(cards).find(function (c) { return c.querySelector('#homeRanking'); });
           if (!card) return false;
+          if (!document.getElementById('page-ranking')) return false;
           var link = card.querySelector('a[href="#ranking"]');
           return !!link;
         } }
