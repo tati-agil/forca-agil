@@ -13,7 +13,7 @@
     { key: 'visitante',   label: 'Visitante',      color: '#888888',
       adds: ['Ver páginas públicas (Início, Turmas, Conteúdos, Repositório, Ranking)', 'Cadastrar conta (@previ.com.br)', 'Fazer login', 'Recuperar senha por e-mail (autoatendimento)'] },
     { key: 'logado',      label: 'Usuário logado', color: '#1ab2ae',
-      adds: ['Acessar e jogar o Quiz Jedi', 'Ganhar XP por conteúdos lidos', 'Adicionar e remover conteúdos no Repositório', 'Registrar interesse em turmas', 'Revelar patente e entrar no ranking'] },
+      adds: ['Acessar e jogar o Treinamento Jedi', 'Ganhar XP por conteúdos lidos', 'Adicionar e remover conteúdos no Repositório', 'Registrar interesse em turmas', 'Revelar patente e entrar no ranking'] },
     { key: 'colaborador', label: 'Colaborador',    color: '#f5c542',
       adds: ['Expandir Agenda D1–D5 na página Turmas'] },
     { key: 'admin',       label: 'Admin',          color: '#ff5252',
@@ -25,7 +25,7 @@
       features: [
         { label: 'Ver página completa',                  p: ['visitante','logado','colaborador','admin'] },
         { label: 'Botão "Juntar-se" → abre cadastro',   p: ['visitante'] },
-        { label: 'Botão "Juntar-se" → vai ao Quiz Jedi',p: ['logado','colaborador','admin'] },
+        { label: 'Botão "Juntar-se" → vai ao Treinamento Jedi',p: ['logado','colaborador','admin'] },
         { label: 'Botão "Conhecer a iniciativa" → rola até "O que é"', p: ['visitante','logado','colaborador','admin'] },
         { label: 'Botão "Repetir abertura" → replay do crawl de intro', p: ['visitante','logado','colaborador','admin'] },
         { label: 'Contador de agentes ativos em tempo real', p: ['visitante','logado','colaborador','admin'] },
@@ -61,7 +61,7 @@
         { label: 'Remover próprio conteúdo',             p: ['logado','colaborador','admin'] },
       ]
     },
-    { label: 'QUIZ JEDI', color: '#e05c7f',
+    { label: 'TREINAMENTO JEDI', color: '#e05c7f',
       features: [
         { label: 'Acessar (visitante → cadastro)',        p: ['visitante'] },
         { label: 'Autodiagnóstico (1×)',                   p: ['logado','colaborador','admin'] },
@@ -212,8 +212,8 @@
           { name: 'forca-agil/firebase.js',  desc: 'Progresso, XP e ranking — salva/carrega dados do Firebase. API: window.faLoadProgress, window.faSyncProgress, window.faSyncPlayer, window.faCleanRanking' },
           { name: 'forca-agil/router.js',    desc: 'Roteamento por hash — controla qual seção da página está visível. API: window.faRouter' },
           { name: 'forca-agil/app.js',       desc: 'Interações de UI — nav scroll, reveals, acordeões de agenda, contador de agentes, rastreamento de XP de conteúdos' },
-          { name: 'forca-agil/game-data.js',  desc: 'Dados do Quiz Jedi — dimensões, patentes e missões (perguntas e respostas). Expõe window.faGameData' },
-          { name: 'forca-agil/game.js',      desc: 'Quiz Jedi — lógica de XP, autodiagnóstico, missões, painel de patente e revelar patente. Lê dados de window.faGameData' },
+          { name: 'forca-agil/game-data.js',  desc: 'Dados do Treinamento Jedi — dimensões, patentes e missões (perguntas e respostas). Expõe window.faGameData' },
+          { name: 'forca-agil/game.js',      desc: 'Treinamento Jedi — lógica de XP, autodiagnóstico, missões, painel de patente e revelar patente. Lê dados de window.faGameData' },
           { name: 'forca-agil/kyber.js',     desc: 'Kyber Game — 25 desafios com timer de 30s, cálculo de XP' },
           { name: 'forca-agil/repo.js',      desc: 'Repositório (Holocron) — listagem, adição, remoção de conteúdos, XP por contribuição' },
           { name: 'forca-agil/admin.js',     desc: 'Painel Admin — interessados, moderação de repositório, gestão de colaboradores e admins' },

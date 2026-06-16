@@ -385,7 +385,7 @@
       ]
     },
     {
-      group: 'Página Quiz Jedi',
+      group: 'Página Treinamento Jedi',
       tests: [
         { id: 'c-quiz-patente',   label: 'Painel de patente presente',             run: function () { return !!document.getElementById('rankHud'); } },
         { id: 'c-quiz-patentes',  label: '4 patentes exibidas (Youngling→Mestre)', run: function () { return document.querySelectorAll('.char-card').length >= 4; } },
@@ -494,7 +494,7 @@
       title: 'Cadastro — botão "Aguarde…" durante envio',
       motivo: 'Estado transiente — só visível durante o envio real ao Firebase.' },
     { section: 'Cadastrar / Entrar',
-      title: 'Clicar no perfil navega para Quiz Jedi',
+      title: 'Clicar no perfil navega para Treinamento Jedi',
       motivo: 'Requer clique no elemento de perfil no menu e verificação de navegação — interação com estado de sessão ativa.' },
     { section: 'Cadastrar / Entrar',
       title: 'Botão "Sair" encerra sessão e redireciona para Início',
@@ -562,13 +562,13 @@
     { section: 'Repositório',
       title: 'Moderação Admin — ocultar/restaurar curado e deletar de usuários',
       motivo: 'Ação destrutiva real no Firebase. Não pode ser revertida automaticamente.' },
-    { section: 'Quiz Jedi',
+    { section: 'Treinamento Jedi',
       title: 'Visitante é redirecionado para cadastro ao tentar entrar',
       motivo: 'Requer estar deslogado.' },
-    { section: 'Quiz Jedi',
+    { section: 'Treinamento Jedi',
       title: 'Revelar patente — publicação definitiva',
       motivo: 'Ação completamente irreversível — publicaria patente no ranking.' },
-    { section: 'Quiz Jedi',
+    { section: 'Treinamento Jedi',
       title: 'Reset de progresso (Admin) — apaga e remove do ranking',
       motivo: 'Ação destrutiva real. Não deve ser executada em teste automatizado.' },
     { section: 'Ranking',
@@ -647,7 +647,7 @@
       'Turmas':             '#f5c542',
       'Conteúdos':          '#4caf7d',
       'Repositório':        '#e8854a',
-      'Quiz Jedi':          '#e05c7f',
+      'Treinamento Jedi':          '#e05c7f',
       'Ranking':            '#57aaff',
       'Admin':              '#ff5252',
     };
@@ -731,7 +731,7 @@
       'Formulário de Cadastro':      '#9b7fff',
       'Página Início':               '#1ab2ae',
       'Página Repositório':          '#e8854a',
-      'Página Quiz Jedi':            '#e05c7f',
+      'Página Treinamento Jedi':            '#e05c7f',
       'Página Ranking':              '#57aaff',
       'Painel Admin — Integridade':  '#ff5252',
     };

@@ -1,4 +1,4 @@
-/* Força Ágil — Dados do Quiz Jedi: dimensões, patentes e missões */
+/* Força Ágil — Dados do Treinamento Jedi: dimensões, patentes e missões */
 (function () {
   window.faGameData = {
     DIMS: [
