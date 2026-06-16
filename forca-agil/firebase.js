@@ -336,6 +336,7 @@
         revelarBtn.disabled = false;
         revelarBtn.style.opacity = '';
         revelarBtn.title = '';
+        delete revelarBtn.dataset.locked;
         let hint = document.querySelector('.revelar-hint');
         if (hint) hint.innerHTML =
           '<span style="color:var(--accent)">✓ Autodiagnóstico</span> · ' +
