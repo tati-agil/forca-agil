@@ -51,6 +51,7 @@
     loadInterests();
     loadRepoAdmin();
     loadColaboradores();
+    loadCadastrados();
     loadAdmins();
     if (window.faInitManual) window.faInitManual();
     if (window.faInitMapa) window.faInitMapa();
@@ -268,7 +269,7 @@
     /* Tabela */
     const tbl = document.createElement('table');
     tbl.className = 'admin-table';
-    tbl.innerHTML = '<thead><tr><th>Nome</th><th>E-mail</th><th>Desde</th><th></th><th></th><th></th></tr></thead>';
+    tbl.innerHTML = '<thead><tr><th>Nome</th><th>E-mail</th><th>Desde</th><th></th></tr></thead>';
     const tbody = document.createElement('tbody');
     list.forEach(function (p) {
       const tr = document.createElement('tr');
@@ -276,35 +277,16 @@
         '<td>' + esc(p.name || '—') + '</td>' +
         '<td>' + esc(p.email || '—') + '</td>' +
         '<td>' + fmtDate(p.addedAt) + '</td>' +
-        '<td><button class="admin-del-btn admin-pwd-btn" data-key="' + esc(emailKey(p.email)) + '" data-email="' + esc(p.email || '') + '" data-name="' + esc(p.name || p.email) + '">Redefinir senha</button></td>' +
-        '<td><button class="admin-del-btn admin-reset-btn" data-key="' + esc(emailKey(p.email)) + '" data-email="' + esc(p.email || '') + '" data-name="' + esc(p.name || p.email) + '">Resetar progresso</button></td>' +
         '<td><button class="admin-del-btn" data-key="' + esc(emailKey(p.email)) + '" data-name="' + esc(p.name || p.email) + '">Remover</button></td>';
       tbody.appendChild(tr);
     });
     tbl.appendChild(tbody);
     c.appendChild(tbl);
 
-    /* Delegação de eventos para remover, resetar e redefinir senha */
+    /* Delegação de eventos para remover */
     tbody.addEventListener('click', function (e) {
       var btn = e.target.closest('button');
       if (!btn) return;
-      if (btn.classList.contains('admin-pwd-btn')) {
-        handlePwdReset(btn);
-        return;
-      }
-      if (btn.classList.contains('admin-reset-btn')) {
-        if (!confirm('Resetar TODO o progresso do jogo de ' + btn.dataset.name + '?\n\nIsso apaga autodiagnóstico, missões, Kyber Game e patente. Essa ação não pode ser desfeita.')) return;
-        const eKey = btn.dataset.key;
-        const updates = {};
-        updates['fa-progress/' + eKey] = null;
-        updates['players/' + eKey] = null;
-        firebase.database().ref().update(updates, function (err) {
-          if (err) { alert('Erro ao resetar. Tente novamente.'); return; }
-          const msg = document.getElementById('colabMsg');
-          if (msg) { msg.style.color = 'var(--cyan)'; msg.textContent = btn.dataset.name + ': progresso resetado.'; }
-        });
-        return;
-      }
       if (btn.classList.contains('admin-del-btn')) {
         if (!confirm('Remover ' + btn.dataset.name + ' dos colaboradores?')) return;
         firebase.database().ref('fa-colaboradores/' + btn.dataset.key).remove(function () {
@@ -342,6 +324,92 @@
           firebase.database().ref('fa-colaboradores').once('value', function (s) { renderColab(c, s.val() || {}); });
         }
       );
+    });
+  }
+
+  /* ---- Cadastrados (todos que fizeram cadastro, não só colaboradores) ---- */
+  function loadCadastrados() {
+    const c = document.getElementById('adminCadastrados');
+    if (!c) return;
+    c.innerHTML = '<p class="loading-msg">Carregando…</p>';
+
+    firebase.database().ref('fa-users').once('value', function (snap) {
+      const data = snap.val() || {};
+      renderCadastrados(c, data);
+    });
+  }
+
+  function renderCadastrados(c, data) {
+    const list = Object.entries(data)
+      .map(function (entry) { return Object.assign({ _key: entry[0] }, entry[1]); })
+      .sort(function (a, b) { return (a.name || '').localeCompare(b.name || '', 'pt'); });
+    c.innerHTML = '';
+
+    const hdr = document.createElement('h4');
+    hdr.innerHTML = 'Cadastrados <span class="admin-badge">' + list.length + '</span>';
+    c.appendChild(hdr);
+
+    const filterWrap = document.createElement('div');
+    filterWrap.className = 'admin-colab-row';
+    filterWrap.style.marginBottom = '16px';
+    filterWrap.innerHTML = '<input id="cadastradosFiltro" type="text" placeholder="Filtrar por nome ou e-mail…" />';
+    c.appendChild(filterWrap);
+
+    const tbl = document.createElement('table');
+    tbl.className = 'admin-table';
+    tbl.innerHTML = '<thead><tr><th>Nome</th><th>E-mail</th><th>Área</th><th>Cadastro</th><th></th><th></th></tr></thead>';
+    const tbody = document.createElement('tbody');
+
+    function fillRows(filtered) {
+      tbody.innerHTML = '';
+      filtered.forEach(function (p) {
+        const tr = document.createElement('tr');
+        tr.innerHTML =
+          '<td>' + esc(p.name || '—') + '</td>' +
+          '<td>' + esc(p.email || '—') + '</td>' +
+          '<td>' + esc(p.area || '—') + '</td>' +
+          '<td>' + fmtDate(p.createdAt) + '</td>' +
+          '<td><button class="admin-del-btn admin-pwd-btn" data-key="' + esc(p._key) + '" data-email="' + esc(p.email || '') + '" data-name="' + esc(p.name || p.email) + '">Redefinir senha</button></td>' +
+          '<td><button class="admin-del-btn admin-reset-btn" data-key="' + esc(p._key) + '" data-email="' + esc(p.email || '') + '" data-name="' + esc(p.name || p.email) + '">Resetar progresso</button></td>';
+        tbody.appendChild(tr);
+      });
+    }
+    fillRows(list);
+    tbl.appendChild(tbody);
+    c.appendChild(tbl);
+
+    const filtroInput = document.getElementById('cadastradosFiltro');
+    filtroInput.addEventListener('input', function () {
+      const q = filtroInput.value.trim().toLowerCase();
+      if (!q) { fillRows(list); return; }
+      fillRows(list.filter(function (p) {
+        return (p.name || '').toLowerCase().indexOf(q) !== -1 || (p.email || '').toLowerCase().indexOf(q) !== -1;
+      }));
+    });
+
+    /* Delegação de eventos para resetar e redefinir senha */
+    tbody.addEventListener('click', function (e) {
+      var btn = e.target.closest('button');
+      if (!btn) return;
+      if (btn.classList.contains('admin-pwd-btn')) {
+        handlePwdReset(btn);
+        return;
+      }
+      if (btn.classList.contains('admin-reset-btn')) {
+        if (!confirm('Resetar TODO o progresso do jogo de ' + btn.dataset.name + '?\n\nIsso apaga autodiagnóstico, missões, Kyber Game e patente. Essa ação não pode ser desfeita.')) return;
+        const eKey = btn.dataset.key;
+        const updates = {};
+        updates['fa-progress/' + eKey] = null;
+        updates['players/' + eKey] = null;
+        firebase.database().ref().update(updates, function (err) {
+          if (err) { alert('Erro ao resetar. Tente novamente.'); return; }
+          const msg = document.createElement('p');
+          msg.style.color = 'var(--cyan)'; msg.style.fontSize = '.8rem'; msg.style.marginTop = '8px';
+          msg.textContent = btn.dataset.name + ': progresso resetado.';
+          c.appendChild(msg);
+        });
+        return;
+      }
     });
   }
 
