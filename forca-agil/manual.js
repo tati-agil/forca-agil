@@ -211,7 +211,7 @@
       body: 'Pode fazer uma vez apenas — não pode refazer. 6 dimensões. XP máximo: 15 XP proporcional às dimensões respondidas. Única exceção: se o admin resetar o progresso, a pessoa pode refazer.' },
     { section: 'quiz', personas: ['logado', 'colaborador', 'admin'],
       title: 'Missões',
-      body: 'Cada missão pode ser feita uma vez — não pode refazer. 6 missões × 3 perguntas × 4 XP por acerto. XP máximo total: 35 XP. Única exceção: se o admin resetar o progresso, a pessoa pode refazer.' },
+      body: 'Cada missão pode ser feita uma vez — não pode refazer. 6 missões × 3 perguntas × 4 XP por acerto. XP máximo total: 35 XP. Quando concluída, aparece "🔒 Missão concluída — não pode ser refeita. (X XP ganhos)" abaixo do header. Única exceção: se o admin resetar o progresso, a pessoa pode refazer.' },
     { section: 'quiz', personas: ['logado', 'colaborador', 'admin'],
       title: 'Kyber Game',
       body: 'Pode jogar uma vez apenas — não pode refazer. 25 desafios com timer de 30s cada. XP máximo: 50 XP. Única exceção: se o admin resetar o progresso, a pessoa pode refazer.' },

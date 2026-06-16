@@ -493,6 +493,25 @@
           window.faGameReload();
           return !!header && bloqueada;
         } },
+        { id: 'c-quiz-missao-lock-msg', label: 'Missões: mensagem de cadeado e XP ganhos aparece quando concluída', run: function () {
+          if (!window.faGameData || !window.faGameReload) return false;
+          var st = window.faStore || localStorage;
+          var backup = st.getItem('fa-game-v2');
+          var current = (function () { try { return JSON.parse(backup || 'null'); } catch (e) { return null; } })() || { quiz: [], missions: {} };
+          var m = window.faGameData.MISSIONS[0];
+          var missions = {};
+          // Responde todas certas
+          missions[m.id] = { answers: m.questions.map(function (q) { return q.correct; }) };
+          st.setItem('fa-game-v2', JSON.stringify({ quiz: current.quiz || [], missions: missions }));
+          window.faGameReload();
+          var wrap = document.querySelector('.mission-wrap[data-id="' + m.id + '"]');
+          var lockMsg = wrap && wrap.querySelector('.m-lock-msg');
+          var temMensagem = lockMsg && lockMsg.textContent.indexOf('concluída') !== -1 && lockMsg.textContent.indexOf('não pode ser refeita') !== -1;
+          var temXP = lockMsg && /\d+ XP ganhos/.test(lockMsg.textContent);
+          if (backup !== null) st.setItem('fa-game-v2', backup); else st.removeItem('fa-game-v2');
+          window.faGameReload();
+          return !!temMensagem && !!temXP;
+        } },
         { id: 'c-quiz-kyber-1x', label: 'Kyber Game (1×): bloqueado para replay após concluído', run: function () {
           if (typeof window.kyberAlreadyPlayed !== 'function') return false;
           var st = window.faStore || localStorage;

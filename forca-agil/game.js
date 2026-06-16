@@ -314,6 +314,19 @@
           ? earned + '/' + maxXP + ' XP ✓'
           : '+' + maxXP + ' XP';
       }
+      // Mensagem de cadeado — aparece quando concluída
+      let lockMsg = wrap.querySelector('.m-lock-msg');
+      if (done) {
+        if (!lockMsg) {
+          lockMsg = document.createElement('p');
+          lockMsg.className = 'm-lock-msg';
+          lockMsg.style.cssText = 'font-family:var(--font-mono);font-size:.7rem;color:var(--ink-3);margin:2px 0 0 36px;';
+          header.after(lockMsg);
+        }
+        lockMsg.textContent = '🔒 Missão concluída — não pode ser refeita. (' + earned + ' XP ganhos)';
+      } else if (lockMsg) {
+        lockMsg.remove();
+      }
     });
 
     // HUD
