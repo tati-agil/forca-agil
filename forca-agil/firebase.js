@@ -387,6 +387,7 @@
       const publicarBtn = document.getElementById('publicarRankingBtn');
       if (publicarBtn) publicarBtn.addEventListener('click', function() {
         try { _st().setItem('fa-patente-publicada', '1'); } catch(e) {}
+        if (window.faSyncProgress) window.faSyncProgress();
         window.faSyncPlayer();
         renderRevealedState();
         setTimeout(function() {
@@ -440,6 +441,7 @@
     if (revelarOk) revelarOk.addEventListener('click', function() {
       if (revelarConfirm) revelarConfirm.hidden = true;
       try { _st().setItem('fa-patente-revealed', '1'); } catch(e) {}
+      if (window.faSyncProgress) window.faSyncProgress();
       renderRevealedState();
     });
 
