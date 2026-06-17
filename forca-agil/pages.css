@@ -324,16 +324,18 @@
 .admin-repo-info { flex: 1; min-width: 0; }
 .admin-repo-title { display: block; font-size: .9rem; color: var(--ink); margin-bottom: 2px; }
 .admin-repo-by { font-size: .78rem; font-family: var(--font-mono); color: var(--ink-3); }
-/* Admin inputs: mesma altura dos botões */
+/* Admin inputs */
 #adminContent input[type="text"],
 #adminContent input[type="email"],
 #adminContent input[type="search"] {
-  padding: 12px 14px; box-sizing: border-box;
+  -webkit-appearance: none; appearance: none;
+  display: block; height: 44px; padding: 0 14px; box-sizing: border-box;
   background: var(--space-1); border: 1px solid var(--line-strong);
   border-radius: 9px; color: var(--ink);
-  font-size: .85rem; min-width: 0;
+  font-family: var(--font-body); font-size: .88rem; line-height: 44px;
+  min-width: 0;
 }
-#adminContent input::placeholder { color: var(--ink-3); opacity: 1; }
+#adminContent input::placeholder { color: var(--ink-3); opacity: 1; line-height: 44px; }
 #adminContent input:focus { outline: none; border-color: var(--accent); }
 /* Linha de inputs + botão no admin */
 .admin-colab-row {
