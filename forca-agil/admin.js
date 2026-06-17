@@ -5,9 +5,39 @@
 (function () {
   'use strict';
 
+  /* Painéis com conteúdo expansível */
+  const EXPANDABLE_PANELS = ['adminPanelManual', 'adminPanelMapa', 'adminPanelTestes'];
+
+  function activePanel() {
+    return document.querySelector('.admin-tab-panel.active');
+  }
+
+  function expandAll(panel) {
+    /* details elements (Manual) */
+    panel.querySelectorAll('details').forEach(function (d) { d.open = true; });
+    /* class-based (Mapa: mapa-page / arch-section / mapa-level; Testes: testes-group--collapsible) */
+    panel.querySelectorAll('.mapa-page, .arch-section, .mapa-level, .testes-group--collapsible').forEach(function (el) {
+      el.classList.add('open');
+    });
+  }
+
+  function collapseAll(panel) {
+    panel.querySelectorAll('details').forEach(function (d) { d.open = false; });
+    panel.querySelectorAll('.mapa-page, .arch-section, .mapa-level, .testes-group--collapsible').forEach(function (el) {
+      el.classList.remove('open');
+    });
+  }
+
+  function updateExpandBar(panelId) {
+    const bar = document.getElementById('adminExpandBar');
+    if (!bar) return;
+    bar.hidden = EXPANDABLE_PANELS.indexOf(panelId) === -1;
+  }
+
   document.addEventListener('DOMContentLoaded', function () {
     if (window.faRouter) window.faRouter.onPageInit('admin', initAdmin);
-    // Tab switching inside admin
+
+    /* Tab switching inside admin */
     document.querySelectorAll('.admin-tab-btn').forEach(function (btn) {
       btn.addEventListener('click', function () {
         const target = btn.dataset.panel;
@@ -16,8 +46,15 @@
         btn.classList.add('active');
         const panel = document.getElementById(target);
         if (panel) panel.classList.add('active');
+        updateExpandBar(target);
       });
     });
+
+    /* Expandir / Recolher tudo */
+    const expandBtn   = document.getElementById('adminExpandAll');
+    const collapseBtn = document.getElementById('adminCollapseAll');
+    if (expandBtn)   expandBtn.addEventListener('click',   function () { const p = activePanel(); if (p) expandAll(p); });
+    if (collapseBtn) collapseBtn.addEventListener('click', function () { const p = activePanel(); if (p) collapseAll(p); });
   });
 
   const COLAB_SEED = [

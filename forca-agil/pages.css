@@ -336,6 +336,18 @@
 }
 #adminContent input:focus { outline: none; border-color: var(--accent); }
 
+.admin-expand-bar {
+  display: flex; align-items: center; gap: 8px;
+  padding: 8px 0 16px;
+  border-bottom: 1px solid var(--line);
+  margin-bottom: 20px;
+}
+.admin-expand-label {
+  font-family: var(--font-mono); font-size: .72rem;
+  text-transform: uppercase; letter-spacing: .08em;
+  color: var(--ink-3); margin-right: 4px;
+}
+
 .admin-del-btn {
   padding: 5px 14px; font-size: .78rem; background: transparent;
   border: 1px solid rgba(255,59,48,.45); color: var(--red);
