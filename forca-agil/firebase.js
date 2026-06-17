@@ -91,26 +91,47 @@
   };
 
   // ---- Load progress from Firebase on login ----
+  var _progressWatchRef = null; // listener ativo para detectar reset pelo admin
   window.faLoadProgress = function(email, cb) {
     if (!fbReady) { if (cb) cb(); return; }
     const eKey = (email || '').toLowerCase().replace(/[@.]/g, '_').replace(/[^a-z0-9_]/g, '').slice(0, 64);
-    firebase.database().ref('fa-progress/' + eKey).once('value', function(snap) {
+    const ref = firebase.database().ref('fa-progress/' + eKey);
+
+    /* Desativa listener anterior (troca de conta) */
+    if (_progressWatchRef) { try { _progressWatchRef.off(); } catch(e) {} }
+    _progressWatchRef = ref;
+
+    var initialDone = false;
+    ref.on('value', function(snap) {
       const data = snap.val();
-      if (data && window.faStore) {
-        _PROGRESS_KEYS.forEach(function(k) {
-          const fk = k.replace(/-/g, '_');
-          if (data[fk] != null) window.faStore.setItem(k, data[fk]);
-        });
-      } else if (!data && window.faStore) {
-        /* Sem progresso no Firebase — limpa localStorage (prefixado e legado) */
-        _PROGRESS_KEYS.forEach(function(k) {
-          window.faStore.removeItem(k);          // chave com prefixo do usuário
-          try { localStorage.removeItem(k); } catch(e) {} // chave legada sem prefixo
-        });
+      if (!initialDone) {
+        /* Primeira leitura — carregamento normal */
+        initialDone = true;
+        if (data && window.faStore) {
+          _PROGRESS_KEYS.forEach(function(k) {
+            const fk = k.replace(/-/g, '_');
+            if (data[fk] != null) window.faStore.setItem(k, data[fk]);
+          });
+        } else if (!data && window.faStore) {
+          _PROGRESS_KEYS.forEach(function(k) {
+            window.faStore.removeItem(k);
+            try { localStorage.removeItem(k); } catch(e) {}
+          });
+        }
+        if (window.faCleanRanking) window.faCleanRanking();
+        if (cb) cb();
+      } else if (!data) {
+        /* Admin resetou em tempo real — limpa tudo e atualiza UI */
+        if (window.faStore) {
+          _PROGRESS_KEYS.forEach(function(k) {
+            window.faStore.removeItem(k);
+            try { localStorage.removeItem(k); } catch(e) {}
+          });
+        }
+        if (window.faCleanRanking) window.faCleanRanking();
+        window.dispatchEvent(new CustomEvent('fa-progress-change'));
       }
-      if (window.faCleanRanking) window.faCleanRanking();
-      if (cb) cb();
-    }).catch(function() { if (cb) cb(); });
+    }, function() { if (!initialDone) { initialDone = true; if (cb) cb(); } });
   };
 
   // ---- Remove entrada do ranking se patente não foi publicada ----
