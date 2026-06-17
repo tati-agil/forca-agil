@@ -163,10 +163,10 @@
     gameState.selectedOption = idx;
     stopTimer();
 
-    const speedBonus = Math.max(0, (gameState.timeLeft / TIME_LIMIT) * 500);
+    const speedBonus = option.correct ? Math.round((gameState.timeLeft / TIME_LIMIT) * 500) : 0;
     const points = option.correct ? Math.round(1000 * (gameState.timeLeft / TIME_LIMIT)) : 0;
 
-    gameState.totalScore += points;
+    gameState.totalScore += points + speedBonus;
     saveGameState();
 
     // Feedback
