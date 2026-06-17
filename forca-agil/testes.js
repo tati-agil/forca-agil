@@ -524,8 +524,8 @@
             var m = el && el.textContent.match(/\+(\d+) XP/);
             return m ? parseInt(m[1], 10) : -1;
           }
-          var xpMin = getXP(0); // Já ouvi falar
-          var xpMax = getXP(3); // Ensino
+          var xpMin = getXP(1); // Já ouvi falar (1-based)
+          var xpMax = getXP(4); // Ensino (1-based)
           if (backup !== null) st.setItem('fa-game-v2', backup); else st.removeItem('fa-game-v2');
           window.faGameReload();
           return xpMin < xpMax && xpMax === 15;
