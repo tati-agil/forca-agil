@@ -695,7 +695,8 @@
         const eKey   = btn.dataset.key;
         const email  = btn.dataset.email;
         const updates = {};
-        updates['fa-progress/' + eKey] = null;
+        updates['fa-progress/' + eKey]      = null;
+        updates['fa-reset-signal/' + eKey]  = { at: firebase.database.ServerValue.TIMESTAMP };
         /* players usa key name__turma — buscar por email para deletar a entrada certa */
         firebase.database().ref('players').orderByChild('email').equalTo(email).once('value', function (snap) {
           snap.forEach(function (child) { updates['players/' + child.key] = null; });

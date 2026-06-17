@@ -91,47 +91,54 @@
   };
 
   // ---- Load progress from Firebase on login ----
-  var _progressWatchRef = null; // listener ativo para detectar reset pelo admin
+  var _progressWatchRef = null;
+  var _resetSignalRef   = null;
   window.faLoadProgress = function(email, cb) {
     if (!fbReady) { if (cb) cb(); return; }
     const eKey = (email || '').toLowerCase().replace(/[@.]/g, '_').replace(/[^a-z0-9_]/g, '').slice(0, 64);
-    const ref = firebase.database().ref('fa-progress/' + eKey);
 
-    /* Desativa listener anterior (troca de conta) */
+    /* Desativa listeners anteriores (troca de conta) */
     if (_progressWatchRef) { try { _progressWatchRef.off(); } catch(e) {} }
+    if (_resetSignalRef)   { try { _resetSignalRef.off();   } catch(e) {} }
+
+    const ref = firebase.database().ref('fa-progress/' + eKey);
     _progressWatchRef = ref;
 
-    var initialDone = false;
-    ref.on('value', function(snap) {
+    /* Leitura única do progresso ao fazer login */
+    ref.once('value', function(snap) {
       const data = snap.val();
-      if (!initialDone) {
-        /* Primeira leitura — carregamento normal */
-        initialDone = true;
-        if (data && window.faStore) {
-          _PROGRESS_KEYS.forEach(function(k) {
-            const fk = k.replace(/-/g, '_');
-            if (data[fk] != null) window.faStore.setItem(k, data[fk]);
-          });
-        } else if (!data && window.faStore) {
-          _PROGRESS_KEYS.forEach(function(k) {
-            window.faStore.removeItem(k);
-            try { localStorage.removeItem(k); } catch(e) {}
-          });
-        }
-        if (window.faCleanRanking) window.faCleanRanking();
-        if (cb) cb();
-      } else if (!data) {
-        /* Admin resetou em tempo real — limpa localStorage e recarrega a página
-           (módulos JS já inicializaram com estado antigo em memória; reload é mais confiável) */
-        if (window.faStore) {
-          _PROGRESS_KEYS.forEach(function(k) {
-            window.faStore.removeItem(k);
-            try { localStorage.removeItem(k); } catch(e) {}
-          });
-        }
-        window.location.reload();
+      if (data && window.faStore) {
+        _PROGRESS_KEYS.forEach(function(k) {
+          const fk = k.replace(/-/g, '_');
+          if (data[fk] != null) window.faStore.setItem(k, data[fk]);
+        });
+      } else if (!data && window.faStore) {
+        _PROGRESS_KEYS.forEach(function(k) {
+          window.faStore.removeItem(k);
+          try { localStorage.removeItem(k); } catch(e) {}
+        });
       }
-    }, function() { if (!initialDone) { initialDone = true; if (cb) cb(); } });
+      if (window.faCleanRanking) window.faCleanRanking();
+      if (cb) cb();
+
+      /* Agora inicia listener de sinal de reset (nó separado — mais confiável) */
+      var signalInitialDone = false;
+      const signalRef = firebase.database().ref('fa-reset-signal/' + eKey);
+      _resetSignalRef = signalRef;
+      signalRef.on('value', function(sigSnap) {
+        if (!signalInitialDone) { signalInitialDone = true; return; } // ignora leitura inicial
+        if (sigSnap.val() !== null) {
+          /* Admin resetou — limpa localStorage e recarrega */
+          if (window.faStore) {
+            _PROGRESS_KEYS.forEach(function(k) {
+              window.faStore.removeItem(k);
+              try { localStorage.removeItem(k); } catch(e) {}
+            });
+          }
+          window.location.reload();
+        }
+      });
+    }, function() { if (cb) cb(); });
   };
 
   // ---- Remove entrada do ranking se patente não foi publicada ----
