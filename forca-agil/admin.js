@@ -256,6 +256,7 @@
     document.body.appendChild(a); a.click();
     document.body.removeChild(a); URL.revokeObjectURL(url);
   }
+  window.faToXls = toXls;
 
   function exportAllInterests(TURMAS, data) {
     var rows = [];

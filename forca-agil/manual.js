@@ -357,8 +357,11 @@
     });
     html += '</div></div>';
 
-    /* Count */
-    html += '<p class="manual-count">' + filtered.length + ' regra' + (filtered.length !== 1 ? 's' : '') + ' encontrada' + (filtered.length !== 1 ? 's' : '') + '</p>';
+    /* Count + export button */
+    html += '<div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin-bottom:4px">';
+    html += '<p class="manual-count" style="margin:0">' + filtered.length + ' regra' + (filtered.length !== 1 ? 's' : '') + ' encontrada' + (filtered.length !== 1 ? 's' : '') + '</p>';
+    html += '<button class="btn btn--sm" id="manualExportBtn">⬇ Exportar Excel (todas as regras)</button>';
+    html += '</div>';
 
     /* Rules */
     html += '<div class="manual-rules">';
@@ -406,6 +409,35 @@
         render();
       });
     });
+
+    /* Export all rules to Excel */
+    const exportBtn = document.getElementById('manualExportBtn');
+    if (exportBtn) {
+      exportBtn.addEventListener('click', function () {
+        if (!window.faToXls) return;
+        const rows = [];
+        SECTIONS.forEach(function (s) {
+          if (s.key === 'all') return;
+          const sectionRules = RULES.filter(function (r) { return r.section === s.key; });
+          sectionRules.forEach(function (r) {
+            rows.push([
+              s.label,
+              r.title,
+              r.body,
+              r.personas.map(function (pk) {
+                const p = PERSONAS.find(function (x) { return x.key === pk; });
+                return p ? p.label : pk;
+              }).join(', ')
+            ]);
+          });
+        });
+        window.faToXls(
+          ['Seção', 'Regra', 'Descrição', 'Personas'],
+          rows,
+          'manual-forca-agil-' + new Date().toISOString().slice(0, 10) + '.xls'
+        );
+      });
+    }
   }
 
   window.faInitManual = render;

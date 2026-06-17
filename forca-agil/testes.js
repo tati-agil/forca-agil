@@ -888,6 +888,7 @@
     html += '<button class="btn btn--primary testes-run-btn" data-suite="tecnicos">▶ Técnicos</button>';
     html += '<button class="btn btn--primary testes-run-btn" data-suite="comportamento">▶ Comportamento</button>';
     html += '<button class="btn btn--outline testes-run-btn" data-suite="todos">▶ Todos os automáticos</button>';
+    html += '<button class="btn btn--sm" id="testesExportBtn">⬇ Exportar Excel (todos os testes)</button>';
     html += '</div>';
 
     html += '<div id="testesResultados"></div>';
@@ -932,6 +933,36 @@
     html += '</div>';
 
     container.innerHTML = html;
+
+    /* Export all tests to Excel */
+    const exportBtn = document.getElementById('testesExportBtn');
+    if (exportBtn) {
+      exportBtn.addEventListener('click', function () {
+        if (!window.faToXls) return;
+        const rows = [];
+        /* Automáticos — Técnicos */
+        TECNICOS.forEach(function (group) {
+          group.tests.forEach(function (t) {
+            rows.push(['Automático', 'Técnico', group.group, t.label, '']);
+          });
+        });
+        /* Automáticos — Comportamento */
+        COMPORTAMENTO_AUTO.forEach(function (group) {
+          group.tests.forEach(function (t) {
+            rows.push(['Automático', 'Comportamento', group.group, t.label, '']);
+          });
+        });
+        /* Manuais */
+        COMPORTAMENTO_MANUAL.forEach(function (r) {
+          rows.push(['Manual', 'Comportamento', r.section, r.title, r.motivo]);
+        });
+        window.faToXls(
+          ['Tipo', 'Grupo', 'Categoria', 'Teste / Regra', 'Motivo (manual)'],
+          rows,
+          'testes-forca-agil-' + new Date().toISOString().slice(0, 10) + '.xls'
+        );
+      });
+    }
 
     container.querySelectorAll('.testes-group-toggle').forEach(function (toggle) {
       toggle.addEventListener('click', function () {
