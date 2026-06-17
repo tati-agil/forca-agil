@@ -187,57 +187,63 @@
     return tbl + '</tbody></table>';
   }
 
-  function exportAllInterests(TURMAS, data) {
-    const BOM = '﻿';
-    let csv = BOM + 'Turma\tStatus\tNome\tE-mail\tÁrea\tData Registro\tData Remoção\n';
-    TURMAS.forEach(function (t) {
-      const all = data[t.key] ? Object.values(data[t.key]) : [];
-      all.forEach(function (r) {
-        csv += [
-          t.label,
-          r.removed ? 'Removido' : 'Ativo',
-          r.name || '',
-          r.email || '',
-          r.area || '',
-          r.date ? new Date(r.date).toLocaleString('pt-BR') : '',
-          r.removedDate ? new Date(r.removedDate).toLocaleString('pt-BR') : ''
-        ].map(function (v) { return '"' + String(v).replace(/"/g, '""') + '"'; }).join('\t') + '\n';
-      });
-    });
-    const blob = new Blob([csv], { type: 'text/tab-separated-values;charset=utf-8' });
-    const url  = URL.createObjectURL(blob);
-    const a    = document.createElement('a');
-    a.href = url; a.download = 'interessados-turmas-' + new Date().toISOString().slice(0,10) + '.xls';
+  function toXls(headers, rows, filename) {
+    var th = headers.map(function (h) { return '<th>' + esc(h) + '</th>'; }).join('');
+    var tr = rows.map(function (row) {
+      return '<tr>' + row.map(function (v) { return '<td>' + esc(String(v)) + '</td>'; }).join('') + '</tr>';
+    }).join('');
+    var html = '<html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:x="urn:schemas-microsoft-com:office:excel">' +
+      '<head><meta charset="utf-8"></head>' +
+      '<body><table><thead><tr>' + th + '</tr></thead><tbody>' + tr + '</tbody></table></body></html>';
+    var blob = new Blob(['﻿' + html], { type: 'application/vnd.ms-excel;charset=utf-8' });
+    var url  = URL.createObjectURL(blob);
+    var a    = document.createElement('a');
+    a.href = url; a.download = filename;
     document.body.appendChild(a); a.click();
     document.body.removeChild(a); URL.revokeObjectURL(url);
   }
 
+  function exportAllInterests(TURMAS, data) {
+    var rows = [];
+    TURMAS.forEach(function (t) {
+      var all = data[t.key] ? Object.values(data[t.key]) : [];
+      all.forEach(function (r) {
+        rows.push([
+          t.label,
+          r.removed ? 'Removido' : 'Ativo',
+          r.name  || '',
+          r.email || '',
+          r.area  || '',
+          r.date        ? new Date(r.date).toLocaleString('pt-BR')        : '',
+          r.removedDate ? new Date(r.removedDate).toLocaleString('pt-BR') : ''
+        ]);
+      });
+    });
+    toXls(['Turma','Status','Nome','E-mail','Área','Data Registro','Data Remoção'],
+          rows, 'interessados-turmas-' + new Date().toISOString().slice(0,10) + '.xls');
+  }
+
   function exportInterestLog(TURMAS) {
     firebase.database().ref('turmas-interesse-log').once('value', function (snap) {
-      const data = snap.val() || {};
-      const BOM  = '﻿';
-      let csv = BOM + 'Turma;Nome;E-mail;Área;Tipo de Ação;Data\n';
+      var data = snap.val() || {};
+      var rows = [];
       TURMAS.forEach(function (t) {
-        const turmaLog = data[t.key] || {};
+        var turmaLog = data[t.key] || {};
         Object.values(turmaLog).forEach(function (userLog) {
           Object.values(userLog).forEach(function (entry) {
-            csv += [
+            rows.push([
               t.label,
               entry.name  || '',
               entry.email || '',
               entry.area  || '',
               entry.action === 'registrado' ? 'Adicionou' : 'Removeu',
               entry.date ? new Date(entry.date).toLocaleString('pt-BR') : ''
-            ].map(function (v) { return '"' + String(v).replace(/"/g, '""') + '"'; }).join(';') + '\n';
+            ]);
           });
         });
       });
-      const blob = new Blob([csv], { type: 'text/csv;charset=utf-8' });
-      const url  = URL.createObjectURL(blob);
-      const a    = document.createElement('a');
-      a.href = url; a.download = 'historico-interesse-' + new Date().toISOString().slice(0, 10) + '.csv';
-      document.body.appendChild(a); a.click();
-      document.body.removeChild(a); URL.revokeObjectURL(url);
+      toXls(['Turma','Nome','E-mail','Área','Tipo de Ação','Data'],
+            rows, 'historico-interesse-' + new Date().toISOString().slice(0,10) + '.xls');
     });
   }
 
