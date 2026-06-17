@@ -343,9 +343,12 @@
 
 .admin-expand-bar {
   display: flex; align-items: center; gap: 8px;
-  padding: 8px 0 16px;
-  border-bottom: 1px solid var(--line);
+  padding: 8px 12px;
+  background: var(--space-1);
+  border: 1px solid var(--line);
+  border-radius: 10px;
   margin-bottom: 20px;
+  position: sticky; top: 64px; z-index: 10;
 }
 .admin-expand-label {
   font-family: var(--font-mono); font-size: .72rem;
