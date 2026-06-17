@@ -24,8 +24,8 @@
     { label: 'INÍCIO', color: '#1ab2ae',
       features: [
         { label: 'Ver página completa',                  p: ['visitante','logado','colaborador','admin'] },
-        { label: 'Botão "Juntar-se" → abre cadastro',   p: ['visitante'] },
-        { label: 'Botão "Juntar-se" → vai ao Treinamento Jedi',p: ['logado','colaborador','admin'] },
+        { label: 'Botão "Juntar-se" → abre cadastro (visível apenas para visitantes)',   p: ['visitante'] },
+        { label: 'Botão "Juntar-se" → removido completamente (hidden)',p: ['logado','colaborador','admin'] },
         { label: 'Botão "Conhecer a iniciativa" → rola até "O que é"', p: ['visitante','logado','colaborador','admin'] },
         { label: 'Botão "Repetir abertura" → replay do crawl de intro', p: ['visitante','logado','colaborador','admin'] },
         { label: '3 cards "Como funciona" → links para Conteúdos / Repositório / Treinamento Jedi', p: ['visitante','logado','colaborador','admin'] },

@@ -425,7 +425,13 @@
       group: 'Página Início',
       tests: [
         { id: 'c-hero',         label: 'Hero com título "Força Ágil" presente',         run: function () { return !!document.querySelector('.hero-title, .hero'); } },
-{ id: 'c-cta-btn',      label: 'Botão "Juntar-se à Força" presente',            run: function () { return !!document.querySelector('.btn-juntar, [data-cta-juntar], .hero .btn, a[href="#gamificacao"]'); } },
+        { id: 'c-cta-btn',        label: 'Botão "Juntar-se à Força" existe no DOM',         run: function () { return !!document.getElementById('heroJoin'); } },
+        { id: 'c-cta-btn-logado', label: 'Botão "Juntar-se à Força" oculto quando logado',   run: function () {
+          var btn = document.getElementById('heroJoin');
+          if (!btn) return false;
+          var sess = window.faAuth ? window.faAuth.getSession() : null;
+          return sess ? btn.hidden === true : btn.hidden === false;
+        } },
         { id: 'c-como-funciona', label: 'Como funciona: os 3 links apontam para páginas reais e com o título certo', run: function () {
           var cards = document.querySelectorAll('.how-grid .how-card');
           if (cards.length !== 3) return false;

@@ -156,11 +156,13 @@
   function updateNavState() {
     const sess      = _session;
     const ctaEl     = document.getElementById('navCta');
+    const heroJoin  = document.getElementById('heroJoin');
     const profileEl = document.getElementById('navProfile');
     const adminLink = document.getElementById('navAdmin');
     const guestEl   = document.getElementById('navGuest');
     if (guestEl)   guestEl.hidden   = !!sess;
     if (ctaEl)     ctaEl.hidden     = !!sess;
+    if (heroJoin)  heroJoin.hidden  = !!sess;
     if (profileEl) {
       profileEl.hidden = !sess;
       if (sess) {
