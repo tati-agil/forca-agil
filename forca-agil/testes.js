@@ -512,6 +512,24 @@
           window.faGameReload();
           return temCompletas && temXP;
         } },
+        { id: 'c-quiz-xp-ponderado', label: 'Autodiagnóstico: XP ponderado pelo nível (Ensino > Já ouvi falar)', run: function () {
+          if (!window.faGameData || !window.faGameReload) return false;
+          var st = window.faStore || localStorage;
+          var backup = st.getItem('fa-game-v2');
+          var dims = window.faGameData.DIMS.length;
+          function getXP(level) {
+            st.setItem('fa-game-v2', JSON.stringify({ quiz: Array(dims).fill(level), missions: {} }));
+            window.faGameReload();
+            var el = document.getElementById('quizResult');
+            var m = el && el.textContent.match(/\+(\d+) XP/);
+            return m ? parseInt(m[1], 10) : -1;
+          }
+          var xpMin = getXP(0); // Já ouvi falar
+          var xpMax = getXP(3); // Ensino
+          if (backup !== null) st.setItem('fa-game-v2', backup); else st.removeItem('fa-game-v2');
+          window.faGameReload();
+          return xpMin < xpMax && xpMax === 15;
+        } },
         { id: 'c-quiz-missao-lock-msg', label: 'Missões: mensagem de cadeado aparece quando concluída', run: function () {
           if (!window.faGameData || !window.faGameReload) return false;
           var st = window.faStore || localStorage;

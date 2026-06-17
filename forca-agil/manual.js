@@ -208,7 +208,7 @@
       body: 'Acesso a autodiagnóstico, missões, Kyber Game, painel de patente e revelar patente.' },
     { section: 'quiz', personas: ['logado', 'colaborador', 'admin'],
       title: 'Autodiagnóstico',
-      body: 'Pode fazer uma vez apenas — não pode refazer. 6 dimensões. XP máximo: 15 XP proporcional às dimensões respondidas. Única exceção: se o admin resetar o progresso, a pessoa pode refazer.' },
+      body: 'Pode fazer uma vez apenas — não pode refazer. 6 dimensões, 4 níveis (Já ouvi falar → Sei o que é → Domino → Ensino). XP ponderado pelo nível: nível mínimo = ~4 XP, nível máximo = 15 XP. Quem marca tudo "Ensino" recebe 15 XP; quem marca tudo "Já ouvi falar" recebe ~4 XP. Única exceção para refazer: admin resetar o progresso.' },
     { section: 'quiz', personas: ['logado', 'colaborador', 'admin'],
       title: 'Missões',
       body: 'Cada missão pode ser feita uma vez — não pode refazer. 6 missões × 3 perguntas × 4 XP por acerto. XP máximo total: 35 XP. Quando concluída, aparece "🔒 Missão concluída — não pode ser refeita. (X XP ganhos)" abaixo do header. Quando todas as 6 estão concluídas, aparece "Missões de Campo completas · +X XP" abaixo da lista (igual ao "Autodiagnóstico completo · +X XP de base"). Única exceção: se o admin resetar o progresso, a pessoa pode refazer.' },

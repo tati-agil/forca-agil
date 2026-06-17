@@ -75,8 +75,9 @@
   function compute() {
     const answered = state.quiz.filter(v => v != null).length;
     const quizDone = answered === DIMS.length;
-    // 20 XP distribuídos pelas 6 dimensões respondidas
-    const quizXP = Math.round(answered / DIMS.length * QUIZ_MAX);
+    // XP ponderado pelo nível escolhido: nível 0-3 vale 1-4 pts; máx = DIMS×LEVELS = 24 pts → QUIZ_MAX
+    const quizPoints = state.quiz.reduce((acc, v) => acc + (v != null ? v + 1 : 0), 0);
+    const quizXP = Math.round(quizPoints / (DIMS.length * LEVELS.length) * QUIZ_MAX);
     const mXP  = Math.min(MISS_MAX, MISSIONS.reduce((acc, m) => acc + missionXP(m), 0));
     const mDone = MISSIONS.filter(m => missionDone(m)).length;
     // kyberXP, contentXP e repoXP vêm do localStorage (salvos por firebase.js)
