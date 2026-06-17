@@ -217,7 +217,7 @@
       body: 'Pode jogar uma vez apenas — não pode refazer. 25 desafios com timer de 30s cada. XP máximo: 50 XP. Única exceção: se o admin resetar o progresso, a pessoa pode refazer.' },
     { section: 'quiz', personas: ['logado', 'colaborador', 'admin'],
       title: 'Kyber Game — tela de conclusão',
-      body: 'Mostra a pontuação do minigame e o XP ganho ("+X XP Kyber") e um botão "Revelar minha Patente Final" que leva à seção de revelar. Não mostra o ranque calculado (Youngling, Padawan, etc.) — a patente depende de 5 componentes e exibir um valor parcial aqui seria estado transitório confuso.' },
+      body: 'Mostra a pontuação do minigame e o XP ganho ("+X XP Kyber") e um botão "Revelar minha Patente Final" que leva à seção de revelar. Não mostra o ranque calculado (Youngling, Padawan, etc.) — a patente depende de 5 componentes e exibir um valor parcial aqui seria estado transitório confuso. Como o XP Kyber é calculado: Math.min(50, Math.round(pontuação / 20000 × 50)). Exemplo: 5734 pts → Math.round(5734/20000×50) = Math.round(14,3) = 14 XP. Pontuação máxima teórica que garante 50 XP: 20000 pts ou mais.' },
     { section: 'quiz', personas: ['logado', 'colaborador', 'admin'],
       title: 'Painel de patente',
       body: 'Visível em tempo real no Treinamento Jedi. Enquanto faltar etapa: "⚠ Patente provisória — faltam: X". Após revelar: mostra a patente definitiva.' },
