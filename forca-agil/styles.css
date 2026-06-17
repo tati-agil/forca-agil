@@ -372,6 +372,23 @@ h1,h2,h3,h4 { font-family: var(--font-head); font-weight: 600; line-height: 1.02
   display: table; margin: 20px auto 40px; padding: 8px 20px;
   font-size: .8rem; opacity: .6; position: relative; z-index: 4;
 }
+.crawl-pause, .crawl-skip {
+  display: table; margin: 8px auto 0; padding: 6px 18px;
+  font-size: .78rem; opacity: .75; position: relative; z-index: 4;
+}
+.crawl-pause { margin-bottom: 0; }
+.crawl-skip  { margin-top: 4px; margin-bottom: 4px; }
+/* Modo estático: exibe texto sem animação nem perspectiva */
+.crawl-stage--static {
+  height: auto; perspective: none; mask-image: none; -webkit-mask-image: none;
+  padding: 60px 0 40px;
+}
+.crawl-static {
+  position: static; transform: none; width: min(720px, 88vw);
+  margin: 0 auto; text-align: left; animation: none !important;
+  color: var(--gold);
+}
+.crawl-stage { cursor: pointer; }
 @media (prefers-reduced-motion: reduce) {
   .crawl-stage { perspective: none; height: auto; mask-image: none; -webkit-mask-image: none; padding: 80px 0; }
   .crawl-content { position: static; transform: none; width: min(720px,88vw); margin: 0 auto; text-align: left; }
