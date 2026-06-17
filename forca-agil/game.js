@@ -323,7 +323,7 @@
           lockMsg.style.cssText = 'font-family:var(--font-mono);font-size:.7rem;color:var(--ink-3);margin:2px 0 0 36px;';
           header.after(lockMsg);
         }
-        lockMsg.textContent = '🔒 Missão concluída — não pode ser refeita. (' + earned + ' XP ganhos)';
+        lockMsg.textContent = '🔒 Missão concluída — não pode ser refeita.';
       } else if (lockMsg) {
         lockMsg.remove();
       }
