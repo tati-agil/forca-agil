@@ -269,7 +269,7 @@
       body: 'Visitante, Usuário logado e Colaborador não veem o link "Admin" no menu. Se acessarem a URL diretamente, veem mensagem de acesso restrito e botão para voltar ao início.' },
     { section: 'admin', personas: ['admin'],
       title: 'Aba: Interessados por turma',
-      body: 'Exibe duas tabelas por turma: Ativos (removed:false) e Removidos (removed:true). Badge mostra apenas os ativos. Botão "Exportar Excel" gera arquivo .csv (UTF-8 BOM, separador ponto-e-vírgula) com todas as turmas, coluna Status (Ativo/Removido), datas de registro e remoção.' },
+      body: 'Exibe duas tabelas por turma: Ativos (removed:false) e Removidos (removed:true). Badge mostra apenas os ativos. Botão "Exportar Excel" gera arquivo .csv (Windows-1252, separador ponto-e-vírgula) com todas as turmas, coluna Status (Ativo/Removido), datas de registro e remoção.' },
     { section: 'admin', personas: ['admin'],
       title: 'Aba: Repositório — conteúdos curados',
       body: 'Botão "Ocultar" → some do repositório público. Botão "Restaurar" → volta a aparecer.' },
