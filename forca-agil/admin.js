@@ -242,17 +242,19 @@
   }
 
   function toXls(headers, rows, filename) {
-    var th = headers.map(function (h) { return '<th>' + esc(h) + '</th>'; }).join('');
-    var tr = rows.map(function (row) {
-      return '<tr>' + row.map(function (v) { return '<td>' + esc(String(v)) + '</td>'; }).join('') + '</tr>';
-    }).join('');
-    var html = '<html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:x="urn:schemas-microsoft-com:office:excel">' +
-      '<head><meta charset="utf-8"></head>' +
-      '<body><table><thead><tr>' + th + '</tr></thead><tbody>' + tr + '</tbody></table></body></html>';
-    var blob = new Blob(['﻿' + html], { type: 'application/vnd.ms-excel;charset=utf-8' });
+    function csvCell(v) {
+      var s = String(v == null ? '' : v).replace(/"/g, '""');
+      return /[",\n\r]/.test(s) ? '"' + s + '"' : s;
+    }
+    var lines = [headers.map(csvCell).join(',')].concat(
+      rows.map(function (row) { return row.map(csvCell).join(','); })
+    );
+    var csv = '﻿' + lines.join('\r\n');
+    var csvFilename = filename.replace(/\.xls$/i, '.csv');
+    var blob = new Blob([csv], { type: 'text/csv;charset=utf-8' });
     var url  = URL.createObjectURL(blob);
     var a    = document.createElement('a');
-    a.href = url; a.download = filename;
+    a.href = url; a.download = csvFilename;
     document.body.appendChild(a); a.click();
     document.body.removeChild(a); URL.revokeObjectURL(url);
   }
