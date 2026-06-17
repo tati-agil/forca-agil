@@ -493,6 +493,25 @@
           window.faGameReload();
           return !!header && bloqueada;
         } },
+        { id: 'c-quiz-missoes-result', label: 'Missões: "Missões de Campo completas · +X XP" aparece após concluir todas', run: function () {
+          if (!window.faGameData || !window.faGameReload) return false;
+          var st = window.faStore || localStorage;
+          var backup = st.getItem('fa-game-v2');
+          var current = (function () { try { return JSON.parse(backup || 'null'); } catch (e) { return null; } })() || { quiz: [], missions: {} };
+          var missions = {};
+          window.faGameData.MISSIONS.forEach(function (m) {
+            missions[m.id] = { answers: m.questions.map(function (q) { return q.correct; }) };
+          });
+          st.setItem('fa-game-v2', JSON.stringify({ quiz: current.quiz || [], missions: missions }));
+          window.faGameReload();
+          var el = document.getElementById('missionsResult');
+          var texto = el ? el.textContent : '';
+          var temCompletas = texto.indexOf('Missões de Campo completas') !== -1;
+          var temXP = /\+\d+ XP/.test(texto);
+          if (backup !== null) st.setItem('fa-game-v2', backup); else st.removeItem('fa-game-v2');
+          window.faGameReload();
+          return temCompletas && temXP;
+        } },
         { id: 'c-quiz-missao-lock-msg', label: 'Missões: mensagem de cadeado e XP ganhos aparece quando concluída', run: function () {
           if (!window.faGameData || !window.faGameReload) return false;
           var st = window.faStore || localStorage;

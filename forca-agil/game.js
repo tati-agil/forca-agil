@@ -110,7 +110,7 @@
   const xpNow = $('xpNow'), xpNext = $('xpNext'), xpFill = $('xpFill');
   const badgeRow = $('badgeRow'), rankHud = $('rankHud');
   const guideMsg = $('guideMsg');
-  const qList = $('qList'), quizResult = $('quizResult');
+  const qList = $('qList'), quizResult = $('quizResult'), missionsResult = $('missionsResult');
   const missionsEl = $('missions');
 
   // ---- Build quiz ----
@@ -388,6 +388,13 @@
       quizResult.textContent = c.quizDone
         ? 'Autodiagnóstico completo · +' + c.quizXP + ' XP de base'
         : (state.quiz.filter(v => v != null).length + '/' + DIMS.length + ' dimensões respondidas');
+    }
+
+    if (missionsResult) {
+      const allMissionsDone = c.mDone === MISSIONS.length;
+      missionsResult.textContent = allMissionsDone
+        ? 'Missões de Campo completas · +' + c.mXP + ' XP'
+        : (c.mDone + '/' + MISSIONS.length + ' missões concluídas');
     }
   }
 
