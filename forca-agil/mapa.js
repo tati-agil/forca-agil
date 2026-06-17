@@ -94,7 +94,7 @@
         { label: 'Adicionar / remover colaboradores, com busca em tempo real por nome ou e-mail', p: ['admin'] },
         { label: 'Ver todos os cadastrados, com filtro de busca e coluna XP — basta ter feito qualquer atividade para o XP aparecer (amarelo = publicou no ranking, ciano = tem XP mas não publicou, "—" = sem XP)', p: ['admin'] },
         { label: 'Redefinir senha de qualquer cadastrado (e-mail)', p: ['admin'] },
-        { label: 'Resetar progresso de qualquer cadastrado — apaga fa-progress, remove do ranking (players, via query por email), habilita refazer quiz/missões/Kyber/revelar patente. localStorage da pessoa é limpo no próximo login/refresh', p: ['admin'] },
+        { label: 'Resetar progresso de qualquer cadastrado — apaga fa-progress, remove do ranking (players via query por email), limpa localStorage e reabilita jogos em tempo real via listener .on(value) — sem precisar relogar', p: ['admin'] },
         { label: 'Adicionar / remover admins',                p: ['admin'] },
         { label: 'Aba Manual — checklist de regras de comportamento + Expandir/Recolher tudo', p: ['admin'] },
         { label: 'Aba Mapa — mapa do site e hierarquia de personas + Expandir/Recolher tudo', p: ['admin'] },
