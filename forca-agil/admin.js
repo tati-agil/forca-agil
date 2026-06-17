@@ -605,9 +605,7 @@
         firebase.database().ref().update(updates, function (err) {
           if (err) { alert('Erro ao resetar. Tente novamente.'); return; }
           const msg = document.createElement('p');
-          msg.style.color = 'var(--cyan)'; msg.style.fontSize = '.8rem'; msg.style.marginTop = '8px';
-          msg.textContent = btn.dataset.name + ': progresso resetado.';
-          c.appendChild(msg);
+          loadCadastrados();
         });
         return;
       }
