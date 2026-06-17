@@ -826,7 +826,7 @@
       motivo: 'Gravaria no Firebase e exigiria limpeza manual após o teste.' },
     { section: 'Admin',
       title: 'Cadastrados — resetar progresso',
-      motivo: 'Ação destrutiva e irreversível no Firebase. Verificar: (1) XP exibe "—" na tabela admin imediatamente; (2) pessoa some do ranking em tempo real; (3) se a pessoa estiver logada no momento do reset, a página dela recarrega automaticamente e todos os jogos (autodiagnóstico, missões, Kyber, revelar patente) ficam disponíveis para refazer.' },
+      motivo: 'Ação destrutiva e irreversível no Firebase. Verificar: (1) XP exibe "—" na tabela admin imediatamente; (2) pessoa some do ranking em tempo real; (3) se a pessoa estiver logada no momento do reset, a página dela recarrega automaticamente (via listener em fa-reset-signal/<emailKey>) e todos os jogos (autodiagnóstico, missões, Kyber, revelar patente) ficam disponíveis para refazer. Para testar o reload em tempo real: abrir a página como usuária em uma aba e o painel admin em outra — ao clicar Resetar, a aba da usuária deve recarregar sozinha.' },
     { section: 'Admin',
       title: 'Cadastrados — XP exibe "—" após reset',
       motivo: 'Requer executar o reset de uma pessoa que tenha XP acumulado (feito autodiagnóstico, missões ou Kyber) e confirmar que a coluna XP passa a exibir "—" imediatamente (sem recarregar a página) — independente de ter revelado patente ou publicado no ranking.' },

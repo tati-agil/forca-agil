@@ -94,7 +94,7 @@
         { label: 'Adicionar / remover colaboradores, com busca em tempo real por nome ou e-mail', p: ['admin'] },
         { label: 'Ver todos os cadastrados, com filtro de busca e coluna XP — basta ter feito qualquer atividade para o XP aparecer (amarelo = publicou no ranking, ciano = tem XP mas não publicou, "—" = sem XP)', p: ['admin'] },
         { label: 'Redefinir senha de qualquer cadastrado (e-mail)', p: ['admin'] },
-        { label: 'Resetar progresso de qualquer cadastrado — apaga fa-progress, remove do ranking (players via query por email), recarrega a página da pessoa automaticamente via listener .on(value) — todos os jogos reabilitados sem ação da pessoa', p: ['admin'] },
+        { label: 'Resetar progresso de qualquer cadastrado — apaga fa-progress, remove do ranking (players via query por email), escreve fa-reset-signal/<eKey> para notificar a pessoa logada; a página dela recarrega automaticamente — todos os jogos reabilitados sem ação da pessoa', p: ['admin'] },
         { label: 'Adicionar / remover admins',                p: ['admin'] },
         { label: 'Aba Manual — checklist de regras de comportamento + Expandir/Recolher tudo', p: ['admin'] },
         { label: 'Aba Mapa — mapa do site e hierarquia de personas + Expandir/Recolher tudo', p: ['admin'] },
