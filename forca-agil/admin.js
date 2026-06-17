@@ -28,10 +28,64 @@
     });
   }
 
+  function buildSectionButtons(panel) {
+    const bar = document.getElementById('adminExpandBar');
+    if (!bar) return;
+    bar.querySelectorAll('.admin-expand-sec-btn, .admin-expand-sep').forEach(function (b) { b.remove(); });
+
+    var secs = [];
+
+    /* Manual: details.manual-section-group */
+    panel.querySelectorAll('details.manual-section-group').forEach(function (det) {
+      var summ = det.querySelector('summary.manual-section-header');
+      if (!summ) return;
+      var color = summ.style.color || 'var(--ink)';
+      var label = (summ.firstChild && summ.firstChild.nodeType === 3 ? summ.firstChild.textContent : summ.textContent).trim();
+      secs.push({ label: label, color: color, toggle: function () { det.open = !det.open; } });
+    });
+
+    /* Mapa: .mapa-page (top-level) */
+    panel.querySelectorAll('.mapa-page').forEach(function (page) {
+      var titleEl = page.querySelector('.mapa-page-title span');
+      var label = titleEl ? titleEl.textContent.trim() : '';
+      var color = page.style.getPropertyValue('--pc') || 'var(--ink)';
+      secs.push({ label: label, color: color, toggle: function () { page.classList.toggle('open'); } });
+    });
+
+    /* Testes: .testes-group--collapsible */
+    panel.querySelectorAll('.testes-group--collapsible').forEach(function (grp) {
+      var labelEl = grp.querySelector('.testes-group-label');
+      var color = labelEl ? labelEl.style.color : 'var(--ink)';
+      var spanEl = labelEl ? labelEl.querySelector('span') : null;
+      var label = spanEl ? spanEl.textContent.replace(/\(.*\)/, '').trim() : '';
+      secs.push({ label: label, color: color, toggle: function () { grp.classList.toggle('open'); } });
+    });
+
+    if (!secs.length) return;
+
+    var sep = document.createElement('span');
+    sep.className = 'admin-expand-sep';
+    bar.appendChild(sep);
+
+    secs.forEach(function (sec) {
+      var btn = document.createElement('button');
+      btn.className = 'admin-expand-sec-btn';
+      btn.textContent = sec.label;
+      btn.style.setProperty('--sec-col', sec.color);
+      btn.addEventListener('click', sec.toggle);
+      bar.appendChild(btn);
+    });
+  }
+
   function updateExpandBar(panelId) {
     const bar = document.getElementById('adminExpandBar');
     if (!bar) return;
-    bar.classList.toggle('visible', EXPANDABLE_PANELS.indexOf(panelId) !== -1);
+    const isExpandable = EXPANDABLE_PANELS.indexOf(panelId) !== -1;
+    bar.classList.toggle('visible', isExpandable);
+    if (isExpandable) {
+      var panel = document.getElementById(panelId);
+      if (panel) setTimeout(function () { buildSectionButtons(panel); }, 50);
+    }
   }
 
   document.addEventListener('DOMContentLoaded', function () {
