@@ -185,14 +185,14 @@
         const turmaKey = btn.dataset.turma;
         if (!turmaKey) return;
 
-        /* Check if already registered */
         const sess = window.faAuth && window.faAuth.getSession();
         if (sess) checkInterestState(btn, turmaKey, sess.email);
 
         btn.addEventListener('click', function () {
           const s = window.faAuth && window.faAuth.getSession();
           if (!s) { if (window.faOpenAuthModal) window.faOpenAuthModal('register'); return; }
-          registerInterest(btn, turmaKey, s);
+          if (btn.dataset.state === 'done') removeInterest(btn, turmaKey, s);
+          else registerInterest(btn, turmaKey, s);
         });
       });
     }
@@ -201,25 +201,50 @@
       const key = emailKey(email);
       firebase && firebase.database &&
         firebase.database().ref('turmas-interesse/' + turmaKey + '/' + key).once('value', function (snap) {
-          if (snap.exists()) setDone(btn, turmaKey);
+          const val = snap.val();
+          if (val && !val.removed) setDone(btn, turmaKey);
         });
     }
 
     function registerInterest(btn, turmaKey, sess) {
-      if (btn.classList.contains('done')) return;
       const key   = emailKey(sess.email);
-      const entry = { name: sess.name, email: sess.email, area: sess.area || '', date: new Date().toISOString() };
+      const now   = new Date().toISOString();
+      const entry = { name: sess.name, email: sess.email, area: sess.area || '', date: now, removed: false };
       firebase.database().ref('turmas-interesse/' + turmaKey + '/' + key).set(entry, function (err) {
-        if (!err) setDone(btn, turmaKey);
-        else showMsg(turmaKey, 'Erro ao registrar. Tente novamente.');
+        if (err) { showMsg(turmaKey, 'Erro ao registrar. Tente novamente.'); return; }
+        firebase.database().ref('turmas-interesse-log/' + turmaKey + '/' + key).push(
+          { name: sess.name, email: sess.email, area: sess.area || '', action: 'registrado', date: now }
+        );
+        setDone(btn, turmaKey);
+      });
+    }
+
+    function removeInterest(btn, turmaKey, sess) {
+      const key = emailKey(sess.email);
+      const now = new Date().toISOString();
+      firebase.database().ref('turmas-interesse/' + turmaKey + '/' + key).update({ removed: true, removedDate: now }, function (err) {
+        if (err) { showMsg(turmaKey, 'Erro ao remover. Tente novamente.'); return; }
+        firebase.database().ref('turmas-interesse-log/' + turmaKey + '/' + key).push(
+          { name: sess.name, email: sess.email, area: sess.area || '', action: 'removido', date: now }
+        );
+        setInitial(btn, turmaKey);
       });
     }
 
     function setDone(btn, turmaKey) {
-      btn.textContent = '✓ Interesse registrado';
+      btn.textContent = 'Remover interesse';
       btn.classList.add('done');
-      btn.disabled = true;
+      btn.dataset.state = 'done';
+      btn.disabled = false;
       showMsg(turmaKey, 'Sua intenção foi registrada! Usaremos para dimensionar as turmas.');
+    }
+
+    function setInitial(btn, turmaKey) {
+      btn.textContent = 'Tenho interesse';
+      btn.classList.remove('done');
+      btn.dataset.state = '';
+      btn.disabled = false;
+      showMsg(turmaKey, 'Interesse removido.');
     }
 
     function showMsg(turmaKey, msg) {

@@ -93,25 +93,76 @@
         { key: 't3', label: 'Turma 3 — Novembro (17·18·19·24·25)' }
       ];
 
+      /* global export button */
+      const exportBtn = document.createElement('button');
+      exportBtn.className = 'btn btn--sm';
+      exportBtn.textContent = 'Exportar Excel (todas as turmas)';
+      exportBtn.style.marginBottom = '20px';
+      exportBtn.addEventListener('click', function () { exportAllInterests(TURMAS, data); });
+      c.appendChild(exportBtn);
+
       TURMAS.forEach(function (t) {
-        const records = data[t.key] ? Object.values(data[t.key]) : [];
+        const all     = data[t.key] ? Object.values(data[t.key]) : [];
+        const active  = all.filter(function (r) { return !r.removed; });
+        const removed = all.filter(function (r) { return r.removed; });
+
         const section = document.createElement('div');
         section.className = 'admin-section';
-        section.innerHTML = '<h4>' + t.label + ' <span class="admin-badge">' + records.length + '</span></h4>';
 
-        if (!records.length) {
-          section.innerHTML += '<p class="admin-empty">Nenhum interesse registrado.</p>';
+        let html = '<h4>' + t.label + ' <span class="admin-badge">' + active.length + ' ativos</span></h4>';
+
+        /* active table */
+        if (!active.length) {
+          html += '<p class="admin-empty">Nenhum interesse ativo.</p>';
         } else {
-          let tbl = '<table class="admin-table"><thead><tr><th>Nome</th><th>E-mail</th><th>Área</th><th>Data</th></tr></thead><tbody>';
-          records.forEach(function (r) {
-            tbl += '<tr><td>' + esc(r.name) + '</td><td>' + esc(r.email) + '</td><td>' + esc(r.area || '—') + '</td><td>' + fmtDate(r.date) + '</td></tr>';
-          });
-          tbl += '</tbody></table>';
-          section.innerHTML += tbl;
+          html += buildInterestTable(active, false);
         }
+
+        /* removed table */
+        if (removed.length) {
+          html += '<h5 style="margin:16px 0 8px;color:var(--ink-3);font-size:.85rem;">Removidos (' + removed.length + ')</h5>';
+          html += buildInterestTable(removed, true);
+        }
+
+        section.innerHTML = html;
         c.appendChild(section);
       });
     });
+  }
+
+  function buildInterestTable(records, isRemoved) {
+    let tbl = '<table class="admin-table"><thead><tr><th>Nome</th><th>E-mail</th><th>Área</th><th>Data registro</th>' +
+      (isRemoved ? '<th>Data remoção</th>' : '') + '</tr></thead><tbody>';
+    records.forEach(function (r) {
+      tbl += '<tr><td>' + esc(r.name) + '</td><td>' + esc(r.email) + '</td><td>' + esc(r.area || '—') + '</td><td>' +
+        fmtDate(r.date) + '</td>' + (isRemoved ? '<td>' + fmtDate(r.removedDate) + '</td>' : '') + '</tr>';
+    });
+    return tbl + '</tbody></table>';
+  }
+
+  function exportAllInterests(TURMAS, data) {
+    const BOM = '﻿';
+    let csv = BOM + 'Turma\tStatus\tNome\tE-mail\tÁrea\tData Registro\tData Remoção\n';
+    TURMAS.forEach(function (t) {
+      const all = data[t.key] ? Object.values(data[t.key]) : [];
+      all.forEach(function (r) {
+        csv += [
+          t.label,
+          r.removed ? 'Removido' : 'Ativo',
+          r.name || '',
+          r.email || '',
+          r.area || '',
+          r.date ? new Date(r.date).toLocaleString('pt-BR') : '',
+          r.removedDate ? new Date(r.removedDate).toLocaleString('pt-BR') : ''
+        ].map(function (v) { return '"' + String(v).replace(/"/g, '""') + '"'; }).join('\t') + '\n';
+      });
+    });
+    const blob = new Blob([csv], { type: 'text/tab-separated-values;charset=utf-8' });
+    const url  = URL.createObjectURL(blob);
+    const a    = document.createElement('a');
+    a.href = url; a.download = 'interessados-turmas-' + new Date().toISOString().slice(0,10) + '.xls';
+    document.body.appendChild(a); a.click();
+    document.body.removeChild(a); URL.revokeObjectURL(url);
   }
 
   const REPO_SEEDS = [

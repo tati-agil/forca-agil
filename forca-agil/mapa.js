@@ -39,7 +39,8 @@
       features: [
         { label: 'Ver turmas, datas e descrição',        p: ['visitante','logado','colaborador','admin'] },
         { label: '"Tenho interesse" → abre cadastro',    p: ['visitante'] },
-        { label: 'Registrar interesse na turma',         p: ['logado','colaborador','admin'] },
+        { label: 'Registrar interesse → botão vira "Remover interesse"', p: ['logado','colaborador','admin'] },
+        { label: 'Remover interesse → botão volta a "Tenho interesse" (log mantido)', p: ['logado','colaborador','admin'] },
         { label: 'Expandir Agenda D1–D5',                p: ['colaborador','admin'] },
       ]
     },
