@@ -525,16 +525,36 @@
 
     Promise.all([
       firebase.database().ref('fa-users').once('value'),
-      firebase.database().ref('players').once('value')
+      firebase.database().ref('players').once('value'),
+      firebase.database().ref('fa-progress').once('value')
     ]).then(function (snaps) {
-      const data    = snaps[0].val() || {};
-      const players = snaps[1].val() || {};
-      renderCadastrados(c, data, players);
+      const data     = snaps[0].val() || {};
+      const players  = snaps[1].val() || {};
+      const progress = snaps[2].val() || {};
+      renderCadastrados(c, data, players, progress);
     });
   }
 
-  function renderCadastrados(c, data, players) {
-    players = players || {};
+  function calcXPFromProgress(prog) {
+    if (!prog) return 0;
+    var xpAuto = 0;
+    try {
+      var g = JSON.parse(prog.fa_game_v2 || 'null');
+      if (g && g.quiz) {
+        var answered = g.quiz.filter(function (v) { return v != null; }).length;
+        xpAuto = Math.round(answered / 6 * 20);
+      }
+    } catch (e) {}
+    var xpMissoes = parseInt(prog.fa_missions_xp || '0', 10) || 0;
+    var xpKyber   = parseInt(prog.fa_kyber_xp    || '0', 10) || 0;
+    var xpContent = parseInt(prog.fa_content_xp  || '0', 10) || 0;
+    var xpRepo    = parseInt(prog.fa_repo_xp     || '0', 10) || 0;
+    return Math.min(100, xpAuto + xpMissoes + xpKyber + xpContent + xpRepo);
+  }
+
+  function renderCadastrados(c, data, players, progress) {
+    players  = players  || {};
+    progress = progress || {};
     const list = Object.entries(data)
       .map(function (entry) { return Object.assign({ _key: entry[0] }, entry[1]); })
       .sort(function (a, b) { return (a.name || '').localeCompare(b.name || '', 'pt'); });
@@ -558,11 +578,15 @@
     function fillRows(filtered) {
       tbody.innerHTML = '';
       filtered.forEach(function (p) {
-        const player = players[p._key] || {};
-        const xp     = player.totalXP != null ? player.totalXP + ' XP' : '—';
-        const xpStyle = player.totalXP != null
+        const player    = players[p._key] || {};
+        const published = player.totalXP != null;
+        const xpVal     = published ? player.totalXP : calcXPFromProgress(progress[p._key] || null);
+        const xp        = xpVal > 0 ? xpVal + ' XP' : '—';
+        const xpStyle   = published
           ? 'color:var(--accent);font-family:var(--font-mono);font-weight:700'
-          : 'color:var(--ink-3);font-family:var(--font-mono)';
+          : xpVal > 0
+            ? 'color:var(--cyan);font-family:var(--font-mono);font-weight:700'
+            : 'color:var(--ink-3);font-family:var(--font-mono)';
         const tr = document.createElement('tr');
         tr.innerHTML =
           '<td>' + esc(p.name || '—') + '</td>' +

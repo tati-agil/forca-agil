@@ -90,7 +90,7 @@
         { label: 'Moderar repositório — ocultar/restaurar conteúdo de usuários (fa-holocron-hidden)', p: ['admin'] },
         { label: 'Moderar repositório — deletar permanentemente conteúdo de usuários (holocron)', p: ['admin'] },
         { label: 'Adicionar / remover colaboradores, com busca em tempo real por nome ou e-mail', p: ['admin'] },
-        { label: 'Ver todos os cadastrados, com filtro de busca', p: ['admin'] },
+        { label: 'Ver todos os cadastrados, com filtro de busca e coluna XP — basta ter feito qualquer atividade para o XP aparecer (amarelo = publicou no ranking, ciano = tem XP mas não publicou, "—" = sem XP)', p: ['admin'] },
         { label: 'Redefinir senha de qualquer cadastrado (e-mail)', p: ['admin'] },
         { label: 'Resetar progresso de qualquer cadastrado',  p: ['admin'] },
         { label: 'Adicionar / remover admins',                p: ['admin'] },

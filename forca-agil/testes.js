@@ -360,6 +360,12 @@
           input.dispatchEvent(new Event('input'));
           return todasContemTermo && reduziu;
         } },
+        { id: 'adm-cadastrados-xp', label: 'Cadastrados: coluna XP presente na tabela', run: function () {
+          var c = document.getElementById('adminCadastrados');
+          if (!c) return false;
+          var ths = c.querySelectorAll('thead th');
+          return Array.from(ths).some(function(th) { return th.textContent.trim() === 'XP'; });
+        } },
         { id: 'adm-colab-sem-reset-redefinir', label: 'Colaboradores: não tem botões de resetar progresso/redefinir senha', run: function () {
           var c = document.getElementById('adminColab');
           if (!c) return false;
@@ -815,6 +821,9 @@
     { section: 'Admin',
       title: 'Cadastrados — resetar progresso',
       motivo: 'Ação destrutiva e irreversível no Firebase.' },
+    { section: 'Admin',
+      title: 'Cadastrados — XP exibe "—" após reset',
+      motivo: 'Requer executar o reset de uma pessoa que tenha XP acumulado (feito autodiagnóstico, missões ou Kyber) e confirmar que a coluna XP passa a exibir "—" imediatamente (sem recarregar a página) — independente de ter revelado patente ou publicado no ranking.' },
     { section: 'Admin',
       title: 'Cadastrados — redefinir senha',
       motivo: 'Requer que a pessoa já tenha conta ativa e verifica e-mail externo.' }
