@@ -333,6 +333,7 @@
   border-radius: 9px; color: var(--ink);
   font-family: var(--font-mono); font-size: .78rem;
   letter-spacing: .04em; min-width: 0;
+  line-height: 44px; vertical-align: middle;
 }
 #adminContent input:focus { outline: none; border-color: var(--accent); }
 /* Linha de inputs + botão no admin */
