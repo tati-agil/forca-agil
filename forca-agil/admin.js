@@ -243,16 +243,14 @@
 
   function toXls(headers, rows, filename) {
     function csvCell(v) {
-      var s = String(v == null ? '' : v).replace(/"/g, '""');
-      return /[",
-;]/.test(s) ? '"' + s + '"' : s;
+      var s = String(v == null ? '' : v).replace(/"/g, '"' + '"');
+      return /["\n\r;]/.test(s) ? '"' + s + '"' : s;
     }
     var lines = ['sep=;', headers.map(csvCell).join(';')].concat(
       rows.map(function (row) { return row.map(csvCell).join(';'); })
     );
-    var csvFilename = filename.replace(/.xls$/i, '.csv');
-    var csvText = '﻿' + lines.join('
-');
+    var csvFilename = filename.replace(/\.xls$/i, '.csv');
+    var csvText = '\uFEFF' + lines.join('\r\n');
     var encoder = new TextEncoder();
     var blob = new Blob([encoder.encode(csvText)], { type: 'text/csv;charset=utf-8' });
     var url  = URL.createObjectURL(blob);
