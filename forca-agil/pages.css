@@ -328,12 +328,11 @@
 #adminContent input[type="text"],
 #adminContent input[type="email"],
 #adminContent input[type="search"] {
-  height: 44px; padding: 0 14px; box-sizing: border-box;
+  padding: 12px 14px; box-sizing: border-box;
   background: var(--space-1); border: 1px solid var(--line-strong);
   border-radius: 9px; color: var(--ink);
   font-family: var(--font-mono); font-size: .78rem;
   letter-spacing: .04em; min-width: 0;
-  line-height: 44px; vertical-align: middle;
 }
 #adminContent input:focus { outline: none; border-color: var(--accent); }
 /* Linha de inputs + botão no admin */
