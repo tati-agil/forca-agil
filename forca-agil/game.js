@@ -41,13 +41,7 @@
     try { st.setItem(STORE, JSON.stringify(state)); } catch (e) {}
     // salva missions XP separado para firebase.js ler
     try {
-      const totalCorrect = MISSIONS.reduce((acc, m) => {
-        const ms = state.missions[m.id];
-        if (!ms || !ms.answers) return acc;
-        return acc + ms.answers.filter((a, i) => a === m.questions[i].correct).length;
-      }, 0);
-      const totalQuestions = MISSIONS.reduce((acc, m) => acc + m.questions.length, 0);
-      const mXP = Math.round(totalCorrect / totalQuestions * MISS_MAX);
+      const mXP = Math.min(MISS_MAX, MISSIONS.reduce((acc, m) => acc + missionXP(m), 0));
       st.setItem('fa-missions-xp', String(mXP));
     } catch(e) {}
     // Sincroniza progresso com Firebase para restaurar em outros browsers
@@ -83,14 +77,7 @@
     const quizDone = answered === DIMS.length;
     // 20 XP distribuídos pelas 6 dimensões respondidas
     const quizXP = Math.round(answered / DIMS.length * QUIZ_MAX);
-    // missões: total de acertos / 18 * 48 XP
-    const totalCorrect = MISSIONS.reduce((acc, m) => {
-      const ms = state.missions[m.id];
-      if (!ms || !ms.answers) return acc;
-      return acc + ms.answers.filter((a, i) => a === m.questions[i].correct).length;
-    }, 0);
-    const totalQuestions = MISSIONS.reduce((acc, m) => acc + m.questions.length, 0);
-    const mXP  = Math.round(totalCorrect / totalQuestions * MISS_MAX);
+    const mXP  = Math.min(MISS_MAX, MISSIONS.reduce((acc, m) => acc + missionXP(m), 0));
     const mDone = MISSIONS.filter(m => missionDone(m)).length;
     // kyberXP, contentXP e repoXP vêm do localStorage (salvos por firebase.js)
     const kyberXP = (() => { try { return parseInt((window.faStore || localStorage).getItem('fa-kyber-xp') || '0', 10) || 0; } catch(e) { return 0; } })();
