@@ -243,16 +243,20 @@
 
   function toXls(headers, rows, filename) {
     function csvCell(v) {
-      var s = String(v == null ? '' : v).replace(/"/g, '"' + '"');
+      var s = String(v == null ? '' : v).replace(/"/g, '""');
       return /["\n\r;]/.test(s) ? '"' + s + '"' : s;
     }
     var lines = ['sep=;', headers.map(csvCell).join(';')].concat(
       rows.map(function (row) { return row.map(csvCell).join(';'); })
     );
     var csvFilename = filename.replace(/\.xls$/i, '.csv');
-    var csvText = '\uFEFF' + lines.join('\r\n');
-    var encoder = new TextEncoder();
-    var blob = new Blob([encoder.encode(csvText)], { type: 'text/csv;charset=utf-8' });
+    var raw = lines.join('\r\n');
+    var bytes = new Uint8Array(raw.length);
+    for (var i = 0; i < raw.length; i++) {
+      var c = raw.charCodeAt(i);
+      bytes[i] = c < 256 ? c : 63;
+    }
+    var blob = new Blob([bytes], { type: 'text/csv' });
     var url  = URL.createObjectURL(blob);
     var a    = document.createElement('a');
     a.href = url; a.download = csvFilename;
