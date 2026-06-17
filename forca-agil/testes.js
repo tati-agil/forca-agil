@@ -832,7 +832,10 @@
       motivo: 'Requer executar o reset de uma pessoa que tenha XP acumulado (feito autodiagnóstico, missões ou Kyber) e confirmar que a coluna XP passa a exibir "—" imediatamente (sem recarregar a página) — independente de ter revelado patente ou publicado no ranking.' },
     { section: 'Admin',
       title: 'Cadastrados — redefinir senha',
-      motivo: 'Requer que a pessoa já tenha conta ativa e verifica e-mail externo.' }
+      motivo: 'Requer que a pessoa já tenha conta ativa e verifica e-mail externo.' },
+    { section: 'Deploy',
+      title: 'Pre-commit hook — bloqueia commit com erro de sintaxe JS',
+      motivo: 'Verificar manualmente: editar um arquivo JS com erro intencional (ex: remover um "}" ao final) e tentar fazer git commit — o commit deve ser recusado com mensagem de erro indicando o arquivo. Desfazer a edição após o teste.' }
   ];
 
   /* ================================================================

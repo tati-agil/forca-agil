@@ -248,6 +248,7 @@
         label: 'Deploy', color: '#e8854a',
         items: [
           { name: 'Processo',    desc: 'git push para o branch main no GitHub → Firebase Hosting atualiza automaticamente o site em segundos' },
+          { name: 'Pre-commit hook', desc: 'Git hook em .git/hooks/pre-commit — roda node --check em todos os forca-agil/*.js antes de cada commit. Bloqueia o commit se houver erro de sintaxe, impedindo deploy de código quebrado' },
           { name: 'URL',         desc: 'https://kyber-agil.web.app (produção)' },
           { name: 'Hospedagem',  desc: 'Firebase Hosting — gratuito no Spark plan, CDN global, HTTPS automático, sem servidor para gerenciar' },
           { name: 'Banco',       desc: 'Firebase Realtime Database — gratuito até 1 GB de dados e 10 GB/mês de transferência (Spark plan)' },

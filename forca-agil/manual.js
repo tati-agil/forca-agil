@@ -309,6 +309,9 @@
     { section: 'admin', personas: ['admin'],
       title: 'Aba: Testes',
       body: 'Roda os testes automatizados (técnicos e de comportamento) e exibe o checklist de regras que exigem validação manual.' },
+    { section: 'admin', personas: ['admin'],
+      title: 'Deploy — pre-commit hook de sintaxe',
+      body: 'Git hook em .git/hooks/pre-commit roda node --check em todos os forca-agil/*.js antes de cada commit. Se qualquer arquivo tiver erro de sintaxe, o commit é bloqueado com o nome do arquivo e o erro — impedindo que código quebrado chegue ao ar.' },
   ];
 
   function esc(s) {
