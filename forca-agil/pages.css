@@ -331,9 +331,9 @@
   padding: 12px 14px; box-sizing: border-box;
   background: var(--space-1); border: 1px solid var(--line-strong);
   border-radius: 9px; color: var(--ink);
-  font-family: var(--font-mono); font-size: .78rem;
-  letter-spacing: .04em; min-width: 0;
+  font-size: .85rem; min-width: 0;
 }
+#adminContent input::placeholder { color: var(--ink-3); opacity: 1; }
 #adminContent input:focus { outline: none; border-color: var(--accent); }
 /* Linha de inputs + botão no admin */
 .admin-colab-row {
