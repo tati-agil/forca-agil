@@ -692,14 +692,17 @@
       }
       if (btn.classList.contains('admin-reset-btn')) {
         if (!confirm('Resetar TODO o progresso do jogo de ' + btn.dataset.name + '?\n\nIsso apaga autodiagnóstico, missões, Kyber Game e patente. Essa ação não pode ser desfeita.')) return;
-        const eKey = btn.dataset.key;
+        const eKey   = btn.dataset.key;
+        const email  = btn.dataset.email;
         const updates = {};
         updates['fa-progress/' + eKey] = null;
-        updates['players/' + eKey] = null;
-        firebase.database().ref().update(updates, function (err) {
-          if (err) { alert('Erro ao resetar. Tente novamente.'); return; }
-          const msg = document.createElement('p');
-          loadCadastrados();
+        /* players usa key name__turma — buscar por email para deletar a entrada certa */
+        firebase.database().ref('players').orderByChild('email').equalTo(email).once('value', function (snap) {
+          snap.forEach(function (child) { updates['players/' + child.key] = null; });
+          firebase.database().ref().update(updates, function (err) {
+            if (err) { alert('Erro ao resetar. Tente novamente.'); return; }
+            loadCadastrados();
+          });
         });
         return;
       }
