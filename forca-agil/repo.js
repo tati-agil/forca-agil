@@ -55,6 +55,7 @@
   let filter = 'all';
   let firebaseItems = []; // itens vindos do Firebase
   let hiddenSeeds = {};   // seeds ocultos pelo admin
+  let hiddenHolo  = {};   // itens de usuário ocultos pelo admin
 
   function seedKey(url) {
     return (url || '').toLowerCase().replace(/[^a-z0-9]/g, '_').slice(0, 80);
@@ -120,7 +121,9 @@
     const seeds = SEEDS
       .filter(function(s) { return !hiddenSeeds[seedKey(s.url)]; })
       .map(function(s) { return { item: s, seed: true, key: null }; });
-    const user  = firebaseItems.map(function(x) { return { item: x.data, seed: false, key: x.key }; });
+    const user  = firebaseItems
+      .filter(function(x) { return !hiddenHolo[x.key]; })
+      .map(function(x) { return { item: x.data, seed: false, key: x.key }; });
     const all   = seeds.concat(user);
     const shown = all.filter(function(x) { return filter === 'all' || x.item.type === filter; });
 
@@ -305,6 +308,10 @@
   try {
     firebase.database().ref('fa-seeds-hidden').on('value', function(snap) {
       hiddenSeeds = snap.val() || {};
+      render();
+    });
+    firebase.database().ref('fa-holocron-hidden').on('value', function(snap) {
+      hiddenHolo = snap.val() || {};
       render();
     });
   } catch(e) {}

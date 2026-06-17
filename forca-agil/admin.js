@@ -93,13 +93,23 @@
         { key: 't3', label: 'Turma 3 — Novembro (17·18·19·24·25)' }
       ];
 
-      /* global export button */
+      /* global export buttons */
+      const btnWrap = document.createElement('div');
+      btnWrap.style.cssText = 'display:flex;gap:8px;flex-wrap:wrap;margin-bottom:24px;';
+
       const exportBtn = document.createElement('button');
       exportBtn.className = 'btn btn--sm';
-      exportBtn.textContent = 'Exportar Excel (todas as turmas)';
-      exportBtn.style.marginBottom = '20px';
+      exportBtn.textContent = 'Exportar Excel (estado atual)';
       exportBtn.addEventListener('click', function () { exportAllInterests(TURMAS, data); });
-      c.appendChild(exportBtn);
+
+      const csvBtn = document.createElement('button');
+      csvBtn.className = 'btn btn--sm';
+      csvBtn.textContent = 'Exportar CSV Histórico';
+      csvBtn.addEventListener('click', function () { exportInterestLog(TURMAS); });
+
+      btnWrap.appendChild(exportBtn);
+      btnWrap.appendChild(csvBtn);
+      c.appendChild(btnWrap);
 
       TURMAS.forEach(function (t) {
         const all     = data[t.key] ? Object.values(data[t.key]) : [];
@@ -165,6 +175,35 @@
     document.body.removeChild(a); URL.revokeObjectURL(url);
   }
 
+  function exportInterestLog(TURMAS) {
+    firebase.database().ref('turmas-interesse-log').once('value', function (snap) {
+      const data = snap.val() || {};
+      const BOM  = '﻿';
+      let csv = BOM + 'Turma;Nome;E-mail;Área;Tipo de Ação;Data\n';
+      TURMAS.forEach(function (t) {
+        const turmaLog = data[t.key] || {};
+        Object.values(turmaLog).forEach(function (userLog) {
+          Object.values(userLog).forEach(function (entry) {
+            csv += [
+              t.label,
+              entry.name  || '',
+              entry.email || '',
+              entry.area  || '',
+              entry.action === 'registrado' ? 'Adicionou' : 'Removeu',
+              entry.date ? new Date(entry.date).toLocaleString('pt-BR') : ''
+            ].map(function (v) { return '"' + String(v).replace(/"/g, '""') + '"'; }).join(';') + '\n';
+          });
+        });
+      });
+      const blob = new Blob([csv], { type: 'text/csv;charset=utf-8' });
+      const url  = URL.createObjectURL(blob);
+      const a    = document.createElement('a');
+      a.href = url; a.download = 'historico-interesse-' + new Date().toISOString().slice(0, 10) + '.csv';
+      document.body.appendChild(a); a.click();
+      document.body.removeChild(a); URL.revokeObjectURL(url);
+    });
+  }
+
   const REPO_SEEDS = [
     { type: 'doc',   title: 'The Scrum Guide',                       url: 'https://scrumguides.org/',                                                                                                                                              desc: '' },
     { type: 'video', title: 'Agile Product Ownership in a Nutshell', url: 'https://www.youtube.com/results?search_query=agile+product+ownership+in+a+nutshell+kniberg',                                                                           desc: '' },
@@ -191,81 +230,123 @@
     if (!c) return;
     c.innerHTML = '<p class="loading-msg">Carregando repositório…</p>';
 
-    firebase.database().ref('fa-seeds-hidden').once('value', function (snapH) {
-      const hidden = snapH.val() || {};
+    Promise.all([
+      firebase.database().ref('fa-seeds-hidden').once('value'),
+      firebase.database().ref('fa-seeds-deleted').once('value'),
+      firebase.database().ref('fa-holocron-hidden').once('value'),
+      firebase.database().ref('holocron').once('value')
+    ]).then(function (snaps) {
+      const hidden      = snaps[0].val() || {};
+      const deleted     = snaps[1].val() || {};
+      const hiddenHolo  = snaps[2].val() || {};
+      const holoData    = snaps[3].val() || {};
+      const fbEntries   = Object.entries(holoData);
 
-      firebase.database().ref('holocron').once('value', function (snap) {
-        const data    = snap.val() || {};
-        const fbEntries = Object.entries(data);
-        c.innerHTML = '';
+      c.innerHTML = '';
 
-        const total = REPO_SEEDS.length + fbEntries.length;
-        const h4 = document.createElement('h4');
-        h4.innerHTML = 'Todos os conteúdos <span class="admin-badge">' + total + '</span>';
-        c.appendChild(h4);
+      const visibleSeeds = REPO_SEEDS.filter(function (s) { return !deleted[seedKey(s.url)]; });
+      const total = visibleSeeds.length + fbEntries.length;
+      const h4 = document.createElement('h4');
+      h4.innerHTML = 'Todos os conteúdos <span class="admin-badge">' + total + '</span>';
+      c.appendChild(h4);
 
-        /* Seeds curados */
-        const seedSec = document.createElement('div');
-        seedSec.innerHTML = '<p style="font-size:.75rem;color:var(--ink-3);margin:16px 0 8px;text-transform:uppercase;letter-spacing:.1em">Curados (seed)</p>';
-        c.appendChild(seedSec);
+      /* Seeds curados */
+      const seedSec = document.createElement('div');
+      seedSec.innerHTML = '<p style="font-size:.75rem;color:var(--ink-3);margin:16px 0 8px;text-transform:uppercase;letter-spacing:.1em">Curados (seed)</p>';
+      c.appendChild(seedSec);
 
-        REPO_SEEDS.forEach(function (item) {
-          const sk  = seedKey(item.url);
-          const row = document.createElement('div');
-          row.className = 'admin-repo-row';
-          if (hidden[sk]) row.style.opacity = '.4';
-          row.innerHTML =
-            '<div class="admin-repo-info">' +
-              '<span class="admin-repo-title">' + esc(item.title) + '</span>' +
-              '<span class="admin-repo-by">curado · ' + esc(TYPE_LABEL[item.type] || item.type) + (function(){ var m = (item.desc||'').match(/Indicado por ([^.]+)/); return m ? ' · Indicado por ' + esc(m[1].trim()) : ''; })() + (hidden[sk] ? ' · <em>oculto</em>' : '') + '</span>' +
-            '</div>' +
-            (hidden[sk]
-              ? '<button class="admin-del-btn admin-restore-btn" data-sk="' + esc(sk) + '">Restaurar</button>'
-              : '<button class="admin-del-btn admin-hide-btn" data-sk="' + esc(sk) + '">Ocultar</button>');
-          row.querySelector('.admin-del-btn').addEventListener('click', function () {
-            const btn = row.querySelector('.admin-del-btn');
-            if (hidden[sk]) {
-              if (!confirm('Restaurar "' + item.title + '" no repositório público?')) return;
-              firebase.database().ref('fa-seeds-hidden/' + sk).remove(function () { loadRepoAdmin(); });
-            } else {
-              if (!confirm('Ocultar "' + item.title + '" do repositório público?')) return;
-              firebase.database().ref('fa-seeds-hidden/' + sk).set(true, function () { loadRepoAdmin(); });
-            }
-          });
-          seedSec.appendChild(row);
+      visibleSeeds.forEach(function (item) {
+        const sk  = seedKey(item.url);
+        const isHidden = !!hidden[sk];
+        const row = document.createElement('div');
+        row.className = 'admin-repo-row';
+        if (isHidden) row.style.opacity = '.45';
+
+        const by = (function () {
+          var m = (item.desc || '').match(/Indicado por ([^.]+)/);
+          return m ? ' · Indicado por ' + esc(m[1].trim()) : '';
+        })();
+
+        const actionBtns = isHidden
+          ? '<button class="admin-del-btn admin-restore-btn">Restaurar</button>'
+          : '<button class="admin-del-btn admin-hide-btn">Ocultar</button>';
+
+        row.innerHTML =
+          '<div class="admin-repo-info">' +
+            '<span class="admin-repo-title">' + esc(item.title) + '</span>' +
+            '<span class="admin-repo-by">curado · ' + esc(TYPE_LABEL[item.type] || item.type) + by + (isHidden ? ' · <em>oculto</em>' : '') + '</span>' +
+          '</div>' +
+          '<div style="display:flex;gap:6px">' + actionBtns + '<button class="admin-del-btn admin-perm-del-btn">Deletar</button></div>';
+
+        row.querySelector('.admin-hide-btn, .admin-restore-btn').addEventListener('click', function () {
+          if (isHidden) {
+            if (!confirm('Restaurar "' + item.title + '" no repositório público?')) return;
+            firebase.database().ref('fa-seeds-hidden/' + sk).remove(function () { loadRepoAdmin(); });
+          } else {
+            if (!confirm('Ocultar "' + item.title + '" do repositório público?')) return;
+            firebase.database().ref('fa-seeds-hidden/' + sk).set(true, function () { loadRepoAdmin(); });
+          }
         });
 
-        /* Itens enviados por usuários */
-        const userSec = document.createElement('div');
-        userSec.innerHTML = '<p style="font-size:.75rem;color:var(--ink-3);margin:24px 0 8px;text-transform:uppercase;letter-spacing:.1em">Enviados por usuários</p>';
-        c.appendChild(userSec);
+        row.querySelector('.admin-perm-del-btn').addEventListener('click', function () {
+          if (!confirm('Deletar permanentemente "' + item.title + '"? Esta ação não pode ser desfeita.')) return;
+          const updates = {};
+          updates['fa-seeds-deleted/' + sk] = true;
+          updates['fa-seeds-hidden/' + sk]  = true;
+          firebase.database().ref().update(updates, function () { loadRepoAdmin(); });
+        });
 
-        if (!fbEntries.length) {
-          userSec.innerHTML += '<p class="admin-empty">Nenhum item enviado ainda.</p>';
-        } else {
-          fbEntries.forEach(function (e) {
-            const key = e[0], item = e[1];
-            const row = document.createElement('div');
-            row.className = 'admin-repo-row';
-            row.innerHTML =
-              '<div class="admin-repo-info">' +
-                '<span class="admin-repo-title">' + esc(item.title || '—') + '</span>' +
-                '<span class="admin-repo-by">' + esc(item.authorName || '—') +
-                  (item.createdAt ? ' · ' + fmtDate(item.createdAt) : '') +
-                '</span>' +
-              '</div>' +
-              '<button class="admin-del-btn" data-key="' + esc(key) + '">Deletar</button>';
-            row.querySelector('.admin-del-btn').addEventListener('click', function () {
-              if (!confirm('Deletar "' + esc(item.title || '') + '" do repositório?')) return;
-              firebase.database().ref('holocron/' + key).remove(function (err) {
-                if (!err) row.remove();
-                else alert('Erro ao deletar. Tente novamente.');
-              });
-            });
-            userSec.appendChild(row);
-          });
-        }
+        seedSec.appendChild(row);
       });
+
+      /* Itens enviados por usuários */
+      const userSec = document.createElement('div');
+      userSec.innerHTML = '<p style="font-size:.75rem;color:var(--ink-3);margin:24px 0 8px;text-transform:uppercase;letter-spacing:.1em">Enviados por usuários</p>';
+      c.appendChild(userSec);
+
+      if (!fbEntries.length) {
+        userSec.innerHTML += '<p class="admin-empty">Nenhum item enviado ainda.</p>';
+      } else {
+        fbEntries.forEach(function (e) {
+          const key = e[0], item = e[1];
+          const isHiddenHolo = !!hiddenHolo[key];
+          const row = document.createElement('div');
+          row.className = 'admin-repo-row';
+          if (isHiddenHolo) row.style.opacity = '.45';
+
+          row.innerHTML =
+            '<div class="admin-repo-info">' +
+              '<span class="admin-repo-title">' + esc(item.title || '—') + (isHiddenHolo ? ' <em style="color:var(--ink-3);font-size:.78rem">(oculto)</em>' : '') + '</span>' +
+              '<span class="admin-repo-by">' + esc(item.authorName || '—') + (item.createdAt ? ' · ' + fmtDate(item.createdAt) : '') + '</span>' +
+            '</div>' +
+            '<div style="display:flex;gap:6px">' +
+              (isHiddenHolo
+                ? '<button class="admin-del-btn admin-restore-btn" data-key="' + esc(key) + '">Restaurar</button>'
+                : '<button class="admin-del-btn admin-hide-btn" data-key="' + esc(key) + '">Ocultar</button>') +
+              '<button class="admin-del-btn admin-perm-del-btn" data-key="' + esc(key) + '">Deletar</button>' +
+            '</div>';
+
+          row.querySelector('.admin-hide-btn, .admin-restore-btn').addEventListener('click', function () {
+            if (isHiddenHolo) {
+              if (!confirm('Restaurar "' + (item.title || '') + '" no repositório público?')) return;
+              firebase.database().ref('fa-holocron-hidden/' + key).remove(function () { loadRepoAdmin(); });
+            } else {
+              if (!confirm('Ocultar "' + (item.title || '') + '" do repositório público?')) return;
+              firebase.database().ref('fa-holocron-hidden/' + key).set(true, function () { loadRepoAdmin(); });
+            }
+          });
+
+          row.querySelector('.admin-perm-del-btn').addEventListener('click', function () {
+            if (!confirm('Deletar "' + esc(item.title || '') + '" do repositório? Esta ação não pode ser desfeita.')) return;
+            firebase.database().ref('holocron/' + key).remove(function (err) {
+              if (!err) { firebase.database().ref('fa-holocron-hidden/' + key).remove(); row.remove(); }
+              else alert('Erro ao deletar. Tente novamente.');
+            });
+          });
+
+          userSec.appendChild(row);
+        });
+      }
     });
   }
 
@@ -317,22 +398,43 @@
     hdr.innerHTML = 'Colaboradores <span class="admin-badge">' + list.length + '</span>';
     c.appendChild(hdr);
 
+    /* Busca */
+    const searchWrap = document.createElement('div');
+    searchWrap.className = 'admin-colab-row';
+    searchWrap.style.marginBottom = '16px';
+    searchWrap.innerHTML = '<input id="colabFiltro" type="text" placeholder="Filtrar por nome ou e-mail…" style="flex:1" />';
+    c.appendChild(searchWrap);
+
     /* Tabela */
     const tbl = document.createElement('table');
     tbl.className = 'admin-table';
     tbl.innerHTML = '<thead><tr><th>Nome</th><th>E-mail</th><th>Desde</th><th></th></tr></thead>';
     const tbody = document.createElement('tbody');
-    list.forEach(function (p) {
-      const tr = document.createElement('tr');
-      tr.innerHTML =
-        '<td>' + esc(p.name || '—') + '</td>' +
-        '<td>' + esc(p.email || '—') + '</td>' +
-        '<td>' + fmtDate(p.addedAt) + '</td>' +
-        '<td><button class="admin-del-btn" data-key="' + esc(emailKey(p.email)) + '" data-name="' + esc(p.name || p.email) + '">Remover</button></td>';
-      tbody.appendChild(tr);
-    });
+
+    function fillRows(filtered) {
+      tbody.innerHTML = '';
+      filtered.forEach(function (p) {
+        const tr = document.createElement('tr');
+        tr.innerHTML =
+          '<td>' + esc(p.name || '—') + '</td>' +
+          '<td>' + esc(p.email || '—') + '</td>' +
+          '<td>' + fmtDate(p.addedAt) + '</td>' +
+          '<td><button class="admin-del-btn" data-key="' + esc(emailKey(p.email)) + '" data-name="' + esc(p.name || p.email) + '">Remover</button></td>';
+        tbody.appendChild(tr);
+      });
+    }
+
+    fillRows(list);
     tbl.appendChild(tbody);
     c.appendChild(tbl);
+
+    const filtroInput = document.getElementById('colabFiltro');
+    filtroInput.addEventListener('input', function () {
+      const q = filtroInput.value.trim().toLowerCase();
+      fillRows(!q ? list : list.filter(function (p) {
+        return (p.name || '').toLowerCase().indexOf(q) !== -1 || (p.email || '').toLowerCase().indexOf(q) !== -1;
+      }));
+    });
 
     /* Delegação de eventos para remover */
     tbody.addEventListener('click', function (e) {

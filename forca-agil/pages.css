@@ -324,6 +324,18 @@
 .admin-repo-info { flex: 1; min-width: 0; }
 .admin-repo-title { display: block; font-size: .9rem; color: var(--ink); margin-bottom: 2px; }
 .admin-repo-by { font-size: .78rem; font-family: var(--font-mono); color: var(--ink-3); }
+/* Admin inputs: mesma altura dos botões */
+#adminContent input[type="text"],
+#adminContent input[type="email"],
+#adminContent input[type="search"] {
+  height: 44px; padding: 0 14px; box-sizing: border-box;
+  background: var(--space-1); border: 1px solid var(--line-strong);
+  border-radius: 9px; color: var(--ink);
+  font-family: var(--font-mono); font-size: .78rem;
+  letter-spacing: .04em;
+}
+#adminContent input:focus { outline: none; border-color: var(--accent); }
+
 .admin-del-btn {
   padding: 5px 14px; font-size: .78rem; background: transparent;
   border: 1px solid rgba(255,59,48,.45); color: var(--red);
@@ -331,6 +343,11 @@
   transition: background .2s;
 }
 .admin-del-btn:hover { background: rgba(255,59,48,.1); }
+.admin-hide-btn { border-color: rgba(255,197,24,.35); color: var(--ink-3); }
+.admin-hide-btn:hover { background: rgba(255,197,24,.08); color: var(--accent); }
+.admin-restore-btn { border-color: rgba(26,178,174,.4); color: var(--cyan); }
+.admin-restore-btn:hover { background: rgba(26,178,174,.1); }
+.admin-perm-del-btn { border-color: rgba(255,59,48,.45); color: var(--red); }
 .loading-msg { color: var(--ink-3); font-style: italic; font-size: .86rem; }
 .admin-gate {
   padding: 64px 32px; text-align: center; color: var(--ink-3);
