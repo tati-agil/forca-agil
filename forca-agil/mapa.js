@@ -85,7 +85,7 @@
     { label: 'ADMIN', color: '#ff5252',
       features: [
         { label: 'Ver interessados por turma (ativos e removidos separados, com datas)', p: ['admin'] },
-        { label: 'Exportar Excel estado atual de interessados (ativos/removidos por turma)', p: ['admin'] },
+        { label: 'Exportar CSV estado atual de interessados (ativos/removidos por turma) — arquivo .csv UTF-8', p: ['admin'] },
         { label: 'Exportar CSV Histórico de ações (adicionou/removeu, com data) de turmas-interesse-log', p: ['admin'] },
         { label: 'Moderar repositório — ocultar/restaurar seeds curados (fa-seeds-hidden)', p: ['admin'] },
         { label: 'Moderar repositório — deletar permanentemente seeds curados (fa-seeds-deleted, sem restauração)', p: ['admin'] },

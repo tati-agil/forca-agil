@@ -959,7 +959,7 @@
         window.faToXls(
           ['Tipo', 'Grupo', 'Categoria', 'Teste / Regra', 'Motivo (manual)'],
           rows,
-          'testes-forca-agil-' + new Date().toISOString().slice(0, 10) + '.xls'
+          'testes-forca-agil-' + new Date().toISOString().slice(0, 10) + '.csv'
         );
       });
     }
