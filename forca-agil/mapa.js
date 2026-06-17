@@ -28,6 +28,8 @@
         { label: 'Botão "Juntar-se" → removido completamente (hidden)',p: ['logado','colaborador','admin'] },
         { label: 'Botão "Conhecer a iniciativa" → rola até "O que é"', p: ['visitante','logado','colaborador','admin'] },
         { label: 'Botão "Repetir abertura" → replay do crawl de intro', p: ['visitante','logado','colaborador','admin'] },
+        { label: 'Crawl: clicar na área ou botão "⏸ Pausar" → pausa/retoma animação', p: ['visitante','logado','colaborador','admin'] },
+        { label: 'Crawl: botão "≡ Ler texto" → exibe texto estático sem perspectiva; "✕ Fechar texto" retorna ao crawl', p: ['visitante','logado','colaborador','admin'] },
         { label: 'Navegação assistida entre seções (pontos laterais, botão Continuar, teclado ↑↓/Enter)', p: ['visitante','logado','colaborador','admin'] },
         { label: '3 cards "Como funciona" → links para Conteúdos / Repositório / Treinamento Jedi', p: ['visitante','logado','colaborador','admin'] },
         { label: 'Mini Próximas Turmas (Destaques) → link para Turmas', p: ['visitante','logado','colaborador','admin'] },
