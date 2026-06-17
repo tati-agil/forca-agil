@@ -523,13 +523,18 @@
     if (!c) return;
     c.innerHTML = '<p class="loading-msg">Carregando…</p>';
 
-    firebase.database().ref('fa-users').once('value', function (snap) {
-      const data = snap.val() || {};
-      renderCadastrados(c, data);
+    Promise.all([
+      firebase.database().ref('fa-users').once('value'),
+      firebase.database().ref('players').once('value')
+    ]).then(function (snaps) {
+      const data    = snaps[0].val() || {};
+      const players = snaps[1].val() || {};
+      renderCadastrados(c, data, players);
     });
   }
 
-  function renderCadastrados(c, data) {
+  function renderCadastrados(c, data, players) {
+    players = players || {};
     const list = Object.entries(data)
       .map(function (entry) { return Object.assign({ _key: entry[0] }, entry[1]); })
       .sort(function (a, b) { return (a.name || '').localeCompare(b.name || '', 'pt'); });
@@ -547,18 +552,24 @@
 
     const tbl = document.createElement('table');
     tbl.className = 'admin-table';
-    tbl.innerHTML = '<thead><tr><th>Nome</th><th>E-mail</th><th>Área</th><th>Cadastro</th><th></th><th></th></tr></thead>';
+    tbl.innerHTML = '<thead><tr><th>Nome</th><th>E-mail</th><th>Área</th><th>Cadastro</th><th>XP</th><th></th><th></th></tr></thead>';
     const tbody = document.createElement('tbody');
 
     function fillRows(filtered) {
       tbody.innerHTML = '';
       filtered.forEach(function (p) {
+        const player = players[p._key] || {};
+        const xp     = player.totalXP != null ? player.totalXP + ' XP' : '—';
+        const xpStyle = player.totalXP != null
+          ? 'color:var(--accent);font-family:var(--font-mono);font-weight:700'
+          : 'color:var(--ink-3);font-family:var(--font-mono)';
         const tr = document.createElement('tr');
         tr.innerHTML =
           '<td>' + esc(p.name || '—') + '</td>' +
           '<td>' + esc(p.email || '—') + '</td>' +
           '<td>' + esc(p.area || '—') + '</td>' +
           '<td>' + fmtDate(p.createdAt) + '</td>' +
+          '<td style="' + xpStyle + '">' + xp + '</td>' +
           '<td><button class="admin-del-btn admin-pwd-btn" data-key="' + esc(p._key) + '" data-email="' + esc(p.email || '') + '" data-name="' + esc(p.name || p.email) + '">Redefinir senha</button></td>' +
           '<td><button class="admin-del-btn admin-reset-btn" data-key="' + esc(p._key) + '" data-email="' + esc(p.email || '') + '" data-name="' + esc(p.name || p.email) + '">Resetar progresso</button></td>';
         tbody.appendChild(tr);
