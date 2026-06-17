@@ -183,7 +183,7 @@
           window.dispatchEvent(new CustomEvent('fa-auth-change', { detail: null }));
           return liberado && mostraTexto;
         } },
-        { id: 'xp-revelar-publicar-separados', label: 'Revelar salva progresso no Firebase; Publicar é separado e opcional', run: function () {
+        { id: 'xp-revelar-modal', label: 'Revelar: abre modal com rank, checkbox publicar marcado por default', run: function () {
           if (!window.faGameData) return false;
           var st = window.faStore || localStorage;
           var backup = {
@@ -191,62 +191,106 @@
             revealed: st.getItem('fa-patente-revealed'), publicada: st.getItem('fa-patente-publicada'),
             player: localStorage.getItem('fa-player')
           };
-          var revelarWrap = document.getElementById('revelarWrap');
-          var backupWrapHTML = revelarWrap ? revelarWrap.innerHTML : null;
-          // Stuba faSyncProgress e faSyncPlayer diretamente (não depende de fbReady/Firebase conectado)
           var origSyncProgress = window.faSyncProgress;
           var origSyncPlayer = window.faSyncPlayer;
-          var syncProgressCount = 0;
-          var syncPlayerCount = 0;
+          var syncProgressCount = 0; var syncPlayerCount = 0;
           window.faSyncProgress = function() { syncProgressCount++; };
-          window.faSyncPlayer = function() { syncPlayerCount++; };
+          window.faSyncPlayer   = function() { syncPlayerCount++; };
           try {
             var missions = {};
-            window.faGameData.MISSIONS.forEach(function (m) {
-              missions[m.id] = { answers: m.questions.map(function () { return 0; }) };
+            window.faGameData.MISSIONS.forEach(function(m) {
+              missions[m.id] = { answers: m.questions.map(function() { return 0; }) };
             });
-            st.setItem('fa-game-v2', JSON.stringify({ quiz: window.faGameData.DIMS.map(function () { return 1; }), missions: missions }));
+            st.setItem('fa-game-v2', JSON.stringify({ quiz: window.faGameData.DIMS.map(function() { return 1; }), missions: missions }));
             st.setItem('fa-kyber-done', '1');
             st.removeItem('fa-patente-revealed');
             st.removeItem('fa-patente-publicada');
-            localStorage.setItem('fa-player', JSON.stringify({ name: 'Teste Automatizado XYZ', turma: 'XX', area: 'XX' }));
+            localStorage.setItem('fa-player', JSON.stringify({ name: 'Teste Modal XYZ', turma: 'XX', area: 'XX' }));
             window.dispatchEvent(new CustomEvent('fa-progress-change'));
 
             var revelarBtn = document.getElementById('revelarBtn');
             if (!revelarBtn || revelarBtn.dataset.locked === '1') return false;
             revelarBtn.click();
-            var revelarOk = document.getElementById('revelarOk');
-            if (!revelarOk) return false;
-            syncProgressCount = 0; syncPlayerCount = 0;
-            revelarOk.click();
 
+            // Modal deve estar visível
+            var modal = document.getElementById('revelarModal');
+            if (!modal || modal.hidden) return false;
+            var check = document.getElementById('revelarPublicarCheck');
+            var checkDefault = check && check.checked; // deve vir marcado
+            var temRank = !!(document.getElementById('rmodalRank') && document.getElementById('rmodalRank').textContent.length > 0);
+
+            // Clicar Continuar com checkbox marcado → revela + publica
+            syncProgressCount = 0; syncPlayerCount = 0;
+            var modalOk = document.getElementById('revelarModalOk');
+            if (modalOk) modalOk.click();
             var revelado = st.getItem('fa-patente-revealed') === '1';
-            var aindaNaoPublicada = st.getItem('fa-patente-publicada') !== '1';
-            // ao revelar: faSyncProgress chamado, faSyncPlayer NÃO chamado
-            var syncProgressAoRevelar = syncProgressCount >= 1;
-            var semPlayerAoRevelar = syncPlayerCount === 0;
-            var btnPublicar = document.getElementById('publicarRankingBtn');
-            var temBotaoPublicar = !!btnPublicar;
+            var publicada = st.getItem('fa-patente-publicada') === '1';
+            var syncOk = syncProgressCount >= 1 && syncPlayerCount >= 1;
 
-            syncProgressCount = 0; syncPlayerCount = 0;
-            if (btnPublicar) btnPublicar.click();
-            var publicadaAposClicar = st.getItem('fa-patente-publicada') === '1';
-            // ao publicar: ambos chamados
-            var syncProgressAoPublicar = syncProgressCount >= 1;
-            var syncPlayerAoPublicar = syncPlayerCount >= 1;
-
-            return revelado && aindaNaoPublicada && syncProgressAoRevelar && semPlayerAoRevelar &&
-                   temBotaoPublicar && publicadaAposClicar && syncProgressAoPublicar && syncPlayerAoPublicar;
+            return checkDefault && temRank && revelado && publicada && syncOk;
           } finally {
             window.faSyncProgress = origSyncProgress;
-            window.faSyncPlayer = origSyncPlayer;
+            window.faSyncPlayer   = origSyncPlayer;
             if (backup.game !== null) st.setItem('fa-game-v2', backup.game); else st.removeItem('fa-game-v2');
             if (backup.kyber !== null) st.setItem('fa-kyber-done', backup.kyber); else st.removeItem('fa-kyber-done');
             if (backup.revealed !== null) st.setItem('fa-patente-revealed', backup.revealed); else st.removeItem('fa-patente-revealed');
             if (backup.publicada !== null) st.setItem('fa-patente-publicada', backup.publicada); else st.removeItem('fa-patente-publicada');
             if (backup.player !== null) localStorage.setItem('fa-player', backup.player); else localStorage.removeItem('fa-player');
-            // Restaura o HTML do revelarWrap para não quebrar testes subsequentes
-            if (revelarWrap && backupWrapHTML !== null) revelarWrap.innerHTML = backupWrapHTML;
+            var modal = document.getElementById('revelarModal');
+            if (modal) modal.hidden = true;
+            document.body.style.overflow = '';
+            window.dispatchEvent(new CustomEvent('fa-progress-change'));
+          }
+        } },
+        { id: 'xp-revelar-sem-publicar', label: 'Revelar com checkbox desmarcado: revela mas NÃO publica', run: function () {
+          if (!window.faGameData) return false;
+          var st = window.faStore || localStorage;
+          var backup = {
+            game: st.getItem('fa-game-v2'), kyber: st.getItem('fa-kyber-done'),
+            revealed: st.getItem('fa-patente-revealed'), publicada: st.getItem('fa-patente-publicada'),
+            player: localStorage.getItem('fa-player')
+          };
+          var origSyncProgress = window.faSyncProgress;
+          var origSyncPlayer = window.faSyncPlayer;
+          var syncPlayerCount = 0;
+          window.faSyncProgress = function() {};
+          window.faSyncPlayer   = function() { syncPlayerCount++; };
+          try {
+            var missions = {};
+            window.faGameData.MISSIONS.forEach(function(m) {
+              missions[m.id] = { answers: m.questions.map(function() { return 0; }) };
+            });
+            st.setItem('fa-game-v2', JSON.stringify({ quiz: window.faGameData.DIMS.map(function() { return 1; }), missions: missions }));
+            st.setItem('fa-kyber-done', '1');
+            st.removeItem('fa-patente-revealed');
+            st.removeItem('fa-patente-publicada');
+            localStorage.setItem('fa-player', JSON.stringify({ name: 'Teste Privado XYZ', turma: 'XX', area: 'XX' }));
+            window.dispatchEvent(new CustomEvent('fa-progress-change'));
+
+            var revelarBtn = document.getElementById('revelarBtn');
+            if (!revelarBtn || revelarBtn.dataset.locked === '1') return false;
+            revelarBtn.click();
+
+            var check = document.getElementById('revelarPublicarCheck');
+            if (check) check.checked = false; // desmarca
+            var modalOk = document.getElementById('revelarModalOk');
+            if (modalOk) modalOk.click();
+
+            var revelado = st.getItem('fa-patente-revealed') === '1';
+            var naoPublicada = st.getItem('fa-patente-publicada') !== '1';
+            var semPlayer = syncPlayerCount === 0;
+            return revelado && naoPublicada && semPlayer;
+          } finally {
+            window.faSyncProgress = origSyncProgress;
+            window.faSyncPlayer   = origSyncPlayer;
+            if (backup.game !== null) st.setItem('fa-game-v2', backup.game); else st.removeItem('fa-game-v2');
+            if (backup.kyber !== null) st.setItem('fa-kyber-done', backup.kyber); else st.removeItem('fa-kyber-done');
+            if (backup.revealed !== null) st.setItem('fa-patente-revealed', backup.revealed); else st.removeItem('fa-patente-revealed');
+            if (backup.publicada !== null) st.setItem('fa-patente-publicada', backup.publicada); else st.removeItem('fa-patente-publicada');
+            if (backup.player !== null) localStorage.setItem('fa-player', backup.player); else localStorage.removeItem('fa-player');
+            var modal = document.getElementById('revelarModal');
+            if (modal) modal.hidden = true;
+            document.body.style.overflow = '';
             window.dispatchEvent(new CustomEvent('fa-progress-change'));
           }
         } }

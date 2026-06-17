@@ -308,10 +308,8 @@
     kyberRenderRanking();
 
     const revelarBtn    = document.getElementById('revelarBtn');
-    const revelarConfirm= document.getElementById('revelarConfirm');
-    const revelarOk     = document.getElementById('revelarOk');
-    const revelarCancel = document.getElementById('revelarCancel');
-    const revelarPatente= document.getElementById('revelarPatente');
+    const revelarModal  = document.getElementById('revelarModal');
+    const revelarModalOk= document.getElementById('revelarModalOk');
 
     function checkProgress() {
       try {
@@ -370,31 +368,11 @@
       if (!wrap) return;
       const tp = currentTotalEPatente();
       const publicada = _st().getItem('fa-patente-publicada') === '1';
-      if (publicada) {
-        wrap.innerHTML =
-          '<p style="font-family:var(--font-mono);font-size:.9rem;color:var(--accent);text-align:center;padding:24px">' +
-          '✓ Patente revelada: <strong>' + tp.patente + ' · ' + tp.total + ' XP</strong><br>Publicada no ranking da galáxia!</p>';
-        return;
-      }
+      const status = publicada ? '🌐 Publicada no ranking da galáxia!' : '🔒 Resultado privado — não publicado no ranking.';
       wrap.innerHTML =
-        '<div class="revelar-box">' +
-          '<div class="revelar-patente">' + tp.patente + ' · ' + tp.total + ' XP</div>' +
-          '<p class="revelar-aviso">Sua patente já foi revelada — esse resultado é só seu. Publicar no ranking é opcional: seu nome e XP ficarão visíveis para toda a turma.</p>' +
-          '<div class="revelar-actions">' +
-            '<button class="btn btn--primary" id="publicarRankingBtn">Publicar no ranking →</button>' +
-          '</div>' +
-        '</div>';
-      const publicarBtn = document.getElementById('publicarRankingBtn');
-      if (publicarBtn) publicarBtn.addEventListener('click', function() {
-        try { _st().setItem('fa-patente-publicada', '1'); } catch(e) {}
-        if (window.faSyncProgress) window.faSyncProgress();
-        window.faSyncPlayer();
-        renderRevealedState();
-        setTimeout(function() {
-          var hud = document.getElementById('rankHud');
-          if (hud) hud.scrollIntoView({ behavior: 'smooth', block: 'center' });
-        }, 400);
-      });
+        '<p style="font-family:var(--font-mono);font-size:.9rem;color:var(--accent);text-align:center;padding:24px">' +
+        '✓ Patente revelada: <strong>' + tp.patente + ' · ' + tp.total + ' XP</strong><br>' +
+        '<span style="color:var(--ink-3);font-size:.8rem">' + status + '</span></p>';
     }
 
     function refreshRevelarUI() {
@@ -410,6 +388,25 @@
     window.addEventListener('fa-auth-change', refreshRevelarUI);
     window.addEventListener('fa-progress-change', refreshRevelarUI);
     window.addEventListener('storage', refreshRevelarUI);
+
+    function openRevelarModal() {
+      const tp = currentTotalEPatente();
+      const ranks = (window.faGameData && window.faGameData.RANKS) || [];
+      const rank = ranks.find(function(r) { return r.name === tp.patente; }) || ranks[0];
+      const charUse = document.getElementById('rmodalCharUse');
+      const rankEl  = document.getElementById('rmodalRank');
+      const check   = document.getElementById('revelarPublicarCheck');
+      if (charUse && rank) charUse.setAttribute('href', rank.sym);
+      if (rankEl) rankEl.textContent = tp.patente + ' · ' + tp.total + ' XP';
+      if (check) check.checked = true;
+      if (revelarModal) revelarModal.hidden = false;
+      document.body.style.overflow = 'hidden';
+    }
+
+    function closeRevelarModal() {
+      if (revelarModal) revelarModal.hidden = true;
+      document.body.style.overflow = '';
+    }
 
     if (revelarBtn) revelarBtn.addEventListener('click', function() {
       if (revelarBtn.dataset.locked === '1') {
@@ -429,19 +426,23 @@
       }
       const prog = checkProgress();
       if (!prog.allDone) return;
-      const tp = currentTotalEPatente();
-      if (revelarPatente) revelarPatente.textContent = tp.patente + ' · ' + tp.total + ' XP';
-      if (revelarConfirm) revelarConfirm.hidden = false;
+      openRevelarModal();
     });
 
-    if (revelarCancel) revelarCancel.addEventListener('click', function() {
-      if (revelarConfirm) revelarConfirm.hidden = true;
+    if (revelarModal) revelarModal.addEventListener('click', function(e) {
+      if (e.target === revelarModal) closeRevelarModal();
     });
 
-    if (revelarOk) revelarOk.addEventListener('click', function() {
-      if (revelarConfirm) revelarConfirm.hidden = true;
+    if (revelarModalOk) revelarModalOk.addEventListener('click', function() {
+      const publicar = document.getElementById('revelarPublicarCheck');
+      closeRevelarModal();
       try { _st().setItem('fa-patente-revealed', '1'); } catch(e) {}
       if (window.faSyncProgress) window.faSyncProgress();
+      if (publicar && publicar.checked) {
+        try { _st().setItem('fa-patente-publicada', '1'); } catch(e) {}
+        if (window.faSyncProgress) window.faSyncProgress();
+        window.faSyncPlayer();
+      }
       renderRevealedState();
     });
 
