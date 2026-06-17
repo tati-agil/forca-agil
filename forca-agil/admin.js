@@ -31,7 +31,7 @@
   function updateExpandBar(panelId) {
     const bar = document.getElementById('adminExpandBar');
     if (!bar) return;
-    bar.hidden = EXPANDABLE_PANELS.indexOf(panelId) === -1;
+    bar.classList.toggle('visible', EXPANDABLE_PANELS.indexOf(panelId) !== -1);
   }
 
   document.addEventListener('DOMContentLoaded', function () {

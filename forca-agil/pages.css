@@ -342,7 +342,7 @@
 .admin-colab-row input { flex: 1; min-width: 0; }
 
 .admin-expand-bar {
-  align-items: center; gap: 8px;
+  display: none; align-items: center; gap: 8px;
   padding: 8px 12px;
   background: var(--space-1);
   border: 1px solid var(--line);
@@ -350,7 +350,7 @@
   margin-bottom: 20px;
   position: sticky; top: 64px; z-index: 10;
 }
-.admin-expand-bar:not([hidden]) { display: flex; }
+.admin-expand-bar.visible { display: flex; }
 .admin-expand-label {
   font-family: var(--font-mono); font-size: .72rem;
   text-transform: uppercase; letter-spacing: .08em;
