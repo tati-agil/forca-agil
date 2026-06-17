@@ -584,6 +584,18 @@
             if (backupXP !== null) st.setItem('fa-kyber-xp', backupXP); else st.removeItem('fa-kyber-xp');
           }
         } },
+        { id: 'c-kyber-score-com-speedbonus', label: 'Kyber Game: speedBonus somado ao score (resposta rápida > resposta lenta)', run: function () {
+          if (typeof window.kyberFinishGame !== 'function' || typeof gameState === 'undefined') return false;
+          var TIME_LIMIT = 30;
+          // Simula resposta certa com muito tempo restante (rápido)
+          var timeLeft1 = 28;
+          var pts1 = Math.round(1000 * (timeLeft1 / TIME_LIMIT)) + Math.round(500 * (timeLeft1 / TIME_LIMIT));
+          // Simula resposta certa com pouco tempo restante (devagar)
+          var timeLeft2 = 5;
+          var pts2 = Math.round(1000 * (timeLeft2 / TIME_LIMIT)) + Math.round(500 * (timeLeft2 / TIME_LIMIT));
+          // Resposta rápida deve valer mais que devagar, e devagar deve valer mais que 0
+          return pts1 > pts2 && pts2 > 0 && pts1 <= 1500;
+        } },
         { id: 'c-quiz-patente-inclui-conteudo-repo', label: 'Painel de patente soma XP de Conteúdos e Repositório (não só auto/missões/kyber)', run: function () {
           if (typeof window.faGameReload !== 'function') return false;
           var st = window.faStore || localStorage;
