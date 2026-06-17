@@ -679,6 +679,99 @@ html:not(.js) .reveal { opacity: 1 !important; transform: none !important; }
 .mx-auto { margin-left:auto; margin-right:auto; }
 
 /* ============================================================
+   HOME NAV · Navegação lateral entre seções
+   ============================================================ */
+#homeNavSidebar {
+  position: fixed;
+  right: 20px;
+  top: 50%;
+  transform: translateY(-50%);
+  z-index: 800;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  pointer-events: auto;
+}
+.hn-arrow {
+  width: 28px; height: 28px;
+  border: none; background: transparent; cursor: pointer;
+  color: var(--ink-3);
+  display: flex; align-items: center; justify-content: center;
+  border-radius: 50%;
+  transition: color .2s, background .2s;
+  padding: 0;
+}
+.hn-arrow:hover { color: var(--accent); background: rgba(245,197,24,.08); }
+.hn-dot {
+  position: relative;
+  width: 28px; height: 28px;
+  border: none; background: transparent; cursor: pointer; padding: 0;
+  display: flex; align-items: center; justify-content: center;
+}
+.hn-dot-pip {
+  width: 7px; height: 7px;
+  border-radius: 50%;
+  border: 1.5px solid var(--ink-3);
+  background: transparent;
+  transition: border-color .25s, background .25s, transform .25s;
+  display: block;
+}
+.hn-dot--active .hn-dot-pip {
+  background: var(--accent);
+  border-color: var(--accent);
+  transform: scale(1.35);
+}
+.hn-dot:hover .hn-dot-pip { border-color: var(--accent); }
+/* Label tooltip */
+.hn-dot-label {
+  position: absolute;
+  right: calc(100% + 8px);
+  top: 50%;
+  transform: translateY(-50%);
+  white-space: nowrap;
+  font-family: var(--font-body);
+  font-size: .72rem;
+  letter-spacing: .06em;
+  text-transform: uppercase;
+  color: var(--ink-2);
+  background: rgba(6,14,31,.92);
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  padding: 3px 8px;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity .2s;
+}
+.hn-dot:hover .hn-dot-label,
+.hn-dot--active .hn-dot-label { opacity: 1; }
+
+/* Continue arrow button */
+.hn-continue {
+  display: block;
+  margin: 32px auto 0;
+  width: 40px; height: 40px;
+  border-radius: 50%;
+  border: 1px solid var(--line-strong);
+  background: rgba(6,14,31,.6);
+  color: var(--ink-3);
+  cursor: pointer;
+  display: flex; align-items: center; justify-content: center;
+  transition: color .2s, border-color .2s, transform .2s;
+  animation: hn-pulse 2.4s ease-in-out infinite;
+}
+.hn-continue:hover { color: var(--accent); border-color: var(--accent); transform: translateY(3px); animation: none; }
+@keyframes hn-pulse {
+  0%, 100% { transform: translateY(0); opacity: .7; }
+  50%       { transform: translateY(6px); opacity: 1; }
+}
+
+/* Hide sidebar on mobile (dots would overlay content) */
+@media (max-width: 767px) {
+  #homeNavSidebar { display: none; }
+}
+
+/* ============================================================
    GAMIFICAÇÃO · Sociedade Jedi
    ============================================================ */
 .game { margin-top: 72px; }
