@@ -121,15 +121,15 @@
         if (window.faCleanRanking) window.faCleanRanking();
         if (cb) cb();
       } else if (!data) {
-        /* Admin resetou em tempo real — limpa tudo e atualiza UI */
+        /* Admin resetou em tempo real — limpa localStorage e recarrega a página
+           (módulos JS já inicializaram com estado antigo em memória; reload é mais confiável) */
         if (window.faStore) {
           _PROGRESS_KEYS.forEach(function(k) {
             window.faStore.removeItem(k);
             try { localStorage.removeItem(k); } catch(e) {}
           });
         }
-        if (window.faCleanRanking) window.faCleanRanking();
-        window.dispatchEvent(new CustomEvent('fa-progress-change'));
+        window.location.reload();
       }
     }, function() { if (!initialDone) { initialDone = true; if (cb) cb(); } });
   };
