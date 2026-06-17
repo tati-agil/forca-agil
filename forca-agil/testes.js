@@ -425,9 +425,7 @@
       group: 'Página Início',
       tests: [
         { id: 'c-hero',         label: 'Hero com título "Força Ágil" presente',         run: function () { return !!document.querySelector('.hero-title, .hero'); } },
-        { id: 'c-hero-counter', label: 'Contador de agentes no hero presente',           run: function () { return !!document.getElementById('heroAgentCount'); } },
-        { id: 'c-hero-label',   label: 'Label agente(s) ativo(s) com plural dinâmico',  run: function () { return !!document.getElementById('heroAgentLabel'); } },
-        { id: 'c-cta-btn',      label: 'Botão "Juntar-se à Força" presente',            run: function () { return !!document.querySelector('.btn-juntar, [data-cta-juntar], .hero .btn, a[href="#gamificacao"]'); } },
+{ id: 'c-cta-btn',      label: 'Botão "Juntar-se à Força" presente',            run: function () { return !!document.querySelector('.btn-juntar, [data-cta-juntar], .hero .btn, a[href="#gamificacao"]'); } },
         { id: 'c-como-funciona', label: 'Como funciona: os 3 links apontam para páginas reais e com o título certo', run: function () {
           var cards = document.querySelectorAll('.how-grid .how-card');
           if (cards.length !== 3) return false;

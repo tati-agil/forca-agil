@@ -114,25 +114,6 @@
       if (target) target.scrollIntoView({ behavior: 'smooth' });
     });
 
-    /* ---- Contador de agentes ativos no hero ---- */
-    function updateAgentCount() {
-      try {
-        firebase.database().ref('fa-users').once('value', function (snap) {
-          const count = snap.numChildren ? snap.numChildren() : 0;
-          const el = document.getElementById('heroAgentCount');
-          if (el) el.textContent = count > 0 ? count : '—';
-          const lbl = document.getElementById('heroAgentLabel');
-          if (lbl && count > 0) lbl.textContent = count === 1 ? 'agente ativo' : 'agentes ativos';
-          const hint = document.getElementById('navAgentHint');
-          if (hint && count > 0) hint.textContent = 'Junte-se a ' + count + ' agentes';
-        });
-      } catch(e) {}
-    }
-    if (typeof firebase !== 'undefined' && firebase.apps && firebase.apps.length) {
-      updateAgentCount();
-    } else {
-      setTimeout(updateAgentCount, 3000);
-    }
   });
 
   /* ---- Content XP tracking (conteúdos page) ---- */
