@@ -246,8 +246,8 @@
       var s = String(v == null ? '' : v).replace(/"/g, '""');
       return /[",\n\r]/.test(s) ? '"' + s + '"' : s;
     }
-    var lines = [headers.map(csvCell).join(',')].concat(
-      rows.map(function (row) { return row.map(csvCell).join(','); })
+    var lines = ['sep=;', headers.map(csvCell).join(';')].concat(
+      rows.map(function (row) { return row.map(csvCell).join(';'); })
     );
     var csv = '﻿' + lines.join('\r\n');
     var csvFilename = filename.replace(/\.xls$/i, '.csv');
