@@ -826,7 +826,7 @@
       motivo: 'Gravaria no Firebase e exigiria limpeza manual após o teste.' },
     { section: 'Admin',
       title: 'Cadastrados — resetar progresso',
-      motivo: 'Ação destrutiva e irreversível no Firebase.' },
+      motivo: 'Ação destrutiva e irreversível no Firebase. Verificar: (1) XP exibe "—" na tabela imediatamente; (2) pessoa some do ranking (players removido via query por email — chave é name__turma, não emailKey); (3) após a pessoa fazer login novamente, todos os jogos estão habilitados (quiz, missões, Kyber, revelar patente).' },
     { section: 'Admin',
       title: 'Cadastrados — XP exibe "—" após reset',
       motivo: 'Requer executar o reset de uma pessoa que tenha XP acumulado (feito autodiagnóstico, missões ou Kyber) e confirmar que a coluna XP passa a exibir "—" imediatamente (sem recarregar a página) — independente de ter revelado patente ou publicado no ranking.' },
