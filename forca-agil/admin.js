@@ -251,17 +251,19 @@
     );
     var csvFilename = filename.replace(/\.xls$/i, '.csv');
     var raw = lines.join('\r\n');
-    var bytes = new Uint8Array(raw.length);
+    // Encode as Windows-1252: each char in U+0000-U+00FF maps 1:1 to the byte value.
+    // btoa() accepts a binary string where each char is a byte (0-255).
+    var bin = '';
     for (var i = 0; i < raw.length; i++) {
       var c = raw.charCodeAt(i);
-      bytes[i] = c < 256 ? c : 63;
+      bin += String.fromCharCode(c < 256 ? c : 63);
     }
-    var blob = new Blob([bytes], { type: 'text/csv' });
-    var url  = URL.createObjectURL(blob);
-    var a    = document.createElement('a');
-    a.href = url; a.download = csvFilename;
+    var b64 = btoa(bin);
+    var a = document.createElement('a');
+    a.href = 'data:text/csv;base64,' + b64;
+    a.download = csvFilename;
     document.body.appendChild(a); a.click();
-    document.body.removeChild(a); URL.revokeObjectURL(url);
+    document.body.removeChild(a);
   }
   window.faToXls = toXls;
 
