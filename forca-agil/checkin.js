@@ -1,5 +1,5 @@
 /* ============================================================
-   Força Ágil — Check-in por QR Code
+   Força Ágil — Check-in por QR Code (por dia)
    ============================================================ */
 (function () {
   'use strict';
@@ -15,7 +15,7 @@
   }
 
   function getTurmaFromHash() {
-    var hash = window.location.hash || '';
+    var hash  = window.location.hash || '';
     var match = hash.match(/[?&]turma=([^&]+)/);
     return match ? match[1] : null;
   }
@@ -26,56 +26,78 @@
   }
 
   function doCheckin(turmaKey, sess) {
-    var db  = firebase && firebase.database && firebase.database();
+    var db   = firebase && firebase.database && firebase.database();
     if (!db) { render(msgError('Serviço indisponível.')); return; }
 
     var eKey    = emailKey(sess.email);
-    var ref     = db.ref('turmas-interesse/' + turmaKey + '/' + eKey);
-    var cfgRef  = db.ref('turmas-config/' + turmaKey + '/finalizada');
+    var cfgRef  = db.ref('turmas-config/' + turmaKey);
+    var inscRef = db.ref('turmas-interesse/' + turmaKey + '/' + eKey);
 
     render('<p class="loading-msg">Verificando…</p>');
 
     cfgRef.once('value', function (cfgSnap) {
-      if (!cfgSnap.val()) {
-        render(msgError('Esta turma ainda não está finalizada. O check-in será liberado no dia do evento.'));
+      var cfg = cfgSnap.val() || {};
+
+      if (!cfg.finalizada) {
+        render(msgError('Esta turma ainda não teve as inscrições finalizadas.'));
         return;
       }
-      ref.once('value', function (snap) {
+      if (!cfg.diaAtivo) {
+        render(msgError('O check-in não está aberto no momento. Aguarde a organização abrir o check-in do dia.'));
+        return;
+      }
+
+      var diaAtivo = cfg.diaAtivo;
+
+      inscRef.once('value', function (snap) {
         var val = snap.val();
-        if (!val || val.removed) {
-          render(msgError('Você não está inscrito nesta turma.'));
+        if (!val || val.removed || val.status !== 'inscrito') {
+          render(msgError('Você não está inscrita nesta turma.'));
           return;
         }
-        if (val.status === 'presente') {
-          render(msgAlready(turmaKey));
-          return;
-        }
-        if (val.status !== 'inscrito') {
-          render(msgError('Seu status não permite check-in. Verifique com a organização.'));
-          return;
-        }
-        ref.update({ status: 'presente', checkinAt: new Date().toISOString() }, function (err) {
-          if (err) { render(msgError('Erro ao registrar presença. Tente novamente.')); return; }
-          render(msgSuccess(turmaKey, sess.name));
+
+        /* verifica se já fez check-in neste dia */
+        db.ref('turmas-checkin/' + turmaKey + '/' + diaAtivo + '/' + eKey).once('value', function (ckSnap) {
+          if (ckSnap.val()) {
+            render(msgAlready(turmaKey, diaAtivo));
+            return;
+          }
+
+          /* registra check-in */
+          db.ref('turmas-checkin/' + turmaKey + '/' + diaAtivo + '/' + eKey).set({
+            name: sess.name, email: sess.email, area: sess.area || '',
+            checkinAt: new Date().toISOString(), source: 'qr'
+          }, function (err) {
+            if (err) { render(msgError('Erro ao registrar presença. Tente novamente.')); return; }
+            render(msgSuccess(turmaKey, diaAtivo, sess.name));
+          });
         });
       });
     });
   }
 
-  function msgSuccess(turmaKey, name) {
+  function fmtDia(iso) {
+    if (!iso) return '';
+    var p = iso.split('-');
+    return p[2] + '/' + p[1] + '/' + p[0];
+  }
+
+  function msgSuccess(turmaKey, dia, name) {
     return '<div class="checkin-box checkin-success">' +
       '<div class="checkin-icon">✓</div>' +
       '<h2>Presença confirmada com sucesso!</h2>' +
       '<p class="checkin-name">' + escHtml(name) + '</p>' +
       '<p class="checkin-turma">' + escHtml(TURMAS_LABELS[turmaKey] || turmaKey) + '</p>' +
+      '<p class="checkin-dia">Dia: ' + fmtDia(dia) + '</p>' +
     '</div>';
   }
 
-  function msgAlready(turmaKey) {
+  function msgAlready(turmaKey, dia) {
     return '<div class="checkin-box checkin-already">' +
       '<div class="checkin-icon">✓</div>' +
       '<h2>Presença já registrada</h2>' +
       '<p class="checkin-turma">' + escHtml(TURMAS_LABELS[turmaKey] || turmaKey) + '</p>' +
+      '<p class="checkin-dia">Dia: ' + fmtDia(dia) + '</p>' +
     '</div>';
   }
 
@@ -111,7 +133,6 @@
     var sess = window.faAuth && window.faAuth.getSession && window.faAuth.getSession();
     if (!sess) {
       render(msgLogin(turmaKey));
-      /* after login, retry */
       window.addEventListener('fa-auth-change', function onAuth() {
         var s = window.faAuth && window.faAuth.getSession && window.faAuth.getSession();
         if (s && window.faRouter && window.faRouter.current() === 'checkin') {
@@ -119,7 +140,6 @@
           doCheckin(turmaKey, s);
         }
       });
-      /* login button */
       document.addEventListener('click', function onBtn(e) {
         if (e.target && e.target.id === 'checkinLoginBtn') {
           document.removeEventListener('click', onBtn);

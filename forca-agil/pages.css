@@ -288,6 +288,25 @@
 .ts-interessado { background: rgba(255,255,255,.08); color: var(--ink-2); }
 .ts-inscrito    { background: rgba(24,194,186,.15);  color: var(--cyan); }
 .ts-presente    { background: rgba(100,220,100,.15); color: #64dc64; }
+.badge-checkin-aberto { background: rgba(100,220,100,.15); color: #64dc64; border: 1px solid rgba(100,220,100,.35); animation: pulse-green 2s ease-in-out infinite; }
+@keyframes pulse-green { 0%,100%{opacity:1} 50%{opacity:.6} }
+
+/* ---- Tabela de presença por dia ---- */
+.presenca-table .dia-th { font-size: .72rem; min-width: 52px; text-align: center; }
+.presenca-table .dia-cell { text-align: center; padding: 6px 4px; }
+.ck-badge { font-size: .68rem; font-family: var(--font-mono); font-weight: 700;
+  padding: 2px 5px; border-radius: 3px; white-space: nowrap; }
+.ck-qr  { background: rgba(100,220,100,.15); color: #64dc64; }
+.ck-adm { background: rgba(24,194,186,.15);  color: var(--cyan); }
+.ck-manual-btn {
+  background: none; border: 1px solid rgba(255,255,255,.12); color: var(--ink-3);
+  padding: 2px 6px; border-radius: 4px; font-size: .72rem; cursor: pointer;
+  transition: border-color .15s, color .15s;
+}
+.ck-manual-btn:hover { border-color: var(--cyan); color: var(--cyan); }
+.freq-ok  { color: #64dc64; font-weight: 600; font-size: .82rem; }
+.freq-nok { color: #ff8080; font-weight: 600; font-size: .82rem; }
+.checkin-dia { font-size: .8rem; color: var(--ink-3); }
 
 /* ---- QR Code modal ---- */
 .qr-modal-box { text-align: center; max-width: 380px; padding: 32px 28px; }

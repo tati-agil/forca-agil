@@ -168,143 +168,248 @@
     });
   }
 
+  /* Critério de presença mínima (0.75 = 75% dos dias) */
+  var CRITERIO_PRESENCA = 0.75;
+
   const TURMAS_LIST = [
-    { key: 't1', label: 'Turma 1 — Agosto',   dates: '11·12·18·19·20' },
-    { key: 't2', label: 'Turma 2 — Setembro', dates: '09·10·11·15·16' },
-    { key: 't3', label: 'Turma 3 — Novembro', dates: '17·18·19·24·25' }
+    { key: 't1', label: 'Turma 1 — Agosto',   dates: '11·12·18·19·20',
+      dias: ['2026-08-11','2026-08-12','2026-08-18','2026-08-19','2026-08-20'] },
+    { key: 't2', label: 'Turma 2 — Setembro', dates: '09·10·11·15·16',
+      dias: ['2026-09-09','2026-09-10','2026-09-11','2026-09-15','2026-09-16'] },
+    { key: 't3', label: 'Turma 3 — Novembro', dates: '17·18·19·24·25',
+      dias: ['2026-11-17','2026-11-18','2026-11-19','2026-11-24','2026-11-25'] }
   ];
+
+  function fmtDia(iso) {
+    /* "2026-08-11" → "11/08" */
+    var p = iso.split('-');
+    return p[2] + '/' + p[1];
+  }
+
+  function todayISO() {
+    var d = new Date();
+    return d.getFullYear() + '-' +
+      String(d.getMonth() + 1).padStart(2, '0') + '-' +
+      String(d.getDate()).padStart(2, '0');
+  }
 
   /* ---- Turmas tab ---- */
   function loadInterests() {
-    const c = document.getElementById('adminInterests');
+    var c = document.getElementById('adminInterests');
     if (!c) return;
     c.innerHTML = '<p class="loading-msg">Carregando dados…</p>';
 
-    var interestRef = firebase.database().ref('turmas-interesse');
-    var configRef   = firebase.database().ref('turmas-config');
+    var db = firebase.database();
+    db.ref('turmas-interesse').once('value', function (snapI) {
+      db.ref('turmas-config').once('value', function (snapC) {
+        db.ref('turmas-checkin').once('value', function (snapCk) {
+          var data    = snapI.val()  || {};
+          var config  = snapC.val()  || {};
+          var checkin = snapCk.val() || {};
+          c.innerHTML = '';
 
-    interestRef.once('value', function (snapI) {
-      configRef.once('value', function (snapC) {
-        const data   = snapI.val() || {};
-        const config = snapC.val() || {};
-        c.innerHTML  = '';
+          /* global export buttons */
+          var btnWrap = document.createElement('div');
+          btnWrap.style.cssText = 'display:flex;gap:8px;flex-wrap:wrap;margin-bottom:24px;';
+          var exportBtn = document.createElement('button');
+          exportBtn.className = 'btn btn--sm';
+          exportBtn.innerHTML = '&#x2193; Estado atual';
+          exportBtn.addEventListener('click', function () { exportAllInterests(data, config, checkin); });
+          var csvBtn = document.createElement('button');
+          csvBtn.className = 'btn btn--sm';
+          csvBtn.innerHTML = '&#x2193; Histórico';
+          csvBtn.addEventListener('click', function () { exportInterestLog(); });
+          btnWrap.appendChild(exportBtn);
+          btnWrap.appendChild(csvBtn);
+          c.appendChild(btnWrap);
 
-        /* global export buttons */
-        const btnWrap = document.createElement('div');
-        btnWrap.style.cssText = 'display:flex;gap:8px;flex-wrap:wrap;margin-bottom:24px;';
-        const exportBtn = document.createElement('button');
-        exportBtn.className = 'btn btn--sm';
-        exportBtn.innerHTML = '&#x2193; Estado atual';
-        exportBtn.addEventListener('click', function () { exportAllInterests(data, config); });
-        const csvBtn = document.createElement('button');
-        csvBtn.className = 'btn btn--sm';
-        csvBtn.innerHTML = '&#x2193; Histórico';
-        csvBtn.addEventListener('click', function () { exportInterestLog(); });
-        btnWrap.appendChild(exportBtn);
-        btnWrap.appendChild(csvBtn);
-        c.appendChild(btnWrap);
+          TURMAS_LIST.forEach(function (t) {
+            var cfg       = config[t.key] || {};
+            var finalizada = !!cfg.finalizada;
+            var diaAtivo  = cfg.diaAtivo || null;
+            var all       = data[t.key] ? Object.values(data[t.key]) : [];
+            var allByKey  = data[t.key] || {};
+            var active    = all.filter(function (r) { return !r.removed; });
+            var removed   = all.filter(function (r) { return r.removed; });
+            var checkinT  = checkin[t.key] || {};
 
-        TURMAS_LIST.forEach(function (t) {
-          const cfg       = config[t.key] || {};
-          const finalizada = !!cfg.finalizada;
-          const all       = data[t.key] ? Object.values(data[t.key]) : [];
-          const active    = all.filter(function (r) { return !r.removed; });
-          const removed   = all.filter(function (r) { return r.removed; });
+            var inscritos = active.filter(function (r) { return r.status === 'inscrito'; });
+            var countLabel = finalizada
+              ? inscritos.length + ' inscrito' + (inscritos.length !== 1 ? 's' : '')
+              : active.length + ' interessado' + (active.length !== 1 ? 's' : '');
 
-          const inscritos = active.filter(function (r) { return r.status === 'inscrito' || r.status === 'presente'; });
-          const countLabel = finalizada
-            ? inscritos.length + ' inscrito' + (inscritos.length !== 1 ? 's' : '')
-            : active.length + ' interessado' + (active.length !== 1 ? 's' : '');
+            var card = document.createElement('div');
+            card.className = 'turma-admin-card';
+            card.id = 'turma-card-' + t.key;
 
-          const card = document.createElement('div');
-          card.className = 'turma-admin-card';
+            /* header */
+            var hdr = document.createElement('div');
+            hdr.className = 'turma-admin-header';
 
-          /* header */
-          const hdr = document.createElement('div');
-          hdr.className = 'turma-admin-header';
-          hdr.innerHTML =
-            '<div class="turma-admin-title">' +
-              '<span class="turma-admin-name">' + esc(t.label) + '</span>' +
-              '<span class="turma-admin-dates">(' + t.dates + ')</span>' +
-              '<span class="turma-status-badge ' + (finalizada ? 'badge-finalizada' : 'badge-aberta') + '">' +
-                (finalizada ? 'FINALIZADA' : 'ABERTA') +
-              '</span>' +
-              '<span class="admin-badge">' + countLabel + '</span>' +
-            '</div>' +
-            '<div class="turma-admin-actions" id="turma-actions-' + t.key + '"></div>';
-          card.appendChild(hdr);
+            var checkinBadge = '';
+            if (finalizada && diaAtivo) {
+              checkinBadge = '<span class="turma-status-badge badge-checkin-aberto">CHECK-IN ABERTO · ' + fmtDia(diaAtivo) + '</span>';
+            }
 
-          /* action buttons */
-          const actWrap = hdr.querySelector('#turma-actions-' + t.key);
-          if (!finalizada) {
-            const finBtn = document.createElement('button');
-            finBtn.className = 'btn btn--sm btn--primary';
-            finBtn.textContent = 'Finalizar inscrição';
-            finBtn.addEventListener('click', function () { finalizeTurma(t.key, data[t.key] || {}); });
-            actWrap.appendChild(finBtn);
-          } else {
-            const qrBtn = document.createElement('button');
-            qrBtn.className = 'btn btn--sm';
-            qrBtn.innerHTML = '&#x2318; QR Code';
-            qrBtn.addEventListener('click', function () { openQrModal(t); });
-            const reopenBtn = document.createElement('button');
-            reopenBtn.className = 'btn btn--sm';
-            reopenBtn.textContent = '↺ Reabrir';
-            reopenBtn.addEventListener('click', function () { reopenTurma(t.key, data[t.key] || {}); });
-            actWrap.appendChild(qrBtn);
-            actWrap.appendChild(reopenBtn);
-          }
-          const csvIndBtn = document.createElement('button');
-          csvIndBtn.className = 'btn btn--sm';
-          csvIndBtn.innerHTML = '&#x2193; CSV';
-          csvIndBtn.addEventListener('click', function () { exportTurmaCSV(t, all, finalizada); });
-          actWrap.appendChild(csvIndBtn);
+            hdr.innerHTML =
+              '<div class="turma-admin-title">' +
+                '<span class="turma-admin-name">' + esc(t.label) + '</span>' +
+                '<span class="turma-admin-dates">(' + t.dates + ')</span>' +
+                '<span class="turma-status-badge ' + (finalizada ? 'badge-finalizada' : 'badge-aberta') + '">' +
+                  (finalizada ? 'FINALIZADA' : 'ABERTA') + '</span>' +
+                '<span class="admin-badge">' + countLabel + '</span>' +
+                checkinBadge +
+              '</div>' +
+              '<div class="turma-admin-actions" id="turma-actions-' + t.key + '"></div>';
+            card.appendChild(hdr);
 
-          /* active table */
-          const body = document.createElement('div');
-          body.className = 'turma-admin-body';
-          if (!active.length) {
-            body.innerHTML = '<p class="admin-empty">Nenhum participante ativo.</p>';
-          } else {
-            body.innerHTML = buildActiveTable(active, finalizada);
-          }
+            /* action buttons */
+            var actWrap = hdr.querySelector('#turma-actions-' + t.key);
+            if (!finalizada) {
+              var finBtn = document.createElement('button');
+              finBtn.className = 'btn btn--sm btn--primary';
+              finBtn.textContent = 'Finalizar inscrição';
+              finBtn.addEventListener('click', (function (tk, td) {
+                return function () { finalizeTurma(tk, td); };
+              })(t.key, allByKey));
+              actWrap.appendChild(finBtn);
+            } else {
+              /* check-in abrir/fechar */
+              if (!diaAtivo) {
+                var openBtn = document.createElement('button');
+                openBtn.className = 'btn btn--sm btn--primary';
+                openBtn.textContent = 'Abrir check-in hoje (' + fmtDia(todayISO()) + ')';
+                openBtn.addEventListener('click', (function (tk) {
+                  return function () { openCheckin(tk); };
+                })(t.key));
+                actWrap.appendChild(openBtn);
+              } else {
+                var closeBtn2 = document.createElement('button');
+                closeBtn2.className = 'btn btn--sm';
+                closeBtn2.style.borderColor = 'rgba(255,80,80,.5)';
+                closeBtn2.style.color = '#ff8080';
+                closeBtn2.textContent = 'Fechar check-in';
+                closeBtn2.addEventListener('click', (function (tk) {
+                  return function () { closeCheckin(tk); };
+                })(t.key));
+                actWrap.appendChild(closeBtn2);
+              }
+              var qrBtn = document.createElement('button');
+              qrBtn.className = 'btn btn--sm';
+              qrBtn.innerHTML = '&#x2318; QR Code';
+              qrBtn.addEventListener('click', (function (tt) {
+                return function () { openQrModal(tt); };
+              })(t));
+              var reopenBtn = document.createElement('button');
+              reopenBtn.className = 'btn btn--sm';
+              reopenBtn.textContent = '↺ Reabrir turma';
+              reopenBtn.addEventListener('click', (function (tk, td) {
+                return function () { reopenTurma(tk, td); };
+              })(t.key, allByKey));
+              actWrap.appendChild(qrBtn);
+              actWrap.appendChild(reopenBtn);
+            }
+            var csvIndBtn = document.createElement('button');
+            csvIndBtn.className = 'btn btn--sm';
+            csvIndBtn.innerHTML = '&#x2193; CSV';
+            csvIndBtn.addEventListener('click', (function (tt, a, f, ck) {
+              return function () { exportTurmaCSV(tt, a, f, ck); };
+            })(t, all, finalizada, checkinT));
+            actWrap.appendChild(csvIndBtn);
 
-          /* removed table */
-          if (removed.length) {
-            body.innerHTML += '<p class="turma-removed-title">Removidos (' + removed.length + ')</p>' +
-              buildRemovedTable(removed);
-          }
+            /* body */
+            var body = document.createElement('div');
+            body.className = 'turma-admin-body';
 
-          card.appendChild(body);
-          c.appendChild(card);
+            if (!active.length) {
+              body.innerHTML = '<p class="admin-empty">Nenhum participante ativo.</p>';
+            } else if (!finalizada) {
+              body.innerHTML = buildInteressadosTable(active);
+            } else {
+              body.appendChild(buildPresencaTable(t, inscritos, checkinT));
+            }
+
+            if (removed.length) {
+              var removedTitle = document.createElement('p');
+              removedTitle.className = 'turma-removed-title';
+              removedTitle.textContent = 'Removidos (' + removed.length + ')';
+              body.appendChild(removedTitle);
+              body.innerHTML += buildRemovedTable(removed);
+            }
+
+            card.appendChild(body);
+            c.appendChild(card);
+          });
         });
       });
     });
   }
 
-  function getStatus(r, finalizada) {
-    if (r.status === 'presente') return 'presente';
-    if (r.status === 'inscrito' || finalizada) return 'inscrito';
-    return 'interessado';
-  }
-
-  function statusBadge(status) {
-    var map = {
-      presente:   '<span class="ts-badge ts-presente">PRESENTE</span>',
-      inscrito:   '<span class="ts-badge ts-inscrito">INSCRITO</span>',
-      interessado:'<span class="ts-badge ts-interessado">INTERESSADO</span>'
-    };
-    return map[status] || '';
-  }
-
-  function buildActiveTable(records, finalizada) {
-    var tbl = '<table class="admin-table"><thead><tr><th>Nome</th><th>E-mail</th><th>Área</th><th>Status</th><th>Data registro</th></tr></thead><tbody>';
+  /* Tabela simples de interessados (turma aberta) */
+  function buildInteressadosTable(records) {
+    var tbl = '<table class="admin-table"><thead><tr><th>Nome</th><th>E-mail</th><th>Área</th><th>Data registro</th></tr></thead><tbody>';
     records.forEach(function (r) {
-      var st = getStatus(r, finalizada);
-      tbl += '<tr><td>' + esc(r.name) + '</td><td>' + esc(r.email) + '</td><td>' + esc(r.area || '—') +
-        '</td><td>' + statusBadge(st) + '</td><td>' + fmtDate(r.date) + '</td></tr>';
+      tbl += '<tr><td>' + esc(r.name) + '</td><td>' + esc(r.email) + '</td><td>' +
+        esc(r.area || '—') + '</td><td>' + fmtDate(r.date) + '</td></tr>';
     });
     return tbl + '</tbody></table>';
+  }
+
+  /* Tabela de presença por dia (turma finalizada) */
+  function buildPresencaTable(t, inscritos, checkinT) {
+    var minDias = Math.ceil(t.dias.length * CRITERIO_PRESENCA);
+    var wrap = document.createElement('div');
+    wrap.style.overflowX = 'auto';
+
+    var tbl = '<table class="admin-table presenca-table"><thead><tr>' +
+      '<th>Nome</th><th>E-mail</th><th>Área</th>';
+    t.dias.forEach(function (d) {
+      tbl += '<th class="dia-th">' + fmtDia(d) + '</th>';
+    });
+    tbl += '<th>Freq.</th></tr></thead><tbody>';
+
+    inscritos.forEach(function (r) {
+      var eKey = emailKeyFromEmail(r.email);
+      var diasPresente = 0;
+      var cells = t.dias.map(function (d) {
+        var ck = checkinT[d] && checkinT[d][eKey];
+        if (ck) {
+          diasPresente++;
+          var badge = ck.source === 'admin'
+            ? '<span class="ck-badge ck-adm" title="Registrado pelo admin">✓ adm</span>'
+            : '<span class="ck-badge ck-qr"  title="Check-in via QR">✓ qr</span>';
+          return '<td class="dia-cell">' + badge + '</td>';
+        }
+        /* botão para registrar retroativo */
+        return '<td class="dia-cell"><button class="ck-manual-btn" ' +
+          'data-turma="' + t.key + '" data-dia="' + d + '" ' +
+          'data-ekey="' + eKey + '" data-name="' + esc(r.name) + '" ' +
+          'data-email="' + esc(r.email) + '" data-area="' + esc(r.area || '') + '"' +
+          '>—</button></td>';
+      });
+
+      var freq = diasPresente + '/' + t.dias.length;
+      var atingiu = diasPresente >= minDias;
+      var freqClass = atingiu ? 'freq-ok' : 'freq-nok';
+
+      tbl += '<tr><td>' + esc(r.name) + '</td><td>' + esc(r.email) + '</td><td>' +
+        esc(r.area || '—') + '</td>' + cells.join('') +
+        '<td><span class="' + freqClass + '">' + freq + '</span></td></tr>';
+    });
+
+    tbl += '</tbody></table>';
+    wrap.innerHTML = tbl;
+
+    /* delegação de eventos para check-in manual */
+    wrap.addEventListener('click', function (e) {
+      var btn = e.target.closest('.ck-manual-btn');
+      if (!btn) return;
+      adminCheckin(btn.dataset.turma, btn.dataset.dia, btn.dataset.ekey, {
+        name: btn.dataset.name, email: btn.dataset.email, area: btn.dataset.area
+      });
+    });
+
+    return wrap;
   }
 
   function buildRemovedTable(records) {
@@ -316,14 +421,51 @@
     return tbl + '</tbody></table>';
   }
 
+  function emailKeyFromEmail(email) {
+    return (email || '').toLowerCase().replace(/[@.]/g, '_').replace(/[^a-z0-9_]/g, '').slice(0, 64);
+  }
+
+  function getStatus(r, finalizada) {
+    if (r.status === 'inscrito' || finalizada) return 'inscrito';
+    return 'interessado';
+  }
+
+  /* ---- Check-in actions ---- */
+  function openCheckin(turmaKey) {
+    var hoje = todayISO();
+    firebase.database().ref('turmas-config/' + turmaKey + '/diaAtivo').set(hoje, function (err) {
+      if (err) { alert('Erro ao abrir check-in.'); return; }
+      loadInterests();
+    });
+  }
+
+  function closeCheckin(turmaKey) {
+    firebase.database().ref('turmas-config/' + turmaKey + '/diaAtivo').set(null, function (err) {
+      if (err) { alert('Erro ao fechar check-in.'); return; }
+      loadInterests();
+    });
+  }
+
+  function adminCheckin(turmaKey, dia, eKey, person) {
+    var ref = firebase.database().ref('turmas-checkin/' + turmaKey + '/' + dia + '/' + eKey);
+    ref.set({
+      name: person.name, email: person.email, area: person.area || '',
+      checkinAt: new Date().toISOString(), source: 'admin'
+    }, function (err) {
+      if (err) { alert('Erro ao registrar presença.'); return; }
+      loadInterests();
+    });
+  }
+
+  /* ---- Finalizar / Reabrir turma ---- */
   function finalizeTurma(turmaKey, turmaData) {
     if (!confirm('Finalizar inscrição da turma ' + turmaKey.toUpperCase() + '?\n\nTodos os interessados virarão inscritos e a turma será bloqueada para novos interessados.')) return;
     var updates = {};
     updates['turmas-config/' + turmaKey + '/finalizada'] = true;
-    Object.keys(turmaData).forEach(function (emailKey) {
-      var r = turmaData[emailKey];
+    Object.keys(turmaData).forEach(function (eKey) {
+      var r = turmaData[eKey];
       if (!r.removed && r.status !== 'presente') {
-        updates['turmas-interesse/' + turmaKey + '/' + emailKey + '/status'] = 'inscrito';
+        updates['turmas-interesse/' + turmaKey + '/' + eKey + '/status'] = 'inscrito';
       }
     });
     firebase.database().ref().update(updates, function (err) {
@@ -336,10 +478,11 @@
     if (!confirm('Reabrir a turma ' + turmaKey.toUpperCase() + '?\n\nInscritos voltarão ao status interessado e novas inscrições serão permitidas.')) return;
     var updates = {};
     updates['turmas-config/' + turmaKey + '/finalizada'] = false;
-    Object.keys(turmaData).forEach(function (emailKey) {
-      var r = turmaData[emailKey];
+    updates['turmas-config/' + turmaKey + '/diaAtivo']   = null;
+    Object.keys(turmaData).forEach(function (eKey) {
+      var r = turmaData[eKey];
       if (!r.removed && r.status === 'inscrito') {
-        updates['turmas-interesse/' + turmaKey + '/' + emailKey + '/status'] = 'interessado';
+        updates['turmas-interesse/' + turmaKey + '/' + eKey + '/status'] = 'interessado';
       }
     });
     firebase.database().ref().update(updates, function (err) {
@@ -348,13 +491,14 @@
     });
   }
 
+  /* ---- QR Code modal ---- */
   function openQrModal(t) {
-    const modal   = document.getElementById('qrModal');
-    const canvas  = document.getElementById('qrCanvas');
-    const turmaEl = document.getElementById('qrModalTurma');
-    const urlEl   = document.getElementById('qrModalUrl');
+    var modal   = document.getElementById('qrModal');
+    var canvas  = document.getElementById('qrCanvas');
+    var turmaEl = document.getElementById('qrModalTurma');
+    var urlEl   = document.getElementById('qrModalUrl');
     if (!modal || !canvas) return;
-    const url = window.location.origin + window.location.pathname + '#checkin?turma=' + t.key;
+    var url = window.location.origin + window.location.pathname + '#checkin?turma=' + t.key;
     turmaEl.textContent = t.label + ' (' + t.dates + ')';
     urlEl.textContent   = url;
     if (typeof QRCode !== 'undefined') {
@@ -374,30 +518,52 @@
     }
   });
 
-  function exportTurmaCSV(t, all, finalizada) {
-    var rows = all.map(function (r) {
+  /* ---- CSV exports ---- */
+  function exportTurmaCSV(t, all, finalizada, checkinT) {
+    var minDias = Math.ceil(t.dias.length * CRITERIO_PRESENCA);
+    var rows = [];
+    all.forEach(function (r) {
+      var eKey = emailKeyFromEmail(r.email);
       var st = r.removed ? 'Removido' : getStatus(r, finalizada);
-      return [t.label, r.name||'', r.email||'', r.area||'', st,
-        r.date ? new Date(r.date).toLocaleString('pt-BR') : '',
-        r.removedDate ? new Date(r.removedDate).toLocaleString('pt-BR') : ''];
+      var row = [t.label, r.name||'', r.email||'', r.area||'', st,
+        r.date ? new Date(r.date).toLocaleString('pt-BR') : ''];
+      if (finalizada) {
+        var diasPresente = 0;
+        t.dias.forEach(function (d) {
+          var ck = checkinT[d] && checkinT[d][eKey];
+          row.push(ck ? (ck.source === 'admin' ? 'adm' : 'qr') : '');
+          if (ck) diasPresente++;
+        });
+        row.push(diasPresente + '/' + t.dias.length);
+        row.push(diasPresente >= minDias ? 'Sim' : 'Não');
+      }
+      rows.push(row);
     });
-    toXls(['Turma','Nome','E-mail','Área','Status','Data Registro','Data Remoção'],
-      rows, 'turma-' + t.key + '-' + new Date().toISOString().slice(0,10) + '.csv');
+    var headers = ['Turma','Nome','E-mail','Área','Status','Data Registro'];
+    if (finalizada) {
+      t.dias.forEach(function (d) { headers.push(fmtDia(d)); });
+      headers.push('Frequência', 'Atingiu critério (' + Math.round(CRITERIO_PRESENCA * 100) + '%)');
+    }
+    toXls(headers, rows, 'turma-' + t.key + '-' + new Date().toISOString().slice(0,10) + '.csv');
   }
 
-  function exportAllInterests(data, config) {
+  function exportAllInterests(data, config, checkin) {
     var rows = [];
     TURMAS_LIST.forEach(function (t) {
       var finalizada = !!(config[t.key] && config[t.key].finalizada);
+      var checkinT   = checkin[t.key] || {};
       var all = data[t.key] ? Object.values(data[t.key]) : [];
       all.forEach(function (r) {
+        var eKey = emailKeyFromEmail(r.email);
         var st = r.removed ? 'Removido' : getStatus(r, finalizada);
+        var diasPresente = 0;
+        t.dias.forEach(function (d) { if (checkinT[d] && checkinT[d][eKey]) diasPresente++; });
         rows.push([t.label, r.name||'', r.email||'', r.area||'', st,
           r.date ? new Date(r.date).toLocaleString('pt-BR') : '',
-          r.removedDate ? new Date(r.removedDate).toLocaleString('pt-BR') : '']);
+          finalizada ? diasPresente + '/' + t.dias.length : '']);
       });
     });
-    toXls(['Turma','Nome','E-mail','Área','Status','Data Registro','Data Remoção'],
+    toXls(['Turma','Nome','E-mail','Área','Status','Data Registro','Frequência'],
       rows, 'turmas-estado-' + new Date().toISOString().slice(0,10) + '.csv');
   }
 
