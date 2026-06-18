@@ -103,6 +103,7 @@
         { label: 'Exportar CSV estado atual (com colunas de presença por dia e frequência)', p: ['admin'] },
         { label: 'Exportar CSV Histórico de ações (adicionou/removeu interesse)', p: ['admin'] },
         { label: 'Exportar CSV individual por turma', p: ['admin'] },
+        { label: 'Gerar certificados de participação em lote — botão "Certificados" na turma finalizada; filtra quem atingiu ≥ 75%; abre nova aba com 1 certificado por página (A4 paisagem) prontos para imprimir/salvar como PDF', p: ['admin'] },
         { label: 'Moderar repositório — ocultar/restaurar seeds curados (fa-seeds-hidden)', p: ['admin'] },
         { label: 'Moderar repositório — deletar permanentemente seeds curados (fa-seeds-deleted, sem restauração)', p: ['admin'] },
         { label: 'Moderar repositório — ocultar/restaurar conteúdo de usuários (fa-holocron-hidden)', p: ['admin'] },
