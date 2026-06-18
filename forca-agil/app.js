@@ -295,7 +295,7 @@
     }
 
     function setDone(btn, turmaKey) {
-      btn.textContent = 'Remover interesse';
+      btn.innerHTML = '&#x2764;&#xFE0E;&nbsp; Remover interesse';
       btn.classList.add('done');
       btn.dataset.state = 'done';
       btn.disabled = false;
@@ -303,7 +303,7 @@
     }
 
     function setInitial(btn, turmaKey) {
-      btn.textContent = 'Tenho interesse';
+      btn.innerHTML = '&#x2661;&nbsp; Tenho interesse';
       btn.classList.remove('done');
       btn.dataset.state = '';
       btn.disabled = false;
