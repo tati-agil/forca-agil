@@ -494,6 +494,7 @@
 @media (max-width: 600px) {
   .journey { flex-direction: column; min-width: 0; }
   .journey-arrow { transform: rotate(90deg); }
-  #navAdmin { display: none; } /* show only when nav is open on mobile */
+  #navAdmin { display: none; }
+  .nav-links.open #navAdmin { display: block; }
   .hl-grid { grid-template-columns: 1fr; }
 }
