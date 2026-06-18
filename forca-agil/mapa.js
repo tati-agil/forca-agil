@@ -94,6 +94,8 @@
         { label: 'QR Code — gera QR único por turma (popup); participante escaneia no dia com check-in aberto', p: ['admin'] },
         { label: 'Tabela de presença por dia — colunas por data (✓ qr / ✓ adm / —), frequência X/5 colorida', p: ['admin'] },
         { label: 'Registrar presença retroativa — admin clica em "—" de qualquer pessoa/dia e confirma manualmente', p: ['admin'] },
+        { label: 'Adicionar participante após inscrições fechadas — botão "＋ Participante" grava direto com status inscrito sem reabrir turma', p: ['admin'] },
+        { label: 'Remover inscrito da turma finalizada — botão "Remover" na tabela de presença marca removed:true sem afetar demais inscritos', p: ['admin'] },
         { label: 'Critério de presença configurável — CRITERIO_PRESENCA = 0.75 (75%, default 4/5 dias)', p: ['admin'] },
         { label: 'Exportar CSV estado atual (com colunas de presença por dia e frequência)', p: ['admin'] },
         { label: 'Exportar CSV Histórico de ações (adicionou/removeu interesse)', p: ['admin'] },
