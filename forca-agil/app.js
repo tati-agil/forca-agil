@@ -295,7 +295,7 @@
     }
 
     function setDone(btn, turmaKey) {
-      btn.innerHTML = '&#x2661;&nbsp; Remover interesse';
+      btn.innerHTML = '<span class="btn-heart">&#x2661;</span>&nbsp; Remover interesse';
       btn.classList.add('done');
       btn.dataset.state = 'done';
       btn.disabled = false;
@@ -303,7 +303,7 @@
     }
 
     function setInitial(btn, turmaKey) {
-      btn.innerHTML = '&#x2661;&nbsp; Tenho interesse';
+      btn.innerHTML = '<span class="btn-heart">&#x2661;</span>&nbsp; Tenho interesse';
       btn.classList.remove('done');
       btn.dataset.state = '';
       btn.disabled = false;

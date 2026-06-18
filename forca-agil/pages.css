@@ -246,6 +246,7 @@
   cursor: pointer; transition: background .2s, color .2s, border-color .2s;
 }
 .btn--interest:hover:not(:disabled) { filter: brightness(1.1); }
+.btn-heart { font-size: 1.1em; vertical-align: middle; }
 .btn--interest.done {
   background: rgba(255,255,255,.06); border-color: rgba(245,197,24,.35);
   color: var(--accent); cursor: pointer; filter: none;
