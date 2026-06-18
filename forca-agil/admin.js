@@ -306,7 +306,14 @@
               reopenBtn.addEventListener('click', (function (tk, td) {
                 return function () { reopenTurma(tk, td); };
               })(t.key, allByKey));
+              var addBtn = document.createElement('button');
+              addBtn.className = 'btn btn--sm';
+              addBtn.textContent = '＋ Participante';
+              addBtn.addEventListener('click', (function (tk) {
+                return function () { addParticipante(tk); };
+              })(t.key));
               actWrap.appendChild(qrBtn);
+              actWrap.appendChild(addBtn);
               actWrap.appendChild(reopenBtn);
             }
             var csvIndBtn = document.createElement('button');
@@ -454,6 +461,31 @@
     }, function (err) {
       if (err) { alert('Erro ao registrar presença.'); return; }
       loadInterests();
+    });
+  }
+
+  /* ---- Adicionar participante manualmente (turma já finalizada) ---- */
+  function addParticipante(turmaKey) {
+    var email = (prompt('E-mail do participante:') || '').trim().toLowerCase();
+    if (!email) return;
+    if (!/@previ\.com\.br$/.test(email)) { alert('Use um e-mail @previ.com.br.'); return; }
+    var name  = (prompt('Nome completo:') || '').trim();
+    if (!name) return;
+    var area  = (prompt('Área (deixe em branco se não souber):') || '').trim();
+    var eKey  = emailKeyFromEmail(email);
+    var ref   = firebase.database().ref('turmas-interesse/' + turmaKey + '/' + eKey);
+    ref.once('value', function (snap) {
+      if (snap.val() && !snap.val().removed) {
+        alert('Este participante já está na turma.'); return;
+      }
+      ref.set({
+        name: name, email: email, area: area,
+        date: new Date().toISOString(),
+        status: 'inscrito', addedByAdmin: true
+      }, function (err) {
+        if (err) { alert('Erro ao adicionar participante.'); return; }
+        loadInterests();
+      });
     });
   }
 
