@@ -83,7 +83,7 @@
       features: [
         { label: 'Ver ranking completo',                 p: ['visitante','logado','colaborador','admin'] },
         { label: 'Identificação da própria linha no ranking', p: ['logado','colaborador','admin'] },
-        { label: 'Imagem da patente (personagem SVG: Youngling/Padawan/Cavaleiro/Mestre) exibida ao lado do nome em todas as listagens', p: ['visitante','logado','colaborador','admin'] },
+        { label: 'Imagem da patente (personagem SVG: Youngling/Padawan/Cavaleiro/Mestre) exibida ao lado do nome da patente (coluna direita) em todas as listagens do ranking', p: ['visitante','logado','colaborador','admin'] },
         { label: 'Ver patente de todos',                 p: ['visitante','logado','colaborador','admin'] },
       ]
     },
@@ -125,7 +125,7 @@
         { label: 'Fazer login',                               p: ['visitante'] },
         { label: 'Esqueci minha senha — link por e-mail',     p: ['visitante'] },
         { label: 'Inicial e nome no menu — no lugar dos botões Entrar/Cadastrar', p: ['logado','colaborador','admin'] },
-        { label: 'Ver link "Admin" no menu de navegação',     p: ['admin'] },
+        { label: 'Ver link "Admin" no menu de navegação (desktop sempre visível; mobile: aparece ao abrir o menu)', p: ['admin'] },
         { label: 'Botão Sair',                                p: ['logado','colaborador','admin'] },
       ]
     },
