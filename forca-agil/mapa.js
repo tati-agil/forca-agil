@@ -332,7 +332,61 @@
     });
 
     html += '</div>';
+
+    /* Botão export */
+    html += '<div style="margin-top:32px">';
+    html += '<button class="btn btn--sm" id="mapaExportBtn">⬇ Exportar Excel (mapa completo)</button>';
+    html += '</div>';
+
+    html += '</div>';
     container.innerHTML = html;
+
+    /* Export mapa para CSV */
+    const exportBtn = document.getElementById('mapaExportBtn');
+    if (exportBtn) {
+      exportBtn.addEventListener('click', function () {
+        if (!window.faToXls) return;
+        const rows = [];
+
+        /* Hierarquia */
+        HIERARCHY.forEach(function (level) {
+          level.adds.forEach(function (a) {
+            rows.push(['Hierarquia', level.label, a, '']);
+          });
+        });
+
+        /* Mapa do site */
+        PAGES.forEach(function (page) {
+          page.features.forEach(function (f) {
+            const minPersona = (function () {
+              const order = ['visitante', 'logado', 'colaborador', 'admin'];
+              const idx = f.p.map(function (k) { return order.indexOf(k); }).filter(function (i) { return i >= 0; });
+              return idx.length ? order[Math.min.apply(null, idx)] : '';
+            })();
+            rows.push(['Mapa do Site', page.label, f.label, minPersona]);
+          });
+        });
+
+        /* Arquitetura técnica */
+        var ARCH_LABELS = ['Linguagens', 'Tecnologias & Serviços', 'Estrutura de Arquivos', 'Padrões de Código', 'Deploy'];
+        var archSections = container.querySelectorAll('.arch-section');
+        archSections.forEach(function (sec, i) {
+          var labelEl = sec.querySelector('.arch-section-label span');
+          var sLabel = labelEl ? labelEl.textContent.trim() : ('Arquitetura ' + i);
+          sec.querySelectorAll('.arch-item').forEach(function (item) {
+            var name = item.querySelector('.arch-item-name');
+            var desc = item.querySelector('.arch-item-desc');
+            rows.push(['Arquitetura', sLabel, name ? name.textContent.trim() : '', desc ? desc.textContent.trim() : '']);
+          });
+        });
+
+        window.faToXls(
+          ['Categoria', 'Seção', 'Item', 'Nível mínimo / Detalhe'],
+          rows,
+          'mapa-forca-agil-' + new Date().toISOString().slice(0, 10) + '.csv'
+        );
+      });
+    }
   }
 
   window.faMapaPages = PAGES;
