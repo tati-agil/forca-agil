@@ -240,13 +240,14 @@
 .turma-card-new .tc-month { font-family: var(--font-display); font-size: 1.8rem; color: var(--ink); line-height: 1; }
 .turma-card-new .tc-dates { font-family: var(--font-mono); font-size: .8rem; color: var(--ink-3); }
 .btn--interest {
+  display: inline-flex; align-items: center; justify-content: center; gap: 6px;
   background: var(--accent); border: 1.5px solid var(--accent); color: #000;
   padding: 10px 20px; border-radius: 8px; font-family: var(--font-head);
   font-size: .88rem; text-transform: uppercase; letter-spacing: .05em;
   cursor: pointer; transition: background .2s, color .2s, border-color .2s;
 }
 .btn--interest:hover:not(:disabled) { filter: brightness(1.1); }
-.btn-heart { font-size: 1.1em; vertical-align: middle; }
+.btn-heart { font-size: 1.1em; line-height: 1; }
 .btn--interest.done {
   background: rgba(255,255,255,.06); border-color: rgba(245,197,24,.35);
   color: var(--accent); cursor: pointer; filter: none;
