@@ -737,8 +737,10 @@
       rows.map(function (row) { return row.map(csvCell).join(';'); })
     );
     var csvFilename = filename.replace(/\.xls$/i, '.csv');
-    var raw = '﻿' + lines.join('\r\n'); // UTF-8 BOM para Excel reconhecer acentos
-    var blob = new Blob([raw], { type: 'text/csv;charset=utf-8;' });
+    var raw = lines.join('\r\n');
+    // BOM como bytes brutos (EF BB BF) para Excel reconhecer UTF-8 independente do sep=
+    var bom = new Uint8Array([0xEF, 0xBB, 0xBF]);
+    var blob = new Blob([bom, raw], { type: 'text/csv;charset=utf-8;' });
     var url = URL.createObjectURL(blob);
     var a = document.createElement('a');
     a.href = url; a.download = csvFilename;
