@@ -252,10 +252,67 @@
   background: rgba(255,255,255,.06); border-color: rgba(245,197,24,.35);
   color: var(--accent); cursor: pointer; filter: none;
 }
+.btn--interest.inscrito  { background: rgba(24,194,186,.12); border-color: var(--cyan); color: var(--cyan); cursor: default; }
+.btn--interest.presente  { background: rgba(100,220,100,.12); border-color: #64dc64; color: #64dc64; cursor: default; }
+.btn--interest.blocked   { background: rgba(255,255,255,.04); border-color: rgba(255,255,255,.12); color: var(--ink-3); cursor: default; font-size: .8rem; }
 .turma-intent-msg {
   font-size: .78rem; font-family: var(--font-mono); color: var(--cyan);
   min-height: 1.2em; text-align: center;
 }
+
+/* ---- Turmas admin cards ---- */
+.turma-admin-card {
+  background: rgba(255,255,255,.04); border: 1px solid var(--line);
+  border-radius: 12px; margin-bottom: 20px; overflow: hidden;
+}
+.turma-admin-header {
+  display: flex; align-items: center; justify-content: space-between;
+  flex-wrap: wrap; gap: 10px;
+  padding: 14px 18px; border-bottom: 1px solid var(--line);
+  background: rgba(255,255,255,.03);
+}
+.turma-admin-title { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+.turma-admin-name  { font-family: var(--font-head); font-size: .95rem; color: var(--ink); }
+.turma-admin-dates { font-size: .8rem; color: var(--ink-3); }
+.turma-admin-actions { display: flex; gap: 8px; flex-wrap: wrap; }
+.turma-admin-body  { padding: 14px 18px; }
+.turma-removed-title { margin: 16px 0 8px; color: var(--ink-3); font-size: .85rem; }
+.turma-status-badge { font-size: .7rem; font-family: var(--font-mono); font-weight: 700;
+  padding: 2px 8px; border-radius: 4px; letter-spacing: .06em; }
+.badge-aberta    { background: rgba(24,194,186,.15); color: var(--cyan); border: 1px solid rgba(24,194,186,.3); }
+.badge-finalizada{ background: rgba(245,197,24,.15); color: var(--gold); border: 1px solid rgba(245,197,24,.3); }
+
+/* ---- Status badges in table ---- */
+.ts-badge { font-size: .72rem; font-family: var(--font-mono); font-weight: 700;
+  padding: 2px 7px; border-radius: 4px; letter-spacing: .05em; white-space: nowrap; }
+.ts-interessado { background: rgba(255,255,255,.08); color: var(--ink-2); }
+.ts-inscrito    { background: rgba(24,194,186,.15);  color: var(--cyan); }
+.ts-presente    { background: rgba(100,220,100,.15); color: #64dc64; }
+
+/* ---- QR Code modal ---- */
+.qr-modal-box { text-align: center; max-width: 380px; padding: 32px 28px; }
+.qr-modal-label { font-family: var(--font-mono); font-size: .72rem; color: var(--ink-3);
+  letter-spacing: .1em; margin-bottom: 4px; }
+.qr-modal-turma { font-family: var(--font-head); font-size: 1rem; color: var(--ink);
+  margin-bottom: 20px; }
+#qrCanvas { border-radius: 10px; display: block; margin: 0 auto 16px; }
+.qr-modal-hint  { font-size: .83rem; color: var(--ink-2); line-height: 1.5; margin-bottom: 8px; }
+.qr-modal-url   { font-size: .68rem; font-family: var(--font-mono); color: var(--ink-3);
+  word-break: break-all; margin-bottom: 20px; }
+
+/* ---- Check-in page ---- */
+.checkin-box { background: rgba(255,255,255,.05); border: 1px solid var(--line);
+  border-radius: 16px; padding: 40px 32px; text-align: center; }
+.checkin-icon { font-size: 3rem; margin-bottom: 16px; }
+.checkin-box h2 { font-family: var(--font-head); font-size: 1.4rem; margin-bottom: 12px; }
+.checkin-name   { font-size: 1rem; color: var(--ink-2); margin-bottom: 4px; }
+.checkin-turma  { font-size: .85rem; color: var(--ink-3); margin-bottom: 20px; }
+.checkin-success { border-color: rgba(100,220,100,.4); }
+.checkin-success .checkin-icon { color: #64dc64; }
+.checkin-already { border-color: rgba(24,194,186,.4); }
+.checkin-already .checkin-icon { color: var(--cyan); }
+.checkin-error   { border-color: rgba(255,80,80,.3); }
+.checkin-error .checkin-icon { color: #ff6b6b; font-weight: 700; }
 
 /* ---- Conteúdos: XP tracking ---- */
 .content-xp-tag {

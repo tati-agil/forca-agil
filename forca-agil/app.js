@@ -262,30 +262,45 @@
 
     function checkInterestState(btn, turmaKey, email) {
       const key = emailKey(email);
-      firebase && firebase.database &&
+      if (!firebase || !firebase.database) return;
+      /* check turma config (finalizada?) and user record in parallel */
+      firebase.database().ref('turmas-config/' + turmaKey + '/finalizada').once('value', function (cfgSnap) {
+        const finalizada = !!cfgSnap.val();
         firebase.database().ref('turmas-interesse/' + turmaKey + '/' + key).once('value', function (snap) {
           const val = snap.val();
-          if (val && !val.removed) setDone(btn, turmaKey);
+          if (finalizada && (!val || val.removed)) {
+            setBlocked(btn, turmaKey);
+            return;
+          }
+          if (val && !val.removed) {
+            if (val.status === 'presente')        setPresente(btn, turmaKey);
+            else if (val.status === 'inscrito' || finalizada) setInscrito(btn, turmaKey);
+            else setDone(btn, turmaKey);
+          }
         });
+      });
     }
 
     function registerInterest(btn, turmaKey, sess) {
       const key   = emailKey(sess.email);
       const now   = new Date().toISOString();
-      const entry = { name: sess.name, email: sess.email, area: sess.area || '', date: now, removed: false };
-      firebase.database().ref('turmas-interesse/' + turmaKey + '/' + key).set(entry, function (err) {
-        if (err) { showMsg(turmaKey, 'Erro ao registrar. Tente novamente.'); return; }
-        firebase.database().ref('turmas-interesse-log/' + turmaKey + '/' + key).push(
-          { name: sess.name, email: sess.email, area: sess.area || '', action: 'registrado', date: now }
-        );
-        setDone(btn, turmaKey);
+      const entry = { name: sess.name, email: sess.email, area: sess.area || '', date: now, removed: false, status: 'interessado' };
+      firebase.database().ref('turmas-config/' + turmaKey + '/finalizada').once('value', function (cfgSnap) {
+        if (cfgSnap.val()) { showMsg(turmaKey, 'Esta turma está encerrada para novas inscrições.'); return; }
+        firebase.database().ref('turmas-interesse/' + turmaKey + '/' + key).set(entry, function (err) {
+          if (err) { showMsg(turmaKey, 'Erro ao registrar. Tente novamente.'); return; }
+          firebase.database().ref('turmas-interesse-log/' + turmaKey + '/' + key).push(
+            { name: sess.name, email: sess.email, area: sess.area || '', action: 'registrado', date: now }
+          );
+          setDone(btn, turmaKey);
+        });
       });
     }
 
     function removeInterest(btn, turmaKey, sess) {
       const key = emailKey(sess.email);
       const now = new Date().toISOString();
-      firebase.database().ref('turmas-interesse/' + turmaKey + '/' + key).update({ removed: true, removedDate: now }, function (err) {
+      firebase.database().ref('turmas-interesse/' + turmaKey + '/' + key).update({ removed: true, removedDate: now, status: 'removido' }, function (err) {
         if (err) { showMsg(turmaKey, 'Erro ao remover. Tente novamente.'); return; }
         firebase.database().ref('turmas-interesse-log/' + turmaKey + '/' + key).push(
           { name: sess.name, email: sess.email, area: sess.area || '', action: 'removido', date: now }
@@ -296,6 +311,7 @@
 
     function setDone(btn, turmaKey) {
       btn.innerHTML = '<span class="btn-heart">&#x2661;</span>&nbsp; Remover interesse';
+      btn.classList.remove('inscrito','presente','blocked');
       btn.classList.add('done');
       btn.dataset.state = 'done';
       btn.disabled = false;
@@ -304,10 +320,37 @@
 
     function setInitial(btn, turmaKey) {
       btn.innerHTML = '<span class="btn-heart">&#x2661;</span>&nbsp; Tenho interesse';
-      btn.classList.remove('done');
+      btn.classList.remove('done','inscrito','presente','blocked');
       btn.dataset.state = '';
       btn.disabled = false;
       showMsg(turmaKey, 'Interesse removido.');
+    }
+
+    function setInscrito(btn, turmaKey) {
+      btn.innerHTML = '✓ Inscrita';
+      btn.classList.remove('done','presente','blocked');
+      btn.classList.add('inscrito');
+      btn.dataset.state = 'inscrito';
+      btn.disabled = true;
+      showMsg(turmaKey, 'Você está inscrita nesta turma!');
+    }
+
+    function setPresente(btn, turmaKey) {
+      btn.innerHTML = '✓ Presente';
+      btn.classList.remove('done','inscrito','blocked');
+      btn.classList.add('presente');
+      btn.dataset.state = 'presente';
+      btn.disabled = true;
+      showMsg(turmaKey, 'Presença confirmada!');
+    }
+
+    function setBlocked(btn, turmaKey) {
+      btn.innerHTML = 'Inscrições encerradas';
+      btn.classList.remove('done','inscrito','presente');
+      btn.classList.add('blocked');
+      btn.dataset.state = 'blocked';
+      btn.disabled = true;
+      showMsg(turmaKey, '');
     }
 
     function showMsg(turmaKey, msg) {

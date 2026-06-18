@@ -168,77 +168,256 @@
     });
   }
 
-  /* ---- Interested per turma ---- */
+  const TURMAS_LIST = [
+    { key: 't1', label: 'Turma 1 — Agosto',   dates: '11·12·18·19·20' },
+    { key: 't2', label: 'Turma 2 — Setembro', dates: '09·10·11·15·16' },
+    { key: 't3', label: 'Turma 3 — Novembro', dates: '17·18·19·24·25' }
+  ];
+
+  /* ---- Turmas tab ---- */
   function loadInterests() {
     const c = document.getElementById('adminInterests');
     if (!c) return;
     c.innerHTML = '<p class="loading-msg">Carregando dados…</p>';
 
-    firebase.database().ref('turmas-interesse').once('value', function (snap) {
-      const data = snap.val() || {};
-      c.innerHTML = '';
+    var interestRef = firebase.database().ref('turmas-interesse');
+    var configRef   = firebase.database().ref('turmas-config');
 
-      const TURMAS = [
-        { key: 't1', label: 'Turma 1 — Agosto (11·12·18·19·20)' },
-        { key: 't2', label: 'Turma 2 — Setembro (09·10·11·15·16)' },
-        { key: 't3', label: 'Turma 3 — Novembro (17·18·19·24·25)' }
-      ];
+    interestRef.once('value', function (snapI) {
+      configRef.once('value', function (snapC) {
+        const data   = snapI.val() || {};
+        const config = snapC.val() || {};
+        c.innerHTML  = '';
 
-      /* global export buttons */
-      const btnWrap = document.createElement('div');
-      btnWrap.style.cssText = 'display:flex;gap:8px;flex-wrap:wrap;margin-bottom:24px;';
+        /* global export buttons */
+        const btnWrap = document.createElement('div');
+        btnWrap.style.cssText = 'display:flex;gap:8px;flex-wrap:wrap;margin-bottom:24px;';
+        const exportBtn = document.createElement('button');
+        exportBtn.className = 'btn btn--sm';
+        exportBtn.innerHTML = '&#x2193; Estado atual';
+        exportBtn.addEventListener('click', function () { exportAllInterests(data, config); });
+        const csvBtn = document.createElement('button');
+        csvBtn.className = 'btn btn--sm';
+        csvBtn.innerHTML = '&#x2193; Histórico';
+        csvBtn.addEventListener('click', function () { exportInterestLog(); });
+        btnWrap.appendChild(exportBtn);
+        btnWrap.appendChild(csvBtn);
+        c.appendChild(btnWrap);
 
-      const exportBtn = document.createElement('button');
-      exportBtn.className = 'btn btn--sm';
-      exportBtn.textContent = 'Exportar Excel (estado atual)';
-      exportBtn.addEventListener('click', function () { exportAllInterests(TURMAS, data); });
+        TURMAS_LIST.forEach(function (t) {
+          const cfg       = config[t.key] || {};
+          const finalizada = !!cfg.finalizada;
+          const all       = data[t.key] ? Object.values(data[t.key]) : [];
+          const active    = all.filter(function (r) { return !r.removed; });
+          const removed   = all.filter(function (r) { return r.removed; });
 
-      const csvBtn = document.createElement('button');
-      csvBtn.className = 'btn btn--sm';
-      csvBtn.textContent = 'Exportar CSV Histórico';
-      csvBtn.addEventListener('click', function () { exportInterestLog(TURMAS); });
+          const inscritos = active.filter(function (r) { return r.status === 'inscrito' || r.status === 'presente'; });
+          const countLabel = finalizada
+            ? inscritos.length + ' inscrito' + (inscritos.length !== 1 ? 's' : '')
+            : active.length + ' interessado' + (active.length !== 1 ? 's' : '');
 
-      btnWrap.appendChild(exportBtn);
-      btnWrap.appendChild(csvBtn);
-      c.appendChild(btnWrap);
+          const card = document.createElement('div');
+          card.className = 'turma-admin-card';
 
-      TURMAS.forEach(function (t) {
-        const all     = data[t.key] ? Object.values(data[t.key]) : [];
-        const active  = all.filter(function (r) { return !r.removed; });
-        const removed = all.filter(function (r) { return r.removed; });
+          /* header */
+          const hdr = document.createElement('div');
+          hdr.className = 'turma-admin-header';
+          hdr.innerHTML =
+            '<div class="turma-admin-title">' +
+              '<span class="turma-admin-name">' + esc(t.label) + '</span>' +
+              '<span class="turma-admin-dates">(' + t.dates + ')</span>' +
+              '<span class="turma-status-badge ' + (finalizada ? 'badge-finalizada' : 'badge-aberta') + '">' +
+                (finalizada ? 'FINALIZADA' : 'ABERTA') +
+              '</span>' +
+              '<span class="admin-badge">' + countLabel + '</span>' +
+            '</div>' +
+            '<div class="turma-admin-actions" id="turma-actions-' + t.key + '"></div>';
+          card.appendChild(hdr);
 
-        const section = document.createElement('div');
-        section.className = 'admin-section';
+          /* action buttons */
+          const actWrap = hdr.querySelector('#turma-actions-' + t.key);
+          if (!finalizada) {
+            const finBtn = document.createElement('button');
+            finBtn.className = 'btn btn--sm btn--primary';
+            finBtn.textContent = 'Finalizar inscrição';
+            finBtn.addEventListener('click', function () { finalizeTurma(t.key, data[t.key] || {}); });
+            actWrap.appendChild(finBtn);
+          } else {
+            const qrBtn = document.createElement('button');
+            qrBtn.className = 'btn btn--sm';
+            qrBtn.innerHTML = '&#x2318; QR Code';
+            qrBtn.addEventListener('click', function () { openQrModal(t); });
+            const reopenBtn = document.createElement('button');
+            reopenBtn.className = 'btn btn--sm';
+            reopenBtn.textContent = '↺ Reabrir';
+            reopenBtn.addEventListener('click', function () { reopenTurma(t.key, data[t.key] || {}); });
+            actWrap.appendChild(qrBtn);
+            actWrap.appendChild(reopenBtn);
+          }
+          const csvIndBtn = document.createElement('button');
+          csvIndBtn.className = 'btn btn--sm';
+          csvIndBtn.innerHTML = '&#x2193; CSV';
+          csvIndBtn.addEventListener('click', function () { exportTurmaCSV(t, all, finalizada); });
+          actWrap.appendChild(csvIndBtn);
 
-        let html = '<h4>' + t.label + ' <span class="admin-badge">' + active.length + ' ativos</span></h4>';
+          /* active table */
+          const body = document.createElement('div');
+          body.className = 'turma-admin-body';
+          if (!active.length) {
+            body.innerHTML = '<p class="admin-empty">Nenhum participante ativo.</p>';
+          } else {
+            body.innerHTML = buildActiveTable(active, finalizada);
+          }
 
-        /* active table */
-        if (!active.length) {
-          html += '<p class="admin-empty">Nenhum interesse ativo.</p>';
-        } else {
-          html += buildInterestTable(active, false);
-        }
+          /* removed table */
+          if (removed.length) {
+            body.innerHTML += '<p class="turma-removed-title">Removidos (' + removed.length + ')</p>' +
+              buildRemovedTable(removed);
+          }
 
-        /* removed table */
-        if (removed.length) {
-          html += '<h5 style="margin:16px 0 8px;color:var(--ink-3);font-size:.85rem;">Removidos (' + removed.length + ')</h5>';
-          html += buildInterestTable(removed, true);
-        }
-
-        section.innerHTML = html;
-        c.appendChild(section);
+          card.appendChild(body);
+          c.appendChild(card);
+        });
       });
     });
   }
 
-  function buildInterestTable(records, isRemoved) {
-    let tbl = '<table class="admin-table"><thead><tr><th>Nome</th><th>E-mail</th><th>Área</th><th>Data registro</th>' +
-      (isRemoved ? '<th>Data remoção</th>' : '') + '</tr></thead><tbody>';
+  function getStatus(r, finalizada) {
+    if (r.status === 'presente') return 'presente';
+    if (r.status === 'inscrito' || finalizada) return 'inscrito';
+    return 'interessado';
+  }
+
+  function statusBadge(status) {
+    var map = {
+      presente:   '<span class="ts-badge ts-presente">PRESENTE</span>',
+      inscrito:   '<span class="ts-badge ts-inscrito">INSCRITO</span>',
+      interessado:'<span class="ts-badge ts-interessado">INTERESSADO</span>'
+    };
+    return map[status] || '';
+  }
+
+  function buildActiveTable(records, finalizada) {
+    var tbl = '<table class="admin-table"><thead><tr><th>Nome</th><th>E-mail</th><th>Área</th><th>Status</th><th>Data registro</th></tr></thead><tbody>';
     records.forEach(function (r) {
-      tbl += '<tr><td>' + esc(r.name) + '</td><td>' + esc(r.email) + '</td><td>' + esc(r.area || '—') + '</td><td>' +
-        fmtDate(r.date) + '</td>' + (isRemoved ? '<td>' + fmtDate(r.removedDate) + '</td>' : '') + '</tr>';
+      var st = getStatus(r, finalizada);
+      tbl += '<tr><td>' + esc(r.name) + '</td><td>' + esc(r.email) + '</td><td>' + esc(r.area || '—') +
+        '</td><td>' + statusBadge(st) + '</td><td>' + fmtDate(r.date) + '</td></tr>';
     });
     return tbl + '</tbody></table>';
+  }
+
+  function buildRemovedTable(records) {
+    var tbl = '<table class="admin-table"><thead><tr><th>Nome</th><th>E-mail</th><th>Área</th><th>Data registro</th><th>Data remoção</th></tr></thead><tbody>';
+    records.forEach(function (r) {
+      tbl += '<tr><td>' + esc(r.name) + '</td><td>' + esc(r.email) + '</td><td>' + esc(r.area || '—') +
+        '</td><td>' + fmtDate(r.date) + '</td><td>' + fmtDate(r.removedDate) + '</td></tr>';
+    });
+    return tbl + '</tbody></table>';
+  }
+
+  function finalizeTurma(turmaKey, turmaData) {
+    if (!confirm('Finalizar inscrição da turma ' + turmaKey.toUpperCase() + '?\n\nTodos os interessados virarão inscritos e a turma será bloqueada para novos interessados.')) return;
+    var updates = {};
+    updates['turmas-config/' + turmaKey + '/finalizada'] = true;
+    Object.keys(turmaData).forEach(function (emailKey) {
+      var r = turmaData[emailKey];
+      if (!r.removed && r.status !== 'presente') {
+        updates['turmas-interesse/' + turmaKey + '/' + emailKey + '/status'] = 'inscrito';
+      }
+    });
+    firebase.database().ref().update(updates, function (err) {
+      if (err) { alert('Erro ao finalizar. Tente novamente.'); return; }
+      loadInterests();
+    });
+  }
+
+  function reopenTurma(turmaKey, turmaData) {
+    if (!confirm('Reabrir a turma ' + turmaKey.toUpperCase() + '?\n\nInscritos voltarão ao status interessado e novas inscrições serão permitidas.')) return;
+    var updates = {};
+    updates['turmas-config/' + turmaKey + '/finalizada'] = false;
+    Object.keys(turmaData).forEach(function (emailKey) {
+      var r = turmaData[emailKey];
+      if (!r.removed && r.status === 'inscrito') {
+        updates['turmas-interesse/' + turmaKey + '/' + emailKey + '/status'] = 'interessado';
+      }
+    });
+    firebase.database().ref().update(updates, function (err) {
+      if (err) { alert('Erro ao reabrir. Tente novamente.'); return; }
+      loadInterests();
+    });
+  }
+
+  function openQrModal(t) {
+    const modal   = document.getElementById('qrModal');
+    const canvas  = document.getElementById('qrCanvas');
+    const turmaEl = document.getElementById('qrModalTurma');
+    const urlEl   = document.getElementById('qrModalUrl');
+    if (!modal || !canvas) return;
+    const url = window.location.origin + window.location.pathname + '#checkin?turma=' + t.key;
+    turmaEl.textContent = t.label + ' (' + t.dates + ')';
+    urlEl.textContent   = url;
+    if (typeof QRCode !== 'undefined') {
+      QRCode.toCanvas(canvas, url, { width: 220, color: { dark: '#ffffff', light: '#0d1b2a' } }, function (err) {
+        if (err) console.warn('QR error:', err);
+      });
+    }
+    modal.hidden = false;
+  }
+
+  document.addEventListener('DOMContentLoaded', function () {
+    var closeBtn = document.getElementById('qrModalClose');
+    var modal    = document.getElementById('qrModal');
+    if (closeBtn && modal) {
+      closeBtn.addEventListener('click', function () { modal.hidden = true; });
+      modal.addEventListener('click', function (e) { if (e.target === modal) modal.hidden = true; });
+    }
+  });
+
+  function exportTurmaCSV(t, all, finalizada) {
+    var rows = all.map(function (r) {
+      var st = r.removed ? 'Removido' : getStatus(r, finalizada);
+      return [t.label, r.name||'', r.email||'', r.area||'', st,
+        r.date ? new Date(r.date).toLocaleString('pt-BR') : '',
+        r.removedDate ? new Date(r.removedDate).toLocaleString('pt-BR') : ''];
+    });
+    toXls(['Turma','Nome','E-mail','Área','Status','Data Registro','Data Remoção'],
+      rows, 'turma-' + t.key + '-' + new Date().toISOString().slice(0,10) + '.csv');
+  }
+
+  function exportAllInterests(data, config) {
+    var rows = [];
+    TURMAS_LIST.forEach(function (t) {
+      var finalizada = !!(config[t.key] && config[t.key].finalizada);
+      var all = data[t.key] ? Object.values(data[t.key]) : [];
+      all.forEach(function (r) {
+        var st = r.removed ? 'Removido' : getStatus(r, finalizada);
+        rows.push([t.label, r.name||'', r.email||'', r.area||'', st,
+          r.date ? new Date(r.date).toLocaleString('pt-BR') : '',
+          r.removedDate ? new Date(r.removedDate).toLocaleString('pt-BR') : '']);
+      });
+    });
+    toXls(['Turma','Nome','E-mail','Área','Status','Data Registro','Data Remoção'],
+      rows, 'turmas-estado-' + new Date().toISOString().slice(0,10) + '.csv');
+  }
+
+  function exportInterestLog() {
+    firebase.database().ref('turmas-interesse-log').once('value', function (snap) {
+      var data = snap.val() || {};
+      var rows = [];
+      TURMAS_LIST.forEach(function (t) {
+        var turmaLog = data[t.key] || {};
+        Object.values(turmaLog).forEach(function (userLog) {
+          Object.values(userLog).forEach(function (entry) {
+            rows.push([t.label, entry.name||'', entry.email||'', entry.area||'',
+              entry.action === 'registrado' ? 'Adicionou' : 'Removeu',
+              entry.date ? new Date(entry.date).toLocaleString('pt-BR') : '']);
+          });
+        });
+      });
+      toXls(['Turma','Nome','E-mail','Área','Tipo de Ação','Data'],
+        rows, 'historico-interesse-' + new Date().toISOString().slice(0,10) + '.csv');
+    });
   }
 
   function toXls(headers, rows, filename) {
@@ -266,50 +445,6 @@
     document.body.removeChild(a);
   }
   window.faToXls = toXls;
-
-  function exportAllInterests(TURMAS, data) {
-    var rows = [];
-    TURMAS.forEach(function (t) {
-      var all = data[t.key] ? Object.values(data[t.key]) : [];
-      all.forEach(function (r) {
-        rows.push([
-          t.label,
-          r.removed ? 'Removido' : 'Ativo',
-          r.name  || '',
-          r.email || '',
-          r.area  || '',
-          r.date        ? new Date(r.date).toLocaleString('pt-BR')        : '',
-          r.removedDate ? new Date(r.removedDate).toLocaleString('pt-BR') : ''
-        ]);
-      });
-    });
-    toXls(['Turma','Status','Nome','E-mail','Área','Data Registro','Data Remoção'],
-          rows, 'interessados-turmas-' + new Date().toISOString().slice(0,10) + '.xls');
-  }
-
-  function exportInterestLog(TURMAS) {
-    firebase.database().ref('turmas-interesse-log').once('value', function (snap) {
-      var data = snap.val() || {};
-      var rows = [];
-      TURMAS.forEach(function (t) {
-        var turmaLog = data[t.key] || {};
-        Object.values(turmaLog).forEach(function (userLog) {
-          Object.values(userLog).forEach(function (entry) {
-            rows.push([
-              t.label,
-              entry.name  || '',
-              entry.email || '',
-              entry.area  || '',
-              entry.action === 'registrado' ? 'Adicionou' : 'Removeu',
-              entry.date ? new Date(entry.date).toLocaleString('pt-BR') : ''
-            ]);
-          });
-        });
-      });
-      toXls(['Turma','Nome','E-mail','Área','Tipo de Ação','Data'],
-            rows, 'historico-interesse-' + new Date().toISOString().slice(0,10) + '.xls');
-    });
-  }
 
   const REPO_SEEDS = [
     { type: 'doc',   title: 'The Scrum Guide',                       url: 'https://scrumguides.org/',                                                                                                                                              desc: '' },

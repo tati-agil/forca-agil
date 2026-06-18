@@ -1447,7 +1447,7 @@
 
     <div id="adminContent" hidden>
       <div class="admin-tabs-bar">
-        <button class="admin-tab-btn active" data-panel="adminPanelInteresses">Interessados por turma</button>
+        <button class="admin-tab-btn active" data-panel="adminPanelInteresses">Turmas</button>
         <button class="admin-tab-btn" data-panel="adminPanelRepo">Repositório</button>
         <button class="admin-tab-btn" data-panel="adminPanelColab">Colaboradores</button>
         <button class="admin-tab-btn" data-panel="adminPanelCadastrados">Cadastrados</button>
@@ -1627,6 +1627,29 @@
   </div>
 </div>
 
+<!-- ======================================================
+     PAGE: CHECK-IN (QR Code)
+     ====================================================== -->
+<div class="page-section" id="page-checkin" hidden>
+  <div class="wrap" style="max-width:540px;padding-top:80px;text-align:center;">
+    <div id="checkinContent">
+      <p class="loading-msg">Carregando…</p>
+    </div>
+  </div>
+</div>
+
+<!-- QR Code popup (admin) -->
+<div id="qrModal" class="modal-overlay" hidden>
+  <div class="modal-box qr-modal-box">
+    <p class="qr-modal-label">QR CODE — CHECK-IN</p>
+    <p class="qr-modal-turma" id="qrModalTurma"></p>
+    <canvas id="qrCanvas"></canvas>
+    <p class="qr-modal-hint">Peça para os participantes escanearem este QR Code<br>no dia da oficina para registrar presença.</p>
+    <p class="qr-modal-url" id="qrModalUrl"></p>
+    <button class="btn btn--sm" id="qrModalClose">FECHAR</button>
+  </div>
+</div>
+
 <div id="tweaks-root"></div>
 
 <!-- ===== Scripts ===== -->
@@ -1652,7 +1675,9 @@
 <script src="forca-agil/kyber.js"></script>
 
 <!-- Admin (último — depende de auth e router) -->
+<script src="https://cdn.jsdelivr.net/npm/qrcode@1.5.4/build/qrcode.min.js"></script>
 <script src="forca-agil/admin.js"></script>
+<script src="forca-agil/checkin.js"></script>
 <script src="forca-agil/manual.js"></script>
 <script src="forca-agil/mapa.js"></script>
 <script src="forca-agil/testes.js"></script>
