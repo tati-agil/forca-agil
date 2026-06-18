@@ -240,15 +240,15 @@
 .turma-card-new .tc-month { font-family: var(--font-display); font-size: 1.8rem; color: var(--ink); line-height: 1; }
 .turma-card-new .tc-dates { font-family: var(--font-mono); font-size: .8rem; color: var(--ink-3); }
 .btn--interest {
-  background: transparent; border: 1.5px solid var(--cyan); color: var(--cyan);
+  background: var(--accent); border: 1.5px solid var(--accent); color: #000;
   padding: 10px 20px; border-radius: 8px; font-family: var(--font-head);
   font-size: .88rem; text-transform: uppercase; letter-spacing: .05em;
-  cursor: pointer; transition: background .2s, color .2s;
+  cursor: pointer; transition: background .2s, color .2s, border-color .2s;
 }
-.btn--interest:hover:not(:disabled) { background: rgba(24,194,186,.12); }
+.btn--interest:hover:not(:disabled) { filter: brightness(1.1); }
 .btn--interest.done {
-  background: rgba(24,194,186,.1); border-color: rgba(24,194,186,.35);
-  color: var(--cyan-soft); cursor: default;
+  background: rgba(24,194,186,.08); border-color: rgba(24,194,186,.3);
+  color: var(--cyan-soft); cursor: default; filter: none;
 }
 .turma-intent-msg {
   font-size: .78rem; font-family: var(--font-mono); color: var(--cyan);
