@@ -113,6 +113,7 @@
         { label: 'Redefinir senha de qualquer cadastrado (e-mail)', p: ['admin'] },
         { label: 'Resetar progresso de qualquer cadastrado — apaga fa-progress, remove do ranking (players via query por email), escreve fa-reset-signal/<eKey> para notificar a pessoa logada; a página dela recarrega automaticamente — todos os jogos reabilitados sem ação da pessoa', p: ['admin'] },
         { label: 'Adicionar / remover admins',                p: ['admin'] },
+        { label: 'Abas do painel — 8 abas (Turmas, Repositório, Colaboradores, Cadastrados, Administradores, Manual, Mapa, Testes); no mobile quebram em 2 linhas com fonte reduzida', p: ['admin'] },
         { label: 'Aba Manual — checklist de regras de comportamento + Expandir/Recolher tudo', p: ['admin'] },
         { label: 'Aba Mapa — mapa do site e hierarquia de personas + Expandir/Recolher tudo', p: ['admin'] },
         { label: 'Aba Testes — testes automatizados e checklist manual + Expandir/Recolher tudo', p: ['admin'] },
