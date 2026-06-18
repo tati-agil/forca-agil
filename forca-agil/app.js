@@ -295,7 +295,7 @@
     }
 
     function setDone(btn, turmaKey) {
-      btn.innerHTML = '&#x2764;&#xFE0E;&nbsp; Remover interesse';
+      btn.innerHTML = '&#x2661;&nbsp; Remover interesse';
       btn.classList.add('done');
       btn.dataset.state = 'done';
       btn.disabled = false;
