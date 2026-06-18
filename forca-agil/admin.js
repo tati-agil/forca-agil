@@ -373,7 +373,7 @@
     t.dias.forEach(function (d) {
       tbl += '<th class="dia-th">' + fmtDia(d) + '</th>';
     });
-    tbl += '<th>Freq.</th></tr></thead><tbody>';
+    tbl += '<th>Freq.</th><th></th></tr></thead><tbody>';
 
     inscritos.forEach(function (r) {
       var eKey = emailKeyFromEmail(r.email);
@@ -401,19 +401,31 @@
 
       tbl += '<tr><td>' + esc(r.name) + '</td><td>' + esc(r.email) + '</td><td>' +
         esc(r.area || '—') + '</td>' + cells.join('') +
-        '<td><span class="' + freqClass + '">' + freq + '</span></td></tr>';
+        '<td><span class="' + freqClass + '">' + freq + '</span></td>' +
+        '<td><button class="ck-remove-btn" data-turma="' + t.key + '" data-ekey="' + eKey + '" data-name="' + esc(r.name) + '">Remover</button></td></tr>';
     });
 
     tbl += '</tbody></table>';
     wrap.innerHTML = tbl;
 
-    /* delegação de eventos para check-in manual */
+    /* delegação de eventos para check-in manual e remoção */
     wrap.addEventListener('click', function (e) {
       var btn = e.target.closest('.ck-manual-btn');
-      if (!btn) return;
-      adminCheckin(btn.dataset.turma, btn.dataset.dia, btn.dataset.ekey, {
-        name: btn.dataset.name, email: btn.dataset.email, area: btn.dataset.area
-      });
+      if (btn) {
+        adminCheckin(btn.dataset.turma, btn.dataset.dia, btn.dataset.ekey, {
+          name: btn.dataset.name, email: btn.dataset.email, area: btn.dataset.area
+        });
+        return;
+      }
+      var remBtn = e.target.closest('.ck-remove-btn');
+      if (remBtn) {
+        if (!confirm('Remover ' + remBtn.dataset.name + ' da turma?\n\nEla sairá da lista de inscritos.')) return;
+        firebase.database().ref('turmas-interesse/' + remBtn.dataset.turma + '/' + remBtn.dataset.ekey).update({
+          removed: true, removedDate: new Date().toISOString()
+        }, function (err) {
+          if (!err) loadInterests();
+        });
+      }
     });
 
     return wrap;
