@@ -276,14 +276,27 @@
             } else {
               /* check-in abrir/fechar */
               if (!diaAtivo) {
+                var sel = document.createElement('select');
+                sel.className = 'checkin-dia-select';
+                t.dias.forEach(function (d) {
+                  var opt = document.createElement('option');
+                  opt.value = d;
+                  opt.textContent = fmtDia(d);
+                  if (d === todayISO()) opt.selected = true;
+                  sel.appendChild(opt);
+                });
                 var openBtn = document.createElement('button');
                 openBtn.className = 'btn btn--sm btn--primary';
-                openBtn.textContent = 'Abrir check-in hoje (' + fmtDia(todayISO()) + ')';
-                openBtn.addEventListener('click', (function (tk) {
-                  return function () { openCheckin(tk); };
-                })(t.key));
+                openBtn.textContent = 'Abrir check-in';
+                openBtn.addEventListener('click', (function (tk, s) {
+                  return function () { openCheckin(tk, s.value); };
+                })(t.key, sel));
+                actWrap.appendChild(sel);
                 actWrap.appendChild(openBtn);
               } else {
+                var diaAtivoLabel = document.createElement('span');
+                diaAtivoLabel.className = 'checkin-dia-aberto';
+                diaAtivoLabel.textContent = 'Check-in aberto: ' + fmtDia(diaAtivo);
                 var closeBtn2 = document.createElement('button');
                 closeBtn2.className = 'btn btn--sm';
                 closeBtn2.style.borderColor = 'rgba(255,80,80,.5)';
@@ -292,6 +305,7 @@
                 closeBtn2.addEventListener('click', (function (tk) {
                   return function () { closeCheckin(tk); };
                 })(t.key));
+                actWrap.appendChild(diaAtivoLabel);
                 actWrap.appendChild(closeBtn2);
               }
               var qrBtn = document.createElement('button');
@@ -450,9 +464,8 @@
   }
 
   /* ---- Check-in actions ---- */
-  function openCheckin(turmaKey) {
-    var hoje = todayISO();
-    firebase.database().ref('turmas-config/' + turmaKey + '/diaAtivo').set(hoje, function (err) {
+  function openCheckin(turmaKey, dia) {
+    firebase.database().ref('turmas-config/' + turmaKey + '/diaAtivo').set(dia, function (err) {
       if (err) { alert('Erro ao abrir check-in.'); return; }
       loadInterests();
     });

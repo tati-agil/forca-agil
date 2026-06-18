@@ -298,6 +298,15 @@
   padding: 2px 5px; border-radius: 3px; white-space: nowrap; }
 .ck-qr  { background: rgba(100,220,100,.15); color: #64dc64; }
 .ck-adm { background: rgba(24,194,186,.15);  color: var(--cyan); }
+.checkin-dia-select {
+  font-family: var(--font-mono); font-size: .75rem; padding: 6px 10px;
+  background: rgba(16,28,52,.8); color: var(--ink); border: 1px solid var(--line-strong);
+  border-radius: 6px; cursor: pointer;
+}
+.checkin-dia-aberto {
+  font-family: var(--font-mono); font-size: .75rem; color: var(--accent);
+  padding: 6px 0; white-space: nowrap;
+}
 .ck-remove-btn {
   font-size: .7rem; padding: 3px 8px; border-radius: 4px; cursor: pointer;
   background: none; border: 1px solid rgba(255,80,80,.4); color: #ff8080;
