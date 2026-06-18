@@ -338,6 +338,16 @@
             })(t, all, finalizada, checkinT));
             actWrap.appendChild(csvIndBtn);
 
+            if (finalizada) {
+              var certBtn = document.createElement('button');
+              certBtn.className = 'btn btn--sm';
+              certBtn.innerHTML = '&#x1F4DC; Certificados';
+              certBtn.addEventListener('click', (function (tt, ins, ck) {
+                return function () { gerarCertificados(tt, ins, ck); };
+              })(t, inscritos, checkinT));
+              actWrap.appendChild(certBtn);
+            }
+
             /* body */
             var body = document.createElement('div');
             body.className = 'turma-admin-body';
@@ -574,6 +584,81 @@
       modal.addEventListener('click', function (e) { if (e.target === modal) modal.hidden = true; });
     }
   });
+
+  /* ---- Certificados ---- */
+  function gerarCertificados(t, inscritos, checkinT) {
+    var minDias = Math.ceil(t.dias.length * CRITERIO_PRESENCA);
+    var aprovados = inscritos.filter(function (r) {
+      var eKey = emailKeyFromEmail(r.email);
+      var diasPresente = t.dias.filter(function (d) { return checkinT[d] && checkinT[d][eKey]; }).length;
+      return diasPresente >= minDias;
+    });
+
+    if (!aprovados.length) {
+      alert('Nenhum participante atingiu ' + Math.round(CRITERIO_PRESENCA * 100) + '% de presença nesta turma.');
+      return;
+    }
+
+    var dataEmissao = new Date().toLocaleDateString('pt-BR', { day: '2-digit', month: 'long', year: 'numeric' });
+    var periodoInicio = new Date(t.dias[0] + 'T12:00:00').toLocaleDateString('pt-BR', { day: '2-digit', month: 'long', year: 'numeric' });
+    var periodoFim = new Date(t.dias[t.dias.length - 1] + 'T12:00:00').toLocaleDateString('pt-BR', { day: '2-digit', month: 'long', year: 'numeric' });
+
+    var cards = aprovados.map(function (r) {
+      var eKey = emailKeyFromEmail(r.email);
+      var diasPresente = t.dias.filter(function (d) { return checkinT[d] && checkinT[d][eKey]; }).length;
+      var freq = Math.round((diasPresente / t.dias.length) * 100);
+      return (
+        '<div class="cert-page">' +
+          '<div class="cert-box">' +
+            '<div class="cert-header">' +
+              '<div class="cert-logo">FORÇA ÁGIL</div>' +
+              '<div class="cert-previ">Previ — Caixa de Previdência dos Funcionários do Banco do Brasil</div>' +
+            '</div>' +
+            '<div class="cert-title">CERTIFICADO DE PARTICIPAÇÃO</div>' +
+            '<div class="cert-body">' +
+              '<p>Certificamos que</p>' +
+              '<div class="cert-nome">' + esc(r.name) + '</div>' +
+              '<p>participou do programa de desenvolvimento ágil</p>' +
+              '<div class="cert-turma">' + esc(t.label) + '</div>' +
+              '<p>realizado no período de <strong>' + periodoInicio + '</strong> a <strong>' + periodoFim + '</strong>,<br>' +
+              'com frequência de <strong>' + diasPresente + ' de ' + t.dias.length + ' encontros (' + freq + '%)</strong>.</p>' +
+            '</div>' +
+            '<div class="cert-footer">' +
+              '<div class="cert-assinatura"><div class="cert-linha"></div><div>Coordenação Força Ágil</div></div>' +
+              '<div class="cert-data">Emitido em ' + dataEmissao + '</div>' +
+            '</div>' +
+          '</div>' +
+        '</div>'
+      );
+    }).join('');
+
+    var html = '<!DOCTYPE html><html lang="pt-BR"><head><meta charset="UTF-8">' +
+      '<title>Certificados — ' + esc(t.label) + '</title>' +
+      '<style>' +
+        'body{margin:0;padding:0;background:#f0f0f0;font-family:Georgia,serif;}' +
+        '.cert-page{width:297mm;height:210mm;display:flex;align-items:center;justify-content:center;page-break-after:always;box-sizing:border-box;}' +
+        '.cert-box{width:270mm;height:185mm;border:3px solid #b8960c;border-radius:8px;padding:12mm 16mm;box-sizing:border-box;background:#fff;display:flex;flex-direction:column;justify-content:space-between;position:relative;}' +
+        '.cert-box::before{content:"";position:absolute;inset:6px;border:1px solid #d4af37;border-radius:4px;pointer-events:none;}' +
+        '.cert-header{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:6mm;}' +
+        '.cert-logo{font-size:22pt;font-weight:700;letter-spacing:.08em;color:#0a1628;text-transform:uppercase;}' +
+        '.cert-previ{font-size:7pt;color:#555;max-width:60%;text-align:right;line-height:1.5;}' +
+        '.cert-title{font-size:18pt;letter-spacing:.2em;text-transform:uppercase;color:#b8960c;text-align:center;margin-bottom:8mm;font-family:Arial,sans-serif;font-weight:700;}' +
+        '.cert-body{text-align:center;flex:1;display:flex;flex-direction:column;justify-content:center;gap:4mm;font-size:11pt;color:#222;line-height:1.8;}' +
+        '.cert-nome{font-size:22pt;font-weight:700;color:#0a1628;letter-spacing:.03em;border-bottom:1px solid #d4af37;padding-bottom:3mm;margin:0 20mm;}' +
+        '.cert-turma{font-size:14pt;font-style:italic;color:#b8960c;font-weight:700;}' +
+        '.cert-footer{display:flex;justify-content:space-between;align-items:flex-end;margin-top:6mm;}' +
+        '.cert-assinatura{text-align:center;font-size:9pt;color:#333;}' +
+        '.cert-linha{border-top:1px solid #333;width:55mm;margin-bottom:2mm;}' +
+        '.cert-data{font-size:9pt;color:#555;}' +
+        '@media print{body{background:#fff;}.cert-page{width:100%;height:100vh;}}' +
+      '</style></head><body>' + cards +
+      '<script>window.onload=function(){window.print();}<\/script>' +
+      '</body></html>';
+
+    var win = window.open('', '_blank');
+    if (win) { win.document.write(html); win.document.close(); }
+    else { alert('Permita pop-ups para gerar os certificados.'); }
+  }
 
   /* ---- CSV exports ---- */
   function exportTurmaCSV(t, all, finalizada, checkinT) {
