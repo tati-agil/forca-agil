@@ -880,7 +880,7 @@
       motivo: 'Requer turma finalizada onde ninguém atingiu 75%. Clicar em "📜 Certificados". Verificar: alerta informa que nenhum participante atingiu o critério — nenhuma aba é aberta.' },
     { section: 'Admin',
       title: 'Exportar CSV — caracteres especiais e arquivo editável',
-      motivo: 'Baixar qualquer CSV (Estado atual, Histórico ou individual). Verificar no Excel: (1) acentos e hífens longos aparecem corretamente (sem "?"); (2) arquivo abre em modo edição (não somente leitura).' },
+      motivo: 'Baixar qualquer CSV (Estado atual, Histórico ou individual). Verificar no Excel: (1) acentos, cedilha e travessão aparecem corretamente (sem "?" ou "Ã"); (2) arquivo abre em modo edição (não somente leitura). Encoding: Windows-1252 via Uint8Array, sem BOM.' },
     { section: 'Deploy',
       title: 'Pre-commit hook — bloqueia commit com erro de sintaxe JS',
       motivo: 'Verificar manualmente: editar um arquivo JS com erro intencional (ex: remover um "}" ao final) e tentar fazer git commit — o commit deve ser recusado com mensagem de erro indicando o arquivo. Desfazer a edição após o teste.' }

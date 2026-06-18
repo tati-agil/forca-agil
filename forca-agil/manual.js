@@ -266,7 +266,7 @@
       body: 'Visitante, Usuário logado e Colaborador não veem o link "Admin" no menu. Se acessarem a URL diretamente, veem mensagem de acesso restrito e botão para voltar ao início.' },
     { section: 'admin', personas: ['admin'],
       title: 'Aba: Turmas — visão geral',
-      body: 'Cards por turma com badge ABERTA/FINALIZADA, contagem de inscritos/interessados e badge pulsante "CHECK-IN ABERTO · DD/MM" quando o check-in do dia está ativo. Botões globais "↓ Estado atual" e "↓ Histórico" exportam CSV. Cada card tem botões de ação e tabela de participantes.' },
+      body: 'Cards por turma com badge ABERTA/FINALIZADA, contagem de inscritos/interessados e badge pulsante "CHECK-IN ABERTO · DD/MM" quando o check-in do dia está ativo. Botões globais "↓ Estado atual" e "↓ Histórico" exportam CSV (encoding Windows-1252 — acentos e travessão corretos no Excel pt-BR). Cada card tem botões de ação e tabela de participantes.' },
     { section: 'admin', personas: ['admin'],
       title: 'Aba: Turmas — finalizar inscrição',
       body: 'Botão "Finalizar inscrição" (turma ABERTA): converte todos os interessados para status inscrito em turmas-interesse e define turmas-config/<turma>/finalizada=true. Bloqueia novas inscrições na página de Turmas. Após finalizar, aparecem os botões QR Code, Abrir check-in e Reabrir turma.' },
