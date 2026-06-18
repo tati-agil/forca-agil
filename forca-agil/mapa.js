@@ -158,6 +158,11 @@
 
     let html = '<div class="mapa-wrap">';
 
+    /* Botão export */
+    html += '<div style="margin-bottom:28px">';
+    html += '<button class="btn btn--sm" id="mapaExportBtn">⬇ Exportar Excel (mapa completo)</button>';
+    html += '</div>';
+
     /* ── Hierarquia ── */
     html += '<h3 class="mapa-title">Hierarquia de Personas</h3>';
     html += '<p class="mapa-sub">Cada nível inclui tudo do anterior e acrescenta os itens abaixo.</p>';
@@ -331,11 +336,6 @@
       html += '</div></div></div>';
     });
 
-    html += '</div>';
-
-    /* Botão export */
-    html += '<div style="margin-top:32px">';
-    html += '<button class="btn btn--sm" id="mapaExportBtn">⬇ Exportar Excel (mapa completo)</button>';
     html += '</div>';
 
     html += '</div>';
