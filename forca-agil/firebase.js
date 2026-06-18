@@ -27,6 +27,11 @@
     { name: 'Cavaleiro', min: 50 },
     { name: 'Mestre',    min: 75 }
   ];
+  const RANK_SYMS = { Youngling: '#char-0', Padawan: '#char-1', Cavaleiro: '#char-2', Mestre: '#char-3' };
+  function rankSvg(patente) {
+    var sym = RANK_SYMS[patente] || '#char-0';
+    return '<svg class="rank-char-img" viewBox="0 0 120 220" width="24" height="44" aria-hidden="true"><use href="' + sym + '"/></svg>';
+  }
   function getRank(xp) {
     let r = RANKS[0];
     for (let i = 0; i < RANKS.length; i++) { if (xp >= RANKS[i].min) r = RANKS[i]; }
@@ -269,6 +274,7 @@
           : '';
         row.innerHTML =
           '<span class="rank-pos">#' + (i + 1) + '</span>' +
+          rankSvg(e.patente || '') +
           '<span class="rank-name">' + e.name +
             (e.area ? '<span class="rank-area">' + e.area + '</span>' : '') +
           '</span>' +
@@ -322,6 +328,7 @@
           row.className = 'rank-row';
           row.innerHTML =
             '<span class="rank-pos">#' + (i+1) + '</span>' +
+            rankSvg(p.patente || getRank(p.totalXP || 0)) +
             '<span class="rank-name">' + escHtml(p.name || '—') +
               (p.area ? '<span class="rank-area">' + escHtml(p.area) + '</span>' : '') +
             '</span>' +
@@ -502,6 +509,7 @@
               row.className = 'rank-row' + (isMe ? ' highlight' : '');
               row.innerHTML =
                 '<span class="rank-pos">#' + (i+1) + '</span>' +
+                rankSvg(p.patente || getRank(p.totalXP || 0)) +
                 '<span class="rank-name">' + escHtml(p.name||'—') +
                   (p.area ? '<span class="rank-area">' + escHtml(p.area) + '</span>' : '') +
                 '</span>' +

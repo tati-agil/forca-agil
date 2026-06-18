@@ -63,11 +63,12 @@
       };
 
       /* pause / resume on stage click */
+      const crawlBtns = document.querySelector('.crawl-btns');
       const pauseBtn = document.createElement('button');
       pauseBtn.className = 'btn crawl-pause';
       pauseBtn.textContent = '⏸ Pausar';
       pauseBtn.setAttribute('aria-label', 'Pausar ou retomar a abertura');
-      stage.parentNode.insertBefore(pauseBtn, stage.nextSibling);
+      if (crawlBtns) crawlBtns.prepend(pauseBtn); else stage.parentNode.insertBefore(pauseBtn, stage.nextSibling);
 
       pauseBtn.addEventListener('click', function () {
         if (skipped) return;
@@ -88,7 +89,7 @@
       skipBtn.className = 'btn crawl-skip';
       skipBtn.textContent = '≡ Ler texto';
       skipBtn.setAttribute('aria-label', 'Ver texto completo sem animação');
-      stage.parentNode.insertBefore(skipBtn, stage.nextSibling);
+      if (crawlBtns) crawlBtns.prepend(skipBtn); else stage.parentNode.insertBefore(skipBtn, stage.nextSibling);
 
       skipBtn.addEventListener('click', function () {
         if (!skipped) {

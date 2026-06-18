@@ -192,11 +192,12 @@
 }
 
 .rank-row {
-  display: grid; grid-template-columns: 56px 1fr auto; gap: 16px;
+  display: grid; grid-template-columns: 56px 36px 1fr auto; gap: 12px;
   align-items: center; padding: 14px 16px; border-radius: 10px;
   border: 1px solid var(--line); background: rgba(12,21,40,.3);
   margin-bottom: 8px; transition: all .25s;
 }
+.rank-char-img { display: block; width: 24px; height: 44px; }
 .rank-row:hover { border-color: var(--accent); background: rgba(12,21,40,.6); }
 .rank-row.highlight {
   border-color: var(--gold); background: rgba(245,197,24,.08);
@@ -229,6 +230,7 @@
   .kyber-timer { text-align: left; }
   .kyber-setup .input-grid { grid-template-columns: 1fr; }
   .kyber-setup .input-wide { grid-column: 1; }
-  .rank-row { grid-template-columns: 1fr; gap: 6px; }
+  .rank-row { grid-template-columns: auto auto 1fr; gap: 6px; }
+  .rank-char-img { width: 20px; height: 36px; }
   .rank-pos, .rank-score { text-align: left; }
 }

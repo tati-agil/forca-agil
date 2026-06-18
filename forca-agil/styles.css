@@ -136,6 +136,14 @@ h1,h2,h3,h4 { font-family: var(--font-head); font-weight: 600; line-height: 1.02
 .section {
   max-width: var(--maxw); width: 100%; margin: 0 auto; padding: 56px var(--pad-x); position: relative;
 }
+
+/* Home sections: cada uma ocupa exatamente 100vh para scroll assistido */
+#o-que-e, #como-funciona, #jornada, #destaques, #cta {
+  max-width: 100%; min-height: 100vh;
+  display: flex; flex-direction: column; justify-content: center;
+  padding: 80px var(--pad-x);
+  box-sizing: border-box;
+}
 .section--tight { padding: 36px var(--pad-x); }
 
 .sec-title {
@@ -336,6 +344,7 @@ h1,h2,h3,h4 { font-family: var(--font-head); font-weight: 600; line-height: 1.02
   position: absolute; bottom: 26px; left: 50%; transform: translateX(-50%); z-index: 3;
   font-family: var(--font-mono); font-size: .62rem; letter-spacing: .3em; text-transform: uppercase; color: var(--ink-3);
   display: flex; flex-direction: column; align-items: center; gap: 8px; opacity: 0; animation: fade-up 1s 2s forwards;
+  width: max-content; text-align: center;
 }
 .scroll-cue .bar { width: 1px; height: 40px; background: linear-gradient(var(--accent), transparent); animation: cue 1.8s ease-in-out infinite; }
 
@@ -368,16 +377,15 @@ h1,h2,h3,h4 { font-family: var(--font-head); font-weight: 600; line-height: 1.02
 }
 .crawl-content p { font-size: clamp(1.5rem, 3.5vw, 2.2rem); font-weight: 600; margin-bottom: 1.1em; line-height: 1.35; font-family: var(--font-head); }
 @keyframes crawl { 0% { top: 100%; } 100% { top: -260%; } }
-.crawl-replay {
-  display: table; margin: 20px auto 40px; padding: 8px 20px;
-  font-size: .8rem; opacity: .6; position: relative; z-index: 4;
+.crawl-btns {
+  display: flex; flex-wrap: wrap; justify-content: center; align-items: center;
+  gap: 10px; margin: 16px auto 32px; position: relative; z-index: 4;
 }
-.crawl-pause, .crawl-skip {
-  display: table; margin: 8px auto 0; padding: 6px 18px;
-  font-size: .78rem; opacity: .75; position: relative; z-index: 4;
+.crawl-replay, .crawl-pause, .crawl-skip {
+  display: inline-flex; padding: 6px 18px; font-size: .78rem;
+  opacity: .75; position: relative; z-index: 4; margin: 0;
 }
-.crawl-pause { margin-bottom: 0; }
-.crawl-skip  { margin-top: 4px; margin-bottom: 4px; }
+.crawl-replay { font-size: .8rem; opacity: .6; }
 /* Modo estático: exibe texto sem animação nem perspectiva */
 .crawl-stage--static {
   height: auto; perspective: none; mask-image: none; -webkit-mask-image: none;

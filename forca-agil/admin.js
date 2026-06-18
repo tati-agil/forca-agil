@@ -652,20 +652,14 @@
       rows.map(function (row) { return row.map(csvCell).join(';'); })
     );
     var csvFilename = filename.replace(/\.xls$/i, '.csv');
-    var raw = lines.join('\r\n');
-    // Encode as Windows-1252: each char in U+0000-U+00FF maps 1:1 to the byte value.
-    // btoa() accepts a binary string where each char is a byte (0-255).
-    var bin = '';
-    for (var i = 0; i < raw.length; i++) {
-      var c = raw.charCodeAt(i);
-      bin += String.fromCharCode(c < 256 ? c : 63);
-    }
-    var b64 = btoa(bin);
+    var raw = '﻿' + lines.join('\r\n'); // UTF-8 BOM para Excel reconhecer acentos
+    var blob = new Blob([raw], { type: 'text/csv;charset=utf-8;' });
+    var url = URL.createObjectURL(blob);
     var a = document.createElement('a');
-    a.href = 'data:text/csv;base64,' + b64;
-    a.download = csvFilename;
+    a.href = url; a.download = csvFilename;
     document.body.appendChild(a); a.click();
     document.body.removeChild(a);
+    setTimeout(function() { URL.revokeObjectURL(url); }, 100);
   }
   window.faToXls = toXls;
 
