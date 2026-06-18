@@ -518,4 +518,6 @@
   #navAdmin { display: none; }
   .nav-links.open #navAdmin { display: block; }
   .hl-grid { grid-template-columns: 1fr; }
+  .admin-tabs-bar { flex-wrap: wrap; overflow-x: visible; }
+  .admin-tab-btn { padding: 8px 10px; font-size: .72rem; letter-spacing: .02em; }
 }
