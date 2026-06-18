@@ -274,12 +274,14 @@
           : '';
         row.innerHTML =
           '<span class="rank-pos">#' + (i + 1) + '</span>' +
-          rankSvg(e.patente || '') +
           '<span class="rank-name">' + e.name +
             (e.area ? '<span class="rank-area">' + e.area + '</span>' : '') +
           '</span>' +
-          patenteHtml +
-          '<span class="rank-score">' + (e.totalXP || 0) + ' XP</span>';
+          '<span class="rank-patente-col">' +
+            rankSvg(e.patente || '') +
+            patenteHtml +
+            '<span class="rank-score">' + (e.totalXP || 0) + ' XP</span>' +
+          '</span>';
         list.appendChild(row);
       });
     }
@@ -328,11 +330,13 @@
           row.className = 'rank-row';
           row.innerHTML =
             '<span class="rank-pos">#' + (i+1) + '</span>' +
-            rankSvg(p.patente || getRank(p.totalXP || 0)) +
             '<span class="rank-name">' + escHtml(p.name || '—') +
               (p.area ? '<span class="rank-area">' + escHtml(p.area) + '</span>' : '') +
             '</span>' +
-            '<span class="rank-score">' + (p.totalXP || 0) + ' XP</span>';
+            '<span class="rank-patente-col">' +
+              rankSvg(p.patente || getRank(p.totalXP || 0)) +
+              '<span class="rank-score">' + (p.totalXP || 0) + ' XP</span>' +
+            '</span>';
           list.appendChild(row);
         });
       });
@@ -509,12 +513,14 @@
               row.className = 'rank-row' + (isMe ? ' highlight' : '');
               row.innerHTML =
                 '<span class="rank-pos">#' + (i+1) + '</span>' +
-                rankSvg(p.patente || getRank(p.totalXP || 0)) +
                 '<span class="rank-name">' + escHtml(p.name||'—') +
                   (p.area ? '<span class="rank-area">' + escHtml(p.area) + '</span>' : '') +
                 '</span>' +
-                '<span class="rank-patente" style="color:var(--accent);font-family:var(--font-mono);font-size:.75rem">' + escHtml(p.patente || getRank(p.totalXP || 0)) + '</span>' +
-                '<span class="rank-score">' + (p.totalXP||0) + ' XP</span>';
+                '<span class="rank-patente-col">' +
+                  rankSvg(p.patente || getRank(p.totalXP || 0)) +
+                  '<span class="rank-patente" style="color:var(--accent);font-family:var(--font-mono);font-size:.75rem">' + escHtml(p.patente || getRank(p.totalXP || 0)) + '</span>' +
+                  '<span class="rank-score">' + (p.totalXP||0) + ' XP</span>' +
+                '</span>';
               list.appendChild(row);
             });
           });
