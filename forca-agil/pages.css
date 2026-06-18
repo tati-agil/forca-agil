@@ -381,13 +381,17 @@
 .admin-hero p { color: var(--ink-3); font-size: .88rem; font-family: var(--font-mono); }
 .admin-tabs-bar {
   display: flex; gap: 0; border-bottom: 1px solid var(--line-strong); margin-bottom: 36px;
+  overflow-x: auto; -webkit-overflow-scrolling: touch;
+  scrollbar-width: none;
 }
+.admin-tabs-bar::-webkit-scrollbar { display: none; }
 .admin-tab-btn {
   padding: 10px 20px; background: transparent; border: none;
   border-bottom: 2px solid transparent; font-family: var(--font-head);
   font-size: .88rem; text-transform: uppercase; letter-spacing: .05em;
   color: var(--ink-3); cursor: pointer; margin-bottom: -1px;
   transition: color .2s, border-color .2s;
+  white-space: nowrap; flex-shrink: 0;
 }
 .admin-tab-btn.active { color: var(--accent); border-bottom-color: var(--accent); }
 .admin-tab-panel { display: none; }
