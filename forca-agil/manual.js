@@ -278,7 +278,7 @@
       body: 'Botão "Finalizar inscrição" (turma ABERTA): converte todos os interessados para status inscrito em turmas-interesse e define turmas-config/<turma>/finalizada=true. Bloqueia novas inscrições na página de Turmas. Após finalizar, aparecem os botões QR Code, Abrir check-in e Reabrir turma.' },
     { section: 'admin', personas: ['admin'],
       title: 'Aba: Turmas — check-in do dia',
-      body: 'Botão "Abrir check-in hoje (DD/MM)": define turmas-config/<turma>/diaAtivo com a data atual (ISO). Participantes podem escanear o QR Code e registrar presença apenas enquanto o dia estiver aberto. Botão "Fechar check-in": limpa diaAtivo (null). Apenas 1 check-in por pessoa por dia é permitido.' },
+      body: 'Select com os dias da turma (pré-seleciona hoje se for um dia válido) + botão "Abrir check-in": define turmas-config/<turma>/diaAtivo com a data escolhida (ISO). Admin pode abrir para qualquer dia — passado ou futuro — sem precisar estar no dia exato. Participantes podem escanear o QR Code e registrar presença apenas enquanto um dia estiver aberto. Quando aberto, exibe "Check-in aberto: DD/MM" + botão "Fechar check-in" (limpa diaAtivo). Apenas 1 check-in por pessoa por dia é permitido.' },
     { section: 'admin', personas: ['admin'],
       title: 'Aba: Turmas — QR Code',
       body: 'Botão "⌘ QR Code" (disponível após finalizar): abre popup com QR gerado pela lib qrcode.js apontando para #checkin?turma=<key>. Um único QR por turma, reutilizado em todos os dias — a segurança vem do diaAtivo. A URL completa é exibida abaixo do QR.' },

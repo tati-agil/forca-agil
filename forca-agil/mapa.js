@@ -89,7 +89,7 @@
         { label: 'Aba Turmas — cards por turma com badge ABERTA/FINALIZADA e contagem de inscritos', p: ['admin'] },
         { label: 'Finalizar inscrição da turma — converte todos os interessados em inscritos e bloqueia novas inscrições', p: ['admin'] },
         { label: 'Reabrir turma — volta inscritos para interessado e permite novas inscrições', p: ['admin'] },
-        { label: 'Abrir check-in do dia — ativa diaAtivo=hoje em turmas-config; participantes podem escanear QR', p: ['admin'] },
+        { label: 'Abrir check-in do dia — select com os dias da turma + botão confirmar; admin escolhe qualquer dia (passado ou futuro); define diaAtivo em turmas-config', p: ['admin'] },
         { label: 'Fechar check-in do dia — limpa diaAtivo; impede novos check-ins', p: ['admin'] },
         { label: 'QR Code — gera QR único por turma (popup); participante escaneia no dia com check-in aberto', p: ['admin'] },
         { label: 'Tabela de presença por dia — colunas por data (✓ qr / ✓ adm / —), frequência X/5 colorida', p: ['admin'] },

@@ -844,7 +844,7 @@
       motivo: 'Ação destrutiva: converte todos os interessados em inscritos e bloqueia novas inscrições. Verificar: (1) badge muda para FINALIZADA; (2) botões mudam para QR Code / Abrir check-in / Reabrir; (3) tabela exibe colunas de presença por dia.' },
     { section: 'Admin',
       title: 'Turmas — abrir/fechar check-in do dia',
-      motivo: 'Requer turma finalizada. Verificar: (1) ao abrir, badge "CHECK-IN ABERTO · DD/MM" aparece pulsante; (2) participante consegue fazer check-in via QR; (3) ao fechar, check-in é bloqueado na página checkin.' },
+      motivo: 'Requer turma finalizada. Verificar: (1) select exibe os dias da turma e pré-seleciona hoje se aplicável; (2) ao abrir dia escolhido, badge "CHECK-IN ABERTO · DD/MM" aparece pulsante; (3) participante consegue fazer check-in via QR apenas para o dia aberto; (4) ao fechar, check-in é bloqueado na página checkin. Testar também abrir um dia diferente de hoje (passado ou futuro).' },
     { section: 'Admin',
       title: 'Turmas — check-in retroativo manual (clicar em "—")',
       motivo: 'Requer turma finalizada com pelo menos 1 inscrito que não fez check-in naquele dia. Clicar em "—" na célula da pessoa/dia → registra com source:"admin" → célula vira "✓ adm" e frequência atualiza.' },
