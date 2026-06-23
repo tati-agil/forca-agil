@@ -202,13 +202,22 @@
     form.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
   }
 
+  const repoLoginMsg = document.getElementById('repoLoginMsg');
+  function showRepoMsg(txt) {
+    if (!repoLoginMsg) return;
+    repoLoginMsg.textContent = txt;
+    repoLoginMsg.style.display = txt ? '' : 'none';
+  }
+
   addBtn && addBtn.addEventListener('click', function() {
     const p = getPlayer();
     if (!p || !p.name) {
+      showRepoMsg('Faça login para contribuir com o repositório.');
       window._pendingRepoForm = true;
-      if (window.faOpenAuthModal) window.faOpenAuthModal('register');
+      if (window.faOpenAuthModal) window.faOpenAuthModal('login');
       return;
     }
+    showRepoMsg('');
     openRepoForm();
   });
 

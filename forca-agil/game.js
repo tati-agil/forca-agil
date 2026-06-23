@@ -321,10 +321,10 @@
     hudAvatar.querySelector('use').setAttribute('href', RANKS[c.rankIdx].sym);
     hudName.textContent = RANKS[c.rankIdx].name;
     hudTag.textContent  = RANKS[c.rankIdx].tag;
-    xpNow.textContent   = c.xp + ' XP';
+    xpNow.textContent   = c.xp + ' pts';
     xpFill.style.width  = c.xp + '%';
     xpNext.textContent  = c.rankIdx < RANKS.length - 1
-      ? 'Próxima: ' + RANKS[c.rankIdx + 1].name + ' · ' + RANKS[c.rankIdx + 1].min + ' XP'
+      ? 'Próxima: ' + RANKS[c.rankIdx + 1].name + ' · ' + RANKS[c.rankIdx + 1].min + ' pts'
       : 'Patente máxima alcançada';
 
     // Aviso de patente provisória
@@ -381,7 +381,7 @@
     if (missionsResult) {
       const allMissionsDone = c.mDone === MISSIONS.length;
       missionsResult.textContent = allMissionsDone
-        ? 'Missões de Campo completas · +' + c.mXP + ' XP'
+        ? 'Missões de Campo completas · +' + c.mXP + ' pts'
         : (c.mDone + '/' + MISSIONS.length + ' missões concluídas');
     }
   }
@@ -395,11 +395,33 @@
       return;
     }
     if (!reduce && rankHud) { rankHud.classList.remove('levelup'); void rankHud.offsetWidth; rankHud.classList.add('levelup'); }
-    quizResult.textContent = 'Patente revelada: ' + RANKS[c.rankIdx].name + ' · +' + c.quizXP + ' XP';
+    quizResult.textContent = 'Patente revelada: ' + RANKS[c.rankIdx].name + ' · +' + c.quizXP + ' pts';
   });
 
   prevRankIdx = compute().rankIdx;
   render();
+
+  // ---- Welcome screen vs game content ----
+  (function () {
+    var welcome  = document.getElementById('treinamento-welcome');
+    var gameWrap = document.getElementById('treinamento');
+
+    function updateVisibility() {
+      var sess = window.faAuth && window.faAuth.getSession && window.faAuth.getSession();
+      if (welcome)  welcome.hidden  = !!sess;
+      if (gameWrap) gameWrap.hidden = !sess;
+    }
+
+    updateVisibility();
+    window.addEventListener('fa-auth-change', updateVisibility);
+
+    var jedBtn = document.getElementById('jedWelcomeBtn');
+    if (jedBtn) {
+      jedBtn.addEventListener('click', function () {
+        if (window.faOpenAuthModal) window.faOpenAuthModal('login');
+      });
+    }
+  })();
 
   // expõe render globalmente para firebase.js atualizar HUD após kyber
   window.faGameRender = render;

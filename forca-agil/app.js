@@ -254,7 +254,7 @@
 
         btn.addEventListener('click', function () {
           const s = window.faAuth && window.faAuth.getSession();
-          if (!s) { if (window.faOpenAuthModal) window.faOpenAuthModal('register'); return; }
+          if (!s) { showMsg(turmaKey, 'Faça login para registrar seu interesse.'); if (window.faOpenAuthModal) window.faOpenAuthModal('login'); return; }
           if (btn.dataset.state === 'done') removeInterest(btn, turmaKey, s);
           else registerInterest(btn, turmaKey, s);
         });

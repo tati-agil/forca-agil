@@ -1098,6 +1098,23 @@
      ====================================================== -->
 <div class="page-section" id="page-gamificacao" hidden>
 
+  <!-- Tela de boas-vindas — exibida apenas para usuários não logados -->
+  <div class="wrap" id="treinamento-welcome" hidden>
+    <div class="jedi-welcome reveal">
+      <span class="eyebrow" style="justify-content:center;display:flex">Treinamento Jedi</span>
+      <h1 class="glow-title" style="text-align:center;margin-bottom:24px">Bem-vindo ao Treinamento Jedi</h1>
+      <div class="jedi-welcome-text">
+        <p>Faça login ou cadastro, responda as atividades e ganhe pontos de experiência.</p>
+        <p>Conforme você evolui, desbloqueia novas patentes.</p>
+        <p>Você pode ganhar experiência de três formas: jogando, lendo conteúdos e colaborando com o repositório.</p>
+      </div>
+      <div style="text-align:center;margin-top:40px">
+        <button class="btn btn--primary btn--lg" id="jedWelcomeBtn">Quero jogar →</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Conteúdo do jogo — exibido apenas para usuários logados -->
   <div class="wrap game" id="treinamento">
 
     <!-- Jedi Banner -->
@@ -1133,7 +1150,7 @@
         <h2 class="glow-title">Sociedade Jedi</h2>
         <div class="jb-rule"></div>
       </div>
-      <p class="jb-sub">Sua patente é formada por três etapas: <strong>Autodiagnóstico</strong> (até 20 XP) → <strong>Missões</strong> (até 48 XP) → <strong>Kyber Game</strong> (até 32 XP). Complete as três para chegar a 100 XP e conquistar o posto de Mestre.</p>
+      <p class="jb-sub">Sua patente é formada por três etapas: <strong>Autodiagnóstico</strong> (até 20 pontos) → <strong>Missões</strong> (até 48 pontos) → <strong>Kyber Game</strong> (até 32 pontos). Complete as três para chegar a 100 pontos e conquistar o posto de Mestre.</p>
     </div>
 
     <!-- Droide guia -->
@@ -1165,25 +1182,25 @@
       <div class="char-card" data-rank="0">
         <div class="cc-fig"><svg viewBox="0 0 120 220"><use href="#char-0"/></svg></div>
         <div class="cc-lvl">PATENTE 01</div><div class="cc-name">Youngling</div>
-        <div class="cc-tag">"Já ouvi falar"</div><div class="cc-xp">0–24 XP</div>
+        <div class="cc-tag">"Já ouvi falar"</div><div class="cc-xp">0–24 pts</div>
         <div class="cc-lock"><svg width="14" height="14"><use href="#i-lock"/></svg></div>
       </div>
       <div class="char-card" data-rank="1">
         <div class="cc-fig"><svg viewBox="0 0 120 220"><use href="#char-1"/></svg></div>
         <div class="cc-lvl">PATENTE 02</div><div class="cc-name">Padawan</div>
-        <div class="cc-tag">"Sei o que é"</div><div class="cc-xp">25–49 XP</div>
+        <div class="cc-tag">"Sei o que é"</div><div class="cc-xp">25–49 pts</div>
         <div class="cc-lock"><svg width="14" height="14"><use href="#i-lock"/></svg></div>
       </div>
       <div class="char-card" data-rank="2">
         <div class="cc-fig"><svg viewBox="0 0 120 220"><use href="#char-2"/></svg></div>
         <div class="cc-lvl">PATENTE 03</div><div class="cc-name">Cavaleiro</div>
-        <div class="cc-tag">"Domino"</div><div class="cc-xp">50–74 XP</div>
+        <div class="cc-tag">"Domino"</div><div class="cc-xp">50–74 pts</div>
         <div class="cc-lock"><svg width="14" height="14"><use href="#i-lock"/></svg></div>
       </div>
       <div class="char-card" data-rank="3">
         <div class="cc-fig"><svg viewBox="0 0 120 220"><use href="#char-3"/></svg></div>
         <div class="cc-lvl">PATENTE 04</div><div class="cc-name">Mestre</div>
-        <div class="cc-tag">"Ensino"</div><div class="cc-xp">75–100 XP</div>
+        <div class="cc-tag">"Ensino"</div><div class="cc-xp">75–100 pts</div>
         <div class="cc-lock"><svg width="14" height="14"><use href="#i-lock"/></svg></div>
       </div>
     </div>
@@ -1215,9 +1232,9 @@
   <!-- Kyber Game -->
   <section class="kyber-section" id="kyber">
     <div class="kyber-header">
-      <span class="eyebrow">Fase 3 · Kyber Game · até 32 XP</span>
-      <h2>Operação Kyber Ágil</h2>
-      <p>A etapa final da sua pontuação. Você completou o autodiagnóstico e as missões — agora teste seus reflexos ágeis em tempo real. Tome decisões rápidas sob pressão e veja sua patente subir no ranking da galáxia.</p>
+      <span class="eyebrow">Fase 3 · Kyber Game · até 32 pontos</span>
+      <h2>Kyber Game <span style="font-size:.55em;font-family:var(--font-body);color:var(--ink-2);font-weight:400">— minigame de perguntas e respostas sobre agilidade</span></h2>
+      <p>Teste seus conhecimentos sobre agilidade em tempo real. Tome decisões rápidas e veja sua patente subir no ranking.</p>
     </div>
 
     <div class="kyber-arena" id="kyber-arena">
@@ -1277,6 +1294,8 @@
     </div>
   </div>
 
+  </div><!-- /treinamento content wrapper -->
+
   <footer class="footer">
     <div class="footer-inner" style="max-width:var(--maxw);margin:0 auto;padding:0 24px">
       <span>PREVI · FORÇA ÁGIL</span>
@@ -1314,6 +1333,7 @@
           <svg width="14" height="14"><use href="#i-plus"/></svg> Adicionar conteúdo
         </button>
       </div>
+      <p id="repoLoginMsg" style="font-size:.82rem;color:var(--ink-3);margin:8px 0 0;display:none"></p>
 
       <!-- Add form -->
       <form class="repo-form reveal" id="repoForm" hidden>
