@@ -408,16 +408,34 @@
       const tp = currentTotalEPatente();
       const publicada = _st().getItem('fa-patente-publicada') === '1';
       const status = publicada ? '🌐 Publicada no ranking da galáxia!' : '🔒 Resultado privado — não publicado no ranking.';
-      wrap.innerHTML =
-        '<p style="font-family:var(--font-mono);font-size:.9rem;color:var(--accent);text-align:center;padding:24px">' +
-        '✓ Patente revelada: <strong>' + tp.patente + ' · ' + tp.total + ' pts</strong><br>' +
-        '<span style="color:var(--ink-3);font-size:.8rem">' + status + '</span></p>';
+      // Oculta botão e hint, preservando-os no DOM para testes e re-renders
+      if (revelarBtn) revelarBtn.hidden = true;
+      const hint = wrap.querySelector('.revelar-hint');
+      if (hint) hint.hidden = true;
+      // Atualiza ou cria o parágrafo de estado
+      let msg = document.getElementById('revelarStateMsg');
+      if (!msg) {
+        msg = document.createElement('p');
+        msg.id = 'revelarStateMsg';
+        msg.style.cssText = 'font-family:var(--font-mono);font-size:.9rem;color:var(--accent);text-align:center;padding:24px';
+        wrap.appendChild(msg);
+      }
+      msg.innerHTML = '✓ Patente revelada: <strong>' + tp.patente + ' · ' + tp.total + ' pts</strong><br>' +
+        '<span style="color:var(--ink-3);font-size:.8rem">' + status + '</span>';
+      msg.hidden = false;
     }
 
     function refreshRevelarUI() {
       if (_st().getItem('fa-patente-revealed') === '1') {
         renderRevealedState();
       } else {
+        // Restaura botão e hint ao estado normal
+        if (revelarBtn) revelarBtn.hidden = false;
+        const wrap = document.getElementById('revelarWrap');
+        const hint = wrap && wrap.querySelector('.revelar-hint');
+        if (hint) hint.hidden = false;
+        const msg = document.getElementById('revelarStateMsg');
+        if (msg) msg.hidden = true;
         updateRevelarBtn();
       }
     }
