@@ -417,6 +417,14 @@
     {
       group: 'Página Conteúdos',
       tests: [
+        { id: 'c-conteudos-nav', label: 'Nav lateral de Conteúdos inicializa ao entrar na página (#conteudosNavSidebar)', run: function () {
+          if (window.faRouter && window.faRouter.current() !== 'conteudos') return true; // só verifica se estiver na página
+          return !!document.getElementById('conteudosNavSidebar');
+        } },
+        { id: 'c-conteudos-6sections', label: '6 seções de conteúdo presentes no DOM', run: function () {
+          var ids = ['content-galaxia','content-forca','content-yoda','content-arquetipos','content-sombrio','content-trilogia'];
+          return ids.every(function (id) { return !!document.getElementById(id); });
+        } },
         { id: 'c-conteudos-valores-link', label: 'Link "Ler os 4 valores na íntegra" presente e correto', run: function () {
           var link = Array.from(document.querySelectorAll('#page-conteudos .manifesto-link')).find(function (a) { return /4 valores/i.test(a.textContent); });
           return !!link && link.getAttribute('href') === 'https://agilemanifesto.org/iso/ptbr/manifesto.html' && link.getAttribute('target') === '_blank';
