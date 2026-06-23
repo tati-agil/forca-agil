@@ -552,6 +552,8 @@
 /* ---- Conteúdos: galaxy ver mais ---- */
 .galaxy-extra { display: none; }
 .galaxy-extra.visible { display: contents; }
+.principles-extra { display: none; }
+.principles-extra.visible { display: contents; }
 .galaxy-more-btn {
   grid-column: 1 / -1; margin-top: 8px;
   background: none; border: 1px solid var(--line); border-radius: 8px;

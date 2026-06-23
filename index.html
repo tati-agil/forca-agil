@@ -234,6 +234,7 @@
     <a href="#repositorio" data-nav-page="repositorio">Repositório</a>
     <a href="#gamificacao" data-nav-page="gamificacao">Treinamento Jedi</a>
     <a href="#ranking" data-nav-page="ranking">Ranking</a>
+    <a href="#faq"    data-nav-page="faq">FAQ</a>
     <a href="#admin"       data-nav-page="admin" id="navAdmin" hidden>Admin</a>
   </div>
 
@@ -415,8 +416,7 @@
       <p class="cta-sub mx-auto">Escolha uma turma e comece sua jornada de desenvolvimento em agilidade.</p>
     </div>
     <div class="hero-actions" style="margin-top:48px;animation:none;opacity:1">
-      <button class="btn btn--primary" id="openRegister">Criar conta →</button>
-      <button class="btn" id="ctaLogin">Entrar</button>
+      <a class="btn btn--primary" href="#turmas" data-nav-page="turmas">Ver turmas →</a>
     </div>
   </section>
 
@@ -478,14 +478,6 @@
         <span class="eyebrow">A Missão</span>
         <h2 class="sec-title">A <span class="glow-gold">Oficina de Agilidade Organizacional</span></h2>
         <p class="sec-lead">Eficiência com foco no futuro: trabalhar de forma mais simples, colaborativa e com propósito — para que cada entrega faça diferença na vida dos associados.</p>
-      </div>
-
-      <div class="phases">
-        <div class="phase reveal">
-          <svg class="ph-ico"><use href="#i-rocket"/></svg>
-          <h3>Imersão</h3>
-          <div class="ph-s">Simplifique &amp; Priorize — fundamentos, mentalidade e os valores que sustentam a jornada.</div>
-        </div>
       </div>
 
       <!-- Como funciona -->
@@ -675,12 +667,15 @@
         <div class="principle reveal"><span class="pn">04</span><span>Negócio e times trabalhando juntos, todos os dias.</span></div>
         <div class="principle reveal"><span class="pn">05</span><span>Construir projetos em torno de pessoas motivadas — e confiar nelas.</span></div>
         <div class="principle reveal"><span class="pn">06</span><span>Conversa cara a cara é a comunicação mais eficaz.</span></div>
-        <div class="principle reveal"><span class="pn">07</span><span>Produto em funcionamento é a principal medida de progresso.</span></div>
-        <div class="principle reveal"><span class="pn">08</span><span>Manter um ritmo sustentável, indefinidamente.</span></div>
-        <div class="principle reveal"><span class="pn">09</span><span>Excelência técnica e bom design aumentam a agilidade.</span></div>
-        <div class="principle reveal"><span class="pn">10</span><span>Simplicidade: a arte de maximizar o trabalho não feito.</span></div>
-        <div class="principle reveal"><span class="pn">11</span><span>As melhores soluções emergem de times auto-organizados.</span></div>
-        <div class="principle reveal"><span class="pn">12</span><span>Refletir e ajustar o comportamento em intervalos regulares.</span></div>
+        <div class="principles-extra" id="principlesExtra">
+          <div class="principle reveal"><span class="pn">07</span><span>Produto em funcionamento é a principal medida de progresso.</span></div>
+          <div class="principle reveal"><span class="pn">08</span><span>Manter um ritmo sustentável, indefinidamente.</span></div>
+          <div class="principle reveal"><span class="pn">09</span><span>Excelência técnica e bom design aumentam a agilidade.</span></div>
+          <div class="principle reveal"><span class="pn">10</span><span>Simplicidade: a arte de maximizar o trabalho não feito.</span></div>
+          <div class="principle reveal"><span class="pn">11</span><span>As melhores soluções emergem de times auto-organizados.</span></div>
+          <div class="principle reveal"><span class="pn">12</span><span>Refletir e ajustar o comportamento em intervalos regulares.</span></div>
+        </div>
+        <button class="galaxy-more-btn" id="principlesMoreBtn">Ver os 6 princípios restantes →</button>
       </div>
       <a class="manifesto-link reveal" href="https://agilemanifesto.org/iso/ptbr/principles.html" target="_blank" rel="noopener">Ler os 12 princípios na íntegra →</a>
     </section>
@@ -1107,13 +1102,35 @@
   <div class="wrap" id="treinamento-welcome" hidden>
     <div class="jedi-welcome reveal">
       <span class="eyebrow" style="justify-content:center;display:flex">Treinamento Jedi</span>
-      <h1 class="glow-title" style="text-align:center;margin-bottom:24px">Bem-vindo ao Treinamento Jedi</h1>
-      <div class="jedi-welcome-text">
-        <p>Faça login ou cadastro, responda as atividades e ganhe pontos de experiência.</p>
-        <p>Conforme você evolui, desbloqueia novas patentes.</p>
-        <p>Você pode ganhar experiência de três formas: jogando, lendo conteúdos e colaborando com o repositório.</p>
+      <h1 class="glow-title" style="text-align:center;margin-bottom:32px">Bem-vindo ao<br>Treinamento Jedi</h1>
+
+      <div class="jedi-steps">
+        <div class="jedi-step">
+          <span class="jedi-step-num">01</span>
+          <svg width="28" height="28"><use href="#i-radiate"/></svg>
+          <span class="jedi-step-label">Faça login</span>
+        </div>
+        <span class="jedi-step-arrow">→</span>
+        <div class="jedi-step">
+          <span class="jedi-step-num">02</span>
+          <svg width="28" height="28"><use href="#i-book"/></svg>
+          <span class="jedi-step-label">Explore atividades</span>
+        </div>
+        <span class="jedi-step-arrow">→</span>
+        <div class="jedi-step">
+          <span class="jedi-step-num">03</span>
+          <svg width="28" height="28"><use href="#i-bolt"/></svg>
+          <span class="jedi-step-label">Ganhe experiência</span>
+        </div>
+        <span class="jedi-step-arrow">→</span>
+        <div class="jedi-step">
+          <span class="jedi-step-num">04</span>
+          <svg width="28" height="28"><use href="#i-saber"/></svg>
+          <span class="jedi-step-label">Desbloqueie patentes</span>
+        </div>
       </div>
-      <div style="text-align:center;margin-top:40px">
+
+      <div class="jedi-welcome-cta">
         <button class="btn btn--primary btn--lg" id="jedWelcomeBtn">Quero jogar →</button>
       </div>
     </div>
@@ -1493,6 +1510,69 @@
     </div>
   </footer>
 </div><!-- /page-admin -->
+
+<!-- ======================================================
+     PAGE: FAQ
+     ====================================================== -->
+<div class="page-section" id="page-faq" hidden>
+  <div class="wrap">
+    <div class="page-hero">
+      <span class="eyebrow">Dúvidas</span>
+      <h1>Perguntas Frequentes</h1>
+      <p>Tudo o que você precisa saber para começar sua jornada na Força Ágil.</p>
+    </div>
+    <section class="section">
+      <div class="faq-list">
+
+        <details class="faq-item reveal">
+          <summary>O que é esse site?</summary>
+          <div class="faq-answer">É uma plataforma de aprendizado sobre agilidade na Previ. Aqui você pode participar das turmas, consumir conteúdos e acompanhar sua evolução no programa.</div>
+        </details>
+
+        <details class="faq-item reveal">
+          <summary>Como faço para me cadastrar?</summary>
+          <div class="faq-answer">Clique em "Entrar" ou "Criar conta" no topo do site e preencha seus dados com o e-mail corporativo.</div>
+        </details>
+
+        <details class="faq-item reveal">
+          <summary>Por que é importante aprender agilidade na Previ?</summary>
+          <div class="faq-answer">A agilidade ajuda os times a trabalhar de forma mais eficiente, colaborativa e focada em entregar valor no dia a dia.</div>
+        </details>
+
+        <details class="faq-item reveal">
+          <summary>O que eu ganho com os pontos de experiência?</summary>
+          <div class="faq-answer">Você evolui dentro do programa, desbloqueia novas patentes e acompanha sua posição no ranking da galáxia.</div>
+        </details>
+
+        <details class="faq-item reveal">
+          <summary>Como consigo mais pontos de experiência?</summary>
+          <div class="faq-answer">Você ganha pontos ao:
+            <ul>
+              <li>Jogar o Treinamento Jedi (Autodiagnóstico, Missões e Kyber Game)</li>
+              <li>Ler conteúdos nas seções do portal</li>
+              <li>Colaborar com o Repositório adicionando materiais úteis</li>
+            </ul>
+          </div>
+        </details>
+
+        <details class="faq-item reveal">
+          <summary>Esqueci a minha senha, como posso recuperar?</summary>
+          <div class="faq-answer">Clique em "Esqueci minha senha" na tela de login e siga as instruções para redefinir.</div>
+        </details>
+
+      </div>
+    </section>
+  </div>
+  <footer class="footer">
+    <div class="footer-inner" style="max-width:var(--maxw);margin:0 auto;padding:0 24px">
+      <span>PREVI · FORÇA ÁGIL</span>
+      <a class="footer-previ" href="https://www.previ.com.br" target="_blank" rel="noopener">
+        <img src="forca-agil/assets/previ-symbol.png" alt="" class="brand-previ-img">
+        <span class="footer-previ-text"><span style="color:#1ab2ae;letter-spacing:0;">Previ</span> · AGILIDADE ORGANIZACIONAL</span>
+      </a>
+    </div>
+  </footer>
+</div><!-- /page-faq -->
 
 </div><!-- /#app -->
 

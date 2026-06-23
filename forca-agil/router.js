@@ -4,7 +4,7 @@
 (function () {
   'use strict';
 
-  const PAGES   = ['home','turmas','conteudos','gamificacao','repositorio','ranking','admin','checkin'];
+  const PAGES   = ['home','turmas','conteudos','gamificacao','repositorio','ranking','faq','admin','checkin'];
   const inits   = {};
   let current = null;
 

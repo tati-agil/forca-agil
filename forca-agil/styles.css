@@ -353,10 +353,10 @@ h1,h2,h3,h4 { font-family: var(--font-head); font-weight: 600; line-height: 1.02
   animation: planet-rise 2s var(--ease) both, spin 120s linear infinite;
 }
 .scroll-cue {
-  position: absolute; bottom: 26px; left: 50%; transform: translateX(-50%); z-index: 3;
+  position: absolute; bottom: 26px; left: 0; right: 0; z-index: 3;
   font-family: var(--font-mono); font-size: .62rem; letter-spacing: .3em; text-transform: uppercase; color: var(--ink-3);
   display: flex; flex-direction: column; align-items: center; gap: 8px; opacity: 0; animation: fade-up 1s 2s forwards;
-  width: max-content; text-align: center;
+  text-align: center;
 }
 .scroll-cue .bar { width: 1px; height: 40px; background: linear-gradient(var(--accent), transparent); animation: cue 1.8s ease-in-out infinite; }
 
@@ -516,7 +516,7 @@ html:not(.js) .reveal { opacity: 1 !important; transform: none !important; }
 .dark-list { display: grid; grid-template-columns: repeat(auto-fit,minmax(300px,1fr)); gap: 12px; margin-top: 44px; }
 .dark-item {
   display: grid; grid-template-columns: 1fr auto 1fr; align-items: center; gap: 14px;
-  padding: 16px 20px; border-radius: 11px; background: rgba(20,8,8,.5); border: 1px solid rgba(255,59,48,.2);
+  padding: 16px 20px; border-radius: 11px; background: rgba(20,8,8,.4); border: 1px solid rgba(255,59,48,.1);
 }
 .dark-item .say { color: var(--ink); font-weight: 600; }
 .dark-item .but { font-family: var(--font-mono); color: var(--red); font-size: .9rem; }
@@ -524,11 +524,11 @@ html:not(.js) .reveal { opacity: 1 !important; transform: none !important; }
 @media (max-width:560px){ .dark-item { grid-template-columns: 1fr; text-align: left; } .dark-item .do { text-align:left; } .dark-item .but{ transform: rotate(90deg); width: max-content;} }
 
 .bigquote {
-  margin: 64px auto 0; max-width: 900px; text-align: center;
-  font-family: var(--font-head); font-weight: 600; font-size: clamp(1.5rem, 4vw, 2.6rem);
-  line-height: 1.25; color: var(--ink); text-wrap: balance;
+  margin: 64px auto 0; max-width: 800px; text-align: center;
+  font-family: var(--font-head); font-weight: 400; font-size: clamp(1.1rem, 2.8vw, 1.8rem);
+  line-height: 1.4; color: var(--ink-2); text-wrap: balance;
 }
-.bigquote .hl { color: var(--red); }
+.bigquote .hl { color: rgba(255,90,80,.8); }
 .bigquote cite { display:block; font-family: var(--font-mono); font-size: .8rem; letter-spacing:.18em; text-transform: uppercase; color: var(--ink-3); margin-top: 24px; font-style: normal; }
 
 /* ---------- Trilogy timeline ---------- */
@@ -836,6 +836,10 @@ html:not(.js) .reveal { opacity: 1 !important; transform: none !important; }
   font-family: var(--font-display); text-transform: uppercase; letter-spacing: .02em;
   font-size: clamp(2.4rem, 7vw, 5.4rem); line-height: .92; margin: 14px 0 0; color: #eafdff;
   text-shadow: 0 0 8px rgba(255,255,255,.7), 0 0 28px var(--cyan), 0 0 60px var(--cyan);
+}
+.jedi-welcome .glow-title {
+  font-size: clamp(1.8rem, 5vw, 3.6rem);
+  text-shadow: 0 0 6px rgba(255,255,255,.4), 0 0 20px rgba(87,211,255,.4);
 }
 .jedi-banner .jb-rule { width: min(560px, 80%); height: 2px; margin: 22px auto 0; border-radius: 2px;
   background: linear-gradient(90deg, transparent, var(--cyan), transparent); box-shadow: 0 0 14px var(--cyan); }
@@ -1195,3 +1199,55 @@ html:not(.js) .reveal { opacity: 1 !important; transform: none !important; }
 .arch-item { background: var(--surface); border: 1px solid var(--line); border-radius: 10px; padding: 14px 16px; }
 .arch-item-name { font-family: var(--font-mono); font-size: .8rem; color: var(--ac, #888); margin-bottom: 6px; font-weight: 600; }
 .arch-item-desc { font-size: .82rem; color: var(--ink-3); line-height: 1.5; }
+
+/* ---------- Jedi Steps (welcome stepper) ---------- */
+.jedi-steps {
+  display: flex; align-items: center; justify-content: center; flex-wrap: wrap;
+  gap: 8px 4px; margin: 36px auto 0; max-width: 700px;
+}
+.jedi-step {
+  display: flex; flex-direction: column; align-items: center; gap: 10px;
+  background: rgba(255,255,255,.04); border: 1px solid var(--line);
+  border-radius: 14px; padding: 20px 18px; min-width: 120px; flex: 0 0 auto;
+}
+.jedi-step svg { color: var(--cyan); }
+.jedi-step-num {
+  font-family: var(--font-mono); font-size: .6rem; letter-spacing: .18em;
+  color: var(--ink-3); text-transform: uppercase;
+}
+.jedi-step-label {
+  font-family: var(--font-head); font-size: .88rem; text-align: center;
+  color: var(--ink); line-height: 1.3;
+}
+.jedi-step-arrow { font-size: 1.4rem; color: var(--line-strong); flex: 0 0 auto; }
+@media (max-width:600px){ .jedi-step-arrow { transform: rotate(90deg); } .jedi-steps { flex-direction: column; align-items: center; } }
+
+/* ---------- Jedi welcome improved ---------- */
+.jedi-welcome { padding: 80px 24px 60px; text-align: center; }
+.jedi-welcome .jedi-welcome-cta { margin-top: 44px; }
+
+/* ---------- FAQ Section ---------- */
+.faq-list { margin-top: 40px; display: flex; flex-direction: column; gap: 10px; }
+.faq-item {
+  border: 1px solid var(--line); border-radius: 12px;
+  background: linear-gradient(180deg, var(--panel), var(--panel-2));
+  overflow: hidden;
+}
+.faq-item summary {
+  list-style: none; display: flex; justify-content: space-between; align-items: center;
+  padding: 18px 22px; cursor: pointer; font-family: var(--font-head);
+  font-size: 1.02rem; color: var(--ink); user-select: none; gap: 16px;
+}
+.faq-item summary::-webkit-details-marker { display: none; }
+.faq-item summary::after {
+  content: '+'; font-size: 1.3rem; color: var(--ink-3); flex-shrink: 0;
+  transition: transform .25s; line-height: 1;
+}
+.faq-item[open] summary::after { transform: rotate(45deg); color: var(--accent); }
+.faq-item[open] summary { color: var(--accent); }
+.faq-answer {
+  padding: 0 22px 20px; color: var(--ink-2); font-size: .96rem;
+  line-height: 1.7; border-top: 1px solid var(--line);
+  padding-top: 16px;
+}
+.faq-answer ul { margin: 8px 0 0 18px; display: flex; flex-direction: column; gap: 4px; }

@@ -242,6 +242,15 @@
         galaxyBtn.style.display = 'none';
       });
     }
+
+    var principlesBtn = document.getElementById('principlesMoreBtn');
+    var principlesExtra = document.getElementById('principlesExtra');
+    if (principlesBtn && principlesExtra) {
+      principlesBtn.addEventListener('click', function () {
+        principlesExtra.classList.add('visible');
+        principlesBtn.style.display = 'none';
+      });
+    }
   });
 
   document.addEventListener('DOMContentLoaded', function () {

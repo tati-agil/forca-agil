@@ -410,6 +410,8 @@
       var sess = window.faAuth && window.faAuth.getSession && window.faAuth.getSession();
       if (welcome)  welcome.hidden  = !!sess;
       if (gameWrap) gameWrap.hidden = !sess;
+      var kyberSection = document.getElementById('kyber');
+      if (kyberSection) kyberSection.hidden = !sess;
     }
 
     updateVisibility();
