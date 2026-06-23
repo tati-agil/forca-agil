@@ -232,6 +232,18 @@
     });
   }
 
+  /* ---- Galaxy map "ver mais" ---- */
+  document.addEventListener('DOMContentLoaded', function () {
+    var galaxyBtn = document.getElementById('galaxyMoreBtn');
+    var galaxyExtra = document.getElementById('galaxyExtra');
+    if (galaxyBtn && galaxyExtra) {
+      galaxyBtn.addEventListener('click', function () {
+        galaxyExtra.classList.add('visible');
+        galaxyBtn.style.display = 'none';
+      });
+    }
+  });
+
   document.addEventListener('DOMContentLoaded', function () {
     if (window.faRouter) {
       window.faRouter.onPageInit('conteudos', initContentTracking);

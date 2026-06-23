@@ -541,3 +541,21 @@
   .admin-tabs-bar { flex-wrap: wrap; overflow-x: visible; }
   .admin-tab-btn { padding: 8px 10px; font-size: .72rem; letter-spacing: .02em; }
 }
+
+/* ---- Agenda: Você vai ---- */
+.day-voce-vai {
+  font-size: .9rem; color: var(--ink-2); margin: 0 0 14px;
+  padding: 10px 14px; border-left: 2px solid var(--accent);
+  background: rgba(245,197,24,.06); border-radius: 0 8px 8px 0;
+}
+
+/* ---- Conteúdos: galaxy ver mais ---- */
+.galaxy-extra { display: none; }
+.galaxy-extra.visible { display: contents; }
+.galaxy-more-btn {
+  grid-column: 1 / -1; margin-top: 8px;
+  background: none; border: 1px solid var(--line); border-radius: 8px;
+  color: var(--ink-2); font-family: var(--font-mono); font-size: .78rem;
+  letter-spacing: .06em; padding: 10px 20px; cursor: pointer; transition: border-color .2s, color .2s;
+}
+.galaxy-more-btn:hover { border-color: var(--accent); color: var(--accent); }
