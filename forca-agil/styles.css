@@ -144,6 +144,18 @@ h1,h2,h3,h4 { font-family: var(--font-head); font-weight: 600; line-height: 1.02
   padding: 80px var(--pad-x);
   box-sizing: border-box;
 }
+
+/* Conteúdos sections: mesma experiência — uma seção por vez */
+#content-galaxia, #content-forca, #content-yoda,
+#content-arquetipos, #content-trilogia {
+  min-height: 100vh;
+  display: flex; flex-direction: column; justify-content: center;
+  box-sizing: border-box;
+}
+.darkside {
+  min-height: 100vh;
+  display: flex; flex-direction: column; justify-content: center;
+}
 .section--tight { padding: 36px var(--pad-x); }
 
 .sec-title {
