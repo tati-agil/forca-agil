@@ -6,12 +6,13 @@
   'use strict';
 
   var SECTIONS = [
-    { id: 'content-galaxia',   label: '01 · Mapa da Galáxia' },
-    { id: 'content-forca',     label: '02 · A Força' },
-    { id: 'content-yoda',      label: '03 · A Força do Ágil' },
-    { id: 'content-arquetipos',label: '04 · Personagens' },
-    { id: 'content-sombrio',   label: '05 · Lado Sombrio' },
-    { id: 'content-trilogia',  label: '06 · A Trilogia' },
+    { id: 'content-galaxia',    label: '01 · Mapa da Galáxia' },
+    { id: 'content-forca',      label: '02 · Os 4 Valores' },
+    { id: 'content-principios', label: '03 · Os 12 Princípios' },
+    { id: 'content-yoda',       label: '04 · A Força do Ágil' },
+    { id: 'content-arquetipos', label: '05 · Personagens' },
+    { id: 'content-sombrio',    label: '06 · Lado Sombrio' },
+    { id: 'content-trilogia',   label: '07 · A Trilogia' },
   ];
 
   var NAV_ID    = 'conteudosNavSidebar';

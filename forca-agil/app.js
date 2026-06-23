@@ -181,7 +181,7 @@
   });
 
   /* ---- Content XP tracking (conteúdos page) ---- */
-  const CONTENT_SECTIONS = ['galaxia','forca','arquetipos','sombrio','trilogia'];
+  const CONTENT_SECTIONS = ['galaxia','forca','principios','arquetipos','sombrio','trilogia'];
   const XP_PER_SECTION   = 5;
 
   function initContentTracking() {
