@@ -448,29 +448,14 @@
             return !!map[page] && titulo === map[page] && !!document.getElementById('page-' + page);
           });
         } },
-        { id: 'c-destaques-turmas', label: 'Destaques: mini Próximas Turmas com 3 turmas e link válido para Turmas', run: function () {
-          var cards = document.querySelectorAll('#destaques .hl-card');
-          var card = Array.from(cards).find(function (c) { return /Próximas Turmas/i.test(c.querySelector('h3') ? c.querySelector('h3').textContent : ''); });
-          if (!card) return false;
-          var n = card.querySelectorAll('.hl-turma').length;
-          var link = card.querySelector('a[href="#turmas"]');
-          return n === 3 && !!link && !!document.getElementById('page-turmas');
+        { id: 'c-destaques-removidos', label: 'Seção "O que está acontecendo" (Destaques) removida na v2', run: function () {
+          return !document.getElementById('destaques');
         } },
-        { id: 'c-destaques-conteudos', label: 'Destaques: mini Conteúdos com 5 itens e link válido para Conteúdos', run: function () {
-          var cards = document.querySelectorAll('#destaques .hl-card');
-          var card = Array.from(cards).find(function (c) { return /^Conteúdos$/i.test(c.querySelector('h3') ? c.querySelector('h3').textContent.trim() : ''); });
-          if (!card) return false;
-          var n = card.querySelectorAll('.hl-content-item').length;
-          var link = card.querySelector('a[href="#conteudos"]');
-          return n === 5 && !!link && !!document.getElementById('page-conteudos');
+        { id: 'c-cta-criar-conta', label: 'Botão "Criar conta" presente no CTA final', run: function () {
+          return !!document.getElementById('openRegister');
         } },
-        { id: 'c-destaques-ranking', label: 'Destaques: mini Ranking presente com link válido para Ranking', run: function () {
-          var cards = document.querySelectorAll('#destaques .hl-card');
-          var card = Array.from(cards).find(function (c) { return c.querySelector('#homeRanking'); });
-          if (!card) return false;
-          if (!document.getElementById('page-ranking')) return false;
-          var link = card.querySelector('a[href="#ranking"]');
-          return !!link;
+        { id: 'c-cta-entrar', label: 'Botão "Entrar" presente no CTA final', run: function () {
+          return !!document.getElementById('ctaLogin');
         } },
         { id: 'c-footer-previ', label: 'Rodapé: link externo para previ.com.br presente e abre em nova aba', run: function () {
           var link = document.querySelector('.footer-previ');
@@ -506,8 +491,34 @@
       ]
     },
     {
+      group: 'Página Turmas',
+      tests: [
+        { id: 'c-turmas-cards',   label: '3 cards de turma presentes (.turma-card-new)', run: function () { return document.querySelectorAll('.turma-card-new').length === 3; } },
+        { id: 'c-turmas-como-funciona', label: 'Bloco "Como funciona a oficina" presente (.oficina-info)', run: function () { return !!document.querySelector('.oficina-info'); } },
+        { id: 'c-turmas-ofinfo',  label: 'Bloco tem 4 métricas (.ofinfo-item)', run: function () { return document.querySelectorAll('.ofinfo-item').length === 4; } },
+        { id: 'c-turmas-intent-btn', label: 'Botões de interesse presentes (.btn--interest)', run: function () { return document.querySelectorAll('.btn--interest').length === 3; } },
+        { id: 'c-turmas-intent-msg', label: 'Containers de mensagem de login presentes (#intent-msg-t1/t2/t3)', run: function () {
+          return !!document.getElementById('intent-msg-t1') && !!document.getElementById('intent-msg-t2') && !!document.getElementById('intent-msg-t3');
+        } }
+      ]
+    },
+    {
       group: 'Página Treinamento Jedi',
       tests: [
+        { id: 'c-quiz-welcome', label: 'Welcome screen presente no DOM (#treinamento-welcome)', run: function () {
+          return !!document.getElementById('treinamento-welcome');
+        } },
+        { id: 'c-quiz-welcome-btn', label: 'Botão "Quero jogar" presente na welcome screen', run: function () {
+          return !!document.getElementById('jedWelcomeBtn');
+        } },
+        { id: 'c-quiz-welcome-auth', label: 'Welcome screen oculta para logado; jogo visível', run: function () {
+          var sess = window.faAuth && window.faAuth.getSession && window.faAuth.getSession();
+          var welcome = document.getElementById('treinamento-welcome');
+          var game    = document.getElementById('treinamento');
+          if (!welcome || !game) return false;
+          if (sess) return welcome.hidden === true && game.hidden === false;
+          return welcome.hidden === false && game.hidden === true;
+        } },
         { id: 'c-quiz-patente',   label: 'Painel de patente presente',             run: function () { return !!document.getElementById('rankHud'); } },
         { id: 'c-quiz-patentes',  label: '4 patentes exibidas (Youngling→Mestre)', run: function () { return document.querySelectorAll('.char-card').length >= 4; } },
         { id: 'c-quiz-previx',    label: 'Droide Previx (guia) presente',          run: function () { return !!document.querySelector('.guide-droide') || !!document.getElementById('guideMsg'); } },
@@ -756,16 +767,10 @@
       title: 'Cards "Como funciona" → cada um navega para sua página',
       motivo: 'Clicar navegaria para fora da página Admin, interrompendo a sessão de testes em execução.' },
     { section: 'Início',
-      title: 'Mini Próximas Turmas → link navega para Turmas',
-      motivo: 'Clicar navegaria para fora da página Admin, interrompendo a sessão de testes em execução.' },
-    { section: 'Início',
-      title: 'Mini Conteúdos → clique no item navega para Conteúdos',
-      motivo: 'Clicar navegaria para fora da página Admin, interrompendo a sessão de testes em execução.' },
-    { section: 'Início',
-      title: 'Ranking mini em tempo real (bloco Destaques)',
-      motivo: 'Requer múltiplos usuários com patente revelada para ter dados reais a verificar.' },
+      title: 'Seção "O que está acontecendo" — ausente na v2',
+      motivo: 'Verificar visualmente que os blocos de Turmas, Conteúdos e Ranking mini não aparecem na home.' },
     { section: 'Turmas',
-      title: 'Botão "Tenho interesse" (visitante) → abre cadastro',
+      title: 'Botão "Tenho interesse" sem login → mensagem + modal login',
       motivo: 'Requer estar deslogado.' },
     { section: 'Turmas',
       title: 'Botão "Tenho interesse" → registra e vira "Remover interesse"; clicar novamente remove e volta ao estado inicial',
@@ -783,13 +788,13 @@
       title: 'Agenda D1–D5 liberada para colaborador/admin',
       motivo: 'Verificável visualmente — o accordion abre. Pode ser adicionado como automático em versão futura.' },
     { section: 'Conteúdos',
-      title: 'XP por leitura (+5 XP, 60% visível por 10s)',
+      title: 'Pontos por leitura (+5 pts, 60% visível por 10s)',
       motivo: 'Requer scroll real e espera de 10 segundos com elemento visível. IntersectionObserver não é testável sem browser real interativo.' },
     { section: 'Conteúdos',
-      title: 'Badge "✓ +5 XP" após ganhar XP',
-      motivo: 'Requer completar o timer de leitura — depende do teste de XP acima.' },
+      title: 'Badge "✓ +5 pts" após ganhar pontos',
+      motivo: 'Requer completar o timer de leitura — depende do teste de pontos acima.' },
     { section: 'Conteúdos',
-      title: 'XP de conteúdos só aparece no ranking ao revelar patente',
+      title: 'Pontos de conteúdos só aparecem no ranking ao revelar patente',
       motivo: 'Requer fluxo completo de reveal — ação irreversível.' },
     { section: 'Repositório',
       title: 'Adicionar conteúdo ao Holocron',
@@ -813,8 +818,11 @@
       title: 'Moderação Admin — ocultar/restaurar curado e deletar de usuários',
       motivo: 'Ação destrutiva real no Firebase. Não pode ser revertida automaticamente.' },
     { section: 'Treinamento Jedi',
-      title: 'Visitante é redirecionado para cadastro ao tentar entrar',
-      motivo: 'Requer estar deslogado.' },
+      title: 'Welcome screen exibida para visitante (texto + botão "Quero jogar")',
+      motivo: 'Requer estar deslogado. Verificar: #treinamento-welcome visível, #treinamento oculto, botão "Quero jogar" abre modal de login.' },
+    { section: 'Treinamento Jedi',
+      title: 'Welcome screen ocultada após login',
+      motivo: 'Requer fazer login a partir da tela de boas-vindas. Verificar: #treinamento visível, #treinamento-welcome oculto.' },
     { section: 'Treinamento Jedi',
       title: 'Revelar patente — confirmação real',
       motivo: 'Ação irreversível (fixa o resultado definitivamente) — não deve ser executada em teste automatizado com dado real.' },
@@ -1070,6 +1078,7 @@
       'Menu — Cadastrar / Entrar':   '#9b7fff',
       'Formulário de Cadastro':      '#9b7fff',
       'Página Início':               '#1ab2ae',
+      'Página Turmas':               '#f5c542',
       'Página Repositório':          '#e8854a',
       'Página Treinamento Jedi':            '#e05c7f',
       'Página Ranking':              '#57aaff',
