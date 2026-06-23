@@ -3,8 +3,8 @@
    ============================================================ */
 
 /* ---- Page sections ---- */
-.page-section[hidden] { display: none !important; }
-.page-section { min-height: 100vh; display: flex; flex-direction: column; }
+.page-section { display: none; min-height: 100vh; flex-direction: column; }
+.page-section:not([hidden]) { display: flex; }
 
 /* ---- Nav: page-based active links ---- */
 .nav-links [data-nav-page] { cursor: pointer; }
