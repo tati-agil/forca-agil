@@ -144,7 +144,7 @@
   cursor: pointer; text-decoration: none;
   transition: border-color .25s, transform .2s, box-shadow .25s;
 }
-.how-card:hover { border-color: var(--accent); transform: translateY(-3px); box-shadow: 0 8px 32px rgba(0,0,0,.3); }
+/* hover removido — cards decorativos */
 .how-card .ico { width: 42px; height: 42px; color: var(--accent); }
 .how-card h3 { font-family: var(--font-head); font-size: 1.15rem; color: var(--ink); margin: 0; }
 .how-card p  { font-size: .86rem; color: var(--ink-2); margin: 0; line-height: 1.55; flex: 1; }
@@ -170,7 +170,7 @@
   color: var(--accent); transition: border-color .3s, background .3s;
 }
 .step-ico svg { width: 32px; height: 32px; }
-.journey-step:hover .step-ico { border-color: var(--accent); background: rgba(245,197,24,.1); }
+/* hover removido — steps decorativos */
 .step-num { font-family: var(--font-mono); font-size: .75rem; color: var(--ink-3); }
 .step-label {
   font-size: 1rem; font-family: var(--font-head); text-transform: uppercase;

@@ -242,6 +242,15 @@
       });
     });
 
+    const ctaLoginBtn = document.getElementById('ctaLogin');
+    if (ctaLoginBtn) {
+      ctaLoginBtn.addEventListener('click', function (e) {
+        e.preventDefault();
+        if (_session) { if (window.faRouter) window.faRouter.navigate('gamificacao'); }
+        else openModal('login');
+      });
+    }
+
     /* Login form */
     const lf = document.getElementById('loginForm');
     if (lf) lf.addEventListener('submit', function (e) {
