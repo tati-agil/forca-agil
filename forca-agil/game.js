@@ -139,7 +139,7 @@
         '<span class="m-title">' + m.t + '</span>' +
         '<span class="m-desc">'  + m.d  + '</span>' +
       '</span>' +
-      '<span class="m-xp">+' + maxXP + ' XP</span>' +
+      '<span class="m-xp">+' + maxXP + ' pts</span>' +
       '<span class="m-chevron"><svg width="16" height="16" viewBox="0 0 24 24"><path d="M6 9l6 6 6-6" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg></span>';
 
     header.addEventListener('click', () => {
@@ -234,7 +234,7 @@
         if (!answered) {
           fb.textContent = ''; fb.className = 'm-q-feedback';
         } else if (chosen === correct) {
-          fb.textContent = '✓ Correto! +' + XP_PER_HIT + ' XP';
+          fb.textContent = '✓ Correto! +' + XP_PER_HIT + ' pts';
           fb.className = 'm-q-feedback m-fb-correct';
         } else {
           fb.textContent = '✗ Não foi dessa vez. A resposta certa era a opção ' + String.fromCharCode(65 + correct) + '.';
@@ -260,8 +260,8 @@
     if (leveledUp) return 'Patente desbloqueada: ' + RANKS[c.rankIdx].name + '! Continue cumprindo missões para evoluir ainda mais.';
     if (c.rankIdx === 3) return 'Você alcançou o posto de Mestre! Agora seu papel é formar novos Jedi e disseminar a mentalidade ágil pela Previ.';
     if (!c.quizDone) return 'Olá! Eu sou o Previx. Comece pelo autodiagnóstico abaixo — escolha seu nível em cada dimensão para revelar sua patente inicial.';
-    if (c.mDone === 0) return 'Autodiagnóstico concluído! Clique em uma missão para expandir os 3 desafios e ganhar XP.';
-    if (c.rankIdx < RANKS.length - 1) return 'Bom trabalho! Faltam ' + (RANKS[c.rankIdx + 1].min - c.xp) + ' XP para virar ' + RANKS[c.rankIdx + 1].name + '. Siga em frente!';
+    if (c.mDone === 0) return 'Autodiagnóstico concluído! Clique em uma missão para expandir os 3 desafios e ganhar pontos.';
+    if (c.rankIdx < RANKS.length - 1) return 'Bom trabalho! Faltam ' + (RANKS[c.rankIdx + 1].min - c.xp) + ' pts para virar ' + RANKS[c.rankIdx + 1].name + '. Siga em frente!';
     return 'Você alcançou o posto de Mestre! Parabéns, a Força Ágil está com você.';
   }
 
@@ -299,8 +299,8 @@
       if (xpSpan) {
         const maxXP = m.questions.length * XP_PER_HIT;
         xpSpan.textContent = done
-          ? earned + '/' + maxXP + ' XP ✓'
-          : '+' + maxXP + ' XP';
+          ? earned + '/' + maxXP + ' pts ✓'
+          : '+' + maxXP + ' pts';
       }
       // Mensagem de cadeado — aparece quando concluída
       let lockMsg = wrap.querySelector('.m-lock-msg');
@@ -374,7 +374,7 @@
 
     if (quizResult) {
       quizResult.textContent = c.quizDone
-        ? 'Autodiagnóstico completo · +' + c.quizXP + ' XP de base'
+        ? 'Autodiagnóstico completo · +' + c.quizXP + ' pts de base'
         : (state.quiz.filter(v => v != null).length + '/' + DIMS.length + ' dimensões respondidas');
     }
 

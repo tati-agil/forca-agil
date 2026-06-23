@@ -219,7 +219,7 @@
         '<div class="gameover-content">' +
           '<h3>Missão Completa!</h3>' +
           '<div class="gameover-score">Pontuação: <strong>' + gameState.totalScore + ' pts</strong></div>' +
-          '<div class="gameover-rank">+' + kyberXP + ' XP Kyber</div>' +
+          '<div class="gameover-rank">+' + kyberXP + ' pts Kyber</div>' +
           '<div class="gameover-rank" style="font-size:.85rem;opacity:.7">' + p.name + (p.turma ? ' · ' + p.turma : '') + '</div>' +
           '<div class="gameover-actions">' +
             (_allDone ? '<button class="btn btn--primary" onclick="var r=document.getElementById(\'revelarWrap\');if(r)r.scrollIntoView({behavior:\'smooth\',block:\'center\'})">Revelar minha Patente Final</button>' : '') +
@@ -280,7 +280,7 @@
           '<span class="rank-patente-col">' +
             rankSvg(e.patente || '') +
             patenteHtml +
-            '<span class="rank-score">' + (e.totalXP || 0) + ' XP</span>' +
+            '<span class="rank-score">' + (e.totalXP || 0) + ' pts</span>' +
           '</span>';
         list.appendChild(row);
       });
@@ -335,7 +335,7 @@
             '</span>' +
             '<span class="rank-patente-col">' +
               rankSvg(p.patente || getRank(p.totalXP || 0)) +
-              '<span class="rank-score">' + (p.totalXP || 0) + ' XP</span>' +
+              '<span class="rank-score">' + (p.totalXP || 0) + ' pts</span>' +
             '</span>';
           list.appendChild(row);
         });
@@ -410,7 +410,7 @@
       const status = publicada ? '🌐 Publicada no ranking da galáxia!' : '🔒 Resultado privado — não publicado no ranking.';
       wrap.innerHTML =
         '<p style="font-family:var(--font-mono);font-size:.9rem;color:var(--accent);text-align:center;padding:24px">' +
-        '✓ Patente revelada: <strong>' + tp.patente + ' · ' + tp.total + ' XP</strong><br>' +
+        '✓ Patente revelada: <strong>' + tp.patente + ' · ' + tp.total + ' pts</strong><br>' +
         '<span style="color:var(--ink-3);font-size:.8rem">' + status + '</span></p>';
     }
 
@@ -436,7 +436,7 @@
       const rankEl  = document.getElementById('rmodalRank');
       const check   = document.getElementById('revelarPublicarCheck');
       if (charUse && rank) charUse.setAttribute('href', rank.sym);
-      if (rankEl) rankEl.textContent = tp.patente + ' · ' + tp.total + ' XP';
+      if (rankEl) rankEl.textContent = tp.patente + ' · ' + tp.total + ' pts';
       if (check) check.checked = true;
       if (revelarModal) revelarModal.hidden = false;
       document.body.style.overflow = 'hidden';
@@ -519,7 +519,7 @@
                 '<span class="rank-patente-col">' +
                   rankSvg(p.patente || getRank(p.totalXP || 0)) +
                   '<span class="rank-patente" style="color:var(--accent);font-family:var(--font-mono);font-size:.75rem">' + escHtml(p.patente || getRank(p.totalXP || 0)) + '</span>' +
-                  '<span class="rank-score">' + (p.totalXP||0) + ' XP</span>' +
+                  '<span class="rank-score">' + (p.totalXP||0) + ' pts</span>' +
                 '</span>';
               list.appendChild(row);
             });
