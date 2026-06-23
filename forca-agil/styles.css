@@ -437,14 +437,14 @@ html:not(.js) .reveal { opacity: 1 !important; transform: none !important; }
   background: linear-gradient(180deg, var(--panel), var(--panel-2));
   border: 1px solid var(--line); transition: transform .3s var(--ease), border-color .3s, box-shadow .3s;
 }
-.map-card:hover { transform: translateY(-4px); border-color: var(--line-strong); box-shadow: 0 18px 40px -24px #000; }
+/* hover removido — map-cards decorativos */
 .map-card .ico { width: 40px; height: 40px; margin-bottom: 14px; color: var(--accent); }
 .map-card .sw { font-family: var(--font-head); text-transform: uppercase; letter-spacing: .04em; font-size: 1.18rem; color: var(--ink); }
 .map-card .arrow { font-family: var(--font-mono); color: var(--accent); font-size: .8rem; margin: 6px 0 8px; }
 .map-card .mean { color: var(--ink-2); font-size: .98rem; }
 .map-card[data-side="dark"] { border-color: rgba(255,59,48,.28); }
 .map-card[data-side="dark"] .ico, .map-card[data-side="dark"] .arrow { color: var(--red); }
-.map-card[data-side="dark"]:hover { box-shadow: 0 18px 44px -22px rgba(255,59,48,.4); }
+/* hover removido — map-card dark decorativo */
 
 /* ---------- A Força (values + principles) ---------- */
 .force-values { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px,1fr)); gap: 16px; margin-top: 48px; }
@@ -472,7 +472,7 @@ html:not(.js) .reveal { opacity: 1 !important; transform: none !important; }
   padding: 24px; border-radius: 14px; background: linear-gradient(180deg, var(--panel), var(--panel-2));
   border: 1px solid var(--line); transition: transform .3s var(--ease), border-color .3s;
 }
-.arch:hover { transform: translateY(-4px); border-color: var(--accent); }
+/* hover removido — arch decorativo */
 .arch .ico { width: 44px; height: 44px; color: var(--accent); margin-bottom: 14px; }
 .arch h4 { font-family: var(--font-head); text-transform: uppercase; font-size: 1.25rem; color: var(--ink); letter-spacing:.03em; }
 .arch .role { font-family: var(--font-mono); font-size: .68rem; letter-spacing: .14em; text-transform: uppercase; color: var(--accent); margin: 6px 0 10px; }
@@ -486,7 +486,7 @@ html:not(.js) .reveal { opacity: 1 !important; transform: none !important; }
   background: linear-gradient(180deg, var(--panel), var(--panel-2)); border: 1px solid var(--line);
   transition: transform .25s var(--ease), border-color .25s, box-shadow .25s;
 }
-.rank:hover { transform: translateY(-3px); }
+/* hover removido — rank decorativo */
 .rank.active { border-color: var(--accent); box-shadow: 0 0 30px -8px var(--accent); background: linear-gradient(180deg, var(--panel-2), rgba(16,28,52,.9)); }
 .rank .lvl { font-family: var(--font-mono); font-size: .66rem; letter-spacing: .2em; color: var(--ink-3); }
 .rank .saber-fig { height: 76px; display: grid; place-items: center; margin: 8px 0 10px; }
@@ -577,7 +577,7 @@ html:not(.js) .reveal { opacity: 1 !important; transform: none !important; }
 .turmas-grid { display: grid; grid-template-columns: repeat(3,1fr); gap: 16px; margin-top: 44px; }
 @media (max-width: 680px){ .turmas-grid { grid-template-columns: 1fr; } }
 .turma-card-new { padding: 28px 24px; border-radius: 14px; border: 1px solid var(--line); background: linear-gradient(180deg, var(--panel), var(--panel-2)); display: flex; flex-direction: column; gap: 8px; transition: transform .25s var(--ease), border-color .25s; }
-.turma-card-new:hover { transform: translateY(-4px); border-color: var(--accent); }
+/* hover removido — turma-card não é clicável */
 .tc-label { font-family: var(--font-mono); font-size: .68rem; letter-spacing: .2em; color: var(--ink-3); }
 .tc-month { font-family: var(--font-display); font-size: 2rem; text-transform: uppercase; color: var(--ink); line-height: 1.1; }
 .tc-dates { font-family: var(--font-mono); font-size: .82rem; color: var(--accent); letter-spacing: .06em; }
@@ -587,7 +587,7 @@ html:not(.js) .reveal { opacity: 1 !important; transform: none !important; }
 .turma-intent-msg { font-size: .78rem; color: var(--ink-3); font-family: var(--font-mono); min-height: 1em; }
 .turmas { display: grid; grid-template-columns: repeat(3,1fr); gap: 16px; margin-top: 44px; }
 .turma { text-align: center; padding: 28px 20px; border-radius: 14px; border: 1px solid var(--line); background: linear-gradient(180deg, var(--panel), var(--panel-2)); transition: transform .25s var(--ease), border-color .25s; }
-.turma:hover { transform: translateY(-4px); border-color: var(--accent); }
+/* hover removido — turma decorativa */
 .turma .ti { width: 40px; height: 40px; margin: 0 auto 12px; color: var(--accent); }
 .turma .tk { font-family: var(--font-mono); font-size: .68rem; letter-spacing: .2em; color: var(--ink-3); }
 .turma .tm { font-family: var(--font-display); font-size: 1.9rem; text-transform: uppercase; color: var(--ink); margin: 4px 0; }

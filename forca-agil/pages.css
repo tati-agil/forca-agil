@@ -232,7 +232,7 @@
   display: flex; flex-direction: column; gap: 16px;
   transition: border-color .2s;
 }
-.turma-card-new:hover { border-color: var(--cyan); }
+/* hover removido — turma-card não é clicável */
 .turma-card-new .tc-label {
   font-size: .72rem; font-family: var(--font-mono); text-transform: uppercase;
   letter-spacing: .08em; color: var(--cyan);
