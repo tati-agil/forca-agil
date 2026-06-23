@@ -511,10 +511,7 @@ html:not(.js) .reveal { opacity: 1 !important; transform: none !important; }
 
 /* ---------- Dark side ---------- */
 .darkside {
-  position: relative; border-top: 1px solid rgba(255,59,48,.2); border-bottom: 1px solid rgba(255,59,48,.2);
-  background:
-    radial-gradient(1000px 600px at 80% 0%, rgba(255,59,48,.12), transparent 60%),
-    radial-gradient(800px 500px at 10% 100%, rgba(181,24,18,.16), transparent 60%);
+  position: relative;
 }
 .dark-list { display: grid; grid-template-columns: repeat(auto-fit,minmax(300px,1fr)); gap: 12px; margin-top: 44px; }
 .dark-item {
