@@ -566,7 +566,7 @@
           window.faGameReload();
           return !!header && bloqueada;
         } },
-        { id: 'c-quiz-missoes-result', label: 'Missões: "Missões de Campo completas · +X XP" aparece após concluir todas', run: function () {
+        { id: 'c-quiz-missoes-result', label: 'Missões: "Missões de Campo completas · +X pts" aparece após concluir todas', run: function () {
           if (!window.faGameData || !window.faGameReload) return false;
           var st = window.faStore || localStorage;
           var backup = st.getItem('fa-game-v2');
@@ -580,12 +580,12 @@
           var el = document.getElementById('missionsResult');
           var texto = el ? el.textContent : '';
           var temCompletas = texto.indexOf('Missões de Campo completas') !== -1;
-          var temXP = /\+\d+ XP/.test(texto);
+          var temPts = /\+\d+ pts/.test(texto);
           if (backup !== null) st.setItem('fa-game-v2', backup); else st.removeItem('fa-game-v2');
           window.faGameReload();
-          return temCompletas && temXP;
+          return temCompletas && temPts;
         } },
-        { id: 'c-quiz-xp-ponderado', label: 'Autodiagnóstico: XP ponderado pelo nível (Ensino > Já ouvi falar)', run: function () {
+        { id: 'c-quiz-xp-ponderado', label: 'Autodiagnóstico: pontos ponderados pelo nível (Ensino > Já ouvi falar)', run: function () {
           if (!window.faGameData || !window.faGameReload) return false;
           var st = window.faStore || localStorage;
           var backup = st.getItem('fa-game-v2');
@@ -594,7 +594,7 @@
             st.setItem('fa-game-v2', JSON.stringify({ quiz: Array(dims).fill(level), missions: {} }));
             window.faGameReload();
             var el = document.getElementById('quizResult');
-            var m = el && el.textContent.match(/\+(\d+) XP/);
+            var m = el && el.textContent.match(/\+(\d+) pts/);
             return m ? parseInt(m[1], 10) : -1;
           }
           var xpMin = getXP(1); // Já ouvi falar (1-based)
@@ -630,7 +630,7 @@
           if (backup !== null) st.setItem('fa-kyber-done', backup); else st.removeItem('fa-kyber-done');
           return bloqueado;
         } },
-        { id: 'c-kyber-sem-patente-na-tela', label: 'Kyber Game: tela de conclusão mostra pontuação/XP, mas não "Patente" (estado transitório)', run: function () {
+        { id: 'c-kyber-sem-patente-na-tela', label: 'Kyber Game: tela de conclusão mostra pontuação/pts Kyber, mas não "Patente" (estado transitório)', run: function () {
           if (typeof window.kyberFinishGame !== 'function' || typeof gameState === 'undefined') return false;
           var st = window.faStore || localStorage;
           var backupDone = st.getItem('fa-kyber-done');
@@ -647,9 +647,9 @@
             // "Patente" pode aparecer no botão de navegação — verifica que nenhum RANQUE calculado aparece
             var semPatente = !/(Youngling|Padawan|Cavaleiro Jedi|Mestre Jedi|Mestre do Conselho)/.test(html);
             var temScore = html.indexOf('12345') !== -1;
-            var temXP = /\+\d+ XP Kyber/.test(html);
+            var temPts = /\+\d+ pts Kyber/.test(html);
             if (go) go.style.display = 'none';
-            return semPatente && temScore && temXP;
+            return semPatente && temScore && temPts;
           } finally {
             window.faSyncProgress = origSyncProgress;
             gameState.totalScore = backupScore;
