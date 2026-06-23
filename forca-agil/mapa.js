@@ -53,6 +53,7 @@
     { label: 'CONTEÚDOS', color: '#4caf7d',
       features: [
         { label: 'Ler as 6 seções numeradas (01 Mapa da Galáxia → 06 A Trilogia)',  p: ['visitante','logado','colaborador','admin'] },
+        { label: 'Mapa da Galáxia: botão "Ver mais 6 elementos →" revela os 6 últimos cards (ocultos por padrão)', p: ['visitante','logado','colaborador','admin'] },
         { label: 'Ganhar +5 pts por seção lida (badge "✓ +5 pts" aparece após leitura)', p: ['logado','colaborador','admin'] },
         { label: 'Link externo "Ler os 4 valores na íntegra" (agilemanifesto.org)', p: ['visitante','logado','colaborador','admin'] },
         { label: 'Link externo "Ler os 12 princípios na íntegra" (agilemanifesto.org)', p: ['visitante','logado','colaborador','admin'] },
