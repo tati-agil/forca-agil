@@ -615,8 +615,7 @@ html:not(.js) .reveal { opacity: 1 !important; transform: none !important; }
 /* ---------- CTA ---------- */
 .cta {
   position: relative; text-align: center; overflow: hidden;
-  background: radial-gradient(900px 500px at 50% 120%, var(--hero-haze), transparent 60%), var(--space-1);
-  border-top: 1px solid var(--line);
+  background: radial-gradient(900px 500px at 50% 120%, var(--hero-haze), transparent 60%);
 }
 .cta-title { font-family: var(--font-display); font-size: clamp(2.6rem,8vw,6rem); text-transform: uppercase; line-height: .9; color: var(--accent); text-shadow: 0 0 50px var(--hero-haze); }
 .cta-sub { color: var(--ink-2); font-size: 1.15rem; max-width: 56ch; margin: 22px auto 0; }
