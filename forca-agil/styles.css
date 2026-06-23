@@ -705,7 +705,7 @@ html:not(.js) .reveal { opacity: 1 !important; transform: none !important; }
 /* ============================================================
    HOME NAV · Navegação lateral entre seções
    ============================================================ */
-#homeNavSidebar {
+#homeNavSidebar, #conteudosNavSidebar {
   position: fixed;
   right: 20px;
   top: 50%;
@@ -792,7 +792,7 @@ html:not(.js) .reveal { opacity: 1 !important; transform: none !important; }
 
 /* Hide sidebar on mobile (dots would overlay content) */
 @media (max-width: 767px) {
-  #homeNavSidebar { display: none; }
+  #homeNavSidebar, #conteudosNavSidebar { display: none; }
 }
 
 /* ============================================================
