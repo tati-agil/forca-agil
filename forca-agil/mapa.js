@@ -52,10 +52,9 @@
     },
     { label: 'CONTEÚDOS', color: '#4caf7d',
       features: [
-        { label: 'Ler as 6 seções numeradas (01 Mapa da Galáxia → 06 A Trilogia)',  p: ['visitante','logado','colaborador','admin'] },
+        { label: 'Ler as 7 seções numeradas (01 Mapa da Galáxia → 07 A Trilogia) — cada uma ocupa 100vh, uma por vez', p: ['visitante','logado','colaborador','admin'] },
         { label: 'Mapa da Galáxia: botão "Ver mais 6 elementos →" revela os 6 últimos cards (ocultos por padrão)', p: ['visitante','logado','colaborador','admin'] },
-        { label: 'Navegação lateral por pontos (01–06) — salta entre seções; tooltip com nome da seção ao passar o mouse', p: ['visitante','logado','colaborador','admin'] },
-        { label: 'Cada seção ocupa 100vh — uma seção por vez, sem misturar conteúdo', p: ['visitante','logado','colaborador','admin'] },
+        { label: 'Navegação lateral por pontos (01–07) — salta entre seções; tooltip com nome ao passar o mouse', p: ['visitante','logado','colaborador','admin'] },
         { label: 'Ganhar +5 pts por seção lida (badge "✓ +5 pts" aparece após leitura)', p: ['logado','colaborador','admin'] },
         { label: 'Link externo "Ler os 4 valores na íntegra" (agilemanifesto.org)', p: ['visitante','logado','colaborador','admin'] },
         { label: 'Link externo "Ler os 12 princípios na íntegra" (agilemanifesto.org)', p: ['visitante','logado','colaborador','admin'] },

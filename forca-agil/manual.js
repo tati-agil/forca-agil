@@ -140,10 +140,10 @@
     /* ── CONTEÚDOS ── */
     { section: 'conteudos', personas: ['visitante'],
       title: 'Acesso',
-      body: 'Visitante vê todas as 6 seções numeradas (01 Mapa da Galáxia, 02 A Força, 03 Yoda, 04 Arquétipos, 05 Lado Sombrio, 06 Trilogia) — somente leitura, sem pontos. Cada seção ocupa 100vh — uma por vez na tela.' },
+      body: 'Visitante vê todas as 7 seções numeradas (01 Mapa da Galáxia, 02 Os 4 Valores, 03 Os 12 Princípios, 04 A Força do Ágil, 05 Personagens, 06 Lado Sombrio, 07 A Trilogia) — somente leitura, sem pontos. Cada seção ocupa 100vh — uma por vez na tela.' },
     { section: 'conteudos', personas: ['visitante', 'logado', 'colaborador', 'admin'],
       title: 'Navegação lateral por pontos',
-      body: 'Barra lateral com 6 pontos (01–06), setas para cima/baixo e tooltip com o nome da seção. Ao clicar em um ponto, a página rola suavemente até a seção correspondente. Funciona igual à navegação da página Início.' },
+      body: 'Barra lateral com 7 pontos (01–07), setas para cima/baixo e tooltip com o nome da seção. Ao clicar em um ponto, a página rola suavemente até a seção correspondente. Funciona igual à navegação da página Início.' },
     { section: 'conteudos', personas: ['logado', 'colaborador', 'admin'],
       title: 'Pontos por leitura',
       body: '+5 pontos de experiência por seção lida. A seção precisa ficar 60% visível na tela por 10 segundos consecutivos para os pontos serem contabilizados.' },

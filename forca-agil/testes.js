@@ -421,8 +421,8 @@
           if (window.faRouter && window.faRouter.current() !== 'conteudos') return true; // só verifica se estiver na página
           return !!document.getElementById('conteudosNavSidebar');
         } },
-        { id: 'c-conteudos-6sections', label: '6 seções de conteúdo presentes no DOM', run: function () {
-          var ids = ['content-galaxia','content-forca','content-yoda','content-arquetipos','content-sombrio','content-trilogia'];
+        { id: 'c-conteudos-7sections', label: '7 seções de conteúdo presentes no DOM', run: function () {
+          var ids = ['content-galaxia','content-forca','content-principios','content-yoda','content-arquetipos','content-sombrio','content-trilogia'];
           return ids.every(function (id) { return !!document.getElementById(id); });
         } },
         { id: 'c-conteudos-valores-link', label: 'Link "Ler os 4 valores na íntegra" presente e correto', run: function () {
