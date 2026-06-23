@@ -13,7 +13,7 @@
     { key: 'visitante',   label: 'Visitante',      color: '#888888',
       adds: ['Ver páginas públicas (Início, Turmas, Conteúdos, Repositório, Ranking)', 'Cadastrar conta (@previ.com.br)', 'Fazer login', 'Recuperar senha por e-mail (autoatendimento)'] },
     { key: 'logado',      label: 'Usuário logado', color: '#1ab2ae',
-      adds: ['Acessar e jogar o Treinamento Jedi', 'Ganhar XP por conteúdos lidos', 'Adicionar e remover conteúdos no Repositório', 'Registrar interesse em turmas', 'Revelar patente (resultado fixo, só seu)', 'Publicar no ranking (opcional, separado de revelar)'] },
+      adds: ['Acessar e jogar o Treinamento Jedi', 'Ganhar pontos de experiência por conteúdos lidos', 'Adicionar e remover conteúdos no Repositório', 'Registrar interesse em turmas', 'Revelar patente (resultado fixo, só seu)', 'Publicar no ranking (opcional, separado de revelar)'] },
     { key: 'colaborador', label: 'Colaborador',    color: '#f5c542',
       adds: ['Expandir Agenda D1–D5 na página Turmas'] },
     { key: 'admin',       label: 'Admin',          color: '#ff5252',
@@ -41,7 +41,7 @@
     { label: 'TURMAS', color: '#f5c542',
       features: [
         { label: 'Ver turmas, datas e descrição',        p: ['visitante','logado','colaborador','admin'] },
-        { label: 'Bloco "Como funciona a oficina" antes da agenda: 4 métricas (5 dias, ~2h, Prática, Opcional) + descrição', p: ['visitante','logado','colaborador','admin'] },
+        { label: 'Bloco "Como funciona a oficina" antes da agenda: 4 métricas (5 dias, 4h, Prática, Opcional) + descrição', p: ['visitante','logado','colaborador','admin'] },
         { label: '"Tenho interesse" sem login → exibe mensagem "Faça login para registrar seu interesse" + abre modal login', p: ['visitante'] },
         { label: 'Registrar interesse → botão vira "Remover interesse" (status: interessado)', p: ['logado','colaborador','admin'] },
         { label: 'Remover interesse → botão volta a "Tenho interesse" (log mantido)', p: ['logado','colaborador','admin'] },
