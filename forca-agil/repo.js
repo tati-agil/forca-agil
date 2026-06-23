@@ -65,6 +65,16 @@
   const emptyMsg  = document.getElementById('repoEmpty');
   if (!grid) return;
 
+  // event delegation para "ver mais / ver menos" — configurado uma vez, funciona após qualquer re-render
+  grid.addEventListener('click', function(e) {
+    const btn = e.target.closest('.rc-more');
+    if (!btn) return;
+    const p = btn.previousElementSibling;
+    if (!p) return;
+    const collapsed = p.classList.toggle('rc-desc--collapsed');
+    btn.textContent = collapsed ? 'ver mais' : 'ver menos';
+  });
+
   // ---- Card builder ----
   function card(item, isSeed, firebaseKey) {
     const k  = KIND[item.type] || KIND.link;
@@ -133,15 +143,6 @@
     });
 
     if (emptyMsg) emptyMsg.hidden = shown.length > 0;
-
-    // ver mais / ver menos
-    grid.querySelectorAll('.rc-more').forEach(function(btn) {
-      btn.addEventListener('click', function() {
-        const p = btn.previousElementSibling;
-        const collapsed = p.classList.toggle('rc-desc--collapsed');
-        btn.textContent = collapsed ? 'ver mais' : 'ver menos';
-      });
-    });
 
     // botões de deletar (só nos próprios)
     grid.querySelectorAll('.rc-del').forEach(function(btn) {

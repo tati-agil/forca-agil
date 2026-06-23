@@ -239,6 +239,26 @@
 }
 .turma-card-new .tc-month { font-family: var(--font-display); font-size: 1.8rem; color: var(--ink); line-height: 1; }
 .turma-card-new .tc-dates { font-family: var(--font-mono); font-size: .8rem; color: var(--ink-3); }
+/* ---- Turmas: Como funciona a oficina ---- */
+.oficina-info-grid {
+  display: grid; grid-template-columns: repeat(4, 1fr); gap: 24px;
+  margin: 28px 0 24px;
+}
+@media (max-width: 700px) { .oficina-info-grid { grid-template-columns: repeat(2, 1fr); } }
+.ofinfo-item {
+  background: var(--panel-2); border: 1px solid var(--line-strong); border-radius: 12px;
+  padding: 20px 16px; text-align: center;
+}
+.ofinfo-num {
+  display: block; font-family: var(--font-display); font-size: 1.6rem;
+  color: var(--accent); line-height: 1; margin-bottom: 8px;
+}
+.ofinfo-label { font-size: .78rem; color: var(--ink-2); line-height: 1.4; }
+.ofinfo-desc {
+  font-size: .88rem; color: var(--ink-2); line-height: 1.65;
+  max-width: 640px; margin: 0;
+}
+
 .btn--interest {
   display: inline-flex; align-items: center; justify-content: center; gap: 6px;
   background: var(--accent); border: 1.5px solid var(--accent); color: #000;

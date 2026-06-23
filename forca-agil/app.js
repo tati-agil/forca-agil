@@ -199,7 +199,7 @@
       /* Mark already-read badge */
       const badge = document.getElementById('xp-badge-' + id);
       if (read.indexOf(id) !== -1) {
-        if (badge) { badge.textContent = '✓ +' + XP_PER_SECTION + ' XP'; badge.classList.add('visible'); }
+        if (badge) { badge.textContent = '✓ +' + XP_PER_SECTION + ' pts'; badge.classList.add('visible'); }
         return;
       }
 
@@ -218,7 +218,7 @@
               if (window.faSyncPlayer) window.faSyncPlayer();
               if (window.faSyncProgress) window.faSyncProgress();
               if (badge) {
-                badge.textContent = '✓ +' + XP_PER_SECTION + ' XP';
+                badge.textContent = '✓ +' + XP_PER_SECTION + ' pts';
                 badge.classList.add('visible');
               }
             }, 10000);
