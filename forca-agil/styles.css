@@ -532,17 +532,17 @@ html:not(.js) .reveal { opacity: 1 !important; transform: none !important; }
 .bigquote cite { display:block; font-family: var(--font-mono); font-size: .8rem; letter-spacing:.18em; text-transform: uppercase; color: var(--ink-3); margin-top: 24px; font-style: normal; }
 
 /* ---------- Trilogy timeline ---------- */
-.episodes { margin-top: 40px; display: grid; gap: 14px; }
+.episodes { margin-top: 24px; display: grid; gap: 10px; }
 .episode {
-  display: grid; grid-template-columns: 90px 1fr; gap: 20px; align-items: start;
-  padding: 20px 24px; border-radius: 14px; background: linear-gradient(180deg, var(--panel), var(--panel-2)); border: 1px solid var(--line);
+  display: grid; grid-template-columns: 70px 1fr; gap: 16px; align-items: start;
+  padding: 14px 18px; border-radius: 12px; background: linear-gradient(180deg, var(--panel), var(--panel-2)); border: 1px solid var(--line);
   position: relative; overflow: hidden;
 }
-.episode .ep-num { font-family: var(--font-display); font-size: clamp(2rem,5vw,3.2rem); line-height: .8; color: var(--accent); opacity: .85; }
-.episode .ep-rom { font-family: var(--font-mono); font-size: .65rem; letter-spacing: .22em; color: var(--ink-3); }
-.episode h3 { font-family: var(--font-head); text-transform: uppercase; font-size: clamp(1rem,2.4vw,1.4rem); color: var(--ink); margin: 4px 0 8px; }
-.episode p { color: var(--ink-2); max-width: 62ch; }
-.episode .ep-tag { display:inline-block; margin-top: 14px; font-family: var(--font-mono); font-size: .68rem; letter-spacing:.14em; text-transform: uppercase; color: var(--accent); border: 1px solid var(--line-strong); padding: 6px 12px; border-radius: 20px; }
+.episode .ep-num { font-family: var(--font-display); font-size: clamp(1.4rem,3vw,2rem); line-height: .85; color: var(--accent); opacity: .85; }
+.episode .ep-rom { font-family: var(--font-mono); font-size: .6rem; letter-spacing: .22em; color: var(--ink-3); }
+.episode h3 { font-family: var(--font-head); text-transform: uppercase; font-size: clamp(.9rem,2vw,1.1rem); color: var(--ink); margin: 2px 0 6px; }
+.episode p { color: var(--ink-2); max-width: 62ch; font-size: .9rem; line-height: 1.55; }
+.episode .ep-tag { display:inline-block; margin-top: 10px; font-family: var(--font-mono); font-size: .65rem; letter-spacing:.14em; text-transform: uppercase; color: var(--accent); border: 1px solid var(--line-strong); padding: 4px 10px; border-radius: 20px; }
 @media (max-width: 680px){ .episode { grid-template-columns: 1fr; gap: 8px; } }
 
 /* ---------- A Missão (workshop) ---------- */
