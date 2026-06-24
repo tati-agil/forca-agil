@@ -554,6 +554,8 @@
 .galaxy-extra.visible { display: grid; grid-column: 1 / -1; grid-template-columns: repeat(auto-fill, minmax(280px,1fr)); gap: 16px; }
 .principles-extra { display: none; }
 .principles-extra.visible { display: grid; grid-column: 1 / -1; grid-template-columns: repeat(auto-fill, minmax(260px,1fr)); gap: 10px; }
+/* trilogia reutiliza galaxy-extra mas empilha em coluna única */
+#trilogiaExtra.visible { grid-template-columns: 1fr; gap: 10px; }
 .galaxy-more-btn {
   grid-column: 1 / -1; margin-top: 8px;
   background: none; border: 1px solid var(--line); border-radius: 8px;
