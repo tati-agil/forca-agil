@@ -177,6 +177,9 @@
       title: 'Identificação dos conteúdos',
       body: 'Curados: marcados com badge "curado", sem autor. Enviados por usuários: exibem nome do autor e data de envio.' },
     { section: 'repositorio', personas: ['visitante', 'logado', 'colaborador', 'admin'],
+      title: 'Descrição dos cards — ver mais / ver menos',
+      body: 'Todos os cards exibem a descrição colapsada em 2 linhas por padrão (line-clamp CSS). O botão "ver mais" aparece somente quando o texto realmente transborda 2 linhas (detectado via scrollHeight > clientHeight após render). Clicar em "ver mais" expande o texto completo; "ver menos" recolhe para 2 linhas.' },
+    { section: 'repositorio', personas: ['visitante', 'logado', 'colaborador', 'admin'],
       title: 'Filtrar por tipo',
       body: 'Chips "Todos / Vídeos / Documentos / Ferramentas / Livros" filtram a lista exibida. Não afeta pontos nem precisa de login.' },
 

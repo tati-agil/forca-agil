@@ -61,7 +61,7 @@
     },
     { label: 'REPOSITÓRIO', color: '#e8854a',
       features: [
-        { label: 'Ver todos os conteúdos',               p: ['visitante','logado','colaborador','admin'] },
+        { label: 'Ver todos os conteúdos — cards com descrição colapsada em 2 linhas; "ver mais" / "ver menos" só onde o texto transborda', p: ['visitante','logado','colaborador','admin'] },
         { label: 'Filtrar por tipo (Todos/Vídeos/Documentos/Ferramentas/Livros)', p: ['visitante','logado','colaborador','admin'] },
         { label: '"Adicionar" sem login → exibe mensagem "Faça login para contribuir com o repositório" + abre modal login', p: ['visitante'] },
         { label: 'Adicionar conteúdo ao Holocron',       p: ['logado','colaborador','admin'] },

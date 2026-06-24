@@ -523,6 +523,19 @@
           var soVideo = cards.length > 0 && Array.from(cards).every(function (c) { return c.dataset.type === 'video'; });
           allChip.click();
           return soVideo;
+        } },
+        { id: 'c-repo-desc-clamp', label: 'Descrições dos cards têm line-clamp de 2 linhas (.repo-card .rc-desc)', run: function () {
+          var p = document.querySelector('#repoGrid .rc-desc');
+          if (!p) return false;
+          var style = window.getComputedStyle(p);
+          return style.webkitLineClamp === '2' || style.getPropertyValue('-webkit-line-clamp') === '2';
+        } },
+        { id: 'c-repo-ver-mais-overflow', label: 'Botão "ver mais" presente apenas em cards com texto que transborda 2 linhas', run: function () {
+          var btns = document.querySelectorAll('#repoGrid .rc-more');
+          return Array.from(btns).every(function (btn) {
+            var p = btn.previousElementSibling;
+            return p && p.classList.contains('rc-desc');
+          });
         } }
       ]
     },
