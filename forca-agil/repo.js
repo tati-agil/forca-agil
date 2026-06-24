@@ -71,8 +71,8 @@
     if (!btn) return;
     const p = btn.previousElementSibling;
     if (!p) return;
-    const collapsed = p.classList.toggle('rc-desc--collapsed');
-    btn.textContent = collapsed ? 'ver mais' : 'ver menos';
+    const expanded = p.classList.toggle('rc-desc--expanded');
+    btn.textContent = expanded ? 'ver menos' : 'ver mais';
   });
 
   // ---- Card builder ----
@@ -101,7 +101,7 @@
         const indMatch = raw.match(/\s*Indicado por ([^.]+)\.?\s*$/);
         const indBy = indMatch ? indMatch[1].trim() : null;
         const body = indBy ? raw.slice(0, raw.lastIndexOf(indMatch[0])).trim() : raw;
-        const pHtml = '<p class="rc-desc rc-desc--collapsed">' + esc(body) + '</p>' +
+        const pHtml = '<p class="rc-desc">' + esc(body) + '</p>' +
           (body.length > 120 ? '<button class="rc-more">ver mais</button>' : '');
         const indHtml = indBy ? '<span class="rc-indicated">Indicado por ' + esc(indBy) + '</span>' : '';
         return pHtml + indHtml;
