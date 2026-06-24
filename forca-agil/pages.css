@@ -5,6 +5,8 @@
 /* ---- Page sections ---- */
 .page-section { display: none; min-height: 100vh; flex-direction: column; }
 .page-section:not([hidden]) { display: flex; }
+/* Admin não deve ser snapped — sempre scrollável */
+#page-admin { scroll-snap-type: none; overflow-y: visible; }
 
 /* ---- Nav: page-based active links ---- */
 .nav-links [data-nav-page] { cursor: pointer; }
