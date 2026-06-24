@@ -145,6 +145,7 @@
     /* Detecta overflow real após render e injeta "ver mais" só onde necessário */
     requestAnimationFrame(function() {
       grid.querySelectorAll('.rc-desc').forEach(function(p) {
+        if (p.nextElementSibling && p.nextElementSibling.classList.contains('rc-more')) return;
         if (p.scrollHeight > p.clientHeight + 2) {
           var btn = document.createElement('button');
           btn.className = 'rc-more';
