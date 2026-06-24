@@ -102,7 +102,7 @@
         const indBy = indMatch ? indMatch[1].trim() : null;
         const body = indBy ? raw.slice(0, raw.lastIndexOf(indMatch[0])).trim() : raw;
         const pHtml = '<p class="rc-desc">' + esc(body) + '</p>' +
-          (body.length > 120 ? '<button class="rc-more">ver mais</button>' : '');
+          (body ? '<button class="rc-more">ver mais</button>' : '');
         const indHtml = indBy ? '<span class="rc-indicated">Indicado por ' + esc(indBy) + '</span>' : '';
         return pHtml + indHtml;
       })() +
