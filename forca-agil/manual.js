@@ -92,12 +92,9 @@
     { section: 'inicio', personas: ['visitante', 'logado', 'colaborador', 'admin'],
       title: 'Acesso geral',
       body: 'Toda a página INÍCIO é visível para todos, inclusive visitantes. Nenhum conteúdo é bloqueado por login.' },
-    { section: 'inicio', personas: ['visitante'],
-      title: 'CTA Final — botões "Criar conta" e "Entrar"',
-      body: 'Para visitantes: "Criar conta" abre modal de cadastro; "Entrar" abre modal de login.' },
-    { section: 'inicio', personas: ['logado', 'colaborador', 'admin'],
-      title: 'CTA Final — botões de auth',
-      body: 'Os botões "Criar conta" e "Entrar" no CTA final não são exibidos para usuários já logados.' },
+    { section: 'inicio', personas: ['visitante', 'logado', 'colaborador', 'admin'],
+      title: 'CTA Final — botão "Ver turmas"',
+      body: 'O CTA final tem um único botão "Ver turmas →" que navega para a página Turmas. Mesmo comportamento para todos os perfis — o objetivo é direcionar para inscrição.' },
     { section: 'inicio', personas: ['visitante', 'logado', 'colaborador', 'admin'],
       title: 'Botão "Conhecer a iniciativa"',
       body: 'Rola a página para a seção "O que é a Força Ágil". Funciona igual para todos.' },
@@ -202,7 +199,7 @@
     /* ── Treinamento Jedi ── */
     { section: 'quiz', personas: ['visitante'],
       title: 'Welcome screen (visitante)',
-      body: 'Visitante vê uma tela de boas-vindas com o texto: "Bem-vindo ao Treinamento Jedi. Faça login ou cadastro, responda as atividades e ganhe pontos de experiência. Conforme você evolui, desbloqueia novas patentes. Você pode ganhar experiência de três formas: jogando, lendo conteúdos e colaborando com o repositório." Botão "Quero jogar" abre modal de login. O conteúdo do jogo fica oculto para visitantes.' },
+      body: 'Visitante vê uma tela de boas-vindas com título "Bem-vindo ao Treinamento Jedi" e um stepper visual com 4 passos: "Faça login → Explore atividades → Ganhe experiência → Desbloqueie patentes". Botão "Quero jogar" abre modal de login. O conteúdo do jogo (autodiagnóstico, missões, Kyber Game) fica oculto para visitantes.' },
     { section: 'quiz', personas: ['logado', 'colaborador', 'admin'],
       title: 'Acesso completo',
       body: 'Acesso a autodiagnóstico, missões, Kyber Game, painel de patente e revelar patente. A welcome screen é ocultada para usuários logados.' },
@@ -259,6 +256,14 @@
     { section: 'ranking', personas: ['visitante', 'logado', 'colaborador', 'admin'],
       title: 'Atualização em tempo real',
       body: 'O ranking atualiza automaticamente via Firebase — sem precisar recarregar a página.' },
+
+    /* ── FAQ ── */
+    { section: 'faq', personas: ['visitante', 'logado', 'colaborador', 'admin'],
+      title: 'Acesso',
+      body: 'Página FAQ visível para todos, inclusive visitantes. Sem restrição de acesso.' },
+    { section: 'faq', personas: ['visitante', 'logado', 'colaborador', 'admin'],
+      title: 'Acordeão de perguntas',
+      body: 'A página tem 6 perguntas frequentes exibidas em acordeão com elemento HTML nativo <details>/<summary>. Clicar no título expande/recolhe a resposta — sem JavaScript. Cada pergunta pode ser aberta independentemente das demais.' },
 
     /* ── ADMIN ── */
     { section: 'admin', personas: ['visitante', 'logado', 'colaborador'],

@@ -304,14 +304,14 @@
         { id: 'adm-tabs',   label: 'Abas Admin presentes (8: Interessados/Repositório/Colaboradores/Cadastrados/Administradores/Manual/Mapa/Testes)', run: function () { return document.querySelectorAll('.admin-tab-btn').length === 8; } },
         { id: 'adm-manual-panel', label: 'Painel Manual presente', run: function () { return !!document.getElementById('adminPanelManual'); } },
         { id: 'adm-mapa-panel',   label: 'Painel Mapa presente',   run: function () { return !!document.getElementById('adminPanelMapa'); } },
-        { id: 'adm-mapa-cards',   label: 'Mapa: 8 cards de página renderizados', run: function () {
+        { id: 'adm-mapa-cards',   label: 'Mapa: 9 cards de página renderizados', run: function () {
           if (window.faInitMapa) window.faInitMapa();
-          return document.querySelectorAll('#adminMapa .mapa-page').length === 8;
+          return document.querySelectorAll('#adminMapa .mapa-page').length === 9;
         } },
         { id: 'adm-mapa-features', label: 'Mapa: todos os cards têm features', run: function () {
           if (window.faInitMapa) window.faInitMapa();
           var cards = document.querySelectorAll('#adminMapa .mapa-page');
-          if (cards.length !== 8) return false;
+          if (cards.length !== 9) return false;
           return Array.from(cards).every(function (c) { return c.querySelectorAll('.mapa-feature').length > 0; });
         } },
         { id: 'adm-mapa-features-completas', label: 'Mapa: nenhum card renderiza menos features do que o definido (sem clipping)', run: function () {
@@ -459,16 +459,44 @@
         { id: 'c-destaques-removidos', label: 'Seção "O que está acontecendo" (Destaques) removida na v2', run: function () {
           return !document.getElementById('destaques');
         } },
-        { id: 'c-cta-criar-conta', label: 'Botão "Criar conta" presente no CTA final', run: function () {
-          return !!document.getElementById('openRegister');
-        } },
-        { id: 'c-cta-entrar', label: 'Botão "Entrar" presente no CTA final', run: function () {
-          return !!document.getElementById('ctaLogin');
+        { id: 'c-cta-ver-turmas', label: 'CTA final: único botão "Ver turmas →" presente e aponta para #turmas', run: function () {
+          var link = document.querySelector('.hero-actions a[data-nav-page="turmas"]');
+          return !!link && /turmas/i.test(link.textContent);
         } },
         { id: 'c-footer-previ', label: 'Rodapé: link externo para previ.com.br presente e abre em nova aba', run: function () {
           var link = document.querySelector('.footer-previ');
           if (!link) return false;
           return link.getAttribute('href') === 'https://www.previ.com.br' && link.getAttribute('target') === '_blank';
+        } }
+      ]
+    },
+    {
+      group: 'Página FAQ',
+      tests: [
+        { id: 'c-faq-page', label: 'Página FAQ presente no DOM (#page-faq)', run: function () { return !!document.getElementById('page-faq'); } },
+        { id: 'c-faq-items', label: 'FAQ tem 6 itens de acordeão (.faq-item)', run: function () { return document.querySelectorAll('#page-faq .faq-item').length === 6; } },
+        { id: 'c-faq-nav',   label: 'Link "FAQ" presente no menu de navegação', run: function () { return !!document.querySelector('[data-nav-page="faq"]'); } },
+      ]
+    },
+    {
+      group: 'Página Conteúdos — 12 Princípios',
+      tests: [
+        { id: 'c-principios-btn', label: 'Botão "Ver os 6 princípios restantes →" presente (#principlesMoreBtn)', run: function () { return !!document.getElementById('principlesMoreBtn'); } },
+        { id: 'c-principios-extra', label: 'Bloco extra de princípios oculto por padrão (#principlesExtra)', run: function () {
+          var el = document.getElementById('principlesExtra');
+          return !!el && !el.classList.contains('visible');
+        } },
+        { id: 'c-principios-revelar', label: 'Clicar no botão revela os princípios 7–12', run: function () {
+          var btn = document.getElementById('principlesMoreBtn');
+          var extra = document.getElementById('principlesExtra');
+          if (!btn || !extra) return false;
+          var originalDisplay = btn.style.display;
+          btn.click();
+          var revelado = extra.classList.contains('visible') && btn.style.display === 'none';
+          // restaura
+          extra.classList.remove('visible');
+          btn.style.display = originalDisplay;
+          return revelado;
         } }
       ]
     },
@@ -526,6 +554,16 @@
           if (!welcome || !game) return false;
           if (sess) return welcome.hidden === true && game.hidden === false;
           return welcome.hidden === false && game.hidden === true;
+        } },
+        { id: 'c-kyber-hidden-visitante', label: 'Seção Kyber Game (#kyber) oculta para visitante; visível para logado', run: function () {
+          var sess = window.faAuth && window.faAuth.getSession && window.faAuth.getSession();
+          var kyber = document.getElementById('kyber');
+          if (!kyber) return false;
+          if (sess) return kyber.hidden === false;
+          return kyber.hidden === true;
+        } },
+        { id: 'c-quiz-jedi-stepper', label: 'Welcome screen contém stepper com 4 passos (.jedi-step)', run: function () {
+          return document.querySelectorAll('#treinamento-welcome .jedi-step').length === 4;
         } },
         { id: 'c-quiz-patente',   label: 'Painel de patente presente',             run: function () { return !!document.getElementById('rankHud'); } },
         { id: 'c-quiz-patentes',  label: '4 patentes exibidas (Youngling→Mestre)', run: function () { return document.querySelectorAll('.char-card').length >= 4; } },

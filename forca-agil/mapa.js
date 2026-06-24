@@ -11,7 +11,7 @@
 
   const HIERARCHY = [
     { key: 'visitante',   label: 'Visitante',      color: '#888888',
-      adds: ['Ver páginas públicas (Início, Turmas, Conteúdos, Repositório, Ranking)', 'Cadastrar conta (@previ.com.br)', 'Fazer login', 'Recuperar senha por e-mail (autoatendimento)'] },
+      adds: ['Ver páginas públicas (Início, Turmas, Conteúdos, Repositório, Ranking, FAQ)', 'Cadastrar conta (@previ.com.br)', 'Fazer login', 'Recuperar senha por e-mail (autoatendimento)'] },
     { key: 'logado',      label: 'Usuário logado', color: '#1ab2ae',
       adds: ['Acessar e jogar o Treinamento Jedi', 'Ganhar pontos de experiência por conteúdos lidos', 'Adicionar e remover conteúdos no Repositório', 'Registrar interesse em turmas', 'Revelar patente (resultado fixo, só seu)', 'Publicar no ranking (opcional, separado de revelar)'] },
     { key: 'colaborador', label: 'Colaborador',    color: '#f5c542',
@@ -25,8 +25,6 @@
       features: [
         { label: 'Ver página completa',                  p: ['visitante','logado','colaborador','admin'] },
         { label: 'Subtítulo do hero: "Desenvolva sua agilidade na prática"', p: ['visitante','logado','colaborador','admin'] },
-        { label: 'Botão "Criar conta" no CTA → abre modal de cadastro',   p: ['visitante'] },
-        { label: 'Botão "Entrar" no CTA → abre modal de login',            p: ['visitante'] },
         { label: 'Botão "Conhecer a iniciativa" → rola até "O que é"',    p: ['visitante','logado','colaborador','admin'] },
         { label: 'Botão "Repetir abertura" → replay do crawl de intro',   p: ['visitante','logado','colaborador','admin'] },
         { label: 'Crawl: botões "≡ Ler texto" / "⏸ Pausar" / "↻ Repetir abertura" exibidos lado a lado (layout horizontal)', p: ['visitante','logado','colaborador','admin'] },
@@ -34,7 +32,7 @@
         { label: 'Crawl: botão "≡ Ler texto" → exibe texto estático sem perspectiva; "✕ Fechar texto" retorna ao crawl', p: ['visitante','logado','colaborador','admin'] },
         { label: '3 cards "Como funciona" → links para Conteúdos / Repositório / Treinamento Jedi (sem hover — cards decorativos)', p: ['visitante','logado','colaborador','admin'] },
         { label: 'Seção "O que está acontecendo" (Destaques) removida',   p: [] },
-        { label: 'CTA final simplificado: título + 1 frase + botões "Criar conta" e "Entrar"', p: ['visitante','logado','colaborador','admin'] },
+        { label: 'CTA final: único botão "Ver turmas →" direciona para a página Turmas (mesmo comportamento para todos os perfis)', p: ['visitante','logado','colaborador','admin'] },
         { label: 'Link no rodapé para previ.com.br (externo, presente em todas as páginas)', p: ['visitante','logado','colaborador','admin'] },
       ]
     },
@@ -54,6 +52,7 @@
       features: [
         { label: 'Ler as 7 seções numeradas (01 Mapa da Galáxia → 07 A Trilogia) — cada uma ocupa 100vh, uma por vez', p: ['visitante','logado','colaborador','admin'] },
         { label: 'Mapa da Galáxia: botão "Ver mais 6 elementos →" revela os 6 últimos cards (ocultos por padrão)', p: ['visitante','logado','colaborador','admin'] },
+        { label: '12 Princípios: primeiros 6 visíveis por padrão; botão "Ver os 6 princípios restantes →" revela os princípios 7–12', p: ['visitante','logado','colaborador','admin'] },
         { label: 'Navegação lateral por pontos (01–07) — salta entre seções; tooltip com nome ao passar o mouse', p: ['visitante','logado','colaborador','admin'] },
         { label: 'Ganhar +5 pts por seção lida (badge "✓ +5 pts" aparece após leitura)', p: ['logado','colaborador','admin'] },
         { label: 'Link externo "Ler os 4 valores na íntegra" (agilemanifesto.org)', p: ['visitante','logado','colaborador','admin'] },
@@ -71,8 +70,8 @@
     },
     { label: 'TREINAMENTO JEDI', color: '#e05c7f',
       features: [
-        { label: 'Welcome screen: texto explicativo (Marilia) + botão "Quero jogar" → abre modal login (visitante)', p: ['visitante'] },
-        { label: 'Conteúdo do jogo oculto para visitantes (exibido apenas após login)',  p: ['visitante'] },
+        { label: 'Welcome screen: título "Bem-vindo ao Treinamento Jedi" + stepper visual 4 passos (Faça login → Explore atividades → Ganhe experiência → Desbloqueie patentes) + botão "Quero jogar" → abre modal login (visitante)', p: ['visitante'] },
+        { label: 'Conteúdo do jogo oculto para visitantes (#treinamento e #kyber): autodiagnóstico, missões e Kyber Game só aparecem após login', p: ['visitante'] },
         { label: 'Autodiagnóstico (1×)',                   p: ['logado','colaborador','admin'] },
         { label: 'Missões (1×)',                          p: ['logado','colaborador','admin'] },
         { label: 'Kyber Game — minigame de perguntas e respostas sobre agilidade (1×)', p: ['logado','colaborador','admin'] },
@@ -87,6 +86,13 @@
         { label: 'Identificação da própria linha no ranking', p: ['logado','colaborador','admin'] },
         { label: 'Imagem da patente (personagem SVG: Youngling/Padawan/Cavaleiro/Mestre) exibida ao lado do nome da patente (coluna direita) em todas as listagens do ranking', p: ['visitante','logado','colaborador','admin'] },
         { label: 'Ver patente de todos',                 p: ['visitante','logado','colaborador','admin'] },
+      ]
+    },
+    { label: 'FAQ', color: '#9b7fff',
+      features: [
+        { label: 'Ver página FAQ com 6 perguntas frequentes em acordeão (<details>/<summary>)', p: ['visitante','logado','colaborador','admin'] },
+        { label: 'Expandir/recolher cada pergunta clicando no título (comportamento nativo do browser)', p: ['visitante','logado','colaborador','admin'] },
+        { label: 'Link "FAQ" no menu de navegação', p: ['visitante','logado','colaborador','admin'] },
       ]
     },
     { label: 'ADMIN', color: '#ff5252',
