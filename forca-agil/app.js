@@ -256,15 +256,6 @@
       });
     }
 
-    var trilogiaBtn = document.getElementById('trilogiaMoreBtn');
-    var trilogiaExtra = document.getElementById('trilogiaExtra');
-    if (trilogiaBtn && trilogiaExtra) {
-      trilogiaBtn.addEventListener('click', function () {
-        trilogiaExtra.classList.add('visible');
-        trilogiaBtn.style.display = 'none';
-        trilogiaExtra.querySelectorAll('.reveal').forEach(function (el) { el.classList.add('in'); });
-      });
-    }
   });
 
   document.addEventListener('DOMContentLoaded', function () {
