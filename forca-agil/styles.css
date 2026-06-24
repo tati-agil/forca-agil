@@ -545,12 +545,15 @@ html:not(.js) .reveal { opacity: 1 !important; transform: none !important; }
 .episode .ep-tag { display:inline-block; margin-top: 10px; font-family: var(--font-mono); font-size: .65rem; letter-spacing:.14em; text-transform: uppercase; color: var(--accent); border: 1px solid var(--line-strong); padding: 4px 10px; border-radius: 20px; }
 @media (max-width: 680px){ .episode { grid-template-columns: 1fr; gap: 8px; } }
 .ep-expand { width: 100%; }
-.ep-expand > summary { list-style: none; cursor: pointer; }
+.ep-expand > summary { list-style: none; cursor: pointer; display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
 .ep-expand > summary::-webkit-details-marker { display: none; }
-.ep-expand > summary h3 { display: inline; margin: 0; }
+.ep-expand > summary h3 { margin: 0; flex: none; }
 .ep-expand[open] > summary { margin-bottom: 8px; }
-.ep-expand-hint { font-size: .7rem; font-family: var(--font-mono); color: var(--ink-3); margin-left: 8px; letter-spacing: .05em; vertical-align: middle; }
-.ep-expand[open] .ep-expand-hint { display: none; }
+.ep-tag--summary { margin-top: 0; }
+.ep-expand-hint { font-size: .7rem; font-family: var(--font-mono); color: var(--ink-3); letter-spacing: .05em; }
+.ep-hint-less { display: none; }
+.ep-expand[open] .ep-hint-more { display: none; }
+.ep-expand[open] .ep-hint-less { display: inline; }
 
 /* ---------- A Missão (workshop) ---------- */
 .phases { display: grid; grid-template-columns: 1fr; gap: 18px; margin-top: 48px; }
