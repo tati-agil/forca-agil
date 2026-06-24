@@ -240,6 +240,8 @@
       galaxyBtn.addEventListener('click', function () {
         galaxyExtra.classList.add('visible');
         galaxyBtn.style.display = 'none';
+        /* força reveals nos cards recém-visíveis */
+        galaxyExtra.querySelectorAll('.reveal').forEach(function (el) { el.classList.add('in'); });
       });
     }
 
@@ -249,6 +251,8 @@
       principlesBtn.addEventListener('click', function () {
         principlesExtra.classList.add('visible');
         principlesBtn.style.display = 'none';
+        /* força reveals nos princípios recém-visíveis */
+        principlesExtra.querySelectorAll('.reveal').forEach(function (el) { el.classList.add('in'); });
       });
     }
   });
