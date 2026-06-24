@@ -101,9 +101,8 @@
         const indMatch = raw.match(/\s*Indicado por ([^.]+)\.?\s*$/);
         const indBy = indMatch ? indMatch[1].trim() : null;
         const body = indBy ? raw.slice(0, raw.lastIndexOf(indMatch[0])).trim() : raw;
-        const pHtml = body.length > 120
-          ? '<p class="rc-desc rc-desc--collapsed">' + esc(body) + '</p><button class="rc-more">ver mais</button>'
-          : '<p class="rc-desc">' + esc(body) + '</p>';
+        const pHtml = '<p class="rc-desc rc-desc--collapsed">' + esc(body) + '</p>' +
+          (body.length > 120 ? '<button class="rc-more">ver mais</button>' : '');
         const indHtml = indBy ? '<span class="rc-indicated">Indicado por ' + esc(indBy) + '</span>' : '';
         return pHtml + indHtml;
       })() +
