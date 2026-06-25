@@ -304,6 +304,7 @@
       },
     ];
 
+    console.log('[mapa] ARCH sections:', ARCH.map(function(s){ return s.label; }));
     ARCH.forEach(function (section) {
       html += '<div class="arch-section">';
       html += '<div class="arch-section-label" style="--ac:' + section.color + '"><span>' + section.label + '</span><span class="arch-arrow">▾</span></div>';
