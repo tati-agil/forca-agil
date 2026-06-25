@@ -311,8 +311,8 @@
       html += '<div class="arch-section-body"><div class="arch-grid">';
       section.items.forEach(function (item) {
         html += '<div class="arch-item">';
-        html += '<div class="arch-item-name" style="--ac:' + section.color + '">' + item.name + '</div>';
-        html += '<div class="arch-item-desc">' + item.desc + '</div>';
+        html += '<div class="arch-item-name" style="--ac:' + section.color + '">' + esc(item.name) + '</div>';
+        html += '<div class="arch-item-desc">' + esc(item.desc) + '</div>';
         html += '</div>';
       });
       html += '</div></div></div>';
@@ -354,8 +354,8 @@
       html += '<div class="arch-section-body"><div class="arch-grid">';
       section.items.forEach(function (item) {
         html += '<div class="arch-item">';
-        html += '<div class="arch-item-name" style="--ac:' + section.color + '">' + item.name + '</div>';
-        html += '<div class="arch-item-desc">' + item.desc + '</div>';
+        html += '<div class="arch-item-name" style="--ac:' + section.color + '">' + esc(item.name) + '</div>';
+        html += '<div class="arch-item-desc">' + esc(item.desc) + '</div>';
         html += '</div>';
       });
       html += '</div></div></div>';
