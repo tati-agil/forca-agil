@@ -364,6 +364,67 @@
     html += '</div>';
 
     html += '</div>';
+
+    /* ── Diagrama da Arquitetura ── */
+    html += '<h3 class="mapa-title" style="margin-top:56px">Diagrama da Arquitetura</h3>';
+    html += '<p class="mapa-sub">Gerado dinamicamente a partir dos dados desta página — atualiza quando a Arquitetura Técnica ou Regras mudam.</p>';
+    html += '<div class="arq-diagram">';
+
+    /* Camada 1 — CI/CD Pipeline */
+    var deployInfo = (ARCH.find(function(s){ return s.label === 'Deploy'; }) || { items: [] }).items;
+    var urlDeploy = (deployInfo.find(function(i){ return i.name === 'URL'; }) || { desc: 'kyber-agil.web.app' }).desc;
+    var preCommit = (deployInfo.find(function(i){ return i.name === 'Pre-commit hook'; }) || { desc: 'node --check' }).desc.split('—')[0].trim();
+    html += '<div class="arq-layer"><div class="arq-layer-label">CI / CD</div><div class="arq-pipeline">';
+    [
+      { name: 'Local', sub: preCommit },
+      { name: 'GitHub', sub: 'tati-agil/forca-agil' },
+      { name: 'Actions', sub: 'ubuntu · Node 20' },
+      { name: 'Firebase Hosting', sub: esc(urlDeploy) },
+    ].forEach(function(step, i, arr) {
+      html += '<div class="arq-pipe-step"><strong>' + esc(step.name) + '</strong><span>' + step.sub + '</span></div>';
+      if (i < arr.length - 1) html += '<div class="arq-pipe-arrow">→</div>';
+    });
+    html += '</div></div>';
+
+    /* Camada 2 — Frontend (módulos JS de Estrutura de Arquivos) */
+    var estrutura = ARCH.find(function(s){ return s.label === 'Estrutura de Arquivos'; });
+    if (estrutura) {
+      html += '<div class="arq-layer"><div class="arq-layer-label">Frontend — SPA</div><div class="arq-cards">';
+      estrutura.items.forEach(function(item) {
+        html += '<div class="arq-card arq-card--frontend" title="' + esc(item.desc) + '">' + esc(item.name) + '</div>';
+      });
+      html += '</div></div>';
+    }
+
+    /* Camada 3 — Firebase serviços (de Tecnologias & Serviços) */
+    var tecnologias = ARCH.find(function(s){ return s.label === 'Tecnologias & Serviços'; });
+    if (tecnologias) {
+      html += '<div class="arq-layer"><div class="arq-layer-label">Firebase — Spark</div><div class="arq-cards">';
+      tecnologias.items.forEach(function(item) {
+        html += '<div class="arq-card arq-card--firebase" title="' + esc(item.desc) + '">' + esc(item.name) + '</div>';
+      });
+      html += '</div></div>';
+    }
+
+    /* Camada 4 — Padrões de UX */
+    var uxPatterns = ARCH.find(function(s){ return s.label === 'Padrões de UX'; });
+    if (uxPatterns) {
+      html += '<div class="arq-layer"><div class="arq-layer-label">Padrões de UX</div><div class="arq-cards">';
+      uxPatterns.items.forEach(function(item) {
+        html += '<div class="arq-card arq-card--ux" title="' + esc(item.desc) + '">' + esc(item.name) + '</div>';
+      });
+      html += '</div></div>';
+    }
+
+    /* Camada 5 — Personas (de HIERARCHY) */
+    html += '<div class="arq-layer"><div class="arq-layer-label">Personas</div><div class="arq-cards">';
+    HIERARCHY.forEach(function(level) {
+      html += '<div class="arq-card arq-card--persona" style="--pc:' + level.color + '" title="Acrescenta: ' + esc(level.adds.join(', ')) + '">' + esc(level.label) + '</div>';
+    });
+    html += '</div></div>';
+
+    html += '</div>'; /* .arq-diagram */
+
     container.innerHTML = html;
 
     /* Export mapa para CSV */
