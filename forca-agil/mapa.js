@@ -201,7 +201,7 @@
 
     /* Legenda dos badges */
     html += '<div class="mapa-legend-box">';
-    html += '<span class="mapa-legend-title">Legenda dos badges de acesso</span>';
+    html += '<span class="mapa-legend-title">Legenda por persona</span>';
     html += '<div class="mapa-legend">';
     html += '<span class="mapa-legend-item"><span class="mapa-badge" style="--bc:#888">Visitante</span> não autenticado (exclusivo para quem não entrou)</span>';
     html += '<span class="mapa-legend-item"><span class="mapa-badge" style="--bc:#1ab2ae">Logado +</span> qualquer usuário autenticado — colaboradores e admins também são logados</span>';
