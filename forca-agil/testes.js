@@ -328,6 +328,11 @@
             return titulo.indexOf(esperado) === 0 && rendered === definido;
           });
         } },
+        { id: 'adm-mapa-arch', label: 'Mapa: Arquitetura Técnica renderiza 6 seções (incluindo Padrões de UX e Deploy)', run: function () {
+          if (window.faInitMapa) window.faInitMapa();
+          var sections = document.querySelectorAll('#adminMapa .arch-section');
+          return sections.length >= 6 && Array.from(sections).some(function (s) { return s.textContent.indexOf('Padrões de UX') >= 0; });
+        } },
         { id: 'adm-testes-panel', label: 'Painel Testes presente', run: function () { return !!document.getElementById('adminPanelTestes'); } },
         { id: 'adm-cadastrados-panel', label: 'Painel Cadastrados presente', run: function () { return !!document.getElementById('adminPanelCadastrados') && !!document.getElementById('adminCadastrados'); } },
         { id: 'adm-cadastrados-lista', label: 'Cadastrados: tabela renderizada com badge de contagem correta', run: function () {
