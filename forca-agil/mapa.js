@@ -416,13 +416,6 @@
       html += '</div></div>';
     }
 
-    /* Camada 5 — Personas (de HIERARCHY) */
-    html += '<div class="arq-layer"><div class="arq-layer-label">Personas</div><div class="arq-cards">';
-    HIERARCHY.forEach(function(level) {
-      html += '<div class="arq-card arq-card--persona" style="--pc:' + level.color + '" title="Acrescenta: ' + esc(level.adds.join(', ')) + '">' + esc(level.label) + '</div>';
-    });
-    html += '</div></div>';
-
     html += '</div>'; /* .arq-diagram */
 
     container.innerHTML = html;
