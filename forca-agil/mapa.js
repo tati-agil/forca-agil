@@ -140,6 +140,8 @@
     },
   ];
 
+  function esc(str) { return String(str).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+
   /* Badge de nível mínimo para o mapa do site */
   const P_ORDER = ['visitante', 'logado', 'colaborador', 'admin'];
   const P_COLOR = { visitante: '#888888', logado: '#1ab2ae', colaborador: '#f5c542', admin: '#ff5252' };
@@ -212,7 +214,8 @@
       html += '<div class="mapa-page-title"><span>' + page.label + '</span><span class="mapa-page-arrow">▾</span></div>';
       html += '<div class="mapa-page-body">';
       page.features.forEach(function (f) {
-        html += '<div class="mapa-feature"><span class="mapa-feature-label">' + f.label + '</span>' + levelBadge(f.p) + '</div>';
+        if (!f.p || !f.p.length) return;
+        html += '<div class="mapa-feature"><span class="mapa-feature-label">' + esc(f.label) + '</span>' + levelBadge(f.p) + '</div>';
       });
       html += '</div>';
       html += '</div>';
