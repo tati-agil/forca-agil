@@ -323,7 +323,8 @@
             var titulo = c.querySelector('.mapa-page-title').textContent.trim().toLowerCase();
             var esperado = window.faMapaPages[i].label.toLowerCase();
             var rendered = c.querySelectorAll('.mapa-feature').length;
-            var definido = window.faMapaPages[i].features.length;
+            /* features sem persona (p:[]) são intencionalmente omitidas do render */
+            var definido = window.faMapaPages[i].features.filter(function (f) { return f.p && f.p.length > 0; }).length;
             return titulo.indexOf(esperado) === 0 && rendered === definido;
           });
         } },
