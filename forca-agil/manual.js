@@ -376,21 +376,41 @@
     let html = '<div class="manual-wrap">';
     html += '<h3 class="manual-title">Manual da Força Ágil</h3>';
 
-    /* Section chips */
-    html += '<div class="manual-filter-row"><span class="manual-filter-label">Seção</span><div class="manual-chips">';
-    SECTIONS.forEach(function (s) {
-      const active = activeSection === s.key;
-      html += '<button class="manual-chip' + (active ? ' active' : '') + '" data-type="section" data-key="' + s.key + '" style="--chip-col:' + s.color + '">' + s.label + '</button>';
-    });
-    html += '</div></div>';
+    /* Dropdown filters */
+    html += '<div class="manual-filter-bar">';
 
-    /* Persona chips */
-    html += '<div class="manual-filter-row"><span class="manual-filter-label">Persona</span><div class="manual-chips">';
-    PERSONAS.forEach(function (p) {
-      const active = activePersona === p.key;
-      html += '<button class="manual-chip' + (active ? ' active' : '') + '" data-type="persona" data-key="' + p.key + '" style="--chip-col:' + p.color + '">' + p.label + '</button>';
+    html += '<div class="manual-select-wrap">';
+    html += '<label class="manual-select-label">Seção</label>';
+    html += '<select class="manual-select" id="manualSecSelect">';
+    SECTIONS.forEach(function (s) {
+      html += '<option value="' + s.key + '"' + (activeSection === s.key ? ' selected' : '') + '>' + s.label + '</option>';
     });
-    html += '</div></div>';
+    html += '</select></div>';
+
+    html += '<div class="manual-select-wrap">';
+    html += '<label class="manual-select-label">Persona</label>';
+    html += '<select class="manual-select" id="manualPerSelect">';
+    PERSONAS.forEach(function (p) {
+      html += '<option value="' + p.key + '"' + (activePersona === p.key ? ' selected' : '') + '>' + p.label + '</option>';
+    });
+    html += '</select></div>';
+
+    html += '</div>';
+
+    /* Active filter chips */
+    var hasActiveChips = activeSection !== 'all' || activePersona !== 'all';
+    if (hasActiveChips) {
+      html += '<div class="manual-active-chips">';
+      if (activeSection !== 'all') {
+        const s = SECTIONS.find(function (x) { return x.key === activeSection; });
+        html += '<span class="manual-active-chip" style="--chip-col:' + s.color + '" data-clear="section">' + s.label + ' <span class="manual-chip-x">×</span></span>';
+      }
+      if (activePersona !== 'all') {
+        const p = PERSONAS.find(function (x) { return x.key === activePersona; });
+        html += '<span class="manual-active-chip" style="--chip-col:' + p.color + '" data-clear="persona">' + p.label + ' <span class="manual-chip-x">×</span></span>';
+      }
+      html += '</div>';
+    }
 
     /* Count + export button */
     html += '<div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin-bottom:4px">';
@@ -436,11 +456,17 @@
 
     container.innerHTML = html;
 
-    /* Wire filter chips */
-    container.querySelectorAll('.manual-chip').forEach(function (btn) {
-      btn.addEventListener('click', function () {
-        if (btn.dataset.type === 'section') activeSection = btn.dataset.key;
-        else activePersona = btn.dataset.key;
+    /* Wire dropdowns */
+    var secSel = document.getElementById('manualSecSelect');
+    if (secSel) secSel.addEventListener('change', function () { activeSection = this.value; render(); });
+    var perSel = document.getElementById('manualPerSelect');
+    if (perSel) perSel.addEventListener('change', function () { activePersona = this.value; render(); });
+
+    /* Wire active chip × buttons */
+    container.querySelectorAll('.manual-active-chip').forEach(function (chip) {
+      chip.addEventListener('click', function () {
+        if (chip.dataset.clear === 'section') activeSection = 'all';
+        else activePersona = 'all';
         render();
       });
     });
