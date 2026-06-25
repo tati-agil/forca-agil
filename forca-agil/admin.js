@@ -32,42 +32,6 @@
     const bar = document.getElementById('adminExpandBar');
     if (!bar) return;
     bar.querySelectorAll('.admin-expand-sec-btn, .admin-expand-sep').forEach(function (b) { b.remove(); });
-
-    var secs = [];
-
-    /* Manual: seções omitidas da barra — dropdown de filtro já cobre essa função */
-
-    /* Mapa: .mapa-page (top-level) */
-    panel.querySelectorAll('.mapa-page').forEach(function (page) {
-      var titleEl = page.querySelector('.mapa-page-title span');
-      var label = titleEl ? titleEl.textContent.trim() : '';
-      var color = page.style.getPropertyValue('--pc') || 'var(--ink)';
-      secs.push({ label: label, color: color, toggle: function () { page.classList.toggle('open'); } });
-    });
-
-    /* Testes: .testes-group--collapsible */
-    panel.querySelectorAll('.testes-group--collapsible').forEach(function (grp) {
-      var labelEl = grp.querySelector('.testes-group-label');
-      var color = labelEl ? labelEl.style.color : 'var(--ink)';
-      var spanEl = labelEl ? labelEl.querySelector('span') : null;
-      var label = spanEl ? spanEl.textContent.replace(/\(.*\)/, '').trim() : '';
-      secs.push({ label: label, color: color, toggle: function () { grp.classList.toggle('open'); } });
-    });
-
-    if (!secs.length) return;
-
-    var sep = document.createElement('span');
-    sep.className = 'admin-expand-sep';
-    bar.appendChild(sep);
-
-    secs.forEach(function (sec) {
-      var btn = document.createElement('button');
-      btn.className = 'admin-expand-sec-btn';
-      btn.textContent = sec.label;
-      btn.style.setProperty('--sec-col', sec.color);
-      btn.addEventListener('click', sec.toggle);
-      bar.appendChild(btn);
-    });
   }
 
   function updateExpandBar(panelId) {
