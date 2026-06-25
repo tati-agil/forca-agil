@@ -35,14 +35,7 @@
 
     var secs = [];
 
-    /* Manual: details.manual-section-group */
-    panel.querySelectorAll('details.manual-section-group').forEach(function (det) {
-      var summ = det.querySelector('summary.manual-section-header');
-      if (!summ) return;
-      var color = summ.style.color || 'var(--ink)';
-      var label = (summ.firstChild && summ.firstChild.nodeType === 3 ? summ.firstChild.textContent : summ.textContent).trim();
-      secs.push({ label: label, color: color, toggle: function () { det.open = !det.open; } });
-    });
+    /* Manual: seções omitidas da barra — dropdown de filtro já cobre essa função */
 
     /* Mapa: .mapa-page (top-level) */
     panel.querySelectorAll('.mapa-page').forEach(function (page) {
