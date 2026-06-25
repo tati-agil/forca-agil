@@ -1143,8 +1143,8 @@ html:not(.js) .reveal { opacity: 1 !important; transform: none !important; }
 
 /* Lista de páginas (acordeão vertical) */
 .mapa-grid { display: flex; flex-direction: column; gap: 6px; }
-.mapa-page { border: 1px solid color-mix(in srgb, var(--pc) 35%, transparent); border-radius: 14px; background: color-mix(in srgb, var(--pc) 5%, var(--surface)); }
-.mapa-page-title { background: color-mix(in srgb, var(--pc) 18%, transparent); color: var(--pc); font-family: var(--font-head); font-size: .78rem; letter-spacing: .1em; text-transform: uppercase; padding: 10px 16px; border-bottom: 1px solid color-mix(in srgb, var(--pc) 20%, transparent); cursor: pointer; user-select: none; display: flex; align-items: center; justify-content: space-between; border-radius: 13px 13px 0 0; }
+.mapa-page { border: 1px solid var(--line); border-radius: 14px; background: var(--surface); }
+.mapa-page-title { background: var(--panel); color: var(--ink-2); font-family: var(--font-head); font-size: .78rem; letter-spacing: .1em; text-transform: uppercase; padding: 10px 16px; border-bottom: 1px solid var(--line); cursor: pointer; user-select: none; display: flex; align-items: center; justify-content: space-between; border-radius: 13px 13px 0 0; }
 .mapa-page-arrow { transition: transform .2s; }
 .mapa-page:not(.open) .mapa-page-arrow { transform: rotate(-90deg); }
 .mapa-page-body { display: none; }
