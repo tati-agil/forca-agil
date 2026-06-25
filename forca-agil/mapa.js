@@ -200,11 +200,14 @@
     html += '<h3 class="mapa-title" style="margin-top:48px">Mapa do Site</h3>';
 
     /* Legenda dos badges */
+    html += '<div class="mapa-legend-box">';
+    html += '<span class="mapa-legend-title">Legenda dos badges de acesso</span>';
     html += '<div class="mapa-legend">';
     html += '<span class="mapa-legend-item"><span class="mapa-badge" style="--bc:#888">Visitante</span> não autenticado (exclusivo para quem não entrou)</span>';
     html += '<span class="mapa-legend-item"><span class="mapa-badge" style="--bc:#1ab2ae">Logado +</span> qualquer usuário autenticado — colaboradores e admins também são logados</span>';
     html += '<span class="mapa-legend-item"><span class="mapa-badge" style="--bc:#f5c542">Colaborador +</span> logado com perfil de colaborador — admins também são colaboradores</span>';
     html += '<span class="mapa-legend-item"><span class="mapa-badge" style="--bc:#ff5252">Admin</span> colaborador com acesso administrativo</span>';
+    html += '</div>';
     html += '</div>';
 
     /* Grid de páginas */
