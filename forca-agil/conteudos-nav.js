@@ -136,6 +136,24 @@
     });
   }
 
+  function onKey(e) {
+    if (!active) return;
+    var tag = document.activeElement && document.activeElement.tagName;
+    if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT') return;
+    if (e.key === 'ArrowDown') {
+      e.preventDefault();
+      if (currentIdx < SECTIONS.length - 1) scrollTo(currentIdx + 1);
+    } else if (e.key === 'ArrowUp') {
+      e.preventDefault();
+      if (currentIdx > 0) scrollTo(currentIdx - 1);
+    } else if (e.key === 'Enter') {
+      if (!document.activeElement || document.activeElement === document.body) {
+        e.preventDefault();
+        if (currentIdx < SECTIONS.length - 1) scrollTo(currentIdx + 1);
+      }
+    }
+  }
+
   function init() {
     active = true;
     currentIdx = 0;
@@ -143,6 +161,7 @@
     buildContinueButtons();
     enableSnapScroll();
     initObserver();
+    document.addEventListener('keydown', onKey);
   }
 
   function destroy() {
@@ -151,6 +170,7 @@
     removeContinueButtons();
     disableSnapScroll();
     if (observer) { observer.disconnect(); observer = null; }
+    document.removeEventListener('keydown', onKey);
   }
 
   function onRoute() {
