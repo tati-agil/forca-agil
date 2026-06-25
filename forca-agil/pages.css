@@ -428,13 +428,18 @@
   background: var(--accent); color: #000; font-size: .68rem;
   padding: 2px 7px; border-radius: 100px; font-family: var(--font-mono);
 }
-.admin-table { width: 100%; border-collapse: collapse; font-size: .84rem; }
+/* Item 2: espaçamento entre h4 e input de busca */
+#adminColab h4, #adminCadastrados h4, #adminAdmins h4 { margin-bottom: 20px; }
+#adminColab .admin-colab-row, #adminCadastrados .admin-colab-row { margin-top: 4px; }
+
+/* Item 3: fundo sólido nas tabelas para melhorar contraste sobre o fundo animado */
+.admin-table { width: 100%; border-collapse: collapse; font-size: .84rem; background: var(--panel); border-radius: 10px; overflow: hidden; }
 .admin-table th {
   text-align: left; padding: 8px 12px; font-family: var(--font-mono); font-size: .72rem;
   text-transform: uppercase; letter-spacing: .04em; color: var(--ink-3);
-  border-bottom: 1px solid var(--line-strong);
+  border-bottom: 1px solid var(--line-strong); background: rgba(4,9,22,.6);
 }
-.admin-table td { padding: 10px 12px; border-bottom: 1px solid var(--line); color: var(--ink-2); }
+.admin-table td { padding: 10px 12px; border-bottom: 1px solid var(--line); color: var(--ink-2); background: var(--panel); }
 .admin-table tr:last-child td { border-bottom: none; }
 .admin-empty { color: var(--ink-3); font-size: .86rem; font-style: italic; }
 .admin-repo-row {

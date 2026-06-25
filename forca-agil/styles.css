@@ -532,7 +532,7 @@ html:not(.js) .reveal { opacity: 1 !important; transform: none !important; }
 .bigquote cite { display:block; font-family: var(--font-mono); font-size: .8rem; letter-spacing:.18em; text-transform: uppercase; color: var(--ink-3); margin-top: 24px; font-style: normal; }
 
 /* ---------- Trilogy timeline ---------- */
-.episodes { margin-top: 24px; display: grid; gap: 10px; }
+.episodes { margin-top: 24px; display: grid; gap: 16px; }
 .episode {
   display: grid; grid-template-columns: 70px 1fr; gap: 16px; align-items: start;
   padding: 14px 18px; border-radius: 12px; background: linear-gradient(180deg, var(--panel), var(--panel-2)); border: 1px solid var(--line);
