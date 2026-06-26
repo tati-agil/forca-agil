@@ -20,4 +20,5 @@ jobs:
           npx firebase-tools@13 hosting:channel:deploy v3-quiz-preview \
             --expires 30d \
             --project kyber-agil \
+            --site kyber-agil \
             --non-interactive
