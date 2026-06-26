@@ -21,3 +21,7 @@ jobs:
             --expires 30d \
             --project kyber-agil \
             --non-interactive
+          echo "--- Canais existentes ---"
+          npx firebase-tools@13 hosting:channel:list \
+            --project kyber-agil \
+            --non-interactive
