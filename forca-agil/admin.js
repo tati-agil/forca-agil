@@ -6,7 +6,7 @@
   'use strict';
 
   /* Painéis com conteúdo expansível */
-  const EXPANDABLE_PANELS = ['adminPanelManual', 'adminPanelMapa', 'adminPanelTestes'];
+  const EXPANDABLE_PANELS = ['adminPanelMapa', 'adminPanelTestes'];
 
   function activePanel() {
     return document.querySelector('.admin-tab-panel.active');

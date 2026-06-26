@@ -261,6 +261,8 @@ h1,h2,h3,h4 { font-family: var(--font-head); font-weight: 600; line-height: 1.02
   box-shadow: 0 0 30px -8px var(--accent);
 }
 .btn--primary:hover { filter: brightness(1.08); }
+.btn--ghost { background: transparent; border-color: var(--line); color: var(--ink-3); font-size: .72rem; padding: 6px 12px; box-shadow: none; }
+.btn--ghost:hover { border-color: var(--ink-3); color: var(--ink); box-shadow: none; transform: none; }
 
 /* ---------- HERO ---------- */
 .hero {
@@ -545,12 +547,12 @@ html:not(.js) .reveal { opacity: 1 !important; transform: none !important; }
 .episode .ep-tag { display:inline-block; margin-top: 10px; font-family: var(--font-mono); font-size: .65rem; letter-spacing:.14em; text-transform: uppercase; color: var(--accent); border: 1px solid var(--line-strong); padding: 4px 10px; border-radius: 20px; }
 @media (max-width: 680px){ .episode { grid-template-columns: 1fr; gap: 8px; } }
 .ep-expand { width: 100%; }
-.ep-expand > summary { list-style: none; cursor: pointer; display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+.ep-expand > summary { list-style: none; cursor: pointer; display: flex; align-items: flex-start; gap: 8px; }
 .ep-expand > summary::-webkit-details-marker { display: none; }
 .ep-expand > summary h3 { margin: 0; flex: none; }
 .ep-expand[open] > summary { margin-bottom: 8px; }
-.ep-tag--summary { margin-top: 0; }
-.ep-expand-hint { font-size: .7rem; font-family: var(--font-mono); color: var(--ink-3); letter-spacing: .05em; }
+.ep-tag--summary { margin-top: 2px; flex: none; }
+.ep-expand-hint { font-size: .7rem; font-family: var(--font-mono); color: var(--ink-3); letter-spacing: .05em; margin-left: auto; white-space: nowrap; padding-top: 3px; }
 .ep-hint-less { display: none; }
 .ep-expand[open] .ep-hint-more { display: none; }
 .ep-expand[open] .ep-hint-less { display: inline; }
@@ -1080,6 +1082,9 @@ html:not(.js) .reveal { opacity: 1 !important; transform: none !important; }
 .manual-wrap { padding: 8px 0 48px; }
 .manual-title { font-family: var(--font-head); font-size: 1.5rem; text-transform: uppercase; letter-spacing: .06em; color: var(--ink); margin-bottom: 24px; }
 .manual-filter-bar { display: flex; gap: 16px; flex-wrap: wrap; margin-bottom: 12px; }
+.manual-toolbar { display: flex; align-items: flex-end; gap: 12px; flex-wrap: wrap; margin-bottom: 12px; }
+.manual-toolbar-left { display: flex; gap: 16px; flex-wrap: wrap; align-items: flex-end; }
+.manual-toolbar-right { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; margin-left: auto; }
 .manual-select-wrap { display: flex; flex-direction: column; gap: 4px; }
 .manual-select-label { font-family: var(--font-mono); font-size: .62rem; letter-spacing: .14em; text-transform: uppercase; color: var(--ink-3); }
 .manual-select { font-family: var(--font-mono); font-size: .75rem; color: var(--ink); background: var(--panel); border: 1px solid var(--line); border-radius: 8px; padding: 7px 32px 7px 12px; cursor: pointer; appearance: none; -webkit-appearance: none; background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpolyline points='2,4 6,8 10,4' fill='none' stroke='%23888' stroke-width='1.5' stroke-linecap='round'/%3E%3C/svg%3E"); background-repeat: no-repeat; background-position: right 10px center; min-width: 180px; transition: border-color .18s; }
@@ -1088,7 +1093,7 @@ html:not(.js) .reveal { opacity: 1 !important; transform: none !important; }
 .manual-active-chip { font-family: var(--font-mono); font-size: .7rem; letter-spacing: .06em; padding: 5px 10px; border-radius: 20px; border: 1px solid var(--chip-col, var(--accent)); color: var(--chip-col, var(--accent)); background: color-mix(in srgb, var(--chip-col, var(--accent)) 12%, transparent); cursor: pointer; display: inline-flex; align-items: center; gap: 6px; transition: opacity .18s; }
 .manual-active-chip:hover { opacity: .75; }
 .manual-chip-x { font-size: .85rem; line-height: 1; }
-.manual-count { font-family: var(--font-mono); font-size: .72rem; color: var(--ink-3); margin: 16px 0 20px; letter-spacing: .04em; }
+.manual-count { font-family: var(--font-mono); font-size: .72rem; color: var(--ink-3); letter-spacing: .04em; white-space: nowrap; }
 .manual-rules { display: flex; flex-direction: column; gap: 8px; }
 .manual-section-group { border: none; background: none; }
 .manual-section-group[open] .manual-sec-chev { transform: rotate(180deg); }

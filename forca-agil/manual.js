@@ -379,9 +379,10 @@
     let html = '<div class="manual-wrap">';
     html += '<h3 class="manual-title">Manual da Força Ágil</h3>';
 
-    /* Dropdown filters */
-    html += '<div class="manual-filter-bar">';
+    /* Single toolbar line: dropdowns left | count + actions right */
+    html += '<div class="manual-toolbar">';
 
+    html += '<div class="manual-toolbar-left">';
     html += '<div class="manual-select-wrap">';
     html += '<label class="manual-select-label">Seção</label>';
     html += '<select class="manual-select" id="manualSecSelect">';
@@ -397,6 +398,14 @@
       html += '<option value="' + p.key + '"' + (activePersona === p.key ? ' selected' : '') + '>' + p.label + '</option>';
     });
     html += '</select></div>';
+    html += '</div>';
+
+    html += '<div class="manual-toolbar-right">';
+    html += '<span class="manual-count">' + filtered.length + ' regra' + (filtered.length !== 1 ? 's' : '') + ' encontrada' + (filtered.length !== 1 ? 's' : '') + '</span>';
+    html += '<button class="btn btn--sm" id="manualExportBtn">⬇ Exportar Regras</button>';
+    html += '<button class="btn btn--sm btn--ghost" id="manualExpandAll">Expandir tudo</button>';
+    html += '<button class="btn btn--sm btn--ghost" id="manualCollapseAll">Recolher tudo</button>';
+    html += '</div>';
 
     html += '</div>';
 
@@ -414,12 +423,6 @@
       }
       html += '</div>';
     }
-
-    /* Count + export button */
-    html += '<div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin-bottom:4px">';
-    html += '<p class="manual-count" style="margin:0">' + filtered.length + ' regra' + (filtered.length !== 1 ? 's' : '') + ' encontrada' + (filtered.length !== 1 ? 's' : '') + '</p>';
-    html += '<button class="btn btn--sm" id="manualExportBtn">⬇ Exportar Excel (todas as regras)</button>';
-    html += '</div>';
 
     /* Rules */
     html += '<div class="manual-rules">';
@@ -473,6 +476,20 @@
         render();
       });
     });
+
+    /* Expandir / Recolher all details in manual */
+    var expandAllBtn = document.getElementById('manualExpandAll');
+    if (expandAllBtn) {
+      expandAllBtn.addEventListener('click', function () {
+        container.querySelectorAll('details').forEach(function (d) { d.open = true; });
+      });
+    }
+    var collapseAllBtn = document.getElementById('manualCollapseAll');
+    if (collapseAllBtn) {
+      collapseAllBtn.addEventListener('click', function () {
+        container.querySelectorAll('details').forEach(function (d) { d.open = false; });
+      });
+    }
 
     /* Export all rules to Excel */
     const exportBtn = document.getElementById('manualExportBtn');

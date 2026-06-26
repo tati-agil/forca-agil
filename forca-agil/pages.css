@@ -418,6 +418,7 @@
 .admin-tab-btn.active { color: var(--accent); border-bottom-color: var(--accent); }
 .admin-tab-panel { display: none; }
 .admin-tab-panel.active { display: block; }
+#adminRepo, #adminMapa { background: var(--panel); border-radius: 12px; padding: 20px 24px; }
 .admin-section { margin-bottom: 48px; }
 .admin-section h4 {
   font-family: var(--font-head); font-size: .95rem; text-transform: uppercase;
