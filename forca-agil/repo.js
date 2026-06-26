@@ -123,6 +123,40 @@
     return el;
   }
 
+  // ---- Ver mais: detecção por pixel, responsiva ----
+  function checkVerMais() {
+    var descs = grid.querySelectorAll('.rc-desc');
+    if (!descs.length) return;
+    // Se o grid está oculto, offsetWidth é 0 — adiar até ficar visível
+    if (!grid.offsetWidth) return;
+    descs.forEach(function(p) {
+      if (p.nextElementSibling && p.nextElementSibling.classList.contains('rc-more')) return;
+      var w = p.offsetWidth;
+      if (!w) return;
+      var clone = p.cloneNode(true);
+      clone.style.cssText = 'position:absolute;visibility:hidden;height:auto;overflow:visible;display:block;-webkit-line-clamp:unset;width:' + w + 'px;';
+      document.body.appendChild(clone);
+      var naturalH = clone.offsetHeight;
+      document.body.removeChild(clone);
+      if (naturalH > p.offsetHeight + 2) {
+        var btn = document.createElement('button');
+        btn.className = 'rc-more';
+        btn.textContent = 'ver mais';
+        p.insertAdjacentElement('afterend', btn);
+      }
+    });
+  }
+
+  // Roda checkVerMais quando o grid entra na viewport (cobre navegação inicial)
+  if (typeof IntersectionObserver !== 'undefined') {
+    var verMaisObserver = new IntersectionObserver(function(entries) {
+      entries.forEach(function(entry) {
+        if (entry.isIntersecting) checkVerMais();
+      });
+    }, { threshold: 0.01 });
+    verMaisObserver.observe(grid);
+  }
+
   // ---- Render ----
   function render() {
     grid.innerHTML = '';
@@ -142,16 +176,10 @@
 
     if (emptyMsg) emptyMsg.hidden = shown.length > 0;
 
-    /* Injeta "ver mais" apenas em textos com mais de 90 chars (PDF v4 spec).
-       Medição por pixel falha quando a seção está oculta (offsetWidth = 0). */
-    grid.querySelectorAll('.rc-desc').forEach(function(p) {
-      if (p.nextElementSibling && p.nextElementSibling.classList.contains('rc-more')) return;
-      if (p.textContent.trim().length <= 90) return;
-      var btn = document.createElement('button');
-      btn.className = 'rc-more';
-      btn.textContent = 'ver mais';
-      p.insertAdjacentElement('afterend', btn);
-    });
+    /* Injeta "ver mais" por medição real de pixel.
+       Roda agora se o grid já está visível (largura > 0), senão aguarda
+       o IntersectionObserver detectar a entrada na viewport. */
+    checkVerMais();
 
     // botões de deletar (só nos próprios)
     grid.querySelectorAll('.rc-del').forEach(function(btn) {
