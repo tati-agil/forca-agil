@@ -38,7 +38,7 @@
   /* Text */
   --ink:     #eaf1ff;
   --ink-2:   #b8c6e4;
-  --ink-3:   #7e8fb4;
+  --ink-3:   #8fa0c4;
 
   /* Per-theme accent (overridden by [data-theme]) */
   --accent:  var(--gold);
@@ -161,7 +161,7 @@ h1,h2,h3,h4 { font-family: var(--font-head); font-weight: 600; line-height: 1.02
 .sec-title {
   font-family: var(--font-display);
   font-size: clamp(2.2rem, 5.5vw, 4.4rem);
-  text-transform: uppercase; letter-spacing: .005em;
+  text-transform: uppercase; letter-spacing: .04em;
   line-height: .95; margin: 18px 0 0;
 }
 .sec-lead {
@@ -847,7 +847,7 @@ html:not(.js) .reveal { opacity: 1 !important; transform: none !important; }
 .glow-title {
   font-family: var(--font-display); text-transform: uppercase; letter-spacing: .02em;
   font-size: clamp(2.4rem, 7vw, 5.4rem); line-height: .92; margin: 14px 0 0; color: #eafdff;
-  text-shadow: 0 0 8px rgba(255,255,255,.7), 0 0 28px var(--cyan), 0 0 60px var(--cyan);
+  text-shadow: 0 0 4px rgba(255,255,255,.25), 0 0 28px var(--cyan), 0 0 60px var(--cyan);
 }
 .jedi-welcome .glow-title {
   font-size: clamp(1.8rem, 5vw, 3.6rem);
