@@ -7,21 +7,24 @@
   const STORE = 'fa-game-v2';
   const reduce = matchMedia('(prefers-reduced-motion: reduce)').matches;
 
-  const { DIMS, LEVELS, RANKS, MISSIONS } = window.faGameData;
+  const { BLOCOS, LEVELS, RANKS, MISSIONS } = window.faGameData;
 
-  // XP fixo por resposta certa dentro da missão
+  // Total de afirmações (20 = 4 blocos × 5)
+  const TOTAL_AFIRM = BLOCOS.reduce((acc, b) => acc + b.afirmacoes.length, 0);
+  const DIAG_MAX_SCORE = TOTAL_AFIRM * 3; // 20 × 3 = 60
+
   const XP_PER_HIT = 4; // 3 perguntas × 4 XP = 12 XP máx por missão
-
-  const QUIZ_MAX  = 15;  // autodiagnóstico: até 15 XP
-  const MISS_MAX  = 35;  // missões: até 35 XP (18 respostas)
-  const KYBER_MAX = 50;  // kyber game: até 50 XP (via firebase.js)
+  const QUIZ_MAX  = 15;  // autodiagnóstico: até 15 XP (proporcional à pontuação 0-60)
+  const MISS_MAX  = 35;  // missões: até 35 XP
+  const KYBER_MAX = 50;  // kyber game: até 50 XP
 
   // ---- State ----
-  // missions agora armazena { answers: [null|idx, null|idx, null|idx] } por id
-  let state = { quiz: Array(DIMS.length).fill(null), missions: {} };
+  let state = { quiz: Array(TOTAL_AFIRM).fill(null), missions: {} };
   try {
     const saved = JSON.parse((window.faStore || localStorage).getItem(STORE) || 'null');
     if (saved && Array.isArray(saved.quiz)) state = { quiz: saved.quiz, missions: saved.missions || {} };
+    // migração: tamanho antigo era 6, novo é 20
+    if (state.quiz.length !== TOTAL_AFIRM) state.quiz = Array(TOTAL_AFIRM).fill(null);
   } catch (e) { /* ignore */ }
   function getPlayer() {
     try { return JSON.parse(localStorage.getItem('fa-player') || 'null') || {}; } catch(e) { return {}; }
@@ -72,12 +75,22 @@
     return ms && ms.answers && ms.answers.every(a => a !== null);
   }
 
+  function diagScore() {
+    return state.quiz.reduce((acc, v) => acc + (v != null ? v : 0), 0);
+  }
+  function diagRankIdx() {
+    const score = diagScore();
+    let idx = 0;
+    for (let i = 0; i < RANKS.length; i++) if (score >= RANKS[i].minDiag) idx = i;
+    return idx;
+  }
+
   function compute() {
     const answered = state.quiz.filter(v => v != null).length;
-    const quizDone = answered === DIMS.length;
-    // XP ponderado pelo nível escolhido: nível 0-3 vale 1-4 pts; máx = DIMS×LEVELS = 24 pts → QUIZ_MAX
-    const quizPoints = state.quiz.reduce((acc, v) => acc + (v != null ? v : 0), 0);
-    const quizXP = Math.round(quizPoints / (DIMS.length * LEVELS.length) * QUIZ_MAX);
+    const quizDone = answered === TOTAL_AFIRM;
+    // XP proporcional à pontuação 0-60 → 0-15
+    const quizPoints = diagScore();
+    const quizXP = Math.round(quizPoints / DIAG_MAX_SCORE * QUIZ_MAX);
     const mXP  = Math.min(MISS_MAX, MISSIONS.reduce((acc, m) => acc + missionXP(m), 0));
     const mDone = MISSIONS.filter(m => missionDone(m)).length;
     // kyberXP, contentXP e repoXP vêm do localStorage (salvos por firebase.js)
@@ -89,7 +102,7 @@
     const xp   = Math.min(100, quizXP + mXP + kyberXP + contentXP + repoXP);
     let rankIdx = 0;
     for (let i = 0; i < RANKS.length; i++) if (xp >= RANKS[i].min) rankIdx = i;
-    return { xp, quizXP, mXP, kyberXP, quizDone, mDone, kyberDone, allDone, rankIdx };
+    return { xp, quizXP, mXP, kyberXP, quizDone, mDone, kyberDone, allDone, rankIdx, diagScore: quizPoints, diagRankIdx: diagRankIdx() };
   }
 
   // ---- DOM refs ----
@@ -101,24 +114,57 @@
   const qList = $('qList'), quizResult = $('quizResult'), missionsResult = $('missionsResult');
   const missionsEl = $('missions');
 
-  // ---- Build quiz ----
-  DIMS.forEach((dim, qi) => {
-    const item = document.createElement('div');
-    item.className = 'q-item';
-    const label = document.createElement('div');
-    label.className = 'q-label';
-    label.textContent = (qi + 1) + '. ' + dim;
-    const opts = document.createElement('div');
-    opts.className = 'q-opts';
-    LEVELS.forEach((lv, li) => {
-      const b = document.createElement('button');
-      b.type = 'button'; b.className = 'q-opt'; b.textContent = lv;
-      b.dataset.q = qi; b.dataset.v = li + 1;
-      b.addEventListener('click', () => { if (!requirePlayer()) return; state.quiz[qi] = li + 1; save(); render(); });
-      opts.appendChild(b);
+  // ---- Build quiz por blocos ----
+  // Cabeçalho da escala Likert
+  if (qList) {
+    const scaleHint = document.createElement('div');
+    scaleHint.className = 'q-scale-hint';
+    scaleHint.innerHTML = LEVELS.map((lv, i) => '<span>' + i + ' = ' + lv + '</span>').join('');
+    qList.appendChild(scaleHint);
+  }
+
+  let globalIdx = 0;
+  BLOCOS.forEach(bloco => {
+    if (!qList) return;
+    const blocoEl = document.createElement('div');
+    blocoEl.className = 'q-bloco';
+
+    const blocoTitle = document.createElement('div');
+    blocoTitle.className = 'q-bloco-title';
+    blocoTitle.textContent = bloco.icon + ' ' + bloco.label;
+    blocoEl.appendChild(blocoTitle);
+
+    bloco.afirmacoes.forEach((afirm, localIdx) => {
+      const qi = globalIdx++;
+      const item = document.createElement('div');
+      item.className = 'q-item';
+
+      const label = document.createElement('div');
+      label.className = 'q-label';
+      label.textContent = (localIdx + 1) + '. ' + afirm;
+
+      const opts = document.createElement('div');
+      opts.className = 'q-opts q-opts--likert';
+      LEVELS.forEach((lv, li) => {
+        const b = document.createElement('button');
+        b.type = 'button'; b.className = 'q-opt'; b.title = lv;
+        b.dataset.q = qi; b.dataset.v = li;
+        b.innerHTML = '<span class="q-opt-num">' + li + '</span><span class="q-opt-lbl">' + lv + '</span>';
+        b.addEventListener('click', () => {
+          if (!requirePlayer()) return;
+          state.quiz[qi] = li;
+          save();
+          render();
+        });
+        opts.appendChild(b);
+      });
+
+      item.appendChild(label);
+      item.appendChild(opts);
+      blocoEl.appendChild(item);
     });
-    item.appendChild(label); item.appendChild(opts);
-    qList.appendChild(item);
+
+    qList.appendChild(blocoEl);
   });
 
   // ---- Build missions ----
@@ -269,19 +315,35 @@
   function render() {
     const c = compute();
 
-    // quiz — bloqueia após concluído
-    qList.querySelectorAll('.q-opt').forEach(b => {
+    // quiz — marca selecionados e bloqueia após concluído
+    qList && qList.querySelectorAll('.q-opt').forEach(b => {
       b.classList.toggle('sel', state.quiz[+b.dataset.q] === +b.dataset.v);
       b.disabled = c.quizDone;
     });
-    if (quizResult && c.quizDone) {
-      let quizLock = document.getElementById('quizLockMsg');
-      if (!quizLock) {
-        quizLock = document.createElement('p');
-        quizLock.id = 'quizLockMsg';
-        quizLock.style.cssText = 'font-family:var(--font-mono);font-size:.7rem;color:var(--ink-3);margin-top:6px;';
-        quizLock.textContent = '🔒 Autodiagnóstico concluído — não pode ser refeito.';
-        quizResult.parentNode.insertBefore(quizLock, quizResult.nextSibling);
+    if (quizResult) {
+      if (c.quizDone) {
+        const dr = RANKS[c.diagRankIdx];
+        quizResult.innerHTML =
+          '<div class="diag-result">' +
+            '<div class="diag-result-score">' + c.diagScore + '<span>/60</span></div>' +
+            '<div class="diag-result-rank">' + dr.icon + ' ' + dr.name + ' — ' + dr.tag + '</div>' +
+            '<div class="diag-result-desc">' + dr.desc + '</div>' +
+            '<div class="diag-result-frase">' + dr.frase + '</div>' +
+            '<ul class="diag-result-proximo">' +
+              dr.proximo.map(p => '<li>' + p + '</li>').join('') +
+            '</ul>' +
+          '</div>';
+        let quizLock = document.getElementById('quizLockMsg');
+        if (!quizLock) {
+          quizLock = document.createElement('p');
+          quizLock.id = 'quizLockMsg';
+          quizLock.style.cssText = 'font-family:var(--font-mono);font-size:.7rem;color:var(--ink-3);margin-top:6px;';
+          quizLock.textContent = '🔒 Autodiagnóstico concluído — não pode ser refeito.';
+          quizResult.after(quizLock);
+        }
+      } else {
+        const answered = state.quiz.filter(v => v != null).length;
+        quizResult.textContent = answered + '/' + TOTAL_AFIRM + ' afirmações respondidas';
       }
     }
 
@@ -372,11 +434,7 @@
 
     if (guideMsg) guideMsg.textContent = guideText(c, leveledUp);
 
-    if (quizResult) {
-      quizResult.textContent = c.quizDone
-        ? 'Autodiagnóstico completo · +' + c.quizXP + ' pts de base'
-        : (state.quiz.filter(v => v != null).length + '/' + DIMS.length + ' dimensões respondidas');
-    }
+    // quizResult já é atualizado no bloco acima (rich HTML quando concluído)
 
     if (missionsResult) {
       const allMissionsDone = c.mDone === MISSIONS.length;
@@ -391,7 +449,7 @@
   if (quizCalc) quizCalc.addEventListener('click', () => {
     const c = compute();
     if (!c.quizDone) {
-      quizResult.textContent = 'Responda todas as ' + DIMS.length + ' dimensões para revelar sua patente.';
+      if (quizResult) quizResult.textContent = 'Responda todas as ' + TOTAL_AFIRM + ' afirmações para revelar sua patente.';
       return;
     }
     if (!reduce && rankHud) { rankHud.classList.remove('levelup'); void rankHud.offsetWidth; rankHud.classList.add('levelup'); }
