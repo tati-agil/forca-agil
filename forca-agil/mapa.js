@@ -168,9 +168,15 @@
 
     let html = '<div class="mapa-wrap">';
 
-    /* Botão export */
-    html += '<div style="margin-bottom:28px">';
+    /* Toolbar única: exportar à esquerda, expandir/recolher à direita */
+    html += '<div class="manual-toolbar" style="margin-bottom:28px">';
+    html += '<div class="manual-toolbar-left">';
     html += '<button class="btn btn--sm" id="mapaExportBtn">⬇ Exportar Excel (mapa completo)</button>';
+    html += '</div>';
+    html += '<div class="manual-toolbar-right">';
+    html += '<button class="btn btn--sm btn--ghost" id="mapaExpandAll">Expandir tudo</button>';
+    html += '<button class="btn btn--sm btn--ghost" id="mapaCollapseAll">Recolher tudo</button>';
+    html += '</div>';
     html += '</div>';
 
     /* ── Hierarquia ── */
@@ -422,6 +428,20 @@
     html += '</div>'; /* .arq-diagram */
 
     container.innerHTML = html;
+
+    /* Expandir / Recolher tudo no Mapa */
+    var mapaExpandAll = document.getElementById('mapaExpandAll');
+    if (mapaExpandAll) {
+      mapaExpandAll.addEventListener('click', function () {
+        container.querySelectorAll('.mapa-page, .arch-section, .mapa-level, .mapa-site-page').forEach(function (el) { el.classList.add('open'); });
+      });
+    }
+    var mapaCollapseAll = document.getElementById('mapaCollapseAll');
+    if (mapaCollapseAll) {
+      mapaCollapseAll.addEventListener('click', function () {
+        container.querySelectorAll('.mapa-page, .arch-section, .mapa-level, .mapa-site-page').forEach(function (el) { el.classList.remove('open'); });
+      });
+    }
 
     /* Export mapa para CSV */
     const exportBtn = document.getElementById('mapaExportBtn');
