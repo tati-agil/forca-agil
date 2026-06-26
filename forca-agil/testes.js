@@ -1009,14 +1009,21 @@
   ================================================================ */
   function render(container) {
     let html = '<div class="testes-wrap">';
-    html += '<p class="testes-desc">Execute cada grupo independentemente ou todos de uma vez. Os testes rodam na sessão atual (admin logado).</p>';
 
-    html += '<div class="testes-actions">';
-    html += '<button class="btn btn--primary testes-run-btn" data-suite="tecnicos">▶ Técnicos</button>';
-    html += '<button class="btn btn--primary testes-run-btn" data-suite="comportamento">▶ Comportamento</button>';
-    html += '<button class="btn btn--outline testes-run-btn" data-suite="todos">▶ Todos os automáticos</button>';
-    html += '<button class="btn btn--sm" id="testesExportBtn">⬇ Exportar Excel (todos os testes)</button>';
+    /* Toolbar única */
+    html += '<div class="manual-toolbar" style="margin-bottom:20px">';
+    html += '<div class="manual-toolbar-left">';
+    html += '<button class="btn btn--sm btn--primary testes-run-btn" data-suite="tecnicos">▶ Técnicos</button>';
+    html += '<button class="btn btn--sm btn--primary testes-run-btn" data-suite="comportamento">▶ Comportamento</button>';
+    html += '<button class="btn btn--sm testes-run-btn" data-suite="todos">▶ Todos os automáticos</button>';
+    html += '<button class="btn btn--sm" id="testesExportBtn">⬇ Exportar Testes</button>';
     html += '</div>';
+    html += '<div class="manual-toolbar-right">';
+    html += '<button class="btn btn--sm btn--ghost" id="testesExpandAll">Expandir tudo</button>';
+    html += '<button class="btn btn--sm btn--ghost" id="testesCollapseAll">Recolher tudo</button>';
+    html += '</div>';
+    html += '</div>';
+    html += '<p class="testes-desc">Execute cada grupo independentemente ou todos de uma vez. Os testes rodam na sessão atual (admin logado).</p>';
 
     html += '<div id="testesResultados"></div>';
 
@@ -1060,6 +1067,20 @@
     html += '</div>';
 
     container.innerHTML = html;
+
+    /* Expandir / Recolher grupos de testes */
+    var testesExpandAll = document.getElementById('testesExpandAll');
+    if (testesExpandAll) {
+      testesExpandAll.addEventListener('click', function () {
+        container.querySelectorAll('.testes-group--collapsible').forEach(function (el) { el.classList.add('open'); });
+      });
+    }
+    var testesCollapseAll = document.getElementById('testesCollapseAll');
+    if (testesCollapseAll) {
+      testesCollapseAll.addEventListener('click', function () {
+        container.querySelectorAll('.testes-group--collapsible').forEach(function (el) { el.classList.remove('open'); });
+      });
+    }
 
     /* Export all tests to Excel */
     const exportBtn = document.getElementById('testesExportBtn');

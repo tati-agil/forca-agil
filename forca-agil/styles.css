@@ -1179,7 +1179,7 @@ html:not(.js) .reveal { opacity: 1 !important; transform: none !important; }
 /* ---------- Testes automatizados ---------- */
 .testes-wrap { padding: 0 4px; }
 .testes-header { display: flex; align-items: center; justify-content: space-between; gap: 16px; margin-bottom: 24px; flex-wrap: wrap; }
-.testes-desc { font-size: .88rem; color: var(--ink-3); margin: 0; line-height: 1.5; flex: 1; }
+.testes-desc { font-size: .88rem; color: var(--ink-3); margin: 0 0 20px; line-height: 1.5; }
 .testes-running { color: var(--ink-3); font-size: .9rem; padding: 12px 0; }
 .testes-summary { border-radius: 10px; padding: 14px 18px; margin-bottom: 20px; font-size: .93rem; font-weight: 600; }
 .testes-summary.ok   { background: color-mix(in srgb, #4caf7d 12%, transparent); border: 1px solid color-mix(in srgb, #4caf7d 35%, transparent); color: #4caf7d; }
