@@ -143,22 +143,25 @@
     if (emptyMsg) emptyMsg.hidden = shown.length > 0;
 
     /* Detecta overflow real após render e injeta "ver mais" só onde necessário.
-       -webkit-line-clamp usa overflow:hidden, então scrollHeight === clientHeight.
-       Solução: clonar o elemento sem clamp, medir altura natural, comparar. */
+       Duplo rAF garante que o CSS Grid terminou o layout antes de medir. */
     requestAnimationFrame(function() {
-      grid.querySelectorAll('.rc-desc').forEach(function(p) {
-        if (p.nextElementSibling && p.nextElementSibling.classList.contains('rc-more')) return;
-        var clone = p.cloneNode(true);
-        clone.style.cssText = 'position:absolute;visibility:hidden;height:auto;width:' + p.offsetWidth + 'px;-webkit-line-clamp:unset;display:block;overflow:visible;';
-        document.body.appendChild(clone);
-        var naturalH = clone.offsetHeight;
-        document.body.removeChild(clone);
-        if (naturalH > p.offsetHeight + 2) {
-          var btn = document.createElement('button');
-          btn.className = 'rc-more';
-          btn.textContent = 'ver mais';
-          p.insertAdjacentElement('afterend', btn);
-        }
+      requestAnimationFrame(function() {
+        grid.querySelectorAll('.rc-desc').forEach(function(p) {
+          if (p.nextElementSibling && p.nextElementSibling.classList.contains('rc-more')) return;
+          var w = p.offsetWidth;
+          if (!w) return; // ainda sem layout, não injeta
+          var clone = p.cloneNode(true);
+          clone.style.cssText = 'position:absolute;visibility:hidden;height:auto;width:' + w + 'px;-webkit-line-clamp:unset;display:block;overflow:visible;white-space:normal;';
+          document.body.appendChild(clone);
+          var naturalH = clone.offsetHeight;
+          document.body.removeChild(clone);
+          if (naturalH > p.offsetHeight + 2) {
+            var btn = document.createElement('button');
+            btn.className = 'rc-more';
+            btn.textContent = 'ver mais';
+            p.insertAdjacentElement('afterend', btn);
+          }
+        });
       });
     });
 
