@@ -17,8 +17,7 @@ jobs:
         run: |
           echo '${{ secrets.FIREBASE_SERVICE_ACCOUNT_KYBER_AGIL }}' > /tmp/sa.json
           export GOOGLE_APPLICATION_CREDENTIALS=/tmp/sa.json
-          npx firebase-tools@13 hosting:channel:deploy v3-quiz-preview \
+          npx firebase-tools@13 hosting:channel:deploy v3quiz \
             --expires 30d \
             --project kyber-agil \
-            --site kyber-agil \
             --non-interactive
