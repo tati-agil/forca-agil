@@ -1035,7 +1035,7 @@ html:not(.js) .reveal { opacity: 1 !important; transform: none !important; }
 .repo-card[data-type="doc"] .rc-ico { color: var(--gold); background: rgba(245,197,24,.1); }
 .repo-card[data-type="tool"] .rc-ico { color: var(--blue-glow); background: rgba(87,170,255,.1); }
 .repo-card .rc-kind { font-family: var(--font-mono); font-size: .6rem; letter-spacing: .18em; text-transform: uppercase; color: var(--ink-3); }
-.repo-card h4 { font-family: var(--font-head); text-transform: uppercase; letter-spacing: .02em; font-size: 1.12rem; color: var(--ink); line-height: 1.1; }
+.repo-card h4 { font-family: var(--font-head); text-transform: uppercase; letter-spacing: .02em; font-size: 1.12rem; color: var(--ink); line-height: 1.1; min-height: calc(1.12rem * 1.1 * 2); }
 .repo-card p { color: var(--ink-2); font-size: .92rem; flex: 1 1 auto; }
 .repo-card .rc-open { display: inline-flex; align-items: center; gap: 8px; font-family: var(--font-mono); font-size: .72rem; letter-spacing: .08em; text-transform: uppercase; color: var(--accent); text-decoration: none; margin-top: 2px; }
 .repo-card .rc-open svg { width: 14px; height: 14px; }
