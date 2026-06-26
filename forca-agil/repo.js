@@ -127,18 +127,29 @@
   function checkVerMais() {
     var descs = grid.querySelectorAll('.rc-desc');
     if (!descs.length) return;
-    // Se o grid está oculto, offsetWidth é 0 — adiar até ficar visível
-    if (!grid.offsetWidth) return;
+    if (!grid.offsetWidth) return; // seção oculta, adiar
     descs.forEach(function(p) {
       if (p.nextElementSibling && p.nextElementSibling.classList.contains('rc-more')) return;
       var w = p.offsetWidth;
       if (!w) return;
-      var clone = p.cloneNode(true);
-      clone.style.cssText = 'position:absolute;visibility:hidden;height:auto;overflow:visible;display:block;-webkit-line-clamp:unset;width:' + w + 'px;';
+      // Copia estilos de texto via getComputedStyle para medir sem depender de classe CSS
+      var cs = window.getComputedStyle(p);
+      var lineH = parseFloat(cs.lineHeight) || parseFloat(cs.fontSize) * 1.4;
+      var clone = document.createElement('p');
+      clone.textContent = p.textContent;
+      clone.style.cssText =
+        'position:absolute;visibility:hidden;left:-9999px;top:0;' +
+        'height:auto;overflow:visible;display:block;' +
+        'width:' + w + 'px;' +
+        'font-family:' + cs.fontFamily + ';' +
+        'font-size:' + cs.fontSize + ';' +
+        'line-height:' + cs.lineHeight + ';' +
+        'letter-spacing:' + cs.letterSpacing + ';' +
+        'padding:0;margin:0;';
       document.body.appendChild(clone);
       var naturalH = clone.offsetHeight;
       document.body.removeChild(clone);
-      if (naturalH > p.offsetHeight + 2) {
+      if (naturalH > lineH * 2 + 2) {
         var btn = document.createElement('button');
         btn.className = 'rc-more';
         btn.textContent = 'ver mais';
