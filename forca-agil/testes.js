@@ -1010,18 +1010,15 @@
   function render(container) {
     let html = '<div class="testes-wrap">';
 
-    /* Toolbar única */
-    html += '<div class="manual-toolbar" style="margin-bottom:20px">';
-    html += '<div class="manual-toolbar-left">';
+    /* Toolbar única — linha flat sem wrap */
+    html += '<div class="testes-toolbar">';
     html += '<button class="btn btn--sm btn--primary testes-run-btn" data-suite="tecnicos">▶ Técnicos</button>';
     html += '<button class="btn btn--sm btn--primary testes-run-btn" data-suite="comportamento">▶ Comportamento</button>';
-    html += '<button class="btn btn--sm testes-run-btn" data-suite="todos">▶ Todos os automáticos</button>';
+    html += '<button class="btn btn--sm testes-run-btn" data-suite="todos">▶ Automáticos</button>';
     html += '<button class="btn btn--sm" id="testesExportBtn">⬇ Exportar Testes</button>';
-    html += '</div>';
-    html += '<div class="manual-toolbar-right">';
+    html += '<div class="testes-toolbar-sep"></div>';
     html += '<button class="btn btn--sm btn--ghost" id="testesExpandAll">Expandir tudo</button>';
     html += '<button class="btn btn--sm btn--ghost" id="testesCollapseAll">Recolher tudo</button>';
-    html += '</div>';
     html += '</div>';
     html += '<p class="testes-desc">Execute cada grupo independentemente ou todos de uma vez. Os testes rodam na sessão atual (admin logado).</p>';
 

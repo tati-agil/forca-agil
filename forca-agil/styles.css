@@ -1202,6 +1202,8 @@ html:not(.js) .reveal { opacity: 1 !important; transform: none !important; }
 
 /* ---------- Testes — ajustes adicionais ---------- */
 .testes-actions { display: flex; gap: 10px; flex-wrap: wrap; margin-bottom: 24px; }
+.testes-toolbar { display: flex; align-items: center; gap: 8px; flex-wrap: nowrap; margin-bottom: 20px; overflow-x: auto; }
+.testes-toolbar-sep { width: 1px; height: 20px; background: var(--line-strong); flex-shrink: 0; margin: 0 4px; }
 .testes-manual-wrap { margin-top: 36px; border-top: 1px solid var(--line); padding-top: 24px; }
 .testes-manual-title { font-family: var(--font-head); font-size: 1rem; text-transform: uppercase; letter-spacing: .06em; color: var(--ink-2); margin: 0 0 8px; }
 .testes-manual-desc { font-size: .83rem; color: var(--ink-3); margin: 0 0 20px; line-height: 1.5; }
