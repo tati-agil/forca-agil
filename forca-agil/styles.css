@@ -931,8 +931,8 @@ html:not(.js) .reveal { opacity: 1 !important; transform: none !important; }
 .q-opt.sel { background: var(--accent); color: var(--space-0); border-color: var(--accent); box-shadow:0 0 18px -6px var(--accent); }
 .q-opt.sel .q-opt-num, .q-opt.sel .q-opt-lbl { color: var(--space-0); }
 @media (max-width:560px){ .q-opts--likert { grid-template-columns: repeat(4,1fr); } }
-.quiz-foot { display:flex; align-items:center; gap:18px; margin-top:28px; flex-wrap:wrap; }
-.quiz-result { font-family: var(--font-mono); font-size:.8rem; color: var(--accent); }
+.quiz-foot { display:flex; flex-direction:column; align-items:center; gap:18px; margin-top:28px; }
+.quiz-result { font-family: var(--font-mono); font-size:.8rem; color: var(--accent); width:100%; text-align:center; }
 /* Resultado do diagnóstico */
 .diag-result { background: var(--panel); border: 1px solid var(--line-strong); border-radius:12px; padding:16px 20px; margin-top:8px; text-align:center; max-width:420px; margin-left:auto; margin-right:auto; }
 .diag-result-img { width:90px; height:auto; margin:0 auto 8px; display:block; filter:drop-shadow(0 0 14px rgba(245,197,24,.3)); }
