@@ -137,8 +137,20 @@
 
     // quiz result area
     if (quizResult) {
-      if (done) {
+      if (state.revealed) {
         renderReveal(ri);
+      } else if (done) {
+        quizResult.innerHTML =
+          '<div style="text-align:center;margin-top:12px">' +
+          '<p style="font-family:var(--font-mono);font-size:.9rem;color:var(--accent);margin-bottom:16px">✓ ' + TOTAL_AFIRM + '/' + TOTAL_AFIRM + ' afirmações respondidas</p>' +
+          '<button class="btn btn--primary" id="revelarBtn">Revelar minha Patente →</button>' +
+          '</div>';
+        const btn = document.getElementById('revelarBtn');
+        if (btn) btn.addEventListener('click', () => {
+          state.revealed = true;
+          save();
+          render();
+        });
       } else {
         quizResult.textContent = answered + '/' + TOTAL_AFIRM + ' afirmações respondidas';
       }
