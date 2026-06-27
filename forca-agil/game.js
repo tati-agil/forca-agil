@@ -159,10 +159,9 @@
   function renderReveal(ri) {
     const rank = RANKS[ri];
     const score = diagScore();
-    const imgSrc = 'forca-agil/assets/rank-' + rank.id + '.png';
     quizResult.innerHTML =
       '<div class="diag-result">' +
-        '<img class="diag-result-img" src="' + imgSrc + '" alt="' + rank.name + '">' +
+        '<svg class="diag-result-img" viewBox="0 0 120 220"><use href="' + (rank.sym || '#char-0') + '"/></svg>' +
         '<div class="diag-result-score">' + score + '<span>/60</span></div>' +
         '<div class="diag-result-rank">' + rank.icon + ' ' + rank.name + ' — ' + rank.tag + '</div>' +
         '<div class="diag-result-desc">' + rank.desc + '</div>' +
