@@ -161,23 +161,16 @@
     const rank = RANKS[ri];
     const score = diagScore();
     quizResult.innerHTML =
-      '<div style="text-align:center;margin-bottom:16px">' +
-        '<button class="btn btn--primary" disabled style="cursor:default">✓ Patente Revelada</button>' +
-      '</div>' +
       '<div class="diag-result">' +
         '<svg class="diag-result-img" viewBox="0 0 120 220"><use href="' + (rank.sym || '#char-0') + '"/></svg>' +
         '<div class="diag-result-score">' + score + '<span>/60</span></div>' +
         '<div class="diag-result-rank">' + rank.icon + ' ' + rank.name + ' — ' + rank.tag + '</div>' +
         '<div class="diag-result-desc">' + rank.desc + '</div>' +
-        '<ul class="diag-result-carac">' +
-          rank.carac.map(c => '<li>' + c + '</li>').join('') +
-        '</ul>' +
+        '<ul class="diag-result-carac">' + rank.carac.map(c => '<li>' + c + '</li>').join('') + '</ul>' +
         '<div class="diag-result-proximo-titulo">Próximos passos:</div>' +
-        '<ul class="diag-result-proximo">' +
-          rank.proximo.map(p => '<li>' + p + '</li>').join('') +
-        '</ul>' +
+        '<ul class="diag-result-proximo">' + rank.proximo.map(p => '<li>' + p + '</li>').join('') + '</ul>' +
         '<div class="diag-result-frase">' + rank.frase + '</div>' +
-        '<p style="font-family:var(--font-mono);font-size:.7rem;color:var(--ink-3);margin-top:10px">🔒 Autodiagnóstico concluído — não pode ser refeito.</p>' +
+        '<p class="diag-result-lock">🔒 Resultado bloqueado. Para refazer, solicite ao admin o reset do seu progresso.</p>' +
       '</div>';
     if (!reduce && rankHud) {
       rankHud.classList.remove('levelup'); void rankHud.offsetWidth; rankHud.classList.add('levelup');

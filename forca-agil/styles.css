@@ -934,20 +934,17 @@ html:not(.js) .reveal { opacity: 1 !important; transform: none !important; }
 .quiz-foot { display:flex; align-items:center; gap:18px; margin-top:28px; flex-wrap:wrap; }
 .quiz-result { font-family: var(--font-mono); font-size:.8rem; color: var(--accent); }
 /* Resultado do diagnóstico */
-.diag-result { background: var(--panel); border: 1px solid var(--line-strong); border-radius:14px; padding:24px; margin-top:8px; text-align:center; }
-.diag-result-img { width:160px; height:auto; margin:0 auto 16px; display:block; filter:drop-shadow(0 0 18px rgba(245,197,24,.3)); }
-.diag-result-score { font-family:var(--font-display); font-size:3rem; color:var(--accent); line-height:1; }
-.diag-result-score span { font-size:1.2rem; color:var(--ink-3); }
-.diag-result-rank { font-family:var(--font-head); font-size:1.3rem; text-transform:uppercase; color:var(--ink); margin:8px 0 4px; }
-.diag-result-desc { color:var(--ink-2); font-size:.95rem; margin-bottom:12px; }
-.diag-result-carac { color:var(--ink-2); font-size:.88rem; padding-left:18px; margin:0 0 12px; display:grid; gap:4px; text-align:left; }
-.diag-result-proximo-titulo { font-family:var(--font-mono); font-size:.75rem; text-transform:uppercase; letter-spacing:.06em; color:var(--accent); margin-bottom:4px; }
-.diag-result-proximo { color:var(--ink-3); font-size:.85rem; padding-left:18px; margin:0 0 8px; display:grid; gap:4px; text-align:left; }
-.diag-result-frase { font-family:var(--font-mono); font-size:.85rem; color:var(--accent); font-style:italic; margin:12px 0 0; padding:12px; border:1px solid var(--line-strong); border-radius:8px; }
-/* Imagens nos cards da escada e HUD */
-.cc-fig img { width:100%; height:100%; object-fit:contain; }
-.rh-avatar img { width:80px; height:auto; }
-.rh-avatar { display:flex; align-items:center; justify-content:center; }
+.diag-result { background: var(--panel); border: 1px solid var(--line-strong); border-radius:12px; padding:16px 20px; margin-top:8px; text-align:center; max-width:420px; margin-left:auto; margin-right:auto; }
+.diag-result-img { width:90px; height:auto; margin:0 auto 8px; display:block; filter:drop-shadow(0 0 14px rgba(245,197,24,.3)); }
+.diag-result-score { font-family:var(--font-display); font-size:2rem; color:var(--accent); line-height:1; }
+.diag-result-score span { font-size:.95rem; color:var(--ink-3); }
+.diag-result-rank { font-family:var(--font-head); font-size:1rem; text-transform:uppercase; color:var(--ink); margin:5px 0 3px; }
+.diag-result-desc { color:var(--ink-2); font-size:.85rem; margin-bottom:8px; }
+.diag-result-carac { color:var(--ink-2); font-size:.82rem; padding-left:16px; margin:0 0 8px; display:grid; gap:3px; text-align:left; }
+.diag-result-proximo-titulo { font-family:var(--font-mono); font-size:.68rem; text-transform:uppercase; letter-spacing:.06em; color:var(--accent); margin-bottom:3px; }
+.diag-result-proximo { color:var(--ink-3); font-size:.82rem; padding-left:16px; margin:0 0 6px; display:grid; gap:3px; text-align:left; }
+.diag-result-frase { font-family:var(--font-mono); font-size:.78rem; color:var(--accent); font-style:italic; margin:8px 0 0; padding:8px 10px; border:1px solid var(--line-strong); border-radius:8px; }
+.diag-result-lock { font-family:var(--font-mono); font-size:.68rem; color:var(--ink-3); margin-top:10px; }
 
 /* Missions */
 .missions { display:grid; grid-template-columns: 1fr; gap:10px; margin-top: 28px; }
