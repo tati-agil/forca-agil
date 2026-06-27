@@ -550,12 +550,6 @@
   .admin-tab-btn { padding: 8px 10px; font-size: .72rem; letter-spacing: .02em; }
 }
 
-/* ---- Agenda: frase Jedi ---- */
-.day-quote {
-  font-style: italic; color: var(--ink-3); font-size: .88rem;
-  margin: 14px 24px 16px 86px; opacity: .85;
-}
-
 /* ---- Agenda: Você vai ---- */
 .day-voce-vai {
   font-size: .9rem; color: var(--ink-2); margin: 0 0 14px;
