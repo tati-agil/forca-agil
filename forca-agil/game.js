@@ -143,7 +143,7 @@
         quizResult.innerHTML =
           '<div style="text-align:center;margin-top:12px">' +
           '<p style="font-family:var(--font-mono);font-size:.9rem;color:var(--accent);margin-bottom:16px">✓ ' + TOTAL_AFIRM + '/' + TOTAL_AFIRM + ' afirmações respondidas</p>' +
-          '<button class="btn btn--primary" id="revelarBtn">Revelar minha Patente →</button>' +
+          '<button class="btn btn--primary" id="revelarBtn" style="display:block;margin:0 auto">Revelar minha Patente →</button>' +
           '</div>';
         const btn = document.getElementById('revelarBtn');
         if (btn) btn.addEventListener('click', () => {
@@ -161,6 +161,9 @@
     const rank = RANKS[ri];
     const score = diagScore();
     quizResult.innerHTML =
+      '<div style="text-align:center;margin-bottom:16px">' +
+        '<button class="btn btn--primary" disabled style="cursor:default">✓ Patente Revelada</button>' +
+      '</div>' +
       '<div class="diag-result">' +
         '<svg class="diag-result-img" viewBox="0 0 120 220"><use href="' + (rank.sym || '#char-0') + '"/></svg>' +
         '<div class="diag-result-score">' + score + '<span>/60</span></div>' +
