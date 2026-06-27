@@ -122,8 +122,6 @@
 
     // HUD avatar
     if (hudAvatar) {
-      const img = hudAvatar.querySelector('img');
-      if (img) img.src = 'forca-agil/assets/rank-' + rank.id + '.png';
       const use = hudAvatar.querySelector('use');
       if (use) use.setAttribute('href', rank.sym || '#char-0');
     }
