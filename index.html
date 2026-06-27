@@ -1190,7 +1190,7 @@
         <h2 class="glow-title">Sociedade Jedi</h2>
         <div class="jb-rule"></div>
       </div>
-      <p class="jb-sub">Sua patente é formada por três etapas: <strong>Autodiagnóstico</strong> (até 20 pontos) → <strong>Missões</strong> (até 48 pontos) → <strong>Kyber Game</strong> (até 32 pontos). Complete as três para chegar a 100 pontos e conquistar o posto de Mestre.</p>
+      <p class="jb-sub">Responda as 20 afirmações e descubra qual é a sua patente na Ordem Jedi Ágil — de Youngling a Mestre.</p>
     </div>
 
     <!-- Droide guia -->
@@ -1204,43 +1204,38 @@
 
     <!-- HUD patente atual -->
     <div class="rank-hud panel hud-corner reveal" id="rankHud">
-      <div class="rh-avatar"><svg id="hudAvatar" viewBox="0 0 120 220"><use href="#char-0"/></svg></div>
+      <div class="rh-avatar" id="hudAvatar"><img src="forca-agil/assets/rank-youngling.png" alt="Patente"></div>
       <div class="rh-body">
         <div class="rh-k">PATENTE ATUAL</div>
         <div class="rh-name" id="hudName">Youngling</div>
-        <div class="rh-tag"  id="hudTag">"Já ouvi falar"</div>
-        <div class="xp">
-          <div class="xp-row"><span id="xpNow">0 pts</span><span id="xpNext">Próxima: Padawan · 25 pts</span></div>
-          <div class="xp-bar"><i id="xpFill" style="width:0%"></i></div>
-        </div>
-        <div class="rh-badges" id="badgeRow"></div>
+        <div class="rh-tag"  id="hudTag">Iniciado na Força</div>
       </div>
     </div>
 
     <!-- Character ladder -->
     <div class="ladder reveal" id="ladder">
       <div class="char-card" data-rank="0">
-        <div class="cc-fig"><svg viewBox="0 0 120 220"><use href="#char-0"/></svg></div>
+        <div class="cc-fig"><img src="forca-agil/assets/rank-youngling.png" alt="Youngling"></div>
         <div class="cc-lvl">PATENTE 01</div><div class="cc-name">Youngling</div>
-        <div class="cc-tag">"Já ouvi falar"</div><div class="cc-xp">0–24 pts</div>
+        <div class="cc-tag">Iniciado na Força</div><div class="cc-xp">0–15 pts</div>
         <div class="cc-lock"><svg width="14" height="14"><use href="#i-lock"/></svg></div>
       </div>
       <div class="char-card" data-rank="1">
-        <div class="cc-fig"><svg viewBox="0 0 120 220"><use href="#char-1"/></svg></div>
+        <div class="cc-fig"><img src="forca-agil/assets/rank-padawan.png" alt="Padawan"></div>
         <div class="cc-lvl">PATENTE 02</div><div class="cc-name">Padawan</div>
-        <div class="cc-tag">"Sei o que é"</div><div class="cc-xp">25–49 pts</div>
+        <div class="cc-tag">Aprendiz Jedi</div><div class="cc-xp">16–30 pts</div>
         <div class="cc-lock"><svg width="14" height="14"><use href="#i-lock"/></svg></div>
       </div>
       <div class="char-card" data-rank="2">
-        <div class="cc-fig"><svg viewBox="0 0 120 220"><use href="#char-2"/></svg></div>
+        <div class="cc-fig"><img src="forca-agil/assets/rank-cavaleiro.png" alt="Cavaleiro Jedi"></div>
         <div class="cc-lvl">PATENTE 03</div><div class="cc-name">Cavaleiro</div>
-        <div class="cc-tag">"Domino"</div><div class="cc-xp">50–74 pts</div>
+        <div class="cc-tag">Cavaleiro Jedi</div><div class="cc-xp">31–45 pts</div>
         <div class="cc-lock"><svg width="14" height="14"><use href="#i-lock"/></svg></div>
       </div>
       <div class="char-card" data-rank="3">
-        <div class="cc-fig"><svg viewBox="0 0 120 220"><use href="#char-3"/></svg></div>
+        <div class="cc-fig"><img src="forca-agil/assets/rank-mestre.png" alt="Mestre Jedi"></div>
         <div class="cc-lvl">PATENTE 04</div><div class="cc-name">Mestre</div>
-        <div class="cc-tag">"Ensino"</div><div class="cc-xp">75–100 pts</div>
+        <div class="cc-tag">Mestre Jedi</div><div class="cc-xp">46–60 pts</div>
         <div class="cc-lock"><svg width="14" height="14"><use href="#i-lock"/></svg></div>
       </div>
     </div>
@@ -1258,19 +1253,10 @@
       </div>
     </div>
 
-    <!-- Missions -->
-    <div class="reveal" style="margin-top:56px">
-      <span class="eyebrow">Missões de Campo</span>
-      <h3 class="sec-title" style="font-size:clamp(1.4rem,3.4vw,2.2rem)">Cumpra desafios, ganhe pontos</h3>
-      <p class="sec-lead">Cada missão concluída soma pontos e te aproxima da próxima patente. Marque conforme avança na oficina.</p>
-    </div>
-    <div class="missions" id="missions"></div>
-    <p id="missionsResult" style="font-family:var(--font-mono);font-size:.85rem;color:var(--accent);margin-top:12px;text-align:center"></p>
-
   </div><!-- /wrap.game -->
 
-  <!-- Kyber Game -->
-  <section class="kyber-section" id="kyber">
+  <!-- Kyber Game (desativado) -->
+  <section class="kyber-section" id="kyber" hidden>
     <div class="kyber-header">
       <span class="eyebrow">Fase 3 · Kyber Game · até 32 pontos</span>
       <h2>Kyber Game</h2>

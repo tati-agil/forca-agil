@@ -58,7 +58,7 @@
     /* RANKS baseados na pontuação do autodiagnóstico (0-60) */
     RANKS: [
       {
-        name: 'Youngling', tag: 'Iniciado na Força', sym: '#char-0', icon: '🟢', min: 0,
+        id: 'youngling', name: 'Youngling', tag: 'Iniciado na Força', sym: '#char-0', icon: '🟢',
         minDiag: 0, maxDiag: 15,
         desc: 'Você está começando sua jornada.',
         carac: ['Mentalidade ainda tradicional', 'Pouco contato com práticas ágeis', 'Busca segurança em controle e previsibilidade'],
@@ -66,7 +66,7 @@
         frase: '"A Força já está em você… só precisa ser despertada."'
       },
       {
-        name: 'Padawan', tag: 'Aprendiz Jedi', sym: '#char-1', icon: '🔵', min: 25,
+        id: 'padawan', name: 'Padawan', tag: 'Aprendiz Jedi', sym: '#char-1', icon: '🔵',
         minDiag: 16, maxDiag: 30,
         desc: 'Você já entrou na jornada!',
         carac: ['Já conhece alguns conceitos', 'Oscila entre velho e novo modelo', 'Começa a experimentar práticas'],
@@ -74,7 +74,7 @@
         frase: '"Muito ainda precisa aprender… mas o caminho está correto."'
       },
       {
-        name: 'Cavaleiro', tag: 'Cavaleiro Jedi', sym: '#char-2', icon: '🟡', min: 50,
+        id: 'cavaleiro', name: 'Cavaleiro', tag: 'Cavaleiro Jedi', sym: '#char-2', icon: '🟡',
         minDiag: 31, maxDiag: 45,
         desc: 'Você já aplica agilidade com confiança.',
         carac: ['Boa mentalidade adaptativa', 'Usa práticas no dia a dia', 'Colabora bem com o time'],
@@ -82,7 +82,7 @@
         frase: '"A Força flui naturalmente através de você."'
       },
       {
-        name: 'Mestre', tag: 'Mestre Jedi', sym: '#char-3', icon: '🟣', min: 75,
+        id: 'mestre', name: 'Mestre', tag: 'Mestre Jedi', sym: '#char-3', icon: '🟣',
         minDiag: 46, maxDiag: 60,
         desc: 'Você vive e respira agilidade.',
         carac: ['Alta adaptabilidade', 'Liderança pelo exemplo', 'Forte foco em valor e pessoas'],
@@ -91,9 +91,7 @@
       }
     ],
 
-    /* Mantém DIMS como alias vazio para compatibilidade (não usado no novo quiz) */
     DIMS: [],
-
     MISSIONS: [
       {
         id: 'gelo',
