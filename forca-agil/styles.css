@@ -587,6 +587,8 @@ html:not(.js) .reveal { opacity: 1 !important; transform: none !important; }
 .day.open .dchev { transform: rotate(180deg); }
 .day-body { max-height: 0; overflow: hidden; transition: max-height .45s var(--ease); }
 .day.open .day-body { max-height: 760px; }
+.day--static .day-head { cursor: default; }
+.day--static .day-body { display: none; }
 .day-body ul { list-style: none; padding: 0 24px 22px 86px; display: grid; gap: 10px; }
 .day-body li { position: relative; color: var(--ink-2); padding-left: 78px; font-size: .98rem; min-height: 22px; }
 .day-body li i { color: var(--ink-3); font-style: italic; }
