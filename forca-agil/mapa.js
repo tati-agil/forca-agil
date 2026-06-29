@@ -11,7 +11,7 @@
 
   const HIERARCHY = [
     { key: 'visitante',   label: 'Visitante',      color: '#888888',
-      adds: ['Ver páginas públicas (Início, Turmas, Conteúdos, Repositório, Ranking, FAQ)', 'Cadastrar conta (@previ.com.br)', 'Fazer login', 'Recuperar senha por e-mail (autoatendimento)'] },
+      adds: ['Ver páginas públicas (Início, Turmas, Conteúdos, Repositório, Ranking, Ajuda)', 'Cadastrar conta (@previ.com.br)', 'Fazer login', 'Recuperar senha por e-mail (autoatendimento)'] },
     { key: 'logado',      label: 'Usuário logado', color: '#1ab2ae',
       adds: ['Acessar e jogar o Treinamento Jedi', 'Ganhar pontos de experiência por conteúdos lidos', 'Adicionar e remover conteúdos no Repositório', 'Registrar interesse em turmas', 'Revelar patente (resultado fixo, só seu)', 'Publicar no ranking (opcional, separado de revelar)'] },
     { key: 'colaborador', label: 'Colaborador',    color: '#f5c542',
@@ -31,7 +31,10 @@
         { label: 'Crawl: clicar na área ou botão "⏸ Pausar" → pausa/retoma animação', p: ['visitante','logado','colaborador','admin'] },
         { label: 'Crawl: botão "≡ Ler texto" → exibe texto estático sem perspectiva; "✕ Fechar texto" retorna ao crawl', p: ['visitante','logado','colaborador','admin'] },
         { label: '3 cards "Como funciona" → links para Conteúdos / Repositório / Treinamento Jedi (sem hover — cards decorativos)', p: ['visitante','logado','colaborador','admin'] },
+        { label: 'Linha "Os pontos de experiência mostram sua evolução no portal. Saiba mais →" abaixo dos 3 pilares — link navega para Ajuda e abre a pergunta sobre XP', p: ['visitante','logado','colaborador','admin'] },
         { label: 'Seção "O que está acontecendo" (Destaques) removida',   p: [] },
+        { label: 'Botão hero deslogado: "Juntar-se à Força →" → abre modal de cadastro', p: ['visitante'] },
+        { label: 'Botão hero logado: "Ver turmas →" → navega para a página Turmas', p: ['logado','colaborador','admin'] },
         { label: 'CTA final: único botão "Ver turmas →" direciona para a página Turmas (mesmo comportamento para todos os perfis)', p: ['visitante','logado','colaborador','admin'] },
         { label: 'Link no rodapé para previ.com.br (externo, presente em todas as páginas)', p: ['visitante','logado','colaborador','admin'] },
       ]
@@ -88,11 +91,12 @@
         { label: 'Ver patente de todos',                 p: ['visitante','logado','colaborador','admin'] },
       ]
     },
-    { label: 'FAQ', color: '#9b7fff',
+    { label: 'AJUDA', color: '#9b7fff',
       features: [
-        { label: 'Ver página FAQ com 6 perguntas frequentes em acordeão (<details>/<summary>)', p: ['visitante','logado','colaborador','admin'] },
+        { label: 'Ver página Ajuda com 10 perguntas em acordeão (<details>/<summary>) — eyebrow "Central de Ajuda", h1 "Como podemos ajudar?"', p: ['visitante','logado','colaborador','admin'] },
         { label: 'Expandir/recolher cada pergunta clicando no título (comportamento nativo do browser)', p: ['visitante','logado','colaborador','admin'] },
-        { label: 'Link "FAQ" no menu de navegação', p: ['visitante','logado','colaborador','admin'] },
+        { label: 'Link "Ajuda" no menu de navegação (substituiu "FAQ")', p: ['visitante','logado','colaborador','admin'] },
+        { label: 'Pergunta sobre XP com id "faq-xp" — aberta automaticamente ao clicar "Saiba mais →" na Home', p: ['visitante','logado','colaborador','admin'] },
       ]
     },
     { label: 'ADMIN', color: '#ff5252',
@@ -134,6 +138,7 @@
         { label: 'Fazer login',                               p: ['visitante'] },
         { label: 'Esqueci minha senha — link por e-mail',     p: ['visitante'] },
         { label: 'Inicial e nome no menu — no lugar dos botões Entrar/Cadastrar', p: ['logado','colaborador','admin'] },
+        { label: 'Badge XP no header (pill dourado entre nome e "Sair") — exibe pontos acumulados; tooltip "XP é a sigla para pontos de experiência"; atualiza em tempo real', p: ['logado','colaborador','admin'] },
         { label: 'Ver link "Admin" no menu de navegação (desktop sempre visível; mobile: aparece ao abrir o menu)', p: ['admin'] },
         { label: 'Botão Sair',                                p: ['logado','colaborador','admin'] },
       ]
