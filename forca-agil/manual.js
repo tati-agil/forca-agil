@@ -14,6 +14,7 @@
     { key: 'repositorio', label: 'Repositório',          color: '#e8854a' },
     { key: 'quiz',        label: 'Treinamento Jedi',      color: '#e05c7f' },
     { key: 'ranking',     label: 'Ranking',              color: '#57aaff' },
+    { key: 'ajuda',       label: 'Ajuda',               color: '#7ecbff' },
     { key: 'admin',       label: 'Admin',               color: '#ff5252' },
   ];
 
@@ -260,13 +261,27 @@
       title: 'Atualização em tempo real',
       body: 'O ranking atualiza automaticamente via Firebase — sem precisar recarregar a página.' },
 
-    /* ── FAQ ── */
-    { section: 'faq', personas: ['visitante', 'logado', 'colaborador', 'admin'],
+    /* ── INÍCIO (adições v5) ── */
+    { section: 'inicio', personas: ['logado', 'colaborador', 'admin'],
+      title: 'Badge de XP no cabeçalho',
+      body: 'Quando logado, um badge com a pontuação total de XP aparece ao lado do nome do usuário no menu (ex: "42 XP"). Soma: pontos de conteúdo (fa-content-xp) + pontos de repositório (fa-repo-xp) + pontos do quiz calculados de fa-game-v2 (autodiagnóstico + missões + Kyber). Máximo: 100 pontos. Atualiza em tempo real via evento fa-progress-change.' },
+    { section: 'inicio', personas: ['visitante', 'logado', 'colaborador', 'admin'],
+      title: 'Hint de XP abaixo da seção "Como funciona" (Pilares)',
+      body: 'Uma linha de texto abaixo dos 3 cards "Como funciona" explica o que são XP: "Os pontos de experiência mostram sua evolução no portal." com link "Saiba mais →" que navega para a página Ajuda e abre automaticamente a pergunta sobre XP (#faq-xp).' },
+    { section: 'inicio', personas: ['visitante', 'logado', 'colaborador', 'admin'],
+      title: 'Botão hero — comportamento por login',
+      body: 'Visitante: botão "Juntar-se à Força →" que abre o modal de cadastro. Logado/colaborador/admin: botão "Ver turmas →" que navega para a página Turmas. O botão nunca fica oculto — só muda texto e ação conforme o estado de login.' },
+
+    /* ── AJUDA ── */
+    { section: 'ajuda', personas: ['visitante', 'logado', 'colaborador', 'admin'],
       title: 'Acesso',
-      body: 'Página FAQ visível para todos, inclusive visitantes. Sem restrição de acesso.' },
-    { section: 'faq', personas: ['visitante', 'logado', 'colaborador', 'admin'],
+      body: 'Página Ajuda visível para todos, inclusive visitantes. Sem restrição de acesso. No menu o link aparece como "Ajuda" (era "FAQ").' },
+    { section: 'ajuda', personas: ['visitante', 'logado', 'colaborador', 'admin'],
       title: 'Acordeão de perguntas',
-      body: 'A página tem 6 perguntas frequentes exibidas em acordeão com elemento HTML nativo <details>/<summary>. Clicar no título expande/recolhe a resposta — sem JavaScript. Cada pergunta pode ser aberta independentemente das demais.' },
+      body: 'A página tem 10 perguntas frequentes exibidas em acordeão com elemento HTML nativo <details>/<summary>. Clicar no título expande/recolhe a resposta — sem JavaScript. Cada pergunta pode ser aberta independentemente das demais. Eyebrow: "Central de Ajuda"; título: "Como podemos ajudar?".' },
+    { section: 'ajuda', personas: ['visitante', 'logado', 'colaborador', 'admin'],
+      title: 'Pergunta sobre XP — âncora e abertura automática',
+      body: 'A pergunta sobre XP tem id="faq-xp". Ao clicar em "Saiba mais →" na seção de Início (hint abaixo dos pilares), o router navega para a página Ajuda e abre automaticamente esse <details>, rolando até ele.' },
 
     /* ── ADMIN ── */
     { section: 'admin', personas: ['visitante', 'logado', 'colaborador'],

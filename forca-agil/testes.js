@@ -446,11 +446,12 @@
       tests: [
         { id: 'c-hero',         label: 'Hero com título "Força Ágil" presente',         run: function () { return !!document.querySelector('.hero-title, .hero'); } },
         { id: 'c-cta-btn',        label: 'Botão "Juntar-se à Força" existe no DOM',         run: function () { return !!document.getElementById('heroJoin'); } },
-        { id: 'c-cta-btn-logado', label: 'Botão "Juntar-se à Força" oculto quando logado',   run: function () {
+        { id: 'c-cta-btn-logado', label: 'Botão hero: "Ver turmas" quando logado; "Juntar-se" quando visitante (nunca oculto)', run: function () {
           var btn = document.getElementById('heroJoin');
           if (!btn) return false;
           var sess = window.faAuth ? window.faAuth.getSession() : null;
-          return sess ? btn.hidden === true : btn.hidden === false;
+          if (sess) return btn.hidden === false && btn.dataset.loggedIn === '1';
+          return btn.hidden === false && btn.dataset.loggedIn !== '1';
         } },
         { id: 'c-como-funciona', label: 'Como funciona: os 3 links apontam para páginas reais e com o título certo', run: function () {
           var cards = document.querySelectorAll('.how-grid .how-card');
@@ -477,11 +478,12 @@
       ]
     },
     {
-      group: 'Página FAQ',
+      group: 'Página Ajuda',
       tests: [
-        { id: 'c-faq-page', label: 'Página FAQ presente no DOM (#page-faq)', run: function () { return !!document.getElementById('page-faq'); } },
-        { id: 'c-faq-items', label: 'FAQ tem 6 itens de acordeão (.faq-item)', run: function () { return document.querySelectorAll('#page-faq .faq-item').length === 6; } },
-        { id: 'c-faq-nav',   label: 'Link "FAQ" presente no menu de navegação', run: function () { return !!document.querySelector('[data-nav-page="faq"]'); } },
+        { id: 'c-faq-page', label: 'Página Ajuda presente no DOM (#page-ajuda)', run: function () { return !!document.getElementById('page-ajuda'); } },
+        { id: 'c-faq-items', label: 'Ajuda tem 10 itens de acordeão (.faq-item)', run: function () { return document.querySelectorAll('#page-ajuda .faq-item').length === 10; } },
+        { id: 'c-faq-nav',   label: 'Link "Ajuda" presente no menu de navegação', run: function () { return !!document.querySelector('[data-nav-page="ajuda"]'); } },
+        { id: 'c-faq-xp-anchor', label: 'Pergunta sobre XP tem id="faq-xp" (âncora para Saiba mais)', run: function () { return !!document.getElementById('faq-xp'); } },
       ]
     },
     {
@@ -1034,8 +1036,9 @@
       'Turmas':             '#f5c542',
       'Conteúdos':          '#4caf7d',
       'Repositório':        '#e8854a',
-      'Treinamento Jedi':          '#e05c7f',
+      'Treinamento Jedi':   '#e05c7f',
       'Ranking':            '#57aaff',
+      'Ajuda':              '#7ecbff',
       'Admin':              '#ff5252',
     };
 
@@ -1163,7 +1166,8 @@
       'Página Início':               '#1ab2ae',
       'Página Turmas':               '#f5c542',
       'Página Repositório':          '#e8854a',
-      'Página Treinamento Jedi':            '#e05c7f',
+      'Página Ajuda':                '#7ecbff',
+      'Página Treinamento Jedi':     '#e05c7f',
       'Página Ranking':              '#57aaff',
       'Painel Admin — Integridade':  '#ff5252',
     };
