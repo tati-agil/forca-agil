@@ -11,11 +11,11 @@
 
   const HIERARCHY = [
     { key: 'visitante',   label: 'Visitante',      color: '#888888',
-      adds: ['Ver páginas públicas (Início, Turmas, Conteúdos, Repositório, Ranking, FAQ)', 'Cadastrar conta (@previ.com.br)', 'Fazer login', 'Recuperar senha por e-mail (autoatendimento)'] },
+      adds: ['Ver páginas públicas (Início, Turmas, Conteúdos, Repositório, Ranking, Ajuda)', 'Cadastrar conta (@previ.com.br)', 'Fazer login', 'Recuperar senha por e-mail (autoatendimento)'] },
     { key: 'logado',      label: 'Usuário logado', color: '#1ab2ae',
-      adds: ['Acessar e jogar o Treinamento Jedi', 'Ganhar pontos de experiência por conteúdos lidos', 'Adicionar e remover conteúdos no Repositório', 'Registrar interesse em turmas', 'Revelar patente (resultado fixo, só seu)', 'Publicar no ranking (opcional, separado de revelar)'] },
+      adds: ['Acessar e jogar o Treinamento Jedi (autodiagnóstico quiz 0–60)', 'Ganhar pontos de experiência por conteúdos lidos', 'Adicionar e remover conteúdos no Repositório', 'Registrar interesse em turmas', 'Revelar patente (resultado fixo e bloqueado — não pode refazer sem reset do admin)'] },
     { key: 'colaborador', label: 'Colaborador',    color: '#f5c542',
-      adds: ['Expandir Agenda D1–D5 na página Turmas'] },
+      adds: ['Sem privilégios extras em relação ao usuário logado (agenda da v3 não é expansível)'] },
     { key: 'admin',       label: 'Admin',          color: '#ff5252',
       adds: ['Acessar o Painel Admin', 'Gerenciar colaboradores e admins', 'Ver todos os cadastrados (não só colaboradores)', 'Ver interessados por turma', 'Moderar Repositório (ocultar/restaurar/deletar)', 'Resetar progresso de qualquer cadastrado', 'Enviar e-mail de redefinição de senha para qualquer cadastrado'] },
   ];
@@ -31,7 +31,9 @@
         { label: 'Crawl: clicar na área ou botão "⏸ Pausar" → pausa/retoma animação', p: ['visitante','logado','colaborador','admin'] },
         { label: 'Crawl: botão "≡ Ler texto" → exibe texto estático sem perspectiva; "✕ Fechar texto" retorna ao crawl', p: ['visitante','logado','colaborador','admin'] },
         { label: '3 cards "Como funciona" → links para Conteúdos / Repositório / Treinamento Jedi (sem hover — cards decorativos)', p: ['visitante','logado','colaborador','admin'] },
-        { label: 'Seção "O que está acontecendo" (Destaques) removida',   p: [] },
+        { label: 'Linha "Os pontos de experiência mostram sua evolução no portal. Saiba mais →" abaixo dos 3 pilares — link navega para Ajuda e abre a pergunta sobre XP', p: ['visitante','logado','colaborador','admin'] },
+        { label: 'Botão hero deslogado: "Juntar-se à Força →" → abre modal de cadastro', p: ['visitante'] },
+        { label: 'Botão hero logado: "Ver turmas →" → navega para a página Turmas', p: ['logado','colaborador','admin'] },
         { label: 'CTA final: único botão "Ver turmas →" direciona para a página Turmas (mesmo comportamento para todos os perfis)', p: ['visitante','logado','colaborador','admin'] },
         { label: 'Link no rodapé para previ.com.br (externo, presente em todas as páginas)', p: ['visitante','logado','colaborador','admin'] },
       ]
@@ -40,12 +42,12 @@
       features: [
         { label: 'Ver turmas, datas e descrição',        p: ['visitante','logado','colaborador','admin'] },
         { label: 'Bloco "Como funciona a oficina" antes da agenda: 4 métricas (5 dias, 4h, Prática, Opcional) + descrição', p: ['visitante','logado','colaborador','admin'] },
+        { label: 'Agenda D1–D5: itens estáticos (sem expansível — nenhum conteúdo interno)', p: ['visitante','logado','colaborador','admin'] },
         { label: '"Tenho interesse" sem login → exibe mensagem "Faça login para registrar seu interesse" + abre modal login', p: ['visitante'] },
         { label: 'Registrar interesse → botão vira "Remover interesse" (status: interessado)', p: ['logado','colaborador','admin'] },
         { label: 'Remover interesse → botão volta a "Tenho interesse" (log mantido)', p: ['logado','colaborador','admin'] },
         { label: 'Turma finalizada → botão vira "✓ Inscrita" (desabilitado)', p: ['logado','colaborador','admin'] },
         { label: 'Check-in via QR Code no dia do evento → botão vira "✓ Presente" (por dia)', p: ['logado','colaborador','admin'] },
-        { label: 'Expandir Agenda D1–D5',                p: ['colaborador','admin'] },
       ]
     },
     { label: 'CONTEÚDOS', color: '#4caf7d',
@@ -70,14 +72,16 @@
     },
     { label: 'TREINAMENTO JEDI', color: '#e05c7f',
       features: [
-        { label: 'Welcome screen: título "Bem-vindo ao Treinamento Jedi" + stepper visual 4 passos (Faça login → Explore atividades → Ganhe experiência → Desbloqueie patentes) + botão "Quero jogar" → abre modal login (visitante)', p: ['visitante'] },
-        { label: 'Conteúdo do jogo oculto para visitantes (#treinamento e #kyber): autodiagnóstico, missões e Kyber Game só aparecem após login', p: ['visitante'] },
-        { label: 'Autodiagnóstico (1×)',                   p: ['logado','colaborador','admin'] },
-        { label: 'Missões (1×)',                          p: ['logado','colaborador','admin'] },
-        { label: 'Kyber Game — minigame de perguntas e respostas sobre agilidade (1×)', p: ['logado','colaborador','admin'] },
-        { label: 'Ver painel de patente em tempo real (pontos de experiência)', p: ['logado','colaborador','admin'] },
-        { label: 'Revelar patente (fixa resultado, só para si — não publica)', p: ['logado','colaborador','admin'] },
-        { label: 'Publicar no ranking (opcional, exige ter revelado)', p: ['logado','colaborador','admin'] },
+        { label: 'Welcome screen: botão "Quero jogar" → abre modal login (visitante)', p: ['visitante'] },
+        { label: 'Conteúdo do quiz oculto para visitantes: autodiagnóstico só aparece após login', p: ['visitante'] },
+        { label: 'Autodiagnóstico Likert — 20 afirmações em 4 blocos, escala 0–3, pontuação total 0–60', p: ['logado','colaborador','admin'] },
+        { label: 'Patente determinada exclusivamente pela pontuação do quiz (Youngling 0–15 / Padawan 16–30 / Cavaleiro 31–45 / Mestre 46–60)', p: ['logado','colaborador','admin'] },
+        { label: 'Ver painel HUD com avatar SVG e patente atual em tempo real conforme responde', p: ['logado','colaborador','admin'] },
+        { label: 'Ladder de patentes: 4 cards com personagens SVG, faixas de pontuação e nomes', p: ['logado','colaborador','admin'] },
+        { label: 'Botão "Revelar minha Patente →" aparece ao concluir as 20 afirmações (centralizado)', p: ['logado','colaborador','admin'] },
+        { label: 'Após revelar: botão desabilitado + card compacto com avatar, pontuação, nome da patente, descrição, características, próximos passos e frase Jedi', p: ['logado','colaborador','admin'] },
+        { label: 'Resultado bloqueado após revelar — mensagem "🔒 Para refazer, solicite ao admin o reset do seu progresso."', p: ['logado','colaborador','admin'] },
+        { label: 'Missões e Kyber Game removidos da v3', p: [] },
       ]
     },
     { label: 'RANKING', color: '#57aaff',
@@ -88,11 +92,12 @@
         { label: 'Ver patente de todos',                 p: ['visitante','logado','colaborador','admin'] },
       ]
     },
-    { label: 'FAQ', color: '#9b7fff',
+    { label: 'AJUDA', color: '#9b7fff',
       features: [
-        { label: 'Ver página FAQ com 6 perguntas frequentes em acordeão (<details>/<summary>)', p: ['visitante','logado','colaborador','admin'] },
+        { label: 'Ver página Ajuda com 10 perguntas em acordeão (<details>/<summary>) — eyebrow "Central de Ajuda", h1 "Como podemos ajudar?"', p: ['visitante','logado','colaborador','admin'] },
         { label: 'Expandir/recolher cada pergunta clicando no título (comportamento nativo do browser)', p: ['visitante','logado','colaborador','admin'] },
-        { label: 'Link "FAQ" no menu de navegação', p: ['visitante','logado','colaborador','admin'] },
+        { label: 'Link "Ajuda" no menu de navegação (substituiu "FAQ")', p: ['visitante','logado','colaborador','admin'] },
+        { label: 'Pergunta sobre XP com id "faq-xp" — aberta automaticamente ao clicar "Saiba mais →" na Home', p: ['visitante','logado','colaborador','admin'] },
       ]
     },
     { label: 'ADMIN', color: '#ff5252',
@@ -134,6 +139,7 @@
         { label: 'Fazer login',                               p: ['visitante'] },
         { label: 'Esqueci minha senha — link por e-mail',     p: ['visitante'] },
         { label: 'Inicial e nome no menu — no lugar dos botões Entrar/Cadastrar', p: ['logado','colaborador','admin'] },
+        { label: 'Badge XP no header (pill dourado entre nome e "Sair") — exibe pontos acumulados; tooltip "XP é a sigla para pontos de experiência"; atualiza em tempo real', p: ['logado','colaborador','admin'] },
         { label: 'Ver link "Admin" no menu de navegação (desktop sempre visível; mobile: aparece ao abrir o menu)', p: ['admin'] },
         { label: 'Botão Sair',                                p: ['logado','colaborador','admin'] },
       ]
