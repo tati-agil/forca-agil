@@ -53,13 +53,11 @@
   function _st() { return window.faStore || localStorage; }
   function getGameXP() {
     try {
-      const s = JSON.parse(_st().getItem('fa-game-v2') || 'null');
-      if (!s) return { xpAuto: 0, xpMissoes: 0 };
-      const answered = (s.quiz || []).filter(function(v) { return v != null; }).length;
-      const xpAuto   = Math.round(answered / 6 * 20);
-      const xpMissoes = parseInt(_st().getItem('fa-missions-xp') || '0', 10) || 0;
-      return { xpAuto: xpAuto, xpMissoes: xpMissoes };
-    } catch(e) { return { xpAuto: 0, xpMissoes: 0 }; }
+      const s = JSON.parse(_st().getItem('fa-game-v3') || 'null');
+      if (!s) return { xpQuiz: 0 };
+      const xpQuiz = (s.quiz || []).reduce(function(sum, v) { return sum + (v != null ? +v : 0); }, 0);
+      return { xpQuiz: xpQuiz };
+    } catch(e) { return { xpQuiz: 0 }; }
   }
   function getKyberXP()   { return parseInt(_st().getItem('fa-kyber-xp')   || '0', 10) || 0; }
   function getContentXP() { return parseInt(_st().getItem('fa-content-xp') || '0', 10) || 0; }
@@ -72,9 +70,8 @@
   }
 
   // ---- Sync progress to Firebase (para restaurar em qualquer browser) ----
-  const _PROGRESS_KEYS = ['fa-game-v2','fa-missions-xp','fa-kyber-done','fa-kyber-xp',
-                        'fa-patente-revealed','fa-patente-publicada','fa-content-read','fa-content-xp','fa-repo-xp',
-                        'kyber-game-v1','kyber-ranking-v1'];
+  const _PROGRESS_KEYS = ['fa-game-v3',
+                        'fa-patente-revealed','fa-patente-publicada','fa-content-read','fa-content-xp','fa-repo-xp'];
   window.faSyncProgress = function() {
     if (!fbReady) return;
     let p = getPlayer();
@@ -164,17 +161,14 @@
     const p = getPlayer();
     if (!p || !p.name) return;
     const gxp   = getGameXP();
-    const kxp   = getKyberXP();
     const cxp   = getContentXP();
     const rxp   = getRepoXP();
-    const total = Math.min(100, gxp.xpAuto + gxp.xpMissoes + kxp + cxp + rxp);
+    const total = Math.min(100, gxp.xpQuiz + cxp + rxp);
     const entry = {
       name:      p.name,
       area:      p.area  || '',
       turma:     p.turma || '',
-      xpAuto:    gxp.xpAuto,
-      xpMissoes: gxp.xpMissoes,
-      xpKyber:   kxp,
+      xpQuiz:    gxp.xpQuiz,
       xpContent: cxp,
       xpRepo:    rxp,
       totalXP:   total,
@@ -352,16 +346,11 @@
 
     function checkProgress() {
       try {
-        const state = JSON.parse(_st().getItem('fa-game-v2') || 'null');
-        const autoDone = state && state.quiz && state.quiz.filter(function(v){ return v != null; }).length === 6;
-        const missoesDone = state && state.missions && Object.keys(state.missions).length === 6 &&
-          Object.values(state.missions).every(function(m) {
-            return m && m.answers && m.answers.every(function(a){ return a !== null; });
-          });
-        const kyberDone = _st().getItem('fa-kyber-done') === '1';
-        return { autoDone: autoDone, missoesDone: missoesDone, kyberDone: kyberDone,
-                 allDone: autoDone && missoesDone && kyberDone };
-      } catch(e) { return { autoDone: false, missoesDone: false, kyberDone: false, allDone: false }; }
+        const state = JSON.parse(_st().getItem('fa-game-v3') || 'null');
+        const dims = (window.faGameData && window.faGameData.DIMS && window.faGameData.DIMS.length) || 12;
+        const quizDone = state && state.quiz && state.quiz.filter(function(v){ return v != null; }).length === dims;
+        return { quizDone: quizDone, allDone: quizDone };
+      } catch(e) { return { quizDone: false, allDone: false }; }
     }
 
     function updateRevelarBtn() {
@@ -374,31 +363,23 @@
         delete revelarBtn.dataset.locked;
         let hint = document.querySelector('.revelar-hint');
         if (hint) hint.innerHTML =
-          '<span style="color:var(--accent)">✓ Autodiagnóstico</span> · ' +
-          '<span style="color:var(--accent)">✓ Missões</span> · ' +
-          '<span style="color:var(--accent)">✓ Kyber Game</span><br>Você completou as 3 etapas! Revele sua patente.';
+          '<span style="color:var(--accent)">✓ Quiz (autodiagnóstico)</span><br>Você completou o quiz! Revele sua patente.';
       } else {
         revelarBtn.disabled = false;
         revelarBtn.style.opacity = '0.45';
         revelarBtn.dataset.locked = '1';
         const hint = document.querySelector('.revelar-hint');
-        const _faltam = [!prog.autoDone && 'autodiagnóstico', !prog.missoesDone && 'missões', !prog.kyberDone && 'Kyber Game'].filter(Boolean);
-        const _faltaLista = _faltam.length <= 2 ? _faltam.join(' e ') : _faltam.slice(0, -1).join(', ') + ' e ' + _faltam[_faltam.length - 1];
-        const _faltaMsg = _faltam.length === 1 ? 'Falta completar: ' + _faltam[0] + '.' : 'Faltam: ' + _faltaLista + '.';
         if (hint) hint.innerHTML =
-          (prog.autoDone ? '<span style="color:var(--accent)">✓' : '<span style="color:var(--ink-3)">✗') + ' Autodiagnóstico</span> · ' +
-          (prog.missoesDone ? '<span style="color:var(--accent)">✓' : '<span style="color:var(--ink-3)">✗') + ' Missões</span> · ' +
-          (prog.kyberDone ? '<span style="color:var(--accent)">✓' : '<span style="color:var(--ink-3)">✗') + ' Kyber Game</span><br>' + _faltaMsg;
+          '<span style="color:var(--ink-3)">✗ Quiz (autodiagnóstico)</span><br>Complete o quiz para revelar sua patente.';
       }
     }
 
     // ---- Pós-revelação: patente fixada, publicação no ranking é etapa separada e opcional ----
     function currentTotalEPatente() {
       const gxp = getGameXP();
-      const kxp = getKyberXP();
       const cxp = getContentXP();
       const rxp = getRepoXP();
-      const total = Math.min(100, gxp.xpAuto + gxp.xpMissoes + kxp + cxp + rxp);
+      const total = Math.min(100, gxp.xpQuiz + cxp + rxp);
       return { total: total, patente: getRank(total) };
     }
 
