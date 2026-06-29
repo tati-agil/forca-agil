@@ -395,4 +395,21 @@
     });
   });
 
+  /* ---- "Saiba mais" XP: navega para Ajuda, abre pergunta XP e rola até ela ---- */
+  document.addEventListener('DOMContentLoaded', function () {
+    var saibaMais = document.getElementById('saibaMaisXP');
+    if (!saibaMais) return;
+    saibaMais.addEventListener('click', function (e) {
+      e.preventDefault();
+      if (window.faRouter) window.faRouter.navigate('ajuda');
+      setTimeout(function () {
+        var details = document.getElementById('faq-xp');
+        if (details) {
+          details.open = true;
+          details.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        }
+      }, 200);
+    });
+  });
+
 })();

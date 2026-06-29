@@ -162,14 +162,37 @@
     const guestEl   = document.getElementById('navGuest');
     if (guestEl)   guestEl.hidden   = !!sess;
     if (ctaEl)     ctaEl.hidden     = !!sess;
-    if (heroJoin)  heroJoin.hidden  = !!sess;
+    if (heroJoin) {
+      if (sess) {
+        heroJoin.textContent = 'Ver turmas →';
+        heroJoin.dataset.loggedIn = '1';
+      } else {
+        heroJoin.textContent = 'Juntar-se à Força →';
+        delete heroJoin.dataset.loggedIn;
+      }
+    }
     if (profileEl) {
       profileEl.hidden = !sess;
       if (sess) {
         const nameEl   = profileEl.querySelector('.nav-profile-name');
         const avatarEl = profileEl.querySelector('.nav-profile-avatar');
+        const xpBadge  = document.getElementById('navXpBadge');
         if (nameEl)   nameEl.textContent   = sess.name.split(' ')[0];
         if (avatarEl) avatarEl.textContent = sess.name.charAt(0).toUpperCase();
+        if (xpBadge) {
+          try {
+            const st = window.faStore || localStorage;
+            const cxp = parseInt(st.getItem('fa-content-xp') || '0', 10) || 0;
+            const rxp = parseInt(st.getItem('fa-repo-xp')    || '0', 10) || 0;
+            const rawQuiz = JSON.parse(st.getItem('fa-game-v3') || 'null');
+            const qxp = rawQuiz && Array.isArray(rawQuiz.quiz)
+              ? rawQuiz.quiz.reduce(function(a, v) { return a + (v != null ? v : 0); }, 0)
+              : 0;
+            const total = cxp + rxp + qxp;
+            xpBadge.textContent = total + ' XP';
+            xpBadge.hidden = false;
+          } catch(e) { xpBadge.hidden = true; }
+        }
       }
     }
     if (adminLink) adminLink.hidden = !sess || !isAdmin((sess || {}).email);
@@ -181,6 +204,7 @@
   document.addEventListener('DOMContentLoaded', function () {
     updateNavState();
     window.addEventListener('fa-auth-change', updateNavState);
+    window.addEventListener('fa-progress-change', updateNavState);
 
     const modal    = document.getElementById('authModal');
     const closeBtn = document.getElementById('authClose');
@@ -232,7 +256,7 @@
     });
 
     /* CTA buttons */
-    ['navCta', 'heroJoin', 'heroRegister', 'openRegister'].forEach(function (id) {
+    ['navCta', 'heroRegister', 'openRegister'].forEach(function (id) {
       const btn = document.getElementById(id);
       if (!btn) return;
       btn.addEventListener('click', function (e) {
@@ -241,6 +265,16 @@
         else openModal('register');
       });
     });
+
+    /* heroJoin: "Juntar-se à Força" (deslogado) ou "Ver turmas" (logado) */
+    const heroJoinBtn = document.getElementById('heroJoin');
+    if (heroJoinBtn) {
+      heroJoinBtn.addEventListener('click', function (e) {
+        e.preventDefault();
+        if (_session) { if (window.faRouter) window.faRouter.navigate('turmas'); }
+        else openModal('register');
+      });
+    }
 
     const ctaLoginBtn = document.getElementById('ctaLogin');
     if (ctaLoginBtn) {
