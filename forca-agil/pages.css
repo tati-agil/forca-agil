@@ -33,6 +33,21 @@
   max-width: 100px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
   font-weight: 600;
 }
+.nav-xp-badge {
+  font-family: var(--font-mono); font-size: .66rem; font-weight: 700;
+  color: var(--gold); background: rgba(245,197,24,.1);
+  border: 1px solid rgba(245,197,24,.35);
+  padding: 2px 7px; border-radius: 20px;
+  white-space: nowrap; cursor: default;
+  letter-spacing: .04em;
+}
+.nav-xp-badge[hidden] { display: none !important; }
+.pilares-xp-hint {
+  text-align: center; font-size: .82rem; color: var(--ink-3);
+  margin-top: 18px; font-family: var(--font-mono);
+}
+.pilares-xp-hint a { color: var(--accent); text-decoration: none; }
+.pilares-xp-hint a:hover { text-decoration: underline; }
 #navLogout {
   font-size: .68rem; font-family: var(--font-mono); color: var(--ink-3);
   background: none; border: 1px solid var(--line-strong); cursor: pointer;

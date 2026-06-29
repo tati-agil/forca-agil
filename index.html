@@ -234,7 +234,7 @@
     <a href="#repositorio" data-nav-page="repositorio">Repositório</a>
     <a href="#gamificacao" data-nav-page="gamificacao">Treinamento Jedi</a>
     <a href="#ranking" data-nav-page="ranking">Ranking</a>
-    <a href="#faq"    data-nav-page="faq">FAQ</a>
+    <a href="#ajuda"  data-nav-page="ajuda">Ajuda</a>
     <a href="#admin"       data-nav-page="admin" id="navAdmin" hidden>Admin</a>
   </div>
 
@@ -252,6 +252,7 @@
     <div class="nav-profile" id="navProfile" hidden>
       <div class="nav-profile-avatar"></div>
       <span class="nav-profile-name"></span>
+      <span class="nav-xp-badge" id="navXpBadge" title="XP é a sigla para pontos de experiência"></span>
       <button id="navLogout">Sair</button>
     </div>
   </div>
@@ -363,6 +364,7 @@
         <span class="how-tag">Veja seu progresso no ranking</span>
       </a>
     </div>
+    <p class="pilares-xp-hint">Os pontos de experiência mostram sua evolução no portal. <a href="#ajuda" data-nav-page="ajuda" id="saibaMaisXP">Saiba mais →</a></p>
   </section>
 
   <div class="divider"><svg width="14" height="14"><use href="#i-mark"/></svg></div>
@@ -1530,14 +1532,14 @@
 </div><!-- /page-admin -->
 
 <!-- ======================================================
-     PAGE: FAQ
+     PAGE: AJUDA
      ====================================================== -->
-<div class="page-section" id="page-faq" hidden>
+<div class="page-section" id="page-ajuda" hidden>
   <div class="wrap">
     <div class="page-hero">
-      <span class="eyebrow">Dúvidas</span>
-      <h1>Perguntas Frequentes</h1>
-      <p>Tudo o que você precisa saber para começar sua jornada na Força Ágil.</p>
+      <span class="eyebrow">Central de Ajuda</span>
+      <h1>Como podemos ajudar?</h1>
+      <p>Encontre respostas para as dúvidas mais comuns sobre o portal Força Ágil.</p>
     </div>
     <section class="section">
       <div class="faq-list">
@@ -1550,6 +1552,26 @@
         <details class="faq-item reveal">
           <summary>Como faço para me cadastrar?</summary>
           <div class="faq-answer">Clique em "Entrar" ou "Criar conta" no topo do site e preencha seus dados com o e-mail corporativo.</div>
+        </details>
+
+        <details class="faq-item reveal">
+          <summary>Preciso estar logado para acessar todo o portal?</summary>
+          <div class="faq-answer">Alguns conteúdos estão disponíveis sem login, mas para participar das turmas, registrar seu progresso e acumular pontos de experiência é necessário ter uma conta e estar autenticado.</div>
+        </details>
+
+        <details class="faq-item reveal">
+          <summary>Como faço para demonstrar interesse em uma turma?</summary>
+          <div class="faq-answer">Acesse a seção <strong>Turmas</strong> no menu principal, escolha a turma desejada e clique em "Quero participar". Você receberá uma confirmação e mais informações por e-mail.</div>
+        </details>
+
+        <details class="faq-item reveal" id="faq-xp">
+          <summary>O que são os pontos de experiência e para que eles servem?</summary>
+          <div class="faq-answer">XP (pontos de experiência) medem sua evolução no portal. Você acumula XP ao ler conteúdos, contribuir com o repositório e completar o Treinamento Jedi. Quanto mais XP, mais alta sua posição no ranking da galáxia.</div>
+        </details>
+
+        <details class="faq-item reveal">
+          <summary>O que significa "patente" no portal?</summary>
+          <div class="faq-answer">A patente é o seu nível na Ordem Jedi Ágil — de <strong>Youngling</strong> (iniciante) a <strong>Mestre</strong> (avançado). Ela é determinada pelo seu desempenho no autodiagnóstico do Treinamento Jedi e reflete o quanto você já incorporou a mentalidade ágil.</div>
         </details>
 
         <details class="faq-item reveal">
@@ -1590,7 +1612,7 @@
       </a>
     </div>
   </footer>
-</div><!-- /page-faq -->
+</div><!-- /page-ajuda -->
 
 </div><!-- /#app -->
 
