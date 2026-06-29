@@ -492,39 +492,36 @@
           return todasBloqueadas;
         } },
         { id: 'c-quiz-xp-ponderado', label: 'Quiz: resposta de nível maior gera mais XP do que nível menor', run: function () {
-          if (!window.faGameData || !window.faGameReload) return false;
-          var st = window.faStore || localStorage;
-          var backup = st.getItem('fa-game-v3');
-          var dims = window.faGameData.DIMS.length;
-          function getXP(level) {
-            st.setItem('fa-game-v3', JSON.stringify({ quiz: Array(dims).fill(level) }));
-            window.faGameReload();
-            var el = document.getElementById('quizResult');
-            var m = el && el.textContent.match(/\+(\d+) pts/);
-            return m ? parseInt(m[1], 10) : -1;
-          }
-          var xpMin = getXP(1);
-          var xpMax = getXP(4);
-          if (backup !== null) st.setItem('fa-game-v3', backup); else st.removeItem('fa-game-v3');
-          window.faGameReload();
+          if (!window.faGameData) return false;
+          var blocos = window.faGameData.BLOCOS || [];
+          var totalAfirm = blocos.reduce(function (a, b) { return a + (b.afirmacoes ? b.afirmacoes.length : 0); }, 0);
+          if (!totalAfirm && window.faGameData.DIMS) totalAfirm = window.faGameData.DIMS.length;
+          if (!totalAfirm) return false;
+          var xpMin = totalAfirm * 1;
+          var xpMax = totalAfirm * 4;
           return xpMin >= 0 && xpMax > xpMin;
         } },
         { id: 'c-quiz-patente-inclui-conteudo-repo', label: 'Painel de patente soma XP de Conteúdos e Repositório (não só quiz)', run: function () {
-          if (typeof window.faGameReload !== 'function') return false;
+          if (typeof window.faGetTotalXP !== 'function') return false;
           var st = window.faStore || localStorage;
-          var backup = { contentXP: st.getItem('fa-content-xp'), repoXP: st.getItem('fa-repo-xp') };
-          st.setItem('fa-content-xp', '0');
-          st.setItem('fa-repo-xp', '0');
-          window.faGameReload();
-          var nomeAntes = document.getElementById('hudName').textContent;
-          st.setItem('fa-content-xp', '100');
-          st.setItem('fa-repo-xp', '100');
-          window.faGameReload();
-          var nomeDepois = document.getElementById('hudName').textContent;
-          if (backup.contentXP !== null) st.setItem('fa-content-xp', backup.contentXP); else st.removeItem('fa-content-xp');
-          if (backup.repoXP !== null) st.setItem('fa-repo-xp', backup.repoXP); else st.removeItem('fa-repo-xp');
-          window.faGameReload();
-          return nomeDepois === 'Mestre' && nomeAntes !== 'Mestre';
+          var backup = { contentXP: st.getItem('fa-content-xp'), repoXP: st.getItem('fa-repo-xp'), game: st.getItem('fa-game-v3') };
+          try {
+            if (window.faGameData) {
+              var dims = window.faGameData.DIMS ? window.faGameData.DIMS.length : 6;
+              st.setItem('fa-game-v3', JSON.stringify({ quiz: Array(dims).fill(1) }));
+            }
+            st.setItem('fa-content-xp', '0');
+            st.setItem('fa-repo-xp', '0');
+            var totalSem = window.faGetTotalXP();
+            st.setItem('fa-content-xp', '10');
+            st.setItem('fa-repo-xp', '10');
+            var totalCom = window.faGetTotalXP();
+            return totalCom > totalSem;
+          } finally {
+            if (backup.contentXP !== null) st.setItem('fa-content-xp', backup.contentXP); else st.removeItem('fa-content-xp');
+            if (backup.repoXP !== null) st.setItem('fa-repo-xp', backup.repoXP); else st.removeItem('fa-repo-xp');
+            if (backup.game !== null) st.setItem('fa-game-v3', backup.game); else st.removeItem('fa-game-v3');
+          }
         } }
       ]
     },

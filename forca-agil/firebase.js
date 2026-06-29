@@ -301,6 +301,12 @@
     return _st().getItem('fa-kyber-done') === '1';
   };
 
+  // ---- Exposto para testes: XP total (quiz + conteúdos + repositório) ----
+  window.faGetTotalXP = function() {
+    var gxp = getGameXP();
+    return Math.min(100, gxp.xpQuiz + getContentXP() + getRepoXP());
+  };
+
   // ---- Home ranking mini (top 5) ----
   window.faRenderHomeRanking = function() {
     const list = document.getElementById('homeRanking');

@@ -117,7 +117,7 @@
     // quiz opts — marca selecionados
     qList && qList.querySelectorAll('.q-opt').forEach(b => {
       b.classList.toggle('sel', state.quiz[+b.dataset.q] === +b.dataset.v);
-      b.disabled = state.revealed;
+      b.disabled = done || state.revealed;
     });
 
     // HUD avatar
