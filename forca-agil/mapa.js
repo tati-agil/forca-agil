@@ -296,14 +296,16 @@
       {
         label: 'Padrões de UX', color: '#e05c7f',
         items: [
-          { name: 'Navegação por blocos (snap scroll)',       desc: 'Seções de 100vh com scroll-snap-type: y mandatory. Cada seção ocupa a viewport inteira — uma por vez. Teclado ↑↓/Enter navega entre seções. Aplicado em Home e Conteúdos.' },
-          { name: 'Pontos laterais de navegação',            desc: 'Sidebar com dots clicáveis (01–07) e setas ↑↓. Tooltip com nome da seção ao passar o mouse. IntersectionObserver atualiza o dot ativo conforme a seção visível.' },
+          { name: 'Navegação por blocos (snap scroll)',       desc: 'Seções de 100vh com scroll-snap-type: y mandatory. Cada seção ocupa a viewport inteira — uma por vez. Teclado ↑↓/Enter navega entre seções. Aplicado em Home (5 seções) e Conteúdos (7 seções).' },
+          { name: 'Pontos laterais de navegação',            desc: 'Sidebar com dots clicáveis e setas ↑↓. Tooltip com nome da seção ao passar o mouse. IntersectionObserver atualiza o dot ativo conforme a seção visível. Home: 01–05 (Início, O que é, Como funciona, Jornada, Junte-se). Conteúdos: 01–07.' },
           { name: 'Filtros: dropdown + chip ativo removível', desc: 'Filtros com muitas opções usam select (dropdown) para reduzir poluição visual. O filtro ativo aparece como chip colorido com × para remover. Aplicado no Manual (Seção + Persona).' },
           { name: '"Ver mais / ver menos" por overflow real', desc: 'Descrições exibem no máximo 2 linhas (-webkit-line-clamp). Botão "ver mais" só aparece se o texto realmente transborda — detectado por clone sem clamp comparado com altura clamped. Nunca aparece onde não há conteúdo extra.' },
           { name: 'Hover só em elementos funcionais',        desc: 'Cursor pointer e efeito hover apenas em botões e links reais. Cards decorativos (Como funciona, Repositório) não têm hover — evita confundir o usuário sobre o que é clicável.' },
           { name: 'Acordeão para listas longas',             desc: 'Listas com muitos itens (FAQ, Manual, Mapa, Arquitetura) usam acordeão para não sobrecarregar a tela. Expandir/Recolher tudo disponível no Admin.' },
           { name: 'Mapa do site: lista vertical (acordeão)', desc: 'Cards de páginas no Mapa do Site em coluna única em vez de grid multi-coluna — facilita leitura sequencial e evita fragmentação da informação.' },
           { name: 'Stepper em linha única horizontal',       desc: 'O fluxo de 4 passos do Treinamento Jedi (login → explorar → ganhar experiência → patentes) fica em uma única linha com flex-wrap: nowrap e flex: 1 1 0 nos steps. Mobile quebra para coluna.' },
+          { name: 'Crawl de abertura animado',               desc: 'Texto introdutório em estilo Star Wars sobe lentamente ao entrar na Home. Clique em qualquer ponto pausa/retoma a animação. Botão "Ler texto" alterna para modo estático (sem animação) para acessibilidade.' },
+          { name: 'Quiz travado ao completar (v3)',          desc: 'Opções do autodiagnóstico ficam desabilitadas assim que todas as afirmações são respondidas — não só após revelar a patente. Impede alteração de respostas após conclusão do quiz.' },
         ]
       },
       {
