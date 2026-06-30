@@ -19,13 +19,6 @@
     const em = (e || '').toLowerCase();
     return ADMIN.indexOf(em) !== -1 || _dbAdmins.indexOf(em) !== -1;
   }
-  function isColaborador(e, cb) {
-    const key = emailKey(e || '');
-    if (!key) { cb && cb(false); return; }
-    try {
-      firebase.database().ref('fa-colaboradores/' + key).once('value', function (snap) { cb && cb(snap.exists()); });
-    } catch (err) { cb && cb(false); }
-  }
   function getSession() { return _session; }
 
   /* ---- Carrega admins do Firebase ---- */
@@ -427,7 +420,7 @@
 
   window.faAuth = {
     getSession: getSession, isAdmin: isAdmin, isPrevi: isPrevi,
-    isColaborador: isColaborador, register: register, login: login,
+    register: register, login: login,
     logout: logout, sendPasswordReset: sendPasswordReset
   };
 })();

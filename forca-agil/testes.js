@@ -193,7 +193,7 @@
       tests: [
         { id: 'adm-manual', label: 'faInitManual disponível',   run: function () { return typeof window.faInitManual === 'function'; } },
         { id: 'adm-mapa',   label: 'faInitMapa disponível',     run: function () { return typeof window.faInitMapa === 'function'; } },
-        { id: 'adm-tabs',   label: 'Abas Admin presentes (8: Interessados/Repositório/Colaboradores/Cadastrados/Administradores/Manual/Mapa/Testes)', run: function () { return document.querySelectorAll('.admin-tab-btn').length === 8; } },
+        { id: 'adm-tabs',   label: 'Abas Admin presentes (7: Turmas/Repositório/Cadastrados/Administradores/Manual/Mapa/Testes)', run: function () { return document.querySelectorAll('.admin-tab-btn').length === 7; } },
         { id: 'adm-manual-panel', label: 'Painel Manual presente', run: function () { return !!document.getElementById('adminPanelManual'); } },
         { id: 'adm-mapa-panel',   label: 'Painel Mapa presente',   run: function () { return !!document.getElementById('adminPanelMapa'); } },
         { id: 'adm-mapa-cards',   label: 'Mapa: 9 cards de página renderizados', run: function () {
@@ -263,13 +263,6 @@
           if (!c) return false;
           var ths = c.querySelectorAll('thead th');
           return Array.from(ths).some(function(th) { return th.textContent.trim() === 'XP'; });
-        } },
-        { id: 'adm-colab-sem-reset-redefinir', label: 'Colaboradores: não tem botões de resetar progresso/redefinir senha', run: function () {
-          var c = document.getElementById('adminColab');
-          if (!c) return false;
-          var semPwd = !c.querySelector('.admin-pwd-btn');
-          var semReset = !c.querySelector('.admin-reset-btn');
-          return semPwd && semReset;
         } }
       ]
     }
@@ -540,7 +533,6 @@
       group: 'Painel Admin — Integridade',
       tests: [
         { id: 'c-adm-interesses', label: 'Aba Interessados por turma carregada',  run: function () { return !!document.getElementById('adminInterests') || !!document.getElementById('adminPanelInteresses'); } },
-        { id: 'c-adm-colab',      label: 'Aba Colaboradores presente',            run: function () { return !!document.getElementById('adminPanelColab'); } },
         { id: 'c-adm-admins',     label: 'Aba Administradores presente',          run: function () { return !!document.getElementById('adminPanelAdmins'); } },
         { id: 'c-adm-superadmin', label: 'Super-admins fixos no código (tatianefdirene + danielfrazao)',
           run: function () {
@@ -684,14 +676,8 @@
       title: 'Atualização em tempo real via Firebase',
       motivo: 'Requer dois usuários simultâneos — um revelando patente enquanto o outro observa o ranking.' },
     { section: 'Admin',
-      title: 'Acesso negado para visitante/logado/colaborador (URL direta)',
+      title: 'Acesso negado para visitante/logado (URL direta)',
       motivo: 'Requer testar com diferentes níveis de acesso — não pode ser validado na sessão admin atual.' },
-    { section: 'Admin',
-      title: 'Colaboradores — remover colaborador',
-      motivo: 'Ação destrutiva. Removeria acesso real de um colaborador.' },
-    { section: 'Admin',
-      title: 'Colaboradores — adicionar (formulário)',
-      motivo: 'Gravaria no Firebase e exigiria limpeza manual após o teste.' },
     { section: 'Admin',
       title: 'Cadastrados — resetar progresso',
       motivo: 'Ação destrutiva e irreversível no Firebase. Verificar: (1) XP exibe "—" na tabela admin imediatamente; (2) pessoa some do ranking em tempo real; (3) se a pessoa estiver logada no momento do reset, a página dela recarrega automaticamente (via listener em fa-reset-signal/<emailKey>) e o quiz fica disponível para refazer. Para testar o reload em tempo real: abrir a página como usuária em uma aba e o painel admin em outra — ao clicar Resetar, a aba da usuária deve recarregar sozinha.' },
