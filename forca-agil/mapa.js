@@ -3,101 +3,98 @@
   'use strict';
 
   const PERSONAS = [
-    { key: 'visitante',   label: 'Visitante',      color: '#888888', desc: 'Não cadastrado / não logado' },
-    { key: 'logado',      label: 'Usuário logado', color: '#1ab2ae', desc: 'Cadastrado com @previ.com.br' },
-    { key: 'colaborador', label: 'Colaborador',    color: '#f5c542', desc: 'Indicado como colaborador pelo Admin' },
-    { key: 'admin',       label: 'Admin',          color: '#ff5252', desc: 'Colaborador com acesso administrativo' },
+    { key: 'visitante', label: 'Visitante',      color: '#888888', desc: 'Não cadastrado / não logado' },
+    { key: 'logado',    label: 'Usuário logado', color: '#1ab2ae', desc: 'Cadastrado com @previ.com.br' },
+    { key: 'admin',     label: 'Admin',          color: '#ff5252', desc: 'Usuário com acesso administrativo' },
   ];
 
   const HIERARCHY = [
     { key: 'visitante',   label: 'Visitante',      color: '#888888',
       adds: ['Ver páginas públicas (Início, Turmas, Conteúdos, Repositório, Ranking, Ajuda)', 'Cadastrar conta (@previ.com.br)', 'Fazer login', 'Recuperar senha por e-mail (autoatendimento)'] },
-    { key: 'logado',      label: 'Usuário logado', color: '#1ab2ae',
+    { key: 'logado',  label: 'Usuário logado', color: '#1ab2ae',
       adds: ['Acessar e jogar o Treinamento Jedi (autodiagnóstico quiz 0–60)', 'Ganhar pontos de experiência por conteúdos lidos', 'Adicionar e remover conteúdos no Repositório', 'Registrar interesse em turmas', 'Revelar patente (resultado fixo e bloqueado — não pode refazer sem reset do admin)'] },
-    { key: 'colaborador', label: 'Colaborador',    color: '#f5c542',
-      adds: ['Sem privilégios extras em relação ao usuário logado (agenda da v3 não é expansível)'] },
-    { key: 'admin',       label: 'Admin',          color: '#ff5252',
-      adds: ['Acessar o Painel Admin', 'Gerenciar colaboradores e admins', 'Ver todos os cadastrados (não só colaboradores)', 'Ver interessados por turma', 'Moderar Repositório (ocultar/restaurar/deletar)', 'Resetar progresso de qualquer cadastrado', 'Enviar e-mail de redefinição de senha para qualquer cadastrado'] },
+    { key: 'admin',   label: 'Admin',          color: '#ff5252',
+      adds: ['Acessar o Painel Admin', 'Gerenciar admins', 'Ver todos os cadastrados', 'Ver interessados por turma', 'Moderar Repositório (ocultar/restaurar/deletar)', 'Resetar progresso de qualquer cadastrado', 'Enviar e-mail de redefinição de senha para qualquer cadastrado'] },
   ];
 
   const PAGES = [
     { label: 'INÍCIO', color: '#1ab2ae',
       features: [
-        { label: 'Ver página completa',                  p: ['visitante','logado','colaborador','admin'] },
-        { label: 'Subtítulo do hero: "Desenvolva sua agilidade na prática"', p: ['visitante','logado','colaborador','admin'] },
-        { label: 'Botão "Conhecer a iniciativa" → rola até "O que é"',    p: ['visitante','logado','colaborador','admin'] },
-        { label: 'Botão "Repetir abertura" → replay do crawl de intro',   p: ['visitante','logado','colaborador','admin'] },
-        { label: 'Crawl: botões "≡ Ler texto" / "⏸ Pausar" / "↻ Repetir abertura" exibidos lado a lado (layout horizontal)', p: ['visitante','logado','colaborador','admin'] },
-        { label: 'Crawl: clicar na área ou botão "⏸ Pausar" → pausa/retoma animação', p: ['visitante','logado','colaborador','admin'] },
-        { label: 'Crawl: botão "≡ Ler texto" → exibe texto estático sem perspectiva; "✕ Fechar texto" retorna ao crawl', p: ['visitante','logado','colaborador','admin'] },
-        { label: '3 cards "Como funciona" → links para Conteúdos / Repositório / Treinamento Jedi (sem hover — cards decorativos)', p: ['visitante','logado','colaborador','admin'] },
-        { label: 'Linha "Os pontos de experiência mostram sua evolução no portal. Saiba mais →" abaixo dos 3 pilares — link navega para Ajuda e abre a pergunta sobre XP', p: ['visitante','logado','colaborador','admin'] },
+        { label: 'Ver página completa',                  p: ['visitante','logado','admin'] },
+        { label: 'Subtítulo do hero: "Desenvolva sua agilidade na prática"', p: ['visitante','logado','admin'] },
+        { label: 'Botão "Conhecer a iniciativa" → rola até "O que é"',    p: ['visitante','logado','admin'] },
+        { label: 'Botão "Repetir abertura" → replay do crawl de intro',   p: ['visitante','logado','admin'] },
+        { label: 'Crawl: botões "≡ Ler texto" / "⏸ Pausar" / "↻ Repetir abertura" exibidos lado a lado (layout horizontal)', p: ['visitante','logado','admin'] },
+        { label: 'Crawl: clicar na área ou botão "⏸ Pausar" → pausa/retoma animação', p: ['visitante','logado','admin'] },
+        { label: 'Crawl: botão "≡ Ler texto" → exibe texto estático sem perspectiva; "✕ Fechar texto" retorna ao crawl', p: ['visitante','logado','admin'] },
+        { label: '3 cards "Como funciona" → links para Conteúdos / Repositório / Treinamento Jedi (sem hover — cards decorativos)', p: ['visitante','logado','admin'] },
+        { label: 'Linha "Os pontos de experiência mostram sua evolução no portal. Saiba mais →" abaixo dos 3 pilares — link navega para Ajuda e abre a pergunta sobre XP', p: ['visitante','logado','admin'] },
         { label: 'Botão hero deslogado: "Juntar-se à Força →" → abre modal de cadastro', p: ['visitante'] },
-        { label: 'Botão hero logado: "Ver turmas →" → navega para a página Turmas', p: ['logado','colaborador','admin'] },
-        { label: 'CTA final: único botão "Ver turmas →" direciona para a página Turmas (mesmo comportamento para todos os perfis)', p: ['visitante','logado','colaborador','admin'] },
-        { label: 'Link no rodapé para previ.com.br (externo, presente em todas as páginas)', p: ['visitante','logado','colaborador','admin'] },
+        { label: 'Botão hero logado: "Ver turmas →" → navega para a página Turmas', p: ['logado','admin'] },
+        { label: 'CTA final: único botão "Ver turmas →" direciona para a página Turmas (mesmo comportamento para todos os perfis)', p: ['visitante','logado','admin'] },
+        { label: 'Link no rodapé para previ.com.br (externo, presente em todas as páginas)', p: ['visitante','logado','admin'] },
       ]
     },
     { label: 'TURMAS', color: '#f5c542',
       features: [
-        { label: 'Ver turmas, datas e descrição',        p: ['visitante','logado','colaborador','admin'] },
-        { label: 'Bloco "Como funciona a oficina" antes da agenda: 4 métricas (5 dias, 4h, Prática, Opcional) + descrição', p: ['visitante','logado','colaborador','admin'] },
-        { label: 'Agenda D1–D5: itens estáticos (sem expansível — nenhum conteúdo interno)', p: ['visitante','logado','colaborador','admin'] },
+        { label: 'Ver turmas, datas e descrição',        p: ['visitante','logado','admin'] },
+        { label: 'Bloco "Como funciona a oficina" antes da agenda: 4 métricas (5 dias, 4h, Prática, Opcional) + descrição', p: ['visitante','logado','admin'] },
+        { label: 'Agenda D1–D5: itens estáticos (sem expansível — nenhum conteúdo interno)', p: ['visitante','logado','admin'] },
         { label: '"Tenho interesse" sem login → exibe mensagem "Faça login para registrar seu interesse" + abre modal login', p: ['visitante'] },
-        { label: 'Registrar interesse → botão vira "Remover interesse" (status: interessado)', p: ['logado','colaborador','admin'] },
-        { label: 'Remover interesse → botão volta a "Tenho interesse" (log mantido)', p: ['logado','colaborador','admin'] },
-        { label: 'Turma finalizada → botão vira "✓ Inscrita" (desabilitado)', p: ['logado','colaborador','admin'] },
-        { label: 'Check-in via QR Code no dia do evento → botão vira "✓ Presente" (por dia)', p: ['logado','colaborador','admin'] },
+        { label: 'Registrar interesse → botão vira "Remover interesse" (status: interessado)', p: ['logado','admin'] },
+        { label: 'Remover interesse → botão volta a "Tenho interesse" (log mantido)', p: ['logado','admin'] },
+        { label: 'Turma finalizada → botão vira "✓ Inscrita" (desabilitado)', p: ['logado','admin'] },
+        { label: 'Check-in via QR Code no dia do evento → botão vira "✓ Presente" (por dia)', p: ['logado','admin'] },
       ]
     },
     { label: 'CONTEÚDOS', color: '#4caf7d',
       features: [
-        { label: 'Ler as 7 seções numeradas (01 Mapa da Galáxia → 07 A Trilogia) — cada uma ocupa 100vh, uma por vez', p: ['visitante','logado','colaborador','admin'] },
-        { label: 'Mapa da Galáxia: botão "Ver mais 6 elementos →" revela os 6 últimos cards (ocultos por padrão)', p: ['visitante','logado','colaborador','admin'] },
-        { label: '12 Princípios: primeiros 6 visíveis por padrão; botão "Ver os 6 princípios restantes →" revela os princípios 7–12', p: ['visitante','logado','colaborador','admin'] },
-        { label: 'Navegação lateral por pontos (01–07) — salta entre seções; tooltip com nome ao passar o mouse', p: ['visitante','logado','colaborador','admin'] },
-        { label: 'Ganhar +5 pts por seção lida (badge "✓ +5 pts" aparece após leitura)', p: ['logado','colaborador','admin'] },
-        { label: 'Link externo "Ler os 4 valores na íntegra" (agilemanifesto.org)', p: ['visitante','logado','colaborador','admin'] },
-        { label: 'Link externo "Ler os 12 princípios na íntegra" (agilemanifesto.org)', p: ['visitante','logado','colaborador','admin'] },
+        { label: 'Ler as 7 seções numeradas (01 Mapa da Galáxia → 07 A Trilogia) — cada uma ocupa 100vh, uma por vez', p: ['visitante','logado','admin'] },
+        { label: 'Mapa da Galáxia: botão "Ver mais 6 elementos →" revela os 6 últimos cards (ocultos por padrão)', p: ['visitante','logado','admin'] },
+        { label: '12 Princípios: primeiros 6 visíveis por padrão; botão "Ver os 6 princípios restantes →" revela os princípios 7–12', p: ['visitante','logado','admin'] },
+        { label: 'Navegação lateral por pontos (01–07) — salta entre seções; tooltip com nome ao passar o mouse', p: ['visitante','logado','admin'] },
+        { label: 'Ganhar +5 pts por seção lida (badge "✓ +5 pts" aparece após leitura)', p: ['logado','admin'] },
+        { label: 'Link externo "Ler os 4 valores na íntegra" (agilemanifesto.org)', p: ['visitante','logado','admin'] },
+        { label: 'Link externo "Ler os 12 princípios na íntegra" (agilemanifesto.org)', p: ['visitante','logado','admin'] },
       ]
     },
     { label: 'REPOSITÓRIO', color: '#e8854a',
       features: [
-        { label: 'Ver todos os conteúdos — cards com descrição colapsada em 2 linhas; "ver mais" / "ver menos" só onde o texto transborda', p: ['visitante','logado','colaborador','admin'] },
-        { label: 'Filtrar por tipo (Todos/Vídeos/Documentos/Ferramentas/Livros)', p: ['visitante','logado','colaborador','admin'] },
+        { label: 'Ver todos os conteúdos — cards com descrição colapsada em 2 linhas; "ver mais" / "ver menos" só onde o texto transborda', p: ['visitante','logado','admin'] },
+        { label: 'Filtrar por tipo (Todos/Vídeos/Documentos/Ferramentas/Livros)', p: ['visitante','logado','admin'] },
         { label: '"Adicionar" sem login → exibe mensagem "Faça login para contribuir com o repositório" + abre modal login', p: ['visitante'] },
-        { label: 'Adicionar conteúdo ao Holocron',       p: ['logado','colaborador','admin'] },
-        { label: 'Remover próprio conteúdo',             p: ['logado','colaborador','admin'] },
+        { label: 'Adicionar conteúdo ao Holocron',       p: ['logado','admin'] },
+        { label: 'Remover próprio conteúdo',             p: ['logado','admin'] },
       ]
     },
     { label: 'TREINAMENTO JEDI', color: '#e05c7f',
       features: [
         { label: 'Welcome screen: botão "Quero jogar" → abre modal login (visitante)', p: ['visitante'] },
         { label: 'Conteúdo do quiz oculto para visitantes: autodiagnóstico só aparece após login', p: ['visitante'] },
-        { label: 'Autodiagnóstico Likert — 20 afirmações em 4 blocos, escala 0–3, pontuação total 0–60', p: ['logado','colaborador','admin'] },
-        { label: 'Patente determinada exclusivamente pela pontuação do quiz (Youngling 0–15 / Padawan 16–30 / Cavaleiro 31–45 / Mestre 46–60)', p: ['logado','colaborador','admin'] },
-        { label: 'Ver painel HUD com avatar SVG e patente atual em tempo real conforme responde', p: ['logado','colaborador','admin'] },
-        { label: 'Ladder de patentes: 4 cards com personagens SVG, faixas de pontuação e nomes', p: ['logado','colaborador','admin'] },
-        { label: 'Botão "Revelar minha Patente →" aparece ao concluir as 20 afirmações (centralizado)', p: ['logado','colaborador','admin'] },
-        { label: 'Após revelar: botão desabilitado + card compacto com avatar, pontuação, nome da patente, descrição, características, próximos passos e frase Jedi', p: ['logado','colaborador','admin'] },
-        { label: 'Resultado bloqueado após revelar — mensagem "🔒 Para refazer, solicite ao admin o reset do seu progresso."', p: ['logado','colaborador','admin'] },
+        { label: 'Autodiagnóstico Likert — 20 afirmações em 4 blocos, escala 0–3, pontuação total 0–60', p: ['logado','admin'] },
+        { label: 'Patente determinada exclusivamente pela pontuação do quiz (Youngling 0–15 / Padawan 16–30 / Cavaleiro 31–45 / Mestre 46–60)', p: ['logado','admin'] },
+        { label: 'Ver painel HUD com avatar SVG e patente atual em tempo real conforme responde', p: ['logado','admin'] },
+        { label: 'Ladder de patentes: 4 cards com personagens SVG, faixas de pontuação e nomes', p: ['logado','admin'] },
+        { label: 'Botão "Revelar minha Patente →" aparece ao concluir as 20 afirmações (centralizado)', p: ['logado','admin'] },
+        { label: 'Após revelar: botão desabilitado + card compacto com avatar, pontuação, nome da patente, descrição, características, próximos passos e frase Jedi', p: ['logado','admin'] },
+        { label: 'Resultado bloqueado após revelar — mensagem "🔒 Para refazer, solicite ao admin o reset do seu progresso."', p: ['logado','admin'] },
         { label: 'Missões e Kyber Game removidos da v3', p: [] },
       ]
     },
     { label: 'RANKING', color: '#57aaff',
       features: [
-        { label: 'Ver ranking completo',                 p: ['visitante','logado','colaborador','admin'] },
-        { label: 'Identificação da própria linha no ranking', p: ['logado','colaborador','admin'] },
-        { label: 'Imagem da patente (personagem SVG: Youngling/Padawan/Cavaleiro/Mestre) exibida ao lado do nome da patente (coluna direita) em todas as listagens do ranking', p: ['visitante','logado','colaborador','admin'] },
-        { label: 'Ver patente de todos',                 p: ['visitante','logado','colaborador','admin'] },
+        { label: 'Ver ranking completo',                 p: ['visitante','logado','admin'] },
+        { label: 'Identificação da própria linha no ranking', p: ['logado','admin'] },
+        { label: 'Imagem da patente (personagem SVG: Youngling/Padawan/Cavaleiro/Mestre) exibida ao lado do nome da patente (coluna direita) em todas as listagens do ranking', p: ['visitante','logado','admin'] },
+        { label: 'Ver patente de todos',                 p: ['visitante','logado','admin'] },
       ]
     },
     { label: 'AJUDA', color: '#9b7fff',
       features: [
-        { label: 'Ver página Ajuda com 10 perguntas em acordeão (<details>/<summary>) — eyebrow "Central de Ajuda", h1 "Como podemos ajudar?"', p: ['visitante','logado','colaborador','admin'] },
-        { label: 'Expandir/recolher cada pergunta clicando no título (comportamento nativo do browser)', p: ['visitante','logado','colaborador','admin'] },
-        { label: 'Link "Ajuda" no menu de navegação (substituiu "FAQ")', p: ['visitante','logado','colaborador','admin'] },
-        { label: 'Pergunta sobre XP com id "faq-xp" — aberta automaticamente ao clicar "Saiba mais →" na Home', p: ['visitante','logado','colaborador','admin'] },
+        { label: 'Ver página Ajuda com 10 perguntas em acordeão (<details>/<summary>) — eyebrow "Central de Ajuda", h1 "Como podemos ajudar?"', p: ['visitante','logado','admin'] },
+        { label: 'Expandir/recolher cada pergunta clicando no título (comportamento nativo do browser)', p: ['visitante','logado','admin'] },
+        { label: 'Link "Ajuda" no menu de navegação (substituiu "FAQ")', p: ['visitante','logado','admin'] },
+        { label: 'Pergunta sobre XP com id "faq-xp" — aberta automaticamente ao clicar "Saiba mais →" na Home', p: ['visitante','logado','admin'] },
       ]
     },
     { label: 'ADMIN', color: '#ff5252',
@@ -121,7 +118,7 @@
         { label: 'Moderar repositório — deletar permanentemente seeds curados (fa-seeds-deleted, sem restauração)', p: ['admin'] },
         { label: 'Moderar repositório — ocultar/restaurar conteúdo de usuários (fa-holocron-hidden)', p: ['admin'] },
         { label: 'Moderar repositório — deletar permanentemente conteúdo de usuários (holocron)', p: ['admin'] },
-        { label: 'Adicionar / remover colaboradores, com busca em tempo real por nome ou e-mail', p: ['admin'] },
+        { label: 'Ver todos os cadastrados, com filtro de busca e coluna XP', p: ['admin'] },
         { label: 'Ver todos os cadastrados, com filtro de busca e coluna XP — basta ter feito qualquer atividade para o XP aparecer (amarelo = publicou no ranking, ciano = tem XP mas não publicou, "—" = sem XP)', p: ['admin'] },
         { label: 'Redefinir senha de qualquer cadastrado (e-mail)', p: ['admin'] },
         { label: 'Resetar progresso de qualquer cadastrado — apaga fa-progress, remove do ranking (players via query por email), escreve fa-reset-signal/<eKey> para notificar a pessoa logada; a página dela recarrega automaticamente — todos os jogos reabilitados sem ação da pessoa', p: ['admin'] },
@@ -138,10 +135,10 @@
         { label: 'Cadastrar conta (@previ.com.br)',           p: ['visitante'] },
         { label: 'Fazer login',                               p: ['visitante'] },
         { label: 'Esqueci minha senha — link por e-mail',     p: ['visitante'] },
-        { label: 'Inicial e nome no menu — no lugar dos botões Entrar/Cadastrar', p: ['logado','colaborador','admin'] },
-        { label: 'Badge XP no header (pill dourado entre nome e "Sair") — exibe pontos acumulados; tooltip "XP é a sigla para pontos de experiência"; atualiza em tempo real', p: ['logado','colaborador','admin'] },
+        { label: 'Inicial e nome no menu — no lugar dos botões Entrar/Cadastrar', p: ['logado','admin'] },
+        { label: 'Badge XP no header (pill dourado entre nome e "Sair") — exibe pontos acumulados; tooltip "XP é a sigla para pontos de experiência"; atualiza em tempo real', p: ['logado','admin'] },
         { label: 'Ver link "Admin" no menu de navegação (desktop sempre visível; mobile: aparece ao abrir o menu)', p: ['admin'] },
-        { label: 'Botão Sair',                                p: ['logado','colaborador','admin'] },
+        { label: 'Botão Sair',                                p: ['logado','admin'] },
       ]
     },
   ];
@@ -149,9 +146,9 @@
   function esc(str) { return String(str).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
 
   /* Badge de nível mínimo para o mapa do site */
-  const P_ORDER = ['visitante', 'logado', 'colaborador', 'admin'];
-  const P_COLOR = { visitante: '#888888', logado: '#1ab2ae', colaborador: '#f5c542', admin: '#ff5252' };
-  const P_LABEL = { visitante: 'Visitante', logado: 'Logado', colaborador: 'Colaborador', admin: 'Admin' };
+  const P_ORDER = ['visitante', 'logado', 'admin'];
+  const P_COLOR = { visitante: '#888888', logado: '#1ab2ae', admin: '#ff5252' };
+  const P_LABEL = { visitante: 'Visitante', logado: 'Logado', admin: 'Admin' };
 
   function levelBadge(personas) {
     if (!personas || !personas.length) return '';
@@ -216,9 +213,8 @@
     html += '<span class="mapa-legend-title">Legenda por persona</span>';
     html += '<div class="mapa-legend">';
     html += '<span class="mapa-legend-item"><span class="mapa-badge" style="--bc:#888">Visitante</span> não autenticado (exclusivo para quem não entrou)</span>';
-    html += '<span class="mapa-legend-item"><span class="mapa-badge" style="--bc:#1ab2ae">Logado +</span> qualquer usuário autenticado — colaboradores e admins também são logados</span>';
-    html += '<span class="mapa-legend-item"><span class="mapa-badge" style="--bc:#f5c542">Colaborador +</span> logado com perfil de colaborador — admins também são colaboradores</span>';
-    html += '<span class="mapa-legend-item"><span class="mapa-badge" style="--bc:#ff5252">Admin</span> colaborador com acesso administrativo</span>';
+    html += '<span class="mapa-legend-item"><span class="mapa-badge" style="--bc:#1ab2ae">Logado +</span> qualquer usuário autenticado — admins também são logados</span>';
+    html += '<span class="mapa-legend-item"><span class="mapa-badge" style="--bc:#ff5252">Admin</span> usuário com acesso administrativo</span>';
     html += '</div>';
     html += '</div>';
 
@@ -256,7 +252,7 @@
         label: 'Tecnologias & Serviços', color: '#1ab2ae',
         items: [
           { name: 'Firebase Authentication', desc: 'Login e cadastro por e-mail/senha. Redefinição de senha via link automático. Gratuito (Spark plan)' },
-          { name: 'Firebase Realtime Database', desc: 'Armazena perfis (fa-users), progresso de XP, ranking, repositório (fa-holocron), colaboradores, admins e interesses por turma' },
+          { name: 'Firebase Realtime Database', desc: 'Armazena perfis (fa-users), progresso de XP, ranking, repositório (fa-holocron), admins e interesses por turma' },
           { name: 'Firebase Hosting',        desc: 'Hospedagem do site em kyber-agil.web.app. CDN global, HTTPS automático' },
           { name: 'GitHub',                  desc: 'Repositório do código-fonte. Branch principal: main' },
         ]
@@ -274,7 +270,7 @@
           { name: 'forca-agil/game.js',      desc: 'Treinamento Jedi — lógica de XP, autodiagnóstico, missões, painel de patente e revelar patente. Lê dados de window.faGameData' },
           { name: 'forca-agil/kyber.js',     desc: 'Kyber Game — 25 desafios com timer de 30s, cálculo de XP' },
           { name: 'forca-agil/repo.js',      desc: 'Repositório (Holocron) — listagem, adição, remoção de conteúdos, XP por contribuição' },
-          { name: 'forca-agil/admin.js',     desc: 'Painel Admin — interessados, moderação de repositório, gestão de colaboradores e admins, XP de Cadastrados (publicado ou calculado de fa-progress), exportação CSV Windows-1252 via Uint8Array+URL.createObjectURL (window.faToXls — compartilhada por Manual e Testes; acentos e travessão corretos no Excel pt-BR sem BOM), barra expandir/recolher com botões por seção' },
+          { name: 'forca-agil/admin.js',     desc: 'Painel Admin — interessados, moderação de repositório, gestão de admins, XP de Cadastrados (publicado ou calculado de fa-progress), exportação CSV Windows-1252 via Uint8Array+URL.createObjectURL (window.faToXls — compartilhada por Manual e Testes; acentos e travessão corretos no Excel pt-BR sem BOM), barra expandir/recolher com botões por seção' },
           { name: 'forca-agil/manual.js',    desc: 'Manual interativo — regras filtráveis por seção e persona, botão exportar todas as regras em CSV. Dados declarativos em array RULES' },
           { name: 'forca-agil/mapa.js',      desc: 'Mapa do site e hierarquia de personas. Dados declarativos em arrays PAGES e HIERARCHY' },
           { name: 'forca-agil/testes.js',    desc: 'Testes automatizados de regressão — técnicos e de comportamento, lista de regras manuais pendentes, botão exportar todos os testes em CSV (automáticos e manuais)' },
@@ -467,7 +463,7 @@
         PAGES.forEach(function (page) {
           page.features.forEach(function (f) {
             const minPersona = (function () {
-              const order = ['visitante', 'logado', 'colaborador', 'admin'];
+              const order = ['visitante', 'logado', 'admin'];
               const idx = f.p.map(function (k) { return order.indexOf(k); }).filter(function (i) { return i >= 0; });
               return idx.length ? order[Math.min.apply(null, idx)] : '';
             })();

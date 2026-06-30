@@ -857,7 +857,7 @@
       })
       .catch(function (err) {
         if (err.code === 'auth/user-not-found') {
-          alert(name + ' ainda não tem cadastro ativo. O colaborador precisa fazer o primeiro login no sistema antes de poder redefinir a senha.');
+          alert(name + ' ainda não tem cadastro ativo. A pessoa precisa fazer o primeiro login no sistema antes de poder redefinir a senha.');
         } else {
           alert('Erro ao enviar: ' + err.message);
         }
