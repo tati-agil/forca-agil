@@ -353,7 +353,7 @@
     function checkProgress() {
       try {
         const state = JSON.parse(_st().getItem('fa-game-v3') || 'null');
-        const dims = (window.faGameData && window.faGameData.DIMS && window.faGameData.DIMS.length) || 12;
+        const dims = (window.faGameData && window.faGameData.DIMS && window.faGameData.DIMS.length) || 20;
         const quizDone = state && state.quiz && state.quiz.filter(function(v){ return v != null; }).length === dims;
         return { quizDone: quizDone, allDone: quizDone };
       } catch(e) { return { quizDone: false, allDone: false }; }
