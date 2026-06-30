@@ -1,6 +1,6 @@
 /* Força Ágil — Dados do Treinamento Jedi: dimensões, patentes e missões */
 (function () {
-  window.faGameData = {
+  var _data = {
     /* Autodiagnóstico: 20 afirmações em 4 blocos, escala Likert 0-3 (total 0-60) */
     BLOCOS: [
       {
@@ -91,29 +91,7 @@
       }
     ],
 
-    /* Lista plana de todas as afirmações — espelha BLOCOS.afirmacoes em ordem */
-    DIMS: [
-      'Consigo mudar de opinião quando surgem novas informações',
-      'Vejo erros como oportunidade de aprendizado',
-      'Me sinto confortável com mudanças ao longo do trabalho',
-      'Busco entender o problema antes de propor solução',
-      'Prefiro testar hipóteses do que planejar tudo no detalhe',
-      'Peço ajuda quando preciso',
-      'Compartilho informações com o time de forma transparente',
-      'Escuto de verdade antes de responder',
-      'Consigo dar e receber feedbacks com abertura',
-      'Me preocupo com o sucesso do time, não só com o meu',
-      'Já participei de rituais como daily, retrospectiva ou planning',
-      'Consigo priorizar atividades com base em valor',
-      'Trabalho com entregas pequenas e frequentes',
-      'Uso algum tipo de visualização do trabalho (kanban, backlog)',
-      'Reviso e ajusto minha forma de trabalhar com frequência',
-      'Penso no cliente ao executar minhas atividades',
-      'Busco entregar valor mesmo que incompleto (incremental)',
-      'Evito perfeccionismo que atrasa entregas',
-      'Consigo lidar com mudanças de prioridade',
-      'Me preocupo em gerar impacto real, não só "entregar tarefas"'
-    ],
+    DIMS: [], /* preenchido automaticamente abaixo a partir de BLOCOS */
     MISSIONS: [
       {
         id: 'gelo',
@@ -339,4 +317,10 @@
       }
     ]
   };
+
+  _data.DIMS = _data.BLOCOS.reduce(function (acc, b) {
+    return acc.concat(b.afirmacoes || []);
+  }, []);
+
+  window.faGameData = _data;
 })();
