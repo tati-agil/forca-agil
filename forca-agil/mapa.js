@@ -254,7 +254,6 @@
           { name: 'Firebase Authentication', desc: 'Login e cadastro por e-mail/senha. Redefinição de senha via link automático. Gratuito (Spark plan)' },
           { name: 'Firebase Realtime Database', desc: 'Armazena: fa-users (perfis), fa-ranking (XP publicado), fa-holocron (repositório), fa-admins, turmas-interesse/<turma>/<emailKey>, turmas-config/<turma> (finalizada, diaAtivo), turmas-checkin/<turma>/<data>/<emailKey>' },
           { name: 'Firebase Hosting',        desc: 'Hospedagem em kyber-agil.web.app (produção/main). Branch v3-quiz tem preview próprio em kyber-agil--v3quiz-*.web.app. CDN global, HTTPS automático' },
-          { name: 'GitHub',                  desc: 'Repositório tati-agil/forca-agil. Branch de desenvolvimento: v3-quiz. Branch de produção: main' },
         ]
       },
       {
@@ -311,6 +310,7 @@
       {
         label: 'Deploy', color: '#e8854a',
         items: [
+          { name: 'GitHub',      desc: 'Repositório tati-agil/forca-agil. Branch de desenvolvimento: v3-quiz. Branch de produção: main' },
           { name: 'Processo',    desc: 'git push para o branch v3-quiz no GitHub → Firebase Hosting atualiza automaticamente o preview em segundos. Para produção: merge em main.' },
           { name: 'Pre-commit hook', desc: 'Git hook em .git/hooks/pre-commit — roda node --check em todos os forca-agil/*.js antes de cada commit. Bloqueia o commit se houver erro de sintaxe, impedindo deploy de código quebrado' },
           { name: 'URL',         desc: 'https://kyber-agil--v3quiz-v0zbanfb.web.app (preview v3-quiz) · https://kyber-agil.web.app (produção/main)' },
