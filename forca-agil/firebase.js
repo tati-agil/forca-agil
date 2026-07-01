@@ -15,7 +15,6 @@
   try {
     firebase.initializeApp(firebaseConfig);
     fbReady = true;
-    console.log('✅ Firebase inicializado!');
   } catch (err) {
     console.warn('⚠️ Firebase:', err.message);
   }

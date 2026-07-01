@@ -140,7 +140,6 @@
       .then(function () { cb({ success: true }); })
       .catch(function (err) {
         let msg = 'Erro ao enviar. Tente novamente.';
-        if (err.code === 'auth/user-not-found') msg = 'E-mail não encontrado.';
         cb({ error: msg });
       });
   }
