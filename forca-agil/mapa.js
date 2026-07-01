@@ -14,7 +14,7 @@
     { key: 'logado',  label: 'Usuário logado', color: '#1ab2ae',
       adds: ['Acessar e jogar o Treinamento Jedi (autodiagnóstico quiz 0–60)', 'Ganhar pontos de experiência por conteúdos lidos', 'Adicionar e remover conteúdos no Repositório', 'Registrar interesse em turmas', 'Revelar patente (resultado fixo e bloqueado — não pode refazer sem reset do admin)'] },
     { key: 'admin',   label: 'Admin',          color: '#ff5252',
-      adds: ['Acessar o Painel Admin', 'Gerenciar admins', 'Ver todos os cadastrados', 'Ver interessados por turma', 'Moderar Repositório (ocultar/restaurar/deletar)', 'Resetar progresso de qualquer cadastrado', 'Enviar e-mail de redefinição de senha para qualquer cadastrado'] },
+      adds: ['Acessar o Painel Admin', 'Ver todos os cadastrados', 'Ver interessados por turma', 'Moderar Repositório (ocultar/restaurar/deletar)', 'Resetar progresso de qualquer cadastrado', 'Enviar e-mail de redefinição de senha para qualquer cadastrado', 'Gerenciar lista de admins (apenas tatianefdirene e danielfrazao — restrito por regra Firebase)'] },
   ];
 
   const PAGES = [
