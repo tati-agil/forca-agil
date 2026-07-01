@@ -62,7 +62,7 @@
       body: 'Exige e-mail @previ.com.br. Outros domínios são rejeitados.' },
     { section: 'auth', personas: ['visitante'],
       title: 'Cadastro — senha',
-      body: 'Mínimo 8 caracteres. O campo "Confirmar senha" deve ser idêntico — se divergir, exibe "As senhas não coincidem."' },
+      body: 'Apenas números, mínimo 8 dígitos. O teclado numérico abre automaticamente em celular. O campo "Confirmar senha" deve ser idêntico — se divergir, exibe "As senhas não coincidem." Se contiver letras ou símbolos, exibe "Senha deve conter apenas números e ter mínimo 8 dígitos."' },
     { section: 'auth', personas: ['visitante'],
       title: 'Cadastro — área/setor',
       body: 'Lista suspensa com as gerências em ordem alfabética: ASJUR, AUDIT, CONIN, GABIN, GEBEN, GECAP, GECAT, GECON, GEINT, GEPAR, GEPRO, GERAI, GERAT, GEROP, GESOP, GETHO, INFOR, OUVIR, PNSEG, SECEX.' },

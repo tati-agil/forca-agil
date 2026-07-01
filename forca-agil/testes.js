@@ -302,6 +302,9 @@
         },
         { id: 'c-pwd-toggle',   label: 'Botão "olhinho" em campos de senha',
           run: function () { return document.querySelectorAll('.pwd-toggle, [data-toggle-pwd], .eye-btn, button[aria-label*="senha"]').length > 0 || document.querySelectorAll('button').length > 0; }
+        },
+        { id: 'c-pwd-numeric',  label: 'Campo de senha com inputmode numérico',
+          run: function () { var f = document.getElementById('regPassword'); return !!f && f.getAttribute('inputmode') === 'numeric'; }
         }
       ]
     },

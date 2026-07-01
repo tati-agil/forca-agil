@@ -263,7 +263,7 @@
           { name: 'forca-agil/head-init.js',     desc: 'Inicialização precoce — adiciona classe "js" ao <html> antes do body renderizar, evitando flash de conteúdo sem JS' },
           { name: 'forca-agil/firebase.js',      desc: 'Progresso, XP e ranking — salva/carrega dados do Firebase. Em v3: lê fa-game-v3 (quiz), fa-content-xp, fa-repo-xp. API: window.faLoadProgress, window.faSyncProgress, window.faSyncPlayer, window.faCleanRanking, window.faGetTotalXP' },
           { name: 'forca-agil/router.js',        desc: 'Roteamento por hash — controla qual seção da página está visível. API: window.faRouter' },
-          { name: 'forca-agil/auth.js',          desc: 'Autenticação — login, cadastro, logout, redefinição de senha. API pública: window.faAuth' },
+          { name: 'forca-agil/auth.js',          desc: 'Autenticação — login, cadastro, logout, redefinição de senha. Senha exige apenas dígitos numéricos (mín. 8). API pública: window.faAuth' },
           { name: 'forca-agil/stars.js',         desc: 'Animação de estrelas do fundo (canvas)' },
           { name: 'forca-agil/app.js',           desc: 'Interações de UI — nav scroll, reveals, rastreamento de XP de conteúdos, botões de interesse em turmas, crawl de abertura (pausar/retomar no clique, botão "Ler texto" para modo estático)' },
           { name: 'forca-agil/home-nav.js',      desc: 'Navegação assistida entre seções da Home — pontos laterais, botão Continuar animado, teclado ↑↓/Enter, IntersectionObserver para dot ativo' },
