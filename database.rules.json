@@ -27,8 +27,9 @@
     },
 
     "fa-admins": {
-      ".read": "auth != null",
+      ".read": "auth != null && (auth.token.email === 'tatianefdirene@previ.com.br' || auth.token.email === 'danielfrazao@previ.com.br')",
       "$userKey": {
+        ".read": "auth != null",
         ".write": "auth.token.email === 'tatianefdirene@previ.com.br' || auth.token.email === 'danielfrazao@previ.com.br'"
       }
     },

@@ -21,10 +21,14 @@
   }
   function getSession() { return _session; }
 
-  /* ---- Carrega admins do Firebase ---- */
-  firebase.database().ref('fa-admins').on('value', function (snap) {
-    const data = snap.val() || {};
-    _dbAdmins = Object.values(data).map(function (p) { return (p.email || '').toLowerCase(); });
+  /* ---- Verifica se o usuário logado é admin (lê só o próprio registro) ---- */
+  firebase.auth().onAuthStateChanged(function (user) {
+    if (!user) { _dbAdmins = []; return; }
+    firebase.database().ref('fa-admins/' + emailKey(user.email)).once('value', function (snap) {
+      const data = snap.val();
+      _dbAdmins = data ? [(data.email || user.email).toLowerCase()] : [];
+      updateNavState();
+    });
   });
 
   /* ---- Firebase Auth — fonte de verdade de sessão ---- */
