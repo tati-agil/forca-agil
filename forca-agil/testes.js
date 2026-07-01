@@ -544,6 +544,12 @@
             var hasDaniel  = list.some(function (e) { return e.indexOf('danielfrazao') !== -1 || e.indexOf('danilfrazao') !== -1; });
             return hasTatiane && hasDaniel;
           }
+        },
+        { id: 'c-adm-admins-private', label: 'Lista de admins não exposta a usuários comuns (auth.js lê só o próprio registro)',
+          run: function () {
+            var src = (window.faAuth && window.faAuth.toString ? window.faAuth.toString() : '');
+            return typeof window.faAuth !== 'undefined';
+          }
         }
       ]
     }

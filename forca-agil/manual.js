@@ -319,7 +319,7 @@
       body: 'tatianefdirene@previ.com.br e danielfrazao@previ.com.br são super-admins fixos — não removíveis via painel.' },
     { section: 'admin', personas: ['admin'],
       title: 'Aba: Administradores — admins adicionais',
-      body: 'Podem ser adicionados e removidos via painel. Formulário exige nome completo e e-mail @previ.com.br. Importante: apenas tatianefdirene@previ.com.br e danielfrazao@previ.com.br podem adicionar ou remover admins — esta restrição está nas regras do Firebase (servidor), não pode ser burlada pelo navegador. Qualquer pessoa listada como admin vê a aba Admin, mas não pode gerenciar a lista de admins.' },
+      body: 'Podem ser adicionados e removidos via painel. Formulário exige nome completo e e-mail @previ.com.br. Apenas tatianefdirene@previ.com.br e danielfrazao@previ.com.br podem adicionar ou remover admins — restrição garantida no servidor Firebase, não burlável. Qualquer pessoa na lista vê a aba Admin mas não gerencia a lista. A lista de admins não é visível para usuários comuns — cada usuário verifica apenas se o próprio e-mail está cadastrado como admin.' },
     { section: 'admin', personas: ['admin'],
       title: 'Aba: Manual',
       body: 'Checklist de regras de comportamento do sistema, organizado por seção e por persona. Documentação viva — deve ser atualizada junto de qualquer mudança de comportamento.' },
