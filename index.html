@@ -1612,16 +1612,16 @@
           <input type="email" id="regEmail" placeholder="seu@previ.com.br" autocomplete="email" />
         </label>
         <label class="auth-label">
-          Senha (mínimo 8 caracteres)
+          Senha (mínimo 8 números)
           <div class="pwd-wrap">
-            <input type="password" id="regPassword" placeholder="Crie uma senha forte" autocomplete="new-password" />
+            <input type="password" id="regPassword" placeholder="Mínimo 8 números" autocomplete="new-password" inputmode="numeric" pattern="[0-9]*" />
             <button type="button" class="pwd-eye" data-target="regPassword" aria-label="Mostrar senha">👁</button>
           </div>
         </label>
         <label class="auth-label">
           Confirmar senha
           <div class="pwd-wrap">
-            <input type="password" id="regPasswordConfirm" placeholder="Repita a senha" autocomplete="new-password" />
+            <input type="password" id="regPasswordConfirm" placeholder="Repita a senha" autocomplete="new-password" inputmode="numeric" pattern="[0-9]*" />
             <button type="button" class="pwd-eye" data-target="regPasswordConfirm" aria-label="Mostrar senha">👁</button>
           </div>
         </label>

@@ -86,7 +86,7 @@
     const area  = (data.area || '').trim();
 
     if (!isPrevi(email)) return cb({ error: 'Use seu e-mail @previ.com.br.' });
-    if (pwd.length < 8)  return cb({ error: 'Senha deve ter mínimo 8 caracteres.' });
+    if (!/^\d{8,}$/.test(pwd)) return cb({ error: 'Senha deve conter apenas números e ter mínimo 8 dígitos.' });
     if (!name)           return cb({ error: 'Nome completo obrigatório.' });
     if (!area)           return cb({ error: 'Área/Setor obrigatório.' });
 
