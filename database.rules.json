@@ -4,6 +4,7 @@
     ".write": false,
 
     "fa-users": {
+      ".read": "auth != null && root.child('fa-admins').child(auth.uid).exists()",
       "$userKey": {
         ".read": "auth != null",
         ".write": "auth != null"
@@ -18,15 +19,9 @@
     },
 
     "fa-progress": {
+      ".read": "auth != null && root.child('fa-admins').child(auth.uid).exists()",
       "$userKey": {
         ".read": "auth != null",
-        ".write": "auth != null"
-      }
-    },
-
-    "fa-holocron": {
-      ".read": true,
-      "$itemId": {
         ".write": "auth != null"
       }
     },
@@ -39,8 +34,17 @@
     },
 
     "turmas-interesse": {
+      ".read": "auth != null",
       "$turmaKey": {
-        ".read": "auth != null",
+        "$userKey": {
+          ".write": "auth != null"
+        }
+      }
+    },
+
+    "turmas-interesse-log": {
+      ".read": "auth != null && root.child('fa-admins').child(auth.uid).exists()",
+      "$turmaKey": {
         "$userKey": {
           ".write": "auth != null"
         }
@@ -50,13 +54,13 @@
     "turmas-config": {
       ".read": "auth != null",
       "$turmaKey": {
-        ".write": "root.child('fa-admins').child(auth.uid).exists()"
+        ".write": "auth != null && root.child('fa-admins').child(auth.uid).exists()"
       }
     },
 
     "turmas-checkin": {
+      ".read": "auth != null",
       "$turmaKey": {
-        ".read": "auth != null",
         "$data": {
           "$userKey": {
             ".write": "auth != null"
@@ -68,7 +72,28 @@
     "fa-seeds-hidden": {
       ".read": "auth != null",
       "$key": {
-        ".write": "auth != null && (auth.token.email === 'tatianefdirene@previ.com.br' || auth.token.email === 'danielfrazao@previ.com.br' || root.child('fa-admins').child(auth.uid).exists())"
+        ".write": "auth != null && root.child('fa-admins').child(auth.uid).exists()"
+      }
+    },
+
+    "fa-seeds-deleted": {
+      ".read": "auth != null && root.child('fa-admins').child(auth.uid).exists()",
+      "$key": {
+        ".write": "auth != null && root.child('fa-admins').child(auth.uid).exists()"
+      }
+    },
+
+    "fa-holocron-hidden": {
+      ".read": "auth != null",
+      "$key": {
+        ".write": "auth != null && root.child('fa-admins').child(auth.uid).exists()"
+      }
+    },
+
+    "fa-reset-signal": {
+      "$userKey": {
+        ".read": "auth != null",
+        ".write": "auth != null && root.child('fa-admins').child(auth.uid).exists()"
       }
     },
 
