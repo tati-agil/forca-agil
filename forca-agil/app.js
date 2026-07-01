@@ -122,29 +122,6 @@
     }
   });
 
-  /* ---- Agenda accordions — só colaboradores e admins podem expandir ---- */
-  function updateAgendaAccess() {
-    const agenda = document.querySelector('.agenda');
-    if (!agenda) return;
-    const sess = window.faAuth && window.faAuth.getSession();
-    if (!sess) { agenda.classList.remove('agenda--unlocked'); return; }
-    const isAdmin = window.faAuth.isAdmin && window.faAuth.isAdmin(sess.email);
-    if (isAdmin) { agenda.classList.add('agenda--unlocked'); return; }
-    window.faAuth.isColaborador(sess.email, function (ok) {
-      agenda.classList.toggle('agenda--unlocked', ok);
-    });
-  }
-  updateAgendaAccess();
-  window.addEventListener('fa-auth-change', updateAgendaAccess);
-
-  document.addEventListener('click', function (e) {
-    const h = e.target.closest('.day-head');
-    if (!h) return;
-    const agenda = h.closest('.agenda');
-    if (!agenda || !agenda.classList.contains('agenda--unlocked')) return;
-    h.parentElement.classList.toggle('open');
-  });
-
   /* ---- Yoda episode accordions ---- */
   document.addEventListener('click', function (e) {
     var h = e.target.closest('.yep-head');
@@ -181,7 +158,7 @@
   });
 
   /* ---- Content XP tracking (conteúdos page) ---- */
-  const CONTENT_SECTIONS = ['galaxia','forca','arquetipos','sombrio','trilogia'];
+  const CONTENT_SECTIONS = ['galaxia','forca','principios','arquetipos','sombrio','trilogia'];
   const XP_PER_SECTION   = 5;
 
   function initContentTracking() {
@@ -199,7 +176,7 @@
       /* Mark already-read badge */
       const badge = document.getElementById('xp-badge-' + id);
       if (read.indexOf(id) !== -1) {
-        if (badge) { badge.textContent = '✓ +' + XP_PER_SECTION + ' XP'; badge.classList.add('visible'); }
+        if (badge) { badge.textContent = '✓ +' + XP_PER_SECTION + ' pts'; badge.classList.add('visible'); }
         return;
       }
 
@@ -218,7 +195,7 @@
               if (window.faSyncPlayer) window.faSyncPlayer();
               if (window.faSyncProgress) window.faSyncProgress();
               if (badge) {
-                badge.textContent = '✓ +' + XP_PER_SECTION + ' XP';
+                badge.textContent = '✓ +' + XP_PER_SECTION + ' pts';
                 badge.classList.add('visible');
               }
             }, 10000);
@@ -231,6 +208,32 @@
       obs.observe(el);
     });
   }
+
+  /* ---- Galaxy map "ver mais" ---- */
+  document.addEventListener('DOMContentLoaded', function () {
+    var galaxyBtn = document.getElementById('galaxyMoreBtn');
+    var galaxyExtra = document.getElementById('galaxyExtra');
+    if (galaxyBtn && galaxyExtra) {
+      galaxyBtn.addEventListener('click', function () {
+        galaxyExtra.classList.add('visible');
+        galaxyBtn.style.display = 'none';
+        /* força reveals nos cards recém-visíveis */
+        galaxyExtra.querySelectorAll('.reveal').forEach(function (el) { el.classList.add('in'); });
+      });
+    }
+
+    var principlesBtn = document.getElementById('principlesMoreBtn');
+    var principlesExtra = document.getElementById('principlesExtra');
+    if (principlesBtn && principlesExtra) {
+      principlesBtn.addEventListener('click', function () {
+        principlesExtra.classList.add('visible');
+        principlesBtn.style.display = 'none';
+        /* força reveals nos princípios recém-visíveis */
+        principlesExtra.querySelectorAll('.reveal').forEach(function (el) { el.classList.add('in'); });
+      });
+    }
+
+  });
 
   document.addEventListener('DOMContentLoaded', function () {
     if (window.faRouter) {
@@ -254,7 +257,7 @@
 
         btn.addEventListener('click', function () {
           const s = window.faAuth && window.faAuth.getSession();
-          if (!s) { if (window.faOpenAuthModal) window.faOpenAuthModal('register'); return; }
+          if (!s) { showMsg(turmaKey, 'Faça login para registrar seu interesse.'); if (window.faOpenAuthModal) window.faOpenAuthModal('login'); return; }
           if (btn.dataset.state === 'done') removeInterest(btn, turmaKey, s);
           else registerInterest(btn, turmaKey, s);
         });
@@ -366,6 +369,23 @@
     if (window.faRouter) window.faRouter.onPageInit('turmas', initTurmaInterest);
     window.addEventListener('fa-auth-change', function () {
       if (window.faRouter && window.faRouter.current() === 'turmas') initTurmaInterest();
+    });
+  });
+
+  /* ---- "Saiba mais" XP: navega para Ajuda, abre pergunta XP e rola até ela ---- */
+  document.addEventListener('DOMContentLoaded', function () {
+    var saibaMais = document.getElementById('saibaMaisXP');
+    if (!saibaMais) return;
+    saibaMais.addEventListener('click', function (e) {
+      e.preventDefault();
+      if (window.faRouter) window.faRouter.navigate('ajuda');
+      setTimeout(function () {
+        var details = document.getElementById('faq-xp');
+        if (details) {
+          details.open = true;
+          details.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        }
+      }, 200);
     });
   });
 

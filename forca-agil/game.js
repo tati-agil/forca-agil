@@ -1,417 +1,209 @@
 /* ============================================================
-   Força Ágil — Gamificação "Sociedade Jedi"
-   Autodiagnóstico + Missões com 3 desafios cada + XP + patentes
-   Dados carregados de game-data.js via window.faGameData
+   Força Ágil — Autodiagnóstico Likert (v3-quiz)
+   Patente determinada pela pontuação 0-60 do quiz.
    ============================================================ */
 (function () {
-  const STORE = 'fa-game-v2';
+  const STORE = 'fa-game-v3';
   const reduce = matchMedia('(prefers-reduced-motion: reduce)').matches;
-
-  const { DIMS, LEVELS, RANKS, MISSIONS } = window.faGameData;
-
-  // XP fixo por resposta certa dentro da missão
-  const XP_PER_HIT = 4; // 3 perguntas × 4 XP = 12 XP máx por missão
-
-  const QUIZ_MAX  = 15;  // autodiagnóstico: até 15 XP
-  const MISS_MAX  = 35;  // missões: até 35 XP (18 respostas)
-  const KYBER_MAX = 50;  // kyber game: até 50 XP (via firebase.js)
+  const { BLOCOS, LEVELS, RANKS } = window.faGameData;
+  const TOTAL_AFIRM = BLOCOS.reduce((acc, b) => acc + b.afirmacoes.length, 0);
+  const DIAG_MAX = TOTAL_AFIRM * 3; // 60
 
   // ---- State ----
-  // missions agora armazena { answers: [null|idx, null|idx, null|idx] } por id
-  let state = { quiz: Array(DIMS.length).fill(null), missions: {} };
+  let state = { quiz: Array(TOTAL_AFIRM).fill(null), revealed: false };
   try {
     const saved = JSON.parse((window.faStore || localStorage).getItem(STORE) || 'null');
-    if (saved && Array.isArray(saved.quiz)) state = { quiz: saved.quiz, missions: saved.missions || {} };
-  } catch (e) { /* ignore */ }
+    if (saved && Array.isArray(saved.quiz) && saved.quiz.length === TOTAL_AFIRM) {
+      state = { quiz: saved.quiz, revealed: !!saved.revealed };
+    }
+  } catch (e) {}
+
+  function save() {
+    try { (window.faStore || localStorage).setItem(STORE, JSON.stringify(state)); } catch (e) {}
+    if (window.faSyncProgress) window.faSyncProgress();
+  }
+
   function getPlayer() {
     try { return JSON.parse(localStorage.getItem('fa-player') || 'null') || {}; } catch(e) { return {}; }
   }
-
-  // Garante cadastro antes de qualquer interação — abre modal se não registrado
   function requirePlayer() {
     const p = getPlayer();
     if (p && p.name) return true;
-    // dispara o modal de cadastro (definido em app.js)
     const btn = document.getElementById('openRegister');
     if (btn) btn.click();
     return false;
   }
-  const save = () => {
-    const st = window.faStore || localStorage;
-    try { st.setItem(STORE, JSON.stringify(state)); } catch (e) {}
-    // salva missions XP separado para firebase.js ler
-    try {
-      const mXP = Math.min(MISS_MAX, MISSIONS.reduce((acc, m) => acc + missionXP(m), 0));
-      st.setItem('fa-missions-xp', String(mXP));
-    } catch(e) {}
-    // Sincroniza progresso com Firebase para restaurar em outros browsers
-    if (window.faSyncProgress) window.faSyncProgress();
-  };
-
-  // inicializa estado de missão se ainda não existe
-  MISSIONS.forEach(m => {
-    if (!state.missions[m.id]) state.missions[m.id] = { answers: Array(m.questions.length).fill(null) };
-    // migração: formato antigo era boolean
-    if (typeof state.missions[m.id] === 'boolean') {
-      state.missions[m.id] = { answers: Array(m.questions.length).fill(null) };
-    }
-  });
-
-  let prevRankIdx = null;
 
   // ---- Compute ----
-  function missionXP(m) {
-    const ms = state.missions[m.id];
-    if (!ms || !ms.answers) return 0;
-    return ms.answers.reduce((acc, ans, i) => {
-      return acc + (ans === m.questions[i].correct ? XP_PER_HIT : 0);
-    }, 0);
+  function diagScore() {
+    return state.quiz.reduce((acc, v) => acc + (v != null ? v : 0), 0);
   }
-  function missionDone(m) {
-    const ms = state.missions[m.id];
-    return ms && ms.answers && ms.answers.every(a => a !== null);
+  function diagRankIdx() {
+    const score = diagScore();
+    let idx = 0;
+    for (let i = 0; i < RANKS.length; i++) if (score >= RANKS[i].minDiag) idx = i;
+    return idx;
   }
-
-  function compute() {
-    const answered = state.quiz.filter(v => v != null).length;
-    const quizDone = answered === DIMS.length;
-    // XP ponderado pelo nível escolhido: nível 0-3 vale 1-4 pts; máx = DIMS×LEVELS = 24 pts → QUIZ_MAX
-    const quizPoints = state.quiz.reduce((acc, v) => acc + (v != null ? v : 0), 0);
-    const quizXP = Math.round(quizPoints / (DIMS.length * LEVELS.length) * QUIZ_MAX);
-    const mXP  = Math.min(MISS_MAX, MISSIONS.reduce((acc, m) => acc + missionXP(m), 0));
-    const mDone = MISSIONS.filter(m => missionDone(m)).length;
-    // kyberXP, contentXP e repoXP vêm do localStorage (salvos por firebase.js)
-    const kyberXP = (() => { try { return parseInt((window.faStore || localStorage).getItem('fa-kyber-xp') || '0', 10) || 0; } catch(e) { return 0; } })();
-    const contentXP = (() => { try { return parseInt((window.faStore || localStorage).getItem('fa-content-xp') || '0', 10) || 0; } catch(e) { return 0; } })();
-    const repoXP = (() => { try { return parseInt((window.faStore || localStorage).getItem('fa-repo-xp') || '0', 10) || 0; } catch(e) { return 0; } })();
-    const kyberDone = (window.faStore || localStorage).getItem('fa-kyber-done') === '1';
-    const allDone = quizDone && mDone === MISSIONS.length && kyberDone;
-    const xp   = Math.min(100, quizXP + mXP + kyberXP + contentXP + repoXP);
-    let rankIdx = 0;
-    for (let i = 0; i < RANKS.length; i++) if (xp >= RANKS[i].min) rankIdx = i;
-    return { xp, quizXP, mXP, kyberXP, quizDone, mDone, kyberDone, allDone, rankIdx };
+  function quizDone() {
+    return state.quiz.filter(v => v != null).length === TOTAL_AFIRM;
   }
 
   // ---- DOM refs ----
-  const $ = (id) => document.getElementById(id);
-  const hudAvatar = $('hudAvatar'), hudName = $('hudName'), hudTag = $('hudTag');
-  const xpNow = $('xpNow'), xpNext = $('xpNext'), xpFill = $('xpFill');
-  const badgeRow = $('badgeRow'), rankHud = $('rankHud');
-  const guideMsg = $('guideMsg');
-  const qList = $('qList'), quizResult = $('quizResult'), missionsResult = $('missionsResult');
-  const missionsEl = $('missions');
+  const $ = id => document.getElementById(id);
+  const qList       = $('qList');
+  const quizResult  = $('quizResult');
+  const rankHud     = $('rankHud');
+  const hudName     = $('hudName');
+  const hudTag      = $('hudTag');
+  const hudAvatar   = $('hudAvatar');
 
-  // ---- Build quiz ----
-  DIMS.forEach((dim, qi) => {
-    const item = document.createElement('div');
-    item.className = 'q-item';
-    const label = document.createElement('div');
-    label.className = 'q-label';
-    label.textContent = (qi + 1) + '. ' + dim;
-    const opts = document.createElement('div');
-    opts.className = 'q-opts';
-    LEVELS.forEach((lv, li) => {
-      const b = document.createElement('button');
-      b.type = 'button'; b.className = 'q-opt'; b.textContent = lv;
-      b.dataset.q = qi; b.dataset.v = li + 1;
-      b.addEventListener('click', () => { if (!requirePlayer()) return; state.quiz[qi] = li + 1; save(); render(); });
-      opts.appendChild(b);
-    });
-    item.appendChild(label); item.appendChild(opts);
-    qList.appendChild(item);
-  });
+  // ---- Build quiz por blocos ----
+  if (qList) {
+    const scaleHint = document.createElement('div');
+    scaleHint.className = 'q-scale-hint';
+    scaleHint.innerHTML = LEVELS.map((lv, i) => '<span>' + i + ' = ' + lv + '</span>').join('');
+    qList.appendChild(scaleHint);
 
-  // ---- Build missions ----
-  MISSIONS.forEach(m => {
-    // Wrapper
-    const wrap = document.createElement('div');
-    wrap.className = 'mission-wrap';
-    wrap.dataset.id = m.id;
+    let globalIdx = 0;
+    BLOCOS.forEach(bloco => {
+      const blocoEl = document.createElement('div');
+      blocoEl.className = 'q-bloco';
+      const blocoTitle = document.createElement('div');
+      blocoTitle.className = 'q-bloco-title';
+      blocoTitle.textContent = bloco.icon + ' ' + bloco.label;
+      blocoEl.appendChild(blocoTitle);
 
-    // Header (clicável para expandir)
-    const header = document.createElement('div');
-    header.className = 'mission';
-    header.dataset.id = m.id;
-    const maxXP = m.questions.length * XP_PER_HIT;
-    header.innerHTML =
-      '<span class="m-check"><svg viewBox="0 0 24 24"><use href="#i-check"/></svg></span>' +
-      '<span class="m-body">' +
-        '<span class="m-title">' + m.t + '</span>' +
-        '<span class="m-desc">'  + m.d  + '</span>' +
-      '</span>' +
-      '<span class="m-xp">+' + maxXP + ' XP</span>' +
-      '<span class="m-chevron"><svg width="16" height="16" viewBox="0 0 24 24"><path d="M6 9l6 6 6-6" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg></span>';
+      bloco.afirmacoes.forEach((afirm, localIdx) => {
+        const qi = globalIdx++;
+        const item = document.createElement('div');
+        item.className = 'q-item';
 
-    header.addEventListener('click', () => {
-      if (!requirePlayer()) return;
-      if (missionDone(m)) return; // missão concluída — não pode reabrir para responder
-      const isOpen = wrap.classList.contains('open');
-      document.querySelectorAll('.mission-wrap').forEach(w => w.classList.remove('open'));
-      if (!isOpen) wrap.classList.add('open');
-    });
+        const label = document.createElement('div');
+        label.className = 'q-label';
+        label.textContent = (localIdx + 1) + '. ' + afirm;
 
-    // Painel de desafios
-    const panel = document.createElement('div');
-    panel.className = 'm-panel';
-
-    m.questions.forEach((qObj, qi) => {
-      const qWrap = document.createElement('div');
-      qWrap.className = 'm-question';
-      qWrap.dataset.qi = qi;
-
-      const qText = document.createElement('div');
-      qText.className = 'm-q-text';
-      qText.textContent = (qi + 1) + '. ' + qObj.q;
-      qWrap.appendChild(qText);
-
-      const optsWrap = document.createElement('div');
-      optsWrap.className = 'm-q-opts';
-
-      qObj.opts.forEach((optText, oi) => {
-        const btn = document.createElement('button');
-        btn.type = 'button';
-        btn.className = 'm-q-opt';
-        btn.dataset.qi = qi;
-        btn.dataset.oi = oi;
-        btn.textContent = optText;
-
-        btn.addEventListener('click', () => {
-          if (!requirePlayer()) return;
-          const ms = state.missions[m.id];
-          // já respondida — bloqueia
-          if (ms.answers[qi] !== null) return;
-          ms.answers[qi] = oi;
-          save();
-          renderMissionPanel(m, panel);
-          render();
+        const opts = document.createElement('div');
+        opts.className = 'q-opts q-opts--likert';
+        LEVELS.forEach((lv, li) => {
+          const b = document.createElement('button');
+          b.type = 'button'; b.className = 'q-opt'; b.title = lv;
+          b.dataset.q = qi; b.dataset.v = li;
+          b.innerHTML = '<span class="q-opt-num">' + li + '</span><span class="q-opt-lbl">' + lv + '</span>';
+          b.addEventListener('click', () => {
+            if (!requirePlayer()) return;
+            if (state.revealed) return;
+            state.quiz[qi] = li;
+            save();
+            render();
+          });
+          opts.appendChild(b);
         });
 
-        optsWrap.appendChild(btn);
+        item.appendChild(label);
+        item.appendChild(opts);
+        blocoEl.appendChild(item);
       });
-
-      qWrap.appendChild(optsWrap);
-
-      // Área de feedback
-      const fb = document.createElement('div');
-      fb.className = 'm-q-feedback';
-      fb.dataset.fbqi = qi;
-      qWrap.appendChild(fb);
-
-      panel.appendChild(qWrap);
-    });
-
-    wrap.appendChild(header);
-    wrap.appendChild(panel);
-    missionsEl.appendChild(wrap);
-
-    // Render inicial do painel
-    renderMissionPanel(m, panel);
-  });
-
-  // ---- Render painel de uma missão ----
-  function renderMissionPanel(m, panel) {
-    const ms = state.missions[m.id];
-    m.questions.forEach((qObj, qi) => {
-      const answered = ms.answers[qi] !== null;
-      const chosen   = ms.answers[qi];
-      const correct  = qObj.correct;
-
-      // botões
-      panel.querySelectorAll('[data-qi="' + qi + '"].m-q-opt').forEach(btn => {
-        const oi = +btn.dataset.oi;
-        btn.classList.remove('m-opt-correct', 'm-opt-wrong', 'm-opt-neutral');
-        btn.disabled = answered;
-        if (answered) {
-          if (oi === correct)         btn.classList.add('m-opt-correct');
-          else if (oi === chosen)     btn.classList.add('m-opt-wrong');
-          else                        btn.classList.add('m-opt-neutral');
-        }
-      });
-
-      // feedback
-      const fb = panel.querySelector('[data-fbqi="' + qi + '"]');
-      if (fb) {
-        if (!answered) {
-          fb.textContent = ''; fb.className = 'm-q-feedback';
-        } else if (chosen === correct) {
-          fb.textContent = '✓ Correto! +' + XP_PER_HIT + ' XP';
-          fb.className = 'm-q-feedback m-fb-correct';
-        } else {
-          fb.textContent = '✗ Não foi dessa vez. A resposta certa era a opção ' + String.fromCharCode(65 + correct) + '.';
-          fb.className = 'm-q-feedback m-fb-wrong';
-        }
-      }
+      qList.appendChild(blocoEl);
     });
   }
 
-  // ---- Badges ----
-  function badges(c) {
-    const list = [];
-    if (c.quizDone)                               list.push({ i: '#i-target',  l: 'Mente Desperta'  });
-    if (c.mDone >= 1)                             list.push({ i: '#i-flag',    l: 'Primeira Missão' });
-    if (c.mDone >= 3)                             list.push({ i: '#i-chevron', l: 'Rebelde Ativo'   });
-    if (c.rankIdx >= 2)                           list.push({ i: '#i-saber',   l: 'Cavaleiro'       });
-    if (c.mDone === MISSIONS.length && c.rankIdx === 3) list.push({ i: '#i-radiate', l: 'Mestre Jedi' });
-    return list;
-  }
-
-  // ---- Guide messages ----
-  function guideText(c, leveledUp) {
-    if (leveledUp) return 'Patente desbloqueada: ' + RANKS[c.rankIdx].name + '! Continue cumprindo missões para evoluir ainda mais.';
-    if (c.rankIdx === 3) return 'Você alcançou o posto de Mestre! Agora seu papel é formar novos Jedi e disseminar a mentalidade ágil pela Previ.';
-    if (!c.quizDone) return 'Olá! Eu sou o Previx. Comece pelo autodiagnóstico abaixo — escolha seu nível em cada dimensão para revelar sua patente inicial.';
-    if (c.mDone === 0) return 'Autodiagnóstico concluído! Clique em uma missão para expandir os 3 desafios e ganhar XP.';
-    if (c.rankIdx < RANKS.length - 1) return 'Bom trabalho! Faltam ' + (RANKS[c.rankIdx + 1].min - c.xp) + ' XP para virar ' + RANKS[c.rankIdx + 1].name + '. Siga em frente!';
-    return 'Você alcançou o posto de Mestre! Parabéns, a Força Ágil está com você.';
-  }
-
-  // ---- Render geral ----
+  // ---- Render ----
   function render() {
-    const c = compute();
+    const done = quizDone();
+    const answered = state.quiz.filter(v => v != null).length;
+    const ri = diagRankIdx();
+    const rank = RANKS[ri];
 
-    // quiz — bloqueia após concluído
-    qList.querySelectorAll('.q-opt').forEach(b => {
+    // quiz opts — marca selecionados
+    qList && qList.querySelectorAll('.q-opt').forEach(b => {
       b.classList.toggle('sel', state.quiz[+b.dataset.q] === +b.dataset.v);
-      b.disabled = c.quizDone;
-    });
-    if (quizResult && c.quizDone) {
-      let quizLock = document.getElementById('quizLockMsg');
-      if (!quizLock) {
-        quizLock = document.createElement('p');
-        quizLock.id = 'quizLockMsg';
-        quizLock.style.cssText = 'font-family:var(--font-mono);font-size:.7rem;color:var(--ink-3);margin-top:6px;';
-        quizLock.textContent = '🔒 Autodiagnóstico concluído — não pode ser refeito.';
-        quizResult.parentNode.insertBefore(quizLock, quizResult.nextSibling);
-      }
-    }
-
-    // missões — header check + xp earned
-    document.querySelectorAll('.mission-wrap').forEach(wrap => {
-      const id = wrap.dataset.id;
-      const m  = MISSIONS.find(x => x.id === id);
-      if (!m) return;
-      const done   = missionDone(m);
-      const earned = missionXP(m);
-      const header = wrap.querySelector('.mission');
-      header.classList.toggle('done', done);
-      // Atualiza XP exibido
-      const xpSpan = header.querySelector('.m-xp');
-      if (xpSpan) {
-        const maxXP = m.questions.length * XP_PER_HIT;
-        xpSpan.textContent = done
-          ? earned + '/' + maxXP + ' XP ✓'
-          : '+' + maxXP + ' XP';
-      }
-      // Mensagem de cadeado — aparece quando concluída
-      let lockMsg = wrap.querySelector('.m-lock-msg');
-      if (done) {
-        if (!lockMsg) {
-          lockMsg = document.createElement('p');
-          lockMsg.className = 'm-lock-msg';
-          lockMsg.style.cssText = 'font-family:var(--font-mono);font-size:.7rem;color:var(--ink-3);margin:2px 0 0 36px;';
-          header.after(lockMsg);
-        }
-        lockMsg.textContent = '🔒 Missão concluída — não pode ser refeita.';
-      } else if (lockMsg) {
-        lockMsg.remove();
-      }
+      b.disabled = done || state.revealed;
     });
 
-    // HUD
-    hudAvatar.querySelector('use').setAttribute('href', RANKS[c.rankIdx].sym);
-    hudName.textContent = RANKS[c.rankIdx].name;
-    hudTag.textContent  = RANKS[c.rankIdx].tag;
-    xpNow.textContent   = c.xp + ' XP';
-    xpFill.style.width  = c.xp + '%';
-    xpNext.textContent  = c.rankIdx < RANKS.length - 1
-      ? 'Próxima: ' + RANKS[c.rankIdx + 1].name + ' · ' + RANKS[c.rankIdx + 1].min + ' XP'
-      : 'Patente máxima alcançada';
-
-    // Aviso de patente provisória
-    let hudProvisorio = document.getElementById('hudProvisorio');
-    if (!hudProvisorio) {
-      hudProvisorio = document.createElement('p');
-      hudProvisorio.id = 'hudProvisorio';
-      hudProvisorio.style.cssText = 'font-family:var(--font-mono);font-size:.65rem;color:var(--ink-3);margin-top:6px;opacity:.8;';
-      rankHud && rankHud.querySelector('.rh-body') && rankHud.querySelector('.rh-body').appendChild(hudProvisorio);
+    // HUD avatar
+    if (hudAvatar) {
+      const use = hudAvatar.querySelector('use');
+      if (use) use.setAttribute('href', rank.sym || '#char-0');
     }
-    if (hudProvisorio) {
-      if (c.allDone) {
-        hudProvisorio.textContent = '';
-      } else {
-        const faltam = [!c.quizDone && 'autodiagnóstico', c.mDone < MISSIONS.length && 'missões', !c.kyberDone && 'Kyber Game'].filter(Boolean);
-        hudProvisorio.textContent = '⚠ Patente provisória — falta' + (faltam.length > 1 ? 'm' : '') + ': ' + faltam.join(', ') + '.';
-      }
-    }
+    if (hudName) hudName.textContent = rank.name;
+    if (hudTag)  hudTag.textContent  = rank.tag;
 
-    // ladder
+    // ladder cards
     document.querySelectorAll('.char-card').forEach(card => {
       const i = +card.dataset.rank;
-      card.classList.toggle('active',  i === c.rankIdx);
-      card.classList.toggle('locked',  i > c.rankIdx);
+      card.classList.toggle('active', i === ri);
+      card.classList.toggle('locked', i > ri || !done);
     });
 
-    // badges
-    badgeRow.innerHTML = '';
-    badges(c).forEach(bd => {
-      const chip = document.createElement('span');
-      chip.className = 'badge-chip';
-      chip.innerHTML = '<svg viewBox="0 0 24 24"><use href="' + bd.i + '"/></svg>' + bd.l;
-      badgeRow.appendChild(chip);
-    });
-
-    // level-up flash
-    let leveledUp = false;
-    if (prevRankIdx != null && c.rankIdx > prevRankIdx) {
-      leveledUp = true;
-      if (!reduce && rankHud) {
-        rankHud.classList.remove('levelup'); void rankHud.offsetWidth; rankHud.classList.add('levelup');
-      }
-    }
-    prevRankIdx = c.rankIdx;
-
-    if (guideMsg) guideMsg.textContent = guideText(c, leveledUp);
-
+    // quiz result area
     if (quizResult) {
-      quizResult.textContent = c.quizDone
-        ? 'Autodiagnóstico completo · +' + c.quizXP + ' XP de base'
-        : (state.quiz.filter(v => v != null).length + '/' + DIMS.length + ' dimensões respondidas');
-    }
-
-    if (missionsResult) {
-      const allMissionsDone = c.mDone === MISSIONS.length;
-      missionsResult.textContent = allMissionsDone
-        ? 'Missões de Campo completas · +' + c.mXP + ' XP'
-        : (c.mDone + '/' + MISSIONS.length + ' missões concluídas');
+      if (state.revealed) {
+        renderReveal(ri);
+      } else if (done) {
+        quizResult.innerHTML =
+          '<div style="text-align:center;margin-top:12px">' +
+          '<p style="font-family:var(--font-mono);font-size:.9rem;color:var(--accent);margin-bottom:16px">✓ ' + TOTAL_AFIRM + '/' + TOTAL_AFIRM + ' afirmações respondidas</p>' +
+          '<button class="btn btn--primary" id="revelarBtn" style="display:block;margin:0 auto">Revelar minha Patente →</button>' +
+          '</div>';
+        const btn = document.getElementById('revelarBtn');
+        if (btn) btn.addEventListener('click', () => {
+          state.revealed = true;
+          save();
+          render();
+        });
+      } else {
+        quizResult.textContent = answered + '/' + TOTAL_AFIRM + ' afirmações respondidas';
+      }
     }
   }
 
-  // ---- Botões ----
-  const quizCalc = $('quizCalc');
-  if (quizCalc) quizCalc.addEventListener('click', () => {
-    const c = compute();
-    if (!c.quizDone) {
-      quizResult.textContent = 'Responda todas as ' + DIMS.length + ' dimensões para revelar sua patente.';
-      return;
+  function renderReveal(ri) {
+    const rank = RANKS[ri];
+    const score = diagScore();
+    quizResult.innerHTML =
+      '<div class="diag-result">' +
+        '<svg class="diag-result-img" viewBox="0 0 120 220"><use href="' + (rank.sym || '#char-0') + '"/></svg>' +
+        '<div class="diag-result-score">' + score + '<span>/60</span></div>' +
+        '<div class="diag-result-rank">' + rank.icon + ' ' + rank.name + ' — ' + rank.tag + '</div>' +
+        '<div class="diag-result-desc">' + rank.desc + '</div>' +
+        '<ul class="diag-result-carac">' + rank.carac.map(c => '<li>' + c + '</li>').join('') + '</ul>' +
+        '<div class="diag-result-proximo-titulo">Próximos passos:</div>' +
+        '<ul class="diag-result-proximo">' + rank.proximo.map(p => '<li>' + p + '</li>').join('') + '</ul>' +
+        '<div class="diag-result-frase">' + rank.frase + '</div>' +
+        '<p class="diag-result-lock">🔒 Resultado bloqueado. Para refazer, solicite ao admin o reset do seu progresso.</p>' +
+      '</div>';
+    if (!reduce && rankHud) {
+      rankHud.classList.remove('levelup'); void rankHud.offsetWidth; rankHud.classList.add('levelup');
     }
-    if (!reduce && rankHud) { rankHud.classList.remove('levelup'); void rankHud.offsetWidth; rankHud.classList.add('levelup'); }
-    quizResult.textContent = 'Patente revelada: ' + RANKS[c.rankIdx].name + ' · +' + c.quizXP + ' XP';
-  });
+  }
 
-  prevRankIdx = compute().rankIdx;
-  render();
+  // ---- Welcome screen vs game content ----
+  (function () {
+    var welcome  = document.getElementById('treinamento-welcome');
+    var gameWrap = document.getElementById('treinamento');
+    function updateVisibility() {
+      var sess = window.faAuth && window.faAuth.getSession && window.faAuth.getSession();
+      if (welcome)  welcome.hidden  = !!sess;
+      if (gameWrap) gameWrap.hidden = !sess;
+    }
+    updateVisibility();
+    window.addEventListener('fa-auth-change', updateVisibility);
+    var jedBtn = document.getElementById('jedWelcomeBtn');
+    if (jedBtn) jedBtn.addEventListener('click', function () {
+      if (window.faOpenAuthModal) window.faOpenAuthModal('login');
+    });
+  })();
 
-  // expõe render globalmente para firebase.js atualizar HUD após kyber
   window.faGameRender = render;
-  // recarrega o estado do localStorage/faStore (ex.: após reset do admin) e re-renderiza
   window.faGameReload = function () {
     try {
       const saved = JSON.parse((window.faStore || localStorage).getItem(STORE) || 'null');
-      state = (saved && Array.isArray(saved.quiz)) ? { quiz: saved.quiz, missions: saved.missions || {} } : { quiz: Array(DIMS.length).fill(null), missions: {} };
-    } catch (e) { state = { quiz: Array(DIMS.length).fill(null), missions: {} }; }
-    MISSIONS.forEach(m => {
-      if (!state.missions[m.id]) state.missions[m.id] = { answers: Array(m.questions.length).fill(null) };
-    });
+      state = (saved && Array.isArray(saved.quiz) && saved.quiz.length === TOTAL_AFIRM)
+        ? { quiz: saved.quiz, revealed: !!saved.revealed }
+        : { quiz: Array(TOTAL_AFIRM).fill(null), revealed: false };
+    } catch (e) { state = { quiz: Array(TOTAL_AFIRM).fill(null), revealed: false }; }
     render();
   };
+
+  render();
 })();

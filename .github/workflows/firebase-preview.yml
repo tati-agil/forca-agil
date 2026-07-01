@@ -1,0 +1,23 @@
+name: Preview v2 no Firebase Hosting
+
+on:
+  push:
+    branches:
+      - v2
+
+jobs:
+  preview:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - name: Deploy preview channel
+        run: |
+          echo '${{ secrets.FIREBASE_SERVICE_ACCOUNT_KYBER_AGIL }}' > /tmp/sa.json
+          export GOOGLE_APPLICATION_CREDENTIALS=/tmp/sa.json
+          npx firebase-tools@13 hosting:channel:deploy v2-preview \
+            --expires 30d \
+            --project kyber-agil \
+            --non-interactive

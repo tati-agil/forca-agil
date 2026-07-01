@@ -1,24 +1,97 @@
 /* Força Ágil — Dados do Treinamento Jedi: dimensões, patentes e missões */
 (function () {
-  window.faGameData = {
-    DIMS: [
-      'Valores e princípios ágeis',
-      'Foco no cliente e no valor',
-      'Fluxo de trabalho (Kanban / WIP)',
-      'Colaboração e times auto-organizados',
-      'Liderança servidora',
-      'Métricas e melhoria contínua'
+  var _data = {
+    /* Autodiagnóstico: 20 afirmações em 4 blocos, escala Likert 0-3 (total 0-60) */
+    BLOCOS: [
+      {
+        id: 'mentalidade',
+        label: 'Bloco 1 — Mentalidade (A Força Interior)',
+        icon: '🧠',
+        afirmacoes: [
+          'Consigo mudar de opinião quando surgem novas informações',
+          'Vejo erros como oportunidade de aprendizado',
+          'Me sinto confortável com mudanças ao longo do trabalho',
+          'Busco entender o problema antes de propor solução',
+          'Prefiro testar hipóteses do que planejar tudo no detalhe'
+        ]
+      },
+      {
+        id: 'colaboracao',
+        label: 'Bloco 2 — Colaboração (A Força Entre Nós)',
+        icon: '🤝',
+        afirmacoes: [
+          'Peço ajuda quando preciso',
+          'Compartilho informações com o time de forma transparente',
+          'Escuto de verdade antes de responder',
+          'Consigo dar e receber feedbacks com abertura',
+          'Me preocupo com o sucesso do time, não só com o meu'
+        ]
+      },
+      {
+        id: 'praticas',
+        label: 'Bloco 3 — Práticas Ágeis (Técnicas Jedi)',
+        icon: '⚙️',
+        afirmacoes: [
+          'Já participei de rituais como daily, retrospectiva ou planning',
+          'Consigo priorizar atividades com base em valor',
+          'Trabalho com entregas pequenas e frequentes',
+          'Uso algum tipo de visualização do trabalho (kanban, backlog)',
+          'Reviso e ajusto minha forma de trabalhar com frequência'
+        ]
+      },
+      {
+        id: 'valor',
+        label: 'Bloco 4 — Entrega de Valor (Missões Jedi)',
+        icon: '🚀',
+        afirmacoes: [
+          'Penso no cliente ao executar minhas atividades',
+          'Busco entregar valor mesmo que incompleto (incremental)',
+          'Evito perfeccionismo que atrasa entregas',
+          'Consigo lidar com mudanças de prioridade',
+          'Me preocupo em gerar impacto real, não só "entregar tarefas"'
+        ]
+      }
     ],
 
-    LEVELS: ['Já ouvi falar', 'Sei o que é', 'Domino', 'Ensino'],
+    LEVELS: ['Nunca', 'Raramente', 'Às vezes', 'Frequentemente'],
 
+    /* RANKS baseados na pontuação do autodiagnóstico (0-60) */
     RANKS: [
-      { name: 'Youngling', tag: '"Já ouvi falar"', sym: '#char-0', min: 0  },
-      { name: 'Padawan',   tag: '"Sei o que é"',   sym: '#char-1', min: 25 },
-      { name: 'Cavaleiro', tag: '"Domino"',         sym: '#char-2', min: 50 },
-      { name: 'Mestre',    tag: '"Ensino"',         sym: '#char-3', min: 75 }
+      {
+        id: 'youngling', name: 'Youngling', tag: 'Iniciado na Força', sym: '#char-0', icon: '🟢',
+        minDiag: 0, maxDiag: 15,
+        desc: 'Você está começando sua jornada.',
+        carac: ['Mentalidade ainda tradicional', 'Pouco contato com práticas ágeis', 'Busca segurança em controle e previsibilidade'],
+        proximo: ['Entender o "porquê" da agilidade', 'Experimentar pequenas mudanças'],
+        frase: '"A Força já está em você… só precisa ser despertada."'
+      },
+      {
+        id: 'padawan', name: 'Padawan', tag: 'Aprendiz Jedi', sym: '#char-1', icon: '🔵',
+        minDiag: 16, maxDiag: 30,
+        desc: 'Você já entrou na jornada!',
+        carac: ['Já conhece alguns conceitos', 'Oscila entre velho e novo modelo', 'Começa a experimentar práticas'],
+        proximo: ['Ganhar consistência', 'Trabalhar desapego do controle'],
+        frase: '"Muito ainda precisa aprender… mas o caminho está correto."'
+      },
+      {
+        id: 'cavaleiro', name: 'Cavaleiro', tag: 'Cavaleiro Jedi', sym: '#char-2', icon: '🟡',
+        minDiag: 31, maxDiag: 45,
+        desc: 'Você já aplica agilidade com confiança.',
+        carac: ['Boa mentalidade adaptativa', 'Usa práticas no dia a dia', 'Colabora bem com o time'],
+        proximo: ['Influenciar outros', 'Refinar tomada de decisão baseada em valor'],
+        frase: '"A Força flui naturalmente através de você."'
+      },
+      {
+        id: 'mestre', name: 'Mestre', tag: 'Mestre Jedi', sym: '#char-3', icon: '🟣',
+        minDiag: 46, maxDiag: 60,
+        desc: 'Você vive e respira agilidade.',
+        carac: ['Alta adaptabilidade', 'Liderança pelo exemplo', 'Forte foco em valor e pessoas'],
+        proximo: ['Desenvolver outros', 'Sustentar cultura ágil'],
+        frase: '"Ensinar, você deve. A nova geração guiará."'
+      }
     ],
 
+    DIMS: [], /* preenchido automaticamente abaixo a partir de BLOCOS */
     MISSIONS: [
       {
         id: 'gelo',
@@ -244,4 +317,10 @@
       }
     ]
   };
+
+  _data.DIMS = _data.BLOCOS.reduce(function (acc, b) {
+    return acc.concat(b.afirmacoes || []);
+  }, []);
+
+  window.faGameData = _data;
 })();

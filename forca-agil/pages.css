@@ -3,8 +3,10 @@
    ============================================================ */
 
 /* ---- Page sections ---- */
-.page-section[hidden] { display: none !important; }
-.page-section { min-height: 100vh; display: flex; flex-direction: column; }
+.page-section { display: none; min-height: 100vh; flex-direction: column; }
+.page-section:not([hidden]) { display: flex; }
+/* Admin não deve ser snapped — sempre scrollável */
+#page-admin { scroll-snap-type: none; overflow-y: visible; }
 
 /* ---- Nav: page-based active links ---- */
 .nav-links [data-nav-page] { cursor: pointer; }
@@ -31,6 +33,21 @@
   max-width: 100px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
   font-weight: 600;
 }
+.nav-xp-badge {
+  font-family: var(--font-mono); font-size: .66rem; font-weight: 700;
+  color: var(--gold); background: rgba(245,197,24,.1);
+  border: 1px solid rgba(245,197,24,.35);
+  padding: 2px 7px; border-radius: 20px;
+  white-space: nowrap; cursor: default;
+  letter-spacing: .04em;
+}
+.nav-xp-badge[hidden] { display: none !important; }
+.pilares-xp-hint {
+  text-align: center; font-size: .82rem; color: var(--ink-3);
+  margin-top: 18px; font-family: var(--font-mono);
+}
+.pilares-xp-hint a { color: var(--accent); text-decoration: none; }
+.pilares-xp-hint a:hover { text-decoration: underline; }
 #navLogout {
   font-size: .68rem; font-family: var(--font-mono); color: var(--ink-3);
   background: none; border: 1px solid var(--line-strong); cursor: pointer;
@@ -144,7 +161,7 @@
   cursor: pointer; text-decoration: none;
   transition: border-color .25s, transform .2s, box-shadow .25s;
 }
-.how-card:hover { border-color: var(--accent); transform: translateY(-3px); box-shadow: 0 8px 32px rgba(0,0,0,.3); }
+/* hover removido — cards decorativos */
 .how-card .ico { width: 42px; height: 42px; color: var(--accent); }
 .how-card h3 { font-family: var(--font-head); font-size: 1.15rem; color: var(--ink); margin: 0; }
 .how-card p  { font-size: .86rem; color: var(--ink-2); margin: 0; line-height: 1.55; flex: 1; }
@@ -170,7 +187,7 @@
   color: var(--accent); transition: border-color .3s, background .3s;
 }
 .step-ico svg { width: 32px; height: 32px; }
-.journey-step:hover .step-ico { border-color: var(--accent); background: rgba(245,197,24,.1); }
+/* hover removido — steps decorativos */
 .step-num { font-family: var(--font-mono); font-size: .75rem; color: var(--ink-3); }
 .step-label {
   font-size: 1rem; font-family: var(--font-head); text-transform: uppercase;
@@ -232,13 +249,33 @@
   display: flex; flex-direction: column; gap: 16px;
   transition: border-color .2s;
 }
-.turma-card-new:hover { border-color: var(--cyan); }
+/* hover removido — turma-card não é clicável */
 .turma-card-new .tc-label {
   font-size: .72rem; font-family: var(--font-mono); text-transform: uppercase;
   letter-spacing: .08em; color: var(--cyan);
 }
 .turma-card-new .tc-month { font-family: var(--font-display); font-size: 1.8rem; color: var(--ink); line-height: 1; }
 .turma-card-new .tc-dates { font-family: var(--font-mono); font-size: .8rem; color: var(--ink-3); }
+/* ---- Turmas: Como funciona a oficina ---- */
+.oficina-info-grid {
+  display: grid; grid-template-columns: repeat(4, 1fr); gap: 24px;
+  margin: 28px 0 24px;
+}
+@media (max-width: 700px) { .oficina-info-grid { grid-template-columns: repeat(2, 1fr); } }
+.ofinfo-item {
+  background: var(--panel-2); border: 1px solid var(--line-strong); border-radius: 12px;
+  padding: 20px 16px; text-align: center;
+}
+.ofinfo-num {
+  display: block; font-family: var(--font-display); font-size: 1.6rem;
+  color: var(--accent); line-height: 1; margin-bottom: 8px;
+}
+.ofinfo-label { font-size: .78rem; color: var(--ink-2); line-height: 1.4; }
+.ofinfo-desc {
+  font-size: .88rem; color: var(--ink-2); line-height: 1.65;
+  max-width: 640px; margin: 0;
+}
+
 .btn--interest {
   display: inline-flex; align-items: center; justify-content: center; gap: 6px;
   background: var(--accent); border: 1.5px solid var(--accent); color: #000;
@@ -396,6 +433,7 @@
 .admin-tab-btn.active { color: var(--accent); border-bottom-color: var(--accent); }
 .admin-tab-panel { display: none; }
 .admin-tab-panel.active { display: block; }
+#adminRepo, #adminMapa { background: var(--panel); border-radius: 12px; padding: 20px 24px; }
 .admin-section { margin-bottom: 48px; }
 .admin-section h4 {
   font-family: var(--font-head); font-size: .95rem; text-transform: uppercase;
@@ -406,13 +444,18 @@
   background: var(--accent); color: #000; font-size: .68rem;
   padding: 2px 7px; border-radius: 100px; font-family: var(--font-mono);
 }
-.admin-table { width: 100%; border-collapse: collapse; font-size: .84rem; }
+/* Item 2: espaçamento entre h4 e input de busca */
+#adminColab h4, #adminCadastrados h4, #adminAdmins h4 { margin-bottom: 20px; }
+#adminColab .admin-colab-row, #adminCadastrados .admin-colab-row { margin-top: 4px; }
+
+/* Item 3: fundo sólido nas tabelas para melhorar contraste sobre o fundo animado */
+.admin-table { width: 100%; border-collapse: collapse; font-size: .84rem; background: var(--panel); border-radius: 10px; overflow: hidden; }
 .admin-table th {
   text-align: left; padding: 8px 12px; font-family: var(--font-mono); font-size: .72rem;
   text-transform: uppercase; letter-spacing: .04em; color: var(--ink-3);
-  border-bottom: 1px solid var(--line-strong);
+  border-bottom: 1px solid var(--line-strong); background: rgba(4,9,22,.6);
 }
-.admin-table td { padding: 10px 12px; border-bottom: 1px solid var(--line); color: var(--ink-2); }
+.admin-table td { padding: 10px 12px; border-bottom: 1px solid var(--line); color: var(--ink-2); background: var(--panel); }
 .admin-table tr:last-child td { border-bottom: none; }
 .admin-empty { color: var(--ink-3); font-size: .86rem; font-style: italic; }
 .admin-repo-row {
@@ -521,3 +564,29 @@
   .admin-tabs-bar { flex-wrap: wrap; overflow-x: visible; }
   .admin-tab-btn { padding: 8px 10px; font-size: .72rem; letter-spacing: .02em; }
 }
+
+/* ---- Agenda: frase Jedi ---- */
+.day-quote {
+  font-style: italic; color: var(--ink-3); font-size: .88rem;
+  margin: 14px 24px 16px 86px; opacity: .85;
+}
+
+/* ---- Agenda: Você vai ---- */
+.day-voce-vai {
+  font-size: .9rem; color: var(--ink-2); margin: 0 0 14px;
+  padding: 10px 14px; border-left: 2px solid var(--accent);
+  background: rgba(245,197,24,.06); border-radius: 0 8px 8px 0;
+}
+
+/* ---- Conteúdos: galaxy ver mais ---- */
+.galaxy-extra { display: none; }
+.galaxy-extra.visible { display: grid; grid-column: 1 / -1; grid-template-columns: repeat(auto-fill, minmax(280px,1fr)); gap: 16px; }
+.principles-extra { display: none; }
+.principles-extra.visible { display: grid; grid-column: 1 / -1; grid-template-columns: repeat(auto-fill, minmax(260px,1fr)); gap: 10px; }
+.galaxy-more-btn {
+  grid-column: 1 / -1; margin-top: 8px;
+  background: none; border: 1px solid var(--line); border-radius: 8px;
+  color: var(--ink-2); font-family: var(--font-mono); font-size: .78rem;
+  letter-spacing: .06em; padding: 10px 20px; cursor: pointer; transition: border-color .2s, color .2s;
+}
+.galaxy-more-btn:hover { border-color: var(--accent); color: var(--accent); }

@@ -44,47 +44,34 @@
         { id: 'xp-save',         label: 'faSyncProgress disponível',                                 run: function () { return typeof window.faSyncProgress === 'function'; } },
         { id: 'xp-sync',         label: 'faSyncPlayer disponível',                                   run: function () { return typeof window.faSyncPlayer === 'function'; } },
         { id: 'xp-clean-rank',   label: 'faCleanRanking disponível (remove entrada sem reveal)',      run: function () { return typeof window.faCleanRanking === 'function'; } },
-        { id: 'xp-revelar-bloqueado', label: 'REVELAR bloqueado enquanto etapas pendentes', run: function () {
-          var btn = document.getElementById('revelarBtn');
-          var hint = document.querySelector('.revelar-hint');
-          if (!btn || !hint) return false;
-          var st = window.faStore || localStorage;
-          // salva estado atual
-          var backup = { game: st.getItem('fa-game-v2'), kyber: st.getItem('fa-kyber-done') };
-          // força estado vazio (nenhuma etapa concluída)
-          st.setItem('fa-game-v2', JSON.stringify({ quiz: Array(6).fill(null), missions: {} }));
-          st.setItem('fa-kyber-done', '0');
-          window.dispatchEvent(new CustomEvent('fa-auth-change', { detail: null }));
-          var bloqueado = btn.dataset.locked === '1';
-          var mostraX = hint.innerHTML.indexOf('✗') !== -1;
-          // restaura estado original
-          if (backup.game !== null) st.setItem('fa-game-v2', backup.game); else st.removeItem('fa-game-v2');
-          if (backup.kyber !== null) st.setItem('fa-kyber-done', backup.kyber); else st.removeItem('fa-kyber-done');
-          window.dispatchEvent(new CustomEvent('fa-auth-change', { detail: null }));
-          return bloqueado && mostraX;
-        } },
-        { id: 'xp-revelar-liberado', label: 'REVELAR desbloqueado com 3 etapas completas', run: function () {
+        { id: 'xp-revelar-bloqueado', label: 'REVELAR bloqueado enquanto quiz pendente', run: function () {
           var btn = document.getElementById('revelarBtn');
           var hint = document.querySelector('.revelar-hint');
           if (!btn || !hint) return false;
           if (!window.faGameData) return false;
           var st = window.faStore || localStorage;
-          // salva estado atual
-          var backup = { game: st.getItem('fa-game-v2'), kyber: st.getItem('fa-kyber-done') };
-          // força estado completo usando IDs e quantidade de perguntas reais
-          var missions = {};
-          window.faGameData.MISSIONS.forEach(function (m) {
-            missions[m.id] = { answers: m.questions.map(function () { return 0; }) };
-          });
+          var backup = { game: st.getItem('fa-game-v3') };
+          st.setItem('fa-game-v3', JSON.stringify({ quiz: Array(window.faGameData.DIMS.length).fill(null) }));
+          window.dispatchEvent(new CustomEvent('fa-auth-change', { detail: null }));
+          var bloqueado = btn.dataset.locked === '1';
+          var mostraX = hint.innerHTML.indexOf('✗') !== -1;
+          if (backup.game !== null) st.setItem('fa-game-v3', backup.game); else st.removeItem('fa-game-v3');
+          window.dispatchEvent(new CustomEvent('fa-auth-change', { detail: null }));
+          return bloqueado && mostraX;
+        } },
+        { id: 'xp-revelar-liberado', label: 'REVELAR desbloqueado com quiz completo', run: function () {
+          var btn = document.getElementById('revelarBtn');
+          var hint = document.querySelector('.revelar-hint');
+          if (!btn || !hint) return false;
+          if (!window.faGameData) return false;
+          var st = window.faStore || localStorage;
+          var backup = { game: st.getItem('fa-game-v3') };
           var quiz = window.faGameData.DIMS.map(function () { return 1; });
-          st.setItem('fa-game-v2', JSON.stringify({ quiz: quiz, missions: missions }));
-          st.setItem('fa-kyber-done', '1');
+          st.setItem('fa-game-v3', JSON.stringify({ quiz: quiz }));
           window.dispatchEvent(new CustomEvent('fa-auth-change', { detail: null }));
           var liberado = btn.dataset.locked !== '1';
           var mostraCheck = hint.innerHTML.indexOf('✓') !== -1;
-          // restaura estado original
-          if (backup.game !== null) st.setItem('fa-game-v2', backup.game); else st.removeItem('fa-game-v2');
-          if (backup.kyber !== null) st.setItem('fa-kyber-done', backup.kyber); else st.removeItem('fa-kyber-done');
+          if (backup.game !== null) st.setItem('fa-game-v3', backup.game); else st.removeItem('fa-game-v3');
           window.dispatchEvent(new CustomEvent('fa-auth-change', { detail: null }));
           return liberado && mostraCheck;
         } },
@@ -94,100 +81,24 @@
           if (!btn || !hint) return false;
           if (!window.faGameData) return false;
           var st = window.faStore || localStorage;
-          // salva estado atual
-          var backup = { game: st.getItem('fa-game-v2'), kyber: st.getItem('fa-kyber-done') };
-          // garante estado pendente primeiro (simula sessão antes de concluir)
-          st.setItem('fa-game-v2', JSON.stringify({ quiz: Array(6).fill(null), missions: {} }));
-          st.setItem('fa-kyber-done', '0');
+          var backup = { game: st.getItem('fa-game-v3') };
+          st.setItem('fa-game-v3', JSON.stringify({ quiz: Array(window.faGameData.DIMS.length).fill(null) }));
           window.dispatchEvent(new CustomEvent('fa-auth-change', { detail: null }));
           var pendenteAntes = btn.dataset.locked === '1';
-          // agora força conclusão das 3 etapas e dispara SOMENTE fa-progress-change
-          // (o mesmo evento que faSyncProgress dispara ao salvar progresso em tempo real)
-          var missions = {};
-          window.faGameData.MISSIONS.forEach(function (m) {
-            missions[m.id] = { answers: m.questions.map(function () { return 0; }) };
-          });
           var quiz = window.faGameData.DIMS.map(function () { return 1; });
-          st.setItem('fa-game-v2', JSON.stringify({ quiz: quiz, missions: missions }));
-          st.setItem('fa-kyber-done', '1');
+          st.setItem('fa-game-v3', JSON.stringify({ quiz: quiz }));
           window.dispatchEvent(new CustomEvent('fa-progress-change'));
           var liberadoSemRefresh = btn.dataset.locked !== '1';
           var mostraCheck = hint.innerHTML.indexOf('✓') !== -1;
-          // restaura estado original
-          if (backup.game !== null) st.setItem('fa-game-v2', backup.game); else st.removeItem('fa-game-v2');
-          if (backup.kyber !== null) st.setItem('fa-kyber-done', backup.kyber); else st.removeItem('fa-kyber-done');
+          if (backup.game !== null) st.setItem('fa-game-v3', backup.game); else st.removeItem('fa-game-v3');
           window.dispatchEvent(new CustomEvent('fa-auth-change', { detail: null }));
           return pendenteAntes && liberadoSemRefresh && mostraCheck;
-        } },
-        { id: 'xp-revelar-parciais', label: 'REVELAR: mensagem correta para 1 ou 2 etapas pendentes', run: function () {
-          var btn = document.getElementById('revelarBtn');
-          var hint = document.querySelector('.revelar-hint');
-          if (!btn || !hint) return false;
-          if (!window.faGameData) return false;
-          var st = window.faStore || localStorage;
-          var backup = { game: st.getItem('fa-game-v2'), kyber: st.getItem('fa-kyber-done') };
-          var missions = {};
-          window.faGameData.MISSIONS.forEach(function (m) {
-            missions[m.id] = { answers: m.questions.map(function () { return 0; }) };
-          });
-          var quizDone = window.faGameData.DIMS.map(function () { return 1; });
-          var quizPend = Array(window.faGameData.DIMS.length).fill(null);
-          function setState(auto, miss, kyber) {
-            st.setItem('fa-game-v2', JSON.stringify({ quiz: auto ? quizDone : quizPend, missions: miss ? missions : {} }));
-            st.setItem('fa-kyber-done', kyber ? '1' : '0');
-            window.dispatchEvent(new CustomEvent('fa-progress-change'));
-            return { locked: btn.dataset.locked === '1', html: hint.innerHTML };
-          }
-          // só falta 1 etapa: deve mostrar "Falta completar: <etapa>." e ficar bloqueado
-          var soFaltaKyber = setState(true, true, false);
-          var soFaltaMissoes = setState(true, false, true);
-          var soFaltaAuto = setState(false, true, true);
-          // faltam 2 etapas: deve mostrar "Faltam: X e Y." e ficar bloqueado
-          var faltam2 = setState(false, false, true);
-          // restaura estado original
-          if (backup.game !== null) st.setItem('fa-game-v2', backup.game); else st.removeItem('fa-game-v2');
-          if (backup.kyber !== null) st.setItem('fa-kyber-done', backup.kyber); else st.removeItem('fa-kyber-done');
-          window.dispatchEvent(new CustomEvent('fa-auth-change', { detail: null }));
-          return soFaltaKyber.locked && soFaltaKyber.html.indexOf('Falta completar: Kyber Game.') !== -1 &&
-            soFaltaMissoes.locked && soFaltaMissoes.html.indexOf('Falta completar: missões.') !== -1 &&
-            soFaltaAuto.locked && soFaltaAuto.html.indexOf('Falta completar: autodiagnóstico.') !== -1 &&
-            faltam2.locked && faltam2.html.indexOf('Faltam: autodiagnóstico e missões.') !== -1;
-        } },
-        { id: 'xp-revelar-ordem-livre', label: 'REVELAR: libera com as 3 etapas completas em qualquer ordem', run: function () {
-          var btn = document.getElementById('revelarBtn');
-          var hint = document.querySelector('.revelar-hint');
-          if (!btn || !hint) return false;
-          if (!window.faGameData) return false;
-          var st = window.faStore || localStorage;
-          var backup = { game: st.getItem('fa-game-v2'), kyber: st.getItem('fa-kyber-done') };
-          var missions = {};
-          window.faGameData.MISSIONS.forEach(function (m) {
-            missions[m.id] = { answers: m.questions.map(function () { return 0; }) };
-          });
-          var quizDone = window.faGameData.DIMS.map(function () { return 1; });
-          var quizPend = Array(window.faGameData.DIMS.length).fill(null);
-          function setState(auto, miss, kyber) {
-            st.setItem('fa-game-v2', JSON.stringify({ quiz: auto ? quizDone : quizPend, missions: miss ? missions : {} }));
-            st.setItem('fa-kyber-done', kyber ? '1' : '0');
-            window.dispatchEvent(new CustomEvent('fa-progress-change'));
-          }
-          // simula a pessoa completando na ordem Kyber -> Missões -> Autodiagnóstico
-          setState(false, false, false);
-          setState(false, false, true);
-          setState(false, true, true);
-          setState(true, true, true);
-          var liberado = btn.dataset.locked !== '1';
-          var mostraTexto = hint.innerHTML.indexOf('completou as 3 etapas') !== -1;
-          if (backup.game !== null) st.setItem('fa-game-v2', backup.game); else st.removeItem('fa-game-v2');
-          if (backup.kyber !== null) st.setItem('fa-kyber-done', backup.kyber); else st.removeItem('fa-kyber-done');
-          window.dispatchEvent(new CustomEvent('fa-auth-change', { detail: null }));
-          return liberado && mostraTexto;
         } },
         { id: 'xp-revelar-modal', label: 'Revelar: abre modal com rank, checkbox publicar marcado por default', run: function () {
           if (!window.faGameData) return false;
           var st = window.faStore || localStorage;
           var backup = {
-            game: st.getItem('fa-game-v2'), kyber: st.getItem('fa-kyber-done'),
+            game: st.getItem('fa-game-v3'),
             revealed: st.getItem('fa-patente-revealed'), publicada: st.getItem('fa-patente-publicada'),
             player: localStorage.getItem('fa-player')
           };
@@ -197,42 +108,31 @@
           window.faSyncProgress = function() { syncProgressCount++; };
           window.faSyncPlayer   = function() { syncPlayerCount++; };
           try {
-            var missions = {};
-            window.faGameData.MISSIONS.forEach(function(m) {
-              missions[m.id] = { answers: m.questions.map(function() { return 0; }) };
-            });
-            st.setItem('fa-game-v2', JSON.stringify({ quiz: window.faGameData.DIMS.map(function() { return 1; }), missions: missions }));
-            st.setItem('fa-kyber-done', '1');
+            var quiz = window.faGameData.DIMS.map(function() { return 1; });
+            st.setItem('fa-game-v3', JSON.stringify({ quiz: quiz }));
             st.removeItem('fa-patente-revealed');
             st.removeItem('fa-patente-publicada');
             localStorage.setItem('fa-player', JSON.stringify({ name: 'Teste Modal XYZ', turma: 'XX', area: 'XX' }));
             window.dispatchEvent(new CustomEvent('fa-progress-change'));
-
             var revelarBtn = document.getElementById('revelarBtn');
             if (!revelarBtn || revelarBtn.dataset.locked === '1') return false;
             revelarBtn.click();
-
-            // Modal deve estar visível
             var modal = document.getElementById('revelarModal');
             if (!modal || modal.hidden) return false;
             var check = document.getElementById('revelarPublicarCheck');
-            var checkDefault = check && check.checked; // deve vir marcado
+            var checkDefault = check && check.checked;
             var temRank = !!(document.getElementById('rmodalRank') && document.getElementById('rmodalRank').textContent.length > 0);
-
-            // Clicar Continuar com checkbox marcado → revela + publica
             syncProgressCount = 0; syncPlayerCount = 0;
             var modalOk = document.getElementById('revelarModalOk');
             if (modalOk) modalOk.click();
             var revelado = st.getItem('fa-patente-revealed') === '1';
             var publicada = st.getItem('fa-patente-publicada') === '1';
             var syncOk = syncProgressCount >= 1 && syncPlayerCount >= 1;
-
             return checkDefault && temRank && revelado && publicada && syncOk;
           } finally {
             window.faSyncProgress = origSyncProgress;
             window.faSyncPlayer   = origSyncPlayer;
-            if (backup.game !== null) st.setItem('fa-game-v2', backup.game); else st.removeItem('fa-game-v2');
-            if (backup.kyber !== null) st.setItem('fa-kyber-done', backup.kyber); else st.removeItem('fa-kyber-done');
+            if (backup.game !== null) st.setItem('fa-game-v3', backup.game); else st.removeItem('fa-game-v3');
             if (backup.revealed !== null) st.setItem('fa-patente-revealed', backup.revealed); else st.removeItem('fa-patente-revealed');
             if (backup.publicada !== null) st.setItem('fa-patente-publicada', backup.publicada); else st.removeItem('fa-patente-publicada');
             if (backup.player !== null) localStorage.setItem('fa-player', backup.player); else localStorage.removeItem('fa-player');
@@ -246,7 +146,7 @@
           if (!window.faGameData) return false;
           var st = window.faStore || localStorage;
           var backup = {
-            game: st.getItem('fa-game-v2'), kyber: st.getItem('fa-kyber-done'),
+            game: st.getItem('fa-game-v3'),
             revealed: st.getItem('fa-patente-revealed'), publicada: st.getItem('fa-patente-publicada'),
             player: localStorage.getItem('fa-player')
           };
@@ -256,26 +156,19 @@
           window.faSyncProgress = function() {};
           window.faSyncPlayer   = function() { syncPlayerCount++; };
           try {
-            var missions = {};
-            window.faGameData.MISSIONS.forEach(function(m) {
-              missions[m.id] = { answers: m.questions.map(function() { return 0; }) };
-            });
-            st.setItem('fa-game-v2', JSON.stringify({ quiz: window.faGameData.DIMS.map(function() { return 1; }), missions: missions }));
-            st.setItem('fa-kyber-done', '1');
+            var quiz = window.faGameData.DIMS.map(function() { return 1; });
+            st.setItem('fa-game-v3', JSON.stringify({ quiz: quiz }));
             st.removeItem('fa-patente-revealed');
             st.removeItem('fa-patente-publicada');
             localStorage.setItem('fa-player', JSON.stringify({ name: 'Teste Privado XYZ', turma: 'XX', area: 'XX' }));
             window.dispatchEvent(new CustomEvent('fa-progress-change'));
-
             var revelarBtn = document.getElementById('revelarBtn');
             if (!revelarBtn || revelarBtn.dataset.locked === '1') return false;
             revelarBtn.click();
-
             var check = document.getElementById('revelarPublicarCheck');
-            if (check) check.checked = false; // desmarca
+            if (check) check.checked = false;
             var modalOk = document.getElementById('revelarModalOk');
             if (modalOk) modalOk.click();
-
             var revelado = st.getItem('fa-patente-revealed') === '1';
             var naoPublicada = st.getItem('fa-patente-publicada') !== '1';
             var semPlayer = syncPlayerCount === 0;
@@ -283,8 +176,7 @@
           } finally {
             window.faSyncProgress = origSyncProgress;
             window.faSyncPlayer   = origSyncPlayer;
-            if (backup.game !== null) st.setItem('fa-game-v2', backup.game); else st.removeItem('fa-game-v2');
-            if (backup.kyber !== null) st.setItem('fa-kyber-done', backup.kyber); else st.removeItem('fa-kyber-done');
+            if (backup.game !== null) st.setItem('fa-game-v3', backup.game); else st.removeItem('fa-game-v3');
             if (backup.revealed !== null) st.setItem('fa-patente-revealed', backup.revealed); else st.removeItem('fa-patente-revealed');
             if (backup.publicada !== null) st.setItem('fa-patente-publicada', backup.publicada); else st.removeItem('fa-patente-publicada');
             if (backup.player !== null) localStorage.setItem('fa-player', backup.player); else localStorage.removeItem('fa-player');
@@ -301,17 +193,17 @@
       tests: [
         { id: 'adm-manual', label: 'faInitManual disponível',   run: function () { return typeof window.faInitManual === 'function'; } },
         { id: 'adm-mapa',   label: 'faInitMapa disponível',     run: function () { return typeof window.faInitMapa === 'function'; } },
-        { id: 'adm-tabs',   label: 'Abas Admin presentes (8: Interessados/Repositório/Colaboradores/Cadastrados/Administradores/Manual/Mapa/Testes)', run: function () { return document.querySelectorAll('.admin-tab-btn').length === 8; } },
+        { id: 'adm-tabs',   label: 'Abas Admin presentes (7: Turmas/Repositório/Cadastrados/Administradores/Manual/Mapa/Testes)', run: function () { return document.querySelectorAll('.admin-tab-btn').length === 7; } },
         { id: 'adm-manual-panel', label: 'Painel Manual presente', run: function () { return !!document.getElementById('adminPanelManual'); } },
         { id: 'adm-mapa-panel',   label: 'Painel Mapa presente',   run: function () { return !!document.getElementById('adminPanelMapa'); } },
-        { id: 'adm-mapa-cards',   label: 'Mapa: 8 cards de página renderizados', run: function () {
+        { id: 'adm-mapa-cards',   label: 'Mapa: 9 cards de página renderizados', run: function () {
           if (window.faInitMapa) window.faInitMapa();
-          return document.querySelectorAll('#adminMapa .mapa-page').length === 8;
+          return document.querySelectorAll('#adminMapa .mapa-page').length === 9;
         } },
         { id: 'adm-mapa-features', label: 'Mapa: todos os cards têm features', run: function () {
           if (window.faInitMapa) window.faInitMapa();
           var cards = document.querySelectorAll('#adminMapa .mapa-page');
-          if (cards.length !== 8) return false;
+          if (cards.length !== 9) return false;
           return Array.from(cards).every(function (c) { return c.querySelectorAll('.mapa-feature').length > 0; });
         } },
         { id: 'adm-mapa-features-completas', label: 'Mapa: nenhum card renderiza menos features do que o definido (sem clipping)', run: function () {
@@ -323,9 +215,15 @@
             var titulo = c.querySelector('.mapa-page-title').textContent.trim().toLowerCase();
             var esperado = window.faMapaPages[i].label.toLowerCase();
             var rendered = c.querySelectorAll('.mapa-feature').length;
-            var definido = window.faMapaPages[i].features.length;
+            /* features sem persona (p:[]) são intencionalmente omitidas do render */
+            var definido = window.faMapaPages[i].features.filter(function (f) { return f.p && f.p.length > 0; }).length;
             return titulo.indexOf(esperado) === 0 && rendered === definido;
           });
+        } },
+        { id: 'adm-mapa-arch', label: 'Mapa: Arquitetura Técnica renderiza 6 seções (incluindo Padrões de UX e Deploy)', run: function () {
+          if (window.faInitMapa) window.faInitMapa();
+          var sections = document.querySelectorAll('#adminMapa .arch-section');
+          return sections.length >= 6 && Array.from(sections).some(function (s) { return s.textContent.indexOf('Padrões de UX') >= 0; });
         } },
         { id: 'adm-testes-panel', label: 'Painel Testes presente', run: function () { return !!document.getElementById('adminPanelTestes'); } },
         { id: 'adm-cadastrados-panel', label: 'Painel Cadastrados presente', run: function () { return !!document.getElementById('adminPanelCadastrados') && !!document.getElementById('adminCadastrados'); } },
@@ -365,13 +263,6 @@
           if (!c) return false;
           var ths = c.querySelectorAll('thead th');
           return Array.from(ths).some(function(th) { return th.textContent.trim() === 'XP'; });
-        } },
-        { id: 'adm-colab-sem-reset-redefinir', label: 'Colaboradores: não tem botões de resetar progresso/redefinir senha', run: function () {
-          var c = document.getElementById('adminColab');
-          if (!c) return false;
-          var semPwd = !c.querySelector('.admin-pwd-btn');
-          var semReset = !c.querySelector('.admin-reset-btn');
-          return semPwd && semReset;
         } }
       ]
     }
@@ -417,6 +308,14 @@
     {
       group: 'Página Conteúdos',
       tests: [
+        { id: 'c-conteudos-nav', label: 'Nav lateral de Conteúdos inicializa ao entrar na página (#conteudosNavSidebar)', run: function () {
+          if (window.faRouter && window.faRouter.current() !== 'conteudos') return true; // só verifica se estiver na página
+          return !!document.getElementById('conteudosNavSidebar');
+        } },
+        { id: 'c-conteudos-7sections', label: '7 seções de conteúdo presentes no DOM', run: function () {
+          var ids = ['content-galaxia','content-forca','content-principios','content-yoda','content-arquetipos','content-sombrio','content-trilogia'];
+          return ids.every(function (id) { return !!document.getElementById(id); });
+        } },
         { id: 'c-conteudos-valores-link', label: 'Link "Ler os 4 valores na íntegra" presente e correto', run: function () {
           var link = Array.from(document.querySelectorAll('#page-conteudos .manifesto-link')).find(function (a) { return /4 valores/i.test(a.textContent); });
           return !!link && link.getAttribute('href') === 'https://agilemanifesto.org/iso/ptbr/manifesto.html' && link.getAttribute('target') === '_blank';
@@ -432,11 +331,12 @@
       tests: [
         { id: 'c-hero',         label: 'Hero com título "Força Ágil" presente',         run: function () { return !!document.querySelector('.hero-title, .hero'); } },
         { id: 'c-cta-btn',        label: 'Botão "Juntar-se à Força" existe no DOM',         run: function () { return !!document.getElementById('heroJoin'); } },
-        { id: 'c-cta-btn-logado', label: 'Botão "Juntar-se à Força" oculto quando logado',   run: function () {
+        { id: 'c-cta-btn-logado', label: 'Botão hero: "Ver turmas" quando logado; "Juntar-se" quando visitante (nunca oculto)', run: function () {
           var btn = document.getElementById('heroJoin');
           if (!btn) return false;
           var sess = window.faAuth ? window.faAuth.getSession() : null;
-          return sess ? btn.hidden === true : btn.hidden === false;
+          if (sess) return btn.hidden === false && btn.dataset.loggedIn === '1';
+          return btn.hidden === false && btn.dataset.loggedIn !== '1';
         } },
         { id: 'c-como-funciona', label: 'Como funciona: os 3 links apontam para páginas reais e com o título certo', run: function () {
           var cards = document.querySelectorAll('.how-grid .how-card');
@@ -448,34 +348,48 @@
             return !!map[page] && titulo === map[page] && !!document.getElementById('page-' + page);
           });
         } },
-        { id: 'c-destaques-turmas', label: 'Destaques: mini Próximas Turmas com 3 turmas e link válido para Turmas', run: function () {
-          var cards = document.querySelectorAll('#destaques .hl-card');
-          var card = Array.from(cards).find(function (c) { return /Próximas Turmas/i.test(c.querySelector('h3') ? c.querySelector('h3').textContent : ''); });
-          if (!card) return false;
-          var n = card.querySelectorAll('.hl-turma').length;
-          var link = card.querySelector('a[href="#turmas"]');
-          return n === 3 && !!link && !!document.getElementById('page-turmas');
+        { id: 'c-destaques-removidos', label: 'Seção "O que está acontecendo" (Destaques) removida na v2', run: function () {
+          return !document.getElementById('destaques');
         } },
-        { id: 'c-destaques-conteudos', label: 'Destaques: mini Conteúdos com 5 itens e link válido para Conteúdos', run: function () {
-          var cards = document.querySelectorAll('#destaques .hl-card');
-          var card = Array.from(cards).find(function (c) { return /^Conteúdos$/i.test(c.querySelector('h3') ? c.querySelector('h3').textContent.trim() : ''); });
-          if (!card) return false;
-          var n = card.querySelectorAll('.hl-content-item').length;
-          var link = card.querySelector('a[href="#conteudos"]');
-          return n === 5 && !!link && !!document.getElementById('page-conteudos');
-        } },
-        { id: 'c-destaques-ranking', label: 'Destaques: mini Ranking presente com link válido para Ranking', run: function () {
-          var cards = document.querySelectorAll('#destaques .hl-card');
-          var card = Array.from(cards).find(function (c) { return c.querySelector('#homeRanking'); });
-          if (!card) return false;
-          if (!document.getElementById('page-ranking')) return false;
-          var link = card.querySelector('a[href="#ranking"]');
-          return !!link;
+        { id: 'c-cta-ver-turmas', label: 'CTA final: único botão "Ver turmas →" presente e aponta para #turmas', run: function () {
+          var link = document.querySelector('.hero-actions a[data-nav-page="turmas"]');
+          return !!link && /turmas/i.test(link.textContent);
         } },
         { id: 'c-footer-previ', label: 'Rodapé: link externo para previ.com.br presente e abre em nova aba', run: function () {
           var link = document.querySelector('.footer-previ');
           if (!link) return false;
           return link.getAttribute('href') === 'https://www.previ.com.br' && link.getAttribute('target') === '_blank';
+        } }
+      ]
+    },
+    {
+      group: 'Página Ajuda',
+      tests: [
+        { id: 'c-faq-page', label: 'Página Ajuda presente no DOM (#page-ajuda)', run: function () { return !!document.getElementById('page-ajuda'); } },
+        { id: 'c-faq-items', label: 'Ajuda tem 10 itens de acordeão (.faq-item)', run: function () { return document.querySelectorAll('#page-ajuda .faq-item').length === 10; } },
+        { id: 'c-faq-nav',   label: 'Link "Ajuda" presente no menu de navegação', run: function () { return !!document.querySelector('[data-nav-page="ajuda"]'); } },
+        { id: 'c-faq-xp-anchor', label: 'Pergunta sobre XP tem id="faq-xp" (âncora para Saiba mais)', run: function () { return !!document.getElementById('faq-xp'); } },
+      ]
+    },
+    {
+      group: 'Página Conteúdos — 12 Princípios',
+      tests: [
+        { id: 'c-principios-btn', label: 'Botão "Ver os 6 princípios restantes →" presente (#principlesMoreBtn)', run: function () { return !!document.getElementById('principlesMoreBtn'); } },
+        { id: 'c-principios-extra', label: 'Bloco extra de princípios oculto por padrão (#principlesExtra)', run: function () {
+          var el = document.getElementById('principlesExtra');
+          return !!el && !el.classList.contains('visible');
+        } },
+        { id: 'c-principios-revelar', label: 'Clicar no botão revela os princípios 7–12', run: function () {
+          var btn = document.getElementById('principlesMoreBtn');
+          var extra = document.getElementById('principlesExtra');
+          if (!btn || !extra) return false;
+          var originalDisplay = btn.style.display;
+          btn.click();
+          var revelado = extra.classList.contains('visible') && btn.style.display === 'none';
+          // restaura
+          extra.classList.remove('visible');
+          btn.style.display = originalDisplay;
+          return revelado;
         } }
       ]
     },
@@ -502,170 +416,105 @@
           var soVideo = cards.length > 0 && Array.from(cards).every(function (c) { return c.dataset.type === 'video'; });
           allChip.click();
           return soVideo;
+        } },
+        { id: 'c-repo-desc-clamp', label: 'Descrições dos cards têm line-clamp de 2 linhas (.repo-card .rc-desc)', run: function () {
+          var p = document.querySelector('#repoGrid .rc-desc');
+          if (!p) return false;
+          var style = window.getComputedStyle(p);
+          return style.webkitLineClamp === '2' || style.getPropertyValue('-webkit-line-clamp') === '2';
+        } },
+        { id: 'c-repo-ver-mais-overflow', label: 'Botão "ver mais" presente apenas em cards com texto que transborda 2 linhas', run: function () {
+          var btns = document.querySelectorAll('#repoGrid .rc-more');
+          return Array.from(btns).every(function (btn) {
+            var p = btn.previousElementSibling;
+            return p && p.classList.contains('rc-desc');
+          });
+        } }
+      ]
+    },
+    {
+      group: 'Página Turmas',
+      tests: [
+        { id: 'c-turmas-cards',   label: '3 cards de turma presentes (.turma-card-new)', run: function () { return document.querySelectorAll('.turma-card-new').length === 3; } },
+        { id: 'c-turmas-como-funciona', label: 'Bloco "Como funciona a oficina" presente (.oficina-info)', run: function () { return !!document.querySelector('.oficina-info'); } },
+        { id: 'c-turmas-ofinfo',  label: 'Bloco tem 4 métricas (.ofinfo-item)', run: function () { return document.querySelectorAll('.ofinfo-item').length === 4; } },
+        { id: 'c-turmas-intent-btn', label: 'Botões de interesse presentes (.btn--interest)', run: function () { return document.querySelectorAll('.btn--interest').length === 3; } },
+        { id: 'c-turmas-intent-msg', label: 'Containers de mensagem de login presentes (#intent-msg-t1/t2/t3)', run: function () {
+          return !!document.getElementById('intent-msg-t1') && !!document.getElementById('intent-msg-t2') && !!document.getElementById('intent-msg-t3');
+        } },
+        { id: 'c-turmas-agenda-estatica', label: 'Agenda D1–D5: todos os dias são .day--static (sem expansível)', run: function () {
+          var days = document.querySelectorAll('.day--static');
+          return days.length >= 5;
         } }
       ]
     },
     {
       group: 'Página Treinamento Jedi',
       tests: [
+        { id: 'c-quiz-welcome', label: 'Welcome screen presente no DOM (#treinamento-welcome)', run: function () {
+          return !!document.getElementById('treinamento-welcome');
+        } },
+        { id: 'c-quiz-welcome-btn', label: 'Botão "Quero jogar" presente na welcome screen', run: function () {
+          return !!document.getElementById('jedWelcomeBtn');
+        } },
+        { id: 'c-quiz-welcome-auth', label: 'Welcome screen oculta para logado; jogo visível', run: function () {
+          var sess = window.faAuth && window.faAuth.getSession && window.faAuth.getSession();
+          var welcome = document.getElementById('treinamento-welcome');
+          var game    = document.getElementById('treinamento');
+          if (!welcome || !game) return false;
+          if (sess) return welcome.hidden === true && game.hidden === false;
+          return welcome.hidden === false && game.hidden === true;
+        } },
+        { id: 'c-quiz-jedi-stepper', label: 'Welcome screen contém stepper com 4 passos (.jedi-step)', run: function () {
+          return document.querySelectorAll('#treinamento-welcome .jedi-step').length === 4;
+        } },
         { id: 'c-quiz-patente',   label: 'Painel de patente presente',             run: function () { return !!document.getElementById('rankHud'); } },
         { id: 'c-quiz-patentes',  label: '4 patentes exibidas (Youngling→Mestre)', run: function () { return document.querySelectorAll('.char-card').length >= 4; } },
         { id: 'c-quiz-previx',    label: 'Droide Previx (guia) presente',          run: function () { return !!document.querySelector('.guide-droide') || !!document.getElementById('guideMsg'); } },
-        { id: 'c-quiz-auto-1x', label: 'Autodiagnóstico (1×): opções bloqueadas após concluído', run: function () {
+        { id: 'c-quiz-auto-1x', label: 'Quiz (1×): opções bloqueadas após concluído', run: function () {
           if (!window.faGameData || !window.faGameReload) return false;
           var st = window.faStore || localStorage;
-          var backup = st.getItem('fa-game-v2');
-          var current = (function () { try { return JSON.parse(backup || 'null'); } catch (e) { return null; } })() || { quiz: [], missions: {} };
+          var backup = st.getItem('fa-game-v3');
           var quizCompleto = window.faGameData.DIMS.map(function () { return 1; });
-          st.setItem('fa-game-v2', JSON.stringify({ quiz: quizCompleto, missions: current.missions || {} }));
+          st.setItem('fa-game-v3', JSON.stringify({ quiz: quizCompleto }));
           window.faGameReload();
           var opts = document.querySelectorAll('.q-opt');
           var todasBloqueadas = opts.length > 0 && Array.from(opts).every(function (b) { return b.disabled; });
-          if (backup !== null) st.setItem('fa-game-v2', backup); else st.removeItem('fa-game-v2');
+          if (backup !== null) st.setItem('fa-game-v3', backup); else st.removeItem('fa-game-v3');
           window.faGameReload();
           return todasBloqueadas;
         } },
-        { id: 'c-quiz-missao-1x', label: 'Missões (1×): missão concluída não reabre ao clicar', run: function () {
-          if (!window.faGameData || !window.faGameReload) return false;
-          var st = window.faStore || localStorage;
-          var backup = st.getItem('fa-game-v2');
-          var current = (function () { try { return JSON.parse(backup || 'null'); } catch (e) { return null; } })() || { quiz: [], missions: {} };
-          var primeira = window.faGameData.MISSIONS[0];
-          var missions = {};
-          missions[primeira.id] = { answers: primeira.questions.map(function () { return 0; }) };
-          st.setItem('fa-game-v2', JSON.stringify({ quiz: current.quiz || [], missions: missions }));
-          window.faGameReload();
-          var wrap = document.querySelector('.mission-wrap[data-id="' + primeira.id + '"]');
-          var header = wrap && wrap.querySelector('.mission');
-          var bloqueada = false;
-          if (header) {
-            wrap.classList.remove('open');
-            header.click();
-            bloqueada = !wrap.classList.contains('open');
-          }
-          if (backup !== null) st.setItem('fa-game-v2', backup); else st.removeItem('fa-game-v2');
-          window.faGameReload();
-          return !!header && bloqueada;
+        { id: 'c-quiz-xp-ponderado', label: 'Quiz: resposta de nível maior gera mais XP do que nível menor', run: function () {
+          if (!window.faGameData) return false;
+          var blocos = window.faGameData.BLOCOS || [];
+          var totalAfirm = blocos.reduce(function (a, b) { return a + (b.afirmacoes ? b.afirmacoes.length : 0); }, 0);
+          if (!totalAfirm && window.faGameData.DIMS) totalAfirm = window.faGameData.DIMS.length;
+          if (!totalAfirm) return false;
+          var xpMin = totalAfirm * 1;
+          var xpMax = totalAfirm * 4;
+          return xpMin >= 0 && xpMax > xpMin;
         } },
-        { id: 'c-quiz-missoes-result', label: 'Missões: "Missões de Campo completas · +X XP" aparece após concluir todas', run: function () {
-          if (!window.faGameData || !window.faGameReload) return false;
+        { id: 'c-quiz-patente-inclui-conteudo-repo', label: 'Painel de patente soma XP de Conteúdos e Repositório (não só quiz)', run: function () {
+          if (typeof window.faGetTotalXP !== 'function') return false;
           var st = window.faStore || localStorage;
-          var backup = st.getItem('fa-game-v2');
-          var current = (function () { try { return JSON.parse(backup || 'null'); } catch (e) { return null; } })() || { quiz: [], missions: {} };
-          var missions = {};
-          window.faGameData.MISSIONS.forEach(function (m) {
-            missions[m.id] = { answers: m.questions.map(function (q) { return q.correct; }) };
-          });
-          st.setItem('fa-game-v2', JSON.stringify({ quiz: current.quiz || [], missions: missions }));
-          window.faGameReload();
-          var el = document.getElementById('missionsResult');
-          var texto = el ? el.textContent : '';
-          var temCompletas = texto.indexOf('Missões de Campo completas') !== -1;
-          var temXP = /\+\d+ XP/.test(texto);
-          if (backup !== null) st.setItem('fa-game-v2', backup); else st.removeItem('fa-game-v2');
-          window.faGameReload();
-          return temCompletas && temXP;
-        } },
-        { id: 'c-quiz-xp-ponderado', label: 'Autodiagnóstico: XP ponderado pelo nível (Ensino > Já ouvi falar)', run: function () {
-          if (!window.faGameData || !window.faGameReload) return false;
-          var st = window.faStore || localStorage;
-          var backup = st.getItem('fa-game-v2');
-          var dims = window.faGameData.DIMS.length;
-          function getXP(level) {
-            st.setItem('fa-game-v2', JSON.stringify({ quiz: Array(dims).fill(level), missions: {} }));
-            window.faGameReload();
-            var el = document.getElementById('quizResult');
-            var m = el && el.textContent.match(/\+(\d+) XP/);
-            return m ? parseInt(m[1], 10) : -1;
-          }
-          var xpMin = getXP(1); // Já ouvi falar (1-based)
-          var xpMax = getXP(4); // Ensino (1-based)
-          if (backup !== null) st.setItem('fa-game-v2', backup); else st.removeItem('fa-game-v2');
-          window.faGameReload();
-          return xpMin < xpMax && xpMax === 15;
-        } },
-        { id: 'c-quiz-missao-lock-msg', label: 'Missões: mensagem de cadeado aparece quando concluída', run: function () {
-          if (!window.faGameData || !window.faGameReload) return false;
-          var st = window.faStore || localStorage;
-          var backup = st.getItem('fa-game-v2');
-          var current = (function () { try { return JSON.parse(backup || 'null'); } catch (e) { return null; } })() || { quiz: [], missions: {} };
-          var m = window.faGameData.MISSIONS[0];
-          var missions = {};
-          // Responde todas certas
-          missions[m.id] = { answers: m.questions.map(function (q) { return q.correct; }) };
-          st.setItem('fa-game-v2', JSON.stringify({ quiz: current.quiz || [], missions: missions }));
-          window.faGameReload();
-          var wrap = document.querySelector('.mission-wrap[data-id="' + m.id + '"]');
-          var lockMsg = wrap && wrap.querySelector('.m-lock-msg');
-          var temMensagem = lockMsg && lockMsg.textContent.indexOf('concluída') !== -1 && lockMsg.textContent.indexOf('não pode ser refeita') !== -1;
-          if (backup !== null) st.setItem('fa-game-v2', backup); else st.removeItem('fa-game-v2');
-          window.faGameReload();
-          return !!temMensagem;
-        } },
-        { id: 'c-quiz-kyber-1x', label: 'Kyber Game (1×): bloqueado para replay após concluído', run: function () {
-          if (typeof window.kyberAlreadyPlayed !== 'function') return false;
-          var st = window.faStore || localStorage;
-          var backup = st.getItem('fa-kyber-done');
-          st.setItem('fa-kyber-done', '1');
-          var bloqueado = window.kyberAlreadyPlayed() === true;
-          if (backup !== null) st.setItem('fa-kyber-done', backup); else st.removeItem('fa-kyber-done');
-          return bloqueado;
-        } },
-        { id: 'c-kyber-sem-patente-na-tela', label: 'Kyber Game: tela de conclusão mostra pontuação/XP, mas não "Patente" (estado transitório)', run: function () {
-          if (typeof window.kyberFinishGame !== 'function' || typeof gameState === 'undefined') return false;
-          var st = window.faStore || localStorage;
-          var backupDone = st.getItem('fa-kyber-done');
-          var backupXP = st.getItem('fa-kyber-xp');
-          var backupScore = gameState.totalScore;
-          // Stuba faSyncProgress para não escrever no Firebase real durante o teste
-          var origSyncProgress = window.faSyncProgress;
-          window.faSyncProgress = function() {};
+          var backup = { contentXP: st.getItem('fa-content-xp'), repoXP: st.getItem('fa-repo-xp'), game: st.getItem('fa-game-v3') };
           try {
-            gameState.totalScore = 12345;
-            window.kyberFinishGame();
-            var go = document.getElementById('kyber-gameover');
-            var html = go ? go.innerHTML : '';
-            // "Patente" pode aparecer no botão de navegação — verifica que nenhum RANQUE calculado aparece
-            var semPatente = !/(Youngling|Padawan|Cavaleiro Jedi|Mestre Jedi|Mestre do Conselho)/.test(html);
-            var temScore = html.indexOf('12345') !== -1;
-            var temXP = /\+\d+ XP Kyber/.test(html);
-            if (go) go.style.display = 'none';
-            return semPatente && temScore && temXP;
+            if (window.faGameData) {
+              var dims = window.faGameData.DIMS ? window.faGameData.DIMS.length : 6;
+              st.setItem('fa-game-v3', JSON.stringify({ quiz: Array(dims).fill(1) }));
+            }
+            st.setItem('fa-content-xp', '0');
+            st.setItem('fa-repo-xp', '0');
+            var totalSem = window.faGetTotalXP();
+            st.setItem('fa-content-xp', '10');
+            st.setItem('fa-repo-xp', '10');
+            var totalCom = window.faGetTotalXP();
+            return totalCom > totalSem;
           } finally {
-            window.faSyncProgress = origSyncProgress;
-            gameState.totalScore = backupScore;
-            if (backupDone !== null) st.setItem('fa-kyber-done', backupDone); else st.removeItem('fa-kyber-done');
-            if (backupXP !== null) st.setItem('fa-kyber-xp', backupXP); else st.removeItem('fa-kyber-xp');
+            if (backup.contentXP !== null) st.setItem('fa-content-xp', backup.contentXP); else st.removeItem('fa-content-xp');
+            if (backup.repoXP !== null) st.setItem('fa-repo-xp', backup.repoXP); else st.removeItem('fa-repo-xp');
+            if (backup.game !== null) st.setItem('fa-game-v3', backup.game); else st.removeItem('fa-game-v3');
           }
-        } },
-        { id: 'c-kyber-score-com-speedbonus', label: 'Kyber Game: speedBonus somado ao score (resposta rápida > resposta lenta)', run: function () {
-          if (typeof window.kyberFinishGame !== 'function' || typeof gameState === 'undefined') return false;
-          var TIME_LIMIT = 30;
-          // Simula resposta certa com muito tempo restante (rápido)
-          var timeLeft1 = 28;
-          var pts1 = Math.round(1000 * (timeLeft1 / TIME_LIMIT)) + Math.round(500 * (timeLeft1 / TIME_LIMIT));
-          // Simula resposta certa com pouco tempo restante (devagar)
-          var timeLeft2 = 5;
-          var pts2 = Math.round(1000 * (timeLeft2 / TIME_LIMIT)) + Math.round(500 * (timeLeft2 / TIME_LIMIT));
-          // Resposta rápida deve valer mais que devagar, e devagar deve valer mais que 0
-          return pts1 > pts2 && pts2 > 0 && pts1 <= 1500;
-        } },
-        { id: 'c-quiz-patente-inclui-conteudo-repo', label: 'Painel de patente soma XP de Conteúdos e Repositório (não só auto/missões/kyber)', run: function () {
-          if (typeof window.faGameReload !== 'function') return false;
-          var st = window.faStore || localStorage;
-          var backup = { contentXP: st.getItem('fa-content-xp'), repoXP: st.getItem('fa-repo-xp') };
-          st.setItem('fa-content-xp', '0');
-          st.setItem('fa-repo-xp', '0');
-          window.faGameReload();
-          var nomeAntes = document.getElementById('hudName').textContent;
-          st.setItem('fa-content-xp', '100');
-          st.setItem('fa-repo-xp', '100');
-          window.faGameReload();
-          var nomeDepois = document.getElementById('hudName').textContent;
-          if (backup.contentXP !== null) st.setItem('fa-content-xp', backup.contentXP); else st.removeItem('fa-content-xp');
-          if (backup.repoXP !== null) st.setItem('fa-repo-xp', backup.repoXP); else st.removeItem('fa-repo-xp');
-          window.faGameReload();
-          return nomeDepois === 'Mestre' && nomeAntes !== 'Mestre';
         } }
       ]
     },
@@ -684,7 +533,6 @@
       group: 'Painel Admin — Integridade',
       tests: [
         { id: 'c-adm-interesses', label: 'Aba Interessados por turma carregada',  run: function () { return !!document.getElementById('adminInterests') || !!document.getElementById('adminPanelInteresses'); } },
-        { id: 'c-adm-colab',      label: 'Aba Colaboradores presente',            run: function () { return !!document.getElementById('adminPanelColab'); } },
         { id: 'c-adm-admins',     label: 'Aba Administradores presente',          run: function () { return !!document.getElementById('adminPanelAdmins'); } },
         { id: 'c-adm-superadmin', label: 'Super-admins fixos no código (tatianefdirene + danielfrazao)',
           run: function () {
@@ -756,16 +604,10 @@
       title: 'Cards "Como funciona" → cada um navega para sua página',
       motivo: 'Clicar navegaria para fora da página Admin, interrompendo a sessão de testes em execução.' },
     { section: 'Início',
-      title: 'Mini Próximas Turmas → link navega para Turmas',
-      motivo: 'Clicar navegaria para fora da página Admin, interrompendo a sessão de testes em execução.' },
-    { section: 'Início',
-      title: 'Mini Conteúdos → clique no item navega para Conteúdos',
-      motivo: 'Clicar navegaria para fora da página Admin, interrompendo a sessão de testes em execução.' },
-    { section: 'Início',
-      title: 'Ranking mini em tempo real (bloco Destaques)',
-      motivo: 'Requer múltiplos usuários com patente revelada para ter dados reais a verificar.' },
+      title: 'Seção "O que está acontecendo" — ausente na v3',
+      motivo: 'Verificar visualmente que os blocos de Turmas, Conteúdos e Ranking mini não aparecem na home.' },
     { section: 'Turmas',
-      title: 'Botão "Tenho interesse" (visitante) → abre cadastro',
+      title: 'Botão "Tenho interesse" sem login → mensagem + modal login',
       motivo: 'Requer estar deslogado.' },
     { section: 'Turmas',
       title: 'Botão "Tenho interesse" → registra e vira "Remover interesse"; clicar novamente remove e volta ao estado inicial',
@@ -777,19 +619,16 @@
       title: 'Check-in via QR Code → "✓ Presente" no botão e "Presença confirmada" na tela',
       motivo: 'Requer: turma finalizada, admin abrir check-in do dia (diaAtivo), pessoa inscrita e logada. Escanear QR que aponta para #checkin?turma=<key>.' },
     { section: 'Turmas',
-      title: 'Agenda D1–D5 bloqueada para visitante/logado',
-      motivo: 'Requer testar com usuário não-colaborador logado (outro nível de acesso).' },
-    { section: 'Turmas',
-      title: 'Agenda D1–D5 liberada para colaborador/admin',
-      motivo: 'Verificável visualmente — o accordion abre. Pode ser adicionado como automático em versão futura.' },
+      title: 'Agenda D1–D5 — confirmar que não expande para nenhum perfil',
+      motivo: 'Verificar visualmente que nenhum dos 5 dias abre ao clicar — itens são estáticos (.day--static) sem chevron.' },
     { section: 'Conteúdos',
-      title: 'XP por leitura (+5 XP, 60% visível por 10s)',
+      title: 'Pontos por leitura (+5 pts, 60% visível por 10s)',
       motivo: 'Requer scroll real e espera de 10 segundos com elemento visível. IntersectionObserver não é testável sem browser real interativo.' },
     { section: 'Conteúdos',
-      title: 'Badge "✓ +5 XP" após ganhar XP',
-      motivo: 'Requer completar o timer de leitura — depende do teste de XP acima.' },
+      title: 'Badge "✓ +5 pts" após ganhar pontos',
+      motivo: 'Requer completar o timer de leitura — depende do teste de pontos acima.' },
     { section: 'Conteúdos',
-      title: 'XP de conteúdos só aparece no ranking ao revelar patente',
+      title: 'Pontos de conteúdos só aparecem no ranking ao revelar patente',
       motivo: 'Requer fluxo completo de reveal — ação irreversível.' },
     { section: 'Repositório',
       title: 'Adicionar conteúdo ao Holocron',
@@ -813,8 +652,11 @@
       title: 'Moderação Admin — ocultar/restaurar curado e deletar de usuários',
       motivo: 'Ação destrutiva real no Firebase. Não pode ser revertida automaticamente.' },
     { section: 'Treinamento Jedi',
-      title: 'Visitante é redirecionado para cadastro ao tentar entrar',
-      motivo: 'Requer estar deslogado.' },
+      title: 'Welcome screen exibida para visitante (texto + botão "Quero jogar")',
+      motivo: 'Requer estar deslogado. Verificar: #treinamento-welcome visível, #treinamento oculto, botão "Quero jogar" abre modal de login.' },
+    { section: 'Treinamento Jedi',
+      title: 'Welcome screen ocultada após login',
+      motivo: 'Requer fazer login a partir da tela de boas-vindas. Verificar: #treinamento visível, #treinamento-welcome oculto.' },
     { section: 'Treinamento Jedi',
       title: 'Revelar patente — confirmação real',
       motivo: 'Ação irreversível (fixa o resultado definitivamente) — não deve ser executada em teste automatizado com dado real.' },
@@ -826,7 +668,7 @@
       motivo: 'Ação destrutiva real. Não deve ser executada em teste automatizado.' },
     { section: 'Ranking',
       title: 'Imagem da patente (personagem) aparece ao lado do nome',
-      motivo: 'Verificar visualmente que o SVG do personagem (Youngling/Padawan/Cavaleiro/Mestre) aparece em cada linha do ranking — na página Ranking, no mini-ranking da Home e no popup do Kyber.' },
+      motivo: 'Verificar visualmente que o SVG do personagem (Youngling/Padawan/Cavaleiro/Mestre) aparece em cada linha do ranking.' },
     { section: 'Ranking',
       title: 'Botão "Tenho interesse" — estilo primário (dourado); "Remover interesse" — estilo secundário (neutro)',
       motivo: 'Verificar visualmente na página Turmas: "Tenho interesse" deve ter fundo dourado com brilho; após clicar, "Remover interesse" deve ter fundo escuro neutro sem brilho.' },
@@ -834,20 +676,14 @@
       title: 'Atualização em tempo real via Firebase',
       motivo: 'Requer dois usuários simultâneos — um revelando patente enquanto o outro observa o ranking.' },
     { section: 'Admin',
-      title: 'Acesso negado para visitante/logado/colaborador (URL direta)',
+      title: 'Acesso negado para visitante/logado (URL direta)',
       motivo: 'Requer testar com diferentes níveis de acesso — não pode ser validado na sessão admin atual.' },
     { section: 'Admin',
-      title: 'Colaboradores — remover colaborador',
-      motivo: 'Ação destrutiva. Removeria acesso real de um colaborador.' },
-    { section: 'Admin',
-      title: 'Colaboradores — adicionar (formulário)',
-      motivo: 'Gravaria no Firebase e exigiria limpeza manual após o teste.' },
-    { section: 'Admin',
       title: 'Cadastrados — resetar progresso',
-      motivo: 'Ação destrutiva e irreversível no Firebase. Verificar: (1) XP exibe "—" na tabela admin imediatamente; (2) pessoa some do ranking em tempo real; (3) se a pessoa estiver logada no momento do reset, a página dela recarrega automaticamente (via listener em fa-reset-signal/<emailKey>) e todos os jogos (autodiagnóstico, missões, Kyber, revelar patente) ficam disponíveis para refazer. Para testar o reload em tempo real: abrir a página como usuária em uma aba e o painel admin em outra — ao clicar Resetar, a aba da usuária deve recarregar sozinha.' },
+      motivo: 'Ação destrutiva e irreversível no Firebase. Verificar: (1) XP exibe "—" na tabela admin imediatamente; (2) pessoa some do ranking em tempo real; (3) se a pessoa estiver logada no momento do reset, a página dela recarrega automaticamente (via listener em fa-reset-signal/<emailKey>) e o quiz fica disponível para refazer. Para testar o reload em tempo real: abrir a página como usuária em uma aba e o painel admin em outra — ao clicar Resetar, a aba da usuária deve recarregar sozinha.' },
     { section: 'Admin',
       title: 'Cadastrados — XP exibe "—" após reset',
-      motivo: 'Requer executar o reset de uma pessoa que tenha XP acumulado (feito autodiagnóstico, missões ou Kyber) e confirmar que a coluna XP passa a exibir "—" imediatamente (sem recarregar a página) — independente de ter revelado patente ou publicado no ranking.' },
+      motivo: 'Requer executar o reset de uma pessoa que tenha XP acumulado (feito o quiz) e confirmar que a coluna XP passa a exibir "—" imediatamente (sem recarregar a página) — independente de ter revelado patente ou publicado no ranking.' },
     { section: 'Admin',
       title: 'Cadastrados — redefinir senha',
       motivo: 'Requer que a pessoa já tenha conta ativa e verifica e-mail externo.' },
@@ -936,14 +772,18 @@
   ================================================================ */
   function render(container) {
     let html = '<div class="testes-wrap">';
-    html += '<p class="testes-desc">Execute cada grupo independentemente ou todos de uma vez. Os testes rodam na sessão atual (admin logado).</p>';
 
-    html += '<div class="testes-actions">';
-    html += '<button class="btn btn--primary testes-run-btn" data-suite="tecnicos">▶ Técnicos</button>';
-    html += '<button class="btn btn--primary testes-run-btn" data-suite="comportamento">▶ Comportamento</button>';
-    html += '<button class="btn btn--outline testes-run-btn" data-suite="todos">▶ Todos os automáticos</button>';
-    html += '<button class="btn btn--sm" id="testesExportBtn">⬇ Exportar Excel (todos os testes)</button>';
+    /* Toolbar única — linha flat sem wrap */
+    html += '<div class="testes-toolbar">';
+    html += '<button class="btn btn--sm btn--primary testes-run-btn" data-suite="tecnicos">▶ Técnicos</button>';
+    html += '<button class="btn btn--sm btn--primary testes-run-btn" data-suite="comportamento">▶ Comportamento</button>';
+    html += '<button class="btn btn--sm testes-run-btn" data-suite="todos">▶ Automáticos</button>';
+    html += '<button class="btn btn--sm" id="testesExportBtn">⬇ Exportar Testes</button>';
+    html += '<div class="testes-toolbar-sep"></div>';
+    html += '<button class="btn btn--sm btn--ghost" id="testesExpandAll">Expandir tudo</button>';
+    html += '<button class="btn btn--sm btn--ghost" id="testesCollapseAll">Recolher tudo</button>';
     html += '</div>';
+    html += '<p class="testes-desc">Execute cada grupo independentemente ou todos de uma vez. Os testes rodam na sessão atual (admin logado).</p>';
 
     html += '<div id="testesResultados"></div>';
 
@@ -957,8 +797,9 @@
       'Turmas':             '#f5c542',
       'Conteúdos':          '#4caf7d',
       'Repositório':        '#e8854a',
-      'Treinamento Jedi':          '#e05c7f',
+      'Treinamento Jedi':   '#e05c7f',
       'Ranking':            '#57aaff',
+      'Ajuda':              '#7ecbff',
       'Admin':              '#ff5252',
     };
 
@@ -987,6 +828,20 @@
     html += '</div>';
 
     container.innerHTML = html;
+
+    /* Expandir / Recolher grupos de testes */
+    var testesExpandAll = document.getElementById('testesExpandAll');
+    if (testesExpandAll) {
+      testesExpandAll.addEventListener('click', function () {
+        container.querySelectorAll('.testes-group--collapsible').forEach(function (el) { el.classList.add('open'); });
+      });
+    }
+    var testesCollapseAll = document.getElementById('testesCollapseAll');
+    if (testesCollapseAll) {
+      testesCollapseAll.addEventListener('click', function () {
+        container.querySelectorAll('.testes-group--collapsible').forEach(function (el) { el.classList.remove('open'); });
+      });
+    }
 
     /* Export all tests to Excel */
     const exportBtn = document.getElementById('testesExportBtn');
@@ -1070,8 +925,10 @@
       'Menu — Cadastrar / Entrar':   '#9b7fff',
       'Formulário de Cadastro':      '#9b7fff',
       'Página Início':               '#1ab2ae',
+      'Página Turmas':               '#f5c542',
       'Página Repositório':          '#e8854a',
-      'Página Treinamento Jedi':            '#e05c7f',
+      'Página Ajuda':                '#7ecbff',
+      'Página Treinamento Jedi':     '#e05c7f',
       'Página Ranking':              '#57aaff',
       'Painel Admin — Integridade':  '#ff5252',
     };

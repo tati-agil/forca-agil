@@ -1,0 +1,11 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "forca-agil",
+      "runtimeExecutable": "node",
+      "runtimeArgs": ["-e", "require('http').createServer((req,res)=>{const fs=require('fs'),path=require('path');let u=req.url.split('?')[0];let f=path.join('C:/Users/User/Downloads/Design System (2)',u==='/'?'/index.html':u);fs.readFile(f,(e,d)=>{if(e){res.writeHead(404);res.end('not found');}else{const ext=path.extname(f);const ct={'html':'text/html','css':'text/css','js':'application/javascript','png':'image/png','jpg':'image/jpeg','svg':'image/svg+xml','json':'application/json'}[ext.slice(1)]||'text/plain';res.writeHead(200,{'Content-Type':ct});res.end(d);}})}).listen(7892)"],
+      "port": 7892
+    }
+  ]
+}

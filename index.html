@@ -5,7 +5,7 @@
 <meta charset="UTF-8" />
 <script src="forca-agil/head-init.js"></script>
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-<title>Força Ágil · Oficina de Agilidade Organizacional — Previ</title>
+<title>Força Ágil Previ · Oficina de Agilidade Organizacional</title>
 <link rel="preconnect" href="https://fonts.googleapis.com" />
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
 <link href="https://fonts.googleapis.com/css2?family=Anton&family=Oswald:wght@300;400;500;600;700&family=Barlow:wght@300;400;500;600;700&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet" />
@@ -234,6 +234,7 @@
     <a href="#repositorio" data-nav-page="repositorio">Repositório</a>
     <a href="#gamificacao" data-nav-page="gamificacao">Treinamento Jedi</a>
     <a href="#ranking" data-nav-page="ranking">Ranking</a>
+    <a href="#ajuda"  data-nav-page="ajuda">Ajuda</a>
     <a href="#admin"       data-nav-page="admin" id="navAdmin" hidden>Admin</a>
   </div>
 
@@ -251,6 +252,7 @@
     <div class="nav-profile" id="navProfile" hidden>
       <div class="nav-profile-avatar"></div>
       <span class="nav-profile-name"></span>
+      <span class="nav-xp-badge" id="navXpBadge" title="XP é a sigla para pontos de experiência"></span>
       <button id="navLogout">Sair</button>
     </div>
   </div>
@@ -263,7 +265,7 @@
 <!-- ======================================================
      PAGE: HOME
      ====================================================== -->
-<div class="page-section" id="page-home">
+<div class="page-section" id="page-home" hidden>
 
   <!-- HERO -->
   <header class="hero" id="top">
@@ -279,7 +281,7 @@
     <div class="hero-inner">
       <div class="hero-kicker">A AGILIDADE DESPERTOU</div>
       <h1 class="hero-wordmark"><span>FORÇA</span><span class="wm-2">ÁGIL</span></h1>
-      <div class="hero-sub">Desperte o Futuro Sustentável</div>
+      <div class="hero-sub">Desenvolva sua agilidade na prática</div>
       <div class="hero-actions">
         <button class="btn btn--primary" id="heroJoin">Juntar-se à Força →</button>
         <button class="btn" id="heroKnow">Conhecer a iniciativa</button>
@@ -312,23 +314,23 @@
     <div class="reveal">
       <span class="eyebrow">O Programa</span>
       <h2 class="sec-title">O que é a <span class="glow-cyan">Força Ágil</span></h2>
-      <p class="sec-lead">A Força Ágil é a oficina de agilidade organizacional da Previ — uma jornada que vai do estratégico ao operacional, conectando liderança, times e cultura em torno de um único propósito: entregar valor de forma sustentável para os associados.</p>
+      <p class="sec-lead">Uma jornada de aprendizado que conecta liderança, times e cultura em torno de um propósito: entregar valor real para os associados da Previ.</p>
     </div>
     <div class="oque-grid">
       <div class="oque-card reveal">
         <svg class="ico"><use href="#i-radiate"/></svg>
         <h4>Mindset ágil</h4>
-        <p>Desperte a mentalidade que transforma como decisões são tomadas, prioridades são definidas e resultados são entregues.</p>
+        <p>Tomar melhores decisões no dia a dia.</p>
       </div>
       <div class="oque-card reveal" data-d="1">
         <svg class="ico"><use href="#i-users"/></svg>
         <h4>Colaboração real</h4>
-        <p>Times pequenos, autônomos e focados no cliente. Menos burocracia, mais entrega de valor no dia a dia.</p>
+        <p>Times mais alinhados e eficientes.</p>
       </div>
       <div class="oque-card reveal" data-d="2">
         <svg class="ico"><use href="#i-target"/></svg>
         <h4>Impacto sustentável</h4>
-        <p>Aprenda a priorizar o que importa, reduzir desperdícios e adaptar-se enquanto avança — sem perder a visão do todo.</p>
+        <p>Mais resultado com menos desperdício.</p>
       </div>
     </div>
   </section>
@@ -346,22 +348,23 @@
       <a class="how-card reveal" href="#conteudos" data-nav-page="conteudos">
         <svg class="ico"><use href="#i-book"/></svg>
         <h3>Conteúdos</h3>
-        <p>A analogia Star Wars decodificada, os 4 valores, os 12 princípios, arquétipos e a jornada em três episódios.</p>
-        <span class="how-tag">+5 XP por seção lida</span>
+        <p>Aprenda os fundamentos da agilidade.</p>
+        <span class="how-tag">+5 pontos de experiência por seção lida</span>
       </a>
       <a class="how-card reveal" href="#repositorio" data-nav-page="repositorio" data-d="1">
         <svg class="ico"><use href="#i-link"/></svg>
         <h3>Repositório Colaborativo</h3>
-        <p>Compartilhe e descubra recursos, vídeos, ferramentas e documentos com toda a comunidade em tempo real.</p>
-        <span class="how-tag">+10 XP por contribuição</span>
+        <p>Compartilhe e descubra materiais da área.</p>
+        <span class="how-tag">+10 pontos de experiência por contribuição</span>
       </a>
       <a class="how-card reveal" href="#gamificacao" data-nav-page="gamificacao" data-d="2">
         <svg class="ico"><use href="#i-target"/></svg>
         <h3>Treinamento Jedi</h3>
-        <p>Autodiagnóstico, missões de campo e o Kyber Game. Evolua de Youngling a Mestre Jedi no ranking da galáxia.</p>
-        <span class="how-tag">Até 100 XP total</span>
+        <p>Complete atividades e acompanhe sua evolução.</p>
+        <span class="how-tag">Veja seu progresso no ranking</span>
       </a>
     </div>
+    <p class="pilares-xp-hint">Os pontos de experiência mostram sua evolução no portal. <a href="#ajuda" data-nav-page="ajuda" id="saibaMaisXP">Saiba mais →</a></p>
   </section>
 
   <div class="divider"><svg width="14" height="14"><use href="#i-mark"/></svg></div>
@@ -408,85 +411,14 @@
     </div>
   </section>
 
-  <div class="divider"><svg width="14" height="14"><use href="#i-mark"/></svg></div>
-
-  <!-- DESTAQUES -->
-  <section class="section" id="destaques">
-    <div class="reveal">
-      <span class="eyebrow">Destaques</span>
-      <h2 class="sec-title">O que está <span class="glow-gold">acontecendo</span></h2>
-    </div>
-    <div class="hl-grid">
-      <!-- Próximas turmas -->
-      <div class="hl-card reveal">
-        <h3>Próximas Turmas</h3>
-        <div>
-          <div class="hl-turma">
-            <div class="ht-name">Turma 1 — Agosto</div>
-            <div class="ht-dates">11 · 12 · 18 · 19 · 20</div>
-          </div>
-          <div class="hl-turma">
-            <div class="ht-name">Turma 2 — Setembro</div>
-            <div class="ht-dates">09 · 10 · 11 · 15 · 16</div>
-          </div>
-          <div class="hl-turma">
-            <div class="ht-name">Turma 3 — Novembro</div>
-            <div class="ht-dates">17 · 18 · 19 · 24 · 25</div>
-          </div>
-        </div>
-        <a href="#turmas" data-nav-page="turmas" class="hl-link">Ver turmas e demonstrar interesse →</a>
-      </div>
-      <!-- Conteúdos -->
-      <div class="hl-card reveal" data-d="1">
-        <h3>Conteúdos</h3>
-        <div>
-          <div class="hl-content-item" onclick="faRouter&&faRouter.navigate('conteudos')">
-            <svg width="14" height="14"><use href="#i-radiate"/></svg>
-            <span>A analogia Star Wars decodificada</span>
-          </div>
-          <div class="hl-content-item" onclick="faRouter&&faRouter.navigate('conteudos')">
-            <svg width="14" height="14"><use href="#i-saber"/></svg>
-            <span>Os 4 valores que conectam tudo</span>
-          </div>
-          <div class="hl-content-item" onclick="faRouter&&faRouter.navigate('conteudos')">
-            <svg width="14" height="14"><use href="#i-target"/></svg>
-            <span>Os 12 princípios — o Código Jedi</span>
-          </div>
-          <div class="hl-content-item" onclick="faRouter&&faRouter.navigate('conteudos')">
-            <svg width="14" height="14"><use href="#i-figure"/></svg>
-            <span>Arquétipos dos times ágeis</span>
-          </div>
-          <div class="hl-content-item" onclick="faRouter&&faRouter.navigate('conteudos')">
-            <svg width="14" height="14"><use href="#i-bolt"/></svg>
-            <span>O ágil de fachada — lado sombrio</span>
-          </div>
-        </div>
-        <a href="#conteudos" data-nav-page="conteudos" class="hl-link">Explorar conteúdos →</a>
-      </div>
-      <!-- Ranking mini -->
-      <div class="hl-card reveal" data-d="2">
-        <h3>Ranking da Galáxia</h3>
-        <div id="homeRanking">
-          <p style="color:var(--ink-3);font-size:.82rem">Carregando…</p>
-        </div>
-        <a href="#ranking" data-nav-page="ranking" class="hl-link">Ver ranking completo →</a>
-      </div>
-    </div>
-  </section>
-
   <!-- CTA FINAL -->
   <section class="cta section" id="cta">
     <div class="reveal">
-      <h2 class="cta-title">Ative sua<br/>Força Ágil</h2>
-      <p class="cta-sub mx-auto">A jornada Jedi não se faz só de ferramentas e rituais — é uma nova forma de pensar e agir. Entre para a Rebelião e ajude a Previ a desaprender velhos hábitos.</p>
-    </div>
-    <div class="cta-steps">
-      <div class="cta-step reveal"><div class="s-n">01</div><h4>Faça seu autodiagnóstico</h4><p>Descubra seu nível na Força — de Youngling a Mestre.</p></div>
-      <div class="cta-step reveal" data-d="1"><div class="s-n">02</div><h4>Explore os conteúdos</h4><p>A analogia decodificada, os valores, princípios e arquétipos.</p></div>
-      <div class="cta-step reveal" data-d="2"><div class="s-n">03</div><h4>Contribua no repositório</h4><p>Compartilhe recursos e acumule XP para o ranking.</p></div>
+      <h2 class="cta-title">Pronto para<br/>começar?</h2>
+      <p class="cta-sub mx-auto">Escolha uma turma e comece sua jornada de desenvolvimento em agilidade.</p>
     </div>
     <div class="hero-actions" style="margin-top:48px;animation:none;opacity:1">
-      <button class="btn btn--primary" id="openRegister">Juntar-se à Força →</button>
+      <a class="btn btn--primary" href="#turmas" data-nav-page="turmas">Ver turmas →</a>
     </div>
   </section>
 
@@ -547,22 +479,31 @@
       <div class="reveal">
         <span class="eyebrow">A Missão</span>
         <h2 class="sec-title">A <span class="glow-gold">Oficina de Agilidade Organizacional</span></h2>
-        <p class="sec-lead">Eficiência com foco no futuro sustentável: trabalhar de forma mais simples e colaborativa, priorizando o que realmente gera valor, reduzindo desperdícios e usando melhor nossos recursos — para que cada entrega faça diferença na vida dos associados, hoje e no futuro.</p>
+        <p class="sec-lead">Eficiência com foco no futuro: trabalhar de forma mais simples, colaborativa e com propósito — para que cada entrega faça diferença na vida dos associados.</p>
       </div>
 
-      <div class="phases">
-        <div class="phase reveal">
-          <svg class="ph-ico"><use href="#i-rocket"/></svg>
-          <h3>Imersão</h3>
-          <div class="ph-s">Simplifique &amp; Priorize — fundamentos, mentalidade e os valores que sustentam a jornada.</div>
+      <!-- Como funciona -->
+      <div class="oficina-info reveal" style="margin-top:64px">
+        <h3 class="sec-title" style="font-size:clamp(1.3rem,3vw,2rem);letter-spacing:.12em">Como funciona a oficina</h3>
+        <div class="oficina-info-grid">
+          <div class="ofinfo-item">
+            <span class="ofinfo-num">5</span>
+            <span class="ofinfo-label">dias de encontros<br>presenciais</span>
+          </div>
+          <div class="ofinfo-item">
+            <span class="ofinfo-num">4h</span>
+            <span class="ofinfo-label">por encontro,<br>no horário do expediente</span>
+          </div>
+          <div class="ofinfo-item">
+            <span class="ofinfo-num">Prática</span>
+            <span class="ofinfo-label">dinâmicas, jogos e<br>exercícios em grupo</span>
+          </div>
+          <div class="ofinfo-item">
+            <span class="ofinfo-num">Opcional</span>
+            <span class="ofinfo-label">aberta a todos os<br>empregados da Previ</span>
+          </div>
         </div>
-      </div>
-
-      <div class="themes-row">
-        <div class="theme-chip reveal"><div class="tn">TEMA 01</div><h4>Fundamentos da Agilidade Organizacional</h4></div>
-        <div class="theme-chip reveal" data-d="1"><div class="tn">TEMA 02</div><h4>Liderança e Transformação</h4></div>
-        <div class="theme-chip reveal" data-d="2"><div class="tn">TEMA 03</div><h4>Estratégia, Métricas e Governança</h4></div>
-        <div class="theme-chip reveal" data-d="3"><div class="tn">TEMA 04</div><h4>Execução Ágil · Lean, Fluxo, Kanban &amp; Kaizen</h4></div>
+        <p class="ofinfo-desc">Serão abordados: fundamentos ágeis, OKR, Scrum, Design Thinking, leitura de cenário, resolução de problemas, liderança e prototipação. Não é necessário nenhum conhecimento prévio.</p>
       </div>
 
       <!-- Agenda -->
@@ -571,68 +512,20 @@
         <h3 class="sec-title" style="font-size:clamp(1.6rem,4vw,2.6rem)">A jornada dia a dia</h3>
       </div>
       <div class="agenda">
-        <div class="day reveal">
-          <div class="day-head"><span class="dnum">D1</span><span class="dttl">O Despertar — Imersão, OKR &amp; foco</span><svg class="dchev" width="20" height="20"><use href="#i-chev-d"/></svg></div>
-          <div class="day-body"><ul>
-            <li><span class="dur">15min</span> Imersão storytelling: o despertar da Força — <i>VUCA/BANI, ágil vs. cascata</i></li>
-            <li><span class="dur">30min</span> Quebra-gelo: apresentação pessoal (sem cargo) — <i>"sem crachá, sem hierarquia"</i></li>
-            <li><span class="dur">10min</span> Exercício de atenção plena — <i>mindfulness</i></li>
-            <li><span class="dur">15min</span> Teste "Qual seu nível na Força Ágil?" — autodiagnóstico</li>
-            <li><span class="dur">20min</span> Dinâmica de vieses ("Não pode") — <i>vieses inconscientes</i></li>
-            <li><span class="dur">40min</span> OKR: brainstorming, votação e enunciado — <i>Objetivo e Key Results</i></li>
-            <li><span class="dur">15min</span> Intervalo — como funciona o cérebro</li>
-            <li><span class="dur">15min</span> Separação em grupos — <i>times pequenos</i></li>
-            <li><span class="dur">20min</span> Review do dia — <i>Scrum, ciclos curtos, WIP</i></li>
-            <li><span class="dur">30min</span> Retrospectiva — <i>melhoria contínua</i></li>
-          </ul></div>
+        <div class="day day--static reveal">
+          <div class="day-head"><span class="dnum">D1</span><span class="dttl">O Despertar da Força</span></div>
         </div>
-        <div class="day reveal">
-          <div class="day-head"><span class="dnum">D2</span><span class="dttl">Entendimento de cenário &amp; Código Jedi</span><svg class="dchev" width="20" height="20"><use href="#i-chev-d"/></svg></div>
-          <div class="day-body"><ul>
-            <li><span class="dur">15min</span> Planning do dia — <i>Scrum, ciclos curtos, WIP</i></li>
-            <li><span class="dur">20min</span> Matriz CSD (Certezas, Suposições, Dúvidas)</li>
-            <li><span class="dur">15min</span> FOFA (SWOT) — leitura do ambiente</li>
-            <li><span class="dur">15min</span> Mapa de Stakeholders</li>
-            <li><span class="dur">15min</span> "É / Não é · Faz / Não faz" — <i>Lean Inception</i></li>
-            <li><span class="dur">15min</span> Intervalo</li>
-            <li><span class="dur">20min</span> Código Jedi: valores e princípios — <i>Manifesto Ágil</i></li>
-            <li><span class="dur">20min</span> Review &amp; Retrospectiva</li>
-          </ul></div>
+        <div class="day day--static reveal">
+          <div class="day-head"><span class="dnum">D2</span><span class="dttl">A Postura do Guardião</span></div>
         </div>
-        <div class="day reveal">
-          <div class="day-head"><span class="dnum">D3</span><span class="dttl">Definição do problema — Design Thinking</span><svg class="dchev" width="20" height="20"><use href="#i-chev-d"/></svg></div>
-          <div class="day-body"><ul>
-            <li><span class="dur">15min</span> Planning do dia</li>
-            <li><span class="dur">10min</span> Atenção plena — <i>mindfulness</i></li>
-            <li><span class="dur">20min</span> Quebra-gelo "super poder" — autoconhecimento</li>
-            <li><span class="dur">15min</span> 5 Porquês — investigação de causa raiz</li>
-            <li><span class="dur">20min</span> Brainstorming — definição do problema</li>
-            <li><span class="dur">15min</span> Votação e seleção — <i>DT convergência</i></li>
-            <li><span class="dur">20min</span> Duplo Diamante — entender o conceito</li>
-            <li><span class="dur">20min</span> Review &amp; Retrospectiva</li>
-          </ul></div>
+        <div class="day day--static reveal">
+          <div class="day-head"><span class="dnum">D3</span><span class="dttl">Prova da Força</span></div>
         </div>
-        <div class="day reveal">
-          <div class="day-head"><span class="dnum">D4</span><span class="dttl">Liderança Ágil &amp; Priorização</span><svg class="dchev" width="20" height="20"><use href="#i-chev-d"/></svg></div>
-          <div class="day-body"><ul>
-            <li><span class="dur">15min</span> Planning do dia</li>
-            <li><span class="dur">10min</span> Atenção plena</li>
-            <li><span class="dur">20min</span> Priorização — o que gera mais valor primeiro</li>
-            <li><span class="dur">trilha</span> Liderança Ágil: aprimoramento de soft skills</li>
-            <li><span class="dur">trilha</span> Liderança transformacional: criando cultura de excelência</li>
-            <li><span class="dur">trilha</span> Team Building: técnicas para times ágeis</li>
-            <li><span class="dur">20min</span> Review &amp; Retrospectiva</li>
-          </ul></div>
+        <div class="day day--static reveal">
+          <div class="day-head"><span class="dnum">D4</span><span class="dttl">O Confronto Interior</span></div>
         </div>
-        <div class="day reveal">
-          <div class="day-head"><span class="dnum">D5</span><span class="dttl">Prototipação, entrega &amp; encerramento</span><svg class="dchev" width="20" height="20"><use href="#i-chev-d"/></svg></div>
-          <div class="day-body"><ul>
-            <li><span class="dur">15min</span> Planning do dia</li>
-            <li><span class="dur">40min</span> Prototipação — materializar as entregas</li>
-            <li><span class="dur">40min</span> Apresentação final dos times</li>
-            <li><span class="dur">15min</span> Teste "Qual seu nível na Força Ágil?" — diagnóstico de avanço</li>
-            <li><span class="dur">20min</span> Review &amp; encerramento da jornada</li>
-          </ul></div>
+        <div class="day day--static reveal">
+          <div class="day-head"><span class="dnum">D5</span><span class="dttl">O Julgamento Jedi</span></div>
         </div>
       </div>
     </section>
@@ -658,17 +551,17 @@
     <div class="page-hero">
       <span class="eyebrow">Aprenda</span>
       <h1>Conteúdos</h1>
-      <p>Mergulhe na analogia ágil, nos valores, princípios e arquétipos. Cada seção lida gera <strong>+5 XP</strong> para o seu ranking.</p>
+      <p>Mergulhe na analogia ágil, nos valores, princípios e arquétipos. Cada seção lida gera <strong>+5 pontos de experiência</strong> no seu ranking.</p>
     </div>
 
     <!-- MAPA DA GALÁXIA -->
     <section class="section" id="content-galaxia">
       <div class="reveal">
-        <span class="eyebrow">Mapa da Galáxia</span>
+        <span class="eyebrow">01 · Mapa da Galáxia</span>
         <h2 class="sec-title">A analogia <span class="glow-gold">decodificada</span>
-          <span class="content-xp-tag section-read-badge" id="xp-badge-galaxia" style="display:none">+5 XP</span>
+          <span class="content-xp-tag section-read-badge" id="xp-badge-galaxia" style="display:none">+5 pts</span>
         </h2>
-        <p class="sec-lead">Cada símbolo da saga tem um par na jornada ágil da empresa. Use este mapa como bússola da oficina — do lado sombrio da burocracia à Força que conecta valor, pessoas e aprendizado.</p>
+        <p class="sec-lead">Cada símbolo da saga tem um equivalente na jornada ágil. Use este mapa como bússola durante a oficina.</p>
       </div>
       <div class="galaxy-grid">
         <article class="map-card reveal" data-side="dark"><svg class="ico"><use href="#i-tower"/></svg><div class="sw">Império</div><div class="arrow">↳ representa</div><p class="mean">O modelo tradicional: hierárquico, centralizado e cheio de aprovações.</p></article>
@@ -677,12 +570,15 @@
         <article class="map-card reveal"><svg class="ico"><use href="#i-figure"/></svg><div class="sw">Jedi</div><div class="arrow">↳ representa</div><p class="mean">Lideranças servidoras, Scrum Masters e Agile Coaches: facilitadores da mudança.</p></article>
         <article class="map-card reveal" data-d="1"><svg class="ico"><use href="#i-radiate"/></svg><div class="sw">A Força</div><div class="arrow">↳ representa</div><p class="mean">Propósito, valor para o cliente, colaboração e aprendizado contínuo.</p></article>
         <article class="map-card reveal" data-side="dark" data-d="2"><svg class="ico"><use href="#i-bolt"/></svg><div class="sw">Sith</div><div class="arrow">↳ representa</div><p class="mean">Cultura baseada em poder, controle, vaidade e decisões centralizadas.</p></article>
+        <div class="galaxy-extra" id="galaxyExtra">
         <article class="map-card reveal"><svg class="ico"><use href="#i-bot"/></svg><div class="sw">Droides</div><div class="arrow">↳ representa</div><p class="mean">Ferramentas, sistemas, automações, dados e métricas a serviço do time.</p></article>
         <article class="map-card reveal" data-d="1"><svg class="ico"><use href="#i-saber"/></svg><div class="sw">Sabre de Luz</div><div class="arrow">↳ representa</div><p class="mean">As práticas ágeis: Scrum, Kanban, dailies, retrospectivas, reviews e backlog.</p></article>
         <article class="map-card reveal" data-d="2"><svg class="ico"><use href="#i-target"/></svg><div class="sw">Treinamento Jedi</div><div class="arrow">↳ representa</div><p class="mean">Desenvolvimento do mindset ágil e de novas competências.</p></article>
         <article class="map-card reveal" data-side="dark"><svg class="ico"><use href="#i-sphere"/></svg><div class="sw">A Estrela da Morte</div><div class="arrow">↳ representa</div><p class="mean">Grandes projetos fechados, caros, rígidos e cheios de risco.</p></article>
         <article class="map-card reveal" data-d="1"><svg class="ico"><use href="#i-ship"/></svg><div class="sw">Millennium Falcon</div><div class="arrow">↳ representa</div><p class="mean">Times pequenos, rápidos, adaptáveis e criativos.</p></article>
         <article class="map-card reveal" data-d="2"><svg class="ico"><use href="#i-compass"/></svg><div class="sw">Mestre Yoda</div><div class="arrow">↳ representa</div><p class="mean">Mentores que ajudam a organização a desaprender velhos hábitos.</p></article>
+        </div>
+        <button class="galaxy-more-btn" id="galaxyMoreBtn">Ver mais 6 elementos →</button>
       </div>
     </section>
 
@@ -691,23 +587,32 @@
     <!-- OS 4 VALORES + 12 PRINCÍPIOS -->
     <section class="section" id="content-forca">
       <div class="reveal">
-        <span class="eyebrow">A Força</span>
+        <span class="eyebrow">02 · A Força</span>
         <h2 class="sec-title">Os <span class="glow-cyan">4 valores</span> que conectam tudo
-          <span class="content-xp-tag section-read-badge" id="xp-badge-forca" style="display:none">+5 XP</span>
+          <span class="content-xp-tag section-read-badge" id="xp-badge-forca" style="display:none">+5 pts</span>
         </h2>
-        <p class="sec-lead">A Força, nessa jornada, é a energia que liga cliente, negócio, tecnologia, pessoas e propósito. Ela se manifesta em quatro escolhas — e em doze princípios que sustentam a prática.</p>
+        <p class="sec-lead">Quatro escolhas do Manifesto Ágil — e doze princípios que sustentam a prática.</p>
       </div>
-      <a class="manifesto-link reveal" href="https://agilemanifesto.org/iso/ptbr/manifesto.html" target="_blank" rel="noopener">Ler os 4 valores na íntegra →</a>
       <div class="force-values">
         <div class="value-card reveal"><div class="num">VALOR 01</div><div class="more">Indivíduos &amp; interações</div><div class="vs">mais que</div><div class="less">processos e ferramentas</div><span class="saber"></span></div>
         <div class="value-card reveal" data-d="1"><div class="num">VALOR 02</div><div class="more">Produto em funcionamento</div><div class="vs">mais que</div><div class="less">documentação extensa</div><span class="saber"></span></div>
         <div class="value-card reveal" data-d="2"><div class="num">VALOR 03</div><div class="more">Colaboração com o cliente</div><div class="vs">mais que</div><div class="less">negociação de contratos</div><span class="saber"></span></div>
         <div class="value-card reveal" data-d="3"><div class="num">VALOR 04</div><div class="more">Responder a mudanças</div><div class="vs">mais que</div><div class="less">seguir um plano rígido</div><span class="saber"></span></div>
       </div>
+      <a class="manifesto-link reveal" href="https://agilemanifesto.org/iso/ptbr/manifesto.html" target="_blank" rel="noopener">Ler os 4 valores na íntegra →</a>
 
-      <div class="reveal" style="margin-top:64px">
-        <span class="eyebrow">O Código Jedi</span>
-        <h3 class="sec-title" style="font-size:clamp(1.6rem,4vw,2.6rem)">Os 12 princípios</h3>
+    </section>
+
+    <div class="divider"><svg width="14" height="14"><use href="#i-mark"/></svg></div>
+
+    <!-- OS 12 PRINCÍPIOS -->
+    <section class="section" id="content-principios">
+      <div class="reveal">
+        <span class="eyebrow">03 · Os 12 Princípios</span>
+        <h2 class="sec-title">Os <span class="glow-cyan">12 princípios</span>
+          <span class="content-xp-tag section-read-badge" id="xp-badge-principios" style="display:none">+5 pts</span>
+        </h2>
+        <p class="sec-lead">O código Jedi da agilidade — doze compromissos que sustentam os 4 valores na prática.</p>
       </div>
       <div class="principles">
         <div class="principle reveal"><span class="pn">01</span><span>Satisfazer o cliente com entregas contínuas e de valor.</span></div>
@@ -716,12 +621,15 @@
         <div class="principle reveal"><span class="pn">04</span><span>Negócio e times trabalhando juntos, todos os dias.</span></div>
         <div class="principle reveal"><span class="pn">05</span><span>Construir projetos em torno de pessoas motivadas — e confiar nelas.</span></div>
         <div class="principle reveal"><span class="pn">06</span><span>Conversa cara a cara é a comunicação mais eficaz.</span></div>
-        <div class="principle reveal"><span class="pn">07</span><span>Produto em funcionamento é a principal medida de progresso.</span></div>
-        <div class="principle reveal"><span class="pn">08</span><span>Manter um ritmo sustentável, indefinidamente.</span></div>
-        <div class="principle reveal"><span class="pn">09</span><span>Excelência técnica e bom design aumentam a agilidade.</span></div>
-        <div class="principle reveal"><span class="pn">10</span><span>Simplicidade: a arte de maximizar o trabalho não feito.</span></div>
-        <div class="principle reveal"><span class="pn">11</span><span>As melhores soluções emergem de times auto-organizados.</span></div>
-        <div class="principle reveal"><span class="pn">12</span><span>Refletir e ajustar o comportamento em intervalos regulares.</span></div>
+        <div class="principles-extra" id="principlesExtra">
+          <div class="principle reveal"><span class="pn">07</span><span>Produto em funcionamento é a principal medida de progresso.</span></div>
+          <div class="principle reveal"><span class="pn">08</span><span>Manter um ritmo sustentável, indefinidamente.</span></div>
+          <div class="principle reveal"><span class="pn">09</span><span>Excelência técnica e bom design aumentam a agilidade.</span></div>
+          <div class="principle reveal"><span class="pn">10</span><span>Simplicidade: a arte de maximizar o trabalho não feito.</span></div>
+          <div class="principle reveal"><span class="pn">11</span><span>As melhores soluções emergem de times auto-organizados.</span></div>
+          <div class="principle reveal"><span class="pn">12</span><span>Refletir e ajustar o comportamento em intervalos regulares.</span></div>
+        </div>
+        <button class="galaxy-more-btn" id="principlesMoreBtn">Ver os 6 princípios restantes →</button>
       </div>
       <a class="manifesto-link reveal" href="https://agilemanifesto.org/iso/ptbr/principles.html" target="_blank" rel="noopener">Ler os 12 princípios na íntegra →</a>
     </section>
@@ -731,11 +639,11 @@
     <!-- A FORÇA DO ÁGIL — 25 ENSINAMENTOS DE YODA -->
     <section class="section" id="content-yoda">
       <div class="reveal">
-        <span class="eyebrow">A Força do Ágil</span>
+        <span class="eyebrow">03 · A Força do Ágil</span>
         <h2 class="sec-title">25 <span class="glow-gold">Ensinamentos</span> do Mestre Yoda
-          <span class="content-xp-tag section-read-badge" id="xp-badge-yoda" style="display:none">+5 XP</span>
+          <span class="content-xp-tag section-read-badge" id="xp-badge-yoda" style="display:none">+5 pts</span>
         </h2>
-        <p class="sec-lead">O Mestre mais sábio da galáxia ensinou muito mais do que o uso da Força — ele ensinou agilidade, liderança servidora e mentalidade adaptativa. Aqui, 25 frases imortais encontram seus equivalentes nas práticas ágeis.</p>
+        <p class="sec-lead">25 frases da saga e seus equivalentes nas práticas ágeis — em cinco episódios.</p>
       </div>
 
       <div class="yoda-episodes">
@@ -1048,11 +956,11 @@
     <!-- ARQUÉTIPOS -->
     <section class="section" id="content-arquetipos">
       <div class="reveal">
-        <span class="eyebrow">Personagens da Jornada</span>
+        <span class="eyebrow">04 · Personagens da Jornada</span>
         <h2 class="sec-title">Os <span class="glow-gold">arquétipos</span> dos times
-          <span class="content-xp-tag section-read-badge" id="xp-badge-arquetipos" style="display:none">+5 XP</span>
+          <span class="content-xp-tag section-read-badge" id="xp-badge-arquetipos" style="display:none">+5 pts</span>
         </h2>
-        <p class="sec-lead">Toda transformação tem seus heróis e suas naves. Conheça os papéis que fazem a Força Ágil fluir pela organização.</p>
+        <p class="sec-lead">Os papéis que fazem a Força Ágil fluir pela organização.</p>
       </div>
       <div class="arch-grid">
         <article class="arch reveal"><svg class="ico"><use href="#i-figure"/></svg><h4>Os Jedi</h4><div class="role">Liderança Servidora</div><p>Scrum Masters, Agile Coaches e facilitadores. Removem impedimentos, protegem o foco e servem ao time em vez de comandá-lo.</p></article>
@@ -1068,11 +976,11 @@
     <section class="darkside">
       <div class="section" id="content-sombrio">
         <div class="reveal">
-          <span class="eyebrow" style="color:var(--red)">O Lado Sombrio</span>
+          <span class="eyebrow" style="color:var(--red)">05 · O Lado Sombrio</span>
           <h2 class="sec-title">O <span class="glow-red">ágil de fachada</span>
-            <span class="content-xp-tag section-read-badge" id="xp-badge-sombrio" style="display:none">+5 XP</span>
+            <span class="content-xp-tag section-read-badge" id="xp-badge-sombrio" style="display:none">+5 pts</span>
           </h2>
-          <p class="sec-lead">Existe um lado sombrio da transformação: quando a empresa usa os nomes da agilidade, mas mantém o comportamento antigo. Parece ágil — mas continua sendo comando e controle com nomes novos.</p>
+          <p class="sec-lead">Quando a empresa usa os termos da agilidade mas mantém o comportamento antigo.</p>
         </div>
         <div class="dark-list">
           <div class="dark-item reveal"><span class="say">Chama de "daily"</span><span class="but">mas</span><span class="do">cobra status individual</span></div>
@@ -1092,35 +1000,53 @@
     <!-- A TRILOGIA -->
     <section class="section" id="content-trilogia">
       <div class="reveal">
-        <span class="eyebrow">A Trilogia</span>
+        <span class="eyebrow">06 · A Trilogia</span>
         <h2 class="sec-title">A jornada em <span class="glow-gold">três episódios</span>
-          <span class="content-xp-tag section-read-badge" id="xp-badge-trilogia" style="display:none">+5 XP</span>
+          <span class="content-xp-tag section-read-badge" id="xp-badge-trilogia" style="display:none">+5 pts</span>
         </h2>
-        <p class="sec-lead">Nenhuma transformação acontece em linha reta. A jornada ágil tem seu despertar, seu contra-ataque e seu retorno do valor.</p>
+        <p class="sec-lead">A transformação ágil não acontece em linha reta — tem seu despertar, sua resistência e seu retorno do valor.</p>
       </div>
       <div class="episodes">
         <article class="episode reveal">
-          <div><div class="ep-rom">EPISÓDIO I</div><div class="ep-num">01</div></div>
+          <div><div class="ep-rom">EPISÓDIO</div><div class="ep-num">I</div></div>
           <div>
-            <h3>O Despertar da Agilidade</h3>
-            <p>A empresa percebe que o modelo atual está ficando lento: muitos projetos, muitas dependências, muito retrabalho e pouca visibilidade. Surgem os primeiros "Jedi" — pessoas que começam a falar de cliente, fluxo, valor, colaboração e melhoria contínua.</p>
-            <span class="ep-tag">Despertar</span>
+            <details class="ep-expand">
+              <summary>
+                <h3>O Despertar da Agilidade</h3>
+                <span class="ep-tag ep-tag--summary">Despertar</span>
+                <span class="ep-expand-hint ep-hint-more">ver mais ↓</span>
+                <span class="ep-expand-hint ep-hint-less">ver menos ↑</span>
+              </summary>
+              <p>A empresa percebe que o modelo atual está ficando lento: muitos projetos, muitas dependências, muito retrabalho e pouca visibilidade. Surgem os primeiros "Jedi" — pessoas que começam a falar de cliente, fluxo, valor, colaboração e melhoria contínua.</p>
+            </details>
           </div>
         </article>
         <article class="episode reveal" data-d="1">
-          <div><div class="ep-rom">EPISÓDIO II</div><div class="ep-num">02</div></div>
+          <div><div class="ep-rom">EPISÓDIO</div><div class="ep-num">II</div></div>
           <div>
-            <h3>O Contra-ataque da Cultura Antiga</h3>
-            <p>A mudança começa, mas a cultura tradicional reage. As áreas querem manter controle, gestores temem perder poder e as métricas antigas continuam pressionando comportamentos antigos. É a fase mais difícil — adotar agilidade não é implantar cerimônias, é mudar decisões, estruturas e incentivos.</p>
-            <span class="ep-tag" style="color:var(--red);border-color:rgba(255,59,48,.4)">Resistência</span>
+            <details class="ep-expand">
+              <summary>
+                <h3>O Contra-ataque da Cultura Antiga</h3>
+                <span class="ep-tag ep-tag--summary" style="color:var(--red);border-color:rgba(255,59,48,.4)">Resistência</span>
+                <span class="ep-expand-hint ep-hint-more">ver mais ↓</span>
+                <span class="ep-expand-hint ep-hint-less">ver menos ↑</span>
+              </summary>
+              <p>A mudança começa, mas a cultura tradicional reage. As áreas querem manter controle, gestores temem perder poder e as métricas antigas continuam pressionando comportamentos antigos. É a fase mais difícil — adotar agilidade não é implantar cerimônias, é mudar decisões, estruturas e incentivos.</p>
+            </details>
           </div>
         </article>
         <article class="episode reveal" data-d="2">
-          <div><div class="ep-rom">EPISÓDIO III</div><div class="ep-num">03</div></div>
+          <div><div class="ep-rom">EPISÓDIO</div><div class="ep-num">III</div></div>
           <div>
-            <h3>O Retorno do Valor</h3>
-            <p>A organização amadurece. Os times ganham clareza de propósito, trabalham com prioridades reais, reduzem desperdícios e aprendem com entregas menores. A liderança deixa de ser comando e passa a ser servidora — remove impedimentos, dá direção e protege o foco. Agilidade não é velocidade a qualquer custo: é responder melhor às mudanças, entregando valor de forma sustentável.</p>
-            <span class="ep-tag" style="color:var(--cyan);border-color:rgba(87,211,255,.4)">Valor</span>
+            <details class="ep-expand">
+              <summary>
+                <h3>O Retorno do Valor</h3>
+                <span class="ep-tag ep-tag--summary" style="color:var(--cyan);border-color:rgba(87,211,255,.4)">Valor</span>
+                <span class="ep-expand-hint ep-hint-more">ver mais ↓</span>
+                <span class="ep-expand-hint ep-hint-less">ver menos ↑</span>
+              </summary>
+              <p>A organização amadurece. Os times ganham clareza de propósito, trabalham com prioridades reais, reduzem desperdícios e aprendem com entregas menores. A liderança deixa de ser comando e passa a ser servidora — remove impedimentos, dá direção e protege o foco. Agilidade não é velocidade a qualquer custo: é responder melhor às mudanças, entregando valor de forma sustentável.</p>
+            </details>
           </div>
         </article>
       </div>
@@ -1144,6 +1070,45 @@
      ====================================================== -->
 <div class="page-section" id="page-gamificacao" hidden>
 
+  <!-- Tela de boas-vindas — exibida apenas para usuários não logados -->
+  <div class="wrap" id="treinamento-welcome" hidden>
+    <div class="jedi-welcome reveal">
+      <span class="eyebrow" style="justify-content:center;display:flex">Treinamento Jedi</span>
+      <h1 class="glow-title" style="text-align:center;margin-bottom:32px">Bem-vindo ao<br>Treinamento Jedi</h1>
+
+      <div class="jedi-steps">
+        <div class="jedi-step">
+          <span class="jedi-step-num">01</span>
+          <svg width="28" height="28"><use href="#i-radiate"/></svg>
+          <span class="jedi-step-label">Faça login</span>
+        </div>
+        <span class="jedi-step-arrow">→</span>
+        <div class="jedi-step">
+          <span class="jedi-step-num">02</span>
+          <svg width="28" height="28"><use href="#i-book"/></svg>
+          <span class="jedi-step-label">Explore atividades</span>
+        </div>
+        <span class="jedi-step-arrow">→</span>
+        <div class="jedi-step">
+          <span class="jedi-step-num">03</span>
+          <svg width="28" height="28"><use href="#i-bolt"/></svg>
+          <span class="jedi-step-label">Ganhe experiência</span>
+        </div>
+        <span class="jedi-step-arrow">→</span>
+        <div class="jedi-step">
+          <span class="jedi-step-num">04</span>
+          <svg width="28" height="28"><use href="#i-saber"/></svg>
+          <span class="jedi-step-label">Desbloqueie patentes</span>
+        </div>
+      </div>
+
+      <div class="jedi-welcome-cta">
+        <button class="btn btn--primary btn--lg" id="jedWelcomeBtn">Quero jogar →</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Conteúdo do jogo — exibido apenas para usuários logados -->
   <div class="wrap game" id="treinamento">
 
     <!-- Jedi Banner -->
@@ -1179,7 +1144,7 @@
         <h2 class="glow-title">Sociedade Jedi</h2>
         <div class="jb-rule"></div>
       </div>
-      <p class="jb-sub">Sua patente é formada por três etapas: <strong>Autodiagnóstico</strong> (até 20 XP) → <strong>Missões</strong> (até 48 XP) → <strong>Kyber Game</strong> (até 32 XP). Complete as três para chegar a 100 XP e conquistar o posto de Mestre.</p>
+      <p class="jb-sub">Responda as 20 afirmações e descubra qual é a sua patente na Ordem Jedi Ágil — de Youngling a Mestre.</p>
     </div>
 
     <!-- Droide guia -->
@@ -1197,12 +1162,7 @@
       <div class="rh-body">
         <div class="rh-k">PATENTE ATUAL</div>
         <div class="rh-name" id="hudName">Youngling</div>
-        <div class="rh-tag"  id="hudTag">"Já ouvi falar"</div>
-        <div class="xp">
-          <div class="xp-row"><span id="xpNow">0 XP</span><span id="xpNext">Próxima: Padawan · 25 XP</span></div>
-          <div class="xp-bar"><i id="xpFill" style="width:0%"></i></div>
-        </div>
-        <div class="rh-badges" id="badgeRow"></div>
+        <div class="rh-tag"  id="hudTag">Iniciado na Força</div>
       </div>
     </div>
 
@@ -1211,25 +1171,25 @@
       <div class="char-card" data-rank="0">
         <div class="cc-fig"><svg viewBox="0 0 120 220"><use href="#char-0"/></svg></div>
         <div class="cc-lvl">PATENTE 01</div><div class="cc-name">Youngling</div>
-        <div class="cc-tag">"Já ouvi falar"</div><div class="cc-xp">0–24 XP</div>
+        <div class="cc-tag">Iniciado na Força</div><div class="cc-xp">0–15 pts</div>
         <div class="cc-lock"><svg width="14" height="14"><use href="#i-lock"/></svg></div>
       </div>
       <div class="char-card" data-rank="1">
         <div class="cc-fig"><svg viewBox="0 0 120 220"><use href="#char-1"/></svg></div>
         <div class="cc-lvl">PATENTE 02</div><div class="cc-name">Padawan</div>
-        <div class="cc-tag">"Sei o que é"</div><div class="cc-xp">25–49 XP</div>
+        <div class="cc-tag">Aprendiz Jedi</div><div class="cc-xp">16–30 pts</div>
         <div class="cc-lock"><svg width="14" height="14"><use href="#i-lock"/></svg></div>
       </div>
       <div class="char-card" data-rank="2">
         <div class="cc-fig"><svg viewBox="0 0 120 220"><use href="#char-2"/></svg></div>
         <div class="cc-lvl">PATENTE 03</div><div class="cc-name">Cavaleiro</div>
-        <div class="cc-tag">"Domino"</div><div class="cc-xp">50–74 XP</div>
+        <div class="cc-tag">Cavaleiro Jedi</div><div class="cc-xp">31–45 pts</div>
         <div class="cc-lock"><svg width="14" height="14"><use href="#i-lock"/></svg></div>
       </div>
       <div class="char-card" data-rank="3">
         <div class="cc-fig"><svg viewBox="0 0 120 220"><use href="#char-3"/></svg></div>
         <div class="cc-lvl">PATENTE 04</div><div class="cc-name">Mestre</div>
-        <div class="cc-tag">"Ensino"</div><div class="cc-xp">75–100 XP</div>
+        <div class="cc-tag">Mestre Jedi</div><div class="cc-xp">46–60 pts</div>
         <div class="cc-lock"><svg width="14" height="14"><use href="#i-lock"/></svg></div>
       </div>
     </div>
@@ -1239,7 +1199,7 @@
       <div class="quiz-head">
         <span class="eyebrow" style="margin:0">Autodiagnóstico</span>
         <h4>Onde você está em cada dimensão?</h4>
-        <p>Para cada tema, escolha o nível que melhor descreve você hoje. As respostas viram XP inicial.</p>
+        <p>Para cada tema, escolha o nível que melhor descreve você hoje. As respostas viram pontos de experiência iniciais.</p>
       </div>
       <div class="q-list" id="qList"></div>
       <div class="quiz-foot">
@@ -1247,23 +1207,15 @@
       </div>
     </div>
 
-    <!-- Missions -->
-    <div class="reveal" style="margin-top:56px">
-      <span class="eyebrow">Missões de Campo</span>
-      <h3 class="sec-title" style="font-size:clamp(1.4rem,3.4vw,2.2rem)">Cumpra desafios, ganhe XP</h3>
-      <p class="sec-lead">Cada missão concluída soma XP e te aproxima da próxima patente. Marque conforme avança na oficina.</p>
-    </div>
-    <div class="missions" id="missions"></div>
-    <p id="missionsResult" style="font-family:var(--font-mono);font-size:.85rem;color:var(--accent);margin-top:12px;text-align:center"></p>
-
   </div><!-- /wrap.game -->
 
-  <!-- Kyber Game -->
-  <section class="kyber-section" id="kyber">
+  <!-- Kyber Game (desativado) -->
+  <section class="kyber-section" id="kyber" hidden>
     <div class="kyber-header">
-      <span class="eyebrow">Fase 3 · Kyber Game · até 32 XP</span>
-      <h2>Operação Kyber Ágil</h2>
-      <p>A etapa final da sua pontuação. Você completou o autodiagnóstico e as missões — agora teste seus reflexos ágeis em tempo real. Tome decisões rápidas sob pressão e veja sua patente subir no ranking da galáxia.</p>
+      <span class="eyebrow">Fase 3 · Kyber Game · até 32 pontos</span>
+      <h2>Kyber Game</h2>
+      <p class="kyber-desc">Minigame de perguntas e respostas sobre agilidade</p>
+      <p>Teste seus conhecimentos sobre agilidade em tempo real. Tome decisões rápidas e veja sua patente subir no ranking.</p>
     </div>
 
     <div class="kyber-arena" id="kyber-arena">
@@ -1344,7 +1296,7 @@
     <div class="page-hero">
       <span class="eyebrow">Arquivo Holocron</span>
       <h1>Repositório Colaborativo</h1>
-      <p>A biblioteca da Sociedade Jedi: vídeos, documentos, ferramentas e links úteis. Qualquer agente cadastrado pode adicionar recursos — visíveis para toda a comunidade em tempo real. Contribuições geram <strong>+10 XP</strong>.</p>
+      <p>A biblioteca da Sociedade Jedi: vídeos, documentos, ferramentas e links úteis. Qualquer agente cadastrado pode adicionar recursos — visíveis para toda a comunidade em tempo real. Contribuições geram <strong>+10 pontos de experiência</strong>.</p>
     </div>
 
     <section class="section" id="arquivo">
@@ -1360,6 +1312,7 @@
           <svg width="14" height="14"><use href="#i-plus"/></svg> Adicionar conteúdo
         </button>
       </div>
+      <p id="repoLoginMsg" style="font-size:.82rem;color:var(--ink-3);margin:8px 0 0;display:none"></p>
 
       <!-- Add form -->
       <form class="repo-form reveal" id="repoForm" hidden>
@@ -1407,7 +1360,7 @@
     <div class="page-hero">
       <span class="eyebrow">Galáxia</span>
       <h1>Ranking da Força Ágil</h1>
-      <p>Os agentes que mais avançaram na jornada. XP acumulado em conteúdos, repositório e treinamento Jedi.</p>
+      <p>Os agentes que mais avançaram na jornada. Pontos acumulados em conteúdos, repositório e treinamento Jedi.</p>
     </div>
     <section class="section">
       <div id="rankingPageList">
@@ -1451,7 +1404,6 @@
       <div class="admin-tabs-bar">
         <button class="admin-tab-btn active" data-panel="adminPanelInteresses">Turmas</button>
         <button class="admin-tab-btn" data-panel="adminPanelRepo">Repositório</button>
-        <button class="admin-tab-btn" data-panel="adminPanelColab">Colaboradores</button>
         <button class="admin-tab-btn" data-panel="adminPanelCadastrados">Cadastrados</button>
         <button class="admin-tab-btn" data-panel="adminPanelAdmins">Administradores</button>
         <button class="admin-tab-btn" data-panel="adminPanelManual">Manual</button>
@@ -1473,12 +1425,6 @@
       <div class="admin-tab-panel" id="adminPanelRepo">
         <div id="adminRepo">
           <p class="loading-msg">Carregando repositório…</p>
-        </div>
-      </div>
-
-      <div class="admin-tab-panel" id="adminPanelColab">
-        <div id="adminColab">
-          <p class="loading-msg">Carregando colaboradores…</p>
         </div>
       </div>
 
@@ -1515,6 +1461,89 @@
     </div>
   </footer>
 </div><!-- /page-admin -->
+
+<!-- ======================================================
+     PAGE: AJUDA
+     ====================================================== -->
+<div class="page-section" id="page-ajuda" hidden>
+  <div class="wrap">
+    <div class="page-hero">
+      <span class="eyebrow">Central de Ajuda</span>
+      <h1>Como podemos ajudar?</h1>
+      <p>Encontre respostas para as dúvidas mais comuns sobre o portal Força Ágil.</p>
+    </div>
+    <section class="section">
+      <div class="faq-list">
+
+        <details class="faq-item reveal">
+          <summary>O que é esse site?</summary>
+          <div class="faq-answer">É uma plataforma de aprendizado sobre agilidade na Previ. Aqui você pode participar das turmas, consumir conteúdos e acompanhar sua evolução no programa.</div>
+        </details>
+
+        <details class="faq-item reveal">
+          <summary>Como faço para me cadastrar?</summary>
+          <div class="faq-answer">Clique em "Entrar" ou "Criar conta" no topo do site e preencha seus dados com o e-mail corporativo.</div>
+        </details>
+
+        <details class="faq-item reveal">
+          <summary>Preciso estar logado para acessar todo o portal?</summary>
+          <div class="faq-answer">Alguns conteúdos estão disponíveis sem login, mas para participar das turmas, registrar seu progresso e acumular pontos de experiência é necessário ter uma conta e estar autenticado.</div>
+        </details>
+
+        <details class="faq-item reveal">
+          <summary>Como faço para demonstrar interesse em uma turma?</summary>
+          <div class="faq-answer">Acesse a seção <strong>Turmas</strong> no menu principal, escolha a turma desejada e clique em "Quero participar". Você receberá uma confirmação e mais informações por e-mail.</div>
+        </details>
+
+        <details class="faq-item reveal" id="faq-xp">
+          <summary>O que são os pontos de experiência e para que eles servem?</summary>
+          <div class="faq-answer">XP (pontos de experiência) medem sua evolução no portal. Você acumula XP ao ler conteúdos, contribuir com o repositório e completar o Treinamento Jedi. Quanto mais XP, mais alta sua posição no ranking da galáxia.</div>
+        </details>
+
+        <details class="faq-item reveal">
+          <summary>O que significa "patente" no portal?</summary>
+          <div class="faq-answer">A patente é o seu nível na Ordem Jedi Ágil — de <strong>Youngling</strong> (iniciante) a <strong>Mestre</strong> (avançado). Ela é determinada pelo seu desempenho no autodiagnóstico do Treinamento Jedi e reflete o quanto você já incorporou a mentalidade ágil.</div>
+        </details>
+
+        <details class="faq-item reveal">
+          <summary>Por que é importante aprender agilidade na Previ?</summary>
+          <div class="faq-answer">A agilidade ajuda os times a trabalhar de forma mais eficiente, colaborativa e focada em entregar valor no dia a dia.</div>
+        </details>
+
+        <details class="faq-item reveal">
+          <summary>O que eu ganho com os pontos de experiência?</summary>
+          <div class="faq-answer">Você evolui dentro do programa, desbloqueia novas patentes e acompanha sua posição no ranking da galáxia.</div>
+        </details>
+
+        <details class="faq-item reveal">
+          <summary>Como consigo mais pontos de experiência?</summary>
+          <div class="faq-answer">Você ganha pontos ao:
+            <ul>
+              <li>Jogar o Treinamento Jedi (Autodiagnóstico)</li>
+              <li>Ler conteúdos nas seções do portal</li>
+              <li>Colaborar com o Repositório adicionando materiais úteis</li>
+            </ul>
+          </div>
+        </details>
+
+        <details class="faq-item reveal">
+          <summary>Esqueci a minha senha, como posso recuperar?</summary>
+          <div class="faq-answer">Clique em "Esqueci minha senha" na tela de login e siga as instruções para redefinir.</div>
+        </details>
+
+      </div>
+    </section>
+  </div>
+  <footer class="footer">
+    <div class="footer-inner" style="max-width:var(--maxw);margin:0 auto;padding:0 24px">
+      <span>PREVI · FORÇA ÁGIL</span>
+      <a class="footer-previ" href="https://www.previ.com.br" target="_blank" rel="noopener">
+        <img src="forca-agil/assets/previ-symbol.png" alt="" class="brand-previ-img">
+        <span class="footer-previ-text"><span style="color:#1ab2ae;letter-spacing:0;">Previ</span> · AGILIDADE ORGANIZACIONAL</span>
+      </a>
+    </div>
+  </footer>
+</div><!-- /page-ajuda -->
 
 </div><!-- /#app -->
 
@@ -1614,7 +1643,7 @@
         </label>
         <label class="checkbox-row">
           <input type="checkbox" id="regTerms" />
-          <span>Concordo que meu nome apareça no ranking da Força Ágil e nos recursos que eu adicionar ao repositório, visível para colaboradores da Previ.</span>
+          <span>Concordo que meu nome apareça no ranking da Força Ágil e nos recursos que eu adicionar ao repositório, visível para participantes da Previ.</span>
         </label>
         <label class="checkbox-row">
           <input type="checkbox" id="regOptin" />
@@ -1669,6 +1698,7 @@
 <script src="forca-agil/stars.js"></script>
 <script src="forca-agil/app.js"></script>
 <script src="forca-agil/home-nav.js"></script>
+<script src="forca-agil/conteudos-nav.js"></script>
 
 <!-- Módulos de conteúdo -->
 <script src="forca-agil/repo.js"></script>

@@ -9,7 +9,6 @@
     { id: 'o-que-e',      label: 'O que é' },
     { id: 'como-funciona', label: 'Como funciona' },
     { id: 'jornada',      label: 'Jornada' },
-    { id: 'destaques',    label: 'Destaques' },
     { id: 'cta',          label: 'Junte-se' }
   ];
 

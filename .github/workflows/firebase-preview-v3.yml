@@ -1,0 +1,35 @@
+name: Preview v3-quiz no Firebase Hosting
+
+on:
+  push:
+    branches:
+      - v3-quiz
+
+permissions:
+  contents: write
+
+jobs:
+  preview:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - name: Deploy preview channel
+        run: |
+          echo '${{ secrets.FIREBASE_SERVICE_ACCOUNT_KYBER_AGIL }}' > /tmp/sa.json
+          export GOOGLE_APPLICATION_CREDENTIALS=/tmp/sa.json
+          npx firebase-tools@13 hosting:channel:deploy v3quiz \
+            --expires 30d \
+            --project kyber-agil \
+            --non-interactive 2>&1 | tee /tmp/deploy-out.txt
+          grep -i "url\|https://" /tmp/deploy-out.txt > PREVIEW_URL_V3.txt || echo "URL nao encontrada nos logs" > PREVIEW_URL_V3.txt
+          cat /tmp/deploy-out.txt >> PREVIEW_URL_V3.txt
+      - name: Salvar URL no repositorio
+        run: |
+          git config user.email "actions@github.com"
+          git config user.name "GitHub Actions"
+          git add PREVIEW_URL_V3.txt
+          git diff --cached --quiet || git commit -m "ci: salvar URL do preview v3quiz [skip ci]"
+          git push

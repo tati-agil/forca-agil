@@ -65,6 +65,16 @@
   const emptyMsg  = document.getElementById('repoEmpty');
   if (!grid) return;
 
+  // event delegation para "ver mais / ver menos" — configurado uma vez, funciona após qualquer re-render
+  grid.addEventListener('click', function(e) {
+    const btn = e.target.closest('.rc-more');
+    if (!btn) return;
+    const p = btn.previousElementSibling;
+    if (!p) return;
+    const expanded = p.classList.toggle('rc-desc--expanded');
+    btn.textContent = expanded ? 'ver menos' : 'ver mais';
+  });
+
   // ---- Card builder ----
   function card(item, isSeed, firebaseKey) {
     const k  = KIND[item.type] || KIND.link;
@@ -91,9 +101,7 @@
         const indMatch = raw.match(/\s*Indicado por ([^.]+)\.?\s*$/);
         const indBy = indMatch ? indMatch[1].trim() : null;
         const body = indBy ? raw.slice(0, raw.lastIndexOf(indMatch[0])).trim() : raw;
-        const pHtml = body.length > 120
-          ? '<p class="rc-desc rc-desc--collapsed">' + esc(body) + '</p><button class="rc-more">ver mais</button>'
-          : '<p class="rc-desc">' + esc(body) + '</p>';
+        const pHtml = '<p class="rc-desc">' + esc(body) + '</p>';
         const indHtml = indBy ? '<span class="rc-indicated">Indicado por ' + esc(indBy) + '</span>' : '';
         return pHtml + indHtml;
       })() +
@@ -115,6 +123,51 @@
     return el;
   }
 
+  // ---- Ver mais: detecção por pixel, responsiva ----
+  function checkVerMais() {
+    var descs = grid.querySelectorAll('.rc-desc');
+    if (!descs.length) return;
+    if (!grid.offsetWidth) return; // seção oculta, adiar
+    descs.forEach(function(p) {
+      if (p.nextElementSibling && p.nextElementSibling.classList.contains('rc-more')) return;
+      var w = p.offsetWidth;
+      if (!w) return;
+      // Copia estilos de texto via getComputedStyle para medir sem depender de classe CSS
+      var cs = window.getComputedStyle(p);
+      var lineH = parseFloat(cs.lineHeight) || parseFloat(cs.fontSize) * 1.4;
+      var clone = document.createElement('p');
+      clone.textContent = p.textContent;
+      clone.style.cssText =
+        'position:absolute;visibility:hidden;left:-9999px;top:0;' +
+        'height:auto;overflow:visible;display:block;' +
+        'width:' + w + 'px;' +
+        'font-family:' + cs.fontFamily + ';' +
+        'font-size:' + cs.fontSize + ';' +
+        'line-height:' + cs.lineHeight + ';' +
+        'letter-spacing:' + cs.letterSpacing + ';' +
+        'padding:0;margin:0;';
+      document.body.appendChild(clone);
+      var naturalH = clone.offsetHeight;
+      document.body.removeChild(clone);
+      if (naturalH > lineH * 2 + 2) {
+        var btn = document.createElement('button');
+        btn.className = 'rc-more';
+        btn.textContent = 'ver mais';
+        p.insertAdjacentElement('afterend', btn);
+      }
+    });
+  }
+
+  // Roda checkVerMais quando o grid entra na viewport (cobre navegação inicial)
+  if (typeof IntersectionObserver !== 'undefined') {
+    var verMaisObserver = new IntersectionObserver(function(entries) {
+      entries.forEach(function(entry) {
+        if (entry.isIntersecting) checkVerMais();
+      });
+    }, { threshold: 0.01 });
+    verMaisObserver.observe(grid);
+  }
+
   // ---- Render ----
   function render() {
     grid.innerHTML = '';
@@ -134,14 +187,10 @@
 
     if (emptyMsg) emptyMsg.hidden = shown.length > 0;
 
-    // ver mais / ver menos
-    grid.querySelectorAll('.rc-more').forEach(function(btn) {
-      btn.addEventListener('click', function() {
-        const p = btn.previousElementSibling;
-        const collapsed = p.classList.toggle('rc-desc--collapsed');
-        btn.textContent = collapsed ? 'ver mais' : 'ver menos';
-      });
-    });
+    /* Injeta "ver mais" por medição real de pixel.
+       Roda agora se o grid já está visível (largura > 0), senão aguarda
+       o IntersectionObserver detectar a entrada na viewport. */
+    checkVerMais();
 
     // botões de deletar (só nos próprios)
     grid.querySelectorAll('.rc-del').forEach(function(btn) {
@@ -201,13 +250,22 @@
     form.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
   }
 
+  const repoLoginMsg = document.getElementById('repoLoginMsg');
+  function showRepoMsg(txt) {
+    if (!repoLoginMsg) return;
+    repoLoginMsg.textContent = txt;
+    repoLoginMsg.style.display = txt ? '' : 'none';
+  }
+
   addBtn && addBtn.addEventListener('click', function() {
     const p = getPlayer();
     if (!p || !p.name) {
+      showRepoMsg('Faça login para contribuir com o repositório.');
       window._pendingRepoForm = true;
-      if (window.faOpenAuthModal) window.faOpenAuthModal('register');
+      if (window.faOpenAuthModal) window.faOpenAuthModal('login');
       return;
     }
+    showRepoMsg('');
     openRepoForm();
   });
 

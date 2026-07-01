@@ -53,13 +53,11 @@
   function _st() { return window.faStore || localStorage; }
   function getGameXP() {
     try {
-      const s = JSON.parse(_st().getItem('fa-game-v2') || 'null');
-      if (!s) return { xpAuto: 0, xpMissoes: 0 };
-      const answered = (s.quiz || []).filter(function(v) { return v != null; }).length;
-      const xpAuto   = Math.round(answered / 6 * 20);
-      const xpMissoes = parseInt(_st().getItem('fa-missions-xp') || '0', 10) || 0;
-      return { xpAuto: xpAuto, xpMissoes: xpMissoes };
-    } catch(e) { return { xpAuto: 0, xpMissoes: 0 }; }
+      const s = JSON.parse(_st().getItem('fa-game-v3') || 'null');
+      if (!s) return { xpQuiz: 0 };
+      const xpQuiz = (s.quiz || []).reduce(function(sum, v) { return sum + (v != null ? +v : 0); }, 0);
+      return { xpQuiz: xpQuiz };
+    } catch(e) { return { xpQuiz: 0 }; }
   }
   function getKyberXP()   { return parseInt(_st().getItem('fa-kyber-xp')   || '0', 10) || 0; }
   function getContentXP() { return parseInt(_st().getItem('fa-content-xp') || '0', 10) || 0; }
@@ -72,9 +70,8 @@
   }
 
   // ---- Sync progress to Firebase (para restaurar em qualquer browser) ----
-  const _PROGRESS_KEYS = ['fa-game-v2','fa-missions-xp','fa-kyber-done','fa-kyber-xp',
-                        'fa-patente-revealed','fa-patente-publicada','fa-content-read','fa-content-xp','fa-repo-xp',
-                        'kyber-game-v1','kyber-ranking-v1'];
+  const _PROGRESS_KEYS = ['fa-game-v3',
+                        'fa-patente-revealed','fa-patente-publicada','fa-content-read','fa-content-xp','fa-repo-xp'];
   window.faSyncProgress = function() {
     if (!fbReady) return;
     let p = getPlayer();
@@ -164,17 +161,14 @@
     const p = getPlayer();
     if (!p || !p.name) return;
     const gxp   = getGameXP();
-    const kxp   = getKyberXP();
     const cxp   = getContentXP();
     const rxp   = getRepoXP();
-    const total = Math.min(100, gxp.xpAuto + gxp.xpMissoes + kxp + cxp + rxp);
+    const total = Math.min(100, gxp.xpQuiz + cxp + rxp);
     const entry = {
       name:      p.name,
       area:      p.area  || '',
       turma:     p.turma || '',
-      xpAuto:    gxp.xpAuto,
-      xpMissoes: gxp.xpMissoes,
-      xpKyber:   kxp,
+      xpQuiz:    gxp.xpQuiz,
       xpContent: cxp,
       xpRepo:    rxp,
       totalXP:   total,
@@ -219,7 +213,7 @@
         '<div class="gameover-content">' +
           '<h3>Missão Completa!</h3>' +
           '<div class="gameover-score">Pontuação: <strong>' + gameState.totalScore + ' pts</strong></div>' +
-          '<div class="gameover-rank">+' + kyberXP + ' XP Kyber</div>' +
+          '<div class="gameover-rank">+' + kyberXP + ' pts Kyber</div>' +
           '<div class="gameover-rank" style="font-size:.85rem;opacity:.7">' + p.name + (p.turma ? ' · ' + p.turma : '') + '</div>' +
           '<div class="gameover-actions">' +
             (_allDone ? '<button class="btn btn--primary" onclick="var r=document.getElementById(\'revelarWrap\');if(r)r.scrollIntoView({behavior:\'smooth\',block:\'center\'})">Revelar minha Patente Final</button>' : '') +
@@ -280,7 +274,7 @@
           '<span class="rank-patente-col">' +
             rankSvg(e.patente || '') +
             patenteHtml +
-            '<span class="rank-score">' + (e.totalXP || 0) + ' XP</span>' +
+            '<span class="rank-score">' + (e.totalXP || 0) + ' pts</span>' +
           '</span>';
         list.appendChild(row);
       });
@@ -305,6 +299,12 @@
   // ---- Kyber bloqueado se já jogou ----
   window.kyberAlreadyPlayed = function() {
     return _st().getItem('fa-kyber-done') === '1';
+  };
+
+  // ---- Exposto para testes: XP total (quiz + conteúdos + repositório) ----
+  window.faGetTotalXP = function() {
+    var gxp = getGameXP();
+    return Math.min(100, gxp.xpQuiz + getContentXP() + getRepoXP());
   };
 
   // ---- Home ranking mini (top 5) ----
@@ -335,7 +335,7 @@
             '</span>' +
             '<span class="rank-patente-col">' +
               rankSvg(p.patente || getRank(p.totalXP || 0)) +
-              '<span class="rank-score">' + (p.totalXP || 0) + ' XP</span>' +
+              '<span class="rank-score">' + (p.totalXP || 0) + ' pts</span>' +
             '</span>';
           list.appendChild(row);
         });
@@ -352,16 +352,11 @@
 
     function checkProgress() {
       try {
-        const state = JSON.parse(_st().getItem('fa-game-v2') || 'null');
-        const autoDone = state && state.quiz && state.quiz.filter(function(v){ return v != null; }).length === 6;
-        const missoesDone = state && state.missions && Object.keys(state.missions).length === 6 &&
-          Object.values(state.missions).every(function(m) {
-            return m && m.answers && m.answers.every(function(a){ return a !== null; });
-          });
-        const kyberDone = _st().getItem('fa-kyber-done') === '1';
-        return { autoDone: autoDone, missoesDone: missoesDone, kyberDone: kyberDone,
-                 allDone: autoDone && missoesDone && kyberDone };
-      } catch(e) { return { autoDone: false, missoesDone: false, kyberDone: false, allDone: false }; }
+        const state = JSON.parse(_st().getItem('fa-game-v3') || 'null');
+        const dims = (window.faGameData && window.faGameData.DIMS && window.faGameData.DIMS.length) || 20;
+        const quizDone = state && state.quiz && state.quiz.filter(function(v){ return v != null; }).length === dims;
+        return { quizDone: quizDone, allDone: quizDone };
+      } catch(e) { return { quizDone: false, allDone: false }; }
     }
 
     function updateRevelarBtn() {
@@ -374,31 +369,23 @@
         delete revelarBtn.dataset.locked;
         let hint = document.querySelector('.revelar-hint');
         if (hint) hint.innerHTML =
-          '<span style="color:var(--accent)">✓ Autodiagnóstico</span> · ' +
-          '<span style="color:var(--accent)">✓ Missões</span> · ' +
-          '<span style="color:var(--accent)">✓ Kyber Game</span><br>Você completou as 3 etapas! Revele sua patente.';
+          '<span style="color:var(--accent)">✓ Quiz (autodiagnóstico)</span><br>Você completou o quiz! Revele sua patente.';
       } else {
         revelarBtn.disabled = false;
         revelarBtn.style.opacity = '0.45';
         revelarBtn.dataset.locked = '1';
         const hint = document.querySelector('.revelar-hint');
-        const _faltam = [!prog.autoDone && 'autodiagnóstico', !prog.missoesDone && 'missões', !prog.kyberDone && 'Kyber Game'].filter(Boolean);
-        const _faltaLista = _faltam.length <= 2 ? _faltam.join(' e ') : _faltam.slice(0, -1).join(', ') + ' e ' + _faltam[_faltam.length - 1];
-        const _faltaMsg = _faltam.length === 1 ? 'Falta completar: ' + _faltam[0] + '.' : 'Faltam: ' + _faltaLista + '.';
         if (hint) hint.innerHTML =
-          (prog.autoDone ? '<span style="color:var(--accent)">✓' : '<span style="color:var(--ink-3)">✗') + ' Autodiagnóstico</span> · ' +
-          (prog.missoesDone ? '<span style="color:var(--accent)">✓' : '<span style="color:var(--ink-3)">✗') + ' Missões</span> · ' +
-          (prog.kyberDone ? '<span style="color:var(--accent)">✓' : '<span style="color:var(--ink-3)">✗') + ' Kyber Game</span><br>' + _faltaMsg;
+          '<span style="color:var(--ink-3)">✗ Quiz (autodiagnóstico)</span><br>Complete o quiz para revelar sua patente.';
       }
     }
 
     // ---- Pós-revelação: patente fixada, publicação no ranking é etapa separada e opcional ----
     function currentTotalEPatente() {
       const gxp = getGameXP();
-      const kxp = getKyberXP();
       const cxp = getContentXP();
       const rxp = getRepoXP();
-      const total = Math.min(100, gxp.xpAuto + gxp.xpMissoes + kxp + cxp + rxp);
+      const total = Math.min(100, gxp.xpQuiz + cxp + rxp);
       return { total: total, patente: getRank(total) };
     }
 
@@ -408,16 +395,34 @@
       const tp = currentTotalEPatente();
       const publicada = _st().getItem('fa-patente-publicada') === '1';
       const status = publicada ? '🌐 Publicada no ranking da galáxia!' : '🔒 Resultado privado — não publicado no ranking.';
-      wrap.innerHTML =
-        '<p style="font-family:var(--font-mono);font-size:.9rem;color:var(--accent);text-align:center;padding:24px">' +
-        '✓ Patente revelada: <strong>' + tp.patente + ' · ' + tp.total + ' XP</strong><br>' +
-        '<span style="color:var(--ink-3);font-size:.8rem">' + status + '</span></p>';
+      // Oculta botão e hint, preservando-os no DOM para testes e re-renders
+      if (revelarBtn) revelarBtn.hidden = true;
+      const hint = wrap.querySelector('.revelar-hint');
+      if (hint) hint.hidden = true;
+      // Atualiza ou cria o parágrafo de estado
+      let msg = document.getElementById('revelarStateMsg');
+      if (!msg) {
+        msg = document.createElement('p');
+        msg.id = 'revelarStateMsg';
+        msg.style.cssText = 'font-family:var(--font-mono);font-size:.9rem;color:var(--accent);text-align:center;padding:24px';
+        wrap.appendChild(msg);
+      }
+      msg.innerHTML = '✓ Patente revelada: <strong>' + tp.patente + ' · ' + tp.total + ' pts</strong><br>' +
+        '<span style="color:var(--ink-3);font-size:.8rem">' + status + '</span>';
+      msg.hidden = false;
     }
 
     function refreshRevelarUI() {
       if (_st().getItem('fa-patente-revealed') === '1') {
         renderRevealedState();
       } else {
+        // Restaura botão e hint ao estado normal
+        if (revelarBtn) revelarBtn.hidden = false;
+        const wrap = document.getElementById('revelarWrap');
+        const hint = wrap && wrap.querySelector('.revelar-hint');
+        if (hint) hint.hidden = false;
+        const msg = document.getElementById('revelarStateMsg');
+        if (msg) msg.hidden = true;
         updateRevelarBtn();
       }
     }
@@ -436,7 +441,7 @@
       const rankEl  = document.getElementById('rmodalRank');
       const check   = document.getElementById('revelarPublicarCheck');
       if (charUse && rank) charUse.setAttribute('href', rank.sym);
-      if (rankEl) rankEl.textContent = tp.patente + ' · ' + tp.total + ' XP';
+      if (rankEl) rankEl.textContent = tp.patente + ' · ' + tp.total + ' pts';
       if (check) check.checked = true;
       if (revelarModal) revelarModal.hidden = false;
       document.body.style.overflow = 'hidden';
@@ -519,7 +524,7 @@
                 '<span class="rank-patente-col">' +
                   rankSvg(p.patente || getRank(p.totalXP || 0)) +
                   '<span class="rank-patente" style="color:var(--accent);font-family:var(--font-mono);font-size:.75rem">' + escHtml(p.patente || getRank(p.totalXP || 0)) + '</span>' +
-                  '<span class="rank-score">' + (p.totalXP||0) + ' XP</span>' +
+                  '<span class="rank-score">' + (p.totalXP||0) + ' pts</span>' +
                 '</span>';
               list.appendChild(row);
             });

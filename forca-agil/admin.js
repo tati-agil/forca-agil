@@ -6,7 +6,7 @@
   'use strict';
 
   /* Painéis com conteúdo expansível */
-  const EXPANDABLE_PANELS = ['adminPanelManual', 'adminPanelMapa', 'adminPanelTestes'];
+  const EXPANDABLE_PANELS = [];
 
   function activePanel() {
     return document.querySelector('.admin-tab-panel.active');
@@ -32,49 +32,6 @@
     const bar = document.getElementById('adminExpandBar');
     if (!bar) return;
     bar.querySelectorAll('.admin-expand-sec-btn, .admin-expand-sep').forEach(function (b) { b.remove(); });
-
-    var secs = [];
-
-    /* Manual: details.manual-section-group */
-    panel.querySelectorAll('details.manual-section-group').forEach(function (det) {
-      var summ = det.querySelector('summary.manual-section-header');
-      if (!summ) return;
-      var color = summ.style.color || 'var(--ink)';
-      var label = (summ.firstChild && summ.firstChild.nodeType === 3 ? summ.firstChild.textContent : summ.textContent).trim();
-      secs.push({ label: label, color: color, toggle: function () { det.open = !det.open; } });
-    });
-
-    /* Mapa: .mapa-page (top-level) */
-    panel.querySelectorAll('.mapa-page').forEach(function (page) {
-      var titleEl = page.querySelector('.mapa-page-title span');
-      var label = titleEl ? titleEl.textContent.trim() : '';
-      var color = page.style.getPropertyValue('--pc') || 'var(--ink)';
-      secs.push({ label: label, color: color, toggle: function () { page.classList.toggle('open'); } });
-    });
-
-    /* Testes: .testes-group--collapsible */
-    panel.querySelectorAll('.testes-group--collapsible').forEach(function (grp) {
-      var labelEl = grp.querySelector('.testes-group-label');
-      var color = labelEl ? labelEl.style.color : 'var(--ink)';
-      var spanEl = labelEl ? labelEl.querySelector('span') : null;
-      var label = spanEl ? spanEl.textContent.replace(/\(.*\)/, '').trim() : '';
-      secs.push({ label: label, color: color, toggle: function () { grp.classList.toggle('open'); } });
-    });
-
-    if (!secs.length) return;
-
-    var sep = document.createElement('span');
-    sep.className = 'admin-expand-sep';
-    bar.appendChild(sep);
-
-    secs.forEach(function (sec) {
-      var btn = document.createElement('button');
-      btn.className = 'admin-expand-sec-btn';
-      btn.textContent = sec.label;
-      btn.style.setProperty('--sec-col', sec.color);
-      btn.addEventListener('click', sec.toggle);
-      bar.appendChild(btn);
-    });
   }
 
   function updateExpandBar(panelId) {
@@ -111,23 +68,6 @@
     if (collapseBtn) collapseBtn.addEventListener('click', function () { const p = activePanel(); if (p) collapseAll(p); });
   });
 
-  const COLAB_SEED = [
-    { email: 'luiz.spinelli@previ.com.br',      name: 'Luiz Antonio Fernandes Spinelli' },
-    { email: 'mpl@previ.com.br',                name: 'Maira Prado Louvison' },
-    { email: 'giselebatista@previ.com.br',       name: 'Gisele Batista de Souza' },
-    { email: 'cris@previ.com.br',               name: 'Cristiane Toledo de Andrade' },
-    { email: 'marcoagarcia@previ.com.br',        name: 'Marco Antonio Garcia Jorge' },
-    { email: 'jusan@previ.com.br',              name: 'Marcelo Jusan Fernandes' },
-    { email: 'tulioalves@previ.com.br',          name: 'Tulio Alves Ferreira Junior' },
-    { email: 'ronicesar@previ.com.br',           name: 'Roni Cesar de Paulo Cruz Iracema' },
-    { email: 'rodolfo@previ.com.br',             name: 'Rodolfo Credi Dio de Oliveira Goncalves' },
-    { email: 'pedro.ferrari@capgemini.com',      name: 'Pedro Henrique Ferrari' },
-    { email: 'vanisa.miksucas@montreal.com.br',  name: 'Vanisa Miksucas' },
-    { email: 'caduh@previ.com.br',              name: 'Carlos Eduardo Schuch Pinto' },
-    { email: 'tatianefdirene@previ.com.br',      name: 'Tatiane Faro Direne' },
-    { email: 'danielfrazao@previ.com.br',        name: 'Daniel Frazão' }
-  ];
-
   function emailKey(e) {
     return (e || '').toLowerCase().replace(/[@.]/g, '_').replace(/[^a-z0-9_]/g, '').slice(0, 64);
   }
@@ -141,7 +81,6 @@
     migrateNameCase();
     loadInterests();
     loadRepoAdmin();
-    loadColaboradores();
     loadCadastrados();
     loadAdmins();
     if (window.faInitManual) window.faInitManual();
@@ -150,7 +89,7 @@
   }
 
   function migrateNameCase() {
-    ['fa-colaboradores', 'fa-admins'].forEach(function (path) {
+    ['fa-admins'].forEach(function (path) {
       firebase.database().ref(path).once('value', function (snap) {
         const data = snap.val() || {};
         const updates = {};
@@ -908,28 +847,6 @@
     });
   }
 
-  /* ---- Colaboradores ---- */
-  function loadColaboradores() {
-    const c = document.getElementById('adminColab');
-    if (!c) return;
-    c.innerHTML = '<p class="loading-msg">Carregando…</p>';
-
-    firebase.database().ref('fa-colaboradores').once('value', function (snap) {
-      const data = snap.val() || {};
-      if (Object.keys(data).length === 0) {
-        const updates = {};
-        COLAB_SEED.forEach(function (p) {
-          updates['fa-colaboradores/' + emailKey(p.email)] = { email: p.email, name: p.name, addedAt: new Date().toISOString() };
-        });
-        firebase.database().ref().update(updates, function () {
-          firebase.database().ref('fa-colaboradores').once('value', function (s2) { renderColab(c, s2.val() || {}); });
-        });
-      } else {
-        renderColab(c, data);
-      }
-    });
-  }
-
   function handlePwdReset(btn) {
     const email = btn.dataset.email;
     const name  = btn.dataset.name;
@@ -940,105 +857,14 @@
       })
       .catch(function (err) {
         if (err.code === 'auth/user-not-found') {
-          alert(name + ' ainda não tem cadastro ativo. O colaborador precisa fazer o primeiro login no sistema antes de poder redefinir a senha.');
+          alert(name + ' ainda não tem cadastro ativo. A pessoa precisa fazer o primeiro login no sistema antes de poder redefinir a senha.');
         } else {
           alert('Erro ao enviar: ' + err.message);
         }
       });
   }
 
-  function renderColab(c, data) {
-    const list = Object.values(data).sort(function (a, b) { return (a.name || '').localeCompare(b.name || '', 'pt'); });
-    c.innerHTML = '';
-
-    /* Título */
-    const hdr = document.createElement('h4');
-    hdr.innerHTML = 'Colaboradores <span class="admin-badge">' + list.length + '</span>';
-    c.appendChild(hdr);
-
-    /* Busca */
-    const searchWrap = document.createElement('div');
-    searchWrap.className = 'admin-colab-row';
-    searchWrap.style.marginBottom = '16px';
-    searchWrap.innerHTML = '<input id="colabFiltro" type="text" placeholder="Filtrar por nome ou e-mail…" style="flex:1" />';
-    c.appendChild(searchWrap);
-
-    /* Tabela */
-    const tbl = document.createElement('table');
-    tbl.className = 'admin-table';
-    tbl.innerHTML = '<thead><tr><th>Nome</th><th>E-mail</th><th>Desde</th><th></th></tr></thead>';
-    const tbody = document.createElement('tbody');
-
-    function fillRows(filtered) {
-      tbody.innerHTML = '';
-      filtered.forEach(function (p) {
-        const tr = document.createElement('tr');
-        tr.innerHTML =
-          '<td>' + esc(p.name || '—') + '</td>' +
-          '<td>' + esc(p.email || '—') + '</td>' +
-          '<td>' + fmtDate(p.addedAt) + '</td>' +
-          '<td><button class="admin-del-btn" data-key="' + esc(emailKey(p.email)) + '" data-name="' + esc(p.name || p.email) + '">Remover</button></td>';
-        tbody.appendChild(tr);
-      });
-    }
-
-    fillRows(list);
-    tbl.appendChild(tbody);
-    c.appendChild(tbl);
-
-    const filtroInput = document.getElementById('colabFiltro');
-    filtroInput.addEventListener('input', function () {
-      const q = filtroInput.value.trim().toLowerCase();
-      fillRows(!q ? list : list.filter(function (p) {
-        return (p.name || '').toLowerCase().indexOf(q) !== -1 || (p.email || '').toLowerCase().indexOf(q) !== -1;
-      }));
-    });
-
-    /* Delegação de eventos para remover */
-    tbody.addEventListener('click', function (e) {
-      var btn = e.target.closest('button');
-      if (!btn) return;
-      if (btn.classList.contains('admin-del-btn')) {
-        if (!confirm('Remover ' + btn.dataset.name + ' dos colaboradores?')) return;
-        firebase.database().ref('fa-colaboradores/' + btn.dataset.key).remove(function () {
-          firebase.database().ref('fa-colaboradores').once('value', function (s) { renderColab(c, s.val() || {}); });
-        });
-      }
-    });
-
-    /* Formulário de adição */
-    const form = document.createElement('div');
-    form.className = 'admin-colab-form';
-    form.innerHTML =
-      '<h4 style="margin-top:32px">Adicionar colaborador</h4>' +
-      '<div class="admin-colab-row">' +
-        '<input id="colabName"  type="text"  placeholder="Nome completo" />' +
-        '<input id="colabEmail" type="email" placeholder="e-mail" />' +
-        '<button class="btn btn--primary" id="colabAddBtn">Adicionar</button>' +
-      '</div>' +
-      '<p id="colabMsg" style="margin-top:8px;font-size:.8rem;color:var(--cyan)"></p>';
-    c.appendChild(form);
-
-    document.getElementById('colabAddBtn').addEventListener('click', function () {
-      const name  = (document.getElementById('colabName').value  || '').trim().toUpperCase();
-      const email = (document.getElementById('colabEmail').value || '').trim().toLowerCase();
-      const msg   = document.getElementById('colabMsg');
-      if (!name || !email) { msg.style.color = 'var(--accent)'; msg.textContent = 'Preencha nome e e-mail.'; return; }
-      if (!/^[^\s@]+@previ\.com\.br$/i.test(email)) { msg.style.color = 'var(--accent)'; msg.textContent = 'Use um e-mail @previ.com.br.'; return; }
-      firebase.database().ref('fa-colaboradores/' + emailKey(email)).set(
-        { email: email, name: name, addedAt: new Date().toISOString() },
-        function (err) {
-          if (err) { msg.style.color = 'var(--accent)'; msg.textContent = 'Erro ao salvar.'; return; }
-          document.getElementById('colabName').value  = '';
-          document.getElementById('colabEmail').value = '';
-          msg.style.color = 'var(--cyan)'; msg.textContent = name + ' adicionado(a).';
-          firebase.database().ref('fa-colaboradores').once('value', function (s) { renderColab(c, s.val() || {}); });
-        }
-      );
-    });
-  }
-
-  /* ---- Cadastrados (todos que fizeram cadastro, não só colaboradores) ---- */
+  /* ---- Cadastrados (todos que fizeram cadastro) ---- */
   function loadCadastrados() {
     const c = document.getElementById('adminCadastrados');
     if (!c) return;

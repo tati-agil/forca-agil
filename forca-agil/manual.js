@@ -14,6 +14,7 @@
     { key: 'repositorio', label: 'Repositório',          color: '#e8854a' },
     { key: 'quiz',        label: 'Treinamento Jedi',      color: '#e05c7f' },
     { key: 'ranking',     label: 'Ranking',              color: '#57aaff' },
+    { key: 'ajuda',       label: 'Ajuda',               color: '#7ecbff' },
     { key: 'admin',       label: 'Admin',               color: '#ff5252' },
   ];
 
@@ -21,7 +22,6 @@
     { key: 'all',         label: 'Todas as personas',  color: 'var(--ink-2)' },
     { key: 'visitante',   label: 'Visitante',          color: '#888' },
     { key: 'logado',      label: 'Usuário logado',     color: '#1ab2ae' },
-    { key: 'colaborador', label: 'Colaborador',        color: '#f5c542' },
     { key: 'admin',       label: 'Admin',              color: '#ff5252' },
   ];
 
@@ -30,16 +30,16 @@
     { section: 'auth', personas: ['visitante'],
       title: 'Quem vê ENTRAR e CADASTRAR no menu',
       body: 'Somente visitantes (não logados) veem os botões ENTRAR e CADASTRAR no canto superior direito do menu.' },
-    { section: 'auth', personas: ['logado', 'colaborador', 'admin'],
+    { section: 'auth', personas: ['logado', 'admin'],
       title: 'Menu para usuário logado',
       body: 'Os botões ENTRAR e CADASTRAR somem. No lugar aparece o perfil com a inicial e o primeiro nome do usuário.' },
     { section: 'auth', personas: ['admin'],
       title: 'Link Admin no menu',
       body: 'O link "Admin" no menu só aparece para administradores.' },
-    { section: 'auth', personas: ['visitante', 'logado', 'colaborador', 'admin'],
+    { section: 'auth', personas: ['visitante', 'logado', 'admin'],
       title: 'Modal não fecha ao clicar fora',
       body: 'Evita perda do formulário preenchido. Fecha com o botão ✕ ou com ESC — mas só se todos os campos estiverem vazios.' },
-    { section: 'auth', personas: ['visitante', 'logado', 'colaborador', 'admin'],
+    { section: 'auth', personas: ['visitante', 'logado', 'admin'],
       title: 'Botão olhinho nos campos de senha',
       body: 'Disponível em todos os campos de senha. Alterna entre ocultar (👁) e mostrar (🙈) o texto digitado.' },
     { section: 'auth', personas: ['visitante'],
@@ -56,7 +56,7 @@
       body: 'Abre painel inline no modal. Usuário digita o e-mail @previ.com.br e o sistema exibe "Se este e-mail estiver cadastrado, você receberá o link de redefinição em breve." O Firebase envia o link apenas se o e-mail existir — por segurança, não revela se está cadastrado ou não. Se não for @previ.com.br, exibe "Use seu e-mail @previ.com.br." Autoatendimento — não depende do admin.' },
     { section: 'auth', personas: ['admin'],
       title: 'Admin — redefinir senha de qualquer cadastrado',
-      body: 'Botão "Redefinir senha" na aba Cadastrados dispara o mesmo e-mail de redefinição do Firebase para o e-mail da pessoa. Disponível para qualquer cadastrado, não só colaboradores. Só funciona se a pessoa já tiver feito o primeiro cadastro/login.' },
+      body: 'Botão "Redefinir senha" na aba Cadastrados dispara o mesmo e-mail de redefinição do Firebase para o e-mail da pessoa. Disponível para qualquer cadastrado, disponível para todos. Só funciona se a pessoa já tiver feito o primeiro cadastro/login.' },
     { section: 'auth', personas: ['visitante'],
       title: 'Cadastro — e-mail obrigatório @previ.com.br',
       body: 'Exige e-mail @previ.com.br. Outros domínios são rejeitados.' },
@@ -81,192 +81,197 @@
     { section: 'auth', personas: ['visitante'],
       title: 'Cadastro — botão durante envio',
       body: 'O botão vira "Aguarde…" durante o cadastro. Ao concluir: modal fecha e o usuário permanece na página atual.' },
-    { section: 'auth', personas: ['logado', 'colaborador', 'admin'],
+    { section: 'auth', personas: ['logado', 'admin'],
       title: 'Clicar no perfil no menu',
       body: 'Clicar no perfil (fora do botão Sair) navega para o Treinamento Jedi.' },
-    { section: 'auth', personas: ['logado', 'colaborador', 'admin'],
+    { section: 'auth', personas: ['logado', 'admin'],
       title: 'Sair',
       body: 'Botão "Sair" visível no menu de perfil. Encerra a sessão e redireciona para o INÍCIO.' },
 
     /* ── INÍCIO ── */
-    { section: 'inicio', personas: ['visitante', 'logado', 'colaborador', 'admin'],
+    { section: 'inicio', personas: ['visitante', 'logado', 'admin'],
       title: 'Acesso geral',
       body: 'Toda a página INÍCIO é visível para todos, inclusive visitantes. Nenhum conteúdo é bloqueado por login.' },
-    { section: 'inicio', personas: ['visitante'],
-      title: 'Botão "Juntar-se à Força →" (Hero e CTA Final)',
-      body: 'Visível apenas para visitantes. Abre modal de cadastro.' },
-    { section: 'inicio', personas: ['logado', 'colaborador', 'admin'],
-      title: 'Botão "Juntar-se à Força →" (Hero e CTA Final)',
-      body: 'Removido completamente quando o usuário está logado. O botão #heroJoin recebe hidden=true via updateNavState() em auth.js.' },
-    { section: 'inicio', personas: ['visitante', 'logado', 'colaborador', 'admin'],
+    { section: 'inicio', personas: ['visitante', 'logado', 'admin'],
+      title: 'CTA Final — botão "Ver turmas"',
+      body: 'O CTA final tem um único botão "Ver turmas →" que navega para a página Turmas. Mesmo comportamento para todos os perfis — o objetivo é direcionar para inscrição.' },
+    { section: 'inicio', personas: ['visitante', 'logado', 'admin'],
       title: 'Botão "Conhecer a iniciativa"',
       body: 'Rola a página para a seção "O que é a Força Ágil". Funciona igual para todos.' },
-    { section: 'inicio', personas: ['visitante', 'logado', 'colaborador', 'admin'],
+    { section: 'inicio', personas: ['visitante', 'logado', 'admin'],
       title: 'Crawl de abertura — botões de controle',
       body: 'Os três botões ficam lado a lado (layout horizontal) logo abaixo do crawl: "≡ Ler texto", "⏸ Pausar" e "↻ Repetir abertura". "Repetir abertura" reinicia a animação do início. "⏸ Pausar" pausa/retoma (equivalente a clicar na área do crawl). "≡ Ler texto" exibe o texto estático sem perspectiva; "✕ Fechar texto" retorna ao crawl animado.' },
-    { section: 'inicio', personas: ['visitante', 'logado', 'colaborador', 'admin'],
+    { section: 'inicio', personas: ['visitante', 'logado', 'admin'],
       title: 'Cards "Como funciona" (Conteúdos / Repositório / Treinamento Jedi)',
-      body: 'Três cards clicáveis logo abaixo do hero, cada um navega direto para a página correspondente (Conteúdos, Repositório, Treinamento Jedi). Visível e funcional para todos.' },
-    { section: 'inicio', personas: ['visitante', 'logado', 'colaborador', 'admin'],
-      title: 'Mini Próximas Turmas (bloco Destaques)',
-      body: 'Lista as turmas curadas (estático, não vem do Firebase). Link "Ver turmas e demonstrar interesse" navega para a página Turmas. Visível para todos.' },
-    { section: 'inicio', personas: ['visitante', 'logado', 'colaborador', 'admin'],
-      title: 'Mini Conteúdos (bloco Destaques)',
-      body: 'Lista os 5 conteúdos curados. Clicar em qualquer item navega para a página Conteúdos. Link "Explorar conteúdos" faz o mesmo. Visível para todos.' },
-    { section: 'inicio', personas: ['visitante', 'logado', 'colaborador', 'admin'],
-      title: 'Ranking mini (bloco Destaques)',
-      body: 'Carrega os dados reais do Firebase em tempo real. Link "Ver ranking completo" navega para a página Ranking. Visível para todos.' },
-    { section: 'inicio', personas: ['visitante', 'logado', 'colaborador', 'admin'],
+      body: 'Três cards decorativos (sem hover) logo abaixo do hero, cada um navega direto para a página correspondente. Exibem pontos de experiência como incentivo. Visível e funcional para todos.' },
+    { section: 'inicio', personas: ['visitante', 'logado', 'admin'],
+      title: 'Seção "O que está acontecendo" (Destaques)',
+      body: 'Removida. Os mini-blocos de Turmas, Conteúdos e Ranking não existem mais na página Início.' },
+    { section: 'inicio', personas: ['visitante', 'logado', 'admin'],
       title: 'Link no rodapé para previ.com.br',
       body: 'Abre o site da Previ em nova aba (link externo). Visível para todos. Presente no rodapé de todas as páginas, não só Início.' },
+    { section: 'inicio', personas: ['logado', 'admin'],
+      title: 'Badge de XP no cabeçalho',
+      body: 'Quando logado, um badge com a pontuação total de XP aparece ao lado do nome no menu (ex: "42 XP"). Soma: pontos de conteúdo (fa-content-xp) + pontos de repositório (fa-repo-xp) + soma dos valores do quiz (fa-game-v3). Atualiza em tempo real via evento fa-progress-change.' },
+    { section: 'inicio', personas: ['visitante', 'logado', 'admin'],
+      title: 'Hint de XP abaixo da seção "Como funciona" (Pilares)',
+      body: 'Uma linha de texto abaixo dos 3 cards "Como funciona" explica o que são XP: "Os pontos de experiência mostram sua evolução no portal." com link "Saiba mais →" que navega para a página Ajuda e abre automaticamente a pergunta sobre XP (#faq-xp).' },
+    { section: 'inicio', personas: ['visitante', 'logado', 'admin'],
+      title: 'Botão hero — comportamento por login',
+      body: 'Visitante: botão "Juntar-se à Força →" que abre o modal de cadastro. Logado/admin: botão "Ver turmas →" que navega para a página Turmas. O botão nunca fica oculto — só muda texto e ação conforme o estado de login.' },
 
     /* ── TURMAS ── */
-    { section: 'turmas', personas: ['visitante', 'logado', 'colaborador', 'admin'],
+    { section: 'turmas', personas: ['visitante', 'logado', 'admin'],
       title: 'Acesso geral',
-      body: 'Toda a página Turmas é visível para todos — turmas, datas, descrição da oficina, temas e agenda D1–D5.' },
+      body: 'Toda a página Turmas é visível para todos — turmas, datas, descrição da oficina e agenda D1–D5.' },
+    { section: 'turmas', personas: ['visitante', 'logado', 'admin'],
+      title: 'Bloco "Como funciona a oficina"',
+      body: 'Exibido antes da agenda D1–D5 para todos. Mostra 4 métricas (5 dias, 4h por encontro, dinâmicas práticas, participação opcional) e uma descrição geral.' },
     { section: 'turmas', personas: ['visitante'],
-      title: 'Botão "Tenho interesse"',
-      body: 'Para visitante: ao clicar, abre modal de cadastro.' },
-    { section: 'turmas', personas: ['logado', 'colaborador', 'admin'],
+      title: 'Botão "Tenho interesse" sem login',
+      body: 'Ao clicar, exibe mensagem "Faça login para registrar seu interesse." embaixo do botão e abre o modal de login.' },
+    { section: 'turmas', personas: ['logado', 'admin'],
       title: 'Botão de interesse / status da turma',
       body: 'O botão reflete o status da pessoa na turma: "♡ Tenho interesse" — estilo primário (dourado sólido com brilho) → "♡ Remover interesse" — estilo secundário (fundo escuro, borda neutra) → após turma finalizada pelo admin vira "✓ Inscrita" (desabilitado, ciano) → após check-in no evento vira "✓ Presente" (desabilitado, verde). Se a turma estiver finalizada e a pessoa não estiver inscrita, exibe "Inscrições encerradas" (muted). Registros em turmas-interesse/<turma>/<emailKey> com campo status (interessado/inscrito). Log em turmas-interesse-log.' },
-    { section: 'turmas', personas: ['logado', 'colaborador', 'admin'],
+    { section: 'turmas', personas: ['logado', 'admin'],
       title: 'Check-in no evento (QR Code)',
       body: 'Admin abre o check-in escolhendo um dia da turma (select com todos os dias — passado ou futuro) e clicando "Abrir check-in"; isso define diaAtivo em turmas-config. Participante escaneia o QR Code com a conta logada → página #checkin?turma=t1 → sistema valida (turma finalizada, check-in aberto, inscrita, não fez check-in naquele dia) → registra em turmas-checkin/<turma>/<data>/<emailKey> com source:"qr" → exibe "Presença confirmada com sucesso!". Se não estiver logada, redireciona para login e faz check-in automaticamente após autenticação.' },
-    { section: 'turmas', personas: ['visitante', 'logado'],
-      title: 'Agenda D1–D5 — bloqueada',
-      body: 'Visitante e Usuário logado veem os títulos dos dias mas não conseguem expandir o conteúdo.' },
-    { section: 'turmas', personas: ['colaborador', 'admin'],
-      title: 'Agenda D1–D5 — liberada',
-      body: 'Colaborador e Admin podem expandir e ver o conteúdo completo de cada dia.' },
+    { section: 'turmas', personas: ['visitante', 'logado', 'admin'],
+      title: 'Agenda D1–D5 — itens estáticos',
+      body: 'Os 5 dias da agenda são itens estáticos (classe .day--static) — nenhum perfil pode expandir. Mostram apenas os títulos dos dias, sem conteúdo interno. Não há chevron nem mecanismo de expansão.' },
 
     /* ── CONTEÚDOS ── */
     { section: 'conteudos', personas: ['visitante'],
       title: 'Acesso',
-      body: 'Visitante vê todas as 5 seções (Galáxia, Força, Arquétipos, Lado Sombrio, Trilogia) — somente leitura, sem XP.' },
-    { section: 'conteudos', personas: ['logado', 'colaborador', 'admin'],
-      title: 'XP por leitura',
-      body: '+5 XP por seção lida. A seção precisa ficar 60% visível na tela por 10 segundos consecutivos para o XP ser contabilizado.' },
-    { section: 'conteudos', personas: ['logado', 'colaborador', 'admin'],
+      body: 'Visitante vê todas as 7 seções numeradas (01 Mapa da Galáxia, 02 Os 4 Valores, 03 Os 12 Princípios, 04 A Força do Ágil, 05 Personagens, 06 Lado Sombrio, 07 A Trilogia) — somente leitura, sem pontos. Cada seção ocupa 100vh — uma por vez na tela.' },
+    { section: 'conteudos', personas: ['visitante', 'logado', 'admin'],
+      title: 'Navegação lateral por pontos',
+      body: 'Barra lateral com 7 pontos (01–07), setas para cima/baixo e tooltip com o nome da seção. Ao clicar em um ponto, a página rola suavemente até a seção correspondente. Funciona igual à navegação da página Início.' },
+    { section: 'conteudos', personas: ['logado', 'admin'],
+      title: 'Pontos por leitura',
+      body: '+5 pontos de experiência por seção lida. A seção precisa ficar 60% visível na tela por 10 segundos consecutivos para os pontos serem contabilizados.' },
+    { section: 'conteudos', personas: ['logado', 'admin'],
       title: 'Badge de leitura',
-      body: 'Ao ganhar o XP, a seção fica marcada com "✓ +5 XP". Em visitas futuras o badge já aparece marcado — não gera XP novamente.' },
-    { section: 'conteudos', personas: ['logado', 'colaborador', 'admin'],
-      title: 'Publicação do XP',
-      body: 'O XP de conteúdos só aparece no ranking ao revelar a patente final.' },
-    { section: 'conteudos', personas: ['visitante', 'logado', 'colaborador', 'admin'],
+      body: 'Ao ganhar os pontos, a seção fica marcada com "✓ +5 pts". Em visitas futuras o badge já aparece marcado — não gera pontos novamente.' },
+    { section: 'conteudos', personas: ['logado', 'admin'],
+      title: 'Publicação dos pontos',
+      body: 'Os pontos de conteúdos só aparecem no ranking ao revelar a patente final.' },
+    { section: 'conteudos', personas: ['visitante', 'logado', 'admin'],
       title: 'Links externos "Ler na íntegra"',
-      body: 'Nas seções dos 4 valores e dos 12 princípios, links abrem o Manifesto Ágil oficial (agilemanifesto.org) em nova aba. Não geram XP, visível para todos.' },
+      body: 'Nas seções dos 4 valores e dos 12 princípios, links abrem o Manifesto Ágil oficial (agilemanifesto.org) em nova aba. Não geram pontos, visível para todos.' },
 
     /* ── REPOSITÓRIO ── */
     { section: 'repositorio', personas: ['visitante'],
       title: 'Acesso',
-      body: 'Visitante vê todos os conteúdos (curados e de usuários) — somente leitura. Botão "Adicionar ao Holocron" → abre modal de cadastro.' },
-    { section: 'repositorio', personas: ['logado', 'colaborador', 'admin'],
+      body: 'Visitante vê todos os conteúdos (curados e de usuários) — somente leitura. "Adicionar conteúdo" sem login → exibe mensagem "Faça login para contribuir com o repositório" + abre modal de login.' },
+    { section: 'repositorio', personas: ['logado', 'admin'],
       title: 'Adicionar conteúdo',
       body: 'Pode adicionar quantos conteúdos quiser ao Holocron.' },
-    { section: 'repositorio', personas: ['logado', 'colaborador', 'admin'],
-      title: 'XP por contribuição',
-      body: '+10 XP por contribuição, máximo de 20 XP. Apenas as 2 primeiras contribuições feitas antes de revelar a patente contam para XP.' },
-    { section: 'repositorio', personas: ['logado', 'colaborador', 'admin'],
+    { section: 'repositorio', personas: ['logado', 'admin'],
+      title: 'Pontos por contribuição',
+      body: '+10 pontos de experiência por contribuição, máximo de 20 pontos. Apenas as 2 primeiras contribuições feitas antes de revelar a patente contam para pontos.' },
+    { section: 'repositorio', personas: ['logado', 'admin'],
       title: 'Contribuições após revelar patente',
-      body: 'Continuam aparecendo no Holocron para todos, mas não geram XP.' },
-    { section: 'repositorio', personas: ['logado', 'colaborador', 'admin'],
+      body: 'Continuam aparecendo no Holocron para todos, mas não geram pontos.' },
+    { section: 'repositorio', personas: ['logado', 'admin'],
       title: 'Remover conteúdo próprio',
       body: 'O autor pode remover seus próprios conteúdos enviados. Não pode remover conteúdos curados.' },
     { section: 'repositorio', personas: ['admin'],
       title: 'Moderação (Admin)',
       body: 'Pode remover qualquer conteúdo enviado por usuários. Pode ocultar ou restaurar conteúdos curados.' },
-    { section: 'repositorio', personas: ['visitante', 'logado', 'colaborador', 'admin'],
+    { section: 'repositorio', personas: ['visitante', 'logado', 'admin'],
       title: 'Identificação dos conteúdos',
       body: 'Curados: marcados com badge "curado", sem autor. Enviados por usuários: exibem nome do autor e data de envio.' },
-    { section: 'repositorio', personas: ['visitante', 'logado', 'colaborador', 'admin'],
+    { section: 'repositorio', personas: ['visitante', 'logado', 'admin'],
+      title: 'Descrição dos cards — ver mais / ver menos',
+      body: 'Todos os cards exibem a descrição colapsada em 2 linhas por padrão (line-clamp CSS). O botão "ver mais" aparece somente quando o texto realmente transborda 2 linhas (detectado via scrollHeight > clientHeight após render). Clicar em "ver mais" expande o texto completo; "ver menos" recolhe para 2 linhas.' },
+    { section: 'repositorio', personas: ['visitante', 'logado', 'admin'],
       title: 'Filtrar por tipo',
-      body: 'Chips "Todos / Vídeos / Documentos / Ferramentas / Livros" filtram a lista exibida. Não afeta XP nem precisa de login.' },
+      body: 'Chips "Todos / Vídeos / Documentos / Ferramentas / Livros" filtram a lista exibida. Não afeta pontos nem precisa de login.' },
 
     { section: 'repositorio', personas: ['visitante'],
       title: 'Formulário "Adicionar Conteúdo" — acesso',
       body: 'Visitante: ao clicar em "+ Adicionar Conteúdo", abre modal de cadastro. Após cadastrar, o formulário abre automaticamente.' },
-    { section: 'repositorio', personas: ['logado', 'colaborador', 'admin'],
+    { section: 'repositorio', personas: ['logado', 'admin'],
       title: 'Formulário "Adicionar Conteúdo" — campos',
       body: 'Campos: Título (obrigatório) · Tipo (Vídeo, Documento, Ferramenta, Livro) · Link/URL (obrigatório) · Descrição (opcional). Título e URL são obrigatórios — sem eles o formulário não envia.' },
-    { section: 'repositorio', personas: ['logado', 'colaborador', 'admin'],
+    { section: 'repositorio', personas: ['logado', 'admin'],
       title: 'Formulário "Adicionar Conteúdo" — URL',
       body: 'Se a URL não começar com http:// ou https://, o sistema adiciona "https://" automaticamente.' },
-    { section: 'repositorio', personas: ['logado', 'colaborador', 'admin'],
+    { section: 'repositorio', personas: ['logado', 'admin'],
       title: 'Formulário "Adicionar Conteúdo" — conteúdo duplicado',
       body: 'Antes de salvar, o sistema verifica se a URL já existe no Holocron. Se já foi adicionada, exibe "Este conteúdo já foi adicionado ao Holocron." e bloqueia o envio.' },
-    { section: 'repositorio', personas: ['logado', 'colaborador', 'admin'],
+    { section: 'repositorio', personas: ['logado', 'admin'],
       title: 'Formulário "Adicionar Conteúdo" — cancelar',
       body: 'Botão "Cancelar" fecha o formulário e limpa todos os campos.' },
 
-    /* ── Treinamento Jedi ── */
+    /* ── Treinamento Jedi (v3 — apenas quiz) ── */
     { section: 'quiz', personas: ['visitante'],
-      title: 'Acesso negado',
-      body: 'Visitante não acessa o Treinamento Jedi. Ao tentar entrar, é redirecionado para o modal de cadastro.' },
-    { section: 'quiz', personas: ['logado', 'colaborador', 'admin'],
+      title: 'Welcome screen (visitante)',
+      body: 'Visitante vê uma tela de boas-vindas com título "Bem-vindo ao Treinamento Jedi" e um stepper visual com 4 passos: "Faça login → Responda o quiz → Ganhe experiência → Desbloqueie sua patente". Botão "Quero jogar" abre modal de login. O quiz fica oculto para visitantes.' },
+    { section: 'quiz', personas: ['logado', 'admin'],
       title: 'Acesso completo',
-      body: 'Acesso a autodiagnóstico, missões, Kyber Game, painel de patente e revelar patente.' },
-    { section: 'quiz', personas: ['logado', 'colaborador', 'admin'],
-      title: 'Autodiagnóstico',
-      body: 'Pode fazer uma vez apenas — não pode refazer. 6 dimensões, 4 níveis (Já ouvi falar → Sei o que é → Domino → Ensino). XP ponderado pelo nível escolhido: tudo "Já ouvi falar" = ~4 XP; tudo "Ensino" = 15 XP; combinações mistas ficam proporcionais. A granularidade é intencionalmente baixa (níveis vizinhos podem dar o mesmo XP após arredondamento): o autodiagnóstico é auto-avaliação, não prova — não deve ter peso alto no total. A baixa granularidade também desencoraja marcar tudo no nível máximo só para ganhar XP, já que a diferença real é pequena. O que importa é a tendência geral dos níveis escolhidos. Única exceção para refazer: admin resetar o progresso.' },
-    { section: 'quiz', personas: ['logado', 'colaborador', 'admin'],
-      title: 'Missões',
-      body: 'Cada missão pode ser feita uma vez — não pode refazer. 6 missões × 3 perguntas × 4 XP por acerto. XP máximo total: 35 XP. Quando concluída, aparece "🔒 Missão concluída — não pode ser refeita. (X XP ganhos)" abaixo do header. Quando todas as 6 estão concluídas, aparece "Missões de Campo completas · +X XP" abaixo da lista (igual ao "Autodiagnóstico completo · +X XP de base"). Única exceção: se o admin resetar o progresso, a pessoa pode refazer.' },
-    { section: 'quiz', personas: ['logado', 'colaborador', 'admin'],
-      title: 'Kyber Game',
-      body: 'Pode jogar uma vez apenas — não pode refazer. 25 desafios com timer de 30s cada. XP máximo: 50 XP. Pontuação por questão: acerto = até 1000 pts × (tempo_restante/30) + bônus de velocidade = até 500 pts × (tempo_restante/30). Máximo por questão: 1500 pts. Quanto mais rápido responder certo, mais pontos — resposta errada ou tempo esgotado = 0 pts. Única exceção para refazer: admin resetar o progresso.' },
-    { section: 'quiz', personas: ['logado', 'colaborador', 'admin'],
-      title: 'Kyber Game — tela de conclusão',
-      body: 'Mostra a pontuação do minigame e o XP ganho ("+X XP Kyber") e um botão "Revelar minha Patente Final" que leva à seção de revelar. Não mostra o ranque calculado (Youngling, Padawan, etc.) — a patente depende de 5 componentes e exibir um valor parcial aqui seria estado transitório confuso. Como o XP Kyber é calculado: Math.min(50, Math.round(pontuação / 20000 × 50)). Exemplo: 5734 pts → Math.round(5734/20000×50) = Math.round(14,3) = 14 XP. Pontuação máxima teórica que garante 50 XP: 20000 pts ou mais.' },
-    { section: 'quiz', personas: ['logado', 'colaborador', 'admin'],
+      body: 'Acesso ao quiz (autodiagnóstico), painel de patente e revelar patente. A welcome screen é ocultada para usuários logados. Não há Missões nem Kyber Game na v3.' },
+    { section: 'quiz', personas: ['logado', 'admin'],
+      title: 'Quiz (autodiagnóstico)',
+      body: 'Pode fazer uma vez apenas — não pode refazer. Cada resposta contribui diretamente com XP; a soma de todas as respostas vai de 0 a 60 pontos. Após concluir, as opções ficam desabilitadas e aparece a mensagem de conclusão com os pontos ganhos. Única exceção para refazer: admin resetar o progresso.' },
+    { section: 'quiz', personas: ['logado', 'admin'],
       title: 'Painel de patente',
-      body: 'Visível em tempo real no Treinamento Jedi. Enquanto faltar etapa: "⚠ Patente provisória — faltam: X". Após revelar: mostra a patente definitiva.' },
-    { section: 'quiz', personas: ['logado', 'colaborador', 'admin'],
-      title: 'Revelar patente — pré-requisitos',
-      body: 'Exige completar as 3 etapas: autodiagnóstico + todas as missões + Kyber Game, em qualquer ordem. Nenhum XP aparece no ranking antes de publicar (revelar não publica — são 2 ações separadas).' },
-    { section: 'quiz', personas: ['logado', 'colaborador', 'admin'],
-      title: 'Revelar patente — mensagens de pendência',
-      body: 'Enquanto bloqueado, o hint mostra ✓/✗ por etapa e o texto de pendência: 1 etapa faltando → "Falta completar: <etapa>."; 2 ou 3 etapas faltando → "Faltam: <etapa1>, <etapa2> e <etapa3>." (lista com vírgulas e "e" antes do último item).' },
-    { section: 'quiz', personas: ['logado', 'colaborador', 'admin'],
-      title: 'Revelar patente — status em tempo real',
-      body: 'O botão REVELAR exibe ✓/✗ para cada uma das 3 etapas. O status é atualizado automaticamente após o login (o carregamento do progresso do Firebase é assíncrono — o botão aguarda o evento fa-auth-change para refletir o estado real). Além disso, ao concluir o autodiagnóstico, uma missão ou o Kyber Game na mesma sessão, o evento fa-progress-change é disparado (dentro de faSyncProgress) e o botão atualiza na hora, sem precisar recarregar a página.' },
-    { section: 'quiz', personas: ['logado', 'colaborador', 'admin'],
+      body: 'Visível em tempo real no Treinamento Jedi. Enquanto o quiz não estiver concluído: exibe patente provisória. Após revelar: mostra a patente definitiva. 4 patentes possíveis (Youngling → Padawan → Cavaleiro Jedi → Mestre Jedi) com base no XP total.' },
+    { section: 'quiz', personas: ['logado', 'admin'],
+      title: 'Revelar patente — pré-requisito',
+      body: 'Exige completar o quiz. Nenhuma pontuação aparece no ranking antes de publicar (revelar não publica — são 2 ações separadas).' },
+    { section: 'quiz', personas: ['logado', 'admin'],
+      title: 'Revelar patente — bloqueado enquanto quiz pendente',
+      body: 'Enquanto bloqueado, o hint mostra ✗ quiz pendente. Ao concluir o quiz, o evento fa-progress-change atualiza o botão em tempo real, sem precisar recarregar a página.' },
+    { section: 'quiz', personas: ['logado', 'admin'],
       title: 'Revelar patente — o que acontece',
-      body: 'Ao clicar em "Revelar minha Patente Final" (com as 3 etapas concluídas), abre um pop-up com: "Parabéns! Você completou o Treinamento Jedi.", a ilustração e o nome do rank alcançado, o XP total, e um checkbox "Quero publicar meu resultado no ranking" (marcado por default) com ícone (i) de aviso ("Seu nome, área e pontuação ficarão visíveis no ranking para todos. Esta ação não pode ser desfeita."). Botão "Continuar" executa: grava fa-patente-revealed=1 (faSyncProgress) e, se checkbox marcado, grava fa-patente-publicada=1 e publica no ranking (faSyncPlayer). O resultado é definitivo e não pode ser alterado.' },
-    { section: 'quiz', personas: ['logado', 'colaborador', 'admin'],
+      body: 'Ao clicar em "Revelar minha Patente Final" (com o quiz concluído), abre um pop-up com: "Parabéns! Você completou o Treinamento Jedi.", a ilustração e o nome do rank alcançado, a pontuação total, e um checkbox "Quero publicar meu resultado no ranking" (marcado por default) com ícone (i) de aviso ("Seu nome, área e pontuação ficarão visíveis no ranking para todos. Esta ação não pode ser desfeita."). Botão "Continuar" executa: grava fa-patente-revealed=1 (faSyncProgress) e, se checkbox marcado, grava fa-patente-publicada=1 e publica no ranking (faSyncPlayer). O resultado é definitivo e não pode ser alterado.' },
+    { section: 'quiz', personas: ['logado', 'admin'],
       title: 'Publicar no ranking — comportamento do checkbox',
       body: 'O checkbox "Quero publicar meu resultado no ranking" vem marcado por default no pop-up de revelar. Se o usuário clicar "Continuar" sem desmarcar, o resultado é publicado automaticamente. Se desmarcar antes de clicar "Continuar", o resultado permanece privado (visível só para ele). Não tem como "despublicar" depois de publicado.' },
     { section: 'quiz', personas: ['admin'],
       title: 'Reset de progresso (Admin)',
-      body: 'Admin pode resetar o progresso de qualquer colaborador. Apaga: autodiagnóstico, missões, Kyber, patente, XP. Remove do ranking. Ação irreversível. Após o reset, a pessoa pode refazer as 3 etapas (autodiagnóstico, missões e Kyber Game) e revelar a patente novamente — essa é a única forma de refazer.' },
+      body: 'Admin pode resetar o progresso de qualquer cadastrado. Apaga: quiz, patente, pontos. Remove do ranking. Ação irreversível. Após o reset, a pessoa pode refazer o quiz e revelar a patente novamente — essa é a única forma de refazer.' },
 
     /* ── RANKING ── */
-    { section: 'ranking', personas: ['visitante', 'logado', 'colaborador', 'admin'],
+    { section: 'ranking', personas: ['visitante', 'logado', 'admin'],
       title: 'Acesso',
       body: 'Ranking visível para todos, inclusive visitantes. Sem restrição de acesso.' },
-    { section: 'ranking', personas: ['visitante', 'logado', 'colaborador', 'admin'],
+    { section: 'ranking', personas: ['visitante', 'logado', 'admin'],
       title: 'Quem aparece no ranking',
-      body: 'Só aparece quem revelou a patente final. Ordenado por XP total (máx 100 XP), do maior para o menor.' },
-    { section: 'ranking', personas: ['visitante', 'logado', 'colaborador', 'admin'],
+      body: 'Só aparece quem revelou a patente final. Ordenado por pontuação total (máx 100 pts), do maior para o menor.' },
+    { section: 'ranking', personas: ['visitante', 'logado', 'admin'],
       title: 'Dados exibidos',
-      body: 'Cada linha mostra: posição · imagem do personagem da patente (SVG miniatura) · nome · área · XP total.' },
-    { section: 'ranking', personas: ['logado', 'colaborador', 'admin'],
+      body: 'Cada linha mostra: posição · imagem do personagem da patente (SVG miniatura) · nome · área · pontuação total.' },
+    { section: 'ranking', personas: ['logado', 'admin'],
       title: 'Destaque da própria linha',
       body: 'O usuário logado vê sua própria linha destacada visualmente.' },
-    { section: 'ranking', personas: ['visitante', 'logado', 'colaborador', 'admin'],
+    { section: 'ranking', personas: ['visitante', 'logado', 'admin'],
       title: 'Patente no ranking',
-      body: 'A patente de cada colaborador é exibida ao lado do nome para todos — incluindo visitantes. Não é informação restrita.' },
-    { section: 'ranking', personas: ['visitante', 'logado', 'colaborador', 'admin'],
+      body: 'A patente de cada usuário é exibida ao lado do nome para todos — incluindo visitantes. Não é informação restrita.' },
+    { section: 'ranking', personas: ['visitante', 'logado', 'admin'],
       title: 'Atualização em tempo real',
       body: 'O ranking atualiza automaticamente via Firebase — sem precisar recarregar a página.' },
 
+    /* ── AJUDA ── */
+    { section: 'ajuda', personas: ['visitante', 'logado', 'admin'],
+      title: 'Acesso',
+      body: 'Página Ajuda visível para todos, inclusive visitantes. Sem restrição de acesso. No menu o link aparece como "Ajuda" (era "FAQ").' },
+    { section: 'ajuda', personas: ['visitante', 'logado', 'admin'],
+      title: 'Acordeão de perguntas',
+      body: 'A página tem 10 perguntas frequentes exibidas em acordeão com elemento HTML nativo <details>/<summary>. Clicar no título expande/recolhe a resposta — sem JavaScript. Cada pergunta pode ser aberta independentemente das demais. Eyebrow: "Central de Ajuda"; título: "Como podemos ajudar?".' },
+    { section: 'ajuda', personas: ['visitante', 'logado', 'admin'],
+      title: 'Pergunta sobre XP — âncora e abertura automática',
+      body: 'A pergunta sobre XP tem id="faq-xp". Ao clicar em "Saiba mais →" na seção de Início (hint abaixo dos pilares), o router navega para a página Ajuda e abre automaticamente esse <details>, rolando até ele.' },
+
     /* ── ADMIN ── */
-    { section: 'admin', personas: ['visitante', 'logado', 'colaborador'],
+    { section: 'admin', personas: ['visitante', 'logado'],
       title: 'Acesso negado',
-      body: 'Visitante, Usuário logado e Colaborador não veem o link "Admin" no menu. Se acessarem a URL diretamente, veem mensagem de acesso restrito e botão para voltar ao início.' },
+      body: 'Visitante e Usuário logado não veem o link "Admin" no menu. Se acessarem a URL diretamente, veem mensagem de acesso restrito e botão para voltar ao início.' },
     { section: 'admin', personas: ['admin'],
       title: 'Navegação por abas — desktop e mobile',
-      body: '8 abas no painel: Turmas, Repositório, Colaboradores, Cadastrados, Administradores, Manual, Mapa e Testes. No desktop ficam em linha única. No mobile quebram em 2 linhas com fonte reduzida para todas ficarem visíveis sem scroll horizontal.' },
+      body: '7 abas no painel: Turmas, Repositório, Cadastrados, Administradores, Manual, Mapa e Testes. No desktop ficam em linha única. No mobile podem quebrar em 2 linhas com fonte reduzida para todas ficarem visíveis sem scroll horizontal.' },
     { section: 'admin', personas: ['admin'],
       title: 'Aba: Turmas — visão geral',
       body: 'Cards por turma com badge ABERTA/FINALIZADA, contagem de inscritos/interessados e badge pulsante "CHECK-IN ABERTO · DD/MM" quando o check-in do dia está ativo. Botões globais "↓ Estado atual" e "↓ Histórico" exportam CSV (encoding Windows-1252 — acentos e travessão corretos no Excel pt-BR). Cada card tem botões de ação e tabela de participantes.' },
@@ -301,23 +306,14 @@
       title: 'Aba: Repositório — conteúdos de usuários',
       body: 'Botão "Deletar" → remove permanentemente do Holocron.' },
     { section: 'admin', personas: ['admin'],
-      title: 'Aba: Colaboradores — listar',
-      body: 'Lista todos os colaboradores com nome, e-mail e data de adição. Controla apenas o papel/acesso de colaborador — não tem botões de resetar progresso ou redefinir senha (isso está na aba Cadastrados).' },
-    { section: 'admin', personas: ['admin'],
-      title: 'Aba: Colaboradores — remover',
-      body: 'Remove o colaborador. Perde acesso à agenda expandida e funcionalidades de colaborador. Não afeta o cadastro da pessoa nem seu progresso no jogo.' },
-    { section: 'admin', personas: ['admin'],
-      title: 'Aba: Colaboradores — adicionar',
-      body: 'Formulário exige nome completo e e-mail @previ.com.br.' },
-    { section: 'admin', personas: ['admin'],
       title: 'Aba: Cadastrados — listar',
-      body: 'Lista TODAS as pessoas que já se cadastraram (fa-users), não só colaboradores — qualquer "logado" tem progresso possível. Mostra nome, e-mail, área, data de cadastro e XP (coluna XP). O XP aparece para qualquer pessoa que tenha feito alguma atividade (autodiagnóstico, missões, Kyber, conteúdo ou repositório) — independente de ter revelado patente ou publicado no ranking. Publicado no ranking aparece em amarelo-ouro; tem XP mas não publicou aparece em ciano; sem nenhum XP exibe "—". Fonte: players/<emailKey>.totalXP (publicados) ou calculado de fa-progress/<emailKey> (não publicados).' },
+      body: 'Lista TODAS as pessoas que já se cadastraram (fa-users), disponível para todos — qualquer "logado" tem progresso possível. Mostra nome, e-mail, área, data de cadastro e XP (coluna XP). O XP aparece para qualquer pessoa que tenha feito alguma atividade (autodiagnóstico, missões, Kyber, conteúdo ou repositório) — independente de ter revelado patente ou publicado no ranking. Publicado no ranking aparece em amarelo-ouro; tem XP mas não publicou aparece em ciano; sem nenhum XP exibe "—". Fonte: players/<emailKey>.totalXP (publicados) ou calculado de fa-progress/<emailKey> (não publicados).' },
     { section: 'admin', personas: ['admin'],
       title: 'Aba: Cadastrados — resetar progresso',
-      body: 'Disponível para qualquer pessoa cadastrada, não só colaboradores. Apaga fa-progress/<emailKey>, remove do ranking (players — busca por email, pois a chave de players é name__turma, não emailKey) e escreve fa-reset-signal/<emailKey> = {at: serverTimestamp}. Ação irreversível — pede confirmação antes de executar. Após o reset: (1) a tabela admin recarrega e XP exibe "—"; (2) se a pessoa estiver logada, o listener contínuo em fa-reset-signal/<emailKey> detecta a mudança, limpa o localStorage e recarrega a página automaticamente — todos os jogos (autodiagnóstico, missões, Kyber, revelar patente) ficam disponíveis para refazer sem nenhuma ação da pessoa. Detalhe técnico: faLoadProgress usa .once() para carregar o progresso ao logar e mantém listener contínuo somente no nó fa-reset-signal (separado de fa-progress, para evitar conflito com faSyncProgress).' },
+      body: 'Disponível para qualquer pessoa cadastrada, disponível para todos. Apaga fa-progress/<emailKey>, remove do ranking (players — busca por email, pois a chave de players é name__turma, não emailKey) e escreve fa-reset-signal/<emailKey> = {at: serverTimestamp}. Ação irreversível — pede confirmação antes de executar. Após o reset: (1) a tabela admin recarrega e XP exibe "—"; (2) se a pessoa estiver logada, o listener contínuo em fa-reset-signal/<emailKey> detecta a mudança, limpa o localStorage e recarrega a página automaticamente — todos os jogos (autodiagnóstico, missões, Kyber, revelar patente) ficam disponíveis para refazer sem nenhuma ação da pessoa. Detalhe técnico: faLoadProgress usa .once() para carregar o progresso ao logar e mantém listener contínuo somente no nó fa-reset-signal (separado de fa-progress, para evitar conflito com faSyncProgress).' },
     { section: 'admin', personas: ['admin'],
       title: 'Aba: Cadastrados — redefinir senha',
-      body: 'Disponível para qualquer pessoa cadastrada, não só colaboradores. Dispara o e-mail de redefinição de senha do Firebase.' },
+      body: 'Disponível para qualquer pessoa cadastrada, disponível para todos. Dispara o e-mail de redefinição de senha do Firebase.' },
     { section: 'admin', personas: ['admin'],
       title: 'Aba: Administradores — super-admins fixos',
       body: 'tatianefdirene@previ.com.br e danielfrazao@previ.com.br são super-admins fixos — não removíveis via painel.' },
@@ -329,7 +325,10 @@
       body: 'Checklist de regras de comportamento do sistema, organizado por seção e por persona. Documentação viva — deve ser atualizada junto de qualquer mudança de comportamento.' },
     { section: 'admin', personas: ['admin'],
       title: 'Aba: Mapa',
-      body: 'Mostra a hierarquia de personas (Visitante → Logado → Colaborador → Admin) e o mapa de todas as páginas do site com suas features e o nível mínimo de acesso de cada uma.' },
+      body: 'Mostra quatro seções: (1) Hierarquia de Personas — níveis de acesso cumulativos; (2) Mapa do Site — páginas e features com nível mínimo por persona; (3) Arquitetura Técnica e Regras Operacionais — acordeão com tecnologias, módulos, padrões de código, padrões de UX, deploy e regras de governança; (4) Diagrama da Arquitetura — visão visual gerada automaticamente a partir dos dados da Arquitetura Técnica.' },
+    { section: 'admin', personas: ['admin'],
+      title: 'Aba: Mapa — estrutura dos dados em mapa.js',
+      body: 'Os dados da aba Mapa estão em dois arrays separados em forca-agil/mapa.js. ARCH contém o que o sistema é: Linguagens, Tecnologias & Serviços, Estrutura de Arquivos, Padrões de Código, Padrões de UX e Deploy — renderizado como "Arquitetura Técnica" e usado pelo Diagrama. REGRAS contém como o sistema deve ser mantido: Deploy (processo), Cache e Autonomia — renderizado como "Regras Operacionais". Para adicionar ou editar uma seção técnica, mexa em ARCH. Para adicionar ou editar uma regra de processo ou restrição, mexa em REGRAS.' },
     { section: 'admin', personas: ['admin'],
       title: 'Aba: Testes',
       body: 'Roda os testes automatizados (técnicos e de comportamento) e exibe o checklist de regras que exigem validação manual.' },
@@ -368,27 +367,50 @@
     let html = '<div class="manual-wrap">';
     html += '<h3 class="manual-title">Manual da Força Ágil</h3>';
 
-    /* Section chips */
-    html += '<div class="manual-filter-row"><span class="manual-filter-label">Seção</span><div class="manual-chips">';
+    /* Single toolbar line: dropdowns left | count + actions right */
+    html += '<div class="manual-toolbar">';
+
+    html += '<div class="manual-toolbar-left">';
+    html += '<div class="manual-select-wrap">';
+    html += '<label class="manual-select-label">Seção</label>';
+    html += '<select class="manual-select" id="manualSecSelect">';
     SECTIONS.forEach(function (s) {
-      const active = activeSection === s.key;
-      html += '<button class="manual-chip' + (active ? ' active' : '') + '" data-type="section" data-key="' + s.key + '" style="--chip-col:' + s.color + '">' + s.label + '</button>';
+      html += '<option value="' + s.key + '"' + (activeSection === s.key ? ' selected' : '') + '>' + s.label + '</option>';
     });
-    html += '</div></div>';
+    html += '</select></div>';
 
-    /* Persona chips */
-    html += '<div class="manual-filter-row"><span class="manual-filter-label">Persona</span><div class="manual-chips">';
+    html += '<div class="manual-select-wrap">';
+    html += '<label class="manual-select-label">Persona</label>';
+    html += '<select class="manual-select" id="manualPerSelect">';
     PERSONAS.forEach(function (p) {
-      const active = activePersona === p.key;
-      html += '<button class="manual-chip' + (active ? ' active' : '') + '" data-type="persona" data-key="' + p.key + '" style="--chip-col:' + p.color + '">' + p.label + '</button>';
+      html += '<option value="' + p.key + '"' + (activePersona === p.key ? ' selected' : '') + '>' + p.label + '</option>';
     });
-    html += '</div></div>';
-
-    /* Count + export button */
-    html += '<div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin-bottom:4px">';
-    html += '<p class="manual-count" style="margin:0">' + filtered.length + ' regra' + (filtered.length !== 1 ? 's' : '') + ' encontrada' + (filtered.length !== 1 ? 's' : '') + '</p>';
-    html += '<button class="btn btn--sm" id="manualExportBtn">⬇ Exportar Excel (todas as regras)</button>';
+    html += '</select></div>';
     html += '</div>';
+
+    html += '<div class="manual-toolbar-right">';
+    html += '<span class="manual-count">' + filtered.length + ' regra' + (filtered.length !== 1 ? 's' : '') + ' encontrada' + (filtered.length !== 1 ? 's' : '') + '</span>';
+    html += '<button class="btn btn--sm" id="manualExportBtn">⬇ Exportar Regras</button>';
+    html += '<button class="btn btn--sm btn--ghost" id="manualExpandAll">Expandir tudo</button>';
+    html += '<button class="btn btn--sm btn--ghost" id="manualCollapseAll">Recolher tudo</button>';
+    html += '</div>';
+
+    html += '</div>';
+
+    /* Active filter chips */
+    var hasActiveChips = activeSection !== 'all' || activePersona !== 'all';
+    if (hasActiveChips) {
+      html += '<div class="manual-active-chips">';
+      if (activeSection !== 'all') {
+        const s = SECTIONS.find(function (x) { return x.key === activeSection; });
+        html += '<span class="manual-active-chip" style="--chip-col:' + s.color + '" data-clear="section">' + s.label + ' <span class="manual-chip-x">×</span></span>';
+      }
+      if (activePersona !== 'all') {
+        const p = PERSONAS.find(function (x) { return x.key === activePersona; });
+        html += '<span class="manual-active-chip" style="--chip-col:' + p.color + '" data-clear="persona">' + p.label + ' <span class="manual-chip-x">×</span></span>';
+      }
+      html += '</div>';
+    }
 
     /* Rules */
     html += '<div class="manual-rules">';
@@ -428,14 +450,34 @@
 
     container.innerHTML = html;
 
-    /* Wire filter chips */
-    container.querySelectorAll('.manual-chip').forEach(function (btn) {
-      btn.addEventListener('click', function () {
-        if (btn.dataset.type === 'section') activeSection = btn.dataset.key;
-        else activePersona = btn.dataset.key;
+    /* Wire dropdowns */
+    var secSel = document.getElementById('manualSecSelect');
+    if (secSel) secSel.addEventListener('change', function () { activeSection = this.value; render(); });
+    var perSel = document.getElementById('manualPerSelect');
+    if (perSel) perSel.addEventListener('change', function () { activePersona = this.value; render(); });
+
+    /* Wire active chip × buttons */
+    container.querySelectorAll('.manual-active-chip').forEach(function (chip) {
+      chip.addEventListener('click', function () {
+        if (chip.dataset.clear === 'section') activeSection = 'all';
+        else activePersona = 'all';
         render();
       });
     });
+
+    /* Expandir / Recolher all details in manual */
+    var expandAllBtn = document.getElementById('manualExpandAll');
+    if (expandAllBtn) {
+      expandAllBtn.addEventListener('click', function () {
+        container.querySelectorAll('details').forEach(function (d) { d.open = true; });
+      });
+    }
+    var collapseAllBtn = document.getElementById('manualCollapseAll');
+    if (collapseAllBtn) {
+      collapseAllBtn.addEventListener('click', function () {
+        container.querySelectorAll('details').forEach(function (d) { d.open = false; });
+      });
+    }
 
     /* Export all rules to Excel */
     const exportBtn = document.getElementById('manualExportBtn');
