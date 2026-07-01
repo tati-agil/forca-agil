@@ -4,7 +4,7 @@
     ".write": false,
 
     "fa-users": {
-      ".read": "auth != null && root.child('fa-admins').child(auth.uid).exists()",
+      ".read": "auth != null && (auth.token.email === 'tatianefdirene@previ.com.br' || auth.token.email === 'danielfrazao@previ.com.br')",
       "$userKey": {
         ".read": "auth != null",
         ".write": "auth != null"
@@ -19,7 +19,7 @@
     },
 
     "fa-progress": {
-      ".read": "auth != null && root.child('fa-admins').child(auth.uid).exists()",
+      ".read": "auth != null && (auth.token.email === 'tatianefdirene@previ.com.br' || auth.token.email === 'danielfrazao@previ.com.br')",
       "$userKey": {
         ".read": "auth != null",
         ".write": "auth != null"
@@ -43,7 +43,7 @@
     },
 
     "turmas-interesse-log": {
-      ".read": "auth != null && root.child('fa-admins').child(auth.uid).exists()",
+      ".read": "auth != null && (auth.token.email === 'tatianefdirene@previ.com.br' || auth.token.email === 'danielfrazao@previ.com.br')",
       "$turmaKey": {
         "$userKey": {
           ".write": "auth != null"
@@ -54,7 +54,7 @@
     "turmas-config": {
       ".read": "auth != null",
       "$turmaKey": {
-        ".write": "auth != null && root.child('fa-admins').child(auth.uid).exists()"
+        ".write": "auth != null && (auth.token.email === 'tatianefdirene@previ.com.br' || auth.token.email === 'danielfrazao@previ.com.br')"
       }
     },
 
@@ -72,28 +72,28 @@
     "fa-seeds-hidden": {
       ".read": "auth != null",
       "$key": {
-        ".write": "auth != null && root.child('fa-admins').child(auth.uid).exists()"
+        ".write": "auth != null && (auth.token.email === 'tatianefdirene@previ.com.br' || auth.token.email === 'danielfrazao@previ.com.br')"
       }
     },
 
     "fa-seeds-deleted": {
-      ".read": "auth != null && root.child('fa-admins').child(auth.uid).exists()",
+      ".read": "auth != null && (auth.token.email === 'tatianefdirene@previ.com.br' || auth.token.email === 'danielfrazao@previ.com.br')",
       "$key": {
-        ".write": "auth != null && root.child('fa-admins').child(auth.uid).exists()"
+        ".write": "auth != null && (auth.token.email === 'tatianefdirene@previ.com.br' || auth.token.email === 'danielfrazao@previ.com.br')"
       }
     },
 
     "fa-holocron-hidden": {
       ".read": "auth != null",
       "$key": {
-        ".write": "auth != null && root.child('fa-admins').child(auth.uid).exists()"
+        ".write": "auth != null && (auth.token.email === 'tatianefdirene@previ.com.br' || auth.token.email === 'danielfrazao@previ.com.br')"
       }
     },
 
     "fa-reset-signal": {
       "$userKey": {
         ".read": "auth != null",
-        ".write": "auth != null && root.child('fa-admins').child(auth.uid).exists()"
+        ".write": "auth != null && (auth.token.email === 'tatianefdirene@previ.com.br' || auth.token.email === 'danielfrazao@previ.com.br')"
       }
     },
 
