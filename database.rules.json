@@ -6,39 +6,39 @@
     "fa-users": {
       ".read": "auth != null && (auth.token.email === 'tatianefdirene@previ.com.br' || auth.token.email === 'danielfrazao@previ.com.br')",
       "$userKey": {
-        ".read": "auth != null",
-        ".write": "auth != null"
+        ".read": "auth != null && auth.token.email.matches(/.*@previ\\.com\\.br/)",
+        ".write": "auth != null && auth.token.email.matches(/.*@previ\\.com\\.br/)"
       }
     },
 
     "fa-ranking": {
       ".read": true,
       "$userKey": {
-        ".write": "auth != null"
+        ".write": "auth != null && auth.token.email.matches(/.*@previ\\.com\\.br/)"
       }
     },
 
     "fa-progress": {
       ".read": "auth != null && (auth.token.email === 'tatianefdirene@previ.com.br' || auth.token.email === 'danielfrazao@previ.com.br')",
       "$userKey": {
-        ".read": "auth != null",
-        ".write": "auth != null"
+        ".read": "auth != null && auth.token.email.matches(/.*@previ\\.com\\.br/)",
+        ".write": "auth != null && auth.token.email.matches(/.*@previ\\.com\\.br/)"
       }
     },
 
     "fa-admins": {
       ".read": "auth != null && (auth.token.email === 'tatianefdirene@previ.com.br' || auth.token.email === 'danielfrazao@previ.com.br')",
       "$userKey": {
-        ".read": "auth != null",
+        ".read": "auth != null && auth.token.email.matches(/.*@previ\\.com\\.br/)",
         ".write": "auth.token.email === 'tatianefdirene@previ.com.br' || auth.token.email === 'danielfrazao@previ.com.br'"
       }
     },
 
     "turmas-interesse": {
-      ".read": "auth != null",
+      ".read": "auth != null && auth.token.email.matches(/.*@previ\\.com\\.br/)",
       "$turmaKey": {
         "$userKey": {
-          ".write": "auth != null"
+          ".write": "auth != null && auth.token.email.matches(/.*@previ\\.com\\.br/)"
         }
       }
     },
@@ -47,31 +47,31 @@
       ".read": "auth != null && (auth.token.email === 'tatianefdirene@previ.com.br' || auth.token.email === 'danielfrazao@previ.com.br')",
       "$turmaKey": {
         "$userKey": {
-          ".write": "auth != null"
+          ".write": "auth != null && auth.token.email.matches(/.*@previ\\.com\\.br/)"
         }
       }
     },
 
     "turmas-config": {
-      ".read": "auth != null",
+      ".read": "auth != null && auth.token.email.matches(/.*@previ\\.com\\.br/)",
       "$turmaKey": {
         ".write": "auth != null && (auth.token.email === 'tatianefdirene@previ.com.br' || auth.token.email === 'danielfrazao@previ.com.br')"
       }
     },
 
     "turmas-checkin": {
-      ".read": "auth != null",
+      ".read": "auth != null && auth.token.email.matches(/.*@previ\\.com\\.br/)",
       "$turmaKey": {
         "$data": {
           "$userKey": {
-            ".write": "auth != null"
+            ".write": "auth != null && auth.token.email.matches(/.*@previ\\.com\\.br/)"
           }
         }
       }
     },
 
     "fa-seeds-hidden": {
-      ".read": "auth != null",
+      ".read": "auth != null && auth.token.email.matches(/.*@previ\\.com\\.br/)",
       "$key": {
         ".write": "auth != null && (auth.token.email === 'tatianefdirene@previ.com.br' || auth.token.email === 'danielfrazao@previ.com.br')"
       }
@@ -85,7 +85,7 @@
     },
 
     "fa-holocron-hidden": {
-      ".read": "auth != null",
+      ".read": "auth != null && auth.token.email.matches(/.*@previ\\.com\\.br/)",
       "$key": {
         ".write": "auth != null && (auth.token.email === 'tatianefdirene@previ.com.br' || auth.token.email === 'danielfrazao@previ.com.br')"
       }
@@ -93,7 +93,7 @@
 
     "fa-reset-signal": {
       "$userKey": {
-        ".read": "auth != null",
+        ".read": "auth != null && auth.token.email.matches(/.*@previ\\.com\\.br/)",
         ".write": "auth != null && (auth.token.email === 'tatianefdirene@previ.com.br' || auth.token.email === 'danielfrazao@previ.com.br')"
       }
     },
@@ -101,14 +101,14 @@
     "players": {
       ".read": true,
       "$key": {
-        ".write": "auth != null"
+        ".write": "auth != null && auth.token.email.matches(/.*@previ\\.com\\.br/)"
       }
     },
 
     "holocron": {
       ".read": true,
       "$itemId": {
-        ".write": "auth != null"
+        ".write": "auth != null && auth.token.email.matches(/.*@previ\\.com\\.br/)"
       }
     }
   }

@@ -252,7 +252,7 @@
         label: 'Tecnologias & Serviços', color: '#1ab2ae',
         items: [
           { name: 'Firebase Authentication', desc: 'Login e cadastro por e-mail/senha. Redefinição de senha via link automático. Gratuito (Spark plan)' },
-          { name: 'Firebase Realtime Database', desc: 'Armazena: fa-users (perfis), fa-ranking (XP publicado), fa-holocron (repositório), fa-admins, turmas-interesse/<turma>/<emailKey>, turmas-config/<turma> (finalizada, diaAtivo), turmas-checkin/<turma>/<data>/<emailKey>' },
+          { name: 'Firebase Realtime Database', desc: 'Armazena: fa-users (perfis), fa-ranking (XP publicado), fa-holocron (repositório), fa-admins, turmas-interesse/<turma>/<emailKey>, turmas-config/<turma> (finalizada, diaAtivo), turmas-checkin/<turma>/<data>/<emailKey>. Regras de segurança: raiz com .read/.write false; todas as escritas e leituras autenticadas exigem auth.token.email matches @previ.com.br (restrição no servidor, não apenas no front-end); leitura de coleções completas de fa-users, fa-progress e fa-admins restrita a tatianefdirene e danielfrazao' },
           { name: 'Firebase Hosting',        desc: 'Hospedagem em kyber-agil.web.app (produção/main). Branch v3-quiz tem preview próprio em kyber-agil--v3quiz-*.web.app. CDN global, HTTPS automático' },
         ]
       },
