@@ -297,17 +297,9 @@
             if (!active.length) {
               body.innerHTML = '<p class="admin-empty">Nenhum participante ativo.</p>';
             } else if (!finalizada) {
-              body.innerHTML = buildInteressadosTable(active);
+              body.appendChild(buildInteressadosTable(active, t.key));
             } else {
               body.appendChild(buildPresencaTable(t, inscritos, checkinT));
-            }
-
-            if (removed.length) {
-              var removedTitle = document.createElement('p');
-              removedTitle.className = 'turma-removed-title';
-              removedTitle.textContent = 'Removidos (' + removed.length + ')';
-              body.appendChild(removedTitle);
-              body.innerHTML += buildRemovedTable(removed);
             }
 
             card.appendChild(body);
@@ -319,13 +311,27 @@
   }
 
   /* Tabela simples de interessados (turma aberta) */
-  function buildInteressadosTable(records) {
-    var tbl = '<table class="admin-table"><thead><tr><th>Nome</th><th>E-mail</th><th>Área</th><th>Data registro</th></tr></thead><tbody>';
+  function buildInteressadosTable(records, turmaKey) {
+    var wrap = document.createElement('div');
+    var tbl = '<table class="admin-table"><thead><tr><th>Nome</th><th>E-mail</th><th>Área</th><th>Data registro</th><th></th></tr></thead><tbody>';
     records.forEach(function (r) {
+      var ekey = emailKeyFromEmail(r.email);
       tbl += '<tr><td>' + esc(r.name) + '</td><td>' + esc(r.email) + '</td><td>' +
-        esc(r.area || '—') + '</td><td>' + fmtDate(r.date) + '</td></tr>';
+        esc(r.area || '—') + '</td><td>' + fmtDate(r.date) + '</td>' +
+        '<td><button class="ck-remove-btn" data-turma="' + esc(turmaKey) + '" data-ekey="' + esc(ekey) + '" data-name="' + esc(r.name) + '">Remover</button></td></tr>';
     });
-    return tbl + '</tbody></table>';
+    wrap.innerHTML = tbl + '</tbody></table>';
+    wrap.addEventListener('click', function (e) {
+      var btn = e.target.closest('.ck-remove-btn');
+      if (!btn) return;
+      if (!confirm('Remover ' + btn.dataset.name + ' da turma?\n\nEla sairá da lista de interessados.')) return;
+      firebase.database().ref('turmas-interesse/' + btn.dataset.turma + '/' + btn.dataset.ekey).update({
+        removed: true, removedDate: new Date().toISOString()
+      }, function (err) {
+        if (!err) loadInterests();
+      });
+    });
+    return wrap;
   }
 
   /* Tabela de presença por dia (turma finalizada) */
@@ -1087,6 +1093,9 @@
   }
   function fmtDate(d) {
     if (!d) return '—';
-    try { return new Date(d).toLocaleDateString('pt-BR'); } catch(e) { return '—'; }
+    try {
+      var dt = new Date(d);
+      return dt.toLocaleDateString('pt-BR') + ' ' + dt.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
+    } catch(e) { return '—'; }
   }
 })();
