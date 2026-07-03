@@ -231,52 +231,58 @@ h1,h2,h3,h4 { font-family: var(--font-head); font-weight: 600; line-height: 1.02
 .nav-toggle { display: none; }
 .nav-actions { display: flex; align-items: center; gap: 8px; margin-left: auto; }
 
+/* ── Mobile nav: menu hamburguer ── */
 @media (max-width: 920px) {
+  .nav { overflow: visible; }
+
+  /* Menu dropdown — ancorado abaixo do nav real, sem top hardcoded */
   .nav-links {
-    position: fixed; inset: 64px 0 auto 0; flex-direction: column; gap: 0;
+    position: absolute; top: 100%; left: 0; right: 0;
+    flex-direction: column; gap: 0;
     background: rgba(5,9,18,.97); border-bottom: 1px solid var(--line);
-    padding: 8px 14px 18px; transform: translateY(-120%); transition: transform .4s var(--ease);
+    padding: 8px 14px 18px;
+    transform: translateY(-8px); opacity: 0; visibility: hidden; pointer-events: none;
+    transition: transform .3s var(--ease), opacity .3s, visibility .3s;
   }
-  .nav-links.open { transform: translateY(0); }
-  .nav-links a { padding: 13px 8px; width: 100%; border-bottom: 1px solid var(--line); }
-  .nav-links .nav-cta { margin-top: 10px; text-align: center; }
-  #navGuest .nav-cta { margin-top: 0; }
+  .nav-links.open {
+    transform: translateY(0); opacity: 1; visibility: visible; pointer-events: auto;
+  }
+  .nav-links a {
+    padding: 13px 8px; width: 100%; border-bottom: 1px solid var(--line);
+  }
+
+  /* Hamburguer */
   .nav-toggle {
-    display: flex; flex-direction: column; gap: 5px; background: none; border: 0; cursor: pointer; padding: 8px;
-    flex-shrink: 0; margin-left: 8px;
+    display: flex; flex-direction: column; justify-content: center; gap: 5px;
+    background: none; border: 0; cursor: pointer; padding: 8px; flex-shrink: 0; margin-left: 8px;
   }
-  .nav-toggle span { width: 24px; height: 2px; background: var(--ink); transition: .3s; }
+  .nav-toggle span { display: block; width: 24px; height: 2px; background: var(--ink); transition: transform .3s, opacity .3s; }
+
+  /* Animação hamburguer → X */
+  .nav-toggle.open span:nth-child(1) { transform: translateY(7px) rotate(45deg); }
+  .nav-toggle.open span:nth-child(2) { opacity: 0; transform: scaleX(0); }
+  .nav-toggle.open span:nth-child(3) { transform: translateY(-7px) rotate(-45deg); }
 }
 
-/* Mudança 5: mobile header sem sobreposição — 375px (iPhone SE) */
+/* ── Header compacto em telas pequenas (≤ 600px) ── */
 @media (max-width: 600px) {
-  .nav {
-    padding: 10px 12px;
-    flex-wrap: nowrap;
-    gap: 0;
-    min-height: 52px;
-  }
+  .nav { padding: 10px 12px; flex-wrap: nowrap; gap: 0; }
 
-  /* Brand compacto */
+  /* Brand */
   .brand { gap: 7px; flex-shrink: 0; }
-  .brand-name { font-size: .88rem; letter-spacing: .09em; }
   .brand-mark { width: 20px; height: 20px; }
+  .brand-name { font-size: .88rem; letter-spacing: .08em; }
   .brand-sub { display: none; }
 
-  /* nav-actions: botões muito compactos para caber no header */
-  .nav-actions { margin-left: 8px; gap: 4px; flex-shrink: 0; }
+  /* Ações */
+  .nav-actions { margin-left: auto; gap: 4px; flex-shrink: 0; }
   .nav-btn-login { font-size: .58rem; padding: 5px 8px; letter-spacing: .06em; }
   .nav-cta { font-size: .58rem; padding: 5px 8px !important; letter-spacing: .06em; }
   .nav-profile-name { display: none; }
   #navLogout { font-size: .58rem; padding: 5px 8px; }
 
-  /* nav-toggle sempre visível e clicável */
-  .nav-toggle {
-    display: flex;
-    flex-shrink: 0;
-    padding: 8px 4px 8px 8px;
-    margin-left: 4px;
-  }
+  /* Hamburguer */
+  .nav-toggle { padding: 8px 4px 8px 8px; margin-left: 4px; }
   .nav-toggle span { width: 20px; }
 }
 

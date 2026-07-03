@@ -12,10 +12,22 @@
 
   const toggle = document.querySelector('.nav-toggle');
   const links  = document.querySelector('.nav-links');
+  function closeMenu() {
+    if (!links) return;
+    links.classList.remove('open');
+    if (toggle) toggle.classList.remove('open');
+  }
   if (toggle && links) {
-    toggle.addEventListener('click', function () { links.classList.toggle('open'); });
+    toggle.addEventListener('click', function (e) {
+      e.stopPropagation();
+      var isOpen = links.classList.toggle('open');
+      toggle.classList.toggle('open', isOpen);
+    });
     links.querySelectorAll('a, button').forEach(function (el) {
-      el.addEventListener('click', function () { links.classList.remove('open'); });
+      el.addEventListener('click', closeMenu);
+    });
+    document.addEventListener('click', function (e) {
+      if (!nav.contains(e.target)) closeMenu();
     });
   }
 
