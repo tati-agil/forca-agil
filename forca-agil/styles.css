@@ -243,8 +243,41 @@ h1,h2,h3,h4 { font-family: var(--font-head); font-weight: 600; line-height: 1.02
   #navGuest .nav-cta { margin-top: 0; }
   .nav-toggle {
     display: flex; flex-direction: column; gap: 5px; background: none; border: 0; cursor: pointer; padding: 8px;
+    flex-shrink: 0; margin-left: 8px;
   }
   .nav-toggle span { width: 24px; height: 2px; background: var(--ink); transition: .3s; }
+}
+
+/* Mudança 5: mobile header sem sobreposição — 375px (iPhone SE) */
+@media (max-width: 600px) {
+  .nav {
+    padding: 10px 12px;
+    flex-wrap: nowrap;
+    gap: 0;
+    min-height: 52px;
+  }
+
+  /* Brand compacto */
+  .brand { gap: 7px; flex-shrink: 0; }
+  .brand-name { font-size: .88rem; letter-spacing: .09em; }
+  .brand-mark { width: 20px; height: 20px; }
+  .brand-sub { display: none; }
+
+  /* nav-actions: botões muito compactos para caber no header */
+  .nav-actions { margin-left: 8px; gap: 4px; flex-shrink: 0; }
+  .nav-btn-login { font-size: .58rem; padding: 5px 8px; letter-spacing: .06em; }
+  .nav-cta { font-size: .58rem; padding: 5px 8px !important; letter-spacing: .06em; }
+  .nav-profile-name { display: none; }
+  #navLogout { font-size: .58rem; padding: 5px 8px; }
+
+  /* nav-toggle sempre visível e clicável */
+  .nav-toggle {
+    display: flex;
+    flex-shrink: 0;
+    padding: 8px 4px 8px 8px;
+    margin-left: 4px;
+  }
+  .nav-toggle span { width: 20px; }
 }
 
 /* ---------- Buttons ---------- */

@@ -324,11 +324,13 @@
     wrap.addEventListener('click', function (e) {
       var btn = e.target.closest('.ck-remove-btn');
       if (!btn) return;
-      if (!confirm('Remover ' + btn.dataset.name + ' da turma?\n\nEla sairá da lista de interessados.')) return;
-      firebase.database().ref('turmas-interesse/' + btn.dataset.turma + '/' + btn.dataset.ekey).update({
-        removed: true, removedDate: new Date().toISOString()
-      }, function (err) {
-        if (!err) loadInterests();
+      var sess = window.faAuth && window.faAuth.getSession();
+      adminConfirm('Remover ' + btn.dataset.name + ' da turma?\n\nEla sairá da lista de interessados.', function () {
+        var updates = { removed: true, removedDate: new Date().toISOString() };
+        if (sess) { updates.removedByAdmin = sess.email; updates.removedByAdminName = sess.name || sess.email; }
+        firebase.database().ref('turmas-interesse/' + btn.dataset.turma + '/' + btn.dataset.ekey).update(updates, function (err) {
+          if (!err) loadInterests();
+        });
       });
     });
     return wrap;
@@ -391,11 +393,13 @@
       }
       var remBtn = e.target.closest('.ck-remove-btn');
       if (remBtn) {
-        if (!confirm('Remover ' + remBtn.dataset.name + ' da turma?\n\nEla sairá da lista de inscritos.')) return;
-        firebase.database().ref('turmas-interesse/' + remBtn.dataset.turma + '/' + remBtn.dataset.ekey).update({
-          removed: true, removedDate: new Date().toISOString()
-        }, function (err) {
-          if (!err) loadInterests();
+        var sess2 = window.faAuth && window.faAuth.getSession();
+        adminConfirm('Remover ' + remBtn.dataset.name + ' da turma?\n\nEla sairá da lista de inscritos.', function () {
+          var updates = { removed: true, removedDate: new Date().toISOString() };
+          if (sess2) { updates.removedByAdmin = sess2.email; updates.removedByAdminName = sess2.name || sess2.email; }
+          firebase.database().ref('turmas-interesse/' + remBtn.dataset.turma + '/' + remBtn.dataset.ekey).update(updates, function (err) {
+            if (!err) loadInterests();
+          });
         });
       }
     });
@@ -424,14 +428,14 @@
   /* ---- Check-in actions ---- */
   function openCheckin(turmaKey, dia) {
     firebase.database().ref('turmas-config/' + turmaKey + '/diaAtivo').set(dia, function (err) {
-      if (err) { alert('Erro ao abrir check-in.'); return; }
+      if (err) { adminAlert('Erro ao abrir check-in.'); return; }
       loadInterests();
     });
   }
 
   function closeCheckin(turmaKey) {
     firebase.database().ref('turmas-config/' + turmaKey + '/diaAtivo').set(null, function (err) {
-      if (err) { alert('Erro ao fechar check-in.'); return; }
+      if (err) { adminAlert('Erro ao fechar check-in.'); return; }
       loadInterests();
     });
   }
@@ -442,67 +446,160 @@
       name: person.name, email: person.email, area: person.area || '',
       checkinAt: new Date().toISOString(), source: 'admin'
     }, function (err) {
-      if (err) { alert('Erro ao registrar presença.'); return; }
+      if (err) { adminAlert('Erro ao registrar presença.'); return; }
       loadInterests();
     });
   }
 
-  /* ---- Adicionar participante manualmente (turma já finalizada) ---- */
+  /* ---- Helpers: modais visuais (substituem confirm/alert/prompt nativos) ---- */
+  var AREAS_LIST = ['ASJUR','AUDIT','CONIN','GABIN','GEBEN','GECAP','GECAT','GECON',
+    'GEINT','GEPAR','GEPRO','GERAI','GERAT','GEROP','GESOP','GETHO','INFOR','OUVIR','PNSEG','SECEX'];
+
+  function adminAlert(mensagem, callbackOk) {
+    var overlay = document.createElement('div');
+    overlay.className = 'modal-overlay';
+    overlay.style.cssText = 'display:flex;align-items:center;justify-content:center;z-index:9999';
+    var box = document.createElement('div');
+    box.className = 'modal-box';
+    box.style.cssText = 'max-width:420px;width:90%;padding:28px;display:flex;flex-direction:column;gap:18px';
+    box.innerHTML =
+      '<p style="font-size:.95rem;line-height:1.6;color:var(--ink)">' + esc(mensagem) + '</p>' +
+      '<div style="display:flex;justify-content:flex-end;gap:8px">' +
+        '<button class="btn btn--primary admin-modal-ok-btn">OK</button>' +
+      '</div>';
+    overlay.appendChild(box);
+    document.body.appendChild(overlay);
+    function closeAlert() { document.body.removeChild(overlay); if (callbackOk) callbackOk(); }
+    box.querySelector('.admin-modal-ok-btn').addEventListener('click', closeAlert);
+    overlay.addEventListener('click', function (e) { if (e.target === overlay) closeAlert(); });
+  }
+
+  function adminConfirm(mensagem, callbackSim) {
+    var overlay = document.createElement('div');
+    overlay.className = 'modal-overlay';
+    overlay.style.cssText = 'display:flex;align-items:center;justify-content:center;z-index:9999';
+    var box = document.createElement('div');
+    box.className = 'modal-box';
+    box.style.cssText = 'max-width:420px;width:90%;padding:28px;display:flex;flex-direction:column;gap:18px';
+    box.innerHTML =
+      '<p style="font-size:.95rem;line-height:1.6;color:var(--ink)">' + esc(mensagem) + '</p>' +
+      '<div style="display:flex;justify-content:flex-end;gap:8px">' +
+        '<button class="btn admin-modal-cancel-btn">Cancelar</button>' +
+        '<button class="btn btn--primary admin-modal-confirm-btn">Confirmar</button>' +
+      '</div>';
+    overlay.appendChild(box);
+    document.body.appendChild(overlay);
+    function closeConfirm() { document.body.removeChild(overlay); }
+    box.querySelector('.admin-modal-cancel-btn').addEventListener('click', closeConfirm);
+    overlay.addEventListener('click', function (e) { if (e.target === overlay) closeConfirm(); });
+    box.querySelector('.admin-modal-confirm-btn').addEventListener('click', function () {
+      closeConfirm();
+      if (callbackSim) callbackSim();
+    });
+  }
+
+  /* ---- Adicionar participante manualmente (turma já finalizada) — modal visual ---- */
   function addParticipante(turmaKey) {
-    var email = (prompt('E-mail do participante:') || '').trim().toLowerCase();
-    if (!email) return;
-    if (!/@previ\.com\.br$/.test(email)) { alert('Use um e-mail @previ.com.br.'); return; }
-    var name  = (prompt('Nome completo:') || '').trim();
-    if (!name) return;
-    var area  = (prompt('Área (deixe em branco se não souber):') || '').trim();
-    var eKey  = emailKeyFromEmail(email);
-    var ref   = firebase.database().ref('turmas-interesse/' + turmaKey + '/' + eKey);
-    ref.once('value', function (snap) {
-      if (snap.val() && !snap.val().removed) {
-        alert('Este participante já está na turma.'); return;
-      }
-      ref.set({
-        name: name, email: email, area: area,
-        date: new Date().toISOString(),
-        status: 'inscrito', addedByAdmin: true
-      }, function (err) {
-        if (err) { alert('Erro ao adicionar participante.'); return; }
-        loadInterests();
+    var sess = window.faAuth && window.faAuth.getSession();
+    var overlay = document.createElement('div');
+    overlay.className = 'modal-overlay';
+    overlay.style.cssText = 'display:flex;align-items:center;justify-content:center;z-index:9999';
+
+    var areasOptions = AREAS_LIST.map(function (a) {
+      return '<option value="' + a + '">' + a + '</option>';
+    }).join('');
+
+    var box = document.createElement('div');
+    box.className = 'modal-box';
+    box.style.cssText = 'max-width:440px;width:90%;padding:28px;display:flex;flex-direction:column;gap:16px';
+    box.innerHTML =
+      '<h3 style="font-size:1.1rem;font-family:var(--font-head);letter-spacing:.05em;color:var(--ink)">Adicionar Participante</h3>' +
+      '<label class="auth-label">Nome<input type="text" id="addPartNome" placeholder="Nome completo" autocomplete="off" /></label>' +
+      '<label class="auth-label">E-mail<input type="email" id="addPartEmail" placeholder="nome@previ.com.br" autocomplete="off" /></label>' +
+      '<label class="auth-label">Área<select id="addPartArea" style="width:100%;padding:10px 12px;background:var(--panel-2);border:1px solid var(--line-strong);border-radius:6px;color:var(--ink);font-family:var(--font-body)">' +
+        '<option value="">Selecione a área…</option>' + areasOptions +
+      '</select></label>' +
+      '<p id="addPartErr" style="color:var(--red,#ff3b30);font-size:.85rem;display:none"></p>' +
+      '<div style="display:flex;justify-content:flex-end;gap:8px;margin-top:4px">' +
+        '<button class="btn admin-modal-cancel-btn">Cancelar</button>' +
+        '<button class="btn btn--primary admin-modal-add-btn">Adicionar</button>' +
+      '</div>';
+
+    overlay.appendChild(box);
+    document.body.appendChild(overlay);
+
+    var errEl = box.querySelector('#addPartErr');
+
+    function closeModal() { document.body.removeChild(overlay); }
+
+    box.querySelector('.admin-modal-cancel-btn').addEventListener('click', closeModal);
+    overlay.addEventListener('click', function (e) { if (e.target === overlay) closeModal(); });
+
+    box.querySelector('.admin-modal-add-btn').addEventListener('click', function () {
+      var name  = (box.querySelector('#addPartNome').value || '').trim();
+      var email = (box.querySelector('#addPartEmail').value || '').trim().toLowerCase();
+      var area  = (box.querySelector('#addPartArea').value || '').trim();
+
+      errEl.style.display = 'none';
+      if (!name) { errEl.textContent = 'Preencha o nome.'; errEl.style.display = ''; return; }
+      if (!email) { errEl.textContent = 'Preencha o e-mail.'; errEl.style.display = ''; return; }
+      if (!/@previ\.com\.br$/.test(email)) { errEl.textContent = 'Use um e-mail @previ.com.br.'; errEl.style.display = ''; return; }
+      if (!area) { errEl.textContent = 'Selecione a área.'; errEl.style.display = ''; return; }
+
+      var eKey = emailKeyFromEmail(email);
+      var ref  = firebase.database().ref('turmas-interesse/' + turmaKey + '/' + eKey);
+      ref.once('value', function (snap) {
+        if (snap.val() && !snap.val().removed) {
+          errEl.textContent = 'Este participante já está na turma.'; errEl.style.display = ''; return;
+        }
+        var adminName = sess ? (sess.name || sess.email) : 'Admin';
+        ref.set({
+          name: name, email: email, area: area,
+          date: new Date().toISOString(),
+          status: 'inscrito', addedByAdmin: true,
+          addedByAdminName: adminName
+        }, function (err) {
+          if (err) { errEl.textContent = 'Erro ao adicionar. Tente novamente.'; errEl.style.display = ''; return; }
+          closeModal();
+          loadInterests();
+        });
       });
     });
   }
 
   /* ---- Finalizar / Reabrir turma ---- */
   function finalizeTurma(turmaKey, turmaData) {
-    if (!confirm('Finalizar inscrição da turma ' + turmaKey.toUpperCase() + '?\n\nTodos os interessados virarão inscritos e a turma será bloqueada para novos interessados.')) return;
-    var updates = {};
-    updates['turmas-config/' + turmaKey + '/finalizada'] = true;
-    Object.keys(turmaData).forEach(function (eKey) {
-      var r = turmaData[eKey];
-      if (!r.removed && r.status !== 'presente') {
-        updates['turmas-interesse/' + turmaKey + '/' + eKey + '/status'] = 'inscrito';
-      }
-    });
-    firebase.database().ref().update(updates, function (err) {
-      if (err) { alert('Erro ao finalizar. Tente novamente.'); return; }
-      loadInterests();
+    adminConfirm('Finalizar inscrição da turma ' + turmaKey.toUpperCase() + '?\n\nTodos os interessados virarão inscritos e a turma será bloqueada para novos interessados.', function () {
+      var updates = {};
+      updates['turmas-config/' + turmaKey + '/finalizada'] = true;
+      Object.keys(turmaData).forEach(function (eKey) {
+        var r = turmaData[eKey];
+        if (!r.removed && r.status !== 'presente') {
+          updates['turmas-interesse/' + turmaKey + '/' + eKey + '/status'] = 'inscrito';
+        }
+      });
+      firebase.database().ref().update(updates, function (err) {
+        if (err) { adminAlert('Erro ao finalizar. Tente novamente.'); return; }
+        loadInterests();
+      });
     });
   }
 
   function reopenTurma(turmaKey, turmaData) {
-    if (!confirm('Reabrir a turma ' + turmaKey.toUpperCase() + '?\n\nInscritos voltarão ao status interessado e novas inscrições serão permitidas.')) return;
-    var updates = {};
-    updates['turmas-config/' + turmaKey + '/finalizada'] = false;
-    updates['turmas-config/' + turmaKey + '/diaAtivo']   = null;
-    Object.keys(turmaData).forEach(function (eKey) {
-      var r = turmaData[eKey];
-      if (!r.removed && r.status === 'inscrito') {
-        updates['turmas-interesse/' + turmaKey + '/' + eKey + '/status'] = 'interessado';
-      }
-    });
-    firebase.database().ref().update(updates, function (err) {
-      if (err) { alert('Erro ao reabrir. Tente novamente.'); return; }
-      loadInterests();
+    adminConfirm('Reabrir a turma ' + turmaKey.toUpperCase() + '?\n\nInscritos voltarão ao status interessado e novas inscrições serão permitidas.', function () {
+      var updates = {};
+      updates['turmas-config/' + turmaKey + '/finalizada'] = false;
+      updates['turmas-config/' + turmaKey + '/diaAtivo']   = null;
+      Object.keys(turmaData).forEach(function (eKey) {
+        var r = turmaData[eKey];
+        if (!r.removed && r.status === 'inscrito') {
+          updates['turmas-interesse/' + turmaKey + '/' + eKey + '/status'] = 'interessado';
+        }
+      });
+      firebase.database().ref().update(updates, function (err) {
+        if (err) { adminAlert('Erro ao reabrir. Tente novamente.'); return; }
+        loadInterests();
+      });
     });
   }
 
@@ -543,7 +640,7 @@
     });
 
     if (!aprovados.length) {
-      alert('Nenhum participante atingiu ' + Math.round(CRITERIO_PRESENCA * 100) + '% de presença nesta turma.');
+      adminAlert('Nenhum participante atingiu ' + Math.round(CRITERIO_PRESENCA * 100) + '% de presença nesta turma.');
       return;
     }
 
@@ -605,18 +702,21 @@
 
     var win = window.open('', '_blank');
     if (win) { win.document.write(html); win.document.close(); }
-    else { alert('Permita pop-ups para gerar os certificados.'); }
+    else { adminAlert('Permita pop-ups para gerar os certificados.'); }
   }
 
   /* ---- CSV exports ---- */
   function exportTurmaCSV(t, all, finalizada, checkinT) {
     var minDias = Math.ceil(t.dias.length * CRITERIO_PRESENCA);
     var rows = [];
-    all.forEach(function (r) {
+    /* MUDANÇA 1: exportar apenas não-removidos */
+    var active = all.filter(function (r) { return r.removed !== true; });
+    active.forEach(function (r) {
       var eKey = emailKeyFromEmail(r.email);
-      var st = r.removed ? 'Removido' : getStatus(r, finalizada);
+      var st = getStatus(r, finalizada);
+      var addedBy = r.addedByAdmin === true ? (r.addedByAdminName || 'Admin') : '';
       var row = [t.label, r.name||'', r.email||'', r.area||'', st,
-        r.date ? new Date(r.date).toLocaleString('pt-BR') : ''];
+        r.date ? new Date(r.date).toLocaleString('pt-BR') : '', addedBy];
       if (finalizada) {
         var diasPresente = 0;
         t.dias.forEach(function (d) {
@@ -629,7 +729,7 @@
       }
       rows.push(row);
     });
-    var headers = ['Turma','Nome','E-mail','Área','Status','Data Registro'];
+    var headers = ['Turma','Nome','E-mail','Área','Status','Data Registro','Adicionado por'];
     if (finalizada) {
       t.dias.forEach(function (d) { headers.push(fmtDia(d)); });
       headers.push('Frequência', 'Atingiu critério (' + Math.round(CRITERIO_PRESENCA * 100) + '%)');
@@ -643,9 +743,11 @@
       var finalizada = !!(config[t.key] && config[t.key].finalizada);
       var checkinT   = checkin[t.key] || {};
       var all = data[t.key] ? Object.values(data[t.key]) : [];
-      all.forEach(function (r) {
+      /* MUDANÇA 1: exportar apenas não-removidos */
+      var active = all.filter(function (r) { return r.removed !== true; });
+      active.forEach(function (r) {
         var eKey = emailKeyFromEmail(r.email);
-        var st = r.removed ? 'Removido' : getStatus(r, finalizada);
+        var st = getStatus(r, finalizada);
         var diasPresente = 0;
         t.dias.forEach(function (d) { if (checkinT[d] && checkinT[d][eKey]) diasPresente++; });
         rows.push([t.label, r.name||'', r.email||'', r.area||'', st,
@@ -665,13 +767,15 @@
         var turmaLog = data[t.key] || {};
         Object.values(turmaLog).forEach(function (userLog) {
           Object.values(userLog).forEach(function (entry) {
+            /* MUDANÇA 1: incluir coluna "Executado por" se disponível */
             rows.push([t.label, entry.name||'', entry.email||'', entry.area||'',
               entry.action === 'registrado' ? 'Adicionou' : 'Removeu',
-              entry.date ? new Date(entry.date).toLocaleString('pt-BR') : '']);
+              entry.date ? new Date(entry.date).toLocaleString('pt-BR') : '',
+              entry.adminName || '']);
           });
         });
       });
-      toXls(['Turma','Nome','E-mail','Área','Tipo de Ação','Data'],
+      toXls(['Turma','Nome','E-mail','Área','Tipo de Ação','Data','Executado por'],
         rows, 'historico-interesse-' + new Date().toISOString().slice(0,10) + '.csv');
     });
   }
@@ -786,20 +890,23 @@
 
         row.querySelector('.admin-hide-btn, .admin-restore-btn').addEventListener('click', function () {
           if (isHidden) {
-            if (!confirm('Restaurar "' + item.title + '" no repositório público?')) return;
-            firebase.database().ref('fa-seeds-hidden/' + sk).remove(function () { loadRepoAdmin(); });
+            adminConfirm('Restaurar "' + item.title + '" no repositório público?', function () {
+              firebase.database().ref('fa-seeds-hidden/' + sk).remove(function () { loadRepoAdmin(); });
+            });
           } else {
-            if (!confirm('Ocultar "' + item.title + '" do repositório público?')) return;
-            firebase.database().ref('fa-seeds-hidden/' + sk).set(true, function () { loadRepoAdmin(); });
+            adminConfirm('Ocultar "' + item.title + '" do repositório público?', function () {
+              firebase.database().ref('fa-seeds-hidden/' + sk).set(true, function () { loadRepoAdmin(); });
+            });
           }
         });
 
         row.querySelector('.admin-perm-del-btn').addEventListener('click', function () {
-          if (!confirm('Deletar permanentemente "' + item.title + '"? Esta ação não pode ser desfeita.')) return;
-          const updates = {};
-          updates['fa-seeds-deleted/' + sk] = true;
-          updates['fa-seeds-hidden/' + sk]  = true;
-          firebase.database().ref().update(updates, function () { loadRepoAdmin(); });
+          adminConfirm('Deletar permanentemente "' + item.title + '"? Esta ação não pode ser desfeita.', function () {
+            const updates = {};
+            updates['fa-seeds-deleted/' + sk] = true;
+            updates['fa-seeds-hidden/' + sk]  = true;
+            firebase.database().ref().update(updates, function () { loadRepoAdmin(); });
+          });
         });
 
         seedSec.appendChild(row);
@@ -834,19 +941,22 @@
 
           row.querySelector('.admin-hide-btn, .admin-restore-btn').addEventListener('click', function () {
             if (isHiddenHolo) {
-              if (!confirm('Restaurar "' + (item.title || '') + '" no repositório público?')) return;
-              firebase.database().ref('fa-holocron-hidden/' + key).remove(function () { loadRepoAdmin(); });
+              adminConfirm('Restaurar "' + (item.title || '') + '" no repositório público?', function () {
+                firebase.database().ref('fa-holocron-hidden/' + key).remove(function () { loadRepoAdmin(); });
+              });
             } else {
-              if (!confirm('Ocultar "' + (item.title || '') + '" do repositório público?')) return;
-              firebase.database().ref('fa-holocron-hidden/' + key).set(true, function () { loadRepoAdmin(); });
+              adminConfirm('Ocultar "' + (item.title || '') + '" do repositório público?', function () {
+                firebase.database().ref('fa-holocron-hidden/' + key).set(true, function () { loadRepoAdmin(); });
+              });
             }
           });
 
           row.querySelector('.admin-perm-del-btn').addEventListener('click', function () {
-            if (!confirm('Deletar "' + esc(item.title || '') + '" do repositório? Esta ação não pode ser desfeita.')) return;
-            firebase.database().ref('holocron/' + key).remove(function (err) {
-              if (!err) { firebase.database().ref('fa-holocron-hidden/' + key).remove(); row.remove(); }
-              else alert('Erro ao deletar. Tente novamente.');
+            adminConfirm('Deletar "' + esc(item.title || '') + '" do repositório? Esta ação não pode ser desfeita.', function () {
+              firebase.database().ref('holocron/' + key).remove(function (err) {
+                if (!err) { firebase.database().ref('fa-holocron-hidden/' + key).remove(); row.remove(); }
+                else adminAlert('Erro ao deletar. Tente novamente.');
+              });
             });
           });
 
@@ -859,18 +969,19 @@
   function handlePwdReset(btn) {
     const email = btn.dataset.email;
     const name  = btn.dataset.name;
-    if (!confirm('Enviar e-mail de redefinição de senha para ' + name + ' (' + email + ')?')) return;
-    firebase.auth().sendPasswordResetEmail(email)
-      .then(function () {
-        alert('E-mail enviado para ' + email + '.\n' + name + ' receberá o link em alguns minutos para definir uma nova senha.');
-      })
-      .catch(function (err) {
-        if (err.code === 'auth/user-not-found') {
-          alert(name + ' ainda não tem cadastro ativo. A pessoa precisa fazer o primeiro login no sistema antes de poder redefinir a senha.');
-        } else {
-          alert('Erro ao enviar: ' + err.message);
-        }
-      });
+    adminConfirm('Enviar e-mail de redefinição de senha para ' + name + ' (' + email + ')?', function () {
+      firebase.auth().sendPasswordResetEmail(email)
+        .then(function () {
+          adminAlert('E-mail enviado para ' + email + '.\n' + name + ' receberá o link em alguns minutos para definir uma nova senha.');
+        })
+        .catch(function (err) {
+          if (err.code === 'auth/user-not-found') {
+            adminAlert(name + ' ainda não tem cadastro ativo. A pessoa precisa fazer o primeiro login no sistema antes de poder redefinir a senha.');
+          } else {
+            adminAlert('Erro ao enviar: ' + err.message);
+          }
+        });
+    });
   }
 
   /* ---- Cadastrados (todos que fizeram cadastro) ---- */
@@ -977,18 +1088,19 @@
         return;
       }
       if (btn.classList.contains('admin-reset-btn')) {
-        if (!confirm('Resetar TODO o progresso do jogo de ' + btn.dataset.name + '?\n\nIsso apaga autodiagnóstico, missões, Kyber Game e patente. Essa ação não pode ser desfeita.')) return;
         const eKey   = btn.dataset.key;
         const email  = btn.dataset.email;
-        const updates = {};
-        updates['fa-progress/' + eKey]      = null;
-        updates['fa-reset-signal/' + eKey]  = { at: firebase.database.ServerValue.TIMESTAMP };
-        /* players usa key name__turma — buscar por email para deletar a entrada certa */
-        firebase.database().ref('players').orderByChild('email').equalTo(email).once('value', function (snap) {
-          snap.forEach(function (child) { updates['players/' + child.key] = null; });
-          firebase.database().ref().update(updates, function (err) {
-            if (err) { alert('Erro ao resetar. Tente novamente.'); return; }
-            loadCadastrados();
+        const name   = btn.dataset.name;
+        adminConfirm('Resetar TODO o progresso do jogo de ' + name + '?\n\nIsso apaga autodiagnóstico, missões, Kyber Game e patente. Essa ação não pode ser desfeita.', function () {
+          const updates = {};
+          updates['fa-progress/' + eKey]      = null;
+          updates['fa-reset-signal/' + eKey]  = { at: firebase.database.ServerValue.TIMESTAMP };
+          firebase.database().ref('players').orderByChild('email').equalTo(email).once('value', function (snap) {
+            snap.forEach(function (child) { updates['players/' + child.key] = null; });
+            firebase.database().ref().update(updates, function (err) {
+              if (err) { adminAlert('Erro ao resetar. Tente novamente.'); return; }
+              loadCadastrados();
+            });
           });
         });
         return;
@@ -1044,8 +1156,9 @@
           tbody.addEventListener('click', function (e) {
             const btn = e.target.closest('.admin-del-btn');
             if (!btn) return;
-            if (!confirm('Remover ' + btn.dataset.name + ' dos administradores?')) return;
-            firebase.database().ref('fa-admins/' + btn.dataset.key).remove(function () { render(); });
+            adminConfirm('Remover ' + btn.dataset.name + ' dos administradores?', function () {
+              firebase.database().ref('fa-admins/' + btn.dataset.key).remove(function () { render(); });
+            });
           });
         }
 

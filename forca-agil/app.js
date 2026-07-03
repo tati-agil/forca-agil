@@ -301,11 +301,24 @@
         const turmaKey = btn.dataset.turma;
         if (!turmaKey) return;
 
-        if (sess) checkInterestState(btn, turmaKey, sess.email);
+        if (sess) {
+          checkInterestState(btn, turmaKey, sess.email);
+        } else {
+          /* Mudança 4: para não logados, verificar se turma está fechada */
+          firebase.database().ref('turmas-config/' + turmaKey + '/finalizada').once('value', function (cfgSnap) {
+            if (cfgSnap.val()) setBlocked(btn, turmaKey);
+          });
+        }
 
         btn.addEventListener('click', function () {
           const s = window.faAuth && window.faAuth.getSession();
-          if (!s) { showMsg(turmaKey, 'Faça login para registrar seu interesse.'); if (window.faOpenAuthModal) window.faOpenAuthModal('login'); return; }
+          if (!s) {
+            /* Não abrir login se turma fechada */
+            if (btn.dataset.state === 'blocked') return;
+            showMsg(turmaKey, 'Faça login para registrar seu interesse.');
+            if (window.faOpenAuthModal) window.faOpenAuthModal('login');
+            return;
+          }
           if (btn.dataset.state === 'done') removeInterest(btn, turmaKey, s);
           else registerInterest(btn, turmaKey, s);
         });
