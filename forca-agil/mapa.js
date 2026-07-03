@@ -250,7 +250,7 @@
         label: 'Tecnologias & Serviços', color: '#1ab2ae',
         items: [
           { name: 'Firebase Authentication', desc: 'Login e cadastro por e-mail/senha. Redefinição de senha via link automático. Gratuito (Spark plan)' },
-          { name: 'Firebase Realtime Database', desc: 'Armazena: fa-users (perfis), fa-holocron (repositório), fa-admins, turmas-interesse/<turma>/<emailKey>, turmas-config/<turma> (finalizada, diaAtivo, turmaConfirmada por emailKey), turmas-checkin/<turma>/<data>/<emailKey>. Regras de segurança: raiz com .read/.write false; todas as escritas e leituras autenticadas exigem auth.token.email matches @previ.com.br (restrição no servidor, não apenas no front-end); leitura de coleções completas de fa-users, fa-progress e fa-admins restrita a tatianefdirene e danielfrazao' },
+          { name: 'Firebase Realtime Database', desc: 'Armazena: fa-users (perfis), fa-holocron (repositório), fa-admins, turmas-interesse/<turma>/<emailKey>, turmas-config/<turma> (finalizada, diaAtivo, turmaConfirmada por emailKey), turmas-checkin/<turma>/<data>/<emailKey>. Regras de segurança: raiz com .read/.write false; todas as escritas e leituras autenticadas exigem auth.token.email matches @previ.com.br (restrição no servidor, não apenas no front-end); qualquer admin @previ.com.br pode fazer tudo no painel; apenas tatianefdirene e danielfrazao podem escrever em fa-admins (criar/remover admins)' },
           { name: 'Firebase Hosting',        desc: 'Hospedagem em kyber-agil.web.app (produção/main). Branch v3-quiz tem preview próprio em kyber-agil--v3quiz-*.web.app. CDN global, HTTPS automático' },
         ]
       },
