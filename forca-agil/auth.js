@@ -263,7 +263,7 @@
     const navLoginBtn = document.getElementById('navLogin');
     if (navLoginBtn) navLoginBtn.addEventListener('click', function (e) {
       e.preventDefault();
-      if (_session) { if (window.faRouter) window.faRouter.navigate('treinamento'); }
+      if (_session) { if (window.faRouter) window.faRouter.navigate('gamificacao'); }
       else openModal('login');
     });
 
@@ -273,7 +273,7 @@
       if (!btn) return;
       btn.addEventListener('click', function (e) {
         e.preventDefault();
-        if (_session) { if (window.faRouter) window.faRouter.navigate('treinamento'); }
+        if (_session) { if (window.faRouter) window.faRouter.navigate('gamificacao'); }
         else openModal('register');
       });
     });
@@ -292,7 +292,7 @@
     if (ctaLoginBtn) {
       ctaLoginBtn.addEventListener('click', function (e) {
         e.preventDefault();
-        if (_session) { if (window.faRouter) window.faRouter.navigate('treinamento'); }
+        if (_session) { if (window.faRouter) window.faRouter.navigate('gamificacao'); }
         else openModal('login');
       });
     }
@@ -361,7 +361,7 @@
     if (np) np.addEventListener('click', function (e) {
       if (e.target.closest('#navLogout')) return;
       e.preventDefault();
-      if (window.faRouter) window.faRouter.navigate('treinamento');
+      if (window.faRouter) window.faRouter.navigate('gamificacao');
     });
 
     /* Esqueci minha senha — abre painel inline */

@@ -4,20 +4,16 @@
 (function () {
   'use strict';
 
-  const PAGES   = ['home','turmas','conteudos','treinamento','repositorio','ajuda','admin','checkin'];
+  const PAGES   = ['home','turmas','conteudos','gamificacao','repositorio','ajuda','admin','checkin'];
   const inits   = {};
   let current = null;
 
   function route() {
     let h = (location.hash || '').replace(/^#\/?/, '').split('?')[0] || 'home';
-    /* alias: gamificacao → treinamento */
-    if (h === 'gamificacao') h = 'treinamento';
     return PAGES.indexOf(h) !== -1 ? h : 'home';
   }
 
   function navigate(page, opts) {
-    /* alias */
-    if (page === 'gamificacao') page = 'treinamento';
     if (page === 'ranking') page = 'home';
 
     if (page === 'admin') {
@@ -32,12 +28,12 @@
       showAccessMsg('Faça login para acessar o Repositório.');
       return;
     }
-    if ((page === 'conteudos' || page === 'treinamento') && level === 'guest') {
+    if ((page === 'conteudos' || page === 'gamificacao') && level === 'guest') {
       location.hash = '#home';
       showAccessMsg('Faça login para acessar esta área.');
       return;
     }
-    if ((page === 'conteudos' || page === 'treinamento') && level === 'member') {
+    if ((page === 'conteudos' || page === 'gamificacao') && level === 'member') {
       location.hash = '#home';
       showAccessMsg('Disponível após confirmação em uma turma.');
       return;
@@ -64,8 +60,6 @@
   }
 
   function show(page) {
-    /* alias */
-    if (page === 'gamificacao') page = 'treinamento';
 
     if (page === 'admin') {
       const s = window.faAuth && window.faAuth.getSession();
@@ -105,8 +99,6 @@
   }
 
   function onPageInit(page, fn) {
-    /* alias */
-    if (page === 'gamificacao') page = 'treinamento';
     inits[page] = fn;
     // If this page is already shown, run init immediately
     if (current === page) {
