@@ -136,7 +136,7 @@
         { label: 'Inicial e nome no menu — no lugar dos botões Entrar/Cadastrar; header exibe avatar, nome e botão Sair (sem badge XP)', p: ['logado','inscrito','admin'] },
         { label: 'Menu logado sem turma: Início, Turmas, Repositório, Ajuda (sem Conteúdos nem Treinamento Jedi)', p: ['logado'] },
         { label: 'Menu inscrito com turma: Início, Turmas, Repositório, Conteúdos, Treinamento Jedi, Ajuda', p: ['inscrito'] },
-        { label: 'Ver link "Admin" no menu de navegação (desktop sempre visível; mobile: aparece ao abrir o menu)', p: ['admin'] },
+        { label: 'Ver link "Admin" no menu de navegação — visível apenas para admins, some imediatamente após logout (desktop e mobile, inclusive com menu aberto)', p: ['admin'] },
         { label: 'Botão Sair',                                p: ['logado','inscrito','admin'] },
       ]
     },
@@ -290,6 +290,7 @@
           { name: 'Dados declarativos',      desc: 'Manual, Mapa e Testes são arrays de objetos JS — fáceis de editar sem mexer na lógica de renderização' },
           { name: 'const/let',              desc: 'Sem var — variáveis imutáveis são const, mutáveis são let. Evita bugs de escopo de função' },
           { name: 'Sem bundler',             desc: 'Scripts carregados via tags <script> no HTML. Sem Node.js, npm ou build step — deploy direto' },
+          { name: 'Atributo hidden controlado só por JS', desc: 'Elementos de nav controlados por auth.js (ex: link Admin) usam o atributo hidden para ocultar/exibir. CSS de layout nunca deve sobrescrever com display:block — causaria regressão de segurança (link visível após logout)' },
         ]
       },
       {
@@ -362,6 +363,12 @@
         items: [
           { name: 'Usuária não executa nada', desc: 'Claude faz tudo — commits, deploys, edições. A usuária nunca roda comandos manualmente.' },
           { name: 'Sem alterações não autorizadas', desc: 'Nunca mudar funcionalidades existentes sem autorização explícita. Só implementar o que foi pedido.' },
+        ]
+      },
+      {
+        label: 'CSS × JS', color: '#9b7fff',
+        items: [
+          { name: 'CSS não sobrescreve hidden de nav', desc: 'Elementos de navegação ocultados por auth.js via atributo hidden (ex: link Admin) nunca devem ter display:block forçado por CSS — causaria regressão de segurança: link visível após logout.' },
         ]
       },
     ];

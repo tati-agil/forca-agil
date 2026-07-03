@@ -35,7 +35,7 @@
       body: 'Os botões ENTRAR e CADASTRAR somem. No lugar aparece o perfil com a inicial e o primeiro nome do usuário. O header exibe avatar, nome e botão Sair — sem badge de XP.' },
     { section: 'auth', personas: ['admin'],
       title: 'Link Admin no menu',
-      body: 'O link "Admin" no menu só aparece para administradores.' },
+      body: 'O link "Admin" no menu só aparece para administradores e some imediatamente após o logout — inclusive no mobile com o menu aberto. Visibilidade controlada pelo atributo hidden em auth.js (updateNavState()). CSS de layout nunca deve sobrescrever esse atributo com display:block; caso contrário o link permaneceria visível mesmo após logout.' },
     { section: 'auth', personas: ['visitante', 'logado', 'inscrito', 'admin'],
       title: 'Três perfis de acesso',
       body: 'O sistema detecta automaticamente o perfil via window.faAuth.getAccessLevel(). Retorna: "guest" (visitante não logado — vê Início, Turmas, Ajuda no menu); "member" (logado sem turma confirmada — vê + Repositório, pode manifestar interesse em turmas); "enrolled" (logado com turma confirmada — vê + Conteúdos e Treinamento Jedi, sem botões de interesse em turmas). Admin vê tudo.' },
