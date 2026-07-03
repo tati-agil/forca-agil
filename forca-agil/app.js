@@ -128,12 +128,12 @@
     if (h) h.parentElement.classList.toggle('open');
   });
 
-  /* ---- Nav anchor links (Ranking → gamificacao + scroll to leaderboard) ---- */
+  /* ---- Nav anchor links (scroll to element within page) ---- */
   document.addEventListener('click', function (e) {
     const link = e.target.closest('[data-anchor]');
     if (!link || !link.dataset.anchor) return;
     e.preventDefault();
-    const page   = link.dataset.navPage || 'gamificacao';
+    const page   = link.dataset.navPage || 'treinamento';
     const anchor = link.dataset.anchor;
     if (window.faRouter) window.faRouter.navigate(page, { anchor: anchor });
   });
@@ -247,12 +247,60 @@
 
   /* ---- Turma interest buttons ---- */
   document.addEventListener('DOMContentLoaded', function () {
+    const TURMAS_INFO = {
+      t1: { label: 'TURMA 1', mes: 'Agosto', dates: '11, 12, 18, 19 e 20' },
+      t2: { label: 'TURMA 2', mes: 'Setembro', dates: '9, 10, 11, 15 e 16' },
+      t3: { label: 'TURMA 3', mes: 'Novembro', dates: '17, 18, 19, 24 e 25' }
+    };
+
+    function buildEnrolledCard(turmaKey) {
+      var info = TURMAS_INFO[turmaKey] || { label: turmaKey.toUpperCase(), mes: '', dates: '' };
+      var grid = document.querySelector('.turmas-grid');
+      if (!grid) return;
+      grid.innerHTML =
+        '<div class="turma-card-new turma-card-enrolled reveal in">' +
+          '<span class="tc-label">' + info.label + '</span>' +
+          '<div class="tc-month">' + info.mes + ' — <span style="color:var(--cyan);font-weight:600">CONFIRMADA</span></div>' +
+          '<div class="tc-dates">' + info.dates + '</div>' +
+        '</div>';
+    }
+
+    function checkAllEnrollments(sess, cb) {
+      /* Check if user is inscrito in any turma */
+      var key = emailKey(sess.email);
+      var turmas = ['t1','t2','t3'];
+      var found = null;
+      var done = 0;
+      turmas.forEach(function (t) {
+        firebase.database().ref('turmas-interesse/' + t + '/' + key).once('value', function (snap) {
+          done++;
+          var val = snap.val();
+          if (val && !val.removed && val.status === 'inscrito') found = t;
+          if (done === turmas.length) cb(found);
+        });
+      });
+    }
+
     function initTurmaInterest() {
+      var sess = window.faAuth && window.faAuth.getSession();
+      if (sess) {
+        checkAllEnrollments(sess, function (enrolledTurma) {
+          if (enrolledTurma) {
+            buildEnrolledCard(enrolledTurma);
+            return;
+          }
+          initInterestButtons(sess);
+        });
+      } else {
+        initInterestButtons(null);
+      }
+    }
+
+    function initInterestButtons(sess) {
       document.querySelectorAll('.btn--interest').forEach(function (btn) {
         const turmaKey = btn.dataset.turma;
         if (!turmaKey) return;
 
-        const sess = window.faAuth && window.faAuth.getSession();
         if (sess) checkInterestState(btn, turmaKey, sess.email);
 
         btn.addEventListener('click', function () {
@@ -368,7 +416,17 @@
 
     if (window.faRouter) window.faRouter.onPageInit('turmas', initTurmaInterest);
     window.addEventListener('fa-auth-change', function () {
-      if (window.faRouter && window.faRouter.current() === 'turmas') initTurmaInterest();
+      if (window.faRouter && window.faRouter.current() === 'turmas') {
+        /* Re-run full init (may switch to enrolled card) */
+        var grid = document.querySelector('.turmas-grid');
+        if (grid) {
+          /* restore original cards if they were replaced */
+          if (!grid.querySelector('.btn--interest') && !grid.querySelector('.turma-card-enrolled')) {
+            /* already handled below */
+          }
+        }
+        initTurmaInterest();
+      }
     });
   });
 

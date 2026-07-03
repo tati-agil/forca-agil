@@ -4,20 +4,45 @@
 (function () {
   'use strict';
 
-  const PAGES   = ['home','turmas','conteudos','gamificacao','repositorio','ranking','ajuda','admin','checkin'];
+  const PAGES   = ['home','turmas','conteudos','treinamento','repositorio','ajuda','admin','checkin'];
   const inits   = {};
   let current = null;
 
   function route() {
-    const h = (location.hash || '').replace(/^#\/?/, '').split('?')[0] || 'home';
+    let h = (location.hash || '').replace(/^#\/?/, '').split('?')[0] || 'home';
+    /* alias: gamificacao → treinamento */
+    if (h === 'gamificacao') h = 'treinamento';
     return PAGES.indexOf(h) !== -1 ? h : 'home';
   }
 
   function navigate(page, opts) {
+    /* alias */
+    if (page === 'gamificacao') page = 'treinamento';
+    if (page === 'ranking') page = 'home';
+
     if (page === 'admin') {
       const s = window.faAuth && window.faAuth.getSession();
       if (!s || !window.faAuth.isAdmin(s.email)) { location.hash = '#home'; return; }
     }
+
+    /* Access control */
+    const level = window.faAuth && window.faAuth.getAccessLevel ? window.faAuth.getAccessLevel() : 'guest';
+    if (page === 'repositorio' && level === 'guest') {
+      location.hash = '#home';
+      showAccessMsg('Faça login para acessar o Repositório.');
+      return;
+    }
+    if ((page === 'conteudos' || page === 'treinamento') && level === 'guest') {
+      location.hash = '#home';
+      showAccessMsg('Faça login para acessar esta área.');
+      return;
+    }
+    if ((page === 'conteudos' || page === 'treinamento') && level === 'member') {
+      location.hash = '#home';
+      showAccessMsg('Disponível após confirmação em uma turma.');
+      return;
+    }
+
     location.hash = '#' + page;
     if (opts && opts.anchor) {
       setTimeout(function () {
@@ -27,7 +52,21 @@
     }
   }
 
+  function showAccessMsg(msg) {
+    var existing = document.getElementById('fa-access-msg');
+    if (existing) existing.remove();
+    var el = document.createElement('div');
+    el.id = 'fa-access-msg';
+    el.style.cssText = 'position:fixed;top:72px;left:50%;transform:translateX(-50%);background:#1a2035;border:1px solid rgba(26,178,174,.4);color:#7af0e8;padding:12px 24px;border-radius:8px;font-size:.875rem;z-index:9999;box-shadow:0 4px 20px rgba(0,0,0,.4)';
+    el.textContent = msg;
+    document.body.appendChild(el);
+    setTimeout(function () { if (el.parentNode) el.remove(); }, 3500);
+  }
+
   function show(page) {
+    /* alias */
+    if (page === 'gamificacao') page = 'treinamento';
+
     if (page === 'admin') {
       const s = window.faAuth && window.faAuth.getSession();
       if (!s || !window.faAuth.isAdmin(s.email)) {
@@ -66,6 +105,8 @@
   }
 
   function onPageInit(page, fn) {
+    /* alias */
+    if (page === 'gamificacao') page = 'treinamento';
     inits[page] = fn;
     // If this page is already shown, run init immediately
     if (current === page) {
@@ -79,6 +120,7 @@
   window.faRouter = {
     navigate   : navigate,
     onPageInit : onPageInit,
-    current    : function () { return current; }
+    current    : function () { return current; },
+    showAccessMsg: showAccessMsg
   };
 })();

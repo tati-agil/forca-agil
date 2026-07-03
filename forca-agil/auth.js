@@ -9,6 +9,7 @@
   let _dbAdmins = [];
   let _session  = null;  // cache em memória — fonte de verdade: Firebase Auth
   let _authReady = false;
+  let _accessLevel = 'guest'; // 'guest' | 'member' | 'enrolled'
 
   /* ---- Helpers ---- */
   function emailKey(e) {
@@ -20,6 +21,22 @@
     return ADMIN.indexOf(em) !== -1 || _dbAdmins.indexOf(em) !== -1;
   }
   function getSession() { return _session; }
+  function getAccessLevel() { return _accessLevel; }
+
+  function checkEnrolledStatus(email, cb) {
+    const key = emailKey(email);
+    const TURMAS = ['t1', 't2', 't3'];
+    var found = false;
+    var checked = 0;
+    TURMAS.forEach(function (t) {
+      firebase.database().ref('turmas-interesse/' + t + '/' + key).once('value', function (snap) {
+        checked++;
+        const val = snap.val();
+        if (val && !val.removed && val.status === 'inscrito') found = true;
+        if (checked === TURMAS.length) cb(found);
+      });
+    });
+  }
 
   /* ---- Verifica se o usuário logado é admin (lê só o próprio registro) ---- */
   firebase.auth().onAuthStateChanged(function (user) {
@@ -38,17 +55,22 @@
         const profile = snap.val() || {};
         _session = { email: user.email, name: profile.name || user.email, area: profile.area || '' };
         try { localStorage.setItem('fa-player', JSON.stringify({ name: _session.name, area: _session.area, turma: '' })); } catch (e) {}
-        updateNavState();
-        if (window.faLoadProgress) {
-          window.faLoadProgress(_session.email, function () {
+        _accessLevel = 'member';
+        checkEnrolledStatus(user.email, function (enrolled) {
+          if (enrolled) _accessLevel = 'enrolled';
+          updateNavState();
+          if (window.faLoadProgress) {
+            window.faLoadProgress(_session.email, function () {
+              window.dispatchEvent(new CustomEvent('fa-auth-change', { detail: _session }));
+            });
+          } else {
             window.dispatchEvent(new CustomEvent('fa-auth-change', { detail: _session }));
-          });
-        } else {
-          window.dispatchEvent(new CustomEvent('fa-auth-change', { detail: _session }));
-        }
+          }
+        });
       });
     } else {
       _session = null;
+      _accessLevel = 'guest';
       try { localStorage.removeItem('fa-player'); } catch (e) {}
       updateNavState();
       if (_authReady) {
@@ -151,6 +173,7 @@
   /* ---- Nav state ---- */
   function updateNavState() {
     const sess      = _session;
+    const level     = _accessLevel;
     const ctaEl     = document.getElementById('navCta');
     const heroJoin  = document.getElementById('heroJoin');
     const profileEl = document.getElementById('navProfile');
@@ -172,26 +195,19 @@
       if (sess) {
         const nameEl   = profileEl.querySelector('.nav-profile-name');
         const avatarEl = profileEl.querySelector('.nav-profile-avatar');
-        const xpBadge  = document.getElementById('navXpBadge');
         if (nameEl)   nameEl.textContent   = sess.name.split(' ')[0];
         if (avatarEl) avatarEl.textContent = sess.name.charAt(0).toUpperCase();
-        if (xpBadge) {
-          try {
-            const st = window.faStore || localStorage;
-            const cxp = parseInt(st.getItem('fa-content-xp') || '0', 10) || 0;
-            const rxp = parseInt(st.getItem('fa-repo-xp')    || '0', 10) || 0;
-            const rawQuiz = JSON.parse(st.getItem('fa-game-v3') || 'null');
-            const qxp = rawQuiz && Array.isArray(rawQuiz.quiz)
-              ? rawQuiz.quiz.reduce(function(a, v) { return a + (v != null ? v : 0); }, 0)
-              : 0;
-            const total = cxp + rxp + qxp;
-            xpBadge.textContent = total + ' XP';
-            xpBadge.hidden = false;
-          } catch(e) { xpBadge.hidden = true; }
-        }
       }
     }
     if (adminLink) adminLink.hidden = !sess || !isAdmin((sess || {}).email);
+
+    /* Nav links visibility by access level */
+    document.querySelectorAll('.nav-link-member').forEach(function (el) {
+      el.hidden = (level === 'guest');
+    });
+    document.querySelectorAll('.nav-link-enrolled').forEach(function (el) {
+      el.hidden = (level !== 'enrolled');
+    });
   }
 
   if (document.readyState !== 'loading') updateNavState();
@@ -247,7 +263,7 @@
     const navLoginBtn = document.getElementById('navLogin');
     if (navLoginBtn) navLoginBtn.addEventListener('click', function (e) {
       e.preventDefault();
-      if (_session) { if (window.faRouter) window.faRouter.navigate('gamificacao'); }
+      if (_session) { if (window.faRouter) window.faRouter.navigate('treinamento'); }
       else openModal('login');
     });
 
@@ -257,7 +273,7 @@
       if (!btn) return;
       btn.addEventListener('click', function (e) {
         e.preventDefault();
-        if (_session) { if (window.faRouter) window.faRouter.navigate('gamificacao'); }
+        if (_session) { if (window.faRouter) window.faRouter.navigate('treinamento'); }
         else openModal('register');
       });
     });
@@ -276,7 +292,7 @@
     if (ctaLoginBtn) {
       ctaLoginBtn.addEventListener('click', function (e) {
         e.preventDefault();
-        if (_session) { if (window.faRouter) window.faRouter.navigate('gamificacao'); }
+        if (_session) { if (window.faRouter) window.faRouter.navigate('treinamento'); }
         else openModal('login');
       });
     }
@@ -345,7 +361,7 @@
     if (np) np.addEventListener('click', function (e) {
       if (e.target.closest('#navLogout')) return;
       e.preventDefault();
-      if (window.faRouter) window.faRouter.navigate('gamificacao');
+      if (window.faRouter) window.faRouter.navigate('treinamento');
     });
 
     /* Esqueci minha senha — abre painel inline */
@@ -424,6 +440,7 @@
   window.faAuth = {
     getSession: getSession, isAdmin: isAdmin, isPrevi: isPrevi,
     register: register, login: login,
-    logout: logout, sendPasswordReset: sendPasswordReset
+    logout: logout, sendPasswordReset: sendPasswordReset,
+    getAccessLevel: getAccessLevel
   };
 })();

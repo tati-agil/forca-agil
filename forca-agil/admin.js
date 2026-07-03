@@ -111,11 +111,11 @@
   var CRITERIO_PRESENCA = 0.75;
 
   const TURMAS_LIST = [
-    { key: 't1', label: 'Turma 1 — Agosto',   dates: '11·12·18·19·20',
+    { key: 't1', label: 'Turma 1 — Agosto',   dates: '11, 12, 18, 19 e 20',
       dias: ['2026-08-11','2026-08-12','2026-08-18','2026-08-19','2026-08-20'] },
-    { key: 't2', label: 'Turma 2 — Setembro', dates: '09·10·11·15·16',
+    { key: 't2', label: 'Turma 2 — Setembro', dates: '9, 10, 11, 15 e 16',
       dias: ['2026-09-09','2026-09-10','2026-09-11','2026-09-15','2026-09-16'] },
-    { key: 't3', label: 'Turma 3 — Novembro', dates: '17·18·19·24·25',
+    { key: 't3', label: 'Turma 3 — Novembro', dates: '17, 18, 19, 24 e 25',
       dias: ['2026-11-17','2026-11-18','2026-11-19','2026-11-24','2026-11-25'] }
   ];
 
@@ -180,10 +180,12 @@
             var card = document.createElement('div');
             card.className = 'turma-admin-card';
             card.id = 'turma-card-' + t.key;
+            card.style.background = '#1a2035';
 
             /* header */
             var hdr = document.createElement('div');
             hdr.className = 'turma-admin-header';
+            hdr.style.background = '#1a2035';
 
             var checkinBadge = '';
             if (finalizada && diaAtivo) {
@@ -207,6 +209,7 @@
             if (!finalizada) {
               var finBtn = document.createElement('button');
               finBtn.className = 'btn btn--sm btn--primary';
+              finBtn.style.cssText = 'padding:8px 16px;box-shadow:none';
               finBtn.textContent = 'Finalizar inscrição';
               finBtn.addEventListener('click', (function (tk, td) {
                 return function () { finalizeTurma(tk, td); };
