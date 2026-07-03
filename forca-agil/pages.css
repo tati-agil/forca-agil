@@ -312,7 +312,29 @@
 .turma-admin-title { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
 .turma-admin-name  { font-family: var(--font-head); font-size: .95rem; color: var(--ink); }
 .turma-admin-dates { font-size: .8rem; color: var(--ink-3); }
-.turma-admin-actions { display: flex; gap: 8px; flex-wrap: wrap; }
+/* Desktop: linha única, sem quebra */
+.turma-admin-actions { display: flex; align-items: center; gap: 4px; flex-wrap: nowrap; flex-shrink: 0; }
+.taa-primary { display: flex; align-items: center; gap: 4px; }
+.taa-more-btn { display: none; font-size: 1.1rem; padding: 4px 8px; line-height: 1; }
+.taa-dropdown {
+  display: flex; align-items: center; gap: 4px; flex-wrap: nowrap;
+}
+
+/* Mobile/tablet: ações secundárias colapsam em menu "..." */
+@media (max-width: 768px) {
+  .turma-admin-header { flex-direction: column; align-items: flex-start; }
+  .turma-admin-actions { align-self: flex-end; position: relative; }
+  .taa-more-btn { display: inline-flex; }
+  .taa-dropdown {
+    display: none; flex-direction: column; gap: 6px;
+    position: absolute; right: 0; top: calc(100% + 4px);
+    background: #111827; border: 1px solid var(--line-strong);
+    border-radius: 8px; padding: 10px 12px; z-index: 200; min-width: 160px;
+    box-shadow: 0 8px 24px rgba(0,0,0,.5);
+  }
+  .taa-dropdown.open { display: flex; }
+  .taa-dropdown .btn { width: 100%; justify-content: flex-start; }
+}
 .turma-admin-body  { padding: 14px 18px; }
 .turma-removed-title { margin: 16px 0 8px; color: var(--ink-3); font-size: .85rem; }
 .turma-status-badge { font-size: .7rem; font-family: var(--font-mono); font-weight: 700;
@@ -333,9 +355,12 @@
 .presenca-table .dia-th { font-size: .72rem; min-width: 52px; text-align: center; }
 .presenca-table .dia-cell { text-align: center; padding: 6px 4px; }
 .ck-badge { font-size: .68rem; font-family: var(--font-mono); font-weight: 700;
-  padding: 2px 5px; border-radius: 3px; white-space: nowrap; }
+  padding: 2px 5px; border-radius: 3px; white-space: nowrap;
+  border: none; background: none; cursor: default; }
 .ck-qr  { background: rgba(100,220,100,.15); color: #64dc64; }
 .ck-adm { background: rgba(24,194,186,.15);  color: var(--cyan); }
+.ck-undo-btn { cursor: pointer; }
+.ck-undo-btn:hover { opacity: .65; text-decoration: line-through; }
 .checkin-dia-select {
   font-family: var(--font-mono); font-size: .75rem; padding: 6px 10px;
   background: rgba(16,28,52,.8); color: var(--ink); border: 1px solid var(--line-strong);

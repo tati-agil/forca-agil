@@ -204,19 +204,28 @@
               '<div class="turma-admin-actions" id="turma-actions-' + t.key + '"></div>';
             card.appendChild(hdr);
 
-            /* action buttons */
+            /* action buttons — primary (sempre visível) + secondary (desktop inline, mobile em "...") */
             var actWrap = hdr.querySelector('#turma-actions-' + t.key);
+            var primaryWrap = document.createElement('div');
+            primaryWrap.className = 'taa-primary';
+            var moreBtn = document.createElement('button');
+            moreBtn.className = 'btn btn--sm taa-more-btn';
+            moreBtn.innerHTML = '&#x22EF;';
+            moreBtn.setAttribute('aria-label', 'Mais ações');
+            var moreMenu = document.createElement('div');
+            moreMenu.className = 'taa-dropdown';
+
             if (!finalizada) {
               var finBtn = document.createElement('button');
               finBtn.className = 'btn btn--sm btn--primary';
-              finBtn.style.cssText = 'padding:8px 16px;box-shadow:none';
+              finBtn.style.cssText = 'padding:6px 12px;box-shadow:none;font-size:.72rem';
               finBtn.textContent = 'Finalizar inscrição';
               finBtn.addEventListener('click', (function (tk, td) {
                 return function () { finalizeTurma(tk, td); };
               })(t.key, allByKey));
-              actWrap.appendChild(finBtn);
+              primaryWrap.appendChild(finBtn);
             } else {
-              /* check-in abrir/fechar */
+              /* check-in abrir/fechar — sempre visível */
               if (!diaAtivo) {
                 var sel = document.createElement('select');
                 sel.className = 'checkin-dia-select';
@@ -229,66 +238,92 @@
                 });
                 var openBtn = document.createElement('button');
                 openBtn.className = 'btn btn--sm btn--primary';
+                openBtn.style.cssText = 'padding:6px 12px;box-shadow:none;font-size:.72rem';
                 openBtn.textContent = 'Abrir check-in';
                 openBtn.addEventListener('click', (function (tk, s) {
                   return function () { openCheckin(tk, s.value); };
                 })(t.key, sel));
-                actWrap.appendChild(sel);
-                actWrap.appendChild(openBtn);
+                primaryWrap.appendChild(sel);
+                primaryWrap.appendChild(openBtn);
               } else {
                 var diaAtivoLabel = document.createElement('span');
                 diaAtivoLabel.className = 'checkin-dia-aberto';
-                diaAtivoLabel.textContent = 'Check-in aberto: ' + fmtDia(diaAtivo);
+                diaAtivoLabel.textContent = fmtDia(diaAtivo);
                 var closeBtn2 = document.createElement('button');
                 closeBtn2.className = 'btn btn--sm';
-                closeBtn2.style.borderColor = 'rgba(255,80,80,.5)';
-                closeBtn2.style.color = '#ff8080';
+                closeBtn2.style.cssText = 'padding:6px 10px;font-size:.72rem;border-color:rgba(255,80,80,.5);color:#ff8080';
                 closeBtn2.textContent = 'Fechar check-in';
                 closeBtn2.addEventListener('click', (function (tk) {
                   return function () { closeCheckin(tk); };
                 })(t.key));
-                actWrap.appendChild(diaAtivoLabel);
-                actWrap.appendChild(closeBtn2);
+                primaryWrap.appendChild(diaAtivoLabel);
+                primaryWrap.appendChild(closeBtn2);
               }
+
+              /* ações secundárias — ficam no menu "..." no mobile */
               var qrBtn = document.createElement('button');
               qrBtn.className = 'btn btn--sm';
-              qrBtn.innerHTML = '&#x2318; QR Code';
+              qrBtn.style.cssText = 'padding:6px 10px;font-size:.72rem';
+              qrBtn.innerHTML = '&#x2318; QR';
               qrBtn.addEventListener('click', (function (tt) {
                 return function () { openQrModal(tt); };
               })(t));
-              var reopenBtn = document.createElement('button');
-              reopenBtn.className = 'btn btn--sm';
-              reopenBtn.textContent = '↺ Reabrir turma';
-              reopenBtn.addEventListener('click', (function (tk, td) {
-                return function () { reopenTurma(tk, td); };
-              })(t.key, allByKey));
               var addBtn = document.createElement('button');
               addBtn.className = 'btn btn--sm';
+              addBtn.style.cssText = 'padding:6px 10px;font-size:.72rem';
               addBtn.textContent = '＋ Participante';
               addBtn.addEventListener('click', (function (tk) {
                 return function () { addParticipante(tk); };
               })(t.key));
-              actWrap.appendChild(qrBtn);
-              actWrap.appendChild(addBtn);
-              actWrap.appendChild(reopenBtn);
-            }
-            var csvIndBtn = document.createElement('button');
-            csvIndBtn.className = 'btn btn--sm';
-            csvIndBtn.innerHTML = '&#x2193; CSV';
-            csvIndBtn.addEventListener('click', (function (tt, a, f, ck) {
-              return function () { exportTurmaCSV(tt, a, f, ck); };
-            })(t, all, finalizada, checkinT));
-            actWrap.appendChild(csvIndBtn);
-
-            if (finalizada) {
+              var reopenBtn = document.createElement('button');
+              reopenBtn.className = 'btn btn--sm';
+              reopenBtn.style.cssText = 'padding:6px 10px;font-size:.72rem';
+              reopenBtn.textContent = '↺ Reabrir';
+              reopenBtn.addEventListener('click', (function (tk, td) {
+                return function () { reopenTurma(tk, td); };
+              })(t.key, allByKey));
+              var csvIndBtn = document.createElement('button');
+              csvIndBtn.className = 'btn btn--sm';
+              csvIndBtn.style.cssText = 'padding:6px 10px;font-size:.72rem';
+              csvIndBtn.innerHTML = '&#x2193; CSV';
+              csvIndBtn.addEventListener('click', (function (tt, a, f, ck) {
+                return function () { exportTurmaCSV(tt, a, f, ck); };
+              })(t, all, finalizada, checkinT));
               var certBtn = document.createElement('button');
               certBtn.className = 'btn btn--sm';
-              certBtn.innerHTML = '&#x1F4DC; Certificados';
+              certBtn.style.cssText = 'padding:6px 10px;font-size:.72rem';
+              certBtn.innerHTML = '&#x1F4DC; Cert.';
               certBtn.addEventListener('click', (function (tt, ins, ck) {
                 return function () { gerarCertificados(tt, ins, ck); };
               })(t, inscritos, checkinT));
-              actWrap.appendChild(certBtn);
+              moreMenu.appendChild(qrBtn);
+              moreMenu.appendChild(addBtn);
+              moreMenu.appendChild(reopenBtn);
+              moreMenu.appendChild(csvIndBtn);
+              moreMenu.appendChild(certBtn);
             }
+
+            /* CSV também disponível para turma aberta */
+            if (!finalizada) {
+              var csvOpenBtn = document.createElement('button');
+              csvOpenBtn.className = 'btn btn--sm';
+              csvOpenBtn.style.cssText = 'padding:6px 10px;font-size:.72rem';
+              csvOpenBtn.innerHTML = '&#x2193; CSV';
+              csvOpenBtn.addEventListener('click', (function (tt, a, f, ck) {
+                return function () { exportTurmaCSV(tt, a, f, ck); };
+              })(t, all, finalizada, checkinT));
+              moreMenu.appendChild(csvOpenBtn);
+            }
+
+            moreBtn.addEventListener('click', function (e) {
+              e.stopPropagation();
+              moreMenu.classList.toggle('open');
+            });
+            document.addEventListener('click', function () { moreMenu.classList.remove('open'); });
+
+            actWrap.appendChild(primaryWrap);
+            actWrap.appendChild(moreBtn);
+            actWrap.appendChild(moreMenu);
 
             /* body */
             var body = document.createElement('div');
@@ -356,9 +391,10 @@
         var ck = checkinT[d] && checkinT[d][eKey];
         if (ck) {
           diasPresente++;
+          var ra = 'data-turma="' + t.key + '" data-dia="' + d + '" data-ekey="' + eKey + '" data-name="' + esc(r.name) + '"';
           var badge = ck.source === 'admin'
-            ? '<span class="ck-badge ck-adm" title="Registrado pelo admin">✓ adm</span>'
-            : '<span class="ck-badge ck-qr"  title="Check-in via QR">✓ qr</span>';
+            ? '<button class="ck-badge ck-adm ck-undo-btn" title="Remover presença (admin)" ' + ra + '>✓ adm</button>'
+            : '<button class="ck-badge ck-qr ck-undo-btn" title="Remover presença (QR)" ' + ra + '>✓ qr</button>';
           return '<td class="dia-cell">' + badge + '</td>';
         }
         /* botão para registrar retroativo */
@@ -382,8 +418,18 @@
     tbl += '</tbody></table>';
     wrap.innerHTML = tbl;
 
-    /* delegação de eventos para check-in manual e remoção */
+    /* delegação de eventos para desfazer check-in, check-in manual e remoção */
     wrap.addEventListener('click', function (e) {
+      var undoBtn = e.target.closest('.ck-undo-btn');
+      if (undoBtn) {
+        adminConfirm('Remover presença de ' + undoBtn.dataset.name + ' em ' + fmtDia(undoBtn.dataset.dia) + '?', function () {
+          firebase.database().ref('turmas-checkin/' + undoBtn.dataset.turma + '/' + undoBtn.dataset.dia + '/' + undoBtn.dataset.ekey).remove(function (err) {
+            if (err) { adminAlert('Erro ao remover presença.'); return; }
+            loadInterests();
+          });
+        });
+        return;
+      }
       var btn = e.target.closest('.ck-manual-btn');
       if (btn) {
         adminCheckin(btn.dataset.turma, btn.dataset.dia, btn.dataset.ekey, {
