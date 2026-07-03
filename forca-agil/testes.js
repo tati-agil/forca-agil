@@ -265,11 +265,13 @@
           input.dispatchEvent(new Event('input'));
           return todasContemTermo && reduziu;
         } },
-        { id: 'adm-cadastrados-xp', label: 'Cadastrados: coluna XP presente na tabela', run: function () {
+        { id: 'adm-cadastrados-colunas', label: 'Cadastrados: tabela tem colunas Nome/E-mail/Área/Cadastro (sem coluna XP)', run: function () {
           var c = document.getElementById('adminCadastrados');
           if (!c) return false;
-          var ths = c.querySelectorAll('thead th');
-          return Array.from(ths).some(function(th) { return th.textContent.trim() === 'XP'; });
+          var ths = Array.from(c.querySelectorAll('thead th')).map(function(th) { return th.textContent.trim(); });
+          var temXP = ths.some(function(t) { return t === 'XP'; });
+          var temEssenciais = ['Nome','E-mail','Área','Cadastro'].every(function(col) { return ths.indexOf(col) !== -1; });
+          return temEssenciais && !temXP;
         } }
       ]
     }
@@ -753,7 +755,7 @@
       motivo: 'Requer turma finalizada onde ninguém atingiu 75%. Clicar em "📜 Certificados". Verificar: alerta informa que nenhum participante atingiu o critério — nenhuma aba é aberta.' },
     { section: 'Admin',
       title: 'Exportar CSV — caracteres especiais e arquivo editável',
-      motivo: 'Baixar qualquer CSV (Estado atual, Histórico ou individual). Verificar no Excel: (1) acentos, cedilha e travessão aparecem corretamente (sem "?" ou "Ã"); (2) arquivo abre em modo edição (não somente leitura). Encoding: Windows-1252 via Uint8Array, sem BOM.' },
+      motivo: 'Baixar qualquer CSV (Estado atual, Histórico ou individual). Verificar no Excel: (1) acentos, cedilha e caracteres especiais aparecem corretamente (sem "?" ou "Ã"); (2) arquivo abre em modo edição — sem modo protegido, sem "somente leitura". Encoding: UTF-8 com BOM — sem linha sep=;.' },
     { section: 'Admin',
       title: 'Abas do painel — visibilidade no mobile',
       motivo: 'Acessar o painel Admin em tela estreita (< 600px). Verificar: todas as 8 abas estão visíveis (quebram em 2 linhas); nenhuma aba fica oculta ou cortada.' },
