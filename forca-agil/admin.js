@@ -350,6 +350,7 @@
   /* Tabela simples de interessados (turma aberta) */
   function buildInteressadosTable(records, turmaKey) {
     var wrap = document.createElement('div');
+    wrap.className = 'table-scroll-wrap';
     var tbl = '<table class="admin-table"><thead><tr><th>Nome</th><th>E-mail</th><th>Área</th><th>Data registro</th><th></th></tr></thead><tbody>';
     records.forEach(function (r) {
       var ekey = emailKeyFromEmail(r.email);
@@ -377,7 +378,7 @@
   function buildPresencaTable(t, inscritos, checkinT) {
     var minDias = Math.ceil(t.dias.length * CRITERIO_PRESENCA);
     var wrap = document.createElement('div');
-    wrap.style.overflowX = 'auto';
+    wrap.className = 'table-scroll-wrap';
 
     var tbl = '<table class="admin-table presenca-table"><thead><tr>' +
       '<th>Nome</th><th>E-mail</th><th>Área</th>';
@@ -1090,7 +1091,10 @@
     }
     fillRows(list);
     tbl.appendChild(tbody);
-    c.appendChild(tbl);
+    var tblWrap = document.createElement('div');
+    tblWrap.className = 'table-scroll-wrap';
+    tblWrap.appendChild(tbl);
+    c.appendChild(tblWrap);
 
     const filtroInput = document.getElementById('cadastradosFiltro');
     filtroInput.addEventListener('input', function () {
@@ -1173,7 +1177,10 @@
             tbody.appendChild(tr);
           });
           tbl.appendChild(tbody);
-          c.appendChild(tbl);
+          const admTblWrap = document.createElement('div');
+          admTblWrap.className = 'table-scroll-wrap';
+          admTblWrap.appendChild(tbl);
+          c.appendChild(admTblWrap);
 
           tbody.addEventListener('click', function (e) {
             const btn = e.target.closest('.admin-del-btn');

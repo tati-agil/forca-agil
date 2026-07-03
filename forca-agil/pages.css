@@ -473,6 +473,9 @@
 #adminColab h4, #adminCadastrados h4, #adminAdmins h4 { margin-bottom: 20px; }
 #adminColab .admin-colab-row, #adminCadastrados .admin-colab-row { margin-top: 4px; }
 
+/* Scroll horizontal automático para tabelas largas em qualquer tela */
+.table-scroll-wrap { width: 100%; overflow-x: auto; -webkit-overflow-scrolling: touch; }
+
 /* Item 3: fundo sólido nas tabelas para melhorar contraste sobre o fundo animado */
 .admin-table { width: 100%; border-collapse: collapse; font-size: .84rem; background: var(--panel); border-radius: 10px; overflow: hidden; }
 .admin-table th {
