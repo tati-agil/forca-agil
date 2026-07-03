@@ -34,18 +34,23 @@
         { id: 'auth-admin',   label: 'Usuário atual é admin',                        run: function () { const s = window.faAuth && window.faAuth.getSession(); return !!(s && window.faAuth.isAdmin(s.email)); } },
         { id: 'auth-email',   label: 'E-mail da sessão é @previ.com.br',             run: function () { const s = window.faAuth && window.faAuth.getSession(); return !!(s && s.email && s.email.endsWith('@previ.com.br')); } },
         { id: 'auth-logout',  label: 'Botão "Sair" presente no DOM',                 run: function () { return !!document.getElementById('navLogout'); } },
+        { id: 'auth-access-level', label: 'faAuth.getAccessLevel() existe e retorna valor válido ("guest", "member" ou "enrolled")', run: function () {
+          if (typeof window.faAuth !== 'object' || typeof window.faAuth.getAccessLevel !== 'function') return false;
+          var level = window.faAuth.getAccessLevel();
+          return level === 'guest' || level === 'member' || level === 'enrolled';
+        } },
         { id: 'auth-domain-rule', label: 'Restrição @previ.com.br nas regras do banco (server-side)', run: function () { return true; },
           nota: 'Verificação manual: regras do Firebase Realtime Database exigem auth.token.email.matches(/.*@previ\\.com\\.br/) em todas as operações autenticadas — não apenas validação no front-end. Testar via REST API diretamente com conta de outro domínio deve retornar HTTP 403.' }
       ]
     },
     {
-      group: 'XP & Progresso',
+      group: 'Quiz & Progresso',
       tests: [
         { id: 'xp-store',        label: 'faStore disponível',                                        run: function () { return typeof window.faStore === 'object' && typeof window.faStore.getItem === 'function'; } },
         { id: 'xp-load',         label: 'faLoadProgress disponível',                                 run: function () { return typeof window.faLoadProgress === 'function'; } },
         { id: 'xp-save',         label: 'faSyncProgress disponível',                                 run: function () { return typeof window.faSyncProgress === 'function'; } },
         { id: 'xp-sync',         label: 'faSyncPlayer disponível',                                   run: function () { return typeof window.faSyncPlayer === 'function'; } },
-        { id: 'xp-clean-rank',   label: 'faCleanRanking disponível (remove entrada sem reveal)',      run: function () { return typeof window.faCleanRanking === 'function'; } },
+        { id: 'xp-clean-rank',   label: 'faCleanRanking disponível',                                 run: function () { return typeof window.faCleanRanking === 'function'; } },
         { id: 'xp-revelar-bloqueado', label: 'REVELAR bloqueado enquanto quiz pendente', run: function () {
           var btn = document.getElementById('revelarBtn');
           var hint = document.querySelector('.revelar-hint');
@@ -198,14 +203,14 @@
         { id: 'adm-tabs',   label: 'Abas Admin presentes (7: Turmas/Repositório/Cadastrados/Administradores/Manual/Mapa/Testes)', run: function () { return document.querySelectorAll('.admin-tab-btn').length === 7; } },
         { id: 'adm-manual-panel', label: 'Painel Manual presente', run: function () { return !!document.getElementById('adminPanelManual'); } },
         { id: 'adm-mapa-panel',   label: 'Painel Mapa presente',   run: function () { return !!document.getElementById('adminPanelMapa'); } },
-        { id: 'adm-mapa-cards',   label: 'Mapa: 9 cards de página renderizados', run: function () {
+        { id: 'adm-mapa-cards',   label: 'Mapa: 8 cards de página renderizados (sem Ranking)', run: function () {
           if (window.faInitMapa) window.faInitMapa();
-          return document.querySelectorAll('#adminMapa .mapa-page').length === 9;
+          return document.querySelectorAll('#adminMapa .mapa-page').length === 8;
         } },
         { id: 'adm-mapa-features', label: 'Mapa: todos os cards têm features', run: function () {
           if (window.faInitMapa) window.faInitMapa();
           var cards = document.querySelectorAll('#adminMapa .mapa-page');
-          if (cards.length !== 9) return false;
+          if (cards.length !== 8) return false;
           return Array.from(cards).every(function (c) { return c.querySelectorAll('.mapa-feature').length > 0; });
         } },
         { id: 'adm-mapa-features-completas', label: 'Mapa: nenhum card renderiza menos features do que o definido (sem clipping)', run: function () {
@@ -524,17 +529,6 @@
       ]
     },
     {
-      group: 'Página Ranking',
-      tests: [
-        { id: 'c-rank-container', label: 'Container do ranking presente',              run: function () { return !!document.getElementById('rankingPageList'); } },
-        { id: 'c-rank-destaque',  label: 'Linha da própria usuária destacada (logado)', run: function () {
-            var revealed = (window.faStore || localStorage).getItem('fa-patente-revealed') === '1';
-            if (!revealed) return true; // sem patente revelada, não há linha no ranking — N/A
-            return !!document.querySelector('.rank-row.highlight');
-          } }
-      ]
-    },
-    {
       group: 'Painel Admin — Integridade',
       tests: [
         { id: 'c-adm-interesses', label: 'Aba Interessados por turma carregada',  run: function () { return !!document.getElementById('adminInterests') || !!document.getElementById('adminPanelInteresses'); } },
@@ -617,6 +611,18 @@
     { section: 'Início',
       title: 'Seção "O que está acontecendo" — ausente na v3',
       motivo: 'Verificar visualmente que os blocos de Turmas, Conteúdos e Ranking mini não aparecem na home.' },
+    { section: 'Início',
+      title: 'Badge XP ausente no header para todos os perfis',
+      motivo: 'Verificar visualmente: o header do usuário logado deve exibir apenas avatar, nome e botão Sair — sem pill/badge de XP ao lado do nome.' },
+    { section: 'Turmas',
+      title: 'Visitante não acessa Conteúdos nem Treinamento Jedi',
+      motivo: 'Verificar manualmente: acessar #conteudos e #gamificacao sem estar logado — o site deve bloquear o acesso e não exibir o conteúdo dessas páginas.' },
+    { section: 'Turmas',
+      title: 'Logado sem turma não acessa Conteúdos nem Treinamento Jedi',
+      motivo: 'Verificar com conta logada sem turma confirmada: links de Conteúdos e Treinamento Jedi não devem aparecer no menu; acessar as páginas diretamente deve ser bloqueado.' },
+    { section: 'Turmas',
+      title: 'Inscrito vê apenas o card da própria turma na página Turmas',
+      motivo: 'Verificar com conta que tem turma confirmada: somente o card da turma confirmada deve aparecer; os demais cards ficam ocultos; sem botões "Tenho interesse" ou "Remover interesse".' },
     { section: 'Turmas',
       title: 'Botão "Tenho interesse" sem login → mensagem + modal login',
       motivo: 'Requer estar deslogado.' },
@@ -677,15 +683,9 @@
     { section: 'Treinamento Jedi',
       title: 'Reset de progresso (Admin) — apaga e remove do ranking',
       motivo: 'Ação destrutiva real. Não deve ser executada em teste automatizado.' },
-    { section: 'Ranking',
-      title: 'Imagem da patente (personagem) aparece ao lado do nome',
-      motivo: 'Verificar visualmente que o SVG do personagem (Youngling/Padawan/Cavaleiro/Mestre) aparece em cada linha do ranking.' },
-    { section: 'Ranking',
+    { section: 'Turmas',
       title: 'Botão "Tenho interesse" — estilo primário (dourado); "Remover interesse" — estilo secundário (neutro)',
-      motivo: 'Verificar visualmente na página Turmas: "Tenho interesse" deve ter fundo dourado com brilho; após clicar, "Remover interesse" deve ter fundo escuro neutro sem brilho.' },
-    { section: 'Ranking',
-      title: 'Atualização em tempo real via Firebase',
-      motivo: 'Requer dois usuários simultâneos — um revelando patente enquanto o outro observa o ranking.' },
+      motivo: 'Verificar visualmente na página Turmas (logado sem turma): "Tenho interesse" deve ter fundo dourado; após clicar, "Remover interesse" deve ter fundo escuro neutro.' },
     { section: 'Admin',
       title: 'Acesso negado para visitante/logado (URL direta)',
       motivo: 'Requer testar com diferentes níveis de acesso — não pode ser validado na sessão admin atual.' },
@@ -931,7 +931,7 @@
     const RES_COLOR = {
       'Firebase':                    '#1ab2ae',
       'Autenticação':                '#9b7fff',
-      'XP & Progresso':              '#f5c542',
+      'Quiz & Progresso':            '#f5c542',
       'Painel Admin':                '#ff5252',
       'Menu — Cadastrar / Entrar':   '#9b7fff',
       'Formulário de Cadastro':      '#9b7fff',
@@ -940,7 +940,6 @@
       'Página Repositório':          '#e8854a',
       'Página Ajuda':                '#7ecbff',
       'Página Treinamento Jedi':     '#e05c7f',
-      'Página Ranking':              '#57aaff',
       'Painel Admin — Integridade':  '#ff5252',
     };
 

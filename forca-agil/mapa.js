@@ -3,16 +3,19 @@
   'use strict';
 
   const PERSONAS = [
-    { key: 'visitante', label: 'Visitante',      color: '#888888', desc: 'Não cadastrado / não logado' },
-    { key: 'logado',    label: 'Usuário logado', color: '#1ab2ae', desc: 'Cadastrado com @previ.com.br' },
-    { key: 'admin',     label: 'Admin',          color: '#ff5252', desc: 'Usuário com acesso administrativo' },
+    { key: 'visitante',  label: 'Visitante',                      color: '#888888', desc: 'Não cadastrado / não logado — getAccessLevel() retorna "guest"' },
+    { key: 'logado',     label: 'Usuário logado (sem turma)',      color: '#1ab2ae', desc: 'Cadastrado com @previ.com.br, sem turma confirmada — getAccessLevel() retorna "member"' },
+    { key: 'inscrito',   label: 'Usuário inscrito (turma confirmada)', color: '#4caf7d', desc: 'Logado e com turma confirmada pelo admin — getAccessLevel() retorna "enrolled"' },
+    { key: 'admin',      label: 'Admin',                           color: '#ff5252', desc: 'Usuário com acesso administrativo' },
   ];
 
   const HIERARCHY = [
     { key: 'visitante',   label: 'Visitante',      color: '#888888',
-      adds: ['Ver páginas públicas (Início, Turmas, Conteúdos, Repositório, Ranking, Ajuda)', 'Cadastrar conta (@previ.com.br)', 'Fazer login', 'Recuperar senha por e-mail (autoatendimento)'] },
-    { key: 'logado',  label: 'Usuário logado', color: '#1ab2ae',
-      adds: ['Acessar e jogar o Treinamento Jedi (autodiagnóstico quiz 0–60)', 'Ganhar pontos de experiência por conteúdos lidos', 'Adicionar e remover conteúdos no Repositório', 'Registrar interesse em turmas', 'Revelar patente (resultado fixo e bloqueado — não pode refazer sem reset do admin)'] },
+      adds: ['Ver páginas públicas (Início, Turmas, Ajuda)', 'Cadastrar conta (@previ.com.br)', 'Fazer login', 'Recuperar senha por e-mail (autoatendimento)'] },
+    { key: 'logado',  label: 'Usuário logado (sem turma)', color: '#1ab2ae',
+      adds: ['Acessar o Repositório', 'Adicionar e remover conteúdos no Repositório', 'Manifestar interesse em até 3 turmas', 'Remover interesse em turmas'] },
+    { key: 'inscrito', label: 'Usuário inscrito (turma confirmada)', color: '#4caf7d',
+      adds: ['Acessar Conteúdos', 'Acessar Treinamento Jedi (autodiagnóstico quiz 0–60)', 'Revelar patente (resultado fixo e bloqueado — não pode refazer sem reset do admin)', 'Vê apenas o card da própria turma na página Turmas — sem botões de interesse'] },
     { key: 'admin',   label: 'Admin',          color: '#ff5252',
       adds: ['Acessar o Painel Admin', 'Ver todos os cadastrados', 'Ver interessados por turma', 'Moderar Repositório (ocultar/restaurar/deletar)', 'Resetar progresso de qualquer cadastrado', 'Enviar e-mail de redefinição de senha para qualquer cadastrado', 'Gerenciar lista de admins (apenas tatianefdirene e danielfrazao — restrito por regra Firebase)'] },
   ];
@@ -20,86 +23,78 @@
   const PAGES = [
     { label: 'INÍCIO', color: '#1ab2ae',
       features: [
-        { label: 'Ver página completa',                  p: ['visitante','logado','admin'] },
-        { label: 'Subtítulo do hero: "Desenvolva sua agilidade na prática"', p: ['visitante','logado','admin'] },
-        { label: 'Botão "Conhecer a iniciativa" → rola até "O que é"',    p: ['visitante','logado','admin'] },
-        { label: 'Botão "Repetir abertura" → replay do crawl de intro',   p: ['visitante','logado','admin'] },
-        { label: 'Crawl: botões "≡ Ler texto" / "⏸ Pausar" / "↻ Repetir abertura" exibidos lado a lado (layout horizontal)', p: ['visitante','logado','admin'] },
-        { label: 'Crawl: clicar na área ou botão "⏸ Pausar" → pausa/retoma animação', p: ['visitante','logado','admin'] },
-        { label: 'Crawl: botão "≡ Ler texto" → exibe texto estático sem perspectiva; "✕ Fechar texto" retorna ao crawl', p: ['visitante','logado','admin'] },
-        { label: '3 cards "Como funciona" → links para Conteúdos / Repositório / Treinamento Jedi (sem hover — cards decorativos)', p: ['visitante','logado','admin'] },
-        { label: 'Linha "Os pontos de experiência mostram sua evolução no portal. Saiba mais →" abaixo dos 3 pilares — link navega para Ajuda e abre a pergunta sobre XP', p: ['visitante','logado','admin'] },
+        { label: 'Ver página completa',                  p: ['visitante','logado','inscrito','admin'] },
+        { label: 'Subtítulo do hero: "Desenvolva sua agilidade na prática"', p: ['visitante','logado','inscrito','admin'] },
+        { label: 'Botão "Conhecer a iniciativa" → rola até "O que é"',    p: ['visitante','logado','inscrito','admin'] },
+        { label: 'Botão "Repetir abertura" → replay do crawl de intro',   p: ['visitante','logado','inscrito','admin'] },
+        { label: 'Crawl: botões "≡ Ler texto" / "⏸ Pausar" / "↻ Repetir abertura" exibidos lado a lado (layout horizontal)', p: ['visitante','logado','inscrito','admin'] },
+        { label: 'Crawl: clicar na área ou botão "⏸ Pausar" → pausa/retoma animação', p: ['visitante','logado','inscrito','admin'] },
+        { label: 'Crawl: botão "≡ Ler texto" → exibe texto estático sem perspectiva; "✕ Fechar texto" retorna ao crawl', p: ['visitante','logado','inscrito','admin'] },
+        { label: '3 cards "Como funciona" → links para Conteúdos / Repositório / Treinamento Jedi (sem hover — cards decorativos)', p: ['visitante','logado','inscrito','admin'] },
         { label: 'Botão hero deslogado: "Juntar-se à Força →" → abre modal de cadastro', p: ['visitante'] },
-        { label: 'Botão hero logado: "Ver turmas →" → navega para a página Turmas', p: ['logado','admin'] },
-        { label: 'CTA final: único botão "Ver turmas →" direciona para a página Turmas (mesmo comportamento para todos os perfis)', p: ['visitante','logado','admin'] },
-        { label: 'Link no rodapé para previ.com.br (externo, presente em todas as páginas)', p: ['visitante','logado','admin'] },
+        { label: 'Botão hero logado: "Ver turmas →" → navega para a página Turmas', p: ['logado','inscrito','admin'] },
+        { label: 'CTA final: único botão "Ver turmas →" direciona para a página Turmas (mesmo comportamento para todos os perfis)', p: ['visitante','logado','inscrito','admin'] },
+        { label: 'Link no rodapé para previ.com.br (externo, presente em todas as páginas)', p: ['visitante','logado','inscrito','admin'] },
       ]
     },
     { label: 'TURMAS', color: '#f5c542',
       features: [
-        { label: 'Ver turmas, datas e descrição',        p: ['visitante','logado','admin'] },
-        { label: 'Bloco "Como funciona a oficina" antes da agenda: 4 métricas (5 dias, 4h, Prática, Opcional) + descrição', p: ['visitante','logado','admin'] },
-        { label: 'Agenda D1–D5: itens estáticos (sem expansível — nenhum conteúdo interno)', p: ['visitante','logado','admin'] },
+        { label: 'Ver turmas, datas e descrição (visitante e logado sem turma veem todas as turmas)',  p: ['visitante','logado','admin'] },
+        { label: 'Inscrito vê apenas o card da própria turma confirmada (as demais ficam ocultas)',    p: ['inscrito'] },
+        { label: 'Card da turma confirmada mostra: nome da turma, mês/período CONFIRMADA, dias — sem botões de interesse', p: ['inscrito'] },
+        { label: 'Bloco "Como funciona a oficina" antes da agenda: 4 métricas (5 dias, 4h, Prática, Opcional) + descrição', p: ['visitante','logado','inscrito','admin'] },
+        { label: 'Agenda D1–D5: itens estáticos (sem expansível — nenhum conteúdo interno)', p: ['visitante','logado','inscrito','admin'] },
         { label: '"Tenho interesse" sem login → exibe mensagem "Faça login para registrar seu interesse" + abre modal login', p: ['visitante'] },
-        { label: 'Registrar interesse → botão vira "Remover interesse" (status: interessado)', p: ['logado','admin'] },
-        { label: 'Remover interesse → botão volta a "Tenho interesse" (log mantido)', p: ['logado','admin'] },
-        { label: 'Turma finalizada → botão vira "✓ Inscrita" (desabilitado)', p: ['logado','admin'] },
-        { label: 'Check-in via QR Code no dia do evento → botão vira "✓ Presente" (por dia)', p: ['logado','admin'] },
+        { label: 'Registrar interesse → botão vira "Remover interesse" (status: interessado) — disponível para logado sem turma confirmada', p: ['logado','admin'] },
+        { label: 'Remover interesse → botão volta a "Tenho interesse" (log mantido) — disponível para logado sem turma confirmada', p: ['logado','admin'] },
+        { label: 'Turma finalizada (inscrito) → botão vira "✓ Inscrita" (desabilitado)', p: ['inscrito','admin'] },
+        { label: 'Check-in via QR Code no dia do evento → botão vira "✓ Presente" (por dia)', p: ['inscrito','admin'] },
       ]
     },
     { label: 'CONTEÚDOS', color: '#4caf7d',
       features: [
-        { label: 'Ler as 7 seções numeradas (01 Mapa da Galáxia → 07 A Trilogia) — cada uma ocupa 100vh, uma por vez', p: ['visitante','logado','admin'] },
-        { label: 'Mapa da Galáxia: botão "Ver mais 6 elementos →" revela os 6 últimos cards (ocultos por padrão)', p: ['visitante','logado','admin'] },
-        { label: '12 Princípios: primeiros 6 visíveis por padrão; botão "Ver os 6 princípios restantes →" revela os princípios 7–12', p: ['visitante','logado','admin'] },
-        { label: 'Navegação lateral por pontos (01–07) — salta entre seções; tooltip com nome ao passar o mouse', p: ['visitante','logado','admin'] },
-        { label: 'Ganhar +5 pts por seção lida (badge "✓ +5 pts" aparece após leitura)', p: ['logado','admin'] },
-        { label: 'Link externo "Ler os 4 valores na íntegra" (agilemanifesto.org)', p: ['visitante','logado','admin'] },
-        { label: 'Link externo "Ler os 12 princípios na íntegra" (agilemanifesto.org)', p: ['visitante','logado','admin'] },
+        { label: 'Ler as 7 seções numeradas (01 Mapa da Galáxia → 07 A Trilogia) — cada uma ocupa 100vh, uma por vez', p: ['inscrito','admin'] },
+        { label: 'Mapa da Galáxia: botão "Ver mais 6 elementos →" revela os 6 últimos cards (ocultos por padrão)', p: ['inscrito','admin'] },
+        { label: '12 Princípios: primeiros 6 visíveis por padrão; botão "Ver os 6 princípios restantes →" revela os princípios 7–12', p: ['inscrito','admin'] },
+        { label: 'Navegação lateral por pontos (01–07) — salta entre seções; tooltip com nome ao passar o mouse', p: ['inscrito','admin'] },
+        { label: 'Badge "+5 pts" em cards selecionados: "03 · A Força do Ágil" e "25 Ensinamentos do Mestre Yoda" (demais cards sem badge de pontos)', p: ['inscrito','admin'] },
+        { label: 'Link externo "Ler os 4 valores na íntegra" (agilemanifesto.org)', p: ['inscrito','admin'] },
+        { label: 'Link externo "Ler os 12 princípios na íntegra" (agilemanifesto.org)', p: ['inscrito','admin'] },
       ]
     },
     { label: 'REPOSITÓRIO', color: '#e8854a',
       features: [
-        { label: 'Ver todos os conteúdos — cards com descrição colapsada em 2 linhas; "ver mais" / "ver menos" só onde o texto transborda', p: ['visitante','logado','admin'] },
-        { label: 'Filtrar por tipo (Todos/Vídeos/Documentos/Ferramentas/Livros)', p: ['visitante','logado','admin'] },
-        { label: '"Adicionar" sem login → exibe mensagem "Faça login para contribuir com o repositório" + abre modal login', p: ['visitante'] },
-        { label: 'Adicionar conteúdo ao Holocron',       p: ['logado','admin'] },
-        { label: 'Remover próprio conteúdo',             p: ['logado','admin'] },
+        { label: 'Ver todos os conteúdos — cards com descrição colapsada em 2 linhas; "ver mais" / "ver menos" só onde o texto transborda', p: ['logado','inscrito','admin'] },
+        { label: 'Filtrar por tipo (Todos/Vídeos/Documentos/Ferramentas/Livros)', p: ['logado','inscrito','admin'] },
+        { label: 'Repositório não acessível para visitante — exige login', p: ['visitante'] },
+        { label: 'Adicionar conteúdo ao Holocron',       p: ['logado','inscrito','admin'] },
+        { label: 'Remover próprio conteúdo',             p: ['logado','inscrito','admin'] },
       ]
     },
     { label: 'TREINAMENTO JEDI', color: '#e05c7f',
       features: [
-        { label: 'Welcome screen: botão "Quero jogar" → abre modal login (visitante)', p: ['visitante'] },
-        { label: 'Conteúdo do quiz oculto para visitantes: autodiagnóstico só aparece após login', p: ['visitante'] },
-        { label: 'Autodiagnóstico Likert — 20 afirmações em 4 blocos, escala 0–3, pontuação total 0–60', p: ['logado','admin'] },
-        { label: 'Patente determinada exclusivamente pela pontuação do quiz (Youngling 0–15 / Padawan 16–30 / Cavaleiro 31–45 / Mestre 46–60)', p: ['logado','admin'] },
-        { label: 'Ver painel HUD com avatar SVG e patente atual em tempo real conforme responde', p: ['logado','admin'] },
-        { label: 'Ladder de patentes: 4 cards com personagens SVG, faixas de pontuação e nomes', p: ['logado','admin'] },
-        { label: 'Botão "Revelar minha Patente →" aparece ao concluir as 20 afirmações (centralizado)', p: ['logado','admin'] },
-        { label: 'Após revelar: botão desabilitado + card compacto com avatar, pontuação, nome da patente, descrição, características, próximos passos e frase Jedi', p: ['logado','admin'] },
-        { label: 'Resultado bloqueado após revelar — mensagem "🔒 Para refazer, solicite ao admin o reset do seu progresso."', p: ['logado','admin'] },
+        { label: 'Página não acessível para visitante nem para logado sem turma confirmada — exige perfil inscrito', p: ['visitante','logado'] },
+        { label: 'Welcome screen: botão "Quero jogar" → abre modal login (visitante sem login)', p: ['visitante'] },
+        { label: 'Autodiagnóstico Likert — 20 afirmações em 4 blocos, escala 0–3, pontuação total 0–60', p: ['inscrito','admin'] },
+        { label: 'Patente determinada exclusivamente pela pontuação do quiz (Youngling 0–15 / Padawan 16–30 / Cavaleiro 31–45 / Mestre 46–60)', p: ['inscrito','admin'] },
+        { label: 'Ver painel HUD com avatar SVG e patente atual em tempo real conforme responde', p: ['inscrito','admin'] },
+        { label: 'Ladder de patentes: 4 cards com personagens SVG, faixas de pontuação e nomes', p: ['inscrito','admin'] },
+        { label: 'Botão "Revelar minha Patente →" aparece ao concluir as 20 afirmações (centralizado)', p: ['inscrito','admin'] },
+        { label: 'Após revelar: botão desabilitado + card compacto com avatar, pontuação, nome da patente, descrição, características, próximos passos e frase Jedi', p: ['inscrito','admin'] },
+        { label: 'Resultado bloqueado após revelar — mensagem "🔒 Para refazer, solicite ao admin o reset do seu progresso."', p: ['inscrito','admin'] },
         { label: 'Missões e Kyber Game removidos da v3', p: [] },
-      ]
-    },
-    { label: 'RANKING', color: '#57aaff',
-      features: [
-        { label: 'Ver ranking completo',                 p: ['visitante','logado','admin'] },
-        { label: 'Identificação da própria linha no ranking', p: ['logado','admin'] },
-        { label: 'Imagem da patente (personagem SVG: Youngling/Padawan/Cavaleiro/Mestre) exibida ao lado do nome da patente (coluna direita) em todas as listagens do ranking', p: ['visitante','logado','admin'] },
-        { label: 'Ver patente de todos',                 p: ['visitante','logado','admin'] },
       ]
     },
     { label: 'AJUDA', color: '#9b7fff',
       features: [
-        { label: 'Ver página Ajuda com 10 perguntas em acordeão (<details>/<summary>) — eyebrow "Central de Ajuda", h1 "Como podemos ajudar?"', p: ['visitante','logado','admin'] },
-        { label: 'Expandir/recolher cada pergunta clicando no título (comportamento nativo do browser)', p: ['visitante','logado','admin'] },
-        { label: 'Link "Ajuda" no menu de navegação (substituiu "FAQ")', p: ['visitante','logado','admin'] },
-        { label: 'Pergunta sobre XP com id "faq-xp" — aberta automaticamente ao clicar "Saiba mais →" na Home', p: ['visitante','logado','admin'] },
+        { label: 'Ver página Ajuda com perguntas em acordeão (<details>/<summary>) — eyebrow "Central de Ajuda", h1 "Como podemos ajudar?"', p: ['visitante','logado','inscrito','admin'] },
+        { label: 'Expandir/recolher cada pergunta clicando no título (comportamento nativo do browser)', p: ['visitante','logado','inscrito','admin'] },
+        { label: 'Link "Ajuda" no menu de navegação', p: ['visitante','logado','inscrito','admin'] },
       ]
     },
     { label: 'ADMIN', color: '#ff5252',
       features: [
-        { label: 'Aba Turmas — cards por turma com badge ABERTA/FINALIZADA e contagem de inscritos', p: ['admin'] },
+        { label: 'Aba Turmas — cards por turma com badge ABERTA/FINALIZADA e contagem de inscritos; cards com fundo sólido (#1a2035), sem transparência; datas no formato "11, 12, 18, 19 e 20" (com vírgulas e "e")', p: ['admin'] },
         { label: 'Finalizar inscrição da turma — converte todos os interessados em inscritos e bloqueia novas inscrições', p: ['admin'] },
         { label: 'Reabrir turma — volta inscritos para interessado e permite novas inscrições', p: ['admin'] },
         { label: 'Abrir check-in do dia — select com os dias da turma + botão confirmar; admin escolhe qualquer dia (passado ou futuro); define diaAtivo em turmas-config', p: ['admin'] },
@@ -108,7 +103,7 @@
         { label: 'Tabela de presença por dia — colunas por data (✓ qr / ✓ adm / —), frequência X/5 colorida', p: ['admin'] },
         { label: 'Registrar presença retroativa — admin clica em "—" de qualquer pessoa/dia e confirma manualmente', p: ['admin'] },
         { label: 'Adicionar participante após inscrições fechadas — botão "＋ Participante" grava direto com status inscrito sem reabrir turma', p: ['admin'] },
-        { label: 'Remover inscrito da turma finalizada — botão "Remover" na tabela de presença marca removed:true sem afetar demais inscritos', p: ['admin'] },
+        { label: 'Remover inscrito da turma finalizada — botão "Remover" na tabela de presença marca removed:true e removedDate (data+hora); removido some da tela mas aparece no CSV exportado', p: ['admin'] },
         { label: 'Critério de presença configurável — CRITERIO_PRESENCA = 0.75 (75%, default 4/5 dias)', p: ['admin'] },
         { label: 'Exportar CSV estado atual (com colunas de presença por dia e frequência)', p: ['admin'] },
         { label: 'Exportar CSV Histórico de ações (adicionou/removeu interesse)', p: ['admin'] },
@@ -118,10 +113,9 @@
         { label: 'Moderar repositório — deletar permanentemente seeds curados (fa-seeds-deleted, sem restauração)', p: ['admin'] },
         { label: 'Moderar repositório — ocultar/restaurar conteúdo de usuários (fa-holocron-hidden)', p: ['admin'] },
         { label: 'Moderar repositório — deletar permanentemente conteúdo de usuários (holocron)', p: ['admin'] },
-        { label: 'Ver todos os cadastrados, com filtro de busca e coluna XP', p: ['admin'] },
-        { label: 'Ver todos os cadastrados, com filtro de busca e coluna XP — basta ter feito qualquer atividade para o XP aparecer (amarelo = publicou no ranking, ciano = tem XP mas não publicou, "—" = sem XP)', p: ['admin'] },
+        { label: 'Ver todos os cadastrados, com filtro de busca', p: ['admin'] },
         { label: 'Redefinir senha de qualquer cadastrado (e-mail)', p: ['admin'] },
-        { label: 'Resetar progresso de qualquer cadastrado — apaga fa-progress, remove do ranking (players via query por email), escreve fa-reset-signal/<eKey> para notificar a pessoa logada; a página dela recarrega automaticamente — todos os jogos reabilitados sem ação da pessoa', p: ['admin'] },
+        { label: 'Resetar progresso de qualquer cadastrado — apaga fa-progress, escreve fa-reset-signal/<eKey> para notificar a pessoa logada; a página dela recarrega automaticamente — quiz reabilitado sem ação da pessoa', p: ['admin'] },
         { label: 'Adicionar / remover admins',                p: ['admin'] },
         { label: 'Abas do painel — 8 abas (Turmas, Repositório, Colaboradores, Cadastrados, Administradores, Manual, Mapa, Testes); no mobile quebram em 2 linhas com fonte reduzida', p: ['admin'] },
         { label: 'Aba Manual — checklist de regras de comportamento + Expandir/Recolher tudo', p: ['admin'] },
@@ -131,14 +125,15 @@
     },
     { label: 'CADASTRAR / ENTRAR', color: '#9b7fff',
       features: [
-        { label: 'Ver botões no menu',                        p: ['visitante'] },
+        { label: 'Ver botões no menu (Início, Turmas, Ajuda visíveis no menu para visitante)',  p: ['visitante'] },
         { label: 'Cadastrar conta (@previ.com.br)',           p: ['visitante'] },
         { label: 'Fazer login',                               p: ['visitante'] },
         { label: 'Esqueci minha senha — link por e-mail',     p: ['visitante'] },
-        { label: 'Inicial e nome no menu — no lugar dos botões Entrar/Cadastrar', p: ['logado','admin'] },
-        { label: 'Badge XP no header (pill dourado entre nome e "Sair") — exibe pontos acumulados; tooltip "XP é a sigla para pontos de experiência"; atualiza em tempo real', p: ['logado','admin'] },
+        { label: 'Inicial e nome no menu — no lugar dos botões Entrar/Cadastrar; header exibe avatar, nome e botão Sair (sem badge XP)', p: ['logado','inscrito','admin'] },
+        { label: 'Menu logado sem turma: Início, Turmas, Repositório, Ajuda (sem Conteúdos nem Treinamento Jedi)', p: ['logado'] },
+        { label: 'Menu inscrito com turma: Início, Turmas, Repositório, Conteúdos, Treinamento Jedi, Ajuda', p: ['inscrito'] },
         { label: 'Ver link "Admin" no menu de navegação (desktop sempre visível; mobile: aparece ao abrir o menu)', p: ['admin'] },
-        { label: 'Botão Sair',                                p: ['logado','admin'] },
+        { label: 'Botão Sair',                                p: ['logado','inscrito','admin'] },
       ]
     },
   ];
@@ -146,9 +141,9 @@
   function esc(str) { return String(str).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
 
   /* Badge de nível mínimo para o mapa do site */
-  const P_ORDER = ['visitante', 'logado', 'admin'];
-  const P_COLOR = { visitante: '#888888', logado: '#1ab2ae', admin: '#ff5252' };
-  const P_LABEL = { visitante: 'Visitante', logado: 'Logado', admin: 'Admin' };
+  const P_ORDER = ['visitante', 'logado', 'inscrito', 'admin'];
+  const P_COLOR = { visitante: '#888888', logado: '#1ab2ae', inscrito: '#4caf7d', admin: '#ff5252' };
+  const P_LABEL = { visitante: 'Visitante', logado: 'Logado', inscrito: 'Inscrito', admin: 'Admin' };
 
   function levelBadge(personas) {
     if (!personas || !personas.length) return '';
@@ -212,9 +207,10 @@
     html += '<div class="mapa-legend-box">';
     html += '<span class="mapa-legend-title">Legenda por persona</span>';
     html += '<div class="mapa-legend">';
-    html += '<span class="mapa-legend-item"><span class="mapa-badge" style="--bc:#888">Visitante</span> não autenticado (exclusivo para quem não entrou)</span>';
-    html += '<span class="mapa-legend-item"><span class="mapa-badge" style="--bc:#1ab2ae">Logado +</span> qualquer usuário autenticado — admins também são logados</span>';
-    html += '<span class="mapa-legend-item"><span class="mapa-badge" style="--bc:#ff5252">Admin</span> usuário com acesso administrativo</span>';
+    html += '<span class="mapa-legend-item"><span class="mapa-badge" style="--bc:#888">Visitante</span> não autenticado — vê Início, Turmas, Ajuda</span>';
+    html += '<span class="mapa-legend-item"><span class="mapa-badge" style="--bc:#1ab2ae">Logado +</span> autenticado sem turma confirmada — getAccessLevel() = "member"</span>';
+    html += '<span class="mapa-legend-item"><span class="mapa-badge" style="--bc:#4caf7d">Inscrito +</span> com turma confirmada — getAccessLevel() = "enrolled"</span>';
+    html += '<span class="mapa-legend-item"><span class="mapa-badge" style="--bc:#ff5252">Admin</span> acesso administrativo completo</span>';
     html += '</div>';
     html += '</div>';
 
@@ -252,7 +248,7 @@
         label: 'Tecnologias & Serviços', color: '#1ab2ae',
         items: [
           { name: 'Firebase Authentication', desc: 'Login e cadastro por e-mail/senha. Redefinição de senha via link automático. Gratuito (Spark plan)' },
-          { name: 'Firebase Realtime Database', desc: 'Armazena: fa-users (perfis), fa-ranking (XP publicado), fa-holocron (repositório), fa-admins, turmas-interesse/<turma>/<emailKey>, turmas-config/<turma> (finalizada, diaAtivo), turmas-checkin/<turma>/<data>/<emailKey>. Regras de segurança: raiz com .read/.write false; todas as escritas e leituras autenticadas exigem auth.token.email matches @previ.com.br (restrição no servidor, não apenas no front-end); leitura de coleções completas de fa-users, fa-progress e fa-admins restrita a tatianefdirene e danielfrazao' },
+          { name: 'Firebase Realtime Database', desc: 'Armazena: fa-users (perfis), fa-holocron (repositório), fa-admins, turmas-interesse/<turma>/<emailKey>, turmas-config/<turma> (finalizada, diaAtivo, turmaConfirmada por emailKey), turmas-checkin/<turma>/<data>/<emailKey>. Regras de segurança: raiz com .read/.write false; todas as escritas e leituras autenticadas exigem auth.token.email matches @previ.com.br (restrição no servidor, não apenas no front-end); leitura de coleções completas de fa-users, fa-progress e fa-admins restrita a tatianefdirene e danielfrazao' },
           { name: 'Firebase Hosting',        desc: 'Hospedagem em kyber-agil.web.app (produção/main). Branch v3-quiz tem preview próprio em kyber-agil--v3quiz-*.web.app. CDN global, HTTPS automático' },
         ]
       },
@@ -261,16 +257,16 @@
         items: [
           { name: 'index.html',                  desc: 'Entrada única da aplicação. Contém todo o HTML, carrega os scripts e gerencia as seções por hash (#inicio, #turmas…)' },
           { name: 'forca-agil/head-init.js',     desc: 'Inicialização precoce — adiciona classe "js" ao <html> antes do body renderizar, evitando flash de conteúdo sem JS' },
-          { name: 'forca-agil/firebase.js',      desc: 'Progresso, XP e ranking — salva/carrega dados do Firebase. Em v3: lê fa-game-v3 (quiz), fa-content-xp, fa-repo-xp. API: window.faLoadProgress, window.faSyncProgress, window.faSyncPlayer, window.faCleanRanking, window.faGetTotalXP' },
-          { name: 'forca-agil/router.js',        desc: 'Roteamento por hash — controla qual seção da página está visível. API: window.faRouter' },
-          { name: 'forca-agil/auth.js',          desc: 'Autenticação — login, cadastro, logout, redefinição de senha. Senha exige apenas dígitos numéricos (mín. 8). Verifica adminship lendo só o próprio registro em fa-admins (não a lista inteira) — usuários comuns não veem quem são os admins. API pública: window.faAuth' },
+          { name: 'forca-agil/firebase.js',      desc: 'Progresso e quiz — salva/carrega dados do Firebase. Lê fa-game-v3 (quiz). API: window.faLoadProgress, window.faSyncProgress, window.faSyncPlayer, window.faGetTotalXP' },
+          { name: 'forca-agil/router.js',        desc: 'Roteamento por hash — controla qual seção da página está visível. Rotas protegidas: #conteudos e #treinamento exigem nível "enrolled" (inscrito com turma confirmada); #repositorio exige nível "member" (logado). Nível detectado via window.faAuth.getAccessLevel(). API: window.faRouter' },
+          { name: 'forca-agil/auth.js',          desc: 'Autenticação — login, cadastro, logout, redefinição de senha. Senha exige apenas dígitos numéricos (mín. 8). Verifica adminship lendo só o próprio registro em fa-admins. Detecta perfil de acesso via window.faAuth.getAccessLevel() → "guest" (visitante), "member" (logado sem turma), "enrolled" (inscrito com turma confirmada). API pública: window.faAuth' },
           { name: 'forca-agil/stars.js',         desc: 'Animação de estrelas do fundo (canvas)' },
-          { name: 'forca-agil/app.js',           desc: 'Interações de UI — nav scroll, reveals, rastreamento de XP de conteúdos, botões de interesse em turmas, crawl de abertura (pausar/retomar no clique, botão "Ler texto" para modo estático)' },
+          { name: 'forca-agil/app.js',           desc: 'Interações de UI — nav scroll, reveals, botões de interesse em turmas (perfil logado sem turma), controle de acesso por perfil via getAccessLevel(), crawl de abertura (pausar/retomar no clique, botão "Ler texto" para modo estático)' },
           { name: 'forca-agil/home-nav.js',      desc: 'Navegação assistida entre seções da Home — pontos laterais, botão Continuar animado, teclado ↑↓/Enter, IntersectionObserver para dot ativo' },
           { name: 'forca-agil/conteudos-nav.js', desc: 'Navegação lateral para a página Conteúdos — reutiliza estilos .hn-* do home-nav' },
           { name: 'forca-agil/repo.js',          desc: 'Repositório (Holocron) — listagem, adição, remoção de conteúdos, XP por contribuição' },
           { name: 'forca-agil/game-data.js',     desc: 'Dados do Treinamento Jedi — 4 blocos × 5 afirmações (BLOCOS), patentes (RANKS), níveis Likert (LEVELS). DIMS computado dinamicamente a partir de BLOCOS. MISSIONS existe no arquivo mas não é usada em v3. Expõe window.faGameData' },
-          { name: 'forca-agil/game.js',          desc: 'Treinamento Jedi — lógica de XP, autodiagnóstico (quiz), painel de patente e revelar patente. Lê dados de window.faGameData' },
+          { name: 'forca-agil/game.js',          desc: 'Treinamento Jedi — autodiagnóstico (quiz), painel de patente e revelar patente. Acessível apenas com nível "enrolled". Lê dados de window.faGameData' },
           { name: 'forca-agil/kyber.js',         desc: 'Kyber Game (inativo em v3) — script carregado mas seção hidden; sem link de navegação em v3. Código do minigame de 25 desafios com timer' },
           { name: 'forca-agil/admin.js',         desc: 'Painel Admin — interessados, moderação de repositório, gestão de admins, XP de Cadastrados (publicado ou calculado de fa-progress), exportação CSV Windows-1252 via Uint8Array+URL.createObjectURL (window.faToXls — compartilhada por Manual e Testes; acentos e travessão corretos no Excel pt-BR sem BOM), barra expandir/recolher com botões por seção' },
           { name: 'forca-agil/checkin.js',       desc: 'Check-in por QR Code — registra presença por dia via leitura de QR Code' },
