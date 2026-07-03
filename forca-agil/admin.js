@@ -229,11 +229,13 @@
               if (!diaAtivo) {
                 var sel = document.createElement('select');
                 sel.className = 'checkin-dia-select';
+                /* pré-selecionar o primeiro dia sem check-in; fallback: hoje ou primeiro */
+                var firstUnused = t.dias.find(function (d) { return !checkinT[d] || Object.keys(checkinT[d]).length === 0; }) || todayISO();
                 t.dias.forEach(function (d) {
                   var opt = document.createElement('option');
                   opt.value = d;
                   opt.textContent = fmtDia(d);
-                  if (d === todayISO()) opt.selected = true;
+                  if (d === firstUnused) opt.selected = true;
                   sel.appendChild(opt);
                 });
                 var openBtn = document.createElement('button');
@@ -806,23 +808,47 @@
   }
 
   function exportInterestLog() {
-    firebase.database().ref('turmas-interesse-log').once('value', function (snap) {
-      var data = snap.val() || {};
-      var rows = [];
-      TURMAS_LIST.forEach(function (t) {
-        var turmaLog = data[t.key] || {};
-        Object.values(turmaLog).forEach(function (userLog) {
-          Object.values(userLog).forEach(function (entry) {
-            /* MUDANÇA 1: incluir coluna "Executado por" se disponível */
-            rows.push([t.label, entry.name||'', entry.email||'', entry.area||'',
-              entry.action === 'registrado' ? 'Adicionou' : 'Removeu',
-              entry.date ? new Date(entry.date).toLocaleString('pt-BR') : '',
-              entry.adminName || '']);
+    var db = firebase.database();
+    db.ref('turmas-interesse-log').once('value', function (snapLog) {
+      db.ref('turmas-interesse').once('value', function (snapI) {
+        var logData      = snapLog.val() || {};
+        var interestData = snapI.val()   || {};
+        var rows = [];
+
+        function fmtData(iso) { if (!iso) return ''; var d = new Date(iso); return d.toLocaleDateString('pt-BR'); }
+        function fmtHora(iso) { if (!iso) return ''; var d = new Date(iso); return d.toLocaleTimeString('pt-BR'); }
+
+        TURMAS_LIST.forEach(function (t) {
+          var entries = [];
+
+          /* Ações de usuário (log) */
+          var turmaLog = logData[t.key] || {};
+          Object.values(turmaLog).forEach(function (userLog) {
+            Object.values(userLog).forEach(function (entry) {
+              var acao = entry.action === 'registrado' ? 'Interesse registrado' : 'Interesse removido';
+              var origem = entry.adminName ? 'Admin — ' + entry.adminName : 'Participante';
+              entries.push({ ts: entry.date || '', row: [t.label, entry.name||'', entry.email||'', entry.area||'', fmtData(entry.date), fmtHora(entry.date), acao, origem] });
+            });
           });
+
+          /* Ações do admin lidas diretamente de turmas-interesse (add e remove) */
+          var turmaI = interestData[t.key] || {};
+          Object.values(turmaI).forEach(function (r) {
+            if (r.addedByAdmin && r.addedByAdminName) {
+              entries.push({ ts: r.date || '', row: [t.label, r.name||'', r.email||'', r.area||'', fmtData(r.date), fmtHora(r.date), 'Adicionado pelo admin', 'Admin — ' + r.addedByAdminName] });
+            }
+            if (r.removed && r.removedByAdminName) {
+              entries.push({ ts: r.removedDate || '', row: [t.label, r.name||'', r.email||'', r.area||'', fmtData(r.removedDate), fmtHora(r.removedDate), 'Removido pelo admin', 'Admin — ' + r.removedByAdminName] });
+            }
+          });
+
+          entries.sort(function (a, b) { return (a.ts < b.ts ? -1 : a.ts > b.ts ? 1 : 0); });
+          entries.forEach(function (e) { rows.push(e.row); });
         });
+
+        toXls(['Turma','Nome','E-mail','Área','Data','Hora','Ação','Origem'],
+          rows, 'historico-' + new Date().toISOString().slice(0,10) + '.csv');
       });
-      toXls(['Turma','Nome','E-mail','Área','Tipo de Ação','Data','Executado por'],
-        rows, 'historico-interesse-' + new Date().toISOString().slice(0,10) + '.csv');
     });
   }
 
