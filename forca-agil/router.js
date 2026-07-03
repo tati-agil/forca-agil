@@ -4,7 +4,7 @@
 (function () {
   'use strict';
 
-  const PAGES   = ['home','turmas','conteudos','gamificacao','repositorio','ajuda','admin','checkin'];
+  const PAGES   = ['home','turmas','conteudos','treinamento','repositorio','ajuda','admin','checkin'];
   const inits   = {};
   let current = null;
 
@@ -28,12 +28,12 @@
       showAccessMsg('Faça login para acessar o Repositório.');
       return;
     }
-    if ((page === 'conteudos' || page === 'gamificacao') && level === 'guest') {
+    if ((page === 'conteudos' || page === 'treinamento') && level === 'guest') {
       location.hash = '#home';
       showAccessMsg('Faça login para acessar esta área.');
       return;
     }
-    if ((page === 'conteudos' || page === 'gamificacao') && level === 'member') {
+    if ((page === 'conteudos' || page === 'treinamento') && level === 'member') {
       location.hash = '#home';
       showAccessMsg('Disponível após confirmação em uma turma.');
       return;
