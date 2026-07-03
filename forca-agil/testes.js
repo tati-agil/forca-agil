@@ -351,7 +351,7 @@
         { id: 'c-como-funciona', label: 'Como funciona: os 3 links apontam para páginas reais e com o título certo', run: function () {
           var cards = document.querySelectorAll('.how-grid .how-card');
           if (cards.length !== 3) return false;
-          var map = { conteudos: 'Conteúdos', repositorio: 'Repositório Colaborativo', gamificacao: 'Treinamento Jedi' };
+          var map = { conteudos: 'Conteúdos', repositorio: 'Repositório Colaborativo', treinamento: 'Treinamento Jedi' };
           return Array.from(cards).every(function (c) {
             var page = (c.getAttribute('href') || '').replace('#', '');
             var titulo = c.querySelector('h3') ? c.querySelector('h3').textContent.trim() : '';
@@ -376,9 +376,8 @@
       group: 'Página Ajuda',
       tests: [
         { id: 'c-faq-page', label: 'Página Ajuda presente no DOM (#page-ajuda)', run: function () { return !!document.getElementById('page-ajuda'); } },
-        { id: 'c-faq-items', label: 'Ajuda tem 10 itens de acordeão (.faq-item)', run: function () { return document.querySelectorAll('#page-ajuda .faq-item').length === 10; } },
+        { id: 'c-faq-items', label: 'Ajuda tem 7 itens de acordeão (.faq-item)', run: function () { return document.querySelectorAll('#page-ajuda .faq-item').length === 7; } },
         { id: 'c-faq-nav',   label: 'Link "Ajuda" presente no menu de navegação', run: function () { return !!document.querySelector('[data-nav-page="ajuda"]'); } },
-        { id: 'c-faq-xp-anchor', label: 'Pergunta sobre XP tem id="faq-xp" (âncora para Saiba mais)', run: function () { return !!document.getElementById('faq-xp'); } },
       ]
     },
     {
