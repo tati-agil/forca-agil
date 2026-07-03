@@ -109,9 +109,10 @@
         { label: 'Remover inscrito da turma finalizada — botão "Remover" na tabela de presença abre modal de confirmação (adminConfirm); grava removed:true, removedDate, removedByAdmin e removedByAdminName; removido some da tela imediatamente', p: ['admin'] },
         { label: 'Todos os confirm() e alert() nativos substituídos por modais visuais (adminConfirm / adminAlert) com o mesmo design visual dos modais de cadastro/login', p: ['admin'] },
         { label: 'Critério de presença configurável — CRITERIO_PRESENCA = 0.75 (75%, default 4/5 dias)', p: ['admin'] },
-        { label: 'Exportar CSV "Estado Atual" — exporta apenas usuários ativos (removidos não aparecem); inclui coluna "Adicionado por" com nome do admin quando adicionado manualmente, vazia quando o próprio participante se inscreveu', p: ['admin'] },
-        { label: 'Exportar CSV "Histórico" — exporta tudo: ativos, removidos e histórico completo de ações (adicionou/removeu interesse); inclui coluna "Executado por" com nome do admin quando ação foi feita por admin, vazia quando feita pelo próprio participante', p: ['admin'] },
-        { label: 'Exportar CSV individual por turma — exporta apenas usuários ativos da turma (removidos não aparecem)', p: ['admin'] },
+        { label: 'Exportar CSV "Estado Atual" — exporta apenas usuários ativos (removidos não aparecem); inclui coluna "Adicionado por" com nome do admin quando adicionado manualmente, vazia quando o próprio participante se inscreveu. Encoding UTF-8 BOM — acentos corretos e arquivo sempre abre em modo editável no Excel (sem modo protegido)', p: ['admin'] },
+        { label: 'Exportar CSV "Histórico" — exporta tudo: ativos, removidos e histórico completo de ações (adicionou/removeu interesse); inclui coluna "Executado por" com nome do admin quando ação foi feita por admin, vazia quando feita pelo próprio participante. Encoding UTF-8 BOM — editável no Excel', p: ['admin'] },
+        { label: 'Exportar CSV individual por turma — exporta apenas usuários ativos da turma (removidos não aparecem). Encoding UTF-8 BOM — editável no Excel', p: ['admin'] },
+        { label: 'Tabelas do admin roláveis horizontalmente — quando o conteúdo excede o viewport, a tabela fica com scroll horizontal (classe .table-scroll-wrap) sem comprimir colunas; comporta-se conforme o tamanho real da tela, sem breakpoint fixo', p: ['admin'] },
         { label: 'Gerar certificados de participação em lote — botão "Certificados" na turma finalizada; filtra quem atingiu ≥ 75%; abre nova aba com 1 certificado por página (A4 paisagem) prontos para imprimir/salvar como PDF', p: ['admin'] },
         { label: 'Moderar repositório — ocultar/restaurar seeds curados (fa-seeds-hidden)', p: ['admin'] },
         { label: 'Moderar repositório — deletar permanentemente seeds curados (fa-seeds-deleted, sem restauração)', p: ['admin'] },
@@ -369,6 +370,19 @@
         label: 'CSS × JS', color: '#9b7fff',
         items: [
           { name: 'CSS não sobrescreve hidden de nav', desc: 'Elementos de navegação ocultados por auth.js via atributo hidden (ex: link Admin) nunca devem ter display:block forçado por CSS — causaria regressão de segurança: link visível após logout.' },
+        ]
+      },
+      {
+        label: 'CSV', color: '#26a69a',
+        items: [
+          { name: 'Encoding UTF-8 BOM', desc: 'Todos os CSVs usam UTF-8 BOM (\\uFEFF) via Blob. Nunca usar Windows-1252 (Uint8Array) nem sep=; como primeira linha — o sep= fazia Excel abrir em modo protegido/somente leitura.' },
+          { name: 'Arquivo sempre editável', desc: 'CSV deve abrir normalmente no Excel em modo edição. Não usar extensão .xls — usar .csv para evitar conflito de formato.' },
+        ]
+      },
+      {
+        label: 'Tabelas', color: '#42a5f5',
+        items: [
+          { name: 'Scroll horizontal automático', desc: 'Toda tabela do admin é envolta em div.table-scroll-wrap (overflow-x:auto). Quando o conteúdo exceder o viewport, a tabela rola horizontalmente — sem comprimir colunas e sem breakpoint fixo.' },
         ]
       },
     ];

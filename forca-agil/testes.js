@@ -272,6 +272,12 @@
           var temXP = ths.some(function(t) { return t === 'XP'; });
           var temEssenciais = ['Nome','E-mail','Área','Cadastro'].every(function(col) { return ths.indexOf(col) !== -1; });
           return temEssenciais && !temXP;
+        } },
+        { id: 'adm-table-scroll-wrap', label: 'Tabelas admin envolvidas em .table-scroll-wrap (scroll horizontal automático)', run: function () {
+          var wraps = document.querySelectorAll('.table-scroll-wrap');
+          if (wraps.length === 0) return false;
+          var todas = Array.from(wraps).every(function(w) { return w.querySelector('table') !== null; });
+          return todas;
         } }
       ]
     }
