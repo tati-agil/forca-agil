@@ -322,6 +322,11 @@
           });
         }
 
+        /* Evita empilhar listeners duplicados quando initTurmaInterest roda de novo
+           (revisita à página Turmas ou login/logout) — o botão é o mesmo elemento DOM */
+        if (btn.dataset.wired) return;
+        btn.dataset.wired = '1';
+
         btn.addEventListener('click', function () {
           const s = window.faAuth && window.faAuth.getSession();
           if (!s) {
@@ -359,13 +364,15 @@
     }
 
     function registerInterest(btn, turmaKey, sess) {
+      /* Desabilita imediatamente para evitar clique duplo disparar 2 gravações antes da resposta do Firebase */
+      btn.disabled = true;
       const key   = emailKey(sess.email);
       const now   = new Date().toISOString();
       const entry = { name: sess.name, email: sess.email, area: sess.area || '', date: now, removed: false, status: 'interessado' };
       firebase.database().ref('turmas-config/' + turmaKey + '/finalizada').once('value', function (cfgSnap) {
-        if (cfgSnap.val()) { showMsg(turmaKey, 'Esta turma está encerrada para novas inscrições.'); return; }
+        if (cfgSnap.val()) { btn.disabled = false; showMsg(turmaKey, 'Esta turma está encerrada para novas inscrições.'); return; }
         firebase.database().ref('turmas-interesse/' + turmaKey + '/' + key).set(entry, function (err) {
-          if (err) { showMsg(turmaKey, 'Erro ao registrar. Tente novamente.'); return; }
+          if (err) { btn.disabled = false; showMsg(turmaKey, 'Erro ao registrar. Tente novamente.'); return; }
           firebase.database().ref('turmas-interesse-log/' + turmaKey + '/' + key).push(
             { name: sess.name, email: sess.email, area: sess.area || '', action: 'registrado', date: now }
           );
@@ -375,10 +382,12 @@
     }
 
     function removeInterest(btn, turmaKey, sess) {
+      /* Desabilita imediatamente para evitar clique duplo disparar 2 gravações antes da resposta do Firebase */
+      btn.disabled = true;
       const key = emailKey(sess.email);
       const now = new Date().toISOString();
       firebase.database().ref('turmas-interesse/' + turmaKey + '/' + key).update({ removed: true, removedDate: now, status: 'removido' }, function (err) {
-        if (err) { showMsg(turmaKey, 'Erro ao remover. Tente novamente.'); return; }
+        if (err) { btn.disabled = false; showMsg(turmaKey, 'Erro ao remover. Tente novamente.'); return; }
         firebase.database().ref('turmas-interesse-log/' + turmaKey + '/' + key).push(
           { name: sess.name, email: sess.email, area: sess.area || '', action: 'removido', date: now }
         );
