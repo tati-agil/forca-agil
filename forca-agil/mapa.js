@@ -45,7 +45,7 @@
         { label: 'Bloco "Como funciona a oficina" antes da agenda: 4 métricas (5 dias, 4h, Prática, Opcional) + descrição', p: ['visitante','logado','inscrito','admin'] },
         { label: 'Agenda D1–D5: itens estáticos (sem expansível — nenhum conteúdo interno)', p: ['visitante','logado','inscrito','admin'] },
         { label: '"Tenho interesse" sem login → exibe mensagem "Faça login para registrar seu interesse" + abre modal login', p: ['visitante'] },
-        { label: 'Login não retoma o registro de interesse automaticamente — ao concluir o login pelo modal, o botão volta ao estado normal e a pessoa precisa clicar em "Tenho interesse" de novo (diferente do check-in, que retoma sozinho)', p: ['visitante'] },
+        { label: 'Se um visitante clica em "Tenho interesse" e faz login na tela que abre, o interesse NÃO é registrado sozinho — precisa clicar em "Tenho interesse" de novo depois de logar (diferente do check-in, que retoma sozinho)', p: ['visitante'] },
         { label: 'Registrar interesse → botão vira "Remover interesse" (status: interessado) — disponível para logado sem turma confirmada', p: ['logado','admin'] },
         { label: 'Após registrar interesse → exibe mensagem "Sua intenção foi registrada! Usaremos para dimensionar as turmas." embaixo do botão', p: ['logado','admin'] },
         { label: 'Remover interesse → botão volta a "Tenho interesse" (log mantido) — exibe mensagem "Interesse removido." embaixo do botão', p: ['logado','admin'] },
