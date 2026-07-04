@@ -124,10 +124,10 @@
     /* ── TURMAS ── (ordem alinhada ao fluxo real da página e ao mapa.js) */
     { section: 'turmas', personas: ['visitante', 'logado', 'admin'],
       title: 'Acesso geral (visitante e logado sem turma)',
-      body: 'Visitante e usuário logado sem turma confirmada veem todas as turmas disponíveis — cards com datas, descrição da oficina e agenda D1–D5.' },
+      body: 'Cards: vê os 3 cards de turma completos, cada um com nome, mês, datas e botão de interesse — visitante (sem turma) e logado (sem turma confirmada). Abaixo dos cards (igual para todos os perfis): bloco "Como funciona a oficina" + Agenda D1–D5.' },
     { section: 'turmas', personas: ['inscrito', 'admin'],
       title: 'Acesso para inscrito (turma confirmada)',
-      body: 'O usuário com turma confirmada vê apenas o card da sua própria turma. As demais turmas ficam ocultas. O card mostra: nome da turma, mês/período com label CONFIRMADA e dias. Não há botões "Tenho interesse" nem "Remover interesse" — a turma já está confirmada.' },
+      body: 'Cards: vê só o card da própria turma confirmada — nome, mês/período com label CONFIRMADA, dias, sem botões "Tenho interesse"/"Remover interesse"; as demais turmas ficam ocultas. Abaixo do card (igual para todos os perfis): o mesmo bloco "Como funciona a oficina" + Agenda D1–D5.' },
     { section: 'turmas', personas: ['visitante', 'logado', 'inscrito', 'admin'],
       title: 'Bloco "Como funciona a oficina"',
       body: 'Exibido antes da agenda D1–D5 para todos. Mostra 4 métricas (5 dias, 4h por encontro, dinâmicas práticas, participação opcional) e uma descrição geral.' },
