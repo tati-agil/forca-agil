@@ -162,7 +162,7 @@
       body: 'Se a escrita em turmas-interesse falhar, exibe "Erro ao registrar. Tente novamente." (ao registrar interesse) ou "Erro ao remover. Tente novamente." (ao remover interesse) — o botão mantém o estado anterior.' },
     { section: 'turmas', personas: ['visitante', 'logado', 'admin'],
       title: 'Se a verificação inicial falhar, a pessoa não vê nenhum aviso',
-      body: 'Ao abrir a página, o site verifica em segundo plano se a pessoa já demonstrou interesse e se a turma está encerrada. Se essa verificação falhar (internet instável ou lenta), o card pode ficar desatualizado: mostrando "Tenho interesse" para quem já registrou interesse, ou sem avisar que a turma foi encerrada. Em nenhum dos dois casos aparece uma mensagem de erro na tela.' },
+      body: 'Ao abrir a página, o site checa se a pessoa já demonstrou interesse e se a turma já encerrou. Se a internet estiver instável ou lenta e essa checagem falhar, o card pode ficar desatualizado: continua mostrando "Tenho interesse" mesmo para quem já registrou, ou não avisa que a turma encerrou — e nenhum aviso de erro aparece na tela.' },
     { section: 'turmas', personas: ['visitante', 'logado', 'admin'],
       title: 'Botão "Tenho interesse"/"Remover interesse" não duplica ações ao sair e voltar da página',
       body: 'Sair da página Turmas e voltar (ou fazer login/logout nela) não afeta o botão "Tenho interesse"/"Remover interesse" — ele continua respondendo normalmente a um clique de cada vez, mesmo depois de várias idas e vindas.' },
