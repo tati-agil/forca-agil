@@ -278,7 +278,7 @@
       body: 'Página Ajuda visível para todos, inclusive visitantes. Sem restrição de acesso. No menu o link aparece como "Ajuda".' },
     { section: 'ajuda', personas: ['visitante', 'logado', 'inscrito', 'admin'],
       title: 'Acordeão de perguntas',
-      body: 'A página tem perguntas frequentes exibidas em acordeão com elemento HTML nativo <details>/<summary>. Clicar no título expande/recolhe a resposta — sem JavaScript. Cada pergunta pode ser aberta independentemente das demais. Eyebrow: "Central de Ajuda"; título: "Como podemos ajudar?". As 3 perguntas sobre XP/pontos de experiência foram removidas na v6.' },
+      body: 'A página tem perguntas frequentes exibidas em formato de acordeão: clicar no título expande ou recolhe a resposta, e cada pergunta abre de forma independente das outras. O texto acima do título é "Central de Ajuda" e o título principal é "Como podemos ajudar?". As perguntas sobre XP/pontos de experiência foram removidas.' },
 
     /* ── ADMIN ── */
     { section: 'admin', personas: ['visitante', 'logado', 'inscrito'],
