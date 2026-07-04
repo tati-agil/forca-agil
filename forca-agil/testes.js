@@ -44,14 +44,14 @@
       ]
     },
     {
-      group: 'Quiz & Progresso',
+      group: 'Autodiagnóstico & Progresso',
       tests: [
         { id: 'xp-store',        label: 'faStore disponível',                                        run: function () { return typeof window.faStore === 'object' && typeof window.faStore.getItem === 'function'; } },
         { id: 'xp-load',         label: 'faLoadProgress disponível',                                 run: function () { return typeof window.faLoadProgress === 'function'; } },
         { id: 'xp-save',         label: 'faSyncProgress disponível',                                 run: function () { return typeof window.faSyncProgress === 'function'; } },
         { id: 'xp-sync',         label: 'faSyncPlayer disponível',                                   run: function () { return typeof window.faSyncPlayer === 'function'; } },
         { id: 'xp-clean-rank',   label: 'faCleanRanking disponível',                                 run: function () { return typeof window.faCleanRanking === 'function'; } },
-        { id: 'xp-revelar-bloqueado', label: 'REVELAR bloqueado enquanto quiz pendente', run: function () {
+        { id: 'xp-revelar-bloqueado', label: 'REVELAR bloqueado enquanto autodiagnóstico pendente', run: function () {
           var btn = document.getElementById('revelarBtn');
           var hint = document.querySelector('.revelar-hint');
           if (!btn || !hint) return false;
@@ -66,7 +66,7 @@
           window.dispatchEvent(new CustomEvent('fa-auth-change', { detail: null }));
           return bloqueado && mostraX;
         } },
-        { id: 'xp-revelar-liberado', label: 'REVELAR desbloqueado com quiz completo', run: function () {
+        { id: 'xp-revelar-liberado', label: 'REVELAR desbloqueado com autodiagnóstico completo', run: function () {
           var btn = document.getElementById('revelarBtn');
           var hint = document.querySelector('.revelar-hint');
           if (!btn || !hint) return false;
@@ -488,7 +488,7 @@
         { id: 'c-quiz-patente',   label: 'Painel de patente presente',             run: function () { return !!document.getElementById('rankHud'); } },
         { id: 'c-quiz-patentes',  label: '4 patentes exibidas (Youngling→Mestre)', run: function () { return document.querySelectorAll('.char-card').length >= 4; } },
         { id: 'c-quiz-previx',    label: 'Droide Previx (guia) presente',          run: function () { return !!document.querySelector('.guide-droide') || !!document.getElementById('guideMsg'); } },
-        { id: 'c-quiz-auto-1x', label: 'Quiz (1×): opções bloqueadas após concluído', run: function () {
+        { id: 'c-quiz-auto-1x', label: 'Autodiagnóstico (1×): opções bloqueadas após concluído', run: function () {
           if (!window.faGameData || !window.faGameReload) return false;
           var st = window.faStore || localStorage;
           var backup = st.getItem('fa-game-v3');
@@ -501,7 +501,7 @@
           window.faGameReload();
           return todasBloqueadas;
         } },
-        { id: 'c-quiz-xp-ponderado', label: 'Quiz: resposta de nível maior gera mais XP do que nível menor', run: function () {
+        { id: 'c-quiz-xp-ponderado', label: 'Autodiagnóstico: resposta de nível maior gera mais XP do que nível menor', run: function () {
           if (!window.faGameData) return false;
           var blocos = window.faGameData.BLOCOS || [];
           var totalAfirm = blocos.reduce(function (a, b) { return a + (b.afirmacoes ? b.afirmacoes.length : 0); }, 0);
@@ -511,7 +511,7 @@
           var xpMax = totalAfirm * 4;
           return xpMin >= 0 && xpMax > xpMin;
         } },
-        { id: 'c-quiz-patente-inclui-conteudo-repo', label: 'Painel de patente soma XP de Conteúdos e Repositório (não só quiz)', run: function () {
+        { id: 'c-quiz-patente-inclui-conteudo-repo', label: 'Painel de patente soma XP de Conteúdos e Repositório (não só autodiagnóstico)', run: function () {
           if (typeof window.faGetTotalXP !== 'function') return false;
           var st = window.faStore || localStorage;
           var backup = { contentXP: st.getItem('fa-content-xp'), repoXP: st.getItem('fa-repo-xp'), game: st.getItem('fa-game-v3') };
@@ -747,10 +747,10 @@
       motivo: 'Verificar: (1) logar como admin e abrir o menu mobile (hamburguer); (2) clicar em "Sair"; (3) o link "Admin" deve sumir do menu imediatamente, mesmo que o menu esteja expandido. O atributo hidden é gerenciado por auth.js — CSS de layout não pode sobrescrevê-lo com display:block.' },
     { section: 'Admin',
       title: 'Cadastrados — resetar progresso',
-      motivo: 'Ação destrutiva e irreversível no Firebase. Verificar: (1) XP exibe "—" na tabela admin imediatamente; (2) pessoa some do ranking em tempo real; (3) se a pessoa estiver logada no momento do reset, a página dela recarrega automaticamente (via listener em fa-reset-signal/<emailKey>) e o quiz fica disponível para refazer. Para testar o reload em tempo real: abrir a página como usuária em uma aba e o painel admin em outra — ao clicar Resetar, a aba da usuária deve recarregar sozinha.' },
+      motivo: 'Ação destrutiva e irreversível. Verificar: (1) XP exibe "—" na tabela admin imediatamente; (2) pessoa some do ranking em tempo real; (3) se a pessoa estiver logada no momento do reset, a página dela recarrega automaticamente e o autodiagnóstico fica disponível para refazer. Para testar o reload em tempo real: abrir a página como usuária em uma aba e o painel admin em outra — ao clicar Resetar, a aba da usuária deve recarregar sozinha.' },
     { section: 'Admin',
       title: 'Cadastrados — XP exibe "—" após reset',
-      motivo: 'Requer executar o reset de uma pessoa que tenha XP acumulado (feito o quiz) e confirmar que a coluna XP passa a exibir "—" imediatamente (sem recarregar a página) — independente de ter revelado patente ou publicado no ranking.' },
+      motivo: 'Requer executar o reset de uma pessoa que tenha XP acumulado (feito o autodiagnóstico) e confirmar que a coluna XP passa a exibir "—" imediatamente (sem recarregar a página) — independente de ter revelado patente ou publicado no ranking.' },
     { section: 'Admin',
       title: 'Cadastrados — redefinir senha',
       motivo: 'Requer que a pessoa já tenha conta ativa e verifica e-mail externo.' },
@@ -1011,7 +1011,7 @@
     const RES_COLOR = {
       'Firebase':                    '#1ab2ae',
       'Autenticação':                '#9b7fff',
-      'Quiz & Progresso':            '#f5c542',
+      'Autodiagnóstico & Progresso': '#f5c542',
       'Painel Admin':                '#ff5252',
       'Menu — Cadastrar / Entrar':   '#9b7fff',
       'Formulário de Cadastro':      '#9b7fff',
