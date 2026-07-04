@@ -172,8 +172,8 @@
 
     /* ── CHECK-IN ── (mesma ordem do mapa.js, bloco contíguo — antes eram intercaladas com Turmas) */
     { section: 'checkin', personas: ['inscrito'],
-      title: 'Acesso via QR Code (#checkin?turma=t1)',
-      body: 'Página sem link no menu — só acessível escaneando o QR Code gerado pelo admin. Não altera o card da página Turmas (que permanece estático). Requer turma válida na URL; se ausente ou inválida, exibe "QR Code inválido ou turma não encontrada".' },
+      title: 'Como funciona e quem acessa',
+      body: 'O check-in é feito escaneando com o celular um QR Code que o admin mostra presencialmente no dia do evento — não existe link para essa página em nenhum lugar do site. O QR aponta para essa página específica (#checkin?turma=t1, por exemplo). Só funciona de verdade para quem está logado com a conta cadastrada como inscrita naquela turma exata — qualquer outra pessoa que abrir o link (mesmo por engano) esbarra em algum dos avisos de bloqueio abaixo, sem conseguir registrar presença. Não altera o card da pessoa na página Turmas (que continua estático). Se a turma na URL não existir, exibe "QR Code inválido ou turma não encontrada".' },
     { section: 'checkin', personas: ['inscrito'],
       title: 'Sem login',
       body: 'Exibe "Faça login para registrar sua presença" com botão "Entrar". Após autenticar, o check-in é completado automaticamente sem precisar escanear de novo.' },

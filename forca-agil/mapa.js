@@ -61,7 +61,7 @@
     },
     { label: 'CHECK-IN', color: '#42a5f5',
       features: [
-        { label: 'Acessado via QR Code (#checkin?turma=t1) — não há link no menu; página exige turma válida na URL, senão exibe "QR Code inválido ou turma não encontrada"', p: ['inscrito','admin'] },
+        { label: 'Acessado escaneando com o celular o QR Code que o admin mostra presencialmente no evento — não há link em nenhum lugar do site. Só funciona para quem está logado e inscrito naquela turma exata; qualquer outra pessoa esbarra num aviso de bloqueio', p: ['inscrito','admin'] },
         { label: 'Sem login → exibe "Faça login para registrar sua presença" com botão Entrar; após logar, completa o check-in automaticamente', p: ['inscrito'] },
         { label: 'Turma ainda não finalizada pelo admin → "Esta turma ainda não teve as inscrições finalizadas"', p: ['inscrito'] },
         { label: 'Admin não abriu o check-in do dia (sem diaAtivo) → "O check-in não está aberto no momento. Aguarde a organização abrir o check-in do dia"', p: ['inscrito'] },
