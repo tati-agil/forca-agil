@@ -49,13 +49,13 @@
         { label: 'Registrar interesse → botão vira "Remover interesse" (status: interessado) — disponível para logado sem turma confirmada', p: ['logado','admin'] },
         { label: 'Após registrar interesse → exibe mensagem "Sua intenção foi registrada! Usaremos para dimensionar as turmas." embaixo do botão', p: ['logado','admin'] },
         { label: 'Remover interesse → botão volta a "Tenho interesse" (log mantido) — exibe mensagem "Interesse removido." embaixo do botão', p: ['logado','admin'] },
-        { label: 'Turma finalizada para não inscrito (visitante, logado ou admin sem essa turma): botão de interesse desaparece, card exibe "Inscrições encerradas" (sem ação disponível, sem abrir modal de login)', p: ['visitante','logado','admin'] },
+        { label: 'Turma finalizada para não inscrito (visitante, logado ou admin sem essa turma): botão de interesse desaparece, card exibe "Inscrições encerradas" (sem ação disponível, sem abrir modal de login). Para quem já está inscrito nessa turma, ver a linha acima "Inscrito vê apenas o card" — finalizar é o que confirma a inscrição', p: ['visitante','logado','admin'] },
         // Cenários de exceção (corridas, falhas e correções de bug)
         { label: 'Corrida: turma finaliza entre o carregamento da página e o clique em "Tenho interesse" → mensagem "Esta turma está encerrada para novas inscrições." (não grava interesse)', p: ['logado','admin'] },
         { label: 'Corrida rara e transitória: admin finaliza a turma com o usuário já com a página aberta (sem recarregar) → botão passa a exibir "✓ Inscrita" (desabilitado) até a próxima visita/recarregamento, quando então passa a ver o card estático de inscrito', p: ['logado','admin'] },
         { label: 'Falha ao gravar no Firebase ao registrar/remover interesse → mensagem "Erro ao registrar. Tente novamente." ou "Erro ao remover. Tente novamente."', p: ['logado','admin'] },
-        { label: 'Se a verificação inicial falhar (internet instável ou lenta), o card fica parado no estado inicial e a pessoa não vê nenhum aviso de erro', p: ['visitante','logado','admin'] },
-        { label: 'Botão de interesse não duplica ações ao sair e voltar da página — sair de Turmas e voltar (ou logar/deslogar nela) não afeta o botão, mesmo depois de várias idas e vindas', p: ['visitante','logado','admin'] },
+        { label: 'Se a verificação em segundo plano falhar (internet instável ou lenta), o card pode ficar desatualizado (mostrar "Tenho interesse" para quem já registrou, ou não avisar que a turma encerrou) — sem nenhuma mensagem de erro na tela', p: ['visitante','logado','admin'] },
+        { label: 'Botão "Tenho interesse"/"Remover interesse" não duplica ações ao sair e voltar da página — sair de Turmas e voltar (ou logar/deslogar nela) não afeta o botão, mesmo depois de várias idas e vindas', p: ['visitante','logado','admin'] },
         { label: 'Botão fica desabilitado durante a gravação no Firebase — um clique duplo rápido não dispara duas gravações', p: ['logado','admin'] },
       ]
     },

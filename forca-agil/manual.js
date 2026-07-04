@@ -127,7 +127,7 @@
       body: 'Cards: vê os 3 cards de turma completos, cada um com nome, mês, datas e botão de interesse — visitante (sem turma) e logado (sem turma confirmada). Abaixo dos cards (igual para todos os perfis): bloco "Como funciona a oficina" + Agenda D1–D5.' },
     { section: 'turmas', personas: ['inscrito', 'admin'],
       title: 'Acesso para inscrito (turma confirmada)',
-      body: 'Cards: vê só o card da própria turma confirmada — nome, mês/período com label CONFIRMADA, dias, sem botões "Tenho interesse"/"Remover interesse"; as demais turmas ficam ocultas. Abaixo do card (igual para todos os perfis): bloco "Como funciona a oficina" + Agenda D1–D5.' },
+      body: 'Cards: vê só o card da própria turma confirmada — nome, mês/período com label CONFIRMADA, dias, sem botões "Tenho interesse"/"Remover interesse"; as demais turmas ficam ocultas. Abaixo do card (igual para todos os perfis): bloco "Como funciona a oficina" + Agenda D1–D5. Estar inscrito e a turma estar finalizada são a mesma coisa — só existe status inscrito depois que o admin finaliza a turma (não há "turma finalizada para inscrito" separado desta regra).' },
     { section: 'turmas', personas: ['visitante', 'logado', 'inscrito', 'admin'],
       title: 'Bloco "Como funciona a oficina"',
       body: 'Exibido antes da agenda D1–D5 para todos. Mostra 4 métricas (5 dias, 4h por encontro, dinâmicas práticas, participação opcional) e uma descrição geral.' },
@@ -148,7 +148,7 @@
       body: 'Ao clicar em "♡ Remover interesse", o botão volta ao estado inicial "♡ Tenho interesse" e exibe a mensagem "Interesse removido." embaixo do botão.' },
     { section: 'turmas', personas: ['visitante', 'logado', 'admin'],
       title: 'Turma finalizada para não inscrito — "Inscrições encerradas"',
-      body: 'Quando uma turma está finalizada e o usuário NÃO está confirmado nela: o botão de interesse desaparece e o card exibe "Inscrições encerradas" (estado bloqueado, sem ação disponível). Não abre modal de login ao clicar. Válido para visitante, usuário logado ou admin que não está inscrito nessa turma.' },
+      body: 'Quando uma turma está finalizada e o usuário NÃO está confirmado nela: o botão de interesse desaparece e o card exibe "Inscrições encerradas" (estado bloqueado, sem ação disponível). Não abre modal de login ao clicar. Válido para visitante, usuário logado ou admin que não está inscrito nessa turma. (Para quem JÁ está confirmado nessa turma, ver a regra "Acesso para inscrito" acima — turma finalizada é justamente o que confirma a inscrição.)' },
 
     /* ── Cenários de exceção (corridas, falhas e correções de bug) ── */
     { section: 'turmas', personas: ['logado', 'admin'],
@@ -162,12 +162,12 @@
       body: 'Se a escrita em turmas-interesse falhar, exibe "Erro ao registrar. Tente novamente." (ao registrar interesse) ou "Erro ao remover. Tente novamente." (ao remover interesse) — o botão mantém o estado anterior.' },
     { section: 'turmas', personas: ['visitante', 'logado', 'admin'],
       title: 'Se a verificação inicial falhar, a pessoa não vê nenhum aviso',
-      body: 'Ao abrir a página, o site verifica se a pessoa já demonstrou interesse e se a turma está encerrada. Se isso falhar por causa de internet instável ou lentidão, o card fica parado no estado inicial — mostrando "Tenho interesse" mesmo que a pessoa já tenha registrado interesse antes, ou sem indicar que a turma foi encerrada — e nenhum aviso de erro aparece na tela.' },
+      body: 'Ao abrir a página, o site verifica em segundo plano se a pessoa já demonstrou interesse e se a turma está encerrada. Se essa verificação falhar (internet instável ou lenta), o card pode ficar desatualizado: mostrando "Tenho interesse" para quem já registrou interesse, ou sem avisar que a turma foi encerrada. Em nenhum dos dois casos aparece uma mensagem de erro na tela.' },
     { section: 'turmas', personas: ['visitante', 'logado', 'admin'],
-      title: 'Botão de interesse não duplica ações ao sair e voltar da página',
-      body: 'Sair da página Turmas e voltar (ou fazer login/logout nela) não afeta o botão — ele continua respondendo normalmente a um clique de cada vez, mesmo depois de várias idas e vindas.' },
+      title: 'Botão "Tenho interesse"/"Remover interesse" não duplica ações ao sair e voltar da página',
+      body: 'Sair da página Turmas e voltar (ou fazer login/logout nela) não afeta o botão "Tenho interesse"/"Remover interesse" — ele continua respondendo normalmente a um clique de cada vez, mesmo depois de várias idas e vindas.' },
     { section: 'turmas', personas: ['logado', 'admin'],
-      title: 'Botão fica desabilitado durante a gravação no Firebase',
+      title: 'Botão "Tenho interesse"/"Remover interesse" fica desabilitado durante a gravação no Firebase',
       body: 'Ao clicar em "Tenho interesse" ou "Remover interesse", o botão fica desabilitado até a resposta do Firebase chegar (sucesso ou erro) — um clique duplo rápido não dispara duas gravações.' },
 
     /* ── CHECK-IN ── (mesma ordem do mapa.js, bloco contíguo — antes eram intercaladas com Turmas) */
