@@ -654,9 +654,6 @@
     { section: 'Turmas',
       title: 'Turma finalizada — exibe "Inscrições encerradas" para não inscrito',
       motivo: 'Com uma turma já finalizada: (1) como visitante, verificar que o card não tem botão de ação e exibe "Inscrições encerradas"; (2) como usuário logado sem turma confirmada, mesmo resultado; (3) clicar no card não deve abrir modal de login. Apenas o usuário confirmado naquela turma vê o estado normal de inscrito.' },
-    { section: 'Turmas',
-      title: 'Check-in de presença não altera o card de Turmas (fica na seção "Check-in")',
-      motivo: 'Ver os testes completos do check-in na seção "Check-in" — aqui basta confirmar que o card do inscrito continua estático mesmo depois de um check-in bem-sucedido.' },
     // Cenários de exceção (corridas, falhas e correções de bug)
     { section: 'Turmas',
       title: 'Corrida: turma finaliza entre carregar a página e clicar → "Esta turma está encerrada para novas inscrições."',
