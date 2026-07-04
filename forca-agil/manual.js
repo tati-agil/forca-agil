@@ -340,7 +340,7 @@
       body: 'Botão "Deletar" → remove permanentemente do Holocron.' },
     { section: 'admin', personas: ['admin'],
       title: 'Aba: Cadastrados — listar',
-      body: 'Lista todas as pessoas que já se cadastraram. Mostra nome, e-mail, área e data de cadastro. A coluna XP foi removida da tabela — nenhuma informação de XP ou pontuação é exibida no painel Admin.' },
+      body: 'Lista todas as pessoas que já se cadastraram. Mostra nome, e-mail, área e data de cadastro.' },
     { section: 'admin', personas: ['admin'],
       title: 'Aba: Cadastrados — resetar progresso',
       body: 'Disponível para qualquer pessoa cadastrada. Ação irreversível — pede confirmação antes de executar. Após o reset: se a pessoa estiver logada, a página dela recarrega automaticamente — o autodiagnóstico fica disponível para refazer sem nenhuma ação da pessoa.' },
