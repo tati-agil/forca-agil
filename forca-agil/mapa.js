@@ -140,7 +140,7 @@
         { label: 'Redefinir senha de qualquer cadastrado (e-mail)', p: ['admin'] },
         { label: 'Resetar progresso de qualquer cadastrado — se a pessoa estiver logada, a página dela recarrega automaticamente e o autodiagnóstico fica reabilitado sem nenhuma ação da pessoa', p: ['admin'] },
         { label: 'Adicionar / remover admins',                p: ['admin'] },
-        { label: 'Abas do painel — 8 abas (Turmas, Repositório, Colaboradores, Cadastrados, Administradores, Manual, Mapa, Testes); no mobile quebram em 2 linhas com fonte reduzida', p: ['admin'] },
+        { label: 'Abas do painel — 7 abas (Turmas, Repositório, Cadastrados, Administradores, Manual, Mapa, Testes); no mobile quebram em 2 linhas com fonte reduzida', p: ['admin'] },
         { label: 'Aba Manual — checklist de regras de comportamento + Expandir/Recolher tudo', p: ['admin'] },
         { label: 'Aba Mapa — mapa do site e hierarquia de personas + Expandir/Recolher tudo', p: ['admin'] },
         { label: 'Aba Testes — testes automatizados e checklist manual + Expandir/Recolher tudo', p: ['admin'] },
