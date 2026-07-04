@@ -1117,7 +1117,7 @@
         const eKey   = btn.dataset.key;
         const email  = btn.dataset.email;
         const name   = btn.dataset.name;
-        adminConfirm('Resetar TODO o progresso do jogo de ' + name + '?\n\nIsso apaga autodiagnóstico, missões, Kyber Game e patente. Essa ação não pode ser desfeita.', function () {
+        adminConfirm('Resetar TODO o progresso do jogo de ' + name + '?\n\nIsso apaga autodiagnóstico e patente. Essa ação não pode ser desfeita.', function () {
           const updates = {};
           updates['fa-progress/' + eKey]      = null;
           updates['fa-reset-signal/' + eKey]  = { at: firebase.database.ServerValue.TIMESTAMP };
