@@ -44,7 +44,6 @@
         { label: 'Agenda D1–D5 (itens estáticos)', p: ['visitante','logado','inscrito','admin'] },
         { label: 'Botão de interesse por turma ("Tenho interesse" / "Remover interesse")', p: ['logado','admin'] },
         { label: 'Card de turma confirmada, com nome, mês/período e dias', p: ['inscrito','admin'] },
-        { label: 'Check-in de presença — ver seção CHECK-IN', p: ['inscrito','admin'] },
       ]
     },
     { label: 'CHECK-IN', color: '#42a5f5',
