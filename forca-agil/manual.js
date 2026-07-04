@@ -139,7 +139,7 @@
       body: 'Ao clicar, exibe mensagem "Faça login para registrar seu interesse." embaixo do botão e abre o modal de login.' },
     { section: 'turmas', personas: ['visitante'],
       title: 'Login não retoma o registro de interesse automaticamente',
-      body: 'Se um visitante (deslogado) clica em "Tenho interesse", o site abre a tela de login em vez de registrar o interesse na hora. Depois que a pessoa termina o login, o interesse NÃO é registrado sozinho — o botão só volta ao normal ("Tenho interesse"), e ela precisa clicar de novo para registrar. (Na página de check-in é diferente: lá, se a pessoa loga no meio do processo, o sistema continua sozinho de onde parou.)' },
+      body: 'Se um visitante (deslogado) clica em "Tenho interesse", o site abre a tela de login em vez de registrar o interesse na hora. Depois que a pessoa termina o login, o interesse NÃO é registrado sozinho — o botão só volta ao normal ("Tenho interesse"), e ela precisa clicar de novo para registrar.' },
     { section: 'turmas', personas: ['logado', 'admin'],
       title: 'Botão de interesse / status da turma (logado sem turma)',
       body: 'Disponível apenas para usuário logado sem turma confirmada. O botão reflete o status: "♡ Tenho interesse" — estilo primário (dourado sólido) → "♡ Remover interesse" — estilo secundário (fundo escuro, borda neutra). Ao registrar interesse, exibe a mensagem "Sua intenção foi registrada! Usaremos para dimensionar as turmas." embaixo do botão. Ao remover, exibe "Interesse removido." e o botão volta a "Tenho interesse". Pode manifestar interesse em até 3 turmas.' },
