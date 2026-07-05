@@ -84,7 +84,7 @@
     },
     { label: 'AJUDA', color: '#9b7fff',
       features: [
-        { label: 'Ver página Ajuda com perguntas em acordeão (<details>/<summary>) — eyebrow "Central de Ajuda", h1 "Como podemos ajudar?"', p: ['visitante','logado','inscrito','admin'] },
+        { label: 'Ver página Ajuda com perguntas em acordeão — texto "Central de Ajuda" acima do título "Como podemos ajudar?"', p: ['visitante','logado','inscrito','admin'] },
         { label: 'Expandir/recolher cada pergunta clicando no título (comportamento nativo do browser)', p: ['visitante','logado','inscrito','admin'] },
         { label: 'Link "Ajuda" no menu de navegação', p: ['visitante','logado','inscrito','admin'] },
       ]
@@ -99,12 +99,19 @@
         { label: 'Aba Turmas — adicionar participante manualmente', p: ['admin'] },
         { label: 'Aba Turmas — remover inscrito', p: ['admin'] },
         { label: 'Aba Turmas — gerar certificados de participação', p: ['admin'] },
-        { label: 'Aba Turmas — exportar CSV (Estado Atual, Histórico ou por turma)', p: ['admin'] },
-        { label: 'Aba Repositório — moderar conteúdos curados e de usuários (ocultar, restaurar, deletar)', p: ['admin'] },
+        { label: 'Aba Turmas — exportar CSV Estado Atual (todas as turmas)', p: ['admin'] },
+        { label: 'Aba Turmas — exportar CSV Histórico (todas as turmas)', p: ['admin'] },
+        { label: 'Aba Turmas — exportar CSV individual de uma turma', p: ['admin'] },
+        { label: 'Aba Repositório — ocultar/restaurar conteúdos curados', p: ['admin'] },
+        { label: 'Aba Repositório — deletar permanentemente conteúdos de usuários', p: ['admin'] },
         { label: 'Aba Cadastrados — listar todos os cadastrados, redefinir senha e resetar progresso de qualquer um', p: ['admin'] },
         { label: 'Aba Administradores — adicionar e remover admins', p: ['admin'] },
         { label: 'Aba Manual — regras de comportamento do sistema', p: ['admin'] },
-        { label: 'Aba Mapa — mapa do site e arquitetura técnica', p: ['admin'] },
+        { label: 'Aba Mapa — hierarquia de personas (níveis de acesso cumulativos)', p: ['admin'] },
+        { label: 'Aba Mapa — mapa do site (páginas e funcionalidades por seção, com contagem)', p: ['admin'] },
+        { label: 'Aba Mapa — arquitetura técnica (linguagens, tecnologias, padrões e deploy)', p: ['admin'] },
+        { label: 'Aba Mapa — regras operacionais (cache, autonomia e processo de deploy)', p: ['admin'] },
+        { label: 'Aba Mapa — diagrama visual da arquitetura, gerado automaticamente', p: ['admin'] },
         { label: 'Aba Testes — testes automatizados e checklist manual', p: ['admin'] },
         { label: '7 abas no total; no mobile quebram em 2 linhas', p: ['admin'] },
       ]
@@ -301,7 +308,7 @@
         items: [
           { name: 'Abas / Tabs',                  desc: 'Navegação entre painéis diferentes dentro da mesma tela. Ex.: abas do painel Admin (Turmas, Repositório, Manual, Mapa, Testes...).' },
           { name: 'Acessibilidade (aria/role)',    desc: 'Atributos que ajudam leitor de tela a entender modais e botões. Ex.: aria-label, role="dialog", aria-hidden nos modais de login e QR Code.' },
-          { name: 'Acordeão',                      desc: 'Lista de itens que expandem/recolhem ao clicar. Ex.: perguntas da página Ajuda (<details>/<summary>).' },
+          { name: 'Acordeão',                      desc: 'Lista de itens que expandem/recolhem ao clicar. Ex.: perguntas da página Ajuda.' },
           { name: 'Alternar visibilidade de senha', desc: 'Ícone de olho que troca o campo entre texto oculto e visível. Ex.: campo de senha no login/cadastro.' },
           { name: 'Atalho de teclado',             desc: 'Interação por teclado, não só mouse. Ex.: tecla Esc fecha o modal de login/cadastro.' },
           { name: 'Avatar',                        desc: 'Imagem/ícone que representa a pessoa. Ex.: avatar no menu do usuário logado, avatar do resultado do Treinamento Jedi.' },
@@ -321,7 +328,7 @@
           { name: 'Estado ativo de navegação',     desc: 'Destaca visualmente em qual página/seção a pessoa está no menu. Classe .nav-active no menu superior.' },
           { name: 'Estado de validação (sucesso/erro)', desc: 'Cor dedicada para mensagem de sucesso (ciano) e erro no formulário de login/cadastro.' },
           { name: 'Estado vazio',                  desc: 'Mensagem exibida quando uma lista não tem nenhum item ainda. Ex.: painel do admin quando não há interessados numa turma.' },
-          { name: 'Eyebrow',                       desc: 'Textinho pequeno acima do título principal, dá contexto antes do H1. Ex.: "Esquadrões" acima de "Turmas da Oficina".' },
+          { name: 'Eyebrow',                       desc: 'Textinho pequeno acima do título principal, dá contexto antes dele. Ex.: "Esquadrões" acima de "Turmas da Oficina".' },
           { name: 'Folha de estilo de impressão (@media print)', desc: 'Regras de CSS que só valem quando a página é impressa/exportada em PDF. Ex.: certificados de participação, removendo fundo escuro e ajustando pro papel A4.' },
           { name: 'Geração de QR Code',            desc: 'Código QR desenhado dinamicamente via canvas. Ex.: botão "QR Code" do admin, aponta pra página de check-in.' },
           { name: 'Glassmorphism (desfoque de fundo)', desc: 'Efeito de vidro fosco/borrado atrás de elementos. Ex.: menu de navegação, modais de login e QR Code (backdrop-filter: blur).' },
@@ -387,14 +394,14 @@
       {
         label: 'Deploy', color: '#e8854a',
         items: [
-          { name: 'Pasta de trabalho',  desc: 'Sempre usar "Design System (2)". Nunca usar "Design System (3)" ou qualquer outra.' },
+          { name: 'Pasta de trabalho',  desc: 'Sempre usar "Design System (2)".' },
           { name: 'Processo de deploy', desc: 'git push para o branch main — o Firebase Hosting atualiza automaticamente. Nunca publicar de outra forma.' },
         ]
       },
       {
         label: 'Cache', color: '#ff5252',
         items: [
-          { name: 'Sempre no-cache',     desc: 'firebase.json deve ter Cache-Control: no-cache para JS, CSS e HTML. Usuária não sabe dar refresh manual — o site nunca pode depender de cache do browser.' },
+          { name: 'Sempre no-cache',     desc: 'firebase.json deve ter Cache-Control: no-cache para JS, CSS e HTML.' },
           { name: 'Sem ?v=N nos scripts', desc: 'Não usar query string de versão como solução de cache. A configuração no firebase.json resolve de forma permanente e automática.' },
         ]
       },
