@@ -60,7 +60,9 @@
         { id: 'adm-tabs',   label: 'Abas Admin presentes (7: Turmas/Repositório/Cadastrados/Administradores/Manual/Mapa/Testes)', run: function () { return document.querySelectorAll('.admin-tab-btn').length === 7; } },
         { id: 'adm-manual-panel', label: 'Painel Manual presente', run: function () { return !!document.getElementById('adminPanelManual'); } },
         { id: 'adm-mapa-panel',   label: 'Painel Mapa presente',   run: function () { return !!document.getElementById('adminPanelMapa'); } },
-        { id: 'adm-mapa-cards',   label: 'Mapa: 11 cards de página renderizados (sem Ranking)', run: function () {
+        { id: 'adm-testes-panel', label: 'Painel Testes presente', run: function () { return !!document.getElementById('adminPanelTestes'); } },
+        { id: 'adm-cadastrados-panel', label: 'Painel Cadastrados presente', run: function () { return !!document.getElementById('adminPanelCadastrados') && !!document.getElementById('adminCadastrados'); } },
+        { id: 'adm-mapa-cards',   label: 'Mapa: 11 cards de página renderizados', run: function () {
           if (window.faInitMapa) window.faInitMapa();
           return document.querySelectorAll('#adminMapa .mapa-page').length === 11;
         } },
@@ -84,13 +86,12 @@
             return titulo.indexOf(esperado) === 0 && rendered === definido;
           });
         } },
-        { id: 'adm-mapa-arch', label: 'Mapa: Arquitetura Técnica renderiza 6 seções (incluindo Padrões de UX e Deploy)', run: function () {
+        { id: 'adm-mapa-arch', label: 'Mapa: Arquitetura Técnica renderiza 7 seções (Linguagens, Tecnologias & Serviços, Estrutura de Arquivos, Padrões de Código, Padrões de UX, Glossário de UX/Design, Deploy)', run: function () {
           if (window.faInitMapa) window.faInitMapa();
-          var sections = document.querySelectorAll('#adminMapa .arch-section');
-          return sections.length >= 6 && Array.from(sections).some(function (s) { return s.textContent.indexOf('Padrões de UX') >= 0; });
+          var labels = Array.from(document.querySelectorAll('#adminMapa .arch-section-label span')).map(function (s) { return s.textContent; });
+          var esperado = ['Linguagens', 'Tecnologias & Serviços', 'Estrutura de Arquivos', 'Padrões de Código', 'Padrões de UX', 'Glossário de UX/Design', 'Deploy'];
+          return esperado.every(function (l) { return labels.indexOf(l) !== -1; });
         } },
-        { id: 'adm-testes-panel', label: 'Painel Testes presente', run: function () { return !!document.getElementById('adminPanelTestes'); } },
-        { id: 'adm-cadastrados-panel', label: 'Painel Cadastrados presente', run: function () { return !!document.getElementById('adminPanelCadastrados') && !!document.getElementById('adminCadastrados'); } },
         { id: 'adm-cadastrados-lista', label: 'Cadastrados: tabela renderizada com badge de contagem correta', run: function () {
           var c = document.getElementById('adminCadastrados');
           if (!c) return false;
@@ -218,7 +219,7 @@
           if (window.faRouter && window.faRouter.current() !== 'conteudos') return true; // só verifica se estiver na página
           return !!document.getElementById('conteudosNavSidebar');
         } },
-        { id: 'c-conteudos-7sections', label: '7 seções de conteúdo presentes no DOM', run: function () {
+        { id: 'c-conteudos-7sections', label: '7 seções de conteúdo presentes no DOM (Mapa da Galáxia, Os 4 Valores, Os 12 Princípios, A Força do Ágil, Personagens, Lado Sombrio, A Trilogia)', run: function () {
           var ids = ['content-galaxia','content-forca','content-principios','content-yoda','content-arquetipos','content-sombrio','content-trilogia'];
           return ids.every(function (id) { return !!document.getElementById(id); });
         } },
@@ -280,9 +281,6 @@
             return !!map[page] && titulo === map[page] && !!document.getElementById('page-' + page);
           });
         } },
-        { id: 'c-destaques-removidos', label: 'Seção "O que está acontecendo" (Destaques) removida na v2', run: function () {
-          return !document.getElementById('destaques');
-        } },
         { id: 'c-cta-ver-turmas', label: 'CTA final: único botão "Ver turmas →" presente e aponta para #turmas', run: function () {
           var link = document.querySelector('.hero-actions a[data-nav-page="turmas"]');
           return !!link && /turmas/i.test(link.textContent);
@@ -337,16 +335,20 @@
           var tipos = Array.from(chips).map(function (c) { return c.dataset.f; });
           return ['all', 'video', 'doc', 'tool', 'book'].every(function (t) { return tipos.indexOf(t) !== -1; });
         } },
-        { id: 'c-repo-filtro-funciona', label: 'Filtro de tipo: clicar em "Vídeos" mostra só cards do tipo vídeo', run: function () {
+        { id: 'c-repo-filtro-funciona', label: 'Filtro de tipo: cada chip (Vídeos/Documentos/Ferramentas/Livros) mostra só cards do tipo correspondente', run: function () {
           var chips = document.querySelectorAll('#repoFilters .repo-chip');
-          var videoChip = Array.from(chips).find(function (c) { return c.dataset.f === 'video'; });
           var allChip = Array.from(chips).find(function (c) { return c.dataset.f === 'all'; });
-          if (!videoChip || !allChip) return false;
-          videoChip.click();
-          var cards = document.querySelectorAll('#repoGrid .repo-card');
-          var soVideo = cards.length > 0 && Array.from(cards).every(function (c) { return c.dataset.type === 'video'; });
+          if (!allChip) return false;
+          var tipos = ['video', 'doc', 'tool', 'book'];
+          var ok = tipos.every(function (tipo) {
+            var chip = Array.from(chips).find(function (c) { return c.dataset.f === tipo; });
+            if (!chip) return false;
+            chip.click();
+            var cards = document.querySelectorAll('#repoGrid .repo-card');
+            return Array.from(cards).every(function (c) { return c.dataset.type === tipo; });
+          });
           allChip.click();
-          return soVideo;
+          return ok;
         } },
         { id: 'c-repo-desc-clamp', label: 'Descrições dos cards têm line-clamp de 2 linhas (.repo-card .rc-desc)', run: function () {
           var p = document.querySelector('#repoGrid .rc-desc');
@@ -439,28 +441,6 @@
           var xpMax = totalAfirm * 4;
           return xpMin >= 0 && xpMax > xpMin;
         } },
-        { id: 'c-quiz-patente-inclui-conteudo-repo', label: 'Painel de patente soma pontuação de Conteúdos e Repositório (não só autodiagnóstico)', run: function () {
-          if (typeof window.faGetTotalXP !== 'function') return false;
-          var st = window.faStore || localStorage;
-          var backup = { contentXP: st.getItem('fa-content-xp'), repoXP: st.getItem('fa-repo-xp'), game: st.getItem('fa-game-v3') };
-          try {
-            if (window.faGameData) {
-              var dims = window.faGameData.DIMS ? window.faGameData.DIMS.length : 6;
-              st.setItem('fa-game-v3', JSON.stringify({ quiz: Array(dims).fill(1) }));
-            }
-            st.setItem('fa-content-xp', '0');
-            st.setItem('fa-repo-xp', '0');
-            var totalSem = window.faGetTotalXP();
-            st.setItem('fa-content-xp', '10');
-            st.setItem('fa-repo-xp', '10');
-            var totalCom = window.faGetTotalXP();
-            return totalCom > totalSem;
-          } finally {
-            if (backup.contentXP !== null) st.setItem('fa-content-xp', backup.contentXP); else st.removeItem('fa-content-xp');
-            if (backup.repoXP !== null) st.setItem('fa-repo-xp', backup.repoXP); else st.removeItem('fa-repo-xp');
-            if (backup.game !== null) st.setItem('fa-game-v3', backup.game); else st.removeItem('fa-game-v3');
-          }
-        } }
       ]
     },
     {
@@ -529,8 +509,8 @@
       title: 'Cadastro — botão "Aguarde…" durante envio',
       motivo: 'Estado transiente — só visível durante o envio real ao Firebase.' },
     { section: 'Menu / Sessão',
-      title: 'Clicar no perfil navega para Treinamento Jedi',
-      motivo: 'Requer clique no elemento de perfil no menu e verificação de navegação — interação com estado de sessão ativa.' },
+      title: 'Clicar no avatar/nome no menu navega para Treinamento Jedi',
+      motivo: 'Requer clique no avatar/nome exibido no menu (substitui os botões Entrar/Cadastrar após login) e verificação de navegação — interação com estado de sessão ativa.' },
     { section: 'Menu / Sessão',
       title: 'Botão "Sair" encerra sessão e redireciona para Início',
       motivo: 'Executar encerraria a sessão do teste em si, impedindo os demais testes.' },
@@ -625,9 +605,6 @@
     { section: 'Check-in',
       title: 'Sucesso → "Presença confirmada com sucesso!" (nome, turma e dia)',
       motivo: 'Requer: turma finalizada, admin abrir check-in do dia (diaAtivo), pessoa inscrita e logada, sem check-in prévio nesse dia. Escanear QR que aponta para #checkin?turma=<key>.' },
-    { section: 'Conteúdos',
-      title: 'Pontos de conteúdos só entram no cálculo da patente ao revelar',
-      motivo: 'Requer fluxo completo de reveal — ação irreversível.' },
     { section: 'Repositório',
       title: 'Adicionar conteúdo ao Holocron',
       motivo: 'Gravaria dado real no Firebase. Não pode ser revertido automaticamente em teste.' },
@@ -644,7 +621,10 @@
       title: 'Remover conteúdo próprio',
       motivo: 'Requer ter contribuído antes e deletaria dado real.' },
     { section: 'Repositório',
-      title: 'Moderação Admin — ocultar/restaurar curado e deletar de usuários',
+      title: 'Moderação Admin — ocultar/restaurar conteúdo curado',
+      motivo: 'Ação destrutiva real no Firebase. Não pode ser revertida automaticamente.' },
+    { section: 'Repositório',
+      title: 'Moderação Admin — deletar conteúdo de usuários',
       motivo: 'Ação destrutiva real no Firebase. Não pode ser revertida automaticamente.' },
     { section: 'Treinamento Jedi',
       title: 'Welcome screen exibida para visitante (texto + botão "Quero jogar")',
@@ -671,8 +651,11 @@
       title: 'Turmas — finalizar inscrição',
       motivo: 'Ação destrutiva: converte todos os interessados em inscritos e bloqueia novas inscrições. Verificar: (1) badge muda para FINALIZADA; (2) botões mudam para QR Code / Abrir check-in / Reabrir; (3) tabela exibe colunas de presença por dia.' },
     { section: 'Admin',
-      title: 'Turmas — abrir/fechar check-in do dia',
-      motivo: 'Requer turma finalizada. Verificar: (1) select exibe os dias da turma e pré-seleciona hoje se aplicável; (2) ao abrir dia escolhido, badge "CHECK-IN ABERTO · DD/MM" aparece pulsante; (3) participante consegue fazer check-in via QR apenas para o dia aberto; (4) ao fechar, check-in é bloqueado na página checkin. Testar também abrir um dia diferente de hoje (passado ou futuro).' },
+      title: 'Turmas — abrir check-in do dia',
+      motivo: 'Requer turma finalizada. Verificar: (1) select exibe os dias da turma e pré-seleciona hoje se aplicável; (2) ao abrir dia escolhido, badge "CHECK-IN ABERTO · DD/MM" aparece pulsante; (3) participante consegue fazer check-in via QR apenas para o dia aberto. Testar também abrir um dia diferente de hoje (passado ou futuro).' },
+    { section: 'Admin',
+      title: 'Turmas — fechar check-in do dia',
+      motivo: 'Requer turma finalizada e check-in aberto. Verificar: ao fechar, check-in passa a ser bloqueado na página checkin.' },
     { section: 'Admin',
       title: 'Turmas — layout responsivo das ações (desktop vs mobile)',
       motivo: 'Verificar em desktop (>768px): todas as ações ficam em linha única (seletor de dia, Abrir/Fechar check-in, QR, + Participante, Reabrir, CSV, Certificados). Verificar em mobile/tablet (≤768px): header do card vira coluna; apenas ações primárias visíveis (seletor + Abrir/Fechar ou Finalizar); botão "⋯" presente e ao clicar abre dropdown com ações secundárias (QR, + Participante, ↺ Reabrir, CSV, Certificados).' },

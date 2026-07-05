@@ -13,7 +13,7 @@
     { key: 'visitante',   label: 'Visitante',      color: '#888888',
       adds: ['Ver páginas públicas (Início, Turmas, Ajuda)', 'Cadastrar conta (@previ.com.br)', 'Fazer login', 'Recuperar senha por e-mail (autoatendimento)'] },
     { key: 'logado',  label: 'Usuário logado (sem turma)', color: '#1ab2ae',
-      adds: ['Acessar o Repositório', 'Adicionar e remover conteúdos no Repositório', 'Manifestar interesse em até 3 turmas', 'Remover interesse em turmas'] },
+      adds: ['Acessar o Repositório', 'Adicionar conteúdos e remover os próprios no Repositório', 'Manifestar interesse em até 3 turmas', 'Remover interesse em turmas'] },
     { key: 'inscrito', label: 'Usuário inscrito (turma confirmada)', color: '#4caf7d',
       adds: ['Acessar Conteúdos', 'Acessar Treinamento Jedi (autodiagnóstico 0–60)', 'Revelar patente (resultado fixo e bloqueado — não pode refazer sem reset do admin)', 'Vê apenas o card da própria turma na página Turmas — sem botões de interesse'] },
     { key: 'admin',   label: 'Admin',          color: '#ff5252',
@@ -23,14 +23,14 @@
   const PAGES = [
     { label: 'INÍCIO', color: '#1ab2ae',
       features: [
-        { label: 'Ver página completa',                  p: ['visitante','logado','inscrito','admin'] },
-        { label: 'Subtítulo do hero: "Desenvolva sua agilidade na prática"', p: ['visitante','logado','inscrito','admin'] },
         { label: 'Botão "Conhecer a iniciativa" → rola até "O que é"',    p: ['visitante','logado','inscrito','admin'] },
-        { label: 'Botão "Repetir abertura" → replay do crawl de intro',   p: ['visitante','logado','inscrito','admin'] },
-        { label: 'Crawl: botões "≡ Ler texto" / "⏸ Pausar" / "↻ Repetir abertura" exibidos lado a lado (layout horizontal)', p: ['visitante','logado','inscrito','admin'] },
-        { label: 'Crawl: clicar na área ou botão "⏸ Pausar" → pausa/retoma animação', p: ['visitante','logado','inscrito','admin'] },
-        { label: 'Crawl: botão "≡ Ler texto" → exibe texto estático sem perspectiva; "✕ Fechar texto" retorna ao crawl', p: ['visitante','logado','inscrito','admin'] },
-        { label: '3 cards "Como funciona" → links para Conteúdos / Repositório / Treinamento Jedi (sem hover — cards decorativos)', p: ['visitante','logado','inscrito','admin'] },
+        { label: 'Crawl de abertura — texto em estilo Star Wars sobe a tela ao entrar na Home', p: ['visitante','logado','inscrito','admin'] },
+        { label: 'Crawl — botão "⏸ Pausar" (ou clicar na área) → pausa/retoma a animação', p: ['visitante','logado','inscrito','admin'] },
+        { label: 'Crawl — botão "≡ Ler texto" → exibe texto estático sem perspectiva; "✕ Fechar texto" retorna ao crawl', p: ['visitante','logado','inscrito','admin'] },
+        { label: 'Crawl — botão "↻ Repetir abertura" → reinicia a animação do início', p: ['visitante','logado','inscrito','admin'] },
+        { label: 'Card "Como funciona" → Conteúdos (decorativo, sem hover)', p: ['visitante','logado','inscrito','admin'] },
+        { label: 'Card "Como funciona" → Repositório (decorativo, sem hover)', p: ['visitante','logado','inscrito','admin'] },
+        { label: 'Card "Como funciona" → Treinamento Jedi (decorativo, sem hover)', p: ['visitante','logado','inscrito','admin'] },
         { label: 'Botão hero deslogado: "Juntar-se à Força →" → abre modal de cadastro', p: ['visitante'] },
         { label: 'Botão hero logado: "Ver turmas →" → navega para a página Turmas', p: ['logado','inscrito','admin'] },
         { label: 'CTA final: único botão "Ver turmas →" direciona para a página Turmas (mesmo comportamento para todos os perfis)', p: ['visitante','logado','inscrito','admin'] },
@@ -95,7 +95,8 @@
       features: [
         { label: 'Aba Turmas — finalizar inscrição da turma', p: ['admin'] },
         { label: 'Aba Turmas — reabrir turma', p: ['admin'] },
-        { label: 'Aba Turmas — abrir/fechar check-in do dia', p: ['admin'] },
+        { label: 'Aba Turmas — abrir check-in do dia', p: ['admin'] },
+        { label: 'Aba Turmas — fechar check-in do dia', p: ['admin'] },
         { label: 'Aba Turmas — gerar QR Code da turma', p: ['admin'] },
         { label: 'Aba Turmas — tabela de presença, com registro e remoção manual', p: ['admin'] },
         { label: 'Aba Turmas — adicionar participante manualmente', p: ['admin'] },
@@ -106,7 +107,10 @@
         { label: 'Aba Turmas — exportar CSV individual de uma turma', p: ['admin'] },
         { label: 'Aba Repositório — ocultar/restaurar conteúdos curados', p: ['admin'] },
         { label: 'Aba Repositório — deletar permanentemente conteúdos de usuários', p: ['admin'] },
-        { label: 'Aba Cadastrados — listar todos os cadastrados, redefinir senha e resetar progresso de qualquer um', p: ['admin'] },
+        { label: 'Aba Cadastrados — listar todos os cadastrados', p: ['admin'] },
+        { label: 'Aba Cadastrados — filtrar lista de cadastrados', p: ['admin'] },
+        { label: 'Aba Cadastrados — redefinir senha de qualquer cadastrado', p: ['admin'] },
+        { label: 'Aba Cadastrados — resetar progresso de qualquer cadastrado', p: ['admin'] },
         { label: 'Aba Administradores — adicionar e remover admins', p: ['admin'] },
         { label: 'Aba Manual — regras de comportamento do sistema', p: ['admin'] },
         { label: 'Aba Mapa — hierarquia de personas (níveis de acesso cumulativos)', p: ['admin'] },
@@ -115,15 +119,17 @@
         { label: 'Aba Mapa — regras operacionais (cache, autonomia e processo de deploy)', p: ['admin'] },
         { label: 'Aba Mapa — diagrama visual da arquitetura, gerado automaticamente', p: ['admin'] },
         { label: 'Aba Testes — testes automatizados e checklist manual', p: ['admin'] },
-        { label: 'Expandir tudo / Recolher tudo — abre ou fecha de uma vez os itens retráteis da aba ativa', p: ['admin'] },
-        { label: '7 abas no total; no mobile quebram em 2 linhas', p: ['admin'] },
+        { label: 'Expandir tudo — abre de uma vez os itens retráteis da aba ativa', p: ['admin'] },
+        { label: 'Recolher tudo — fecha de uma vez os itens retráteis da aba ativa', p: ['admin'] },
+        { label: '7 abas no total (Turmas, Repositório, Cadastrados, Administradores, Manual, Mapa, Testes); no mobile quebram em 2 linhas', p: ['admin'] },
       ]
     },
     { label: 'CADASTRAR', color: '#9b7fff',
       features: [
         { label: 'Cadastrar conta (@previ.com.br)',           p: ['visitante'] },
         { label: 'Selecionar área/setor (lista de 20 opções)', p: ['visitante'] },
-        { label: 'Mostrar/ocultar senha (botão "olhinho")',   p: ['visitante'] },
+        { label: 'Mostrar/ocultar senha do campo "Senha" (botão "olhinho")', p: ['visitante'] },
+        { label: 'Mostrar/ocultar senha do campo "Confirmar senha" (botão "olhinho")', p: ['visitante'] },
         { label: 'Aceitar termos de uso (checkbox obrigatório)', p: ['visitante'] },
         { label: 'Aceitar receber novidades (checkbox opcional)', p: ['visitante'] },
       ]
@@ -267,7 +273,7 @@
         items: [
           { name: 'index.html',                  desc: 'Entrada única da aplicação. Contém todo o HTML, carrega os scripts e gerencia as seções por hash (#inicio, #turmas…)' },
           { name: 'forca-agil/head-init.js',     desc: 'Inicialização precoce — adiciona classe "js" ao <html> antes do body renderizar, evitando flash de conteúdo sem JS' },
-          { name: 'forca-agil/firebase.js',      desc: 'Progresso e autodiagnóstico — salva/carrega dados do Firebase. API: window.faLoadProgress, window.faSyncProgress, window.faSyncPlayer, window.faGetTotalXP' },
+          { name: 'forca-agil/firebase.js',      desc: 'Progresso e autodiagnóstico — salva/carrega dados do Firebase. API: window.faLoadProgress, window.faSyncProgress' },
           { name: 'forca-agil/router.js',        desc: 'Roteamento por hash — controla qual seção da página está visível. Rotas protegidas: #conteudos e #treinamento exigem nível "enrolled" (inscrito com turma confirmada); #repositorio exige nível "member" (logado). Nível detectado via window.faAuth.getAccessLevel(). API: window.faRouter' },
           { name: 'forca-agil/auth.js',          desc: 'Autenticação — login, cadastro, logout, redefinição de senha. Senha exige apenas dígitos numéricos (mín. 8). Verifica adminship lendo só o próprio registro em fa-admins. Detecta perfil de acesso via window.faAuth.getAccessLevel() → "guest" (visitante), "member" (logado sem turma), "enrolled" (inscrito com turma confirmada). API pública: window.faAuth' },
           { name: 'forca-agil/stars.js',         desc: 'Animação de estrelas do fundo (canvas)' },
@@ -307,11 +313,10 @@
           { name: 'Filtros: dropdown + chip ativo removível', desc: 'Filtros com muitas opções usam select (dropdown) para reduzir poluição visual. O filtro ativo aparece como chip colorido com × para remover. Aplicado no Manual (Seção + Persona).' },
           { name: '"Ver mais / ver menos" por overflow real', desc: 'Descrições exibem no máximo 2 linhas (-webkit-line-clamp). Botão "ver mais" só aparece se o texto realmente transborda — detectado por clone sem clamp comparado com altura clamped. Nunca aparece onde não há conteúdo extra.' },
           { name: 'Hover só em elementos funcionais',        desc: 'Cursor pointer e efeito hover apenas em botões e links reais. Cards decorativos (Como funciona, Repositório) não têm hover — evita confundir o usuário sobre o que é clicável.' },
-          { name: 'Acordeão para listas longas',             desc: 'Listas com muitos itens (FAQ, Manual, Mapa, Arquitetura) usam acordeão para não sobrecarregar a tela. Expandir/Recolher tudo disponível no Admin.' },
+          { name: 'Acordeão para listas longas',             desc: 'Listas com muitos itens (Ajuda, Manual, Mapa, Arquitetura) usam acordeão para não sobrecarregar a tela. Expandir/Recolher tudo disponível no Admin.' },
           { name: 'Mapa do site: lista vertical (acordeão)', desc: 'Cards de páginas no Mapa do Site em coluna única em vez de grid multi-coluna — facilita leitura sequencial e evita fragmentação da informação.' },
           { name: 'Stepper em linha única horizontal',       desc: 'O fluxo de 4 passos do Treinamento Jedi (login → explorar → ganhar experiência → patentes) fica em uma única linha com flex-wrap: nowrap e flex: 1 1 0 nos steps. Mobile quebra para coluna.' },
           { name: 'Crawl de abertura animado',               desc: 'Texto introdutório em estilo Star Wars sobe lentamente ao entrar na Home. Clique em qualquer ponto pausa/retoma a animação. Botão "Ler texto" alterna para modo estático (sem animação) para acessibilidade.' },
-          { name: 'Autodiagnóstico travado ao completar (v3)', desc: 'Opções do autodiagnóstico ficam desabilitadas assim que todas as afirmações são respondidas — não só após revelar a patente. Impede alteração de respostas após conclusão do autodiagnóstico.' },
           { name: 'Menu mobile (≤ 600px)',                   desc: 'Media query ≤600px: logo compacto, botões menores, ícone hamburguer sempre visível sem sobreposição com outros elementos do header.' },
         ]
       },
@@ -499,16 +504,6 @@
       html += '<div class="arq-layer"><div class="arq-layer-label">Firebase — Spark</div><div class="arq-cards">';
       tecnologias.items.forEach(function(item) {
         html += '<div class="arq-card arq-card--firebase" title="' + esc(item.desc) + '">' + esc(item.name) + '</div>';
-      });
-      html += '</div></div>';
-    }
-
-    /* Camada 4 — Padrões de UX */
-    var uxPatterns = ARCH.find(function(s){ return s.label === 'Padrões de UX'; });
-    if (uxPatterns) {
-      html += '<div class="arq-layer"><div class="arq-layer-label">Padrões de UX</div><div class="arq-cards">';
-      uxPatterns.items.forEach(function(item) {
-        html += '<div class="arq-card arq-card--ux" title="' + esc(item.desc) + '">' + esc(item.name) + '</div>';
       });
       html += '</div></div>';
     }

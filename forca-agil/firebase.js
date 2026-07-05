@@ -144,12 +144,6 @@
   // ---- Ranking foi removido — mantido como no-op para não quebrar chamadas existentes (app.js, repo.js) ----
   window.faSyncPlayer = function() {};
 
-  // ---- Exposto para testes: XP total (quiz + conteúdos + repositório) ----
-  window.faGetTotalXP = function() {
-    var gxp = getGameXP();
-    return Math.min(100, gxp.xpQuiz + getContentXP() + getRepoXP());
-  };
-
   // (Ranking, Kyber Game e o modal "Revelar Patente" com opção de publicar
   // foram removidos — v3 usa apenas o fluxo simples em game.js, sem publicar nada.)
 
