@@ -431,15 +431,56 @@
           window.faGameReload();
           return todasBloqueadas;
         } },
-        { id: 'c-quiz-xp-ponderado', label: 'Autodiagnóstico: resposta de nível maior gera mais pontuação do que nível menor', run: function () {
+        { id: 'c-quiz-afirmacoes-count', label: 'Autodiagnóstico: 20 afirmações em 4 blocos (5 cada) presentes no DOM', run: function () {
           if (!window.faGameData) return false;
           var blocos = window.faGameData.BLOCOS || [];
+          if (blocos.length !== 4) return false;
           var totalAfirm = blocos.reduce(function (a, b) { return a + (b.afirmacoes ? b.afirmacoes.length : 0); }, 0);
-          if (!totalAfirm && window.faGameData.DIMS) totalAfirm = window.faGameData.DIMS.length;
-          if (!totalAfirm) return false;
-          var xpMin = totalAfirm * 1;
-          var xpMax = totalAfirm * 4;
-          return xpMin >= 0 && xpMax > xpMin;
+          if (totalAfirm !== 20) return false;
+          return document.querySelectorAll('.q-opts--likert').length === 20;
+        } },
+        { id: 'c-quiz-resposta-salva-pontuacao', label: 'Autodiagnóstico: clicar numa opção salva a pontuação (0–3) da afirmação', run: function () {
+          if (!window.faGameData || !window.faGameReload) return false;
+          var st = window.faStore || localStorage;
+          var backupGame = st.getItem('fa-game-v3');
+          var backupPlayer = localStorage.getItem('fa-player');
+          try {
+            localStorage.setItem('fa-player', JSON.stringify({ name: 'Teste Score XYZ', turma: 'XX', area: 'XX' }));
+            st.removeItem('fa-game-v3');
+            window.faGameReload();
+            var lowBtn = document.querySelector('.q-opt[data-q="0"][data-v="0"]');
+            var highBtn = document.querySelector('.q-opt[data-q="0"][data-v="3"]');
+            if (!lowBtn || !highBtn) return false;
+            lowBtn.click();
+            var afterLow = JSON.parse(st.getItem('fa-game-v3') || 'null');
+            highBtn.click();
+            var afterHigh = JSON.parse(st.getItem('fa-game-v3') || 'null');
+            return !!afterLow && !!afterHigh && afterLow.quiz[0] === 0 && afterHigh.quiz[0] === 3;
+          } finally {
+            if (backupGame !== null) st.setItem('fa-game-v3', backupGame); else st.removeItem('fa-game-v3');
+            if (backupPlayer !== null) localStorage.setItem('fa-player', backupPlayer); else localStorage.removeItem('fa-player');
+            window.faGameReload();
+          }
+        } },
+        { id: 'c-quiz-patente-atualiza-pontuacao', label: 'Painel de patente atualiza a patente exibida conforme a pontuação total muda', run: function () {
+          if (!window.faGameData || !window.faGameReload) return false;
+          var st = window.faStore || localStorage;
+          var backup = st.getItem('fa-game-v3');
+          try {
+            var dims = window.faGameData.DIMS.length;
+            st.setItem('fa-game-v3', JSON.stringify({ quiz: Array(dims).fill(0) }));
+            window.faGameReload();
+            var hud = document.getElementById('rankHud');
+            if (!hud) return false;
+            var hudLow = hud.textContent;
+            st.setItem('fa-game-v3', JSON.stringify({ quiz: Array(dims).fill(3) }));
+            window.faGameReload();
+            var hudHigh = hud.textContent;
+            return hudLow.indexOf('Youngling') !== -1 && hudHigh.indexOf('Mestre') !== -1;
+          } finally {
+            if (backup !== null) st.setItem('fa-game-v3', backup); else st.removeItem('fa-game-v3');
+            window.faGameReload();
+          }
         } },
       ]
     },
