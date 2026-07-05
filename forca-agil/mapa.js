@@ -41,6 +41,7 @@
         { label: 'Aba Turmas — exportar CSV Histórico (todas as turmas)', p: ['admin'] },
         { label: 'Aba Turmas — exportar CSV individual de uma turma', p: ['admin'] },
         { label: 'Aba Turmas — consultar interessados/inscritos (nome, e-mail, área, data de registro)', p: ['admin'] },
+        { label: 'Aba Turmas — consultar removidos, com histórico de presença preservado (turma finalizada)', p: ['admin'] },
         { label: 'Aba Repositório — listar todos os conteúdos (título, tipo/autor, indicado por ou data de envio)', p: ['admin'] },
         { label: 'Aba Repositório — ocultar conteúdo curado', p: ['admin'] },
         { label: 'Aba Repositório — restaurar conteúdo curado', p: ['admin'] },

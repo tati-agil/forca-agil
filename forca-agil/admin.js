@@ -339,6 +339,14 @@
               body.appendChild(buildPresencaTable(t, inscritos, checkinT));
             }
 
+            if (finalizada && removed.length) {
+              var removedHdr = document.createElement('p');
+              removedHdr.className = 'turma-removed-title';
+              removedHdr.textContent = 'Removidos (' + removed.length + ') — histórico de presença preservado';
+              body.appendChild(removedHdr);
+              body.appendChild(buildRemovedPresencaTable(t, removed, checkinT));
+            }
+
             card.appendChild(body);
             c.appendChild(card);
           });
@@ -458,13 +466,47 @@
     return wrap;
   }
 
-  function buildRemovedTable(records) {
-    var tbl = '<table class="admin-table"><thead><tr><th>Nome</th><th>E-mail</th><th>Área</th><th>Data registro</th><th>Data remoção</th></tr></thead><tbody>';
-    records.forEach(function (r) {
-      tbl += '<tr><td>' + esc(r.name) + '</td><td>' + esc(r.email) + '</td><td>' + esc(r.area || '—') +
-        '</td><td>' + fmtDate(r.date) + '</td><td>' + fmtDate(r.removedDate) + '</td></tr>';
+  /* Tabela de removidos — só leitura, com o histórico de presença preservado
+     (os registros em turmas-checkin não são apagados ao remover alguém da turma) */
+  function buildRemovedPresencaTable(t, removed, checkinT) {
+    var minDias = Math.ceil(t.dias.length * CRITERIO_PRESENCA);
+    var wrap = document.createElement('div');
+    wrap.className = 'table-scroll-wrap';
+
+    var tbl = '<table class="admin-table presenca-table"><thead><tr>' +
+      '<th>Nome</th><th>E-mail</th><th>Área</th><th>Data remoção</th>';
+    t.dias.forEach(function (d) {
+      tbl += '<th class="dia-th">' + fmtDia(d) + '</th>';
     });
-    return tbl + '</tbody></table>';
+    tbl += '<th>Freq.</th></tr></thead><tbody>';
+
+    removed.forEach(function (r) {
+      var eKey = emailKeyFromEmail(r.email);
+      var diasPresente = 0;
+      var cells = t.dias.map(function (d) {
+        var ck = checkinT[d] && checkinT[d][eKey];
+        if (ck) {
+          diasPresente++;
+          var badge = ck.source === 'admin'
+            ? '<span class="ck-badge ck-adm" title="Registrado pelo admin">✓ adm</span>'
+            : '<span class="ck-badge ck-qr" title="Registrado pelo próprio QR Code">✓ qr</span>';
+          return '<td class="dia-cell">' + badge + '</td>';
+        }
+        return '<td class="dia-cell">—</td>';
+      });
+
+      var freq = diasPresente + '/' + t.dias.length;
+      var atingiu = diasPresente >= minDias;
+      var freqClass = atingiu ? 'freq-ok' : 'freq-nok';
+
+      tbl += '<tr><td>' + esc(r.name) + '</td><td>' + esc(r.email) + '</td><td>' +
+        esc(r.area || '—') + '</td><td>' + fmtDate(r.removedDate) + '</td>' + cells.join('') +
+        '<td><span class="' + freqClass + '">' + freq + '</span></td></tr>';
+    });
+
+    tbl += '</tbody></table>';
+    wrap.innerHTML = tbl;
+    return wrap;
   }
 
   function emailKeyFromEmail(email) {
