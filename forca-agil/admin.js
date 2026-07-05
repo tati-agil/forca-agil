@@ -351,11 +351,12 @@
   function buildInteressadosTable(records, turmaKey) {
     var wrap = document.createElement('div');
     wrap.className = 'table-scroll-wrap';
-    var tbl = '<table class="admin-table"><thead><tr><th>Nome</th><th>E-mail</th><th>Área</th><th>Data registro</th><th></th></tr></thead><tbody>';
+    var tbl = '<table class="admin-table"><thead><tr><th>Nome</th><th>E-mail</th><th>Área</th><th>Data registro</th><th>Status</th><th></th></tr></thead><tbody>';
     records.forEach(function (r) {
       var ekey = emailKeyFromEmail(r.email);
       tbl += '<tr><td>' + esc(r.name) + '</td><td>' + esc(r.email) + '</td><td>' +
         esc(r.area || '—') + '</td><td>' + fmtDate(r.date) + '</td>' +
+        '<td><span class="status-badge status-interessado">Interessado</span></td>' +
         '<td><button class="ck-remove-btn" data-turma="' + esc(turmaKey) + '" data-ekey="' + esc(ekey) + '" data-name="' + esc(r.name) + '">Remover</button></td></tr>';
     });
     wrap.innerHTML = tbl + '</tbody></table>';
@@ -381,7 +382,7 @@
     wrap.className = 'table-scroll-wrap';
 
     var tbl = '<table class="admin-table presenca-table"><thead><tr>' +
-      '<th>Nome</th><th>E-mail</th><th>Área</th>';
+      '<th>Nome</th><th>E-mail</th><th>Área</th><th>Status</th>';
     t.dias.forEach(function (d) {
       tbl += '<th class="dia-th">' + fmtDia(d) + '</th>';
     });
@@ -413,7 +414,8 @@
       var freqClass = atingiu ? 'freq-ok' : 'freq-nok';
 
       tbl += '<tr><td>' + esc(r.name) + '</td><td>' + esc(r.email) + '</td><td>' +
-        esc(r.area || '—') + '</td>' + cells.join('') +
+        esc(r.area || '—') + '</td>' +
+        '<td><span class="status-badge status-inscrito">Inscrito</span></td>' + cells.join('') +
         '<td><span class="' + freqClass + '">' + freq + '</span></td>' +
         '<td><button class="ck-remove-btn" data-turma="' + t.key + '" data-ekey="' + eKey + '" data-name="' + esc(r.name) + '">Remover</button></td></tr>';
     });
@@ -656,16 +658,27 @@
   function openQrModal(t) {
     var modal   = document.getElementById('qrModal');
     var canvas  = document.getElementById('qrCanvas');
+    var errEl   = document.getElementById('qrModalError');
     var turmaEl = document.getElementById('qrModalTurma');
     var urlEl   = document.getElementById('qrModalUrl');
     if (!modal || !canvas) return;
     var url = window.location.origin + window.location.pathname + '#checkin?turma=' + t.key;
     turmaEl.textContent = t.label + ' (' + t.dates + ')';
     urlEl.textContent   = url;
+    canvas.hidden = false;
+    if (errEl) errEl.hidden = true;
     if (typeof QRCode !== 'undefined') {
       QRCode.toCanvas(canvas, url, { width: 220, color: { dark: '#ffffff', light: '#0d1b2a' } }, function (err) {
-        if (err) console.warn('QR error:', err);
+        if (err) {
+          console.warn('QR error:', err);
+          canvas.hidden = true;
+          if (errEl) errEl.hidden = false;
+        }
       });
+    } else {
+      /* Biblioteca externa (CDN) não carregou — evita deixar o quadro em branco sem explicação */
+      canvas.hidden = true;
+      if (errEl) errEl.hidden = false;
     }
     modal.hidden = false;
   }

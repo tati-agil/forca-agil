@@ -385,6 +385,10 @@
 .ck-manual-btn:hover { border-color: var(--cyan); color: var(--cyan); }
 .freq-ok  { color: #64dc64; font-weight: 600; font-size: .82rem; }
 .freq-nok { color: #ff8080; font-weight: 600; font-size: .82rem; }
+.status-badge { font-size: .68rem; font-family: var(--font-mono); font-weight: 700;
+  padding: 3px 8px; border-radius: 20px; white-space: nowrap; text-transform: uppercase; letter-spacing: .04em; }
+.status-interessado { background: rgba(255,255,255,.06); color: var(--ink-3); border: 1px solid var(--line-strong); }
+.status-inscrito     { background: rgba(76,175,125,.15); color: #4caf7d; border: 1px solid rgba(76,175,125,.35); }
 .checkin-dia { font-size: .8rem; color: var(--ink-3); }
 
 /* ---- QR Code modal ---- */
@@ -394,6 +398,8 @@
 .qr-modal-turma { font-family: var(--font-head); font-size: 1rem; color: var(--ink);
   margin-bottom: 20px; }
 #qrCanvas { border-radius: 10px; display: block; margin: 0 auto 16px; }
+.qr-modal-error { font-size: .8rem; color: #ffb454; background: color-mix(in srgb, #ffb454 12%, transparent);
+  border: 1px solid color-mix(in srgb, #ffb454 35%, transparent); border-radius: 8px; padding: 10px 14px; margin-bottom: 16px; }
 .qr-modal-hint  { font-size: .83rem; color: var(--ink-2); line-height: 1.5; margin-bottom: 8px; }
 .qr-modal-url   { font-size: .68rem; font-family: var(--font-mono); color: var(--ink-3);
   word-break: break-all; margin-bottom: 20px; }

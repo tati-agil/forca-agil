@@ -53,7 +53,7 @@
       ]
     },
     {
-      group: 'Painel Admin',
+      group: 'Admin',
       tests: [
         { id: 'adm-manual', label: 'faInitManual disponível',   run: function () { return typeof window.faInitManual === 'function'; } },
         { id: 'adm-mapa',   label: 'faInitMapa disponível',     run: function () { return typeof window.faInitMapa === 'function'; } },
@@ -522,7 +522,7 @@
       ]
     },
     {
-      group: 'Painel Admin — Integridade',
+      group: 'Admin — Integridade',
       tests: [
         { id: 'c-adm-interesses', label: 'Aba Interessados por turma carregada',  run: function () { return !!document.getElementById('adminInterests') || !!document.getElementById('adminPanelInteresses'); } },
         { id: 'c-adm-admins',     label: 'Aba Administradores presente',          run: function () { return !!document.getElementById('adminPanelAdmins'); } },
@@ -708,7 +708,7 @@
       title: 'Ao concluir o autodiagnóstico: Revelar patente — confirmação real',
       motivo: 'Ação irreversível (fixa o resultado definitivamente) — não deve ser executada em teste automatizado com dado real.' },
     { section: 'Admin',
-      title: 'Painel Admin — acesso negado para visitante/logado (URL direta)',
+      title: 'Admin — acesso negado para visitante/logado (URL direta)',
       motivo: 'Requer testar com diferentes níveis de acesso — não pode ser validado na sessão admin atual.' },
     { section: 'Admin',
       title: 'Menu do site — link "Admin" oculto após logout, inclusive no mobile com menu aberto',
@@ -774,7 +774,7 @@
       title: 'Turmas — CSV exportado tem caracteres especiais corretos e abre editável',
       motivo: 'Baixar qualquer CSV (Estado atual, Histórico ou individual). Verificar no Excel: (1) acentos, cedilha e caracteres especiais aparecem corretamente (sem "?" ou "Ã"); (2) arquivo abre em modo edição — sem modo protegido, sem "somente leitura".' },
     { section: 'Admin',
-      title: 'Painel Admin — visibilidade das 7 abas no mobile',
+      title: 'Admin — visibilidade das 7 abas no mobile',
       motivo: 'Acessar o painel Admin em tela estreita (celular). Verificar: todas as 7 abas (Turmas, Repositório, Cadastrados, Administradores, Manual, Mapa, Testes) estão visíveis (quebram em 2 linhas); nenhuma aba fica oculta ou cortada.' },
     { section: 'Deploy',
       title: 'Pre-commit hook — bloqueia commit com erro de sintaxe JS',
@@ -984,9 +984,11 @@
     }
     html += '</div>';
 
-    /* Nomes iguais aos usados no Manual/Mapa/Regras (sem prefixo "Página"); Firebase, Autenticação
-       e os dois "Painel Admin" são grupos técnicos sem equivalente nos outros blocos */
+    /* Nomes iguais aos usados no Manual/Mapa/Regras (sem prefixo "Página"); Firebase e Autenticação
+       são grupos técnicos sem equivalente nos outros blocos */
     const RES_COLOR = {
+      'Admin':                       '#ff5252',
+      'Admin — Integridade':         '#ff5252',
       'Ajuda':                       '#7ecbff',
       'Autenticação':                '#9b7fff',
       'Cadastrar':                   '#9b7fff',
@@ -995,8 +997,6 @@
       'Firebase':                    '#1ab2ae',
       'Início':                      '#1ab2ae',
       'Menu / Sessão':               '#7f9bff',
-      'Painel Admin':                '#ff5252',
-      'Painel Admin — Integridade':  '#ff5252',
       'Repositório':                 '#e8854a',
       'Treinamento Jedi':            '#e05c7f',
       'Turmas':                      '#f5c542',

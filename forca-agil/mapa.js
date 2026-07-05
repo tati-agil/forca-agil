@@ -24,6 +24,9 @@
   const PAGES = [
     { label: 'ADMIN', color: '#ff5252',
       features: [
+        { label: '7 abas no total (Turmas, Repositório, Cadastrados, Administradores, Manual, Mapa, Testes); no mobile quebram em 2 linhas', p: ['admin'] },
+        { label: 'Expandir tudo — abre de uma vez os itens retráteis da aba ativa', p: ['admin'] },
+        { label: 'Recolher tudo — fecha de uma vez os itens retráteis da aba ativa', p: ['admin'] },
         { label: 'Aba Turmas — finalizar inscrição da turma', p: ['admin'] },
         { label: 'Aba Turmas — reabrir turma', p: ['admin'] },
         { label: 'Aba Turmas — abrir check-in do dia', p: ['admin'] },
@@ -37,15 +40,20 @@
         { label: 'Aba Turmas — exportar CSV Estado Atual (todas as turmas)', p: ['admin'] },
         { label: 'Aba Turmas — exportar CSV Histórico (todas as turmas)', p: ['admin'] },
         { label: 'Aba Turmas — exportar CSV individual de uma turma', p: ['admin'] },
-        { label: 'Aba Repositório — ocultar/restaurar conteúdos curados', p: ['admin'] },
-        { label: 'Aba Repositório — deletar permanentemente conteúdos de usuários', p: ['admin'] },
-        { label: 'Aba Cadastrados — listar todos os cadastrados', p: ['admin'] },
+        { label: 'Aba Turmas — consultar interessados/inscritos (nome, e-mail, área, data de registro)', p: ['admin'] },
+        { label: 'Aba Repositório — listar todos os conteúdos (título, tipo/autor, indicado por ou data de envio)', p: ['admin'] },
+        { label: 'Aba Repositório — ocultar conteúdo curado', p: ['admin'] },
+        { label: 'Aba Repositório — restaurar conteúdo curado', p: ['admin'] },
+        { label: 'Aba Repositório — deletar permanentemente conteúdo (curado ou de usuário)', p: ['admin'] },
+        { label: 'Aba Cadastrados — listar todos os cadastrados (nome, e-mail, área, data de cadastro)', p: ['admin'] },
         { label: 'Aba Cadastrados — filtrar lista de cadastrados', p: ['admin'] },
         { label: 'Aba Cadastrados — redefinir senha de qualquer cadastrado', p: ['admin'] },
         { label: 'Aba Cadastrados — resetar progresso de qualquer cadastrado', p: ['admin'] },
+        { label: 'Aba Administradores — consultar lista de administradores (nome, e-mail, admin desde)', p: ['admin'] },
         { label: 'Aba Administradores — adicionar admin', p: ['admin'] },
         { label: 'Aba Administradores — remover admin', p: ['admin'] },
         { label: 'Aba Manual — regras de comportamento do sistema', p: ['admin'] },
+        { label: 'Aba Manual — filtrar por seção e persona', p: ['admin'] },
         { label: 'Aba Manual — exportar Excel (regras)', p: ['admin'] },
         { label: 'Aba Mapa — hierarquia de personas (níveis de acesso cumulativos)', p: ['admin'] },
         { label: 'Aba Mapa — mapa do site (páginas e funcionalidades por seção, com contagem)', p: ['admin'] },
@@ -55,9 +63,6 @@
         { label: 'Aba Mapa — exportar Excel (mapa completo)', p: ['admin'] },
         { label: 'Aba Testes — testes automatizados e checklist manual', p: ['admin'] },
         { label: 'Aba Testes — exportar Excel (testes automáticos e manuais)', p: ['admin'] },
-        { label: 'Expandir tudo — abre de uma vez os itens retráteis da aba ativa', p: ['admin'] },
-        { label: 'Recolher tudo — fecha de uma vez os itens retráteis da aba ativa', p: ['admin'] },
-        { label: '7 abas no total (Turmas, Repositório, Cadastrados, Administradores, Manual, Mapa, Testes); no mobile quebram em 2 linhas', p: ['admin'] },
       ]
     },
     { label: 'AJUDA', color: '#7ecbff',
@@ -125,8 +130,8 @@
     { label: 'MENU / SESSÃO', color: '#7f9bff',
       features: [
         { label: 'Inicial e nome no menu — no lugar dos botões Entrar/Cadastrar; header exibe avatar, nome e botão Sair', p: ['logado','inscrito','admin'] },
-        { label: 'Menu logado sem turma: Início, Turmas, Repositório, Ajuda (sem Conteúdos nem Treinamento Jedi)', p: ['logado'] },
-        { label: 'Menu inscrito com turma: Início, Turmas, Repositório, Conteúdos, Treinamento Jedi, Ajuda', p: ['inscrito'] },
+        { label: 'Menu para quem está logado mas ainda sem turma confirmada: Início, Turmas, Repositório, Ajuda (sem Conteúdos nem Treinamento Jedi)', p: ['logado'] },
+        { label: 'Menu para quem está logado e já tem turma confirmada (inscrito): Início, Turmas, Repositório, Conteúdos, Treinamento Jedi, Ajuda', p: ['inscrito'] },
         { label: 'Ver link "Admin" no menu de navegação — visível apenas para admins, some imediatamente após logout (desktop e mobile, inclusive com menu aberto)', p: ['admin'] },
         { label: 'Botão Sair',                                p: ['logado','inscrito','admin'] },
       ]
@@ -136,7 +141,7 @@
         { label: 'Ver todos os conteúdos — cards com descrição colapsada em 2 linhas; "ver mais" / "ver menos" só onde o texto transborda', p: ['logado','inscrito','admin'] },
         { label: 'Filtrar por tipo (Todos/Vídeos/Documentos/Ferramentas/Livros)', p: ['logado','inscrito','admin'] },
         { label: 'Adicionar conteúdo ao Holocron',       p: ['logado','inscrito','admin'] },
-        { label: 'Remover próprio conteúdo',             p: ['logado','inscrito','admin'] },
+        { label: 'Remover próprio conteúdo do Holocron', p: ['logado','inscrito','admin'] },
       ]
     },
     { label: 'TREINAMENTO JEDI', color: '#e05c7f',
@@ -293,7 +298,7 @@
         label: 'Tecnologias & Serviços', color: '#1ab2ae',
         items: [
           { name: 'Firebase Authentication', desc: 'Login e cadastro por e-mail/senha. Redefinição de senha via link automático. Gratuito (Spark plan)' },
-          { name: 'Firebase Realtime Database', desc: 'Armazena: fa-users (perfis), fa-holocron (repositório), fa-admins, turmas-interesse/<turma>/<emailKey>, turmas-config/<turma> (finalizada, diaAtivo, turmaConfirmada por emailKey), turmas-checkin/<turma>/<data>/<emailKey>. Regras de segurança: raiz com .read/.write false; todas as escritas e leituras autenticadas exigem auth.token.email matches @previ.com.br (restrição no servidor, não apenas no front-end); qualquer admin @previ.com.br pode fazer tudo no painel; apenas tatianefdirene e danielfrazao podem escrever em fa-admins (criar/remover admins)' },
+          { name: 'Firebase Realtime Database', desc: 'Armazena:\nfa-users (perfis) · fa-holocron (repositório) · fa-admins\nturmas-interesse/<turma>/<emailKey>\nturmas-config/<turma> (finalizada, diaAtivo, turmaConfirmada por emailKey)\nturmas-checkin/<turma>/<data>/<emailKey>\n\nRegras de segurança:\nraiz com .read/.write false; todas as escritas e leituras autenticadas exigem auth.token.email matches @previ.com.br (restrição no servidor, não apenas no front-end); qualquer admin @previ.com.br pode fazer tudo no painel; apenas tatianefdirene e danielfrazao podem escrever em fa-admins (criar/remover admins)' },
           { name: 'Firebase Hosting',        desc: 'Hospedagem em kyber-agil.web.app (produção/main). Branch v3-quiz tem preview próprio em kyber-agil--v3quiz-*.web.app. CDN global, HTTPS automático' },
         ]
       },
@@ -432,6 +437,49 @@
 
     html += '</div>';
 
+    /* ── Diagrama da Arquitetura ── */
+    html += '<h3 class="mapa-title" style="margin-top:56px">Diagrama da Arquitetura</h3>';
+    html += '<p class="mapa-sub">Gerado dinamicamente a partir da Arquitetura Técnica acima — atualiza automaticamente quando ela mudar.</p>';
+    html += '<div class="arq-diagram">';
+
+    /* Camada 1 — CI/CD Pipeline */
+    var deployInfo = (ARCH.find(function(s){ return s.label === 'Deploy'; }) || { items: [] }).items;
+    var urlDeploy = (deployInfo.find(function(i){ return i.name === 'URL'; }) || { desc: 'kyber-agil.web.app' }).desc;
+    var preCommit = (deployInfo.find(function(i){ return i.name === 'Pre-commit hook'; }) || { desc: 'node --check' }).desc.split('—')[0].trim();
+    html += '<div class="arq-layer"><div class="arq-layer-label">CI / CD</div><div class="arq-pipeline">';
+    [
+      { name: 'Local', sub: preCommit },
+      { name: 'GitHub', sub: 'tati-agil/forca-agil' },
+      { name: 'Actions', sub: 'ubuntu · Node 20' },
+      { name: 'Firebase Hosting', sub: esc(urlDeploy) },
+    ].forEach(function(step, i, arr) {
+      html += '<div class="arq-pipe-step"><strong>' + esc(step.name) + '</strong><span>' + step.sub + '</span></div>';
+      if (i < arr.length - 1) html += '<div class="arq-pipe-arrow">→</div>';
+    });
+    html += '</div></div>';
+
+    /* Camada 2 — Frontend (módulos JS de Estrutura de Arquivos) */
+    var estrutura = ARCH.find(function(s){ return s.label === 'Estrutura de Arquivos'; });
+    if (estrutura) {
+      html += '<div class="arq-layer"><div class="arq-layer-label">Frontend — SPA</div><div class="arq-cards">';
+      estrutura.items.forEach(function(item) {
+        html += '<div class="arq-card arq-card--frontend" title="' + esc(item.desc) + '">' + esc(item.name) + '</div>';
+      });
+      html += '</div></div>';
+    }
+
+    /* Camada 3 — Firebase serviços (de Tecnologias & Serviços) */
+    var tecnologias = ARCH.find(function(s){ return s.label === 'Tecnologias & Serviços'; });
+    if (tecnologias) {
+      html += '<div class="arq-layer"><div class="arq-layer-label">Firebase — Spark</div><div class="arq-cards">';
+      tecnologias.items.forEach(function(item) {
+        html += '<div class="arq-card arq-card--firebase" title="' + esc(item.desc) + '">' + esc(item.name) + '</div>';
+      });
+      html += '</div></div>';
+    }
+
+    html += '</div>'; /* .arq-diagram */
+
     /* ── Regras Operacionais ── */
     html += '<h3 class="mapa-title" style="margin-top:56px">Regras Operacionais</h3>';
     html += '<p class="mapa-sub">Decisões e restrições registradas sobre como o projeto deve ser mantido.</p>';
@@ -495,49 +543,6 @@
     html += '</div>';
 
     html += '</div>';
-
-    /* ── Diagrama da Arquitetura ── */
-    html += '<h3 class="mapa-title" style="margin-top:56px">Diagrama da Arquitetura</h3>';
-    html += '<p class="mapa-sub">Gerado dinamicamente a partir dos dados desta página — atualiza quando a Arquitetura Técnica ou Regras mudam.</p>';
-    html += '<div class="arq-diagram">';
-
-    /* Camada 1 — CI/CD Pipeline */
-    var deployInfo = (ARCH.find(function(s){ return s.label === 'Deploy'; }) || { items: [] }).items;
-    var urlDeploy = (deployInfo.find(function(i){ return i.name === 'URL'; }) || { desc: 'kyber-agil.web.app' }).desc;
-    var preCommit = (deployInfo.find(function(i){ return i.name === 'Pre-commit hook'; }) || { desc: 'node --check' }).desc.split('—')[0].trim();
-    html += '<div class="arq-layer"><div class="arq-layer-label">CI / CD</div><div class="arq-pipeline">';
-    [
-      { name: 'Local', sub: preCommit },
-      { name: 'GitHub', sub: 'tati-agil/forca-agil' },
-      { name: 'Actions', sub: 'ubuntu · Node 20' },
-      { name: 'Firebase Hosting', sub: esc(urlDeploy) },
-    ].forEach(function(step, i, arr) {
-      html += '<div class="arq-pipe-step"><strong>' + esc(step.name) + '</strong><span>' + step.sub + '</span></div>';
-      if (i < arr.length - 1) html += '<div class="arq-pipe-arrow">→</div>';
-    });
-    html += '</div></div>';
-
-    /* Camada 2 — Frontend (módulos JS de Estrutura de Arquivos) */
-    var estrutura = ARCH.find(function(s){ return s.label === 'Estrutura de Arquivos'; });
-    if (estrutura) {
-      html += '<div class="arq-layer"><div class="arq-layer-label">Frontend — SPA</div><div class="arq-cards">';
-      estrutura.items.forEach(function(item) {
-        html += '<div class="arq-card arq-card--frontend" title="' + esc(item.desc) + '">' + esc(item.name) + '</div>';
-      });
-      html += '</div></div>';
-    }
-
-    /* Camada 3 — Firebase serviços (de Tecnologias & Serviços) */
-    var tecnologias = ARCH.find(function(s){ return s.label === 'Tecnologias & Serviços'; });
-    if (tecnologias) {
-      html += '<div class="arq-layer"><div class="arq-layer-label">Firebase — Spark</div><div class="arq-cards">';
-      tecnologias.items.forEach(function(item) {
-        html += '<div class="arq-card arq-card--firebase" title="' + esc(item.desc) + '">' + esc(item.name) + '</div>';
-      });
-      html += '</div></div>';
-    }
-
-    html += '</div>'; /* .arq-diagram */
 
     container.innerHTML = html;
 

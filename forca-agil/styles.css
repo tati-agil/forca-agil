@@ -1254,7 +1254,8 @@ html:not(.js) .reveal { opacity: 1 !important; transform: none !important; }
 .testes-group { margin-bottom: 20px; }
 .testes-group-label { font-size: .72rem; text-transform: uppercase; letter-spacing: .1em; color: var(--ink-3); margin-bottom: 8px; font-weight: 600; }
 .testes-group--collapsible { border: 1px solid var(--line); border-radius: 14px; background: var(--surface); margin-bottom: 6px; }
-.testes-group-toggle { cursor: pointer; user-select: none; display: flex; align-items: center; justify-content: space-between; margin-bottom: 0; padding: 10px 16px; background: var(--panel); border-bottom: 1px solid var(--accent); color: var(--accent); font-family: var(--font-head); font-size: .78rem; letter-spacing: .14em; text-transform: uppercase; border-radius: 13px 13px 0 0; }
+.testes-group-toggle { cursor: pointer; user-select: none; display: flex; align-items: flex-start; gap: 8px; justify-content: space-between; margin-bottom: 0; padding: 10px 16px; background: var(--panel); border-bottom: 1px solid var(--accent); color: var(--accent); font-family: var(--font-head); font-size: .78rem; letter-spacing: .14em; text-transform: uppercase; border-radius: 13px 13px 0 0; }
+.testes-group-toggle .testes-group-count { white-space: nowrap; }
 .testes-group--collapsible:not(.open) .testes-group-toggle { border-bottom: none; }
 .testes-group-arrow { font-size: .9rem; transition: transform .2s; color: currentColor; }
 .testes-group--collapsible:not(.open) .testes-group-arrow { transform: rotate(-90deg); }
@@ -1290,7 +1291,7 @@ html:not(.js) .reveal { opacity: 1 !important; transform: none !important; }
 .arch-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 10px; }
 .arch-item { background: var(--surface); border: 1px solid var(--line); border-radius: 10px; padding: 14px 16px; }
 .arch-item-name { font-family: var(--font-mono); font-size: .8rem; color: var(--ac, #888); margin-bottom: 6px; font-weight: 600; }
-.arch-item-desc { font-size: .82rem; color: var(--ink-3); line-height: 1.5; }
+.arch-item-desc { font-size: .82rem; color: var(--ink-3); line-height: 1.5; white-space: pre-line; }
 
 /* ---------- Diagrama da Arquitetura (Admin Mapa) ---------- */
 .arq-diagram { display: flex; flex-direction: column; gap: 2px; margin-top: 24px; }
