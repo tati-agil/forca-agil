@@ -465,7 +465,7 @@
     if (estrutura) {
       html += '<div class="arq-layer"><div class="arq-layer-label">Frontend — SPA</div><div class="arq-cards">';
       estrutura.items.forEach(function(item) {
-        html += '<button type="button" class="arq-card arq-card--frontend" title="' + esc(item.desc) + '" data-arch-target="arch-item-' + slug(estrutura.label + '-' + item.name) + '">' + esc(item.name) + '</button>';
+        html += '<button type="button" class="arq-card arq-card--frontend" data-arch-target="arch-item-' + slug(estrutura.label + '-' + item.name) + '">' + esc(item.name) + '</button>';
       });
       html += '</div></div>';
     }
@@ -475,7 +475,7 @@
     if (tecnologias) {
       html += '<div class="arq-layer"><div class="arq-layer-label">Firebase — Spark</div><div class="arq-cards">';
       tecnologias.items.forEach(function(item) {
-        html += '<button type="button" class="arq-card arq-card--firebase" title="' + esc(item.desc) + '" data-arch-target="arch-item-' + slug(tecnologias.label + '-' + item.name) + '">' + esc(item.name) + '</button>';
+        html += '<button type="button" class="arq-card arq-card--firebase" data-arch-target="arch-item-' + slug(tecnologias.label + '-' + item.name) + '">' + esc(item.name) + '</button>';
       });
       html += '</div></div>';
     }
