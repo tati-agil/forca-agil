@@ -66,7 +66,7 @@
       body: 'Botão "Redefinir senha" na aba Cadastrados envia o mesmo e-mail de redefinição para a pessoa. Disponível para qualquer cadastrado. Só funciona se a pessoa já tiver feito o primeiro cadastro/login.' },
     { section: 'auth', personas: ['visitante'],
       title: 'Cadastro — e-mail obrigatório @previ.com.br',
-      body: 'Exige e-mail @previ.com.br. Outros domínios são rejeitados.' },
+      body: 'Exige e-mail @previ.com.br. Outros domínios são rejeitados já na tela — e o banco de dados também recusa, mesmo que alguém tente criar a conta driblando a tela e escrevendo direto no banco.' },
     { section: 'auth', personas: ['visitante'],
       title: 'Cadastro — senha',
       body: 'Apenas números, mínimo 8 dígitos. O teclado numérico abre automaticamente em celular. O campo "Confirmar senha" deve ser idêntico — se divergir, exibe "As senhas não coincidem." Se contiver letras ou símbolos, exibe "Senha deve conter apenas números e ter mínimo 8 dígitos."' },

@@ -265,7 +265,7 @@
           input.dispatchEvent(new Event('input'));
           return todasContemTermo && reduziu;
         } },
-        { id: 'adm-cadastrados-colunas', label: 'Cadastrados: tabela tem colunas Nome/E-mail/Área/Cadastro (sem coluna XP)', run: function () {
+        { id: 'adm-cadastrados-colunas', label: 'Cadastrados: tabela tem exatamente as colunas Nome/E-mail/Área/Cadastro', run: function () {
           var c = document.getElementById('adminCadastrados');
           if (!c) return false;
           var ths = Array.from(c.querySelectorAll('thead th')).map(function(th) { return th.textContent.trim(); });
@@ -501,7 +501,7 @@
           window.faGameReload();
           return todasBloqueadas;
         } },
-        { id: 'c-quiz-xp-ponderado', label: 'Autodiagnóstico: resposta de nível maior gera mais XP do que nível menor', run: function () {
+        { id: 'c-quiz-xp-ponderado', label: 'Autodiagnóstico: resposta de nível maior gera mais pontuação do que nível menor', run: function () {
           if (!window.faGameData) return false;
           var blocos = window.faGameData.BLOCOS || [];
           var totalAfirm = blocos.reduce(function (a, b) { return a + (b.afirmacoes ? b.afirmacoes.length : 0); }, 0);
@@ -511,7 +511,7 @@
           var xpMax = totalAfirm * 4;
           return xpMin >= 0 && xpMax > xpMin;
         } },
-        { id: 'c-quiz-patente-inclui-conteudo-repo', label: 'Painel de patente soma XP de Conteúdos e Repositório (não só autodiagnóstico)', run: function () {
+        { id: 'c-quiz-patente-inclui-conteudo-repo', label: 'Painel de patente soma pontuação de Conteúdos e Repositório (não só autodiagnóstico)', run: function () {
           if (typeof window.faGetTotalXP !== 'function') return false;
           var st = window.faStore || localStorage;
           var backup = { contentXP: st.getItem('fa-content-xp'), repoXP: st.getItem('fa-repo-xp'), game: st.getItem('fa-game-v3') };

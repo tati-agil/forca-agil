@@ -207,8 +207,9 @@
     /* Grid de páginas */
     html += '<div class="mapa-grid">';
     PAGES.forEach(function (page, idx) {
+      var featCount = page.features.filter(function (f) { return f.p && f.p.length; }).length;
       html += '<div class="mapa-page" style="--pc:' + page.color + '">';
-      html += '<div class="mapa-page-title"><span>' + page.label + '</span><span class="mapa-page-arrow">▾</span></div>';
+      html += '<div class="mapa-page-title"><span>' + page.label + ' <span class="testes-group-count">(' + featCount + ')</span></span><span class="mapa-page-arrow">▾</span></div>';
       html += '<div class="mapa-page-body">';
       page.features.forEach(function (f) {
         if (!f.p || !f.p.length) return;
@@ -254,7 +255,7 @@
           { name: 'forca-agil/app.js',           desc: 'Interações de UI — nav scroll, reveals, botões de interesse em turmas (perfil logado sem turma), controle de acesso por perfil via getAccessLevel(), crawl de abertura (pausar/retomar no clique, botão "Ler texto" para modo estático)' },
           { name: 'forca-agil/home-nav.js',      desc: 'Navegação assistida entre seções da Home — pontos laterais, botão Continuar animado, teclado ↑↓/Enter, IntersectionObserver para dot ativo' },
           { name: 'forca-agil/conteudos-nav.js', desc: 'Navegação lateral para a página Conteúdos — reutiliza estilos .hn-* do home-nav' },
-          { name: 'forca-agil/repo.js',          desc: 'Repositório (Holocron) — listagem, adição, remoção de conteúdos, XP por contribuição' },
+          { name: 'forca-agil/repo.js',          desc: 'Repositório (Holocron) — listagem, adição, remoção de conteúdos' },
           { name: 'forca-agil/game-data.js',     desc: 'Dados do Treinamento Jedi — 4 blocos × 5 afirmações (BLOCOS), patentes (RANKS), níveis Likert (LEVELS). DIMS computado dinamicamente a partir de BLOCOS. MISSIONS existe no arquivo mas não é usada em v3. Expõe window.faGameData' },
           { name: 'forca-agil/game.js',          desc: 'Treinamento Jedi — autodiagnóstico, painel de patente e revelar patente. Acessível apenas com nível "enrolled". Lê dados de window.faGameData' },
           { name: 'forca-agil/kyber.js',         desc: 'Kyber Game (inativo em v3) — script carregado mas seção hidden; sem link de navegação em v3. Código do minigame de 25 desafios com timer' },
