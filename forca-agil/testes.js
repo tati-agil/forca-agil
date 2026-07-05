@@ -290,11 +290,8 @@
   ================================================================ */
   const COMPORTAMENTO_AUTO = [
     {
-      group: 'Menu — Cadastrar / Entrar',
+      group: 'Entrar',
       tests: [
-        { id: 'c-menu-profile',    label: '[Logado] Perfil visível no menu (substitui Entrar/Cadastrar)',  run: function () { const el = document.getElementById('navProfile'); return el && !el.hidden; } },
-        { id: 'c-menu-guest-hide', label: '[Logado] Botões Entrar/Cadastrar ocultos',                     run: function () { const el = document.getElementById('navGuest');   return el && el.hidden; } },
-        { id: 'c-menu-admin-link', label: '[Admin] Link "Admin" visível no menu',                         run: function () { const el = document.getElementById('navAdmin');   return el && !el.hidden; } },
         { id: 'c-modal-no-close-outside', label: 'Modal de login/cadastro não fecha ao clicar fora', run: function () {
           if (!window.faOpenAuthModal) return false;
           var modal = document.getElementById('authModal');
@@ -317,20 +314,19 @@
           var opened = !forgotPanel.hidden && loginPanel.hidden;
           if (window.faCloseAuthModal) window.faCloseAuthModal();
           return opened;
-        } },
-        { id: 'c-turmas-btn-style', label: 'Botão "Tenho interesse" dourado sólido; após concluir, fundo escuro neutro', run: function () {
-          var btn = document.querySelector('.btn--interest');
-          if (!btn) return false;
-          var beforeBg = window.getComputedStyle(btn).backgroundColor;
-          btn.classList.add('done');
-          var afterBg = window.getComputedStyle(btn).backgroundColor;
-          btn.classList.remove('done');
-          return beforeBg !== afterBg && beforeBg === 'rgb(245, 197, 24)';
         } }
       ]
     },
     {
-      group: 'Formulário de Cadastro',
+      group: 'Menu / Sessão',
+      tests: [
+        { id: 'c-menu-profile',    label: '[Logado] Perfil visível no menu (substitui Entrar/Cadastrar)',  run: function () { const el = document.getElementById('navProfile'); return el && !el.hidden; } },
+        { id: 'c-menu-guest-hide', label: '[Logado] Botões Entrar/Cadastrar ocultos',                     run: function () { const el = document.getElementById('navGuest');   return el && el.hidden; } },
+        { id: 'c-menu-admin-link', label: '[Admin] Link "Admin" visível no menu',                         run: function () { const el = document.getElementById('navAdmin');   return el && !el.hidden; } }
+      ]
+    },
+    {
+      group: 'Cadastrar',
       tests: [
         { id: 'c-reg-area',     label: 'Campo área/setor com 20 gerências carregadas em ordem alfabética',
           run: function () {
@@ -348,7 +344,7 @@
           run: function () { return !!document.getElementById('regOptin'); }
         },
         { id: 'c-pwd-toggle',   label: 'Botão "olhinho" em campos de senha',
-          run: function () { return document.querySelectorAll('.pwd-toggle, [data-toggle-pwd], .eye-btn, button[aria-label*="senha"]').length > 0 || document.querySelectorAll('button').length > 0; }
+          run: function () { return document.querySelectorAll('.pwd-eye').length > 0; }
         },
         { id: 'c-pwd-numeric',  label: 'Campo de senha com inputmode numérico',
           run: function () { var f = document.getElementById('regPassword'); return !!f && f.getAttribute('inputmode') === 'numeric'; }
@@ -499,6 +495,15 @@
           first.click();
           var after = first.className;
           return before === after;
+        } },
+        { id: 'c-turmas-btn-style', label: 'Botão "Tenho interesse" dourado sólido; após concluir, fundo escuro neutro', run: function () {
+          var btn = document.querySelector('.btn--interest');
+          if (!btn) return false;
+          var beforeBg = window.getComputedStyle(btn).backgroundColor;
+          btn.classList.add('done');
+          var afterBg = window.getComputedStyle(btn).backgroundColor;
+          btn.classList.remove('done');
+          return beforeBg !== afterBg && beforeBg === 'rgb(245, 197, 24)';
         } }
       ]
     },
@@ -601,28 +606,28 @@
      Exibidas com motivo explicado para validação humana.
   ================================================================ */
   const COMPORTAMENTO_MANUAL = [
-    { section: 'Cadastrar / Entrar',
+    { section: 'Entrar',
       title: 'Login — erro de credenciais',
       motivo: 'Requer tentativa de login com senha errada, o que causaria falha de autenticação real.' },
-    { section: 'Cadastrar / Entrar',
+    { section: 'Entrar',
       title: 'Login — botão "Aguarde…" durante autenticação',
       motivo: 'Estado transiente (dura milissegundos) — impossível capturar automaticamente.' },
-    { section: 'Cadastrar / Entrar',
+    { section: 'Entrar',
       title: 'Login — esqueci minha senha (recebimento do e-mail)',
       motivo: 'A abertura do painel já é testada automaticamente. Falta só verificar o recebimento real do e-mail de redefinição enviado pelo Firebase.' },
-    { section: 'Cadastrar / Entrar',
+    { section: 'Cadastrar',
       title: 'Cadastro — e-mail já existente (mensagem de erro)',
       motivo: 'Requer tentar cadastrar e-mail duplicado — causaria chamada real ao Firebase Auth.' },
-    { section: 'Cadastrar / Entrar',
+    { section: 'Cadastrar',
       title: 'Cadastro — formatação automática (nome maiúsculo, e-mail minúsculo)',
       motivo: 'Requer realizar um cadastro real e verificar no Firebase. Não deve ser feito em teste automatizado.' },
-    { section: 'Cadastrar / Entrar',
+    { section: 'Cadastrar',
       title: 'Cadastro — botão "Aguarde…" durante envio',
       motivo: 'Estado transiente — só visível durante o envio real ao Firebase.' },
-    { section: 'Cadastrar / Entrar',
+    { section: 'Menu / Sessão',
       title: 'Clicar no perfil navega para Treinamento Jedi',
       motivo: 'Requer clique no elemento de perfil no menu e verificação de navegação — interação com estado de sessão ativa.' },
-    { section: 'Cadastrar / Entrar',
+    { section: 'Menu / Sessão',
       title: 'Botão "Sair" encerra sessão e redireciona para Início',
       motivo: 'Executar encerraria a sessão do teste em si, impedindo os demais testes.' },
     { section: 'Início',
@@ -887,13 +892,14 @@
     html += '<p class="testes-manual-desc">Estas regras não podem ser verificadas automaticamente. Valide-as manualmente ao testar o site.</p>';
 
     const SEC_COLOR = {
-      'Cadastrar / Entrar': '#9b7fff',
+      'Cadastrar':          '#9b7fff',
+      'Entrar':             '#9b7fff',
+      'Menu / Sessão':      '#7f9bff',
       'Início':             '#1ab2ae',
       'Turmas':             '#f5c542',
       'Conteúdos':          '#4caf7d',
       'Repositório':        '#e8854a',
       'Treinamento Jedi':   '#e05c7f',
-      'Ranking':            '#57aaff',
       'Ajuda':              '#7ecbff',
       'Admin':              '#ff5252',
     };
@@ -1017,8 +1023,9 @@
       'Autenticação':                '#9b7fff',
       'Autodiagnóstico & Progresso': '#f5c542',
       'Painel Admin':                '#ff5252',
-      'Menu — Cadastrar / Entrar':   '#9b7fff',
-      'Formulário de Cadastro':      '#9b7fff',
+      'Cadastrar':                   '#9b7fff',
+      'Entrar':                      '#9b7fff',
+      'Menu / Sessão':               '#7f9bff',
       'Página Início':               '#1ab2ae',
       'Página Turmas':               '#f5c542',
       'Página Repositório':          '#e8854a',
