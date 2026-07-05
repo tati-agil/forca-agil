@@ -310,7 +310,7 @@
       body: '7 abas no painel: Turmas, Repositório, Cadastrados, Administradores, Manual, Mapa e Testes. No desktop ficam em linha única. No mobile podem quebrar em 2 linhas com fonte reduzida para todas ficarem visíveis sem scroll horizontal.' },
     { section: 'admin', personas: ['admin'],
       title: 'Aba: Turmas — visão geral',
-      body: 'Cada turma aparece como um card, com um selo ABERTA ou FINALIZADA e a contagem de inscritos/interessados. Quando o check-in do dia está ativo, aparece também um selo piscando "CHECK-IN ABERTO · DD/MM". Dentro de cada card: botões de ação, uma tabela de participantes e um botão "↓ CSV" para baixar só aquela turma — se a tabela tiver muitas colunas, ela ganha rolagem horizontal. No topo da aba, dois botões exportam todas as turmas de uma vez: "↓ Estado atual" e "↓ Histórico". Os arquivos sempre abrem editáveis no Excel, com os acentos corretos.' },
+      body: 'Cada turma aparece como um card, com um selo ABERTA ou FINALIZADA e a contagem de inscritos/interessados. Dentro do card: botões de ação e uma tabela de participantes (ver regras específicas de check-in e exportação abaixo).' },
     { section: 'admin', personas: ['admin'],
       title: 'Aba: Turmas — exportar CSV Estado Atual',
       body: 'Botão global "↓ Estado atual": exporta todas as turmas em um único arquivo CSV. Inclui apenas usuários ativos — removidos não aparecem. Coluna "Adicionado por" preenchida com nome do admin quando o participante foi adicionado manualmente; vazia quando o participante se inscreveu por conta própria.' },
