@@ -59,6 +59,8 @@
         { label: 'Navegação lateral por pontos (01–07) — salta entre seções; tooltip com nome ao passar o mouse', p: ['inscrito','admin'] },
         { label: 'Link externo "Ler os 4 valores na íntegra" (agilemanifesto.org)', p: ['inscrito','admin'] },
         { label: 'Link externo "Ler os 12 princípios na íntegra" (agilemanifesto.org)', p: ['inscrito','admin'] },
+        { label: '"A Força do Ágil" — 25 ensinamentos em 5 episódios; cada episódio expande/recolhe clicando no cabeçalho', p: ['inscrito','admin'] },
+        { label: '"A Trilogia" — 3 episódios em acordeão; cada um expande/recolhe clicando no título', p: ['inscrito','admin'] },
       ]
     },
     { label: 'REPOSITÓRIO', color: '#e8854a',
@@ -113,18 +115,24 @@
         { label: 'Aba Mapa — regras operacionais (cache, autonomia e processo de deploy)', p: ['admin'] },
         { label: 'Aba Mapa — diagrama visual da arquitetura, gerado automaticamente', p: ['admin'] },
         { label: 'Aba Testes — testes automatizados e checklist manual', p: ['admin'] },
+        { label: 'Expandir tudo / Recolher tudo — abre ou fecha de uma vez os itens retráteis da aba ativa', p: ['admin'] },
         { label: '7 abas no total; no mobile quebram em 2 linhas', p: ['admin'] },
       ]
     },
     { label: 'CADASTRAR', color: '#9b7fff',
       features: [
         { label: 'Cadastrar conta (@previ.com.br)',           p: ['visitante'] },
+        { label: 'Selecionar área/setor (lista de 20 opções)', p: ['visitante'] },
+        { label: 'Mostrar/ocultar senha (botão "olhinho")',   p: ['visitante'] },
+        { label: 'Aceitar termos de uso (checkbox obrigatório)', p: ['visitante'] },
+        { label: 'Aceitar receber novidades (checkbox opcional)', p: ['visitante'] },
       ]
     },
     { label: 'ENTRAR', color: '#9b7fff',
       features: [
         { label: 'Ver botões no menu (Início, Turmas, Ajuda visíveis no menu para visitante)',  p: ['visitante'] },
         { label: 'Fazer login',                               p: ['visitante'] },
+        { label: 'Mostrar/ocultar senha (botão "olhinho")',   p: ['visitante'] },
         { label: 'Esqueci minha senha — link por e-mail',     p: ['visitante'] },
       ]
     },
