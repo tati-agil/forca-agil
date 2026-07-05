@@ -23,19 +23,57 @@
   function getSession() { return _session; }
   function getAccessLevel() { return _accessLevel; }
 
+  const TURMAS = ['t1', 't2', 't3'];
+  var _enrolledRefs = [];
+
+  function isInscrito(val) { return !!(val && !val.removed && val.status === 'inscrito'); }
+
   function checkEnrolledStatus(email, cb) {
     const key = emailKey(email);
-    const TURMAS = ['t1', 't2', 't3'];
     var found = false;
     var checked = 0;
     TURMAS.forEach(function (t) {
       firebase.database().ref('turmas-interesse/' + t + '/' + key).once('value', function (snap) {
         checked++;
-        const val = snap.val();
-        if (val && !val.removed && val.status === 'inscrito') found = true;
+        if (isInscrito(snap.val())) found = true;
         if (checked === TURMAS.length) cb(found);
       });
     });
+  }
+
+  /* Observa em tempo real (finalizar/reabrir/remover turma) — evita exigir logout/login
+     para o nível de acesso (Conteúdos/Treinamento Jedi) refletir a mudança */
+  function watchEnrolledStatus(email, cb) {
+    stopWatchingEnrolledStatus();
+    const key = emailKey(email);
+    const vals = {};
+    TURMAS.forEach(function (t) {
+      const ref = firebase.database().ref('turmas-interesse/' + t + '/' + key);
+      const handler = function (snap) {
+        vals[t] = snap.val();
+        cb(TURMAS.some(function (tt) { return isInscrito(vals[tt]); }));
+      };
+      ref.on('value', handler);
+      _enrolledRefs.push({ ref: ref, handler: handler });
+    });
+  }
+
+  function stopWatchingEnrolledStatus() {
+    _enrolledRefs.forEach(function (r) { r.ref.off('value', r.handler); });
+    _enrolledRefs = [];
+  }
+
+  /* Se o nível de acesso cair enquanto a pessoa está numa área que exige "enrolled",
+     tira ela de lá na hora (ex.: removida da turma enquanto navegava em Conteúdos) */
+  function enforceCurrentRouteAccess() {
+    if (!window.faRouter) return;
+    const page = window.faRouter.current();
+    if ((page === 'conteudos' || page === 'treinamento') && _accessLevel !== 'enrolled') {
+      location.hash = '#home';
+      if (window.faRouter.showAccessMsg) {
+        window.faRouter.showAccessMsg('Sua turma foi alterada — esta área não está mais disponível.');
+      }
+    }
   }
 
   /* ---- Verifica se o usuário logado é admin (lê só o próprio registro) ---- */
@@ -66,11 +104,19 @@
           } else {
             window.dispatchEvent(new CustomEvent('fa-auth-change', { detail: _session }));
           }
+          watchEnrolledStatus(user.email, function (enrolledNow) {
+            const newLevel = enrolledNow ? 'enrolled' : 'member';
+            if (newLevel === _accessLevel) return;
+            _accessLevel = newLevel;
+            updateNavState();
+            enforceCurrentRouteAccess();
+          });
         });
       });
     } else {
       _session = null;
       _accessLevel = 'guest';
+      stopWatchingEnrolledStatus();
       try { localStorage.removeItem('fa-player'); } catch (e) {}
       updateNavState();
       if (_authReady) {
