@@ -522,7 +522,7 @@
       ]
     },
     {
-      group: 'Admin — Integridade',
+      group: 'Admin',
       tests: [
         { id: 'c-adm-interesses', label: 'Aba Interessados por turma carregada',  run: function () { return !!document.getElementById('adminInterests') || !!document.getElementById('adminPanelInteresses'); } },
         { id: 'c-adm-admins',     label: 'Aba Administradores presente',          run: function () { return !!document.getElementById('adminPanelAdmins'); } },
@@ -988,7 +988,6 @@
        são grupos técnicos sem equivalente nos outros blocos */
     const RES_COLOR = {
       'Admin':                       '#ff5252',
-      'Admin — Integridade':         '#ff5252',
       'Ajuda':                       '#7ecbff',
       'Autenticação':                '#9b7fff',
       'Cadastrar':                   '#9b7fff',
