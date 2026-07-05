@@ -801,11 +801,15 @@
   function render(container) {
     let html = '<div class="testes-wrap">';
 
+    var totalTecnicos = TECNICOS.reduce(function (sum, g) { return sum + g.tests.length; }, 0);
+    var totalComportamento = COMPORTAMENTO_AUTO.reduce(function (sum, g) { return sum + g.tests.length; }, 0);
+    var totalAutomaticos = totalTecnicos + totalComportamento;
+
     /* Toolbar única — linha flat sem wrap */
     html += '<div class="testes-toolbar">';
-    html += '<button class="btn btn--sm btn--primary testes-run-btn" data-suite="tecnicos">▶ Técnicos</button>';
-    html += '<button class="btn btn--sm btn--primary testes-run-btn" data-suite="comportamento">▶ Comportamento</button>';
-    html += '<button class="btn btn--sm testes-run-btn" data-suite="todos">▶ Automáticos</button>';
+    html += '<button class="btn btn--sm btn--primary testes-run-btn" data-suite="tecnicos">▶ Técnicos (' + totalTecnicos + ')</button>';
+    html += '<button class="btn btn--sm btn--primary testes-run-btn" data-suite="comportamento">▶ Comportamento (' + totalComportamento + ')</button>';
+    html += '<button class="btn btn--sm testes-run-btn" data-suite="todos">▶ Automáticos (' + totalAutomaticos + ')</button>';
     html += '<button class="btn btn--sm" id="testesExportBtn">⬇ Exportar Testes</button>';
     html += '<div class="testes-toolbar-sep"></div>';
     html += '<button class="btn btn--sm btn--ghost" id="testesExpandAll">Expandir tudo</button>';

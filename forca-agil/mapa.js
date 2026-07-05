@@ -220,7 +220,9 @@
     html += '</div>';
 
     /* ── Mapa do site ── */
-    html += '<h3 class="mapa-title" style="margin-top:48px">Mapa do Site</h3>';
+    var totalPaginas = PAGES.length;
+    var totalFeatures = PAGES.reduce(function (sum, p) { return sum + p.features.filter(function (f) { return f.p && f.p.length; }).length; }, 0);
+    html += '<h3 class="mapa-title" style="margin-top:48px">Mapa do Site <span class="testes-group-count">(' + totalPaginas + ' páginas · ' + totalFeatures + ' features)</span></h3>';
 
     /* Legenda dos badges */
     html += '<div class="mapa-legend-box">';
