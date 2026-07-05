@@ -349,7 +349,7 @@
       body: 'Botão "Remover" (coluna extra na tabela de presença): abre um modal de confirmação. Ao confirmar, registra quem e quando removeu, e a pessoa some da tela imediatamente. Diferente de "faltou a um dia" — é uma remoção da turma, não uma ausência. Os check-ins registrados não são apagados, mas a pessoa deixa de constar como inscrita.' },
     { section: 'admin', personas: ['admin'],
       title: 'Pop-ups do admin — modais visuais (não nativos)',
-      body: 'Todas as confirmações e avisos do painel usam janelas com o mesmo visual dos modais de cadastro/login — nenhuma ação usa aquelas caixas de diálogo feias e padrão do navegador.' },
+      body: 'Todas as confirmações e avisos do painel usam janelas com o mesmo visual dos modais de cadastro/login — nenhuma ação usa aquelas caixas de diálogo padrão do navegador.' },
     { section: 'admin', personas: ['admin'],
       title: 'Aba: Turmas — certificados de participação',
       body: 'Botão "📜 Certificados" (disponível apenas com turma finalizada): filtra automaticamente quem atingiu ≥ 75% de presença e abre nova aba com todos os certificados empilhados (1 por página, A4 paisagem). O navegador abre o diálogo de impressão — admin salva como PDF. Cada certificado contém: nome do participante, nome da turma, período (primeiro ao último dia), frequência atingida e assinatura da Coordenação Força Ágil. Se ninguém atingiu 75%, exibe aviso.' },
