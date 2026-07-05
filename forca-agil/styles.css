@@ -1155,11 +1155,14 @@ html:not(.js) .reveal { opacity: 1 !important; transform: none !important; }
 .manual-active-chip:hover { opacity: .75; }
 .manual-chip-x { font-size: .85rem; line-height: 1; }
 .manual-count { font-family: var(--font-mono); font-size: .72rem; color: var(--ink-3); letter-spacing: .04em; white-space: nowrap; }
-.manual-rules { display: flex; flex-direction: column; gap: 8px; }
-.manual-section-group { border: none; background: none; }
+.manual-rules { display: flex; flex-direction: column; gap: 12px; }
+.manual-section-group { border: 1px solid var(--line); border-radius: 14px; background: var(--surface); }
 .manual-section-group[open] .manual-sec-chev { transform: rotate(180deg); }
-.manual-section-header { display: flex; align-items: center; justify-content: space-between; font-family: var(--font-head); font-size: .78rem; letter-spacing: .14em; text-transform: uppercase; padding: 20px 0 8px; border-bottom: 1px solid; margin-bottom: 4px; cursor: pointer; list-style: none; user-select: none; }
+.manual-section-header { display: flex; align-items: center; justify-content: space-between; font-family: var(--font-head); font-size: .78rem; letter-spacing: .14em; text-transform: uppercase; padding: 10px 16px; background: var(--panel); border-bottom: 1px solid; margin-bottom: 0; cursor: pointer; list-style: none; user-select: none; border-radius: 13px 13px 0 0; }
+.manual-section-group:not([open]) .manual-section-header { border-bottom: none; border-radius: 13px; }
 .manual-section-header::-webkit-details-marker { display: none; }
+.manual-section-group > .manual-card { margin: 8px 16px 0; }
+.manual-section-group > .manual-card:last-of-type { margin-bottom: 16px; }
 .manual-card { border: 1px solid var(--line); border-left: 3px solid var(--card-col, var(--accent)); border-radius: 10px; background: var(--panel); transition: border-color .2s; overflow: hidden; }
 .manual-card:hover { border-color: var(--line-strong); border-left-color: var(--card-col, var(--accent)); }
 .manual-card[open] { border-color: var(--line-strong); }
