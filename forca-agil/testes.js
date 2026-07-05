@@ -305,6 +305,27 @@
           var stillOpen = modal.hidden === false;
           if (window.faCloseAuthModal) window.faCloseAuthModal(); else modal.hidden = wasHidden;
           return stillOpen;
+        } },
+        { id: 'c-forgot-password-panel', label: 'Login — "Esqueci minha senha" abre painel inline', run: function () {
+          if (!window.faOpenAuthModal) return false;
+          window.faOpenAuthModal('login');
+          var fp = document.getElementById('forgotPassword');
+          var loginPanel = document.getElementById('auth-login');
+          var forgotPanel = document.getElementById('auth-forgot');
+          if (!fp || !loginPanel || !forgotPanel) { if (window.faCloseAuthModal) window.faCloseAuthModal(); return false; }
+          fp.click();
+          var opened = !forgotPanel.hidden && loginPanel.hidden;
+          if (window.faCloseAuthModal) window.faCloseAuthModal();
+          return opened;
+        } },
+        { id: 'c-turmas-btn-style', label: 'Botão "Tenho interesse" dourado sólido; após concluir, fundo escuro neutro', run: function () {
+          var btn = document.querySelector('.btn--interest');
+          if (!btn) return false;
+          var beforeBg = window.getComputedStyle(btn).backgroundColor;
+          btn.classList.add('done');
+          var afterBg = window.getComputedStyle(btn).backgroundColor;
+          btn.classList.remove('done');
+          return beforeBg !== afterBg && beforeBg === 'rgb(245, 197, 24)';
         } }
       ]
     },
@@ -587,8 +608,8 @@
       title: 'Login — botão "Aguarde…" durante autenticação',
       motivo: 'Estado transiente (dura milissegundos) — impossível capturar automaticamente.' },
     { section: 'Cadastrar / Entrar',
-      title: 'Login — esqueci minha senha (fluxo completo)',
-      motivo: 'Requer receber e-mail real do Firebase. Possível testar só o início (abertura do painel), mas não o recebimento do link.' },
+      title: 'Login — esqueci minha senha (recebimento do e-mail)',
+      motivo: 'A abertura do painel já é testada automaticamente. Falta só verificar o recebimento real do e-mail de redefinição enviado pelo Firebase.' },
     { section: 'Cadastrar / Entrar',
       title: 'Cadastro — e-mail já existente (mensagem de erro)',
       motivo: 'Requer tentar cadastrar e-mail duplicado — causaria chamada real ao Firebase Auth.' },
@@ -646,9 +667,6 @@
     { section: 'Turmas',
       title: 'Botão "Tenho interesse" → registra e vira "Remover interesse"; clicar novamente remove e volta ao estado inicial',
       motivo: 'Gravaria dados reais no Firebase (turmas-interesse e turmas-interesse-log). Requer sessão ativa com email real.' },
-    { section: 'Turmas',
-      title: 'Botão "Tenho interesse" — estilo primário (dourado); "Remover interesse" — estilo secundário (neutro)',
-      motivo: 'Verificar visualmente na página Turmas (logado sem turma): "Tenho interesse" deve ter fundo dourado; após clicar, "Remover interesse" deve ter fundo escuro neutro.' },
     { section: 'Turmas',
       title: 'Após registrar interesse → mensagem "Sua intenção foi registrada! Usaremos para dimensionar as turmas."',
       motivo: 'Verificar visualmente ao clicar em "Tenho interesse": a mensagem deve aparecer embaixo do botão.' },
