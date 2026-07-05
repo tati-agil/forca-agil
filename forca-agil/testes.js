@@ -294,7 +294,18 @@
       tests: [
         { id: 'c-menu-profile',    label: '[Logado] Perfil visível no menu (substitui Entrar/Cadastrar)',  run: function () { const el = document.getElementById('navProfile'); return el && !el.hidden; } },
         { id: 'c-menu-guest-hide', label: '[Logado] Botões Entrar/Cadastrar ocultos',                     run: function () { const el = document.getElementById('navGuest');   return el && el.hidden; } },
-        { id: 'c-menu-admin-link', label: '[Admin] Link "Admin" visível no menu',                         run: function () { const el = document.getElementById('navAdmin');   return el && !el.hidden; } }
+        { id: 'c-menu-admin-link', label: '[Admin] Link "Admin" visível no menu',                         run: function () { const el = document.getElementById('navAdmin');   return el && !el.hidden; } },
+        { id: 'c-modal-no-close-outside', label: 'Modal de login/cadastro não fecha ao clicar fora', run: function () {
+          if (!window.faOpenAuthModal) return false;
+          var modal = document.getElementById('authModal');
+          if (!modal) return false;
+          var wasHidden = modal.hidden;
+          window.faOpenAuthModal('login');
+          modal.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+          var stillOpen = modal.hidden === false;
+          if (window.faCloseAuthModal) window.faCloseAuthModal(); else modal.hidden = wasHidden;
+          return stillOpen;
+        } }
       ]
     },
     {
@@ -459,9 +470,14 @@
         { id: 'c-turmas-intent-msg', label: 'Containers de mensagem de login presentes (#intent-msg-t1/t2/t3)', run: function () {
           return !!document.getElementById('intent-msg-t1') && !!document.getElementById('intent-msg-t2') && !!document.getElementById('intent-msg-t3');
         } },
-        { id: 'c-turmas-agenda-estatica', label: 'Agenda D1–D5: todos os dias são .day--static (sem expansível)', run: function () {
+        { id: 'c-turmas-agenda-estatica', label: 'Agenda D1–D5: todos os dias são .day--static e não expandem ao clicar', run: function () {
           var days = document.querySelectorAll('.day--static');
-          return days.length >= 5;
+          if (days.length < 5) return false;
+          var first = days[0];
+          var before = first.className;
+          first.click();
+          var after = first.className;
+          return before === after;
         } }
       ]
     },
@@ -565,9 +581,6 @@
   ================================================================ */
   const COMPORTAMENTO_MANUAL = [
     { section: 'Cadastrar / Entrar',
-      title: 'Modal não fecha ao clicar fora',
-      motivo: 'Requer simulação de clique fora do modal — comportamento transiente não verificável sem interação real.' },
-    { section: 'Cadastrar / Entrar',
       title: 'Login — erro de credenciais',
       motivo: 'Requer tentativa de login com senha errada, o que causaria falha de autenticação real.' },
     { section: 'Cadastrar / Entrar',
@@ -624,9 +637,6 @@
     { section: 'Turmas',
       title: 'Inscrito vê apenas o card da própria turma na página Turmas',
       motivo: 'Verificar com conta que tem turma confirmada: somente o card da turma confirmada deve aparecer; os demais cards ficam ocultos; sem botões "Tenho interesse" ou "Remover interesse".' },
-    { section: 'Turmas',
-      title: 'Agenda D1–D5 — confirmar que não expande para nenhum perfil',
-      motivo: 'Verificar visualmente que nenhum dos 5 dias abre ao clicar — itens são estáticos (.day--static) sem chevron.' },
     { section: 'Turmas',
       title: 'Botão "Tenho interesse" sem login → mensagem + modal login',
       motivo: 'Requer estar deslogado.' },
