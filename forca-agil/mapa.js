@@ -126,6 +126,10 @@
         { label: 'Ver botões no menu (Início, Turmas, Ajuda visíveis no menu para visitante)',  p: ['visitante'] },
         { label: 'Fazer login',                               p: ['visitante'] },
         { label: 'Esqueci minha senha — link por e-mail',     p: ['visitante'] },
+      ]
+    },
+    { label: 'MENU / SESSÃO', color: '#7f9bff',
+      features: [
         { label: 'Inicial e nome no menu — no lugar dos botões Entrar/Cadastrar; header exibe avatar, nome e botão Sair', p: ['logado','inscrito','admin'] },
         { label: 'Menu logado sem turma: Início, Turmas, Repositório, Ajuda (sem Conteúdos nem Treinamento Jedi)', p: ['logado'] },
         { label: 'Menu inscrito com turma: Início, Turmas, Repositório, Conteúdos, Treinamento Jedi, Ajuda', p: ['inscrito'] },
