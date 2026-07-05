@@ -20,81 +20,8 @@
       adds: ['Acessar o Painel Admin', 'Ver todos os cadastrados', 'Ver interessados por turma', 'Moderar Repositório (ocultar/restaurar/deletar)', 'Resetar progresso de qualquer cadastrado', 'Enviar e-mail de redefinição de senha para qualquer cadastrado', 'Gerenciar lista de admins (apenas tatianefdirene e danielfrazao — restrito por regra Firebase)'] },
   ];
 
+  /* Ordem alfabética por label, igual ao Manual e às Regras */
   const PAGES = [
-    { label: 'INÍCIO', color: '#1ab2ae',
-      features: [
-        { label: 'Botão "Conhecer a iniciativa" → rola até "O que é"',    p: ['visitante','logado','inscrito','admin'] },
-        { label: 'Card "O que é" → Mindset ágil',   p: ['visitante','logado','inscrito','admin'] },
-        { label: 'Card "O que é" → Colaboração real', p: ['visitante','logado','inscrito','admin'] },
-        { label: 'Card "O que é" → Impacto sustentável', p: ['visitante','logado','inscrito','admin'] },
-        { label: 'Crawl de abertura — texto em estilo Star Wars sobe a tela ao entrar na Home', p: ['visitante','logado','inscrito','admin'] },
-        { label: 'Crawl — botão "⏸ Pausar" → pausa/retoma a animação', p: ['visitante','logado','inscrito','admin'] },
-        { label: 'Crawl — clicar na área da animação → pausa/retoma (mesmo efeito do botão Pausar)', p: ['visitante','logado','inscrito','admin'] },
-        { label: 'Crawl — botão "≡ Ler texto" → exibe texto estático sem perspectiva; "✕ Fechar texto" retorna ao crawl', p: ['visitante','logado','inscrito','admin'] },
-        { label: 'Crawl — botão "↻ Repetir abertura" → reinicia a animação do início', p: ['visitante','logado','inscrito','admin'] },
-        { label: 'Card "Como funciona" → Conteúdos (decorativo, sem hover)', p: ['visitante','logado','inscrito','admin'] },
-        { label: 'Card "Como funciona" → Repositório (decorativo, sem hover)', p: ['visitante','logado','inscrito','admin'] },
-        { label: 'Card "Como funciona" → Treinamento Jedi (decorativo, sem hover)', p: ['visitante','logado','inscrito','admin'] },
-        { label: 'Botão hero deslogado: "Juntar-se à Força →" → abre modal de cadastro', p: ['visitante'] },
-        { label: 'Botão hero logado: "Ver turmas →" → navega para a página Turmas', p: ['logado','inscrito','admin'] },
-        { label: 'CTA final: único botão "Ver turmas →" direciona para a página Turmas (mesmo comportamento para todos os perfis)', p: ['visitante','logado','inscrito','admin'] },
-        { label: 'Link no rodapé para previ.com.br (externo, presente em todas as páginas)', p: ['visitante','logado','inscrito','admin'] },
-      ]
-    },
-    { label: 'TURMAS', color: '#f5c542',
-      features: [
-        { label: 'Lista de turmas disponíveis, com nome, mês, datas e descrição da oficina',  p: ['visitante','logado','admin'] },
-        { label: 'Bloco "Como funciona a oficina" (métricas + descrição)', p: ['visitante','logado','inscrito','admin'] },
-        { label: 'Agenda D1–D5 (itens estáticos)', p: ['visitante','logado','inscrito','admin'] },
-        { label: 'Botão de interesse por turma ("Tenho interesse" / "Remover interesse")', p: ['logado','admin'] },
-        { label: 'Card de turma confirmada, com nome, mês/período e dias', p: ['inscrito','admin'] },
-      ]
-    },
-    { label: 'CHECK-IN', color: '#42a5f5',
-      features: [
-        { label: 'Página de registro de presença, acessada escaneando um QR Code no dia do evento — ver seção Manual para as regras de cada situação (sucesso, bloqueios, mensagens)', p: ['inscrito','admin'] },
-      ]
-    },
-    { label: 'CONTEÚDOS', color: '#4caf7d',
-      features: [
-        { label: 'Ler as 7 seções numeradas (01 Mapa da Galáxia → 07 A Trilogia) — cada uma ocupa 100vh, uma por vez', p: ['inscrito','admin'] },
-        { label: 'Mapa da Galáxia: botão "Ver mais 6 elementos →" revela os 6 últimos cards (ocultos por padrão)', p: ['inscrito','admin'] },
-        { label: '12 Princípios: primeiros 6 visíveis por padrão; botão "Ver os 6 princípios restantes →" revela os princípios 7–12', p: ['inscrito','admin'] },
-        { label: 'Navegação lateral por pontos (01–07) — salta entre seções; tooltip com nome ao passar o mouse', p: ['inscrito','admin'] },
-        { label: 'Link externo "Ler os 4 valores na íntegra" (agilemanifesto.org)', p: ['inscrito','admin'] },
-        { label: 'Link externo "Ler os 12 princípios na íntegra" (agilemanifesto.org)', p: ['inscrito','admin'] },
-        { label: '"A Força do Ágil" — 25 ensinamentos em 5 episódios; cada episódio expande/recolhe clicando no cabeçalho', p: ['inscrito','admin'] },
-        { label: '"A Trilogia" — 3 episódios em acordeão; cada um expande/recolhe clicando no título', p: ['inscrito','admin'] },
-      ]
-    },
-    { label: 'REPOSITÓRIO', color: '#e8854a',
-      features: [
-        { label: 'Ver todos os conteúdos — cards com descrição colapsada em 2 linhas; "ver mais" / "ver menos" só onde o texto transborda', p: ['logado','inscrito','admin'] },
-        { label: 'Filtrar por tipo (Todos/Vídeos/Documentos/Ferramentas/Livros)', p: ['logado','inscrito','admin'] },
-        { label: 'Adicionar conteúdo ao Holocron',       p: ['logado','inscrito','admin'] },
-        { label: 'Remover próprio conteúdo',             p: ['logado','inscrito','admin'] },
-      ]
-    },
-    { label: 'TREINAMENTO JEDI', color: '#e05c7f',
-      features: [
-        { label: 'Welcome screen: botão "Quero jogar" → abre modal login (visitante sem login)', p: ['visitante'] },
-        { label: 'Autodiagnóstico com 20 afirmações em 4 blocos — cada resposta vale de 0 a 3 pontos, total de 0 a 60', p: ['inscrito','admin'] },
-        { label: 'Patente determinada exclusivamente pela pontuação do autodiagnóstico (Youngling 0–15 / Padawan 16–30 / Cavaleiro 31–45 / Mestre 46–60)', p: ['inscrito','admin'] },
-        { label: 'Painel com a patente atual, que atualiza conforme a pessoa vai respondendo', p: ['inscrito','admin'] },
-        { label: '4 cards mostrando as patentes possíveis, cada uma com personagem, faixa de pontuação e nome', p: ['inscrito','admin'] },
-        { label: 'Botão "Revelar minha Patente →" aparece ao concluir as 20 afirmações (centralizado)', p: ['inscrito','admin'] },
-        { label: 'Após revelar: botão desabilitado + card compacto com avatar, pontuação, nome da patente, descrição, características, próximos passos e frase Jedi', p: ['inscrito','admin'] },
-        { label: 'Resultado bloqueado após revelar — mensagem "🔒 Para refazer, solicite ao admin o reset do seu progresso."', p: ['inscrito','admin'] },
-        { label: 'Missões e Kyber Game removidos da v3', p: [] },
-      ]
-    },
-    { label: 'AJUDA', color: '#9b7fff',
-      features: [
-        { label: 'Ver página Ajuda com perguntas em acordeão — texto "Central de Ajuda" acima do título "Como podemos ajudar?"', p: ['visitante','logado','inscrito','admin'] },
-        { label: 'Expandir/recolher cada pergunta clicando no título (comportamento nativo do browser)', p: ['visitante','logado','inscrito','admin'] },
-        { label: 'Link "Ajuda" no menu de navegação', p: ['visitante','logado','inscrito','admin'] },
-      ]
-    },
     { label: 'ADMIN', color: '#ff5252',
       features: [
         { label: 'Aba Turmas — finalizar inscrição da turma', p: ['admin'] },
@@ -133,6 +60,13 @@
         { label: '7 abas no total (Turmas, Repositório, Cadastrados, Administradores, Manual, Mapa, Testes); no mobile quebram em 2 linhas', p: ['admin'] },
       ]
     },
+    { label: 'AJUDA', color: '#7ecbff',
+      features: [
+        { label: 'Ver página Ajuda com perguntas em acordeão — texto "Central de Ajuda" acima do título "Como podemos ajudar?"', p: ['visitante','logado','inscrito','admin'] },
+        { label: 'Expandir/recolher cada pergunta clicando no título (comportamento nativo do browser)', p: ['visitante','logado','inscrito','admin'] },
+        { label: 'Link "Ajuda" no menu de navegação', p: ['visitante','logado','inscrito','admin'] },
+      ]
+    },
     { label: 'CADASTRAR', color: '#9b7fff',
       features: [
         { label: 'Cadastrar conta (@previ.com.br)',           p: ['visitante'] },
@@ -143,12 +77,49 @@
         { label: 'Aceitar receber novidades (checkbox opcional)', p: ['visitante'] },
       ]
     },
+    { label: 'CHECK-IN', color: '#42a5f5',
+      features: [
+        { label: 'Página de registro de presença, acessada escaneando um QR Code no dia do evento — ver seção Manual para as regras de cada situação (sucesso, bloqueios, mensagens)', p: ['inscrito','admin'] },
+      ]
+    },
+    { label: 'CONTEÚDOS', color: '#4caf7d',
+      features: [
+        { label: 'Ler as 7 seções numeradas (01 Mapa da Galáxia → 07 A Trilogia) — cada uma ocupa 100vh, uma por vez', p: ['inscrito','admin'] },
+        { label: 'Mapa da Galáxia: botão "Ver mais 6 elementos →" revela os 6 últimos cards (ocultos por padrão)', p: ['inscrito','admin'] },
+        { label: '12 Princípios: primeiros 6 visíveis por padrão; botão "Ver os 6 princípios restantes →" revela os princípios 7–12', p: ['inscrito','admin'] },
+        { label: 'Navegação lateral por pontos (01–07) — salta entre seções; tooltip com nome ao passar o mouse', p: ['inscrito','admin'] },
+        { label: 'Link externo "Ler os 4 valores na íntegra" (agilemanifesto.org)', p: ['inscrito','admin'] },
+        { label: 'Link externo "Ler os 12 princípios na íntegra" (agilemanifesto.org)', p: ['inscrito','admin'] },
+        { label: '"A Força do Ágil" — 25 ensinamentos em 5 episódios; cada episódio expande/recolhe clicando no cabeçalho', p: ['inscrito','admin'] },
+        { label: '"A Trilogia" — 3 episódios em acordeão; cada um expande/recolhe clicando no título', p: ['inscrito','admin'] },
+      ]
+    },
     { label: 'ENTRAR', color: '#c084fc',
       features: [
         { label: 'Ver botões no menu (Início, Turmas, Ajuda visíveis no menu para visitante)',  p: ['visitante'] },
         { label: 'Fazer login',                               p: ['visitante'] },
         { label: 'Mostrar/ocultar senha (botão "olhinho")',   p: ['visitante'] },
         { label: 'Esqueci minha senha — link por e-mail',     p: ['visitante'] },
+      ]
+    },
+    { label: 'INÍCIO', color: '#1ab2ae',
+      features: [
+        { label: 'Botão "Conhecer a iniciativa" → rola até "O que é"',    p: ['visitante','logado','inscrito','admin'] },
+        { label: 'Card "O que é" → Mindset ágil',   p: ['visitante','logado','inscrito','admin'] },
+        { label: 'Card "O que é" → Colaboração real', p: ['visitante','logado','inscrito','admin'] },
+        { label: 'Card "O que é" → Impacto sustentável', p: ['visitante','logado','inscrito','admin'] },
+        { label: 'Crawl de abertura — texto em estilo Star Wars sobe a tela ao entrar na Home', p: ['visitante','logado','inscrito','admin'] },
+        { label: 'Crawl — botão "⏸ Pausar" → pausa/retoma a animação', p: ['visitante','logado','inscrito','admin'] },
+        { label: 'Crawl — clicar na área da animação → pausa/retoma (mesmo efeito do botão Pausar)', p: ['visitante','logado','inscrito','admin'] },
+        { label: 'Crawl — botão "≡ Ler texto" → exibe texto estático sem perspectiva; "✕ Fechar texto" retorna ao crawl', p: ['visitante','logado','inscrito','admin'] },
+        { label: 'Crawl — botão "↻ Repetir abertura" → reinicia a animação do início', p: ['visitante','logado','inscrito','admin'] },
+        { label: 'Card "Como funciona" → Conteúdos (decorativo, sem hover)', p: ['visitante','logado','inscrito','admin'] },
+        { label: 'Card "Como funciona" → Repositório (decorativo, sem hover)', p: ['visitante','logado','inscrito','admin'] },
+        { label: 'Card "Como funciona" → Treinamento Jedi (decorativo, sem hover)', p: ['visitante','logado','inscrito','admin'] },
+        { label: 'Botão hero deslogado: "Juntar-se à Força →" → abre modal de cadastro', p: ['visitante'] },
+        { label: 'Botão hero logado: "Ver turmas →" → navega para a página Turmas', p: ['logado','inscrito','admin'] },
+        { label: 'CTA final: único botão "Ver turmas →" direciona para a página Turmas (mesmo comportamento para todos os perfis)', p: ['visitante','logado','inscrito','admin'] },
+        { label: 'Link no rodapé para previ.com.br (externo, presente em todas as páginas)', p: ['visitante','logado','inscrito','admin'] },
       ]
     },
     { label: 'MENU / SESSÃO', color: '#7f9bff',
@@ -158,6 +129,36 @@
         { label: 'Menu inscrito com turma: Início, Turmas, Repositório, Conteúdos, Treinamento Jedi, Ajuda', p: ['inscrito'] },
         { label: 'Ver link "Admin" no menu de navegação — visível apenas para admins, some imediatamente após logout (desktop e mobile, inclusive com menu aberto)', p: ['admin'] },
         { label: 'Botão Sair',                                p: ['logado','inscrito','admin'] },
+      ]
+    },
+    { label: 'REPOSITÓRIO', color: '#e8854a',
+      features: [
+        { label: 'Ver todos os conteúdos — cards com descrição colapsada em 2 linhas; "ver mais" / "ver menos" só onde o texto transborda', p: ['logado','inscrito','admin'] },
+        { label: 'Filtrar por tipo (Todos/Vídeos/Documentos/Ferramentas/Livros)', p: ['logado','inscrito','admin'] },
+        { label: 'Adicionar conteúdo ao Holocron',       p: ['logado','inscrito','admin'] },
+        { label: 'Remover próprio conteúdo',             p: ['logado','inscrito','admin'] },
+      ]
+    },
+    { label: 'TREINAMENTO JEDI', color: '#e05c7f',
+      features: [
+        { label: 'Welcome screen: botão "Quero jogar" → abre modal login (visitante sem login)', p: ['visitante'] },
+        { label: 'Autodiagnóstico com 20 afirmações em 4 blocos — cada resposta vale de 0 a 3 pontos, total de 0 a 60', p: ['inscrito','admin'] },
+        { label: 'Patente determinada exclusivamente pela pontuação do autodiagnóstico (Youngling 0–15 / Padawan 16–30 / Cavaleiro 31–45 / Mestre 46–60)', p: ['inscrito','admin'] },
+        { label: 'Painel com a patente atual, que atualiza conforme a pessoa vai respondendo', p: ['inscrito','admin'] },
+        { label: '4 cards mostrando as patentes possíveis, cada uma com personagem, faixa de pontuação e nome', p: ['inscrito','admin'] },
+        { label: 'Botão "Revelar minha Patente →" aparece ao concluir as 20 afirmações (centralizado)', p: ['inscrito','admin'] },
+        { label: 'Após revelar: botão desabilitado + card compacto com avatar, pontuação, nome da patente, descrição, características, próximos passos e frase Jedi', p: ['inscrito','admin'] },
+        { label: 'Resultado bloqueado após revelar — mensagem "🔒 Para refazer, solicite ao admin o reset do seu progresso."', p: ['inscrito','admin'] },
+        { label: 'Missões e Kyber Game removidos da v3', p: [] },
+      ]
+    },
+    { label: 'TURMAS', color: '#f5c542',
+      features: [
+        { label: 'Lista de turmas disponíveis, com nome, mês, datas e descrição da oficina',  p: ['visitante','logado','admin'] },
+        { label: 'Bloco "Como funciona a oficina" (métricas + descrição)', p: ['visitante','logado','inscrito','admin'] },
+        { label: 'Agenda D1–D5 (itens estáticos)', p: ['visitante','logado','inscrito','admin'] },
+        { label: 'Botão de interesse por turma ("Tenho interesse" / "Remover interesse")', p: ['logado','admin'] },
+        { label: 'Card de turma confirmada, com nome, mês/período e dias', p: ['inscrito','admin'] },
       ]
     },
   ];

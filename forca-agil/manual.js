@@ -5,19 +5,20 @@
   let activeSection = 'all';
   let activePersona = 'all';
 
+  /* Ordem alfabética por label (exceto "Tudo", que fica sempre primeiro) */
   const SECTIONS = [
     { key: 'all',         label: 'Tudo',               color: 'var(--ink-2)' },
+    { key: 'admin',       label: 'Admin',               color: '#ff5252' },
+    { key: 'ajuda',       label: 'Ajuda',               color: '#7ecbff' },
     { key: 'cadastrar',   label: 'Cadastrar',           color: '#9b7fff' },
-    { key: 'entrar',      label: 'Entrar',              color: '#c084fc' },
-    { key: 'menu',        label: 'Menu / Sessão',       color: '#7f9bff' },
-    { key: 'inicio',      label: 'Início',              color: '#1ab2ae' },
-    { key: 'turmas',      label: 'Turmas',              color: '#f5c542' },
     { key: 'checkin',     label: 'Check-in',            color: '#42a5f5' },
     { key: 'conteudos',   label: 'Conteúdos',           color: '#4caf7d' },
+    { key: 'entrar',      label: 'Entrar',              color: '#c084fc' },
+    { key: 'inicio',      label: 'Início',              color: '#1ab2ae' },
+    { key: 'menu',        label: 'Menu / Sessão',       color: '#7f9bff' },
     { key: 'repositorio', label: 'Repositório',          color: '#e8854a' },
     { key: 'quiz',        label: 'Treinamento Jedi',      color: '#e05c7f' },
-    { key: 'ajuda',       label: 'Ajuda',               color: '#7ecbff' },
-    { key: 'admin',       label: 'Admin',               color: '#ff5252' },
+    { key: 'turmas',      label: 'Turmas',              color: '#f5c542' },
   ];
 
   const PERSONAS = [

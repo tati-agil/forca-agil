@@ -44,7 +44,7 @@
       ]
     },
     {
-      group: 'Autodiagnóstico & Progresso',
+      group: 'Treinamento Jedi',
       tests: [
         { id: 'xp-store',        label: 'faStore disponível',                                        run: function () { return typeof window.faStore === 'object' && typeof window.faStore.getItem === 'function'; } },
         { id: 'xp-load',         label: 'faLoadProgress disponível',                                 run: function () { return typeof window.faLoadProgress === 'function'; } },
@@ -213,7 +213,7 @@
       ]
     },
     {
-      group: 'Página Conteúdos',
+      group: 'Conteúdos',
       tests: [
         { id: 'c-conteudos-nav', label: 'Nav lateral de Conteúdos inicializa ao entrar na página (#conteudosNavSidebar)', run: function () {
           if (window.faRouter && window.faRouter.current() !== 'conteudos') return true; // só verifica se estiver na página
@@ -260,7 +260,7 @@
       ]
     },
     {
-      group: 'Página Início',
+      group: 'Início',
       tests: [
         { id: 'c-hero',         label: 'Hero com título "Força Ágil" presente',         run: function () { return !!document.querySelector('.hero-title, .hero'); } },
         { id: 'c-cta-btn',        label: 'Botão "Juntar-se à Força" existe no DOM',         run: function () { return !!document.getElementById('heroJoin'); } },
@@ -330,7 +330,7 @@
       ]
     },
     {
-      group: 'Página Ajuda',
+      group: 'Ajuda',
       tests: [
         { id: 'c-faq-page', label: 'Página Ajuda presente no DOM (#page-ajuda)', run: function () { return !!document.getElementById('page-ajuda'); } },
         { id: 'c-faq-items', label: 'Ajuda tem 7 itens de acordeão (.faq-item)', run: function () { return document.querySelectorAll('#page-ajuda .faq-item').length === 7; } },
@@ -338,7 +338,7 @@
       ]
     },
     {
-      group: 'Página Conteúdos — 12 Princípios',
+      group: 'Conteúdos',
       tests: [
         { id: 'c-principios-btn', label: 'Botão "Ver os 6 princípios restantes →" presente (#principlesMoreBtn)', run: function () { return !!document.getElementById('principlesMoreBtn'); } },
         { id: 'c-principios-extra', label: 'Bloco extra de princípios oculto por padrão (#principlesExtra)', run: function () {
@@ -360,7 +360,7 @@
       ]
     },
     {
-      group: 'Página Repositório',
+      group: 'Repositório',
       tests: [
         { id: 'c-repo-curado',   label: 'Badge "curado" presente em algum card do repositório',
           run: function () { return typeof window.faRepoSeedCount === 'number' && window.faRepoSeedCount > 0; }
@@ -403,7 +403,7 @@
       ]
     },
     {
-      group: 'Página Turmas',
+      group: 'Turmas',
       tests: [
         { id: 'c-turmas-cards',   label: '3 cards de turma presentes (.turma-card-new)', run: function () { return document.querySelectorAll('.turma-card-new').length === 3; } },
         { id: 'c-turmas-como-funciona', label: 'Bloco "Como funciona a oficina" presente (.oficina-info)', run: function () { return !!document.querySelector('.oficina-info'); } },
@@ -433,7 +433,7 @@
       ]
     },
     {
-      group: 'Página Treinamento Jedi',
+      group: 'Treinamento Jedi',
       tests: [
         { id: 'c-quiz-welcome', label: 'Welcome screen presente no DOM (#treinamento-welcome)', run: function () {
           return !!document.getElementById('treinamento-welcome');
@@ -854,19 +854,20 @@
     html += '<h4 class="testes-manual-title">📋 Regras que exigem validação manual (' + COMPORTAMENTO_MANUAL.length + ')</h4>';
     html += '<p class="testes-manual-desc">Estas regras não podem ser verificadas automaticamente. Valide-as manualmente ao testar o site.</p>';
 
+    /* Ordem alfabética por label, igual ao Manual/Mapa */
     const SEC_COLOR = {
+      'Admin':              '#ff5252',
+      'Ajuda':              '#7ecbff',
       'Cadastrar':          '#9b7fff',
-      'Entrar':             '#c084fc',
-      'Menu / Sessão':      '#7f9bff',
-      'Início':             '#1ab2ae',
-      'Turmas':             '#f5c542',
       'Check-in':           '#42a5f5',
       'Conteúdos':          '#4caf7d',
+      'Deploy':             '#9e9e9e',
+      'Entrar':             '#c084fc',
+      'Início':             '#1ab2ae',
+      'Menu / Sessão':      '#7f9bff',
       'Repositório':        '#e8854a',
       'Treinamento Jedi':   '#e05c7f',
-      'Ajuda':              '#7ecbff',
-      'Admin':              '#ff5252',
-      'Deploy':             '#9e9e9e',
+      'Turmas':             '#f5c542',
     };
 
     const bySection = {};
@@ -874,7 +875,7 @@
       if (!bySection[r.section]) bySection[r.section] = [];
       bySection[r.section].push(r);
     });
-    Object.keys(bySection).forEach(function (sec) {
+    Object.keys(bySection).sort(function (a, b) { return a.localeCompare(b, 'pt-BR'); }).forEach(function (sec) {
       const count = bySection[sec].length;
       const col = SEC_COLOR[sec] || 'var(--accent)';
       html += '<div class="testes-group testes-group--collapsible">';
@@ -983,20 +984,22 @@
     }
     html += '</div>';
 
+    /* Nomes iguais aos usados no Manual/Mapa/Regras (sem prefixo "Página"); Firebase, Autenticação
+       e os dois "Painel Admin" são grupos técnicos sem equivalente nos outros blocos */
     const RES_COLOR = {
-      'Firebase':                    '#1ab2ae',
+      'Ajuda':                       '#7ecbff',
       'Autenticação':                '#9b7fff',
-      'Autodiagnóstico & Progresso': '#f5c542',
-      'Painel Admin':                '#ff5252',
       'Cadastrar':                   '#9b7fff',
+      'Conteúdos':                   '#4caf7d',
       'Entrar':                      '#c084fc',
+      'Firebase':                    '#1ab2ae',
+      'Início':                      '#1ab2ae',
       'Menu / Sessão':               '#7f9bff',
-      'Página Início':               '#1ab2ae',
-      'Página Turmas':               '#f5c542',
-      'Página Repositório':          '#e8854a',
-      'Página Ajuda':                '#7ecbff',
-      'Página Treinamento Jedi':     '#e05c7f',
+      'Painel Admin':                '#ff5252',
       'Painel Admin — Integridade':  '#ff5252',
+      'Repositório':                 '#e8854a',
+      'Treinamento Jedi':            '#e05c7f',
+      'Turmas':                      '#f5c542',
     };
 
     const groups = {};
@@ -1005,7 +1008,7 @@
       groups[r.group].push(r);
     });
 
-    Object.keys(groups).forEach(function (g) {
+    Object.keys(groups).sort(function (a, b) { return a.localeCompare(b, 'pt-BR'); }).forEach(function (g) {
       const col = RES_COLOR[g] || 'var(--accent)';
       const groupPassed = groups[g].filter(function (r) { return r.passed; }).length;
       const groupTotal  = groups[g].length;
