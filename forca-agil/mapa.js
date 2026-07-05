@@ -120,7 +120,7 @@
         { label: 'Aba Mapa — mapa do site (páginas e funcionalidades por seção, com contagem)', p: ['admin'] },
         { label: 'Aba Mapa — arquitetura técnica (linguagens, tecnologias, padrões e deploy)', p: ['admin'] },
         { label: 'Aba Mapa — regras operacionais (cache, autonomia e processo de deploy)', p: ['admin'] },
-        { label: 'Aba Mapa — diagrama visual da arquitetura, gerado automaticamente', p: ['admin'] },
+        { label: 'Aba Mapa — diagrama visual da arquitetura', p: ['admin'] },
         { label: 'Aba Testes — testes automatizados e checklist manual', p: ['admin'] },
         { label: 'Expandir tudo — abre de uma vez os itens retráteis da aba ativa', p: ['admin'] },
         { label: 'Recolher tudo — fecha de uma vez os itens retráteis da aba ativa', p: ['admin'] },
