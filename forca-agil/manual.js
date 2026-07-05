@@ -201,9 +201,6 @@
       title: 'Navegação lateral por pontos',
       body: 'Barra lateral com 7 pontos (01–07), setas para cima/baixo e tooltip com o nome da seção. Ao clicar em um ponto, a página rola suavemente até a seção correspondente.' },
     { section: 'conteudos', personas: ['inscrito', 'admin'],
-      title: 'Badges "+5 pts" — apenas em cards selecionados',
-      body: 'O badge "+5 pts" aparece apenas nos cards "03 · A Força do Ágil" e "25 Ensinamentos do Mestre Yoda". Os demais cards de Conteúdos não exibem badge de pontos.' },
-    { section: 'conteudos', personas: ['inscrito', 'admin'],
       title: 'Links externos "Ler na íntegra"',
       body: 'Nas seções dos 4 valores e dos 12 princípios, links abrem o Manifesto Ágil oficial (agilemanifesto.org) em nova aba.' },
 

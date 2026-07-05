@@ -57,7 +57,6 @@
         { label: 'Mapa da Galáxia: botão "Ver mais 6 elementos →" revela os 6 últimos cards (ocultos por padrão)', p: ['inscrito','admin'] },
         { label: '12 Princípios: primeiros 6 visíveis por padrão; botão "Ver os 6 princípios restantes →" revela os princípios 7–12', p: ['inscrito','admin'] },
         { label: 'Navegação lateral por pontos (01–07) — salta entre seções; tooltip com nome ao passar o mouse', p: ['inscrito','admin'] },
-        { label: 'Badge "+5 pts" em cards selecionados: "03 · A Força do Ágil" e "25 Ensinamentos do Mestre Yoda" (demais cards sem badge de pontos)', p: ['inscrito','admin'] },
         { label: 'Link externo "Ler os 4 valores na íntegra" (agilemanifesto.org)', p: ['inscrito','admin'] },
         { label: 'Link externo "Ler os 12 princípios na íntegra" (agilemanifesto.org)', p: ['inscrito','admin'] },
       ]
@@ -73,10 +72,10 @@
     { label: 'TREINAMENTO JEDI', color: '#e05c7f',
       features: [
         { label: 'Welcome screen: botão "Quero jogar" → abre modal login (visitante sem login)', p: ['visitante'] },
-        { label: 'Autodiagnóstico Likert — 20 afirmações em 4 blocos, escala 0–3, pontuação total 0–60', p: ['inscrito','admin'] },
+        { label: 'Autodiagnóstico com 20 afirmações em 4 blocos — cada resposta vale de 0 a 3 pontos, total de 0 a 60', p: ['inscrito','admin'] },
         { label: 'Patente determinada exclusivamente pela pontuação do autodiagnóstico (Youngling 0–15 / Padawan 16–30 / Cavaleiro 31–45 / Mestre 46–60)', p: ['inscrito','admin'] },
-        { label: 'Ver painel HUD com avatar SVG e patente atual em tempo real conforme responde', p: ['inscrito','admin'] },
-        { label: 'Ladder de patentes: 4 cards com personagens SVG, faixas de pontuação e nomes', p: ['inscrito','admin'] },
+        { label: 'Painel com a patente atual, que atualiza conforme a pessoa vai respondendo', p: ['inscrito','admin'] },
+        { label: '4 cards mostrando as patentes possíveis, cada uma com personagem, faixa de pontuação e nome', p: ['inscrito','admin'] },
         { label: 'Botão "Revelar minha Patente →" aparece ao concluir as 20 afirmações (centralizado)', p: ['inscrito','admin'] },
         { label: 'Após revelar: botão desabilitado + card compacto com avatar, pontuação, nome da patente, descrição, características, próximos passos e frase Jedi', p: ['inscrito','admin'] },
         { label: 'Resultado bloqueado após revelar — mensagem "🔒 Para refazer, solicite ao admin o reset do seu progresso."', p: ['inscrito','admin'] },
