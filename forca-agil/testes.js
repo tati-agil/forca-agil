@@ -289,6 +289,43 @@
           var link = document.querySelector('.footer-previ');
           if (!link) return false;
           return link.getAttribute('href') === 'https://www.previ.com.br' && link.getAttribute('target') === '_blank';
+        } },
+        { id: 'c-crawl-pause-btn', label: 'Crawl: botão "Pausar" pausa/retoma a animação', run: function () {
+          var crawl = document.querySelector('.crawl-content');
+          var btn = document.querySelector('.crawl-pause');
+          if (!crawl || !btn) return false;
+          btn.click();
+          var paused = crawl.style.animationPlayState === 'paused';
+          btn.click();
+          var resumed = crawl.style.animationPlayState === 'running';
+          return paused && resumed;
+        } },
+        { id: 'c-crawl-pause-area', label: 'Crawl: clicar na área pausa/retoma (mesmo efeito do botão Pausar)', run: function () {
+          var crawl = document.querySelector('.crawl-content');
+          var stage = document.querySelector('.crawl-stage');
+          if (!crawl || !stage) return false;
+          stage.click();
+          var paused = crawl.style.animationPlayState === 'paused';
+          stage.click();
+          var resumed = crawl.style.animationPlayState === 'running';
+          return paused && resumed;
+        } },
+        { id: 'c-crawl-ler-texto', label: 'Crawl: botão "Ler texto" exibe texto estático; "Fechar texto" retorna ao crawl', run: function () {
+          var crawl = document.querySelector('.crawl-content');
+          var btn = document.querySelector('.crawl-skip');
+          if (!crawl || !btn) return false;
+          btn.click();
+          var estatico = crawl.classList.contains('crawl-static') && btn.textContent.indexOf('Fechar texto') !== -1;
+          btn.click();
+          var voltou = !crawl.classList.contains('crawl-static') && btn.textContent.indexOf('Ler texto') !== -1;
+          return estatico && voltou;
+        } },
+        { id: 'c-crawl-repetir', label: 'Crawl: botão "Repetir abertura" reinicia a animação do início', run: function () {
+          var crawl = document.querySelector('.crawl-content');
+          var replay = document.querySelector('.crawl-replay');
+          if (!crawl || !replay) return false;
+          replay.click();
+          return crawl.classList.contains('run');
         } }
       ]
     },
@@ -569,13 +606,7 @@
       motivo: 'Verificar visualmente em diferentes larguras de tela se o texto aparece centrado abaixo do conteúdo do hero.' },
     { section: 'Início',
       title: 'Botões do crawl lado a lado: "≡ Ler texto" · "⏸ Pausar" · "↻ Repetir abertura"',
-      motivo: 'Verificar visualmente que os 3 botões aparecem em linha horizontal (não empilhados) e cada um funciona corretamente.' },
-    { section: 'Início',
-      title: 'Crawl: pausar ao clicar e botão Pausar/Continuar',
-      motivo: 'Comportamento de animação CSS (animation-play-state) — verificar visualmente se o texto para ao clicar na área do crawl.' },
-    { section: 'Início',
-      title: 'Crawl: botão "≡ Ler texto" exibe texto estático e "✕ Fechar texto" retorna ao crawl',
-      motivo: 'Comportamento visual/transiente — verificar manualmente se o texto aparece legível sem perspectiva.' },
+      motivo: 'Verificar visualmente que os 3 botões aparecem em linha horizontal (não empilhados).' },
     { section: 'Início',
       title: 'Cards "Como funciona" → cada um navega para sua página',
       motivo: 'Clicar navegaria para fora da página Admin, interrompendo a sessão de testes em execução.' },
