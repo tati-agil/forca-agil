@@ -231,7 +231,7 @@
           var link = Array.from(document.querySelectorAll('#page-conteudos .manifesto-link')).find(function (a) { return /12 princípios/i.test(a.textContent); });
           return !!link && link.getAttribute('href') === 'https://agilemanifesto.org/iso/ptbr/principles.html' && link.getAttribute('target') === '_blank';
         } },
-        { id: 'c-conteudos-yoda-episodios', label: '"A Força do Ágil": 5 episódios presentes, cada um expande/recolhe ao clicar no cabeçalho', run: function () {
+        { id: 'c-conteudos-yoda-episodios', label: '"A Força do Ágil": 5 episódios presentes, cada um expande/recolhe ao clicar no título', run: function () {
           var episodios = document.querySelectorAll('#content-yoda .yep');
           if (episodios.length !== 5) return false;
           var ep = episodios[0];
@@ -340,12 +340,12 @@
     {
       group: 'Conteúdos',
       tests: [
-        { id: 'c-principios-btn', label: 'Botão "Ver os 6 princípios restantes →" presente (#principlesMoreBtn)', run: function () { return !!document.getElementById('principlesMoreBtn'); } },
-        { id: 'c-principios-extra', label: 'Bloco extra de princípios oculto por padrão (#principlesExtra)', run: function () {
+        { id: 'c-principios-btn', label: '12 Princípios (passo 1 de 3): botão "Ver os 6 princípios restantes →" existe na tela', run: function () { return !!document.getElementById('principlesMoreBtn'); } },
+        { id: 'c-principios-extra', label: '12 Princípios (passo 2 de 3): antes de clicar, os princípios 7–12 estão escondidos', run: function () {
           var el = document.getElementById('principlesExtra');
           return !!el && !el.classList.contains('visible');
         } },
-        { id: 'c-principios-revelar', label: 'Clicar no botão revela os princípios 7–12', run: function () {
+        { id: 'c-principios-revelar', label: '12 Princípios (passo 3 de 3): depois de clicar no botão, os princípios 7–12 aparecem', run: function () {
           var btn = document.getElementById('principlesMoreBtn');
           var extra = document.getElementById('principlesExtra');
           if (!btn || !extra) return false;

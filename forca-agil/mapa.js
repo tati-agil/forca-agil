@@ -95,7 +95,7 @@
         { label: 'Navegação lateral por pontos (01–07) — salta entre seções; tooltip com nome ao passar o mouse', p: ['inscrito','admin'] },
         { label: 'Link externo "Ler os 4 valores na íntegra" (agilemanifesto.org)', p: ['inscrito','admin'] },
         { label: 'Link externo "Ler os 12 princípios na íntegra" (agilemanifesto.org)', p: ['inscrito','admin'] },
-        { label: '"A Força do Ágil" — 25 ensinamentos em 5 episódios; cada episódio expande/recolhe clicando no cabeçalho', p: ['inscrito','admin'] },
+        { label: '"A Força do Ágil" — 25 ensinamentos em 5 episódios; cada episódio expande/recolhe clicando no título', p: ['inscrito','admin'] },
         { label: '"A Trilogia" — 3 episódios em acordeão; cada um expande/recolhe clicando no título', p: ['inscrito','admin'] },
       ]
     },
