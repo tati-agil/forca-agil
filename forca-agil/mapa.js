@@ -143,7 +143,7 @@
         { label: 'Aceitar receber novidades (checkbox opcional)', p: ['visitante'] },
       ]
     },
-    { label: 'ENTRAR', color: '#9b7fff',
+    { label: 'ENTRAR', color: '#c084fc',
       features: [
         { label: 'Ver botões no menu (Início, Turmas, Ajuda visíveis no menu para visitante)',  p: ['visitante'] },
         { label: 'Fazer login',                               p: ['visitante'] },
@@ -247,10 +247,27 @@
       html += '<div class="mapa-page" style="--pc:' + page.color + '">';
       html += '<div class="mapa-page-title"><span>' + page.label + ' <span class="testes-group-count">(' + featCount + ')</span></span><span class="mapa-page-arrow">▾</span></div>';
       html += '<div class="mapa-page-body">';
-      page.features.forEach(function (f) {
-        if (!f.p || !f.p.length) return;
+      var renderFeature = function (f) {
         html += '<div class="mapa-feature"><span class="mapa-feature-label">' + esc(f.label) + '</span>' + levelBadge(f.p) + '</div>';
-      });
+      };
+      var visible = page.features.filter(function (f) { return f.p && f.p.length; });
+      if (page.label === 'ADMIN') {
+        /* Admin junta itens de 7 abas diferentes — agrupa por aba para não virar uma lista única confusa */
+        var subgroups = [];
+        var byTab = {};
+        visible.forEach(function (f) {
+          var m = /^Aba\s+([^—]+?)(?:\s—|$)/.exec(f.label);
+          var tab = m ? m[1].trim() : 'Geral';
+          if (!byTab[tab]) { byTab[tab] = []; subgroups.push(tab); }
+          byTab[tab].push(f);
+        });
+        subgroups.forEach(function (tab) {
+          html += '<div class="manual-admin-subhead">ADMIN · ' + esc(tab.toUpperCase()) + '</div>';
+          byTab[tab].forEach(renderFeature);
+        });
+      } else {
+        visible.forEach(renderFeature);
+      }
       html += '</div>';
       html += '</div>';
     });

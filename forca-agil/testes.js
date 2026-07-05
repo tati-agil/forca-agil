@@ -856,15 +856,17 @@
 
     const SEC_COLOR = {
       'Cadastrar':          '#9b7fff',
-      'Entrar':             '#9b7fff',
+      'Entrar':             '#c084fc',
       'Menu / Sessão':      '#7f9bff',
       'Início':             '#1ab2ae',
       'Turmas':             '#f5c542',
+      'Check-in':           '#42a5f5',
       'Conteúdos':          '#4caf7d',
       'Repositório':        '#e8854a',
       'Treinamento Jedi':   '#e05c7f',
       'Ajuda':              '#7ecbff',
       'Admin':              '#ff5252',
+      'Deploy':             '#9e9e9e',
     };
 
     const bySection = {};
@@ -987,7 +989,7 @@
       'Autodiagnóstico & Progresso': '#f5c542',
       'Painel Admin':                '#ff5252',
       'Cadastrar':                   '#9b7fff',
-      'Entrar':                      '#9b7fff',
+      'Entrar':                      '#c084fc',
       'Menu / Sessão':               '#7f9bff',
       'Página Início':               '#1ab2ae',
       'Página Turmas':               '#f5c542',

@@ -1163,6 +1163,8 @@ html:not(.js) .reveal { opacity: 1 !important; transform: none !important; }
 .manual-section-header::-webkit-details-marker { display: none; }
 .manual-section-group > .manual-card { margin: 8px 16px 0; }
 .manual-section-group > .manual-card:last-of-type { margin-bottom: 16px; }
+.manual-admin-subhead { font-family: var(--font-mono); font-size: .64rem; letter-spacing: .1em; color: var(--ink-3); margin: 16px 16px 6px; }
+.manual-admin-subhead:first-of-type { margin-top: 12px; }
 .manual-card { border: 1px solid var(--line); border-left: 3px solid var(--card-col, var(--accent)); border-radius: 10px; background: var(--panel); transition: border-color .2s; overflow: hidden; }
 .manual-card:hover { border-color: var(--line-strong); border-left-color: var(--card-col, var(--accent)); }
 .manual-card[open] { border-color: var(--line-strong); }
@@ -1213,7 +1215,7 @@ html:not(.js) .reveal { opacity: 1 !important; transform: none !important; }
 /* Lista de páginas (acordeão vertical) */
 .mapa-grid { display: flex; flex-direction: column; gap: 6px; }
 .mapa-page { border: 1px solid var(--line); border-radius: 14px; background: var(--surface); }
-.mapa-page-title { background: var(--panel); color: var(--ink-2); font-family: var(--font-head); font-size: .78rem; letter-spacing: .1em; text-transform: uppercase; padding: 10px 16px; border-bottom: 1px solid var(--line); cursor: pointer; user-select: none; display: flex; align-items: center; justify-content: space-between; border-radius: 13px 13px 0 0; }
+.mapa-page-title { background: var(--panel); color: var(--pc, var(--ink-2)); font-family: var(--font-head); font-size: .78rem; letter-spacing: .1em; text-transform: uppercase; padding: 10px 16px; border-bottom: 1px solid var(--pc, var(--line)); cursor: pointer; user-select: none; display: flex; align-items: center; justify-content: space-between; border-radius: 13px 13px 0 0; }
 .mapa-page-arrow { transition: transform .2s; }
 .mapa-page:not(.open) .mapa-page-arrow { transform: rotate(-90deg); }
 .mapa-page-body { display: none; }

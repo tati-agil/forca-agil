@@ -8,7 +8,7 @@
   const SECTIONS = [
     { key: 'all',         label: 'Tudo',               color: 'var(--ink-2)' },
     { key: 'cadastrar',   label: 'Cadastrar',           color: '#9b7fff' },
-    { key: 'entrar',      label: 'Entrar',              color: '#9b7fff' },
+    { key: 'entrar',      label: 'Entrar',              color: '#c084fc' },
     { key: 'menu',        label: 'Menu / Sessão',       color: '#7f9bff' },
     { key: 'inicio',      label: 'Início',              color: '#1ab2ae' },
     { key: 'turmas',      label: 'Turmas',              color: '#f5c542' },
@@ -480,7 +480,7 @@
           html += '<summary class="manual-section-header" style="border-color:' + s.color + ';color:' + s.color + '"><span>' + s.label + ' <span class="testes-group-count">(' + items.length + ')</span></span><svg class="manual-chev manual-sec-chev" width="14" height="14" viewBox="0 0 14 14"><polyline points="2,4 7,10 12,4" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg></summary>';
         }
 
-        items.forEach(function (rule) {
+        const renderCard = function (rule) {
           const col = sectionColor(rule.section);
           const badges = rule.personas.map(function (pk) {
             const p = PERSONAS.find(function (x) { return x.key === pk; });
@@ -494,7 +494,25 @@
           html += '<div class="manual-card-body">' + esc(rule.body) + '</div>';
           html += '<div class="manual-card-personas">' + badges + '</div>';
           html += '</details>';
-        });
+        };
+
+        if (s.key === 'admin') {
+          /* A categoria Admin junta itens de 7 abas diferentes — agrupa por aba para não virar uma lista única confusa */
+          const subgroups = [];
+          const byTab = {};
+          items.forEach(function (rule) {
+            const m = /^Aba:\s*([^—]+?)(?:\s—|$)/.exec(rule.title);
+            const tab = m ? m[1].trim() : 'Geral';
+            if (!byTab[tab]) { byTab[tab] = []; subgroups.push(tab); }
+            byTab[tab].push(rule);
+          });
+          subgroups.forEach(function (tab) {
+            html += '<div class="manual-admin-subhead">ADMIN · ' + esc(tab.toUpperCase()) + '</div>';
+            byTab[tab].forEach(renderCard);
+          });
+        } else {
+          items.forEach(renderCard);
+        }
 
         if (activeSection === 'all') html += '</details>';
       });
