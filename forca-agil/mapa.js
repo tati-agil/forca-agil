@@ -60,7 +60,7 @@
         { label: 'Aba Mapa — mapa do site (páginas e funcionalidades por seção, com contagem)', p: ['admin'] },
         { label: 'Aba Mapa — arquitetura técnica (linguagens, tecnologias, padrões e deploy)', p: ['admin'] },
         { label: 'Aba Mapa — regras operacionais (cache, autonomia e processo de deploy)', p: ['admin'] },
-        { label: 'Aba Mapa — diagrama visual da arquitetura', p: ['admin'] },
+        { label: 'Aba Mapa — diagrama visual da arquitetura, com caixas clicáveis que levam ao card correspondente em Arquitetura Técnica', p: ['admin'] },
         { label: 'Aba Mapa — exportar Excel (mapa completo)', p: ['admin'] },
         { label: 'Aba Testes — testes automatizados e checklist manual', p: ['admin'] },
         { label: 'Aba Testes — exportar Excel (testes automáticos e manuais)', p: ['admin'] },
@@ -170,6 +170,7 @@
   ];
 
   function esc(str) { return String(str).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+  function slug(str) { return String(str).toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, ''); }
 
   /* Badge de nível mínimo para o mapa do site */
   const P_ORDER = ['visitante', 'logado', 'inscrito', 'admin'];
@@ -428,7 +429,7 @@
       html += '<div class="arch-section-label" style="--ac:' + section.color + '"><span>' + section.label + '</span><span class="arch-arrow">▾</span></div>';
       html += '<div class="arch-section-body"><div class="arch-grid">';
       section.items.forEach(function (item) {
-        html += '<div class="arch-item">';
+        html += '<div class="arch-item" id="arch-item-' + slug(section.label + '-' + item.name) + '">';
         html += '<div class="arch-item-name" style="--ac:' + section.color + '">' + esc(item.name) + '</div>';
         html += '<div class="arch-item-desc">' + esc(item.desc) + '</div>';
         html += '</div>';
@@ -464,7 +465,7 @@
     if (estrutura) {
       html += '<div class="arq-layer"><div class="arq-layer-label">Frontend — SPA</div><div class="arq-cards">';
       estrutura.items.forEach(function(item) {
-        html += '<div class="arq-card arq-card--frontend" title="' + esc(item.desc) + '">' + esc(item.name) + '</div>';
+        html += '<button type="button" class="arq-card arq-card--frontend" title="' + esc(item.desc) + '" data-arch-target="arch-item-' + slug(estrutura.label + '-' + item.name) + '">' + esc(item.name) + '</button>';
       });
       html += '</div></div>';
     }
@@ -474,7 +475,7 @@
     if (tecnologias) {
       html += '<div class="arq-layer"><div class="arq-layer-label">Firebase — Spark</div><div class="arq-cards">';
       tecnologias.items.forEach(function(item) {
-        html += '<div class="arq-card arq-card--firebase" title="' + esc(item.desc) + '">' + esc(item.name) + '</div>';
+        html += '<button type="button" class="arq-card arq-card--firebase" title="' + esc(item.desc) + '" data-arch-target="arch-item-' + slug(tecnologias.label + '-' + item.name) + '">' + esc(item.name) + '</button>';
       });
       html += '</div></div>';
     }
@@ -533,7 +534,7 @@
       html += '<div class="arch-section-label" style="--ac:' + section.color + '"><span>' + section.label + '</span><span class="arch-arrow">▾</span></div>';
       html += '<div class="arch-section-body"><div class="arch-grid">';
       section.items.forEach(function (item) {
-        html += '<div class="arch-item">';
+        html += '<div class="arch-item" id="arch-item-' + slug(section.label + '-' + item.name) + '">';
         html += '<div class="arch-item-name" style="--ac:' + section.color + '">' + esc(item.name) + '</div>';
         html += '<div class="arch-item-desc">' + esc(item.desc) + '</div>';
         html += '</div>';
@@ -546,6 +547,20 @@
     html += '</div>';
 
     container.innerHTML = html;
+
+    /* Caixas do diagrama levam até o card correspondente em Arquitetura Técnica,
+       em vez de só repetir o nome do arquivo/serviço */
+    container.querySelectorAll('.arq-card[data-arch-target]').forEach(function (btn) {
+      btn.addEventListener('click', function () {
+        var target = document.getElementById(btn.dataset.archTarget);
+        if (!target) return;
+        var section = target.closest('.arch-section');
+        if (section) section.classList.add('open');
+        target.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        target.classList.add('arch-item--flash');
+        setTimeout(function () { target.classList.remove('arch-item--flash'); }, 1600);
+      });
+    });
 
     /* Expandir / Recolher tudo no Mapa */
     var mapaExpandAll = document.getElementById('mapaExpandAll');
