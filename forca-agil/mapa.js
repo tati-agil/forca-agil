@@ -3,9 +3,9 @@
   'use strict';
 
   const PERSONAS = [
-    { key: 'visitante',  label: 'Visitante',                      color: '#888888', desc: 'Não cadastrado / não logado — getAccessLevel() retorna "guest"' },
-    { key: 'logado',     label: 'Usuário logado (sem turma)',      color: '#1ab2ae', desc: 'Cadastrado com @previ.com.br, sem turma confirmada — getAccessLevel() retorna "member"' },
-    { key: 'inscrito',   label: 'Usuário inscrito (turma confirmada)', color: '#4caf7d', desc: 'Logado e com turma confirmada pelo admin — getAccessLevel() retorna "enrolled"' },
+    { key: 'visitante',  label: 'Visitante',                      color: '#888888', desc: 'Não cadastrado / não logado' },
+    { key: 'logado',     label: 'Usuário logado (sem turma)',      color: '#1ab2ae', desc: 'Cadastrado com @previ.com.br, sem turma confirmada' },
+    { key: 'inscrito',   label: 'Usuário inscrito (turma confirmada)', color: '#4caf7d', desc: 'Logado e com turma confirmada pelo admin' },
     { key: 'admin',      label: 'Admin',                           color: '#ff5252', desc: 'Usuário com acesso administrativo' },
   ];
 
@@ -91,7 +91,15 @@
     },
     { label: 'ADMIN', color: '#ff5252',
       features: [
-        { label: 'Aba Turmas — gerenciar cada turma: finalizar inscrição, reabrir, abrir/fechar check-in do dia, QR Code, tabela de presença (com registro/desfazer manual), adicionar/remover participante, gerar certificados e exportar CSV', p: ['admin'] },
+        { label: 'Aba Turmas — finalizar inscrição da turma', p: ['admin'] },
+        { label: 'Aba Turmas — reabrir turma', p: ['admin'] },
+        { label: 'Aba Turmas — abrir/fechar check-in do dia', p: ['admin'] },
+        { label: 'Aba Turmas — gerar QR Code da turma', p: ['admin'] },
+        { label: 'Aba Turmas — tabela de presença, com registro e remoção manual', p: ['admin'] },
+        { label: 'Aba Turmas — adicionar participante manualmente', p: ['admin'] },
+        { label: 'Aba Turmas — remover inscrito', p: ['admin'] },
+        { label: 'Aba Turmas — gerar certificados de participação', p: ['admin'] },
+        { label: 'Aba Turmas — exportar CSV (Estado Atual, Histórico ou por turma)', p: ['admin'] },
         { label: 'Aba Repositório — moderar conteúdos curados e de usuários (ocultar, restaurar, deletar)', p: ['admin'] },
         { label: 'Aba Cadastrados — listar todos os cadastrados, redefinir senha e resetar progresso de qualquer um', p: ['admin'] },
         { label: 'Aba Administradores — adicionar e remover admins', p: ['admin'] },
@@ -101,13 +109,17 @@
         { label: '7 abas no total; no mobile quebram em 2 linhas', p: ['admin'] },
       ]
     },
-    { label: 'CADASTRAR / ENTRAR', color: '#9b7fff',
+    { label: 'CADASTRAR', color: '#9b7fff',
+      features: [
+        { label: 'Cadastrar conta (@previ.com.br)',           p: ['visitante'] },
+      ]
+    },
+    { label: 'ENTRAR', color: '#9b7fff',
       features: [
         { label: 'Ver botões no menu (Início, Turmas, Ajuda visíveis no menu para visitante)',  p: ['visitante'] },
-        { label: 'Cadastrar conta (@previ.com.br)',           p: ['visitante'] },
         { label: 'Fazer login',                               p: ['visitante'] },
         { label: 'Esqueci minha senha — link por e-mail',     p: ['visitante'] },
-        { label: 'Inicial e nome no menu — no lugar dos botões Entrar/Cadastrar; header exibe avatar, nome e botão Sair (sem badge XP)', p: ['logado','inscrito','admin'] },
+        { label: 'Inicial e nome no menu — no lugar dos botões Entrar/Cadastrar; header exibe avatar, nome e botão Sair', p: ['logado','inscrito','admin'] },
         { label: 'Menu logado sem turma: Início, Turmas, Repositório, Ajuda (sem Conteúdos nem Treinamento Jedi)', p: ['logado'] },
         { label: 'Menu inscrito com turma: Início, Turmas, Repositório, Conteúdos, Treinamento Jedi, Ajuda', p: ['inscrito'] },
         { label: 'Ver link "Admin" no menu de navegação — visível apenas para admins, some imediatamente após logout (desktop e mobile, inclusive com menu aberto)', p: ['admin'] },
@@ -186,8 +198,8 @@
     html += '<span class="mapa-legend-title">Legenda por persona</span>';
     html += '<div class="mapa-legend">';
     html += '<span class="mapa-legend-item"><span class="mapa-badge" style="--bc:#888">Visitante</span> não autenticado — vê Início, Turmas, Ajuda</span>';
-    html += '<span class="mapa-legend-item"><span class="mapa-badge" style="--bc:#1ab2ae">Logado +</span> autenticado sem turma confirmada — getAccessLevel() = "member"</span>';
-    html += '<span class="mapa-legend-item"><span class="mapa-badge" style="--bc:#4caf7d">Inscrito +</span> com turma confirmada — getAccessLevel() = "enrolled"</span>';
+    html += '<span class="mapa-legend-item"><span class="mapa-badge" style="--bc:#1ab2ae">Logado +</span> autenticado, sem turma confirmada</span>';
+    html += '<span class="mapa-legend-item"><span class="mapa-badge" style="--bc:#4caf7d">Inscrito +</span> autenticado, com turma confirmada</span>';
     html += '<span class="mapa-legend-item"><span class="mapa-badge" style="--bc:#ff5252">Admin</span> acesso administrativo completo</span>';
     html += '</div>';
     html += '</div>';
@@ -331,7 +343,7 @@
           { name: 'Sombra / profundidade (box-shadow)', desc: 'Sombra que dá sensação de elevação a cards e botões.' },
           { name: 'Timer com urgência escalonada', desc: 'Contador regressivo que muda de cor e passa a pulsar conforme o tempo acaba. Ex.: cronômetro dos desafios do Treinamento Jedi.' },
           { name: 'Tipografia fluida (clamp())',   desc: 'Tamanho de fonte/espaçamento que cresce e encolhe suavemente conforme a tela, sem quebrar em degraus (sem media query).' },
-          { name: 'Tooltip',                       desc: 'Texto explicativo que aparece ao passar o mouse ou focar um ícone. Ex.: ícone de informação no modal de publicação do ranking.' },
+          { name: 'Tooltip',                       desc: 'Texto explicativo que aparece ao passar o mouse ou focar um ícone. Ex.: nome da seção nos pontos de navegação lateral.' },
           { name: 'Transição (transition)',        desc: 'Mudança suave entre dois estados (cor, tamanho, opacidade) em vez de trocar abruptamente.' },
           { name: 'Wordmark',                      desc: 'Nome da marca estilizado como texto/logo. Ex.: "FORÇA ÁGIL" no cabeçalho e no hero.' },
         ]

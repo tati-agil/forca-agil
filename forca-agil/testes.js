@@ -203,14 +203,14 @@
         { id: 'adm-tabs',   label: 'Abas Admin presentes (7: Turmas/Repositório/Cadastrados/Administradores/Manual/Mapa/Testes)', run: function () { return document.querySelectorAll('.admin-tab-btn').length === 7; } },
         { id: 'adm-manual-panel', label: 'Painel Manual presente', run: function () { return !!document.getElementById('adminPanelManual'); } },
         { id: 'adm-mapa-panel',   label: 'Painel Mapa presente',   run: function () { return !!document.getElementById('adminPanelMapa'); } },
-        { id: 'adm-mapa-cards',   label: 'Mapa: 9 cards de página renderizados (sem Ranking)', run: function () {
+        { id: 'adm-mapa-cards',   label: 'Mapa: 10 cards de página renderizados (sem Ranking)', run: function () {
           if (window.faInitMapa) window.faInitMapa();
-          return document.querySelectorAll('#adminMapa .mapa-page').length === 9;
+          return document.querySelectorAll('#adminMapa .mapa-page').length === 10;
         } },
         { id: 'adm-mapa-features', label: 'Mapa: todos os cards têm features', run: function () {
           if (window.faInitMapa) window.faInitMapa();
           var cards = document.querySelectorAll('#adminMapa .mapa-page');
-          if (cards.length !== 9) return false;
+          if (cards.length !== 10) return false;
           return Array.from(cards).every(function (c) { return c.querySelectorAll('.mapa-feature').length > 0; });
         } },
         { id: 'adm-mapa-features-completas', label: 'Mapa: nenhum card renderiza menos features do que o definido (sem clipping)', run: function () {
@@ -615,9 +615,6 @@
     { section: 'Início',
       title: 'Cards "Como funciona" → cada um navega para sua página',
       motivo: 'Clicar navegaria para fora da página Admin, interrompendo a sessão de testes em execução.' },
-    { section: 'Início',
-      title: 'Badge XP ausente no header para todos os perfis',
-      motivo: 'Verificar visualmente: o header do usuário logado deve exibir apenas avatar, nome e botão Sair — sem pill/badge de XP ao lado do nome.' },
     { section: 'Turmas',
       title: 'Visitante não acessa Conteúdos nem Treinamento Jedi',
       motivo: 'Verificar manualmente: acessar #conteudos e #gamificacao sem estar logado — o site deve bloquear o acesso e não exibir o conteúdo dessas páginas.' },
@@ -698,9 +695,6 @@
       title: 'Adicionar conteúdo ao Holocron',
       motivo: 'Gravaria dado real no Firebase. Não pode ser revertido automaticamente em teste.' },
     { section: 'Repositório',
-      title: 'XP por contribuição (+10 XP, máx 20 XP, só 2 primeiras)',
-      motivo: 'Requer contribuições reais. Gravaria no Firebase.' },
-    { section: 'Repositório',
       title: 'Formulário — URL auto-completa https://',
       motivo: 'Estado transiente de campo de formulário — requer interação real com o input.' },
     { section: 'Repositório',
@@ -724,12 +718,6 @@
     { section: 'Treinamento Jedi',
       title: 'Revelar patente — confirmação real',
       motivo: 'Ação irreversível (fixa o resultado definitivamente) — não deve ser executada em teste automatizado com dado real.' },
-    { section: 'Treinamento Jedi',
-      title: 'Publicar no ranking — publicação real',
-      motivo: 'Ação irreversível (não tem como "despublicar") e escreveria no Firebase de produção — não deve ser executada em teste automatizado com dado real.' },
-    { section: 'Treinamento Jedi',
-      title: 'Reset de progresso (Admin) — apaga e remove do ranking',
-      motivo: 'Ação destrutiva real. Não deve ser executada em teste automatizado.' },
     { section: 'Admin',
       title: 'Painel Admin — acesso negado para visitante/logado (URL direta)',
       motivo: 'Requer testar com diferentes níveis de acesso — não pode ser validado na sessão admin atual.' },
