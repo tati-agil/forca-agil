@@ -30,7 +30,7 @@
 
   const RULES = [
     /* ── CADASTRAR / ENTRAR ── */
-    { section: 'entrar', personas: ['visitante'],
+    { section: 'menu', personas: ['visitante'],
       title: 'Quem vê ENTRAR e CADASTRAR no menu',
       body: 'Somente visitantes (não logados) veem os botões ENTRAR e CADASTRAR no canto superior direito do menu.' },
     { section: 'menu', personas: ['logado', 'inscrito', 'admin'],
@@ -45,9 +45,12 @@
     { section: 'entrar', personas: ['visitante', 'logado', 'inscrito', 'admin'],
       title: 'Modal não fecha ao clicar fora',
       body: 'Evita perda do formulário preenchido. Fecha com o botão ✕ ou com ESC — mas só se todos os campos estiverem vazios.' },
-    { section: 'cadastrar', personas: ['visitante', 'logado', 'inscrito', 'admin'],
+    { section: 'entrar', personas: ['visitante'],
+      title: 'Botão olhinho no campo de senha',
+      body: 'Disponível no campo de senha do login. Alterna entre ocultar (👁) e mostrar (🙈) o texto digitado.' },
+    { section: 'cadastrar', personas: ['visitante'],
       title: 'Botão olhinho nos campos de senha',
-      body: 'Disponível em todos os campos de senha. Alterna entre ocultar (👁) e mostrar (🙈) o texto digitado.' },
+      body: 'Disponível nos dois campos de senha do cadastro (senha e confirmar senha). Alterna entre ocultar (👁) e mostrar (🙈) o texto digitado.' },
     { section: 'entrar', personas: ['visitante'],
       title: 'Login — e-mail obrigatório @previ.com.br',
       body: 'Qualquer domínio diferente de @previ.com.br é rejeitado imediatamente, antes mesmo de consultar o banco.' },

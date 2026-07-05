@@ -314,7 +314,10 @@
           var opened = !forgotPanel.hidden && loginPanel.hidden;
           if (window.faCloseAuthModal) window.faCloseAuthModal();
           return opened;
-        } }
+        } },
+        { id: 'c-pwd-toggle-login', label: 'Botão "olhinho" no campo de senha do login',
+          run: function () { return document.querySelectorAll('#auth-login .pwd-eye').length === 1; }
+        }
       ]
     },
     {
@@ -343,8 +346,8 @@
         { id: 'c-reg-optin',    label: 'Checkbox opt-in de novidades (opcional) presente',
           run: function () { return !!document.getElementById('regOptin'); }
         },
-        { id: 'c-pwd-toggle',   label: 'Botão "olhinho" em campos de senha',
-          run: function () { return document.querySelectorAll('.pwd-eye').length > 0; }
+        { id: 'c-pwd-toggle',   label: 'Botão "olhinho" nos 2 campos de senha do cadastro',
+          run: function () { return document.querySelectorAll('#auth-register .pwd-eye').length === 2; }
         },
         { id: 'c-pwd-numeric',  label: 'Campo de senha com inputmode numérico',
           run: function () { var f = document.getElementById('regPassword'); return !!f && f.getAttribute('inputmode') === 'numeric'; }
