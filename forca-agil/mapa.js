@@ -328,6 +328,7 @@
           { name: 'forca-agil/init.js',          desc: 'Inicialização pós-load — guarda de acesso ao painel admin; exibe adminGuard ou adminContent conforme sessão do usuário' },
           { name: 'forca-agil/styles.css',       desc: 'Estilos globais — design tokens, layout, componentes, responsividade' },
           { name: 'forca-agil/pages.css',        desc: 'Estilos específicos de seções — Admin (inputs, tabelas, expand bar, badges), Mapa, Manual, Testes' },
+          { name: 'forca-agil/kyber-styles.css', desc: 'Estilos do Kyber Game (inativo em v3) — arena, cards de desafio, timer' },
         ]
       },
       {
@@ -423,6 +424,7 @@
       },
     ];
 
+    window.faMapaArch = ARCH;
     console.log('[mapa] ARCH sections:', ARCH.map(function(s){ return s.label; }));
     ARCH.forEach(function (section) {
       html += '<div class="arch-section">';

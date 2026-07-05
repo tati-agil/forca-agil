@@ -92,6 +92,16 @@
           var esperado = ['Linguagens', 'Tecnologias & Serviços', 'Estrutura de Arquivos', 'Padrões de Código', 'Padrões de UX', 'Glossário de UX/Design', 'Deploy'];
           return esperado.every(function (l) { return labels.indexOf(l) !== -1; });
         } },
+        { id: 'adm-mapa-arch-arquivos-completo', label: 'Mapa: "Estrutura de Arquivos" lista todo script/CSS de forca-agil/ carregado no index.html (sem esquecer nenhum)', run: function () {
+          if (window.faInitMapa) window.faInitMapa();
+          if (!window.faMapaArch) return false;
+          var estrutura = window.faMapaArch.find(function (s) { return s.label === 'Estrutura de Arquivos'; });
+          if (!estrutura) return false;
+          var documentados = estrutura.items.map(function (i) { return i.name; });
+          var reais = Array.from(document.querySelectorAll('script[src^="forca-agil/"], link[href^="forca-agil/"]'))
+            .map(function (el) { return el.getAttribute('src') || el.getAttribute('href'); });
+          return reais.every(function (f) { return documentados.indexOf(f) !== -1; });
+        } },
         { id: 'adm-cadastrados-lista', label: 'Cadastrados: tabela renderizada com badge de contagem correta', run: function () {
           var c = document.getElementById('adminCadastrados');
           if (!c) return false;
