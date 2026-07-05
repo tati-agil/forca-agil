@@ -369,6 +369,32 @@
         { id: 'c-conteudos-principios-link', label: 'Link "Ler os 12 princípios na íntegra" presente e correto', run: function () {
           var link = Array.from(document.querySelectorAll('#page-conteudos .manifesto-link')).find(function (a) { return /12 princípios/i.test(a.textContent); });
           return !!link && link.getAttribute('href') === 'https://agilemanifesto.org/iso/ptbr/principles.html' && link.getAttribute('target') === '_blank';
+        } },
+        { id: 'c-conteudos-yoda-episodios', label: '"A Força do Ágil": 5 episódios presentes, cada um expande/recolhe ao clicar no cabeçalho', run: function () {
+          var episodios = document.querySelectorAll('#content-yoda .yep');
+          if (episodios.length !== 5) return false;
+          var ep = episodios[0];
+          var head = ep.querySelector('.yep-head');
+          if (!head) return false;
+          var before = ep.classList.contains('open');
+          head.click();
+          var afterOpen = ep.classList.contains('open');
+          head.click();
+          var afterClosed = ep.classList.contains('open');
+          return !before && afterOpen && !afterClosed;
+        } },
+        { id: 'c-conteudos-trilogia-episodios', label: '"A Trilogia": 3 episódios em acordeão, cada um expande/recolhe ao clicar no título', run: function () {
+          var episodios = document.querySelectorAll('#content-trilogia .ep-expand');
+          if (episodios.length !== 3) return false;
+          var det = episodios[0];
+          var summary = det.querySelector('summary');
+          if (!summary) return false;
+          var before = det.open;
+          summary.click();
+          var afterOpen = det.open;
+          summary.click();
+          var afterClosed = det.open;
+          return !before && afterOpen && !afterClosed;
         } }
       ]
     },
@@ -595,7 +621,25 @@
             var src = (window.faAuth && window.faAuth.toString ? window.faAuth.toString() : '');
             return typeof window.faAuth !== 'undefined';
           }
-        }
+        },
+        { id: 'c-adm-expand-collapse-all', label: 'Expandir tudo / Recolher tudo abrem e fecham os itens retráteis da aba ativa', run: function () {
+          var manualBtn = Array.from(document.querySelectorAll('.admin-tab-btn')).find(function (b) { return b.dataset.panel === 'adminPanelManual'; });
+          var prevActiveBtn = document.querySelector('.admin-tab-btn.active');
+          if (!manualBtn || !window.faInitManual) return false;
+          manualBtn.click();
+          window.faInitManual();
+          var details = document.querySelectorAll('#adminPanelManual details.manual-card');
+          if (!details.length) return false;
+          var expandBtn = document.getElementById('adminExpandAll');
+          var collapseBtn = document.getElementById('adminCollapseAll');
+          if (!expandBtn || !collapseBtn) return false;
+          expandBtn.click();
+          var allOpen = Array.from(details).every(function (d) { return d.open; });
+          collapseBtn.click();
+          var allClosed = Array.from(details).every(function (d) { return !d.open; });
+          if (prevActiveBtn) prevActiveBtn.click();
+          return allOpen && allClosed;
+        } }
       ]
     }
   ];
