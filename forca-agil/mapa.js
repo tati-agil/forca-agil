@@ -24,6 +24,9 @@
     { label: 'INÍCIO', color: '#1ab2ae',
       features: [
         { label: 'Botão "Conhecer a iniciativa" → rola até "O que é"',    p: ['visitante','logado','inscrito','admin'] },
+        { label: 'Card "O que é" → Mindset ágil',   p: ['visitante','logado','inscrito','admin'] },
+        { label: 'Card "O que é" → Colaboração real', p: ['visitante','logado','inscrito','admin'] },
+        { label: 'Card "O que é" → Impacto sustentável', p: ['visitante','logado','inscrito','admin'] },
         { label: 'Crawl de abertura — texto em estilo Star Wars sobe a tela ao entrar na Home', p: ['visitante','logado','inscrito','admin'] },
         { label: 'Crawl — botão "⏸ Pausar" (ou clicar na área) → pausa/retoma a animação', p: ['visitante','logado','inscrito','admin'] },
         { label: 'Crawl — botão "≡ Ler texto" → exibe texto estático sem perspectiva; "✕ Fechar texto" retorna ao crawl', p: ['visitante','logado','inscrito','admin'] },
