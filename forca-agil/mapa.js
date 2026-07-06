@@ -301,7 +301,7 @@
         items: [
           { name: 'Firebase Authentication', desc: 'Login e cadastro por e-mail/senha. Redefinição de senha via link automático. Gratuito (Spark plan)' },
           { name: 'Firebase Realtime Database', desc: '6 estruturas principais (equivalente a tabelas):\n• fa-users — perfil de cada cadastrado\n• fa-holocron — conteúdos enviados no Repositório\n• fa-admins — lista de quem é admin\n• turmas-interesse/<turma>/<emailKey> — interessados/inscritos de cada turma\n• turmas-config/<turma> — configuração da turma (finalizada, dia de check-in ativo)\n• turmas-checkin/<turma>/<data>/<emailKey> — presença registrada em cada dia\n\nRegras de segurança (4 regras):\n• Ninguém lê ou escreve na raiz do banco diretamente\n• Toda ação autenticada exige e-mail @previ.com.br — validado no servidor, não só na tela\n• Qualquer admin @previ.com.br pode fazer tudo no painel\n• Só tatianefdirene e danielfrazao podem adicionar/remover admins' },
-          { name: 'Firebase Hosting',        desc: 'Hospedagem em kyber-agil.web.app (produção/main). Branch v3-quiz tem preview próprio em kyber-agil--v3quiz-*.web.app. CDN global, HTTPS automático' },
+          { name: 'Firebase Hosting',        desc: 'Hospedagem em kyber-agil.web.app (produção/main). CDN global, HTTPS automático' },
         ]
       },
       {
@@ -413,10 +413,10 @@
       {
         label: 'Deploy', color: '#e8854a',
         items: [
-          { name: 'GitHub',      desc: 'Repositório tati-agil/forca-agil. Branch de desenvolvimento: v3-quiz. Branch de produção: main' },
-          { name: 'Processo',    desc: 'git push para o branch v3-quiz no GitHub → Firebase Hosting atualiza automaticamente o preview em segundos. Para produção: merge em main.' },
+          { name: 'GitHub',      desc: 'Repositório tati-agil/forca-agil. Branch única: main.' },
+          { name: 'Processo',    desc: 'git push para o branch main no GitHub → Firebase Hosting atualiza produção automaticamente.' },
           { name: 'Pre-commit hook', desc: 'Git hook em .git/hooks/pre-commit — roda node --check em todos os forca-agil/*.js antes de cada commit. Bloqueia o commit se houver erro de sintaxe, impedindo deploy de código quebrado' },
-          { name: 'URL',         desc: 'https://kyber-agil--v3quiz-v0zbanfb.web.app (preview v3-quiz) · https://kyber-agil.web.app (produção/main)' },
+          { name: 'URL',         desc: 'https://kyber-agil.web.app (produção/main)' },
           { name: 'Hospedagem',  desc: 'Firebase Hosting — gratuito no Spark plan, CDN global, HTTPS automático, sem servidor para gerenciar' },
           { name: 'Banco',       desc: 'Firebase Realtime Database — gratuito até 1 GB de dados e 10 GB/mês de transferência (Spark plan)' },
           { name: 'Auth',        desc: 'Firebase Authentication — gratuito ilimitado para Email/Password no Spark plan' },
