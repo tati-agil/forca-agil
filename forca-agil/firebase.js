@@ -1,6 +1,6 @@
 /* ============================================================
    Força Ágil — Firebase
-   Registro unificado: autodiagnóstico + missões + kyber game
+   Registro unificado: autodiagnóstico + missões
    ============================================================ */
 (function () {
 
@@ -58,7 +58,6 @@
       return { xpQuiz: xpQuiz };
     } catch(e) { return { xpQuiz: 0 }; }
   }
-  function getKyberXP()   { return parseInt(_st().getItem('fa-kyber-xp')   || '0', 10) || 0; }
   function getContentXP() { return parseInt(_st().getItem('fa-content-xp') || '0', 10) || 0; }
   function getRepoXP()    { return parseInt(_st().getItem('fa-repo-xp')    || '0', 10) || 0; }
 

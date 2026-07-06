@@ -155,7 +155,6 @@
         { label: 'Botão "Revelar minha Patente →" aparece ao concluir as 20 afirmações (centralizado)', p: ['inscrito','admin'] },
         { label: 'Após revelar: botão desabilitado + card compacto com avatar, pontuação, nome da patente, descrição, características, próximos passos e frase Jedi', p: ['inscrito','admin'] },
         { label: 'Resultado bloqueado após revelar — mensagem "🔒 Para refazer, solicite ao admin o reset do seu progresso."', p: ['inscrito','admin'] },
-        { label: 'Missões e Kyber Game removidos da v3', p: [] },
       ]
     },
     { label: 'TURMAS', color: '#f5c542',
@@ -319,7 +318,6 @@
           { name: 'forca-agil/repo.js',          desc: 'Repositório (Holocron) — listagem, adição, remoção de conteúdos' },
           { name: 'forca-agil/game-data.js',     desc: 'Dados do Treinamento Jedi — 4 blocos × 5 afirmações (BLOCOS), patentes (RANKS), níveis Likert (LEVELS). DIMS computado dinamicamente a partir de BLOCOS. MISSIONS existe no arquivo mas não é usada em v3. Expõe window.faGameData' },
           { name: 'forca-agil/game.js',          desc: 'Treinamento Jedi — autodiagnóstico, painel de patente e revelar patente. Acessível apenas com nível "enrolled". Lê dados de window.faGameData' },
-          { name: 'forca-agil/kyber.js',         desc: 'Kyber Game (inativo em v3) — script carregado mas seção hidden; sem link de navegação em v3. Código do minigame de 25 desafios com timer' },
           { name: 'forca-agil/admin.js',         desc: 'Painel Admin — interessados, moderação de repositório, gestão de admins, exportação CSV UTF-8 BOM via URL.createObjectURL (window.faToXls — compartilhada por Manual e Testes; acentos corretos no Excel, arquivo sempre editável), barra expandir/recolher com botões por seção. Nenhuma informação de XP é exibida no painel.' },
           { name: 'forca-agil/checkin.js',       desc: 'Check-in por QR Code — registra presença por dia via leitura de QR Code' },
           { name: 'forca-agil/manual.js',        desc: 'Manual interativo — regras filtráveis por seção e persona, botão exportar todas as regras em CSV. Dados declarativos em array RULES' },
@@ -328,7 +326,6 @@
           { name: 'forca-agil/init.js',          desc: 'Inicialização pós-load — guarda de acesso ao painel admin; exibe adminGuard ou adminContent conforme sessão do usuário' },
           { name: 'forca-agil/styles.css',       desc: 'Estilos globais — design tokens, layout, componentes, responsividade' },
           { name: 'forca-agil/pages.css',        desc: 'Estilos específicos de seções — Admin (inputs, tabelas, expand bar, badges), Mapa, Manual, Testes' },
-          { name: 'forca-agil/kyber-styles.css', desc: 'Estilos do Kyber Game (inativo em v3) — arena, cards de desafio, timer' },
         ]
       },
       {
