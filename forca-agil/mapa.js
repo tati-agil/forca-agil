@@ -28,6 +28,7 @@
         { label: 'Expandir tudo — abre de uma vez os itens retráteis da aba ativa', p: ['admin'] },
         { label: 'Recolher tudo — fecha de uma vez os itens retráteis da aba ativa', p: ['admin'] },
         { label: 'Aba Turmas — finalizar inscrição da turma', p: ['admin'] },
+        { label: 'Aba Turmas — ao finalizar, avisa se alguém também está interessada em outra turma e, se confirmado, remove o interesse dela nas outras automaticamente', p: ['admin'] },
         { label: 'Aba Turmas — reabrir turma', p: ['admin'] },
         { label: 'Aba Turmas — abrir check-in do dia', p: ['admin'] },
         { label: 'Aba Turmas — fechar check-in do dia', p: ['admin'] },

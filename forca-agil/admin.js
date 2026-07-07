@@ -339,12 +339,14 @@
               body.appendChild(buildPresencaTable(t, inscritos, checkinT));
             }
 
-            if (finalizada && removed.length) {
+            if (removed.length) {
               var removedHdr = document.createElement('p');
               removedHdr.className = 'turma-removed-title';
-              removedHdr.textContent = 'Removidos (' + removed.length + ') — histórico de presença preservado';
+              removedHdr.textContent = finalizada
+                ? 'Removidos (' + removed.length + ') — histórico de presença preservado'
+                : 'Removidos (' + removed.length + ')';
               body.appendChild(removedHdr);
-              body.appendChild(buildRemovedPresencaTable(t, removed, checkinT));
+              body.appendChild(finalizada ? buildRemovedPresencaTable(t, removed, checkinT) : buildRemovedInteressadosTable(removed));
             }
 
             card.appendChild(body);
@@ -380,6 +382,19 @@
         });
       });
     });
+    return wrap;
+  }
+
+  /* Removidos de uma turma ainda aberta — só leitura, com o motivo quando houver */
+  function buildRemovedInteressadosTable(records) {
+    var wrap = document.createElement('div');
+    wrap.className = 'table-scroll-wrap';
+    var tbl = '<table class="admin-table"><thead><tr><th>Nome</th><th>E-mail</th><th>Área</th><th>Data remoção</th><th>Motivo</th></tr></thead><tbody>';
+    records.forEach(function (r) {
+      tbl += '<tr><td>' + esc(r.name) + '</td><td>' + esc(r.email) + '</td><td>' +
+        esc(r.area || '—') + '</td><td>' + fmtDate(r.removedDate) + '</td><td>' + esc(r.removedReason || 'Removida pelo admin') + '</td></tr>';
+    });
+    wrap.innerHTML = tbl + '</tbody></table>';
     return wrap;
   }
 
@@ -474,7 +489,7 @@
     wrap.className = 'table-scroll-wrap';
 
     var tbl = '<table class="admin-table presenca-table"><thead><tr>' +
-      '<th>Nome</th><th>E-mail</th><th>Área</th><th>Data remoção</th>';
+      '<th>Nome</th><th>E-mail</th><th>Área</th><th>Data remoção</th><th>Motivo</th>';
     t.dias.forEach(function (d) {
       tbl += '<th class="dia-th">' + fmtDia(d) + '</th>';
     });
@@ -500,7 +515,7 @@
       var freqClass = atingiu ? 'freq-ok' : 'freq-nok';
 
       tbl += '<tr><td>' + esc(r.name) + '</td><td>' + esc(r.email) + '</td><td>' +
-        esc(r.area || '—') + '</td><td>' + fmtDate(r.removedDate) + '</td>' + cells.join('') +
+        esc(r.area || '—') + '</td><td>' + fmtDate(r.removedDate) + '</td><td>' + esc(r.removedReason || 'Removida pelo admin') + '</td>' + cells.join('') +
         '<td><span class="' + freqClass + '">' + freq + '</span></td></tr>';
     });
 
@@ -556,7 +571,7 @@
     box.className = 'modal-box';
     box.style.cssText = 'max-width:420px;width:90%;padding:28px;display:flex;flex-direction:column;gap:18px';
     box.innerHTML =
-      '<p style="font-size:.95rem;line-height:1.6;color:var(--ink)">' + esc(mensagem) + '</p>' +
+      '<p style="font-size:.95rem;line-height:1.6;color:var(--ink);white-space:pre-line">' + esc(mensagem) + '</p>' +
       '<div style="display:flex;justify-content:flex-end;gap:8px">' +
         '<button class="btn btn--primary admin-modal-ok-btn">OK</button>' +
       '</div>';
@@ -575,7 +590,7 @@
     box.className = 'modal-box';
     box.style.cssText = 'max-width:420px;width:90%;padding:28px;display:flex;flex-direction:column;gap:18px';
     box.innerHTML =
-      '<p style="font-size:.95rem;line-height:1.6;color:var(--ink)">' + esc(mensagem) + '</p>' +
+      '<p style="font-size:.95rem;line-height:1.6;color:var(--ink);white-space:pre-line">' + esc(mensagem) + '</p>' +
       '<div style="display:flex;justify-content:flex-end;gap:8px">' +
         '<button class="btn admin-modal-cancel-btn">Cancelar</button>' +
         '<button class="btn btn--primary admin-modal-confirm-btn">Confirmar</button>' +
@@ -661,19 +676,54 @@
   }
 
   /* ---- Finalizar / Reabrir turma ---- */
-  function finalizeTurma(turmaKey, turmaData) {
-    adminConfirm('Finalizar inscrição da turma ' + turmaKey.toUpperCase() + '?\n\nTodos os interessados virarão inscritos e a turma será bloqueada para novos interessados.', function () {
-      var updates = {};
-      updates['turmas-config/' + turmaKey + '/finalizada'] = true;
-      Object.keys(turmaData).forEach(function (eKey) {
-        var r = turmaData[eKey];
-        if (!r.removed && r.status !== 'presente') {
-          updates['turmas-interesse/' + turmaKey + '/' + eKey + '/status'] = 'inscrito';
-        }
+
+  /* Verifica se algum dos candidatos a inscrito também está interessado (não removido)
+     em outra turma — precisa saber ANTES de finalizar, para avisar o admin */
+  function checkOutrasTurmas(turmaKey, candidatos, cb) {
+    var outras = TURMAS_LIST.map(function (t) { return t.key; }).filter(function (k) { return k !== turmaKey; });
+    var pending = candidatos.length * outras.length;
+    if (!pending) { cb([]); return; }
+    var overlaps = [];
+    outras.forEach(function (t) {
+      candidatos.forEach(function (eKey) {
+        firebase.database().ref('turmas-interesse/' + t + '/' + eKey).once('value', function (snap) {
+          pending--;
+          var val = snap.val();
+          if (val && !val.removed) overlaps.push({ eKey: eKey, name: val.name || eKey, turma: t });
+          if (pending === 0) cb(overlaps);
+        });
       });
-      firebase.database().ref().update(updates, function (err) {
-        if (err) { adminAlert('Erro ao finalizar. Tente novamente.'); return; }
-        loadInterests();
+    });
+  }
+
+  function finalizeTurma(turmaKey, turmaData) {
+    var candidatos = Object.keys(turmaData).filter(function (eKey) {
+      var r = turmaData[eKey];
+      return !r.removed && r.status !== 'presente';
+    });
+
+    checkOutrasTurmas(turmaKey, candidatos, function (overlaps) {
+      var msg = 'Finalizar inscrição da turma ' + turmaKey.toUpperCase() + '?\n\nTodos os interessados virarão inscritos e a turma será bloqueada para novos interessados.';
+      if (overlaps.length) {
+        var lista = overlaps.map(function (o) { return '• ' + o.name + ' — também interessada na ' + o.turma.toUpperCase(); }).join('\n');
+        msg += '\n\nAs pessoas abaixo também estão interessadas em outra turma. Se continuar, o interesse delas nas outras turmas será removido automaticamente (ninguém pode ficar inscrita em mais de uma):\n\n' + lista;
+      }
+      adminConfirm(msg, function () {
+        var updates = {};
+        updates['turmas-config/' + turmaKey + '/finalizada'] = true;
+        candidatos.forEach(function (eKey) {
+          updates['turmas-interesse/' + turmaKey + '/' + eKey + '/status'] = 'inscrito';
+        });
+        var now = new Date().toISOString();
+        overlaps.forEach(function (o) {
+          updates['turmas-interesse/' + o.turma + '/' + o.eKey + '/removed'] = true;
+          updates['turmas-interesse/' + o.turma + '/' + o.eKey + '/removedDate'] = now;
+          updates['turmas-interesse/' + o.turma + '/' + o.eKey + '/removedReason'] = 'Inscrita automaticamente na turma ' + turmaKey.toUpperCase();
+        });
+        firebase.database().ref().update(updates, function (err) {
+          if (err) { adminAlert('Erro ao finalizar. Tente novamente.'); return; }
+          loadInterests();
+        });
       });
     });
   }
