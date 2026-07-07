@@ -62,6 +62,14 @@
     {
       group: 'Admin',
       tests: [
+        { id: 'adm-superadmin-only', label: 'Administradores: só tatianefdirene/danielfrazao veem os botões de adicionar/remover admin', run: function () {
+          var s = window.faAuth && window.faAuth.getSession();
+          if (!s) return true; /* não aplicável fora de sessão */
+          var souSuperAdmin = window.faSuperAdmins && window.faSuperAdmins.indexOf((s.email || '').toLowerCase()) !== -1;
+          var temForm = !!document.getElementById('adminAddBtn');
+          var temRemover = !!document.querySelector('#adminAdmins .admin-del-btn');
+          return souSuperAdmin ? true : (!temForm && !temRemover);
+        } },
         { id: 'adm-qrcode-lib', label: 'Biblioteca QRCode carregada (hospedada localmente, sem depender de CDN externo)', run: function () {
           var scriptLocal = document.querySelector('script[src*="forca-agil/qrcode.min.js"]');
           var scriptCdn = document.querySelector('script[src*="jsdelivr"], script[src*="unpkg"]');

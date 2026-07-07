@@ -1244,6 +1244,9 @@
     const c = document.getElementById('adminAdmins');
     if (!c) return;
 
+    const sess = window.faAuth && window.faAuth.getSession();
+    const souSuperAdmin = !!(sess && SUPER_ADMINS.indexOf((sess.email || '').toLowerCase()) !== -1);
+
     function render() {
       firebase.database().ref('fa-admins').once('value', function (snap) {
         const data = snap.val() || {};
@@ -1270,7 +1273,7 @@
         } else {
           const tbl = document.createElement('table');
           tbl.className = 'admin-table';
-          tbl.innerHTML = '<thead><tr><th>Nome</th><th>E-mail</th><th>Desde</th><th></th></tr></thead>';
+          tbl.innerHTML = '<thead><tr><th>Nome</th><th>E-mail</th><th>Desde</th>' + (souSuperAdmin ? '<th></th>' : '') + '</tr></thead>';
           const tbody = document.createElement('tbody');
           dbList.forEach(function (p) {
             const tr = document.createElement('tr');
@@ -1278,7 +1281,7 @@
               '<td>' + esc(p.name || '—') + '</td>' +
               '<td>' + esc(p.email || '—') + '</td>' +
               '<td>' + fmtDate(p.addedAt) + '</td>' +
-              '<td><button class="admin-del-btn" data-key="' + esc(emailKey(p.email)) + '" data-name="' + esc(p.name || p.email) + '">Remover</button></td>';
+              (souSuperAdmin ? '<td><button class="admin-del-btn" data-key="' + esc(emailKey(p.email)) + '" data-name="' + esc(p.name || p.email) + '">Remover</button></td>' : '');
             tbody.appendChild(tr);
           });
           tbl.appendChild(tbody);
@@ -1287,16 +1290,27 @@
           admTblWrap.appendChild(tbl);
           c.appendChild(admTblWrap);
 
-          tbody.addEventListener('click', function (e) {
-            const btn = e.target.closest('.admin-del-btn');
-            if (!btn) return;
-            adminConfirm('Remover ' + btn.dataset.name + ' dos administradores?', function () {
-              firebase.database().ref('fa-admins/' + btn.dataset.key).remove(function () { render(); });
+          if (souSuperAdmin) {
+            tbody.addEventListener('click', function (e) {
+              const btn = e.target.closest('.admin-del-btn');
+              if (!btn) return;
+              adminConfirm('Remover ' + btn.dataset.name + ' dos administradores?', function () {
+                firebase.database().ref('fa-admins/' + btn.dataset.key).remove(function () { render(); });
+              });
             });
-          });
+          }
         }
 
-        /* Formulário de adição */
+        if (!souSuperAdmin) {
+          const aviso = document.createElement('p');
+          aviso.className = 'admin-empty';
+          aviso.style.marginTop = '20px';
+          aviso.textContent = 'Só tatianefdirene e danielfrazao podem adicionar ou remover administradores.';
+          c.appendChild(aviso);
+          return;
+        }
+
+        /* Formulário de adição — só para super-admins */
         const form = document.createElement('div');
         form.className = 'admin-colab-form';
         form.innerHTML =
