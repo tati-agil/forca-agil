@@ -40,7 +40,14 @@
           return level === 'guest' || level === 'member' || level === 'enrolled';
         } },
         { id: 'auth-domain-rule', label: 'Restrição @previ.com.br nas regras do banco (server-side)', run: function () { return true; },
-          nota: 'Verificação manual: regras do Firebase Realtime Database exigem auth.token.email.matches(/.*@previ\\.com\\.br/) em todas as operações autenticadas — não apenas validação no front-end. Testar via REST API diretamente com conta de outro domínio deve retornar HTTP 403.' }
+          nota: 'Verificação manual: regras do Firebase Realtime Database exigem auth.token.email.matches(/.*@previ\\.com\\.br/) em todas as operações autenticadas — não apenas validação no front-end. Testar via REST API diretamente com conta de outro domínio deve retornar HTTP 403.' },
+        { id: 'auth-admin-full-access', label: 'Admin vê Conteúdos e Treinamento no menu mesmo sem estar pessoalmente inscrito em turma', run: function () {
+          var s = window.faAuth && window.faAuth.getSession();
+          if (!s || !window.faAuth.isAdmin(s.email)) return true; /* não aplicável fora de sessão admin */
+          var conteudos = document.querySelector('.nav-link-enrolled[data-nav-page="conteudos"]');
+          var treinamento = document.querySelector('.nav-link-enrolled[data-nav-page="treinamento"]');
+          return !!conteudos && !conteudos.hidden && !!treinamento && !treinamento.hidden;
+        } }
       ]
     },
     {

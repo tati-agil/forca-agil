@@ -21,7 +21,12 @@
     return ADMIN.indexOf(em) !== -1 || _dbAdmins.indexOf(em) !== -1;
   }
   function getSession() { return _session; }
-  function getAccessLevel() { return _accessLevel; }
+  /* Admin tem acesso a tudo, mesmo sem estar pessoalmente inscrito numa turma —
+     _accessLevel continua rastreando a inscrição real da pessoa por baixo */
+  function getAccessLevel() {
+    if (_session && isAdmin(_session.email)) return 'enrolled';
+    return _accessLevel;
+  }
 
   const TURMAS = ['t1', 't2', 't3'];
   var _enrolledRefs = [];
@@ -68,7 +73,7 @@
   function enforceCurrentRouteAccess() {
     if (!window.faRouter) return;
     const page = window.faRouter.current();
-    if ((page === 'conteudos' || page === 'treinamento') && _accessLevel !== 'enrolled') {
+    if ((page === 'conteudos' || page === 'treinamento') && getAccessLevel() !== 'enrolled') {
       location.hash = '#home';
       if (window.faRouter.showAccessMsg) {
         window.faRouter.showAccessMsg('Sua turma foi alterada — esta área não está mais disponível.');
@@ -219,7 +224,7 @@
   /* ---- Nav state ---- */
   function updateNavState() {
     const sess      = _session;
-    const level     = _accessLevel;
+    const level     = getAccessLevel();
     const ctaEl     = document.getElementById('navCta');
     const heroJoin  = document.getElementById('heroJoin');
     const profileEl = document.getElementById('navProfile');
