@@ -327,6 +327,7 @@
           { name: 'forca-agil/init.js',          desc: 'Inicialização pós-load — guarda de acesso ao painel admin; exibe adminGuard ou adminContent conforme sessão do usuário' },
           { name: 'forca-agil/styles.css',       desc: 'Estilos globais — design tokens, layout, componentes, responsividade' },
           { name: 'forca-agil/pages.css',        desc: 'Estilos específicos de seções — Admin (inputs, tabelas, expand bar, badges), Mapa, Manual, Testes' },
+          { name: 'forca-agil/qrcode.min.js',    desc: 'Biblioteca de geração de QR Code (vendorizada localmente — a versão publicada no CDN jsdelivr parou de servir o arquivo build/qrcode.min.js a partir da 1.5.3, quebrando o QR Code do check-in). Usada pelo admin.js.' },
         ]
       },
       {
