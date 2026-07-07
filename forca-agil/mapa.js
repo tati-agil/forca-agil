@@ -58,6 +58,7 @@
         { label: 'Aba Manual — filtrar por seção e persona', p: ['admin'] },
         { label: 'Aba Manual — exportar Excel (regras)', p: ['admin'] },
         { label: 'Aba Mapa — hierarquia de personas (níveis de acesso cumulativos)', p: ['admin'] },
+        { label: 'Aba Mapa — acesso por tipo de pessoa (tabela: quem vê o quê em cada página)', p: ['admin'] },
         { label: 'Aba Mapa — mapa do site (páginas e funcionalidades por seção, com contagem)', p: ['admin'] },
         { label: 'Aba Mapa — arquitetura técnica (linguagens, tecnologias, padrões e deploy)', p: ['admin'] },
         { label: 'Aba Mapa — regras operacionais (cache, autonomia e processo de deploy)', p: ['admin'] },
@@ -231,6 +232,36 @@
     });
 
     html += '</div>';
+
+    /* ── Acesso por tipo de pessoa ── */
+    html += '<h3 class="mapa-title" style="margin-top:48px">Acesso por Tipo de Pessoa</h3>';
+    html += '<p class="mapa-sub">O que cada perfil consegue ver e fazer no site.</p>';
+    html += '<div class="table-scroll-wrap"><table class="admin-table"><thead><tr><th>Página / Feature</th>';
+    P_ORDER.forEach(function (pk) {
+      html += '<th style="text-align:center;color:' + P_COLOR[pk] + '">' + P_LABEL[pk] + '</th>';
+    });
+    html += '</tr></thead><tbody>';
+
+    var ACESSO = [
+      { label: 'Início',                     access: { visitante: true,  logado: true,  inscrito: true,  admin: true  } },
+      { label: 'Ajuda',                       access: { visitante: true,  logado: true,  inscrito: true,  admin: true  } },
+      { label: 'Turmas — lista completa',     access: { visitante: true,  logado: true,  inscrito: false, admin: true  } },
+      { label: 'Turmas — só a confirmada',    access: { visitante: false, logado: false, inscrito: true,  admin: false } },
+      { label: 'Repositório',                 access: { visitante: false, logado: true,  inscrito: true,  admin: true  } },
+      { label: 'Conteúdos',                   access: { visitante: false, logado: false, inscrito: true,  admin: true  } },
+      { label: 'Treinamento Jedi',            access: { visitante: false, logado: false, inscrito: true,  admin: true  } },
+    ];
+
+    ACESSO.forEach(function (row) {
+      html += '<tr><td>' + esc(row.label) + '</td>';
+      P_ORDER.forEach(function (pk) {
+        var has = row.access[pk];
+        html += '<td style="text-align:center;' + (has ? 'color:' + P_COLOR[pk] + ';font-weight:700' : 'color:var(--ink-3)') + '">' + (has ? '✓' : '—') + '</td>';
+      });
+      html += '</tr>';
+    });
+    html += '</tbody></table></div>';
+    html += '<p class="mapa-sub" style="margin-top:10px">"Turmas" é a única página com comportamento diferente por perfil em vez de simplesmente aparecer ou não: quem ainda não confirmou turma vê a lista completa das turmas abertas; quem já confirmou vê só o card da própria turma.</p>';
 
     /* ── Mapa do site ── */
     var totalPaginas = PAGES.length;

@@ -400,7 +400,7 @@
       body: 'Botões "Expandir tudo" e "Recolher tudo" abrem ou fecham de uma vez todas as regras visíveis na combinação de filtros atual.' },
     { section: 'admin', personas: ['admin'],
       title: 'Aba: Mapa',
-      body: 'Mostra quatro seções: (1) Hierarquia de Personas — níveis de acesso cumulativos; (2) Mapa do Site — páginas e features com nível mínimo por persona; (3) Arquitetura Técnica e Regras Operacionais — acordeão com tecnologias, módulos, padrões de código, padrões de UX, deploy e regras de governança; (4) Diagrama da Arquitetura — visão visual gerada automaticamente a partir dos dados da Arquitetura Técnica.' },
+      body: 'Mostra cinco seções: (1) Hierarquia de Personas — níveis de acesso cumulativos; (2) Acesso por Tipo de Pessoa — tabela com o que cada perfil vê/acessa em cada página; (3) Mapa do Site — páginas e features com nível mínimo por persona; (4) Arquitetura Técnica e Regras Operacionais — acordeão com tecnologias, módulos, padrões de código, padrões de UX, deploy e regras de governança; (5) Diagrama da Arquitetura — visão visual gerada automaticamente a partir dos dados da Arquitetura Técnica.' },
     { section: 'admin', personas: ['admin'],
       title: 'Aba: Mapa — estrutura dos dados em mapa.js',
       body: 'A aba Mapa é organizada em dois grupos de conteúdo: um descreve o que o sistema é — Linguagens, Tecnologias & Serviços, Estrutura de Arquivos, Padrões de Código, Padrões de UX, Glossário de UX/Design e Deploy — exibido como "Arquitetura Técnica" e usado no Diagrama. O outro descreve como o sistema deve ser mantido — Deploy (processo), Cache e Autonomia — exibido como "Regras Operacionais".' },
