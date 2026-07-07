@@ -288,14 +288,13 @@
           if (sess) return btn.hidden === false && btn.dataset.loggedIn === '1';
           return btn.hidden === false && btn.dataset.loggedIn !== '1';
         } },
-        { id: 'c-como-funciona', label: 'Como funciona: os 3 links apontam para páginas reais e com o título certo', run: function () {
+        { id: 'c-como-funciona', label: 'Como funciona: os 3 cards são blocos informativos, sem link nem data-nav-page', run: function () {
           var cards = document.querySelectorAll('.how-grid .how-card');
           if (cards.length !== 3) return false;
-          var map = { conteudos: 'Conteúdos', repositorio: 'Repositório Colaborativo', treinamento: 'Treinamento Jedi' };
-          return Array.from(cards).every(function (c) {
-            var page = (c.getAttribute('href') || '').replace('#', '');
+          var titulos = ['Conteúdos', 'Repositório Colaborativo', 'Treinamento Jedi'];
+          return Array.from(cards).every(function (c, i) {
             var titulo = c.querySelector('h3') ? c.querySelector('h3').textContent.trim() : '';
-            return !!map[page] && titulo === map[page] && !!document.getElementById('page-' + page);
+            return titulo === titulos[i] && c.tagName !== 'A' && !c.hasAttribute('href') && !c.hasAttribute('data-nav-page');
           });
         } },
         { id: 'c-cta-ver-turmas', label: 'CTA final: único botão "Ver turmas →" presente e aponta para #turmas', run: function () {

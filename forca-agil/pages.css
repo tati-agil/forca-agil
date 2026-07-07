@@ -158,10 +158,9 @@
   background: var(--panel); border: 1.5px solid var(--line-strong);
   border-radius: 14px; padding: 32px 24px;
   display: flex; flex-direction: column; gap: 14px;
-  cursor: pointer; text-decoration: none;
-  transition: border-color .25s, transform .2s, box-shadow .25s;
+  cursor: default;
 }
-/* hover removido — cards decorativos */
+/* bloco informativo — sem link, sem hover, sem cursor de seleção */
 .how-card .ico { width: 42px; height: 42px; color: var(--accent); }
 .how-card h3 { font-family: var(--font-head); font-size: 1.15rem; color: var(--ink); margin: 0; }
 .how-card p  { font-size: .86rem; color: var(--ink-2); margin: 0; line-height: 1.55; flex: 1; }
