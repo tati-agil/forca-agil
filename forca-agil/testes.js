@@ -62,6 +62,11 @@
     {
       group: 'Admin',
       tests: [
+        { id: 'adm-qrcode-lib', label: 'Biblioteca QRCode carregada (hospedada localmente, sem depender de CDN externo)', run: function () {
+          var scriptLocal = document.querySelector('script[src*="forca-agil/qrcode.min.js"]');
+          var scriptCdn = document.querySelector('script[src*="jsdelivr"], script[src*="unpkg"]');
+          return typeof QRCode !== 'undefined' && typeof QRCode.toCanvas === 'function' && !!scriptLocal && !scriptCdn;
+        } },
         { id: 'adm-manual', label: 'faInitManual disponível',   run: function () { return typeof window.faInitManual === 'function'; } },
         { id: 'adm-mapa',   label: 'faInitMapa disponível',     run: function () { return typeof window.faInitMapa === 'function'; } },
         { id: 'adm-tabs',   label: 'Abas Admin presentes (7: Turmas/Repositório/Cadastrados/Administradores/Manual/Mapa/Testes)', run: function () { return document.querySelectorAll('.admin-tab-btn').length === 7; } },
