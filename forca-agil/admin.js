@@ -652,7 +652,10 @@
     });
   }
 
-  /* ---- Adicionar participante manualmente (turma já finalizada) — modal visual ---- */
+  /* ---- Adicionar participante manualmente (turma aberta ou com interesse
+     encerrado) — modal visual. O admin escolhe o status na hora: Interessada
+     (uso típico: alguém que avisou o interesse fora do site) ou Inscrita
+     (uso típico: alguém que já se inscreveu direto no CMFlex). */
   function addParticipante(turmaKey) {
     var sess = window.faAuth && window.faAuth.getSession();
     var overlay = document.createElement('div');
@@ -673,6 +676,11 @@
       '<label class="auth-label">Área<select id="addPartArea" style="width:100%;padding:10px 12px;background:var(--panel-2);border:1px solid var(--line-strong);border-radius:6px;color:var(--ink);font-family:var(--font-body)">' +
         '<option value="">Selecione a área…</option>' + areasOptions +
       '</select></label>' +
+      '<label class="auth-label">Status<select id="addPartStatus" style="width:100%;padding:10px 12px;background:var(--panel-2);border:1px solid var(--line-strong);border-radius:6px;color:var(--ink);font-family:var(--font-body)">' +
+        '<option value="">Selecione o status…</option>' +
+        '<option value="interessado">Interessada</option>' +
+        '<option value="inscrito">Inscrita</option>' +
+      '</select></label>' +
       '<p id="addPartErr" style="color:var(--red,#ff3b30);font-size:.85rem;display:none"></p>' +
       '<div style="display:flex;justify-content:flex-end;gap:8px;margin-top:4px">' +
         '<button class="btn admin-modal-cancel-btn">Cancelar</button>' +
@@ -690,15 +698,17 @@
     overlay.addEventListener('click', function (e) { if (e.target === overlay) closeModal(); });
 
     box.querySelector('.admin-modal-add-btn').addEventListener('click', function () {
-      var name  = (box.querySelector('#addPartNome').value || '').trim();
-      var email = (box.querySelector('#addPartEmail').value || '').trim().toLowerCase();
-      var area  = (box.querySelector('#addPartArea').value || '').trim();
+      var name   = (box.querySelector('#addPartNome').value || '').trim();
+      var email  = (box.querySelector('#addPartEmail').value || '').trim().toLowerCase();
+      var area   = (box.querySelector('#addPartArea').value || '').trim();
+      var status = (box.querySelector('#addPartStatus').value || '').trim();
 
       errEl.style.display = 'none';
       if (!name) { errEl.textContent = 'Preencha o nome.'; errEl.style.display = ''; return; }
       if (!email) { errEl.textContent = 'Preencha o e-mail.'; errEl.style.display = ''; return; }
       if (!/@previ\.com\.br$/.test(email)) { errEl.textContent = 'Use um e-mail @previ.com.br.'; errEl.style.display = ''; return; }
       if (!area) { errEl.textContent = 'Selecione a área.'; errEl.style.display = ''; return; }
+      if (!status) { errEl.textContent = 'Selecione o status.'; errEl.style.display = ''; return; }
 
       var eKey = emailKeyFromEmail(email);
       var ref  = firebase.database().ref('turmas-interesse/' + turmaKey + '/' + eKey);
@@ -710,7 +720,7 @@
         ref.set({
           name: name, email: email, area: area,
           date: new Date().toISOString(),
-          status: 'inscrito', addedByAdmin: true,
+          status: status, addedByAdmin: true,
           addedByAdminName: adminName
         }, function (err) {
           if (err) { errEl.textContent = 'Erro ao adicionar. Tente novamente.'; errEl.style.display = ''; return; }
