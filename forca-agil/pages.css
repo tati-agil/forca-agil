@@ -390,6 +390,18 @@
 .status-inscrito     { background: rgba(76,175,125,.15); color: #4caf7d; border: 1px solid rgba(76,175,125,.35); }
 .checkin-dia { font-size: .8rem; color: var(--ink-3); }
 
+/* ---- Confirmar / Desconfirmar inscrição (CMFlex) ---- */
+.turma-row-actions { display: flex; gap: 6px; flex-wrap: wrap; }
+.cf-confirm-btn, .cf-unconfirm-btn {
+  font-size: .7rem; padding: 3px 8px; border-radius: 4px; cursor: pointer;
+  font-family: var(--font-mono); text-transform: uppercase; letter-spacing: .05em;
+  white-space: nowrap; background: none;
+}
+.cf-confirm-btn { border: 1px solid rgba(76,175,125,.4); color: #4caf7d; }
+.cf-confirm-btn:hover { background: rgba(76,175,125,.1); }
+.cf-unconfirm-btn { border: 1px solid rgba(245,197,24,.4); color: var(--gold); }
+.cf-unconfirm-btn:hover { background: rgba(245,197,24,.1); }
+
 /* ---- QR Code modal ---- */
 .qr-modal-box { text-align: center; max-width: 380px; padding: 32px 28px; }
 .qr-modal-label { font-family: var(--font-mono); font-size: .72rem; color: var(--ink-3);

@@ -445,18 +445,19 @@
       group: 'Turmas',
       tests: [
         { id: 'c-turmas-cards',   label: 'Cards de turma consistentes com as turmas cadastradas (.turma-card-new)', run: function () {
-          var cards = document.querySelectorAll('.turma-card-new');
-          var enrolled = document.querySelector('.turma-card-enrolled');
-          /* turmas não são mais fixas em número (3) — vêm de turmas/ no Firebase,
-             editável pelo admin; a checagem passa a ser estrutural, não de contagem fixa */
-          if (enrolled) return cards.length === 1; // inscrita: só o card confirmado aparece
-          return cards.length === document.querySelectorAll('.btn--interest').length;
+          /* turmas não são mais fixas em número — vêm de turmas/ no Firebase, editável
+             pelo admin. Cada card está OU com interesse aberto (.btn--interest) OU com
+             interesse encerrado, orientando pro CMFlex (.turma-cmflex-msg) — igual pra
+             todo mundo, não existe mais um card único de "turma confirmada" */
+          var cards = document.querySelectorAll('.turma-card-new').length;
+          var abertos = document.querySelectorAll('.btn--interest').length;
+          var encerrados = document.querySelectorAll('.turma-cmflex-msg').length;
+          return cards === abertos + encerrados;
         } },
         { id: 'c-turmas-como-funciona', label: 'Bloco "Como funciona a oficina" presente (.oficina-info)', run: function () { return !!document.querySelector('.oficina-info'); } },
         { id: 'c-turmas-ofinfo',  label: 'Bloco tem 4 métricas (.ofinfo-item)', run: function () { return document.querySelectorAll('.ofinfo-item').length === 4; } },
-        { id: 'c-turmas-intent-btn', label: 'Botões de interesse correspondem 1:1 aos cards de turma (.btn--interest)', run: function () {
-          if (document.querySelector('.turma-card-enrolled')) return true; // inscrita: sem botões, por design
-          return document.querySelectorAll('.btn--interest').length === document.querySelectorAll('.turma-card-new').length;
+        { id: 'c-turmas-intent-btn', label: 'Botões de interesse não excedem o número de cards de turma (.btn--interest)', run: function () {
+          return document.querySelectorAll('.btn--interest').length <= document.querySelectorAll('.turma-card-new').length;
         } },
         { id: 'c-turmas-intent-msg', label: 'Cada botão de interesse tem seu container de mensagem (#intent-msg-{turma})', run: function () {
           var btns = document.querySelectorAll('.btn--interest');
@@ -671,8 +672,8 @@
       title: 'Logado sem turma não acessa Conteúdos nem Treinamento Jedi',
       motivo: 'Verificar com conta logada sem turma confirmada: links de Conteúdos e Treinamento Jedi não devem aparecer no menu; acessar as páginas diretamente deve ser bloqueado.' },
     { section: 'Turmas',
-      title: 'Inscrito vê apenas o card da própria turma na página Turmas',
-      motivo: 'Verificar com conta que tem turma confirmada: somente o card da turma confirmada deve aparecer; os demais cards ficam ocultos; sem botões "Tenho interesse" ou "Remover interesse".' },
+      title: 'Inscrito confirmado vê o mesmo card de CMFlex que todo mundo',
+      motivo: 'Verificar com conta confirmada como inscrita (via Admin) numa turma com interesse encerrado: o card dela mostra a mesma orientação pro CMFlex que qualquer visitante vê — não existe mais um card especial de "turma confirmada" nem distinção visual por já estar inscrita.' },
     { section: 'Turmas',
       title: 'Botão "Tenho interesse" sem login → mensagem + modal login',
       motivo: 'Requer estar deslogado.' },
@@ -689,15 +690,15 @@
       title: 'Após remover interesse → mensagem "Interesse removido." e botão volta a "Tenho interesse"',
       motivo: 'Verificar visualmente ao clicar em "Remover interesse" com um interesse já registrado.' },
     { section: 'Turmas',
-      title: 'Turma finalizada — exibe "Inscrições encerradas" para não inscrito',
-      motivo: 'Com uma turma já finalizada: (1) como visitante, verificar que o card não tem botão de ação e exibe "Inscrições encerradas"; (2) como usuário logado sem turma confirmada, mesmo resultado; (3) clicar no card não deve abrir modal de login. Apenas o usuário confirmado naquela turma vê o estado normal de inscrito.' },
+      title: 'Interesse encerrado — card orienta pro CMFlex, igual pra qualquer pessoa',
+      motivo: 'Com uma turma com interesse encerrado pelo admin: (1) como visitante, verificar que o card mostra "Faça sua inscrição no CMFlex" + botão "Ir para o CMFlex →" (sem botão de interesse); (2) como usuário logado, mesmo resultado; (3) se a turma não tiver link do CMFlex cadastrado, o card mostra aviso no lugar do botão em vez de link quebrado.' },
     // Cenários de exceção (corridas, falhas e correções de bug)
     { section: 'Turmas',
-      title: 'Corrida: turma finaliza entre carregar a página e clicar → "Esta turma está encerrada para novas inscrições."',
-      motivo: 'Requer abrir o card com a turma ainda aberta, finalizar a turma pelo admin em outra aba, e só então clicar em "Tenho interesse".' },
+      title: 'Corrida: interesse encerra entre carregar a página e clicar → "Esta turma está encerrada para novas inscrições."',
+      motivo: 'Requer abrir o card com a turma ainda aberta, encerrar o interesse pelo admin em outra aba, e só então clicar em "Tenho interesse".' },
     { section: 'Turmas',
-      title: 'Corrida rara: turma finaliza com a página já aberta → botão vira "✓ Inscrita" (desabilitado) até recarregar',
-      motivo: 'Requer abrir a página Turmas com a turma ainda aberta e o usuário com interesse registrado, finalizar a turma pelo admin em outra aba sem recarregar a página do usuário, e verificar que o botão passa a "✓ Inscrita" desabilitado; ao recarregar, deve virar o card estático de inscrito.' },
+      title: 'Corrida rara: interesse encerra com a página já aberta → botão continua até recarregar',
+      motivo: 'Requer abrir a página Turmas com a turma ainda aberta, encerrar o interesse pelo admin em outra aba sem recarregar a página do usuário, e clicar em "Remover interesse" (ainda funciona) ou em "Tenho interesse" (bloqueado com aviso, ver teste acima). Ao recarregar, o card já aparece no modo CMFlex.' },
     { section: 'Turmas',
       title: 'Falha ao gravar no Firebase → "Erro ao registrar. Tente novamente." / "Erro ao remover. Tente novamente."',
       motivo: 'Requer simular falha de escrita no Firebase (ex.: regra de segurança negando ou rede indisponível) ao clicar em "Tenho interesse" ou "Remover interesse".' },
@@ -711,8 +712,8 @@
       title: 'Botão desabilitado durante a gravação — sem duplicação por clique duplo',
       motivo: 'Clicar duas vezes rapidamente em "Tenho interesse" (ou "Remover interesse") antes da resposta do Firebase: o botão deve ficar desabilitado no primeiro clique, e apenas uma entrada deve ser gravada em turmas-interesse-log.' },
     { section: 'Turmas',
-      title: 'Finalizar turma com pessoa interessada em outra turma — aviso e remoção automática',
-      motivo: 'Requer manifestar interesse real numa mesma pessoa em duas turmas e finalizar uma delas pelo painel — exige dado real no Firebase, não pode ser simulado no teste automatizado. Verificar: o modal de confirmação lista a pessoa e a outra turma; ao confirmar, o interesse dela na outra turma vira "removido" com motivo registrado e aparece na seção Removidos daquela turma; ao cancelar, nada muda em nenhuma das duas turmas.' },
+      title: 'Confirmar inscrito interessado em outra turma — aviso e remoção automática',
+      motivo: 'Requer manifestar interesse real numa mesma pessoa em duas turmas e confirmá-la como inscrita em uma delas pelo painel — exige dado real no Firebase, não pode ser simulado no teste automatizado. Verificar: o modal de confirmação avisa que ela também está interessada na outra turma; ao confirmar, o interesse dela na outra turma vira "removido" com motivo registrado e aparece na seção Removidos daquela turma; ao cancelar, nada muda em nenhuma das duas turmas.' },
     { section: 'Check-in',
       title: 'QR Code inválido ou sem turma na URL → "QR Code inválido ou turma não encontrada"',
       motivo: 'Acessar #checkin sem parâmetro turma ou com uma chave inexistente.' },
@@ -777,8 +778,17 @@
       title: 'Cadastrados — redefinir senha',
       motivo: 'Requer que a pessoa já tenha conta ativa e verifica e-mail externo.' },
     { section: 'Admin',
-      title: 'Turmas — finalizar inscrição',
-      motivo: 'Ação destrutiva: converte todos os interessados em inscritos e bloqueia novas inscrições. Verificar: (1) badge muda para FINALIZADA; (2) botões mudam para QR Code / Abrir check-in / Reabrir; (3) tabela exibe colunas de presença por dia.' },
+      title: 'Turmas — encerrar interesse',
+      motivo: 'Verificar: (1) badge muda para INTERESSE ENCERRADO; (2) botões mudam para QR Code / Abrir check-in / Reabrir; (3) a tabela de participantes (já mostrava interessados e inscritos juntos antes de encerrar) ganha colunas de presença por dia e Freq.; (4) ninguém vira inscrito sozinho — todos continuam com o status que tinham antes; (5) o card público daquela turma passa a mostrar a orientação pro CMFlex pra qualquer pessoa.' },
+    { section: 'Admin',
+      title: 'Turmas — cadastrar link do CMFlex ao criar/editar turma',
+      motivo: 'Abrir "+ Nova turma" ou "✎ Editar turma". Verificar: (1) campo "Link do CMFlex" opcional aparece no formulário; (2) ao salvar com o campo preenchido, o botão "Ir para o CMFlex" no card público usa esse link; (3) deixando em branco, o card mostra aviso de link ainda não disponível em vez de um botão quebrado.' },
+    { section: 'Admin',
+      title: 'Turmas — confirmar inscrição de uma pessoa',
+      motivo: 'Funciona com a turma aberta ou com interesse encerrado — requer só pelo menos 1 interessado. Clicar em "Confirmar" na linha da pessoa. Verificar: (1) abre modal de confirmação (avisando sobreposição com outra turma, se houver); (2) ao confirmar, ela vira "Inscrito" e ganha acesso a Conteúdos/Treinamento Jedi (colunas de presença só aparecem depois que a turma também tiver o interesse encerrado); (3) Firebase grava confirmedByAdmin/confirmedByAdminName/confirmedDate em turmas-interesse; (4) testar com a turma ainda aberta e também já encerrada.' },
+    { section: 'Admin',
+      title: 'Turmas — desconfirmar inscrição de uma pessoa',
+      motivo: 'Funciona com a turma aberta ou com interesse encerrado — requer só pelo menos 1 inscrito confirmado. Clicar em "Desconfirmar" na linha da pessoa. Verificar: (1) abre modal de confirmação; (2) ao confirmar, ela volta a "Interessado" (continua na turma, só perde os privilégios); (3) se estiver com sessão aberta em outra aba, o acesso a Conteúdos/Treinamento Jedi cai na hora, sem precisar deslogar; (4) testar com a turma ainda aberta e também já encerrada.' },
     { section: 'Check-in',
       title: 'Admin — Turmas: abrir check-in do dia',
       motivo: 'Requer turma finalizada. Verificar: (1) select exibe os dias da turma e pré-seleciona hoje se aplicável; (2) ao abrir dia escolhido, badge "CHECK-IN ABERTO · DD/MM" aparece pulsante; (3) participante consegue fazer check-in via QR apenas para o dia aberto. Testar também abrir um dia diferente de hoje (passado ou futuro).' },
@@ -787,7 +797,7 @@
       motivo: 'Requer turma finalizada e check-in aberto. Verificar: ao fechar, check-in passa a ser bloqueado na página checkin.' },
     { section: 'Admin',
       title: 'Turmas — layout responsivo das ações (desktop vs mobile)',
-      motivo: 'Verificar em desktop (>768px): todas as ações ficam em linha única (seletor de dia, Abrir/Fechar check-in, QR, + Participante, Reabrir, CSV, Certificados). Verificar em mobile/tablet (≤768px): header do card vira coluna; apenas ações primárias visíveis (seletor + Abrir/Fechar ou Finalizar); botão "⋯" presente e ao clicar abre dropdown com ações secundárias (QR, + Participante, ↺ Reabrir, CSV, Certificados).' },
+      motivo: 'Verificar em desktop (>768px): todas as ações ficam em linha única (seletor de dia, Abrir/Fechar check-in, QR, + Participante, Reabrir, CSV, Certificados). Verificar em mobile/tablet (≤768px): header do card vira coluna; apenas ações primárias visíveis (seletor + Abrir/Fechar ou Encerrar interesse); botão "⋯" presente e ao clicar abre dropdown com ações secundárias (QR, + Participante, ↺ Reabrir, CSV, Certificados).' },
     { section: 'Admin',
       title: 'Turmas — check-in retroativo manual (clicar em "—")',
       motivo: 'Requer turma finalizada com pelo menos 1 inscrito que não fez check-in naquele dia. Clicar em "—" na célula da pessoa/dia → registra com source:"admin" → célula vira "✓ adm" e frequência atualiza.' },
@@ -796,16 +806,16 @@
       motivo: 'Requer turma finalizada com pelo menos 1 inscrito que tenha presença registrada. Verificar: (1) hover sobre "✓ adm" ou "✓ qr" mostra risco (line-through) na etiqueta; (2) clicar abre modal visual de confirmação (não confirm() nativo); (3) ao confirmar, o registro é removido do Firebase (turmas-checkin) e a célula volta a "—"; (4) a frequência na última coluna atualiza imediatamente.' },
     { section: 'Admin',
       title: 'Turmas — adicionar participante: formulário modal (não prompt)',
-      motivo: 'Requer turma finalizada. Clicar em "＋ Participante". Verificar: (1) abre modal visual (não prompt nativo do browser) com campos Nome, E-mail e Área; (2) lista de áreas tem as 20 gerências; (3) e-mail inválido (sem @previ.com.br) exibe erro no modal; (4) ao confirmar, pessoa aparece na tabela com status inscrito; (5) Firebase tem addedByAdmin:true e addedByAdminName com nome do admin em turmas-interesse.' },
+      motivo: 'Funciona com a turma aberta ou com interesse encerrado. Clicar em "＋ Participante". Verificar: (1) abre modal visual (não prompt nativo do browser) com campos Nome, E-mail e Área; (2) lista de áreas tem as 20 gerências; (3) e-mail inválido (sem @previ.com.br) exibe erro no modal; (4) ao confirmar, pessoa aparece na tabela com status inscrito; (5) Firebase tem addedByAdmin:true e addedByAdminName com nome do admin em turmas-interesse; (6) testar com a turma ainda aberta e também já encerrada.' },
     { section: 'Admin',
-      title: 'Turmas — remover inscrito da turma finalizada',
-      motivo: 'Requer turma finalizada com pelo menos 1 inscrito. Clicar em "Remover" na linha da pessoa. Verificar: (1) abre modal visual de confirmação (não confirm() nativo); (2) ao confirmar, pessoa some da tabela imediatamente; (3) Firebase tem removed:true e removedByAdminName com nome do admin em turmas-interesse.' },
+      title: 'Turmas — remover participante (interessado ou inscrito)',
+      motivo: 'Funciona com a turma aberta ou com interesse encerrado, para linhas Interessado ou Inscrito. Clicar em "Remover" na linha da pessoa. Verificar: (1) abre modal visual de confirmação (não confirm() nativo); (2) ao confirmar, pessoa some da tabela imediatamente; (3) Firebase tem removed:true e removedByAdminName com nome do admin em turmas-interesse.' },
     { section: 'Admin',
       title: 'Abas Turmas, Cadastrados e Repositório — pop-ups visuais (não nativos)',
       motivo: 'Verificar que nenhuma ação do painel usa a caixa de diálogo padrão e feia do navegador. Testar: finalizar turma, reabrir turma, remover inscrito, resetar progresso, redefinir senha, ocultar/deletar conteúdo do repositório. Todos devem abrir um modal visual com botões estilizados.' },
     { section: 'Admin',
       title: 'Turmas — reabrir turma',
-      motivo: 'Ação destrutiva: volta inscritos para interessado. Verificar: (1) badge volta para ABERTA; (2) botões voltam para Finalizar inscrição; (3) inscritos voltam para interessado no Firebase.' },
+      motivo: 'Verificar: (1) badge volta para ABERTA; (2) botão volta para "Encerrar interesse"; (3) quem já foi confirmado como inscrito continua inscrito — reabrir só volta a aceitar novo interesse, não mexe em confirmações já feitas.' },
     { section: 'Admin',
       title: 'Turmas — exportar CSV "Estado Atual" não inclui removidos',
       motivo: 'Remover um inscrito de uma turma finalizada e depois exportar o CSV "Estado Atual". Verificar: a pessoa removida não aparece no arquivo. A pessoa ainda deve aparecer no CSV "Histórico".' },

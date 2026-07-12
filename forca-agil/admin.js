@@ -122,7 +122,7 @@
         var t = val[key] || {};
         var dias = (t.dias || []).slice().sort();
         var fmt = window.faTurmasUtil.formatDias(dias);
-        return { key: key, label: t.label || key.toUpperCase(), dates: fmt.dates, dias: dias, order: t.order || 0 };
+        return { key: key, label: t.label || key.toUpperCase(), dates: fmt.dates, dias: dias, order: t.order || 0, cmflexLink: t.cmflexLink || '' };
       }).sort(function (a, b) { return a.order - b.order; });
       cb();
     });
@@ -200,9 +200,11 @@
             var checkinT  = checkin[t.key] || {};
 
             var inscritos = active.filter(function (r) { return r.status === 'inscrito'; });
-            var countLabel = finalizada
-              ? inscritos.length + ' inscrito' + (inscritos.length !== 1 ? 's' : '')
-              : active.length + ' interessado' + (active.length !== 1 ? 's' : '');
+            var interessados = active.filter(function (r) { return r.status !== 'inscrito'; });
+            /* mostra sempre os dois números — confirmar/desconfirmar não depende
+               mais de a turma estar com interesse encerrado */
+            var countLabel = interessados.length + ' interessado' + (interessados.length !== 1 ? 's' : '') +
+              ' · ' + inscritos.length + ' confirmado' + (inscritos.length !== 1 ? 's' : '');
 
             var card = document.createElement('div');
             card.className = 'turma-admin-card';
@@ -224,7 +226,7 @@
                 '<span class="turma-admin-name">' + esc(t.label) + '</span>' +
                 '<span class="turma-admin-dates">(' + t.dates + ')</span>' +
                 '<span class="turma-status-badge ' + (finalizada ? 'badge-finalizada' : 'badge-aberta') + '">' +
-                  (finalizada ? 'FINALIZADA' : 'ABERTA') + '</span>' +
+                  (finalizada ? 'INTERESSE ENCERRADO' : 'ABERTA') + '</span>' +
                 '<span class="admin-badge">' + countLabel + '</span>' +
                 checkinBadge +
               '</div>' +
@@ -246,10 +248,10 @@
               var finBtn = document.createElement('button');
               finBtn.className = 'btn btn--sm btn--primary';
               finBtn.style.cssText = 'padding:6px 12px;box-shadow:none;font-size:.72rem';
-              finBtn.textContent = 'Finalizar inscrição';
-              finBtn.addEventListener('click', (function (tk, td) {
-                return function () { finalizeTurma(tk, td); };
-              })(t.key, allByKey));
+              finBtn.textContent = 'Encerrar interesse';
+              finBtn.addEventListener('click', (function (tk) {
+                return function () { finalizeTurma(tk); };
+              })(t.key));
               primaryWrap.appendChild(finBtn);
             } else {
               /* check-in abrir/fechar — sempre visível */
@@ -297,27 +299,13 @@
               qrBtn.addEventListener('click', (function (tt) {
                 return function () { openQrModal(tt); };
               })(t));
-              var addBtn = document.createElement('button');
-              addBtn.className = 'btn btn--sm';
-              addBtn.style.cssText = 'padding:6px 10px;font-size:.72rem';
-              addBtn.textContent = '＋ Participante';
-              addBtn.addEventListener('click', (function (tk) {
-                return function () { addParticipante(tk); };
-              })(t.key));
               var reopenBtn = document.createElement('button');
               reopenBtn.className = 'btn btn--sm';
               reopenBtn.style.cssText = 'padding:6px 10px;font-size:.72rem';
               reopenBtn.textContent = '↺ Reabrir';
-              reopenBtn.addEventListener('click', (function (tk, td) {
-                return function () { reopenTurma(tk, td); };
-              })(t.key, allByKey));
-              var csvIndBtn = document.createElement('button');
-              csvIndBtn.className = 'btn btn--sm';
-              csvIndBtn.style.cssText = 'padding:6px 10px;font-size:.72rem';
-              csvIndBtn.innerHTML = '&#x2193; CSV';
-              csvIndBtn.addEventListener('click', (function (tt, a, f, ck) {
-                return function () { exportTurmaCSV(tt, a, f, ck); };
-              })(t, all, finalizada, checkinT));
+              reopenBtn.addEventListener('click', (function (tk) {
+                return function () { reopenTurma(tk); };
+              })(t.key));
               var certBtn = document.createElement('button');
               certBtn.className = 'btn btn--sm';
               certBtn.style.cssText = 'padding:6px 10px;font-size:.72rem';
@@ -326,23 +314,31 @@
                 return function () { gerarCertificados(tt, ins, ck); };
               })(t, inscritos, checkinT));
               moreMenu.appendChild(qrBtn);
-              moreMenu.appendChild(addBtn);
               moreMenu.appendChild(reopenBtn);
-              moreMenu.appendChild(csvIndBtn);
               moreMenu.appendChild(certBtn);
             }
 
-            /* CSV também disponível para turma aberta */
-            if (!finalizada) {
-              var csvOpenBtn = document.createElement('button');
-              csvOpenBtn.className = 'btn btn--sm';
-              csvOpenBtn.style.cssText = 'padding:6px 10px;font-size:.72rem';
-              csvOpenBtn.innerHTML = '&#x2193; CSV';
-              csvOpenBtn.addEventListener('click', (function (tt, a, f, ck) {
-                return function () { exportTurmaCSV(tt, a, f, ck); };
-              })(t, all, finalizada, checkinT));
-              moreMenu.appendChild(csvOpenBtn);
-            }
+            /* + Participante e CSV — disponíveis em qualquer estado da turma:
+               a inscrição real acontece no CMFlex a qualquer momento, então o
+               admin precisa poder adicionar/confirmar gente independente de já
+               ter encerrado a captação de interesse no portal */
+            var addBtn = document.createElement('button');
+            addBtn.className = 'btn btn--sm';
+            addBtn.style.cssText = 'padding:6px 10px;font-size:.72rem';
+            addBtn.textContent = '＋ Participante';
+            addBtn.addEventListener('click', (function (tk) {
+              return function () { addParticipante(tk); };
+            })(t.key));
+            moreMenu.appendChild(addBtn);
+
+            var csvBtn = document.createElement('button');
+            csvBtn.className = 'btn btn--sm';
+            csvBtn.style.cssText = 'padding:6px 10px;font-size:.72rem';
+            csvBtn.innerHTML = '&#x2193; CSV';
+            csvBtn.addEventListener('click', (function (tt, a, f, ck) {
+              return function () { exportTurmaCSV(tt, a, f, ck); };
+            })(t, all, finalizada, checkinT));
+            moreMenu.appendChild(csvBtn);
 
             /* Editar (nome/datas) e Excluir turma — disponíveis sempre, aberta ou finalizada */
             var editTurmaBtn = document.createElement('button');
@@ -379,10 +375,8 @@
 
             if (!active.length) {
               body.innerHTML = '<p class="admin-empty">Nenhum participante ativo.</p>';
-            } else if (!finalizada) {
-              body.appendChild(buildInteressadosTable(active, t.key));
             } else {
-              body.appendChild(buildPresencaTable(t, inscritos, checkinT));
+              body.appendChild(buildParticipantesTable(t, active, checkinT, finalizada));
             }
 
             if (removed.length) {
@@ -404,97 +398,91 @@
     });
   }
 
-  /* Tabela simples de interessados (turma aberta) */
-  function buildInteressadosTable(records, turmaKey) {
-    var wrap = document.createElement('div');
-    wrap.className = 'table-scroll-wrap';
-    var tbl = '<table class="admin-table"><thead><tr><th>Nome</th><th>E-mail</th><th>Área</th><th>Data registro</th><th>Status</th><th></th></tr></thead><tbody>';
-    records.forEach(function (r) {
-      var ekey = emailKeyFromEmail(r.email);
-      tbl += '<tr><td>' + esc(r.name) + '</td><td>' + esc(r.email) + '</td><td>' +
-        esc(r.area || '—') + '</td><td>' + fmtDate(r.date) + '</td>' +
-        '<td><span class="status-badge status-interessado">Interessado</span></td>' +
-        '<td><button class="ck-remove-btn" data-turma="' + esc(turmaKey) + '" data-ekey="' + esc(ekey) + '" data-name="' + esc(r.name) + '">Remover</button></td></tr>';
-    });
-    wrap.innerHTML = tbl + '</tbody></table>';
-    wrap.addEventListener('click', function (e) {
-      var btn = e.target.closest('.ck-remove-btn');
-      if (!btn) return;
-      var sess = window.faAuth && window.faAuth.getSession();
-      adminConfirm('Remover ' + btn.dataset.name + ' da turma?\n\nEla sairá da lista de interessados.', function () {
-        var updates = { removed: true, removedDate: new Date().toISOString() };
-        if (sess) { updates.removedByAdmin = sess.email; updates.removedByAdminName = sess.name || sess.email; }
-        firebase.database().ref('turmas-interesse/' + btn.dataset.turma + '/' + btn.dataset.ekey).update(updates, function (err) {
-          if (!err) loadInterests();
-        });
-      });
-    });
-    return wrap;
-  }
-
-  /* Removidos de uma turma ainda aberta — só leitura, com o motivo quando houver */
-  function buildRemovedInteressadosTable(records) {
-    var wrap = document.createElement('div');
-    wrap.className = 'table-scroll-wrap';
-    var tbl = '<table class="admin-table"><thead><tr><th>Nome</th><th>E-mail</th><th>Área</th><th>Data remoção</th><th>Motivo</th></tr></thead><tbody>';
-    records.forEach(function (r) {
-      tbl += '<tr><td>' + esc(r.name) + '</td><td>' + esc(r.email) + '</td><td>' +
-        esc(r.area || '—') + '</td><td>' + fmtDate(r.removedDate) + '</td><td>' + esc(r.removedReason || 'Removida pelo admin') + '</td></tr>';
-    });
-    wrap.innerHTML = tbl + '</tbody></table>';
-    return wrap;
-  }
-
-  /* Tabela de presença por dia (turma finalizada) */
-  function buildPresencaTable(t, inscritos, checkinT) {
+  /* Tabela única de participantes — usada em qualquer estado da turma (aberta
+     ou com interesse encerrado). Confirmar/Desconfirmar/Adicionar/Remover não
+     dependem de a turma estar encerrada: a inscrição real acontece no CMFlex,
+     que não espera o portal fechar a captação de interesse. As colunas de
+     presença/frequência só aparecem quando finalizada, porque o check-in em
+     si (abrir dia, escanear QR) continua exclusivo de turma com interesse
+     encerrado. */
+  function buildParticipantesTable(t, records, checkinT, finalizada) {
     var minDias = Math.ceil(t.dias.length * CRITERIO_PRESENCA);
     var wrap = document.createElement('div');
     wrap.className = 'table-scroll-wrap';
 
-    var tbl = '<table class="admin-table presenca-table"><thead><tr>' +
+    var tbl = '<table class="admin-table' + (finalizada ? ' presenca-table' : '') + '"><thead><tr>' +
       '<th>Nome</th><th>E-mail</th><th>Área</th><th>Status</th>';
-    t.dias.forEach(function (d) {
-      tbl += '<th class="dia-th">' + fmtDia(d) + '</th>';
-    });
-    tbl += '<th>Freq.</th><th></th></tr></thead><tbody>';
+    if (finalizada) {
+      t.dias.forEach(function (d) { tbl += '<th class="dia-th">' + fmtDia(d) + '</th>'; });
+      tbl += '<th>Freq.</th>';
+    } else {
+      tbl += '<th>Data registro</th>';
+    }
+    tbl += '<th></th></tr></thead><tbody>';
 
-    inscritos.forEach(function (r) {
+    records.forEach(function (r) {
       var eKey = emailKeyFromEmail(r.email);
-      var diasPresente = 0;
-      var cells = t.dias.map(function (d) {
-        var ck = checkinT[d] && checkinT[d][eKey];
-        if (ck) {
-          diasPresente++;
-          var ra = 'data-turma="' + t.key + '" data-dia="' + d + '" data-ekey="' + eKey + '" data-name="' + esc(r.name) + '"';
-          var badge = ck.source === 'admin'
-            ? '<button class="ck-badge ck-adm ck-undo-btn" title="Remover presença (admin)" ' + ra + '>✓ adm</button>'
-            : '<button class="ck-badge ck-qr ck-undo-btn" title="Remover presença (QR)" ' + ra + '>✓ qr</button>';
-          return '<td class="dia-cell">' + badge + '</td>';
-        }
-        /* botão para registrar retroativo */
-        return '<td class="dia-cell"><button class="ck-manual-btn" ' +
-          'data-turma="' + t.key + '" data-dia="' + d + '" ' +
-          'data-ekey="' + eKey + '" data-name="' + esc(r.name) + '" ' +
-          'data-email="' + esc(r.email) + '" data-area="' + esc(r.area || '') + '"' +
-          '>—</button></td>';
-      });
+      var isInscrito = r.status === 'inscrito';
+      var statusCell = '<td><span class="status-badge ' + (isInscrito ? 'status-inscrito">Inscrito' : 'status-interessado">Interessado') + '</span></td>';
 
-      var freq = diasPresente + '/' + t.dias.length;
-      var atingiu = diasPresente >= minDias;
-      var freqClass = atingiu ? 'freq-ok' : 'freq-nok';
+      var midCells;
+      if (finalizada) {
+        if (!isInscrito) {
+          midCells = t.dias.map(function () { return '<td class="dia-cell">—</td>'; }).join('') + '<td>—</td>';
+        } else {
+          var diasPresente = 0;
+          var cells = t.dias.map(function (d) {
+            var ck = checkinT[d] && checkinT[d][eKey];
+            if (ck) {
+              diasPresente++;
+              var ra = 'data-turma="' + t.key + '" data-dia="' + d + '" data-ekey="' + eKey + '" data-name="' + esc(r.name) + '"';
+              var badge = ck.source === 'admin'
+                ? '<button class="ck-badge ck-adm ck-undo-btn" title="Remover presença (admin)" ' + ra + '>✓ adm</button>'
+                : '<button class="ck-badge ck-qr ck-undo-btn" title="Remover presença (QR)" ' + ra + '>✓ qr</button>';
+              return '<td class="dia-cell">' + badge + '</td>';
+            }
+            /* botão para registrar retroativo */
+            return '<td class="dia-cell"><button class="ck-manual-btn" ' +
+              'data-turma="' + t.key + '" data-dia="' + d + '" ' +
+              'data-ekey="' + eKey + '" data-name="' + esc(r.name) + '" ' +
+              'data-email="' + esc(r.email) + '" data-area="' + esc(r.area || '') + '"' +
+              '>—</button></td>';
+          });
+          var freq = diasPresente + '/' + t.dias.length;
+          var atingiu = diasPresente >= minDias;
+          var freqClass = atingiu ? 'freq-ok' : 'freq-nok';
+          midCells = cells.join('') + '<td><span class="' + freqClass + '">' + freq + '</span></td>';
+        }
+      } else {
+        midCells = '<td>' + fmtDate(r.date) + '</td>';
+      }
+
+      var actionBtn = isInscrito
+        ? '<button class="cf-unconfirm-btn" data-turma="' + t.key + '" data-ekey="' + eKey + '" data-name="' + esc(r.name) + '">Desconfirmar</button>'
+        : '<button class="cf-confirm-btn" data-turma="' + t.key + '" data-ekey="' + eKey + '" data-name="' + esc(r.name) + '" data-email="' + esc(r.email) + '">Confirmar</button>';
 
       tbl += '<tr><td>' + esc(r.name) + '</td><td>' + esc(r.email) + '</td><td>' +
-        esc(r.area || '—') + '</td>' +
-        '<td><span class="status-badge status-inscrito">Inscrito</span></td>' + cells.join('') +
-        '<td><span class="' + freqClass + '">' + freq + '</span></td>' +
-        '<td><button class="ck-remove-btn" data-turma="' + t.key + '" data-ekey="' + eKey + '" data-name="' + esc(r.name) + '">Remover</button></td></tr>';
+        esc(r.area || '—') + '</td>' + statusCell + midCells +
+        '<td class="turma-row-actions">' + actionBtn +
+          '<button class="ck-remove-btn" data-turma="' + t.key + '" data-ekey="' + eKey + '" data-name="' + esc(r.name) + '">Remover</button>' +
+        '</td></tr>';
     });
 
     tbl += '</tbody></table>';
     wrap.innerHTML = tbl;
 
-    /* delegação de eventos para desfazer check-in, check-in manual e remoção */
+    /* delegação de eventos: confirmar/desconfirmar, desfazer check-in, check-in manual, remoção */
     wrap.addEventListener('click', function (e) {
+      var confirmBtn = e.target.closest('.cf-confirm-btn');
+      if (confirmBtn) {
+        confirmarInscrito(confirmBtn.dataset.turma, confirmBtn.dataset.ekey, { name: confirmBtn.dataset.name, email: confirmBtn.dataset.email });
+        return;
+      }
+      var unconfirmBtn = e.target.closest('.cf-unconfirm-btn');
+      if (unconfirmBtn) {
+        desconfirmarInscrito(unconfirmBtn.dataset.turma, unconfirmBtn.dataset.ekey, unconfirmBtn.dataset.name);
+        return;
+      }
       var undoBtn = e.target.closest('.ck-undo-btn');
       if (undoBtn) {
         adminConfirm('Remover presença de ' + undoBtn.dataset.name + ' em ' + fmtDia(undoBtn.dataset.dia) + '?', function () {
@@ -515,7 +503,7 @@
       var remBtn = e.target.closest('.ck-remove-btn');
       if (remBtn) {
         var sess2 = window.faAuth && window.faAuth.getSession();
-        adminConfirm('Remover ' + remBtn.dataset.name + ' da turma?\n\nEla sairá da lista de inscritos.', function () {
+        adminConfirm('Remover ' + remBtn.dataset.name + ' da turma?\n\nEla sairá da lista.', function () {
           var updates = { removed: true, removedDate: new Date().toISOString() };
           if (sess2) { updates.removedByAdmin = sess2.email; updates.removedByAdminName = sess2.name || sess2.email; }
           firebase.database().ref('turmas-interesse/' + remBtn.dataset.turma + '/' + remBtn.dataset.ekey).update(updates, function (err) {
@@ -525,6 +513,19 @@
       }
     });
 
+    return wrap;
+  }
+
+  /* Removidos de uma turma ainda aberta — só leitura, com o motivo quando houver */
+  function buildRemovedInteressadosTable(records) {
+    var wrap = document.createElement('div');
+    wrap.className = 'table-scroll-wrap';
+    var tbl = '<table class="admin-table"><thead><tr><th>Nome</th><th>E-mail</th><th>Área</th><th>Data remoção</th><th>Motivo</th></tr></thead><tbody>';
+    records.forEach(function (r) {
+      tbl += '<tr><td>' + esc(r.name) + '</td><td>' + esc(r.email) + '</td><td>' +
+        esc(r.area || '—') + '</td><td>' + fmtDate(r.removedDate) + '</td><td>' + esc(r.removedReason || 'Removida pelo admin') + '</td></tr>';
+    });
+    wrap.innerHTML = tbl + '</tbody></table>';
     return wrap;
   }
 
@@ -575,9 +576,8 @@
     return (email || '').toLowerCase().replace(/[@.]/g, '_').replace(/[^a-z0-9_]/g, '').slice(0, 64);
   }
 
-  function getStatus(r, finalizada) {
-    if (r.status === 'inscrito' || finalizada) return 'inscrito';
-    return 'interessado';
+  function getStatus(r) {
+    return r.status === 'inscrito' ? 'inscrito' : 'interessado';
   }
 
   /* ---- Check-in actions ---- */
@@ -735,6 +735,7 @@
     box.innerHTML =
       '<h3 style="font-size:1.1rem;font-family:var(--font-head);letter-spacing:.05em;color:var(--ink)">' + (isEdit ? 'Editar Turma' : 'Nova Turma') + '</h3>' +
       '<label class="auth-label">Nome da turma<input type="text" id="turmaFormLabel" placeholder="Ex: Turma 4 — Janeiro" autocomplete="off" /></label>' +
+      '<label class="auth-label">Link do CMFlex <span style="opacity:.6;font-weight:400">(opcional)</span><input type="url" id="turmaFormCmflex" placeholder="https://..." autocomplete="off" /></label>' +
       '<div>' +
         '<span class="auth-label" style="display:block;margin-bottom:8px">Datas dos encontros</span>' +
         '<div id="turmaDatesList" style="display:flex;flex-direction:column;gap:8px;"></div>' +
@@ -749,11 +750,13 @@
     overlay.appendChild(box);
     document.body.appendChild(overlay);
 
-    var labelInput = box.querySelector('#turmaFormLabel');
-    var datesList  = box.querySelector('#turmaDatesList');
-    var errEl      = box.querySelector('#turmaFormErr');
+    var labelInput  = box.querySelector('#turmaFormLabel');
+    var cmflexInput = box.querySelector('#turmaFormCmflex');
+    var datesList   = box.querySelector('#turmaDatesList');
+    var errEl       = box.querySelector('#turmaFormErr');
 
     labelInput.value = isEdit ? existing.label : '';
+    cmflexInput.value = isEdit ? (existing.cmflexLink || '') : '';
 
     function addDateRow(value) {
       var row = document.createElement('div');
@@ -781,6 +784,7 @@
 
     box.querySelector('.admin-modal-save-btn').addEventListener('click', function () {
       var label = (labelInput.value || '').trim();
+      var cmflexLink = (cmflexInput.value || '').trim();
       var dias = Array.prototype.map.call(datesList.querySelectorAll('input[type=date]'), function (i) { return i.value; })
         .filter(Boolean).sort();
 
@@ -788,7 +792,7 @@
       if (!label) { errEl.textContent = 'Dê um nome pra turma.'; errEl.style.display = ''; return; }
       if (!dias.length) { errEl.textContent = 'Adicione pelo menos uma data.'; errEl.style.display = ''; return; }
 
-      var data = { label: label, dias: dias };
+      var data = { label: label, dias: dias, cmflexLink: cmflexLink };
       if (isEdit) {
         firebase.database().ref('turmas/' + existing.key).update(data, function (err) {
           if (err) { errEl.textContent = 'Erro ao salvar. Tente novamente.'; errEl.style.display = ''; return; }
@@ -850,24 +854,51 @@
     });
   }
 
-  function finalizeTurma(turmaKey, turmaData) {
-    var candidatos = Object.keys(turmaData).filter(function (eKey) {
-      var r = turmaData[eKey];
-      return !r.removed && r.status !== 'presente';
-    });
+  /* Encerrar interesse só fecha a captação pro público e libera check-in/certificados —
+     não promove mais ninguém a inscrito automaticamente. A inscrição oficial agora
+     acontece no CMFlex, fora do portal; quem de fato se inscreveu lá é confirmado
+     manualmente, pessoa por pessoa (ver confirmarInscrito). */
+  function finalizeTurma(turmaKey) {
+    adminConfirm(
+      'Encerrar o interesse da turma "' + turmaLabel(turmaKey) + '"?\n\n' +
+      'O card público vai parar de aceitar novo interesse e passa a orientar as pessoas pra se inscreverem no CMFlex. ' +
+      'Ninguém vira inscrita automaticamente — você confirma cada pessoa manualmente depois, quando souber que ela se inscreveu de fato no CMFlex.',
+      function () {
+        firebase.database().ref('turmas-config/' + turmaKey + '/finalizada').set(true, function (err) {
+          if (err) { adminAlert('Erro ao encerrar. Tente novamente.'); return; }
+          loadInterests();
+        });
+      }
+    );
+  }
 
-    checkOutrasTurmas(turmaKey, candidatos, function (overlaps) {
-      var msg = 'Finalizar inscrição da turma "' + turmaLabel(turmaKey) + '"?\n\nTodos os interessados virarão inscritos e a turma será bloqueada para novos interessados.';
+  function reopenTurma(turmaKey) {
+    adminConfirm('Reabrir o interesse da turma "' + turmaLabel(turmaKey) + '"?\n\nO card volta a aceitar novas manifestações de interesse. Quem já foi confirmado como inscrito continua inscrito.', function () {
+      var updates = {};
+      updates['turmas-config/' + turmaKey + '/finalizada'] = false;
+      updates['turmas-config/' + turmaKey + '/diaAtivo']   = null;
+      firebase.database().ref().update(updates, function (err) {
+        if (err) { adminAlert('Erro ao reabrir. Tente novamente.'); return; }
+        loadInterests();
+      });
+    });
+  }
+
+  /* ---- Confirmar / Desconfirmar inscrição no CMFlex (por pessoa) ---- */
+  function confirmarInscrito(turmaKey, eKey, pessoa) {
+    checkOutrasTurmas(turmaKey, [eKey], function (overlaps) {
+      var msg = 'Confirmar que ' + pessoa.name + ' se inscreveu no CMFlex para "' + turmaLabel(turmaKey) + '"?\n\nEla passa a ter acesso a Conteúdos, Treinamento Jedi e pode registrar presença.';
       if (overlaps.length) {
-        var lista = overlaps.map(function (o) { return '• ' + o.name + ' — também interessada na "' + turmaLabel(o.turma) + '"'; }).join('\n');
-        msg += '\n\nAs pessoas abaixo também estão interessadas em outra turma. Se continuar, o interesse delas nas outras turmas será removido automaticamente (ninguém pode ficar inscrita em mais de uma):\n\n' + lista;
+        var lista = overlaps.map(function (o) { return '• também interessada na "' + turmaLabel(o.turma) + '"'; }).join('\n');
+        msg += '\n\nEla também está interessada em outra turma. Se continuar, esse outro interesse será removido automaticamente (ninguém pode ficar inscrita em mais de uma):\n\n' + lista;
       }
       adminConfirm(msg, function () {
+        var sess = window.faAuth && window.faAuth.getSession();
         var updates = {};
-        updates['turmas-config/' + turmaKey + '/finalizada'] = true;
-        candidatos.forEach(function (eKey) {
-          updates['turmas-interesse/' + turmaKey + '/' + eKey + '/status'] = 'inscrito';
-        });
+        updates['turmas-interesse/' + turmaKey + '/' + eKey + '/status'] = 'inscrito';
+        updates['turmas-interesse/' + turmaKey + '/' + eKey + '/confirmedByAdmin'] = sess ? sess.email : null;
+        updates['turmas-interesse/' + turmaKey + '/' + eKey + '/confirmedByAdminName'] = sess ? (sess.name || sess.email) : null;
+        updates['turmas-interesse/' + turmaKey + '/' + eKey + '/confirmedDate'] = new Date().toISOString();
         var now = new Date().toISOString();
         overlaps.forEach(function (o) {
           updates['turmas-interesse/' + o.turma + '/' + o.eKey + '/removed'] = true;
@@ -875,26 +906,22 @@
           updates['turmas-interesse/' + o.turma + '/' + o.eKey + '/removedReason'] = 'Inscrita automaticamente na turma "' + turmaLabel(turmaKey) + '"';
         });
         firebase.database().ref().update(updates, function (err) {
-          if (err) { adminAlert('Erro ao finalizar. Tente novamente.'); return; }
+          if (err) { adminAlert('Erro ao confirmar. Tente novamente.'); return; }
           loadInterests();
         });
       });
     });
   }
 
-  function reopenTurma(turmaKey, turmaData) {
-    adminConfirm('Reabrir a turma "' + turmaLabel(turmaKey) + '"?\n\nInscritos voltarão ao status interessado e novas inscrições serão permitidas.', function () {
+  function desconfirmarInscrito(turmaKey, eKey, nome) {
+    adminConfirm('Desconfirmar a inscrição de ' + nome + ' em "' + turmaLabel(turmaKey) + '"?\n\nEla perde na hora o acesso a Conteúdos, Treinamento Jedi e não poderá mais registrar presença. Continua como interessada na turma.', function () {
       var updates = {};
-      updates['turmas-config/' + turmaKey + '/finalizada'] = false;
-      updates['turmas-config/' + turmaKey + '/diaAtivo']   = null;
-      Object.keys(turmaData).forEach(function (eKey) {
-        var r = turmaData[eKey];
-        if (!r.removed && r.status === 'inscrito') {
-          updates['turmas-interesse/' + turmaKey + '/' + eKey + '/status'] = 'interessado';
-        }
-      });
+      updates['turmas-interesse/' + turmaKey + '/' + eKey + '/status'] = 'interessado';
+      updates['turmas-interesse/' + turmaKey + '/' + eKey + '/confirmedByAdmin'] = null;
+      updates['turmas-interesse/' + turmaKey + '/' + eKey + '/confirmedByAdminName'] = null;
+      updates['turmas-interesse/' + turmaKey + '/' + eKey + '/confirmedDate'] = null;
       firebase.database().ref().update(updates, function (err) {
-        if (err) { adminAlert('Erro ao reabrir. Tente novamente.'); return; }
+        if (err) { adminAlert('Erro ao desconfirmar. Tente novamente.'); return; }
         loadInterests();
       });
     });
@@ -1021,7 +1048,7 @@
     var active = all.filter(function (r) { return r.removed !== true; });
     active.forEach(function (r) {
       var eKey = emailKeyFromEmail(r.email);
-      var st = getStatus(r, finalizada);
+      var st = getStatus(r);
       var addedBy = r.addedByAdmin === true ? (r.addedByAdminName || 'Admin') : '';
       var row = [t.label, r.name||'', r.email||'', r.area||'', st,
         r.date ? new Date(r.date).toLocaleString('pt-BR') : '', addedBy];
@@ -1055,7 +1082,7 @@
       var active = all.filter(function (r) { return r.removed !== true; });
       active.forEach(function (r) {
         var eKey = emailKeyFromEmail(r.email);
-        var st = getStatus(r, finalizada);
+        var st = getStatus(r);
         var diasPresente = 0;
         t.dias.forEach(function (d) { if (checkinT[d] && checkinT[d][eKey]) diasPresente++; });
         rows.push([t.label, r.name||'', r.email||'', r.area||'', st,

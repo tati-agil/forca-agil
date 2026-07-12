@@ -15,7 +15,7 @@
     { key: 'logado',  label: 'Usuário logado (sem turma)', color: '#1ab2ae',
       adds: ['Acessar o Repositório', 'Adicionar conteúdos e remover os próprios no Repositório', 'Manifestar interesse em quantas turmas existirem (sem limite fixo)', 'Remover interesse em turmas'] },
     { key: 'inscrito', label: 'Usuário inscrito (turma confirmada)', color: '#4caf7d',
-      adds: ['Acessar Conteúdos', 'Acessar Treinamento Jedi (autodiagnóstico 0–60)', 'Revelar patente (resultado fixo e bloqueado — não pode refazer sem reset do admin)', 'Vê apenas o card da própria turma na página Turmas — sem botões de interesse'] },
+      adds: ['Acessar Conteúdos', 'Acessar Treinamento Jedi (autodiagnóstico 0–60)', 'Revelar patente (resultado fixo e bloqueado — não pode refazer sem reset do admin)'] },
     { key: 'admin',   label: 'Admin',          color: '#ff5252',
       adds: ['Acessar o Painel Admin', 'Criar, editar (nome/datas) e excluir turmas', 'Ver todos os cadastrados', 'Ver interessados por turma', 'Moderar Repositório (ocultar/restaurar/deletar)', 'Resetar progresso de qualquer cadastrado', 'Enviar e-mail de redefinição de senha para qualquer cadastrado', 'Gerenciar lista de admins (apenas tatianefdirene e danielfrazao — restrito por regra Firebase)'] },
   ];
@@ -30,22 +30,24 @@
         { label: 'Aba Turmas — excluir turma (apaga turma e todos os dados ligados a ela)', p: ['admin'] },
         { label: 'Expandir tudo — abre de uma vez os itens retráteis da aba ativa', p: ['admin'] },
         { label: 'Recolher tudo — fecha de uma vez os itens retráteis da aba ativa', p: ['admin'] },
-        { label: 'Aba Turmas — finalizar inscrição da turma', p: ['admin'] },
-        { label: 'Aba Turmas — ao finalizar, avisa se alguém também está interessada em outra turma e, se confirmado, remove o interesse dela nas outras automaticamente', p: ['admin'] },
-        { label: 'Aba Turmas — reabrir turma', p: ['admin'] },
+        { label: 'Aba Turmas — cadastrar/editar link do CMFlex por turma (inscrição oficial externa)', p: ['admin'] },
+        { label: 'Aba Turmas — encerrar interesse da turma (card público passa a orientar pro CMFlex)', p: ['admin'] },
+        { label: 'Aba Turmas — confirmar inscrição de um interessado a qualquer momento, turma aberta ou com interesse encerrado (marca como Inscrito, avisa e remove interesse em outras turmas se houver sobreposição)', p: ['admin'] },
+        { label: 'Aba Turmas — desconfirmar inscrição de um inscrito a qualquer momento, turma aberta ou com interesse encerrado (volta a Interessado, perde acesso na hora)', p: ['admin'] },
+        { label: 'Aba Turmas — reabrir interesse da turma (sem mexer em confirmações já feitas)', p: ['admin'] },
         { label: 'Aba Turmas — abrir check-in do dia', p: ['admin'] },
         { label: 'Aba Turmas — fechar check-in do dia', p: ['admin'] },
         { label: 'Aba Turmas — gerar QR Code da turma', p: ['admin'] },
         { label: 'Aba Turmas — tabela de presença, registro manual', p: ['admin'] },
         { label: 'Aba Turmas — tabela de presença, remoção manual', p: ['admin'] },
-        { label: 'Aba Turmas — adicionar participante manualmente', p: ['admin'] },
-        { label: 'Aba Turmas — remover inscrito', p: ['admin'] },
-        { label: 'Aba Turmas — gerar certificados de participação', p: ['admin'] },
+        { label: 'Aba Turmas — adicionar participante já inscrito manualmente, turma aberta ou com interesse encerrado', p: ['admin'] },
+        { label: 'Aba Turmas — remover participante (interessado ou inscrito), turma aberta ou com interesse encerrado', p: ['admin'] },
+        { label: 'Aba Turmas — gerar certificados de participação (apenas inscritos confirmados)', p: ['admin'] },
         { label: 'Aba Turmas — exportar CSV Estado Atual (todas as turmas)', p: ['admin'] },
         { label: 'Aba Turmas — exportar CSV Histórico (todas as turmas)', p: ['admin'] },
         { label: 'Aba Turmas — exportar CSV individual de uma turma', p: ['admin'] },
         { label: 'Aba Turmas — consultar interessados/inscritos (nome, e-mail, área, data de registro)', p: ['admin'] },
-        { label: 'Aba Turmas — consultar removidos, com histórico de presença preservado (turma finalizada)', p: ['admin'] },
+        { label: 'Aba Turmas — consultar removidos, com histórico de presença preservado quando eram inscritos (interesse encerrado)', p: ['admin'] },
         { label: 'Aba Repositório — listar todos os conteúdos (título, tipo/autor, indicado por ou data de envio)', p: ['admin'] },
         { label: 'Aba Repositório — ocultar conteúdo curado', p: ['admin'] },
         { label: 'Aba Repositório — restaurar conteúdo curado', p: ['admin'] },
@@ -164,11 +166,12 @@
     },
     { label: 'TURMAS', color: '#f5c542',
       features: [
-        { label: 'Lista de turmas disponíveis, com nome, mês, datas e descrição da oficina',  p: ['visitante','logado','admin'] },
+        { label: 'Grid com um card por turma cadastrada — mesmo conjunto de cards para todos os perfis (visitante, logado, inscrito ou admin); o que muda é o estado de cada turma, não quem está olhando', p: ['visitante','logado','inscrito','admin'] },
+        { label: 'Card de turma com interesse aberto — nome, mês, datas e botão "Tenho interesse"', p: ['visitante','logado','inscrito','admin'] },
+        { label: 'Botão de interesse por turma ("Tenho interesse" / "Remover interesse") — exige login para registrar', p: ['logado','inscrito','admin'] },
+        { label: 'Card de turma com interesse encerrado — orientação de inscrição e botão "Ir para o CMFlex →" (link cadastrado pelo admin por turma)', p: ['visitante','logado','inscrito','admin'] },
         { label: 'Bloco "Como funciona a oficina" (métricas + descrição)', p: ['visitante','logado','inscrito','admin'] },
         { label: 'Agenda D1–D5 (itens estáticos)', p: ['visitante','logado','inscrito','admin'] },
-        { label: 'Botão de interesse por turma ("Tenho interesse" / "Remover interesse")', p: ['logado','admin'] },
-        { label: 'Card de turma confirmada, com nome, mês/período e dias', p: ['inscrito','admin'] },
       ]
     },
   ];
@@ -248,8 +251,7 @@
     var ACESSO = [
       { label: 'Início',                     access: { visitante: true,  logado: true,  inscrito: true,  admin: true  } },
       { label: 'Ajuda',                       access: { visitante: true,  logado: true,  inscrito: true,  admin: true  } },
-      { label: 'Turmas — lista completa',     access: { visitante: true,  logado: true,  inscrito: false, admin: true  } },
-      { label: 'Turmas — só a confirmada',    access: { visitante: false, logado: false, inscrito: true,  admin: false } },
+      { label: 'Turmas',                       access: { visitante: true,  logado: true,  inscrito: true,  admin: true  } },
       { label: 'Repositório',                 access: { visitante: false, logado: true,  inscrito: true,  admin: true  } },
       { label: 'Conteúdos',                   access: { visitante: false, logado: false, inscrito: true,  admin: true  } },
       { label: 'Treinamento Jedi',            access: { visitante: false, logado: false, inscrito: true,  admin: true  } },
@@ -264,7 +266,7 @@
       html += '</tr>';
     });
     html += '</tbody></table></div>';
-    html += '<p class="mapa-sub" style="margin-top:10px">"Turmas" é a única página com comportamento diferente por perfil em vez de simplesmente aparecer ou não: quem ainda não confirmou turma vê a lista completa das turmas abertas; quem já confirmou vê só o card da própria turma.</p>';
+    html += '<p class="mapa-sub" style="margin-top:10px">"Turmas" mostra o mesmo grid de cards para todos os perfis — o que muda de um card para outro é o estado da turma (interesse aberto ou encerrado/CMFlex), nunca quem está olhando.</p>';
 
     /* ── Mapa do site ── */
     var totalPaginas = PAGES.length;
@@ -334,7 +336,7 @@
         label: 'Tecnologias & Serviços', color: '#1ab2ae',
         items: [
           { name: 'Firebase Authentication', desc: 'Login e cadastro por e-mail/senha. Redefinição de senha via link automático. Gratuito (Spark plan)' },
-          { name: 'Firebase Realtime Database', desc: '8 estruturas principais (equivalente a tabelas):\n• fa-users — perfil de cada cadastrado\n• fa-holocron — conteúdos enviados no Repositório\n• fa-admins — lista de quem é admin\n• turmas/<turma> — nome e datas dos encontros de cada turma; criada/editada/excluída pelo admin (não são mais fixas em código)\n• turmas-interesse/<turma>/<emailKey> — interessados/inscritos de cada turma\n• turmas-interesse-log/<turma>/<emailKey> — histórico de quem registrou/removeu interesse, e quando\n• turmas-config/<turma> — configuração da turma (finalizada, dia de check-in ativo)\n• turmas-checkin/<turma>/<data>/<emailKey> — presença registrada em cada dia\n\nRegras de segurança (4 regras):\n• Ninguém lê ou escreve na raiz do banco diretamente\n• Toda ação autenticada exige e-mail @previ.com.br — validado no servidor, não só na tela\n• Qualquer admin @previ.com.br pode fazer tudo no painel\n• Só tatianefdirene e danielfrazao podem adicionar/remover admins' },
+          { name: 'Firebase Realtime Database', desc: '8 estruturas principais (equivalente a tabelas):\n• fa-users — perfil de cada cadastrado\n• fa-holocron — conteúdos enviados no Repositório\n• fa-admins — lista de quem é admin\n• turmas/<turma> — nome, datas dos encontros e link do CMFlex de cada turma; criada/editada/excluída pelo admin (não são mais fixas em código)\n• turmas-interesse/<turma>/<emailKey> — interessados/inscritos de cada turma; status vira "inscrito" só quando o admin confirma manualmente que a pessoa se inscreveu no CMFlex\n• turmas-interesse-log/<turma>/<emailKey> — histórico de quem registrou/removeu interesse, e quando\n• turmas-config/<turma> — configuração da turma (finalizada, dia de check-in ativo)\n• turmas-checkin/<turma>/<data>/<emailKey> — presença registrada em cada dia\n\nRegras de segurança (4 regras):\n• Ninguém lê ou escreve na raiz do banco diretamente\n• Toda ação autenticada exige e-mail @previ.com.br — validado no servidor, não só na tela\n• Qualquer admin @previ.com.br pode fazer tudo no painel\n• Só tatianefdirene e danielfrazao podem adicionar/remover admins' },
           { name: 'Firebase Hosting',        desc: 'Hospedagem em kyber-agil.web.app (produção/main). CDN global, HTTPS automático' },
         ]
       },

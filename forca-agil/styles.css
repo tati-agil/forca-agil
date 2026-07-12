@@ -646,6 +646,10 @@ html:not(.js) .reveal { opacity: 1 !important; transform: none !important; }
 .btn--interest:hover { background: var(--accent); color: var(--bg); }
 .btn--interest.done { opacity: .6; cursor: default; }
 .turma-intent-msg { font-size: .78rem; color: var(--ink-3); font-family: var(--font-mono); min-height: 1em; }
+.turma-cmflex-msg { font-size: .85rem; color: var(--ink-2); margin: 2px 0 4px; line-height: 1.5; }
+.turma-cmflex-msg strong { color: var(--ink); display: block; margin-bottom: 2px; }
+.btn--cmflex { display: inline-block; text-align: center; text-decoration: none; margin-top: 6px; padding: 8px 14px; font-family: var(--font-mono); font-size: .72rem; letter-spacing: .1em; text-transform: uppercase; color: var(--accent); background: transparent; border: 1px solid var(--accent); border-radius: 8px; cursor: pointer; transition: background .2s, color .2s; }
+.btn--cmflex:hover { background: var(--accent); color: var(--bg); }
 .turmas { display: grid; grid-template-columns: repeat(3,1fr); gap: 16px; margin-top: 44px; }
 .turma { text-align: center; padding: 28px 20px; border-radius: 14px; border: 1px solid var(--line); background: linear-gradient(180deg, var(--panel), var(--panel-2)); transition: transform .25s var(--ease), border-color .25s; }
 /* hover removido — turma decorativa */

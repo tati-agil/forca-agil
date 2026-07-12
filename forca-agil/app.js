@@ -260,17 +260,32 @@
   /* ---- Turma interest buttons ---- */
   document.addEventListener('DOMContentLoaded', function () {
 
-    /* Turmas não são mais fixas (t1/t2/t3 cravadas) — vêm de turmas/ no Firebase,
-       criadas/editadas/excluídas pelo admin. */
-    var _turmasList = []; // [{ key, label, dias }], na ordem de criação
+    /* Turmas não são mais fixas — vêm de turmas/ no Firebase, criadas/editadas/
+       excluídas pelo admin. A inscrição oficial agora acontece fora do portal,
+       no CMFlex: quando o admin encerra o interesse de uma turma, o card dela
+       passa a orientar pro CMFlex — igual pra todo mundo, sem distinguir quem
+       já foi confirmado como inscrito (não existe mais um card único de
+       "turma confirmada" substituindo o grid inteiro). */
+    var _turmasList = []; // [{ key, label, dias, cmflexLink, finalizada }]
 
     function loadTurmas(cb) {
-      firebase.database().ref('turmas').once('value', function (snap) {
+      var db = firebase.database();
+      db.ref('turmas').once('value', function (snap) {
         var val = snap.val() || {};
-        _turmasList = Object.keys(val).map(function (key) {
-          return { key: key, label: val[key].label || key.toUpperCase(), dias: val[key].dias || [], order: val[key].order || 0 };
-        }).sort(function (a, b) { return a.order - b.order; });
-        cb(_turmasList);
+        db.ref('turmas-config').once('value', function (cfgSnap) {
+          var cfg = cfgSnap.val() || {};
+          _turmasList = Object.keys(val).map(function (key) {
+            return {
+              key: key,
+              label: val[key].label || key.toUpperCase(),
+              dias: val[key].dias || [],
+              order: val[key].order || 0,
+              cmflexLink: val[key].cmflexLink || '',
+              finalizada: !!(cfg[key] && cfg[key].finalizada)
+            };
+          }).sort(function (a, b) { return a.order - b.order; });
+          cb(_turmasList);
+        });
       });
     }
 
@@ -283,6 +298,22 @@
       }
       grid.innerHTML = _turmasList.map(function (t) {
         var fmt = window.faTurmasUtil.formatDias(t.dias);
+
+        if (t.finalizada) {
+          var cmflexBtn = t.cmflexLink
+            ? '<a class="btn--cmflex" href="' + t.cmflexLink + '" target="_blank" rel="noopener">Ir para o CMFlex →</a>'
+            : '<div class="turma-intent-msg">Link do CMFlex ainda não disponível — consulte a organização.</div>';
+          return (
+            '<div class="turma-card-new reveal in">' +
+              '<span class="tc-label">' + t.label + '</span>' +
+              '<div class="tc-month">' + fmt.mes + '</div>' +
+              '<div class="tc-dates">' + fmt.dates + '</div>' +
+              '<div class="turma-cmflex-msg"><strong>Faça sua inscrição no CMFlex</strong>As inscrições desta turma agora devem ser feitas diretamente no sistema oficial.</div>' +
+              cmflexBtn +
+            '</div>'
+          );
+        }
+
         return (
           '<div class="turma-card-new reveal in">' +
             '<span class="tc-label">' + t.label + '</span>' +
@@ -295,52 +326,11 @@
       }).join('');
     }
 
-    function buildEnrolledCard(turmaKey) {
-      var t = _turmasList.filter(function (x) { return x.key === turmaKey; })[0];
-      var fmt = window.faTurmasUtil.formatDias(t ? t.dias : []);
-      var label = t ? t.label : turmaKey.toUpperCase();
-      var grid = document.querySelector('.turmas-grid');
-      if (!grid) return;
-      grid.innerHTML =
-        '<div class="turma-card-new turma-card-enrolled reveal in">' +
-          '<span class="tc-label">' + label + '</span>' +
-          '<div class="tc-month">' + fmt.mes + ' — <span style="color:var(--cyan);font-weight:600">CONFIRMADA</span></div>' +
-          '<div class="tc-dates">' + fmt.dates + '</div>' +
-        '</div>';
-    }
-
-    function checkAllEnrollments(sess, cb) {
-      /* Verifica se o usuário está inscrito em alguma das turmas existentes */
-      var key = emailKey(sess.email);
-      var turmaKeys = _turmasList.map(function (t) { return t.key; });
-      if (!turmaKeys.length) { cb(null); return; }
-      var found = null;
-      var done = 0;
-      turmaKeys.forEach(function (t) {
-        firebase.database().ref('turmas-interesse/' + t + '/' + key).once('value', function (snap) {
-          done++;
-          var val = snap.val();
-          if (val && !val.removed && val.status === 'inscrito') found = t;
-          if (done === turmaKeys.length) cb(found);
-        });
-      });
-    }
-
     function initTurmaInterest() {
       var sess = window.faAuth && window.faAuth.getSession();
       loadTurmas(function () {
         renderTurmasGrid();
-        if (sess) {
-          checkAllEnrollments(sess, function (enrolledTurma) {
-            if (enrolledTurma) {
-              buildEnrolledCard(enrolledTurma);
-              return;
-            }
-            initInterestButtons(sess);
-          });
-        } else {
-          initInterestButtons(null);
-        }
+        initInterestButtons(sess);
       });
     }
 
@@ -349,14 +339,7 @@
         const turmaKey = btn.dataset.turma;
         if (!turmaKey) return;
 
-        if (sess) {
-          checkInterestState(btn, turmaKey, sess.email);
-        } else {
-          /* Mudança 4: para não logados, verificar se turma está fechada */
-          firebase.database().ref('turmas-config/' + turmaKey + '/finalizada').once('value', function (cfgSnap) {
-            if (cfgSnap.val()) setBlocked(btn, turmaKey);
-          });
-        }
+        if (sess) checkInterestState(btn, turmaKey, sess.email);
 
         /* Evita empilhar listeners duplicados quando initTurmaInterest roda de novo
            (revisita à página Turmas ou login/logout) — o botão é o mesmo elemento DOM */
@@ -366,8 +349,6 @@
         btn.addEventListener('click', function () {
           const s = window.faAuth && window.faAuth.getSession();
           if (!s) {
-            /* Não abrir login se turma fechada */
-            if (btn.dataset.state === 'blocked') return;
             showMsg(turmaKey, 'Faça login para registrar seu interesse.');
             if (window.faOpenAuthModal) window.faOpenAuthModal('login');
             return;
@@ -381,21 +362,9 @@
     function checkInterestState(btn, turmaKey, email) {
       const key = emailKey(email);
       if (!firebase || !firebase.database) return;
-      /* check turma config (finalizada?) and user record in parallel */
-      firebase.database().ref('turmas-config/' + turmaKey + '/finalizada').once('value', function (cfgSnap) {
-        const finalizada = !!cfgSnap.val();
-        firebase.database().ref('turmas-interesse/' + turmaKey + '/' + key).once('value', function (snap) {
-          const val = snap.val();
-          if (finalizada && (!val || val.removed)) {
-            setBlocked(btn, turmaKey);
-            return;
-          }
-          if (val && !val.removed) {
-            if (val.status === 'presente')        setPresente(btn, turmaKey);
-            else if (val.status === 'inscrito' || finalizada) setInscrito(btn, turmaKey);
-            else setDone(btn, turmaKey);
-          }
-        });
+      firebase.database().ref('turmas-interesse/' + turmaKey + '/' + key).once('value', function (snap) {
+        const val = snap.val();
+        if (val && !val.removed) setDone(btn, turmaKey);
       });
     }
 
@@ -405,6 +374,9 @@
       const key   = emailKey(sess.email);
       const now   = new Date().toISOString();
       const entry = { name: sess.name, email: sess.email, area: sess.area || '', date: now, removed: false, status: 'interessado' };
+      /* Checagem de segurança — o botão só existe se a turma não estava fechada
+         no último carregamento da grade, mas a página pode estar aberta há um
+         tempo e o admin ter encerrado o interesse nesse meio-tempo */
       firebase.database().ref('turmas-config/' + turmaKey + '/finalizada').once('value', function (cfgSnap) {
         if (cfgSnap.val()) { btn.disabled = false; showMsg(turmaKey, 'Esta turma está encerrada para novas inscrições.'); return; }
         firebase.database().ref('turmas-interesse/' + turmaKey + '/' + key).set(entry, function (err) {
@@ -433,7 +405,6 @@
 
     function setDone(btn, turmaKey) {
       btn.innerHTML = '<span class="btn-heart">&#x2661;</span>&nbsp; Remover interesse';
-      btn.classList.remove('inscrito','presente','blocked');
       btn.classList.add('done');
       btn.dataset.state = 'done';
       btn.disabled = false;
@@ -442,37 +413,10 @@
 
     function setInitial(btn, turmaKey) {
       btn.innerHTML = '<span class="btn-heart">&#x2661;</span>&nbsp; Tenho interesse';
-      btn.classList.remove('done','inscrito','presente','blocked');
+      btn.classList.remove('done');
       btn.dataset.state = '';
       btn.disabled = false;
       showMsg(turmaKey, 'Interesse removido.');
-    }
-
-    function setInscrito(btn, turmaKey) {
-      btn.innerHTML = '✓ Inscrita';
-      btn.classList.remove('done','presente','blocked');
-      btn.classList.add('inscrito');
-      btn.dataset.state = 'inscrito';
-      btn.disabled = true;
-      showMsg(turmaKey, 'Você está inscrita nesta turma!');
-    }
-
-    function setPresente(btn, turmaKey) {
-      btn.innerHTML = '✓ Presente';
-      btn.classList.remove('done','inscrito','blocked');
-      btn.classList.add('presente');
-      btn.dataset.state = 'presente';
-      btn.disabled = true;
-      showMsg(turmaKey, 'Presença confirmada!');
-    }
-
-    function setBlocked(btn, turmaKey) {
-      btn.innerHTML = 'Inscrições encerradas';
-      btn.classList.remove('done','inscrito','presente');
-      btn.classList.add('blocked');
-      btn.dataset.state = 'blocked';
-      btn.disabled = true;
-      showMsg(turmaKey, '');
     }
 
     function showMsg(turmaKey, msg) {
@@ -486,17 +430,7 @@
 
     if (window.faRouter) window.faRouter.onPageInit('turmas', initTurmaInterest);
     window.addEventListener('fa-auth-change', function () {
-      if (window.faRouter && window.faRouter.current() === 'turmas') {
-        /* Re-run full init (may switch to enrolled card) */
-        var grid = document.querySelector('.turmas-grid');
-        if (grid) {
-          /* restore original cards if they were replaced */
-          if (!grid.querySelector('.btn--interest') && !grid.querySelector('.turma-card-enrolled')) {
-            /* already handled below */
-          }
-        }
-        initTurmaInterest();
-      }
+      if (window.faRouter && window.faRouter.current() === 'turmas') initTurmaInterest();
     });
   });
 
