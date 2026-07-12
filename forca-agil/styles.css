@@ -1201,6 +1201,9 @@ html:not(.js) .reveal { opacity: 1 !important; transform: none !important; }
 /* Badge de nível */
 .mapa-badge { display: inline-block; font-size: .72rem; font-family: var(--font-mono); letter-spacing: .06em; text-transform: uppercase; padding: 3px 9px; border-radius: 20px; border: 1px solid var(--bc, #888); color: var(--bc, #888); background: color-mix(in srgb, var(--bc, #888) 12%, transparent); white-space: nowrap; flex-shrink: 0; }
 
+/* Diagrama de estados de turma (Interessada/Inscrita/Removida) */
+.mapa-status-diagram { border: 1px solid var(--line); border-radius: 10px; padding: 20px; margin-bottom: 12px; background: var(--surface); overflow-x: auto; }
+
 /* Legenda */
 .mapa-legend-box { border: 1px solid var(--line); border-radius: 10px; padding: 14px 18px; margin-bottom: 24px; background: var(--surface); }
 .mapa-legend-title { font-family: var(--font-mono); font-size: .62rem; letter-spacing: .14em; text-transform: uppercase; color: var(--ink-3); display: block; margin-bottom: 12px; }

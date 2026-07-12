@@ -20,6 +20,81 @@
       adds: ['Acessar o Painel Admin', 'Criar, editar (nome/datas) e excluir turmas', 'Ver todos os cadastrados', 'Ver interessados por turma', 'Moderar Repositório (ocultar/restaurar/deletar)', 'Resetar progresso de qualquer cadastrado', 'Enviar e-mail de redefinição de senha para qualquer cadastrado', 'Gerenciar lista de admins (apenas tatianefdirene e danielfrazao — restrito por regra Firebase)'] },
   ];
 
+  /* Diagrama de estados de turmas-interesse/<turma>/<emailKey> — ver regra
+     "confirmar inscrição" e "adicionar participante" no Manual */
+  const STATUS_DIAGRAM_SVG = `
+    <svg viewBox="0 -110 820 500" xmlns="http://www.w3.org/2000/svg" style="width:820px;min-width:820px;height:auto;display:block;margin:0 auto" role="img" aria-label="Diagrama de estados de uma pessoa numa turma">
+      <defs>
+        <marker id="mapaArrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+          <path d="M0,0 L10,5 L0,10 z" fill="#7f9bff"></path>
+        </marker>
+        <marker id="mapaArrowGold" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+          <path d="M0,0 L10,5 L0,10 z" fill="#f5c542"></path>
+        </marker>
+      </defs>
+
+      <!-- Sem registro -> Interessada -->
+      <line x1="196" y1="200" x2="308" y2="98" stroke="#7f9bff" stroke-width="2" marker-end="url(#mapaArrow)"></line>
+      <text font-family="var(--font-mono)" font-size="11" fill="var(--ink-2)">
+        <tspan x="120" y="148">Tenho interesse (site) ou</tspan>
+        <tspan x="120" y="163">＋ Participante → Interessada</tspan>
+      </text>
+
+      <!-- Sem registro -> Inscrita (atalho direto, admin) — passa alto, entra por cima da caixa Inscrita -->
+      <path d="M108,178 C 300,-90 708,-90 708,50" fill="none" stroke="#f5c542" stroke-width="2" stroke-dasharray="6 5" marker-end="url(#mapaArrowGold)"></path>
+      <text font-family="var(--font-mono)" font-size="11" fill="#f5c542">
+        <tspan x="230" y="-98">＋ Participante → Inscrita</tspan>
+        <tspan x="230" y="-83">(admin, atalho direto — sem checar outras turmas)</tspan>
+      </text>
+
+      <!-- Interessada -> Inscrita ("Confirmar") -->
+      <line x1="496" y1="66" x2="616" y2="66" stroke="#4caf7d" stroke-width="2" marker-end="url(#mapaArrow)"></line>
+      <text x="556" y="42" text-anchor="middle" font-family="var(--font-mono)" font-size="11" fill="#4caf7d">Confirmar (admin)</text>
+
+      <!-- Inscrita -> Interessada ("Desconfirmar") -->
+      <line x1="616" y1="100" x2="496" y2="100" stroke="#f5c542" stroke-width="2" marker-end="url(#mapaArrowGold)"></line>
+      <text x="556" y="128" text-anchor="middle" font-family="var(--font-mono)" font-size="11" fill="#f5c542">Desconfirmar (admin)</text>
+
+      <!-- Interessada -> Removida -->
+      <line x1="402" y1="114" x2="500" y2="296" stroke="#7f9bff" stroke-width="2" marker-end="url(#mapaArrow)"></line>
+      <text font-family="var(--font-mono)" font-size="11" fill="var(--ink-2)">
+        <tspan x="330" y="205">Remover interesse (site) ou</tspan>
+        <tspan x="330" y="220">Remover (admin)</tspan>
+      </text>
+
+      <!-- Inscrita -> Removida -->
+      <line x1="708" y1="114" x2="612" y2="296" stroke="#7f9bff" stroke-width="2" marker-end="url(#mapaArrow)"></line>
+      <text font-family="var(--font-mono)" font-size="11" fill="var(--ink-2)">
+        <tspan x="618" y="205">Remover (admin) — inclui</tspan>
+        <tspan x="618" y="220">automático se confirmada</tspan>
+        <tspan x="618" y="235">em outra turma</tspan>
+      </text>
+
+      <!-- Removida -> Interessada/Inscrita (readicionada) -->
+      <path d="M466,328 C 260,380 130,300 108,246" fill="none" stroke="#f5c542" stroke-width="2" stroke-dasharray="6 5" marker-end="url(#mapaArrowGold)"></path>
+      <text font-family="var(--font-mono)" font-size="11" fill="#f5c542">
+        <tspan x="150" y="366">Readicionada — volta a Interessada</tspan>
+        <tspan x="150" y="381">(site ou admin) ou Inscrita (admin)</tspan>
+      </text>
+
+      <!-- Caixa: Sem registro -->
+      <rect x="20" y="178" width="176" height="64" rx="10" fill="rgba(136,136,136,.1)" stroke="#888888" stroke-width="1.5"></rect>
+      <text x="108" y="216" text-anchor="middle" font-family="var(--font-head)" font-size="13" letter-spacing="1" fill="#888888">SEM REGISTRO</text>
+
+      <!-- Caixa: Interessada -->
+      <rect x="308" y="50" width="188" height="64" rx="10" fill="rgba(26,178,174,.1)" stroke="#1ab2ae" stroke-width="1.5"></rect>
+      <text x="402" y="88" text-anchor="middle" font-family="var(--font-head)" font-size="13" letter-spacing="1" fill="#1ab2ae">INTERESSADA</text>
+
+      <!-- Caixa: Inscrita -->
+      <rect x="616" y="50" width="184" height="64" rx="10" fill="rgba(76,175,125,.1)" stroke="#4caf7d" stroke-width="1.5"></rect>
+      <text x="708" y="88" text-anchor="middle" font-family="var(--font-head)" font-size="13" letter-spacing="1" fill="#4caf7d">INSCRITA</text>
+
+      <!-- Caixa: Removida -->
+      <rect x="466" y="296" width="184" height="64" rx="10" fill="rgba(255,82,82,.1)" stroke="#ff5252" stroke-width="1.5"></rect>
+      <text x="558" y="334" text-anchor="middle" font-family="var(--font-head)" font-size="13" letter-spacing="1" fill="#ff5252">REMOVIDA</text>
+    </svg>
+  `;
+
   /* Ordem alfabética por label, igual ao Manual e às Regras */
   const PAGES = [
     { label: 'ADMIN', color: '#ff5252',
@@ -268,6 +343,12 @@
     html += '</tbody></table></div>';
     html += '<p class="mapa-sub" style="margin-top:10px">"Turmas" mostra o mesmo grid de cards para todos os perfis — o que muda de um card para outro é o estado da turma (interesse aberto ou encerrado/CMFlex), nunca quem está olhando.</p>';
 
+    /* ── Estados de uma pessoa numa turma ── */
+    html += '<h3 class="mapa-title" style="margin-top:48px">Estados de uma Pessoa numa Turma</h3>';
+    html += '<p class="mapa-sub">Como o registro de alguém em <code>turmas-interesse</code> muda de status — pela própria pessoa (site) ou pelo admin (painel).</p>';
+    html += '<div class="mapa-status-diagram">' + STATUS_DIAGRAM_SVG + '</div>';
+    html += '<p class="mapa-sub" style="margin-top:12px">Interesse não tem limite — a mesma pessoa pode estar "Interessada" em quantas turmas quiser ao mesmo tempo. Só "Inscrita" é exclusivo de uma turma por vez, e essa exclusividade só é garantida no momento em que o admin clica em "Confirmar": se a pessoa tiver qualquer registro ativo em outra turma (interessada ou já inscrita lá), ele é removido automaticamente. <strong>Atenção:</strong> adicionar alguém direto como "Inscrita" pelo "＋ Participante" não faz essa checagem — hoje é possível, por esse caminho, uma pessoa ficar inscrita em duas turmas ao mesmo tempo.</p>';
+
     /* ── Mapa do site ── */
     var totalPaginas = PAGES.length;
     var totalFeatures = PAGES.reduce(function (sum, p) { return sum + p.features.filter(function (f) { return f.p && f.p.length; }).length; }, 0);
@@ -336,7 +417,7 @@
         label: 'Tecnologias & Serviços', color: '#1ab2ae',
         items: [
           { name: 'Firebase Authentication', desc: 'Login e cadastro por e-mail/senha. Redefinição de senha via link automático. Gratuito (Spark plan)' },
-          { name: 'Firebase Realtime Database', desc: '8 estruturas principais (equivalente a tabelas):\n• fa-users — perfil de cada cadastrado\n• fa-holocron — conteúdos enviados no Repositório\n• fa-admins — lista de quem é admin\n• turmas/<turma> — nome, datas dos encontros e link do CMFlex de cada turma; criada/editada/excluída pelo admin (não são mais fixas em código)\n• turmas-interesse/<turma>/<emailKey> — interessados/inscritos de cada turma; status vira "inscrito" só quando o admin confirma manualmente que a pessoa se inscreveu no CMFlex\n• turmas-interesse-log/<turma>/<emailKey> — histórico de quem registrou/removeu interesse, e quando\n• turmas-config/<turma> — configuração da turma (finalizada, dia de check-in ativo)\n• turmas-checkin/<turma>/<data>/<emailKey> — presença registrada em cada dia\n\nRegras de segurança (4 regras):\n• Ninguém lê ou escreve na raiz do banco diretamente\n• Toda ação autenticada exige e-mail @previ.com.br — validado no servidor, não só na tela\n• Qualquer admin @previ.com.br pode fazer tudo no painel\n• Só tatianefdirene e danielfrazao podem adicionar/remover admins' },
+          { name: 'Firebase Realtime Database', desc: '8 estruturas principais (equivalente a tabelas):\n• fa-users — perfil de cada cadastrado\n• fa-holocron — conteúdos enviados no Repositório\n• fa-admins — lista de quem é admin\n• turmas/<turma> — nome, datas dos encontros e link do CMFlex de cada turma; criada/editada/excluída pelo admin (não são mais fixas em código)\n• turmas-interesse/<turma>/<emailKey> — interessados/inscritos de cada turma; status vira "inscrito" quando o admin confirma alguém que já estava interessada, ou quando adiciona alguém direto como inscrita pelo "＋ Participante" — nunca automaticamente só por encerrar o interesse da turma\n• turmas-interesse-log/<turma>/<emailKey> — histórico de quem registrou/removeu interesse, e quando\n• turmas-config/<turma> — configuração da turma (finalizada, dia de check-in ativo)\n• turmas-checkin/<turma>/<data>/<emailKey> — presença registrada em cada dia\n\nRegras de segurança (4 regras):\n• Ninguém lê ou escreve na raiz do banco diretamente\n• Toda ação autenticada exige e-mail @previ.com.br — validado no servidor, não só na tela\n• Qualquer admin @previ.com.br pode fazer tudo no painel\n• Só tatianefdirene e danielfrazao podem adicionar/remover admins' },
           { name: 'Firebase Hosting',        desc: 'Hospedagem em kyber-agil.web.app (produção/main). CDN global, HTTPS automático' },
         ]
       },
