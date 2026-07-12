@@ -40,7 +40,7 @@
         { label: 'Aba Turmas — gerar QR Code da turma', p: ['admin'] },
         { label: 'Aba Turmas — tabela de presença, registro manual', p: ['admin'] },
         { label: 'Aba Turmas — tabela de presença, remoção manual', p: ['admin'] },
-        { label: 'Aba Turmas — adicionar participante já inscrito manualmente, turma aberta ou com interesse encerrado', p: ['admin'] },
+        { label: 'Aba Turmas — adicionar participante manualmente, já direto com status Inscrito (sem passar por Interessado), turma aberta ou com interesse encerrado', p: ['admin'] },
         { label: 'Aba Turmas — remover participante (interessado ou inscrito), turma aberta ou com interesse encerrado', p: ['admin'] },
         { label: 'Aba Turmas — gerar certificados de participação (apenas inscritos confirmados)', p: ['admin'] },
         { label: 'Aba Turmas — exportar CSV Estado Atual (todas as turmas)', p: ['admin'] },

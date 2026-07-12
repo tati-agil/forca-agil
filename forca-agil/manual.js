@@ -350,7 +350,7 @@
       title: 'Aba: Turmas — desfazer check-in',
       body: 'As etiquetas "✓ adm" e "✓ qr" nas células da tabela de presença são botões clicáveis. Passar o mouse mostra um risco no texto, sinalizando remoção. Clicar abre um modal de confirmação. Ao confirmar, remove aquele registro de presença e recarrega a tabela com a frequência atualizada. Funciona tanto para presenças registradas pelo admin quanto por QR Code.' },
     { section: 'admin', personas: ['admin'],
-      title: 'Aba: Turmas — adicionar participante já inscrito',
+      title: 'Aba: Turmas — adicionar participante manualmente (já entra como Inscrito)',
       body: 'Botão "＋ Participante" (disponível com a turma aberta ou com interesse encerrado): abre um modal com campos Nome, E-mail e Área (mesma lista de 20 áreas do cadastro). Valida e-mail @previ.com.br antes de salvar, adiciona a pessoa já com status Inscrito diretamente (sem passar por "Interessada"/sem precisar de "Confirmar" depois) e registra o nome do admin que adicionou. Uso típico: alguém que se inscreveu direto no CMFlex sem antes manifestar interesse no portal. Se o e-mail já estiver na turma, exibe aviso no modal. A tabela atualiza automaticamente.' },
     { section: 'admin', personas: ['admin'],
       title: 'Aba: Turmas — remover participante',
