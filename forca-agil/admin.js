@@ -194,7 +194,6 @@
             var finalizada = !!cfg.finalizada;
             var diaAtivo  = cfg.diaAtivo || null;
             var all       = data[t.key] ? Object.values(data[t.key]) : [];
-            var allByKey  = data[t.key] || {};
             var active    = all.filter(function (r) { return !r.removed; });
             var removed   = all.filter(function (r) { return r.removed; });
             var checkinT  = checkin[t.key] || {};

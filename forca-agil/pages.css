@@ -341,12 +341,6 @@
 .badge-aberta    { background: rgba(24,194,186,.15); color: var(--cyan); border: 1px solid rgba(24,194,186,.3); }
 .badge-finalizada{ background: rgba(245,197,24,.15); color: var(--gold); border: 1px solid rgba(245,197,24,.3); }
 
-/* ---- Status badges in table ---- */
-.ts-badge { font-size: .72rem; font-family: var(--font-mono); font-weight: 700;
-  padding: 2px 7px; border-radius: 4px; letter-spacing: .05em; white-space: nowrap; }
-.ts-interessado { background: rgba(255,255,255,.08); color: var(--ink-2); }
-.ts-inscrito    { background: rgba(24,194,186,.15);  color: var(--cyan); }
-.ts-presente    { background: rgba(100,220,100,.15); color: #64dc64; }
 .badge-checkin-aberto { background: rgba(100,220,100,.15); color: #64dc64; border: 1px solid rgba(100,220,100,.35); animation: pulse-green 2s ease-in-out infinite; }
 @keyframes pulse-green { 0%,100%{opacity:1} 50%{opacity:.6} }
 
