@@ -347,7 +347,7 @@
     html += '<h3 class="mapa-title" style="margin-top:48px">Estados de uma Pessoa numa Turma</h3>';
     html += '<p class="mapa-sub">Como o registro de alguém em <code>turmas-interesse</code> muda de status — pela própria pessoa (site) ou pelo admin (painel).</p>';
     html += '<div class="mapa-status-diagram">' + STATUS_DIAGRAM_SVG + '</div>';
-    html += '<p class="mapa-sub" style="margin-top:12px">Interesse não tem limite — a mesma pessoa pode estar "Interessada" em quantas turmas quiser ao mesmo tempo. Só "Inscrita" é exclusivo de uma turma por vez, e essa exclusividade só é garantida no momento em que o admin clica em "Confirmar": se a pessoa tiver qualquer registro ativo em outra turma (interessada ou já inscrita lá), ele é removido automaticamente. <strong>Atenção:</strong> adicionar alguém direto como "Inscrita" pelo "＋ Participante" não faz essa checagem — hoje é possível, por esse caminho, uma pessoa ficar inscrita em duas turmas ao mesmo tempo.</p>';
+    html += '<p class="mapa-sub" style="margin-top:12px">Interesse não tem limite — a mesma pessoa pode estar "Interessada" em quantas turmas quiser ao mesmo tempo. Só "Inscrita" é exclusivo de uma turma por vez: se a pessoa tiver qualquer registro ativo em outra turma (interessada ou já inscrita lá), ele é removido automaticamente — tanto ao clicar em "Confirmar" quanto ao adicionar alguém direto como "Inscrita" pelo "＋ Participante", que avisa e pede confirmação antes de remover o registro da outra turma.</p>';
 
     /* ── Mapa do site ── */
     var totalPaginas = PAGES.length;

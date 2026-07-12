@@ -716,17 +716,46 @@
         if (snap.val() && !snap.val().removed) {
           errEl.textContent = 'Este participante já está na turma.'; errEl.style.display = ''; return;
         }
-        var adminName = sess ? (sess.name || sess.email) : 'Admin';
-        ref.set({
-          name: name, email: email, area: area,
-          date: new Date().toISOString(),
-          status: status, addedByAdmin: true,
-          addedByAdminName: adminName
-        }, function (err) {
-          if (err) { errEl.textContent = 'Erro ao adicionar. Tente novamente.'; errEl.style.display = ''; return; }
-          closeModal();
-          loadInterests();
-        });
+
+        function save(overlaps) {
+          var adminName = sess ? (sess.name || sess.email) : 'Admin';
+          var updates = {};
+          updates['turmas-interesse/' + turmaKey + '/' + eKey] = {
+            name: name, email: email, area: area,
+            date: new Date().toISOString(),
+            status: status, addedByAdmin: true,
+            addedByAdminName: adminName
+          };
+          var now = new Date().toISOString();
+          overlaps.forEach(function (o) {
+            updates['turmas-interesse/' + o.turma + '/' + o.eKey + '/removed'] = true;
+            updates['turmas-interesse/' + o.turma + '/' + o.eKey + '/removedDate'] = now;
+            updates['turmas-interesse/' + o.turma + '/' + o.eKey + '/removedReason'] = 'Inscrita automaticamente na turma "' + turmaLabel(turmaKey) + '"';
+          });
+          firebase.database().ref().update(updates, function (err) {
+            if (err) { errEl.textContent = 'Erro ao adicionar. Tente novamente.'; errEl.style.display = ''; return; }
+            closeModal();
+            loadInterests();
+          });
+        }
+
+        /* Adicionar direto como Inscrita exige a mesma exclusividade que o
+           "Confirmar" já garante — ninguém pode ficar inscrita em mais de
+           uma turma. Como "Interessada" não tem esse limite, só checa
+           sobreposição quando o status escolhido é "inscrito". */
+        if (status === 'inscrito') {
+          checkOutrasTurmas(turmaKey, [eKey], function (overlaps) {
+            if (!overlaps.length) { save(overlaps); return; }
+            var lista = overlaps.map(function (o) { return '• também tem registro ativo na "' + turmaLabel(o.turma) + '"'; }).join('\n');
+            adminConfirm(
+              'Adicionar ' + name + ' como Inscrita em "' + turmaLabel(turmaKey) + '"?\n\n' +
+              'Ela também está em outra turma. Se continuar, esse outro registro será removido automaticamente (ninguém pode ficar inscrita em mais de uma):\n\n' + lista,
+              function () { save(overlaps); }
+            );
+          });
+        } else {
+          save([]);
+        }
       });
     });
   }
