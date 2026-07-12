@@ -372,7 +372,7 @@
       group: 'Ajuda',
       tests: [
         { id: 'c-faq-page', label: 'Página Ajuda presente no DOM (#page-ajuda)', run: function () { return !!document.getElementById('page-ajuda'); } },
-        { id: 'c-faq-items', label: 'Ajuda tem 7 itens de acordeão (.faq-item)', run: function () { return document.querySelectorAll('#page-ajuda .faq-item').length === 7; } },
+        { id: 'c-faq-items', label: 'Ajuda tem 8 itens de acordeão (.faq-item)', run: function () { return document.querySelectorAll('#page-ajuda .faq-item').length === 8; } },
         { id: 'c-faq-nav',   label: 'Link "Ajuda" presente no menu de navegação', run: function () { return !!document.querySelector('[data-nav-page="ajuda"]'); } },
       ]
     },
