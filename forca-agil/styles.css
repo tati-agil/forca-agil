@@ -650,15 +650,6 @@ html:not(.js) .reveal { opacity: 1 !important; transform: none !important; }
 .turma-cmflex-msg strong { color: var(--ink); display: block; margin-bottom: 2px; }
 .btn--cmflex { display: inline-block; text-align: center; text-decoration: none; margin-top: 6px; padding: 8px 14px; font-family: var(--font-mono); font-size: .72rem; letter-spacing: .1em; text-transform: uppercase; color: var(--accent); background: transparent; border: 1px solid var(--accent); border-radius: 8px; cursor: pointer; transition: background .2s, color .2s; }
 .btn--cmflex:hover { background: var(--accent); color: var(--bg); }
-.turmas { display: grid; grid-template-columns: repeat(3,1fr); gap: 16px; margin-top: 44px; }
-.turma { text-align: center; padding: 28px 20px; border-radius: 14px; border: 1px solid var(--line); background: linear-gradient(180deg, var(--panel), var(--panel-2)); transition: transform .25s var(--ease), border-color .25s; }
-/* hover removido — turma decorativa */
-.turma .ti { width: 40px; height: 40px; margin: 0 auto 12px; color: var(--accent); }
-.turma .tk { font-family: var(--font-mono); font-size: .68rem; letter-spacing: .2em; color: var(--ink-3); }
-.turma .tm { font-family: var(--font-display); font-size: 1.9rem; text-transform: uppercase; color: var(--ink); margin: 4px 0; }
-.turma .td { color: var(--accent); font-family: var(--font-mono); font-size: .92rem; }
-.turma .tx { color: var(--ink-3); font-size: .8rem; margin-top: 8px; font-family: var(--font-mono); }
-@media (max-width: 680px){ .turmas { grid-template-columns: 1fr; } }
 
 /* ---------- Mapa do Império (process) ---------- */
 .holo-frame {
