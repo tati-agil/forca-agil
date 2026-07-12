@@ -13,11 +13,11 @@
     { key: 'visitante',   label: 'Visitante',      color: '#888888',
       adds: ['Ver páginas públicas (Início, Turmas, Ajuda)', 'Cadastrar conta (@previ.com.br)', 'Fazer login', 'Recuperar senha por e-mail (autoatendimento)'] },
     { key: 'logado',  label: 'Usuário logado (sem turma)', color: '#1ab2ae',
-      adds: ['Acessar o Repositório', 'Adicionar conteúdos e remover os próprios no Repositório', 'Manifestar interesse em até 3 turmas', 'Remover interesse em turmas'] },
+      adds: ['Acessar o Repositório', 'Adicionar conteúdos e remover os próprios no Repositório', 'Manifestar interesse em quantas turmas existirem (sem limite fixo)', 'Remover interesse em turmas'] },
     { key: 'inscrito', label: 'Usuário inscrito (turma confirmada)', color: '#4caf7d',
       adds: ['Acessar Conteúdos', 'Acessar Treinamento Jedi (autodiagnóstico 0–60)', 'Revelar patente (resultado fixo e bloqueado — não pode refazer sem reset do admin)', 'Vê apenas o card da própria turma na página Turmas — sem botões de interesse'] },
     { key: 'admin',   label: 'Admin',          color: '#ff5252',
-      adds: ['Acessar o Painel Admin', 'Ver todos os cadastrados', 'Ver interessados por turma', 'Moderar Repositório (ocultar/restaurar/deletar)', 'Resetar progresso de qualquer cadastrado', 'Enviar e-mail de redefinição de senha para qualquer cadastrado', 'Gerenciar lista de admins (apenas tatianefdirene e danielfrazao — restrito por regra Firebase)'] },
+      adds: ['Acessar o Painel Admin', 'Criar, editar (nome/datas) e excluir turmas', 'Ver todos os cadastrados', 'Ver interessados por turma', 'Moderar Repositório (ocultar/restaurar/deletar)', 'Resetar progresso de qualquer cadastrado', 'Enviar e-mail de redefinição de senha para qualquer cadastrado', 'Gerenciar lista de admins (apenas tatianefdirene e danielfrazao — restrito por regra Firebase)'] },
   ];
 
   /* Ordem alfabética por label, igual ao Manual e às Regras */
@@ -25,6 +25,9 @@
     { label: 'ADMIN', color: '#ff5252',
       features: [
         { label: '7 abas no total (Turmas, Repositório, Cadastrados, Administradores, Manual, Mapa, Testes); no mobile quebram em 2 linhas', p: ['admin'] },
+        { label: 'Aba Turmas — criar turma (nome + datas dos encontros)', p: ['admin'] },
+        { label: 'Aba Turmas — editar turma (renomear, incluir/excluir datas)', p: ['admin'] },
+        { label: 'Aba Turmas — excluir turma (apaga turma e todos os dados ligados a ela)', p: ['admin'] },
         { label: 'Expandir tudo — abre de uma vez os itens retráteis da aba ativa', p: ['admin'] },
         { label: 'Recolher tudo — fecha de uma vez os itens retráteis da aba ativa', p: ['admin'] },
         { label: 'Aba Turmas — finalizar inscrição da turma', p: ['admin'] },
@@ -341,6 +344,7 @@
           { name: 'index.html',                  desc: 'Entrada única da aplicação. Contém todo o HTML, carrega os scripts e gerencia as seções por hash (#inicio, #turmas…)' },
           { name: 'forca-agil/head-init.js',     desc: 'Inicialização precoce — adiciona classe "js" ao <html> antes do body renderizar, evitando flash de conteúdo sem JS' },
           { name: 'forca-agil/firebase.js',      desc: 'Progresso e autodiagnóstico — salva/carrega dados do Firebase. API: window.faLoadProgress, window.faSyncProgress' },
+          { name: 'forca-agil/turmas-util.js',   desc: 'Utilidade compartilhada de turmas — deriva mês e texto de datas ("Agosto", "11, 12, 18, 19 e 20") a partir do array de datas ISO de cada turma, usada por app.js, admin.js e checkin.js. API: window.faTurmasUtil' },
           { name: 'forca-agil/router.js',        desc: 'Roteamento por hash — controla qual seção da página está visível. Rotas protegidas: #conteudos e #treinamento exigem nível "enrolled" (inscrito com turma confirmada); #repositorio exige nível "member" (logado). Nível detectado via window.faAuth.getAccessLevel(). API: window.faRouter' },
           { name: 'forca-agil/auth.js',          desc: 'Autenticação — login, cadastro, logout, redefinição de senha. Senha exige apenas dígitos numéricos (mín. 8). Verifica adminship lendo só o próprio registro em fa-admins. Detecta perfil de acesso via window.faAuth.getAccessLevel() → "guest" (visitante), "member" (logado sem turma), "enrolled" (inscrito com turma confirmada). Admin sempre recebe "enrolled", mesmo sem estar pessoalmente inscrito em nenhuma turma — tem acesso a tudo. API pública: window.faAuth' },
           { name: 'forca-agil/stars.js',         desc: 'Animação de estrelas do fundo (canvas)' },
@@ -350,8 +354,8 @@
           { name: 'forca-agil/repo.js',          desc: 'Repositório (Holocron) — listagem, adição, remoção de conteúdos' },
           { name: 'forca-agil/game-data.js',     desc: 'Dados do Treinamento Jedi — 4 blocos × 5 afirmações (BLOCOS), patentes (RANKS), níveis Likert (LEVELS). DIMS computado dinamicamente a partir de BLOCOS. MISSIONS existe no arquivo mas não é usada em v3. Expõe window.faGameData' },
           { name: 'forca-agil/game.js',          desc: 'Treinamento Jedi — autodiagnóstico, painel de patente e revelar patente. Acessível apenas com nível "enrolled". Lê dados de window.faGameData' },
-          { name: 'forca-agil/admin.js',         desc: 'Painel Admin — interessados, moderação de repositório, gestão de admins, exportação CSV UTF-8 BOM via URL.createObjectURL (window.faToXls — compartilhada por Manual e Testes; acentos corretos no Excel, arquivo sempre editável), barra expandir/recolher com botões por seção. Nenhuma informação de XP é exibida no painel.' },
-          { name: 'forca-agil/checkin.js',       desc: 'Check-in por QR Code — registra presença por dia via leitura de QR Code' },
+          { name: 'forca-agil/admin.js',         desc: 'Painel Admin — turmas (criar/editar/excluir, com datas dinâmicas em turmas/ no Firebase — não são mais fixas em código), interessados, moderação de repositório, gestão de admins, exportação CSV UTF-8 BOM via URL.createObjectURL (window.faToXls — compartilhada por Manual e Testes; acentos corretos no Excel, arquivo sempre editável), barra expandir/recolher com botões por seção. Nenhuma informação de XP é exibida no painel.' },
+          { name: 'forca-agil/checkin.js',       desc: 'Check-in por QR Code — registra presença por dia via leitura de QR Code; valida a turma consultando turmas/{turmaKey} no Firebase (não uma lista fixa)' },
           { name: 'forca-agil/manual.js',        desc: 'Manual interativo — regras filtráveis por seção e persona, botão exportar todas as regras em CSV. Dados declarativos em array RULES' },
           { name: 'forca-agil/mapa.js',          desc: 'Mapa do site e hierarquia de personas. Dados declarativos em arrays PAGES e HIERARCHY' },
           { name: 'forca-agil/testes.js',        desc: 'Testes automatizados de regressão — técnicos e de comportamento, lista de regras manuais pendentes, botão exportar todos os testes em CSV (automáticos e manuais)' },

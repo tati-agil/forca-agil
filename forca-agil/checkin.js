@@ -4,12 +4,6 @@
 (function () {
   'use strict';
 
-  const TURMAS_LABELS = {
-    t1: 'Turma 1 — Agosto (11·12·18·19·20)',
-    t2: 'Turma 2 — Setembro (09·10·11·15·16)',
-    t3: 'Turma 3 — Novembro (17·18·19·24·25)'
-  };
-
   function emailKey(e) {
     return (e || '').toLowerCase().replace(/[@.]/g, '_').replace(/[^a-z0-9_]/g, '').slice(0, 64);
   }
@@ -25,7 +19,7 @@
     if (el) el.innerHTML = html;
   }
 
-  function doCheckin(turmaKey, sess) {
+  function doCheckin(turmaKey, sess, turmaLabel) {
     var db   = firebase && firebase.database && firebase.database();
     if (!db) { render(msgError('Serviço indisponível.')); return; }
 
@@ -59,7 +53,7 @@
         /* verifica se já fez check-in neste dia */
         db.ref('turmas-checkin/' + turmaKey + '/' + diaAtivo + '/' + eKey).once('value', function (ckSnap) {
           if (ckSnap.val()) {
-            render(msgAlready(turmaKey, diaAtivo));
+            render(msgAlready(turmaLabel, diaAtivo));
             return;
           }
 
@@ -69,7 +63,7 @@
             checkinAt: new Date().toISOString(), source: 'qr'
           }, function (err) {
             if (err) { render(msgError('Erro ao registrar presença. Tente novamente.')); return; }
-            render(msgSuccess(turmaKey, diaAtivo, sess.name));
+            render(msgSuccess(turmaLabel, diaAtivo, sess.name));
           });
         });
       });
@@ -82,21 +76,21 @@
     return p[2] + '/' + p[1] + '/' + p[0];
   }
 
-  function msgSuccess(turmaKey, dia, name) {
+  function msgSuccess(turmaLabel, dia, name) {
     return '<div class="checkin-box checkin-success">' +
       '<div class="checkin-icon">✓</div>' +
       '<h2>Presença confirmada com sucesso!</h2>' +
       '<p class="checkin-name">' + escHtml(name) + '</p>' +
-      '<p class="checkin-turma">' + escHtml(TURMAS_LABELS[turmaKey] || turmaKey) + '</p>' +
+      '<p class="checkin-turma">' + escHtml(turmaLabel) + '</p>' +
       '<p class="checkin-dia">Dia: ' + fmtDia(dia) + '</p>' +
     '</div>';
   }
 
-  function msgAlready(turmaKey, dia) {
+  function msgAlready(turmaLabel, dia) {
     return '<div class="checkin-box checkin-already">' +
       '<div class="checkin-icon">✓</div>' +
       '<h2>Presença já registrada</h2>' +
-      '<p class="checkin-turma">' + escHtml(TURMAS_LABELS[turmaKey] || turmaKey) + '</p>' +
+      '<p class="checkin-turma">' + escHtml(turmaLabel) + '</p>' +
       '<p class="checkin-dia">Dia: ' + fmtDia(dia) + '</p>' +
     '</div>';
   }
@@ -109,9 +103,9 @@
     '</div>';
   }
 
-  function msgLogin(turmaKey) {
+  function msgLogin(turmaLabel) {
     return '<div class="checkin-box">' +
-      '<h2>Check-in — ' + escHtml(TURMAS_LABELS[turmaKey] || turmaKey) + '</h2>' +
+      '<h2>Check-in — ' + escHtml(turmaLabel) + '</h2>' +
       '<p>Faça login para registrar sua presença.</p>' +
       '<button class="btn btn--primary" id="checkinLoginBtn">Entrar</button>' +
     '</div>';
@@ -125,31 +119,44 @@
 
   function initCheckin() {
     var turmaKey = getTurmaFromHash();
-    if (!turmaKey || !TURMAS_LABELS[turmaKey]) {
+    if (!turmaKey) {
       render(msgError('QR Code inválido ou turma não encontrada.'));
       return;
     }
 
-    var sess = window.faAuth && window.faAuth.getSession && window.faAuth.getSession();
-    if (!sess) {
-      render(msgLogin(turmaKey));
-      window.addEventListener('fa-auth-change', function onAuth() {
-        var s = window.faAuth && window.faAuth.getSession && window.faAuth.getSession();
-        if (s && window.faRouter && window.faRouter.current() === 'checkin') {
-          window.removeEventListener('fa-auth-change', onAuth);
-          doCheckin(turmaKey, s);
-        }
-      });
-      document.addEventListener('click', function onBtn(e) {
-        if (e.target && e.target.id === 'checkinLoginBtn') {
-          document.removeEventListener('click', onBtn);
-          if (window.faOpenAuthModal) window.faOpenAuthModal('login');
-        }
-      });
-      return;
-    }
+    render('<p class="loading-msg">Verificando…</p>');
 
-    doCheckin(turmaKey, sess);
+    /* Turma não é mais validada contra uma lista fixa (t1/t2/t3) — existência
+       e nome de exibição vêm de turmas/ no Firebase */
+    firebase.database().ref('turmas/' + turmaKey).once('value', function (snap) {
+      var t = snap.val();
+      if (!t) {
+        render(msgError('QR Code inválido ou turma não encontrada.'));
+        return;
+      }
+      var turmaLabel = t.label || turmaKey;
+
+      var sess = window.faAuth && window.faAuth.getSession && window.faAuth.getSession();
+      if (!sess) {
+        render(msgLogin(turmaLabel));
+        window.addEventListener('fa-auth-change', function onAuth() {
+          var s = window.faAuth && window.faAuth.getSession && window.faAuth.getSession();
+          if (s && window.faRouter && window.faRouter.current() === 'checkin') {
+            window.removeEventListener('fa-auth-change', onAuth);
+            doCheckin(turmaKey, s, turmaLabel);
+          }
+        });
+        document.addEventListener('click', function onBtn(e) {
+          if (e.target && e.target.id === 'checkinLoginBtn') {
+            document.removeEventListener('click', onBtn);
+            if (window.faOpenAuthModal) window.faOpenAuthModal('login');
+          }
+        });
+        return;
+      }
+
+      doCheckin(turmaKey, sess, turmaLabel);
+    });
   }
 
   if (window.faRouter) {

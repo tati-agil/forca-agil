@@ -75,6 +75,16 @@
           var scriptCdn = document.querySelector('script[src*="jsdelivr"], script[src*="unpkg"]');
           return typeof QRCode !== 'undefined' && typeof QRCode.toCanvas === 'function' && !!scriptLocal && !scriptCdn;
         } },
+        { id: 'adm-turmas-crud', label: 'Turmas: criar/editar/excluir turma disponível (não são mais fixas em código)', run: function () {
+          var wrap = document.getElementById('adminInterests');
+          if (!wrap || !wrap.querySelector('button')) return true; /* painel Turmas não carregado nesta sessão */
+          var hasBtn = function (txt) {
+            return Array.prototype.some.call(wrap.querySelectorAll('button'), function (b) { return b.textContent.indexOf(txt) !== -1; });
+          };
+          var temNova = hasBtn('Nova turma');
+          var temCards = document.querySelectorAll('.turma-admin-card').length > 0;
+          return temNova && (!temCards || (hasBtn('Editar turma') && hasBtn('Excluir turma')));
+        } },
         { id: 'adm-manual', label: 'faInitManual disponível',   run: function () { return typeof window.faInitManual === 'function'; } },
         { id: 'adm-mapa',   label: 'faInitMapa disponível',     run: function () { return typeof window.faInitMapa === 'function'; } },
         { id: 'adm-tabs',   label: 'Abas Admin presentes (7: Turmas/Repositório/Cadastrados/Administradores/Manual/Mapa/Testes)', run: function () { return document.querySelectorAll('.admin-tab-btn').length === 7; } },
@@ -434,12 +444,27 @@
     {
       group: 'Turmas',
       tests: [
-        { id: 'c-turmas-cards',   label: '3 cards de turma presentes (.turma-card-new)', run: function () { return document.querySelectorAll('.turma-card-new').length === 3; } },
+        { id: 'c-turmas-cards',   label: 'Cards de turma consistentes com as turmas cadastradas (.turma-card-new)', run: function () {
+          var cards = document.querySelectorAll('.turma-card-new');
+          var enrolled = document.querySelector('.turma-card-enrolled');
+          /* turmas não são mais fixas em número (3) — vêm de turmas/ no Firebase,
+             editável pelo admin; a checagem passa a ser estrutural, não de contagem fixa */
+          if (enrolled) return cards.length === 1; // inscrita: só o card confirmado aparece
+          return cards.length === document.querySelectorAll('.btn--interest').length;
+        } },
         { id: 'c-turmas-como-funciona', label: 'Bloco "Como funciona a oficina" presente (.oficina-info)', run: function () { return !!document.querySelector('.oficina-info'); } },
         { id: 'c-turmas-ofinfo',  label: 'Bloco tem 4 métricas (.ofinfo-item)', run: function () { return document.querySelectorAll('.ofinfo-item').length === 4; } },
-        { id: 'c-turmas-intent-btn', label: 'Botões de interesse presentes (.btn--interest)', run: function () { return document.querySelectorAll('.btn--interest').length === 3; } },
-        { id: 'c-turmas-intent-msg', label: 'Containers de mensagem de login presentes (#intent-msg-t1/t2/t3)', run: function () {
-          return !!document.getElementById('intent-msg-t1') && !!document.getElementById('intent-msg-t2') && !!document.getElementById('intent-msg-t3');
+        { id: 'c-turmas-intent-btn', label: 'Botões de interesse correspondem 1:1 aos cards de turma (.btn--interest)', run: function () {
+          if (document.querySelector('.turma-card-enrolled')) return true; // inscrita: sem botões, por design
+          return document.querySelectorAll('.btn--interest').length === document.querySelectorAll('.turma-card-new').length;
+        } },
+        { id: 'c-turmas-intent-msg', label: 'Cada botão de interesse tem seu container de mensagem (#intent-msg-{turma})', run: function () {
+          var btns = document.querySelectorAll('.btn--interest');
+          if (!btns.length) return true;
+          return Array.prototype.every.call(btns, function (btn) {
+            var key = btn.dataset.turma;
+            return !!key && !!document.getElementById('intent-msg-' + key);
+          });
         } },
         { id: 'c-turmas-agenda-estatica', label: 'Agenda D1–D5: todos os dias são .day--static e não expandem ao clicar', run: function () {
           var days = document.querySelectorAll('.day--static');

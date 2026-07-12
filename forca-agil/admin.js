@@ -110,14 +110,28 @@
   /* Critério de presença mínima (0.75 = 75% dos dias) */
   var CRITERIO_PRESENCA = 0.75;
 
-  const TURMAS_LIST = [
-    { key: 't1', label: 'Turma 1 — Agosto',   dates: '11, 12, 18, 19 e 20',
-      dias: ['2026-08-11','2026-08-12','2026-08-18','2026-08-19','2026-08-20'] },
-    { key: 't2', label: 'Turma 2 — Setembro', dates: '9, 10, 11, 15 e 16',
-      dias: ['2026-09-09','2026-09-10','2026-09-11','2026-09-15','2026-09-16'] },
-    { key: 't3', label: 'Turma 3 — Novembro', dates: '17, 18, 19, 24 e 25',
-      dias: ['2026-11-17','2026-11-18','2026-11-19','2026-11-24','2026-11-25'] }
-  ];
+  /* Turmas não são mais fixas — vêm de turmas/ no Firebase, editável pelo admin
+     (criar, excluir, adicionar/remover datas). loadTurmasList() repopula isto
+     antes de qualquer tela do admin que precise da lista. */
+  var TURMAS_LIST = [];
+
+  function loadTurmasList(cb) {
+    firebase.database().ref('turmas').once('value', function (snap) {
+      var val = snap.val() || {};
+      TURMAS_LIST = Object.keys(val).map(function (key) {
+        var t = val[key] || {};
+        var dias = (t.dias || []).slice().sort();
+        var fmt = window.faTurmasUtil.formatDias(dias);
+        return { key: key, label: t.label || key.toUpperCase(), dates: fmt.dates, dias: dias, order: t.order || 0 };
+      }).sort(function (a, b) { return a.order - b.order; });
+      cb();
+    });
+  }
+
+  function turmaLabel(key) {
+    var t = TURMAS_LIST.filter(function (x) { return x.key === key; })[0];
+    return t ? t.label : key;
+  }
 
   function fmtDia(iso) {
     /* "2026-08-11" → "11/08" */
@@ -138,6 +152,7 @@
     if (!c) return;
     c.innerHTML = '<p class="loading-msg">Carregando dados…</p>';
 
+    loadTurmasList(function () {
     var db = firebase.database();
     db.ref('turmas-interesse').once('value', function (snapI) {
       db.ref('turmas-config').once('value', function (snapC) {
@@ -147,9 +162,13 @@
           var checkin = snapCk.val() || {};
           c.innerHTML = '';
 
-          /* global export buttons */
+          /* global export buttons + criar turma */
           var btnWrap = document.createElement('div');
           btnWrap.style.cssText = 'display:flex;gap:8px;flex-wrap:wrap;margin-bottom:24px;';
+          var newTurmaBtn = document.createElement('button');
+          newTurmaBtn.className = 'btn btn--sm btn--primary';
+          newTurmaBtn.innerHTML = '+ Nova turma';
+          newTurmaBtn.addEventListener('click', function () { openTurmaFormModal(null); });
           var exportBtn = document.createElement('button');
           exportBtn.className = 'btn btn--sm';
           exportBtn.innerHTML = '&#x2193; Estado atual';
@@ -158,9 +177,17 @@
           csvBtn.className = 'btn btn--sm';
           csvBtn.innerHTML = '&#x2193; Histórico';
           csvBtn.addEventListener('click', function () { exportInterestLog(); });
+          btnWrap.appendChild(newTurmaBtn);
           btnWrap.appendChild(exportBtn);
           btnWrap.appendChild(csvBtn);
           c.appendChild(btnWrap);
+
+          if (!TURMAS_LIST.length) {
+            var emptyMsg = document.createElement('p');
+            emptyMsg.className = 'admin-empty';
+            emptyMsg.textContent = 'Nenhuma turma cadastrada. Clique em "+ Nova turma" para criar a primeira.';
+            c.appendChild(emptyMsg);
+          }
 
           TURMAS_LIST.forEach(function (t) {
             var cfg       = config[t.key] || {};
@@ -317,6 +344,25 @@
               moreMenu.appendChild(csvOpenBtn);
             }
 
+            /* Editar (nome/datas) e Excluir turma — disponíveis sempre, aberta ou finalizada */
+            var editTurmaBtn = document.createElement('button');
+            editTurmaBtn.className = 'btn btn--sm';
+            editTurmaBtn.style.cssText = 'padding:6px 10px;font-size:.72rem';
+            editTurmaBtn.innerHTML = '&#x270E; Editar turma';
+            editTurmaBtn.addEventListener('click', (function (tt) {
+              return function () { openTurmaFormModal(tt); };
+            })(t));
+            moreMenu.appendChild(editTurmaBtn);
+
+            var delTurmaBtn = document.createElement('button');
+            delTurmaBtn.className = 'btn btn--sm';
+            delTurmaBtn.style.cssText = 'padding:6px 10px;font-size:.72rem;border-color:rgba(255,80,80,.5);color:#ff8080';
+            delTurmaBtn.innerHTML = '&#x1F5D1; Excluir turma';
+            delTurmaBtn.addEventListener('click', (function (tt, act, rem) {
+              return function () { deleteTurma(tt, act, rem); };
+            })(t, active, removed));
+            moreMenu.appendChild(delTurmaBtn);
+
             moreBtn.addEventListener('click', function (e) {
               e.stopPropagation();
               moreMenu.classList.toggle('open');
@@ -354,6 +400,7 @@
           });
         });
       });
+    });
     });
   }
 
@@ -675,6 +722,113 @@
     });
   }
 
+  /* ---- Criar / Editar turma — modal com nome + datas dos encontros ---- */
+  function openTurmaFormModal(existing) {
+    var isEdit = !!existing;
+    var overlay = document.createElement('div');
+    overlay.className = 'modal-overlay';
+    overlay.style.cssText = 'display:flex;align-items:center;justify-content:center;z-index:9999';
+
+    var box = document.createElement('div');
+    box.className = 'modal-box';
+    box.style.cssText = 'max-width:460px;width:90%;padding:28px;display:flex;flex-direction:column;gap:16px;max-height:85vh;overflow:auto';
+    box.innerHTML =
+      '<h3 style="font-size:1.1rem;font-family:var(--font-head);letter-spacing:.05em;color:var(--ink)">' + (isEdit ? 'Editar Turma' : 'Nova Turma') + '</h3>' +
+      '<label class="auth-label">Nome da turma<input type="text" id="turmaFormLabel" placeholder="Ex: Turma 4 — Janeiro" autocomplete="off" /></label>' +
+      '<div>' +
+        '<span class="auth-label" style="display:block;margin-bottom:8px">Datas dos encontros</span>' +
+        '<div id="turmaDatesList" style="display:flex;flex-direction:column;gap:8px;"></div>' +
+        '<button type="button" class="btn btn--sm" id="turmaAddDateBtn" style="margin-top:8px">+ Adicionar data</button>' +
+      '</div>' +
+      '<p id="turmaFormErr" style="color:var(--red,#ff3b30);font-size:.85rem;display:none"></p>' +
+      '<div style="display:flex;justify-content:flex-end;gap:8px;margin-top:4px">' +
+        '<button class="btn admin-modal-cancel-btn">Cancelar</button>' +
+        '<button class="btn btn--primary admin-modal-save-btn">' + (isEdit ? 'Salvar' : 'Criar turma') + '</button>' +
+      '</div>';
+
+    overlay.appendChild(box);
+    document.body.appendChild(overlay);
+
+    var labelInput = box.querySelector('#turmaFormLabel');
+    var datesList  = box.querySelector('#turmaDatesList');
+    var errEl      = box.querySelector('#turmaFormErr');
+
+    labelInput.value = isEdit ? existing.label : '';
+
+    function addDateRow(value) {
+      var row = document.createElement('div');
+      row.className = 'turma-date-row';
+      row.style.cssText = 'display:flex;gap:8px;align-items:center;';
+      row.innerHTML =
+        '<input type="date" style="flex:1;padding:8px 10px;background:var(--panel-2);border:1px solid var(--line-strong);border-radius:6px;color:var(--ink);font-family:var(--font-body)" />' +
+        '<button type="button" class="btn btn--sm turma-date-remove" style="padding:6px 10px">✕</button>';
+      row.querySelector('input').value = value || '';
+      row.querySelector('.turma-date-remove').addEventListener('click', function () { row.remove(); });
+      datesList.appendChild(row);
+    }
+
+    if (isEdit && existing.dias.length) {
+      existing.dias.forEach(function (d) { addDateRow(d); });
+    } else {
+      addDateRow('');
+    }
+
+    box.querySelector('#turmaAddDateBtn').addEventListener('click', function () { addDateRow(''); });
+
+    function closeModal() { document.body.removeChild(overlay); }
+    box.querySelector('.admin-modal-cancel-btn').addEventListener('click', closeModal);
+    overlay.addEventListener('click', function (e) { if (e.target === overlay) closeModal(); });
+
+    box.querySelector('.admin-modal-save-btn').addEventListener('click', function () {
+      var label = (labelInput.value || '').trim();
+      var dias = Array.prototype.map.call(datesList.querySelectorAll('input[type=date]'), function (i) { return i.value; })
+        .filter(Boolean).sort();
+
+      errEl.style.display = 'none';
+      if (!label) { errEl.textContent = 'Dê um nome pra turma.'; errEl.style.display = ''; return; }
+      if (!dias.length) { errEl.textContent = 'Adicione pelo menos uma data.'; errEl.style.display = ''; return; }
+
+      var data = { label: label, dias: dias };
+      if (isEdit) {
+        firebase.database().ref('turmas/' + existing.key).update(data, function (err) {
+          if (err) { errEl.textContent = 'Erro ao salvar. Tente novamente.'; errEl.style.display = ''; return; }
+          closeModal();
+          loadInterests();
+        });
+      } else {
+        data.order = Date.now();
+        data.createdAt = new Date().toISOString();
+        firebase.database().ref('turmas').push().set(data, function (err) {
+          if (err) { errEl.textContent = 'Erro ao criar. Tente novamente.'; errEl.style.display = ''; return; }
+          closeModal();
+          loadInterests();
+        });
+      }
+    });
+  }
+
+  /* ---- Excluir turma — apaga a turma e todos os dados ligados a ela ---- */
+  function deleteTurma(t, active, removed) {
+    var msg = 'Excluir a turma "' + t.label + '"?\n\nIsso apaga permanentemente a turma e todos os dados ligados a ela';
+    if (active.length || removed.length) {
+      msg += ' — incluindo ' + active.length + ' participante' + (active.length !== 1 ? 's' : '') + ' ativo' + (active.length !== 1 ? 's' : '') +
+        (removed.length ? ' e ' + removed.length + ' removido' + (removed.length !== 1 ? 's' : '') : '') + ', presenças e histórico';
+    }
+    msg += '.\n\nEssa ação não pode ser desfeita.';
+    adminConfirm(msg, function () {
+      var updates = {};
+      updates['turmas/' + t.key] = null;
+      updates['turmas-interesse/' + t.key] = null;
+      updates['turmas-config/' + t.key] = null;
+      updates['turmas-checkin/' + t.key] = null;
+      updates['turmas-interesse-log/' + t.key] = null;
+      firebase.database().ref().update(updates, function (err) {
+        if (err) { adminAlert('Erro ao excluir. Tente novamente.'); return; }
+        loadInterests();
+      });
+    });
+  }
+
   /* ---- Finalizar / Reabrir turma ---- */
 
   /* Verifica se algum dos candidatos a inscrito também está interessado (não removido)
@@ -703,9 +857,9 @@
     });
 
     checkOutrasTurmas(turmaKey, candidatos, function (overlaps) {
-      var msg = 'Finalizar inscrição da turma ' + turmaKey.toUpperCase() + '?\n\nTodos os interessados virarão inscritos e a turma será bloqueada para novos interessados.';
+      var msg = 'Finalizar inscrição da turma "' + turmaLabel(turmaKey) + '"?\n\nTodos os interessados virarão inscritos e a turma será bloqueada para novos interessados.';
       if (overlaps.length) {
-        var lista = overlaps.map(function (o) { return '• ' + o.name + ' — também interessada na ' + o.turma.toUpperCase(); }).join('\n');
+        var lista = overlaps.map(function (o) { return '• ' + o.name + ' — também interessada na "' + turmaLabel(o.turma) + '"'; }).join('\n');
         msg += '\n\nAs pessoas abaixo também estão interessadas em outra turma. Se continuar, o interesse delas nas outras turmas será removido automaticamente (ninguém pode ficar inscrita em mais de uma):\n\n' + lista;
       }
       adminConfirm(msg, function () {
@@ -718,7 +872,7 @@
         overlaps.forEach(function (o) {
           updates['turmas-interesse/' + o.turma + '/' + o.eKey + '/removed'] = true;
           updates['turmas-interesse/' + o.turma + '/' + o.eKey + '/removedDate'] = now;
-          updates['turmas-interesse/' + o.turma + '/' + o.eKey + '/removedReason'] = 'Inscrita automaticamente na turma ' + turmaKey.toUpperCase();
+          updates['turmas-interesse/' + o.turma + '/' + o.eKey + '/removedReason'] = 'Inscrita automaticamente na turma "' + turmaLabel(turmaKey) + '"';
         });
         firebase.database().ref().update(updates, function (err) {
           if (err) { adminAlert('Erro ao finalizar. Tente novamente.'); return; }
@@ -729,7 +883,7 @@
   }
 
   function reopenTurma(turmaKey, turmaData) {
-    adminConfirm('Reabrir a turma ' + turmaKey.toUpperCase() + '?\n\nInscritos voltarão ao status interessado e novas inscrições serão permitidas.', function () {
+    adminConfirm('Reabrir a turma "' + turmaLabel(turmaKey) + '"?\n\nInscritos voltarão ao status interessado e novas inscrições serão permitidas.', function () {
       var updates = {};
       updates['turmas-config/' + turmaKey + '/finalizada'] = false;
       updates['turmas-config/' + turmaKey + '/diaAtivo']   = null;

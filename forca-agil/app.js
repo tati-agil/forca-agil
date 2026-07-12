@@ -259,53 +259,89 @@
 
   /* ---- Turma interest buttons ---- */
   document.addEventListener('DOMContentLoaded', function () {
-    const TURMAS_INFO = {
-      t1: { label: 'TURMA 1', mes: 'Agosto', dates: '11, 12, 18, 19 e 20' },
-      t2: { label: 'TURMA 2', mes: 'Setembro', dates: '9, 10, 11, 15 e 16' },
-      t3: { label: 'TURMA 3', mes: 'Novembro', dates: '17, 18, 19, 24 e 25' }
-    };
+
+    /* Turmas não são mais fixas (t1/t2/t3 cravadas) — vêm de turmas/ no Firebase,
+       criadas/editadas/excluídas pelo admin. */
+    var _turmasList = []; // [{ key, label, dias }], na ordem de criação
+
+    function loadTurmas(cb) {
+      firebase.database().ref('turmas').once('value', function (snap) {
+        var val = snap.val() || {};
+        _turmasList = Object.keys(val).map(function (key) {
+          return { key: key, label: val[key].label || key.toUpperCase(), dias: val[key].dias || [], order: val[key].order || 0 };
+        }).sort(function (a, b) { return a.order - b.order; });
+        cb(_turmasList);
+      });
+    }
+
+    function renderTurmasGrid() {
+      var grid = document.querySelector('.turmas-grid');
+      if (!grid) return;
+      if (!_turmasList.length) {
+        grid.innerHTML = '<p style="opacity:.7">Nenhuma turma aberta no momento.</p>';
+        return;
+      }
+      grid.innerHTML = _turmasList.map(function (t) {
+        var fmt = window.faTurmasUtil.formatDias(t.dias);
+        return (
+          '<div class="turma-card-new reveal in">' +
+            '<span class="tc-label">' + t.label + '</span>' +
+            '<div class="tc-month">' + fmt.mes + '</div>' +
+            '<div class="tc-dates">' + fmt.dates + '</div>' +
+            '<button class="btn--interest" data-turma="' + t.key + '"><span class="btn-heart">&#x2661;</span>&nbsp; Tenho interesse</button>' +
+            '<div class="turma-intent-msg" id="intent-msg-' + t.key + '"></div>' +
+          '</div>'
+        );
+      }).join('');
+    }
 
     function buildEnrolledCard(turmaKey) {
-      var info = TURMAS_INFO[turmaKey] || { label: turmaKey.toUpperCase(), mes: '', dates: '' };
+      var t = _turmasList.filter(function (x) { return x.key === turmaKey; })[0];
+      var fmt = window.faTurmasUtil.formatDias(t ? t.dias : []);
+      var label = t ? t.label : turmaKey.toUpperCase();
       var grid = document.querySelector('.turmas-grid');
       if (!grid) return;
       grid.innerHTML =
         '<div class="turma-card-new turma-card-enrolled reveal in">' +
-          '<span class="tc-label">' + info.label + '</span>' +
-          '<div class="tc-month">' + info.mes + ' — <span style="color:var(--cyan);font-weight:600">CONFIRMADA</span></div>' +
-          '<div class="tc-dates">' + info.dates + '</div>' +
+          '<span class="tc-label">' + label + '</span>' +
+          '<div class="tc-month">' + fmt.mes + ' — <span style="color:var(--cyan);font-weight:600">CONFIRMADA</span></div>' +
+          '<div class="tc-dates">' + fmt.dates + '</div>' +
         '</div>';
     }
 
     function checkAllEnrollments(sess, cb) {
-      /* Check if user is inscrito in any turma */
+      /* Verifica se o usuário está inscrito em alguma das turmas existentes */
       var key = emailKey(sess.email);
-      var turmas = ['t1','t2','t3'];
+      var turmaKeys = _turmasList.map(function (t) { return t.key; });
+      if (!turmaKeys.length) { cb(null); return; }
       var found = null;
       var done = 0;
-      turmas.forEach(function (t) {
+      turmaKeys.forEach(function (t) {
         firebase.database().ref('turmas-interesse/' + t + '/' + key).once('value', function (snap) {
           done++;
           var val = snap.val();
           if (val && !val.removed && val.status === 'inscrito') found = t;
-          if (done === turmas.length) cb(found);
+          if (done === turmaKeys.length) cb(found);
         });
       });
     }
 
     function initTurmaInterest() {
       var sess = window.faAuth && window.faAuth.getSession();
-      if (sess) {
-        checkAllEnrollments(sess, function (enrolledTurma) {
-          if (enrolledTurma) {
-            buildEnrolledCard(enrolledTurma);
-            return;
-          }
-          initInterestButtons(sess);
-        });
-      } else {
-        initInterestButtons(null);
-      }
+      loadTurmas(function () {
+        renderTurmasGrid();
+        if (sess) {
+          checkAllEnrollments(sess, function (enrolledTurma) {
+            if (enrolledTurma) {
+              buildEnrolledCard(enrolledTurma);
+              return;
+            }
+            initInterestButtons(sess);
+          });
+        } else {
+          initInterestButtons(null);
+        }
+      });
     }
 
     function initInterestButtons(sess) {

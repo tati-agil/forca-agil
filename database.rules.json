@@ -34,9 +34,17 @@
       }
     },
 
+    "turmas": {
+      ".read": true,
+      "$turmaKey": {
+        ".write": "auth != null && auth.token.email.matches(/.*@previ\\.com\\.br/)"
+      }
+    },
+
     "turmas-interesse": {
       ".read": "auth != null && auth.token.email.matches(/.*@previ\\.com\\.br/)",
       "$turmaKey": {
+        ".write": "auth != null && auth.token.email.matches(/.*@previ\\.com\\.br/)",
         "$userKey": {
           ".write": "auth != null && auth.token.email.matches(/.*@previ\\.com\\.br/)"
         }
@@ -46,6 +54,7 @@
     "turmas-interesse-log": {
       ".read": "auth != null && auth.token.email.matches(/.*@previ\\.com\\.br/)",
       "$turmaKey": {
+        ".write": "auth != null && auth.token.email.matches(/.*@previ\\.com\\.br/)",
         "$userKey": {
           ".write": "auth != null && auth.token.email.matches(/.*@previ\\.com\\.br/)"
         }
@@ -62,6 +71,7 @@
     "turmas-checkin": {
       ".read": "auth != null && auth.token.email.matches(/.*@previ\\.com\\.br/)",
       "$turmaKey": {
+        ".write": "auth != null && auth.token.email.matches(/.*@previ\\.com\\.br/)",
         "$data": {
           "$userKey": {
             ".write": "auth != null && auth.token.email.matches(/.*@previ\\.com\\.br/)"

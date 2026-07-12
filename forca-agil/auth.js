@@ -28,20 +28,25 @@
     return _accessLevel;
   }
 
-  const TURMAS = ['t1', 't2', 't3'];
   var _enrolledRefs = [];
 
   function isInscrito(val) { return !!(val && !val.removed && val.status === 'inscrito'); }
 
+  /* Turmas não são mais fixas (t1/t2/t3) — a lista de chaves vem de turmas/ no Firebase,
+     editável pelo admin (criar/excluir turma) */
   function checkEnrolledStatus(email, cb) {
     const key = emailKey(email);
-    var found = false;
-    var checked = 0;
-    TURMAS.forEach(function (t) {
-      firebase.database().ref('turmas-interesse/' + t + '/' + key).once('value', function (snap) {
-        checked++;
-        if (isInscrito(snap.val())) found = true;
-        if (checked === TURMAS.length) cb(found);
+    firebase.database().ref('turmas').once('value', function (turmasSnap) {
+      var turmaKeys = Object.keys(turmasSnap.val() || {});
+      if (!turmaKeys.length) { cb(false); return; }
+      var found = false;
+      var checked = 0;
+      turmaKeys.forEach(function (t) {
+        firebase.database().ref('turmas-interesse/' + t + '/' + key).once('value', function (snap) {
+          checked++;
+          if (isInscrito(snap.val())) found = true;
+          if (checked === turmaKeys.length) cb(found);
+        });
       });
     });
   }
@@ -51,15 +56,18 @@
   function watchEnrolledStatus(email, cb) {
     stopWatchingEnrolledStatus();
     const key = emailKey(email);
-    const vals = {};
-    TURMAS.forEach(function (t) {
-      const ref = firebase.database().ref('turmas-interesse/' + t + '/' + key);
-      const handler = function (snap) {
-        vals[t] = snap.val();
-        cb(TURMAS.some(function (tt) { return isInscrito(vals[tt]); }));
-      };
-      ref.on('value', handler);
-      _enrolledRefs.push({ ref: ref, handler: handler });
+    firebase.database().ref('turmas').once('value', function (turmasSnap) {
+      var turmaKeys = Object.keys(turmasSnap.val() || {});
+      const vals = {};
+      turmaKeys.forEach(function (t) {
+        const ref = firebase.database().ref('turmas-interesse/' + t + '/' + key);
+        const handler = function (snap) {
+          vals[t] = snap.val();
+          cb(turmaKeys.some(function (tt) { return isInscrito(vals[tt]); }));
+        };
+        ref.on('value', handler);
+        _enrolledRefs.push({ ref: ref, handler: handler });
+      });
     });
   }
 

@@ -440,30 +440,9 @@
       <p>A participação nas turmas é <strong>opcional</strong> e complementa sua jornada na Força Ágil. Registre seu interesse para nos ajudar a dimensionar os grupos — não é uma inscrição formal.</p>
     </div>
 
-    <!-- Turmas grid -->
-    <div class="turmas-grid">
-      <div class="turma-card-new reveal">
-        <span class="tc-label">TURMA 1</span>
-        <div class="tc-month">Agosto</div>
-        <div class="tc-dates">11, 12, 18, 19 e 20</div>
-        <button class="btn--interest" data-turma="t1"><span class="btn-heart">&#x2661;</span>&nbsp; Tenho interesse</button>
-        <div class="turma-intent-msg" id="intent-msg-t1"></div>
-      </div>
-      <div class="turma-card-new reveal" data-d="1">
-        <span class="tc-label">TURMA 2</span>
-        <div class="tc-month">Setembro</div>
-        <div class="tc-dates">9, 10, 11, 15 e 16</div>
-        <button class="btn--interest" data-turma="t2"><span class="btn-heart">&#x2661;</span>&nbsp; Tenho interesse</button>
-        <div class="turma-intent-msg" id="intent-msg-t2"></div>
-      </div>
-      <div class="turma-card-new reveal" data-d="2">
-        <span class="tc-label">TURMA 3</span>
-        <div class="tc-month">Novembro</div>
-        <div class="tc-dates">17, 18, 19, 24 e 25</div>
-        <button class="btn--interest" data-turma="t3"><span class="btn-heart">&#x2661;</span>&nbsp; Tenho interesse</button>
-        <div class="turma-intent-msg" id="intent-msg-t3"></div>
-      </div>
-    </div>
+    <!-- Turmas grid — populado dinamicamente por app.js a partir de turmas/ no Firebase
+         (criadas/editadas/excluídas pelo admin; ver forca-agil/admin.js) -->
+    <div class="turmas-grid"></div>
 
     <div class="divider"><svg width="14" height="14"><use href="#i-mark"/></svg></div>
 
@@ -1558,6 +1537,7 @@
 <script src="https://www.gstatic.com/firebasejs/10.7.0/firebase-database-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.7.0/firebase-auth-compat.js"></script>
 <script src="forca-agil/firebase.js"></script>
+<script src="forca-agil/turmas-util.js"></script>
 
 <!-- Router + Auth (antes dos módulos de página) -->
 <script src="forca-agil/router.js"></script>
