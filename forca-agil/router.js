@@ -69,6 +69,23 @@
       }
     }
 
+    /* Reforça o controle de acesso também para navegação por hash direto
+       (endereço digitado, link salvo, voltar/avançar do navegador) — não só
+       quando o usuário clica no menu (que passa por navigate()). Só aplica
+       quando a sessão já terminou de carregar, pra não expulsar por engano
+       alguém legítimo enquanto o Firebase ainda está resolvendo a sessão
+       (nesse caso, quem corrige é o enforceCurrentRouteAccess em auth.js). */
+    if (page !== 'home' && window.faAuth && window.faAuth.isAuthReady && window.faAuth.isAuthReady()) {
+      const level = window.faAuth.getAccessLevel ? window.faAuth.getAccessLevel() : 'guest';
+      const blocked =
+        (page === 'repositorio' && level === 'guest') ||
+        ((page === 'conteudos' || page === 'treinamento') && level !== 'enrolled');
+      if (blocked) {
+        page = 'home';
+        history.replaceState(null, '', '#home');
+      }
+    }
+
     document.querySelectorAll('.page-section').forEach(function (el) { el.hidden = true; });
 
     const el = document.getElementById('page-' + page);

@@ -68,15 +68,26 @@
     _enrolledRefs = [];
   }
 
-  /* Se o nível de acesso cair enquanto a pessoa está numa área que exige "enrolled",
-     tira ela de lá na hora (ex.: removida da turma enquanto navegava em Conteúdos) */
+  /* Se o nível de acesso não bater com o exigido pela página atual, tira a pessoa
+     de lá na hora — cobre tanto mudança em tempo real (removida de uma turma
+     enquanto navegava em Conteúdos) quanto a checagem inicial, já que a página
+     pode ter sido aberta direto por link/hash (#conteudos, #repositorio etc.)
+     antes da sessão terminar de carregar. */
   function enforceCurrentRouteAccess() {
     if (!window.faRouter) return;
     const page = window.faRouter.current();
-    if ((page === 'conteudos' || page === 'treinamento') && getAccessLevel() !== 'enrolled') {
+    const level = getAccessLevel();
+    if (page === 'repositorio' && level === 'guest') {
       location.hash = '#home';
       if (window.faRouter.showAccessMsg) {
-        window.faRouter.showAccessMsg('Sua turma foi alterada — esta área não está mais disponível.');
+        window.faRouter.showAccessMsg('Faça login para acessar o Repositório.');
+      }
+      return;
+    }
+    if ((page === 'conteudos' || page === 'treinamento') && level !== 'enrolled') {
+      location.hash = '#home';
+      if (window.faRouter.showAccessMsg) {
+        window.faRouter.showAccessMsg('Esta área não está disponível para o seu nível de acesso.');
       }
     }
   }
@@ -102,6 +113,7 @@
         checkEnrolledStatus(user.email, function (enrolled) {
           if (enrolled) _accessLevel = 'enrolled';
           updateNavState();
+          enforceCurrentRouteAccess();
           if (window.faLoadProgress) {
             window.faLoadProgress(_session.email, function () {
               window.dispatchEvent(new CustomEvent('fa-auth-change', { detail: _session }));
@@ -124,6 +136,7 @@
       stopWatchingEnrolledStatus();
       try { localStorage.removeItem('fa-player'); } catch (e) {}
       updateNavState();
+      enforceCurrentRouteAccess();
       if (_authReady) {
         window.dispatchEvent(new CustomEvent('fa-auth-change', { detail: null }));
       }
@@ -492,6 +505,7 @@
     getSession: getSession, isAdmin: isAdmin, isPrevi: isPrevi,
     register: register, login: login,
     logout: logout, sendPasswordReset: sendPasswordReset,
-    getAccessLevel: getAccessLevel
+    getAccessLevel: getAccessLevel,
+    isAuthReady: function () { return _authReady; }
   };
 })();
