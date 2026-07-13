@@ -35,7 +35,7 @@
 
       <!-- Sem registro -> Interessada -->
       <line x1="196" y1="200" x2="308" y2="98" stroke="#7f9bff" stroke-width="2" marker-end="url(#mapaArrow)"></line>
-      <text font-family="var(--font-mono)" font-size="11" fill="var(--ink-2)">
+      <text font-family="var(--font-mono)" font-size="11" fill="#7f9bff">
         <tspan x="120" y="141">"Tenho interesse" — Participante</tspan>
         <tspan x="120" y="156">"＋ Participante" → Interessada</tspan>
         <tspan x="120" y="171">— ação do Admin</tspan>
@@ -58,14 +58,14 @@
 
       <!-- Interessada -> Removida -->
       <line x1="402" y1="114" x2="500" y2="296" stroke="#7f9bff" stroke-width="2" marker-end="url(#mapaArrow)"></line>
-      <text font-family="var(--font-mono)" font-size="11" fill="var(--ink-2)">
+      <text font-family="var(--font-mono)" font-size="11" fill="#7f9bff">
         <tspan x="330" y="198">"Remover interesse" — Participante</tspan>
         <tspan x="330" y="213">"Remover" — Admin</tspan>
       </text>
 
       <!-- Inscrita -> Removida -->
       <line x1="708" y1="114" x2="612" y2="296" stroke="#7f9bff" stroke-width="2" marker-end="url(#mapaArrow)"></line>
-      <text font-family="var(--font-mono)" font-size="11" fill="var(--ink-2)">
+      <text font-family="var(--font-mono)" font-size="11" fill="#7f9bff">
         <tspan x="618" y="198">"Remover" — Admin (inclui automático</tspan>
         <tspan x="618" y="213">se confirmada ou adicionada como</tspan>
         <tspan x="618" y="228">Inscrita em outra turma)</tspan>
