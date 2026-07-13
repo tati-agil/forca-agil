@@ -71,11 +71,18 @@
         <tspan x="618" y="228">Inscrita em outra turma)</tspan>
       </text>
 
-      <!-- Removida -> Interessada/Inscrita (readicionada) -->
-      <path d="M466,328 C 260,380 130,300 108,246" fill="none" stroke="#f5c542" stroke-width="2" stroke-dasharray="6 5" marker-end="url(#mapaArrowGold)"></path>
+      <!-- Removida -> Interessada (readicionada, direto) -->
+      <path d="M480,296 Q 260,220 340,114" fill="none" stroke="#f5c542" stroke-width="2" stroke-dasharray="6 5" marker-end="url(#mapaArrowGold)"></path>
       <text font-family="var(--font-mono)" font-size="11" fill="#f5c542">
-        <tspan x="150" y="366">Readicionada — volta a Interessada (Participante</tspan>
-        <tspan x="150" y="381">ou Admin) ou Inscrita (só Admin)</tspan>
+        <tspan x="70" y="360">Readicionada — "Tenho interesse" — Participante</tspan>
+        <tspan x="70" y="375">(se turma aberta) ou "＋ Participante" → Interessada — Admin</tspan>
+      </text>
+
+      <!-- Removida -> Inscrita (readicionada, direto, admin) -->
+      <path d="M636,296 Q 856,220 776,114" fill="none" stroke="#f5c542" stroke-width="2" stroke-dasharray="6 5" marker-end="url(#mapaArrowGold)"></path>
+      <text font-family="var(--font-mono)" font-size="11" fill="#f5c542" text-anchor="end">
+        <tspan x="895" y="360">Readicionada — "＋ Participante" → Inscrita — Admin</tspan>
+        <tspan x="895" y="375">(mesma checagem de sobreposição do "Confirmar")</tspan>
       </text>
 
       <!-- Caixa: Sem registro -->
