@@ -340,6 +340,7 @@
       { label: 'Repositório',                 access: { visitante: false, logado: true,  inscrito: true,  admin: true  } },
       { label: 'Conteúdos',                   access: { visitante: false, logado: false, inscrito: true,  admin: true  } },
       { label: 'Treinamento Jedi',            access: { visitante: false, logado: false, inscrito: true,  admin: true  } },
+      { label: 'Painel Admin',                access: { visitante: false, logado: false, inscrito: false, admin: true  } },
     ];
 
     ACESSO.forEach(function (row) {
