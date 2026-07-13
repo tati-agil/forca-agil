@@ -44,7 +44,7 @@
       <path d="M108,178 C 300,-90 708,-90 708,50" fill="none" stroke="#f5c542" stroke-width="2" stroke-dasharray="6 5" marker-end="url(#mapaArrowGold)"></path>
       <text font-family="var(--font-mono)" font-size="11" fill="#f5c542">
         <tspan x="230" y="-98">＋ Participante → Inscrita</tspan>
-        <tspan x="230" y="-83">(admin, atalho direto — sem checar outras turmas)</tspan>
+        <tspan x="230" y="-83">(admin, atalho direto — checa outras turmas igual ao "Confirmar")</tspan>
       </text>
 
       <!-- Interessada -> Inscrita ("Confirmar") -->
@@ -107,7 +107,7 @@
         { label: 'Recolher tudo — fecha de uma vez os itens retráteis da aba ativa', p: ['admin'] },
         { label: 'Aba Turmas — cadastrar/editar link do CMFlex por turma (inscrição oficial externa)', p: ['admin'] },
         { label: 'Aba Turmas — encerrar interesse da turma (card público passa a orientar pro CMFlex)', p: ['admin'] },
-        { label: 'Aba Turmas — confirmar inscrição de um interessado a qualquer momento, turma aberta ou com interesse encerrado (marca como Inscrito, avisa e remove interesse em outras turmas se houver sobreposição)', p: ['admin'] },
+        { label: 'Aba Turmas — confirmar inscrição de um interessado a qualquer momento, turma aberta ou com interesse encerrado (marca como Inscrito, avisa e remove a inscrição em outra turma se ela já for inscrita lá — mero interesse em outra turma não é tocado)', p: ['admin'] },
         { label: 'Aba Turmas — desconfirmar inscrição de um inscrito a qualquer momento, turma aberta ou com interesse encerrado (volta a Interessado, perde acesso na hora)', p: ['admin'] },
         { label: 'Aba Turmas — reabrir interesse da turma (sem mexer em confirmações já feitas)', p: ['admin'] },
         { label: 'Aba Turmas — abrir check-in do dia', p: ['admin'] },
@@ -348,7 +348,7 @@
     html += '<h3 class="mapa-title" style="margin-top:48px">Estados de uma Pessoa numa Turma</h3>';
     html += '<p class="mapa-sub">Como o registro de alguém em <code>turmas-interesse</code> muda de status — pela própria pessoa (site) ou pelo admin (painel).</p>';
     html += '<div class="mapa-status-diagram">' + STATUS_DIAGRAM_SVG + '</div>';
-    html += '<p class="mapa-sub" style="margin-top:12px">Interesse não tem limite — a mesma pessoa pode estar "Interessada" em quantas turmas quiser ao mesmo tempo. Só "Inscrita" é exclusivo de uma turma por vez: se a pessoa tiver qualquer registro ativo em outra turma (interessada ou já inscrita lá), ele é removido automaticamente — tanto ao clicar em "Confirmar" quanto ao adicionar alguém direto como "Inscrita" pelo "＋ Participante", que avisa e pede confirmação antes de remover o registro da outra turma.</p>';
+    html += '<p class="mapa-sub" style="margin-top:12px">Interesse não tem limite — a mesma pessoa pode estar "Interessada" em quantas turmas quiser ao mesmo tempo, sem nenhuma checagem. Só "Inscrita" é exclusivo de uma turma por vez: se a pessoa já for Inscrita em outra turma, essa outra inscrição é removida automaticamente — tanto ao clicar em "Confirmar" quanto ao adicionar alguém direto como "Inscrita" pelo "＋ Participante", que avisa e pede confirmação antes de remover. Estar só interessada em outra turma nunca dispara esse aviso nem é tocado.</p>';
 
     /* ── Mapa do site ── */
     var totalPaginas = PAGES.length;

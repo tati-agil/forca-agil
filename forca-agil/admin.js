@@ -746,10 +746,10 @@
         if (status === 'inscrito') {
           checkOutrasTurmas(turmaKey, [eKey], function (overlaps) {
             if (!overlaps.length) { save(overlaps); return; }
-            var lista = overlaps.map(function (o) { return '• também tem registro ativo na "' + turmaLabel(o.turma) + '"'; }).join('\n');
+            var lista = overlaps.map(function (o) { return '• já está inscrita na "' + turmaLabel(o.turma) + '"'; }).join('\n');
             adminConfirm(
               'Adicionar ' + name + ' como Inscrita em "' + turmaLabel(turmaKey) + '"?\n\n' +
-              'Ela também está em outra turma. Se continuar, esse outro registro será removido automaticamente (ninguém pode ficar inscrita em mais de uma):\n\n' + lista,
+              'Ela já é inscrita em outra turma. Se continuar, essa outra inscrição será removida automaticamente (ninguém pode ficar inscrita em mais de uma):\n\n' + lista,
               function () { save(overlaps); }
             );
           });
@@ -875,6 +875,10 @@
 
   /* Verifica se algum dos candidatos a inscrito também está interessado (não removido)
      em outra turma — precisa saber ANTES de finalizar, para avisar o admin */
+  /* Só existe conflito de verdade quando a pessoa já é Inscrita em outra
+     turma — interesse (status "interessado") em quantas turmas quiser não é
+     problema, então não entra aqui. Ao confirmar/adicionar como Inscrita
+     numa turma, só a inscrição já existente em outra é removida. */
   function checkOutrasTurmas(turmaKey, candidatos, cb) {
     var outras = TURMAS_LIST.map(function (t) { return t.key; }).filter(function (k) { return k !== turmaKey; });
     var pending = candidatos.length * outras.length;
@@ -885,7 +889,7 @@
         firebase.database().ref('turmas-interesse/' + t + '/' + eKey).once('value', function (snap) {
           pending--;
           var val = snap.val();
-          if (val && !val.removed) overlaps.push({ eKey: eKey, name: val.name || eKey, turma: t });
+          if (val && !val.removed && val.status === 'inscrito') overlaps.push({ eKey: eKey, name: val.name || eKey, turma: t });
           if (pending === 0) cb(overlaps);
         });
       });
@@ -927,8 +931,8 @@
     checkOutrasTurmas(turmaKey, [eKey], function (overlaps) {
       var msg = 'Confirmar que ' + pessoa.name + ' se inscreveu no CMFlex para "' + turmaLabel(turmaKey) + '"?\n\nEla passa a ter acesso a Conteúdos, Treinamento Jedi e pode registrar presença.';
       if (overlaps.length) {
-        var lista = overlaps.map(function (o) { return '• também interessada na "' + turmaLabel(o.turma) + '"'; }).join('\n');
-        msg += '\n\nEla também está interessada em outra turma. Se continuar, esse outro interesse será removido automaticamente (ninguém pode ficar inscrita em mais de uma):\n\n' + lista;
+        var lista = overlaps.map(function (o) { return '• já está inscrita na "' + turmaLabel(o.turma) + '"'; }).join('\n');
+        msg += '\n\nEla já é inscrita em outra turma. Se continuar, essa outra inscrição será removida automaticamente (ninguém pode ficar inscrita em mais de uma):\n\n' + lista;
       }
       adminConfirm(msg, function () {
         var sess = window.faAuth && window.faAuth.getSession();
