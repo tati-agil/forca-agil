@@ -65,9 +65,9 @@
       <!-- Inscrita -> Removida -->
       <line x1="708" y1="114" x2="612" y2="296" stroke="#7f9bff" stroke-width="2" marker-end="url(#mapaArrow)"></line>
       <text font-family="var(--font-mono)" font-size="11" fill="var(--ink-2)">
-        <tspan x="618" y="205">Remover (admin) — inclui</tspan>
-        <tspan x="618" y="220">automático se confirmada</tspan>
-        <tspan x="618" y="235">em outra turma</tspan>
+        <tspan x="618" y="205">Remover (admin) — inclui automático</tspan>
+        <tspan x="618" y="220">se confirmada ou adicionada como</tspan>
+        <tspan x="618" y="235">Inscrita em outra turma</tspan>
       </text>
 
       <!-- Removida -> Interessada/Inscrita (readicionada) -->
@@ -349,6 +349,7 @@
     html += '<p class="mapa-sub">Como o registro de alguém em <code>turmas-interesse</code> muda de status — pela própria pessoa (site) ou pelo admin (painel).</p>';
     html += '<div class="mapa-status-diagram">' + STATUS_DIAGRAM_SVG + '</div>';
     html += '<p class="mapa-sub" style="margin-top:12px">Interesse não tem limite — a mesma pessoa pode estar "Interessada" em quantas turmas quiser ao mesmo tempo, sem nenhuma checagem. Só "Inscrita" é exclusivo de uma turma por vez: se a pessoa já for Inscrita em outra turma, essa outra inscrição é removida automaticamente — tanto ao clicar em "Confirmar" quanto ao adicionar alguém direto como "Inscrita" pelo "＋ Participante", que avisa e pede confirmação antes de remover. Estar só interessada em outra turma nunca dispara esse aviso nem é tocado.</p>';
+    html += '<p class="mapa-sub" style="margin-top:8px">O diagrama acima não mostra uma transição que não existe mais: uma vez Inscrita, a pessoa <strong>não consegue</strong> se autorremover pelo botão de interesse do site — ele fica travado ("✓ Inscrita", desabilitado). Só o "Desconfirmar" do admin tira esse status, porque só ele sabe de verdade se ela continua inscrita no CMFlex.</p>';
 
     /* ── Mapa do site ── */
     var totalPaginas = PAGES.length;
