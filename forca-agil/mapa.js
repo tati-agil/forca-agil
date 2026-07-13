@@ -23,7 +23,7 @@
   /* Diagrama de estados de turmas-interesse/<turma>/<emailKey> — ver regra
      "confirmar inscrição" e "adicionar participante" no Manual */
   const STATUS_DIAGRAM_SVG = `
-    <svg viewBox="0 -110 820 500" xmlns="http://www.w3.org/2000/svg" style="width:820px;min-width:820px;height:auto;display:block;margin:0 auto" role="img" aria-label="Diagrama de estados de uma pessoa numa turma">
+    <svg viewBox="0 -110 900 500" xmlns="http://www.w3.org/2000/svg" style="width:900px;min-width:900px;height:auto;display:block;margin:0 auto" role="img" aria-label="Diagrama de estados de uma pessoa numa turma">
       <defs>
         <marker id="mapaArrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
           <path d="M0,0 L10,5 L0,10 z" fill="#7f9bff"></path>
