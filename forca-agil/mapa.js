@@ -36,45 +36,46 @@
       <!-- Sem registro -> Interessada -->
       <line x1="196" y1="200" x2="308" y2="98" stroke="#7f9bff" stroke-width="2" marker-end="url(#mapaArrow)"></line>
       <text font-family="var(--font-mono)" font-size="11" fill="var(--ink-2)">
-        <tspan x="120" y="148">Tenho interesse (site) ou</tspan>
-        <tspan x="120" y="163">＋ Participante → Interessada</tspan>
+        <tspan x="120" y="141">"Tenho interesse" — Participante</tspan>
+        <tspan x="120" y="156">"＋ Participante" → Interessada</tspan>
+        <tspan x="120" y="171">— ação do Admin</tspan>
       </text>
 
       <!-- Sem registro -> Inscrita (atalho direto, admin) — passa alto, entra por cima da caixa Inscrita -->
       <path d="M108,178 C 300,-90 708,-90 708,50" fill="none" stroke="#f5c542" stroke-width="2" stroke-dasharray="6 5" marker-end="url(#mapaArrowGold)"></path>
       <text font-family="var(--font-mono)" font-size="11" fill="#f5c542">
-        <tspan x="230" y="-98">＋ Participante → Inscrita</tspan>
-        <tspan x="230" y="-83">(admin, atalho direto — checa outras turmas igual ao "Confirmar")</tspan>
+        <tspan x="230" y="-98">"＋ Participante" → Inscrita — ação do Admin</tspan>
+        <tspan x="230" y="-83">(atalho direto — checa outras turmas igual ao "Confirmar")</tspan>
       </text>
 
       <!-- Interessada -> Inscrita ("Confirmar") -->
       <line x1="496" y1="66" x2="616" y2="66" stroke="#4caf7d" stroke-width="2" marker-end="url(#mapaArrow)"></line>
-      <text x="556" y="42" text-anchor="middle" font-family="var(--font-mono)" font-size="11" fill="#4caf7d">Confirmar (admin)</text>
+      <text x="556" y="42" text-anchor="middle" font-family="var(--font-mono)" font-size="11" fill="#4caf7d">"Confirmar" — Admin</text>
 
       <!-- Inscrita -> Interessada ("Desconfirmar") -->
       <line x1="616" y1="100" x2="496" y2="100" stroke="#f5c542" stroke-width="2" marker-end="url(#mapaArrowGold)"></line>
-      <text x="556" y="128" text-anchor="middle" font-family="var(--font-mono)" font-size="11" fill="#f5c542">Desconfirmar (admin)</text>
+      <text x="556" y="128" text-anchor="middle" font-family="var(--font-mono)" font-size="11" fill="#f5c542">"Desconfirmar" — Admin</text>
 
       <!-- Interessada -> Removida -->
       <line x1="402" y1="114" x2="500" y2="296" stroke="#7f9bff" stroke-width="2" marker-end="url(#mapaArrow)"></line>
       <text font-family="var(--font-mono)" font-size="11" fill="var(--ink-2)">
-        <tspan x="330" y="205">Remover interesse (site) ou</tspan>
-        <tspan x="330" y="220">Remover (admin)</tspan>
+        <tspan x="330" y="198">"Remover interesse" — Participante</tspan>
+        <tspan x="330" y="213">"Remover" — Admin</tspan>
       </text>
 
       <!-- Inscrita -> Removida -->
       <line x1="708" y1="114" x2="612" y2="296" stroke="#7f9bff" stroke-width="2" marker-end="url(#mapaArrow)"></line>
       <text font-family="var(--font-mono)" font-size="11" fill="var(--ink-2)">
-        <tspan x="618" y="205">Remover (admin) — inclui automático</tspan>
-        <tspan x="618" y="220">se confirmada ou adicionada como</tspan>
-        <tspan x="618" y="235">Inscrita em outra turma</tspan>
+        <tspan x="618" y="198">"Remover" — Admin (inclui automático</tspan>
+        <tspan x="618" y="213">se confirmada ou adicionada como</tspan>
+        <tspan x="618" y="228">Inscrita em outra turma)</tspan>
       </text>
 
       <!-- Removida -> Interessada/Inscrita (readicionada) -->
       <path d="M466,328 C 260,380 130,300 108,246" fill="none" stroke="#f5c542" stroke-width="2" stroke-dasharray="6 5" marker-end="url(#mapaArrowGold)"></path>
       <text font-family="var(--font-mono)" font-size="11" fill="#f5c542">
-        <tspan x="150" y="366">Readicionada — volta a Interessada</tspan>
-        <tspan x="150" y="381">(site ou admin) ou Inscrita (admin)</tspan>
+        <tspan x="150" y="366">Readicionada — volta a Interessada (Participante</tspan>
+        <tspan x="150" y="381">ou Admin) ou Inscrita (só Admin)</tspan>
       </text>
 
       <!-- Caixa: Sem registro -->
