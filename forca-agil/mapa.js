@@ -147,6 +147,7 @@
         { label: 'Aba Manual — exportar Excel (regras)', p: ['admin'] },
         { label: 'Aba Mapa — hierarquia de personas (níveis de acesso cumulativos)', p: ['admin'] },
         { label: 'Aba Mapa — acesso por tipo de pessoa (tabela: quem vê o quê em cada página)', p: ['admin'] },
+        { label: 'Aba Mapa — diagrama de estados de uma pessoa numa turma (Sem Registro, Interessada, Inscrita, Removida e as ações que ligam cada uma)', p: ['admin'] },
         { label: 'Aba Mapa — mapa do site (páginas e funcionalidades por seção, com contagem)', p: ['admin'] },
         { label: 'Aba Mapa — arquitetura técnica (linguagens, tecnologias, padrões e deploy)', p: ['admin'] },
         { label: 'Aba Mapa — regras operacionais (cache, autonomia e processo de deploy)', p: ['admin'] },
@@ -249,7 +250,7 @@
     },
     { label: 'TURMAS', color: '#f5c542',
       features: [
-        { label: 'Grid com um card por turma cadastrada — mesmo conjunto de cards para todos os perfis (visitante, logado, inscrito ou admin); o que muda é o estado de cada turma, não quem está olhando', p: ['visitante','logado','inscrito','admin'] },
+        { label: 'Grid com um card por turma cadastrada — as mesmas turmas aparecem pra todos os perfis (visitante, logado, inscrito ou admin), nenhuma é escondida por perfil; o que muda entre elas é o estado da turma (aberta ou encerrada/CMFlex) e, dentro de uma turma aberta, o botão de interesse conforme o status da própria pessoa', p: ['visitante','logado','inscrito','admin'] },
         { label: 'Card de turma com interesse aberto — nome, mês, datas e botão "Tenho interesse"', p: ['visitante','logado','inscrito','admin'] },
         { label: 'Botão de interesse por turma ("Tenho interesse" / "Remover interesse") — exige login para registrar', p: ['logado','inscrito','admin'] },
         { label: 'Quem já é Inscrita vê botão travado "✓ Inscrita" (verde, desabilitado) em vez do botão de interesse — só o admin pode desconfirmar', p: ['logado','inscrito','admin'] },
@@ -350,7 +351,7 @@
       html += '</tr>';
     });
     html += '</tbody></table></div>';
-    html += '<p class="mapa-sub" style="margin-top:10px">"Turmas" mostra o mesmo grid de cards para todos os perfis — o que muda de um card para outro é o estado da turma (interesse aberto ou encerrado/CMFlex), nunca quem está olhando.</p>';
+    html += '<p class="mapa-sub" style="margin-top:10px">"Turmas" mostra as mesmas turmas pra todos os perfis — nenhuma é escondida por perfil. O que muda de um card para outro é o estado da turma (interesse aberto ou encerrado/CMFlex) e, dentro de uma turma aberta, o botão de interesse conforme o status da própria pessoa (Tenho interesse / Remover interesse / ✓ Inscrita travado).</p>';
 
     /* ── Estados de uma pessoa numa turma ── */
     html += '<h3 class="mapa-title" style="margin-top:48px">Estados de uma Pessoa numa Turma</h3>';
