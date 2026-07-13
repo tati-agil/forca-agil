@@ -739,7 +739,7 @@
       motivo: 'Requer turma finalizada mas sem diaAtivo definido em turmas-config.' },
     { section: 'Check-in',
       title: 'Pessoa não inscrita na turma → "Você não está inscrita nesta turma"',
-      motivo: 'Acessar #checkin?turma=<key> logado com uma conta sem registro (ou removido) em turmas-interesse dessa turma.' },
+      motivo: 'Acessar #checkin?turma=<key> logado com uma conta em qualquer um destes 3 casos em turmas-interesse dessa turma: sem registro nenhum, removida, ou apenas Interessada (ainda não confirmada como Inscrita pelo admin) — checkin.js bloqueia os três com a mesma mensagem, já que só quem tem status "inscrito" passa.' },
     { section: 'Check-in',
       title: 'Já fez check-in no dia → "Presença já registrada"',
       motivo: 'Escanear o QR Code uma segunda vez no mesmo dia com a mesma conta inscrita.' },
