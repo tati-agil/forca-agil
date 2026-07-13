@@ -72,7 +72,7 @@
       </text>
 
       <!-- Removida -> Interessada (readicionada, direto) -->
-      <path d="M480,296 Q 260,220 340,114" fill="none" stroke="#f5c542" stroke-width="2" stroke-dasharray="6 5" marker-end="url(#mapaArrowGold)"></path>
+      <path d="M480,296 Q 250,200 458,114" fill="none" stroke="#f5c542" stroke-width="2" stroke-dasharray="6 5" marker-end="url(#mapaArrowGold)"></path>
       <text font-family="var(--font-mono)" font-size="11" fill="#f5c542">
         <tspan x="70" y="360">Readicionada — "Tenho interesse" — Participante</tspan>
         <tspan x="70" y="375">(se turma aberta) ou "＋ Participante" → Interessada — Admin</tspan>
