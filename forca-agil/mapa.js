@@ -623,6 +623,7 @@
         items: [
           { name: 'Pasta de trabalho',  desc: 'Sempre usar "Design System (2)".' },
           { name: 'Processo de deploy', desc: 'git push para o branch main — o Firebase Hosting atualiza automaticamente. Nunca publicar de outra forma.' },
+          { name: 'Sem arquivo morto no deploy', desc: 'Todo arquivo não carregado/linkado pelo index.html (scaffold, ferramenta externa, protótipo) deve ir pro ignore do firebase.json, não ser publicado "por esquecimento".' },
         ]
       },
       {
