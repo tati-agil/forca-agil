@@ -457,8 +457,8 @@
       }
 
       var actionBtn = isInscrito
-        ? '<button class="cf-unconfirm-btn" data-turma="' + t.key + '" data-ekey="' + eKey + '" data-name="' + esc(r.name) + '">Desconfirmar</button>'
-        : '<button class="cf-confirm-btn" data-turma="' + t.key + '" data-ekey="' + eKey + '" data-name="' + esc(r.name) + '" data-email="' + esc(r.email) + '">Confirmar</button>';
+        ? '<button class="cf-unconfirm-btn" data-turma="' + t.key + '" data-ekey="' + eKey + '" data-name="' + esc(r.name) + '" data-email="' + esc(r.email) + '" data-area="' + esc(r.area || '') + '">Desconfirmar</button>'
+        : '<button class="cf-confirm-btn" data-turma="' + t.key + '" data-ekey="' + eKey + '" data-name="' + esc(r.name) + '" data-email="' + esc(r.email) + '" data-area="' + esc(r.area || '') + '">Confirmar</button>';
 
       tbl += '<tr><td>' + esc(r.name) + '</td><td>' + esc(r.email) + '</td><td>' +
         esc(r.area || '—') + '</td>' + statusCell + midCells +
@@ -474,12 +474,12 @@
     wrap.addEventListener('click', function (e) {
       var confirmBtn = e.target.closest('.cf-confirm-btn');
       if (confirmBtn) {
-        confirmarInscrito(confirmBtn.dataset.turma, confirmBtn.dataset.ekey, { name: confirmBtn.dataset.name, email: confirmBtn.dataset.email });
+        confirmarInscrito(confirmBtn.dataset.turma, confirmBtn.dataset.ekey, { name: confirmBtn.dataset.name, email: confirmBtn.dataset.email, area: confirmBtn.dataset.area });
         return;
       }
       var unconfirmBtn = e.target.closest('.cf-unconfirm-btn');
       if (unconfirmBtn) {
-        desconfirmarInscrito(unconfirmBtn.dataset.turma, unconfirmBtn.dataset.ekey, unconfirmBtn.dataset.name);
+        desconfirmarInscrito(unconfirmBtn.dataset.turma, unconfirmBtn.dataset.ekey, { name: unconfirmBtn.dataset.name, email: unconfirmBtn.dataset.email, area: unconfirmBtn.dataset.area });
         return;
       }
       var undoBtn = e.target.closest('.ck-undo-btn');
@@ -949,14 +949,21 @@
         });
         firebase.database().ref().update(updates, function (err) {
           if (err) { adminAlert('Erro ao confirmar. Tente novamente.'); return; }
+          firebase.database().ref('turmas-interesse-log/' + turmaKey + '/' + eKey).push({
+            name: pessoa.name, email: pessoa.email, area: pessoa.area || '',
+            action: 'confirmado', date: now,
+            adminName: sess ? (sess.name || sess.email) : 'Admin'
+          });
           loadInterests();
         });
       });
     });
   }
 
-  function desconfirmarInscrito(turmaKey, eKey, nome) {
-    adminConfirm('Desconfirmar a inscrição de ' + nome + ' em "' + turmaLabel(turmaKey) + '"?\n\nEla perde na hora o acesso a Conteúdos, Treinamento Jedi e não poderá mais registrar presença. Continua como interessada na turma.', function () {
+  function desconfirmarInscrito(turmaKey, eKey, pessoa) {
+    adminConfirm('Desconfirmar a inscrição de ' + pessoa.name + ' em "' + turmaLabel(turmaKey) + '"?\n\nEla perde na hora o acesso a Conteúdos, Treinamento Jedi e não poderá mais registrar presença. Continua como interessada na turma.', function () {
+      var sess = window.faAuth && window.faAuth.getSession();
+      var now = new Date().toISOString();
       var updates = {};
       updates['turmas-interesse/' + turmaKey + '/' + eKey + '/status'] = 'interessado';
       updates['turmas-interesse/' + turmaKey + '/' + eKey + '/confirmedByAdmin'] = null;
@@ -964,6 +971,11 @@
       updates['turmas-interesse/' + turmaKey + '/' + eKey + '/confirmedDate'] = null;
       firebase.database().ref().update(updates, function (err) {
         if (err) { adminAlert('Erro ao desconfirmar. Tente novamente.'); return; }
+        firebase.database().ref('turmas-interesse-log/' + turmaKey + '/' + eKey).push({
+          name: pessoa.name, email: pessoa.email, area: pessoa.area || '',
+          action: 'desconfirmado', date: now,
+          adminName: sess ? (sess.name || sess.email) : 'Admin'
+        });
         loadInterests();
       });
     });
@@ -1154,7 +1166,11 @@
           var turmaLog = logData[t.key] || {};
           Object.values(turmaLog).forEach(function (userLog) {
             Object.values(userLog).forEach(function (entry) {
-              var acao = entry.action === 'registrado' ? 'Interesse registrado' : 'Interesse removido';
+              var ACAO_LABELS = {
+                registrado: 'Interesse registrado', removido: 'Interesse removido',
+                confirmado: 'Confirmado como inscrita', desconfirmado: 'Desconfirmado (voltou a interessada)'
+              };
+              var acao = ACAO_LABELS[entry.action] || entry.action;
               var origem = entry.adminName ? 'Admin — ' + entry.adminName : 'Participante';
               entries.push({ ts: entry.date || '', row: [t.label, entry.name||'', entry.email||'', entry.area||'', fmtData(entry.date), fmtHora(entry.date), acao, origem] });
             });

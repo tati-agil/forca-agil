@@ -324,7 +324,7 @@
       body: 'Botão global "↓ Estado atual": exporta todas as turmas em um único arquivo CSV. Inclui apenas usuários ativos — removidos não aparecem. Coluna "Adicionado por" preenchida com nome do admin quando o participante foi adicionado manualmente; vazia quando o participante se inscreveu por conta própria.' },
     { section: 'admin', personas: ['admin'],
       title: 'Aba: Turmas — exportar CSV Histórico',
-      body: 'Botão global "↓ Histórico": exporta o log completo de ações em turmas-interesse-log — inclui ativos, removidos e todo histórico de adição/remoção. Coluna "Executado por" preenchida com nome do admin quando a ação foi executada por um admin; vazia quando o participante realizou a ação por conta própria.' },
+      body: 'Botão global "↓ Histórico": exporta o log completo de ações em turmas-interesse-log — inclui ativos, removidos e todo histórico de interesse registrado/removido, adicionado/removido pelo admin, e confirmado/desconfirmado como inscrita. Coluna "Origem" preenchida com "Admin — nome" quando a ação foi executada por um admin; "Participante" quando a própria pessoa registrou ou removeu o interesse.' },
     { section: 'admin', personas: ['admin'],
       title: 'Aba: Turmas — exportar CSV individual por turma',
       body: 'Botão "↓ CSV" em cada card de turma: exporta apenas os participantes ativos daquela turma. Para turmas finalizadas inclui colunas de presença por dia, frequência e critério atingido. Inclui coluna "Adicionado por" quando aplicável.' },
