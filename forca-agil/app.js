@@ -347,6 +347,7 @@
         btn.dataset.wired = '1';
 
         btn.addEventListener('click', function () {
+          if (btn.dataset.state === 'inscrito') return; /* já é inscrita — botão fica desabilitado, só o admin pode desconfirmar */
           const s = window.faAuth && window.faAuth.getSession();
           if (!s) {
             showMsg(turmaKey, 'Faça login para registrar seu interesse.');
@@ -364,7 +365,13 @@
       if (!firebase || !firebase.database) return;
       firebase.database().ref('turmas-interesse/' + turmaKey + '/' + key).once('value', function (snap) {
         const val = snap.val();
-        if (val && !val.removed) setDone(btn, turmaKey);
+        if (!val || val.removed) return;
+        /* Quem já é inscrita não pode se autorremover pelo "Remover interesse" —
+           só o admin confirma quem de fato saiu do CMFlex (botão "Desconfirmar").
+           Sem essa trava, a pessoa podia derrubar sozinha o próprio acesso a
+           Conteúdos/Treinamento mesmo continuando inscrita de verdade no CMFlex. */
+        if (val.status === 'inscrito') setInscrito(btn, turmaKey);
+        else setDone(btn, turmaKey);
       });
     }
 
@@ -409,6 +416,15 @@
       btn.dataset.state = 'done';
       btn.disabled = false;
       showMsg(turmaKey, 'Sua intenção foi registrada! Usaremos para dimensionar as turmas.');
+    }
+
+    function setInscrito(btn, turmaKey) {
+      btn.innerHTML = '<span class="btn-heart">&#x2713;</span>&nbsp; Inscrita';
+      btn.classList.remove('done');
+      btn.classList.add('inscrito');
+      btn.dataset.state = 'inscrito';
+      btn.disabled = true;
+      showMsg(turmaKey, 'Você já é inscrita nesta turma. Só o admin pode alterar sua inscrição.');
     }
 
     function setInitial(btn, turmaKey) {

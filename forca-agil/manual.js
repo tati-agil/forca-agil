@@ -167,6 +167,9 @@
     { section: 'turmas', personas: ['logado', 'admin'],
       title: 'Remover interesse → botão volta a "Tenho interesse"',
       body: 'Ao clicar em "♡ Remover interesse", o botão volta ao estado inicial "♡ Tenho interesse" e exibe a mensagem "Interesse removido." embaixo do botão.' },
+    { section: 'turmas', personas: ['logado', 'admin'],
+      title: 'Quem já é Inscrita não pode se autorremover — botão fica travado',
+      body: 'Se a pessoa já foi confirmada como Inscrita (pelo admin) e a turma ainda estiver com interesse aberto (ex.: turma reaberta depois da confirmação), o card não mostra mais "♡ Tenho interesse"/"♡ Remover interesse" — mostra um botão verde desabilitado "✓ Inscrita" e a mensagem "Você já é inscrita nesta turma. Só o admin pode alterar sua inscrição." Isso existe porque só o admin sabe de verdade se a pessoa continua inscrita no CMFlex — se ela pudesse se autorremover pelo site, o portal ficaria com um status errado (achando que ela saiu) sem ninguém perceber, mesmo ela continuando inscrita de fato lá fora. Só o botão "Desconfirmar" do admin pode tirar o status de Inscrita.' },
     /* ── Cenários de exceção (corridas, falhas e correções de bug) ── */
     { section: 'turmas', personas: ['logado', 'admin'],
       title: 'Corrida: turma encerra interesse entre carregar a página e clicar em "Tenho interesse"',

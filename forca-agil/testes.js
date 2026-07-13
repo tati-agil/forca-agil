@@ -690,6 +690,9 @@
       title: 'Após remover interesse → mensagem "Interesse removido." e botão volta a "Tenho interesse"',
       motivo: 'Verificar visualmente ao clicar em "Remover interesse" com um interesse já registrado.' },
     { section: 'Turmas',
+      title: 'Inscrita não consegue se autorremover pelo site (botão travado)',
+      motivo: 'Requer confirmar uma pessoa como Inscrita numa turma que continue com interesse aberto (ex.: reabrir a turma depois de confirmá-la, ou adicioná-la como Inscrita direto numa turma aberta). Logar como essa pessoa e acessar Turmas. Verificar: (1) o card mostra botão verde desabilitado "✓ Inscrita" em vez de "♡ Remover interesse"; (2) mensagem "Você já é inscrita nesta turma. Só o admin pode alterar sua inscrição."; (3) clicar no botão não faz nada (Firebase não é alterado); (4) só o "Desconfirmar" do admin tira esse status.' },
+    { section: 'Turmas',
       title: 'Interesse encerrado — card orienta pro CMFlex, igual pra qualquer pessoa',
       motivo: 'Com uma turma com interesse encerrado pelo admin: (1) como visitante, verificar que o card mostra "Faça sua inscrição no CMFlex" + botão "Ir para o CMFlex →" (sem botão de interesse); (2) como usuário logado, mesmo resultado; (3) se a turma não tiver link do CMFlex cadastrado, o card mostra aviso no lugar do botão em vez de link quebrado.' },
     // Cenários de exceção (corridas, falhas e correções de bug)

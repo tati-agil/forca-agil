@@ -244,6 +244,7 @@
         { label: 'Grid com um card por turma cadastrada — mesmo conjunto de cards para todos os perfis (visitante, logado, inscrito ou admin); o que muda é o estado de cada turma, não quem está olhando', p: ['visitante','logado','inscrito','admin'] },
         { label: 'Card de turma com interesse aberto — nome, mês, datas e botão "Tenho interesse"', p: ['visitante','logado','inscrito','admin'] },
         { label: 'Botão de interesse por turma ("Tenho interesse" / "Remover interesse") — exige login para registrar', p: ['logado','inscrito','admin'] },
+        { label: 'Quem já é Inscrita vê botão travado "✓ Inscrita" (verde, desabilitado) em vez do botão de interesse — só o admin pode desconfirmar', p: ['logado','inscrito','admin'] },
         { label: 'Card de turma com interesse encerrado — orientação de inscrição e botão "Ir para o CMFlex →" (link cadastrado pelo admin por turma)', p: ['visitante','logado','inscrito','admin'] },
         { label: 'Bloco "Como funciona a oficina" (métricas + descrição)', p: ['visitante','logado','inscrito','admin'] },
         { label: 'Agenda D1–D5 (itens estáticos)', p: ['visitante','logado','inscrito','admin'] },

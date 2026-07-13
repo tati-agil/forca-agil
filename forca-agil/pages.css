@@ -289,9 +289,7 @@
   background: rgba(16,28,52,.5); border-color: var(--line-strong);
   color: var(--ink); cursor: pointer; filter: none; box-shadow: none;
 }
-.btn--interest.inscrito  { background: rgba(24,194,186,.12); border-color: var(--cyan); color: var(--cyan); cursor: default; }
-.btn--interest.presente  { background: rgba(100,220,100,.12); border-color: #64dc64; color: #64dc64; cursor: default; }
-.btn--interest.blocked   { background: rgba(255,255,255,.04); border-color: rgba(255,255,255,.12); color: var(--ink-3); cursor: default; font-size: .8rem; }
+.btn--interest.inscrito  { background: rgba(76,175,125,.12); border-color: #4caf7d; color: #4caf7d; cursor: not-allowed; filter: none; box-shadow: none; }
 .turma-intent-msg {
   font-size: .78rem; font-family: var(--font-mono); color: var(--cyan);
   min-height: 1.2em; text-align: center;
