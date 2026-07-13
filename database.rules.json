@@ -62,7 +62,7 @@
     },
 
     "turmas-config": {
-      ".read": "auth != null && auth.token.email.matches(/.*@previ\\.com\\.br/)",
+      ".read": true,
       "$turmaKey": {
         ".write": "auth != null && auth.token.email.matches(/.*@previ\\.com\\.br/)"
       }
