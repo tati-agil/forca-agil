@@ -477,12 +477,20 @@
           return before === after;
         } },
         { id: 'c-turmas-btn-style', label: 'Botão "Tenho interesse" dourado sólido; após concluir, fundo escuro neutro', run: function () {
-          var btn = document.querySelector('.btn--interest');
-          if (!btn) return false;
+          /* Usa um botão fora da tela (não o da página Turmas, que só existe
+             quando aquela seção está com dados carregados) para o teste
+             funcionar de qualquer página, inclusive da aba Testes no Admin. */
+          var btn = document.createElement('button');
+          btn.className = 'btn--interest';
+          /* transition:none — sem isso, ler o estilo computado logo após
+             trocar a classe pega um valor no meio da transição de .2s,
+             não o valor final, e o teste falha por motivo errado */
+          btn.style.cssText = 'position:absolute;left:-9999px;top:-9999px;transition:none';
+          document.body.appendChild(btn);
           var beforeBg = window.getComputedStyle(btn).backgroundColor;
           btn.classList.add('done');
           var afterBg = window.getComputedStyle(btn).backgroundColor;
-          btn.classList.remove('done');
+          document.body.removeChild(btn);
           return beforeBg !== afterBg && beforeBg === 'rgb(245, 197, 24)';
         } }
       ]
