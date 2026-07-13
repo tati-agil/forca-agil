@@ -17,7 +17,7 @@
     { key: 'inscrito', label: 'Usuário inscrito (turma confirmada)', color: '#4caf7d',
       adds: ['Acessar Conteúdos', 'Acessar Treinamento Jedi (autodiagnóstico 0–60)', 'Revelar patente (resultado fixo e bloqueado — não pode refazer sem reset do admin)'] },
     { key: 'admin',   label: 'Admin',          color: '#ff5252',
-      adds: ['Acessar o Painel Admin', 'Criar, editar (nome/datas) e excluir turmas', 'Ver todos os cadastrados', 'Ver interessados por turma', 'Moderar Repositório (ocultar/restaurar/deletar)', 'Resetar progresso de qualquer cadastrado', 'Enviar e-mail de redefinição de senha para qualquer cadastrado', 'Gerenciar lista de admins (apenas tatianefdirene e danielfrazao — restrito por regra Firebase)'] },
+      adds: ['Acessar o Painel Admin (7 abas: Turmas, Repositório, Cadastrados, Administradores, Manual, Mapa, Testes)', 'Criar, editar e excluir turmas; cadastrar link do CMFlex por turma', 'Confirmar/desconfirmar inscrição e adicionar/remover participantes manualmente', 'Abrir/fechar check-in, gerar QR Code e emitir certificados de participação', 'Exportar CSV (estado atual, histórico e por turma)', 'Moderar Repositório (ocultar, restaurar, deletar conteúdos)', 'Ver e gerenciar cadastrados (filtrar, redefinir senha, resetar progresso)', 'Gerenciar lista de administradores (restrito a tatianefdirene e danielfrazao)', 'Consultar Manual, Mapa e Testes (documentação viva do sistema)'] },
   ];
 
   /* Diagrama de estados de turmas-interesse/<turma>/<emailKey> — ver regra
