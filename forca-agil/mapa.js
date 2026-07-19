@@ -252,9 +252,9 @@
       features: [
         { label: 'Grid com um card por turma cadastrada — as mesmas turmas aparecem pra todos os perfis (visitante, logado, inscrito ou admin), nenhuma é escondida por perfil; o que muda entre elas é o estado da turma (aberta ou encerrada/CMFlex) e, dentro de uma turma aberta, o botão de interesse conforme o status da própria pessoa', p: ['visitante','logado','inscrito','admin'] },
         { label: 'Card de turma com interesse aberto — nome, mês, datas e botão "Tenho interesse"', p: ['visitante','logado','inscrito','admin'] },
-        { label: 'Botão de interesse por turma ("Tenho interesse" / "Remover interesse") — exige login para registrar', p: ['logado','inscrito','admin'] },
+        { label: 'Botão de interesse por turma ("Tenho interesse" / "Remover interesse") — exige login para registrar; após registrar, status "Intenção acolhida" com mensagem "Seu interesse nesta turma já foi registrado. A inscrição no CMFlex será feita na próxima etapa."', p: ['logado','inscrito','admin'] },
         { label: 'Quem já é Inscrita vê botão travado "✓ Inscrita" (verde, desabilitado) em vez do botão de interesse — só o admin pode desconfirmar', p: ['logado','inscrito','admin'] },
-        { label: 'Card de turma com interesse encerrado — orientação de inscrição e botão "Ir para o CMFlex →" (link cadastrado pelo admin por turma)', p: ['visitante','logado','inscrito','admin'] },
+        { label: 'Card de turma com interesse encerrado — título "Faça sua inscrição no CMFlex", texto "Sua inscrição deve ser feita na Plataforma de Gestão, em RH Uso Pessoal > Solicitação de curso, após a aprovação do seu gestor." e botão "Ir para o CMFlex →" (link cadastrado pelo admin por turma); sem link: "Link ainda não disponível. Consulte a organização."', p: ['visitante','logado','inscrito','admin'] },
         { label: 'Bloco "Como funciona a oficina" (métricas + descrição)', p: ['visitante','logado','inscrito','admin'] },
         { label: 'Agenda D1–D5 (itens estáticos)', p: ['visitante','logado','inscrito','admin'] },
       ]

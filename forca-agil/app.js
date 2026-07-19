@@ -302,13 +302,13 @@
         if (t.finalizada) {
           var cmflexBtn = t.cmflexLink
             ? '<a class="btn--cmflex" href="' + t.cmflexLink + '" target="_blank" rel="noopener">Ir para o CMFlex →</a>'
-            : '<div class="turma-intent-msg">Link do CMFlex ainda não disponível — consulte a organização.</div>';
+            : '<div class="turma-intent-msg">Link ainda não disponível. Consulte a organização.</div>';
           return (
             '<div class="turma-card-new reveal in">' +
               '<span class="tc-label">' + t.label + '</span>' +
               '<div class="tc-month">' + fmt.mes + '</div>' +
               '<div class="tc-dates">' + fmt.dates + '</div>' +
-              '<div class="turma-cmflex-msg"><strong>Faça sua inscrição no CMFlex</strong>As inscrições desta turma agora devem ser feitas diretamente no sistema oficial.</div>' +
+              '<div class="turma-cmflex-msg"><strong>Faça sua inscrição no CMFlex</strong>Sua inscrição deve ser feita na Plataforma de Gestão, em RH Uso Pessoal > Solicitação de curso, após a aprovação do seu gestor.</div>' +
               cmflexBtn +
             '</div>'
           );
@@ -415,7 +415,7 @@
       btn.classList.add('done');
       btn.dataset.state = 'done';
       btn.disabled = false;
-      showMsg(turmaKey, 'Sua intenção foi registrada! Usaremos para dimensionar as turmas.');
+      showMsg(turmaKey, 'Intenção acolhida · Seu interesse nesta turma já foi registrado. A inscrição no CMFlex será feita na próxima etapa.');
     }
 
     function setInscrito(btn, turmaKey) {
