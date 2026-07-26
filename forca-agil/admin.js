@@ -379,13 +379,44 @@
             }
 
             if (removed.length) {
-              var removedHdr = document.createElement('p');
-              removedHdr.className = 'turma-removed-title';
-              removedHdr.textContent = finalizada
+              var removedSection = document.createElement('div');
+              removedSection.className = 'turma-removed-accordion';
+
+              var removedHdr = document.createElement('button');
+              removedHdr.className = 'turma-removed-toggle';
+              removedHdr.type = 'button';
+              removedHdr.setAttribute('aria-expanded', 'false');
+
+              var labelText = finalizada
                 ? 'Removidos (' + removed.length + ') — histórico de presença preservado'
                 : 'Removidos (' + removed.length + ')';
-              body.appendChild(removedHdr);
-              body.appendChild(finalizada ? buildRemovedPresencaTable(t, removed, checkinT) : buildRemovedInteressadosTable(removed));
+
+              var labelSpan = document.createElement('span');
+              labelSpan.textContent = labelText;
+
+              var iconSpan = document.createElement('span');
+              iconSpan.className = 'turma-removed-icon';
+              iconSpan.setAttribute('aria-hidden', 'true');
+              iconSpan.textContent = '▸';
+
+              removedHdr.appendChild(iconSpan);
+              removedHdr.appendChild(labelSpan);
+
+              var removedBody = document.createElement('div');
+              removedBody.className = 'turma-removed-body';
+              removedBody.hidden = true;
+              removedBody.appendChild(finalizada ? buildRemovedPresencaTable(t, removed, checkinT) : buildRemovedInteressadosTable(removed));
+
+              removedHdr.addEventListener('click', function () {
+                var expanded = removedHdr.getAttribute('aria-expanded') === 'true';
+                removedHdr.setAttribute('aria-expanded', String(!expanded));
+                iconSpan.textContent = expanded ? '▸' : '▾';
+                removedBody.hidden = expanded;
+              });
+
+              removedSection.appendChild(removedHdr);
+              removedSection.appendChild(removedBody);
+              body.appendChild(removedSection);
             }
 
             card.appendChild(body);
