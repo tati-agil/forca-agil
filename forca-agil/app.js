@@ -415,7 +415,7 @@
       btn.classList.add('done');
       btn.dataset.state = 'done';
       btn.disabled = false;
-      showMsg(turmaKey, 'Intenção acolhida · Seu interesse nesta turma já foi registrado. A inscrição no CMFlex será feita na próxima etapa.');
+      showMsg(turmaKey, 'Interesse registrado. Para confirmar sua vaga, realize a inscrição no CMFlex em: RH - Uso Pessoal | PREVI');
     }
 
     function setInscrito(btn, turmaKey) {
