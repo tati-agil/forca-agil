@@ -415,7 +415,7 @@
       btn.classList.add('done');
       btn.dataset.state = 'done';
       btn.disabled = false;
-      showMsg(turmaKey, 'Interesse registrado. Para confirmar sua vaga, realize a inscrição no CMFlex em: RH - Uso Pessoal | PREVI');
+      showMsg(turmaKey, 'Interesse registrado. Para confirmar sua vaga, realize a inscrição no CMFlex em: ', 'RH - Uso Pessoal | PREVI', 'https://plataforma.intra.previ.com.br/RhUsoPessoal/InscricaoEventoTreinamento');
     }
 
     function setInscrito(btn, turmaKey) {
@@ -435,9 +435,18 @@
       showMsg(turmaKey, 'Interesse removido.');
     }
 
-    function showMsg(turmaKey, msg) {
+    function showMsg(turmaKey, msg, linkText, linkHref) {
       const el = document.getElementById('intent-msg-' + turmaKey);
-      if (el) el.textContent = msg;
+      if (!el) return;
+      el.textContent = msg;
+      if (linkText && linkHref) {
+        const a = document.createElement('a');
+        a.href = linkHref;
+        a.target = '_blank';
+        a.rel = 'noopener noreferrer';
+        a.textContent = linkText;
+        el.appendChild(a);
+      }
     }
 
     function emailKey(e) {
