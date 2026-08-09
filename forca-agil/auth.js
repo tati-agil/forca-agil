@@ -490,19 +490,39 @@
     /* Custom select — área */
     const cs = document.getElementById('regAreaSelect');
     if (cs) {
-      const trigger = cs.querySelector('.cs-trigger');
-      const list    = cs.querySelector('.cs-list');
-      const hidden  = document.getElementById('regArea');
-      trigger.addEventListener('click', function (e) { e.stopPropagation(); list.classList.toggle('open'); trigger.classList.toggle('open'); });
-      list.querySelectorAll('li').forEach(function (li) {
+      const trigger   = cs.querySelector('.cs-trigger');
+      const list      = cs.querySelector('.cs-list');
+      const hidden    = document.getElementById('regArea');
+      const searchInput = cs.querySelector('.cs-search');
+
+      function openList() { list.classList.add('open'); trigger.classList.add('open'); if (searchInput) { searchInput.value = ''; filterItems(''); searchInput.focus(); } }
+      function closeList() { list.classList.remove('open'); trigger.classList.remove('open'); }
+
+      function filterItems(q) {
+        const term = q.toLowerCase();
+        list.querySelectorAll('li[data-val]').forEach(function (li) {
+          if (!li.dataset.val) return; /* linha de busca */
+          li.style.display = li.dataset.val.toLowerCase().includes(term) ? '' : 'none';
+        });
+      }
+
+      trigger.addEventListener('click', function (e) { e.stopPropagation(); list.classList.contains('open') ? closeList() : openList(); });
+
+      if (searchInput) {
+        searchInput.addEventListener('input', function () { filterItems(searchInput.value); });
+        searchInput.addEventListener('click', function (e) { e.stopPropagation(); });
+      }
+
+      list.querySelectorAll('li[data-val]').forEach(function (li) {
+        if (!li.dataset.val) return;
         li.addEventListener('click', function () {
           hidden.value = li.dataset.val;
           trigger.textContent = li.dataset.val;
-          trigger.classList.add('selected'); trigger.classList.remove('open');
-          list.classList.remove('open');
+          trigger.classList.add('selected'); closeList();
         });
       });
-      document.addEventListener('click', function () { list.classList.remove('open'); trigger.classList.remove('open'); });
+
+      document.addEventListener('click', function () { closeList(); });
     }
 
     window.faOpenAuthModal  = openModal;

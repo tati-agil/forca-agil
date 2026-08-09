@@ -294,6 +294,7 @@
   font-size: .78rem; font-family: var(--font-mono); color: var(--cyan);
   min-height: 1.2em; text-align: center;
 }
+.turma-intent-msg a { color: var(--accent); text-underline-offset: 3px; }
 
 /* ---- Turmas admin cards ---- */
 .turma-admin-card {
