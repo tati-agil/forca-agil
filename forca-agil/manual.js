@@ -75,7 +75,7 @@
       body: 'Apenas números, mínimo 8 dígitos. O teclado numérico abre automaticamente em celular. O campo "Confirmar senha" deve ser idêntico — se divergir, exibe "As senhas não coincidem." Se contiver letras ou símbolos, exibe "Senha deve conter apenas números e ter mínimo 8 dígitos."' },
     { section: 'cadastrar', personas: ['visitante'],
       title: 'Cadastro — área/setor',
-      body: 'Lista suspensa com as gerências em ordem alfabética: ASJUR, AUDIT, CONIN, GABIN, GEBEN, GECAP, GECAT, GECON, GEINT, GEPAR, GEPRO, GERAI, GERAT, GEROP, GESOP, GETHO, INFOR, OUVIR, PNSEG, SECEX.' },
+      body: 'Dropdown customizado com campo de busca por digitação no topo. Ao abrir, o foco vai direto para o campo de busca — a pessoa digita parte do nome da gerência e a lista filtra em tempo real. As 20 opções em ordem alfabética: ASJUR, AUDIT, CONIN, GABIN, GEBEN, GECAP, GECAT, GECON, GEINT, GEPAR, GEPRO, GERAI, GERAT, GEROP, GESOP, GETHO, INFOR, OUVIR, PNSEG, SECEX.' },
     { section: 'cadastrar', personas: ['visitante'],
       title: 'Cadastro — checkbox de termos (obrigatório)',
       body: 'O usuário deve aceitar os termos de uso antes de concluir o cadastro. Sem marcar, bloqueia com "Aceite os termos para continuar."' },

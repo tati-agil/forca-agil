@@ -167,7 +167,7 @@
     { label: 'CADASTRAR', color: '#9b7fff',
       features: [
         { label: 'Cadastrar conta (@previ.com.br)',           p: ['visitante'] },
-        { label: 'Selecionar área/setor (lista de 20 opções)', p: ['visitante'] },
+        { label: 'Selecionar área/setor — dropdown com campo de busca por digitação (20 gerências, filtra em tempo real)', p: ['visitante'] },
         { label: 'Mostrar/ocultar senha do campo "Senha" (botão "olhinho")', p: ['visitante'] },
         { label: 'Mostrar/ocultar senha do campo "Confirmar senha" (botão "olhinho")', p: ['visitante'] },
         { label: 'Aceitar termos de uso (checkbox obrigatório)', p: ['visitante'] },
