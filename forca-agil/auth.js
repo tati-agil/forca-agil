@@ -508,6 +508,9 @@
 
       trigger.addEventListener('click', function (e) { e.stopPropagation(); list.classList.contains('open') ? closeList() : openList(); });
 
+      const searchWrap = cs.querySelector('.cs-search-wrap');
+      if (searchWrap) searchWrap.addEventListener('click', function (e) { e.stopPropagation(); });
+
       if (searchInput) {
         searchInput.addEventListener('input', function () { filterItems(searchInput.value); });
         searchInput.addEventListener('click', function (e) { e.stopPropagation(); });

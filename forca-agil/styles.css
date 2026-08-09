@@ -1075,8 +1075,8 @@ html:not(.js) .reveal { opacity: 1 !important; transform: none !important; }
 .cs-list.open { display:block; }
 .cs-list li { padding:10px 16px; cursor:pointer; font-size:.95rem; color:var(--ink-2); list-style:none; }
 .cs-list li:hover { background:rgba(255,255,255,.07); color:var(--ink); }
-.cs-search-wrap { padding:8px 10px; cursor:default; background:none; position:sticky; top:0; z-index:1; }
-.cs-search-wrap:hover { background:none; }
+.cs-search-wrap { padding:8px 10px; cursor:default; background:#0a1426; }
+.cs-search-wrap:hover { background:#0a1426; }
 .cs-search { width:100%; padding:7px 10px; background:rgba(255,255,255,.07); border:1px solid var(--line-strong); border-radius:6px; color:var(--ink); font:inherit; font-size:.85rem; box-sizing:border-box; outline:none; }
 .cs-search:focus { border-color:var(--accent); }
 .cs-list::-webkit-scrollbar { width:4px; }
