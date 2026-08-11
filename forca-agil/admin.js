@@ -612,6 +612,13 @@
 
   /* ---- Check-in actions ---- */
   function openCheckin(turmaKey, dia) {
+    var partes = dia.split('-');
+    var diaLabel = partes[2] + '/' + partes[1] + '/' + partes[0];
+    var hoje = todayISO();
+    var aviso = dia !== hoje
+      ? '\n\n⚠️ ATENÇÃO: este dia (' + diaLabel + ') é diferente de hoje (' + hoje.split('-').reverse().join('/') + ')!'
+      : '';
+    if (!confirm('Abrir check-in para o dia ' + diaLabel + '?' + aviso)) return;
     firebase.database().ref('turmas-config/' + turmaKey + '/diaAtivo').set(dia, function (err) {
       if (err) { adminAlert('Erro ao abrir check-in.'); return; }
       loadInterests();

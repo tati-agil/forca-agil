@@ -118,7 +118,7 @@
         { label: 'Aba Turmas — confirmar inscrição de um interessado a qualquer momento, turma aberta ou com interesse encerrado (marca como Inscrito, avisa e remove a inscrição em outra turma se ela já for inscrita lá — mero interesse em outra turma não é tocado)', p: ['admin'] },
         { label: 'Aba Turmas — desconfirmar inscrição de um inscrito a qualquer momento, turma aberta ou com interesse encerrado (volta a Interessado, perde acesso na hora)', p: ['admin'] },
         { label: 'Aba Turmas — reabrir interesse da turma (sem mexer em confirmações já feitas)', p: ['admin'] },
-        { label: 'Aba Turmas — abrir check-in do dia', p: ['admin'] },
+        { label: 'Aba Turmas — abrir check-in do dia (com confirmação do dia + aviso se diferente de hoje)', p: ['admin'] },
         { label: 'Aba Turmas — fechar check-in do dia', p: ['admin'] },
         { label: 'Aba Turmas — gerar QR Code da turma', p: ['admin'] },
         { label: 'Aba Turmas — tabela de presença, registro manual', p: ['admin'] },

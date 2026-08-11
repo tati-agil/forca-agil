@@ -802,7 +802,7 @@
       motivo: 'Funciona com a turma aberta ou com interesse encerrado — requer só pelo menos 1 inscrito confirmado. Clicar em "Desconfirmar" na linha da pessoa. Verificar: (1) abre modal de confirmação; (2) ao confirmar, ela volta a "Interessado" (continua na turma, só perde os privilégios); (3) se estiver com sessão aberta em outra aba, o acesso a Conteúdos/Treinamento Jedi cai na hora, sem precisar deslogar; (4) testar com a turma ainda aberta e também já encerrada.' },
     { section: 'Check-in',
       title: 'Admin — Turmas: abrir check-in do dia',
-      motivo: 'Requer turma finalizada. Verificar: (1) select exibe os dias da turma e pré-seleciona hoje se aplicável; (2) ao abrir dia escolhido, badge "CHECK-IN ABERTO · DD/MM" aparece pulsante; (3) participante consegue fazer check-in via QR apenas para o dia aberto. Testar também abrir um dia diferente de hoje (passado ou futuro).' },
+      motivo: 'Requer turma finalizada. Verificar: (1) select exibe os dias da turma e pré-seleciona hoje se aplicável; (2) ao clicar em "Abrir check-in", aparece diálogo de confirmação com o dia exato — se o dia selecionado for diferente de hoje, o diálogo exibe aviso ⚠️; (3) ao confirmar, badge "CHECK-IN ABERTO · DD/MM" aparece pulsante; (4) participante consegue fazer check-in via QR apenas para o dia aberto. Testar também abrir um dia diferente de hoje (passado ou futuro) — verificar que o aviso ⚠️ aparece.' },
     { section: 'Check-in',
       title: 'Admin — Turmas: fechar check-in do dia',
       motivo: 'Requer turma finalizada e check-in aberto. Verificar: ao fechar, check-in passa a ser bloqueado na página checkin.' },
