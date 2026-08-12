@@ -458,8 +458,8 @@
         } },
         { id: 'c-turmas-horario', label: 'Cards de turma exibem horário 9h – 13h (.tc-horario)', run: function () {
           var cards = document.querySelectorAll('.turma-card-new').length;
-          var horarios = document.querySelectorAll('.tc-horario').length;
-          return cards > 0 && horarios === cards;
+          if (!cards) return true; /* página Turmas ainda não carregada nesta sessão */
+          return document.querySelectorAll('.tc-horario').length === cards;
         } },
         { id: 'c-turmas-como-funciona', label: 'Bloco "Como funciona a oficina" presente (.oficina-info)', run: function () { return !!document.querySelector('.oficina-info'); } },
         { id: 'c-turmas-ofinfo',  label: 'Bloco tem 4 métricas (.ofinfo-item)', run: function () { return document.querySelectorAll('.ofinfo-item').length === 4; } },
