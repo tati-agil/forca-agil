@@ -785,19 +785,8 @@
         '</div>' +
       '</div>' +
 
-      /* separador manual */
-      '<p id="addPartManualToggleWrap" style="font-size:.8rem;color:var(--ink-3);text-align:center;margin:0">' +
-        'Não encontrou? <button id="addPartManualToggle" style="background:none;border:none;color:var(--accent);font-size:.8rem;cursor:pointer;padding:0;text-decoration:underline">Preencher manualmente</button>' +
-      '</p>' +
-
-      /* campos manuais (ocultos por padrão) */
-      '<div id="addPartManual" style="display:none;flex-direction:column;gap:14px">' +
-        '<label class="auth-label" style="margin:0">Nome<input type="text" id="addPartNome" placeholder="Nome completo" autocomplete="off" /></label>' +
-        '<label class="auth-label" style="margin:0">E-mail<input type="email" id="addPartEmail" placeholder="nome@previ.com.br" autocomplete="off" /></label>' +
-        '<label class="auth-label" style="margin:0">Área<select id="addPartArea" style="width:100%;padding:10px 12px;background:var(--panel-2);border:1px solid var(--line-strong);border-radius:6px;color:var(--ink);font-family:var(--font-body)">' +
-          '<option value="">Selecione a área…</option>' + areasOptions +
-        '</select></label>' +
-      '</div>' +
+      /* aviso quando não encontrar */
+      '<p style="font-size:.8rem;color:var(--ink-3);margin:0">Não encontrou a pessoa? Peça que ela faça o cadastro no site primeiro — após isso, ela aparecerá aqui na busca.</p>' +
 
       '<label class="auth-label" style="margin:0">Status<select id="addPartStatus" style="width:100%;padding:10px 12px;background:var(--panel-2);border:1px solid var(--line-strong);border-radius:6px;color:var(--ink);font-family:var(--font-body)">' +
         '<option value="">Selecione o status…</option>' +
@@ -820,28 +809,14 @@
     var selectedDiv = box.querySelector('#addPartSelected');
     var selectedInfo= box.querySelector('#addPartSelectedInfo');
     var clearSelBtn = box.querySelector('#addPartClearSel');
-    var manualDiv   = box.querySelector('#addPartManual');
-    var manualToggleWrap = box.querySelector('#addPartManualToggleWrap');
-    var manualToggle= box.querySelector('#addPartManualToggle');
 
     var allUsers = [];   /* carregados do Firebase */
     var selected = null; /* { name, email, area } */
-    var manualMode = false;
 
     firebase.database().ref('fa-users').once('value', function (snap) {
       var data = snap.val() || {};
       allUsers = Object.values(data).filter(function (u) { return u.email && u.name; });
     });
-
-    function showManual(show) {
-      manualMode = show;
-      manualDiv.style.display = show ? 'flex' : 'none';
-      manualToggleWrap.style.display = show ? 'none' : '';
-      if (show) {
-        box.querySelector('#addPartNome').focus();
-      }
-    }
-    manualToggle.addEventListener('click', function () { showManual(true); });
 
     function selectUser(u) {
       selected = u;
@@ -895,26 +870,17 @@
     box.querySelector('.admin-modal-add-btn').addEventListener('click', function () {
       var name, email, area;
 
-      if (selected) {
-        name  = selected.name.toUpperCase();
-        email = selected.email.toLowerCase();
-        area  = selected.area || '';
-      } else if (manualMode) {
-        name  = (box.querySelector('#addPartNome').value || '').trim().toUpperCase();
-        email = (box.querySelector('#addPartEmail').value || '').trim().toLowerCase();
-        area  = (box.querySelector('#addPartArea').value || '').trim();
-      } else {
-        errEl.textContent = 'Busque e selecione uma pessoa, ou clique em "Preencher manualmente".';
+      if (!selected) {
+        errEl.textContent = 'Busque e selecione uma pessoa da lista.';
         errEl.style.display = ''; return;
       }
+      name  = selected.name.toUpperCase();
+      email = selected.email.toLowerCase();
+      area  = selected.area || '';
 
       var status = (box.querySelector('#addPartStatus').value || '').trim();
 
       errEl.style.display = 'none';
-      if (!name) { errEl.textContent = 'Preencha o nome.'; errEl.style.display = ''; return; }
-      if (!email) { errEl.textContent = 'Preencha o e-mail.'; errEl.style.display = ''; return; }
-      if (!/@previ\.com\.br$/.test(email)) { errEl.textContent = 'Use um e-mail @previ.com.br.'; errEl.style.display = ''; return; }
-      if (!area) { errEl.textContent = 'Selecione a área.'; errEl.style.display = ''; return; }
       if (!status) { errEl.textContent = 'Selecione o status.'; errEl.style.display = ''; return; }
 
       var eKey = emailKeyFromEmail(email);
