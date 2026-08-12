@@ -308,6 +308,7 @@
               '<span class="tc-label">' + t.label + '</span>' +
               '<div class="tc-month">' + fmt.mes + '</div>' +
               '<div class="tc-dates">' + fmt.dates + '</div>' +
+              '<div class="tc-horario">&#x23F0; 9h &ndash; 13h</div>' +
               '<div class="turma-cmflex-msg"><strong>Faça sua inscrição no CMFlex</strong>Sua inscrição deve ser feita na Plataforma de Gestão, em RH Uso Pessoal > Solicitação de curso, após a aprovação do seu gestor.</div>' +
               cmflexBtn +
             '</div>'
@@ -319,6 +320,7 @@
             '<span class="tc-label">' + t.label + '</span>' +
             '<div class="tc-month">' + fmt.mes + '</div>' +
             '<div class="tc-dates">' + fmt.dates + '</div>' +
+            '<div class="tc-horario">&#x23F0; 9h &ndash; 13h</div>' +
             '<button class="btn--interest" data-turma="' + t.key + '"><span class="btn-heart">&#x2661;</span>&nbsp; Tenho interesse</button>' +
             '<div class="turma-intent-msg" id="intent-msg-' + t.key + '"></div>' +
           '</div>'
