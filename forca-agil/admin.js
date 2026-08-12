@@ -484,7 +484,13 @@
     records.forEach(function (r) {
       var eKey = emailKeyFromEmail(r.email);
       var isInscrito = r.status === 'inscrito';
-      var statusCell = '<td><span class="status-badge ' + (isInscrito ? 'status-inscrito">Inscrito' : 'status-interessado">Interessado') + '</span></td>';
+      var motivoBadge = '';
+      if (!isInscrito && r.motivoNaoConfirmado) {
+        var motivoLabel = r.motivoNaoConfirmado === 'sem_vagas' ? 'Sem vagas' : 'Substituída';
+        var motivoCls   = r.motivoNaoConfirmado === 'sem_vagas' ? 'motivo-sem-vagas' : 'motivo-substituida';
+        motivoBadge = '<span class="motivo-badge ' + motivoCls + '">' + motivoLabel + '</span>';
+      }
+      var statusCell = '<td><span class="status-badge ' + (isInscrito ? 'status-inscrito">Inscrito' : 'status-interessado">Interessado') + '</span>' + motivoBadge + '</td>';
 
       var midCells;
       if (finalizada) {
@@ -518,9 +524,18 @@
         midCells = '<td>' + fmtDate(r.date) + '</td>';
       }
 
+      var motivoSel = '';
+      if (!isInscrito) {
+        var mv = r.motivoNaoConfirmado || '';
+        motivoSel = '<select class="motivo-sel" data-turma="' + t.key + '" data-ekey="' + eKey + '" title="Justificativa">' +
+          '<option value="">Justificar…</option>' +
+          '<option value="sem_vagas"' + (mv === 'sem_vagas' ? ' selected' : '') + '>Sem vagas</option>' +
+          '<option value="substituida"' + (mv === 'substituida' ? ' selected' : '') + '>Substituída</option>' +
+          '</select>';
+      }
       var actionBtn = isInscrito
         ? '<button class="cf-unconfirm-btn" data-turma="' + t.key + '" data-ekey="' + eKey + '" data-name="' + esc(r.name) + '" data-email="' + esc(r.email) + '" data-area="' + esc(r.area || '') + '">Desconfirmar</button>'
-        : '<button class="cf-confirm-btn" data-turma="' + t.key + '" data-ekey="' + eKey + '" data-name="' + esc(r.name) + '" data-email="' + esc(r.email) + '" data-area="' + esc(r.area || '') + '">Confirmar</button>';
+        : motivoSel + '<button class="cf-confirm-btn" data-turma="' + t.key + '" data-ekey="' + eKey + '" data-name="' + esc(r.name) + '" data-email="' + esc(r.email) + '" data-area="' + esc(r.area || '') + '">Confirmar</button>';
 
       tbl += '<tr><td>' + esc(r.name) + '</td><td>' + esc(r.email) + '</td><td>' +
         esc(r.area || '—') + '</td>' + statusCell + midCells +
@@ -531,6 +546,19 @@
 
     tbl += '</tbody></table>';
     wrap.innerHTML = tbl;
+
+    /* seletor de motivo para interessados */
+    wrap.addEventListener('change', function (e) {
+      var sel = e.target.closest('.motivo-sel');
+      if (!sel) return;
+      var val = sel.value;
+      var ref = firebase.database().ref('turmas-interesse/' + sel.dataset.turma + '/' + sel.dataset.ekey + '/motivoNaoConfirmado');
+      if (val) {
+        ref.set(val, function (err) { if (!err) loadInterests(); });
+      } else {
+        ref.remove(function (err) { if (!err) loadInterests(); });
+      }
+    });
 
     /* delegação de eventos: confirmar/desconfirmar, desfazer check-in, check-in manual, remoção */
     wrap.addEventListener('click', function (e) {
