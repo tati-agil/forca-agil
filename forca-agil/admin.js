@@ -242,6 +242,7 @@
           TURMAS_LIST.forEach(function (t) {
             var cfg       = config[t.key] || {};
             var finalizada = !!cfg.finalizada;
+            var encerrada  = !!cfg.encerrada;
             var diaAtivo  = cfg.diaAtivo || null;
             var all       = data[t.key] ? Object.values(data[t.key]) : [];
             var active    = all.filter(function (r) { return !r.removed; });
@@ -388,6 +389,25 @@
               return function () { exportTurmaCSV(tt, a, f, ck); };
             })(t, all, finalizada, checkinT));
             moreMenu.appendChild(csvBtn);
+
+            /* Encerrar turma — só aparece quando interesse já foi encerrado e turma ainda não encerrada */
+            if (finalizada && !encerrada) {
+              var encerrarBtn = document.createElement('button');
+              encerrarBtn.className = 'btn btn--sm';
+              encerrarBtn.style.cssText = 'padding:6px 10px;font-size:.72rem;border-color:rgba(255,165,0,.4);color:#ffb347';
+              encerrarBtn.textContent = '✓ Encerrar turma';
+              encerrarBtn.addEventListener('click', (function (tk, tl) {
+                return function () {
+                  adminConfirm('Marcar a turma "' + tl + '" como encerrada?\n\nO card público passará a exibir "Turma realizada" — sem botão de inscrição.', function () {
+                    firebase.database().ref('turmas-config/' + tk + '/encerrada').set(true, function (err) {
+                      if (err) { adminAlert('Erro ao encerrar. Tente novamente.'); return; }
+                      loadInterests();
+                    });
+                  });
+                };
+              })(t.key, t.label));
+              moreMenu.appendChild(encerrarBtn);
+            }
 
             /* Editar (nome/datas) e Excluir turma — disponíveis sempre, aberta ou finalizada */
             var editTurmaBtn = document.createElement('button');

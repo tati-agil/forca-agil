@@ -643,6 +643,12 @@ html:not(.js) .reveal { opacity: 1 !important; transform: none !important; }
 .tc-month { font-family: var(--font-display); font-size: 1.5rem; text-transform: uppercase; color: var(--ink); line-height: 1.1; }
 .tc-dates { font-family: var(--font-mono); font-size: .78rem; color: var(--accent); letter-spacing: .06em; }
 .tc-horario { font-family: var(--font-mono); font-size: .72rem; color: var(--ink-3); letter-spacing: .04em; margin-top: 4px; }
+.turma-status-msg { margin-top: 14px; font-size: .8rem; line-height: 1.5; }
+.turma-status-msg strong { display: block; margin-bottom: 4px; font-size: .85rem; }
+.turma-andamento-msg { color: var(--ink-3); }
+.turma-andamento-msg strong { color: #64b5f6; }
+.turma-realizada-msg { color: var(--ink-3); }
+.turma-realizada-msg strong { color: var(--ink-2); }
 .btn--interest { margin-top: 6px; padding: 8px 14px; font-family: var(--font-mono); font-size: .72rem; letter-spacing: .1em; text-transform: uppercase; color: var(--accent); background: transparent; border: 1px solid var(--accent); border-radius: 8px; cursor: pointer; transition: background .2s, color .2s; }
 .btn--interest:hover { background: var(--accent); color: var(--bg); }
 .btn--interest.done { opacity: .6; cursor: default; }

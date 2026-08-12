@@ -281,7 +281,8 @@
               dias: val[key].dias || [],
               order: val[key].order || 0,
               cmflexLink: val[key].cmflexLink || '',
-              finalizada: !!(cfg[key] && cfg[key].finalizada)
+              finalizada: !!(cfg[key] && cfg[key].finalizada),
+              encerrada:  !!(cfg[key] && cfg[key].encerrada)
             };
           }).sort(function (a, b) { return a.order - b.order; });
           cb(_turmasList);
@@ -296,9 +297,40 @@
         grid.innerHTML = '<p style="opacity:.7">Nenhuma turma aberta no momento.</p>';
         return;
       }
+      var hoje = new Date().toISOString().slice(0, 10);
       grid.innerHTML = _turmasList.map(function (t) {
         var fmt = window.faTurmasUtil.formatDias(t.dias);
+        var diasOrdenados = t.dias.slice().sort();
+        var primeiroDia = diasOrdenados[0] || '';
+        var ultimoDia   = diasOrdenados[diasOrdenados.length - 1] || '';
 
+        /* encerrada pelo admin OU já passou do último dia → Realizada */
+        if (t.encerrada || (ultimoDia && hoje > ultimoDia)) {
+          return (
+            '<div class="turma-card-new reveal in turma-card-realizada">' +
+              '<span class="tc-label">' + t.label + '</span>' +
+              '<div class="tc-month">' + fmt.mes + '</div>' +
+              '<div class="tc-dates">' + fmt.dates + '</div>' +
+              '<div class="tc-horario">&#x23F0; 9h &ndash; 13h</div>' +
+              '<div class="turma-status-msg turma-realizada-msg"><strong>Turma realizada</strong>Esta turma já foi concluída. Fique de olho nas próximas.</div>' +
+            '</div>'
+          );
+        }
+
+        /* a partir do primeiro dia e antes do fim → Em andamento */
+        if (primeiroDia && hoje >= primeiroDia) {
+          return (
+            '<div class="turma-card-new reveal in turma-card-andamento">' +
+              '<span class="tc-label">' + t.label + '</span>' +
+              '<div class="tc-month">' + fmt.mes + '</div>' +
+              '<div class="tc-dates">' + fmt.dates + '</div>' +
+              '<div class="tc-horario">&#x23F0; 9h &ndash; 13h</div>' +
+              '<div class="turma-status-msg turma-andamento-msg"><strong>Turma em andamento</strong>As aulas estão acontecendo. Acompanhe as próximas turmas.</div>' +
+            '</div>'
+          );
+        }
+
+        /* interesse encerrado mas turma ainda não começou → CMFlex */
         if (t.finalizada) {
           var cmflexBtn = t.cmflexLink
             ? '<a class="btn--cmflex" href="' + t.cmflexLink + '" target="_blank" rel="noopener">Ir para o CMFlex →</a>'
@@ -315,6 +347,7 @@
           );
         }
 
+        /* interesse aberto → botão Tenho interesse */
         return (
           '<div class="turma-card-new reveal in">' +
             '<span class="tc-label">' + t.label + '</span>' +
