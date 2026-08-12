@@ -446,13 +446,20 @@
       tests: [
         { id: 'c-turmas-cards',   label: 'Cards de turma consistentes com as turmas cadastradas (.turma-card-new)', run: function () {
           /* turmas não são mais fixas em número — vêm de turmas/ no Firebase, editável
-             pelo admin. Cada card está OU com interesse aberto (.btn--interest) OU com
-             interesse encerrado, orientando pro CMFlex (.turma-cmflex-msg) — igual pra
-             todo mundo, não existe mais um card único de "turma confirmada" */
+             pelo admin. Cada card está em um de 4 estados: interesse aberto (.btn--interest),
+             interesse encerrado/CMFlex (.turma-cmflex-msg), em andamento (.turma-andamento-msg),
+             ou realizada (.turma-realizada-msg) */
           var cards = document.querySelectorAll('.turma-card-new').length;
           var abertos = document.querySelectorAll('.btn--interest').length;
           var encerrados = document.querySelectorAll('.turma-cmflex-msg').length;
-          return cards === abertos + encerrados;
+          var andamento = document.querySelectorAll('.turma-andamento-msg').length;
+          var realizada = document.querySelectorAll('.turma-realizada-msg').length;
+          return cards === abertos + encerrados + andamento + realizada;
+        } },
+        { id: 'c-turmas-horario', label: 'Cards de turma exibem horário 9h – 13h (.tc-horario)', run: function () {
+          var cards = document.querySelectorAll('.turma-card-new').length;
+          var horarios = document.querySelectorAll('.tc-horario').length;
+          return cards > 0 && horarios === cards;
         } },
         { id: 'c-turmas-como-funciona', label: 'Bloco "Como funciona a oficina" presente (.oficina-info)', run: function () { return !!document.querySelector('.oficina-info'); } },
         { id: 'c-turmas-ofinfo',  label: 'Bloco tem 4 métricas (.ofinfo-item)', run: function () { return document.querySelectorAll('.ofinfo-item').length === 4; } },
@@ -702,7 +709,13 @@
       motivo: 'Requer confirmar uma pessoa como Inscrita numa turma que continue com interesse aberto (ex.: reabrir a turma depois de confirmá-la, ou adicioná-la como Inscrita direto numa turma aberta). Logar como essa pessoa e acessar Turmas. Verificar: (1) o card mostra botão verde desabilitado "✓ Inscrita" em vez de "♡ Remover interesse"; (2) mensagem "Você já é inscrita nesta turma. Só o admin pode alterar sua inscrição."; (3) clicar no botão não faz nada (Firebase não é alterado); (4) só o "Desconfirmar" do admin tira esse status.' },
     { section: 'Turmas',
       title: 'Interesse encerrado — card orienta pro CMFlex, igual pra qualquer pessoa',
-      motivo: 'Com uma turma com interesse encerrado pelo admin: (1) como visitante, verificar que o card mostra título "Faça sua inscrição no CMFlex", texto "Sua inscrição deve ser feita na Plataforma de Gestão, em RH Uso Pessoal > Solicitação de curso, após a aprovação do seu gestor." e botão "Ir para o CMFlex →" (sem botão de interesse); (2) como usuário logado, mesmo resultado; (3) se a turma não tiver link do CMFlex cadastrado, o card mostra "Link ainda não disponível. Consulte a organização." no lugar do botão.' },
+      motivo: 'Com uma turma com interesse encerrado pelo admin E que ainda não chegou ao primeiro dia: (1) como visitante, verificar que o card mostra título "Faça sua inscrição no CMFlex", texto "Sua inscrição deve ser feita na Plataforma de Gestão, em RH Uso Pessoal > Solicitação de curso, após a aprovação do seu gestor." e botão "Ir para o CMFlex →" (sem botão de interesse); (2) como usuário logado, mesmo resultado; (3) se a turma não tiver link do CMFlex cadastrado, o card mostra "Link ainda não disponível. Consulte a organização." no lugar do botão.' },
+    { section: 'Turmas',
+      title: 'Card "Em andamento" — aparece automaticamente no primeiro dia da turma',
+      motivo: 'Verificar (se existir turma com data iniciada): o card mostra "Turma em andamento" e o texto "As aulas estão acontecendo. Fique de olho nas próximas turmas!" — sem nenhum botão de interesse ou CMFlex. Esse estado é automático por data (hoje ≥ primeiro dia), sem nenhuma ação do admin. Testar como visitante, logado e inscrito — o card deve ser idêntico para todos.' },
+    { section: 'Turmas',
+      title: 'Card "Realizada" — aparece automaticamente após o último dia',
+      motivo: 'Verificar (se existir turma com todas as datas no passado): o card mostra "Turma realizada" e o texto "Esta turma já foi concluída. Fique de olho nas próximas!" — sem nenhum botão. Esse estado é automático (hoje > último dia). Testar como visitante, logado e inscrito — o card deve ser idêntico para todos.' },
     // Cenários de exceção (corridas, falhas e correções de bug)
     { section: 'Turmas',
       title: 'Corrida: interesse encerra entre carregar a página e clicar → "Esta turma está encerrada para novas inscrições."',
@@ -833,6 +846,9 @@
     { section: 'Admin',
       title: 'Abas Turmas, Cadastrados e Repositório — pop-ups visuais (não nativos)',
       motivo: 'Verificar que nenhuma ação do painel usa a caixa de diálogo padrão e feia do navegador. Testar: finalizar turma, reabrir turma, remover inscrito, resetar progresso, redefinir senha, ocultar/deletar conteúdo do repositório. Todos devem abrir um modal visual com botões estilizados.' },
+    { section: 'Admin',
+      title: 'Turmas — encerrar turma manualmente (✓ Encerrar turma)',
+      motivo: 'Disponível no menu ⋯ quando o interesse da turma já foi encerrado (finalizada:true no banco) e a turma ainda não foi encerrada. Clicar em "✓ Encerrar turma". Verificar: (1) abre modal de confirmação; (2) ao confirmar, o card público daquela turma passa imediatamente para "Turma realizada" para todos; (3) o botão "✓ Encerrar turma" some do menu ⋯; (4) o estado é permanente — não há "reabrir" depois de encerrada.' },
     { section: 'Admin',
       title: 'Turmas — reabrir turma',
       motivo: 'Verificar: (1) badge volta para ABERTA; (2) botão volta para "Encerrar interesse"; (3) quem já foi confirmado como inscrito continua inscrito — reabrir só volta a aceitar novo interesse, não mexe em confirmações já feitas.' },
