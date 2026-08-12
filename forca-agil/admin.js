@@ -765,20 +765,47 @@
 
     var box = document.createElement('div');
     box.className = 'modal-box';
-    box.style.cssText = 'max-width:440px;width:90%;padding:28px;display:flex;flex-direction:column;gap:16px';
+    box.style.cssText = 'max-width:460px;width:90%;padding:28px;display:flex;flex-direction:column;gap:14px';
     box.innerHTML =
       '<h3 style="font-size:1.1rem;font-family:var(--font-head);letter-spacing:.05em;color:var(--ink)">Adicionar Participante</h3>' +
-      '<label class="auth-label">Nome<input type="text" id="addPartNome" placeholder="Nome completo" autocomplete="off" /></label>' +
-      '<label class="auth-label">E-mail<input type="email" id="addPartEmail" placeholder="nome@previ.com.br" autocomplete="off" /></label>' +
-      '<label class="auth-label">Área<select id="addPartArea" style="width:100%;padding:10px 12px;background:var(--panel-2);border:1px solid var(--line-strong);border-radius:6px;color:var(--ink);font-family:var(--font-body)">' +
-        '<option value="">Selecione a área…</option>' + areasOptions +
-      '</select></label>' +
-      '<label class="auth-label">Status<select id="addPartStatus" style="width:100%;padding:10px 12px;background:var(--panel-2);border:1px solid var(--line-strong);border-radius:6px;color:var(--ink);font-family:var(--font-body)">' +
+
+      /* busca */
+      '<div id="addPartSearchWrap">' +
+        '<label class="auth-label" style="margin:0">Buscar pelo nome ou e-mail' +
+          '<input type="text" id="addPartSearch" placeholder="Digite para buscar…" autocomplete="off" />' +
+        '</label>' +
+        '<ul id="addPartResults" style="margin:4px 0 0;padding:0;list-style:none;max-height:180px;overflow-y:auto;border:1px solid var(--line-strong);border-radius:6px;background:var(--panel-2);display:none"></ul>' +
+      '</div>' +
+
+      /* pessoa selecionada */
+      '<div id="addPartSelected" style="display:none;background:rgba(255,255,255,.05);border:1px solid var(--accent);border-radius:8px;padding:10px 14px;font-size:.88rem;line-height:1.5">' +
+        '<div style="display:flex;justify-content:space-between;align-items:flex-start">' +
+          '<div id="addPartSelectedInfo"></div>' +
+          '<button id="addPartClearSel" style="background:none;border:none;color:var(--ink-3);font-size:.85rem;cursor:pointer;padding:0 0 0 8px;white-space:nowrap">✕ Trocar</button>' +
+        '</div>' +
+      '</div>' +
+
+      /* separador manual */
+      '<p id="addPartManualToggleWrap" style="font-size:.8rem;color:var(--ink-3);text-align:center;margin:0">' +
+        'Não encontrou? <button id="addPartManualToggle" style="background:none;border:none;color:var(--accent);font-size:.8rem;cursor:pointer;padding:0;text-decoration:underline">Preencher manualmente</button>' +
+      '</p>' +
+
+      /* campos manuais (ocultos por padrão) */
+      '<div id="addPartManual" style="display:none;flex-direction:column;gap:14px">' +
+        '<label class="auth-label" style="margin:0">Nome<input type="text" id="addPartNome" placeholder="Nome completo" autocomplete="off" /></label>' +
+        '<label class="auth-label" style="margin:0">E-mail<input type="email" id="addPartEmail" placeholder="nome@previ.com.br" autocomplete="off" /></label>' +
+        '<label class="auth-label" style="margin:0">Área<select id="addPartArea" style="width:100%;padding:10px 12px;background:var(--panel-2);border:1px solid var(--line-strong);border-radius:6px;color:var(--ink);font-family:var(--font-body)">' +
+          '<option value="">Selecione a área…</option>' + areasOptions +
+        '</select></label>' +
+      '</div>' +
+
+      '<label class="auth-label" style="margin:0">Status<select id="addPartStatus" style="width:100%;padding:10px 12px;background:var(--panel-2);border:1px solid var(--line-strong);border-radius:6px;color:var(--ink);font-family:var(--font-body)">' +
         '<option value="">Selecione o status…</option>' +
         '<option value="interessado">Interessada</option>' +
         '<option value="inscrito">Inscrita</option>' +
       '</select></label>' +
-      '<p id="addPartErr" style="color:var(--red,#ff3b30);font-size:.85rem;display:none"></p>' +
+
+      '<p id="addPartErr" style="color:var(--red,#ff3b30);font-size:.85rem;display:none;margin:0"></p>' +
       '<div style="display:flex;justify-content:flex-end;gap:8px;margin-top:4px">' +
         '<button class="btn admin-modal-cancel-btn">Cancelar</button>' +
         '<button class="btn btn--primary admin-modal-add-btn">Adicionar</button>' +
@@ -787,7 +814,78 @@
     overlay.appendChild(box);
     document.body.appendChild(overlay);
 
-    var errEl = box.querySelector('#addPartErr');
+    var errEl       = box.querySelector('#addPartErr');
+    var searchInput = box.querySelector('#addPartSearch');
+    var resultsList = box.querySelector('#addPartResults');
+    var selectedDiv = box.querySelector('#addPartSelected');
+    var selectedInfo= box.querySelector('#addPartSelectedInfo');
+    var clearSelBtn = box.querySelector('#addPartClearSel');
+    var manualDiv   = box.querySelector('#addPartManual');
+    var manualToggleWrap = box.querySelector('#addPartManualToggleWrap');
+    var manualToggle= box.querySelector('#addPartManualToggle');
+
+    var allUsers = [];   /* carregados do Firebase */
+    var selected = null; /* { name, email, area } */
+    var manualMode = false;
+
+    firebase.database().ref('fa-users').once('value', function (snap) {
+      var data = snap.val() || {};
+      allUsers = Object.values(data).filter(function (u) { return u.email && u.name; });
+    });
+
+    function showManual(show) {
+      manualMode = show;
+      manualDiv.style.display = show ? 'flex' : 'none';
+      manualToggleWrap.style.display = show ? 'none' : '';
+      if (show) {
+        box.querySelector('#addPartNome').focus();
+      }
+    }
+    manualToggle.addEventListener('click', function () { showManual(true); });
+
+    function selectUser(u) {
+      selected = u;
+      selectedInfo.innerHTML = '<strong>' + esc(u.name) + '</strong><br>' + esc(u.email) + ' · ' + esc(u.area || '—');
+      selectedDiv.style.display = '';
+      resultsList.style.display = 'none';
+      searchInput.value = '';
+      showManual(false);
+      box.querySelector('#addPartStatus').focus();
+    }
+
+    clearSelBtn.addEventListener('click', function () {
+      selected = null;
+      selectedDiv.style.display = 'none';
+      searchInput.value = '';
+      searchInput.focus();
+    });
+
+    searchInput.addEventListener('input', function () {
+      var q = searchInput.value.trim().toLowerCase();
+      if (!q) { resultsList.style.display = 'none'; return; }
+      var matches = allUsers.filter(function (u) {
+        return u.name.toLowerCase().includes(q) || u.email.toLowerCase().includes(q);
+      }).slice(0, 8);
+      resultsList.innerHTML = '';
+      if (!matches.length) {
+        var li = document.createElement('li');
+        li.style.cssText = 'padding:10px 14px;font-size:.83rem;color:var(--ink-3)';
+        li.textContent = 'Nenhum cadastro encontrado.';
+        resultsList.appendChild(li);
+      } else {
+        matches.forEach(function (u) {
+          var li = document.createElement('li');
+          li.style.cssText = 'padding:9px 14px;font-size:.83rem;cursor:pointer;border-bottom:1px solid var(--line);display:flex;flex-direction:column;gap:2px';
+          li.innerHTML = '<span style="color:var(--ink);font-weight:600">' + esc(u.name) + '</span>' +
+            '<span style="color:var(--ink-3);font-size:.78rem">' + esc(u.email) + ' · ' + esc(u.area || '—') + '</span>';
+          li.addEventListener('mouseenter', function () { li.style.background = 'rgba(255,255,255,.06)'; });
+          li.addEventListener('mouseleave', function () { li.style.background = ''; });
+          li.addEventListener('click', function () { selectUser(u); });
+          resultsList.appendChild(li);
+        });
+      }
+      resultsList.style.display = '';
+    });
 
     function closeModal() { document.body.removeChild(overlay); }
 
@@ -795,9 +893,21 @@
     overlay.addEventListener('click', function (e) { if (e.target === overlay) closeModal(); });
 
     box.querySelector('.admin-modal-add-btn').addEventListener('click', function () {
-      var name   = (box.querySelector('#addPartNome').value || '').trim().toUpperCase();
-      var email  = (box.querySelector('#addPartEmail').value || '').trim().toLowerCase();
-      var area   = (box.querySelector('#addPartArea').value || '').trim();
+      var name, email, area;
+
+      if (selected) {
+        name  = selected.name.toUpperCase();
+        email = selected.email.toLowerCase();
+        area  = selected.area || '';
+      } else if (manualMode) {
+        name  = (box.querySelector('#addPartNome').value || '').trim().toUpperCase();
+        email = (box.querySelector('#addPartEmail').value || '').trim().toLowerCase();
+        area  = (box.querySelector('#addPartArea').value || '').trim();
+      } else {
+        errEl.textContent = 'Busque e selecione uma pessoa, ou clique em "Preencher manualmente".';
+        errEl.style.display = ''; return;
+      }
+
       var status = (box.querySelector('#addPartStatus').value || '').trim();
 
       errEl.style.display = 'none';
