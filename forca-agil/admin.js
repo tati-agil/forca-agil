@@ -795,7 +795,7 @@
     overlay.addEventListener('click', function (e) { if (e.target === overlay) closeModal(); });
 
     box.querySelector('.admin-modal-add-btn').addEventListener('click', function () {
-      var name   = (box.querySelector('#addPartNome').value || '').trim();
+      var name   = (box.querySelector('#addPartNome').value || '').trim().toUpperCase();
       var email  = (box.querySelector('#addPartEmail').value || '').trim().toLowerCase();
       var area   = (box.querySelector('#addPartArea').value || '').trim();
       var status = (box.querySelector('#addPartStatus').value || '').trim();
