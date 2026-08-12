@@ -89,6 +89,7 @@
   }
 
   function migrateNameCase() {
+    /* fa-admins: estrutura plana { key: { name, email } } */
     ['fa-admins'].forEach(function (path) {
       firebase.database().ref(path).once('value', function (snap) {
         const data = snap.val() || {};
@@ -104,6 +105,24 @@
         });
         if (Object.keys(updates).length) firebase.database().ref().update(updates);
       });
+    });
+
+    /* turmas-interesse: estrutura { turmaKey: { eKey: { name, email } } } */
+    firebase.database().ref('turmas-interesse').once('value', function (snap) {
+      const data = snap.val() || {};
+      const updates = {};
+      Object.entries(data).forEach(function (tEntry) {
+        const turmaKey = tEntry[0], pessoas = tEntry[1] || {};
+        Object.entries(pessoas).forEach(function (pEntry) {
+          const eKey = pEntry[0], p = pEntry[1];
+          if (!p || typeof p !== 'object') return;
+          const newName = (p.name || '').toUpperCase();
+          if (p.name && p.name !== newName) {
+            updates['turmas-interesse/' + turmaKey + '/' + eKey + '/name'] = newName;
+          }
+        });
+      });
+      if (Object.keys(updates).length) firebase.database().ref().update(updates);
     });
   }
 
