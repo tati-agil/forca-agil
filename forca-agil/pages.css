@@ -310,28 +310,23 @@
 .turma-admin-title { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
 .turma-admin-name  { font-family: var(--font-head); font-size: .95rem; color: var(--ink); }
 .turma-admin-dates { font-size: .8rem; color: var(--ink-3); }
-/* Desktop: linha única, sem quebra */
-.turma-admin-actions { display: flex; align-items: center; gap: 4px; flex-wrap: nowrap; flex-shrink: 0; }
+/* Ações do card admin — primárias em linha, secundárias sempre em menu ⋯ */
+.turma-admin-actions { display: flex; align-items: center; gap: 4px; flex-shrink: 0; position: relative; }
 .taa-primary { display: flex; align-items: center; gap: 4px; }
-.taa-more-btn { display: none; font-size: 1.1rem; padding: 4px 8px; line-height: 1; }
+.taa-more-btn { display: inline-flex; font-size: 1.1rem; padding: 4px 8px; line-height: 1; }
 .taa-dropdown {
-  display: flex; align-items: center; gap: 4px; flex-wrap: nowrap;
+  display: none; flex-direction: column; gap: 6px;
+  position: absolute; right: 0; top: calc(100% + 4px);
+  background: #111827; border: 1px solid var(--line-strong);
+  border-radius: 8px; padding: 10px 12px; z-index: 200; min-width: 180px;
+  box-shadow: 0 8px 24px rgba(0,0,0,.5);
 }
+.taa-dropdown.open { display: flex; }
+.taa-dropdown .btn { width: 100%; justify-content: flex-start; }
 
-/* Mobile/tablet: ações secundárias colapsam em menu "..." */
 @media (max-width: 768px) {
   .turma-admin-header { flex-direction: column; align-items: flex-start; }
-  .turma-admin-actions { align-self: flex-end; position: relative; }
-  .taa-more-btn { display: inline-flex; }
-  .taa-dropdown {
-    display: none; flex-direction: column; gap: 6px;
-    position: absolute; right: 0; top: calc(100% + 4px);
-    background: #111827; border: 1px solid var(--line-strong);
-    border-radius: 8px; padding: 10px 12px; z-index: 200; min-width: 160px;
-    box-shadow: 0 8px 24px rgba(0,0,0,.5);
-  }
-  .taa-dropdown.open { display: flex; }
-  .taa-dropdown .btn { width: 100%; justify-content: flex-start; }
+  .turma-admin-actions { align-self: flex-end; }
 }
 .turma-admin-body  { padding: 14px 18px; }
 .turma-removed-accordion { margin-top: 16px; }
