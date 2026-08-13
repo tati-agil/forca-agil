@@ -157,6 +157,7 @@
         { label: 'Aba Mapa — exportar Excel (mapa completo)', p: ['admin'] },
         { label: 'Aba Testes — testes automatizados e checklist manual', p: ['admin'] },
         { label: 'Aba Testes — exportar Excel (testes automáticos e manuais)', p: ['admin'] },
+        { label: 'Aba Pedidos — ver todos os pedidos enviados pelo site, com filtro por tipo (tema / curso / material / dúvida) e contagem por tipo', p: ['admin'] },
       ]
     },
     { label: 'AJUDA', color: '#7ecbff',
@@ -164,6 +165,7 @@
         { label: 'Ver página Ajuda com perguntas em acordeão — texto "Central de Ajuda" acima do título "Como podemos ajudar?"', p: ['visitante','logado','inscrito','admin'] },
         { label: 'Expandir/recolher cada pergunta clicando no título (comportamento nativo do browser)', p: ['visitante','logado','inscrito','admin'] },
         { label: 'Link "Ajuda" no menu de navegação', p: ['visitante','logado','inscrito','admin'] },
+        { label: 'Formulário "Faça um pedido" — escolher tipo (Quero aprender sobre um tema / Quero sugerir um curso / Preciso de material / Tenho uma dúvida) e descrever com mais detalhes; exige login para enviar', p: ['logado','inscrito','admin'] },
       ]
     },
     { label: 'CADASTRAR', color: '#9b7fff',

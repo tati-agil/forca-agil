@@ -1277,6 +1277,7 @@
         <button class="admin-tab-btn" data-panel="adminPanelManual">Manual</button>
         <button class="admin-tab-btn" data-panel="adminPanelMapa">Mapa</button>
         <button class="admin-tab-btn" data-panel="adminPanelTestes">Testes</button>
+        <button class="admin-tab-btn" data-panel="adminPanelPedidos">Pedidos</button>
       </div>
       <div class="admin-expand-bar" id="adminExpandBar">
         <span class="admin-expand-label">Expansíveis:</span>
@@ -1316,6 +1317,9 @@
         <div id="adminMapa"></div>
       </div>
       <div class="admin-tab-panel" id="adminPanelTestes">
+      </div>
+      <div class="admin-tab-panel" id="adminPanelPedidos">
+        <div id="adminPedidos"></div>
       </div>
     </div>
   </div>
@@ -1384,6 +1388,12 @@
         </details>
 
       </div>
+    </section>
+
+    <section class="section" style="margin-top:48px">
+      <h2 class="section-title">Faça um pedido</h2>
+      <p style="color:var(--ink-2);margin-bottom:28px;max-width:540px">Quer aprender sobre um tema, sugerir um curso, pedir material ou tirar uma dúvida? Conta pra gente.</p>
+      <div id="pedidosFormWrap"></div>
     </section>
   </div>
   <footer class="footer">
@@ -1565,6 +1575,7 @@
 <script src="forca-agil/manual.js"></script>
 <script src="forca-agil/mapa.js"></script>
 <script src="forca-agil/testes.js"></script>
+<script src="forca-agil/pedidos.js"></script>
 
 <!-- Admin guard: show/hide content based on auth -->
 <script src="forca-agil/init.js"></script>

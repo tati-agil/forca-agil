@@ -120,6 +120,13 @@
       "$itemId": {
         ".write": "auth != null && auth.token.email.matches(/.*@previ\\.com\\.br/)"
       }
+    },
+
+    "pedidos": {
+      ".read": "auth != null && auth.token.email.matches(/.*@previ\\.com\\.br/)",
+      "$pedidoKey": {
+        ".write": "auth != null && auth.token.email.matches(/.*@previ\\.com\\.br/)"
+      }
     }
   }
 }
