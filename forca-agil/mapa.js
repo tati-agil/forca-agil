@@ -635,8 +635,9 @@
       {
         label: 'Cache', color: '#ff5252',
         items: [
-          { name: 'Sempre no-cache',     desc: 'firebase.json deve ter Cache-Control: no-cache para JS, CSS e HTML.' },
-          { name: 'Sem ?v=N nos scripts', desc: 'Não usar query string de versão como solução de cache. A configuração no firebase.json resolve de forma permanente e automática.' },
+          { name: 'JS e CSS: max-age=60', desc: 'firebase.json deve ter Cache-Control: max-age=60 para **/*.js e **/*.css. Cache de 1 minuto — equilibra performance (não revalida tudo a cada visita) com atualização automática (deploy reflete em até 60s). Nunca usar no-cache global: com 22 scripts causava 8+ segundos de carregamento.' },
+          { name: 'index.html: no-cache', desc: 'O index.html sempre fica com no-cache pois é a entrada da SPA — garante que o usuário sempre carregue a versão mais recente do shell da aplicação. Também carrega o Content-Security-Policy personalizado.' },
+          { name: 'Sem ?v=N nos scripts', desc: 'Não usar query string de versão como solução de cache busting. A configuração no firebase.json resolve de forma permanente e automática.' },
         ]
       },
       {
