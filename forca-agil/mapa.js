@@ -552,6 +552,7 @@
           { name: 'Pre-commit hook', desc: 'Git hook em .git/hooks/pre-commit — roda node --check em todos os forca-agil/*.js antes de cada commit. Bloqueia o commit se houver erro de sintaxe, impedindo deploy de código quebrado' },
           { name: 'URL',         desc: 'https://kyber-agil.web.app (produção/main)' },
           { name: 'Hospedagem',  desc: 'Firebase Hosting — gratuito no Spark plan, CDN global, HTTPS automático, sem servidor para gerenciar' },
+          { name: 'Cache (firebase.json)', desc: 'index.html → no-cache (sempre revalida). JS e CSS → max-age=60 (cache de 1 minuto no browser). Equilíbrio entre performance e atualização automática — no-cache global causava 8+ segundos de carregamento com 22 scripts.' },
           { name: 'Banco',       desc: 'Firebase Realtime Database — gratuito até 1 GB de dados e 10 GB/mês de transferência (Spark plan)' },
           { name: 'Auth',        desc: 'Firebase Authentication — gratuito ilimitado para Email/Password no Spark plan' },
         ]
