@@ -1211,10 +1211,10 @@ html:not(.js) .reveal { opacity: 1 !important; transform: none !important; }
 
 /* ── Pedidos — formulário público ── */
 .ped-form { max-width: 560px; }
-.ped-tipos { display: flex; flex-direction: column; gap: 10px; margin-bottom: 20px; }
-.ped-tipo-btn { text-align: left; padding: 12px 16px; border-radius: 10px; border: 1px solid var(--tc, #888); color: var(--tc, #888); background: transparent; cursor: pointer; font-size: .88rem; transition: background .15s; }
-.ped-tipo-btn:hover { background: color-mix(in srgb, var(--tc, #888) 10%, transparent); }
-.ped-tipo-btn.active { background: color-mix(in srgb, var(--tc, #888) 18%, transparent); font-weight: 600; }
+.ped-tipos { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 20px; }
+.ped-tipo-btn { text-align: left; padding: 8px 16px; border-radius: 20px; border: 1px solid var(--line-strong); color: var(--ink-2); background: transparent; cursor: pointer; font-size: .82rem; transition: border-color .15s, color .15s, background .15s; }
+.ped-tipo-btn:hover { border-color: var(--gold); color: var(--gold); }
+.ped-tipo-btn.active { border-color: var(--gold); color: var(--gold); background: color-mix(in srgb, var(--gold) 10%, transparent); font-weight: 600; }
 .ped-texto { width: 100%; box-sizing: border-box; background: var(--surface); border: 1px solid var(--line-strong); border-radius: 8px; color: var(--ink); padding: 12px 14px; font-size: .88rem; resize: vertical; margin-bottom: 16px; }
 .ped-texto:focus { outline: none; border-color: var(--gold); }
 .ped-actions { display: flex; align-items: center; gap: 16px; }

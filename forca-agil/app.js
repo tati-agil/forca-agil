@@ -169,58 +169,6 @@
 
   });
 
-  /* ---- Content XP tracking (conteúdos page) ---- */
-  const CONTENT_SECTIONS = ['galaxia','forca','principios','arquetipos','sombrio','trilogia'];
-  const XP_PER_SECTION   = 5;
-
-  function initContentTracking() {
-    const sess = window.faAuth && window.faAuth.getSession();
-    if (!sess) return;
-
-    const _ast = window.faStore || localStorage;
-    let read = [];
-    try { read = JSON.parse(_ast.getItem('fa-content-read') || '[]'); } catch(e) {}
-
-    CONTENT_SECTIONS.forEach(function (id) {
-      const el = document.getElementById('content-' + id);
-      if (!el) return;
-
-      /* Mark already-read badge */
-      const badge = document.getElementById('xp-badge-' + id);
-      if (read.indexOf(id) !== -1) {
-        if (badge) { badge.textContent = '✓ +' + XP_PER_SECTION + ' pts'; badge.classList.add('visible'); }
-        return;
-      }
-
-      /* Observe for first read — requires 10s visible before awarding XP */
-      let readTimer = null;
-      const obs = new IntersectionObserver(function (entries) {
-        entries.forEach(function (entry) {
-          if (entry.isIntersecting) {
-            if (readTimer) return;
-            readTimer = setTimeout(function () {
-              obs.disconnect();
-              read.push(id);
-              try { _ast.setItem('fa-content-read', JSON.stringify(read)); } catch(e2) {}
-              const cur = parseInt(_ast.getItem('fa-content-xp') || '0', 10) || 0;
-              try { _ast.setItem('fa-content-xp', String(cur + XP_PER_SECTION)); } catch(e3) {}
-              if (window.faSyncPlayer) window.faSyncPlayer();
-              if (window.faSyncProgress) window.faSyncProgress();
-              if (badge) {
-                badge.textContent = '✓ +' + XP_PER_SECTION + ' pts';
-                badge.classList.add('visible');
-              }
-            }, 10000);
-          } else {
-            clearTimeout(readTimer);
-            readTimer = null;
-          }
-        });
-      }, { threshold: 0.6 });
-      obs.observe(el);
-    });
-  }
-
   /* ---- Galaxy map "ver mais" ---- */
   document.addEventListener('DOMContentLoaded', function () {
     var galaxyBtn = document.getElementById('galaxyMoreBtn');
@@ -245,16 +193,6 @@
       });
     }
 
-  });
-
-  document.addEventListener('DOMContentLoaded', function () {
-    if (window.faRouter) {
-      window.faRouter.onPageInit('conteudos', initContentTracking);
-    }
-    /* Also wire auth-change: if user logs in while on conteúdos, start tracking */
-    window.addEventListener('fa-auth-change', function () {
-      if (window.faRouter && window.faRouter.current() === 'conteudos') initContentTracking();
-    });
   });
 
   /* ---- Turma interest buttons ---- */
