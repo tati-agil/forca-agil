@@ -382,33 +382,47 @@
     html += '</div>';
     html += '</div>';
 
+    /* Filtro por persona */
+    html += '<div class="mapa-filter-bar" id="mapaFilterBar">';
+    html += '<span class="mapa-filter-label">Filtrar por persona:</span>';
+    [
+      { key: 'todos',    label: 'Todos',     color: '#aaa' },
+      { key: 'visitante',label: 'Visitante', color: '#888' },
+      { key: 'logado',   label: 'Logado',    color: '#1ab2ae' },
+      { key: 'inscrito', label: 'Inscrito',  color: '#4caf7d' },
+      { key: 'admin',    label: 'Admin',     color: '#ff5252' },
+    ].forEach(function (p) {
+      html += '<button class="mapa-filter-chip' + (p.key === 'todos' ? ' active' : '') + '" data-persona="' + p.key + '" style="--fc:' + p.color + '">' + p.label + '</button>';
+    });
+    html += '</div>';
+
     /* Grid de páginas */
-    html += '<div class="mapa-grid">';
+    html += '<div class="mapa-grid" id="mapaGrid">';
     PAGES.forEach(function (page, idx) {
-      var featCount = page.features.filter(function (f) { return f.p && f.p.length; }).length;
-      html += '<div class="mapa-page" style="--pc:' + page.color + '">';
-      html += '<div class="mapa-page-title"><span>' + page.label + ' <span class="testes-group-count">(' + featCount + ')</span></span><span class="mapa-page-arrow">▾</span></div>';
+      var allFeats = page.features.filter(function (f) { return f.p && f.p.length; });
+      var featCount = allFeats.length;
+      html += '<div class="mapa-page" style="--pc:' + page.color + '" data-page-idx="' + idx + '">';
+      html += '<div class="mapa-page-title"><span class="mapa-page-title-text">' + page.label + ' <span class="testes-group-count mapa-page-count">(' + featCount + ')</span></span><span class="mapa-page-arrow">▾</span></div>';
       html += '<div class="mapa-page-body">';
       var renderFeature = function (f) {
-        html += '<div class="mapa-feature"><span class="mapa-feature-label">' + esc(f.label) + '</span>' + levelBadge(f.p) + '</div>';
+        var ps = (f.p || []).join(' ');
+        html += '<div class="mapa-feature" data-personas="' + esc(ps) + '"><span class="mapa-feature-label">' + esc(f.label) + '</span>' + levelBadge(f.p) + '</div>';
       };
-      var visible = page.features.filter(function (f) { return f.p && f.p.length; });
       if (page.label === 'ADMIN') {
-        /* Admin junta itens de 7 abas diferentes — agrupa por aba para não virar uma lista única confusa */
         var subgroups = [];
         var byTab = {};
-        visible.forEach(function (f) {
+        allFeats.forEach(function (f) {
           var m = /^Aba\s+([^—]+?)(?:\s—|$)/.exec(f.label);
           var tab = m ? m[1].trim() : 'Geral';
           if (!byTab[tab]) { byTab[tab] = []; subgroups.push(tab); }
           byTab[tab].push(f);
         });
         subgroups.forEach(function (tab) {
-          html += '<div class="manual-admin-subhead">ADMIN · ' + esc(tab.toUpperCase()) + '</div>';
+          html += '<div class="manual-admin-subhead mapa-subhead" data-tab="' + esc(tab) + '">ADMIN · ' + esc(tab.toUpperCase()) + '</div>';
           byTab[tab].forEach(renderFeature);
         });
       } else {
-        visible.forEach(renderFeature);
+        allFeats.forEach(renderFeature);
       }
       html += '</div>';
       html += '</div>';
@@ -763,7 +777,39 @@
       const archLabel = e.target.closest('.arch-section-label');
       if (archLabel) { archLabel.closest('.arch-section').classList.toggle('open'); return; }
       const levelHead = e.target.closest('.mapa-level-head');
-      if (levelHead) { levelHead.closest('.mapa-level').classList.toggle('open'); }
+      if (levelHead) { levelHead.closest('.mapa-level').classList.toggle('open'); return; }
+
+      /* Filtro por persona */
+      const chip = e.target.closest('.mapa-filter-chip');
+      if (chip) {
+        container.querySelectorAll('.mapa-filter-chip').forEach(function (c) { c.classList.remove('active'); });
+        chip.classList.add('active');
+        var persona = chip.dataset.persona;
+        var grid = container.querySelector('#mapaGrid');
+        if (!grid) return;
+        grid.querySelectorAll('.mapa-feature').forEach(function (feat) {
+          var ps = feat.dataset.personas || '';
+          var show = persona === 'todos' || ps.indexOf(persona) !== -1;
+          feat.style.display = show ? '' : 'none';
+        });
+        /* Subheads: mostrar só se tiver feature visível abaixo */
+        grid.querySelectorAll('.mapa-subhead').forEach(function (sh) {
+          var next = sh.nextElementSibling;
+          var hasVisible = false;
+          while (next && !next.classList.contains('mapa-subhead')) {
+            if (next.classList.contains('mapa-feature') && next.style.display !== 'none') { hasVisible = true; break; }
+            next = next.nextElementSibling;
+          }
+          sh.style.display = hasVisible ? '' : 'none';
+        });
+        /* Atualizar contagem de cada card */
+        grid.querySelectorAll('.mapa-page').forEach(function (page) {
+          var visible = page.querySelectorAll('.mapa-feature:not([style*="display: none"]):not([style*="display:none"])').length;
+          var countEl = page.querySelector('.mapa-page-count');
+          if (countEl) countEl.textContent = '(' + visible + ')';
+          page.style.display = visible === 0 ? 'none' : '';
+        });
+      }
     });
   };
 })();
