@@ -630,14 +630,9 @@
           { name: 'Pasta de trabalho',  desc: 'Sempre usar "Design System (2)".' },
           { name: 'Processo de deploy', desc: 'git push para o branch main — o Firebase Hosting atualiza automaticamente. Nunca publicar de outra forma.' },
           { name: 'Sem arquivo morto no deploy', desc: 'Todo arquivo não carregado/linkado pelo index.html (scaffold, ferramenta externa, protótipo) deve ir pro ignore do firebase.json, não ser publicado "por esquecimento".' },
-        ]
-      },
-      {
-        label: 'Cache', color: '#ff5252',
-        items: [
-          { name: 'JS e CSS: max-age=60', desc: 'firebase.json deve ter Cache-Control: max-age=60 para **/*.js e **/*.css. Cache de 1 minuto — equilibra performance (não revalida tudo a cada visita) com atualização automática (deploy reflete em até 60s). Nunca usar no-cache global: com 22 scripts causava 8+ segundos de carregamento.' },
-          { name: 'index.html: no-cache', desc: 'O index.html sempre fica com no-cache pois é a entrada da SPA — garante que o usuário sempre carregue a versão mais recente do shell da aplicação. Também carrega o Content-Security-Policy personalizado.' },
-          { name: 'Sem ?v=N nos scripts', desc: 'Não usar query string de versão como solução de cache busting. A configuração no firebase.json resolve de forma permanente e automática.' },
+          { name: 'Cache — JS e CSS: max-age=60', desc: 'firebase.json usa Cache-Control: max-age=60 para JS e CSS. Cache de 1 minuto — equilibra performance com atualização automática. Nunca usar no-cache global: causava 8+ segundos de carregamento com 22 scripts.' },
+          { name: 'Cache — index.html: no-cache', desc: 'O index.html sempre fica com no-cache (entrada da SPA) e carrega o Content-Security-Policy personalizado.' },
+          { name: 'Cache — sem ?v=N nos scripts', desc: 'Não usar query string de versão como cache busting. A configuração no firebase.json resolve de forma permanente e automática.' },
         ]
       },
       {
