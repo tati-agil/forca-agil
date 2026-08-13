@@ -550,9 +550,9 @@
           { name: 'GitHub',      desc: 'Repositório tati-agil/forca-agil. Branch única: main.' },
           { name: 'Processo',    desc: 'git push para o branch main no GitHub → Firebase Hosting atualiza produção automaticamente.' },
           { name: 'Pre-commit hook', desc: 'Git hook em .git/hooks/pre-commit — roda node --check em todos os forca-agil/*.js antes de cada commit. Bloqueia o commit se houver erro de sintaxe, impedindo deploy de código quebrado' },
-          { name: 'URL',         desc: 'https://kyber-agil.web.app (produção/main)' },
+          { name: 'URL',         desc: 'https://forca-agil.previ.com.br (domínio personalizado, produção) · https://kyber-agil.web.app (domínio Firebase padrão, mesmo conteúdo)' },
           { name: 'Hospedagem',  desc: 'Firebase Hosting — gratuito no Spark plan, CDN global, HTTPS automático, sem servidor para gerenciar' },
-          { name: 'Cache (firebase.json)', desc: 'index.html → no-cache (sempre revalida). JS e CSS → max-age=60 (cache de 1 minuto no browser). Equilíbrio entre performance e atualização automática — no-cache global causava 8+ segundos de carregamento com 22 scripts.' },
+          { name: 'Cache (firebase.json)', desc: 'Três regras de header: (1) **/*.js → max-age=60; (2) **/*.css → max-age=60; (3) /index.html → no-cache + Content-Security-Policy personalizada (restringe fontes permitidas de scripts, estilos, fontes e conexões). JS e CSS ficam em cache por 1 minuto — equilibra performance e atualização. index.html nunca fica em cache pois é a entrada da SPA.' },
           { name: 'Banco',       desc: 'Firebase Realtime Database — gratuito até 1 GB de dados e 10 GB/mês de transferência (Spark plan)' },
           { name: 'Auth',        desc: 'Firebase Authentication — gratuito ilimitado para Email/Password no Spark plan' },
         ]
