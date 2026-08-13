@@ -301,7 +301,7 @@
       body: 'Página Ajuda visível para todos, inclusive visitantes. Sem restrição de acesso. No menu o link aparece como "Ajuda".' },
     { section: 'ajuda', personas: ['visitante', 'logado', 'inscrito', 'admin'],
       title: 'Acordeão de perguntas',
-      body: 'A página tem perguntas frequentes exibidas em formato de acordeão: clicar no título expande ou recolhe a resposta, e cada pergunta abre de forma independente das outras. O texto acima do título é "Central de Ajuda" e o título principal é "Como podemos ajudar?".' },
+      body: 'A página tem perguntas frequentes exibidas em formato de acordeão: clicar no título expande ou recolhe a resposta, e cada pergunta abre de forma independente das outras. O texto acima do título é "Central de Ajuda" e o título principal é "Como podemos ajudar?". Abaixo do FAQ há a seção "Faça um pedido" — formulário para usuários logados solicitarem temas, cursos, materiais ou tirarem dúvidas.' },
 
     /* ── ADMIN ── */
     { section: 'admin', personas: ['visitante', 'logado', 'inscrito'],
@@ -381,7 +381,7 @@
       body: 'Todas as confirmações e avisos do painel usam janelas com o mesmo visual dos modais de cadastro/login — nenhuma ação usa aquelas caixas de diálogo padrão do navegador.' },
     { section: 'admin', personas: ['admin'],
       title: 'Aba: Turmas — certificados de participação',
-      body: 'Botão "📜 Certificados" (disponível com o interesse encerrado): considera só quem está com status Inscrito (confirmada pelo admin), filtra automaticamente quem atingiu ≥ 75% de presença entre elas, e abre nova aba com todos os certificados empilhados (1 por página, A4 paisagem). O navegador abre o diálogo de impressão — admin salva como PDF. Cada certificado contém: nome do participante, nome da turma, período (primeiro ao último dia), frequência atingida e assinatura da Coordenação Força Ágil. Se ninguém atingiu 75%, exibe aviso.' },
+      body: 'Botão "📜 Certificados" (disponível com o interesse encerrado): considera só quem está com status Inscrito (confirmada pelo admin), filtra automaticamente quem atingiu ≥ 75% de presença entre elas, e abre nova aba com todos os certificados empilhados (1 por página, A4 paisagem). O navegador abre o diálogo de impressão — admin salva como PDF. Cada certificado contém: nome do participante, nome da turma, período (primeiro ao último dia), carga horária em horas (dias presentes × 4h por encontro) e assinatura da Coordenação Força Ágil. Design com tema escuro/espacial alinhado ao visual do site. Se ninguém atingiu 75%, exibe aviso.' },
     { section: 'admin', personas: ['admin'],
       title: 'Aba: Turmas — reabrir turma',
       body: 'Botão "↺ Reabrir": volta a turma para o estado ABERTA — o card público volta a aceitar novas manifestações de interesse, e fecha o check-in do dia se estiver aberto. Não mexe em nenhuma confirmação já feita: quem já foi confirmada como inscrita continua inscrita, quem está só interessada continua interessada. Não apaga registros de check-in já feitos.' },

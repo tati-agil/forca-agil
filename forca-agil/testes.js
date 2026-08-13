@@ -872,7 +872,7 @@
       motivo: 'Requer turma finalizada com pelo menos 1 check-in. Verificar: arquivo .csv contém colunas por data (DD/MM), frequência e coluna "Atingiu critério (75%)".' },
     { section: 'Admin',
       title: 'Turmas — gerar certificados de participação',
-      motivo: 'Requer turma finalizada com pelo menos 1 inscrito com ≥ 75% de presença. Clicar em "📜 Certificados". Verificar: (1) nova aba abre com os certificados; (2) cada certificado contém nome, turma, período e frequência; (3) diálogo de impressão é acionado automaticamente; (4) participantes abaixo de 75% não aparecem.' },
+      motivo: 'Requer turma finalizada com pelo menos 1 inscrito com ≥ 75% de presença. Clicar em "📜 Certificados". Verificar: (1) nova aba abre com os certificados no design escuro/espacial; (2) cada certificado contém nome, turma, período e carga horária em horas (dias presentes × 4h); (3) diálogo de impressão é acionado automaticamente; (4) participantes abaixo de 75% não aparecem.' },
     { section: 'Admin',
       title: 'Turmas — certificados: sem aprovados',
       motivo: 'Requer turma finalizada onde ninguém atingiu 75%. Clicar em "📜 Certificados". Verificar: alerta informa que nenhum participante atingiu o critério — nenhuma aba é aberta.' },

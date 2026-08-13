@@ -17,7 +17,7 @@
     { key: 'inscrito', label: 'Usuário inscrito (turma confirmada)', color: '#4caf7d',
       adds: ['Acessar Conteúdos', 'Acessar Treinamento Jedi (autodiagnóstico 0–60)', 'Revelar patente (resultado fixo e bloqueado — não pode refazer sem reset do admin)'] },
     { key: 'admin',   label: 'Admin',          color: '#ff5252',
-      adds: ['Acessar o Painel Admin (7 abas: Turmas, Repositório, Cadastrados, Administradores, Manual, Mapa, Testes)', 'Criar, editar e excluir turmas; cadastrar link do CMFlex por turma', 'Confirmar/desconfirmar inscrição e adicionar/remover participantes manualmente', 'Abrir/fechar check-in, gerar QR Code e emitir certificados de participação', 'Exportar CSV (estado atual, histórico e por turma)', 'Moderar Repositório (ocultar, restaurar, deletar conteúdos)', 'Ver e gerenciar cadastrados (filtrar, redefinir senha, resetar progresso)', 'Gerenciar lista de administradores (restrito a tatianefdirene e danielfrazao)', 'Consultar Manual, Mapa e Testes (documentação viva do sistema)'] },
+      adds: ['Acessar o Painel Admin (8 abas: Turmas, Repositório, Cadastrados, Administradores, Manual, Mapa, Testes, Pedidos)', 'Criar, editar e excluir turmas; cadastrar link do CMFlex por turma', 'Confirmar/desconfirmar inscrição e adicionar/remover participantes manualmente', 'Abrir/fechar check-in, gerar QR Code e emitir certificados de participação', 'Exportar CSV (estado atual, histórico e por turma)', 'Moderar Repositório (ocultar, restaurar, deletar conteúdos)', 'Ver e gerenciar cadastrados (filtrar, redefinir senha, resetar progresso)', 'Gerenciar lista de administradores (restrito a tatianefdirene e danielfrazao)', 'Consultar Manual, Mapa e Testes (documentação viva do sistema)'] },
   ];
 
   /* Diagrama de estados de turmas-interesse/<turma>/<emailKey> — ver regra
@@ -533,7 +533,7 @@
           { name: 'Estado de validação (sucesso/erro)', desc: 'Cor dedicada para mensagem de sucesso (ciano) e erro no formulário de login/cadastro.' },
           { name: 'Estado vazio',                  desc: 'Mensagem exibida quando uma lista não tem nenhum item ainda. Ex.: painel do admin quando não há interessados numa turma.' },
           { name: 'Eyebrow',                       desc: 'Textinho pequeno acima do título principal, dá contexto antes dele. Ex.: "Esquadrões" acima de "Turmas da Oficina".' },
-          { name: 'Folha de estilo de impressão (@media print)', desc: 'Regras de CSS que só valem quando a página é impressa/exportada em PDF. Ex.: certificados de participação, removendo fundo escuro e ajustando pro papel A4.' },
+          { name: 'Folha de estilo de impressão (@media print)', desc: 'Regras de CSS que só valem quando a página é impressa/exportada em PDF. Ex.: certificados de participação, ajustando layout para papel A4 paisagem.' },
           { name: 'Geração de QR Code',            desc: 'Código QR desenhado dinamicamente via canvas. Ex.: botão "QR Code" do admin, aponta pra página de check-in.' },
           { name: 'Glassmorphism (desfoque de fundo)', desc: 'Efeito de vidro fosco/borrado atrás de elementos. Ex.: menu de navegação, modais de login e QR Code (backdrop-filter: blur).' },
           { name: 'Glow',                          desc: 'Efeito de brilho colorido aplicado a um texto ou título. Ex.: glow-gold, glow-cyan, glow-red em destaques de texto.' },
