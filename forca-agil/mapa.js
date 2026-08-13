@@ -555,6 +555,9 @@
           { name: 'Cache (firebase.json)', desc: 'Três regras de header: (1) **/*.js → max-age=60; (2) **/*.css → max-age=60; (3) /index.html → no-cache + Content-Security-Policy personalizada (restringe fontes permitidas de scripts, estilos, fontes e conexões). JS e CSS ficam em cache por 1 minuto — equilibra performance e atualização. index.html nunca fica em cache pois é a entrada da SPA.' },
           { name: 'Banco',       desc: 'Firebase Realtime Database — gratuito até 1 GB de dados e 10 GB/mês de transferência (Spark plan)' },
           { name: 'Auth',        desc: 'Firebase Authentication — gratuito ilimitado para Email/Password no Spark plan' },
+          { name: 'Regra — pasta de trabalho', desc: 'Sempre usar "Design System (2)". Nunca usar a pasta "(3)" ou qualquer outra.' },
+          { name: 'Regra — sem arquivo morto', desc: 'Todo arquivo não carregado/linkado pelo index.html (scaffold, ferramenta externa, protótipo) deve ir pro ignore do firebase.json, não ser publicado por esquecimento.' },
+          { name: 'Regra — sem ?v=N nos scripts', desc: 'Não usar query string de versão como cache busting. A configuração no firebase.json resolve de forma permanente e automática.' },
         ]
       },
     ];
@@ -624,17 +627,6 @@
     html += '<p class="mapa-sub">Decisões e restrições registradas sobre como o projeto deve ser mantido.</p>';
 
     const REGRAS = [
-      {
-        label: 'Deploy', color: '#e8854a',
-        items: [
-          { name: 'Pasta de trabalho',  desc: 'Sempre usar "Design System (2)".' },
-          { name: 'Processo de deploy', desc: 'git push para o branch main — o Firebase Hosting atualiza automaticamente. Nunca publicar de outra forma.' },
-          { name: 'Sem arquivo morto no deploy', desc: 'Todo arquivo não carregado/linkado pelo index.html (scaffold, ferramenta externa, protótipo) deve ir pro ignore do firebase.json, não ser publicado "por esquecimento".' },
-          { name: 'Cache — JS e CSS: max-age=60', desc: 'firebase.json usa Cache-Control: max-age=60 para JS e CSS. Cache de 1 minuto — equilibra performance com atualização automática. Nunca usar no-cache global: causava 8+ segundos de carregamento com 22 scripts.' },
-          { name: 'Cache — index.html: no-cache', desc: 'O index.html sempre fica com no-cache (entrada da SPA) e carrega o Content-Security-Policy personalizado.' },
-          { name: 'Cache — sem ?v=N nos scripts', desc: 'Não usar query string de versão como cache busting. A configuração no firebase.json resolve de forma permanente e automática.' },
-        ]
-      },
       {
         label: 'Autonomia', color: '#1ab2ae',
         items: [
