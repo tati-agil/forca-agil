@@ -1250,25 +1250,38 @@
     var periodoInicio = new Date(t.dias[0] + 'T12:00:00').toLocaleDateString('pt-BR', { day: '2-digit', month: 'long', year: 'numeric' });
     var periodoFim = new Date(t.dias[t.dias.length - 1] + 'T12:00:00').toLocaleDateString('pt-BR', { day: '2-digit', month: 'long', year: 'numeric' });
 
+    var PREVI_B64 = 'data:image/png;base64,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';
+
     var cards = aprovados.map(function (r) {
       var eKey = emailKeyFromEmail(r.email);
       var diasPresente = t.dias.filter(function (d) { return checkinT[d] && checkinT[d][eKey]; }).length;
-      var freq = Math.round((diasPresente / t.dias.length) * 100);
+      var horas = diasPresente * 4;
       return (
         '<div class="cert-page">' +
           '<div class="cert-box">' +
+            '<div class="cert-corner tl"></div><div class="cert-corner tr"></div>' +
+            '<div class="cert-corner bl"></div><div class="cert-corner br"></div>' +
             '<div class="cert-header">' +
-              '<div class="cert-logo">FORÇA ÁGIL</div>' +
-              '<div class="cert-previ">Previ — Caixa de Previdência dos Funcionários do Banco do Brasil</div>' +
+              '<div class="cert-logo-wrap">' +
+                '<div class="cert-logo-row">' +
+                  '<svg class="cert-svg" viewBox="0 0 32 32" xmlns="http://www.w3.org/2000/svg"><circle cx="16" cy="16" r="13" fill="none" stroke="#c9a84c" stroke-width="1.6"/><path d="M16 7 L22 22 L16 18 L10 22 Z" fill="#c9a84c"/></svg>' +
+                  '<div>' +
+                    '<div class="cert-logo-main">FORÇA <span>ÁGIL</span></div>' +
+                    '<div class="cert-logo-sub"><img src="' + PREVI_B64 + '" class="cert-previ-sym" alt=""><span class="cert-previ-txt">Previ</span></div>' +
+                  '</div>' +
+                '</div>' +
+              '</div>' +
             '</div>' +
-            '<div class="cert-title">CERTIFICADO DE PARTICIPAÇÃO</div>' +
+            '<div class="cert-divider"><div class="cert-divider-dot"></div></div>' +
+            '<div class="cert-eyebrow">✦ &nbsp; Uma galáxia mais ágil &nbsp; ✦</div>' +
+            '<div class="cert-title">Certificado de Participação</div>' +
             '<div class="cert-body">' +
-              '<p>Certificamos que</p>' +
+              '<div class="cert-lead">A Força reconhece que</div>' +
               '<div class="cert-nome">' + esc(r.name) + '</div>' +
-              '<p>participou do programa de desenvolvimento ágil</p>' +
+              '<div class="cert-middle">completou sua jornada na <em>Oficina de Agilidade Organizacional</em></div>' +
               '<div class="cert-turma">' + esc(t.label) + '</div>' +
-              '<p>realizado no período de <strong>' + periodoInicio + '</strong> a <strong>' + periodoFim + '</strong>,<br>' +
-              'com frequência de <strong>' + diasPresente + ' de ' + t.dias.length + ' encontros (' + freq + '%)</strong>.</p>' +
+              '<div class="cert-periodo">de <strong>' + periodoInicio + '</strong> a <strong>' + periodoFim + '</strong></div>' +
+              '<div class="cert-horas"><div class="cert-horas-num">' + horas + 'h</div><div class="cert-horas-label">de imersão<br>em agilidade</div></div>' +
             '</div>' +
             '<div class="cert-footer">' +
               '<div class="cert-assinatura"><div class="cert-linha"></div><div>Coordenação Força Ágil</div></div>' +
@@ -1282,22 +1295,45 @@
     var html = '<!DOCTYPE html><html lang="pt-BR"><head><meta charset="UTF-8">' +
       '<title>Certificados — ' + esc(t.label) + '</title>' +
       '<style>' +
-        'body{margin:0;padding:0;background:#f0f0f0;font-family:Georgia,serif;}' +
-        '.cert-page{width:297mm;height:210mm;display:flex;align-items:center;justify-content:center;page-break-after:always;box-sizing:border-box;}' +
-        '.cert-box{width:270mm;height:185mm;border:3px solid #b8960c;border-radius:8px;padding:12mm 16mm;box-sizing:border-box;background:#fff;display:flex;flex-direction:column;justify-content:space-between;position:relative;}' +
-        '.cert-box::before{content:"";position:absolute;inset:6px;border:1px solid #d4af37;border-radius:4px;pointer-events:none;}' +
-        '.cert-header{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:6mm;}' +
-        '.cert-logo{font-size:22pt;font-weight:700;letter-spacing:.08em;color:#0a1628;text-transform:uppercase;}' +
-        '.cert-previ{font-size:7pt;color:#555;max-width:60%;text-align:right;line-height:1.5;}' +
-        '.cert-title{font-size:18pt;letter-spacing:.2em;text-transform:uppercase;color:#b8960c;text-align:center;margin-bottom:8mm;font-family:Arial,sans-serif;font-weight:700;}' +
-        '.cert-body{text-align:center;flex:1;display:flex;flex-direction:column;justify-content:center;gap:4mm;font-size:11pt;color:#222;line-height:1.8;}' +
-        '.cert-nome{font-size:22pt;font-weight:700;color:#0a1628;letter-spacing:.03em;border-bottom:1px solid #d4af37;padding-bottom:3mm;margin:0 20mm;}' +
-        '.cert-turma{font-size:14pt;font-style:italic;color:#b8960c;font-weight:700;}' +
-        '.cert-footer{display:flex;justify-content:space-between;align-items:flex-end;margin-top:6mm;}' +
-        '.cert-assinatura{text-align:center;font-size:9pt;color:#333;}' +
-        '.cert-linha{border-top:1px solid #333;width:55mm;margin-bottom:2mm;}' +
-        '.cert-data{font-size:9pt;color:#555;}' +
-        '@media print{body{background:#fff;}.cert-page{width:100%;height:100vh;}}' +
+        '*{box-sizing:border-box;margin:0;padding:0;-webkit-print-color-adjust:exact;print-color-adjust:exact;}' +
+        'body{background:#0a0e1a;font-family:Georgia,serif;}' +
+        '.cert-page{width:297mm;height:210mm;display:flex;align-items:center;justify-content:center;page-break-after:always;}' +
+        '.cert-box{width:272mm;height:190mm;position:relative;background:#060b18;border:2px solid #c9a84c;border-radius:4px;padding:10mm 14mm 9mm;display:flex;flex-direction:column;box-shadow:0 0 60px rgba(201,168,76,.2);}' +
+        '.cert-box::before{content:"";position:absolute;inset:7px;border:1px solid rgba(201,168,76,.35);border-radius:2px;pointer-events:none;}' +
+        '.cert-corner{position:absolute;width:20px;height:20px;border-color:#c9a84c;border-style:solid;opacity:.8;}' +
+        '.cert-corner.tl{top:14px;left:14px;border-width:2px 0 0 2px;}' +
+        '.cert-corner.tr{top:14px;right:14px;border-width:2px 2px 0 0;}' +
+        '.cert-corner.bl{bottom:14px;left:14px;border-width:0 0 2px 2px;}' +
+        '.cert-corner.br{bottom:14px;right:14px;border-width:0 2px 2px 0;}' +
+        '.cert-header{margin-bottom:5mm;}' +
+        '.cert-logo-wrap{}' +
+        '.cert-logo-row{display:flex;align-items:center;gap:10px;}' +
+        '.cert-svg{width:34px;height:34px;flex-shrink:0;}' +
+        '.cert-logo-main{font-family:Arial Black,Arial,sans-serif;font-size:17pt;font-weight:900;letter-spacing:.12em;color:#fff;line-height:1;}' +
+        '.cert-logo-main span{color:#c9a84c;}' +
+        '.cert-logo-sub{display:flex;align-items:center;gap:5px;margin-top:3px;}' +
+        '.cert-previ-sym{height:13px;width:auto;}' +
+        '.cert-previ-txt{font-family:Arial,sans-serif;font-size:7.5pt;color:#1ab2ae;}' +
+        '.cert-divider{height:1px;background:linear-gradient(to right,transparent,#c9a84c 30%,#c9a84c 70%,transparent);margin-bottom:4mm;position:relative;}' +
+        '.cert-divider-dot{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);width:6px;height:6px;background:#c9a84c;border-radius:50%;}' +
+        '.cert-eyebrow{font-family:Arial,sans-serif;font-size:6.5pt;letter-spacing:.35em;text-transform:uppercase;color:#c9a84c;text-align:center;margin-bottom:2mm;opacity:.9;}' +
+        '.cert-title{font-family:Arial Black,Arial,sans-serif;font-size:14pt;letter-spacing:.18em;text-transform:uppercase;color:#fff;text-align:center;margin-bottom:4mm;font-weight:900;}' +
+        '.cert-body{text-align:center;flex:1;display:flex;flex-direction:column;align-items:center;justify-content:space-evenly;}' +
+        '.cert-lead{font-size:8.5pt;color:rgba(255,255,255,.55);letter-spacing:.06em;font-style:italic;font-family:Arial,sans-serif;}' +
+        '.cert-nome{font-size:20pt;font-weight:700;color:#fff;letter-spacing:.03em;border-bottom:1px solid rgba(201,168,76,.5);padding-bottom:2mm;width:80%;}' +
+        '.cert-middle{font-size:8.5pt;color:rgba(255,255,255,.5);font-family:Arial,sans-serif;letter-spacing:.03em;}' +
+        '.cert-middle em{color:rgba(255,255,255,.7);font-style:italic;}' +
+        '.cert-turma{font-size:12pt;font-style:italic;color:#c9a84c;font-weight:700;}' +
+        '.cert-periodo{font-size:8.5pt;color:rgba(255,255,255,.5);font-family:Arial,sans-serif;line-height:1.7;}' +
+        '.cert-periodo strong{color:rgba(255,255,255,.8);}' +
+        '.cert-horas{display:inline-flex;align-items:center;gap:8px;border:1px solid rgba(201,168,76,.4);border-radius:4px;padding:4px 16px;background:rgba(201,168,76,.06);}' +
+        '.cert-horas-num{font-family:Arial Black,Arial,sans-serif;font-size:14pt;font-weight:900;color:#c9a84c;line-height:1;}' +
+        '.cert-horas-label{font-family:Arial,sans-serif;font-size:6.5pt;color:rgba(255,255,255,.5);letter-spacing:.1em;text-transform:uppercase;line-height:1.3;text-align:left;}' +
+        '.cert-footer{display:flex;justify-content:space-between;align-items:flex-end;margin-top:4mm;}' +
+        '.cert-assinatura{text-align:center;font-family:Arial,sans-serif;font-size:7.5pt;color:rgba(255,255,255,.45);}' +
+        '.cert-linha{border-top:1px solid rgba(201,168,76,.5);width:50mm;margin-bottom:2mm;}' +
+        '.cert-data{font-family:Arial,sans-serif;font-size:7.5pt;color:rgba(255,255,255,.35);letter-spacing:.04em;}' +
+        '@media print{.cert-page{width:100%;height:100vh;page-break-after:always;}}' +
       '</style></head><body>' + cards +
       '<script>window.onload=function(){window.print();}<\/script>' +
       '</body></html>';
