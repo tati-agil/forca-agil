@@ -364,9 +364,17 @@
               certBtn.addEventListener('click', (function (tt, ins, ck) {
                 return function () { gerarCertificados(tt, ins, ck); };
               })(t, inscritos, checkinT));
+              var modeloBtn = document.createElement('button');
+              modeloBtn.className = 'btn btn--sm';
+              modeloBtn.style.cssText = 'padding:6px 10px;font-size:.72rem';
+              modeloBtn.innerHTML = '&#x1F441; Modelo';
+              modeloBtn.addEventListener('click', (function (tt) {
+                return function () { previewCertificado(tt); };
+              })(t));
               moreMenu.appendChild(qrBtn);
               moreMenu.appendChild(reopenBtn);
               moreMenu.appendChild(certBtn);
+              moreMenu.appendChild(modeloBtn);
             }
 
             /* + Participante e CSV — disponíveis em qualquer estado da turma:
@@ -1233,6 +1241,13 @@
   });
 
   /* ---- Certificados ---- */
+  function previewCertificado(t) {
+    var fakeInscritos = [{ name: 'Maria da Silva Santos', email: 'exemplo@previ.com.br' }];
+    var fakeCheckin = {};
+    t.dias.forEach(function (d) { fakeCheckin[d] = { 'exemplo_previ_com_br': true }; });
+    gerarCertificados(t, fakeInscritos, fakeCheckin);
+  }
+
   function gerarCertificados(t, inscritos, checkinT) {
     var minDias = Math.ceil(t.dias.length * CRITERIO_PRESENCA);
     var aprovados = inscritos.filter(function (r) {
