@@ -30,7 +30,9 @@
 
   var _enrolledRefs = [];
 
-  function isInscrito(val) { return !!(val && !val.removed && val.status === 'inscrito'); }
+  /* Enrolled só para quem foi confirmado pelo admin (status='inscrito' + confirmedByAdmin preenchido).
+     Manifestar interesse (status='interessado') não concede acesso. */
+  function isInscrito(val) { return !!(val && !val.removed && val.status === 'inscrito' && val.confirmedByAdmin); }
 
   /* Turmas não são mais fixas (t1/t2/t3) — a lista de chaves vem de turmas/ no Firebase,
      editável pelo admin (criar/excluir turma) */
