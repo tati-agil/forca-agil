@@ -1281,7 +1281,7 @@
         '<div class="c-pg">' +
           '<div class="c-cover"></div>' +
           '<div class="c-nome-wrap"><div class="c-nome">' + esc(r.name) + '</div></div>' +
-          '<div class="c-turma-wrap"><div class="c-turma">' + esc(t.label) + '</div></div>' +
+          '<div class="c-mid">concluiu sua jornada na</div>' +'<div class="c-ofic">&#9670; &nbsp; Oficina de Agilidade Organizacional &nbsp; &#9670;</div>' +'<div class="c-turma-wrap"><div class="c-turma">' + esc(t.label) + '</div></div>' +
           '<div class="c-date-wrap">' + SVG_CAL + '&nbsp;' + periodo + '</div>' +
           '<div class="c-horas-wrap"><div class="c-hbadge"><div class="c-hnum">' + horas + 'h</div><div class="c-hlbl">DE IMERS&Atilde;O<br>EM AGILIDADE</div></div></div>' +
           '<div class="c-emitido">Emitido em ' + dataEmissao + '</div>' +
@@ -1297,17 +1297,21 @@
         'body{background:#000;font-family:Georgia,serif;}' +
         '.c-pg{width:297mm;height:210mm;position:relative;overflow:hidden;page-break-after:always;' +
               'background-image:url(' + BG_B64 + ');background-size:cover;background-position:center;}' +
-        '.c-cover{position:absolute;top:37%;left:0;right:0;bottom:15%;background:#00000f;}' +
-        '.c-nome-wrap{position:absolute;top:41%;left:0;right:0;text-align:center;z-index:2;}' +
+        '.c-cover{position:absolute;top:27%;left:2.5%;right:2.5%;bottom:2%;background:#000509;z-index:1;}' +
+        '.c-nome-wrap{position:absolute;top:31%;left:0;right:0;text-align:center;z-index:2;}' +
         '.c-nome{font-family:"Times New Roman",Georgia,serif;font-size:33pt;font-weight:700;color:#fff;' +
                'text-shadow:0 0 28px rgba(255,255,255,.35),0 2px 8px rgba(0,0,0,.95);line-height:1.1;}' +
+        '.c-mid{position:absolute;top:50%;left:0;right:0;text-align:center;z-index:2;' +
+               'font-family:Georgia,serif;font-style:italic;font-size:10pt;color:rgba(255,255,255,.75);}' +
+        '.c-ofic{position:absolute;top:55.5%;left:0;right:0;text-align:center;z-index:2;' +
+               'font-family:Arial,sans-serif;font-size:7.5pt;letter-spacing:.14em;color:#c9a84c;' +
+               'text-transform:uppercase;}' +
         '.c-turma-wrap{position:absolute;top:62%;left:0;right:0;text-align:center;z-index:2;}' +
         '.c-turma{font-family:Georgia,serif;font-size:13pt;font-style:italic;color:#c9a84c;font-weight:700;' +
                 'text-shadow:0 0 10px rgba(201,168,76,.5);}' +
         '.c-date-wrap{position:absolute;top:68%;left:0;right:0;z-index:2;' +
                     'font-family:Arial,sans-serif;font-size:9.5pt;color:rgba(255,255,255,.9);' +
-                    'display:flex;justify-content:center;align-items:center;gap:6px;' +
-                    'text-shadow:0 1px 4px rgba(0,0,0,.9);}' +
+                    'display:flex;justify-content:center;align-items:center;gap:6px;}' +
         '.c-horas-wrap{position:absolute;top:74%;left:0;right:0;z-index:2;' +
                      'display:flex;justify-content:center;align-items:center;}' +
         '.c-hbadge{display:flex;align-items:center;gap:10px;' +
@@ -1317,9 +1321,8 @@
                'text-shadow:0 0 14px rgba(201,168,76,.7);}' +
         '.c-hlbl{font-family:Arial,sans-serif;font-size:6.5pt;color:rgba(255,255,255,.65);' +
                'letter-spacing:.14em;text-transform:uppercase;line-height:1.45;text-align:left;}' +
-        '.c-emitido{position:absolute;bottom:7%;right:5%;z-index:2;' +
-                  'background:#00000f;padding:2px 8px;' +
-                  'font-family:Arial,sans-serif;font-size:6.5pt;color:rgba(255,255,255,.55);}' +
+        '.c-emitido{position:absolute;bottom:4%;right:3%;z-index:2;' +
+                  'font-family:Arial,sans-serif;font-size:6.5pt;color:rgba(255,255,255,.5);}' +
         '@media print{.c-pg{width:100%;height:100vh;page-break-after:always;}}' +
       '</style></head><body>' + cards +
       '<script>window.onload=function(){window.print();};<\/script>' +
