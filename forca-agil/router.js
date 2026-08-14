@@ -118,6 +118,7 @@
     var modal = document.getElementById('authModal');
     if (!modal || !modal.hidden) return;
     modal.hidden = false;
+    modal.classList.add('modal-overlay--forced');
     document.body.style.overflow = 'hidden';
     var loginTab = modal.querySelector('[data-tab="login"]');
     if (loginTab) loginTab.click();
@@ -133,7 +134,9 @@
   /* Logout em tempo real */
   window.addEventListener('fa-auth-change', function (e) {
     if (!e.detail) { forcarLogin(); return; }
-    /* Logou: restaurar botão fechar */
+    /* Logou: restaurar botão fechar e remover fundo forçado */
+    var modal = document.getElementById('authModal');
+    if (modal) modal.classList.remove('modal-overlay--forced');
     var closeBtn = document.getElementById('authClose');
     if (closeBtn) closeBtn.style.display = '';
   });
