@@ -1282,7 +1282,7 @@
           '<div class="c-nome-wrap"><div class="c-nome">' + esc(r.name) + '</div></div>' +
           '<div class="c-turma-wrap"><div class="c-turma">' + esc(t.label) + '</div></div>' +
           '<div class="c-date-wrap">' + SVG_CAL + '&nbsp;' + periodo + '</div>' +
-          '<div class="c-horas-wrap"><div class="c-hnum">' + horas + 'h</div><div class="c-hlbl">DE IMERS&Atilde;O<br>EM AGILIDADE</div></div>' +
+          '<div class="c-horas-wrap"><div class="c-hbadge"><div class="c-hnum">' + horas + 'h</div><div class="c-hlbl">DE IMERS&Atilde;O<br>EM AGILIDADE</div></div></div>' +
           '<div class="c-emitido">Emitido em ' + dataEmissao + '</div>' +
         '</div>'
       );
@@ -1296,27 +1296,31 @@
         'body{background:#000;font-family:Georgia,serif;}' +
         '.c-pg{width:297mm;height:210mm;position:relative;overflow:hidden;page-break-after:always;' +
               'background-image:url(' + BG_B64 + ');background-size:cover;background-position:center;}' +
-        '.c-nome-wrap{position:absolute;top:35%;left:3%;width:94%;text-align:center;' +
-                    'background:rgba(0,0,2,1);padding:22px 0 24px;}' +
+        '.c-nome-wrap{position:absolute;top:38%;left:0;right:0;text-align:center;' +
+                    'background:#00000a;padding:16px 0 18px;}' +
         '.c-nome{font-family:"Times New Roman",Georgia,serif;font-size:33pt;font-weight:700;color:#fff;' +
-               'text-shadow:0 0 30px rgba(255,255,255,.4),0 2px 8px rgba(0,0,0,.95);line-height:1.1;}' +
-        '.c-turma-wrap{position:absolute;top:60%;left:50%;transform:translateX(-50%);width:66%;text-align:center;' +
-                     'background:rgba(0,0,2,1);padding:5px 0 6px;}' +
+               'text-shadow:0 0 28px rgba(255,255,255,.35),0 2px 8px rgba(0,0,0,.95);line-height:1.1;}' +
+        '.c-turma-wrap{position:absolute;top:61%;left:0;right:0;text-align:center;' +
+                     'background:#00000a;padding:9px 0 11px;}' +
         '.c-turma{font-family:Georgia,serif;font-size:13pt;font-style:italic;color:#c9a84c;font-weight:700;' +
                 'text-shadow:0 0 10px rgba(201,168,76,.5);}' +
-        '.c-date-wrap{position:absolute;top:67.5%;left:50%;transform:translateX(-50%);' +
+        '.c-date-wrap{position:absolute;top:67%;left:0;right:0;' +
                     'font-family:Arial,sans-serif;font-size:9.5pt;color:rgba(255,255,255,.9);' +
-                    'display:flex;align-items:center;gap:6px;background:rgba(0,0,2,1);padding:5px 20px;' +
-                    'text-shadow:0 1px 4px rgba(0,0,0,.9);white-space:nowrap;}' +
-        '.c-horas-wrap{position:absolute;top:74%;left:50%;transform:translateX(-50%);' +
-                     'display:flex;align-items:center;gap:10px;' +
-                     'border:1.5px solid #c9a84c;border-radius:3px;padding:6px 22px;' +
-                     'background:rgba(0,0,2,1);box-shadow:0 0 16px rgba(201,168,76,.3);}' +
+                    'display:flex;justify-content:center;align-items:center;gap:6px;' +
+                    'background:#00000a;padding:6px 0;' +
+                    'text-shadow:0 1px 4px rgba(0,0,0,.9);}' +
+        '.c-horas-wrap{position:absolute;top:73%;left:0;right:0;' +
+                     'display:flex;justify-content:center;align-items:center;' +
+                     'background:#00000a;padding:9px 0 11px;}' +
+        '.c-hbadge{display:flex;align-items:center;gap:10px;' +
+                 'border:1.5px solid #c9a84c;border-radius:3px;padding:5px 22px;' +
+                 'box-shadow:0 0 16px rgba(201,168,76,.3);}' +
         '.c-hnum{font-family:Arial Black,Arial,sans-serif;font-size:18pt;font-weight:900;color:#c9a84c;line-height:1;' +
                'text-shadow:0 0 14px rgba(201,168,76,.7);}' +
         '.c-hlbl{font-family:Arial,sans-serif;font-size:6.5pt;color:rgba(255,255,255,.65);' +
                'letter-spacing:.14em;text-transform:uppercase;line-height:1.45;text-align:left;}' +
-        '.c-emitido{position:absolute;bottom:8%;right:6%;' +
+        '.c-emitido{position:absolute;bottom:7%;right:0;' +
+                  'background:#00000a;padding:2px 6%;' +
                   'font-family:Arial,sans-serif;font-size:6.5pt;color:rgba(255,255,255,.55);' +
                   'text-shadow:0 1px 3px rgba(0,0,0,.9);}' +
         '@media print{.c-pg{width:100%;height:100vh;page-break-after:always;}}' +
