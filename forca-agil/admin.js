@@ -1308,8 +1308,8 @@
       '    var c = cv.getContext("2d");' +
       '    var W = cv.width; var H = cv.height;' +
       '    c.drawImage(BG, 0, 0, W, H);' +
-      '    c.fillStyle = "rgba(0,0,8,0.97)";' +
-      '    c.fillRect(0, H*0.27, W, H*0.56);' +
+      '    c.fillStyle = "rgb(0,0,8)";' +
+      '    c.fillRect(W*0.025, H*0.24, W*0.95, H*0.72);' +
       '    c.textAlign = "center";' +
       '    c.fillStyle = "#ffffff";' +
       '    c.font = "bold " + Math.round(H*0.056) + "px Times New Roman, Georgia, serif";' +
@@ -1334,7 +1334,7 @@
       '    c.fillStyle = "rgba(255,255,255,0.45)";' +
       '    c.font = Math.round(H*0.013) + "px Arial, sans-serif";' +
       '    c.textAlign = "right";' +
-      '    c.fillText("Emitido em " + dataEmissao, W*0.95, H*0.9);' +
+      '    c.fillText("Emitido em " + dataEmissao, W*0.945, H*0.915);' +
       '  });' +
       '  window.print();' +
       '};' +
