@@ -126,22 +126,26 @@
   window.addEventListener('hashchange', function () { show(route()); });
   document.addEventListener('DOMContentLoaded', function () { show(route()); });
 
-  /* Quando auth muda: se for guest, abrir modal de login obrigatório */
-  window.addEventListener('fa-auth-change', function (e) {
-    if (e.detail) return; // usuário logado — não faz nada
+  function forcarLogin() {
     var modal = document.getElementById('authModal');
     if (!modal || !modal.hidden) return;
     modal.hidden = false;
     document.body.style.overflow = 'hidden';
     var loginTab = modal.querySelector('[data-tab="login"]');
     if (loginTab) loginTab.click();
-    /* Impede fechar o modal enquanto não logado */
     var closeBtn = document.getElementById('authClose');
     if (closeBtn) closeBtn.style.display = 'none';
+  }
+
+  /* Carga inicial: auth terminou de verificar sessão */
+  window.addEventListener('fa-auth-ready', function (e) {
+    if (!e.detail) forcarLogin(); // sem sessão = guest
   });
+
+  /* Logout em tempo real */
   window.addEventListener('fa-auth-change', function (e) {
-    /* Quando logar: restaurar botão fechar caso tenha sido ocultado */
-    if (!e.detail) return;
+    if (!e.detail) { forcarLogin(); return; }
+    /* Logou: restaurar botão fechar */
     var closeBtn = document.getElementById('authClose');
     if (closeBtn) closeBtn.style.display = '';
   });

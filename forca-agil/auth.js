@@ -150,6 +150,7 @@
       }
     }
     _authReady = true;
+    window.dispatchEvent(new CustomEvent('fa-auth-ready', { detail: _session }));
   });
 
   /* ---- Store com escopo por usuário ---- */
