@@ -52,102 +52,110 @@
     setTimeout(function () { collectReveals(); revealInView(); }, 120);
   });
 
-  /* ---- Opening crawl ---- */
-  document.addEventListener('DOMContentLoaded', function () {
-    const crawl   = document.querySelector('.crawl-content');
-    const stage   = document.querySelector('.crawl-stage');
-    const replay  = document.querySelector('.crawl-replay');
-    const reduce  = matchMedia('(prefers-reduced-motion: reduce)').matches;
-
-    if (crawl && !reduce) {
-      var paused = false;
-      var skipped = false;
-
-      const startCrawl = function () {
-        skipped = false; paused = false;
-        crawl.classList.remove('run', 'crawl-static');
-        stage.classList.remove('crawl-stage--static');
-        void crawl.offsetWidth;
-        crawl.classList.add('run');
-        crawl.style.animationPlayState = 'running';
-        if (pauseBtn) pauseBtn.textContent = '⏸ Pausar';
-        if (skipBtn)  skipBtn.textContent  = '≡ Ler texto';
-      };
-
-      /* pause / resume on stage click */
-      const crawlBtns = document.querySelector('.crawl-btns');
-      const pauseBtn = document.createElement('button');
-      pauseBtn.className = 'btn crawl-pause';
-      pauseBtn.textContent = '⏸ Pausar';
-      pauseBtn.setAttribute('aria-label', 'Pausar ou retomar a abertura');
-      if (crawlBtns) crawlBtns.prepend(pauseBtn); else stage.parentNode.insertBefore(pauseBtn, stage.nextSibling);
-
-      pauseBtn.addEventListener('click', function () {
-        if (skipped) return;
-        paused = !paused;
-        crawl.style.animationPlayState = paused ? 'paused' : 'running';
-        pauseBtn.textContent = paused ? '▶ Continuar' : '⏸ Pausar';
-      });
-
-      stage.addEventListener('click', function () {
-        if (skipped) return;
-        paused = !paused;
-        crawl.style.animationPlayState = paused ? 'paused' : 'running';
-        pauseBtn.textContent = paused ? '▶ Continuar' : '⏸ Pausar';
-      });
-
-      /* skip: show static text */
-      const skipBtn = document.createElement('button');
-      skipBtn.className = 'btn crawl-skip';
-      skipBtn.textContent = '≡ Ler texto';
-      skipBtn.setAttribute('aria-label', 'Ver texto completo sem animação');
-      if (crawlBtns) crawlBtns.prepend(skipBtn); else stage.parentNode.insertBefore(skipBtn, stage.nextSibling);
-
-      skipBtn.addEventListener('click', function () {
-        if (!skipped) {
-          skipped = true; paused = false;
-          crawl.classList.remove('run');
-          crawl.classList.add('crawl-static');
-          stage.classList.add('crawl-stage--static');
-          crawl.style.animationPlayState = 'running';
-          skipBtn.textContent = '✕ Fechar texto';
-          pauseBtn.style.display = 'none';
-        } else {
-          startCrawl();
-          pauseBtn.style.display = '';
-        }
-      });
-
-      const crawlIO = new IntersectionObserver(function (es) {
-        es.forEach(function (e) { if (e.isIntersecting) { startCrawl(); crawlIO.disconnect(); } });
-      }, { threshold: 0.4 });
-      const cs = document.querySelector('.crawl-section');
-      if (cs) crawlIO.observe(cs);
-
-      if (replay) replay.addEventListener('click', function () {
-        pauseBtn.style.display = '';
-        startCrawl();
-      });
-
-    } else if (replay) {
-      replay.style.display = 'none';
-    }
-  });
-
-  /* ---- Crawl: visível apenas para enrolled e admin ---- */
+  /* ---- Opening crawl — inicializado apenas para enrolled e admin ---- */
   (function () {
-    function aplicarVisibilidadeCrawl(level) {
+    var crawlIniciado = false;
+
+    function iniciarCrawl() {
+      if (crawlIniciado) return;
+      crawlIniciado = true;
+
+      var crawl   = document.querySelector('.crawl-content');
+      var stage   = document.querySelector('.crawl-stage');
+      var replay  = document.querySelector('.crawl-replay');
+      var reduce  = matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+      if (crawl && !reduce) {
+        var paused = false;
+        var skipped = false;
+
+        var startCrawl = function () {
+          skipped = false; paused = false;
+          crawl.classList.remove('run', 'crawl-static');
+          stage.classList.remove('crawl-stage--static');
+          void crawl.offsetWidth;
+          crawl.classList.add('run');
+          crawl.style.animationPlayState = 'running';
+          if (pauseBtn) pauseBtn.textContent = '⏸ Pausar';
+          if (skipBtn)  skipBtn.textContent  = '≡ Ler texto';
+        };
+
+        var crawlBtns = document.querySelector('.crawl-btns');
+        var pauseBtn = document.createElement('button');
+        pauseBtn.className = 'btn crawl-pause';
+        pauseBtn.textContent = '⏸ Pausar';
+        pauseBtn.setAttribute('aria-label', 'Pausar ou retomar a abertura');
+        if (crawlBtns) crawlBtns.prepend(pauseBtn); else stage.parentNode.insertBefore(pauseBtn, stage.nextSibling);
+
+        pauseBtn.addEventListener('click', function () {
+          if (skipped) return;
+          paused = !paused;
+          crawl.style.animationPlayState = paused ? 'paused' : 'running';
+          pauseBtn.textContent = paused ? '▶ Continuar' : '⏸ Pausar';
+        });
+
+        stage.addEventListener('click', function () {
+          if (skipped) return;
+          paused = !paused;
+          crawl.style.animationPlayState = paused ? 'paused' : 'running';
+          pauseBtn.textContent = paused ? '▶ Continuar' : '⏸ Pausar';
+        });
+
+        var skipBtn = document.createElement('button');
+        skipBtn.className = 'btn crawl-skip';
+        skipBtn.textContent = '≡ Ler texto';
+        skipBtn.setAttribute('aria-label', 'Ver texto completo sem animação');
+        if (crawlBtns) crawlBtns.prepend(skipBtn); else stage.parentNode.insertBefore(skipBtn, stage.nextSibling);
+
+        skipBtn.addEventListener('click', function () {
+          if (!skipped) {
+            skipped = true; paused = false;
+            crawl.classList.remove('run');
+            crawl.classList.add('crawl-static');
+            stage.classList.add('crawl-stage--static');
+            crawl.style.animationPlayState = 'running';
+            skipBtn.textContent = '✕ Fechar texto';
+            pauseBtn.style.display = 'none';
+          } else {
+            startCrawl();
+            pauseBtn.style.display = '';
+          }
+        });
+
+        var crawlIO = new IntersectionObserver(function (es) {
+          es.forEach(function (e) { if (e.isIntersecting) { startCrawl(); crawlIO.disconnect(); } });
+        }, { threshold: 0.4 });
+        var cs = document.querySelector('.crawl-section');
+        if (cs) crawlIO.observe(cs);
+
+        if (replay) replay.addEventListener('click', function () {
+          pauseBtn.style.display = '';
+          startCrawl();
+        });
+
+      } else if (replay) {
+        replay.style.display = 'none';
+      }
+    }
+
+    function aplicarAcesso(level) {
       var cs = document.querySelector('.crawl-section');
       if (!cs) return;
-      cs.hidden = (level === 'member');
+      if (level === 'enrolled' || level === 'admin') {
+        cs.style.display = '';
+        iniciarCrawl();
+      } else {
+        cs.style.display = 'none';
+      }
     }
-    window.addEventListener('fa-auth-ready', function (e) {
+
+    window.addEventListener('fa-auth-ready', function () {
       var level = window.faAuth && window.faAuth.getAccessLevel ? window.faAuth.getAccessLevel() : 'member';
-      aplicarVisibilidadeCrawl(level);
+      aplicarAcesso(level);
     });
-    window.addEventListener('fa-auth-change', function (e) {
+    window.addEventListener('fa-auth-change', function () {
       var level = window.faAuth && window.faAuth.getAccessLevel ? window.faAuth.getAccessLevel() : 'member';
-      aplicarVisibilidadeCrawl(level);
+      aplicarAcesso(level);
     });
   }());
 
