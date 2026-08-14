@@ -22,17 +22,7 @@
     }
 
     /* Access control */
-    const level = window.faAuth && window.faAuth.getAccessLevel ? window.faAuth.getAccessLevel() : 'guest';
-    if (page === 'repositorio' && level === 'guest') {
-      location.hash = '#home';
-      showAccessMsg('Faça login para acessar o Repositório.');
-      return;
-    }
-    if ((page === 'conteudos' || page === 'treinamento') && level === 'guest') {
-      location.hash = '#home';
-      showAccessMsg('Faça login para acessar esta área.');
-      return;
-    }
+    const level = window.faAuth && window.faAuth.getAccessLevel ? window.faAuth.getAccessLevel() : 'member';
     if ((page === 'conteudos' || page === 'treinamento') && level === 'member') {
       location.hash = '#home';
       showAccessMsg('Disponível após confirmação em uma turma.');
@@ -76,10 +66,8 @@
        alguém legítimo enquanto o Firebase ainda está resolvendo a sessão
        (nesse caso, quem corrige é o enforceCurrentRouteAccess em auth.js). */
     if (page !== 'home' && window.faAuth && window.faAuth.isAuthReady && window.faAuth.isAuthReady()) {
-      const level = window.faAuth.getAccessLevel ? window.faAuth.getAccessLevel() : 'guest';
-      const blocked =
-        (page === 'repositorio' && level === 'guest') ||
-        ((page === 'conteudos' || page === 'treinamento') && level !== 'enrolled');
+      const level = window.faAuth.getAccessLevel ? window.faAuth.getAccessLevel() : 'member';
+      const blocked = (page === 'conteudos' || page === 'treinamento') && level !== 'enrolled';
       if (blocked) {
         page = 'home';
         history.replaceState(null, '', '#home');

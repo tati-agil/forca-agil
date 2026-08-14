@@ -9,7 +9,7 @@
   let _dbAdmins = [];
   let _session  = null;  // cache em memória — fonte de verdade: Firebase Auth
   let _authReady = false;
-  let _accessLevel = 'guest'; // 'guest' | 'member' | 'enrolled'
+  let _accessLevel = 'member'; // 'member' | 'enrolled' (guest removido — login obrigatório)
 
   /* ---- Helpers ---- */
   function emailKey(e) {
@@ -85,7 +85,7 @@
     if (!window.faRouter) return;
     const page = window.faRouter.current();
     const level = getAccessLevel();
-    if (page === 'repositorio' && level === 'guest') {
+    if (page === 'repositorio' && !level) {
       location.hash = '#home';
       if (window.faRouter.showAccessMsg) {
         window.faRouter.showAccessMsg('Faça login para acessar o Repositório.');
@@ -140,7 +140,7 @@
       });
     } else {
       _session = null;
-      _accessLevel = 'guest';
+      _accessLevel = 'member';
       stopWatchingEnrolledStatus();
       try { localStorage.removeItem('fa-player'); } catch (e) {}
       updateNavState();
@@ -276,7 +276,7 @@
 
     /* Nav links visibility by access level */
     document.querySelectorAll('.nav-link-member').forEach(function (el) {
-      el.hidden = (level === 'guest');
+      el.hidden = false;
     });
     document.querySelectorAll('.nav-link-enrolled').forEach(function (el) {
       el.hidden = (level !== 'enrolled');
