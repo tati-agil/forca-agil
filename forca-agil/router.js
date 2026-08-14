@@ -126,19 +126,25 @@
     if (closeBtn) closeBtn.style.display = 'none';
   }
 
-  /* Carga inicial: auth terminou de verificar sessão */
-  window.addEventListener('fa-auth-ready', function (e) {
-    if (!e.detail) forcarLogin(); // sem sessão = guest
-  });
-
-  /* Logout em tempo real */
-  window.addEventListener('fa-auth-change', function (e) {
-    if (!e.detail) { forcarLogin(); return; }
-    /* Logou: restaurar botão fechar e remover fundo forçado */
+  function revelarSite() {
+    document.body.classList.remove('aguardando-auth');
+    document.body.style.overflow = '';
     var modal = document.getElementById('authModal');
     if (modal) modal.classList.remove('modal-overlay--forced');
     var closeBtn = document.getElementById('authClose');
     if (closeBtn) closeBtn.style.display = '';
+  }
+
+  /* Carga inicial: auth terminou de verificar sessão */
+  window.addEventListener('fa-auth-ready', function (e) {
+    if (!e.detail) { forcarLogin(); return; }
+    revelarSite();
+  });
+
+  /* Login/logout em tempo real */
+  window.addEventListener('fa-auth-change', function (e) {
+    if (!e.detail) { forcarLogin(); return; }
+    revelarSite();
   });
 
   window.faRouter = {
