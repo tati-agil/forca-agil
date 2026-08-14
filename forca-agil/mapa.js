@@ -212,7 +212,7 @@
         { label: 'Crawl de abertura — texto em estilo Star Wars sobe a tela ao entrar na Home', p: ['visitante','logado','inscrito','admin'] },
         { label: 'Crawl — botão "⏸ Pausar" → pausa/retoma a animação', p: ['visitante','logado','inscrito','admin'] },
         { label: 'Crawl — clicar na área da animação → pausa/retoma (mesmo efeito do botão Pausar)', p: ['visitante','logado','inscrito','admin'] },
-        { label: 'Crawl — botão "≡ Ler texto" → exibe texto estático sem perspectiva; "✕ Fechar texto" retorna ao crawl', p: ['visitante','logado','inscrito','admin'] },
+        { label: 'Crawl — visível apenas para inscrito e admin; botão "≡ Ler texto" → exibe texto estático sem perspectiva; "✕ Fechar texto" retorna ao crawl', p: ['inscrito','admin'] },
         { label: 'Crawl — botão "↻ Repetir abertura" → reinicia a animação do início', p: ['visitante','logado','inscrito','admin'] },
         { label: 'Card "Como funciona" → Conteúdos (decorativo, sem hover)', p: ['visitante','logado','inscrito','admin'] },
         { label: 'Card "Como funciona" → Repositório (decorativo, sem hover)', p: ['visitante','logado','inscrito','admin'] },

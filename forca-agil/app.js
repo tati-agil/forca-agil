@@ -134,6 +134,23 @@
     }
   });
 
+  /* ---- Crawl: visível apenas para enrolled e admin ---- */
+  (function () {
+    function aplicarVisibilidadeCrawl(level) {
+      var cs = document.querySelector('.crawl-section');
+      if (!cs) return;
+      cs.hidden = (level === 'member');
+    }
+    window.addEventListener('fa-auth-ready', function (e) {
+      var level = window.faAuth && window.faAuth.getAccessLevel ? window.faAuth.getAccessLevel() : 'member';
+      aplicarVisibilidadeCrawl(level);
+    });
+    window.addEventListener('fa-auth-change', function (e) {
+      var level = window.faAuth && window.faAuth.getAccessLevel ? window.faAuth.getAccessLevel() : 'member';
+      aplicarVisibilidadeCrawl(level);
+    });
+  }());
+
   /* ---- Yoda episode accordions ---- */
   document.addEventListener('click', function (e) {
     var h = e.target.closest('.yep-head');

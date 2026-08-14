@@ -365,6 +365,13 @@
           if (!crawl || !replay) return false;
           replay.click();
           return crawl.classList.contains('run');
+        } },
+        { id: 'c-crawl-acesso', label: 'Crawl: seção oculta para member; visível para enrolled/admin', run: function () {
+          var cs = document.querySelector('.crawl-section');
+          if (!cs) return false;
+          var level = window.faAuth && window.faAuth.getAccessLevel ? window.faAuth.getAccessLevel() : 'member';
+          if (level === 'member') return cs.hidden === true;
+          return cs.hidden === false;
         } }
       ]
     },
