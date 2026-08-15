@@ -15,11 +15,11 @@
     "headers": [
       {
         "source": "**/*.js",
-        "headers": [{ "key": "Cache-Control", "value": "max-age=60" }]
+        "headers": [{ "key": "Cache-Control", "value": "no-cache" }]
       },
       {
         "source": "**/*.css",
-        "headers": [{ "key": "Cache-Control", "value": "max-age=60" }]
+        "headers": [{ "key": "Cache-Control", "value": "no-cache" }]
       },
       {
         "source": "/index.html",
