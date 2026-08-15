@@ -586,9 +586,11 @@
         ? '<button class="cf-unconfirm-btn" data-turma="' + t.key + '" data-ekey="' + eKey + '" data-name="' + esc(r.name) + '" data-email="' + esc(r.email) + '" data-area="' + esc(r.area || '') + '">Desconfirmar</button>'
         : motivoSel + '<button class="cf-confirm-btn" data-turma="' + t.key + '" data-ekey="' + eKey + '" data-name="' + esc(r.name) + '" data-email="' + esc(r.email) + '" data-area="' + esc(r.area || '') + '">Confirmar</button>';
 
+      var dateOriginal = r.date || new Date().toISOString();
       tbl += '<tr><td>' + esc(r.name) + '</td><td>' + esc(r.email) + '</td><td>' +
         esc(r.area || '—') + '</td>' + statusCell + midCells +
         '<td class="turma-row-actions">' + actionBtn +
+          '<button class="ck-espera-btn" data-turma="' + t.key + '" data-ekey="' + eKey + '" data-name="' + esc(r.name) + '" data-email="' + esc(r.email) + '" data-area="' + esc(r.area || '') + '" data-date="' + esc(dateOriginal) + '" title="Mover para lista de espera preservando a data original">→ Espera</button>' +
           '<button class="ck-remove-btn" data-turma="' + t.key + '" data-ekey="' + eKey + '" data-name="' + esc(r.name) + '">Remover</button>' +
         '</td></tr>';
     });
@@ -636,6 +638,15 @@
         adminCheckin(btn.dataset.turma, btn.dataset.dia, btn.dataset.ekey, {
           name: btn.dataset.name, email: btn.dataset.email, area: btn.dataset.area
         });
+        return;
+      }
+      var esperaBtn = e.target.closest('.ck-espera-btn');
+      if (esperaBtn) {
+        var person = { name: esperaBtn.dataset.name, email: esperaBtn.dataset.email, area: esperaBtn.dataset.area, date: esperaBtn.dataset.date };
+        adminConfirm(
+          'Mover ' + person.name + ' para a lista de espera?\n\nEla sairá desta turma. A data original de interesse (' + fmtDate(person.date) + ') será preservada.',
+          function () { migrarParaEspera(esperaBtn.dataset.turma, esperaBtn.dataset.ekey, person); }
+        );
         return;
       }
       var remBtn = e.target.closest('.ck-remove-btn');
@@ -1754,6 +1765,31 @@
         wrap.appendChild(table);
         c.appendChild(wrap);
       });
+    });
+  }
+
+  function migrarParaEspera(turmaKey, eKey, person) {
+    var sess = window.faAuth && window.faAuth.getSession();
+    var now  = new Date().toISOString();
+    var updates = {};
+    /* Remove da turma (soft-delete) */
+    updates['turmas-interesse/' + turmaKey + '/' + eKey + '/removed']            = true;
+    updates['turmas-interesse/' + turmaKey + '/' + eKey + '/removedDate']        = now;
+    updates['turmas-interesse/' + turmaKey + '/' + eKey + '/movedToEspera']      = true;
+    updates['turmas-interesse/' + turmaKey + '/' + eKey + '/removedByAdmin']     = sess ? sess.email : null;
+    updates['turmas-interesse/' + turmaKey + '/' + eKey + '/removedByAdminName'] = sess ? (sess.name || sess.email) : null;
+    /* Adiciona à lista de espera preservando a data original de interesse */
+    updates['fa-espera/' + eKey] = {
+      name: person.name, email: person.email, area: person.area || '',
+      date: person.date,          /* data original — não a data de migração */
+      migratedAt: now,
+      migratedFrom: turmaKey,
+      removed: false
+    };
+    firebase.database().ref().update(updates, function (err) {
+      if (err) { adminAlert('Erro ao migrar. Tente novamente.'); return; }
+      loadInterests();
+      loadEspera();
     });
   }
 
