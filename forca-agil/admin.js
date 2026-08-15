@@ -227,12 +227,12 @@
 
           /* ── Barra de filtro e expand/collapse ───────────────────────────── */
           var filterBar = document.createElement('div');
-          filterBar.style.cssText = 'display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:18px';
+          filterBar.style.cssText = 'display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:18px;width:100%;box-sizing:border-box;min-width:0';
           var filterLabel = document.createElement('span');
-          filterLabel.style.cssText = 'color:var(--ink-2);font-size:.82rem';
+          filterLabel.style.cssText = 'color:var(--ink-2);font-size:.82rem;white-space:nowrap;flex-shrink:0';
           filterLabel.textContent = 'Ver evento:';
           var filterSel = document.createElement('select');
-          filterSel.style.cssText = 'background:var(--panel-2);border:1px solid var(--line-strong);border-radius:4px;color:var(--ink);padding:4px 8px;font-size:.82rem;cursor:pointer';
+          filterSel.style.cssText = 'background:var(--panel-2);border:1px solid var(--line-strong);border-radius:4px;color:var(--ink);padding:4px 8px;font-size:.82rem;cursor:pointer;max-width:240px;min-width:0;flex-shrink:1';
           var allOpt = document.createElement('option');
           allOpt.value = ''; allOpt.textContent = 'Todos';
           filterSel.appendChild(allOpt);
@@ -243,11 +243,11 @@
           });
           var expandAllBtn = document.createElement('button');
           expandAllBtn.className = 'btn btn--sm';
-          expandAllBtn.style.cssText = 'padding:4px 10px;font-size:.72rem;margin-left:auto';
+          expandAllBtn.style.cssText = 'padding:4px 10px;font-size:.72rem;margin-left:auto;white-space:nowrap;flex-shrink:0';
           expandAllBtn.textContent = '↕ Expandir tudo';
           var collapseAllBtn = document.createElement('button');
           collapseAllBtn.className = 'btn btn--sm';
-          collapseAllBtn.style.cssText = 'padding:4px 10px;font-size:.72rem';
+          collapseAllBtn.style.cssText = 'padding:4px 10px;font-size:.72rem;white-space:nowrap;flex-shrink:0';
           collapseAllBtn.textContent = '↕ Recolher tudo';
           filterBar.appendChild(filterLabel);
           filterBar.appendChild(filterSel);
@@ -516,7 +516,7 @@
             evToggleIcon.style.cssText = 'color:var(--ink-2);font-size:.85rem;flex-shrink:0;transition:transform .15s';
             evToggleIcon.textContent = '▸';
             var evNome = document.createElement('span');
-            evNome.style.cssText = 'flex:1;font-family:var(--font-head);letter-spacing:.06em;font-size:.9rem;color:var(--ink)';
+            evNome.style.cssText = 'flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-family:var(--font-head);letter-spacing:.06em;font-size:.9rem;color:var(--ink)';
             evNome.textContent = ev.nome;
             var evMeta = document.createElement('span');
             evMeta.style.cssText = 'color:var(--ink-2);font-size:.85rem;white-space:nowrap';
