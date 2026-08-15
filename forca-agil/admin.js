@@ -205,99 +205,46 @@
           var checkin = snapCk.val() || {};
           c.innerHTML = '';
 
-          /* ── Seção EVENTOS ─────────────────────────────────────────────── */
-          var eventosSection = document.createElement('div');
-          eventosSection.style.cssText = 'border:1px solid var(--line-strong);border-radius:8px;padding:16px;margin-bottom:24px';
-
-          var eventosHdr = document.createElement('div');
-          eventosHdr.style.cssText = 'display:flex;align-items:center;gap:12px;margin-bottom:12px';
-          var eventosTitle = document.createElement('span');
-          eventosTitle.style.cssText = 'font-family:var(--font-head);letter-spacing:.08em;font-size:.8rem;color:var(--ink-2)';
-          eventosTitle.textContent = 'EVENTOS';
+          /* ── Botões globais ────────────────────────────────────────────── */
+          var globalBtnWrap = document.createElement('div');
+          globalBtnWrap.style.cssText = 'display:flex;gap:8px;flex-wrap:wrap;margin-bottom:24px';
           var newEventoBtn = document.createElement('button');
           newEventoBtn.className = 'btn btn--sm btn--primary';
           newEventoBtn.innerHTML = '+ Novo evento';
           newEventoBtn.addEventListener('click', function () { openEventoFormModal(null); });
-          eventosHdr.appendChild(eventosTitle);
-          eventosHdr.appendChild(newEventoBtn);
-          eventosSection.appendChild(eventosHdr);
-
-          if (!EVENTOS_LIST.length) {
-            var eEmpty = document.createElement('p');
-            eEmpty.className = 'admin-empty';
-            eEmpty.style.marginBottom = '0';
-            eEmpty.textContent = 'Nenhum evento cadastrado. Crie um evento antes de criar turmas.';
-            eventosSection.appendChild(eEmpty);
-          } else {
-            var eList = document.createElement('div');
-            eList.style.cssText = 'display:flex;flex-direction:column;gap:8px';
-            EVENTOS_LIST.forEach(function (ev) {
-              var turmasDoEvento = TURMAS_LIST.filter(function (t) { return t.eventoKey === ev.key; }).length;
-              var eRow = document.createElement('div');
-              eRow.style.cssText = 'display:flex;align-items:center;gap:12px;padding:10px 14px;background:var(--panel-2);border-radius:6px';
-              var eInfo = document.createElement('span');
-              eInfo.style.cssText = 'flex:1;font-weight:500';
-              eInfo.textContent = ev.nome;
-              var eMeta = document.createElement('span');
-              eMeta.style.cssText = 'color:var(--ink-2);font-size:.85rem;white-space:nowrap';
-              eMeta.textContent = ev.cargaHoraria + 'h · ' + turmasDoEvento + ' turma' + (turmasDoEvento !== 1 ? 's' : '');
-              var eEditBtn = document.createElement('button');
-              eEditBtn.className = 'btn btn--sm';
-              eEditBtn.style.cssText = 'padding:4px 10px;font-size:.72rem';
-              eEditBtn.innerHTML = '&#x270E; Editar';
-              eEditBtn.addEventListener('click', (function (e) { return function () { openEventoFormModal(e); }; })(ev));
-              eRow.appendChild(eInfo);
-              eRow.appendChild(eMeta);
-              eRow.appendChild(eEditBtn);
-              eList.appendChild(eRow);
-            });
-            eventosSection.appendChild(eList);
-          }
-          c.appendChild(eventosSection);
-
-          /* ── Botões globais + criar turma ──────────────────────────────── */
-          var btnWrap = document.createElement('div');
-          btnWrap.style.cssText = 'display:flex;gap:8px;flex-wrap:wrap;margin-bottom:24px;';
-          var newTurmaBtn = document.createElement('button');
-          newTurmaBtn.className = 'btn btn--sm btn--primary';
-          newTurmaBtn.innerHTML = '+ Nova turma';
-          newTurmaBtn.addEventListener('click', function () { openTurmaFormModal(null); });
           var exportBtn = document.createElement('button');
           exportBtn.className = 'btn btn--sm';
           exportBtn.innerHTML = '&#x2193; Estado atual';
           exportBtn.addEventListener('click', function () { exportAllInterests(data, config, checkin); });
-          var csvBtn = document.createElement('button');
-          csvBtn.className = 'btn btn--sm';
-          csvBtn.innerHTML = '&#x2193; Histórico';
-          csvBtn.addEventListener('click', function () { exportInterestLog(); });
-          btnWrap.appendChild(newTurmaBtn);
-          btnWrap.appendChild(exportBtn);
-          btnWrap.appendChild(csvBtn);
+          var exportLogBtn = document.createElement('button');
+          exportLogBtn.className = 'btn btn--sm';
+          exportLogBtn.innerHTML = '&#x2193; Histórico';
+          exportLogBtn.addEventListener('click', function () { exportInterestLog(); });
+          globalBtnWrap.appendChild(newEventoBtn);
+          globalBtnWrap.appendChild(exportBtn);
+          globalBtnWrap.appendChild(exportLogBtn);
+          c.appendChild(globalBtnWrap);
 
-          c.appendChild(btnWrap);
-
-          if (!TURMAS_LIST.length) {
-            var emptyMsg = document.createElement('p');
-            emptyMsg.className = 'admin-empty';
-            emptyMsg.textContent = 'Nenhuma turma cadastrada. Clique em "+ Nova turma" para criar a primeira.';
-            c.appendChild(emptyMsg);
+          if (!EVENTOS_LIST.length) {
+            var noEventoMsg = document.createElement('p');
+            noEventoMsg.className = 'admin-empty';
+            noEventoMsg.textContent = 'Nenhum evento cadastrado. Clique em "+ Novo evento" para começar.';
+            c.appendChild(noEventoMsg);
           }
 
-          TURMAS_LIST.forEach(function (t) {
-            var cfg       = config[t.key] || {};
+          /* ── Função auxiliar: constrói e retorna o card de uma turma ───── */
+          function buildTurmaCard(t) {
+            var cfg        = config[t.key] || {};
             var finalizada = !!cfg.finalizada;
             var encerrada  = !!cfg.encerrada;
-            var diaAtivo  = cfg.diaAtivo || null;
-            var all       = data[t.key] ? Object.values(data[t.key]) : [];
-            var active    = all.filter(function (r) { return !r.removed; });
-            var removed   = all.filter(function (r) { return r.removed; });
-            var checkinT  = checkin[t.key] || {};
-
-            var inscritos = active.filter(function (r) { return r.status === 'inscrito'; });
+            var diaAtivo   = cfg.diaAtivo || null;
+            var all        = data[t.key] ? Object.values(data[t.key]) : [];
+            var active     = all.filter(function (r) { return !r.removed; });
+            var removed    = all.filter(function (r) { return r.removed; });
+            var checkinT   = checkin[t.key] || {};
+            var inscritos    = active.filter(function (r) { return r.status === 'inscrito'; });
             var interessados = active.filter(function (r) { return r.status !== 'inscrito'; });
-            /* mostra sempre os dois números — confirmar/desconfirmar não depende
-               mais de a turma estar com interesse encerrado */
-            var countLabel = interessados.length + ' interessado' + (interessados.length !== 1 ? 's' : '') +
+            var countLabel   = interessados.length + ' interessado' + (interessados.length !== 1 ? 's' : '') +
               ' · ' + inscritos.length + ' confirmado' + (inscritos.length !== 1 ? 's' : '');
 
             var card = document.createElement('div');
@@ -305,7 +252,6 @@
             card.id = 'turma-card-' + t.key;
             card.style.background = '#1a2035';
 
-            /* header */
             var hdr = document.createElement('div');
             hdr.className = 'turma-admin-header';
             hdr.style.background = '#1a2035';
@@ -314,7 +260,6 @@
             if (finalizada && diaAtivo) {
               checkinBadge = '<span class="turma-status-badge badge-checkin-aberto">CHECK-IN ABERTO · ' + fmtDia(diaAtivo) + '</span>';
             }
-
             hdr.innerHTML =
               '<div class="turma-admin-title">' +
                 '<span class="turma-admin-name">' + esc(t.label) + '</span>' +
@@ -327,7 +272,6 @@
               '<div class="turma-admin-actions" id="turma-actions-' + t.key + '"></div>';
             card.appendChild(hdr);
 
-            /* action buttons — primary (sempre visível) + secondary (desktop inline, mobile em "...") */
             var actWrap = hdr.querySelector('#turma-actions-' + t.key);
             var primaryWrap = document.createElement('div');
             primaryWrap.className = 'taa-primary';
@@ -348,18 +292,15 @@
               })(t.key));
               primaryWrap.appendChild(finBtn);
             } else {
-              /* check-in abrir/fechar — sempre visível */
               if (!diaAtivo) {
-                var sel = document.createElement('select');
-                sel.className = 'checkin-dia-select';
-                /* pré-selecionar o primeiro dia sem check-in; fallback: hoje ou primeiro */
+                var dSel = document.createElement('select');
+                dSel.className = 'checkin-dia-select';
                 var firstUnused = t.dias.find(function (d) { return !checkinT[d] || Object.keys(checkinT[d]).length === 0; }) || todayISO();
                 t.dias.forEach(function (d) {
                   var opt = document.createElement('option');
-                  opt.value = d;
-                  opt.textContent = fmtDia(d);
+                  opt.value = d; opt.textContent = fmtDia(d);
                   if (d === firstUnused) opt.selected = true;
-                  sel.appendChild(opt);
+                  dSel.appendChild(opt);
                 });
                 var openBtn = document.createElement('button');
                 openBtn.className = 'btn btn--sm btn--primary';
@@ -367,8 +308,8 @@
                 openBtn.textContent = 'Abrir check-in';
                 openBtn.addEventListener('click', (function (tk, s) {
                   return function () { openCheckin(tk, s.value); };
-                })(t.key, sel));
-                primaryWrap.appendChild(sel);
+                })(t.key, dSel));
+                primaryWrap.appendChild(dSel);
                 primaryWrap.appendChild(openBtn);
               } else {
                 var diaAtivoLabel = document.createElement('span');
@@ -384,22 +325,16 @@
                 primaryWrap.appendChild(diaAtivoLabel);
                 primaryWrap.appendChild(closeBtn2);
               }
-
-              /* ações secundárias — ficam no menu "..." no mobile */
               var qrBtn = document.createElement('button');
               qrBtn.className = 'btn btn--sm';
               qrBtn.style.cssText = 'padding:6px 10px;font-size:.72rem';
               qrBtn.innerHTML = '&#x2318; QR';
-              qrBtn.addEventListener('click', (function (tt) {
-                return function () { openQrModal(tt); };
-              })(t));
+              qrBtn.addEventListener('click', (function (tt) { return function () { openQrModal(tt); }; })(t));
               var reopenBtn = document.createElement('button');
               reopenBtn.className = 'btn btn--sm';
               reopenBtn.style.cssText = 'padding:6px 10px;font-size:.72rem';
               reopenBtn.textContent = '↺ Reabrir';
-              reopenBtn.addEventListener('click', (function (tk) {
-                return function () { reopenTurma(tk); };
-              })(t.key));
+              reopenBtn.addEventListener('click', (function (tk) { return function () { reopenTurma(tk); }; })(t.key));
               var certBtn = document.createElement('button');
               certBtn.className = 'btn btn--sm';
               certBtn.style.cssText = 'padding:6px 10px;font-size:.72rem';
@@ -411,38 +346,29 @@
               modeloBtn.className = 'btn btn--sm';
               modeloBtn.style.cssText = 'padding:6px 10px;font-size:.72rem';
               modeloBtn.innerHTML = '&#x1F441; Modelo';
-              modeloBtn.addEventListener('click', (function (tt) {
-                return function () { previewCertificado(tt); };
-              })(t));
+              modeloBtn.addEventListener('click', (function (tt) { return function () { previewCertificado(tt); }; })(t));
               moreMenu.appendChild(qrBtn);
               moreMenu.appendChild(reopenBtn);
               moreMenu.appendChild(certBtn);
               moreMenu.appendChild(modeloBtn);
             }
 
-            /* + Participante e CSV — disponíveis em qualquer estado da turma:
-               a inscrição real acontece no CMFlex a qualquer momento, então o
-               admin precisa poder adicionar/confirmar gente independente de já
-               ter encerrado a captação de interesse no portal */
             var addBtn = document.createElement('button');
             addBtn.className = 'btn btn--sm';
             addBtn.style.cssText = 'padding:6px 10px;font-size:.72rem';
             addBtn.textContent = '＋ Participante';
-            addBtn.addEventListener('click', (function (tk) {
-              return function () { addParticipante(tk); };
-            })(t.key));
+            addBtn.addEventListener('click', (function (tk) { return function () { addParticipante(tk); }; })(t.key));
             moreMenu.appendChild(addBtn);
 
-            var csvBtn = document.createElement('button');
-            csvBtn.className = 'btn btn--sm';
-            csvBtn.style.cssText = 'padding:6px 10px;font-size:.72rem';
-            csvBtn.innerHTML = '&#x2193; CSV';
-            csvBtn.addEventListener('click', (function (tt, a, f, ck) {
+            var csvTurmaBtn = document.createElement('button');
+            csvTurmaBtn.className = 'btn btn--sm';
+            csvTurmaBtn.style.cssText = 'padding:6px 10px;font-size:.72rem';
+            csvTurmaBtn.innerHTML = '&#x2193; CSV';
+            csvTurmaBtn.addEventListener('click', (function (tt, a, f, ck) {
               return function () { exportTurmaCSV(tt, a, f, ck); };
             })(t, all, finalizada, checkinT));
-            moreMenu.appendChild(csvBtn);
+            moreMenu.appendChild(csvTurmaBtn);
 
-            /* Encerrar turma — só aparece quando interesse já foi encerrado e turma ainda não encerrada */
             if (finalizada && !encerrada) {
               var encerrarBtn = document.createElement('button');
               encerrarBtn.className = 'btn btn--sm';
@@ -467,14 +393,11 @@
               moreMenu.appendChild(encerrarBtn);
             }
 
-            /* Editar (nome/datas) e Excluir turma — disponíveis sempre, aberta ou finalizada */
             var editTurmaBtn = document.createElement('button');
             editTurmaBtn.className = 'btn btn--sm';
             editTurmaBtn.style.cssText = 'padding:6px 10px;font-size:.72rem';
             editTurmaBtn.innerHTML = '&#x270E; Editar turma';
-            editTurmaBtn.addEventListener('click', (function (tt) {
-              return function () { openTurmaFormModal(tt); };
-            })(t));
+            editTurmaBtn.addEventListener('click', (function (tt) { return function () { openTurmaFormModal(tt); }; })(t));
             moreMenu.appendChild(editTurmaBtn);
 
             var delTurmaBtn = document.createElement('button');
@@ -496,60 +419,112 @@
             actWrap.appendChild(moreBtn);
             actWrap.appendChild(moreMenu);
 
-            /* body */
             var body = document.createElement('div');
             body.className = 'turma-admin-body';
-
             if (!active.length) {
               body.innerHTML = '<p class="admin-empty">Nenhum participante ativo.</p>';
             } else {
               body.appendChild(buildParticipantesTable(t, active, checkinT, finalizada));
             }
-
             if (removed.length) {
               var removedSection = document.createElement('div');
               removedSection.className = 'turma-removed-accordion';
-
               var removedHdr = document.createElement('button');
               removedHdr.className = 'turma-removed-toggle';
               removedHdr.type = 'button';
               removedHdr.setAttribute('aria-expanded', 'false');
-
-              var labelText = finalizada
+              var labelSpan = document.createElement('span');
+              labelSpan.textContent = finalizada
                 ? 'Removidos (' + removed.length + ') — histórico de presença preservado'
                 : 'Removidos (' + removed.length + ')';
-
-              var labelSpan = document.createElement('span');
-              labelSpan.textContent = labelText;
-
               var iconSpan = document.createElement('span');
               iconSpan.className = 'turma-removed-icon';
               iconSpan.setAttribute('aria-hidden', 'true');
               iconSpan.textContent = '▸';
-
               removedHdr.appendChild(iconSpan);
               removedHdr.appendChild(labelSpan);
-
               var removedBody = document.createElement('div');
               removedBody.className = 'turma-removed-body';
               removedBody.hidden = true;
               removedBody.appendChild(finalizada ? buildRemovedPresencaTable(t, removed, checkinT) : buildRemovedInteressadosTable(removed));
-
               removedHdr.addEventListener('click', function () {
                 var expanded = removedHdr.getAttribute('aria-expanded') === 'true';
                 removedHdr.setAttribute('aria-expanded', String(!expanded));
                 iconSpan.textContent = expanded ? '▸' : '▾';
                 removedBody.hidden = expanded;
               });
-
               removedSection.appendChild(removedHdr);
               removedSection.appendChild(removedBody);
               body.appendChild(removedSection);
             }
-
             card.appendChild(body);
-            c.appendChild(card);
+            return card;
+          }
+
+          /* ── Renderizar eventos com turmas agrupadas ────────────────────── */
+          EVENTOS_LIST.forEach(function (ev) {
+            var turmasEvento = TURMAS_LIST.filter(function (t) { return t.eventoKey === ev.key; });
+
+            var evSection = document.createElement('div');
+            evSection.style.cssText = 'border:1px solid var(--line-strong);border-radius:8px;margin-bottom:24px;overflow:hidden';
+
+            /* cabeçalho do evento */
+            var evHdr = document.createElement('div');
+            evHdr.style.cssText = 'display:flex;align-items:center;gap:12px;padding:14px 18px;background:var(--panel-2);border-bottom:1px solid var(--line-strong)';
+            var evNome = document.createElement('span');
+            evNome.style.cssText = 'flex:1;font-family:var(--font-head);letter-spacing:.06em;font-size:.9rem;color:var(--ink)';
+            evNome.textContent = ev.nome;
+            var evMeta = document.createElement('span');
+            evMeta.style.cssText = 'color:var(--ink-2);font-size:.85rem;white-space:nowrap';
+            evMeta.textContent = ev.cargaHoraria + 'h · ' + turmasEvento.length + ' turma' + (turmasEvento.length !== 1 ? 's' : '');
+            var evEditBtn = document.createElement('button');
+            evEditBtn.className = 'btn btn--sm';
+            evEditBtn.style.cssText = 'padding:4px 10px;font-size:.72rem';
+            evEditBtn.innerHTML = '&#x270E; Editar evento';
+            evEditBtn.addEventListener('click', (function (e) { return function () { openEventoFormModal(e); }; })(ev));
+            var evNewTurmaBtn = document.createElement('button');
+            evNewTurmaBtn.className = 'btn btn--sm btn--primary';
+            evNewTurmaBtn.style.cssText = 'padding:4px 10px;font-size:.72rem';
+            evNewTurmaBtn.innerHTML = '+ Nova turma';
+            evNewTurmaBtn.addEventListener('click', (function (ek) { return function () { openTurmaFormModal(null, ek); }; })(ev.key));
+            evHdr.appendChild(evNome);
+            evHdr.appendChild(evMeta);
+            evHdr.appendChild(evEditBtn);
+            evHdr.appendChild(evNewTurmaBtn);
+            evSection.appendChild(evHdr);
+
+            /* turmas do evento */
+            var turmasWrap = document.createElement('div');
+            turmasWrap.style.cssText = 'padding:16px;display:flex;flex-direction:column;gap:16px';
+            if (!turmasEvento.length) {
+              var tEmpty = document.createElement('p');
+              tEmpty.className = 'admin-empty';
+              tEmpty.style.marginBottom = '0';
+              tEmpty.textContent = 'Nenhuma turma neste evento. Clique em "+ Nova turma" para criar.';
+              turmasWrap.appendChild(tEmpty);
+            } else {
+              turmasEvento.forEach(function (t) { turmasWrap.appendChild(buildTurmaCard(t)); });
+            }
+            evSection.appendChild(turmasWrap);
+            c.appendChild(evSection);
           });
+
+          /* ── Turmas sem evento ──────────────────────────────────────────── */
+          var semEvento = TURMAS_LIST.filter(function (t) { return !t.eventoKey; });
+          if (semEvento.length) {
+            var semEventoSection = document.createElement('div');
+            semEventoSection.style.cssText = 'border:1px solid rgba(255,165,0,.3);border-radius:8px;margin-bottom:24px;overflow:hidden';
+            var semEventoHdr = document.createElement('div');
+            semEventoHdr.style.cssText = 'display:flex;align-items:center;gap:10px;padding:12px 18px;background:var(--panel-2);border-bottom:1px solid rgba(255,165,0,.3)';
+            semEventoHdr.innerHTML = '<span style="color:#ffb347;font-size:.8rem;font-family:var(--font-head);letter-spacing:.08em">⚠ TURMAS SEM EVENTO</span>' +
+              '<span style="color:var(--ink-2);font-size:.82rem;flex:1">Edite cada turma e vincule a um evento.</span>';
+            semEventoSection.appendChild(semEventoHdr);
+            var semEventoWrap = document.createElement('div');
+            semEventoWrap.style.cssText = 'padding:16px;display:flex;flex-direction:column;gap:16px';
+            semEvento.forEach(function (t) { semEventoWrap.appendChild(buildTurmaCard(t)); });
+            semEventoSection.appendChild(semEventoWrap);
+            c.appendChild(semEventoSection);
+          }
         });
       });
     });
@@ -1109,7 +1084,7 @@
   }
 
   /* ---- Criar / Editar turma — modal com nome + datas dos encontros ---- */
-  function openTurmaFormModal(existing) {
+  function openTurmaFormModal(existing, defaultEventoKey) {
     var isEdit = !!existing;
     var overlay = document.createElement('div');
     overlay.className = 'modal-overlay';
@@ -1148,7 +1123,7 @@
     var datesList   = box.querySelector('#turmaDatesList');
     var errEl       = box.querySelector('#turmaFormErr');
 
-    eventoSel.value   = isEdit ? (existing.eventoKey || '') : '';
+    eventoSel.value   = isEdit ? (existing.eventoKey || '') : (defaultEventoKey || '');
     labelInput.value  = isEdit ? existing.label : '';
     cmflexInput.value = isEdit ? (existing.cmflexLink || '') : '';
 
