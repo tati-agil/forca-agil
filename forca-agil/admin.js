@@ -1901,7 +1901,7 @@
 
     const tbl = document.createElement('table');
     tbl.className = 'admin-table';
-    tbl.innerHTML = '<thead><tr><th>Nome</th><th>E-mail</th><th>Área</th><th>Cadastro</th><th>Status</th><th></th><th></th><th></th></tr></thead>';
+    tbl.innerHTML = '<thead><tr><th>Nome</th><th>E-mail</th><th>Área</th><th>Cadastro</th><th>Status</th><th>E-mail</th><th></th><th></th><th></th></tr></thead>';
     const tbody = document.createElement('tbody');
 
     function applyFilters() {
@@ -1916,6 +1916,13 @@
       tbody.innerHTML = '';
       filtered.forEach(function (p) {
         var bloqueado = !!p.blocked;
+        var precisaVerificacao = !!(p.emailVerificationRequired && !p.adminApproved);
+        var emailBadge = precisaVerificacao
+          ? '<span class="admin-badge" style="background:#78350f;color:#fde68a" title="Cadastro próprio — e-mail ainda não verificado">Pendente</span>'
+          : '<span class="admin-badge" style="background:#14532d">Verificado</span>';
+        var confirmBtn = precisaVerificacao
+          ? '<td><button class="admin-del-btn admin-confirm-email-btn" data-key="' + esc(p._key) + '" data-name="' + esc(p.name || p.email) + '" title="Confirmar cadastro manualmente — libera o acesso sem precisar clicar no link de e-mail">Confirmar cadastro</button></td>'
+          : '<td></td>';
         var tr = document.createElement('tr');
         if (bloqueado) tr.style.opacity = '0.55';
         tr.innerHTML =
@@ -1924,9 +1931,11 @@
           '<td>' + esc(p.area || '—') + '</td>' +
           '<td>' + fmtDate(p.createdAt) + '</td>' +
           '<td><span class="admin-badge" style="background:' + (bloqueado ? '#7f1d1d' : '#14532d') + '">' + (bloqueado ? 'Bloqueado' : 'Ativo') + '</span></td>' +
+          '<td>' + emailBadge + '</td>' +
           '<td><button class="admin-del-btn admin-pwd-btn" data-key="' + esc(p._key) + '" data-email="' + esc(p.email || '') + '" data-name="' + esc(p.name || p.email) + '">Redefinir senha</button></td>' +
           '<td><button class="admin-del-btn admin-reset-btn" data-key="' + esc(p._key) + '" data-email="' + esc(p.email || '') + '" data-name="' + esc(p.name || p.email) + '">Resetar progresso</button></td>' +
-          '<td><button class="admin-del-btn admin-block-btn" data-key="' + esc(p._key) + '" data-name="' + esc(p.name || p.email) + '" data-blocked="' + (bloqueado ? '1' : '0') + '">' + (bloqueado ? 'Desbloquear' : 'Bloquear') + '</button></td>';
+          '<td><button class="admin-del-btn admin-block-btn" data-key="' + esc(p._key) + '" data-name="' + esc(p.name || p.email) + '" data-blocked="' + (bloqueado ? '1' : '0') + '">' + (bloqueado ? 'Desbloquear' : 'Bloquear') + '</button></td>' +
+          confirmBtn;
         tbody.appendChild(tr);
       });
     }
@@ -1992,6 +2001,27 @@
             loadCadastrados();
           });
         });
+        return;
+      }
+
+      if (btn.classList.contains('admin-confirm-email-btn')) {
+        const eKey = btn.dataset.key;
+        const name = btn.dataset.name;
+        adminConfirm(
+          'Confirmar cadastro de ' + name + ' manualmente?\n\nO acesso ao portal será liberado sem que ela precise clicar no link de e-mail.',
+          function () {
+            var sess = window.faAuth && window.faAuth.getSession();
+            var updates = {};
+            updates['fa-users/' + eKey + '/adminApproved']           = true;
+            updates['fa-users/' + eKey + '/approvedByAdmin']         = sess ? sess.email : null;
+            updates['fa-users/' + eKey + '/approvedByAdminName']     = sess ? (sess.name || sess.email) : null;
+            updates['fa-users/' + eKey + '/approvedAt']              = new Date().toISOString();
+            firebase.database().ref().update(updates, function (err) {
+              if (err) { adminAlert('Erro ao confirmar. Tente novamente.'); return; }
+              loadCadastrados();
+            });
+          }
+        );
         return;
       }
     });
