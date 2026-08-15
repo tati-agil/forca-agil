@@ -159,7 +159,7 @@
       var val = snap.val() || {};
       EVENTOS_LIST = Object.keys(val).map(function (key) {
         var e = val[key] || {};
-        return { key: key, nome: e.nome || '', cargaHoraria: e.cargaHoraria || '20', order: e.order || 0 };
+        return { key: key, nome: e.nome || '', cargaHoraria: e.cargaHoraria || '20', percentualMinimo: Number(e.percentualMinimo || 75), order: e.order || 0 };
       }).sort(function (a, b) { return a.order - b.order; });
       cb();
     });
@@ -1036,6 +1036,7 @@
       '<h3 style="font-size:1.1rem;font-family:var(--font-head);letter-spacing:.05em;color:var(--ink)">' + (isEdit ? 'Editar Evento' : 'Novo Evento') + '</h3>' +
       '<label class="auth-label">Nome do evento<input type="text" id="eventoFormNome" placeholder="Ex: FORÇA ÁGIL · JORNADA DE IMERSÃO" autocomplete="off" /></label>' +
       '<label class="auth-label" style="flex-direction:row;align-items:center;gap:10px">Carga horária<input type="number" id="eventoFormCarga" placeholder="20" min="1" max="999" style="width:80px" /><span style="opacity:.7">horas</span></label>' +
+      '<label class="auth-label" style="flex-direction:row;align-items:center;gap:10px">Frequência mínima p/ certificado<input type="number" id="eventoFormPercentual" placeholder="75" min="1" max="100" style="width:80px" /><span style="opacity:.7">%</span></label>' +
       '<p id="eventoFormErr" style="color:var(--red,#ff3b30);font-size:.85rem;display:none"></p>' +
       '<div style="display:flex;justify-content:flex-end;gap:8px;margin-top:4px">' +
         '<button class="btn admin-modal-cancel-btn">Cancelar</button>' +
@@ -1045,26 +1046,32 @@
     overlay.appendChild(box);
     document.body.appendChild(overlay);
 
-    var nomeInput  = box.querySelector('#eventoFormNome');
-    var cargaInput = box.querySelector('#eventoFormCarga');
-    var errEl      = box.querySelector('#eventoFormErr');
+    var nomeInput       = box.querySelector('#eventoFormNome');
+    var cargaInput      = box.querySelector('#eventoFormCarga');
+    var percentualInput = box.querySelector('#eventoFormPercentual');
+    var errEl           = box.querySelector('#eventoFormErr');
 
-    nomeInput.value  = isEdit ? existing.nome : '';
-    cargaInput.value = isEdit ? existing.cargaHoraria : '20';
+    nomeInput.value       = isEdit ? existing.nome : '';
+    cargaInput.value      = isEdit ? existing.cargaHoraria : '20';
+    percentualInput.value = isEdit ? (existing.percentualMinimo || '75') : '75';
 
     function closeModal() { document.body.removeChild(overlay); }
     box.querySelector('.admin-modal-cancel-btn').addEventListener('click', closeModal);
     overlay.addEventListener('click', function (e) { if (e.target === overlay) closeModal(); });
 
     box.querySelector('.admin-modal-save-btn').addEventListener('click', function () {
-      var nome  = (nomeInput.value || '').trim();
-      var carga = (cargaInput.value || '').trim();
+      var nome       = (nomeInput.value || '').trim();
+      var carga      = (cargaInput.value || '').trim();
+      var percentual = (percentualInput.value || '75').trim();
       errEl.style.display = 'none';
       if (!nome) { errEl.textContent = 'Dê um nome ao evento.'; errEl.style.display = ''; return; }
       if (!carga || isNaN(Number(carga)) || Number(carga) < 1) {
         errEl.textContent = 'Informe a carga horária (mín. 1 hora).'; errEl.style.display = ''; return;
       }
-      var eventData = { nome: nome, cargaHoraria: carga };
+      if (!percentual || isNaN(Number(percentual)) || Number(percentual) < 1 || Number(percentual) > 100) {
+        errEl.textContent = 'Frequência mínima deve ser entre 1 e 100%.'; errEl.style.display = ''; return;
+      }
+      var eventData = { nome: nome, cargaHoraria: carga, percentualMinimo: percentual };
       if (isEdit) {
         firebase.database().ref('eventos/' + existing.key).update(eventData, function (err) {
           if (err) { errEl.textContent = 'Erro ao salvar. Tente novamente.'; errEl.style.display = ''; return; }
@@ -2265,9 +2272,11 @@
     if (!sel) return;
 
     /* estado carregado do Firebase para a turma selecionada */
-    var _evento        = null;  /* { key, nome, cargaHoraria } */
-    var _dataConclusao = null;  /* 'YYYY-MM-DD' ou null */
-    var _encerrada     = false; /* turma concluída → emissão habilitada */
+    var _evento          = null;  /* { key, nome, cargaHoraria, percentualMinimo } */
+    var _dataConclusao   = null;  /* 'YYYY-MM-DD' ou null */
+    var _encerrada       = false; /* turma concluída → emissão habilitada */
+    var _checkinTurma    = {};    /* { [dia]: { [emailKey]: true } } */
+    var _diasTurma       = [];    /* array de ISO dates da turma */
 
     var MESES = ['janeiro','fevereiro','março','abril','maio','junho',
                  'julho','agosto','setembro','outubro','novembro','dezembro'];
@@ -2375,6 +2384,8 @@
         _evento        = null;
         _dataConclusao = null;
         _encerrada     = false;
+        _checkinTurma  = {};
+        _diasTurma     = [];
         sel.value      = '';
         if (infoEl) infoEl.style.display = 'none';
         updatePreviaBanner('');
@@ -2420,7 +2431,15 @@
         return;
       }
 
+      var minPct = _evento ? (_evento.percentualMinimo || 75) : 75;
+
       inscritos.forEach(function (p) {
+        var freq      = calcFreq(p.email);              /* null se sem dias cadastrados */
+        var atingiu   = freq === null || !_encerrada || freq >= minPct;
+        var tooltipBloq = !_encerrada
+          ? TOOLTIP_BLOQUEADO
+          : 'Frequência insuficiente (' + freq + '% < ' + minPct + '% exigido).';
+
         var row = document.createElement('div');
         row.className = 'cert-participant-row';
 
@@ -2428,9 +2447,24 @@
         nameSpan.className = 'cert-p-name';
         nameSpan.textContent = p.name || p.email;
 
+        /* badge de frequência (só quando encerrada e há dias cadastrados) */
+        if (_encerrada && freq !== null) {
+          var freqBadge = document.createElement('span');
+          freqBadge.style.cssText = 'font-size:.72rem;font-family:var(--font-mono);padding:2px 7px;border-radius:4px;white-space:nowrap;' +
+            (atingiu
+              ? 'background:rgba(80,200,100,.15);color:#6dbd7a;border:1px solid rgba(80,200,100,.3)'
+              : 'background:rgba(255,80,80,.13);color:#e05c5c;border:1px solid rgba(255,80,80,.28)');
+          freqBadge.textContent = freq + '%';
+          freqBadge.title = (atingiu ? 'Frequência suficiente' : 'Frequência abaixo do mínimo') + ' (' + minPct + '% exigido)';
+          row.appendChild(nameSpan);
+          row.appendChild(freqBadge);
+        } else {
+          row.appendChild(nameSpan);
+        }
+
         var btnPrev = document.createElement('button');
         btnPrev.className = 'btn btn--sm cert-btn-prev';
-        btnPrev.textContent = '👁 Pré-visualizar';
+        btnPrev.textContent = '👁 Prévia';
         btnPrev.addEventListener('click', function () {
           document.querySelectorAll('.cert-participant-row').forEach(function (r) { r.classList.remove('cert-active'); });
           row.classList.add('cert-active');
@@ -2440,34 +2474,43 @@
         var btnDl = document.createElement('button');
         btnDl.className = 'btn btn--sm cert-btn-dl';
         btnDl.textContent = '⬇ PNG';
-        if (_encerrada) {
+        if (_encerrada && atingiu) {
           btnDl.addEventListener('click', function () {
             certif.download(buildData(p, turma), 'certificado_' + (p.name || p.email).replace(/\s+/g, '_').toLowerCase());
           });
         } else {
           btnDl.disabled = true;
-          btnDl.title = TOOLTIP_BLOQUEADO;
+          btnDl.title = tooltipBloq;
         }
 
         var btnPdf = document.createElement('button');
         btnPdf.className = 'btn btn--sm cert-btn-dl';
         btnPdf.textContent = '⬇ PDF';
-        if (_encerrada) {
+        if (_encerrada && atingiu) {
           btnPdf.addEventListener('click', function () {
             certif.downloadPDF(buildData(p, turma), 'certificado_' + (p.name || p.email).replace(/\s+/g, '_').toLowerCase());
           });
         } else {
           btnPdf.disabled = true;
-          btnPdf.title = TOOLTIP_BLOQUEADO;
+          btnPdf.title = tooltipBloq;
         }
 
-        row.appendChild(nameSpan);
         row.appendChild(btnPrev);
         row.appendChild(btnDl);
         row.appendChild(btnPdf);
         listEl.appendChild(row);
       });
       /* sem auto-seleção — usuário escolhe o participante */
+    }
+
+    /* calcula frequência de um participante (0–100) */
+    function calcFreq(email) {
+      if (!_diasTurma.length) return null;
+      var eKey = email.replace(/\./g, ',');
+      var presentes = _diasTurma.filter(function (d) {
+        return _checkinTurma[d] && _checkinTurma[d][eKey];
+      }).length;
+      return Math.round((presentes / _diasTurma.length) * 100);
     }
 
     function loadInscritos(turmaKey, cb) {
@@ -2497,6 +2540,8 @@
       _evento        = null;
       _dataConclusao = null;
       _encerrada     = false;
+      _checkinTurma  = {};
+      _diasTurma     = [];
       updateInfoDisplay(key);
       updatePreviaBanner(key);
       updateLoteButtons();
@@ -2510,7 +2555,9 @@
       var turma = TURMAS_LIST.filter(function (t) { return t.key === key; })[0];
       if (!turma) return;
 
-      var pending = 2;
+      _diasTurma = turma.dias || [];
+
+      var pending = 3;
       function done() {
         pending--;
         if (pending > 0) return;
@@ -2527,21 +2574,30 @@
         _encerrada     = !!cfg.encerrada;
         done();
       });
+      firebase.database().ref('turmas-checkin/' + key).once('value', function (snap) {
+        _checkinTurma = snap.val() || {};
+        done();
+      });
     });
 
-    /* baixar todos */
+    /* baixar todos — apenas participantes que atingiram o percentual mínimo */
     function baixarTodos(usePDF) {
       if (!_encerrada) return;
       var key = sel.value;
       if (!key) { alert('Selecione uma turma primeiro.'); return; }
       var turma = TURMAS_LIST.filter(function (t) { return t.key === key; })[0];
       if (!turma) return;
+      var minPct = _evento ? (_evento.percentualMinimo || 75) : 75;
       loadInscritos(key, function (inscritos) {
-        if (!inscritos.length) { alert('Nenhum participante inscrito nesta turma.'); return; }
+        var elegiveis = inscritos.filter(function (p) {
+          var freq = calcFreq(p.email);
+          return freq === null || freq >= minPct;
+        });
+        if (!elegiveis.length) { adminAlert('Nenhum participante atingiu o percentual mínimo de ' + minPct + '% de presença.'); return; }
         var i = 0;
         function next() {
-          if (i >= inscritos.length) return;
-          var p = inscritos[i++];
+          if (i >= elegiveis.length) return;
+          var p = elegiveis[i++];
           var slug = (p.name || p.email).replace(/\s+/g, '_').toLowerCase();
           if (usePDF) certif.downloadPDF(buildData(p, turma), 'certificado_' + slug);
           else certif.download(buildData(p, turma), 'certificado_' + slug);
