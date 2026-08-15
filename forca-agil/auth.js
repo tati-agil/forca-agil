@@ -129,8 +129,9 @@
           return;
         }
 
-        /* E-mail não verificado e conta não criada pelo admin → bloqueia */
-        if (!user.emailVerified && !profile.adminApproved) {
+        /* E-mail não verificado e conta não criada pelo admin → bloqueia
+           (admins e contas criadas antes da verificação entrar no ar ficam isentas) */
+        if (!user.emailVerified && !profile.adminApproved && !isAdmin(user.email) && profile.createdAt >= '2026-08-14') {
           _session = null;
           _accessLevel = 'member';
           stopWatchingEnrolledStatus();
@@ -463,9 +464,9 @@
           btn.disabled = false; btn.textContent = 'Entrar →';
           if (r.error) { if (loginErr) { loginErr.textContent = r.error; loginErr.hidden = false; } }
           else {
-            /* Se e-mail não verificado, o fa-auth-change exibirá o painel de verificação */
+            /* Se e-mail não verificado (e não é admin nem conta antiga), o fa-auth-change exibirá o painel */
             var u = firebase.auth().currentUser;
-            if (u && !u.emailVerified) return;
+            if (u && !u.emailVerified && !isAdmin(u.email)) return;
             closeModal();
           }
         }
