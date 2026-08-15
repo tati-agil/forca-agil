@@ -126,6 +126,8 @@
           updateNavState();
           firebase.auth().signOut().catch(function () {});
           window.dispatchEvent(new CustomEvent('fa-auth-change', { detail: { blocked: true } }));
+          _authReady = true;
+          window.dispatchEvent(new CustomEvent('fa-auth-ready', { detail: null }));
           return;
         }
 
@@ -137,6 +139,8 @@
           stopWatchingEnrolledStatus();
           updateNavState();
           window.dispatchEvent(new CustomEvent('fa-auth-change', { detail: { unverified: true, email: user.email } }));
+          _authReady = true;
+          window.dispatchEvent(new CustomEvent('fa-auth-ready', { detail: null }));
           return;
         }
 
@@ -147,6 +151,10 @@
           if (enrolled) _accessLevel = 'enrolled';
           updateNavState();
           enforceCurrentRouteAccess();
+          /* fa-auth-ready só dispara depois que a sessão e o nível de acesso já estão
+             definidos — evita o modal de login piscando para usuários já logados */
+          _authReady = true;
+          window.dispatchEvent(new CustomEvent('fa-auth-ready', { detail: _session }));
           if (window.faLoadProgress) {
             window.faLoadProgress(_session.email, function () {
               window.dispatchEvent(new CustomEvent('fa-auth-change', { detail: _session }));
@@ -173,9 +181,9 @@
       if (_authReady) {
         window.dispatchEvent(new CustomEvent('fa-auth-change', { detail: null }));
       }
+      _authReady = true;
+      window.dispatchEvent(new CustomEvent('fa-auth-ready', { detail: null }));
     }
-    _authReady = true;
-    window.dispatchEvent(new CustomEvent('fa-auth-ready', { detail: _session }));
   });
 
   /* ---- Store com escopo por usuário ---- */
