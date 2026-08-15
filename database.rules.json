@@ -12,7 +12,7 @@
     },
 
     "fa-ranking": {
-      ".read": true,
+      ".read": "auth != null && auth.token.email.matches(/.*@previ\\.com\\.br/)",
       "$userKey": {
         ".write": "auth != null && auth.token.email.matches(/.*@previ\\.com\\.br/)"
       }
@@ -35,7 +35,7 @@
     },
 
     "turmas": {
-      ".read": true,
+      ".read": "auth != null && auth.token.email.matches(/.*@previ\\.com\\.br/)",
       "$turmaKey": {
         ".write": "auth != null && auth.token.email.matches(/.*@previ\\.com\\.br/)"
       }
@@ -62,7 +62,7 @@
     },
 
     "turmas-config": {
-      ".read": true,
+      ".read": "auth != null && auth.token.email.matches(/.*@previ\\.com\\.br/)",
       "$turmaKey": {
         ".write": "auth != null && auth.token.email.matches(/.*@previ\\.com\\.br/)"
       }
@@ -109,14 +109,14 @@
     },
 
     "players": {
-      ".read": true,
+      ".read": "auth != null && auth.token.email.matches(/.*@previ\\.com\\.br/)",
       "$key": {
         ".write": "auth != null && auth.token.email.matches(/.*@previ\\.com\\.br/)"
       }
     },
 
     "holocron": {
-      ".read": true,
+      ".read": "auth != null && auth.token.email.matches(/.*@previ\\.com\\.br/)",
       "$itemId": {
         ".write": "auth != null && auth.token.email.matches(/.*@previ\\.com\\.br/)"
       }
