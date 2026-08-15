@@ -81,6 +81,7 @@
     migrateNameCase();
     loadInterests();
     loadRepoAdmin();
+    loadEspera();
     loadCadastrados();
     loadAdmins();
     if (window.faInitManual) window.faInitManual();
@@ -1636,6 +1637,146 @@
             adminAlert('Erro ao enviar: ' + err.message);
           }
         });
+    });
+  }
+
+  /* ---- Lista de Espera ---- */
+  function loadEspera() {
+    var c = document.getElementById('adminEspera');
+    if (!c) return;
+    c.innerHTML = '<p class="loading-msg">Carregando…</p>';
+    firebase.database().ref('fa-espera').once('value').then(function (snap) {
+      renderEspera(c, snap.val() || {});
+    });
+  }
+
+  function renderEspera(c, data) {
+    var list = Object.entries(data)
+      .map(function (e) { return Object.assign({ _key: e[0] }, e[1]); })
+      .filter(function (p) { return !p.removed; })
+      .sort(function (a, b) { return (a.date || '').localeCompare(b.date || ''); });
+
+    c.innerHTML = '';
+    var hdr = document.createElement('h4');
+    hdr.innerHTML = 'Lista de Espera <span class="admin-badge">' + list.length + '</span>';
+    c.appendChild(hdr);
+
+    if (!list.length) {
+      c.insertAdjacentHTML('beforeend', '<p class="admin-empty">Nenhuma pessoa na lista de espera.</p>');
+      return;
+    }
+
+    /* carrega turmas disponíveis para o dropdown "Mover para turma" */
+    firebase.database().ref('turmas').once('value', function (tSnap) {
+      firebase.database().ref('turmas-config').once('value', function (cfgSnap) {
+        var turmasVal = tSnap.val() || {};
+        var cfgVal    = cfgSnap.val() || {};
+        var turmaOpts = Object.keys(turmasVal).map(function (k) {
+          var cfg = cfgVal[k] || {};
+          return { key: k, label: turmasVal[k].label || k.toUpperCase(), encerrada: !!(cfg.encerrada) };
+        }).filter(function (t) { return !t.encerrada; });
+
+        var optsHtml = '<option value="">Selecione a turma…</option>' +
+          turmaOpts.map(function (t) { return '<option value="' + esc(t.key) + '">' + esc(t.label) + '</option>'; }).join('');
+        var semTurmas = !turmaOpts.length;
+
+        var wrap = document.createElement('div');
+        wrap.className = 'table-scroll-wrap';
+        var table = document.createElement('table');
+        table.className = 'admin-table';
+        table.innerHTML =
+          '<thead><tr>' +
+            '<th>Nome</th><th>E-mail</th><th>Área</th><th>Data</th><th>Ações</th>' +
+          '</tr></thead>';
+        var tbody = document.createElement('tbody');
+
+        list.forEach(function (p) {
+          var tr = document.createElement('tr');
+          var dataFmt = p.date ? p.date.slice(0, 10) : '—';
+          tr.innerHTML =
+            '<td>' + esc(p.name || '—') + '</td>' +
+            '<td>' + esc(p.email || '—') + '</td>' +
+            '<td>' + esc(p.area || '—') + '</td>' +
+            '<td>' + dataFmt + '</td>' +
+            '<td></td>';
+
+          var tdAcoes = tr.querySelector('td:last-child');
+          tdAcoes.style.cssText = 'display:flex;gap:6px;align-items:center;flex-wrap:wrap';
+
+          /* Select turma */
+          if (semTurmas) {
+            tdAcoes.insertAdjacentHTML('beforeend', '<span style="font-size:.75rem;color:var(--ink-3)">Sem turmas abertas</span>');
+          } else {
+            var sel = document.createElement('select');
+            sel.className = 'admin-status-btn';
+            sel.style.cssText = 'padding:5px 8px;font-size:.75rem;background:var(--panel-2);border:1px solid var(--line-strong);border-radius:6px;color:var(--ink);cursor:pointer';
+            sel.innerHTML = optsHtml;
+            tdAcoes.appendChild(sel);
+
+            var moverBtn = document.createElement('button');
+            moverBtn.className = 'btn btn--sm btn--primary';
+            moverBtn.style.cssText = 'padding:5px 10px;font-size:.75rem';
+            moverBtn.textContent = 'Mover para turma';
+            moverBtn.addEventListener('click', (function (person, selectEl) {
+              return function () {
+                var turmaKey = selectEl.value;
+                if (!turmaKey) { adminAlert('Selecione uma turma primeiro.'); return; }
+                var turmaLabel = selectEl.options[selectEl.selectedIndex].text;
+                adminConfirm(
+                  'Mover ' + person.name + ' para a turma ' + turmaLabel + ' como Inscrita?',
+                  function () { moverParaTurma(person, turmaKey); }
+                );
+              };
+            })(p, sel));
+            tdAcoes.appendChild(moverBtn);
+          }
+
+          /* Remover da lista */
+          var remBtn = document.createElement('button');
+          remBtn.className = 'btn btn--sm';
+          remBtn.style.cssText = 'padding:5px 10px;font-size:.75rem';
+          remBtn.textContent = 'Remover da lista';
+          remBtn.addEventListener('click', (function (person) {
+            return function () {
+              adminConfirm('Remover ' + person.name + ' da lista de espera?', function () {
+                firebase.database().ref('fa-espera/' + person._key).update({ removed: true, removedDate: new Date().toISOString() }, function (err) {
+                  if (err) { adminAlert('Erro ao remover. Tente novamente.'); return; }
+                  loadEspera();
+                });
+              });
+            };
+          })(p));
+          tdAcoes.appendChild(remBtn);
+
+          tbody.appendChild(tr);
+        });
+        table.appendChild(tbody);
+        wrap.appendChild(table);
+        c.appendChild(wrap);
+      });
+    });
+  }
+
+  function moverParaTurma(person, turmaKey) {
+    var sess = window.faAuth && window.faAuth.getSession();
+    var eKey = emailKeyFromEmail(person.email);
+    var now  = new Date().toISOString();
+    var updates = {};
+    updates['turmas-interesse/' + turmaKey + '/' + eKey] = {
+      name: person.name, email: person.email, area: person.area || '',
+      date: now, removed: false, status: 'inscrito',
+      confirmedByAdmin: sess ? sess.email : null,
+      confirmedByAdminName: sess ? (sess.name || sess.email) : null,
+      confirmedDate: now,
+      fromEspera: true
+    };
+    updates['fa-espera/' + person._key + '/removed']     = true;
+    updates['fa-espera/' + person._key + '/removedDate'] = now;
+    updates['fa-espera/' + person._key + '/movedToTurma'] = turmaKey;
+    firebase.database().ref().update(updates, function (err) {
+      if (err) { adminAlert('Erro ao mover. Tente novamente.'); return; }
+      loadEspera();
+      loadInterests();
     });
   }
 

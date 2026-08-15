@@ -659,6 +659,14 @@ html:not(.js) .reveal { opacity: 1 !important; transform: none !important; }
 .turma-cmflex-msg strong { color: var(--ink); display: block; margin-bottom: 2px; }
 .btn--cmflex { display: inline-block; text-align: center; text-decoration: none; margin-top: 6px; padding: 8px 14px; font-family: var(--font-mono); font-size: .72rem; letter-spacing: .1em; text-transform: uppercase; color: var(--accent); background: transparent; border: 1px solid var(--accent); border-radius: 8px; cursor: pointer; transition: background .2s, color .2s; }
 .btn--cmflex:hover { background: var(--accent); color: var(--bg); }
+.turma-card-espera { border-style: dashed; border-color: var(--gold, #f5c542); }
+.tc-label-espera { color: var(--gold, #f5c542); }
+.tc-espera-icon { font-size: 2rem; line-height: 1; }
+.tc-espera-title { font-family: var(--font-display); font-size: 1.2rem; color: var(--ink); }
+.tc-espera-desc { font-size: .82rem; color: var(--ink-3); line-height: 1.5; }
+.btn--espera { display: inline-flex; align-items: center; justify-content: center; gap: 6px; background: transparent; border: 1.5px solid var(--gold, #f5c542); color: var(--gold, #f5c542); border-radius: 8px; padding: 10px 20px; font-family: var(--font-mono); font-size: .88rem; text-transform: uppercase; letter-spacing: .05em; cursor: pointer; transition: background .2s, color .2s; }
+.btn--espera:hover:not(:disabled) { background: var(--gold, #f5c542); color: #000; }
+.btn--espera.done { background: rgba(245,197,66,.12); border-color: var(--gold, #f5c542); color: var(--gold, #f5c542); }
 
 /* ---------- Mapa do Império (process) ---------- */
 .holo-frame {

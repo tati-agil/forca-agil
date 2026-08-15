@@ -328,8 +328,93 @@
       var sess = window.faAuth && window.faAuth.getSession();
       loadTurmas(function () {
         renderTurmasGrid();
+        renderEsperaCard(sess);
         initInterestButtons(sess);
       });
+    }
+
+    /* ---- Lista de Espera ---- */
+
+    function renderEsperaCard(sess) {
+      var grid = document.querySelector('.turmas-grid');
+      if (!grid) return;
+      var old = document.getElementById('turma-espera-card');
+      if (old) old.remove();
+      var card = document.createElement('div');
+      card.className = 'turma-card-new turma-card-espera reveal in';
+      card.id = 'turma-espera-card';
+      card.innerHTML =
+        '<span class="tc-label tc-label-espera">Lista de Espera</span>' +
+        '<div class="tc-espera-icon">&#x23F3;</div>' +
+        '<div class="tc-espera-title">Pr&oacute;ximas turmas</div>' +
+        '<div class="tc-espera-desc">Manifeste seu interesse em participar das pr&oacute;ximas turmas. Quando uma nova turma for aberta, o admin poder&aacute; convidar quem est&aacute; na lista.</div>' +
+        '<button class="btn--espera" id="btnEntrarEspera">&#x2661;&nbsp; Entrar na lista de espera</button>' +
+        '<div class="turma-intent-msg" id="espera-msg"></div>';
+      grid.appendChild(card);
+      var btn = card.querySelector('#btnEntrarEspera');
+      if (sess) checkEsperaState(btn, sess.email);
+      btn.addEventListener('click', function () {
+        var s = window.faAuth && window.faAuth.getSession();
+        if (!s) {
+          showEsperaMsg('Fa&ccedil;a login para entrar na lista de espera.');
+          if (window.faOpenAuthModal) window.faOpenAuthModal('login');
+          return;
+        }
+        if (btn.dataset.state === 'done') removeEspera(btn, s);
+        else joinEspera(btn, s);
+      });
+    }
+
+    function checkEsperaState(btn, email) {
+      var key = emailKey(email);
+      firebase.database().ref('fa-espera/' + key).once('value', function (snap) {
+        var val = snap.val();
+        if (val && !val.removed) setEsperaDone(btn);
+      });
+    }
+
+    function joinEspera(btn, sess) {
+      btn.disabled = true;
+      var key = emailKey(sess.email);
+      var now = new Date().toISOString();
+      firebase.database().ref('fa-espera/' + key).set({
+        name: sess.name, email: sess.email, area: sess.area || '', date: now, removed: false
+      }, function (err) {
+        btn.disabled = false;
+        if (err) { showEsperaMsg('Erro ao registrar. Tente novamente.'); return; }
+        setEsperaDone(btn);
+      });
+    }
+
+    function removeEspera(btn, sess) {
+      btn.disabled = true;
+      var key = emailKey(sess.email);
+      firebase.database().ref('fa-espera/' + key).update({ removed: true, removedDate: new Date().toISOString() }, function (err) {
+        btn.disabled = false;
+        if (err) { showEsperaMsg('Erro ao remover. Tente novamente.'); return; }
+        setEsperaInitial(btn);
+        showEsperaMsg('Você saiu da lista de espera.');
+      });
+    }
+
+    function setEsperaDone(btn) {
+      btn.innerHTML = '&#x2713;&nbsp; Na lista &mdash; Sair';
+      btn.classList.add('done');
+      btn.dataset.state = 'done';
+      btn.disabled = false;
+      showEsperaMsg('Você está na lista. Avisaremos quando houver vagas em novas turmas.');
+    }
+
+    function setEsperaInitial(btn) {
+      btn.innerHTML = '&#x2661;&nbsp; Entrar na lista de espera';
+      btn.classList.remove('done');
+      btn.dataset.state = '';
+      btn.disabled = false;
+    }
+
+    function showEsperaMsg(msg) {
+      var el = document.getElementById('espera-msg');
+      if (el) el.innerHTML = msg;
     }
 
     function initInterestButtons(sess) {

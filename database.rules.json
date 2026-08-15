@@ -127,6 +127,13 @@
       "$pedidoKey": {
         ".write": "auth != null && auth.token.email.matches(/.*@previ\\.com\\.br/)"
       }
+    },
+
+    "fa-espera": {
+      ".read": "auth != null && auth.token.email.matches(/.*@previ\\.com\\.br/)",
+      "$userKey": {
+        ".write": "auth != null && auth.token.email.matches(/.*@previ\\.com\\.br/)"
+      }
     }
   }
 }

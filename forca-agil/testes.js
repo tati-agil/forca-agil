@@ -210,6 +210,12 @@
         } },
         { id: 'c-bloqueado-painel-existe', label: 'Painel "Acesso desativado" existe no DOM (#auth-bloqueado)', run: function () {
           return !!document.getElementById('auth-bloqueado');
+        } },
+        { id: 'c-espera-card-existe', label: 'Card "Lista de Espera" existe na grade de turmas (#turma-espera-card)', run: function () {
+          return !!document.getElementById('turma-espera-card');
+        } },
+        { id: 'c-espera-btn-existe', label: 'Botão "Entrar na lista de espera" existe no card (#btnEntrarEspera)', run: function () {
+          return !!document.getElementById('btnEntrarEspera');
         } }
       ]
     },
@@ -722,6 +728,18 @@
     { section: 'Turmas',
       title: 'Inscrito confirmado vê o mesmo card de CMFlex que todo mundo',
       motivo: 'Verificar com conta confirmada como inscrita (via Admin) numa turma com interesse encerrado: o card dela mostra a mesma orientação pro CMFlex que qualquer visitante vê — não existe mais um card especial de "turma confirmada" nem distinção visual por já estar inscrita.' },
+    { section: 'Turmas',
+      title: 'Card "Lista de Espera" aparece sempre na grade de turmas',
+      motivo: 'Verificar na página Turmas (logado ou visitante): o card com borda dourada tracejada deve aparecer como último card da grade, independente de existirem turmas abertas ou não.' },
+    { section: 'Turmas',
+      title: 'Lista de espera — entrar e sair',
+      motivo: 'Logada: clicar "Entrar na lista de espera" → botão vira "Na lista — Sair" e mensagem de confirmação aparece. Clicar de novo → sai da lista, botão volta ao estado inicial. Gravaria dados reais em fa-espera/ no Firebase.' },
+    { section: 'Turmas',
+      title: 'Lista de espera sem login → abre modal de login',
+      motivo: 'Visitante clica "Entrar na lista de espera" → mensagem de aviso e modal de login devem aparecer.' },
+    { section: 'Turmas',
+      title: 'Admin — mover pessoa da lista de espera para turma',
+      motivo: 'Na aba Cadastrados do painel admin, selecionar uma turma no select da pessoa e clicar "Mover para turma" → confirmar no diálogo → pessoa desaparece da lista de espera e aparece na turma como Inscrita (status=inscrito + confirmedByAdmin).' },
     { section: 'Turmas',
       title: 'Botão "Tenho interesse" sem login → mensagem + modal login',
       motivo: 'Requer estar deslogado.' },
