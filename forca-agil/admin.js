@@ -225,6 +225,36 @@
           globalBtnWrap.appendChild(exportLogBtn);
           c.appendChild(globalBtnWrap);
 
+          /* ── Barra de filtro e expand/collapse ───────────────────────────── */
+          var filterBar = document.createElement('div');
+          filterBar.style.cssText = 'display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:18px';
+          var filterLabel = document.createElement('span');
+          filterLabel.style.cssText = 'color:var(--ink-2);font-size:.82rem';
+          filterLabel.textContent = 'Ver evento:';
+          var filterSel = document.createElement('select');
+          filterSel.style.cssText = 'background:var(--panel-2);border:1px solid var(--line-strong);border-radius:4px;color:var(--ink);padding:4px 8px;font-size:.82rem;cursor:pointer';
+          var allOpt = document.createElement('option');
+          allOpt.value = ''; allOpt.textContent = 'Todos';
+          filterSel.appendChild(allOpt);
+          EVENTOS_LIST.forEach(function (ev) {
+            var opt = document.createElement('option');
+            opt.value = ev.key; opt.textContent = ev.nome;
+            filterSel.appendChild(opt);
+          });
+          var expandAllBtn = document.createElement('button');
+          expandAllBtn.className = 'btn btn--sm';
+          expandAllBtn.style.cssText = 'padding:4px 10px;font-size:.72rem;margin-left:auto';
+          expandAllBtn.textContent = '↕ Expandir tudo';
+          var collapseAllBtn = document.createElement('button');
+          collapseAllBtn.className = 'btn btn--sm';
+          collapseAllBtn.style.cssText = 'padding:4px 10px;font-size:.72rem';
+          collapseAllBtn.textContent = '↕ Recolher tudo';
+          filterBar.appendChild(filterLabel);
+          filterBar.appendChild(filterSel);
+          filterBar.appendChild(expandAllBtn);
+          filterBar.appendChild(collapseAllBtn);
+          c.appendChild(filterBar);
+
           if (!EVENTOS_LIST.length) {
             var noEventoMsg = document.createElement('p');
             noEventoMsg.className = 'admin-empty';
@@ -261,7 +291,8 @@
               checkinBadge = '<span class="turma-status-badge badge-checkin-aberto">CHECK-IN ABERTO · ' + fmtDia(diaAtivo) + '</span>';
             }
             hdr.innerHTML =
-              '<div class="turma-admin-title">' +
+              '<div class="turma-admin-title" style="cursor:pointer;user-select:none">' +
+                '<span class="turma-toggle-icon" style="color:var(--ink-2);font-size:.8rem;flex-shrink:0;margin-right:6px">▸</span>' +
                 '<span class="turma-admin-name">' + esc(t.label) + '</span>' +
                 '<span class="turma-admin-dates">(' + t.dates + ')</span>' +
                 '<span class="turma-status-badge ' + (finalizada ? 'badge-finalizada' : 'badge-aberta') + '">' +
@@ -457,7 +488,15 @@
               removedSection.appendChild(removedBody);
               body.appendChild(removedSection);
             }
+            body.hidden = true;
             card.appendChild(body);
+            var titleDiv = hdr.querySelector('.turma-admin-title');
+            var turmaToggleIcon = hdr.querySelector('.turma-toggle-icon');
+            titleDiv.addEventListener('click', function () {
+              var expanded = body.hidden;
+              body.hidden = !expanded;
+              turmaToggleIcon.textContent = expanded ? '▾' : '▸';
+            });
             return card;
           }
 
@@ -467,10 +506,15 @@
 
             var evSection = document.createElement('div');
             evSection.style.cssText = 'border:1px solid var(--line-strong);border-radius:8px;margin-bottom:24px;overflow:hidden';
+            evSection.setAttribute('data-ev-key', ev.key);
 
-            /* cabeçalho do evento */
+            /* cabeçalho do evento — clicável para expandir/recolher */
             var evHdr = document.createElement('div');
-            evHdr.style.cssText = 'display:flex;align-items:center;gap:12px;padding:14px 18px;background:var(--panel-2);border-bottom:1px solid var(--line-strong)';
+            evHdr.style.cssText = 'display:flex;align-items:center;gap:12px;padding:14px 18px;background:var(--panel-2);border-bottom:1px solid var(--line-strong);cursor:pointer;user-select:none';
+            var evToggleIcon = document.createElement('span');
+            evToggleIcon.className = 'ev-toggle-icon';
+            evToggleIcon.style.cssText = 'color:var(--ink-2);font-size:.85rem;flex-shrink:0;transition:transform .15s';
+            evToggleIcon.textContent = '▸';
             var evNome = document.createElement('span');
             evNome.style.cssText = 'flex:1;font-family:var(--font-head);letter-spacing:.06em;font-size:.9rem;color:var(--ink)';
             evNome.textContent = ev.nome;
@@ -481,21 +525,29 @@
             evEditBtn.className = 'btn btn--sm';
             evEditBtn.style.cssText = 'padding:4px 10px;font-size:.72rem';
             evEditBtn.innerHTML = '&#x270E; Editar evento';
-            evEditBtn.addEventListener('click', (function (e) { return function () { openEventoFormModal(e); }; })(ev));
+            evEditBtn.addEventListener('click', function (e) { e.stopPropagation(); openEventoFormModal(ev); });
             var evNewTurmaBtn = document.createElement('button');
             evNewTurmaBtn.className = 'btn btn--sm btn--primary';
             evNewTurmaBtn.style.cssText = 'padding:4px 10px;font-size:.72rem';
             evNewTurmaBtn.innerHTML = '+ Nova turma';
-            evNewTurmaBtn.addEventListener('click', (function (ek) { return function () { openTurmaFormModal(null, ek); }; })(ev.key));
+            evNewTurmaBtn.addEventListener('click', function (e) { e.stopPropagation(); openTurmaFormModal(null, ev.key); });
+            evHdr.appendChild(evToggleIcon);
             evHdr.appendChild(evNome);
             evHdr.appendChild(evMeta);
             evHdr.appendChild(evEditBtn);
             evHdr.appendChild(evNewTurmaBtn);
             evSection.appendChild(evHdr);
 
-            /* turmas do evento */
+            /* turmas do evento — começa recolhido */
             var turmasWrap = document.createElement('div');
+            turmasWrap.className = 'ev-turmas-wrap';
             turmasWrap.style.cssText = 'padding:16px;display:flex;flex-direction:column;gap:16px';
+            turmasWrap.hidden = true;
+            evHdr.addEventListener('click', function () {
+              var expanded = turmasWrap.hidden;
+              turmasWrap.hidden = !expanded;
+              evToggleIcon.textContent = expanded ? '▾' : '▸';
+            });
             if (!turmasEvento.length) {
               var tEmpty = document.createElement('p');
               tEmpty.className = 'admin-empty';
@@ -525,6 +577,36 @@
             semEventoSection.appendChild(semEventoWrap);
             c.appendChild(semEventoSection);
           }
+
+          /* ── Callbacks: filtro e expand/collapse ─────────────────────────── */
+          function setEvExpanded(evSec, expanded) {
+            var tw = evSec.querySelector('.ev-turmas-wrap');
+            var icon = evSec.querySelector('.ev-toggle-icon');
+            if (tw) tw.hidden = !expanded;
+            if (icon) icon.textContent = expanded ? '▾' : '▸';
+          }
+          function setTurmaExpanded(cardEl, expanded) {
+            var b = cardEl.querySelector('.turma-admin-body');
+            var icon = cardEl.querySelector('.turma-toggle-icon');
+            if (b) b.hidden = !expanded;
+            if (icon) icon.textContent = expanded ? '▾' : '▸';
+          }
+          expandAllBtn.addEventListener('click', function () {
+            Array.from(c.querySelectorAll('[data-ev-key]')).forEach(function (sec) { setEvExpanded(sec, true); });
+            Array.from(c.querySelectorAll('.turma-admin-card')).forEach(function (cd) { setTurmaExpanded(cd, true); });
+          });
+          collapseAllBtn.addEventListener('click', function () {
+            Array.from(c.querySelectorAll('[data-ev-key]')).forEach(function (sec) { setEvExpanded(sec, false); });
+            Array.from(c.querySelectorAll('.turma-admin-card')).forEach(function (cd) { setTurmaExpanded(cd, false); });
+          });
+          filterSel.addEventListener('change', function () {
+            var chosen = filterSel.value;
+            Array.from(c.querySelectorAll('[data-ev-key]')).forEach(function (sec) {
+              var matches = !chosen || sec.getAttribute('data-ev-key') === chosen;
+              sec.style.display = matches ? '' : 'none';
+              if (matches && chosen) setEvExpanded(sec, true);
+            });
+          });
         });
       });
     });
