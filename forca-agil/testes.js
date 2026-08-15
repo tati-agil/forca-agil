@@ -874,6 +874,9 @@
       title: 'Admin — Turmas: fechar check-in do dia',
       motivo: 'Requer turma finalizada e check-in aberto. Verificar: ao fechar, check-in passa a ser bloqueado na página checkin.' },
     { section: 'Admin',
+      title: 'Turmas — agrupamento por evento',
+      motivo: 'Verificar na aba Turmas: (1) turmas aparecem agrupadas dentro do container do seu evento, com o nome do evento como cabeçalho do grupo; (2) turmas sem evento associado aparecem na seção "TURMAS SEM EVENTO" ao final; (3) ao criar turma dentro de um container de evento, o campo Evento do modal vem pré-preenchido; (4) ao excluir um evento, as turmas dentro dele passam para "TURMAS SEM EVENTO" (não são excluídas).' },
+    { section: 'Admin',
       title: 'Turmas — layout responsivo das ações (desktop vs mobile)',
       motivo: 'Verificar em desktop (>768px): todas as ações ficam em linha única (seletor de dia, Abrir/Fechar check-in, QR, + Participante, Reabrir, CSV, Certificados). Verificar em mobile/tablet (≤768px): header do card vira coluna; apenas ações primárias visíveis (seletor + Abrir/Fechar ou Encerrar interesse); botão "⋯" presente e ao clicar abre dropdown com ações secundárias (QR, + Participante, ↺ Reabrir, CSV, Certificados).' },
     { section: 'Admin',
@@ -936,6 +939,14 @@
     { section: 'Admin',
       title: 'Turmas — certificados: sem aprovados',
       motivo: 'Requer turma finalizada onde ninguém atingiu 75%. Clicar em "📜 Certificados". Verificar: alerta informa que nenhum participante atingiu o critério — nenhuma aba é aberta.' },
+
+    /* ── Certificados — Estado Prévia vs. Emissão ─────────────── */
+    { section: 'Certificados v1.0',
+      title: 'Cenário A — turma NÃO encerrada (estado Prévia)',
+      motivo: 'Selecionar uma turma que ainda NÃO foi encerrada (não tem "✓ Encerrar turma" executado). Verificar: (1) banner laranja aparece acima do canvas com texto "PRÉVIA DO CERTIFICADO — TURMA AINDA NÃO CONCLUÍDA"; (2) ao selecionar qualquer participante, a prévia visual é exibida normalmente; (3) botões ⬇ PNG e ⬇ PDF em cada linha estão desabilitados — ao passar o mouse aparece tooltip "Disponível após a conclusão da turma."; (4) botões "Baixar todos (PNG)" e "Baixar todos (PDF)" também desabilitados; (5) campo dataEmissao no certificado exibido está vazio ou ausente.' },
+    { section: 'Certificados v1.0',
+      title: 'Cenário B — turma encerrada (estado Emissão)',
+      motivo: 'Selecionar uma turma que JÁ foi encerrada (admin clicou "✓ Encerrar turma"). Verificar: (1) banner laranja NÃO aparece — área acima do canvas limpa; (2) botões ⬇ PNG e ⬇ PDF em cada linha estão habilitados e funcionam; (3) botões de lote "Baixar todos" habilitados; (4) campo dataEmissao no certificado exibe a data de conclusão da turma no formato "Emitido em DD de mês de AAAA"; (5) trocar de turma não encerrada para encerrada (e vice-versa) atualiza corretamente o estado da aba — banner, botões e data.' },
 
     /* ── Gerador de Certificados v1.0 — Regressão ───────────── */
     { section: 'Certificados v1.0',
