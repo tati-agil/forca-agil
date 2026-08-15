@@ -2140,7 +2140,8 @@
     var wrap     = document.getElementById('certParticipantesWrap');
     var listEl   = document.getElementById('certParticipantesList');
     var hint     = document.getElementById('certPreviewHint');
-    var dlTodos  = document.getElementById('certBaixarTodos');
+    var dlTodos     = document.getElementById('certBaixarTodos');
+    var dlTodosPDF  = document.getElementById('certBaixarTodosPDF');
 
     if (!sel) return;
 
@@ -2227,16 +2228,26 @@
 
         var btnDl = document.createElement('button');
         btnDl.className = 'btn btn--sm cert-btn-dl';
-        btnDl.textContent = '⬇ Baixar';
+        btnDl.textContent = '⬇ PNG';
         btnDl.addEventListener('click', function () {
           var data = buildData(p, turma);
           var slug = (p.name || p.email).replace(/\s+/g, '_').toLowerCase();
           certif.download(data, 'certificado_' + slug);
         });
 
+        var btnPdf = document.createElement('button');
+        btnPdf.className = 'btn btn--sm cert-btn-dl';
+        btnPdf.textContent = '⬇ PDF';
+        btnPdf.addEventListener('click', function () {
+          var data = buildData(p, turma);
+          var slug = (p.name || p.email).replace(/\s+/g, '_').toLowerCase();
+          certif.downloadPDF(data, 'certificado_' + slug);
+        });
+
         row.appendChild(nameSpan);
         row.appendChild(btnPrev);
         row.appendChild(btnDl);
+        row.appendChild(btnPdf);
         listEl.appendChild(row);
       });
 
@@ -2282,27 +2293,29 @@
     });
 
     /* baixar todos */
-    if (dlTodos) {
-      dlTodos.addEventListener('click', function () {
-        var key = sel.value;
-        if (!key) { alert('Selecione uma turma primeiro.'); return; }
-        var turma = TURMAS_LIST.filter(function (t) { return t.key === key; })[0];
-        if (!turma) return;
-        loadInscritos(key, function (inscritos) {
-          if (!inscritos.length) { alert('Nenhum participante inscrito nesta turma.'); return; }
-          var i = 0;
-          function next() {
-            if (i >= inscritos.length) return;
-            var p = inscritos[i++];
-            var data = buildData(p, turma);
-            var slug = (p.name || p.email).replace(/\s+/g, '_').toLowerCase();
-            certif.download(data, 'certificado_' + slug);
-            setTimeout(next, 800); /* pequeno intervalo para não sobrecarregar */
-          }
-          next();
-        });
+    function baixarTodos(usePDF) {
+      var key = sel.value;
+      if (!key) { alert('Selecione uma turma primeiro.'); return; }
+      var turma = TURMAS_LIST.filter(function (t) { return t.key === key; })[0];
+      if (!turma) return;
+      loadInscritos(key, function (inscritos) {
+        if (!inscritos.length) { alert('Nenhum participante inscrito nesta turma.'); return; }
+        var i = 0;
+        function next() {
+          if (i >= inscritos.length) return;
+          var p = inscritos[i++];
+          var data = buildData(p, turma);
+          var slug = (p.name || p.email).replace(/\s+/g, '_').toLowerCase();
+          if (usePDF) certif.downloadPDF(data, 'certificado_' + slug);
+          else certif.download(data, 'certificado_' + slug);
+          setTimeout(next, 800);
+        }
+        next();
       });
     }
+
+    if (dlTodos)    dlTodos.addEventListener('click',    function () { baixarTodos(false); });
+    if (dlTodosPDF) dlTodosPDF.addEventListener('click', function () { baixarTodos(true); });
   }
 
 })();

@@ -1,54 +1,55 @@
 /* certif.js — Geração de certificados Força Ágil via Canvas
-   Sistema de coordenadas = dimensões reais de cert-template.png (1448 × 1086).
-   O template é o fundo fixo; apenas os 6 campos dinâmicos são sobrepostos. */
+   Sistema de coordenadas = dimensões reais de cert-template-v2.png (1448 × 1086).
+   O template é o fundo fixo; apenas os 6 campos dinâmicos são sobrepostos.
+   REGRA: não desenhar fundos, não cobrir áreas do template, não recriar badge,
+   linhas, ornamentos ou textos fixos. Apenas os 6 valores dinâmicos.
+
+   Layout aprovado — NÃO alterar coordenadas sem autorização explícita. */
 
 (function () {
   'use strict';
 
-  var TEMPLATE_SRC = 'forca-agil/cert-template.png';
+  var TEMPLATE_SRC = 'forca-agil/cert-template-v2.png';
 
   /* Dimensões do template (lidas do PNG ao carregar) */
   var TW = 1448, TH = 1086;
 
-  /* ── Campos dinâmicos — coordenadas no espaço 1448 × 1086 ─────────────
-     Derivadas proporcionalmente das coordenadas de referência (1280 × 960)
-     aplicando fator uniforme 1448/1280 ≈ 1.131.
-     Ajuste fino de posição será feito na etapa seguinte.              */
+  /* ── CFG — layout final aprovado ────────────────────────────────────────
+     Coordenadas medidas no template real 1448×1086.
+     badge: x=473–909, cy=738 | calendário: x=556, cy=665               */
   var CFG = {
     nomeParticipante: {
-      x: 724, y: 419, maxWidth: 1041, align: 'center',
-      size: 59, minSize: 30, weight: 'italic',
+      x: 724, y: 385, maxWidth: 1041, align: 'center',
+      size: 55, minSize: 28, weight: 'italic',
       color: '#FFFFFF', family: 'Georgia,"Times New Roman",serif'
     },
     nomeEvento: {
-      x: 724, y: 563, maxWidth: 837, align: 'center',
-      size: 32, minSize: 17, weight: 'bold', upper: true, spacing: 3.4,
+      x: 724, y: 535, maxWidth: 920, align: 'center',
+      size: 29, minSize: 13, weight: 'bold', upper: true, spacing: 3,
       color: '#f5c542', family: '"Courier New",Courier,monospace'
     },
     identificacaoTurma: {
-      x: 724, y: 600, maxWidth: 701, align: 'center',
-      size: 22, minSize: 14, weight: 'normal',
+      x: 724, y: 581, maxWidth: 680, align: 'center',
+      size: 19, minSize: 12, weight: 'normal',
       color: '#c9a84c', family: 'Georgia,"Times New Roman",serif'
     },
     periodoTurma: {
-      x: 752, y: 674, maxWidth: 441, align: 'left',
-      size: 19, minSize: 14, weight: 'normal',
+      x: 598, y: 671, maxWidth: 400, align: 'left',
+      size: 24, minSize: 13, weight: 'normal',
       color: '#e8e0d0', family: 'Georgia,"Times New Roman",serif'
     },
+    cargaHoraria: {
+      x: 613, y: 757, maxWidth: 160, align: 'center',
+      size: 48, minSize: 24, weight: 'bold',
+      color: '#f5c542', family: '"Courier New",Courier,monospace'
+    },
+    /* "Emitido em" removido do template v2; frase completa renderizada como campo dinâmico */
     dataEmissao: {
-      x: 1371, y: 1057, maxWidth: 430, align: 'right',
-      size: 15, minSize: 11, weight: 'italic',
-      color: '#b8940a', family: 'Georgia,"Times New Roman",serif'
+      x: 1055, y: 922, maxWidth: 360, align: 'left',
+      size: 19, minSize: 10, weight: 'italic',
+      color: '#c9a030', family: 'Georgia,"Times New Roman",serif',
+      prefix: 'Emitido em '
     }
-  };
-
-  /* Badge hexagonal — bounds medidos na imagem 1448 × 1086 */
-  var BADGE = {
-    cx:  724,   /* centro horizontal                    */
-    cy:  738,   /* centro vertical                      */
-    bw:  370,   /* largura total da caixa               */
-    bh:  110,   /* altura total da caixa                */
-    cut:  18    /* tamanho do corte nos cantos          */
   };
 
   /* ── Utilitários de texto ────────────────────────────────────────────── */
@@ -78,59 +79,16 @@
 
   function drawFieldText(ctx, raw, cfg) {
     if (!raw) return;
-    var text = cfg.upper ? String(raw).toUpperCase() : String(raw);
+    var text = (cfg.prefix || '') + (cfg.upper ? String(raw).toUpperCase() : String(raw));
     fitFont(ctx, text, cfg);
-    ctx.fillStyle  = cfg.color;
-    ctx.textAlign  = cfg.align;
+    ctx.fillStyle    = cfg.color;
+    ctx.textAlign    = cfg.align;
     ctx.textBaseline = 'middle';
     if (cfg.spacing) {
       spacedText(ctx, text, cfg.x, cfg.y, cfg.spacing);
     } else {
       ctx.fillText(text, cfg.x, cfg.y);
     }
-  }
-
-  /* ── Badge hexagonal ─────────────────────────────────────────────────── */
-
-  function hexPath(ctx, b) {
-    var x = b.cx, y = b.cy, hw = b.bw / 2, hh = b.bh / 2, c = b.cut;
-    ctx.beginPath();
-    ctx.moveTo(x - hw + c, y - hh);
-    ctx.lineTo(x + hw - c, y - hh);
-    ctx.lineTo(x + hw,     y - hh + c);
-    ctx.lineTo(x + hw,     y + hh - c);
-    ctx.lineTo(x + hw - c, y + hh);
-    ctx.lineTo(x - hw + c, y + hh);
-    ctx.lineTo(x - hw,     y + hh - c);
-    ctx.lineTo(x - hw,     y - hh + c);
-    ctx.closePath();
-  }
-
-  function drawHexBadge(ctx, b, cargaHoraria) {
-    /* 1. cobre o texto estático do template com fundo opaco */
-    hexPath(ctx, b);
-    var bg = ctx.createLinearGradient(b.cx, b.cy - b.bh / 2, b.cx, b.cy + b.bh / 2);
-    bg.addColorStop(0, 'rgba(14,9,2,0.98)');
-    bg.addColorStop(1, 'rgba(8,5,1,0.99)');
-    ctx.fillStyle = bg;
-    ctx.fill();
-    ctx.strokeStyle = '#c4900a';
-    ctx.lineWidth = 1.8;
-    ctx.stroke();
-
-    /* 2. "Xh" em dourado + " DE IMERSÃO EM AGILIDADE" em branco */
-    var prefix = (cargaHoraria || '?') + 'h';
-    var fixed  = '  DE IMERSÃO EM AGILIDADE';
-    ctx.font = 'bold 31px "Courier New",Courier,monospace';
-    ctx.textBaseline = 'middle';
-    ctx.textAlign = 'left';
-    var pw = ctx.measureText(prefix).width;
-    var fw = ctx.measureText(fixed).width;
-    var sx = b.cx - (pw + fw) / 2;
-    ctx.fillStyle = '#f5c542';
-    ctx.fillText(prefix, sx, b.cy + 2);
-    ctx.fillStyle = '#FFFFFF';
-    ctx.fillText(fixed, sx + pw, b.cy + 2);
   }
 
   /* ── Carregamento do template ────────────────────────────────────────── */
@@ -140,11 +98,10 @@
 
   function loadTemplate() {
     if (_templateImg) return Promise.resolve(_templateImg);
-    if (_loadPromise) return _loadPromise;
+    if (_loadPromise)  return _loadPromise;
     _loadPromise = new Promise(function (resolve, reject) {
       var img = new Image();
       img.onload = function () {
-        /* dimensões reais do PNG — usadas como sistema de coordenadas */
         TW = img.naturalWidth;
         TH = img.naturalHeight;
         _templateImg = img;
@@ -167,50 +124,136 @@
     return loadTemplate().then(function (img) {
       var ctx = canvas.getContext('2d');
 
-      /* canvas tem EXATAMENTE o tamanho do template (× escala de exportação) */
       canvas.width  = TW * scale;
       canvas.height = TH * scale;
       ctx.scale(scale, scale);
 
-      /* fundo: template original — imutável */
       ctx.drawImage(img, 0, 0, TW, TH);
 
-      /* campos dinâmicos sobrepostos */
       drawFieldText(ctx, data.nomeParticipante,  CFG.nomeParticipante);
       drawFieldText(ctx, data.nomeEvento,         CFG.nomeEvento);
       drawFieldText(ctx, data.identificacaoTurma, CFG.identificacaoTurma);
       drawFieldText(ctx, data.periodoTurma,       CFG.periodoTurma);
-      drawHexBadge(ctx, BADGE, data.cargaHoraria);
+      drawFieldText(ctx, data.cargaHoraria,       CFG.cargaHoraria);
       if (data.dataEmissao) {
         drawFieldText(ctx, data.dataEmissao, CFG.dataEmissao);
       }
     });
   }
 
-  /* ── API pública ─────────────────────────────────────────────────────── */
-
-  function preview(canvasId, data) {
-    var canvas = document.getElementById(canvasId || 'certPreviewCanvas');
-    if (!canvas) return Promise.resolve();
-    return draw(canvas, data, 1);
-  }
+  /* ── Exportação PNG (2× resolução) ──────────────────────────────────── */
 
   function download(data, filename) {
     var canvas = document.createElement('canvas');
     return draw(canvas, data, 2).then(function () {
       return new Promise(function (resolve) {
         canvas.toBlob(function (blob) {
-          var url = URL.createObjectURL(blob);
-          var a   = document.createElement('a');
-          a.href     = url;
-          a.download = (filename || 'certificado') + '.png';
-          a.click();
-          setTimeout(function () { URL.revokeObjectURL(url); }, 10000);
+          _triggerDownload(blob, (filename || 'certificado') + '.png');
           resolve();
         }, 'image/png');
       });
     });
   }
+
+  /* ── Exportação PDF (A4 landscape, imagem JPEG embutida) ────────────── */
+
+  function downloadPDF(data, filename) {
+    var canvas = document.createElement('canvas');
+    return draw(canvas, data, 2).then(function () {
+      var blob = _canvasToPDFBlob(canvas);
+      _triggerDownload(blob, (filename || 'certificado') + '.pdf');
+    });
+  }
+
+  function _triggerDownload(blob, name) {
+    var url = URL.createObjectURL(blob);
+    var a   = document.createElement('a');
+    a.href     = url;
+    a.download = name;
+    a.click();
+    setTimeout(function () { URL.revokeObjectURL(url); }, 15000);
+  }
+
+  /* Gera PDF minimal com a imagem do canvas embutida como JPEG (DCTDecode).
+     Página A4 landscape (841.89 × 595.28 pt); imagem centralizada e ajustada. */
+  function _canvasToPDFBlob(canvas) {
+    var jpegUrl = canvas.toDataURL('image/jpeg', 0.93);
+    var imgB64  = jpegUrl.split(',')[1];
+    var imgU8   = _b64ToU8(imgB64);
+    var iw = canvas.width, ih = canvas.height;
+
+    /* página A4 landscape em pontos */
+    var PW = 841.89, PH = 595.28;
+    var sc = Math.min(PW / iw, PH / ih);
+    var dw = (iw * sc).toFixed(3);
+    var dh = (ih * sc).toFixed(3);
+    var ox = ((PW - iw * sc) / 2).toFixed(3);
+    var oy = ((PH - ih * sc) / 2).toFixed(3);
+
+    /* content stream: posiciona e renderiza a imagem */
+    var cs  = 'q ' + dw + ' 0 0 ' + dh + ' ' + ox + ' ' + oy + ' cm /Im1 Do Q\n';
+    var csU8 = _strToU8(cs);
+
+    var hdr = _strToU8('%PDF-1.4\n%\xE2\xE3\xCF\xD3\n');
+
+    var o1 = _strToU8('1 0 obj\n<< /Type /Catalog /Pages 2 0 R >>\nendobj\n');
+    var o2 = _strToU8('2 0 obj\n<< /Type /Pages /Kids [3 0 R] /Count 1 >>\nendobj\n');
+    var o3 = _strToU8('3 0 obj\n<< /Type /Page /Parent 2 0 R' +
+      ' /MediaBox [0 0 ' + PW.toFixed(2) + ' ' + PH.toFixed(2) + ']' +
+      ' /Contents 4 0 R /Resources << /XObject << /Im1 5 0 R >> >> >>\nendobj\n');
+    var o4 = _strToU8('4 0 obj\n<< /Length ' + csU8.length + ' >>\nstream\n' +
+      cs + 'endstream\nendobj\n');
+    var o5h = _strToU8('5 0 obj\n<< /Type /XObject /Subtype /Image' +
+      ' /Width ' + iw + ' /Height ' + ih +
+      ' /ColorSpace /DeviceRGB /BitsPerComponent 8 /Filter /DCTDecode' +
+      ' /Length ' + imgU8.length + ' >>\nstream\n');
+    var o5f = _strToU8('\nendstream\nendobj\n');
+
+    /* offsets para a xref table */
+    var off = [0, 0, 0, 0, 0, 0];
+    off[1] = hdr.length;
+    off[2] = off[1] + o1.length;
+    off[3] = off[2] + o2.length;
+    off[4] = off[3] + o3.length;
+    off[5] = off[4] + o4.length;
+    var xrefOff = off[5] + o5h.length + imgU8.length + o5f.length;
+
+    var xref = _strToU8(
+      'xref\n0 6\n' +
+      '0000000000 65535 f \n' +
+      _pad10(off[1]) + ' 00000 n \n' +
+      _pad10(off[2]) + ' 00000 n \n' +
+      _pad10(off[3]) + ' 00000 n \n' +
+      _pad10(off[4]) + ' 00000 n \n' +
+      _pad10(off[5]) + ' 00000 n \n'
+    );
+    var trailer = _strToU8(
+      'trailer\n<< /Size 6 /Root 1 0 R >>\nstartxref\n' + xrefOff + '\n%%EOF\n'
+    );
+
+    /* montar buffer final */
+    var total = hdr.length + o1.length + o2.length + o3.length + o4.length +
+                o5h.length + imgU8.length + o5f.length + xref.length + trailer.length;
+    var buf = new Uint8Array(total);
+    var pos = 0;
+    [hdr, o1, o2, o3, o4, o5h, imgU8, o5f, xref, trailer].forEach(function (part) {
+      buf.set(part, pos); pos += part.length;
+    });
+
+    return new Blob([buf], { type: 'application/pdf' });
+  }
+
+  function _strToU8(s) {
+    var u = new Uint8Array(s.length);
+    for (var i = 0; i < s.length; i++) u[i] = s.charCodeAt(i) & 0xFF;
+    return u;
+  }
+
+  function _b64ToU8(b64) { return _strToU8(atob(b64)); }
+
+  function _pad10(n) { return ('0000000000' + n).slice(-10); }
+
+  /* ── Utilitário de formatação de data ───────────────────────────────── */
 
   function fmtDataEmissao(dateStr) {
     var meses = ['janeiro','fevereiro','março','abril','maio','junho',
@@ -220,9 +263,18 @@
     return d.getDate() + ' de ' + meses[d.getMonth()] + ' de ' + d.getFullYear();
   }
 
+  /* ── API pública ─────────────────────────────────────────────────────── */
+
   window.faCertif = {
-    draw: draw, preview: preview, download: download,
-    fmtDataEmissao: fmtDataEmissao,
-    CFG: CFG, BADGE: BADGE
+    draw:            draw,
+    preview:         function (canvasId, data) {
+      var canvas = document.getElementById(canvasId || 'certPreviewCanvas');
+      if (!canvas) return Promise.resolve();
+      return draw(canvas, data, 1);
+    },
+    download:        download,
+    downloadPDF:     downloadPDF,
+    fmtDataEmissao:  fmtDataEmissao,
+    CFG:             CFG
   };
 })();
