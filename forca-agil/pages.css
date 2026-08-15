@@ -714,6 +714,14 @@
   font-family: var(--font-mono);
 }
 .cert-btn-prev, .cert-btn-dl { white-space: nowrap; }
+.cert-btn-dl:disabled,
+#certBaixarTodos:disabled,
+#certBaixarTodosPDF:disabled {
+  opacity: .32;
+  cursor: not-allowed;
+  pointer-events: auto; /* mantém para tooltip funcionar */
+  filter: grayscale(.6);
+}
 .cert-empty {
   font-family: var(--font-mono); font-size: .82rem; color: var(--ink-3);
   padding: 20px 0;

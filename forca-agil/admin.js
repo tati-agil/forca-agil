@@ -2286,8 +2286,8 @@
       if (_encerrada) { banner.style.display = 'none'; return; }
       banner.style.cssText = 'background:rgba(255,165,0,.1);border:1px solid rgba(255,165,0,.45);border-radius:6px;padding:12px 16px;margin-bottom:14px;text-align:center;display:block';
       banner.innerHTML =
-        '<div style="font-family:var(--font-head);letter-spacing:.08em;font-size:.8rem;color:#ffb347;margin-bottom:4px">PRÉVIA DO CERTIFICADO — TURMA AINDA NÃO CONCLUÍDA</div>' +
-        '<div style="font-size:.78rem;color:var(--ink-2)">Este documento é apenas uma visualização administrativa. A emissão será habilitada após a conclusão da turma.</div>';
+        '<div style="font-family:var(--font-head);letter-spacing:.08em;font-size:.8rem;color:#ffb347;margin-bottom:6px">PRÉVIA DO CERTIFICADO — TURMA AINDA NÃO CONCLUÍDA</div>' +
+        '<div style="font-size:.78rem;color:var(--ink-2)">Visualização administrativa para conferência. O certificado só poderá ser emitido após a conclusão da turma.</div>';
     }
 
     function updateLoteButtons() {
