@@ -1752,6 +1752,7 @@
     /* Remove da turma (soft-delete) */
     updates['turmas-interesse/' + turmaKey + '/' + eKey + '/removed']            = true;
     updates['turmas-interesse/' + turmaKey + '/' + eKey + '/removedDate']        = now;
+    updates['turmas-interesse/' + turmaKey + '/' + eKey + '/removedReason']      = 'Movida para lista de espera';
     updates['turmas-interesse/' + turmaKey + '/' + eKey + '/movedToEspera']      = true;
     updates['turmas-interesse/' + turmaKey + '/' + eKey + '/removedByAdmin']     = sess ? sess.email : null;
     updates['turmas-interesse/' + turmaKey + '/' + eKey + '/removedByAdminName'] = sess ? (sess.name || sess.email) : null;
