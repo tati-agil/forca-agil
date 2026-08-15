@@ -505,6 +505,11 @@
 
 /* Scroll horizontal automático para tabelas largas em qualquer tela */
 .table-scroll-wrap { width: 100%; overflow-x: auto; -webkit-overflow-scrolling: touch; }
+.table-scroll-wrap::-webkit-scrollbar { height: 4px; }
+.table-scroll-wrap::-webkit-scrollbar-track { background: transparent; }
+.table-scroll-wrap::-webkit-scrollbar-thumb { background: rgba(245,197,66,.35); border-radius: 2px; }
+.table-scroll-wrap::-webkit-scrollbar-thumb:hover { background: rgba(245,197,66,.6); }
+.table-scroll-wrap { scrollbar-width: thin; scrollbar-color: rgba(245,197,66,.35) transparent; }
 
 /* Item 3: fundo sólido nas tabelas para melhorar contraste sobre o fundo animado */
 .admin-table { width: 100%; border-collapse: collapse; font-size: .84rem; background: var(--panel); border-radius: 10px; overflow: hidden; }
