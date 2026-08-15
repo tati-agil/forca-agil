@@ -45,10 +45,10 @@
   /* Badge hexagonal — bounds medidos na imagem 1448 × 1086 */
   var BADGE = {
     cx:  724,   /* centro horizontal                    */
-    cy:  730,   /* centro vertical                      */
+    cy:  738,   /* centro vertical                      */
     bw:  370,   /* largura total da caixa               */
-    bh:   88,   /* altura total da caixa                */
-    cut:  17    /* tamanho do corte nos cantos          */
+    bh:  110,   /* altura total da caixa                */
+    cut:  18    /* tamanho do corte nos cantos          */
   };
 
   /* ── Utilitários de texto ────────────────────────────────────────────── */
