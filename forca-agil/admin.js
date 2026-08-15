@@ -200,7 +200,6 @@
     db.ref('turmas-interesse').once('value', function (snapI) {
       db.ref('turmas-config').once('value', function (snapC) {
         db.ref('turmas-checkin').once('value', function (snapCk) {
-          try {
           var data    = snapI.val()  || {};
           var config  = snapC.val()  || {};
           var checkin = snapCk.val() || {};
@@ -607,9 +606,6 @@
               if (matches && chosen) setEvExpanded(sec, true);
             });
           });
-          } catch (err) {
-            c.innerHTML = '<p style="color:#ff8080;padding:16px;font-family:monospace;font-size:.8rem">ERRO DE RENDERIZAÇÃO: ' + err.message + '<br>' + err.stack + '</p>';
-          }
         });
       });
     });
