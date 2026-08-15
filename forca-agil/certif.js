@@ -1,10 +1,71 @@
-/* certif.js — Geração de certificados Força Ágil via Canvas
-   Sistema de coordenadas = dimensões reais de cert-template-v2.png (1448 × 1086).
-   O template é o fundo fixo; apenas os 6 campos dinâmicos são sobrepostos.
-   REGRA: não desenhar fundos, não cobrir áreas do template, não recriar badge,
-   linhas, ornamentos ou textos fixos. Apenas os 6 valores dinâmicos.
+/* ============================================================
+   certif.js — Gerador de Certificados Força Ágil
+   Versão: v1.0  |  Status: APROVADO PARA PRODUÇÃO
+   ============================================================
 
-   Layout aprovado — NÃO alterar coordenadas sem autorização explícita. */
+   ARQUITETURA — DUAS CAMADAS
+   ─────────────────────────────────────────────────────────────
+   CAMADA 1 — TEMPLATE FIXO (cert-template-v2.png, 1448 × 1086)
+     Imagem-base imutável. O sistema NÃO redesenha nenhum desses
+     elementos — eles vêm diretamente do PNG:
+       • fundo preto espacial, estrelas, galáxias, planeta
+       • moldura dourada completa e ornamentos
+       • logo FORÇA ÁGIL, logo PREVI, símbolo circular
+       • "UMA GALÁXIA MAIS ÁGIL"
+       • "CERTIFICADO DE PARTICIPAÇÃO"
+       • "A Força reconhece que" / "concluiu sua jornada na"
+       • ícone de calendário
+       • badge/moldura da carga horária
+       • "DE IMERSÃO EM AGILIDADE" (texto fixo, não dinâmico)
+       • identificação e frase institucional inferior
+       • símbolo central inferior
+       • "QUE A AGILIDADE ESTEJA COM VOCÊ."
+       • demais decorações aprovadas
+
+   CAMADA 2 — CAMPOS DINÂMICOS (desenhados pelo sistema)
+     Apenas 6 valores variáveis são sobrepostos ao template:
+       1. nomeParticipante  — x:724  y:385  maxW:1041  size:55/28
+       2. nomeEvento        — x:724  y:535  maxW:920   size:29/13
+       3. identificacaoTurma— x:724  y:581  maxW:680   size:19/12
+       4. periodoTurma      — x:598  y:671  maxW:400   size:24/13
+       5. cargaHoraria      — x:613  y:757  maxW:160   size:48/24
+       6. dataEmissao       — x:1055 y:922  maxW:360   size:19/10
+                              prefixo fixo: "Emitido em "
+
+   SISTEMA DE COORDENADAS
+   ─────────────────────────────────────────────────────────────
+     Canvas interno: 1448 × 1086 px (referência absoluta).
+     NÃO usar viewport, largura do navegador ou componente pai.
+     Responsividade = scale CSS único ao container completo.
+     Proporção preservada: 4:3.
+
+   REGRA DE TEXTOS LONGOS — por campo, independente
+   ─────────────────────────────────────────────────────────────
+     1. usar fonte padrão do campo
+     2. medir largura real do texto (ctx.measureText)
+     3. se > maxWidth → reduzir 0.5px e repetir
+     4. parar ao atingir minSize (nunca abaixo)
+     5. NÃO alterar outros campos
+
+   EXPORTAÇÃO
+   ─────────────────────────────────────────────────────────────
+     PNG: resolução 2× (2896 × 2172), sem margens, proporção 4:3
+     PDF: página customizada 864 × 648 pt (4:3), sem margens,
+          certificado ocupa 100% da página
+
+   TESTES DE REGRESSÃO — executar ao alterar qualquer campo
+   ─────────────────────────────────────────────────────────────
+     Curto:   ANA LIMA / SCRUM / Turma 1 / 11 ago 2026 / 8h
+     Padrão:  ADRIANO CORREIA DE CAMARGO / FORÇA ÁGIL · JORNADA DE IMERSÃO
+              Turma 1 — Agosto 2026 / 11,12,18,19 e 20 ago 2026 / 20h
+     Longo:   MARIA EDUARDA ALBUQUERQUE DE OLIVEIRA SANTOS
+     Pior:    todos os campos no limite máximo simultâneo
+
+   REGRA FUNDAMENTAL — NÃO ALTERAR SEM VERSIONAMENTO
+   ─────────────────────────────────────────────────────────────
+     Qualquer mudança em template, coordenadas, fontes ou layout
+     deve gerar versão v1.x ou v2.0 e executar checklist completo.
+   ============================================================ */
 
 (function () {
   'use strict';
