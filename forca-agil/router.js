@@ -135,6 +135,7 @@
     if (modal) { modal.hidden = true; modal.classList.remove('modal-overlay--forced'); }
     var closeBtn = document.getElementById('authClose');
     if (closeBtn) closeBtn.style.display = '';
+    show(route());
   }
 
   function mostrarMsgBloqueio() {
