@@ -1708,69 +1708,111 @@
       );
     });
 
-    const filterWrap = document.createElement('div');
-    filterWrap.className = 'admin-colab-row';
-    filterWrap.style.marginBottom = '16px';
-    filterWrap.innerHTML = '<input id="cadastradosFiltro" type="text" placeholder="Filtrar por nome ou e-mail…" />';
-    c.appendChild(filterWrap);
+    /* ---- Filtros de status + busca ---- */
+    var statusFiltro = 'ativos';
+    const controlsWrap = document.createElement('div');
+    controlsWrap.className = 'admin-colab-row';
+    controlsWrap.style.cssText = 'margin-bottom:12px;gap:8px;flex-wrap:wrap;align-items:center;';
+    controlsWrap.innerHTML =
+      '<div class="admin-status-btns">' +
+      '<button class="admin-status-btn active" data-status="ativos">Ativos</button>' +
+      '<button class="admin-status-btn" data-status="bloqueados">Bloqueados</button>' +
+      '<button class="admin-status-btn" data-status="todos">Todos</button>' +
+      '</div>' +
+      '<input id="cadastradosFiltro" type="text" placeholder="Filtrar por nome ou e-mail…" style="flex:1;min-width:180px" />';
+    c.appendChild(controlsWrap);
 
     const tbl = document.createElement('table');
     tbl.className = 'admin-table';
-    tbl.innerHTML = '<thead><tr><th>Nome</th><th>E-mail</th><th>Área</th><th>Cadastro</th><th></th><th></th></tr></thead>';
+    tbl.innerHTML = '<thead><tr><th>Nome</th><th>E-mail</th><th>Área</th><th>Cadastro</th><th>Status</th><th></th><th></th><th></th></tr></thead>';
     const tbody = document.createElement('tbody');
 
-    function fillRows(filtered) {
+    function applyFilters() {
+      const q = (document.getElementById('cadastradosFiltro').value || '').trim().toLowerCase();
+      var filtered = list.filter(function (p) {
+        var bloqueado = !!p.blocked;
+        if (statusFiltro === 'ativos'     && bloqueado)  return false;
+        if (statusFiltro === 'bloqueados' && !bloqueado) return false;
+        if (!q) return true;
+        return (p.name || '').toLowerCase().indexOf(q) !== -1 || (p.email || '').toLowerCase().indexOf(q) !== -1;
+      });
       tbody.innerHTML = '';
       filtered.forEach(function (p) {
-        const tr = document.createElement('tr');
+        var bloqueado = !!p.blocked;
+        var tr = document.createElement('tr');
+        if (bloqueado) tr.style.opacity = '0.55';
         tr.innerHTML =
           '<td>' + esc(p.name || '—') + '</td>' +
           '<td>' + esc(p.email || '—') + '</td>' +
           '<td>' + esc(p.area || '—') + '</td>' +
           '<td>' + fmtDate(p.createdAt) + '</td>' +
+          '<td><span class="admin-badge" style="background:' + (bloqueado ? '#7f1d1d' : '#14532d') + '">' + (bloqueado ? 'Bloqueado' : 'Ativo') + '</span></td>' +
           '<td><button class="admin-del-btn admin-pwd-btn" data-key="' + esc(p._key) + '" data-email="' + esc(p.email || '') + '" data-name="' + esc(p.name || p.email) + '">Redefinir senha</button></td>' +
-          '<td><button class="admin-del-btn admin-reset-btn" data-key="' + esc(p._key) + '" data-email="' + esc(p.email || '') + '" data-name="' + esc(p.name || p.email) + '">Resetar progresso</button></td>';
+          '<td><button class="admin-del-btn admin-reset-btn" data-key="' + esc(p._key) + '" data-email="' + esc(p.email || '') + '" data-name="' + esc(p.name || p.email) + '">Resetar progresso</button></td>' +
+          '<td><button class="admin-del-btn admin-block-btn" data-key="' + esc(p._key) + '" data-name="' + esc(p.name || p.email) + '" data-blocked="' + (bloqueado ? '1' : '0') + '">' + (bloqueado ? 'Desbloquear' : 'Bloquear') + '</button></td>';
         tbody.appendChild(tr);
       });
     }
-    fillRows(list);
+    applyFilters();
     tbl.appendChild(tbody);
     var tblWrap = document.createElement('div');
     tblWrap.className = 'table-scroll-wrap';
     tblWrap.appendChild(tbl);
     c.appendChild(tblWrap);
 
-    const filtroInput = document.getElementById('cadastradosFiltro');
-    filtroInput.addEventListener('input', function () {
-      const q = filtroInput.value.trim().toLowerCase();
-      if (!q) { fillRows(list); return; }
-      fillRows(list.filter(function (p) {
-        return (p.name || '').toLowerCase().indexOf(q) !== -1 || (p.email || '').toLowerCase().indexOf(q) !== -1;
-      }));
+    /* Filtro por status */
+    controlsWrap.querySelectorAll('.admin-status-btn').forEach(function (btn) {
+      btn.addEventListener('click', function () {
+        controlsWrap.querySelectorAll('.admin-status-btn').forEach(function (b) { b.classList.remove('active'); });
+        btn.classList.add('active');
+        statusFiltro = btn.dataset.status;
+        applyFilters();
+      });
     });
 
-    /* Delegação de eventos para resetar e redefinir senha */
+    /* Busca por texto */
+    document.getElementById('cadastradosFiltro').addEventListener('input', applyFilters);
+
+    /* Delegação de eventos */
     tbody.addEventListener('click', function (e) {
       var btn = e.target.closest('button');
       if (!btn) return;
+
       if (btn.classList.contains('admin-pwd-btn')) {
         handlePwdReset(btn);
         return;
       }
+
       if (btn.classList.contains('admin-reset-btn')) {
-        const eKey   = btn.dataset.key;
-        const email  = btn.dataset.email;
-        const name   = btn.dataset.name;
+        const eKey  = btn.dataset.key;
+        const email = btn.dataset.email;
+        const name  = btn.dataset.name;
         adminConfirm('Resetar TODO o progresso do jogo de ' + name + '?\n\nIsso apaga autodiagnóstico e patente. Essa ação não pode ser desfeita.', function () {
           const updates = {};
-          updates['fa-progress/' + eKey]      = null;
-          updates['fa-reset-signal/' + eKey]  = { at: firebase.database.ServerValue.TIMESTAMP };
+          updates['fa-progress/' + eKey]     = null;
+          updates['fa-reset-signal/' + eKey] = { at: firebase.database.ServerValue.TIMESTAMP };
           firebase.database().ref('players').orderByChild('email').equalTo(email).once('value', function (snap) {
             snap.forEach(function (child) { updates['players/' + child.key] = null; });
             firebase.database().ref().update(updates, function (err) {
               if (err) { adminAlert('Erro ao resetar. Tente novamente.'); return; }
               loadCadastrados();
             });
+          });
+        });
+        return;
+      }
+
+      if (btn.classList.contains('admin-block-btn')) {
+        const eKey     = btn.dataset.key;
+        const name     = btn.dataset.name;
+        const blocking = btn.dataset.blocked === '0';
+        const msg      = blocking
+          ? 'Bloquear ' + name + '?\n\nA pessoa não conseguirá mais acessar o portal.'
+          : 'Desbloquear ' + name + '?\n\nA pessoa voltará a conseguir acessar o portal.';
+        adminConfirm(msg, function () {
+          firebase.database().ref('fa-users/' + eKey + '/blocked').set(blocking ? true : null, function (err) {
+            if (err) { adminAlert('Erro ao atualizar. Tente novamente.'); return; }
+            loadCadastrados();
           });
         });
         return;

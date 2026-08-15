@@ -561,6 +561,15 @@
   color: var(--ink-3); margin-right: 4px;
 }
 
+.admin-status-btns { display: flex; gap: 4px; }
+.admin-status-btn {
+  padding: 5px 14px; font-size: .78rem; background: transparent;
+  border: 1px solid rgba(255,255,255,.15); color: var(--ink-3);
+  border-radius: 6px; cursor: pointer; white-space: nowrap; transition: background .2s, border-color .2s, color .2s;
+}
+.admin-status-btn:hover  { border-color: rgba(26,178,174,.4); color: var(--cyan); }
+.admin-status-btn.active { border-color: var(--cyan); color: var(--cyan); background: rgba(26,178,174,.12); }
+
 .admin-del-btn {
   padding: 5px 14px; font-size: .78rem; background: transparent;
   border: 1px solid rgba(255,59,48,.45); color: var(--red);

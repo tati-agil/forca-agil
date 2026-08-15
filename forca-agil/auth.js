@@ -118,6 +118,17 @@
       firebase.database().ref('fa-users/' + emailKey(user.email)).once('value', function (snap) {
         const profile = snap.val() || {};
 
+        /* Conta bloqueada pelo admin → desloga e avisa */
+        if (profile.blocked) {
+          _session = null;
+          _accessLevel = 'member';
+          stopWatchingEnrolledStatus();
+          updateNavState();
+          firebase.auth().signOut().catch(function () {});
+          window.dispatchEvent(new CustomEvent('fa-auth-change', { detail: { blocked: true } }));
+          return;
+        }
+
         /* E-mail não verificado e conta não criada pelo admin → bloqueia */
         if (!user.emailVerified && !profile.adminApproved) {
           _session = null;

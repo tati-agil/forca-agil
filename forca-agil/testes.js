@@ -207,6 +207,9 @@
         } },
         { id: 'c-reenviar-btn-existe', label: 'Botão "Reenviar e-mail" existe no painel de verificação', run: function () {
           return !!document.getElementById('reenviarVerificacao');
+        } },
+        { id: 'c-bloqueado-painel-existe', label: 'Painel "Acesso desativado" existe no DOM (#auth-bloqueado)', run: function () {
+          return !!document.getElementById('auth-bloqueado');
         } }
       ]
     },

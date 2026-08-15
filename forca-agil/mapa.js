@@ -142,6 +142,8 @@
         { label: 'Aba Cadastrados — redefinir senha de qualquer cadastrado', p: ['admin'] },
         { label: 'Aba Cadastrados — resetar progresso de qualquer cadastrado', p: ['admin'] },
         { label: 'Aba Cadastrados — criar conta diretamente para colaboradora (nome + e-mail + área + senha do admin; senha padrão 12345678; sem verificação de e-mail)', p: ['admin'] },
+        { label: 'Aba Cadastrados — bloquear/desbloquear cadastro (bloqueado não consegue mais acessar o portal)', p: ['admin'] },
+        { label: 'Aba Cadastrados — filtrar por status: Ativos / Bloqueados / Todos', p: ['admin'] },
         { label: 'Aba Administradores — consultar lista de administradores (nome, e-mail, admin desde)', p: ['admin'] },
         { label: 'Aba Administradores — adicionar admin (só tatianefdirene e danielfrazao veem esse formulário)', p: ['admin'] },
         { label: 'Aba Administradores — remover admin (só tatianefdirene e danielfrazao veem esse botão)', p: ['admin'] },
