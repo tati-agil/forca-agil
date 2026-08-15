@@ -34,6 +34,13 @@
       }
     },
 
+    "eventos": {
+      ".read": "auth != null && auth.token.email.matches(/.*@previ\\.com\\.br/)",
+      "$eventoKey": {
+        ".write": "auth.token.email === 'tatianefdirene@previ.com.br' || auth.token.email === 'danielfrazao@previ.com.br'"
+      }
+    },
+
     "turmas": {
       ".read": "auth != null && auth.token.email.matches(/.*@previ\\.com\\.br/)",
       "$turmaKey": {
