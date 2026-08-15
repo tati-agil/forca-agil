@@ -27,7 +27,7 @@
        1. nomeParticipante  — x:724  y:385  maxW:1041  size:55/28
        2. nomeEvento        — x:724  y:535  maxW:920   size:29/13
        3. identificacaoTurma— x:724  y:581  maxW:680   size:19/12
-       4. periodoTurma      — x:598  y:671  maxW:400   size:24/13
+       4. periodoTurma      — x:598  y:658  maxW:400   size:24/13
        5. cargaHoraria      — x:613  y:757  maxW:160   size:48/24
        6. dataEmissao       — x:1055 y:922  maxW:360   size:19/10
                               prefixo fixo: "Emitido em "
@@ -95,7 +95,7 @@
       color: '#c9a84c', family: 'Georgia,"Times New Roman",serif'
     },
     periodoTurma: {
-      x: 598, y: 671, maxWidth: 400, align: 'left',
+      x: 598, y: 658, maxWidth: 400, align: 'left',
       size: 24, minSize: 13, weight: 'normal',
       color: '#e8e0d0', family: 'Georgia,"Times New Roman",serif'
     },
