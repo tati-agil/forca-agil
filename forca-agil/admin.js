@@ -2332,15 +2332,10 @@
     }
 
     function buildData(participant, turma) {
-      var mesLabel = '';
-      if (turma.dias && turma.dias.length) {
-        var dt0 = new Date(turma.dias[0] + 'T12:00:00');
-        mesLabel = ' · ' + MESES[dt0.getMonth()].charAt(0).toUpperCase() + MESES[dt0.getMonth()].slice(1) + ' ' + dt0.getFullYear();
-      }
       return {
         nomeParticipante:   participant.name || '',
         nomeEvento:         _evento ? (_evento.nome || '') : '',
-        identificacaoTurma: turma.label + mesLabel,
+        identificacaoTurma: turma.label,
         periodoTurma:       turma.dates || '',
         cargaHoraria:       _evento ? (_evento.cargaHoraria || '20') : '20',
         dataEmissao:        fmtData(_dataConclusao)
