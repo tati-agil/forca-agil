@@ -2149,13 +2149,22 @@
     var pad = function (n) { return String(n).padStart(2, '0'); };
     dataEm.value = hoje.getFullYear() + '-' + pad(hoje.getMonth() + 1) + '-' + pad(hoje.getDate());
 
-    /* preenche select de turmas */
-    TURMAS_LIST.forEach(function (t) {
-      var opt = document.createElement('option');
-      opt.value = t.key;
-      opt.textContent = t.label + (t.dates ? '  (' + t.dates + ')' : '');
-      sel.appendChild(opt);
-    });
+    /* garante que TURMAS_LIST está carregada antes de popular o select */
+    function populateTurmaSelect() {
+      sel.innerHTML = '<option value="">— selecionar turma —</option>';
+      TURMAS_LIST.forEach(function (t) {
+        var opt = document.createElement('option');
+        opt.value = t.key;
+        opt.textContent = t.label + (t.dates ? '  (' + t.dates + ')' : '');
+        sel.appendChild(opt);
+      });
+    }
+
+    if (TURMAS_LIST.length) {
+      populateTurmaSelect();
+    } else {
+      loadTurmasList(populateTurmaSelect);
+    }
 
     function buildData(participant, turma) {
       var meses = ['janeiro','fevereiro','março','abril','maio','junho',
