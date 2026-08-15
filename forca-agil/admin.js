@@ -507,8 +507,12 @@
       var isInscrito = r.status === 'inscrito';
       var motivoBadge = '';
       if (!isInscrito && r.motivoNaoConfirmado) {
-        var motivoLabel = r.motivoNaoConfirmado === 'sem_vagas' ? 'Sem vagas' : 'Substituída';
-        var motivoCls   = r.motivoNaoConfirmado === 'sem_vagas' ? 'motivo-sem-vagas' : 'motivo-substituida';
+        var motivoLabel = r.motivoNaoConfirmado === 'sem_vagas' ? 'Sem vagas'
+          : r.motivoNaoConfirmado === 'ja_participou' ? 'Já participou'
+          : 'Substituída';
+        var motivoCls = r.motivoNaoConfirmado === 'sem_vagas' ? 'motivo-sem-vagas'
+          : r.motivoNaoConfirmado === 'ja_participou' ? 'motivo-ja-participou'
+          : 'motivo-substituida';
         motivoBadge = '<span class="motivo-badge ' + motivoCls + '">' + motivoLabel + '</span>';
       }
       var statusCell = '<td><span class="status-badge ' + (isInscrito ? 'status-inscrito">Inscrito' : 'status-interessado">Interessado') + '</span>' + motivoBadge + '</td>';
@@ -550,8 +554,9 @@
         var mv = r.motivoNaoConfirmado || '';
         motivoSel = '<select class="motivo-sel" data-turma="' + t.key + '" data-ekey="' + eKey + '" title="Justificativa">' +
           '<option value="">Justificar…</option>' +
-          '<option value="sem_vagas"' + (mv === 'sem_vagas' ? ' selected' : '') + '>Sem vagas</option>' +
-          '<option value="substituida"' + (mv === 'substituida' ? ' selected' : '') + '>Substituída</option>' +
+          '<option value="sem_vagas"'    + (mv === 'sem_vagas'    ? ' selected' : '') + '>Sem vagas</option>' +
+          '<option value="substituida"'  + (mv === 'substituida'  ? ' selected' : '') + '>Substituída</option>' +
+          '<option value="ja_participou"'+ (mv === 'ja_participou'? ' selected' : '') + '>Já participou</option>' +
           '</select>';
       }
       var actionBtn = isInscrito
