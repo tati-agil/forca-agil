@@ -2264,8 +2264,9 @@
     if (!sel) return;
 
     /* estado carregado do Firebase para a turma selecionada */
-    var _evento       = null;  /* { key, nome, cargaHoraria } */
-    var _dataConclusao = null; /* 'YYYY-MM-DD' ou null */
+    var _evento        = null;  /* { key, nome, cargaHoraria } */
+    var _dataConclusao = null;  /* 'YYYY-MM-DD' ou null */
+    var _encerrada     = false; /* turma concluída → emissão habilitada */
 
     var MESES = ['janeiro','fevereiro','março','abril','maio','junho',
                  'julho','agosto','setembro','outubro','novembro','dezembro'];
@@ -2274,6 +2275,24 @@
       if (!iso) return '';
       var d = new Date(iso + 'T12:00:00');
       return isNaN(d) ? iso : d.getDate() + ' de ' + MESES[d.getMonth()] + ' de ' + d.getFullYear();
+    }
+
+    var TOOLTIP_BLOQUEADO = 'Disponível após a conclusão da turma.';
+
+    function updatePreviaBanner(turmaKey) {
+      var banner = document.getElementById('certPreviaBanner');
+      if (!banner) return;
+      if (!turmaKey) { banner.style.display = 'none'; return; }
+      if (_encerrada) { banner.style.display = 'none'; return; }
+      banner.style.cssText = 'background:rgba(255,165,0,.1);border:1px solid rgba(255,165,0,.45);border-radius:6px;padding:12px 16px;margin-bottom:14px;text-align:center;display:block';
+      banner.innerHTML =
+        '<div style="font-family:var(--font-head);letter-spacing:.08em;font-size:.8rem;color:#ffb347;margin-bottom:4px">PRÉVIA DO CERTIFICADO — TURMA AINDA NÃO CONCLUÍDA</div>' +
+        '<div style="font-size:.78rem;color:var(--ink-2)">Este documento é apenas uma visualização administrativa. A emissão será habilitada após a conclusão da turma.</div>';
+    }
+
+    function updateLoteButtons() {
+      if (dlTodos)    { dlTodos.disabled    = !_encerrada; dlTodos.title    = _encerrada ? '' : TOOLTIP_BLOQUEADO; }
+      if (dlTodosPDF) { dlTodosPDF.disabled = !_encerrada; dlTodosPDF.title = _encerrada ? '' : TOOLTIP_BLOQUEADO; }
     }
 
     function updateInfoDisplay(turmaKey) {
@@ -2340,6 +2359,12 @@
       var title = document.getElementById('certListTitle');
       if (title) title.textContent = 'Participantes inscritos — ' + turma.label + ' (' + inscritos.length + ')';
 
+      /* garantir que hint esteja visível até alguém ser selecionado */
+      if (hint) {
+        hint.textContent = 'Selecione um participante para visualizar a prévia do certificado.';
+        hint.style.display = '';
+      }
+
       listEl.innerHTML = '';
       if (!inscritos.length) {
         listEl.innerHTML = '<p class="cert-empty">Nenhum participante inscrito nesta turma.</p>';
@@ -2366,16 +2391,26 @@
         var btnDl = document.createElement('button');
         btnDl.className = 'btn btn--sm cert-btn-dl';
         btnDl.textContent = '⬇ PNG';
-        btnDl.addEventListener('click', function () {
-          certif.download(buildData(p, turma), 'certificado_' + (p.name || p.email).replace(/\s+/g, '_').toLowerCase());
-        });
+        if (_encerrada) {
+          btnDl.addEventListener('click', function () {
+            certif.download(buildData(p, turma), 'certificado_' + (p.name || p.email).replace(/\s+/g, '_').toLowerCase());
+          });
+        } else {
+          btnDl.disabled = true;
+          btnDl.title = TOOLTIP_BLOQUEADO;
+        }
 
         var btnPdf = document.createElement('button');
         btnPdf.className = 'btn btn--sm cert-btn-dl';
         btnPdf.textContent = '⬇ PDF';
-        btnPdf.addEventListener('click', function () {
-          certif.downloadPDF(buildData(p, turma), 'certificado_' + (p.name || p.email).replace(/\s+/g, '_').toLowerCase());
-        });
+        if (_encerrada) {
+          btnPdf.addEventListener('click', function () {
+            certif.downloadPDF(buildData(p, turma), 'certificado_' + (p.name || p.email).replace(/\s+/g, '_').toLowerCase());
+          });
+        } else {
+          btnPdf.disabled = true;
+          btnPdf.title = TOOLTIP_BLOQUEADO;
+        }
 
         row.appendChild(nameSpan);
         row.appendChild(btnPrev);
@@ -2383,9 +2418,7 @@
         row.appendChild(btnPdf);
         listEl.appendChild(row);
       });
-
-      if (inscritos.length) renderPreview(inscritos[0], turma);
-      if (listEl.firstChild) listEl.firstChild.classList.add('cert-active');
+      /* sem auto-seleção — usuário escolhe o participante */
     }
 
     function loadInscritos(turmaKey, cb) {
@@ -2412,9 +2445,12 @@
 
     sel.addEventListener('change', function () {
       var key = sel.value;
-      _evento = null;
+      _evento        = null;
       _dataConclusao = null;
+      _encerrada     = false;
       updateInfoDisplay(key);
+      updatePreviaBanner(key);
+      updateLoteButtons();
 
       if (!key) {
         if (wrap) wrap.style.display = 'none';
@@ -2430,18 +2466,23 @@
         pending--;
         if (pending > 0) return;
         updateInfoDisplay(key);
+        updatePreviaBanner(key);
+        updateLoteButtons();
         loadInscritos(key, function (inscritos) { renderLista(turma, inscritos); });
       }
 
       loadEventoParaTurma(turma, done);
-      firebase.database().ref('turmas-config/' + key + '/dataConclusao').once('value', function (snap) {
-        _dataConclusao = snap.val() || null;
+      firebase.database().ref('turmas-config/' + key).once('value', function (snap) {
+        var cfg = snap.val() || {};
+        _dataConclusao = cfg.dataConclusao || null;
+        _encerrada     = !!cfg.encerrada;
         done();
       });
     });
 
     /* baixar todos */
     function baixarTodos(usePDF) {
+      if (!_encerrada) return;
       var key = sel.value;
       if (!key) { alert('Selecione uma turma primeiro.'); return; }
       var turma = TURMAS_LIST.filter(function (t) { return t.key === key; })[0];
