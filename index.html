@@ -1342,22 +1342,8 @@ body.aguardando-auth>*:not(#authModal){visibility:hidden}
                 <option value="">— selecionar turma —</option>
               </select>
             </div>
-            <div class="cert-config-group">
-              <label class="cert-label">Nome do evento</label>
-              <input id="certNomeEvento" class="cert-input" type="text"
-                     value="FORÇA ÁGIL · JORNADA DE IMERSÃO" maxlength="60">
-            </div>
-            <div class="cert-config-group cert-config-group--sm">
-              <label class="cert-label">Carga horária</label>
-              <input id="certCargaH" class="cert-input" type="number"
-                     value="20" min="1" max="999" style="width:70px">
-              <span class="cert-label" style="margin-top:2px">h</span>
-            </div>
-            <div class="cert-config-group cert-config-group--sm">
-              <label class="cert-label">Data de emissão</label>
-              <input id="certDataEmissao" class="cert-input" type="date">
-            </div>
           </div>
+          <div id="certInfoDisplay" style="display:none"></div>
 
           <!-- pré-visualização -->
           <div class="cert-preview-wrap">

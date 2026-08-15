@@ -144,10 +144,30 @@
         var t = val[key] || {};
         var dias = (t.dias || []).slice().sort();
         var fmt = window.faTurmasUtil.formatDias(dias);
-        return { key: key, label: t.label || key.toUpperCase(), dates: fmt.dates, dias: dias, order: t.order || 0, cmflexLink: t.cmflexLink || '' };
+        return { key: key, label: t.label || key.toUpperCase(), dates: fmt.dates, dias: dias, order: t.order || 0, cmflexLink: t.cmflexLink || '', eventoKey: t.eventoKey || '' };
       }).sort(function (a, b) { return a.order - b.order; });
       cb();
     });
+  }
+
+  /* Eventos — entidade que agrupa turmas. Armazena nome e carga horária
+     para que múltiplas turmas do mesmo evento compartilhem esses dados. */
+  var EVENTOS_LIST = [];
+
+  function loadEventosList(cb) {
+    firebase.database().ref('eventos').once('value', function (snap) {
+      var val = snap.val() || {};
+      EVENTOS_LIST = Object.keys(val).map(function (key) {
+        var e = val[key] || {};
+        return { key: key, nome: e.nome || '', cargaHoraria: e.cargaHoraria || '20', order: e.order || 0 };
+      }).sort(function (a, b) { return a.order - b.order; });
+      cb();
+    });
+  }
+
+  function eventoLabel(key) {
+    var ev = EVENTOS_LIST.filter(function (x) { return x.key === key; })[0];
+    return ev ? ev.nome : key;
   }
 
   function turmaLabel(key) {
@@ -175,6 +195,7 @@
     c.innerHTML = '<p class="loading-msg">Carregando dados…</p>';
 
     loadTurmasList(function () {
+    loadEventosList(function () {
     var db = firebase.database();
     db.ref('turmas-interesse').once('value', function (snapI) {
       db.ref('turmas-config').once('value', function (snapC) {
@@ -184,7 +205,57 @@
           var checkin = snapCk.val() || {};
           c.innerHTML = '';
 
-          /* global export buttons + criar turma */
+          /* ── Seção EVENTOS ─────────────────────────────────────────────── */
+          var eventosSection = document.createElement('div');
+          eventosSection.style.cssText = 'border:1px solid var(--line-strong);border-radius:8px;padding:16px;margin-bottom:24px';
+
+          var eventosHdr = document.createElement('div');
+          eventosHdr.style.cssText = 'display:flex;align-items:center;gap:12px;margin-bottom:12px';
+          var eventosTitle = document.createElement('span');
+          eventosTitle.style.cssText = 'font-family:var(--font-head);letter-spacing:.08em;font-size:.8rem;color:var(--ink-2)';
+          eventosTitle.textContent = 'EVENTOS';
+          var newEventoBtn = document.createElement('button');
+          newEventoBtn.className = 'btn btn--sm btn--primary';
+          newEventoBtn.innerHTML = '+ Novo evento';
+          newEventoBtn.addEventListener('click', function () { openEventoFormModal(null); });
+          eventosHdr.appendChild(eventosTitle);
+          eventosHdr.appendChild(newEventoBtn);
+          eventosSection.appendChild(eventosHdr);
+
+          if (!EVENTOS_LIST.length) {
+            var eEmpty = document.createElement('p');
+            eEmpty.className = 'admin-empty';
+            eEmpty.style.marginBottom = '0';
+            eEmpty.textContent = 'Nenhum evento cadastrado. Crie um evento antes de criar turmas.';
+            eventosSection.appendChild(eEmpty);
+          } else {
+            var eList = document.createElement('div');
+            eList.style.cssText = 'display:flex;flex-direction:column;gap:8px';
+            EVENTOS_LIST.forEach(function (ev) {
+              var turmasDoEvento = TURMAS_LIST.filter(function (t) { return t.eventoKey === ev.key; }).length;
+              var eRow = document.createElement('div');
+              eRow.style.cssText = 'display:flex;align-items:center;gap:12px;padding:10px 14px;background:var(--panel-2);border-radius:6px';
+              var eInfo = document.createElement('span');
+              eInfo.style.cssText = 'flex:1;font-weight:500';
+              eInfo.textContent = ev.nome;
+              var eMeta = document.createElement('span');
+              eMeta.style.cssText = 'color:var(--ink-2);font-size:.85rem;white-space:nowrap';
+              eMeta.textContent = ev.cargaHoraria + 'h · ' + turmasDoEvento + ' turma' + (turmasDoEvento !== 1 ? 's' : '');
+              var eEditBtn = document.createElement('button');
+              eEditBtn.className = 'btn btn--sm';
+              eEditBtn.style.cssText = 'padding:4px 10px;font-size:.72rem';
+              eEditBtn.innerHTML = '&#x270E; Editar';
+              eEditBtn.addEventListener('click', (function (e) { return function () { openEventoFormModal(e); }; })(ev));
+              eRow.appendChild(eInfo);
+              eRow.appendChild(eMeta);
+              eRow.appendChild(eEditBtn);
+              eList.appendChild(eRow);
+            });
+            eventosSection.appendChild(eList);
+          }
+          c.appendChild(eventosSection);
+
+          /* ── Botões globais + criar turma ──────────────────────────────── */
           var btnWrap = document.createElement('div');
           btnWrap.style.cssText = 'display:flex;gap:8px;flex-wrap:wrap;margin-bottom:24px;';
           var newTurmaBtn = document.createElement('button');
@@ -202,8 +273,6 @@
           btnWrap.appendChild(newTurmaBtn);
           btnWrap.appendChild(exportBtn);
           btnWrap.appendChild(csvBtn);
-
-
 
           c.appendChild(btnWrap);
 
@@ -382,9 +451,15 @@
               encerrarBtn.addEventListener('click', (function (tk, tl) {
                 return function () {
                   adminConfirm('Marcar a turma "' + tl + '" como encerrada?\n\nO card público passará a exibir "Turma realizada" — sem botão de inscrição.', function () {
-                    firebase.database().ref('turmas-config/' + tk + '/encerrada').set(true, function (err) {
-                      if (err) { adminAlert('Erro ao encerrar. Tente novamente.'); return; }
-                      loadInterests();
+                    var db = firebase.database();
+                    db.ref('turmas-config/' + tk + '/dataConclusao').once('value', function (snap) {
+                      var updates = {};
+                      updates['turmas-config/' + tk + '/encerrada'] = true;
+                      if (!snap.val()) updates['turmas-config/' + tk + '/dataConclusao'] = todayISO();
+                      db.ref().update(updates, function (err) {
+                        if (err) { adminAlert('Erro ao encerrar. Tente novamente.'); return; }
+                        loadInterests();
+                      });
                     });
                   });
                 };
@@ -477,6 +552,7 @@
           });
         });
       });
+    });
     });
     });
   }
@@ -971,6 +1047,67 @@
     });
   }
 
+  /* ---- Criar / Editar evento ---- */
+  function openEventoFormModal(existing) {
+    var isEdit = !!existing;
+    var overlay = document.createElement('div');
+    overlay.className = 'modal-overlay';
+    overlay.style.cssText = 'display:flex;align-items:center;justify-content:center;z-index:9999';
+
+    var box = document.createElement('div');
+    box.className = 'modal-box';
+    box.style.cssText = 'max-width:420px;width:90%;padding:28px;display:flex;flex-direction:column;gap:16px';
+    box.innerHTML =
+      '<h3 style="font-size:1.1rem;font-family:var(--font-head);letter-spacing:.05em;color:var(--ink)">' + (isEdit ? 'Editar Evento' : 'Novo Evento') + '</h3>' +
+      '<label class="auth-label">Nome do evento<input type="text" id="eventoFormNome" placeholder="Ex: FORÇA ÁGIL · JORNADA DE IMERSÃO" autocomplete="off" /></label>' +
+      '<label class="auth-label" style="flex-direction:row;align-items:center;gap:10px">Carga horária<input type="number" id="eventoFormCarga" placeholder="20" min="1" max="999" style="width:80px" /><span style="opacity:.7">horas</span></label>' +
+      '<p id="eventoFormErr" style="color:var(--red,#ff3b30);font-size:.85rem;display:none"></p>' +
+      '<div style="display:flex;justify-content:flex-end;gap:8px;margin-top:4px">' +
+        '<button class="btn admin-modal-cancel-btn">Cancelar</button>' +
+        '<button class="btn btn--primary admin-modal-save-btn">' + (isEdit ? 'Salvar' : 'Criar evento') + '</button>' +
+      '</div>';
+
+    overlay.appendChild(box);
+    document.body.appendChild(overlay);
+
+    var nomeInput  = box.querySelector('#eventoFormNome');
+    var cargaInput = box.querySelector('#eventoFormCarga');
+    var errEl      = box.querySelector('#eventoFormErr');
+
+    nomeInput.value  = isEdit ? existing.nome : '';
+    cargaInput.value = isEdit ? existing.cargaHoraria : '20';
+
+    function closeModal() { document.body.removeChild(overlay); }
+    box.querySelector('.admin-modal-cancel-btn').addEventListener('click', closeModal);
+    overlay.addEventListener('click', function (e) { if (e.target === overlay) closeModal(); });
+
+    box.querySelector('.admin-modal-save-btn').addEventListener('click', function () {
+      var nome  = (nomeInput.value || '').trim();
+      var carga = (cargaInput.value || '').trim();
+      errEl.style.display = 'none';
+      if (!nome) { errEl.textContent = 'Dê um nome ao evento.'; errEl.style.display = ''; return; }
+      if (!carga || isNaN(Number(carga)) || Number(carga) < 1) {
+        errEl.textContent = 'Informe a carga horária (mín. 1 hora).'; errEl.style.display = ''; return;
+      }
+      var eventData = { nome: nome, cargaHoraria: carga };
+      if (isEdit) {
+        firebase.database().ref('eventos/' + existing.key).update(eventData, function (err) {
+          if (err) { errEl.textContent = 'Erro ao salvar. Tente novamente.'; errEl.style.display = ''; return; }
+          closeModal();
+          loadInterests();
+        });
+      } else {
+        eventData.order = Date.now();
+        eventData.createdAt = new Date().toISOString();
+        firebase.database().ref('eventos').push().set(eventData, function (err) {
+          if (err) { errEl.textContent = 'Erro ao criar. Tente novamente.'; errEl.style.display = ''; return; }
+          closeModal();
+          loadInterests();
+        });
+      }
+    });
+  }
+
   /* ---- Criar / Editar turma — modal com nome + datas dos encontros ---- */
   function openTurmaFormModal(existing) {
     var isEdit = !!existing;
@@ -981,8 +1118,14 @@
     var box = document.createElement('div');
     box.className = 'modal-box';
     box.style.cssText = 'max-width:460px;width:90%;padding:28px;display:flex;flex-direction:column;gap:16px;max-height:85vh;overflow:auto';
+    var eventoOpts = '<option value="">— sem evento —</option>' +
+      EVENTOS_LIST.map(function (ev) {
+        return '<option value="' + esc(ev.key) + '">' + esc(ev.nome) + ' (' + ev.cargaHoraria + 'h)</option>';
+      }).join('');
+
     box.innerHTML =
       '<h3 style="font-size:1.1rem;font-family:var(--font-head);letter-spacing:.05em;color:var(--ink)">' + (isEdit ? 'Editar Turma' : 'Nova Turma') + '</h3>' +
+      '<label class="auth-label">Evento<select id="turmaFormEvento" style="padding:8px 10px;background:var(--panel-2);border:1px solid var(--line-strong);border-radius:6px;color:var(--ink);font-family:var(--font-body);width:100%">' + eventoOpts + '</select></label>' +
       '<label class="auth-label">Nome da turma<input type="text" id="turmaFormLabel" placeholder="Ex: Turma 4 — Janeiro" autocomplete="off" /></label>' +
       '<label class="auth-label">Link do CMFlex <span style="opacity:.6;font-weight:400">(opcional)</span><input type="url" id="turmaFormCmflex" placeholder="https://..." autocomplete="off" /></label>' +
       '<div>' +
@@ -999,12 +1142,14 @@
     overlay.appendChild(box);
     document.body.appendChild(overlay);
 
+    var eventoSel   = box.querySelector('#turmaFormEvento');
     var labelInput  = box.querySelector('#turmaFormLabel');
     var cmflexInput = box.querySelector('#turmaFormCmflex');
     var datesList   = box.querySelector('#turmaDatesList');
     var errEl       = box.querySelector('#turmaFormErr');
 
-    labelInput.value = isEdit ? existing.label : '';
+    eventoSel.value   = isEdit ? (existing.eventoKey || '') : '';
+    labelInput.value  = isEdit ? existing.label : '';
     cmflexInput.value = isEdit ? (existing.cmflexLink || '') : '';
 
     function addDateRow(value) {
@@ -1041,7 +1186,7 @@
       if (!label) { errEl.textContent = 'Dê um nome pra turma.'; errEl.style.display = ''; return; }
       if (!dias.length) { errEl.textContent = 'Adicione pelo menos uma data.'; errEl.style.display = ''; return; }
 
-      var data = { label: label, dias: dias, cmflexLink: cmflexLink };
+      var data = { label: label, dias: dias, cmflexLink: cmflexLink, eventoKey: eventoSel.value || '' };
       if (isEdit) {
         firebase.database().ref('turmas/' + existing.key).update(data, function (err) {
           if (err) { errEl.textContent = 'Erro ao salvar. Tente novamente.'; errEl.style.display = ''; return; }
@@ -2132,23 +2277,48 @@
   function initCertificados() {
     if (!window.faCertif) return;
 
-    var certif   = window.faCertif;
-    var sel      = document.getElementById('certTurmaSelect');
-    var nomeEv   = document.getElementById('certNomeEvento');
-    var cargaH   = document.getElementById('certCargaH');
-    var dataEm   = document.getElementById('certDataEmissao');
-    var wrap     = document.getElementById('certParticipantesWrap');
-    var listEl   = document.getElementById('certParticipantesList');
-    var hint     = document.getElementById('certPreviewHint');
-    var dlTodos     = document.getElementById('certBaixarTodos');
-    var dlTodosPDF  = document.getElementById('certBaixarTodosPDF');
+    var certif     = window.faCertif;
+    var sel        = document.getElementById('certTurmaSelect');
+    var infoEl     = document.getElementById('certInfoDisplay');
+    var wrap       = document.getElementById('certParticipantesWrap');
+    var listEl     = document.getElementById('certParticipantesList');
+    var hint       = document.getElementById('certPreviewHint');
+    var dlTodos    = document.getElementById('certBaixarTodos');
+    var dlTodosPDF = document.getElementById('certBaixarTodosPDF');
 
     if (!sel) return;
 
-    /* data padrão = hoje */
-    var hoje = new Date();
-    var pad = function (n) { return String(n).padStart(2, '0'); };
-    dataEm.value = hoje.getFullYear() + '-' + pad(hoje.getMonth() + 1) + '-' + pad(hoje.getDate());
+    /* estado carregado do Firebase para a turma selecionada */
+    var _evento       = null;  /* { key, nome, cargaHoraria } */
+    var _dataConclusao = null; /* 'YYYY-MM-DD' ou null */
+
+    var MESES = ['janeiro','fevereiro','março','abril','maio','junho',
+                 'julho','agosto','setembro','outubro','novembro','dezembro'];
+
+    function fmtData(iso) {
+      if (!iso) return '';
+      var d = new Date(iso + 'T12:00:00');
+      return isNaN(d) ? iso : d.getDate() + ' de ' + MESES[d.getMonth()] + ' de ' + d.getFullYear();
+    }
+
+    function updateInfoDisplay(turmaKey) {
+      if (!infoEl) return;
+      if (!turmaKey) { infoEl.style.display = 'none'; return; }
+      var parts = [];
+      if (_evento && _evento.nome) {
+        parts.push('<strong>' + esc(_evento.nome) + '</strong>');
+        parts.push(_evento.cargaHoraria + 'h');
+      } else {
+        parts.push('<span style="color:var(--amber,#ffb347)">⚠ Turma sem evento vinculado — vincule um evento na aba Turmas</span>');
+      }
+      if (_dataConclusao) {
+        parts.push('Concluída em ' + fmtData(_dataConclusao));
+      } else {
+        parts.push('<span style="color:var(--amber,#ffb347)">⚠ Turma ainda não encerrada — data de emissão não definida</span>');
+      }
+      infoEl.style.cssText = 'padding:10px 14px;background:var(--panel-2);border-radius:6px;font-size:.88rem;color:var(--ink-2);margin-bottom:16px;display:flex;flex-wrap:wrap;gap:8px;align-items:center';
+      infoEl.innerHTML = parts.join('<span style="opacity:.4">·</span>');
+    }
 
     /* garante que TURMAS_LIST está carregada antes de popular o select */
     function populateTurmaSelect() {
@@ -2168,26 +2338,18 @@
     }
 
     function buildData(participant, turma) {
-      var meses = ['janeiro','fevereiro','março','abril','maio','junho',
-                   'julho','agosto','setembro','outubro','novembro','dezembro'];
-      var d = new Date(dataEm.value + 'T12:00:00');
-      var dataFmt = isNaN(d) ? dataEm.value
-        : d.getDate() + ' de ' + meses[d.getMonth()] + ' de ' + d.getFullYear();
-
-      /* identificação da turma: label + mês principal */
       var mesLabel = '';
       if (turma.dias && turma.dias.length) {
         var dt0 = new Date(turma.dias[0] + 'T12:00:00');
-        mesLabel = ' · ' + meses[dt0.getMonth()].charAt(0).toUpperCase() + meses[dt0.getMonth()].slice(1) + ' ' + dt0.getFullYear();
+        mesLabel = ' · ' + MESES[dt0.getMonth()].charAt(0).toUpperCase() + MESES[dt0.getMonth()].slice(1) + ' ' + dt0.getFullYear();
       }
-
       return {
-        nomeParticipante:  participant.name || '',
-        nomeEvento:        nomeEv.value || '',
+        nomeParticipante:   participant.name || '',
+        nomeEvento:         _evento ? (_evento.nome || '') : '',
         identificacaoTurma: turma.label + mesLabel,
-        periodoTurma:      turma.dates || '',
-        cargaHoraria:      cargaH.value || '20',
-        dataEmissao:       dataFmt
+        periodoTurma:       turma.dates || '',
+        cargaHoraria:       _evento ? (_evento.cargaHoraria || '20') : '20',
+        dataEmissao:        fmtData(_dataConclusao)
       };
     }
 
@@ -2230,18 +2392,14 @@
         btnDl.className = 'btn btn--sm cert-btn-dl';
         btnDl.textContent = '⬇ PNG';
         btnDl.addEventListener('click', function () {
-          var data = buildData(p, turma);
-          var slug = (p.name || p.email).replace(/\s+/g, '_').toLowerCase();
-          certif.download(data, 'certificado_' + slug);
+          certif.download(buildData(p, turma), 'certificado_' + (p.name || p.email).replace(/\s+/g, '_').toLowerCase());
         });
 
         var btnPdf = document.createElement('button');
         btnPdf.className = 'btn btn--sm cert-btn-dl';
         btnPdf.textContent = '⬇ PDF';
         btnPdf.addEventListener('click', function () {
-          var data = buildData(p, turma);
-          var slug = (p.name || p.email).replace(/\s+/g, '_').toLowerCase();
-          certif.downloadPDF(data, 'certificado_' + slug);
+          certif.downloadPDF(buildData(p, turma), 'certificado_' + (p.name || p.email).replace(/\s+/g, '_').toLowerCase());
         });
 
         row.appendChild(nameSpan);
@@ -2251,7 +2409,6 @@
         listEl.appendChild(row);
       });
 
-      /* pré-visualiza o primeiro automaticamente */
       if (inscritos.length) renderPreview(inscritos[0], turma);
       if (listEl.firstChild) listEl.firstChild.classList.add('cert-active');
     }
@@ -2266,29 +2423,45 @@
       });
     }
 
+    function loadEventoParaTurma(turma, cb) {
+      _evento = null;
+      if (!turma.eventoKey) { cb(); return; }
+      var ev = EVENTOS_LIST.filter(function (e) { return e.key === turma.eventoKey; })[0];
+      if (ev) { _evento = ev; cb(); return; }
+      firebase.database().ref('eventos/' + turma.eventoKey).once('value', function (snap) {
+        var v = snap.val();
+        _evento = v ? { key: turma.eventoKey, nome: v.nome || '', cargaHoraria: v.cargaHoraria || '20' } : null;
+        cb();
+      });
+    }
+
     sel.addEventListener('change', function () {
       var key = sel.value;
+      _evento = null;
+      _dataConclusao = null;
+      updateInfoDisplay(key);
+
       if (!key) {
         if (wrap) wrap.style.display = 'none';
         if (hint) hint.style.display = '';
         return;
       }
+
       var turma = TURMAS_LIST.filter(function (t) { return t.key === key; })[0];
       if (!turma) return;
-      loadInscritos(key, function (inscritos) { renderLista(turma, inscritos); });
-    });
 
-    /* atualiza pré-visualização quando campos globais mudam */
-    [nomeEv, cargaH, dataEm].forEach(function (inp) {
-      inp.addEventListener('input', function () {
-        var active = listEl && listEl.querySelector('.cert-active');
-        if (!active || !sel.value) return;
-        var turma = TURMAS_LIST.filter(function (t) { return t.key === sel.value; })[0];
-        var idx = Array.from(listEl.children).indexOf(active);
-        var key = sel.value;
-        loadInscritos(key, function (inscritos) {
-          if (inscritos[idx]) renderPreview(inscritos[idx], turma);
-        });
+      var pending = 2;
+      function done() {
+        pending--;
+        if (pending > 0) return;
+        updateInfoDisplay(key);
+        loadInscritos(key, function (inscritos) { renderLista(turma, inscritos); });
+      }
+
+      loadEventoParaTurma(turma, done);
+      firebase.database().ref('turmas-config/' + key + '/dataConclusao').once('value', function (snap) {
+        _dataConclusao = snap.val() || null;
+        done();
       });
     });
 
@@ -2304,10 +2477,9 @@
         function next() {
           if (i >= inscritos.length) return;
           var p = inscritos[i++];
-          var data = buildData(p, turma);
           var slug = (p.name || p.email).replace(/\s+/g, '_').toLowerCase();
-          if (usePDF) certif.downloadPDF(data, 'certificado_' + slug);
-          else certif.download(data, 'certificado_' + slug);
+          if (usePDF) certif.downloadPDF(buildData(p, turma), 'certificado_' + slug);
+          else certif.download(buildData(p, turma), 'certificado_' + slug);
           setTimeout(next, 800);
         }
         next();

@@ -236,15 +236,15 @@
   }
 
   /* Gera PDF minimal com a imagem do canvas embutida como JPEG (DCTDecode).
-     Página A4 landscape (841.89 × 595.28 pt); imagem centralizada e ajustada. */
+     Página customizada 864 × 648 pt (proporção 4:3 = exata do certificado). */
   function _canvasToPDFBlob(canvas) {
     var jpegUrl = canvas.toDataURL('image/jpeg', 0.93);
     var imgB64  = jpegUrl.split(',')[1];
     var imgU8   = _b64ToU8(imgB64);
     var iw = canvas.width, ih = canvas.height;
 
-    /* página A4 landscape em pontos */
-    var PW = 841.89, PH = 595.28;
+    /* página customizada 4:3 em pontos — certificado ocupa 100% da página */
+    var PW = 864, PH = 648;
     var sc = Math.min(PW / iw, PH / ih);
     var dw = (iw * sc).toFixed(3);
     var dh = (ih * sc).toFixed(3);
