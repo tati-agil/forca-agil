@@ -488,14 +488,14 @@
               removedSection.appendChild(removedBody);
               body.appendChild(removedSection);
             }
-            body.hidden = true;
+            body.style.display = 'none';
             card.appendChild(body);
             var titleDiv = hdr.querySelector('.turma-admin-title');
             var turmaToggleIcon = hdr.querySelector('.turma-toggle-icon');
             titleDiv.addEventListener('click', function () {
-              var expanded = body.hidden;
-              body.hidden = !expanded;
-              turmaToggleIcon.textContent = expanded ? '▾' : '▸';
+              var collapsed = body.style.display === 'none';
+              body.style.display = collapsed ? '' : 'none';
+              turmaToggleIcon.textContent = collapsed ? '▾' : '▸';
             });
             return card;
           }
@@ -541,12 +541,11 @@
             /* turmas do evento — começa recolhido */
             var turmasWrap = document.createElement('div');
             turmasWrap.className = 'ev-turmas-wrap';
-            turmasWrap.style.cssText = 'padding:16px;display:flex;flex-direction:column;gap:16px';
-            turmasWrap.hidden = true;
+            turmasWrap.style.cssText = 'padding:16px;display:none;flex-direction:column;gap:16px';
             evHdr.addEventListener('click', function () {
-              var expanded = turmasWrap.hidden;
-              turmasWrap.hidden = !expanded;
-              evToggleIcon.textContent = expanded ? '▾' : '▸';
+              var collapsed = turmasWrap.style.display === 'none';
+              turmasWrap.style.display = collapsed ? 'flex' : 'none';
+              evToggleIcon.textContent = collapsed ? '▾' : '▸';
             });
             if (!turmasEvento.length) {
               var tEmpty = document.createElement('p');
@@ -582,13 +581,13 @@
           function setEvExpanded(evSec, expanded) {
             var tw = evSec.querySelector('.ev-turmas-wrap');
             var icon = evSec.querySelector('.ev-toggle-icon');
-            if (tw) tw.hidden = !expanded;
+            if (tw) tw.style.display = expanded ? 'flex' : 'none';
             if (icon) icon.textContent = expanded ? '▾' : '▸';
           }
           function setTurmaExpanded(cardEl, expanded) {
             var b = cardEl.querySelector('.turma-admin-body');
             var icon = cardEl.querySelector('.turma-toggle-icon');
-            if (b) b.hidden = !expanded;
+            if (b) b.style.display = expanded ? '' : 'none';
             if (icon) icon.textContent = expanded ? '▾' : '▸';
           }
           expandAllBtn.addEventListener('click', function () {
