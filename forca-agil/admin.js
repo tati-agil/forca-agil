@@ -2253,6 +2253,7 @@
     if (!window.faCertif) return;
 
     var certif     = window.faCertif;
+    var selEv      = document.getElementById('certEventoSelect');
     var sel        = document.getElementById('certTurmaSelect');
     var infoEl     = document.getElementById('certInfoDisplay');
     var wrap       = document.getElementById('certParticipantesWrap');
@@ -2314,21 +2315,74 @@
       infoEl.innerHTML = parts.join('<span style="opacity:.4">·</span>');
     }
 
-    /* garante que TURMAS_LIST está carregada antes de popular o select */
-    function populateTurmaSelect() {
-      sel.innerHTML = '<option value="">— selecionar turma —</option>';
-      TURMAS_LIST.forEach(function (t) {
+    /* popular seletor de eventos */
+    function populateEventoSelect() {
+      if (!selEv) return;
+      selEv.innerHTML = '<option value="">— selecionar evento —</option>';
+      EVENTOS_LIST.forEach(function (ev) {
+        var opt = document.createElement('option');
+        opt.value = ev.key;
+        opt.textContent = ev.nome || ev.key;
+        selEv.appendChild(opt);
+      });
+    }
+
+    /* popular seletor de turmas filtrado pelo evento */
+    function populateTurmaSelect(eventoKey) {
+      sel.innerHTML = '';
+      var turmasFiltradas = eventoKey
+        ? TURMAS_LIST.filter(function (t) { return t.eventoKey === eventoKey; })
+        : [];
+      if (!turmasFiltradas.length) {
+        var ph = document.createElement('option');
+        ph.value = '';
+        ph.textContent = eventoKey ? '— nenhuma turma neste evento —' : '— selecione um evento primeiro —';
+        sel.appendChild(ph);
+        sel.disabled = true;
+        return;
+      }
+      var ph = document.createElement('option');
+      ph.value = '';
+      ph.textContent = '— selecionar turma —';
+      sel.appendChild(ph);
+      turmasFiltradas.forEach(function (t) {
         var opt = document.createElement('option');
         opt.value = t.key;
         opt.textContent = t.label + (t.dates ? '  (' + t.dates + ')' : '');
         sel.appendChild(opt);
       });
+      sel.disabled = false;
     }
 
-    if (TURMAS_LIST.length) {
-      populateTurmaSelect();
+    function initSelects() {
+      populateEventoSelect();
+      populateTurmaSelect('');
+    }
+
+    if (EVENTOS_LIST.length && TURMAS_LIST.length) {
+      initSelects();
+    } else if (TURMAS_LIST.length) {
+      loadEventosList(initSelects);
     } else {
-      loadTurmasList(populateTurmaSelect);
+      loadTurmasList(function () {
+        loadEventosList(initSelects);
+      });
+    }
+
+    if (selEv) {
+      selEv.addEventListener('change', function () {
+        /* resetar estado da turma ao trocar evento */
+        _evento        = null;
+        _dataConclusao = null;
+        _encerrada     = false;
+        sel.value      = '';
+        if (infoEl) infoEl.style.display = 'none';
+        updatePreviaBanner('');
+        updateLoteButtons();
+        if (wrap) wrap.style.display = 'none';
+        if (hint) hint.style.display = '';
+        populateTurmaSelect(selEv.value);
+      });
     }
 
     function buildData(participant, turma) {

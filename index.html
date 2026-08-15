@@ -1337,9 +1337,15 @@ body.aguardando-auth>*:not(#authModal){visibility:hidden}
           <!-- configurações -->
           <div class="cert-config-row">
             <div class="cert-config-group">
+              <label class="cert-label">Evento</label>
+              <select id="certEventoSelect" class="cert-select">
+                <option value="">— selecionar evento —</option>
+              </select>
+            </div>
+            <div class="cert-config-group">
               <label class="cert-label">Turma</label>
-              <select id="certTurmaSelect" class="cert-select">
-                <option value="">— selecionar turma —</option>
+              <select id="certTurmaSelect" class="cert-select" disabled>
+                <option value="">— selecione um evento primeiro —</option>
               </select>
             </div>
           </div>
