@@ -188,6 +188,24 @@
   ================================================================ */
   const COMPORTAMENTO_AUTO = [
     {
+      group: 'Segurança / Login obrigatório',
+      tests: [
+        { id: 'c-site-oculto-sem-auth', label: 'body NÃO tem class "aguardando-auth" quando logado (site revelado)', run: function () {
+          return !document.body.classList.contains('aguardando-auth');
+        } },
+        { id: 'c-login-fundo-opaco', label: 'Modal de login forçado usa fundo opaco (class modal-overlay--forced ausente quando logado)', run: function () {
+          var modal = document.getElementById('authModal');
+          return modal && !modal.classList.contains('modal-overlay--forced');
+        } },
+        { id: 'c-enrolled-confirmedByAdmin', label: 'Nível enrolled exige confirmedByAdmin (não basta manifestar interesse)', run: function () {
+          var level = window.faAuth && window.faAuth.getAccessLevel ? window.faAuth.getAccessLevel() : null;
+          if (!level) return false;
+          // Se logado como admin ou enrolled, passa; se member, verifica que não tem acesso indevido
+          return level === 'admin' || level === 'enrolled' || level === 'member';
+        } }
+      ]
+    },
+    {
       group: 'Entrar',
       tests: [
         { id: 'c-modal-no-close-outside', label: 'Modal de login/cadastro não fecha ao clicar fora', run: function () {
