@@ -86,7 +86,8 @@
 html { scroll-behavior: smooth; overflow-x: hidden; max-width: 100%; }
 @media (prefers-reduced-motion: reduce) { html { scroll-behavior: auto; } }
 
-body.aguardando-auth > *:not(#authModal) { visibility: hidden; }
+body.aguardando-auth { background: #000 !important; }
+body.aguardando-auth > *:not(#authModal) { display: none !important; }
 body {
   font-family: var(--font-body);
   background: var(--space-0);
