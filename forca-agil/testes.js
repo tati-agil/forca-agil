@@ -940,13 +940,24 @@
       title: 'Turmas — certificados: sem aprovados',
       motivo: 'Requer turma finalizada onde ninguém atingiu 75%. Clicar em "📜 Certificados". Verificar: alerta informa que nenhum participante atingiu o critério — nenhuma aba é aberta.' },
 
+    /* ── Certificados — Fluxo de seleção ─────────────────────── */
+    { section: 'Certificados v1.0',
+      title: 'Fluxo de seleção: evento → turma',
+      motivo: 'Na aba Certificados verificar: (1) seletor "Evento" aparece primeiro e lista todos os eventos cadastrados; (2) seletor "Turma" inicia desabilitado com texto "selecione um evento primeiro"; (3) ao selecionar um evento, o seletor de Turma é habilitado e exibe somente as turmas daquele evento; (4) ao trocar o evento, a turma selecionada é limpa e a lista de turmas é recarregada; (5) selecionar evento sem turmas cadastradas mantém Turma desabilitado com "nenhuma turma neste evento".' },
+
     /* ── Certificados — Estado Prévia vs. Emissão ─────────────── */
     { section: 'Certificados v1.0',
       title: 'Cenário A — turma NÃO encerrada (estado Prévia)',
-      motivo: 'Selecionar uma turma que ainda NÃO foi encerrada (não tem "✓ Encerrar turma" executado). Verificar: (1) banner laranja aparece acima do canvas com texto "PRÉVIA DO CERTIFICADO — TURMA AINDA NÃO CONCLUÍDA"; (2) ao selecionar qualquer participante, a prévia visual é exibida normalmente; (3) botões ⬇ PNG e ⬇ PDF em cada linha estão desabilitados — ao passar o mouse aparece tooltip "Disponível após a conclusão da turma."; (4) botões "Baixar todos (PNG)" e "Baixar todos (PDF)" também desabilitados; (5) campo dataEmissao no certificado exibido está vazio ou ausente.' },
+      motivo: 'Selecionar evento → turma não encerrada. Verificar: (1) banner laranja "PRÉVIA DO CERTIFICADO — TURMA AINDA NÃO CONCLUÍDA" aparece acima do canvas; (2) ao clicar "👁 Prévia" em qualquer participante, o certificado é exibido normalmente; (3) nenhum badge de frequência é exibido; (4) botões ⬇ PNG e ⬇ PDF desabilitados com tooltip "Disponível após a conclusão da turma."; (5) botões de lote também desabilitados; (6) dataEmissao ausente no certificado.' },
     { section: 'Certificados v1.0',
-      title: 'Cenário B — turma encerrada (estado Emissão)',
-      motivo: 'Selecionar uma turma que JÁ foi encerrada (admin clicou "✓ Encerrar turma"). Verificar: (1) banner laranja NÃO aparece — área acima do canvas limpa; (2) botões ⬇ PNG e ⬇ PDF em cada linha estão habilitados e funcionam; (3) botões de lote "Baixar todos" habilitados; (4) campo dataEmissao no certificado exibe a data de conclusão da turma no formato "Emitido em DD de mês de AAAA"; (5) trocar de turma não encerrada para encerrada (e vice-versa) atualiza corretamente o estado da aba — banner, botões e data.' },
+      title: 'Cenário B — turma encerrada, frequência suficiente',
+      motivo: 'Selecionar evento → turma encerrada com participante que atingiu o percentual mínimo. Verificar: (1) banner de prévia oculto; (2) badge de frequência verde (ex: "78%") exibido ao lado do nome; (3) botões ⬇ PNG e ⬇ PDF habilitados; (4) "Baixar todos" gera certificado para esse participante; (5) dataEmissao = dataConclusao da turma no formato "Emitido em DD de mês de AAAA".' },
+    { section: 'Certificados v1.0',
+      title: 'Cenário C — turma encerrada, frequência insuficiente',
+      motivo: 'Selecionar evento → turma encerrada com participante abaixo do percentual mínimo do evento. Verificar: (1) badge de frequência vermelho (ex: "40%"); (2) botões ⬇ PNG e ⬇ PDF desabilitados com tooltip "Frequência insuficiente (40% < 75% exigido)"; (3) "Baixar todos" não inclui esse participante; (4) botão "👁 Prévia" permanece habilitado — a prévia pode ser visualizada normalmente.' },
+    { section: 'Certificados v1.0',
+      title: 'Cenário D — percentual mínimo configurado por evento',
+      motivo: 'Na aba Turmas, clicar "✎ Editar evento" em um evento. Verificar: (1) campo "Frequência mínima p/ certificado" está presente com o valor atual; (2) alterar o valor e salvar; (3) retornar à aba Certificados e selecionar turma encerrada desse evento — verificar que os badges e bloqueios respeitam o novo percentual configurado.' },
 
     /* ── Gerador de Certificados v1.0 — Regressão ───────────── */
     { section: 'Certificados v1.0',
