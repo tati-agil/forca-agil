@@ -51,8 +51,10 @@
 
   function show(page) {
 
-    if (page === 'admin') {
-      const s = window.faAuth && window.faAuth.getSession();
+    /* Só verifica acesso admin depois que o Firebase terminou de resolver a sessão —
+       sem isso, F5 em #admin redireciona para home porque _session ainda é null. */
+    if (page === 'admin' && window.faAuth && window.faAuth.isAuthReady && window.faAuth.isAuthReady()) {
+      const s = window.faAuth.getSession();
       if (!s || !window.faAuth.isAdmin(s.email)) {
         page = 'home';
         history.replaceState(null, '', '#home');
