@@ -11,13 +11,13 @@
 
   const HIERARCHY = [
     { key: 'visitante',   label: 'Visitante',      color: '#888888',
-      adds: ['Ver apenas o modal de login (site completamente oculto antes da autenticação)', 'Cadastrar conta (@previ.com.br)', 'Fazer login', 'Recuperar senha por e-mail (autoatendimento)'] },
+      adds: ['Ver apenas o modal de login (site completamente oculto antes da autenticação)', 'Cadastrar conta (@previ.com.br) — recebe e-mail de verificação; acesso liberado só após clicar no link', 'Fazer login', 'Recuperar senha por e-mail (autoatendimento)'] },
     { key: 'logado',  label: 'Usuário logado (sem turma)', color: '#1ab2ae',
       adds: ['Acessar o Repositório', 'Adicionar conteúdos e remover os próprios no Repositório', 'Manifestar interesse em quantas turmas existirem (sem limite fixo)', 'Remover interesse em turmas'] },
     { key: 'inscrito', label: 'Usuário inscrito (turma confirmada)', color: '#4caf7d',
       adds: ['Acessar Conteúdos', 'Acessar Treinamento Jedi (autodiagnóstico 0–60)', 'Revelar patente (resultado fixo e bloqueado — não pode refazer sem reset do admin)'] },
     { key: 'admin',   label: 'Admin',          color: '#ff5252',
-      adds: ['Acessar o Painel Admin (8 abas: Turmas, Repositório, Cadastrados, Administradores, Manual, Mapa, Testes, Pedidos)', 'Criar, editar e excluir turmas; cadastrar link do CMFlex por turma', 'Confirmar/desconfirmar inscrição e adicionar/remover participantes manualmente', 'Abrir/fechar check-in, gerar QR Code e emitir certificados de participação', 'Exportar CSV (estado atual, histórico e por turma)', 'Moderar Repositório (ocultar, restaurar, deletar conteúdos)', 'Ver e gerenciar cadastrados (filtrar, redefinir senha, resetar progresso)', 'Gerenciar lista de administradores (restrito a tatianefdirene e danielfrazao)', 'Consultar Manual, Mapa e Testes (documentação viva do sistema)'] },
+      adds: ['Acessar o Painel Admin (8 abas: Turmas, Repositório, Cadastrados, Administradores, Manual, Mapa, Testes, Pedidos)', 'Criar, editar e excluir turmas; cadastrar link do CMFlex por turma', 'Confirmar/desconfirmar inscrição e adicionar/remover participantes manualmente', 'Abrir/fechar check-in, gerar QR Code e emitir certificados de participação', 'Exportar CSV (estado atual, histórico e por turma)', 'Moderar Repositório (ocultar, restaurar, deletar conteúdos)', 'Ver e gerenciar cadastrados (filtrar, redefinir senha, resetar progresso, criar conta diretamente com senha 12345678)', 'Gerenciar lista de administradores (restrito a tatianefdirene e danielfrazao)', 'Consultar Manual, Mapa e Testes (documentação viva do sistema)'] },
   ];
 
   /* Diagrama de estados de turmas-interesse/<turma>/<emailKey> — ver regra
@@ -141,6 +141,7 @@
         { label: 'Aba Cadastrados — filtrar lista de cadastrados', p: ['admin'] },
         { label: 'Aba Cadastrados — redefinir senha de qualquer cadastrado', p: ['admin'] },
         { label: 'Aba Cadastrados — resetar progresso de qualquer cadastrado', p: ['admin'] },
+        { label: 'Aba Cadastrados — criar conta diretamente para colaboradora (nome + e-mail + área + senha do admin; senha padrão 12345678; sem verificação de e-mail)', p: ['admin'] },
         { label: 'Aba Administradores — consultar lista de administradores (nome, e-mail, admin desde)', p: ['admin'] },
         { label: 'Aba Administradores — adicionar admin (só tatianefdirene e danielfrazao veem esse formulário)', p: ['admin'] },
         { label: 'Aba Administradores — remover admin (só tatianefdirene e danielfrazao veem esse botão)', p: ['admin'] },

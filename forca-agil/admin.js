@@ -1660,6 +1660,54 @@
     hdr.innerHTML = 'Cadastrados <span class="admin-badge">' + list.length + '</span>';
     c.appendChild(hdr);
 
+    /* ---- Criar conta pelo admin ---- */
+    const criarBox = document.createElement('div');
+    criarBox.className = 'admin-criar-conta-box';
+    criarBox.innerHTML =
+      '<details class="admin-details">' +
+      '<summary>+ Criar conta para colaboradora</summary>' +
+      '<div class="admin-criar-conta-form">' +
+      '<p style="font-size:.8rem;color:var(--text-muted);margin-bottom:12px">A conta é criada com senha padrão <strong>12345678</strong>. A pessoa deve trocar pelo "Esqueci minha senha".</p>' +
+      '<div class="admin-field-row">' +
+      '<label class="admin-field-label">Nome completo<input type="text" id="criarNome" placeholder="Nome completo" /></label>' +
+      '<label class="admin-field-label">E-mail @previ.com.br<input type="email" id="criarEmail" placeholder="nome@previ.com.br" /></label>' +
+      '<label class="admin-field-label">Área / Setor<input type="text" id="criarArea" placeholder="Ex: GETHO" /></label>' +
+      '<label class="admin-field-label">Sua senha (confirmação)<input type="password" id="criarAdminPwd" placeholder="Sua senha de admin" /></label>' +
+      '</div>' +
+      '<p class="admin-msg" id="criarMsg" style="margin-top:8px" hidden></p>' +
+      '<button type="button" class="btn btn--sm" id="criarContaBtn">Criar conta</button>' +
+      '</div>' +
+      '</details>';
+    c.appendChild(criarBox);
+
+    document.getElementById('criarContaBtn').addEventListener('click', function () {
+      const btn  = this;
+      const msg  = document.getElementById('criarMsg');
+      msg.hidden = true; msg.style.color = '';
+      btn.disabled = true; btn.textContent = 'Aguarde…';
+      window.faAuth.criarContaPorAdmin(
+        {
+          name:  document.getElementById('criarNome').value,
+          email: document.getElementById('criarEmail').value,
+          area:  document.getElementById('criarArea').value
+        },
+        document.getElementById('criarAdminPwd').value,
+        function (r) {
+          btn.disabled = false; btn.textContent = 'Criar conta';
+          if (r.error) {
+            msg.textContent = r.error; msg.style.color = 'var(--danger, #f87171)'; msg.hidden = false;
+          } else {
+            msg.textContent = 'Conta criada com sucesso! Senha padrão: 12345678'; msg.style.color = 'var(--accent)'; msg.hidden = false;
+            document.getElementById('criarNome').value = '';
+            document.getElementById('criarEmail').value = '';
+            document.getElementById('criarArea').value = '';
+            document.getElementById('criarAdminPwd').value = '';
+            loadCadastrados();
+          }
+        }
+      );
+    });
+
     const filterWrap = document.createElement('div');
     filterWrap.className = 'admin-colab-row';
     filterWrap.style.marginBottom = '16px';

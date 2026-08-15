@@ -200,8 +200,13 @@
         { id: 'c-enrolled-confirmedByAdmin', label: 'Nível enrolled exige confirmedByAdmin (não basta manifestar interesse)', run: function () {
           var level = window.faAuth && window.faAuth.getAccessLevel ? window.faAuth.getAccessLevel() : null;
           if (!level) return false;
-          // Se logado como admin ou enrolled, passa; se member, verifica que não tem acesso indevido
           return level === 'admin' || level === 'enrolled' || level === 'member';
+        } },
+        { id: 'c-verificacao-painel-existe', label: 'Painel de verificação de e-mail existe no DOM (#auth-verificacao)', run: function () {
+          return !!document.getElementById('auth-verificacao');
+        } },
+        { id: 'c-reenviar-btn-existe', label: 'Botão "Reenviar e-mail" existe no painel de verificação', run: function () {
+          return !!document.getElementById('reenviarVerificacao');
         } }
       ]
     },

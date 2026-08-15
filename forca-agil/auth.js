@@ -117,6 +117,17 @@
     if (user) {
       firebase.database().ref('fa-users/' + emailKey(user.email)).once('value', function (snap) {
         const profile = snap.val() || {};
+
+        /* E-mail não verificado e conta não criada pelo admin → bloqueia */
+        if (!user.emailVerified && !profile.adminApproved) {
+          _session = null;
+          _accessLevel = 'member';
+          stopWatchingEnrolledStatus();
+          updateNavState();
+          window.dispatchEvent(new CustomEvent('fa-auth-change', { detail: { unverified: true, email: user.email } }));
+          return;
+        }
+
         _session = { email: user.email, name: profile.name || user.email, area: profile.area || '' };
         try { localStorage.setItem('fa-player', JSON.stringify({ name: _session.name, area: _session.area, turma: '' })); } catch (e) {}
         _accessLevel = 'member';
@@ -199,12 +210,68 @@
           createdAt: new Date().toISOString()
         });
       })
-      .then(function () { cb({ success: true }); })
+      .then(function () {
+        /* Envia e-mail de verificação e desloga — acesso só após confirmar */
+        const u = firebase.auth().currentUser;
+        return (u ? u.sendEmailVerification() : Promise.resolve())
+          .catch(function () {})
+          .then(function () { return firebase.auth().signOut(); })
+          .then(function () { cb({ success: true, needsVerification: true }); });
+      })
       .catch(function (err) {
         let msg = 'Erro ao cadastrar. Tente novamente.';
         if (err.code === 'auth/email-already-in-use') msg = 'E-mail já cadastrado. Faça login.';
         if (err.code === 'auth/weak-password')        msg = 'Senha deve ter mínimo 6 caracteres.';
         if (err.code === 'auth/invalid-email')        msg = 'E-mail inválido.';
+        cb({ error: msg });
+      });
+  }
+
+  /* ---- Criar conta pelo admin (sem verificação de e-mail) ---- */
+  function criarContaPorAdmin(data, adminPwd, cb) {
+    const email     = (data.email || '').trim().toLowerCase();
+    const name      = (data.name  || '').trim().toUpperCase();
+    const area      = (data.area  || '').trim();
+    const adminSess = _session;
+
+    if (!isPrevi(email)) return cb({ error: 'Use e-mail @previ.com.br.' });
+    if (!name)           return cb({ error: 'Nome completo obrigatório.' });
+    if (!area)           return cb({ error: 'Área/Setor obrigatório.' });
+    if (!adminPwd)       return cb({ error: 'Confirme sua senha de admin.' });
+    if (!adminSess)      return cb({ error: 'Sessão admin não encontrada.' });
+
+    firebase.auth().createUserWithEmailAndPassword(email, '12345678')
+      .then(function () {
+        return firebase.database().ref('fa-users/' + emailKey(email)).set({
+          email: email, name: name, area: area,
+          adminApproved: true,
+          createdByAdmin: adminSess.email,
+          createdAt: new Date().toISOString()
+        });
+      })
+      .then(function () { return firebase.auth().signOut(); })
+      .then(function () {
+        return firebase.auth().signInWithEmailAndPassword(adminSess.email, adminPwd);
+      })
+      .then(function () { cb({ success: true }); })
+      .catch(function (err) {
+        let msg = 'Erro ao criar conta. Tente novamente.';
+        if (err.code === 'auth/email-already-in-use') msg = 'E-mail já cadastrado.';
+        if (err.code === 'auth/wrong-password')       msg = 'Senha de admin incorreta.';
+        if (err.code === 'auth/invalid-credential')   msg = 'Senha de admin incorreta.';
+        cb({ error: msg });
+      });
+  }
+
+  /* ---- Reenviar e-mail de verificação ---- */
+  function resendVerification(cb) {
+    const u = firebase.auth().currentUser;
+    if (!u) return cb({ error: 'Faça login novamente para reenviar.' });
+    u.sendEmailVerification()
+      .then(function () { cb({ success: true }); })
+      .catch(function (err) {
+        let msg = 'Erro ao reenviar. Tente novamente.';
+        if (err.code === 'auth/too-many-requests') msg = 'Aguarde alguns minutos antes de reenviar.';
         cb({ error: msg });
       });
   }
@@ -384,7 +451,12 @@
         function (r) {
           btn.disabled = false; btn.textContent = 'Entrar →';
           if (r.error) { if (loginErr) { loginErr.textContent = r.error; loginErr.hidden = false; } }
-          else { closeModal(); }
+          else {
+            /* Se e-mail não verificado, o fa-auth-change exibirá o painel de verificação */
+            var u = firebase.auth().currentUser;
+            if (u && !u.emailVerified) return;
+            closeModal();
+          }
         }
       );
     });
@@ -420,7 +492,16 @@
       }, function (r) {
         btn.disabled = false; btn.textContent = 'Ativar a Força →';
         if (r.error) { if (regErr) { regErr.textContent = r.error; regErr.hidden = false; } }
-        else { closeModal(); }
+        else if (r.needsVerification) {
+          /* Exibe painel de verificação de e-mail */
+          document.querySelectorAll('.auth-panel').forEach(function (p) { p.hidden = true; });
+          var vp = document.getElementById('auth-verificacao');
+          if (vp) {
+            vp.hidden = false;
+            var dest = vp.querySelector('.verificacao-email-destino');
+            if (dest) dest.textContent = emailVal;
+          }
+        } else { closeModal(); }
       });
     });
 
@@ -472,6 +553,31 @@
       e.preventDefault();
       document.getElementById('auth-forgot').hidden = true;
       document.getElementById('auth-login').hidden  = false;
+    });
+
+    /* Painel de verificação de e-mail */
+    const reenviarBtn = document.getElementById('reenviarVerificacao');
+    if (reenviarBtn) reenviarBtn.addEventListener('click', function () {
+      const errEl = document.getElementById('verificacaoErr');
+      const okEl  = document.getElementById('verificacaoOk');
+      if (errEl) { errEl.hidden = true; errEl.textContent = ''; }
+      if (okEl)  { okEl.hidden  = true; okEl.textContent  = ''; }
+      reenviarBtn.disabled = true; reenviarBtn.textContent = 'Aguarde…';
+      resendVerification(function (r) {
+        reenviarBtn.disabled = false; reenviarBtn.textContent = 'Reenviar e-mail →';
+        if (r.error) { if (errEl) { errEl.textContent = r.error; errEl.hidden = false; } }
+        else { if (okEl) { okEl.textContent = 'E-mail reenviado! Verifique sua caixa de entrada.'; okEl.hidden = false; } }
+      });
+    });
+
+    const verificacaoVoltar = document.getElementById('verificacaoVoltar');
+    if (verificacaoVoltar) verificacaoVoltar.addEventListener('click', function (e) {
+      e.preventDefault();
+      firebase.auth().signOut().catch(function () {});
+      document.querySelectorAll('.auth-panel').forEach(function (p) { p.hidden = true; });
+      document.getElementById('auth-login').hidden = false;
+      var loginTab = document.querySelector('.auth-tab[data-tab="login"]');
+      if (loginTab) { document.querySelectorAll('.auth-tab').forEach(function (t) { t.classList.remove('active'); }); loginTab.classList.add('active'); }
     });
 
     /* Olhinho — mostrar/ocultar senha */
@@ -540,6 +646,8 @@
     register: register, login: login,
     logout: logout, sendPasswordReset: sendPasswordReset,
     getAccessLevel: getAccessLevel,
+    criarContaPorAdmin: criarContaPorAdmin,
+    resendVerification: resendVerification,
     isAuthReady: function () { return _authReady; }
   };
 })();

@@ -1520,6 +1520,18 @@ body.aguardando-auth>*:not(#authModal){visibility:hidden}
       <p class="auth-switch">Já tem conta? <a href="#" id="authToLogin">Fazer login</a></p>
     </div>
 
+    <!-- VERIFICAÇÃO DE E-MAIL -->
+    <div class="auth-panel" id="auth-verificacao" hidden>
+      <h3>Confirme seu e-mail</h3>
+      <p class="auth-sub">Enviamos um link de confirmação para:</p>
+      <p class="verificacao-email-destino" style="font-weight:700;color:var(--accent);word-break:break-all;margin:8px 0 16px;"></p>
+      <p class="auth-sub">Acesse sua caixa de entrada <strong>@previ.com.br</strong>, clique no link e depois faça login normalmente.</p>
+      <p class="auth-err" id="verificacaoErr" hidden></p>
+      <p class="auth-ok"  id="verificacaoOk"  hidden></p>
+      <button type="button" class="btn btn--primary w-full" id="reenviarVerificacao">Reenviar e-mail →</button>
+      <p class="auth-switch" style="margin-top:16px;"><a href="#" id="verificacaoVoltar">← Voltar para o login</a></p>
+    </div>
+
   </div>
 </div>
 

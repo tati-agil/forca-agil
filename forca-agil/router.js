@@ -130,20 +130,40 @@
     document.body.classList.remove('aguardando-auth');
     document.body.style.overflow = '';
     var modal = document.getElementById('authModal');
-    if (modal) modal.classList.remove('modal-overlay--forced');
+    if (modal) { modal.hidden = true; modal.classList.remove('modal-overlay--forced'); }
     var closeBtn = document.getElementById('authClose');
     if (closeBtn) closeBtn.style.display = '';
+  }
+
+  function mostrarVerificacaoEmail(email) {
+    var modal = document.getElementById('authModal');
+    if (!modal) return;
+    modal.hidden = false;
+    modal.classList.add('modal-overlay--forced');
+    document.body.style.overflow = 'hidden';
+    document.querySelectorAll('.auth-panel').forEach(function (p) { p.hidden = true; });
+    document.querySelectorAll('.auth-tab').forEach(function (t) { t.classList.remove('active'); });
+    var vp = document.getElementById('auth-verificacao');
+    if (vp) {
+      vp.hidden = false;
+      var dest = vp.querySelector('.verificacao-email-destino');
+      if (dest) dest.textContent = email || '';
+    }
+    var closeBtn = document.getElementById('authClose');
+    if (closeBtn) closeBtn.style.display = 'none';
   }
 
   /* Carga inicial: auth terminou de verificar sessão */
   window.addEventListener('fa-auth-ready', function (e) {
     if (!e.detail) { forcarLogin(); return; }
+    if (e.detail.unverified) { mostrarVerificacaoEmail(e.detail.email); return; }
     revelarSite();
   });
 
   /* Login/logout em tempo real */
   window.addEventListener('fa-auth-change', function (e) {
     if (!e.detail) { forcarLogin(); return; }
+    if (e.detail.unverified) { mostrarVerificacaoEmail(e.detail.email); return; }
     revelarSite();
   });
 
