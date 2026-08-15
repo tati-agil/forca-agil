@@ -202,35 +202,7 @@
           btnWrap.appendChild(exportBtn);
           btnWrap.appendChild(csvBtn);
 
-          /* botão de correção: move check-ins de 12/08 → 11/08 se existirem */
-          var has1208 = Object.keys(checkin).some(function (tk) {
-            return checkin[tk] && checkin[tk]['2026-08-12'] && Object.keys(checkin[tk]['2026-08-12']).length > 0;
-          });
-          if (has1208) {
-            var fixBtn = document.createElement('button');
-            fixBtn.className = 'btn btn--sm';
-            fixBtn.style.cssText = 'border-color:rgba(255,200,0,.6);color:#ffd700;';
-            fixBtn.textContent = '⚠️ Corrigir check-ins 12/08 → 11/08';
-            fixBtn.addEventListener('click', function () {
-              if (!confirm('Mover TODOS os check-ins registrados em 12/08 para 11/08?\n\nEsta ação não pode ser desfeita.')) return;
-              var db = firebase.database();
-              var updates = {};
-              Object.keys(checkin).forEach(function (tk) {
-                var registros = checkin[tk] && checkin[tk]['2026-08-12'];
-                if (!registros) return;
-                Object.keys(registros).forEach(function (eKey) {
-                  updates['turmas-checkin/' + tk + '/2026-08-11/' + eKey] = registros[eKey];
-                  updates['turmas-checkin/' + tk + '/2026-08-12/' + eKey] = null;
-                });
-              });
-              db.ref().update(updates, function (err) {
-                if (err) { adminAlert('Erro ao corrigir: ' + err.message); return; }
-                adminAlert('Pronto! Todos os check-ins foram movidos para 11/08.');
-                loadInterests();
-              });
-            });
-            btnWrap.appendChild(fixBtn);
-          }
+
 
           c.appendChild(btnWrap);
 
