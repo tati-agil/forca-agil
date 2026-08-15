@@ -88,6 +88,7 @@
     if (window.faInitMapa) window.faInitMapa();
     if (window.faInitTestes) window.faInitTestes();
     if (window.faInitPedidos) window.faInitPedidos();
+    initCertificados();
   }
 
   function migrateNameCase() {
@@ -2125,4 +2126,174 @@
       return dt.toLocaleDateString('pt-BR') + ' ' + dt.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
     } catch(e) { return '—'; }
   }
+
+  /* ── Certificados ────────────────────────────────────────────────────── */
+
+  function initCertificados() {
+    if (!window.faCertif) return;
+
+    var certif   = window.faCertif;
+    var sel      = document.getElementById('certTurmaSelect');
+    var nomeEv   = document.getElementById('certNomeEvento');
+    var cargaH   = document.getElementById('certCargaH');
+    var dataEm   = document.getElementById('certDataEmissao');
+    var wrap     = document.getElementById('certParticipantesWrap');
+    var listEl   = document.getElementById('certParticipantesList');
+    var hint     = document.getElementById('certPreviewHint');
+    var dlTodos  = document.getElementById('certBaixarTodos');
+
+    if (!sel) return;
+
+    /* data padrão = hoje */
+    var hoje = new Date();
+    var pad = function (n) { return String(n).padStart(2, '0'); };
+    dataEm.value = hoje.getFullYear() + '-' + pad(hoje.getMonth() + 1) + '-' + pad(hoje.getDate());
+
+    /* preenche select de turmas */
+    TURMAS_LIST.forEach(function (t) {
+      var opt = document.createElement('option');
+      opt.value = t.key;
+      opt.textContent = t.label + (t.dates ? '  (' + t.dates + ')' : '');
+      sel.appendChild(opt);
+    });
+
+    function buildData(participant, turma) {
+      var meses = ['janeiro','fevereiro','março','abril','maio','junho',
+                   'julho','agosto','setembro','outubro','novembro','dezembro'];
+      var d = new Date(dataEm.value + 'T12:00:00');
+      var dataFmt = isNaN(d) ? dataEm.value
+        : d.getDate() + ' de ' + meses[d.getMonth()] + ' de ' + d.getFullYear();
+
+      /* identificação da turma: label + mês principal */
+      var mesLabel = '';
+      if (turma.dias && turma.dias.length) {
+        var dt0 = new Date(turma.dias[0] + 'T12:00:00');
+        mesLabel = ' · ' + meses[dt0.getMonth()].charAt(0).toUpperCase() + meses[dt0.getMonth()].slice(1) + ' ' + dt0.getFullYear();
+      }
+
+      return {
+        nomeParticipante:  participant.name || '',
+        nomeEvento:        nomeEv.value || '',
+        identificacaoTurma: turma.label + mesLabel,
+        periodoTurma:      turma.dates || '',
+        cargaHoraria:      cargaH.value || '20',
+        dataEmissao:       dataFmt
+      };
+    }
+
+    function renderPreview(participant, turma) {
+      var data = buildData(participant, turma);
+      certif.preview('certPreviewCanvas', data);
+      if (hint) hint.style.display = 'none';
+    }
+
+    function renderLista(turma, inscritos) {
+      if (!wrap || !listEl) return;
+      wrap.style.display = '';
+      var title = document.getElementById('certListTitle');
+      if (title) title.textContent = 'Participantes inscritos — ' + turma.label + ' (' + inscritos.length + ')';
+
+      listEl.innerHTML = '';
+      if (!inscritos.length) {
+        listEl.innerHTML = '<p class="cert-empty">Nenhum participante inscrito nesta turma.</p>';
+        return;
+      }
+
+      inscritos.forEach(function (p) {
+        var row = document.createElement('div');
+        row.className = 'cert-participant-row';
+
+        var nameSpan = document.createElement('span');
+        nameSpan.className = 'cert-p-name';
+        nameSpan.textContent = p.name || p.email;
+
+        var btnPrev = document.createElement('button');
+        btnPrev.className = 'btn btn--sm cert-btn-prev';
+        btnPrev.textContent = '👁 Pré-visualizar';
+        btnPrev.addEventListener('click', function () {
+          document.querySelectorAll('.cert-participant-row').forEach(function (r) { r.classList.remove('cert-active'); });
+          row.classList.add('cert-active');
+          renderPreview(p, turma);
+        });
+
+        var btnDl = document.createElement('button');
+        btnDl.className = 'btn btn--sm cert-btn-dl';
+        btnDl.textContent = '⬇ Baixar';
+        btnDl.addEventListener('click', function () {
+          var data = buildData(p, turma);
+          var slug = (p.name || p.email).replace(/\s+/g, '_').toLowerCase();
+          certif.download(data, 'certificado_' + slug);
+        });
+
+        row.appendChild(nameSpan);
+        row.appendChild(btnPrev);
+        row.appendChild(btnDl);
+        listEl.appendChild(row);
+      });
+
+      /* pré-visualiza o primeiro automaticamente */
+      if (inscritos.length) renderPreview(inscritos[0], turma);
+      if (listEl.firstChild) listEl.firstChild.classList.add('cert-active');
+    }
+
+    function loadInscritos(turmaKey, cb) {
+      firebase.database().ref('turmas-interesse/' + turmaKey).once('value', function (snap) {
+        var val = snap.val() || {};
+        var inscritos = Object.values(val).filter(function (r) {
+          return r && !r.removed && r.status === 'inscrito';
+        }).sort(function (a, b) { return (a.name || '').localeCompare(b.name || '', 'pt-BR'); });
+        cb(inscritos);
+      });
+    }
+
+    sel.addEventListener('change', function () {
+      var key = sel.value;
+      if (!key) {
+        if (wrap) wrap.style.display = 'none';
+        if (hint) hint.style.display = '';
+        return;
+      }
+      var turma = TURMAS_LIST.filter(function (t) { return t.key === key; })[0];
+      if (!turma) return;
+      loadInscritos(key, function (inscritos) { renderLista(turma, inscritos); });
+    });
+
+    /* atualiza pré-visualização quando campos globais mudam */
+    [nomeEv, cargaH, dataEm].forEach(function (inp) {
+      inp.addEventListener('input', function () {
+        var active = listEl && listEl.querySelector('.cert-active');
+        if (!active || !sel.value) return;
+        var turma = TURMAS_LIST.filter(function (t) { return t.key === sel.value; })[0];
+        var idx = Array.from(listEl.children).indexOf(active);
+        var key = sel.value;
+        loadInscritos(key, function (inscritos) {
+          if (inscritos[idx]) renderPreview(inscritos[idx], turma);
+        });
+      });
+    });
+
+    /* baixar todos */
+    if (dlTodos) {
+      dlTodos.addEventListener('click', function () {
+        var key = sel.value;
+        if (!key) { alert('Selecione uma turma primeiro.'); return; }
+        var turma = TURMAS_LIST.filter(function (t) { return t.key === key; })[0];
+        if (!turma) return;
+        loadInscritos(key, function (inscritos) {
+          if (!inscritos.length) { alert('Nenhum participante inscrito nesta turma.'); return; }
+          var i = 0;
+          function next() {
+            if (i >= inscritos.length) return;
+            var p = inscritos[i++];
+            var data = buildData(p, turma);
+            var slug = (p.name || p.email).replace(/\s+/g, '_').toLowerCase();
+            certif.download(data, 'certificado_' + slug);
+            setTimeout(next, 800); /* pequeno intervalo para não sobrecarregar */
+          }
+          next();
+        });
+      });
+    }
+  }
+
 })();

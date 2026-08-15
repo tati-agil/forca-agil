@@ -1283,6 +1283,7 @@ body.aguardando-auth>*:not(#authModal){visibility:hidden}
         <button class="admin-tab-btn" data-panel="adminPanelMapa">Mapa</button>
         <button class="admin-tab-btn" data-panel="adminPanelTestes">Testes</button>
         <button class="admin-tab-btn" data-panel="adminPanelPedidos">Pedidos</button>
+        <button class="admin-tab-btn" data-panel="adminPanelCert">Certificados</button>
       </div>
       <div class="admin-expand-bar" id="adminExpandBar">
         <span class="admin-expand-label">Expansíveis:</span>
@@ -1329,6 +1330,52 @@ body.aguardando-auth>*:not(#authModal){visibility:hidden}
       </div>
       <div class="admin-tab-panel" id="adminPanelPedidos">
         <div id="adminPedidos"></div>
+      </div>
+
+      <div class="admin-tab-panel" id="adminPanelCert">
+        <div id="adminCert">
+          <!-- configurações -->
+          <div class="cert-config-row">
+            <div class="cert-config-group">
+              <label class="cert-label">Turma</label>
+              <select id="certTurmaSelect" class="cert-select">
+                <option value="">— selecionar turma —</option>
+              </select>
+            </div>
+            <div class="cert-config-group">
+              <label class="cert-label">Nome do evento</label>
+              <input id="certNomeEvento" class="cert-input" type="text"
+                     value="FORÇA ÁGIL · JORNADA DE IMERSÃO" maxlength="60">
+            </div>
+            <div class="cert-config-group cert-config-group--sm">
+              <label class="cert-label">Carga horária</label>
+              <input id="certCargaH" class="cert-input" type="number"
+                     value="20" min="1" max="999" style="width:70px">
+              <span class="cert-label" style="margin-top:2px">h</span>
+            </div>
+            <div class="cert-config-group cert-config-group--sm">
+              <label class="cert-label">Data de emissão</label>
+              <input id="certDataEmissao" class="cert-input" type="date">
+            </div>
+          </div>
+
+          <!-- pré-visualização -->
+          <div class="cert-preview-wrap">
+            <canvas id="certPreviewCanvas" class="cert-canvas"></canvas>
+            <p id="certPreviewHint" class="cert-preview-hint">
+              Selecione uma turma e um participante para pré-visualizar.
+            </p>
+          </div>
+
+          <!-- lista de participantes -->
+          <div id="certParticipantesWrap" style="display:none">
+            <div class="cert-list-header">
+              <h4 class="cert-list-title" id="certListTitle">Participantes inscritos</h4>
+              <button class="btn btn--sm" id="certBaixarTodos">⬇ Baixar todos</button>
+            </div>
+            <div id="certParticipantesList"></div>
+          </div>
+        </div>
       </div>
     </div>
   </div>
@@ -1595,6 +1642,7 @@ body.aguardando-auth>*:not(#authModal){visibility:hidden}
 
 <!-- Admin (último — depende de auth e router) -->
 <script src="forca-agil/qrcode.min.js"></script>
+<script src="forca-agil/certif.js"></script>
 <script src="forca-agil/admin.js"></script>
 <script src="forca-agil/checkin.js"></script>
 <script src="forca-agil/manual.js"></script>

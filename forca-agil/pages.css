@@ -655,3 +655,61 @@
   letter-spacing: .06em; padding: 10px 20px; cursor: pointer; transition: border-color .2s, color .2s;
 }
 .galaxy-more-btn:hover { border-color: var(--accent); color: var(--accent); }
+
+/* ── Certificados ──────────────────────────────────────────────────────── */
+.cert-config-row {
+  display: flex; flex-wrap: wrap; gap: 16px; align-items: flex-end;
+  padding: 20px 0 24px; border-bottom: 1px solid var(--line-strong);
+}
+.cert-config-group { display: flex; flex-direction: column; gap: 6px; }
+.cert-config-group--sm { flex-direction: row; align-items: flex-end; gap: 8px; }
+.cert-label {
+  font-size: .72rem; font-family: var(--font-mono); text-transform: uppercase;
+  letter-spacing: .06em; color: var(--ink-3);
+}
+.cert-select, .cert-input {
+  font-family: var(--font-mono); font-size: .82rem;
+  background: rgba(16,28,52,.8); color: var(--ink);
+  border: 1px solid var(--line-strong); border-radius: 6px;
+  padding: 7px 10px; cursor: pointer; min-width: 180px;
+}
+.cert-select:focus, .cert-input:focus { outline: none; border-color: var(--gold, #f5c542); }
+.cert-preview-wrap {
+  position: relative; margin: 28px 0 24px;
+  background: #0a0c14; border-radius: 8px; overflow: hidden;
+  border: 1px solid var(--line-strong);
+}
+.cert-canvas { display: block; width: 100%; height: auto; }
+.cert-preview-hint {
+  position: absolute; inset: 0; display: flex; align-items: center;
+  justify-content: center; margin: 0;
+  font-family: var(--font-mono); font-size: .82rem; color: var(--ink-3);
+  background: rgba(5,7,14,.85);
+}
+.cert-list-header {
+  display: flex; align-items: center; justify-content: space-between;
+  margin-bottom: 14px;
+}
+.cert-list-title {
+  font-family: var(--font-mono); font-size: .88rem; text-transform: uppercase;
+  letter-spacing: .05em; color: var(--ink-2); margin: 0;
+}
+.cert-participant-row {
+  display: flex; align-items: center; gap: 12px;
+  padding: 10px 14px; border-radius: 6px; margin-bottom: 6px;
+  background: rgba(255,255,255,.03); border: 1px solid var(--line);
+  transition: border-color .15s;
+}
+.cert-participant-row.cert-active {
+  border-color: rgba(245,197,66,.45);
+  background: rgba(245,197,66,.05);
+}
+.cert-p-name {
+  flex: 1; font-size: .88rem; color: var(--ink);
+  font-family: var(--font-mono);
+}
+.cert-btn-prev, .cert-btn-dl { white-space: nowrap; }
+.cert-empty {
+  font-family: var(--font-mono); font-size: .82rem; color: var(--ink-3);
+  padding: 20px 0;
+}
