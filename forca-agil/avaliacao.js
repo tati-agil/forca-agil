@@ -605,7 +605,14 @@
     if (!c) return;
 
     var session = window.faAuth && window.faAuth.getSession();
-    if (!session) { c.innerHTML = '<p class="loading-msg">Faça login para acessar a avaliação.</p>'; return; }
+    if (!session) {
+      c.innerHTML = '<p class="loading-msg">Carregando…</p>';
+      window.addEventListener('fa-auth-ready', function onReady() {
+        window.removeEventListener('fa-auth-ready', onReady);
+        init();
+      });
+      return;
+    }
 
     var isAdmin   = !!(window.faAuth.isAdmin && window.faAuth.isAdmin(session.email));
     var userEmail = session.email;
