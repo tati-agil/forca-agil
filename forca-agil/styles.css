@@ -1157,7 +1157,7 @@ html:not(.js) .reveal { opacity: 1 !important; transform: none !important; }
 .rmodal-actions { display: flex; justify-content: center; }
 
 /* ---------- Manual Interativo ---------- */
-.manual-wrap { padding: 8px 0 48px; }
+.manual-wrap { padding: 8px 0 40px; }
 .manual-title { font-family: var(--font-head); font-size: 1.5rem; text-transform: uppercase; letter-spacing: .06em; color: var(--ink); margin-bottom: 24px; }
 .manual-filter-bar { display: flex; gap: 16px; flex-wrap: wrap; margin-bottom: 12px; }
 .manual-toolbar { display: flex; align-items: flex-end; gap: 12px; flex-wrap: wrap; margin-bottom: 12px; }
@@ -1201,7 +1201,7 @@ details.manual-section-group[open] .manual-sec-icon { transform: rotate(90deg); 
 /* ---------- (Binary suns removed — background is always the universe) ---------- */
 
 /* ---------- Mapa do Site + Hierarquia ---------- */
-.mapa-wrap { padding: 8px 0 56px; }
+.mapa-wrap { padding: 8px 0 40px; }
 .mapa-title { font-family: var(--font-head); font-size: 1.4rem; text-transform: uppercase; letter-spacing: .06em; color: var(--ink); margin: 0 0 8px; }
 /* Acordeão dos blocos do Mapa */
 .mapa-top-acc { border: 1px solid var(--line-strong); border-radius: 10px; margin-bottom: 14px; overflow: hidden; }
@@ -1416,7 +1416,7 @@ details.manual-section-group[open] .manual-sec-icon { transform: rotate(90deg); 
 .admin-reset-banner li { display: flex; align-items: center; justify-content: space-between; gap: 12px; font-size: .88rem; color: var(--ink-2); }
 
 /* ---------- Testes automatizados ---------- */
-.testes-wrap { padding: 0 4px; }
+.testes-wrap { padding: 0 4px 40px; }
 .testes-header { display: flex; align-items: center; justify-content: space-between; gap: 16px; margin-bottom: 24px; flex-wrap: wrap; }
 .testes-desc { font-size: .88rem; color: var(--ink-3); margin: 0 0 20px; line-height: 1.5; }
 .testes-running { color: var(--ink-3); font-size: .9rem; padding: 12px 0; }
