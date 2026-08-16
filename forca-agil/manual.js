@@ -515,6 +515,9 @@
       title: 'Aba: Manual — expandir/recolher tudo',
       body: 'Botões "Expandir tudo" e "Recolher tudo" abrem ou fecham de uma vez todas as regras visíveis na combinação de filtros atual.' },
     { section: 'admin', personas: ['admin'],
+      title: 'Aba: Manual e Mapa — subgrupos dentro de ADMIN',
+      body: 'A categoria ADMIN reúne itens de todas as 9 abas do painel — para não virar uma lista única confusa, é subagrupada automaticamente por aba a partir do prefixo "Aba X — " de cada título (regex: itens sem esse prefixo caem em "ADMIN · GERAL"). Cada subgrupo (ex: "ADMIN · EVENTOS") mostra sua própria contagem entre parênteses e é retrátil — clicar no subcabeçalho abre/fecha só aquele grupo, sem precisar abrir a categoria ADMIN inteira de uma vez. "Expandir tudo"/"Recolher tudo" também abrangem os subgrupos.' },
+    { section: 'admin', personas: ['admin'],
       title: 'Aba: Mapa',
       body: 'Mostra cinco seções: (1) Hierarquia de Personas — níveis de acesso cumulativos; (2) Acesso por Tipo de Pessoa — tabela com o que cada perfil vê/acessa em cada página; (3) Mapa do Site — páginas e features com nível mínimo por persona; (4) Arquitetura Técnica e Regras Operacionais — acordeão com tecnologias, módulos, padrões de código, padrões de UX, deploy e regras de governança; (5) Diagrama da Arquitetura — visão visual gerada automaticamente a partir dos dados da Arquitetura Técnica.' },
     { section: 'admin', personas: ['admin'],
@@ -645,8 +648,10 @@
             byTab[tab].push(rule);
           });
           subgroups.forEach(function (tab) {
-            html += '<div class="manual-admin-subhead">ADMIN · ' + esc(tab.toUpperCase()) + '</div>';
+            html += '<details class="manual-admin-subgroup">';
+            html += '<summary class="manual-admin-subhead"><span class="manual-sec-icon">▸</span>ADMIN · ' + esc(tab.toUpperCase()) + ' <span class="testes-group-count">(' + byTab[tab].length + ')</span></summary>';
             byTab[tab].forEach(renderCard);
+            html += '</details>';
           });
         } else {
           items.forEach(renderCard);

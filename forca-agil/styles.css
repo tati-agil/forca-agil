@@ -1182,8 +1182,17 @@ details.manual-section-group[open] .manual-sec-icon { transform: rotate(90deg); 
 .manual-sec-label { font-family: var(--font-head); font-size: 1.05rem; text-transform: uppercase; letter-spacing: .06em; color: var(--ink); }
 .manual-section-group > .manual-card { margin: 8px 16px 0; }
 .manual-section-group > .manual-card:last-of-type { margin-bottom: 16px; }
-.manual-admin-subhead { font-family: var(--font-mono); font-size: .64rem; letter-spacing: .1em; color: var(--ink-3); margin: 16px 16px 6px; }
-.manual-admin-subhead:first-of-type { margin-top: 12px; }
+.manual-admin-subgroup { margin: 0 0 4px; }
+.manual-admin-subgroup:first-of-type { margin-top: 4px; }
+.manual-admin-subhead {
+  display: flex; align-items: center; gap: 8px; cursor: pointer; user-select: none; list-style: none;
+  font-family: var(--font-mono); font-size: .64rem; letter-spacing: .1em; color: var(--ink-3); margin: 16px 16px 6px;
+}
+.manual-admin-subhead::-webkit-details-marker { display: none; }
+.manual-admin-subhead .manual-sec-icon { font-size: .7rem; }
+details.manual-admin-subgroup[open] > .manual-admin-subhead .manual-sec-icon { transform: rotate(90deg); }
+.manual-admin-subgroup > .manual-card { margin: 8px 16px 0; }
+.manual-admin-subgroup > .manual-card:last-of-type { margin-bottom: 16px; }
 .manual-card { border: 1px solid var(--line); border-left: 3px solid var(--card-col, var(--accent)); border-radius: 10px; background: var(--panel); transition: border-color .2s; overflow: hidden; }
 .manual-card:hover { border-color: var(--line-strong); border-left-color: var(--card-col, var(--accent)); }
 .manual-card[open] { border-color: var(--line-strong); }
@@ -1405,6 +1414,10 @@ details.manual-section-group[open] .manual-sec-icon { transform: rotate(90deg); 
 .mapa-page-body { display: none; }
 .mapa-page.open .mapa-page-body { display: block; }
 .mapa-page:not(.open) .mapa-page-title { border-bottom: none; }
+.mapa-admin-subgroup-body { display: none; }
+.mapa-admin-subgroup.open .mapa-admin-subgroup-body { display: block; }
+.mapa-subhead-arrow { transition: transform .2s; }
+.mapa-admin-subgroup:not(.open) .mapa-subhead-arrow { transform: rotate(-90deg); }
 .mapa-feature { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 8px 16px; border-bottom: 1px solid var(--line); }
 .mapa-feature:last-child { border-bottom: none; }
 .mapa-feature-label { font-size: .78rem; color: var(--ink-2); line-height: 1.4; flex: 1; }

@@ -455,8 +455,11 @@
           byTab[tab].push(f);
         });
         subgroups.forEach(function (tab) {
-          html += '<div class="manual-admin-subhead mapa-subhead" data-tab="' + esc(tab) + '">ADMIN · ' + esc(tab.toUpperCase()) + '</div>';
+          html += '<div class="mapa-admin-subgroup" data-tab="' + esc(tab) + '">';
+          html += '<div class="manual-admin-subhead mapa-subhead"><span class="mapa-page-arrow mapa-subhead-arrow">▾</span>ADMIN · ' + esc(tab.toUpperCase()) + ' <span class="testes-group-count">(' + byTab[tab].length + ')</span></div>';
+          html += '<div class="mapa-admin-subgroup-body">';
           byTab[tab].forEach(renderFeature);
+          html += '</div></div>';
         });
       } else {
         allFeats.forEach(renderFeature);
@@ -769,7 +772,7 @@
     var mapaExpandAll = document.getElementById('mapaExpandAll');
     if (mapaExpandAll) {
       mapaExpandAll.addEventListener('click', function () {
-        container.querySelectorAll('.mapa-page, .arch-section, .mapa-level, .mapa-site-page').forEach(function (el) { el.classList.add('open'); });
+        container.querySelectorAll('.mapa-page, .arch-section, .mapa-level, .mapa-site-page, .mapa-admin-subgroup').forEach(function (el) { el.classList.add('open'); });
         container.querySelectorAll('.mapa-top-acc-body').forEach(function (b) { b.style.display = ''; });
         container.querySelectorAll('.mapa-top-acc-icon').forEach(function (i) { i.textContent = '▾'; });
       });
@@ -777,7 +780,7 @@
     var mapaCollapseAll = document.getElementById('mapaCollapseAll');
     if (mapaCollapseAll) {
       mapaCollapseAll.addEventListener('click', function () {
-        container.querySelectorAll('.mapa-page, .arch-section, .mapa-level, .mapa-site-page').forEach(function (el) { el.classList.remove('open'); });
+        container.querySelectorAll('.mapa-page, .arch-section, .mapa-level, .mapa-site-page, .mapa-admin-subgroup').forEach(function (el) { el.classList.remove('open'); });
         container.querySelectorAll('.mapa-top-acc-body').forEach(function (b) { b.style.display = 'none'; });
         container.querySelectorAll('.mapa-top-acc-icon').forEach(function (i) { i.textContent = '▸'; });
       });
@@ -841,6 +844,8 @@
     container.addEventListener('click', function (e) {
       const pageTitle = e.target.closest('.mapa-page-title');
       if (pageTitle) { pageTitle.closest('.mapa-page').classList.toggle('open'); return; }
+      const subhead = e.target.closest('.mapa-subhead');
+      if (subhead) { subhead.closest('.mapa-admin-subgroup').classList.toggle('open'); return; }
       const archLabel = e.target.closest('.arch-section-label');
       if (archLabel) { archLabel.closest('.arch-section').classList.toggle('open'); return; }
       const levelHead = e.target.closest('.mapa-level-head');
@@ -859,15 +864,10 @@
           var show = persona === 'todos' || ps.indexOf(persona) !== -1;
           feat.style.display = show ? '' : 'none';
         });
-        /* Subheads: mostrar só se tiver feature visível abaixo */
-        grid.querySelectorAll('.mapa-subhead').forEach(function (sh) {
-          var next = sh.nextElementSibling;
-          var hasVisible = false;
-          while (next && !next.classList.contains('mapa-subhead')) {
-            if (next.classList.contains('mapa-feature') && next.style.display !== 'none') { hasVisible = true; break; }
-            next = next.nextElementSibling;
-          }
-          sh.style.display = hasVisible ? '' : 'none';
+        /* Subgrupos ADMIN · <aba>: mostrar só se tiver feature visível dentro */
+        grid.querySelectorAll('.mapa-admin-subgroup').forEach(function (sub) {
+          var hasVisible = Array.prototype.some.call(sub.querySelectorAll('.mapa-feature'), function (f) { return f.style.display !== 'none'; });
+          sub.style.display = hasVisible ? '' : 'none';
         });
         /* Atualizar contagem de cada card */
         grid.querySelectorAll('.mapa-page').forEach(function (page) {
