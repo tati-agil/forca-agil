@@ -540,6 +540,7 @@
           { name: 'Stepper em linha única horizontal',       desc: 'O fluxo de 4 passos do Treinamento Jedi (login → explorar → ganhar experiência → patentes) fica em uma única linha com flex-wrap: nowrap e flex: 1 1 0 nos steps. Mobile quebra para coluna.' },
           { name: 'Crawl de abertura animado',               desc: 'Texto introdutório em estilo Star Wars sobe lentamente ao entrar na Home. Clique em qualquer ponto pausa/retoma a animação. Botão "Ler texto" alterna para modo estático (sem animação) para acessibilidade.' },
           { name: 'Menu mobile (≤ 600px)',                   desc: 'Media query ≤600px: logo compacto, botões menores, ícone hamburguer sempre visível sem sobreposição com outros elementos do header.' },
+          { name: 'Cor de destaque (--accent) só na ação primária', desc: 'O dourado/accent do tema é reservado para UM botão de ação por tela — o que a pessoa mais precisa clicar (ex: "Enviar minha avaliação", "+ Novo evento"). Badges informativos (contagens, status neutros) usam --panel-2 + --line-strong (fundo neutro com borda), nunca --accent sólido — evita competir visualmente com o botão de ação e confundir "isso eu clico" com "isso eu só leio". Corrigido em 16/08/2026: .admin-badge usava --accent sólido para contagens simples (ex: "7 interessados · 20 confirmados"), competindo com os botões primários da mesma tela.' },
         ]
       },
       {

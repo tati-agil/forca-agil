@@ -141,6 +141,13 @@
           var n = parseInt(badge.textContent, 10);
           return n === rows.length;
         } },
+        { id: 'adm-badge-neutro', label: 'Badges de contagem não usam a cor de destaque (--accent)', run: function () {
+          var badge = document.querySelector('#adminInterests .admin-badge, #adminCadastrados .admin-badge, #adminAdmins .admin-badge');
+          if (!badge) return true;
+          var bg = getComputedStyle(badge).backgroundColor;
+          var accentBg = getComputedStyle(document.querySelector('.btn--primary') || document.body).backgroundColor;
+          return bg !== accentBg;
+        } },
         { id: 'adm-cadastrados-filtro', label: 'Cadastrados: filtro reduz a lista de forma consistente', run: function () {
           var c = document.getElementById('adminCadastrados');
           var input = document.getElementById('cadastradosFiltro');
