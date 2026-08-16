@@ -1230,7 +1230,7 @@ details.manual-section-group[open] .manual-sec-icon { transform: rotate(90deg); 
 .mapa-level-inherit strong { color: var(--ink-2); }
 
 /* ── Avaliação da Oficina ── */
-#page-avaliacao .wrap { max-width: 820px; }
+#page-avaliacao .wrap { max-width: 820px; padding-top: 80px; }
 
 .aval-form-header { margin-bottom: 20px; }
 .aval-intro { color: var(--ink-2); font-size: .9rem; margin: 0 0 14px; line-height: 1.7; }
