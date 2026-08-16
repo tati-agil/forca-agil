@@ -541,12 +541,17 @@
             var turmasEvento = TURMAS_LIST.filter(function (t) { return t.eventoKey === ev.key; });
 
             var evSection = document.createElement('div');
-            evSection.style.cssText = 'border:1px solid var(--line-strong);border-radius:8px;margin-bottom:24px;overflow:hidden';
+            /* overflow:visible — não pode ser hidden: os cards de turma dentro
+               têm menu "⋯" posicionado absoluto, que corta se um ancestral
+               qualquer clipar o conteúdo. Arredondamento replicado no header/
+               body abaixo em vez de depender do clip (mesmo motivo do fix em
+               .turma-admin-card). */
+            evSection.style.cssText = 'border:1px solid var(--line-strong);border-radius:8px;margin-bottom:24px;overflow:visible';
             evSection.setAttribute('data-ev-key', ev.key);
 
             /* cabeçalho do evento — clicável para expandir/recolher */
             var evHdr = document.createElement('div');
-            evHdr.style.cssText = 'display:flex;align-items:center;gap:12px;padding:14px 18px;background:var(--panel-2);border-bottom:1px solid var(--line-strong);cursor:pointer;user-select:none';
+            evHdr.style.cssText = 'display:flex;align-items:center;gap:12px;padding:14px 18px;background:var(--panel-2);border-bottom:1px solid var(--line-strong);cursor:pointer;user-select:none;border-radius:8px 8px 0 0';
             var evToggleIcon = document.createElement('span');
             evToggleIcon.className = 'ev-toggle-icon';
             evToggleIcon.style.cssText = 'color:var(--ink-2);font-size:.85rem;flex-shrink:0;transition:transform .15s';
@@ -600,9 +605,9 @@
           var semEvento = TURMAS_LIST.filter(function (t) { return !t.eventoKey; });
           if (semEvento.length) {
             var semEventoSection = document.createElement('div');
-            semEventoSection.style.cssText = 'border:1px solid rgba(255,165,0,.3);border-radius:8px;margin-bottom:24px;overflow:hidden';
+            semEventoSection.style.cssText = 'border:1px solid rgba(255,165,0,.3);border-radius:8px;margin-bottom:24px;overflow:visible';
             var semEventoHdr = document.createElement('div');
-            semEventoHdr.style.cssText = 'display:flex;align-items:center;gap:10px;padding:12px 18px;background:var(--panel-2);border-bottom:1px solid rgba(255,165,0,.3)';
+            semEventoHdr.style.cssText = 'display:flex;align-items:center;gap:10px;padding:12px 18px;background:var(--panel-2);border-bottom:1px solid rgba(255,165,0,.3);border-radius:8px 8px 0 0';
             semEventoHdr.innerHTML = '<span style="color:#ffb347;font-size:.8rem;font-family:var(--font-head);letter-spacing:.08em">⚠ TURMAS SEM EVENTO</span>' +
               '<span style="color:var(--ink-2);font-size:.82rem;flex:1">Edite cada turma e vincule a um evento.</span>';
             semEventoSection.appendChild(semEventoHdr);
