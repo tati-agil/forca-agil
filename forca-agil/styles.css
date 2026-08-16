@@ -1231,6 +1231,9 @@ details.manual-section-group[open] .manual-sec-icon { transform: rotate(90deg); 
 
 /* ── Avaliação da Oficina ── */
 #page-avaliacao .wrap { max-width: 820px; }
+.aval-hero { padding-top: 110px; text-align: center; margin-bottom: 40px; }
+.aval-hero h1 { font-family: var(--font-display); font-size: clamp(2rem,6vw,4rem); color: var(--ink); margin: 0 0 16px; }
+.aval-hero p { font-size: clamp(.9rem,2vw,1.05rem); color: var(--ink-2); max-width: 600px; margin: 0 auto; line-height: 1.7; }
 
 .aval-form-header { margin-bottom: 20px; }
 .aval-intro { color: var(--ink-2); font-size: .9rem; margin: 0 0 14px; line-height: 1.7; }
