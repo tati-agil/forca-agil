@@ -469,7 +469,16 @@
 
             moreBtn.addEventListener('click', function (e) {
               e.stopPropagation();
+              var willOpen = !moreMenu.classList.contains('open');
               moreMenu.classList.toggle('open');
+              if (willOpen) {
+                /* Abre pra cima se não houver espaço suficiente embaixo
+                   (ex: card perto do rodapé da página) */
+                moreMenu.classList.remove('taa-dropdown--up');
+                var rect = moreMenu.getBoundingClientRect();
+                var espacoEmbaixo = window.innerHeight - rect.bottom;
+                if (espacoEmbaixo < 0) moreMenu.classList.add('taa-dropdown--up');
+              }
             });
             document.addEventListener('click', function () { moreMenu.classList.remove('open'); });
 

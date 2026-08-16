@@ -327,9 +327,12 @@
   background: #111827; border: 1px solid var(--line-strong);
   border-radius: 8px; padding: 10px 12px; z-index: 200; min-width: 180px;
   box-shadow: 0 8px 24px rgba(0,0,0,.5);
+  max-height: calc(100vh - 24px); overflow-y: auto;
 }
 .taa-dropdown.open { display: flex; }
 .taa-dropdown .btn { width: 100%; justify-content: flex-start; }
+/* Abre pra cima quando não há espaço suficiente embaixo (card perto do rodapé) */
+.taa-dropdown.taa-dropdown--up { top: auto; bottom: calc(100% + 4px); }
 
 @media (max-width: 768px) {
   .turma-admin-header { flex-direction: column; align-items: flex-start; }
