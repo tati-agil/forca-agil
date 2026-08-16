@@ -257,7 +257,7 @@
         { label: '"⏱ ~5 minutos" — tempo estimado exibido no cabeçalho do formulário', p: ['inscrito','admin'] },
         { label: 'Identificação opcional — checkbox "Quero me identificar" antes do envio; desmarcado por padrão (anônimo); se marcado, grava nome visível para o admin', p: ['inscrito','admin'] },
         { label: 'Envio único por turma — após enviar, verifica automaticamente se há outra turma/oficina com avaliação pendente e carrega o próximo formulário; se não houver mais nenhuma, exibe a tela de agradecimento', p: ['inscrito','admin'] },
-        { label: 'Múltiplas avaliações pendentes — se a pessoa está inscrita e confirmada em mais de uma turma (mesma oficina ou oficinas diferentes) com avaliação liberada, um aviso "esta é a 1ª de N" aparece no topo do formulário', p: ['inscrito','admin'] },
+        { label: 'Múltiplas avaliações pendentes — se a pessoa está inscrita e confirmada em mais de uma turma (mesma oficina ou oficinas diferentes) com avaliação liberada, o campo "Turma" vira um seletor e um aviso indica quantas pendências existem; a pessoa pode trocar livremente qual está respondendo (cada turma mantém seu próprio rascunho)', p: ['inscrito','admin'] },
         { label: 'Validação no envio — seção obrigatória não respondida bloqueia o envio e abre aquela seção com aviso', p: ['inscrito','admin'] },
         { label: 'Avaliação não liberada — inscrito vê mensagem "A avaliação ainda não foi liberada para a sua turma"', p: ['inscrito'] },
         { label: 'Admin sempre acessa o formulário independente do flag de liberação da turma', p: ['admin'] },

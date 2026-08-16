@@ -241,13 +241,22 @@
 
   /* ── Formulário completo ── */
 
-  function buildFormHtml(turmaLabel) {
+  function buildFormHtml(turma, pendingList) {
     var h = '';
 
     /* Cabeçalho */
+    var turmaTagHtml;
+    if (pendingList && pendingList.length > 1) {
+      var opts = pendingList.map(function(t) {
+        return '<option value="' + esc(t.key) + '"' + (t.key === turma.key ? ' selected' : '') + '>' + esc(t.label) + '</option>';
+      }).join('');
+      turmaTagHtml = '<div class="aval-turma-tag">Turma: <select id="avalTurmaSwitch" class="aval-turma-select">' + opts + '</select></div>';
+    } else {
+      turmaTagHtml = '<div class="aval-turma-tag">Turma: <strong>' + esc(turma.label) + '</strong></div>';
+    }
     h += '<div class="aval-form-header">' +
       '<div class="aval-header-meta">' +
-        '<div class="aval-turma-tag">Turma: <strong>' + esc(turmaLabel) + '</strong></div>' +
+        turmaTagHtml +
         '<div class="aval-time-est">⏱ ~5 minutos</div>' +
       '</div>' +
     '</div>';
@@ -478,7 +487,7 @@
 
   /* ── Setup dos interativos ── */
 
-  function setupForm(c, turma, done, uKey, userName, userEmail) {
+  function setupForm(c, turma, done, uKey, userName, userEmail, pendingList) {
     var form = document.getElementById('avaliacaoForm');
     if (!form) return;
 
@@ -589,15 +598,23 @@
 
   /* ── Renderização ── */
 
-  function renderForm(c, turma, done, uKey, userName, userEmail, pendingCount) {
+  function renderForm(c, turma, done, uKey, userName, userEmail, pendingList) {
     var noticeHtml = done.length
       ? '<div class="aval-notice">✅ Avaliação já enviada para: ' + done.map(function(t){return '<strong>'+esc(t.label)+'</strong>';}).join(', ') + '</div>'
       : '';
-    if (pendingCount > 1) {
-      noticeHtml += '<div class="aval-notice aval-notice--pending">📋 Você está inscrito em mais de uma turma/oficina com avaliação disponível — esta é a 1ª de ' + pendingCount + '. Depois de enviar esta, a próxima aparece automaticamente.</div>';
+    if (pendingList && pendingList.length > 1) {
+      noticeHtml += '<div class="aval-notice aval-notice--pending">📋 Você tem ' + pendingList.length + ' avaliações pendentes (turmas/oficinas diferentes) — use o seletor "Turma" acima para trocar qual está respondendo agora.</div>';
     }
-    c.innerHTML = noticeHtml + buildFormHtml(turma.label);
-    setupForm(c, turma, done, uKey, userName, userEmail);
+    c.innerHTML = noticeHtml + buildFormHtml(turma, pendingList);
+    setupForm(c, turma, done, uKey, userName, userEmail, pendingList);
+
+    var switchSel = document.getElementById('avalTurmaSwitch');
+    if (switchSel) {
+      switchSel.addEventListener('change', function() {
+        var next = pendingList.filter(function(t){ return t.key === switchSel.value; })[0];
+        if (next) renderForm(c, next, done, uKey, userName, userEmail, pendingList);
+      });
+    }
   }
 
   /* ── Init ── */
@@ -657,7 +674,7 @@
         var pending = eligible.filter(function(t){ return !t.evaluated; });
         var done    = eligible.filter(function(t){ return t.evaluated; });
         if (!pending.length) { c.innerHTML = thanksHtml(done.map(function(t){return t.label;}).join(', ')); return; }
-        renderForm(c, pending[0], done, uKey, userName, userEmail, pending.length);
+        renderForm(c, pending[0], done, uKey, userName, userEmail, pending);
       });
     }).catch(function(err) {
       console.error('[avaliacao]', err);
