@@ -156,6 +156,7 @@
         { label: 'Aba Administradores — consultar lista de administradores (nome, e-mail, admin desde)', p: ['admin'] },
         { label: 'Aba Administradores — adicionar admin (só tatianefdirene e danielfrazao veem esse formulário)', p: ['admin'] },
         { label: 'Aba Administradores — remover admin (só tatianefdirene e danielfrazao veem esse botão)', p: ['admin'] },
+        { label: 'Aba Administradores — se a leitura falhar (permissão, rede), mostra mensagem de erro em vermelho em vez de ficar travada em "Carregando administradores…" indefinidamente', p: ['admin'] },
         { label: 'Aba Manual — regras de comportamento do sistema', p: ['admin'] },
         { label: 'Aba Manual — filtrar por seção e persona', p: ['admin'] },
         { label: 'Aba Manual — exportar Excel (regras)', p: ['admin'] },

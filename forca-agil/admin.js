@@ -2333,6 +2333,9 @@
             }
           );
         });
+      }, function (err) {
+        console.error('[admin] erro ao carregar fa-admins', err);
+        c.innerHTML = '<p class="loading-msg" style="color:var(--red)">Erro ao carregar administradores. Recarregue a página ou verifique sua conexão.</p>';
       });
     }
 
