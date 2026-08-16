@@ -1405,6 +1405,10 @@ details.manual-admin-subgroup[open] > .manual-admin-subhead,
   font-family: var(--font-mono); font-size: .78rem; background: rgba(16,28,52,.8); color: var(--ink);
   border: 1px solid var(--line-strong); border-radius: 6px; padding: 6px 10px; cursor: pointer;
 }
+.ped-admin-input-quando {
+  font-family: var(--font-mono); font-size: .78rem; background: rgba(16,28,52,.8); color: var(--ink);
+  border: 1px solid var(--line-strong); border-radius: 6px; padding: 5px 10px; color-scheme: dark;
+}
 
 /* Badge de nível */
 .mapa-badge { display: inline-block; font-size: .72rem; font-family: var(--font-mono); letter-spacing: .06em; text-transform: uppercase; padding: 3px 9px; border-radius: 20px; border: 1px solid var(--bc, #888); color: var(--bc, #888); background: color-mix(in srgb, var(--bc, #888) 12%, transparent); white-space: nowrap; flex-shrink: 0; }

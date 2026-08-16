@@ -105,6 +105,17 @@
     function diasUteisLabel(n) {
       return n + ' dia' + (n !== 1 ? 's' : '') + ' útil' + (n !== 1 ? 'eis' : '');
     }
+    /* Formato exigido pelo input datetime-local: YYYY-MM-DDTHH:mm, em horário local */
+    function agoraParaDatetimeLocal() {
+      var d = new Date();
+      d.setMinutes(d.getMinutes() - d.getTimezoneOffset());
+      return d.toISOString().slice(0, 16);
+    }
+    function isoParaDatetimeLocal(iso) {
+      var d = new Date(iso);
+      d.setMinutes(d.getMinutes() - d.getTimezoneOffset());
+      return d.toISOString().slice(0, 16);
+    }
 
     function carregarAdmins(cb) {
       var emailsSuper = window.faSuperAdmins || [];
@@ -201,19 +212,23 @@
             html += '<a class="btn btn--sm" href="mailto:' + encodeURIComponent(p.emailEnviou) +
               '?subject=' + encodeURIComponent(assunto) + '&body=' + encodeURIComponent(corpo) + '">✉ Responder por e-mail</a>';
           }
-          if (respondido) {
-            html += '<button class="btn btn--sm ped-desmarcar-btn" data-key="' + p._key + '">✕ Desmarcar</button>';
-          } else if (abrindoSelecao === p._key) {
+          if (abrindoSelecao === p._key) {
+            var emailAtual = (p.respondidoPor && p.respondidoPor.email) || '';
+            var quandoAtual = p.respondidoEm ? isoParaDatetimeLocal(p.respondidoEm) : agoraParaDatetimeLocal();
             html += '<span class="ped-admin-select-wrap">';
             html += '<select class="ped-admin-select-quem" data-key="' + p._key + '">';
             html += '<option value="">— quem respondeu? —</option>';
             listaAdmins.forEach(function (a) {
-              html += '<option value="' + esc(a.email) + '">' + esc(a.name) + '</option>';
+              html += '<option value="' + esc(a.email) + '"' + (a.email === emailAtual ? ' selected' : '') + '>' + esc(a.name) + '</option>';
             });
             html += '</select>';
+            html += '<input type="datetime-local" class="ped-admin-input-quando" data-key="' + p._key + '" value="' + quandoAtual + '" />';
             html += '<button class="btn btn--sm btn--primary ped-confirmar-btn" data-key="' + p._key + '">Confirmar</button>';
             html += '<button class="btn btn--sm ped-cancelar-btn">Cancelar</button>';
             html += '</span>';
+          } else if (respondido) {
+            html += '<button class="btn btn--sm ped-editar-btn" data-key="' + p._key + '">✎ Editar</button>';
+            html += '<button class="btn btn--sm ped-desmarcar-btn" data-key="' + p._key + '">✕ Desmarcar</button>';
           } else {
             html += '<button class="btn btn--sm ped-marcar-btn" data-key="' + p._key + '">✓ Marcar como respondido</button>';
           }
@@ -230,7 +245,7 @@
           render();
         });
       });
-      wrap.querySelectorAll('.ped-marcar-btn').forEach(function (btn) {
+      wrap.querySelectorAll('.ped-marcar-btn, .ped-editar-btn').forEach(function (btn) {
         btn.addEventListener('click', function () {
           abrindoSelecao = btn.dataset.key;
           render();
@@ -246,13 +261,16 @@
         btn.addEventListener('click', function () {
           var key = btn.dataset.key;
           var sel = wrap.querySelector('.ped-admin-select-quem[data-key="' + key + '"]');
+          var inputQuando = wrap.querySelector('.ped-admin-input-quando[data-key="' + key + '"]');
           var email = sel ? sel.value : '';
           if (!email) { sel.focus(); return; }
+          if (!inputQuando || !inputQuando.value) { if (inputQuando) inputQuando.focus(); return; }
           var admin = listaAdmins.filter(function (a) { return a.email === email; })[0];
+          var respondidoEm = new Date(inputQuando.value).toISOString();
           abrindoSelecao = null;
           firebase.database().ref('pedidos/' + key).update({
             respondido: true,
-            respondidoEm: new Date().toISOString(),
+            respondidoEm: respondidoEm,
             respondidoPor: { name: admin ? admin.name : email, email: email },
           });
         });
