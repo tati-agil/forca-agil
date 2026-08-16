@@ -75,9 +75,25 @@
   const SUPER_ADMINS = ['tatianefdirene@previ.com.br', 'danielfrazao@previ.com.br'];
   window.faSuperAdmins = SUPER_ADMINS;
 
+  var _aguardandoAuth = false;
+
   function initAdmin() {
     var sess = window.faAuth && window.faAuth.getSession();
-    if (!sess || !window.faAuth.isAdmin(sess.email)) return;
+    /* Ao abrir #admin direto (link salvo, F5, endereço digitado), o router
+       dispara este init ANTES do Firebase resolver a sessão. Sem esperar o
+       fa-auth-ready, a função retornava em silêncio e o painel inteiro ficava
+       preso nos "Carregando…" estáticos do HTML, sem erro no console. */
+    if (!sess) {
+      if (_aguardandoAuth) return;
+      _aguardandoAuth = true;
+      window.addEventListener('fa-auth-ready', function onReady() {
+        window.removeEventListener('fa-auth-ready', onReady);
+        _aguardandoAuth = false;
+        initAdmin();
+      });
+      return;
+    }
+    if (!window.faAuth.isAdmin(sess.email)) return;
     migrateNameCase();
     loadInterests();
     loadRepoAdmin();
