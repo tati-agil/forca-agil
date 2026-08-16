@@ -649,6 +649,17 @@
             return typeof window.faAuth !== 'undefined';
           }
         },
+        { id: 'c-aval-page',    label: 'Seção #page-avaliacao existe no DOM',       run: function () { return !!document.getElementById('page-avaliacao'); } },
+        { id: 'c-aval-content', label: 'Container #avaliacaoContent existe no DOM',  run: function () { return !!document.getElementById('avaliacaoContent'); } },
+        { id: 'c-aval-api',     label: 'API faAvaliacao disponível (init + checkNavVisibility)', run: function () { return typeof window.faAvaliacao === 'object' && typeof window.faAvaliacao.init === 'function' && typeof window.faAvaliacao.checkNavVisibility === 'function'; } },
+        { id: 'c-aval-nav-admin', label: 'Admin vê link Avaliação no menu (nav-link-aval)',
+          run: function () {
+            var s = window.faAuth && window.faAuth.getSession();
+            if (!s || !window.faAuth.isAdmin(s.email)) return true; /* só aplica para admin */
+            var link = document.querySelector('.nav-link-aval[data-nav-page="avaliacao"]');
+            return !!link && !link.hidden;
+          }
+        },
         { id: 'c-adm-expand-collapse-all', label: 'Expandir tudo / Recolher tudo abrem e fecham os itens retráteis da aba ativa', run: function () {
           var manualBtn = Array.from(document.querySelectorAll('.admin-tab-btn')).find(function (b) { return b.dataset.panel === 'adminPanelManual'; });
           var prevActiveBtn = document.querySelector('.admin-tab-btn.active');
@@ -945,6 +956,32 @@
     { section: 'Admin',
       title: 'Turmas — certificados: sem aprovados',
       motivo: 'Requer turma finalizada onde ninguém atingiu 75%. Clicar em "📜 Certificados". Verificar: alerta informa que nenhum participante atingiu o critério — nenhuma aba é aberta.' },
+
+    /* ── Avaliação da Oficina ─────────────────────────────────── */
+    { section: 'Avaliação',
+      title: 'Admin libera avaliação por turma — aba aparece para inscrito',
+      motivo: 'Requer turma com inscritos confirmados. Clicar em "📋 Liberar avaliação" no menu ⋯ da turma. Verificar: (1) modal de confirmação aparece; (2) ao confirmar, botão vira "🔒 Encerrar avaliação"; (3) ao logar como inscrito confirmado naquela turma, a aba "Avaliação" aparece no menu; (4) ao clicar, o formulário com 13 seções em accordion é exibido; (5) seção 1 começa expandida, demais recolhidas.' },
+    { section: 'Avaliação',
+      title: 'Inscrito sem turma liberada não vê a aba Avaliação',
+      motivo: 'Com avaliação NÃO liberada para a turma: logar como inscrito confirmado. Verificar: (1) aba "Avaliação" não aparece no menu; (2) mesmo acessando #avaliacao diretamente, a mensagem "A avaliação ainda não foi liberada para a sua turma" é exibida no lugar do formulário.' },
+    { section: 'Avaliação',
+      title: 'Validação de seções obrigatórias no envio',
+      motivo: 'Abrir o formulário sem preencher a seção 1 ou 2 e clicar em "ENVIAR". Verificar: (1) o envio é bloqueado; (2) a seção obrigatória faltante se expande automaticamente; (3) mensagem de aviso em vermelho aparece abaixo do botão.' },
+    { section: 'Avaliação',
+      title: 'Auto-avançar após selecionar nota',
+      motivo: 'Na seção 1 (expandida por padrão), selecionar qualquer nota 0–10. Verificar: após ~600ms a seção 1 fecha e a seção 2 abre automaticamente sem nenhum clique adicional.' },
+    { section: 'Avaliação',
+      title: 'Rascunho automático salva e restaura respostas',
+      motivo: 'Preencher algumas respostas (notas, checkboxes, textareas). Navegar para outra aba e voltar para Avaliação. Verificar que as respostas foram restauradas automaticamente do localStorage, sem precisar reenviar.' },
+    { section: 'Avaliação',
+      title: 'Envio único por turma — tela de agradecimento após envio',
+      motivo: 'Preencher seções 1 e 2 (obrigatórias) e clicar em "ENVIAR MINHA AVALIAÇÃO". Verificar: (1) tela de agradecimento com 🚀 é exibida; (2) ao recarregar ou revisitar a aba, o formulário NÃO reaparece; (3) a tela de agradecimento continua sendo exibida; (4) dado gravado em avaliacoes/<turmaKey>/<emailKey> no Firebase.' },
+    { section: 'Avaliação',
+      title: 'Admin encerra avaliação — aba some para inscritos',
+      motivo: 'Com avaliação liberada: clicar em "🔒 Encerrar avaliação" no menu ⋯ da turma. Verificar: (1) modal de confirmação aparece; (2) ao confirmar, botão vira "📋 Liberar avaliação"; (3) ao recarregar a página do inscrito (ou novo login), a aba "Avaliação" não aparece mais no menu.' },
+    { section: 'Avaliação',
+      title: 'Admin acessa formulário mesmo sem flag liberado',
+      motivo: 'Com avaliacaoHabilitada: false (ou ausente) em uma turma: logar como admin e acessar a aba Avaliação. Verificar que o formulário é exibido normalmente — o admin não é bloqueado pelo flag.' },
 
     /* ── Certificados — Fluxo de seleção ─────────────────────── */
     { section: 'Certificados v1.0',
