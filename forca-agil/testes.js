@@ -918,7 +918,7 @@
       motivo: 'Verificar na barra de controles da aba Eventos: (1) seletor "Ver evento:" contém os eventos cadastrados + opção "Todos"; (2) selecionar um evento oculta os demais e expande automaticamente o selecionado; (3) selecionar "Todos" restaura todos os containers; (4) botão "↕ Expandir tudo" expande todos os containers de evento e todos os cards de turma de uma vez; (5) botão "↕ Recolher tudo" recolhe todos os containers e cards de turma de uma vez.' },
     { section: 'Admin',
       title: 'Turmas — layout responsivo das ações (desktop vs mobile)',
-      motivo: 'Verificar em desktop (>768px): todas as ações ficam em linha única (seletor de dia, Abrir/Fechar check-in, QR, + Participante, Reabrir, CSV, Certificados). Verificar em mobile/tablet (≤768px): header do card vira coluna; apenas ações primárias visíveis (seletor + Abrir/Fechar ou Encerrar interesse); botão "⋯" presente e ao clicar abre dropdown com ações secundárias (QR, + Participante, ↺ Reabrir, CSV, Certificados).' },
+      motivo: 'Verificar em desktop (>768px): todas as ações ficam em linha única (seletor de dia, Abrir/Fechar check-in, QR, + Participante, Reabrir, CSV). Verificar em mobile/tablet (≤768px): header do card vira coluna; apenas ações primárias visíveis (seletor + Abrir/Fechar ou Encerrar interesse); botão "⋯" presente e ao clicar abre dropdown com ações secundárias (QR, + Participante, ↺ Reabrir, CSV). Geração de certificado agora é feita só pela aba Certificados, não pelo menu da turma.' },
     { section: 'Admin',
       title: 'Turmas — check-in retroativo manual (clicar em "—")',
       motivo: 'Requer turma finalizada com pelo menos 1 inscrito que não fez check-in naquele dia. Clicar em "—" na célula da pessoa/dia → registra com source:"admin" → célula vira "✓ adm" e frequência atualiza.' },
@@ -979,12 +979,6 @@
     { section: 'Admin',
       title: 'Turmas — exportar CSV com colunas de presença',
       motivo: 'Requer turma finalizada com pelo menos 1 check-in. Verificar: arquivo .csv contém colunas por data (DD/MM), frequência e coluna "Atingiu critério (75%)".' },
-    { section: 'Admin',
-      title: 'Turmas — gerar certificados de participação',
-      motivo: 'Requer turma finalizada com pelo menos 1 inscrito com ≥ 75% de presença. Clicar em "📜 Certificados". Verificar: (1) nova aba abre com os certificados no design escuro/espacial; (2) cada certificado contém nome, turma, período e carga horária em horas (dias presentes × 4h); (3) diálogo de impressão é acionado automaticamente; (4) participantes abaixo de 75% não aparecem.' },
-    { section: 'Admin',
-      title: 'Turmas — certificados: sem aprovados',
-      motivo: 'Requer turma finalizada onde ninguém atingiu 75%. Clicar em "📜 Certificados". Verificar: alerta informa que nenhum participante atingiu o critério — nenhuma aba é aberta.' },
 
     /* ── Avaliação da Oficina ─────────────────────────────────── */
     { section: 'Avaliação',
