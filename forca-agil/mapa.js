@@ -701,6 +701,33 @@
 
     container.innerHTML = html;
 
+    /* Acordeão dos blocos principais (h3.mapa-title) — recolhidos por padrão */
+    Array.from(container.querySelectorAll('h3.mapa-title')).forEach(function (h3) {
+      var acc = document.createElement('div');
+      acc.className = 'mapa-top-acc';
+      var hdr = document.createElement('div');
+      hdr.className = 'mapa-top-acc-hdr';
+      hdr.innerHTML = '<span class="mapa-top-acc-icon">▸</span><span class="mapa-top-acc-label">' + h3.innerHTML + '</span>';
+      var body = document.createElement('div');
+      body.className = 'mapa-top-acc-body';
+      body.style.display = 'none';
+      var sib = h3.nextElementSibling;
+      while (sib && !sib.matches('h3.mapa-title')) {
+        var nxt = sib.nextElementSibling;
+        body.appendChild(sib);
+        sib = nxt;
+      }
+      acc.appendChild(hdr);
+      acc.appendChild(body);
+      h3.parentNode.insertBefore(acc, h3);
+      h3.parentNode.removeChild(h3);
+      hdr.addEventListener('click', function () {
+        var open = body.style.display !== 'none';
+        body.style.display = open ? 'none' : '';
+        hdr.querySelector('.mapa-top-acc-icon').textContent = open ? '▸' : '▾';
+      });
+    });
+
     /* Caixas do diagrama levam até o card correspondente em Arquitetura Técnica,
        em vez de só repetir o nome do arquivo/serviço */
     container.querySelectorAll('.arq-card[data-arch-target]').forEach(function (btn) {
@@ -720,12 +747,16 @@
     if (mapaExpandAll) {
       mapaExpandAll.addEventListener('click', function () {
         container.querySelectorAll('.mapa-page, .arch-section, .mapa-level, .mapa-site-page').forEach(function (el) { el.classList.add('open'); });
+        container.querySelectorAll('.mapa-top-acc-body').forEach(function (b) { b.style.display = ''; });
+        container.querySelectorAll('.mapa-top-acc-icon').forEach(function (i) { i.textContent = '▾'; });
       });
     }
     var mapaCollapseAll = document.getElementById('mapaCollapseAll');
     if (mapaCollapseAll) {
       mapaCollapseAll.addEventListener('click', function () {
         container.querySelectorAll('.mapa-page, .arch-section, .mapa-level, .mapa-site-page').forEach(function (el) { el.classList.remove('open'); });
+        container.querySelectorAll('.mapa-top-acc-body').forEach(function (b) { b.style.display = 'none'; });
+        container.querySelectorAll('.mapa-top-acc-icon').forEach(function (i) { i.textContent = '▸'; });
       });
     }
 
