@@ -2108,7 +2108,7 @@
           ? '<span class="admin-badge" style="background:#78350f;color:#fde68a" title="Cadastro próprio — e-mail ainda não verificado">Pendente</span>'
           : '<span class="admin-badge" style="background:#14532d">Verificado</span>';
         var confirmBtn = precisaVerificacao
-          ? '<td><button class="admin-del-btn admin-confirm-email-btn" data-key="' + esc(p._key) + '" data-name="' + esc(p.name || p.email) + '" title="Confirmar cadastro manualmente — libera o acesso sem precisar clicar no link de e-mail">Confirmar cadastro</button></td>'
+          ? '<td><button class="admin-del-btn admin-confirm-email-btn" data-key="' + esc(p._key) + '" data-name="' + esc(p.name || p.email) + '" title="Confirmar cadastro manualmente — libera o acesso sem precisar clicar no link de e-mail">Confirmar</button></td>'
           : '<td></td>';
         var tr = document.createElement('tr');
         if (bloqueado) tr.style.opacity = '0.55';
@@ -2119,8 +2119,8 @@
           '<td>' + fmtDate(p.createdAt) + '</td>' +
           '<td><span class="admin-badge" style="background:' + (bloqueado ? '#7f1d1d' : '#14532d') + '">' + (bloqueado ? 'Bloqueado' : 'Ativo') + '</span></td>' +
           '<td>' + emailBadge + '</td>' +
-          '<td><button class="admin-del-btn admin-pwd-btn" data-key="' + esc(p._key) + '" data-email="' + esc(p.email || '') + '" data-name="' + esc(p.name || p.email) + '">Redefinir senha</button></td>' +
-          '<td><button class="admin-del-btn admin-reset-btn" data-key="' + esc(p._key) + '" data-email="' + esc(p.email || '') + '" data-name="' + esc(p.name || p.email) + '">Resetar progresso</button></td>' +
+          '<td><button class="admin-del-btn admin-pwd-btn" data-key="' + esc(p._key) + '" data-email="' + esc(p.email || '') + '" data-name="' + esc(p.name || p.email) + '" title="Redefinir senha">Redef. senha</button></td>' +
+          '<td><button class="admin-del-btn admin-reset-btn" data-key="' + esc(p._key) + '" data-email="' + esc(p.email || '') + '" data-name="' + esc(p.name || p.email) + '" title="Resetar progresso">Resetar</button></td>' +
           '<td><button class="admin-del-btn admin-block-btn" data-key="' + esc(p._key) + '" data-name="' + esc(p.name || p.email) + '" data-blocked="' + (bloqueado ? '1' : '0') + '">' + (bloqueado ? 'Desbloquear' : 'Bloquear') + '</button></td>' +
           confirmBtn;
         tbody.appendChild(tr);

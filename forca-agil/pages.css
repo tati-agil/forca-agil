@@ -584,7 +584,7 @@
 .admin-status-btn.active { border-color: var(--cyan); color: var(--cyan); background: rgba(26,178,174,.12); }
 
 .admin-del-btn {
-  padding: 5px 14px; font-size: .78rem; background: transparent;
+  padding: 5px 10px; font-size: .78rem; background: transparent;
   border: 1px solid rgba(255,59,48,.45); color: var(--red);
   border-radius: 6px; cursor: pointer; white-space: nowrap;
   transition: background .2s;
