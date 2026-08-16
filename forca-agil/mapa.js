@@ -173,7 +173,8 @@
         { label: 'Aba Testes — exportar Excel (testes automáticos e manuais)', p: ['admin'] },
         { label: 'Aba Pedidos — ver todos os pedidos enviados pelo site, com filtro por tipo (tema / curso / material / dúvida / outros) e contagem por tipo', p: ['admin'] },
         { label: 'Aba Pedidos — botão "Responder por e-mail" abre o cliente de e-mail do admin (mailto:) com destinatário, assunto e corpo pré-preenchidos citando o pedido; o envio em si acontece fora do site, no e-mail pessoal do admin', p: ['admin'] },
-        { label: 'Aba Pedidos — botão "Marcar como respondido" abre um seletor pra escolher qual admin respondeu (lista de fa-admins + super-admins); ao confirmar, grava respondido/respondidoEm/respondidoPor no Firebase; reversível pelo botão "Desmarcar"', p: ['admin'] },
+        { label: 'Aba Pedidos — botão "Marcar como respondido" abre um seletor pra escolher qual admin respondeu (lista de fa-admins + super-admins) e um campo de data/hora editável (não precisa ser "agora"); reversível pelo botão "Desmarcar"', p: ['admin'] },
+        { label: 'Aba Pedidos — item já respondido tem botão "✎ Editar" que reabre o seletor pré-preenchido com o admin e a data/hora já gravados, pra corrigir sem precisar desmarcar e marcar de novo', p: ['admin'] },
         { label: 'Aba Pedidos — prazo em dias úteis por pedido: "Em aberto há N dias úteis" (fica laranja com 2+ dias) ou "Respondido por X em DATA — N dias úteis depois"; data em fim de semana conta como 8h da segunda-feira seguinte no cálculo', p: ['admin'] },
       ]
     },
