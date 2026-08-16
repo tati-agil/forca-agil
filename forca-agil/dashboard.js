@@ -99,9 +99,12 @@
       if (!porTurma[a.turmaKey]) porTurma[a.turmaKey] = [];
       porTurma[a.turmaKey].push(a);
     });
-    var turmasArr = Object.keys(porTurma).map(function (tk) {
-      var label = (turmasData[tk] && turmasData[tk].label) || tk;
-      return { key: tk, label: label, media: avg(porTurma[tk], 'notaGeral'), n: porTurma[tk].length };
+    /* Mostra TODAS as turmas cadastradas (mesmo sem avaliação ainda) — barra em 0
+       em vez de a turma simplesmente sumir do gráfico quando não há dado. */
+    var turmasArr = Object.keys(turmasData).map(function (tk) {
+      var label = turmasData[tk].label || tk;
+      var arr = porTurma[tk] || [];
+      return { key: tk, label: label, media: avg(arr, 'notaGeral'), n: arr.length };
     }).sort(function (a, b) { return a.label.localeCompare(b.label, 'pt'); });
 
     var destaques = SECOES_RATING.map(function (s) {
@@ -184,12 +187,13 @@
 
   function render(wrap, dados) {
     if (!dados) { wrap.innerHTML = '<p class="loading-msg" style="color:var(--red)">Erro ao carregar dashboard. Recarregue a página.</p>'; return; }
+
+    var html = '';
     if (!dados.total) {
-      wrap.innerHTML = '<div class="dash-empty-state"><p>Nenhuma avaliação recebida ainda.</p><p class="ped-admin-meta">Os números aparecem aqui assim que os primeiros formulários forem enviados.</p></div>';
-      return;
+      html += '<div class="dash-aviso-vazio">📭 Nenhuma avaliação recebida ainda — os números abaixo estão zerados. Libere a avaliação de uma turma na aba Eventos (menu ⋯ → "Liberar avaliação") para começar a receber respostas.</div>';
     }
 
-    var html = '<div class="dash-stats-row">';
+    html += '<div class="dash-stats-row">';
     html += statCard('👥', 'Participantes', dados.participantes, 'Total de inscritos', '#9b7fff');
     html += statCard('✅', 'Avaliações recebidas', dados.total, dados.pctParticipacao + '% de participação', '#4caf7d');
     html += statCard('⭐', 'Média geral', fmt1(dados.mediaGeral) + ' / 10', dados.mediaGeral >= 8 ? 'Ótimo 🚀' : (dados.mediaGeral >= 6 ? 'Bom' : 'Atenção'), '#f5c542');
@@ -254,15 +258,18 @@
 
     html += '</div>'; /* dash-grid-2 */
 
-    if (dados.feedbacks.length) {
-      html += '<div class="dash-panel"><h4 class="dash-panel-title">Feedbacks em destaque</h4>';
+    html += '<div class="dash-panel"><h4 class="dash-panel-title">Feedbacks em destaque</h4>';
+    if (!dados.feedbacks.length) {
+      html += '<p class="dash-empty">Nenhum comentário recebido ainda.</p>';
+    } else {
       html += '<div class="dash-feedbacks-lista">';
       dados.feedbacks.forEach(function (f) {
         html += '<div class="dash-feedback-item">“' + esc(f.continuar) + '”' +
           '<span class="ped-admin-meta">— ' + (f.identificado ? esc(f.nomeExibido || 'Participante') : 'Participante') + ' · ' + esc(f.turmaLabel || '') + '</span></div>';
       });
-      html += '</div></div>';
+      html += '</div>';
     }
+    html += '</div>';
 
     wrap.innerHTML = html;
   }
