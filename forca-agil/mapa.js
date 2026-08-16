@@ -255,6 +255,7 @@
         { label: 'Rascunho automático — salva no localStorage a cada 800ms; restaura ao revisitar; apaga após envio com sucesso', p: ['inscrito','admin'] },
         { label: '"Pular esta seção →" — link discreto no rodapé de cada seção opcional', p: ['inscrito','admin'] },
         { label: '"⏱ ~5 minutos" — tempo estimado exibido no cabeçalho do formulário', p: ['inscrito','admin'] },
+        { label: 'Identificação opcional — checkbox "Quero me identificar" antes do envio; desmarcado por padrão (anônimo); se marcado, grava nome visível para o admin', p: ['inscrito','admin'] },
         { label: 'Envio único por turma — após enviar, tela de agradecimento é exibida; formulário não reaparece', p: ['inscrito','admin'] },
         { label: 'Validação no envio — seção obrigatória não respondida bloqueia o envio e abre aquela seção com aviso', p: ['inscrito','admin'] },
         { label: 'Avaliação não liberada — inscrito vê mensagem "A avaliação ainda não foi liberada para a sua turma"', p: ['inscrito'] },

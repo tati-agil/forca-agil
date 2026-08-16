@@ -267,6 +267,7 @@
 
     /* Envio */
     h += '<div class="aval-submit-wrap">' +
+      '<label class="aval-identify-label"><input type="checkbox" class="aval-identify-chk"> Quero me identificar nesta avaliação <span class="aval-identify-sub">(seu nome ficará visível para o admin)</span></label>' +
       '<p class="aval-privacy">🔒 Suas respostas são confidenciais e utilizadas exclusivamente para melhoria das iniciativas da Força Ágil.</p>' +
       '<button type="submit" class="btn aval-submit-btn">ENVIAR MINHA AVALIAÇÃO →</button>' +
       '<p class="aval-submit-msg" id="avalSubmitMsg" hidden></p>' +
@@ -565,10 +566,12 @@
 
       var data        = collectData(form);
       data.timestamp  = new Date().toISOString();
-      data.userName   = userName;
       data.userEmail  = userEmail;
       data.turmaKey   = turma.key;
       data.turmaLabel = turma.label;
+      var identChk    = form.querySelector('.aval-identify-chk');
+      data.identificado = !!(identChk && identChk.checked);
+      if (data.identificado) data.nomeExibido = userName;
 
       firebase.database().ref('avaliacoes/' + turma.key + '/' + uKey).set(data)
         .then(function() {

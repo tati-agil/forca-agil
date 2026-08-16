@@ -1318,6 +1318,9 @@ details.manual-section-group[open] .manual-sec-icon { transform: rotate(90deg); 
 
 /* Submit */
 .aval-submit-wrap { padding: 28px 0 8px; text-align: center; display: flex; flex-direction: column; align-items: center; gap: 14px; }
+.aval-identify-label { display: flex; align-items: center; gap: 8px; font-size: .88rem; color: var(--ink-2); cursor: pointer; user-select: none; }
+.aval-identify-label input[type=checkbox] { width: 16px; height: 16px; accent-color: var(--accent); cursor: pointer; flex-shrink: 0; }
+.aval-identify-sub { font-size: .76rem; color: var(--ink-3); }
 .aval-privacy { color: var(--ink-3); font-size: .78rem; margin: 0; }
 .aval-submit-btn { font-size: .9rem; padding: 14px 36px; letter-spacing: .06em; }
 .aval-submit-msg { font-size: .82rem; margin: 0; }

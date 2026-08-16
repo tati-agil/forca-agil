@@ -356,6 +356,9 @@
       title: 'Rascunho automático (localStorage)',
       body: 'O formulário salva automaticamente as respostas no localStorage a cada 800ms de inatividade. A chave do rascunho é única por usuária + turma. Ao voltar à aba Avaliação (mesmo após fechar e reabrir o browser), as respostas são restauradas. O rascunho é apagado definitivamente após o envio com sucesso.' },
     { section: 'avaliacao', personas: ['inscrito', 'admin'],
+      title: 'Identificação opcional',
+      body: 'Antes do botão de envio há um checkbox "Quero me identificar nesta avaliação", desmarcado por padrão. Se marcado, o nome da pessoa é gravado junto com as respostas (campo nomeExibido) e fica visível para o admin. Se desmarcado (padrão), a avaliação é anônima — o admin não vê o nome, apenas as respostas e a turma.' },
+    { section: 'avaliacao', personas: ['inscrito', 'admin'],
       title: 'Envio único por turma',
       body: 'Após enviar a avaliação, a tela de agradecimento é exibida e o formulário não pode ser preenchido novamente para aquela turma. O dado é gravado em avaliacoes/<turmaKey>/<emailKey> no Firebase. Se houver mais de uma turma pendente, o formulário aparece para a próxima turma após enviar.' },
 
