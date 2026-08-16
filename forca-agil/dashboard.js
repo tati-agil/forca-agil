@@ -134,18 +134,21 @@
     };
   }
 
-  /* ── SVG: barras de média por turma ── */
+  /* ── SVG: barras de média por turma ──
+     viewBox mais estreito (perto da largura real da coluna) + fontes maiores —
+     um viewBox largo (ex: 640) escalado pra caber numa coluna estreita do
+     grid encolhe o texto proporcionalmente, ficando ilegível. */
   function svgBarras(turmasArr) {
     if (!turmasArr.length) return '<p class="dash-empty">Nenhuma avaliação registrada ainda.</p>';
-    var W = 640, H = 220, padL = 34, padB = 34, padT = 10;
-    var chartW = W - padL - 12, chartH = H - padT - padB;
-    var barW = Math.min(70, chartW / turmasArr.length - 16);
+    var W = 420, H = 220, padL = 30, padB = 40, padT = 14;
+    var chartW = W - padL - 10, chartH = H - padT - padB;
+    var barW = Math.min(64, chartW / turmasArr.length - 20);
     var cores = ['#9b7fff', '#4caf7d', '#42a5f5', '#f5c542', '#e8854a', '#e05c7f'];
     var svg = '<svg viewBox="0 0 ' + W + ' ' + H + '" class="dash-svg-barras" role="img" aria-label="Média por turma">';
     [0, 2, 4, 6, 8, 10].forEach(function (v) {
       var y = padT + chartH - (v / 10) * chartH;
-      svg += '<line x1="' + padL + '" y1="' + y + '" x2="' + (W - 8) + '" y2="' + y + '" stroke="var(--line)" stroke-width="1"/>';
-      svg += '<text x="' + (padL - 8) + '" y="' + (y + 4) + '" text-anchor="end" font-size="10" fill="var(--ink-3)">' + v + '</text>';
+      svg += '<line x1="' + padL + '" y1="' + y + '" x2="' + (W - 6) + '" y2="' + y + '" stroke="var(--line)" stroke-width="1"/>';
+      svg += '<text x="' + (padL - 6) + '" y="' + (y + 4) + '" text-anchor="end" font-size="13" fill="var(--ink-2)">' + v + '</text>';
     });
     turmasArr.forEach(function (t, i) {
       var slotW = chartW / turmasArr.length;
@@ -154,9 +157,9 @@
       var y = padT + chartH - h;
       var cor = cores[i % cores.length];
       svg += '<rect x="' + x + '" y="' + y + '" width="' + barW + '" height="' + h + '" rx="4" fill="' + cor + '"/>';
-      svg += '<text x="' + (x + barW / 2) + '" y="' + (y - 8) + '" text-anchor="middle" font-size="13" font-weight="700" fill="var(--ink)">' + fmt1(t.media) + '</text>';
-      svg += '<text x="' + (x + barW / 2) + '" y="' + (H - padB + 16) + '" text-anchor="middle" font-size="10" fill="var(--ink-2)">' + esc(t.label) + '</text>';
-      svg += '<text x="' + (x + barW / 2) + '" y="' + (H - padB + 29) + '" text-anchor="middle" font-size="9" fill="var(--ink-3)">(' + t.n + ' avaliaç' + (t.n !== 1 ? 'ões' : 'ão') + ')</text>';
+      svg += '<text x="' + (x + barW / 2) + '" y="' + (y - 8) + '" text-anchor="middle" font-size="15" font-weight="700" fill="var(--ink)">' + fmt1(t.media) + '</text>';
+      svg += '<text x="' + (x + barW / 2) + '" y="' + (H - padB + 18) + '" text-anchor="middle" font-size="12" fill="var(--ink-2)">' + esc(t.label) + '</text>';
+      svg += '<text x="' + (x + barW / 2) + '" y="' + (H - padB + 32) + '" text-anchor="middle" font-size="11" fill="var(--ink-3)">(' + t.n + ' avaliaç' + (t.n !== 1 ? 'ões' : 'ão') + ')</text>';
     });
     svg += '</svg>';
     return svg;
