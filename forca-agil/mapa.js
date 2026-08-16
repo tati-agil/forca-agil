@@ -380,6 +380,7 @@
       { label: 'Repositório',                 access: { visitante: false, logado: true,  inscrito: true,  admin: true  } },
       { label: 'Conteúdos',                   access: { visitante: false, logado: false, inscrito: true,  admin: true  } },
       { label: 'Treinamento Jedi',            access: { visitante: false, logado: false, inscrito: true,  admin: true  } },
+      { label: 'Avaliação',                   access: { visitante: false, logado: false, inscrito: true,  admin: true  } },
       { label: 'Painel Admin',                access: { visitante: false, logado: false, inscrito: false, admin: true  } },
     ];
 
@@ -392,7 +393,7 @@
       html += '</tr>';
     });
     html += '</tbody></table></div>';
-    html += '<p class="mapa-sub" style="margin-top:10px">"Turmas" mostra as mesmas turmas pra todos os perfis — nenhuma é escondida por perfil. O que muda de um card para outro é o estado da turma (interesse aberto ou encerrado/CMFlex) e, dentro de uma turma aberta, o botão de interesse conforme o status da própria pessoa (Tenho interesse / Remover interesse / ✓ Inscrita travado).</p>';
+    html += '<p class="mapa-sub" style="margin-top:10px">"Turmas" mostra as mesmas turmas pra todos os perfis — nenhuma é escondida por perfil. O que muda de um card para outro é o estado da turma (interesse aberto ou encerrado/CMFlex) e, dentro de uma turma aberta, o botão de interesse conforme o status da própria pessoa (Tenho interesse / Remover interesse / ✓ Inscrita travado). "Avaliação" marca inscrito como ✓ porque é o nível mínimo exigido, mas na prática só aparece pra quem está confirmado numa turma com avaliacaoHabilitada:true — admin vê sempre, independente do flag, pra poder revisar/testar.</p>';
 
     /* ── Estados de uma pessoa numa turma ── */
     html += '<h3 class="mapa-title" style="margin-top:48px">Estados de uma Persona numa Turma</h3>';
