@@ -623,8 +623,6 @@
       html += '</div></div></div>';
     });
 
-    html += '</div>';
-
     /* ── Diagrama da Arquitetura ── */
     html += '<h3 class="mapa-title" style="margin-top:56px">Diagrama da Arquitetura</h3>';
     html += '<p class="mapa-sub">Gerado dinamicamente a partir da Arquitetura Técnica acima — atualiza automaticamente quando ela mudar.</p>';
