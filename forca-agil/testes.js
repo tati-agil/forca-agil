@@ -1001,6 +1001,12 @@
     { section: 'Admin',
       title: 'Aba Pedidos — prazo em dias úteis considera fim de semana',
       motivo: 'Difícil de reproduzir sob demanda (depende da data real). Conferir manualmente com um pedido antigo: se o pedido foi enviado numa sexta-feira à tarde e ainda está em aberto na segunda-feira de manhã, o prazo deve contar 1 dia útil (não 3 dias corridos) — sábado e domingo não entram na conta, e a sexta à tarde é tratada normalmente (não é fim de semana). Se o pedido foi enviado num sábado ou domingo, a contagem deve começar como se tivesse chegado às 8h da segunda-feira seguinte.' },
+    { section: 'Admin',
+      title: 'Aba Pedidos — filtro por status (Pendentes/Respondidos/Excluídos/Todos)',
+      motivo: 'Abrir a aba Pedidos direto: verificar que já carrega com o chip "Pendentes" ativo. Clicar em cada chip de status (Pendentes, Respondidos, Excluídos, Todos) e conferir: (1) a contagem entre parênteses de cada chip bate com a quantidade real de pedidos naquele status; (2) a lista exibida muda corretamente conforme o chip escolhido; (3) o filtro por tipo (Todos/tema/curso/material/dúvida/outros) continua funcionando combinado com o filtro de status — ex: "Respondidos" + "Tema" mostra só pedidos de tema já respondidos.' },
+    { section: 'Admin',
+      title: 'Aba Pedidos — excluir com justificativa obrigatória e restaurar',
+      motivo: 'Em qualquer pedido não excluído, clicar "🗑 Excluir". Verificar: (1) abre formulário com seletor "— quem está excluindo? —" e caixa de texto para justificativa; (2) clicar "🗑 Confirmar exclusão" sem escolher admin nem preencher justificativa não grava nada (campos vazios recebem foco); (3) preencher os dois campos e confirmar — o item some da lista "Pendentes"/"Respondidos" e passa a aparecer só no filtro "Excluídos", com badge "🗑 Excluído" em vermelho, opacidade reduzida, e uma linha "Excluído por NOME em DATA. Justificativa: ..."; (4) no filtro "Excluídos", clicar "↺ Restaurar" — o pedido volta a aparecer no filtro correto (Pendentes se nunca foi respondido, Respondidos se já tinha sido); (5) recarregar a página — verificar que o estado de exclusão persiste (excluido/excluidoEm/excluidoPor/justificativaExclusao gravados em pedidos/<key> no Firebase).' },
 
     /* ── Avaliação da Oficina ─────────────────────────────────── */
     { section: 'Avaliação',

@@ -75,9 +75,10 @@
     wrap._pedidosBound = true;
 
     var tipoFiltro = 'todos';
+    var statusFiltro = 'pendentes'; /* 'pendentes' | 'respondidos' | 'excluidos' | 'todos' */
     var todosPedidos = [];
-    var listaAdmins = [];       /* [{name, email}], carregada de fa-admins + super-admins */
-    var abrindoSelecao = null;  /* key do pedido com o seletor "quem respondeu" aberto */
+    var listaAdmins = [];  /* [{name, email}], carregada de fa-admins + super-admins */
+    var abrindoAcao = null; /* { key, acao: 'responder' | 'excluir' } | null */
 
     /* Data em fim de semana conta como 8h da segunda-feira seguinte, pra fins de prazo */
     function normalizarParaDiaUtil(iso) {
@@ -164,12 +165,27 @@
     }
 
     function render() {
-      var filtrados = tipoFiltro === 'todos'
-        ? todosPedidos
-        : todosPedidos.filter(function (p) { return p.tipo === tipoFiltro; });
+      var STATUS = [
+        { key: 'pendentes',   label: 'Pendentes',   test: function (p) { return !p.excluido && !p.respondido; } },
+        { key: 'respondidos', label: 'Respondidos', test: function (p) { return !p.excluido && !!p.respondido; } },
+        { key: 'excluidos',   label: 'Excluídos',   test: function (p) { return !!p.excluido; } },
+        { key: 'todos',       label: 'Todos',       test: function () { return true; } },
+      ];
+      var statusAtivo = STATUS.filter(function (s) { return s.key === statusFiltro; })[0] || STATUS[0];
+
+      var filtrados = todosPedidos.filter(function (p) {
+        if (tipoFiltro !== 'todos' && p.tipo !== tipoFiltro) return false;
+        return statusAtivo.test(p);
+      });
 
       var html = '<div class="ped-admin-bar">';
       html += '<span class="ped-admin-total">' + todosPedidos.length + ' pedido' + (todosPedidos.length !== 1 ? 's' : '') + ' no total</span>';
+      html += '<div class="ped-status-chips">';
+      STATUS.forEach(function (s) {
+        var ct = todosPedidos.filter(s.test).length;
+        html += '<button class="ped-status-chip' + (statusFiltro === s.key ? ' active' : '') + '" data-status="' + s.key + '">' + s.label + ' <span class="ped-chip-count">(' + ct + ')</span></button>';
+      });
+      html += '</div>';
       html += '<div class="ped-filter-chips">';
       [{ key: 'todos', label: 'Todos', color: '#aaa' }].concat(TIPOS).forEach(function (t) {
         html += '<button class="ped-filter-chip' + (tipoFiltro === t.key ? ' active' : '') + '" data-tipo="' + t.key + '" style="--tc:' + t.color + '">' + t.label + ' ';
@@ -179,20 +195,26 @@
       html += '</div></div>';
 
       if (filtrados.length === 0) {
-        html += '<p style="color:var(--ink-3);margin-top:24px">Nenhum pedido' + (tipoFiltro !== 'todos' ? ' deste tipo' : '') + '.</p>';
+        html += '<p style="color:var(--ink-3);margin-top:24px">Nenhum pedido nessa combinação de filtros.</p>';
       } else {
         html += '<div class="ped-admin-lista">';
         filtrados.slice().reverse().forEach(function (p) {
           var respondido = !!p.respondido;
-          html += '<div class="ped-admin-item' + (respondido ? ' ped-admin-item--respondido' : '') + '">';
+          var excluido  = !!p.excluido;
+          var acao = abrindoAcao && abrindoAcao.key === p._key ? abrindoAcao.acao : null;
+          html += '<div class="ped-admin-item' + (respondido ? ' ped-admin-item--respondido' : '') + (excluido ? ' ped-admin-item--excluido' : '') + '">';
           html += '<div class="ped-admin-item-header">';
           html += '<span class="ped-admin-badge" style="--tc:' + tipoColor(p.tipo) + '">' + tipoLabel(p.tipo) + '</span>';
           if (respondido) html += '<span class="ped-admin-badge ped-admin-badge--ok">✓ Respondido</span>';
+          if (excluido) html += '<span class="ped-admin-badge ped-admin-badge--excluido">🗑 Excluído</span>';
           html += '<span class="ped-admin-meta">' + (p.nomeEnviou || p.emailEnviou || 'Anônimo') + ' · ' + fmtData(p.dataEnvio) + '</span>';
           html += '</div>';
           if (p.descricao) html += '<p class="ped-admin-desc">' + p.descricao.replace(/&/g,'&amp;').replace(/</g,'&lt;') + '</p>';
 
-          if (respondido) {
+          if (excluido) {
+            html += '<p class="ped-admin-prazo ped-admin-prazo--excluido">Excluído por <strong>' + esc(p.excluidoPor && p.excluidoPor.name || '—') +
+              '</strong> em ' + fmtData(p.excluidoEm) + '. Justificativa: "' + esc(p.justificativaExclusao || '') + '"</p>';
+          } else if (respondido) {
             var dias = diasUteisEntre(p.dataEnvio, p.respondidoEm);
             html += '<p class="ped-admin-prazo ped-admin-prazo--ok">Respondido por <strong>' + esc(p.respondidoPor && p.respondidoPor.name || '—') +
               '</strong> em ' + fmtData(p.respondidoEm) + ' — ' + diasUteisLabel(dias) + ' depois do pedido.</p>';
@@ -202,17 +224,8 @@
           }
 
           html += '<div class="ped-admin-item-actions">';
-          if (p.emailEnviou) {
-            var assunto = 'Força Ágil — resposta ao seu pedido (' + tipoLabel(p.tipo) + ')';
-            var corpo = 'Olá' + (p.nomeEnviou ? ' ' + primeiroNomeCapitalizado(p.nomeEnviou) : '') + ',\n\n' +
-              'Sobre o seu pedido enviado em ' + fmtData(p.dataEnvio) + ' (' + tipoLabel(p.tipo) + '):\n' +
-              (p.descricao ? '"' + p.descricao + '"\n\n' : '\n') +
-              '---\n\n\n\n' +
-              'Um abraço,\nEquipe Força Ágil';
-            html += '<a class="btn btn--sm" href="mailto:' + encodeURIComponent(p.emailEnviou) +
-              '?subject=' + encodeURIComponent(assunto) + '&body=' + encodeURIComponent(corpo) + '">✉ Responder por e-mail</a>';
-          }
-          if (abrindoSelecao === p._key) {
+
+          if (acao === 'responder') {
             var emailAtual = (p.respondidoPor && p.respondidoPor.email) || '';
             var quandoAtual = p.respondidoEm ? isoParaDatetimeLocal(p.respondidoEm) : agoraParaDatetimeLocal();
             html += '<span class="ped-admin-select-wrap">';
@@ -226,11 +239,40 @@
             html += '<button class="btn btn--sm btn--primary ped-confirmar-btn" data-key="' + p._key + '">Confirmar</button>';
             html += '<button class="btn btn--sm ped-cancelar-btn">Cancelar</button>';
             html += '</span>';
-          } else if (respondido) {
-            html += '<button class="btn btn--sm ped-editar-btn" data-key="' + p._key + '">✎ Editar</button>';
-            html += '<button class="btn btn--sm ped-desmarcar-btn" data-key="' + p._key + '">✕ Desmarcar</button>';
+          } else if (acao === 'excluir') {
+            html += '<div class="ped-admin-excluir-form">';
+            html += '<select class="ped-admin-select-quem-exclui" data-key="' + p._key + '">';
+            html += '<option value="">— quem está excluindo? —</option>';
+            listaAdmins.forEach(function (a) {
+              html += '<option value="' + esc(a.email) + '">' + esc(a.name) + '</option>';
+            });
+            html += '</select>';
+            html += '<textarea class="ped-admin-justificativa" data-key="' + p._key + '" placeholder="Justificativa da exclusão (obrigatória)…" rows="2"></textarea>';
+            html += '<span class="ped-admin-select-wrap">';
+            html += '<button class="btn btn--sm btn--danger ped-confirmar-exclusao-btn" data-key="' + p._key + '">🗑 Confirmar exclusão</button>';
+            html += '<button class="btn btn--sm ped-cancelar-btn">Cancelar</button>';
+            html += '</span>';
+            html += '</div>';
+          } else if (excluido) {
+            html += '<button class="btn btn--sm ped-restaurar-btn" data-key="' + p._key + '">↺ Restaurar</button>';
           } else {
-            html += '<button class="btn btn--sm ped-marcar-btn" data-key="' + p._key + '">✓ Marcar como respondido</button>';
+            if (p.emailEnviou) {
+              var assunto = 'Força Ágil — resposta ao seu pedido (' + tipoLabel(p.tipo) + ')';
+              var corpo = 'Olá' + (p.nomeEnviou ? ' ' + primeiroNomeCapitalizado(p.nomeEnviou) : '') + ',\n\n' +
+                'Sobre o seu pedido enviado em ' + fmtData(p.dataEnvio) + ' (' + tipoLabel(p.tipo) + '):\n' +
+                (p.descricao ? '"' + p.descricao + '"\n\n' : '\n') +
+                '---\n\n\n\n' +
+                'Um abraço,\nEquipe Força Ágil';
+              html += '<a class="btn btn--sm" href="mailto:' + encodeURIComponent(p.emailEnviou) +
+                '?subject=' + encodeURIComponent(assunto) + '&body=' + encodeURIComponent(corpo) + '">✉ Responder por e-mail</a>';
+            }
+            if (respondido) {
+              html += '<button class="btn btn--sm ped-editar-btn" data-key="' + p._key + '">✎ Editar</button>';
+              html += '<button class="btn btn--sm ped-desmarcar-btn" data-key="' + p._key + '">✕ Desmarcar</button>';
+            } else {
+              html += '<button class="btn btn--sm ped-marcar-btn" data-key="' + p._key + '">✓ Marcar como respondido</button>';
+            }
+            html += '<button class="btn btn--sm ped-excluir-btn" data-key="' + p._key + '">🗑 Excluir</button>';
           }
           html += '</div>';
           html += '</div>';
@@ -239,6 +281,12 @@
       }
 
       wrap.innerHTML = html;
+      wrap.querySelectorAll('.ped-status-chip').forEach(function (btn) {
+        btn.addEventListener('click', function () {
+          statusFiltro = btn.dataset.status;
+          render();
+        });
+      });
       wrap.querySelectorAll('.ped-filter-chip').forEach(function (btn) {
         btn.addEventListener('click', function () {
           tipoFiltro = btn.dataset.tipo;
@@ -247,13 +295,19 @@
       });
       wrap.querySelectorAll('.ped-marcar-btn, .ped-editar-btn').forEach(function (btn) {
         btn.addEventListener('click', function () {
-          abrindoSelecao = btn.dataset.key;
+          abrindoAcao = { key: btn.dataset.key, acao: 'responder' };
+          render();
+        });
+      });
+      wrap.querySelectorAll('.ped-excluir-btn').forEach(function (btn) {
+        btn.addEventListener('click', function () {
+          abrindoAcao = { key: btn.dataset.key, acao: 'excluir' };
           render();
         });
       });
       wrap.querySelectorAll('.ped-cancelar-btn').forEach(function (btn) {
         btn.addEventListener('click', function () {
-          abrindoSelecao = null;
+          abrindoAcao = null;
           render();
         });
       });
@@ -267,7 +321,7 @@
           if (!inputQuando || !inputQuando.value) { if (inputQuando) inputQuando.focus(); return; }
           var admin = listaAdmins.filter(function (a) { return a.email === email; })[0];
           var respondidoEm = new Date(inputQuando.value).toISOString();
-          abrindoSelecao = null;
+          abrindoAcao = null;
           firebase.database().ref('pedidos/' + key).update({
             respondido: true,
             respondidoEm: respondidoEm,
@@ -279,6 +333,32 @@
         btn.addEventListener('click', function () {
           firebase.database().ref('pedidos/' + btn.dataset.key).update({
             respondido: false, respondidoEm: null, respondidoPor: null,
+          });
+        });
+      });
+      wrap.querySelectorAll('.ped-confirmar-exclusao-btn').forEach(function (btn) {
+        btn.addEventListener('click', function () {
+          var key = btn.dataset.key;
+          var sel = wrap.querySelector('.ped-admin-select-quem-exclui[data-key="' + key + '"]');
+          var textarea = wrap.querySelector('.ped-admin-justificativa[data-key="' + key + '"]');
+          var email = sel ? sel.value : '';
+          var justificativa = textarea ? textarea.value.trim() : '';
+          if (!email) { sel.focus(); return; }
+          if (!justificativa) { textarea.focus(); return; }
+          var admin = listaAdmins.filter(function (a) { return a.email === email; })[0];
+          abrindoAcao = null;
+          firebase.database().ref('pedidos/' + key).update({
+            excluido: true,
+            excluidoEm: new Date().toISOString(),
+            excluidoPor: { name: admin ? admin.name : email, email: email },
+            justificativaExclusao: justificativa,
+          });
+        });
+      });
+      wrap.querySelectorAll('.ped-restaurar-btn').forEach(function (btn) {
+        btn.addEventListener('click', function () {
+          firebase.database().ref('pedidos/' + btn.dataset.key).update({
+            excluido: false, excluidoEm: null, excluidoPor: null, justificativaExclusao: null,
           });
         });
       });

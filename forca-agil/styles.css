@@ -1409,6 +1409,28 @@ details.manual-admin-subgroup[open] > .manual-admin-subhead,
   font-family: var(--font-mono); font-size: .78rem; background: rgba(16,28,52,.8); color: var(--ink);
   border: 1px solid var(--line-strong); border-radius: 6px; padding: 5px 10px; color-scheme: dark;
 }
+.ped-status-chips { display: flex; flex-wrap: wrap; gap: 6px; margin-right: 8px; padding-right: 8px; border-right: 1px solid var(--line); }
+.ped-status-chip {
+  font-family: var(--font-mono); font-size: .7rem; letter-spacing: .06em; text-transform: uppercase;
+  padding: 4px 12px; border-radius: 20px; border: 1px solid var(--line-strong); color: var(--ink-2);
+  background: transparent; cursor: pointer; transition: background .15s;
+}
+.ped-status-chip:hover { background: rgba(255,255,255,.06); }
+.ped-status-chip.active { background: var(--accent); color: #000; border-color: var(--accent); font-weight: 700; }
+.ped-admin-item--excluido { opacity: .55; }
+.ped-admin-badge--excluido { --tc: #ff3b30; }
+.ped-admin-prazo--excluido { color: #ff6961; }
+.ped-admin-excluir-form { display: flex; flex-direction: column; gap: 8px; width: 100%; }
+.ped-admin-select-quem-exclui {
+  font-family: var(--font-mono); font-size: .78rem; background: rgba(16,28,52,.8); color: var(--ink);
+  border: 1px solid var(--line-strong); border-radius: 6px; padding: 6px 10px; cursor: pointer; align-self: flex-start;
+}
+.ped-admin-justificativa {
+  font-family: inherit; font-size: .82rem; background: rgba(16,28,52,.8); color: var(--ink);
+  border: 1px solid var(--line-strong); border-radius: 6px; padding: 8px 10px; resize: vertical; width: 100%;
+}
+.btn--danger { border-color: rgba(255,59,48,.5); color: var(--red, #ff3b30); }
+.btn--danger:hover { background: rgba(255,59,48,.12); }
 
 /* Badge de nível */
 .mapa-badge { display: inline-block; font-size: .72rem; font-family: var(--font-mono); letter-spacing: .06em; text-transform: uppercase; padding: 3px 9px; border-radius: 20px; border: 1px solid var(--bc, #888); color: var(--bc, #888); background: color-mix(in srgb, var(--bc, #888) 12%, transparent); white-space: nowrap; flex-shrink: 0; }
