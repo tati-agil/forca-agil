@@ -165,34 +165,51 @@
     }
 
     function render() {
+      /* "Excluído" NÃO é um status irmão de pendente/respondido — é outra
+         dimensão (um excluído era pendente ou respondido antes). Por isso a
+         lixeira fica separada, como num cliente de e-mail: os filtros de
+         status só operam sobre os ATIVOS, e "Todos" ali significa, sem
+         ambiguidade, "todos os ativos". */
+      var ativos    = todosPedidos.filter(function (p) { return !p.excluido; });
+      var excluidos = todosPedidos.filter(function (p) { return !!p.excluido; });
+      var naLixeira = statusFiltro === 'excluidos';
+
       var STATUS = [
-        { key: 'pendentes',   label: 'Pendentes',   test: function (p) { return !p.excluido && !p.respondido; } },
-        { key: 'respondidos', label: 'Respondidos', test: function (p) { return !p.excluido && !!p.respondido; } },
-        { key: 'excluidos',   label: 'Excluídos',   test: function (p) { return !!p.excluido; } },
+        { key: 'pendentes',   label: 'Pendentes',   test: function (p) { return !p.respondido; } },
+        { key: 'respondidos', label: 'Respondidos', test: function (p) { return !!p.respondido; } },
         { key: 'todos',       label: 'Todos',       test: function () { return true; } },
       ];
       var statusAtivo = STATUS.filter(function (s) { return s.key === statusFiltro; })[0] || STATUS[0];
 
-      var filtrados = todosPedidos.filter(function (p) {
-        if (tipoFiltro !== 'todos' && p.tipo !== tipoFiltro) return false;
-        return statusAtivo.test(p);
+      /* Base da listagem: lixeira ou ativos filtrados por status */
+      var base = naLixeira ? excluidos : ativos.filter(statusAtivo.test);
+      var filtrados = base.filter(function (p) {
+        return tipoFiltro === 'todos' || p.tipo === tipoFiltro;
       });
 
       var html = '<div class="ped-admin-bar">';
-      html += '<span class="ped-admin-total">' + todosPedidos.length + ' pedido' + (todosPedidos.length !== 1 ? 's' : '') + ' no total</span>';
+      html += '<span class="ped-admin-total">' + ativos.length + ' pedido' + (ativos.length !== 1 ? 's' : '') + ' ativo' + (ativos.length !== 1 ? 's' : '') + '</span>';
       html += '<div class="ped-status-chips">';
       STATUS.forEach(function (s) {
-        var ct = todosPedidos.filter(s.test).length;
+        var ct = ativos.filter(s.test).length;
         html += '<button class="ped-status-chip' + (statusFiltro === s.key ? ' active' : '') + '" data-status="' + s.key + '">' + s.label + ' <span class="ped-chip-count">(' + ct + ')</span></button>';
       });
       html += '</div>';
-      html += '<div class="ped-filter-chips">';
-      [{ key: 'todos', label: 'Todos', color: '#aaa' }].concat(TIPOS).forEach(function (t) {
+      html += '<button class="ped-lixeira-chip' + (naLixeira ? ' active' : '') + '" data-status="excluidos">🗑 Lixeira <span class="ped-chip-count">(' + excluidos.length + ')</span></button>';
+      html += '</div>';
+
+      /* Contagens por tipo respeitam o recorte atual (lixeira ou status) */
+      html += '<div class="ped-filter-chips ped-filter-chips--tipo">';
+      [{ key: 'todos', label: 'Todos os tipos', color: '#aaa' }].concat(TIPOS).forEach(function (t) {
+        var ct = t.key === 'todos' ? base.length : base.filter(function (p) { return p.tipo === t.key; }).length;
         html += '<button class="ped-filter-chip' + (tipoFiltro === t.key ? ' active' : '') + '" data-tipo="' + t.key + '" style="--tc:' + t.color + '">' + t.label + ' ';
-        var ct = t.key === 'todos' ? todosPedidos.length : todosPedidos.filter(function (p) { return p.tipo === t.key; }).length;
         html += '<span class="ped-chip-count">(' + ct + ')</span></button>';
       });
-      html += '</div></div>';
+      html += '</div>';
+
+      if (naLixeira) {
+        html += '<p class="ped-lixeira-aviso">🗑 Mostrando pedidos excluídos. Eles não são apagados do banco — use "↺ Restaurar" para trazer de volta.</p>';
+      }
 
       if (filtrados.length === 0) {
         html += '<p style="color:var(--ink-3);margin-top:24px">Nenhum pedido nessa combinação de filtros.</p>';
@@ -281,7 +298,7 @@
       }
 
       wrap.innerHTML = html;
-      wrap.querySelectorAll('.ped-status-chip').forEach(function (btn) {
+      wrap.querySelectorAll('.ped-status-chip, .ped-lixeira-chip').forEach(function (btn) {
         btn.addEventListener('click', function () {
           statusFiltro = btn.dataset.status;
           render();
