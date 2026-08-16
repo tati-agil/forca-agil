@@ -299,13 +299,20 @@
 /* ---- Turmas admin cards ---- */
 .turma-admin-card {
   background: rgba(255,255,255,.04); border: 1px solid var(--line);
-  border-radius: 12px; margin-bottom: 20px; overflow: hidden;
+  border-radius: 12px; margin-bottom: 20px;
+  /* overflow:visible — não pode ser hidden: o menu "⋯" (.taa-dropdown) é
+     posicionado absoluto logo abaixo do cabeçalho e "vaza" da altura do
+     card quando ele está recolhido (altura = só o cabeçalho); com hidden,
+     o menu ficava cortado até o card ser expandido. O arredondamento das
+     bordas é replicado no header/body abaixo em vez de depender do clip. */
+  overflow: visible;
 }
 .turma-admin-header {
   display: flex; align-items: center; justify-content: space-between;
   flex-wrap: wrap; gap: 10px;
   padding: 14px 18px; border-bottom: 1px solid var(--line);
   background: rgba(255,255,255,.03);
+  border-radius: 12px 12px 0 0;
 }
 .turma-admin-title { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
 .turma-admin-name  { font-family: var(--font-head); font-size: .95rem; color: var(--ink); }
@@ -328,7 +335,7 @@
   .turma-admin-header { flex-direction: column; align-items: flex-start; }
   .turma-admin-actions { align-self: flex-end; }
 }
-.turma-admin-body  { padding: 14px 18px; }
+.turma-admin-body  { padding: 14px 18px; border-radius: 0 0 12px 12px; }
 .turma-removed-accordion { margin-top: 16px; }
 .turma-removed-toggle {
   display: flex; align-items: center; gap: 6px;
