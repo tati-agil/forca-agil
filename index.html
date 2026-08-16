@@ -238,6 +238,7 @@ body.aguardando-auth>*:not(#authModal){visibility:hidden}
     <a href="#conteudos"   data-nav-page="conteudos" class="nav-link-enrolled" hidden>Conteúdos</a>
     <a href="#repositorio" data-nav-page="repositorio" class="nav-link-member" hidden>Repositório</a>
     <a href="#treinamento" data-nav-page="treinamento" class="nav-link-enrolled" hidden>Treinamento</a>
+    <a href="#avaliacao"  data-nav-page="avaliacao"  class="nav-link-enrolled" hidden>Avaliação</a>
     <a href="#ajuda"  data-nav-page="ajuda">Ajuda</a>
     <a href="#admin"       data-nav-page="admin" id="navAdmin" hidden>Admin</a>
   </div>
@@ -1590,6 +1591,17 @@ body.aguardando-auth>*:not(#authModal){visibility:hidden}
 </div>
 
 <!-- ======================================================
+     PAGE: AVALIAÇÃO
+     ====================================================== -->
+<div class="page-section" id="page-avaliacao" hidden>
+  <div class="wrap">
+    <div id="avaliacaoContent">
+      <p class="loading-msg">Carregando…</p>
+    </div>
+  </div>
+</div>
+
+<!-- ======================================================
      PAGE: CHECK-IN (QR Code)
      ====================================================== -->
 <div class="page-section" id="page-checkin" hidden>
@@ -1640,6 +1652,7 @@ body.aguardando-auth>*:not(#authModal){visibility:hidden}
 <script src="forca-agil/qrcode.min.js"></script>
 <script src="forca-agil/certif.js"></script>
 <script src="forca-agil/admin.js"></script>
+<script src="forca-agil/avaliacao.js"></script>
 <script src="forca-agil/checkin.js"></script>
 <script src="forca-agil/manual.js"></script>
 <script src="forca-agil/mapa.js"></script>

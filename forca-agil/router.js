@@ -4,7 +4,7 @@
 (function () {
   'use strict';
 
-  const PAGES   = ['home','turmas','conteudos','treinamento','repositorio','ajuda','admin','checkin'];
+  const PAGES   = ['home','turmas','conteudos','treinamento','repositorio','avaliacao','ajuda','admin','checkin'];
   const inits   = {};
   let current = null;
 
@@ -23,7 +23,7 @@
 
     /* Access control */
     const level = window.faAuth && window.faAuth.getAccessLevel ? window.faAuth.getAccessLevel() : 'member';
-    if ((page === 'conteudos' || page === 'treinamento') && level === 'member') {
+    if ((page === 'conteudos' || page === 'treinamento' || page === 'avaliacao') && level === 'member') {
       location.hash = '#home';
       showAccessMsg('Disponível após confirmação em uma turma.');
       return;
@@ -69,7 +69,7 @@
        (nesse caso, quem corrige é o enforceCurrentRouteAccess em auth.js). */
     if (page !== 'home' && window.faAuth && window.faAuth.isAuthReady && window.faAuth.isAuthReady()) {
       const level = window.faAuth.getAccessLevel ? window.faAuth.getAccessLevel() : 'member';
-      const blocked = (page === 'conteudos' || page === 'treinamento') && level !== 'enrolled';
+      const blocked = (page === 'conteudos' || page === 'treinamento' || page === 'avaliacao') && level !== 'enrolled';
       if (blocked) {
         page = 'home';
         history.replaceState(null, '', '#home');

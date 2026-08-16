@@ -141,6 +141,15 @@
       "$userKey": {
         ".write": "auth != null && auth.token.email.matches(/.*@previ\\.com\\.br/)"
       }
+    },
+
+    "avaliacoes": {
+      ".read": "auth != null && auth.token.email.matches(/.*@previ\\.com\\.br/)",
+      "$turmaKey": {
+        "$userKey": {
+          ".write": "auth != null && auth.token.email.matches(/.*@previ\\.com\\.br/)"
+        }
+      }
     }
   }
 }
