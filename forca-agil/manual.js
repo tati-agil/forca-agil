@@ -339,7 +339,7 @@
     /* ── AVALIAÇÃO ── */
     { section: 'avaliacao', personas: ['inscrito', 'admin'],
       title: 'Quem vê a aba Avaliação',
-      body: 'A aba "Avaliação" aparece no menu apenas para: (1) admin — sempre, independentemente de qualquer flag; (2) inscrito confirmado em turma onde o admin liberou a avaliação (campo avaliacaoHabilitada: true na turma). Inscritos sem turma liberada não veem a aba. A visibilidade é verificada em tempo real ao carregar e a cada mudança de sessão.' },
+      body: 'A aba "Avaliação" aparece no menu para inscritos confirmados em turma onde o admin liberou a avaliação (campo avaliacaoHabilitada: true na turma). Inscritos sem turma liberada não veem a aba. O admin vê a aba sempre, independente do flag — para poder testar e revisar o formulário antes e depois de liberar para os inscritos. A visibilidade é verificada em tempo real ao carregar e a cada mudança de sessão.' },
     { section: 'avaliacao', personas: ['admin'],
       title: 'Admin libera e encerra a avaliação por turma',
       body: 'No painel Admin, aba Eventos, menu ⋯ de cada turma: botão "📋 Liberar avaliação" ativa o formulário para os inscritos daquela turma (grava avaliacaoHabilitada: true em turmas/<key>). O botão vira "🔒 Encerrar avaliação" — clicar desativa o acesso. Efeito visível no próximo login ou recarregamento da página pelo inscrito.' },
