@@ -452,7 +452,7 @@
       title: 'Pop-ups do admin — modais visuais (não nativos)',
       body: 'Todas as confirmações e avisos do painel usam janelas com o mesmo visual dos modais de cadastro/login — nenhuma ação usa aquelas caixas de diálogo padrão do navegador.' },
     { section: 'admin', personas: ['admin'],
-      title: 'Aba: Certificados — Gerador v1.0 (APROVADO PARA PRODUÇÃO)',
+      title: 'Aba: Certificados — Gerador v1.0',
       body: 'Painel de geração de certificados. Fluxo: (1) selecionar Evento — popula o seletor de Turmas filtrado por aquele evento; (2) selecionar Turma — carrega dados do Firebase (nomeEvento, cargaHoraria, percentualMinimo, dataConclusao, check-ins). Os 6 campos dinâmicos são preenchidos sem entrada manual: nome do participante, nome do evento, identificação da turma, período, carga horária e data de emissão ("Emitido em"). Canvas fixo 1448 × 1086 px; prévia escala 4:3. Textos longos reduzem fonte por campo de forma independente. Nomes de arquivo: Certificado_NOME.png / Certificado_NOME.pdf.' },
     { section: 'admin', personas: ['admin'],
       title: 'Aba: Certificados — estados: Prévia Administrativa vs. Emissão',
