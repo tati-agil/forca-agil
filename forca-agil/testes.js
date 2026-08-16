@@ -1151,7 +1151,7 @@
       const count = bySection[sec].length;
       const col = SEC_COLOR[sec] || 'var(--accent)';
       html += '<div class="testes-group testes-group--collapsible">';
-      html += '<div class="testes-group-label testes-group-toggle" style="color:' + col + ';border-color:' + col + '"><span>' + sec + ' <span class="testes-group-count">(' + count + ')</span></span><span class="testes-group-arrow">▾</span></div>';
+      html += '<div class="testes-group-label testes-group-toggle"><span class="testes-group-arrow">▸</span><span>' + sec + ' <span class="testes-group-count">(' + count + ')</span></span></div>';
       html += '<div class="testes-group-body">';
       bySection[sec].forEach(function (r) {
         html += '<div class="testes-row manual">';
@@ -1285,7 +1285,7 @@
       const groupTotal  = groups[g].length;
       const countLabel  = done ? ' (' + groupPassed + '/' + groupTotal + ')' : ' (' + groupPassed + '/' + groupTotal + ')';
       html += '<div class="testes-group testes-group--collapsible open">';
-      html += '<div class="testes-group-label testes-group-toggle" style="color:' + col + ';border-color:' + col + '"><span>' + g + '<span class="testes-group-count">' + countLabel + '</span></span><span class="testes-group-arrow">▾</span></div>';
+      html += '<div class="testes-group-label testes-group-toggle"><span class="testes-group-arrow">▸</span><span>' + g + '<span class="testes-group-count">' + countLabel + '</span></span></div>';
       html += '<div class="testes-group-body">';
       groups[g].forEach(function (r) {
         html += '<div class="testes-row ' + (r.passed ? 'pass' : 'fail') + '">';
