@@ -603,6 +603,16 @@
 .admin-status-btn:hover  { border-color: rgba(26,178,174,.4); color: var(--cyan); }
 .admin-status-btn.active { border-color: var(--cyan); color: var(--cyan); background: rgba(26,178,174,.12); }
 
+/* Filtro por status dentro do card de turma — mesmo visual dos .admin-status-btn */
+.turma-status-filtro { display: flex; gap: 4px; flex-wrap: wrap; margin-bottom: 12px; }
+.turma-status-filtro-btn {
+  padding: 5px 14px; font-size: .78rem; background: transparent;
+  border: 1px solid rgba(255,255,255,.15); color: var(--ink-3);
+  border-radius: 6px; cursor: pointer; white-space: nowrap; transition: background .2s, border-color .2s, color .2s;
+}
+.turma-status-filtro-btn:hover  { border-color: rgba(26,178,174,.4); color: var(--cyan); }
+.turma-status-filtro-btn.active { border-color: var(--cyan); color: var(--cyan); background: rgba(26,178,174,.12); }
+
 .admin-del-btn {
   padding: 5px 10px; font-size: .78rem; background: transparent;
   border: 1px solid rgba(255,59,48,.45); color: var(--red);

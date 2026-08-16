@@ -298,7 +298,10 @@
             var checkinT   = checkin[t.key] || {};
             var inscritos    = active.filter(function (r) { return r.status === 'inscrito'; });
             var interessados = active.filter(function (r) { return r.status !== 'inscrito'; });
-            var countLabel   = interessados.length + ' interessado' + (interessados.length !== 1 ? 's' : '') +
+            /* "não confirmados" em vez de "interessados": todo inscrito também
+               manifestou interesse um dia, então o rótulo antigo sugeria um
+               subconjunto que não existe — as duas contagens são exclusivas. */
+            var countLabel   = interessados.length + ' não confirmado' + (interessados.length !== 1 ? 's' : '') +
               ' · ' + inscritos.length + ' confirmado' + (inscritos.length !== 1 ? 's' : '');
 
             var card = document.createElement('div');
@@ -492,7 +495,47 @@
             if (!active.length) {
               body.innerHTML = '<p class="admin-empty">Nenhum participante ativo.</p>';
             } else {
-              body.appendChild(buildParticipantesTable(t, active, checkinT, finalizada));
+              /* Filtro por status — só faz sentido quando existem os dois grupos */
+              var filtroStatus = 'todos';
+              var tabelaWrap = document.createElement('div');
+
+              var redesenharTabela = function () {
+                var filtrados = filtroStatus === 'confirmados' ? inscritos
+                  : filtroStatus === 'nao_confirmados' ? interessados
+                  : active;
+                tabelaWrap.innerHTML = '';
+                if (!filtrados.length) {
+                  tabelaWrap.innerHTML = '<p class="admin-empty">Nenhum participante neste filtro.</p>';
+                } else {
+                  tabelaWrap.appendChild(buildParticipantesTable(t, filtrados, checkinT, finalizada));
+                }
+              };
+
+              if (inscritos.length && interessados.length) {
+                var filtroBar = document.createElement('div');
+                filtroBar.className = 'turma-status-filtro';
+                [
+                  { key: 'todos',           label: 'Todos',           n: active.length },
+                  { key: 'confirmados',     label: 'Confirmados',     n: inscritos.length },
+                  { key: 'nao_confirmados', label: 'Não confirmados', n: interessados.length },
+                ].forEach(function (f) {
+                  var b = document.createElement('button');
+                  b.type = 'button';
+                  b.className = 'turma-status-filtro-btn' + (f.key === 'todos' ? ' active' : '');
+                  b.textContent = f.label + ' (' + f.n + ')';
+                  b.addEventListener('click', function () {
+                    filtroStatus = f.key;
+                    filtroBar.querySelectorAll('.turma-status-filtro-btn').forEach(function (x) { x.classList.remove('active'); });
+                    b.classList.add('active');
+                    redesenharTabela();
+                  });
+                  filtroBar.appendChild(b);
+                });
+                body.appendChild(filtroBar);
+              }
+
+              redesenharTabela();
+              body.appendChild(tabelaWrap);
             }
             if (removed.length) {
               var removedSection = document.createElement('div');
