@@ -111,12 +111,27 @@
       } else {
         html += '<div class="ped-admin-lista">';
         filtrados.slice().reverse().forEach(function (p) {
-          html += '<div class="ped-admin-item">';
+          var respondido = !!p.respondido;
+          html += '<div class="ped-admin-item' + (respondido ? ' ped-admin-item--respondido' : '') + '">';
           html += '<div class="ped-admin-item-header">';
           html += '<span class="ped-admin-badge" style="--tc:' + tipoColor(p.tipo) + '">' + tipoLabel(p.tipo) + '</span>';
+          if (respondido) html += '<span class="ped-admin-badge ped-admin-badge--ok">✓ Respondido</span>';
           html += '<span class="ped-admin-meta">' + (p.nomeEnviou || p.emailEnviou || 'Anônimo') + ' · ' + fmtData(p.dataEnvio) + '</span>';
           html += '</div>';
           if (p.descricao) html += '<p class="ped-admin-desc">' + p.descricao.replace(/&/g,'&amp;').replace(/</g,'&lt;') + '</p>';
+          html += '<div class="ped-admin-item-actions">';
+          if (p.emailEnviou) {
+            var assunto = 'Sobre seu pedido — ' + tipoLabel(p.tipo);
+            var corpo = 'Olá' + (p.nomeEnviou ? ' ' + p.nomeEnviou.split(' ')[0] : '') + ',\n\n' +
+              'Sobre o seu pedido enviado em ' + fmtData(p.dataEnvio) + ' (' + tipoLabel(p.tipo) + '):\n' +
+              (p.descricao ? '"' + p.descricao + '"\n\n' : '\n') +
+              '---\n\n';
+            html += '<a class="btn btn--sm" href="mailto:' + encodeURIComponent(p.emailEnviou) +
+              '?subject=' + encodeURIComponent(assunto) + '&body=' + encodeURIComponent(corpo) + '">✉ Responder por e-mail</a>';
+          }
+          html += '<button class="btn btn--sm ped-marcar-btn" data-key="' + p._key + '" data-respondido="' + (respondido ? '1' : '0') + '">' +
+            (respondido ? '✕ Desmarcar' : '✓ Marcar como respondido') + '</button>';
+          html += '</div>';
           html += '</div>';
         });
         html += '</div>';
@@ -127,6 +142,16 @@
         btn.addEventListener('click', function () {
           tipoFiltro = btn.dataset.tipo;
           render();
+        });
+      });
+      wrap.querySelectorAll('.ped-marcar-btn').forEach(function (btn) {
+        btn.addEventListener('click', function () {
+          var key = btn.dataset.key;
+          var jaRespondido = btn.dataset.respondido === '1';
+          var updates = jaRespondido
+            ? { respondido: false, respondidoEm: null }
+            : { respondido: true, respondidoEm: new Date().toISOString() };
+          firebase.database().ref('pedidos/' + key).update(updates);
         });
       });
     }

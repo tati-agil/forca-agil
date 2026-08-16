@@ -995,6 +995,9 @@
     { section: 'Ajuda',
       title: 'Formulário "Faça um pedido" — envio com login funciona',
       motivo: 'Logado, preencher o formulário e clicar "Enviar pedido". Verificar: (1) grava em pedidos/ no Firebase com tipo, descricao, nomeEnviou e emailEnviou; (2) no painel Admin → aba Pedidos, o novo pedido aparece na lista, ordenado mais recente primeiro, com o chip de tipo na cor correta (inclusive "Outros", cor cinza-azulada #8a93a8).' },
+    { section: 'Admin',
+      title: 'Aba Pedidos — responder por e-mail e marcar como respondido',
+      motivo: 'Na aba Pedidos, escolher um item com e-mail preenchido. (1) Clicar "✉ Responder por e-mail" — verificar que abre o programa de e-mail padrão do sistema operacional/navegador com o destinatário correto no campo Para, assunto mencionando o tipo do pedido, e corpo citando a descrição enviada. (2) Clicar "✓ Marcar como respondido" — verificar que o item ganha badge "✓ Respondido", fica com opacidade reduzida, e o botão vira "✕ Desmarcar". (3) Clicar "✕ Desmarcar" — verificar que volta ao estado original (sem badge, opacidade normal, botão volta a dizer "Marcar como respondido"). (4) Recarregar a página — verificar que o estado respondido/não-respondido persiste (gravado em pedidos/<key>/respondido no Firebase, não é só estado local).' },
 
     /* ── Avaliação da Oficina ─────────────────────────────────── */
     { section: 'Avaliação',
