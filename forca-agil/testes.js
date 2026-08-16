@@ -91,6 +91,7 @@
         { id: 'adm-manual-panel', label: 'Painel Manual presente', run: function () { return !!document.getElementById('adminPanelManual'); } },
         { id: 'adm-mapa-panel',   label: 'Painel Mapa presente',   run: function () { return !!document.getElementById('adminPanelMapa'); } },
         { id: 'adm-testes-panel', label: 'Painel Testes presente', run: function () { return !!document.getElementById('adminPanelTestes'); } },
+        { id: 'adm-pedidos-panel', label: 'Painel Pedidos presente', run: function () { return !!document.getElementById('adminPanelPedidos'); } },
         { id: 'adm-cadastrados-panel', label: 'Painel Cadastrados presente', run: function () { return !!document.getElementById('adminPanelCadastrados') && !!document.getElementById('adminCadastrados'); } },
         { id: 'adm-mapa-cards',   label: 'Mapa: 12 cards de página renderizados', run: function () {
           if (window.faInitMapa) window.faInitMapa();
