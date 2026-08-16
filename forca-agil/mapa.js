@@ -360,7 +360,7 @@
     html += '</div>';
 
     /* ── Acesso por tipo de pessoa ── */
-    html += '<h3 class="mapa-title" style="margin-top:48px">Acesso por Tipo de Pessoa</h3>';
+    html += '<h3 class="mapa-title" style="margin-top:48px">Acesso por Tipo de Persona</h3>';
     html += '<p class="mapa-sub">O que cada perfil consegue ver e fazer no site.</p>';
     html += '<div class="table-scroll-wrap"><table class="admin-table"><thead><tr><th>Página / Feature</th>';
     P_ORDER.forEach(function (pk) {
@@ -390,7 +390,7 @@
     html += '<p class="mapa-sub" style="margin-top:10px">"Turmas" mostra as mesmas turmas pra todos os perfis — nenhuma é escondida por perfil. O que muda de um card para outro é o estado da turma (interesse aberto ou encerrado/CMFlex) e, dentro de uma turma aberta, o botão de interesse conforme o status da própria pessoa (Tenho interesse / Remover interesse / ✓ Inscrita travado).</p>';
 
     /* ── Estados de uma pessoa numa turma ── */
-    html += '<h3 class="mapa-title" style="margin-top:48px">Estados de uma Pessoa numa Turma</h3>';
+    html += '<h3 class="mapa-title" style="margin-top:48px">Estados de uma Persona numa Turma</h3>';
     html += '<p class="mapa-sub">Como o registro de alguém em <code>turmas-interesse</code> muda de status — pela própria pessoa (site) ou pelo admin (painel).</p>';
     html += '<div class="mapa-status-diagram">' + STATUS_DIAGRAM_SVG + '</div>';
     html += '<p class="mapa-sub" style="margin-top:12px">Interesse não tem limite — a mesma pessoa pode estar "Interessada" em quantas turmas quiser ao mesmo tempo, sem nenhuma checagem. Só "Inscrita" é exclusivo de uma turma por vez: se a pessoa já for Inscrita em outra turma, essa outra inscrição é removida automaticamente — tanto ao clicar em "Confirmar" quanto ao adicionar alguém direto como "Inscrita" pelo "＋ Participante", que avisa e pede confirmação antes de remover. Estar só interessada em outra turma nunca dispara esse aviso nem é tocado.</p>';
