@@ -505,6 +505,15 @@
 
 /* Scroll horizontal automático para tabelas largas em qualquer tela */
 .table-scroll-wrap { width: 100%; overflow-x: auto; -webkit-overflow-scrolling: touch; }
+/* Mobile: oculta colunas secundárias da tabela CADASTRADOS (Área, Cadastro, E-mail badge) */
+@media (max-width: 640px) {
+  #adminCadastrados .admin-table th:nth-child(3),
+  #adminCadastrados .admin-table td:nth-child(3),
+  #adminCadastrados .admin-table th:nth-child(4),
+  #adminCadastrados .admin-table td:nth-child(4),
+  #adminCadastrados .admin-table th:nth-child(6),
+  #adminCadastrados .admin-table td:nth-child(6) { display: none; }
+}
 .table-scroll-wrap::-webkit-scrollbar { height: 4px; }
 .table-scroll-wrap::-webkit-scrollbar-track { background: transparent; }
 .table-scroll-wrap::-webkit-scrollbar-thumb { background: rgba(245,197,66,.35); border-radius: 2px; }
