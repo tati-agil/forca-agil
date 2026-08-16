@@ -144,7 +144,7 @@
         var t = val[key] || {};
         var dias = (t.dias || []).slice().sort();
         var fmt = window.faTurmasUtil.formatDias(dias);
-        return { key: key, label: t.label || key.toUpperCase(), dates: fmt.dates, dias: dias, order: t.order || 0, cmflexLink: t.cmflexLink || '', eventoKey: t.eventoKey || '' };
+        return { key: key, label: t.label || key.toUpperCase(), dates: fmt.dates, dias: dias, order: t.order || 0, cmflexLink: t.cmflexLink || '', eventoKey: t.eventoKey || '', avaliacaoHabilitada: !!t.avaliacaoHabilitada };
       }).sort(function (a, b) { return a.order - b.order; });
       cb();
     });
@@ -399,6 +399,24 @@
               return function () { exportTurmaCSV(tt, a, f, ck); };
             })(t, all, finalizada, checkinT));
             moreMenu.appendChild(csvTurmaBtn);
+
+            var avalBtn = document.createElement('button');
+            avalBtn.className = 'btn btn--sm';
+            avalBtn.style.cssText = 'padding:6px 10px;font-size:.72rem;' + (t.avaliacaoHabilitada ? 'border-color:rgba(26,178,174,.5);color:var(--cyan)' : 'border-color:rgba(245,197,66,.4);color:var(--accent)');
+            avalBtn.textContent = t.avaliacaoHabilitada ? '🔒 Encerrar avaliação' : '📋 Liberar avaliação';
+            avalBtn.addEventListener('click', (function (tk, tl, habilitada) {
+              return function () {
+                var msg = habilitada
+                  ? 'Encerrar a avaliação da turma "' + tl + '"?\n\nOs inscritos não verão mais a aba Avaliação.'
+                  : 'Liberar a avaliação da turma "' + tl + '"?\n\nOs inscritos confirmados passarão a ver a aba Avaliação.';
+                adminConfirm(msg, function () {
+                  firebase.database().ref('turmas/' + tk + '/avaliacaoHabilitada').set(!habilitada, function (err) {
+                    if (!err) loadInterests();
+                  });
+                });
+              };
+            })(t.key, t.label, t.avaliacaoHabilitada));
+            moreMenu.appendChild(avalBtn);
 
             if (finalizada && !encerrada) {
               var encerrarBtn = document.createElement('button');

@@ -603,6 +603,7 @@
     var session = window.faAuth && window.faAuth.getSession();
     if (!session) { c.innerHTML = '<p class="loading-msg">Faça login para acessar a avaliação.</p>'; return; }
 
+    var isAdmin   = !!(window.faAuth.isAdmin && window.faAuth.isAdmin(session.email));
     var userEmail = session.email;
     var uKey      = emailKey(userEmail);
     var userName  = session.displayName || userEmail;
@@ -618,7 +619,10 @@
       });
 
       if (!confirmedKeys.length) {
-        c.innerHTML = '<div class="aval-empty"><p>Você ainda não está inscrito em nenhuma turma.<br>A avaliação fica disponível após confirmação pelo administrador.</p></div>';
+        c.innerHTML = '<div class="aval-empty"><p>' +
+          (isAdmin ? 'Nenhuma turma com inscrição confirmada encontrada.<br>O formulário aparece para inscritos confirmados quando a avaliação é liberada.'
+                   : 'Você ainda não está inscrito em nenhuma turma.<br>A avaliação fica disponível após confirmação pelo administrador.') +
+          '</p></div>';
         return;
       }
 
@@ -628,11 +632,17 @@
           firebase.database().ref('avaliacoes/' + tk + '/' + uKey).once('value'),
         ]).then(function(res) {
           var tData = res[0].val() || {};
-          return { key: tk, label: tData.label || tk, evaluated: !!res[1].val() };
+          return { key: tk, label: tData.label || tk, evaluated: !!res[1].val(), habilitada: !!tData.avaliacaoHabilitada };
         });
       })).then(function(turmas) {
-        var pending = turmas.filter(function(t){ return !t.evaluated; });
-        var done    = turmas.filter(function(t){ return t.evaluated; });
+        /* Admin sempre vê; inscrito só vê turmas com avaliação habilitada */
+        var eligible = isAdmin ? turmas : turmas.filter(function(t){ return t.habilitada; });
+        if (!eligible.length) {
+          c.innerHTML = '<div class="aval-empty"><p>A avaliação ainda não foi liberada para a sua turma.<br>Assim que o administrador liberar, ela aparecerá aqui.</p></div>';
+          return;
+        }
+        var pending = eligible.filter(function(t){ return !t.evaluated; });
+        var done    = eligible.filter(function(t){ return t.evaluated; });
         if (!pending.length) { c.innerHTML = thanksHtml(done.map(function(t){return t.label;}).join(', ')); return; }
         renderForm(c, pending[0], done, uKey, userName, userEmail);
       });
@@ -642,8 +652,54 @@
     });
   }
 
+  /* ── Visibilidade do link de navegação ── */
+
+  function setAvalNavVisible(visible) {
+    document.querySelectorAll('.nav-link-aval').forEach(function (el) {
+      el.hidden = !visible;
+    });
+  }
+
+  function checkNavVisibility() {
+    var session = window.faAuth && window.faAuth.getSession();
+    if (!session) { setAvalNavVisible(false); return; }
+
+    /* Admin sempre vê */
+    if (window.faAuth.isAdmin && window.faAuth.isAdmin(session.email)) {
+      setAvalNavVisible(true);
+      return;
+    }
+
+    var level = window.faAuth.getAccessLevel && window.faAuth.getAccessLevel();
+    if (level !== 'enrolled') { setAvalNavVisible(false); return; }
+
+    /* Enrolled: verifica se alguma turma confirmada tem avaliacaoHabilitada */
+    var uKey = emailKey(session.email);
+    firebase.database().ref('turmas-interesse').once('value').then(function (snap) {
+      var data = snap.val() || {};
+      var confirmedKeys = [];
+      Object.keys(data).forEach(function (tk) {
+        var entry = (data[tk] || {})[uKey];
+        if (entry && entry.status === 'inscrito' && entry.confirmedByAdmin) confirmedKeys.push(tk);
+      });
+      if (!confirmedKeys.length) { setAvalNavVisible(false); return; }
+      return Promise.all(confirmedKeys.map(function (tk) {
+        return firebase.database().ref('turmas/' + tk + '/avaliacaoHabilitada').once('value').then(function (s) { return !!s.val(); });
+      })).then(function (flags) {
+        setAvalNavVisible(flags.some(Boolean));
+      });
+    }).catch(function () { setAvalNavVisible(false); });
+  }
+
+  /* Escuta mudanças de autenticação para atualizar visibilidade */
+  window.addEventListener('fa-auth-ready',  checkNavVisibility);
+  window.addEventListener('fa-auth-change', checkNavVisibility);
+  /* Executa imediatamente caso auth já esteja pronto */
+  if (document.readyState !== 'loading') checkNavVisibility();
+  document.addEventListener('DOMContentLoaded', checkNavVisibility);
+
   if (window.faRouter && window.faRouter.onPageInit) window.faRouter.onPageInit('avaliacao', init);
-  window.faAvaliacao = { init: init };
+  window.faAvaliacao = { init: init, checkNavVisibility: checkNavVisibility };
 
   /* polyfill Array.findIndex para o hook de auto-avance */
   if (!Array.prototype.findIndex) {
