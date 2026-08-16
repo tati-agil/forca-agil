@@ -8,7 +8,7 @@
   /* Ordem alfabética por label (exceto "Tudo", que fica sempre primeiro) */
   const SECTIONS = [
     { key: 'all',         label: 'Tudo',               color: 'var(--ink-2)' },
-    { key: 'admin',       label: 'Admin',               color: '#ff5252' },
+    { key: 'admin',       label: 'Admin',               color: '#6b7a99' },
     { key: 'ajuda',       label: 'Ajuda',               color: '#7ecbff' },
     { key: 'avaliacao',   label: 'Avaliação',           color: '#a78bfa' },
     { key: 'cadastrar',   label: 'Cadastrar',           color: '#9b7fff' },
@@ -27,7 +27,7 @@
     { key: 'visitante',   label: 'Visitante',          color: '#888' },
     { key: 'logado',      label: 'Usuário logado (sem turma)', color: '#1ab2ae' },
     { key: 'inscrito',    label: 'Inscrito (turma confirmada)', color: '#4caf7d' },
-    { key: 'admin',       label: 'Admin',              color: '#ff5252' },
+    { key: 'admin',       label: 'Admin',              color: '#6b7a99' },
   ];
 
   const RULES = [
@@ -335,7 +335,7 @@
       body: 'Página Ajuda visível para todos, inclusive visitantes. Sem restrição de acesso. No menu o link aparece como "Ajuda".' },
     { section: 'ajuda', personas: ['visitante', 'logado', 'inscrito', 'admin'],
       title: 'Acordeão de perguntas',
-      body: 'A página tem perguntas frequentes exibidas em formato de acordeão: clicar no título expande ou recolhe a resposta, e cada pergunta abre de forma independente das outras. O texto acima do título é "Central de Ajuda" e o título principal é "Como podemos ajudar?". Abaixo do FAQ há a seção "Faça um pedido" — formulário para usuários logados solicitarem temas, cursos, materiais ou tirarem dúvidas.' },
+      body: 'A página tem perguntas frequentes exibidas em formato de acordeão: clicar no título expande ou recolhe a resposta, e cada pergunta abre de forma independente das outras. O texto acima do título é "Central de Ajuda" e o título principal é "Como podemos ajudar?". Abaixo do FAQ há a seção "Faça um pedido" — formulário visível e preenchível por qualquer visitante (escolher tipo: tema, curso, material, dúvida ou outros, e descrever); só o envio exige login — sem sessão, mostra "Faça login para enviar um pedido." em vez de gravar.' },
 
     /* ── AVALIAÇÃO ── */
     { section: 'avaliacao', personas: ['inscrito', 'admin'],

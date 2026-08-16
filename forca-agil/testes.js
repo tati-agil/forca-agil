@@ -987,6 +987,14 @@
       title: 'Turmas — exportar CSV com colunas de presença',
       motivo: 'Requer turma finalizada com pelo menos 1 check-in. Verificar: arquivo .csv contém colunas por data (DD/MM), frequência e coluna "Atingiu critério (75%)".' },
 
+    /* ── Ajuda / Faça um pedido ──────────────────────────────── */
+    { section: 'Ajuda',
+      title: 'Formulário "Faça um pedido" — visível e preenchível sem login',
+      motivo: 'Como visitante (deslogado), abrir a página Ajuda e rolar até "Faça um pedido". Verificar: (1) os 5 botões de tipo aparecem e são clicáveis (Quero aprender sobre um tema / Quero sugerir um curso / Preciso de material / Tenho uma dúvida / Outros); (2) o textarea de descrição aceita digitação normalmente; (3) clicar em "Enviar pedido" mostra "Faça login para enviar um pedido." em vez de gravar no Firebase.' },
+    { section: 'Ajuda',
+      title: 'Formulário "Faça um pedido" — envio com login funciona',
+      motivo: 'Logado, preencher o formulário e clicar "Enviar pedido". Verificar: (1) grava em pedidos/ no Firebase com tipo, descricao, nomeEnviou e emailEnviou; (2) no painel Admin → aba Pedidos, o novo pedido aparece na lista, ordenado mais recente primeiro, com o chip de tipo na cor correta (inclusive "Outros", cor cinza-azulada #8a93a8).' },
+
     /* ── Avaliação da Oficina ─────────────────────────────────── */
     { section: 'Avaliação',
       title: 'Admin libera avaliação por turma — aba aparece para inscrito',
@@ -1164,7 +1172,7 @@
 
     /* Ordem alfabética por label, igual ao Manual/Mapa */
     const SEC_COLOR = {
-      'Admin':              '#ff5252',
+      'Admin':              '#6b7a99',
       'Ajuda':              '#7ecbff',
       'Cadastrar':          '#9b7fff',
       'Check-in':           '#42a5f5',
@@ -1295,7 +1303,7 @@
     /* Nomes iguais aos usados no Manual/Mapa/Regras (sem prefixo "Página"); Firebase e Autenticação
        são grupos técnicos sem equivalente nos outros blocos */
     const RES_COLOR = {
-      'Admin':                       '#ff5252',
+      'Admin':                       '#6b7a99',
       'Ajuda':                       '#7ecbff',
       'Autenticação':                '#9b7fff',
       'Cadastrar':                   '#9b7fff',

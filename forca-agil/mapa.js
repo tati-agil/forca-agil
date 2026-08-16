@@ -6,7 +6,7 @@
     { key: 'visitante',  label: 'Visitante',                      color: '#888888', desc: 'Não cadastrado / não logado' },
     { key: 'logado',     label: 'Usuário logado (sem turma)',      color: '#1ab2ae', desc: 'Cadastrado com @previ.com.br, sem turma confirmada' },
     { key: 'inscrito',   label: 'Usuário inscrito (turma confirmada)', color: '#4caf7d', desc: 'Logado e com turma confirmada pelo admin' },
-    { key: 'admin',      label: 'Admin',                           color: '#ff5252', desc: 'Usuário com acesso administrativo' },
+    { key: 'admin',      label: 'Admin',                           color: '#6b7a99', desc: 'Usuário com acesso administrativo' },
   ];
 
   const HIERARCHY = [
@@ -16,7 +16,7 @@
       adds: ['Acessar o Repositório', 'Adicionar conteúdos e remover os próprios no Repositório', 'Manifestar interesse em quantas turmas existirem (sem limite fixo)', 'Remover interesse em turmas', 'Entrar na lista de espera para próximas turmas (acesso de Logado mantido enquanto aguarda)'] },
     { key: 'inscrito', label: 'Usuário inscrito (turma confirmada)', color: '#4caf7d',
       adds: ['Acessar Conteúdos', 'Acessar Treinamento Jedi (autodiagnóstico 0–60)', 'Revelar patente (resultado fixo e bloqueado — não pode refazer sem reset do admin)'] },
-    { key: 'admin',   label: 'Admin',          color: '#ff5252',
+    { key: 'admin',   label: 'Admin',          color: '#6b7a99',
       adds: ['Acessar o Painel Admin (9 abas: Eventos, Certificados, Repositório, Cadastrados, Administradores, Manual, Mapa, Testes, Pedidos)', 'Criar, editar e excluir turmas; cadastrar link do CMFlex por turma', 'Confirmar/desconfirmar inscrição e adicionar/remover participantes manualmente', 'Abrir/fechar check-in, gerar QR Code e emitir certificados de participação', 'Exportar CSV (estado atual, histórico e por turma)', 'Moderar Repositório (ocultar, restaurar, deletar conteúdos)', 'Ver e gerenciar cadastrados (filtrar, redefinir senha, resetar progresso, criar conta diretamente com senha 12345678, confirmar cadastro manualmente para quem não recebeu o link de verificação de e-mail)', 'Gerenciar lista de espera: ver quem entrou, mover pessoa diretamente para uma turma como Inscrita ou remover da lista; migrar participante de uma turma para a lista de espera (botão "→ Espera" por linha — data original de interesse é preservada)', 'Gerenciar lista de administradores (restrito a tatianefdirene e danielfrazao)', 'Consultar Manual, Mapa e Testes (documentação viva do sistema)'] },
   ];
 
@@ -105,7 +105,7 @@
 
   /* Ordem alfabética por label, igual ao Manual e às Regras */
   const PAGES = [
-    { label: 'ADMIN', color: '#ff5252',
+    { label: 'ADMIN', color: '#6b7a99',
       features: [
         { label: '9 abas no total (Eventos, Certificados, Repositório, Cadastrados, Administradores, Manual, Mapa, Testes, Pedidos); no mobile quebram em 2 linhas', p: ['admin'] },
         { label: 'Aba Eventos — turmas organizadas dentro de containers de evento; turmas sem evento ficam em "TURMAS SEM EVENTO"', p: ['admin'] },
@@ -179,7 +179,8 @@
         { label: 'Ver página Ajuda com perguntas em acordeão — texto "Central de Ajuda" acima do título "Como podemos ajudar?"', p: ['visitante','logado','inscrito','admin'] },
         { label: 'Expandir/recolher cada pergunta clicando no título (comportamento nativo do browser)', p: ['visitante','logado','inscrito','admin'] },
         { label: 'Link "Ajuda" no menu de navegação', p: ['visitante','logado','inscrito','admin'] },
-        { label: 'Formulário "Faça um pedido" — escolher tipo (Quero aprender sobre um tema / Quero sugerir um curso / Preciso de material / Tenho uma dúvida) e descrever com mais detalhes; exige login para enviar', p: ['logado','inscrito','admin'] },
+        { label: 'Formulário "Faça um pedido" — escolher tipo (Quero aprender sobre um tema / Quero sugerir um curso / Preciso de material / Tenho uma dúvida / Outros) e descrever com mais detalhes', p: ['visitante','logado','inscrito','admin'] },
+        { label: 'Botão "Enviar pedido" — exige login; sem sessão, mostra "Faça login para enviar um pedido." em vez de enviar', p: ['logado','inscrito','admin'] },
       ]
     },
     { label: 'CADASTRAR', color: '#9b7fff',
@@ -306,7 +307,7 @@
 
   /* Badge de nível mínimo para o mapa do site */
   const P_ORDER = ['visitante', 'logado', 'inscrito', 'admin'];
-  const P_COLOR = { visitante: '#888888', logado: '#1ab2ae', inscrito: '#4caf7d', admin: '#ff5252' };
+  const P_COLOR = { visitante: '#888888', logado: '#1ab2ae', inscrito: '#4caf7d', admin: '#6b7a99' };
   const P_LABEL = { visitante: 'Visitante', logado: 'Logado', inscrito: 'Inscrito', admin: 'Admin' };
 
   function levelBadge(personas) {
@@ -415,7 +416,7 @@
     html += '<span class="mapa-legend-item"><span class="mapa-badge" style="--bc:#888">Visitante</span> não autenticado — vê Início, Turmas, Ajuda</span>';
     html += '<span class="mapa-legend-item"><span class="mapa-badge" style="--bc:#1ab2ae">Logado +</span> autenticado, sem turma confirmada</span>';
     html += '<span class="mapa-legend-item"><span class="mapa-badge" style="--bc:#4caf7d">Inscrito +</span> autenticado, com turma confirmada</span>';
-    html += '<span class="mapa-legend-item"><span class="mapa-badge" style="--bc:#ff5252">Admin</span> acesso administrativo completo</span>';
+    html += '<span class="mapa-legend-item"><span class="mapa-badge" style="--bc:#6b7a99">Admin</span> acesso administrativo completo</span>';
     html += '</div>';
     html += '</div>';
 
@@ -427,7 +428,7 @@
       { key: 'visitante',label: 'Visitante', color: '#888' },
       { key: 'logado',   label: 'Logado',    color: '#1ab2ae' },
       { key: 'inscrito', label: 'Inscrito',  color: '#4caf7d' },
-      { key: 'admin',    label: 'Admin',     color: '#ff5252' },
+      { key: 'admin',    label: 'Admin',     color: '#6b7a99' },
     ].forEach(function (p) {
       html += '<button class="mapa-filter-chip' + (p.key === 'todos' ? ' active' : '') + '" data-persona="' + p.key + '" style="--fc:' + p.color + '">' + p.label + '</button>';
     });
@@ -545,6 +546,7 @@
           { name: 'Crawl de abertura animado',               desc: 'Texto introdutório em estilo Star Wars sobe lentamente ao entrar na Home. Clique em qualquer ponto pausa/retoma a animação. Botão "Ler texto" alterna para modo estático (sem animação) para acessibilidade.' },
           { name: 'Menu mobile (≤ 600px)',                   desc: 'Media query ≤600px: logo compacto, botões menores, ícone hamburguer sempre visível sem sobreposição com outros elementos do header.' },
           { name: 'Cor de destaque (--accent) só na ação primária', desc: 'O dourado/accent do tema é reservado para UM botão de ação por tela — o que a pessoa mais precisa clicar (ex: "Enviar minha avaliação", "+ Novo evento"). Badges informativos (contagens, status neutros) usam --panel-2 + --line-strong (fundo neutro com borda), nunca --accent sólido — evita competir visualmente com o botão de ação e confundir "isso eu clico" com "isso eu só leio". Corrigido em 16/08/2026: .admin-badge usava --accent sólido para contagens simples (ex: "7 interessados · 20 confirmados"), competindo com os botões primários da mesma tela.' },
+          { name: 'Vermelho reservado para erro/perigo, nunca identidade de categoria', desc: 'Vermelho (#ff5252) é universalmente lido como alerta/ação destrutiva/erro em qualquer interface — usá-lo como cor de identidade de uma categoria inteira (ex: badge "Admin", borda esquerda dos cards da categoria Admin no Manual/Mapa) faz todo item daquela categoria parecer um erro, mesmo sendo informação neutra. Com muitos itens repetindo a mesma cor, o sinal de alerta também se perde por repetição. Corrigido em 16/08/2026: badge/borda "Admin" trocado de #ff5252 (vermelho) para #6b7a99 (índigo-acinzentado/steel) em Manual, Mapa e Testes — mantém a categoria distinguível sem tomar emprestado o vocabulário visual de erro. Vermelho continua reservado para usos semanticamente corretos, como o estado "REMOVIDA" no diagrama de estados de turmas-interesse.' },
         ]
       },
       {

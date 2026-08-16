@@ -6,6 +6,7 @@
     { key: 'curso',    label: 'Quero sugerir um curso',       color: '#1ab2ae' },
     { key: 'material', label: 'Preciso de material',          color: '#4caf7d' },
     { key: 'duvida',   label: 'Tenho uma dúvida',             color: '#f5a623' },
+    { key: 'outros',   label: 'Outros',                       color: '#8a93a8' },
   ];
 
   /* ── Formulário público (página Ajuda) ── */
