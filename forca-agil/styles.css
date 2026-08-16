@@ -1173,11 +1173,13 @@ html:not(.js) .reveal { opacity: 1 !important; transform: none !important; }
 .manual-chip-x { font-size: .85rem; line-height: 1; }
 .manual-count { font-family: var(--font-mono); font-size: .72rem; color: var(--ink-3); letter-spacing: .04em; white-space: nowrap; }
 .manual-rules { display: flex; flex-direction: column; gap: 6px; }
-.manual-section-group { border: 1px solid var(--line); border-radius: 14px; background: var(--surface); }
-.manual-section-group[open] .manual-sec-chev { transform: rotate(180deg); }
-.manual-section-header { display: flex; align-items: center; justify-content: space-between; font-family: var(--font-head); font-size: .78rem; letter-spacing: .14em; text-transform: uppercase; padding: 10px 16px; background: var(--panel); border-bottom: 1px solid; margin-bottom: 0; cursor: pointer; list-style: none; user-select: none; border-radius: 13px 13px 0 0; }
-.manual-section-group:not([open]) .manual-section-header { border-bottom: none; border-radius: 13px; }
+.manual-section-group { border: 1px solid var(--line-strong); border-radius: 10px; margin-bottom: 14px; overflow: hidden; }
+.manual-section-header { display: flex; align-items: center; gap: 10px; padding: 14px 20px; background: var(--panel-2); cursor: pointer; list-style: none; user-select: none; transition: background .15s; }
+.manual-section-header:hover { background: color-mix(in srgb, var(--accent) 7%, var(--panel-2)); }
 .manual-section-header::-webkit-details-marker { display: none; }
+.manual-sec-icon { color: var(--ink-2); font-size: .85rem; flex-shrink: 0; display: inline-block; transition: transform .2s; }
+details.manual-section-group[open] .manual-sec-icon { transform: rotate(90deg); }
+.manual-sec-label { font-family: var(--font-head); font-size: 1.05rem; text-transform: uppercase; letter-spacing: .06em; color: var(--ink); }
 .manual-section-group > .manual-card { margin: 8px 16px 0; }
 .manual-section-group > .manual-card:last-of-type { margin-bottom: 16px; }
 .manual-admin-subhead { font-family: var(--font-mono); font-size: .64rem; letter-spacing: .1em; color: var(--ink-3); margin: 16px 16px 6px; }

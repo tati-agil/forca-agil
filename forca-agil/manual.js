@@ -599,7 +599,7 @@
 
         if (activeSection === 'all') {
           html += '<details class="manual-section-group">';
-          html += '<summary class="manual-section-header" style="border-color:' + s.color + ';color:' + s.color + '"><span>' + s.label + ' <span class="testes-group-count">(' + items.length + ')</span></span><svg class="manual-chev manual-sec-chev" width="14" height="14" viewBox="0 0 14 14"><polyline points="2,4 7,10 12,4" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg></summary>';
+          html += '<summary class="manual-section-header"><span class="manual-sec-icon">▸</span><span class="manual-sec-label">' + s.label + ' <span class="testes-group-count">(' + items.length + ')</span></span></summary>';
         }
 
         const renderCard = function (rule) {
