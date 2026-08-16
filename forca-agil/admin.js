@@ -104,6 +104,7 @@
     if (window.faInitMapa) window.faInitMapa();
     if (window.faInitTestes) window.faInitTestes();
     if (window.faInitPedidos) window.faInitPedidos();
+    if (window.faInitDashboard) window.faInitDashboard();
     initCertificados();
   }
 

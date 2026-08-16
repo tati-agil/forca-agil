@@ -1276,6 +1276,7 @@ body.aguardando-auth>*:not(#authModal){visibility:hidden}
 
     <div id="adminContent" hidden>
       <div class="admin-tabs-bar">
+        <button class="admin-tab-btn" data-panel="adminPanelDashboard">Dashboard</button>
         <button class="admin-tab-btn active" data-panel="adminPanelInteresses">Eventos</button>
         <button class="admin-tab-btn" data-panel="adminPanelCert">Certificados</button>
         <button class="admin-tab-btn" data-panel="adminPanelRepo">Repositório</button>
@@ -1290,6 +1291,12 @@ body.aguardando-auth>*:not(#authModal){visibility:hidden}
         <span class="admin-expand-label">Expansíveis:</span>
         <button class="btn btn--sm" id="adminExpandAll">Expandir tudo</button>
         <button class="btn btn--sm" id="adminCollapseAll">Recolher tudo</button>
+      </div>
+
+      <div class="admin-tab-panel" id="adminPanelDashboard">
+        <div id="adminDashboard">
+          <p class="loading-msg">Carregando dashboard…</p>
+        </div>
       </div>
 
       <div class="admin-tab-panel active" id="adminPanelInteresses">
@@ -1663,6 +1670,7 @@ body.aguardando-auth>*:not(#authModal){visibility:hidden}
 <script src="forca-agil/mapa.js"></script>
 <script src="forca-agil/testes.js"></script>
 <script src="forca-agil/pedidos.js"></script>
+<script src="forca-agil/dashboard.js"></script>
 
 <!-- Admin guard: show/hide content based on auth -->
 <script src="forca-agil/init.js"></script>

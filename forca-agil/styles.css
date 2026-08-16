@@ -1432,6 +1432,63 @@ details.manual-admin-subgroup[open] > .manual-admin-subhead,
 .btn--danger { border-color: rgba(255,59,48,.5); color: var(--red, #ff3b30); }
 .btn--danger:hover { background: rgba(255,59,48,.12); }
 
+/* ── Dashboard de Avaliações (Admin) ── */
+.dash-empty, .dash-empty-state { color: var(--ink-3); font-size: .85rem; padding: 16px 0; }
+.dash-empty-state { text-align: center; padding: 48px 0; }
+.dash-stats-row { display: grid; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); gap: 14px; margin-bottom: 24px; }
+.dash-stat-card {
+  display: flex; align-items: center; gap: 12px; background: var(--panel); border: 1px solid var(--line);
+  border-radius: 12px; padding: 16px 18px;
+}
+.dash-stat-icon {
+  width: 42px; height: 42px; flex-shrink: 0; border-radius: 10px; display: flex; align-items: center;
+  justify-content: center; font-size: 1.3rem; background: color-mix(in srgb, var(--sc, #888) 18%, transparent);
+}
+.dash-stat-body { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.dash-stat-label { font-family: var(--font-mono); font-size: .68rem; letter-spacing: .05em; text-transform: uppercase; color: var(--ink-3); }
+.dash-stat-value { font-family: var(--font-head); font-size: 1.5rem; color: var(--ink); line-height: 1.1; }
+.dash-stat-sub { font-size: .74rem; color: var(--ink-2); }
+
+.dash-grid-3 { display: grid; grid-template-columns: 1.4fr 1.4fr 1fr; gap: 16px; margin-bottom: 16px; }
+.dash-grid-2 { display: grid; grid-template-columns: 1.2fr 1fr; gap: 16px; margin-bottom: 16px; }
+@media (max-width: 900px) { .dash-grid-3, .dash-grid-2 { grid-template-columns: 1fr; } }
+
+.dash-panel { background: var(--panel); border: 1px solid var(--line); border-radius: 12px; padding: 18px 20px; }
+.dash-panel--center { display: flex; flex-direction: column; align-items: center; text-align: center; }
+.dash-panel-title { font-family: var(--font-mono); font-size: .74rem; letter-spacing: .06em; text-transform: uppercase; color: var(--ink-2); margin-bottom: 14px; }
+
+.dash-svg-barras { width: 100%; height: auto; }
+.dash-svg-gauge { width: 200px; height: auto; }
+.dash-gauge-value { font-family: var(--font-head); font-size: 2rem; color: var(--ink); margin-top: -8px; }
+.dash-gauge-value span { font-size: 1rem; color: var(--ink-3); }
+
+.dash-distrib-row { display: flex; justify-content: space-between; gap: 6px; margin-bottom: 14px; flex-wrap: wrap; }
+.dash-distrib-item { display: flex; flex-direction: column; align-items: center; gap: 2px; flex: 1; min-width: 44px; }
+.dash-distrib-emoji { font-size: 1.2rem; }
+.dash-distrib-range { font-size: .68rem; color: var(--ink-3); }
+.dash-distrib-n { font-family: var(--font-head); font-size: 1.05rem; color: var(--ink); }
+.dash-distrib-pct { font-size: .68rem; color: var(--ink-3); }
+.dash-distrib-bar { display: flex; height: 8px; border-radius: 6px; overflow: hidden; background: var(--line); margin-bottom: 10px; }
+.dash-distrib-resumo { font-size: .8rem; color: var(--ink-2); margin: 0; }
+
+.dash-destaques-lista { display: flex; flex-direction: column; gap: 10px; }
+.dash-destaque-item { display: flex; align-items: center; gap: 10px; font-size: .85rem; }
+.dash-destaque-icon { font-size: 1.1rem; flex-shrink: 0; }
+.dash-destaque-label { flex: 1; color: var(--ink); }
+.dash-destaque-media { font-family: var(--font-head); color: var(--accent); }
+.dash-destaque-mencoes { font-size: .72rem; color: var(--ink-3); white-space: nowrap; }
+
+.dash-temas-lista { display: flex; flex-wrap: wrap; gap: 8px; }
+.dash-tema-chip {
+  font-size: .8rem; color: var(--ink-2); background: var(--panel-2); border: 1px solid var(--line-strong);
+  border-radius: 20px; padding: 5px 12px;
+}
+.dash-tema-chip strong { color: var(--accent); margin-left: 4px; }
+
+.dash-feedbacks-lista { display: flex; flex-direction: column; gap: 14px; }
+.dash-feedback-item { font-size: .88rem; color: var(--ink-2); line-height: 1.5; font-style: italic; }
+.dash-feedback-item .ped-admin-meta { display: block; margin-top: 4px; font-style: normal; }
+
 /* Badge de nível */
 .mapa-badge { display: inline-block; font-size: .72rem; font-family: var(--font-mono); letter-spacing: .06em; text-transform: uppercase; padding: 3px 9px; border-radius: 20px; border: 1px solid var(--bc, #888); color: var(--bc, #888); background: color-mix(in srgb, var(--bc, #888) 12%, transparent); white-space: nowrap; flex-shrink: 0; }
 
