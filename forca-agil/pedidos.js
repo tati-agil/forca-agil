@@ -76,6 +76,56 @@
 
     var tipoFiltro = 'todos';
     var todosPedidos = [];
+    var listaAdmins = [];       /* [{name, email}], carregada de fa-admins + super-admins */
+    var abrindoSelecao = null;  /* key do pedido com o seletor "quem respondeu" aberto */
+
+    /* Data em fim de semana conta como 8h da segunda-feira seguinte, pra fins de prazo */
+    function normalizarParaDiaUtil(iso) {
+      var d = new Date(iso);
+      var dow = d.getDay();
+      if (dow === 6) { d.setDate(d.getDate() + 2); d.setHours(8, 0, 0, 0); }      /* sábado → segunda 8h */
+      else if (dow === 0) { d.setDate(d.getDate() + 1); d.setHours(8, 0, 0, 0); } /* domingo → segunda 8h */
+      return d;
+    }
+    /* Conta dias úteis (seg–sex) estritamente entre duas datas — exclusivo do início, inclusivo do fim */
+    function diasUteisEntre(iso1, iso2) {
+      if (!iso1 || !iso2) return 0;
+      var d1 = normalizarParaDiaUtil(iso1); d1.setHours(0, 0, 0, 0);
+      var d2 = normalizarParaDiaUtil(iso2); d2.setHours(0, 0, 0, 0);
+      if (d2 <= d1) return 0;
+      var count = 0;
+      var cur = new Date(d1);
+      while (cur < d2) {
+        cur.setDate(cur.getDate() + 1);
+        var dow = cur.getDay();
+        if (dow !== 0 && dow !== 6) count++;
+      }
+      return count;
+    }
+    function diasUteisLabel(n) {
+      return n + ' dia' + (n !== 1 ? 's' : '') + ' útil' + (n !== 1 ? 'eis' : '');
+    }
+
+    function carregarAdmins(cb) {
+      var emailsSuper = window.faSuperAdmins || [];
+      Promise.all([
+        firebase.database().ref('fa-admins').once('value'),
+        Promise.all(emailsSuper.map(function (e) {
+          return firebase.database().ref('fa-users/' + e.toLowerCase().replace(/[@.]/g, '_')).once('value');
+        })),
+      ]).then(function (res) {
+        var lista = Object.values(res[0].val() || {}).map(function (a) {
+          return { name: a.name || a.email, email: a.email };
+        });
+        res[1].forEach(function (snap, i) {
+          var u = snap.val();
+          lista.push({ name: (u && u.name) || emailsSuper[i], email: emailsSuper[i] });
+        });
+        lista.sort(function (a, b) { return (a.name || '').localeCompare(b.name || '', 'pt'); });
+        listaAdmins = lista;
+        if (cb) cb();
+      });
+    }
 
     function tipoLabel(key) {
       var t = TIPOS.find(function (x) { return x.key === key; });
@@ -85,10 +135,21 @@
       var t = TIPOS.find(function (x) { return x.key === key; });
       return t ? t.color : '#888';
     }
+    function esc(s) {
+      return String(s || '').replace(/[&<>"]/g, function (c) {
+        return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c];
+      });
+    }
     function fmtData(iso) {
       if (!iso) return '—';
       var d = new Date(iso);
       return d.toLocaleDateString('pt-BR') + ' ' + d.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
+    }
+    /* Nomes vêm gravados em CAIXA ALTA no cadastro — formata só pra saudação do e-mail */
+    function primeiroNomeCapitalizado(nomeCompleto) {
+      var primeiro = (nomeCompleto || '').trim().split(' ')[0];
+      if (!primeiro) return '';
+      return primeiro.charAt(0) + primeiro.slice(1).toLowerCase();
     }
 
     function render() {
@@ -119,18 +180,43 @@
           html += '<span class="ped-admin-meta">' + (p.nomeEnviou || p.emailEnviou || 'Anônimo') + ' · ' + fmtData(p.dataEnvio) + '</span>';
           html += '</div>';
           if (p.descricao) html += '<p class="ped-admin-desc">' + p.descricao.replace(/&/g,'&amp;').replace(/</g,'&lt;') + '</p>';
+
+          if (respondido) {
+            var dias = diasUteisEntre(p.dataEnvio, p.respondidoEm);
+            html += '<p class="ped-admin-prazo ped-admin-prazo--ok">Respondido por <strong>' + esc(p.respondidoPor && p.respondidoPor.name || '—') +
+              '</strong> em ' + fmtData(p.respondidoEm) + ' — ' + diasUteisLabel(dias) + ' depois do pedido.</p>';
+          } else {
+            var diasAberto = diasUteisEntre(p.dataEnvio, new Date().toISOString());
+            html += '<p class="ped-admin-prazo' + (diasAberto >= 2 ? ' ped-admin-prazo--atraso' : '') + '">Em aberto há ' + diasUteisLabel(diasAberto) + '.</p>';
+          }
+
           html += '<div class="ped-admin-item-actions">';
           if (p.emailEnviou) {
             var assunto = 'Força Ágil — resposta ao seu pedido (' + tipoLabel(p.tipo) + ')';
-            var corpo = 'Olá' + (p.nomeEnviou ? ' ' + p.nomeEnviou.split(' ')[0] : '') + ',\n\n' +
+            var corpo = 'Olá' + (p.nomeEnviou ? ' ' + primeiroNomeCapitalizado(p.nomeEnviou) : '') + ',\n\n' +
               'Sobre o seu pedido enviado em ' + fmtData(p.dataEnvio) + ' (' + tipoLabel(p.tipo) + '):\n' +
               (p.descricao ? '"' + p.descricao + '"\n\n' : '\n') +
-              '---\n\n';
+              '---\n\n\n\n' +
+              'Um abraço,\nEquipe Força Ágil';
             html += '<a class="btn btn--sm" href="mailto:' + encodeURIComponent(p.emailEnviou) +
               '?subject=' + encodeURIComponent(assunto) + '&body=' + encodeURIComponent(corpo) + '">✉ Responder por e-mail</a>';
           }
-          html += '<button class="btn btn--sm ped-marcar-btn" data-key="' + p._key + '" data-respondido="' + (respondido ? '1' : '0') + '">' +
-            (respondido ? '✕ Desmarcar' : '✓ Marcar como respondido') + '</button>';
+          if (respondido) {
+            html += '<button class="btn btn--sm ped-desmarcar-btn" data-key="' + p._key + '">✕ Desmarcar</button>';
+          } else if (abrindoSelecao === p._key) {
+            html += '<span class="ped-admin-select-wrap">';
+            html += '<select class="ped-admin-select-quem" data-key="' + p._key + '">';
+            html += '<option value="">— quem respondeu? —</option>';
+            listaAdmins.forEach(function (a) {
+              html += '<option value="' + esc(a.email) + '">' + esc(a.name) + '</option>';
+            });
+            html += '</select>';
+            html += '<button class="btn btn--sm btn--primary ped-confirmar-btn" data-key="' + p._key + '">Confirmar</button>';
+            html += '<button class="btn btn--sm ped-cancelar-btn">Cancelar</button>';
+            html += '</span>';
+          } else {
+            html += '<button class="btn btn--sm ped-marcar-btn" data-key="' + p._key + '">✓ Marcar como respondido</button>';
+          }
           html += '</div>';
           html += '</div>';
         });
@@ -146,20 +232,46 @@
       });
       wrap.querySelectorAll('.ped-marcar-btn').forEach(function (btn) {
         btn.addEventListener('click', function () {
+          abrindoSelecao = btn.dataset.key;
+          render();
+        });
+      });
+      wrap.querySelectorAll('.ped-cancelar-btn').forEach(function (btn) {
+        btn.addEventListener('click', function () {
+          abrindoSelecao = null;
+          render();
+        });
+      });
+      wrap.querySelectorAll('.ped-confirmar-btn').forEach(function (btn) {
+        btn.addEventListener('click', function () {
           var key = btn.dataset.key;
-          var jaRespondido = btn.dataset.respondido === '1';
-          var updates = jaRespondido
-            ? { respondido: false, respondidoEm: null }
-            : { respondido: true, respondidoEm: new Date().toISOString() };
-          firebase.database().ref('pedidos/' + key).update(updates);
+          var sel = wrap.querySelector('.ped-admin-select-quem[data-key="' + key + '"]');
+          var email = sel ? sel.value : '';
+          if (!email) { sel.focus(); return; }
+          var admin = listaAdmins.filter(function (a) { return a.email === email; })[0];
+          abrindoSelecao = null;
+          firebase.database().ref('pedidos/' + key).update({
+            respondido: true,
+            respondidoEm: new Date().toISOString(),
+            respondidoPor: { name: admin ? admin.name : email, email: email },
+          });
+        });
+      });
+      wrap.querySelectorAll('.ped-desmarcar-btn').forEach(function (btn) {
+        btn.addEventListener('click', function () {
+          firebase.database().ref('pedidos/' + btn.dataset.key).update({
+            respondido: false, respondidoEm: null, respondidoPor: null,
+          });
         });
       });
     }
 
-    firebase.database().ref('pedidos').on('value', function (snap) {
-      todosPedidos = [];
-      snap.forEach(function (c) { todosPedidos.push(Object.assign({ _key: c.key }, c.val())); });
-      render();
+    carregarAdmins(function () {
+      firebase.database().ref('pedidos').on('value', function (snap) {
+        todosPedidos = [];
+        snap.forEach(function (c) { todosPedidos.push(Object.assign({ _key: c.key }, c.val())); });
+        render();
+      });
     });
   };
 
