@@ -248,7 +248,7 @@
       features: [
         { label: 'Aba Avaliação: visível no menu apenas para inscrito confirmado em turma com avaliação liberada pelo admin, e sempre para admin', p: ['inscrito','admin'] },
         { label: 'Formulário com 13 seções em accordion: seções recolhidas por padrão, seção 1 abre automaticamente ao carregar', p: ['inscrito','admin'] },
-        { label: 'Seções 1 (Avaliação geral) e 2 (NPS) obrigatórias — badge dourado "Obrigatória"; demais marcadas como "Opcional"', p: ['inscrito','admin'] },
+        { label: 'Seções 1 a 7 (todos os ratings) obrigatórias — badge dourado "Obrigatória"; seções 8–13 marcadas como "Opcional"', p: ['inscrito','admin'] },
         { label: 'Barra de progresso — "X de 13 seções respondidas" atualizada em tempo real conforme campos são respondidos', p: ['inscrito','admin'] },
         { label: 'Auto-avançar — ao selecionar nota 0–10 no campo principal de uma seção, a próxima abre automaticamente após 600ms', p: ['inscrito','admin'] },
         { label: 'Checkmark ✅ no cabeçalho da seção assim que o campo principal é respondido (mesmo com a seção recolhida)', p: ['inscrito','admin'] },
@@ -460,8 +460,6 @@
     });
     html += '</div>';
 
-    html += '</div>';
-
     /* ── Arquitetura Técnica ── */
     html += '<h3 class="mapa-title" style="margin-top:56px">Arquitetura Técnica</h3>';
     html += '<p class="mapa-sub">Visão geral das tecnologias, estrutura e processo de deploy do projeto.</p>';
@@ -500,6 +498,7 @@
           { name: 'forca-agil/game-data.js',     desc: 'Dados do Treinamento Jedi — 4 blocos × 5 afirmações (BLOCOS), patentes (RANKS), níveis Likert (LEVELS). DIMS computado dinamicamente a partir de BLOCOS. MISSIONS existe no arquivo mas não é usada em v3. Expõe window.faGameData' },
           { name: 'forca-agil/game.js',          desc: 'Treinamento Jedi — autodiagnóstico, painel de patente e revelar patente. Acessível apenas com nível "enrolled". Lê dados de window.faGameData' },
           { name: 'forca-agil/admin.js',         desc: 'Painel Admin — turmas (criar/editar/excluir, com datas dinâmicas em turmas/ no Firebase — não são mais fixas em código), interessados, moderação de repositório, gestão de admins, exportação CSV UTF-8 BOM via URL.createObjectURL (window.faToXls — compartilhada por Manual e Testes; acentos corretos no Excel, arquivo sempre editável), barra expandir/recolher com botões por seção. Botão "→ Espera" por linha da tabela de participantes: migra pessoa (interessada ou inscrita) para fa-espera/ preservando a data original de interesse. Aba Cadastrados: coluna E-mail com badge Pendente/Verificado; botão "Confirmar cadastro" para quem ainda não clicou no link (seta adminApproved:true + registra quem aprovou); seção Lista de Espera com ações "Mover para turma" (adiciona como Inscrita) e "Remover da lista". Nenhuma informação de XP é exibida no painel.' },
+          { name: 'forca-agil/avaliacao.js',     desc: 'Avaliação da Oficina — formulário em accordion com 13 seções (7 obrigatórias de 0–10, 6 opcionais). Visível apenas para admin e inscritos confirmados em turma com avaliação habilitada pelo admin. Rascunho automático por turma, envio único, progresso por seção. API: window.faAvaliacao' },
           { name: 'forca-agil/pedidos.js',       desc: 'Formulário público "Faça um pedido" (seção Ajuda) e painel admin Aba Pedidos. Público: seleção de tipo (tema/curso/material/dúvida) + textarea + envio autenticado para Firebase pedidos/. Admin: lê node pedidos/, renderiza com chips de filtro por tipo e contagem, ordem mais recente primeiro.' },
           { name: 'forca-agil/checkin.js',       desc: 'Check-in por QR Code — registra presença por dia via leitura de QR Code; valida a turma consultando turmas/{turmaKey} no Firebase (não uma lista fixa)' },
           { name: 'forca-agil/manual.js',        desc: 'Manual interativo — regras filtráveis por seção e persona, botão exportar todas as regras em CSV. Dados declarativos em array RULES' },
@@ -713,8 +712,6 @@
       });
       html += '</div></div></div>';
     });
-
-    html += '</div>';
 
     html += '</div>';
 

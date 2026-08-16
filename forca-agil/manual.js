@@ -345,7 +345,7 @@
       body: 'No painel Admin, aba Eventos, menu ⋯ de cada turma: botão "📋 Liberar avaliação" ativa o formulário para os inscritos daquela turma (grava avaliacaoHabilitada: true em turmas/<key>). O botão vira "🔒 Encerrar avaliação" — clicar desativa o acesso. Efeito visível no próximo login ou recarregamento da página pelo inscrito.' },
     { section: 'avaliacao', personas: ['inscrito', 'admin'],
       title: 'Seções obrigatórias e opcionais',
-      body: 'O formulário tem 13 seções. Seções 1 (Avaliação geral) e 2 (NPS) são obrigatórias — badge dourado "Obrigatória" no cabeçalho. As demais são marcadas como "Opcional". O envio só é bloqueado se uma das seções obrigatórias não tiver o campo principal respondido; ao bloquear, a seção faltante abre automaticamente.' },
+      body: 'O formulário tem 13 seções. Seções 1 a 7 (todos os campos de rating) são obrigatórias — badge dourado "Obrigatória" no cabeçalho. Seções 8 a 13 são marcadas como "Opcional". O envio só é bloqueado se alguma das seções obrigatórias não tiver o campo principal respondido; ao bloquear, a seção faltante abre automaticamente.' },
     { section: 'avaliacao', personas: ['inscrito', 'admin'],
       title: 'Accordion — seções colapsadas por padrão',
       body: 'Ao abrir o formulário, apenas a seção 1 está expandida. As demais estão recolhidas. Clicar no cabeçalho de qualquer seção expande ou recolhe aquela seção. Seções com campo principal respondido exibem ✅ no cabeçalho mesmo quando recolhidas.' },
