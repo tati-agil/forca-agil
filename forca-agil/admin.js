@@ -236,9 +236,16 @@
           exportLogBtn.className = 'btn btn--sm';
           exportLogBtn.innerHTML = '&#x2193; Histórico';
           exportLogBtn.addEventListener('click', function () { exportInterestLog(); });
+          var qrAcessoBtn = document.createElement('a');
+          qrAcessoBtn.className = 'btn btn--sm';
+          qrAcessoBtn.innerHTML = '&#x2193; QR de acesso ao site';
+          qrAcessoBtn.href = 'forca-agil/assets/qrcode-acesso.png';
+          qrAcessoBtn.download = 'forca-agil-qrcode.png';
+          qrAcessoBtn.title = 'Baixa o QR Code (com o logotipo da Força Ágil) que leva para forca-agil.previ.com.br — use em cartazes, slides ou materiais impressos';
           globalBtnWrap.appendChild(newEventoBtn);
           globalBtnWrap.appendChild(exportBtn);
           globalBtnWrap.appendChild(exportLogBtn);
+          globalBtnWrap.appendChild(qrAcessoBtn);
           c.appendChild(globalBtnWrap);
 
           /* ── Barra de filtro e expand/collapse ───────────────────────────── */
@@ -2055,7 +2062,7 @@
     c.innerHTML = '';
 
     const hdr = document.createElement('h4');
-    hdr.innerHTML = 'Cadastrados <span class="admin-badge">' + list.length + '</span>';
+    hdr.innerHTML = 'Cadastrados <span class="admin-badge" id="cadastradosBadge">' + list.length + '</span>';
     c.appendChild(hdr);
 
     /* ---- Criar conta pelo admin ---- */
@@ -2135,6 +2142,8 @@
         return (p.name || '').toLowerCase().indexOf(q) !== -1 || (p.email || '').toLowerCase().indexOf(q) !== -1;
       });
       tbody.innerHTML = '';
+      var badgeEl = document.getElementById('cadastradosBadge');
+      if (badgeEl) badgeEl.textContent = filtered.length;
       filtered.forEach(function (p) {
         var bloqueado = !!p.blocked;
         var precisaVerificacao = !!(p.emailVerificationRequired && !p.adminApproved);

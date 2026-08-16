@@ -129,6 +129,7 @@
         { label: 'Aba Eventos — abrir check-in do dia (com confirmação do dia + aviso se diferente de hoje)', p: ['admin'] },
         { label: 'Aba Eventos — fechar check-in do dia', p: ['admin'] },
         { label: 'Aba Eventos — gerar QR Code da turma', p: ['admin'] },
+        { label: 'Aba Eventos — baixar QR Code de acesso ao site (com logotipo Força Ágil), para uso em cartazes/slides/materiais impressos', p: ['admin'] },
         { label: 'Aba Eventos — tabela de presença, registro manual', p: ['admin'] },
         { label: 'Aba Eventos — tabela de presença, remoção manual', p: ['admin'] },
         { label: 'Aba Eventos — adicionar participante por busca em cadastros existentes, escolhendo o status (Interessada ou Inscrita); pessoa precisa ter cadastro prévio no site', p: ['admin'] },
@@ -511,6 +512,7 @@
           { name: 'forca-agil/styles.css',       desc: 'Estilos globais — design tokens, layout, componentes, responsividade' },
           { name: 'forca-agil/pages.css',        desc: 'Estilos específicos de seções — Admin (inputs, tabelas, expand bar, badges), Mapa, Manual, Testes' },
           { name: 'forca-agil/qrcode.min.js',    desc: 'Biblioteca de geração de QR Code (vendorizada localmente — a versão publicada no CDN jsdelivr parou de servir o arquivo build/qrcode.min.js a partir da 1.5.3, quebrando o QR Code do check-in). Usada pelo admin.js.' },
+          { name: 'forca-agil/certif.js',        desc: 'Geração de certificados de participação — monta o layout com os 6 campos dinâmicos sobre o template PNG, calcula frequência e horas por participante elegível, aciona impressão. API: window.faCertif.' },
         ]
       },
       {

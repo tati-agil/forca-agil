@@ -92,14 +92,14 @@
         { id: 'adm-mapa-panel',   label: 'Painel Mapa presente',   run: function () { return !!document.getElementById('adminPanelMapa'); } },
         { id: 'adm-testes-panel', label: 'Painel Testes presente', run: function () { return !!document.getElementById('adminPanelTestes'); } },
         { id: 'adm-cadastrados-panel', label: 'Painel Cadastrados presente', run: function () { return !!document.getElementById('adminPanelCadastrados') && !!document.getElementById('adminCadastrados'); } },
-        { id: 'adm-mapa-cards',   label: 'Mapa: 11 cards de página renderizados', run: function () {
+        { id: 'adm-mapa-cards',   label: 'Mapa: 12 cards de página renderizados', run: function () {
           if (window.faInitMapa) window.faInitMapa();
-          return document.querySelectorAll('#adminMapa .mapa-page').length === 11;
+          return document.querySelectorAll('#adminMapa .mapa-page').length === 12;
         } },
         { id: 'adm-mapa-features', label: 'Mapa: todos os cards têm features', run: function () {
           if (window.faInitMapa) window.faInitMapa();
           var cards = document.querySelectorAll('#adminMapa .mapa-page');
-          if (cards.length !== 11) return false;
+          if (cards.length !== 12) return false;
           return Array.from(cards).every(function (c) { return c.querySelectorAll('.mapa-feature').length > 0; });
         } },
         { id: 'adm-mapa-features-completas', label: 'Mapa: nenhum card renderiza menos features do que o definido (sem clipping)', run: function () {
@@ -211,12 +211,31 @@
         { id: 'c-bloqueado-painel-existe', label: 'Painel "Acesso desativado" existe no DOM (#auth-bloqueado)', run: function () {
           return !!document.getElementById('auth-bloqueado');
         } },
-        { id: 'c-espera-card-existe', label: 'Card "Lista de Espera" existe na grade de turmas (#turma-espera-card)', run: function () {
-          return !!document.getElementById('turma-espera-card');
-        } },
-        { id: 'c-espera-btn-existe', label: 'Botão "Entrar na lista de espera" existe no card (#btnEntrarEspera)', run: function () {
-          return !!document.getElementById('btnEntrarEspera');
-        } }
+        { id: 'c-espera-card-existe', label: 'Card "Lista de Espera" existe na grade de turmas (#turma-espera-card)', async: true,
+          run: function () {
+            if (window.faInitTurmas) window.faInitTurmas();
+            /* Card é criado após leitura assíncrona do Firebase (loadTurmas) — espera aparecer no DOM */
+            return new Promise(function (resolve) {
+              var tentativas = 0;
+              (function poll() {
+                if (document.getElementById('turma-espera-card')) return resolve(true);
+                if (++tentativas > 40) return resolve(false);
+                setTimeout(poll, 100);
+              })();
+            });
+          } },
+        { id: 'c-espera-btn-existe', label: 'Botão "Entrar na lista de espera" existe no card (#btnEntrarEspera)', async: true,
+          run: function () {
+            if (window.faInitTurmas) window.faInitTurmas();
+            return new Promise(function (resolve) {
+              var tentativas = 0;
+              (function poll() {
+                if (document.getElementById('btnEntrarEspera')) return resolve(true);
+                if (++tentativas > 40) return resolve(false);
+                setTimeout(poll, 100);
+              })();
+            });
+          } }
       ]
     },
     {
@@ -854,6 +873,9 @@
     { section: 'Treinamento Jedi',
       title: 'Ao concluir o autodiagnóstico: Revelar patente — confirmação real',
       motivo: 'Ação irreversível (fixa o resultado definitivamente) — não deve ser executada em teste automatizado com dado real.' },
+    { section: 'Admin',
+      title: 'Aba Eventos — download do QR de acesso ao site',
+      motivo: 'Clicar em "↓ QR de acesso ao site" no topo da aba Eventos. Verificar: (1) baixa um arquivo forca-agil-qrcode.png; (2) a imagem tem o QR Code com o logotipo da Força Ágil (ícone + FORÇA ÁGIL + Previ) no centro; (3) escanear o QR com o celular abre https://forca-agil.previ.com.br/.' },
     { section: 'Admin',
       title: 'Admin — acesso negado para visitante/logado (URL direta)',
       motivo: 'Requer testar com diferentes níveis de acesso — não pode ser validado na sessão admin atual.' },

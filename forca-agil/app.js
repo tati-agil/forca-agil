@@ -536,6 +536,7 @@
       return (e || '').toLowerCase().replace(/[@.]/g, '_').replace(/[^a-z0-9_]/g, '').slice(0, 64);
     }
 
+    window.faInitTurmas = initTurmaInterest;
     if (window.faRouter) window.faRouter.onPageInit('turmas', initTurmaInterest);
     window.addEventListener('fa-auth-change', function () {
       if (window.faRouter && window.faRouter.current() === 'turmas') initTurmaInterest();
