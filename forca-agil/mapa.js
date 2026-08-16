@@ -249,6 +249,7 @@
     { label: 'AVALIAÇÃO', color: '#a78bfa',
       features: [
         { label: 'Aba Avaliação: visível no menu para inscritos confirmados em turma com avaliação liberada pelo admin (flag avaliacaoHabilitada). Admin vê a aba sempre — independente do flag — para poder testar e revisar antes e depois de liberar', p: ['inscrito','admin'] },
+        { label: 'Admin vê seletores de Evento e Turma no topo da Avaliação — pode revisar/testar o formulário de QUALQUER turma do sistema, mesmo sem estar pessoalmente inscrito nela (não fica restrito às próprias turmas confirmadas)', p: ['admin'] },
         { label: 'Formulário com 13 seções em accordion: seções recolhidas por padrão, seção 1 abre automaticamente ao carregar', p: ['inscrito','admin'] },
         { label: 'Seções 1 a 7 (todos os ratings) obrigatórias — badge dourado "Obrigatória"; seções 8–13 marcadas como "Opcional"', p: ['inscrito','admin'] },
         { label: 'Barra de progresso — "X de 13 seções respondidas" atualizada em tempo real conforme campos são respondidos', p: ['inscrito','admin'] },

@@ -1236,6 +1236,10 @@ details.manual-section-group[open] .manual-sec-icon { transform: rotate(90deg); 
 .aval-hero h1 { font-family: var(--font-display); font-size: clamp(2rem,6vw,4rem); color: var(--ink); margin: 0 0 16px; }
 .aval-hero p { font-size: clamp(.9rem,2vw,1.05rem); color: var(--ink-2); max-width: 600px; margin: 0 auto; line-height: 1.7; }
 
+.aval-admin-picker { border: 1px solid var(--line-strong); border-radius: 10px; padding: 16px 20px; margin-bottom: 24px; background: rgba(245,197,66,.06); }
+.aval-admin-picker-label { font-family: var(--font-mono); font-size: .78rem; color: var(--accent); margin-bottom: 12px; }
+.aval-admin-picker-row { display: flex; flex-wrap: wrap; gap: 12px; }
+
 .aval-form-header { margin-bottom: 20px; }
 .aval-intro { color: var(--ink-2); font-size: .9rem; margin: 0 0 14px; line-height: 1.7; }
 .aval-header-meta { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }

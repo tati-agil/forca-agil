@@ -617,6 +617,96 @@
     }
   }
 
+  /* ── Navegador de turmas (admin) ──
+     Admin não fica restrito às turmas em que está pessoalmente inscrito — pode
+     escolher qualquer evento/turma do sistema para revisar ou testar o
+     formulário de avaliação antes (ou depois) de liberar para os inscritos. */
+
+  function initAdminBrowser(c, uKey, userName, userEmail) {
+    c.innerHTML =
+      '<div class="aval-admin-picker">' +
+        '<div class="aval-admin-picker-label">📋 Modo admin — escolha evento e turma para revisar a avaliação:</div>' +
+        '<div class="aval-admin-picker-row">' +
+          '<select id="avalAdminEvento" class="cert-select"><option value="">— selecionar evento —</option></select>' +
+          '<select id="avalAdminTurma" class="cert-select" disabled><option value="">— selecione um evento primeiro —</option></select>' +
+        '</div>' +
+      '</div>' +
+      '<div id="avalAdminFormArea"></div>';
+
+    var formArea = document.getElementById('avalAdminFormArea');
+    var selEv    = document.getElementById('avalAdminEvento');
+    var selTu    = document.getElementById('avalAdminTurma');
+
+    Promise.all([
+      firebase.database().ref('eventos').once('value'),
+      firebase.database().ref('turmas').once('value'),
+    ]).then(function(res) {
+      var eventos    = res[0].val() || {};
+      var turmasData = res[1].val() || {};
+      var eventosList = Object.keys(eventos)
+        .map(function(k){ return { key: k, nome: eventos[k].nome || k }; })
+        .sort(function(a,b){ return (a.nome||'').localeCompare(b.nome||'','pt'); });
+      var turmasList = Object.keys(turmasData)
+        .map(function(k){ return Object.assign({ key: k }, turmasData[k]); });
+
+      eventosList.forEach(function(ev) {
+        var opt = document.createElement('option');
+        opt.value = ev.key; opt.textContent = ev.nome;
+        selEv.appendChild(opt);
+      });
+
+      function populateTurmas(eventoKey) {
+        selTu.innerHTML = '';
+        var filtradas = turmasList
+          .filter(function(t){ return (t.eventoKey || '') === eventoKey; })
+          .sort(function(a,b){ return (a.label||'').localeCompare(b.label||'','pt'); });
+        var ph = document.createElement('option');
+        ph.value = '';
+        if (!filtradas.length) {
+          ph.textContent = eventoKey ? '— nenhuma turma neste evento —' : '— selecione um evento primeiro —';
+          selTu.appendChild(ph);
+          selTu.disabled = true;
+          formArea.innerHTML = '';
+          return;
+        }
+        ph.textContent = '— selecionar turma —';
+        selTu.appendChild(ph);
+        filtradas.forEach(function(t) {
+          var opt = document.createElement('option');
+          opt.value = t.key; opt.textContent = t.label || t.key;
+          selTu.appendChild(opt);
+        });
+        selTu.disabled = false;
+      }
+
+      selEv.addEventListener('change', function() {
+        formArea.innerHTML = '';
+        populateTurmas(selEv.value);
+      });
+
+      selTu.addEventListener('change', function() {
+        var turmaKey = selTu.value;
+        if (!turmaKey) { formArea.innerHTML = ''; return; }
+        var t = turmasList.filter(function(x){ return x.key === turmaKey; })[0];
+        var turmaObj = { key: t.key, label: t.label || t.key };
+        formArea.innerHTML = '<p class="loading-msg">Carregando…</p>';
+        firebase.database().ref('avaliacoes/' + turmaKey + '/' + uKey).once('value').then(function(snap) {
+          if (snap.val()) {
+            formArea.innerHTML = thanksHtml(turmaObj.label) +
+              '<p style="text-align:center;color:var(--ink-3);font-size:.8rem;margin-top:-16px">(Você já enviou uma resposta de teste para esta turma — isso não afeta os dados reais dos inscritos.)</p>';
+            return;
+          }
+          renderForm(formArea, turmaObj, [], uKey, userName, userEmail, null);
+        });
+      });
+
+      populateTurmas('');
+    }).catch(function(err) {
+      console.error('[avaliacao]', err);
+      formArea.innerHTML = '<p class="loading-msg" style="color:var(--red)">Erro ao carregar eventos/turmas. Recarregue a página.</p>';
+    });
+  }
+
   /* ── Init ── */
 
   function init() {
@@ -638,6 +728,8 @@
     var uKey      = emailKey(userEmail);
     var userName  = session.displayName || userEmail;
 
+    if (isAdmin) { initAdminBrowser(c, uKey, userName, userEmail); return; }
+
     c.innerHTML = '<p class="loading-msg">Carregando…</p>';
 
     firebase.database().ref('turmas-interesse').once('value').then(function(snap) {
@@ -649,10 +741,7 @@
       });
 
       if (!confirmedKeys.length) {
-        c.innerHTML = '<div class="aval-empty"><p>' +
-          (isAdmin ? 'Nenhuma turma com inscrição confirmada encontrada.<br>O formulário aparece para inscritos confirmados quando a avaliação é liberada.'
-                   : 'Você ainda não está inscrito em nenhuma turma.<br>A avaliação fica disponível após confirmação pelo administrador.') +
-          '</p></div>';
+        c.innerHTML = '<div class="aval-empty"><p>Você ainda não está inscrito em nenhuma turma.<br>A avaliação fica disponível após confirmação pelo administrador.</p></div>';
         return;
       }
 
@@ -665,8 +754,7 @@
           return { key: tk, label: tData.label || tk, evaluated: !!res[1].val(), habilitada: !!tData.avaliacaoHabilitada };
         });
       })).then(function(turmas) {
-        /* Admin sempre vê; inscrito só vê turmas com avaliação habilitada */
-        var eligible = isAdmin ? turmas : turmas.filter(function(t){ return t.habilitada; });
+        var eligible = turmas.filter(function(t){ return t.habilitada; });
         if (!eligible.length) {
           c.innerHTML = '<div class="aval-empty"><p>A avaliação ainda não foi liberada para a sua turma.<br>Assim que o administrador liberar, ela aparecerá aqui.</p></div>';
           return;
