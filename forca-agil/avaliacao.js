@@ -268,7 +268,7 @@
     h += '<div class="aval-submit-wrap">' +
       '<label class="aval-identify-label"><input type="checkbox" class="aval-identify-chk"> Quero me identificar nesta avaliação <span class="aval-identify-sub">(seu nome ficará visível para o admin)</span></label>' +
       '<p class="aval-privacy">🔒 Suas respostas são confidenciais e utilizadas exclusivamente para melhoria das iniciativas da Força Ágil.</p>' +
-      '<button type="submit" class="btn aval-submit-btn">ENVIAR MINHA AVALIAÇÃO →</button>' +
+      '<button type="submit" class="btn btn--primary aval-submit-btn">ENVIAR MINHA AVALIAÇÃO →</button>' +
       '<p class="aval-submit-msg" id="avalSubmitMsg" hidden></p>' +
     '</div>';
 
