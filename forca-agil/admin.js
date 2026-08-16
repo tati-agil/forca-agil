@@ -2105,8 +2105,8 @@
         var bloqueado = !!p.blocked;
         var precisaVerificacao = !!(p.emailVerificationRequired && !p.adminApproved);
         var emailBadge = precisaVerificacao
-          ? '<span class="admin-badge" style="background:#78350f;color:#fde68a" title="Cadastro próprio — e-mail ainda não verificado">Pendente</span>'
-          : '<span class="admin-badge" style="background:#14532d">Verificado</span>';
+          ? '<span class="admin-badge" style="background:rgba(245,197,66,.18);color:var(--accent)" title="Cadastro próprio — e-mail ainda não verificado">Pendente</span>'
+          : '<span class="admin-badge" style="background:rgba(26,178,174,.18);color:var(--cyan)">Verificado</span>';
         var confirmBtn = precisaVerificacao
           ? '<td><button class="admin-del-btn admin-confirm-email-btn" data-key="' + esc(p._key) + '" data-name="' + esc(p.name || p.email) + '" title="Confirmar cadastro manualmente — libera o acesso sem precisar clicar no link de e-mail">Confirmar</button></td>'
           : '<td></td>';
@@ -2117,7 +2117,7 @@
           '<td>' + esc(p.email || '—') + '</td>' +
           '<td>' + esc(p.area || '—') + '</td>' +
           '<td>' + fmtDate(p.createdAt) + '</td>' +
-          '<td><span class="admin-badge" style="background:' + (bloqueado ? '#7f1d1d' : '#14532d') + '">' + (bloqueado ? 'Bloqueado' : 'Ativo') + '</span></td>' +
+          '<td><span class="admin-badge" style="background:' + (bloqueado ? 'rgba(255,59,48,.18)' : 'rgba(26,178,174,.18)') + ';color:' + (bloqueado ? 'var(--red)' : 'var(--cyan)') + '">' + (bloqueado ? 'Bloqueado' : 'Ativo') + '</span></td>' +
           '<td>' + emailBadge + '</td>' +
           '<td><button class="admin-del-btn admin-pwd-btn" data-key="' + esc(p._key) + '" data-email="' + esc(p.email || '') + '" data-name="' + esc(p.name || p.email) + '" title="Redefinir senha">Redef. senha</button></td>' +
           '<td><button class="admin-del-btn admin-reset-btn" data-key="' + esc(p._key) + '" data-email="' + esc(p.email || '') + '" data-name="' + esc(p.name || p.email) + '" title="Resetar progresso">Resetar</button></td>' +
