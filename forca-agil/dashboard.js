@@ -62,7 +62,7 @@
       Object.keys(interesseData).forEach(function (turmaKey) {
         Object.keys(interesseData[turmaKey] || {}).forEach(function (uKey) {
           var e = interesseData[turmaKey][uKey];
-          if (e && e.status === 'inscrito' && e.confirmedByAdmin) participantes++;
+          if (e && !e.removed && e.status === 'inscrito' && e.confirmedByAdmin) participantes++;
         });
       });
 
