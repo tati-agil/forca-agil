@@ -506,8 +506,9 @@
           /* turmas não são mais fixas em número — vêm de turmas/ no Firebase, editável
              pelo admin. Cada card está em um de 4 estados: interesse aberto (.btn--interest),
              interesse encerrado/CMFlex (.turma-cmflex-msg), em andamento (.turma-andamento-msg),
-             ou realizada (.turma-realizada-msg) */
-          var cards = document.querySelectorAll('.turma-card-new').length;
+             ou realizada (.turma-realizada-msg). O card "Lista de Espera" também tem a classe
+             .turma-card-new mas não é uma turma — é excluído da contagem. */
+          var cards = document.querySelectorAll('.turma-card-new:not(.turma-card-espera)').length;
           var abertos = document.querySelectorAll('.btn--interest').length;
           var encerrados = document.querySelectorAll('.turma-cmflex-msg').length;
           var andamento = document.querySelectorAll('.turma-andamento-msg').length;
@@ -515,7 +516,7 @@
           return cards === abertos + encerrados + andamento + realizada;
         } },
         { id: 'c-turmas-horario', label: 'Cards de turma exibem horário 9h – 13h (.tc-horario)', run: function () {
-          var cards = document.querySelectorAll('.turma-card-new').length;
+          var cards = document.querySelectorAll('.turma-card-new:not(.turma-card-espera)').length;
           if (!cards) return true; /* página Turmas ainda não carregada nesta sessão */
           return document.querySelectorAll('.tc-horario').length === cards;
         } },
