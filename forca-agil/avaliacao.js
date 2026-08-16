@@ -575,7 +575,8 @@
       firebase.database().ref('avaliacoes/' + turma.key + '/' + uKey).set(data)
         .then(function() {
           clearDraft(turma.key, uKey);
-          c.innerHTML = thanksHtml(turma.label);
+          /* Reconsulta: pode haver outra turma/oficina com avaliação pendente */
+          init();
         })
         .catch(function(err) {
           console.error('[avaliacao] save error', err);
@@ -588,10 +589,13 @@
 
   /* ── Renderização ── */
 
-  function renderForm(c, turma, done, uKey, userName, userEmail) {
+  function renderForm(c, turma, done, uKey, userName, userEmail, pendingCount) {
     var noticeHtml = done.length
       ? '<div class="aval-notice">✅ Avaliação já enviada para: ' + done.map(function(t){return '<strong>'+esc(t.label)+'</strong>';}).join(', ') + '</div>'
       : '';
+    if (pendingCount > 1) {
+      noticeHtml += '<div class="aval-notice aval-notice--pending">📋 Você está inscrito em mais de uma turma/oficina com avaliação disponível — esta é a 1ª de ' + pendingCount + '. Depois de enviar esta, a próxima aparece automaticamente.</div>';
+    }
     c.innerHTML = noticeHtml + buildFormHtml(turma.label);
     setupForm(c, turma, done, uKey, userName, userEmail);
   }
@@ -653,7 +657,7 @@
         var pending = eligible.filter(function(t){ return !t.evaluated; });
         var done    = eligible.filter(function(t){ return t.evaluated; });
         if (!pending.length) { c.innerHTML = thanksHtml(done.map(function(t){return t.label;}).join(', ')); return; }
-        renderForm(c, pending[0], done, uKey, userName, userEmail);
+        renderForm(c, pending[0], done, uKey, userName, userEmail, pending.length);
       });
     }).catch(function(err) {
       console.error('[avaliacao]', err);
