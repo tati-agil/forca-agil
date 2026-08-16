@@ -121,7 +121,7 @@
           if (p.descricao) html += '<p class="ped-admin-desc">' + p.descricao.replace(/&/g,'&amp;').replace(/</g,'&lt;') + '</p>';
           html += '<div class="ped-admin-item-actions">';
           if (p.emailEnviou) {
-            var assunto = 'Sobre seu pedido — ' + tipoLabel(p.tipo);
+            var assunto = 'Força Ágil — resposta ao seu pedido (' + tipoLabel(p.tipo) + ')';
             var corpo = 'Olá' + (p.nomeEnviou ? ' ' + p.nomeEnviou.split(' ')[0] : '') + ',\n\n' +
               'Sobre o seu pedido enviado em ' + fmtData(p.dataEnvio) + ' (' + tipoLabel(p.tipo) + '):\n' +
               (p.descricao ? '"' + p.descricao + '"\n\n' : '\n') +
