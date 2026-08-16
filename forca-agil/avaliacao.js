@@ -245,9 +245,12 @@
     var h = '';
 
     /* Cabeçalho */
-    h += '<div class="aval-form-header">' +
-      '<h2 class="aval-page-title">Avaliação da Oficina</h2>' +
-      '<p class="aval-intro">Sua avaliação ajuda a Força Ágil a evoluir, melhorar as próximas oficinas e criar conteúdos cada vez mais úteis para o seu dia a dia.</p>' +
+    h += '<div class="page-hero">' +
+      '<span class="eyebrow">Avaliação</span>' +
+      '<h1>Avaliação da Oficina</h1>' +
+      '<p>Sua avaliação ajuda a Força Ágil a evoluir, melhorar as próximas oficinas e criar conteúdos cada vez mais úteis para o seu dia a dia.</p>' +
+    '</div>' +
+    '<div class="aval-form-header">' +
       '<div class="aval-header-meta">' +
         '<div class="aval-turma-tag">Turma: <strong>' + esc(turmaLabel) + '</strong></div>' +
         '<div class="aval-time-est">⏱ ~5 minutos</div>' +
