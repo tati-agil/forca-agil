@@ -47,11 +47,11 @@
   var SECS = [
     { id:'s1',  n:1,  icon:'⭐',   title:'O que você achou da Oficina?',       sub:'De 0 a 10, qual nota você daria para a oficina?',                        req:true,  pField:'notaGeral',           pType:'rating' },
     { id:'s2',  n:2,  icon:'🎯',   title:'NPS — Você indicaria?',              sub:'De 0 a 10, quanto você indicaria esta Oficina para um colega?',          req:true,  pField:'npsNota',             pType:'rating' },
-    { id:'s3',  n:3,  icon:'🗓️',  title:'Organização da oficina',             sub:'Avalie a organização e estrutura da oficina.',                           req:false, pField:'orgGeral',            pType:'rating' },
-    { id:'s4',  n:4,  icon:'🎓',   title:'Conteúdo',                           sub:'Avalie o conteúdo apresentado e sua aplicabilidade.',                    req:false, pField:'conteudoRelevancia',  pType:'rating' },
-    { id:'s5',  n:5,  icon:'🧑‍🏫', title:'Facilitadores',                      sub:'Como você avalia os instrutores/facilitadores da oficina?',              req:false, pField:'facilitadoresNota',   pType:'rating' },
-    { id:'s6',  n:6,  icon:'🎮',   title:'Dinâmicas e experiência',            sub:'Avalie as dinâmicas, atividades e sua experiência geral.',               req:false, pField:'dinamicasNota',       pType:'rating' },
-    { id:'s7',  n:7,  icon:'🚀',   title:'Aplicação prática',                  sub:'Como você pretende aplicar o que aprendeu?',                            req:false, pField:'aplicacaoPreparado',  pType:'rating' },
+    { id:'s3',  n:3,  icon:'🗓️',  title:'Organização da oficina',             sub:'Avalie a organização e estrutura da oficina.',                           req:true,  pField:'orgGeral',            pType:'rating' },
+    { id:'s4',  n:4,  icon:'🎓',   title:'Conteúdo',                           sub:'Avalie o conteúdo apresentado e sua aplicabilidade.',                    req:true,  pField:'conteudoRelevancia',  pType:'rating' },
+    { id:'s5',  n:5,  icon:'🧑‍🏫', title:'Facilitadores',                      sub:'Como você avalia os instrutores/facilitadores da oficina?',              req:true,  pField:'facilitadoresNota',   pType:'rating' },
+    { id:'s6',  n:6,  icon:'🎮',   title:'Dinâmicas e experiência',            sub:'Avalie as dinâmicas, atividades e sua experiência geral.',               req:true,  pField:'dinamicasNota',       pType:'rating' },
+    { id:'s7',  n:7,  icon:'🚀',   title:'Aplicação prática',                  sub:'Como você pretende aplicar o que aprendeu?',                            req:true,  pField:'aplicacaoPreparado',  pType:'rating' },
     { id:'s8',  n:8,  icon:'💡',   title:'Temas que você quer aprender',       sub:'Temas de Agilidade que você gostaria de aprender mais.',                 req:false, pField:'temasDesejados',      pType:'checks' },
     { id:'s9',  n:9,  icon:'🧰',   title:'Materiais e ferramentas',            sub:'Materiais e conteúdos que você gostaria de ter acesso.',                 req:false, pField:'materiaisDesejados',  pType:'checks' },
     { id:'s10', n:10, icon:'🛠️',  title:'Ferramentas de Agilidade',           sub:'Quais ferramentas você gostaria de aprender a utilizar?',                req:false, pField:'ferramentasDesejadas',pType:'checks' },
@@ -555,7 +555,7 @@
       var missing = SECS.filter(function(s){ return s.req && !isSectionDone(c, s); });
       if (missing.length) {
         openSection(c, missing[0].id);
-        if (msg) { msg.textContent = 'Responda as seções obrigatórias (⭐ e 🎯) antes de enviar.'; msg.style.color = 'var(--red)'; msg.hidden = false; }
+        if (msg) { msg.textContent = 'Responda todas as seções obrigatórias (1 a 7) antes de enviar.'; msg.style.color = 'var(--red)'; msg.hidden = false; }
         return;
       }
 

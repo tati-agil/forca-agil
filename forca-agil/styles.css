@@ -1271,6 +1271,7 @@ html:not(.js) .reveal { opacity: 1 !important; transform: none !important; }
 
 /* Widget de nota 0–10 */
 .aval-rating { display: flex; flex-wrap: wrap; gap: 6px; }
+.aval-rating-labels { display: flex; justify-content: space-between; font-size: .72rem; color: var(--ink-3); margin-top: 6px; padding: 0 2px; }
 .aval-rating-btn { display: flex; flex-direction: column; align-items: center; gap: 2px; padding: 6px 4px; min-width: 44px; background: var(--panel-2); border: 1px solid var(--line-strong); border-radius: 8px; cursor: pointer; transition: background .15s, border-color .15s, transform .1s; }
 .aval-rating-btn:hover { background: rgba(245,197,66,.1); border-color: rgba(245,197,66,.4); }
 .aval-rating-btn.active { background: rgba(245,197,66,.18); border-color: var(--accent); }
