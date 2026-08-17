@@ -25,8 +25,8 @@
   const PERSONAS = [
     { key: 'all',         label: 'Todas as personas',  color: 'var(--ink-2)' },
     { key: 'visitante',   label: 'Visitante',          color: '#888' },
-    { key: 'logado',      label: 'Usuário logado (sem turma)', color: '#1ab2ae' },
-    { key: 'inscrito',    label: 'Inscrito (turma confirmada)', color: '#4caf7d' },
+    { key: 'logado',      label: 'Logado (sem turma confirmada)', color: '#1ab2ae' },
+    { key: 'inscrito',    label: 'Inscrito (confirmado pelo admin)', color: '#4caf7d' },
     { key: 'admin',       label: 'Admin',              color: '#6b7a99' },
   ];
 
@@ -42,8 +42,11 @@
       title: 'Link Admin no menu',
       body: 'O link "Admin" no menu só aparece para administradores e some imediatamente após o logout — inclusive no mobile com o menu aberto.' },
     { section: 'menu', personas: ['visitante', 'logado', 'inscrito', 'admin'],
-      title: 'Três perfis de acesso',
-      body: 'O sistema detecta automaticamente o perfil da pessoa: visitante não logado (vê apenas o modal de login — site completamente oculto antes da autenticação); logado sem turma confirmada (vê Início, Turmas, Repositório, Ajuda; pode manifestar interesse em turmas); logado com turma confirmada (vê + Conteúdos e Treinamento Jedi, sem botões de interesse em turmas). Admin vê tudo.' },
+      title: 'Perfis de acesso — quais existem e o que muda entre eles',
+      body: 'São 4 perfis na documentação, mas apenas 2 níveis de acesso no código ("member" e "enrolled"). (1) VISITANTE — não autenticado: vê só o modal de login, o site inteiro fica oculto. Não é um degrau da escada: o que ele vê some justamente quando entra. (2) LOGADO (sem turma confirmada) = nível "member": vê Início, Turmas, Ajuda e Repositório. (3) INSCRITO (turma confirmada pelo admin) = nível "enrolled": vê tudo do logado MAIS três páginas exclusivas — Conteúdos, Treinamento Jedi e Avaliação. (4) ADMIN: não é o degrau seguinte, é uma marcação paralela — recebe "enrolled" automaticamente mesmo sem estar inscrito em turma nenhuma, e ainda vê o Painel Admin.' },
+    { section: 'menu', personas: ['logado', 'inscrito', 'admin'],
+      title: 'Por que "interessado" não é um perfil de acesso',
+      body: 'Manifestar interesse numa turma (status "interessado") NÃO libera nenhuma página: quem clicou em "Tenho interesse" enxerga exatamente as mesmas telas de quem nunca clicou — a única diferença visível é o botão do card virar "Remover interesse". Verificável no código: nenhuma checagem de acesso consulta o status "interessado"; o que destrava Conteúdos, Treinamento Jedi e Avaliação é a função isInscrito(), que exige status "inscrito" E o campo confirmedByAdmin preenchido. Ou seja, quem promove a pessoa de nível é o admin confirmando a inscrição, não ela demonstrando interesse. Por isso "interessado" fica dentro do perfil LOGADO na documentação, em vez de virar um perfil próprio — um perfil com acesso idêntico a outro seria enganoso.' },
     { section: 'entrar', personas: ['visitante', 'logado', 'inscrito', 'admin'],
       title: 'Modal não fecha ao clicar fora',
       body: 'Evita perda do formulário preenchido. Fecha com o botão ✕ ou com ESC — mas só se todos os campos estiverem vazios.' },

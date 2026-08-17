@@ -4,20 +4,20 @@
 
   const PERSONAS = [
     { key: 'visitante',  label: 'Visitante',                      color: '#888888', desc: 'Não cadastrado / não logado' },
-    { key: 'logado',     label: 'Usuário logado (sem turma)',      color: '#1ab2ae', desc: 'Cadastrado com @previ.com.br, sem turma confirmada' },
-    { key: 'inscrito',   label: 'Usuário inscrito (turma confirmada)', color: '#4caf7d', desc: 'Logado e com turma confirmada pelo admin' },
+    { key: 'logado',     label: 'Logado (sem turma confirmada)',      color: '#1ab2ae', desc: 'Cadastrado com @previ.com.br, sem inscrição confirmada pelo admin. Inclui quem já manifestou interesse — interesse não muda o acesso' },
+    { key: 'inscrito',   label: 'Inscrito (turma confirmada pelo admin)', color: '#4caf7d', desc: 'Logado E confirmado pelo admin numa turma — destrava Conteúdos, Treinamento Jedi e Avaliação' },
     { key: 'admin',      label: 'Admin',                           color: '#6b7a99', desc: 'Usuário com acesso administrativo' },
   ];
 
   const HIERARCHY = [
-    { key: 'visitante',   label: 'Visitante',      color: '#888888',
-      adds: ['Ver apenas o modal de login (site completamente oculto antes da autenticação)', 'Cadastrar conta (@previ.com.br) — recebe e-mail de verificação; acesso liberado só após clicar no link', 'Fazer login', 'Recuperar senha por e-mail (autoatendimento)'] },
-    { key: 'logado',  label: 'Usuário logado (sem turma)', color: '#1ab2ae',
-      adds: ['Acessar o Repositório', 'Adicionar conteúdos e remover os próprios no Repositório', 'Manifestar interesse em quantas turmas existirem (sem limite fixo)', 'Remover interesse em turmas', 'Entrar na lista de espera para próximas turmas (acesso de Logado mantido enquanto aguarda)'] },
-    { key: 'inscrito', label: 'Usuário inscrito (turma confirmada)', color: '#4caf7d',
-      adds: ['Acessar Conteúdos', 'Acessar Treinamento Jedi (autodiagnóstico 0–60)', 'Revelar patente (resultado fixo e bloqueado — não pode refazer sem reset do admin)'] },
-    { key: 'admin',   label: 'Admin',          color: '#6b7a99',
-      adds: ['Acessar o Painel Admin (10 abas: Dashboard, Eventos, Certificados, Repositório, Cadastrados, Administradores, Manual, Mapa, Testes, Pedidos)', 'Criar, editar e excluir turmas; cadastrar link do CMFlex por turma', 'Confirmar/desconfirmar inscrição e adicionar/remover participantes manualmente', 'Abrir/fechar check-in, gerar QR Code e emitir certificados de participação', 'Exportar CSV (estado atual, histórico e por turma)', 'Moderar Repositório (ocultar, restaurar, deletar conteúdos)', 'Ver e gerenciar cadastrados (filtrar, redefinir senha, resetar progresso, criar conta diretamente com senha 12345678, confirmar cadastro manualmente para quem não recebeu o link de verificação de e-mail)', 'Gerenciar lista de espera: ver quem entrou, mover pessoa diretamente para uma turma como Inscrita ou remover da lista; migrar participante de uma turma para a lista de espera (botão "→ Espera" por linha — data original de interesse é preservada)', 'Gerenciar lista de administradores (restrito a tatianefdirene e danielfrazao)', 'Consultar Manual, Mapa e Testes (documentação viva do sistema)'] },
+    { key: 'visitante',   label: 'Visitante (antes de entrar)',      color: '#888888',
+      adds: ['NÃO é um degrau da escada — é o estado ANTES de autenticar. Nada do que ele vê continua disponível depois: quem entra deixa de ver o modal de login.', 'Ver apenas o modal de login (site completamente oculto antes da autenticação)', 'Cadastrar conta (@previ.com.br) — recebe e-mail de verificação; acesso liberado só após clicar no link', 'Fazer login', 'Recuperar senha por e-mail (autoatendimento)'] },
+    { key: 'logado',  label: 'Logado (sem turma confirmada)', color: '#1ab2ae',
+      adds: ['Acessar Início, Turmas e Ajuda', 'Acessar o Repositório', 'Adicionar conteúdos e remover os próprios no Repositório', 'Manifestar interesse em quantas turmas existirem (sem limite fixo)', 'Remover interesse em turmas', 'Entrar na lista de espera para próximas turmas (acesso de Logado mantido enquanto aguarda)', '⚠️ Manifestar interesse NÃO muda o nível de acesso: quem clicou em "Tenho interesse" (status "interessado") vê exatamente as mesmas páginas de quem nunca clicou. A única diferença é o botão do card virar "Remover interesse". Por isso "interessado" não é uma persona separada — quem libera as páginas exclusivas é o admin confirmar a inscrição, não a pessoa manifestar interesse.'] },
+    { key: 'inscrito', label: 'Inscrito (turma confirmada pelo admin)', color: '#4caf7d',
+      adds: ['Acessar Conteúdos', 'Acessar Treinamento Jedi (autodiagnóstico 0–60)', 'Acessar Avaliação da Oficina (quando o admin libera a avaliação daquela turma)', 'Revelar patente (resultado fixo e bloqueado — não pode refazer sem reset do admin)', 'Exige status "inscrito" E o campo confirmedByAdmin preenchido — é isso que vira o nível "enrolled" no código e destrava as 3 páginas acima.'] },
+    { key: 'admin',   label: 'Admin (marcação à parte, não é degrau)',          color: '#6b7a99',
+      adds: ['NÃO é o degrau seguinte de Inscrito — é uma marcação paralela: quem é admin recebe o nível "enrolled" automaticamente, mesmo sem estar inscrito em turma nenhuma. Por isso enxerga Conteúdos, Treinamento e Avaliação sem precisar de confirmação de admin.', 'Acessar o Painel Admin (10 abas: Dashboard, Eventos, Certificados, Repositório, Cadastrados, Administradores, Manual, Mapa, Testes, Pedidos)', 'Criar, editar e excluir turmas; cadastrar link do CMFlex por turma', 'Confirmar/desconfirmar inscrição e adicionar/remover participantes manualmente', 'Abrir/fechar check-in, gerar QR Code e emitir certificados de participação', 'Exportar CSV (estado atual, histórico e por turma)', 'Moderar Repositório (ocultar, restaurar, deletar conteúdos)', 'Ver e gerenciar cadastrados (filtrar, redefinir senha, resetar progresso, criar conta diretamente com senha 12345678, confirmar cadastro manualmente para quem não recebeu o link de verificação de e-mail)', 'Gerenciar lista de espera: ver quem entrou, mover pessoa diretamente para uma turma como Inscrita ou remover da lista; migrar participante de uma turma para a lista de espera (botão "→ Espera" por linha — data original de interesse é preservada)', 'Gerenciar lista de administradores (restrito a tatianefdirene e danielfrazao)', 'Consultar Manual, Mapa e Testes (documentação viva do sistema)'] },
   ];
 
   /* Diagrama de estados de turmas-interesse/<turma>/<emailKey> — ver regra
@@ -354,7 +354,7 @@
 
     /* ── Hierarquia ── */
     html += '<h3 class="mapa-title">Hierarquia de Personas</h3>';
-    html += '<p class="mapa-sub">Cada nível inclui tudo do anterior e acrescenta os itens abaixo.</p>';
+    html += '<p class="mapa-sub">O acúmulo vale de <strong>Logado → Inscrito</strong>: o inscrito vê tudo do logado e mais Conteúdos, Treinamento Jedi e Avaliação. <strong>Visitante fica fora dessa escada</strong> — é o estado antes de autenticar, e o que ele vê (o modal de login) some justamente quando a pessoa entra. <strong>Admin também não é degrau</strong>: é uma marcação paralela que já concede o nível de Inscrito, mesmo sem turma confirmada. Só existem 2 níveis de acesso no código (member e enrolled) — "interessado" não é um deles.</p>';
     html += '<div class="mapa-hierarchy">';
 
     HIERARCHY.forEach(function (level, i) {
