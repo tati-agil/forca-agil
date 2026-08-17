@@ -186,10 +186,10 @@
     },
     { label: 'AJUDA', color: '#7ecbff',
       features: [
-        { label: 'Ver página Ajuda com perguntas em acordeão — texto "Central de Ajuda" acima do título "Como podemos ajudar?"', p: ['visitante','logado','inscrito','admin'] },
-        { label: 'Expandir/recolher cada pergunta clicando no título (comportamento nativo do browser)', p: ['visitante','logado','inscrito','admin'] },
-        { label: 'Link "Ajuda" no menu de navegação', p: ['visitante','logado','inscrito','admin'] },
-        { label: 'Formulário "Faça um pedido" — escolher tipo (Quero aprender sobre um tema / Quero sugerir um curso / Preciso de material / Tenho uma dúvida / Outros) e descrever com mais detalhes', p: ['visitante','logado','inscrito','admin'] },
+        { label: 'Ver página Ajuda com perguntas em acordeão — texto "Central de Ajuda" acima do título "Como podemos ajudar?"', p: ['logado','inscrito','admin'] },
+        { label: 'Expandir/recolher cada pergunta clicando no título (comportamento nativo do browser)', p: ['logado','inscrito','admin'] },
+        { label: 'Link "Ajuda" no menu de navegação', p: ['logado','inscrito','admin'] },
+        { label: 'Formulário "Faça um pedido" — escolher tipo (Quero aprender sobre um tema / Quero sugerir um curso / Preciso de material / Tenho uma dúvida / Outros) e descrever com mais detalhes', p: ['logado','inscrito','admin'] },
         { label: 'Botão "Enviar pedido" — exige login; sem sessão, mostra "Faça login para enviar um pedido." em vez de enviar', p: ['logado','inscrito','admin'] },
       ]
     },
@@ -222,7 +222,7 @@
     },
     { label: 'ENTRAR', color: '#c084fc',
       features: [
-        { label: 'Ver botões no menu (Início, Turmas, Ajuda visíveis no menu para visitante)',  p: ['visitante'] },
+        { label: 'Ver o menu de navegação (Início, Turmas, Ajuda) — revelado só após autenticar; antes disso o site fica oculto e aparece apenas o modal de login',  p: ['logado', 'inscrito', 'admin'] },
         { label: 'Fazer login',                               p: ['visitante'] },
         { label: 'Mostrar/ocultar senha (botão "olhinho")',   p: ['visitante'] },
         { label: 'Esqueci minha senha — link por e-mail',     p: ['visitante'] },
@@ -230,22 +230,22 @@
     },
     { label: 'INÍCIO', color: '#1ab2ae',
       features: [
-        { label: 'Botão "Conhecer a iniciativa" → rola até "O que é"',    p: ['visitante','logado','inscrito','admin'] },
-        { label: 'Card "O que é" → Mindset ágil',   p: ['visitante','logado','inscrito','admin'] },
-        { label: 'Card "O que é" → Colaboração real', p: ['visitante','logado','inscrito','admin'] },
-        { label: 'Card "O que é" → Impacto sustentável', p: ['visitante','logado','inscrito','admin'] },
+        { label: 'Botão "Conhecer a iniciativa" → rola até "O que é"',    p: ['logado','inscrito','admin'] },
+        { label: 'Card "O que é" → Mindset ágil',   p: ['logado','inscrito','admin'] },
+        { label: 'Card "O que é" → Colaboração real', p: ['logado','inscrito','admin'] },
+        { label: 'Card "O que é" → Impacto sustentável', p: ['logado','inscrito','admin'] },
         { label: 'Crawl de abertura — texto em estilo Star Wars sobe a tela ao entrar na Home (visível apenas para inscrito e admin; oculto para logado sem turma confirmada)', p: ['inscrito','admin'] },
         { label: 'Crawl — botão "⏸ Pausar" → pausa/retoma a animação', p: ['inscrito','admin'] },
         { label: 'Crawl — clicar na área da animação → pausa/retoma (mesmo efeito do botão Pausar)', p: ['inscrito','admin'] },
         { label: 'Crawl — visível apenas para inscrito e admin; botão "≡ Ler texto" → exibe texto estático sem perspectiva; "✕ Fechar texto" retorna ao crawl', p: ['inscrito','admin'] },
         { label: 'Crawl — botão "↻ Repetir abertura" → reinicia a animação do início', p: ['inscrito','admin'] },
-        { label: 'Card "Como funciona" → Conteúdos (decorativo, sem hover)', p: ['visitante','logado','inscrito','admin'] },
-        { label: 'Card "Como funciona" → Repositório (decorativo, sem hover)', p: ['visitante','logado','inscrito','admin'] },
-        { label: 'Card "Como funciona" → Treinamento Jedi (decorativo, sem hover)', p: ['visitante','logado','inscrito','admin'] },
-        { label: 'Botão hero deslogado: "Juntar-se à Força →" → abre modal de cadastro', p: ['visitante'] },
+        { label: 'Card "Como funciona" → Conteúdos (decorativo, sem hover)', p: ['logado','inscrito','admin'] },
+        { label: 'Card "Como funciona" → Repositório (decorativo, sem hover)', p: ['logado','inscrito','admin'] },
+        { label: 'Card "Como funciona" → Treinamento Jedi (decorativo, sem hover)', p: ['logado','inscrito','admin'] },
+        { label: 'Botão do hero: na prática sempre "Ver turmas →" — o rótulo "Juntar-se à Força →" só existiria sem sessão, estado inalcançável desde o login obrigatório', p: ['logado', 'inscrito', 'admin'] },
         { label: 'Botão hero logado: "Ver turmas →" → navega para a página Turmas', p: ['logado','inscrito','admin'] },
-        { label: 'CTA final: único botão "Ver turmas →" direciona para a página Turmas (mesmo comportamento para todos os perfis)', p: ['visitante','logado','inscrito','admin'] },
-        { label: 'Link no rodapé para previ.com.br (externo, presente em todas as páginas)', p: ['visitante','logado','inscrito','admin'] },
+        { label: 'CTA final: único botão "Ver turmas →" direciona para a página Turmas (mesmo comportamento para todos os perfis)', p: ['logado','inscrito','admin'] },
+        { label: 'Link no rodapé para previ.com.br (externo, presente em todas as páginas)', p: ['logado','inscrito','admin'] },
       ]
     },
     { label: 'MENU / SESSÃO', color: '#7f9bff',
@@ -287,7 +287,7 @@
     },
     { label: 'TREINAMENTO JEDI', color: '#e05c7f',
       features: [
-        { label: 'Welcome screen: botão "Quero jogar" → abre modal login (visitante sem login)', p: ['visitante'] },
+        { label: 'Welcome screen: botão "Quero jogar" — checagem de sessão residual (com login obrigatório ninguém deslogado chega aqui)', p: ['logado', 'inscrito', 'admin'] },
         { label: 'Autodiagnóstico com 20 afirmações em 4 blocos — cada resposta vale de 0 a 3 pontos, total de 0 a 60', p: ['inscrito','admin'] },
         { label: 'Patente determinada exclusivamente pela pontuação do autodiagnóstico (Youngling 0–15 / Padawan 16–30 / Cavaleiro 31–45 / Mestre 46–60)', p: ['inscrito','admin'] },
         { label: 'Painel com a patente atual, que atualiza conforme a pessoa vai respondendo', p: ['inscrito','admin'] },
@@ -299,15 +299,15 @@
     },
     { label: 'TURMAS', color: '#f5c542',
       features: [
-        { label: 'Grid com um card por turma cadastrada — as mesmas turmas aparecem pra todos os perfis (visitante, logado, inscrito ou admin), nenhuma é escondida por perfil; cada card mostra nome, mês, datas e horário (9h – 13h); o estado do card muda automaticamente por data ou ação do admin', p: ['visitante','logado','inscrito','admin'] },
-        { label: 'Card de turma com interesse aberto — botão "Tenho interesse" (estado padrão enquanto a turma não iniciou e o admin não encerrou o interesse)', p: ['visitante','logado','inscrito','admin'] },
+        { label: 'Grid com um card por turma cadastrada — as mesmas turmas aparecem pra todos os perfis autenticados (logado, inscrito ou admin), nenhuma é escondida por perfil; cada card mostra nome, mês, datas e horário (9h – 13h); o estado do card muda automaticamente por data ou ação do admin', p: ['logado','inscrito','admin'] },
+        { label: 'Card de turma com interesse aberto — botão "Tenho interesse" (estado padrão enquanto a turma não iniciou e o admin não encerrou o interesse)', p: ['logado','inscrito','admin'] },
         { label: 'Botão de interesse por turma ("Tenho interesse" / "Remover interesse") — exige login para registrar; após registrar, mensagem "Interesse registrado. Para confirmar sua vaga, realize a inscrição no CMFlex em: RH - Uso Pessoal | PREVI"', p: ['logado','inscrito','admin'] },
         { label: 'Quem já é Inscrita vê botão travado "✓ Inscrita" (verde, desabilitado) em vez do botão de interesse — só o admin pode desconfirmar', p: ['logado','inscrito','admin'] },
-        { label: 'Card de turma com interesse encerrado (antes do primeiro dia) — título "Faça sua inscrição no CMFlex" e botão "Ir para o CMFlex →" (link cadastrado pelo admin por turma); sem link: "Link ainda não disponível. Consulte a organização."', p: ['visitante','logado','inscrito','admin'] },
-        { label: 'Card de turma Em andamento — a partir do primeiro dia da turma, o card troca automaticamente para "Turma em andamento · As aulas estão acontecendo. Fique de olho nas próximas turmas!" sem nenhum botão', p: ['visitante','logado','inscrito','admin'] },
-        { label: 'Card de turma Realizada — após o último dia OU quando o admin encerra manualmente, o card mostra "Turma realizada · Esta turma já foi concluída. Fique de olho nas próximas!" sem nenhum botão', p: ['visitante','logado','inscrito','admin'] },
-        { label: 'Bloco "Como funciona a oficina" (métricas + descrição)', p: ['visitante','logado','inscrito','admin'] },
-        { label: 'Agenda D1–D5 (itens estáticos)', p: ['visitante','logado','inscrito','admin'] },
+        { label: 'Card de turma com interesse encerrado (antes do primeiro dia) — título "Faça sua inscrição no CMFlex" e botão "Ir para o CMFlex →" (link cadastrado pelo admin por turma); sem link: "Link ainda não disponível. Consulte a organização."', p: ['logado','inscrito','admin'] },
+        { label: 'Card de turma Em andamento — a partir do primeiro dia da turma, o card troca automaticamente para "Turma em andamento · As aulas estão acontecendo. Fique de olho nas próximas turmas!" sem nenhum botão', p: ['logado','inscrito','admin'] },
+        { label: 'Card de turma Realizada — após o último dia OU quando o admin encerra manualmente, o card mostra "Turma realizada · Esta turma já foi concluída. Fique de olho nas próximas!" sem nenhum botão', p: ['logado','inscrito','admin'] },
+        { label: 'Bloco "Como funciona a oficina" (métricas + descrição)', p: ['logado','inscrito','admin'] },
+        { label: 'Agenda D1–D5 (itens estáticos)', p: ['logado','inscrito','admin'] },
       ]
     },
   ];
@@ -385,9 +385,9 @@
     html += '</tr></thead><tbody>';
 
     var ACESSO = [
-      { label: 'Início',                     access: { visitante: true,  logado: true,  inscrito: true,  admin: true  } },
-      { label: 'Ajuda',                       access: { visitante: true,  logado: true,  inscrito: true,  admin: true  } },
-      { label: 'Turmas',                       access: { visitante: true,  logado: true,  inscrito: true,  admin: true  } },
+      { label: 'Início',                     access: { visitante: false, logado: true,  inscrito: true,  admin: true  } },
+      { label: 'Ajuda',                       access: { visitante: false, logado: true,  inscrito: true,  admin: true  } },
+      { label: 'Turmas',                       access: { visitante: false, logado: true,  inscrito: true,  admin: true  } },
       { label: 'Repositório',                 access: { visitante: false, logado: true,  inscrito: true,  admin: true  } },
       { label: 'Conteúdos',                   access: { visitante: false, logado: false, inscrito: true,  admin: true  } },
       { label: 'Treinamento Jedi',            access: { visitante: false, logado: false, inscrito: true,  admin: true  } },
@@ -404,7 +404,7 @@
       html += '</tr>';
     });
     html += '</tbody></table></div>';
-    html += '<p class="mapa-sub" style="margin-top:10px">"Turmas" mostra as mesmas turmas pra todos os perfis — nenhuma é escondida por perfil. O que muda de um card para outro é o estado da turma (interesse aberto ou encerrado/CMFlex) e, dentro de uma turma aberta, o botão de interesse conforme o status da própria pessoa (Tenho interesse / Remover interesse / ✓ Inscrita travado). "Avaliação" marca inscrito como ✓ porque é o nível mínimo exigido, mas na prática só aparece pra quem está confirmado numa turma com avaliacaoHabilitada:true — admin vê sempre, independente do flag, pra poder revisar/testar.</p>';
+    html += '<p class="mapa-sub" style="margin-top:10px">Visitante não logado não acessa NADA: com o login obrigatório, o site inteiro fica oculto e ele vê apenas o modal de autenticação (entrar, cadastrar, recuperar senha). "Turmas" mostra as mesmas turmas pra todos os perfis autenticados — nenhuma é escondida por perfil. O que muda de um card para outro é o estado da turma (interesse aberto ou encerrado/CMFlex) e, dentro de uma turma aberta, o botão de interesse conforme o status da própria pessoa (Tenho interesse / Remover interesse / ✓ Inscrita travado). "Avaliação" marca inscrito como ✓ porque é o nível mínimo exigido, mas na prática só aparece pra quem está confirmado numa turma com avaliacaoHabilitada:true — admin vê sempre, independente do flag, pra poder revisar/testar.</p>';
 
     /* ── Estados de uma pessoa numa turma ── */
     html += '<h3 class="mapa-title" style="margin-top:48px">Estados de uma Persona numa Turma</h3>';

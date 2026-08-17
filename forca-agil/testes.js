@@ -364,12 +364,14 @@
       tests: [
         { id: 'c-hero',         label: 'Hero com título "Força Ágil" presente',         run: function () { return !!document.querySelector('.hero-title, .hero'); } },
         { id: 'c-cta-btn',        label: 'Botão "Juntar-se à Força" existe no DOM',         run: function () { return !!document.getElementById('heroJoin'); } },
-        { id: 'c-cta-btn-logado', label: 'Botão hero: "Ver turmas" quando logado; "Juntar-se" quando visitante (nunca oculto)', run: function () {
+        { id: 'c-cta-btn-logado', label: 'Botão hero: "Ver turmas" com sessão ativa (nunca oculto)', run: function () {
+          /* Sem sessão o hero nem é renderizado (login obrigatório oculta o site),
+             então só o caminho autenticado é verificável na prática. */
           var btn = document.getElementById('heroJoin');
           if (!btn) return false;
           var sess = window.faAuth ? window.faAuth.getSession() : null;
-          if (sess) return btn.hidden === false && btn.dataset.loggedIn === '1';
-          return btn.hidden === false && btn.dataset.loggedIn !== '1';
+          if (!sess) return true;
+          return btn.hidden === false && btn.dataset.loggedIn === '1';
         } },
         { id: 'c-como-funciona', label: 'Como funciona: os 3 cards são blocos informativos, sem link nem data-nav-page', run: function () {
           var cards = document.querySelectorAll('.how-grid .how-card');
@@ -742,8 +744,8 @@
       title: 'Botão "Sair" encerra sessão e redireciona para Início',
       motivo: 'Executar encerraria a sessão do teste em si, impedindo os demais testes.' },
     { section: 'Início',
-      title: 'Botão "Juntar-se" (visitante) → abre modal de cadastro',
-      motivo: 'Requer estar deslogado. Testes rodam como admin logado.' },
+      title: 'Login obrigatório — visitante não vê o site, só o modal',
+      motivo: 'Abrir o site numa janela anônima (sem sessão). Verificar: (1) o body tem a classe "aguardando-auth" e nada do site aparece — nem menu, nem hero, nem rodapé; (2) o modal de autenticação abre sozinho, com fundo opaco e SEM botão de fechar; (3) não é possível fechar o modal com Esc nem clicando fora; (4) só depois de autenticar o site é revelado. Consequência documentada: nenhuma tela interna (Início, Turmas, Ajuda, Repositório...) é alcançável por visitante — por isso essas telas não têm mais a persona "visitante" no Manual nem no Mapa.' },
     { section: 'Início',
       title: 'Botão "Conhecer a iniciativa" → rola para a seção',
       motivo: 'Comportamento de scroll — verificar posição de scroll após clique é frágil e dependente de layout.' },
@@ -767,10 +769,10 @@
       motivo: 'Verificar com conta logada sem turma confirmada: links de Conteúdos e Treinamento Jedi não devem aparecer no menu; acessar as páginas diretamente deve ser bloqueado.' },
     { section: 'Turmas',
       title: 'Inscrito confirmado vê o mesmo card de CMFlex que todo mundo',
-      motivo: 'Verificar com conta confirmada como inscrita (via Admin) numa turma com interesse encerrado: o card dela mostra a mesma orientação pro CMFlex que qualquer visitante vê — não existe mais um card especial de "turma confirmada" nem distinção visual por já estar inscrita.' },
+      motivo: 'Verificar com conta confirmada como inscrita (via Admin) numa turma com interesse encerrado: o card dela mostra a mesma orientação pro CMFlex que qualquer pessoa autenticada vê — não existe mais um card especial de "turma confirmada" nem distinção visual por já estar inscrita.' },
     { section: 'Turmas',
       title: 'Card "Lista de Espera" aparece sempre na grade de turmas',
-      motivo: 'Verificar na página Turmas (logado ou visitante): o card com borda dourada tracejada deve aparecer como último card da grade, independente de existirem turmas abertas ou não.' },
+      motivo: 'Verificar na página Turmas (qualquer perfil autenticado): o card com borda dourada tracejada deve aparecer como último card da grade, independente de existirem turmas abertas ou não.' },
     { section: 'Turmas',
       title: 'Lista de espera — entrar e sair',
       motivo: 'Logada: clicar "Entrar na lista de espera" → botão vira "Na lista — Sair" e mensagem de confirmação aparece. Clicar de novo → sai da lista, botão volta ao estado inicial. Gravaria dados reais em fa-espera/ no Firebase.' },
@@ -803,10 +805,10 @@
       motivo: 'Requer confirmar uma pessoa como Inscrita numa turma que continue com interesse aberto (ex.: reabrir a turma depois de confirmá-la, ou adicioná-la como Inscrita direto numa turma aberta). Logar como essa pessoa e acessar Turmas. Verificar: (1) o card mostra botão verde desabilitado "✓ Inscrita" em vez de "♡ Remover interesse"; (2) mensagem "Você já é inscrita nesta turma. Só o admin pode alterar sua inscrição."; (3) clicar no botão não faz nada (Firebase não é alterado); (4) só o "Desconfirmar" do admin tira esse status.' },
     { section: 'Turmas',
       title: 'Interesse encerrado — card orienta pro CMFlex, igual pra qualquer pessoa',
-      motivo: 'Com uma turma com interesse encerrado pelo admin E que ainda não chegou ao primeiro dia: (1) como visitante, verificar que o card mostra título "Faça sua inscrição no CMFlex", texto "Sua inscrição deve ser feita na Plataforma de Gestão, em RH Uso Pessoal > Solicitação de curso, após a aprovação do seu gestor." e botão "Ir para o CMFlex →" (sem botão de interesse); (2) como usuário logado, mesmo resultado; (3) se a turma não tiver link do CMFlex cadastrado, o card mostra "Link ainda não disponível. Consulte a organização." no lugar do botão.' },
+      motivo: 'Com uma turma com interesse encerrado pelo admin E que ainda não chegou ao primeiro dia: (1) como usuário logado sem turma confirmada, verificar que o card mostra título "Faça sua inscrição no CMFlex", texto "Sua inscrição deve ser feita na Plataforma de Gestão, em RH Uso Pessoal > Solicitação de curso, após a aprovação do seu gestor." e botão "Ir para o CMFlex →" (sem botão de interesse); (2) como inscrito em outra turma, mesmo resultado; (3) se a turma não tiver link do CMFlex cadastrado, o card mostra "Link ainda não disponível. Consulte a organização." no lugar do botão.' },
     { section: 'Turmas',
       title: 'Card "Em andamento" — aparece automaticamente no primeiro dia da turma',
-      motivo: 'Verificar (se existir turma com data iniciada): o card mostra "Turma em andamento" e o texto "As aulas estão acontecendo. Fique de olho nas próximas turmas!" — sem nenhum botão de interesse ou CMFlex. Esse estado é automático por data (hoje ≥ primeiro dia), sem nenhuma ação do admin. Testar como visitante, logado e inscrito — o card deve ser idêntico para todos.' },
+      motivo: 'Verificar (se existir turma com data iniciada): o card mostra "Turma em andamento" e o texto "As aulas estão acontecendo. Fique de olho nas próximas turmas!" — sem nenhum botão de interesse ou CMFlex. Esse estado é automático por data (hoje ≥ primeiro dia), sem nenhuma ação do admin. Testar como logado, inscrito e admin — o card deve ser idêntico para todos.' },
     { section: 'Turmas',
       title: 'Card "Realizada" — aparece automaticamente após o último dia',
       motivo: 'Verificar (se existir turma com todas as datas no passado): o card mostra "Turma realizada" e o texto "Esta turma já foi concluída. Fique de olho nas próximas!" — sem nenhum botão. Esse estado é automático (hoje > último dia). Testar como visitante, logado e inscrito — o card deve ser idêntico para todos.' },
@@ -875,8 +877,8 @@
       title: 'Moderação Admin — deletar conteúdo de usuários',
       motivo: 'Ação destrutiva real no Firebase. Não pode ser revertida automaticamente.' },
     { section: 'Treinamento Jedi',
-      title: 'Antes de entrar: Welcome screen exibida para visitante (texto + botão "Quero jogar")',
-      motivo: 'Requer estar deslogado. Verificar: #treinamento-welcome visível, #treinamento oculto, botão "Quero jogar" abre modal de login.' },
+      title: 'Antes de entrar: Welcome screen exibida para logado sem turma confirmada',
+      motivo: 'Logar com conta SEM turma confirmada e acessar #treinamento. Verificar: #treinamento-welcome visível, #treinamento oculto. A checagem de sessão do botão "Quero jogar" virou residual — com login obrigatório ninguém deslogado chega nessa tela.' },
     { section: 'Treinamento Jedi',
       title: 'Ao logar pela Welcome screen: tela de boas-vindas some e o jogo aparece',
       motivo: 'Requer fazer login a partir da tela de boas-vindas. Verificar: #treinamento visível, #treinamento-welcome oculto.' },
@@ -887,7 +889,7 @@
       title: 'Aba Eventos — download do QR de acesso ao site',
       motivo: 'Clicar em "↓ QR de acesso ao site" no topo da aba Eventos. Verificar: (1) baixa um arquivo forca-agil-qrcode.png; (2) a imagem tem o QR Code com o logotipo da Força Ágil (ícone + FORÇA ÁGIL + Previ) no centro; (3) escanear o QR com o celular abre https://forca-agil.previ.com.br/.' },
     { section: 'Admin',
-      title: 'Admin — acesso negado para visitante/logado (URL direta)',
+      title: 'Admin — acesso negado para logado/inscrito (URL direta)',
       motivo: 'Requer testar com diferentes níveis de acesso — não pode ser validado na sessão admin atual.' },
     { section: 'Admin',
       title: 'Menu do site — link "Admin" oculto após logout, inclusive no mobile com menu aberto',
@@ -994,8 +996,8 @@
 
     /* ── Ajuda / Faça um pedido ──────────────────────────────── */
     { section: 'Ajuda',
-      title: 'Formulário "Faça um pedido" — visível e preenchível sem login',
-      motivo: 'Como visitante (deslogado), abrir a página Ajuda e rolar até "Faça um pedido". Verificar: (1) os 5 botões de tipo aparecem e são clicáveis (Quero aprender sobre um tema / Quero sugerir um curso / Preciso de material / Tenho uma dúvida / Outros); (2) o textarea de descrição aceita digitação normalmente; (3) clicar em "Enviar pedido" mostra "Faça login para enviar um pedido." em vez de gravar no Firebase.' },
+      title: 'Formulário "Faça um pedido" — os 5 tipos aparecem e são clicáveis',
+      motivo: 'Logado, abrir a página Ajuda e rolar até "Faça um pedido". Verificar: (1) os 5 botões de tipo aparecem e são clicáveis (Quero aprender sobre um tema / Quero sugerir um curso / Preciso de material / Tenho uma dúvida / Outros); (2) o textarea de descrição aceita digitação normalmente; (3) o botão "Enviar pedido" só habilita depois de escolher um tipo. A checagem de sessão no envio ("Faça login para enviar um pedido.") virou proteção residual — com login obrigatório, ninguém deslogado chega a essa página.' },
     { section: 'Ajuda',
       title: 'Formulário "Faça um pedido" — envio com login funciona',
       motivo: 'Logado, preencher o formulário e clicar "Enviar pedido". Verificar: (1) grava em pedidos/ no Firebase com tipo, descricao, nomeEnviou e emailEnviou; (2) no painel Admin → aba Pedidos, o novo pedido aparece na lista, ordenado mais recente primeiro, com o chip de tipo na cor correta (inclusive "Outros", cor cinza-azulada #8a93a8).' },
