@@ -1608,7 +1608,23 @@ details.manual-admin-subgroup[open] > .manual-admin-subhead,
 .arch-item { background: var(--surface); border: 1px solid var(--line); border-radius: 10px; padding: 14px 16px; transition: border-color .3s, box-shadow .3s; }
 .arch-item--flash { border-color: var(--ac, var(--accent)); box-shadow: 0 0 0 2px color-mix(in srgb, var(--ac, var(--accent)) 40%, transparent); }
 .arch-item-name { font-family: var(--font-mono); font-size: .8rem; color: var(--ac, #888); margin-bottom: 6px; font-weight: 600; }
-.arch-item-desc { font-size: .82rem; color: var(--ink-3); line-height: 1.5; white-space: pre-line; }
+.arch-item-desc { font-size: .82rem; color: var(--ink-3); line-height: 1.55; }
+.arch-item-desc .arch-desc-p { margin: 0 0 10px; }
+.arch-item-desc .arch-desc-p:last-child { margin-bottom: 0; }
+/* Cabeçalho de bloco (linha terminada em ":") — separa "as estruturas" de "as regras" */
+.arch-item-desc .arch-desc-head {
+  margin: 14px 0 8px; color: var(--ink-2); font-weight: 600;
+  font-size: .78rem; letter-spacing: .02em;
+}
+.arch-item-desc .arch-desc-head:first-child { margin-top: 0; }
+/* Lista de verdade: item longo quebra com recuo, sem se misturar ao próximo */
+.arch-item-desc .arch-desc-list { list-style: none; margin: 0 0 10px; padding: 0; display: flex; flex-direction: column; gap: 7px; }
+.arch-item-desc .arch-desc-list:last-child { margin-bottom: 0; }
+.arch-item-desc .arch-desc-list li {
+  position: relative; padding-left: 14px; border-left: 2px solid var(--line);
+  padding-block: 1px;
+}
+.arch-item-desc .arch-desc-list li strong { color: var(--ink-2); font-weight: 600; }
 
 /* ---------- Diagrama da Arquitetura (Admin Mapa) ---------- */
 .arq-diagram { display: flex; flex-direction: column; gap: 2px; margin-top: 24px; }

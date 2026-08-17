@@ -319,6 +319,35 @@
   function esc(str) { return String(str).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
   function slug(str) { return String(str).toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, ''); }
 
+  /* Converte a descrição em HTML estruturado. Antes era texto corrido com "•"
+     e quebras de linha renderizadas por white-space:pre-line — descrições longas
+     (ex: as 9 estruturas do banco + 5 regras de segurança) viravam um paredão
+     onde não dava pra ver onde um item terminava e o próximo começava. */
+  function formatDesc(txt) {
+    var linhas = String(txt || '').split('\n');
+    var html = '';
+    var emLista = false;
+    linhas.forEach(function (linha) {
+      var t = linha.trim();
+      if (!t) return;
+      if (t.charAt(0) === '•') {
+        if (!emLista) { html += '<ul class="arch-desc-list">'; emLista = true; }
+        var item = t.slice(1).trim();
+        /* "nome — explicação" vira nome em destaque + explicação */
+        var m = item.match(/^([^—]{1,70})—\s*([\s\S]*)$/);
+        if (m) html += '<li><strong>' + esc(m[1].trim()) + '</strong> — ' + esc(m[2]) + '</li>';
+        else html += '<li>' + esc(item) + '</li>';
+      } else {
+        if (emLista) { html += '</ul>'; emLista = false; }
+        /* Linha terminada em ":" é cabeçalho do bloco que vem abaixo */
+        if (t.slice(-1) === ':') html += '<p class="arch-desc-head">' + esc(t) + '</p>';
+        else html += '<p class="arch-desc-p">' + esc(t) + '</p>';
+      }
+    });
+    if (emLista) html += '</ul>';
+    return html;
+  }
+
   /* Badge de nível mínimo para o mapa do site */
   const P_ORDER = ['visitante', 'logado', 'inscrito', 'admin'];
   const P_COLOR = { visitante: '#888888', logado: '#1ab2ae', inscrito: '#4caf7d', admin: '#6b7a99' };
@@ -649,7 +678,7 @@
       section.items.forEach(function (item) {
         html += '<div class="arch-item" id="arch-item-' + slug(section.label + '-' + item.name) + '">';
         html += '<div class="arch-item-name" style="--ac:' + section.color + '">' + esc(item.name) + '</div>';
-        html += '<div class="arch-item-desc">' + esc(item.desc) + '</div>';
+        html += '<div class="arch-item-desc">' + formatDesc(item.desc) + '</div>';
         html += '</div>';
       });
       html += '</div></div></div>';
@@ -738,7 +767,7 @@
       section.items.forEach(function (item) {
         html += '<div class="arch-item" id="arch-item-' + slug(section.label + '-' + item.name) + '">';
         html += '<div class="arch-item-name" style="--ac:' + section.color + '">' + esc(item.name) + '</div>';
-        html += '<div class="arch-item-desc">' + esc(item.desc) + '</div>';
+        html += '<div class="arch-item-desc">' + formatDesc(item.desc) + '</div>';
         html += '</div>';
       });
       html += '</div></div></div>';
