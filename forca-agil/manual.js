@@ -47,6 +47,9 @@
     { section: 'menu', personas: ['logado', 'inscrito', 'admin'],
       title: 'Por que "interessado" não é um perfil de acesso',
       body: 'Manifestar interesse numa turma (status "interessado") NÃO libera nenhuma página: quem clicou em "Tenho interesse" enxerga exatamente as mesmas telas de quem nunca clicou — a única diferença visível é o botão do card virar "Remover interesse". Verificável no código: nenhuma checagem de acesso consulta o status "interessado"; o que destrava Conteúdos, Treinamento Jedi e Avaliação é a função isInscrito(), que exige status "inscrito" E o campo confirmedByAdmin preenchido. Ou seja, quem promove a pessoa de nível é o admin confirmando a inscrição, não ela demonstrando interesse. Por isso "interessado" fica dentro do perfil LOGADO na documentação, em vez de virar um perfil próprio — um perfil com acesso idêntico a outro seria enganoso.' },
+    { section: 'menu', personas: ['logado', 'inscrito', 'admin'],
+      title: 'Como ler as etiquetas de persona nas regras',
+      body: 'A etiqueta de persona em cada regra indica sempre QUEM TEM ACESSO / faz aquilo — nunca quem é bloqueado. Ex: a regra de acesso ao Treinamento Jedi é etiquetada "Inscrito, Admin" (quem entra), e não "Visitante, Logado" (quem é barrado) — etiquetar os bloqueados invertia o sentido e fazia parecer, na leitura rápida, que eles tinham acesso. Restrições continuam descritas no TEXTO da regra ("logado sem turma confirmada não vê o link"), mas não viram etiqueta. Também não se cria regra só para dizer que visitante não acessa algo: com o login obrigatório ele não acessa NADA, então isso seria redundante em toda página.' },
     { section: 'entrar', personas: ['visitante', 'logado', 'inscrito', 'admin'],
       title: 'Modal não fecha ao clicar fora',
       body: 'Evita perda do formulário preenchido. Fecha com o botão ✕ ou com ESC — mas só se todos os campos estiverem vazios.' },
@@ -253,7 +256,7 @@
     /* ── CONTEÚDOS ── */
     { section: 'conteudos', personas: ['inscrito', 'admin'],
       title: 'Acesso',
-      body: 'Página Conteúdos acessível apenas para usuário inscrito (turma confirmada) e admin. Visitante e logado sem turma não acessam esta página. As 7 seções numeradas (01 Mapa da Galáxia, 02 Os 4 Valores, 03 Os 12 Princípios, 04 A Força do Ágil, 05 Personagens, 06 Lado Sombrio, 07 A Trilogia) — cada uma ocupa a tela inteira, uma por vez.' },
+      body: 'Página Conteúdos exige nível "enrolled": só acessa quem foi confirmado pelo admin numa turma, mais o admin. Logado sem turma confirmada não vê o link no menu nem acessa por URL direta. As 7 seções numeradas (01 Mapa da Galáxia, 02 Os 4 Valores, 03 Os 12 Princípios, 04 A Força do Ágil, 05 Personagens, 06 Lado Sombrio, 07 A Trilogia) — cada uma ocupa a tela inteira, uma por vez.' },
     { section: 'conteudos', personas: ['inscrito', 'admin'],
       title: 'Navegação lateral por pontos',
       body: 'Barra lateral com 7 pontos (01–07), setas para cima/baixo e tooltip com o nome da seção. Ao clicar em um ponto, a página rola suavemente até a seção correspondente.' },
@@ -262,9 +265,6 @@
       body: 'Nas seções dos 4 valores e dos 12 princípios, links abrem o Manifesto Ágil oficial (agilemanifesto.org) em nova aba.' },
 
     /* ── REPOSITÓRIO ── */
-    { section: 'repositorio', personas: ['visitante'],
-      title: 'Acesso — visitante',
-      body: 'Visitante não acessa o Repositório — a página exige login.' },
     { section: 'repositorio', personas: ['logado', 'inscrito', 'admin'],
       title: 'Acesso — logado e inscrito',
       body: 'Usuário logado (com ou sem turma confirmada) e admin veem todos os conteúdos (curados e de usuários).' },
@@ -301,9 +301,9 @@
       body: 'Botão "Cancelar" fecha o formulário e limpa todos os campos.' },
 
     /* ── Treinamento Jedi (v3 — apenas quiz) ── */
-    { section: 'quiz', personas: ['visitante', 'logado'],
-      title: 'Acesso restrito — apenas inscrito com turma confirmada',
-      body: 'O Treinamento Jedi só é acessível para usuário inscrito (turma confirmada) e admin. Visitante e logado sem turma confirmada não acessam esta página.' },
+    { section: 'quiz', personas: ['inscrito', 'admin'],
+      title: 'Acesso — apenas inscrito com turma confirmada',
+      body: 'O Treinamento Jedi exige nível "enrolled": só acessa quem foi confirmado pelo admin numa turma, mais o admin (que recebe esse nível automaticamente). Logado sem turma confirmada não vê o link no menu nem consegue acessar por URL direta.' },
     { section: 'quiz', personas: ['inscrito', 'admin'],
       title: 'Acesso completo',
       body: 'Acesso ao autodiagnóstico, painel de patente e revelar patente.' },
@@ -329,7 +329,7 @@
     /* ── AJUDA ── */
     { section: 'ajuda', personas: ['logado', 'inscrito', 'admin'],
       title: 'Acesso',
-      body: 'Página Ajuda visível para qualquer pessoa autenticada, sem exigir turma confirmada. No menu o link aparece como "Ajuda". Visitante não logado não acessa — como em todo o site, só vê o modal de login.' },
+      body: 'Página Ajuda visível para qualquer pessoa autenticada, sem exigir turma confirmada. No menu o link aparece como "Ajuda".' },
     { section: 'ajuda', personas: ['logado', 'inscrito', 'admin'],
       title: 'Acordeão de perguntas',
       body: 'A página tem perguntas frequentes exibidas em formato de acordeão: clicar no título expande ou recolhe a resposta, e cada pergunta abre de forma independente das outras. O texto acima do título é "Central de Ajuda" e o título principal é "Como podemos ajudar?". Abaixo do FAQ há a seção "Faça um pedido" — formulário para escolher tipo (tema, curso, material, dúvida ou outros) e descrever o pedido. O código ainda checa sessão no envio e mostra "Faça login para enviar um pedido." se não houver — proteção residual, já que com login obrigatório ninguém sem sessão chega à página.' },
@@ -364,9 +364,9 @@
       body: 'Após enviar a avaliação, a tela de agradecimento é exibida e o formulário não pode ser preenchido novamente para aquela turma. O dado é gravado em avaliacoes/<turmaKey>/<emailKey> no Firebase. Se houver mais de uma turma pendente, o formulário aparece para a próxima turma após enviar.' },
 
     /* ── ADMIN ── */
-    { section: 'admin', personas: ['logado', 'inscrito'],
-      title: 'Acesso negado',
-      body: 'Usuário logado e inscrito não veem o link "Admin" no menu; se acessarem a URL diretamente, veem mensagem de acesso restrito e botão para voltar ao início. Visitante não logado nem chega nesse ponto — o login obrigatório mostra só o modal de autenticação, sem revelar o site.' },
+    { section: 'admin', personas: ['admin'],
+      title: 'Acesso — só quem está na lista de admins',
+      body: 'O link "Admin" no menu e o painel só aparecem para quem está na lista de administradores (super-admins fixos em código + os cadastrados em fa-admins). Logado e inscrito não veem o link; se acessarem #admin pela URL, recebem mensagem de acesso restrito com botão para voltar ao início.' },
     { section: 'admin', personas: ['admin'],
       title: 'Admin tem acesso total ao site, mesmo sem turma própria',
       body: 'Admin sempre vê e acessa Conteúdos e Treinamento Jedi no menu, mesmo que não esteja pessoalmente inscrito em nenhuma turma — o nível de acesso "enrolled" é garantido para qualquer admin, independente da inscrição real dela.' },
