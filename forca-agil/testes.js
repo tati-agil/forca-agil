@@ -94,7 +94,7 @@
         { id: 'adm-pedidos-panel', label: 'Painel Pedidos presente', run: function () { return !!document.getElementById('adminPanelPedidos'); } },
         { id: 'adm-dashboard-panel', label: 'Painel Dashboard presente', run: function () { return !!document.getElementById('adminPanelDashboard'); } },
         { id: 'adm-cadastrados-panel', label: 'Painel Cadastrados presente', run: function () { return !!document.getElementById('adminPanelCadastrados') && !!document.getElementById('adminCadastrados'); } },
-        { id: 'adm-mapa-cards',   label: 'Mapa: 12 cards de página renderizados', run: function () {
+        { id: 'adm-mapa-cards',   label: 'Mapa: 12 cards de seção renderizados (8 páginas do menu + Check-in, Entrar, Cadastrar e Menu/Sessão)', run: function () {
           if (window.faInitMapa) window.faInitMapa();
           return document.querySelectorAll('#adminMapa .mapa-page').length === 12;
         } },

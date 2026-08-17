@@ -227,7 +227,6 @@
     },
     { label: 'ENTRAR', color: '#c084fc',
       features: [
-        { label: 'Ver o menu de navegação (Início, Turmas, Ajuda) — revelado só após autenticar; antes disso o site fica oculto e aparece apenas o modal de login',  p: ['logado', 'inscrito', 'admin'] },
         { label: 'Fazer login',                               p: ['visitante'] },
         { label: 'Mostrar/ocultar senha (botão "olhinho")',   p: ['visitante'] },
         { label: 'Esqueci minha senha — link por e-mail',     p: ['visitante'] },
@@ -422,7 +421,11 @@
     /* ── Mapa do site ── */
     var totalPaginas = PAGES.length;
     var totalFeatures = PAGES.reduce(function (sum, p) { return sum + p.features.filter(function (f) { return f.p && f.p.length; }).length; }, 0);
-    html += '<h3 class="mapa-title" style="margin-top:48px">Mapa do Site <span class="testes-group-count">(' + totalPaginas + ' páginas · ' + totalFeatures + ' features)</span></h3>';
+    html += '<h3 class="mapa-title" style="margin-top:48px">Mapa do Site <span class="testes-group-count">(' + totalPaginas + ' seções · ' + totalFeatures + ' features)</span></h3>';
+    /* "Seções" e não "páginas": o menu tem 8 links, mas aqui também entram
+       Check-in (página fora do menu, acessada por QR), Entrar e Cadastrar
+       (abas do modal de login) e Menu/Sessão (a própria barra de navegação). */
+    html += '<p class="mapa-sub">São 8 páginas do menu (Início, Turmas, Conteúdos, Repositório, Treinamento Jedi, Avaliação, Ajuda e Admin) mais 4 seções que não são páginas do menu: Check-in (aberta pelo QR Code), Entrar e Cadastrar (abas do modal de login) e Menu / Sessão (a barra de navegação em si).</p>';
 
     /* Legenda dos badges */
     html += '<div class="mapa-legend-box">';
