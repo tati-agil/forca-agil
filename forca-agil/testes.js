@@ -428,12 +428,12 @@
           replay.click();
           return crawl.classList.contains('run');
         } },
-        { id: 'c-crawl-acesso', label: 'Crawl: seção oculta para member; visível para enrolled/admin', run: function () {
+        { id: 'c-crawl-acesso', label: 'Crawl: visível para qualquer pessoa logada (não exige turma confirmada)', run: function () {
           var cs = document.querySelector('.crawl-section');
           if (!cs) return false;
-          var level = window.faAuth && window.faAuth.getAccessLevel ? window.faAuth.getAccessLevel() : 'member';
-          if (level === 'member') return cs.hidden === true;
-          return cs.hidden === false;
+          var sess = window.faAuth && window.faAuth.getSession ? window.faAuth.getSession() : null;
+          /* Com sessão o crawl aparece, independente de estar confirmada em turma */
+          return sess ? cs.style.display !== 'none' : cs.style.display === 'none';
         } }
       ]
     },

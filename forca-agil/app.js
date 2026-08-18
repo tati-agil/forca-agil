@@ -52,7 +52,7 @@
     setTimeout(function () { collectReveals(); revealInView(); }, 120);
   });
 
-  /* ---- Opening crawl — inicializado apenas para enrolled e admin ---- */
+  /* ---- Opening crawl — visível para qualquer pessoa autenticada ---- */
   (function () {
     var crawlIniciado = false;
 
@@ -138,10 +138,16 @@
       }
     }
 
-    function aplicarAcesso(level) {
+    /* O crawl é para qualquer pessoa devidamente logada — não exige estar
+       confirmada numa turma nem ter manifestado interesse. Basta haver
+       sessão: quem não confirmou o e-mail não chega a ter uma (auth.js
+       desloga e mostra o painel de verificação), e o visitante nunca vê o
+       site, que fica oculto atrás do modal de login. */
+    function aplicarAcesso() {
       var cs = document.querySelector('.crawl-section');
       if (!cs) return;
-      if (level === 'enrolled' || level === 'admin') {
+      var sess = window.faAuth && window.faAuth.getSession ? window.faAuth.getSession() : null;
+      if (sess) {
         cs.style.display = '';
         iniciarCrawl();
       } else {
@@ -149,14 +155,8 @@
       }
     }
 
-    window.addEventListener('fa-auth-ready', function () {
-      var level = window.faAuth && window.faAuth.getAccessLevel ? window.faAuth.getAccessLevel() : 'member';
-      aplicarAcesso(level);
-    });
-    window.addEventListener('fa-auth-change', function () {
-      var level = window.faAuth && window.faAuth.getAccessLevel ? window.faAuth.getAccessLevel() : 'member';
-      aplicarAcesso(level);
-    });
+    window.addEventListener('fa-auth-ready',  aplicarAcesso);
+    window.addEventListener('fa-auth-change', aplicarAcesso);
   }());
 
   /* ---- Yoda episode accordions ---- */
