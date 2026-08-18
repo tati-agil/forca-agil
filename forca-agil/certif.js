@@ -29,6 +29,7 @@
        3. identificacaoTurma— x:724  y:581  maxW:680   size:19/12
        4. periodoTurma      — x:598  y:658  maxW:400   size:24/13
        5. cargaHoraria      — x:613  y:757  maxW:160   size:48/24
+                              sufixo fixo: "h" (o valor gravado é só o número)
        6. dataEmissao       — x:1055 y:922  maxW:360   size:19/10
                               prefixo fixo: "Emitido em "
 
@@ -102,7 +103,8 @@
     cargaHoraria: {
       x: 613, y: 757, maxWidth: 160, align: 'center',
       size: 48, minSize: 24, weight: 'bold',
-      color: '#f5c542', family: '"Courier New",Courier,monospace'
+      color: '#f5c542', family: '"Courier New",Courier,monospace',
+      suffix: 'h'  /* valor vem só como número ("20"); o "h" é do layout */
     },
     /* "Emitido em" removido do template v2; frase completa renderizada como campo dinâmico */
     dataEmissao: {
@@ -140,7 +142,7 @@
 
   function drawFieldText(ctx, raw, cfg) {
     if (!raw) return;
-    var text = (cfg.prefix || '') + (cfg.upper ? String(raw).toUpperCase() : String(raw));
+    var text = (cfg.prefix || '') + (cfg.upper ? String(raw).toUpperCase() : String(raw)) + (cfg.suffix || '');
     fitFont(ctx, text, cfg);
     ctx.fillStyle    = cfg.color;
     ctx.textAlign    = cfg.align;
