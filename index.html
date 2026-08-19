@@ -1265,8 +1265,10 @@ body.aguardando-auth>*:not(#authModal){visibility:hidden}
       <p>Acessível apenas para administradores do programa Força Ágil.</p>
     </div>
 
-    <div id="adminGuard">
-      <!-- Shown if not admin, replaced by content if admin -->
+    <div id="adminGuard" hidden>
+      <!-- Começa oculto: só aparece depois que a autenticação termina e
+           confirma que a pessoa NÃO é admin. Antes ficava visível por padrão,
+           e o admin via "Acesso Restrito" piscando durante o carregamento. -->
       <div class="admin-gate">
         <h3>Acesso Restrito</h3>
         <p>Você não tem permissão para acessar esta área.</p>
