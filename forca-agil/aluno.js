@@ -6,6 +6,21 @@
    atingiu a frequência mínima, o certificado (quando a turma é
    concluída), suas avaliações e seus pedidos.
 
+   A página nunca fica vazia: existe um estado nomeado para cada
+   situação possível, na seguinte ordem de precedência —
+
+     1. Confirmada em turma   → cards da turma, agrupados por fase
+                                (Em andamento / Programadas / Concluídas)
+     2. Interesse em análise  → cartão informando que a confirmação
+                                é feita pela organização
+     3. Lista de espera       → cartão informando desde quando espera
+     4. Nunca interagiu       → boas-vindas + turmas abertas no momento
+
+   Os quatro podem coexistir: alguém pode estar confirmada na Turma 1,
+   com interesse em análise na Turma 2 e na espera de um outro evento.
+   Só o estado 4 é exclusivo — ele aparece justamente quando não há
+   nenhum dos outros.
+
    Deliberadamente NÃO mostra o QR Code de check-in: o QR é o mesmo
    todos os dias e quem controla a validade é o admin abrindo o dia.
    Se cada pessoa tivesse o QR em mãos, daria para registrar presença
@@ -36,6 +51,18 @@
     return d.getDate() + ' de ' + meses[d.getMonth()] + ' de ' + d.getFullYear();
   }
 
+  function todayISO() {
+    var d = new Date();
+    return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
+  }
+  /* Dias inteiros entre hoje e uma data ISO (positivo = no futuro) */
+  function diasAte(iso) {
+    var a = new Date(todayISO() + 'T12:00:00');
+    var b = new Date(iso + 'T12:00:00');
+    if (isNaN(b)) return null;
+    return Math.round((b - a) / 86400000);
+  }
+
   function carregar(uKey, email, cb) {
     var db = firebase.database();
     Promise.all([
@@ -46,6 +73,7 @@
       db.ref('eventos').once('value'),
       db.ref('avaliacoes').once('value'),
       db.ref('pedidos').once('value'),
+      db.ref('fa-espera').once('value'),
     ]).then(function (r) {
       cb({
         interesse: r[0].val() || {},
@@ -55,6 +83,7 @@
         eventos:   r[4].val() || {},
         avaliacoes:r[5].val() || {},
         pedidos:   r[6].val() || {},
+        espera:    r[7].val() || {},
       });
     }).catch(function (err) {
       console.error('[minha-area]', err);
@@ -79,7 +108,21 @@
       var pctMin    = Number(evento.percentualMinimo || 75);
       var freq      = dias.length ? Math.round((presentes.length / dias.length) * 1000) / 10 : 0;
 
+      /* Três fases, nesta ordem de decisão:
+         concluída  — o admin encerrou a turma (só aqui existe certificado)
+         programada — ainda não chegou a data do primeiro encontro; não faz
+                      sentido cobrar frequência de quem ainda não começou
+         andamento  — o resto */
+      var ordenados = dias.slice().sort();
+      var primeiro  = ordenados[0] || '';
+      var fase = cfg.encerrada ? 'concluida'
+               : (primeiro && primeiro > todayISO()) ? 'programada'
+               : 'andamento';
+
       out.push({
+        fase: fase,
+        inicio: primeiro,
+        faltam: fase === 'programada' ? diasAte(primeiro) : null,
         key: tk,
         label: turma.label || tk,
         datas: turma.dates || '',
@@ -98,15 +141,94 @@
     return out.sort(function (a, b) { return (a.label || '').localeCompare(b.label || '', 'pt'); });
   }
 
+  /* Turmas em que a pessoa manifestou interesse mas que ainda não foram
+     confirmadas pela organização. Cobre os dois casos: quem clicou em
+     "Tenho interesse" (status 'interessado') e quem já foi marcada como
+     inscrita mas ainda sem o aval do admin. */
+  function interessesPendentes(d, uKey) {
+    var out = [];
+    Object.keys(d.interesse).forEach(function (tk) {
+      var reg = (d.interesse[tk] || {})[uKey];
+      if (!reg || reg.removed) return;
+      if (reg.status === 'inscrito' && reg.confirmedByAdmin) return;  /* já é turma confirmada */
+      if (reg.status === 'removido') return;
+
+      var turma  = d.turmas[tk] || {};
+      var cfg    = d.config[tk] || {};
+      var evento = turma.eventoKey ? (d.eventos[turma.eventoKey] || {}) : {};
+      out.push({
+        key: tk,
+        label: turma.label || tk,
+        datas: turma.dates || '',
+        evento: evento,
+        desde: reg.date || '',
+        encerrada: !!cfg.encerrada,
+      });
+    });
+    return out.sort(function (a, b) { return (a.label || '').localeCompare(b.label || '', 'pt'); });
+  }
+
+  /* Registro da pessoa na lista de espera, se houver */
+  function meuRegistroEspera(d, uKey) {
+    var reg = d.espera[uKey];
+    if (!reg || reg.removed) return null;
+    return {
+      desde: reg.date || reg.migratedAt || '',
+      veioDe: reg.migratedFrom ? ((d.turmas[reg.migratedFrom] || {}).label || reg.migratedFrom) : '',
+    };
+  }
+
+  /* Turmas ainda não encerradas — usadas na vitrine de quem nunca interagiu */
+  function turmasAbertas(d) {
+    return Object.keys(d.turmas).map(function (tk) {
+      var turma = d.turmas[tk] || {};
+      var cfg   = d.config[tk] || {};
+      var dias  = (turma.dias || []).slice().sort();
+      return {
+        key: tk,
+        label: turma.label || tk,
+        datas: turma.dates || '',
+        inicio: dias[0] || '',
+        encerrada: !!cfg.encerrada,
+        evento: turma.eventoKey ? (d.eventos[turma.eventoKey] || {}) : {},
+      };
+    }).filter(function (t) {
+      return !t.encerrada;
+    }).sort(function (a, b) { return (a.inicio || '').localeCompare(b.inicio || ''); });
+  }
+
   function cardTurma(t, idx) {
     var h = '<div class="aluno-card">';
     h += '<div class="aluno-card-head">';
     h += '<h3 class="aluno-card-title">' + esc(t.label) + '</h3>';
-    h += '<span class="aluno-badge ' + (t.encerrada ? 'aluno-badge--ok' : 'aluno-badge--andamento') + '">' +
-         (t.encerrada ? 'Concluída' : 'Em andamento') + '</span>';
+    var selo = { concluida:  ['aluno-badge--ok',        'Concluída'],
+                 programada: ['aluno-badge--programada', 'Programada'],
+                 andamento:  ['aluno-badge--andamento',  'Em andamento'] }[t.fase];
+    h += '<span class="aluno-badge ' + selo[0] + '">' + selo[1] + '</span>';
     h += '</div>';
     if (t.evento.nome) h += '<p class="aluno-card-sub">' + esc(t.evento.nome) + (t.evento.cargaHoraria ? ' · ' + esc(t.evento.cargaHoraria) + 'h' : '') + '</p>';
     if (t.datas) h += '<p class="aluno-card-sub">Encontros: ' + esc(t.datas) + '</p>';
+
+    /* Turma programada: ainda não começou. Mostrar frequência 0% aqui daria
+       a impressão de que a pessoa faltou a tudo — então o bloco de
+       frequência e o de certificado dão lugar à contagem para o início. */
+    if (t.fase === 'programada') {
+      var falta = t.faltam;
+      var quando = falta === 0 ? 'É hoje!'
+                 : falta === 1 ? 'Começa amanhã'
+                 : 'Faltam ' + falta + ' dias';
+      h += '<div class="aluno-prox">' +
+             '<p class="aluno-prox-msg">🗓️ <strong>' + quando + '</strong> — primeiro encontro em ' + esc(fmtDataLonga(t.inicio)) + '.</p>' +
+             '<p class="aluno-prox-info">Sua frequência e o certificado aparecem aqui assim que a turma começar.</p>' +
+           '</div>';
+      if (t.dias.length) {
+        h += '<div class="aluno-dias">';
+        t.dias.forEach(function (dia) { h += '<span class="aluno-dia">' + fmtDia(dia) + '</span>'; });
+        h += '</div>';
+      }
+      h += '</div>';
+      return h;
+    }
 
     /* Frequência */
     h += '<div class="aluno-freq">';
@@ -189,15 +311,81 @@
       wrap.innerHTML = '<p class="loading-msg" style="color:var(--red)">Erro ao carregar sua área. Recarregue a página.</p>';
       return;
     }
-    var turmas = minhasTurmas(d, uKey);
+    var turmas    = minhasTurmas(d, uKey);
+    var pendentes = interessesPendentes(d, uKey);
+    var espera    = meuRegistroEspera(d, uKey);
     var html = '';
 
-    html += '<h3 class="aluno-sec-title">Minhas turmas</h3>';
-    if (!turmas.length) {
-      html += '<p class="aluno-vazio">Você ainda não está confirmado em nenhuma turma. Manifeste interesse na página <a href="#turmas">Turmas</a> — quando o admin confirmar sua inscrição, sua turma aparece aqui com a frequência e o certificado.</p>';
-    } else {
+    if (turmas.length) {
+      html += '<h3 class="aluno-sec-title">Minhas turmas</h3>';
+      /* Ordem pensada pela ação que cada grupo exige: primeiro o que
+         está acontecendo agora, depois o que vai acontecer, por último
+         o histórico. */
+      [['andamento',  'Em andamento'],
+       ['programada', 'Programadas'],
+       ['concluida',  'Concluídas']].forEach(function (g) {
+        var doGrupo = turmas.filter(function (t) { return t.fase === g[0]; });
+        if (!doGrupo.length) return;
+        html += '<h4 class="aluno-grupo">' + g[1] + ' <span class="aluno-grupo-qtd">' + doGrupo.length + '</span></h4>';
+        html += '<div class="aluno-turmas">';
+        doGrupo.forEach(function (t, i) { html += cardTurma(t, i); });
+        html += '</div>';
+      });
+    }
+
+    if (pendentes.length) {
+      html += '<h3 class="aluno-sec-title">Inscrições em análise</h3>';
       html += '<div class="aluno-turmas">';
-      turmas.forEach(function (t, i) { html += cardTurma(t, i); });
+      pendentes.forEach(function (p) {
+        html += '<div class="aluno-card aluno-card--info">' +
+          '<div class="aluno-card-head">' +
+            '<h3 class="aluno-card-title">' + esc(p.label) + '</h3>' +
+            '<span class="aluno-badge aluno-badge--analise">Em análise</span>' +
+          '</div>' +
+          (p.evento.nome ? '<p class="aluno-card-sub">' + esc(p.evento.nome) + '</p>' : '') +
+          (p.datas ? '<p class="aluno-card-sub">Encontros: ' + esc(p.datas) + '</p>' : '') +
+          '<p class="aluno-info-msg">⏳ Interesse registrado' +
+            (p.desde ? ' em ' + new Date(p.desde).toLocaleDateString('pt-BR') : '') +
+            '. A confirmação da vaga é feita pela organização — quando ela sair, esta turma passa para “Minhas turmas” com sua frequência e o certificado.</p>' +
+          (p.encerrada ? '<p class="aluno-info-obs">Esta turma já foi encerrada. Se você não foi confirmado, procure a organização pela página <a href="#ajuda">Ajuda</a>.</p>' : '') +
+        '</div>';
+      });
+      html += '</div>';
+    }
+
+    if (espera) {
+      html += '<h3 class="aluno-sec-title">Lista de espera</h3>';
+      html += '<div class="aluno-card aluno-card--info">' +
+        '<div class="aluno-card-head">' +
+          '<h3 class="aluno-card-title">Você está na lista de espera</h3>' +
+          '<span class="aluno-badge aluno-badge--espera">Na fila</span>' +
+        '</div>' +
+        '<p class="aluno-info-msg">🕒 Registrado' +
+          (espera.desde ? ' desde ' + new Date(espera.desde).toLocaleDateString('pt-BR') : '') +
+          (espera.veioDe ? ', vindo da ' + esc(espera.veioDe) : '') +
+          '. Assim que abrir vaga em uma próxima turma, a organização entra em contato.</p>' +
+      '</div>';
+    }
+
+    /* Nada em nenhum dos três estados acima: a pessoa nunca interagiu.
+       Em vez de uma frase de "nada aqui", mostra por onde começar. */
+    if (!turmas.length && !pendentes.length && !espera) {
+      var abertas = turmasAbertas(d);
+      html += '<h3 class="aluno-sec-title">Bem-vindo!</h3>';
+      html += '<div class="aluno-card aluno-card--info">' +
+        '<p class="aluno-info-msg">👋 Esta é a sua área. Assim que você participar de uma turma, é aqui que ficam sua frequência, seu certificado e suas avaliações.</p>';
+      if (abertas.length) {
+        html += '<p class="aluno-info-obs">Turmas abertas no momento:</p><ul class="aluno-abertas">';
+        abertas.forEach(function (t) {
+          html += '<li><strong>' + esc(t.label) + '</strong>' +
+                  (t.evento.nome ? ' — ' + esc(t.evento.nome) : '') +
+                  (t.datas ? ' <span class="aluno-abertas-data">(' + esc(t.datas) + ')</span>' : '') + '</li>';
+        });
+        html += '</ul>';
+      } else {
+        html += '<p class="aluno-info-obs">Não há turmas abertas neste momento. Acompanhe a página Turmas — as próximas são anunciadas por lá.</p>';
+      }
+      html += '<p class="aluno-cta"><a class="btn btn--sm btn--primary" href="#turmas">Ver turmas e manifestar interesse</a></p>';
       html += '</div>';
     }
 

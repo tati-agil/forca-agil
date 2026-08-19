@@ -108,6 +108,14 @@
           /* Nenhum canvas de QR nem link para #checkin dentro da área do participante */
           return !sec.querySelector('canvas') && !sec.querySelector('a[href*="checkin"]');
         } },
+        { id: 'c-minha-area-nunca-vazia', label: 'Minha Área: sempre renderiza algum estado (nunca fica em branco)', run: function () {
+          var wrap = document.getElementById('minhaAreaContent');
+          if (!wrap) return false;
+          /* Depois de carregada, tem que existir ao menos um título de seção
+             ou um cartão — a página não pode terminar sem estado nenhum. */
+          if (/Carregando/.test(wrap.textContent || '')) return true;   /* ainda carregando: não é falha */
+          return !!wrap.querySelector('.aluno-sec-title, .aluno-card');
+        } },
         { id: 'adm-cadastrados-panel', label: 'Painel Cadastrados presente', run: function () { return !!document.getElementById('adminPanelCadastrados') && !!document.getElementById('adminCadastrados'); } },
         { id: 'adm-mapa-cards',   label: 'Mapa: 13 cards de seção renderizados (9 páginas do menu + Check-in, Entrar, Cadastrar e Menu/Sessão)', run: function () {
           if (window.faInitMapa) window.faInitMapa();
@@ -1049,8 +1057,14 @@
       title: 'Certificado baixado pelo aluno é idêntico ao emitido pelo admin',
       motivo: 'Baixar o certificado de uma mesma pessoa pelos dois caminhos — pela "Minha Área" (como ela) e pela aba Certificados (como admin) — e comparar os arquivos: nome, evento, turma, período, carga horária (com o "h") e data de emissão devem ser iguais, no mesmo layout. Ambos usam o mesmo gerador, então qualquer diferença indica que algum dado está sendo montado errado num dos lados.' },
     { section: 'Minha Área',
-      title: 'Pessoa sem turma confirmada vê a área sem quebrar',
-      motivo: 'Logar com uma conta que NÃO está confirmada em nenhuma turma (pode ter manifestado interesse ou não) e abrir "Minha Área". Verificar: (1) o link aparece no menu normalmente; (2) a seção de turmas mostra a mensagem explicando que a turma aparece ali após a confirmação do admin, com atalho para a página Turmas; (3) a seção "Meus pedidos" continua funcionando — se a pessoa já enviou pedidos, eles aparecem; (4) nada de erro no console nem área em branco.' },
+      title: 'Os quatro estados aparecem corretamente',
+      motivo: 'Cada estado precisa ser conferido com uma conta na situação correspondente. (1) NUNCA INTERAGIU — conta sem interesse em nenhuma turma e fora da lista de espera: deve ver a tela de boas-vindas com a lista das turmas abertas e o botão para Turmas; se não houver turma aberta, a mensagem dizendo isso. (2) INTERESSE EM ANÁLISE — manifestar interesse numa turma e NÃO confirmar pelo admin: deve aparecer o bloco "Inscrições em análise" com a data do interesse. Confirmar pelo admin e recarregar: o cartão sai de "em análise" e vira turma em "Minhas turmas". (3) LISTA DE ESPERA — mover a pessoa para a lista de espera pelo admin: deve aparecer o bloco "Lista de espera" dizendo desde quando e de qual turma veio. (4) COEXISTÊNCIA — deixar a mesma conta confirmada numa turma, em análise em outra e na espera: os três blocos devem aparecer juntos, e a tela de boas-vindas NÃO deve aparecer. Em nenhum dos casos a área pode ficar em branco ou dar erro no console.' },
+    { section: 'Minha Área',
+      title: 'Turma programada não cobra frequência de quem ainda não começou',
+      motivo: 'Cenário mais fácil de errar. Confirmar alguém numa turma cujo primeiro encontro ainda está no futuro e abrir "Minha Área". Verificar: (1) o cartão vem no grupo "Programadas", com selo "Programada" — não "Em andamento"; (2) NÃO aparece barra de frequência, nem "0 de N encontros", nem bloco de certificado; (3) aparece a contagem para o início ("Faltam N dias") e a data do primeiro encontro por extenso; (4) as datas dos encontros aparecem listadas, sem ✓ em nenhuma. Depois, chegando a data do primeiro encontro, recarregar: o cartão deve migrar para o grupo "Em andamento" e a frequência voltar a aparecer. Conferir também os textos de borda: turma que começa amanhã deve dizer "Começa amanhã" e turma que começa hoje, "É hoje!".' },
+    { section: 'Minha Área',
+      title: 'Turmas agrupadas na ordem certa',
+      motivo: 'Com uma conta que tenha turmas em mais de uma fase, conferir que os grupos aparecem nesta ordem: "Em andamento", depois "Programadas", depois "Concluídas" — o que exige ação agora vem primeiro, o histórico por último. Cada cabeçalho de grupo mostra a quantidade de turmas do grupo, e grupos sem nenhuma turma não aparecem (não deve haver cabeçalho vazio).' },
     { section: 'Minha Área',
       title: 'QR Code de check-in NÃO aparece na área do participante',
       motivo: 'Decisão de segurança que precisa se manter em qualquer mudança futura. Abrir "Minha Área" como participante confirmado numa turma e verificar que em nenhum lugar aparece o QR Code de check-in, nem link para a página de check-in. Motivo: o QR é o mesmo todos os dias e quem controla a validade é o admin abrindo o dia — se a pessoa tivesse o QR em mãos, poderia registrar presença de casa durante a janela aberta, e a frequência é justamente o que libera o certificado.' },
