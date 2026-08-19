@@ -1862,18 +1862,29 @@
         table.className = 'admin-table';
         table.innerHTML =
           '<thead><tr>' +
-            '<th>Nome</th><th>E-mail</th><th>Área</th><th>Data</th><th>Ações</th>' +
+            '<th>Nome</th><th>E-mail</th><th>Área</th><th>Data</th><th>Origem</th><th>Ações</th>' +
           '</tr></thead>';
         var tbody = document.createElement('tbody');
 
         list.forEach(function (p) {
           var tr = document.createElement('tr');
           var dataFmt = p.date ? p.date.slice(0, 10) : '—';
+          /* Quem veio de uma turma tem migratedFrom/migratedAt gravados na
+             migração — mostra de qual turma saiu e quando, em vez de deixar
+             o dado invisível no banco. */
+          var origem = '<span style="color:var(--ink-3)">Entrou pela lista</span>';
+          if (p.migratedFrom) {
+            var tLabel = (turmasVal[p.migratedFrom] && turmasVal[p.migratedFrom].label) || p.migratedFrom.toUpperCase();
+            var quando = p.migratedAt ? new Date(p.migratedAt).toLocaleDateString('pt-BR') : '';
+            origem = '<span class="espera-origem">↩ ' + esc(tLabel) + '</span>' +
+              (quando ? '<span class="espera-origem-data">em ' + quando + '</span>' : '');
+          }
           tr.innerHTML =
             '<td>' + esc(p.name || '—') + '</td>' +
             '<td>' + esc(p.email || '—') + '</td>' +
             '<td>' + esc(p.area || '—') + '</td>' +
             '<td>' + dataFmt + '</td>' +
+            '<td>' + origem + '</td>' +
             '<td></td>';
 
           var tdAcoes = tr.querySelector('td:last-child');

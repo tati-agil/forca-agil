@@ -533,6 +533,10 @@
 
 /* Item 3: fundo sólido nas tabelas para melhorar contraste sobre o fundo animado */
 .admin-table { width: 100%; border-collapse: collapse; font-size: .84rem; background: var(--panel); border-radius: 10px; overflow: hidden; }
+
+/* Lista de Espera — coluna "Origem": de qual turma a pessoa foi migrada */
+.espera-origem { display: block; font-size: .78rem; color: var(--cyan); white-space: nowrap; }
+.espera-origem-data { display: block; font-size: .7rem; color: var(--ink-3); }
 .admin-table th {
   text-align: left; padding: 8px 12px; font-family: var(--font-mono); font-size: .72rem;
   text-transform: uppercase; letter-spacing: .04em; color: var(--ink-3);

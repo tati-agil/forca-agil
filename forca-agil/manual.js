@@ -130,7 +130,7 @@
       body: 'Na seção Lista de Espera do painel admin, o admin pode remover uma pessoa da lista sem movê-la para turma alguma (ex: pessoa que saiu da empresa ou desistiu).' },
     { section: 'turmas', personas: ['admin'],
       title: 'Lista de espera — migrar da turma',
-      body: 'Na tabela de participantes de cada turma, cada linha (interessada ou inscrita) tem o botão "→ Espera". Ao clicar, o admin confirma e a pessoa é removida da turma e adicionada à lista de espera. A data preservada na lista de espera é a data original em que ela manifestou interesse na turma — não o momento da migração. Útil quando a turma está cheia e o admin precisa realocar pessoas para a próxima.' },
+      body: 'Na tabela de participantes de cada turma, cada linha (interessada ou inscrita) tem o botão "→ Espera". Ao clicar, o admin confirma e a pessoa é removida da turma e adicionada à lista de espera. A data preservada na lista de espera é a data original em que ela manifestou interesse na turma — não o momento da migração. Na lista de espera, a coluna "Origem" mostra de qual turma a pessoa veio e em que dia foi migrada (ex: "↩ Turma 1 — Agosto · em 18/08/2026"); quem entrou direto pelo card do site aparece como "Entrou pela lista". Útil quando a turma está cheia e o admin precisa realocar pessoas para a próxima.' },
     { section: 'menu', personas: ['inscrito', 'admin'],
       title: 'Clicar no avatar/nome no menu',
       body: 'Clicar no avatar/nome exibido no menu (fora do botão Sair) navega para o Treinamento Jedi.' },

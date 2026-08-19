@@ -161,6 +161,7 @@
         { label: 'Aba Cadastrados — criar conta diretamente para colaboradora (nome + e-mail + área + senha do admin; senha padrão 12345678; sem verificação de e-mail)', p: ['admin'] },
         { label: 'Aba Cadastrados — bloquear/desbloquear cadastro (bloqueado não consegue mais acessar o portal)', p: ['admin'] },
         { label: 'Aba Cadastrados — filtrar por status: Ativos / Bloqueados / Todos', p: ['admin'] },
+        { label: 'Aba Cadastrados — Lista de Espera: coluna "Origem" mostra de qual turma a pessoa foi migrada e em que dia; quem entrou direto pelo card do site aparece como "Entrou pela lista"', p: ['admin'] },
         { label: 'Aba Administradores — consultar lista de administradores (nome, e-mail, admin desde)', p: ['admin'] },
         { label: 'Aba Administradores — adicionar admin (só tatianefdirene e danielfrazao veem esse formulário)', p: ['admin'] },
         { label: 'Aba Administradores — remover admin (só tatianefdirene e danielfrazao veem esse botão)', p: ['admin'] },

@@ -787,7 +787,7 @@
       motivo: 'Na aba Cadastrados do painel admin, selecionar uma turma no select da pessoa e clicar "Mover para turma" → confirmar no diálogo → pessoa desaparece da lista de espera e aparece na turma como Inscrita (status=inscrito + confirmedByAdmin).' },
     { section: 'Turmas',
       title: 'Admin — migrar participante de turma para lista de espera',
-      motivo: 'Na tabela de participantes de uma turma (interessada ou inscrita), clicar "→ Espera" → confirmar → pessoa sai da turma (removed:true) e entra na lista de espera. Verificar que a data exibida na lista de espera é a data original de interesse na turma, não o momento da migração.' },
+      motivo: 'Na tabela de participantes de uma turma (interessada ou inscrita), clicar "→ Espera" → confirmar → pessoa sai da turma (removed:true) e entra na lista de espera. Verificar: (1) a data exibida na lista de espera é a data ORIGINAL de interesse na turma, não o momento da migração; (2) a coluna "Origem" mostra o nome da turma de onde ela veio, com uma seta ↩, e logo abaixo a data em que a migração aconteceu; (3) uma pessoa que entrou direto pelo card "Lista de Espera" do site aparece nessa coluna como "Entrou pela lista", sem nome de turma.' },
     { section: 'Turmas',
       title: 'Botão "Tenho interesse" sem login → mensagem + modal login',
       motivo: 'Requer estar deslogado.' },
