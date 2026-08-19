@@ -537,6 +537,15 @@
 /* Lista de Espera — coluna "Origem": de qual turma a pessoa foi migrada */
 .espera-origem { display: block; font-size: .78rem; color: var(--cyan); white-space: nowrap; }
 .espera-origem-data { display: block; font-size: .7rem; color: var(--ink-3); }
+.espera-origem-motivo { display: block; font-size: .7rem; color: var(--ink-2); font-style: italic; }
+
+/* Modal de confirmação com motivo — usado nos fluxos da lista de espera */
+.admin-motivo-select, .admin-motivo-outro {
+  width: 100%; margin-top: 6px; padding: 8px 10px; border-radius: 6px;
+  background: var(--panel-2); color: var(--ink);
+  border: 1px solid var(--line-strong); font-size: .85rem; font-family: inherit;
+}
+.admin-motivo-select:focus, .admin-motivo-outro:focus { outline: none; border-color: var(--accent); }
 .admin-table th {
   text-align: left; padding: 8px 12px; font-family: var(--font-mono); font-size: .72rem;
   text-transform: uppercase; letter-spacing: .04em; color: var(--ink-3);

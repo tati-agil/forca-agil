@@ -838,9 +838,10 @@
       var esperaBtn = e.target.closest('.ck-espera-btn');
       if (esperaBtn) {
         var person = { name: esperaBtn.dataset.name, email: esperaBtn.dataset.email, area: esperaBtn.dataset.area, date: esperaBtn.dataset.date };
-        adminConfirm(
+        adminConfirmComMotivo(
           'Mover ' + person.name + ' para a lista de espera?\n\nEla sairá desta turma. A data original de interesse (' + fmtDate(person.date) + ') será preservada.',
-          function () { migrarParaEspera(esperaBtn.dataset.turma, esperaBtn.dataset.ekey, person); }
+          MOTIVOS_ESPERA_ENTRADA,
+          function (motivo, detalhe) { migrarParaEspera(esperaBtn.dataset.turma, esperaBtn.dataset.ekey, person, motivo, detalhe); }
         );
         return;
       }
@@ -1002,6 +1003,82 @@
       closeConfirm();
       if (callbackSim) callbackSim();
     });
+  }
+
+  /* Motivos usados nos dois fluxos da lista de espera. "evento_encerrado"
+     serve para limpar a lista quando o evento inteiro acabou e não haverá
+     mais turmas — não é falha da pessoa nem escolha dela. */
+  var MOTIVOS_ESPERA_ENTRADA = [
+    { key: 'sem_vagas',        label: 'Turma sem vagas' },
+    { key: 'turma_encerrada',  label: 'Turma já encerrada' },
+    { key: 'remanejada',       label: 'Remanejada para próxima turma' },
+    { key: 'a_pedido',         label: 'A pedido da pessoa' },
+    { key: 'evento_encerrado', label: 'Evento encerrado' },
+    { key: 'outro',            label: 'Outro' },
+  ];
+  var MOTIVOS_ESPERA_SAIDA = [
+    { key: 'desistiu',         label: 'Desistiu / não tem mais interesse' },
+    { key: 'ja_participou',    label: 'Já participou de uma turma' },
+    { key: 'nao_responde',     label: 'Não respondeu aos contatos' },
+    { key: 'evento_encerrado', label: 'Evento encerrado' },
+    { key: 'duplicado',        label: 'Registro duplicado' },
+    { key: 'outro',            label: 'Outro' },
+  ];
+  function motivoEsperaLabel(key) {
+    var todos = MOTIVOS_ESPERA_ENTRADA.concat(MOTIVOS_ESPERA_SAIDA);
+    for (var i = 0; i < todos.length; i++) if (todos[i].key === key) return todos[i].label;
+    return key || '';
+  }
+
+  /* Confirmação com escolha de motivo obrigatória. Quando "Outro" é escolhido,
+     abre um campo de texto — também obrigatório, para não gravar motivo vazio. */
+  function adminConfirmComMotivo(mensagem, motivos, callbackSim) {
+    var overlay = document.createElement('div');
+    overlay.className = 'modal-overlay';
+    overlay.style.cssText = 'display:flex;align-items:center;justify-content:center;z-index:9999';
+    var box = document.createElement('div');
+    box.className = 'modal-box';
+    box.style.cssText = 'max-width:460px;width:90%;padding:28px;display:flex;flex-direction:column;gap:16px';
+    box.innerHTML =
+      '<p style="font-size:.95rem;line-height:1.6;color:var(--ink);white-space:pre-line">' + esc(mensagem) + '</p>' +
+      '<label class="admin-field-label">Motivo' +
+        '<select class="admin-motivo-select">' +
+          '<option value="">— selecione o motivo —</option>' +
+          motivos.map(function (m) { return '<option value="' + esc(m.key) + '">' + esc(m.label) + '</option>'; }).join('') +
+        '</select>' +
+      '</label>' +
+      '<input type="text" class="admin-motivo-outro" placeholder="Descreva o motivo" hidden />' +
+      '<p class="admin-motivo-erro" style="color:var(--red);font-size:.8rem;margin:0" hidden></p>' +
+      '<div style="display:flex;justify-content:flex-end;gap:8px">' +
+        '<button class="btn admin-modal-cancel-btn">Cancelar</button>' +
+        '<button class="btn btn--primary admin-modal-confirm-btn">Confirmar</button>' +
+      '</div>';
+    overlay.appendChild(box);
+    document.body.appendChild(overlay);
+
+    var sel   = box.querySelector('.admin-motivo-select');
+    var outro = box.querySelector('.admin-motivo-outro');
+    var erro  = box.querySelector('.admin-motivo-erro');
+
+    function fechar() { document.body.removeChild(overlay); }
+    sel.addEventListener('change', function () {
+      outro.hidden = sel.value !== 'outro';
+      erro.hidden = true;
+      if (!outro.hidden) outro.focus();
+    });
+    box.querySelector('.admin-modal-cancel-btn').addEventListener('click', fechar);
+    overlay.addEventListener('click', function (e) { if (e.target === overlay) fechar(); });
+    box.querySelector('.admin-modal-confirm-btn').addEventListener('click', function () {
+      if (!sel.value) { erro.textContent = 'Escolha um motivo.'; erro.hidden = false; sel.focus(); return; }
+      if (sel.value === 'outro' && !outro.value.trim()) {
+        erro.textContent = 'Descreva o motivo.'; erro.hidden = false; outro.focus(); return;
+      }
+      var motivo = sel.value;
+      var detalhe = sel.value === 'outro' ? outro.value.trim() : '';
+      fechar();
+      if (callbackSim) callbackSim(motivo, detalhe);
+    });
+    sel.focus();
   }
 
   /* ---- Adicionar participante manualmente (turma aberta ou com interesse
@@ -1876,8 +1953,10 @@
           if (p.migratedFrom) {
             var tLabel = (turmasVal[p.migratedFrom] && turmasVal[p.migratedFrom].label) || p.migratedFrom.toUpperCase();
             var quando = p.migratedAt ? new Date(p.migratedAt).toLocaleDateString('pt-BR') : '';
+            var motivoTxt = p.motivoEntradaDetalhe || motivoEsperaLabel(p.motivoEntrada);
             origem = '<span class="espera-origem">↩ ' + esc(tLabel) + '</span>' +
-              (quando ? '<span class="espera-origem-data">em ' + quando + '</span>' : '');
+              (quando ? '<span class="espera-origem-data">em ' + quando + '</span>' : '') +
+              (motivoTxt ? '<span class="espera-origem-motivo">' + esc(motivoTxt) + '</span>' : '');
           }
           tr.innerHTML =
             '<td>' + esc(p.name || '—') + '</td>' +
@@ -1925,12 +2004,23 @@
           remBtn.textContent = 'Remover da lista';
           remBtn.addEventListener('click', (function (person) {
             return function () {
-              adminConfirm('Remover ' + person.name + ' da lista de espera?', function () {
-                firebase.database().ref('fa-espera/' + person._key).update({ removed: true, removedDate: new Date().toISOString() }, function (err) {
-                  if (err) { adminAlert('Erro ao remover. Tente novamente.'); return; }
-                  loadEspera();
-                });
-              });
+              var sessRem = window.faAuth && window.faAuth.getSession();
+              adminConfirmComMotivo(
+                'Remover ' + person.name + ' da lista de espera?',
+                MOTIVOS_ESPERA_SAIDA,
+                function (motivo, detalhe) {
+                  firebase.database().ref('fa-espera/' + person._key).update({
+                    removed: true,
+                    removedDate: new Date().toISOString(),
+                    motivoSaida: motivo,
+                    motivoSaidaDetalhe: detalhe || null,
+                    removedByName: sessRem ? (sessRem.name || sessRem.email) : null,
+                  }, function (err) {
+                    if (err) { adminAlert('Erro ao remover. Tente novamente.'); return; }
+                    loadEspera();
+                  });
+                }
+              );
             };
           })(p));
           tdAcoes.appendChild(remBtn);
@@ -1944,14 +2034,14 @@
     });
   }
 
-  function migrarParaEspera(turmaKey, eKey, person) {
+  function migrarParaEspera(turmaKey, eKey, person, motivo, detalhe) {
     var sess = window.faAuth && window.faAuth.getSession();
     var now  = new Date().toISOString();
     var updates = {};
     /* Remove da turma (soft-delete) */
     updates['turmas-interesse/' + turmaKey + '/' + eKey + '/removed']            = true;
     updates['turmas-interesse/' + turmaKey + '/' + eKey + '/removedDate']        = now;
-    updates['turmas-interesse/' + turmaKey + '/' + eKey + '/removedReason']      = 'Movida para lista de espera';
+    updates['turmas-interesse/' + turmaKey + '/' + eKey + '/removedReason']      = 'Movida para lista de espera — ' + (detalhe || motivoEsperaLabel(motivo));
     updates['turmas-interesse/' + turmaKey + '/' + eKey + '/movedToEspera']      = true;
     updates['turmas-interesse/' + turmaKey + '/' + eKey + '/removedByAdmin']     = sess ? sess.email : null;
     updates['turmas-interesse/' + turmaKey + '/' + eKey + '/removedByAdminName'] = sess ? (sess.name || sess.email) : null;
@@ -1961,6 +2051,9 @@
       date: person.date,          /* data original — não a data de migração */
       migratedAt: now,
       migratedFrom: turmaKey,
+      motivoEntrada: motivo || null,
+      motivoEntradaDetalhe: detalhe || null,
+      migratedByName: sess ? (sess.name || sess.email) : null,
       removed: false
     };
     firebase.database().ref().update(updates, function (err) {
