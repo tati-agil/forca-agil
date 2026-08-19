@@ -1248,6 +1248,53 @@ details.manual-admin-subgroup[open] > .manual-admin-subhead,
 
 /* ── Avaliação da Oficina ── */
 #page-avaliacao .wrap { max-width: 820px; }
+
+/* ── Minha Área (participante) ── */
+#page-minha-area .wrap { max-width: 900px; }
+.aluno-sec-title { font-family: var(--font-head); font-size: 1rem; text-transform: uppercase; letter-spacing: .08em; color: var(--ink-2); margin: 32px 0 14px; }
+.aluno-sec-title:first-child { margin-top: 0; }
+.aluno-vazio { color: var(--ink-3); font-size: .88rem; line-height: 1.7; background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: 18px 20px; }
+.aluno-vazio a { color: var(--accent); }
+
+.aluno-turmas { display: flex; flex-direction: column; gap: 16px; }
+.aluno-card { background: var(--panel); border: 1px solid var(--line); border-radius: 12px; padding: 20px 22px; }
+.aluno-card-head { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; margin-bottom: 4px; }
+.aluno-card-title { font-family: var(--font-head); font-size: 1.05rem; color: var(--ink); margin: 0; }
+.aluno-card-sub { font-size: .82rem; color: var(--ink-3); margin: 2px 0 0; }
+.aluno-badge { font-family: var(--font-mono); font-size: .66rem; letter-spacing: .06em; text-transform: uppercase; padding: 3px 10px; border-radius: 20px; border: 1px solid currentColor; white-space: nowrap; }
+.aluno-badge--ok { color: #4caf7d; background: rgba(76,175,125,.12); }
+.aluno-badge--andamento { color: #42a5f5; background: rgba(66,165,245,.12); }
+
+.aluno-freq { margin-top: 18px; }
+.aluno-freq-top { display: flex; justify-content: space-between; align-items: baseline; font-size: .85rem; color: var(--ink-2); margin-bottom: 6px; }
+.aluno-freq-top strong { font-family: var(--font-head); font-size: 1.15rem; color: var(--ink); }
+.aluno-freq-bar { height: 8px; border-radius: 6px; background: var(--line); overflow: hidden; }
+.aluno-freq-bar span { display: block; height: 100%; border-radius: 6px; transition: width .4s; }
+.aluno-freq-info { font-size: .78rem; color: var(--ink-3); margin: 8px 0 0; }
+.aluno-dias { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 10px; }
+.aluno-dia { font-family: var(--font-mono); font-size: .7rem; padding: 3px 9px; border-radius: 6px; border: 1px solid var(--line-strong); color: var(--ink-3); }
+.aluno-dia--ok { color: #4caf7d; border-color: rgba(76,175,125,.5); background: rgba(76,175,125,.1); }
+
+.aluno-cert { margin-top: 18px; padding-top: 16px; border-top: 1px solid var(--line); }
+.aluno-cert-msg { font-size: .85rem; color: var(--ink-3); margin: 0; }
+.aluno-cert-msg--ok { color: #4caf7d; }
+.aluno-cert-msg--alerta { color: #f5a623; }
+.aluno-cert-btns { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 12px; }
+
+.aluno-aval { margin-top: 16px; padding-top: 14px; border-top: 1px solid var(--line); display: flex; align-items: center; gap: 12px; flex-wrap: wrap; font-size: .85rem; }
+.aluno-aval-ok { color: #4caf7d; }
+.aluno-aval-pend { color: var(--accent); }
+.aluno-aval-msg { color: var(--ink-3); }
+.aluno-aval .btn { text-decoration: none; }
+
+.aluno-pedidos { display: flex; flex-direction: column; gap: 10px; }
+.aluno-pedido { background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: 14px 18px; }
+.aluno-pedido-top { display: flex; justify-content: space-between; align-items: center; gap: 10px; margin-bottom: 6px; }
+.aluno-pedido-status { font-family: var(--font-mono); font-size: .7rem; letter-spacing: .05em; text-transform: uppercase; color: var(--accent); }
+.aluno-pedido-status--ok { color: #4caf7d; }
+.aluno-pedido-data { font-size: .74rem; color: var(--ink-3); }
+.aluno-pedido-texto { font-size: .86rem; color: var(--ink-2); line-height: 1.5; margin: 0; }
+.aluno-pedido-resp { font-size: .76rem; color: var(--ink-3); margin: 8px 0 0; font-style: italic; }
 .aval-hero { padding-top: 110px; text-align: center; margin-bottom: 40px; }
 .aval-hero .eyebrow { justify-content: center; margin-bottom: 12px; }
 .aval-hero h1 { font-family: var(--font-display); font-size: clamp(2rem,6vw,4rem); color: var(--ink); margin: 0 0 16px; }

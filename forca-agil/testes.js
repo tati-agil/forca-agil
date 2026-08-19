@@ -93,15 +93,30 @@
         { id: 'adm-testes-panel', label: 'Painel Testes presente', run: function () { return !!document.getElementById('adminPanelTestes'); } },
         { id: 'adm-pedidos-panel', label: 'Painel Pedidos presente', run: function () { return !!document.getElementById('adminPanelPedidos'); } },
         { id: 'adm-dashboard-panel', label: 'Painel Dashboard presente', run: function () { return !!document.getElementById('adminPanelDashboard'); } },
+        { id: 'c-minha-area-page', label: 'Minha Área: página e container presentes no DOM', run: function () {
+          return !!document.getElementById('page-minha-area') && !!document.getElementById('minhaAreaContent');
+        } },
+        { id: 'c-minha-area-link', label: 'Minha Área: link no menu visível para quem está logado', run: function () {
+          var link = document.querySelector('[data-nav-page="minha-area"]');
+          if (!link) return false;
+          var sess = window.faAuth && window.faAuth.getSession ? window.faAuth.getSession() : null;
+          return sess ? link.hidden === false : true;
+        } },
+        { id: 'c-minha-area-sem-qr', label: 'Minha Área: NÃO expõe QR Code de check-in (integridade da frequência)', run: function () {
+          var sec = document.getElementById('page-minha-area');
+          if (!sec) return false;
+          /* Nenhum canvas de QR nem link para #checkin dentro da área do participante */
+          return !sec.querySelector('canvas') && !sec.querySelector('a[href*="checkin"]');
+        } },
         { id: 'adm-cadastrados-panel', label: 'Painel Cadastrados presente', run: function () { return !!document.getElementById('adminPanelCadastrados') && !!document.getElementById('adminCadastrados'); } },
-        { id: 'adm-mapa-cards',   label: 'Mapa: 12 cards de seção renderizados (8 páginas do menu + Check-in, Entrar, Cadastrar e Menu/Sessão)', run: function () {
+        { id: 'adm-mapa-cards',   label: 'Mapa: 13 cards de seção renderizados (9 páginas do menu + Check-in, Entrar, Cadastrar e Menu/Sessão)', run: function () {
           if (window.faInitMapa) window.faInitMapa();
-          return document.querySelectorAll('#adminMapa .mapa-page').length === 12;
+          return document.querySelectorAll('#adminMapa .mapa-page').length === 13;
         } },
         { id: 'adm-mapa-features', label: 'Mapa: todos os cards têm features', run: function () {
           if (window.faInitMapa) window.faInitMapa();
           var cards = document.querySelectorAll('#adminMapa .mapa-page');
-          if (cards.length !== 12) return false;
+          if (cards.length !== 13) return false;
           return Array.from(cards).every(function (c) { return c.querySelectorAll('.mapa-feature').length > 0; });
         } },
         { id: 'adm-mapa-features-completas', label: 'Mapa: nenhum card renderiza menos features do que o definido (sem clipping)', run: function () {
@@ -1026,6 +1041,20 @@
       title: 'Aba Pedidos — excluir com justificativa obrigatória e restaurar',
       motivo: 'Em qualquer pedido não excluído, clicar "🗑 Excluir". Verificar: (1) abre formulário com seletor "— quem está excluindo? —" e caixa de texto para justificativa; (2) clicar "🗑 Confirmar exclusão" sem escolher admin nem preencher justificativa não grava nada (campos vazios recebem foco); (3) preencher os dois campos e confirmar — o item some da lista "Pendentes"/"Respondidos" e passa a aparecer só no filtro "Excluídos", com badge "🗑 Excluído" em vermelho, opacidade reduzida, e uma linha "Excluído por NOME em DATA. Justificativa: ..."; (4) no filtro "Excluídos", clicar "↺ Restaurar" — o pedido volta a aparecer no filtro correto (Pendentes se nunca foi respondido, Respondidos se já tinha sido); (5) recarregar a página — verificar que o estado de exclusão persiste (excluido/excluidoEm/excluidoPor/justificativaExclusao gravados em pedidos/<key> no Firebase).' },
 
+    /* ── Minha Área ───────────────────────────────────────────── */
+    { section: 'Minha Área',
+      title: 'Frequência e certificado batem com os dados reais',
+      motivo: 'Logar com uma conta confirmada numa turma que já teve check-ins e abrir "Minha Área". Conferir contra a aba Eventos do admin: (1) os dias marcados com ✓ são exatamente os mesmos em que a pessoa tem presença registrada; (2) a contagem "X de Y encontros" e o percentual batem; (3) o percentual mínimo exibido é o configurado naquele evento (não o padrão 75% fixo). Depois: (4) com a turma AINDA NÃO concluída, o certificado não deve estar disponível, com aviso explicando; (5) encerrar a turma pelo admin e recarregar — se a frequência atingiu o mínimo, os botões de PNG e PDF aparecem; se não atingiu, aparece a mensagem dizendo qual era a exigida e qual foi a dela.' },
+    { section: 'Minha Área',
+      title: 'Certificado baixado pelo aluno é idêntico ao emitido pelo admin',
+      motivo: 'Baixar o certificado de uma mesma pessoa pelos dois caminhos — pela "Minha Área" (como ela) e pela aba Certificados (como admin) — e comparar os arquivos: nome, evento, turma, período, carga horária (com o "h") e data de emissão devem ser iguais, no mesmo layout. Ambos usam o mesmo gerador, então qualquer diferença indica que algum dado está sendo montado errado num dos lados.' },
+    { section: 'Minha Área',
+      title: 'Pessoa sem turma confirmada vê a área sem quebrar',
+      motivo: 'Logar com uma conta que NÃO está confirmada em nenhuma turma (pode ter manifestado interesse ou não) e abrir "Minha Área". Verificar: (1) o link aparece no menu normalmente; (2) a seção de turmas mostra a mensagem explicando que a turma aparece ali após a confirmação do admin, com atalho para a página Turmas; (3) a seção "Meus pedidos" continua funcionando — se a pessoa já enviou pedidos, eles aparecem; (4) nada de erro no console nem área em branco.' },
+    { section: 'Minha Área',
+      title: 'QR Code de check-in NÃO aparece na área do participante',
+      motivo: 'Decisão de segurança que precisa se manter em qualquer mudança futura. Abrir "Minha Área" como participante confirmado numa turma e verificar que em nenhum lugar aparece o QR Code de check-in, nem link para a página de check-in. Motivo: o QR é o mesmo todos os dias e quem controla a validade é o admin abrindo o dia — se a pessoa tivesse o QR em mãos, poderia registrar presença de casa durante a janela aberta, e a frequência é justamente o que libera o certificado.' },
+
     /* ── Avaliação da Oficina ─────────────────────────────────── */
     { section: 'Avaliação',
       title: 'Admin libera avaliação por turma — aba aparece para inscrito',
@@ -1215,6 +1244,7 @@
       'Entrar':             '#c084fc',
       'Início':             '#1ab2ae',
       'Menu / Sessão':      '#7f9bff',
+      'Minha Área':         '#26a69a',
       'Repositório':        '#e8854a',
       'Treinamento Jedi':   '#e05c7f',
       'Turmas':             '#f5c542',
@@ -1346,6 +1376,7 @@
       'Firebase':                    '#1ab2ae',
       'Início':                      '#1ab2ae',
       'Menu / Sessão':               '#7f9bff',
+      'Minha Área':                  '#26a69a',
       'Repositório':                 '#e8854a',
       'Treinamento Jedi':            '#e05c7f',
       'Turmas':                      '#f5c542',

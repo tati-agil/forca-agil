@@ -239,6 +239,7 @@ body.aguardando-auth>*:not(#authModal){visibility:hidden}
     <a href="#repositorio" data-nav-page="repositorio" class="nav-link-member" hidden>Repositório</a>
     <a href="#treinamento" data-nav-page="treinamento" class="nav-link-enrolled" hidden>Treinamento</a>
     <a href="#avaliacao"  data-nav-page="avaliacao"  class="nav-link-aval" hidden>Avaliação</a>
+    <a href="#minha-area" data-nav-page="minha-area" class="nav-link-member" hidden>Minha Área</a>
     <a href="#ajuda"  data-nav-page="ajuda">Ajuda</a>
     <a href="#admin"       data-nav-page="admin" id="navAdmin" hidden>Admin</a>
   </div>
@@ -1616,6 +1617,22 @@ body.aguardando-auth>*:not(#authModal){visibility:hidden}
 </div>
 
 <!-- ======================================================
+     PAGE: MINHA ÁREA (área do participante)
+     ====================================================== -->
+<div class="page-section" id="page-minha-area" hidden>
+  <div class="wrap">
+    <div class="aval-hero">
+      <span class="eyebrow">Minha Área</span>
+      <h1>Minha Área</h1>
+      <p>Acompanhe sua turma, sua frequência, seus certificados e o andamento dos seus pedidos.</p>
+    </div>
+    <div id="minhaAreaContent">
+      <p class="loading-msg">Carregando…</p>
+    </div>
+  </div>
+</div>
+
+<!-- ======================================================
      PAGE: CHECK-IN (QR Code)
      ====================================================== -->
 <div class="page-section" id="page-checkin" hidden>
@@ -1673,6 +1690,7 @@ body.aguardando-auth>*:not(#authModal){visibility:hidden}
 <script src="forca-agil/testes.js"></script>
 <script src="forca-agil/pedidos.js"></script>
 <script src="forca-agil/dashboard.js"></script>
+<script src="forca-agil/aluno.js"></script>
 
 <!-- Admin guard: show/hide content based on auth -->
 <script src="forca-agil/init.js"></script>
