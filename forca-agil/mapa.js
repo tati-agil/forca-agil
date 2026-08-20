@@ -129,6 +129,7 @@
         { label: 'Aba Eventos — reabrir interesse da turma (sem mexer em confirmações já feitas)', p: ['admin'] },
         { label: 'Aba Eventos — abrir check-in do dia (com confirmação do dia + aviso se diferente de hoje)', p: ['admin'] },
         { label: 'Aba Eventos — fechar check-in do dia', p: ['admin'] },
+        { label: 'Aba Eventos — a tela não se recolhe a cada ação: depois de registrar presença, confirmar inscrição ou qualquer outra ação, o painel devolve os eventos e turmas que estavam expandidos, o filtro de status de cada turma, o acordeão de Removidos, o filtro "Ver evento" e o ponto da rolagem — dá para marcar presença de várias pessoas seguidas sem renavegar', p: ['admin'] },
         { label: 'Aba Eventos — gerar QR Code da turma', p: ['admin'] },
         { label: 'Aba Eventos — baixar QR Code de acesso ao site (com logotipo Força Ágil), para uso em cartazes/slides/materiais impressos', p: ['admin'] },
         { label: 'Aba Eventos — tabela de presença, registro manual', p: ['admin'] },

@@ -206,10 +206,26 @@
   }
 
   /* ---- Turmas tab ---- */
+  /* Estado da interface da aba Eventos, preservado entre recargas.
+     loadInterests() reconstrói a aba inteira do zero — é chamada depois de
+     cada ação (registrar presença, confirmar inscrição, remover…). Sem isto,
+     registrar a presença de uma pessoa recolhia o evento e a turma e jogava a
+     rolagem para o topo, obrigando a navegar tudo de novo a cada pessoa. */
+  var _uiEventosAbertos   = {};   /* { [eventoKey]: true } */
+  var _uiTurmasAbertas    = {};   /* { [turmaKey]:  true } */
+  var _uiRemovidosAbertos = {};   /* { [turmaKey]:  true } */
+  var _uiFiltroStatus     = {};   /* { [turmaKey]: 'todos' | 'confirmados' | 'nao_confirmados' } */
+  var _uiFiltroEvento     = '';   /* valor do select "Ver evento" */
+
   function loadInterests() {
     var c = document.getElementById('adminInterests');
     if (!c) return;
-    c.innerHTML = '<p class="loading-msg">Carregando dados…</p>';
+    /* Guarda a rolagem para devolver a pessoa ao mesmo ponto depois do
+       redesenho. E só mostra "Carregando" na primeira vez: numa recarga o
+       conteúdo sumir e voltar faz a página saltar. */
+    var scrollAntes = window.scrollY;
+    var primeiraVez = !c.querySelector('[data-ev-key]');
+    if (primeiraVez) c.innerHTML = '<p class="loading-msg">Carregando dados…</p>';
 
     loadTurmasList(function () {
     loadEventosList(function () {
@@ -496,7 +512,7 @@
               body.innerHTML = '<p class="admin-empty">Nenhum participante ativo.</p>';
             } else {
               /* Filtro por status — só faz sentido quando existem os dois grupos */
-              var filtroStatus = 'todos';
+              var filtroStatus = _uiFiltroStatus[t.key] || 'todos';
               var tabelaWrap = document.createElement('div');
 
               var redesenharTabela = function () {
@@ -521,10 +537,11 @@
                 ].forEach(function (f) {
                   var b = document.createElement('button');
                   b.type = 'button';
-                  b.className = 'turma-status-filtro-btn' + (f.key === 'todos' ? ' active' : '');
+                  b.className = 'turma-status-filtro-btn' + (f.key === filtroStatus ? ' active' : '');
                   b.textContent = f.label + ' (' + f.n + ')';
                   b.addEventListener('click', function () {
                     filtroStatus = f.key;
+                    _uiFiltroStatus[t.key] = f.key;
                     filtroBar.querySelectorAll('.turma-status-filtro-btn').forEach(function (x) { x.classList.remove('active'); });
                     b.classList.add('active');
                     redesenharTabela();
@@ -543,7 +560,8 @@
               var removedHdr = document.createElement('button');
               removedHdr.className = 'turma-removed-toggle';
               removedHdr.type = 'button';
-              removedHdr.setAttribute('aria-expanded', 'false');
+              var removidosAbertos = !!_uiRemovidosAbertos[t.key];
+              removedHdr.setAttribute('aria-expanded', String(removidosAbertos));
               var labelSpan = document.createElement('span');
               labelSpan.textContent = finalizada
                 ? 'Removidos (' + removed.length + ') — histórico de presença preservado'
@@ -551,31 +569,35 @@
               var iconSpan = document.createElement('span');
               iconSpan.className = 'turma-removed-icon';
               iconSpan.setAttribute('aria-hidden', 'true');
-              iconSpan.textContent = '▸';
+              iconSpan.textContent = removidosAbertos ? '▾' : '▸';
               removedHdr.appendChild(iconSpan);
               removedHdr.appendChild(labelSpan);
               var removedBody = document.createElement('div');
               removedBody.className = 'turma-removed-body';
-              removedBody.hidden = true;
+              removedBody.hidden = !removidosAbertos;
               removedBody.appendChild(finalizada ? buildRemovedPresencaTable(t, removed, checkinT) : buildRemovedInteressadosTable(removed));
               removedHdr.addEventListener('click', function () {
                 var expanded = removedHdr.getAttribute('aria-expanded') === 'true';
                 removedHdr.setAttribute('aria-expanded', String(!expanded));
                 iconSpan.textContent = expanded ? '▸' : '▾';
                 removedBody.hidden = expanded;
+                _uiRemovidosAbertos[t.key] = !expanded;
               });
               removedSection.appendChild(removedHdr);
               removedSection.appendChild(removedBody);
               body.appendChild(removedSection);
             }
-            body.style.display = 'none';
+            var turmaAberta = !!_uiTurmasAbertas[t.key];
+            body.style.display = turmaAberta ? '' : 'none';
             card.appendChild(body);
             var titleDiv = hdr.querySelector('.turma-admin-title');
             var turmaToggleIcon = hdr.querySelector('.turma-toggle-icon');
+            turmaToggleIcon.textContent = turmaAberta ? '▾' : '▸';
             titleDiv.addEventListener('click', function () {
               var collapsed = body.style.display === 'none';
               body.style.display = collapsed ? '' : 'none';
               turmaToggleIcon.textContent = collapsed ? '▾' : '▸';
+              _uiTurmasAbertas[t.key] = collapsed;
             });
             return card;
           }
@@ -626,11 +648,14 @@
             /* turmas do evento — começa recolhido */
             var turmasWrap = document.createElement('div');
             turmasWrap.className = 'ev-turmas-wrap';
-            turmasWrap.style.cssText = 'padding:16px;display:none;flex-direction:column;gap:16px';
+            var evAberto = !!_uiEventosAbertos[ev.key];
+            turmasWrap.style.cssText = 'padding:16px;display:' + (evAberto ? 'flex' : 'none') + ';flex-direction:column;gap:16px';
+            evToggleIcon.textContent = evAberto ? '▾' : '▸';
             evHdr.addEventListener('click', function () {
               var collapsed = turmasWrap.style.display === 'none';
               turmasWrap.style.display = collapsed ? 'flex' : 'none';
               evToggleIcon.textContent = collapsed ? '▾' : '▸';
+              _uiEventosAbertos[ev.key] = collapsed;
             });
             if (!turmasEvento.length) {
               var tEmpty = document.createElement('p');
@@ -668,12 +693,14 @@
             var icon = evSec.querySelector('.ev-toggle-icon');
             if (tw) tw.style.display = expanded ? 'flex' : 'none';
             if (icon) icon.textContent = expanded ? '▾' : '▸';
+            _uiEventosAbertos[evSec.getAttribute('data-ev-key')] = expanded;
           }
           function setTurmaExpanded(cardEl, expanded) {
             var b = cardEl.querySelector('.turma-admin-body');
             var icon = cardEl.querySelector('.turma-toggle-icon');
             if (b) b.style.display = expanded ? '' : 'none';
             if (icon) icon.textContent = expanded ? '▾' : '▸';
+            _uiTurmasAbertas[cardEl.id.replace('turma-card-', '')] = expanded;
           }
           expandAllBtn.addEventListener('click', function () {
             Array.from(c.querySelectorAll('[data-ev-key]')).forEach(function (sec) { setEvExpanded(sec, true); });
@@ -683,14 +710,30 @@
             Array.from(c.querySelectorAll('[data-ev-key]')).forEach(function (sec) { setEvExpanded(sec, false); });
             Array.from(c.querySelectorAll('.turma-admin-card')).forEach(function (cd) { setTurmaExpanded(cd, false); });
           });
-          filterSel.addEventListener('change', function () {
+          function aplicarFiltroEvento(expandirEscolhido) {
             var chosen = filterSel.value;
             Array.from(c.querySelectorAll('[data-ev-key]')).forEach(function (sec) {
               var matches = !chosen || sec.getAttribute('data-ev-key') === chosen;
               sec.style.display = matches ? '' : 'none';
-              if (matches && chosen) setEvExpanded(sec, true);
+              if (matches && chosen && expandirEscolhido) setEvExpanded(sec, true);
             });
+          }
+          filterSel.addEventListener('change', function () {
+            _uiFiltroEvento = filterSel.value;
+            aplicarFiltroEvento(true);
           });
+          /* Reaplica o filtro escolhido antes do redesenho — sem expandir de
+             novo, para não desfazer o que a pessoa recolheu na mão. */
+          if (_uiFiltroEvento) {
+            filterSel.value = _uiFiltroEvento;
+            if (filterSel.value !== _uiFiltroEvento) _uiFiltroEvento = '';  /* evento apagado nesse meio-tempo */
+            else aplicarFiltroEvento(false);
+          }
+
+          /* Devolve a rolagem ao ponto onde a pessoa estava. */
+          if (!primeiraVez && scrollAntes) {
+            requestAnimationFrame(function () { window.scrollTo(0, scrollAntes); });
+          }
         });
       });
     });
