@@ -1118,6 +1118,10 @@
           '<input type="checkbox" class="sorteio-sem-repetir" checked>' +
           '<span>Não repetir quem já foi sorteado nesta turma</span>' +
         '</label>' +
+        '<label class="sorteio-check sorteio-check--teste">' +
+          '<input type="checkbox" class="sorteio-teste">' +
+          '<span>Ensaio — não registra no histórico e não vale como sorteio</span>' +
+        '</label>' +
       '</div>' +
       '<div class="sorteio-palco"><p class="sorteio-placeholder">Pronto para sortear.</p></div>' +
       '<div class="sorteio-hist-wrap"></div>' +
@@ -1130,6 +1134,7 @@
 
     var qtdInput  = box.querySelector('.sorteio-qtd');
     var semRepInp = box.querySelector('.sorteio-sem-repetir');
+    var testeInp  = box.querySelector('.sorteio-teste');
     var palco     = box.querySelector('.sorteio-palco');
     var histWrap  = box.querySelector('.sorteio-hist-wrap');
     var btnSortear= box.querySelector('.sorteio-btn');
@@ -1209,6 +1214,15 @@
       btnSortear.disabled = pool.length === 0;
     }
     semRepInp.addEventListener('change', atualizarDisponivel);
+    /* O modo ensaio muda o rótulo do botão e marca o modal inteiro — a
+       ideia é ser impossível ensaiar achando que valeu, ou valer achando
+       que era ensaio. */
+    testeInp.addEventListener('change', function () {
+      box.classList.toggle('sorteio-box--teste', testeInp.checked);
+      btnSortear.textContent = testeInp.checked ? '🎲 Ensaiar (não vale)' : '🎲 Sortear';
+      palco.innerHTML = '<p class="sorteio-placeholder">' +
+        (testeInp.checked ? 'Modo ensaio: o resultado não será registrado.' : 'Pronto para sortear.') + '</p>';
+    });
 
     btnSortear.addEventListener('click', function () {
       var pool = elegiveis();
@@ -1218,6 +1232,7 @@
         adminAlert('Só há ' + pool.length + ' pessoa(s) disponível(is). Serão sorteadas ' + qtd + '.');
       }
       var ganhadores = sortearAleatorio(pool, qtd);
+      var ehTeste    = testeInp.checked;
 
       /* Animação: passa nomes aleatórios na tela antes de parar no
          resultado. É teatro, mas é o que faz o sorteio parecer sorteio
@@ -1229,6 +1244,18 @@
         palco.innerHTML = '<p class="sorteio-girando">' + esc(qualquer.name || '') + '</p>';
         if (++giros > 18) {
           clearInterval(timer);
+          /* No ensaio o resultado aparece marcado e não vai para o banco:
+             ninguém "ganhou" nada, e o próximo sorteio de verdade continua
+             com todo mundo concorrendo. */
+          if (ehTeste) {
+            palco.innerHTML = '<p class="sorteio-resultado-label sorteio-label-teste">Ensaio — não vale</p>' +
+              '<ul class="sorteio-resultado sorteio-resultado--teste">' +
+              ganhadores.map(function (g) { return '<li>' + esc(g.name || '') + '</li>'; }).join('') +
+              '</ul>' +
+              '<p class="sorteio-teste-obs">Nada foi registrado. Desmarque "Ensaio" para valer.</p>';
+            btnSortear.disabled = false;
+            return;
+          }
           palco.innerHTML = '<p class="sorteio-resultado-label">' +
             (ganhadores.length > 1 ? 'Sorteados' : 'Sorteada(o)') + '</p>' +
             '<ul class="sorteio-resultado">' +

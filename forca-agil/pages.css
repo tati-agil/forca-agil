@@ -821,3 +821,11 @@
 .sorteio-hist-meta { font-family: var(--font-mono); font-size: .7rem; color: var(--ink-3); }
 
 .sorteio-acoes { display: flex; justify-content: flex-end; gap: 8px; }
+
+/* Modo ensaio — visualmente inconfundível para não sortear achando que valeu */
+.sorteio-check--teste span { color: var(--ink-3); }
+.sorteio-box--teste { border: 1px solid rgba(255,179,71,.55); }
+.sorteio-box--teste .sorteio-palco { border-color: rgba(255,179,71,.5); background: rgba(255,179,71,.05); }
+.sorteio-label-teste { color: #ffb347 !important; }
+.sorteio-resultado--teste li { color: var(--ink-2); font-style: italic; }
+.sorteio-teste-obs { font-size: .76rem; color: #ffb347; margin: 10px 0 0; }
