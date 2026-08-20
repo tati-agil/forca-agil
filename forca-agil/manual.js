@@ -557,7 +557,10 @@
       title: 'Aba: Manual — expandir/recolher tudo',
       body: 'Botões "Expandir tudo" e "Recolher tudo" abrem ou fecham de uma vez todas as regras visíveis na combinação de filtros atual.' },
     { section: 'admin', personas: ['admin'],
-      title: 'Aba: Manual e Mapa — subgrupos dentro de ADMIN',
+      /* O subgrupo sai do prefixo do título: "Aba: Manual e Mapa — …" criava
+         um subgrupo próprio "ADMIN · MANUAL E MAPA" com uma regra só, ao lado
+         de MANUAL e de MAPA. A regra é sobre o Manual — fica nele. */
+      title: 'Aba: Manual — subgrupos dentro da categoria ADMIN',
       body: 'A categoria ADMIN reúne itens de todas as 11 abas do painel — para não virar uma lista única confusa, é subagrupada automaticamente por aba a partir do prefixo "Aba X — " de cada título (regex: itens sem esse prefixo caem em "ADMIN · GERAL"). Cada subgrupo (ex: "ADMIN · EVENTOS") mostra sua própria contagem entre parênteses e é retrátil — clicar no subcabeçalho abre/fecha só aquele grupo, sem precisar abrir a categoria ADMIN inteira de uma vez. "Expandir tudo"/"Recolher tudo" também abrangem os subgrupos.' },
     { section: 'admin', personas: ['admin'],
       title: 'Aba: Mapa',
