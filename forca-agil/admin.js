@@ -1124,11 +1124,15 @@
           '<span>Ensaio — não registra no histórico e não vale como sorteio</span>' +
         '</label>' +
       '</div>' +
-      '<div class="sorteio-palco"><p class="sorteio-placeholder">Pronto para sortear.</p></div>' +
+      /* O modo vigente é declarado o tempo todo, nos dois sentidos — o
+         ensaio avisava que não valia, mas o sorteio real não afirmava
+         que valia, e ficava por conta de notar a ausência do aviso. */
+      '<p class="sorteio-modo sorteio-modo--vale">✅ Sorteio para valer — o resultado será registrado no histórico desta turma e na aba Sorteios.</p>' +
+      '<div class="sorteio-palco"><p class="sorteio-placeholder">Pronto para sortear. Vale.</p></div>' +
       '<div class="sorteio-hist-wrap"></div>' +
       '<div class="sorteio-acoes">' +
         '<button class="btn sorteio-fechar">Fechar</button>' +
-        '<button class="btn btn--primary sorteio-btn">🎲 Sortear</button>' +
+        '<button class="btn btn--primary sorteio-btn">🎲 Sortear para valer</button>' +
       '</div>';
     overlay.appendChild(box);
     document.body.appendChild(overlay);
@@ -1218,11 +1222,17 @@
     /* O modo ensaio muda o rótulo do botão e marca o modal inteiro — a
        ideia é ser impossível ensaiar achando que valeu, ou valer achando
        que era ensaio. */
+    var faixaModo = box.querySelector('.sorteio-modo');
     testeInp.addEventListener('change', function () {
-      box.classList.toggle('sorteio-box--teste', testeInp.checked);
-      btnSortear.textContent = testeInp.checked ? '🎲 Ensaiar (não vale)' : '🎲 Sortear';
+      var teste = testeInp.checked;
+      box.classList.toggle('sorteio-box--teste', teste);
+      btnSortear.textContent = teste ? '🎲 Ensaiar (não vale)' : '🎲 Sortear para valer';
+      faixaModo.className = 'sorteio-modo ' + (teste ? 'sorteio-modo--teste' : 'sorteio-modo--vale');
+      faixaModo.textContent = teste
+        ? '⚠️ Ensaio — nada será registrado e ninguém sai do sorteio de verdade.'
+        : '✅ Sorteio para valer — o resultado será registrado no histórico desta turma e na aba Sorteios.';
       palco.innerHTML = '<p class="sorteio-placeholder">' +
-        (testeInp.checked ? 'Modo ensaio: o resultado não será registrado.' : 'Pronto para sortear.') + '</p>';
+        (teste ? 'Modo ensaio: o resultado não será registrado.' : 'Pronto para sortear. Vale.') + '</p>';
     });
 
     btnSortear.addEventListener('click', function () {
@@ -1268,7 +1278,14 @@
             quando: new Date().toISOString(),
             sorteadoPorNome: sess ? (sess.name || sess.email) : null,
             semRepetir: !!semRepInp.checked,
-          }, function () { carregarHistorico(); loadSorteios(); btnSortear.disabled = false; });
+          }, function (errPush) {
+            /* Só afirma "registrado" depois que o banco confirmou — dizer
+               antes seria a mesma armadilha do ensaio parecendo real. */
+            palco.insertAdjacentHTML('beforeend', errPush
+              ? '<p class="sorteio-teste-obs">⚠️ O sorteio saiu, mas não foi possível registrar. Anote os nomes e tente de novo.</p>'
+              : '<p class="sorteio-vale-obs">✓ Registrado no histórico desta turma e na aba Sorteios.</p>');
+            carregarHistorico(); loadSorteios(); btnSortear.disabled = false;
+          });
         }
       }, 70);
     });

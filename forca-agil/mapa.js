@@ -131,6 +131,7 @@
         { label: 'Aba Eventos — fechar check-in do dia', p: ['admin'] },
         { label: 'Aba Eventos — sortear pessoas na turma pelo menu "⋯" → "🎲 Sorteio". Só entram os participantes CONFIRMADOS: quem apenas manifestou interesse nunca é sorteado', p: ['admin'] },
         { label: 'Aba Eventos — no sorteio dá para escolher quantas pessoas sortear de uma vez e marcar "não repetir quem já foi sorteado nesta turma" (ligado por padrão)', p: ['admin'] },
+        { label: 'Aba Eventos — o sorteio declara o tempo todo se vale ou é ensaio: faixa verde "Sorteio para valer — será registrado" ou faixa âmbar "Ensaio — nada será registrado", com o botão e o palco acompanhando; a confirmação "Registrado" só aparece depois que o banco gravou', p: ['admin'] },
         { label: 'Aba Eventos — modo "Ensaio" no sorteio: testa a mecânica sem registrar nada e sem tirar ninguém do sorteio de verdade; o modal muda de cor e o resultado aparece marcado como ensaio', p: ['admin'] },
         { label: 'Aba Eventos — cada sorteio fica registrado com os nomes, a data e hora e quem sorteou; o histórico aparece no próprio modal e pode ser limpo (aí todo mundo volta a poder ser sorteado)', p: ['admin'] },
         { label: 'Aba Eventos — o botão "🎲 Sorteio" fica desabilitado enquanto a turma não tiver nenhum participante confirmado', p: ['admin'] },

@@ -843,3 +843,12 @@
 .sorteios-quando { white-space: nowrap; font-family: var(--font-mono); font-size: .76rem; color: var(--ink-2); }
 .sorteios-nomes { color: var(--accent); }
 .sorteios-por { font-size: .78rem; color: var(--ink-3); }
+
+/* Faixa que declara o modo vigente do sorteio — sempre visível, nos dois sentidos */
+.sorteio-modo {
+  font-size: .78rem; line-height: 1.5; margin: 0;
+  padding: 9px 12px; border-radius: 8px;
+}
+.sorteio-modo--vale  { color: #4caf7d; background: rgba(76,175,125,.10); border: 1px solid rgba(76,175,125,.28); }
+.sorteio-modo--teste { color: #ffb347; background: rgba(255,179,71,.10); border: 1px solid rgba(255,179,71,.32); }
+.sorteio-vale-obs { font-size: .76rem; color: #4caf7d; margin: 10px 0 0; }
