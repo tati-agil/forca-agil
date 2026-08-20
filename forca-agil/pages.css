@@ -829,3 +829,17 @@
 .sorteio-label-teste { color: #ffb347 !important; }
 .sorteio-resultado--teste li { color: var(--ink-2); font-style: italic; }
 .sorteio-teste-obs { font-size: .76rem; color: #ffb347; margin: 10px 0 0; }
+
+/* ── Aba Sorteios ── */
+.sorteios-filtros { display: flex; align-items: flex-end; gap: 14px; flex-wrap: wrap; margin-bottom: 16px; }
+.sorteios-filtro { display: flex; flex-direction: column; gap: 5px; font-size: .76rem; color: var(--ink-2); }
+.sorteios-filtro select {
+  background: var(--panel-2); border: 1px solid var(--line-strong); border-radius: 4px;
+  color: var(--ink); padding: 5px 8px; font-size: .82rem; cursor: pointer;
+  max-width: 260px; min-width: 150px;
+}
+.sorteios-export { margin-left: auto; padding: 5px 12px; font-size: .74rem; }
+.sorteios-resumo { font-family: var(--font-mono); font-size: .74rem; color: var(--ink-3); margin: 0 0 12px; }
+.sorteios-quando { white-space: nowrap; font-family: var(--font-mono); font-size: .76rem; color: var(--ink-2); }
+.sorteios-nomes { color: var(--accent); }
+.sorteios-por { font-size: .78rem; color: var(--ink-3); }

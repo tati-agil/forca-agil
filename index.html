@@ -1289,6 +1289,7 @@ body.aguardando-auth>*:not(#authModal){visibility:hidden}
         <button class="admin-tab-btn" data-panel="adminPanelMapa">Mapa</button>
         <button class="admin-tab-btn" data-panel="adminPanelTestes">Testes</button>
         <button class="admin-tab-btn" data-panel="adminPanelPedidos">Pedidos</button>
+        <button class="admin-tab-btn" data-panel="adminPanelSorteios">Sorteios</button>
       </div>
       <div class="admin-expand-bar" id="adminExpandBar">
         <span class="admin-expand-label">Expansíveis:</span>
@@ -1341,6 +1342,12 @@ body.aguardando-auth>*:not(#authModal){visibility:hidden}
       </div>
       <div class="admin-tab-panel" id="adminPanelPedidos">
         <div id="adminPedidos"></div>
+      </div>
+
+      <div class="admin-tab-panel" id="adminPanelSorteios">
+        <div id="adminSorteios">
+          <p class="loading-msg">Carregando sorteios…</p>
+        </div>
       </div>
 
       <div class="admin-tab-panel" id="adminPanelCert">

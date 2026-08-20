@@ -100,6 +100,7 @@
     loadEspera();
     loadCadastrados();
     loadAdmins();
+    loadSorteios();
     if (window.faInitManual) window.faInitManual();
     if (window.faInitMapa) window.faInitMapa();
     if (window.faInitTestes) window.faInitTestes();
@@ -1184,7 +1185,7 @@
       histWrap.querySelector('.sorteio-limpar').addEventListener('click', function () {
         adminConfirm('Limpar o histórico de sorteios da turma "' + t.label + '"?\n\nOs ' + historico.length +
           ' sorteio(s) já realizados serão apagados e todo mundo volta a poder ser sorteado.', function () {
-          refSorteios.remove(function () { carregarHistorico(); });
+          refSorteios.remove(function () { carregarHistorico(); loadSorteios(); });
         });
       });
     }
@@ -1267,12 +1268,173 @@
             quando: new Date().toISOString(),
             sorteadoPorNome: sess ? (sess.name || sess.email) : null,
             semRepetir: !!semRepInp.checked,
-          }, function () { carregarHistorico(); btnSortear.disabled = false; });
+          }, function () { carregarHistorico(); loadSorteios(); btnSortear.disabled = false; });
         }
       }, 70);
     });
 
     carregarHistorico();
+  }
+
+  /* ══════════════════════════════════════════════════════════════════
+     ABA SORTEIOS — todos os sorteios, de todas as turmas, num lugar só
+
+     O histórico dentro do modal só mostra a turma aberta. Esta aba
+     reúne tudo, com filtro por evento e por turma, para consultar
+     depois quem foi sorteado sem precisar entrar turma por turma.
+     Ensaios nunca chegam aqui: eles não são gravados.
+     ══════════════════════════════════════════════════════════════════ */
+  function loadSorteios() {
+    var c = document.getElementById('adminSorteios');
+    if (!c) return;
+    c.innerHTML = '<p class="loading-msg">Carregando sorteios…</p>';
+
+    loadTurmasList(function () {
+    loadEventosList(function () {
+      firebase.database().ref('turmas-sorteio').once('value', function (snap) {
+        var raw = snap.val() || {};
+        /* Achata para uma lista única, já com evento e turma resolvidos */
+        var linhas = [];
+        Object.keys(raw).forEach(function (tk) {
+          var turma  = TURMAS_LIST.filter(function (t) { return t.key === tk; })[0];
+          var evento = turma && turma.eventoKey
+            ? EVENTOS_LIST.filter(function (e) { return e.key === turma.eventoKey; })[0]
+            : null;
+          Object.keys(raw[tk] || {}).forEach(function (sk) {
+            var s = raw[tk][sk] || {};
+            linhas.push({
+              turmaKey:   tk,
+              turmaLabel: (turma && turma.label) || tk,
+              eventoKey:  (turma && turma.eventoKey) || '',
+              eventoNome: (evento && evento.nome) || '(sem evento)',
+              ganhadores: s.ganhadores || [],
+              quando:     s.quando || '',
+              porNome:    s.sorteadoPorNome || '',
+            });
+          });
+        });
+        linhas.sort(function (a, b) { return (b.quando || '').localeCompare(a.quando || ''); });
+        renderSorteios(c, linhas);
+      }, function (err) {
+        console.error('[sorteios]', err);
+        c.innerHTML = '<p class="admin-empty">Erro ao carregar os sorteios. Recarregue a página.</p>';
+      });
+    });
+    });
+  }
+
+  function renderSorteios(c, linhas) {
+    var fEvento = '';
+    var fTurma  = '';
+
+    c.innerHTML = '';
+
+    var barra = document.createElement('div');
+    barra.className = 'sorteios-filtros';
+    barra.innerHTML =
+      '<label class="sorteios-filtro">Evento <select class="sorteios-f-evento"></select></label>' +
+      '<label class="sorteios-filtro">Turma <select class="sorteios-f-turma"></select></label>' +
+      '<button class="btn btn--sm sorteios-export" type="button">&#x2193; Exportar CSV</button>';
+    c.appendChild(barra);
+
+    var resumo = document.createElement('p');
+    resumo.className = 'sorteios-resumo';
+    c.appendChild(resumo);
+
+    var lista = document.createElement('div');
+    lista.className = 'sorteios-lista';
+    c.appendChild(lista);
+
+    var selEv = barra.querySelector('.sorteios-f-evento');
+    var selTu = barra.querySelector('.sorteios-f-turma');
+
+    /* Só oferece nos filtros o que realmente tem sorteio — um filtro que
+       leva a "nenhum resultado" só faz perder tempo. */
+    function opcoesEvento() {
+      var vistos = {};
+      linhas.forEach(function (l) { vistos[l.eventoKey] = l.eventoNome; });
+      selEv.innerHTML = '<option value="">Todos os eventos</option>';
+      Object.keys(vistos).forEach(function (k) {
+        selEv.innerHTML += '<option value="' + esc(k) + '">' + esc(vistos[k]) + '</option>';
+      });
+    }
+    function opcoesTurma() {
+      var vistos = {};
+      linhas.filter(function (l) { return !fEvento || l.eventoKey === fEvento; })
+            .forEach(function (l) { vistos[l.turmaKey] = l.turmaLabel; });
+      selTu.innerHTML = '<option value="">Todas as turmas</option>';
+      Object.keys(vistos).forEach(function (k) {
+        selTu.innerHTML += '<option value="' + esc(k) + '">' + esc(vistos[k]) + '</option>';
+      });
+      if (fTurma && !vistos[fTurma]) fTurma = '';   /* turma some ao trocar de evento */
+      selTu.value = fTurma;
+    }
+
+    function filtradas() {
+      return linhas.filter(function (l) {
+        return (!fEvento || l.eventoKey === fEvento) && (!fTurma || l.turmaKey === fTurma);
+      });
+    }
+
+    function desenhar() {
+      var ls = filtradas();
+      var pessoas = ls.reduce(function (n, l) { return n + l.ganhadores.length; }, 0);
+      resumo.textContent = ls.length
+        ? ls.length + ' sorteio' + (ls.length !== 1 ? 's' : '') + ' · ' +
+          pessoas + ' pessoa' + (pessoas !== 1 ? 's' : '') + ' sorteada' + (pessoas !== 1 ? 's' : '')
+        : '';
+
+      if (!ls.length) {
+        lista.innerHTML = '<p class="admin-empty">' +
+          (linhas.length ? 'Nenhum sorteio neste filtro.'
+                         : 'Nenhum sorteio realizado ainda. Os sorteios são feitos na aba Eventos, no menu “⋯” de cada turma. Ensaios não aparecem aqui.') +
+          '</p>';
+        return;
+      }
+      var h = '<table class="admin-table"><thead><tr>' +
+        '<th>Quando</th><th>Evento</th><th>Turma</th><th>Sorteada(s)</th><th>Sorteado por</th>' +
+        '</tr></thead><tbody>';
+      ls.forEach(function (l) {
+        h += '<tr>' +
+          '<td class="sorteios-quando">' + esc(l.quando ? new Date(l.quando).toLocaleString('pt-BR') : '—') + '</td>' +
+          '<td>' + esc(l.eventoNome) + '</td>' +
+          '<td>' + esc(l.turmaLabel) + '</td>' +
+          '<td class="sorteios-nomes">' + esc(l.ganhadores.map(function (g) { return g.name; }).join(', ')) + '</td>' +
+          '<td class="sorteios-por">' + esc(l.porNome || '—') + '</td>' +
+        '</tr>';
+      });
+      h += '</tbody></table>';
+      lista.innerHTML = h;
+    }
+
+    selEv.addEventListener('change', function () {
+      fEvento = selEv.value;
+      opcoesTurma();
+      desenhar();
+    });
+    selTu.addEventListener('change', function () { fTurma = selTu.value; desenhar(); });
+
+    barra.querySelector('.sorteios-export').addEventListener('click', function () {
+      var ls = filtradas();
+      if (!ls.length) { adminAlert('Não há sorteios neste filtro para exportar.'); return; }
+      var rows = [];
+      ls.forEach(function (l) {
+        /* Uma linha por pessoa — planilha com vários nomes numa célula
+           não dá para filtrar nem contar. */
+        (l.ganhadores.length ? l.ganhadores : [{ name: '', email: '' }]).forEach(function (g) {
+          rows.push([
+            l.quando ? new Date(l.quando).toLocaleString('pt-BR') : '',
+            l.eventoNome, l.turmaLabel, g.name || '', g.email || '', l.porNome || '',
+          ]);
+        });
+      });
+      toXls(['Quando', 'Evento', 'Turma', 'Nome sorteado', 'E-mail', 'Sorteado por'],
+        rows, 'sorteios-' + new Date().toISOString().slice(0, 10) + '.csv');
+    });
+
+    opcoesEvento();
+    opcoesTurma();
+    desenhar();
   }
 
   /* Motivos usados nos dois fluxos da lista de espera. "evento_encerrado"

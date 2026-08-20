@@ -92,6 +92,10 @@
         { id: 'adm-mapa-panel',   label: 'Painel Mapa presente',   run: function () { return !!document.getElementById('adminPanelMapa'); } },
         { id: 'adm-testes-panel', label: 'Painel Testes presente', run: function () { return !!document.getElementById('adminPanelTestes'); } },
         { id: 'adm-pedidos-panel', label: 'Painel Pedidos presente', run: function () { return !!document.getElementById('adminPanelPedidos'); } },
+        { id: 'adm-sorteios-panel', label: 'Painel Sorteios presente (aba + container)', run: function () {
+          return !!document.getElementById('adminPanelSorteios') && !!document.getElementById('adminSorteios') &&
+                 !!document.querySelector('.admin-tab-btn[data-panel="adminPanelSorteios"]');
+        } },
         { id: 'adm-dashboard-panel', label: 'Painel Dashboard presente', run: function () { return !!document.getElementById('adminPanelDashboard'); } },
         { id: 'c-minha-area-page', label: 'Minha Área: página e container presentes no DOM', run: function () {
           return !!document.getElementById('page-minha-area') && !!document.getElementById('minhaAreaContent');
@@ -918,6 +922,9 @@
       title: 'Sorteio — só entram os confirmados',
       motivo: 'A regra central da funcionalidade. Numa turma que tenha os dois grupos, comparar o número que aparece no modal ("Participando: N pessoas confirmadas") com o número do filtro "Confirmados" da tabela — têm que ser iguais, e diferentes do total. Sortear várias vezes seguidas e conferir que nenhum nome que está em "Não confirmados" sai. Depois confirmar uma pessoa que estava só interessada, reabrir o modal e verificar que o número subiu e que ela passou a poder ser sorteada. Testar também a turma sem nenhum confirmado: o botão "🎲 Sorteio" deve estar desabilitado, com explicação ao passar o mouse.' },
     { section: 'Admin',
+      title: 'Aba Sorteios — filtros por evento e turma',
+      motivo: 'Com sorteios feitos em turmas de eventos diferentes, abrir a aba Sorteios. Verificar: (1) todos aparecem, do mais recente para o mais antigo, com quando, evento, turma, nomes e quem sorteou; (2) escolher um evento — a tabela filtra e a lista de turmas passa a mostrar só as turmas daquele evento; (3) escolher uma turma — filtra mais ainda; (4) trocar de evento com uma turma selecionada — a turma volta para "Todas" em vez de deixar a tela vazia; (5) o resumo acima da tabela ("N sorteios · M pessoas") acompanha o filtro; (6) os selects não oferecem eventos ou turmas sem nenhum sorteio. Fazer um sorteio novo na aba Eventos e voltar: ele já deve estar na lista, sem precisar recarregar a página. Por fim, "↓ Exportar CSV": baixa só o que está filtrado, abre no Excel com acentos corretos e traz UMA LINHA POR PESSOA sorteada, com nome e e-mail — não vários nomes numa célula só.' },
+    { section: 'Admin',
       title: 'Sorteio — modo Ensaio não deixa rastro',
       motivo: 'Marcar "Ensaio" e sortear algumas vezes. Verificar: (1) o modal muda de cor e o botão passa a dizer "Ensaiar (não vale)" — é impossível confundir com o sorteio real; (2) o resultado aparece marcado como ensaio, sem o 🎉, com o aviso de que nada foi registrado; (3) o histórico NÃO ganha nenhuma linha nova; (4) o contador de disponíveis não cai. Depois desmarcar "Ensaio" e sortear de verdade: quem "saiu" nos ensaios tem que continuar concorrendo normalmente, e só aí o histórico recebe a linha. Fechar e reabrir o modal para confirmar que a opção volta desmarcada — um sorteio só é ensaio quando pedido de propósito.' },
     { section: 'Admin',
@@ -1179,8 +1186,8 @@
       title: 'Turmas — CSV exportado tem caracteres especiais corretos e abre editável',
       motivo: 'Baixar qualquer CSV (Estado atual, Histórico ou individual). Verificar no Excel: (1) acentos, cedilha e caracteres especiais aparecem corretamente (sem "?" ou "Ã"); (2) arquivo abre em modo edição — sem modo protegido, sem "somente leitura".' },
     { section: 'Admin',
-      title: 'Admin — visibilidade das 10 abas no mobile',
-      motivo: 'Acessar o painel Admin em tela estreita (celular). Verificar: todas as 10 abas (Dashboard, Eventos, Certificados, Repositório, Cadastrados, Administradores, Manual, Mapa, Testes, Pedidos) estão visíveis (quebram em 2 linhas); nenhuma aba fica oculta ou cortada.' },
+      title: 'Admin — visibilidade das 11 abas no mobile',
+      motivo: 'Acessar o painel Admin em tela estreita (celular). Verificar: todas as 11 abas (Dashboard, Eventos, Certificados, Repositório, Cadastrados, Administradores, Manual, Mapa, Testes, Pedidos, Sorteios) estão visíveis (quebram em 2 linhas); nenhuma aba fica oculta ou cortada.' },
     { section: 'Deploy',
       title: 'Pre-commit hook — bloqueia commit com erro de sintaxe JS',
       motivo: 'Verificar manualmente: editar um arquivo JS com erro intencional (ex: remover um "}" ao final) e tentar fazer git commit — o commit deve ser recusado com mensagem de erro indicando o arquivo. Desfazer a edição após o teste.' },
