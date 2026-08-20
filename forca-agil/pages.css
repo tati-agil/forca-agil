@@ -769,3 +769,55 @@
   font-family: var(--font-mono); font-size: .82rem; color: var(--ink-3);
   padding: 20px 0;
 }
+
+/* ── Sorteio da turma (modal do painel Admin) ── */
+.sorteio-box {
+  max-width: 520px; width: 92%; padding: 26px 28px;
+  display: flex; flex-direction: column; gap: 16px;
+  max-height: 88vh; overflow-y: auto;
+}
+.sorteio-titulo { font-family: var(--font-head); font-size: 1.05rem; color: var(--ink); margin: 0; }
+.sorteio-pool { font-size: .84rem; line-height: 1.6; color: var(--ink-2); margin: 0; }
+.sorteio-pool strong { color: var(--accent); }
+
+.sorteio-opcoes { display: flex; flex-direction: column; gap: 10px; }
+.sorteio-campo { display: flex; align-items: center; gap: 10px; font-size: .84rem; color: var(--ink-2); }
+.sorteio-campo input {
+  width: 72px; background: var(--panel-2); border: 1px solid var(--line-strong);
+  border-radius: 4px; color: var(--ink); padding: 5px 8px; font-size: .85rem;
+}
+.sorteio-check { display: flex; align-items: center; gap: 8px; font-size: .82rem; color: var(--ink-2); cursor: pointer; }
+.sorteio-disponivel { font-family: var(--font-mono); font-size: .74rem; color: var(--ink-3); margin: 0; }
+
+/* Palco — onde os nomes giram e o resultado aparece */
+.sorteio-palco {
+  min-height: 108px; display: flex; flex-direction: column;
+  align-items: center; justify-content: center; text-align: center;
+  border: 1px dashed var(--line-strong); border-radius: 10px; padding: 18px 16px;
+}
+.sorteio-placeholder { font-size: .84rem; color: var(--ink-3); margin: 0; }
+.sorteio-girando { font-family: var(--font-head); font-size: 1.25rem; color: var(--ink-2); margin: 0; opacity: .75; }
+.sorteio-resultado-label {
+  font-family: var(--font-mono); font-size: .7rem; letter-spacing: .12em;
+  text-transform: uppercase; color: var(--ink-3); margin: 0 0 8px;
+}
+.sorteio-resultado { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 6px; }
+.sorteio-resultado li { font-family: var(--font-head); font-size: 1.2rem; color: var(--accent); }
+
+/* Histórico */
+.sorteio-hist-vazio { font-size: .78rem; color: var(--ink-3); margin: 0; }
+.sorteio-hist-head {
+  display: flex; align-items: center; justify-content: space-between; gap: 10px;
+  font-family: var(--font-mono); font-size: .72rem; letter-spacing: .06em;
+  text-transform: uppercase; color: var(--ink-3); margin-bottom: 8px;
+}
+.sorteio-limpar {
+  background: none; border: none; color: #ff8080; font-size: .72rem;
+  cursor: pointer; padding: 0; text-decoration: underline;
+}
+.sorteio-hist { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 8px; max-height: 160px; overflow-y: auto; }
+.sorteio-hist li { display: flex; flex-direction: column; gap: 2px; border-left: 2px solid var(--line-strong); padding-left: 10px; }
+.sorteio-hist-nomes { font-size: .84rem; color: var(--ink); }
+.sorteio-hist-meta { font-family: var(--font-mono); font-size: .7rem; color: var(--ink-3); }
+
+.sorteio-acoes { display: flex; justify-content: flex-end; gap: 8px; }

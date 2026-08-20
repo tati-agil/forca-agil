@@ -87,6 +87,16 @@
       }
     },
 
+    "turmas-sorteio": {
+      ".read": "auth != null && auth.token.email.matches(/.*@previ\\.com\\.br/)",
+      "$turmaKey": {
+        ".write": "auth != null && auth.token.email.matches(/.*@previ\\.com\\.br/)",
+        "$sorteioKey": {
+          ".write": "auth != null && auth.token.email.matches(/.*@previ\\.com\\.br/)"
+        }
+      }
+    },
+
     "fa-seeds-hidden": {
       ".read": "auth != null && auth.token.email.matches(/.*@previ\\.com\\.br/)",
       "$key": {

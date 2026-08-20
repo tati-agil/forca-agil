@@ -471,6 +471,20 @@
               moreMenu.appendChild(encerrarBtn);
             }
 
+            /* Sorteio — só entra quem está confirmado na turma */
+            var sorteioBtn = document.createElement('button');
+            sorteioBtn.className = 'btn btn--sm';
+            sorteioBtn.style.cssText = 'padding:6px 10px;font-size:.72rem';
+            sorteioBtn.innerHTML = '&#x1F3B2; Sorteio';
+            sorteioBtn.title = inscritos.length
+              ? 'Sortear entre os ' + inscritos.length + ' participantes confirmados'
+              : 'Nenhum participante confirmado nesta turma ainda';
+            sorteioBtn.disabled = !inscritos.length;
+            sorteioBtn.addEventListener('click', (function (tt, conf) {
+              return function () { openSorteioModal(tt, conf); };
+            })(t, inscritos));
+            moreMenu.appendChild(sorteioBtn);
+
             var editTurmaBtn = document.createElement('button');
             editTurmaBtn.className = 'btn btn--sm';
             editTurmaBtn.style.cssText = 'padding:6px 10px;font-size:.72rem';
@@ -1046,6 +1060,192 @@
       closeConfirm();
       if (callbackSim) callbackSim();
     });
+  }
+
+  /* ══════════════════════════════════════════════════════════════════
+     SORTEIO DA TURMA
+
+     Sorteia pessoas entre os participantes CONFIRMADOS de uma turma —
+     mesmo conjunto que o filtro "Confirmados" da tabela mostra. Quem só
+     manifestou interesse e ainda não foi confirmado nunca entra no
+     sorteio: a confirmação é o que define quem de fato faz parte da
+     turma.
+
+     Cada sorteio fica gravado em turmas-sorteio/<turma>, com quem saiu,
+     quando e quem sorteou. Isso serve a duas coisas: dá para provar
+     depois quem foi sorteado, e permite não repetir ganhador.
+
+     O embaralhamento usa crypto.getRandomValues quando disponível —
+     Math.random() é previsível o bastante para que, num sorteio com
+     plateia, a lisura seja questionável.
+     ══════════════════════════════════════════════════════════════════ */
+
+  /* Fisher-Yates com fonte aleatória criptográfica quando existir */
+  function sortearAleatorio(lista, quantos) {
+    var arr = lista.slice();
+    function randInt(max) {
+      if (window.crypto && window.crypto.getRandomValues) {
+        var buf = new Uint32Array(1);
+        var limite = Math.floor(4294967296 / max) * max;   /* descarta o resto para não enviesar */
+        do { window.crypto.getRandomValues(buf); } while (buf[0] >= limite);
+        return buf[0] % max;
+      }
+      return Math.floor(Math.random() * max);
+    }
+    for (var i = arr.length - 1; i > 0; i--) {
+      var j = randInt(i + 1);
+      var tmp = arr[i]; arr[i] = arr[j]; arr[j] = tmp;
+    }
+    return arr.slice(0, quantos);
+  }
+
+  function openSorteioModal(t, confirmados) {
+    var overlay = document.createElement('div');
+    overlay.className = 'modal-overlay';
+    overlay.style.cssText = 'display:flex;align-items:center;justify-content:center;z-index:9999';
+    var box = document.createElement('div');
+    box.className = 'modal-box sorteio-box';
+    box.innerHTML =
+      '<h3 class="sorteio-titulo">🎲 Sorteio — ' + esc(t.label) + '</h3>' +
+      '<p class="sorteio-pool">Participando: <strong>' + confirmados.length + '</strong> pessoa' +
+        (confirmados.length !== 1 ? 's' : '') + ' confirmada' + (confirmados.length !== 1 ? 's' : '') +
+        ' nesta turma. Quem ainda não foi confirmado não entra no sorteio.</p>' +
+      '<div class="sorteio-opcoes">' +
+        '<label class="sorteio-campo">Quantas pessoas sortear' +
+          '<input type="number" class="sorteio-qtd" min="1" value="1">' +
+        '</label>' +
+        '<label class="sorteio-check">' +
+          '<input type="checkbox" class="sorteio-sem-repetir" checked>' +
+          '<span>Não repetir quem já foi sorteado nesta turma</span>' +
+        '</label>' +
+      '</div>' +
+      '<div class="sorteio-palco"><p class="sorteio-placeholder">Pronto para sortear.</p></div>' +
+      '<div class="sorteio-hist-wrap"></div>' +
+      '<div class="sorteio-acoes">' +
+        '<button class="btn sorteio-fechar">Fechar</button>' +
+        '<button class="btn btn--primary sorteio-btn">🎲 Sortear</button>' +
+      '</div>';
+    overlay.appendChild(box);
+    document.body.appendChild(overlay);
+
+    var qtdInput  = box.querySelector('.sorteio-qtd');
+    var semRepInp = box.querySelector('.sorteio-sem-repetir');
+    var palco     = box.querySelector('.sorteio-palco');
+    var histWrap  = box.querySelector('.sorteio-hist-wrap');
+    var btnSortear= box.querySelector('.sorteio-btn');
+    qtdInput.max = String(Math.max(1, confirmados.length));
+
+    function fechar() {
+      if (document.body.contains(overlay)) document.body.removeChild(overlay);
+    }
+    box.querySelector('.sorteio-fechar').addEventListener('click', fechar);
+    overlay.addEventListener('click', function (e) { if (e.target === overlay) fechar(); });
+
+    var refSorteios = firebase.database().ref('turmas-sorteio/' + t.key);
+    var historico   = [];   /* [{ _key, ganhadores:[], quando, sorteadoPorNome }] */
+
+    function jaSorteados() {
+      var set = {};
+      historico.forEach(function (s) {
+        (s.ganhadores || []).forEach(function (g) { set[(g.email || '').toLowerCase()] = true; });
+      });
+      return set;
+    }
+
+    function elegiveis() {
+      if (!semRepInp.checked) return confirmados;
+      var ja = jaSorteados();
+      return confirmados.filter(function (p) { return !ja[(p.email || '').toLowerCase()]; });
+    }
+
+    function renderHistorico() {
+      if (!historico.length) {
+        histWrap.innerHTML = '<p class="sorteio-hist-vazio">Nenhum sorteio realizado nesta turma ainda.</p>';
+        return;
+      }
+      var h = '<div class="sorteio-hist-head">' +
+        '<span>Sorteios anteriores (' + historico.length + ')</span>' +
+        '<button class="sorteio-limpar" type="button">Limpar histórico</button>' +
+      '</div><ul class="sorteio-hist">';
+      historico.forEach(function (s) {
+        var quando = s.quando ? new Date(s.quando).toLocaleString('pt-BR') : '';
+        h += '<li><span class="sorteio-hist-nomes">' +
+             esc((s.ganhadores || []).map(function (g) { return g.name; }).join(', ')) +
+             '</span><span class="sorteio-hist-meta">' + esc(quando) +
+             (s.sorteadoPorNome ? ' · por ' + esc(s.sorteadoPorNome) : '') + '</span></li>';
+      });
+      h += '</ul>';
+      histWrap.innerHTML = h;
+      histWrap.querySelector('.sorteio-limpar').addEventListener('click', function () {
+        adminConfirm('Limpar o histórico de sorteios da turma "' + t.label + '"?\n\nOs ' + historico.length +
+          ' sorteio(s) já realizados serão apagados e todo mundo volta a poder ser sorteado.', function () {
+          refSorteios.remove(function () { carregarHistorico(); });
+        });
+      });
+    }
+
+    function carregarHistorico() {
+      refSorteios.once('value', function (snap) {
+        var v = snap.val() || {};
+        historico = Object.keys(v).map(function (k) {
+          return Object.assign({ _key: k }, v[k]);
+        }).sort(function (a, b) { return (b.quando || '').localeCompare(a.quando || ''); });
+        renderHistorico();
+        atualizarDisponivel();
+      });
+    }
+
+    function atualizarDisponivel() {
+      var pool = elegiveis();
+      var aviso = box.querySelector('.sorteio-disponivel');
+      if (!aviso) {
+        aviso = document.createElement('p');
+        aviso.className = 'sorteio-disponivel';
+        box.querySelector('.sorteio-opcoes').appendChild(aviso);
+      }
+      aviso.textContent = semRepInp.checked
+        ? 'Disponíveis para este sorteio: ' + pool.length + ' de ' + confirmados.length + '.'
+        : 'Disponíveis para este sorteio: ' + confirmados.length + ' (todos, inclusive quem já foi sorteado).';
+      btnSortear.disabled = pool.length === 0;
+    }
+    semRepInp.addEventListener('change', atualizarDisponivel);
+
+    btnSortear.addEventListener('click', function () {
+      var pool = elegiveis();
+      var qtd  = Math.max(1, Math.min(Number(qtdInput.value) || 1, pool.length));
+      if (!pool.length) { adminAlert('Não há ninguém disponível para sortear.'); return; }
+      if (Number(qtdInput.value) > pool.length) {
+        adminAlert('Só há ' + pool.length + ' pessoa(s) disponível(is). Serão sorteadas ' + qtd + '.');
+      }
+      var ganhadores = sortearAleatorio(pool, qtd);
+
+      /* Animação: passa nomes aleatórios na tela antes de parar no
+         resultado. É teatro, mas é o que faz o sorteio parecer sorteio
+         para quem está assistindo — o resultado já foi definido acima. */
+      btnSortear.disabled = true;
+      var giros = 0;
+      var timer = setInterval(function () {
+        var qualquer = pool[Math.floor(Math.random() * pool.length)];
+        palco.innerHTML = '<p class="sorteio-girando">' + esc(qualquer.name || '') + '</p>';
+        if (++giros > 18) {
+          clearInterval(timer);
+          palco.innerHTML = '<p class="sorteio-resultado-label">' +
+            (ganhadores.length > 1 ? 'Sorteados' : 'Sorteada(o)') + '</p>' +
+            '<ul class="sorteio-resultado">' +
+            ganhadores.map(function (g) { return '<li>🎉 ' + esc(g.name || '') + '</li>'; }).join('') +
+            '</ul>';
+          var sess = window.faAuth && window.faAuth.getSession();
+          refSorteios.push({
+            ganhadores: ganhadores.map(function (g) { return { name: g.name || '', email: g.email || '' }; }),
+            quando: new Date().toISOString(),
+            sorteadoPorNome: sess ? (sess.name || sess.email) : null,
+            semRepetir: !!semRepInp.checked,
+          }, function () { carregarHistorico(); btnSortear.disabled = false; });
+        }
+      }, 70);
+    });
+
+    carregarHistorico();
   }
 
   /* Motivos usados nos dois fluxos da lista de espera. "evento_encerrado"
