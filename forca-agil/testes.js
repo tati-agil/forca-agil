@@ -87,7 +87,7 @@
         } },
         { id: 'adm-manual', label: 'faInitManual disponível',   run: function () { return typeof window.faInitManual === 'function'; } },
         { id: 'adm-mapa',   label: 'faInitMapa disponível',     run: function () { return typeof window.faInitMapa === 'function'; } },
-        { id: 'adm-tabs',   label: 'Abas Admin presentes (10: Dashboard/Eventos/Certificados/Repositório/Cadastrados/Administradores/Manual/Mapa/Testes/Pedidos)', run: function () { return document.querySelectorAll('.admin-tab-btn').length === 10; } },
+        { id: 'adm-tabs',   label: 'Abas Admin presentes (11: Dashboard/Eventos/Certificados/Repositório/Cadastrados/Administradores/Manual/Mapa/Testes/Pedidos/Sorteios)', run: function () { return document.querySelectorAll('.admin-tab-btn').length === 11; } },
         { id: 'adm-manual-panel', label: 'Painel Manual presente', run: function () { return !!document.getElementById('adminPanelManual'); } },
         { id: 'adm-mapa-panel',   label: 'Painel Mapa presente',   run: function () { return !!document.getElementById('adminPanelMapa'); } },
         { id: 'adm-testes-panel', label: 'Painel Testes presente', run: function () { return !!document.getElementById('adminPanelTestes'); } },
