@@ -181,6 +181,69 @@
   });
 
   /* ══════════════════════════════════════════════════════════════════
+     DIAGNÓSTICO DE CONEXÃO
+
+     Quando a rede corporativa bloqueia o serviço, a pessoa só sabe que
+     "não funciona" — o que não dá para levar à TI. Este teste diz QUAL
+     endereço está barrado, em português, com o texto pronto para ser
+     encaminhado a quem libera.
+
+     Os endereços testados são os mesmos que o site já declara como
+     permitidos na sua política de segurança; nenhum dado sai daqui.
+     ══════════════════════════════════════════════════════════════════ */
+  function diagnosticarConexao(saida, botao) {
+    if (!saida) return;
+    botao.disabled = true;
+    botao.textContent = 'Testando…';
+    saida.hidden = false;
+    saida.innerHTML = '<p class="auth-diag-linha">Verificando os três endereços de que o site precisa…</p>';
+
+    /* O SDK vem de gstatic: se não carregou, "firebase" nem existe */
+    var sdkOk = (typeof firebase !== 'undefined');
+
+    function testar(url) {
+      /* no-cors: só interessa saber se a rede DEIXA sair, não a resposta */
+      return Promise.race([
+        fetch(url, { mode: 'no-cors', cache: 'no-store' }).then(function () { return true; }).catch(function () { return false; }),
+        new Promise(function (r) { setTimeout(function () { r(false); }, 8000); })
+      ]);
+    }
+
+    Promise.all([
+      testar('https://identitytoolkit.googleapis.com/'),
+      testar('https://kyber-agil-default-rtdb.firebaseio.com/.json?shallow=true')
+    ]).then(function (res) {
+      var itens = [
+        { nome: 'Carregamento do sistema', dominio: 'www.gstatic.com', ok: sdkOk },
+        { nome: 'Login e senha',           dominio: 'identitytoolkit.googleapis.com', ok: res[0] },
+        { nome: 'Dados do site',           dominio: 'kyber-agil-default-rtdb.firebaseio.com', ok: res[1] }
+      ];
+      var bloqueados = itens.filter(function (i) { return !i.ok; });
+
+      var h = itens.map(function (i) {
+        return '<p class="auth-diag-linha">' + (i.ok ? '✅' : '❌') + ' ' + i.nome +
+               ' <span class="auth-diag-dom">' + i.dominio + '</span></p>';
+      }).join('');
+
+      if (!bloqueados.length) {
+        h += '<p class="auth-diag-conc">Os três endereços responderam. Se ainda assim não entrar, ' +
+             'pode ser lentidão momentânea — recarregue a página.</p>';
+      } else {
+        h += '<p class="auth-diag-conc">Sua rede está bloqueando ' +
+             (bloqueados.length === 1 ? 'este endereço' : 'estes endereços') +
+             '. Encaminhe o texto abaixo para a equipe de TI:</p>' +
+             '<textarea class="auth-diag-txt" readonly rows="4">' +
+             'O site forca-agil.previ.com.br precisa de acesso aos endereços abaixo, que estão bloqueados nesta rede:\n' +
+             bloqueados.map(function (i) { return '- ' + i.dominio; }).join('\n') +
+             '\n\nSão os servidores de autenticação e banco de dados usados pelo site.</textarea>';
+      }
+      saida.innerHTML = h;
+      botao.disabled = false;
+      botao.textContent = 'Testar de novo';
+    });
+  }
+
+  /* ══════════════════════════════════════════════════════════════════
      REDE DE SEGURANÇA — tela preta quando o Firebase não responde.
 
      Enquanto a autenticação não resolve, o body inteiro fica escondido
@@ -206,9 +269,14 @@
     aviso.innerHTML =
       '<strong>Demorando para conectar</strong>' +
       'Não conseguimos falar com o servidor. Você pode tentar entrar assim mesmo — ' +
-      'se não funcionar, verifique sua conexão e recarregue a página.';
+      'se não funcionar, verifique sua conexão e recarregue a página.' +
+      '<button type="button" class="auth-diag-btn">Testar conexão</button>' +
+      '<div class="auth-diag-saida" hidden></div>';
     var caixa = modal.querySelector('.modal-box') || modal.firstElementChild || modal;
     caixa.insertBefore(aviso, caixa.firstChild);
+    aviso.querySelector('.auth-diag-btn').addEventListener('click', function () {
+      diagnosticarConexao(aviso.querySelector('.auth-diag-saida'), this);
+    });
   }, 10000);
 
   /* Login/logout em tempo real */

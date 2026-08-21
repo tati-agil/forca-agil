@@ -1857,3 +1857,20 @@ button.arq-card[data-arch-target]:hover { filter: brightness(1.25); transform: t
   font-size: .82rem; line-height: 1.6; color: var(--ink-2);
 }
 .auth-sem-conexao strong { display: block; color: #ffb347; margin-bottom: 4px; font-size: .86rem; }
+
+/* Diagnóstico de conexão dentro do aviso de login */
+.auth-diag-btn {
+  margin-top: 10px; padding: 6px 12px; font-family: var(--font-mono); font-size: .7rem;
+  letter-spacing: .08em; text-transform: uppercase; color: #ffb347; background: transparent;
+  border: 1px solid rgba(255,179,71,.55); border-radius: 6px; cursor: pointer;
+}
+.auth-diag-btn:disabled { opacity: .6; cursor: default; }
+.auth-diag-saida { margin-top: 10px; }
+.auth-diag-linha { margin: 4px 0; font-size: .8rem; color: var(--ink-2); }
+.auth-diag-dom { font-family: var(--font-mono); font-size: .72rem; color: var(--ink-3); display: block; margin-left: 20px; word-break: break-all; }
+.auth-diag-conc { margin: 10px 0 6px; font-size: .8rem; line-height: 1.55; color: var(--ink-2); }
+.auth-diag-txt {
+  width: 100%; box-sizing: border-box; background: var(--panel); color: var(--ink-2);
+  border: 1px solid var(--line-strong); border-radius: 6px; padding: 8px;
+  font-family: var(--font-mono); font-size: .7rem; line-height: 1.5; resize: vertical;
+}
