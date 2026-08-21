@@ -747,6 +747,9 @@
   ================================================================ */
   const COMPORTAMENTO_MANUAL = [
     { section: 'Entrar',
+      title: 'Servidor sem resposta não pode deixar a tela preta',
+      motivo: 'Simular a falta de resposta do servidor: abrir o site e, antes de ele carregar, cortar a internet (modo avião ou desconectar o cabo). Verificar: (1) NÃO fica uma tela preta indefinida; (2) em cerca de 10 segundos aparece a tela de login com o aviso "Demorando para conectar"; (3) clicando em "Testar conexão", os quatro itens aparecem marcados como bloqueados e surge o texto pronto para a TI; (4) religando a internet e recarregando, o site volta ao normal e o aviso não aparece. Testar também o caminho oposto, numa rede corporativa com proxy: se os quatro derem OK e o site ainda assim demorar, o diagnóstico deve mostrar os TEMPOS de cada parte — é o que distingue lentidão para baixar o sistema de lentidão do servidor.' },
+    { section: 'Entrar',
       title: 'Login — erro de credenciais',
       motivo: 'Requer tentativa de login com senha errada, o que causaria falha de autenticação real.' },
     { section: 'Entrar',
@@ -1082,6 +1085,9 @@
 
     /* ── Minha Área ───────────────────────────────────────────── */
 { section: 'Minha Área',
+      title: 'Admin: "Ver esta tela como" mostra a tela da pessoa certa',
+      motivo: 'Logada como admin, abrir Minha Área. Verificar: (1) a barra "Ver esta tela como" aparece — e NÃO aparece para quem não é admin; (2) a lista traz as pessoas com a situação ao lado do nome, sem repetir quem está em mais de uma turma; (3) escolhendo alguém CONFIRMADA numa turma concluída, a tela mostra a turma, a frequência e o certificado liberado, com o aviso no topo dizendo de quem é a tela; conferir a frequência contra a aba Eventos; (4) escolhendo alguém com só INTERESSE, aparece o bloco de inscrição em análise; (5) escolhendo alguém da LISTA DE ESPERA, aparece o bloco da fila; (6) escolhendo alguém REMOVIDA de todas as turmas, aparece a tela de boas-vindas; (7) voltando para "— eu mesma —", a tela volta a ser a do admin e o aviso some; (8) os pedidos listados são os DA PESSOA escolhida, não os do admin. Por fim, confirmar que é só visualização: nada foi gravado em nome de ninguém — conferir que o registro da pessoa no Firebase não mudou.' },
+    { section: 'Minha Área',
       title: 'A vitrine só oferece turma onde dá para entrar',
       motivo: 'Com uma conta sem turma confirmada, abrir Minha Área e conferir a lista "Turmas abertas no momento": só podem aparecer turmas em que ainda dá para manifestar interesse. Uma turma com o interesse já encerrado pelo admin está lotada e NÃO pode aparecer — convidar para ela é mandar a pessoa a uma porta fechada, o mesmo erro que o card da página Turmas tinha. Também não podem aparecer turmas já encerradas nem as que já começaram. Testar encerrando o interesse de uma turma e recarregando: ela tem que sumir da lista. Se nenhuma turma se qualificar, a tela deve dizer que não há turmas abertas no momento, e não sumir com o bloco.' },
         { section: 'Minha Área',
