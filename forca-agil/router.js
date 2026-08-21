@@ -225,6 +225,49 @@
     }).join('');
   }
 
+  /* O Firebase guarda a sessão no armazenamento do navegador. Se esse
+     armazenamento estiver bloqueado por política da máquina, ou travar sem
+     dar erro, a verificação de quem está logado NUNCA termina — os
+     endereços respondem, a rede está boa, e mesmo assim o site não sai da
+     espera. É o padrão que estamos vendo. */
+  function testarArmazenamento() {
+    var resultados = [];
+
+    try {
+      localStorage.setItem('__fa_teste', '1');
+      localStorage.removeItem('__fa_teste');
+      resultados.push(['Memória do navegador (localStorage)', true, 'disponível']);
+    } catch (e) {
+      resultados.push(['Memória do navegador (localStorage)', false, 'bloqueado: ' + (e.name || 'erro')]);
+    }
+
+    resultados.push(['Cookies', !!navigator.cookieEnabled, navigator.cookieEnabled ? 'habilitados' : 'desabilitados']);
+
+    return new Promise(function (resolve) {
+      if (!window.indexedDB) {
+        resultados.push(['Banco local (IndexedDB)', false, 'não existe neste navegador']);
+        return resolve(resultados);
+      }
+      var respondeu = false;
+      function fim(ok, obs) {
+        if (respondeu) return;
+        respondeu = true;
+        resultados.push(['Banco local (IndexedDB)', ok, obs]);
+        resolve(resultados);
+      }
+      try {
+        var req = indexedDB.open('__fa_teste', 1);
+        req.onsuccess = function () { try { req.result.close(); indexedDB.deleteDatabase('__fa_teste'); } catch (e) {} fim(true, 'disponível'); };
+        req.onerror   = function () { fim(false, 'bloqueado'); };
+        req.onblocked = function () { fim(false, 'travado'); };
+        /* Travar sem responder é o caso mais perigoso: não dá erro nenhum */
+        setTimeout(function () { fim(false, 'não respondeu em 5s — travado'); }, 5000);
+      } catch (e) {
+        fim(false, 'bloqueado: ' + (e.name || 'erro'));
+      }
+    });
+  }
+
   function diagnosticarConexao(saida, botao) {
     if (!saida) return;
     botao.disabled = true;
@@ -284,9 +327,11 @@
            não acesso. Mostra quanto demorou cada peça, que é o que permite
            dizer se a lentidão está em baixar o sistema ou em conversar com
            o servidor. */
-        h += '<p class="auth-diag-conc">Nenhum endereço está bloqueado — o problema é de <strong>lentidão</strong>. ' +
+        h += '<p class="auth-diag-conc">Nenhum endereço está bloqueado. ' +
              'Veja quanto tempo cada parte levou:</p>';
         h += medirTempos();
+        h += '<p class="auth-diag-conc">E se o navegador deixa o site guardar a sessão:</p>' +
+             '<div class="auth-diag-armaz">verificando…</div>';
       } else {
         h += '<p class="auth-diag-conc">Sua rede está bloqueando ' +
              (bloqueados.length === 1 ? 'este endereço' : 'estes endereços') +
@@ -299,6 +344,27 @@
       saida.innerHTML = h;
       botao.disabled = false;
       botao.textContent = 'Testar de novo';
+
+      var alvo = saida.querySelector('.auth-diag-armaz');
+      if (alvo) {
+        testarArmazenamento().then(function (res) {
+          var bloq = res.filter(function (r) { return !r[1]; });
+          alvo.innerHTML = res.map(function (r) {
+            return '<p class="auth-diag-linha">' + (r[1] ? '✅' : '❌') + ' ' + r[0] +
+                   '<span class="auth-diag-dom">' + r[2] + '</span></p>';
+          }).join('') + (bloq.length
+            ? '<p class="auth-diag-conc">É esta a causa: sem poder guardar a sessão, o site não consegue ' +
+              'confirmar quem você é e fica esperando para sempre. Costuma ser política de segurança da máquina ' +
+              'ou do navegador. Encaminhe para a TI:</p>' +
+              '<textarea class="auth-diag-txt" readonly rows="4">' +
+              'No site forca-agil.previ.com.br, o navegador está impedindo o armazenamento local, o que trava o login.\n' +
+              'Itens bloqueados: ' + bloq.map(function (r) { return r[0]; }).join(', ') + '\n' +
+              'Navegador: ' + navigator.userAgent + '\n' +
+              'Pedido: permitir armazenamento local (cookies, localStorage e IndexedDB) para este endereço.</textarea>'
+            : '<p class="auth-diag-conc">O armazenamento está liberado. Se mesmo assim não entrar, ' +
+              'me avise com esta tela — a causa está em outro ponto.</p>');
+        });
+      }
     });
   }
 
