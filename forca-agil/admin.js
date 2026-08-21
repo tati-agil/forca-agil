@@ -3121,10 +3121,16 @@
       /* sem auto-seleção — usuário escolhe o participante */
     }
 
-    /* calcula frequência de um participante (0–100) */
+    /* calcula frequência de um participante (0–100)
+
+       A chave TEM de ser a mesma que o check-in grava — emailKey(), com
+       "@" e "." virando "_". Aqui havia um formato próprio, trocando "."
+       por ",", que não existe em lugar nenhum do resto do sistema: nunca
+       encontrava ninguém e por isso todo mundo aparecia com 0%, com os
+       botões de emissão bloqueados mesmo para quem tinha 100%. */
     function calcFreq(email) {
       if (!_diasTurma.length) return null;
-      var eKey = email.replace(/\./g, ',');
+      var eKey = emailKey(email);
       var presentes = _diasTurma.filter(function (d) {
         return _checkinTurma[d] && _checkinTurma[d][eKey];
       }).length;
