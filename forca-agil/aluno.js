@@ -71,19 +71,35 @@
       db.ref('turmas-config').once('value'),
       db.ref('turmas-checkin').once('value'),
       db.ref('eventos').once('value'),
-      db.ref('avaliacoes').once('value'),
       db.ref('pedidos').once('value'),
       db.ref('fa-espera').once('value'),
     ]).then(function (r) {
-      cb({
+      var d = {
         interesse: r[0].val() || {},
         turmas:    r[1].val() || {},
         config:    r[2].val() || {},
         checkin:   r[3].val() || {},
         eventos:   r[4].val() || {},
-        avaliacoes:r[5].val() || {},
-        pedidos:   r[6].val() || {},
-        espera:    r[7].val() || {},
+        pedidos:   r[5].val() || {},
+        espera:    r[6].val() || {},
+        avaliacoes: {},
+      };
+      /* As avaliações são lidas UMA A UMA, só a da própria pessoa em cada
+         turma. Ler o nó inteiro exporia as respostas de todo mundo — e as
+         regras do banco agora reservam essa leitura para os admins. Aqui
+         só interessa saber se ela já respondeu, não o que respondeu. */
+      var tks = Object.keys(d.turmas);
+      return Promise.all(tks.map(function (tk) {
+        return db.ref('avaliacoes/' + tk + '/' + uKey).once('value')
+          .then(function (s) { return { tk: tk, respondeu: !!s.val() }; })
+          .catch(function () { return { tk: tk, respondeu: false }; });
+      })).then(function (res) {
+        res.forEach(function (x) {
+          if (!x.respondeu) return;
+          d.avaliacoes[x.tk] = {};
+          d.avaliacoes[x.tk][uKey] = true;
+        });
+        cb(d);
       });
     }).catch(function (err) {
       console.error('[minha-area]', err);

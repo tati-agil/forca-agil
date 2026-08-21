@@ -1090,6 +1090,12 @@
 
     /* ── Avaliação da Oficina ─────────────────────────────────── */
     { section: 'Avaliação',
+      title: 'Ninguém lê nem sobrescreve a avaliação de outra pessoa',
+      motivo: 'Teste de segurança — precisa ser feito com DUAS contas. (1) Logada como participante comum (não admin), abrir o console do navegador e tentar ler o conjunto das avaliações: a leitura tem que ser NEGADA (erro de permissão). (2) Ainda como participante, tentar ler a avaliação de outra pessoa: também negada. (3) Tentar ler a própria: permitida. (4) Tentar gravar na chave de outra pessoa: negada. (5) Logada como admin, abrir a aba Dashboard: as estatísticas e o bloco "Respostas individuais" continuam carregando normalmente — se ficarem vazios ou der erro no console, a regra apertou demais. (6) Como participante, abrir "Minha Área": a situação da avaliação de cada turma continua aparecendo (ela lê só a própria resposta). (7) Responder uma avaliação nova até o fim, para confirmar que a gravação na própria chave continua funcionando.' },
+    { section: 'Avaliação',
+      title: 'Uma resposta por pessoa, por turma',
+      motivo: 'Enviar a avaliação de uma turma e verificar: (1) o formulário dá lugar à tela de agradecimento; (2) recarregar a página — continua o agradecimento, o formulário não volta; (3) sair e entrar de novo, de preferência em outro aparelho — idem; (4) no Firebase, existe UM registro para essa pessoa nessa turma, não dois. Se a pessoa tiver outra turma com avaliação liberada, conferir que essa outra continua pendente e pode ser respondida — a trava é por turma, não por pessoa.' },
+    { section: 'Avaliação',
       title: 'A seção não pode fechar sozinha com perguntas por responder (celular)',
       motivo: 'Problema relatado por quem respondeu no celular: ao tocar na nota, a seção fechava sozinha e a tela pulava para a seguinte, obrigando a voltar para preencher o resto. Testar NO CELULAR, seção por seção. Nas seções 2 a 7 — todas têm perguntas depois da nota (motivo do NPS, o que mais gostou, o que aprofundar, o que pretende aplicar…) — tocar na nota e ESPERAR uns 3 segundos sem tocar em nada: a seção tem que continuar aberta, na mesma posição da tela, com as perguntas seguintes visíveis. Só a seção 1, cuja única pergunta é a nota, pode avançar sozinha para a seção 2. Repetir tocando em notas diferentes e trocando a nota já marcada. Conferir também que continuam funcionando os caminhos manuais de navegação: tocar no cabeçalho de outra seção e o botão "Pular esta seção →".' },
     { section: 'Avaliação',

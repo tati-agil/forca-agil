@@ -297,6 +297,8 @@
     },
     { label: 'AVALIAÇÃO', color: '#a78bfa',
       features: [
+        { label: 'Uma resposta por pessoa por turma — garantido pela forma como o dado é guardado (a segunda substituiria a primeira, nunca duplicaria) e pela tela, que passa a mostrar o agradecimento', p: ['inscrito','admin'] },
+        { label: 'No banco, cada pessoa só grava na própria resposta e só lê a sua; a leitura do conjunto das avaliações é restrita a administradores', p: ['inscrito','admin'] },
         { label: 'O formulário só avança de seção sozinho quando a nota é a única pergunta da seção (hoje, só a seção 1) — seções com perguntas depois da nota ficam abertas, quem decide quando sair é a pessoa', p: ['inscrito','admin'] },
         { label: 'Aba Avaliação: visível no menu para inscritos confirmados em turma com avaliação liberada pelo admin (flag avaliacaoHabilitada). Admin vê a aba sempre — independente do flag — para poder testar e revisar antes e depois de liberar', p: ['inscrito','admin'] },
         { label: 'Admin vê seletores de Evento e Turma no topo da Avaliação — pode revisar/testar o formulário de QUALQUER turma do sistema, mesmo sem estar pessoalmente inscrito nela (não fica restrito às próprias turmas confirmadas)', p: ['admin'] },
