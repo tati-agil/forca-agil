@@ -244,6 +244,8 @@
     },
     { label: 'ENTRAR', color: '#c084fc',
       features: [
+        { label: 'Recuperação automática de sessão presa: se a verificação não terminar em 10s e houver sessão guardada, o site apaga essa sessão e recarrega sozinho (uma vez por aba), voltando com a tela de login e a explicação — antes só funcionava limpando cookies na mão', p: ['visitante','logado','inscrito','admin'] },
+        { label: 'Botão manual "Limpar sessão e entrar de novo", para o caso de travar mesmo depois da limpeza automática (o site não recarrega em laço)', p: ['visitante','logado','inscrito','admin'] },
         { label: 'Rede de segurança: se o servidor não responder em 10 segundos, a tela de login aparece assim mesmo com o aviso "Demorando para conectar" — antes o site ficava totalmente preto, sem login e sem explicação', p: ['visitante','logado','inscrito','admin'] },
         { label: 'Botão "Testar conexão" dentro do aviso: verifica os quatro caminhos de que o site depende (carregamento do sistema, login e senha, dados do site e conexão permanente por WebSocket) e diz quais estão bloqueados, com texto pronto para encaminhar à TI', p: ['visitante','logado','inscrito','admin'] },
         { label: 'Se nada estiver bloqueado e mesmo assim travar, o diagnóstico mostra os tempos de cada parte — separa lentidão para baixar o sistema de lentidão do servidor', p: ['visitante','logado','inscrito','admin'] },
