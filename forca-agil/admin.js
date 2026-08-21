@@ -536,7 +536,8 @@
                  Aguardando decisão = ainda não confirmada E ainda sem
                  destino: é o que de fato exige ação sua. */
               var naEspera   = removed.filter(function (r) { return r.movedToEspera; });
-              var saiu       = removed.filter(function (r) { return !r.movedToEspera; });
+              var outraTurma = removed.filter(function (r) { return !r.movedToEspera && r.removedParaTurma; });
+              var saiu       = removed.filter(function (r) { return !r.movedToEspera && !r.removedParaTurma; });
               var aguardando = interessados.filter(function (r) { return !r.motivoNaoConfirmado; });
               var comMotivo  = interessados.filter(function (r) { return !!r.motivoNaoConfirmado; });
 
@@ -546,6 +547,7 @@
                 { key: 'aguardando',  label: 'Aguardando decisão',    lista: aguardando, removida: false },
                 { key: 'com_motivo',  label: 'Não confirmados',       lista: comMotivo,  removida: false },
                 { key: 'espera',      label: 'Foram para a espera',   lista: naEspera,   removida: true  },
+                { key: 'outra_turma', label: 'Foram para outra turma', lista: outraTurma, removida: true  },
                 { key: 'removidos',   label: 'Removidos',             lista: saiu,       removida: true  },
               ];
 
@@ -984,21 +986,30 @@
   }
 
   /* Removidos de uma turma ainda aberta — só leitura, com o motivo quando houver */
+  /* Para onde a pessoa foi ao sair da turma. Antes isso ficava espremido
+     dentro da célula de motivo, então não dava para varrer a coluna e
+     responder "quem foi para outra turma, e qual?". */
+  function destinoDeQuemSaiu(r) {
+    if (r.movedToEspera)        return '<span class="destino-badge destino-espera">Lista de espera</span>';
+    if (r.removedParaTurmaLabel) return '<span class="destino-badge destino-turma">' + esc(r.removedParaTurmaLabel) + '</span>';
+    return '<span class="destino-badge destino-saiu">Saiu</span>';
+  }
+
   function buildRemovedInteressadosTable(records) {
     var wrap = document.createElement('div');
     wrap.className = 'table-scroll-wrap';
-    var tbl = '<table class="admin-table"><thead><tr><th>Nome</th><th>E-mail</th><th>Área</th><th>Data remoção</th><th>Motivo</th></tr></thead><tbody>';
+    var tbl = '<table class="admin-table"><thead><tr><th>Nome</th><th>E-mail</th><th>Área</th><th>Data remoção</th><th>Destino</th><th>Motivo</th></tr></thead><tbody>';
     records.forEach(function (r) {
       /* O motivo sozinho não conta a história toda: para onde ela foi e por
          quem foi substituída são justamente o que se pergunta depois. */
       var extra = '';
-      if (r.removedParaTurmaLabel) extra += '<span class="espera-origem-data">→ ' + esc(r.removedParaTurmaLabel) + '</span>';
       if (r.motivoNaoConfirmado === 'substituida') {
         extra += '<span class="motivo-badge motivo-substituida">Substituída' +
           (r.substituidaPorNome ? ' <span class="motivo-porquem">' + esc(r.substituidaPorNome) + '</span>' : '') + '</span>';
       }
       tbl += '<tr><td>' + esc(r.name) + '</td><td>' + esc(r.email) + '</td><td>' +
         esc(r.area || '—') + '</td><td>' + fmtDate(r.removedDate) + '</td><td>' +
+        destinoDeQuemSaiu(r) + '</td><td>' +
         esc(r.removedReason || 'Removida pelo admin') + extra + '</td></tr>';
     });
     wrap.innerHTML = tbl + '</tbody></table>';
@@ -1013,7 +1024,7 @@
     wrap.className = 'table-scroll-wrap';
 
     var tbl = '<table class="admin-table presenca-table"><thead><tr>' +
-      '<th>Nome</th><th>E-mail</th><th>Área</th><th>Data remoção</th><th>Motivo</th>';
+      '<th>Nome</th><th>E-mail</th><th>Área</th><th>Data remoção</th><th>Destino</th><th>Motivo</th>';
     t.dias.forEach(function (d) {
       tbl += '<th class="dia-th">' + fmtDia(d) + '</th>';
     });
@@ -1039,7 +1050,7 @@
       var freqClass = atingiu ? 'freq-ok' : 'freq-nok';
 
       tbl += '<tr><td>' + esc(r.name) + '</td><td>' + esc(r.email) + '</td><td>' +
-        esc(r.area || '—') + '</td><td>' + fmtDate(r.removedDate) + '</td><td>' + esc(r.removedReason || 'Removida pelo admin') + '</td>' + cells.join('') +
+        esc(r.area || '—') + '</td><td>' + fmtDate(r.removedDate) + '</td><td>' + destinoDeQuemSaiu(r) + '</td><td>' + esc(r.removedReason || 'Removida pelo admin') + '</td>' + cells.join('') +
         '<td><span class="' + freqClass + '">' + freq + '</span></td></tr>';
     });
 

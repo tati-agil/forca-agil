@@ -870,3 +870,12 @@
   border-radius: 8px; padding: 11px 13px;
 }
 .admin-motivo-check input { margin-top: 2px; accent-color: var(--accent); width: 15px; height: 15px; flex-shrink: 0; }
+
+/* Destino de quem saiu da turma — coluna própria, para varrer com o olho */
+.destino-badge {
+  display: inline-block; font-family: var(--font-mono); font-size: .68rem;
+  letter-spacing: .04em; padding: 3px 9px; border-radius: 20px; white-space: nowrap;
+}
+.destino-espera { color: #ff8a65; background: rgba(255,138,101,.12); border: 1px solid rgba(255,138,101,.4); }
+.destino-turma  { color: #4caf7d; background: rgba(76,175,125,.12);  border: 1px solid rgba(76,175,125,.4); }
+.destino-saiu   { color: var(--ink-3); background: var(--panel-2);    border: 1px solid var(--line-strong); }
