@@ -857,3 +857,7 @@
 .sorteio-modo--vale  { color: #4caf7d; background: rgba(76,175,125,.10); border: 1px solid rgba(76,175,125,.28); }
 .sorteio-modo--teste { color: #ffb347; background: rgba(255,179,71,.10); border: 1px solid rgba(255,179,71,.32); }
 .sorteio-vale-obs { font-size: .76rem; color: #4caf7d; margin: 10px 0 0; }
+
+/* Quem substituiu / para onde foi — complementos do motivo */
+.motivo-porquem { opacity: .85; font-style: italic; }
+.admin-motivo-turma { width: 100%; }

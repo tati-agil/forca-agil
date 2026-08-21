@@ -533,6 +533,10 @@
               var redesenharTabela = function () {
                 var filtrados = filtroStatus === 'confirmados' ? inscritos
                   : filtroStatus === 'nao_confirmados' ? interessados
+                  /* Substituídas são um recorte DENTRO das não confirmadas —
+                     antes ficavam misturadas com quem simplesmente não foi
+                     analisada, que é situação bem diferente. */
+                  : filtroStatus === 'substituidas' ? interessados.filter(function (r) { return r.motivoNaoConfirmado === 'substituida'; })
                   : active;
                 tabelaWrap.innerHTML = '';
                 if (!filtrados.length) {
@@ -549,6 +553,7 @@
                   { key: 'todos',           label: 'Todos',           n: active.length },
                   { key: 'confirmados',     label: 'Confirmados',     n: inscritos.length },
                   { key: 'nao_confirmados', label: 'Não confirmados', n: interessados.length },
+                  { key: 'substituidas',    label: 'Substituídas',    n: interessados.filter(function (r) { return r.motivoNaoConfirmado === 'substituida'; }).length },
                 ].forEach(function (f) {
                   var b = document.createElement('button');
                   b.type = 'button';
@@ -789,7 +794,10 @@
         var motivoCls = r.motivoNaoConfirmado === 'sem_vagas' ? 'motivo-sem-vagas'
           : r.motivoNaoConfirmado === 'ja_participou' ? 'motivo-ja-participou'
           : 'motivo-substituida';
-        motivoBadge = '<span class="motivo-badge ' + motivoCls + '">' + motivoLabel + '</span>';
+        var porQuem = (r.motivoNaoConfirmado === 'substituida' && r.substituidaPorNome)
+          ? ' por ' + r.substituidaPorNome : '';
+        motivoBadge = '<span class="motivo-badge ' + motivoCls + '" title="' + esc(motivoLabel + porQuem) + '">' +
+          motivoLabel + (porQuem ? ' <span class="motivo-porquem">' + esc(r.substituidaPorNome) + '</span>' : '') + '</span>';
       }
       var statusCell = '<td><span class="status-badge ' + (isInscrito ? 'status-inscrito">Inscrito' : 'status-interessado">Interessado') + '</span>' + motivoBadge + '</td>';
 
@@ -828,7 +836,7 @@
       var motivoSel = '';
       if (!isInscrito) {
         var mv = r.motivoNaoConfirmado || '';
-        motivoSel = '<select class="motivo-sel" data-turma="' + t.key + '" data-ekey="' + eKey + '" title="Justificativa">' +
+        motivoSel = '<select class="motivo-sel" data-turma="' + t.key + '" data-ekey="' + eKey + '" data-nome="' + esc(r.name) + '" title="Justificativa">' +
           '<option value="">Justificar…</option>' +
           '<option value="sem_vagas"'    + (mv === 'sem_vagas'    ? ' selected' : '') + '>Sem vagas</option>' +
           '<option value="substituida"'  + (mv === 'substituida'  ? ' selected' : '') + '>Substituída</option>' +
@@ -855,13 +863,37 @@
     wrap.addEventListener('change', function (e) {
       var sel = e.target.closest('.motivo-sel');
       if (!sel) return;
-      var val = sel.value;
-      var ref = firebase.database().ref('turmas-interesse/' + sel.dataset.turma + '/' + sel.dataset.ekey + '/motivoNaoConfirmado');
-      if (val) {
-        ref.set(val, function (err) { if (!err) loadInterests(); });
-      } else {
-        ref.remove(function (err) { if (!err) loadInterests(); });
+      var val  = sel.value;
+      var base = 'turmas-interesse/' + sel.dataset.turma + '/' + sel.dataset.ekey + '/';
+      var ref  = firebase.database().ref(base + 'motivoNaoConfirmado');
+
+      if (!val) {
+        /* Tirar a justificativa limpa também quem substituiu — senão fica
+           um "substituída por fulano" órfão, sem a marca de substituição. */
+        firebase.database().ref().update(
+          (function () { var u = {}; u[base + 'motivoNaoConfirmado'] = null; u[base + 'substituidaPor'] = null; u[base + 'substituidaPorNome'] = null; return u; })(),
+          function (err) { if (!err) loadInterests(); });
+        return;
       }
+
+      if (val !== 'substituida') {
+        ref.set(val, function (err) { if (!err) loadInterests(); });
+        return;
+      }
+
+      /* Substituída exige dizer POR QUEM: sem isso o histórico não responde
+         "quem entrou no lugar de quem", que é a pergunta que aparece depois. */
+      escolherSubstituta(sel.dataset.turma, sel.dataset.ekey, sel.dataset.nome || '', function (pessoa) {
+        if (!pessoa) { loadInterests(); return; }   /* cancelou: nada muda */
+        var sess = window.faAuth && window.faAuth.getSession();
+        var u = {};
+        u[base + 'motivoNaoConfirmado'] = 'substituida';
+        u[base + 'substituidaPor']      = pessoa.email || null;
+        u[base + 'substituidaPorNome']  = pessoa.name  || null;
+        u[base + 'substituidaEm']       = new Date().toISOString();
+        u[base + 'substituidaPorAdmin'] = sess ? (sess.name || sess.email) : null;
+        firebase.database().ref().update(u, function (err) { if (!err) loadInterests(); });
+      });
     });
 
     /* delegação de eventos: confirmar/desconfirmar, desfazer check-in, check-in manual, remoção */
@@ -906,13 +938,27 @@
       var remBtn = e.target.closest('.ck-remove-btn');
       if (remBtn) {
         var sess2 = window.faAuth && window.faAuth.getSession();
-        adminConfirm('Remover ' + remBtn.dataset.name + ' da turma?\n\nEla sairá da lista.', function () {
-          var updates = { removed: true, removedDate: new Date().toISOString() };
-          if (sess2) { updates.removedByAdmin = sess2.email; updates.removedByAdminName = sess2.name || sess2.email; }
-          firebase.database().ref('turmas-interesse/' + remBtn.dataset.turma + '/' + remBtn.dataset.ekey).update(updates, function (err) {
-            if (!err) loadInterests();
+        /* Remover passou a exigir motivo, como já acontece na lista de
+           espera: sem isso a tabela de Removidos dizia só "Removida pelo
+           admin", e o porquê se perdia — inclusive o caso mais comum, que
+           é a própria pessoa ter pedido para sair. */
+        adminConfirmComMotivo(
+          'Remover ' + remBtn.dataset.name + ' da turma?\n\nEla sairá da lista de participantes. O histórico de presença é preservado.',
+          MOTIVOS_REMOCAO_TURMA,
+          function (motivo, detalhe, turmaDestino) {
+            var updates = {
+              removed: true,
+              removedParaTurma:      turmaDestino ? turmaDestino.key   : null,
+              removedParaTurmaLabel: turmaDestino ? turmaDestino.label : null,
+              removedDate: new Date().toISOString(),
+              removedReason: detalhe || motivoEsperaLabel(motivo),
+              removedMotivo: motivo || null
+            };
+            if (sess2) { updates.removedByAdmin = sess2.email; updates.removedByAdminName = sess2.name || sess2.email; }
+            firebase.database().ref('turmas-interesse/' + remBtn.dataset.turma + '/' + remBtn.dataset.ekey).update(updates, function (err) {
+              if (!err) loadInterests();
+            });
           });
-        });
       }
     });
 
@@ -925,8 +971,17 @@
     wrap.className = 'table-scroll-wrap';
     var tbl = '<table class="admin-table"><thead><tr><th>Nome</th><th>E-mail</th><th>Área</th><th>Data remoção</th><th>Motivo</th></tr></thead><tbody>';
     records.forEach(function (r) {
+      /* O motivo sozinho não conta a história toda: para onde ela foi e por
+         quem foi substituída são justamente o que se pergunta depois. */
+      var extra = '';
+      if (r.removedParaTurmaLabel) extra += '<span class="espera-origem-data">→ ' + esc(r.removedParaTurmaLabel) + '</span>';
+      if (r.motivoNaoConfirmado === 'substituida') {
+        extra += '<span class="motivo-badge motivo-substituida">Substituída' +
+          (r.substituidaPorNome ? ' <span class="motivo-porquem">' + esc(r.substituidaPorNome) + '</span>' : '') + '</span>';
+      }
       tbl += '<tr><td>' + esc(r.name) + '</td><td>' + esc(r.email) + '</td><td>' +
-        esc(r.area || '—') + '</td><td>' + fmtDate(r.removedDate) + '</td><td>' + esc(r.removedReason || 'Removida pelo admin') + '</td></tr>';
+        esc(r.area || '—') + '</td><td>' + fmtDate(r.removedDate) + '</td><td>' +
+        esc(r.removedReason || 'Removida pelo admin') + extra + '</td></tr>';
     });
     wrap.innerHTML = tbl + '</tbody></table>';
     return wrap;
@@ -1473,14 +1528,91 @@
     { key: 'duplicado',        label: 'Registro duplicado' },
     { key: 'outro',            label: 'Outro' },
   ];
+  /* Motivos de saída da turma. "Substituída" NÃO entra aqui de propósito:
+     substituição é uma marca que fica na pessoa dentro da turma, não um
+     destino — ela continua como não confirmada, com o selo, e só depois se
+     decide se vai para a espera ou se sai. */
+  var MOTIVOS_REMOCAO_TURMA = [
+    { key: 'a_pedido',         label: 'A pedido da própria pessoa' },
+    /* pedeTurma: o modal troca o campo de texto por uma lista de turmas —
+       sem dizer PARA ONDE a pessoa foi, o registro não serve de nada. */
+    { key: 'outra_turma',      label: 'Vai fazer em outra turma', pedeTurma: true },
+    { key: 'sem_vagas',        label: 'Turma sem vagas' },
+    { key: 'data_nao_serviu',  label: 'A data não serviu' },
+    { key: 'ja_participou',    label: 'Já participou de uma turma' },
+    { key: 'nao_responde',     label: 'Não respondeu aos contatos' },
+    { key: 'duplicado',        label: 'Registro duplicado' },
+    { key: 'evento_encerrado', label: 'Evento encerrado' },
+    { key: 'outro',            label: 'Outro' },
+  ];
   function motivoEsperaLabel(key) {
-    var todos = MOTIVOS_ESPERA_ENTRADA.concat(MOTIVOS_ESPERA_SAIDA);
+    var todos = MOTIVOS_ESPERA_ENTRADA.concat(MOTIVOS_ESPERA_SAIDA).concat(MOTIVOS_REMOCAO_TURMA);
     for (var i = 0; i < todos.length; i++) if (todos[i].key === key) return todos[i].label;
     return key || '';
   }
 
   /* Confirmação com escolha de motivo obrigatória. Quando "Outro" é escolhido,
      abre um campo de texto — também obrigatório, para não gravar motivo vazio. */
+  /* Quem entrou no lugar de quem saiu. Oferece as pessoas da própria turma
+     (a substituta normalmente já está lá, confirmada) e aceita digitar um
+     nome, para o caso de ser alguém ainda não cadastrada na turma. */
+  function escolherSubstituta(turmaKey, eKeySaiu, nomeSaiu, callback) {
+    firebase.database().ref('turmas-interesse/' + turmaKey).once('value', function (snap) {
+      var dados = snap.val() || {};
+      var candidatas = Object.keys(dados)
+        .filter(function (k) { return k !== eKeySaiu && dados[k] && !dados[k].removed && dados[k].email; })
+        .map(function (k) { return dados[k]; })
+        .sort(function (a, b) { return (a.name || '').localeCompare(b.name || '', 'pt'); });
+
+      var overlay = document.createElement('div');
+      overlay.className = 'modal-overlay';
+      overlay.style.cssText = 'display:flex;align-items:center;justify-content:center;z-index:9999';
+      var box = document.createElement('div');
+      box.className = 'modal-box';
+      box.style.cssText = 'max-width:460px;width:90%;padding:28px;display:flex;flex-direction:column;gap:16px';
+      box.innerHTML =
+        '<p style="margin:0;line-height:1.6;color:var(--ink-2);font-size:.9rem">' +
+          'Quem entrou no lugar de <strong>' + esc(nomeSaiu) + '</strong>?' +
+        '</p>' +
+        '<select class="admin-motivo-select subst-sel">' +
+          '<option value="">— selecione —</option>' +
+          candidatas.map(function (p) {
+            return '<option value="' + esc(p.email) + '" data-nome="' + esc(p.name || p.email) + '">' +
+                   esc(p.name || p.email) + (p.status === 'inscrito' ? ' · confirmada' : '') + '</option>';
+          }).join('') +
+          '<option value="__outra">Outra pessoa (digitar o nome)</option>' +
+        '</select>' +
+        '<input class="admin-motivo-outro subst-outra" type="text" placeholder="Nome de quem entrou" hidden>' +
+        '<div style="display:flex;gap:10px;justify-content:flex-end">' +
+          '<button class="btn subst-cancelar">Cancelar</button>' +
+          '<button class="btn btn--primary subst-ok">Confirmar</button>' +
+        '</div>';
+      overlay.appendChild(box);
+      document.body.appendChild(overlay);
+
+      var selP  = box.querySelector('.subst-sel');
+      var outra = box.querySelector('.subst-outra');
+      function fechar(res) { document.body.removeChild(overlay); callback(res); }
+
+      selP.addEventListener('change', function () {
+        outra.hidden = selP.value !== '__outra';
+        if (!outra.hidden) outra.focus();
+      });
+      box.querySelector('.subst-cancelar').addEventListener('click', function () { fechar(null); });
+      box.querySelector('.subst-ok').addEventListener('click', function () {
+        if (!selP.value) { adminAlert('Escolha quem entrou no lugar.'); return; }
+        if (selP.value === '__outra') {
+          var nome = (outra.value || '').trim();
+          if (!nome) { adminAlert('Digite o nome de quem entrou.'); return; }
+          fechar({ name: nome, email: '' });
+          return;
+        }
+        var opt = selP.options[selP.selectedIndex];
+        fechar({ name: opt.dataset.nome, email: selP.value });
+      });
+    });
+  }
+
   function adminConfirmComMotivo(mensagem, motivos, callbackSim) {
     var overlay = document.createElement('div');
     overlay.className = 'modal-overlay';
@@ -1497,6 +1629,12 @@
         '</select>' +
       '</label>' +
       '<input type="text" class="admin-motivo-outro" placeholder="Descreva o motivo" hidden />' +
+      '<select class="admin-motivo-select admin-motivo-turma" hidden>' +
+        '<option value="">— para qual turma? —</option>' +
+        TURMAS_LIST.map(function (t) {
+          return '<option value="' + esc(t.key) + '" data-label="' + esc(t.label) + '">' + esc(t.label) + (t.dates ? ' (' + esc(t.dates) + ')' : '') + '</option>';
+        }).join('') +
+      '</select>' +
       '<p class="admin-motivo-erro" style="color:var(--red);font-size:.8rem;margin:0" hidden></p>' +
       '<div style="display:flex;justify-content:flex-end;gap:8px">' +
         '<button class="btn admin-modal-cancel-btn">Cancelar</button>' +
@@ -1507,13 +1645,17 @@
 
     var sel   = box.querySelector('.admin-motivo-select');
     var outro = box.querySelector('.admin-motivo-outro');
+    var selTurma = box.querySelector('.admin-motivo-turma');
+    function pedeTurma(k) { for (var i = 0; i < motivos.length; i++) if (motivos[i].key === k) return !!motivos[i].pedeTurma; return false; }
     var erro  = box.querySelector('.admin-motivo-erro');
 
     function fechar() { document.body.removeChild(overlay); }
     sel.addEventListener('change', function () {
       outro.hidden = sel.value !== 'outro';
+      selTurma.hidden = !pedeTurma(sel.value);
       erro.hidden = true;
       if (!outro.hidden) outro.focus();
+      else if (!selTurma.hidden) selTurma.focus();
     });
     box.querySelector('.admin-modal-cancel-btn').addEventListener('click', fechar);
     overlay.addEventListener('click', function (e) { if (e.target === overlay) fechar(); });
@@ -1522,10 +1664,19 @@
       if (sel.value === 'outro' && !outro.value.trim()) {
         erro.textContent = 'Descreva o motivo.'; erro.hidden = false; outro.focus(); return;
       }
+      if (pedeTurma(sel.value) && !selTurma.value) {
+        erro.textContent = 'Escolha a turma em que ela vai fazer.'; erro.hidden = false; selTurma.focus(); return;
+      }
       var motivo = sel.value;
       var detalhe = sel.value === 'outro' ? outro.value.trim() : '';
+      var turmaEscolhida = null;
+      if (pedeTurma(sel.value) && selTurma.value) {
+        var o = selTurma.options[selTurma.selectedIndex];
+        turmaEscolhida = { key: selTurma.value, label: o.dataset.label };
+        detalhe = 'Vai fazer na ' + o.dataset.label;
+      }
       fechar();
-      if (callbackSim) callbackSim(motivo, detalhe);
+      if (callbackSim) callbackSim(motivo, detalhe, turmaEscolhida);
     });
     sel.focus();
   }
