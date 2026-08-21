@@ -861,3 +861,12 @@
 /* Quem substituiu / para onde foi — complementos do motivo */
 .motivo-porquem { opacity: .85; font-style: italic; }
 .admin-motivo-turma { width: 100%; }
+
+/* Pergunta extra dentro do modal de motivo (ex.: colocar na lista de espera) */
+.admin-motivo-check {
+  display: flex; align-items: flex-start; gap: 9px;
+  font-size: .84rem; line-height: 1.5; color: var(--ink-2); cursor: pointer;
+  background: var(--panel-2); border: 1px solid var(--line-strong);
+  border-radius: 8px; padding: 11px 13px;
+}
+.admin-motivo-check input { margin-top: 2px; accent-color: var(--accent); width: 15px; height: 15px; flex-shrink: 0; }

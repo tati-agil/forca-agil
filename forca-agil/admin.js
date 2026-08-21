@@ -851,8 +851,11 @@
       tbl += '<tr><td>' + esc(r.name) + '</td><td>' + esc(r.email) + '</td><td>' +
         esc(r.area || '—') + '</td>' + statusCell + midCells +
         '<td class="turma-row-actions">' + actionBtn +
-          '<button class="ck-espera-btn" data-turma="' + t.key + '" data-ekey="' + eKey + '" data-name="' + esc(r.name) + '" data-email="' + esc(r.email) + '" data-area="' + esc(r.area || '') + '" data-date="' + esc(dateOriginal) + '" title="Mover para lista de espera preservando a data original">→ Espera</button>' +
-          '<button class="ck-remove-btn" data-turma="' + t.key + '" data-ekey="' + eKey + '" data-name="' + esc(r.name) + '">Remover</button>' +
+          /* Um caminho só: sair da turma. Ir para a lista de espera virou
+             uma escolha DENTRO da remoção — na prática sempre foi a mesma
+             decisão, com dois botões e duas listas de motivo que se
+             sobrepunham ("sem vagas" e "a pedido" estavam nas duas). */
+          '<button class="ck-remove-btn" data-turma="' + t.key + '" data-ekey="' + eKey + '" data-name="' + esc(r.name) + '" data-email="' + esc(r.email) + '" data-area="' + esc(r.area || '') + '" data-date="' + esc(dateOriginal) + '">Remover</button>' +
         '</td></tr>';
     });
 
@@ -925,16 +928,9 @@
         });
         return;
       }
-      var esperaBtn = e.target.closest('.ck-espera-btn');
-      if (esperaBtn) {
-        var person = { name: esperaBtn.dataset.name, email: esperaBtn.dataset.email, area: esperaBtn.dataset.area, date: esperaBtn.dataset.date };
-        adminConfirmComMotivo(
-          'Mover ' + person.name + ' para a lista de espera?\n\nEla sairá desta turma. A data original de interesse (' + fmtDate(person.date) + ') será preservada.',
-          MOTIVOS_ESPERA_ENTRADA,
-          function (motivo, detalhe) { migrarParaEspera(esperaBtn.dataset.turma, esperaBtn.dataset.ekey, person, motivo, detalhe); }
-        );
-        return;
-      }
+      /* O botão "→ Espera" deixou de existir: ir para a fila virou uma
+         opção dentro de "Remover". O tratador dele saiu junto para não
+         ficar código apontando para um botão que ninguém mais desenha. */
       var remBtn = e.target.closest('.ck-remove-btn');
       if (remBtn) {
         var sess2 = window.faAuth && window.faAuth.getSession();
@@ -945,7 +941,19 @@
         adminConfirmComMotivo(
           'Remover ' + remBtn.dataset.name + ' da turma?\n\nEla sairá da lista de participantes. O histórico de presença é preservado.',
           MOTIVOS_REMOCAO_TURMA,
-          function (motivo, detalhe, turmaDestino) {
+          function (motivo, detalhe, turmaDestino, paraEspera) {
+            var pessoa = {
+              name:  remBtn.dataset.name,
+              email: remBtn.dataset.email,
+              area:  remBtn.dataset.area || '',
+              /* A fila respeita a ordem de chegada: vai sempre a data e hora
+                 do interesse ORIGINAL, nunca a data da remoção. */
+              date:  remBtn.dataset.date
+            };
+            if (paraEspera) {
+              migrarParaEspera(remBtn.dataset.turma, remBtn.dataset.ekey, pessoa, motivo, detalhe);
+              return;
+            }
             var updates = {
               removed: true,
               removedParaTurma:      turmaDestino ? turmaDestino.key   : null,
@@ -958,7 +966,9 @@
             firebase.database().ref('turmas-interesse/' + remBtn.dataset.turma + '/' + remBtn.dataset.ekey).update(updates, function (err) {
               if (!err) loadInterests();
             });
-          });
+          },
+          { label: 'Colocar na lista de espera (mantém a data original do interesse)',
+            sugerirEm: ['sem_vagas', 'data_nao_serviu'] });
       }
     });
 
@@ -1512,6 +1522,9 @@
   /* Motivos usados nos dois fluxos da lista de espera. "evento_encerrado"
      serve para limpar a lista quando o evento inteiro acabou e não haverá
      mais turmas — não é falha da pessoa nem escolha dela. */
+  /* Mantida só para traduzir o motivo de quem JÁ está na lista de espera:
+     esses registros foram gravados com estas chaves. A entrada na fila hoje
+     usa MOTIVOS_REMOCAO_TURMA, pelo caminho único de remoção. */
   var MOTIVOS_ESPERA_ENTRADA = [
     { key: 'sem_vagas',        label: 'Turma sem vagas' },
     { key: 'turma_encerrada',  label: 'Turma já encerrada' },
@@ -1613,7 +1626,7 @@
     });
   }
 
-  function adminConfirmComMotivo(mensagem, motivos, callbackSim) {
+  function adminConfirmComMotivo(mensagem, motivos, callbackSim, pergunta) {
     var overlay = document.createElement('div');
     overlay.className = 'modal-overlay';
     overlay.style.cssText = 'display:flex;align-items:center;justify-content:center;z-index:9999';
@@ -1635,6 +1648,7 @@
           return '<option value="' + esc(t.key) + '" data-label="' + esc(t.label) + '">' + esc(t.label) + (t.dates ? ' (' + esc(t.dates) + ')' : '') + '</option>';
         }).join('') +
       '</select>' +
+      (pergunta ? '<label class="admin-motivo-check"><input type="checkbox" class="admin-motivo-extra"> ' + esc(pergunta.label) + '</label>' : '') +
       '<p class="admin-motivo-erro" style="color:var(--red);font-size:.8rem;margin:0" hidden></p>' +
       '<div style="display:flex;justify-content:flex-end;gap:8px">' +
         '<button class="btn admin-modal-cancel-btn">Cancelar</button>' +
@@ -1653,6 +1667,10 @@
     sel.addEventListener('change', function () {
       outro.hidden = sel.value !== 'outro';
       selTurma.hidden = !pedeTurma(sel.value);
+      /* Sugestão, não regra: motivos em que a pessoa normalmente ainda
+         quer fazer vêm com a caixa marcada — e ela pode desmarcar. */
+      var chk = box.querySelector('.admin-motivo-extra');
+      if (chk && pergunta && pergunta.sugerirEm) chk.checked = pergunta.sugerirEm.indexOf(sel.value) !== -1;
       erro.hidden = true;
       if (!outro.hidden) outro.focus();
       else if (!selTurma.hidden) selTurma.focus();
@@ -1675,8 +1693,10 @@
         turmaEscolhida = { key: selTurma.value, label: o.dataset.label };
         detalhe = 'Vai fazer na ' + o.dataset.label;
       }
+      var extraChk = box.querySelector('.admin-motivo-extra');
+      var extra = !!(extraChk && extraChk.checked);
       fechar();
-      if (callbackSim) callbackSim(motivo, detalhe, turmaEscolhida);
+      if (callbackSim) callbackSim(motivo, detalhe, turmaEscolhida, extra);
     });
     sel.focus();
   }
