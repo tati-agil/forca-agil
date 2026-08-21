@@ -481,12 +481,13 @@
   font-family: var(--font-display); font-size: clamp(1.8rem,5vw,3.2rem); margin: 0 0 6px;
 }
 .admin-hero p { color: var(--ink-3); font-size: .88rem; font-family: var(--font-mono); }
+/* Quebra linha em vez de rolar na horizontal: a barra de rolagem estava
+   escondida, então a última aba simplesmente sumia na borda sem nenhum
+   indício de que havia mais. Aba escondida é aba que não existe. */
 .admin-tabs-bar {
-  display: flex; gap: 0; border-bottom: 1px solid var(--line-strong); margin-bottom: 36px;
-  overflow-x: auto; -webkit-overflow-scrolling: touch;
-  scrollbar-width: none;
+  display: flex; flex-wrap: wrap; gap: 0;
+  border-bottom: 1px solid var(--line-strong); margin-bottom: 36px;
 }
-.admin-tabs-bar::-webkit-scrollbar { display: none; }
 .admin-tab-btn {
   padding: 10px 20px; background: transparent; border: none;
   border-bottom: 2px solid transparent; font-family: var(--font-head);
@@ -496,6 +497,11 @@
   white-space: nowrap; flex-shrink: 0;
 }
 .admin-tab-btn.active { color: var(--accent); border-bottom-color: var(--accent); }
+/* Em telas médias, aperta o espaçamento para as 11 abas continuarem
+   cabendo numa linha só antes de precisar quebrar. */
+@media (max-width: 1280px) {
+  .admin-tab-btn { padding: 10px 13px; font-size: .8rem; letter-spacing: .03em; }
+}
 .admin-tab-panel { display: none; }
 .admin-tab-panel.active { display: block; }
 #adminRepo, #adminMapa { background: var(--panel); border-radius: 12px; padding: 20px 24px; }
@@ -674,7 +680,6 @@
   .journey { flex-direction: column; min-width: 0; }
   .journey-arrow { transform: rotate(90deg); }
 .hl-grid { grid-template-columns: 1fr; }
-  .admin-tabs-bar { flex-wrap: wrap; overflow-x: visible; }
   .admin-tab-btn { padding: 8px 10px; font-size: .72rem; letter-spacing: .02em; }
 }
 
