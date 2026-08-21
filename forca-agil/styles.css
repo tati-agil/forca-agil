@@ -1874,3 +1874,11 @@ button.arq-card[data-arch-target]:hover { filter: brightness(1.25); transform: t
   border: 1px solid var(--line-strong); border-radius: 6px; padding: 8px;
   font-family: var(--font-mono); font-size: .7rem; line-height: 1.5; resize: vertical;
 }
+
+.auth-diag-acoes { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 10px; }
+.auth-limpar-btn {
+  padding: 6px 12px; font-family: var(--font-mono); font-size: .7rem;
+  letter-spacing: .08em; text-transform: uppercase; color: var(--bg);
+  background: var(--accent); border: 1px solid var(--accent); border-radius: 6px; cursor: pointer;
+}
+.auth-limpar-btn:disabled { opacity: .6; cursor: default; }

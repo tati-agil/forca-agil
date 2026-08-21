@@ -126,6 +126,23 @@
     if (loginTab) loginTab.click();
     var closeBtn = document.getElementById('authClose');
     if (closeBtn) closeBtn.style.display = 'none';
+
+    /* Chegou aqui depois de o site ter limpado uma sessão presa: explica
+       por que está pedindo login de novo, senão parece que "deslogou
+       sozinho" — e some do caminho na próxima vez. */
+    var limpou = false;
+    try { limpou = sessionStorage.getItem('fa-sessao-limpa') === '1'; } catch (e) {}
+    if (limpou && !document.getElementById('authSessaoLimpa')) {
+      try { sessionStorage.removeItem('fa-sessao-limpa'); } catch (e) {}
+      var nota = document.createElement('div');
+      nota.id = 'authSessaoLimpa';
+      nota.className = 'auth-sem-conexao';
+      nota.innerHTML = '<strong>Entre novamente</strong>' +
+        'Sua sessão anterior não pôde ser renovada nesta rede, então ela foi encerrada. ' +
+        'É só entrar de novo — nada do seu histórico foi perdido.';
+      var cx = modal.querySelector('.modal-box') || modal.firstElementChild || modal;
+      cx.insertBefore(nota, cx.firstChild);
+    }
   }
 
   function revelarSite() {
@@ -297,6 +314,42 @@
     });
   }
 
+  /* ══════════════════════════════════════════════════════════════════
+     SESSÃO PRESA — limpar e entrar de novo.
+
+     Confirmado em campo: dentro da rede da Previ, quem já tinha sessão
+     guardada trava; em janela anônima o site abre normalmente; e quem
+     limpa os cookies passa a conseguir entrar. Ou seja, a sessão
+     guardada não consegue ser renovada e a espera nunca termina.
+
+     Isto apaga o que o Firebase guarda deste site — a sessão e mais
+     nada. Não mexe em dado do servidor: a pessoa só precisa entrar de
+     novo. É o mesmo que "limpar os cookies", só que restrito ao que
+     interessa e sem a pessoa precisar saber fazer.
+     ══════════════════════════════════════════════════════════════════ */
+  function limparArmazenamentoAuth() {
+    try { if (typeof firebase !== 'undefined' && firebase.auth) firebase.auth().signOut(); } catch (e) {}
+    try {
+      Object.keys(localStorage).forEach(function (k) {
+        if (k.indexOf('firebase:') === 0 || k.indexOf('firebaseLocalStorage') !== -1) localStorage.removeItem(k);
+      });
+    } catch (e) {}
+    try {
+      Object.keys(sessionStorage).forEach(function (k) {
+        if (k.indexOf('firebase:') === 0) sessionStorage.removeItem(k);
+      });
+    } catch (e) {}
+    try { indexedDB.deleteDatabase('firebaseLocalStorageDb'); } catch (e) {}
+  }
+
+  function limparSessaoPresa(botao) {
+    if (botao) { botao.disabled = true; botao.textContent = 'Limpando…'; }
+    limparArmazenamentoAuth();
+    try { sessionStorage.setItem('fa-sessao-limpa', '1'); } catch (e) {}
+    /* Pequena folga para o navegador concluir as remoções antes de recarregar */
+    setTimeout(function () { location.reload(); }, 500);
+  }
+
   function diagnosticarConexao(saida, botao) {
     if (!saida) return;
     botao.disabled = true;
@@ -419,6 +472,23 @@
      ══════════════════════════════════════════════════════════════════ */
   var _timerSocorro = setTimeout(function () {
     if (_authResolveu) return;
+
+    /* Primeira vez que trava: limpa a sessão presa e recarrega sozinho.
+       A pessoa não precisa saber que existe "limpar cookies" — o site se
+       recupera e mostra a tela de login normalmente. Só faz isso UMA vez
+       por aba: se travar de novo depois de limpo, o problema é outro e
+       aí mostramos o aviso e o diagnóstico em vez de recarregar em laço. */
+    var jaTentou = false;
+    try { jaTentou = sessionStorage.getItem('fa-sessao-limpa') === '1'; } catch (e) {}
+    if (!jaTentou) {
+      var temSessaoGuardada = false;
+      try {
+        temSessaoGuardada = Object.keys(localStorage).some(function (k) { return k.indexOf('firebase:') === 0; });
+      } catch (e) {}
+      /* Sem sessão guardada não há o que limpar — cair no aviso é mais útil */
+      if (temSessaoGuardada) { limparSessaoPresa(null); return; }
+    }
+
     forcarLogin();
     var modal = document.getElementById('authModal');
     if (!modal) return;
@@ -427,15 +497,22 @@
     aviso.id = 'authSemConexao';
     aviso.className = 'auth-sem-conexao';
     aviso.innerHTML =
-      '<strong>Demorando para conectar</strong>' +
-      'Não conseguimos falar com o servidor. Você pode tentar entrar assim mesmo — ' +
-      'se não funcionar, verifique sua conexão e recarregue a página.' +
-      '<button type="button" class="auth-diag-btn">Testar conexão</button>' +
+      '<strong>Não conseguimos retomar sua sessão</strong>' +
+      'Isso costuma acontecer quando a sessão guardada neste navegador não pôde ser ' +
+      'renovada — em rede corporativa é comum. O caminho mais rápido é limpar essa ' +
+      'sessão e entrar de novo.' +
+      '<div class="auth-diag-acoes">' +
+        '<button type="button" class="auth-limpar-btn">Limpar sessão e entrar de novo</button>' +
+        '<button type="button" class="auth-diag-btn">Testar conexão</button>' +
+      '</div>' +
       '<div class="auth-diag-saida" hidden></div>';
     var caixa = modal.querySelector('.modal-box') || modal.firstElementChild || modal;
     caixa.insertBefore(aviso, caixa.firstChild);
     aviso.querySelector('.auth-diag-btn').addEventListener('click', function () {
       diagnosticarConexao(aviso.querySelector('.auth-diag-saida'), this);
+    });
+    aviso.querySelector('.auth-limpar-btn').addEventListener('click', function () {
+      limparSessaoPresa(this);
     });
   }, 10000);
 
