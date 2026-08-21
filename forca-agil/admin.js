@@ -2394,14 +2394,17 @@
 
         list.forEach(function (p) {
           var tr = document.createElement('tr');
-          var dataFmt = p.date ? p.date.slice(0, 10) : '—';
+          /* A data vinha crua do banco ("2026-08-10"), sem hora e fora do
+             formato brasileiro usado no resto do painel. A hora está
+             gravada junto desde sempre — só não era exibida. */
+          var dataFmt = fmtDate(p.date);
           /* Quem veio de uma turma tem migratedFrom/migratedAt gravados na
              migração — mostra de qual turma saiu e quando, em vez de deixar
              o dado invisível no banco. */
           var origem = '<span style="color:var(--ink-3)">Entrou pela lista</span>';
           if (p.migratedFrom) {
             var tLabel = (turmasVal[p.migratedFrom] && turmasVal[p.migratedFrom].label) || p.migratedFrom.toUpperCase();
-            var quando = p.migratedAt ? new Date(p.migratedAt).toLocaleDateString('pt-BR') : '';
+            var quando = p.migratedAt ? fmtDate(p.migratedAt) : '';
             var motivoTxt = p.motivoEntradaDetalhe || motivoEsperaLabel(p.motivoEntrada);
             origem = '<span class="espera-origem">↩ ' + esc(tLabel) + '</span>' +
               (quando ? '<span class="espera-origem-data">em ' + quando + '</span>' : '') +
@@ -2867,7 +2870,15 @@
   function fmtDate(d) {
     if (!d) return '—';
     try {
+      /* Data sem hora ("2026-08-10") é lida pelo navegador como meia-noite
+         em UTC e, no nosso fuso, volta como as 21h do DIA ANTERIOR. Nesse
+         caso monta a data na mão e não inventa hora nenhuma. */
+      if (/^\d{4}-\d{2}-\d{2}$/.test(String(d))) {
+        var p = String(d).split('-');
+        return p[2] + '/' + p[1] + '/' + p[0];
+      }
       var dt = new Date(d);
+      if (isNaN(dt)) return '—';
       return dt.toLocaleDateString('pt-BR') + ' ' + dt.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
     } catch(e) { return '—'; }
   }
