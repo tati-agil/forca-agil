@@ -115,6 +115,11 @@
   /* ---- Firebase Auth — fonte de verdade de sessão ---- */
   firebase.auth().onAuthStateChanged(function (user) {
     if (user) {
+      /* Esta leitura não tinha tratamento de erro: se o banco não responde
+         (rede bloqueando o domínio, proxy, 4G ruim), o callback nunca é
+         chamado, fa-auth-ready nunca dispara e a pessoa fica presa numa
+         tela preta. Sem o perfil não dá para revelar o site com segurança,
+         mas dá para dizer o que aconteceu em vez de não dizer nada. */
       firebase.database().ref('fa-users/' + emailKey(user.email)).once('value', function (snap) {
         const profile = snap.val() || {};
 
@@ -170,6 +175,14 @@
             enforceCurrentRouteAccess();
           });
         });
+      }, function (err) {
+        /* Falha ao ler o perfil: libera a espera avisando, em vez de
+           deixar a tela preta para sempre. */
+        console.error('[auth] falha ao ler perfil', err);
+        _session = null;
+        _accessLevel = 'member';
+        _authReady = true;
+        window.dispatchEvent(new CustomEvent('fa-auth-ready', { detail: null }));
       });
     } else {
       _session = null;

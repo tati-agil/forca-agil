@@ -171,11 +171,45 @@
   }
 
   /* Carga inicial: auth terminou de verificar sessão */
+  var _authResolveu = false;
   window.addEventListener('fa-auth-ready', function (e) {
+    _authResolveu = true;
+    if (_timerSocorro) { clearTimeout(_timerSocorro); _timerSocorro = null; }
     if (!e.detail) { forcarLogin(); return; }
     if (e.detail.unverified) { mostrarVerificacaoEmail(e.detail.email); return; }
     revelarSite();
   });
+
+  /* ══════════════════════════════════════════════════════════════════
+     REDE DE SEGURANÇA — tela preta quando o Firebase não responde.
+
+     Enquanto a autenticação não resolve, o body inteiro fica escondido
+     (class "aguardando-auth"). Isso pressupõe que o Firebase SEMPRE
+     responde. Quando ele não responde — rede corporativa bloqueando o
+     domínio, proxy, 4G ruim, servidor fora do ar — o evento nunca
+     chega, nada nunca é revelado e a pessoa fica olhando uma tela
+     preta sem explicação e sem conseguir nem tentar entrar.
+
+     Passados 10 segundos sem resposta, mostramos a tela de login assim
+     mesmo, com um aviso do que está acontecendo. Se o Firebase
+     responder depois, o fluxo normal segue e o aviso some.
+     ══════════════════════════════════════════════════════════════════ */
+  var _timerSocorro = setTimeout(function () {
+    if (_authResolveu) return;
+    forcarLogin();
+    var modal = document.getElementById('authModal');
+    if (!modal) return;
+    if (document.getElementById('authSemConexao')) return;
+    var aviso = document.createElement('div');
+    aviso.id = 'authSemConexao';
+    aviso.className = 'auth-sem-conexao';
+    aviso.innerHTML =
+      '<strong>Demorando para conectar</strong>' +
+      'Não conseguimos falar com o servidor. Você pode tentar entrar assim mesmo — ' +
+      'se não funcionar, verifique sua conexão e recarregue a página.';
+    var caixa = modal.querySelector('.modal-box') || modal.firstElementChild || modal;
+    caixa.insertBefore(aviso, caixa.firstChild);
+  }, 10000);
 
   /* Login/logout em tempo real */
   window.addEventListener('fa-auth-change', function (e) {

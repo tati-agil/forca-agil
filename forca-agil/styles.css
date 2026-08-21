@@ -1849,3 +1849,11 @@ button.arq-card[data-arch-target]:hover { filter: brightness(1.25); transform: t
   color: var(--ink-2); background: rgba(155,127,255,.10); border: 1px solid rgba(155,127,255,.35);
 }
 .aluno-vercomo-aviso strong { color: #b9a6ff; }
+
+/* Aviso quando o servidor não responde a tempo (evita tela preta sem explicação) */
+.auth-sem-conexao {
+  background: rgba(255,179,71,.10); border: 1px solid rgba(255,179,71,.45);
+  border-radius: 8px; padding: 12px 14px; margin-bottom: 16px;
+  font-size: .82rem; line-height: 1.6; color: var(--ink-2);
+}
+.auth-sem-conexao strong { display: block; color: #ffb347; margin-bottom: 4px; font-size: .86rem; }
