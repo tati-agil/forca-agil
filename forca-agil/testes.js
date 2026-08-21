@@ -543,12 +543,12 @@
         { id: 'c-turmas-cards',   label: 'Cards de turma consistentes com as turmas cadastradas (.turma-card-new)', run: function () {
           /* turmas não são mais fixas em número — vêm de turmas/ no Firebase, editável
              pelo admin. Cada card está em um de 4 estados: interesse aberto (.btn--interest),
-             interesse encerrado/CMFlex (.turma-cmflex-msg), em andamento (.turma-andamento-msg),
+             inscrições encerradas (.turma-lotada-msg), em andamento (.turma-andamento-msg),
              ou realizada (.turma-realizada-msg). O card "Lista de Espera" também tem a classe
              .turma-card-new mas não é uma turma — é excluído da contagem. */
           var cards = document.querySelectorAll('.turma-card-new:not(.turma-card-espera)').length;
           var abertos = document.querySelectorAll('.btn--interest').length;
-          var encerrados = document.querySelectorAll('.turma-cmflex-msg').length;
+          var encerrados = document.querySelectorAll('.turma-lotada-msg').length;
           var andamento = document.querySelectorAll('.turma-andamento-msg').length;
           var realizada = document.querySelectorAll('.turma-realizada-msg').length;
           return cards === abertos + encerrados + andamento + realizada;
@@ -791,7 +791,10 @@
     { section: 'Início',
       title: 'Cards "Como funciona" → cada um navega para sua página',
       motivo: 'Clicar navegaria para fora da página Admin, interrompendo a sessão de testes em execução.' },
-    { section: 'Turmas',
+{ section: 'Turmas',
+      title: 'Turma com interesse encerrado não manda ninguém ao CMFlex',
+      motivo: 'Encerrar o interesse de uma turma cujas datas ainda estão no futuro e abrir a página Turmas como participante. O card deve dizer "Inscrições encerradas", explicar que as vagas já foram preenchidas, informar quando a turma será realizada e convidar a acompanhar as próximas — SEM botão e SEM link para o CMFlex. O motivo é prático: o interesse é encerrado justamente porque as vagas no CMFlex acabaram, então mandar a pessoa para lá é mandar bater numa porta fechada. Conferir também que o CMFlex continua sendo indicado no momento certo: com a turma ainda aberta, registrar interesse e verificar que aparece a mensagem orientando a inscrição no CMFlex. Por fim, conferir a passagem entre os estados: chegando o primeiro dia, o card vira "Turma em andamento"; passado o último dia ou com a turma encerrada pelo admin, vira "Turma realizada".' },
+        { section: 'Turmas',
       title: 'Visitante não acessa Conteúdos nem Treinamento Jedi',
       motivo: 'Verificar manualmente: acessar #conteudos e #gamificacao sem estar logado — o site deve bloquear o acesso e não exibir o conteúdo dessas páginas.' },
     { section: 'Turmas',

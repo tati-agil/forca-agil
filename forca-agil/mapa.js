@@ -123,7 +123,7 @@
         { label: 'Expandir tudo — abre de uma vez todos os containers de evento e todos os cards de turma na aba Eventos (e itens retráteis nas demais abas)', p: ['admin'] },
         { label: 'Recolher tudo — fecha de uma vez todos os containers de evento e todos os cards de turma na aba Eventos (e itens retráteis nas demais abas)', p: ['admin'] },
         { label: 'Aba Eventos — cadastrar/editar link do CMFlex por turma (inscrição oficial externa)', p: ['admin'] },
-        { label: 'Aba Eventos — encerrar interesse da turma (card público passa a orientar pro CMFlex, quando turma ainda não iniciou)', p: ['admin'] },
+        { label: 'Aba Eventos — encerrar interesse da turma (card público passa a exibir "Inscrições encerradas", quando a turma ainda não iniciou)', p: ['admin'] },
         { label: 'Aba Eventos — encerrar turma manualmente (marca como "Realizada" antes do prazo automático, grava dataConclusao e habilita downloads de certificado)', p: ['admin'] },
         { label: 'Aba Eventos — confirmar inscrição de um interessado a qualquer momento, turma aberta ou com interesse encerrado (marca como Inscrito, avisa e remove a inscrição em outra turma se ela já for inscrita lá — mero interesse em outra turma não é tocado)', p: ['admin'] },
         { label: 'Aba Eventos — desconfirmar inscrição de um inscrito a qualquer momento, turma aberta ou com interesse encerrado (volta a Interessado, perde acesso na hora)', p: ['admin'] },
@@ -345,7 +345,7 @@
         { label: 'Card de turma com interesse aberto — botão "Tenho interesse" (estado padrão enquanto a turma não iniciou e o admin não encerrou o interesse)', p: ['logado','inscrito','admin'] },
         { label: 'Botão de interesse por turma ("Tenho interesse" / "Remover interesse") — exige login para registrar; após registrar, mensagem "Interesse registrado. Para confirmar sua vaga, realize a inscrição no CMFlex em: RH - Uso Pessoal | PREVI"', p: ['logado','inscrito','admin'] },
         { label: 'Quem já é Inscrita vê botão travado "✓ Inscrita" (verde, desabilitado) em vez do botão de interesse — só o admin pode desconfirmar', p: ['logado','inscrito','admin'] },
-        { label: 'Card de turma com interesse encerrado (antes do primeiro dia) — título "Faça sua inscrição no CMFlex" e botão "Ir para o CMFlex →" (link cadastrado pelo admin por turma); sem link: "Link ainda não disponível. Consulte a organização."', p: ['logado','inscrito','admin'] },
+        { label: 'Card de turma com interesse encerrado (antes do primeiro dia) — "Inscrições encerradas: as vagas já foram preenchidas; a turma será realizada em [datas]". Sem botão e sem link para o CMFlex: o interesse é encerrado porque as vagas do CMFlex acabaram', p: ['logado','inscrito','admin'] },
         { label: 'Card de turma Em andamento — a partir do primeiro dia da turma, o card troca automaticamente para "Turma em andamento · As aulas estão acontecendo. Fique de olho nas próximas turmas!" sem nenhum botão', p: ['logado','inscrito','admin'] },
         { label: 'Card de turma Realizada — após o último dia OU quando o admin encerra manualmente, o card mostra "Turma realizada · Esta turma já foi concluída. Fique de olho nas próximas!" sem nenhum botão', p: ['logado','inscrito','admin'] },
         { label: 'Bloco "Como funciona a oficina" (métricas + descrição)', p: ['logado','inscrito','admin'] },
@@ -476,7 +476,7 @@
       html += '</tr>';
     });
     html += '</tbody></table></div>';
-    html += '<p class="mapa-sub" style="margin-top:10px">Visitante não logado não acessa NADA: com o login obrigatório, o site inteiro fica oculto e ele vê apenas o modal de autenticação (entrar, cadastrar, recuperar senha). "Turmas" mostra as mesmas turmas pra todos os perfis autenticados — nenhuma é escondida por perfil. O que muda de um card para outro é o estado da turma (interesse aberto ou encerrado/CMFlex) e, dentro de uma turma aberta, o botão de interesse conforme o status da própria pessoa (Tenho interesse / Remover interesse / ✓ Inscrita travado). "Avaliação" marca inscrito como ✓ porque é o nível mínimo exigido, mas na prática só aparece pra quem está confirmado numa turma com avaliacaoHabilitada:true — admin vê sempre, independente do flag, pra poder revisar/testar.</p>';
+    html += '<p class="mapa-sub" style="margin-top:10px">Visitante não logado não acessa NADA: com o login obrigatório, o site inteiro fica oculto e ele vê apenas o modal de autenticação (entrar, cadastrar, recuperar senha). "Turmas" mostra as mesmas turmas pra todos os perfis autenticados — nenhuma é escondida por perfil. O que muda de um card para outro é o estado da turma (interesse aberto, inscrições encerradas, em andamento ou realizada) e, dentro de uma turma aberta, o botão de interesse conforme o status da própria pessoa (Tenho interesse / Remover interesse / ✓ Inscrita travado). "Avaliação" marca inscrito como ✓ porque é o nível mínimo exigido, mas na prática só aparece pra quem está confirmado numa turma com avaliacaoHabilitada:true — admin vê sempre, independente do flag, pra poder revisar/testar.</p>';
 
     /* ── Estados de uma pessoa numa turma ── */
     html += '<h3 class="mapa-title" style="margin-top:48px">Estados de uma Persona numa Turma</h3>';

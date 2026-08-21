@@ -293,19 +293,24 @@
           );
         }
 
-        /* interesse encerrado mas turma ainda não começou → CMFlex */
+        /* Interesse encerrado e turma ainda não começou → vai ser realizada.
+
+           Aqui o card mandava a pessoa se inscrever no CMFlex. Mas o
+           interesse é encerrado justamente porque as vagas no CMFlex já
+           acabaram — mandar alguém para lá é mandar bater numa porta
+           fechada. O card passa a dizer o que de fato acontece: as
+           inscrições terminaram e a turma vai acontecer nas datas
+           indicadas. Quem quiser participar olha as próximas. */
         if (t.finalizada) {
-          var cmflexBtn = t.cmflexLink
-            ? '<a class="btn--cmflex" href="' + t.cmflexLink + '" target="_blank" rel="noopener">Ir para o CMFlex →</a>'
-            : '<div class="turma-intent-msg">Link ainda não disponível. Consulte a organização.</div>';
           return (
-            '<div class="turma-card-new reveal in">' +
+            '<div class="turma-card-new reveal in turma-card-lotada">' +
               '<span class="tc-label">' + t.label + '</span>' +
               '<div class="tc-month">' + fmt.mes + '</div>' +
               '<div class="tc-dates">' + fmt.dates + '</div>' +
               '<div class="tc-horario">&#x23F0; 9h &ndash; 13h</div>' +
-              '<div class="turma-cmflex-msg"><strong>Faça sua inscrição no CMFlex</strong>Sua inscrição deve ser feita na Plataforma de Gestão, em RH Uso Pessoal > Solicitação de curso, após a aprovação do seu gestor.</div>' +
-              cmflexBtn +
+              '<div class="turma-status-msg turma-lotada-msg"><strong>Inscrições encerradas</strong>' +
+                'As vagas desta turma já foram preenchidas. Ela será realizada em ' + fmt.dates + '. ' +
+                'Acompanhe as próximas turmas para participar.</div>' +
             '</div>'
           );
         }
