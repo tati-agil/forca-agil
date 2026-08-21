@@ -448,6 +448,92 @@
     });
   }
 
+  /* ══════════════════════════════════════════════════════════════════
+     VER COMO — só admin.
+
+     O admin não participa das turmas, então a própria Minha Área dele
+     mostra o estado de "nunca interagiu". Sem isto, não há como saber
+     o que a tela mostra para quem fez o treinamento — nem conferir se
+     o certificado está liberado, se a frequência bate, se a avaliação
+     aparece. Mesmo padrão de seletores que a Avaliação já usa.
+
+     É só visualização: nada é gravado em nome de outra pessoa. Os
+     botões de certificado funcionam, e isso é deliberado — é o mesmo
+     arquivo que o admin já emite na aba Certificados, e ver o botão
+     funcionando faz parte de conferir a tela.
+     ══════════════════════════════════════════════════════════════════ */
+  function montarBarraVerComo(wrap, sess) {
+    var barra = document.createElement('div');
+    barra.className = 'aluno-vercomo';
+    barra.innerHTML =
+      '<span class="aluno-vercomo-tag">ADMIN</span>' +
+      '<label class="aluno-vercomo-campo">Ver esta tela como ' +
+        '<select class="aluno-vercomo-sel"><option value="">— eu mesma —</option></select>' +
+      '</label>' +
+      '<span class="aluno-vercomo-dica">Só visualização — nada é gravado em nome da pessoa.</span>';
+    wrap.parentNode.insertBefore(barra, wrap);
+
+    var sel = barra.querySelector('.aluno-vercomo-sel');
+
+    /* Lista todo mundo que aparece nas turmas, com o rótulo dizendo em
+       que situação a pessoa está — é justamente isso que o admin quer
+       comparar (confirmada, em análise, removida). */
+    firebase.database().ref('turmas-interesse').once('value', function (snap) {
+      var dados = snap.val() || {};
+      firebase.database().ref('turmas').once('value', function (snapT) {
+        var turmas = snapT.val() || {};
+        var pessoas = {};
+        Object.keys(dados).forEach(function (tk) {
+          var rotuloTurma = (turmas[tk] || {}).label || tk;
+          Object.keys(dados[tk] || {}).forEach(function (uk) {
+            var r = dados[tk][uk] || {};
+            if (!r.email) return;
+            var situacao = r.removed ? 'removida de ' + rotuloTurma
+              : (r.status === 'inscrito' && r.confirmedByAdmin) ? 'confirmada em ' + rotuloTurma
+              : r.status === 'inscrito' ? 'inscrita sem confirmação em ' + rotuloTurma
+              : 'interesse em ' + rotuloTurma;
+            if (!pessoas[uk]) pessoas[uk] = { nome: r.name || r.email, email: r.email, situacoes: [] };
+            /* Confirmada é a situação mais relevante: vai para a frente */
+            if (situacao.indexOf('confirmada') === 0) pessoas[uk].situacoes.unshift(situacao);
+            else pessoas[uk].situacoes.push(situacao);
+          });
+        });
+        Object.keys(pessoas)
+          .map(function (uk) { return Object.assign({ uk: uk }, pessoas[uk]); })
+          .sort(function (a, b) { return (a.nome || '').localeCompare(b.nome || '', 'pt'); })
+          .forEach(function (p) {
+            var opt = document.createElement('option');
+            opt.value = p.uk;
+            opt.dataset.email = p.email;
+            opt.dataset.nome = p.nome;
+            opt.textContent = p.nome + '  ·  ' + p.situacoes[0];
+            sel.appendChild(opt);
+          });
+      });
+    });
+
+    sel.addEventListener('change', function () {
+      var opt = sel.options[sel.selectedIndex];
+      barra.classList.toggle('aluno-vercomo--ativo', !!sel.value);
+      if (!sel.value) { carregarE(wrap, emailKey(sess.email), sess.email, sess.name || sess.email, null); return; }
+      carregarE(wrap, sel.value, opt.dataset.email, opt.dataset.nome, opt.dataset.nome);
+    });
+  }
+
+  /* Carrega e desenha a tela para uma pessoa. `verComo` preenchido = o
+     admin está olhando a tela de outra pessoa. */
+  function carregarE(wrap, uKey, email, nome, verComo) {
+    wrap.innerHTML = '<p class="loading-msg">Carregando…</p>';
+    carregar(uKey, email, function (d) {
+      render(wrap, d, uKey, nome, email);
+      if (verComo) {
+        wrap.insertAdjacentHTML('afterbegin',
+          '<div class="aluno-vercomo-aviso">👁️ Você está vendo a tela como <strong>' + esc(verComo) +
+          '</strong> veria. Tudo abaixo é o que aparece para essa pessoa.</div>');
+      }
+    });
+  }
+
   var _aguardandoAuth = false;
 
   function init() {
@@ -469,11 +555,10 @@
       return;
     }
 
-    wrap.innerHTML = '<p class="loading-msg">Carregando…</p>';
-    var uKey = emailKey(sess.email);
-    carregar(uKey, sess.email, function (d) {
-      render(wrap, d, uKey, sess.name || sess.email, sess.email);
-    });
+    var ehAdmin = window.faAuth.isAdmin && window.faAuth.isAdmin(sess.email);
+    if (ehAdmin && !document.querySelector('.aluno-vercomo')) montarBarraVerComo(wrap, sess);
+
+    carregarE(wrap, emailKey(sess.email), sess.email, sess.name || sess.email, null);
   }
 
   if (window.faRouter && window.faRouter.onPageInit) window.faRouter.onPageInit('minha-area', init);

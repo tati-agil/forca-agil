@@ -1826,3 +1826,26 @@ button.arq-card[data-arch-target]:hover { filter: brightness(1.25); transform: t
 .dash-como-item { min-width: 0; }
 .dash-como-titulo { font-size: .82rem; color: var(--ink); margin: 0 0 4px; font-weight: 600; }
 .dash-como-texto { font-size: .8rem; color: var(--ink-3); line-height: 1.65; margin: 0; }
+
+/* ── Minha Área: barra "Ver como" (só admin) ── */
+.aluno-vercomo {
+  display: flex; align-items: center; gap: 12px; flex-wrap: wrap;
+  padding: 11px 16px; margin-bottom: 20px;
+  background: var(--panel-2); border: 1px dashed var(--line-strong); border-radius: 10px;
+}
+.aluno-vercomo--ativo { border-color: rgba(155,127,255,.6); border-style: solid; }
+.aluno-vercomo-tag {
+  font-family: var(--font-mono); font-size: .62rem; letter-spacing: .14em;
+  padding: 3px 8px; border-radius: 4px; color: #9b7fff; background: rgba(155,127,255,.14);
+}
+.aluno-vercomo-campo { display: flex; align-items: center; gap: 8px; font-size: .8rem; color: var(--ink-2); }
+.aluno-vercomo-sel {
+  background: var(--panel); border: 1px solid var(--line-strong); border-radius: 4px;
+  color: var(--ink); padding: 5px 8px; font-size: .82rem; cursor: pointer; max-width: 340px;
+}
+.aluno-vercomo-dica { font-size: .74rem; color: var(--ink-3); margin-left: auto; }
+.aluno-vercomo-aviso {
+  padding: 11px 16px; margin-bottom: 18px; border-radius: 10px; font-size: .84rem;
+  color: var(--ink-2); background: rgba(155,127,255,.10); border: 1px solid rgba(155,127,255,.35);
+}
+.aluno-vercomo-aviso strong { color: #b9a6ff; }
