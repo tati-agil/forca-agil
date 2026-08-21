@@ -209,14 +209,34 @@
       ]);
     }
 
+    /* O banco de dados não conversa por requisições comuns: ele abre uma
+       conexão permanente (WebSocket). Proxy corporativo costuma deixar
+       passar o endereço e barrar JUSTAMENTE esse tipo de conexão — daí
+       um teste de endereço dar tudo certo e o site travar mesmo assim.
+       Este é o teste que separa os dois casos. */
+    function testarWebSocket() {
+      return new Promise(function (resolve) {
+        var ws, pronto = false;
+        function fim(ok) { if (!pronto) { pronto = true; try { ws && ws.close(); } catch (e) {} resolve(ok); } }
+        try { ws = new WebSocket('wss://kyber-agil-default-rtdb.firebaseio.com/.ws?v=5'); }
+        catch (e) { return resolve(false); }
+        ws.onopen = function () { fim(true); };
+        ws.onerror = function () { fim(false); };
+        ws.onclose = function () { fim(false); };
+        setTimeout(function () { fim(false); }, 8000);
+      });
+    }
+
     Promise.all([
       testar('https://identitytoolkit.googleapis.com/'),
-      testar('https://kyber-agil-default-rtdb.firebaseio.com/.json?shallow=true')
+      testar('https://kyber-agil-default-rtdb.firebaseio.com/.json?shallow=true'),
+      testarWebSocket()
     ]).then(function (res) {
       var itens = [
         { nome: 'Carregamento do sistema', dominio: 'www.gstatic.com', ok: sdkOk },
         { nome: 'Login e senha',           dominio: 'identitytoolkit.googleapis.com', ok: res[0] },
-        { nome: 'Dados do site',           dominio: 'kyber-agil-default-rtdb.firebaseio.com', ok: res[1] }
+        { nome: 'Dados do site',           dominio: 'kyber-agil-default-rtdb.firebaseio.com', ok: res[1] },
+        { nome: 'Conexão permanente com o banco (WebSocket)', dominio: 'wss://kyber-agil-default-rtdb.firebaseio.com', ok: res[2] }
       ];
       var bloqueados = itens.filter(function (i) { return !i.ok; });
 
