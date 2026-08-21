@@ -606,7 +606,7 @@
           { name: 'forca-agil/styles.css',       desc: 'Estilos globais — design tokens, layout, componentes, responsividade. Inclui os estilos da Minha Área (.aluno-*): cartões de turma por fase, barra de frequência, cartões informativos de inscrição em análise, lista de espera e boas-vindas' },
           { name: 'forca-agil/pages.css',        desc: 'Estilos específicos de seções — Admin (inputs, tabelas, expand bar, badges), Mapa, Manual, Testes. Inclui o modal de Sorteio (.sorteio-*, com as variações de modo valendo/ensaio) e a aba Sorteios (.sorteios-*)' },
           { name: 'forca-agil/qrcode.min.js',    desc: 'Biblioteca de geração de QR Code (vendorizada localmente — a versão publicada no CDN jsdelivr parou de servir o arquivo build/qrcode.min.js a partir da 1.5.3, quebrando o QR Code do check-in). Usada pelo admin.js.' },
-          { name: 'forca-agil/certif.js',        desc: 'Geração de certificados de participação — monta o layout com os 6 campos dinâmicos sobre o template PNG, calcula frequência e horas por participante elegível, aciona impressão. API: window.faCertif.' },
+          { name: 'forca-agil/certif.js',        desc: 'Geração de certificados de participação — monta o layout com os 6 campos dinâmicos sobre o template PNG (cert-template-v3.png — a v3 é a v2 com o símbolo da Previ do cabeçalho trocado pelo mesmo do site, assets/previ-symbol.png; a arte é idêntica no restante e as posições dos campos não mudaram), calcula frequência e horas por participante elegível, aciona impressão. API: window.faCertif.' },
         ]
       },
       {

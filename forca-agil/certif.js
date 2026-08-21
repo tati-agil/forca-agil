@@ -5,7 +5,7 @@
 
    ARQUITETURA — DUAS CAMADAS
    ─────────────────────────────────────────────────────────────
-   CAMADA 1 — TEMPLATE FIXO (cert-template-v2.png, 1448 × 1086)
+   CAMADA 1 — TEMPLATE FIXO (cert-template-v3.png, 1448 × 1086)
      Imagem-base imutável. O sistema NÃO redesenha nenhum desses
      elementos — eles vêm diretamente do PNG:
        • fundo preto espacial, estrelas, galáxias, planeta
@@ -71,7 +71,10 @@
 (function () {
   'use strict';
 
-  var TEMPLATE_SRC = 'forca-agil/cert-template-v2.png';
+  /* v3 = v2 com o símbolo da Previ do cabeçalho trocado pelo mesmo do site
+     (assets/previ-symbol.png). O template trazia outra marca. As posições
+     dos campos não mudaram: a arte é idêntica fora desse detalhe. */
+  var TEMPLATE_SRC = 'forca-agil/cert-template-v3.png';
 
   /* Dimensões do template (lidas do PNG ao carregar) */
   var TW = 1448, TH = 1086;
