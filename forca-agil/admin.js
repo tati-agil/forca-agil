@@ -526,42 +526,80 @@
             if (!active.length) {
               body.innerHTML = '<p class="admin-empty">Nenhum participante ativo.</p>';
             } else {
-              /* Filtro por status — só faz sentido quando existem os dois grupos */
+              /* ── Filtros por DESTINO ─────────────────────────────────────
+                 Antes havia só "ativos" contra "removidos", e "não
+                 confirmado" juntava quem ainda não foi analisada com quem
+                 já teve destino decidido. Agora cada pessoa que manifestou
+                 interesse está em exatamente um grupo, e "Todos" mostra o
+                 total real de interessados na turma — incluindo quem saiu.
+
+                 Aguardando decisão = ainda não confirmada E ainda sem
+                 destino: é o que de fato exige ação sua. */
+              var naEspera   = removed.filter(function (r) { return r.movedToEspera; });
+              var saiu       = removed.filter(function (r) { return !r.movedToEspera; });
+              var aguardando = interessados.filter(function (r) { return !r.motivoNaoConfirmado; });
+              var comMotivo  = interessados.filter(function (r) { return !!r.motivoNaoConfirmado; });
+
+              var GRUPOS = [
+                { key: 'todos',       label: 'Todos os interessados', lista: all,        removida: false },
+                { key: 'confirmados', label: 'Confirmados',           lista: inscritos,  removida: false },
+                { key: 'aguardando',  label: 'Aguardando decisão',    lista: aguardando, removida: false },
+                { key: 'com_motivo',  label: 'Não confirmados',       lista: comMotivo,  removida: false },
+                { key: 'espera',      label: 'Foram para a espera',   lista: naEspera,   removida: true  },
+                { key: 'removidos',   label: 'Removidos',             lista: saiu,       removida: true  },
+              ];
+
               var filtroStatus = _uiFiltroStatus[t.key] || 'todos';
               var tabelaWrap = document.createElement('div');
 
+              function grupoAtual() {
+                for (var i = 0; i < GRUPOS.length; i++) if (GRUPOS[i].key === filtroStatus) return GRUPOS[i];
+                return GRUPOS[0];
+              }
+
               var redesenharTabela = function () {
-                var filtrados = filtroStatus === 'confirmados' ? inscritos
-                  : filtroStatus === 'nao_confirmados' ? interessados
-                  /* Substituídas são um recorte DENTRO das não confirmadas —
-                     antes ficavam misturadas com quem simplesmente não foi
-                     analisada, que é situação bem diferente. */
-                  : filtroStatus === 'substituidas' ? interessados.filter(function (r) { return r.motivoNaoConfirmado === 'substituida'; })
-                  : active;
+                var g = grupoAtual();
                 tabelaWrap.innerHTML = '';
-                if (!filtrados.length) {
-                  tabelaWrap.innerHTML = '<p class="admin-empty">Nenhum participante neste filtro.</p>';
-                } else {
-                  tabelaWrap.appendChild(buildParticipantesTable(t, filtrados, checkinT, finalizada));
+                if (!g.lista.length) {
+                  tabelaWrap.innerHTML = '<p class="admin-empty">Ninguém neste grupo.</p>';
+                  return;
                 }
+                /* Quem já saiu da turma não tem ação possível — a tabela de
+                   quem saiu mostra o motivo e o destino, não botões. */
+                if (g.removida) {
+                  tabelaWrap.appendChild(finalizada
+                    ? buildRemovedPresencaTable(t, g.lista, checkinT)
+                    : buildRemovedInteressadosTable(g.lista));
+                  return;
+                }
+                if (g.key === 'todos') {
+                  tabelaWrap.appendChild(buildParticipantesTable(t, active, checkinT, finalizada));
+                  if (removed.length) {
+                    var nota = document.createElement('p');
+                    nota.className = 'admin-empty';
+                    nota.style.marginTop = '10px';
+                    nota.textContent = '+ ' + removed.length + ' que já saíram da turma — veja em "Foram para a espera" e "Removidos".';
+                    tabelaWrap.appendChild(nota);
+                  }
+                  return;
+                }
+                tabelaWrap.appendChild(buildParticipantesTable(t, g.lista, checkinT, finalizada));
               };
 
-              if (inscritos.length && interessados.length) {
+              /* A barra some quando há um grupo só: filtro de uma coisa
+                 apenas é ruído. */
+              if (GRUPOS.filter(function (g) { return g.lista.length; }).length > 1) {
                 var filtroBar = document.createElement('div');
                 filtroBar.className = 'turma-status-filtro';
-                [
-                  { key: 'todos',           label: 'Todos',           n: active.length },
-                  { key: 'confirmados',     label: 'Confirmados',     n: inscritos.length },
-                  { key: 'nao_confirmados', label: 'Não confirmados', n: interessados.length },
-                  { key: 'substituidas',    label: 'Substituídas',    n: interessados.filter(function (r) { return r.motivoNaoConfirmado === 'substituida'; }).length },
-                ].forEach(function (f) {
+                GRUPOS.forEach(function (g) {
+                  if (!g.lista.length && g.key !== 'todos') return;
                   var b = document.createElement('button');
                   b.type = 'button';
-                  b.className = 'turma-status-filtro-btn' + (f.key === filtroStatus ? ' active' : '');
-                  b.textContent = f.label + ' (' + f.n + ')';
+                  b.className = 'turma-status-filtro-btn' + (g.key === filtroStatus ? ' active' : '');
+                  b.textContent = g.label + ' (' + g.lista.length + ')';
                   b.addEventListener('click', function () {
-                    filtroStatus = f.key;
-                    _uiFiltroStatus[t.key] = f.key;
+                    filtroStatus = g.key;
+                    _uiFiltroStatus[t.key] = g.key;
                     filtroBar.querySelectorAll('.turma-status-filtro-btn').forEach(function (x) { x.classList.remove('active'); });
                     b.classList.add('active');
                     redesenharTabela();
@@ -574,39 +612,9 @@
               redesenharTabela();
               body.appendChild(tabelaWrap);
             }
-            if (removed.length) {
-              var removedSection = document.createElement('div');
-              removedSection.className = 'turma-removed-accordion';
-              var removedHdr = document.createElement('button');
-              removedHdr.className = 'turma-removed-toggle';
-              removedHdr.type = 'button';
-              var removidosAbertos = !!_uiRemovidosAbertos[t.key];
-              removedHdr.setAttribute('aria-expanded', String(removidosAbertos));
-              var labelSpan = document.createElement('span');
-              labelSpan.textContent = finalizada
-                ? 'Removidos (' + removed.length + ') — histórico de presença preservado'
-                : 'Removidos (' + removed.length + ')';
-              var iconSpan = document.createElement('span');
-              iconSpan.className = 'turma-removed-icon';
-              iconSpan.setAttribute('aria-hidden', 'true');
-              iconSpan.textContent = removidosAbertos ? '▾' : '▸';
-              removedHdr.appendChild(iconSpan);
-              removedHdr.appendChild(labelSpan);
-              var removedBody = document.createElement('div');
-              removedBody.className = 'turma-removed-body';
-              removedBody.hidden = !removidosAbertos;
-              removedBody.appendChild(finalizada ? buildRemovedPresencaTable(t, removed, checkinT) : buildRemovedInteressadosTable(removed));
-              removedHdr.addEventListener('click', function () {
-                var expanded = removedHdr.getAttribute('aria-expanded') === 'true';
-                removedHdr.setAttribute('aria-expanded', String(!expanded));
-                iconSpan.textContent = expanded ? '▸' : '▾';
-                removedBody.hidden = expanded;
-                _uiRemovidosAbertos[t.key] = !expanded;
-              });
-              removedSection.appendChild(removedHdr);
-              removedSection.appendChild(removedBody);
-              body.appendChild(removedSection);
-            }
+            /* O acordeão "Removidos" saiu: quem saiu da turma agora aparece
+               nos filtros por destino, separado entre "Foram para a espera" e
+               "Removidos" — que diz mais do que a lista única de antes. */
             var turmaAberta = !!_uiTurmasAbertas[t.key];
             body.style.display = turmaAberta ? '' : 'none';
             card.appendChild(body);
