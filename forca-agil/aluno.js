@@ -194,8 +194,13 @@
     };
   }
 
-  /* Turmas ainda não encerradas — usadas na vitrine de quem nunca interagiu */
+  /* Turmas em que ainda dá para manifestar interesse — a vitrine de quem
+     nunca interagiu convida a fazer justamente isso, então só pode listar
+     turma onde o convite tem efeito. Não basta "não encerrada": uma turma
+     com o interesse já encerrado pelo admin (finalizada) está lotada, e
+     uma que já começou não aceita mais entrada. */
   function turmasAbertas(d) {
+    var hoje = todayISO();
     return Object.keys(d.turmas).map(function (tk) {
       var turma = d.turmas[tk] || {};
       var cfg   = d.config[tk] || {};
@@ -206,10 +211,12 @@
         datas: turma.dates || '',
         inicio: dias[0] || '',
         encerrada: !!cfg.encerrada,
+        interesseEncerrado: !!cfg.finalizada,
+        jaComecou: !!(dias[0] && dias[0] <= hoje),
         evento: turma.eventoKey ? (d.eventos[turma.eventoKey] || {}) : {},
       };
     }).filter(function (t) {
-      return !t.encerrada;
+      return !t.encerrada && !t.interesseEncerrado && !t.jaComecou;
     }).sort(function (a, b) { return (a.inicio || '').localeCompare(b.inicio || ''); });
   }
 

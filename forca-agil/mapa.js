@@ -286,7 +286,7 @@
         { label: 'Ver as turmas com interesse registrado mas ainda não confirmado, no bloco "Inscrições em análise" com selo "Em análise" e a data em que o interesse foi registrado', p: ['logado','inscrito','admin'] },
         { label: 'Se a turma em análise já foi encerrada, o cartão avisa e orienta a procurar a organização pela página Ajuda', p: ['logado','inscrito','admin'] },
         { label: 'Ver o bloco "Lista de espera" quando a pessoa está na fila, informando desde quando espera e de qual turma veio, se veio de alguma', p: ['logado','inscrito','admin'] },
-        { label: 'Quem nunca interagiu vê uma tela de boas-vindas com as turmas abertas no momento e um botão para a página Turmas — em vez de uma mensagem de "nada aqui"', p: ['logado','inscrito','admin'] },
+        { label: 'Quem nunca interagiu vê uma tela de boas-vindas com as turmas em que ainda dá para manifestar interesse (exclui as com interesse encerrado, as já iniciadas e as encerradas) e um botão para a página Turmas — em vez de uma mensagem de "nada aqui"', p: ['logado','inscrito','admin'] },
         { label: 'Ver a própria frequência: barra de percentual, contagem "X de Y encontros" e a lista de dias com ✓ nos que teve presença registrada', p: ['inscrito','admin'] },
         { label: 'Ver o percentual mínimo exigido pelo evento para o certificado, ao lado da frequência atingida', p: ['inscrito','admin'] },
         { label: 'Baixar o próprio certificado em PNG ou PDF — liberado só quando a turma é concluída E a frequência mínima foi atingida; usa o mesmo gerador do painel admin, então o arquivo é idêntico', p: ['inscrito','admin'] },
