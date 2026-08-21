@@ -220,9 +220,38 @@
     linhas.push(['Tempo até este teste', seg(performance.now())]);
     linhas.push(['Servidor respondeu a autenticação?', _authResolveu ? 'sim' : 'ainda não']);
 
-    return linhas.map(function (l) {
+    /* Estado interno: se o sistema carregou mas não foi inicializado, ou se
+       existe sessão guardada esperando renovação, o travamento é aqui e não
+       na rede. */
+    try {
+      var temApp = (typeof firebase !== 'undefined' && firebase.apps) ? firebase.apps.length : 0;
+      linhas.push(['Sistema iniciado', temApp ? 'sim' : 'NÃO — o site não conseguiu iniciar o Firebase']);
+      if (temApp && firebase.auth) {
+        var u = firebase.auth().currentUser;
+        linhas.push(['Sessão guardada neste navegador', u ? ('sim — ' + u.email) : 'nenhuma']);
+      }
+    } catch (e) {
+      linhas.push(['Sistema iniciado', 'erro ao verificar: ' + (e.message || e)]);
+    }
+
+    var erros = (window.__faErros || []);
+    if (erros.length) {
+      linhas.push(['Erros do site', erros.length + ' — listados abaixo']);
+    } else {
+      linhas.push(['Erros do site', 'nenhum']);
+    }
+
+    var h = linhas.map(function (l) {
       return '<p class="auth-diag-linha">⏱ ' + l[0] + '<span class="auth-diag-dom">' + l[1] + '</span></p>';
     }).join('');
+
+    if (erros.length) {
+      h += '<textarea class="auth-diag-txt" readonly rows="4">' +
+           erros.slice(0, 6).map(function (e) {
+             return '[' + e.tipo + '] ' + e.msg + (e.onde ? '  (' + e.onde + ')' : '');
+           }).join('\n') + '</textarea>';
+    }
+    return h;
   }
 
   /* O Firebase guarda a sessão no armazenamento do navegador. Se esse
@@ -306,14 +335,20 @@
 
     Promise.all([
       testar('https://identitytoolkit.googleapis.com/'),
+      /* Endereço SEPARADO, usado para renovar a sessão de quem já está
+         logado. Se ele estiver barrado e o outro não, quem nunca entrou
+         consegue usar o site e quem já tinha sessão fica travado — que é
+         exatamente o quadro observado. */
+      testar('https://securetoken.googleapis.com/'),
       testar('https://kyber-agil-default-rtdb.firebaseio.com/.json?shallow=true'),
       testarWebSocket()
     ]).then(function (res) {
       var itens = [
         { nome: 'Carregamento do sistema', dominio: 'www.gstatic.com', ok: sdkOk },
         { nome: 'Login e senha',           dominio: 'identitytoolkit.googleapis.com', ok: res[0] },
-        { nome: 'Dados do site',           dominio: 'kyber-agil-default-rtdb.firebaseio.com', ok: res[1] },
-        { nome: 'Conexão permanente com o banco (WebSocket)', dominio: 'wss://kyber-agil-default-rtdb.firebaseio.com', ok: res[2] }
+        { nome: 'Renovar sessão de quem já entrou', dominio: 'securetoken.googleapis.com', ok: res[1] },
+        { nome: 'Dados do site',           dominio: 'kyber-agil-default-rtdb.firebaseio.com', ok: res[2] },
+        { nome: 'Conexão permanente com o banco (WebSocket)', dominio: 'wss://kyber-agil-default-rtdb.firebaseio.com', ok: res[3] }
       ];
       var bloqueados = itens.filter(function (i) { return !i.ok; });
 
