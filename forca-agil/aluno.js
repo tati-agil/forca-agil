@@ -51,6 +51,25 @@
     return d.getDate() + ' de ' + meses[d.getMonth()] + ' de ' + d.getFullYear();
   }
 
+  /* Texto das datas dos encontros ("11, 12, 18, 19 e 20").
+
+     O banco guarda só o array de dias; o campo "dates" NÃO existe lá — é
+     calculado na hora pelo faTurmasUtil, que é o que o painel Admin faz.
+     Esta tela lia turma.dates direto do banco, ou seja, lia um campo que
+     nunca existiu: o resultado era vazio no card e, pior, no certificado
+     baixado aqui, que saía sem o período. O mesmo certificado emitido
+     pelo painel vinha correto — daí a divergência entre as duas telas. */
+  function textoDatas(dias) {
+    if (!dias || !dias.length) return '';
+    if (window.faTurmasUtil && window.faTurmasUtil.formatDias) {
+      var f = window.faTurmasUtil.formatDias(dias.slice().sort());
+      if (f && f.dates) return f.dates;
+    }
+    /* Reserva: se o utilitário não estiver disponível, ainda é melhor
+       mostrar os dias do que deixar o certificado sem período. */
+    return dias.slice().sort().map(function (d) { return String(d).split('-')[2]; }).join(', ');
+  }
+
   function todayISO() {
     var d = new Date();
     return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
@@ -141,7 +160,7 @@
         faltam: fase === 'programada' ? diasAte(primeiro) : null,
         key: tk,
         label: turma.label || tk,
-        datas: turma.dates || '',
+        datas: textoDatas(turma.dias),
         dias: dias,
         presentes: presentes,
         freq: freq,
@@ -175,7 +194,7 @@
       out.push({
         key: tk,
         label: turma.label || tk,
-        datas: turma.dates || '',
+        datas: textoDatas(turma.dias),
         evento: evento,
         desde: reg.date || '',
         encerrada: !!cfg.encerrada,
@@ -208,7 +227,7 @@
       return {
         key: tk,
         label: turma.label || tk,
-        datas: turma.dates || '',
+        datas: textoDatas(turma.dias),
         inicio: dias[0] || '',
         encerrada: !!cfg.encerrada,
         interesseEncerrado: !!cfg.finalizada,
