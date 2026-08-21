@@ -366,6 +366,9 @@
 
     /* ── AVALIAÇÃO ── */
     { section: 'avaliacao', personas: ['inscrito', 'admin'],
+      title: 'Quando o formulário avança sozinho de seção',
+      body: 'O formulário só avança sozinho quando a nota é a ÚNICA pergunta da seção — o que hoje acontece apenas na seção 1. Nas seções que têm perguntas depois da nota (o motivo do NPS, o que mais gostou, o que gostaria de aprofundar, o que pretende aplicar), a seção fica aberta e quem decide quando sair é a pessoa, pelo cabeçalho de outra seção ou pelo botão \"Pular esta seção\". Antes ele avançava sempre que a nota principal era marcada: a pessoa dava a nota, a seção fechava sozinha 600ms depois e a tela pulava para a seguinte, obrigando a voltar para responder o resto — no celular era pior, porque a rolagem levava embora justamente o campo que ela ia preencher.' },
+    { section: 'avaliacao', personas: ['inscrito', 'admin'],
       title: 'Quem vê a aba Avaliação',
       body: 'A aba "Avaliação" aparece no menu para quem foi confirmado numa turma E cuja turma teve a avaliação liberada pelo admin. Confirmado em turma que ainda não teve a avaliação liberada não vê a aba. O admin vê a aba sempre, mesmo sem ter liberado nada — para poder testar e revisar o formulário antes e depois de liberar para os inscritos. A visibilidade é verificada em tempo real ao carregar e a cada mudança de sessão.' },
     { section: 'avaliacao', personas: ['admin'],

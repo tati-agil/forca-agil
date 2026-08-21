@@ -1090,6 +1090,9 @@
 
     /* ── Avaliação da Oficina ─────────────────────────────────── */
     { section: 'Avaliação',
+      title: 'A seção não pode fechar sozinha com perguntas por responder (celular)',
+      motivo: 'Problema relatado por quem respondeu no celular: ao tocar na nota, a seção fechava sozinha e a tela pulava para a seguinte, obrigando a voltar para preencher o resto. Testar NO CELULAR, seção por seção. Nas seções 2 a 7 — todas têm perguntas depois da nota (motivo do NPS, o que mais gostou, o que aprofundar, o que pretende aplicar…) — tocar na nota e ESPERAR uns 3 segundos sem tocar em nada: a seção tem que continuar aberta, na mesma posição da tela, com as perguntas seguintes visíveis. Só a seção 1, cuja única pergunta é a nota, pode avançar sozinha para a seção 2. Repetir tocando em notas diferentes e trocando a nota já marcada. Conferir também que continuam funcionando os caminhos manuais de navegação: tocar no cabeçalho de outra seção e o botão "Pular esta seção →".' },
+    { section: 'Avaliação',
       title: 'Admin libera avaliação por turma — aba aparece para inscrito',
       motivo: 'Requer turma com inscritos confirmados. Clicar em "📋 Liberar avaliação" no menu ⋯ da turma. Verificar: (1) modal de confirmação aparece; (2) ao confirmar, botão vira "🔒 Encerrar avaliação"; (3) ao logar como inscrito confirmado naquela turma, a aba "Avaliação" aparece no menu; (4) ao clicar, o formulário com 13 seções em accordion é exibido; (5) seção 1 começa expandida, demais recolhidas.' },
     { section: 'Avaliação',

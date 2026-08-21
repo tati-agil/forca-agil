@@ -297,6 +297,7 @@
     },
     { label: 'AVALIAÇÃO', color: '#a78bfa',
       features: [
+        { label: 'O formulário só avança de seção sozinho quando a nota é a única pergunta da seção (hoje, só a seção 1) — seções com perguntas depois da nota ficam abertas, quem decide quando sair é a pessoa', p: ['inscrito','admin'] },
         { label: 'Aba Avaliação: visível no menu para inscritos confirmados em turma com avaliação liberada pelo admin (flag avaliacaoHabilitada). Admin vê a aba sempre — independente do flag — para poder testar e revisar antes e depois de liberar', p: ['inscrito','admin'] },
         { label: 'Admin vê seletores de Evento e Turma no topo da Avaliação — pode revisar/testar o formulário de QUALQUER turma do sistema, mesmo sem estar pessoalmente inscrito nela (não fica restrito às próprias turmas confirmadas)', p: ['admin'] },
         { label: 'Formulário com 13 seções em accordion: seções recolhidas por padrão, seção 1 abre automaticamente ao carregar', p: ['inscrito','admin'] },

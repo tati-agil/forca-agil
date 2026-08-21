@@ -523,17 +523,34 @@
           btn.classList.add('active');
           scheduleSave();
 
-          /* Auto-avança para próxima seção apenas no campo principal da seção */
+          /* Auto-avança para a próxima seção — mas SÓ quando a nota é a
+             única pergunta da seção.
+
+             Antes, avançava sempre que a nota principal era marcada. Nas
+             seções que têm perguntas depois da nota (o motivo do NPS, o
+             que mais gostou, o que aprofundar…), a pessoa dava a nota e
+             600ms depois a seção fechava sozinha e a tela pulava para a
+             seguinte — no celular isso era pior ainda, porque o scroll
+             levava embora o que ela ia preencher, e era preciso voltar. */
           SECS.forEach(function(sec, idx) {
-            if (sec.pField === fieldId && sec.pType === 'rating') {
-              var next = SECS[idx + 1];
-              if (next) {
-                setTimeout(function() {
-                  closeSection(c, sec.id);
-                  openSection(c, next.id);
-                }, 600);
-              }
-            }
+            if (sec.pField !== fieldId || sec.pType !== 'rating') return;
+            var next = SECS[idx + 1];
+            if (!next) return;
+
+            var acc = c.querySelector('#' + sec.id);
+            if (!acc) return;
+            var corpo = acc.querySelector('.aval-acc-body');
+            if (!corpo) return;
+            /* Sobrou alguma outra pergunta nesta seção? Então quem decide
+               quando sair daqui é a pessoa, não o formulário. */
+            var outrosRatings = corpo.querySelectorAll('.aval-rating').length > 1;
+            var outrosCampos  = corpo.querySelectorAll('textarea, input[type="text"], input[type="checkbox"], input[type="radio"]').length > 0;
+            if (outrosRatings || outrosCampos) return;
+
+            setTimeout(function() {
+              closeSection(c, sec.id);
+              openSection(c, next.id);
+            }, 600);
           });
         });
       });
