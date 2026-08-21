@@ -15,13 +15,23 @@
     { field: 'aplicacaoPreparado', icon: '🚀',  label: 'Aplicação prática e preparo' },
   ];
 
+  /* Faixas da distribuição de notas.
+
+     Eram irregulares — "0-1", "2" sozinho, "3-4" — o que dava a impressão
+     de uma escala regular que não existia e fazia a barra do "2" parecer
+     tão importante quanto a de duas notas juntas.
+
+     Agora são todas de duas notas, com os cortes em 7 e em 9 — os mesmos
+     limites usados pelo NPS ao lado (detratores até 6, neutros 7-8,
+     promotores 9-10) e pela linha "nota 7 ou acima". A primeira faixa
+     carrega três notas porque a escala tem 11 pontos (0 a 10) e não há
+     divisão exata; ficou na ponta que quase nunca é usada. */
   var BUCKETS = [
-    { label: '0-1',  emoji: '😡', test: function (n) { return n <= 1; } },
-    { label: '2',    emoji: '😠', test: function (n) { return n === 2; } },
-    { label: '3-4',  emoji: '😞', test: function (n) { return n >= 3 && n <= 4; } },
-    { label: '5-6',  emoji: '😐', test: function (n) { return n >= 5 && n <= 6; } },
-    { label: '7-8',  emoji: '🙂', test: function (n) { return n >= 7 && n <= 8; } },
-    { label: '9-10', emoji: '🤩', test: function (n) { return n >= 9; } },
+    { label: '0-2',  emoji: '😡', cor: '#ff5252', test: function (n) { return n <= 2; } },
+    { label: '3-4',  emoji: '😞', cor: '#f5a623', test: function (n) { return n >= 3 && n <= 4; } },
+    { label: '5-6',  emoji: '😐', cor: '#8a93a8', test: function (n) { return n >= 5 && n <= 6; } },
+    { label: '7-8',  emoji: '🙂', cor: '#7cb342', test: function (n) { return n >= 7 && n <= 8; } },
+    { label: '9-10', emoji: '🤩', cor: '#4caf7d', test: function (n) { return n >= 9; } },
   ];
 
   function esc(s) {
@@ -90,7 +100,7 @@
     var notasValidas = nums(avals, 'notaGeral');
     var distrib = BUCKETS.map(function (b) {
       var n = notasValidas.filter(b.test).length;
-      return { label: b.label, emoji: b.emoji, n: n, pct: notasValidas.length ? Math.round((n / notasValidas.length) * 1000) / 10 : 0 };
+      return { label: b.label, emoji: b.emoji, cor: b.cor, n: n, pct: notasValidas.length ? Math.round((n / notasValidas.length) * 1000) / 10 : 0 };
     });
     var pct7mais = notasValidas.length ? Math.round((notasValidas.filter(function (v) { return v >= 7; }).length / notasValidas.length) * 1000) / 10 : 0;
 
@@ -129,7 +139,7 @@
     return {
       total: total, mediaGeral: mediaGeral, mediaNps: mediaNps, npsScore: npsScore, pct7maisNps: pct7maisNps,
       comentarios: comentarios, participantes: participantes, pctParticipacao: pctParticipacao,
-      distrib: distrib, pct7mais: pct7mais, turmasArr: turmasArr, destaques: destaques,
+      distrib: distrib, pct7mais: pct7mais, notasContadas: notasValidas.length, turmasArr: turmasArr, destaques: destaques,
       temasArr: temasArr, feedbacks: feedbacks,
       /* Dados brutos, para o bloco de respostas individuais */
       avals: avals, turmasData: turmasData,
@@ -390,12 +400,16 @@
     });
     html += '</div>';
     html += '<div class="dash-distrib-bar">';
-    dados.distrib.forEach(function (b, i) {
-      var cores = ['#ff5252', '#f5a623', '#f5a623', '#8a93a8', '#4caf7d', '#4caf7d'];
-      if (b.pct > 0) html += '<span style="width:' + b.pct + '%;background:' + cores[i] + '" title="' + b.label + ': ' + fmt1(b.pct) + '%"></span>';
+    dados.distrib.forEach(function (b) {
+      /* Cor vem da própria faixa, não da posição na lista: assim mudar as
+         faixas não desalinha as cores silenciosamente. */
+      if (b.pct > 0) html += '<span style="width:' + b.pct + '%;background:' + b.cor + '" title="' + b.label + ': ' + fmt1(b.pct) + '%"></span>';
     });
     html += '</div>';
-    html += '<p class="dash-distrib-resumo">' + dados.total + ' avaliações — ' + fmt1(dados.pct7mais) + '% deram nota 7 ou acima ↑</p>';
+    /* A contagem é a de quem respondeu ESTA pergunta — pode ser menor que o
+       total de avaliações, e é sobre ela que os percentuais são calculados. */
+    html += '<p class="dash-distrib-resumo">' + dados.notasContadas + ' avaliaç' + (dados.notasContadas !== 1 ? 'ões' : 'ão') +
+            ' — ' + fmt1(dados.pct7mais) + '% deram nota 7 ou acima ↑</p>';
     html += '</div>';
 
     html += '<div class="dash-panel dash-panel--center"><h4 class="dash-panel-title">Recomendaria a oficina a um colega?</h4>';
