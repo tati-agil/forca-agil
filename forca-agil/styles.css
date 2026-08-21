@@ -1766,3 +1766,41 @@ button.arq-card[data-arch-target]:hover { filter: brightness(1.25); transform: t
   padding-top: 16px;
 }
 .faq-answer ul { margin: 8px 0 0 18px; display: flex; flex-direction: column; gap: 4px; }
+
+/* ── Dashboard: respostas individuais ── */
+.dash-panel--full { margin-top: 16px; }
+.dash-panel-sub { font-size: .8rem; color: var(--ink-3); line-height: 1.6; margin: 0 0 14px; }
+.resp-filtros { display: flex; align-items: flex-end; gap: 12px; flex-wrap: wrap; margin-bottom: 14px; }
+.resp-filtro { display: flex; flex-direction: column; gap: 5px; font-size: .74rem; color: var(--ink-2); }
+.resp-filtro select {
+  background: var(--panel-2); border: 1px solid var(--line-strong); border-radius: 4px;
+  color: var(--ink); padding: 5px 8px; font-size: .82rem; cursor: pointer; min-width: 150px;
+}
+.resp-contagem { font-family: var(--font-mono); font-size: .74rem; color: var(--ink-3); margin-left: auto; }
+.resp-lista { display: flex; flex-direction: column; gap: 8px; }
+.resp-card { background: var(--panel-2); border: 1px solid var(--line); border-radius: 10px; }
+.resp-head {
+  display: flex; align-items: center; gap: 14px; flex-wrap: wrap;
+  padding: 11px 14px; cursor: pointer; list-style: none; font-size: .84rem;
+}
+.resp-head::-webkit-details-marker { display: none; }
+.resp-head::before { content: '▸'; color: var(--ink-3); font-size: .8rem; }
+.resp-card[open] > .resp-head::before { content: '▾'; }
+.resp-quem { color: var(--ink); font-weight: 600; }
+.resp-quem--anon { color: var(--ink-2); font-weight: 400; font-style: italic; }
+.resp-turma { color: var(--ink-3); font-size: .78rem; }
+.resp-nota-topo { font-family: var(--font-mono); font-size: .76rem; color: var(--accent); }
+.resp-data { margin-left: auto; font-family: var(--font-mono); font-size: .72rem; color: var(--ink-3); }
+.resp-body { padding: 4px 16px 16px; border-top: 1px solid var(--line); }
+.resp-linha { padding: 11px 0; border-bottom: 1px dashed var(--line); }
+.resp-linha:last-child { border-bottom: none; }
+.resp-pergunta { font-size: .78rem; color: var(--ink-3); margin: 0 0 5px; line-height: 1.5; }
+.resp-valor { font-size: .88rem; color: var(--ink); line-height: 1.6; }
+.resp-nota { font-family: var(--font-mono); font-weight: 700; color: var(--accent); font-size: 1rem; }
+.resp-texto { white-space: pre-wrap; }
+.resp-vazio { color: var(--ink-3); font-style: italic; font-size: .82rem; }
+.resp-chips { display: flex; flex-wrap: wrap; gap: 6px; }
+.resp-chip { font-size: .76rem; padding: 3px 9px; border-radius: 20px; background: var(--panel); border: 1px solid var(--line-strong); color: var(--ink-2); }
+.resp-subitens { display: flex; flex-direction: column; gap: 4px; }
+.resp-subitem { display: flex; justify-content: space-between; gap: 12px; font-size: .82rem; color: var(--ink-2); max-width: 420px; }
+.resp-subitem strong { font-family: var(--font-mono); color: var(--accent); }

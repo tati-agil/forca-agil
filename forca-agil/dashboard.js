@@ -131,6 +131,8 @@
       comentarios: comentarios, participantes: participantes, pctParticipacao: pctParticipacao,
       distrib: distrib, pct7mais: pct7mais, turmasArr: turmasArr, destaques: destaques,
       temasArr: temasArr, feedbacks: feedbacks,
+      /* Dados brutos, para o bloco de respostas individuais */
+      avals: avals, turmasData: turmasData,
     };
   }
 
@@ -189,6 +191,173 @@
       '<span class="dash-stat-value">' + value + '</span>' +
       (sub ? '<span class="dash-stat-sub">' + sub + '</span>' : '') +
       '</div></div>';
+  }
+
+  /* ══════════════════════════════════════════════════════════════════
+     RESPOSTAS INDIVIDUAIS — o que cada pessoa respondeu, pergunta a
+     pergunta. Os cards de cima são médias; aqui está o dado bruto.
+
+     Sobre a identificação: o formulário promete que o nome só aparece
+     para o admin se a pessoa marcar "Quero me identificar". Esta tela
+     honra isso — quem não marcou aparece como "Anônimo", com as
+     respostas completas mas sem nome nem e-mail.
+     ══════════════════════════════════════════════════════════════════ */
+  var PERGUNTAS = {
+    notaGeral:            'De 0 a 10, qual nota você daria para a oficina?',
+    npsNota:              'De 0 a 10, quanto você indicaria esta Oficina para um colega?',
+    npsMotivo:            'O que fez você dar essa nota?',
+    orgGeral:             'Avaliação geral da organização (0 a 10)',
+    orgItens:             'Organização — itens avaliados',
+    conteudoRelevancia:   'O conteúdo apresentado foi relevante para você? (0 a 10)',
+    conteudoAplicacao:    'O conteúdo foi aplicável ao seu trabalho? (0 a 10)',
+    conteudoProfundidade: 'Profundidade do conteúdo',
+    conteudoGostou:       'Qual conteúdo você mais gostou?',
+    conteudoAprofundar:   'Qual conteúdo você gostaria que fosse aprofundado?',
+    facilitadoresNota:    'Avaliação geral dos facilitadores (0 a 10)',
+    facItens:             'Facilitadores — itens avaliados',
+    facilitadoresGostou:  'O que você mais gostou na condução da oficina?',
+    dinamicasNota:        'As dinâmicas ajudaram você a compreender os conceitos? (0 a 10)',
+    dinamicasMarcou:      'Qual atividade ou dinâmica mais marcou você?',
+    aplicacaoPreparado:   'Você se sente mais preparado para aplicar Agilidade? (0 a 10)',
+    aplicacaoPlanos:      'O que você pretende aplicar no seu trabalho?',
+    aplicacaoOque:        'Se sim, o quê?',
+    temasDesejados:       'Sobre quais temas de Agilidade você gostaria de aprender mais?',
+    materiaisDesejados:   'Que materiais você gostaria de encontrar na Força Ágil?',
+    materiaisEspecifico:  'Existe algum material específico que você gostaria?',
+    ferramentasDesejadas: 'Quais ferramentas você gostaria de aprender a utilizar?',
+    ferramentasEspecifica:'Existe alguma ferramenta que você gostaria de ver numa próxima oficina?',
+    continuar:            'O que você mais gostou na Oficina de Agilidade?',
+    melhorar:             'O que poderia ser melhor na próxima oficina?',
+    espacoAberto:         'Tem algo que não perguntamos e você gostaria de compartilhar?',
+  };
+  /* Campos de controle — não são perguntas, não entram na listagem */
+  var NAO_PERGUNTA = ['turmaKey','uKey','turmaLabel','timestamp','userEmail','identificado','nomeExibido'];
+
+  var ORG_LABEL = { planejamento:'Organização e planejamento', horarios:'Cumprimento dos horários',
+    comunicacao:'Comunicação antes e durante', clareza:'Clareza da programação',
+    estrutura:'Estrutura e ambiente', atividades:'Organização das atividades' };
+  var FAC_LABEL = { clareza:'Clareza das explicações', dominio:'Domínio do assunto',
+    duvidas:'Capacidade de responder dúvidas', interacao:'Interação com os participantes',
+    dinamicas:'Condução das dinâmicas', pratica:'Conexão entre teoria e prática' };
+
+  function valorHtml(campo, v) {
+    if (v === null || v === undefined || v === '') return '<span class="resp-vazio">— não respondeu</span>';
+    if (Array.isArray(v)) {
+      return '<span class="resp-chips">' + v.map(function (x) {
+        return '<span class="resp-chip">' + esc(x) + '</span>';
+      }).join('') + '</span>';
+    }
+    if (typeof v === 'object') {
+      var mapa = campo === 'orgItens' ? ORG_LABEL : campo === 'facItens' ? FAC_LABEL : null;
+      return '<span class="resp-subitens">' + Object.keys(v).map(function (k) {
+        return '<span class="resp-subitem"><span>' + esc((mapa && mapa[k]) || k) + '</span>' +
+               '<strong>' + esc(String(v[k])) + '</strong></span>';
+      }).join('') + '</span>';
+    }
+    if (typeof v === 'number') return '<span class="resp-nota">' + String(v).replace('.', ',') + '</span>';
+    return '<span class="resp-texto">' + esc(String(v)) + '</span>';
+  }
+
+  function cardResposta(a, idx) {
+    var quem = a.identificado
+      ? esc(a.nomeExibido || a.userEmail || 'Participante')
+      : 'Anônimo';
+    var quando = a.timestamp ? new Date(a.timestamp).toLocaleString('pt-BR') : '';
+
+    /* Ordem das perguntas: a do formulário (a ordem do mapa), e no fim
+       qualquer campo novo que ainda não esteja mapeado — assim uma
+       pergunta acrescentada ao formulário nunca fica invisível aqui. */
+    var ordem = Object.keys(PERGUNTAS).filter(function (k) { return k in a; });
+    Object.keys(a).forEach(function (k) {
+      if (NAO_PERGUNTA.indexOf(k) === -1 && ordem.indexOf(k) === -1) ordem.push(k);
+    });
+
+    var h = '<details class="resp-card"><summary class="resp-head">' +
+      '<span class="resp-quem' + (a.identificado ? '' : ' resp-quem--anon') + '">' +
+        (a.identificado ? '👤 ' : '🕶️ ') + quem + '</span>' +
+      '<span class="resp-turma">' + esc(a.turmaLabel || a.turmaKey || '') + '</span>' +
+      '<span class="resp-nota-topo">' + (typeof a.notaGeral === 'number' ? 'nota ' + String(a.notaGeral).replace('.', ',') : '—') + '</span>' +
+      '<span class="resp-data">' + esc(quando) + '</span>' +
+    '</summary><div class="resp-body">';
+
+    ordem.forEach(function (k) {
+      h += '<div class="resp-linha">' +
+             '<p class="resp-pergunta">' + esc(PERGUNTAS[k] || k) + '</p>' +
+             '<div class="resp-valor">' + valorHtml(k, a[k]) + '</div>' +
+           '</div>';
+    });
+    h += '</div></details>';
+    return h;
+  }
+
+  function blocoRespostas(avals, turmasData) {
+    var h = '<div class="dash-panel dash-panel--full">' +
+      '<h4 class="dash-panel-title">Respostas individuais</h4>' +
+      '<p class="dash-panel-sub">Tudo o que foi registrado em cada avaliação, pergunta a pergunta. ' +
+      'Quem não marcou “Quero me identificar” aparece como Anônimo — as respostas aparecem, o nome não.</p>';
+
+    if (!avals.length) {
+      h += '<p class="dash-empty">Nenhuma avaliação recebida ainda.</p></div>';
+      return h;
+    }
+
+    /* Filtro por turma — as turmas que têm avaliação */
+    var turmasComAval = {};
+    avals.forEach(function (a) { turmasComAval[a.turmaKey] = a.turmaLabel || (turmasData[a.turmaKey] || {}).label || a.turmaKey; });
+
+    h += '<div class="resp-filtros">' +
+      '<label class="resp-filtro">Turma <select class="resp-f-turma"><option value="">Todas as turmas</option>' +
+        Object.keys(turmasComAval).map(function (k) {
+          return '<option value="' + esc(k) + '">' + esc(turmasComAval[k]) + '</option>';
+        }).join('') +
+      '</select></label>' +
+      '<label class="resp-filtro">Identificação <select class="resp-f-ident">' +
+        '<option value="">Todas</option>' +
+        '<option value="sim">Só identificadas</option>' +
+        '<option value="nao">Só anônimas</option>' +
+      '</select></label>' +
+      '<span class="resp-contagem"></span>' +
+      '<button class="btn btn--sm resp-abrir" type="button">Abrir todas</button>' +
+      '<button class="btn btn--sm resp-fechar" type="button">Fechar todas</button>' +
+    '</div>';
+
+    h += '<div class="resp-lista"></div></div>';
+    return h;
+  }
+
+  /* Liga os filtros depois que o HTML foi inserido */
+  function ligarRespostas(wrap, avals) {
+    var lista = wrap.querySelector('.resp-lista');
+    if (!lista) return;
+    var selT = wrap.querySelector('.resp-f-turma');
+    var selI = wrap.querySelector('.resp-f-ident');
+    var cont = wrap.querySelector('.resp-contagem');
+
+    var ordenadas = avals.slice().sort(function (a, b) {
+      return String(b.timestamp || '').localeCompare(String(a.timestamp || ''));
+    });
+
+    function desenhar() {
+      var fs = ordenadas.filter(function (a) {
+        if (selT.value && a.turmaKey !== selT.value) return false;
+        if (selI.value === 'sim' && !a.identificado) return false;
+        if (selI.value === 'nao' && a.identificado) return false;
+        return true;
+      });
+      cont.textContent = fs.length + ' avaliaç' + (fs.length !== 1 ? 'ões' : 'ão');
+      lista.innerHTML = fs.length
+        ? fs.map(cardResposta).join('')
+        : '<p class="dash-empty">Nenhuma avaliação neste filtro.</p>';
+    }
+    selT.addEventListener('change', desenhar);
+    selI.addEventListener('change', desenhar);
+    wrap.querySelector('.resp-abrir').addEventListener('click', function () {
+      lista.querySelectorAll('details').forEach(function (d) { d.open = true; });
+    });
+    wrap.querySelector('.resp-fechar').addEventListener('click', function () {
+      lista.querySelectorAll('details').forEach(function (d) { d.open = false; });
+    });
+    desenhar();
   }
 
   function render(wrap, dados) {
@@ -277,7 +446,10 @@
     }
     html += '</div>';
 
+    html += blocoRespostas(dados.avals || [], dados.turmasData || {});
+
     wrap.innerHTML = html;
+    ligarRespostas(wrap, dados.avals || []);
   }
 
   window.faInitDashboard = function () {
