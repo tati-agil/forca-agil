@@ -108,6 +108,7 @@
     { label: 'ADMIN', color: '#6b7a99',
       features: [
         { label: '11 abas no total (Dashboard, Eventos, Certificados, Repositório, Cadastrados, Administradores, Manual, Mapa, Testes, Pedidos, Sorteios); no mobile quebram em 2 linhas', p: ['admin'] },
+        { label: 'Aba Dashboard — bloco retrátil "Como cada número desta tela é calculado", com a memória de cálculo de todos os indicadores na própria tela; explicita os que mais confundem: média geral e NPS vêm de perguntas diferentes, o medidor mostra a média da recomendação e não o NPS, e Comentários conta avaliações e não comentários', p: ['admin'] },
         { label: 'Aba Dashboard — visão geral das avaliações: cards de participantes, avaliações recebidas (%), média geral, NPS e comentários; gráfico de barras com média por turma; distribuição das notas da pergunta "que nota daria para a oficina" em 5 faixas regulares (0-2, 3-4, 5-6, 7-8, 9-10), com os mesmos cortes do NPS; gauge de recomendação; destaques por seção (calculado das notas estruturadas, não de texto livre); temas mais solicitados; amostra de feedbacks em destaque', p: ['admin'] },
         { label: 'Aba Eventos — turmas organizadas dentro de containers de evento; turmas sem evento ficam em "TURMAS SEM EVENTO"', p: ['admin'] },
         { label: 'Aba Eventos — criar evento (nome + carga horária + frequência mínima p/ certificado, padrão 75%)', p: ['admin'] },

@@ -1804,3 +1804,22 @@ button.arq-card[data-arch-target]:hover { filter: brightness(1.25); transform: t
 .resp-subitens { display: flex; flex-direction: column; gap: 4px; }
 .resp-subitem { display: flex; justify-content: space-between; gap: 12px; font-size: .82rem; color: var(--ink-2); max-width: 420px; }
 .resp-subitem strong { font-family: var(--font-mono); color: var(--accent); }
+
+/* ── Dashboard: memória de cálculo ── */
+.dash-como { background: var(--panel); border: 1px solid var(--line); border-radius: 12px; margin-bottom: 16px; }
+.dash-como-head {
+  padding: 13px 18px; cursor: pointer; list-style: none;
+  font-family: var(--font-head); font-size: .84rem; letter-spacing: .04em;
+  color: var(--ink-2); display: flex; align-items: center; gap: 8px;
+}
+.dash-como-head::-webkit-details-marker { display: none; }
+.dash-como-head::after { content: '▸'; margin-left: auto; color: var(--ink-3); font-size: .8rem; }
+.dash-como[open] > .dash-como-head { color: var(--ink); border-bottom: 1px solid var(--line); }
+.dash-como[open] > .dash-como-head::after { content: '▾'; }
+.dash-como-body {
+  padding: 16px 18px; display: grid; gap: 14px;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+}
+.dash-como-item { min-width: 0; }
+.dash-como-titulo { font-size: .82rem; color: var(--ink); margin: 0 0 4px; font-weight: 600; }
+.dash-como-texto { font-size: .8rem; color: var(--ink-3); line-height: 1.65; margin: 0; }

@@ -194,6 +194,49 @@
     return svg;
   }
 
+  /* ══════════════════════════════════════════════════════════════════
+     COMO É CALCULADO — a memória de cálculo de cada número da tela.
+
+     Sem isso, o painel pede confiança cega: dois números de 0 a 10 lado
+     a lado (9,8 e 9,9) vêm de perguntas diferentes, e "NPS +100" não é
+     média de nada. Fica no próprio Dashboard, e não só no Manual, para
+     poder ser conferido na hora em que o número está sendo olhado.
+     ══════════════════════════════════════════════════════════════════ */
+  function blocoComoCalcula(d) {
+    var itens = [
+      ['👥 Participantes',
+       'Quantas pessoas estão confirmadas em alguma turma — somando todas as turmas. Conta quem tem inscrição confirmada pela organização e não foi removida. Quem só manifestou interesse não entra.'],
+      ['✅ Avaliações recebidas',
+       'Quantas avaliações foram enviadas, somando todas as turmas. O percentual ao lado é esse número dividido pelo de Participantes. Atenção: quem responde sem estar confirmado — um admin testando, por exemplo — soma no primeiro número e não no segundo, então o percentual pode passar de 100%.'],
+      ['⭐ Média geral',
+       'Média simples das notas da pergunta “De 0 a 10, qual nota você daria para a oficina?” (seção 1). Só entra quem respondeu essa pergunta.'],
+      ['📈 NPS (recomendação)',
+       'NÃO é média. Usa a pergunta “quanto você indicaria esta Oficina para um colega?” (seção 2) e aplica a fórmula de mercado: percentual de quem deu 9 ou 10 MENOS percentual de quem deu de 0 a 6. Quem deu 7 ou 8 não conta para nenhum dos lados. O resultado vai de −100 a +100 — por isso não se compara com as notas de 0 a 10.'],
+      ['💬 Comentários',
+       'Quantas avaliações têm pelo menos um dos três campos de texto preenchidos: o que devemos continuar fazendo, o que devemos melhorar, ou o espaço aberto. É por avaliação, não por comentário — quem escreveu nos três conta uma vez.'],
+      ['📊 Média por turma',
+       'A mesma nota da Média geral, separada por turma. Todas as turmas cadastradas aparecem, inclusive as que ainda não têm avaliação — essas ficam com barra em zero, para não sumirem do gráfico.'],
+      ['😐 Distribuição das notas',
+       'Também a nota da oficina (seção 1), agrupada em cinco faixas de duas notas: 0-2, 3-4, 5-6, 7-8 e 9-10. A primeira carrega três notas porque a escala tem 11 pontos e não há divisão exata. Os cortes em 7 e em 9 são os mesmos usados pelo NPS. Os percentuais são sobre quem respondeu essa pergunta.'],
+      ['🎯 Recomendaria a um colega?',
+       'O medidor mostra a MÉDIA da pergunta de recomendação (seção 2) — não o NPS. Por isso ele marca ' + fmt1(d.mediaNps) + ' e o card de NPS marca ' + (d.npsScore >= 0 ? '+' : '') + d.npsScore + ': são contas diferentes sobre a mesma pergunta.'],
+      ['🏅 Principais destaques',
+       'Sai só das notas por seção — organização, conteúdo, facilitadores, dinâmicas e aplicação prática. Nunca de texto livre: o sistema não interpreta o que foi escrito. A média ordena a lista, e “N menções” é quantas pessoas deram 8 ou mais naquela seção.'],
+      ['💡 Temas mais solicitados',
+       'Contagem de quantas vezes cada tema foi marcado na seção 8 do formulário. Uma pessoa pode marcar vários, então a soma passa do número de avaliações.'],
+      ['🗣️ Feedbacks em destaque',
+       'Amostra dos três mais recentes que responderam “o que devemos continuar fazendo”. É uma amostra por data, não uma seleção dos melhores — para ler todos, use o bloco Respostas individuais no fim da página.'],
+    ];
+    var h = '<details class="dash-como"><summary class="dash-como-head">🧮 Como cada número desta tela é calculado</summary>' +
+            '<div class="dash-como-body">';
+    itens.forEach(function (it) {
+      h += '<div class="dash-como-item"><p class="dash-como-titulo">' + it[0] + '</p>' +
+           '<p class="dash-como-texto">' + esc(it[1]) + '</p></div>';
+    });
+    h += '</div></details>';
+    return h;
+  }
+
   function statCard(icon, label, value, sub, cor) {
     return '<div class="dash-stat-card" style="--sc:' + cor + '">' +
       '<div class="dash-stat-icon">' + icon + '</div>' +
@@ -385,6 +428,8 @@
     html += statCard('📈', 'NPS (recomendação)', (dados.npsScore >= 0 ? '+' : '') + dados.npsScore, dados.npsScore >= 50 ? 'Zona de excelência' : 'Acompanhar', '#e8854a');
     html += statCard('💬', 'Comentários', dados.comentarios, 'Feedbacks recebidos', '#e05c7f');
     html += '</div>';
+
+    html += blocoComoCalcula(dados);
 
     html += '<div class="dash-grid-3">';
 
