@@ -140,7 +140,10 @@
      grid encolhe o texto proporcionalmente, ficando ilegível. */
   function svgBarras(turmasArr) {
     if (!turmasArr.length) return '<p class="dash-empty">Nenhuma avaliação registrada ainda.</p>';
-    var W = 420, H = 220, padL = 30, padB = 40, padT = 14;
+    /* padT precisa caber o valor escrito ACIMA da barra (fonte 15, deslocada
+       8px para cima). Com padT baixo, uma barra perto de 10 empurrava o
+       número para fora do viewBox e ele aparecia cortado pela metade. */
+    var W = 420, H = 240, padL = 30, padB = 40, padT = 32;
     var chartW = W - padL - 10, chartH = H - padT - padB;
     var barW = Math.min(64, chartW / turmasArr.length - 20);
     var cores = ['#9b7fff', '#4caf7d', '#42a5f5', '#f5c542', '#e8854a', '#e05c7f'];
