@@ -191,6 +191,40 @@
      Os endereços testados são os mesmos que o site já declara como
      permitidos na sua política de segurança; nenhum dado sai daqui.
      ══════════════════════════════════════════════════════════════════ */
+  /* Quanto tempo cada peça levou para carregar. Os arquivos do Firebase vêm
+     de fora do site (gstatic); num proxy que inspeciona tráfego, baixá-los
+     pode levar mais tempo do que o site inteiro. */
+  function medirTempos() {
+    var linhas = [];
+    function seg(ms) { return (Math.round(ms / 100) / 10).toString().replace('.', ',') + 's'; }
+
+    try {
+      var recursos = performance.getEntriesByType('resource') || [];
+      var deFora = recursos.filter(function (r) { return r.name.indexOf('gstatic.com') !== -1; });
+      if (deFora.length) {
+        var maisLento = deFora.reduce(function (a, b) { return a.duration > b.duration ? a : b; });
+        var somaFora = deFora.reduce(function (s, r) { return s + r.duration; }, 0);
+        linhas.push(['Baixar o sistema (arquivos externos)', seg(somaFora) +
+          ' — ' + deFora.length + ' arquivo' + (deFora.length !== 1 ? 's' : '') +
+          ', o mais lento levou ' + seg(maisLento.duration)]);
+      }
+      var doSite = recursos.filter(function (r) { return r.name.indexOf(location.host) !== -1; });
+      if (doSite.length) {
+        var somaSite = doSite.reduce(function (s, r) { return s + r.duration; }, 0);
+        linhas.push(['Baixar o site em si', seg(somaSite) + ' — ' + doSite.length + ' arquivos']);
+      }
+      var nav = (performance.getEntriesByType('navigation') || [])[0];
+      if (nav) linhas.push(['Página pronta', seg(nav.domContentLoadedEventEnd)]);
+    } catch (e) { /* navegador sem essas medições — segue sem elas */ }
+
+    linhas.push(['Tempo até este teste', seg(performance.now())]);
+    linhas.push(['Servidor respondeu a autenticação?', _authResolveu ? 'sim' : 'ainda não']);
+
+    return linhas.map(function (l) {
+      return '<p class="auth-diag-linha">⏱ ' + l[0] + '<span class="auth-diag-dom">' + l[1] + '</span></p>';
+    }).join('');
+  }
+
   function diagnosticarConexao(saida, botao) {
     if (!saida) return;
     botao.disabled = true;
@@ -246,8 +280,13 @@
       }).join('');
 
       if (!bloqueados.length) {
-        h += '<p class="auth-diag-conc">Os três endereços responderam. Se ainda assim não entrar, ' +
-             'pode ser lentidão momentânea — recarregue a página.</p>';
+        /* Nada bloqueado e o site travou assim mesmo → o problema é tempo,
+           não acesso. Mostra quanto demorou cada peça, que é o que permite
+           dizer se a lentidão está em baixar o sistema ou em conversar com
+           o servidor. */
+        h += '<p class="auth-diag-conc">Nenhum endereço está bloqueado — o problema é de <strong>lentidão</strong>. ' +
+             'Veja quanto tempo cada parte levou:</p>';
+        h += medirTempos();
       } else {
         h += '<p class="auth-diag-conc">Sua rede está bloqueando ' +
              (bloqueados.length === 1 ? 'este endereço' : 'estes endereços') +
