@@ -237,6 +237,11 @@
           var data    = snapI.val()  || {};
           var config  = snapC.val()  || {};
           var checkin = snapCk.val() || {};
+          /* Precisa vir antes de desenhar qualquer turma: é daqui que sai
+             o "Já participou · Turma 1 — Agosto". */
+          registrarTurmasConfirmadas(data, TURMAS_LIST.reduce(function (acc, t) {
+            acc[t.key] = { label: t.label }; return acc;
+          }, {}));
           c.innerHTML = '';
 
           /* ── Botões globais ────────────────────────────────────────────── */
@@ -318,8 +323,15 @@
             /* "não confirmados" em vez de "interessados": todo inscrito também
                manifestou interesse um dia, então o rótulo antigo sugeria um
                subconjunto que não existe — as duas contagens são exclusivas. */
-            var countLabel   = interessados.length + ' não confirmado' + (interessados.length !== 1 ? 's' : '') +
-              ' · ' + inscritos.length + ' confirmado' + (inscritos.length !== 1 ? 's' : '');
+            /* O cabeçalho dizia "N não confirmados", juntando quem ainda não
+               foi analisada com quem já tem motivo — e contradizia os filtros
+               logo abaixo, que já separam os dois. Agora fala a mesma língua
+               e mostra o total de interessados, que é o número que se procura
+               ao planejar a próxima turma. */
+            var aguardandoHdr = interessados.filter(function (r) { return !r.motivoNaoConfirmado; }).length;
+            var countLabel = all.length + ' interessado' + (all.length !== 1 ? 's' : '') +
+              ' · ' + inscritos.length + ' confirmado' + (inscritos.length !== 1 ? 's' : '') +
+              (aguardandoHdr ? ' · ' + aguardandoHdr + ' aguardando decisão' : '');
 
             var card = document.createElement('div');
             card.className = 'turma-admin-card';
@@ -798,8 +810,10 @@
       var isInscrito = r.status === 'inscrito';
       var motivoBadge = '';
       if (!isInscrito && r.motivoNaoConfirmado) {
+        var ondeFez = r.motivoNaoConfirmado === 'ja_participou' ? ondeJaParticipou(eKey, t.key) : [];
         var motivoLabel = r.motivoNaoConfirmado === 'sem_vagas' ? 'Sem vagas'
-          : r.motivoNaoConfirmado === 'ja_participou' ? 'Já participou'
+          : r.motivoNaoConfirmado === 'ja_participou'
+              ? ('Já participou' + (ondeFez.length ? ' · ' + ondeFez.map(function (x) { return x.label; }).join(', ') : ''))
           : 'Substituída';
         var motivoCls = r.motivoNaoConfirmado === 'sem_vagas' ? 'motivo-sem-vagas'
           : r.motivoNaoConfirmado === 'ja_participou' ? 'motivo-ja-participou'
@@ -1564,6 +1578,26 @@
      substituição é uma marca que fica na pessoa dentro da turma, não um
      destino — ela continua como não confirmada, com o selo, e só depois se
      decide se vai para a espera ou se sai. */
+  /* Em quais turmas cada pessoa já foi confirmada. Preenchido a cada
+     carga da aba Eventos e usado para o selo "Já participou" dizer DE QUAL
+     turma — a informação existe no sistema, não faz sentido exigir que o
+     admin lembre. */
+  var _turmasConfirmadas = {};
+  function registrarTurmasConfirmadas(data, turmasVal) {
+    _turmasConfirmadas = {};
+    Object.keys(data || {}).forEach(function (tk) {
+      var label = (turmasVal[tk] && turmasVal[tk].label) || tk;
+      Object.keys(data[tk] || {}).forEach(function (k) {
+        var r = data[tk][k];
+        if (!r || r.removed || r.status !== 'inscrito' || !r.confirmedByAdmin) return;
+        (_turmasConfirmadas[k] = _turmasConfirmadas[k] || []).push({ tk: tk, label: label });
+      });
+    });
+  }
+  function ondeJaParticipou(eKey, turmaAtual) {
+    return (_turmasConfirmadas[eKey] || []).filter(function (x) { return x.tk !== turmaAtual; });
+  }
+
   var MOTIVOS_REMOCAO_TURMA = [
     { key: 'a_pedido',         label: 'A pedido da própria pessoa' },
     /* pedeTurma: o modal troca o campo de texto por uma lista de turmas —
