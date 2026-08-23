@@ -1016,7 +1016,11 @@
   function buildRemovedInteressadosTable(records) {
     var wrap = document.createElement('div');
     wrap.className = 'table-scroll-wrap';
-    var tbl = '<table class="admin-table"><thead><tr><th>Nome</th><th>E-mail</th><th>Área</th><th>Data remoção</th><th>Destino</th><th>Motivo</th></tr></thead><tbody>';
+    /* As duas datas juntas: quando ela manifestou interesse e quando saiu.
+       Só a data de saída não responde há quanto tempo a pessoa esperava —
+       que é o que pesa na hora de chamar alguém da fila ou de decidir quem
+       entra na próxima turma. */
+    var tbl = '<table class="admin-table"><thead><tr><th>Nome</th><th>E-mail</th><th>Área</th><th>Data interesse</th><th>Data remoção</th><th>Destino</th><th>Motivo</th></tr></thead><tbody>';
     records.forEach(function (r) {
       /* O motivo sozinho não conta a história toda: para onde ela foi e por
          quem foi substituída são justamente o que se pergunta depois. */
@@ -1028,7 +1032,7 @@
           (r.substituidaPorNome ? ' <span class="motivo-porquem">' + esc(r.substituidaPorNome) + '</span>' : '') + '</span>';
       }
       tbl += '<tr><td>' + esc(r.name) + '</td><td>' + esc(r.email) + '</td><td>' +
-        esc(r.area || '—') + '</td><td>' + fmtDate(r.removedDate) + '</td><td>' +
+        esc(r.area || '—') + '</td><td>' + fmtDate(r.date) + '</td><td>' + fmtDate(r.removedDate) + '</td><td>' +
         destinoDeQuemSaiu(r) + '</td><td>' +
         esc(r.removedReason || 'Removida pelo admin') + extra + '</td></tr>';
     });
@@ -1044,7 +1048,7 @@
     wrap.className = 'table-scroll-wrap';
 
     var tbl = '<table class="admin-table presenca-table"><thead><tr>' +
-      '<th>Nome</th><th>E-mail</th><th>Área</th><th>Data remoção</th><th>Destino</th><th>Motivo</th>';
+      '<th>Nome</th><th>E-mail</th><th>Área</th><th>Data interesse</th><th>Data remoção</th><th>Destino</th><th>Motivo</th>';
     t.dias.forEach(function (d) {
       tbl += '<th class="dia-th">' + fmtDia(d) + '</th>';
     });
@@ -1070,7 +1074,7 @@
       var freqClass = atingiu ? 'freq-ok' : 'freq-nok';
 
       tbl += '<tr><td>' + esc(r.name) + '</td><td>' + esc(r.email) + '</td><td>' +
-        esc(r.area || '—') + '</td><td>' + fmtDate(r.removedDate) + '</td><td>' + destinoDeQuemSaiu(r) + '</td><td>' + esc(r.removedReason || 'Removida pelo admin') + '</td>' + cells.join('') +
+        esc(r.area || '—') + '</td><td>' + fmtDate(r.date) + '</td><td>' + fmtDate(r.removedDate) + '</td><td>' + destinoDeQuemSaiu(r) + '</td><td>' + esc(r.removedReason || 'Removida pelo admin') + '</td>' + cells.join('') +
         '<td><span class="' + freqClass + '">' + freq + '</span></td></tr>';
     });
 
