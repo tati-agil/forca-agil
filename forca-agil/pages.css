@@ -881,3 +881,9 @@
 /* Autoria da saída, abaixo do motivo — some do caminho da leitura principal */
 .removido-por { display: block; font-size: .7rem; color: var(--ink-3); margin-top: 2px; }
 .removido-sem-motivo { color: var(--ink-3); font-style: italic; }
+.motivo-add-btn {
+  display: block; margin-top: 5px; font-family: var(--font-mono); font-size: .68rem;
+  background: none; border: 1px dashed var(--line-strong); border-radius: 5px;
+  color: var(--ink-3); padding: 3px 8px; cursor: pointer;
+}
+.motivo-add-btn:hover { color: var(--accent); border-color: var(--accent); border-style: solid; }
