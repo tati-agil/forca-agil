@@ -1019,6 +1019,22 @@
     return '<span class="destino-badge destino-saiu">Saiu</span>';
   }
 
+  /* Quem tirou a pessoa da turma. A tela escrevia "Removida pelo admin"
+     sempre que o motivo estava vazio — afirmando uma autoria que ela não
+     conhecia: quem tira o próprio interesse pelo site também deixa o motivo
+     vazio e aparecia como removida pelo admin. Agora só se afirma o que está
+     gravado — o nome de quem removeu (só a remoção pelo painel grava), o
+     status "removido" (só a saída pelo site grava), ou nada. */
+  function motivoDeQuemSaiu(r) {
+    var motivo = r.removedReason
+      ? esc(r.removedReason)
+      : '<span class="removido-sem-motivo">motivo não registrado</span>';
+    var quem = r.removedByAdminName ? ('por ' + r.removedByAdminName)
+      : r.status === 'removido'     ? 'pela própria pessoa'
+      : '';
+    return motivo + (quem ? '<span class="removido-por">' + esc(quem) + '</span>' : '');
+  }
+
   function buildRemovedInteressadosTable(records) {
     var wrap = document.createElement('div');
     wrap.className = 'table-scroll-wrap';
@@ -1040,7 +1056,7 @@
       tbl += '<tr><td>' + esc(r.name) + '</td><td>' + esc(r.email) + '</td><td>' +
         esc(r.area || '—') + '</td><td>' + fmtDate(r.date) + '</td><td>' + fmtDate(r.removedDate) + '</td><td>' +
         destinoDeQuemSaiu(r) + '</td><td>' +
-        esc(r.removedReason || 'Removida pelo admin') + extra + '</td></tr>';
+        motivoDeQuemSaiu(r) + extra + '</td></tr>';
     });
     wrap.innerHTML = tbl + '</tbody></table>';
     return wrap;
@@ -1089,7 +1105,7 @@
       var freqClass = atingiu ? 'freq-ok' : 'freq-nok';
 
       tbl += '<tr><td>' + esc(r.name) + '</td><td>' + esc(r.email) + '</td><td>' +
-        esc(r.area || '—') + '</td><td>' + fmtDate(r.date) + '</td><td>' + fmtDate(r.removedDate) + '</td><td>' + destinoDeQuemSaiu(r) + '</td><td>' + esc(r.removedReason || 'Removida pelo admin') + '</td>' + cells.join('') +
+        esc(r.area || '—') + '</td><td>' + fmtDate(r.date) + '</td><td>' + fmtDate(r.removedDate) + '</td><td>' + destinoDeQuemSaiu(r) + '</td><td>' + motivoDeQuemSaiu(r) + '</td>' + cells.join('') +
         '<td><span class="' + freqClass + '">' + freq + '</span></td></tr>';
     });
 
@@ -2396,7 +2412,7 @@
               };
               var acao = ACAO_LABELS[entry.action] || entry.action;
               var origem = entry.adminName ? 'Admin — ' + entry.adminName : 'Participante';
-              entries.push({ ts: entry.date || '', row: [t.label, entry.name||'', entry.email||'', entry.area||'', fmtData(entry.date), fmtHora(entry.date), acao, origem] });
+              entries.push({ ts: entry.date || '', row: [t.label, entry.name||'', entry.email||'', entry.area||'', fmtData(entry.date), fmtHora(entry.date), acao, origem, '', ''] });
             });
           });
 
@@ -2404,10 +2420,16 @@
           var turmaI = interestData[t.key] || {};
           Object.values(turmaI).forEach(function (r) {
             if (r.addedByAdmin && r.addedByAdminName) {
-              entries.push({ ts: r.date || '', row: [t.label, r.name||'', r.email||'', r.area||'', fmtData(r.date), fmtHora(r.date), 'Adicionado pelo admin', 'Admin — ' + r.addedByAdminName] });
+              entries.push({ ts: r.date || '', row: [t.label, r.name||'', r.email||'', r.area||'', fmtData(r.date), fmtHora(r.date), 'Adicionado pelo admin', 'Admin — ' + r.addedByAdminName, '', ''] });
             }
-            if (r.removed && r.removedByAdminName) {
-              entries.push({ ts: r.removedDate || '', row: [t.label, r.name||'', r.email||'', r.area||'', fmtData(r.removedDate), fmtHora(r.removedDate), 'Removido pelo admin', 'Admin — ' + r.removedByAdminName] });
+            /* Quem tirou o próprio interesse já entrou pelo log acima (é o
+               único caminho que grava status "removido"), então aqui só entra
+               a saída pelo painel — inclusive a antiga, que não guardou o nome
+               de quem removeu e antes sumia do histórico. */
+            if (r.removed && r.status !== 'removido') {
+              var autor = r.removedByAdminName ? 'Admin — ' + r.removedByAdminName : 'Não registrado';
+              var destino = r.movedToEspera ? 'Lista de espera' : (r.removedParaTurmaLabel || 'Saiu');
+              entries.push({ ts: r.removedDate || '', row: [t.label, r.name||'', r.email||'', r.area||'', fmtData(r.removedDate), fmtHora(r.removedDate), 'Removido da turma', autor, r.removedReason || '', destino] });
             }
           });
 
@@ -2415,7 +2437,7 @@
           entries.forEach(function (e) { rows.push(e.row); });
         });
 
-        toXls(['Turma','Nome','E-mail','Área','Data','Hora','Ação','Origem'],
+        toXls(['Turma','Nome','E-mail','Área','Data','Hora','Ação','Origem','Motivo','Destino'],
           rows, 'historico-' + new Date().toISOString().slice(0,10) + '.csv');
       });
     });
