@@ -538,7 +538,6 @@
 
 /* Lista de Espera — coluna "Origem": de qual turma a pessoa foi migrada */
 .espera-origem { display: block; font-size: .78rem; color: var(--cyan); white-space: nowrap; }
-.espera-origem-data { display: block; font-size: .7rem; color: var(--ink-3); }
 .espera-origem-motivo { display: block; font-size: .7rem; color: var(--ink-2); font-style: italic; }
 
 /* Modal de confirmação com motivo — usado nos fluxos da lista de espera */
