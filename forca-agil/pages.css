@@ -552,6 +552,28 @@
 /* Item 3: fundo sólido nas tabelas para melhorar contraste sobre o fundo animado */
 .admin-table { width: 100%; border-collapse: collapse; font-size: .84rem; background: var(--panel); border-radius: 10px; overflow: hidden; }
 
+/* Conferência da fila — os números que explicam por que a soma por turma
+   não bate com o tamanho da lista de espera */
+.espera-resumo {
+  background: var(--panel-2); border: 1px solid var(--line-strong);
+  border-radius: 10px; padding: 14px 16px; margin-bottom: 14px;
+}
+.espera-resumo-titulo {
+  font-family: var(--font-mono); font-size: .72rem; text-transform: uppercase;
+  letter-spacing: .05em; color: var(--ink-3); margin-bottom: 10px;
+}
+.espera-resumo-linha { display: flex; flex-wrap: wrap; gap: 8px 18px; margin-bottom: 8px; }
+.espera-resumo-item { font-size: .82rem; color: var(--ink-2); }
+.espera-resumo-item strong {
+  font-family: var(--font-mono); font-size: .95rem; color: var(--ink); margin-right: 3px;
+}
+.espera-resumo-item.ruim strong { color: #ff8080; }
+.espera-resumo-nota { font-size: .8rem; color: var(--ink-3); margin: 6px 0 0; line-height: 1.5; }
+.espera-resumo-det { margin-top: 8px; }
+.espera-resumo-det summary { font-size: .8rem; color: var(--accent); cursor: pointer; }
+.espera-resumo-det ul { margin: 8px 0 0; padding-left: 18px; }
+.espera-resumo-det li { font-size: .8rem; color: var(--ink-2); line-height: 1.6; margin-bottom: 4px; }
+
 /* Lista de Espera — coluna "Origem": de qual turma a pessoa foi migrada */
 .espera-origem { display: block; font-size: .78rem; color: var(--cyan); white-space: nowrap; }
 .espera-origem-motivo { display: block; font-size: .7rem; color: var(--ink-2); font-style: italic; }

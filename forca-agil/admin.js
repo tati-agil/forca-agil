@@ -2837,8 +2837,10 @@
     /* carrega turmas disponíveis para o dropdown "Mover para turma" */
     firebase.database().ref('turmas').once('value', function (tSnap) {
       firebase.database().ref('turmas-config').once('value', function (cfgSnap) {
+      firebase.database().ref('turmas-interesse').once('value', function (iSnap) {
         var turmasVal = tSnap.val() || {};
         var cfgVal    = cfgSnap.val() || {};
+        c.appendChild(resumoEspera(data, iSnap.val() || {}, turmasVal));
         var turmaOpts = Object.keys(turmasVal).map(function (k) {
           var cfg = cfgVal[k] || {};
           return { key: k, label: turmasVal[k].label || k.toUpperCase(), encerrada: !!(cfg.encerrada) };
@@ -2966,7 +2968,96 @@
         wrap.appendChild(table);
         c.appendChild(wrap);
       });
+      });
     });
+  }
+
+  /* ── Conferência da fila ────────────────────────────────────────────────
+     Dois números que nunca fecham por construção: fa-espera guarda uma
+     entrada POR PESSOA, e cada turma registra uma saída POR TURMA. Quem foi
+     mandada para a fila a partir de duas turmas conta duas vezes lá e uma
+     aqui.
+
+     Só que parte dessa diferença é perda de verdade: mandar alguém para a
+     fila grava o registro inteiro por cima do anterior, então a segunda
+     migração apaga a turma de origem, o motivo e — o que mais dói — a DATA
+     do primeiro interesse, que é justamente o que define a ordem de chegada.
+     Este bloco mede isso antes de qualquer conserto: separa o que é
+     diferença esperada do que é registro engolido. */
+  function resumoEspera(dataEspera, interesse, turmasVal) {
+    var box = document.createElement('div');
+    box.className = 'espera-resumo';
+
+    var chaves = Object.keys(dataEspera);
+    var ativas = chaves.filter(function (k) { return !dataEspera[k].removed; });
+    var diretas = ativas.filter(function (k) { return !dataEspera[k].migratedFrom; });
+
+    /* Uma saída por pessoa E por turma — é o que os filtros das turmas somam. */
+    var saidas = [];
+    Object.keys(interesse).forEach(function (tk) {
+      Object.keys(interesse[tk] || {}).forEach(function (k) {
+        var r = interesse[tk][k];
+        if (r && r.removed && r.movedToEspera) {
+          saidas.push({ eKey: k, turma: tk, nome: r.name || k, desde: r.date, quando: r.removedDate });
+        }
+      });
+    });
+    var pessoas = {};
+    saidas.forEach(function (x) { pessoas[x.eKey] = true; });
+
+    var naFila = [], engolidas = [], saiuDaFila = [], foiParaTurma = [], semRastro = [];
+    saidas.forEach(function (x) {
+      var e = dataEspera[x.eKey];
+      if (!e)                          { semRastro.push(x);  return; }
+      if (e.migratedFrom !== x.turma)  { engolidas.push(x);  return; }
+      if (e.movedToTurma)              { foiParaTurma.push(x); return; }
+      if (e.removed)                   { saiuDaFila.push(x); return; }
+      naFila.push(x);
+    });
+
+    var nome = function (tk) { return (turmasVal[tk] && turmasVal[tk].label) || tk; };
+    var linha = function (rot, n, cls) {
+      return '<span class="espera-resumo-item' + (cls ? ' ' + cls : '') + '"><strong>' + n + '</strong> ' + esc(rot) + '</span>';
+    };
+
+    var html = '<div class="espera-resumo-titulo">Conferência da fila</div><div class="espera-resumo-linha">' +
+      linha('na fila agora', ativas.length) +
+      linha('saídas para a espera registradas nas turmas', saidas.length) +
+      linha('pessoas distintas nessas saídas', Object.keys(pessoas).length) +
+      '</div>';
+
+    html += '<div class="espera-resumo-linha">' +
+      linha('com entrada correspondente na fila', naFila.length) +
+      linha('já foram da fila para uma turma', foiParaTurma.length) +
+      linha('foram removidas da fila', saiuDaFila.length) +
+      linha('engolidas por uma migração posterior', engolidas.length, engolidas.length ? 'ruim' : '') +
+      linha('sem rastro na fila', semRastro.length, semRastro.length ? 'ruim' : '') +
+      '</div>';
+
+    if (diretas.length) {
+      html += '<p class="espera-resumo-nota">' + diretas.length + ' pessoa' + (diretas.length !== 1 ? 's' : '') +
+        ' na fila entrou direto pelo card do site, sem vir de turma nenhuma — por isso não aparece em nenhuma saída.</p>';
+    }
+
+    var problemas = engolidas.concat(semRastro);
+    if (problemas.length) {
+      html += '<details class="espera-resumo-det"><summary>Ver as ' + problemas.length +
+        ' saídas que hoje não têm registro próprio na fila</summary><ul>';
+      problemas.sort(function (a, b) { return (a.nome || '').localeCompare(b.nome || '', 'pt-BR'); })
+        .forEach(function (x) {
+          var e = dataEspera[x.eKey];
+          html += '<li>' + esc(x.nome) + ' — saiu da <strong>' + esc(nome(x.turma)) + '</strong> em ' + fmtDate(x.quando) +
+            ', com interesse desde ' + fmtDate(x.desde) +
+            (e ? '. Na fila ela consta vinda da <strong>' + esc(nome(e.migratedFrom) || '(entrada direta)') + '</strong>, com data ' + fmtDate(e.date) + '.'
+               : '. Não há entrada nenhuma dela na fila.') + '</li>';
+        });
+      html += '</ul></details>';
+    } else {
+      html += '<p class="espera-resumo-nota">Nenhuma saída ficou sem registro próprio na fila.</p>';
+    }
+
+    box.innerHTML = html;
+    return box;
   }
 
   function migrarParaEspera(turmaKey, eKey, person, motivo, detalhe, subst) {
