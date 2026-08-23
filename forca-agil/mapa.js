@@ -184,7 +184,7 @@
         { label: 'Aba Cadastrados — filtrar por status: Ativos / Bloqueados / Todos', p: ['admin'] },
         { label: 'Aba Cadastrados — Lista de Espera: duas colunas de data lado a lado — Data interesse (define a ordem da fila) e Data remoção (quando saiu da turma) —, ambas com data E hora no formato brasileiro (10/08/2026 12:26); a hora sempre esteve gravada, só não era exibida', p: ['admin'] },
         { label: 'Aba Cadastrados — Lista de Espera: coluna "Origem" mostra de qual turma a pessoa foi migrada e o motivo; quem entrou direto pelo card do site aparece como "Entrou pela lista", com traço na data de remoção', p: ['admin'] },
-        { label: 'Aba Cadastrados — Lista de Espera: remover da lista exige escolher o motivo (Desistiu / Já participou / Não respondeu / Evento encerrado / Duplicado / Outro); "Outro" abre campo de texto obrigatório', p: ['admin'] },
+        { label: 'Aba Cadastrados — Lista de Espera: remover da lista exige escolher o motivo (Desistiu / Já participou / Não respondeu / Evento encerrado / Duplicado / Outro); "Outro" abre campo de texto obrigatório, e "Já participou" pede QUAL turma ela já fez, como na saída da turma', p: ['admin'] },
         { label: 'Aba Administradores — consultar lista de administradores (nome, e-mail, admin desde)', p: ['admin'] },
         { label: 'Aba Administradores — adicionar admin (só tatianefdirene e danielfrazao veem esse formulário)', p: ['admin'] },
         { label: 'Aba Administradores — remover admin (só tatianefdirene e danielfrazao veem esse botão)', p: ['admin'] },
