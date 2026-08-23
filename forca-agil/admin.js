@@ -1682,7 +1682,9 @@
   ];
   var MOTIVOS_ESPERA_SAIDA = [
     { key: 'desistiu',         label: 'Desistiu / não tem mais interesse' },
-    { key: 'ja_participou',    label: 'Já participou de uma turma' },
+    /* Mesma pergunta da saída da turma: dizer QUAL turma ela já fez. Aqui a
+       fila não tem destino nenhum, então a turma vive só no motivo. */
+    { key: 'ja_participou',    label: 'Já participou de uma turma', pedeTurma: true, turmaJaFeita: true },
     { key: 'nao_responde',     label: 'Não respondeu aos contatos' },
     { key: 'evento_encerrado', label: 'Evento encerrado' },
     { key: 'duplicado',        label: 'Registro duplicado' },
@@ -2848,18 +2850,29 @@
               adminConfirmComMotivo(
                 'Remover ' + person.name + ' da lista de espera?',
                 MOTIVOS_ESPERA_SAIDA,
-                function (motivo, detalhe) {
-                  firebase.database().ref('fa-espera/' + person._key).update({
+                function (motivo, detalhe, turmaEscolhida) {
+                  var upd = {
                     removed: true,
                     removedDate: new Date().toISOString(),
                     motivoSaida: motivo,
                     motivoSaidaDetalhe: detalhe || null,
                     removedByName: sessRem ? (sessRem.name || sessRem.email) : null,
-                  }, function (err) {
+                  };
+                  if (turmaEscolhida && turmaEscolhida.jaFeita) {
+                    upd.jaParticipouTurma      = turmaEscolhida.key;
+                    upd.jaParticipouTurmaLabel = turmaEscolhida.label;
+                  }
+                  firebase.database().ref('fa-espera/' + person._key).update(upd, function (err) {
                     if (err) { adminAlert('Erro ao remover. Tente novamente.'); return; }
                     loadEspera();
                   });
-                }
+                },
+                null,
+                /* A chave da fila é a mesma chave de e-mail usada nas turmas,
+                   então dá para sugerir a turma que ela já fez. A sugestão
+                   depende da aba Eventos ter carregado; sem isso a lista
+                   aparece igual, só sem nada pré-escolhido. */
+                ondeJaParticipou(person._key, '')
               );
             };
           })(p));
