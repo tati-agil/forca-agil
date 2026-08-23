@@ -357,6 +357,22 @@
 @keyframes pulse-green { 0%,100%{opacity:1} 50%{opacity:.6} }
 
 /* ---- Tabela de presença por dia ---- */
+/* Com as colunas de dia a tabela fica mais larga que o painel e a coluna de
+   ações escorrega para fora da tela — a pessoa vê os dias e conclui que não
+   dá mais para confirmar ou remover, quando na verdade os botões estão ali,
+   atrás do rolamento. Colada na borda direita, ela nunca some. O gradiente no
+   cabeçalho recompõe o tom translúcido original sobre um fundo opaco, senão o
+   conteúdo passa por baixo ao rolar. */
+.participantes-table.presenca-table th:last-child,
+.participantes-table.presenca-table td:last-child {
+  position: sticky; right: 0; z-index: 1;
+  box-shadow: -10px 0 10px -10px rgba(0,0,0,.75);
+}
+.participantes-table.presenca-table td:last-child { background: var(--panel); }
+.participantes-table.presenca-table th:last-child {
+  background-color: var(--panel);
+  background-image: linear-gradient(rgba(4,9,22,.6), rgba(4,9,22,.6));
+}
 .presenca-table .dia-th { font-size: .72rem; min-width: 52px; text-align: center; }
 .presenca-table .dia-cell { text-align: center; padding: 6px 4px; }
 .ck-badge { font-size: .68rem; font-family: var(--font-mono); font-weight: 700;
