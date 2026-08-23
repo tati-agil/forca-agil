@@ -1034,6 +1034,18 @@
      vazio e aparecia como removida pelo admin. Agora só se afirma o que está
      gravado — o nome de quem removeu (só a remoção pelo painel grava), o
      status "removido" (só a saída pelo site grava), ou nada. */
+  /* Três motivos pedem uma segunda resposta. Quando ela falta, o motivo
+     está incompleto — não errado: "Já participou de uma turma" sem dizer
+     qual, "Vai fazer em outra turma" sem a turma, "Substituída" sem quem.
+     Isso é lacuna, e lacuna se preenche. */
+  function motivoIncompleto(r) {
+    if (!r.removedReason) return false;
+    if (r.removedMotivo === 'ja_participou') return !r.jaParticipouTurmaLabel;
+    if (r.removedMotivo === 'outra_turma')   return !r.removedParaTurmaLabel;
+    if (r.removedMotivo === 'substituida')   return !r.substituidaPorNome;
+    return false;
+  }
+
   function motivoDeQuemSaiu(t, r) {
     var motivo = r.removedReason
       ? esc(r.removedReason)
@@ -1043,24 +1055,31 @@
     else if (r.status === 'removido') notas.push('pela própria pessoa');
     /* O motivo preenchido depois não é a mesma coisa que o motivo capturado
        na hora da saída — o registro diz qual dos dois é. */
-    if (r.motivoRegistradoPor) notas.push('motivo registrado depois por ' + r.motivoRegistradoPor);
+    if (r.motivoCompletadoPor)      notas.push('motivo completado depois por ' + r.motivoCompletadoPor);
+    else if (r.motivoRegistradoPor) notas.push('motivo registrado depois por ' + r.motivoRegistradoPor);
     var linha = notas.length ? '<span class="removido-por">' + esc(notas.join(' · ')) + '</span>' : '';
-    /* Só quem ficou sem motivo ganha o botão: é uma lacuna a preencher, não
-       uma edição do que já foi registrado na saída. */
-    var botao = r.removedReason ? '' :
+    /* O botão aparece nas duas lacunas — motivo ausente e motivo sem o
+       complemento — e em mais nada: escolha já registrada e completa não se
+       reescreve por aqui. */
+    var falta = !r.removedReason ? 'registrar' : (motivoIncompleto(r) ? 'completar' : '');
+    var botao = !falta ? '' :
       '<button class="motivo-add-btn" data-turma="' + t.key + '" data-ekey="' + emailKeyFromEmail(r.email) +
-      '" data-name="' + esc(r.name) + '" data-quando="' + esc(r.removedDate || '') + '">+ registrar motivo</button>';
+      '" data-name="' + esc(r.name) + '" data-quando="' + esc(r.removedDate || '') +
+      '" data-motivo="' + esc(falta === 'completar' ? (r.removedMotivo || '') : '') + '">+ ' + falta + ' motivo</button>';
     return motivo + linha + botao;
   }
 
   /* Preenche o motivo de uma saída que ficou em branco — os casos anteriores
      à exigência de motivo, e os de quem saiu pelo site, que não pergunta
      nada. Não desfaz nem refaz a remoção: mexe apenas no motivo. */
-  function registrarMotivoDepois(turmaKey, eKey, nome, quando) {
+  function registrarMotivoDepois(turmaKey, eKey, nome, quando, motivoAtual) {
     var sess = window.faAuth && window.faAuth.getSession();
+    var completando = !!motivoAtual;
     adminConfirmComMotivo(
-      'Registrar o motivo da saída de ' + nome + '?\n\nEla saiu da turma em ' + fmtDate(quando) +
-      ' e o motivo ficou em branco. Isto preenche só o motivo — a saída, a data e o destino não mudam.',
+      completando
+        ? ('Completar o motivo da saída de ' + nome + '?\n\nO motivo já está registrado, mas falta a informação que ele pede. Isto acrescenta só ela — o motivo, a saída, a data e o destino não mudam.')
+        : ('Registrar o motivo da saída de ' + nome + '?\n\nEla saiu da turma em ' + fmtDate(quando) +
+           ' e o motivo ficou em branco. Isto preenche só o motivo — a saída, a data e o destino não mudam.'),
       MOTIVOS_REMOCAO_TURMA,
       function (motivo, detalhe, turmaDestino) {
         function gravar(subst) {
@@ -1080,8 +1099,14 @@
             u[base + 'substituidaPor']     = subst.email || null;
             u[base + 'substituidaPorNome'] = subst.name  || null;
           }
-          u[base + 'motivoRegistradoEm']  = new Date().toISOString();
-          u[base + 'motivoRegistradoPor'] = sess ? (sess.name || sess.email) : null;
+          var quemAgora = sess ? (sess.name || sess.email) : null;
+          if (completando) {
+            u[base + 'motivoCompletadoEm']  = new Date().toISOString();
+            u[base + 'motivoCompletadoPor'] = quemAgora;
+          } else {
+            u[base + 'motivoRegistradoEm']  = new Date().toISOString();
+            u[base + 'motivoRegistradoPor'] = quemAgora;
+          }
           firebase.database().ref().update(u, function (err) {
             if (err) { adminAlert('Erro ao registrar o motivo. Tente novamente.'); return; }
             loadInterests();
@@ -1094,7 +1119,8 @@
         gravar(null);
       },
       null,
-      ondeJaParticipou(eKey, turmaKey));
+      ondeJaParticipou(eKey, turmaKey),
+      motivoAtual);
   }
 
   /* Delegação usada pelas duas tabelas de quem saiu. */
@@ -1102,7 +1128,7 @@
     wrap.addEventListener('click', function (e) {
       var b = e.target.closest('.motivo-add-btn');
       if (!b) return;
-      registrarMotivoDepois(b.dataset.turma, b.dataset.ekey, b.dataset.name, b.dataset.quando);
+      registrarMotivoDepois(b.dataset.turma, b.dataset.ekey, b.dataset.name, b.dataset.quando, b.dataset.motivo || '');
     });
   }
 
@@ -1802,7 +1828,7 @@
     });
   }
 
-  function adminConfirmComMotivo(mensagem, motivos, callbackSim, pergunta, jaFezTurmas) {
+  function adminConfirmComMotivo(mensagem, motivos, callbackSim, pergunta, jaFezTurmas, motivoInicial) {
     /* Turmas que a pessoa já fez, quando o chamador souber — vem de
        ondeJaParticipou(), a mesma fonte do selo "Já participou". */
     var jaFez = jaFezTurmas || [];
@@ -1905,7 +1931,17 @@
       fechar();
       if (callbackSim) callbackSim(motivo, detalhe, turmaEscolhida, extra);
     });
-    sel.focus();
+    /* Completar um motivo já escolhido abre com ele selecionado e travado:
+       trocar de motivo aqui seria reescrever a decisão, não preencher a
+       lacuna. O foco vai direto para o campo que falta. */
+    if (motivoInicial) {
+      sel.value = motivoInicial;
+      sel.dispatchEvent(new Event('change'));
+      sel.disabled = true;
+      sel.title = 'O motivo já foi registrado na saída e não muda aqui';
+    } else {
+      sel.focus();
+    }
   }
 
   /* ---- Adicionar participante manualmente (turma aberta ou com interesse
