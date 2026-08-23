@@ -887,3 +887,10 @@
   color: var(--ink-3); padding: 3px 8px; cursor: pointer;
 }
 .motivo-add-btn:hover { color: var(--accent); border-color: var(--accent); border-style: solid; }
+/* Ação irreversível: discreta em repouso, inequivocamente vermelha ao mirar */
+.registro-del-btn {
+  display: block; margin-top: 4px; font-family: var(--font-mono); font-size: .68rem;
+  background: none; border: 1px dashed rgba(255,80,80,.35); border-radius: 5px;
+  color: var(--ink-3); padding: 3px 8px; cursor: pointer;
+}
+.registro-del-btn:hover { color: #ff8080; border-color: rgba(255,80,80,.7); border-style: solid; }

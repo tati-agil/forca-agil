@@ -1066,7 +1066,13 @@
       '<button class="motivo-add-btn" data-turma="' + t.key + '" data-ekey="' + emailKeyFromEmail(r.email) +
       '" data-name="' + esc(r.name) + '" data-quando="' + esc(r.removedDate || '') +
       '" data-motivo="' + esc(falta === 'completar' ? (r.removedMotivo || '') : '') + '">+ ' + falta + ' motivo</button>';
-    return motivo + linha + botao;
+    /* Sair da turma é reversível e fica no histórico; isto aqui não. Só
+       aparece depois da remoção, então excluir de vez exige duas decisões
+       separadas — é o que se quer numa ação que não dá para desfazer. */
+    var excluir =
+      '<button class="registro-del-btn" data-turma="' + t.key + '" data-ekey="' + emailKeyFromEmail(r.email) +
+      '" data-name="' + esc(r.name) + '">&#x1F5D1; excluir registro</button>';
+    return motivo + linha + botao + excluir;
   }
 
   /* Preenche o motivo de uma saída que ficou em branco — os casos anteriores
@@ -1127,9 +1133,41 @@
   function ligarBotaoMotivo(wrap) {
     wrap.addEventListener('click', function (e) {
       var b = e.target.closest('.motivo-add-btn');
-      if (!b) return;
-      registrarMotivoDepois(b.dataset.turma, b.dataset.ekey, b.dataset.name, b.dataset.quando, b.dataset.motivo || '');
+      if (b) {
+        registrarMotivoDepois(b.dataset.turma, b.dataset.ekey, b.dataset.name, b.dataset.quando, b.dataset.motivo || '');
+        return;
+      }
+      var d = e.target.closest('.registro-del-btn');
+      if (d) excluirRegistro(d.dataset.turma, d.dataset.ekey, d.dataset.name);
     });
+  }
+
+  /* Apaga de vez o registro de uma pessoa numa turma. Existe para o que
+     nunca foi uma inscrição de verdade — teste e duplicado —, que a remoção
+     comum não resolve: quem é removida continua contando em "Todos os
+     interessados", e um registro de teste inflando esse número atrapalha
+     justamente a conta que se usa para planejar a próxima turma.
+
+     Some tudo o que aquela pessoa tem NAQUELA turma: o registro, o histórico
+     e as presenças. Nas outras turmas e no cadastro dela, nada é tocado. */
+  function excluirRegistro(turmaKey, eKey, nome) {
+    var t = TURMAS_LIST.filter(function (x) { return x.key === turmaKey; })[0];
+    adminConfirm(
+      'Excluir definitivamente o registro de ' + nome + ' nesta turma?\n\n' +
+      'Não é o mesmo que remover: some da lista de quem saiu, sai da contagem de interessados e leva junto o histórico e as presenças dela nesta turma.\n\n' +
+      'Use para registro de teste ou duplicado. Essa ação não pode ser desfeita.',
+      function () {
+        var updates = {};
+        updates['turmas-interesse/' + turmaKey + '/' + eKey] = null;
+        updates['turmas-interesse-log/' + turmaKey + '/' + eKey] = null;
+        (t && t.dias ? t.dias : []).forEach(function (d) {
+          updates['turmas-checkin/' + turmaKey + '/' + d + '/' + eKey] = null;
+        });
+        firebase.database().ref().update(updates, function (err) {
+          if (err) { adminAlert('Erro ao excluir. Tente novamente.'); return; }
+          loadInterests();
+        });
+      });
   }
 
   function buildRemovedInteressadosTable(t, records) {
@@ -1757,6 +1795,7 @@
     { key: 'ja_participou',    label: 'Já participou de uma turma', pedeTurma: true, turmaJaFeita: true },
     { key: 'nao_responde',     label: 'Não respondeu aos contatos' },
     { key: 'duplicado',        label: 'Registro duplicado' },
+    { key: 'teste',            label: 'Registro de teste' },
     { key: 'evento_encerrado', label: 'Evento encerrado' },
     { key: 'outro',            label: 'Outro' },
   ];
