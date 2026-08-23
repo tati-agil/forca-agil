@@ -966,14 +966,22 @@
                 migrarParaEspera(remBtn.dataset.turma, remBtn.dataset.ekey, pessoa, motivo, razao, subst);
                 return;
               }
+              /* "Já participou" também escolhe uma turma, mas a que ela JÁ
+                 FEZ — guardar isso como destino a mandaria para o filtro
+                 "Foram para outra turma", que é outra situação. */
+              var destino = (turmaDestino && !turmaDestino.jaFeita) ? turmaDestino : null;
               var updates = {
                 removed: true,
-                removedParaTurma:      turmaDestino ? turmaDestino.key   : null,
-                removedParaTurmaLabel: turmaDestino ? turmaDestino.label : null,
+                removedParaTurma:      destino ? destino.key   : null,
+                removedParaTurmaLabel: destino ? destino.label : null,
                 removedDate: new Date().toISOString(),
                 removedReason: razao,
                 removedMotivo: motivo || null
               };
+              if (turmaDestino && turmaDestino.jaFeita) {
+                updates.jaParticipouTurma      = turmaDestino.key;
+                updates.jaParticipouTurmaLabel = turmaDestino.label;
+              }
               if (subst) {
                 updates.substituidaPor      = subst.email || null;
                 updates.substituidaPorNome  = subst.name  || null;
@@ -998,7 +1006,8 @@
             }
             aplicar(null);
           },
-          { label: 'Colocar na lista de espera (mantém a data original do interesse)' });
+          { label: 'Colocar na lista de espera (mantém a data original do interesse)' },
+          ondeJaParticipou(remBtn.dataset.ekey, remBtn.dataset.turma));
       }
     });
 
@@ -1059,9 +1068,13 @@
           var u = {};
           u[base + 'removedMotivo'] = motivo;
           u[base + 'removedReason'] = subst ? ('Substituída por ' + subst.name) : (detalhe || motivoEsperaLabel(motivo));
-          if (turmaDestino) {
+          if (turmaDestino && !turmaDestino.jaFeita) {
             u[base + 'removedParaTurma']      = turmaDestino.key;
             u[base + 'removedParaTurmaLabel'] = turmaDestino.label;
+          }
+          if (turmaDestino && turmaDestino.jaFeita) {
+            u[base + 'jaParticipouTurma']      = turmaDestino.key;
+            u[base + 'jaParticipouTurmaLabel'] = turmaDestino.label;
           }
           if (subst) {
             u[base + 'substituidaPor']     = subst.email || null;
@@ -1079,7 +1092,9 @@
           return;
         }
         gravar(null);
-      });
+      },
+      null,
+      ondeJaParticipou(eKey, turmaKey));
   }
 
   /* Delegação usada pelas duas tabelas de quem saiu. */
@@ -1708,7 +1723,10 @@
        saber quem entrou no lugar. */
     { key: 'substituida',      label: 'Substituída por outra pessoa' },
     { key: 'data_nao_serviu',  label: 'A data não serviu' },
-    { key: 'ja_participou',    label: 'Já participou de uma turma' },
+    /* Também pede uma turma, mas a que ela JÁ FEZ — não um destino. Sem a
+       marca turmaJaFeita o registro trataria a turma antiga como para onde
+       ela foi, e a pessoa cairia em "Foram para outra turma". */
+    { key: 'ja_participou',    label: 'Já participou de uma turma', pedeTurma: true, turmaJaFeita: true },
     { key: 'nao_responde',     label: 'Não respondeu aos contatos' },
     { key: 'duplicado',        label: 'Registro duplicado' },
     { key: 'evento_encerrado', label: 'Evento encerrado' },
@@ -1782,7 +1800,10 @@
     });
   }
 
-  function adminConfirmComMotivo(mensagem, motivos, callbackSim, pergunta) {
+  function adminConfirmComMotivo(mensagem, motivos, callbackSim, pergunta, jaFezTurmas) {
+    /* Turmas que a pessoa já fez, quando o chamador souber — vem de
+       ondeJaParticipou(), a mesma fonte do selo "Já participou". */
+    var jaFez = jaFezTurmas || [];
     var overlay = document.createElement('div');
     overlay.className = 'modal-overlay';
     overlay.style.cssText = 'display:flex;align-items:center;justify-content:center;z-index:9999';
@@ -1821,6 +1842,7 @@
     var outro = box.querySelector('.admin-motivo-outro');
     var selTurma = box.querySelector('.admin-motivo-turma');
     function pedeTurma(k) { for (var i = 0; i < motivos.length; i++) if (motivos[i].key === k) return !!motivos[i].pedeTurma; return false; }
+    function turmaJaFeita(k) { for (var i = 0; i < motivos.length; i++) if (motivos[i].key === k) return !!motivos[i].turmaJaFeita; return false; }
     var erro  = box.querySelector('.admin-motivo-erro');
     var chk     = box.querySelector('.admin-motivo-extra');
     var chkWrap = box.querySelector('.admin-motivo-check');
@@ -1833,6 +1855,15 @@
     sel.addEventListener('change', function () {
       outro.hidden = sel.value !== 'outro';
       selTurma.hidden = !pedeTurma(sel.value);
+      /* A mesma lista serve às duas perguntas — o rótulo é que diz qual
+         delas está sendo feita, senão "qual turma?" fica ambíguo. */
+      if (!selTurma.hidden) {
+        selTurma.options[0].textContent = turmaJaFeita(sel.value) ? '— qual turma ela já fez? —' : '— para qual turma? —';
+        /* Quando o sistema já sabe de UMA turma que a pessoa fez, ela vem
+           escolhida: o dado existe, não faz sentido exigir que você lembre.
+           Com mais de uma, a escolha é sua. */
+        selTurma.value = (turmaJaFeita(sel.value) && jaFez.length === 1) ? jaFez[0].tk : '';
+      }
       /* "Vai fazer em outra turma" já É o destino: mandar para a fila ao
          mesmo tempo se contradiz, e o registro da turma escolhida seria
          descartado. Nesse motivo a caixa some e não vale. */
@@ -1856,15 +1887,17 @@
         erro.textContent = 'Descreva o motivo.'; erro.hidden = false; outro.focus(); return;
       }
       if (pedeTurma(sel.value) && !selTurma.value) {
-        erro.textContent = 'Escolha a turma em que ela vai fazer.'; erro.hidden = false; selTurma.focus(); return;
+        erro.textContent = turmaJaFeita(sel.value) ? 'Escolha a turma que ela já fez.' : 'Escolha a turma em que ela vai fazer.';
+        erro.hidden = false; selTurma.focus(); return;
       }
       var motivo = sel.value;
       var detalhe = sel.value === 'outro' ? outro.value.trim() : '';
       var turmaEscolhida = null;
       if (pedeTurma(sel.value) && selTurma.value) {
         var o = selTurma.options[selTurma.selectedIndex];
-        turmaEscolhida = { key: selTurma.value, label: o.dataset.label };
-        detalhe = 'Vai fazer na ' + o.dataset.label;
+        var jaFeita = turmaJaFeita(sel.value);
+        turmaEscolhida = { key: selTurma.value, label: o.dataset.label, jaFeita: jaFeita };
+        detalhe = (jaFeita ? 'Já participou da ' : 'Vai fazer na ') + o.dataset.label;
       }
       var extra = !!(chk && chk.checked && chkWrap && !chkWrap.hidden);
       fechar();
