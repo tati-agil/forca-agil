@@ -809,17 +809,24 @@
      ou com interesse encerrado). Confirmar/Desconfirmar/Adicionar/Remover não
      dependem de a turma estar encerrada: a inscrição real acontece no CMFlex,
      que não espera o portal fechar a captação de interesse. As colunas de
-     presença/frequência só aparecem quando finalizada, porque o check-in em
-     si (abrir dia, escanear QR) continua exclusivo de turma com interesse
-     encerrado. */
+     presença/frequência exigem duas coisas: turma com interesse encerrado,
+     porque o check-in em si (abrir dia, escanear QR) só existe aí, E alguém
+     confirmada na lista, porque só ela pode ter presença. */
   function buildParticipantesTable(t, records, checkinT, finalizada) {
     var minDias = Math.ceil(t.dias.length * CRITERIO_PRESENCA);
     var wrap = document.createElement('div');
     wrap.className = 'table-scroll-wrap';
 
-    var tbl = '<table class="admin-table' + (finalizada ? ' presenca-table' : '') + '"><thead><tr>' +
+    /* Presença só existe para quem foi confirmada. Numa lista em que ninguém
+       é — o filtro "Aguardando decisão" — as colunas de dia sairiam todas com
+       traço e ainda empurrariam a coluna de ações para fora da tela, fazendo
+       parecer que não dá mais para confirmar ou remover. Mesma regra já usada
+       na lista de quem saiu. */
+    var comPresenca = finalizada && records.some(function (r) { return r.status === 'inscrito'; });
+
+    var tbl = '<table class="admin-table participantes-table' + (comPresenca ? ' presenca-table' : '') + '"><thead><tr>' +
       '<th>Nome</th><th>E-mail</th><th>Área</th><th>Status</th>';
-    if (finalizada) {
+    if (comPresenca) {
       t.dias.forEach(function (d) { tbl += '<th class="dia-th">' + fmtDia(d) + '</th>'; });
       tbl += '<th>Freq.</th>';
     } else {
@@ -853,7 +860,7 @@
       var statusCell = '<td><span class="status-badge ' + (isInscrito ? 'status-inscrito">Inscrito' : 'status-interessado">Interessado') + '</span>' + motivoBadge + '</td>';
 
       var midCells;
-      if (finalizada) {
+      if (comPresenca) {
         if (!isInscrito) {
           midCells = t.dias.map(function () { return '<td class="dia-cell">—</td>'; }).join('') + '<td>—</td>';
         } else {

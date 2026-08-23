@@ -141,7 +141,7 @@
         { label: 'Aba Eventos — gerar QR Code da turma', p: ['admin'] },
         { label: 'Aba Eventos — baixar QR Code de acesso ao site (com logotipo Força Ágil), para uso em cartazes/slides/materiais impressos', p: ['admin'] },
         { label: 'Aba Eventos — tabela de presença, registro manual', p: ['admin'] },
-        { label: 'Aba Eventos — tabela de presença, remoção manual', p: ['admin'] },
+        { label: 'Aba Eventos — tabela de presença, remoção manual; as colunas de dia só entram quando a turma tem o interesse encerrado E há alguém confirmada na lista exibida, e a coluna de ações fica fixa na borda direita para não sumir atrás do rolamento', p: ['admin'] },
         { label: 'Aba Eventos — adicionar participante por busca em cadastros existentes, escolhendo o status (Interessada ou Inscrita); pessoa precisa ter cadastro prévio no site', p: ['admin'] },
         { label: 'Aba Eventos — quem não foi confirmada nem removida tem duas ações e só duas: "Confirmar" e "Remover". Não existe estado intermediário ("não vai ser confirmada, mas fica na turma") — turma lotada, já participou ou vaga assumida por outra pessoa são motivos de remoção, registrados na saída', p: ['admin'] },
         { label: 'Aba Eventos — remover participante (interessado ou inscrito), turma aberta ou com interesse encerrado', p: ['admin'] },
