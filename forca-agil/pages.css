@@ -573,6 +573,10 @@
 .espera-resumo-det summary { font-size: .8rem; color: var(--accent); cursor: pointer; }
 .espera-resumo-det ul { margin: 8px 0 0; padding-left: 18px; }
 .espera-resumo-det li { font-size: .8rem; color: var(--ink-2); line-height: 1.6; margin-bottom: 4px; }
+/* O selo do título conta pessoas; esta linha abre os dois números quando eles
+   diferem — uma pessoa esperando desde três turmas não é três pessoas. */
+.espera-hdr-det { display: block; font-family: var(--font-body); font-size: .78rem;
+  font-weight: 400; color: var(--ink-3); margin-top: 4px; text-transform: none; letter-spacing: 0; }
 
 /* Lista de Espera — coluna "Origem": de qual turma a pessoa foi migrada */
 .espera-origem { display: block; font-size: .78rem; color: var(--cyan); white-space: nowrap; }

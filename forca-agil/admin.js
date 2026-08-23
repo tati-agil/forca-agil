@@ -95,6 +95,7 @@
     }
     if (!window.faAuth.isAdmin(sess.email)) return;
     migrateNameCase();
+    migrarEsperaPorOrigem();
     loadInterests();
     loadRepoAdmin();
     loadEspera();
@@ -107,6 +108,35 @@
     if (window.faInitPedidos) window.faInitPedidos();
     if (window.faInitDashboard) window.faInitDashboard();
     initCertificados();
+  }
+
+  /* fa-espera guardava UMA entrada por pessoa. Agora guarda uma por pessoa e
+     por origem — fa-espera/<eKey>/<turma ou "lista"> —, porque a estrutura
+     antiga fazia a segunda migração escrever por cima da primeira e levar
+     junto a data do interesse original, que é o que ordena a fila.
+
+     Esta conversão é mecânica: cada registro antigo desce um nível, para
+     debaixo da origem que ele já declarava. Nenhum dado é inventado, e as
+     entradas que já se perderam na sobrescrita continuam perdidas — a
+     informação para recriá-las não está mais aqui. Roda a cada carga do
+     painel e não faz nada quando não há o que converter. */
+  function migrarEsperaPorOrigem() {
+    firebase.database().ref('fa-espera').once('value', function (snap) {
+      var data = snap.val() || {};
+      var updates = {};
+      Object.keys(data).forEach(function (eKey) {
+        var v = data[eKey];
+        /* Formato novo já não tem os campos da pessoa na raiz do nó. */
+        if (!v || typeof v !== 'object' || !v.email) return;
+        var origem = v.migratedFrom || (window.faTurmasUtil && window.faTurmasUtil.ORIGEM_DIRETA) || 'lista';
+        var novo = {};
+        novo[origem] = v;
+        /* Substitui o nó inteiro: escrever o filho e apagar o pai no mesmo
+           update seriam caminhos sobrepostos, que o Firebase recusa. */
+        updates['fa-espera/' + eKey] = novo;
+      });
+      if (Object.keys(updates).length) firebase.database().ref().update(updates);
+    });
   }
 
   function migrateNameCase() {
@@ -2819,14 +2849,33 @@
   }
 
   function renderEspera(c, data) {
-    var list = Object.entries(data)
-      .map(function (e) { return Object.assign({ _key: e[0] }, e[1]); })
-      .filter(function (p) { return !p.removed; })
-      .sort(function (a, b) { return (a.date || '').localeCompare(b.date || ''); });
+    /* Uma linha por pessoa E por origem: quem passou por duas turmas aparece
+       duas vezes, com a data do interesse de cada uma. A ordem da fila
+       continua sendo a data do interesse, não a da saída. */
+    var list = [];
+    Object.keys(data).forEach(function (eKey) {
+      window.faTurmasUtil.esperaAtivas(data[eKey]).forEach(function (e) {
+        e._key = eKey;
+        list.push(e);
+      });
+    });
+    list.sort(function (a, b) { return (a.date || '').localeCompare(b.date || ''); });
+
+    var pessoas = {};
+    list.forEach(function (p) { pessoas[p._key] = true; });
+    var nPessoas = Object.keys(pessoas).length;
 
     c.innerHTML = '';
     var hdr = document.createElement('h4');
-    hdr.innerHTML = 'Lista de Espera <span class="admin-badge">' + list.length + '</span>';
+    /* O selo conta PESSOAS — é quantas cabeças estão esperando, o número que
+       se usa para planejar. A linha ao lado abre os dois, porque uma pessoa
+       que espera desde três turmas é uma informação diferente de três
+       pessoas esperando. */
+    hdr.innerHTML = 'Lista de Espera <span class="admin-badge">' + nPessoas + '</span>' +
+      (list.length !== nPessoas
+        ? '<span class="espera-hdr-det">' + nPessoas + ' pessoa' + (nPessoas !== 1 ? 's' : '') +
+          ' · ' + list.length + ' registros (quem passou por mais de uma turma aparece uma vez por turma)</span>'
+        : '');
     c.appendChild(hdr);
 
     if (!list.length) {
@@ -2872,13 +2921,14 @@
              para varrer a coluna e comparar quem espera há mais tempo. Quem
              entrou direto pelo card do site não saiu de turma nenhuma, então
              não tem data de remoção. */
-          var remocaoFmt = p.migratedFrom ? fmtDate(p.migratedAt) : '—';
+          var veioDeTurma = p._origem && p._origem !== window.faTurmasUtil.ORIGEM_DIRETA;
+          var remocaoFmt = veioDeTurma ? fmtDate(p.migratedAt) : '—';
           /* Quem veio de uma turma tem migratedFrom gravado na migração —
              mostra de qual turma saiu, em vez de deixar o dado invisível
              no banco. */
           var origem = '<span style="color:var(--ink-3)">Entrou pela lista</span>';
-          if (p.migratedFrom) {
-            var tLabel = (turmasVal[p.migratedFrom] && turmasVal[p.migratedFrom].label) || p.migratedFrom.toUpperCase();
+          if (veioDeTurma) {
+            var tLabel = (turmasVal[p._origem] && turmasVal[p._origem].label) || p._origem.toUpperCase();
             var motivoTxt = p.motivoEntradaDetalhe || motivoEsperaLabel(p.motivoEntrada);
             origem = '<span class="espera-origem">↩ ' + esc(tLabel) + '</span>' +
               (motivoTxt ? '<span class="espera-origem-motivo">' + esc(motivoTxt) + '</span>' : '');
@@ -2932,23 +2982,35 @@
             return function () {
               var sessRem = window.faAuth && window.faAuth.getSession();
               adminConfirmComMotivo(
-                'Remover ' + person.name + ' da lista de espera?',
+                'Remover ' + person.name + ' da lista de espera?' +
+                  (window.faTurmasUtil.esperaAtivas(data[person._key]).length > 1
+                    ? '\n\nEla tem ' + window.faTurmasUtil.esperaAtivas(data[person._key]).length +
+                      ' registros na fila, um por turma de origem — e sai de todos.'
+                    : ''),
                 MOTIVOS_ESPERA_SAIDA,
                 function (motivo, detalhe, turmaEscolhida) {
-                  var upd = {
-                    removed: true,
-                    removedDate: new Date().toISOString(),
-                    motivoSaida: motivo,
-                    motivoSaidaDetalhe: detalhe || null,
-                    removedByName: sessRem ? (sessRem.name || sessRem.email) : null,
-                  };
-                  if (turmaEscolhida && turmaEscolhida.jaFeita) {
-                    upd.jaParticipouTurma      = turmaEscolhida.key;
-                    upd.jaParticipouTurmaLabel = turmaEscolhida.label;
-                  }
-                  firebase.database().ref('fa-espera/' + person._key).update(upd, function (err) {
-                    if (err) { adminAlert('Erro ao remover. Tente novamente.'); return; }
-                    loadEspera();
+                  var agora = new Date().toISOString();
+                  /* Tirar da fila é sobre a PESSOA, não sobre a linha: se ela
+                     desistiu ou já participou, isso vale para todas as origens.
+                     Deixar uma sobrando a manteria na fila pela metade. */
+                  firebase.database().ref('fa-espera/' + person._key).once('value', function (snapF) {
+                    var updates = {};
+                    window.faTurmasUtil.esperaAtivas(snapF.val()).forEach(function (e) {
+                      var b = 'fa-espera/' + person._key + '/' + e._origem + '/';
+                      updates[b + 'removed']            = true;
+                      updates[b + 'removedDate']        = agora;
+                      updates[b + 'motivoSaida']        = motivo;
+                      updates[b + 'motivoSaidaDetalhe'] = detalhe || null;
+                      updates[b + 'removedByName']      = sessRem ? (sessRem.name || sessRem.email) : null;
+                      if (turmaEscolhida && turmaEscolhida.jaFeita) {
+                        updates[b + 'jaParticipouTurma']      = turmaEscolhida.key;
+                        updates[b + 'jaParticipouTurmaLabel'] = turmaEscolhida.label;
+                      }
+                    });
+                    firebase.database().ref().update(updates, function (err) {
+                      if (err) { adminAlert('Erro ao remover. Tente novamente.'); return; }
+                      loadEspera();
+                    });
                   });
                 },
                 null,
@@ -2987,10 +3049,16 @@
   function resumoEspera(dataEspera, interesse, turmasVal) {
     var box = document.createElement('div');
     box.className = 'espera-resumo';
+    var U = window.faTurmasUtil;
 
-    var chaves = Object.keys(dataEspera);
-    var ativas = chaves.filter(function (k) { return !dataEspera[k].removed; });
-    var diretas = ativas.filter(function (k) { return !dataEspera[k].migratedFrom; });
+    /* Linhas ativas na fila (uma por pessoa E origem) e quantas cabeças são. */
+    var linhas = [], pessoasNaFila = {};
+    Object.keys(dataEspera).forEach(function (eKey) {
+      U.esperaAtivas(dataEspera[eKey]).forEach(function (e) {
+        e._key = eKey; linhas.push(e); pessoasNaFila[eKey] = true;
+      });
+    });
+    var diretas = linhas.filter(function (e) { return e._origem === U.ORIGEM_DIRETA; });
 
     /* Uma saída por pessoa E por turma — é o que os filtros das turmas somam. */
     var saidas = [];
@@ -3002,58 +3070,66 @@
         }
       });
     });
-    var pessoas = {};
-    saidas.forEach(function (x) { pessoas[x.eKey] = true; });
+    var pessoasSaidas = {};
+    saidas.forEach(function (x) { pessoasSaidas[x.eKey] = true; });
 
-    var naFila = [], engolidas = [], saiuDaFila = [], foiParaTurma = [], semRastro = [];
+    function entradaDa(eKey, turma) {
+      var todas = U.esperaEntradas(dataEspera[eKey]);
+      for (var i = 0; i < todas.length; i++) if (todas[i]._origem === turma) return todas[i];
+      return null;
+    }
+
+    var naFila = [], saiuDaFila = [], foiParaTurma = [], engolidas = [], semRastro = [];
     saidas.forEach(function (x) {
-      var e = dataEspera[x.eKey];
-      if (!e)                          { semRastro.push(x);  return; }
-      if (e.migratedFrom !== x.turma)  { engolidas.push(x);  return; }
-      if (e.movedToTurma)              { foiParaTurma.push(x); return; }
-      if (e.removed)                   { saiuDaFila.push(x); return; }
+      var e = entradaDa(x.eKey, x.turma);
+      if (!e) {
+        (U.esperaEntradas(dataEspera[x.eKey]).length ? engolidas : semRastro).push(x);
+        return;
+      }
+      if (e.movedToTurma) { foiParaTurma.push(x); return; }
+      if (e.removed)      { saiuDaFila.push(x);   return; }
       naFila.push(x);
     });
 
-    var nome = function (tk) { return (turmasVal[tk] && turmasVal[tk].label) || tk; };
-    var linha = function (rot, n, cls) {
+    var nomeTurma = function (tk) { return (turmasVal[tk] && turmasVal[tk].label) || tk; };
+    var item = function (rot, n, cls) {
       return '<span class="espera-resumo-item' + (cls ? ' ' + cls : '') + '"><strong>' + n + '</strong> ' + esc(rot) + '</span>';
     };
 
     var html = '<div class="espera-resumo-titulo">Conferência da fila</div><div class="espera-resumo-linha">' +
-      linha('na fila agora', ativas.length) +
-      linha('saídas para a espera registradas nas turmas', saidas.length) +
-      linha('pessoas distintas nessas saídas', Object.keys(pessoas).length) +
+      item('pessoas na fila', Object.keys(pessoasNaFila).length) +
+      item('registros na fila (um por turma de origem)', linhas.length) +
+      item('saídas para a espera registradas nas turmas', saidas.length) +
+      item('pessoas distintas nessas saídas', Object.keys(pessoasSaidas).length) +
       '</div>';
 
     html += '<div class="espera-resumo-linha">' +
-      linha('com entrada correspondente na fila', naFila.length) +
-      linha('já foram da fila para uma turma', foiParaTurma.length) +
-      linha('foram removidas da fila', saiuDaFila.length) +
-      linha('engolidas por uma migração posterior', engolidas.length, engolidas.length ? 'ruim' : '') +
-      linha('sem rastro na fila', semRastro.length, semRastro.length ? 'ruim' : '') +
+      item('com registro próprio na fila', naFila.length) +
+      item('já foram da fila para uma turma', foiParaTurma.length) +
+      item('foram removidas da fila', saiuDaFila.length) +
+      item('engolidas antes da separação por turma', engolidas.length, engolidas.length ? 'ruim' : '') +
+      item('sem rastro na fila', semRastro.length, semRastro.length ? 'ruim' : '') +
       '</div>';
 
     if (diretas.length) {
-      html += '<p class="espera-resumo-nota">' + diretas.length + ' pessoa' + (diretas.length !== 1 ? 's' : '') +
-        ' na fila entrou direto pelo card do site, sem vir de turma nenhuma — por isso não aparece em nenhuma saída.</p>';
+      html += '<p class="espera-resumo-nota">' + diretas.length + ' registro' + (diretas.length !== 1 ? 's' : '') +
+        ' veio do card do site, sem turma de origem — por isso não aparece em nenhuma saída.</p>';
     }
 
     var problemas = engolidas.concat(semRastro);
     if (problemas.length) {
       html += '<details class="espera-resumo-det"><summary>Ver as ' + problemas.length +
-        ' saídas que hoje não têm registro próprio na fila</summary><ul>';
+        ' saídas que não têm registro próprio na fila</summary>' +
+        '<p class="espera-resumo-nota">São de antes da separação por origem, quando uma segunda migração escrevia por cima da primeira. ' +
+        'A informação para recriá-las não está mais na fila; daqui para a frente cada turma tem o seu registro.</p><ul>';
       problemas.sort(function (a, b) { return (a.nome || '').localeCompare(b.nome || '', 'pt-BR'); })
         .forEach(function (x) {
-          var e = dataEspera[x.eKey];
-          html += '<li>' + esc(x.nome) + ' — saiu da <strong>' + esc(nome(x.turma)) + '</strong> em ' + fmtDate(x.quando) +
-            ', com interesse desde ' + fmtDate(x.desde) +
-            (e ? '. Na fila ela consta vinda da <strong>' + esc(nome(e.migratedFrom) || '(entrada direta)') + '</strong>, com data ' + fmtDate(e.date) + '.'
-               : '. Não há entrada nenhuma dela na fila.') + '</li>';
+          html += '<li>' + esc(x.nome) + ' — saiu da <strong>' + esc(nomeTurma(x.turma)) + '</strong> em ' + fmtDate(x.quando) +
+            ', com interesse desde ' + fmtDate(x.desde) + '.</li>';
         });
       html += '</ul></details>';
     } else {
-      html += '<p class="espera-resumo-nota">Nenhuma saída ficou sem registro próprio na fila.</p>';
+      html += '<p class="espera-resumo-nota">Toda saída para a espera tem o seu registro na fila.</p>';
     }
 
     box.innerHTML = html;
@@ -3063,6 +3139,17 @@
   function migrarParaEspera(turmaKey, eKey, person, motivo, detalhe, subst) {
     var sess = window.faAuth && window.faAuth.getSession();
     var now  = new Date().toISOString();
+    var alvo = 'fa-espera/' + eKey + '/' + turmaKey;
+    /* Lê o que já existe NESTA origem antes de gravar: sair da mesma turma
+       duas vezes tem que continuar sendo um registro só, e com a data mais
+       antiga das duas. Sem isso a pessoa perderia lugar na fila por um
+       segundo clique. */
+    firebase.database().ref(alvo).once('value', function (snapAtual) {
+      migrarParaEsperaGravar(turmaKey, eKey, person, motivo, detalhe, subst, sess, now, alvo, snapAtual.val());
+    });
+  }
+
+  function migrarParaEsperaGravar(turmaKey, eKey, person, motivo, detalhe, subst, sess, now, alvo, atual) {
     var updates = {};
     /* Remove da turma (soft-delete) */
     updates['turmas-interesse/' + turmaKey + '/' + eKey + '/removed']            = true;
@@ -3078,11 +3165,14 @@
     }
     updates['turmas-interesse/' + turmaKey + '/' + eKey + '/removedByAdmin']     = sess ? sess.email : null;
     updates['turmas-interesse/' + turmaKey + '/' + eKey + '/removedByAdminName'] = sess ? (sess.name || sess.email) : null;
-    /* Adiciona à lista de espera preservando a data original de interesse */
-    updates['fa-espera/' + eKey] = {
+    /* Entra na fila sob a ORIGEM, preservando a data original de interesse —
+       e, se já houver registro desta mesma turma, fica a mais antiga. */
+    var dataFila = person.date;
+    if (atual && atual.date && (!dataFila || atual.date < dataFila)) dataFila = atual.date;
+    updates[alvo] = {
       name: person.name, email: person.email, area: person.area || '',
-      date: person.date,          /* data original — não a data de migração */
-      migratedAt: now,
+      date: dataFila,             /* data original — não a data de migração */
+      migratedAt: (atual && atual.migratedAt) || now,
       migratedFrom: turmaKey,
       motivoEntrada: motivo || null,
       motivoEntradaDetalhe: detalhe || null,
@@ -3109,13 +3199,21 @@
       confirmedDate: now,
       fromEspera: true
     };
-    updates['fa-espera/' + person._key + '/removed']     = true;
-    updates['fa-espera/' + person._key + '/removedDate'] = now;
-    updates['fa-espera/' + person._key + '/movedToTurma'] = turmaKey;
-    firebase.database().ref().update(updates, function (err) {
-      if (err) { adminAlert('Erro ao mover. Tente novamente.'); return; }
-      loadEspera();
-      loadInterests();
+    /* Inscrita numa turma, ela não está mais esperando — então sai de TODAS
+       as origens, não só daquela linha. Deixar uma sobrando faria você
+       chamá-la de novo. */
+    firebase.database().ref('fa-espera/' + eKey).once('value', function (snapF) {
+      window.faTurmasUtil.esperaAtivas(snapF.val()).forEach(function (e) {
+        var b = 'fa-espera/' + eKey + '/' + e._origem + '/';
+        updates[b + 'removed']      = true;
+        updates[b + 'removedDate']  = now;
+        updates[b + 'movedToTurma'] = turmaKey;
+      });
+      firebase.database().ref().update(updates, function (err) {
+        if (err) { adminAlert('Erro ao mover. Tente novamente.'); return; }
+        loadEspera();
+        loadInterests();
+      });
     });
   }
 

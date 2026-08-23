@@ -62,5 +62,46 @@
     return String(p.d).padStart(2, '0') + '/' + String(p.m).padStart(2, '0') + '/' + p.y;
   }
 
-  window.faTurmasUtil = { formatDias: formatDias, formatISOBr: formatISOBr, MESES: MESES };
+  /* ── Lista de espera ──────────────────────────────────────────────────
+     fa-espera guarda uma entrada por pessoa E por ORIGEM:
+
+         fa-espera/<chave do e-mail>/<origem>
+
+     onde origem é a chave da turma de onde a pessoa saiu, ou "lista" para
+     quem entrou direto pelo card do site. Quem passou por duas turmas ocupa
+     duas entradas — é o que responde "há quanto tempo essa pessoa vem
+     tentando", e o que a estrutura antiga perdia: ela guardava uma entrada
+     por pessoa, então a segunda migração escrevia por cima da primeira e
+     levava junto a data do interesse original, que é o que ordena a fila.
+
+     Os leitores abaixo aceitam também o formato antigo (campos direto
+     embaixo da chave de e-mail) para que nenhuma tela quebre entre o deploy
+     e a migração dos registros existentes. */
+  var ORIGEM_DIRETA = 'lista';
+
+  function esperaEntradas(noDaPessoa) {
+    if (!noDaPessoa || typeof noDaPessoa !== 'object') return [];
+    if (noDaPessoa.email) {   /* formato antigo: uma pessoa, um registro */
+      var e = Object.assign({ _origem: noDaPessoa.migratedFrom || ORIGEM_DIRETA }, noDaPessoa);
+      return [e];
+    }
+    return Object.keys(noDaPessoa).map(function (o) {
+      return Object.assign({ _origem: o }, noDaPessoa[o]);
+    }).filter(function (e) { return e && e.email; });
+  }
+
+  function esperaAtivas(noDaPessoa) {
+    return esperaEntradas(noDaPessoa).filter(function (e) { return !e.removed; });
+  }
+
+  /* A pessoa está na fila se qualquer uma das origens dela estiver ativa. */
+  function esperaNaFila(noDaPessoa) {
+    return esperaAtivas(noDaPessoa).length > 0;
+  }
+
+  window.faTurmasUtil = {
+    formatDias: formatDias, formatISOBr: formatISOBr, MESES: MESES,
+    ORIGEM_DIRETA: ORIGEM_DIRETA,
+    esperaEntradas: esperaEntradas, esperaAtivas: esperaAtivas, esperaNaFila: esperaNaFila
+  };
 })();
