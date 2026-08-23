@@ -605,7 +605,7 @@
                      depois saiu é justamente o que não pode se perder. */
                   tabelaWrap.appendChild(finalizada && algumTemPresenca(t, g.lista, checkinT)
                     ? buildRemovedPresencaTable(t, g.lista, checkinT)
-                    : buildRemovedInteressadosTable(g.lista));
+                    : buildRemovedInteressadosTable(t, g.lista));
                   return;
                 }
                 if (g.key === 'todos') {
@@ -1025,17 +1025,73 @@
      vazio e aparecia como removida pelo admin. Agora só se afirma o que está
      gravado — o nome de quem removeu (só a remoção pelo painel grava), o
      status "removido" (só a saída pelo site grava), ou nada. */
-  function motivoDeQuemSaiu(r) {
+  function motivoDeQuemSaiu(t, r) {
     var motivo = r.removedReason
       ? esc(r.removedReason)
       : '<span class="removido-sem-motivo">motivo não registrado</span>';
-    var quem = r.removedByAdminName ? ('por ' + r.removedByAdminName)
-      : r.status === 'removido'     ? 'pela própria pessoa'
-      : '';
-    return motivo + (quem ? '<span class="removido-por">' + esc(quem) + '</span>' : '');
+    var notas = [];
+    if (r.removedByAdminName)         notas.push('por ' + r.removedByAdminName);
+    else if (r.status === 'removido') notas.push('pela própria pessoa');
+    /* O motivo preenchido depois não é a mesma coisa que o motivo capturado
+       na hora da saída — o registro diz qual dos dois é. */
+    if (r.motivoRegistradoPor) notas.push('motivo registrado depois por ' + r.motivoRegistradoPor);
+    var linha = notas.length ? '<span class="removido-por">' + esc(notas.join(' · ')) + '</span>' : '';
+    /* Só quem ficou sem motivo ganha o botão: é uma lacuna a preencher, não
+       uma edição do que já foi registrado na saída. */
+    var botao = r.removedReason ? '' :
+      '<button class="motivo-add-btn" data-turma="' + t.key + '" data-ekey="' + emailKeyFromEmail(r.email) +
+      '" data-name="' + esc(r.name) + '" data-quando="' + esc(r.removedDate || '') + '">+ registrar motivo</button>';
+    return motivo + linha + botao;
   }
 
-  function buildRemovedInteressadosTable(records) {
+  /* Preenche o motivo de uma saída que ficou em branco — os casos anteriores
+     à exigência de motivo, e os de quem saiu pelo site, que não pergunta
+     nada. Não desfaz nem refaz a remoção: mexe apenas no motivo. */
+  function registrarMotivoDepois(turmaKey, eKey, nome, quando) {
+    var sess = window.faAuth && window.faAuth.getSession();
+    adminConfirmComMotivo(
+      'Registrar o motivo da saída de ' + nome + '?\n\nEla saiu da turma em ' + fmtDate(quando) +
+      ' e o motivo ficou em branco. Isto preenche só o motivo — a saída, a data e o destino não mudam.',
+      MOTIVOS_REMOCAO_TURMA,
+      function (motivo, detalhe, turmaDestino) {
+        function gravar(subst) {
+          var base = 'turmas-interesse/' + turmaKey + '/' + eKey + '/';
+          var u = {};
+          u[base + 'removedMotivo'] = motivo;
+          u[base + 'removedReason'] = subst ? ('Substituída por ' + subst.name) : (detalhe || motivoEsperaLabel(motivo));
+          if (turmaDestino) {
+            u[base + 'removedParaTurma']      = turmaDestino.key;
+            u[base + 'removedParaTurmaLabel'] = turmaDestino.label;
+          }
+          if (subst) {
+            u[base + 'substituidaPor']     = subst.email || null;
+            u[base + 'substituidaPorNome'] = subst.name  || null;
+          }
+          u[base + 'motivoRegistradoEm']  = new Date().toISOString();
+          u[base + 'motivoRegistradoPor'] = sess ? (sess.name || sess.email) : null;
+          firebase.database().ref().update(u, function (err) {
+            if (err) { adminAlert('Erro ao registrar o motivo. Tente novamente.'); return; }
+            loadInterests();
+          });
+        }
+        if (motivo === 'substituida') {
+          escolherSubstituta(turmaKey, eKey, nome, function (quem) { if (quem) gravar(quem); });
+          return;
+        }
+        gravar(null);
+      });
+  }
+
+  /* Delegação usada pelas duas tabelas de quem saiu. */
+  function ligarBotaoMotivo(wrap) {
+    wrap.addEventListener('click', function (e) {
+      var b = e.target.closest('.motivo-add-btn');
+      if (!b) return;
+      registrarMotivoDepois(b.dataset.turma, b.dataset.ekey, b.dataset.name, b.dataset.quando);
+    });
+  }
+
+  function buildRemovedInteressadosTable(t, records) {
     var wrap = document.createElement('div');
     wrap.className = 'table-scroll-wrap';
     /* As duas datas juntas: quando ela manifestou interesse e quando saiu.
@@ -1056,9 +1112,10 @@
       tbl += '<tr><td>' + esc(r.name) + '</td><td>' + esc(r.email) + '</td><td>' +
         esc(r.area || '—') + '</td><td>' + fmtDate(r.date) + '</td><td>' + fmtDate(r.removedDate) + '</td><td>' +
         destinoDeQuemSaiu(r) + '</td><td>' +
-        motivoDeQuemSaiu(r) + extra + '</td></tr>';
+        motivoDeQuemSaiu(t, r) + extra + '</td></tr>';
     });
     wrap.innerHTML = tbl + '</tbody></table>';
+    ligarBotaoMotivo(wrap);
     return wrap;
   }
 
@@ -1105,12 +1162,13 @@
       var freqClass = atingiu ? 'freq-ok' : 'freq-nok';
 
       tbl += '<tr><td>' + esc(r.name) + '</td><td>' + esc(r.email) + '</td><td>' +
-        esc(r.area || '—') + '</td><td>' + fmtDate(r.date) + '</td><td>' + fmtDate(r.removedDate) + '</td><td>' + destinoDeQuemSaiu(r) + '</td><td>' + motivoDeQuemSaiu(r) + '</td>' + cells.join('') +
+        esc(r.area || '—') + '</td><td>' + fmtDate(r.date) + '</td><td>' + fmtDate(r.removedDate) + '</td><td>' + destinoDeQuemSaiu(r) + '</td><td>' + motivoDeQuemSaiu(t, r) + '</td>' + cells.join('') +
         '<td><span class="' + freqClass + '">' + freq + '</span></td></tr>';
     });
 
     tbl += '</tbody></table>';
     wrap.innerHTML = tbl;
+    ligarBotaoMotivo(wrap);
     return wrap;
   }
 
