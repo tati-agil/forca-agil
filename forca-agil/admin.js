@@ -206,6 +206,22 @@
       String(d.getDate()).padStart(2, '0');
   }
 
+  /* Ordem de exibição das pessoas: alfabética pelo nome. O Firebase devolve
+     os registros na ordem das chaves (que são derivadas do e-mail), então
+     sem isto a lista sai ordenada por e-mail — parece alfabética no começo
+     e desanda logo em seguida. localeCompare com 'pt-BR' e sensitivity
+     'base' faz acento e caixa não mudarem a posição (ANDRÉA junto de
+     ANDREA); empate cai no e-mail, que é único. */
+  function cmpNome(a, b) {
+    var n = String((a && a.name) || '').trim();
+    var m = String((b && b.name) || '').trim();
+    /* registro sem nome (importação incompleta) vai para o fim, não para o topo */
+    if (!n !== !m) return n ? -1 : 1;
+    var r = n.localeCompare(m, 'pt-BR', { sensitivity: 'base' });
+    if (r) return r;
+    return String((a && a.email) || '').localeCompare(String((b && b.email) || ''), 'pt-BR', { sensitivity: 'base' });
+  }
+
   /* ---- Turmas tab ---- */
   /* Estado da interface da aba Eventos, preservado entre recargas.
      loadInterests() reconstrói a aba inteira do zero — é chamada depois de
@@ -314,21 +330,16 @@
             var finalizada = !!cfg.finalizada;
             var encerrada  = !!cfg.encerrada;
             var diaAtivo   = cfg.diaAtivo || null;
-            var all        = data[t.key] ? Object.values(data[t.key]) : [];
+            var all        = (data[t.key] ? Object.values(data[t.key]) : []).sort(cmpNome);
             var active     = all.filter(function (r) { return !r.removed; });
             var removed    = all.filter(function (r) { return r.removed; });
             var checkinT   = checkin[t.key] || {};
             var inscritos    = active.filter(function (r) { return r.status === 'inscrito'; });
             var interessados = active.filter(function (r) { return r.status !== 'inscrito'; });
-            /* "não confirmados" em vez de "interessados": todo inscrito também
-               manifestou interesse um dia, então o rótulo antigo sugeria um
-               subconjunto que não existe — as duas contagens são exclusivas. */
-            /* O cabeçalho dizia "N não confirmados", juntando quem ainda não
-               foi analisada com quem já tem motivo — e contradizia os filtros
-               logo abaixo, que já separam os dois. Agora fala a mesma língua
-               e mostra o total de interessados, que é o número que se procura
-               ao planejar a próxima turma. */
-            var aguardandoHdr = interessados.filter(function (r) { return !r.motivoNaoConfirmado; }).length;
+            /* O cabeçalho fala a mesma língua dos filtros logo abaixo: quem
+               não foi removida nem confirmada está aguardando uma decisão sua,
+               e é o número que se procura ao planejar a próxima turma. */
+            var aguardandoHdr = interessados.length;
             var countLabel = all.length + ' interessado' + (all.length !== 1 ? 's' : '') +
               ' · ' + inscritos.length + ' confirmado' + (inscritos.length !== 1 ? 's' : '') +
               (aguardandoHdr ? ' · ' + aguardandoHdr + ' aguardando decisão' : '');
@@ -550,14 +561,18 @@
               var naEspera   = removed.filter(function (r) { return r.movedToEspera; });
               var outraTurma = removed.filter(function (r) { return !r.movedToEspera && r.removedParaTurma; });
               var saiu       = removed.filter(function (r) { return !r.movedToEspera && !r.removedParaTurma; });
-              var aguardando = interessados.filter(function (r) { return !r.motivoNaoConfirmado; });
-              var comMotivo  = interessados.filter(function (r) { return !!r.motivoNaoConfirmado; });
+              /* "Aguardando decisão" é quem ainda não foi removida E ainda
+                 não foi confirmada. Antes esse conjunto vinha partido em dois
+                 botões ("Aguardando decisão" e "Não confirmados"), separados
+                 só por ter ou não um motivo anotado no "Justificar…". Com o
+                 motivo virando coisa de quem sai, sobrou um grupo só — e o
+                 nome que diz o que falta: decidir. */
+              var aguardando = interessados;
 
               var GRUPOS = [
                 { key: 'todos',       label: 'Todos os interessados', lista: all,        removida: false },
                 { key: 'confirmados', label: 'Confirmados',           lista: inscritos,  removida: false },
                 { key: 'aguardando',  label: 'Aguardando decisão',    lista: aguardando, removida: false },
-                { key: 'com_motivo',  label: 'Não confirmados',       lista: comMotivo,  removida: false },
                 { key: 'espera',      label: 'Foram para a espera',   lista: naEspera,   removida: true  },
                 { key: 'outra_turma', label: 'Foram para outra turma', lista: outraTurma, removida: true  },
                 { key: 'removidos',   label: 'Removidos',             lista: saiu,       removida: true  },
@@ -808,6 +823,11 @@
     records.forEach(function (r) {
       var eKey = emailKeyFromEmail(r.email);
       var isInscrito = r.status === 'inscrito';
+      /* Registros anteriores ao fim do "Justificar…" ainda carregam
+         motivoNaoConfirmado. O selo continua sendo desenhado para não
+         apagar da tela o que já foi anotado — mas nada grava esse campo
+         hoje, e essas pessoas voltaram a aparecer como aguardando decisão,
+         que é o que de fato falta nelas. */
       var motivoBadge = '';
       if (!isInscrito && r.motivoNaoConfirmado) {
         var ondeFez = r.motivoNaoConfirmado === 'ja_participou' ? ondeJaParticipou(eKey, t.key) : [];
@@ -857,19 +877,14 @@
         midCells = '<td>' + fmtDate(r.date) + '</td>';
       }
 
-      var motivoSel = '';
-      if (!isInscrito) {
-        var mv = r.motivoNaoConfirmado || '';
-        motivoSel = '<select class="motivo-sel" data-turma="' + t.key + '" data-ekey="' + eKey + '" data-nome="' + esc(r.name) + '" title="Justificativa">' +
-          '<option value="">Justificar…</option>' +
-          '<option value="sem_vagas"'    + (mv === 'sem_vagas'    ? ' selected' : '') + '>Sem vagas</option>' +
-          '<option value="substituida"'  + (mv === 'substituida'  ? ' selected' : '') + '>Substituída</option>' +
-          '<option value="ja_participou"'+ (mv === 'ja_participou'? ' selected' : '') + '>Já participou</option>' +
-          '</select>';
-      }
+      /* O seletor "Justificar…" saiu daqui. Ele criava um terceiro estado —
+         "não confirmada, com um motivo, mas ainda na turma" — que não existe
+         na prática: sem vagas, já participou ou substituída são razões para
+         confirmar ou remover, não para deixar a pessoa parada na lista. Os
+         três motivos viraram motivos de remoção. */
       var actionBtn = isInscrito
         ? '<button class="cf-unconfirm-btn" data-turma="' + t.key + '" data-ekey="' + eKey + '" data-name="' + esc(r.name) + '" data-email="' + esc(r.email) + '" data-area="' + esc(r.area || '') + '">Desconfirmar</button>'
-        : motivoSel + '<button class="cf-confirm-btn" data-turma="' + t.key + '" data-ekey="' + eKey + '" data-name="' + esc(r.name) + '" data-email="' + esc(r.email) + '" data-area="' + esc(r.area || '') + '">Confirmar</button>';
+        : '<button class="cf-confirm-btn" data-turma="' + t.key + '" data-ekey="' + eKey + '" data-name="' + esc(r.name) + '" data-email="' + esc(r.email) + '" data-area="' + esc(r.area || '') + '">Confirmar</button>';
 
       var dateOriginal = r.date || new Date().toISOString();
       tbl += '<tr><td>' + esc(r.name) + '</td><td>' + esc(r.email) + '</td><td>' +
@@ -885,43 +900,6 @@
 
     tbl += '</tbody></table>';
     wrap.innerHTML = tbl;
-
-    /* seletor de motivo para interessados */
-    wrap.addEventListener('change', function (e) {
-      var sel = e.target.closest('.motivo-sel');
-      if (!sel) return;
-      var val  = sel.value;
-      var base = 'turmas-interesse/' + sel.dataset.turma + '/' + sel.dataset.ekey + '/';
-      var ref  = firebase.database().ref(base + 'motivoNaoConfirmado');
-
-      if (!val) {
-        /* Tirar a justificativa limpa também quem substituiu — senão fica
-           um "substituída por fulano" órfão, sem a marca de substituição. */
-        firebase.database().ref().update(
-          (function () { var u = {}; u[base + 'motivoNaoConfirmado'] = null; u[base + 'substituidaPor'] = null; u[base + 'substituidaPorNome'] = null; return u; })(),
-          function (err) { if (!err) loadInterests(); });
-        return;
-      }
-
-      if (val !== 'substituida') {
-        ref.set(val, function (err) { if (!err) loadInterests(); });
-        return;
-      }
-
-      /* Substituída exige dizer POR QUEM: sem isso o histórico não responde
-         "quem entrou no lugar de quem", que é a pergunta que aparece depois. */
-      escolherSubstituta(sel.dataset.turma, sel.dataset.ekey, sel.dataset.nome || '', function (pessoa) {
-        if (!pessoa) { loadInterests(); return; }   /* cancelou: nada muda */
-        var sess = window.faAuth && window.faAuth.getSession();
-        var u = {};
-        u[base + 'motivoNaoConfirmado'] = 'substituida';
-        u[base + 'substituidaPor']      = pessoa.email || null;
-        u[base + 'substituidaPorNome']  = pessoa.name  || null;
-        u[base + 'substituidaEm']       = new Date().toISOString();
-        u[base + 'substituidaPorAdmin'] = sess ? (sess.name || sess.email) : null;
-        firebase.database().ref().update(u, function (err) { if (!err) loadInterests(); });
-      });
-    });
 
     /* delegação de eventos: confirmar/desconfirmar, desfazer check-in, check-in manual, remoção */
     wrap.addEventListener('click', function (e) {
@@ -974,25 +952,47 @@
                  do interesse ORIGINAL, nunca a data da remoção. */
               date:  remBtn.dataset.date
             };
-            if (paraEspera) {
-              migrarParaEspera(remBtn.dataset.turma, remBtn.dataset.ekey, pessoa, motivo, detalhe);
+
+            function aplicar(subst) {
+              var razao = subst ? ('Substituída por ' + subst.name) : (detalhe || motivoEsperaLabel(motivo));
+              if (paraEspera) {
+                migrarParaEspera(remBtn.dataset.turma, remBtn.dataset.ekey, pessoa, motivo, razao, subst);
+                return;
+              }
+              var updates = {
+                removed: true,
+                removedParaTurma:      turmaDestino ? turmaDestino.key   : null,
+                removedParaTurmaLabel: turmaDestino ? turmaDestino.label : null,
+                removedDate: new Date().toISOString(),
+                removedReason: razao,
+                removedMotivo: motivo || null
+              };
+              if (subst) {
+                updates.substituidaPor      = subst.email || null;
+                updates.substituidaPorNome  = subst.name  || null;
+                updates.substituidaEm       = new Date().toISOString();
+                updates.substituidaPorAdmin = sess2 ? (sess2.name || sess2.email) : null;
+              }
+              if (sess2) { updates.removedByAdmin = sess2.email; updates.removedByAdminName = sess2.name || sess2.email; }
+              firebase.database().ref('turmas-interesse/' + remBtn.dataset.turma + '/' + remBtn.dataset.ekey).update(updates, function (err) {
+                if (!err) loadInterests();
+              });
+            }
+
+            /* "Substituída" é o único motivo que precisa de uma segunda
+               pergunta: sem dizer QUEM ficou com a vaga, o registro não
+               responde o que se pergunta depois. Cancelar aí desiste da
+               remoção inteira — melhor do que gravar meia informação. */
+            if (motivo === 'substituida') {
+              escolherSubstituta(remBtn.dataset.turma, remBtn.dataset.ekey, remBtn.dataset.name, function (quem) {
+                if (quem) aplicar(quem);
+              });
               return;
             }
-            var updates = {
-              removed: true,
-              removedParaTurma:      turmaDestino ? turmaDestino.key   : null,
-              removedParaTurmaLabel: turmaDestino ? turmaDestino.label : null,
-              removedDate: new Date().toISOString(),
-              removedReason: detalhe || motivoEsperaLabel(motivo),
-              removedMotivo: motivo || null
-            };
-            if (sess2) { updates.removedByAdmin = sess2.email; updates.removedByAdminName = sess2.name || sess2.email; }
-            firebase.database().ref('turmas-interesse/' + remBtn.dataset.turma + '/' + remBtn.dataset.ekey).update(updates, function (err) {
-              if (!err) loadInterests();
-            });
+            aplicar(null);
           },
           { label: 'Colocar na lista de espera (mantém a data original do interesse)',
-            sugerirEm: ['sem_vagas', 'data_nao_serviu'] });
+            sugerirEm: ['sem_vagas', 'data_nao_serviu', 'substituida'] });
       }
     });
 
@@ -1006,6 +1006,10 @@
   function destinoDeQuemSaiu(r) {
     if (r.movedToEspera)        return '<span class="destino-badge destino-espera">Lista de espera</span>';
     if (r.removedParaTurmaLabel) return '<span class="destino-badge destino-turma">' + esc(r.removedParaTurmaLabel) + '</span>';
+    /* Quem saiu porque outra pessoa ficou com a vaga não é a mesma coisa que
+       "saiu": o motivo aparece na coluna ao lado com o nome de quem entrou,
+       mas a coluna Destino é a que se varre com o olho. */
+    if (r.removedMotivo === 'substituida') return '<span class="destino-badge destino-substituida">Substituída</span>';
     return '<span class="destino-badge destino-saiu">Saiu</span>';
   }
 
@@ -1017,7 +1021,9 @@
       /* O motivo sozinho não conta a história toda: para onde ela foi e por
          quem foi substituída são justamente o que se pergunta depois. */
       var extra = '';
-      if (r.motivoNaoConfirmado === 'substituida') {
+      /* Só para registro antigo: hoje o nome de quem entrou já vem dentro de
+         removedReason ("Substituída por Fulana"), e repetir viraria eco. */
+      if (!r.removedMotivo && r.motivoNaoConfirmado === 'substituida') {
         extra += '<span class="motivo-badge motivo-substituida">Substituída' +
           (r.substituidaPorNome ? ' <span class="motivo-porquem">' + esc(r.substituidaPorNome) + '</span>' : '') + '</span>';
       }
@@ -1574,10 +1580,6 @@
     { key: 'duplicado',        label: 'Registro duplicado' },
     { key: 'outro',            label: 'Outro' },
   ];
-  /* Motivos de saída da turma. "Substituída" NÃO entra aqui de propósito:
-     substituição é uma marca que fica na pessoa dentro da turma, não um
-     destino — ela continua como não confirmada, com o selo, e só depois se
-     decide se vai para a espera ou se sai. */
   /* Em quais turmas cada pessoa já foi confirmada. Preenchido a cada
      carga da aba Eventos e usado para o selo "Já participou" dizer DE QUAL
      turma — a informação existe no sistema, não faz sentido exigir que o
@@ -1598,12 +1600,20 @@
     return (_turmasConfirmadas[eKey] || []).filter(function (x) { return x.tk !== turmaAtual; });
   }
 
+  /* Motivos de saída da turma. "Substituída" é um deles: quando outra
+     pessoa fica com a vaga, quem saiu não continua na turma esperando uma
+     decisão que já foi tomada — ou é confirmada, ou sai. Por isso a
+     substituição deixou de ser um selo em quem fica e virou motivo de
+     remoção, como os outros. */
   var MOTIVOS_REMOCAO_TURMA = [
     { key: 'a_pedido',         label: 'A pedido da própria pessoa' },
     /* pedeTurma: o modal troca o campo de texto por uma lista de turmas —
        sem dizer PARA ONDE a pessoa foi, o registro não serve de nada. */
     { key: 'outra_turma',      label: 'Vai fazer em outra turma', pedeTurma: true },
     { key: 'sem_vagas',        label: 'Turma sem vagas' },
+    /* O tratador da remoção abre uma segunda pergunta neste motivo, para
+       saber quem entrou no lugar. */
+    { key: 'substituida',      label: 'Substituída por outra pessoa' },
     { key: 'data_nao_serviu',  label: 'A data não serviu' },
     { key: 'ja_participou',    label: 'Já participou de uma turma' },
     { key: 'nao_responde',     label: 'Não respondeu aos contatos' },
@@ -2310,7 +2320,7 @@
     TURMAS_LIST.forEach(function (t) {
       var finalizada = !!(config[t.key] && config[t.key].finalizada);
       var checkinT   = checkin[t.key] || {};
-      var all = data[t.key] ? Object.values(data[t.key]) : [];
+      var all = (data[t.key] ? Object.values(data[t.key]) : []).sort(cmpNome);
       /* MUDANÇA 1: exportar apenas não-removidos */
       var active = all.filter(function (r) { return r.removed !== true; });
       active.forEach(function (r) {
@@ -2710,7 +2720,7 @@
     });
   }
 
-  function migrarParaEspera(turmaKey, eKey, person, motivo, detalhe) {
+  function migrarParaEspera(turmaKey, eKey, person, motivo, detalhe, subst) {
     var sess = window.faAuth && window.faAuth.getSession();
     var now  = new Date().toISOString();
     var updates = {};
@@ -2719,6 +2729,13 @@
     updates['turmas-interesse/' + turmaKey + '/' + eKey + '/removedDate']        = now;
     updates['turmas-interesse/' + turmaKey + '/' + eKey + '/removedReason']      = 'Movida para lista de espera — ' + (detalhe || motivoEsperaLabel(motivo));
     updates['turmas-interesse/' + turmaKey + '/' + eKey + '/movedToEspera']      = true;
+    updates['turmas-interesse/' + turmaKey + '/' + eKey + '/removedMotivo']      = motivo || null;
+    if (subst) {
+      updates['turmas-interesse/' + turmaKey + '/' + eKey + '/substituidaPor']      = subst.email || null;
+      updates['turmas-interesse/' + turmaKey + '/' + eKey + '/substituidaPorNome']  = subst.name  || null;
+      updates['turmas-interesse/' + turmaKey + '/' + eKey + '/substituidaEm']       = now;
+      updates['turmas-interesse/' + turmaKey + '/' + eKey + '/substituidaPorAdmin'] = sess ? (sess.name || sess.email) : null;
+    }
     updates['turmas-interesse/' + turmaKey + '/' + eKey + '/removedByAdmin']     = sess ? sess.email : null;
     updates['turmas-interesse/' + turmaKey + '/' + eKey + '/removedByAdminName'] = sess ? (sess.name || sess.email) : null;
     /* Adiciona à lista de espera preservando a data original de interesse */

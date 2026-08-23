@@ -407,10 +407,6 @@
 .motivo-sem-vagas   { background: rgba(255,165,0,.12); color: #ffb347; border: 1px solid rgba(255,165,0,.3); }
 .motivo-substituida { background: rgba(150,150,255,.1); color: #aaaaee; border: 1px solid rgba(150,150,255,.25); }
 .motivo-ja-participou { background: rgba(100,200,100,.1); color: #7dd87d; border: 1px solid rgba(100,200,100,.25); }
-.motivo-sel { font-size: .72rem; padding: 3px 6px; background: rgba(255,255,255,.06);
-  border: 1px solid var(--line-strong); border-radius: 5px; color: var(--ink-2); cursor: pointer;
-  font-family: inherit; margin-right: 4px; }
-.motivo-sel:focus { outline: none; border-color: var(--accent); }
 .checkin-dia { font-size: .8rem; color: var(--ink-3); }
 
 /* ---- Confirmar / Desconfirmar inscrição (CMFlex) ---- */
@@ -879,3 +875,5 @@
 .destino-espera { color: #ff8a65; background: rgba(255,138,101,.12); border: 1px solid rgba(255,138,101,.4); }
 .destino-turma  { color: #4caf7d; background: rgba(76,175,125,.12);  border: 1px solid rgba(76,175,125,.4); }
 .destino-saiu   { color: var(--ink-3); background: var(--panel-2);    border: 1px solid var(--line-strong); }
+/* mesmo lilás do selo de substituição, para os dois se lerem como a mesma coisa */
+.destino-substituida { color: #aaaaee; background: rgba(150,150,255,.12); border: 1px solid rgba(150,150,255,.4); }
