@@ -596,7 +596,14 @@
                 /* Quem já saiu da turma não tem ação possível — a tabela de
                    quem saiu mostra o motivo e o destino, não botões. */
                 if (g.removida) {
-                  tabelaWrap.appendChild(finalizada
+                  /* As colunas de dia só entram aqui quando alguém do grupo
+                     realmente tem presença registrada. Quem saiu sem nunca ter
+                     sido confirmada — o caso comum — não tem check-in nenhum,
+                     e a tabela virava cinco colunas de traço empurrando motivo
+                     e destino para fora da tela. Quando existe presença, ela
+                     continua aparecendo: o histórico de quem participou e
+                     depois saiu é justamente o que não pode se perder. */
+                  tabelaWrap.appendChild(finalizada && algumTemPresenca(t, g.lista, checkinT)
                     ? buildRemovedPresencaTable(t, g.lista, checkinT)
                     : buildRemovedInteressadosTable(g.lista));
                   return;
@@ -1038,6 +1045,15 @@
     });
     wrap.innerHTML = tbl + '</tbody></table>';
     return wrap;
+  }
+
+  /* Alguém deste grupo tem presença em algum dia da turma? Decide se a
+     tabela de quem saiu vale a pena carregar as colunas de dia. */
+  function algumTemPresenca(t, lista, checkinT) {
+    return lista.some(function (r) {
+      var eKey = emailKeyFromEmail(r.email);
+      return t.dias.some(function (d) { return !!(checkinT[d] && checkinT[d][eKey]); });
+    });
   }
 
   /* Tabela de removidos — só leitura, com o histórico de presença preservado
