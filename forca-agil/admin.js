@@ -206,6 +206,22 @@
       String(d.getDate()).padStart(2, '0');
   }
 
+  /* Ordem de exibição das pessoas: alfabética pelo nome. O Firebase devolve
+     os registros na ordem das chaves (que são derivadas do e-mail), então
+     sem isto a lista sai ordenada por e-mail — parece alfabética no começo
+     e desanda logo em seguida. localeCompare com 'pt-BR' e sensitivity
+     'base' faz acento e caixa não mudarem a posição (ANDRÉA junto de
+     ANDREA); empate cai no e-mail, que é único. */
+  function cmpNome(a, b) {
+    var n = String((a && a.name) || '').trim();
+    var m = String((b && b.name) || '').trim();
+    /* registro sem nome (importação incompleta) vai para o fim, não para o topo */
+    if (!n !== !m) return n ? -1 : 1;
+    var r = n.localeCompare(m, 'pt-BR', { sensitivity: 'base' });
+    if (r) return r;
+    return String((a && a.email) || '').localeCompare(String((b && b.email) || ''), 'pt-BR', { sensitivity: 'base' });
+  }
+
   /* ---- Turmas tab ---- */
   /* Estado da interface da aba Eventos, preservado entre recargas.
      loadInterests() reconstrói a aba inteira do zero — é chamada depois de
@@ -314,7 +330,7 @@
             var finalizada = !!cfg.finalizada;
             var encerrada  = !!cfg.encerrada;
             var diaAtivo   = cfg.diaAtivo || null;
-            var all        = data[t.key] ? Object.values(data[t.key]) : [];
+            var all        = (data[t.key] ? Object.values(data[t.key]) : []).sort(cmpNome);
             var active     = all.filter(function (r) { return !r.removed; });
             var removed    = all.filter(function (r) { return r.removed; });
             var checkinT   = checkin[t.key] || {};
@@ -2310,7 +2326,7 @@
     TURMAS_LIST.forEach(function (t) {
       var finalizada = !!(config[t.key] && config[t.key].finalizada);
       var checkinT   = checkin[t.key] || {};
-      var all = data[t.key] ? Object.values(data[t.key]) : [];
+      var all = (data[t.key] ? Object.values(data[t.key]) : []).sort(cmpNome);
       /* MUDANÇA 1: exportar apenas não-removidos */
       var active = all.filter(function (r) { return r.removed !== true; });
       active.forEach(function (r) {
