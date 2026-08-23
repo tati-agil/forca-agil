@@ -2642,7 +2642,7 @@
         table.className = 'admin-table';
         table.innerHTML =
           '<thead><tr>' +
-            '<th>Nome</th><th>E-mail</th><th>Área</th><th>Data</th><th>Origem</th><th>Ações</th>' +
+            '<th>Nome</th><th>E-mail</th><th>Área</th><th>Data interesse</th><th>Data remoção</th><th>Origem</th><th>Ações</th>' +
           '</tr></thead>';
         var tbody = document.createElement('tbody');
 
@@ -2652,16 +2652,21 @@
              formato brasileiro usado no resto do painel. A hora está
              gravada junto desde sempre — só não era exibida. */
           var dataFmt = fmtDate(p.date);
-          /* Quem veio de uma turma tem migratedFrom/migratedAt gravados na
-             migração — mostra de qual turma saiu e quando, em vez de deixar
-             o dado invisível no banco. */
+          /* A data da saída da turma ganhou coluna própria, ao lado da data
+             do interesse. Antes ficava dentro da célula de Origem, misturada
+             com o nome da turma e o motivo — dava para ler uma linha, não
+             para varrer a coluna e comparar quem espera há mais tempo. Quem
+             entrou direto pelo card do site não saiu de turma nenhuma, então
+             não tem data de remoção. */
+          var remocaoFmt = p.migratedFrom ? fmtDate(p.migratedAt) : '—';
+          /* Quem veio de uma turma tem migratedFrom gravado na migração —
+             mostra de qual turma saiu, em vez de deixar o dado invisível
+             no banco. */
           var origem = '<span style="color:var(--ink-3)">Entrou pela lista</span>';
           if (p.migratedFrom) {
             var tLabel = (turmasVal[p.migratedFrom] && turmasVal[p.migratedFrom].label) || p.migratedFrom.toUpperCase();
-            var quando = p.migratedAt ? fmtDate(p.migratedAt) : '';
             var motivoTxt = p.motivoEntradaDetalhe || motivoEsperaLabel(p.motivoEntrada);
             origem = '<span class="espera-origem">↩ ' + esc(tLabel) + '</span>' +
-              (quando ? '<span class="espera-origem-data">em ' + quando + '</span>' : '') +
               (motivoTxt ? '<span class="espera-origem-motivo">' + esc(motivoTxt) + '</span>' : '');
           }
           tr.innerHTML =
@@ -2669,6 +2674,7 @@
             '<td>' + esc(p.email || '—') + '</td>' +
             '<td>' + esc(p.area || '—') + '</td>' +
             '<td>' + dataFmt + '</td>' +
+            '<td>' + remocaoFmt + '</td>' +
             '<td>' + origem + '</td>' +
             '<td></td>';
 
