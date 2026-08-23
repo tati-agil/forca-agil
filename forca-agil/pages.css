@@ -865,6 +865,8 @@
   border-radius: 8px; padding: 11px 13px;
 }
 .admin-motivo-check input { margin-top: 2px; accent-color: var(--accent); width: 15px; height: 15px; flex-shrink: 0; }
+/* display:flex acima vence o hidden do navegador — sem isto a caixa não some */
+.admin-motivo-check[hidden] { display: none; }
 
 /* Destino de quem saiu da turma — coluna própria, para varrer com o olho */
 .destino-badge {

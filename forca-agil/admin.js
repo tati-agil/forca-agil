@@ -998,8 +998,7 @@
             }
             aplicar(null);
           },
-          { label: 'Colocar na lista de espera (mantém a data original do interesse)',
-            sugerirEm: ['sem_vagas', 'data_nao_serviu', 'substituida'] });
+          { label: 'Colocar na lista de espera (mantém a data original do interesse)' });
       }
     });
 
@@ -1731,7 +1730,11 @@
           return '<option value="' + esc(t.key) + '" data-label="' + esc(t.label) + '">' + esc(t.label) + (t.dates ? ' (' + esc(t.dates) + ')' : '') + '</option>';
         }).join('') +
       '</select>' +
-      (pergunta ? '<label class="admin-motivo-check"><input type="checkbox" class="admin-motivo-extra"> ' + esc(pergunta.label) + '</label>' : '') +
+      /* A caixa vem MARCADA: quem sai da turma quase sempre continua
+         querendo fazer, e a fila preserva a data original do interesse.
+         Antes vinha marcada só em alguns motivos, o que fazia a escolha
+         depender de lembrar quais eram. Quem não quer, desmarca. */
+      (pergunta ? '<label class="admin-motivo-check"><input type="checkbox" class="admin-motivo-extra" checked> ' + esc(pergunta.label) + '</label>' : '') +
       '<p class="admin-motivo-erro" style="color:var(--red);font-size:.8rem;margin:0" hidden></p>' +
       '<div style="display:flex;justify-content:flex-end;gap:8px">' +
         '<button class="btn admin-modal-cancel-btn">Cancelar</button>' +
@@ -1745,15 +1748,28 @@
     var selTurma = box.querySelector('.admin-motivo-turma');
     function pedeTurma(k) { for (var i = 0; i < motivos.length; i++) if (motivos[i].key === k) return !!motivos[i].pedeTurma; return false; }
     var erro  = box.querySelector('.admin-motivo-erro');
+    var chk     = box.querySelector('.admin-motivo-extra');
+    var chkWrap = box.querySelector('.admin-motivo-check');
+    /* Depois que a pessoa mexe na caixa, a escolha dela manda — a tela não
+       volta a marcar sozinha ao trocar de motivo. */
+    var chkTocado = false;
+    if (chk) chk.addEventListener('change', function () { chkTocado = true; });
 
     function fechar() { document.body.removeChild(overlay); }
     sel.addEventListener('change', function () {
       outro.hidden = sel.value !== 'outro';
       selTurma.hidden = !pedeTurma(sel.value);
-      /* Sugestão, não regra: motivos em que a pessoa normalmente ainda
-         quer fazer vêm com a caixa marcada — e ela pode desmarcar. */
-      var chk = box.querySelector('.admin-motivo-extra');
-      if (chk && pergunta && pergunta.sugerirEm) chk.checked = pergunta.sugerirEm.indexOf(sel.value) !== -1;
+      /* "Vai fazer em outra turma" já É o destino: mandar para a fila ao
+         mesmo tempo se contradiz, e o registro da turma escolhida seria
+         descartado. Nesse motivo a caixa some e não vale. */
+      if (chkWrap) {
+        var conflita = pedeTurma(sel.value);
+        chkWrap.hidden = conflita;
+        if (chk) {
+          if (conflita) chk.checked = false;
+          else if (!chkTocado) chk.checked = true;
+        }
+      }
       erro.hidden = true;
       if (!outro.hidden) outro.focus();
       else if (!selTurma.hidden) selTurma.focus();
@@ -1776,8 +1792,7 @@
         turmaEscolhida = { key: selTurma.value, label: o.dataset.label };
         detalhe = 'Vai fazer na ' + o.dataset.label;
       }
-      var extraChk = box.querySelector('.admin-motivo-extra');
-      var extra = !!(extraChk && extraChk.checked);
+      var extra = !!(chk && chk.checked && chkWrap && !chkWrap.hidden);
       fechar();
       if (callbackSim) callbackSim(motivo, detalhe, turmaEscolhida, extra);
     });
