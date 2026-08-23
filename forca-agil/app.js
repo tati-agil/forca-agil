@@ -373,8 +373,9 @@
     function checkEsperaState(btn, email) {
       var key = emailKey(email);
       firebase.database().ref('fa-espera/' + key).once('value', function (snap) {
-        var val = snap.val();
-        if (val && !val.removed) setEsperaDone(btn);
+        /* A fila guarda uma entrada por origem: estar nela é ter QUALQUER
+           uma ativa — a que ela criou aqui ou a que veio de uma turma. */
+        if (window.faTurmasUtil.esperaNaFila(snap.val())) setEsperaDone(btn);
       });
     }
 
@@ -382,7 +383,9 @@
       btn.disabled = true;
       var key = emailKey(sess.email);
       var now = new Date().toISOString();
-      firebase.database().ref('fa-espera/' + key).set({
+      /* Entrada pelo site é uma origem como as outras: fica sob "lista", ao
+         lado das que vieram de turmas, em vez de escrever por cima delas. */
+      firebase.database().ref('fa-espera/' + key + '/' + window.faTurmasUtil.ORIGEM_DIRETA).set({
         name: sess.name, email: sess.email, area: sess.area || '', date: now, removed: false
       }, function (err) {
         btn.disabled = false;
@@ -394,11 +397,22 @@
     function removeEspera(btn, sess) {
       btn.disabled = true;
       var key = emailKey(sess.email);
-      firebase.database().ref('fa-espera/' + key).update({ removed: true, removedDate: new Date().toISOString() }, function (err) {
-        btn.disabled = false;
-        if (err) { showEsperaMsg('Erro ao remover. Tente novamente.'); return; }
-        setEsperaInitial(btn);
-        showEsperaMsg('Você saiu da lista de espera.');
+      var agora = new Date().toISOString();
+      /* Quem clica "sair da lista" está dizendo que não quer mais esperar —
+         então sai de todas as origens. Deixar uma ativa faria o botão dizer
+         que ela está fora enquanto o admin continuaria a vendo na fila. */
+      firebase.database().ref('fa-espera/' + key).once('value', function (snap) {
+        var updates = {};
+        window.faTurmasUtil.esperaAtivas(snap.val()).forEach(function (e) {
+          updates['fa-espera/' + key + '/' + e._origem + '/removed']     = true;
+          updates['fa-espera/' + key + '/' + e._origem + '/removedDate'] = agora;
+        });
+        firebase.database().ref().update(updates, function (err) {
+          btn.disabled = false;
+          if (err) { showEsperaMsg('Erro ao remover. Tente novamente.'); return; }
+          setEsperaInitial(btn);
+          showEsperaMsg('Você saiu da lista de espera.');
+        });
       });
     }
 

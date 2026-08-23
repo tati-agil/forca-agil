@@ -205,11 +205,19 @@
 
   /* Registro da pessoa na lista de espera, se houver */
   function meuRegistroEspera(d, uKey) {
-    var reg = d.espera[uKey];
-    if (!reg || reg.removed) return null;
+    /* A fila guarda uma entrada por ORIGEM — quem passou por duas turmas tem
+       duas. Para a pessoa o que importa é desde quando ela espera, então
+       vale a mais antiga. */
+    var ativas = window.faTurmasUtil.esperaAtivas(d.espera[uKey]);
+    if (!ativas.length) return null;
+    ativas.sort(function (a, b) {
+      return String(a.date || a.migratedAt || '').localeCompare(String(b.date || b.migratedAt || ''));
+    });
+    var reg = ativas[0];
+    var origem = reg._origem !== window.faTurmasUtil.ORIGEM_DIRETA ? reg._origem : '';
     return {
       desde: reg.date || reg.migratedAt || '',
-      veioDe: reg.migratedFrom ? ((d.turmas[reg.migratedFrom] || {}).label || reg.migratedFrom) : '',
+      veioDe: origem ? ((d.turmas[origem] || {}).label || origem) : '',
     };
   }
 
