@@ -337,12 +337,12 @@
             var inscritos    = active.filter(function (r) { return r.status === 'inscrito'; });
             var interessados = active.filter(function (r) { return r.status !== 'inscrito'; });
             /* O cabeçalho fala a mesma língua dos filtros logo abaixo: quem
-               não foi removida nem confirmada é "não confirmada", e é o número
-               que se procura ao planejar a próxima turma. */
-            var naoConfirmadosHdr = interessados.length;
+               não foi removida nem confirmada está aguardando uma decisão sua,
+               e é o número que se procura ao planejar a próxima turma. */
+            var aguardandoHdr = interessados.length;
             var countLabel = all.length + ' interessado' + (all.length !== 1 ? 's' : '') +
               ' · ' + inscritos.length + ' confirmado' + (inscritos.length !== 1 ? 's' : '') +
-              (naoConfirmadosHdr ? ' · ' + naoConfirmadosHdr + ' não confirmado' + (naoConfirmadosHdr !== 1 ? 's' : '') : '');
+              (aguardandoHdr ? ' · ' + aguardandoHdr + ' aguardando decisão' : '');
 
             var card = document.createElement('div');
             card.className = 'turma-admin-card';
@@ -556,23 +556,23 @@
                  interesse está em exatamente um grupo, e "Todos" mostra o
                  total real de interessados na turma — incluindo quem saiu.
 
-                 Não confirmados = ainda não confirmada E ainda sem destino:
-                 é o que de fato exige ação sua. */
+                 Aguardando decisão = ainda não confirmada E ainda sem
+                 destino: é o que de fato exige ação sua. */
               var naEspera   = removed.filter(function (r) { return r.movedToEspera; });
               var outraTurma = removed.filter(function (r) { return !r.movedToEspera && r.removedParaTurma; });
               var saiu       = removed.filter(function (r) { return !r.movedToEspera && !r.removedParaTurma; });
-              /* "Não confirmados" é quem ainda não foi removida E ainda não
-                 foi confirmada — ou seja, quem ainda exige uma decisão sua.
-                 Antes esse conjunto vinha partido em dois botões ("Aguardando
-                 decisão" e "Não confirmados"), separados só por ter ou não um
-                 motivo anotado no "Justificar…". Com o motivo virando coisa de
-                 quem sai, sobrou o que sempre importou: falta decidir. */
-              var naoConfirmados = interessados;
+              /* "Aguardando decisão" é quem ainda não foi removida E ainda
+                 não foi confirmada. Antes esse conjunto vinha partido em dois
+                 botões ("Aguardando decisão" e "Não confirmados"), separados
+                 só por ter ou não um motivo anotado no "Justificar…". Com o
+                 motivo virando coisa de quem sai, sobrou um grupo só — e o
+                 nome que diz o que falta: decidir. */
+              var aguardando = interessados;
 
               var GRUPOS = [
                 { key: 'todos',       label: 'Todos os interessados', lista: all,        removida: false },
                 { key: 'confirmados', label: 'Confirmados',           lista: inscritos,  removida: false },
-                { key: 'aguardando',  label: 'Não confirmados',       lista: naoConfirmados, removida: false },
+                { key: 'aguardando',  label: 'Aguardando decisão',    lista: aguardando, removida: false },
                 { key: 'espera',      label: 'Foram para a espera',   lista: naEspera,   removida: true  },
                 { key: 'outra_turma', label: 'Foram para outra turma', lista: outraTurma, removida: true  },
                 { key: 'removidos',   label: 'Removidos',             lista: saiu,       removida: true  },
