@@ -453,63 +453,11 @@ body.aguardando-auth>*:not(#authModal){visibility:hidden}
          Um grupo por evento (título + grade de cards), na ordem do painel admin. -->
     <div class="turmas-eventos"></div>
 
-    <div class="divider"><svg width="14" height="14"><use href="#i-mark"/></svg></div>
-
-    <!-- A Oficina -->
-    <section class="section">
-      <div class="reveal">
-        <span class="eyebrow">A Missão</span>
-        <h2 class="sec-title">A <span class="glow-gold">Oficina de Agilidade Organizacional</span></h2>
-        <p class="sec-lead">Eficiência com foco no futuro: trabalhar de forma mais simples, colaborativa e com propósito — para que cada entrega faça diferença na vida dos associados.</p>
-      </div>
-
-      <!-- Como funciona -->
-      <div class="oficina-info reveal" style="margin-top:64px">
-        <h3 class="sec-title" style="font-size:clamp(1.3rem,3vw,2rem);letter-spacing:.12em">Como funciona a oficina</h3>
-        <div class="oficina-info-grid">
-          <div class="ofinfo-item">
-            <span class="ofinfo-num">5</span>
-            <span class="ofinfo-label">dias de encontros<br>presenciais</span>
-          </div>
-          <div class="ofinfo-item">
-            <span class="ofinfo-num">4h</span>
-            <span class="ofinfo-label">por encontro,<br>no horário do expediente</span>
-          </div>
-          <div class="ofinfo-item">
-            <span class="ofinfo-num">Prática</span>
-            <span class="ofinfo-label">dinâmicas, jogos e<br>exercícios em grupo</span>
-          </div>
-          <div class="ofinfo-item">
-            <span class="ofinfo-num">Opcional</span>
-            <span class="ofinfo-label">aberta a todos os<br>empregados da Previ</span>
-          </div>
-        </div>
-        <p class="ofinfo-desc">Serão abordados: fundamentos ágeis, OKR, Scrum, Design Thinking, leitura de cenário, resolução de problemas, liderança e prototipação. Não é necessário nenhum conhecimento prévio.</p>
-      </div>
-
-      <!-- Agenda -->
-      <div class="reveal" style="margin-top:72px">
-        <span class="eyebrow">Plano de Voo · 5 dias</span>
-        <h3 class="sec-title" style="font-size:clamp(1.6rem,4vw,2.6rem)">A jornada dia a dia</h3>
-      </div>
-      <div class="agenda">
-        <div class="day day--static reveal">
-          <div class="day-head"><span class="dnum">D1</span><span class="dttl">O Despertar da Força</span></div>
-        </div>
-        <div class="day day--static reveal">
-          <div class="day-head"><span class="dnum">D2</span><span class="dttl">A Postura do Guardião</span></div>
-        </div>
-        <div class="day day--static reveal">
-          <div class="day-head"><span class="dnum">D3</span><span class="dttl">Prova da Força</span></div>
-        </div>
-        <div class="day day--static reveal">
-          <div class="day-head"><span class="dnum">D4</span><span class="dttl">O Confronto Interior</span></div>
-        </div>
-        <div class="day day--static reveal">
-          <div class="day-head"><span class="dnum">D5</span><span class="dttl">O Julgamento Jedi</span></div>
-        </div>
-      </div>
-    </section>
+    <!-- "A Missão" / "Como funciona" / "Plano de Voo" — populado dinamicamente por
+         app.js a partir de eventos/ no Firebase (missaoTitulo, missaoTexto, topicos,
+         itinerario). Um bloco por evento que já tem turma na vitrine e conteúdo
+         preenchido pelo admin; evento sem conteúdo não ganha bloco vazio. -->
+    <div class="turmas-missao-eventos"></div>
   </div>
   <footer class="footer">
     <div class="footer-inner" style="max-width:var(--maxw);margin:0 auto;padding:0 24px">

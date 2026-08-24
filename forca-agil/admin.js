@@ -97,6 +97,7 @@
     migrateNameCase();
     migrarEsperaPorOrigem();
     migrarEsperaEventoKey();
+    seedMissaoJornadaImersao();
     loadInterests();
     loadRepoAdmin();
     loadCadastrados();
@@ -168,6 +169,37 @@
     });
   }
 
+  /* O bloco "A Missão / Como funciona / Plano de Voo" era HTML fixo na
+     página Turmas, descrevendo só a Jornada de Imersão. Virou conteúdo por
+     evento (missaoTitulo/missaoTexto/topicos/itinerario) — sem esta
+     migração, o evento que já existe em produção ficaria sem esse conteúdo
+     até alguém preencher no painel, e o texto sumiria do site público de uma
+     hora pra outra. Roda uma vez: só grava se o nome bater exatamente com o
+     que já está em produção E o evento ainda não tiver itinerário — não
+     sobrescreve o que o admin já tiver editado. Não inventa texto novo, só
+     transporta o que já existia na página, agora editável. */
+  function seedMissaoJornadaImersao() {
+    var NOME_ALVO = 'FORÇA ÁGIL · JORNADA DE IMERSÃO';
+    firebase.database().ref('eventos').once('value', function (snap) {
+      var val = snap.val() || {};
+      var updates = {};
+      Object.keys(val).forEach(function (key) {
+        var e = val[key] || {};
+        if ((e.nome || '').trim().toUpperCase() !== NOME_ALVO) return;
+        if (e.itinerario && e.itinerario.length) return;
+        updates['eventos/' + key + '/missaoTitulo'] = 'Oficina de Agilidade Organizacional';
+        updates['eventos/' + key + '/missaoTexto']  =
+          'Eficiência com foco no futuro: trabalhar de forma mais simples, colaborativa e com propósito — para que cada entrega faça diferença na vida dos associados.';
+        updates['eventos/' + key + '/topicos'] =
+          'Serão abordados: fundamentos ágeis, OKR, Scrum, Design Thinking, leitura de cenário, resolução de problemas, liderança e prototipação. Não é necessário nenhum conhecimento prévio.';
+        updates['eventos/' + key + '/itinerario'] = [
+          'O Despertar da Força', 'A Postura do Guardião', 'Prova da Força', 'O Confronto Interior', 'O Julgamento Jedi'
+        ];
+      });
+      if (Object.keys(updates).length) firebase.database().ref().update(updates);
+    });
+  }
+
   function migrateNameCase() {
     /* fa-admins: estrutura plana { key: { name, email } } */
     ['fa-admins'].forEach(function (path) {
@@ -236,7 +268,12 @@
       var val = snap.val() || {};
       EVENTOS_LIST = Object.keys(val).map(function (key) {
         var e = val[key] || {};
-        return { key: key, nome: e.nome || '', cargaHoraria: e.cargaHoraria || '20', percentualMinimo: Number(e.percentualMinimo || 75), order: e.order || 0 };
+        return {
+          key: key, nome: e.nome || '', cargaHoraria: e.cargaHoraria || '20',
+          percentualMinimo: Number(e.percentualMinimo || 75), order: e.order || 0,
+          missaoTitulo: e.missaoTitulo || '', missaoTexto: e.missaoTexto || '',
+          topicos: e.topicos || '', itinerario: e.itinerario || []
+        };
       }).sort(function (a, b) { return a.order - b.order; });
       cb();
     });
@@ -2261,12 +2298,22 @@
 
     var box = document.createElement('div');
     box.className = 'modal-box';
-    box.style.cssText = 'max-width:420px;width:90%;padding:28px;display:flex;flex-direction:column;gap:16px';
+    box.style.cssText = 'max-width:480px;width:90%;padding:28px;display:flex;flex-direction:column;gap:16px;max-height:85vh;overflow:auto';
     box.innerHTML =
       '<h3 style="font-size:1.1rem;font-family:var(--font-head);letter-spacing:.05em;color:var(--ink)">' + (isEdit ? 'Editar Evento' : 'Novo Evento') + '</h3>' +
       '<label class="auth-label">Nome do evento<input type="text" id="eventoFormNome" placeholder="Ex: FORÇA ÁGIL · JORNADA DE IMERSÃO" autocomplete="off" /></label>' +
       '<label class="auth-label" style="flex-direction:row;align-items:center;gap:10px">Carga horária<input type="number" id="eventoFormCarga" placeholder="20" min="1" max="999" style="width:80px" /><span style="opacity:.7">horas</span></label>' +
       '<label class="auth-label" style="flex-direction:row;align-items:center;gap:10px">Frequência mínima p/ certificado<input type="number" id="eventoFormPercentual" placeholder="75" min="1" max="100" style="width:80px" /><span style="opacity:.7">%</span></label>' +
+      '<hr style="border:none;border-top:1px solid var(--line-strong);margin:4px 0">' +
+      '<p style="font-size:.78rem;color:var(--ink-2);margin:0">Conteúdo público da página Turmas — aparece abaixo dos cards deste evento, só quando preenchido. Deixe em branco pra não mostrar nada.</p>' +
+      '<label class="auth-label">Missão (título curto)<input type="text" id="eventoFormMissaoTitulo" placeholder="Ex: Oficina de Agilidade Organizacional" autocomplete="off" /></label>' +
+      '<label class="auth-label">Missão (texto)<textarea id="eventoFormMissaoTexto" rows="2" placeholder="Ex: Eficiência com foco no futuro: trabalhar de forma mais simples, colaborativa e com propósito..." style="resize:vertical;font-family:var(--font-body)"></textarea></label>' +
+      '<label class="auth-label">Tópicos abordados<textarea id="eventoFormTopicos" rows="2" placeholder="Ex: Serão abordados: fundamentos ágeis, OKR, Scrum..." style="resize:vertical;font-family:var(--font-body)"></textarea></label>' +
+      '<div>' +
+        '<span class="auth-label" style="display:block;margin-bottom:8px">Itinerário — jornada dia a dia</span>' +
+        '<div id="eventoItinerarioList" style="display:flex;flex-direction:column;gap:8px;"></div>' +
+        '<button type="button" class="btn btn--sm" id="eventoAddDiaBtn" style="margin-top:8px">+ Adicionar dia</button>' +
+      '</div>' +
       '<p id="eventoFormErr" style="color:var(--red,#ff3b30);font-size:.85rem;display:none"></p>' +
       '<div style="display:flex;justify-content:flex-end;gap:8px;margin-top:4px">' +
         '<button class="btn admin-modal-cancel-btn">Cancelar</button>' +
@@ -2276,14 +2323,44 @@
     overlay.appendChild(box);
     document.body.appendChild(overlay);
 
-    var nomeInput       = box.querySelector('#eventoFormNome');
-    var cargaInput      = box.querySelector('#eventoFormCarga');
-    var percentualInput = box.querySelector('#eventoFormPercentual');
-    var errEl           = box.querySelector('#eventoFormErr');
+    var nomeInput         = box.querySelector('#eventoFormNome');
+    var cargaInput        = box.querySelector('#eventoFormCarga');
+    var percentualInput   = box.querySelector('#eventoFormPercentual');
+    var missaoTituloInput = box.querySelector('#eventoFormMissaoTitulo');
+    var missaoTextoInput  = box.querySelector('#eventoFormMissaoTexto');
+    var topicosInput      = box.querySelector('#eventoFormTopicos');
+    var itinerarioList    = box.querySelector('#eventoItinerarioList');
+    var errEl             = box.querySelector('#eventoFormErr');
 
-    nomeInput.value       = isEdit ? existing.nome : '';
-    cargaInput.value      = isEdit ? existing.cargaHoraria : '20';
-    percentualInput.value = isEdit ? (existing.percentualMinimo || '75') : '75';
+    nomeInput.value         = isEdit ? existing.nome : '';
+    cargaInput.value        = isEdit ? existing.cargaHoraria : '20';
+    percentualInput.value   = isEdit ? (existing.percentualMinimo || '75') : '75';
+    missaoTituloInput.value = isEdit ? (existing.missaoTitulo || '') : '';
+    missaoTextoInput.value  = isEdit ? (existing.missaoTexto || '') : '';
+    topicosInput.value      = isEdit ? (existing.topicos || '') : '';
+
+    /* Renumera os rótulos "D1", "D2"... depois de qualquer adição/remoção —
+       a ordem é só a posição na lista, sem arrastar/reordenar. */
+    function renumerarDias() {
+      itinerarioList.querySelectorAll('.evento-dia-num').forEach(function (el, i) {
+        el.textContent = 'D' + (i + 1);
+      });
+    }
+    function addDiaRow(value) {
+      var row = document.createElement('div');
+      row.className = 'evento-dia-row';
+      row.style.cssText = 'display:flex;gap:8px;align-items:center;';
+      row.innerHTML =
+        '<span class="evento-dia-num" style="font-family:var(--font-mono);font-size:.8rem;color:var(--accent);min-width:24px">D1</span>' +
+        '<input type="text" placeholder="Ex: O Despertar da Força" style="flex:1;padding:8px 10px;background:var(--panel-2);border:1px solid var(--line-strong);border-radius:6px;color:var(--ink);font-family:var(--font-body)" />' +
+        '<button type="button" class="btn btn--sm evento-dia-remove" style="padding:6px 10px">✕</button>';
+      row.querySelector('input').value = value || '';
+      row.querySelector('.evento-dia-remove').addEventListener('click', function () { row.remove(); renumerarDias(); });
+      itinerarioList.appendChild(row);
+      renumerarDias();
+    }
+    (isEdit && existing.itinerario && existing.itinerario.length ? existing.itinerario : []).forEach(function (d) { addDiaRow(d); });
+    box.querySelector('#eventoAddDiaBtn').addEventListener('click', function () { addDiaRow(''); });
 
     function closeModal() { document.body.removeChild(overlay); }
     box.querySelector('.admin-modal-cancel-btn').addEventListener('click', closeModal);
@@ -2293,6 +2370,8 @@
       var nome       = (nomeInput.value || '').trim();
       var carga      = (cargaInput.value || '').trim();
       var percentual = (percentualInput.value || '75').trim();
+      var itinerario = Array.prototype.map.call(itinerarioList.querySelectorAll('input[type=text]'), function (i) { return i.value.trim(); })
+        .filter(Boolean);
       errEl.style.display = 'none';
       if (!nome) { errEl.textContent = 'Dê um nome ao evento.'; errEl.style.display = ''; return; }
       if (!carga || isNaN(Number(carga)) || Number(carga) < 1) {
@@ -2301,7 +2380,13 @@
       if (!percentual || isNaN(Number(percentual)) || Number(percentual) < 1 || Number(percentual) > 100) {
         errEl.textContent = 'Frequência mínima deve ser entre 1 e 100%.'; errEl.style.display = ''; return;
       }
-      var eventData = { nome: nome, cargaHoraria: carga, percentualMinimo: percentual };
+      var eventData = {
+        nome: nome, cargaHoraria: carga, percentualMinimo: percentual,
+        missaoTitulo: (missaoTituloInput.value || '').trim(),
+        missaoTexto: (missaoTextoInput.value || '').trim(),
+        topicos: (topicosInput.value || '').trim(),
+        itinerario: itinerario
+      };
       if (isEdit) {
         firebase.database().ref('eventos/' + existing.key).update(eventData, function (err) {
           if (err) { errEl.textContent = 'Erro ao salvar. Tente novamente.'; errEl.style.display = ''; return; }

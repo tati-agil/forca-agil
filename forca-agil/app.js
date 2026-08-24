@@ -230,7 +230,7 @@
        já foi confirmado como inscrito (não existe mais um card único de
        "turma confirmada" substituindo o grid inteiro). */
     var _turmasList  = []; // [{ key, label, dias, cmflexLink, finalizada, eventoKey }]
-    var _eventosList = []; // [{ key, nome, order }]
+    var _eventosList = []; // [{ key, nome, order, cargaHoraria, missaoTitulo, missaoTexto, topicos, itinerario }]
 
     function loadTurmas(cb) {
       var db = firebase.database();
@@ -241,7 +241,13 @@
           db.ref('eventos').once('value', function (evSnap) {
             var evVal = evSnap.val() || {};
             _eventosList = Object.keys(evVal).map(function (key) {
-              return { key: key, nome: evVal[key].nome || key, order: evVal[key].order || 0 };
+              var e = evVal[key] || {};
+              return {
+                key: key, nome: e.nome || key, order: e.order || 0,
+                cargaHoraria: e.cargaHoraria || '',
+                missaoTitulo: e.missaoTitulo || '', missaoTexto: e.missaoTexto || '',
+                topicos: e.topicos || '', itinerario: e.itinerario || []
+              };
             }).sort(function (a, b) { return a.order - b.order; });
             _turmasList = Object.keys(val).map(function (key) {
               return {
@@ -366,11 +372,79 @@
       host.innerHTML = html;
     }
 
+    /* "A Missão" / "Como funciona" / "Plano de Voo" — um bloco por evento que
+       já tem turma na vitrine E tem conteúdo preenchido pelo admin (evento
+       sem conteúdo não ganha bloco vazio). Reaproveita as classes do bloco
+       estático que existia antes desta mudança (.section, .oficina-info,
+       .agenda, .day day--static) — só que agora um bloco por evento, não um
+       único global que descrevia certo só a Jornada de Imersão. */
+    function renderMissaoEventos() {
+      var host = document.querySelector('.turmas-missao-eventos');
+      if (!host) return;
+      var eventosComTurma = {};
+      _turmasList.forEach(function (t) { if (t.eventoKey) eventosComTurma[t.eventoKey] = true; });
+
+      var html = '';
+      _eventosList.forEach(function (ev) {
+        if (!eventosComTurma[ev.key]) return;
+        var nDias = (ev.itinerario || []).length;
+        if (!ev.missaoTexto && !ev.topicos && !nDias) return; /* evento sem conteúdo: nenhum bloco */
+
+        var horasPorDia = '';
+        if (nDias && ev.cargaHoraria) {
+          var h = Number(ev.cargaHoraria) / nDias;
+          horasPorDia = (Number.isInteger(h) ? h : h.toFixed(1)) + 'h';
+        }
+
+        html += '<div class="divider"><svg width="14" height="14"><use href="#i-mark"/></svg></div>';
+        html += '<section class="section">';
+        html += '<div class="reveal in"><span class="eyebrow">A Missão</span>' +
+          '<h2 class="sec-title">' + (ev.missaoTitulo ? 'A <span class="glow-gold">' + ev.missaoTitulo + '</span>' : ev.nome) + '</h2>';
+        if (ev.missaoTexto) html += '<p class="sec-lead">' + ev.missaoTexto + '</p>';
+        html += '</div>';
+
+        if (nDias || ev.topicos) {
+          html += '<div class="oficina-info reveal in" style="margin-top:64px">' +
+            '<h3 class="sec-title" style="font-size:clamp(1.3rem,3vw,2rem);letter-spacing:.12em">Como funciona</h3>' +
+            '<div class="oficina-info-grid">';
+          if (nDias) {
+            html += '<div class="ofinfo-item"><span class="ofinfo-num">' + nDias + '</span><span class="ofinfo-label">dia' +
+              (nDias !== 1 ? 's' : '') + ' de encontros<br>presenciais</span></div>';
+          }
+          if (horasPorDia) {
+            html += '<div class="ofinfo-item"><span class="ofinfo-num">' + horasPorDia +
+              '</span><span class="ofinfo-label">por encontro,<br>no horário do expediente</span></div>';
+          }
+          html += '<div class="ofinfo-item"><span class="ofinfo-num">Prática</span><span class="ofinfo-label">dinâmicas, jogos e<br>exercícios em grupo</span></div>' +
+            '<div class="ofinfo-item"><span class="ofinfo-num">Opcional</span><span class="ofinfo-label">aberta a todos os<br>empregados da Previ</span></div>' +
+            '</div>';
+          if (ev.topicos) html += '<p class="ofinfo-desc">' + ev.topicos + '</p>';
+          html += '</div>';
+        }
+
+        if (nDias) {
+          html += '<div class="reveal in" style="margin-top:72px">' +
+            '<span class="eyebrow">Plano de Voo · ' + nDias + ' dia' + (nDias !== 1 ? 's' : '') + '</span>' +
+            '<h3 class="sec-title" style="font-size:clamp(1.6rem,4vw,2.6rem)">A jornada dia a dia</h3></div>';
+          html += '<div class="agenda">';
+          ev.itinerario.forEach(function (titulo, i) {
+            html += '<div class="day day--static reveal in"><div class="day-head"><span class="dnum">D' + (i + 1) +
+              '</span><span class="dttl">' + titulo + '</span></div></div>';
+          });
+          html += '</div>';
+        }
+
+        html += '</section>';
+      });
+      host.innerHTML = html;
+    }
+
     function initTurmaInterest() {
       var sess = window.faAuth && window.faAuth.getSession();
       loadTurmas(function () {
         renderTurmasGrid();
         renderEsperaCard(sess);
+        renderMissaoEventos();
         initInterestButtons(sess);
       });
     }
