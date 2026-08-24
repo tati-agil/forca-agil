@@ -558,8 +558,20 @@
           if (!cards) return true; /* página Turmas ainda não carregada nesta sessão */
           return document.querySelectorAll('.tc-horario').length === cards;
         } },
-        { id: 'c-turmas-como-funciona', label: 'Bloco "Como funciona a oficina" presente (.oficina-info)', run: function () { return !!document.querySelector('.oficina-info'); } },
-        { id: 'c-turmas-ofinfo',  label: 'Bloco tem 4 métricas (.ofinfo-item)', run: function () { return document.querySelectorAll('.ofinfo-item').length === 4; } },
+        { id: 'c-turmas-como-funciona', label: 'Bloco "Como funciona" tem entre 2 e 4 métricas cada (.oficina-info / .ofinfo-item)', run: function () {
+          /* Depende do admin ter preenchido Missão/Tópicos/Itinerário em algum
+             evento (ver "Editar evento") — a migração de ponte (seedMissaoJornadaImersao)
+             garante isso para o evento existente, mas evento novo sem conteúdo
+             não gera bloco nenhum, o que não é falha. "Dias"/"horas" só entram
+             quando o itinerário tem pelo menos 1 dia — por isso o mínimo é 2
+             (Prática + Opcional, sempre presentes quando o bloco existe), não 4. */
+          var blocos = document.querySelectorAll('.oficina-info');
+          if (!blocos.length) return true;
+          return Array.prototype.every.call(blocos, function (b) {
+            var n = b.querySelectorAll('.ofinfo-item').length;
+            return n >= 2 && n <= 4;
+          });
+        } },
         { id: 'c-turmas-intent-btn', label: 'Botões de interesse não excedem o número de cards de turma (.btn--interest)', run: function () {
           return document.querySelectorAll('.btn--interest').length <= document.querySelectorAll('.turma-card-new').length;
         } },
@@ -571,9 +583,9 @@
             return !!key && !!document.getElementById('intent-msg-' + key);
           });
         } },
-        { id: 'c-turmas-agenda-estatica', label: 'Agenda D1–D5: todos os dias são .day--static e não expandem ao clicar', run: function () {
+        { id: 'c-turmas-agenda-estatica', label: 'Itinerário por evento: dias são .day--static (número variável, um por evento configurado) e não expandem ao clicar', run: function () {
           var days = document.querySelectorAll('.day--static');
-          if (days.length < 5) return false;
+          if (!days.length) return true; /* nenhum evento com itinerário preenchido ainda — não é falha */
           var first = days[0];
           var before = first.className;
           first.click();
@@ -855,6 +867,9 @@
       title: 'Migração: eventoKey da fila é preenchido sozinho',
       motivo: 'Requer um registro na fila (migrado de uma turma) gravado ANTES desta mudança, sem o campo eventoKey. Ao carregar o painel como admin: o registro ganha o eventoKey da turma de origem automaticamente (migrarEsperaEventoKey, roda a cada carga) e passa a aparecer dentro do card do evento certo, não mais nas órfãs. Rodar de novo não duplica nem sobrescreve nada — idempotente.' },
     { section: 'Admin',
+      title: 'Migração de ponte: conteúdo da Missão da Jornada de Imersão',
+      motivo: 'Só se aplica ao evento existente cujo nome é exatamente "FORÇA ÁGIL · JORNADA DE IMERSÃO", e só antes dele ter sido editado nesta mudança (itinerario ainda vazio). Ao carregar o painel como admin pela primeira vez após o deploy: o evento ganha sozinho Missão, Tópicos e os 5 dias do itinerário que antes eram HTML fixo na página ("O Despertar da Força" ... "O Julgamento Jedi") — seedMissaoJornadaImersao, roda a cada carga do painel. Verificar: (1) a página Turmas pública não fica sem esse bloco depois do deploy; (2) editar manualmente o conteúdo desse evento depois e recarregar o painel várias vezes NÃO reverte a edição — a migração só grava quando o itinerário está vazio, nunca sobrescreve o que o admin já preencheu.' },
+    { section: 'Admin',
       title: 'Lista de espera — data e hora corretas',
       motivo: 'Abrir a aba Eventos e conferir a Lista de Espera: as colunas Data interesse e Data remoção devem mostrar dia e hora no formato brasileiro (10/08/2026 12:26), não a data crua do banco. Conferir uma linha contra o horário real em que a pessoa entrou na fila. A ordem da lista segue a data de interesse, não a de remoção. ATENÇÃO AO FUSO: se algum dia aparecer um registro cuja data foi guardada sem hora, ele deve aparecer só com a data — nunca com uma hora inventada, e nunca com o dia anterior ao correto, que é o erro clássico ao converter data sem hora. Vale repetir esta conferência depois de qualquer mexida em exibição de datas no painel.' },
     { section: 'Admin',
@@ -1086,6 +1101,15 @@
     { section: 'Admin',
       title: 'Turmas — lista de presença mostra check-in e permite salvar como PDF',
       motivo: 'Numa turma finalizada com check-in já registrado em pelo menos um dia (QR ou lançado pelo admin), abrir "🖨 Lista de presença". Verificar: cada dia da turma aparece como coluna, com "✓" nos dias em que a pessoa tem check-in e vazio nos outros; colunas de Frequência e "Atingiu critério" aparecem (a turma está finalizada); há linhas de assinatura no rodapé ("Responsável pela turma" / "RH"). Clicar em "Imprimir / salvar como PDF" e confirmar que o diálogo de impressão do navegador abre com o conteúdo correto (usar "Salvar como PDF" no diálogo para gerar o arquivo).' },
+    { section: 'Admin',
+      title: 'Editar evento — conteúdo público (Missão, Tópicos, Itinerário)',
+      motivo: 'Na aba Eventos, clicar "✎ Editar evento" num evento que já tem turma na vitrine. Preencher Missão (título e texto), Tópicos abordados, e adicionar 2-3 dias no Itinerário via "+ Adicionar dia" (cada um com um título) — conferir que os rótulos D1, D2... se renumeram sozinhos ao adicionar e ao remover um dia do meio da lista com "✕". Salvar. Abrir a página Turmas pública (ou visitante autenticado) e verificar: (1) aparece um bloco "A Missão" com o título e texto digitados, logo abaixo da grade de cards DESSE evento; (2) o bloco "Como funciona" mostra o número de dias igual ao itinerário cadastrado, e as horas por encontro = carga horária do evento ÷ número de dias; (3) os Tópicos aparecem como texto abaixo das 4 métricas; (4) o itinerário aparece como "Plano de Voo" com um item por dia, na ordem cadastrada, cada um mostrando "D1", "D2"... e o título digitado — clicar num dia não expande nada.' },
+    { section: 'Admin',
+      title: 'Evento sem conteúdo preenchido não gera bloco vazio',
+      motivo: 'Criar um evento novo (ou usar um sem Missão/Tópicos/Itinerário preenchidos) com pelo menos uma turma na vitrine. Verificar na página Turmas pública: a grade de cards desse evento aparece normalmente, mas NENHUM bloco "A Missão"/"Como funciona"/"Plano de Voo" aparece abaixo dela — nem um bloco vazio ou com traços. Depois, editar o evento e preencher só o campo Missão (texto), sem Tópicos nem Itinerário: verificar que aparece SÓ o bloco "A Missão", sem o "Como funciona" (que exige itinerário ou tópicos) nem o "Plano de Voo".' },
+    { section: 'Admin',
+      title: 'Conteúdo da Missão não vaza entre eventos',
+      motivo: 'Com dois eventos, cada um com turma na vitrine e conteúdo diferente preenchido (Missão e itinerário de tamanhos diferentes, ex: 3 dias num e 5 dias no outro): verificar na página Turmas pública que cada grupo de evento mostra SÓ o bloco correspondente a ele — o texto da Missão, o número de dias e horas por encontro, e o itinerário de um evento não podem aparecer no bloco do outro. Cada bloco "Como funciona" tem exatamente 4 métricas (.ofinfo-item), não a soma dos dois.' },
     { section: 'Admin',
       title: 'Admin não vê "Acesso Restrito" piscando ao carregar o painel',
       motivo: 'Logada como admin, abrir forca-agil.previ.com.br/#admin direto (F5 ou endereço digitado) e observar a tela DURANTE o carregamento, não só no fim. Verificar que em nenhum momento aparece o aviso vermelho "Acesso Restrito · Você não tem permissão para acessar esta área" — nem por um instante. O aviso começa oculto e só deve surgir para quem realmente não é admin, depois que a autenticação termina. Testar também com internet lenta (aba Network do navegador, opção de throttling), que é quando a janela entre revelar o site e confirmar o perfil fica maior.' },
