@@ -406,6 +406,11 @@
         window.faTurmasUtil.esperaAtivas(snap.val()).forEach(function (e) {
           updates['fa-espera/' + key + '/' + e._origem + '/removed']     = true;
           updates['fa-espera/' + key + '/' + e._origem + '/removedDate'] = agora;
+          /* Marca que quem saiu foi a própria pessoa. A saída pelo painel
+             grava o nome do admin; esta aqui não gravava nada, e o registro
+             ficava sem dizer quem tirou — o painel então não podia afirmar
+             nada, e mostrava a linha em branco. */
+          updates['fa-espera/' + key + '/' + e._origem + '/removedBySelf'] = true;
         });
         firebase.database().ref().update(updates, function (err) {
           btn.disabled = false;
