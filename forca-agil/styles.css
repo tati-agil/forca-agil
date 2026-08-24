@@ -1070,7 +1070,11 @@ html:not(.js) .reveal { opacity: 1 !important; transform: none !important; }
 .modal-overlay { position:fixed; inset:0; background:rgba(2,6,16,.82); z-index:900; display:flex; align-items:center; justify-content:center; backdrop-filter:blur(6px); padding:16px; overflow-y:auto; }
 .modal-overlay[hidden] { display:none; }
 .modal-overlay--forced { background:rgb(2,6,16); backdrop-filter:none; }
-.modal-box { background:#060e1f; border:1px solid var(--accent); border-radius:20px; padding:40px 36px; max-width:440px; width:100%; position:relative; box-shadow:0 0 60px rgba(245,197,24,.12); max-height:calc(100dvh - 32px); overflow-y:auto; margin:auto; overscroll-behavior:contain; }
+.modal-box { background:#060e1f; border:1px solid var(--accent); border-radius:20px; padding:40px 36px; max-width:440px; width:100%; position:relative; box-shadow:0 0 60px rgba(245,197,24,.12); max-height:calc(100dvh - 32px); overflow-y:auto; margin:auto; overscroll-behavior:contain; scrollbar-width:thin; scrollbar-color:rgba(245,197,66,.35) transparent; }
+.modal-box::-webkit-scrollbar { width:6px; }
+.modal-box::-webkit-scrollbar-track { background:transparent; }
+.modal-box::-webkit-scrollbar-thumb { background:rgba(245,197,66,.35); border-radius:3px; }
+.modal-box::-webkit-scrollbar-thumb:hover { background:rgba(245,197,66,.6); }
 @media (max-height: 720px) {
   .modal-box { padding: 24px 28px; }
   .auth-tabs { margin-bottom: 16px; }
