@@ -3071,9 +3071,14 @@
         : p.removedBySelf        ? 'pela própria pessoa'
         : '';
       quem = quem ? '<span class="removido-por">' + esc(quem) + '</span>' : '';
+      /* Sair da fila é reversível e fica no histórico; isto aqui não. Só
+         aparece em quem já saiu, então excluir de vez exige duas decisões
+         separadas — mesma regra da exclusão de registro nas turmas. */
+      var excluir = '<button class="registro-del-btn" data-ekey="' + p._key +
+        '" data-origem="' + esc(p._origem) + '" data-name="' + esc(p.name || p.email) + '">&#x1F5D1; excluir registro</button>';
       return '<tr><td>' + esc(p.name || '—') + '</td><td>' + esc(p.email || '—') + '</td><td>' +
         esc(p.area || '—') + '</td><td>' + fmtDate(p.date) + '</td><td>' + origem + '</td><td>' +
-        fmtDate(p.removedDate) + '</td><td>' + destino + '</td><td>' + motivo + quem + '</td></tr>';
+        fmtDate(p.removedDate) + '</td><td>' + destino + '</td><td>' + motivo + quem + excluir + '</td></tr>';
     }).join('');
 
     box.innerHTML =
@@ -3082,7 +3087,36 @@
       '<th>Nome</th><th>E-mail</th><th>Área</th><th>Data interesse</th><th>Origem</th>' +
       '<th>Saiu em</th><th>Destino</th><th>Motivo</th>' +
       '</tr></thead><tbody>' + linhas + '</tbody></table></div></details>';
+
+    box.addEventListener('click', function (e) {
+      var b = e.target.closest('.registro-del-btn');
+      if (b) excluirRegistroDaFila(b.dataset.ekey, b.dataset.origem, b.dataset.name);
+    });
     return box;
+  }
+
+  /* Apaga de vez um registro da fila. Existe para o que nunca foi uma espera
+     de verdade — teste e duplicado. Sair da fila só marca como removido, e o
+     registro continua aparecendo em "Saíram da fila" para sempre; um teste
+     não deveria ocupar essa lista. Some só a entrada daquela origem: o
+     cadastro da pessoa e os registros dela nas turmas não são tocados. */
+  function excluirRegistroDaFila(eKey, origem, nome) {
+    adminConfirm(
+      'Excluir definitivamente o registro de ' + nome + ' na lista de espera?\n\n' +
+      'Não é o mesmo que remover da fila: ele some de "Saíram da fila" e do banco, sem deixar histórico.\n\n' +
+      'Use para registro de teste ou duplicado. Essa ação não pode ser desfeita.',
+      function () {
+        /* Registro antigo, anterior à separação por origem, mora na raiz do
+           nó da pessoa — nesse caso é o nó inteiro que sai. */
+        firebase.database().ref('fa-espera/' + eKey).once('value', function (snap) {
+          var v = snap.val();
+          var alvo = (v && v.email) ? ('fa-espera/' + eKey) : ('fa-espera/' + eKey + '/' + origem);
+          firebase.database().ref(alvo).remove(function (err) {
+            if (err) { adminAlert('Erro ao excluir. Tente novamente.'); return; }
+            loadEspera();
+          });
+        });
+      });
   }
 
   /* ── Conferência da fila ────────────────────────────────────────────────
