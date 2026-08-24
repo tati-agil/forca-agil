@@ -3143,7 +3143,6 @@
         e._key = eKey; linhas.push(e); pessoasNaFila[eKey] = true;
       });
     });
-    var diretas = linhas.filter(function (e) { return e._origem === U.ORIGEM_DIRETA; });
     /* Conta TODAS as entradas pelo card, inclusive as que já saíram: a
        pergunta "alguém entrou direto pela lista?" não se responde olhando só
        quem continua esperando. */
@@ -3201,25 +3200,25 @@
       item('com registro próprio na fila', naFila.length) +
       item('já foram da fila para uma turma', foiParaTurma.length) +
       item('foram removidas da fila', saiuDaFila.length) +
-      item('engolidas antes da separação por turma', engolidas.length, engolidas.length ? 'ruim' : '') +
+      item('registros vindos do card do site', diretasTotal) +
+      /* "Sem rastro" é o único que continua sendo alarme: se aparecer, é
+         coisa nova e inexplicada. Vermelho só quando houver. */
       item('sem rastro na fila', semRastro.length, semRastro.length ? 'ruim' : '') +
       '</div>';
 
-    html += '<div class="espera-resumo-linha">' +
-      item('registros que entraram pelo card do site (contando os que já saíram)', diretasTotal) +
-      '</div>';
-
-    if (diretas.length) {
-      html += '<p class="espera-resumo-nota">' + diretas.length + ' registro' + (diretas.length !== 1 ? 's' : '') +
-        ' veio do card do site, sem turma de origem — por isso não aparece em nenhuma saída.</p>';
+    /* As saídas engolidas são de antes da separação por origem — número
+       fechado, que não cresce mais. Ficavam em vermelho na linha principal e
+       pareciam alarme pendente todo dia; viraram nota de rodapé, que é o que
+       são: história registrada, não pendência. */
+    if (engolidas.length) {
+      html += '<p class="espera-resumo-nota">' + engolidas.length + ' saída' + (engolidas.length !== 1 ? 's' : '') +
+        ' de antes da separação por turma não tem registro próprio na fila: naquela época uma segunda migração' +
+        ' escrevia por cima da primeira. É um número fechado — a estrutura atual não produz mais nenhum.</p>';
     }
 
     var problemas = engolidas.concat(semRastro);
     if (problemas.length) {
-      html += '<details class="espera-resumo-det"><summary>Ver as ' + problemas.length +
-        ' saídas que não têm registro próprio na fila</summary>' +
-        '<p class="espera-resumo-nota">São de antes da separação por origem, quando uma segunda migração escrevia por cima da primeira. ' +
-        'A informação para recriá-las não está mais na fila; daqui para a frente cada turma tem o seu registro.</p><ul>';
+      html += '<details class="espera-resumo-det"><summary>Ver quais são</summary><ul>';
       problemas.sort(function (a, b) { return (a.nome || '').localeCompare(b.nome || '', 'pt-BR'); })
         .forEach(function (x) {
           html += '<li>' + esc(x.nome) + ' — saiu da <strong>' + esc(nomeTurma(x.turma)) + '</strong> em ' + fmtDate(x.quando) +
