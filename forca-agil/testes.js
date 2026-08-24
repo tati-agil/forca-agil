@@ -91,6 +91,24 @@
         { id: 'adm-manual-panel', label: 'Painel Manual presente', run: function () { return !!document.getElementById('adminPanelManual'); } },
         { id: 'adm-mapa-panel',   label: 'Painel Mapa presente',   run: function () { return !!document.getElementById('adminPanelMapa'); } },
         { id: 'adm-testes-panel', label: 'Painel Testes presente', run: function () { return !!document.getElementById('adminPanelTestes'); } },
+        { id: 'adm-testes-grupos-somam', label: 'Testes: a soma dos grupos manuais bate com o total do cabeçalho, e nenhum grupo ficou preso dentro de um <select>', run: function () {
+          /* Os títulos e motivos das regras entram numa string de HTML. Um deles
+             cita "<select>" como texto; sem escapar, o navegador abria um <select>
+             DE VERDADE e engolia como filho dele todos os grupos seguintes — que
+             sumiam da tela, porque <select> só desenha <option>. Nada falhava no
+             console: só o cabeçalho dizia 174 e a lista parava na Avaliação. */
+          var grupos = document.querySelectorAll('#adminPanelTestes .testes-manual-wrap .testes-group--collapsible');
+          if (!grupos.length) return true; /* aba Testes ainda não renderizada nesta sessão */
+          var presos = Array.prototype.filter.call(grupos, function (g) { return !!g.closest('select'); }).length;
+          if (presos) return false;
+          var soma = Array.prototype.reduce.call(grupos, function (acc, g) {
+            var m = (g.querySelector('.testes-group-count') || {}).textContent || '';
+            return acc + (parseInt(m.replace(/\D+/g, ''), 10) || 0);
+          }, 0);
+          var hdr = document.querySelector('#adminPanelTestes .testes-manual-title');
+          var total = parseInt(((hdr && hdr.textContent) || '').replace(/\D+/g, ''), 10) || 0;
+          return soma === total;
+        } },
         { id: 'adm-pedidos-panel', label: 'Painel Pedidos presente', run: function () { return !!document.getElementById('adminPanelPedidos'); } },
         { id: 'adm-sorteios-panel', label: 'Painel Sorteios presente (aba + container)', run: function () {
           return !!document.getElementById('adminPanelSorteios') && !!document.getElementById('adminSorteios') &&
@@ -1340,6 +1358,22 @@
   /* ================================================================
      RENDER
   ================================================================ */
+
+  /* Títulos e motivos entram numa string de HTML montada à mão, e são texto
+     escrito por gente: descrevem a tela usando marcadores como "<turma>",
+     "<seu nome>" ou "<select>". Sem escapar, o navegador lê isso como TAG.
+     Com "<select>" o estrago é grave e silencioso: ele abre um elemento
+     <select> de verdade, e tudo o que vem depois — inclusive os grupos
+     seguintes da lista — vira filho dele. Como <select> só desenha <option>,
+     esses grupos somem da tela sem nenhum erro no console: a lista parecia
+     acabar na Avaliação (3º grupo em ordem alfabética), enquanto o total no
+     cabeçalho continuava contando os 174. */
+  function esc(s) {
+    return String(s == null ? '' : s).replace(/[&<>"]/g, function (c) {
+      return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c];
+    });
+  }
+
   function render(container) {
     let html = '<div class="testes-wrap">';
 
@@ -1391,13 +1425,13 @@
       const count = bySection[sec].length;
       const col = SEC_COLOR[sec] || 'var(--accent)';
       html += '<div class="testes-group testes-group--collapsible">';
-      html += '<div class="testes-group-label testes-group-toggle"><span class="testes-group-arrow">▸</span><span>' + sec + ' <span class="testes-group-count">(' + count + ')</span></span></div>';
+      html += '<div class="testes-group-label testes-group-toggle"><span class="testes-group-arrow">▸</span><span>' + esc(sec) + ' <span class="testes-group-count">(' + count + ')</span></span></div>';
       html += '<div class="testes-group-body">';
       bySection[sec].forEach(function (r) {
         html += '<div class="testes-row manual">';
         html += '<span class="testes-icon">🔍</span>';
-        html += '<div class="testes-manual-item"><span class="testes-label">' + r.title + '</span>';
-        html += '<span class="testes-motivo">' + r.motivo + '</span></div>';
+        html += '<div class="testes-manual-item"><span class="testes-label">' + esc(r.title) + '</span>';
+        html += '<span class="testes-motivo">' + esc(r.motivo) + '</span></div>';
         html += '</div>';
       });
       html += '</div>';
@@ -1526,13 +1560,13 @@
       const groupTotal  = groups[g].length;
       const countLabel  = done ? ' (' + groupPassed + '/' + groupTotal + ')' : ' (' + groupPassed + '/' + groupTotal + ')';
       html += '<div class="testes-group testes-group--collapsible open">';
-      html += '<div class="testes-group-label testes-group-toggle"><span class="testes-group-arrow">▸</span><span>' + g + '<span class="testes-group-count">' + countLabel + '</span></span></div>';
+      html += '<div class="testes-group-label testes-group-toggle"><span class="testes-group-arrow">▸</span><span>' + esc(g) + '<span class="testes-group-count">' + countLabel + '</span></span></div>';
       html += '<div class="testes-group-body">';
       groups[g].forEach(function (r) {
         html += '<div class="testes-row ' + (r.passed ? 'pass' : 'fail') + '">';
         html += '<span class="testes-icon">' + (r.passed ? '✅' : '❌') + '</span>';
-        html += '<span class="testes-label">' + r.label + '</span>';
-        if (!r.passed && r.err) html += '<span class="testes-err">' + r.err + '</span>';
+        html += '<span class="testes-label">' + esc(r.label) + '</span>';
+        if (!r.passed && r.err) html += '<span class="testes-err">' + esc(r.err) + '</span>';
         html += '</div>';
       });
       html += '</div></div>';
