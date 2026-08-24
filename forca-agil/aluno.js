@@ -214,7 +214,7 @@
       return String(a.date || a.migratedAt || '').localeCompare(String(b.date || b.migratedAt || ''));
     });
     var reg = ativas[0];
-    var origem = reg._origem !== window.faTurmasUtil.ORIGEM_DIRETA ? reg._origem : '';
+    var origem = !window.faTurmasUtil.ehOrigemDireta(reg._origem) ? reg._origem : '';
     return {
       desde: reg.date || reg.migratedAt || '',
       veioDe: origem ? ((d.turmas[origem] || {}).label || origem) : '',

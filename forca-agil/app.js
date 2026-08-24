@@ -229,7 +229,8 @@
        passa a orientar pro CMFlex — igual pra todo mundo, sem distinguir quem
        já foi confirmado como inscrito (não existe mais um card único de
        "turma confirmada" substituindo o grid inteiro). */
-    var _turmasList = []; // [{ key, label, dias, cmflexLink, finalizada }]
+    var _turmasList  = []; // [{ key, label, dias, cmflexLink, finalizada, eventoKey }]
+    var _eventosList = []; // [{ key, nome, order }]
 
     function loadTurmas(cb) {
       var db = firebase.database();
@@ -237,96 +238,132 @@
         var val = snap.val() || {};
         db.ref('turmas-config').once('value', function (cfgSnap) {
           var cfg = cfgSnap.val() || {};
-          _turmasList = Object.keys(val).map(function (key) {
-            return {
-              key: key,
-              label: val[key].label || key.toUpperCase(),
-              dias: val[key].dias || [],
-              order: val[key].order || 0,
-              cmflexLink: val[key].cmflexLink || '',
-              finalizada: !!(cfg[key] && cfg[key].finalizada),
-              encerrada:  !!(cfg[key] && cfg[key].encerrada)
-            };
-          }).sort(function (a, b) { return a.order - b.order; });
-          cb(_turmasList);
+          db.ref('eventos').once('value', function (evSnap) {
+            var evVal = evSnap.val() || {};
+            _eventosList = Object.keys(evVal).map(function (key) {
+              return { key: key, nome: evVal[key].nome || key, order: evVal[key].order || 0 };
+            }).sort(function (a, b) { return a.order - b.order; });
+            _turmasList = Object.keys(val).map(function (key) {
+              return {
+                key: key,
+                label: val[key].label || key.toUpperCase(),
+                dias: val[key].dias || [],
+                order: val[key].order || 0,
+                eventoKey: val[key].eventoKey || '',
+                cmflexLink: val[key].cmflexLink || '',
+                finalizada: !!(cfg[key] && cfg[key].finalizada),
+                encerrada:  !!(cfg[key] && cfg[key].encerrada)
+              };
+            }).sort(function (a, b) { return a.order - b.order; });
+            cb(_turmasList);
+          });
         });
       });
     }
 
-    function renderTurmasGrid() {
-      var grid = document.querySelector('.turmas-grid');
-      if (!grid) return;
-      if (!_turmasList.length) {
-        grid.innerHTML = '<p style="opacity:.7">Nenhuma turma aberta no momento.</p>';
-        return;
-      }
-      var hoje = new Date().toISOString().slice(0, 10);
-      grid.innerHTML = _turmasList.map(function (t) {
-        var fmt = window.faTurmasUtil.formatDias(t.dias);
-        var diasOrdenados = t.dias.slice().sort();
-        var primeiroDia = diasOrdenados[0] || '';
-        var ultimoDia   = diasOrdenados[diasOrdenados.length - 1] || '';
+    function turmaCardHtml(t, hoje) {
+      var fmt = window.faTurmasUtil.formatDias(t.dias);
+      var diasOrdenados = t.dias.slice().sort();
+      var primeiroDia = diasOrdenados[0] || '';
+      var ultimoDia   = diasOrdenados[diasOrdenados.length - 1] || '';
 
-        /* encerrada pelo admin OU já passou do último dia → Realizada */
-        if (t.encerrada || (ultimoDia && hoje > ultimoDia)) {
-          return (
-            '<div class="turma-card-new reveal in turma-card-realizada">' +
-              '<span class="tc-label">' + t.label + '</span>' +
-              '<div class="tc-month">' + fmt.mes + '</div>' +
-              '<div class="tc-dates">' + fmt.dates + '</div>' +
-              '<div class="tc-horario">&#x23F0; 9h &ndash; 13h</div>' +
-              '<div class="turma-status-msg turma-realizada-msg"><strong>Turma realizada</strong>Esta turma já foi concluída. Fique de olho nas próximas.</div>' +
-            '</div>'
-          );
-        }
-
-        /* a partir do primeiro dia e antes do fim → Em andamento */
-        if (primeiroDia && hoje >= primeiroDia) {
-          return (
-            '<div class="turma-card-new reveal in turma-card-andamento">' +
-              '<span class="tc-label">' + t.label + '</span>' +
-              '<div class="tc-month">' + fmt.mes + '</div>' +
-              '<div class="tc-dates">' + fmt.dates + '</div>' +
-              '<div class="tc-horario">&#x23F0; 9h &ndash; 13h</div>' +
-              '<div class="turma-status-msg turma-andamento-msg"><strong>Turma em andamento</strong>As aulas estão acontecendo. Acompanhe as próximas turmas.</div>' +
-            '</div>'
-          );
-        }
-
-        /* Interesse encerrado e turma ainda não começou → vai ser realizada.
-
-           Aqui o card mandava a pessoa se inscrever no CMFlex. Mas o
-           interesse é encerrado justamente porque as vagas no CMFlex já
-           acabaram — mandar alguém para lá é mandar bater numa porta
-           fechada. O card passa a dizer o que de fato acontece: as
-           inscrições terminaram e a turma vai acontecer nas datas
-           indicadas. Quem quiser participar olha as próximas. */
-        if (t.finalizada) {
-          return (
-            '<div class="turma-card-new reveal in turma-card-lotada">' +
-              '<span class="tc-label">' + t.label + '</span>' +
-              '<div class="tc-month">' + fmt.mes + '</div>' +
-              '<div class="tc-dates">' + fmt.dates + '</div>' +
-              '<div class="tc-horario">&#x23F0; 9h &ndash; 13h</div>' +
-              '<div class="turma-status-msg turma-lotada-msg"><strong>Inscrições encerradas</strong>' +
-                'As vagas desta turma já foram preenchidas. Ela será realizada em ' + fmt.dates + '. ' +
-                'Acompanhe as próximas turmas para participar.</div>' +
-            '</div>'
-          );
-        }
-
-        /* interesse aberto → botão Tenho interesse */
+      /* encerrada pelo admin OU já passou do último dia → Realizada */
+      if (t.encerrada || (ultimoDia && hoje > ultimoDia)) {
         return (
-          '<div class="turma-card-new reveal in">' +
+          '<div class="turma-card-new reveal in turma-card-realizada">' +
             '<span class="tc-label">' + t.label + '</span>' +
             '<div class="tc-month">' + fmt.mes + '</div>' +
             '<div class="tc-dates">' + fmt.dates + '</div>' +
             '<div class="tc-horario">&#x23F0; 9h &ndash; 13h</div>' +
-            '<button class="btn--interest" data-turma="' + t.key + '"><span class="btn-heart">&#x2661;</span>&nbsp; Tenho interesse</button>' +
-            '<div class="turma-intent-msg" id="intent-msg-' + t.key + '"></div>' +
+            '<div class="turma-status-msg turma-realizada-msg"><strong>Turma realizada</strong>Esta turma já foi concluída. Fique de olho nas próximas.</div>' +
           '</div>'
         );
-      }).join('');
+      }
+
+      /* a partir do primeiro dia e antes do fim → Em andamento */
+      if (primeiroDia && hoje >= primeiroDia) {
+        return (
+          '<div class="turma-card-new reveal in turma-card-andamento">' +
+            '<span class="tc-label">' + t.label + '</span>' +
+            '<div class="tc-month">' + fmt.mes + '</div>' +
+            '<div class="tc-dates">' + fmt.dates + '</div>' +
+            '<div class="tc-horario">&#x23F0; 9h &ndash; 13h</div>' +
+            '<div class="turma-status-msg turma-andamento-msg"><strong>Turma em andamento</strong>As aulas estão acontecendo. Acompanhe as próximas turmas.</div>' +
+          '</div>'
+        );
+      }
+
+      /* Interesse encerrado e turma ainda não começou → vai ser realizada.
+
+         Aqui o card mandava a pessoa se inscrever no CMFlex. Mas o
+         interesse é encerrado justamente porque as vagas no CMFlex já
+         acabaram — mandar alguém para lá é mandar bater numa porta
+         fechada. O card passa a dizer o que de fato acontece: as
+         inscrições terminaram e a turma vai acontecer nas datas
+         indicadas. Quem quiser participar olha as próximas. */
+      if (t.finalizada) {
+        return (
+          '<div class="turma-card-new reveal in turma-card-lotada">' +
+            '<span class="tc-label">' + t.label + '</span>' +
+            '<div class="tc-month">' + fmt.mes + '</div>' +
+            '<div class="tc-dates">' + fmt.dates + '</div>' +
+            '<div class="tc-horario">&#x23F0; 9h &ndash; 13h</div>' +
+            '<div class="turma-status-msg turma-lotada-msg"><strong>Inscrições encerradas</strong>' +
+              'As vagas desta turma já foram preenchidas. Ela será realizada em ' + fmt.dates + '. ' +
+              'Acompanhe as próximas turmas para participar.</div>' +
+          '</div>'
+        );
+      }
+
+      /* interesse aberto → botão Tenho interesse */
+      return (
+        '<div class="turma-card-new reveal in">' +
+          '<span class="tc-label">' + t.label + '</span>' +
+          '<div class="tc-month">' + fmt.mes + '</div>' +
+          '<div class="tc-dates">' + fmt.dates + '</div>' +
+          '<div class="tc-horario">&#x23F0; 9h &ndash; 13h</div>' +
+          '<button class="btn--interest" data-turma="' + t.key + '"><span class="btn-heart">&#x2661;</span>&nbsp; Tenho interesse</button>' +
+          '<div class="turma-intent-msg" id="intent-msg-' + t.key + '"></div>' +
+        '</div>'
+      );
+    }
+
+    /* Turmas agrupadas por evento — cada grupo com o nome do evento acima da
+       grade de cards, na mesma ordem do painel admin. Turma sem evento
+       (não deveria existir, mas o admin permite deixar assim temporariamente)
+       cai num grupo sem título, para não sumir da vitrine. */
+    function renderTurmasGrid() {
+      var host = document.querySelector('.turmas-eventos');
+      if (!host) return;
+      if (!_turmasList.length) {
+        host.innerHTML = '<p style="opacity:.7">Nenhuma turma aberta no momento.</p>';
+        return;
+      }
+      var hoje = new Date().toISOString().slice(0, 10);
+      var porEvento = {};
+      var semEvento = [];
+      _turmasList.forEach(function (t) {
+        if (t.eventoKey) (porEvento[t.eventoKey] = porEvento[t.eventoKey] || []).push(t);
+        else semEvento.push(t);
+      });
+
+      var html = '';
+      _eventosList.forEach(function (ev) {
+        var turmasEv = porEvento[ev.key];
+        if (!turmasEv || !turmasEv.length) return;
+        html +=
+          '<div class="turmas-evento-grupo" data-evento-key="' + ev.key + '">' +
+            '<div class="turmas-evento-titulo">' + ev.nome + '</div>' +
+            '<div class="turmas-grid">' + turmasEv.map(function (t) { return turmaCardHtml(t, hoje); }).join('') + '</div>' +
+          '</div>';
+      });
+      if (semEvento.length) {
+        html +=
+          '<div class="turmas-evento-grupo" data-evento-key="">' +
+            '<div class="turmas-grid">' + semEvento.map(function (t) { return turmaCardHtml(t, hoje); }).join('') + '</div>' +
+          '</div>';
+      }
+      host.innerHTML = html;
     }
 
     function initTurmaInterest() {
@@ -338,72 +375,78 @@
       });
     }
 
-    /* ---- Lista de Espera ---- */
+    /* ---- Lista de Espera ----
+       A fila é do evento, não da conta: um card por evento que já tem turma
+       aberta na vitrine, cada um escrevendo numa entrada própria em
+       fa-espera (ver ORIGEM_DIRETA em turmas-util.js) — assim dá pra estar
+       esperando por mais de um evento ao mesmo tempo, sem uma entrada
+       sobrescrever a outra. */
 
     function renderEsperaCard(sess) {
-      var grid = document.querySelector('.turmas-grid');
-      if (!grid) return;
-      var old = document.getElementById('turma-espera-card');
-      if (old) old.remove();
-      var card = document.createElement('div');
-      card.className = 'turma-card-new turma-card-espera reveal in';
-      card.id = 'turma-espera-card';
-      card.innerHTML =
-        '<span class="tc-label tc-label-espera">Lista de Espera</span>' +
-        '<div class="tc-espera-icon">&#x23F3;</div>' +
-        '<div class="tc-espera-title">Pr&oacute;ximas turmas</div>' +
-        '<div class="tc-espera-desc">Manifeste seu interesse em participar das pr&oacute;ximas turmas. Quando uma nova turma for aberta, o admin poder&aacute; convidar quem est&aacute; na lista.</div>' +
-        '<button class="btn--espera" id="btnEntrarEspera">&#x2661;&nbsp; Entrar na lista de espera</button>' +
-        '<div class="turma-intent-msg" id="espera-msg"></div>';
-      grid.appendChild(card);
-      var btn = card.querySelector('#btnEntrarEspera');
-      if (sess) checkEsperaState(btn, sess.email);
-      btn.addEventListener('click', function () {
-        var s = window.faAuth && window.faAuth.getSession();
-        if (!s) {
-          showEsperaMsg('Fa&ccedil;a login para entrar na lista de espera.');
-          if (window.faOpenAuthModal) window.faOpenAuthModal('login');
-          return;
-        }
-        if (btn.dataset.state === 'done') removeEspera(btn, s);
-        else joinEspera(btn, s);
+      document.querySelectorAll('.turma-card-espera').forEach(function (el) { el.remove(); });
+      _eventosList.forEach(function (ev) {
+        var grid = document.querySelector('.turmas-evento-grupo[data-evento-key="' + ev.key + '"] .turmas-grid');
+        if (!grid) return; /* evento sem turma nenhuma na vitrine: nada para esperar ainda */
+        var card = document.createElement('div');
+        card.className = 'turma-card-new turma-card-espera reveal in';
+        card.innerHTML =
+          '<span class="tc-label tc-label-espera">Lista de Espera</span>' +
+          '<div class="tc-espera-icon">&#x23F3;</div>' +
+          '<div class="tc-espera-title">Pr&oacute;ximas turmas</div>' +
+          '<div class="tc-espera-desc">Manifeste seu interesse em participar das pr&oacute;ximas turmas de ' + ev.nome + '. Quando uma nova turma for aberta, o admin poder&aacute; convidar quem est&aacute; na lista.</div>' +
+          '<button class="btn--espera" type="button">&#x2661;&nbsp; Entrar na lista de espera</button>' +
+          '<div class="turma-intent-msg"></div>';
+        grid.appendChild(card);
+        var btn = card.querySelector('.btn--espera');
+        if (sess) checkEsperaState(btn, sess.email, ev.key);
+        btn.addEventListener('click', function () {
+          var s = window.faAuth && window.faAuth.getSession();
+          if (!s) {
+            showEsperaMsg(btn, 'Fa&ccedil;a login para entrar na lista de espera.');
+            if (window.faOpenAuthModal) window.faOpenAuthModal('login');
+            return;
+          }
+          if (btn.dataset.state === 'done') removeEspera(btn, s, ev.key);
+          else joinEspera(btn, s, ev.key);
+        });
       });
     }
 
-    function checkEsperaState(btn, email) {
+    function checkEsperaState(btn, email, eventoKey) {
       var key = emailKey(email);
       firebase.database().ref('fa-espera/' + key).once('value', function (snap) {
-        /* A fila guarda uma entrada por origem: estar nela é ter QUALQUER
-           uma ativa — a que ela criou aqui ou a que veio de uma turma. */
-        if (window.faTurmasUtil.esperaNaFila(snap.val())) setEsperaDone(btn);
+        var ativas = window.faTurmasUtil.esperaAtivas(snap.val());
+        if (ativas.some(function (e) { return e.eventoKey === eventoKey; })) setEsperaDone(btn);
       });
     }
 
-    function joinEspera(btn, sess) {
+    function joinEspera(btn, sess, eventoKey) {
       btn.disabled = true;
       var key = emailKey(sess.email);
       var now = new Date().toISOString();
-      /* Entrada pelo site é uma origem como as outras: fica sob "lista", ao
-         lado das que vieram de turmas, em vez de escrever por cima delas. */
-      firebase.database().ref('fa-espera/' + key + '/' + window.faTurmasUtil.ORIGEM_DIRETA).set({
-        name: sess.name, email: sess.email, area: sess.area || '', date: now, removed: false
+      /* Uma origem por evento — "lista:<eventoKey>" — para dar pra esperar
+         por mais de um evento sem uma entrada escrever por cima da outra. */
+      var origem = window.faTurmasUtil.ORIGEM_DIRETA + ':' + eventoKey;
+      firebase.database().ref('fa-espera/' + key + '/' + origem).set({
+        name: sess.name, email: sess.email, area: sess.area || '', date: now, removed: false,
+        eventoKey: eventoKey
       }, function (err) {
         btn.disabled = false;
-        if (err) { showEsperaMsg('Erro ao registrar. Tente novamente.'); return; }
+        if (err) { showEsperaMsg(btn, 'Erro ao registrar. Tente novamente.'); return; }
         setEsperaDone(btn);
       });
     }
 
-    function removeEspera(btn, sess) {
+    function removeEspera(btn, sess, eventoKey) {
       btn.disabled = true;
       var key = emailKey(sess.email);
       var agora = new Date().toISOString();
-      /* Quem clica "sair da lista" está dizendo que não quer mais esperar —
-         então sai de todas as origens. Deixar uma ativa faria o botão dizer
-         que ela está fora enquanto o admin continuaria a vendo na fila. */
+      /* Sair da lista deste evento não mexe na espera por outro evento, se
+         houver — são cards e decisões separadas agora. */
       firebase.database().ref('fa-espera/' + key).once('value', function (snap) {
         var updates = {};
         window.faTurmasUtil.esperaAtivas(snap.val()).forEach(function (e) {
+          if (e.eventoKey !== eventoKey) return;
           updates['fa-espera/' + key + '/' + e._origem + '/removed']     = true;
           updates['fa-espera/' + key + '/' + e._origem + '/removedDate'] = agora;
           /* Marca que quem saiu foi a própria pessoa. A saída pelo painel
@@ -414,9 +457,9 @@
         });
         firebase.database().ref().update(updates, function (err) {
           btn.disabled = false;
-          if (err) { showEsperaMsg('Erro ao remover. Tente novamente.'); return; }
+          if (err) { showEsperaMsg(btn, 'Erro ao remover. Tente novamente.'); return; }
           setEsperaInitial(btn);
-          showEsperaMsg('Você saiu da lista de espera.');
+          showEsperaMsg(btn, 'Você saiu da lista de espera.');
         });
       });
     }
@@ -426,7 +469,7 @@
       btn.classList.add('done');
       btn.dataset.state = 'done';
       btn.disabled = false;
-      showEsperaMsg('Você está na lista. Avisaremos quando houver vagas em novas turmas.');
+      showEsperaMsg(btn, 'Você está na lista. Avisaremos quando houver vagas em novas turmas.');
     }
 
     function setEsperaInitial(btn) {
@@ -436,8 +479,9 @@
       btn.disabled = false;
     }
 
-    function showEsperaMsg(msg) {
-      var el = document.getElementById('espera-msg');
+    function showEsperaMsg(btn, msg) {
+      var card = btn.closest('.turma-card-espera');
+      var el = card && card.querySelector('.turma-intent-msg');
       if (el) el.innerHTML = msg;
     }
 
