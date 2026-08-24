@@ -3064,7 +3064,13 @@
         : '<span class="destino-badge destino-saiu">Saiu da fila</span>';
       var motivo = p.motivoSaidaDetalhe || (p.motivoSaida ? motivoEsperaLabel(p.motivoSaida) : '') ||
         (p.movedToTurma ? 'Movida para turma' : '<span class="removido-sem-motivo">motivo não registrado</span>');
-      var quem = p.removedByName ? '<span class="removido-por">por ' + esc(p.removedByName) + '</span>' : '';
+      /* Só se afirma o que está gravado: o nome de quem tirou (saída pelo
+         painel) ou a marca de saída pelo site. Sem nenhum dos dois, nada é
+         dito — mesma regra da tabela de quem saiu das turmas. */
+      var quem = p.removedByName ? 'por ' + p.removedByName
+        : p.removedBySelf        ? 'pela própria pessoa'
+        : '';
+      quem = quem ? '<span class="removido-por">' + esc(quem) + '</span>' : '';
       return '<tr><td>' + esc(p.name || '—') + '</td><td>' + esc(p.email || '—') + '</td><td>' +
         esc(p.area || '—') + '</td><td>' + fmtDate(p.date) + '</td><td>' + origem + '</td><td>' +
         fmtDate(p.removedDate) + '</td><td>' + destino + '</td><td>' + motivo + quem + '</td></tr>';
