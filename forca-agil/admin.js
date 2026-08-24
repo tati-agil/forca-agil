@@ -3029,9 +3029,54 @@
         table.appendChild(tbody);
         wrap.appendChild(table);
         c.appendChild(wrap);
+        c.appendChild(saidosDaFila(data, turmasVal));
       });
       });
     });
+  }
+
+  /* Quem saiu da fila. A lista mostra só quem está esperando agora, então
+     não havia como responder "e a fulana, que estava aqui?" — nem conferir
+     se alguém saiu por engano. Sair da fila nunca apaga nada: o registro
+     continua no banco marcado como removido, e é isso que esta seção lê.
+     Mesma ideia do filtro "Removidos" que as turmas já têm. */
+  function saidosDaFila(dataEspera, turmasVal) {
+    var U = window.faTurmasUtil;
+    var box = document.createElement('div');
+
+    var saidos = [];
+    Object.keys(dataEspera).forEach(function (eKey) {
+      U.esperaEntradas(dataEspera[eKey]).forEach(function (e) {
+        if (e.removed) { e._key = eKey; saidos.push(e); }
+      });
+    });
+    if (!saidos.length) return box;
+    saidos.sort(function (a, b) { return String(b.removedDate || '').localeCompare(String(a.removedDate || '')); });
+
+    var nomeTurma = function (tk) { return (turmasVal[tk] && turmasVal[tk].label) || tk; };
+    var linhas = saidos.map(function (p) {
+      var veioDeTurma = p._origem && p._origem !== U.ORIGEM_DIRETA;
+      var origem = veioDeTurma
+        ? '<span class="espera-origem">↩ ' + esc(nomeTurma(p._origem)) + '</span>'
+        : '<span class="espera-origem-card">Entrou pela lista</span>';
+      var destino = p.movedToTurma
+        ? '<span class="destino-badge destino-turma">' + esc(nomeTurma(p.movedToTurma)) + '</span>'
+        : '<span class="destino-badge destino-saiu">Saiu da fila</span>';
+      var motivo = p.motivoSaidaDetalhe || (p.motivoSaida ? motivoEsperaLabel(p.motivoSaida) : '') ||
+        (p.movedToTurma ? 'Movida para turma' : '<span class="removido-sem-motivo">motivo não registrado</span>');
+      var quem = p.removedByName ? '<span class="removido-por">por ' + esc(p.removedByName) + '</span>' : '';
+      return '<tr><td>' + esc(p.name || '—') + '</td><td>' + esc(p.email || '—') + '</td><td>' +
+        esc(p.area || '—') + '</td><td>' + fmtDate(p.date) + '</td><td>' + origem + '</td><td>' +
+        fmtDate(p.removedDate) + '</td><td>' + destino + '</td><td>' + motivo + quem + '</td></tr>';
+    }).join('');
+
+    box.innerHTML =
+      '<details class="espera-saidos"><summary>Saíram da fila (' + saidos.length + ')</summary>' +
+      '<div class="table-scroll-wrap"><table class="admin-table"><thead><tr>' +
+      '<th>Nome</th><th>E-mail</th><th>Área</th><th>Data interesse</th><th>Origem</th>' +
+      '<th>Saiu em</th><th>Destino</th><th>Motivo</th>' +
+      '</tr></thead><tbody>' + linhas + '</tbody></table></div></details>';
+    return box;
   }
 
   /* ── Conferência da fila ────────────────────────────────────────────────
@@ -3059,6 +3104,15 @@
       });
     });
     var diretas = linhas.filter(function (e) { return e._origem === U.ORIGEM_DIRETA; });
+    /* Conta TODAS as entradas pelo card, inclusive as que já saíram: a
+       pergunta "alguém entrou direto pela lista?" não se responde olhando só
+       quem continua esperando. */
+    var diretasTotal = 0;
+    Object.keys(dataEspera).forEach(function (eKey) {
+      U.esperaEntradas(dataEspera[eKey]).forEach(function (e) {
+        if (e._origem === U.ORIGEM_DIRETA) diretasTotal++;
+      });
+    });
 
     /* Uma saída por pessoa E por turma — é o que os filtros das turmas somam. */
     var saidas = [];
@@ -3109,6 +3163,10 @@
       item('foram removidas da fila', saiuDaFila.length) +
       item('engolidas antes da separação por turma', engolidas.length, engolidas.length ? 'ruim' : '') +
       item('sem rastro na fila', semRastro.length, semRastro.length ? 'ruim' : '') +
+      '</div>';
+
+    html += '<div class="espera-resumo-linha">' +
+      item('registros que entraram pelo card do site (contando os que já saíram)', diretasTotal) +
       '</div>';
 
     if (diretas.length) {
