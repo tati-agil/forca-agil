@@ -483,6 +483,15 @@
             })(t, all, finalizada, checkinT));
             moreMenu.appendChild(csvTurmaBtn);
 
+            var listaPresencaBtn = document.createElement('button');
+            listaPresencaBtn.className = 'btn btn--sm';
+            listaPresencaBtn.style.cssText = 'padding:6px 10px;font-size:.72rem';
+            listaPresencaBtn.innerHTML = '&#x1F5A8; Lista de presença';
+            listaPresencaBtn.addEventListener('click', (function (tt, a, f, ck) {
+              return function () { imprimirListaPresenca(tt, a, f, ck); };
+            })(t, all, finalizada, checkinT));
+            moreMenu.appendChild(listaPresencaBtn);
+
             var avalBtn = document.createElement('button');
             avalBtn.className = 'btn btn--sm';
             avalBtn.style.cssText = 'padding:6px 10px;font-size:.72rem;' + (t.avaliacaoHabilitada ? 'border-color:rgba(26,178,174,.5);color:var(--cyan)' : 'border-color:rgba(245,197,66,.4);color:var(--accent)');
@@ -2569,6 +2578,67 @@
       headers.push('Frequência', 'Atingiu critério (' + Math.round(CRITERIO_PRESENCA * 100) + '%)');
     }
     toXls(headers, rows, 'turma-' + t.key + '-' + new Date().toISOString().slice(0,10) + '.csv');
+  }
+
+  /* ---- Lista de presença (documento para impressão/PDF, ex.: envio ao RH) ---- */
+  function imprimirListaPresenca(t, all, finalizada, checkinT) {
+    /* só quem confirmou presença (inscrito) pode ter check-in — ver checkin.js */
+    var inscritos = all.filter(function (r) { return r.removed !== true && r.status === 'inscrito'; });
+    if (!inscritos.length) { adminAlert('Não há inscritos confirmados nesta turma para gerar a lista de presença.'); return; }
+
+    var minDias = Math.ceil(t.dias.length * CRITERIO_PRESENCA);
+    var geradoEm = new Date().toLocaleString('pt-BR');
+
+    var diaCols = t.dias.map(function (d) { return '<th>' + esc(fmtDia(d)) + '</th>'; }).join('');
+    var rowsHtml = inscritos.map(function (r, i) {
+      var eKey = emailKeyFromEmail(r.email);
+      var diasPresente = 0;
+      var diaCells = t.dias.map(function (d) {
+        var ck = checkinT[d] && checkinT[d][eKey];
+        if (ck) diasPresente++;
+        return '<td class="lp-dia">' + (ck ? '&#x2713;' : '') + '</td>';
+      }).join('');
+      var freqCell = finalizada
+        ? '<td>' + diasPresente + '/' + t.dias.length + '</td><td>' + (diasPresente >= minDias ? 'Sim' : 'Não') + '</td>'
+        : '';
+      return '<tr><td>' + (i + 1) + '</td><td>' + esc(r.name || '') + '</td><td>' + esc(r.email || '') +
+        '</td><td>' + esc(r.area || '') + '</td>' + diaCells + freqCell + '</tr>';
+    }).join('');
+
+    var freqHead = finalizada
+      ? '<th>Frequência</th><th>Atingiu critério (' + Math.round(CRITERIO_PRESENCA * 100) + '%)</th>'
+      : '';
+
+    var html = '<!doctype html><html><head><meta charset="utf-8"><title>Lista de presença — ' + esc(t.label) + '</title>' +
+      '<style>' +
+      'body{font-family:Arial,Helvetica,sans-serif;color:#111;margin:24px;}' +
+      'h1{font-size:1.3rem;margin:0 0 4px;}' +
+      '.lp-meta{font-size:.85rem;color:#444;margin-bottom:16px;}' +
+      'table{border-collapse:collapse;width:100%;font-size:.78rem;}' +
+      'th,td{border:1px solid #999;padding:4px 6px;text-align:left;}' +
+      'th{background:#eee;}' +
+      '.lp-dia{text-align:center;min-width:28px;}' +
+      '.lp-assinaturas{margin-top:40px;display:flex;gap:60px;}' +
+      '.lp-assinatura{flex:1;border-top:1px solid #333;padding-top:6px;font-size:.8rem;}' +
+      '.lp-actions{margin-bottom:16px;}' +
+      '@media print{.lp-actions{display:none;} body{margin:10px;}}' +
+      '@page{size:A4 landscape;margin:14mm;}' +
+      '</style></head><body>' +
+      '<div class="lp-actions"><button id="lp-print-btn">Imprimir / salvar como PDF</button></div>' +
+      '<h1>Lista de presença — ' + esc(t.label) + '</h1>' +
+      '<div class="lp-meta">Período: ' + esc(t.dates || '—') + ' · Gerado em ' + esc(geradoEm) + '</div>' +
+      '<table><thead><tr><th>#</th><th>Nome</th><th>E-mail</th><th>Área</th>' + diaCols + freqHead + '</tr></thead>' +
+      '<tbody>' + rowsHtml + '</tbody></table>' +
+      '<div class="lp-assinaturas"><div class="lp-assinatura">Responsável pela turma</div><div class="lp-assinatura">RH</div></div>' +
+      '</body></html>';
+
+    var win = window.open('', '_blank');
+    if (!win) { adminAlert('Não foi possível abrir a janela de impressão. Verifique o bloqueador de pop-ups.'); return; }
+    win.document.open();
+    win.document.write(html);
+    win.document.close();
+    var printBtn = win.document.getElementById('lp-print-btn');
+    if (printBtn) printBtn.addEventListener('click', function () { win.print(); });
   }
 
   function exportAllInterests(data, config, checkin) {
