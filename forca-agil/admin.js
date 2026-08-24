@@ -96,9 +96,9 @@
     if (!window.faAuth.isAdmin(sess.email)) return;
     migrateNameCase();
     migrarEsperaPorOrigem();
+    migrarEsperaEventoKey();
     loadInterests();
     loadRepoAdmin();
-    loadEspera();
     loadCadastrados();
     loadAdmins();
     loadSorteios();
@@ -136,6 +136,35 @@
         updates['fa-espera/' + eKey] = novo;
       });
       if (Object.keys(updates).length) firebase.database().ref().update(updates);
+    });
+  }
+
+  /* A fila passou a ter dono: eventoKey. Registros migrados de uma turma
+     (fa-espera/<eKey>/<turmaKey>) descobrem o evento sozinhos — a turma de
+     origem já sabe o dela, em turmas/<turmaKey>/eventoKey. Registro entrado
+     direto pelo card do site (origem "lista") não tem como saber o evento
+     sozinho — fica sem eventoKey e aparece à parte no painel, sem ser
+     inventado. Roda a cada carga do painel e só grava o que ainda falta. */
+  function migrarEsperaEventoKey() {
+    firebase.database().ref('fa-espera').once('value', function (espSnap) {
+      var esp = espSnap.val() || {};
+      firebase.database().ref('turmas').once('value', function (tSnap) {
+        var turmasVal = tSnap.val() || {};
+        var updates = {};
+        Object.keys(esp).forEach(function (eKey) {
+          var pessoa = esp[eKey];
+          if (!pessoa || typeof pessoa !== 'object' || pessoa.email) return; /* formato antigo, ainda não convertido */
+          Object.keys(pessoa).forEach(function (origem) {
+            var entry = pessoa[origem];
+            if (!entry || typeof entry !== 'object' || entry.eventoKey) return;
+            var turma = turmasVal[origem];
+            if (turma && turma.eventoKey) {
+              updates['fa-espera/' + eKey + '/' + origem + '/eventoKey'] = turma.eventoKey;
+            }
+          });
+        });
+        if (Object.keys(updates).length) firebase.database().ref().update(updates);
+      });
     });
   }
 
@@ -221,6 +250,11 @@
   function turmaLabel(key) {
     var t = TURMAS_LIST.filter(function (x) { return x.key === key; })[0];
     return t ? t.label : key;
+  }
+
+  function turmaEventoKey(key) {
+    var t = TURMAS_LIST.filter(function (x) { return x.key === key; })[0];
+    return (t && t.eventoKey) || '';
   }
 
   function fmtDia(iso) {
@@ -789,6 +823,11 @@
             semEventoSection.appendChild(semEventoWrap);
             c.appendChild(semEventoSection);
           }
+
+          /* Lista de Espera entra dentro do card de cada evento — precisa dos
+             containers `.ev-turmas-wrap` já no DOM, por isso só depois de
+             todos os c.appendChild(evSection) acima. */
+          loadEspera();
 
           /* ── Callbacks: filtro e expand/collapse ─────────────────────────── */
           function setEvExpanded(evSec, expanded) {
@@ -2909,22 +2948,100 @@
   }
 
   /* ---- Lista de Espera ---- */
+  /* A fila é do evento da turma de origem (eventoKey, gravado na migração —
+     ver migrarParaEsperaGravar e migrarEsperaEventoKey). Filtra o nó inteiro
+     de fa-espera para as entradas de UM evento (evKey === null pega as
+     órfãs: sem eventoKey, de antes desta separação existir). Mantém
+     removidas junto com ativas — "Saíram da fila" precisa delas. */
+  function filtrarEsperaPorEvento(dataEspera, evKey) {
+    var out = {};
+    Object.keys(dataEspera).forEach(function (eKeyPessoa) {
+      var pessoa = dataEspera[eKeyPessoa];
+      if (!pessoa || typeof pessoa !== 'object') return;
+      var filtradas = {};
+      Object.keys(pessoa).forEach(function (origem) {
+        var entry = pessoa[origem];
+        if (!entry || typeof entry !== 'object') return;
+        var pertence = evKey === null ? !entry.eventoKey : entry.eventoKey === evKey;
+        if (pertence) filtradas[origem] = entry;
+      });
+      if (Object.keys(filtradas).length) out[eKeyPessoa] = filtradas;
+    });
+    return out;
+  }
+
+  function filtrarInteressePorEvento(interesse, turmasVal, evKey) {
+    var out = {};
+    Object.keys(interesse).forEach(function (tk) {
+      if (turmasVal[tk] && turmasVal[tk].eventoKey === evKey) out[tk] = interesse[tk];
+    });
+    return out;
+  }
+
   function loadEspera() {
-    var c = document.getElementById('adminEspera');
-    if (!c) return;
-    c.innerHTML = '<p class="loading-msg">Carregando…</p>';
-    firebase.database().ref('fa-espera').once('value').then(function (snap) {
-      renderEspera(c, snap.val() || {});
+    firebase.database().ref('fa-espera').once('value', function (espSnap) {
+      firebase.database().ref('turmas').once('value', function (tSnap) {
+        firebase.database().ref('turmas-config').once('value', function (cfgSnap) {
+          firebase.database().ref('turmas-interesse').once('value', function (iSnap) {
+            renderEsperaTudo(espSnap.val() || {}, tSnap.val() || {}, cfgSnap.val() || {}, iSnap.val() || {});
+          });
+        });
+      });
     });
   }
 
-  function renderEspera(c, data) {
+  /* Uma seção de Lista de Espera por evento, dentro do card recolhível dele
+     — ao lado das turmas, não mais flutuando abaixo de todos. Evento sem
+     ninguém esperando (ativo ou já saído) não ganha seção: ruído. Quem não
+     tem eventoKey — registro de antes desta mudança, entrado direto pelo
+     card do site, sem dizer para qual evento — cai numa seção à parte,
+     abaixo de todos os eventos: não dá para adivinhar, e não pode sumir. */
+  function renderEsperaTudo(dataEspera, turmasVal, cfgVal, interesse) {
+    document.querySelectorAll('.ev-espera-section').forEach(function (el) { el.remove(); });
+
+    EVENTOS_LIST.forEach(function (ev) {
+      var evWrap = document.querySelector('[data-ev-key="' + ev.key + '"] .ev-turmas-wrap');
+      if (!evWrap) return;
+      var dataEv = filtrarEsperaPorEvento(dataEspera, ev.key);
+      if (!Object.keys(dataEv).length) return;
+      var interesseEv = filtrarInteressePorEvento(interesse, turmasVal, ev.key);
+      var section = document.createElement('div');
+      section.className = 'ev-espera-section';
+      section.appendChild(buildEsperaBlock(dataEv, turmasVal, cfgVal, interesseEv, ev.key));
+      evWrap.appendChild(section);
+    });
+
+    var c = document.getElementById('adminEspera');
+    if (!c) return;
+    c.innerHTML = '';
+    var orfaos = filtrarEsperaPorEvento(dataEspera, null);
+    if (Object.keys(orfaos).length) {
+      var hdrOrf = document.createElement('h4');
+      hdrOrf.textContent = 'Lista de Espera — sem evento';
+      c.appendChild(hdrOrf);
+      var descOrf = document.createElement('p');
+      descOrf.className = 'admin-empty';
+      descOrf.textContent = 'Registros de antes desta mudança, entrados direto pelo card do site sem dizer para qual evento. Não dá para adivinhar — mova para a turma certa manualmente.';
+      c.appendChild(descOrf);
+      c.appendChild(buildEsperaBlock(orfaos, turmasVal, cfgVal, interesse, null));
+    }
+  }
+
+  /* Monta a Lista de Espera de UM grupo (um evento, ou as órfãs). dataEv já
+     vem filtrado a esse grupo — inclusive "Remover da lista" só tira a
+     pessoa das origens DESTE grupo: se ela também espera por outro evento,
+     essa espera não é tocada aqui. interesseEv já vem restrito às turmas
+     deste evento (ou, nas órfãs, sem restrição — não tem evento para
+     restringir a). evKeyOrNull é a chave do evento, ou null para as órfãs. */
+  function buildEsperaBlock(dataEv, turmasVal, cfgVal, interesseEv, evKeyOrNull) {
+    var box = document.createElement('div');
+
     /* Uma linha por pessoa E por origem: quem passou por duas turmas aparece
        duas vezes, com a data do interesse de cada uma. A ordem da fila
        continua sendo a data do interesse, não a da saída. */
     var list = [];
-    Object.keys(data).forEach(function (eKey) {
-      window.faTurmasUtil.esperaAtivas(data[eKey]).forEach(function (e) {
+    Object.keys(dataEv).forEach(function (eKey) {
+      window.faTurmasUtil.esperaAtivas(dataEv[eKey]).forEach(function (e) {
         e._key = eKey;
         list.push(e);
       });
@@ -2935,7 +3052,6 @@
     list.forEach(function (p) { pessoas[p._key] = true; });
     var nPessoas = Object.keys(pessoas).length;
 
-    c.innerHTML = '';
     var hdr = document.createElement('h4');
     /* O selo conta PESSOAS — é quantas cabeças estão esperando, o número que
        se usa para planejar. A linha ao lado abre os dois, porque uma pessoa
@@ -2946,163 +3062,163 @@
         ? '<span class="espera-hdr-det">' + nPessoas + ' pessoa' + (nPessoas !== 1 ? 's' : '') +
           ' · ' + list.length + ' registros (quem passou por mais de uma turma aparece uma vez por turma)</span>'
         : '');
-    c.appendChild(hdr);
+    box.appendChild(hdr);
+    box.appendChild(resumoEspera(dataEv, interesseEv, turmasVal));
 
     if (!list.length) {
-      c.insertAdjacentHTML('beforeend', '<p class="admin-empty">Nenhuma pessoa na lista de espera.</p>');
-      return;
+      box.insertAdjacentHTML('beforeend', '<p class="admin-empty">Ninguém esperando ativamente agora.</p>');
+      box.appendChild(saidosDaFila(dataEv, turmasVal));
+      return box;
     }
 
-    /* carrega turmas disponíveis para o dropdown "Mover para turma" */
-    firebase.database().ref('turmas').once('value', function (tSnap) {
-      firebase.database().ref('turmas-config').once('value', function (cfgSnap) {
-      firebase.database().ref('turmas-interesse').once('value', function (iSnap) {
-        var turmasVal = tSnap.val() || {};
-        var cfgVal    = cfgSnap.val() || {};
-        c.appendChild(resumoEspera(data, iSnap.val() || {}, turmasVal));
-        var turmaOpts = Object.keys(turmasVal).map(function (k) {
-          var cfg = cfgVal[k] || {};
-          return { key: k, label: turmasVal[k].label || k.toUpperCase(), encerrada: !!(cfg.encerrada) };
-        }).filter(function (t) { return !t.encerrada; });
+    /* dropdown "Mover para turma" — só turmas DESTE evento (órfã: qualquer
+       turma aberta, já que não sabemos para qual evento ela espera) */
+    var turmaOpts = Object.keys(turmasVal).filter(function (k) {
+      return evKeyOrNull === null || turmasVal[k].eventoKey === evKeyOrNull;
+    }).map(function (k) {
+      var cfg = cfgVal[k] || {};
+      return { key: k, label: turmasVal[k].label || k.toUpperCase(), encerrada: !!(cfg.encerrada) };
+    }).filter(function (t) { return !t.encerrada; });
 
-        var optsHtml = '<option value="">Selecione a turma…</option>' +
-          turmaOpts.map(function (t) { return '<option value="' + esc(t.key) + '">' + esc(t.label) + '</option>'; }).join('');
-        var semTurmas = !turmaOpts.length;
+    var optsHtml = '<option value="">Selecione a turma…</option>' +
+      turmaOpts.map(function (t) { return '<option value="' + esc(t.key) + '">' + esc(t.label) + '</option>'; }).join('');
+    var semTurmas = !turmaOpts.length;
 
-        var wrap = document.createElement('div');
-        wrap.className = 'table-scroll-wrap';
-        var table = document.createElement('table');
-        table.className = 'admin-table';
-        table.innerHTML =
-          '<thead><tr>' +
-            '<th>Nome</th><th>E-mail</th><th>Área</th><th>Data interesse</th><th>Data remoção</th><th>Origem</th><th>Ações</th>' +
-          '</tr></thead>';
-        var tbody = document.createElement('tbody');
+    var wrap = document.createElement('div');
+    wrap.className = 'table-scroll-wrap';
+    var table = document.createElement('table');
+    table.className = 'admin-table';
+    table.innerHTML =
+      '<thead><tr>' +
+        '<th>Nome</th><th>E-mail</th><th>Área</th><th>Data interesse</th><th>Data remoção</th><th>Origem</th><th>Ações</th>' +
+      '</tr></thead>';
+    var tbody = document.createElement('tbody');
 
-        list.forEach(function (p) {
-          var tr = document.createElement('tr');
-          /* A data vinha crua do banco ("2026-08-10"), sem hora e fora do
-             formato brasileiro usado no resto do painel. A hora está
-             gravada junto desde sempre — só não era exibida. */
-          var dataFmt = fmtDate(p.date);
-          /* A data da saída da turma ganhou coluna própria, ao lado da data
-             do interesse. Antes ficava dentro da célula de Origem, misturada
-             com o nome da turma e o motivo — dava para ler uma linha, não
-             para varrer a coluna e comparar quem espera há mais tempo. Quem
-             entrou direto pelo card do site não saiu de turma nenhuma, então
-             não tem data de remoção. */
-          var veioDeTurma = p._origem && p._origem !== window.faTurmasUtil.ORIGEM_DIRETA;
-          var remocaoFmt = veioDeTurma ? fmtDate(p.migratedAt) : '—';
-          /* Quem veio de uma turma tem migratedFrom gravado na migração —
-             mostra de qual turma saiu, em vez de deixar o dado invisível
-             no banco. */
-          var origem = '<span style="color:var(--ink-3)">Entrou pela lista</span>';
-          if (veioDeTurma) {
-            var tLabel = (turmasVal[p._origem] && turmasVal[p._origem].label) || p._origem.toUpperCase();
-            var motivoTxt = p.motivoEntradaDetalhe || motivoEsperaLabel(p.motivoEntrada);
-            origem = '<span class="espera-origem">↩ ' + esc(tLabel) + '</span>' +
-              (motivoTxt ? '<span class="espera-origem-motivo">' + esc(motivoTxt) + '</span>' : '');
-          }
-          tr.innerHTML =
-            '<td>' + esc(p.name || '—') + '</td>' +
-            '<td>' + esc(p.email || '—') + '</td>' +
-            '<td>' + esc(p.area || '—') + '</td>' +
-            '<td>' + dataFmt + '</td>' +
-            '<td>' + remocaoFmt + '</td>' +
-            '<td>' + origem + '</td>' +
-            '<td></td>';
+    list.forEach(function (p) {
+      var tr = document.createElement('tr');
+      /* A data vinha crua do banco ("2026-08-10"), sem hora e fora do
+         formato brasileiro usado no resto do painel. A hora está
+         gravada junto desde sempre — só não era exibida. */
+      var dataFmt = fmtDate(p.date);
+      /* A data da saída da turma ganhou coluna própria, ao lado da data
+         do interesse. Antes ficava dentro da célula de Origem, misturada
+         com o nome da turma e o motivo — dava para ler uma linha, não
+         para varrer a coluna e comparar quem espera há mais tempo. Quem
+         entrou direto pelo card do site não saiu de turma nenhuma, então
+         não tem data de remoção. */
+      var veioDeTurma = p._origem && !window.faTurmasUtil.ehOrigemDireta(p._origem);
+      var remocaoFmt = veioDeTurma ? fmtDate(p.migratedAt) : '—';
+      /* Quem veio de uma turma tem migratedFrom gravado na migração —
+         mostra de qual turma saiu, em vez de deixar o dado invisível
+         no banco. */
+      var origem = '<span style="color:var(--ink-3)">Entrou pela lista</span>';
+      if (veioDeTurma) {
+        var tLabel = (turmasVal[p._origem] && turmasVal[p._origem].label) || p._origem.toUpperCase();
+        var motivoTxt = p.motivoEntradaDetalhe || motivoEsperaLabel(p.motivoEntrada);
+        origem = '<span class="espera-origem">↩ ' + esc(tLabel) + '</span>' +
+          (motivoTxt ? '<span class="espera-origem-motivo">' + esc(motivoTxt) + '</span>' : '');
+      }
+      tr.innerHTML =
+        '<td>' + esc(p.name || '—') + '</td>' +
+        '<td>' + esc(p.email || '—') + '</td>' +
+        '<td>' + esc(p.area || '—') + '</td>' +
+        '<td>' + dataFmt + '</td>' +
+        '<td>' + remocaoFmt + '</td>' +
+        '<td>' + origem + '</td>' +
+        '<td></td>';
 
-          var tdAcoes = tr.querySelector('td:last-child');
-          tdAcoes.style.cssText = 'display:flex;gap:6px;align-items:center;flex-wrap:wrap';
+      var tdAcoes = tr.querySelector('td:last-child');
+      tdAcoes.style.cssText = 'display:flex;gap:6px;align-items:center;flex-wrap:wrap';
 
-          /* Select turma */
-          if (semTurmas) {
-            tdAcoes.insertAdjacentHTML('beforeend', '<span style="font-size:.75rem;color:var(--ink-3)">Sem turmas abertas</span>');
-          } else {
-            var sel = document.createElement('select');
-            sel.className = 'admin-status-btn';
-            sel.style.cssText = 'padding:5px 8px;font-size:.75rem;background:var(--panel-2);border:1px solid var(--line-strong);border-radius:6px;color:var(--ink);cursor:pointer';
-            sel.innerHTML = optsHtml;
-            tdAcoes.appendChild(sel);
+      /* Select turma */
+      if (semTurmas) {
+        tdAcoes.insertAdjacentHTML('beforeend', '<span style="font-size:.75rem;color:var(--ink-3)">Sem turmas abertas</span>');
+      } else {
+        var sel = document.createElement('select');
+        sel.className = 'admin-status-btn';
+        sel.style.cssText = 'padding:5px 8px;font-size:.75rem;background:var(--panel-2);border:1px solid var(--line-strong);border-radius:6px;color:var(--ink);cursor:pointer';
+        sel.innerHTML = optsHtml;
+        tdAcoes.appendChild(sel);
 
-            var moverBtn = document.createElement('button');
-            moverBtn.className = 'btn btn--sm btn--primary';
-            moverBtn.style.cssText = 'padding:5px 10px;font-size:.75rem';
-            moverBtn.textContent = 'Mover para turma';
-            moverBtn.addEventListener('click', (function (person, selectEl) {
-              return function () {
-                var turmaKey = selectEl.value;
-                if (!turmaKey) { adminAlert('Selecione uma turma primeiro.'); return; }
-                var turmaLabel = selectEl.options[selectEl.selectedIndex].text;
-                adminConfirm(
-                  'Mover ' + person.name + ' para a turma ' + turmaLabel + ' como Inscrita?',
-                  function () { moverParaTurma(person, turmaKey); }
-                );
-              };
-            })(p, sel));
-            tdAcoes.appendChild(moverBtn);
-          }
+        var moverBtn = document.createElement('button');
+        moverBtn.className = 'btn btn--sm btn--primary';
+        moverBtn.style.cssText = 'padding:5px 10px;font-size:.75rem';
+        moverBtn.textContent = 'Mover para turma';
+        moverBtn.addEventListener('click', (function (person, selectEl) {
+          return function () {
+            var turmaKey = selectEl.value;
+            if (!turmaKey) { adminAlert('Selecione uma turma primeiro.'); return; }
+            var turmaLabelSel = selectEl.options[selectEl.selectedIndex].text;
+            adminConfirm(
+              'Mover ' + person.name + ' para a turma ' + turmaLabelSel + ' como Inscrita?',
+              function () { moverParaTurma(person, turmaKey); }
+            );
+          };
+        })(p, sel));
+        tdAcoes.appendChild(moverBtn);
+      }
 
-          /* Remover da lista */
-          var remBtn = document.createElement('button');
-          remBtn.className = 'btn btn--sm';
-          remBtn.style.cssText = 'padding:5px 10px;font-size:.75rem';
-          remBtn.textContent = 'Remover da lista';
-          remBtn.addEventListener('click', (function (person) {
-            return function () {
-              var sessRem = window.faAuth && window.faAuth.getSession();
-              adminConfirmComMotivo(
-                'Remover ' + person.name + ' da lista de espera?' +
-                  (window.faTurmasUtil.esperaAtivas(data[person._key]).length > 1
-                    ? '\n\nEla tem ' + window.faTurmasUtil.esperaAtivas(data[person._key]).length +
-                      ' registros na fila, um por turma de origem — e sai de todos.'
-                    : ''),
-                MOTIVOS_ESPERA_SAIDA,
-                function (motivo, detalhe, turmaEscolhida) {
-                  var agora = new Date().toISOString();
-                  /* Tirar da fila é sobre a PESSOA, não sobre a linha: se ela
-                     desistiu ou já participou, isso vale para todas as origens.
-                     Deixar uma sobrando a manteria na fila pela metade. */
-                  firebase.database().ref('fa-espera/' + person._key).once('value', function (snapF) {
-                    var updates = {};
-                    window.faTurmasUtil.esperaAtivas(snapF.val()).forEach(function (e) {
-                      var b = 'fa-espera/' + person._key + '/' + e._origem + '/';
-                      updates[b + 'removed']            = true;
-                      updates[b + 'removedDate']        = agora;
-                      updates[b + 'motivoSaida']        = motivo;
-                      updates[b + 'motivoSaidaDetalhe'] = detalhe || null;
-                      updates[b + 'removedByName']      = sessRem ? (sessRem.name || sessRem.email) : null;
-                      if (turmaEscolhida && turmaEscolhida.jaFeita) {
-                        updates[b + 'jaParticipouTurma']      = turmaEscolhida.key;
-                        updates[b + 'jaParticipouTurmaLabel'] = turmaEscolhida.label;
-                      }
-                    });
-                    firebase.database().ref().update(updates, function (err) {
-                      if (err) { adminAlert('Erro ao remover. Tente novamente.'); return; }
-                      loadEspera();
-                    });
-                  });
-                },
-                null,
-                /* A chave da fila é a mesma chave de e-mail usada nas turmas,
-                   então dá para sugerir a turma que ela já fez. A sugestão
-                   depende da aba Eventos ter carregado; sem isso a lista
-                   aparece igual, só sem nada pré-escolhido. */
-                ondeJaParticipou(person._key, '')
-              );
-            };
-          })(p));
-          tdAcoes.appendChild(remBtn);
+      /* Remover da lista */
+      var remBtn = document.createElement('button');
+      remBtn.className = 'btn btn--sm';
+      remBtn.style.cssText = 'padding:5px 10px;font-size:.75rem';
+      remBtn.textContent = 'Remover da lista';
+      remBtn.addEventListener('click', (function (person) {
+        return function () {
+          var sessRem = window.faAuth && window.faAuth.getSession();
+          var registrosPessoa = window.faTurmasUtil.esperaAtivas(dataEv[person._key]).length;
+          adminConfirmComMotivo(
+            'Remover ' + person.name + ' da lista de espera?' +
+              (registrosPessoa > 1
+                ? '\n\nEla tem ' + registrosPessoa +
+                  ' registros na fila deste evento, um por turma de origem — e sai de todos eles.'
+                : ''),
+            MOTIVOS_ESPERA_SAIDA,
+            function (motivo, detalhe, turmaEscolhida) {
+              var agora = new Date().toISOString();
+              /* Tirar da fila é sobre a pessoa NESTE evento — não sobre a
+                 linha, mas também não sobre TODOS os eventos: se ela também
+                 espera por outro evento, essa espera não é tocada aqui. */
+              firebase.database().ref('fa-espera/' + person._key).once('value', function (snapF) {
+                var updates = {};
+                window.faTurmasUtil.esperaAtivas(snapF.val()).forEach(function (e) {
+                  var pertence = evKeyOrNull === null ? !e.eventoKey : e.eventoKey === evKeyOrNull;
+                  if (!pertence) return;
+                  var b = 'fa-espera/' + person._key + '/' + e._origem + '/';
+                  updates[b + 'removed']            = true;
+                  updates[b + 'removedDate']        = agora;
+                  updates[b + 'motivoSaida']        = motivo;
+                  updates[b + 'motivoSaidaDetalhe'] = detalhe || null;
+                  updates[b + 'removedByName']      = sessRem ? (sessRem.name || sessRem.email) : null;
+                  if (turmaEscolhida && turmaEscolhida.jaFeita) {
+                    updates[b + 'jaParticipouTurma']      = turmaEscolhida.key;
+                    updates[b + 'jaParticipouTurmaLabel'] = turmaEscolhida.label;
+                  }
+                });
+                firebase.database().ref().update(updates, function (err) {
+                  if (err) { adminAlert('Erro ao remover. Tente novamente.'); return; }
+                  loadEspera();
+                });
+              });
+            },
+            null,
+            /* A chave da fila é a mesma chave de e-mail usada nas turmas,
+               então dá para sugerir a turma que ela já fez. A sugestão
+               depende da aba Eventos ter carregado; sem isso a lista
+               aparece igual, só sem nada pré-escolhido. */
+            ondeJaParticipou(person._key, '')
+          );
+        };
+      })(p));
+      tdAcoes.appendChild(remBtn);
 
-          tbody.appendChild(tr);
-        });
-        table.appendChild(tbody);
-        wrap.appendChild(table);
-        c.appendChild(wrap);
-        c.appendChild(saidosDaFila(data, turmasVal));
-      });
-      });
+      tbody.appendChild(tr);
     });
+    table.appendChild(tbody);
+    wrap.appendChild(table);
+    box.appendChild(wrap);
+    box.appendChild(saidosDaFila(dataEv, turmasVal));
+    return box;
   }
 
   /* Quem saiu da fila. A lista mostra só quem está esperando agora, então
@@ -3125,7 +3241,7 @@
 
     var nomeTurma = function (tk) { return (turmasVal[tk] && turmasVal[tk].label) || tk; };
     var linhas = saidos.map(function (p) {
-      var veioDeTurma = p._origem && p._origem !== U.ORIGEM_DIRETA;
+      var veioDeTurma = p._origem && !U.ehOrigemDireta(p._origem);
       var origem = veioDeTurma
         ? '<span class="espera-origem">↩ ' + esc(nomeTurma(p._origem)) + '</span>'
         : '<span class="espera-origem-card">Entrou pela lista</span>';
@@ -3219,7 +3335,7 @@
     var diretasTotal = 0;
     Object.keys(dataEspera).forEach(function (eKey) {
       U.esperaEntradas(dataEspera[eKey]).forEach(function (e) {
-        if (e._origem === U.ORIGEM_DIRETA) diretasTotal++;
+        if (U.ehOrigemDireta(e._origem)) diretasTotal++;
       });
     });
 
@@ -3341,6 +3457,10 @@
       date: dataFila,             /* data original — não a data de migração */
       migratedAt: (atual && atual.migratedAt) || now,
       migratedFrom: turmaKey,
+      /* A fila é do evento da turma de origem — sem isso, a pessoa some da
+         Lista de Espera desse evento e não dá pra oferecer "mover para
+         turma" só dentro do mesmo evento que ela realmente está esperando. */
+      eventoKey: turmaEventoKey(turmaKey) || null,
       motivoEntrada: motivo || null,
       motivoEntradaDetalhe: detalhe || null,
       migratedByName: sess ? (sess.name || sess.email) : null,
@@ -3349,7 +3469,6 @@
     firebase.database().ref().update(updates, function (err) {
       if (err) { adminAlert('Erro ao migrar. Tente novamente.'); return; }
       loadInterests();
-      loadEspera();
     });
   }
 
@@ -3357,6 +3476,7 @@
     var sess = window.faAuth && window.faAuth.getSession();
     var eKey = emailKeyFromEmail(person.email);
     var now  = new Date().toISOString();
+    var destEventoKey = turmaEventoKey(turmaKey);
     var updates = {};
     updates['turmas-interesse/' + turmaKey + '/' + eKey] = {
       name: person.name, email: person.email, area: person.area || '',
@@ -3366,11 +3486,13 @@
       confirmedDate: now,
       fromEspera: true
     };
-    /* Inscrita numa turma, ela não está mais esperando — então sai de TODAS
-       as origens, não só daquela linha. Deixar uma sobrando faria você
-       chamá-la de novo. */
+    /* Inscrita numa turma, ela não está mais esperando por ESTE evento —
+       sai de todas as origens desse evento (e das órfãs, sem evento
+       definido, já que arranjar vaga resolve a ambiguidade). Se ela também
+       espera por outro evento, essa espera continua — são coisas diferentes. */
     firebase.database().ref('fa-espera/' + eKey).once('value', function (snapF) {
       window.faTurmasUtil.esperaAtivas(snapF.val()).forEach(function (e) {
+        if (e.eventoKey && e.eventoKey !== destEventoKey) return;
         var b = 'fa-espera/' + eKey + '/' + e._origem + '/';
         updates[b + 'removed']      = true;
         updates[b + 'removedDate']  = now;
@@ -3378,7 +3500,6 @@
       });
       firebase.database().ref().update(updates, function (err) {
         if (err) { adminAlert('Erro ao mover. Tente novamente.'); return; }
-        loadEspera();
         loadInterests();
       });
     });

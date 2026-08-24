@@ -242,6 +242,14 @@
   display: grid; grid-template-columns: repeat(3,1fr); gap: 20px; margin-top: 8px;
 }
 @media (max-width: 800px) { .turmas-grid { grid-template-columns: 1fr; } }
+/* Um grupo por evento — título acima da grade de cards daquele evento.
+   Grupo sem evento (data-evento-key="") não tem título, só a grade. */
+.turmas-evento-grupo + .turmas-evento-grupo { margin-top: 44px; }
+.turmas-evento-titulo {
+  font-family: var(--font-mono); font-size: .78rem; letter-spacing: .12em; text-transform: uppercase;
+  color: var(--cyan); margin-bottom: 14px; padding-bottom: 8px; border-bottom: 1px solid var(--line);
+}
+.turmas-evento-grupo .turmas-grid { margin-top: 0; }
 .turma-card-new {
   background: var(--panel); border: 1px solid var(--line-strong);
   border-radius: 14px; padding: 28px 24px;

@@ -79,6 +79,16 @@
      e a migração dos registros existentes. */
   var ORIGEM_DIRETA = 'lista';
 
+  /* Entrada direta pelo card do site agora carrega o evento: a chave vira
+     "lista:<eventoKey>" (uma por evento em que a pessoa clicou "Entrar na
+     lista de espera" — o card passou a ser um por evento). Registro de
+     antes dessa mudança, sem evento, continua com a chave "lista" pura —
+     por isso o cheque aceita as duas formas em vez de igualdade exata. */
+  function ehOrigemDireta(origem) {
+    return origem === ORIGEM_DIRETA ||
+      (typeof origem === 'string' && origem.indexOf(ORIGEM_DIRETA + ':') === 0);
+  }
+
   function esperaEntradas(noDaPessoa) {
     if (!noDaPessoa || typeof noDaPessoa !== 'object') return [];
     if (noDaPessoa.email) {   /* formato antigo: uma pessoa, um registro */
@@ -101,7 +111,7 @@
 
   window.faTurmasUtil = {
     formatDias: formatDias, formatISOBr: formatISOBr, MESES: MESES,
-    ORIGEM_DIRETA: ORIGEM_DIRETA,
+    ORIGEM_DIRETA: ORIGEM_DIRETA, ehOrigemDireta: ehOrigemDireta,
     esperaEntradas: esperaEntradas, esperaAtivas: esperaAtivas, esperaNaFila: esperaNaFila
   };
 })();

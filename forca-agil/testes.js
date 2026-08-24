@@ -247,26 +247,26 @@
         { id: 'c-bloqueado-painel-existe', label: 'Painel "Acesso desativado" existe no DOM (#auth-bloqueado)', run: function () {
           return !!document.getElementById('auth-bloqueado');
         } },
-        { id: 'c-espera-card-existe', label: 'Card "Lista de Espera" existe na grade de turmas (#turma-espera-card)', async: true,
+        { id: 'c-espera-card-existe', label: 'Card "Lista de Espera" existe na grade de turmas (.turma-card-espera, um por evento com turma)', async: true,
           run: function () {
             if (window.faInitTurmas) window.faInitTurmas();
             /* Card é criado após leitura assíncrona do Firebase (loadTurmas) — espera aparecer no DOM */
             return new Promise(function (resolve) {
               var tentativas = 0;
               (function poll() {
-                if (document.getElementById('turma-espera-card')) return resolve(true);
+                if (document.querySelector('.turma-card-espera')) return resolve(true);
                 if (++tentativas > 40) return resolve(false);
                 setTimeout(poll, 100);
               })();
             });
           } },
-        { id: 'c-espera-btn-existe', label: 'Botão "Entrar na lista de espera" existe no card (#btnEntrarEspera)', async: true,
+        { id: 'c-espera-btn-existe', label: 'Botão "Entrar na lista de espera" existe no card (.turma-card-espera .btn--espera)', async: true,
           run: function () {
             if (window.faInitTurmas) window.faInitTurmas();
             return new Promise(function (resolve) {
               var tentativas = 0;
               (function poll() {
-                if (document.getElementById('btnEntrarEspera')) return resolve(true);
+                if (document.querySelector('.turma-card-espera .btn--espera')) return resolve(true);
                 if (++tentativas > 40) return resolve(false);
                 setTimeout(poll, 100);
               })();
@@ -810,17 +810,17 @@
       title: 'Inscrito confirmado vê o mesmo card de CMFlex que todo mundo',
       motivo: 'Verificar com conta confirmada como inscrita (via Admin) numa turma com interesse encerrado: o card dela mostra a mesma orientação pro CMFlex que qualquer pessoa autenticada vê — não existe mais um card especial de "turma confirmada" nem distinção visual por já estar inscrita.' },
     { section: 'Turmas',
-      title: 'Card "Lista de Espera" aparece sempre na grade de turmas',
-      motivo: 'Verificar na página Turmas (qualquer perfil autenticado): o card com borda dourada tracejada deve aparecer como último card da grade, independente de existirem turmas abertas ou não.' },
+      title: 'Card "Lista de Espera" é um por evento com turma na vitrine',
+      motivo: 'Verificar na página Turmas (qualquer perfil autenticado): cada grupo de evento que tem pelo menos uma turma na grade ganha, como último card DAQUELE grupo, um card "Lista de Espera" com borda dourada tracejada — texto mencionando o nome do evento. Evento sem nenhuma turma ainda não aparece na vitrine, e por isso não ganha card de espera. Se não houver turma nenhuma cadastrada em evento algum, não aparece card de espera nenhum (antes era um card único e global, sempre visível).' },
     { section: 'Turmas',
-      title: 'Lista de espera — entrar e sair',
-      motivo: 'Logada: clicar "Entrar na lista de espera" → botão vira "Na lista — Sair" e mensagem de confirmação aparece. Clicar de novo → sai da lista, botão volta ao estado inicial. Gravaria dados reais em fa-espera/ no Firebase.' },
+      title: 'Lista de espera — entrar e sair, por evento',
+      motivo: 'Logada, com dois eventos tendo turma na vitrine: clicar "Entrar na lista de espera" no card de um evento → botão daquele card vira "Na lista — Sair", mensagem de confirmação aparece SÓ naquele card, e o card do OUTRO evento continua no estado inicial. Clicar "Sair" → volta ao estado inicial, sem afetar a espera do outro evento (dado real em fa-espera/<e-mail>/lista:<eventoKey>). Repetir com um único evento, para conferir que o caso simples continua funcionando.' },
     { section: 'Turmas',
       title: 'Lista de espera sem login → abre modal de login',
-      motivo: 'Visitante clica "Entrar na lista de espera" → mensagem de aviso e modal de login devem aparecer.' },
+      motivo: 'Visitante clica "Entrar na lista de espera" (em qualquer card de evento) → mensagem de aviso e modal de login devem aparecer.' },
     { section: 'Turmas',
       title: 'Admin — mover pessoa da lista de espera para turma',
-      motivo: 'Na aba Eventos do painel admin, selecionar uma turma no select da pessoa e clicar "Mover para turma" → confirmar no diálogo → pessoa desaparece da lista de espera e aparece na turma como Inscrita (status=inscrito + confirmedByAdmin).' },
+      motivo: 'Na aba Eventos do painel admin, dentro do card do evento, selecionar uma turma no select da pessoa (o dropdown só lista turmas DESTE MESMO evento) e clicar "Mover para turma" → confirmar no diálogo → pessoa desaparece da lista de espera daquele evento e aparece na turma como Inscrita (status=inscrito + confirmedByAdmin). Se a mesma pessoa também esperava por OUTRO evento, essa outra espera continua intacta — só a deste evento é resolvida.' },
     { section: 'Turmas',
       title: 'Admin — migrar participante de turma para lista de espera',
       motivo: 'Na tabela de participantes de uma turma (interessada ou inscrita), clicar "Remover" e marcar a caixa "Colocar na lista de espera". Verificar primeiro que o modal EXIGE um motivo: tentar confirmar sem escolher nada deve mostrar "Escolha um motivo." e não gravar; escolher "Outro" deve abrir um campo de texto que também é obrigatório. Depois de escolher e confirmar, a pessoa sai da turma (removed:true) e entra na lista de espera — e aparece no filtro "Foram para a espera", não em "Removidos". Verificar: (1) a data exibida na lista de espera é a data ORIGINAL de interesse na turma, não o momento da migração; (2) a coluna "Data remoção" traz o momento em que ela saiu da turma, e é diferente da "Data interesse"; (3) a coluna "Origem" mostra o nome da turma de onde ela veio, com uma seta ↩, e logo abaixo o motivo; (4) uma pessoa que entrou direto pelo card "Lista de Espera" do site aparece nessa coluna como "Entrou pela lista", sem nome de turma, e com traço na data de remoção.' },
@@ -847,7 +847,13 @@
       motivo: 'Requer alguém que já tenha saído da lista de espera. Verificar: (1) abaixo da lista aparece a seção recolhida "Saíram da fila (N)"; (2) abrindo, cada linha traz nome, área, data do interesse, origem, quando saiu, destino e motivo; (3) quem foi movida para uma turma mostra o NOME da turma no destino; quem foi removida mostra "Saiu da fila"; (4) quem entrou pelo card do site aparece com origem "Entrou pela lista", não com nome de turma; (5) o bloco de conferência conta as entradas pelo card INCLUINDO as que já saíram — este é o ponto: a pergunta "alguém entrou direto pela lista?" não se responde olhando só quem continua esperando; (6) a seção não aparece quando ninguém nunca saiu da fila; (7) saindo pelo botão "Sair da lista de espera" do card do site, a linha tem que dizer "pela própria pessoa" — e saindo pelo painel, o nome do admin. Nunca o contrário, e nunca uma autoria numa saída antiga que não gravou nenhum dos dois; (8) o botão "🗑 excluir registro" aparece em toda linha desta seção e em nenhuma da fila ativa. ATENÇÃO, é irreversível — testar só com registro de teste: cancelar não muda nada; confirmando, a linha some da seção E do banco, o total de registros da fila não muda (ela já não era ativa), e o cadastro da pessoa em Cadastrados continua existindo.' },
     { section: 'Admin',
       title: 'Fila por pessoa E turma de origem',
-      motivo: 'A regra central da fila. (1) Mandar a MESMA pessoa para a espera a partir de duas turmas diferentes: ela tem que aparecer DUAS vezes na Lista de Espera, cada linha com a origem e a data de interesse daquela turma. (2) Mandar de novo a partir da MESMA turma: continua UM registro, e a data tem que ser a MAIS ANTIGA das duas — este é o ponto, porque antes a segunda migração sobrescrevia a primeira e a pessoa perdia lugar na fila. (3) O selo do título conta PESSOAS, e a linha ao lado mostra "N pessoas · M registros" quando os dois diferem. (4) "Remover da lista" numa pessoa com duas linhas: o modal avisa quantos registros ela tem, e ao confirmar TODOS somem. (5) "Mover para turma": idem, ela sai de todas as linhas. (6) Pelo site, a pessoa clica "Sair da lista de espera": também sai de todas — e o botão do card não pode dizer que ela está fora enquanto o admin ainda a vê na fila. (7) Entrar pela primeira vez pelo card do site cria a origem "entrou pela lista", que convive com as vindas de turma.' },
+      motivo: 'A regra central da fila. (1) Mandar a MESMA pessoa para a espera a partir de duas turmas diferentes DO MESMO EVENTO: ela tem que aparecer DUAS vezes na Lista de Espera daquele evento, cada linha com a origem e a data de interesse daquela turma. (2) Mandar de novo a partir da MESMA turma: continua UM registro, e a data tem que ser a MAIS ANTIGA das duas — este é o ponto, porque antes a segunda migração sobrescrevia a primeira e a pessoa perdia lugar na fila. (3) O selo do título conta PESSOAS, e a linha ao lado mostra "N pessoas · M registros" quando os dois diferem. (4) "Remover da lista" numa pessoa com duas linhas NO MESMO evento: o modal avisa quantos registros ela tem NESTE evento, e ao confirmar esses dois somem — mas se ela também espera por outro evento, essa outra linha continua intacta, em outro card. (5) "Mover para turma": idem, ela sai das linhas DESTE evento; a espera por outro evento não é tocada. (6) Pelo site, a pessoa clica "Sair da lista de espera" no card de UM evento: sai só da fila desse evento — o card do OUTRO evento continua "Na lista", se ela também estiver esperando por ele. (7) Entrar pela primeira vez pelo card do site cria a origem "lista:<eventoKey>", uma por evento — permite esperar por mais de um evento ao mesmo tempo sem uma entrada sobrescrever a outra.' },
+    { section: 'Admin',
+      title: 'Lista de Espera fica dentro do card de cada evento',
+      motivo: 'Com pelo menos dois eventos, cada um com gente esperando: abrir a aba Eventos e conferir que a seção "Lista de Espera" de cada evento aparece DENTRO do card recolhível dele — junto das turmas, some quando o card do evento é recolhido e volta quando expande — nunca flutuando abaixo de todos os eventos. Evento sem ninguém esperando (nem ativo, nem já saído) não ganha seção nenhuma, nem vazia. Registro de antes desta mudança sem eventoKey (deveria ser raro ou inexistente) aparece numa seção separada "Lista de Espera — sem evento", abaixo de todos os cards de evento, nunca some.' },
+    { section: 'Admin',
+      title: 'Migração: eventoKey da fila é preenchido sozinho',
+      motivo: 'Requer um registro na fila (migrado de uma turma) gravado ANTES desta mudança, sem o campo eventoKey. Ao carregar o painel como admin: o registro ganha o eventoKey da turma de origem automaticamente (migrarEsperaEventoKey, roda a cada carga) e passa a aparecer dentro do card do evento certo, não mais nas órfãs. Rodar de novo não duplica nem sobrescreve nada — idempotente.' },
     { section: 'Admin',
       title: 'Lista de espera — data e hora corretas',
       motivo: 'Abrir a aba Eventos e conferir a Lista de Espera: as colunas Data interesse e Data remoção devem mostrar dia e hora no formato brasileiro (10/08/2026 12:26), não a data crua do banco. Conferir uma linha contra o horário real em que a pessoa entrou na fila. A ordem da lista segue a data de interesse, não a de remoção. ATENÇÃO AO FUSO: se algum dia aparecer um registro cuja data foi guardada sem hora, ele deve aparecer só com a data — nunca com uma hora inventada, e nunca com o dia anterior ao correto, que é o erro clássico ao converter data sem hora. Vale repetir esta conferência depois de qualquer mexida em exibição de datas no painel.' },
