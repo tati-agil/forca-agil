@@ -341,13 +341,18 @@
        grade de cards, na mesma ordem do painel admin. Turma sem evento
        (não deveria existir, mas o admin permite deixar assim temporariamente)
        cai num grupo sem título, para não sumir da vitrine. */
+    /* Um evento aparece na vitrine quando tem turma OU quando aceita lista de
+       espera. Exigir turma invertia a utilidade da fila: é justamente ANTES de
+       abrir turma que ela serve, medindo demanda para o admin saber quantas
+       turmas abrir. Evento sem turma e com fila ligada aparece só com o título
+       e o card de espera — o card em si é anexado por renderEsperaCard. */
+    function eventoNaVitrine(ev, porEvento) {
+      return !!(porEvento[ev.key] && porEvento[ev.key].length) || !!ev.esperaAtiva;
+    }
+
     function renderTurmasGrid() {
       var host = document.querySelector('.turmas-eventos');
       if (!host) return;
-      if (!_turmasList.length) {
-        host.innerHTML = '<p style="opacity:.7">Nenhuma turma aberta no momento.</p>';
-        return;
-      }
       var hoje = new Date().toISOString().slice(0, 10);
       var porEvento = {};
       var semEvento = [];
@@ -358,8 +363,8 @@
 
       var html = '';
       _eventosList.forEach(function (ev) {
-        var turmasEv = porEvento[ev.key];
-        if (!turmasEv || !turmasEv.length) return;
+        if (!eventoNaVitrine(ev, porEvento)) return;
+        var turmasEv = porEvento[ev.key] || [];
         html +=
           '<div class="turmas-evento-grupo" data-evento-key="' + ev.key + '">' +
             '<div class="turmas-evento-titulo">' + ev.nome + '</div>' +
@@ -372,24 +377,32 @@
             '<div class="turmas-grid">' + semEvento.map(function (t) { return turmaCardHtml(t, hoje); }).join('') + '</div>' +
           '</div>';
       }
-      host.innerHTML = html;
+      /* Vazio de verdade: nem turma, nem evento aceitando fila. */
+      host.innerHTML = html || '<p style="opacity:.7">Nenhuma turma aberta no momento.</p>';
     }
 
     /* "A Missão" / "Como funciona" / "Plano de Voo" — um bloco por evento que
-       já tem turma na vitrine E tem conteúdo preenchido pelo admin (evento
-       sem conteúdo não ganha bloco vazio). Reaproveita as classes do bloco
+       está na vitrine E tem conteúdo preenchido pelo admin (evento sem
+       conteúdo não ganha bloco vazio). Reaproveita as classes do bloco
        estático que existia antes desta mudança (.section, .oficina-info,
        .agenda, .day day--static) — só que agora um bloco por evento, não um
-       único global que descrevia certo só a Jornada de Imersão. */
+       único global que descrevia certo só a Jornada de Imersão.
+
+       "Na vitrine" é a MESMA condição da grade (eventoNaVitrine): tem turma
+       ou aceita fila. Sem isso, um evento que aparece só com o card de espera
+       ficaria sem uma linha explicando o que ele é — a pessoa veria "entre na
+       fila" de algo que a página não descreve em lugar nenhum. */
     function renderMissaoEventos() {
       var host = document.querySelector('.turmas-missao-eventos');
       if (!host) return;
-      var eventosComTurma = {};
-      _turmasList.forEach(function (t) { if (t.eventoKey) eventosComTurma[t.eventoKey] = true; });
+      var porEvento = {};
+      _turmasList.forEach(function (t) {
+        if (t.eventoKey) (porEvento[t.eventoKey] = porEvento[t.eventoKey] || []).push(t);
+      });
 
       var html = '';
       _eventosList.forEach(function (ev) {
-        if (!eventosComTurma[ev.key]) return;
+        if (!eventoNaVitrine(ev, porEvento)) return;
         var nDias = (ev.itinerario || []).length;
         if (!ev.missaoTexto && !ev.topicos && !nDias) return; /* evento sem conteúdo: nenhum bloco */
 
@@ -458,14 +471,13 @@
        turmas-util.js) — assim dá pra estar esperando por mais de um evento
        ao mesmo tempo, sem uma entrada sobrescrever a outra.
 
-       Duas condições para o card aparecer:
-
-       - o evento já tem turma na vitrine. Evento recém-criado ainda não tem;
-         as turmas entram depois, e aí o card aparece junto com elas;
-       - o admin aceita lista de espera neste evento (esperaAtiva). Nem todo
-         evento quer fila, e isso é decisão dele, não do sistema. Desligado, o
-         card some do site e ninguém novo entra — mas quem já está na fila
-         continua no painel, intacto: desligar não apaga ninguém. */
+       A fila não depende de turma: o evento pode não ter nenhuma e mesmo
+       assim ter fila — é assim que ela serve para medir demanda e dizer ao
+       admin quantas turmas abrir. Quando o evento é criado, a fila já nasce
+       junto; o que o admin escolhe é se ela aparece (esperaAtiva). Nem todo
+       evento quer fila, e isso é decisão dele, não do sistema. Desligada, o
+       card some do site e ninguém novo entra — mas quem já está na fila
+       continua no painel, intacto: desligar não apaga ninguém. */
 
     function renderEsperaCard(sess) {
       document.querySelectorAll('.turma-card-espera').forEach(function (el) { el.remove(); });

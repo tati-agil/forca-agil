@@ -156,11 +156,17 @@
         evento dela, em turmas/<turmaKey>/eventoKey. Basta copiar.
 
      2. Entrado direto pelo card do site, quando o card ainda era um só e não
-        perguntava o evento. Esses são todos do único evento que chegou a ter
-        turma — nenhum outro teve fila para alguém entrar. Por isso a conta é
-        de eventos COM TURMA, e não de eventos: um evento cadastrado e ainda
-        vazio não muda nada aqui, e não pode fazer estes registros voltarem
-        para o limbo.
+        perguntava o evento. Naquela época o card exigia que o evento tivesse
+        turma, então esses registros são todos do único evento que chegou a
+        ter turma — nenhum outro podia ter fila. Por isso a conta aqui é de
+        eventos COM TURMA, e não de eventos: um evento cadastrado e ainda
+        vazio não muda nada, e não pode fazer estes registros voltarem para o
+        limbo.
+
+        Atenção ao ler isto: a fila HOJE não depende mais de turma — evento
+        sem turma nenhuma pode ter fila. Isso não invalida a conta acima, que
+        é sobre registros antigos, gravados sob a regra antiga; só quer dizer
+        que "evento com turma" aqui é uma marca de época, não a regra atual.
 
      Se algum dia dois eventos tiverem turma E ainda houver registro sem
      dono, esta função não escolhe por conta própria: deixa como está, na
