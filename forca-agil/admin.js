@@ -151,13 +151,19 @@
         sabe o dela, em turmas/<turmaKey>/eventoKey. É a fonte mais precisa e
         vale sempre.
 
-     2. Pelo único evento que existe. Registro entrado direto pelo card do
+     2. Pelo único evento QUE TEM TURMA. Registro entrado direto pelo card do
         site (origem "lista", de antes desta separação existir) não declara
-        evento nenhum. Enquanto o sistema tiver UM evento só, não há dúvida
-        possível: toda a fila é dele. Esta regra se desliga sozinha no dia em
-        que existir um segundo evento — aí adivinhar seria chute, e o que
-        sobrar sem dono continua aparecendo à parte no painel, para o admin
-        mover à mão.
+        evento nenhum. Mas esse card só existe para evento que já tem turma
+        na vitrine (ver renderEsperaCard em app.js) — logo, evento sem turma
+        nenhuma nunca teve fila, e não entra na conta. Enquanto UM só evento
+        tiver turma, não há dúvida possível: a fila órfã é dele.
+
+        Contar eventos, e não eventos com turma, seria uma trava boba: bastaria
+        cadastrar um evento vazio, que ninguém ainda pode ter esperado, para a
+        regra desligar e as órfãs voltarem para o limbo. A dúvida real só
+        aparece quando DOIS eventos tiveram turma — aí sim adivinhar seria
+        chute, e o que sobrar sem dono continua aparecendo à parte no painel,
+        para o admin mover à mão.
 
      Roda a cada carga do painel e só grava o que ainda falta — idempotente. */
   function migrarEsperaEventoKey() {
@@ -166,9 +172,15 @@
       firebase.database().ref('turmas').once('value', function (tSnap) {
         var turmasVal = tSnap.val() || {};
         firebase.database().ref('eventos').once('value', function (evSnap) {
-          var evKeys = Object.keys(evSnap.val() || {});
-          /* Só um evento: dá para adotar as órfãs sem inventar nada. */
-          var evUnico = evKeys.length === 1 ? evKeys[0] : '';
+          var eventosVal = evSnap.val() || {};
+          /* Evento sem turma nunca teve card de espera, então nunca teve fila:
+             fica fora da conta de "quem poderia ser o dono destas órfãs". */
+          var comTurma = [];
+          Object.keys(turmasVal).forEach(function (tk) {
+            var ek = turmasVal[tk] && turmasVal[tk].eventoKey;
+            if (ek && eventosVal[ek] && comTurma.indexOf(ek) === -1) comTurma.push(ek);
+          });
+          var evUnico = comTurma.length === 1 ? comTurma[0] : '';
           var updates = {};
           Object.keys(esp).forEach(function (eKey) {
             var pessoa = esp[eKey];
@@ -3101,9 +3113,10 @@
      tem eventoKey — registro de antes desta mudança, entrado direto pelo
      card do site, sem dizer para qual evento — cai numa seção à parte,
      abaixo de todos os eventos: não dá para adivinhar, e não pode sumir.
-     Com um evento só isso não acontece: a migração adota essas entradas
-     (ver migrarEsperaEventoKey), então esta seção fica vazia até existir um
-     segundo evento e uma entrada nova nascer sem dono. */
+     Enquanto só um evento tiver turma isso não acontece: a migração
+     adota essas entradas (ver migrarEsperaEventoKey), então esta seção fica
+     vazia até um segundo evento ganhar turma e uma entrada nova nascer sem
+     dono. */
   function renderEsperaTudo(dataEspera, turmasVal, cfgVal, interesse) {
     document.querySelectorAll('.ev-espera-section').forEach(function (el) { el.remove(); });
 
@@ -3129,7 +3142,7 @@
       c.appendChild(hdrOrf);
       var descOrf = document.createElement('p');
       descOrf.className = 'admin-empty';
-      descOrf.textContent = 'Registros entrados direto pelo card do site sem dizer para qual evento, num momento em que havia mais de um evento no ar. Não dá para adivinhar — mova para a turma certa manualmente.';
+      descOrf.textContent = 'Registros entrados direto pelo card do site sem dizer para qual evento, num momento em que havia mais de um evento com turma aberta. Não dá para adivinhar — mova para a turma certa manualmente.';
       c.appendChild(descOrf);
       c.appendChild(buildEsperaBlock(orfaos, turmasVal, cfgVal, interesse, null));
     }
