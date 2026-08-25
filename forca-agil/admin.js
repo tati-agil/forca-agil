@@ -143,27 +143,28 @@
     });
   }
 
-  /* A fila passou a ter dono: eventoKey. Duas formas de descobrir qual, nesta
-     ordem:
+  /* Preenche o eventoKey que falta em registros ANTIGOS da fila. Não é uma
+     regra permanente do sistema: daqui em diante ninguém entra na fila sem
+     evento, porque o card de espera é de UM evento e a pessoa escolhe em
+     qual entrar (renderEsperaCard em app.js). O sistema não adivinha nada —
+     quem entra, diz.
 
-     1. Pela turma de origem. Registro migrado de uma turma
-        (fa-espera/<eKey>/<turmaKey>) descobre o evento sozinho — a turma já
-        sabe o dela, em turmas/<turmaKey>/eventoKey. É a fonte mais precisa e
-        vale sempre.
+     O que sobrou para consertar é dado de antes disso existir, e vem de dois
+     lugares:
 
-     2. Pelo único evento QUE TEM TURMA. Registro entrado direto pelo card do
-        site (origem "lista", de antes desta separação existir) não declara
-        evento nenhum. Mas esse card só existe para evento que já tem turma
-        na vitrine (ver renderEsperaCard em app.js) — logo, evento sem turma
-        nenhuma nunca teve fila, e não entra na conta. Enquanto UM só evento
-        tiver turma, não há dúvida possível: a fila órfã é dele.
+     1. Migrado de uma turma (fa-espera/<eKey>/<turmaKey>): a turma já sabe o
+        evento dela, em turmas/<turmaKey>/eventoKey. Basta copiar.
 
-        Contar eventos, e não eventos com turma, seria uma trava boba: bastaria
-        cadastrar um evento vazio, que ninguém ainda pode ter esperado, para a
-        regra desligar e as órfãs voltarem para o limbo. A dúvida real só
-        aparece quando DOIS eventos tiveram turma — aí sim adivinhar seria
-        chute, e o que sobrar sem dono continua aparecendo à parte no painel,
-        para o admin mover à mão.
+     2. Entrado direto pelo card do site, quando o card ainda era um só e não
+        perguntava o evento. Esses são todos do único evento que chegou a ter
+        turma — nenhum outro teve fila para alguém entrar. Por isso a conta é
+        de eventos COM TURMA, e não de eventos: um evento cadastrado e ainda
+        vazio não muda nada aqui, e não pode fazer estes registros voltarem
+        para o limbo.
+
+     Se algum dia dois eventos tiverem turma E ainda houver registro sem
+     dono, esta função não escolhe por conta própria: deixa como está, na
+     seção "sem evento" do painel, para o admin resolver.
 
      Roda a cada carga do painel e só grava o que ainda falta — idempotente. */
   function migrarEsperaEventoKey() {
