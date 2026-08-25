@@ -237,7 +237,7 @@
      mesma regra da Avaliação — para conseguir revisar antes de liberar. */
   function carregarDisponiveis(cb) {
     const sess = window.faAuth && window.faAuth.getSession && window.faAuth.getSession();
-    if (!sess || !window.firebase || !firebase.database) { cb([]); return; }
+    if (!sess || !window.firebase || !firebase.database) { cb([], false); return; }
 
     firebase.database().ref('treinamentos').once('value').then(function (tSnap) {
       const todos = tSnap.val() || {};
@@ -249,8 +249,11 @@
         };
       }).sort(function (a, b) { return a.order - b.order; });
 
-      if (window.faAuth.isAdmin && window.faAuth.isAdmin(sess.email)) { cb(lista); return; }
-      if (!lista.length) { cb([]); return; }
+      /* Distingue "ainda não existe treinamento nenhum" de "existem, mas
+         nenhum é dos eventos dela" — o primeiro caso não pode tirar acesso
+         de quem já tinha. */
+      if (!lista.length) { cb([], true); return; }
+      if (window.faAuth.isAdmin && window.faAuth.isAdmin(sess.email)) { cb(lista, false); return; }
 
       const uKey = emailKey(sess.email);
       firebase.database().ref('turmas-interesse').once('value').then(function (iSnap) {
@@ -259,7 +262,7 @@
           const r = interesse[tk] && interesse[tk][uKey];
           return r && !r.removed && r.status === 'inscrito';
         });
-        if (!minhasTurmas.length) { cb([]); return; }
+        if (!minhasTurmas.length) { cb([], false); return; }
 
         firebase.database().ref('turmas').once('value').then(function (turSnap) {
           const turmas = turSnap.val() || {};
@@ -272,10 +275,10 @@
             return Object.keys(t.eventos).some(function (ev) {
               return t.eventos[ev] && meusEventos[ev];
             });
-          }));
+          }), false);
         });
       });
-    }).catch(function () { cb([]); });
+    }).catch(function () { cb([], false); });
   }
 
   function setTreinoNavVisible(visible) {
@@ -330,9 +333,40 @@
     }
     if (welcome) welcome.hidden = true;
 
-    carregarDisponiveis(function (lista) {
+    const isAdmin = !!(window.faAuth.isAdmin && window.faAuth.isAdmin(sess.email));
+
+    carregarDisponiveis(function (lista, semCadastro) {
       DISPONIVEIS = lista;
-      setTreinoNavVisible(lista.length > 0);
+
+      /* Enquanto NENHUM treinamento estiver cadastrado, vale o comportamento
+         anterior: quem é inscrita (ou admin) continua vendo o treinamento
+         padrão. O registro no banco é criado quando um admin abre o painel —
+         sem esta salvaguarda, entre o deploy e essa primeira abertura o
+         Treinamento sumiria do site para todo mundo, inclusive para o admin
+         que precisa justamente entrar no painel para resolver. */
+      if (semCadastro) {
+        const nivel = window.faAuth.getAccessLevel && window.faAuth.getAccessLevel();
+        const podeLegado = isAdmin || nivel === 'enrolled';
+        setTreinoNavVisible(podeLegado);
+        if (!podeLegado) {
+          if (gameWrap)  gameWrap.hidden  = true;
+          if (semAcesso) semAcesso.hidden = false;
+          return;
+        }
+        if (semAcesso) semAcesso.hidden = true;
+        if (gameWrap)  gameWrap.hidden  = false;
+        TREINO_ATIVO = null;
+        aplicarConteudo((window.faGameData || {}).CONTEUDO_KEY || 'jedi');
+        buildQuiz();
+        carregarEstado();
+        render();
+        renderSeletor();
+        return;
+      }
+
+      /* Admin enxerga o link sempre que existir treinamento cadastrado, mesmo
+         não estando inscrita em turma nenhuma — é quem administra. */
+      setTreinoNavVisible(isAdmin || lista.length > 0);
       if (!lista.length) {
         if (gameWrap)  gameWrap.hidden  = true;
         if (semAcesso) semAcesso.hidden = false;
