@@ -1341,6 +1341,14 @@ details.manual-admin-subgroup[open] > .manual-admin-subhead,
 .aval-turma-select option { background: var(--space-1, #0b1020); color: var(--ink); }
 .aval-time-est { font-size: .8rem; color: var(--ink-3); }
 
+/* Seletor de treinamento — mesmo desenho do seletor de turma da Avaliação.
+   Só aparece quando a pessoa tem acesso a mais de um treinamento. */
+.treino-seletor { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; margin-bottom: 20px; background: rgba(245,197,66,.12); border: 1px solid rgba(245,197,66,.3); border-radius: 20px; padding: 5px 14px; width: fit-content; }
+.treino-seletor[hidden] { display: none; }
+.treino-seletor-label { color: var(--accent); font-size: .82rem; font-family: var(--font-mono); letter-spacing: .05em; }
+.treino-seletor-select { background: transparent; border: none; color: var(--accent); font-family: var(--font-mono); font-size: .82rem; font-weight: 700; letter-spacing: .05em; cursor: pointer; outline: none; }
+.treino-seletor-select option { background: var(--space-1, #0b1020); color: var(--ink); }
+
 .aval-notice { background: rgba(26,178,174,.1); border: 1px solid rgba(26,178,174,.3); color: var(--cyan); border-radius: 8px; padding: 10px 16px; font-size: .83rem; margin-bottom: 24px; }
 .aval-notice--pending { background: rgba(245,197,24,.1); border-color: rgba(245,197,24,.3); color: var(--gold); }
 

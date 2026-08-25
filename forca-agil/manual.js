@@ -336,8 +336,11 @@
 
     /* ── Treinamento Jedi (v3 — apenas quiz) ── */
     { section: 'quiz', personas: ['inscrito', 'admin'],
-      title: 'Acesso — apenas inscrito com turma confirmada',
-      body: 'Só acessa quem foi confirmado pelo admin em alguma turma, mais o próprio admin (que entra mesmo sem estar em turma nenhuma). Quem está logado mas ainda não foi confirmado não vê o link no menu, e também não entra digitando o endereço direto.' },
+      title: 'Acesso — pelos eventos das turmas em que a pessoa está inscrita',
+      body: 'Um treinamento pertence a UM OU MAIS EVENTOS (aba Treinamentos do painel). Quem está confirmada pelo admin numa turma de qualquer um desses eventos vê aquele treinamento — e só ele. Antes bastava estar confirmada em qualquer turma, de qualquer evento: funcionava enquanto existia um treinamento único, mas com dois quem fez o evento A passaria a ver o treinamento do evento B. O admin vê todos os treinamentos cadastrados mesmo sem estar em turma nenhuma, para conseguir revisar antes de liberar — mesma regra da Avaliação. Quem não tem nenhum treinamento liberado não vê o link no menu, e ao entrar pelo endereço direto encontra a mensagem "Nenhum treinamento disponível". Quando a pessoa tem acesso a mais de um, aparece um seletor no topo da página para trocar entre eles; com um só, o seletor não aparece.' },
+    { section: 'quiz', personas: ['inscrito', 'admin'],
+      title: 'Progresso é separado por treinamento',
+      body: 'Cada treinamento guarda o próprio autodiagnóstico e a própria patente revelada: responder um não mexe no outro. Antes havia um progresso único por pessoa — com dois treinamentos, o segundo apagaria o primeiro. Quem já tinha respondido antes desta mudança não perde nada: o progresso que existia passa a valer como o do treinamento que ela estava fazendo.' },
     { section: 'quiz', personas: ['inscrito', 'admin'],
       title: 'Acesso completo',
       body: 'Acesso ao autodiagnóstico, painel de patente e revelar patente.' },
@@ -444,7 +447,7 @@
       body: 'Admin sempre vê e acessa Conteúdos e Treinamento Jedi no menu, mesmo sem estar inscrito em turma nenhuma. Ser admin já garante esse acesso por si só, independente de ela participar de alguma turma de verdade.' },
     { section: 'admin', personas: ['admin'],
       title: 'Navegação por abas — desktop e mobile',
-      body: '11 abas no painel: Dashboard, Eventos, Certificados, Repositório, Cadastrados, Administradores, Manual, Mapa, Testes, Pedidos e Sorteios. No desktop ficam em linha única. No mobile podem quebrar em 2 linhas com fonte reduzida para todas ficarem visíveis sem scroll horizontal.' },
+      body: '12 abas no painel: Dashboard, Eventos, Certificados, Treinamentos, Repositório, Cadastrados, Administradores, Manual, Mapa, Testes, Pedidos e Sorteios. No desktop ficam em linha única. No mobile podem quebrar em 2 linhas com fonte reduzida para todas ficarem visíveis sem scroll horizontal.' },
     { section: 'admin', personas: ['admin'],
       title: 'Aba: Dashboard — ler o que cada pessoa respondeu',
       body: 'No fim da aba, o bloco "Respostas individuais" mostra um cartão por avaliação, do mais recente para o mais antigo. Abrindo o cartão, aparecem TODAS as perguntas e o que foi registrado em cada uma: as notas, as escolhas múltiplas, os itens avaliados de organização e facilitadores, e os textos livres na íntegra. Há filtro por turma e por identificação (todas, só identificadas, só anônimas), a contagem do recorte e os botões abrir/fechar todas. Quem não marcou "Quero me identificar" aparece como Anônimo: as respostas aparecem completas, o nome e o e-mail não. A ordem das perguntas segue a do formulário, e um campo novo que ainda não esteja mapeado é listado no fim pelo próprio nome — assim uma pergunta acrescentada nunca fica invisível aqui.' },
@@ -545,6 +548,9 @@
       title: 'Pop-ups do admin — modais visuais (não nativos)',
       body: 'Todas as confirmações e avisos do painel usam janelas com o mesmo visual dos modais de cadastro/login — nenhuma ação usa aquelas caixas de diálogo padrão do navegador.' },
     { section: 'admin', personas: ['admin'],
+      title: 'Aba: Treinamentos — a quais eventos cada treinamento pertence',
+      body: 'Aba própria (é onde se decide quem enxerga cada treinamento). Cada treinamento tem nome, um conteúdo e a lista de eventos a que pertence — marcados por caixas de seleção, um treinamento pode pertencer a vários. Quem está confirmada numa turma de um evento marcado passa a ver aquele treinamento na página Treinamento; sem nenhum evento marcado, ninguém vê, e o cartão avisa isso em vermelho. O CONTEÚDO (as afirmações do autodiagnóstico e as patentes) vem do código, não do painel: o campo "Conteúdo" escolhe um conjunto já cadastrado lá. Dá para criar, renomear, trocar os eventos e excluir um treinamento sem deploy — mas um treinamento com conteúdo NOVO ainda precisa que o conjunto seja adicionado no código. Excluir tira o acesso de quem via, sem apagar o conteúdo (que vive no código) nem o progresso de quem já respondeu.' },
+    { section: 'admin', personas: ['admin'],
       title: 'Aba: Certificados — Gerador v1.0',
       body: 'Painel de geração de certificados. Fluxo: (1) selecionar Evento — popula o seletor de Turmas filtrado por aquele evento; (2) selecionar Turma — carrega dados do Firebase (nomeEvento, cargaHoraria, percentualMinimo, dataConclusao, check-ins). Os 6 campos dinâmicos são preenchidos sem entrada manual: nome do participante, nome do evento, identificação da turma, período, carga horária e data de emissão ("Emitido em"). Canvas fixo 1448 × 1086 px; prévia escala 4:3. Textos longos reduzem fonte por campo de forma independente. Nomes de arquivo: Certificado_NOME.png / Certificado_NOME.pdf.' },
     { section: 'admin', personas: ['admin'],
@@ -612,7 +618,7 @@
          um subgrupo próprio "ADMIN · MANUAL E MAPA" com uma regra só, ao lado
          de MANUAL e de MAPA. A regra é sobre o Manual — fica nele. */
       title: 'Aba: Manual — subgrupos dentro da categoria ADMIN',
-      body: 'A categoria ADMIN reúne itens de todas as 11 abas do painel — para não virar uma lista única confusa, é subagrupada automaticamente por aba a partir do prefixo "Aba X — " de cada título (regex: itens sem esse prefixo caem em "ADMIN · GERAL"). Cada subgrupo (ex: "ADMIN · EVENTOS") mostra sua própria contagem entre parênteses e é retrátil — clicar no subcabeçalho abre/fecha só aquele grupo, sem precisar abrir a categoria ADMIN inteira de uma vez. "Expandir tudo"/"Recolher tudo" também abrangem os subgrupos.' },
+      body: 'A categoria ADMIN reúne itens de todas as 12 abas do painel — para não virar uma lista única confusa, é subagrupada automaticamente por aba a partir do prefixo "Aba X — " de cada título (regex: itens sem esse prefixo caem em "ADMIN · GERAL"). Cada subgrupo (ex: "ADMIN · EVENTOS") mostra sua própria contagem entre parênteses e é retrátil — clicar no subcabeçalho abre/fecha só aquele grupo, sem precisar abrir a categoria ADMIN inteira de uma vez. "Expandir tudo"/"Recolher tudo" também abrangem os subgrupos.' },
     { section: 'admin', personas: ['admin'],
       title: 'Aba: Mapa',
       body: 'Mostra cinco seções: (1) Hierarquia de Personas — o que cada perfil consegue fazer; (2) Acesso por Tipo de Pessoa — tabela com o que cada perfil vê/acessa em cada página; (3) Mapa do Site — 13 seções com suas funcionalidades e o perfil mínimo de cada uma. Atenção ao número: são as 9 páginas do menu (Início, Turmas, Conteúdos, Repositório, Treinamento Jedi, Avaliação, Minha Área, Ajuda e Admin) MAIS 4 seções que não são páginas do menu — Check-in (aberta pelo QR Code), Entrar e Cadastrar (abas do modal de login) e Menu / Sessão (a barra de navegação em si). Por isso o total não bate com a contagem de links do menu; (4) Arquitetura Técnica e Regras Operacionais — acordeão com tecnologias, módulos, padrões de código, padrões de UX, deploy e regras de governança; (5) Diagrama da Arquitetura — visão visual gerada automaticamente a partir dos dados da Arquitetura Técnica.' },

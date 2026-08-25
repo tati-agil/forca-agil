@@ -322,5 +322,18 @@
     return acc.concat(b.afirmacoes || []);
   }, []);
 
+  /* Catálogo de conteúdos de treinamento.
+     Um treinamento cadastrado no painel (nó "treinamentos" no Firebase) guarda
+     nome e a quais eventos pertence — e aponta para um conteúdo daqui pela
+     chave. O conteúdo em si (afirmações e patentes) continua no código: dá para
+     ligar/desligar um treinamento e mudar seus eventos sem deploy, mas um
+     treinamento com conteúdo NOVO ainda precisa de um conjunto novo aqui. */
+  _data.CONTEUDO_KEY = 'jedi';
+  _data.NOME = 'Treinamento Jedi';
+
+  window.faGameConteudos = { jedi: _data };
+
+  /* Mantido: game.js e os testes já liam daqui, e enquanto só existe o
+     conteúdo "jedi" isto continua sendo ele. */
   window.faGameData = _data;
 })();

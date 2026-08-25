@@ -237,7 +237,7 @@ body.aguardando-auth>*:not(#authModal){visibility:hidden}
     <a href="#turmas"      data-nav-page="turmas">Turmas</a>
     <a href="#conteudos"   data-nav-page="conteudos" class="nav-link-enrolled" hidden>Conteúdos</a>
     <a href="#repositorio" data-nav-page="repositorio" class="nav-link-member" hidden>Repositório</a>
-    <a href="#treinamento" data-nav-page="treinamento" class="nav-link-enrolled" hidden>Treinamento</a>
+    <a href="#treinamento" data-nav-page="treinamento" class="nav-link-trein" hidden>Treinamento</a>
     <a href="#avaliacao"  data-nav-page="avaliacao"  class="nav-link-aval" hidden>Avaliação</a>
     <a href="#minha-area" data-nav-page="minha-area" class="nav-link-member" hidden>Minha Área</a>
     <a href="#ajuda"  data-nav-page="ajuda">Ajuda</a>
@@ -1027,6 +1027,10 @@ body.aguardando-auth>*:not(#authModal){visibility:hidden}
   <!-- Conteúdo do jogo — exibido apenas para usuários logados -->
   <div class="wrap game" id="treinamento">
 
+    <!-- Seletor de treinamento — só aparece quando a pessoa tem acesso a mais de um
+         (preenchido por game.js a partir do nó "treinamentos" e dos eventos dela) -->
+    <div class="treino-seletor" id="treinamentoSeletor" hidden></div>
+
     <!-- Jedi Banner -->
     <div class="jedi-banner reveal" style="padding:40px 24px">
       <div class="jedi-glow"></div>
@@ -1124,6 +1128,15 @@ body.aguardando-auth>*:not(#authModal){visibility:hidden}
     </div>
 
   </div><!-- /wrap.game -->
+
+  <!-- Sem nenhum treinamento liberado para os eventos das turmas dela -->
+  <div class="wrap" id="treinamento-sem-acesso" hidden>
+    <div class="page-hero">
+      <span class="eyebrow">Treinamento</span>
+      <h1>Nenhum treinamento disponível</h1>
+      <p>Ainda não há treinamento liberado para as turmas em que você está inscrita. Assim que a organização liberar, ele aparece aqui.</p>
+    </div>
+  </div>
 
   <footer class="footer">
     <div class="footer-inner" style="max-width:var(--maxw);margin:0 auto;padding:0 24px">
@@ -1231,6 +1244,7 @@ body.aguardando-auth>*:not(#authModal){visibility:hidden}
         <button class="admin-tab-btn" data-panel="adminPanelDashboard">Dashboard</button>
         <button class="admin-tab-btn active" data-panel="adminPanelInteresses">Eventos</button>
         <button class="admin-tab-btn" data-panel="adminPanelCert">Certificados</button>
+        <button class="admin-tab-btn" data-panel="adminPanelTreinamentos">Treinamentos</button>
         <button class="admin-tab-btn" data-panel="adminPanelRepo">Repositório</button>
         <button class="admin-tab-btn" data-panel="adminPanelCadastrados">Cadastrados</button>
         <button class="admin-tab-btn" data-panel="adminPanelAdmins">Administradores</button>
@@ -1277,6 +1291,12 @@ body.aguardando-auth>*:not(#authModal){visibility:hidden}
       <div class="admin-tab-panel" id="adminPanelAdmins">
         <div id="adminAdmins">
           <p class="loading-msg">Carregando administradores…</p>
+        </div>
+      </div>
+
+      <div class="admin-tab-panel" id="adminPanelTreinamentos">
+        <div id="adminTreinamentos">
+          <p class="loading-msg">Carregando treinamentos…</p>
         </div>
       </div>
 
