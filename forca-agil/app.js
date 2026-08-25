@@ -230,7 +230,7 @@
        já foi confirmado como inscrito (não existe mais um card único de
        "turma confirmada" substituindo o grid inteiro). */
     var _turmasList  = []; // [{ key, label, dias, cmflexLink, finalizada, eventoKey }]
-    var _eventosList = []; // [{ key, nome, order, cargaHoraria, missaoTitulo, missaoTexto, topicos, itinerario, esperaAtiva }]
+    var _eventosList = []; // [{ key, nome, order, cargaHoraria, missaoTitulo, missaoTexto, topicos, itinerario, esperaAtiva, publicado }]
 
     function loadTurmas(cb) {
       var db = firebase.database();
@@ -247,9 +247,10 @@
                 cargaHoraria: e.cargaHoraria || '',
                 missaoTitulo: e.missaoTitulo || '', missaoTexto: e.missaoTexto || '',
                 topicos: e.topicos || '', itinerario: e.itinerario || [],
-                /* Ausente = ligada: evento de antes deste controle existir
-                   continua mostrando o card, como sempre mostrou. */
-                esperaAtiva: e.esperaAtiva !== false
+                /* Ausente = ligada/publicado: evento de antes destes controles
+                   existirem continua como sempre esteve, sem migração. */
+                esperaAtiva: e.esperaAtiva !== false,
+                publicado: e.publicado !== false
               };
             }).sort(function (a, b) { return a.order - b.order; });
             _turmasList = Object.keys(val).map(function (key) {
@@ -341,12 +342,23 @@
        grade de cards, na mesma ordem do painel admin. Turma sem evento
        (não deveria existir, mas o admin permite deixar assim temporariamente)
        cai num grupo sem título, para não sumir da vitrine. */
-    /* Um evento aparece na vitrine quando tem turma OU quando aceita lista de
-       espera. Exigir turma invertia a utilidade da fila: é justamente ANTES de
-       abrir turma que ela serve, medindo demanda para o admin saber quantas
-       turmas abrir. Evento sem turma e com fila ligada aparece só com o título
-       e o card de espera — o card em si é anexado por renderEsperaCard. */
+    /* Um evento aparece na vitrine quando o admin o divulgou (publicado) E tem
+       turma OU aceita lista de espera.
+
+       "publicado" é a chave-mestra: desmarcada, o evento inteiro some da página
+       das pessoas — turmas, card de espera e a Missão dele —, seja porque ainda
+       está sendo preparado, seja porque já acabou. Não tira acesso de ninguém:
+       quem está inscrita continua inscrita (o nível de acesso vem de
+       turmas-interesse, ver auth.js) e a Minha Área dela continua mostrando a
+       turma e o evento normalmente, porque lê o evento pela chave, não pela
+       vitrine.
+
+       Exigir turma invertia a utilidade da fila: é justamente ANTES de abrir
+       turma que ela serve, medindo demanda para o admin saber quantas turmas
+       abrir. Evento publicado, sem turma e com fila ligada aparece só com o
+       título e o card de espera — o card em si é anexado por renderEsperaCard. */
     function eventoNaVitrine(ev, porEvento) {
+      if (!ev.publicado) return false;
       return !!(porEvento[ev.key] && porEvento[ev.key].length) || !!ev.esperaAtiva;
     }
 

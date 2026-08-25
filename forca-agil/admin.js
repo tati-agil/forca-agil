@@ -312,9 +312,10 @@
           percentualMinimo: Number(e.percentualMinimo || 75), order: e.order || 0,
           missaoTitulo: e.missaoTitulo || '', missaoTexto: e.missaoTexto || '',
           topicos: e.topicos || '', itinerario: e.itinerario || [],
-          /* Ausente = ligada. Evento criado antes deste controle existir
-             continua mostrando o card, como sempre mostrou. */
-          esperaAtiva: e.esperaAtiva !== false
+          /* Ausente = ligada/publicado. Evento criado antes destes controles
+             existirem continua como sempre esteve, sem migração. */
+          esperaAtiva: e.esperaAtiva !== false,
+          publicado: e.publicado !== false
         };
       }).sort(function (a, b) { return a.order - b.order; });
       cb();
@@ -857,6 +858,20 @@
             evHdr.appendChild(evToggleIcon);
             evHdr.appendChild(evNome);
             evHdr.appendChild(evMeta);
+            /* Evento fora do ar continua INTEIRO aqui: turmas, participantes,
+               fila, presença, certificado — tudo se gerencia igual. Some só da
+               página das pessoas. Sem este selo, não haveria como saber olhando
+               o painel que ele não está sendo divulgado. Entra depois do meta e
+               antes dos botões, com evEditBtn já filho do cabeçalho. */
+            if (!ev.publicado) {
+              var evOff = document.createElement('span');
+              evOff.textContent = 'fora da página';
+              evOff.title = 'Este evento não aparece na página Turmas. Ninguém foi removido: inscritas, fila e acessos continuam iguais.';
+              evOff.style.cssText = 'flex-shrink:0;font-family:var(--font-mono);font-size:.62rem;letter-spacing:.08em;' +
+                'text-transform:uppercase;color:var(--ink-2);border:1px solid var(--line-strong);' +
+                'border-radius:99px;padding:3px 9px;white-space:nowrap';
+              evHdr.appendChild(evOff);
+            }
             evHdr.appendChild(evEditBtn);
             evHdr.appendChild(evNewTurmaBtn);
             evSection.appendChild(evHdr);
@@ -2346,6 +2361,8 @@
       '<label class="auth-label">Nome do evento<input type="text" id="eventoFormNome" placeholder="Ex: FORÇA ÁGIL · JORNADA DE IMERSÃO" autocomplete="off" /></label>' +
       '<label class="auth-label" style="flex-direction:row;align-items:center;gap:10px">Carga horária<input type="number" id="eventoFormCarga" placeholder="20" min="1" max="999" style="width:80px" /><span style="opacity:.7">horas</span></label>' +
       '<label class="auth-label" style="flex-direction:row;align-items:center;gap:10px">Frequência mínima p/ certificado<input type="number" id="eventoFormPercentual" placeholder="75" min="1" max="100" style="width:80px" /><span style="opacity:.7">%</span></label>' +
+      '<label class="auth-label" style="flex-direction:row;align-items:center;gap:10px"><input type="checkbox" id="eventoFormPublicado" style="width:auto;margin:0" />Divulgar este evento na página Turmas</label>' +
+      '<p style="font-size:.78rem;color:var(--ink-2);margin:-8px 0 0">Desmarcado, o evento inteiro some da página das pessoas — turmas, lista de espera e a Missão dele. Use para preparar um evento antes de divulgar, ou para tirar do ar um que já acabou. Não muda nada para quem já está inscrita: o acesso dela e a Minha Área continuam iguais, e aqui no painel o evento segue completo.</p>' +
       '<label class="auth-label" style="flex-direction:row;align-items:center;gap:10px"><input type="checkbox" id="eventoFormEspera" style="width:auto;margin:0" />Aceitar lista de espera neste evento</label>' +
       '<p style="font-size:.78rem;color:var(--ink-2);margin:-8px 0 0">Desmarcado, o card "Lista de Espera" não aparece na página Turmas e ninguém novo entra na fila deste evento. Quem já está na fila continua aqui no painel — nada é apagado.</p>' +
       '<hr style="border:none;border-top:1px solid var(--line-strong);margin:4px 0">' +
@@ -2374,6 +2391,7 @@
     var missaoTextoInput  = box.querySelector('#eventoFormMissaoTexto');
     var topicosInput      = box.querySelector('#eventoFormTopicos');
     var esperaInput       = box.querySelector('#eventoFormEspera');
+    var publicadoInput    = box.querySelector('#eventoFormPublicado');
     var itinerarioList    = box.querySelector('#eventoItinerarioList');
     var errEl             = box.querySelector('#eventoFormErr');
 
@@ -2386,6 +2404,7 @@
     /* Evento novo já nasce aceitando espera: é o comportamento que sempre
        valeu, e desmarcar é a decisão consciente. */
     esperaInput.checked     = isEdit ? existing.esperaAtiva !== false : true;
+    publicadoInput.checked  = isEdit ? existing.publicado !== false : true;
 
     /* Renumera os rótulos "D1", "D2"... depois de qualquer adição/remoção —
        a ordem é só a posição na lista, sem arrastar/reordenar. */
@@ -2434,7 +2453,8 @@
         missaoTexto: (missaoTextoInput.value || '').trim(),
         topicos: (topicosInput.value || '').trim(),
         itinerario: itinerario,
-        esperaAtiva: !!esperaInput.checked
+        esperaAtiva: !!esperaInput.checked,
+        publicado: !!publicadoInput.checked
       };
       if (isEdit) {
         firebase.database().ref('eventos/' + existing.key).update(eventData, function (err) {
