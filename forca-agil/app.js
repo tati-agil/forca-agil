@@ -230,7 +230,7 @@
        já foi confirmado como inscrito (não existe mais um card único de
        "turma confirmada" substituindo o grid inteiro). */
     var _turmasList  = []; // [{ key, label, dias, cmflexLink, finalizada, eventoKey }]
-    var _eventosList = []; // [{ key, nome, order, cargaHoraria, missaoTitulo, missaoTexto, topicos, itinerario }]
+    var _eventosList = []; // [{ key, nome, order, cargaHoraria, missaoTitulo, missaoTexto, topicos, itinerario, esperaAtiva }]
 
     function loadTurmas(cb) {
       var db = firebase.database();
@@ -246,7 +246,10 @@
                 key: key, nome: e.nome || key, order: e.order || 0,
                 cargaHoraria: e.cargaHoraria || '',
                 missaoTitulo: e.missaoTitulo || '', missaoTexto: e.missaoTexto || '',
-                topicos: e.topicos || '', itinerario: e.itinerario || []
+                topicos: e.topicos || '', itinerario: e.itinerario || [],
+                /* Ausente = ligada: evento de antes deste controle existir
+                   continua mostrando o card, como sempre mostrou. */
+                esperaAtiva: e.esperaAtiva !== false
               };
             }).sort(function (a, b) { return a.order - b.order; });
             _turmasList = Object.keys(val).map(function (key) {
@@ -450,15 +453,24 @@
     }
 
     /* ---- Lista de Espera ----
-       A fila é do evento, não da conta: um card por evento que já tem turma
-       aberta na vitrine, cada um escrevendo numa entrada própria em
-       fa-espera (ver ORIGEM_DIRETA em turmas-util.js) — assim dá pra estar
-       esperando por mais de um evento ao mesmo tempo, sem uma entrada
-       sobrescrever a outra. */
+       A fila é do evento, não da conta: um card por evento, cada um
+       escrevendo numa entrada própria em fa-espera (ver ORIGEM_DIRETA em
+       turmas-util.js) — assim dá pra estar esperando por mais de um evento
+       ao mesmo tempo, sem uma entrada sobrescrever a outra.
+
+       Duas condições para o card aparecer:
+
+       - o evento já tem turma na vitrine. Evento recém-criado ainda não tem;
+         as turmas entram depois, e aí o card aparece junto com elas;
+       - o admin aceita lista de espera neste evento (esperaAtiva). Nem todo
+         evento quer fila, e isso é decisão dele, não do sistema. Desligado, o
+         card some do site e ninguém novo entra — mas quem já está na fila
+         continua no painel, intacto: desligar não apaga ninguém. */
 
     function renderEsperaCard(sess) {
       document.querySelectorAll('.turma-card-espera').forEach(function (el) { el.remove(); });
       _eventosList.forEach(function (ev) {
+        if (!ev.esperaAtiva) return; /* admin não quer fila neste evento */
         var grid = document.querySelector('.turmas-evento-grupo[data-evento-key="' + ev.key + '"] .turmas-grid');
         if (!grid) return; /* evento sem turma nenhuma na vitrine: nada para esperar ainda */
         var card = document.createElement('div');

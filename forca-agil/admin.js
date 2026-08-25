@@ -305,7 +305,10 @@
           key: key, nome: e.nome || '', cargaHoraria: e.cargaHoraria || '20',
           percentualMinimo: Number(e.percentualMinimo || 75), order: e.order || 0,
           missaoTitulo: e.missaoTitulo || '', missaoTexto: e.missaoTexto || '',
-          topicos: e.topicos || '', itinerario: e.itinerario || []
+          topicos: e.topicos || '', itinerario: e.itinerario || [],
+          /* Ausente = ligada. Evento criado antes deste controle existir
+             continua mostrando o card, como sempre mostrou. */
+          esperaAtiva: e.esperaAtiva !== false
         };
       }).sort(function (a, b) { return a.order - b.order; });
       cb();
@@ -2337,6 +2340,8 @@
       '<label class="auth-label">Nome do evento<input type="text" id="eventoFormNome" placeholder="Ex: FORÇA ÁGIL · JORNADA DE IMERSÃO" autocomplete="off" /></label>' +
       '<label class="auth-label" style="flex-direction:row;align-items:center;gap:10px">Carga horária<input type="number" id="eventoFormCarga" placeholder="20" min="1" max="999" style="width:80px" /><span style="opacity:.7">horas</span></label>' +
       '<label class="auth-label" style="flex-direction:row;align-items:center;gap:10px">Frequência mínima p/ certificado<input type="number" id="eventoFormPercentual" placeholder="75" min="1" max="100" style="width:80px" /><span style="opacity:.7">%</span></label>' +
+      '<label class="auth-label" style="flex-direction:row;align-items:center;gap:10px"><input type="checkbox" id="eventoFormEspera" style="width:auto;margin:0" />Aceitar lista de espera neste evento</label>' +
+      '<p style="font-size:.78rem;color:var(--ink-2);margin:-8px 0 0">Desmarcado, o card "Lista de Espera" não aparece na página Turmas e ninguém novo entra na fila deste evento. Quem já está na fila continua aqui no painel — nada é apagado.</p>' +
       '<hr style="border:none;border-top:1px solid var(--line-strong);margin:4px 0">' +
       '<p style="font-size:.78rem;color:var(--ink-2);margin:0">Conteúdo público da página Turmas — aparece abaixo dos cards deste evento, só quando preenchido. Deixe em branco pra não mostrar nada.</p>' +
       '<label class="auth-label">Missão (título curto)<input type="text" id="eventoFormMissaoTitulo" placeholder="Ex: Oficina de Agilidade Organizacional" autocomplete="off" /></label>' +
@@ -2362,6 +2367,7 @@
     var missaoTituloInput = box.querySelector('#eventoFormMissaoTitulo');
     var missaoTextoInput  = box.querySelector('#eventoFormMissaoTexto');
     var topicosInput      = box.querySelector('#eventoFormTopicos');
+    var esperaInput       = box.querySelector('#eventoFormEspera');
     var itinerarioList    = box.querySelector('#eventoItinerarioList');
     var errEl             = box.querySelector('#eventoFormErr');
 
@@ -2371,6 +2377,9 @@
     missaoTituloInput.value = isEdit ? (existing.missaoTitulo || '') : '';
     missaoTextoInput.value  = isEdit ? (existing.missaoTexto || '') : '';
     topicosInput.value      = isEdit ? (existing.topicos || '') : '';
+    /* Evento novo já nasce aceitando espera: é o comportamento que sempre
+       valeu, e desmarcar é a decisão consciente. */
+    esperaInput.checked     = isEdit ? existing.esperaAtiva !== false : true;
 
     /* Renumera os rótulos "D1", "D2"... depois de qualquer adição/remoção —
        a ordem é só a posição na lista, sem arrastar/reordenar. */
@@ -2418,7 +2427,8 @@
         missaoTitulo: (missaoTituloInput.value || '').trim(),
         missaoTexto: (missaoTextoInput.value || '').trim(),
         topicos: (topicosInput.value || '').trim(),
-        itinerario: itinerario
+        itinerario: itinerario,
+        esperaAtiva: !!esperaInput.checked
       };
       if (isEdit) {
         firebase.database().ref('eventos/' + existing.key).update(eventData, function (err) {
@@ -3129,6 +3139,16 @@
       var interesseEv = filtrarInteressePorEvento(interesse, turmasVal, ev.key);
       var section = document.createElement('div');
       section.className = 'ev-espera-section';
+      /* Fila desligada com gente dentro: sem este aviso, a lista aparece no
+         painel e o card não aparece no site, e não dá pra saber por quê.
+         Ninguém é escondido — desligar impede entrada nova, não apaga
+         quem já entrou. */
+      if (!ev.esperaAtiva) {
+        var aviso = document.createElement('p');
+        aviso.className = 'admin-empty';
+        aviso.textContent = 'Lista de espera desligada neste evento: o card não aparece na página Turmas e ninguém novo entra. Quem já estava na fila continua abaixo — para voltar a aceitar, marque "Aceitar lista de espera" ao editar o evento.';
+        section.appendChild(aviso);
+      }
       section.appendChild(buildEsperaBlock(dataEv, turmasVal, cfgVal, interesseEv, ev.key));
       evWrap.appendChild(section);
     });
