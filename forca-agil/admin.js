@@ -143,31 +143,48 @@
     });
   }
 
-  /* A fila passou a ter dono: eventoKey. Registros migrados de uma turma
-     (fa-espera/<eKey>/<turmaKey>) descobrem o evento sozinhos — a turma de
-     origem já sabe o dela, em turmas/<turmaKey>/eventoKey. Registro entrado
-     direto pelo card do site (origem "lista") não tem como saber o evento
-     sozinho — fica sem eventoKey e aparece à parte no painel, sem ser
-     inventado. Roda a cada carga do painel e só grava o que ainda falta. */
+  /* A fila passou a ter dono: eventoKey. Duas formas de descobrir qual, nesta
+     ordem:
+
+     1. Pela turma de origem. Registro migrado de uma turma
+        (fa-espera/<eKey>/<turmaKey>) descobre o evento sozinho — a turma já
+        sabe o dela, em turmas/<turmaKey>/eventoKey. É a fonte mais precisa e
+        vale sempre.
+
+     2. Pelo único evento que existe. Registro entrado direto pelo card do
+        site (origem "lista", de antes desta separação existir) não declara
+        evento nenhum. Enquanto o sistema tiver UM evento só, não há dúvida
+        possível: toda a fila é dele. Esta regra se desliga sozinha no dia em
+        que existir um segundo evento — aí adivinhar seria chute, e o que
+        sobrar sem dono continua aparecendo à parte no painel, para o admin
+        mover à mão.
+
+     Roda a cada carga do painel e só grava o que ainda falta — idempotente. */
   function migrarEsperaEventoKey() {
     firebase.database().ref('fa-espera').once('value', function (espSnap) {
       var esp = espSnap.val() || {};
       firebase.database().ref('turmas').once('value', function (tSnap) {
         var turmasVal = tSnap.val() || {};
-        var updates = {};
-        Object.keys(esp).forEach(function (eKey) {
-          var pessoa = esp[eKey];
-          if (!pessoa || typeof pessoa !== 'object' || pessoa.email) return; /* formato antigo, ainda não convertido */
-          Object.keys(pessoa).forEach(function (origem) {
-            var entry = pessoa[origem];
-            if (!entry || typeof entry !== 'object' || entry.eventoKey) return;
-            var turma = turmasVal[origem];
-            if (turma && turma.eventoKey) {
-              updates['fa-espera/' + eKey + '/' + origem + '/eventoKey'] = turma.eventoKey;
-            }
+        firebase.database().ref('eventos').once('value', function (evSnap) {
+          var evKeys = Object.keys(evSnap.val() || {});
+          /* Só um evento: dá para adotar as órfãs sem inventar nada. */
+          var evUnico = evKeys.length === 1 ? evKeys[0] : '';
+          var updates = {};
+          Object.keys(esp).forEach(function (eKey) {
+            var pessoa = esp[eKey];
+            if (!pessoa || typeof pessoa !== 'object' || pessoa.email) return; /* formato antigo, ainda não convertido */
+            Object.keys(pessoa).forEach(function (origem) {
+              var entry = pessoa[origem];
+              if (!entry || typeof entry !== 'object' || entry.eventoKey) return;
+              var turma = turmasVal[origem];
+              var destino = (turma && turma.eventoKey) || evUnico;
+              if (destino) {
+                updates['fa-espera/' + eKey + '/' + origem + '/eventoKey'] = destino;
+              }
+            });
           });
+          if (Object.keys(updates).length) firebase.database().ref().update(updates);
         });
-        if (Object.keys(updates).length) firebase.database().ref().update(updates);
       });
     });
   }
@@ -3083,7 +3100,10 @@
      ninguém esperando (ativo ou já saído) não ganha seção: ruído. Quem não
      tem eventoKey — registro de antes desta mudança, entrado direto pelo
      card do site, sem dizer para qual evento — cai numa seção à parte,
-     abaixo de todos os eventos: não dá para adivinhar, e não pode sumir. */
+     abaixo de todos os eventos: não dá para adivinhar, e não pode sumir.
+     Com um evento só isso não acontece: a migração adota essas entradas
+     (ver migrarEsperaEventoKey), então esta seção fica vazia até existir um
+     segundo evento e uma entrada nova nascer sem dono. */
   function renderEsperaTudo(dataEspera, turmasVal, cfgVal, interesse) {
     document.querySelectorAll('.ev-espera-section').forEach(function (el) { el.remove(); });
 
@@ -3109,7 +3129,7 @@
       c.appendChild(hdrOrf);
       var descOrf = document.createElement('p');
       descOrf.className = 'admin-empty';
-      descOrf.textContent = 'Registros de antes desta mudança, entrados direto pelo card do site sem dizer para qual evento. Não dá para adivinhar — mova para a turma certa manualmente.';
+      descOrf.textContent = 'Registros entrados direto pelo card do site sem dizer para qual evento, num momento em que havia mais de um evento no ar. Não dá para adivinhar — mova para a turma certa manualmente.';
       c.appendChild(descOrf);
       c.appendChild(buildEsperaBlock(orfaos, turmasVal, cfgVal, interesse, null));
     }
