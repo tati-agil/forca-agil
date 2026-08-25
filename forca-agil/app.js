@@ -379,7 +379,15 @@
         var turmasEv = porEvento[ev.key] || [];
         html +=
           '<div class="turmas-evento-grupo" data-evento-key="' + ev.key + '">' +
-            '<div class="turmas-evento-titulo">' + ev.nome + '</div>' +
+            /* h2 do evento: ele é o container de tudo que vem abaixo. A Missão
+               dele desce para h3 e as subseções dela para h4, mantendo o
+               aninhamento — h1 da página > h2 do evento > h3 da missão > h4.
+               Só a tag muda: .sec-title controla fonte, tamanho, espaçamento e
+               margem, então nada se mexe na tela. */
+            '<div class="turmas-evento-cab">' +
+              '<span class="turmas-evento-eyebrow">Evento</span>' +
+              '<h2 class="turmas-evento-titulo">' + ev.nome + '</h2>' +
+            '</div>' +
             '<div class="turmas-grid">' + turmasEv.map(function (t) { return turmaCardHtml(t, hoje); }).join('') + '</div>' +
             /* A Missão deste evento entra aqui, preenchida por
                renderMissaoEventos logo depois. */
@@ -436,13 +444,13 @@
         html += '<div class="divider"><svg width="14" height="14"><use href="#i-mark"/></svg></div>';
         html += '<section class="section">';
         html += '<div class="reveal in"><span class="eyebrow">A Missão</span>' +
-          '<h2 class="sec-title">' + (ev.missaoTitulo ? 'A <span class="glow-gold">' + ev.missaoTitulo + '</span>' : ev.nome) + '</h2>';
+          '<h3 class="sec-title">' + (ev.missaoTitulo ? 'A <span class="glow-gold">' + ev.missaoTitulo + '</span>' : ev.nome) + '</h3>';
         if (ev.missaoTexto) html += '<p class="sec-lead">' + ev.missaoTexto + '</p>';
         html += '</div>';
 
         if (nDias || ev.topicos) {
           html += '<div class="oficina-info reveal in" style="margin-top:64px">' +
-            '<h3 class="sec-title" style="font-size:clamp(1.3rem,3vw,2rem);letter-spacing:.12em">Como funciona</h3>' +
+            '<h4 class="sec-title" style="font-size:clamp(1.3rem,3vw,2rem);letter-spacing:.12em">Como funciona</h4>' +
             '<div class="oficina-info-grid">';
           if (nDias) {
             html += '<div class="ofinfo-item"><span class="ofinfo-num">' + nDias + '</span><span class="ofinfo-label">dia' +
@@ -462,7 +470,7 @@
         if (nDias) {
           html += '<div class="reveal in" style="margin-top:72px">' +
             '<span class="eyebrow">Plano de Voo · ' + nDias + ' dia' + (nDias !== 1 ? 's' : '') + '</span>' +
-            '<h3 class="sec-title" style="font-size:clamp(1.6rem,4vw,2.6rem)">A jornada dia a dia</h3></div>';
+            '<h4 class="sec-title" style="font-size:clamp(1.6rem,4vw,2.6rem)">A jornada dia a dia</h4></div>';
           html += '<div class="agenda">';
           ev.itinerario.forEach(function (titulo, i) {
             html += '<div class="day day--static reveal in"><div class="day-head"><span class="dnum">D' + (i + 1) +
