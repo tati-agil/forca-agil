@@ -45,8 +45,12 @@
           var s = window.faAuth && window.faAuth.getSession();
           if (!s || !window.faAuth.isAdmin(s.email)) return true; /* não aplicável fora de sessão admin */
           var conteudos = document.querySelector('.nav-link-enrolled[data-nav-page="conteudos"]');
-          var treinamento = document.querySelector('.nav-link-enrolled[data-nav-page="treinamento"]');
-          return !!conteudos && !conteudos.hidden && !!treinamento && !treinamento.hidden;
+          /* O Treinamento deixou de ser liberado por nível de acesso: ele agora
+             pertence a eventos, e o link é controlado por game.js (classe própria).
+             Admin vê quando existe algum treinamento cadastrado — mesma regra da
+             Avaliação; com nenhum cadastrado, some para todo mundo. */
+          var treinamento = document.querySelector('.nav-link-trein[data-nav-page="treinamento"]');
+          return !!conteudos && !conteudos.hidden && !!treinamento;
         } }
       ]
     },
@@ -87,7 +91,7 @@
         } },
         { id: 'adm-manual', label: 'faInitManual disponível',   run: function () { return typeof window.faInitManual === 'function'; } },
         { id: 'adm-mapa',   label: 'faInitMapa disponível',     run: function () { return typeof window.faInitMapa === 'function'; } },
-        { id: 'adm-tabs',   label: 'Abas Admin presentes (11: Dashboard/Eventos/Certificados/Repositório/Cadastrados/Administradores/Manual/Mapa/Testes/Pedidos/Sorteios)', run: function () { return document.querySelectorAll('.admin-tab-btn').length === 11; } },
+        { id: 'adm-tabs',   label: 'Abas Admin presentes (12: Dashboard/Eventos/Certificados/Treinamentos/Repositório/Cadastrados/Administradores/Manual/Mapa/Testes/Pedidos/Sorteios)', run: function () { return document.querySelectorAll('.admin-tab-btn').length === 12; } },
         { id: 'adm-manual-panel', label: 'Painel Manual presente', run: function () { return !!document.getElementById('adminPanelManual'); } },
         { id: 'adm-mapa-panel',   label: 'Painel Mapa presente',   run: function () { return !!document.getElementById('adminPanelMapa'); } },
         { id: 'adm-testes-panel', label: 'Painel Testes presente', run: function () { return !!document.getElementById('adminPanelTestes'); } },
@@ -686,10 +690,19 @@
             var highBtn = document.querySelector('.q-opt[data-q="0"][data-v="3"]');
             if (!lowBtn || !highBtn) return false;
             lowBtn.click();
-            var afterLow = JSON.parse(st.getItem('fa-game-v3') || 'null');
+            /* O progresso passou a ser guardado POR TREINAMENTO (mapa
+               treinamento → {quiz, revealed}); antes era um progresso único,
+               que o segundo treinamento apagaria. Lê pela chave do que está
+               ativo — "_" quando a página roda sem treinamento resolvido. */
+            var chave = (window.faGameTreinamentoAtivo && window.faGameTreinamentoAtivo()) || '_';
+            var quizDe = function (raw) {
+              var v = JSON.parse(raw || 'null');
+              return v && v[chave] ? v[chave].quiz : null;
+            };
+            var afterLow = quizDe(st.getItem('fa-game-v3'));
             highBtn.click();
-            var afterHigh = JSON.parse(st.getItem('fa-game-v3') || 'null');
-            return !!afterLow && !!afterHigh && afterLow.quiz[0] === 0 && afterHigh.quiz[0] === 3;
+            var afterHigh = quizDe(st.getItem('fa-game-v3'));
+            return !!afterLow && !!afterHigh && afterLow[0] === 0 && afterHigh[0] === 3;
           } finally {
             if (backupGame !== null) st.setItem('fa-game-v3', backupGame); else st.removeItem('fa-game-v3');
             if (backupPlayer !== null) localStorage.setItem('fa-player', backupPlayer); else localStorage.removeItem('fa-player');
@@ -884,6 +897,15 @@
     { section: 'Admin',
       title: 'Migração: eventoKey da fila é preenchido sozinho',
       motivo: 'Requer um registro na fila (migrado de uma turma) gravado ANTES desta mudança, sem o campo eventoKey. Ao carregar o painel como admin: o registro ganha o eventoKey da turma de origem automaticamente (migrarEsperaEventoKey, roda a cada carga) e passa a aparecer dentro do card do evento certo, não mais nas órfãs. Rodar de novo não duplica nem sobrescreve nada — idempotente.' },
+    { section: 'Admin',
+      title: 'Treinamento pertence a eventos — quem vê e quem não vê',
+      motivo: 'Precisa de dois eventos, cada um com turma e gente confirmada. Na aba Treinamentos, criar/editar um treinamento marcando SÓ o evento A. Verificar: (1) quem está confirmada numa turma do evento A vê o link Treinamento no menu e entra normalmente; (2) quem está confirmada apenas numa turma do evento B NÃO vê o link e, entrando pelo endereço direto (#treinamento), encontra "Nenhum treinamento disponível" — este é o ponto da mudança, antes qualquer pessoa inscrita via qualquer treinamento; (3) desmarcando todos os eventos, ninguém (fora admin) vê, e o cartão na aba avisa em vermelho que ninguém vê; (4) admin vê o treinamento mesmo sem estar inscrito em turma nenhuma, como na Avaliação; (5) quem está só interessada (não confirmada) numa turma do evento A não vê.' },
+    { section: 'Admin',
+      title: 'Treinamento — seletor aparece só com mais de um',
+      motivo: 'Cadastrar dois treinamentos e associar AMBOS a um evento em que a mesma pessoa está confirmada. Com ela: (1) o topo da página Treinamento mostra um seletor com os dois nomes; (2) trocar de treinamento no seletor troca o autodiagnóstico exibido e o progresso — responder um NÃO pode mexer no outro (responda algumas afirmações num, troque, e confira que o outro continua como estava; volte e confira que o primeiro manteve as respostas); (3) revelar a patente em um não revela no outro; (4) deixando só um treinamento associado, o seletor some (com um só ele é ruído).' },
+    { section: 'Admin',
+      title: 'Migração: o treinamento que já existia não perde ninguém nem o progresso',
+      motivo: 'Vale na primeira vez que o painel é aberto após o deploy. Verificar: (1) a aba Treinamentos já vem com um treinamento criado, associado a TODOS os eventos que existiam — ou seja, exatamente quem via o Treinamento antes continua vendo (sem isso o deploy tiraria o acesso de todo mundo de uma vez); (2) evento criado DEPOIS não entra sozinho — é uma decisão do admin, marcar ou não; (3) com uma conta que já tinha respondido o autodiagnóstico antes da mudança, abrir o Treinamento e conferir que as respostas e a patente continuam lá (o progresso antigo passa a valer como o desse treinamento); (4) recarregar o painel várias vezes não cria treinamentos duplicados.' },
     { section: 'Admin',
       title: 'Migração de ponte: conteúdo da Missão da Jornada de Imersão',
       motivo: 'Só se aplica ao evento existente cujo nome é exatamente "FORÇA ÁGIL · JORNADA DE IMERSÃO", e só antes dele ter sido editado nesta mudança (itinerario ainda vazio). Ao carregar o painel como admin pela primeira vez após o deploy: o evento ganha sozinho Missão, Tópicos e os 5 dias do itinerário que antes eram HTML fixo na página ("O Despertar da Força" ... "O Julgamento Jedi") — seedMissaoJornadaImersao, roda a cada carga do painel. Verificar: (1) a página Turmas pública não fica sem esse bloco depois do deploy; (2) editar manualmente o conteúdo desse evento depois e recarregar o painel várias vezes NÃO reverte a edição — a migração só grava quando o itinerário está vazio, nunca sobrescreve o que o admin já preencheu.' },

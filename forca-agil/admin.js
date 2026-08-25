@@ -98,6 +98,9 @@
     migrarEsperaPorOrigem();
     migrarEsperaEventoKey();
     seedMissaoJornadaImersao();
+    /* Cria o treinamento que já existia (ligado aos eventos de hoje) antes de
+       desenhar a aba, senão a primeira carga a mostraria vazia. */
+    seedTreinamentoPadrao(function () { loadTreinamentos(); });
     loadInterests();
     loadRepoAdmin();
     loadCadastrados();
@@ -3588,6 +3591,227 @@
         loadInterests();
       });
     });
+  }
+
+  /* ---- Treinamentos ------------------------------------------------------
+     Um treinamento pertence a UM OU MAIS eventos, e quem está inscrita numa
+     turma de qualquer um desses eventos tem acesso a ele. Antes o Treinamento
+     era uma página só, liberada para qualquer pessoa "enrolled" — o que
+     funcionava por acidente, enquanto existia um treinamento só: no dia em que
+     existisse um segundo, quem fez o evento A veria o treinamento do evento B.
+
+     O registro guarda nome e a quais eventos pertence; o conteúdo (afirmações
+     e patentes) vem do catálogo em game-data.js pela chave conteudoKey. */
+  var TREINAMENTOS_LIST = [];
+
+  function conteudosDisponiveis() {
+    var cat = window.faGameConteudos || {};
+    return Object.keys(cat).map(function (k) {
+      return { key: k, nome: (cat[k] && cat[k].NOME) || k };
+    });
+  }
+
+  function loadTreinamentosList(cb) {
+    firebase.database().ref('treinamentos').once('value', function (snap) {
+      var val = snap.val() || {};
+      TREINAMENTOS_LIST = Object.keys(val).map(function (key) {
+        var t = val[key] || {};
+        return {
+          key: key, nome: t.nome || key, conteudoKey: t.conteudoKey || '',
+          eventos: t.eventos || {}, order: t.order || 0
+        };
+      }).sort(function (a, b) { return a.order - b.order; });
+      cb();
+    });
+  }
+
+  /* O treinamento existente nunca esteve no banco: era a página aberta a
+     qualquer pessoa inscrita. Sem esta migração, o deploy tiraria o acesso de
+     todo mundo de uma vez. Ela cria o registro já ligado a TODOS os eventos
+     que existem hoje — preservando exatamente quem enxerga o treinamento
+     agora. Evento criado depois não entra sozinho: é justamente a decisão que
+     passa a ser sua. Roda uma vez; havendo qualquer treinamento, não faz nada. */
+  function seedTreinamentoPadrao(cb) {
+    firebase.database().ref('treinamentos').once('value', function (snap) {
+      if (snap.exists() && Object.keys(snap.val() || {}).length) { cb && cb(); return; }
+      firebase.database().ref('eventos').once('value', function (evSnap) {
+        var eventos = {};
+        Object.keys(evSnap.val() || {}).forEach(function (k) { eventos[k] = true; });
+        var cat = conteudosDisponiveis()[0];
+        firebase.database().ref('treinamentos').push().set({
+          nome: (cat && cat.nome) || 'Treinamento',
+          conteudoKey: (cat && cat.key) || '',
+          eventos: eventos,
+          order: Date.now(),
+          createdAt: new Date().toISOString()
+        }, function () { cb && cb(); });
+      });
+    });
+  }
+
+  function loadTreinamentos() {
+    var c = document.getElementById('adminTreinamentos');
+    if (!c) return;
+    loadEventosList(function () {
+      loadTreinamentosList(function () { renderTreinamentos(c); });
+    });
+  }
+
+  function renderTreinamentos(c) {
+    c.innerHTML = '';
+
+    var btnWrap = document.createElement('div');
+    btnWrap.style.cssText = 'display:flex;gap:8px;flex-wrap:wrap;margin-bottom:20px';
+    var novoBtn = document.createElement('button');
+    novoBtn.className = 'btn btn--sm btn--primary';
+    novoBtn.innerHTML = '+ Novo treinamento';
+    novoBtn.addEventListener('click', function () { openTreinamentoFormModal(null); });
+    btnWrap.appendChild(novoBtn);
+    c.appendChild(btnWrap);
+
+    var intro = document.createElement('p');
+    intro.className = 'admin-empty';
+    intro.style.marginBottom = '18px';
+    intro.textContent = 'Cada treinamento pertence a um ou mais eventos. Quem está inscrita numa turma de qualquer um desses eventos passa a ver esse treinamento — e só ele.';
+    c.appendChild(intro);
+
+    if (!TREINAMENTOS_LIST.length) {
+      c.insertAdjacentHTML('beforeend', '<p class="admin-empty">Nenhum treinamento cadastrado. Clique em "+ Novo treinamento" para criar.</p>');
+      return;
+    }
+
+    TREINAMENTOS_LIST.forEach(function (t) {
+      var evKeys = Object.keys(t.eventos || {}).filter(function (k) { return t.eventos[k]; });
+      var card = document.createElement('div');
+      card.style.cssText = 'border:1px solid var(--line-strong);border-radius:8px;margin-bottom:14px;padding:16px 18px';
+
+      var chips = evKeys.length
+        ? evKeys.map(function (k) {
+            return '<span class="destino-badge destino-turma">' + esc(eventoLabel(k)) + '</span>';
+          }).join(' ')
+        : '<span class="removido-sem-motivo">nenhum evento associado — ninguém vê este treinamento</span>';
+
+      var conteudo = conteudosDisponiveis().filter(function (x) { return x.key === t.conteudoKey; })[0];
+
+      card.innerHTML =
+        '<div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin-bottom:10px">' +
+          '<span style="flex:1;min-width:180px;font-family:var(--font-head);letter-spacing:.05em;color:var(--ink)">' + esc(t.nome) + '</span>' +
+        '</div>' +
+        '<div style="font-size:.8rem;color:var(--ink-2);margin-bottom:8px">Conteúdo: ' +
+          (conteudo ? esc(conteudo.nome) : '<span class="removido-sem-motivo">conteúdo "' + esc(t.conteudoKey) + '" não existe no catálogo</span>') +
+        '</div>' +
+        '<div style="display:flex;gap:6px;flex-wrap:wrap;align-items:center">' + chips + '</div>';
+
+      var acoes = document.createElement('div');
+      acoes.style.cssText = 'display:flex;gap:8px;margin-top:14px;flex-wrap:wrap';
+      var editBtn = document.createElement('button');
+      editBtn.className = 'btn btn--sm';
+      editBtn.style.cssText = 'padding:4px 10px;font-size:.72rem';
+      editBtn.innerHTML = '&#x270E; Editar';
+      editBtn.addEventListener('click', function () { openTreinamentoFormModal(t); });
+      var delBtn = document.createElement('button');
+      delBtn.className = 'btn btn--sm';
+      delBtn.style.cssText = 'padding:4px 10px;font-size:.72rem;border-color:rgba(255,80,80,.5);color:#ff8080';
+      delBtn.textContent = '🗑 Excluir';
+      delBtn.addEventListener('click', function () { excluirTreinamento(t); });
+      acoes.appendChild(editBtn);
+      acoes.appendChild(delBtn);
+      card.appendChild(acoes);
+      c.appendChild(card);
+    });
+  }
+
+  function openTreinamentoFormModal(existing) {
+    var isEdit = !!existing;
+    var overlay = document.createElement('div');
+    overlay.className = 'modal-overlay';
+    overlay.style.cssText = 'display:flex;align-items:center;justify-content:center;z-index:9999';
+
+    var box = document.createElement('div');
+    box.className = 'modal-box';
+    box.style.cssText = 'max-width:480px;width:90%;padding:28px;display:flex;flex-direction:column;gap:16px;max-height:85vh;overflow:auto';
+
+    var conteudoOpts = conteudosDisponiveis().map(function (x) {
+      return '<option value="' + esc(x.key) + '">' + esc(x.nome) + '</option>';
+    }).join('');
+
+    var eventosHtml = EVENTOS_LIST.length
+      ? EVENTOS_LIST.map(function (ev) {
+          return '<label style="display:flex;align-items:center;gap:8px;font-size:.85rem;color:var(--ink-2);cursor:pointer">' +
+            '<input type="checkbox" class="treino-ev" value="' + esc(ev.key) + '" style="cursor:pointer" />' +
+            '<span>' + esc(ev.nome) + '</span></label>';
+        }).join('')
+      : '<p class="admin-empty" style="margin:0">Nenhum evento cadastrado ainda. Crie um evento na aba Eventos primeiro.</p>';
+
+    box.innerHTML =
+      '<h3 style="font-size:1.1rem;font-family:var(--font-head);letter-spacing:.05em;color:var(--ink)">' + (isEdit ? 'Editar Treinamento' : 'Novo Treinamento') + '</h3>' +
+      '<label class="auth-label">Nome do treinamento<input type="text" id="treinoFormNome" placeholder="Ex: Treinamento Jedi" autocomplete="off" /></label>' +
+      '<label class="auth-label">Conteúdo<select id="treinoFormConteudo" style="padding:8px 10px;background:var(--panel-2);border:1px solid var(--line-strong);border-radius:6px;color:var(--ink);font-family:var(--font-body);width:100%">' + conteudoOpts + '</select></label>' +
+      '<p style="font-size:.76rem;color:var(--ink-3);margin:-8px 0 0">O conteúdo (afirmações e patentes) vem do código. Um treinamento com conteúdo novo precisa de um conjunto novo cadastrado lá.</p>' +
+      '<div>' +
+        '<span class="auth-label" style="display:block;margin-bottom:8px">Eventos com acesso a este treinamento</span>' +
+        '<div style="display:flex;flex-direction:column;gap:8px">' + eventosHtml + '</div>' +
+        '<p style="font-size:.76rem;color:var(--ink-3);margin:8px 0 0">Quem está inscrita numa turma de um evento marcado vê este treinamento. Sem nenhum marcado, ninguém vê.</p>' +
+      '</div>' +
+      '<p id="treinoFormErr" style="color:var(--red,#ff3b30);font-size:.85rem;display:none"></p>' +
+      '<div style="display:flex;justify-content:flex-end;gap:8px;margin-top:4px">' +
+        '<button class="btn admin-modal-cancel-btn">Cancelar</button>' +
+        '<button class="btn btn--primary admin-modal-save-btn">' + (isEdit ? 'Salvar' : 'Criar treinamento') + '</button>' +
+      '</div>';
+
+    overlay.appendChild(box);
+    document.body.appendChild(overlay);
+
+    var nomeInput     = box.querySelector('#treinoFormNome');
+    var conteudoSel   = box.querySelector('#treinoFormConteudo');
+    var errEl         = box.querySelector('#treinoFormErr');
+
+    nomeInput.value = isEdit ? existing.nome : '';
+    if (isEdit && existing.conteudoKey) conteudoSel.value = existing.conteudoKey;
+    if (isEdit) {
+      box.querySelectorAll('.treino-ev').forEach(function (cb) {
+        cb.checked = !!(existing.eventos || {})[cb.value];
+      });
+    }
+
+    function closeModal() { document.body.removeChild(overlay); }
+    box.querySelector('.admin-modal-cancel-btn').addEventListener('click', closeModal);
+    overlay.addEventListener('click', function (e) { if (e.target === overlay) closeModal(); });
+
+    box.querySelector('.admin-modal-save-btn').addEventListener('click', function () {
+      var nome = (nomeInput.value || '').trim();
+      errEl.style.display = 'none';
+      if (!nome) { errEl.textContent = 'Dê um nome ao treinamento.'; errEl.style.display = ''; return; }
+
+      var eventos = {};
+      box.querySelectorAll('.treino-ev').forEach(function (cb) { if (cb.checked) eventos[cb.value] = true; });
+
+      var data = { nome: nome, conteudoKey: conteudoSel.value || '', eventos: eventos };
+      var ref = isEdit
+        ? firebase.database().ref('treinamentos/' + existing.key)
+        : firebase.database().ref('treinamentos').push();
+      if (!isEdit) { data.order = Date.now(); data.createdAt = new Date().toISOString(); }
+
+      (isEdit ? ref.update(data, done) : ref.set(data, done));
+      function done(err) {
+        if (err) { errEl.textContent = 'Erro ao salvar. Tente novamente.'; errEl.style.display = ''; return; }
+        closeModal();
+        loadTreinamentos();
+      }
+    });
+  }
+
+  function excluirTreinamento(t) {
+    adminConfirm(
+      'Excluir o treinamento "' + t.nome + '"?\n\n' +
+      'Quem tem acesso a ele pelos eventos associados deixa de vê-lo. O conteúdo em si não é apagado (ele vive no código) e o progresso de quem já respondeu continua guardado.\n\n' +
+      'Essa ação não pode ser desfeita.',
+      function () {
+        firebase.database().ref('treinamentos/' + t.key).remove(function (err) {
+          if (err) { adminAlert('Erro ao excluir. Tente novamente.'); return; }
+          loadTreinamentos();
+        });
+      });
   }
 
   /* ---- Cadastrados (todos que fizeram cadastro) ---- */
