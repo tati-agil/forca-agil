@@ -369,6 +369,9 @@
           '<div class="turmas-evento-grupo" data-evento-key="' + ev.key + '">' +
             '<div class="turmas-evento-titulo">' + ev.nome + '</div>' +
             '<div class="turmas-grid">' + turmasEv.map(function (t) { return turmaCardHtml(t, hoje); }).join('') + '</div>' +
+            /* A Missão deste evento entra aqui, preenchida por
+               renderMissaoEventos logo depois. */
+            '<div class="turmas-evento-missao"></div>' +
           '</div>';
       });
       if (semEvento.length) {
@@ -391,17 +394,23 @@
        "Na vitrine" é a MESMA condição da grade (eventoNaVitrine): tem turma
        ou aceita fila. Sem isso, um evento que aparece só com o card de espera
        ficaria sem uma linha explicando o que ele é — a pessoa veria "entre na
-       fila" de algo que a página não descreve em lugar nenhum. */
+       fila" de algo que a página não descreve em lugar nenhum.
+
+       Cada bloco é escrito DENTRO do grupo do seu evento (.turmas-evento-missao),
+       não num container único no fim da página. Com um evento só dava na mesma;
+       com dois, o antigo formato listava todas as grades e só depois todas as
+       missões, e a missão ficava órfã do evento dela — a pessoa lia "A Missão"
+       sem saber a qual dos eventos acima aquilo se referia. */
     function renderMissaoEventos() {
-      var host = document.querySelector('.turmas-missao-eventos');
-      if (!host) return;
       var porEvento = {};
       _turmasList.forEach(function (t) {
         if (t.eventoKey) (porEvento[t.eventoKey] = porEvento[t.eventoKey] || []).push(t);
       });
 
-      var html = '';
       _eventosList.forEach(function (ev) {
+        var host = document.querySelector('.turmas-evento-grupo[data-evento-key="' + ev.key + '"] .turmas-evento-missao');
+        if (!host) return;
+        var html = '';
         if (!eventoNaVitrine(ev, porEvento)) return;
         var nDias = (ev.itinerario || []).length;
         if (!ev.missaoTexto && !ev.topicos && !nDias) return; /* evento sem conteúdo: nenhum bloco */
@@ -451,8 +460,8 @@
         }
 
         html += '</section>';
+        host.innerHTML = html;
       });
-      host.innerHTML = html;
     }
 
     function initTurmaInterest() {

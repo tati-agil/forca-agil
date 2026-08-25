@@ -450,14 +450,16 @@ body.aguardando-auth>*:not(#authModal){visibility:hidden}
 
     <!-- Turmas — populado dinamicamente por app.js a partir de turmas/ e eventos/
          no Firebase (criados/editados/excluídos pelo admin; ver forca-agil/admin.js).
-         Um grupo por evento (título + grade de cards), na ordem do painel admin. -->
-    <div class="turmas-eventos"></div>
+         Um bloco por evento, na ordem do painel admin, e dentro dele TUDO daquele
+         evento: título, grade de cards (turmas + card de lista de espera) e, ao
+         final, "A Missão" / "Como funciona" / "Plano de Voo" a partir de
+         missaoTitulo/missaoTexto/topicos/itinerario. Evento sem esse conteúdo não
+         ganha bloco vazio.
 
-    <!-- "A Missão" / "Como funciona" / "Plano de Voo" — populado dinamicamente por
-         app.js a partir de eventos/ no Firebase (missaoTitulo, missaoTexto, topicos,
-         itinerario). Um bloco por evento que já tem turma na vitrine e conteúdo
-         preenchido pelo admin; evento sem conteúdo não ganha bloco vazio. -->
-    <div class="turmas-missao-eventos"></div>
+         A Missão já morou num container próprio aqui embaixo, fora do grupo. Com um
+         evento só dava na mesma; com dois, a página listava todas as grades e só
+         depois todas as missões, e cada missão ficava órfã do evento dela. -->
+    <div class="turmas-eventos"></div>
   </div>
   <footer class="footer">
     <div class="footer-inner" style="max-width:var(--maxw);margin:0 auto;padding:0 24px">
