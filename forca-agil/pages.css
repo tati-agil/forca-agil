@@ -88,13 +88,19 @@
   font-size: .76rem; font-family: var(--font-mono);
   color: var(--ink-3); text-transform: uppercase; letter-spacing: .05em;
 }
-.auth-label input {
+/* textarea junto com input: o modal de evento tem dois campos de texto
+   longo (Missão, Tópicos) e, sem isto, eles caíam no padrão do navegador —
+   fundo branco e texto escuro no meio do tema escuro. */
+.auth-label input,
+.auth-label textarea {
   background: var(--space-1); border: 1px solid var(--line-strong);
   color: var(--ink); padding: 10px 14px; border-radius: 6px;
   font-size: .92rem; font-family: var(--font-body);
   transition: border-color .2s; margin-top: 2px;
 }
-.auth-label input:focus { outline: none; border-color: var(--accent); }
+.auth-label input:focus,
+.auth-label textarea:focus { outline: none; border-color: var(--accent); }
+.auth-label textarea::placeholder { color: var(--ink-3); }
 
 .pwd-wrap { position: relative; margin-top: 2px; }
 .pwd-wrap input { width: 100%; padding-right: 42px; box-sizing: border-box; margin-top: 0; }

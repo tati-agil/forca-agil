@@ -1080,7 +1080,7 @@ html:not(.js) .reveal { opacity: 1 !important; transform: none !important; }
   .auth-tabs { margin-bottom: 16px; }
   .auth-panel { gap: 10px; }
   .auth-panel h3 { font-size: 1.2rem; margin-bottom: 0; }
-  .auth-label input { padding: 8px 12px; }
+  .auth-label input, .auth-label textarea { padding: 8px 12px; }
   .checkbox-row { font-size: .8rem; }
 }
 .modal-close { position:absolute; top:14px; right:16px; background:none; border:none; color:var(--ink-3); cursor:pointer; font-size:1.3rem; line-height:1; padding:4px 8px; }
