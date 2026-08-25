@@ -35,3 +35,15 @@ Deploys are driven entirely by GitHub Actions (`.github/workflows/`), using `fir
 - push to `v3-quiz` → `firebase-preview-v3.yml` deploys to preview channel `v3quiz` and commits the resulting preview URL into `PREVIEW_URL_V3.txt`.
 
 `database.rules.json` (RTDB security rules) deploys alongside hosting on `main`.
+
+## Working agreements
+
+**Abrir PR não precisa de permissão.** A dona do repositório autorizou de forma
+permanente: ao terminar uma mudança, faça commit, dê push no branch de trabalho
+e **abra o PR direto**, sem perguntar antes. Não fique esperando um "sim" a cada
+vez. O merge continua sendo dela — abrir o PR é o fim do seu trabalho, não um
+pedido de autorização.
+
+Se o PR anterior desse branch já foi mergeado, os commits novos precisam de um
+PR novo — mergeado é mergeado, não dá para reaproveitar. Abra o novo PR do
+mesmo jeito, sem perguntar.

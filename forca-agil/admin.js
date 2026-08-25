@@ -143,21 +143,28 @@
     });
   }
 
-  /* A fila passou a ter dono: eventoKey. Duas formas de descobrir qual, nesta
-     ordem:
+  /* Preenche o eventoKey que falta em registros ANTIGOS da fila. Não é uma
+     regra permanente do sistema: daqui em diante ninguém entra na fila sem
+     evento, porque o card de espera é de UM evento e a pessoa escolhe em
+     qual entrar (renderEsperaCard em app.js). O sistema não adivinha nada —
+     quem entra, diz.
 
-     1. Pela turma de origem. Registro migrado de uma turma
-        (fa-espera/<eKey>/<turmaKey>) descobre o evento sozinho — a turma já
-        sabe o dela, em turmas/<turmaKey>/eventoKey. É a fonte mais precisa e
-        vale sempre.
+     O que sobrou para consertar é dado de antes disso existir, e vem de dois
+     lugares:
 
-     2. Pelo único evento que existe. Registro entrado direto pelo card do
-        site (origem "lista", de antes desta separação existir) não declara
-        evento nenhum. Enquanto o sistema tiver UM evento só, não há dúvida
-        possível: toda a fila é dele. Esta regra se desliga sozinha no dia em
-        que existir um segundo evento — aí adivinhar seria chute, e o que
-        sobrar sem dono continua aparecendo à parte no painel, para o admin
-        mover à mão.
+     1. Migrado de uma turma (fa-espera/<eKey>/<turmaKey>): a turma já sabe o
+        evento dela, em turmas/<turmaKey>/eventoKey. Basta copiar.
+
+     2. Entrado direto pelo card do site, quando o card ainda era um só e não
+        perguntava o evento. Esses são todos do único evento que chegou a ter
+        turma — nenhum outro teve fila para alguém entrar. Por isso a conta é
+        de eventos COM TURMA, e não de eventos: um evento cadastrado e ainda
+        vazio não muda nada aqui, e não pode fazer estes registros voltarem
+        para o limbo.
+
+     Se algum dia dois eventos tiverem turma E ainda houver registro sem
+     dono, esta função não escolhe por conta própria: deixa como está, na
+     seção "sem evento" do painel, para o admin resolver.
 
      Roda a cada carga do painel e só grava o que ainda falta — idempotente. */
   function migrarEsperaEventoKey() {
@@ -166,9 +173,15 @@
       firebase.database().ref('turmas').once('value', function (tSnap) {
         var turmasVal = tSnap.val() || {};
         firebase.database().ref('eventos').once('value', function (evSnap) {
-          var evKeys = Object.keys(evSnap.val() || {});
-          /* Só um evento: dá para adotar as órfãs sem inventar nada. */
-          var evUnico = evKeys.length === 1 ? evKeys[0] : '';
+          var eventosVal = evSnap.val() || {};
+          /* Evento sem turma nunca teve card de espera, então nunca teve fila:
+             fica fora da conta de "quem poderia ser o dono destas órfãs". */
+          var comTurma = [];
+          Object.keys(turmasVal).forEach(function (tk) {
+            var ek = turmasVal[tk] && turmasVal[tk].eventoKey;
+            if (ek && eventosVal[ek] && comTurma.indexOf(ek) === -1) comTurma.push(ek);
+          });
+          var evUnico = comTurma.length === 1 ? comTurma[0] : '';
           var updates = {};
           Object.keys(esp).forEach(function (eKey) {
             var pessoa = esp[eKey];
@@ -3101,9 +3114,10 @@
      tem eventoKey — registro de antes desta mudança, entrado direto pelo
      card do site, sem dizer para qual evento — cai numa seção à parte,
      abaixo de todos os eventos: não dá para adivinhar, e não pode sumir.
-     Com um evento só isso não acontece: a migração adota essas entradas
-     (ver migrarEsperaEventoKey), então esta seção fica vazia até existir um
-     segundo evento e uma entrada nova nascer sem dono. */
+     Enquanto só um evento tiver turma isso não acontece: a migração
+     adota essas entradas (ver migrarEsperaEventoKey), então esta seção fica
+     vazia até um segundo evento ganhar turma e uma entrada nova nascer sem
+     dono. */
   function renderEsperaTudo(dataEspera, turmasVal, cfgVal, interesse) {
     document.querySelectorAll('.ev-espera-section').forEach(function (el) { el.remove(); });
 
@@ -3129,7 +3143,7 @@
       c.appendChild(hdrOrf);
       var descOrf = document.createElement('p');
       descOrf.className = 'admin-empty';
-      descOrf.textContent = 'Registros entrados direto pelo card do site sem dizer para qual evento, num momento em que havia mais de um evento no ar. Não dá para adivinhar — mova para a turma certa manualmente.';
+      descOrf.textContent = 'Registros entrados direto pelo card do site sem dizer para qual evento, num momento em que havia mais de um evento com turma aberta. Não dá para adivinhar — mova para a turma certa manualmente.';
       c.appendChild(descOrf);
       c.appendChild(buildEsperaBlock(orfaos, turmasVal, cfgVal, interesse, null));
     }
