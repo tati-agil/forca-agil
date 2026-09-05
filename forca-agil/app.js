@@ -230,8 +230,19 @@
        já foi confirmado como inscrito (não existe mais um card único de
        "turma confirmada" substituindo o grid inteiro). */
     var _turmasList  = []; // [{ key, label, dias, cmflexLink, finalizada, eventoKey }]
-    var _eventosList = []; // [{ key, nome, order, cargaHoraria, missaoTitulo, missaoTexto, topicos, itinerario, esperaAtiva, publicado, restritoADiretores }]
+    var _eventosList = []; // [{ key, nome, order, cargaHoraria, missaoTitulo, missaoTexto, topicos, itinerario, esperaAtiva, publicado, restritoADiretores, formato }]
     var _sess        = null; // sessão atual, usada por eventoNaVitrine para decidir eventos restritos
+
+    /* Formato dos encontros do evento (eventos/<evento>/formato) — usado no
+       chip "dia(s) de encontro(s)" do bloco "Como funciona". "hibrido" é os
+       DOIS formatos ao mesmo tempo (parte presencial, parte pelo Teams no
+       mesmo encontro), não dias alternados. Ausente/valor desconhecido cai
+       em "presencial", o comportamento de sempre. */
+    var FORMATO_TXT = {
+      presencial: { singular: 'presencial', plural: 'presenciais' },
+      remoto:     { singular: 'pelo Teams', plural: 'pelo Teams' },
+      hibrido:    { singular: 'presencial e pelo Teams', plural: 'presenciais e pelo Teams' }
+    };
 
     function loadTurmas(cb) {
       var db = firebase.database();
@@ -257,7 +268,8 @@
                    (ver renderMissaoEventos), então evento antigo sem esses
                    campos continua mostrando exatamente o que sempre mostrou. */
                 modalidadeLabel: e.modalidadeLabel || '', modalidadeDesc: e.modalidadeDesc || '',
-                publicoLabel: e.publicoLabel || '', publicoDesc: e.publicoDesc || ''
+                publicoLabel: e.publicoLabel || '', publicoDesc: e.publicoDesc || '',
+                formato: e.formato || 'presencial'
               };
             }).sort(function (a, b) { return a.order - b.order; });
             _turmasList = Object.keys(val).map(function (key) {
@@ -472,10 +484,13 @@
           if (nDias) {
             /* "1 dia de encontro presencial" (singular) vs "N dias de encontros
                presenciais" — antes só o "dia/dias" concordava, deixando frases
-               como "1 dia de encontros presenciais". */
+               como "1 dia de encontros presenciais". Formato (presencial,
+               remoto pelo Teams ou híbrido — os dois ao mesmo tempo) também
+               era fixo em "presencial", errado pra evento que não é assim. */
+            var fmt = FORMATO_TXT[ev.formato] || FORMATO_TXT.presencial;
             var diasLabel = nDias === 1
-              ? 'dia de encontro<br>presencial'
-              : 'dias de encontros<br>presenciais';
+              ? 'dia de encontro<br>' + fmt.singular
+              : 'dias de encontros<br>' + fmt.plural;
             html += '<div class="ofinfo-item"><span class="ofinfo-num">' + nDias + '</span><span class="ofinfo-label">' + diasLabel + '</span></div>';
           }
           if (horasPorDia) {

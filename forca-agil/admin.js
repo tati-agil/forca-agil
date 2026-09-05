@@ -319,7 +319,8 @@
           publicado: e.publicado !== false,
           restritoADiretores: !!e.restritoADiretores,
           modalidadeLabel: e.modalidadeLabel || '', modalidadeDesc: e.modalidadeDesc || '',
-          publicoLabel: e.publicoLabel || '', publicoDesc: e.publicoDesc || ''
+          publicoLabel: e.publicoLabel || '', publicoDesc: e.publicoDesc || '',
+          formato: e.formato || 'presencial'
         };
       }).sort(function (a, b) { return a.order - b.order; });
       cb();
@@ -2388,6 +2389,11 @@
       '<label class="auth-label">Missão (título curto)<input type="text" id="eventoFormMissaoTitulo" placeholder="Ex: Oficina de Agilidade Organizacional" autocomplete="off" /></label>' +
       '<label class="auth-label">Missão (texto)<textarea id="eventoFormMissaoTexto" rows="2" placeholder="Ex: Eficiência com foco no futuro: trabalhar de forma mais simples, colaborativa e com propósito..." style="resize:vertical;font-family:var(--font-body)"></textarea></label>' +
       '<label class="auth-label">Tópicos abordados<textarea id="eventoFormTopicos" rows="2" placeholder="Ex: Serão abordados: fundamentos ágeis, OKR, Scrum..." style="resize:vertical;font-family:var(--font-body)"></textarea></label>' +
+      '<label class="auth-label">Formato dos encontros<select id="eventoFormFormato" style="padding:8px 10px;background:var(--panel-2);border:1px solid var(--line-strong);border-radius:6px;color:var(--ink);font-family:var(--font-body);width:100%">' +
+        '<option value="presencial">Presencial</option>' +
+        '<option value="remoto">Remoto (Teams)</option>' +
+        '<option value="hibrido">Híbrido (presencial e Teams, ao mesmo tempo)</option>' +
+      '</select></label>' +
       '<div>' +
         '<span class="auth-label" style="display:block;margin-bottom:8px">Itinerário — jornada dia a dia</span>' +
         '<div id="eventoItinerarioList" style="display:flex;flex-direction:column;gap:8px;"></div>' +
@@ -2420,6 +2426,7 @@
     var esperaInput       = box.querySelector('#eventoFormEspera');
     var publicadoInput    = box.querySelector('#eventoFormPublicado');
     var restritoInput     = box.querySelector('#eventoFormRestritoDiretores');
+    var formatoInput      = box.querySelector('#eventoFormFormato');
     var modalidadeLabelInput = box.querySelector('#eventoFormModalidadeLabel');
     var modalidadeDescInput  = box.querySelector('#eventoFormModalidadeDesc');
     var publicoLabelInput    = box.querySelector('#eventoFormPublicoLabel');
@@ -2438,6 +2445,7 @@
     esperaInput.checked     = isEdit ? existing.esperaAtiva !== false : true;
     publicadoInput.checked  = isEdit ? existing.publicado !== false : true;
     restritoInput.checked   = isEdit ? !!existing.restritoADiretores : false;
+    formatoInput.value      = isEdit ? (existing.formato || 'presencial') : 'presencial';
     modalidadeLabelInput.value = isEdit ? (existing.modalidadeLabel || '') : '';
     modalidadeDescInput.value  = isEdit ? (existing.modalidadeDesc  || '') : '';
     publicoLabelInput.value    = isEdit ? (existing.publicoLabel    || '') : '';
@@ -2493,6 +2501,7 @@
         esperaAtiva: !!esperaInput.checked,
         publicado: !!publicadoInput.checked,
         restritoADiretores: !!restritoInput.checked,
+        formato: formatoInput.value || 'presencial',
         modalidadeLabel: (modalidadeLabelInput.value || '').trim(),
         modalidadeDesc: (modalidadeDescInput.value || '').trim(),
         publicoLabel: (publicoLabelInput.value || '').trim(),
