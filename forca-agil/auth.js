@@ -422,6 +422,32 @@
     const loginErr = document.getElementById('loginErr');
     const regErr   = document.getElementById('registerErr');
 
+    /* Todo login é @previ.com.br — preenche o domínio ao focar um campo
+       vazio, com o cursor antes do @, pra só faltar digitar o nome. Não
+       mexe se já tiver valor (autopreenchimento do navegador continua
+       funcionando normal) e limpa antes de colar, pra "@previ.com.br"
+       não virar prefixo de um e-mail colado (ex: de outro domínio). Some
+       de novo no blur se ninguém digitou nada, pra não sobrar um e-mail
+       inválido escondido atrás do placeholder. */
+    function autoPreviDominio(input) {
+      if (!input) return;
+      input.addEventListener('focus', function () {
+        if (input.value === '') {
+          input.value = '@previ.com.br';
+          input.setSelectionRange(0, 0);
+        }
+      });
+      input.addEventListener('paste', function () {
+        if (input.value === '@previ.com.br') input.value = '';
+      });
+      input.addEventListener('blur', function () {
+        if (input.value === '@previ.com.br') input.value = '';
+      });
+    }
+    ['loginEmail', 'regEmail', 'forgotEmail'].forEach(function (id) {
+      autoPreviDominio(document.getElementById(id));
+    });
+
     function openModal(tab) {
       if (!modal) return;
       modal.hidden = false;
