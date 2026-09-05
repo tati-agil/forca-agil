@@ -8,6 +8,7 @@
   const ADMIN     = ['tatianefdirene@previ.com.br', 'danielfrazao@previ.com.br'];
   let _dbAdmins = [];
   let _dbDiretores = [];
+  let _dbFacilitadores = [];
   let _session  = null;  // cache em memória — fonte de verdade: Firebase Auth
   let _authReady = false;
   let _accessLevel = 'member'; // 'member' | 'enrolled' (guest removido — login obrigatório)
@@ -38,6 +39,13 @@
      evento marcado "restritoADiretores" na página Turmas. */
   function isDiretor(e) {
     return _dbDiretores.indexOf((e || '').toLowerCase()) !== -1;
+  }
+  /* Facilitador é o mesmo tipo de perfil que diretor — baixo custo,
+     gerenciado no painel (aba Facilitadores), não altera nível de acesso
+     nem regras de conteúdos/treinamento. Dá acesso à página #facilitador
+     (ver router.js), junto com admin. */
+  function isFacilitador(e) {
+    return _dbFacilitadores.indexOf((e || '').toLowerCase()) !== -1;
   }
   function getSession() { return _session; }
   /* Admin tem acesso a tudo, mesmo sem estar pessoalmente inscrito numa turma —
@@ -144,6 +152,27 @@
       const data = snap.val();
       _dbDiretores = data ? [(data.email || user.email).toLowerCase()] : [];
       window.dispatchEvent(new CustomEvent('fa-diretor-ready'));
+    });
+  });
+
+  /* ---- Verifica se o usuário logado é facilitador (lê só o próprio registro) ----
+     Mesmo padrão do diretor acima, e mesma corrida em aberto que já existe
+     pro admin: se a pessoa abrir #facilitador direto (F5, link salvo) antes
+     desta leitura terminar, router.js não sabe ainda que ela tem acesso e
+     manda pra #home — igual já acontecia pra admin cadastrado via painel
+     (não os dois fixos), então não é regressão, só o mesmo limite herdado.
+     Chama updateNavState() ao resolver, pra revelar o link do menu assim
+     que souber que a pessoa é facilitadora, e dispara fa-facilitador-ready
+     caso outro código queira reagir no futuro (mesmo padrão de
+     fa-diretor-ready, hoje sem nenhum listener próprio). */
+  firebase.auth().onAuthStateChanged(function (user) {
+    if (_criandoConta) return;
+    if (!user) { _dbFacilitadores = []; return; }
+    firebase.database().ref('fa-facilitadores/' + emailKey(user.email)).once('value', function (snap) {
+      const data = snap.val();
+      _dbFacilitadores = data ? [(data.email || user.email).toLowerCase()] : [];
+      window.dispatchEvent(new CustomEvent('fa-facilitador-ready'));
+      updateNavState();
     });
   });
 
@@ -421,6 +450,9 @@
     });
     document.querySelectorAll('.nav-link-enrolled').forEach(function (el) {
       el.hidden = (level !== 'enrolled');
+    });
+    document.querySelectorAll('.nav-link-facilitador').forEach(function (el) {
+      el.hidden = !sess || !(isAdmin(sess.email) || isFacilitador(sess.email));
     });
   }
 
@@ -738,7 +770,7 @@
   });
 
   window.faAuth = {
-    getSession: getSession, isAdmin: isAdmin, isDiretor: isDiretor, isPrevi: isPrevi,
+    getSession: getSession, isAdmin: isAdmin, isDiretor: isDiretor, isFacilitador: isFacilitador, isPrevi: isPrevi,
     register: register, login: login,
     logout: logout, sendPasswordReset: sendPasswordReset,
     getAccessLevel: getAccessLevel,
