@@ -244,6 +244,20 @@
       hibrido:    { singular: 'presencial e pelo Teams', plural: 'presenciais e pelo Teams' }
     };
 
+    /* Quem participa do evento (eventos/<evento>/publicoDesc) — chip do bloco
+       "Como funciona". O admin escolhe só a categoria (ver eventoFormPublicoDesc
+       em admin.js); a frase "aberta a ... da Previ" é montada aqui, uma vez só,
+       pra nunca ficar em desacordo do padrão. "Quadro próprio" concorda no
+       singular ("todo o"), as demais no plural ("todos os"). Categoria
+       desconhecida ou vazia cai em "empregados", o texto de sempre. */
+    var PUBLICO_TXT = {
+      '':               'aberta a todos os<br>empregados da Previ',
+      'Diretores':      'aberta a todos os<br>Diretores da Previ',
+      'Executivos':     'aberta a todos os<br>Executivos da Previ',
+      'Cedidos':        'aberta a todos os<br>Cedidos da Previ',
+      'Quadro próprio': 'aberta a todo o<br>Quadro próprio da Previ'
+    };
+
     function loadTurmas(cb) {
       var db = firebase.database();
       db.ref('turmas').once('value', function (snap) {
@@ -509,7 +523,7 @@
           var modalidadeLabel = ev.modalidadeLabel || 'Prática';
           var modalidadeDesc  = ev.modalidadeDesc  || 'dinâmicas, jogos e<br>exercícios em grupo';
           var publicoLabel    = ev.publicoLabel    || 'Opcional';
-          var publicoDesc     = ev.publicoDesc     || 'aberta a todos os<br>empregados da Previ';
+          var publicoDesc     = PUBLICO_TXT[ev.publicoDesc] || PUBLICO_TXT[''];
           html += '<div class="ofinfo-item"><span class="ofinfo-num">' + modalidadeLabel + '</span><span class="ofinfo-label">' + modalidadeDesc + '</span></div>' +
             '<div class="ofinfo-item"><span class="ofinfo-num">' + publicoLabel + '</span><span class="ofinfo-label">' + publicoDesc + '</span></div>' +
             '</div>';
