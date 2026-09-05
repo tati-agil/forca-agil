@@ -7,6 +7,7 @@
 
   const ADMIN     = ['tatianefdirene@previ.com.br', 'danielfrazao@previ.com.br'];
   let _dbAdmins = [];
+  let _dbDiretores = [];
   let _session  = null;  // cache em memória — fonte de verdade: Firebase Auth
   let _authReady = false;
   let _accessLevel = 'member'; // 'member' | 'enrolled' (guest removido — login obrigatório)
@@ -19,6 +20,13 @@
   function isAdmin(e) {
     const em = (e || '').toLowerCase();
     return ADMIN.indexOf(em) !== -1 || _dbAdmins.indexOf(em) !== -1;
+  }
+  /* Diretor é um perfil de baixo custo, gerenciado no painel (aba Diretores) —
+     não altera nível de acesso (member/enrolled) nem passa pelas regras de
+     conteúdos/treinamento. Serve só para decidir se a pessoa enxerga um
+     evento marcado "restritoADiretores" na página Turmas. */
+  function isDiretor(e) {
+    return _dbDiretores.indexOf((e || '').toLowerCase()) !== -1;
   }
   function getSession() { return _session; }
   /* Admin tem acesso a tudo, mesmo sem estar pessoalmente inscrito numa turma —
@@ -109,6 +117,20 @@
       const data = snap.val();
       _dbAdmins = data ? [(data.email || user.email).toLowerCase()] : [];
       updateNavState();
+    });
+  });
+
+  /* ---- Verifica se o usuário logado é diretor (lê só o próprio registro) ----
+     Roda em paralelo à checagem de admin, e não bloqueia nada: enquanto não
+     resolve, isDiretor() responde false (evento restrito fica invisível até
+     confirmar o contrário). Ao resolver, dispara fa-diretor-ready para quem
+     já tiver renderizado a página Turmas antes disso re-render. */
+  firebase.auth().onAuthStateChanged(function (user) {
+    if (!user) { _dbDiretores = []; return; }
+    firebase.database().ref('fa-diretores/' + emailKey(user.email)).once('value', function (snap) {
+      const data = snap.val();
+      _dbDiretores = data ? [(data.email || user.email).toLowerCase()] : [];
+      window.dispatchEvent(new CustomEvent('fa-diretor-ready'));
     });
   });
 
@@ -674,7 +696,7 @@
   });
 
   window.faAuth = {
-    getSession: getSession, isAdmin: isAdmin, isPrevi: isPrevi,
+    getSession: getSession, isAdmin: isAdmin, isDiretor: isDiretor, isPrevi: isPrevi,
     register: register, login: login,
     logout: logout, sendPasswordReset: sendPasswordReset,
     getAccessLevel: getAccessLevel,
