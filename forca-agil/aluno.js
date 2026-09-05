@@ -226,7 +226,23 @@
      turma onde o convite tem efeito. Não basta "não encerrada": uma turma
      com o interesse já encerrado pelo admin (finalizada) está lotada, e
      uma que já começou não aceita mais entrada. */
-  function turmasAbertas(d) {
+  /* Mesma regra de eventoNaVitrine (app.js): publicado===false nunca
+     aparece (some da vitrine pra todo mundo), e evento restrito a
+     diretores só aparece pra quem é admin ou diretor. Sem isso, este
+     card de "Bem-vindo" vazava eventos fora do ar e turmas restritas a
+     diretores pra qualquer pessoa logada — a página Turmas já escondia
+     certo, só esta prévia na Minha Área não conferia. Usa o e-mail de
+     quem está vendo a tela: o real, ou o do "ver como" quando um admin
+     está simulando a visão de outra pessoa — é o que "ver como" promete. */
+  function eventoVisivelPara(ev, email) {
+    if (ev.publicado === false) return false;
+    if (ev.restritoADiretores) {
+      return !!(email && window.faAuth && (window.faAuth.isAdmin(email) || window.faAuth.isDiretor(email)));
+    }
+    return true;
+  }
+
+  function turmasAbertas(d, email) {
     var hoje = todayISO();
     return Object.keys(d.turmas).map(function (tk) {
       var turma = d.turmas[tk] || {};
@@ -243,7 +259,7 @@
         evento: turma.eventoKey ? (d.eventos[turma.eventoKey] || {}) : {},
       };
     }).filter(function (t) {
-      return !t.encerrada && !t.interesseEncerrado && !t.jaComecou;
+      return !t.encerrada && !t.interesseEncerrado && !t.jaComecou && eventoVisivelPara(t.evento, email);
     }).sort(function (a, b) { return (a.inicio || '').localeCompare(b.inicio || ''); });
   }
 
@@ -420,7 +436,7 @@
     /* Nada em nenhum dos três estados acima: a pessoa nunca interagiu.
        Em vez de uma frase de "nada aqui", mostra por onde começar. */
     if (!turmas.length && !pendentes.length && !espera) {
-      var abertas = turmasAbertas(d);
+      var abertas = turmasAbertas(d, email);
       html += '<h3 class="aluno-sec-title">Bem-vindo!</h3>';
       html += '<div class="aluno-card aluno-card--info">' +
         '<p class="aluno-info-msg">👋 Esta é a sua área. Assim que você participar de uma turma, é aqui que ficam sua frequência, seu certificado e suas avaliações.</p>';
