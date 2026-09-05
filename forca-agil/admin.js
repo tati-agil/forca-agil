@@ -2399,7 +2399,7 @@
         '<div id="eventoItinerarioList" style="display:flex;flex-direction:column;gap:8px;"></div>' +
         '<button type="button" class="btn btn--sm" id="eventoAddDiaBtn" style="margin-top:8px">+ Adicionar dia</button>' +
       '</div>' +
-      '<p style="font-size:.78rem;color:var(--ink-2);margin:8px 0 0">Os dois últimos chips do bloco "Como funciona" (abaixo do itinerário, na página Turmas). O chip curto (topo, grande) é uma lista fechada, pra não ter "Híbrido"/"hibrido" escrito diferente em cada evento — "— usar padrão —" mantém o texto de sempre. A descrição embaixo dele continua texto livre — é ali que entra QUEM participa (ex: "diretores e administradores", "todos os empregados da Previ"); é importante revisar num evento restrito a diretores, porque o padrão diz "aberta a todos os empregados da Previ".</p>' +
+      '<p style="font-size:.78rem;color:var(--ink-2);margin:8px 0 0">Os dois últimos chips do bloco "Como funciona" (abaixo do itinerário, na página Turmas). Os quatro campos são listas fechadas, pra não ter "Híbrido"/"hibrido" escrito diferente em cada evento — "— usar padrão —" mantém o texto de sempre.</p>' +
       '<div style="display:flex;gap:10px;flex-wrap:wrap">' +
         '<label class="auth-label" style="flex:1;min-width:140px">Modalidade (chip curto)<select id="eventoFormModalidadeLabel" style="padding:8px 10px;background:var(--panel-2);border:1px solid var(--line-strong);border-radius:6px;color:var(--ink);font-family:var(--font-body);width:100%">' +
           '<option value="">— usar padrão (Prática) —</option>' +
@@ -2415,7 +2415,13 @@
           '<option value="Opcional">Opcional</option>' +
           '<option value="Obrigatória">Obrigatória</option>' +
         '</select></label>' +
-        '<label class="auth-label" style="flex:2;min-width:220px">Público-alvo — quem participa (descrição)<input type="text" id="eventoFormPublicoDesc" placeholder="aberta a todos os empregados da Previ" autocomplete="off" /></label>' +
+        '<label class="auth-label" style="flex:2;min-width:220px">Quem participa (descrição)<select id="eventoFormPublicoDesc" style="padding:8px 10px;background:var(--panel-2);border:1px solid var(--line-strong);border-radius:6px;color:var(--ink);font-family:var(--font-body);width:100%">' +
+          '<option value="">— usar padrão (todos os empregados da Previ) —</option>' +
+          '<option value="Diretores">Diretores</option>' +
+          '<option value="Executivos">Executivos</option>' +
+          '<option value="Cedidos">Cedidos</option>' +
+          '<option value="Quadro próprio">Quadro próprio</option>' +
+        '</select></label>' +
       '</div>' +
       '<p id="eventoFormErr" style="color:var(--red,#ff3b30);font-size:.85rem;display:none"></p>' +
       '<div style="display:flex;justify-content:flex-end;gap:8px;margin-top:4px">' +
