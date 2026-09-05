@@ -11,6 +11,17 @@
   let _session  = null;  // cache em memória — fonte de verdade: Firebase Auth
   let _authReady = false;
   let _accessLevel = 'member'; // 'member' | 'enrolled' (guest removido — login obrigatório)
+  /* criarContaPorAdmin faz login como a conta nova (efeito colateral do
+     createUserWithEmailAndPassword) e depois desloga e loga de volta como
+     admin — três trocas de usuário do Firebase Auth em sequência, nenhuma
+     delas uma sessão real. Sem essa trava, os dois onAuthStateChanged
+     abaixo processavam cada uma como se fosse de verdade: a troca para
+     null no meio disparava fa-auth-change com detail null, e o listener
+     do router (fa-auth-change → forcarLogin) abria o modal de login por
+     cima do painel admin, fechando sozinho segundos depois quando o login
+     de volta como admin terminava — a sessão de admin nunca mudou de
+     verdade, só um efeito colateral visível de implementação. */
+  let _criandoConta = false;
 
   /* ---- Helpers ---- */
   function emailKey(e) {
@@ -112,6 +123,7 @@
 
   /* ---- Verifica se o usuário logado é admin (lê só o próprio registro) ---- */
   firebase.auth().onAuthStateChanged(function (user) {
+    if (_criandoConta) return;
     if (!user) { _dbAdmins = []; return; }
     firebase.database().ref('fa-admins/' + emailKey(user.email)).once('value', function (snap) {
       const data = snap.val();
@@ -126,6 +138,7 @@
      confirmar o contrário). Ao resolver, dispara fa-diretor-ready para quem
      já tiver renderizado a página Turmas antes disso re-render. */
   firebase.auth().onAuthStateChanged(function (user) {
+    if (_criandoConta) return;
     if (!user) { _dbDiretores = []; return; }
     firebase.database().ref('fa-diretores/' + emailKey(user.email)).once('value', function (snap) {
       const data = snap.val();
@@ -136,6 +149,7 @@
 
   /* ---- Firebase Auth — fonte de verdade de sessão ---- */
   firebase.auth().onAuthStateChanged(function (user) {
+    if (_criandoConta) return;
     if (user) {
       /* Esta leitura não tinha tratamento de erro: se o banco não responde
          (rede bloqueando o domínio, proxy, 4G ruim), o callback nunca é
@@ -296,6 +310,7 @@
     if (!adminPwd)       return cb({ error: 'Confirme sua senha de admin.' });
     if (!adminSess)      return cb({ error: 'Sessão admin não encontrada.' });
 
+    _criandoConta = true;
     firebase.auth().createUserWithEmailAndPassword(email, '12345678')
       .then(function () {
         return firebase.database().ref('fa-users/' + emailKey(email)).set({
@@ -309,8 +324,9 @@
       .then(function () {
         return firebase.auth().signInWithEmailAndPassword(adminSess.email, adminPwd);
       })
-      .then(function () { cb({ success: true }); })
+      .then(function () { _criandoConta = false; cb({ success: true }); })
       .catch(function (err) {
+        _criandoConta = false;
         let msg = 'Erro ao criar conta. Tente novamente.';
         if (err.code === 'auth/email-already-in-use') msg = 'E-mail já cadastrado.';
         if (err.code === 'auth/wrong-password')       msg = 'Senha de admin incorreta.';
