@@ -106,6 +106,7 @@
     loadCadastrados();
     loadAdmins();
     loadDiretores();
+    loadFacilitadores();
     loadSorteios();
     if (window.faInitManual) window.faInitManual();
     if (window.faInitMapa) window.faInitMapa();
@@ -4379,6 +4380,102 @@
       }, function (err) {
         console.error('[admin] erro ao carregar fa-diretores', err);
         c.innerHTML = '<p class="loading-msg" style="color:var(--red)">Erro ao carregar diretores. Recarregue a página ou verifique sua conexão.</p>';
+      });
+    }
+
+    render();
+  }
+
+  /* ---- Facilitadores ----
+     Mesmo padrão de Diretores, pra outro fim: quem estiver aqui (ou for
+     admin) acessa a página #facilitador (ver router.js/auth.js). Qualquer
+     admin pode gerenciar (regra em fa-facilitadores). */
+  function loadFacilitadores() {
+    const c = document.getElementById('adminFacilitadores');
+    if (!c) return;
+
+    function render() {
+      firebase.database().ref('fa-facilitadores').once('value', function (snap) {
+        const data = snap.val() || {};
+        const dbList = Object.values(data).sort(function (a, b) { return (a.name || '').localeCompare(b.name || '', 'pt'); });
+        c.innerHTML = '';
+
+        const info = document.createElement('p');
+        info.className = 'admin-empty';
+        info.style.marginBottom = '20px';
+        info.textContent = 'Quem estiver aqui acessa a página Facilitador (menu, ao lado de Ajuda) — junto com os admins. Não muda mais nada: continua sem acesso ao painel admin.';
+        c.appendChild(info);
+
+        const hdr = document.createElement('h4');
+        hdr.innerHTML = 'Facilitadores <span class="admin-badge">' + dbList.length + '</span>';
+        c.appendChild(hdr);
+
+        if (!dbList.length) {
+          const empty = document.createElement('p');
+          empty.className = 'admin-empty';
+          empty.textContent = 'Nenhum facilitador cadastrado.';
+          c.appendChild(empty);
+        } else {
+          const tbl = document.createElement('table');
+          tbl.className = 'admin-table';
+          tbl.innerHTML = '<thead><tr><th>Nome</th><th>E-mail</th><th>Desde</th><th></th></tr></thead>';
+          const tbody = document.createElement('tbody');
+          dbList.forEach(function (p) {
+            const tr = document.createElement('tr');
+            tr.innerHTML =
+              '<td>' + esc(p.name || '—') + '</td>' +
+              '<td>' + esc(p.email || '—') + '</td>' +
+              '<td>' + fmtDate(p.addedAt) + '</td>' +
+              '<td><button class="admin-del-btn" data-key="' + esc(emailKey(p.email)) + '" data-name="' + esc(p.name || p.email) + '">Remover</button></td>';
+            tbody.appendChild(tr);
+          });
+          tbl.appendChild(tbody);
+          const facTblWrap = document.createElement('div');
+          facTblWrap.className = 'table-scroll-wrap';
+          facTblWrap.appendChild(tbl);
+          c.appendChild(facTblWrap);
+
+          tbody.addEventListener('click', function (e) {
+            const btn = e.target.closest('.admin-del-btn');
+            if (!btn) return;
+            adminConfirm('Remover ' + btn.dataset.name + ' dos facilitadores?', function () {
+              firebase.database().ref('fa-facilitadores/' + btn.dataset.key).remove(function () { render(); });
+            });
+          });
+        }
+
+        const form = document.createElement('div');
+        form.className = 'admin-colab-form';
+        form.innerHTML =
+          '<h4 style="margin-top:32px">Adicionar facilitador</h4>' +
+          '<div class="admin-colab-row">' +
+            '<input id="facilitadorName"  type="text"  placeholder="Nome completo" />' +
+            '<input id="facilitadorEmail" type="email" placeholder="e-mail" />' +
+            '<button class="btn btn--primary" id="facilitadorAddBtn">Adicionar</button>' +
+          '</div>' +
+          '<p id="facilitadorMsg" style="margin-top:8px;font-size:.8rem;color:var(--cyan)"></p>';
+        c.appendChild(form);
+
+        document.getElementById('facilitadorAddBtn').addEventListener('click', function () {
+          const name  = (document.getElementById('facilitadorName').value  || '').trim().toUpperCase();
+          const email = (document.getElementById('facilitadorEmail').value || '').trim().toLowerCase();
+          const msg   = document.getElementById('facilitadorMsg');
+          if (!name || !email) { msg.style.color = 'var(--accent)'; msg.textContent = 'Preencha nome e e-mail.'; return; }
+          if (!/^[^\s@]+@previ\.com\.br$/i.test(email)) { msg.style.color = 'var(--accent)'; msg.textContent = 'Use um e-mail @previ.com.br.'; return; }
+          firebase.database().ref('fa-facilitadores/' + emailKey(email)).set(
+            { email: email, name: name, addedAt: new Date().toISOString() },
+            function (err) {
+              if (err) { msg.style.color = 'var(--accent)'; msg.textContent = 'Erro ao salvar.'; return; }
+              document.getElementById('facilitadorName').value  = '';
+              document.getElementById('facilitadorEmail').value = '';
+              msg.style.color = 'var(--cyan)'; msg.textContent = name + ' adicionado(a) como facilitador(a).';
+              render();
+            }
+          );
+        });
+      }, function (err) {
+        console.error('[admin] erro ao carregar fa-facilitadores', err);
+        c.innerHTML = '<p class="loading-msg" style="color:var(--red)">Erro ao carregar facilitadores. Recarregue a página ou verifique sua conexão.</p>';
       });
     }
 

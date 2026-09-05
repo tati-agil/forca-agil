@@ -4,7 +4,12 @@
 (function () {
   'use strict';
 
-  const PAGES   = ['home','turmas','conteudos','treinamento','repositorio','avaliacao','minha-area','ajuda','admin','checkin'];
+  const PAGES   = ['home','turmas','conteudos','treinamento','repositorio','avaliacao','minha-area','ajuda','admin','facilitador','checkin'];
+
+  /* #facilitador é como #admin — admin OU facilitador, nunca mais ninguém. */
+  function podeVerFacilitador(s) {
+    return !!(s && window.faAuth && (window.faAuth.isAdmin(s.email) || (window.faAuth.isFacilitador && window.faAuth.isFacilitador(s.email))));
+  }
   const inits   = {};
   let current = null;
 
@@ -19,6 +24,11 @@
     if (page === 'admin') {
       const s = window.faAuth && window.faAuth.getSession();
       if (!s || !window.faAuth.isAdmin(s.email)) { location.hash = '#home'; return; }
+    }
+
+    if (page === 'facilitador' && !podeVerFacilitador(window.faAuth && window.faAuth.getSession())) {
+      location.hash = '#home';
+      return;
     }
 
     /* Access control */
@@ -56,6 +66,13 @@
     if (page === 'admin' && window.faAuth && window.faAuth.isAuthReady && window.faAuth.isAuthReady()) {
       const s = window.faAuth.getSession();
       if (!s || !window.faAuth.isAdmin(s.email)) {
+        page = 'home';
+        history.replaceState(null, '', '#home');
+      }
+    }
+
+    if (page === 'facilitador' && window.faAuth && window.faAuth.isAuthReady && window.faAuth.isAuthReady()) {
+      if (!podeVerFacilitador(window.faAuth.getSession())) {
         page = 'home';
         history.replaceState(null, '', '#home');
       }

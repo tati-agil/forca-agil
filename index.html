@@ -240,6 +240,7 @@ body.aguardando-auth>*:not(#authModal){visibility:hidden}
     <a href="#treinamento" data-nav-page="treinamento" class="nav-link-trein" hidden>Treinamento</a>
     <a href="#avaliacao"  data-nav-page="avaliacao"  class="nav-link-aval" hidden>Avaliação</a>
     <a href="#minha-area" data-nav-page="minha-area" class="nav-link-member" hidden>Minha Área</a>
+    <a href="#facilitador" data-nav-page="facilitador" class="nav-link-facilitador" hidden>Facilitador</a>
     <a href="#ajuda"  data-nav-page="ajuda">Ajuda</a>
     <a href="#admin"       data-nav-page="admin" id="navAdmin" hidden>Admin</a>
   </div>
@@ -1251,6 +1252,7 @@ body.aguardando-auth>*:not(#authModal){visibility:hidden}
         <button class="admin-tab-btn" data-panel="adminPanelCadastrados">Cadastrados</button>
         <button class="admin-tab-btn" data-panel="adminPanelAdmins">Administradores</button>
         <button class="admin-tab-btn" data-panel="adminPanelDiretores">Diretores</button>
+        <button class="admin-tab-btn" data-panel="adminPanelFacilitadores">Facilitadores</button>
         <button class="admin-tab-btn" data-panel="adminPanelManual">Manual</button>
         <button class="admin-tab-btn" data-panel="adminPanelMapa">Mapa</button>
         <button class="admin-tab-btn" data-panel="adminPanelTestes">Testes</button>
@@ -1300,6 +1302,12 @@ body.aguardando-auth>*:not(#authModal){visibility:hidden}
       <div class="admin-tab-panel" id="adminPanelDiretores">
         <div id="adminDiretores">
           <p class="loading-msg">Carregando diretores…</p>
+        </div>
+      </div>
+
+      <div class="admin-tab-panel" id="adminPanelFacilitadores">
+        <div id="adminFacilitadores">
+          <p class="loading-msg">Carregando facilitadores…</p>
         </div>
       </div>
 
@@ -1381,6 +1389,24 @@ body.aguardando-auth>*:not(#authModal){visibility:hidden}
     </div>
   </footer>
 </div><!-- /page-admin -->
+
+<!-- ======================================================
+     PAGE: FACILITADOR
+     Visível só para admin e facilitador (ver router.js/auth.js —
+     mesmo padrão de #admin, mas com isFacilitador no lugar de isAdmin).
+     ====================================================== -->
+<div class="page-section" id="page-facilitador" hidden>
+  <div class="wrap">
+    <div class="page-hero">
+      <span class="eyebrow">Área Restrita</span>
+      <h1>Área do Facilitador</h1>
+      <p>Espaço para quem conduz as turmas da Força Ágil. Acessível para administradores e facilitadores.</p>
+    </div>
+    <section class="section">
+      <p style="color:var(--ink-2)">Em construção — o conteúdo desta área ainda será definido.</p>
+    </section>
+  </div>
+</div><!-- /page-facilitador -->
 
 <!-- ======================================================
      PAGE: AJUDA
