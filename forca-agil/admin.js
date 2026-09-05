@@ -3982,6 +3982,10 @@
     c.appendChild(hdr);
 
     /* ---- Criar conta pelo admin ---- */
+    var criarAreaOptions = '<option value="">Selecione…</option>' + AREAS_LIST.map(function (a) {
+      return '<option value="' + a + '">' + a + '</option>';
+    }).join('');
+
     const criarBox = document.createElement('div');
     criarBox.className = 'admin-criar-conta-box';
     criarBox.innerHTML =
@@ -3992,7 +3996,7 @@
       '<div class="admin-field-row">' +
       '<label class="admin-field-label">Nome completo<input type="text" id="criarNome" placeholder="Nome completo" /></label>' +
       '<label class="admin-field-label">E-mail @previ.com.br<input type="email" id="criarEmail" placeholder="nome@previ.com.br" /></label>' +
-      '<label class="admin-field-label">Área / Setor<input type="text" id="criarArea" placeholder="Ex: GETHO" /></label>' +
+      '<label class="admin-field-label">Área / Setor<select id="criarArea" style="padding:8px 10px;background:var(--panel-2);border:1px solid var(--line-strong);border-radius:6px;color:var(--ink);font-family:var(--font-body);width:100%">' + criarAreaOptions + '</select></label>' +
       '<label class="admin-field-label">Sua senha (confirmação)<input type="password" id="criarAdminPwd" placeholder="Sua senha de admin" /></label>' +
       '</div>' +
       '<p class="admin-msg" id="criarMsg" style="margin-top:8px" hidden></p>' +
