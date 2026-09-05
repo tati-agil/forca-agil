@@ -2417,10 +2417,10 @@
         '</select></label>' +
         '<label class="auth-label" style="flex:2;min-width:220px">Quem participa (descrição)<select id="eventoFormPublicoDesc" style="padding:8px 10px;background:var(--panel-2);border:1px solid var(--line-strong);border-radius:6px;color:var(--ink);font-family:var(--font-body);width:100%">' +
           '<option value="">— usar padrão (todos os empregados da Previ) —</option>' +
-          '<option value="Diretores">Diretores</option>' +
-          '<option value="Executivos">Executivos</option>' +
-          '<option value="Cedidos">Cedidos</option>' +
-          '<option value="Quadro próprio">Quadro próprio</option>' +
+          '<option value="aberta a todos os<br>Diretores da Previ">Diretores</option>' +
+          '<option value="aberta a todos os<br>Executivos da Previ">Executivos</option>' +
+          '<option value="aberta a todos os<br>Cedidos da Previ">Cedidos</option>' +
+          '<option value="aberta a todo o<br>Quadro próprio da Previ">Quadro próprio</option>' +
         '</select></label>' +
       '</div>' +
       '<p id="eventoFormErr" style="color:var(--red,#ff3b30);font-size:.85rem;display:none"></p>' +
