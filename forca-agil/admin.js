@@ -317,7 +317,9 @@
              existirem continua como sempre esteve, sem migração. */
           esperaAtiva: e.esperaAtiva !== false,
           publicado: e.publicado !== false,
-          restritoADiretores: !!e.restritoADiretores
+          restritoADiretores: !!e.restritoADiretores,
+          modalidadeLabel: e.modalidadeLabel || '', modalidadeDesc: e.modalidadeDesc || '',
+          publicoLabel: e.publicoLabel || '', publicoDesc: e.publicoDesc || ''
         };
       }).sort(function (a, b) { return a.order - b.order; });
       cb();
@@ -2391,6 +2393,15 @@
         '<div id="eventoItinerarioList" style="display:flex;flex-direction:column;gap:8px;"></div>' +
         '<button type="button" class="btn btn--sm" id="eventoAddDiaBtn" style="margin-top:8px">+ Adicionar dia</button>' +
       '</div>' +
+      '<p style="font-size:.78rem;color:var(--ink-2);margin:8px 0 0">Os dois últimos chips do bloco "Como funciona" (abaixo do itinerário, na página Turmas). Deixe em branco pra manter o texto padrão — importante revisar num evento restrito a diretores, porque o padrão diz "aberta a todos os empregados da Previ".</p>' +
+      '<div style="display:flex;gap:10px;flex-wrap:wrap">' +
+        '<label class="auth-label" style="flex:1;min-width:140px">Modalidade (chip curto)<input type="text" id="eventoFormModalidadeLabel" placeholder="Prática" autocomplete="off" /></label>' +
+        '<label class="auth-label" style="flex:2;min-width:220px">Modalidade (descrição)<input type="text" id="eventoFormModalidadeDesc" placeholder="dinâmicas, jogos e exercícios em grupo" autocomplete="off" /></label>' +
+      '</div>' +
+      '<div style="display:flex;gap:10px;flex-wrap:wrap">' +
+        '<label class="auth-label" style="flex:1;min-width:140px">Público-alvo (chip curto)<input type="text" id="eventoFormPublicoLabel" placeholder="Opcional" autocomplete="off" /></label>' +
+        '<label class="auth-label" style="flex:2;min-width:220px">Público-alvo (descrição)<input type="text" id="eventoFormPublicoDesc" placeholder="aberta a todos os empregados da Previ" autocomplete="off" /></label>' +
+      '</div>' +
       '<p id="eventoFormErr" style="color:var(--red,#ff3b30);font-size:.85rem;display:none"></p>' +
       '<div style="display:flex;justify-content:flex-end;gap:8px;margin-top:4px">' +
         '<button class="btn admin-modal-cancel-btn">Cancelar</button>' +
@@ -2409,6 +2420,10 @@
     var esperaInput       = box.querySelector('#eventoFormEspera');
     var publicadoInput    = box.querySelector('#eventoFormPublicado');
     var restritoInput     = box.querySelector('#eventoFormRestritoDiretores');
+    var modalidadeLabelInput = box.querySelector('#eventoFormModalidadeLabel');
+    var modalidadeDescInput  = box.querySelector('#eventoFormModalidadeDesc');
+    var publicoLabelInput    = box.querySelector('#eventoFormPublicoLabel');
+    var publicoDescInput     = box.querySelector('#eventoFormPublicoDesc');
     var itinerarioList    = box.querySelector('#eventoItinerarioList');
     var errEl             = box.querySelector('#eventoFormErr');
 
@@ -2423,6 +2438,10 @@
     esperaInput.checked     = isEdit ? existing.esperaAtiva !== false : true;
     publicadoInput.checked  = isEdit ? existing.publicado !== false : true;
     restritoInput.checked   = isEdit ? !!existing.restritoADiretores : false;
+    modalidadeLabelInput.value = isEdit ? (existing.modalidadeLabel || '') : '';
+    modalidadeDescInput.value  = isEdit ? (existing.modalidadeDesc  || '') : '';
+    publicoLabelInput.value    = isEdit ? (existing.publicoLabel    || '') : '';
+    publicoDescInput.value     = isEdit ? (existing.publicoDesc     || '') : '';
 
     /* Renumera os rótulos "D1", "D2"... depois de qualquer adição/remoção —
        a ordem é só a posição na lista, sem arrastar/reordenar. */
@@ -2473,7 +2492,11 @@
         itinerario: itinerario,
         esperaAtiva: !!esperaInput.checked,
         publicado: !!publicadoInput.checked,
-        restritoADiretores: !!restritoInput.checked
+        restritoADiretores: !!restritoInput.checked,
+        modalidadeLabel: (modalidadeLabelInput.value || '').trim(),
+        modalidadeDesc: (modalidadeDescInput.value || '').trim(),
+        publicoLabel: (publicoLabelInput.value || '').trim(),
+        publicoDesc: (publicoDescInput.value || '').trim()
       };
       if (isEdit) {
         firebase.database().ref('eventos/' + existing.key).update(eventData, function (err) {

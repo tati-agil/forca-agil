@@ -252,7 +252,12 @@
                    existirem continua como sempre esteve, sem migração. */
                 esperaAtiva: e.esperaAtiva !== false,
                 publicado: e.publicado !== false,
-                restritoADiretores: !!e.restritoADiretores
+                restritoADiretores: !!e.restritoADiretores,
+                /* Chips do bloco "Como funciona" — vazio usa o texto padrão
+                   (ver renderMissaoEventos), então evento antigo sem esses
+                   campos continua mostrando exatamente o que sempre mostrou. */
+                modalidadeLabel: e.modalidadeLabel || '', modalidadeDesc: e.modalidadeDesc || '',
+                publicoLabel: e.publicoLabel || '', publicoDesc: e.publicoDesc || ''
               };
             }).sort(function (a, b) { return a.order - b.order; });
             _turmasList = Object.keys(val).map(function (key) {
@@ -465,15 +470,33 @@
             '<h4 class="sec-title" style="font-size:clamp(1.3rem,3vw,2rem);letter-spacing:.12em">Como funciona</h4>' +
             '<div class="oficina-info-grid">';
           if (nDias) {
-            html += '<div class="ofinfo-item"><span class="ofinfo-num">' + nDias + '</span><span class="ofinfo-label">dia' +
-              (nDias !== 1 ? 's' : '') + ' de encontros<br>presenciais</span></div>';
+            /* "1 dia de encontro presencial" (singular) vs "N dias de encontros
+               presenciais" — antes só o "dia/dias" concordava, deixando frases
+               como "1 dia de encontros presenciais". */
+            var diasLabel = nDias === 1
+              ? 'dia de encontro<br>presencial'
+              : 'dias de encontros<br>presenciais';
+            html += '<div class="ofinfo-item"><span class="ofinfo-num">' + nDias + '</span><span class="ofinfo-label">' + diasLabel + '</span></div>';
           }
           if (horasPorDia) {
+            /* Com um encontro só, "por encontro" sugere que há mais — a frase
+               muda pra deixar claro que é um evento de um dia único. */
+            var horasLabel = nDias === 1
+              ? 'nesse único encontro,<br>no horário do expediente'
+              : 'por encontro,<br>no horário do expediente';
             html += '<div class="ofinfo-item"><span class="ofinfo-num">' + horasPorDia +
-              '</span><span class="ofinfo-label">por encontro,<br>no horário do expediente</span></div>';
+              '</span><span class="ofinfo-label">' + horasLabel + '</span></div>';
           }
-          html += '<div class="ofinfo-item"><span class="ofinfo-num">Prática</span><span class="ofinfo-label">dinâmicas, jogos e<br>exercícios em grupo</span></div>' +
-            '<div class="ofinfo-item"><span class="ofinfo-num">Opcional</span><span class="ofinfo-label">aberta a todos os<br>empregados da Previ</span></div>' +
+          /* Modalidade e público-alvo eram fixos ("Prática"/"aberta a todos os
+             empregados da Previ") — errado pra um evento restrito a diretores
+             (ver restritoADiretores), por exemplo. Agora são texto do evento,
+             com o texto de sempre como valor padrão pra quem não preencheu. */
+          var modalidadeLabel = ev.modalidadeLabel || 'Prática';
+          var modalidadeDesc  = ev.modalidadeDesc  || 'dinâmicas, jogos e<br>exercícios em grupo';
+          var publicoLabel    = ev.publicoLabel    || 'Opcional';
+          var publicoDesc     = ev.publicoDesc     || 'aberta a todos os<br>empregados da Previ';
+          html += '<div class="ofinfo-item"><span class="ofinfo-num">' + modalidadeLabel + '</span><span class="ofinfo-label">' + modalidadeDesc + '</span></div>' +
+            '<div class="ofinfo-item"><span class="ofinfo-num">' + publicoLabel + '</span><span class="ofinfo-label">' + publicoDesc + '</span></div>' +
             '</div>';
           if (ev.topicos) html += '<p class="ofinfo-desc">' + ev.topicos + '</p>';
           html += '</div>';
