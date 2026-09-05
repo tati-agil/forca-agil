@@ -34,6 +34,14 @@
       }
     },
 
+    "fa-diretores": {
+      ".read": "auth != null && auth.token.email.matches(/.*@previ\\.com\\.br/)",
+      "$userKey": {
+        ".read": "auth != null && auth.token.email.matches(/.*@previ\\.com\\.br/)",
+        ".write": "auth != null && (auth.token.email === 'tatianefdirene@previ.com.br' || auth.token.email === 'danielfrazao@previ.com.br' || root.child('fa-admins').child(auth.token.email.replace('@','_').replace('.','_')).exists())"
+      }
+    },
+
     "eventos": {
       ".read": "auth != null && auth.token.email.matches(/.*@previ\\.com\\.br/)",
       "$eventoKey": {

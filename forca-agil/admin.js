@@ -105,6 +105,7 @@
     loadRepoAdmin();
     loadCadastrados();
     loadAdmins();
+    loadDiretores();
     loadSorteios();
     if (window.faInitManual) window.faInitManual();
     if (window.faInitMapa) window.faInitMapa();
@@ -315,7 +316,8 @@
           /* Ausente = ligada/publicado. Evento criado antes destes controles
              existirem continua como sempre esteve, sem migração. */
           esperaAtiva: e.esperaAtiva !== false,
-          publicado: e.publicado !== false
+          publicado: e.publicado !== false,
+          restritoADiretores: !!e.restritoADiretores
         };
       }).sort(function (a, b) { return a.order - b.order; });
       cb();
@@ -871,6 +873,18 @@
                 'text-transform:uppercase;color:var(--ink-2);border:1px solid var(--line-strong);' +
                 'border-radius:99px;padding:3px 9px;white-space:nowrap';
               evHdr.appendChild(evOff);
+            }
+            /* Restrito a diretores: mesmo raciocínio do selo acima — sem ele,
+               não dá pra saber olhando o painel que o resto das pessoas não
+               vê este evento na página Turmas. */
+            if (ev.restritoADiretores) {
+              var evRestrito = document.createElement('span');
+              evRestrito.textContent = 'só diretores/admin';
+              evRestrito.title = 'Este evento só aparece na página Turmas para quem está na aba Diretores ou é administrador. Para os demais, some da vitrine como se estivesse fora da página.';
+              evRestrito.style.cssText = 'flex-shrink:0;font-family:var(--font-mono);font-size:.62rem;letter-spacing:.08em;' +
+                'text-transform:uppercase;color:var(--gold);border:1px solid rgba(245,197,24,.5);' +
+                'border-radius:99px;padding:3px 9px;white-space:nowrap';
+              evHdr.appendChild(evRestrito);
             }
             evHdr.appendChild(evEditBtn);
             evHdr.appendChild(evNewTurmaBtn);
@@ -2365,6 +2379,8 @@
       '<p style="font-size:.78rem;color:var(--ink-2);margin:-8px 0 0">Desmarcado, o evento inteiro some da página das pessoas — turmas, lista de espera e a Missão dele. Use para preparar um evento antes de divulgar, ou para tirar do ar um que já acabou. Não muda nada para quem já está inscrita: o acesso dela e a Minha Área continuam iguais, e aqui no painel o evento segue completo.</p>' +
       '<label class="auth-label" style="flex-direction:row;align-items:center;gap:10px"><input type="checkbox" id="eventoFormEspera" style="width:auto;margin:0" />Aceitar lista de espera neste evento</label>' +
       '<p style="font-size:.78rem;color:var(--ink-2);margin:-8px 0 0">Desmarcado, o card "Lista de Espera" não aparece na página Turmas e ninguém novo entra na fila deste evento. Quem já está na fila continua aqui no painel — nada é apagado.</p>' +
+      '<label class="auth-label" style="flex-direction:row;align-items:center;gap:10px"><input type="checkbox" id="eventoFormRestritoDiretores" style="width:auto;margin:0" />Visível só para diretores e administradores</label>' +
+      '<p style="font-size:.78rem;color:var(--ink-2);margin:-8px 0 0">Marcado, este evento some da página Turmas para quem não está na aba Diretores nem é admin — mesmo efeito de "fora da página", mas só pra elas. Quem tem acesso vê e se inscreve normalmente. Gerencie quem é diretor na aba Diretores.</p>' +
       '<hr style="border:none;border-top:1px solid var(--line-strong);margin:4px 0">' +
       '<p style="font-size:.78rem;color:var(--ink-2);margin:0">Conteúdo público da página Turmas — aparece abaixo dos cards deste evento, só quando preenchido. Deixe em branco pra não mostrar nada.</p>' +
       '<label class="auth-label">Missão (título curto)<input type="text" id="eventoFormMissaoTitulo" placeholder="Ex: Oficina de Agilidade Organizacional" autocomplete="off" /></label>' +
@@ -2392,6 +2408,7 @@
     var topicosInput      = box.querySelector('#eventoFormTopicos');
     var esperaInput       = box.querySelector('#eventoFormEspera');
     var publicadoInput    = box.querySelector('#eventoFormPublicado');
+    var restritoInput     = box.querySelector('#eventoFormRestritoDiretores');
     var itinerarioList    = box.querySelector('#eventoItinerarioList');
     var errEl             = box.querySelector('#eventoFormErr');
 
@@ -2405,6 +2422,7 @@
        valeu, e desmarcar é a decisão consciente. */
     esperaInput.checked     = isEdit ? existing.esperaAtiva !== false : true;
     publicadoInput.checked  = isEdit ? existing.publicado !== false : true;
+    restritoInput.checked   = isEdit ? !!existing.restritoADiretores : false;
 
     /* Renumera os rótulos "D1", "D2"... depois de qualquer adição/remoção —
        a ordem é só a posição na lista, sem arrastar/reordenar. */
@@ -2454,7 +2472,8 @@
         topicos: (topicosInput.value || '').trim(),
         itinerario: itinerario,
         esperaAtiva: !!esperaInput.checked,
-        publicado: !!publicadoInput.checked
+        publicado: !!publicadoInput.checked,
+        restritoADiretores: !!restritoInput.checked
       };
       if (isEdit) {
         firebase.database().ref('eventos/' + existing.key).update(eventData, function (err) {
@@ -4211,6 +4230,104 @@
       }, function (err) {
         console.error('[admin] erro ao carregar fa-admins', err);
         c.innerHTML = '<p class="loading-msg" style="color:var(--red)">Erro ao carregar administradores. Recarregue a página ou verifique sua conexão.</p>';
+      });
+    }
+
+    render();
+  }
+
+  /* ---- Diretores ----
+     Lista separada de fa-admins: marca quem enxerga um evento marcado
+     "Visível só para diretores e administradores" (ver openEventoFormModal
+     e eventoNaVitrine em app.js). Não dá acesso de admin nenhum — só essa
+     visibilidade. Qualquer admin pode gerenciar (regra em fa-diretores),
+     ao contrário de Administradores, que só os dois super-admins editam. */
+  function loadDiretores() {
+    const c = document.getElementById('adminDiretores');
+    if (!c) return;
+
+    function render() {
+      firebase.database().ref('fa-diretores').once('value', function (snap) {
+        const data = snap.val() || {};
+        const dbList = Object.values(data).sort(function (a, b) { return (a.name || '').localeCompare(b.name || '', 'pt'); });
+        c.innerHTML = '';
+
+        const info = document.createElement('p');
+        info.className = 'admin-empty';
+        info.style.marginBottom = '20px';
+        info.textContent = 'Quem estiver aqui enxerga na página Turmas qualquer evento marcado "Visível só para diretores e administradores" — sem isso, ele some da vitrine dela como se estivesse fora da página. Não muda mais nada: continua sem acesso ao painel admin.';
+        c.appendChild(info);
+
+        const hdr = document.createElement('h4');
+        hdr.innerHTML = 'Diretores <span class="admin-badge">' + dbList.length + '</span>';
+        c.appendChild(hdr);
+
+        if (!dbList.length) {
+          const empty = document.createElement('p');
+          empty.className = 'admin-empty';
+          empty.textContent = 'Nenhum diretor cadastrado.';
+          c.appendChild(empty);
+        } else {
+          const tbl = document.createElement('table');
+          tbl.className = 'admin-table';
+          tbl.innerHTML = '<thead><tr><th>Nome</th><th>E-mail</th><th>Desde</th><th></th></tr></thead>';
+          const tbody = document.createElement('tbody');
+          dbList.forEach(function (p) {
+            const tr = document.createElement('tr');
+            tr.innerHTML =
+              '<td>' + esc(p.name || '—') + '</td>' +
+              '<td>' + esc(p.email || '—') + '</td>' +
+              '<td>' + fmtDate(p.addedAt) + '</td>' +
+              '<td><button class="admin-del-btn" data-key="' + esc(emailKey(p.email)) + '" data-name="' + esc(p.name || p.email) + '">Remover</button></td>';
+            tbody.appendChild(tr);
+          });
+          tbl.appendChild(tbody);
+          const dirTblWrap = document.createElement('div');
+          dirTblWrap.className = 'table-scroll-wrap';
+          dirTblWrap.appendChild(tbl);
+          c.appendChild(dirTblWrap);
+
+          tbody.addEventListener('click', function (e) {
+            const btn = e.target.closest('.admin-del-btn');
+            if (!btn) return;
+            adminConfirm('Remover ' + btn.dataset.name + ' dos diretores?', function () {
+              firebase.database().ref('fa-diretores/' + btn.dataset.key).remove(function () { render(); });
+            });
+          });
+        }
+
+        const form = document.createElement('div');
+        form.className = 'admin-colab-form';
+        form.innerHTML =
+          '<h4 style="margin-top:32px">Adicionar diretor</h4>' +
+          '<div class="admin-colab-row">' +
+            '<input id="diretorName"  type="text"  placeholder="Nome completo" />' +
+            '<input id="diretorEmail" type="email" placeholder="e-mail" />' +
+            '<button class="btn btn--primary" id="diretorAddBtn">Adicionar</button>' +
+          '</div>' +
+          '<p id="diretorMsg" style="margin-top:8px;font-size:.8rem;color:var(--cyan)"></p>';
+        c.appendChild(form);
+
+        document.getElementById('diretorAddBtn').addEventListener('click', function () {
+          const name  = (document.getElementById('diretorName').value  || '').trim().toUpperCase();
+          const email = (document.getElementById('diretorEmail').value || '').trim().toLowerCase();
+          const msg   = document.getElementById('diretorMsg');
+          if (!name || !email) { msg.style.color = 'var(--accent)'; msg.textContent = 'Preencha nome e e-mail.'; return; }
+          if (!/^[^\s@]+@previ\.com\.br$/i.test(email)) { msg.style.color = 'var(--accent)'; msg.textContent = 'Use um e-mail @previ.com.br.'; return; }
+          firebase.database().ref('fa-diretores/' + emailKey(email)).set(
+            { email: email, name: name, addedAt: new Date().toISOString() },
+            function (err) {
+              if (err) { msg.style.color = 'var(--accent)'; msg.textContent = 'Erro ao salvar.'; return; }
+              document.getElementById('diretorName').value  = '';
+              document.getElementById('diretorEmail').value = '';
+              msg.style.color = 'var(--cyan)'; msg.textContent = name + ' adicionado(a) como diretor(a).';
+              render();
+            }
+          );
+        });
+      }, function (err) {
+        console.error('[admin] erro ao carregar fa-diretores', err);
+        c.innerHTML = '<p class="loading-msg" style="color:var(--red)">Erro ao carregar diretores. Recarregue a página ou verifique sua conexão.</p>';
       });
     }
 

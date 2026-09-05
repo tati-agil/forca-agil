@@ -230,7 +230,8 @@
        já foi confirmado como inscrito (não existe mais um card único de
        "turma confirmada" substituindo o grid inteiro). */
     var _turmasList  = []; // [{ key, label, dias, cmflexLink, finalizada, eventoKey }]
-    var _eventosList = []; // [{ key, nome, order, cargaHoraria, missaoTitulo, missaoTexto, topicos, itinerario, esperaAtiva, publicado }]
+    var _eventosList = []; // [{ key, nome, order, cargaHoraria, missaoTitulo, missaoTexto, topicos, itinerario, esperaAtiva, publicado, restritoADiretores }]
+    var _sess        = null; // sessão atual, usada por eventoNaVitrine para decidir eventos restritos
 
     function loadTurmas(cb) {
       var db = firebase.database();
@@ -250,7 +251,8 @@
                 /* Ausente = ligada/publicado: evento de antes destes controles
                    existirem continua como sempre esteve, sem migração. */
                 esperaAtiva: e.esperaAtiva !== false,
-                publicado: e.publicado !== false
+                publicado: e.publicado !== false,
+                restritoADiretores: !!e.restritoADiretores
               };
             }).sort(function (a, b) { return a.order - b.order; });
             _turmasList = Object.keys(val).map(function (key) {
@@ -359,6 +361,16 @@
        título e o card de espera — o card em si é anexado por renderEsperaCard. */
     function eventoNaVitrine(ev, porEvento) {
       if (!ev.publicado) return false;
+      /* Evento marcado "restritoADiretores" (aba Diretores no painel): some
+         da vitrine de quem não é diretor nem admin — mesmo efeito de
+         "fora da página", mas condicionado à pessoa, não a todo mundo.
+         Aqui SIM há bypass para admin (ao contrário de !ev.publicado acima),
+         porque o objetivo é "só quem deveria ver vê", e admin sempre deveria. */
+      if (ev.restritoADiretores) {
+        var email = _sess && _sess.email;
+        var podeVer = !!(email && window.faAuth && (window.faAuth.isAdmin(email) || window.faAuth.isDiretor(email)));
+        if (!podeVer) return false;
+      }
       return !!(porEvento[ev.key] && porEvento[ev.key].length) || !!ev.esperaAtiva;
     }
 
@@ -486,6 +498,7 @@
 
     function initTurmaInterest() {
       var sess = window.faAuth && window.faAuth.getSession();
+      _sess = sess;
       loadTurmas(function () {
         renderTurmasGrid();
         renderEsperaCard(sess);
@@ -734,6 +747,13 @@
     window.faInitTurmas = initTurmaInterest;
     if (window.faRouter) window.faRouter.onPageInit('turmas', initTurmaInterest);
     window.addEventListener('fa-auth-change', function () {
+      if (window.faRouter && window.faRouter.current() === 'turmas') initTurmaInterest();
+    });
+    /* isDiretor() só resolve depois de uma leitura assíncrona própria (ver
+       auth.js) — se ela terminar depois do fa-auth-change acima, a página já
+       renderizou sem o evento restrito. Este segundo listener cobre esse
+       atraso, sem re-executar nada enquanto ele não chegar. */
+    window.addEventListener('fa-diretor-ready', function () {
       if (window.faRouter && window.faRouter.current() === 'turmas') initTurmaInterest();
     });
   });
