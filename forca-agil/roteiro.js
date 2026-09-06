@@ -76,6 +76,7 @@
     var overlayMousedownFora = false;
     overlay.addEventListener('mousedown', function (e) { overlayMousedownFora = !box.contains(e.target); });
     overlay.addEventListener('click', function (e) { if (overlayMousedownFora && !box.contains(e.target)) close(); });
+    overlay.addEventListener('keydown', function (e) { if (e.key === 'Escape') { e.preventDefault(); close(); } });
   }
   function confirmDialog(mensagem, onYes) {
     var overlay = document.createElement('div');
@@ -96,6 +97,7 @@
     var overlayMousedownFora = false;
     overlay.addEventListener('mousedown', function (e) { overlayMousedownFora = !box.contains(e.target); });
     overlay.addEventListener('click', function (e) { if (overlayMousedownFora && !box.contains(e.target)) close(); });
+    overlay.addEventListener('keydown', function (e) { if (e.key === 'Escape') { e.preventDefault(); close(); } });
     box.querySelector('.roteiro-dlg-confirm').addEventListener('click', function () { close(); onYes(); });
   }
 
@@ -453,6 +455,7 @@
     var overlayMousedownFora = false;
     overlay.addEventListener('mousedown', function (e) { overlayMousedownFora = !box.contains(e.target); });
     overlay.addEventListener('click', function (e) { if (overlayMousedownFora && !box.contains(e.target)) closeModal(); });
+    overlay.addEventListener('keydown', function (e) { if (e.key === 'Escape') { e.preventDefault(); closeModal(); } });
     if (opts.onExcluir) {
       $('.roteiro-form-excluir').addEventListener('click', function () {
         confirmDialog('Excluir esta atividade? Não é possível desfazer.', function () { opts.onExcluir(); closeModal(); });
