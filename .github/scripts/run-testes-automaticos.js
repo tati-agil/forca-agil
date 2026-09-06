@@ -63,7 +63,7 @@ async function submitLogin(page, email, password) {
     page.waitForFunction(() => {
       var m = document.getElementById('authModal');
       return !!m && m.hidden === true;
-    }, { timeout: 20000 }).catch(() => {}),
+    }, null, { timeout: 20000 }).catch(() => {}),
   ]);
   const loginErrVisible = await page.locator('#loginErr').isVisible().catch(() => false);
   if (loginErrVisible) {
@@ -97,7 +97,7 @@ async function submitLogin(page, email, password) {
     const navAdminOk = await page.waitForFunction(() => {
       var el = document.getElementById('navAdmin');
       return !!el && el.hidden === false;
-    }, { timeout: 10000 }).then(() => true).catch(() => false);
+    }, null, { timeout: 10000 }).then(() => true).catch(() => false);
     if (!navAdminOk) {
       throw new Error(
         'Login parece ter funcionado (sem erro em #loginErr, modal fechou), mas o link #navAdmin continua oculto — ' +
@@ -233,7 +233,7 @@ async function submitLogin(page, email, password) {
     await p.waitForFunction(() => {
       var el = document.getElementById('navAdmin');
       return !!el && el.hidden === false;
-    }, { timeout: 15000 });
+    }, null, { timeout: 15000 });
     await p.click('.nav-toggle');
     await p.waitForSelector('.nav-links.open', { timeout: 5000 });
     const visivelComMenuAberto = await p.locator('#navAdmin').isVisible();
@@ -244,7 +244,7 @@ async function submitLogin(page, email, password) {
     await p.waitForFunction(() => {
       var el = document.getElementById('navAdmin');
       return !!el && el.hidden === true;
-    }, { timeout: 10000 });
+    }, null, { timeout: 10000 });
     /* O atributo hidden é gerenciado por auth.js — CSS de layout não pode
        sobrescrevê-lo com display:block e deixar o link visível de novo. */
     const displayReal = await p.evaluate(() => getComputedStyle(document.getElementById('navAdmin')).display);
@@ -274,13 +274,195 @@ async function submitLogin(page, email, password) {
     }
   });
 
+  await runIsolated('Início: os 3 botões da abertura ficam lado a lado, não empilhados', async (p) => {
+    await p.goto(BASE_URL, { waitUntil: 'networkidle' });
+    const r = await submitLogin(p, EMAIL, PASSWORD);
+    if (!r.ok) throw new Error('login falhou: ' + r.errorText);
+    await p.goto(BASE_URL + '#home', { waitUntil: 'networkidle' });
+    /* "⏸ Pausar" e "≡ Ler texto" são criados por app.js; só "↻ Repetir
+       abertura" vem no HTML. Espera os três existirem antes de medir. */
+    await p.waitForFunction(() => document.querySelectorAll('.crawl-btns .btn').length >= 3, null, { timeout: 15000 });
+    const linhas = await p.evaluate(() => {
+      var btns = Array.prototype.slice.call(document.querySelectorAll('.crawl-btns .btn'));
+      var tops = btns.map(function (b) { return Math.round(b.getBoundingClientRect().top); });
+      return { total: btns.length, distintos: tops.filter(function (t, i) { return tops.indexOf(t) === i; }).length };
+    });
+    if (linhas.total < 3) throw new Error('esperava 3 botões, achei ' + linhas.total);
+    if (linhas.distintos !== 1) throw new Error('botões em ' + linhas.distintos + ' linhas diferentes — deveriam estar lado a lado');
+  });
+
+  await runIsolated('Início: "Role para começar" fica centralizado na largura do hero', async (p) => {
+    await p.goto(BASE_URL, { waitUntil: 'networkidle' });
+    const r = await submitLogin(p, EMAIL, PASSWORD);
+    if (!r.ok) throw new Error('login falhou: ' + r.errorText);
+    await p.goto(BASE_URL + '#home', { waitUntil: 'networkidle' });
+    await p.waitForSelector('.scroll-cue', { timeout: 15000 });
+    const desalinho = await p.evaluate(() => {
+      var cue = document.querySelector('.scroll-cue');
+      var hero = cue.closest('header') || document.body;
+      var c = cue.getBoundingClientRect(), h = hero.getBoundingClientRect();
+      return Math.abs((c.left + c.width / 2) - (h.left + h.width / 2));
+    });
+    /* Tolerância de 2px pra arredondamento de layout. */
+    if (desalinho > 2) throw new Error('desalinhado do centro do hero em ' + Math.round(desalinho) + 'px');
+  });
+
+  await runIsolated('Início: "Conhecer a iniciativa" rola a página até a seção', async (p) => {
+    await p.goto(BASE_URL, { waitUntil: 'networkidle' });
+    const r = await submitLogin(p, EMAIL, PASSWORD);
+    if (!r.ok) throw new Error('login falhou: ' + r.errorText);
+    await p.goto(BASE_URL + '#home', { waitUntil: 'networkidle' });
+    await p.waitForSelector('#heroKnow', { timeout: 15000 });
+    const antes = await p.evaluate(() => window.scrollY);
+    await p.click('#heroKnow');
+    await p.waitForFunction((y) => window.scrollY > y + 100, antes, { timeout: 10000 });
+  });
+
+  await runIsolated('Início: menu mobile (375px) sem sobreposição entre hamburguer e logo', async (p) => {
+    await p.setViewportSize({ width: 375, height: 800 });
+    await p.goto(BASE_URL, { waitUntil: 'networkidle' });
+    const r = await submitLogin(p, EMAIL, PASSWORD);
+    if (!r.ok) throw new Error('login falhou: ' + r.errorText);
+    await p.goto(BASE_URL + '#home', { waitUntil: 'networkidle' });
+    await p.waitForSelector('.nav-toggle', { timeout: 15000 });
+    const sobrepoe = await p.evaluate(() => {
+      var t = document.querySelector('.nav-toggle');
+      var marca = document.querySelector('.brand');
+      if (!t || !marca) return 'faltando .nav-toggle ou .brand';
+      var a = t.getBoundingClientRect(), b = marca.getBoundingClientRect();
+      if (a.width === 0 || a.height === 0) return 'hamburguer sem tamanho (invisível)';
+      var cruza = !(a.right <= b.left || a.left >= b.right || a.bottom <= b.top || a.top >= b.bottom);
+      if (cruza) return 'hamburguer sobrepõe o logo';
+      if (a.right > window.innerWidth + 1) return 'hamburguer cortado na borda da tela';
+      return null;
+    });
+    if (sobrepoe) throw new Error(sobrepoe);
+    /* E o menu abre com todos os links alcançáveis. */
+    await p.click('.nav-toggle');
+    await p.waitForSelector('.nav-links.open', { timeout: 5000 });
+  });
+
+  await runIsolated('Menu: clicar no nome/avatar leva para o Treinamento Jedi', async (p) => {
+    await p.goto(BASE_URL, { waitUntil: 'networkidle' });
+    const r = await submitLogin(p, EMAIL, PASSWORD);
+    if (!r.ok) throw new Error('login falhou: ' + r.errorText);
+    await p.waitForFunction(() => {
+      var el = document.getElementById('navProfile');
+      return !!el && el.hidden === false;
+    }, null, { timeout: 15000 });
+    await p.goto(BASE_URL + '#home', { waitUntil: 'networkidle' });
+    /* Clica no nome, não no "Sair" que mora dentro do mesmo bloco. */
+    await p.click('#navProfile .nav-profile-name');
+    await p.waitForFunction(() => location.hash === '#treinamento', null, { timeout: 10000 });
+  });
+
+  await runIsolated('Menu: "Sair" encerra a sessão e volta para o Início', async (p) => {
+    await p.goto(BASE_URL, { waitUntil: 'networkidle' });
+    const r = await submitLogin(p, EMAIL, PASSWORD);
+    if (!r.ok) throw new Error('login falhou: ' + r.errorText);
+    await p.goto(BASE_URL + '#turmas', { waitUntil: 'networkidle' });
+    await p.waitForFunction(() => location.hash === '#turmas', null, { timeout: 10000 });
+    await p.click('#navLogout');
+    await p.waitForFunction(() => location.hash === '#home', null, { timeout: 10000 });
+    /* Sessão encerrada de verdade: o site volta a exigir login. A classe
+       "aguardando-auth" NÃO serve como sinal aqui — ela só existe no
+       carregamento inicial (head-init.js) e é removida por revelarSite();
+       forcarLogin() não a recoloca. O sinal do logout é o modal voltar
+       no modo forçado, sem botão de fechar. */
+    await p.waitForFunction(() => {
+      var m = document.getElementById('authModal');
+      return !!m && m.hidden === false && m.classList.contains('modal-overlay--forced');
+    }, null, { timeout: 10000 });
+    const semSessao = await p.evaluate(() => !(window.faAuth && window.faAuth.getSession && window.faAuth.getSession()));
+    if (!semSessao) throw new Error('modal de login voltou, mas faAuth ainda reporta uma sessão ativa');
+  });
+
+  await runIsolated('Admin: abrir #admin direto (F5 / link salvo) carrega os dados das abas', async (p) => {
+    await p.goto(BASE_URL, { waitUntil: 'networkidle' });
+    const r = await submitLogin(p, EMAIL, PASSWORD);
+    if (!r.ok) throw new Error('login falhou: ' + r.errorText);
+    /* Entra direto pela URL, sem passar pelo menu — é o caminho que já
+       quebrou antes, quando o painel não esperava o fa-auth-ready. */
+    await p.goto(BASE_URL + '#admin', { waitUntil: 'networkidle' });
+    await p.reload({ waitUntil: 'networkidle' });
+    const ficouNoAdmin = await p.waitForFunction(() => location.hash === '#admin', null, { timeout: 15000 })
+      .then(() => true).catch(() => false);
+    if (!ficouNoAdmin) {
+      const estado = await p.evaluate(() => {
+        var s = window.faAuth && window.faAuth.getSession && window.faAuth.getSession();
+        return {
+          hash: location.hash,
+          temFaAuth: !!window.faAuth,
+          authReady: !!(window.faAuth && window.faAuth.isAuthReady && window.faAuth.isAuthReady()),
+          adminReady: !!(window.faAuth && window.faAuth.isAdminReady && window.faAuth.isAdminReady()),
+          temIsAdminReady: !!(window.faAuth && window.faAuth.isAdminReady),
+          temSessao: !!s,
+          ehAdmin: !!(s && window.faAuth.isAdmin && window.faAuth.isAdmin(s.email)),
+          paginaVisivel: (function () {
+            var v = document.querySelector('.page-section:not([hidden])');
+            return v ? v.id : null;
+          })()
+        };
+      });
+      throw new Error('depois do F5 o hash saiu de #admin — estado: ' + JSON.stringify(estado));
+    }
+    /* Sinal positivo de que a aba Eventos carregou de verdade: loadInterests()
+       marca cada evento renderizado com data-ev-key. Um banco sem evento
+       nenhum também é um fim de carregamento legítimo — o que não pode é
+       ficar presa no "Carregando dados…". */
+    const carregou = await p.waitForFunction(() => {
+      var painel = document.getElementById('page-admin');
+      if (!painel || painel.hidden) return false;
+      var eventos = document.getElementById('adminInterests');
+      if (!eventos) return false;
+      if (eventos.querySelector('[data-ev-key]')) return true;
+      var txt = (eventos.textContent || '').trim();
+      return txt.length > 0 && txt.indexOf('Carregando') === -1;
+    }, null, { timeout: 25000 }).then(() => true).catch(() => false);
+    if (!carregou) {
+      /* Diz em que estado ficou, senão o log só mostra "timeout". */
+      const estado = await p.evaluate(() => {
+        var painel = document.getElementById('page-admin');
+        var eventos = document.getElementById('adminInterests');
+        return {
+          hash: location.hash,
+          painelExiste: !!painel,
+          painelOculto: painel ? painel.hidden : null,
+          eventosExiste: !!eventos,
+          eventosTexto: eventos ? (eventos.textContent || '').trim().slice(0, 120) : null,
+          authPronto: !!(window.faAuth && window.faAuth.isAuthReady && window.faAuth.isAuthReady()),
+          temSessao: !!(window.faAuth && window.faAuth.getSession && window.faAuth.getSession())
+        };
+      });
+      throw new Error('aba Eventos não carregou depois do F5 — estado: ' + JSON.stringify(estado));
+    }
+  });
+
+  await runIsolated('Ajuda: os 5 tipos de pedido aparecem e o "Enviar" só habilita depois de escolher um', async (p) => {
+    await p.goto(BASE_URL, { waitUntil: 'networkidle' });
+    const r = await submitLogin(p, EMAIL, PASSWORD);
+    if (!r.ok) throw new Error('login falhou: ' + r.errorText);
+    await p.goto(BASE_URL + '#ajuda', { waitUntil: 'networkidle' });
+    await p.waitForSelector('.ped-tipo-btn', { timeout: 15000 });
+    const tipos = await p.$$eval('.ped-tipo-btn', (bs) => bs.map((b) => b.dataset.tipo));
+    const esperados = ['tema', 'curso', 'material', 'duvida', 'outros'];
+    if (tipos.length !== 5 || !esperados.every((t) => tipos.indexOf(t) !== -1)) {
+      throw new Error('tipos inesperados: ' + JSON.stringify(tipos));
+    }
+    const antes = await p.evaluate(() => document.getElementById('pedEnviar').disabled);
+    if (antes !== true) throw new Error('"Enviar pedido" já começa habilitado, sem tipo escolhido');
+    await p.click('.ped-tipo-btn[data-tipo="curso"]');
+    await p.waitForFunction(() => document.getElementById('pedEnviar').disabled === false, null, { timeout: 5000 });
+    /* Nada é enviado: o teste para aqui, sem clicar em "Enviar pedido". */
+  });
+
   if (MEMBER_EMAIL && MEMBER_PASSWORD) {
     await runIsolated('Acesso direto a #admin com conta comum redireciona pra #home', async (p) => {
       await p.goto(BASE_URL, { waitUntil: 'networkidle' });
       const r = await submitLogin(p, MEMBER_EMAIL, MEMBER_PASSWORD);
       if (!r.ok) throw new Error('login falhou: ' + r.errorText);
       await p.goto(BASE_URL + '#admin', { waitUntil: 'networkidle' });
-      await p.waitForFunction(() => location.hash === '#home', { timeout: 10000 });
+      await p.waitForFunction(() => location.hash === '#home', null, { timeout: 10000 });
     });
   } else {
     console.log('\n(pulando "acesso direto a #admin com conta comum" — defina FA_TEST_MEMBER_EMAIL/FA_TEST_MEMBER_PASSWORD pra ativar)');

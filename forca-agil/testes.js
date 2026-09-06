@@ -39,6 +39,10 @@
           var level = window.faAuth.getAccessLevel();
           return level === 'member' || level === 'enrolled';
         } },
+        { id: 'auth-admin-ready', label: 'faAuth.isAdminReady() e isFacilitadorReady() existem — sem eles o router expulsa gente legítima de #admin/#facilitador antes das listas carregarem', run: function () {
+          return !!(window.faAuth && typeof window.faAuth.isAdminReady === 'function'
+                                  && typeof window.faAuth.isFacilitadorReady === 'function');
+        } },
         { id: 'auth-domain-rule', label: 'Restrição @previ.com.br nas regras do banco (server-side)', run: function () { return true; },
           nota: 'Verificação manual: regras do Firebase Realtime Database exigem auth.token.email.matches(/.*@previ\\.com\\.br/) em todas as operações autenticadas — não apenas validação no front-end. Testar via REST API diretamente com conta de outro domínio deve retornar HTTP 403.' },
         { id: 'auth-admin-full-access', label: 'Admin vê Conteúdos e Treinamento no menu mesmo sem estar pessoalmente inscrito em turma', run: function () {
@@ -984,30 +988,12 @@
     { section: 'Cadastrar',
       title: 'Cadastro — botão "Aguarde…" durante envio',
       motivo: 'Estado transiente — só visível durante o envio real ao Firebase.' },
-    { section: 'Menu / Sessão',
-      title: 'Clicar no avatar/nome no menu navega para Treinamento Jedi',
-      motivo: 'Requer clique no avatar/nome exibido no menu (substitui os botões Entrar/Cadastrar após login) e verificação de navegação — interação com estado de sessão ativa.' },
-    { section: 'Menu / Sessão',
-      title: 'Botão "Sair" encerra sessão e redireciona para Início',
-      motivo: 'Executar encerraria a sessão do teste em si, impedindo os demais testes.' },
     { section: 'Início',
       title: 'Interessado tem o mesmo acesso de logado — só inscrito destrava as 3 páginas',
       motivo: 'Requer duas contas logadas sem turma confirmada: uma que NUNCA clicou em "Tenho interesse" e outra que clicou (status "interessado"). Verificar que ambas veem exatamente o mesmo: Início, Turmas, Ajuda e Repositório — e que NENHUMA das duas vê Conteúdos, Treinamento Jedi ou Avaliação no menu, nem consegue acessar por URL direta. A única diferença entre elas deve ser o texto do botão no card da turma ("Tenho interesse" vs "Remover interesse"). Depois, pedir ao admin para confirmar uma delas na turma e recarregar: só então as 3 páginas aparecem. Isso comprova que quem muda o nível de acesso é a confirmação do admin, não o interesse manifestado.' },
     { section: 'Início',
-      title: 'Botão "Conhecer a iniciativa" → rola para a seção',
-      motivo: 'Comportamento de scroll — verificar posição de scroll após clique é frágil e dependente de layout.' },
-    { section: 'Início',
       title: 'Seções da Home ocupam 100vh (scroll preciso)',
       motivo: 'Verificar visualmente: ao clicar nos pontos laterais ou no botão Continuar, cada seção deve preencher toda a viewport sem corte ou desalinhamento.' },
-    { section: 'Início',
-      title: '"Role para começar" — texto centralizado horizontalmente no hero',
-      motivo: 'Verificar visualmente em diferentes larguras de tela se o texto aparece centrado abaixo do conteúdo do hero.' },
-    { section: 'Início',
-      title: 'Botões do crawl lado a lado: "≡ Ler texto" · "⏸ Pausar" · "↻ Repetir abertura"',
-      motivo: 'Verificar visualmente que os 3 botões aparecem em linha horizontal (não empilhados).' },
-    { section: 'Início',
-      title: 'Cards "Como funciona" → cada um navega para sua página',
-      motivo: 'Clicar navegaria para fora da página Admin, interrompendo a sessão de testes em execução.' },
 { section: 'Turmas',
       title: 'Turma com interesse encerrado não manda ninguém ao CMFlex',
       motivo: 'Encerrar o interesse de uma turma cujas datas ainda estão no futuro e abrir a página Turmas como participante. O card deve dizer "Inscrições encerradas", explicar que as vagas já foram preenchidas, informar quando a turma será realizada e convidar a acompanhar as próximas — SEM botão e SEM link para o CMFlex. O motivo é prático: o interesse é encerrado justamente porque as vagas no CMFlex acabaram, então mandar a pessoa para lá é mandar bater numa porta fechada. Conferir também que o CMFlex continua sendo indicado no momento certo: com a turma ainda aberta, registrar interesse e verificar que aparece a mensagem orientando a inscrição no CMFlex. Por fim, conferir a passagem entre os estados: chegando o primeiro dia, o card vira "Turma em andamento"; passado o último dia ou com a turma encerrada pelo admin, vira "Turma realizada".' },
@@ -1331,9 +1317,6 @@
       title: 'Admin não vê "Acesso Restrito" piscando ao carregar o painel',
       motivo: 'Logada como admin, abrir forca-agil.previ.com.br/#admin direto (F5 ou endereço digitado) e observar a tela DURANTE o carregamento, não só no fim. Verificar que em nenhum momento aparece o aviso vermelho "Acesso Restrito · Você não tem permissão para acessar esta área" — nem por um instante. O aviso começa oculto e só deve surgir para quem realmente não é admin, depois que a autenticação termina. Testar também com internet lenta (aba Network do navegador, opção de throttling), que é quando a janela entre revelar o site e confirmar o perfil fica maior.' },
     { section: 'Admin',
-      title: 'Painel Admin carrega ao abrir #admin direto (F5 / link salvo)',
-      motivo: 'Regressão importante. Estando logada como admin, digitar forca-agil.previ.com.br/#admin na barra de endereços e dar Enter (ou apertar F5 já estando nessa página). Verificar que as abas carregam os dados de verdade — Eventos mostra a lista de turmas, Cadastrados mostra a tabela. Se alguma ficar presa em "Carregando…" indefinidamente, a espera pelo fa-auth-ready quebrou. Testar também o caminho que sempre funcionou, para comparação: entrar pela Home e clicar em ADMIN no menu.' },
-    { section: 'Admin',
       title: 'Administradores — erro na leitura mostra mensagem em vez de travar',
       motivo: 'Difícil de reproduzir sob demanda (requer falha real de leitura). Se um dia a aba Administradores ficar presa em "Carregando administradores…" sem nunca terminar: abrir o Console do navegador e procurar por "[admin] erro ao carregar fa-admins" — confirma que a leitura falhou (permissão ou rede) e que a mensagem de erro em vermelho deveria ter aparecido no lugar do texto de carregamento. Se a mensagem de erro não aparecer mesmo com esse log no console, é regressão.' },
     { section: 'Admin',
@@ -1341,9 +1324,6 @@
       motivo: 'Requer turma finalizada com pelo menos 1 check-in. Verificar: arquivo .csv contém colunas por data (DD/MM), frequência e coluna "Atingiu critério (75%)".' },
 
     /* ── Ajuda / Faça um pedido ──────────────────────────────── */
-    { section: 'Ajuda',
-      title: 'Formulário "Faça um pedido" — os 5 tipos aparecem e são clicáveis',
-      motivo: 'Logado, abrir a página Ajuda e rolar até "Faça um pedido". Verificar: (1) os 5 botões de tipo aparecem e são clicáveis (Quero aprender sobre um tema / Quero sugerir um curso / Preciso de material / Tenho uma dúvida / Outros); (2) o textarea de descrição aceita digitação normalmente; (3) o botão "Enviar pedido" só habilita depois de escolher um tipo. A checagem de sessão no envio ("Faça login para enviar um pedido.") virou proteção residual — com login obrigatório, ninguém deslogado chega a essa página.' },
     { section: 'Ajuda',
       title: 'Formulário "Faça um pedido" — envio com login funciona',
       motivo: 'Logado, preencher o formulário e clicar "Enviar pedido". Verificar: (1) grava em pedidos/ no Firebase com tipo, descricao, nomeEnviou e emailEnviou; (2) no painel Admin → aba Pedidos, o novo pedido aparece na lista, ordenado mais recente primeiro, com o chip de tipo na cor correta (inclusive "Outros", cor cinza-azulada #8a93a8).' },
@@ -1484,8 +1464,8 @@
       title: 'Pre-commit hook — bloqueia commit com erro de sintaxe JS',
       motivo: 'Verificar manualmente: editar um arquivo JS com erro intencional (ex: remover um "}" ao final) e tentar fazer git commit — o commit deve ser recusado com mensagem de erro indicando o arquivo. Desfazer a edição após o teste.' },
     { section: 'Início',
-      title: 'Menu mobile (≤ 600px) — hamburguer sem sobreposição',
-      motivo: 'Acessar o site em tela com largura 375px (ou redimensionar o browser). Verificar: (1) ícone hamburguer está visível e clicável; (2) não há sobreposição com logo ou outros elementos do header; (3) logo aparece em versão compacta; (4) ao abrir o menu, todos os links ficam visíveis.' }
+      title: 'Menu mobile (≤ 600px) — logo em versão compacta',
+      motivo: 'O hamburguer visível e sem sobreposição com o logo, e o menu abrindo com os links alcançáveis, já são verificados automaticamente. Falta o que só se vê olhando: acessar o site com 375px de largura e conferir que o logo aparece na versão compacta, e não espremido ou cortado.' }
   ];
 
   /* ================================================================

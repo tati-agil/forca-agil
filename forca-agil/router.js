@@ -6,6 +6,17 @@
 
   const PAGES   = ['home','turmas','conteudos','treinamento','repositorio','avaliacao','minha-area','ajuda','admin','facilitador','checkin'];
 
+  /* "Já dá pra confiar no false do isAdmin()?" — enquanto a lista de admins
+     não terminou de carregar, ele responde false por não saber ainda, e isso
+     não pode virar redirecionamento. Versões antigas de auth.js não expõem
+     isAdminReady; nesse caso trata como pronta, que é o comportamento anterior. */
+  function listaAdminsPronta() {
+    return !(window.faAuth && window.faAuth.isAdminReady) || window.faAuth.isAdminReady();
+  }
+  function listaFacilitadoresPronta() {
+    return !(window.faAuth && window.faAuth.isFacilitadorReady) || window.faAuth.isFacilitadorReady();
+  }
+
   /* #facilitador é como #admin — admin OU facilitador, nunca mais ninguém. */
   function podeVerFacilitador(s) {
     return !!(s && window.faAuth && (window.faAuth.isAdmin(s.email) || (window.faAuth.isFacilitador && window.faAuth.isFacilitador(s.email))));
@@ -23,7 +34,7 @@
 
     if (page === 'admin') {
       const s = window.faAuth && window.faAuth.getSession();
-      if (!s || !window.faAuth.isAdmin(s.email)) { location.hash = '#home'; return; }
+      if (!s || (!window.faAuth.isAdmin(s.email) && listaAdminsPronta())) { location.hash = '#home'; return; }
     }
 
     if (page === 'facilitador' && !podeVerFacilitador(window.faAuth && window.faAuth.getSession())) {
@@ -63,16 +74,34 @@
 
     /* Só verifica acesso admin depois que o Firebase terminou de resolver a sessão —
        sem isso, F5 em #admin redireciona para home porque _session ainda é null. */
+    /* Só expulsa quem se SABE que não tem acesso. Havia dois jeitos de
+       confundir desconhecimento com resposta, e os dois jogavam gente
+       legítima pra #home num F5, reescrevendo a URL sem volta:
+
+       1) isAuthReady() vira true também no ramo "sem usuário" do
+          onAuthStateChanged, então existe uma janela com authReady=true e
+          getSession()=null antes da sessão real chegar. O !s pegava essa
+          janela — e isso atingia QUALQUER admin, super-admin inclusive.
+       2) isAdmin()/isFacilitador() respondem false enquanto as leituras de
+          fa-admins/fa-facilitadores não voltam; elas correm em paralelo à
+          sessão. Isso atingia só quem não está na lista fixa de
+          super-admins, que é justamente quem não testava.
+
+       Sem sessão resolvida, quem cobre a tela é o modal de login forçado —
+       manter o #admin no endereço é inofensivo e ainda leva a pessoa ao
+       lugar certo depois de entrar. Quando as listas chegam, os listeners
+       de fa-admin-ready/fa-facilitador-ready mandam decidir de novo. */
     if (page === 'admin' && window.faAuth && window.faAuth.isAuthReady && window.faAuth.isAuthReady()) {
       const s = window.faAuth.getSession();
-      if (!s || !window.faAuth.isAdmin(s.email)) {
+      if (s && !window.faAuth.isAdmin(s.email) && listaAdminsPronta()) {
         page = 'home';
         history.replaceState(null, '', '#home');
       }
     }
 
     if (page === 'facilitador' && window.faAuth && window.faAuth.isAuthReady && window.faAuth.isAuthReady()) {
-      if (!podeVerFacilitador(window.faAuth.getSession())) {
+      const sf = window.faAuth.getSession();
+      if (sf && !podeVerFacilitador(sf) && listaAdminsPronta() && listaFacilitadoresPronta()) {
         page = 'home';
         history.replaceState(null, '', '#home');
       }
@@ -539,6 +568,17 @@
     if (e.detail.blocked)    { mostrarMsgBloqueio(); return; }
     if (e.detail.unverified) { mostrarVerificacaoEmail(e.detail.email); return; }
     revelarSite();
+  });
+
+  /* A lista de admins chegou depois da decisão de rota: decide de novo.
+     Quem estava em #admin sem ser admin sai agora; quem é admin e só estava
+     esperando a leitura continua onde estava. */
+  window.addEventListener('fa-admin-ready', function () {
+    var r = route();
+    if (r === 'admin' || r === 'facilitador') show(r);
+  });
+  window.addEventListener('fa-facilitador-ready', function () {
+    if (route() === 'facilitador') show('facilitador');
   });
 
   window.faRouter = {
