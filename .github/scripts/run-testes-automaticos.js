@@ -191,9 +191,14 @@ async function submitLogin(page, email, password) {
     await p.waitForSelector('.auth-tab[data-tab="register"]', { timeout: 15000 });
     await p.click('.auth-tab[data-tab="register"]');
     await p.waitForSelector('#regEmail', { timeout: 10000 });
+    await p.fill('#regName', 'Teste Automático CI');
     await fillEmailRobust(p, '#regEmail', EMAIL);
     await p.fill('#regPassword', '12345678');
     await p.fill('#regPasswordConfirm', '12345678');
+    /* #regArea é preenchido por um <select> visual próprio (custom-select)
+       que grava o valor real num <input type="hidden">; setar o hidden
+       direto evita depender da interação com esse widget aqui. */
+    await p.evaluate(() => { document.getElementById('regArea').value = 'INFOR'; });
     await p.check('#regTerms');
     await p.click('#registerForm button[type="submit"]');
     await p.waitForSelector('#registerErr:not([hidden])', { timeout: 20000 });
@@ -206,9 +211,19 @@ async function submitLogin(page, email, password) {
     await p.goto(BASE_URL, { waitUntil: 'networkidle' });
     const r = await submitLogin(p, EMAIL, PASSWORD);
     if (!r.ok) throw new Error('login falhou: ' + r.errorText);
-    await p.waitForSelector('#navAdmin:not([hidden])', { timeout: 15000 });
+    /* Em viewport mobile o link só fica VISUALMENTE visível com o menu
+       aberto (.nav-links fica display:none até o hamburguer abrir) — por
+       isso checa primeiro só a propriedade "hidden" via JS, sem depender
+       da checagem de visibilidade do Playwright, e só depois de abrir o
+       menu confirma que ele aparece na tela de verdade. */
+    await p.waitForFunction(() => {
+      var el = document.getElementById('navAdmin');
+      return !!el && el.hidden === false;
+    }, { timeout: 15000 });
     await p.click('.nav-toggle');
     await p.waitForSelector('.nav-links.open', { timeout: 5000 });
+    const visivelComMenuAberto = await p.locator('#navAdmin').isVisible();
+    if (!visivelComMenuAberto) throw new Error('menu mobile aberto, mas #navAdmin não aparece na tela');
     await p.click('#navLogout');
     await p.waitForSelector('#navAdmin[hidden]', { timeout: 10000 });
     /* O atributo hidden é gerenciado por auth.js — CSS de layout não pode
