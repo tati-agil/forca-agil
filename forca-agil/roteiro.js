@@ -14,12 +14,19 @@
 
      roteiros-evento/<eventoKey>/dias/<diaKey>       = { ordem, titulo, createdAt }
      roteiros-evento/<eventoKey>/atividades/<atvKey> = {
-       diaKey, ordem, titulo, tipo,
+       diaKey, ordem, titulo, tipo, paiKey?,
        horaInicio, horaFim, duracaoMinutos,
        descricao, objetivo, passoAPasso, dicasFacilitador, conexaoAgilidade,
        perguntasDebrief: [..], materiais: [..], preparacaoPrevia, observacoes,
        createdAt, updatedAt
      }
+
+     "paiKey" é o que faz uma atividade virar sub-etapa de outra — mesma
+     ficha completa de qualquer atividade (não uma versão reduzida): uma
+     seção nada mais é do que uma atividade que tem outras apontando pra
+     ela como pai. A duração de quem tem filhas é sempre a soma das
+     filhas (duracaoEfetiva), nunca o duracaoMinutos próprio — que fica
+     ignorado (mas não apagado) assim que a primeira filha aparece.
 
      turmas-equipe/<turmaKey>/<facKey>  = { email, name, papel: 'responsavel'|'facilitador', addedAt, addedBy }
      turmas/<turmaKey>/responsavelFacilitadorKey  = <facKey> — único responsável, por construção
@@ -147,6 +154,16 @@
     return atividades.filter(function (a) { return a.diaKey === diaKey; })
       .sort(function (a, b) { return (a.ordem || 0) - (b.ordem || 0); });
   }
+  /* Só as de nível principal (sem paiKey) — o que a lista mostra e numera. */
+  function atividadesTopoDoDia(atividades, diaKey) {
+    return atividadesDoDia(atividades, diaKey).filter(function (a) { return !a.paiKey; });
+  }
+  /* Sub-etapas de uma atividade específica, na MESMA coleção (base ou
+     exclusivas de uma turma) — quem chama decide qual coleção passar. */
+  function filhosDe(atividades, paiKey) {
+    return atividades.filter(function (a) { return a.paiKey === paiKey; })
+      .sort(function (a, b) { return (a.ordem || 0) - (b.ordem || 0); });
+  }
 
   function proximaOrdem(lista) {
     return lista.length ? Math.max.apply(null, lista.map(function (x) { return x.ordem || 0; })) + 10 : 10;
@@ -183,10 +200,17 @@
     var payload = Object.assign({}, dados, { updatedAt: new Date().toISOString() });
     db().ref('roteiros-evento/' + eventoKey + '/atividades/' + atividadeKey).update(payload, cb);
   }
-  function excluirAtividade(eventoKey, atividadeKey, cb) {
-    db().ref('roteiros-evento/' + eventoKey + '/atividades/' + atividadeKey).remove(function (err) {
+  /* Exclui a atividade e, em cascata, suas sub-etapas (que são atividades
+     de verdade, com sua própria chave) — senão elas ficariam órfãs,
+     apontando pra um paiKey que não existe mais. */
+  function excluirAtividade(eventoKey, atividadeKey, todasAtividadesDoEvento, cb) {
+    var filhos = filhosDe(todasAtividadesDoEvento || [], atividadeKey);
+    var chaves = [atividadeKey].concat(filhos.map(function (f) { return f.key; }));
+    var updates = {};
+    chaves.forEach(function (k) { updates['roteiros-evento/' + eventoKey + '/atividades/' + k] = null; });
+    db().ref().update(updates, function (err) {
       if (err) return cb(err);
-      limparReferenciasOrfas([atividadeKey], function () { cb(null); });
+      limparReferenciasOrfas(chaves, function () { cb(null); });
     });
   }
   function moverAtividade(eventoKey, atividadeKey, direcao, atividadesDoMesmoDia, cb) {
@@ -199,7 +223,11 @@
     updates['roteiros-evento/' + eventoKey + '/atividades/' + vizinho.key + '/ordem'] = atual.ordem;
     db().ref().update(updates, cb);
   }
-  function duplicarAtividade(eventoKey, atividade, atividadesDoMesmoDia, cb) {
+  /* Duplica a atividade e, se ela for uma seção, suas sub-etapas junto
+     (recriadas com paiKey apontando pra cópia nova) — senão "Duplicar"
+     numa seção viraria uma seção vazia, perdendo justamente o que ela
+     tem de diferente de uma atividade comum. */
+  function duplicarAtividade(eventoKey, atividade, atividadesDoMesmoDia, todasAtividadesDoEvento, cb) {
     var ref = db().ref('roteiros-evento/' + eventoKey + '/atividades').push();
     var copia = Object.assign({}, atividade);
     delete copia.key;
@@ -207,7 +235,18 @@
     copia.ordem = proximaOrdem(atividadesDoMesmoDia);
     copia.createdAt = new Date().toISOString();
     copia.updatedAt = copia.createdAt;
-    ref.set(copia, function (err) { cb(err, ref.key); });
+    ref.set(copia, function (err) {
+      if (err) return cb(err);
+      var filhos = filhosDe(todasAtividadesDoEvento || [], atividade.key);
+      if (!filhos.length) return cb(null, ref.key);
+      var pend = filhos.length;
+      filhos.forEach(function (f) {
+        var fRef = db().ref('roteiros-evento/' + eventoKey + '/atividades').push();
+        var fCopia = Object.assign({}, f, { paiKey: ref.key, createdAt: new Date().toISOString(), updatedAt: new Date().toISOString() });
+        delete fCopia.key;
+        fRef.set(fCopia, function () { if (!--pend) cb(null, ref.key); });
+      });
+    });
   }
 
   /* Turma-roteiro guarda referências a atividadeKey (base). Ao excluir a
@@ -282,10 +321,14 @@
     db().ref('turmas-roteiro/' + turmaKey + '/exclusivas/' + atividadeKey).update(
       Object.assign({}, dados, { updatedAt: new Date().toISOString() }), cb);
   }
-  function excluirAtividadeExclusiva(turmaKey, atividadeKey, cb) {
+  function excluirAtividadeExclusiva(turmaKey, atividadeKey, todasExclusivas, cb) {
+    var filhos = filhosDe(todasExclusivas || [], atividadeKey);
+    var chaves = [atividadeKey].concat(filhos.map(function (f) { return f.key; }));
     var updates = {};
-    updates['turmas-roteiro/' + turmaKey + '/exclusivas/' + atividadeKey] = null;
-    updates['turmas-roteiro/' + turmaKey + '/facilitacao/' + atividadeKey] = null;
+    chaves.forEach(function (k) {
+      updates['turmas-roteiro/' + turmaKey + '/exclusivas/' + k] = null;
+      updates['turmas-roteiro/' + turmaKey + '/facilitacao/' + k] = null;
+    });
     db().ref().update(updates, cb);
   }
   function salvarFacilitacaoAtividade(turmaKey, atividadeKey, principal, apoio, cb) {
@@ -358,24 +401,36 @@
         if (err2) return cb(err2);
         var out = base.dias.map(function (dia, i) {
           var atividadesBase = atividadesDoDia(base.atividades, dia.key);
-          var efetivas = [];
+          var porKey = {};
           var removidas = [];
           atividadesBase.forEach(function (a) {
             var c = custom.customizacoes[a.key];
             if (c && c.removida) { removidas.push(a); return; }
             var efetiva = c ? Object.assign({}, a, c) : a;
-            efetivas.push(Object.assign({}, efetiva, { key: a.key, _status: c ? 'alterada' : 'padrao', _facilitacao: custom.facilitacao[a.key] || null, _base: a }));
+            porKey[a.key] = Object.assign({}, efetiva, { key: a.key, _status: c ? 'alterada' : 'padrao', _facilitacao: custom.facilitacao[a.key] || null, _base: a });
           });
           custom.exclusivas.filter(function (x) { return x.diaKey === dia.key; }).forEach(function (x) {
-            efetivas.push(Object.assign({}, x, { _status: 'exclusiva', _facilitacao: custom.facilitacao[x.key] || null }));
+            porKey[x.key] = Object.assign({}, x, { _status: 'exclusiva', _facilitacao: custom.facilitacao[x.key] || null });
           });
-          efetivas.sort(function (a, b) {
+          /* Sub-etapas são atividades de verdade, com sua própria chave —
+             base ou exclusiva, tanto faz: entram na mesma mescla acima e
+             só precisam ser agrupadas sob quem tem paiKey apontando pra
+             elas, e tiradas da lista de nível principal. Se o pai foi
+             removido da turma, a filha simplesmente não aparece em lugar
+             nenhum (nem foi ela que virou órfã, foi o pai que sumiu). */
+          var todas = Object.keys(porKey).map(function (k) { return porKey[k]; });
+          var topo = todas.filter(function (a) { return !a.paiKey; });
+          topo.forEach(function (a) {
+            a._filhos = todas.filter(function (x) { return x.paiKey === a.key; })
+              .sort(function (x, y) { return (x.ordem || 0) - (y.ordem || 0); });
+          });
+          topo.sort(function (a, b) {
             if (a.horaInicio && b.horaInicio && a.horaInicio !== b.horaInicio) return a.horaInicio < b.horaInicio ? -1 : 1;
             if (a.horaInicio && !b.horaInicio) return -1;
             if (!a.horaInicio && b.horaInicio) return 1;
             return (a.ordem || 0) - (b.ordem || 0);
           });
-          return { key: dia.key, ordem: dia.ordem, titulo: dia.titulo, numero: i + 1, data: dataDoDia(turma, i), atividades: efetivas, removidas: removidas };
+          return { key: dia.key, ordem: dia.ordem, titulo: dia.titulo, numero: i + 1, data: dataDoDia(turma, i), atividades: topo, todasEfetivas: todas, removidas: removidas };
         });
         cb(null, out);
       });
@@ -405,7 +460,10 @@
   }
 
   function abrirFormAtividade(opts) {
-    /* opts: { titulo, existente, onSalvar(dados), onExcluir? } */
+    /* opts: { titulo, existente, onSalvar(dados), onExcluir?,
+       filhosCount? — quando a atividade editada já tem sub-etapas, mostra
+       o aviso de que a duração vem delas, sem desabilitar o campo (editar
+       aqui só importa de verdade se todas as sub-etapas forem removidas). */
     var a = opts.existente || {};
     var overlay = document.createElement('div');
     overlay.className = 'modal-overlay';
@@ -415,6 +473,9 @@
     box.style.cssText = 'max-width:640px;width:92%;padding:28px;display:flex;flex-direction:column;gap:4px;max-height:88vh;overflow:auto';
 
     var tipoOpts = TIPOS.map(function (t) { return '<option value="' + esc(t) + '"' + (a.tipo === t ? ' selected' : '') + '>' + esc(t) + '</option>'; }).join('');
+    var avisoFilhos = opts.filhosCount
+      ? '<p style="font-size:.72rem;color:var(--ink-3);margin-top:4px">Esta atividade tem ' + opts.filhosCount + ' sub-etapa' + (opts.filhosCount !== 1 ? 's' : '') + ' — a duração exibida nas listas é a soma delas, não o valor abaixo (só passa a valer se todas as sub-etapas forem removidas).</p>'
+      : '';
 
     box.innerHTML =
       '<h3 style="font-size:1.1rem;font-family:var(--font-head);letter-spacing:.05em;color:var(--ink)">' + esc(opts.titulo) + '</h3>' +
@@ -427,12 +488,8 @@
           '<label class="auth-label" style="flex:1;min-width:110px">Fim<input type="time" id="rfFim" value="' + esc(a.horaFim || '') + '" /></label>' +
           '<label class="auth-label" style="flex:1;min-width:110px">Duração (min)<input type="number" min="0" id="rfDuracao" value="' + esc(a.duracaoMinutos || '') + '" /></label>' +
         '</div>' +
-        '<p style="font-size:.72rem;color:var(--ink-3);margin-top:4px">Preencha início + duração, início + fim, ou fim + duração — o terceiro campo se completa sozinho.</p>') +
-      bloco('Sub-etapas (opcional)',
-        '<p style="font-size:.72rem;color:var(--ink-3);margin:0 0 8px">Transforma esta atividade numa seção: as sub-etapas aparecem recuadas por baixo dela, e a duração da seção passa a ser a soma das sub-etapas.</p>' +
-        '<div id="rfSubList" style="display:flex;flex-direction:column;gap:6px"></div>' +
-        '<button type="button" class="btn btn--sm" id="rfSubAddBtn" style="margin-top:8px;padding:5px 12px;font-size:.72rem">+ Sub-etapa</button>' +
-        '<p id="rfSubTotal" style="font-size:.72rem;color:var(--ink-3);margin-top:6px"></p>') +
+        '<p style="font-size:.72rem;color:var(--ink-3);margin-top:4px">Preencha início + duração, início + fim, ou fim + duração — o terceiro campo se completa sozinho.</p>' +
+        avisoFilhos) +
       bloco('Propósito',
         campoArea('rfDescricao', 'Descrição', a.descricao, 'O que acontece nesta atividade') +
         campoArea('rfObjetivo', 'Objetivo', a.objetivo, 'O que queremos que os participantes percebam, aprendam ou experimentem?') +
@@ -472,39 +529,6 @@
       });
     });
 
-    /* Sub-etapas: cada uma é só título + duração (spec: filhas não têm
-       horário próprio, só a seção-pai tem início/fim). A duração da seção
-       vira somada e travada assim que existe pelo menos uma sub-etapa —
-       é o que garante "TOTAL DO BLOCO" nunca diferir da soma das filhas. */
-    var subList = $('#rfSubList'), subTotalEl = $('#rfSubTotal'), subAddBtn = $('#rfSubAddBtn');
-    function recalcularSub() {
-      var linhasEl = Array.prototype.slice.call(subList.querySelectorAll('.rf-sub-row'));
-      var total = linhasEl.reduce(function (s, row) { return s + (Number(row.querySelector('.rf-sub-dur').value) || 0); }, 0);
-      if (linhasEl.length) {
-        duracaoEl.value = total; duracaoEl.readOnly = true; duracaoEl.style.opacity = '.6';
-        subTotalEl.textContent = 'Total das sub-etapas: ' + total + ' min (duração da seção, calculada automaticamente).';
-        var i = hhmmParaMin(inicioEl.value);
-        if (i !== null) fimEl.value = minParaHhmm(i + total);
-      } else {
-        duracaoEl.readOnly = false; duracaoEl.style.opacity = ''; subTotalEl.textContent = '';
-      }
-    }
-    function addSubRow(sub) {
-      var row = document.createElement('div');
-      row.className = 'rf-sub-row';
-      row.style.cssText = 'display:flex;gap:8px;align-items:center';
-      row.innerHTML =
-        '<input type="text" class="rf-sub-titulo" placeholder="Título da sub-etapa" value="' + esc((sub && sub.titulo) || '') + '" style="flex:1;padding:6px 10px;background:var(--panel-2);border:1px solid var(--line-strong);border-radius:6px;color:var(--ink)" />' +
-        '<input type="number" min="0" class="rf-sub-dur" placeholder="min" value="' + esc((sub && sub.duracaoMinutos) || '') + '" style="width:70px;padding:6px 8px;background:var(--panel-2);border:1px solid var(--line-strong);border-radius:6px;color:var(--ink)" />' +
-        '<button type="button" class="btn btn--sm rf-sub-remove" style="padding:4px 8px">✕</button>';
-      row.querySelector('.rf-sub-dur').addEventListener('input', recalcularSub);
-      row.querySelector('.rf-sub-remove').addEventListener('click', function () { row.remove(); recalcularSub(); });
-      subList.appendChild(row);
-    }
-    (a.subatividades || []).forEach(addSubRow);
-    recalcularSub();
-    subAddBtn.addEventListener('click', function () { addSubRow(); recalcularSub(); });
-
     function closeModal() { document.body.removeChild(overlay); }
     $('.roteiro-form-cancelar').addEventListener('click', closeModal);
     var overlayMousedownFora = false;
@@ -513,7 +537,10 @@
     overlay.addEventListener('keydown', function (e) { if (e.key === 'Escape') { e.preventDefault(); closeModal(); } });
     if (opts.onExcluir) {
       $('.roteiro-form-excluir').addEventListener('click', function () {
-        confirmDialog('Excluir esta atividade? Não é possível desfazer.', function () { opts.onExcluir(); closeModal(); });
+        var msgExcluir = opts.filhosCount
+          ? 'Excluir esta atividade e suas ' + opts.filhosCount + ' sub-etapa(s)? Não é possível desfazer.'
+          : 'Excluir esta atividade? Não é possível desfazer.';
+        confirmDialog(msgExcluir, function () { opts.onExcluir(); closeModal(); });
       });
     }
     $('.roteiro-form-salvar').addEventListener('click', function () {
@@ -523,21 +550,17 @@
       if (!titulo) { errEl.textContent = 'Dê um título à atividade.'; errEl.style.display = ''; return; }
       var i = hhmmParaMin(inicioEl.value), f = hhmmParaMin(fimEl.value);
       if (i !== null && f !== null && f < i) { errEl.textContent = 'O horário final não pode ser antes do inicial.'; errEl.style.display = ''; return; }
-      var subatividades = Array.prototype.map.call(subList.querySelectorAll('.rf-sub-row'), function (row) {
-        return { titulo: row.querySelector('.rf-sub-titulo').value.trim(), duracaoMinutos: Math.max(0, Number(row.querySelector('.rf-sub-dur').value) || 0) };
-      }).filter(function (s) { return s.titulo; });
       var dados = {
         titulo: titulo, tipo: $('#rfTipo').value,
         horaInicio: inicioEl.value || '', horaFim: fimEl.value || '',
         duracaoMinutos: duracaoEl.value ? Math.max(0, Number(duracaoEl.value)) : 0,
-        subatividades: subatividades,
         descricao: $('#rfDescricao').value.trim(), objetivo: $('#rfObjetivo').value.trim(),
         passoAPasso: $('#rfPasso').value.trim(), dicasFacilitador: $('#rfDicas').value.trim(),
         conexaoAgilidade: $('#rfConexao').value.trim(),
         perguntasDebrief: linhas($('#rfDebrief').value), materiais: linhas($('#rfMateriais').value),
         preparacaoPrevia: $('#rfPreparacao').value.trim(), observacoes: $('#rfObs').value.trim()
       };
-      opts.onSalvar(dados, duracaoEfetiva(a));
+      opts.onSalvar(dados);
       closeModal();
     });
   }
@@ -573,29 +596,35 @@
     if (!h) return m + ' min';
     return h + 'h' + (m ? String(m).padStart(2, '0') : '');
   }
-  function duracaoEfetiva(a) {
-    if (a && a.subatividades && a.subatividades.length) {
-      return a.subatividades.reduce(function (s, x) { return s + (Number(x.duracaoMinutos) || 0); }, 0);
-    }
-    return (a && Number(a.duracaoMinutos)) || 0;
+  /* Quem tem sub-etapas (filhas, via paiKey) tem sua duração calculada
+     como a soma delas — o duracaoMinutos próprio fica ignorado (mas não
+     apagado) enquanto existir ao menos uma filha. `todasAtividades` é a
+     lista completa do dia (nível principal + filhas), de onde as filhas
+     de `a` são encontradas; sem esse parâmetro, cai no valor próprio. */
+  function duracaoEfetiva(a, todasAtividades) {
+    if (!a) return 0;
+    var filhos = (todasAtividades || []).filter(function (x) { return x.paiKey === a.key; });
+    if (filhos.length) return filhos.reduce(function (s, f) { return s + duracaoEfetiva(f, todasAtividades); }, 0);
+    return Number(a.duracaoMinutos) || 0;
   }
 
-  function calcularResumoDia(atividadesTopo) {
+  function calcularResumoDia(atividadesTopo, todasAtividades) {
+    todasAtividades = todasAtividades || atividadesTopo;
     var comHorario = atividadesTopo.filter(function (a) { return a.horaInicio; })
       .slice().sort(function (a, b) { return hhmmParaMin(a.horaInicio) - hhmmParaMin(b.horaInicio); });
-    var programadoMin = atividadesTopo.reduce(function (s, a) { return s + duracaoEfetiva(a); }, 0);
+    var programadoMin = atividadesTopo.reduce(function (s, a) { return s + duracaoEfetiva(a, todasAtividades); }, 0);
     var pausasMin = atividadesTopo.filter(function (a) { return a.tipo === 'Intervalo'; })
-      .reduce(function (s, a) { return s + duracaoEfetiva(a); }, 0);
+      .reduce(function (s, a) { return s + duracaoEfetiva(a, todasAtividades); }, 0);
     var gaps = [];
     for (var i = 1; i < comHorario.length; i++) {
-      var fimAnterior = hhmmParaMin(comHorario[i - 1].horaFim) != null ? hhmmParaMin(comHorario[i - 1].horaFim) : hhmmParaMin(comHorario[i - 1].horaInicio) + duracaoEfetiva(comHorario[i - 1]);
+      var fimAnterior = hhmmParaMin(comHorario[i - 1].horaFim) != null ? hhmmParaMin(comHorario[i - 1].horaFim) : hhmmParaMin(comHorario[i - 1].horaInicio) + duracaoEfetiva(comHorario[i - 1], todasAtividades);
       var inicioAtual = hhmmParaMin(comHorario[i].horaInicio);
       if (inicioAtual > fimAnterior) gaps.push({ inicioMin: fimAnterior, fimMin: inicioAtual, min: inicioAtual - fimAnterior });
     }
     var lacunasMin = gaps.reduce(function (s, g) { return s + g.min; }, 0);
     var janelaInicioMin = comHorario.length ? hhmmParaMin(comHorario[0].horaInicio) : null;
     var ultimo = comHorario[comHorario.length - 1];
-    var janelaFimMin = ultimo ? (hhmmParaMin(ultimo.horaFim) != null ? hhmmParaMin(ultimo.horaFim) : hhmmParaMin(ultimo.horaInicio) + duracaoEfetiva(ultimo)) : null;
+    var janelaFimMin = ultimo ? (hhmmParaMin(ultimo.horaFim) != null ? hhmmParaMin(ultimo.horaFim) : hhmmParaMin(ultimo.horaInicio) + duracaoEfetiva(ultimo, todasAtividades)) : null;
     return {
       janelaInicioMin: janelaInicioMin, janelaFimMin: janelaFimMin,
       janelaMin: (janelaInicioMin != null && janelaFimMin != null) ? (janelaFimMin - janelaInicioMin) : null,
@@ -644,16 +673,18 @@
      janela nova com um documento HTML/CSS de impressão montado só em
      memória (window.open + document.write), sem depender de nenhuma
      biblioteca de PDF/DOCX. */
-  function imprimirRoteiroDia(tituloContexto, dia, atividadesTopo, resumo) {
+  function imprimirRoteiroDia(tituloContexto, dia, atividadesTopo, resumo, todasAtividades) {
+    todasAtividades = todasAtividades || atividadesTopo;
     var geradoEm = new Date().toLocaleString('pt-BR');
     var linhasHtml = '';
     atividadesTopo.forEach(function (a, i) {
       var gapAntes = resumo.gaps.filter(function (g) { return g.fimMin === hhmmParaMin(a.horaInicio); })[0];
       if (gapAntes) linhasHtml += '<tr class="rp-gap"><td colspan="5">⚠ Lacuna: ' + esc(minParaHhmm(gapAntes.inicioMin)) + '–' + esc(minParaHhmm(gapAntes.fimMin)) + ' (' + esc(fmtDuracao(gapAntes.min)) + ')</td></tr>';
       var horario = (a.horaInicio || '—') + (a.horaFim ? '–' + a.horaFim : '');
-      linhasHtml += '<tr><td>' + (i + 1) + '</td><td>' + esc(horario) + '</td><td>' + esc(a.titulo) + '</td><td>' + esc(a.tipo || '') + '</td><td>' + esc(fmtDuracao(duracaoEfetiva(a))) + '</td></tr>';
-      (a.subatividades || []).forEach(function (sub, j) {
-        linhasHtml += '<tr class="rp-sub"><td>' + (i + 1) + '.' + (j + 1) + '</td><td></td><td>' + esc(sub.titulo) + '</td><td></td><td>' + esc(fmtDuracao(sub.duracaoMinutos)) + '</td></tr>';
+      linhasHtml += '<tr><td>' + (i + 1) + '</td><td>' + esc(horario) + '</td><td>' + esc(a.titulo) + '</td><td>' + esc(a.tipo || '') + '</td><td>' + esc(fmtDuracao(duracaoEfetiva(a, todasAtividades))) + '</td></tr>';
+      filhosDe(todasAtividades, a.key).forEach(function (sub, j) {
+        var horarioSub = sub.horaInicio ? ((sub.horaInicio || '—') + (sub.horaFim ? '–' + sub.horaFim : '')) : '';
+        linhasHtml += '<tr class="rp-sub"><td>' + (i + 1) + '.' + (j + 1) + '</td><td>' + esc(horarioSub) + '</td><td>' + esc(sub.titulo) + '</td><td>' + esc(sub.tipo || '') + '</td><td>' + esc(fmtDuracao(duracaoEfetiva(sub, todasAtividades))) + '</td></tr>';
       });
     });
 
@@ -714,14 +745,15 @@
 
     function reload() { carregarRoteiroEvento(eventoKey, function (err, roteiro) { desenhar(roteiro); }); }
 
-    /* Duração mudou numa atividade com horário definido — oferece deslocar
-       em cadeia as atividades seguintes DO MESMO DIA (por ordem) que também
-       têm horário, sem fazer isso silenciosamente. */
-    function ofereceRecalculo(dia, atividade, dadosNovos, duracaoAnterior, todasDoDia, cb) {
-      var delta = duracaoEfetiva(dadosNovos) - duracaoAnterior;
-      if (!delta || !dadosNovos.horaInicio) return cb();
-      var idx = todasDoDia.findIndex(function (x) { return x.key === atividade.key; });
-      var seguintes = todasDoDia.slice(idx + 1).filter(function (x) { return x.horaInicio; });
+    /* Duração mudou numa atividade de NÍVEL PRINCIPAL com horário definido
+       — oferece deslocar em cadeia as atividades seguintes do mesmo dia
+       (também de nível principal, também com horário) na mesma diferença,
+       sem fazer isso silenciosamente. Sub-etapas nunca entram nessa
+       cadeia: quem tem horário próprio e posição no dia é só o pai. */
+    function ofereceRecalculo(atividadeKey, delta, horaInicioNovo, atividadesTopoDoDia, cb) {
+      if (!delta || !horaInicioNovo) return cb();
+      var idx = atividadesTopoDoDia.findIndex(function (x) { return x.key === atividadeKey; });
+      var seguintes = atividadesTopoDoDia.slice(idx + 1).filter(function (x) { return x.horaInicio; });
       if (!seguintes.length) return cb();
       escolhaDialog(
         'A duração desta atividade foi alterada em ' + (delta > 0 ? '+' : '') + delta + ' min.\n\n' +
@@ -779,8 +811,9 @@
       }
 
       var dia = roteiro.dias.filter(function (d) { return d.key === diaAtivoKey; })[0];
-      var atividades = atividadesDoDia(roteiro.atividades, dia.key);
-      var resumo = calcularResumoDia(atividades);
+      var atividadesDia = atividadesDoDia(roteiro.atividades, dia.key); /* topo + filhas */
+      var atividadesTopo = atividadesDia.filter(function (a) { return !a.paiKey; });
+      var resumo = calcularResumoDia(atividadesTopo, atividadesDia);
 
       var diaHdr = document.createElement('div');
       diaHdr.style.cssText = 'display:flex;align-items:center;gap:10px;margin-bottom:12px;flex-wrap:wrap';
@@ -794,16 +827,16 @@
       imprimirBtn.className = 'btn btn--sm';
       imprimirBtn.style.cssText = 'padding:6px 10px;font-size:.72rem';
       imprimirBtn.innerHTML = '&#x1F5A8; Imprimir';
-      imprimirBtn.addEventListener('click', function () { imprimirRoteiroDia('Roteiro-base', dia, atividades, resumo); });
+      imprimirBtn.addEventListener('click', function () { imprimirRoteiroDia('Roteiro-base', dia, atividadesTopo, resumo, atividadesDia); });
       var delDiaBtn = document.createElement('button');
       delDiaBtn.className = 'btn btn--sm';
       delDiaBtn.style.cssText = 'padding:6px 10px;font-size:.72rem;border-color:rgba(255,80,80,.5);color:#ff8080';
       delDiaBtn.textContent = '🗑 Excluir dia';
       delDiaBtn.addEventListener('click', function () {
-        var msg = atividades.length
-          ? 'Excluir este dia e suas ' + atividades.length + ' atividade(s)? Personalizações feitas por turmas nessas atividades também serão apagadas. Não é possível desfazer.'
+        var msg = atividadesDia.length
+          ? 'Excluir este dia e suas ' + atividadesDia.length + ' atividade(s)? Personalizações feitas por turmas nessas atividades também serão apagadas. Não é possível desfazer.'
           : 'Excluir este dia?';
-        confirmDialog(msg, function () { excluirDia(eventoKey, dia.key, atividades, function () { diaAtivoKey = null; reload(); }); });
+        confirmDialog(msg, function () { excluirDia(eventoKey, dia.key, atividadesDia, function () { diaAtivoKey = null; reload(); }); });
       });
       diaHdr.appendChild(renameInput);
       diaHdr.appendChild(imprimirBtn);
@@ -812,7 +845,7 @@
 
       container.insertAdjacentHTML('beforeend', resumoDiaHtml(resumo, 'rbResumoTopo'));
 
-      if (ordemDivergeDoHorario(atividades)) {
+      if (ordemDivergeDoHorario(atividadesTopo)) {
         var bannerOrdem = document.createElement('div');
         bannerOrdem.style.cssText = 'display:flex;align-items:center;gap:10px;flex-wrap:wrap;padding:10px 14px;background:rgba(255,179,71,.08);border:1px solid rgba(255,179,71,.35);border-radius:8px;margin-bottom:12px;font-size:.82rem;color:#ffb347';
         bannerOrdem.innerHTML = '<span>⚠ Existem atividades fora da ordem cronológica.</span>';
@@ -821,7 +854,7 @@
         ordenarBtn.style.cssText = 'padding:4px 10px;font-size:.72rem;margin-left:auto';
         ordenarBtn.textContent = 'Ordenar por horário';
         ordenarBtn.addEventListener('click', function () {
-          var comHorario = atividades.filter(function (a) { return a.horaInicio; }).slice()
+          var comHorario = atividadesTopo.filter(function (a) { return a.horaInicio; }).slice()
             .sort(function (a, b) { return hhmmParaMin(a.horaInicio) - hhmmParaMin(b.horaInicio); });
           var updates = {};
           comHorario.forEach(function (a, i) { updates[a.key] = (i + 1) * 10; });
@@ -838,22 +871,23 @@
       var lista = document.createElement('div');
       lista.style.cssText = 'display:flex;flex-direction:column;gap:6px';
       lista.insertAdjacentHTML('beforeend', colunasHeaderHtml());
-      if (!atividades.length) {
+      if (!atividadesTopo.length) {
         lista.insertAdjacentHTML('beforeend', '<p class="admin-empty">Nenhuma atividade neste dia.</p>');
       }
 
-      atividades.forEach(function (a, i) {
+      atividadesTopo.forEach(function (a, i) {
         /* Lacuna antes desta atividade, se ela é a próxima na ordem
            cronológica logo depois de um "buraco" detectado no resumo. */
         var gapAntes = resumo.gaps.filter(function (g) { return g.fimMin === hhmmParaMin(a.horaInicio); })[0];
         if (gapAntes) lista.insertAdjacentHTML('beforeend', gapRowHtml(gapAntes));
 
-        lista.appendChild(linhaAtividadeBase(a, i + 1, atividades));
+        lista.appendChild(linhaAtividade(a, i + 1, atividadesTopo, null));
 
+        var filhos = filhosDe(atividadesDia, a.key);
         var recolhida = !!_secoesRecolhidas[a.key];
-        if (a.subatividades && a.subatividades.length && !recolhida) {
-          a.subatividades.forEach(function (sub, j) {
-            lista.appendChild(linhaSubEtapa(i + 1, j + 1, sub));
+        if (filhos.length && !recolhida) {
+          filhos.forEach(function (f, j) {
+            lista.appendChild(linhaAtividade(f, j + 1, filhos, i + 1));
           });
         }
       });
@@ -868,24 +902,33 @@
       addAtvBtn.addEventListener('click', function () {
         abrirFormAtividade({
           titulo: 'Nova atividade',
-          onSalvar: function (dados) { criarAtividade(eventoKey, dia.key, dados, atividades, function () { reload(); }); }
+          onSalvar: function (dados) { criarAtividade(eventoKey, dia.key, dados, atividadesTopo, function () { reload(); }); }
         });
       });
       container.appendChild(addAtvBtn);
 
-      function linhaAtividadeBase(a, numero, todasDoDia) {
+      /* Uma única função de linha serve nível principal e sub-etapa —
+         a diferença é só visual (recuo) e o que "+ Sub-etapa" faz (só
+         aparece no nível principal, pra não abrir um terceiro nível na
+         tela). numeroPai null = linha de nível principal. */
+      function linhaAtividade(a, numero, irmaos, numeroPai) {
+        var ehFilho = numeroPai != null;
         var row = document.createElement('div');
-        row.style.cssText = 'display:flex;align-items:center;gap:10px;padding:10px 14px;background:var(--panel-2);border:1px solid var(--line-strong);border-radius:8px;flex-wrap:wrap';
+        row.style.cssText = ehFilho
+          ? 'display:flex;align-items:center;gap:10px;padding:8px 14px 8px 34px;margin-left:20px;border-left:2px solid var(--line-strong);background:rgba(255,255,255,.02);border-radius:0 8px 8px 0;flex-wrap:wrap'
+          : 'display:flex;align-items:center;gap:10px;padding:10px 14px;background:var(--panel-2);border:1px solid var(--line-strong);border-radius:8px;flex-wrap:wrap';
         var horario = (a.horaInicio || '—') + (a.horaFim ? '–' + a.horaFim : '');
-        var ehSecao = a.subatividades && a.subatividades.length;
+        var filhosDesta = ehFilho ? [] : filhosDe(atividadesDia, a.key);
+        var ehSecao = filhosDesta.length > 0;
         var recolhida = !!_secoesRecolhidas[a.key];
+        var numeroTxt = ehFilho ? (numeroPai + '.' + numero) : String(numero);
         row.innerHTML =
-          '<span style="width:26px;text-align:center;font-family:var(--font-mono);font-size:.72rem;color:var(--ink-3);background:var(--panel);border-radius:4px;padding:2px 0">' + numero + '</span>' +
+          '<span style="width:30px;text-align:center;font-family:var(--font-mono);font-size:.7rem;color:var(--ink-3);' + (ehFilho ? '' : 'background:var(--panel);border-radius:4px;padding:2px 0;') + '">' + numeroTxt + '</span>' +
           '<span style="font-family:var(--font-mono);font-size:.78rem;color:var(--gold);min-width:96px">' + esc(horario) + '</span>' +
-          '<span style="flex:1;min-width:140px;color:var(--ink)">' + esc(a.titulo) +
-            (ehSecao ? ' <span style="font-size:.7rem;color:var(--ink-3)">· ' + a.subatividades.length + ' etapa' + (a.subatividades.length !== 1 ? 's' : '') + '</span>' : '') + '</span>' +
+          '<span style="flex:1;min-width:140px;color:' + (ehFilho ? 'var(--ink-2)' : 'var(--ink)') + ';font-size:' + (ehFilho ? '.85rem' : '1rem') + '">' + esc(a.titulo) +
+            (ehSecao ? ' <span style="font-size:.7rem;color:var(--ink-3)">· ' + filhosDesta.length + ' etapa' + (filhosDesta.length !== 1 ? 's' : '') + '</span>' : '') + '</span>' +
           (a.tipo ? '<span class="turma-status-badge" style="background:var(--panel);color:' + (a.tipo === 'Intervalo' ? '#ffb347' : 'var(--ink-3)') + ';border:1px solid var(--line-strong)">' + esc(a.tipo) + '</span>' : '') +
-          '<span style="font-size:.75rem;color:var(--ink-3);width:64px">' + fmtDuracao(duracaoEfetiva(a)) + '</span>';
+          '<span style="font-size:.75rem;color:var(--ink-3);width:64px">' + fmtDuracao(duracaoEfetiva(a, atividadesDia)) + '</span>';
         var acoes = document.createElement('div');
         acoes.style.cssText = 'display:flex;gap:4px;margin-left:auto;flex-wrap:wrap';
         if (ehSecao) {
@@ -896,35 +939,44 @@
           acoes.appendChild(toggleBtn);
         }
         var upBtn = document.createElement('button'); upBtn.className = 'btn btn--sm'; upBtn.style.cssText = 'padding:4px 8px'; upBtn.textContent = '▲'; upBtn.disabled = numero === 1;
-        upBtn.addEventListener('click', function () { moverAtividade(eventoKey, a.key, 'up', todasDoDia, function () { reload(); }); });
-        var downBtn = document.createElement('button'); downBtn.className = 'btn btn--sm'; downBtn.style.cssText = 'padding:4px 8px'; downBtn.textContent = '▼'; downBtn.disabled = numero === todasDoDia.length;
-        downBtn.addEventListener('click', function () { moverAtividade(eventoKey, a.key, 'down', todasDoDia, function () { reload(); }); });
+        upBtn.addEventListener('click', function () { moverAtividade(eventoKey, a.key, 'up', irmaos, function () { reload(); }); });
+        var downBtn = document.createElement('button'); downBtn.className = 'btn btn--sm'; downBtn.style.cssText = 'padding:4px 8px'; downBtn.textContent = '▼'; downBtn.disabled = numero === irmaos.length;
+        downBtn.addEventListener('click', function () { moverAtividade(eventoKey, a.key, 'down', irmaos, function () { reload(); }); });
         var dupBtn = document.createElement('button'); dupBtn.className = 'btn btn--sm'; dupBtn.style.cssText = 'padding:4px 8px;font-size:.72rem'; dupBtn.textContent = 'Duplicar';
-        dupBtn.addEventListener('click', function () { duplicarAtividade(eventoKey, a, todasDoDia, function () { reload(); }); });
+        dupBtn.addEventListener('click', function () { duplicarAtividade(eventoKey, a, irmaos, atividadesDia, function () { reload(); }); });
         var editBtn = document.createElement('button'); editBtn.className = 'btn btn--sm'; editBtn.style.cssText = 'padding:4px 8px;font-size:.72rem'; editBtn.textContent = 'Editar';
         editBtn.addEventListener('click', function () {
           abrirFormAtividade({
-            titulo: 'Editar atividade', existente: a,
-            onSalvar: function (dados, duracaoAnterior) {
+            titulo: ehFilho ? 'Editar sub-etapa' : 'Editar atividade', existente: a, filhosCount: filhosDesta.length,
+            onSalvar: function (dados) {
+              var duracaoAntes = duracaoEfetiva(a, atividadesDia);
               editarAtividade(eventoKey, a.key, dados, function () {
-                ofereceRecalculo(dia, a, dados, duracaoAnterior, todasDoDia, function () { reload(); });
+                var duracaoDepois = filhosDesta.length ? duracaoAntes : (Number(dados.duracaoMinutos) || 0);
+                if (ehFilho) return reload(); /* sub-etapa não participa da cadeia de recálculo do dia */
+                ofereceRecalculo(a.key, duracaoDepois - duracaoAntes, dados.horaInicio, atividadesTopo, function () { reload(); });
               });
             },
-            onExcluir: function () { excluirAtividade(eventoKey, a.key, function () { reload(); }); }
+            onExcluir: function () { excluirAtividade(eventoKey, a.key, atividadesDia, function () { reload(); }); }
           });
         });
         acoes.appendChild(upBtn); acoes.appendChild(downBtn); acoes.appendChild(dupBtn); acoes.appendChild(editBtn);
+        if (!ehFilho) {
+          var addSubBtn = document.createElement('button');
+          addSubBtn.className = 'btn btn--sm'; addSubBtn.style.cssText = 'padding:4px 8px;font-size:.72rem'; addSubBtn.textContent = '+ Sub-etapa';
+          addSubBtn.addEventListener('click', function () {
+            abrirFormAtividade({
+              titulo: 'Nova sub-etapa de "' + a.titulo + '"',
+              onSalvar: function (dados) {
+                criarAtividade(eventoKey, dia.key, Object.assign({ paiKey: a.key }, dados), filhosDesta, function () {
+                  _secoesRecolhidas[a.key] = false;
+                  reload();
+                });
+              }
+            });
+          });
+          acoes.appendChild(addSubBtn);
+        }
         row.appendChild(acoes);
-        return row;
-      }
-
-      function linhaSubEtapa(numeroPai, numeroFilho, sub) {
-        var row = document.createElement('div');
-        row.style.cssText = 'display:flex;align-items:center;gap:10px;padding:6px 14px 6px 34px;margin-left:20px;border-left:2px solid var(--line-strong);background:rgba(255,255,255,.02);border-radius:0 6px 6px 0';
-        row.innerHTML =
-          '<span style="font-family:var(--font-mono);font-size:.7rem;color:var(--ink-3);min-width:96px">' + numeroPai + '.' + numeroFilho + '</span>' +
-          '<span style="flex:1;color:var(--ink-2);font-size:.85rem">' + esc(sub.titulo) + '</span>' +
-          '<span style="font-size:.72rem;color:var(--ink-3);width:64px">' + fmtDuracao(sub.duracaoMinutos) + '</span>';
         return row;
       }
     }
@@ -979,13 +1031,13 @@
       container.appendChild(tabsWrap);
 
       var dia = dias[diaAtivoIdx];
-      var resumo = calcularResumoDia(dia.atividades);
+      var resumo = calcularResumoDia(dia.atividades, dia.todasEfetivas);
 
       var imprimirBtn = document.createElement('button');
       imprimirBtn.className = 'btn btn--sm';
       imprimirBtn.style.cssText = 'padding:5px 10px;font-size:.72rem;margin-bottom:12px';
       imprimirBtn.innerHTML = '&#x1F5A8; Imprimir';
-      imprimirBtn.addEventListener('click', function () { imprimirRoteiroDia('Roteiro — ' + (turma.label || ''), { titulo: 'Dia ' + dia.numero }, dia.atividades, resumo); });
+      imprimirBtn.addEventListener('click', function () { imprimirRoteiroDia('Roteiro — ' + (turma.label || ''), { titulo: 'Dia ' + dia.numero }, dia.atividades, resumo, dia.todasEfetivas); });
       container.appendChild(imprimirBtn);
 
       container.insertAdjacentHTML('beforeend', resumoDiaHtml(resumo, 'rtResumoTopo'));
@@ -1001,7 +1053,14 @@
       dia.atividades.forEach(function (a, i) {
         var gapAntes = resumo.gaps.filter(function (g) { return g.fimMin === hhmmParaMin(a.horaInicio); })[0];
         if (gapAntes) lista.insertAdjacentHTML('beforeend', gapRowHtml(gapAntes));
-        lista.appendChild(renderAtividadeAcc(a, dia, i + 1));
+        lista.appendChild(renderAtividadeAcc(a, dia, i + 1, null));
+
+        var recolhida = !!_secoesRecolhidas[a.key];
+        if (a._filhos.length && !recolhida) {
+          a._filhos.forEach(function (f, j) {
+            lista.appendChild(renderAtividadeAcc(f, dia, j + 1, i + 1));
+          });
+        }
       });
       container.appendChild(lista);
 
@@ -1042,29 +1101,45 @@
       }
     }
 
-    function renderAtividadeAcc(a, dia, numero) {
+    /* numeroPai null = atividade de nível principal; caso contrário é
+       uma sub-etapa (numeração N.M, recuada, sem o próprio toggle de
+       seção — só um nível de aninhamento é mostrado na tela). */
+    function renderAtividadeAcc(a, dia, numero, numeroPai) {
+      var ehFilho = numeroPai != null;
       var acc = document.createElement('div');
       acc.className = 'aval-acc';
+      if (ehFilho) acc.style.cssText = 'margin-left:20px;border-left:2px solid var(--line-strong);border-radius:0 8px 8px 0';
       var hdr = document.createElement('div');
       hdr.className = 'aval-acc-hdr';
       var horario = (a.horaInicio || '—') + (a.horaFim ? '–' + a.horaFim : '');
-      var ehSecao = a.subatividades && a.subatividades.length;
+      var ehSecao = !ehFilho && a._filhos && a._filhos.length;
+      var recolhida = !!_secoesRecolhidas[a.key];
+      var numeroTxt = ehFilho ? (numeroPai + '.' + numero) : String(numero);
       hdr.innerHTML =
-        '<span style="width:22px;text-align:center;font-family:var(--font-mono);font-size:.7rem;color:var(--ink-3)">' + numero + '</span>' +
+        '<span style="width:26px;text-align:center;font-family:var(--font-mono);font-size:.7rem;color:var(--ink-3)">' + numeroTxt + '</span>' +
         '<span style="font-family:var(--font-mono);font-size:.78rem;color:var(--gold);min-width:96px">' + esc(horario) + '</span>' +
         '<div class="aval-acc-hdr-text"><strong style="color:var(--ink)">' + esc(a.titulo) +
-          (ehSecao ? ' <span style="font-size:.7rem;color:var(--ink-3);font-weight:400">· ' + a.subatividades.length + ' etapa' + (a.subatividades.length !== 1 ? 's' : '') + '</span>' : '') + '</strong>' +
-        '<span style="font-size:.72rem;color:var(--ink-3)">' + esc(fmtDuracao(duracaoEfetiva(a))) + (a.tipo ? ' · ' + esc(a.tipo) : '') + '</span>' +
+          (ehSecao ? ' <span style="font-size:.7rem;color:var(--ink-3);font-weight:400">· ' + a._filhos.length + ' etapa' + (a._filhos.length !== 1 ? 's' : '') + '</span>' : '') + '</strong>' +
+        '<span style="font-size:.72rem;color:var(--ink-3)">' + esc(fmtDuracao(duracaoEfetiva(a, dia.todasEfetivas))) + (a.tipo ? ' · ' + esc(a.tipo) : '') + '</span>' +
         (a._facilitacao && a._facilitacao.principal ? '<span style="font-size:.72rem;color:var(--ink-3)">Condução: ' + esc(nomeFacilitador(equipe, a._facilitacao.principal)) + '</span>' : '') +
-        '</div><div class="aval-acc-hdr-right">' + badgeDe(a._status) + '<span class="aval-acc-arrow">▾</span></div>';
+        '</div><div class="aval-acc-hdr-right">' + badgeDe(a._status) +
+          (ehSecao ? '<button type="button" class="btn btn--sm rt-toggle-sec" style="padding:2px 8px;font-size:.68rem">' + (recolhida ? '▼' : '▲') + '</button>' : '') +
+          '<span class="aval-acc-arrow">▾</span></div>';
       var body = document.createElement('div');
       body.className = 'aval-acc-body';
       body.style.cssText = 'display:none;padding:14px 16px;background:var(--panel)';
+      if (ehSecao) {
+        hdr.querySelector('.rt-toggle-sec').addEventListener('click', function (e) {
+          e.stopPropagation();
+          _secoesRecolhidas[a.key] = !recolhida;
+          reload();
+        });
+      }
       hdr.addEventListener('click', function () {
         var abrir = body.style.display === 'none';
         body.style.display = abrir ? '' : 'none';
         acc.classList.toggle('aval-acc--open', abrir);
-        if (abrir && !body.dataset.montado) { montarCorpo(body, a, dia); body.dataset.montado = '1'; }
+        if (abrir && !body.dataset.montado) { montarCorpo(body, a, dia, ehFilho); body.dataset.montado = '1'; }
       });
       acc.appendChild(hdr);
       acc.appendChild(body);
@@ -1079,18 +1154,7 @@
       return '<div style="margin-bottom:12px"><strong style="font-size:.72rem;letter-spacing:.06em;text-transform:uppercase;color:var(--ink-3)">' + esc(label) + '</strong>' + conteudo + '</div>';
     }
 
-    function montarCorpo(body, a, dia) {
-      if (a.subatividades && a.subatividades.length) {
-        var subHtml = '<div style="margin-bottom:14px"><strong style="font-size:.72rem;letter-spacing:.06em;text-transform:uppercase;color:var(--ink-3)">Etapas desta seção</strong>' +
-          '<div style="display:flex;flex-direction:column;gap:4px;margin-top:6px">' +
-          a.subatividades.map(function (sub, j) {
-            return '<div style="display:flex;gap:10px;padding:5px 10px;border-left:2px solid var(--line-strong);background:rgba(255,255,255,.02)">' +
-              '<span style="color:var(--ink-3);font-size:.78rem">' + (j + 1) + '.</span>' +
-              '<span style="flex:1;color:var(--ink-2);font-size:.85rem">' + esc(sub.titulo) + '</span>' +
-              '<span style="color:var(--ink-3);font-size:.78rem">' + esc(fmtDuracao(sub.duracaoMinutos)) + '</span></div>';
-          }).join('') + '</div></div>';
-        body.insertAdjacentHTML('beforeend', subHtml);
-      }
+    function montarCorpo(body, a, dia, ehFilho) {
       var detalhes = document.createElement('div');
       detalhes.innerHTML =
         campoDetalhe('Objetivo', a.objetivo) +
@@ -1142,14 +1206,15 @@
 
       var acoes = document.createElement('div');
       acoes.style.cssText = 'display:flex;gap:8px;margin-top:14px;flex-wrap:wrap';
+      var filhosDesta = filhosDe(dia.todasEfetivas, a.key);
       if (a._status === 'exclusiva') {
         var editExclBtn = document.createElement('button');
         editExclBtn.className = 'btn btn--sm'; editExclBtn.style.cssText = 'padding:5px 12px;font-size:.72rem'; editExclBtn.textContent = 'Editar';
         editExclBtn.addEventListener('click', function () {
           abrirFormAtividade({
-            titulo: 'Editar atividade exclusiva', existente: a,
+            titulo: 'Editar atividade exclusiva', existente: a, filhosCount: filhosDesta.length,
             onSalvar: function (dados) { editarAtividadeExclusiva(turma.key, a.key, dados, function () { reload(); }); },
-            onExcluir: function () { excluirAtividadeExclusiva(turma.key, a.key, function () { reload(); }); }
+            onExcluir: function () { excluirAtividadeExclusiva(turma.key, a.key, dia.todasEfetivas, function () { reload(); }); }
           });
         });
         acoes.appendChild(editExclBtn);
@@ -1158,7 +1223,7 @@
         editBtn.className = 'btn btn--sm'; editBtn.style.cssText = 'padding:5px 12px;font-size:.72rem'; editBtn.textContent = 'Editar apenas nesta turma';
         editBtn.addEventListener('click', function () {
           abrirFormAtividade({
-            titulo: 'Personalizar atividade nesta turma', existente: a,
+            titulo: 'Personalizar atividade nesta turma', existente: a, filhosCount: filhosDesta.length,
             onSalvar: function (dados) { customizarAtividade(turma.key, a._base, dados, function () { reload(); }); }
           });
         });
@@ -1180,6 +1245,22 @@
             function () { removerAtividadeDaTurma(turma.key, a.key, function () { reload(); }); });
         });
         acoes.appendChild(remBtn);
+      }
+      /* Sub-etapa adicionada por uma turma é sempre exclusiva dela, mesmo
+         quando a atividade-mãe é do roteiro-base — não existe "sub-etapa
+         de personalização", só exclusiva de verdade ou base (esta última
+         só se cria no roteiro-base do evento). Um só nível: não aparece
+         em quem já é sub-etapa. */
+      if (!ehFilho) {
+        var addSubBtn = document.createElement('button');
+        addSubBtn.className = 'btn btn--sm'; addSubBtn.style.cssText = 'padding:5px 12px;font-size:.72rem'; addSubBtn.textContent = '+ Sub-etapa (só nesta turma)';
+        addSubBtn.addEventListener('click', function () {
+          abrirFormAtividade({
+            titulo: 'Nova sub-etapa de "' + a.titulo + '" (só nesta turma)',
+            onSalvar: function (dados) { criarAtividadeExclusiva(turma.key, dia.key, Object.assign({ paiKey: a.key }, dados), function () { _secoesRecolhidas[a.key] = false; reload(); }); }
+          });
+        });
+        acoes.appendChild(addSubBtn);
       }
       body.appendChild(acoes);
     }
