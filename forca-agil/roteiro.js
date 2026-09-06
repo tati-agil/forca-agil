@@ -73,9 +73,9 @@
     document.body.appendChild(overlay);
     function close() { document.body.removeChild(overlay); }
     box.querySelector('.roteiro-dlg-ok').addEventListener('click', close);
-    var overlayMousedownAlvo = false;
-    overlay.addEventListener('mousedown', function (e) { overlayMousedownAlvo = (e.target === overlay); });
-    overlay.addEventListener('click', function (e) { if (overlayMousedownAlvo && e.target === overlay) close(); });
+    var overlayMousedownFora = false;
+    overlay.addEventListener('mousedown', function (e) { overlayMousedownFora = !box.contains(e.target); });
+    overlay.addEventListener('click', function (e) { if (overlayMousedownFora && !box.contains(e.target)) close(); });
   }
   function confirmDialog(mensagem, onYes) {
     var overlay = document.createElement('div');
@@ -93,9 +93,9 @@
     document.body.appendChild(overlay);
     function close() { document.body.removeChild(overlay); }
     box.querySelector('.roteiro-dlg-cancel').addEventListener('click', close);
-    var overlayMousedownAlvo = false;
-    overlay.addEventListener('mousedown', function (e) { overlayMousedownAlvo = (e.target === overlay); });
-    overlay.addEventListener('click', function (e) { if (overlayMousedownAlvo && e.target === overlay) close(); });
+    var overlayMousedownFora = false;
+    overlay.addEventListener('mousedown', function (e) { overlayMousedownFora = !box.contains(e.target); });
+    overlay.addEventListener('click', function (e) { if (overlayMousedownFora && !box.contains(e.target)) close(); });
     box.querySelector('.roteiro-dlg-confirm').addEventListener('click', function () { close(); onYes(); });
   }
 
@@ -450,9 +450,9 @@
 
     function closeModal() { document.body.removeChild(overlay); }
     $('.roteiro-form-cancelar').addEventListener('click', closeModal);
-    var overlayMousedownAlvo = false;
-    overlay.addEventListener('mousedown', function (e) { overlayMousedownAlvo = (e.target === overlay); });
-    overlay.addEventListener('click', function (e) { if (overlayMousedownAlvo && e.target === overlay) closeModal(); });
+    var overlayMousedownFora = false;
+    overlay.addEventListener('mousedown', function (e) { overlayMousedownFora = !box.contains(e.target); });
+    overlay.addEventListener('click', function (e) { if (overlayMousedownFora && !box.contains(e.target)) closeModal(); });
     if (opts.onExcluir) {
       $('.roteiro-form-excluir').addEventListener('click', function () {
         confirmDialog('Excluir esta atividade? Não é possível desfazer.', function () { opts.onExcluir(); closeModal(); });

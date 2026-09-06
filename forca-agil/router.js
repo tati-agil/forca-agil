@@ -174,6 +174,27 @@
   window.addEventListener('hashchange', function () { show(route()); });
   document.addEventListener('DOMContentLoaded', function () { show(route()); });
 
+  /* Backspace navegando pra trás no navegador — bug relatado num campo
+     <input type="time"> dentro de um modal (Roteiro de Facilitação):
+     apertar Backspace pra limpar um segmento de hora fechava o modal E
+     voltava pra página anterior, perdendo o formulário. Em campos de
+     texto normais o navegador NUNCA trata Backspace como "voltar" —
+     mas em <input type="time"/date/…>, sem um cursor de texto de
+     verdade por trás, alguns navegadores caem no comportamento legado
+     de Backspace = história.back() quando o segmento já está vazio.
+     Bloqueado globalmente: só deixa o Backspace seguir o padrão do
+     navegador em campo de texto/textarea/contenteditable de verdade,
+     onde apagar caractere é exatamente o que a pessoa quer. */
+  document.addEventListener('keydown', function (e) {
+    if (e.key !== 'Backspace') return;
+    var t = e.target;
+    var tag = t && t.tagName;
+    var textEditable = tag === 'TEXTAREA' ||
+      (tag === 'INPUT' && /^(text|search|password|email|tel|url|number)$/i.test(t.type || 'text')) ||
+      (t && t.isContentEditable);
+    if (!textEditable) e.preventDefault();
+  });
+
   function forcarLogin() {
     var modal = document.getElementById('authModal');
     if (!modal || !modal.hidden) return;
