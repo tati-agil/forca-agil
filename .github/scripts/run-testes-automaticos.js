@@ -315,7 +315,7 @@ async function submitLogin(page, email, password) {
     await p.waitForSelector('#heroKnow', { timeout: 15000 });
     const antes = await p.evaluate(() => window.scrollY);
     await p.click('#heroKnow');
-    await p.waitForFunction((y) => window.scrollY > y + 100, antes, null, { timeout: 10000 });
+    await p.waitForFunction((y) => window.scrollY > y + 100, antes, { timeout: 10000 });
   });
 
   await runIsolated('Início: menu mobile (375px) sem sobreposição entre hamburguer e logo', async (p) => {
@@ -385,7 +385,27 @@ async function submitLogin(page, email, password) {
        quebrou antes, quando o painel não esperava o fa-auth-ready. */
     await p.goto(BASE_URL + '#admin', { waitUntil: 'networkidle' });
     await p.reload({ waitUntil: 'networkidle' });
-    await p.waitForFunction(() => location.hash === '#admin', null, { timeout: 15000 });
+    const ficouNoAdmin = await p.waitForFunction(() => location.hash === '#admin', null, { timeout: 15000 })
+      .then(() => true).catch(() => false);
+    if (!ficouNoAdmin) {
+      const estado = await p.evaluate(() => {
+        var s = window.faAuth && window.faAuth.getSession && window.faAuth.getSession();
+        return {
+          hash: location.hash,
+          temFaAuth: !!window.faAuth,
+          authReady: !!(window.faAuth && window.faAuth.isAuthReady && window.faAuth.isAuthReady()),
+          adminReady: !!(window.faAuth && window.faAuth.isAdminReady && window.faAuth.isAdminReady()),
+          temIsAdminReady: !!(window.faAuth && window.faAuth.isAdminReady),
+          temSessao: !!s,
+          ehAdmin: !!(s && window.faAuth.isAdmin && window.faAuth.isAdmin(s.email)),
+          paginaVisivel: (function () {
+            var v = document.querySelector('.page-section:not([hidden])');
+            return v ? v.id : null;
+          })()
+        };
+      });
+      throw new Error('depois do F5 o hash saiu de #admin — estado: ' + JSON.stringify(estado));
+    }
     /* Sinal positivo de que a aba Eventos carregou de verdade: loadInterests()
        marca cada evento renderizado com data-ev-key. Um banco sem evento
        nenhum também é um fim de carregamento legítimo — o que não pode é
