@@ -415,10 +415,14 @@
   line-height: 1.5; outline: none; overflow-y: auto;
 }
 .roteiro-rico-area ul, .roteiro-rico-area ol { margin: 4px 0 4px 20px; padding: 0; }
+.roteiro-rico-area div, .roteiro-rico-area p { margin: 0 0 4px; }
+.roteiro-rico-area div:last-child, .roteiro-rico-area p:last-child { margin-bottom: 0; }
 .roteiro-rico-area:empty:before { content: attr(data-placeholder); color: var(--ink-3); }
 
 /* Mesma área, em modo leitura (corpo expandido do roteiro da turma) */
 .rico-html-view ul, .rico-html-view ol { margin: 4px 0 0 18px; padding: 0; }
+.rico-html-view div, .rico-html-view p { margin: 0 0 4px; }
+.rico-html-view div:last-child, .rico-html-view p:last-child { margin-bottom: 0; }
 
 /* ---- Tabela de presença por dia ---- */
 /* Com as colunas de dia a tabela fica mais larga que o painel e a coluna de

@@ -135,6 +135,53 @@
       : sanitizarHtmlRico(el.innerHTML).split(/<div[^>]*>|<\/div>|<br\s*\/?>|<p[^>]*>|<\/p>/i).map(function (s) { return s.trim(); });
     return itens.filter(function (s) { return !ricoVazio(s); });
   }
+  /* Continua sozinha uma numeração/marcador DIGITADO à mão (ex: "1. " ou
+     "- ") ao apertar Enter — sem isso, quem não usa os botões "Lista" e
+     simplesmente digita "1. texto" precisa lembrar de digitar "2. " na
+     linha seguinte também. Não interfere numa lista de verdade (criada
+     pelos botões "• Lista"/"1. Lista"): dentro de um <li> de verdade o
+     "1." é um marcador gerado pelo navegador, não faz parte do texto, e
+     por isso o regex abaixo nunca casa — o Enter nesse caso segue o
+     comportamento nativo do navegador (que já sabe continuar a lista).
+     Usa sempre execCommand('insertParagraph') para quebrar a linha (em
+     vez de inserir um <br> à mão): isso garante que a "linha atual" vire
+     sempre um bloco (div/p) novo e separado, do jeito que a busca por
+     blocoEl abaixo espera — se em vez disso a quebra fosse só um <br>
+     dentro do mesmo bloco, a 3ª linha em diante ia enxergar o texto de
+     TODAS as linhas anteriores coladas (sem <br> nenhum no meio, já que
+     Range.toString() não insere separador nos <br>) e o regex nunca mais
+     bateria a partir da segunda continuação. */
+  function continuarMarcadorDigitado(e, area) {
+    if (e.key !== 'Enter' || e.shiftKey || e.ctrlKey || e.metaKey || e.altKey) return;
+    var sel = window.getSelection();
+    if (!sel.rangeCount || !sel.isCollapsed) return;
+    var range = sel.getRangeAt(0);
+    if (!area.contains(range.startContainer)) return;
+    var blocoEl = range.startContainer;
+    while (blocoEl && blocoEl !== area && !(blocoEl.nodeType === 1 && /^(DIV|P|LI)$/.test(blocoEl.tagName))) blocoEl = blocoEl.parentNode;
+    if (!blocoEl) blocoEl = area;
+    var preRange = document.createRange();
+    preRange.selectNodeContents(blocoEl);
+    preRange.setEnd(range.startContainer, range.startOffset);
+    var textoAntes = preRange.toString();
+    var mNum = textoAntes.match(/^(\s*)(\d+)([.)])[ \t](.*)$/);
+    var mMarcador = !mNum && textoAntes.match(/^(\s*)([•\-])[ \t](.*)$/);
+    if (!mNum && !mMarcador) return; /* deixa o Enter padrão do navegador acontecer */
+    e.preventDefault();
+    var resto = mNum ? mNum[4] : mMarcador[3];
+    if (!resto.trim()) {
+      /* linha só tinha o marcador, sem texto: Enter tira o marcador em
+         vez de repeti-lo de novo (senão nunca dava pra "sair" da lista) */
+      preRange.deleteContents();
+      document.execCommand('insertParagraph');
+      return;
+    }
+    var prefixo = mNum
+      ? (mNum[1] + (Number(mNum[2]) + 1) + mNum[3] + ' ')
+      : (mMarcador[1] + mMarcador[2] + ' ');
+    document.execCommand('insertParagraph');
+    document.execCommand('insertText', false, prefixo);
+  }
 
   /* ---- Diálogos (mesmo visual do admin, duplicado aqui: roteiro.js é
      carregado antes de admin.js e usado também por facilitador.js, então
@@ -545,6 +592,8 @@
           '<span class="roteiro-rico-sep"></span>' +
           '<button type="button" class="roteiro-rico-btn" data-cmd="justifyCenter" title="Centralizar">Centralizar</button>' +
           '<button type="button" class="roteiro-rico-btn" data-cmd="justifyFull" title="Justificar">Justificar</button>' +
+          '<span class="roteiro-rico-sep"></span>' +
+          '<button type="button" class="roteiro-rico-btn" data-cmd="insertHTML" data-arg="<br><br>" title="Adicionar uma linha em branco">↵ Espaço</button>' +
         '</div>' +
         '<div id="' + id + '" class="roteiro-rico-area" contenteditable="true" data-placeholder="' + esc(placeholder || '') + '" style="min-height:' + minH + 'px">' +
           (valorHtmlInicial || '') +
@@ -615,8 +664,11 @@
       btn.addEventListener('click', function () {
         var area = btn.closest('.roteiro-rico').querySelector('.roteiro-rico-area');
         area.focus();
-        document.execCommand(btn.getAttribute('data-cmd'), false, null);
+        document.execCommand(btn.getAttribute('data-cmd'), false, btn.getAttribute('data-arg'));
       });
+    });
+    Array.prototype.forEach.call(box.querySelectorAll('.roteiro-rico-area'), function (area) {
+      area.addEventListener('keydown', function (e) { continuarMarcadorDigitado(e, area); });
     });
 
     [inicioEl, fimEl, duracaoEl].forEach(function (el) {
@@ -891,6 +943,8 @@
       '.rp-campo{margin-bottom:8px;font-size:.85rem;}' +
       '.rp-campo strong{display:block;font-size:.68rem;letter-spacing:.06em;text-transform:uppercase;color:#666;margin-bottom:2px;}' +
       '.rp-campo-txt{margin:0;}' +
+      '.rp-campo-txt div, .rp-campo-txt p{margin:0 0 4px;}' +
+      '.rp-campo-txt div:last-child, .rp-campo-txt p:last-child{margin-bottom:0;}' +
       '.rp-campo ul{margin:2px 0 0 18px;padding:0;}' +
       '.rp-vazio{margin:0;font-size:.8rem;color:#888;font-style:italic;}' +
       '.rp-gap-bloco{border:1px dashed #ff8a5c;background:#fff3e0;color:#a35a2a;font-style:italic;font-size:.82rem;padding:6px 12px;border-radius:6px;margin-bottom:10px;}' +
