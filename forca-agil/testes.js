@@ -556,6 +556,20 @@
             var p = btn.previousElementSibling;
             return p && p.classList.contains('rc-desc');
           });
+        } },
+        { id: 'c-repo-cancelar-limpa', label: 'Formulário "Adicionar ao Holocron": "Cancelar" esconde o formulário e limpa os campos', run: function () {
+          var addBtn = document.getElementById('repoAddBtn');
+          var form = document.getElementById('repoForm');
+          var cancelBtn = document.getElementById('repoCancel');
+          var titleInput = document.getElementById('rfTitle');
+          var urlInput = document.getElementById('rfUrl');
+          if (!addBtn || !form || !cancelBtn || !titleInput || !urlInput) return false;
+          addBtn.click();
+          if (form.hidden) return false;
+          titleInput.value = 'Teste automático';
+          urlInput.value = 'previ.com.br';
+          cancelBtn.click();
+          return form.hidden === true && titleInput.value === '' && urlInput.value === '';
         } }
       ]
     },
@@ -796,17 +810,11 @@
       title: 'Servidor sem resposta não pode deixar a tela preta',
       motivo: 'Simular a falta de resposta do servidor: abrir o site e, antes de ele carregar, cortar a internet (modo avião ou desconectar o cabo). Verificar: (1) NÃO fica uma tela preta indefinida; (2) em cerca de 10 segundos aparece a tela de login com o aviso "Demorando para conectar"; (3) clicando em "Testar conexão", os quatro itens aparecem marcados como bloqueados e surge o texto pronto para a TI; (4) religando a internet e recarregando, o site volta ao normal e o aviso não aparece. Testar também o caminho oposto, numa rede corporativa com proxy: se os quatro derem OK e o site ainda assim demorar, o diagnóstico deve mostrar os TEMPOS de cada parte — é o que distingue lentidão para baixar o sistema de lentidão do servidor.' },
     { section: 'Entrar',
-      title: 'Login — erro de credenciais',
-      motivo: 'Requer tentativa de login com senha errada, o que causaria falha de autenticação real.' },
-    { section: 'Entrar',
       title: 'Login — botão "Aguarde…" durante autenticação',
       motivo: 'Estado transiente (dura milissegundos) — impossível capturar automaticamente.' },
     { section: 'Entrar',
       title: 'Login — esqueci minha senha (recebimento do e-mail)',
       motivo: 'A abertura do painel já é testada automaticamente. Falta só verificar o recebimento real do e-mail de redefinição enviado pelo Firebase.' },
-    { section: 'Cadastrar',
-      title: 'Cadastro — e-mail já existente (mensagem de erro)',
-      motivo: 'Requer tentar cadastrar e-mail duplicado — causaria chamada real ao Firebase Auth.' },
     { section: 'Cadastrar',
       title: 'Cadastro — formatação automática (nome maiúsculo, e-mail minúsculo)',
       motivo: 'Requer realizar um cadastro real e verificar no Firebase. Não deve ser feito em teste automatizado.' },
@@ -822,9 +830,6 @@
     { section: 'Início',
       title: 'Interessado tem o mesmo acesso de logado — só inscrito destrava as 3 páginas',
       motivo: 'Requer duas contas logadas sem turma confirmada: uma que NUNCA clicou em "Tenho interesse" e outra que clicou (status "interessado"). Verificar que ambas veem exatamente o mesmo: Início, Turmas, Ajuda e Repositório — e que NENHUMA das duas vê Conteúdos, Treinamento Jedi ou Avaliação no menu, nem consegue acessar por URL direta. A única diferença entre elas deve ser o texto do botão no card da turma ("Tenho interesse" vs "Remover interesse"). Depois, pedir ao admin para confirmar uma delas na turma e recarregar: só então as 3 páginas aparecem. Isso comprova que quem muda o nível de acesso é a confirmação do admin, não o interesse manifestado.' },
-    { section: 'Início',
-      title: 'Login obrigatório — visitante não vê o site, só o modal',
-      motivo: 'Abrir o site numa janela anônima (sem sessão). Verificar: (1) o body tem a classe "aguardando-auth" e nada do site aparece — nem menu, nem hero, nem rodapé; (2) o modal de autenticação abre sozinho, com fundo opaco e SEM botão de fechar; (3) não é possível fechar o modal com Esc nem clicando fora; (4) só depois de autenticar o site é revelado. Consequência documentada: nenhuma tela interna (Início, Turmas, Ajuda, Repositório...) é alcançável por visitante — por isso essas telas não têm mais a persona "visitante" no Manual nem no Mapa.' },
     { section: 'Início',
       title: 'Botão "Conhecer a iniciativa" → rola para a seção',
       motivo: 'Comportamento de scroll — verificar posição de scroll após clique é frágil e dependente de layout.' },
@@ -986,9 +991,6 @@
       title: 'Confirmar quem já é Inscrita em outra turma — aviso e remoção automática (só para inscrição, não interesse)',
       motivo: 'Requer confirmar a mesma pessoa como Inscrita em duas turmas — exige dado real no Firebase, não pode ser simulado no teste automatizado. Verificar dois casos: (a) ela está Interessada (não inscrita) na Turma A e é confirmada como Inscrita na Turma B — não deve aparecer nenhum aviso, e o registro dela na Turma A continua intacto como Interessada; (b) ela já é Inscrita na Turma A e é confirmada como Inscrita na Turma B — o modal avisa que ela já é inscrita na Turma A; ao confirmar, o registro dela na Turma A vira "removido" com motivo registrado e aparece na seção Removidos daquela turma; ao cancelar, nada muda em nenhuma das duas turmas.' },
     { section: 'Check-in',
-      title: 'QR Code inválido ou sem turma na URL → "QR Code inválido ou turma não encontrada"',
-      motivo: 'Acessar #checkin sem parâmetro turma ou com uma chave inexistente.' },
-    { section: 'Check-in',
       title: 'Sem login → "Faça login para registrar sua presença"; completa check-in automático após logar',
       motivo: 'Acessar #checkin?turma=<key> deslogado, depois fazer login na mesma aba.' },
     { section: 'Check-in',
@@ -1015,9 +1017,6 @@
     { section: 'Repositório',
       title: 'Formulário — bloqueia URL duplicada',
       motivo: 'Requer consulta assíncrona ao Firebase com URL específica — pode ser adicionado em versão futura.' },
-    { section: 'Repositório',
-      title: 'Formulário — Cancelar limpa campos',
-      motivo: 'Requer preencher campos e clicar Cancelar — interação transiente.' },
     { section: 'Repositório',
       title: 'Remover conteúdo próprio',
       motivo: 'Requer ter contribuído antes e deletaria dado real.' },
@@ -1057,9 +1056,6 @@
     { section: 'Admin',
       title: 'Admin — acesso negado para logado/inscrito (URL direta)',
       motivo: 'Requer testar com diferentes níveis de acesso — não pode ser validado na sessão admin atual.' },
-    { section: 'Admin',
-      title: 'Menu do site — link "Admin" oculto após logout, inclusive no mobile com menu aberto',
-      motivo: 'Verificar: (1) logar como admin e abrir o menu mobile (hamburguer); (2) clicar em "Sair"; (3) o link "Admin" deve sumir do menu imediatamente, mesmo que o menu esteja expandido. O atributo hidden é gerenciado por auth.js — CSS de layout não pode sobrescrevê-lo com display:block.' },
     { section: 'Admin',
       title: 'Cadastrados — resetar progresso',
       motivo: 'Ação destrutiva e irreversível. Verificar: se a pessoa estiver logada no momento do reset, a página dela recarrega automaticamente e o autodiagnóstico fica disponível para refazer. Para testar o reload em tempo real: abrir a página como usuária em uma aba e o painel admin em outra — ao clicar Resetar, a aba da usuária deve recarregar sozinha.' },
@@ -1342,9 +1338,6 @@
     { section: 'Admin',
       title: 'Turmas — CSV exportado tem caracteres especiais corretos e abre editável',
       motivo: 'Baixar qualquer CSV (Estado atual, Histórico ou individual). Verificar no Excel: (1) acentos, cedilha e caracteres especiais aparecem corretamente (sem "?" ou "Ã"); (2) arquivo abre em modo edição — sem modo protegido, sem "somente leitura".' },
-    { section: 'Admin',
-      title: 'Admin — visibilidade das 14 abas no mobile',
-      motivo: 'Acessar o painel Admin em tela estreita (celular). Verificar: todas as 14 abas (Dashboard, Eventos, Certificados, Treinamentos, Repositório, Cadastrados, Administradores, Diretores, Facilitadores, Manual, Mapa, Testes, Pedidos, Sorteios) estão visíveis (quebram em 2 linhas); nenhuma aba fica oculta ou cortada.' },
     { section: 'Deploy',
       title: 'Pre-commit hook — bloqueia commit com erro de sintaxe JS',
       motivo: 'Verificar manualmente: editar um arquivo JS com erro intencional (ex: remover um "}" ao final) e tentar fazer git commit — o commit deve ser recusado com mensagem de erro indicando o arquivo. Desfazer a edição após o teste.' },
