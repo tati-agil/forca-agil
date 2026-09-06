@@ -566,16 +566,22 @@ async function submitLogin(page, email, password) {
       .then(() => true).catch(() => false);
     if (!formVisivel) return 'admin já respondeu esta turma — formulário não aparece, nada a verificar';
 
-    /* Marca uma nota da primeira seção. Nada é enviado: o auto-avançar e
-       o rascunho acontecem sem passar pelo botão ENVIAR. */
-    const marcou = await p.evaluate(() => {
-      var form = document.getElementById('avaliacaoForm');
-      var input = form.querySelector('input[type="radio"]');
-      if (!input) return null;
-      input.click();
-      return input.name;
-    });
-    if (!marcou) throw new Error('não achei nenhuma nota para marcar no formulário');
+    /* Marca a nota da seção 1 (notaGeral). Nada é enviado: o auto-avançar e
+       o rascunho acontecem sem passar pelo botão ENVIAR.
+
+       A nota NÃO é um radio — é <button class="aval-rating-btn" data-val="N">,
+       e o auto-avançar só dispara na seção cuja única pergunta é a nota. A
+       seção 1 é a única assim, por isso o teste marca justamente ela. */
+    const NOTA = '9';
+    const marcou = await p.evaluate((val) => {
+      var w = document.querySelector('#avaliacaoForm .aval-rating[data-field="notaGeral"]');
+      if (!w) return false;
+      var btn = w.querySelector('.aval-rating-btn[data-val="' + val + '"]');
+      if (!btn) return false;
+      btn.click();
+      return btn.classList.contains('active');
+    }, NOTA);
+    if (!marcou) throw new Error('não achei a nota da seção 1 (.aval-rating[data-field="notaGeral"]) para marcar');
 
     /* Auto-avançar: a seção 1 fecha e a 2 abre sozinha (~600ms no código).
        A classe é aval-acc--open; a primeira seção nasce aberta, então o
@@ -619,11 +625,13 @@ async function submitLogin(page, email, password) {
       tu.value = Array.prototype.find.call(tu.options, function (o) { return o.value; }).value;
       tu.dispatchEvent(new Event('change'));
     });
-    const restaurou = await p.waitForFunction((nome) => {
-      var form = document.getElementById('avaliacaoForm');
-      return !!form && !!form.querySelector('input[name="' + nome + '"]:checked');
-    }, marcou, { timeout: 20000 }).then(() => true).catch(() => false);
-    if (!restaurou) throw new Error('o rascunho foi guardado mas não voltou ao reabrir a página');
+    const restaurou = await p.waitForFunction((val) => {
+      var w = document.querySelector('#avaliacaoForm .aval-rating[data-field="notaGeral"]');
+      if (!w) return false;
+      var ativo = w.querySelector('.aval-rating-btn.active');
+      return !!ativo && ativo.dataset.val === val;
+    }, NOTA, { timeout: 20000 }).then(() => true).catch(() => false);
+    if (!restaurou) throw new Error('o rascunho foi guardado mas a nota não voltou marcada ao reabrir a página');
   });
 
   await runIsolated('Minha Área: a barra "Ver esta tela como" aparece para admin e não grava nada', async (p) => {
