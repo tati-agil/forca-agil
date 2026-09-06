@@ -45,7 +45,10 @@
     input.addEventListener('focus', function () {
       if (input.value === '') {
         input.value = '@previ.com.br';
-        input.setSelectionRange(0, 0);
+        /* input[type=email] não suporta setSelectionRange (lança
+           InvalidStateError em todo navegador) — sem o try/catch o
+           cursor fica parado no fim do texto em vez de antes do @. */
+        try { input.setSelectionRange(0, 0); } catch (e) { /* sem suporte neste tipo de input */ }
       }
     });
     input.addEventListener('paste', function () {

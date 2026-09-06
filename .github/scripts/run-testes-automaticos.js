@@ -37,7 +37,31 @@ if (!EMAIL || !PASSWORD) {
     await page.fill('#loginPassword', PASSWORD);
     await page.click('#loginForm button[type="submit"]');
 
-    await page.waitForSelector('#navAdmin:not([hidden])', { timeout: 20000 });
+    /* Espera a sessão resolver (erro de login OU modal #authModal
+       fechar, que é o que revelarSite() faz) antes de checar se a conta
+       tem acesso de admin — assim, se o problema for permissão (conta
+       existe mas não está em Administradores) em vez de credencial
+       errada, o log deixa claro qual dos dois é, em vez de só estourar
+       timeout genérico. */
+    await Promise.race([
+      page.waitForSelector('#loginErr:not([hidden])', { timeout: 20000 }).catch(() => {}),
+      page.waitForSelector('#authModal[hidden]', { timeout: 20000 }).catch(() => {}),
+    ]);
+
+    const loginErrVisible = await page.locator('#loginErr').isVisible().catch(() => false);
+    if (loginErrVisible) {
+      const loginErrText = (await page.textContent('#loginErr')).trim();
+      throw new Error('Login recusado pelo Firebase Auth: ' + loginErrText);
+    }
+
+    const navAdminVisible = await page.locator('#navAdmin').isVisible().catch(() => false);
+    if (!navAdminVisible) {
+      throw new Error(
+        'Login parece ter funcionado (sem erro em #loginErr, modal fechou), mas o link #navAdmin continua oculto — ' +
+        'a conta ' + EMAIL + ' provavelmente não está cadastrada na aba Administradores do painel (isAdmin() retornou false).'
+      );
+    }
+
     console.log('Login OK, indo para #admin');
     await page.click('#navAdmin');
 
