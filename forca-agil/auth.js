@@ -148,6 +148,9 @@
        que nem é verdade. Espera a lista antes de decidir; quando ela
        chega, esta função roda de novo. */
     if (!_adminsResolvidos) return;
+    /* E a sessão também: a lista de admins costuma chegar antes dela, e
+       sem sessão o getAccessLevel() responde 'member' pra qualquer um. */
+    if (!_session) return;
     const page = window.faRouter.current();
     const level = getAccessLevel();
     if (page === 'repositorio' && !level) {

@@ -42,12 +42,14 @@
       return;
     }
 
-    /* Access control. Mesmo cuidado das rotas de admin: getAccessLevel()
-       devolve 'enrolled' pra admin, mas isso depende do isAdmin(), que só
-       responde a verdade depois que a lista de admins chega. Um admin sem
-       turma própria seria barrado aqui antes disso. */
+    /* Access control. São DUAS esperas, não uma: getAccessLevel() devolve
+       'enrolled' pra admin, mas só através do isAdmin() (lista de admins) E
+       do _session (sessão). Qualquer uma das duas pendente faz um admin sem
+       turma própria parecer 'member' e ser barrado. A lista costuma chegar
+       ANTES da sessão, então checar só a lista não bastava. */
+    const sessAtual = window.faAuth && window.faAuth.getSession ? window.faAuth.getSession() : null;
     const level = window.faAuth && window.faAuth.getAccessLevel ? window.faAuth.getAccessLevel() : 'member';
-    if ((page === 'conteudos' || page === 'treinamento' || page === 'avaliacao') && level === 'member' && listaAdminsPronta()) {
+    if ((page === 'conteudos' || page === 'treinamento' || page === 'avaliacao') && sessAtual && level === 'member' && listaAdminsPronta()) {
       location.hash = '#home';
       showAccessMsg('Disponível após confirmação em uma turma.');
       return;
@@ -117,12 +119,15 @@
        alguém legítimo enquanto o Firebase ainda está resolvendo a sessão
        (nesse caso, quem corrige é o enforceCurrentRouteAccess em auth.js). */
     if (page !== 'home' && window.faAuth && window.faAuth.isAuthReady && window.faAuth.isAuthReady()) {
+      const sess = window.faAuth.getSession ? window.faAuth.getSession() : null;
       const level = window.faAuth.getAccessLevel ? window.faAuth.getAccessLevel() : 'member';
-      /* listaAdminsPronta() pelo mesmo motivo do gate acima: sem ela, um
-         admin que não está inscrito em turma nenhuma é expulso daqui num
-         F5, com um aviso de nível de acesso que nem é verdadeiro. */
+      /* Sessão E lista de admins, pelo mesmo motivo do gate de navigate():
+         sem as duas, um admin que não está inscrito em turma nenhuma é
+         expulso daqui num F5, com um aviso de nível que nem é verdadeiro.
+         A lista chega antes da sessão, então esperar só por ela não bastava
+         — era o que ainda derrubava #avaliacao. */
       const blocked = (page === 'conteudos' || page === 'treinamento' || page === 'avaliacao')
-                      && level !== 'enrolled' && listaAdminsPronta();
+                      && sess && level !== 'enrolled' && listaAdminsPronta();
       if (blocked) {
         page = 'home';
         history.replaceState(null, '', '#home');
