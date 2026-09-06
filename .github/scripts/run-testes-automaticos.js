@@ -54,9 +54,16 @@ async function submitLogin(page, email, password) {
   await fillEmailRobust(page, '#loginEmail', email);
   await page.fill('#loginPassword', password);
   await page.click('#loginForm button[type="submit"]');
+  /* waitForSelector espera "visible" por padrão — um seletor [hidden] nunca
+     bate com isso (elemento hidden nunca é "visible"), então esperar por
+     "#authModal[hidden]" ficava preso até o timeout mesmo com o modal já
+     fechado. waitForFunction lê a propriedade JS direto, sem essa armadilha. */
   await Promise.race([
     page.waitForSelector('#loginErr:not([hidden])', { timeout: 20000 }).catch(() => {}),
-    page.waitForSelector('#authModal[hidden]', { timeout: 20000 }).catch(() => {}),
+    page.waitForFunction(() => {
+      var m = document.getElementById('authModal');
+      return !!m && m.hidden === true;
+    }, { timeout: 20000 }).catch(() => {}),
   ]);
   const loginErrVisible = await page.locator('#loginErr').isVisible().catch(() => false);
   if (loginErrVisible) {
@@ -225,7 +232,12 @@ async function submitLogin(page, email, password) {
     const visivelComMenuAberto = await p.locator('#navAdmin').isVisible();
     if (!visivelComMenuAberto) throw new Error('menu mobile aberto, mas #navAdmin não aparece na tela');
     await p.click('#navLogout');
-    await p.waitForSelector('#navAdmin[hidden]', { timeout: 10000 });
+    /* waitForSelector espera "visible" por padrão, e um elemento [hidden]
+       nunca é "visible" — checar a propriedade via JS evita essa armadilha. */
+    await p.waitForFunction(() => {
+      var el = document.getElementById('navAdmin');
+      return !!el && el.hidden === true;
+    }, { timeout: 10000 });
     /* O atributo hidden é gerenciado por auth.js — CSS de layout não pode
        sobrescrevê-lo com display:block e deixar o link visível de novo. */
     const displayReal = await p.evaluate(() => getComputedStyle(document.getElementById('navAdmin')).display);
