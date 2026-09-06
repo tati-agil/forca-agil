@@ -1,0 +1,47 @@
+name: Testes automáticos (painel Admin)
+
+on:
+  pull_request:
+    branches:
+      - main
+      - v2
+      - v3-quiz
+
+jobs:
+  testes:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Instalar Playwright + Chromium
+        run: |
+          mkdir -p /tmp/pw-deps
+          cd /tmp/pw-deps
+          npm init -y
+          npm install playwright@1.56.1
+          npx playwright install --with-deps chromium
+
+      - name: Servir o site localmente
+        run: |
+          python3 -m http.server 8811 --bind 127.0.0.1 &
+          sleep 2
+
+      - name: Rodar suíte "Automáticos" de testes.js
+        env:
+          NODE_PATH: /tmp/pw-deps/node_modules
+          FA_BASE_URL: http://127.0.0.1:8811
+          FA_TEST_ADMIN_EMAIL: ${{ secrets.FA_TEST_ADMIN_EMAIL }}
+          FA_TEST_ADMIN_PASSWORD: ${{ secrets.FA_TEST_ADMIN_PASSWORD }}
+        run: node .github/scripts/run-testes-automaticos.js
+
+      - name: Guardar screenshot de erro (se houver)
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: testes-automaticos-erro
+          path: testes-automaticos-erro.png
+          if-no-files-found: ignore
