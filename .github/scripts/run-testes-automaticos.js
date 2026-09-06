@@ -90,8 +90,15 @@ async function submitLogin(page, email, password) {
       throw new Error('Login recusado pelo Firebase Auth: ' + loginResult.errorText);
     }
 
-    const navAdminVisible = await page.locator('#navAdmin').isVisible().catch(() => false);
-    if (!navAdminVisible) {
+    /* O modal já fechou, mas isAdmin() confirma a conta com uma leitura
+       assíncrona em fa-admins/ — .isVisible() sozinho é um snapshot único
+       e pode rodar antes dessa leitura terminar. waitForFunction espera
+       de verdade, com um timeout generoso. */
+    const navAdminOk = await page.waitForFunction(() => {
+      var el = document.getElementById('navAdmin');
+      return !!el && el.hidden === false;
+    }, { timeout: 10000 }).then(() => true).catch(() => false);
+    if (!navAdminOk) {
       throw new Error(
         'Login parece ter funcionado (sem erro em #loginErr, modal fechou), mas o link #navAdmin continua oculto — ' +
         'a conta ' + EMAIL + ' provavelmente não está cadastrada na aba Administradores do painel (isAdmin() retornou false).'
