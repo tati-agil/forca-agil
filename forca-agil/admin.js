@@ -679,6 +679,20 @@
             })(t, inscritos));
             moreMenu.appendChild(sorteioBtn);
 
+            var equipeBtn = document.createElement('button');
+            equipeBtn.className = 'btn btn--sm';
+            equipeBtn.style.cssText = 'padding:6px 10px;font-size:.72rem';
+            equipeBtn.innerHTML = '&#x1F465; Equipe de facilitação';
+            equipeBtn.addEventListener('click', (function (tt) { return function () { openEquipeModal(tt); }; })(t));
+            moreMenu.appendChild(equipeBtn);
+
+            var roteiroTurmaBtn = document.createElement('button');
+            roteiroTurmaBtn.className = 'btn btn--sm';
+            roteiroTurmaBtn.style.cssText = 'padding:6px 10px;font-size:.72rem';
+            roteiroTurmaBtn.innerHTML = '&#x1F4CB; Roteiro da turma';
+            roteiroTurmaBtn.addEventListener('click', (function (tt) { return function () { openRoteiroTurmaModal(tt); }; })(t));
+            moreMenu.appendChild(roteiroTurmaBtn);
+
             var editTurmaBtn = document.createElement('button');
             editTurmaBtn.className = 'btn btn--sm';
             editTurmaBtn.style.cssText = 'padding:6px 10px;font-size:.72rem';
@@ -872,6 +886,12 @@
             evNewTurmaBtn.style.cssText = 'padding:4px 10px;font-size:.72rem';
             evNewTurmaBtn.innerHTML = '+ Nova turma';
             evNewTurmaBtn.addEventListener('click', function (e) { e.stopPropagation(); openTurmaFormModal(null, ev.key); });
+            var evRoteiroBtn = document.createElement('button');
+            evRoteiroBtn.className = 'btn btn--sm';
+            evRoteiroBtn.style.cssText = 'padding:4px 10px;font-size:.72rem';
+            evRoteiroBtn.innerHTML = '&#x1F4CB; Roteiro';
+            evRoteiroBtn.title = 'Roteiro-base de facilitação deste evento — todas as turmas herdam, cada uma pode personalizar';
+            evRoteiroBtn.addEventListener('click', function (e) { e.stopPropagation(); openRoteiroEventoModal(ev); });
             evHdr.appendChild(evToggleIcon);
             evHdr.appendChild(evNome);
             evHdr.appendChild(evMeta);
@@ -903,6 +923,7 @@
             }
             evHdr.appendChild(evEditBtn);
             evHdr.appendChild(evNewTurmaBtn);
+            evHdr.appendChild(evRoteiroBtn);
             evSection.appendChild(evHdr);
 
             /* turmas do evento — começa recolhido */
@@ -2668,10 +2689,170 @@
       updates['turmas-config/' + t.key] = null;
       updates['turmas-checkin/' + t.key] = null;
       updates['turmas-interesse-log/' + t.key] = null;
+      updates['turmas-equipe/' + t.key] = null;
+      updates['turmas-roteiro/' + t.key] = null;
       firebase.database().ref().update(updates, function (err) {
         if (err) { adminAlert('Erro ao excluir. Tente novamente.'); return; }
         loadInterests();
       });
+    });
+  }
+
+  /* ---- Equipe de facilitação de uma turma ----
+     Cadastro de facilitador (fa-facilitadores) é global; participação
+     numa turma é outra coisa (turmas-equipe) — a mesma pessoa pode ser
+     responsável numa turma, apoio em outra e não participar de uma
+     terceira. Regra de ouro: no máximo 1 responsável ativo por turma,
+     garantida aqui e em faRoteiro.definirResponsavel (troca atômica dos
+     dois lugares que apontam pro responsável: turmas/<key>/
+     responsavelFacilitadorKey e o papel na própria linha da equipe). */
+  function openEquipeModal(turma) {
+    var overlay = document.createElement('div');
+    overlay.className = 'modal-overlay';
+    overlay.style.cssText = 'display:flex;align-items:center;justify-content:center;z-index:9999';
+    var box = document.createElement('div');
+    box.className = 'modal-box';
+    box.style.cssText = 'max-width:560px;width:92%;padding:28px;display:flex;flex-direction:column;gap:16px;max-height:85vh;overflow:auto';
+    box.innerHTML = '<h3 style="font-size:1.1rem;font-family:var(--font-head);letter-spacing:.05em;color:var(--ink)">Equipe de facilitação — ' + esc(turma.label) + '</h3><div id="equipeBody"><p class="loading-msg">Carregando…</p></div>' +
+      '<div style="display:flex;justify-content:flex-end"><button class="btn admin-modal-cancel-btn">Fechar</button></div>';
+    overlay.appendChild(box);
+    document.body.appendChild(overlay);
+    function closeModal() { document.body.removeChild(overlay); }
+    box.querySelector('.admin-modal-cancel-btn').addEventListener('click', closeModal);
+    overlay.addEventListener('click', function (e) { if (e.target === overlay) closeModal(); });
+
+    var body = box.querySelector('#equipeBody');
+
+    function reload() {
+      Promise.all([
+        new Promise(function (res) { window.faRoteiro.carregarEquipeTurma(turma.key, function (err, l) { res(l || []); }); }),
+        firebase.database().ref('fa-facilitadores').once('value')
+      ]).then(function (r) {
+        var equipe = r[0];
+        var todos = Object.keys(r[1].val() || {}).map(function (k) { return Object.assign({ key: k }, r[1].val()[k]); })
+          .filter(function (f) { return f.ativo !== false; });
+        desenhar(equipe, todos);
+      });
+    }
+
+    function desenhar(equipe, todosFacilitadores) {
+      var responsavel = equipe.filter(function (f) { return f.papel === 'responsavel'; })[0];
+      var outros = equipe.filter(function (f) { return f.papel !== 'responsavel'; });
+      var jaNaEquipeKeys = equipe.map(function (f) { return f.key; });
+      var disponiveis = todosFacilitadores.filter(function (f) { return jaNaEquipeKeys.indexOf(emailKey(f.email)) === -1; });
+
+      body.innerHTML =
+        '<h4 style="margin:0">Responsável pela turma</h4>' +
+        (responsavel
+          ? '<p style="margin:4px 0"><span style="color:var(--gold)">⭐ ' + esc(responsavel.name) + '</span> <button class="btn btn--sm eq-remover" data-key="' + esc(responsavel.key) + '" data-resp="1" style="margin-left:8px;padding:3px 9px;font-size:.7rem;border-color:rgba(255,80,80,.5);color:#ff8080">Remover</button></p>'
+          : '<p class="admin-empty" style="margin:4px 0">Nenhum responsável definido ainda.</p>') +
+        '<h4 style="margin:18px 0 0">Outros facilitadores</h4>' +
+        (outros.length
+          ? '<div style="display:flex;flex-direction:column;gap:6px;margin-top:6px">' + outros.map(function (f) {
+              return '<div style="display:flex;align-items:center;gap:8px;padding:6px 10px;background:var(--panel-2);border-radius:6px">' +
+                '<span style="flex:1;color:var(--ink)">' + esc(f.name) + '</span>' +
+                '<button class="btn btn--sm eq-tornar-resp" data-key="' + esc(f.key) + '" data-name="' + esc(f.name) + '" style="padding:3px 9px;font-size:.7rem">Tornar responsável</button>' +
+                '<button class="btn btn--sm eq-remover" data-key="' + esc(f.key) + '" style="padding:3px 9px;font-size:.7rem;border-color:rgba(255,80,80,.5);color:#ff8080">Remover</button>' +
+              '</div>';
+            }).join('') + '</div>'
+          : '<p class="admin-empty" style="margin:6px 0 0">Nenhum.</p>') +
+        '<h4 style="margin:18px 0 0">+ Adicionar facilitador</h4>' +
+        (disponiveis.length
+          ? '<div style="display:flex;flex-direction:column;gap:10px;margin-top:6px">' +
+              '<select id="eqAddSel" style="width:100%;padding:8px 10px;background:var(--panel-2);border:1px solid var(--line-strong);border-radius:6px;color:var(--ink)">' +
+                disponiveis.map(function (f) { return '<option value="' + esc(emailKey(f.email)) + '">' + esc(f.name) + '</option>'; }).join('') +
+              '</select>' +
+              '<div style="display:flex;gap:16px">' +
+                '<label style="display:flex;align-items:center;gap:6px;font-size:.85rem;color:var(--ink-2)"><input type="radio" name="eqPapel" value="facilitador" checked /> Facilitador</label>' +
+                '<label style="display:flex;align-items:center;gap:6px;font-size:.85rem;color:var(--ink-2)"><input type="radio" name="eqPapel" value="responsavel" /> Responsável</label>' +
+              '</div>' +
+              '<button class="btn btn--primary" id="eqAddBtn" style="align-self:flex-start">Adicionar</button>' +
+            '</div>'
+          : '<p class="admin-empty" style="margin:6px 0 0">Todos os facilitadores ativos já estão nesta turma. Cadastre mais na aba Facilitadores.</p>');
+
+      body.querySelectorAll('.eq-remover').forEach(function (btn) {
+        btn.addEventListener('click', function () {
+          var key = btn.dataset.key, eraResp = !!btn.dataset.resp;
+          var pessoa = equipe.filter(function (f) { return f.key === key; })[0];
+          adminConfirm('Remover ' + (pessoa ? pessoa.name : '') + ' da equipe desta turma? O cadastro dela como facilitadora continua intacto.', function () {
+            window.faRoteiro.removerDaEquipe(turma.key, key, eraResp, function () { reload(); loadFacilitadores(); });
+          });
+        });
+      });
+      body.querySelectorAll('.eq-tornar-resp').forEach(function (btn) {
+        btn.addEventListener('click', function () {
+          var novo = todosFacilitadores.filter(function (f) { return emailKey(f.email) === btn.dataset.key; })[0] || outros.filter(function (f) { return f.key === btn.dataset.key; })[0];
+          var candidato = { key: btn.dataset.key, email: novo.email, name: novo.name };
+          function trocar() { window.faRoteiro.definirResponsavel(turma.key, candidato, responsavel ? responsavel.key : null, function () { reload(); loadFacilitadores(); }); }
+          if (responsavel) {
+            adminConfirm('Esta turma já possui ' + responsavel.name + ' como facilitador responsável.\nDeseja substituir por ' + candidato.name + '?', trocar);
+          } else trocar();
+        });
+      });
+      var addSel = body.querySelector('#eqAddSel'), addBtn = body.querySelector('#eqAddBtn');
+      if (addBtn) {
+        addBtn.addEventListener('click', function () {
+          var facEmail = addSel.value;
+          var fac = disponiveis.filter(function (f) { return emailKey(f.email) === facEmail; })[0];
+          var papel = body.querySelector('input[name="eqPapel"]:checked').value;
+          var candidato = { key: emailKey(fac.email), email: fac.email, name: fac.name };
+          if (papel === 'responsavel') {
+            function trocar() { window.faRoteiro.definirResponsavel(turma.key, candidato, responsavel ? responsavel.key : null, function () { reload(); loadFacilitadores(); }); }
+            if (responsavel) adminConfirm('Esta turma já possui ' + responsavel.name + ' como facilitador responsável.\nDeseja substituir por ' + candidato.name + '?', trocar);
+            else trocar();
+          } else {
+            window.faRoteiro.adicionarFacilitadorApoio(turma.key, candidato, function () { reload(); loadFacilitadores(); });
+          }
+        });
+      }
+    }
+
+    reload();
+  }
+
+  /* ---- Roteiro-base de um evento ---- */
+  function openRoteiroEventoModal(evento) {
+    var overlay = document.createElement('div');
+    overlay.className = 'modal-overlay';
+    overlay.style.cssText = 'display:flex;align-items:center;justify-content:center;z-index:9999';
+    var box = document.createElement('div');
+    box.className = 'modal-box';
+    box.style.cssText = 'max-width:880px;width:94%;padding:28px;display:flex;flex-direction:column;gap:12px;max-height:90vh;overflow:auto';
+    box.innerHTML =
+      '<div style="display:flex;justify-content:space-between;align-items:center">' +
+        '<h3 style="font-size:1.05rem;font-family:var(--font-head);letter-spacing:.05em;color:var(--ink)">Roteiro de Facilitação — ' + esc(evento.nome) + '</h3>' +
+        '<button class="btn btn--sm rt-fechar">Fechar</button></div>' +
+      '<p class="admin-empty" style="margin:0">Roteiro-base do evento: toda turma criada aqui herda este roteiro e pode personalizá-lo sem afetar as demais (aba "Roteiro da turma", dentro de cada turma).</p>' +
+      '<div id="rtEventoBody"></div>';
+    overlay.appendChild(box);
+    document.body.appendChild(overlay);
+    function closeModal() { document.body.removeChild(overlay); }
+    box.querySelector('.rt-fechar').addEventListener('click', closeModal);
+    overlay.addEventListener('click', function (e) { if (e.target === overlay) closeModal(); });
+    window.faRoteiro.renderRoteiroBaseEditor(box.querySelector('#rtEventoBody'), evento.key);
+  }
+
+  /* ---- Roteiro efetivo de uma turma (base + personalização) ---- */
+  function openRoteiroTurmaModal(turma) {
+    var overlay = document.createElement('div');
+    overlay.className = 'modal-overlay';
+    overlay.style.cssText = 'display:flex;align-items:center;justify-content:center;z-index:9999';
+    var box = document.createElement('div');
+    box.className = 'modal-box';
+    box.style.cssText = 'max-width:920px;width:94%;padding:28px;display:flex;flex-direction:column;gap:12px;max-height:90vh;overflow:auto';
+    box.innerHTML =
+      '<div style="display:flex;justify-content:space-between;align-items:center">' +
+        '<h3 style="font-size:1.05rem;font-family:var(--font-head);letter-spacing:.05em;color:var(--ink)">Roteiro da turma — ' + esc(turma.label) + '</h3>' +
+        '<button class="btn btn--sm rt-fechar">Fechar</button></div>' +
+      '<div id="rtTurmaBody"><p class="loading-msg">Carregando…</p></div>';
+    overlay.appendChild(box);
+    document.body.appendChild(overlay);
+    function closeModal() { document.body.removeChild(overlay); }
+    box.querySelector('.rt-fechar').addEventListener('click', closeModal);
+    overlay.addEventListener('click', function (e) { if (e.target === overlay) closeModal(); });
+
+    window.faRoteiro.carregarEquipeTurma(turma.key, function (err, equipe) {
+      window.faRoteiro.renderRoteiroTurma(box.querySelector('#rtTurmaBody'), turma, { editable: true, equipe: equipe || [] });
     });
   }
 
@@ -4413,24 +4594,75 @@
     render();
   }
 
+  /* Fase de uma turma pro facilitador — mesmo critério de aluno.js
+     (Minha Área): concluída quando o admin encerrou, programada quando o
+     primeiro encontro ainda não chegou, andamento no resto. Reaproveitado
+     tanto na ficha do facilitador quanto (via faRoteiro) na Área do
+     Facilitador, pra "próximas turmas" significar a mesma coisa nos dois
+     lugares. */
+  function faseTurmaFacilitacao(turma, cfg) {
+    var diasOrd = (turma.dias || []).slice().sort();
+    var primeiro = diasOrd[0] || '';
+    if (cfg && cfg.encerrada) return 'concluida';
+    if (primeiro && primeiro > todayISO()) return 'programada';
+    return 'andamento';
+  }
+
   /* ---- Facilitadores ----
-     Mesmo padrão de Diretores, pra outro fim: quem estiver aqui (ou for
-     admin) acessa a página #facilitador (ver router.js/auth.js). Qualquer
-     admin pode gerenciar (regra em fa-facilitadores). */
+     "Pessoas autorizadas a atuar como facilitadores" — um cadastro
+     global e de baixo custo (mesmo padrão de Diretores): quem estiver
+     aqui, ativo, pode ser colocado na EQUIPE DE FACILITAÇÃO de qualquer
+     turma (ver openEquipeModal). Continua dando acesso à página
+     Facilitador (menu, ao lado de Ajuda), junto com os admins — isso não
+     mudou. O papel dentro de cada turma (responsável ou facilitador de
+     apoio) mora em turmas-equipe, não aqui: ver CLAUDE.md/roteiro.js. */
   function loadFacilitadores() {
     const c = document.getElementById('adminFacilitadores');
     if (!c) return;
 
     function render() {
-      firebase.database().ref('fa-facilitadores').once('value', function (snap) {
-        const data = snap.val() || {};
-        const dbList = Object.values(data).sort(function (a, b) { return (a.name || '').localeCompare(b.name || '', 'pt'); });
+      var db = firebase.database();
+      Promise.all([
+        db.ref('fa-facilitadores').once('value'),
+        db.ref('turmas-equipe').once('value'),
+        db.ref('turmas').once('value'),
+        db.ref('turmas-config').once('value'),
+        db.ref('eventos').once('value')
+      ]).then(function (snaps) {
+        const data     = snaps[0].val() || {};
+        const equipe   = snaps[1].val() || {};
+        const turmas   = snaps[2].val() || {};
+        const config   = snaps[3].val() || {};
+        const eventos  = snaps[4].val() || {};
+        const dbList = Object.keys(data).map(function (k) { return Object.assign({ key: k }, data[k]); })
+          .sort(function (a, b) { return (a.name || '').localeCompare(b.name || '', 'pt'); });
+
+        /* Todas as facilitações de uma pessoa (chave de e-mail), juntando
+           turmas-equipe com os dados de turma/evento — usado no "Ver" e
+           na contagem de "Próximas turmas". */
+        function facilitacoesDe(facKey) {
+          var out = [];
+          Object.keys(equipe).forEach(function (turmaKey) {
+            var membro = (equipe[turmaKey] || {})[facKey];
+            if (!membro) return;
+            var t = turmas[turmaKey];
+            if (!t) return;
+            var ev = t.eventoKey ? (eventos[t.eventoKey] || {}) : {};
+            out.push({
+              turmaKey: turmaKey, turmaLabel: t.label || turmaKey, eventoNome: ev.nome || '—',
+              papel: membro.papel, periodo: (t.dias || []).slice().sort(),
+              fase: faseTurmaFacilitacao(t, config[turmaKey])
+            });
+          });
+          return out;
+        }
+
         c.innerHTML = '';
 
         const info = document.createElement('p');
         info.className = 'admin-empty';
         info.style.marginBottom = '20px';
-        info.textContent = 'Quem estiver aqui acessa a página Facilitador (menu, ao lado de Ajuda) — junto com os admins. Não muda mais nada: continua sem acesso ao painel admin.';
+        info.textContent = 'Pessoas autorizadas a atuar como facilitadoras. Estar aqui dá acesso à página Facilitador (menu, ao lado de Ajuda) e permite ser colocada na equipe de uma turma — a associação a cada turma (e o papel nela) é feita dentro da turma, na aba Eventos.';
         c.appendChild(info);
 
         const hdr = document.createElement('h4');
@@ -4445,15 +4677,22 @@
         } else {
           const tbl = document.createElement('table');
           tbl.className = 'admin-table';
-          tbl.innerHTML = '<thead><tr><th>Nome</th><th>E-mail</th><th>Desde</th><th></th></tr></thead>';
+          tbl.innerHTML = '<thead><tr><th>Nome</th><th>E-mail</th><th>Situação</th><th>Próximas turmas</th><th>Desde</th><th></th></tr></thead>';
           const tbody = document.createElement('tbody');
           dbList.forEach(function (p) {
+            const ativo = p.ativo !== false;
+            const proximas = facilitacoesDe(p.key).filter(function (f) { return f.fase !== 'concluida'; }).length;
             const tr = document.createElement('tr');
             tr.innerHTML =
               '<td>' + esc(p.name || '—') + '</td>' +
               '<td>' + esc(p.email || '—') + '</td>' +
+              '<td><button class="turma-status-badge ' + (ativo ? 'badge-aberta' : 'badge-finalizada') + '" data-toggle-ativo="' + esc(p.key) + '" style="cursor:pointer;border:none" title="Clique para ' + (ativo ? 'inativar' : 'reativar') + '">' + (ativo ? 'ATIVO' : 'INATIVO') + '</button></td>' +
+              '<td>' + proximas + '</td>' +
               '<td>' + fmtDate(p.addedAt) + '</td>' +
-              '<td><button class="admin-del-btn" data-key="' + esc(emailKey(p.email)) + '" data-name="' + esc(p.name || p.email) + '">Remover</button></td>';
+              '<td style="display:flex;gap:6px">' +
+                '<button class="btn btn--sm" data-ver="' + esc(p.key) + '" style="padding:4px 10px;font-size:.72rem">Ver</button>' +
+                '<button class="admin-del-btn" data-key="' + esc(p.key) + '" data-name="' + esc(p.name || p.email) + '">Remover</button>' +
+              '</td>';
             tbody.appendChild(tr);
           });
           tbl.appendChild(tbody);
@@ -4463,11 +4702,23 @@
           c.appendChild(facTblWrap);
 
           tbody.addEventListener('click', function (e) {
-            const btn = e.target.closest('.admin-del-btn');
-            if (!btn) return;
-            adminConfirm('Remover ' + btn.dataset.name + ' dos facilitadores?', function () {
-              firebase.database().ref('fa-facilitadores/' + btn.dataset.key).remove(function () { render(); });
-            });
+            const delBtn = e.target.closest('.admin-del-btn');
+            if (delBtn) {
+              adminConfirm('Remover ' + delBtn.dataset.name + ' dos facilitadores? Isso não a remove das equipes de turma em que já está — se for o caso, remova-a também em cada turma.', function () {
+                firebase.database().ref('fa-facilitadores/' + delBtn.dataset.key).remove(function () { render(); });
+              });
+              return;
+            }
+            const toggleBtn = e.target.closest('[data-toggle-ativo]');
+            if (toggleBtn) {
+              const key = toggleBtn.dataset.toggleAtivo;
+              const atual = dbList.filter(function (x) { return x.key === key; })[0];
+              const estavaAtivo = !atual || atual.ativo !== false;
+              firebase.database().ref('fa-facilitadores/' + key + '/ativo').set(!estavaAtivo, function () { render(); });
+              return;
+            }
+            const verBtn = e.target.closest('[data-ver]');
+            if (verBtn) { abrirFichaFacilitador(dbList.filter(function (x) { return x.key === verBtn.dataset.ver; })[0], facilitacoesDe(verBtn.dataset.ver)); }
           });
         }
 
@@ -4494,7 +4745,7 @@
           if (!name || !email) { msg.style.color = 'var(--accent)'; msg.textContent = 'Preencha nome e e-mail.'; return; }
           if (!/^[^\s@]+@previ\.com\.br$/i.test(email)) { msg.style.color = 'var(--accent)'; msg.textContent = 'Use um e-mail @previ.com.br.'; return; }
           firebase.database().ref('fa-facilitadores/' + emailKey(email)).set(
-            { email: email, name: name, addedAt: new Date().toISOString() },
+            { email: email, name: name, addedAt: new Date().toISOString(), ativo: true },
             function (err) {
               if (err) { msg.style.color = 'var(--accent)'; msg.textContent = 'Erro ao salvar.'; return; }
               document.getElementById('facilitadorName').value  = '';
@@ -4508,6 +4759,43 @@
         console.error('[admin] erro ao carregar fa-facilitadores', err);
         c.innerHTML = '<p class="loading-msg" style="color:var(--red)">Erro ao carregar facilitadores. Recarregue a página ou verifique sua conexão.</p>';
       });
+    }
+
+    /* Ficha da pessoa: facilitações futuras (inclui em andamento) e
+       anteriores (concluídas), separadas — Cenário do pedido original:
+       "MARIA SILVA / Próximas facilitações / Evento · Turma · Período · Papel". */
+    function abrirFichaFacilitador(p, facilitacoes) {
+      if (!p) return;
+      var overlay = document.createElement('div');
+      overlay.className = 'modal-overlay';
+      overlay.style.cssText = 'display:flex;align-items:center;justify-content:center;z-index:9999';
+      var box = document.createElement('div');
+      box.className = 'modal-box';
+      box.style.cssText = 'max-width:640px;width:92%;padding:28px;display:flex;flex-direction:column;gap:16px;max-height:85vh;overflow:auto';
+
+      function tabela(lista) {
+        if (!lista.length) return '<p class="admin-empty">Nenhuma.</p>';
+        return '<table class="admin-table"><thead><tr><th>Evento</th><th>Turma</th><th>Período</th><th>Papel</th></tr></thead><tbody>' +
+          lista.map(function (f) {
+            var periodoTxt = window.faTurmasUtil ? (function () { var d = window.faTurmasUtil.formatDias(f.periodo); return d.dates ? d.dates + ' de ' + d.mes : '—'; })() : '—';
+            return '<tr><td>' + esc(f.eventoNome) + '</td><td>' + esc(f.turmaLabel) + '</td><td>' + esc(periodoTxt) + '</td>' +
+              '<td>' + (f.papel === 'responsavel' ? '⭐ Responsável' : 'Facilitador') + '</td></tr>';
+          }).join('') + '</tbody></table>';
+      }
+
+      var futuras = facilitacoes.filter(function (f) { return f.fase !== 'concluida'; });
+      var anteriores = facilitacoes.filter(function (f) { return f.fase === 'concluida'; });
+
+      box.innerHTML =
+        '<h3 style="font-size:1.1rem;font-family:var(--font-head);letter-spacing:.05em;color:var(--ink)">' + esc(p.name || p.email) + '</h3>' +
+        '<h4 style="margin:0">Próximas facilitações</h4><div class="table-scroll-wrap">' + tabela(futuras) + '</div>' +
+        '<h4 style="margin:0">Facilitações anteriores</h4><div class="table-scroll-wrap">' + tabela(anteriores) + '</div>' +
+        '<div style="display:flex;justify-content:flex-end"><button class="btn admin-modal-cancel-btn">Fechar</button></div>';
+      overlay.appendChild(box);
+      document.body.appendChild(overlay);
+      function closeModal() { document.body.removeChild(overlay); }
+      box.querySelector('.admin-modal-cancel-btn').addEventListener('click', closeModal);
+      overlay.addEventListener('click', function (e) { if (e.target === overlay) closeModal(); });
     }
 
     render();

@@ -50,6 +50,27 @@
       }
     },
 
+    "turmas-equipe": {
+      ".read": "auth != null && auth.token.email.matches(/.*@previ\\.com\\.br/)",
+      "$turmaKey": {
+        ".write": "auth != null && auth.token.email.matches(/.*@previ\\.com\\.br/)"
+      }
+    },
+
+    "roteiros-evento": {
+      ".read": "auth != null && auth.token.email.matches(/.*@previ\\.com\\.br/)",
+      "$eventoKey": {
+        ".write": "auth.token.email === 'tatianefdirene@previ.com.br' || auth.token.email === 'danielfrazao@previ.com.br'"
+      }
+    },
+
+    "turmas-roteiro": {
+      ".read": "auth != null && auth.token.email.matches(/.*@previ\\.com\\.br/)",
+      "$turmaKey": {
+        ".write": "auth != null && auth.token.email.matches(/.*@previ\\.com\\.br/)"
+      }
+    },
+
     "eventos": {
       ".read": "auth != null && auth.token.email.matches(/.*@previ\\.com\\.br/)",
       "$eventoKey": {
