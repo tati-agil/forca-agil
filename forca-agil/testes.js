@@ -39,8 +39,9 @@
           var level = window.faAuth.getAccessLevel();
           return level === 'member' || level === 'enrolled';
         } },
-        { id: 'auth-admin-ready', label: 'faAuth.isAdminReady() existe — sem ele o router expulsa admin de #admin antes da lista de admins carregar', run: function () {
-          return !!(window.faAuth && typeof window.faAuth.isAdminReady === 'function');
+        { id: 'auth-admin-ready', label: 'faAuth.isAdminReady() e isFacilitadorReady() existem — sem eles o router expulsa gente legítima de #admin/#facilitador antes das listas carregarem', run: function () {
+          return !!(window.faAuth && typeof window.faAuth.isAdminReady === 'function'
+                                  && typeof window.faAuth.isFacilitadorReady === 'function');
         } },
         { id: 'auth-domain-rule', label: 'Restrição @previ.com.br nas regras do banco (server-side)', run: function () { return true; },
           nota: 'Verificação manual: regras do Firebase Realtime Database exigem auth.token.email.matches(/.*@previ\\.com\\.br/) em todas as operações autenticadas — não apenas validação no front-end. Testar via REST API diretamente com conta de outro domínio deve retornar HTTP 403.' },

@@ -211,16 +211,22 @@
      que souber que a pessoa é facilitadora, e dispara fa-facilitador-ready
      caso outro código queira reagir no futuro (mesmo padrão de
      fa-diretor-ready, hoje sem nenhum listener próprio). */
+  var _facilitadoresResolvidos = false;
   firebase.auth().onAuthStateChanged(function (user) {
     if (_criandoConta) return;
-    if (!user) { _dbFacilitadores = []; return; }
+    if (!user) { _dbFacilitadores = []; _facilitadoresResolvidos = true; return; }
+    _facilitadoresResolvidos = false;
     firebase.database().ref('fa-facilitadores/' + emailKey(user.email)).once('value', function (snap) {
       const data = snap.val();
       _dbFacilitadores = data ? [(data.email || user.email).toLowerCase()] : [];
+      _facilitadoresResolvidos = true;
       window.dispatchEvent(new CustomEvent('fa-facilitador-ready'));
       updateNavState();
     });
   });
+  /* Mesmo motivo do isAdminReady: o router precisa distinguir "não é
+     facilitador" de "ainda não sei se é". */
+  function isFacilitadorReady() { return _facilitadoresResolvidos; }
 
   /* ---- Firebase Auth — fonte de verdade de sessão ---- */
   firebase.auth().onAuthStateChanged(function (user) {
@@ -807,6 +813,7 @@
     resendVerification: resendVerification,
     isAuthReady: function () { return _authReady; },
     isAdminReady: isAdminReady,
+    isFacilitadorReady: isFacilitadorReady,
     autoPreviDominio: autoPreviDominio
   };
 })();
