@@ -63,7 +63,7 @@ async function submitLogin(page, email, password) {
     page.waitForFunction(() => {
       var m = document.getElementById('authModal');
       return !!m && m.hidden === true;
-    }, { timeout: 20000 }).catch(() => {}),
+    }, null, { timeout: 20000 }).catch(() => {}),
   ]);
   const loginErrVisible = await page.locator('#loginErr').isVisible().catch(() => false);
   if (loginErrVisible) {
@@ -97,7 +97,7 @@ async function submitLogin(page, email, password) {
     const navAdminOk = await page.waitForFunction(() => {
       var el = document.getElementById('navAdmin');
       return !!el && el.hidden === false;
-    }, { timeout: 10000 }).then(() => true).catch(() => false);
+    }, null, { timeout: 10000 }).then(() => true).catch(() => false);
     if (!navAdminOk) {
       throw new Error(
         'Login parece ter funcionado (sem erro em #loginErr, modal fechou), mas o link #navAdmin continua oculto — ' +
@@ -233,7 +233,7 @@ async function submitLogin(page, email, password) {
     await p.waitForFunction(() => {
       var el = document.getElementById('navAdmin');
       return !!el && el.hidden === false;
-    }, { timeout: 15000 });
+    }, null, { timeout: 15000 });
     await p.click('.nav-toggle');
     await p.waitForSelector('.nav-links.open', { timeout: 5000 });
     const visivelComMenuAberto = await p.locator('#navAdmin').isVisible();
@@ -244,7 +244,7 @@ async function submitLogin(page, email, password) {
     await p.waitForFunction(() => {
       var el = document.getElementById('navAdmin');
       return !!el && el.hidden === true;
-    }, { timeout: 10000 });
+    }, null, { timeout: 10000 });
     /* O atributo hidden é gerenciado por auth.js — CSS de layout não pode
        sobrescrevê-lo com display:block e deixar o link visível de novo. */
     const displayReal = await p.evaluate(() => getComputedStyle(document.getElementById('navAdmin')).display);
@@ -281,7 +281,7 @@ async function submitLogin(page, email, password) {
     await p.goto(BASE_URL + '#home', { waitUntil: 'networkidle' });
     /* "⏸ Pausar" e "≡ Ler texto" são criados por app.js; só "↻ Repetir
        abertura" vem no HTML. Espera os três existirem antes de medir. */
-    await p.waitForFunction(() => document.querySelectorAll('.crawl-btns .btn').length >= 3, { timeout: 15000 });
+    await p.waitForFunction(() => document.querySelectorAll('.crawl-btns .btn').length >= 3, null, { timeout: 15000 });
     const linhas = await p.evaluate(() => {
       var btns = Array.prototype.slice.call(document.querySelectorAll('.crawl-btns .btn'));
       var tops = btns.map(function (b) { return Math.round(b.getBoundingClientRect().top); });
@@ -315,7 +315,7 @@ async function submitLogin(page, email, password) {
     await p.waitForSelector('#heroKnow', { timeout: 15000 });
     const antes = await p.evaluate(() => window.scrollY);
     await p.click('#heroKnow');
-    await p.waitForFunction((y) => window.scrollY > y + 100, antes, { timeout: 10000 });
+    await p.waitForFunction((y) => window.scrollY > y + 100, antes, null, { timeout: 10000 });
   });
 
   await runIsolated('Início: menu mobile (375px) sem sobreposição entre hamburguer e logo', async (p) => {
@@ -349,11 +349,11 @@ async function submitLogin(page, email, password) {
     await p.waitForFunction(() => {
       var el = document.getElementById('navProfile');
       return !!el && el.hidden === false;
-    }, { timeout: 15000 });
+    }, null, { timeout: 15000 });
     await p.goto(BASE_URL + '#home', { waitUntil: 'networkidle' });
     /* Clica no nome, não no "Sair" que mora dentro do mesmo bloco. */
     await p.click('#navProfile .nav-profile-name');
-    await p.waitForFunction(() => location.hash === '#treinamento', { timeout: 10000 });
+    await p.waitForFunction(() => location.hash === '#treinamento', null, { timeout: 10000 });
   });
 
   await runIsolated('Menu: "Sair" encerra a sessão e volta para o Início', async (p) => {
@@ -361,11 +361,20 @@ async function submitLogin(page, email, password) {
     const r = await submitLogin(p, EMAIL, PASSWORD);
     if (!r.ok) throw new Error('login falhou: ' + r.errorText);
     await p.goto(BASE_URL + '#turmas', { waitUntil: 'networkidle' });
-    await p.waitForFunction(() => location.hash === '#turmas', { timeout: 10000 });
+    await p.waitForFunction(() => location.hash === '#turmas', null, { timeout: 10000 });
     await p.click('#navLogout');
-    await p.waitForFunction(() => location.hash === '#home', { timeout: 10000 });
-    /* Sessão encerrada de verdade: o site volta a exigir login. */
-    await p.waitForFunction(() => document.body.classList.contains('aguardando-auth'), { timeout: 10000 });
+    await p.waitForFunction(() => location.hash === '#home', null, { timeout: 10000 });
+    /* Sessão encerrada de verdade: o site volta a exigir login. A classe
+       "aguardando-auth" NÃO serve como sinal aqui — ela só existe no
+       carregamento inicial (head-init.js) e é removida por revelarSite();
+       forcarLogin() não a recoloca. O sinal do logout é o modal voltar
+       no modo forçado, sem botão de fechar. */
+    await p.waitForFunction(() => {
+      var m = document.getElementById('authModal');
+      return !!m && m.hidden === false && m.classList.contains('modal-overlay--forced');
+    }, null, { timeout: 10000 });
+    const semSessao = await p.evaluate(() => !(window.faAuth && window.faAuth.getSession && window.faAuth.getSession()));
+    if (!semSessao) throw new Error('modal de login voltou, mas faAuth ainda reporta uma sessão ativa');
   });
 
   await runIsolated('Admin: abrir #admin direto (F5 / link salvo) carrega os dados das abas', async (p) => {
@@ -376,16 +385,37 @@ async function submitLogin(page, email, password) {
        quebrou antes, quando o painel não esperava o fa-auth-ready. */
     await p.goto(BASE_URL + '#admin', { waitUntil: 'networkidle' });
     await p.reload({ waitUntil: 'networkidle' });
-    await p.waitForFunction(() => location.hash === '#admin', { timeout: 15000 });
-    await p.waitForFunction(() => {
+    await p.waitForFunction(() => location.hash === '#admin', null, { timeout: 15000 });
+    /* Sinal positivo de que a aba Eventos carregou de verdade: loadInterests()
+       marca cada evento renderizado com data-ev-key. Um banco sem evento
+       nenhum também é um fim de carregamento legítimo — o que não pode é
+       ficar presa no "Carregando dados…". */
+    const carregou = await p.waitForFunction(() => {
       var painel = document.getElementById('page-admin');
       if (!painel || painel.hidden) return false;
-      var cadastrados = document.getElementById('adminCadastrados');
       var eventos = document.getElementById('adminInterests');
-      var texto = ((cadastrados && cadastrados.textContent) || '') + ((eventos && eventos.textContent) || '');
-      /* Some o "Carregando…" e sobra conteúdo de verdade. */
-      return texto.length > 0 && texto.indexOf('Carregando') === -1;
-    }, { timeout: 25000 });
+      if (!eventos) return false;
+      if (eventos.querySelector('[data-ev-key]')) return true;
+      var txt = (eventos.textContent || '').trim();
+      return txt.length > 0 && txt.indexOf('Carregando') === -1;
+    }, null, { timeout: 25000 }).then(() => true).catch(() => false);
+    if (!carregou) {
+      /* Diz em que estado ficou, senão o log só mostra "timeout". */
+      const estado = await p.evaluate(() => {
+        var painel = document.getElementById('page-admin');
+        var eventos = document.getElementById('adminInterests');
+        return {
+          hash: location.hash,
+          painelExiste: !!painel,
+          painelOculto: painel ? painel.hidden : null,
+          eventosExiste: !!eventos,
+          eventosTexto: eventos ? (eventos.textContent || '').trim().slice(0, 120) : null,
+          authPronto: !!(window.faAuth && window.faAuth.isAuthReady && window.faAuth.isAuthReady()),
+          temSessao: !!(window.faAuth && window.faAuth.getSession && window.faAuth.getSession())
+        };
+      });
+      throw new Error('aba Eventos não carregou depois do F5 — estado: ' + JSON.stringify(estado));
+    }
   });
 
   await runIsolated('Ajuda: os 5 tipos de pedido aparecem e o "Enviar" só habilita depois de escolher um', async (p) => {
@@ -402,7 +432,7 @@ async function submitLogin(page, email, password) {
     const antes = await p.evaluate(() => document.getElementById('pedEnviar').disabled);
     if (antes !== true) throw new Error('"Enviar pedido" já começa habilitado, sem tipo escolhido');
     await p.click('.ped-tipo-btn[data-tipo="curso"]');
-    await p.waitForFunction(() => document.getElementById('pedEnviar').disabled === false, { timeout: 5000 });
+    await p.waitForFunction(() => document.getElementById('pedEnviar').disabled === false, null, { timeout: 5000 });
     /* Nada é enviado: o teste para aqui, sem clicar em "Enviar pedido". */
   });
 
@@ -412,7 +442,7 @@ async function submitLogin(page, email, password) {
       const r = await submitLogin(p, MEMBER_EMAIL, MEMBER_PASSWORD);
       if (!r.ok) throw new Error('login falhou: ' + r.errorText);
       await p.goto(BASE_URL + '#admin', { waitUntil: 'networkidle' });
-      await p.waitForFunction(() => location.hash === '#home', { timeout: 10000 });
+      await p.waitForFunction(() => location.hash === '#home', null, { timeout: 10000 });
     });
   } else {
     console.log('\n(pulando "acesso direto a #admin com conta comum" — defina FA_TEST_MEMBER_EMAIL/FA_TEST_MEMBER_PASSWORD pra ativar)');
