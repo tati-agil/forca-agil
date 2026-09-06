@@ -1399,11 +1399,11 @@ body.aguardando-auth>*:not(#authModal){visibility:hidden}
   <div class="wrap">
     <div class="page-hero">
       <span class="eyebrow">Área Restrita</span>
-      <h1>Área do Facilitador</h1>
-      <p>Espaço para quem conduz as turmas da Força Ágil. Acessível para administradores e facilitadores.</p>
+      <h1>Minhas Facilitações</h1>
+      <p>As turmas em que você atua como responsável ou como facilitador de apoio, com acesso ao roteiro de cada uma.</p>
     </div>
     <section class="section">
-      <p style="color:var(--ink-2)">Em construção — o conteúdo desta área ainda será definido.</p>
+      <div id="facilitadorConteudo"><p class="loading-msg">Carregando…</p></div>
     </section>
   </div>
 </div><!-- /page-facilitador -->
@@ -1674,6 +1674,7 @@ body.aguardando-auth>*:not(#authModal){visibility:hidden}
 <script src="https://www.gstatic.com/firebasejs/10.7.0/firebase-auth-compat.js"></script>
 <script src="forca-agil/firebase.js"></script>
 <script src="forca-agil/turmas-util.js"></script>
+<script src="forca-agil/roteiro.js"></script>
 
 <!-- Router + Auth (antes dos módulos de página) -->
 <script src="forca-agil/router.js"></script>
@@ -1702,6 +1703,7 @@ body.aguardando-auth>*:not(#authModal){visibility:hidden}
 <script src="forca-agil/pedidos.js"></script>
 <script src="forca-agil/dashboard.js"></script>
 <script src="forca-agil/aluno.js"></script>
+<script src="forca-agil/facilitador.js"></script>
 
 <!-- Admin guard: show/hide content based on auth -->
 <script src="forca-agil/init.js"></script>

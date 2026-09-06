@@ -393,6 +393,12 @@
 .badge-checkin-aberto { background: rgba(100,220,100,.15); color: #64dc64; border: 1px solid rgba(100,220,100,.35); animation: pulse-green 2s ease-in-out infinite; }
 @keyframes pulse-green { 0%,100%{opacity:1} 50%{opacity:.6} }
 
+/* Roteiro de Facilitação — selos de origem de cada atividade no roteiro
+   da turma (ver forca-agil/roteiro.js): sem selo = padrão do evento. */
+.badge-roteiro-alterada  { background: rgba(245,197,24,.15); color: var(--gold); border: 1px solid rgba(245,197,24,.3); }
+.badge-roteiro-exclusiva { background: rgba(47,116,214,.18); color: var(--blue-glow); border: 1px solid rgba(47,116,214,.4); }
+.badge-roteiro-removida  { background: rgba(255,59,48,.12); color: var(--red); border: 1px solid rgba(255,59,48,.3); }
+
 /* ---- Tabela de presença por dia ---- */
 /* Com as colunas de dia a tabela fica mais larga que o painel e a coluna de
    ações escorrega para fora da tela — a pessoa vê os dias e conclui que não
