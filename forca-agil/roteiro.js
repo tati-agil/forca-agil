@@ -728,6 +728,96 @@
     if (printBtn) printBtn.addEventListener('click', function () { win.print(); });
   }
 
+  /* Impressão "completa": um bloco por atividade/sub-etapa com todo o
+     conteúdo de facilitação preenchido (objetivo, descrição, passo a
+     passo etc.) — só os campos que de fato têm valor, igual ao corpo
+     expandido do roteiro da turma na tela (nunca mostra rótulo de campo
+     vazio). Reaproveita a mesma janela/estilo de imprimirRoteiroDia. */
+  function campoImpressao(label, valor) {
+    if (!valor || (Array.isArray(valor) && !valor.length)) return '';
+    var conteudo = Array.isArray(valor)
+      ? '<ul>' + valor.map(function (l) { return '<li>' + esc(l) + '</li>'; }).join('') + '</ul>'
+      : '<p>' + esc(valor).replace(/\n/g, '<br>') + '</p>';
+    return '<div class="rp-campo"><strong>' + esc(label) + '</strong>' + conteudo + '</div>';
+  }
+
+  function blocoAtividadeImpressao(a, numeroTxt, todasAtividades) {
+    var horario = (a.horaInicio || '—') + (a.horaFim ? '–' + a.horaFim : '');
+    var camposHtml =
+      campoImpressao('Objetivo', a.objetivo) +
+      campoImpressao('Descrição', a.descricao) +
+      campoImpressao('Passo a passo', a.passoAPasso) +
+      campoImpressao('Dicas para o facilitador', a.dicasFacilitador) +
+      campoImpressao('Conexão com a agilidade', a.conexaoAgilidade) +
+      campoImpressao('Perguntas para o debrief', a.perguntasDebrief) +
+      campoImpressao('Materiais necessários', a.materiais) +
+      campoImpressao('Preparação prévia', a.preparacaoPrevia) +
+      campoImpressao('Observações', a.observacoes);
+    return '<div class="rp-atv' + (numeroTxt.indexOf('.') !== -1 ? ' rp-atv-sub' : '') + '">' +
+      '<h3>' + esc(numeroTxt) + '. ' + esc(a.titulo) + (a.tipo ? ' <span class="rp-tipo">· ' + esc(a.tipo) + '</span>' : '') + '</h3>' +
+      '<div class="rp-atv-meta">' + esc(horario) + ' · ' + esc(fmtDuracao(duracaoEfetiva(a, todasAtividades))) + '</div>' +
+      (camposHtml || '<p class="rp-vazio">Nenhum campo preenchido nesta atividade.</p>') +
+      '</div>';
+  }
+
+  function imprimirRoteiroCompleto(tituloContexto, dia, atividadesTopo, resumo, todasAtividades) {
+    todasAtividades = todasAtividades || atividadesTopo;
+    var geradoEm = new Date().toLocaleString('pt-BR');
+    var blocosHtml = '';
+    atividadesTopo.forEach(function (a, i) {
+      var gapAntes = resumo.gaps.filter(function (g) { return g.fimMin === hhmmParaMin(a.horaInicio); })[0];
+      if (gapAntes) blocosHtml += '<div class="rp-gap-bloco">⚠ Lacuna: ' + esc(minParaHhmm(gapAntes.inicioMin)) + '–' + esc(minParaHhmm(gapAntes.fimMin)) + ' (' + esc(fmtDuracao(gapAntes.min)) + ' sem atividade programada)</div>';
+      blocosHtml += blocoAtividadeImpressao(a, String(i + 1), todasAtividades);
+      filhosDe(todasAtividades, a.key).forEach(function (sub, j) {
+        blocosHtml += blocoAtividadeImpressao(sub, (i + 1) + '.' + (j + 1), todasAtividades);
+      });
+    });
+
+    var html = '<!doctype html><html><head><meta charset="utf-8"><title>' + esc(tituloContexto) + ' — ' + esc(dia.titulo || '') + '</title>' +
+      '<style>' +
+      'body{font-family:Arial,Helvetica,sans-serif;color:#111;margin:24px;}' +
+      'h1{font-size:1.3rem;margin:0 0 4px;}' +
+      '.rp-meta{font-size:.85rem;color:#444;margin-bottom:16px;}' +
+      '.rp-resumo{display:flex;flex-wrap:wrap;gap:18px;margin-bottom:20px;font-size:.8rem;}' +
+      '.rp-resumo b{display:block;font-size:1rem;}' +
+      '.rp-actions{margin-bottom:16px;}' +
+      '.rp-atv{border:1px solid #999;border-radius:6px;padding:10px 14px;margin-bottom:10px;page-break-inside:avoid;}' +
+      '.rp-atv h3{margin:0;font-size:1rem;}' +
+      '.rp-atv-sub{margin-left:28px;background:#fafafa;}' +
+      '.rp-tipo{font-weight:400;color:#555;font-size:.82rem;}' +
+      '.rp-atv-meta{font-size:.78rem;color:#555;margin:2px 0 8px;}' +
+      '.rp-campo{margin-bottom:8px;font-size:.85rem;}' +
+      '.rp-campo strong{display:block;font-size:.68rem;letter-spacing:.06em;text-transform:uppercase;color:#666;margin-bottom:2px;}' +
+      '.rp-campo p{margin:0;}' +
+      '.rp-campo ul{margin:2px 0 0 18px;padding:0;}' +
+      '.rp-vazio{margin:0;font-size:.8rem;color:#888;font-style:italic;}' +
+      '.rp-gap-bloco{border:1px dashed #ff8a5c;background:#fff3e0;color:#a35a2a;font-style:italic;font-size:.82rem;padding:6px 12px;border-radius:6px;margin-bottom:10px;}' +
+      '@media print{.rp-actions{display:none;} body{margin:10px;}}' +
+      '@page{size:A4 portrait;margin:14mm;}' +
+      '</style></head><body>' +
+      '<div class="rp-actions"><button id="rp-print-btn">Imprimir / salvar como PDF</button></div>' +
+      '<h1>' + esc(tituloContexto) + (dia.titulo ? ' — ' + esc(dia.titulo) : '') + '</h1>' +
+      '<div class="rp-meta">Roteiro completo (com os campos preenchidos de cada etapa) · Gerado em ' + esc(geradoEm) + '</div>' +
+      '<div class="rp-resumo">' +
+        '<div>Janela do dia<b>' + (resumo.janelaMin != null ? esc(minParaHhmm(resumo.janelaInicioMin) + ' → ' + minParaHhmm(resumo.janelaFimMin)) : '—') + '</b></div>' +
+        '<div>Programado<b>' + esc(fmtDuracao(resumo.programadoMin)) + '</b></div>' +
+        '<div>Facilitação<b>' + esc(fmtDuracao(resumo.facilitacaoMin)) + '</b></div>' +
+        '<div>Pausas<b>' + esc(fmtDuracao(resumo.pausasMin)) + '</b></div>' +
+        '<div>Lacunas<b>' + esc(fmtDuracao(resumo.lacunasMin)) + '</b></div>' +
+        '<div>Atividades<b>' + resumo.atividadesCount + '</b></div>' +
+      '</div>' +
+      blocosHtml +
+      '</body></html>';
+
+    var win = window.open('', '_blank');
+    if (!win) { alertDialog('Não foi possível abrir a janela de impressão. Verifique o bloqueador de pop-ups.'); return; }
+    win.document.open();
+    win.document.write(html);
+    win.document.close();
+    var printBtn = win.document.getElementById('rp-print-btn');
+    if (printBtn) printBtn.addEventListener('click', function () { win.print(); });
+  }
+
   /* ══════════════════════════════════════════════════════════════
      UI — roteiro-base do evento (editor completo, só admin)
      ══════════════════════════════════════════════════════════════ */
@@ -828,6 +918,11 @@
       imprimirBtn.style.cssText = 'padding:6px 10px;font-size:.72rem';
       imprimirBtn.innerHTML = '&#x1F5A8; Imprimir';
       imprimirBtn.addEventListener('click', function () { imprimirRoteiroDia('Roteiro-base', dia, atividadesTopo, resumo, atividadesDia); });
+      var imprimirCompletoBtn = document.createElement('button');
+      imprimirCompletoBtn.className = 'btn btn--sm';
+      imprimirCompletoBtn.style.cssText = 'padding:6px 10px;font-size:.72rem';
+      imprimirCompletoBtn.innerHTML = '&#x1F5A8; Imprimir completo';
+      imprimirCompletoBtn.addEventListener('click', function () { imprimirRoteiroCompleto('Roteiro-base', dia, atividadesTopo, resumo, atividadesDia); });
       var delDiaBtn = document.createElement('button');
       delDiaBtn.className = 'btn btn--sm';
       delDiaBtn.style.cssText = 'padding:6px 10px;font-size:.72rem;border-color:rgba(255,80,80,.5);color:#ff8080';
@@ -840,6 +935,7 @@
       });
       diaHdr.appendChild(renameInput);
       diaHdr.appendChild(imprimirBtn);
+      diaHdr.appendChild(imprimirCompletoBtn);
       diaHdr.appendChild(delDiaBtn);
       container.appendChild(diaHdr);
 
@@ -1039,6 +1135,13 @@
       imprimirBtn.innerHTML = '&#x1F5A8; Imprimir';
       imprimirBtn.addEventListener('click', function () { imprimirRoteiroDia('Roteiro — ' + (turma.label || ''), { titulo: 'Dia ' + dia.numero }, dia.atividades, resumo, dia.todasEfetivas); });
       container.appendChild(imprimirBtn);
+
+      var imprimirCompletoBtn = document.createElement('button');
+      imprimirCompletoBtn.className = 'btn btn--sm';
+      imprimirCompletoBtn.style.cssText = 'padding:5px 10px;font-size:.72rem;margin-bottom:12px;margin-left:8px';
+      imprimirCompletoBtn.innerHTML = '&#x1F5A8; Imprimir completo';
+      imprimirCompletoBtn.addEventListener('click', function () { imprimirRoteiroCompleto('Roteiro — ' + (turma.label || ''), { titulo: 'Dia ' + dia.numero }, dia.atividades, resumo, dia.todasEfetivas); });
+      container.appendChild(imprimirCompletoBtn);
 
       container.insertAdjacentHTML('beforeend', resumoDiaHtml(resumo, 'rtResumoTopo'));
 

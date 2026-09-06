@@ -654,7 +654,7 @@
       body: 'Ao editar uma atividade com horário definido e mudar sua duração, se existirem atividades seguintes no mesmo dia também com horário, o sistema pergunta se deve deslocar automaticamente o horário delas pela mesma diferença ("Recalcular" ou "Manter horários") — nunca desloca nada sem perguntar.' },
     { section: 'admin', personas: ['admin'],
       title: 'Roteiro — imprimir / salvar como PDF',
-      body: 'Botão "🖨 Imprimir" (roteiro-base e roteiro da turma) abre uma janela com o resumo do dia e a lista de atividades formatada para impressão — mesmo padrão da Lista de presença: aciona "Imprimir / salvar como PDF" e usa o diálogo nativo do navegador, sem depender de nenhuma biblioteca de PDF.' },
+      body: 'Botão "🖨 Imprimir" (roteiro-base e roteiro da turma) abre uma janela com o resumo do dia e a lista de atividades formatada para impressão — mesmo padrão da Lista de presença: aciona "Imprimir / salvar como PDF" e usa o diálogo nativo do navegador, sem depender de nenhuma biblioteca de PDF. Ao lado, "🖨 Imprimir completo" abre a mesma janela de impressão, mas com um bloco por atividade e sub-etapa trazendo todo o conteúdo de facilitação preenchido (objetivo, descrição, passo a passo, dicas para o facilitador, conexão com a agilidade, perguntas para o debrief, materiais, preparação prévia, observações) — só os campos que têm valor aparecem, campo em branco não é exibido; uma atividade sem nenhum campo preenchido mostra "Nenhum campo preenchido nesta atividade." no lugar.' },
     { section: 'admin', personas: ['admin'],
       title: 'Aba: Manual',
       body: 'Checklist de regras de comportamento do sistema, organizado por seção e por persona. Documentação viva — deve ser atualizada junto de qualquer mudança de comportamento.' },
