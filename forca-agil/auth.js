@@ -158,16 +158,33 @@
     }
   }
 
-  /* ---- Verifica se o usuário logado é admin (lê só o próprio registro) ---- */
+  /* ---- Verifica se o usuário logado é admin (lê só o próprio registro) ----
+     Esta leitura corre em PARALELO à resolução da sessão, e quem não está na
+     lista fixa de super-admins só vira admin quando ela termina. Enquanto
+     isso, isAdmin() responde false — e isso não pode ser confundido com "não
+     é admin": o router usa essa resposta para decidir se expulsa alguém de
+     #admin, e chegou a jogar admin de verdade pra #home num F5, reescrevendo
+     a URL. Por isso existe isAdminReady(): "já dá pra confiar no false".
+     Ao resolver, dispara fa-admin-ready pra quem já decidiu antes poder
+     decidir de novo (mesmo padrão de fa-diretor-ready/fa-facilitador-ready). */
+  var _adminsResolvidos = false;
   firebase.auth().onAuthStateChanged(function (user) {
     if (_criandoConta) return;
-    if (!user) { _dbAdmins = []; return; }
+    if (!user) {
+      _dbAdmins = [];
+      _adminsResolvidos = true;
+      return;
+    }
+    _adminsResolvidos = false;
     firebase.database().ref('fa-admins/' + emailKey(user.email)).once('value', function (snap) {
       const data = snap.val();
       _dbAdmins = data ? [(data.email || user.email).toLowerCase()] : [];
+      _adminsResolvidos = true;
+      window.dispatchEvent(new CustomEvent('fa-admin-ready'));
       updateNavState();
     });
   });
+  function isAdminReady() { return _adminsResolvidos; }
 
   /* ---- Verifica se o usuário logado é diretor (lê só o próprio registro) ----
      Roda em paralelo à checagem de admin, e não bloqueia nada: enquanto não
@@ -789,6 +806,7 @@
     criarContaPorAdmin: criarContaPorAdmin,
     resendVerification: resendVerification,
     isAuthReady: function () { return _authReady; },
+    isAdminReady: isAdminReady,
     autoPreviDominio: autoPreviDominio
   };
 })();

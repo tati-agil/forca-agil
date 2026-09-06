@@ -6,6 +6,14 @@
 
   const PAGES   = ['home','turmas','conteudos','treinamento','repositorio','avaliacao','minha-area','ajuda','admin','facilitador','checkin'];
 
+  /* "Já dá pra confiar no false do isAdmin()?" — enquanto a lista de admins
+     não terminou de carregar, ele responde false por não saber ainda, e isso
+     não pode virar redirecionamento. Versões antigas de auth.js não expõem
+     isAdminReady; nesse caso trata como pronta, que é o comportamento anterior. */
+  function listaAdminsPronta() {
+    return !(window.faAuth && window.faAuth.isAdminReady) || window.faAuth.isAdminReady();
+  }
+
   /* #facilitador é como #admin — admin OU facilitador, nunca mais ninguém. */
   function podeVerFacilitador(s) {
     return !!(s && window.faAuth && (window.faAuth.isAdmin(s.email) || (window.faAuth.isFacilitador && window.faAuth.isFacilitador(s.email))));
@@ -23,7 +31,7 @@
 
     if (page === 'admin') {
       const s = window.faAuth && window.faAuth.getSession();
-      if (!s || !window.faAuth.isAdmin(s.email)) { location.hash = '#home'; return; }
+      if (!s || (!window.faAuth.isAdmin(s.email) && listaAdminsPronta())) { location.hash = '#home'; return; }
     }
 
     if (page === 'facilitador' && !podeVerFacilitador(window.faAuth && window.faAuth.getSession())) {
@@ -65,7 +73,13 @@
        sem isso, F5 em #admin redireciona para home porque _session ainda é null. */
     if (page === 'admin' && window.faAuth && window.faAuth.isAuthReady && window.faAuth.isAuthReady()) {
       const s = window.faAuth.getSession();
-      if (!s || !window.faAuth.isAdmin(s.email)) {
+      /* isAdmin() responde false enquanto a leitura de fa-admins não termina,
+         e ela corre em paralelo à sessão. Sem esperar por ela, um F5 em
+         #admin expulsava admin de verdade pra #home (só não acontecia com os
+         super-admins da lista fixa, que não dependem dessa leitura — por isso
+         passava despercebido). Enquanto não resolve, mantém a página; quando
+         resolver, o listener de fa-admin-ready decide de novo. */
+      if (!s || (!window.faAuth.isAdmin(s.email) && listaAdminsPronta())) {
         page = 'home';
         history.replaceState(null, '', '#home');
       }
@@ -539,6 +553,13 @@
     if (e.detail.blocked)    { mostrarMsgBloqueio(); return; }
     if (e.detail.unverified) { mostrarVerificacaoEmail(e.detail.email); return; }
     revelarSite();
+  });
+
+  /* A lista de admins chegou depois da decisão de rota: decide de novo.
+     Quem estava em #admin sem ser admin sai agora; quem é admin e só estava
+     esperando a leitura continua onde estava. */
+  window.addEventListener('fa-admin-ready', function () {
+    if (route() === 'admin') show('admin');
   });
 
   window.faRouter = {
