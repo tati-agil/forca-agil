@@ -746,6 +746,169 @@
       ]
     },
     {
+      /* Regressão do gerador de certificado. Estas regras eram conferidas
+         "no olho" na prévia, mas o que elas descrevem — posição de cada
+         campo e se o texto cabe na área reservada — é calculado por
+         código (CFG + fitFont em certif.js), então dá pra verificar de
+         verdade. Proposital: nada aqui compara TAMANHO EXATO de fonte
+         (ex: "reduz pra 38px"), porque isso depende das fontes instaladas
+         na máquina (Georgia e Courier New não existem no runner do CI, e
+         o fallback tem métrica diferente). O que se verifica é o contrato
+         real: cabe na largura, não encolhe abaixo do mínimo, e não encolhe
+         à toa quando o texto é curto. */
+      group: 'Certificados v1.0',
+      tests: [
+        { id: 'c-cert-api', label: 'API do certificado disponível (faCertif.CFG + faCertif.medirCampo)', run: function () {
+          return !!(window.faCertif && window.faCertif.CFG && typeof window.faCertif.medirCampo === 'function');
+        } },
+        { id: 'c-cert-coords', label: 'Layout aprovado: cada campo do certificado nas coordenadas e larguras registradas', run: function () {
+          if (!window.faCertif) return false;
+          var C = window.faCertif.CFG;
+          var esperado = {
+            nomeParticipante:   { x: 724,  y: 385, maxWidth: 1041, size: 55, minSize: 28 },
+            nomeEvento:         { x: 724,  y: 535, maxWidth: 920,  size: 29, minSize: 13 },
+            identificacaoTurma: { x: 724,  y: 581, maxWidth: 680,  size: 19, minSize: 12 },
+            periodoTurma:       { x: 598,  y: 658, maxWidth: 400,  size: 24, minSize: 13 },
+            cargaHoraria:       { x: 613,  y: 757, maxWidth: 160,  size: 48, minSize: 24 },
+            dataEmissao:        { x: 1055, y: 922, maxWidth: 360,  size: 19, minSize: 10 }
+          };
+          return Object.keys(esperado).every(function (campo) {
+            var cfg = C[campo]; if (!cfg) return false;
+            var e = esperado[campo];
+            return cfg.x === e.x && cfg.y === e.y && cfg.maxWidth === e.maxWidth &&
+                   cfg.size === e.size && cfg.minSize === e.minSize;
+          });
+        } },
+        { id: 'c-cert-sufixo-h', label: 'Carga horária desenha o "h" (20 → "20h") e a emissão o "Emitido em "', run: function () {
+          if (!window.faCertif) return false;
+          var C = window.faCertif.CFG;
+          var carga = window.faCertif.medirCampo('20', C.cargaHoraria);
+          var data  = window.faCertif.medirCampo('27 de agosto de 2026', C.dataEmissao);
+          return carga.texto === '20h' && data.texto === 'Emitido em 27 de agosto de 2026';
+        } },
+        { id: 'c-cert-curto-sem-reducao', label: 'Cenário curto (ANA LIMA / SCRUM / 8h): nenhum campo é reduzido à toa', run: function () {
+          if (!window.faCertif) return false;
+          var C = window.faCertif.CFG, m = window.faCertif.medirCampo;
+          return m('ANA LIMA', C.nomeParticipante).size === C.nomeParticipante.size &&
+                 m('SCRUM', C.nomeEvento).size === C.nomeEvento.size &&
+                 m('8', C.cargaHoraria).size === C.cargaHoraria.size;
+        } },
+        { id: 'c-cert-nome-longo', label: 'Nome muito longo cabe na área do nome sem estourar nem encolher abaixo do mínimo', run: function () {
+          if (!window.faCertif) return false;
+          var cfg = window.faCertif.CFG.nomeParticipante;
+          var r = window.faCertif.medirCampo('MARIA EDUARDA ALBUQUERQUE DE OLIVEIRA SANTOS', cfg);
+          return r.largura <= cfg.maxWidth && r.size >= cfg.minSize && r.size <= cfg.size;
+        } },
+        { id: 'c-cert-evento-longo', label: 'Nome de evento longo cabe na área do evento, contando o espaçamento entre letras', run: function () {
+          if (!window.faCertif) return false;
+          var cfg = window.faCertif.CFG.nomeEvento;
+          var r = window.faCertif.medirCampo('PROGRAMA DE TRANSFORMAÇÃO E AGILIDADE ORGANIZACIONAL', cfg);
+          return r.largura <= cfg.maxWidth && r.size >= cfg.minSize;
+        } },
+        { id: 'c-cert-turma-longa', label: 'Identificação de turma longa cabe na área da turma', run: function () {
+          if (!window.faCertif) return false;
+          var cfg = window.faCertif.CFG.identificacaoTurma;
+          var r = window.faCertif.medirCampo('Turma Especial de Formação — Agosto e Setembro de 2026', cfg);
+          return r.largura <= cfg.maxWidth && r.size >= cfg.minSize;
+        } },
+        { id: 'c-cert-periodo-longo', label: 'Período longo cabe na área do período (sem invadir o badge)', run: function () {
+          if (!window.faCertif) return false;
+          var cfg = window.faCertif.CFG.periodoTurma;
+          var r = window.faCertif.medirCampo('11, 12, 18, 19, 20, 25, 26 e 27 de agosto de 2026', cfg);
+          return r.largura <= cfg.maxWidth && r.size >= cfg.minSize;
+        } },
+        { id: 'c-cert-cargas', label: 'Todas as cargas horárias (4h a 120h) cabem no badge, no tamanho padrão', run: function () {
+          if (!window.faCertif) return false;
+          var cfg = window.faCertif.CFG.cargaHoraria;
+          return ['4', '8', '16', '20', '24', '40', '120'].every(function (h) {
+            var r = window.faCertif.medirCampo(h, cfg);
+            return r.largura <= cfg.maxWidth && r.size === cfg.size;
+          });
+        } },
+        { id: 'c-cert-datas-longas', label: 'Datas de emissão longas cabem na área da emissão', run: function () {
+          if (!window.faCertif) return false;
+          var cfg = window.faCertif.CFG.dataEmissao;
+          return ['30 de setembro de 2026', '31 de dezembro de 2026'].every(function (d) {
+            var r = window.faCertif.medirCampo(d, cfg);
+            return r.largura <= cfg.maxWidth && r.size >= cfg.minSize;
+          });
+        } },
+        { id: 'c-cert-pior-cenario', label: 'Pior cenário combinado: todos os campos no limite cabem ao mesmo tempo, cada um ajustando sozinho', run: function () {
+          if (!window.faCertif) return false;
+          var C = window.faCertif.CFG, m = window.faCertif.medirCampo;
+          var casos = [
+            [ 'MARIA EDUARDA ALBUQUERQUE DE OLIVEIRA SANTOS', C.nomeParticipante ],
+            [ 'PROGRAMA DE TRANSFORMAÇÃO E AGILIDADE ORGANIZACIONAL', C.nomeEvento ],
+            [ 'Turma Especial de Formação — Agosto e Setembro de 2026', C.identificacaoTurma ],
+            [ '11, 12, 18, 19, 20, 25, 26 e 27 de agosto de 2026', C.periodoTurma ],
+            [ '120', C.cargaHoraria ],
+            [ '30 de setembro de 2026', C.dataEmissao ]
+          ];
+          var todosCabem = casos.every(function (c) {
+            var r = m(c[0], c[1]);
+            return r.largura <= c[1].maxWidth && r.size >= c[1].minSize;
+          });
+          /* Independência: medir o pior nome não pode mudar o resultado da
+             carga horária, que continua no tamanho padrão. */
+          var cargaIsolada = m('120', C.cargaHoraria).size;
+          return todosCabem && cargaIsolada === C.cargaHoraria.size;
+        } },
+        { id: 'c-cert-selects', label: 'Fluxo de seleção: "Turma" começa desabilitada até escolher um evento', run: function () {
+          var selEv = document.getElementById('certEventoSelect');
+          var selTu = document.getElementById('certTurmaSelect');
+          if (!selEv || !selTu) return false;
+          /* Se ninguém abriu a aba Certificados nesta sessão, o select de
+             turma continua no estado inicial — que é justamente o que se
+             quer verificar. Se já mexeram nele, não dá pra afirmar nada. */
+          if (selEv.value) return true;
+          var ph = selTu.options[0];
+          return selTu.disabled === true && !!ph && ph.textContent.indexOf('selecione um evento primeiro') !== -1;
+        } },
+        { id: 'c-cert-selects-evento', label: 'Escolher um evento habilita "Turma" (ou avisa que o evento não tem turma)', async: true, run: function () {
+          var selEv = document.getElementById('certEventoSelect');
+          var selTu = document.getElementById('certTurmaSelect');
+          if (!selEv || !selTu) return Promise.resolve(false);
+          var opcao = Array.prototype.find.call(selEv.options, function (o) { return o.value; });
+          if (!opcao) return Promise.resolve(true); /* nenhum evento cadastrado nesta base */
+          selEv.value = opcao.value;
+          selEv.dispatchEvent(new Event('change'));
+          return new Promise(function (resolve) {
+            var tentativas = 0;
+            (function poll() {
+              var ph = selTu.options[0];
+              var textoPh = ph ? ph.textContent : '';
+              /* Ou destravou pra escolher turma, ou explicou que não há
+                 turma nesse evento — nunca fica travado no texto inicial. */
+              if (!selTu.disabled) return resolve(true);
+              if (textoPh.indexOf('nenhuma turma neste evento') !== -1) return resolve(true);
+              if (++tentativas > 50) return resolve(false);
+              setTimeout(poll, 100);
+            })();
+          });
+        } },
+        { id: 'c-cert-canvas-prévia', label: 'Prévia desenha o canvas interno em 1448×1086 (proporção 4:3)', async: true, run: function () {
+          if (!window.faCertif) return Promise.resolve(false);
+          var canvas = document.createElement('canvas');
+          return window.faCertif.draw(canvas, { nomeParticipante: 'ANA LIMA', nomeEvento: 'SCRUM', cargaHoraria: '8' }, 1)
+            .then(function () {
+              return canvas.width === 1448 && canvas.height === 1086 &&
+                     Math.abs((canvas.width / canvas.height) - (4 / 3)) < 0.01;
+            })
+            .catch(function () { return false; });
+        } },
+        { id: 'c-cert-canvas-export', label: 'Exportação em 2× gera 2896×2172, mantendo a proporção 4:3', async: true, run: function () {
+          if (!window.faCertif) return Promise.resolve(false);
+          var canvas = document.createElement('canvas');
+          return window.faCertif.draw(canvas, { nomeParticipante: 'ANA LIMA', nomeEvento: 'SCRUM', cargaHoraria: '8' }, 2)
+            .then(function () {
+              return canvas.width === 2896 && canvas.height === 2172 &&
+                     Math.abs((canvas.width / canvas.height) - (4 / 3)) < 0.01;
+            })
+            .catch(function () { return false; });
+        } }
+      ]
+    },
+    {
       group: 'Admin',
       tests: [
         { id: 'c-adm-interesses', label: 'Aba Interessados por turma carregada',  run: function () { return !!document.getElementById('adminInterests') || !!document.getElementById('adminPanelInteresses'); } },
@@ -1278,8 +1441,8 @@
 
     /* ── Certificados — Fluxo de seleção ─────────────────────── */
     { section: 'Certificados v1.0',
-      title: 'Fluxo de seleção: evento → turma',
-      motivo: 'Na aba Certificados verificar: (1) seletor "Evento" aparece primeiro e lista todos os eventos cadastrados; (2) seletor "Turma" inicia desabilitado com texto "selecione um evento primeiro"; (3) ao selecionar um evento, o seletor de Turma é habilitado e exibe somente as turmas daquele evento; (4) ao trocar o evento, a turma selecionada é limpa e a lista de turmas é recarregada; (5) selecionar evento sem turmas cadastradas mantém Turma desabilitado com "nenhuma turma neste evento".' },
+      title: 'Fluxo de seleção: a lista de turmas é só do evento escolhido',
+      motivo: 'O estado inicial ("Turma" desabilitada até escolher um evento) e o destravamento ao escolher um evento já são verificados automaticamente. Falta conferir o conteúdo, que depende dos dados: (1) o seletor "Evento" lista TODOS os eventos cadastrados; (2) ao selecionar um evento, "Turma" exibe somente as turmas DAQUELE evento — nenhuma de outro; (3) ao trocar de evento, a turma selecionada é limpa e a lista recarrega; (4) evento sem turma nenhuma mantém "Turma" desabilitada com "nenhuma turma neste evento".' },
 
     /* ── Certificados — Estado Prévia vs. Emissão ─────────────── */
     { section: 'Certificados v1.0',
@@ -1295,46 +1458,25 @@
       title: 'Cenário D — percentual mínimo configurado por evento',
       motivo: 'Na aba Eventos, clicar "✎ Editar evento" em um evento. Verificar: (1) campo "Frequência mínima p/ certificado" está presente com o valor atual; (2) alterar o valor e salvar; (3) retornar à aba Certificados e selecionar turma encerrada desse evento — verificar que os badges e bloqueios respeitam o novo percentual configurado.' },
 
-    /* ── Gerador de Certificados v1.0 — Regressão ───────────── */
+    /* ── Gerador de Certificados v1.0 — Regressão ─────────────
+       As regras de "cabe na área reservada" (nome longo, evento longo,
+       turma longa, período longo, cargas horárias, datas longas, pior
+       cenário combinado, coordenadas de cada campo e tamanho do canvas)
+       viraram testes automáticos — ver o grupo "Certificados v1.0" dos
+       Automáticos. O que sobra aqui é só o que depende de olhar a
+       imagem: comparar com o certificado aprovado e conferir a arte. */
     { section: 'Certificados v1.0',
-      title: 'Regressão — cenário curto (ANA LIMA / SCRUM / 8h)',
-      motivo: 'Abrir aba Certificados, selecionar turma de teste, pré-visualizar participante com nome curto. Verificar: (1) todos os 6 campos usam o tamanho de fonte PADRÃO — nenhum campo foi reduzido desnecessariamente; (2) nome "ANA LIMA" centralizado em y=385; (3) evento "SCRUM" centralizado em y=535; (4) carga "8h" dentro do badge; (5) canvas interno permanece 1448×1086; (6) template não contém elementos redesenhados pelo código.' },
+      title: 'Regressão — cenário padrão (ADRIANO CORREIA DE CAMARGO / 20h) bate com o certificado aprovado',
+      motivo: 'Cenário de referência aprovado, conferido a olho contra o certificado que foi aprovado — é o teste que os automáticos NÃO substituem, porque eles verificam que cada campo cabe na área, não que a composição ficou bonita. Verificar na prévia: nome "ADRIANO CORREIA DE CAMARGO" sem redução; evento "FORÇA ÁGIL · JORNADA DE IMERSÃO"; turma exibe exatamente o label cadastrado pelo admin (ex: "Turma 1 — Agosto"), SEM acréscimo automático de mês/ano; período completamente visível acima do ícone de calendário; carga "20h" dentro do badge; emissão no canto inferior direito. Nenhum campo encostando em outro, composição visualmente idêntica ao aprovado.' },
     { section: 'Certificados v1.0',
-      title: 'Regressão — carga horária mostra o "h" (ex: 20h, não 20)',
-      motivo: 'Abrir a aba Certificados, selecionar qualquer evento e turma, e conferir a prévia: o badge da carga horária deve mostrar o número seguido de "h" (ex: "20h"). O valor gravado no evento é só o número — o "h" é acrescentado na hora de desenhar o certificado. Esse detalhe já se perdeu uma vez, quando o layout foi reescrito para o template v2 (a lógica antiga que juntava o "h" ficou para trás), então vale conferir depois de qualquer mudança no gerador.' },
-    { section: 'Certificados v1.0',
-      title: 'Regressão — cenário padrão (ADRIANO CORREIA DE CAMARGO / 20h)',
-      motivo: 'Cenário de referência aprovado. Verificar: nome "ADRIANO CORREIA DE CAMARGO" — fonte 55px, sem redução; evento "FORÇA ÁGIL · JORNADA DE IMERSÃO" — fonte 29px; turma exibe exatamente o label cadastrado pelo admin (ex: "Turma 1 — Agosto") — fonte 19px, SEM acréscimo automático de mês/ano; período (38 chars) — fonte 24px, em y=658, completamente visível acima do ícone de calendário; carga "20h" — fonte 48px; emissão "Emitido em 27 de agosto de 2026" — fonte 19px. Composição visualmente idêntica ao certificado aprovado.' },
-    { section: 'Certificados v1.0',
-      title: 'Regressão — nome muito longo (MARIA EDUARDA ALBUQUERQUE DE OLIVEIRA SANTOS)',
-      motivo: 'Verificar: (1) nome reduz automaticamente de 55px para aprox. 38px; (2) permanece em uma única linha; (3) centralizado em y=385; (4) não ultrapassa 1041px de largura; (5) evento, turma, período, carga e emissão PERMANECEM nos tamanhos padrão — o ajuste é independente.' },
-    { section: 'Certificados v1.0',
-      title: 'Regressão — evento muito longo (PROGRAMA DE TRANSFORMAÇÃO E AGILIDADE ORGANIZACIONAL)',
-      motivo: 'Verificar: (1) evento cabe dentro dos 920px disponíveis (aprox. 905px no tamanho padrão — sem redução necessária); (2) centralizado em y=535; (3) não sobrepõe a turma abaixo; (4) nome do participante e demais campos permanecem inalterados.' },
-    { section: 'Certificados v1.0',
-      title: 'Regressão — turma longa (Turma Especial de Formação — Agosto e Setembro de 2026)',
-      motivo: 'Verificar: (1) turma cabe dentro dos 680px disponíveis (aprox. 500px — sem redução); (2) completamente legível; (3) não encosta no evento acima; (4) não encosta na linha inferior do template.' },
-    { section: 'Certificados v1.0',
-      title: 'Regressão — período longo (11, 12, 18, 19, 20, 25, 26 e 27 de agosto de 2026)',
-      motivo: 'Verificar: (1) período reduz de 24px para aprox. 19px automaticamente; (2) cabe dentro dos 400px; (3) posicionado em y=658, completamente visível acima do ícone de calendário do template — sem corte; (4) não invade o badge.' },
-    { section: 'Certificados v1.0',
-      title: 'Regressão — cargas horárias (4h, 8h, 16h, 20h, 24h, 40h, 120h)',
-      motivo: 'Testar cada valor individualmente. Verificar em todos: (1) valor completamente visível dentro do badge; (2) fonte 48px em todos os casos (todos cabem em 160px); (3) centralizado em x=613 y=757; (4) não toca a borda do badge; (5) não invade o texto "DE IMERSÃO EM AGILIDADE" do template.' },
-    { section: 'Certificados v1.0',
-      title: 'Regressão — datas longas (30 de setembro / 31 de dezembro de 2026)',
-      motivo: 'Verificar: "Emitido em 30 de setembro de 2026" e "Emitido em 31 de dezembro de 2026" — ambas na fonte padrão 19px (cabem em 360px); uma única linha; região inferior direita; totalmente dentro da moldura.' },
-    { section: 'Certificados v1.0',
-      title: 'Regressão — pior cenário combinado (todos os campos no limite máximo)',
-      motivo: 'Nome: MARIA EDUARDA ALBUQUERQUE DE OLIVEIRA SANTOS / Evento: PROGRAMA DE TRANSFORMAÇÃO E AGILIDADE ORGANIZACIONAL / Turma: Turma Especial de Formação — Agosto e Setembro de 2026 / Período: 11, 12, 18, 19, 20, 25, 26 e 27 de agosto de 2026 / Carga: 120h / Emissão: 30 de setembro de 2026. Verificar: (1) NENHUM campo ultrapassa sua área reservada; (2) nenhum campo é cortado; (3) nenhum campo sobrepõe outro; (4) cada campo ajusta fonte INDEPENDENTEMENTE; (5) nome ≈ 38px; período ≈ 19px; demais no tamanho padrão; (6) template intacto.' },
-    { section: 'Certificados v1.0',
-      title: 'Exportação PNG — alta resolução sem margens',
-      motivo: 'Clicar em "⬇ PNG" para qualquer participante. Verificar no arquivo baixado: (1) dimensões 2896 × 2172 px (2× do template); (2) proporção 4:3; (3) sem fundo externo, sem margens, sem área da interface; (4) composição idêntica à prévia; (5) nenhum campo cortado.' },
+      title: 'Exportação PNG — sem margens e idêntica à prévia',
+      motivo: 'As dimensões (2896×2172, proporção 4:3) já são verificadas automaticamente. Falta conferir no arquivo baixado o que só se vê abrindo a imagem: (1) sem fundo externo, sem margens, sem nenhum pedaço da interface do painel; (2) composição idêntica à prévia da tela; (3) nenhum campo cortado nas bordas.' },
     { section: 'Certificados v1.0',
       title: 'Exportação PDF — página customizada 4:3 sem margens',
       motivo: 'Clicar em "⬇ PDF" para qualquer participante. Abrir o PDF gerado. Verificar: (1) tamanho da página = 864 × 648 pt (12 × 9 polegadas, proporção 4:3); (2) ZERO margem branca — certificado ocupa 100% da página; (3) sem deformação da imagem; (4) composição idêntica ao PNG exportado.' },
     { section: 'Certificados v1.0',
-      title: 'Responsividade — proporção preservada em múltiplas larguras de tela',
-      motivo: 'Acessar o painel de certificados em: desktop (1920px), notebook (1366px), tablet (1024px) e tela estreita (768px). Verificar em todas: (1) canvas interno permanece 1448×1086; (2) proporção 4:3 exata em todas as larguras; (3) nenhum campo muda de posição relativa; (4) nenhum texto fica fora do certificado; (5) a escala é aplicada ao certificado inteiro como uma unidade — sem recálculo individual de coordenadas.' },
+      title: 'Responsividade — certificado escala como uma unidade na tela',
+      motivo: 'O canvas interno (1448×1086) e a proporção 4:3 já são verificados automaticamente. Falta o que só se vê redimensionando: abrir o painel de certificados em desktop (1920px), notebook (1366px), tablet (1024px) e tela estreita (768px) e conferir em todas que nenhum campo muda de posição relativa, nenhum texto fica fora do certificado, e a escala é aplicada ao certificado inteiro como uma unidade — sem recálculo individual de coordenadas.' },
     { section: 'Admin',
       title: 'Turmas — CSV exportado tem caracteres especiais corretos e abre editável',
       motivo: 'Baixar qualquer CSV (Estado atual, Histórico ou individual). Verificar no Excel: (1) acentos, cedilha e caracteres especiais aparecem corretamente (sem "?" ou "Ã"); (2) arquivo abre em modo edição — sem modo protegido, sem "somente leitura".' },

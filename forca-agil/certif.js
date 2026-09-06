@@ -120,10 +120,22 @@
 
   /* ── Utilitários de texto ────────────────────────────────────────────── */
 
+  /* Largura REAL do texto como ele vai ser desenhado. Campos com spacing
+     (hoje só o nome do evento) são desenhados letra a letra por spacedText,
+     que soma o espaçamento entre elas — medir só com measureText subestima
+     a largura e deixava o texto estourar o maxWidth mesmo "cabendo". */
+  function larguraReal(ctx, text, cfg) {
+    if (!cfg.spacing) return ctx.measureText(text).width;
+    var chars = text.split('');
+    return chars.reduce(function (s, c) {
+      return s + ctx.measureText(c).width + cfg.spacing;
+    }, 0) - cfg.spacing;
+  }
+
   function fitFont(ctx, text, cfg) {
     var size = cfg.size;
     ctx.font = cfg.weight + ' ' + size + 'px ' + cfg.family;
-    while (ctx.measureText(text).width > cfg.maxWidth && size > cfg.minSize) {
+    while (larguraReal(ctx, text, cfg) > cfg.maxWidth && size > cfg.minSize) {
       size -= 0.5;
       ctx.font = cfg.weight + ' ' + size + 'px ' + cfg.family;
     }
@@ -341,6 +353,18 @@
     download:        download,
     downloadPDF:     downloadPDF,
     fmtDataEmissao:  fmtDataEmissao,
-    CFG:             CFG
+    CFG:             CFG,
+    /* Mede um campo exatamente como drawFieldText vai desenhá-lo (com
+       prefixo/sufixo, caixa alta e espaçamento entre letras), devolvendo o
+       tamanho de fonte final e a largura ocupada. Usado pelos testes de
+       regressão do certificado, que verificam se cada campo cabe na sua
+       área sem depender de conferir a imagem no olho. */
+    medirCampo:      function (raw, cfg) {
+      var canvas = document.createElement('canvas');
+      var ctx = canvas.getContext('2d');
+      var text = (cfg.prefix || '') + (cfg.upper ? String(raw).toUpperCase() : String(raw)) + (cfg.suffix || '');
+      var size = fitFont(ctx, text, cfg);
+      return { texto: text, size: size, largura: larguraReal(ctx, text, cfg) };
+    }
   };
 })();
