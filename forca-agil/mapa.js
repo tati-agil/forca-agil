@@ -529,7 +529,7 @@
     /* "Seções" e não "páginas": o menu tem 8 links, mas aqui também entram
        Check-in (página fora do menu, acessada por QR), Entrar e Cadastrar
        (abas do modal de login) e Menu/Sessão (a própria barra de navegação). */
-    html += '<p class="mapa-sub">São 9 páginas do menu (Início, Turmas, Conteúdos, Repositório, Treinamento Jedi, Avaliação, Minha Área, Ajuda e Admin) mais 4 seções que não são páginas do menu: Check-in (aberta pelo QR Code), Entrar e Cadastrar (abas do modal de login) e Menu / Sessão (a barra de navegação em si).</p>';
+    html += '<p class="mapa-sub">São 10 páginas do menu (Início, Turmas, Conteúdos, Repositório, Treinamento Jedi, Avaliação, Minha Área, Facilitador, Ajuda e Admin) mais 4 seções que não são páginas do menu: Check-in (aberta pelo QR Code), Entrar e Cadastrar (abas do modal de login) e Menu / Sessão (a barra de navegação em si).</p>';
 
     /* Legenda dos badges */
     html += '<div class="mapa-legend-box">';
