@@ -1545,9 +1545,9 @@
     document.body.appendChild(overlay);
     function closeAlert() { document.body.removeChild(overlay); if (callbackOk) callbackOk(); }
     box.querySelector('.admin-modal-ok-btn').addEventListener('click', closeAlert);
-    var overlayMousedownAlvo = false;
-    overlay.addEventListener('mousedown', function (e) { overlayMousedownAlvo = (e.target === overlay); });
-    overlay.addEventListener('click', function (e) { if (overlayMousedownAlvo && e.target === overlay) closeAlert(); });
+    var overlayMousedownFora = false;
+    overlay.addEventListener('mousedown', function (e) { overlayMousedownFora = !box.contains(e.target); });
+    overlay.addEventListener('click', function (e) { if (overlayMousedownFora && !box.contains(e.target)) closeAlert(); });
   }
 
   function adminConfirm(mensagem, callbackSim) {
@@ -1567,9 +1567,9 @@
     document.body.appendChild(overlay);
     function closeConfirm() { document.body.removeChild(overlay); }
     box.querySelector('.admin-modal-cancel-btn').addEventListener('click', closeConfirm);
-    var overlayMousedownAlvo = false;
-    overlay.addEventListener('mousedown', function (e) { overlayMousedownAlvo = (e.target === overlay); });
-    overlay.addEventListener('click', function (e) { if (overlayMousedownAlvo && e.target === overlay) closeConfirm(); });
+    var overlayMousedownFora = false;
+    overlay.addEventListener('mousedown', function (e) { overlayMousedownFora = !box.contains(e.target); });
+    overlay.addEventListener('click', function (e) { if (overlayMousedownFora && !box.contains(e.target)) closeConfirm(); });
     box.querySelector('.admin-modal-confirm-btn').addEventListener('click', function () {
       closeConfirm();
       if (callbackSim) callbackSim();
@@ -1662,9 +1662,9 @@
       if (document.body.contains(overlay)) document.body.removeChild(overlay);
     }
     box.querySelector('.sorteio-fechar').addEventListener('click', fechar);
-    var overlayMousedownAlvo = false;
-    overlay.addEventListener('mousedown', function (e) { overlayMousedownAlvo = (e.target === overlay); });
-    overlay.addEventListener('click', function (e) { if (overlayMousedownAlvo && e.target === overlay) fechar(); });
+    var overlayMousedownFora = false;
+    overlay.addEventListener('mousedown', function (e) { overlayMousedownFora = !box.contains(e.target); });
+    overlay.addEventListener('click', function (e) { if (overlayMousedownFora && !box.contains(e.target)) fechar(); });
 
     var refSorteios = firebase.database().ref('turmas-sorteio/' + t.key);
     var historico   = [];   /* [{ _key, ganhadores:[], quando, sorteadoPorNome }] */
@@ -2186,9 +2186,9 @@
       else if (!selTurma.hidden) selTurma.focus();
     });
     box.querySelector('.admin-modal-cancel-btn').addEventListener('click', fechar);
-    var overlayMousedownAlvo = false;
-    overlay.addEventListener('mousedown', function (e) { overlayMousedownAlvo = (e.target === overlay); });
-    overlay.addEventListener('click', function (e) { if (overlayMousedownAlvo && e.target === overlay) fechar(); });
+    var overlayMousedownFora = false;
+    overlay.addEventListener('mousedown', function (e) { overlayMousedownFora = !box.contains(e.target); });
+    overlay.addEventListener('click', function (e) { if (overlayMousedownFora && !box.contains(e.target)) fechar(); });
     box.querySelector('.admin-modal-confirm-btn').addEventListener('click', function () {
       if (!sel.value) { erro.textContent = 'Escolha um motivo.'; erro.hidden = false; sel.focus(); return; }
       if (sel.value === 'outro' && !outro.value.trim()) {
@@ -2340,9 +2340,9 @@
     function closeModal() { document.body.removeChild(overlay); }
 
     box.querySelector('.admin-modal-cancel-btn').addEventListener('click', closeModal);
-    var overlayMousedownAlvo = false;
-    overlay.addEventListener('mousedown', function (e) { overlayMousedownAlvo = (e.target === overlay); });
-    overlay.addEventListener('click', function (e) { if (overlayMousedownAlvo && e.target === overlay) closeModal(); });
+    var overlayMousedownFora = false;
+    overlay.addEventListener('mousedown', function (e) { overlayMousedownFora = !box.contains(e.target); });
+    overlay.addEventListener('click', function (e) { if (overlayMousedownFora && !box.contains(e.target)) closeModal(); });
 
     box.querySelector('.admin-modal-add-btn').addEventListener('click', function () {
       var name, email, area;
@@ -2538,9 +2538,9 @@
 
     function closeModal() { document.body.removeChild(overlay); }
     box.querySelector('.admin-modal-cancel-btn').addEventListener('click', closeModal);
-    var overlayMousedownAlvo = false;
-    overlay.addEventListener('mousedown', function (e) { overlayMousedownAlvo = (e.target === overlay); });
-    overlay.addEventListener('click', function (e) { if (overlayMousedownAlvo && e.target === overlay) closeModal(); });
+    var overlayMousedownFora = false;
+    overlay.addEventListener('mousedown', function (e) { overlayMousedownFora = !box.contains(e.target); });
+    overlay.addEventListener('click', function (e) { if (overlayMousedownFora && !box.contains(e.target)) closeModal(); });
 
     box.querySelector('.admin-modal-save-btn').addEventListener('click', function () {
       var nome       = (nomeInput.value || '').trim();
@@ -2655,9 +2655,9 @@
 
     function closeModal() { document.body.removeChild(overlay); }
     box.querySelector('.admin-modal-cancel-btn').addEventListener('click', closeModal);
-    var overlayMousedownAlvo = false;
-    overlay.addEventListener('mousedown', function (e) { overlayMousedownAlvo = (e.target === overlay); });
-    overlay.addEventListener('click', function (e) { if (overlayMousedownAlvo && e.target === overlay) closeModal(); });
+    var overlayMousedownFora = false;
+    overlay.addEventListener('mousedown', function (e) { overlayMousedownFora = !box.contains(e.target); });
+    overlay.addEventListener('click', function (e) { if (overlayMousedownFora && !box.contains(e.target)) closeModal(); });
 
     box.querySelector('.admin-modal-save-btn').addEventListener('click', function () {
       var label = (labelInput.value || '').trim();
@@ -2733,9 +2733,9 @@
     document.body.appendChild(overlay);
     function closeModal() { document.body.removeChild(overlay); }
     box.querySelector('.admin-modal-cancel-btn').addEventListener('click', closeModal);
-    var overlayMousedownAlvo = false;
-    overlay.addEventListener('mousedown', function (e) { overlayMousedownAlvo = (e.target === overlay); });
-    overlay.addEventListener('click', function (e) { if (overlayMousedownAlvo && e.target === overlay) closeModal(); });
+    var overlayMousedownFora = false;
+    overlay.addEventListener('mousedown', function (e) { overlayMousedownFora = !box.contains(e.target); });
+    overlay.addEventListener('click', function (e) { if (overlayMousedownFora && !box.contains(e.target)) closeModal(); });
 
     var body = box.querySelector('#equipeBody');
 
@@ -2844,9 +2844,9 @@
     document.body.appendChild(overlay);
     function closeModal() { document.body.removeChild(overlay); }
     box.querySelector('.rt-fechar').addEventListener('click', closeModal);
-    var overlayMousedownAlvo = false;
-    overlay.addEventListener('mousedown', function (e) { overlayMousedownAlvo = (e.target === overlay); });
-    overlay.addEventListener('click', function (e) { if (overlayMousedownAlvo && e.target === overlay) closeModal(); });
+    var overlayMousedownFora = false;
+    overlay.addEventListener('mousedown', function (e) { overlayMousedownFora = !box.contains(e.target); });
+    overlay.addEventListener('click', function (e) { if (overlayMousedownFora && !box.contains(e.target)) closeModal(); });
     window.faRoteiro.renderRoteiroBaseEditor(box.querySelector('#rtEventoBody'), evento.key);
   }
 
@@ -2867,9 +2867,9 @@
     document.body.appendChild(overlay);
     function closeModal() { document.body.removeChild(overlay); }
     box.querySelector('.rt-fechar').addEventListener('click', closeModal);
-    var overlayMousedownAlvo = false;
-    overlay.addEventListener('mousedown', function (e) { overlayMousedownAlvo = (e.target === overlay); });
-    overlay.addEventListener('click', function (e) { if (overlayMousedownAlvo && e.target === overlay) closeModal(); });
+    var overlayMousedownFora = false;
+    overlay.addEventListener('mousedown', function (e) { overlayMousedownFora = !box.contains(e.target); });
+    overlay.addEventListener('click', function (e) { if (overlayMousedownFora && !box.contains(e.target)) closeModal(); });
 
     window.faRoteiro.carregarEquipeTurma(turma.key, function (err, equipe) {
       window.faRoteiro.renderRoteiroTurma(box.querySelector('#rtTurmaBody'), turma, { editable: true, equipe: equipe || [] });
@@ -4139,9 +4139,9 @@
 
     function closeModal() { document.body.removeChild(overlay); }
     box.querySelector('.admin-modal-cancel-btn').addEventListener('click', closeModal);
-    var overlayMousedownAlvo = false;
-    overlay.addEventListener('mousedown', function (e) { overlayMousedownAlvo = (e.target === overlay); });
-    overlay.addEventListener('click', function (e) { if (overlayMousedownAlvo && e.target === overlay) closeModal(); });
+    var overlayMousedownFora = false;
+    overlay.addEventListener('mousedown', function (e) { overlayMousedownFora = !box.contains(e.target); });
+    overlay.addEventListener('click', function (e) { if (overlayMousedownFora && !box.contains(e.target)) closeModal(); });
 
     box.querySelector('.admin-modal-save-btn').addEventListener('click', function () {
       var nome = (nomeInput.value || '').trim();
@@ -4817,9 +4817,9 @@
       document.body.appendChild(overlay);
       function closeModal() { document.body.removeChild(overlay); }
       box.querySelector('.admin-modal-cancel-btn').addEventListener('click', closeModal);
-      var overlayMousedownAlvo = false;
-      overlay.addEventListener('mousedown', function (e) { overlayMousedownAlvo = (e.target === overlay); });
-      overlay.addEventListener('click', function (e) { if (overlayMousedownAlvo && e.target === overlay) closeModal(); });
+      var overlayMousedownFora = false;
+      overlay.addEventListener('mousedown', function (e) { overlayMousedownFora = !box.contains(e.target); });
+      overlay.addEventListener('click', function (e) { if (overlayMousedownFora && !box.contains(e.target)) closeModal(); });
     }
 
     render();
