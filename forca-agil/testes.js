@@ -91,7 +91,7 @@
         } },
         { id: 'adm-manual', label: 'faInitManual disponível',   run: function () { return typeof window.faInitManual === 'function'; } },
         { id: 'adm-mapa',   label: 'faInitMapa disponível',     run: function () { return typeof window.faInitMapa === 'function'; } },
-        { id: 'adm-tabs',   label: 'Abas Admin presentes (12: Dashboard/Eventos/Certificados/Treinamentos/Repositório/Cadastrados/Administradores/Manual/Mapa/Testes/Pedidos/Sorteios)', run: function () { return document.querySelectorAll('.admin-tab-btn').length === 12; } },
+        { id: 'adm-tabs',   label: 'Abas Admin presentes (14: Dashboard/Eventos/Certificados/Treinamentos/Repositório/Cadastrados/Administradores/Diretores/Facilitadores/Manual/Mapa/Testes/Pedidos/Sorteios)', run: function () { return document.querySelectorAll('.admin-tab-btn').length === 14; } },
         { id: 'adm-manual-panel', label: 'Painel Manual presente', run: function () { return !!document.getElementById('adminPanelManual'); } },
         { id: 'adm-mapa-panel',   label: 'Painel Mapa presente',   run: function () { return !!document.getElementById('adminPanelMapa'); } },
         { id: 'adm-testes-panel', label: 'Painel Testes presente', run: function () { return !!document.getElementById('adminPanelTestes'); } },
@@ -143,14 +143,14 @@
           return !!wrap.querySelector('.aluno-sec-title, .aluno-card');
         } },
         { id: 'adm-cadastrados-panel', label: 'Painel Cadastrados presente', run: function () { return !!document.getElementById('adminPanelCadastrados') && !!document.getElementById('adminCadastrados'); } },
-        { id: 'adm-mapa-cards',   label: 'Mapa: 13 cards de seção renderizados (9 páginas do menu + Check-in, Entrar, Cadastrar e Menu/Sessão)', run: function () {
+        { id: 'adm-mapa-cards',   label: 'Mapa: 14 cards de seção renderizados (10 páginas do menu, incluindo Facilitador, + Check-in, Entrar, Cadastrar e Menu/Sessão)', run: function () {
           if (window.faInitMapa) window.faInitMapa();
-          return document.querySelectorAll('#adminMapa .mapa-page').length === 13;
+          return document.querySelectorAll('#adminMapa .mapa-page').length === 14;
         } },
         { id: 'adm-mapa-features', label: 'Mapa: todos os cards têm features', run: function () {
           if (window.faInitMapa) window.faInitMapa();
           var cards = document.querySelectorAll('#adminMapa .mapa-page');
-          if (cards.length !== 13) return false;
+          if (cards.length !== 14) return false;
           return Array.from(cards).every(function (c) { return c.querySelectorAll('.mapa-feature').length > 0; });
         } },
         { id: 'adm-mapa-features-completas', label: 'Mapa: nenhum card renderiza menos features do que o definido (sem clipping)', run: function () {
@@ -1343,8 +1343,8 @@
       title: 'Turmas — CSV exportado tem caracteres especiais corretos e abre editável',
       motivo: 'Baixar qualquer CSV (Estado atual, Histórico ou individual). Verificar no Excel: (1) acentos, cedilha e caracteres especiais aparecem corretamente (sem "?" ou "Ã"); (2) arquivo abre em modo edição — sem modo protegido, sem "somente leitura".' },
     { section: 'Admin',
-      title: 'Admin — visibilidade das 13 abas no mobile',
-      motivo: 'Acessar o painel Admin em tela estreita (celular). Verificar: todas as 13 abas (Dashboard, Eventos, Certificados, Repositório, Cadastrados, Administradores, Diretores, Facilitadores, Manual, Mapa, Testes, Pedidos, Sorteios) estão visíveis (quebram em 2 linhas); nenhuma aba fica oculta ou cortada.' },
+      title: 'Admin — visibilidade das 14 abas no mobile',
+      motivo: 'Acessar o painel Admin em tela estreita (celular). Verificar: todas as 14 abas (Dashboard, Eventos, Certificados, Treinamentos, Repositório, Cadastrados, Administradores, Diretores, Facilitadores, Manual, Mapa, Testes, Pedidos, Sorteios) estão visíveis (quebram em 2 linhas); nenhuma aba fica oculta ou cortada.' },
     { section: 'Deploy',
       title: 'Pre-commit hook — bloqueia commit com erro de sintaxe JS',
       motivo: 'Verificar manualmente: editar um arquivo JS com erro intencional (ex: remover um "}" ao final) e tentar fazer git commit — o commit deve ser recusado com mensagem de erro indicando o arquivo. Desfazer a edição após o teste.' },
