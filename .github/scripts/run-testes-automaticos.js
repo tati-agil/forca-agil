@@ -178,6 +178,54 @@ async function submitLogin(page, email, password) {
   /* Loga, abre #avaliacao e espera o modo admin aparecer. Se não aparecer,
      estoura com o estado real da página em vez de um "timeout" seco — este
      caminho já escondeu duas causas diferentes, e adivinhar saiu caro. */
+  /* Escolhe evento e turma no modo admin da Avaliação. Os <select> aparecem
+     no DOM antes de terem opções (a lista vem de uma leitura assíncrona),
+     então cada passo espera a opção existir em vez de ler na hora — foi
+     exatamente isso que quebrava na volta pra conferir o rascunho.
+     Devolve {evento, turma} escolhidos, ou null se a base não tem nenhum.
+     Passando `alvo`, refaz a MESMA escolha. */
+  async function escolherEventoETurma(p, alvo) {
+    const temEvento = await p.waitForFunction((esperado) => {
+      var ev = document.getElementById('avalAdminEvento');
+      if (!ev) return false;
+      return Array.prototype.some.call(ev.options, function (o) {
+        return o.value && (!esperado || o.value === esperado);
+      });
+    }, alvo ? alvo.evento : null, { timeout: 20000 }).then(() => true).catch(() => false);
+    if (!temEvento) return null;
+
+    const evento = await p.evaluate((esperado) => {
+      var ev = document.getElementById('avalAdminEvento');
+      var opt = Array.prototype.find.call(ev.options, function (o) {
+        return o.value && (!esperado || o.value === esperado);
+      });
+      ev.value = opt.value;
+      ev.dispatchEvent(new Event('change'));
+      return opt.value;
+    }, alvo ? alvo.evento : null);
+
+    const temTurma = await p.waitForFunction((esperado) => {
+      var tu = document.getElementById('avalAdminTurma');
+      if (!tu || tu.disabled) return false;
+      return Array.prototype.some.call(tu.options, function (o) {
+        return o.value && (!esperado || o.value === esperado);
+      });
+    }, alvo ? alvo.turma : null, { timeout: 20000 }).then(() => true).catch(() => false);
+    if (!temTurma) return null;
+
+    const turma = await p.evaluate((esperado) => {
+      var tu = document.getElementById('avalAdminTurma');
+      var opt = Array.prototype.find.call(tu.options, function (o) {
+        return o.value && (!esperado || o.value === esperado);
+      });
+      tu.value = opt.value;
+      tu.dispatchEvent(new Event('change'));
+      return opt.value;
+    }, alvo ? alvo.turma : null);
+
+    return { evento: evento, turma: turma };
+  }
+
   async function abrirAvaliacaoComoAdmin(p) {
     await p.goto(BASE_URL, { waitUntil: 'networkidle' });
     const r = await submitLogin(p, EMAIL, PASSWORD);
@@ -497,28 +545,8 @@ async function submitLogin(page, email, password) {
   await runIsolated('Avaliação (admin): abre o formulário de uma turma mesmo sem a avaliação liberada', async (p) => {
     await abrirAvaliacaoComoAdmin(p);
 
-    const temEvento = await p.evaluate(() => {
-      var ev = document.getElementById('avalAdminEvento');
-      var opt = Array.prototype.find.call(ev.options, function (o) { return o.value; });
-      if (!opt) return false;
-      ev.value = opt.value;
-      ev.dispatchEvent(new Event('change'));
-      return true;
-    });
-    if (!temEvento) return 'nenhum evento cadastrado nesta base — nada a verificar';
-
-    const temTurma = await p.waitForFunction(() => {
-      var tu = document.getElementById('avalAdminTurma');
-      return !!tu && !tu.disabled && Array.prototype.some.call(tu.options, function (o) { return o.value; });
-    }, null, { timeout: 15000 }).then(() => true).catch(() => false);
-    if (!temTurma) return 'evento sem turma — nada a verificar';
-
-    await p.evaluate(() => {
-      var tu = document.getElementById('avalAdminTurma');
-      var opt = Array.prototype.find.call(tu.options, function (o) { return o.value; });
-      tu.value = opt.value;
-      tu.dispatchEvent(new Event('change'));
-    });
+    const escolhido = await escolherEventoETurma(p);
+    if (!escolhido) return 'nenhum evento com turma nesta base — nada a verificar';
 
     /* O admin não passa pelo flag avaliacaoHabilitada: ou aparece o
        formulário, ou a tela de "já enviou uma resposta de teste". */
@@ -540,27 +568,8 @@ async function submitLogin(page, email, password) {
   await runIsolated('Avaliação: escolher a nota da seção 1 avança sozinho e o rascunho fica guardado', async (p) => {
     await abrirAvaliacaoComoAdmin(p);
 
-    const chegouNoForm = await p.evaluate(() => {
-      var ev = document.getElementById('avalAdminEvento');
-      var opt = Array.prototype.find.call(ev.options, function (o) { return o.value; });
-      if (!opt) return false;
-      ev.value = opt.value;
-      ev.dispatchEvent(new Event('change'));
-      return true;
-    });
-    if (!chegouNoForm) return 'nenhum evento cadastrado nesta base — nada a verificar';
-
-    const temTurma = await p.waitForFunction(() => {
-      var tu = document.getElementById('avalAdminTurma');
-      return !!tu && !tu.disabled && Array.prototype.some.call(tu.options, function (o) { return o.value; });
-    }, null, { timeout: 15000 }).then(() => true).catch(() => false);
-    if (!temTurma) return 'evento sem turma — nada a verificar';
-
-    await p.evaluate(() => {
-      var tu = document.getElementById('avalAdminTurma');
-      tu.value = Array.prototype.find.call(tu.options, function (o) { return o.value; }).value;
-      tu.dispatchEvent(new Event('change'));
-    });
+    const escolhido = await escolherEventoETurma(p);
+    if (!escolhido) return 'nenhum evento com turma nesta base — nada a verificar';
 
     const formVisivel = await p.waitForSelector('#avaliacaoForm', { timeout: 20000 })
       .then(() => true).catch(() => false);
@@ -611,20 +620,10 @@ async function submitLogin(page, email, password) {
     await p.goto(BASE_URL + '#home', { waitUntil: 'networkidle' });
     await p.goto(BASE_URL + '#avaliacao', { waitUntil: 'networkidle' });
     await p.waitForSelector('#avalAdminEvento', { timeout: 20000 });
-    await p.evaluate(() => {
-      var ev = document.getElementById('avalAdminEvento');
-      ev.value = Array.prototype.find.call(ev.options, function (o) { return o.value; }).value;
-      ev.dispatchEvent(new Event('change'));
-    });
-    await p.waitForFunction(() => {
-      var tu = document.getElementById('avalAdminTurma');
-      return !!tu && !tu.disabled && Array.prototype.some.call(tu.options, function (o) { return o.value; });
-    }, null, { timeout: 15000 });
-    await p.evaluate(() => {
-      var tu = document.getElementById('avalAdminTurma');
-      tu.value = Array.prototype.find.call(tu.options, function (o) { return o.value; }).value;
-      tu.dispatchEvent(new Event('change'));
-    });
+    /* Mesmo evento e mesma turma de antes: a chave do rascunho é a turma,
+       então voltar em outra não provaria nada. */
+    const revoltou = await escolherEventoETurma(p, escolhido);
+    if (!revoltou) throw new Error('não consegui reabrir a mesma turma para conferir o rascunho');
     const restaurou = await p.waitForFunction((val) => {
       var w = document.querySelector('#avaliacaoForm .aval-rating[data-field="notaGeral"]');
       if (!w) return false;
