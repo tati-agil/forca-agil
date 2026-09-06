@@ -923,6 +923,10 @@
           var semEvento = TURMAS_LIST.filter(function (t) { return !t.eventoKey; });
           if (semEvento.length) {
             var semEventoSection = document.createElement('div');
+            /* Marcado como os eventos são por data-ev-key: é o outro lugar
+               legítimo onde uma turma pode aparecer, e o teste automático
+               usa isso pra garantir que nenhuma turma fica solta na aba. */
+            semEventoSection.setAttribute('data-sem-evento', '1');
             semEventoSection.style.cssText = 'border:1px solid rgba(255,165,0,.3);border-radius:8px;margin-bottom:24px;overflow:visible';
             var semEventoHdr = document.createElement('div');
             semEventoHdr.style.cssText = 'display:flex;align-items:center;gap:10px;padding:12px 18px;background:var(--panel-2);border-bottom:1px solid rgba(255,165,0,.3);border-radius:8px 8px 0 0';

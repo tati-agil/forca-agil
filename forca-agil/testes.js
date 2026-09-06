@@ -916,6 +916,68 @@
       group: 'Admin',
       tests: [
         { id: 'c-adm-interesses', label: 'Aba Interessados por turma carregada',  run: function () { return !!document.getElementById('adminInterests') || !!document.getElementById('adminPanelInteresses'); } },
+        { id: 'c-adm-guard-oculto', label: 'Aviso "Acesso Restrito" começa oculto — admin não pode vê-lo piscando durante o carregamento', run: function () {
+          var guard = document.getElementById('adminGuard');
+          if (!guard) return false;
+          var sess = window.faAuth && window.faAuth.getSession && window.faAuth.getSession();
+          /* Pra quem é admin, tem que estar escondido agora e sempre. */
+          if (sess && window.faAuth.isAdmin(sess.email)) return guard.hidden === true;
+          return true; /* fora de sessão admin não dá pra afirmar nada */
+        } },
+        { id: 'c-adm-eventos-accordion', label: 'Eventos: cada evento começa recolhido e o clique no cabeçalho abre e fecha', run: function () {
+          var sec = document.querySelector('#adminInterests [data-ev-key]');
+          if (!sec) return true; /* nenhum evento cadastrado nesta base */
+          var wrap = sec.querySelector('.ev-turmas-wrap');
+          var hdr = wrap && wrap.previousElementSibling;
+          if (!wrap || !hdr) return false;
+          var comecouRecolhido = wrap.style.display === 'none';
+          hdr.click();
+          var abriu = wrap.style.display !== 'none';
+          hdr.click();
+          var fechou = wrap.style.display === 'none';
+          /* Devolve ao estado em que estava, pra não atrapalhar quem olhar
+             a aba depois nem os testes seguintes. */
+          if (!comecouRecolhido) hdr.click();
+          return comecouRecolhido && abriu && fechou;
+        } },
+        { id: 'c-adm-eventos-expandir-tudo', label: 'Eventos: "Expandir tudo" abre todos os eventos e "Recolher tudo" fecha todos', run: function () {
+          var c = document.getElementById('adminInterests');
+          if (!c) return false;
+          var secs = Array.from(c.querySelectorAll('[data-ev-key]'));
+          if (!secs.length) return true; /* nenhum evento cadastrado nesta base */
+          var btns = Array.from(c.querySelectorAll('button'));
+          var expandir = btns.find(function (b) { return b.textContent.indexOf('Expandir tudo') !== -1; });
+          var recolher = btns.find(function (b) { return b.textContent.indexOf('Recolher tudo') !== -1; });
+          if (!expandir || !recolher) return false;
+          var wraps = function () { return secs.map(function (s) { return s.querySelector('.ev-turmas-wrap'); }).filter(Boolean); };
+          expandir.click();
+          var todosAbertos = wraps().every(function (w) { return w.style.display !== 'none'; });
+          recolher.click();
+          var todosFechados = wraps().every(function (w) { return w.style.display === 'none'; });
+          return todosAbertos && todosFechados;
+        } },
+        { id: 'c-adm-filtro-evento', label: 'Eventos: o filtro "Ver evento" oferece "Todos" mais um item por evento cadastrado', run: function () {
+          var c = document.getElementById('adminInterests');
+          if (!c) return false;
+          var secs = c.querySelectorAll('[data-ev-key]');
+          if (!secs.length) return true; /* nenhum evento cadastrado nesta base */
+          var sel = Array.from(c.querySelectorAll('select')).find(function (s) {
+            return s.options.length && s.options[0].textContent.trim() === 'Todos';
+          });
+          if (!sel) return false;
+          /* "Todos" + um por evento — o select não pode oferecer evento que
+             não está na tela nem esquecer algum que está. */
+          return sel.options.length === secs.length + 1 && sel.options[0].value === '';
+        } },
+        { id: 'c-adm-turmas-agrupadas', label: 'Eventos: toda turma aparece dentro do card de um evento ou na seção "sem evento", nunca solta', run: function () {
+          var c = document.getElementById('adminInterests');
+          if (!c) return false;
+          var cards = Array.from(c.querySelectorAll('.turma-admin-card'));
+          if (!cards.length) return true; /* nenhuma turma cadastrada nesta base */
+          return cards.every(function (card) {
+            return !!card.closest('[data-ev-key]') || !!card.closest('[data-sem-evento]');
+          });
+        } },
         { id: 'c-adm-admins',     label: 'Aba Administradores presente',          run: function () { return !!document.getElementById('adminPanelAdmins'); } },
         { id: 'c-adm-superadmin', label: 'Super-admins fixos no código (tatianefdirene + danielfrazao)',
           run: function () {
@@ -1230,14 +1292,11 @@
       title: 'Admin — Turmas: fechar check-in do dia',
       motivo: 'Requer turma finalizada e check-in aberto. Verificar: ao fechar, check-in passa a ser bloqueado na página checkin.' },
     { section: 'Admin',
-      title: 'Turmas — agrupamento por evento',
-      motivo: 'Verificar na aba Eventos: (1) turmas aparecem agrupadas dentro do container do seu evento, com o nome do evento como cabeçalho do grupo; (2) turmas sem evento associado aparecem na seção "TURMAS SEM EVENTO" ao final; (3) ao criar turma dentro de um container de evento, o campo Evento do modal vem pré-preenchido; (4) ao excluir um evento, as turmas dentro dele passam para "TURMAS SEM EVENTO" (não são excluídas).' },
+      title: 'Turmas — agrupamento por evento: criar dentro do container e excluir o evento',
+      motivo: 'Que nenhuma turma fica solta (toda turma cai no card de um evento ou na seção sem evento) já é verificado automaticamente. Falta o que depende de mexer nos dados: (1) ao criar turma clicando dentro do container de um evento, o campo Evento do modal vem pré-preenchido; (2) ao excluir um evento, as turmas dentro dele passam para "TURMAS SEM EVENTO" e NÃO são excluídas junto.' },
     { section: 'Admin',
-      title: 'Eventos — accordion de eventos e turmas (recolhido por padrão)',
-      motivo: 'Verificar na aba Eventos ao carregar: (1) todos os containers de evento aparecem recolhidos (apenas o cabeçalho com nome, carga e nº de turmas visível, seta ▸); (2) clicar no cabeçalho de um evento expande suas turmas (seta vira ▾); (3) clicar novamente recolhe; (4) dentro do evento expandido, cada card de turma aparece recolhido (apenas o cabeçalho do card visível, seta ▸); (5) clicar no cabeçalho do card de turma expande participantes e ações (seta vira ▾).' },
-    { section: 'Admin',
-      title: 'Eventos — filtro "Ver evento:" e botões Expandir/Recolher tudo',
-      motivo: 'Verificar na barra de controles da aba Eventos: (1) seletor "Ver evento:" contém os eventos cadastrados + opção "Todos"; (2) selecionar um evento oculta os demais e expande automaticamente o selecionado; (3) selecionar "Todos" restaura todos os containers; (4) botão "↕ Expandir tudo" expande todos os containers de evento e todos os cards de turma de uma vez; (5) botão "↕ Recolher tudo" recolhe todos os containers e cards de turma de uma vez.' },
+      title: 'Eventos — filtro "Ver evento:" isola o evento escolhido',
+      motivo: 'O conteúdo do seletor ("Todos" mais um item por evento) e os botões Expandir/Recolher tudo já são verificados automaticamente. Falta conferir o efeito de escolher: (1) selecionar um evento oculta os demais e expande automaticamente o selecionado; (2) selecionar "Todos" restaura todos os containers.' },
     { section: 'Admin',
       title: 'Turmas — filtro por status na tabela de participantes',
       motivo: 'Requer turma com pelo menos 1 confirmado E 1 aguardando decisão. Expandir o card da turma e verificar acima da tabela: (1) a barra traz um botão por grupo com gente — Todos os interessados (N), Confirmados (N), Aguardando decisão (N) e os grupos de quem saiu que existirem — com "Todos" ativo por padrão; (2) as contagens batem com o rótulo do cabeçalho do card ("X interessados · Y confirmados · Z aguardando decisão"); (3) clicar em "Confirmados" mostra só quem tem status Inscrito; (4) clicar em "Aguardando decisão" mostra só quem tem status Interessado e não foi removida; (5) clicar em "Todos" restaura a lista completa. Em turma que só tem um grupo com gente (ex: todos confirmados), a barra NÃO deve aparecer.' },
@@ -1313,9 +1372,6 @@
     { section: 'Admin',
       title: 'Conteúdo da Missão não vaza entre eventos',
       motivo: 'Com dois eventos, cada um com turma na vitrine e conteúdo diferente preenchido (Missão e itinerário de tamanhos diferentes, ex: 3 dias num e 5 dias no outro): verificar na página Turmas pública que cada grupo de evento mostra SÓ o bloco correspondente a ele — o texto da Missão, o número de dias e horas por encontro, e o itinerário de um evento não podem aparecer no bloco do outro. Cada bloco "Como funciona" tem exatamente 4 métricas (.ofinfo-item), não a soma dos dois.' },
-    { section: 'Admin',
-      title: 'Admin não vê "Acesso Restrito" piscando ao carregar o painel',
-      motivo: 'Logada como admin, abrir forca-agil.previ.com.br/#admin direto (F5 ou endereço digitado) e observar a tela DURANTE o carregamento, não só no fim. Verificar que em nenhum momento aparece o aviso vermelho "Acesso Restrito · Você não tem permissão para acessar esta área" — nem por um instante. O aviso começa oculto e só deve surgir para quem realmente não é admin, depois que a autenticação termina. Testar também com internet lenta (aba Network do navegador, opção de throttling), que é quando a janela entre revelar o site e confirmar o perfil fica maior.' },
     { section: 'Admin',
       title: 'Administradores — erro na leitura mostra mensagem em vez de travar',
       motivo: 'Difícil de reproduzir sob demanda (requer falha real de leitura). Se um dia a aba Administradores ficar presa em "Carregando administradores…" sem nunca terminar: abrir o Console do navegador e procurar por "[admin] erro ao carregar fa-admins" — confirma que a leitura falhou (permissão ou rede) e que a mensagem de erro em vermelho deveria ter aparecido no lugar do texto de carregamento. Se a mensagem de erro não aparecer mesmo com esse log no console, é regressão.' },
