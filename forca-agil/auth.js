@@ -533,6 +533,11 @@
     if (closeBtn) closeBtn.addEventListener('click', closeModal);
     document.addEventListener('keydown', function (e) {
       if (e.key !== 'Escape' || !modal || modal.hidden) return;
+      /* Modal forçado (login obrigatório, sem sessão) não pode fechar de
+         jeito nenhum — o CSS esconde tudo, exceto #authModal, enquanto
+         "aguardando-auth" está na página, então fechar aqui deixava a
+         visitante numa tela preta sem nada pra clicar. */
+      if (modal.classList.contains('modal-overlay--forced')) return;
       const inputs = modal.querySelectorAll('input');
       const hasContent = Array.prototype.some.call(inputs, function (i) { return i.value.length > 0; });
       if (!hasContent) closeModal();
