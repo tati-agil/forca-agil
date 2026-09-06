@@ -150,7 +150,9 @@
     document.body.appendChild(overlay);
     function close() { document.body.removeChild(overlay); }
     box.querySelector('.rt-fac-fechar').addEventListener('click', close);
-    overlay.addEventListener('click', function (e) { if (e.target === overlay) close(); });
+    var overlayMousedownAlvo = false;
+    overlay.addEventListener('mousedown', function (e) { overlayMousedownAlvo = (e.target === overlay); });
+    overlay.addEventListener('click', function (e) { if (overlayMousedownAlvo && e.target === overlay) close(); });
 
     window.faRoteiro.carregarEquipeTurma(m.turmaKey, function (err, equipe) {
       window.faRoteiro.renderRoteiroTurma(box.querySelector('#rtFacBody'), m.turma, {

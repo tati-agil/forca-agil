@@ -73,7 +73,9 @@
     document.body.appendChild(overlay);
     function close() { document.body.removeChild(overlay); }
     box.querySelector('.roteiro-dlg-ok').addEventListener('click', close);
-    overlay.addEventListener('click', function (e) { if (e.target === overlay) close(); });
+    var overlayMousedownAlvo = false;
+    overlay.addEventListener('mousedown', function (e) { overlayMousedownAlvo = (e.target === overlay); });
+    overlay.addEventListener('click', function (e) { if (overlayMousedownAlvo && e.target === overlay) close(); });
   }
   function confirmDialog(mensagem, onYes) {
     var overlay = document.createElement('div');
@@ -91,7 +93,9 @@
     document.body.appendChild(overlay);
     function close() { document.body.removeChild(overlay); }
     box.querySelector('.roteiro-dlg-cancel').addEventListener('click', close);
-    overlay.addEventListener('click', function (e) { if (e.target === overlay) close(); });
+    var overlayMousedownAlvo = false;
+    overlay.addEventListener('mousedown', function (e) { overlayMousedownAlvo = (e.target === overlay); });
+    overlay.addEventListener('click', function (e) { if (overlayMousedownAlvo && e.target === overlay) close(); });
     box.querySelector('.roteiro-dlg-confirm').addEventListener('click', function () { close(); onYes(); });
   }
 
@@ -446,7 +450,9 @@
 
     function closeModal() { document.body.removeChild(overlay); }
     $('.roteiro-form-cancelar').addEventListener('click', closeModal);
-    overlay.addEventListener('click', function (e) { if (e.target === overlay) closeModal(); });
+    var overlayMousedownAlvo = false;
+    overlay.addEventListener('mousedown', function (e) { overlayMousedownAlvo = (e.target === overlay); });
+    overlay.addEventListener('click', function (e) { if (overlayMousedownAlvo && e.target === overlay) closeModal(); });
     if (opts.onExcluir) {
       $('.roteiro-form-excluir').addEventListener('click', function () {
         confirmDialog('Excluir esta atividade? Não é possível desfazer.', function () { opts.onExcluir(); closeModal(); });
