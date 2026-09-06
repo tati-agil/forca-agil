@@ -42,9 +42,14 @@
       return;
     }
 
-    /* Access control */
+    /* Access control. São DUAS esperas, não uma: getAccessLevel() devolve
+       'enrolled' pra admin, mas só através do isAdmin() (lista de admins) E
+       do _session (sessão). Qualquer uma das duas pendente faz um admin sem
+       turma própria parecer 'member' e ser barrado. A lista costuma chegar
+       ANTES da sessão, então checar só a lista não bastava. */
+    const sessAtual = window.faAuth && window.faAuth.getSession ? window.faAuth.getSession() : null;
     const level = window.faAuth && window.faAuth.getAccessLevel ? window.faAuth.getAccessLevel() : 'member';
-    if ((page === 'conteudos' || page === 'treinamento' || page === 'avaliacao') && level === 'member') {
+    if ((page === 'conteudos' || page === 'treinamento' || page === 'avaliacao') && sessAtual && level === 'member' && listaAdminsPronta()) {
       location.hash = '#home';
       showAccessMsg('Disponível após confirmação em uma turma.');
       return;
@@ -114,8 +119,15 @@
        alguém legítimo enquanto o Firebase ainda está resolvendo a sessão
        (nesse caso, quem corrige é o enforceCurrentRouteAccess em auth.js). */
     if (page !== 'home' && window.faAuth && window.faAuth.isAuthReady && window.faAuth.isAuthReady()) {
+      const sess = window.faAuth.getSession ? window.faAuth.getSession() : null;
       const level = window.faAuth.getAccessLevel ? window.faAuth.getAccessLevel() : 'member';
-      const blocked = (page === 'conteudos' || page === 'treinamento' || page === 'avaliacao') && level !== 'enrolled';
+      /* Sessão E lista de admins, pelo mesmo motivo do gate de navigate():
+         sem as duas, um admin que não está inscrito em turma nenhuma é
+         expulso daqui num F5, com um aviso de nível que nem é verdadeiro.
+         A lista chega antes da sessão, então esperar só por ela não bastava
+         — era o que ainda derrubava #avaliacao. */
+      const blocked = (page === 'conteudos' || page === 'treinamento' || page === 'avaliacao')
+                      && sess && level !== 'enrolled' && listaAdminsPronta();
       if (blocked) {
         page = 'home';
         history.replaceState(null, '', '#home');
@@ -573,9 +585,12 @@
   /* A lista de admins chegou depois da decisão de rota: decide de novo.
      Quem estava em #admin sem ser admin sai agora; quem é admin e só estava
      esperando a leitura continua onde estava. */
+  /* A lista de admins chegou depois das decisões de rota: refaz todas
+     elas. Vale pra #admin, #facilitador e também pras rotas por nível de
+     acesso (Conteúdos, Treinamento, Avaliação), que dependem do mesmo
+     isAdmin() pra saber que admin entra sem turma própria. */
   window.addEventListener('fa-admin-ready', function () {
-    var r = route();
-    if (r === 'admin' || r === 'facilitador') show(r);
+    show(route());
   });
   window.addEventListener('fa-facilitador-ready', function () {
     if (route() === 'facilitador') show('facilitador');

@@ -740,6 +740,20 @@
       return;
     }
 
+    /* Esperar a sessão não basta: isAdmin() só responde a verdade depois
+       que a leitura de fa-admins volta, e é ela que decide entre o modo
+       admin e o fluxo de participante. Sem esperar, um admin caía no
+       fluxo errado e a tela não se corrigia mais — mesmo motivo do
+       fa-auth-ready logo acima, só que pro outro dado. */
+    if (window.faAuth.isAdminReady && !window.faAuth.isAdminReady()) {
+      c.innerHTML = '<p class="loading-msg">Carregando…</p>';
+      window.addEventListener('fa-admin-ready', function onAdm() {
+        window.removeEventListener('fa-admin-ready', onAdm);
+        init();
+      });
+      return;
+    }
+
     var isAdmin   = !!(window.faAuth.isAdmin && window.faAuth.isAdmin(session.email));
     var userEmail = session.email;
     var uKey      = emailKey(userEmail);

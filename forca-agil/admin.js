@@ -93,6 +93,17 @@
       });
       return;
     }
+    /* isAdmin() responde false enquanto a leitura de fa-admins não volta.
+       Como este return é definitivo — initAdmin não roda de novo sozinho —
+       sair aqui cedo demais deixava o painel inteiro sem carregar, com as
+       abas presas em "Carregando…". Espera a lista antes de desistir. */
+    if (window.faAuth.isAdminReady && !window.faAuth.isAdminReady()) {
+      window.addEventListener('fa-admin-ready', function onAdm() {
+        window.removeEventListener('fa-admin-ready', onAdm);
+        initAdmin();
+      });
+      return;
+    }
     if (!window.faAuth.isAdmin(sess.email)) return;
     migrateNameCase();
     migrarEsperaPorOrigem();

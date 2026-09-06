@@ -14,9 +14,24 @@ document.addEventListener('DOMContentLoaded', function () {
     if (guard)   guard.hidden   = !authResolvido || !!isAdmin;
   }
 
-  function resolver() { authResolvido = true; updateAdminPage(); }
+  /* Saber quem está logado ainda não é saber se é admin: isAdmin() depende
+     de uma leitura de fa-admins que corre em paralelo e responde false até
+     chegar. Dar o auth por resolvido antes dela mostrava "Acesso Restrito"
+     pro próprio admin — o mesmo sintoma que o comentário acima descreve,
+     só que causado pelo outro dado. Por isso o guarda só aparece quando as
+     DUAS coisas terminaram. */
+  function listaAdminsPronta() {
+    return !(window.faAuth && window.faAuth.isAdminReady) || window.faAuth.isAdminReady();
+  }
+
+  function resolver() {
+    if (!listaAdminsPronta()) { updateAdminPage(); return; }
+    authResolvido = true;
+    updateAdminPage();
+  }
 
   updateAdminPage();
   window.addEventListener('fa-auth-ready',  resolver);
   window.addEventListener('fa-auth-change', resolver);
+  window.addEventListener('fa-admin-ready', resolver);
 });

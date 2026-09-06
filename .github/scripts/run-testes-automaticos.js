@@ -175,6 +175,83 @@ async function submitLogin(page, email, password) {
     }
   }
 
+  /* Loga, abre #avaliacao e espera o modo admin aparecer. Se não aparecer,
+     estoura com o estado real da página em vez de um "timeout" seco — este
+     caminho já escondeu duas causas diferentes, e adivinhar saiu caro. */
+  /* Escolhe evento e turma no modo admin da Avaliação. Os <select> aparecem
+     no DOM antes de terem opções (a lista vem de uma leitura assíncrona),
+     então cada passo espera a opção existir em vez de ler na hora — foi
+     exatamente isso que quebrava na volta pra conferir o rascunho.
+     Devolve {evento, turma} escolhidos, ou null se a base não tem nenhum.
+     Passando `alvo`, refaz a MESMA escolha. */
+  async function escolherEventoETurma(p, alvo) {
+    const temEvento = await p.waitForFunction((esperado) => {
+      var ev = document.getElementById('avalAdminEvento');
+      if (!ev) return false;
+      return Array.prototype.some.call(ev.options, function (o) {
+        return o.value && (!esperado || o.value === esperado);
+      });
+    }, alvo ? alvo.evento : null, { timeout: 20000 }).then(() => true).catch(() => false);
+    if (!temEvento) return null;
+
+    const evento = await p.evaluate((esperado) => {
+      var ev = document.getElementById('avalAdminEvento');
+      var opt = Array.prototype.find.call(ev.options, function (o) {
+        return o.value && (!esperado || o.value === esperado);
+      });
+      ev.value = opt.value;
+      ev.dispatchEvent(new Event('change'));
+      return opt.value;
+    }, alvo ? alvo.evento : null);
+
+    const temTurma = await p.waitForFunction((esperado) => {
+      var tu = document.getElementById('avalAdminTurma');
+      if (!tu || tu.disabled) return false;
+      return Array.prototype.some.call(tu.options, function (o) {
+        return o.value && (!esperado || o.value === esperado);
+      });
+    }, alvo ? alvo.turma : null, { timeout: 20000 }).then(() => true).catch(() => false);
+    if (!temTurma) return null;
+
+    const turma = await p.evaluate((esperado) => {
+      var tu = document.getElementById('avalAdminTurma');
+      var opt = Array.prototype.find.call(tu.options, function (o) {
+        return o.value && (!esperado || o.value === esperado);
+      });
+      tu.value = opt.value;
+      tu.dispatchEvent(new Event('change'));
+      return opt.value;
+    }, alvo ? alvo.turma : null);
+
+    return { evento: evento, turma: turma };
+  }
+
+  async function abrirAvaliacaoComoAdmin(p) {
+    await p.goto(BASE_URL, { waitUntil: 'networkidle' });
+    const r = await submitLogin(p, EMAIL, PASSWORD);
+    if (!r.ok) throw new Error('login falhou: ' + r.errorText);
+    await p.goto(BASE_URL + '#avaliacao', { waitUntil: 'networkidle' });
+    const ok = await p.waitForSelector('#avalAdminEvento', { timeout: 20000 })
+      .then(() => true).catch(() => false);
+    if (ok) return;
+    const estado = await p.evaluate(() => {
+      var sess = window.faAuth && window.faAuth.getSession && window.faAuth.getSession();
+      var pg = document.getElementById('page-avaliacao');
+      var visivel = document.querySelector('.page-section:not([hidden])');
+      var cont = document.getElementById('avaliacaoContent');
+      return {
+        hash: location.hash,
+        secaoVisivel: visivel ? visivel.id : null,
+        avaliacaoOculta: pg ? pg.hidden : null,
+        adminReady: !!(window.faAuth && window.faAuth.isAdminReady && window.faAuth.isAdminReady()),
+        ehAdmin: !!(sess && window.faAuth.isAdmin && window.faAuth.isAdmin(sess.email)),
+        nivel: window.faAuth && window.faAuth.getAccessLevel ? window.faAuth.getAccessLevel() : null,
+        conteudo: cont ? (cont.textContent || '').trim().slice(0, 120) : '(sem #avaliacaoContent)'
+      };
+    });
+    throw new Error('modo admin da Avaliação não apareceu — estado: ' + JSON.stringify(estado));
+  }
+
   await runIsolated('Visitante sem login: site fica oculto e só o modal de entrar aparece', async (p) => {
     await p.goto(BASE_URL, { waitUntil: 'networkidle' });
     await p.waitForSelector('#authModal', { timeout: 15000 });
@@ -436,6 +513,183 @@ async function submitLogin(page, email, password) {
       });
       throw new Error('aba Eventos não carregou depois do F5 — estado: ' + JSON.stringify(estado));
     }
+  });
+
+  /* ── Avaliação ──────────────────────────────────────────────────────
+     Estas checagens param antes do botão ENVIAR de propósito. Testar a
+     validação de campos obrigatórios exigiria clicar em enviar, e se a
+     validação estiver quebrada isso grava uma avaliação de verdade no
+     Firebase de produção, onde esta suíte roda a cada PR. A regra do
+     envio incompleto continua na lista manual por essa razão. */
+  await runIsolated('Avaliação (admin): seletores de Evento e Turma, com Turma travada até escolher o evento', async (p) => {
+    await abrirAvaliacaoComoAdmin(p);
+    const estado = await p.evaluate(() => {
+      var ev = document.getElementById('avalAdminEvento');
+      var tu = document.getElementById('avalAdminTurma');
+      return {
+        temTurma: !!tu,
+        turmaTravada: tu ? tu.disabled : null,
+        placeholder: tu && tu.options[0] ? tu.options[0].textContent : '',
+        opcoesEvento: ev ? ev.options.length : 0
+      };
+    });
+    if (!estado.temTurma) throw new Error('seletor de turma não existe');
+    if (estado.turmaTravada !== true) throw new Error('seletor de turma já começa liberado, sem evento escolhido');
+    if (estado.placeholder.indexOf('selecione um evento primeiro') === -1) {
+      throw new Error('placeholder inesperado no seletor de turma: "' + estado.placeholder + '"');
+    }
+    /* "— selecionar evento —" mais os eventos cadastrados. */
+    if (estado.opcoesEvento < 1) throw new Error('seletor de evento vazio');
+  });
+
+  await runIsolated('Avaliação (admin): abre o formulário de uma turma mesmo sem a avaliação liberada', async (p) => {
+    await abrirAvaliacaoComoAdmin(p);
+
+    const escolhido = await escolherEventoETurma(p);
+    if (!escolhido) return 'nenhum evento com turma nesta base — nada a verificar';
+
+    /* O admin não passa pelo flag avaliacaoHabilitada: ou aparece o
+       formulário, ou a tela de "já enviou uma resposta de teste". */
+    const abriu = await p.waitForFunction(() => {
+      var area = document.getElementById('avalAdminFormArea');
+      if (!area) return false;
+      if (area.querySelector('#avaliacaoForm')) return true;
+      return (area.textContent || '').indexOf('resposta de teste') !== -1;
+    }, null, { timeout: 20000 }).then(() => true).catch(() => false);
+    if (!abriu) {
+      const txt = await p.evaluate(() => {
+        var a = document.getElementById('avalAdminFormArea');
+        return a ? (a.textContent || '').trim().slice(0, 140) : '(sem #avalAdminFormArea)';
+      });
+      throw new Error('formulário não abriu para o admin — área mostra: "' + txt + '"');
+    }
+  });
+
+  await runIsolated('Avaliação: escolher a nota da seção 1 avança sozinho e o rascunho fica guardado', async (p) => {
+    await abrirAvaliacaoComoAdmin(p);
+
+    const escolhido = await escolherEventoETurma(p);
+    if (!escolhido) return 'nenhum evento com turma nesta base — nada a verificar';
+
+    const formVisivel = await p.waitForSelector('#avaliacaoForm', { timeout: 20000 })
+      .then(() => true).catch(() => false);
+    if (!formVisivel) return 'admin já respondeu esta turma — formulário não aparece, nada a verificar';
+
+    /* Marca a nota da seção 1 (notaGeral). Nada é enviado: o auto-avançar e
+       o rascunho acontecem sem passar pelo botão ENVIAR.
+
+       A nota NÃO é um radio — é <button class="aval-rating-btn" data-val="N">,
+       e o auto-avançar só dispara na seção cuja única pergunta é a nota. A
+       seção 1 é a única assim, por isso o teste marca justamente ela. */
+    const NOTA = '9';
+    const marcou = await p.evaluate((val) => {
+      var w = document.querySelector('#avaliacaoForm .aval-rating[data-field="notaGeral"]');
+      if (!w) return false;
+      var btn = w.querySelector('.aval-rating-btn[data-val="' + val + '"]');
+      if (!btn) return false;
+      btn.click();
+      return btn.classList.contains('active');
+    }, NOTA);
+    if (!marcou) throw new Error('não achei a nota da seção 1 (.aval-rating[data-field="notaGeral"]) para marcar');
+
+    /* Auto-avançar: a seção 1 fecha e a 2 abre sozinha (~600ms no código).
+       A classe é aval-acc--open; a primeira seção nasce aberta, então o
+       sinal é a seção aberta deixar de ser a primeira. */
+    const avancou = await p.waitForFunction(() => {
+      var accs = Array.prototype.slice.call(document.querySelectorAll('#avaliacaoForm .aval-acc'));
+      if (accs.length < 2) return true; /* formulário de uma seção só */
+      var abertaIdx = accs.findIndex(function (a) { return a.classList.contains('aval-acc--open'); });
+      return abertaIdx > 0;
+    }, null, { timeout: 8000 }).then(() => true).catch(() => false);
+    if (!avancou) throw new Error('marcar a nota da seção 1 não abriu a seção seguinte sozinho');
+
+    /* Rascunho: avaliacao.js grava em localStorage com prefixo fa_aval_. */
+    const temRascunho = await p.waitForFunction(() => {
+      for (var i = 0; i < localStorage.length; i++) {
+        if ((localStorage.key(i) || '').indexOf('fa_aval_') === 0) return true;
+      }
+      return false;
+    }, null, { timeout: 8000 }).then(() => true).catch(() => false);
+
+    if (!temRascunho) throw new Error('nada foi guardado no rascunho (localStorage fa_aval_*) depois de responder');
+
+    /* E restaura: sair da página e voltar tem que trazer a resposta de
+       volta, que é a metade do rascunho que importa pra quem responde.
+       Como admin, voltar cai nos seletores de novo — refaz a escolha do
+       mesmo evento e turma antes de conferir. */
+    await p.goto(BASE_URL + '#home', { waitUntil: 'networkidle' });
+    await p.goto(BASE_URL + '#avaliacao', { waitUntil: 'networkidle' });
+    await p.waitForSelector('#avalAdminEvento', { timeout: 20000 });
+    /* Mesmo evento e mesma turma de antes: a chave do rascunho é a turma,
+       então voltar em outra não provaria nada. */
+    const revoltou = await escolherEventoETurma(p, escolhido);
+    if (!revoltou) throw new Error('não consegui reabrir a mesma turma para conferir o rascunho');
+    const restaurou = await p.waitForFunction((val) => {
+      var w = document.querySelector('#avaliacaoForm .aval-rating[data-field="notaGeral"]');
+      if (!w) return false;
+      var ativo = w.querySelector('.aval-rating-btn.active');
+      return !!ativo && ativo.dataset.val === val;
+    }, NOTA, { timeout: 20000 }).then(() => true).catch(() => false);
+    if (!restaurou) throw new Error('o rascunho foi guardado mas a nota não voltou marcada ao reabrir a página');
+  });
+
+  await runIsolated('Minha Área: a barra "Ver esta tela como" aparece para admin e não grava nada', async (p) => {
+    await p.goto(BASE_URL, { waitUntil: 'networkidle' });
+    const r = await submitLogin(p, EMAIL, PASSWORD);
+    if (!r.ok) throw new Error('login falhou: ' + r.errorText);
+    await p.goto(BASE_URL + '#minha-area', { waitUntil: 'networkidle' });
+    await p.waitForSelector('.aluno-vercomo', { timeout: 20000 });
+    const barra = await p.evaluate(() => {
+      var b = document.querySelector('.aluno-vercomo');
+      var sel = b && b.querySelector('.aluno-vercomo-sel');
+      return {
+        temSelect: !!sel,
+        primeiraOpcao: sel && sel.options[0] ? sel.options[0].textContent : '',
+        avisa: (b.textContent || '').indexOf('nada é gravado') !== -1
+      };
+    });
+    if (!barra.temSelect) throw new Error('barra existe mas sem o seletor de pessoa');
+    if (barra.primeiraOpcao.indexOf('eu mesma') === -1) {
+      throw new Error('primeira opção deveria voltar pro próprio admin, veio "' + barra.primeiraOpcao + '"');
+    }
+    if (!barra.avisa) throw new Error('a barra não avisa que é só visualização');
+  });
+
+  await runIsolated('Minha Área: os grupos de turma aparecem na ordem Em andamento → Programadas → Concluídas', async (p) => {
+    await p.goto(BASE_URL, { waitUntil: 'networkidle' });
+    const r = await submitLogin(p, EMAIL, PASSWORD);
+    if (!r.ok) throw new Error('login falhou: ' + r.errorText);
+    await p.goto(BASE_URL + '#minha-area', { waitUntil: 'networkidle' });
+    await p.waitForSelector('#minhaAreaContent', { timeout: 20000 });
+    await p.waitForFunction(() => {
+      var w = document.getElementById('minhaAreaContent');
+      return w && !/Carregando/.test(w.textContent || '');
+    }, null, { timeout: 20000 }).catch(() => {});
+    const problema = await p.evaluate(() => {
+      var grupos = Array.prototype.map.call(
+        document.querySelectorAll('#minhaAreaContent .aluno-grupo'),
+        function (g) { return (g.textContent || '').trim(); }
+      );
+      if (!grupos.length) return null; /* conta sem turma — nada a verificar */
+      var ordem = ['Em andamento', 'Programadas', 'Concluídas'];
+      var idx = grupos.map(function (t) {
+        return ordem.findIndex(function (o) { return t.indexOf(o) === 0; });
+      });
+      if (idx.some(function (i) { return i === -1; })) return 'grupo com título fora dos três esperados: ' + JSON.stringify(grupos);
+      for (var i = 1; i < idx.length; i++) {
+        if (idx[i] <= idx[i - 1]) return 'fora de ordem (ou repetido): ' + JSON.stringify(grupos);
+      }
+      /* Cada cabeçalho mostra a quantidade, e ela tem que bater com os
+         cards do grupo — grupo vazio não pode nem existir. */
+      var hdrs = document.querySelectorAll('#minhaAreaContent .aluno-grupo');
+      for (var j = 0; j < hdrs.length; j++) {
+        var qtdEl = hdrs[j].querySelector('.aluno-grupo-qtd');
+        if (!qtdEl) return 'cabeçalho de grupo sem a contagem: ' + hdrs[j].textContent.trim();
+        if (parseInt(qtdEl.textContent, 10) < 1) return 'grupo aparecendo com zero turmas: ' + hdrs[j].textContent.trim();
+      }
+      return null;
+    });
+    if (problema) throw new Error(problema);
   });
 
   await runIsolated('Ajuda: os 5 tipos de pedido aparecem e o "Enviar" só habilita depois de escolher um', async (p) => {
