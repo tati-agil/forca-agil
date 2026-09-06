@@ -58,10 +58,83 @@
   function emailKey(e) {
     return (e || '').toLowerCase().replace(/[@.]/g, '_').replace(/[^a-z0-9_]/g, '').slice(0, 64);
   }
-  function linhas(txt) {
-    return String(txt || '').split('\n').map(function (l) { return l.trim(); }).filter(Boolean);
-  }
   function db() { return firebase.database(); }
+
+  /* ---- Formatação básica nas caixas de texto do formulário de atividade
+     (negrito, itálico, sublinhado, listas, alinhar) — ver campoRico() mais
+     abaixo. Guardamos HTML de verdade no banco a partir de agora, mas o
+     sanitizador abaixo garante que só as tags/estilos desta lista sobrevivem
+     (nunca script, atributo de evento, src etc.), tanto no que sai do
+     editor quanto no que é lido de volta — inclusive dados antigos, que
+     eram texto puro e passam pela mesma peneira (heurística: só tratamos
+     como HTML de verdade quando o valor já contém alguma dessas tags). ---- */
+  var RICO_TAGS_PERMITIDAS = { B: 1, STRONG: 1, I: 1, EM: 1, U: 1, UL: 1, OL: 1, LI: 1, BR: 1, DIV: 1, P: 1, SPAN: 1 };
+  var RICO_ALINHAMENTOS = ['left', 'center', 'right', 'justify'];
+  function sanitizarHtmlRico(html) {
+    var raiz = document.createElement('div');
+    raiz.innerHTML = html || '';
+    (function limpar(no) {
+      var filho = no.firstChild;
+      while (filho) {
+        if (filho.nodeType === 8 /* comentário */) {
+          var rem = filho; filho = filho.nextSibling; no.removeChild(rem); continue;
+        }
+        if (filho.nodeType !== 1 /* elemento */) { filho = filho.nextSibling; continue; }
+        if (!RICO_TAGS_PERMITIDAS[filho.tagName]) {
+          var proxDepois = filho.nextSibling;
+          var primeiroPromovido = filho.firstChild;
+          while (filho.firstChild) no.insertBefore(filho.firstChild, filho);
+          no.removeChild(filho);
+          filho = primeiroPromovido || proxDepois;
+          continue;
+        }
+        var alinhamento = filho.style && filho.style.textAlign;
+        Array.prototype.slice.call(filho.attributes).forEach(function (attr) { filho.removeAttribute(attr.name); });
+        if (RICO_ALINHAMENTOS.indexOf(alinhamento) !== -1) filho.style.textAlign = alinhamento;
+        limpar(filho);
+        filho = filho.nextSibling;
+      }
+    })(raiz);
+    return raiz.innerHTML;
+  }
+  function ricoVazio(html) {
+    var t = String(html || '').replace(/<br\s*\/?>/gi, '').replace(/<[^>]+>/g, '').replace(/&nbsp;/gi, ' ').trim();
+    return !t;
+  }
+  /* Valor salvo antes desta funcionalidade era texto puro (pode ter "\n",
+     "<", "&" literais); valor salvo depois já é HTML de verdade produzido
+     pelo próprio sanitizador. Decide qual dos dois casos é, pela presença
+     de alguma tag da lista permitida, e trata cada um do jeito certo. */
+  function htmlRicoSeguro(valor) {
+    if (!valor) return '';
+    var pareceHtml = /<\s*(b|strong|i|em|u|ul|ol|li|div|br|p|span)[\s>/]/i.test(valor);
+    var html = pareceHtml ? valor : esc(valor).replace(/\n/g, '<br>');
+    return sanitizarHtmlRico(html);
+  }
+  /* Mesma ideia, para um item de uma lista (perguntasDebrief/materiais) —
+     sem a conversão de quebra de linha, que não faz sentido dentro de um
+     único item. */
+  function htmlRicoItemLista(valor) {
+    if (!valor) return '';
+    var pareceHtml = /<\s*(b|strong|i|em|u|div|br|span)[\s>/]/i.test(valor);
+    var html = pareceHtml ? valor : esc(valor);
+    return sanitizarHtmlRico(html);
+  }
+  function listaParaHtmlEditor(arr) {
+    if (!arr || !arr.length) return '';
+    return '<ul>' + arr.map(function (item) { return '<li>' + htmlRicoItemLista(item) + '</li>'; }).join('') + '</ul>';
+  }
+  function extrairTextoRico(el) {
+    var html = sanitizarHtmlRico(el.innerHTML);
+    return ricoVazio(html) ? '' : html;
+  }
+  function extrairListaRico(el) {
+    var lis = el.querySelectorAll('li');
+    var itens = lis.length
+      ? Array.prototype.map.call(lis, function (li) { return sanitizarHtmlRico(li.innerHTML).trim(); })
+      : sanitizarHtmlRico(el.innerHTML).split(/<div[^>]*>|<\/div>|<br\s*\/?>|<p[^>]*>|<\/p>/i).map(function (s) { return s.trim(); });
+    return itens.filter(function (s) { return !ricoVazio(s); });
+  }
 
   /* ---- Diálogos (mesmo visual do admin, duplicado aqui: roteiro.js é
      carregado antes de admin.js e usado também por facilitador.js, então
@@ -452,11 +525,31 @@
     return '<label class="auth-label">' + esc(label) +
       '<input type="text" id="' + id + '" placeholder="' + esc(placeholder || '') + '" value="' + esc(valor || '') + '" autocomplete="off" /></label>';
   }
-  function campoArea(id, label, valor, placeholder, linhasMin) {
+  /* Caixa de texto com formatação básica (negrito, itálico, sublinhado,
+     lista com marcadores, lista numerada, centralizar, justificar) — um
+     <div contenteditable> com uma barra de botões que aciona
+     document.execCommand, sem depender de nenhuma biblioteca externa.
+     valorHtmlInicial já deve vir pronto para exibição (ver htmlRicoSeguro
+     e listaParaHtmlEditor) — esta função só monta o HTML do campo. */
+  function campoRico(id, label, valorHtmlInicial, placeholder, linhasMin) {
+    var minH = ((linhasMin || 3) * 22) + 14;
     return '<label class="auth-label">' + esc(label) +
-      '<textarea id="' + id + '" rows="' + (linhasMin || 3) + '" placeholder="' + esc(placeholder || '') +
-      '" style="width:100%;padding:8px 10px;background:var(--panel-2);border:1px solid var(--line-strong);border-radius:6px;color:var(--ink);font-family:var(--font-body);resize:vertical">' +
-      esc(valor || '') + '</textarea></label>';
+      '<div class="roteiro-rico">' +
+        '<div class="roteiro-rico-barra">' +
+          '<button type="button" class="roteiro-rico-btn" data-cmd="bold" title="Negrito"><b>N</b></button>' +
+          '<button type="button" class="roteiro-rico-btn" data-cmd="italic" title="Itálico"><i>I</i></button>' +
+          '<button type="button" class="roteiro-rico-btn" data-cmd="underline" title="Sublinhado"><u>S</u></button>' +
+          '<span class="roteiro-rico-sep"></span>' +
+          '<button type="button" class="roteiro-rico-btn" data-cmd="insertUnorderedList" title="Lista com marcadores">&#8226; Lista</button>' +
+          '<button type="button" class="roteiro-rico-btn" data-cmd="insertOrderedList" title="Lista numerada">1. Lista</button>' +
+          '<span class="roteiro-rico-sep"></span>' +
+          '<button type="button" class="roteiro-rico-btn" data-cmd="justifyCenter" title="Centralizar">Centralizar</button>' +
+          '<button type="button" class="roteiro-rico-btn" data-cmd="justifyFull" title="Justificar">Justificar</button>' +
+        '</div>' +
+        '<div id="' + id + '" class="roteiro-rico-area" contenteditable="true" data-placeholder="' + esc(placeholder || '') + '" style="min-height:' + minH + 'px">' +
+          (valorHtmlInicial || '') +
+        '</div>' +
+      '</div></label>';
   }
 
   function abrirFormAtividade(opts) {
@@ -491,17 +584,17 @@
         '<p style="font-size:.72rem;color:var(--ink-3);margin-top:4px">Preencha início + duração, início + fim, ou fim + duração — o terceiro campo se completa sozinho.</p>' +
         avisoFilhos) +
       bloco('Propósito',
-        campoArea('rfDescricao', 'Descrição', a.descricao, 'O que acontece nesta atividade') +
-        campoArea('rfObjetivo', 'Objetivo', a.objetivo, 'O que queremos que os participantes percebam, aprendam ou experimentem?') +
-        campoArea('rfConexao', 'Conexão com a mentalidade ágil', a.conexaoAgilidade, 'Por que esta atividade existe')) +
+        campoRico('rfDescricao', 'Descrição', htmlRicoSeguro(a.descricao), 'O que acontece nesta atividade', 3) +
+        campoRico('rfObjetivo', 'Objetivo', htmlRicoSeguro(a.objetivo), 'O que queremos que os participantes percebam, aprendam ou experimentem?', 3) +
+        campoRico('rfConexao', 'Conexão com a mentalidade ágil', htmlRicoSeguro(a.conexaoAgilidade), 'Por que esta atividade existe', 3)) +
       bloco('Como conduzir',
-        campoArea('rfPasso', 'Passo a passo (uma linha por passo)', (a.passoAPasso || ''), '1. Explique a missão...', 5) +
-        campoArea('rfDicas', 'Dicas para o facilitador', a.dicasFacilitador, 'O que evitar, o que reforçar') +
-        campoArea('rfDebrief', 'Perguntas para o debrief (uma por linha)', (a.perguntasDebrief || []).join('\n'), 'O que mudou quando...?', 4)) +
+        campoRico('rfPasso', 'Passo a passo (uma linha por passo)', htmlRicoSeguro(a.passoAPasso), '1. Explique a missão...', 5) +
+        campoRico('rfDicas', 'Dicas para o facilitador', htmlRicoSeguro(a.dicasFacilitador), 'O que evitar, o que reforçar', 3) +
+        campoRico('rfDebrief', 'Perguntas para o debrief (uma por linha)', listaParaHtmlEditor(a.perguntasDebrief), 'O que mudou quando...?', 4)) +
       bloco('Recursos',
-        campoArea('rfMateriais', 'Materiais necessários (um por linha)', (a.materiais || []).join('\n'), '30 cartões\npost-its', 3) +
-        campoArea('rfPreparacao', 'Preparação prévia', a.preparacaoPrevia, 'O que preparar antes de começar')) +
-      bloco('Observações', campoArea('rfObs', 'Observações', a.observacoes, '')) +
+        campoRico('rfMateriais', 'Materiais necessários (um por linha)', listaParaHtmlEditor(a.materiais), '30 cartões, post-its', 3) +
+        campoRico('rfPreparacao', 'Preparação prévia', htmlRicoSeguro(a.preparacaoPrevia), 'O que preparar antes de começar', 3)) +
+      bloco('Observações', campoRico('rfObs', 'Observações', htmlRicoSeguro(a.observacoes), '', 3)) +
       '<p id="rfErr" style="color:var(--red,#ff3b30);font-size:.85rem;display:none;margin-top:10px"></p>' +
       '<div style="display:flex;justify-content:space-between;gap:8px;margin-top:16px">' +
         (opts.onExcluir ? '<button class="btn roteiro-form-excluir" style="border-color:rgba(255,80,80,.5);color:#ff8080">Excluir</button>' : '<span></span>') +
@@ -516,6 +609,15 @@
 
     var $ = function (sel) { return box.querySelector(sel); };
     var inicioEl = $('#rfInicio'), fimEl = $('#rfFim'), duracaoEl = $('#rfDuracao');
+
+    Array.prototype.forEach.call(box.querySelectorAll('.roteiro-rico-btn'), function (btn) {
+      btn.addEventListener('mousedown', function (e) { e.preventDefault(); }); /* mantém a seleção de texto ao clicar */
+      btn.addEventListener('click', function () {
+        var area = btn.closest('.roteiro-rico').querySelector('.roteiro-rico-area');
+        area.focus();
+        document.execCommand(btn.getAttribute('data-cmd'), false, null);
+      });
+    });
 
     [inicioEl, fimEl, duracaoEl].forEach(function (el) {
       el.addEventListener('change', function () {
@@ -554,11 +656,11 @@
         titulo: titulo, tipo: $('#rfTipo').value,
         horaInicio: inicioEl.value || '', horaFim: fimEl.value || '',
         duracaoMinutos: duracaoEl.value ? Math.max(0, Number(duracaoEl.value)) : 0,
-        descricao: $('#rfDescricao').value.trim(), objetivo: $('#rfObjetivo').value.trim(),
-        passoAPasso: $('#rfPasso').value.trim(), dicasFacilitador: $('#rfDicas').value.trim(),
-        conexaoAgilidade: $('#rfConexao').value.trim(),
-        perguntasDebrief: linhas($('#rfDebrief').value), materiais: linhas($('#rfMateriais').value),
-        preparacaoPrevia: $('#rfPreparacao').value.trim(), observacoes: $('#rfObs').value.trim()
+        descricao: extrairTextoRico($('#rfDescricao')), objetivo: extrairTextoRico($('#rfObjetivo')),
+        passoAPasso: extrairTextoRico($('#rfPasso')), dicasFacilitador: extrairTextoRico($('#rfDicas')),
+        conexaoAgilidade: extrairTextoRico($('#rfConexao')),
+        perguntasDebrief: extrairListaRico($('#rfDebrief')), materiais: extrairListaRico($('#rfMateriais')),
+        preparacaoPrevia: extrairTextoRico($('#rfPreparacao')), observacoes: extrairTextoRico($('#rfObs'))
       };
       opts.onSalvar(dados);
       closeModal();
@@ -736,8 +838,8 @@
   function campoImpressao(label, valor) {
     if (!valor || (Array.isArray(valor) && !valor.length)) return '';
     var conteudo = Array.isArray(valor)
-      ? '<ul>' + valor.map(function (l) { return '<li>' + esc(l) + '</li>'; }).join('') + '</ul>'
-      : '<p>' + esc(valor).replace(/\n/g, '<br>') + '</p>';
+      ? '<ul>' + valor.map(function (l) { return '<li>' + htmlRicoItemLista(l) + '</li>'; }).join('') + '</ul>'
+      : '<div class="rp-campo-txt">' + htmlRicoSeguro(valor) + '</div>';
     return '<div class="rp-campo"><strong>' + esc(label) + '</strong>' + conteudo + '</div>';
   }
 
@@ -788,7 +890,7 @@
       '.rp-atv-meta{font-size:.78rem;color:#555;margin:2px 0 8px;}' +
       '.rp-campo{margin-bottom:8px;font-size:.85rem;}' +
       '.rp-campo strong{display:block;font-size:.68rem;letter-spacing:.06em;text-transform:uppercase;color:#666;margin-bottom:2px;}' +
-      '.rp-campo p{margin:0;}' +
+      '.rp-campo-txt{margin:0;}' +
       '.rp-campo ul{margin:2px 0 0 18px;padding:0;}' +
       '.rp-vazio{margin:0;font-size:.8rem;color:#888;font-style:italic;}' +
       '.rp-gap-bloco{border:1px dashed #ff8a5c;background:#fff3e0;color:#a35a2a;font-style:italic;font-size:.82rem;padding:6px 12px;border-radius:6px;margin-bottom:10px;}' +
@@ -1252,8 +1354,8 @@
     function campoDetalhe(label, valor) {
       if (!valor || (Array.isArray(valor) && !valor.length)) return '';
       var conteudo = Array.isArray(valor)
-        ? '<ul style="margin:4px 0 0 18px;padding:0">' + valor.map(function (l) { return '<li>' + esc(l) + '</li>'; }).join('') + '</ul>'
-        : '<p style="margin:4px 0 0;white-space:pre-line">' + esc(valor) + '</p>';
+        ? '<ul style="margin:4px 0 0 18px;padding:0">' + valor.map(function (l) { return '<li>' + htmlRicoItemLista(l) + '</li>'; }).join('') + '</ul>'
+        : '<div style="margin:4px 0 0" class="rico-html-view">' + htmlRicoSeguro(valor) + '</div>';
       return '<div style="margin-bottom:12px"><strong style="font-size:.72rem;letter-spacing:.06em;text-transform:uppercase;color:var(--ink-3)">' + esc(label) + '</strong>' + conteudo + '</div>';
     }
 

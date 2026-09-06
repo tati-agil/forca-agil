@@ -399,6 +399,27 @@
 .badge-roteiro-exclusiva { background: rgba(47,116,214,.18); color: var(--blue-glow); border: 1px solid rgba(47,116,214,.4); }
 .badge-roteiro-removida  { background: rgba(255,59,48,.12); color: var(--red); border: 1px solid rgba(255,59,48,.3); }
 
+/* Roteiro — caixas de texto do formulário de atividade com formatação
+   básica (negrito, itálico, sublinhado, listas, alinhamento), ver
+   campoRico() em forca-agil/roteiro.js. */
+.roteiro-rico { border: 1px solid var(--line-strong); border-radius: 6px; overflow: hidden; background: var(--panel-2); }
+.roteiro-rico-barra { display: flex; flex-wrap: wrap; gap: 2px; padding: 4px; background: rgba(0,0,0,.15); border-bottom: 1px solid var(--line-strong); }
+.roteiro-rico-btn {
+  background: none; border: 1px solid transparent; border-radius: 4px; color: var(--ink-2);
+  font-size: .72rem; padding: 3px 8px; cursor: pointer; font-family: var(--font-body);
+}
+.roteiro-rico-btn:hover { background: var(--panel); border-color: var(--line-strong); color: var(--ink); }
+.roteiro-rico-sep { width: 1px; background: var(--line-strong); margin: 2px 4px; }
+.roteiro-rico-area {
+  padding: 8px 10px; color: var(--ink); font-family: var(--font-body); font-size: .92rem;
+  line-height: 1.5; outline: none; overflow-y: auto;
+}
+.roteiro-rico-area ul, .roteiro-rico-area ol { margin: 4px 0 4px 20px; padding: 0; }
+.roteiro-rico-area:empty:before { content: attr(data-placeholder); color: var(--ink-3); }
+
+/* Mesma área, em modo leitura (corpo expandido do roteiro da turma) */
+.rico-html-view ul, .rico-html-view ol { margin: 4px 0 0 18px; padding: 0; }
+
 /* ---- Tabela de presença por dia ---- */
 /* Com as colunas de dia a tabela fica mais larga que o painel e a coluna de
    ações escorrega para fora da tela — a pessoa vê os dias e conclui que não
