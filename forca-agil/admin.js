@@ -4266,6 +4266,10 @@
           '<p id="adminMsg" style="margin-top:8px;font-size:.8rem;color:var(--cyan)"></p>';
         c.appendChild(form);
 
+        if (window.faAuth && window.faAuth.autoPreviDominio) {
+          window.faAuth.autoPreviDominio(document.getElementById('adminEmail'));
+        }
+
         document.getElementById('adminAddBtn').addEventListener('click', function () {
           const name  = (document.getElementById('adminName').value  || '').trim().toUpperCase();
           const email = (document.getElementById('adminEmail').value || '').trim().toLowerCase();
@@ -4364,6 +4368,10 @@
           '<p id="diretorMsg" style="margin-top:8px;font-size:.8rem;color:var(--cyan)"></p>';
         c.appendChild(form);
 
+        if (window.faAuth && window.faAuth.autoPreviDominio) {
+          window.faAuth.autoPreviDominio(document.getElementById('diretorEmail'));
+        }
+
         document.getElementById('diretorAddBtn').addEventListener('click', function () {
           const name  = (document.getElementById('diretorName').value  || '').trim().toUpperCase();
           const email = (document.getElementById('diretorEmail').value || '').trim().toLowerCase();
@@ -4459,6 +4467,10 @@
           '</div>' +
           '<p id="facilitadorMsg" style="margin-top:8px;font-size:.8rem;color:var(--cyan)"></p>';
         c.appendChild(form);
+
+        if (window.faAuth && window.faAuth.autoPreviDominio) {
+          window.faAuth.autoPreviDominio(document.getElementById('facilitadorEmail'));
+        }
 
         document.getElementById('facilitadorAddBtn').addEventListener('click', function () {
           const name  = (document.getElementById('facilitadorName').value  || '').trim().toUpperCase();
