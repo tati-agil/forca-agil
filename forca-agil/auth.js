@@ -29,6 +29,32 @@
     return (e || '').toLowerCase().replace(/[@.]/g, '_').replace(/[^a-z0-9_]/g, '').slice(0, 64);
   }
   function isPrevi(e) { return /^[^\s@]+@previ\.com\.br$/i.test(e || ''); }
+
+  /* Todo login é @previ.com.br — preenche o domínio ao focar um campo
+     vazio, com o cursor antes do @, pra só faltar digitar o nome. Não
+     mexe se o campo já tiver valor (autopreenchimento do navegador
+     continua funcionando normal) e limpa antes de colar, pra
+     "@previ.com.br" não virar prefixo de um e-mail colado de outro
+     domínio. Volta a ficar vazio no blur se ninguém digitou nada.
+     Exposta em window.faAuth pra outros módulos (ex: admin.js, no
+     campo de e-mail de "+ Criar conta para colaboradora", criado
+     dinamicamente depois deste arquivo já ter carregado) aplicarem o
+     mesmo comportamento nos próprios campos de e-mail @previ.com.br. */
+  function autoPreviDominio(input) {
+    if (!input) return;
+    input.addEventListener('focus', function () {
+      if (input.value === '') {
+        input.value = '@previ.com.br';
+        input.setSelectionRange(0, 0);
+      }
+    });
+    input.addEventListener('paste', function () {
+      if (input.value === '@previ.com.br') input.value = '';
+    });
+    input.addEventListener('blur', function () {
+      if (input.value === '@previ.com.br') input.value = '';
+    });
+  }
   function isAdmin(e) {
     const em = (e || '').toLowerCase();
     return ADMIN.indexOf(em) !== -1 || _dbAdmins.indexOf(em) !== -1;
@@ -470,28 +496,6 @@
     const loginErr = document.getElementById('loginErr');
     const regErr   = document.getElementById('registerErr');
 
-    /* Todo login é @previ.com.br — preenche o domínio ao focar um campo
-       vazio, com o cursor antes do @, pra só faltar digitar o nome. Não
-       mexe se já tiver valor (autopreenchimento do navegador continua
-       funcionando normal) e limpa antes de colar, pra "@previ.com.br"
-       não virar prefixo de um e-mail colado (ex: de outro domínio). Some
-       de novo no blur se ninguém digitou nada, pra não sobrar um e-mail
-       inválido escondido atrás do placeholder. */
-    function autoPreviDominio(input) {
-      if (!input) return;
-      input.addEventListener('focus', function () {
-        if (input.value === '') {
-          input.value = '@previ.com.br';
-          input.setSelectionRange(0, 0);
-        }
-      });
-      input.addEventListener('paste', function () {
-        if (input.value === '@previ.com.br') input.value = '';
-      });
-      input.addEventListener('blur', function () {
-        if (input.value === '@previ.com.br') input.value = '';
-      });
-    }
     ['loginEmail', 'regEmail', 'forgotEmail'].forEach(function (id) {
       autoPreviDominio(document.getElementById(id));
     });
@@ -776,6 +780,7 @@
     getAccessLevel: getAccessLevel,
     criarContaPorAdmin: criarContaPorAdmin,
     resendVerification: resendVerification,
-    isAuthReady: function () { return _authReady; }
+    isAuthReady: function () { return _authReady; },
+    autoPreviDominio: autoPreviDominio
   };
 })();

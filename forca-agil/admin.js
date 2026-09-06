@@ -4006,6 +4006,10 @@
       '</details>';
     c.appendChild(criarBox);
 
+    if (window.faAuth && window.faAuth.autoPreviDominio) {
+      window.faAuth.autoPreviDominio(document.getElementById('criarEmail'));
+    }
+
     document.getElementById('criarContaBtn').addEventListener('click', function () {
       const btn  = this;
       const msg  = document.getElementById('criarMsg');
