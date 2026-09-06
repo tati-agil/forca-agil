@@ -42,9 +42,12 @@
       return;
     }
 
-    /* Access control */
+    /* Access control. Mesmo cuidado das rotas de admin: getAccessLevel()
+       devolve 'enrolled' pra admin, mas isso depende do isAdmin(), que só
+       responde a verdade depois que a lista de admins chega. Um admin sem
+       turma própria seria barrado aqui antes disso. */
     const level = window.faAuth && window.faAuth.getAccessLevel ? window.faAuth.getAccessLevel() : 'member';
-    if ((page === 'conteudos' || page === 'treinamento' || page === 'avaliacao') && level === 'member') {
+    if ((page === 'conteudos' || page === 'treinamento' || page === 'avaliacao') && level === 'member' && listaAdminsPronta()) {
       location.hash = '#home';
       showAccessMsg('Disponível após confirmação em uma turma.');
       return;
@@ -115,7 +118,11 @@
        (nesse caso, quem corrige é o enforceCurrentRouteAccess em auth.js). */
     if (page !== 'home' && window.faAuth && window.faAuth.isAuthReady && window.faAuth.isAuthReady()) {
       const level = window.faAuth.getAccessLevel ? window.faAuth.getAccessLevel() : 'member';
-      const blocked = (page === 'conteudos' || page === 'treinamento' || page === 'avaliacao') && level !== 'enrolled';
+      /* listaAdminsPronta() pelo mesmo motivo do gate acima: sem ela, um
+         admin que não está inscrito em turma nenhuma é expulso daqui num
+         F5, com um aviso de nível de acesso que nem é verdadeiro. */
+      const blocked = (page === 'conteudos' || page === 'treinamento' || page === 'avaliacao')
+                      && level !== 'enrolled' && listaAdminsPronta();
       if (blocked) {
         page = 'home';
         history.replaceState(null, '', '#home');
@@ -573,9 +580,12 @@
   /* A lista de admins chegou depois da decisão de rota: decide de novo.
      Quem estava em #admin sem ser admin sai agora; quem é admin e só estava
      esperando a leitura continua onde estava. */
+  /* A lista de admins chegou depois das decisões de rota: refaz todas
+     elas. Vale pra #admin, #facilitador e também pras rotas por nível de
+     acesso (Conteúdos, Treinamento, Avaliação), que dependem do mesmo
+     isAdmin() pra saber que admin entra sem turma própria. */
   window.addEventListener('fa-admin-ready', function () {
-    var r = route();
-    if (r === 'admin' || r === 'facilitador') show(r);
+    show(route());
   });
   window.addEventListener('fa-facilitador-ready', function () {
     if (route() === 'facilitador') show('facilitador');

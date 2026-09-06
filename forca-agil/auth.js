@@ -141,6 +141,13 @@
      antes da sessão terminar de carregar. */
   function enforceCurrentRouteAccess() {
     if (!window.faRouter) return;
+    /* getAccessLevel() devolve 'enrolled' pra admin — mas isAdmin() só
+       responde a verdade depois que a leitura de fa-admins volta. Antes
+       disso, um admin que não está inscrito em turma nenhuma parece
+       'member' e seria expulso de Conteúdos/Treinamento com um aviso
+       que nem é verdade. Espera a lista antes de decidir; quando ela
+       chega, esta função roda de novo. */
+    if (!_adminsResolvidos) return;
     const page = window.faRouter.current();
     const level = getAccessLevel();
     if (page === 'repositorio' && !level) {
@@ -182,6 +189,10 @@
       _adminsResolvidos = true;
       window.dispatchEvent(new CustomEvent('fa-admin-ready'));
       updateNavState();
+      /* Agora que dá pra confiar no isAdmin(), refaz a checagem de rota
+         que foi adiada acima: quem é admin fica onde estava, quem não é
+         (e não está inscrito) sai daqui. */
+      enforceCurrentRouteAccess();
     });
   });
   function isAdminReady() { return _adminsResolvidos; }
