@@ -35,6 +35,24 @@ if (!EMAIL || !PASSWORD) {
     await page.waitForSelector('#loginEmail', { timeout: 15000 });
     await page.fill('#loginEmail', EMAIL);
     await page.fill('#loginPassword', PASSWORD);
+
+    /* O campo de e-mail tem um autofill de "@previ.com.br" (auth.js,
+       autoPreviDominio) que mexe no value durante o próprio evento de
+       foco disparado pelo fill() do Playwright — em input[type=email]
+       (que não suporta seleção de texto) isso já causou o valor final
+       ficar só "@previ.com.br" em vez do e-mail completo. Confirma o
+       valor e corrige direto via evaluate se precisar, sem depender de
+       acertar a corrida entre o fill() e o listener do site. */
+    const emailValue = await page.inputValue('#loginEmail');
+    console.log('Valor de #loginEmail após fill:', JSON.stringify(emailValue));
+    if (emailValue.trim().toLowerCase() !== EMAIL.trim().toLowerCase()) {
+      console.log('Valor inesperado — corrigindo via evaluate direto no DOM.');
+      await page.evaluate(
+        ({ sel, val }) => { document.querySelector(sel).value = val; },
+        { sel: '#loginEmail', val: EMAIL }
+      );
+    }
+
     await page.click('#loginForm button[type="submit"]');
 
     /* Espera a sessão resolver (erro de login OU modal #authModal
