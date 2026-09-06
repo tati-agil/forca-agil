@@ -153,6 +153,7 @@
     var overlayMousedownFora = false;
     overlay.addEventListener('mousedown', function (e) { overlayMousedownFora = !box.contains(e.target); });
     overlay.addEventListener('click', function (e) { if (overlayMousedownFora && !box.contains(e.target)) close(); });
+    overlay.addEventListener('keydown', function (e) { if (e.key === 'Escape') { e.preventDefault(); close(); } });
 
     window.faRoteiro.carregarEquipeTurma(m.turmaKey, function (err, equipe) {
       window.faRoteiro.renderRoteiroTurma(box.querySelector('#rtFacBody'), m.turma, {

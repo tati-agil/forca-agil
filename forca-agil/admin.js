@@ -1548,6 +1548,7 @@
     var overlayMousedownFora = false;
     overlay.addEventListener('mousedown', function (e) { overlayMousedownFora = !box.contains(e.target); });
     overlay.addEventListener('click', function (e) { if (overlayMousedownFora && !box.contains(e.target)) closeAlert(); });
+    overlay.addEventListener('keydown', function (e) { if (e.key === 'Escape') { e.preventDefault(); closeAlert(); } });
   }
 
   function adminConfirm(mensagem, callbackSim) {
@@ -1570,6 +1571,7 @@
     var overlayMousedownFora = false;
     overlay.addEventListener('mousedown', function (e) { overlayMousedownFora = !box.contains(e.target); });
     overlay.addEventListener('click', function (e) { if (overlayMousedownFora && !box.contains(e.target)) closeConfirm(); });
+    overlay.addEventListener('keydown', function (e) { if (e.key === 'Escape') { e.preventDefault(); closeConfirm(); } });
     box.querySelector('.admin-modal-confirm-btn').addEventListener('click', function () {
       closeConfirm();
       if (callbackSim) callbackSim();
@@ -1665,6 +1667,7 @@
     var overlayMousedownFora = false;
     overlay.addEventListener('mousedown', function (e) { overlayMousedownFora = !box.contains(e.target); });
     overlay.addEventListener('click', function (e) { if (overlayMousedownFora && !box.contains(e.target)) fechar(); });
+    overlay.addEventListener('keydown', function (e) { if (e.key === 'Escape') { e.preventDefault(); fechar(); } });
 
     var refSorteios = firebase.database().ref('turmas-sorteio/' + t.key);
     var historico   = [];   /* [{ _key, ganhadores:[], quando, sorteadoPorNome }] */
@@ -2189,6 +2192,7 @@
     var overlayMousedownFora = false;
     overlay.addEventListener('mousedown', function (e) { overlayMousedownFora = !box.contains(e.target); });
     overlay.addEventListener('click', function (e) { if (overlayMousedownFora && !box.contains(e.target)) fechar(); });
+    overlay.addEventListener('keydown', function (e) { if (e.key === 'Escape') { e.preventDefault(); fechar(); } });
     box.querySelector('.admin-modal-confirm-btn').addEventListener('click', function () {
       if (!sel.value) { erro.textContent = 'Escolha um motivo.'; erro.hidden = false; sel.focus(); return; }
       if (sel.value === 'outro' && !outro.value.trim()) {
@@ -2343,6 +2347,7 @@
     var overlayMousedownFora = false;
     overlay.addEventListener('mousedown', function (e) { overlayMousedownFora = !box.contains(e.target); });
     overlay.addEventListener('click', function (e) { if (overlayMousedownFora && !box.contains(e.target)) closeModal(); });
+    overlay.addEventListener('keydown', function (e) { if (e.key === 'Escape') { e.preventDefault(); closeModal(); } });
 
     box.querySelector('.admin-modal-add-btn').addEventListener('click', function () {
       var name, email, area;
@@ -2541,6 +2546,7 @@
     var overlayMousedownFora = false;
     overlay.addEventListener('mousedown', function (e) { overlayMousedownFora = !box.contains(e.target); });
     overlay.addEventListener('click', function (e) { if (overlayMousedownFora && !box.contains(e.target)) closeModal(); });
+    overlay.addEventListener('keydown', function (e) { if (e.key === 'Escape') { e.preventDefault(); closeModal(); } });
 
     box.querySelector('.admin-modal-save-btn').addEventListener('click', function () {
       var nome       = (nomeInput.value || '').trim();
@@ -2658,6 +2664,7 @@
     var overlayMousedownFora = false;
     overlay.addEventListener('mousedown', function (e) { overlayMousedownFora = !box.contains(e.target); });
     overlay.addEventListener('click', function (e) { if (overlayMousedownFora && !box.contains(e.target)) closeModal(); });
+    overlay.addEventListener('keydown', function (e) { if (e.key === 'Escape') { e.preventDefault(); closeModal(); } });
 
     box.querySelector('.admin-modal-save-btn').addEventListener('click', function () {
       var label = (labelInput.value || '').trim();
@@ -2736,6 +2743,7 @@
     var overlayMousedownFora = false;
     overlay.addEventListener('mousedown', function (e) { overlayMousedownFora = !box.contains(e.target); });
     overlay.addEventListener('click', function (e) { if (overlayMousedownFora && !box.contains(e.target)) closeModal(); });
+    overlay.addEventListener('keydown', function (e) { if (e.key === 'Escape') { e.preventDefault(); closeModal(); } });
 
     var body = box.querySelector('#equipeBody');
 
@@ -2847,6 +2855,7 @@
     var overlayMousedownFora = false;
     overlay.addEventListener('mousedown', function (e) { overlayMousedownFora = !box.contains(e.target); });
     overlay.addEventListener('click', function (e) { if (overlayMousedownFora && !box.contains(e.target)) closeModal(); });
+    overlay.addEventListener('keydown', function (e) { if (e.key === 'Escape') { e.preventDefault(); closeModal(); } });
     window.faRoteiro.renderRoteiroBaseEditor(box.querySelector('#rtEventoBody'), evento.key);
   }
 
@@ -2870,6 +2879,7 @@
     var overlayMousedownFora = false;
     overlay.addEventListener('mousedown', function (e) { overlayMousedownFora = !box.contains(e.target); });
     overlay.addEventListener('click', function (e) { if (overlayMousedownFora && !box.contains(e.target)) closeModal(); });
+    overlay.addEventListener('keydown', function (e) { if (e.key === 'Escape') { e.preventDefault(); closeModal(); } });
 
     window.faRoteiro.carregarEquipeTurma(turma.key, function (err, equipe) {
       window.faRoteiro.renderRoteiroTurma(box.querySelector('#rtTurmaBody'), turma, { editable: true, equipe: equipe || [] });
@@ -4142,6 +4152,7 @@
     var overlayMousedownFora = false;
     overlay.addEventListener('mousedown', function (e) { overlayMousedownFora = !box.contains(e.target); });
     overlay.addEventListener('click', function (e) { if (overlayMousedownFora && !box.contains(e.target)) closeModal(); });
+    overlay.addEventListener('keydown', function (e) { if (e.key === 'Escape') { e.preventDefault(); closeModal(); } });
 
     box.querySelector('.admin-modal-save-btn').addEventListener('click', function () {
       var nome = (nomeInput.value || '').trim();
@@ -4820,6 +4831,7 @@
       var overlayMousedownFora = false;
       overlay.addEventListener('mousedown', function (e) { overlayMousedownFora = !box.contains(e.target); });
       overlay.addEventListener('click', function (e) { if (overlayMousedownFora && !box.contains(e.target)) closeModal(); });
+      overlay.addEventListener('keydown', function (e) { if (e.key === 'Escape') { e.preventDefault(); closeModal(); } });
     }
 
     render();
