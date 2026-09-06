@@ -175,6 +175,35 @@ async function submitLogin(page, email, password) {
     }
   }
 
+  /* Loga, abre #avaliacao e espera o modo admin aparecer. Se não aparecer,
+     estoura com o estado real da página em vez de um "timeout" seco — este
+     caminho já escondeu duas causas diferentes, e adivinhar saiu caro. */
+  async function abrirAvaliacaoComoAdmin(p) {
+    await p.goto(BASE_URL, { waitUntil: 'networkidle' });
+    const r = await submitLogin(p, EMAIL, PASSWORD);
+    if (!r.ok) throw new Error('login falhou: ' + r.errorText);
+    await p.goto(BASE_URL + '#avaliacao', { waitUntil: 'networkidle' });
+    const ok = await p.waitForSelector('#avalAdminEvento', { timeout: 20000 })
+      .then(() => true).catch(() => false);
+    if (ok) return;
+    const estado = await p.evaluate(() => {
+      var sess = window.faAuth && window.faAuth.getSession && window.faAuth.getSession();
+      var pg = document.getElementById('page-avaliacao');
+      var visivel = document.querySelector('.page-section:not([hidden])');
+      var cont = document.getElementById('avaliacaoContent');
+      return {
+        hash: location.hash,
+        secaoVisivel: visivel ? visivel.id : null,
+        avaliacaoOculta: pg ? pg.hidden : null,
+        adminReady: !!(window.faAuth && window.faAuth.isAdminReady && window.faAuth.isAdminReady()),
+        ehAdmin: !!(sess && window.faAuth.isAdmin && window.faAuth.isAdmin(sess.email)),
+        nivel: window.faAuth && window.faAuth.getAccessLevel ? window.faAuth.getAccessLevel() : null,
+        conteudo: cont ? (cont.textContent || '').trim().slice(0, 120) : '(sem #avaliacaoContent)'
+      };
+    });
+    throw new Error('modo admin da Avaliação não apareceu — estado: ' + JSON.stringify(estado));
+  }
+
   await runIsolated('Visitante sem login: site fica oculto e só o modal de entrar aparece', async (p) => {
     await p.goto(BASE_URL, { waitUntil: 'networkidle' });
     await p.waitForSelector('#authModal', { timeout: 15000 });
@@ -445,11 +474,7 @@ async function submitLogin(page, email, password) {
      Firebase de produção, onde esta suíte roda a cada PR. A regra do
      envio incompleto continua na lista manual por essa razão. */
   await runIsolated('Avaliação (admin): seletores de Evento e Turma, com Turma travada até escolher o evento', async (p) => {
-    await p.goto(BASE_URL, { waitUntil: 'networkidle' });
-    const r = await submitLogin(p, EMAIL, PASSWORD);
-    if (!r.ok) throw new Error('login falhou: ' + r.errorText);
-    await p.goto(BASE_URL + '#avaliacao', { waitUntil: 'networkidle' });
-    await p.waitForSelector('#avalAdminEvento', { timeout: 20000 });
+    await abrirAvaliacaoComoAdmin(p);
     const estado = await p.evaluate(() => {
       var ev = document.getElementById('avalAdminEvento');
       var tu = document.getElementById('avalAdminTurma');
@@ -470,11 +495,7 @@ async function submitLogin(page, email, password) {
   });
 
   await runIsolated('Avaliação (admin): abre o formulário de uma turma mesmo sem a avaliação liberada', async (p) => {
-    await p.goto(BASE_URL, { waitUntil: 'networkidle' });
-    const r = await submitLogin(p, EMAIL, PASSWORD);
-    if (!r.ok) throw new Error('login falhou: ' + r.errorText);
-    await p.goto(BASE_URL + '#avaliacao', { waitUntil: 'networkidle' });
-    await p.waitForSelector('#avalAdminEvento', { timeout: 20000 });
+    await abrirAvaliacaoComoAdmin(p);
 
     const temEvento = await p.evaluate(() => {
       var ev = document.getElementById('avalAdminEvento');
@@ -517,11 +538,7 @@ async function submitLogin(page, email, password) {
   });
 
   await runIsolated('Avaliação: escolher a nota da seção 1 avança sozinho e o rascunho fica guardado', async (p) => {
-    await p.goto(BASE_URL, { waitUntil: 'networkidle' });
-    const r = await submitLogin(p, EMAIL, PASSWORD);
-    if (!r.ok) throw new Error('login falhou: ' + r.errorText);
-    await p.goto(BASE_URL + '#avaliacao', { waitUntil: 'networkidle' });
-    await p.waitForSelector('#avalAdminEvento', { timeout: 20000 });
+    await abrirAvaliacaoComoAdmin(p);
 
     const chegouNoForm = await p.evaluate(() => {
       var ev = document.getElementById('avalAdminEvento');
