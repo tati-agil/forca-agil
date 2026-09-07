@@ -1226,35 +1226,51 @@
          site (carregadas do Google Fonts, mesma família do index.html)
          dão identidade visual de verdade ao PDF exportado. */
   function abrirJanelaImpressao(tituloDoc, estiloExtra, corpoHtml) {
+    /* Paleta e tipografia copiadas de :root em styles.css — reproduzidas
+       aqui como valores fixos (não var(--...) do site) porque este
+       documento não carrega styles.css nenhum. O documento assume o
+       tema espacial escuro do site de propósito (não um "documento de
+       trabalho" claro): quem salva como PDF normalmente vai reler na
+       tela, não numa impressora física, e a pessoa pediu explicitamente
+       que a exportação parecesse o site, não um PDF genérico de
+       navegador — por isso a dica abaixo insiste tanto em "Gráficos de
+       fundo": sem essa opção marcada, o navegador substitui todo fundo
+       escuro por branco na hora de imprimir/salvar. */
     var html = '<!doctype html><html><head><meta charset="utf-8"><title>' + esc(tituloDoc) + '</title>' +
       '<link rel="preconnect" href="https://fonts.googleapis.com">' +
       '<link href="https://fonts.googleapis.com/css2?family=Anton&family=Oswald:wght@400;500;600;700&family=Barlow:wght@400;500;600;700&display=swap" rel="stylesheet">' +
       '<style>' +
-      'body{font-family:"Barlow",Arial,Helvetica,sans-serif;color:#111;margin:24px;}' +
-      '.rp-brand{display:flex;align-items:center;gap:10px;background:#0c1528;color:#eaf1ff;padding:10px 16px;border-radius:8px;margin-bottom:18px;-webkit-print-color-adjust:exact;print-color-adjust:exact;page-break-after:avoid;break-after:avoid-page;page-break-inside:avoid;break-inside:avoid-page;}' +
-      '.rp-brand-mark{width:26px;height:26px;flex:none;color:#f5c518;}' +
+      ':root{--pspace:#03050d;--ppanel:#0c1528;--ppanel2:#101c34;--pline:rgba(120,160,220,.28);--plines:rgba(120,160,220,.5);--pgold:#f5c518;--pcyan:#18c2ba;--pink:#eaf1ff;--pink2:#b8c6e4;--pink3:#8fa0c4;}' +
+      '*{box-sizing:border-box;}' +
+      'html,body{background:var(--pspace);}' +
+      'body{font-family:"Barlow",Arial,Helvetica,sans-serif;color:var(--pink);margin:0;padding:24px;-webkit-print-color-adjust:exact;print-color-adjust:exact;}' +
+      '.rp-brand{display:flex;align-items:center;gap:10px;background:var(--ppanel2);border:1px solid rgba(245,197,24,.4);color:var(--pink);padding:12px 18px;border-radius:10px;margin-bottom:20px;page-break-after:avoid;break-after:avoid-page;page-break-inside:avoid;break-inside:avoid-page;}' +
+      '.rp-brand-mark{width:26px;height:26px;flex:none;color:var(--pgold);}' +
       '.rp-brand-text{display:flex;flex-direction:column;line-height:1.2;}' +
       '.rp-brand-name{font-family:"Anton","Oswald",Arial,sans-serif;font-size:1.05rem;letter-spacing:.1em;text-transform:uppercase;}' +
-      '.rp-brand-name b{color:#f5c518;font-weight:inherit;}' +
-      '.rp-brand-sub{font-family:"Oswald",Arial,sans-serif;font-size:.6rem;letter-spacing:.14em;color:#1ab2ae;margin-top:2px;}' +
-      'h1{font-family:"Oswald",Arial,sans-serif;font-weight:600;font-size:1.25rem;margin:0 0 4px;color:#0c1528;}' +
-      '.rp-meta{font-size:.85rem;color:#444;margin-bottom:16px;}' +
-      '.rp-sessao-hdr{font-size:1.05rem;font-weight:700;color:#111;margin:0 0 8px;padding-top:14px;border-top:2px solid #999;page-break-after:avoid;break-after:avoid-page;}' +
-      '.rp-sessao-hdr:first-of-type{border-top:none;padding-top:0;}' +
-      '.rp-resumo{display:flex;flex-wrap:wrap;gap:18px;margin-bottom:10px;font-size:.8rem;page-break-inside:avoid;break-inside:avoid-page;}' +
-      '.rp-resumo b{display:block;font-size:1rem;}' +
-      '.rp-resumo-sessoes{margin-bottom:14px;page-break-inside:avoid;break-inside:avoid-page;}' +
-      '.rp-resumo-sessoes-lista{font-size:.82rem;margin-bottom:8px;}' +
-      '.rp-resumo-sessoes-lista div{margin:2px 0;}' +
-      '.rp-sobreposicao{background:#ffecec;color:#a33;border:1px solid #f3a;border-radius:6px;padding:8px 12px;font-size:.8rem;margin-bottom:14px;page-break-inside:avoid;break-inside:avoid-page;}' +
-      '.rp-actions{margin-bottom:14px;display:flex;align-items:center;gap:14px;flex-wrap:wrap;}' +
-      '.rp-dica{font-size:.74rem;color:#888;}' +
+      '.rp-brand-name b{color:var(--pgold);font-weight:inherit;}' +
+      '.rp-brand-sub{font-family:"Oswald",Arial,sans-serif;font-size:.6rem;letter-spacing:.14em;color:var(--pcyan);margin-top:2px;}' +
+      'h1{font-family:"Oswald",Arial,sans-serif;font-weight:600;font-size:1.3rem;margin:0 0 4px;color:var(--pgold);letter-spacing:.02em;}' +
+      '.rp-meta{font-size:.85rem;color:var(--pink3);margin-bottom:18px;}' +
+      '.rp-sessao-hdr{font-family:"Oswald",Arial,sans-serif;font-size:1.02rem;font-weight:600;letter-spacing:.05em;text-transform:uppercase;color:var(--pgold);margin:20px 0 8px;padding-top:16px;border-top:1px solid var(--plines);page-break-after:avoid;break-after:avoid-page;}' +
+      '.rp-sessao-hdr:first-of-type{border-top:none;padding-top:0;margin-top:0;}' +
+      '.rp-resumo,.rp-resumo-sessoes,.rp-atv{background:var(--ppanel2);border:1px solid var(--plines);border-radius:10px;}' +
+      '.rp-resumo{display:flex;flex-wrap:wrap;gap:18px;margin-bottom:14px;font-size:.64rem;letter-spacing:.06em;text-transform:uppercase;color:var(--pink3);padding:14px 16px;page-break-inside:avoid;break-inside:avoid-page;}' +
+      '.rp-resumo b{display:block;font-size:1.05rem;color:var(--pink);text-transform:none;letter-spacing:0;margin-top:3px;font-family:"Oswald",Arial,sans-serif;}' +
+      '.rp-resumo-sessoes{margin-bottom:14px;padding:14px 16px;page-break-inside:avoid;break-inside:avoid-page;}' +
+      '.rp-resumo-sessoes-lista{font-size:.82rem;margin-bottom:10px;padding-bottom:10px;border-bottom:1px solid var(--pline);}' +
+      '.rp-resumo-sessoes-lista>b{display:block;color:var(--pgold);font-family:"Oswald",Arial,sans-serif;letter-spacing:.06em;text-transform:uppercase;font-size:.72rem;margin-bottom:4px;}' +
+      '.rp-resumo-sessoes-lista>div{margin:2px 0;color:var(--pink2);}' +
+      '.rp-sobreposicao{background:rgba(255,59,48,.14);color:#ff9c92;border:1px solid rgba(255,59,48,.4);border-radius:8px;padding:10px 14px;font-size:.8rem;margin-bottom:14px;page-break-inside:avoid;break-inside:avoid-page;}' +
+      '.rp-actions{margin-bottom:20px;display:flex;align-items:center;gap:14px;flex-wrap:wrap;}' +
+      '#rp-print-btn{font-family:"Oswald",Arial,sans-serif;letter-spacing:.05em;text-transform:uppercase;font-size:.76rem;padding:9px 18px;border-radius:8px;border:1px solid var(--pgold);background:var(--ppanel2);color:var(--pgold);cursor:pointer;}' +
+      '.rp-dica{font-size:.74rem;color:var(--pink3);}' +
       estiloExtra +
-      '@media print{.rp-actions{display:none;} body{margin:10px;}}' +
+      '@media print{.rp-actions{display:none;} body{padding:10px;}}' +
       '@page{size:A4 portrait;margin:14mm;}' +
       '</style></head><body>' +
       '<div class="rp-actions"><button id="rp-print-btn">Imprimir / salvar como PDF</button>' +
-        '<span class="rp-dica">Dica: nas opções de impressão do navegador, desmarque "Cabeçalhos e rodapés" e marque "Gráficos de fundo" pra uma exportação mais fiel.</span></div>' +
+        '<span class="rp-dica">Dica: nas opções de impressão do navegador, desmarque "Cabeçalhos e rodapés" e marque "Gráficos de fundo" (ou "Imprimir cores e imagens de fundo") — sem essa opção o fundo escuro sai branco na exportação.</span></div>' +
       logoImpressaoHtml() +
       corpoHtml +
       '</body></html>';
@@ -1302,11 +1318,13 @@
 
     abrirJanelaImpressao(
       tituloContexto + (dia.titulo ? ' — ' + dia.titulo : ''),
-      'table{border-collapse:collapse;width:100%;font-size:.82rem;margin-bottom:20px;}' +
-      'th,td{border:1px solid #999;padding:4px 8px;text-align:left;}' +
-      'th{background:#eee;}' +
-      '.rp-gap td{background:#fff3e0;font-style:italic;}' +
-      '.rp-sub td:nth-child(3){padding-left:22px;color:#444;}' +
+      'table{border-collapse:collapse;width:100%;font-size:.82rem;margin-bottom:20px;background:var(--ppanel2);border:1px solid var(--plines);color:var(--pink2);}' +
+      'th,td{border-bottom:1px solid var(--pline);padding:8px 10px;text-align:left;}' +
+      'tr:last-child td{border-bottom:none;}' +
+      'th{background:var(--ppanel);color:var(--pink3);font-family:"Oswald",Arial,sans-serif;text-transform:uppercase;font-size:.66rem;letter-spacing:.06em;font-weight:600;}' +
+      '.rp-gap td{background:rgba(255,138,92,.14);color:#ffb37e;font-style:italic;}' +
+      '.rp-sub td:first-child{color:var(--pink3);}' +
+      '.rp-sub td:nth-child(3){padding-left:26px;color:var(--pink2);}' +
       'tr{page-break-inside:avoid;break-inside:avoid-page;}',
       corpo
     );
@@ -1375,19 +1393,19 @@
 
     abrirJanelaImpressao(
       tituloContexto + (dia.titulo ? ' — ' + dia.titulo : ''),
-      '.rp-atv{border:1px solid #999;border-radius:6px;padding:10px 14px;margin-bottom:10px;}' +
-      '.rp-atv h3{margin:0;font-size:1rem;page-break-after:avoid;break-after:avoid-page;}' +
-      '.rp-atv-sub{margin-left:28px;background:#fafafa;}' +
-      '.rp-tipo{font-weight:400;color:#555;font-size:.82rem;}' +
-      '.rp-atv-meta{font-size:.78rem;color:#555;margin:2px 0 8px;page-break-after:avoid;break-after:avoid-page;}' +
-      '.rp-campo{margin-bottom:8px;font-size:.85rem;}' +
-      '.rp-campo strong{display:block;font-size:.68rem;letter-spacing:.06em;text-transform:uppercase;color:#666;margin-bottom:2px;page-break-after:avoid;break-after:avoid-page;}' +
+      '.rp-atv{padding:14px 18px;margin-bottom:12px;}' +
+      '.rp-atv h3{margin:0;font-family:"Oswald",Arial,sans-serif;font-weight:600;font-size:1.05rem;color:var(--pink);page-break-after:avoid;break-after:avoid-page;}' +
+      '.rp-atv-sub{margin-left:28px;background:var(--ppanel);border-color:var(--pline);}' +
+      '.rp-tipo{font-weight:400;color:var(--pink3);font-size:.82rem;}' +
+      '.rp-atv-meta{font-size:.78rem;color:var(--pcyan);margin:4px 0 10px;font-family:"Oswald",Arial,sans-serif;letter-spacing:.02em;page-break-after:avoid;break-after:avoid-page;}' +
+      '.rp-campo{margin-bottom:10px;font-size:.85rem;color:var(--pink2);}' +
+      '.rp-campo strong{display:block;font-size:.66rem;letter-spacing:.08em;text-transform:uppercase;color:var(--pgold);margin-bottom:3px;font-family:"Oswald",Arial,sans-serif;page-break-after:avoid;break-after:avoid-page;}' +
       '.rp-campo-txt{margin:0;}' +
       '.rp-campo-txt div, .rp-campo-txt p{margin:0 0 4px;}' +
       '.rp-campo-txt div:last-child, .rp-campo-txt p:last-child{margin-bottom:0;}' +
       '.rp-campo ul{margin:2px 0 0 18px;padding:0;}' +
-      '.rp-contexto{font-size:.72rem;color:#888;font-style:italic;margin-bottom:2px;page-break-after:avoid;break-after:avoid-page;}' +
-      '.rp-gap-bloco{border:1px dashed #ff8a5c;background:#fff3e0;color:#a35a2a;font-style:italic;font-size:.82rem;padding:6px 12px;border-radius:6px;margin-bottom:10px;}',
+      '.rp-contexto{font-size:.72rem;color:var(--pink3);font-style:italic;margin-bottom:4px;page-break-after:avoid;break-after:avoid-page;}' +
+      '.rp-gap-bloco{border:1px dashed rgba(255,138,92,.5);background:rgba(255,138,92,.12);color:#ffb37e;font-style:italic;font-size:.82rem;padding:8px 14px;border-radius:8px;margin-bottom:12px;}',
       corpo
     );
   }
