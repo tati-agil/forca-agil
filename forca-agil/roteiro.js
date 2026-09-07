@@ -1834,7 +1834,9 @@
       if (!pendentes) return cb(null, 0);
       linhasOk.forEach(function (l) {
         var patch;
-        if (l.item.acao === 'tipo') {
+        if (l.valorMesclado != null) {
+          patch = {}; patch[l.item.campo] = paraHtmlMigracao(l.valorMesclado);
+        } else if (l.item.acao === 'tipo') {
           patch = { tipo: l.item.para };
         } else if (l.item.acao === 'substituir' || l.item.acao === 'substituir_vazio') {
           patch = {}; patch[l.item.campo] = paraHtmlMigracao(l.item.para);
@@ -1884,65 +1886,180 @@
 
   function abrirModalMigracaoAntesDepois(eventoKey, atividades, reload) {
     var linhas = dryRunMigracaoAntesDepois(atividades);
-    var okCount = linhas.filter(function (l) { return l.status === 'OK PARA ALTERAR'; }).length;
 
     var overlay = document.createElement('div');
     overlay.className = 'modal-overlay';
     overlay.style.cssText = 'display:flex;align-items:center;justify-content:center;z-index:9999';
     var box = document.createElement('div');
     box.className = 'modal-box';
-    box.style.cssText = 'max-width:900px;width:94%;padding:24px;display:flex;flex-direction:column;gap:12px;max-height:88vh;overflow:auto';
+    box.style.cssText = 'max-width:960px;width:95%;padding:24px;display:flex;flex-direction:column;gap:12px;max-height:90vh;overflow:auto';
+    overlay.appendChild(box);
+    document.body.appendChild(overlay);
 
     var corPorStatus = {
       'OK PARA ALTERAR': 'var(--blue-glow,#4aa3ff)',
       'JÁ ATUALIZADO': '#4caf7d',
       'VALOR ATUAL DIVERGENTE': '#ff8a5c',
       'ATIVIDADE NÃO ENCONTRADA': '#ff6b60',
-      'REGISTRO AMBÍGUO': '#ff6b60'
+      'REGISTRO AMBÍGUO': '#ff6b60',
+      'DIVERGÊNCIA RESOLVIDA': '#c9a94a'
     };
-    var linhasHtml = linhas.map(function (l) {
-      return '<tr>' +
-        '<td>' + esc(l.item.titulo) + '</td>' +
-        '<td>' + esc(CAMPOS_MIGRACAO_LABEL[l.item.campo] || l.item.campo) + '</td>' +
-        '<td style="color:' + (corPorStatus[l.status] || 'var(--ink-2)') + '">' + esc(l.status) + '</td>' +
-        '</tr>';
-    }).join('');
+    var labelDecisao = { manter: 'MANTER ATUAL', usar_para: 'USAR PARA', mesclar: 'MESCLA APROVADA' };
 
-    box.innerHTML =
-      '<h3 style="font-size:1.1rem;font-family:var(--font-head);letter-spacing:.05em;color:var(--ink)">Migração de conteúdo — Antes x Depois</h3>' +
-      '<p style="font-size:.82rem;color:var(--ink-3)">DRY RUN — nada foi gravado ainda. ' + okCount + ' de ' + linhas.length + ' linha(s) prontas para aplicar. As demais precisam de atenção manual (veja o status).</p>' +
-      '<div style="overflow:auto;max-height:50vh;border:1px solid var(--line-strong);border-radius:8px">' +
-        '<table style="width:100%;border-collapse:collapse;font-size:.78rem">' +
-        '<thead><tr style="background:var(--panel-2);position:sticky;top:0"><th style="text-align:left;padding:8px 10px">Atividade</th><th style="text-align:left;padding:8px 10px">Campo</th><th style="text-align:left;padding:8px 10px">Status</th></tr></thead>' +
-        '<tbody>' + linhasHtml + '</tbody></table>' +
-      '</div>' +
-      '<p id="migErr" style="color:var(--red,#ff3b30);font-size:.85rem;display:none"></p>' +
-      '<div style="display:flex;justify-content:flex-end;gap:8px">' +
-        '<button class="btn mig-fechar">Fechar</button>' +
-        (okCount ? '<button class="btn btn--primary mig-aplicar">Aplicar ' + okCount + ' alteração(ões) válida(s)</button>' : '') +
+    function totalDivergentes() { return linhas.filter(function (l) { return l.status === 'VALOR ATUAL DIVERGENTE'; }).length; }
+    function divergentesResolvidas() { return linhas.filter(function (l) { return l.status === 'VALOR ATUAL DIVERGENTE' && l.decisaoTipo; }).length; }
+    function pendenteAlgumaDivergencia() { return linhas.some(function (l) { return l.status === 'VALOR ATUAL DIVERGENTE' && !l.decisaoTipo; }); }
+    function linhasParaAplicar() {
+      return linhas.filter(function (l) {
+        if (l.status === 'OK PARA ALTERAR') return true;
+        if (l.status === 'VALOR ATUAL DIVERGENTE' && (l.decisaoTipo === 'usar_para' || l.decisaoTipo === 'mesclar')) return true;
+        return false;
+      });
+    }
+    /* Depois de decidir uma divergência, pula pra próxima ainda sem
+       decisão — nunca fica parado na mesma nem pula nenhuma sem
+       decisão registrada. */
+    function proximaDivergentePendente(depoisDe) {
+      var i;
+      for (i = depoisDe + 1; i < linhas.length; i++) {
+        if (linhas[i].status === 'VALOR ATUAL DIVERGENTE' && !linhas[i].decisaoTipo) return i;
+      }
+      for (i = 0; i <= depoisDe; i++) {
+        if (linhas[i].status === 'VALOR ATUAL DIVERGENTE' && !linhas[i].decisaoTipo) return i;
+      }
+      return null;
+    }
+    var revisandoIdx = proximaDivergentePendente(-1);
+
+    function painelRevisaoHtml(l) {
+      var atualPlano = textoPlanoMigracao(l.valorAtual).trim() || '(vazio)';
+      var deTxt = l.item.de || '(sem "DE" — este item é uma inclusão nova, o campo estava vazio)';
+      var paraTxt = l.item.para;
+      var trechoNaoAchado = l.item.acao === 'substituir_trecho' && l.valorAtual && l.valorAtual.indexOf(l.item.de) === -1;
+      return '<div class="mig-painel" style="background:var(--panel-2);border:1px solid var(--line-strong);border-radius:8px;padding:14px;margin:6px 0;font-size:.8rem">' +
+        '<div style="margin-bottom:8px"><strong style="color:var(--ink-3);text-transform:uppercase;font-size:.66rem;letter-spacing:.06em">Atual no sistema</strong><div style="white-space:pre-wrap;margin-top:4px;color:var(--ink)">' + esc(atualPlano) + '</div></div>' +
+        '<div style="margin-bottom:8px"><strong style="color:var(--ink-3);text-transform:uppercase;font-size:.66rem;letter-spacing:.06em">DE do Excel</strong><div style="white-space:pre-wrap;margin-top:4px;color:var(--ink-2)">' + esc(deTxt) + '</div></div>' +
+        '<div style="margin-bottom:10px"><strong style="color:var(--ink-3);text-transform:uppercase;font-size:.66rem;letter-spacing:.06em">PARA do Excel</strong><div style="white-space:pre-wrap;margin-top:4px;color:var(--ink-2)">' + esc(paraTxt) + '</div></div>' +
+        (trechoNaoAchado ? '<p style="color:#ff8a5c;font-size:.72rem;margin:0 0 8px">O texto "DE" não aparece literalmente no valor atual — "Substituir pelo PARA" não vai achar onde trocar. Use "Mesclar manualmente" pra decidir onde o texto novo entra.</p>' : '') +
+        '<div class="mig-mescla-area" style="display:none;margin-bottom:10px">' +
+          '<label class="auth-label">Proposta de texto final — edite livremente (nada é gravado até "Confirmar mesclagem")<textarea class="mig-mescla-texto" rows="6" style="width:100%;padding:8px;background:var(--panel);border:1px solid var(--line-strong);border-radius:6px;color:var(--ink);font-family:inherit">' + esc(paraTxt) + '</textarea></label>' +
+          '<button class="btn btn--primary mig-mescla-confirmar" style="margin-top:6px">Confirmar mesclagem</button>' +
+        '</div>' +
+        '<div class="mig-decisao-botoes" style="display:flex;gap:8px;flex-wrap:wrap">' +
+          '<button class="btn mig-dec" data-dec="manter">Manter atual</button>' +
+          '<button class="btn mig-dec" data-dec="usar_para">Substituir pelo PARA</button>' +
+          (l.item.acao !== 'tipo' ? '<button class="btn mig-dec" data-dec="mesclar">Mesclar manualmente</button>' : '') +
+        '</div>' +
       '</div>';
+    }
 
-    overlay.appendChild(box);
-    document.body.appendChild(overlay);
+    function render() {
+      var okCount = linhas.filter(function (l) { return l.status === 'OK PARA ALTERAR'; }).length;
+      var jaCount = linhas.filter(function (l) { return l.status === 'JÁ ATUALIZADO'; }).length;
+      var manterCount = linhas.filter(function (l) { return l.decisaoTipo === 'manter'; }).length;
+      var usarParaCount = linhas.filter(function (l) { return l.decisaoTipo === 'usar_para'; }).length;
+      var mesclaCount = linhas.filter(function (l) { return l.decisaoTipo === 'mesclar'; }).length;
+      var pendenciasCount = linhas.filter(function (l) { return l.status === 'ATIVIDADE NÃO ENCONTRADA' || l.status === 'REGISTRO AMBÍGUO' || (l.status === 'VALOR ATUAL DIVERGENTE' && !l.decisaoTipo); }).length;
+      var totalDiv = totalDivergentes();
+      var resolvidasDiv = divergentesResolvidas();
+      var podeAplicar = !pendenteAlgumaDivergencia();
+      var aplicarLista = linhasParaAplicar();
+
+      var linhasHtml = linhas.map(function (l, i) {
+        var statusTxt = l.status, cor = corPorStatus[l.status] || 'var(--ink-2)', acaoCol = '';
+        if (l.status === 'VALOR ATUAL DIVERGENTE') {
+          if (l.decisaoTipo) {
+            statusTxt = 'DIVERGÊNCIA RESOLVIDA → ' + labelDecisao[l.decisaoTipo];
+            cor = corPorStatus['DIVERGÊNCIA RESOLVIDA'];
+            acaoCol = '<button class="btn mig-revisar-btn" data-idx="' + i + '" style="font-size:.7rem;padding:4px 8px">Revisar de novo</button>';
+          } else {
+            acaoCol = '<button class="btn btn--primary mig-revisar-btn" data-idx="' + i + '" style="font-size:.7rem;padding:4px 8px">REVISAR</button>';
+          }
+        }
+        var linhaTr = '<tr' + (revisandoIdx === i ? ' style="background:rgba(255,255,255,.05)"' : '') + '>' +
+          '<td>' + esc(l.item.titulo) + '</td>' +
+          '<td>' + esc(CAMPOS_MIGRACAO_LABEL[l.item.campo] || l.item.campo) + '</td>' +
+          '<td style="color:' + cor + '">' + esc(statusTxt) + '</td>' +
+          '<td>' + acaoCol + '</td>' +
+          '</tr>';
+        return linhaTr + (revisandoIdx === i ? ('<tr><td colspan="4">' + painelRevisaoHtml(l) + '</td></tr>') : '');
+      }).join('');
+
+      box.innerHTML =
+        '<h3 style="font-size:1.1rem;font-family:var(--font-head);letter-spacing:.05em;color:var(--ink)">Migração de conteúdo — Antes x Depois</h3>' +
+        '<p style="font-size:.82rem;color:var(--ink-3)">DRY RUN — nada foi gravado ainda.' + (totalDiv ? ' Revisadas ' + resolvidasDiv + ' de ' + totalDiv + ' divergências.' : '') + '</p>' +
+        '<div style="overflow:auto;max-height:48vh;border:1px solid var(--line-strong);border-radius:8px">' +
+          '<table style="width:100%;border-collapse:collapse;font-size:.78rem">' +
+          '<thead><tr style="background:var(--panel-2);position:sticky;top:0"><th style="text-align:left;padding:8px 10px">Atividade</th><th style="text-align:left;padding:8px 10px">Campo</th><th style="text-align:left;padding:8px 10px">Status</th><th style="text-align:left;padding:8px 10px"></th></tr></thead>' +
+          '<tbody>' + linhasHtml + '</tbody></table>' +
+        '</div>' +
+        '<div style="display:flex;flex-wrap:wrap;gap:14px;font-size:.72rem;color:var(--ink-3);padding:10px 14px;background:var(--panel-2);border-radius:8px">' +
+          '<span>OK PARA ALTERAR: <b style="color:var(--ink)">' + okCount + '</b></span>' +
+          '<span>JÁ ATUALIZADO: <b style="color:var(--ink)">' + jaCount + '</b></span>' +
+          '<span>MANTER ATUAL: <b style="color:var(--ink)">' + manterCount + '</b></span>' +
+          '<span>USAR PARA: <b style="color:var(--ink)">' + usarParaCount + '</b></span>' +
+          '<span>MESCLA APROVADA: <b style="color:var(--ink)">' + mesclaCount + '</b></span>' +
+          '<span>PENDÊNCIAS: <b style="color:var(--ink)">' + pendenciasCount + '</b></span>' +
+        '</div>' +
+        (!podeAplicar ? '<p style="font-size:.72rem;color:var(--ink-3)">"Aplicar" libera assim que todas as divergências tiverem uma decisão (as pendências de atividade não encontrada/ambígua não bloqueiam — elas simplesmente nunca entram na aplicação).</p>' : '') +
+        '<p id="migErr" style="color:var(--red,#ff3b30);font-size:.85rem;display:none"></p>' +
+        '<div style="display:flex;justify-content:flex-end;gap:8px">' +
+          '<button class="btn mig-fechar">Fechar</button>' +
+          (podeAplicar && aplicarLista.length ? '<button class="btn btn--primary mig-aplicar">Aplicar alterações confirmadas (' + aplicarLista.length + ')</button>' : '') +
+        '</div>';
+
+      box.querySelector('.mig-fechar').addEventListener('click', close);
+      Array.prototype.forEach.call(box.querySelectorAll('.mig-revisar-btn'), function (btn) {
+        btn.addEventListener('click', function () {
+          var idx = Number(btn.getAttribute('data-idx'));
+          revisandoIdx = (revisandoIdx === idx) ? null : idx;
+          render();
+        });
+      });
+      var painel = box.querySelector('.mig-painel');
+      if (painel) {
+        var l = linhas[revisandoIdx];
+        Array.prototype.forEach.call(painel.querySelectorAll('.mig-dec'), function (btn) {
+          btn.addEventListener('click', function () {
+            var dec = btn.getAttribute('data-dec');
+            if (dec === 'mesclar') { painel.querySelector('.mig-mescla-area').style.display = ''; return; }
+            l.decisaoTipo = dec;
+            revisandoIdx = proximaDivergentePendente(revisandoIdx);
+            render();
+          });
+        });
+        var confirmarMescla = painel.querySelector('.mig-mescla-confirmar');
+        if (confirmarMescla) {
+          confirmarMescla.addEventListener('click', function () {
+            l.decisaoTipo = 'mesclar';
+            l.valorMesclado = painel.querySelector('.mig-mescla-texto').value;
+            revisandoIdx = proximaDivergentePendente(revisandoIdx);
+            render();
+          });
+        }
+      }
+      var aplicarBtn = box.querySelector('.mig-aplicar');
+      if (aplicarBtn) {
+        aplicarBtn.addEventListener('click', function () {
+          var lista = linhasParaAplicar();
+          confirmDialog('Isso vai gravar ' + lista.length + ' alteração(ões) no roteiro-base (inclui as decisões tomadas nesta revisão). O valor anterior de cada campo tocado fica guardado — dá pra desfazer depois pelo botão "↩ Desfazer última migração". Continuar?', function () {
+            aplicarMigracaoAntesDepois(eventoKey, lista, function (err, atualizados) {
+              close();
+              if (err) { alertDialog('Erro ao aplicar a migração: ' + err); return; }
+              alertDialog('Aplicado: ' + atualizados + ' de ' + lista.length + ' alteração(ões).\n\nUse "↩ Desfazer última migração" se precisar reverter.');
+              reload();
+            });
+          });
+        });
+      }
+    }
+
     function close() { document.body.removeChild(overlay); }
-    box.querySelector('.mig-fechar').addEventListener('click', close);
     var overlayMousedownFora = false;
     overlay.addEventListener('mousedown', function (e) { overlayMousedownFora = !box.contains(e.target); });
     overlay.addEventListener('click', function (e) { if (overlayMousedownFora && !box.contains(e.target)) close(); });
-    var aplicarBtn = box.querySelector('.mig-aplicar');
-    if (aplicarBtn) {
-      aplicarBtn.addEventListener('click', function () {
-        confirmDialog('Isso vai gravar ' + okCount + ' alteração(ões) no roteiro-base. O valor anterior de cada campo tocado fica guardado — dá pra desfazer depois pelo botão "↩ Desfazer última migração". Continuar?', function () {
-          var linhasOk = linhas.filter(function (l) { return l.status === 'OK PARA ALTERAR'; });
-          aplicarMigracaoAntesDepois(eventoKey, linhasOk, function (err, atualizados) {
-            close();
-            if (err) { alertDialog('Erro ao aplicar a migração: ' + err); return; }
-            alertDialog('Aplicado: ' + atualizados + ' de ' + linhasOk.length + ' alteração(ões).\n\nUse "↩ Desfazer última migração" se precisar reverter.');
-            reload();
-          });
-        });
-      });
-    }
+
+    render();
   }
 
   function renderRoteiroBaseEditor(container, eventoKey) {
