@@ -1771,14 +1771,22 @@
     return htmlRicoSeguro(esc(textoPlanoNovo).replace(/\n/g, '<br>').replace(/&amp;/g, '&'));
   }
 
+  /* Casamento por título tolera diferença de pontuação/espaço no final
+     (ex: atividade cadastrada como "...para a reflexão." com ponto,
+     enquanto a planilha tem "...para a reflexão" sem ponto) — nunca
+     tolera diferença de PALAVRAS, só o que sobra depois de tirar
+     espaço e pontuação final (. , ; :) das duas pontas. */
+  function normalizarTituloMigracao(s) {
+    return String(s || '').trim().replace(/[.,;:]+$/, '').trim();
+  }
   function dryRunMigracaoAntesDepois(atividades) {
     var porTitulo = {};
     atividades.forEach(function (a) {
-      var t = (a.titulo || '').trim();
+      var t = normalizarTituloMigracao(a.titulo);
       (porTitulo[t] = porTitulo[t] || []).push(a);
     });
     return MIGRACAO_ANTES_DEPOIS.map(function (item) {
-      var lista = porTitulo[item.titulo] || [];
+      var lista = porTitulo[normalizarTituloMigracao(item.titulo)] || [];
       if (!lista.length) return { item: item, status: 'ATIVIDADE NÃO ENCONTRADA' };
       if (lista.length > 1) return { item: item, status: 'REGISTRO AMBÍGUO' };
       var a = lista[0];
