@@ -147,35 +147,47 @@
       : sanitizarHtmlRico(el.innerHTML).split(/<div[^>]*>|<\/div>|<br\s*\/?>|<p[^>]*>|<\/p>/i).map(function (s) { return s.trim(); });
     return itens.filter(function (s) { return !ricoVazio(s); });
   }
-  /* Continua sozinha uma numeração/marcador DIGITADO à mão (ex: "1. " ou
-     "- ") ao apertar Enter — sem isso, quem não usa os botões "Lista" e
+  /* Texto da linha ATUAL, do inicio dela ate o cursor -- nao do inicio da
+     caixa inteira. Precisa ser assim porque conteudo antigo (migrado de
+     texto puro por htmlRicoSeguro) vira uma sequencia plana de <br> direto
+     dentro da area, sem nenhum <div> por linha -- entao um bloco/Range
+     baseado so no ancestral mais proximo nao dava conta: "linha ate o
+     cursor" virava "toda a caixa ate o cursor", grudando o texto de
+     todas as linhas anteriores sem separador nenhum (Range.toString()
+     ignora <br>) e o regex de marcador nunca batia a partir da 2a linha.
+     Aqui em vez disso pega o HTML inteiro ate o cursor, tira so a tag de
+     fechamento do bloco que contem o cursor (ela aparece sempre que o
+     cursor esta no meio de um <div>/<p>/<li>, por causa de como
+     cloneContents fecha os elementos parciais) e separa por <br> ou por
+     abertura de bloco -- o que sobra depois do ultimo desses e exatamente
+     a linha atual, <br> solto ou <div> por linha, tanto faz. */
+  function textoLinhaAtual(area, range) {
+    var pre = document.createRange();
+    pre.selectNodeContents(area);
+    pre.setEnd(range.startContainer, range.startOffset);
+    var tmp = document.createElement('div');
+    tmp.appendChild(pre.cloneContents());
+    var htmlAntes = tmp.innerHTML.replace(/<\/(?:div|p|li)>$/i, '');
+    var partes = htmlAntes.split(/<br\s*\/?>|<(?:div|p|li)[^>]*>/i);
+    var tmp2 = document.createElement('div');
+    tmp2.innerHTML = partes[partes.length - 1];
+    return tmp2.textContent || '';
+  }
+  /* Continua sozinha uma numeracao/marcador DIGITADO a mao (ex: "1. " ou
+     "- ") ao apertar Enter -- sem isso, quem nao usa os botoes "Lista" e
      simplesmente digita "1. texto" precisa lembrar de digitar "2. " na
-     linha seguinte também. Não interfere numa lista de verdade (criada
-     pelos botões "• Lista"/"1. Lista"): dentro de um <li> de verdade o
-     "1." é um marcador gerado pelo navegador, não faz parte do texto, e
-     por isso o regex abaixo nunca casa — o Enter nesse caso segue o
-     comportamento nativo do navegador (que já sabe continuar a lista).
-     Usa sempre execCommand('insertParagraph') para quebrar a linha (em
-     vez de inserir um <br> à mão): isso garante que a "linha atual" vire
-     sempre um bloco (div/p) novo e separado, do jeito que a busca por
-     blocoEl abaixo espera — se em vez disso a quebra fosse só um <br>
-     dentro do mesmo bloco, a 3ª linha em diante ia enxergar o texto de
-     TODAS as linhas anteriores coladas (sem <br> nenhum no meio, já que
-     Range.toString() não insere separador nos <br>) e o regex nunca mais
-     bateria a partir da segunda continuação. */
+     linha seguinte tambem. Nao interfere numa lista de verdade (criada
+     pelos botoes "• Lista"/"1. Lista"): dentro de um <li> de verdade o
+     "1." e um marcador gerado pelo navegador, nao faz parte do texto, e
+     por isso o regex abaixo nunca casa -- o Enter nesse caso segue o
+     comportamento nativo do navegador (que ja sabe continuar a lista). */
   function continuarMarcadorDigitado(e, area) {
     if (e.key !== 'Enter' || e.shiftKey || e.ctrlKey || e.metaKey || e.altKey) return;
     var sel = window.getSelection();
     if (!sel.rangeCount || !sel.isCollapsed) return;
     var range = sel.getRangeAt(0);
     if (!area.contains(range.startContainer)) return;
-    var blocoEl = range.startContainer;
-    while (blocoEl && blocoEl !== area && !(blocoEl.nodeType === 1 && /^(DIV|P|LI)$/.test(blocoEl.tagName))) blocoEl = blocoEl.parentNode;
-    if (!blocoEl) blocoEl = area;
-    var preRange = document.createRange();
-    preRange.selectNodeContents(blocoEl);
-    preRange.setEnd(range.startContainer, range.startOffset);
-    var textoAntes = preRange.toString();
+    var textoAntes = textoLinhaAtual(area, range);
     /* SEPARADOR inclui \u00A0 (espaco nao separavel): contenteditable
        costuma trocar o espaco digitado no fim de uma linha por um espaco
        nao separavel, pra nao ser colapsado -- sem aceitar esse caractere
@@ -184,13 +196,18 @@
     var SEPARADOR = '[ \\t\\u00A0]+';
     var mNum = textoAntes.match(new RegExp('^(\\s*)(\\d+)([.)])' + SEPARADOR + '(.*)$'));
     var mMarcador = !mNum && textoAntes.match(new RegExp('^(\\s*)([•\\-])' + SEPARADOR + '(.*)$'));
-    if (!mNum && !mMarcador) return; /* deixa o Enter padrão do navegador acontecer */
+    if (!mNum && !mMarcador) return; /* deixa o Enter padrao do navegador acontecer */
     e.preventDefault();
     var resto = mNum ? mNum[4] : mMarcador[3];
     if (!resto.trim()) {
-      /* linha só tinha o marcador, sem texto: Enter tira o marcador em
-         vez de repeti-lo de novo (senão nunca dava pra "sair" da lista) */
-      preRange.deleteContents();
+      /* linha so tinha o marcador, sem texto: Enter tira o marcador em
+         vez de repeti-lo de novo (senao nunca dava pra "sair" da lista).
+         Apaga por contagem de caracteres (Selection.modify) em vez de um
+         Range construido a mao -- mais simples e funciona igual nao
+         importa se a linha e um <div> proprio ou um trecho solto entre
+         dois <br>. */
+      for (var i = 0; i < textoAntes.length; i++) sel.modify('extend', 'backward', 'character');
+      document.execCommand('delete');
       document.execCommand('insertParagraph');
       return;
     }
@@ -221,7 +238,7 @@
     if (dentroDeLi) {
       document.execCommand(e.shiftKey ? 'outdent' : 'indent');
     } else if (!e.shiftKey) {
-      document.execCommand('insertText', false, '    ');
+      document.execCommand('insertText', false, '        ');
     }
   }
 
