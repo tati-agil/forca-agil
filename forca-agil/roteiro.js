@@ -1118,7 +1118,7 @@
       item('Tempo de facilitação', fmtDuracao(resumo.facilitacaoMin), '#4caf7d', 'Tempo programado descontando pausas e intervalos.', resumo.pausasMin ? '' : 'sem pausas') +
       item('Pausas / intervalos', fmtDuracao(resumo.pausasMin), '#ffb347', 'Soma das atividades do tipo Intervalo.') +
       item('Lacunas', fmtDuracao(resumo.lacunasMin), resumo.lacunasMin ? '#ff8a5c' : 'var(--ink-3)', 'Períodos entre atividades sem nada programado — não conta como tempo programado.') +
-      item('Atividades', String(resumo.atividadesCount), 'var(--blue-glow)', 'Quantidade de atividades principais do dia (sub-etapas não contam à parte).') +
+      item('Atividades principais', String(resumo.atividadesCount), 'var(--blue-glow)', 'Quantidade de atividades principais do dia (sub-etapas não contam à parte).') +
       (resumo.sobreposicoes && resumo.sobreposicoes.length
         ? item('Sobreposições', fmtDuracao(resumo.sobreposicoes.reduce(function (s, o) { return s + o.min; }, 0)), '#ff6b60', 'Minutos de conflito de horário entre atividades.', resumo.sobreposicoes.length + ' conflito' + (resumo.sobreposicoes.length !== 1 ? 's' : ''))
         : '') +
@@ -1168,7 +1168,7 @@
         item('Tempo de facilitação', fmtDuracao(facilitacaoMin), '#4caf7d', 'Tempo programado descontando pausas e intervalos, em todas as sessões.') +
         item('Pausas', fmtDuracao(pausasMin), '#ffb347', 'Soma das atividades do tipo Intervalo, em todas as sessões.') +
         item('Lacunas reais', fmtDuracao(lacunasMin), lacunasMin ? '#ff8a5c' : 'var(--ink-3)', 'Só buracos DENTRO de uma sessão — o vão entre uma sessão e outra nunca conta aqui.') +
-        item('Atividades', String(atividadesCount), 'var(--blue-glow)') +
+        item('Atividades principais', String(atividadesCount), 'var(--blue-glow)') +
         (sobreposicoesCount ? item('Sobreposições', fmtDuracao(sobreposicoesMin), '#ff6b60', 'Minutos de conflito de horário entre atividades.', sobreposicoesCount + ' conflito' + (sobreposicoesCount !== 1 ? 's' : '')) : '') +
       '</div>' +
       (extremoInicio != null ? '<div style="font-size:.68rem;color:var(--ink-3);margin-top:10px">Período entre a primeira e a última atividade do dia: ' + esc(minParaHhmm(extremoInicio) + '–' + minParaHhmm(extremoFim)) + ' — não é tempo disponível para facilitação, só o intervalo geral.</div>' : '') +
@@ -1212,7 +1212,7 @@
       '<div>Facilitação<b>' + esc(fmtDuracao(resumo.facilitacaoMin)) + '</b></div>' +
       '<div>Pausas<b>' + esc(fmtDuracao(resumo.pausasMin)) + '</b></div>' +
       '<div>Lacunas<b>' + esc(fmtDuracao(resumo.lacunasMin)) + '</b></div>' +
-      '<div>Atividades<b>' + resumo.atividadesCount + '</b></div>' +
+      '<div>Atividades principais<b>' + resumo.atividadesCount + '</b></div>' +
       (resumo.sobreposicoes && resumo.sobreposicoes.length
         ? '<div>Sobreposições<b>' + esc(fmtDuracao(resumo.sobreposicoes.reduce(function (s, o) { return s + o.min; }, 0))) + ' · ' + resumo.sobreposicoes.length + ' conflito' + (resumo.sobreposicoes.length !== 1 ? 's' : '') + '</b></div>'
         : '') +
@@ -1247,7 +1247,7 @@
         '<div>Facilitação<b>' + esc(fmtDuracao(facilitacaoMin)) + '</b></div>' +
         '<div>Pausas<b>' + esc(fmtDuracao(pausasMin)) + '</b></div>' +
         '<div>Lacunas reais<b>' + esc(fmtDuracao(lacunasMin)) + '</b></div>' +
-        '<div>Atividades<b>' + atividadesCount + '</b></div>' +
+        '<div>Atividades principais<b>' + atividadesCount + '</b></div>' +
       '</div></div>';
   }
 
@@ -1274,11 +1274,17 @@
          janela nasce com window.open('', ...), a URL fica "about:blank";
          history.replaceState troca só a URL exibida (mesma origem, sem
          navegar de verdade) por um nome de arquivo de verdade;
-     (2) o cabeçalho/rodapé do navegador em si (título+URL+data+página)
-         não tem como ser desligado por código — só a pessoa desmarcando
-         "Cabeçalhos e rodapés" nas opções de impressão; por isso a dica
-         fica visível na tela (nunca impressa, graças a .rp-actions ir
-         embora em @media print);
+     (2) o cabeçalho/rodapé NATIVO do navegador (título da aba+URL+data+
+         "1/2") não tem como ser desligado por código — só a pessoa
+         desmarcando "Cabeçalhos e rodapés" nas opções de impressão; por
+         isso a dica fica bem visível na tela (nunca impressa, graças a
+         .rp-actions ir embora em @media print). O que DÁ pra controlar
+         por código é o rodapé de PÁGINA (numeração "Página X de Y" +
+         a marca) via @page{ @bottom-left/@bottom-right } logo abaixo —
+         testado e funcional no Chromium (tanto no diálogo de impressão
+         quanto no "Salvar como PDF") — assim o documento carrega sua
+         própria numeração e identidade mesmo se a pessoa esquecer de
+         desmarcar o rodapé nativo;
      (3) nunca deixa `page-break-inside:avoid` num bloco que pode crescer
          sem limite (uma atividade inteira com texto longo, por exemplo)
          — só em elementos curtos e de tamanho previsível (título, meta,
@@ -1359,11 +1365,22 @@
       '.rp-eco-toggle{display:flex;align-items:center;gap:6px;font-size:.76rem;color:var(--pink2);cursor:pointer;}' +
       estiloExtra +
       '@media print{.rp-actions{display:none;} body{padding:10px;max-width:none;}}' +
-      '@page{size:A4 portrait;margin:14mm;}' +
+      /* Rodapé de página PRÓPRIO do documento — não depende da pessoa
+         mexer em nada no diálogo de impressão. counter(page)/counter(pages)
+         é CSS Paged Media puro (sem JS), testado no Chromium via
+         page.pdf() e via impressão normal (mesmo motor): a numeração
+         some, some ao remover "Cabeçalhos e rodapés" do navegador, e
+         continua exata. A caixa de margem sempre pinta fundo branco
+         (não segue --pspace nem o "Modo econômico"), então a cor do
+         texto é fixa e escura pra ficar legível nos dois modos. */
+      '@page{size:A4 portrait;margin:14mm 14mm 20mm 14mm;' +
+        '@bottom-left{content:"FORÇA ÁGIL · PREVI | Roteiro de Facilitação";font-family:Arial,Helvetica,sans-serif;font-size:7.5px;color:#556080;}' +
+        '@bottom-right{content:"Página " counter(page) " de " counter(pages);font-family:Arial,Helvetica,sans-serif;font-size:7.5px;color:#556080;}' +
+      '}' +
       '</style></head><body>' +
       '<div class="rp-actions"><button id="rp-print-btn">Imprimir / salvar como PDF</button>' +
         '<label class="rp-eco-toggle"><input type="checkbox" id="rp-eco-toggle"> Modo econômico (fundo claro, menos tinta)</label>' +
-        '<span class="rp-dica">Dica: nas opções de impressão do navegador, desmarque "Cabeçalhos e rodapés"; se for imprimir em papel de verdade, marque "Modo econômico" aqui em cima antes — senão marque "Gráficos de fundo" (ou "Imprimir cores e imagens de fundo") pra sair igual à tela.</span></div>' +
+        '<span class="rp-dica">Dica: antes de imprimir/salvar, desmarque "Cabeçalhos e rodapés" nas opções do navegador — a numeração de página e a marca do documento já vêm no rodapé daqui, então o rodapé nativo do navegador (com data, título da aba e URL) só duplicaria informação. Vai imprimir em papel de verdade? Marque "Modo econômico" aqui em cima antes — senão marque "Gráficos de fundo" (ou "Imprimir cores e imagens de fundo") pra sair igual à tela.</span></div>' +
       logoImpressaoHtml() +
       corpoHtml +
       '</body></html>';
