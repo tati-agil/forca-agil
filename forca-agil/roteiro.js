@@ -105,7 +105,7 @@
      editor quanto no que é lido de volta — inclusive dados antigos, que
      eram texto puro e passam pela mesma peneira (heurística: só tratamos
      como HTML de verdade quando o valor já contém alguma dessas tags). ---- */
-  var RICO_TAGS_PERMITIDAS = { B: 1, STRONG: 1, I: 1, EM: 1, U: 1, UL: 1, OL: 1, LI: 1, BR: 1, DIV: 1, P: 1, SPAN: 1 };
+  var RICO_TAGS_PERMITIDAS = { B: 1, STRONG: 1, I: 1, EM: 1, U: 1, UL: 1, OL: 1, LI: 1, BR: 1, DIV: 1, P: 1, SPAN: 1, BLOCKQUOTE: 1 };
   var RICO_ALINHAMENTOS = ['left', 'center', 'right', 'justify'];
   function sanitizarHtmlRico(html) {
     var raiz = document.createElement('div');
@@ -127,16 +127,24 @@
         }
         /* Lidos ANTES de apagar os atributos: como vêm do getter já
            interpretado da CSSOM (filho.style.*), só podem conter um valor
-           de cor/alinhamento válido de verdade — nunca algo executável
-           (url(), expression() etc.) — então é seguro reaplicar só esses
-           3 valores depois de zerar o atributo style inteiro. */
+           de cor/alinhamento/tamanho/recuo válido de verdade — nunca algo
+           executável (url(), expression() etc.) — então é seguro reaplicar
+           só esses valores depois de zerar o atributo style inteiro.
+           marginLeft é o que sobra de um BLOCKQUOTE criado pelo botão de
+           recuo (execCommand('indent') sempre envolve o bloco num
+           <blockquote>, mesmo fora de uma lista) — sem preservar essa
+           margem o recuo desaparecia ao salvar/reabrir. */
         var alinhamento = filho.style && filho.style.textAlign;
         var cor = filho.style && filho.style.color;
         var corFundo = filho.style && filho.style.backgroundColor;
+        var tamanho = filho.style && filho.style.fontSize;
+        var recuo = filho.style && filho.style.marginLeft;
         Array.prototype.slice.call(filho.attributes).forEach(function (attr) { filho.removeAttribute(attr.name); });
         if (RICO_ALINHAMENTOS.indexOf(alinhamento) !== -1) filho.style.textAlign = alinhamento;
         if (cor) filho.style.color = cor;
         if (corFundo) filho.style.backgroundColor = corFundo;
+        if (tamanho) filho.style.fontSize = tamanho;
+        if (recuo) filho.style.marginLeft = recuo;
         limpar(filho);
         filho = filho.nextSibling;
       }
@@ -716,6 +724,17 @@
           '<button type="button" class="roteiro-rico-btn" data-cmd="justifyCenter" title="Centralizar">Centralizar</button>' +
           '<button type="button" class="roteiro-rico-btn" data-cmd="justifyFull" title="Justificar">Justificar</button>' +
           '<span class="roteiro-rico-sep"></span>' +
+          '<button type="button" class="roteiro-rico-btn" data-cmd="outdent" title="Diminuir recuo">&#8592; Recuo</button>' +
+          '<button type="button" class="roteiro-rico-btn" data-cmd="indent" title="Aumentar recuo">&#8594; Recuo</button>' +
+          '<span class="roteiro-rico-sep"></span>' +
+          '<select class="roteiro-rico-tamanho" title="Tamanho da fonte">' +
+            '<option value="">Tamanho</option>' +
+            '<option value="0.8em">Pequena</option>' +
+            '<option value="1em">Normal</option>' +
+            '<option value="1.3em">Grande</option>' +
+            '<option value="1.6em">Enorme</option>' +
+          '</select>' +
+          '<span class="roteiro-rico-sep"></span>' +
           '<button type="button" class="roteiro-rico-btn" data-cmd="insertHTML" data-arg="<br><br>" title="Adicionar uma linha em branco">↵ Espaço</button>' +
           '<span class="roteiro-rico-sep"></span>' +
           '<label class="roteiro-rico-cor-wrap" title="Cor do texto">A<input type="color" class="roteiro-rico-cor" data-cmd="foreColor" value="#e8ecf5" /></label>' +
@@ -725,6 +744,23 @@
           (valorHtmlInicial || '') +
         '</div>' +
       '</div></label>';
+  }
+  /* execCommand('fontSize', ...) só aceita os 7 tamanhos legados do HTML
+     (<font size="1">..<font size="7">), mesmo com styleWithCSS ligado —
+     não dá pra mandar um px/em direto. O truque padrão: pedir o tamanho
+     7 (o maior, mais fácil de achar sozinho depois) e trocar cada <font
+     size="7"> resultante por um <span style="font-size:..."> de verdade,
+     preservando o conteúdo — assim o tamanho vira CSS real, sobrevive ao
+     sanitizador (que já reaplica fontSize, ver sanitizarHtmlRico) e nunca
+     deixa a tag <font> (fora da lista de tags permitidas) no meio. */
+  function aplicarTamanhoFonte(area, tamanho) {
+    document.execCommand('fontSize', false, '7');
+    Array.prototype.forEach.call(area.querySelectorAll('font[size="7"]'), function (font) {
+      var span = document.createElement('span');
+      span.style.fontSize = tamanho;
+      while (font.firstChild) span.appendChild(font.firstChild);
+      font.parentNode.replaceChild(span, font);
+    });
   }
 
   function abrirFormAtividade(opts) {
@@ -821,6 +857,29 @@
         input._area.focus();
         document.execCommand('styleWithCSS', false, true);
         document.execCommand(input.getAttribute('data-cmd'), false, input.value);
+      });
+    });
+    /* Tamanho da fonte: mesmo padrão do seletor de cor acima — guarda a
+       seleção no mousedown (antes do <select> abrir a listinha de opções
+       e tirar o foco da caixa) e restaura na hora de aplicar. Volta pro
+       placeholder "Tamanho" depois de aplicar porque o valor escolhido
+       não reflete o tamanho do próximo trecho selecionado. */
+    Array.prototype.forEach.call(box.querySelectorAll('.roteiro-rico-tamanho'), function (select) {
+      select.addEventListener('mousedown', function () {
+        var area = select.closest('.roteiro-rico').querySelector('.roteiro-rico-area');
+        var sel = window.getSelection();
+        select._area = area;
+        select._selecaoSalva = (sel.rangeCount && area.contains(sel.anchorNode)) ? sel.getRangeAt(0).cloneRange() : null;
+      });
+      select.addEventListener('change', function () {
+        var tamanho = select.value;
+        select.value = '';
+        if (!tamanho || !select._area || !select._selecaoSalva) return;
+        var sel = window.getSelection();
+        sel.removeAllRanges();
+        sel.addRange(select._selecaoSalva);
+        select._area.focus();
+        aplicarTamanhoFonte(select._area, tamanho);
       });
     });
 
@@ -1447,6 +1506,7 @@
       '.rp-campo-txt{margin:0;}' +
       '.rp-campo-txt div, .rp-campo-txt p{margin:0 0 4px;}' +
       '.rp-campo-txt div:last-child, .rp-campo-txt p:last-child{margin-bottom:0;}' +
+      '.rp-campo-txt blockquote{margin:0 0 4px;}' +
       '.rp-campo ul{margin:2px 0 0 18px;padding:0;}' +
       '.rp-contexto{font-size:.72rem;color:var(--pink3);font-style:italic;margin-bottom:4px;page-break-after:avoid;break-after:avoid-page;}' +
       '.rp-gap-bloco{border:1px dashed rgba(255,138,92,.5);background:rgba(255,138,92,.12);color:#ffb37e;font-style:italic;font-size:.82rem;padding:8px 14px;border-radius:8px;margin-bottom:12px;}',
@@ -1497,6 +1557,7 @@
       '.rp-campo-txt{margin:0;}' +
       '.rp-campo-txt div, .rp-campo-txt p{margin:0 0 4px;}' +
       '.rp-campo-txt div:last-child, .rp-campo-txt p:last-child{margin-bottom:0;}' +
+      '.rp-campo-txt blockquote{margin:0 0 4px;}' +
       '.rp-campo ul{margin:2px 0 0 18px;padding:0;}' +
       '.rp-contexto{font-size:.72rem;color:var(--pink3);font-style:italic;margin-bottom:4px;page-break-after:avoid;break-after:avoid-page;}' +
       '.rp-gap-bloco{border:1px dashed rgba(255,138,92,.5);background:rgba(255,138,92,.12);color:#ffb37e;font-style:italic;font-size:.82rem;padding:8px 14px;border-radius:8px;margin-bottom:12px;}',
