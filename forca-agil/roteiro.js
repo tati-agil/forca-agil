@@ -32,8 +32,16 @@
      agruparPorSessao). Isso é o que evita chamar o intervalo ENTRE duas
      sessões (ex: o almoço, entre o fim da manhã e o início da tarde) de
      "lacuna no planejamento": lacuna só existe DENTRO de uma sessão.
-     Atividade sem "sessao" (a maioria dos roteiros, hoje) cai num único
-     grupo sem nome — visualmente idêntico a não ter sessão nenhuma.
+     Quando NINGUÉM preenche "sessao" nesse dia, o sistema tenta detectar
+     sozinho onde as sessões começam e terminam: um vão cronológico de
+     LIMIAR_SESSAO_AUTO_MIN minutos ou mais entre duas atividades vizinhas
+     vira um corte automático de sessão (nomeada "Manhã"/"Tarde"/"Noite"
+     pelo horário de início), em vez de um buraco de planejamento — assim
+     um roteiro real com um vão grande e intencional entre dois turnos do
+     dia não precisa que cada atividade seja marcada manualmente pra parar
+     de aparecer como "lacuna". Um vão MENOR que o limiar continua sendo
+     lacuna de verdade. Preencher "sessao" manualmente sempre tem
+     prioridade sobre essa detecção automática.
 
      "paiKey" é o que faz uma atividade virar sub-etapa de outra — mesma
      ficha completa de qualquer atividade (não uma versão reduzida): uma
@@ -67,6 +75,21 @@
   function esc(s) {
     return String(s || '').replace(/[&<>"]/g, function (c) {
       return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c];
+    });
+  }
+
+  /* Menu "⋮" (mesmo padrão visual de .taa-more-btn/.taa-dropdown já usado
+     nos cards de turma do admin) só pra "+ Etapa" numa atividade simples
+     (sem etapas ainda) — reduz a quantidade de botões na linha até a
+     atividade realmente virar seção. Um único listener de documento fecha
+     qualquer menu deste tipo aberto; registrado uma vez só (a flag evita
+     empilhar um listener novo a cada redesenho da lista). */
+  var _dropdownEtapaListenerAtivo = false;
+  function fecharDropdownsEtapaAoClicarFora() {
+    if (_dropdownEtapaListenerAtivo) return;
+    _dropdownEtapaListenerAtivo = true;
+    document.addEventListener('click', function () {
+      document.querySelectorAll('.rt-etapa-dropdown.open').forEach(function (el) { el.classList.remove('open'); });
     });
   }
   function emailKey(e) {
@@ -932,25 +955,74 @@
     };
   }
 
-  /* Agrupa as atividades de nível principal do dia por "sessão/janela"
-     (campo livre, ex: "Manhã"/"Tarde") — cada grupo ganha seu próprio
-     resumo (janela, lacunas, pausas etc.), calculado só com as atividades
-     daquele grupo. Isso é o que faz o intervalo ENTRE sessões (ex: o
-     almoço, entre o fim da manhã e o início da tarde) nunca aparecer como
-     "lacuna no planejamento": lacuna só é calculada DENTRO de uma sessão,
-     nunca no vão entre uma sessão e outra, porque cada grupo nem enxerga
-     as atividades do outro grupo. Quem não usa sessão nenhuma (campo
-     "sessao" vazio em tudo) cai num único grupo sem nome — visualmente
-     idêntico ao comportamento de antes desta funcionalidade existir. */
-  function agruparPorSessao(atividadesTopo) {
-    var grupos = [];
-    var porNome = {};
+  /* Vão cronológico (minutos) a partir do qual, quando NINGUÉM preencheu
+     "Sessão/janela" à mão naquele dia, o sistema passa a tratar o vão
+     como um corte automático de sessão (ex: o almoço entre a manhã e a
+     tarde) em vez de lacuna. Escolhido acima de qualquer pausa curta
+     real (café, alongamento) e bem abaixo de um vão de virada de turno —
+     um vão MENOR que isso continua sendo lacuna de verdade. */
+  var LIMIAR_SESSAO_AUTO_MIN = 90;
+
+  function nomeSessaoAuto(inicioMin, usados) {
+    var nome = inicioMin == null ? 'Sessão' : inicioMin < 12 * 60 ? 'Manhã' : inicioMin < 18 * 60 ? 'Tarde' : 'Noite';
+    usados[nome] = (usados[nome] || 0) + 1;
+    return usados[nome] > 1 ? nome + ' ' + usados[nome] : nome;
+  }
+
+  /* Agrupa as atividades de nível principal do dia por sessão/janela —
+     cada grupo ganha seu próprio resumo (janela, lacunas, pausas etc.),
+     calculado só com as atividades daquele grupo. Isso é o que faz o
+     intervalo ENTRE sessões (ex: o almoço, entre o fim da manhã e o
+     início da tarde) nunca aparecer como "lacuna no planejamento":
+     lacuna só é calculada DENTRO de uma sessão, nunca no vão entre uma
+     sessão e outra, porque cada grupo nem enxerga as atividades do outro
+     grupo. Duas fontes possíveis pro agrupamento, nesta ordem:
+       1) o campo "sessao" preenchido à mão em pelo menos uma atividade —
+          agrupa por esse texto exatamente como digitado;
+       2) se ninguém preencheu nada, detecta sozinho onde os vãos
+          cronológicos (>= LIMIAR_SESSAO_AUTO_MIN) separam blocos de
+          atividades, e nomeia cada bloco pelo horário de início (ver
+          nomeSessaoAuto). Cada grupo detectado assim carrega
+          `automatica:true`, usado só pra exibir uma dica explicando de
+          onde veio o nome — nada é gravado no banco por causa disso.
+     Um dia sem sessão nenhuma (nem manual, nem vão grande o bastante)
+     cai num único grupo sem nome — idêntico ao comportamento de antes
+     desta funcionalidade existir. */
+  function agruparPorSessao(atividadesTopo, todasAtividades) {
+    todasAtividades = todasAtividades || atividadesTopo;
+    var algumMarcado = atividadesTopo.some(function (a) { return (a.sessao || '').trim(); });
+    if (algumMarcado) {
+      var grupos = [];
+      var porNome = {};
+      atividadesTopo.forEach(function (a) {
+        var nome = (a.sessao || '').trim();
+        if (!porNome[nome]) { porNome[nome] = { nome: nome, atividades: [] }; grupos.push(porNome[nome]); }
+        porNome[nome].atividades.push(a);
+      });
+      return grupos;
+    }
+
+    var comHorario = atividadesTopo.filter(function (a) { return a.horaInicio; })
+      .slice().sort(function (a, b) { return hhmmParaMin(a.horaInicio) - hhmmParaMin(b.horaInicio); });
+    var cortesApos = {};
+    for (var i = 1; i < comHorario.length; i++) {
+      var fimAnterior = hhmmParaMin(comHorario[i - 1].horaFim) != null ? hhmmParaMin(comHorario[i - 1].horaFim) : hhmmParaMin(comHorario[i - 1].horaInicio) + duracaoEfetiva(comHorario[i - 1], todasAtividades);
+      var inicioAtual = hhmmParaMin(comHorario[i].horaInicio);
+      if (inicioAtual - fimAnterior >= LIMIAR_SESSAO_AUTO_MIN) cortesApos[comHorario[i - 1].key] = true;
+    }
+    if (!Object.keys(cortesApos).length) return [{ nome: '', atividades: atividadesTopo.slice() }];
+
+    var autoGrupos = [{ nome: '', atividades: [], automatica: true }];
     atividadesTopo.forEach(function (a) {
-      var nome = (a.sessao || '').trim();
-      if (!porNome[nome]) { porNome[nome] = { nome: nome, atividades: [] }; grupos.push(porNome[nome]); }
-      porNome[nome].atividades.push(a);
+      autoGrupos[autoGrupos.length - 1].atividades.push(a);
+      if (cortesApos[a.key]) autoGrupos.push({ nome: '', atividades: [], automatica: true });
     });
-    return grupos;
+    var usados = {};
+    autoGrupos.forEach(function (g) {
+      var primeiro = g.atividades.filter(function (a) { return a.horaInicio; })[0];
+      g.nome = nomeSessaoAuto(primeiro ? hhmmParaMin(primeiro.horaInicio) : null, usados);
+    });
+    return autoGrupos;
   }
 
   /* Compara a ordem de exibição atual (por "ordem", que é o que o
@@ -985,6 +1057,57 @@
       (resumo.sobreposicoes && resumo.sobreposicoes.length
         ? item('Sobreposições', fmtDuracao(resumo.sobreposicoes.reduce(function (s, o) { return s + o.min; }, 0)), '#ff6b60', 'Minutos de conflito de horário entre atividades.', resumo.sobreposicoes.length + ' conflito' + (resumo.sobreposicoes.length !== 1 ? 's' : ''))
         : '') +
+      '</div>';
+  }
+
+  /* Resumo AGREGADO do dia, mostrado uma vez no topo quando o dia tem mais
+     de uma sessão — antes das barras "Janela da sessão" de cada sessão
+     (que continuam existindo, sem mudança). Em vez de emprestar destaque
+     a um "janela do dia" que soma o vão entre sessões (o que faria um dia
+     com Manhã 1h30 + Tarde 1h23 aparecer como um falso "7h23" contínuo),
+     soma o tempo de cada sessão separadamente — sempre aditivo, nunca o
+     período entre a primeira e a última atividade do dia inteiro. */
+  function resumoSessoesHtml(grupos, resumos, idPrefix) {
+    function item(label, valor, cor, tooltip, extra) {
+      return '<div style="flex:1;min-width:110px" title="' + esc(tooltip || '') + '">' +
+        '<div style="font-size:.64rem;letter-spacing:.08em;text-transform:uppercase;color:var(--ink-3)">' + esc(label) + '</div>' +
+        '<div style="font-size:1.05rem;font-weight:700;color:' + cor + '">' + esc(valor) + '</div>' +
+        (extra ? '<div style="font-size:.68rem;color:var(--ink-3)">' + esc(extra) + '</div>' : '') + '</div>';
+    }
+    var disponivelMin = 0, programadoMin = 0, facilitacaoMin = 0, pausasMin = 0, lacunasMin = 0, atividadesCount = 0;
+    var sobreposicoesMin = 0, sobreposicoesCount = 0;
+    var extremoInicio = null, extremoFim = null;
+    var listaSessoes = grupos.map(function (g, i) {
+      var r = resumos[i];
+      disponivelMin += (r.janelaMin || 0);
+      programadoMin += r.programadoMin; facilitacaoMin += r.facilitacaoMin;
+      pausasMin += r.pausasMin; lacunasMin += r.lacunasMin; atividadesCount += r.atividadesCount;
+      (r.sobreposicoes || []).forEach(function (s) { sobreposicoesMin += s.min; sobreposicoesCount++; });
+      if (r.janelaInicioMin != null && (extremoInicio == null || r.janelaInicioMin < extremoInicio)) extremoInicio = r.janelaInicioMin;
+      if (r.janelaFimMin != null && (extremoFim == null || r.janelaFimMin > extremoFim)) extremoFim = r.janelaFimMin;
+      var horarioTxt = r.janelaMin != null ? minParaHhmm(r.janelaInicioMin) + '–' + minParaHhmm(r.janelaFimMin) : 'sem horário';
+      return '<div style="flex:1;min-width:130px">' +
+        '<div style="font-size:.72rem;font-weight:700;color:var(--gold)">' + esc(g.nome || 'Sem sessão definida') + '</div>' +
+        '<div style="font-size:.72rem;color:var(--ink-2)">' + esc(horarioTxt) + (r.janelaMin != null ? ' · ' + esc(fmtDuracao(r.janelaMin)) : '') + '</div>' +
+        '</div>';
+    }).join('');
+    var algumaAutomatica = grupos.some(function (g) { return g.automatica; });
+    return '<div id="' + idPrefix + '" style="padding:14px 16px;background:var(--panel-2);border:1px solid var(--line-strong);border-radius:12px;margin-bottom:14px">' +
+      '<div style="display:flex;flex-wrap:wrap;gap:16px;margin-bottom:12px">' +
+        item('Sessões', String(grupos.length), 'var(--gold)') +
+        listaSessoes +
+      '</div>' +
+      '<div style="display:flex;flex-wrap:wrap;gap:16px;padding-top:12px;border-top:1px solid var(--line-strong)">' +
+        item('Tempo disponível', fmtDuracao(disponivelMin), 'var(--gold)', 'Soma do tempo de cada sessão — nunca o período entre a primeira e a última atividade do dia inteiro.') +
+        item('Tempo programado', fmtDuracao(programadoMin), 'var(--blue-glow)', 'Soma das durações de todas as atividades planejadas, em todas as sessões.') +
+        item('Tempo de facilitação', fmtDuracao(facilitacaoMin), '#4caf7d', 'Tempo programado descontando pausas e intervalos, em todas as sessões.') +
+        item('Pausas', fmtDuracao(pausasMin), '#ffb347', 'Soma das atividades do tipo Intervalo, em todas as sessões.') +
+        item('Lacunas reais', fmtDuracao(lacunasMin), lacunasMin ? '#ff8a5c' : 'var(--ink-3)', 'Só buracos DENTRO de uma sessão — o vão entre uma sessão e outra nunca conta aqui.') +
+        item('Atividades', String(atividadesCount), 'var(--blue-glow)') +
+        (sobreposicoesCount ? item('Sobreposições', fmtDuracao(sobreposicoesMin), '#ff6b60', 'Minutos de conflito de horário entre atividades.', sobreposicoesCount + ' conflito' + (sobreposicoesCount !== 1 ? 's' : '')) : '') +
+      '</div>' +
+      (extremoInicio != null ? '<div style="font-size:.68rem;color:var(--ink-3);margin-top:10px">Período entre a primeira e a última atividade do dia: ' + esc(minParaHhmm(extremoInicio) + '–' + minParaHhmm(extremoFim)) + ' — não é tempo disponível para facilitação, só o intervalo geral.</div>' : '') +
+      (algumaAutomatica ? '<div style="font-size:.68rem;color:var(--ink-3);margin-top:4px">Sessões detectadas automaticamente por um vão grande entre atividades. Pra nomear ou ajustar, preencha "Sessão / janela" em cada atividade.</div>' : '') +
       '</div>';
   }
 
@@ -1037,6 +1160,32 @@
     return html;
   }
 
+  /* Resumo agregado (equivalente de resumoSessoesHtml, mas pro documento de
+     impressão) — só aparece quando o dia tem mais de uma sessão, antes das
+     seções "Janela da sessão" de cada uma (que continuam impressas, sem
+     mudança). */
+  function resumoSessoesImpressaoHtml(grupos, resumos) {
+    var disponivelMin = 0, programadoMin = 0, facilitacaoMin = 0, pausasMin = 0, lacunasMin = 0, atividadesCount = 0;
+    var listaSessoes = grupos.map(function (g, i) {
+      var r = resumos[i];
+      disponivelMin += (r.janelaMin || 0);
+      programadoMin += r.programadoMin; facilitacaoMin += r.facilitacaoMin;
+      pausasMin += r.pausasMin; lacunasMin += r.lacunasMin; atividadesCount += r.atividadesCount;
+      var horarioTxt = r.janelaMin != null ? minParaHhmm(r.janelaInicioMin) + '–' + minParaHhmm(r.janelaFimMin) : 'sem horário';
+      return '<div>' + esc(g.nome || 'Sem sessão definida') + ' — ' + esc(horarioTxt) + (r.janelaMin != null ? ' (' + esc(fmtDuracao(r.janelaMin)) + ')' : '') + '</div>';
+    }).join('');
+    return '<div class="rp-resumo-sessoes">' +
+      '<div class="rp-resumo-sessoes-lista"><b>Sessões (' + grupos.length + ')</b>' + listaSessoes + '</div>' +
+      '<div class="rp-resumo">' +
+        '<div>Tempo disponível<b>' + esc(fmtDuracao(disponivelMin)) + '</b></div>' +
+        '<div>Programado<b>' + esc(fmtDuracao(programadoMin)) + '</b></div>' +
+        '<div>Facilitação<b>' + esc(fmtDuracao(facilitacaoMin)) + '</b></div>' +
+        '<div>Pausas<b>' + esc(fmtDuracao(pausasMin)) + '</b></div>' +
+        '<div>Lacunas reais<b>' + esc(fmtDuracao(lacunasMin)) + '</b></div>' +
+        '<div>Atividades<b>' + atividadesCount + '</b></div>' +
+      '</div></div>';
+  }
+
   /* Janela de impressão compartilhada pelas duas impressões (simples e
      completa): monta o HTML, abre a janela e resolve os três problemas
      que não dependem do conteúdo em si —
@@ -1066,6 +1215,9 @@
       '.rp-sessao-hdr:first-of-type{border-top:none;padding-top:0;}' +
       '.rp-resumo{display:flex;flex-wrap:wrap;gap:18px;margin-bottom:10px;font-size:.8rem;page-break-inside:avoid;break-inside:avoid-page;}' +
       '.rp-resumo b{display:block;font-size:1rem;}' +
+      '.rp-resumo-sessoes{margin-bottom:14px;page-break-inside:avoid;break-inside:avoid-page;}' +
+      '.rp-resumo-sessoes-lista{font-size:.82rem;margin-bottom:8px;}' +
+      '.rp-resumo-sessoes-lista div{margin:2px 0;}' +
       '.rp-sobreposicao{background:#ffecec;color:#a33;border:1px solid #f3a;border-radius:6px;padding:8px 12px;font-size:.8rem;margin-bottom:14px;page-break-inside:avoid;break-inside:avoid-page;}' +
       '.rp-actions{margin-bottom:14px;display:flex;align-items:center;gap:14px;flex-wrap:wrap;}' +
       '.rp-dica{font-size:.74rem;color:#888;}' +
@@ -1092,13 +1244,16 @@
   function imprimirRoteiroDia(tituloContexto, dia, atividadesTopo, todasAtividades) {
     todasAtividades = todasAtividades || atividadesTopo;
     var geradoEm = new Date().toLocaleString('pt-BR');
-    var grupos = agruparPorSessao(atividadesTopo);
+    var grupos = agruparPorSessao(atividadesTopo, todasAtividades);
     if (!grupos.length) grupos.push({ nome: '', atividades: [] });
     var corpo = '<h1>' + esc(tituloContexto) + (dia.titulo ? ' — ' + esc(dia.titulo) : '') + '</h1>' +
       '<div class="rp-meta">Gerado em ' + esc(geradoEm) + '</div>';
 
-    grupos.forEach(function (grupo) {
-      var resumo = calcularResumoDia(grupo.atividades, todasAtividades);
+    var resumosPorGrupo = grupos.map(function (g) { return calcularResumoDia(g.atividades, todasAtividades); });
+    if (grupos.length > 1) corpo += resumoSessoesImpressaoHtml(grupos, resumosPorGrupo);
+
+    grupos.forEach(function (grupo, gi) {
+      var resumo = resumosPorGrupo[gi];
       if (grupos.length > 1) corpo += '<div class="rp-sessao-hdr">' + esc(grupo.nome || 'Sem sessão definida') + '</div>';
       corpo += resumoImpressaoHtml(resumo, grupos.length > 1);
       var linhasHtml = '';
@@ -1167,13 +1322,16 @@
   function imprimirRoteiroCompleto(tituloContexto, dia, atividadesTopo, todasAtividades) {
     todasAtividades = todasAtividades || atividadesTopo;
     var geradoEm = new Date().toLocaleString('pt-BR');
-    var grupos = agruparPorSessao(atividadesTopo);
+    var grupos = agruparPorSessao(atividadesTopo, todasAtividades);
     if (!grupos.length) grupos.push({ nome: '', atividades: [] });
     var corpo = '<h1>' + esc(tituloContexto) + (dia.titulo ? ' — ' + esc(dia.titulo) : '') + '</h1>' +
       '<div class="rp-meta">Roteiro completo (com os campos preenchidos de cada etapa) · Gerado em ' + esc(geradoEm) + '</div>';
 
-    grupos.forEach(function (grupo) {
-      var resumo = calcularResumoDia(grupo.atividades, todasAtividades);
+    var resumosPorGrupo = grupos.map(function (g) { return calcularResumoDia(g.atividades, todasAtividades); });
+    if (grupos.length > 1) corpo += resumoSessoesImpressaoHtml(grupos, resumosPorGrupo);
+
+    grupos.forEach(function (grupo, gi) {
+      var resumo = resumosPorGrupo[gi];
       if (grupos.length > 1) corpo += '<div class="rp-sessao-hdr">' + esc(grupo.nome || 'Sem sessão definida') + '</div>';
       corpo += resumoImpressaoHtml(resumo, grupos.length > 1);
       grupo.atividades.forEach(function (a, i) {
@@ -1290,7 +1448,7 @@
       var dia = roteiro.dias.filter(function (d) { return d.key === diaAtivoKey; })[0];
       var atividadesDia = atividadesDoDia(roteiro.atividades, dia.key); /* topo + filhas */
       var atividadesTopo = atividadesDia.filter(function (a) { return !a.paiKey; });
-      var grupos = agruparPorSessao(atividadesTopo);
+      var grupos = agruparPorSessao(atividadesTopo, atividadesDia);
       if (!grupos.length) grupos.push({ nome: '', atividades: [] });
 
       var diaHdr = document.createElement('div');
@@ -1304,12 +1462,14 @@
       var imprimirBtn = document.createElement('button');
       imprimirBtn.className = 'btn btn--sm';
       imprimirBtn.style.cssText = 'padding:6px 10px;font-size:.72rem';
-      imprimirBtn.innerHTML = '&#x1F5A8; Imprimir';
+      imprimirBtn.innerHTML = '&#x1F5A8; Agenda resumida';
+      imprimirBtn.title = 'Abre uma janela de impressão só com o resumo do dia e a lista de atividades (sem os campos de facilitação) — pode salvar como PDF.';
       imprimirBtn.addEventListener('click', function () { imprimirRoteiroDia('Roteiro-base', dia, atividadesTopo, atividadesDia); });
       var imprimirCompletoBtn = document.createElement('button');
       imprimirCompletoBtn.className = 'btn btn--sm';
       imprimirCompletoBtn.style.cssText = 'padding:6px 10px;font-size:.72rem';
-      imprimirCompletoBtn.innerHTML = '&#x1F5A8; Imprimir completo';
+      imprimirCompletoBtn.innerHTML = '&#x1F5A8; Roteiro completo';
+      imprimirCompletoBtn.title = 'Abre uma janela de impressão com um bloco por atividade e etapa, trazendo todo o conteúdo de facilitação preenchido — pode salvar como PDF.';
       imprimirCompletoBtn.addEventListener('click', function () { imprimirRoteiroCompleto('Roteiro-base', dia, atividadesTopo, atividadesDia); });
       var delDiaBtn = document.createElement('button');
       delDiaBtn.className = 'btn btn--sm';
@@ -1327,8 +1487,11 @@
       diaHdr.appendChild(delDiaBtn);
       container.appendChild(diaHdr);
 
+      var resumosPorGrupo = grupos.map(function (g) { return calcularResumoDia(g.atividades, atividadesDia); });
+      if (grupos.length > 1) container.insertAdjacentHTML('beforeend', resumoSessoesHtml(grupos, resumosPorGrupo, 'rbResumoSessoes'));
+
       grupos.forEach(function (grupo, gi) {
-        var resumo = calcularResumoDia(grupo.atividades, atividadesDia);
+        var resumo = resumosPorGrupo[gi];
 
         if (grupos.length > 1) {
           var sessaoHdr = document.createElement('h4');
@@ -1488,9 +1651,7 @@
         });
         acoes.appendChild(upBtn); acoes.appendChild(downBtn); acoes.appendChild(dupBtn); acoes.appendChild(editBtn);
         if (!ehFilho) {
-          var addSubBtn = document.createElement('button');
-          addSubBtn.className = 'btn btn--sm'; addSubBtn.style.cssText = 'padding:4px 8px;font-size:.72rem'; addSubBtn.textContent = '+ Etapa';
-          addSubBtn.addEventListener('click', function () {
+          var abrirNovaEtapa = function () {
             abrirFormAtividade({
               titulo: 'Nova etapa de "' + a.titulo + '"',
               onSalvar: function (dados) {
@@ -1500,8 +1661,44 @@
                 });
               }
             });
-          });
-          acoes.appendChild(addSubBtn);
+          };
+          if (ehSecao) {
+            var addSubBtn = document.createElement('button');
+            addSubBtn.className = 'btn btn--sm'; addSubBtn.style.cssText = 'padding:4px 8px;font-size:.72rem'; addSubBtn.textContent = '+ Etapa';
+            addSubBtn.addEventListener('click', abrirNovaEtapa);
+            acoes.appendChild(addSubBtn);
+          } else {
+            /* Atividade ainda simples (sem etapas): "+ Etapa" fica atrás
+               do "⋮" pra não poluir a linha com uma ação pouco usada
+               aqui — assim que a primeira etapa é criada, a atividade
+               vira seção e o botão passa a aparecer direto (ramo acima). */
+            var moreWrap = document.createElement('div');
+            moreWrap.style.cssText = 'position:relative';
+            var moreBtn = document.createElement('button');
+            moreBtn.className = 'btn btn--sm'; moreBtn.style.cssText = estiloBtnAcao;
+            moreBtn.innerHTML = '&#x22EF;';
+            moreBtn.setAttribute('aria-label', 'Mais ações');
+            var moreMenu = document.createElement('div');
+            moreMenu.className = 'taa-dropdown rt-etapa-dropdown';
+            var addSubBtn2 = document.createElement('button');
+            addSubBtn2.className = 'btn btn--sm'; addSubBtn2.style.cssText = 'padding:4px 8px;font-size:.72rem'; addSubBtn2.textContent = '+ Etapa';
+            addSubBtn2.addEventListener('click', function () { moreMenu.classList.remove('open'); abrirNovaEtapa(); });
+            moreMenu.appendChild(addSubBtn2);
+            moreBtn.addEventListener('click', function (e) {
+              e.stopPropagation();
+              fecharDropdownsEtapaAoClicarFora();
+              var willOpen = !moreMenu.classList.contains('open');
+              document.querySelectorAll('.rt-etapa-dropdown.open').forEach(function (el) { el.classList.remove('open'); });
+              if (willOpen) {
+                moreMenu.classList.add('open');
+                moreMenu.classList.remove('taa-dropdown--up');
+                var rect = moreMenu.getBoundingClientRect();
+                if (window.innerHeight - rect.bottom < 0) moreMenu.classList.add('taa-dropdown--up');
+              }
+            });
+            moreWrap.appendChild(moreBtn); moreWrap.appendChild(moreMenu);
+            acoes.appendChild(moreWrap);
+          }
         }
         row.appendChild(acoes);
         return row;
@@ -1558,25 +1755,30 @@
       container.appendChild(tabsWrap);
 
       var dia = dias[diaAtivoIdx];
-      var grupos = agruparPorSessao(dia.atividades);
+      var grupos = agruparPorSessao(dia.atividades, dia.todasEfetivas);
       if (!grupos.length) grupos.push({ nome: '', atividades: [] });
 
       var imprimirBtn = document.createElement('button');
       imprimirBtn.className = 'btn btn--sm';
       imprimirBtn.style.cssText = 'padding:5px 10px;font-size:.72rem;margin-bottom:12px';
-      imprimirBtn.innerHTML = '&#x1F5A8; Imprimir';
+      imprimirBtn.innerHTML = '&#x1F5A8; Agenda resumida';
+      imprimirBtn.title = 'Abre uma janela de impressão só com o resumo do dia e a lista de atividades (sem os campos de facilitação) — pode salvar como PDF.';
       imprimirBtn.addEventListener('click', function () { imprimirRoteiroDia('Roteiro — ' + (turma.label || ''), { titulo: 'Dia ' + dia.numero }, dia.atividades, dia.todasEfetivas); });
       container.appendChild(imprimirBtn);
 
       var imprimirCompletoBtn = document.createElement('button');
       imprimirCompletoBtn.className = 'btn btn--sm';
       imprimirCompletoBtn.style.cssText = 'padding:5px 10px;font-size:.72rem;margin-bottom:12px;margin-left:8px';
-      imprimirCompletoBtn.innerHTML = '&#x1F5A8; Imprimir completo';
+      imprimirCompletoBtn.innerHTML = '&#x1F5A8; Roteiro completo';
+      imprimirCompletoBtn.title = 'Abre uma janela de impressão com um bloco por atividade e etapa, trazendo todo o conteúdo de facilitação preenchido — pode salvar como PDF.';
       imprimirCompletoBtn.addEventListener('click', function () { imprimirRoteiroCompleto('Roteiro — ' + (turma.label || ''), { titulo: 'Dia ' + dia.numero }, dia.atividades, dia.todasEfetivas); });
       container.appendChild(imprimirCompletoBtn);
 
+      var resumosPorGrupo = grupos.map(function (g) { return calcularResumoDia(g.atividades, dia.todasEfetivas); });
+      if (grupos.length > 1) container.insertAdjacentHTML('beforeend', resumoSessoesHtml(grupos, resumosPorGrupo, 'rtResumoSessoes'));
+
       grupos.forEach(function (grupo, gi) {
-        var resumo = calcularResumoDia(grupo.atividades, dia.todasEfetivas);
+        var resumo = resumosPorGrupo[gi];
 
         if (grupos.length > 1) {
           var sessaoHdr = document.createElement('h4');
