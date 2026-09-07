@@ -16,10 +16,13 @@
      roteiros-evento/<eventoKey>/atividades/<atvKey> = {
        diaKey, ordem, titulo, tipo, paiKey?,
        horaInicio, horaFim, duracaoMinutos,
-       descricao, objetivo, passoAPasso, dicasFacilitador, conexaoAgilidade,
+       objetivo, passoAPasso, dicasFacilitador, conexaoAgilidade,
        perguntasDebrief: [..], materiais: [..], preparacaoPrevia, observacoes,
        createdAt, updatedAt
      }
+     ("descricao" existiu antes e pode sobreviver em atividades antigas —
+     não é mais lido/gravado por nenhuma tela desde que o campo Descrição
+     saiu do formulário; um dado órfão inofensivo, não precisa migração.)
 
      "paiKey" é o que faz uma atividade virar sub-etapa de outra — mesma
      ficha completa de qualquer atividade (não uma versão reduzida): uma
@@ -88,9 +91,18 @@
           filho = primeiroPromovido || proxDepois;
           continue;
         }
+        /* Lidos ANTES de apagar os atributos: como vêm do getter já
+           interpretado da CSSOM (filho.style.*), só podem conter um valor
+           de cor/alinhamento válido de verdade — nunca algo executável
+           (url(), expression() etc.) — então é seguro reaplicar só esses
+           3 valores depois de zerar o atributo style inteiro. */
         var alinhamento = filho.style && filho.style.textAlign;
+        var cor = filho.style && filho.style.color;
+        var corFundo = filho.style && filho.style.backgroundColor;
         Array.prototype.slice.call(filho.attributes).forEach(function (attr) { filho.removeAttribute(attr.name); });
         if (RICO_ALINHAMENTOS.indexOf(alinhamento) !== -1) filho.style.textAlign = alinhamento;
+        if (cor) filho.style.color = cor;
+        if (corFundo) filho.style.backgroundColor = corFundo;
         limpar(filho);
         filho = filho.nextSibling;
       }
@@ -624,6 +636,9 @@
           '<button type="button" class="roteiro-rico-btn" data-cmd="justifyFull" title="Justificar">Justificar</button>' +
           '<span class="roteiro-rico-sep"></span>' +
           '<button type="button" class="roteiro-rico-btn" data-cmd="insertHTML" data-arg="<br><br>" title="Adicionar uma linha em branco">↵ Espaço</button>' +
+          '<span class="roteiro-rico-sep"></span>' +
+          '<label class="roteiro-rico-cor-wrap" title="Cor do texto">A<input type="color" class="roteiro-rico-cor" data-cmd="foreColor" value="#e8ecf5" /></label>' +
+          '<label class="roteiro-rico-cor-wrap" title="Cor de fundo (destacar)">🖊<input type="color" class="roteiro-rico-cor" data-cmd="hiliteColor" value="#f5c518" /></label>' +
         '</div>' +
         '<div id="' + id + '" class="roteiro-rico-area" contenteditable="true" data-placeholder="' + esc(placeholder || '') + '" style="min-height:' + minH + 'px">' +
           (valorHtmlInicial || '') +
@@ -663,7 +678,6 @@
         '<p style="font-size:.72rem;color:var(--ink-3);margin-top:4px">Preencha início + duração, início + fim, ou fim + duração — o terceiro campo se completa sozinho.</p>' +
         avisoFilhos) +
       bloco('Propósito',
-        campoRico('rfDescricao', 'Descrição', htmlRicoSeguro(a.descricao), 'O que acontece nesta atividade', 3) +
         campoRico('rfObjetivo', 'Objetivo', htmlRicoSeguro(a.objetivo), 'O que queremos que os participantes percebam, aprendam ou experimentem?', 3) +
         campoRico('rfConexao', 'Conexão com a mentalidade ágil', htmlRicoSeguro(a.conexaoAgilidade), 'Por que esta atividade existe', 3)) +
       bloco('Como conduzir',
@@ -699,6 +713,29 @@
     });
     Array.prototype.forEach.call(box.querySelectorAll('.roteiro-rico-area'), function (area) {
       area.addEventListener('keydown', function (e) { continuarMarcadorDigitado(e, area); tabNaCaixaRica(e, area); });
+    });
+    /* Cor do texto / cor de fundo: <input type="color"> abre o seletor
+       nativo do navegador (sem biblioteca nenhuma). Não dá pra prevenir o
+       mousedown aqui como nos outros botões — isso bloquearia o próprio
+       seletor de abrir — então a seleção de texto é guardada assim que o
+       clique começa e restaurada só na hora de aplicar a cor, depois que
+       o foco já passou pelo diálogo nativo e voltou. */
+    Array.prototype.forEach.call(box.querySelectorAll('.roteiro-rico-cor'), function (input) {
+      input.addEventListener('mousedown', function () {
+        var area = input.closest('.roteiro-rico').querySelector('.roteiro-rico-area');
+        var sel = window.getSelection();
+        input._area = area;
+        input._selecaoSalva = (sel.rangeCount && area.contains(sel.anchorNode)) ? sel.getRangeAt(0).cloneRange() : null;
+      });
+      input.addEventListener('input', function () {
+        if (!input._area || !input._selecaoSalva) return;
+        var sel = window.getSelection();
+        sel.removeAllRanges();
+        sel.addRange(input._selecaoSalva);
+        input._area.focus();
+        document.execCommand('styleWithCSS', false, true);
+        document.execCommand(input.getAttribute('data-cmd'), false, input.value);
+      });
     });
 
     [inicioEl, fimEl, duracaoEl].forEach(function (el) {
@@ -738,7 +775,7 @@
         titulo: titulo, tipo: $('#rfTipo').value,
         horaInicio: inicioEl.value || '', horaFim: fimEl.value || '',
         duracaoMinutos: duracaoEl.value ? Math.max(0, Number(duracaoEl.value)) : 0,
-        descricao: extrairTextoRico($('#rfDescricao')), objetivo: extrairTextoRico($('#rfObjetivo')),
+        objetivo: extrairTextoRico($('#rfObjetivo')),
         passoAPasso: extrairTextoRico($('#rfPasso')), dicasFacilitador: extrairTextoRico($('#rfDicas')),
         conexaoAgilidade: extrairTextoRico($('#rfConexao')),
         perguntasDebrief: extrairListaRico($('#rfDebrief')), materiais: extrairListaRico($('#rfMateriais')),
@@ -929,7 +966,6 @@
     var horario = (a.horaInicio || '—') + (a.horaFim ? '–' + a.horaFim : '');
     var camposHtml =
       campoImpressao('Objetivo', a.objetivo) +
-      campoImpressao('Descrição', a.descricao) +
       campoImpressao('Passo a passo', a.passoAPasso) +
       campoImpressao('Dicas para o facilitador', a.dicasFacilitador) +
       campoImpressao('Conexão com a agilidade', a.conexaoAgilidade) +
@@ -1447,7 +1483,6 @@
       var detalhes = document.createElement('div');
       detalhes.innerHTML =
         campoDetalhe('Objetivo', a.objetivo) +
-        campoDetalhe('Descrição', a.descricao) +
         campoDetalhe('Passo a passo', a.passoAPasso) +
         campoDetalhe('Dicas para o facilitador', a.dicasFacilitador) +
         campoDetalhe('Conexão com a agilidade', a.conexaoAgilidade) +
