@@ -1380,17 +1380,23 @@
     return '<div class="rp-campo"><strong>' + esc(label) + '</strong>' + conteudo + '</div>';
   }
 
-  function blocoAtividadeImpressao(a, numeroTxt, todasAtividades, paiTitulo) {
+  function blocoAtividadeImpressao(a, numeroTxt, todasAtividades, paiTitulo, apenasPassoAPasso) {
     var ehSub = numeroTxt.indexOf('.') !== -1;
     var horario = a.horaInicio ? (a.horaInicio + (a.horaFim ? '–' + a.horaFim : '')) : (ehSub ? '' : '—');
-    var camposHtml =
-      campoImpressao('Objetivo', a.objetivo) +
-      campoImpressao('Passo a passo', a.passoAPasso) +
-      campoImpressao('Dicas para o facilitador', a.dicasFacilitador) +
-      campoImpressao('Conexão com a agilidade', a.conexaoAgilidade) +
-      campoImpressao('Materiais necessários', a.materiais) +
-      campoImpressao('Preparação prévia', a.preparacaoPrevia) +
-      campoImpressao('Observações', a.observacoes);
+    /* apenasPassoAPasso (usado por imprimirRoteiroPassoAPasso) esconde os
+       campos de preparação/reflexão do facilitador (Objetivo, Dicas,
+       Conexão com a agilidade, Materiais, Preparação prévia, Observações)
+       — pensado pra uma versão mais enxuta pra distribuir/levar impressa
+       com só a instrução do que fazer, sem as notas internas. */
+    var camposHtml = apenasPassoAPasso
+      ? campoImpressao('Passo a passo', a.passoAPasso)
+      : campoImpressao('Objetivo', a.objetivo) +
+        campoImpressao('Passo a passo', a.passoAPasso) +
+        campoImpressao('Dicas para o facilitador', a.dicasFacilitador) +
+        campoImpressao('Conexão com a agilidade', a.conexaoAgilidade) +
+        campoImpressao('Materiais necessários', a.materiais) +
+        campoImpressao('Preparação prévia', a.preparacaoPrevia) +
+        campoImpressao('Observações', a.observacoes);
     /* §121: campo sem valor simplesmente não aparece — nunca um aviso de
        "nenhum campo preenchido"; se só título+duração existem, o bloco
        para por aí mesmo. §122: repete o título da seção-mãe em cada
@@ -1425,6 +1431,56 @@
         corpo += blocoAtividadeImpressao(a, String(i + 1), todasAtividades);
         filhosDe(todasAtividades, a.key).forEach(function (sub, j) {
           corpo += blocoAtividadeImpressao(sub, (i + 1) + '.' + (j + 1), todasAtividades, a.titulo);
+        });
+      });
+    });
+
+    abrirJanelaImpressao(
+      tituloContexto + (dia.titulo ? ' — ' + dia.titulo : ''),
+      '.rp-atv{padding:14px 18px;margin-bottom:12px;}' +
+      '.rp-atv h3{margin:0;font-family:"Oswald",Arial,sans-serif;font-weight:600;font-size:1.05rem;color:var(--pink);page-break-after:avoid;break-after:avoid-page;}' +
+      '.rp-atv-sub{margin-left:28px;background:var(--ppanel);border-color:var(--pline);}' +
+      '.rp-tipo{font-weight:400;color:var(--pink3);font-size:.82rem;}' +
+      '.rp-atv-meta{font-size:.78rem;color:var(--pcyan);margin:4px 0 10px;font-family:"Oswald",Arial,sans-serif;letter-spacing:.02em;page-break-after:avoid;break-after:avoid-page;}' +
+      '.rp-campo{margin-bottom:10px;font-size:.85rem;color:var(--pink2);}' +
+      '.rp-campo strong{display:block;font-size:.66rem;letter-spacing:.08em;text-transform:uppercase;color:var(--pgold);margin-bottom:3px;font-family:"Oswald",Arial,sans-serif;page-break-after:avoid;break-after:avoid-page;}' +
+      '.rp-campo-txt{margin:0;}' +
+      '.rp-campo-txt div, .rp-campo-txt p{margin:0 0 4px;}' +
+      '.rp-campo-txt div:last-child, .rp-campo-txt p:last-child{margin-bottom:0;}' +
+      '.rp-campo ul{margin:2px 0 0 18px;padding:0;}' +
+      '.rp-contexto{font-size:.72rem;color:var(--pink3);font-style:italic;margin-bottom:4px;page-break-after:avoid;break-after:avoid-page;}' +
+      '.rp-gap-bloco{border:1px dashed rgba(255,138,92,.5);background:rgba(255,138,92,.12);color:#ffb37e;font-style:italic;font-size:.82rem;padding:8px 14px;border-radius:8px;margin-bottom:12px;}',
+      corpo
+    );
+  }
+
+  /* Impressão "passo a passo": igual ao Roteiro completo (mesmo cartão
+     por atividade/etapa, mesmo resumo do dia), mas cada bloco mostra só
+     o campo "Passo a passo" — sem Objetivo, Dicas para o facilitador,
+     Conexão com a agilidade, Materiais, Preparação prévia ou Observações.
+     Pensada pra uma versão mais enxuta pra levar impressa ou distribuir
+     com um co-facilitador, sem as notas internas de preparo/reflexão. */
+  function imprimirRoteiroPassoAPasso(tituloContexto, dia, atividadesTopo, todasAtividades) {
+    todasAtividades = todasAtividades || atividadesTopo;
+    var geradoEm = new Date().toLocaleString('pt-BR');
+    var grupos = agruparPorSessao(atividadesTopo, todasAtividades);
+    if (!grupos.length) grupos.push({ nome: '', atividades: [] });
+    var corpo = '<h1>' + esc(tituloContexto) + (dia.titulo ? ' — ' + esc(dia.titulo) : '') + '</h1>' +
+      '<div class="rp-meta">Roteiro — passo a passo (sem os demais campos internos) · Gerado em ' + esc(geradoEm) + '</div>';
+
+    var resumosPorGrupo = grupos.map(function (g) { return calcularResumoDia(g.atividades, todasAtividades); });
+    if (grupos.length > 1) corpo += resumoSessoesImpressaoHtml(grupos, resumosPorGrupo);
+
+    grupos.forEach(function (grupo, gi) {
+      var resumo = resumosPorGrupo[gi];
+      if (grupos.length > 1) corpo += '<div class="rp-sessao-hdr">' + esc(grupo.nome || 'Sem sessão definida') + '</div>';
+      corpo += resumoImpressaoHtml(resumo, grupos.length > 1);
+      grupo.atividades.forEach(function (a, i) {
+        var gapAntes = resumo.gaps.filter(function (g) { return g.fimMin === hhmmParaMin(a.horaInicio); })[0];
+        if (gapAntes) corpo += '<div class="rp-gap-bloco">⚠ Lacuna: ' + esc(minParaHhmm(gapAntes.inicioMin)) + '–' + esc(minParaHhmm(gapAntes.fimMin)) + ' (' + esc(fmtDuracao(gapAntes.min)) + ' sem atividade programada)</div>';
+        corpo += blocoAtividadeImpressao(a, String(i + 1), todasAtividades, null, true);
+        filhosDe(todasAtividades, a.key).forEach(function (sub, j) {
+          corpo += blocoAtividadeImpressao(sub, (i + 1) + '.' + (j + 1), todasAtividades, a.titulo, true);
         });
       });
     });
@@ -1556,6 +1612,12 @@
       imprimirCompletoBtn.innerHTML = '&#x1F5A8; Roteiro completo';
       imprimirCompletoBtn.title = 'Abre uma janela de impressão com um bloco por atividade e etapa, trazendo todo o conteúdo de facilitação preenchido — pode salvar como PDF.';
       imprimirCompletoBtn.addEventListener('click', function () { imprimirRoteiroCompleto('Roteiro-base', dia, atividadesTopo, atividadesDia); });
+      var imprimirPassoAPassoBtn = document.createElement('button');
+      imprimirPassoAPassoBtn.className = 'btn btn--sm';
+      imprimirPassoAPassoBtn.style.cssText = 'padding:6px 10px;font-size:.72rem';
+      imprimirPassoAPassoBtn.innerHTML = '&#x1F5A8; Passo a passo';
+      imprimirPassoAPassoBtn.title = 'Abre uma janela de impressão com um bloco por atividade e etapa, só com o campo "Passo a passo" — sem objetivo, dicas, conexão com a agilidade e demais campos internos — pode salvar como PDF.';
+      imprimirPassoAPassoBtn.addEventListener('click', function () { imprimirRoteiroPassoAPasso('Roteiro-base', dia, atividadesTopo, atividadesDia); });
       var delDiaBtn = document.createElement('button');
       delDiaBtn.className = 'btn btn--sm';
       delDiaBtn.style.cssText = 'padding:6px 10px;font-size:.72rem;border-color:rgba(255,80,80,.5);color:#ff8080';
@@ -1569,6 +1631,7 @@
       diaHdr.appendChild(renameInput);
       diaHdr.appendChild(imprimirBtn);
       diaHdr.appendChild(imprimirCompletoBtn);
+      diaHdr.appendChild(imprimirPassoAPassoBtn);
       diaHdr.appendChild(delDiaBtn);
       container.appendChild(diaHdr);
 
@@ -1858,6 +1921,14 @@
       imprimirCompletoBtn.title = 'Abre uma janela de impressão com um bloco por atividade e etapa, trazendo todo o conteúdo de facilitação preenchido — pode salvar como PDF.';
       imprimirCompletoBtn.addEventListener('click', function () { imprimirRoteiroCompleto('Roteiro — ' + (turma.label || ''), { titulo: 'Dia ' + dia.numero }, dia.atividades, dia.todasEfetivas); });
       container.appendChild(imprimirCompletoBtn);
+
+      var imprimirPassoAPassoBtn = document.createElement('button');
+      imprimirPassoAPassoBtn.className = 'btn btn--sm';
+      imprimirPassoAPassoBtn.style.cssText = 'padding:5px 10px;font-size:.72rem;margin-bottom:12px;margin-left:8px';
+      imprimirPassoAPassoBtn.innerHTML = '&#x1F5A8; Passo a passo';
+      imprimirPassoAPassoBtn.title = 'Abre uma janela de impressão com um bloco por atividade e etapa, só com o campo "Passo a passo" — sem objetivo, dicas, conexão com a agilidade e demais campos internos — pode salvar como PDF.';
+      imprimirPassoAPassoBtn.addEventListener('click', function () { imprimirRoteiroPassoAPasso('Roteiro — ' + (turma.label || ''), { titulo: 'Dia ' + dia.numero }, dia.atividades, dia.todasEfetivas); });
+      container.appendChild(imprimirPassoAPassoBtn);
 
       var resumosPorGrupo = grupos.map(function (g) { return calcularResumoDia(g.atividades, dia.todasEfetivas); });
       if (grupos.length > 1) container.insertAdjacentHTML('beforeend', resumoSessoesHtml(grupos, resumosPorGrupo, 'rtResumoSessoes'));
