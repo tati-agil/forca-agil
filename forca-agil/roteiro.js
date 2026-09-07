@@ -678,7 +678,13 @@
      UI — form de atividade (compartilhado: base, customização, exclusiva)
      ══════════════════════════════════════════════════════════════ */
 
-  var TIPOS = ['Abertura', 'Conteúdo', 'Dinâmica', 'Discussão', 'Atividade em grupo', 'Exercício', 'Debrief', 'Intervalo', 'Fechamento', 'Outro'];
+  /* "Intervalo" é o único tipo com efeito no cálculo (conta em Pausas —
+     ver somaPausas) e no destaque visual da linha (badge laranja) — os
+     demais são só rótulos livres. Uma atividade antiga com um tipo que
+     saiu desta lista (ex: "Debrief", "Outro") não quebra: o <select>
+     simplesmente não pré-seleciona nada até a pessoa escolher um tipo
+     novo e salvar. */
+  var TIPOS = ['Abertura', 'Ambientação', 'Briefing', 'Dinâmica', 'Sinal/Evidência', 'Provocação', 'Reflexão', 'Conceituação', 'Discussão', 'Transição', 'Experimentação com IA', 'Compromisso', 'Fechamento', 'Intervalo'];
 
   function bloco(titulo, innerHtml) {
     return '<div class="roteiro-form-bloco">' +
@@ -1241,15 +1247,32 @@
       '<link href="https://fonts.googleapis.com/css2?family=Anton&family=Oswald:wght@400;500;600;700&family=Barlow:wght@400;500;600;700&display=swap" rel="stylesheet">' +
       '<style>' +
       ':root{--pspace:#03050d;--ppanel:#0c1528;--ppanel2:#101c34;--pline:rgba(120,160,220,.28);--plines:rgba(120,160,220,.5);--pgold:#f5c518;--pcyan:#18c2ba;--pink:#eaf1ff;--pink2:#b8c6e4;--pink3:#8fa0c4;}' +
+      /* "Modo econômico" (checkbox em .rp-actions, nunca impresso) troca só
+         estas variáveis por tons claros — como o resto da folha de estilo
+         inteira já é montada em cima de var(--p...), a troca se propaga
+         sozinha pra cada cartão/rótulo/tabela sem duplicar regra nenhuma.
+         Existem só 3 exceções que usam cor fixa (não var()) porque são
+         avisos com opacidade sobre o fundo, não texto de rótulo — essas
+         precisam de um valor de texto mais escuro à parte pra continuar
+         legíveis num fundo claro. */
+      'html.rp-eco,body.rp-eco{--pspace:#fdfdfb;--ppanel:#f0f0ec;--ppanel2:#ffffff;--pline:rgba(0,0,0,.12);--plines:rgba(0,0,0,.25);--pgold:#8a6d00;--pcyan:#0e7f78;--pink:#181818;--pink2:#333333;--pink3:#555555;}' +
+      'body.rp-eco .rp-sobreposicao{color:#a33;}' +
+      'body.rp-eco .rp-gap td{color:#a35a2a;}' +
+      'body.rp-eco .rp-gap-bloco{color:#a35a2a;}' +
       '*{box-sizing:border-box;}' +
       'html,body{background:var(--pspace);}' +
       'body{font-family:"Barlow",Arial,Helvetica,sans-serif;color:var(--pink);margin:0;padding:24px;-webkit-print-color-adjust:exact;print-color-adjust:exact;}' +
-      '.rp-brand{display:flex;align-items:center;gap:10px;background:var(--ppanel2);border:1px solid rgba(245,197,24,.4);color:var(--pink);padding:12px 18px;border-radius:10px;margin-bottom:20px;page-break-after:avoid;break-after:avoid-page;page-break-inside:avoid;break-inside:avoid-page;}' +
-      '.rp-brand-mark{width:26px;height:26px;flex:none;color:var(--pgold);}' +
+      /* A faixa de marca usa cor FIXA (não var(--p...)) de propósito: é a
+         logo de verdade do site, não um elemento de conteúdo — continua
+         com as cores originais (navy escuro, dourado, ciano) mesmo no
+         "modo econômico", igual ao cabeçalho do site nunca ter versão
+         clara. É uma faixa só, gasta pouquíssima tinta. */
+      '.rp-brand{display:flex;align-items:center;gap:10px;background:#101c34;border:1px solid rgba(245,197,24,.4);color:#eaf1ff;padding:12px 18px;border-radius:10px;margin-bottom:20px;page-break-after:avoid;break-after:avoid-page;page-break-inside:avoid;break-inside:avoid-page;}' +
+      '.rp-brand-mark{width:26px;height:26px;flex:none;color:#f5c518;}' +
       '.rp-brand-text{display:flex;flex-direction:column;line-height:1.2;}' +
       '.rp-brand-name{font-family:"Anton","Oswald",Arial,sans-serif;font-size:1.05rem;letter-spacing:.1em;text-transform:uppercase;}' +
-      '.rp-brand-name b{color:var(--pgold);font-weight:inherit;}' +
-      '.rp-brand-sub{font-family:"Oswald",Arial,sans-serif;font-size:.6rem;letter-spacing:.14em;color:var(--pcyan);margin-top:2px;}' +
+      '.rp-brand-name b{color:#f5c518;font-weight:inherit;}' +
+      '.rp-brand-sub{font-family:"Oswald",Arial,sans-serif;font-size:.6rem;letter-spacing:.14em;color:#18c2ba;margin-top:2px;}' +
       'h1{font-family:"Oswald",Arial,sans-serif;font-weight:600;font-size:1.3rem;margin:0 0 4px;color:var(--pgold);letter-spacing:.02em;}' +
       '.rp-meta{font-size:.85rem;color:var(--pink3);margin-bottom:18px;}' +
       '.rp-sessao-hdr{font-family:"Oswald",Arial,sans-serif;font-size:1.02rem;font-weight:600;letter-spacing:.05em;text-transform:uppercase;color:var(--pgold);margin:20px 0 8px;padding-top:16px;border-top:1px solid var(--plines);page-break-after:avoid;break-after:avoid-page;}' +
@@ -1265,12 +1288,14 @@
       '.rp-actions{margin-bottom:20px;display:flex;align-items:center;gap:14px;flex-wrap:wrap;}' +
       '#rp-print-btn{font-family:"Oswald",Arial,sans-serif;letter-spacing:.05em;text-transform:uppercase;font-size:.76rem;padding:9px 18px;border-radius:8px;border:1px solid var(--pgold);background:var(--ppanel2);color:var(--pgold);cursor:pointer;}' +
       '.rp-dica{font-size:.74rem;color:var(--pink3);}' +
+      '.rp-eco-toggle{display:flex;align-items:center;gap:6px;font-size:.76rem;color:var(--pink2);cursor:pointer;}' +
       estiloExtra +
       '@media print{.rp-actions{display:none;} body{padding:10px;}}' +
       '@page{size:A4 portrait;margin:14mm;}' +
       '</style></head><body>' +
       '<div class="rp-actions"><button id="rp-print-btn">Imprimir / salvar como PDF</button>' +
-        '<span class="rp-dica">Dica: nas opções de impressão do navegador, desmarque "Cabeçalhos e rodapés" e marque "Gráficos de fundo" (ou "Imprimir cores e imagens de fundo") — sem essa opção o fundo escuro sai branco na exportação.</span></div>' +
+        '<label class="rp-eco-toggle"><input type="checkbox" id="rp-eco-toggle"> Modo econômico (fundo claro, menos tinta)</label>' +
+        '<span class="rp-dica">Dica: nas opções de impressão do navegador, desmarque "Cabeçalhos e rodapés"; se for imprimir em papel de verdade, marque "Modo econômico" aqui em cima antes — senão marque "Gráficos de fundo" (ou "Imprimir cores e imagens de fundo") pra sair igual à tela.</span></div>' +
       logoImpressaoHtml() +
       corpoHtml +
       '</body></html>';
@@ -1283,6 +1308,19 @@
     try { win.history.replaceState(null, '', 'roteiro-impressao.html'); } catch (err) { /* mesma origem devia deixar; sem isso só fica about:blank mesmo */ }
     var printBtn = win.document.getElementById('rp-print-btn');
     if (printBtn) printBtn.addEventListener('click', function () { win.print(); });
+    /* "Modo econômico" troca as variáveis de cor pra tons claros (ver
+       comentário acima, no :root) — pensado pra quem vai imprimir em
+       papel de verdade e não quer gastar tinta com o fundo escuro do
+       tema do site; sem marcar, a exportação sai fiel ao site (o padrão,
+       pensado pra quem vai reler o PDF numa tela). Aplica em <html> e
+       <body> porque a variável CSS só herda pra baixo na árvore — só no
+       body, o fundo do <html> (visível se a página for mais curta que a
+       janela) continuaria escuro. */
+    var ecoToggle = win.document.getElementById('rp-eco-toggle');
+    if (ecoToggle) ecoToggle.addEventListener('change', function () {
+      win.document.documentElement.classList.toggle('rp-eco', ecoToggle.checked);
+      win.document.body.classList.toggle('rp-eco', ecoToggle.checked);
+    });
     return win;
   }
 
