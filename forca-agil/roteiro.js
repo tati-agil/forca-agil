@@ -1611,6 +1611,68 @@
       '<span style="width:120px">Tipo</span><span style="width:64px">Duração</span><span style="margin-left:auto">Ações</span></div>';
   }
 
+  /* Importação pontual dos "Resultado esperado" do roteiro-base "FORÇA
+     ÁGIL - DIRETORES" (pedido único, 31 atividades incluindo
+     sub-etapas — Manhã + Tarde). Casamento por título exato: nunca
+     sobrescreve nada além do campo resultadoEsperado, nunca adivinha
+     quando o título não bate com nenhuma atividade ou bate com mais de
+     uma. O botão que aciona isso (em renderRoteiroBaseEditor) só
+     aparece nos roteiros que já têm a atividade-âncora abaixo — não
+     polui o editor de nenhum outro evento. */
+  var RESULTADOS_ESPERADOS_DIRETORES_ANCORA = 'EPISÓDIO FINAL — O COMPROMISSO DA LIDERANÇA';
+  var RESULTADOS_ESPERADOS_DIRETORES = [
+    { titulo: 'ABERTURA', resultado: 'Participantes imersos na missão, conscientes de seu papel como Conselho e preparados para tomar decisões ao longo da experiência.' },
+    { titulo: 'Imersão no Storytelling', resultado: 'Participantes entram na narrativa da missão e compreendem, de forma implícita, que existe um propósito claro sem que todo o caminho seja conhecido antecipadamente.' },
+    { titulo: 'Entrando no modo Missão', resultado: 'Participantes deixam as distrações de lado, direcionam a atenção para a experiência e entram na missão mais disponíveis para observar sinais antes de reagir.' },
+    { titulo: 'Instruções Iniciais', resultado: 'Participantes compreendem a missão, as regras, as restrições e sua autonomia para decidir, sem receber antecipadamente a explicação dos conceitos que serão vivenciados.' },
+    { titulo: 'DESAFIO 1: ESCOLHAM', resultado: '8 iniciativas priorizadas pelo Conselho, cada uma ocupando 1 Cristal de Capacidade.' },
+    { titulo: 'CONGELAR O PLANO', resultado: 'Plano inicial registrado em FAREMOS/NÃO FAREMOS e nível de confiança declarado pelo Conselho.' },
+    { titulo: 'DESAFIO 2: O MUNDO MUDA', resultado: 'Plano final consolidado após os sinais da realidade, com as mudanças realizadas visíveis e comparáveis ao plano inicial.' },
+    { titulo: 'Apresentação do desafio', resultado: 'Conselho preparado para receber novas informações e decidir com base no que sabe naquele momento, sem antecipar o propósito das transmissões.' },
+    { titulo: 'Transmissão da Missão 1 — Sinal da Realidade', resultado: 'Decisão do Conselho após o primeiro sinal registrada: manter as escolhas ou trocar de 0 a 2 iniciativas, com justificativa baseada na nova informação.' },
+    { titulo: 'Transmissão da Missão 2 — Sinal da Realidade', resultado: 'Decisão do Conselho após o segundo sinal registrada, evidenciando se a nova informação foi suficiente para manter ou rever alguma aposta.' },
+    { titulo: 'Transmissão da Missão 3 — Sinal da Realidade', resultado: 'Decisão do Conselho após o terceiro sinal registrada, tornando visível o impacto de prazo, dependências e risco sobre as apostas escolhidas.' },
+    { titulo: 'Transmissão da Missão 4 — Sinal da Realidade', resultado: 'Conselho decide o que vale testar em pequena escala diante da nova possibilidade, sem receber uma solução pronta.' },
+    { titulo: 'Consolidação das escolhas e transição para a reflexão', resultado: 'Plano final do Conselho registrado e visualmente comparável ao plano inicial, com o histórico das principais mudanças preservado para a reflexão.' },
+    { titulo: 'A PRIMEIRA REFLEXÃO', resultado: 'Grupo identifica como as informações disponíveis influenciaram suas decisões e reconhece o que sustentou a manutenção ou revisão das apostas.' },
+    { titulo: 'A BOMBA', resultado: 'Grupo diferencia o resultado que deseja produzir das iniciativas escolhidas e percebe que soluções são apostas, não o compromisso final.' },
+    { titulo: 'DESAFIO 3: PAREM DE PENSAR EM PROJETOS', resultado: 'Uma aposta pequena e testável estruturada em Problema, Hipótese, Experimento e Evidência.' },
+    { titulo: 'O MOMENTO DE IMPACTO', resultado: 'Participantes explicitam o que gerou segurança durante a experiência e reconhecem o valor de aprender e reduzir incerteza antes de aumentar o investimento.' },
+    { titulo: 'AGORA DÊ NOME AO QUE ELES FIZERAM', resultado: 'Participantes reconhecem e nomeiam, a partir da própria experiência, os elementos de mentalidade ágil que utilizaram: foco, priorização, feedback, adaptação, experimentação, evidência, redução de risco e orientação a resultado.' },
+    { titulo: 'CONVERSA EXECUTIVA', resultado: 'Pelo menos uma conexão concreta entre a experiência vivida e uma situação real da organização em que seja possível aprender antes de ampliar uma aposta.' },
+    { titulo: 'ENCERRAMENTO DO EPISÓDIO I', resultado: 'Grupo encerra a manhã com uma síntese da mentalidade ágil vivenciada e curiosidade sobre como um copiloto de IA pode ampliar a análise sem assumir a decisão.' },
+    { titulo: 'RETOMADA', resultado: 'Grupo retoma os aprendizados da manhã, reconecta-se ao ciclo Problema → Hipótese → Experimento → Evidência → Decisão e compreende a IA como copiloto, não piloto.' },
+    { titulo: 'DECISÃO SEM IA', resultado: 'Decisões individuais registradas e uma única APOSTA-BASE DO CONSELHO definida antes de qualquer influência da IA.' },
+    { titulo: 'FORMAR 3 DUPLAS', resultado: 'Três duplas formadas, todas alinhadas sobre a mesma aposta-base e conscientes da lente específica que utilizarão na análise.' },
+    { titulo: 'PRIMEIRO USO DA IA', resultado: 'Três análises complementares da mesma aposta-base produzidas com IA: uma para defender, uma para desafiar e uma para investigar o que ainda não sabemos.' },
+    { titulo: 'AGORA VAMOS DESCONFIAR DA IA', resultado: 'Pelo menos três afirmações, conclusões, riscos ou hipóteses da IA classificados criticamente como VERDE, AMARELO ou VERMELHO com justificativa.' },
+    { titulo: 'REUNIÃO DO CONSELHO', resultado: 'Uma APOSTA FINAL DO CONSELHO registrada após considerar argumentos favoráveis, riscos, desconhecidos e limites das análises produzidas com IA.' },
+    { titulo: 'O TESTE DA APOSTA', resultado: 'A aposta final é testada pelo Conselho contra problema, evidências, suposições, menor forma de testar e critérios que indicariam manter, ajustar ou abandonar a decisão.' },
+    { titulo: 'FAÇA A COMPARAÇÃO', resultado: 'Grupo compara a aposta-base sem IA com a aposta final e identifica claramente o que mudou, o que permaneceu, o que a IA ajudou a enxergar e o que ainda precisa ser verificado.' },
+    { titulo: 'A VIRADA PARA A LIDERANÇA', resultado: 'Diretores conectam o aprendizado da dinâmica às próprias decisões de liderança e identificam perguntas adicionais sobre problema, evidência, aprendizado, risco e resultado.' },
+    { titulo: 'FECHAMENTO INDIVIDUAL', resultado: 'Cada diretor registra uma mudança concreta de comportamento: algo que fará menos, algo que passará a fazer e uma ação que pode começar imediatamente.' },
+    { titulo: RESULTADOS_ESPERADOS_DIRETORES_ANCORA, resultado: 'Declaração coletiva do Conselho registrada sobre como a liderança pretende lidar com incerteza, evidências, aprendizado, adaptação e responsabilidade pelas decisões.' }
+  ];
+  function importarResultadosEsperadosDiretores(eventoKey, atividades, cb) {
+    var porTitulo = {};
+    atividades.forEach(function (a) {
+      var t = (a.titulo || '').trim();
+      (porTitulo[t] = porTitulo[t] || []).push(a);
+    });
+    var atualizados = 0, naoEncontrados = [], duplicados = [];
+    var pendentes = RESULTADOS_ESPERADOS_DIRETORES.length;
+    function fim() { cb({ atualizados: atualizados, naoEncontrados: naoEncontrados, duplicados: duplicados }); }
+    RESULTADOS_ESPERADOS_DIRETORES.forEach(function (item) {
+      var lista = porTitulo[item.titulo] || [];
+      if (!lista.length) { naoEncontrados.push(item.titulo); if (!--pendentes) fim(); return; }
+      if (lista.length > 1) { duplicados.push(item.titulo); if (!--pendentes) fim(); return; }
+      editarAtividade(eventoKey, lista[0].key, { resultadoEsperado: item.resultado }, function (err) {
+        if (!err) atualizados++;
+        if (!--pendentes) fim();
+      });
+    });
+  }
+
   function renderRoteiroBaseEditor(container, eventoKey) {
     var diaAtivoKey = null;
 
@@ -1713,6 +1775,26 @@
       imprimirPassoAPassoBtn.innerHTML = '&#x1F5A8; Passo a passo';
       imprimirPassoAPassoBtn.title = 'Abre uma janela de impressão com um bloco por atividade e etapa, só com o campo "Passo a passo" — sem objetivo, dicas, conexão com a agilidade e demais campos internos — pode salvar como PDF.';
       imprimirPassoAPassoBtn.addEventListener('click', function () { imprimirRoteiroPassoAPasso('Roteiro-base', dia, atividadesTopo, atividadesDia); });
+      var temAncoraImportacao = roteiro.atividades.some(function (a) { return (a.titulo || '').trim() === RESULTADOS_ESPERADOS_DIRETORES_ANCORA; });
+      var importarResultadosBtn = null;
+      if (temAncoraImportacao) {
+        importarResultadosBtn = document.createElement('button');
+        importarResultadosBtn.className = 'btn btn--sm';
+        importarResultadosBtn.style.cssText = 'padding:6px 10px;font-size:.72rem';
+        importarResultadosBtn.textContent = '📥 Importar resultados esperados';
+        importarResultadosBtn.title = 'Preenche o campo "Resultado esperado" das 31 atividades deste roteiro (Manhã + Tarde, incluindo sub-etapas) com o texto já revisado. Ação pontual — pode rodar de novo sem duplicar nada, mas sobrescreve o que já estiver preenchido nesse campo.';
+        importarResultadosBtn.addEventListener('click', function () {
+          confirmDialog('Isso vai preencher (ou sobrescrever) o campo "Resultado esperado" de até 31 atividades deste roteiro. Continuar?', function () {
+            importarResultadosEsperadosDiretores(eventoKey, roteiro.atividades, function (relatorio) {
+              var msg = 'Atualizados: ' + relatorio.atualizados + ' de ' + RESULTADOS_ESPERADOS_DIRETORES.length + '.';
+              if (relatorio.naoEncontrados.length) msg += '\n\nNão encontrados (título não bateu com nenhuma atividade):\n- ' + relatorio.naoEncontrados.join('\n- ');
+              if (relatorio.duplicados.length) msg += '\n\nTítulos duplicados no roteiro (ignorados, resolva manualmente):\n- ' + relatorio.duplicados.join('\n- ');
+              alertDialog(msg);
+              reload();
+            });
+          });
+        });
+      }
       var delDiaBtn = document.createElement('button');
       delDiaBtn.className = 'btn btn--sm';
       delDiaBtn.style.cssText = 'padding:6px 10px;font-size:.72rem;border-color:rgba(255,80,80,.5);color:#ff8080';
@@ -1727,6 +1809,7 @@
       diaHdr.appendChild(imprimirBtn);
       diaHdr.appendChild(imprimirCompletoBtn);
       diaHdr.appendChild(imprimirPassoAPassoBtn);
+      if (importarResultadosBtn) diaHdr.appendChild(importarResultadosBtn);
       diaHdr.appendChild(delDiaBtn);
       container.appendChild(diaHdr);
 
