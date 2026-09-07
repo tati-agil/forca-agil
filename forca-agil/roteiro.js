@@ -164,8 +164,14 @@
     preRange.selectNodeContents(blocoEl);
     preRange.setEnd(range.startContainer, range.startOffset);
     var textoAntes = preRange.toString();
-    var mNum = textoAntes.match(/^(\s*)(\d+)([.)])[ \t](.*)$/);
-    var mMarcador = !mNum && textoAntes.match(/^(\s*)([•\-])[ \t](.*)$/);
+    /* SEPARADOR inclui \u00A0 (espaco nao separavel): contenteditable
+       costuma trocar o espaco digitado no fim de uma linha por um espaco
+       nao separavel, pra nao ser colapsado -- sem aceitar esse caractere
+       aqui, "1. " recem-digitado nunca batia com o regex e a numeracao
+       nunca continuava. */
+    var SEPARADOR = '[ \\t\\u00A0]+';
+    var mNum = textoAntes.match(new RegExp('^(\\s*)(\\d+)([.)])' + SEPARADOR + '(.*)$'));
+    var mMarcador = !mNum && textoAntes.match(new RegExp('^(\\s*)([•\\-])' + SEPARADOR + '(.*)$'));
     if (!mNum && !mMarcador) return; /* deixa o Enter padrão do navegador acontecer */
     e.preventDefault();
     var resto = mNum ? mNum[4] : mMarcador[3];
@@ -181,6 +187,30 @@
       : (mMarcador[1] + mMarcador[2] + ' ');
     document.execCommand('insertParagraph');
     document.execCommand('insertText', false, prefixo);
+  }
+
+  /* Tab dentro da caixa de texto rica — sem isso, Tab pula o foco pro
+     próximo campo do formulário (comportamento padrão do navegador em
+     qualquer elemento focável), o que atrapalha quem quer indentar uma
+     lista. Dentro de um <li> de verdade, Tab/Shift+Tab indenta/recua o
+     item (padrão de qualquer editor de lista); fora de uma lista, Tab
+     insere um recuo visual na posição do cursor. */
+  function tabNaCaixaRica(e, area) {
+    if (e.key !== 'Tab') return;
+    e.preventDefault();
+    var sel = window.getSelection();
+    if (!sel.rangeCount) return;
+    var node = sel.anchorNode;
+    var dentroDeLi = false;
+    while (node && node !== area) {
+      if (node.nodeType === 1 && node.tagName === 'LI') { dentroDeLi = true; break; }
+      node = node.parentNode;
+    }
+    if (dentroDeLi) {
+      document.execCommand(e.shiftKey ? 'outdent' : 'indent');
+    } else if (!e.shiftKey) {
+      document.execCommand('insertText', false, '    ');
+    }
   }
 
   /* ---- Diálogos (mesmo visual do admin, duplicado aqui: roteiro.js é
@@ -668,7 +698,7 @@
       });
     });
     Array.prototype.forEach.call(box.querySelectorAll('.roteiro-rico-area'), function (area) {
-      area.addEventListener('keydown', function (e) { continuarMarcadorDigitado(e, area); });
+      area.addEventListener('keydown', function (e) { continuarMarcadorDigitado(e, area); tabNaCaixaRica(e, area); });
     });
 
     [inicioEl, fimEl, duracaoEl].forEach(function (el) {
