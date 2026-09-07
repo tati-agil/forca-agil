@@ -684,7 +684,7 @@
      saiu desta lista (ex: "Debrief", "Outro") não quebra: o <select>
      simplesmente não pré-seleciona nada até a pessoa escolher um tipo
      novo e salvar. */
-  var TIPOS = ['Abertura', 'Ambientação', 'Briefing', 'Dinâmica', 'Sinal/Evidência', 'Provocação', 'Reflexão', 'Conceituação', 'Discussão', 'Transição', 'Experimentação com IA', 'Compromisso', 'Fechamento', 'Intervalo'];
+  var TIPOS = ['Abertura', 'Ambientação', 'Briefing', 'Compromisso', 'Conceituação', 'Dinâmica', 'Discussão', 'Experimentação com IA', 'Fechamento', 'Intervalo', 'Provocação', 'Reflexão', 'Sinal/Evidência', 'Transição'];
 
   function bloco(titulo, innerHtml) {
     return '<div class="roteiro-form-bloco">' +
