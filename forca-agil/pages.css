@@ -410,6 +410,15 @@
 }
 .roteiro-rico-btn:hover { background: var(--panel); border-color: var(--line-strong); color: var(--ink); }
 .roteiro-rico-sep { width: 1px; background: var(--line-strong); margin: 2px 4px; }
+.roteiro-rico-cor-wrap {
+  display: flex; align-items: center; gap: 4px; padding: 3px 6px; border-radius: 4px;
+  cursor: pointer; color: var(--ink-2); font-size: .78rem; font-weight: 700;
+}
+.roteiro-rico-cor-wrap:hover { background: var(--panel); color: var(--ink); }
+.roteiro-rico-cor { width: 18px; height: 18px; padding: 0; border: 1px solid var(--line-strong); border-radius: 3px; cursor: pointer; background: none; }
+.roteiro-rico-cor::-webkit-color-swatch-wrapper { padding: 0; }
+.roteiro-rico-cor::-webkit-color-swatch { border: none; border-radius: 2px; }
+.roteiro-rico-cor::-moz-color-swatch { border: none; border-radius: 2px; }
 .roteiro-rico-area {
   padding: 8px 10px; color: var(--ink); font-family: var(--font-body); font-size: .92rem;
   line-height: 1.5; outline: none; overflow-y: auto;
