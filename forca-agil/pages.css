@@ -427,6 +427,11 @@
 .roteiro-rico-cor::-webkit-color-swatch-wrapper { padding: 0; }
 .roteiro-rico-cor::-webkit-color-swatch { border: none; border-radius: 2px; }
 .roteiro-rico-cor::-moz-color-swatch { border: none; border-radius: 2px; }
+.roteiro-rico-tamanho {
+  background: none; border: 1px solid var(--line-strong); border-radius: 4px; color: var(--ink-2);
+  font-size: .72rem; padding: 2px 4px; cursor: pointer; font-family: var(--font-body);
+}
+.roteiro-rico-tamanho:hover { background: var(--panel); color: var(--ink); }
 .roteiro-rico-area {
   padding: 8px 10px; color: var(--ink); font-family: var(--font-body); font-size: .92rem;
   line-height: 1.5; outline: none; overflow-y: auto;
@@ -434,12 +439,18 @@
 .roteiro-rico-area ul, .roteiro-rico-area ol { margin: 4px 0 4px 20px; padding: 0; }
 .roteiro-rico-area div, .roteiro-rico-area p { margin: 0 0 4px; }
 .roteiro-rico-area div:last-child, .roteiro-rico-area p:last-child { margin-bottom: 0; }
+/* blockquote é o que o navegador usa pro botão de recuo (mesmo fora de
+   uma lista) — zera as margens padrão dele (~1em em cima/baixo) e deixa
+   só o recuo à esquerda, que já vem como estilo inline aplicado na hora
+   do execCommand('indent'). */
+.roteiro-rico-area blockquote { margin: 0 0 4px; }
 .roteiro-rico-area:empty:before { content: attr(data-placeholder); color: var(--ink-3); }
 
 /* Mesma área, em modo leitura (corpo expandido do roteiro da turma) */
 .rico-html-view ul, .rico-html-view ol { margin: 4px 0 0 18px; padding: 0; }
 .rico-html-view div, .rico-html-view p { margin: 0 0 4px; }
 .rico-html-view div:last-child, .rico-html-view p:last-child { margin-bottom: 0; }
+.rico-html-view blockquote { margin: 0 0 4px; }
 
 /* ---- Tabela de presença por dia ---- */
 /* Com as colunas de dia a tabela fica mais larga que o painel e a coluna de
