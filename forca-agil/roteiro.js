@@ -1117,7 +1117,7 @@
       item('Tempo programado', fmtDuracao(resumo.programadoMin), 'var(--blue-glow)', 'Soma das durações de todas as atividades planejadas (inclui pausas).') +
       item('Tempo de facilitação', fmtDuracao(resumo.facilitacaoMin), '#4caf7d', 'Tempo programado descontando pausas e intervalos.', resumo.pausasMin ? '' : 'sem pausas') +
       item('Pausas / intervalos', fmtDuracao(resumo.pausasMin), '#ffb347', 'Soma das atividades do tipo Intervalo.') +
-      item('Lacunas', fmtDuracao(resumo.lacunasMin), resumo.lacunasMin ? '#ff8a5c' : 'var(--ink-3)', 'Períodos entre atividades sem nada programado — não conta como tempo programado.') +
+      item('Lacunas reais', fmtDuracao(resumo.lacunasMin), resumo.lacunasMin ? '#ff8a5c' : 'var(--ink-3)', 'Períodos entre atividades sem nada programado — não conta como tempo programado.') +
       item('Atividades principais', String(resumo.atividadesCount), 'var(--blue-glow)', 'Quantidade de atividades principais do dia (sub-etapas não contam à parte).') +
       (resumo.sobreposicoes && resumo.sobreposicoes.length
         ? item('Sobreposições', fmtDuracao(resumo.sobreposicoes.reduce(function (s, o) { return s + o.min; }, 0)), '#ff6b60', 'Minutos de conflito de horário entre atividades.', resumo.sobreposicoes.length + ' conflito' + (resumo.sobreposicoes.length !== 1 ? 's' : ''))
@@ -1211,7 +1211,7 @@
       '<div>Programado<b>' + esc(fmtDuracao(resumo.programadoMin)) + '</b></div>' +
       '<div>Facilitação<b>' + esc(fmtDuracao(resumo.facilitacaoMin)) + '</b></div>' +
       '<div>Pausas<b>' + esc(fmtDuracao(resumo.pausasMin)) + '</b></div>' +
-      '<div>Lacunas<b>' + esc(fmtDuracao(resumo.lacunasMin)) + '</b></div>' +
+      '<div>Lacunas reais<b>' + esc(fmtDuracao(resumo.lacunasMin)) + '</b></div>' +
       '<div>Atividades principais<b>' + resumo.atividadesCount + '</b></div>' +
       (resumo.sobreposicoes && resumo.sobreposicoes.length
         ? '<div>Sobreposições<b>' + esc(fmtDuracao(resumo.sobreposicoes.reduce(function (s, o) { return s + o.min; }, 0))) + ' · ' + resumo.sobreposicoes.length + ' conflito' + (resumo.sobreposicoes.length !== 1 ? 's' : '') + '</b></div>'
