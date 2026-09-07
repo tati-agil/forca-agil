@@ -1771,6 +1771,50 @@
     return htmlRicoSeguro(esc(textoPlanoNovo).replace(/\n/g, '<br>').replace(/&amp;/g, '&'));
   }
 
+  /* Busca de trecho TOLERANTE a diferença invisível de formatação —
+     aspas tipográficas “ ” vs retas " ", &nbsp; vs espaço normal,
+     \r\n vs \n, espaços duplicados, linha em branco a mais/a menos,
+     tag HTML no meio de duas palavras (quando o campo é rich text).
+     A tolerância nunca muda PALAVRA, NÚMERO ou PONTUAÇÃO relevante —
+     só o que separa um token do outro. A busca (e a contagem de
+     ocorrências) sempre roda sobre o valor ORIGINAL, nunca sobre uma
+     cópia "achatada" — e a troca, quando acontece, também grava só o
+     trecho encontrado dentro do valor ORIGINAL (ver substituirTolerante
+     abaixo), nunca reescreve o campo inteiro com texto normalizado. */
+  function escapeRegexMigracao(s) {
+    return String(s).replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  }
+  function regexToleranteTrecho(trecho) {
+    if (!trecho) return null;
+    var partes = String(trecho).split(/\s+/).filter(Boolean).map(function (tok) {
+      return escapeRegexMigracao(tok).replace(/["“”]/g, '["“”]').replace(/['‘’]/g, "['‘’]");
+    });
+    if (!partes.length) return null;
+    /* \s já cobre o caractere real de espaço sem quebra (U+00A0); só
+       falta a entidade escrita por extenso ("&nbsp;") e uma tag HTML
+       qualquer no meio, quando o campo é rich text. */
+    return new RegExp(partes.join('(?:\\s|&nbsp;|<[^>]*>)+'), 'g');
+  }
+  function contarOcorrenciasTolerante(conteudo, trecho) {
+    var re = regexToleranteTrecho(trecho);
+    if (!re) return 0;
+    var m = String(conteudo || '').match(re);
+    return m ? m.length : 0;
+  }
+  function contemTolerante(conteudo, trecho) {
+    return contarOcorrenciasTolerante(conteudo, trecho) > 0;
+  }
+  /* Substitui TODAS as ocorrências toleradas pelo texto novo, dentro
+     do valor original — usado tanto no caso de 1 ocorrência (o único
+     caso que "OK PARA ALTERAR" aplica sozinho) quanto na decisão
+     manual "Substituir pelo PARA" sobre um "TRECHO AMBÍGUO" (aí sim,
+     de propósito, troca todas de uma vez). */
+  function substituirTolerante(conteudo, trecho, novo) {
+    var re = regexToleranteTrecho(trecho);
+    if (!re) return conteudo;
+    return String(conteudo || '').replace(re, function () { return novo; });
+  }
+
   /* Casamento por título tolera diferença de pontuação/espaço no final
      (ex: atividade cadastrada como "...para a reflexão." com ponto,
      enquanto a planilha tem "...para a reflexão" sem ponto) — nunca
@@ -1808,23 +1852,23 @@
          trecho está, preservando tudo em volta, então a busca é no
          mesmo valor que será gravado). */
       if (item.acao === 'substituir' || item.acao === 'substituir_trecho') {
-        var ocorrencias = item.de ? rawAtual.split(item.de).length - 1 : 0;
+        var ocorrencias = contarOcorrenciasTolerante(rawAtual, item.de);
         if (ocorrencias === 1) return { item: item, atividade: a, status: 'OK PARA ALTERAR', valorAtual: rawAtual, ocorrencias: 1 };
         if (ocorrencias > 1) return { item: item, atividade: a, status: 'TRECHO AMBÍGUO', valorAtual: rawAtual, ocorrencias: ocorrencias };
         /* ocorrencias === 0: ou já foi trocado (o "PARA" já está lá,
            igual ou já mesclado/reformulado o bastante pra não bater
            mais com o "DE"), ou o campo realmente diverge de tudo. */
-        if (rawAtual.indexOf(item.para) !== -1) return { item: item, atividade: a, status: 'JÁ ATUALIZADO', valorAtual: rawAtual, ocorrencias: 0 };
+        if (contemTolerante(rawAtual, item.para)) return { item: item, atividade: a, status: 'JÁ ATUALIZADO', valorAtual: rawAtual, ocorrencias: 0 };
         return { item: item, atividade: a, status: 'VALOR ATUAL DIVERGENTE', valorAtual: rawAtual, ocorrencias: 0 };
       }
       if (item.acao === 'substituir_vazio') {
         var plano2 = espacoNormal(textoPlanoMigracao(rawAtual));
         if (!plano2) return { item: item, atividade: a, status: 'OK PARA ALTERAR', valorAtual: rawAtual };
-        if (plano2 === espacoNormal(item.para)) return { item: item, atividade: a, status: 'JÁ ATUALIZADO', valorAtual: rawAtual };
+        if (contemTolerante(rawAtual, item.para) || plano2 === espacoNormal(item.para)) return { item: item, atividade: a, status: 'JÁ ATUALIZADO', valorAtual: rawAtual };
         return { item: item, atividade: a, status: 'VALOR ATUAL DIVERGENTE', valorAtual: rawAtual };
       }
       if (item.acao === 'acrescentar_fim' || item.acao === 'acrescentar_inicio') {
-        var contem = espacoNormal(textoPlanoMigracao(rawAtual)).indexOf(espacoNormal(item.para)) !== -1;
+        var contem = contemTolerante(rawAtual, item.para);
         return { item: item, atividade: a, status: contem ? 'JÁ ATUALIZADO' : 'OK PARA ALTERAR', valorAtual: rawAtual };
       }
       return { item: item, atividade: a, status: 'VALOR ATUAL DIVERGENTE', valorAtual: rawAtual };
@@ -1858,7 +1902,7 @@
           /* Só troca o TRECHO "de" pelo "para" dentro do valor atual —
              preserva todo o resto do campo, nunca substitui o campo
              inteiro (ver dryRunMigracaoAntesDepois acima). */
-          patch = {}; patch[l.item.campo] = l.item.de ? l.valorAtual.split(l.item.de).join(l.item.para) : l.valorAtual;
+          patch = {}; patch[l.item.campo] = substituirTolerante(l.valorAtual, l.item.de, l.item.para);
         }
         editarAtividade(eventoKey, l.atividade.key, patch, function (err) {
           if (!err) atualizados++;
@@ -1962,7 +2006,7 @@
         '<div style="margin-bottom:8px"><strong style="color:var(--ink-3);text-transform:uppercase;font-size:.66rem;letter-spacing:.06em">Atual no sistema</strong><div style="white-space:pre-wrap;margin-top:4px;color:var(--ink)">' + esc(atualPlano) + '</div></div>' +
         '<div style="margin-bottom:8px"><strong style="color:var(--ink-3);text-transform:uppercase;font-size:.66rem;letter-spacing:.06em">DE do Excel' + (ehTrecho ? ' (trecho procurado dentro do campo acima)' : '') + '</strong><div style="white-space:pre-wrap;margin-top:4px;color:var(--ink-2)">' + esc(deTxt) + '</div></div>' +
         '<div style="margin-bottom:10px"><strong style="color:var(--ink-3);text-transform:uppercase;font-size:.66rem;letter-spacing:.06em">PARA do Excel</strong><div style="white-space:pre-wrap;margin-top:4px;color:var(--ink-2)">' + esc(paraTxt) + '</div></div>' +
-        (trechoNaoAchado ? '<p style="color:#ff8a5c;font-size:.72rem;margin:0 0 8px">O texto "DE" não aparece literalmente no valor atual — "Substituir pelo PARA" não vai achar onde trocar. Use "Mesclar manualmente" pra decidir onde o texto novo entra.</p>' : '') +
+        (trechoNaoAchado ? '<p style="color:#ff8a5c;font-size:.72rem;margin:0 0 8px">O texto "DE" não aparece no valor atual — nem exatamente, nem tolerando aspas/espaços/quebras de linha diferentes — "Substituir pelo PARA" não vai achar onde trocar. Use "Mesclar manualmente" pra decidir onde o texto novo entra.</p>' : '') +
         (trechoRepetido ? '<p style="color:#ff8a5c;font-size:.72rem;margin:0 0 8px">O texto "DE" aparece ' + l.ocorrencias + ' vezes no valor atual — "Substituir pelo PARA" trocaria TODAS as ocorrências de uma vez. Confira se é isso mesmo antes de escolher, ou use "Mesclar manualmente" pra decidir caso a caso.</p>' : '') +
         '<div class="mig-mescla-area" style="display:none;margin-bottom:10px">' +
           '<label class="auth-label">Proposta de texto final — edite livremente (nada é gravado até "Confirmar mesclagem")<textarea class="mig-mescla-texto" rows="6" style="width:100%;padding:8px;background:var(--panel);border:1px solid var(--line-strong);border-radius:6px;color:var(--ink);font-family:inherit">' + esc(paraTxt) + '</textarea></label>' +
