@@ -1320,7 +1320,16 @@
       'body.rp-eco .rp-gap-bloco{color:#a35a2a;}' +
       '*{box-sizing:border-box;}' +
       'html,body{background:var(--pspace);}' +
-      'body{font-family:"Barlow",Arial,Helvetica,sans-serif;color:var(--pink);margin:0;padding:24px;-webkit-print-color-adjust:exact;print-color-adjust:exact;}' +
+      /* Sem max-width, o corpo esticava até a borda da janela — numa tela
+         larga isso deixava a tabela/os cartões com colunas desproporcionais
+         (muito espaço sobrando entre "Tipo" e "Duração", por exemplo) e o
+         documento parecia "desalinhado" comparado a como uma página A4
+         de verdade fica. Largura travada em ~900px e centralizada imita
+         a largura de uma folha, tanto pra "Agenda resumida" (tabela)
+         quanto pros formatos em cartão; @media print destrava de novo,
+         já que na impressão física quem manda no tamanho da página é o
+         @page logo abaixo, não esse max-width. */
+      'body{font-family:"Barlow",Arial,Helvetica,sans-serif;color:var(--pink);margin:0 auto;max-width:900px;padding:24px;-webkit-print-color-adjust:exact;print-color-adjust:exact;}' +
       /* A faixa de marca usa cor FIXA (não var(--p...)) de propósito: é a
          logo de verdade do site, não um elemento de conteúdo — continua
          com as cores originais (navy escuro, dourado, ciano) mesmo no
@@ -1349,7 +1358,7 @@
       '.rp-dica{font-size:.74rem;color:var(--pink3);}' +
       '.rp-eco-toggle{display:flex;align-items:center;gap:6px;font-size:.76rem;color:var(--pink2);cursor:pointer;}' +
       estiloExtra +
-      '@media print{.rp-actions{display:none;} body{padding:10px;}}' +
+      '@media print{.rp-actions{display:none;} body{padding:10px;max-width:none;}}' +
       '@page{size:A4 portrait;margin:14mm;}' +
       '</style></head><body>' +
       '<div class="rp-actions"><button id="rp-print-btn">Imprimir / salvar como PDF</button>' +
@@ -1409,14 +1418,15 @@
           linhasHtml += '<tr class="rp-sub"><td>' + (i + 1) + '.' + (j + 1) + '</td><td>' + esc(horarioSub) + '</td><td>' + esc(sub.titulo) + '</td><td>' + esc(sub.tipo || '') + '</td><td>' + esc(fmtDuracao(duracaoEfetiva(sub, todasAtividades))) + '</td></tr>';
         });
       });
-      corpo += '<table><thead><tr><th>#</th><th>Horário</th><th>Atividade</th><th>Tipo</th><th>Duração</th></tr></thead>' +
+      corpo += '<table><thead><tr><th class="rp-col-num">#</th><th class="rp-col-horario">Horário</th><th>Atividade</th><th class="rp-col-tipo">Tipo</th><th class="rp-col-duracao">Duração</th></tr></thead>' +
         '<tbody>' + linhasHtml + '</tbody></table>';
     });
 
     abrirJanelaImpressao(
       tituloContexto + (dia.titulo ? ' — ' + dia.titulo : ''),
-      'table{border-collapse:collapse;width:100%;font-size:.82rem;margin-bottom:20px;background:var(--ppanel2);border:1px solid var(--plines);color:var(--pink2);}' +
-      'th,td{border-bottom:1px solid var(--pline);padding:8px 10px;text-align:left;}' +
+      'table{border-collapse:collapse;width:100%;table-layout:fixed;font-size:.82rem;margin-bottom:20px;background:var(--ppanel2);border:1px solid var(--plines);color:var(--pink2);}' +
+      'th,td{border-bottom:1px solid var(--pline);padding:8px 10px;text-align:left;overflow-wrap:break-word;}' +
+      '.rp-col-num{width:42px;}.rp-col-horario{width:96px;}.rp-col-tipo{width:140px;}.rp-col-duracao{width:84px;}' +
       'tr:last-child td{border-bottom:none;}' +
       'th{background:var(--ppanel);color:var(--pink3);font-family:"Oswald",Arial,sans-serif;text-transform:uppercase;font-size:.66rem;letter-spacing:.06em;font-weight:600;}' +
       '.rp-gap td{background:rgba(255,138,92,.14);color:#ffb37e;font-style:italic;}' +
