@@ -692,7 +692,7 @@
      saiu desta lista (ex: "Debrief", "Outro") não quebra: o <select>
      simplesmente não pré-seleciona nada até a pessoa escolher um tipo
      novo e salvar. */
-  var TIPOS = ['Abertura', 'Ambientação', 'Briefing', 'Compromisso', 'Conceituação', 'Dinâmica', 'Discussão', 'Experimentação com IA', 'Fechamento', 'Intervalo', 'Provocação', 'Reflexão', 'Sinal/Evidência', 'Transição'];
+  var TIPOS = ['Abertura', 'Ambientação', 'Aplicação à Liderança', 'Briefing', 'Compromisso', 'Compromisso Individual', 'Conceituação', 'Dinâmica', 'Discussão', 'Experimentação com IA', 'Fechamento', 'Intervalo', 'Provocação', 'Reflexão', 'Sinal/Evidência', 'Transição'];
 
   function bloco(titulo, innerHtml) {
     return '<div class="roteiro-form-bloco">' +
@@ -1673,6 +1673,270 @@
     });
   }
 
+  /* ── Migração de conteúdo "Antes x Depois" (planilha ver5.pdf) — 2ª
+     leva de ajustes na DIRETORES: textos revisados de Passo a passo,
+     Dicas, Observações e Conexão com a mentalidade ágil, o Prompt para
+     IA da "Primeiro uso da IA" e duas mudanças de Tipo. Mesmo botão-
+     âncora das outras migrações pontuais (só aparece na DIRETORES).
+
+     Nunca escreve sem antes comparar o valor ATUAL de cada campo com o
+     "de" esperado: só grava quando bate; se já bater com o "para",
+     conta como já feito; se for outra coisa, ou a atividade não for
+     encontrada (ou for encontrada mais de uma vez), a linha fica de
+     fora e aparece no relatório — nunca "parecido o suficiente". Um
+     DRY RUN roda sempre primeiro (só leitura); "Aplicar" grava só as
+     linhas com status OK e guarda o valor anterior de cada campo
+     tocado num nó de backup, pra dar pra desfazer depois. */
+  var MIGRACAO_ANTES_DEPOIS = [
+    { titulo: 'DESAFIO 1: ESCOLHAM', campo: 'passoAPasso', acao: 'substituir',
+      de: 'Diga: “Vocês têm 8 minutos. Precisam sair daqui com oito escolhas.”',
+      para: 'Diga: “Vocês têm 6 minutos. Precisam sair daqui com oito escolhas.”\n\nUse aproximadamente 2 minutos do bloco para explicar as regras, distribuir/organizar os materiais e iniciar a contagem.' },
+    { titulo: 'DESAFIO 1: ESCOLHAM', campo: 'dicasFacilitador', acao: 'acrescentar_fim',
+      para: 'REGRA DOS CRISTAIS DE CAPACIDADE\n\nCada iniciativa em FAREMOS deve permanecer com 1 Cristal de Capacidade. Existem somente 8 Cristais; portanto, só podem existir 8 iniciativas simultaneamente em FAREMOS. Quando uma iniciativa sair, seu Cristal volta a ficar disponível e deve ser transferido para a iniciativa que entrar. Não crie Cristais adicionais durante a dinâmica.' },
+    { titulo: 'DESAFIO 2: O MUNDO MUDA', campo: 'observacoes', acao: 'acrescentar_fim',
+      para: 'DADOS DA SIMULAÇÃO\n\nOs números apresentados nas Transmissões da Missão são dados FICTÍCIOS criados exclusivamente para a dinâmica e não representam indicadores reais da organização, salvo se forem posteriormente substituídos por dados oficialmente validados.' },
+    { titulo: 'Transmissão da Missão 3 — Sinal da Realidade', campo: 'dicasFacilitador', acao: 'acrescentar_fim',
+      para: 'Antes da oficina, identifique nos 24 cartões quais iniciativas possuem maior dependência tecnológica. Se houver mais de uma entre as escolhidas, utilize aquela cuja dependência seja mais evidente para o grupo. Caso nenhuma das iniciativas escolhidas tenha dependência tecnológica relevante, aplique o sinal à iniciativa escolhida que possua maior dependência externa.' },
+    { titulo: 'Consolidação das escolhas e transição para a reflexão', campo: 'passoAPasso', acao: 'substituir',
+      de: 'Se houver alteração final permitida pela dinâmica, dê alguns segundos para fazê-la. Se não houver, apenas confirme o plano.',
+      para: 'A partir daqui não há nova rodada de troca. Apenas confirme e registre o plano final do Conselho. Deixe fisicamente visíveis o plano inicial e o plano final para a reflexão seguinte.' },
+    { titulo: 'A PRIMEIRA REFLEXÃO', campo: 'passoAPasso', acao: 'substituir',
+      de: 'Agora pergunte: “O primeiro plano estava errado?”\n\nDeixe-os falar.\n\nDepois faça uma segunda pergunta: “Ou era a melhor decisão possível diante das informações que tínhamos naquele momento?”',
+      para: 'Pergunte: “Com o que vocês sabiam naquele momento, o que sustentava o primeiro plano?”\n\nDepois pergunte: “O que ainda não sabíamos?”\n\nE finalize: “O que fez vocês manterem ou reverem escolhas?”\n\nNão conclua por eles.' },
+    { titulo: 'A BOMBA', campo: 'passoAPasso', acao: 'substituir',
+      de: 'Mostre um cartão grande: “Vocês não precisam entregar nenhuma das 24 iniciativas.”\n\nDepois complete: “O compromisso era melhorar a experiência do participante.”',
+      para: 'Mostre um cartão grande:\n\n“Nenhuma das 24 iniciativas é o compromisso.”\n\nDepois complete:\n\n“O compromisso é melhorar a experiência do participante. As iniciativas são apostas sobre como produzir esse resultado.”\n\nPergunte: “Em que momento transformamos o objetivo em uma lista de projetos?”' },
+    { titulo: 'DESAFIO 3: PAREM DE PENSAR EM PROJETOS', campo: 'passoAPasso', acao: 'substituir',
+      de: 'Explique cada item rapidamente.\n• Problema: O que está acontecendo com o participante?\n• Hipótese: O que acreditamos que poderia melhorar esse problema?\n• Experimento: Qual é o menor coisa que podemos testar sem construir uma grande solução?\n• Evidência: O que precisamos medir ou observar para decidir se continuamos?\n\nPegue aos seis: “Vocês têm 15 minutos para montar uma única aposta de 30 dias.” Eles precisam preencher um exemplo já muito próximo do caso.',
+      para: 'Use aproximadamente 3 minutos para explicar a estrutura:\n• PROBLEMA — o que está acontecendo e para quem?\n• HIPÓTESE — o que acreditamos que pode melhorar esse problema?\n• EXPERIMENTO — qual é o menor teste que pode reduzir nossa incerteza?\n• EVIDÊNCIA — o que vamos observar ou medir para decidir o próximo passo?\n\nDiga: “Vocês terão 10 minutos para construir uma única aposta testável de curto prazo usando os quatro campos. Não copiem uma solução anterior: decidam o que vale testar.”\n\nReserve os 2 minutos finais para consolidar a aposta do grupo.' },
+    { titulo: 'O MOMENTO DE IMPACTO', campo: 'passoAPasso', acao: 'substituir',
+      de: 'Pergunte: “Em qual momento vocês se sentiram mais seguros: quando terminaram o primeiro plano ou quando perceberam que poderiam aprender antes de investir tudo?”\n\nDepois diga:\n“Talvez a verdadeira segurança não esteja em nunca mudar o plano.”\n“Talvez esteja em construir condições para perceber cedo quando ele precisa mudar.”',
+      para: 'Pergunte: “Em qual momento vocês se sentiram mais seguros durante a missão?”\n\nDepois: “O que produziu essa sensação de segurança?”\n\nEscute antes de fazer a conexão.\n\nFeche: “Segurança não precisa vir de conhecer todo o plano. Também pode vir da capacidade de aprender antes de investir demais.”' },
+    { titulo: 'AGORA DÊ NOME AO QUE ELES FIZERAM', campo: 'conexaoAgilidade', acao: 'substituir_trecho',
+      de: 'Saíram das iniciativas para o problema × Outcome × Output',
+      para: 'Separaram o que entregamos do resultado que queremos produzir → Output × Outcome' },
+    { titulo: 'CONVERSA EXECUTIVA', campo: 'passoAPasso', acao: 'substituir',
+      de: 'Faça apenas estas perguntas:\n1. Em nossa organização, onde fazemos apostas grandes demais antes de aprender?\n2. Onde executamos projetos porque estavam planejados, mesmo quando novas informações sugerem outra direção?\n3. Onde medimos entrega quando deveríamos medir resultado?',
+      para: 'PERGUNTA PRINCIPAL\n“Em nossa organização, onde ainda fazemos apostas grandes demais antes de aprender?”\n\nPERGUNTAS DE RESERVA — use apenas se houver tempo:\n• “Onde executamos projetos porque estavam planejados, mesmo quando novas informações sugerem outra direção?”\n• “Onde medimos entrega quando deveríamos medir resultado?”' },
+    { titulo: 'DECISÃO SEM IA', campo: 'passoAPasso', acao: 'substituir',
+      de: 'Antes de ligarem os notebooks, entregue a cada diretor individualmente uma ficha.\n\nCada um responde sozinho: Considerando o caso da manhã:\n1. Qual problema você atacaria primeiro?\n2. Qual seria sua primeira aposta?\n3. O que você não faria agora?',
+      para: 'Antes de ligarem os notebooks, entregue uma ficha a cada diretor.\n\nCada um responde individualmente:\n1. Qual problema devemos atacar primeiro?\n2. Qual seria nossa melhor aposta?\n3. Qual é o maior risco dessa aposta?\n4. O que faríamos agora?\n\nDepois, reúna o Conselho e diga:\n“Antes de usar IA, precisamos registrar uma decisão comum. Qual proposta representa melhor a aposta do Conselho neste momento?”\n\nRegistre em um cartão grande:\nAPOSTA-BASE DO CONSELHO — SEM IA.' },
+    { titulo: 'FORMAR 3 DUPLAS', campo: 'passoAPasso', acao: 'substituir',
+      de: 'Agora formem:\n• Dupla 1 Diretores A + B\n• Dupla 2 Diretores C + D\n• Dupla 3 Diretores E + F\n\nCada dupla recebe um notebook.',
+      para: 'Agora formem:\n• Dupla 1 — Diretores A + B\n• Dupla 2 — Diretores C + D\n• Dupla 3 — Diretores E + F\n\nCada dupla recebe um notebook.\n\nDiga explicitamente:\n“As três duplas trabalharão sobre EXATAMENTE A MESMA APOSTA-BASE definida pelo Conselho sem IA. O que muda é apenas a lente de análise de cada dupla.”' },
+    { titulo: 'PRIMEIRO USO DA IA', campo: 'promptIA', acao: 'substituir_vazio',
+      para: [
+        'CONTEXTO\n\nSomos um Conselho de uma entidade de Previdência Complementar tentando melhorar a experiência do participante durante a concessão de um benefício. Precisamos preservar segurança, conformidade e qualidade.\n\nNossa aposta inicial, definida SEM IA, é:\n\n[APOSTA-BASE DO CONSELHO]\n\nTrabalhe somente com as informações fornecidas. Não invente fatos, números ou evidências. Quando não houver informação suficiente, diga claramente: “NÃO SABEMOS”.\n\nSepare fatos de hipóteses.\n\nNão tome a decisão por nós. Seu papel é melhorar a qualidade da nossa análise.\n\nAgora cumpra exclusivamente a missão específica da sua dupla.',
+        'MISSÃO — DUPLA 1: A VOZ QUE DEFENDE\n\nConstrua o melhor argumento possível a favor da aposta-base. Mostre:\n• por que ela pode gerar valor;\n• quais hipóteses precisam ser verdadeiras;\n• quais evidências aumentariam nossa confiança nela.',
+        'MISSÃO — DUPLA 2: A VOZ QUE DESAFIA\n\nAtue como crítico da aposta-base. Identifique:\n• riscos;\n• premissas frágeis;\n• consequências indesejadas;\n• pontos cegos;\n• razões pelas quais essa aposta poderia falhar.\n\nNão proponha outra solução ainda.',
+        'MISSÃO — DUPLA 3: A VOZ QUE INVESTIGA\n\nInvestigue o que ainda não sabemos sobre a aposta-base. Liste:\n• perguntas críticas;\n• informações que faltam;\n• evidências que deveríamos buscar;\n• pequenos testes que poderiam reduzir a incerteza.'
+      ].join('\n\n---\n\n') },
+    { titulo: 'PRIMEIRO USO DA IA', campo: 'dicasFacilitador', acao: 'acrescentar_fim',
+      para: 'USO SEGURO DA IA\nUtilizem somente o cenário fornecido na dinâmica. Não insiram dados pessoais, informações sigilosas, informações reais de participantes, documentos internos não previstos ou dados corporativos sensíveis.' },
+    { titulo: 'AGORA VAMOS DESCONFIAR DA IA', campo: 'passoAPasso', acao: 'substituir',
+      de: 'Peça: “Revisem as recomendações da IA.”\n\nVocês precisam classificar pelo menos três delas.\n\nPara cada classificação precisam explicar:\n• VERDE Por que acreditamos?\n• AMARELO Que evidência ainda precisamos?\n• VERMELHO Por que não concordamos?',
+      para: 'Peça:\n“Revisem as principais afirmações, conclusões, riscos, hipóteses e perguntas geradas pela IA.”\n\nClassifiquem pelo menos três:\n• VERDE — temos fundamento/evidência suficiente para aceitar provisoriamente.\n• AMARELO — precisamos verificar ou buscar evidência.\n• VERMELHO — não temos fundamento suficiente ou existe razão para rejeitar.\n\nPara cada marcação, expliquem o porquê.' },
+    { titulo: 'REUNIÃO DO CONSELHO', campo: 'passoAPasso', acao: 'substituir',
+      de: 'Cada dupla tem 3 minutos:\n• Dupla 1 “O melhor argumento a favor é...”\n• Dupla 2 “O maior risco que encontramos é...”\n• Dupla 3 “O principal ponto que ainda não sabemos é...”\n\nDepois pergunte: “Com tudo isso, qual decisão tomaremos?”\n\nEles precisam chegar a uma única aposta.',
+      para: 'Agora os notebooks são fechados e as seis pessoas voltam a formar um único Conselho.\n\nCada dupla tem 2 minutos:\n• Dupla 1 — principal argumento a favor;\n• Dupla 2 — principal risco;\n• Dupla 3 — principal desconhecido.\n\nUse os 6 minutos restantes para o Conselho discutir.\n\nPergunte:\n“Com tudo isso, mantemos, ajustamos ou abandonamos nossa aposta?”\n\nRegistre fisicamente:\nAPOSTA FINAL DO CONSELHO.' },
+    { titulo: 'O TESTE DA APOSTA', campo: 'passoAPasso', acao: 'acrescentar_inicio',
+      para: 'Antes das cinco perguntas, diga:\n“Agora a IA sai de cena. Os notebooks permanecem fechados. Quem responde às próximas perguntas é o Conselho.”' },
+    { titulo: 'FAÇA A COMPARAÇÃO', campo: 'passoAPasso', acao: 'substituir',
+      de: 'Monte dois caminhos.\n\nMODELO A: IDEIA ↓ PROJETO ↓ ESCOPO ↓ PLANO ↓ EXECUÇÃO ↓ ENTREGA\n\nMODELO B: PROBLEMA ↓ HIPÓTESE ↓ EXPERIMENTO ↓ EVIDÊNCIA ↓ APRENDIZADO ↓ NOVA\n\nPergunte qual modelo funciona melhor em baixa ou alta incerteza.',
+      para: 'Primeiro, coloque lado a lado:\nAPOSTA-BASE DO CONSELHO — SEM IA\n×\nAPOSTA FINAL DO CONSELHO — APÓS A ANÁLISE COM IA\n\nPergunte:\n1. O que mudou?\n2. O que permaneceu?\n3. O que a IA nos fez enxergar que não havíamos percebido?\n4. O que a IA afirmou que ainda precisamos verificar?\n5. Nossa decisão ficou melhor ou apenas mais bem argumentada?\n\nFeche mostrando dois caminhos:\nMODELO A: IDEIA → PROJETO → ESCOPO → PLANO → EXECUÇÃO → ENTREGA\nMODELO B: PROBLEMA → HIPÓTESE → EXPERIMENTO → EVIDÊNCIA → APRENDIZADO → NOVA DECISÃO\n\nDiga: “Nenhum dos modelos é universalmente certo ou errado. Quanto maior a incerteza, mais valioso se torna aprender em ciclos menores antes de aumentar o investimento.”' },
+    { titulo: 'A VIRADA PARA A LIDERANÇA', campo: 'passoAPasso', acao: 'acrescentar_inicio',
+      para: 'Antes de mostrar as duas listas, diga:\n“As perguntas de execução continuam importantes. A liderança ágil não elimina gestão, prazo ou entrega. Ela acrescenta perguntas sobre problema, evidência, aprendizado, risco e resultado — especialmente quando a incerteza é alta.”' },
+    { titulo: 'A VIRADA PARA A LIDERANÇA', campo: 'tipo', acao: 'tipo', de: 'Conceituação', para: 'Aplicação à Liderança' },
+    { titulo: 'FECHAMENTO INDIVIDUAL', campo: 'tipo', acao: 'tipo', de: 'Reflexão', para: 'Compromisso Individual' }
+  ];
+  var CAMPOS_MIGRACAO_LABEL = { passoAPasso: 'Passo a passo', dicasFacilitador: 'Dicas para o facilitador', observacoes: 'Observações', conexaoAgilidade: 'Conexão com a mentalidade ágil', promptIA: 'Prompt para IA', tipo: 'Tipo' };
+
+  /* Texto legível de um campo rico, pra comparar (nunca pra gravar): tags
+     de bloco/quebra viram \n, o resto do HTML é descartado. */
+  function textoPlanoMigracao(valor) {
+    if (!valor) return '';
+    var div = document.createElement('div');
+    div.innerHTML = htmlRicoSeguro(valor);
+    Array.prototype.forEach.call(div.querySelectorAll('br'), function (br) { br.replaceWith('\n'); });
+    Array.prototype.forEach.call(div.querySelectorAll('div,p,li'), function (el) { el.appendChild(document.createTextNode('\n')); });
+    return div.textContent || '';
+  }
+  function espacoNormal(s) { return String(s || '').replace(/\s+/g, ' ').trim(); }
+  /* Converte um bloco de texto puro (com \n reais) no mesmo HTML seguro
+     que o campo já teria se tivesse sido digitado e salvo pela tela —
+     usado só ao GRAVAR (nunca ao comparar), pra um "Acrescentar" nunca
+     depender da conversão automática de \n→<br> que só acontece quando
+     o campo inteiro ainda não tem nenhuma tag. */
+  function paraHtmlMigracao(textoPlanoNovo) {
+    return htmlRicoSeguro(esc(textoPlanoNovo).replace(/\n/g, '<br>').replace(/&amp;/g, '&'));
+  }
+
+  function dryRunMigracaoAntesDepois(atividades) {
+    var porTitulo = {};
+    atividades.forEach(function (a) {
+      var t = (a.titulo || '').trim();
+      (porTitulo[t] = porTitulo[t] || []).push(a);
+    });
+    return MIGRACAO_ANTES_DEPOIS.map(function (item) {
+      var lista = porTitulo[item.titulo] || [];
+      if (!lista.length) return { item: item, status: 'ATIVIDADE NÃO ENCONTRADA' };
+      if (lista.length > 1) return { item: item, status: 'REGISTRO AMBÍGUO' };
+      var a = lista[0];
+      if (item.acao === 'tipo') {
+        var tipoAtual = (a.tipo || '').trim();
+        if (tipoAtual === item.para) return { item: item, atividade: a, status: 'JÁ ATUALIZADO', valorAtual: tipoAtual };
+        if (tipoAtual === item.de) return { item: item, atividade: a, status: 'OK PARA ALTERAR', valorAtual: tipoAtual };
+        return { item: item, atividade: a, status: 'VALOR ATUAL DIVERGENTE', valorAtual: tipoAtual };
+      }
+      var rawAtual = a[item.campo] || '';
+      if (item.acao === 'substituir') {
+        var atualPlano = espacoNormal(textoPlanoMigracao(rawAtual));
+        if (atualPlano === espacoNormal(item.para)) return { item: item, atividade: a, status: 'JÁ ATUALIZADO', valorAtual: rawAtual };
+        if (atualPlano === espacoNormal(item.de)) return { item: item, atividade: a, status: 'OK PARA ALTERAR', valorAtual: rawAtual };
+        return { item: item, atividade: a, status: 'VALOR ATUAL DIVERGENTE', valorAtual: rawAtual };
+      }
+      if (item.acao === 'substituir_vazio') {
+        var plano2 = espacoNormal(textoPlanoMigracao(rawAtual));
+        if (!plano2) return { item: item, atividade: a, status: 'OK PARA ALTERAR', valorAtual: rawAtual };
+        if (plano2 === espacoNormal(item.para)) return { item: item, atividade: a, status: 'JÁ ATUALIZADO', valorAtual: rawAtual };
+        return { item: item, atividade: a, status: 'VALOR ATUAL DIVERGENTE', valorAtual: rawAtual };
+      }
+      if (item.acao === 'acrescentar_fim' || item.acao === 'acrescentar_inicio') {
+        var contem = espacoNormal(textoPlanoMigracao(rawAtual)).indexOf(espacoNormal(item.para)) !== -1;
+        return { item: item, atividade: a, status: contem ? 'JÁ ATUALIZADO' : 'OK PARA ALTERAR', valorAtual: rawAtual };
+      }
+      if (item.acao === 'substituir_trecho') {
+        var ocorrencias = rawAtual.split(item.de).length - 1;
+        if (rawAtual.indexOf(item.para) !== -1) return { item: item, atividade: a, status: 'JÁ ATUALIZADO', valorAtual: rawAtual };
+        if (ocorrencias === 1) return { item: item, atividade: a, status: 'OK PARA ALTERAR', valorAtual: rawAtual };
+        return { item: item, atividade: a, status: 'VALOR ATUAL DIVERGENTE', valorAtual: rawAtual };
+      }
+      return { item: item, atividade: a, status: 'VALOR ATUAL DIVERGENTE', valorAtual: rawAtual };
+    });
+  }
+
+  function aplicarMigracaoAntesDepois(eventoKey, linhasOk, cb) {
+    var backupItens = linhasOk.map(function (l) {
+      return { atividadeKey: l.atividade.key, campo: l.item.campo, valorAnterior: l.item.acao === 'tipo' ? (l.atividade.tipo || '') : (l.atividade[l.item.campo] || '') };
+    });
+    var backupRef = db().ref('roteiros-evento/' + eventoKey + '/_migracoesBackup').push();
+    backupRef.set({ criadoEm: new Date().toISOString(), itens: backupItens }, function (errBackup) {
+      if (errBackup) return cb(errBackup);
+      var pendentes = linhasOk.length, atualizados = 0;
+      if (!pendentes) return cb(null, 0);
+      linhasOk.forEach(function (l) {
+        var patch;
+        if (l.item.acao === 'tipo') {
+          patch = { tipo: l.item.para };
+        } else if (l.item.acao === 'substituir' || l.item.acao === 'substituir_vazio') {
+          patch = {}; patch[l.item.campo] = paraHtmlMigracao(l.item.para);
+        } else if (l.item.acao === 'acrescentar_fim') {
+          var existenteFim = l.valorAtual ? htmlRicoSeguro(l.valorAtual) + '<br><br>' : '';
+          patch = {}; patch[l.item.campo] = existenteFim + paraHtmlMigracao(l.item.para);
+        } else if (l.item.acao === 'acrescentar_inicio') {
+          var existenteInicio = l.valorAtual ? '<br><br>' + htmlRicoSeguro(l.valorAtual) : '';
+          patch = {}; patch[l.item.campo] = paraHtmlMigracao(l.item.para) + existenteInicio;
+        } else if (l.item.acao === 'substituir_trecho') {
+          patch = {}; patch[l.item.campo] = l.valorAtual.split(l.item.de).join(l.item.para);
+        }
+        editarAtividade(eventoKey, l.atividade.key, patch, function (err) {
+          if (!err) atualizados++;
+          if (!--pendentes) cb(null, atualizados);
+        });
+      });
+    });
+  }
+
+  function carregarUltimoBackupMigracao(eventoKey, cb) {
+    db().ref('roteiros-evento/' + eventoKey + '/_migracoesBackup').once('value', function (snap) {
+      var val = snap.val() || {};
+      var chaves = Object.keys(val).sort();
+      if (!chaves.length) return cb(null, null);
+      var ultimaChave = chaves[chaves.length - 1];
+      cb(null, { key: ultimaChave, val: val[ultimaChave] });
+    }, function (err) { cb(err); });
+  }
+
+  function desfazerMigracao(eventoKey, backup, cb) {
+    var itens = backup.itens || [];
+    var pendentes = itens.length;
+    if (!pendentes) return cb(null, 0);
+    var restaurados = 0;
+    itens.forEach(function (it) {
+      var patch = {};
+      patch[it.campo] = it.valorAnterior;
+      editarAtividade(eventoKey, it.atividadeKey, patch, function (err) {
+        if (!err) restaurados++;
+        if (!--pendentes) {
+          db().ref('roteiros-evento/' + eventoKey + '/_migracoesBackup/' + backup.key).remove(function () { cb(null, restaurados); });
+        }
+      });
+    });
+  }
+
+  function abrirModalMigracaoAntesDepois(eventoKey, atividades, reload) {
+    var linhas = dryRunMigracaoAntesDepois(atividades);
+    var okCount = linhas.filter(function (l) { return l.status === 'OK PARA ALTERAR'; }).length;
+
+    var overlay = document.createElement('div');
+    overlay.className = 'modal-overlay';
+    overlay.style.cssText = 'display:flex;align-items:center;justify-content:center;z-index:9999';
+    var box = document.createElement('div');
+    box.className = 'modal-box';
+    box.style.cssText = 'max-width:900px;width:94%;padding:24px;display:flex;flex-direction:column;gap:12px;max-height:88vh;overflow:auto';
+
+    var corPorStatus = {
+      'OK PARA ALTERAR': 'var(--blue-glow,#4aa3ff)',
+      'JÁ ATUALIZADO': '#4caf7d',
+      'VALOR ATUAL DIVERGENTE': '#ff8a5c',
+      'ATIVIDADE NÃO ENCONTRADA': '#ff6b60',
+      'REGISTRO AMBÍGUO': '#ff6b60'
+    };
+    var linhasHtml = linhas.map(function (l) {
+      return '<tr>' +
+        '<td>' + esc(l.item.titulo) + '</td>' +
+        '<td>' + esc(CAMPOS_MIGRACAO_LABEL[l.item.campo] || l.item.campo) + '</td>' +
+        '<td style="color:' + (corPorStatus[l.status] || 'var(--ink-2)') + '">' + esc(l.status) + '</td>' +
+        '</tr>';
+    }).join('');
+
+    box.innerHTML =
+      '<h3 style="font-size:1.1rem;font-family:var(--font-head);letter-spacing:.05em;color:var(--ink)">Migração de conteúdo — Antes x Depois</h3>' +
+      '<p style="font-size:.82rem;color:var(--ink-3)">DRY RUN — nada foi gravado ainda. ' + okCount + ' de ' + linhas.length + ' linha(s) prontas para aplicar. As demais precisam de atenção manual (veja o status).</p>' +
+      '<div style="overflow:auto;max-height:50vh;border:1px solid var(--line-strong);border-radius:8px">' +
+        '<table style="width:100%;border-collapse:collapse;font-size:.78rem">' +
+        '<thead><tr style="background:var(--panel-2);position:sticky;top:0"><th style="text-align:left;padding:8px 10px">Atividade</th><th style="text-align:left;padding:8px 10px">Campo</th><th style="text-align:left;padding:8px 10px">Status</th></tr></thead>' +
+        '<tbody>' + linhasHtml + '</tbody></table>' +
+      '</div>' +
+      '<p id="migErr" style="color:var(--red,#ff3b30);font-size:.85rem;display:none"></p>' +
+      '<div style="display:flex;justify-content:flex-end;gap:8px">' +
+        '<button class="btn mig-fechar">Fechar</button>' +
+        (okCount ? '<button class="btn btn--primary mig-aplicar">Aplicar ' + okCount + ' alteração(ões) válida(s)</button>' : '') +
+      '</div>';
+
+    overlay.appendChild(box);
+    document.body.appendChild(overlay);
+    function close() { document.body.removeChild(overlay); }
+    box.querySelector('.mig-fechar').addEventListener('click', close);
+    var overlayMousedownFora = false;
+    overlay.addEventListener('mousedown', function (e) { overlayMousedownFora = !box.contains(e.target); });
+    overlay.addEventListener('click', function (e) { if (overlayMousedownFora && !box.contains(e.target)) close(); });
+    var aplicarBtn = box.querySelector('.mig-aplicar');
+    if (aplicarBtn) {
+      aplicarBtn.addEventListener('click', function () {
+        confirmDialog('Isso vai gravar ' + okCount + ' alteração(ões) no roteiro-base. O valor anterior de cada campo tocado fica guardado — dá pra desfazer depois pelo botão "↩ Desfazer última migração". Continuar?', function () {
+          var linhasOk = linhas.filter(function (l) { return l.status === 'OK PARA ALTERAR'; });
+          aplicarMigracaoAntesDepois(eventoKey, linhasOk, function (err, atualizados) {
+            close();
+            if (err) { alertDialog('Erro ao aplicar a migração: ' + err); return; }
+            alertDialog('Aplicado: ' + atualizados + ' de ' + linhasOk.length + ' alteração(ões).\n\nUse "↩ Desfazer última migração" se precisar reverter.');
+            reload();
+          });
+        });
+      });
+    }
+  }
+
   function renderRoteiroBaseEditor(container, eventoKey) {
     var diaAtivoKey = null;
 
@@ -1795,6 +2059,35 @@
           });
         });
       }
+      var migracaoBtn = null, desfazerMigracaoBtn = null;
+      if (temAncoraImportacao) {
+        migracaoBtn = document.createElement('button');
+        migracaoBtn.className = 'btn btn--sm';
+        migracaoBtn.style.cssText = 'padding:6px 10px;font-size:.72rem';
+        migracaoBtn.textContent = '🔎 Migração Antes x Depois';
+        migracaoBtn.title = 'Mostra um DRY RUN (só leitura) comparando o valor atual de cada campo com o texto revisado da planilha "Antes x Depois" — nada é gravado até clicar "Aplicar" na janela que abre.';
+        migracaoBtn.addEventListener('click', function () {
+          abrirModalMigracaoAntesDepois(eventoKey, roteiro.atividades, reload);
+        });
+        desfazerMigracaoBtn = document.createElement('button');
+        desfazerMigracaoBtn.className = 'btn btn--sm';
+        desfazerMigracaoBtn.style.cssText = 'padding:6px 10px;font-size:.72rem';
+        desfazerMigracaoBtn.textContent = '↩ Desfazer última migração';
+        desfazerMigracaoBtn.title = 'Restaura o valor de cada campo tocado pela última vez que "Migração Antes x Depois" foi aplicada.';
+        desfazerMigracaoBtn.addEventListener('click', function () {
+          carregarUltimoBackupMigracao(eventoKey, function (err, backup) {
+            if (err) { alertDialog('Erro ao procurar a última migração: ' + err); return; }
+            if (!backup) { alertDialog('Não há nenhuma migração aplicada pra desfazer neste roteiro.'); return; }
+            confirmDialog('Isso vai restaurar ' + (backup.val.itens || []).length + ' campo(s) para o valor que tinham antes da última migração aplicada (' + new Date(backup.val.criadoEm).toLocaleString('pt-BR') + '). Continuar?', function () {
+              desfazerMigracao(eventoKey, { key: backup.key, itens: backup.val.itens }, function (err2, restaurados) {
+                if (err2) { alertDialog('Erro ao desfazer: ' + err2); return; }
+                alertDialog('Restaurado(s): ' + restaurados + ' campo(s).');
+                reload();
+              });
+            });
+          });
+        });
+      }
       var delDiaBtn = document.createElement('button');
       delDiaBtn.className = 'btn btn--sm';
       delDiaBtn.style.cssText = 'padding:6px 10px;font-size:.72rem;border-color:rgba(255,80,80,.5);color:#ff8080';
@@ -1810,6 +2103,8 @@
       diaHdr.appendChild(imprimirCompletoBtn);
       diaHdr.appendChild(imprimirPassoAPassoBtn);
       if (importarResultadosBtn) diaHdr.appendChild(importarResultadosBtn);
+      if (migracaoBtn) diaHdr.appendChild(migracaoBtn);
+      if (desfazerMigracaoBtn) diaHdr.appendChild(desfazerMigracaoBtn);
       diaHdr.appendChild(delDiaBtn);
       container.appendChild(diaHdr);
 
