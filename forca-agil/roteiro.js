@@ -243,6 +243,30 @@
     }
   }
 
+  /* Colar sempre como texto puro -- nunca o HTML de origem. Colar de uma
+     planilha (Excel, Google Sheets, uma tabela do Word) traz um <table>
+     de verdade no clipboard; como TABLE/TR/TD nao estao na lista de tags
+     permitidas, o sanitizador desembrulhava tudo e as celulas ficavam
+     coladas uma na outra sem separador nenhum -- exatamente o texto
+     emaranhado relatado. Interceptando o paste e inserindo so o texto
+     (via clipboardData, nao o HTML), cada linha da origem vira uma linha
+     aqui (quebra vira <br>) e cada coluna fica separada por um espaco bem
+     largo (tab vira um bloco de espacos nao separaveis, porque um tab de
+     verdade colapsa visualmente num <div> normal) -- sem tabela de
+     verdade (fora do que a barra de formatacao sabe fazer), mas legivel
+     e sem perder nenhuma linha. */
+  function colarComoTexto(e) {
+    var dados = e.clipboardData || window.clipboardData;
+    var texto = dados ? dados.getData('text/plain') : '';
+    if (!texto) return;
+    e.preventDefault();
+    var html = esc(texto)
+      .replace(/\r\n/g, '\n')
+      .replace(/\t/g, '\u00A0\u00A0\u00A0\u00A0')
+      .replace(/\n/g, '<br>');
+    document.execCommand('insertHTML', false, html);
+  }
+
   /* ---- Diálogos (mesmo visual do admin, duplicado aqui: roteiro.js é
      carregado antes de admin.js e usado também por facilitador.js, então
      não pode depender das funções internas do módulo admin) ---- */
@@ -730,6 +754,7 @@
     });
     Array.prototype.forEach.call(box.querySelectorAll('.roteiro-rico-area'), function (area) {
       area.addEventListener('keydown', function (e) { continuarMarcadorDigitado(e, area); tabNaCaixaRica(e, area); });
+      area.addEventListener('paste', colarComoTexto);
     });
     /* Cor do texto / cor de fundo: <input type="color"> abre o seletor
        nativo do navegador (sem biblioteca nenhuma). Não dá pra prevenir o
