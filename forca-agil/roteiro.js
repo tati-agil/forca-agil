@@ -1186,8 +1186,24 @@
       '</div></div>';
   }
 
+  /* Cabeçalho de marca do documento impresso — reproduz a logo do site
+     (o ícone "i-mark" do sprite SVG do index.html + "FORÇA ÁGIL" + "Previ")
+     como HTML/SVG 100% autocontido: a janela de impressão é um documento
+     novo (window.open('','_blank') + document.write), sem acesso ao
+     sprite de ícones nem ao CSS do site, então o ícone vai copiado
+     inline (é só um círculo + triângulo, sem gradiente) em vez de um
+     <use href="#i-mark">. Isso é o que faz o PDF exportado carregar a
+     identidade visual da Força Ágil, em vez de parecer um documento
+     genérico do navegador sem nada do site. */
+  function logoImpressaoHtml() {
+    return '<div class="rp-brand">' +
+      '<svg class="rp-brand-mark" viewBox="0 0 32 32" aria-hidden="true"><circle cx="16" cy="16" r="13" fill="none" stroke="currentColor" stroke-width="1.6"/><path d="M16 7 L22 22 L16 18 L10 22 Z" fill="currentColor"/></svg>' +
+      '<div class="rp-brand-text"><span class="rp-brand-name">FORÇA <b>ÁGIL</b></span><span class="rp-brand-sub">PREVI · OFICINA DE AGILIDADE ORGANIZACIONAL</span></div>' +
+      '</div>';
+  }
+
   /* Janela de impressão compartilhada pelas duas impressões (simples e
-     completa): monta o HTML, abre a janela e resolve os três problemas
+     completa): monta o HTML, abre a janela e resolve os quatro problemas
      que não dependem do conteúdo em si —
      (1) about:blank no cabeçalho/rodapé que o navegador imprime: como a
          janela nasce com window.open('', ...), a URL fica "about:blank";
@@ -1204,12 +1220,24 @@
          resumo), que nunca vão precisar ser cortados no meio; um bloco
          maior que uma página com esse "avoid" simplesmente SOME da
          página no Chrome em vez de continuar na seguinte — daí o PDF
-         truncado relatado. */
+         truncado relatado;
+     (4) o documento parecia um PDF genérico do navegador, sem nada do
+         site — logoImpressaoHtml() (acima) e as fontes Anton/Oswald do
+         site (carregadas do Google Fonts, mesma família do index.html)
+         dão identidade visual de verdade ao PDF exportado. */
   function abrirJanelaImpressao(tituloDoc, estiloExtra, corpoHtml) {
     var html = '<!doctype html><html><head><meta charset="utf-8"><title>' + esc(tituloDoc) + '</title>' +
+      '<link rel="preconnect" href="https://fonts.googleapis.com">' +
+      '<link href="https://fonts.googleapis.com/css2?family=Anton&family=Oswald:wght@400;500;600;700&family=Barlow:wght@400;500;600;700&display=swap" rel="stylesheet">' +
       '<style>' +
-      'body{font-family:Arial,Helvetica,sans-serif;color:#111;margin:24px;}' +
-      'h1{font-size:1.3rem;margin:0 0 4px;}' +
+      'body{font-family:"Barlow",Arial,Helvetica,sans-serif;color:#111;margin:24px;}' +
+      '.rp-brand{display:flex;align-items:center;gap:10px;background:#0c1528;color:#eaf1ff;padding:10px 16px;border-radius:8px;margin-bottom:18px;-webkit-print-color-adjust:exact;print-color-adjust:exact;page-break-after:avoid;break-after:avoid-page;page-break-inside:avoid;break-inside:avoid-page;}' +
+      '.rp-brand-mark{width:26px;height:26px;flex:none;color:#f5c518;}' +
+      '.rp-brand-text{display:flex;flex-direction:column;line-height:1.2;}' +
+      '.rp-brand-name{font-family:"Anton","Oswald",Arial,sans-serif;font-size:1.05rem;letter-spacing:.1em;text-transform:uppercase;}' +
+      '.rp-brand-name b{color:#f5c518;font-weight:inherit;}' +
+      '.rp-brand-sub{font-family:"Oswald",Arial,sans-serif;font-size:.6rem;letter-spacing:.14em;color:#1ab2ae;margin-top:2px;}' +
+      'h1{font-family:"Oswald",Arial,sans-serif;font-weight:600;font-size:1.25rem;margin:0 0 4px;color:#0c1528;}' +
       '.rp-meta{font-size:.85rem;color:#444;margin-bottom:16px;}' +
       '.rp-sessao-hdr{font-size:1.05rem;font-weight:700;color:#111;margin:0 0 8px;padding-top:14px;border-top:2px solid #999;page-break-after:avoid;break-after:avoid-page;}' +
       '.rp-sessao-hdr:first-of-type{border-top:none;padding-top:0;}' +
@@ -1226,7 +1254,8 @@
       '@page{size:A4 portrait;margin:14mm;}' +
       '</style></head><body>' +
       '<div class="rp-actions"><button id="rp-print-btn">Imprimir / salvar como PDF</button>' +
-        '<span class="rp-dica">Dica: nas opções de impressão do navegador, desmarque "Cabeçalhos e rodapés" pra uma exportação mais limpa.</span></div>' +
+        '<span class="rp-dica">Dica: nas opções de impressão do navegador, desmarque "Cabeçalhos e rodapés" e marque "Gráficos de fundo" pra uma exportação mais fiel.</span></div>' +
+      logoImpressaoHtml() +
       corpoHtml +
       '</body></html>';
 
