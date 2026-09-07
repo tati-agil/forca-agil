@@ -1797,11 +1797,25 @@
         return { item: item, atividade: a, status: 'VALOR ATUAL DIVERGENTE', valorAtual: tipoAtual };
       }
       var rawAtual = a[item.campo] || '';
-      if (item.acao === 'substituir') {
-        var atualPlano = espacoNormal(textoPlanoMigracao(rawAtual));
-        if (atualPlano === espacoNormal(item.para)) return { item: item, atividade: a, status: 'JÁ ATUALIZADO', valorAtual: rawAtual };
-        if (atualPlano === espacoNormal(item.de)) return { item: item, atividade: a, status: 'OK PARA ALTERAR', valorAtual: rawAtual };
-        return { item: item, atividade: a, status: 'VALOR ATUAL DIVERGENTE', valorAtual: rawAtual };
+      /* "substituir" e "substituir_trecho" usam a MESMA lógica: o "DE"
+         é um TRECHO que existe dentro de um campo maior, não o campo
+         inteiro — comparar o campo inteiro com o "DE" gerava falsa
+         divergência sempre que o campo tinha mais conteúdo em volta
+         daquele trecho (o caso normal aqui: o roteiro real tem linhas
+         adicionais que a planilha nunca listou por inteiro). Conta
+         quantas vezes o trecho aparece no valor BRUTO (não no texto
+         "achatado" — a troca precisa acontecer exatamente onde o
+         trecho está, preservando tudo em volta, então a busca é no
+         mesmo valor que será gravado). */
+      if (item.acao === 'substituir' || item.acao === 'substituir_trecho') {
+        var ocorrencias = item.de ? rawAtual.split(item.de).length - 1 : 0;
+        if (ocorrencias === 1) return { item: item, atividade: a, status: 'OK PARA ALTERAR', valorAtual: rawAtual, ocorrencias: 1 };
+        if (ocorrencias > 1) return { item: item, atividade: a, status: 'TRECHO AMBÍGUO', valorAtual: rawAtual, ocorrencias: ocorrencias };
+        /* ocorrencias === 0: ou já foi trocado (o "PARA" já está lá,
+           igual ou já mesclado/reformulado o bastante pra não bater
+           mais com o "DE"), ou o campo realmente diverge de tudo. */
+        if (rawAtual.indexOf(item.para) !== -1) return { item: item, atividade: a, status: 'JÁ ATUALIZADO', valorAtual: rawAtual, ocorrencias: 0 };
+        return { item: item, atividade: a, status: 'VALOR ATUAL DIVERGENTE', valorAtual: rawAtual, ocorrencias: 0 };
       }
       if (item.acao === 'substituir_vazio') {
         var plano2 = espacoNormal(textoPlanoMigracao(rawAtual));
@@ -1812,12 +1826,6 @@
       if (item.acao === 'acrescentar_fim' || item.acao === 'acrescentar_inicio') {
         var contem = espacoNormal(textoPlanoMigracao(rawAtual)).indexOf(espacoNormal(item.para)) !== -1;
         return { item: item, atividade: a, status: contem ? 'JÁ ATUALIZADO' : 'OK PARA ALTERAR', valorAtual: rawAtual };
-      }
-      if (item.acao === 'substituir_trecho') {
-        var ocorrencias = rawAtual.split(item.de).length - 1;
-        if (rawAtual.indexOf(item.para) !== -1) return { item: item, atividade: a, status: 'JÁ ATUALIZADO', valorAtual: rawAtual };
-        if (ocorrencias === 1) return { item: item, atividade: a, status: 'OK PARA ALTERAR', valorAtual: rawAtual };
-        return { item: item, atividade: a, status: 'VALOR ATUAL DIVERGENTE', valorAtual: rawAtual };
       }
       return { item: item, atividade: a, status: 'VALOR ATUAL DIVERGENTE', valorAtual: rawAtual };
     });
@@ -1838,7 +1846,7 @@
           patch = {}; patch[l.item.campo] = paraHtmlMigracao(l.valorMesclado);
         } else if (l.item.acao === 'tipo') {
           patch = { tipo: l.item.para };
-        } else if (l.item.acao === 'substituir' || l.item.acao === 'substituir_vazio') {
+        } else if (l.item.acao === 'substituir_vazio') {
           patch = {}; patch[l.item.campo] = paraHtmlMigracao(l.item.para);
         } else if (l.item.acao === 'acrescentar_fim') {
           var existenteFim = l.valorAtual ? htmlRicoSeguro(l.valorAtual) + '<br><br>' : '';
@@ -1846,8 +1854,11 @@
         } else if (l.item.acao === 'acrescentar_inicio') {
           var existenteInicio = l.valorAtual ? '<br><br>' + htmlRicoSeguro(l.valorAtual) : '';
           patch = {}; patch[l.item.campo] = paraHtmlMigracao(l.item.para) + existenteInicio;
-        } else if (l.item.acao === 'substituir_trecho') {
-          patch = {}; patch[l.item.campo] = l.valorAtual.split(l.item.de).join(l.item.para);
+        } else if (l.item.acao === 'substituir' || l.item.acao === 'substituir_trecho') {
+          /* Só troca o TRECHO "de" pelo "para" dentro do valor atual —
+             preserva todo o resto do campo, nunca substitui o campo
+             inteiro (ver dryRunMigracaoAntesDepois acima). */
+          patch = {}; patch[l.item.campo] = l.item.de ? l.valorAtual.split(l.item.de).join(l.item.para) : l.valorAtual;
         }
         editarAtividade(eventoKey, l.atividade.key, patch, function (err) {
           if (!err) atualizados++;
@@ -1900,19 +1911,28 @@
       'OK PARA ALTERAR': 'var(--blue-glow,#4aa3ff)',
       'JÁ ATUALIZADO': '#4caf7d',
       'VALOR ATUAL DIVERGENTE': '#ff8a5c',
+      'TRECHO AMBÍGUO': '#ff8a5c',
       'ATIVIDADE NÃO ENCONTRADA': '#ff6b60',
       'REGISTRO AMBÍGUO': '#ff6b60',
       'DIVERGÊNCIA RESOLVIDA': '#c9a94a'
     };
     var labelDecisao = { manter: 'MANTER ATUAL', usar_para: 'USAR PARA', mesclar: 'MESCLA APROVADA' };
+    /* "VALOR ATUAL DIVERGENTE" (trecho não achado) e "TRECHO AMBÍGUO"
+       (trecho achado mais de uma vez) são os dois casos que precisam
+       de revisão humana — os dois entram na mesma fila de revisão
+       (mesmos 3 botões de decisão). "REGISTRO AMBÍGUO" de título
+       duplicado é outra coisa: não existe UMA atividade pra mostrar
+       "valor atual", então esse fica só como pendência, sem revisão
+       aqui dentro. */
+    function precisaRevisao(l) { return l.status === 'VALOR ATUAL DIVERGENTE' || l.status === 'TRECHO AMBÍGUO'; }
 
-    function totalDivergentes() { return linhas.filter(function (l) { return l.status === 'VALOR ATUAL DIVERGENTE'; }).length; }
-    function divergentesResolvidas() { return linhas.filter(function (l) { return l.status === 'VALOR ATUAL DIVERGENTE' && l.decisaoTipo; }).length; }
-    function pendenteAlgumaDivergencia() { return linhas.some(function (l) { return l.status === 'VALOR ATUAL DIVERGENTE' && !l.decisaoTipo; }); }
+    function totalDivergentes() { return linhas.filter(precisaRevisao).length; }
+    function divergentesResolvidas() { return linhas.filter(function (l) { return precisaRevisao(l) && l.decisaoTipo; }).length; }
+    function pendenteAlgumaDivergencia() { return linhas.some(function (l) { return precisaRevisao(l) && !l.decisaoTipo; }); }
     function linhasParaAplicar() {
       return linhas.filter(function (l) {
         if (l.status === 'OK PARA ALTERAR') return true;
-        if (l.status === 'VALOR ATUAL DIVERGENTE' && (l.decisaoTipo === 'usar_para' || l.decisaoTipo === 'mesclar')) return true;
+        if (precisaRevisao(l) && (l.decisaoTipo === 'usar_para' || l.decisaoTipo === 'mesclar')) return true;
         return false;
       });
     }
@@ -1922,10 +1942,10 @@
     function proximaDivergentePendente(depoisDe) {
       var i;
       for (i = depoisDe + 1; i < linhas.length; i++) {
-        if (linhas[i].status === 'VALOR ATUAL DIVERGENTE' && !linhas[i].decisaoTipo) return i;
+        if (precisaRevisao(linhas[i]) && !linhas[i].decisaoTipo) return i;
       }
       for (i = 0; i <= depoisDe; i++) {
-        if (linhas[i].status === 'VALOR ATUAL DIVERGENTE' && !linhas[i].decisaoTipo) return i;
+        if (precisaRevisao(linhas[i]) && !linhas[i].decisaoTipo) return i;
       }
       return null;
     }
@@ -1935,12 +1955,15 @@
       var atualPlano = textoPlanoMigracao(l.valorAtual).trim() || '(vazio)';
       var deTxt = l.item.de || '(sem "DE" — este item é uma inclusão nova, o campo estava vazio)';
       var paraTxt = l.item.para;
-      var trechoNaoAchado = l.item.acao === 'substituir_trecho' && l.valorAtual && l.valorAtual.indexOf(l.item.de) === -1;
+      var ehTrecho = l.item.acao === 'substituir' || l.item.acao === 'substituir_trecho';
+      var trechoNaoAchado = ehTrecho && l.status === 'VALOR ATUAL DIVERGENTE';
+      var trechoRepetido = l.status === 'TRECHO AMBÍGUO';
       return '<div class="mig-painel" style="background:var(--panel-2);border:1px solid var(--line-strong);border-radius:8px;padding:14px;margin:6px 0;font-size:.8rem">' +
         '<div style="margin-bottom:8px"><strong style="color:var(--ink-3);text-transform:uppercase;font-size:.66rem;letter-spacing:.06em">Atual no sistema</strong><div style="white-space:pre-wrap;margin-top:4px;color:var(--ink)">' + esc(atualPlano) + '</div></div>' +
-        '<div style="margin-bottom:8px"><strong style="color:var(--ink-3);text-transform:uppercase;font-size:.66rem;letter-spacing:.06em">DE do Excel</strong><div style="white-space:pre-wrap;margin-top:4px;color:var(--ink-2)">' + esc(deTxt) + '</div></div>' +
+        '<div style="margin-bottom:8px"><strong style="color:var(--ink-3);text-transform:uppercase;font-size:.66rem;letter-spacing:.06em">DE do Excel' + (ehTrecho ? ' (trecho procurado dentro do campo acima)' : '') + '</strong><div style="white-space:pre-wrap;margin-top:4px;color:var(--ink-2)">' + esc(deTxt) + '</div></div>' +
         '<div style="margin-bottom:10px"><strong style="color:var(--ink-3);text-transform:uppercase;font-size:.66rem;letter-spacing:.06em">PARA do Excel</strong><div style="white-space:pre-wrap;margin-top:4px;color:var(--ink-2)">' + esc(paraTxt) + '</div></div>' +
         (trechoNaoAchado ? '<p style="color:#ff8a5c;font-size:.72rem;margin:0 0 8px">O texto "DE" não aparece literalmente no valor atual — "Substituir pelo PARA" não vai achar onde trocar. Use "Mesclar manualmente" pra decidir onde o texto novo entra.</p>' : '') +
+        (trechoRepetido ? '<p style="color:#ff8a5c;font-size:.72rem;margin:0 0 8px">O texto "DE" aparece ' + l.ocorrencias + ' vezes no valor atual — "Substituir pelo PARA" trocaria TODAS as ocorrências de uma vez. Confira se é isso mesmo antes de escolher, ou use "Mesclar manualmente" pra decidir caso a caso.</p>' : '') +
         '<div class="mig-mescla-area" style="display:none;margin-bottom:10px">' +
           '<label class="auth-label">Proposta de texto final — edite livremente (nada é gravado até "Confirmar mesclagem")<textarea class="mig-mescla-texto" rows="6" style="width:100%;padding:8px;background:var(--panel);border:1px solid var(--line-strong);border-radius:6px;color:var(--ink);font-family:inherit">' + esc(paraTxt) + '</textarea></label>' +
           '<button class="btn btn--primary mig-mescla-confirmar" style="margin-top:6px">Confirmar mesclagem</button>' +
@@ -1959,7 +1982,7 @@
       var manterCount = linhas.filter(function (l) { return l.decisaoTipo === 'manter'; }).length;
       var usarParaCount = linhas.filter(function (l) { return l.decisaoTipo === 'usar_para'; }).length;
       var mesclaCount = linhas.filter(function (l) { return l.decisaoTipo === 'mesclar'; }).length;
-      var pendenciasCount = linhas.filter(function (l) { return l.status === 'ATIVIDADE NÃO ENCONTRADA' || l.status === 'REGISTRO AMBÍGUO' || (l.status === 'VALOR ATUAL DIVERGENTE' && !l.decisaoTipo); }).length;
+      var pendenciasCount = linhas.filter(function (l) { return l.status === 'ATIVIDADE NÃO ENCONTRADA' || l.status === 'REGISTRO AMBÍGUO' || (precisaRevisao(l) && !l.decisaoTipo); }).length;
       var totalDiv = totalDivergentes();
       var resolvidasDiv = divergentesResolvidas();
       var podeAplicar = !pendenteAlgumaDivergencia();
@@ -1967,7 +1990,7 @@
 
       var linhasHtml = linhas.map(function (l, i) {
         var statusTxt = l.status, cor = corPorStatus[l.status] || 'var(--ink-2)', acaoCol = '';
-        if (l.status === 'VALOR ATUAL DIVERGENTE') {
+        if (precisaRevisao(l)) {
           if (l.decisaoTipo) {
             statusTxt = 'DIVERGÊNCIA RESOLVIDA → ' + labelDecisao[l.decisaoTipo];
             cor = corPorStatus['DIVERGÊNCIA RESOLVIDA'];
