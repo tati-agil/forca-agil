@@ -16,8 +16,8 @@
      roteiros-evento/<eventoKey>/atividades/<atvKey> = {
        diaKey, ordem, titulo, tipo, paiKey?, sessao?,
        horaInicio, horaFim, duracaoMinutos,
-       objetivo, passoAPasso, dicasFacilitador, conexaoAgilidade,
-       materiais: [..], preparacaoPrevia, observacoes,
+       objetivo, resultadoEsperado?, passoAPasso, dicasFacilitador, promptIA?,
+       conexaoAgilidade, materiais: [..], preparacaoPrevia, observacoes,
        createdAt, updatedAt
      }
      ("descricao" e "perguntasDebrief" existiram antes e podem sobreviver
@@ -801,10 +801,13 @@
         '<p style="font-size:.72rem;color:var(--ink-3);margin-top:4px">Agrupa as atividades do dia em janelas separadas (ex: "Manhã" e "Tarde") — cada uma com sua própria janela/lacunas calculadas, sem contar o intervalo entre elas (ex: almoço) como lacuna de planejamento. Deixe em branco se o dia é uma janela só.</p>') +
       bloco('Propósito',
         campoRico('rfObjetivo', 'Objetivo', htmlRicoSeguro(a.objetivo), 'O que queremos que os participantes percebam, aprendam ou experimentem?', 3) +
+        campoRico('rfResultado', 'Resultado esperado', htmlRicoSeguro(a.resultadoEsperado), 'O que deve existir ao término desta atividade? Ex: "8 iniciativas priorizadas pelo Conselho."', 3) +
         campoRico('rfConexao', 'Conexão com a mentalidade ágil', htmlRicoSeguro(a.conexaoAgilidade), 'Por que esta atividade existe', 3)) +
       bloco('Como conduzir',
         campoRico('rfPasso', 'Passo a passo (uma linha por passo)', htmlRicoSeguro(a.passoAPasso), '1. Explique a missão...', 5) +
         campoRico('rfDicas', 'Dicas para o facilitador', htmlRicoSeguro(a.dicasFacilitador), 'O que evitar, o que reforçar', 3)) +
+      bloco('IA',
+        campoRico('rfPromptIA', 'Prompt para IA', htmlRicoSeguro(a.promptIA), 'Prompt a ser usado nesta atividade (ex: experimentação com IA) — não confundir com Passo a passo, Dicas, Observações ou Preparação prévia', 5)) +
       bloco('Recursos',
         campoRico('rfMateriais', 'Materiais necessários (um por linha)', listaParaHtmlEditor(a.materiais), '30 cartões, post-its', 3) +
         campoRico('rfPreparacao', 'Preparação prévia', htmlRicoSeguro(a.preparacaoPrevia), 'O que preparar antes de começar', 3)) +
@@ -923,7 +926,9 @@
         duracaoMinutos: duracaoEl.value ? Math.max(0, Number(duracaoEl.value)) : 0,
         sessao: $('#rfSessao').value.trim(),
         objetivo: extrairTextoRico($('#rfObjetivo')),
+        resultadoEsperado: extrairTextoRico($('#rfResultado')),
         passoAPasso: extrairTextoRico($('#rfPasso')), dicasFacilitador: extrairTextoRico($('#rfDicas')),
+        promptIA: extrairTextoRico($('#rfPromptIA')),
         conexaoAgilidade: extrairTextoRico($('#rfConexao')),
         materiais: extrairListaRico($('#rfMateriais')),
         preparacaoPrevia: extrairTextoRico($('#rfPreparacao')), observacoes: extrairTextoRico($('#rfObs'))
@@ -1477,8 +1482,10 @@
     var camposHtml = apenasPassoAPasso
       ? campoImpressao('Passo a passo', a.passoAPasso)
       : campoImpressao('Objetivo', a.objetivo) +
+        campoImpressao('Resultado esperado', a.resultadoEsperado) +
         campoImpressao('Passo a passo', a.passoAPasso) +
         campoImpressao('Dicas para o facilitador', a.dicasFacilitador) +
+        campoImpressao('Prompt para IA', a.promptIA) +
         campoImpressao('Conexão com a agilidade', a.conexaoAgilidade) +
         campoImpressao('Materiais necessários', a.materiais) +
         campoImpressao('Preparação prévia', a.preparacaoPrevia) +
@@ -2158,8 +2165,10 @@
       var detalhes = document.createElement('div');
       detalhes.innerHTML =
         campoDetalhe('Objetivo', a.objetivo) +
+        campoDetalhe('Resultado esperado', a.resultadoEsperado) +
         campoDetalhe('Passo a passo', a.passoAPasso) +
         campoDetalhe('Dicas para o facilitador', a.dicasFacilitador) +
+        campoDetalhe('Prompt para IA', a.promptIA) +
         campoDetalhe('Conexão com a agilidade', a.conexaoAgilidade) +
         campoDetalhe('Materiais necessários', a.materiais) +
         campoDetalhe('Preparação prévia', a.preparacaoPrevia) +
