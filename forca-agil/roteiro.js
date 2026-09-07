@@ -964,7 +964,7 @@
     return false;
   }
 
-  function resumoDiaHtml(resumo, idPrefix) {
+  function resumoDiaHtml(resumo, idPrefix, ehSessao) {
     function item(label, valor, cor, tooltip, extra) {
       return '<div style="flex:1;min-width:110px" title="' + esc(tooltip || '') + '">' +
         '<div style="font-size:.64rem;letter-spacing:.08em;text-transform:uppercase;color:var(--ink-3)">' + esc(label) + '</div>' +
@@ -972,13 +972,19 @@
         (extra ? '<div style="font-size:.68rem;color:var(--ink-3)">' + esc(extra) + '</div>' : '') + '</div>';
     }
     var janelaTxt = resumo.janelaMin != null ? minParaHhmm(resumo.janelaInicioMin) + ' → ' + minParaHhmm(resumo.janelaFimMin) : '—';
+    /* §113/§114: quando o dia tem mais de uma sessão, o rótulo deixa claro
+       que essa janela é só desta sessão — nunca "janela do dia" abrangendo
+       o dia inteiro, o que sugeriria (errado) um evento contínuo. */
     return '<div id="' + idPrefix + '" style="display:flex;flex-wrap:wrap;gap:16px;padding:14px 16px;background:var(--panel-2);border:1px solid var(--line-strong);border-radius:12px;margin-bottom:14px">' +
-      item('Janela do dia', janelaTxt, 'var(--gold)', 'Do início da primeira à conclusão da última atividade com horário definido.', resumo.janelaMin != null ? fmtDuracao(resumo.janelaMin) : '') +
+      item(ehSessao ? 'Janela da sessão' : 'Janela do dia', janelaTxt, 'var(--gold)', 'Do início da primeira à conclusão da última atividade com horário definido' + (ehSessao ? ' nesta sessão.' : '.'), resumo.janelaMin != null ? fmtDuracao(resumo.janelaMin) : '') +
       item('Tempo programado', fmtDuracao(resumo.programadoMin), 'var(--blue-glow)', 'Soma das durações de todas as atividades planejadas (inclui pausas).') +
       item('Tempo de facilitação', fmtDuracao(resumo.facilitacaoMin), '#4caf7d', 'Tempo programado descontando pausas e intervalos.', resumo.pausasMin ? '' : 'sem pausas') +
       item('Pausas / intervalos', fmtDuracao(resumo.pausasMin), '#ffb347', 'Soma das atividades do tipo Intervalo.') +
       item('Lacunas', fmtDuracao(resumo.lacunasMin), resumo.lacunasMin ? '#ff8a5c' : 'var(--ink-3)', 'Períodos entre atividades sem nada programado — não conta como tempo programado.') +
       item('Atividades', String(resumo.atividadesCount), 'var(--blue-glow)', 'Quantidade de atividades principais do dia (sub-etapas não contam à parte).') +
+      (resumo.sobreposicoes && resumo.sobreposicoes.length
+        ? item('Sobreposições', fmtDuracao(resumo.sobreposicoes.reduce(function (s, o) { return s + o.min; }, 0)), '#ff6b60', 'Minutos de conflito de horário entre atividades.', resumo.sobreposicoes.length + ' conflito' + (resumo.sobreposicoes.length !== 1 ? 's' : ''))
+        : '') +
       '</div>';
   }
 
@@ -1011,14 +1017,17 @@
      banner de sobreposição, no HTML de impressão — compartilhado pelas
      duas impressões, uma vez por sessão (ou uma vez só, se o dia não usa
      sessões). */
-  function resumoImpressaoHtml(resumo) {
+  function resumoImpressaoHtml(resumo, ehSessao) {
     var html = '<div class="rp-resumo">' +
-      '<div>Janela<b>' + (resumo.janelaMin != null ? esc(minParaHhmm(resumo.janelaInicioMin) + ' → ' + minParaHhmm(resumo.janelaFimMin)) : '—') + '</b></div>' +
+      '<div>' + (ehSessao ? 'Janela da sessão' : 'Janela') + '<b>' + (resumo.janelaMin != null ? esc(minParaHhmm(resumo.janelaInicioMin) + ' → ' + minParaHhmm(resumo.janelaFimMin)) : '—') + '</b></div>' +
       '<div>Programado<b>' + esc(fmtDuracao(resumo.programadoMin)) + '</b></div>' +
       '<div>Facilitação<b>' + esc(fmtDuracao(resumo.facilitacaoMin)) + '</b></div>' +
       '<div>Pausas<b>' + esc(fmtDuracao(resumo.pausasMin)) + '</b></div>' +
       '<div>Lacunas<b>' + esc(fmtDuracao(resumo.lacunasMin)) + '</b></div>' +
       '<div>Atividades<b>' + resumo.atividadesCount + '</b></div>' +
+      (resumo.sobreposicoes && resumo.sobreposicoes.length
+        ? '<div>Sobreposições<b>' + esc(fmtDuracao(resumo.sobreposicoes.reduce(function (s, o) { return s + o.min; }, 0))) + ' · ' + resumo.sobreposicoes.length + ' conflito' + (resumo.sobreposicoes.length !== 1 ? 's' : '') + '</b></div>'
+        : '') +
       '</div>';
     if (resumo.sobreposicoes && resumo.sobreposicoes.length) {
       html += '<div class="rp-sobreposicao">' + resumo.sobreposicoes.map(function (s) {
@@ -1091,7 +1100,7 @@
     grupos.forEach(function (grupo) {
       var resumo = calcularResumoDia(grupo.atividades, todasAtividades);
       if (grupos.length > 1) corpo += '<div class="rp-sessao-hdr">' + esc(grupo.nome || 'Sem sessão definida') + '</div>';
-      corpo += resumoImpressaoHtml(resumo);
+      corpo += resumoImpressaoHtml(resumo, grupos.length > 1);
       var linhasHtml = '';
       grupo.atividades.forEach(function (a, i) {
         var gapAntes = resumo.gaps.filter(function (g) { return g.fimMin === hhmmParaMin(a.horaInicio); })[0];
@@ -1131,8 +1140,9 @@
     return '<div class="rp-campo"><strong>' + esc(label) + '</strong>' + conteudo + '</div>';
   }
 
-  function blocoAtividadeImpressao(a, numeroTxt, todasAtividades) {
-    var horario = (a.horaInicio || '—') + (a.horaFim ? '–' + a.horaFim : '');
+  function blocoAtividadeImpressao(a, numeroTxt, todasAtividades, paiTitulo) {
+    var ehSub = numeroTxt.indexOf('.') !== -1;
+    var horario = a.horaInicio ? (a.horaInicio + (a.horaFim ? '–' + a.horaFim : '')) : (ehSub ? '' : '—');
     var camposHtml =
       campoImpressao('Objetivo', a.objetivo) +
       campoImpressao('Passo a passo', a.passoAPasso) +
@@ -1141,10 +1151,16 @@
       campoImpressao('Materiais necessários', a.materiais) +
       campoImpressao('Preparação prévia', a.preparacaoPrevia) +
       campoImpressao('Observações', a.observacoes);
+    /* §121: campo sem valor simplesmente não aparece — nunca um aviso de
+       "nenhum campo preenchido"; se só título+duração existem, o bloco
+       para por aí mesmo. §122: repete o título da seção-mãe em cada
+       etapa filha (rp-contexto, com quebra evitada como o h3) pra manter
+       o contexto se a impressão cortar a página no meio da seção. */
     return '<div class="rp-atv' + (numeroTxt.indexOf('.') !== -1 ? ' rp-atv-sub' : '') + '">' +
+      (paiTitulo ? '<div class="rp-contexto">' + esc(paiTitulo) + ' — continuação</div>' : '') +
       '<h3>' + esc(numeroTxt) + '. ' + esc(a.titulo) + (a.tipo ? ' <span class="rp-tipo">· ' + esc(a.tipo) + '</span>' : '') + '</h3>' +
-      '<div class="rp-atv-meta">' + esc(horario) + ' · ' + esc(fmtDuracao(duracaoEfetiva(a, todasAtividades))) + '</div>' +
-      (camposHtml || '<p class="rp-vazio">Nenhum campo preenchido nesta atividade.</p>') +
+      '<div class="rp-atv-meta">' + (horario ? esc(horario) + ' · ' : '') + esc(fmtDuracao(duracaoEfetiva(a, todasAtividades))) + '</div>' +
+      camposHtml +
       '</div>';
   }
 
@@ -1159,13 +1175,13 @@
     grupos.forEach(function (grupo) {
       var resumo = calcularResumoDia(grupo.atividades, todasAtividades);
       if (grupos.length > 1) corpo += '<div class="rp-sessao-hdr">' + esc(grupo.nome || 'Sem sessão definida') + '</div>';
-      corpo += resumoImpressaoHtml(resumo);
+      corpo += resumoImpressaoHtml(resumo, grupos.length > 1);
       grupo.atividades.forEach(function (a, i) {
         var gapAntes = resumo.gaps.filter(function (g) { return g.fimMin === hhmmParaMin(a.horaInicio); })[0];
         if (gapAntes) corpo += '<div class="rp-gap-bloco">⚠ Lacuna: ' + esc(minParaHhmm(gapAntes.inicioMin)) + '–' + esc(minParaHhmm(gapAntes.fimMin)) + ' (' + esc(fmtDuracao(gapAntes.min)) + ' sem atividade programada)</div>';
         corpo += blocoAtividadeImpressao(a, String(i + 1), todasAtividades);
         filhosDe(todasAtividades, a.key).forEach(function (sub, j) {
-          corpo += blocoAtividadeImpressao(sub, (i + 1) + '.' + (j + 1), todasAtividades);
+          corpo += blocoAtividadeImpressao(sub, (i + 1) + '.' + (j + 1), todasAtividades, a.titulo);
         });
       });
     });
@@ -1183,7 +1199,7 @@
       '.rp-campo-txt div, .rp-campo-txt p{margin:0 0 4px;}' +
       '.rp-campo-txt div:last-child, .rp-campo-txt p:last-child{margin-bottom:0;}' +
       '.rp-campo ul{margin:2px 0 0 18px;padding:0;}' +
-      '.rp-vazio{margin:0;font-size:.8rem;color:#888;font-style:italic;}' +
+      '.rp-contexto{font-size:.72rem;color:#888;font-style:italic;margin-bottom:2px;page-break-after:avoid;break-after:avoid-page;}' +
       '.rp-gap-bloco{border:1px dashed #ff8a5c;background:#fff3e0;color:#a35a2a;font-style:italic;font-size:.82rem;padding:6px 12px;border-radius:6px;margin-bottom:10px;}',
       corpo
     );
@@ -1321,7 +1337,7 @@
           container.appendChild(sessaoHdr);
         }
 
-        container.insertAdjacentHTML('beforeend', resumoDiaHtml(resumo, 'rbResumoTopo_' + gi));
+        container.insertAdjacentHTML('beforeend', resumoDiaHtml(resumo, 'rbResumoTopo_' + gi, grupos.length > 1));
 
         if (ordemDivergeDoHorario(grupo.atividades)) {
           var bannerOrdem = document.createElement('div');
@@ -1368,13 +1384,13 @@
           var recolhida = !!_secoesRecolhidas[a.key];
           if (filhos.length && !recolhida) {
             filhos.forEach(function (f, j) {
-              lista.appendChild(linhaAtividade(f, j + 1, filhos, i + 1));
+              lista.appendChild(linhaAtividade(f, j + 1, filhos, i + 1, { atividade: a, irmaos: grupo.atividades }));
             });
           }
         });
         container.appendChild(lista);
 
-        container.insertAdjacentHTML('beforeend', resumoDiaHtml(resumo, 'rbResumoRodape_' + gi));
+        container.insertAdjacentHTML('beforeend', resumoDiaHtml(resumo, 'rbResumoRodape_' + gi, grupos.length > 1));
       });
 
       var addAtvBtn = document.createElement('button');
@@ -1393,26 +1409,38 @@
          a diferença é só visual (recuo) e o que "+ Sub-etapa" faz (só
          aparece no nível principal, pra não abrir um terceiro nível na
          tela). numeroPai null = linha de nível principal. */
-      function linhaAtividade(a, numero, irmaos, numeroPai) {
+      function linhaAtividade(a, numero, irmaos, numeroPai, paiInfo) {
         var ehFilho = numeroPai != null;
         var row = document.createElement('div');
         row.style.cssText = ehFilho
-          ? 'display:flex;align-items:center;gap:10px;padding:8px 14px 8px 34px;margin-left:20px;border-left:2px solid var(--line-strong);background:rgba(255,255,255,.02);border-radius:0 8px 8px 0;flex-wrap:wrap'
+          ? 'display:flex;align-items:center;gap:10px;padding:6px 14px 6px 40px;margin-left:28px;border-left:2px solid var(--line-strong);background:rgba(255,255,255,.015);border-radius:0 8px 8px 0;flex-wrap:wrap'
           : 'display:flex;align-items:center;gap:10px;padding:10px 14px;background:var(--panel-2);border:1px solid var(--line-strong);border-radius:8px;flex-wrap:wrap';
-        var horario = (a.horaInicio || '—') + (a.horaFim ? '–' + a.horaFim : '');
+        /* Sub-etapa sem horário próprio não mostra "—" (dá impressão de
+           dado ausente) — simplesmente não exibe coluna de horário. */
+        var horario = a.horaInicio ? (a.horaInicio + (a.horaFim ? '–' + a.horaFim : '')) : (ehFilho ? '' : '—');
         var filhosDesta = ehFilho ? [] : filhosDe(atividadesDia, a.key);
         var ehSecao = filhosDesta.length > 0;
         var recolhida = !!_secoesRecolhidas[a.key];
         var numeroTxt = ehFilho ? (numeroPai + '.' + numero) : String(numero);
+        /* Numa seção, tipo + duração + contagem de etapas viram uma única
+           linha auxiliar sob o título (ex: "Dinâmica · 15 min · 6 etapas")
+           em vez de espalhados em colunas — mais perto do protótipo. */
+        var metaSecao = ehSecao
+          ? [a.tipo, fmtDuracao(duracaoEfetiva(a, atividadesDia)), filhosDesta.length + ' etapa' + (filhosDesta.length !== 1 ? 's' : '')].filter(Boolean).join(' · ')
+          : '';
         row.innerHTML =
           '<span style="width:30px;text-align:center;font-family:var(--font-mono);font-size:.7rem;color:var(--ink-3);' + (ehFilho ? '' : 'background:var(--panel);border-radius:4px;padding:2px 0;') + '">' + numeroTxt + '</span>' +
-          '<span style="font-family:var(--font-mono);font-size:.78rem;color:var(--gold);min-width:96px">' + esc(horario) + '</span>' +
-          '<span style="flex:1;min-width:140px;color:' + (ehFilho ? 'var(--ink-2)' : 'var(--ink)') + ';font-size:' + (ehFilho ? '.85rem' : '1rem') + '">' + esc(a.titulo) +
-            (ehSecao ? ' <span style="font-size:.7rem;color:var(--ink-3)">· ' + filhosDesta.length + ' etapa' + (filhosDesta.length !== 1 ? 's' : '') + '</span>' : '') + '</span>' +
-          (a.tipo ? '<span class="turma-status-badge" style="background:var(--panel);color:' + (a.tipo === 'Intervalo' ? '#ffb347' : 'var(--ink-3)') + ';border:1px solid var(--line-strong)">' + esc(a.tipo) + '</span>' : '') +
-          '<span style="font-size:.75rem;color:var(--ink-3);width:64px">' + fmtDuracao(duracaoEfetiva(a, atividadesDia)) + '</span>';
+          (horario ? '<span style="font-family:var(--font-mono);font-size:' + (ehFilho ? '.72rem' : '.78rem') + ';color:' + (ehFilho ? 'var(--ink-3)' : 'var(--gold)') + ';min-width:96px">' + esc(horario) + '</span>' : '<span style="min-width:96px"></span>') +
+          '<div style="flex:1;min-width:140px;display:flex;flex-direction:column;gap:1px">' +
+            '<span style="color:' + (ehFilho ? 'var(--ink-2)' : 'var(--ink)') + ';font-size:' + (ehFilho ? '.85rem' : '1rem') + '">' + esc(a.titulo) + '</span>' +
+            (metaSecao ? '<span style="font-size:.7rem;color:var(--ink-3)">' + esc(metaSecao) + '</span>' : '') +
+          '</div>' +
+          (!ehSecao && a.tipo ? '<span class="turma-status-badge" style="background:var(--panel);color:' + (a.tipo === 'Intervalo' ? '#ffb347' : 'var(--ink-3)') + ';border:1px solid var(--line-strong)">' + esc(a.tipo) + '</span>' : '') +
+          (!ehSecao ? '<span style="font-size:.75rem;color:var(--ink-3);width:64px">' + fmtDuracao(duracaoEfetiva(a, atividadesDia)) + '</span>' : '');
         var acoes = document.createElement('div');
         acoes.style.cssText = 'display:flex;gap:4px;margin-left:auto;flex-wrap:wrap';
+        var estiloBtnAcao = ehFilho ? 'padding:3px 7px;font-size:.68rem' : 'padding:4px 8px';
+        var estiloBtnAcaoTxt = ehFilho ? 'padding:3px 7px;font-size:.68rem' : 'padding:4px 8px;font-size:.72rem';
         if (ehSecao) {
           var toggleBtn = document.createElement('button');
           toggleBtn.className = 'btn btn--sm'; toggleBtn.style.cssText = 'padding:4px 8px;font-size:.72rem';
@@ -1420,25 +1448,39 @@
           toggleBtn.addEventListener('click', function () { _secoesRecolhidas[a.key] = !recolhida; desenhar(roteiro); });
           acoes.appendChild(toggleBtn);
         }
-        var upBtn = document.createElement('button'); upBtn.className = 'btn btn--sm'; upBtn.style.cssText = 'padding:4px 8px'; upBtn.textContent = '▲'; upBtn.disabled = numero === 1;
+        var upBtn = document.createElement('button'); upBtn.className = 'btn btn--sm'; upBtn.style.cssText = estiloBtnAcao; upBtn.textContent = '▲'; upBtn.disabled = numero === 1;
         upBtn.addEventListener('click', function () { moverAtividade(eventoKey, a.key, 'up', irmaos, function () { reload(); }); });
-        var downBtn = document.createElement('button'); downBtn.className = 'btn btn--sm'; downBtn.style.cssText = 'padding:4px 8px'; downBtn.textContent = '▼'; downBtn.disabled = numero === irmaos.length;
+        var downBtn = document.createElement('button'); downBtn.className = 'btn btn--sm'; downBtn.style.cssText = estiloBtnAcao; downBtn.textContent = '▼'; downBtn.disabled = numero === irmaos.length;
         downBtn.addEventListener('click', function () { moverAtividade(eventoKey, a.key, 'down', irmaos, function () { reload(); }); });
-        var dupBtn = document.createElement('button'); dupBtn.className = 'btn btn--sm'; dupBtn.style.cssText = 'padding:4px 8px;font-size:.72rem'; dupBtn.textContent = 'Duplicar';
+        var dupBtn = document.createElement('button'); dupBtn.className = 'btn btn--sm'; dupBtn.style.cssText = estiloBtnAcaoTxt; dupBtn.textContent = 'Duplicar';
         dupBtn.addEventListener('click', function () { duplicarAtividade(eventoKey, a, irmaos, atividadesDia, function () { reload(); }); });
-        var editBtn = document.createElement('button'); editBtn.className = 'btn btn--sm'; editBtn.style.cssText = 'padding:4px 8px;font-size:.72rem'; editBtn.textContent = 'Editar';
+        var editBtn = document.createElement('button'); editBtn.className = 'btn btn--sm'; editBtn.style.cssText = estiloBtnAcaoTxt; editBtn.textContent = 'Editar';
         editBtn.addEventListener('click', function () {
           abrirFormAtividade({
-            titulo: ehFilho ? 'Editar sub-etapa' : 'Editar atividade', existente: a, filhosCount: filhosDesta.length,
+            titulo: ehFilho ? 'Editar etapa' : 'Editar atividade', existente: a, filhosCount: filhosDesta.length,
             duracaoSomaFilhos: filhosDesta.length ? duracaoEfetiva(a, atividadesDia) : undefined,
             onSalvar: function (dados) {
               var duracaoAntes = duracaoEfetiva(a, atividadesDia);
               editarAtividade(eventoKey, a.key, dados, function () {
                 var duracaoDepois = filhosDesta.length ? duracaoAntes : (Number(dados.duracaoMinutos) || 0);
-                if (ehFilho) return reload(); /* sub-etapa não participa da cadeia de recálculo do dia */
-                /* "irmãos" já é a lista da mesma sessão (não o dia inteiro) —
-                   a cadeia de recálculo nunca deve mexer noutra sessão. */
-                ofereceRecalculo(a.key, duracaoDepois - duracaoAntes, dados.horaInicio, irmaos, function () { reload(); });
+                if (!ehFilho) {
+                  /* "irmãos" já é a lista da mesma sessão (não o dia inteiro) —
+                     a cadeia de recálculo nunca deve mexer noutra sessão. */
+                  return ofereceRecalculo(a.key, duracaoDepois - duracaoAntes, dados.horaInicio, irmaos, function () { reload(); });
+                }
+                /* Etapa: a duração do pai é sempre a soma das etapas — muda
+                   sozinha aqui (nunca peça pra editar o pai à toa), e se o
+                   pai tiver horário próprio, o Fim dele desloca junto e a
+                   cadeia de recálculo dos IRMÃOS DO PAI (não da etapa) é
+                   oferecida, exatamente como se a duração tivesse mudado
+                   editando o pai diretamente. */
+                if (!paiInfo) return reload();
+                var deltaPai = duracaoDepois - duracaoAntes;
+                if (!deltaPai || !paiInfo.atividade.horaInicio) return reload();
+                var novoFimPai = minParaHhmm(hhmmParaMin(paiInfo.atividade.horaInicio) + duracaoEfetiva(paiInfo.atividade, atividadesDia) + deltaPai);
+                editarAtividade(eventoKey, paiInfo.atividade.key, { horaFim: novoFimPai }, function () {
+                  ofereceRecalculo(paiInfo.atividade.key, deltaPai, paiInfo.atividade.horaInicio, paiInfo.irmaos, function () { reload(); });
+                });
               });
             },
             onExcluir: function () { excluirAtividade(eventoKey, a.key, atividadesDia, function () { reload(); }); }
@@ -1447,10 +1489,10 @@
         acoes.appendChild(upBtn); acoes.appendChild(downBtn); acoes.appendChild(dupBtn); acoes.appendChild(editBtn);
         if (!ehFilho) {
           var addSubBtn = document.createElement('button');
-          addSubBtn.className = 'btn btn--sm'; addSubBtn.style.cssText = 'padding:4px 8px;font-size:.72rem'; addSubBtn.textContent = '+ Sub-etapa';
+          addSubBtn.className = 'btn btn--sm'; addSubBtn.style.cssText = 'padding:4px 8px;font-size:.72rem'; addSubBtn.textContent = '+ Etapa';
           addSubBtn.addEventListener('click', function () {
             abrirFormAtividade({
-              titulo: 'Nova sub-etapa de "' + a.titulo + '"',
+              titulo: 'Nova etapa de "' + a.titulo + '"',
               onSalvar: function (dados) {
                 criarAtividade(eventoKey, dia.key, Object.assign({ paiKey: a.key }, dados), filhosDesta, function () {
                   _secoesRecolhidas[a.key] = false;
@@ -1543,7 +1585,7 @@
           container.appendChild(sessaoHdr);
         }
 
-        container.insertAdjacentHTML('beforeend', resumoDiaHtml(resumo, 'rtResumoTopo_' + gi));
+        container.insertAdjacentHTML('beforeend', resumoDiaHtml(resumo, 'rtResumoTopo_' + gi, grupos.length > 1));
         container.insertAdjacentHTML('beforeend', bannerSobreposicoesHtml(resumo.sobreposicoes));
 
         var lista = document.createElement('div');
@@ -1568,7 +1610,7 @@
         });
         container.appendChild(lista);
 
-        container.insertAdjacentHTML('beforeend', resumoDiaHtml(resumo, 'rtResumoRodape_' + gi));
+        container.insertAdjacentHTML('beforeend', resumoDiaHtml(resumo, 'rtResumoRodape_' + gi, grupos.length > 1));
       });
 
       if (editable) {
@@ -1613,19 +1655,26 @@
       var ehFilho = numeroPai != null;
       var acc = document.createElement('div');
       acc.className = 'aval-acc';
-      if (ehFilho) acc.style.cssText = 'margin-left:20px;border-left:2px solid var(--line-strong);border-radius:0 8px 8px 0';
+      if (ehFilho) acc.style.cssText = 'margin-left:28px;border-left:2px solid var(--line-strong);border-radius:0 8px 8px 0;background:rgba(255,255,255,.015)';
       var hdr = document.createElement('div');
       hdr.className = 'aval-acc-hdr';
-      var horario = (a.horaInicio || '—') + (a.horaFim ? '–' + a.horaFim : '');
+      /* Etapa sem horário próprio não mostra "—" (dá impressão de dado
+         ausente) — simplesmente não exibe coluna de horário. */
+      var horario = a.horaInicio ? (a.horaInicio + (a.horaFim ? '–' + a.horaFim : '')) : (ehFilho ? '' : '—');
       var ehSecao = !ehFilho && a._filhos && a._filhos.length;
       var recolhida = !!_secoesRecolhidas[a.key];
       var numeroTxt = ehFilho ? (numeroPai + '.' + numero) : String(numero);
+      /* Numa seção, tipo + duração + contagem de etapas viram uma única
+         linha auxiliar (ex: "Dinâmica · 15 min · 6 etapas"), igual ao
+         roteiro-base. */
+      var metaTxt = ehSecao
+        ? [a.tipo, fmtDuracao(duracaoEfetiva(a, dia.todasEfetivas)), a._filhos.length + ' etapa' + (a._filhos.length !== 1 ? 's' : '')].filter(Boolean).join(' · ')
+        : fmtDuracao(duracaoEfetiva(a, dia.todasEfetivas)) + (a.tipo ? ' · ' + a.tipo : '');
       hdr.innerHTML =
         '<span style="width:26px;text-align:center;font-family:var(--font-mono);font-size:.7rem;color:var(--ink-3)">' + numeroTxt + '</span>' +
-        '<span style="font-family:var(--font-mono);font-size:.78rem;color:var(--gold);min-width:96px">' + esc(horario) + '</span>' +
-        '<div class="aval-acc-hdr-text"><strong style="color:var(--ink)">' + esc(a.titulo) +
-          (ehSecao ? ' <span style="font-size:.7rem;color:var(--ink-3);font-weight:400">· ' + a._filhos.length + ' etapa' + (a._filhos.length !== 1 ? 's' : '') + '</span>' : '') + '</strong>' +
-        '<span style="font-size:.72rem;color:var(--ink-3)">' + esc(fmtDuracao(duracaoEfetiva(a, dia.todasEfetivas))) + (a.tipo ? ' · ' + esc(a.tipo) : '') + '</span>' +
+        (horario ? '<span style="font-family:var(--font-mono);font-size:.78rem;color:var(--gold);min-width:96px">' + esc(horario) + '</span>' : '<span style="min-width:96px"></span>') +
+        '<div class="aval-acc-hdr-text"><strong style="color:var(--ink)">' + esc(a.titulo) + '</strong>' +
+        '<span style="font-size:.72rem;color:var(--ink-3)">' + esc(metaTxt) + '</span>' +
         (a._facilitacao && a._facilitacao.principal ? '<span style="font-size:.72rem;color:var(--ink-3)">Condução: ' + esc(nomeFacilitador(equipe, a._facilitacao.principal)) + '</span>' : '') +
         '</div><div class="aval-acc-hdr-right">' + badgeDe(a._status) +
           (ehSecao ? '<button type="button" class="btn btn--sm rt-toggle-sec" style="padding:2px 8px;font-size:.68rem">' + (recolhida ? '▼' : '▲') + '</button>' : '') +
@@ -1758,10 +1807,10 @@
          em quem já é sub-etapa. */
       if (!ehFilho) {
         var addSubBtn = document.createElement('button');
-        addSubBtn.className = 'btn btn--sm'; addSubBtn.style.cssText = 'padding:5px 12px;font-size:.72rem'; addSubBtn.textContent = '+ Sub-etapa (só nesta turma)';
+        addSubBtn.className = 'btn btn--sm'; addSubBtn.style.cssText = 'padding:5px 12px;font-size:.72rem'; addSubBtn.textContent = '+ Etapa (só nesta turma)';
         addSubBtn.addEventListener('click', function () {
           abrirFormAtividade({
-            titulo: 'Nova sub-etapa de "' + a.titulo + '" (só nesta turma)',
+            titulo: 'Nova etapa de "' + a.titulo + '" (só nesta turma)',
             onSalvar: function (dados) { criarAtividadeExclusiva(turma.key, dia.key, Object.assign({ paiKey: a.key }, dados), function () { _secoesRecolhidas[a.key] = false; reload(); }); }
           });
         });
