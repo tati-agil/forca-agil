@@ -90,12 +90,20 @@
 }
 /* textarea junto com input: o modal de evento tem dois campos de texto
    longo (Missão, Tópicos) e, sem isto, eles caíam no padrão do navegador —
-   fundo branco e texto escuro no meio do tema escuro. */
+   fundo branco e texto escuro no meio do tema escuro. text-transform:none
+   desfaz o "uppercase" herdado de .auth-label (pensado só pro RÓTULO do
+   campo, tipo "TÍTULO", "TIPO DE ATIVIDADE") — sem isso, o texto digitado
+   pela pessoa também nascia visualmente maiúsculo dentro da caixa,
+   embora o valor salvo continuasse exatamente como foi digitado (o
+   texto-transform é só visual); a diferença some ao reabrir o campo,
+   já que a exibição em outros lugares do site nunca teve esse mesmo
+   "uppercase" — dava a impressão de estar "convertendo" o texto. */
+.auth-label select { text-transform: none; }
 .auth-label input,
 .auth-label textarea {
   background: var(--space-1); border: 1px solid var(--line-strong);
   color: var(--ink); padding: 10px 14px; border-radius: 6px;
-  font-size: .92rem; font-family: var(--font-body);
+  font-size: .92rem; font-family: var(--font-body); text-transform: none;
   transition: border-color .2s; margin-top: 2px;
 }
 .auth-label input:focus,
