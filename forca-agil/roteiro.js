@@ -17,12 +17,13 @@
        diaKey, ordem, titulo, tipo, paiKey?,
        horaInicio, horaFim, duracaoMinutos,
        objetivo, passoAPasso, dicasFacilitador, conexaoAgilidade,
-       perguntasDebrief: [..], materiais: [..], preparacaoPrevia, observacoes,
+       materiais: [..], preparacaoPrevia, observacoes,
        createdAt, updatedAt
      }
-     ("descricao" existiu antes e pode sobreviver em atividades antigas —
-     não é mais lido/gravado por nenhuma tela desde que o campo Descrição
-     saiu do formulário; um dado órfão inofensivo, não precisa migração.)
+     ("descricao" e "perguntasDebrief" existiram antes e podem sobreviver
+     em atividades antigas — nenhuma tela mais lê/grava esses dois campos
+     desde que Descrição e Perguntas para o debrief saíram do formulário;
+     dado órfão inofensivo, não precisa migração.)
 
      "paiKey" é o que faz uma atividade virar sub-etapa de outra — mesma
      ficha completa de qualquer atividade (não uma versão reduzida): uma
@@ -123,8 +124,8 @@
     var html = pareceHtml ? valor : esc(valor).replace(/\n/g, '<br>');
     return sanitizarHtmlRico(html);
   }
-  /* Mesma ideia, para um item de uma lista (perguntasDebrief/materiais) —
-     sem a conversão de quebra de linha, que não faz sentido dentro de um
+  /* Mesma ideia, para um item de uma lista (ex: materiais) — sem a
+     conversão de quebra de linha, que não faz sentido dentro de um
      único item. */
   function htmlRicoItemLista(valor) {
     if (!valor) return '';
@@ -699,8 +700,7 @@
         campoRico('rfConexao', 'Conexão com a mentalidade ágil', htmlRicoSeguro(a.conexaoAgilidade), 'Por que esta atividade existe', 3)) +
       bloco('Como conduzir',
         campoRico('rfPasso', 'Passo a passo (uma linha por passo)', htmlRicoSeguro(a.passoAPasso), '1. Explique a missão...', 5) +
-        campoRico('rfDicas', 'Dicas para o facilitador', htmlRicoSeguro(a.dicasFacilitador), 'O que evitar, o que reforçar', 3) +
-        campoRico('rfDebrief', 'Perguntas para o debrief (uma por linha)', listaParaHtmlEditor(a.perguntasDebrief), 'O que mudou quando...?', 4)) +
+        campoRico('rfDicas', 'Dicas para o facilitador', htmlRicoSeguro(a.dicasFacilitador), 'O que evitar, o que reforçar', 3)) +
       bloco('Recursos',
         campoRico('rfMateriais', 'Materiais necessários (um por linha)', listaParaHtmlEditor(a.materiais), '30 cartões, post-its', 3) +
         campoRico('rfPreparacao', 'Preparação prévia', htmlRicoSeguro(a.preparacaoPrevia), 'O que preparar antes de começar', 3)) +
@@ -795,7 +795,7 @@
         objetivo: extrairTextoRico($('#rfObjetivo')),
         passoAPasso: extrairTextoRico($('#rfPasso')), dicasFacilitador: extrairTextoRico($('#rfDicas')),
         conexaoAgilidade: extrairTextoRico($('#rfConexao')),
-        perguntasDebrief: extrairListaRico($('#rfDebrief')), materiais: extrairListaRico($('#rfMateriais')),
+        materiais: extrairListaRico($('#rfMateriais')),
         preparacaoPrevia: extrairTextoRico($('#rfPreparacao')), observacoes: extrairTextoRico($('#rfObs'))
       };
       opts.onSalvar(dados);
@@ -986,7 +986,6 @@
       campoImpressao('Passo a passo', a.passoAPasso) +
       campoImpressao('Dicas para o facilitador', a.dicasFacilitador) +
       campoImpressao('Conexão com a agilidade', a.conexaoAgilidade) +
-      campoImpressao('Perguntas para o debrief', a.perguntasDebrief) +
       campoImpressao('Materiais necessários', a.materiais) +
       campoImpressao('Preparação prévia', a.preparacaoPrevia) +
       campoImpressao('Observações', a.observacoes);
@@ -1503,7 +1502,6 @@
         campoDetalhe('Passo a passo', a.passoAPasso) +
         campoDetalhe('Dicas para o facilitador', a.dicasFacilitador) +
         campoDetalhe('Conexão com a agilidade', a.conexaoAgilidade) +
-        campoDetalhe('Perguntas para o debrief', a.perguntasDebrief) +
         campoDetalhe('Materiais necessários', a.materiais) +
         campoDetalhe('Preparação prévia', a.preparacaoPrevia) +
         campoDetalhe('Observações', a.observacoes);
