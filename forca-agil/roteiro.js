@@ -1815,6 +1815,80 @@
     return String(conteudo || '').replace(re, function () { return novo; });
   }
 
+  /* ── Proposta automática de mesclagem para "VALOR ATUAL DIVERGENTE" —
+     merge de 3 vias por linha (base = DE, um lado = ATUAL, outro lado
+     = PARA), no mesmo espírito de um "diff3": uma linha do DE mantida
+     igual nos dois lados fica; removida só no PARA some (é o que o
+     PARA claramente substitui); removida só no ATUAL não volta (a
+     pessoa já tinha mexido ali, por outro motivo — não desfaz); linha
+     nova só no ATUAL é preservada (o que a pessoa acrescentou depois
+     do DE); linha nova só no PARA é incorporada (a mudança pretendida
+     pela planilha). Quando os dois lados acrescentam algo DIFERENTE no
+     mesmo ponto, isso é um conflito de verdade — a proposta marca esse
+     trecho em vez de escolher um dos dois sozinha (nunca inventa,
+     nunca decide na dúvida). Não é IA: é comparação estrutural de
+     texto — por isso "Editar mescla" continua sempre disponível pra
+     corrigir o que o algoritmo não entender direito. */
+  function linhasParaMesclagem(texto) {
+    return String(texto || '').replace(/\r\n?/g, '\n').split('\n');
+  }
+  function diff3LinhasBase(base, alvo) {
+    var n = base.length, m = alvo.length, i, j;
+    var dp = [];
+    for (i = 0; i <= n; i++) dp.push(new Array(m + 1).fill(0));
+    var igual = function (x, y) { return x.trim() === y.trim(); };
+    for (i = n - 1; i >= 0; i--) {
+      for (j = m - 1; j >= 0; j--) {
+        dp[i][j] = igual(base[i], alvo[j]) ? dp[i + 1][j + 1] + 1 : Math.max(dp[i + 1][j], dp[i][j + 1]);
+      }
+    }
+    var estado = new Array(n).fill('removido');
+    var insercoesAntes = {};
+    i = 0; j = 0;
+    while (i < n && j < m) {
+      if (igual(base[i], alvo[j])) { estado[i] = 'igual'; i++; j++; }
+      else if (dp[i + 1][j] >= dp[i][j + 1]) { i++; }
+      else { (insercoesAntes[i] = insercoesAntes[i] || []).push(alvo[j]); j++; }
+    }
+    while (j < m) { (insercoesAntes[n] = insercoesAntes[n] || []).push(alvo[j]); j++; }
+    return { estado: estado, insercoesAntes: insercoesAntes };
+  }
+  function gerarPropostaMescla(atualPlano, de, para) {
+    var baseLinhas = linhasParaMesclagem(de);
+    var atualLinhas = linhasParaMesclagem(atualPlano);
+    var paraLinhas = linhasParaMesclagem(para);
+    var diffAtual = diff3LinhasBase(baseLinhas, atualLinhas);
+    var diffPara = diff3LinhasBase(baseLinhas, paraLinhas);
+    var saida = [], temConflito = false;
+    function emitirInsercoes(idx) {
+      var deAtual = (diffAtual.insercoesAntes[idx] || []).join('\n').trim();
+      var dePara = (diffPara.insercoesAntes[idx] || []).join('\n').trim();
+      if (!deAtual && !dePara) return;
+      if (deAtual && dePara && deAtual !== dePara) {
+        temConflito = true;
+        saida.push('⚠️ CONFLITO — o valor atual e a planilha acrescentam coisas diferentes aqui; escolha manualmente:');
+        saida.push('— Trecho já existente no atual: ' + deAtual);
+        saida.push('— Trecho novo da planilha: ' + dePara);
+        saida.push('⚠️ FIM DO CONFLITO');
+      } else {
+        saida.push(deAtual || dePara);
+      }
+    }
+    for (var idx = 0; idx <= baseLinhas.length; idx++) {
+      emitirInsercoes(idx);
+      if (idx === baseLinhas.length) break;
+      if (diffAtual.estado[idx] === 'igual' && diffPara.estado[idx] === 'igual') saida.push(baseLinhas[idx]);
+      /* "igual" no atual + "removido" no para: o PARA tira essa linha
+         de propósito — some. "removido" no atual (a pessoa já tinha
+         mudado essa parte por conta própria) — não volta, o que ela
+         colocou no lugar já está capturado como inserção. As duas
+         "removido" ao mesmo tempo: nada a fazer. */
+    }
+    var textoFinal = saida.join('\n').replace(/\n{3,}/g, '\n\n').trim();
+    var mesmoQueAtual = espacoNormal(textoFinal) === espacoNormal(atualPlano);
+    return { texto: textoFinal, temConflito: temConflito, sugestao: temConflito ? 'editar' : (mesmoQueAtual ? 'manter' : 'mesclar') };
+  }
+
   /* Casamento por título tolera diferença de pontuação/espaço no final
      (ex: atividade cadastrada como "...para a reflexão." com ponto,
      enquanto a planilha tem "...para a reflexão" sem ponto) — nunca
@@ -2000,12 +2074,40 @@
       var deTxt = l.item.de || '(sem "DE" — este item é uma inclusão nova, o campo estava vazio)';
       var paraTxt = l.item.para;
       var ehTrecho = l.item.acao === 'substituir' || l.item.acao === 'substituir_trecho';
-      var trechoNaoAchado = ehTrecho && l.status === 'VALOR ATUAL DIVERGENTE';
       var trechoRepetido = l.status === 'TRECHO AMBÍGUO';
-      return '<div class="mig-painel" style="background:var(--panel-2);border:1px solid var(--line-strong);border-radius:8px;padding:14px;margin:6px 0;font-size:.8rem">' +
+      var cabecalho =
         '<div style="margin-bottom:8px"><strong style="color:var(--ink-3);text-transform:uppercase;font-size:.66rem;letter-spacing:.06em">Atual no sistema</strong><div style="white-space:pre-wrap;margin-top:4px;color:var(--ink)">' + esc(atualPlano) + '</div></div>' +
         '<div style="margin-bottom:8px"><strong style="color:var(--ink-3);text-transform:uppercase;font-size:.66rem;letter-spacing:.06em">DE do Excel' + (ehTrecho ? ' (trecho procurado dentro do campo acima)' : '') + '</strong><div style="white-space:pre-wrap;margin-top:4px;color:var(--ink-2)">' + esc(deTxt) + '</div></div>' +
-        '<div style="margin-bottom:10px"><strong style="color:var(--ink-3);text-transform:uppercase;font-size:.66rem;letter-spacing:.06em">PARA do Excel</strong><div style="white-space:pre-wrap;margin-top:4px;color:var(--ink-2)">' + esc(paraTxt) + '</div></div>' +
+        '<div style="margin-bottom:10px"><strong style="color:var(--ink-3);text-transform:uppercase;font-size:.66rem;letter-spacing:.06em">PARA do Excel</strong><div style="white-space:pre-wrap;margin-top:4px;color:var(--ink-2)">' + esc(paraTxt) + '</div></div>';
+
+      /* "VALOR ATUAL DIVERGENTE" num campo de texto (nunca em Tipo, que
+         não tem o que mesclar) ganha uma PROPOSTA DE MESCLA gerada
+         sozinha — comparação de 3 vias, não precisa montar nada do
+         zero. TRECHO AMBÍGUO (trecho repetido) e divergência de Tipo
+         continuam com o fluxo mais simples de antes (o valor "de" ali
+         é curto/discreto, não precisa de merge). */
+      if (l.status === 'VALOR ATUAL DIVERGENTE' && l.item.acao !== 'tipo' && l.item.de) {
+        var proposta = gerarPropostaMescla(atualPlano, l.item.de, paraTxt);
+        var corProposta = proposta.temConflito ? '#ff8a5c' : 'var(--ink)';
+        return '<div class="mig-painel" style="background:var(--panel-2);border:1px solid var(--line-strong);border-radius:8px;padding:14px;margin:6px 0;font-size:.8rem">' +
+          cabecalho +
+          '<div style="margin-bottom:10px"><strong style="color:var(--gold);text-transform:uppercase;font-size:.66rem;letter-spacing:.06em">Proposta de mesclagem (gerada automaticamente)</strong><div class="mig-proposta-texto" style="white-space:pre-wrap;margin-top:4px;color:' + corProposta + ';background:var(--panel);border:1px solid var(--line-strong);border-radius:6px;padding:8px">' + esc(proposta.texto || '(vazio)') + '</div></div>' +
+          (proposta.temConflito ? '<p style="color:#ff8a5c;font-size:.72rem;margin:0 0 8px">O valor atual e a planilha acrescentam coisas diferentes no mesmo ponto — marcado acima como CONFLITO. "Aprovar mesclagem" fica bloqueado até você resolver isso em "Editar mescla".</p>' : '<p style="font-size:.72rem;color:var(--ink-3);margin:0 0 8px">Confira a proposta acima antes de aprovar — ela preserva o que já existia e incorpora a mudança da planilha, mas pode não ter entendido tudo perfeitamente.</p>') +
+          '<div class="mig-mescla-area" style="display:none;margin-bottom:10px">' +
+            '<label class="auth-label">Editar proposta livremente (nada é gravado até "Confirmar mesclagem")<textarea class="mig-mescla-texto" rows="8" style="width:100%;padding:8px;background:var(--panel);border:1px solid var(--line-strong);border-radius:6px;color:var(--ink);font-family:inherit">' + esc(proposta.texto) + '</textarea></label>' +
+            '<button class="btn btn--primary mig-mescla-confirmar" style="margin-top:6px">Confirmar mesclagem</button>' +
+          '</div>' +
+          '<div class="mig-decisao-botoes" style="display:flex;gap:8px;flex-wrap:wrap">' +
+            '<button class="btn btn--primary mig-dec" data-dec="mesclar-auto"' + (proposta.temConflito ? ' disabled title="Resolva o conflito marcado acima em \'Editar mescla\' antes de aprovar"' : '') + '>Aprovar mesclagem</button>' +
+            '<button class="btn mig-editar-btn">Editar mescla</button>' +
+            '<button class="btn mig-dec" data-dec="manter">Manter atual</button>' +
+          '</div>' +
+        '</div>';
+      }
+
+      var trechoNaoAchado = ehTrecho && l.status === 'VALOR ATUAL DIVERGENTE';
+      return '<div class="mig-painel" style="background:var(--panel-2);border:1px solid var(--line-strong);border-radius:8px;padding:14px;margin:6px 0;font-size:.8rem">' +
+        cabecalho +
         (trechoNaoAchado ? '<p style="color:#ff8a5c;font-size:.72rem;margin:0 0 8px">O texto "DE" não aparece no valor atual — nem exatamente, nem tolerando aspas/espaços/quebras de linha diferentes — "Substituir pelo PARA" não vai achar onde trocar. Use "Mesclar manualmente" pra decidir onde o texto novo entra.</p>' : '') +
         (trechoRepetido ? '<p style="color:#ff8a5c;font-size:.72rem;margin:0 0 8px">O texto "DE" aparece ' + l.ocorrencias + ' vezes no valor atual — "Substituir pelo PARA" trocaria TODAS as ocorrências de uma vez. Confira se é isso mesmo antes de escolher, ou use "Mesclar manualmente" pra decidir caso a caso.</p>' : '') +
         '<div class="mig-mescla-area" style="display:none;margin-bottom:10px">' +
@@ -2090,11 +2192,27 @@
           btn.addEventListener('click', function () {
             var dec = btn.getAttribute('data-dec');
             if (dec === 'mesclar') { painel.querySelector('.mig-mescla-area').style.display = ''; return; }
+            if (dec === 'mesclar-auto') {
+              /* "Aprovar mesclagem" recalcula a mesma proposta mostrada
+                 na tela (determinística — mesmos ATUAL/DE/PARA sempre
+                 geram o mesmo resultado) e grava direto, sem precisar
+                 abrir a caixa de edição. */
+              var propostaAprovada = gerarPropostaMescla(textoPlanoMigracao(l.valorAtual).trim(), l.item.de, l.item.para);
+              l.decisaoTipo = 'mesclar';
+              l.valorMesclado = propostaAprovada.texto;
+              revisandoIdx = proximaDivergentePendente(revisandoIdx);
+              render();
+              return;
+            }
             l.decisaoTipo = dec;
             revisandoIdx = proximaDivergentePendente(revisandoIdx);
             render();
           });
         });
+        var editarBtn = painel.querySelector('.mig-editar-btn');
+        if (editarBtn) {
+          editarBtn.addEventListener('click', function () { painel.querySelector('.mig-mescla-area').style.display = ''; });
+        }
         var confirmarMescla = painel.querySelector('.mig-mescla-confirmar');
         if (confirmarMescla) {
           confirmarMescla.addEventListener('click', function () {
