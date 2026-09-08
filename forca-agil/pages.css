@@ -434,8 +434,15 @@
 .roteiro-rico-tamanho:hover { background: var(--panel); color: var(--ink); }
 .roteiro-rico-area {
   padding: 8px 10px; color: var(--ink); font-family: var(--font-body); font-size: .92rem;
-  line-height: 1.5; outline: none; overflow-y: auto;
+  line-height: 1.5; outline: none; overflow-y: auto; text-transform: none;
 }
+/* Sem isto, o texto digitado (e o placeholder, via :empty:before logo
+   abaixo) nasce visualmente em CAIXA ALTA, herdada do "uppercase" de
+   .auth-label — pensado só pro RÓTULO do campo (ex: "OBJETIVO"). Um
+   <button>/<select> escapa disso sozinho (reset nativo do navegador
+   pra controles de formulário), mas esta é uma <div contenteditable>
+   comum, que herda normalmente; o valor salvo já estava correto (é só
+   efeito visual do CSS), mas a tela mentia sobre o que foi digitado. */
 .roteiro-rico-area ul, .roteiro-rico-area ol { margin: 4px 0 4px 20px; padding: 0; }
 .roteiro-rico-area div, .roteiro-rico-area p { margin: 0 0 4px; }
 .roteiro-rico-area div:last-child, .roteiro-rico-area p:last-child { margin-bottom: 0; }
