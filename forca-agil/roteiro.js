@@ -3212,34 +3212,6 @@
       imprimirObjetivosBtn.innerHTML = '&#x1F5A8; Agenda + Objetivos';
       imprimirObjetivosBtn.title = 'Abre uma janela de impressão com a mesma tabela da Agenda resumida, mais Objetivo e Resultado esperado de cada atividade — pode salvar como PDF.';
       imprimirObjetivosBtn.addEventListener('click', function () { imprimirRoteiroAgendaObjetivos('Roteiro-base', dia, atividadesTopo, atividadesDia); });
-      var temAncoraImportacao = roteiro.atividades.some(function (a) { return (a.titulo || '').trim() === RESULTADOS_ESPERADOS_DIRETORES_ANCORA; });
-      /* "Importar resultados esperados", "Migração Antes x Depois" e
-         "Limpeza final de consistência" eram ações PONTUAIS de migração
-         de conteúdo da DIRETORES — já aplicadas, não fazem mais sentido
-         como botão permanente na tela. "Desfazer última migração"
-         continua existindo, pois lê o histórico de backups que essas
-         ações já gravaram (útil se algum dia precisar reverter algo). */
-      var desfazerMigracaoBtn = null;
-      if (temAncoraImportacao) {
-        desfazerMigracaoBtn = document.createElement('button');
-        desfazerMigracaoBtn.className = 'btn btn--sm';
-        desfazerMigracaoBtn.style.cssText = 'padding:6px 10px;font-size:.72rem';
-        desfazerMigracaoBtn.textContent = '↩ Desfazer última migração';
-        desfazerMigracaoBtn.title = 'Restaura o valor de cada campo tocado pela última vez que "Migração Antes x Depois" foi aplicada.';
-        desfazerMigracaoBtn.addEventListener('click', function () {
-          carregarUltimoBackupMigracao(eventoKey, function (err, backup) {
-            if (err) { alertDialog('Erro ao procurar a última migração: ' + err); return; }
-            if (!backup) { alertDialog('Não há nenhuma migração aplicada pra desfazer neste roteiro.'); return; }
-            confirmDialog('Isso vai restaurar ' + (backup.val.itens || []).length + ' campo(s) para o valor que tinham antes da última migração aplicada (' + new Date(backup.val.criadoEm).toLocaleString('pt-BR') + '). Continuar?', function () {
-              desfazerMigracao(eventoKey, { key: backup.key, itens: backup.val.itens }, function (err2, restaurados) {
-                if (err2) { alertDialog('Erro ao desfazer: ' + err2); return; }
-                alertDialog('Restaurado(s): ' + restaurados + ' campo(s).');
-                reload();
-              });
-            });
-          });
-        });
-      }
       var delDiaBtn = document.createElement('button');
       delDiaBtn.className = 'btn btn--sm';
       delDiaBtn.style.cssText = 'padding:6px 10px;font-size:.72rem;border-color:rgba(255,80,80,.5);color:#ff8080';
@@ -3255,7 +3227,6 @@
       diaHdr.appendChild(imprimirCompletoBtn);
       diaHdr.appendChild(imprimirPassoAPassoBtn);
       diaHdr.appendChild(imprimirObjetivosBtn);
-      if (desfazerMigracaoBtn) diaHdr.appendChild(desfazerMigracaoBtn);
       diaHdr.appendChild(delDiaBtn);
       container.appendChild(diaHdr);
 
