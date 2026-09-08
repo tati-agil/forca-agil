@@ -1484,44 +1484,72 @@
      interpretam esse texto exclusivamente para a IMPRESSÃO (nunca leem
      nem gravam nada no banco, nunca tocam htmlRicoSeguro/campoDetalhe —
      o editor e a tela de detalhes continuam mostrando o texto como
-     sempre mostraram). Campo que já é HTML de verdade (criado pelo
-     editor rico) passa direto pelo caminho de sempre, sem essa análise. */
-  function pareceHtmlRicoImpressao(valor) {
-    return /<\s*(b|strong|i|em|u|ul|ol|li|div|br|p|span)[\s>/]/i.test(valor);
+     sempre mostraram).
+
+     Um campo pode ser MISTO: parte HTML de verdade (ex: alguém abriu o
+     campo no editor rico uma vez, deu um Enter, e isso já basta pra
+     gravar um <div>/<br> de verdade ali) e parte ainda Markdown puro
+     (o resto do texto migrado, nunca tocado depois) — nesse caso a
+     versão anterior via a tag real, concluía "já é HTML" e desistia de
+     interpretar Markdown NO CAMPO INTEIRO, deixando a parte migrada
+     à mostra. Por isso a análise abaixo roda sempre, em cima do HTML já
+     sanitizado por htmlRicoSeguro/htmlRicoItemLista (preserva qualquer
+     tag de verdade que já exista) — só o agrupamento em <ol>/<ul> por
+     linha é pulado quando o campo já tem uma lista de verdade (produzida
+     pelo botão "Lista" do editor), pra não reprocessar por cima dela. */
+  function pareceListaRicoImpressao(html) {
+    return /<\s*(ul|ol)[\s>]/i.test(html);
   }
-  function desfazerEscapesMarkdown(texto) {
+  function desfazerEscapesMarkdown(html) {
     /* Quem escreve/exporta Markdown escapa "1\." e "\*" pra EVITAR virar
        lista/negrito sem querer — aqui é o oposto: a pessoa quer mesmo o
        item de lista/o negrito, só a barra invertida não pode aparecer.
        Some com ela antes de qualquer pontuação de marcação, sem checar
-       contexto (é só o que os exemplos do pedido cobrem). */
-    return texto.replace(/\\([.*_\-#+()[\]`~>])/g, '$1');
+       contexto (é só o que os exemplos do pedido cobrem). Seguro rodar
+       sobre HTML já sanitizado: nenhuma tag permitida usa barra invertida. */
+    return html.replace(/\\([.*_\-#+()[\]`~>])/g, '$1');
   }
-  function inlineMarkdownImpressao(texto) {
-    return esc(texto).replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>');
+  function inlineMarkdownImpressao(html) {
+    /* `html` já é seguro (escapado/sanitizado) — por isso o negrito é
+       aplicado direto na string, sem re-escapar. O grupo exclui "<"/">"
+       pra nunca cruzar a borda de uma tag que já exista ali (ex: um
+       <b> que o editor rico já tenha colocado no meio do texto). */
+    return html.replace(/\*\*([^*<>]+)\*\*/g, '<strong>$1</strong>');
   }
   /* Item de lista avulso (ex: cada material de "Materiais necessários")
      — só precisa de negrito/desescape, nunca vira sublista. */
   function itemImpressaoHtml(valor) {
     if (!valor) return '';
-    if (pareceHtmlRicoImpressao(valor)) return htmlRicoItemLista(valor);
-    return inlineMarkdownImpressao(desfazerEscapesMarkdown(String(valor)));
+    return inlineMarkdownImpressao(desfazerEscapesMarkdown(htmlRicoItemLista(valor)));
   }
-  /* Converte um bloco de texto puro em HTML: listas numeradas, bullets,
-     negrito, parágrafos e sublistas — tanto por indentação de verdade
-     quanto pelo caso comum de texto colado sem recuo, onde só a TROCA de
-     marcador (linha numerada seguida de linhas com "-"/"*") já indica
-     que aquelas linhas pertencem ao item anterior, não à lista principal
-     (ver pedido: perguntas do item 9 não podem virar itens 10, 11, 12). */
-  function markdownBlocoImpressaoHtml(texto) {
-    var tokens = String(texto).replace(/\r\n?/g, '\n').split('\n').map(function (linha) {
-      if (!linha.trim()) return { blank: true };
-      var indentTxt = linha.match(/^[ \t]*/)[0];
+  /* Converte um bloco de HTML (já sanitizado, com negrito/escapes de
+     Markdown já resolvidos) em listas numeradas, bullets, parágrafos e
+     sublistas — tanto por indentação de verdade quanto pelo caso comum
+     de texto colado sem recuo, onde só a TROCA de marcador (linha
+     numerada seguida de linhas com "-"/"*") já indica que aquelas
+     linhas pertencem ao item anterior, não à lista principal (ver
+     pedido: perguntas do item 9 não podem virar itens 10, 11, 12).
+     Cada "linha" vem de dividir o HTML nas bordas de <div>/<p>/<br> —
+     mesma técnica já usada em extrairListaRico — então uma formatação
+     inline que já exista (<strong>/<i>/<u>...) no meio de uma linha
+     sobrevive intacta dentro do texto daquele item/parágrafo. */
+  function markdownBlocoImpressaoHtml(html) {
+    /* Divide também por "\n" cru (não só tag) — conteúdo migrado em
+       massa pode ter ficado com uma quebra de linha de verdade sentada
+       ao lado de uma tag real (ex: alguém abriu o campo no editor uma
+       vez e formatou só um trecho em negrito, sem tocar no resto), e
+       nesse caso o texto puro que sobra fora da tag não vira <br>
+       (isso só acontece no ramo "texto puro" de htmlRicoSeguro) — sem
+       dividir por "\n" também, aquelas linhas nunca seriam reconhecidas
+       como itens de lista. */
+    var tokens = html.split(/<div[^>]*>|<\/div>|<br\s*\/?>|<p[^>]*>|<\/p>|\n/i).map(function (frag) {
+      if (!frag.replace(/&nbsp;/gi, ' ').trim()) return { blank: true };
+      var indentTxt = frag.match(/^[ \t]*/)[0];
       var indent = indentTxt.replace(/\t/g, '    ').length;
-      var resto = linha.slice(indentTxt.length);
-      var mOl = resto.match(/^(\d+)[.)]\s+(.*)$/);
+      var resto = frag.slice(indentTxt.length);
+      var mOl = resto.match(/^(\d+)[.)]\s+([\s\S]*)$/);
       if (mOl) return { indent: indent, tipo: 'ol', num: mOl[1], texto: mOl[2] };
-      var mUl = resto.match(/^[-*•]\s+(.*)$/);
+      var mUl = resto.match(/^[-*•]\s+([\s\S]*)$/);
       if (mUl) return { indent: indent, tipo: 'ul', texto: mUl[1] };
       return { indent: indent, tipo: 'p', texto: resto };
     });
@@ -1537,7 +1565,7 @@
           var itens = [];
           while (pos < tokens.length && !tokens[pos].blank && tokens[pos].indent === indentLista && tokens[pos].tipo === tipoLista) {
             var item = tokens[pos]; pos++;
-            var htmlItem = inlineMarkdownImpressao(item.texto);
+            var htmlItem = item.texto;
             /* sublista por indentação de verdade */
             while (pos < tokens.length && !tokens[pos].blank && tokens[pos].indent > indentLista) {
               htmlItem += consumirFluxo(tokens[pos].indent);
@@ -1557,7 +1585,7 @@
           while (pos < tokens.length && !tokens[pos].blank && tokens[pos].tipo === 'p' && tokens[pos].indent >= indentMinimo) {
             linhasPar.push(tokens[pos].texto); pos++;
           }
-          partes.push('<p>' + linhasPar.map(inlineMarkdownImpressao).join('<br>') + '</p>');
+          partes.push('<p>' + linhasPar.join('<br>') + '</p>');
         }
       }
       return partes.join('');
@@ -1566,8 +1594,8 @@
   }
   function blocoTextoImpressaoHtml(valor) {
     if (!valor) return '';
-    if (pareceHtmlRicoImpressao(valor)) return htmlRicoSeguro(valor);
-    return markdownBlocoImpressaoHtml(desfazerEscapesMarkdown(String(valor)));
+    var html = inlineMarkdownImpressao(desfazerEscapesMarkdown(htmlRicoSeguro(valor)));
+    return pareceListaRicoImpressao(html) ? html : markdownBlocoImpressaoHtml(html);
   }
 
   /* Impressão "completa": um bloco por atividade/sub-etapa com todo o
