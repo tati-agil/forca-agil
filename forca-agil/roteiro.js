@@ -383,6 +383,7 @@
      ══════════════════════════════════════════════════════════════ */
 
   function carregarRoteiroEvento(eventoKey, cb) {
+    garantirListenerTipos();
     db().ref('roteiros-evento/' + eventoKey).once('value', function (snap) {
       var val = snap.val() || {};
       var dias = Object.keys(val.dias || {}).map(function (k) {
@@ -691,8 +692,40 @@
      demais são só rótulos livres. Uma atividade antiga com um tipo que
      saiu desta lista (ex: "Debrief", "Outro") não quebra: o <select>
      simplesmente não pré-seleciona nada até a pessoa escolher um tipo
-     novo e salvar. */
-  var TIPOS = ['Abertura', 'Ambientação', 'Aplicação à Liderança', 'Autodiagnóstico', 'Briefing', 'Compromisso', 'Compromisso Individual', 'Conceituação', 'Dinâmica', 'Discussão', 'Experimentação com IA', 'Fechamento', 'Integração', 'Intervalo', 'Provocação', 'Quiz', 'Reflexão', 'Sinal/Evidência', 'Transição'];
+     novo e salvar. Esse efeito compara o texto salvo em "tipo" direto
+     com a string 'Intervalo' (ver somaPausas e o badge em admin.js) —
+     independe desta lista; renomear/remover a entrada "Intervalo" na
+     tela "Tipos de atividade" (admin) só tira a opção do formulário
+     pra atividades NOVAS, sem afetar quem já está salvo como tal.
+
+     A lista em si é administrável (aba "Tipos de atividade" do painel
+     admin, ver loadTiposAtividade em admin.js), gravada em
+     roteiro-tipos-atividade/<chave> = { nome, createdAt }. TIPOS_PADRAO
+     abaixo é só a semente: usada como fallback ENQUANTO esse nó nunca
+     foi criado (banco vazio, comportamento igual ao de antes desta
+     funcionalidade) e como base pra popular o nó a primeira vez que a
+     aba é aberta — dali em diante o banco manda, esta constante nunca
+     mais é lida por quem já tem o nó preenchido. */
+  var TIPOS_PADRAO = ['Abertura', 'Ambientação', 'Aplicação à Liderança', 'Autodiagnóstico', 'Briefing', 'Compromisso', 'Compromisso Individual', 'Conceituação', 'Dinâmica', 'Discussão', 'Experimentação com IA', 'Fechamento', 'Integração', 'Intervalo', 'Provocação', 'Quiz', 'Reflexão', 'Sinal/Evidência', 'Transição'];
+  var TIPOS = TIPOS_PADRAO.slice();
+  var _tiposListenerAtivo = false;
+  /* Só liga o listener quando alguém de fato entra numa tela de roteiro
+     (chamado no início de carregarRoteiroEvento/carregarRoteiroEfetivoTurma,
+     os dois pontos de entrada usados por admin.js/facilitador.js, ambos já
+     atrás do próprio controle de acesso de cada tela) — nunca no carregamento
+     do site inteiro, pra não gerar uma leitura (e um possível erro de
+     permissão, pra quem nem está autenticado) em toda página do site à toa. */
+  function garantirListenerTipos() {
+    if (_tiposListenerAtivo) return;
+    _tiposListenerAtivo = true;
+    db().ref('roteiro-tipos-atividade').on('value', function (snap) {
+      var val = snap.val();
+      var nomes = val
+        ? Object.keys(val).map(function (k) { return (val[k] && val[k].nome) || ''; }).filter(Boolean)
+        : TIPOS_PADRAO.slice();
+      TIPOS = nomes.sort(function (a, b) { return a.localeCompare(b, 'pt'); });
+    }, function (err) { console.error('[roteiro] erro ao carregar roteiro-tipos-atividade', err); });
+  }
 
   function bloco(titulo, innerHtml) {
     return '<div class="roteiro-form-bloco">' +
@@ -3698,6 +3731,12 @@
     renderRoteiroBaseEditor: renderRoteiroBaseEditor,
     renderRoteiroTurma: renderRoteiroTurma,
     alertDialog: alertDialog,
-    confirmDialog: confirmDialog
+    confirmDialog: confirmDialog,
+    /* Lista padrão de "Tipo de atividade" (ver comentário perto de
+       TIPOS_PADRAO acima) — exposta só pra admin.js semear
+       roteiro-tipos-atividade da primeira vez que a aba "Tipos de
+       atividade" é aberta com o nó ainda vazio; fonte única, pra não
+       duplicar a lista em dois arquivos. */
+    TIPOS_ATIVIDADE_PADRAO: TIPOS_PADRAO.slice()
   };
 })();

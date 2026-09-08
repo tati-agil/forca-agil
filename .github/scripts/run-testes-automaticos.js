@@ -136,19 +136,23 @@ async function submitLogin(page, email, password) {
 
     /* Checagem extra que reaproveita a MESMA sessão admin já aberta —
        mais barato que abrir outro contexto só pra isso. Cobre a regra
-       manual "Admin — visibilidade das 14 abas no mobile". */
+       manual "Admin — visibilidade das abas no mobile". Número total de
+       abas não é fixo no script — lido do próprio DOM (querySelectorAll),
+       pra não precisar atualizar esta contagem toda vez que uma aba nova
+       for adicionada (ver histórico: "14 abas" ficou desatualizado assim
+       que a aba "Tipos de atividade" foi criada). */
     await page.setViewportSize({ width: 375, height: 800 });
     await page.waitForTimeout(300);
     const mobileTabsCheck = await page.evaluate(() => {
       var btns = Array.from(document.querySelectorAll('.admin-tab-btn'));
       var visiveis = btns.filter(function (b) { return b.offsetParent !== null; });
       var cortadas = visiveis.filter(function (b) { return b.getBoundingClientRect().right > window.innerWidth + 1; });
-      return { total: visiveis.length, cortadas: cortadas.length };
+      return { total: visiveis.length, esperado: btns.length, cortadas: cortadas.length };
     });
     extraResults.push({
-      name: 'Admin — todas as 14 abas continuam visíveis e sem corte em viewport mobile (375px)',
-      passed: mobileTabsCheck.total === 14 && mobileTabsCheck.cortadas === 0,
-      detail: mobileTabsCheck.total + '/14 visíveis, ' + mobileTabsCheck.cortadas + ' cortada(s)',
+      name: 'Admin — todas as abas continuam visíveis e sem corte em viewport mobile (375px)',
+      passed: mobileTabsCheck.total === mobileTabsCheck.esperado && mobileTabsCheck.cortadas === 0,
+      detail: mobileTabsCheck.total + '/' + mobileTabsCheck.esperado + ' visíveis, ' + mobileTabsCheck.cortadas + ' cortada(s)',
     });
   } catch (e) {
     mainError = e;

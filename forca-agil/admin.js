@@ -116,6 +116,7 @@
     loadRepoAdmin();
     loadCadastrados();
     loadAdmins();
+    loadTiposAtividade();
     loadDiretores();
     loadFacilitadores();
     loadSorteios();
@@ -4524,6 +4525,145 @@
         console.error('[admin] erro ao carregar fa-admins', err);
         c.innerHTML = '<p class="loading-msg" style="color:var(--red)">Erro ao carregar administradores. Recarregue a página ou verifique sua conexão.</p>';
       });
+    }
+
+    render();
+  }
+
+  /* ---- Tipos de atividade ----
+     Lista administrável do campo "Tipo de atividade" do formulário de
+     atividade do Roteiro (ver TIPOS/TIPOS_PADRAO em roteiro.js) — dado
+     próprio em roteiro-tipos-atividade/<chave> = { nome, createdAt },
+     sempre exibido/gravado em ordem alfabética. Qualquer admin gerencia
+     (mesma regra de fa-diretores/fa-facilitadores) — não é dado
+     sensível o bastante pra restringir aos dois super-admins. Na
+     primeira vez que a aba é aberta com o nó ainda vazio (banco de
+     produção nunca teve essa lista, só o array fixo que existia antes
+     desta funcionalidade), semeia o nó com TIPOS_ATIVIDADE_PADRAO
+     exposto por window.faRoteiro — dali em diante o banco manda. */
+  function loadTiposAtividade() {
+    const c = document.getElementById('adminTiposAtividade');
+    if (!c) return;
+
+    function render() {
+      firebase.database().ref('roteiro-tipos-atividade').once('value', function (snap) {
+        const data = snap.val();
+        if (!data) {
+          const padrao = (window.faRoteiro && window.faRoteiro.TIPOS_ATIVIDADE_PADRAO) || [];
+          const writes = {};
+          padrao.forEach(function (nome) {
+            const key = firebase.database().ref('roteiro-tipos-atividade').push().key;
+            writes[key] = { nome: nome, createdAt: new Date().toISOString() };
+          });
+          firebase.database().ref('roteiro-tipos-atividade').set(writes, function (err) {
+            if (err) { c.innerHTML = '<p class="loading-msg" style="color:var(--red)">Erro ao inicializar a lista de tipos.</p>'; return; }
+            render();
+          }).catch(function () {});
+          return;
+        }
+
+        const lista = Object.keys(data).map(function (k) { return { key: k, nome: (data[k] && data[k].nome) || '' }; })
+          .sort(function (a, b) { return a.nome.localeCompare(b.nome, 'pt'); });
+        c.innerHTML = '';
+
+        const info = document.createElement('p');
+        info.className = 'admin-empty';
+        info.style.marginBottom = '20px';
+        info.innerHTML = 'Lista usada no campo "Tipo de atividade" do formulário de atividade do Roteiro — sempre em ordem alfabética. Renomear ou remover um tipo não altera nenhuma atividade já cadastrada com o valor antigo: ela continua guardando o texto de antes, só deixa de aparecer pré-selecionada no formulário até alguém escolher um tipo novo e salvar. <b>"Intervalo"</b> tem efeito especial no roteiro (conta como pausa no cálculo do dia e ganha destaque visual na lista) — removê-lo ou renomeá-lo só afeta a possibilidade de escolher esse tipo em atividades novas.';
+        c.appendChild(info);
+
+        const hdr = document.createElement('h4');
+        hdr.innerHTML = 'Tipos de atividade <span class="admin-badge">' + lista.length + '</span>';
+        c.appendChild(hdr);
+
+        if (!lista.length) {
+          const empty = document.createElement('p');
+          empty.className = 'admin-empty';
+          empty.textContent = 'Nenhum tipo cadastrado.';
+          c.appendChild(empty);
+        } else {
+          const tbl = document.createElement('table');
+          tbl.className = 'admin-table';
+          tbl.innerHTML = '<thead><tr><th>Nome</th><th></th></tr></thead>';
+          const tbody = document.createElement('tbody');
+          lista.forEach(function (t) {
+            const tr = document.createElement('tr');
+            tr.dataset.key = t.key;
+            tr.innerHTML =
+              '<td class="tipoAtv-nome">' + esc(t.nome) + '</td>' +
+              '<td style="white-space:nowrap"><button class="btn btn--sm tipoAtv-edit-btn">Editar</button> <button class="admin-del-btn tipoAtv-del-btn">Remover</button></td>';
+            tbody.appendChild(tr);
+          });
+          tbl.appendChild(tbody);
+          const wrap = document.createElement('div');
+          wrap.className = 'table-scroll-wrap';
+          wrap.appendChild(tbl);
+          c.appendChild(wrap);
+
+          tbody.addEventListener('click', function (e) {
+            const tr = e.target.closest('tr');
+            if (!tr) return;
+            const key = tr.dataset.key;
+
+            if (e.target.closest('.tipoAtv-del-btn')) {
+              const nomeAtual = tr.querySelector('.tipoAtv-nome').textContent;
+              adminConfirm('Remover o tipo "' + nomeAtual + '"? Atividades que já usam esse tipo continuam com o valor gravado, só deixam de aparecer pré-selecionadas no formulário.', function () {
+                firebase.database().ref('roteiro-tipos-atividade/' + key).remove(function () { render(); }).catch(function () {});
+              });
+              return;
+            }
+            if (e.target.closest('.tipoAtv-edit-btn')) {
+              const nomeAtual = tr.querySelector('.tipoAtv-nome').textContent;
+              const td = tr.children[0];
+              td.innerHTML = '<input type="text" class="tipoAtv-edit-input" value="' + esc(nomeAtual) + '" style="width:100%;padding:4px 6px;background:var(--panel-2);border:1px solid var(--line-strong);border-radius:4px;color:var(--ink)">';
+              const btnsTd = tr.children[1];
+              btnsTd.innerHTML = '<button class="btn btn--sm btn--primary tipoAtv-save-btn">Salvar</button> <button class="btn btn--sm tipoAtv-cancel-btn">Cancelar</button>';
+              td.querySelector('input').focus();
+              return;
+            }
+            if (e.target.closest('.tipoAtv-cancel-btn')) { render(); return; }
+            if (e.target.closest('.tipoAtv-save-btn')) {
+              const novoNome = (tr.querySelector('.tipoAtv-edit-input').value || '').trim();
+              if (!novoNome) return;
+              const duplicado = lista.some(function (t) { return t.key !== key && t.nome.toLowerCase() === novoNome.toLowerCase(); });
+              if (duplicado) { adminAlert('Já existe um tipo com esse nome.'); return; }
+              firebase.database().ref('roteiro-tipos-atividade/' + key + '/nome').set(novoNome, function (err) {
+                if (err) { adminAlert('Erro ao salvar. Tente novamente.'); return; }
+                render();
+              }).catch(function () {});
+            }
+          });
+        }
+
+        const form = document.createElement('div');
+        form.className = 'admin-colab-form';
+        form.innerHTML =
+          '<h4 style="margin-top:32px">Adicionar tipo de atividade</h4>' +
+          '<div class="admin-colab-row">' +
+            '<input id="tipoAtvNovoNome" type="text" placeholder="Nome do tipo (ex: Quebra-gelo)" />' +
+            '<button class="btn btn--primary" id="tipoAtvAddBtn">Adicionar</button>' +
+          '</div>' +
+          '<p id="tipoAtvMsg" style="margin-top:8px;font-size:.8rem;color:var(--cyan)"></p>';
+        c.appendChild(form);
+
+        document.getElementById('tipoAtvAddBtn').addEventListener('click', function () {
+          const nome = (document.getElementById('tipoAtvNovoNome').value || '').trim();
+          const msg = document.getElementById('tipoAtvMsg');
+          if (!nome) { msg.style.color = 'var(--accent)'; msg.textContent = 'Digite um nome.'; return; }
+          const duplicado = lista.some(function (t) { return t.nome.toLowerCase() === nome.toLowerCase(); });
+          if (duplicado) { msg.style.color = 'var(--accent)'; msg.textContent = 'Já existe um tipo com esse nome.'; return; }
+          const key = firebase.database().ref('roteiro-tipos-atividade').push().key;
+          firebase.database().ref('roteiro-tipos-atividade/' + key).set({ nome: nome, createdAt: new Date().toISOString() }, function (err) {
+            if (err) { msg.style.color = 'var(--accent)'; msg.textContent = 'Erro ao salvar.'; return; }
+            document.getElementById('tipoAtvNovoNome').value = '';
+            msg.style.color = 'var(--cyan)'; msg.textContent = '"' + nome + '" adicionado.';
+            render();
+          }).catch(function () {});
+        });
+      }, function (err) {
+        console.error('[admin] erro ao carregar roteiro-tipos-atividade', err);
+        c.innerHTML = '<p class="loading-msg" style="color:var(--red)">Erro ao carregar tipos de atividade. Recarregue a página ou verifique sua conexão.</p>';
+      }).catch(function () {});
     }
 
     render();
