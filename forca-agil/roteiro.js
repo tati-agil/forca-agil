@@ -1848,7 +1848,13 @@
       para: 'Experimentação: Experimentos pequenos permitem reduzir incerteza antes de construir ou investir em escala.' },
     { titulo: 'EPISÓDIO FINAL — O COMPROMISSO DA LIDERANÇA', campo: 'observacoes', acao: 'substituir',
       de: 'Outcome x Output: Resolver problema é diferente de entregar projeto.',
-      para: 'Outcome × Output: Entregar algo é diferente de produzir o resultado que queremos alcançar.' }
+      para: 'Outcome × Output: Entregar algo é diferente de produzir o resultado que queremos alcançar.' },
+    /* Só o rótulo antes da lista dos 24 cartões — troca de um trecho
+       curto e específico, nunca a lista em si (que fica de fora do
+       "de", então continua intacta depois do rótulo trocado). */
+    { titulo: 'DESAFIO 1: ESCOLHAM', campo: 'passoAPasso', acao: 'substituir',
+      de: 'Exemplos:',
+      para: 'Os 24 cartões são:' }
   ];
 
   var CAMPOS_MIGRACAO_LABEL = { passoAPasso: 'Passo a passo', dicasFacilitador: 'Dicas para o facilitador', observacoes: 'Observações', conexaoAgilidade: 'Conexão com a mentalidade ágil', promptIA: 'Prompt para IA', preparacaoPrevia: 'Preparação prévia', duracaoMinutos: 'Duração (minutos)', tipo: 'Tipo' };
