@@ -1461,13 +1461,19 @@
     return win;
   }
 
-  function imprimirRoteiroDia(tituloContexto, dia, atividadesTopo, todasAtividades) {
+  function imprimirRoteiroDia(tituloContexto, dia, atividadesTopo, todasAtividades, resultadoEsperadoTurma) {
     todasAtividades = todasAtividades || atividadesTopo;
     var geradoEm = new Date().toLocaleString('pt-BR');
     var grupos = agruparPorSessao(atividadesTopo, todasAtividades);
     if (!grupos.length) grupos.push({ nome: '', atividades: [] });
     var corpo = '<h1>' + esc(tituloContexto) + (dia.titulo ? ' — ' + esc(dia.titulo) : '') + '</h1>' +
       '<div class="rp-meta">Gerado em ' + esc(geradoEm) + '</div>';
+    /* Só aparece quando impresso a partir do Roteiro DA TURMA — o
+       Roteiro-base (evento inteiro) não chama esta função com esse
+       parâmetro, porque "Resultado esperado" é um campo da turma
+       (⋯ → Editar Turma), não do evento. */
+    var resultadoTurmaHtml = blocoTextoImpressaoHtml(resultadoEsperadoTurma);
+    if (resultadoTurmaHtml) corpo += '<div class="rp-campo rp-campo-turma"><strong>Resultado esperado da turma</strong><div class="rp-campo-txt">' + resultadoTurmaHtml + '</div></div>';
 
     var resumosPorGrupo = grupos.map(function (g) { return calcularResumoDia(g.atividades, todasAtividades); });
     if (grupos.length > 1) corpo += resumoSessoesImpressaoHtml(grupos, resumosPorGrupo);
@@ -1509,7 +1515,14 @@
       '.rp-gap td{background:rgba(255,138,92,.14);color:#ffb37e;font-style:italic;}' +
       '.rp-sub td:first-child{color:var(--pink3);}' +
       '.rp-sub td:nth-child(3){padding-left:22px;color:var(--pink2);}' +
-      'tr{page-break-inside:avoid;break-inside:avoid-page;}',
+      'tr{page-break-inside:avoid;break-inside:avoid-page;}' +
+      '.rp-campo-turma{background:var(--ppanel2);border:1px solid var(--plines);border-radius:10px;padding:12px 16px;margin-bottom:14px;font-size:.85rem;color:var(--pink2);}' +
+      '.rp-campo-turma > strong{display:block;font-size:.66rem;letter-spacing:.08em;text-transform:uppercase;color:var(--pgold);margin-bottom:4px;font-family:"Oswald",Arial,sans-serif;}' +
+      '.rp-campo-turma .rp-campo-txt{margin:0;}' +
+      '.rp-campo-turma .rp-campo-txt div, .rp-campo-turma .rp-campo-txt p{margin:0 0 4px;}' +
+      '.rp-campo-turma .rp-campo-txt div:last-child, .rp-campo-turma .rp-campo-txt p:last-child{margin-bottom:0;}' +
+      '.rp-campo-turma .rp-campo-txt ul, .rp-campo-turma .rp-campo-txt ol{margin:2px 0 4px 20px;padding:0;}' +
+      '.rp-campo-turma .rp-campo-txt li{margin:0 0 2px;}',
       corpo
     );
   }
@@ -3554,7 +3567,7 @@
       imprimirBtn.style.cssText = 'padding:5px 10px;font-size:.72rem;margin-bottom:12px';
       imprimirBtn.innerHTML = '&#x1F5A8; Agenda resumida';
       imprimirBtn.title = 'Abre uma janela de impressão só com o resumo do dia e a lista de atividades (sem os campos de facilitação) — pode salvar como PDF.';
-      imprimirBtn.addEventListener('click', function () { imprimirRoteiroDia('Roteiro — ' + (turma.label || ''), { titulo: 'Dia ' + dia.numero }, dia.atividades, dia.todasEfetivas); });
+      imprimirBtn.addEventListener('click', function () { imprimirRoteiroDia('Roteiro — ' + (turma.label || ''), { titulo: 'Dia ' + dia.numero }, dia.atividades, dia.todasEfetivas, turma.resultadoEsperado); });
       container.appendChild(imprimirBtn);
 
       var imprimirCompletoBtn = document.createElement('button');
