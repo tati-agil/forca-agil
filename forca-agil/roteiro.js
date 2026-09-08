@@ -1506,6 +1506,89 @@
     );
   }
 
+  /* "Agenda + Objetivos": mesma tabela enxuta da Agenda resumida (uma
+     linha por atividade/sub-etapa, sem o restante dos campos internos
+     do Roteiro completo), mas com uma linha extra logo abaixo de cada
+     atividade trazendo só Objetivo e Resultado esperado — pensada pra
+     quem precisa entender O QUE cada etapa entrega, sem abrir o
+     Roteiro completo (todos os campos) nem ficar só na tabela crua.
+     Atividade sem os dois campos vazios não ganha linha extra nenhuma
+     (mesma regra de "nunca mostra rótulo vazio" das outras exportações);
+     usa o mesmo intérprete de Markdown do Roteiro completo (campos
+     migrados em Markdown puro saem formatados aqui também). */
+  function detalheObjetivoResultadoHtml(a) {
+    var objetivo = blocoTextoImpressaoHtml(a.objetivo);
+    var resultado = blocoTextoImpressaoHtml(a.resultadoEsperado);
+    if (!objetivo && !resultado) return '';
+    var campos = '';
+    if (objetivo) campos += '<div class="rp-campo"><strong>Objetivo</strong><div class="rp-campo-txt">' + objetivo + '</div></div>';
+    if (resultado) campos += '<div class="rp-campo"><strong>Resultado esperado</strong><div class="rp-campo-txt">' + resultado + '</div></div>';
+    return '<tr class="rp-detalhe"><td colspan="5">' + campos + '</td></tr>';
+  }
+
+  function imprimirRoteiroAgendaObjetivos(tituloContexto, dia, atividadesTopo, todasAtividades) {
+    todasAtividades = todasAtividades || atividadesTopo;
+    var geradoEm = new Date().toLocaleString('pt-BR');
+    var grupos = agruparPorSessao(atividadesTopo, todasAtividades);
+    if (!grupos.length) grupos.push({ nome: '', atividades: [] });
+    var corpo = '<h1>' + esc(tituloContexto) + (dia.titulo ? ' — ' + esc(dia.titulo) : '') + '</h1>' +
+      '<div class="rp-meta">Agenda com objetivo e resultado esperado de cada etapa · Gerado em ' + esc(geradoEm) + '</div>';
+
+    var resumosPorGrupo = grupos.map(function (g) { return calcularResumoDia(g.atividades, todasAtividades); });
+    if (grupos.length > 1) corpo += resumoSessoesImpressaoHtml(grupos, resumosPorGrupo);
+
+    grupos.forEach(function (grupo, gi) {
+      var resumo = resumosPorGrupo[gi];
+      if (grupos.length > 1) corpo += '<div class="rp-sessao-hdr">' + esc(grupo.nome || 'Sem sessão definida') + '</div>';
+      corpo += resumoImpressaoHtml(resumo, grupos.length > 1);
+      var linhasHtml = '';
+      grupo.atividades.forEach(function (a, i) {
+        var gapAntes = resumo.gaps.filter(function (g) { return g.fimMin === hhmmParaMin(a.horaInicio); })[0];
+        if (gapAntes) linhasHtml += '<tr class="rp-gap"><td colspan="5">⚠ Lacuna: ' + esc(minParaHhmm(gapAntes.inicioMin)) + '–' + esc(minParaHhmm(gapAntes.fimMin)) + ' (' + esc(fmtDuracao(gapAntes.min)) + ')</td></tr>';
+        var horario = (a.horaInicio || '—') + (a.horaFim ? '–' + a.horaFim : '');
+        linhasHtml += '<tr><td>' + (i + 1) + '</td><td>' + esc(horario) + '</td><td>' + esc(a.titulo) + '</td><td>' + esc(a.tipo || '') + '</td><td>' + esc(fmtDuracao(duracaoEfetiva(a, todasAtividades))) + '</td></tr>';
+        linhasHtml += detalheObjetivoResultadoHtml(a);
+        filhosDe(todasAtividades, a.key).forEach(function (sub, j) {
+          var horarioSub = sub.horaInicio ? ((sub.horaInicio || '—') + (sub.horaFim ? '–' + sub.horaFim : '')) : '';
+          linhasHtml += '<tr class="rp-sub"><td>' + (i + 1) + '.' + (j + 1) + '</td><td>' + esc(horarioSub) + '</td><td>' + esc(sub.titulo) + '</td><td>' + esc(sub.tipo || '') + '</td><td>' + esc(fmtDuracao(duracaoEfetiva(sub, todasAtividades))) + '</td></tr>';
+          linhasHtml += detalheObjetivoResultadoHtml(sub);
+        });
+      });
+      corpo += '<table><thead><tr><th class="rp-col-num">#</th><th class="rp-col-horario">Horário</th><th>Atividade</th><th class="rp-col-tipo">Tipo</th><th class="rp-col-duracao">Duração</th></tr></thead>' +
+        '<tbody>' + linhasHtml + '</tbody></table>';
+    });
+
+    abrirJanelaImpressao(
+      tituloContexto + (dia.titulo ? ' — ' + dia.titulo : ''),
+      'table{border-collapse:collapse;width:100%;table-layout:fixed;font-size:.82rem;margin-bottom:20px;background:var(--ppanel2);border:1px solid var(--plines);color:var(--pink2);}' +
+      'th,td{border-bottom:1px solid var(--pline);padding:8px 10px;text-align:left;overflow-wrap:break-word;}' +
+      '.rp-col-num{width:42px;}.rp-col-horario{width:96px;}.rp-col-tipo{width:140px;}.rp-col-duracao{width:84px;}' +
+      'tr:last-child td{border-bottom:none;}' +
+      'th{background:var(--ppanel);color:var(--pink3);font-family:"Oswald",Arial,sans-serif;text-transform:uppercase;font-size:.66rem;letter-spacing:.06em;font-weight:600;}' +
+      '.rp-gap td{background:rgba(255,138,92,.14);color:#ffb37e;font-style:italic;}' +
+      '.rp-sub td:first-child{color:var(--pink3);}' +
+      '.rp-sub td:nth-child(3){padding-left:26px;color:var(--pink2);}' +
+      'tr{page-break-inside:avoid;break-inside:avoid-page;}' +
+      /* Sem esse "auto" aqui, a linha de detalhe herdaria o avoid-break
+         geral acima — inofensivo pras linhas curtas da tabela, mas um
+         Objetivo/Resultado esperado mais longo é um bloco que PODE
+         crescer, e travar a quebra nele é exatamente o padrão que já
+         causou página quase vazia noutra exportação (ver correção em
+         .rp-contexto, mais acima neste arquivo). */
+      '.rp-detalhe{page-break-inside:auto;break-inside:auto;}' +
+      '.rp-detalhe td{background:rgba(255,255,255,.03);}' +
+      '.rp-detalhe .rp-campo{margin:4px 0;font-size:.8rem;color:var(--pink2);}' +
+      '.rp-detalhe .rp-campo:last-child{margin-bottom:0;}' +
+      '.rp-detalhe .rp-campo > strong{display:block;font-size:.62rem;letter-spacing:.08em;text-transform:uppercase;color:var(--pgold);margin-bottom:2px;font-family:"Oswald",Arial,sans-serif;}' +
+      '.rp-detalhe .rp-campo-txt{margin:0;}' +
+      '.rp-detalhe .rp-campo-txt div, .rp-detalhe .rp-campo-txt p{margin:0 0 3px;}' +
+      '.rp-detalhe .rp-campo-txt div:last-child, .rp-detalhe .rp-campo-txt p:last-child{margin-bottom:0;}' +
+      '.rp-detalhe .rp-campo-txt ul, .rp-detalhe .rp-campo-txt ol{margin:2px 0 4px 18px;padding:0;}' +
+      '.rp-detalhe .rp-campo-txt li{margin:0 0 2px;}',
+      corpo
+    );
+  }
+
   /* ---- Renderização de Markdown literal SÓ no PDF ------------------
      Alguns campos de texto vieram de migração/importação em massa (ver
      RESULTADOS_ESPERADOS_DIRETORES e MIGRACAO_ANTES_DEPOIS acima) e
@@ -3095,6 +3178,12 @@
       imprimirPassoAPassoBtn.innerHTML = '&#x1F5A8; Passo a passo';
       imprimirPassoAPassoBtn.title = 'Abre uma janela de impressão com um bloco por atividade e etapa, só com o campo "Passo a passo" — sem objetivo, dicas, conexão com a agilidade e demais campos internos — pode salvar como PDF.';
       imprimirPassoAPassoBtn.addEventListener('click', function () { imprimirRoteiroPassoAPasso('Roteiro-base', dia, atividadesTopo, atividadesDia); });
+      var imprimirObjetivosBtn = document.createElement('button');
+      imprimirObjetivosBtn.className = 'btn btn--sm';
+      imprimirObjetivosBtn.style.cssText = 'padding:6px 10px;font-size:.72rem';
+      imprimirObjetivosBtn.innerHTML = '&#x1F5A8; Agenda + Objetivos';
+      imprimirObjetivosBtn.title = 'Abre uma janela de impressão com a mesma tabela da Agenda resumida, mais Objetivo e Resultado esperado de cada atividade — pode salvar como PDF.';
+      imprimirObjetivosBtn.addEventListener('click', function () { imprimirRoteiroAgendaObjetivos('Roteiro-base', dia, atividadesTopo, atividadesDia); });
       var temAncoraImportacao = roteiro.atividades.some(function (a) { return (a.titulo || '').trim() === RESULTADOS_ESPERADOS_DIRETORES_ANCORA; });
       var importarResultadosBtn = null;
       if (temAncoraImportacao) {
@@ -3166,6 +3255,7 @@
       diaHdr.appendChild(imprimirBtn);
       diaHdr.appendChild(imprimirCompletoBtn);
       diaHdr.appendChild(imprimirPassoAPassoBtn);
+      diaHdr.appendChild(imprimirObjetivosBtn);
       if (importarResultadosBtn) diaHdr.appendChild(importarResultadosBtn);
       if (migracaoBtn) diaHdr.appendChild(migracaoBtn);
       if (limpezaBtn) diaHdr.appendChild(limpezaBtn);
@@ -3467,6 +3557,14 @@
       imprimirPassoAPassoBtn.title = 'Abre uma janela de impressão com um bloco por atividade e etapa, só com o campo "Passo a passo" — sem objetivo, dicas, conexão com a agilidade e demais campos internos — pode salvar como PDF.';
       imprimirPassoAPassoBtn.addEventListener('click', function () { imprimirRoteiroPassoAPasso('Roteiro — ' + (turma.label || ''), { titulo: 'Dia ' + dia.numero }, dia.atividades, dia.todasEfetivas); });
       container.appendChild(imprimirPassoAPassoBtn);
+
+      var imprimirObjetivosBtn = document.createElement('button');
+      imprimirObjetivosBtn.className = 'btn btn--sm';
+      imprimirObjetivosBtn.style.cssText = 'padding:5px 10px;font-size:.72rem;margin-bottom:12px;margin-left:8px';
+      imprimirObjetivosBtn.innerHTML = '&#x1F5A8; Agenda + Objetivos';
+      imprimirObjetivosBtn.title = 'Abre uma janela de impressão com a mesma tabela da Agenda resumida, mais Objetivo e Resultado esperado de cada atividade — pode salvar como PDF.';
+      imprimirObjetivosBtn.addEventListener('click', function () { imprimirRoteiroAgendaObjetivos('Roteiro — ' + (turma.label || ''), { titulo: 'Dia ' + dia.numero }, dia.atividades, dia.todasEfetivas); });
+      container.appendChild(imprimirObjetivosBtn);
 
       var resumosPorGrupo = grupos.map(function (g) { return calcularResumoDia(g.atividades, dia.todasEfetivas); });
       if (grupos.length > 1) container.insertAdjacentHTML('beforeend', resumoSessoesHtml(grupos, resumosPorGrupo, 'rtResumoSessoes'));
