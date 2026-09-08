@@ -3213,43 +3213,14 @@
       imprimirObjetivosBtn.title = 'Abre uma janela de impressão com a mesma tabela da Agenda resumida, mais Objetivo e Resultado esperado de cada atividade — pode salvar como PDF.';
       imprimirObjetivosBtn.addEventListener('click', function () { imprimirRoteiroAgendaObjetivos('Roteiro-base', dia, atividadesTopo, atividadesDia); });
       var temAncoraImportacao = roteiro.atividades.some(function (a) { return (a.titulo || '').trim() === RESULTADOS_ESPERADOS_DIRETORES_ANCORA; });
-      var importarResultadosBtn = null;
+      /* "Importar resultados esperados", "Migração Antes x Depois" e
+         "Limpeza final de consistência" eram ações PONTUAIS de migração
+         de conteúdo da DIRETORES — já aplicadas, não fazem mais sentido
+         como botão permanente na tela. "Desfazer última migração"
+         continua existindo, pois lê o histórico de backups que essas
+         ações já gravaram (útil se algum dia precisar reverter algo). */
+      var desfazerMigracaoBtn = null;
       if (temAncoraImportacao) {
-        importarResultadosBtn = document.createElement('button');
-        importarResultadosBtn.className = 'btn btn--sm';
-        importarResultadosBtn.style.cssText = 'padding:6px 10px;font-size:.72rem';
-        importarResultadosBtn.textContent = '📥 Importar resultados esperados';
-        importarResultadosBtn.title = 'Preenche o campo "Resultado esperado" das 31 atividades deste roteiro (Manhã + Tarde, incluindo sub-etapas) com o texto já revisado. Ação pontual — pode rodar de novo sem duplicar nada, mas sobrescreve o que já estiver preenchido nesse campo.';
-        importarResultadosBtn.addEventListener('click', function () {
-          confirmDialog('Isso vai preencher (ou sobrescrever) o campo "Resultado esperado" de até 31 atividades deste roteiro. Continuar?', function () {
-            importarResultadosEsperadosDiretores(eventoKey, roteiro.atividades, function (relatorio) {
-              var msg = 'Atualizados: ' + relatorio.atualizados + ' de ' + RESULTADOS_ESPERADOS_DIRETORES.length + '.';
-              if (relatorio.naoEncontrados.length) msg += '\n\nNão encontrados (título não bateu com nenhuma atividade):\n- ' + relatorio.naoEncontrados.join('\n- ');
-              if (relatorio.duplicados.length) msg += '\n\nTítulos duplicados no roteiro (ignorados, resolva manualmente):\n- ' + relatorio.duplicados.join('\n- ');
-              alertDialog(msg);
-              reload();
-            });
-          });
-        });
-      }
-      var migracaoBtn = null, limpezaBtn = null, desfazerMigracaoBtn = null;
-      if (temAncoraImportacao) {
-        migracaoBtn = document.createElement('button');
-        migracaoBtn.className = 'btn btn--sm';
-        migracaoBtn.style.cssText = 'padding:6px 10px;font-size:.72rem';
-        migracaoBtn.textContent = '🔎 Migração Antes x Depois';
-        migracaoBtn.title = 'Mostra um DRY RUN (só leitura) comparando o valor atual de cada campo com o texto revisado da planilha "Antes x Depois" — nada é gravado até clicar "Aplicar" na janela que abre.';
-        migracaoBtn.addEventListener('click', function () {
-          abrirModalMigracaoAntesDepois(eventoKey, roteiro.atividades, reload);
-        });
-        limpezaBtn = document.createElement('button');
-        limpezaBtn.className = 'btn btn--sm';
-        limpezaBtn.style.cssText = 'padding:6px 10px;font-size:.72rem';
-        limpezaBtn.textContent = '🧹 Limpeza final de consistência';
-        limpezaBtn.title = 'Mostra um DRY RUN (só leitura) com a 3ª leva de ajustes: elimina a duplicidade do Primeiro uso da IA, corrige o resto de Output x Outcome, ajusta a duração de Decisão sem IA (com recálculo de horários), simplifica Faça a comparação e revê os três conceitos do fechamento final — nada é gravado até clicar "Aplicar" na janela que abre.';
-        limpezaBtn.addEventListener('click', function () {
-          abrirModalMigracaoAntesDepois(eventoKey, roteiro.atividades, reload, MIGRACAO_LIMPEZA_FINAL, 'Limpeza final de consistência');
-        });
         desfazerMigracaoBtn = document.createElement('button');
         desfazerMigracaoBtn.className = 'btn btn--sm';
         desfazerMigracaoBtn.style.cssText = 'padding:6px 10px;font-size:.72rem';
@@ -3284,9 +3255,6 @@
       diaHdr.appendChild(imprimirCompletoBtn);
       diaHdr.appendChild(imprimirPassoAPassoBtn);
       diaHdr.appendChild(imprimirObjetivosBtn);
-      if (importarResultadosBtn) diaHdr.appendChild(importarResultadosBtn);
-      if (migracaoBtn) diaHdr.appendChild(migracaoBtn);
-      if (limpezaBtn) diaHdr.appendChild(limpezaBtn);
       if (desfazerMigracaoBtn) diaHdr.appendChild(desfazerMigracaoBtn);
       diaHdr.appendChild(delDiaBtn);
       container.appendChild(diaHdr);
