@@ -64,6 +64,11 @@
       }
     },
 
+    "roteiro-tipos-atividade": {
+      ".read": "auth != null && auth.token.email.matches(/.*@previ\\.com\\.br/)",
+      ".write": "auth != null && auth.token.email.matches(/.*@previ\\.com\\.br/)"
+    },
+
     "turmas-roteiro": {
       ".read": "auth != null && auth.token.email.matches(/.*@previ\\.com\\.br/)",
       "$turmaKey": {

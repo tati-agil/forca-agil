@@ -107,7 +107,7 @@
   const PAGES = [
     { label: 'ADMIN', color: '#6b7a99',
       features: [
-        { label: '14 abas no total (Dashboard, Eventos, Certificados, Treinamentos, Repositório, Cadastrados, Administradores, Diretores, Facilitadores, Manual, Mapa, Testes, Pedidos, Sorteios); no mobile quebram em 2 linhas', p: ['admin'] },
+        { label: '15 abas no total (Dashboard, Eventos, Certificados, Treinamentos, Repositório, Cadastrados, Administradores, Tipos de atividade, Diretores, Facilitadores, Manual, Mapa, Testes, Pedidos, Sorteios); no mobile quebram em 2 linhas', p: ['admin'] },
         { label: 'Aba Treinamentos — cadastrar treinamento (nome + conteúdo do catálogo em código + eventos a que pertence, por caixas de seleção); editar e excluir. É onde se decide quem enxerga cada treinamento', p: ['admin'] },
         { label: 'Aba Dashboard — bloco "Respostas individuais": um cartão retrátil por avaliação com TODAS as perguntas e o que foi registrado em cada uma (notas, escolhas múltiplas, sub-itens e textos na íntegra); filtros por turma e por identificação, contagem do recorte, abrir/fechar todas. Quem não se identificou aparece como Anônimo — as respostas aparecem, o nome não', p: ['admin'] },
         { label: 'Aba Dashboard — bloco retrátil "Como cada número desta tela é calculado", com a memória de cálculo de todos os indicadores na própria tela; explicita os que mais confundem: média geral e NPS vêm de perguntas diferentes, o medidor mostra a média da recomendação e não o NPS, e Comentários conta avaliações e não comentários', p: ['admin'] },
@@ -198,6 +198,7 @@
         { label: 'Aba Administradores — adicionar admin (só tatianefdirene e danielfrazao veem esse formulário)', p: ['admin'] },
         { label: 'Aba Administradores — remover admin (só tatianefdirene e danielfrazao veem esse botão)', p: ['admin'] },
         { label: 'Aba Administradores — se a leitura falhar (permissão, rede), mostra mensagem de erro em vermelho em vez de ficar travada em "Carregando administradores…" indefinidamente', p: ['admin'] },
+        { label: 'Aba Tipos de atividade — lista administrável (por qualquer admin) do campo "Tipo de atividade" do formulário de atividade do Roteiro; adicionar, editar (renomear inline) e remover, sempre em ordem alfabética; nome duplicado (sem diferenciar maiúsculas/minúsculas) é bloqueado; renomear/remover não altera atividades já cadastradas com o valor antigo; banco novo (sem essa lista ainda) é semeado automaticamente ao abrir a aba com os tipos que eram fixos no código antes desta funcionalidade', p: ['admin'] },
         { label: 'Aba Diretores — lista separada de Administradores; qualquer admin adiciona/remove (não só tatianefdirene e danielfrazao); estar nela só decide se a pessoa enxerga, na página Turmas, um evento marcado "Visível só para diretores e administradores" — nenhum acesso de admin', p: ['admin'] },
         { label: 'Aba Facilitadores — mesmo formato da aba Diretores; estar nela (ou ser admin) decide quem enxerga o link e a página Facilitador (#facilitador) no menu — nenhum acesso de admin', p: ['admin'] },
         { label: 'Aba Manual — regras de comportamento do sistema', p: ['admin'] },
