@@ -1665,7 +1665,20 @@
       '.rp-campo-txt li > ul, .rp-campo-txt li > ol{margin-top:4px;margin-bottom:2px;}' +
       '.rp-campo-txt ul:last-child, .rp-campo-txt ol:last-child{margin-bottom:0;}' +
       '.rp-campo > ul{margin:2px 0 0 18px;padding:0;}' +
-      '.rp-contexto{font-size:.72rem;color:var(--pink3);font-style:italic;margin-bottom:4px;page-break-after:avoid;break-after:avoid-page;}' +
+      /* SEM page-break-after aqui de propósito: encadeado com o
+         page-break-after:avoid de h3+meta logo abaixo, formava um grupo
+         "inquebrável" de 3 elementos (contexto+h3+meta) que, quando não
+         cabia no espaço restante da página, empurrava o card inteiro
+         pra página seguinte — desperdiçando uma área grande da página
+         atual mesmo havendo espaço de sobra (bug real, reproduzido e
+         medido: cortar só esta trava reduziu o maior vão vazio de ~186px
+         pra ~85px num caso de teste com várias sub-etapas curtas em
+         sequência). O título da atividade continua sempre colado ao
+         horário (h3+meta preservam o avoid-after deles) — só esta linha
+         de contexto (sozinha, sem título nem conteúdo) pode ocasionalmente
+         ficar separada do próprio h3 quando a quebra é inevitável, o que
+         é um efeito colateral bem mais barato que uma página quase vazia. */
+      '.rp-contexto{font-size:.72rem;color:var(--pink3);font-style:italic;margin-bottom:4px;}' +
       '.rp-gap-bloco{border:1px dashed rgba(255,138,92,.5);background:rgba(255,138,92,.12);color:#ffb37e;font-style:italic;font-size:.82rem;padding:8px 14px;border-radius:8px;margin-bottom:12px;}',
       corpo
     );
@@ -1728,7 +1741,20 @@
       '.rp-campo-txt li > ul, .rp-campo-txt li > ol{margin-top:4px;margin-bottom:2px;}' +
       '.rp-campo-txt ul:last-child, .rp-campo-txt ol:last-child{margin-bottom:0;}' +
       '.rp-campo > ul{margin:2px 0 0 18px;padding:0;}' +
-      '.rp-contexto{font-size:.72rem;color:var(--pink3);font-style:italic;margin-bottom:4px;page-break-after:avoid;break-after:avoid-page;}' +
+      /* SEM page-break-after aqui de propósito: encadeado com o
+         page-break-after:avoid de h3+meta logo abaixo, formava um grupo
+         "inquebrável" de 3 elementos (contexto+h3+meta) que, quando não
+         cabia no espaço restante da página, empurrava o card inteiro
+         pra página seguinte — desperdiçando uma área grande da página
+         atual mesmo havendo espaço de sobra (bug real, reproduzido e
+         medido: cortar só esta trava reduziu o maior vão vazio de ~186px
+         pra ~85px num caso de teste com várias sub-etapas curtas em
+         sequência). O título da atividade continua sempre colado ao
+         horário (h3+meta preservam o avoid-after deles) — só esta linha
+         de contexto (sozinha, sem título nem conteúdo) pode ocasionalmente
+         ficar separada do próprio h3 quando a quebra é inevitável, o que
+         é um efeito colateral bem mais barato que uma página quase vazia. */
+      '.rp-contexto{font-size:.72rem;color:var(--pink3);font-style:italic;margin-bottom:4px;}' +
       '.rp-gap-bloco{border:1px dashed rgba(255,138,92,.5);background:rgba(255,138,92,.12);color:#ffb37e;font-style:italic;font-size:.82rem;padding:8px 14px;border-radius:8px;margin-bottom:12px;}',
       corpo
     );
