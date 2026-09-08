@@ -1368,6 +1368,17 @@
       '#rp-print-btn{font-family:"Oswald",Arial,sans-serif;letter-spacing:.05em;text-transform:uppercase;font-size:.76rem;padding:9px 18px;border-radius:8px;border:1px solid var(--pgold);background:var(--ppanel2);color:var(--pgold);cursor:pointer;}' +
       '.rp-dica{font-size:.74rem;color:var(--pink3);}' +
       '.rp-eco-toggle{display:flex;align-items:center;gap:6px;font-size:.76rem;color:var(--pink2);cursor:pointer;}' +
+      /* Aviso de "Cabeçalhos e rodapés" — bloco próprio, destacado, ANTES
+         do botão de imprimir: o navegador não deixa nenhum código
+         desligar o cabeçalho/rodapé nativo dele (data/hora, título da
+         aba, URL, "1/2"); a única forma de tirar isso do PDF é a pessoa
+         desmarcar essa opção no diálogo de impressão. Um <span> discreto
+         dentro da mesma linha do botão passava despercebido — por isso
+         virou um cartão de aviso com cor de alerta, sempre a primeira
+         coisa visível na janela (nunca impresso, graças a .rp-actions
+         ir embora em @media print). */
+      '.rp-aviso-cabecalho{background:rgba(255,179,71,.1);border:1px solid rgba(255,179,71,.45);border-radius:8px;padding:10px 14px;font-size:.78rem;color:#ffcf8a;margin-bottom:14px;line-height:1.5;}' +
+      '.rp-aviso-cabecalho b{color:#ffb347;}' +
       estiloExtra +
       '@media print{.rp-actions{display:none;} body{padding:10px;max-width:none;}}' +
       /* Rodapé de página PRÓPRIO do documento — não depende da pessoa
@@ -1383,9 +1394,12 @@
         '@bottom-right{content:"Página " counter(page) " de " counter(pages);font-family:Arial,Helvetica,sans-serif;font-size:7.5px;color:#556080;}' +
       '}' +
       '</style></head><body>' +
-      '<div class="rp-actions"><button id="rp-print-btn">Imprimir / salvar como PDF</button>' +
+      '<div class="rp-actions" style="flex-direction:column;align-items:stretch">' +
+        '<div class="rp-aviso-cabecalho"><b>IMPORTANTE antes de imprimir/salvar:</b> desmarque "Cabeçalhos e rodapés" nas opções de impressão do navegador. A numeração de página e a identificação do documento já vêm no rodapé próprio deste PDF — o cabeçalho/rodapé nativo do navegador (com data/hora, título da aba e URL) não faz parte do layout oficial e o navegador não permite desligá-lo por código, só a pessoa desmarcando essa opção.</div>' +
+        '<div style="display:flex;align-items:center;gap:14px;flex-wrap:wrap"><button id="rp-print-btn">Imprimir / salvar como PDF</button>' +
         '<label class="rp-eco-toggle"><input type="checkbox" id="rp-eco-toggle"> Modo econômico (fundo claro, menos tinta)</label>' +
-        '<span class="rp-dica">Dica: antes de imprimir/salvar, desmarque "Cabeçalhos e rodapés" nas opções do navegador — a numeração de página e a marca do documento já vêm no rodapé daqui, então o rodapé nativo do navegador (com data, título da aba e URL) só duplicaria informação. Vai imprimir em papel de verdade? Marque "Modo econômico" aqui em cima antes — senão marque "Gráficos de fundo" (ou "Imprimir cores e imagens de fundo") pra sair igual à tela.</span></div>' +
+        '<span class="rp-dica">Vai imprimir em papel de verdade? Marque "Modo econômico" aqui ao lado antes — senão marque "Gráficos de fundo" (ou "Imprimir cores e imagens de fundo") pra sair igual à tela.</span></div>' +
+      '</div>' +
       logoImpressaoHtml() +
       corpoHtml +
       '</body></html>';
@@ -1749,7 +1763,74 @@
     { titulo: 'A VIRADA PARA A LIDERANÇA', campo: 'tipo', acao: 'tipo', de: 'Conceituação', para: 'Aplicação à Liderança' },
     { titulo: 'FECHAMENTO INDIVIDUAL', campo: 'tipo', acao: 'tipo', de: 'Reflexão', para: 'Compromisso Individual' }
   ];
-  var CAMPOS_MIGRACAO_LABEL = { passoAPasso: 'Passo a passo', dicasFacilitador: 'Dicas para o facilitador', observacoes: 'Observações', conexaoAgilidade: 'Conexão com a mentalidade ágil', promptIA: 'Prompt para IA', tipo: 'Tipo' };
+
+  /* ── 3ª leva: "Limpeza final de consistência" da DIRETORES — elimina
+     duplicidade do Primeiro uso da IA (o prompt fica só em "Prompt para
+     IA", nunca repetido no Passo a passo/Preparação prévia), corrige o
+     resto de Output x Outcome que ficou só na Conexão com a mentalidade
+     ágil na leva anterior, ajusta a duração insuficiente de "Decisão sem
+     IA" (com recálculo em cadeia dos horários seguintes do mesmo dia,
+     sem mexer na duração de mais nada), simplifica "Faça a comparação"
+     e revê os três conceitos do fechamento final. Mesmo motor de
+     dry run/revisão/aplicação/backup da migração acima — só muda a
+     LISTA de itens (ver `lista` em dryRunMigracaoAntesDepois/
+     abrirModalMigracaoAntesDepois). Três ações novas por causa disso:
+
+     'substituir_campo' — troca o CAMPO INTEIRO (não busca um trecho
+     dentro dele) por um valor final definido aqui. Como não existe um
+     "de" confiável pra comparar, o item NUNCA vira "OK PARA ALTERAR"
+     sozinho: ou já bate com o "para" (JÁ ATUALIZADO), ou cai sempre em
+     revisão manual ("VALOR ATUAL DIVERGENTE") — a pessoa decide olhando
+     o valor atual de verdade, nunca é sobrescrito às cegas.
+
+     'duracao' — muda `duracaoMinutos` de uma atividade de nível
+     principal e recalcula o horário final dela e o horário de INÍCIO
+     (e fim) das atividades seguintes do mesmo dia que tiverem horário
+     próprio, deslocando todas pela mesma diferença — nunca mexe na
+     DURAÇÃO de nenhuma outra atividade. O recálculo já aparece no dry
+     run antes de aplicar qualquer coisa.
+
+     tituloQualquer:true — pra itens de fechamento cujo título exato/
+     campo não foi informado: procura o trecho "de" em QUALQUER
+     atividade, dentro de um conjunto fixo de campos de texto (nunca no
+     Prompt para IA, que é preservado à parte). Só uma atividade/campo
+     bate com exatamente 1 ocorrência → "OK PARA ALTERAR" automático;
+     nenhum lugar bate → "TRECHO NÃO LOCALIZADO" (ou "JÁ ATUALIZADO" se
+     o "para" já aparece em algum lugar); mais de um lugar bate → fica
+     como pendência pra resolver manualmente, o sistema nunca escolhe
+     sozinho entre vários lugares possíveis. */
+  var CAMPOS_BUSCA_AMPLA_MIGRACAO = ['passoAPasso', 'dicasFacilitador', 'observacoes', 'conexaoAgilidade', 'preparacaoPrevia'];
+  var MIGRACAO_LIMPEZA_FINAL = [
+    { titulo: 'PRIMEIRO USO DA IA', campo: 'passoAPasso', acao: 'substituir_campo',
+      para: 'Todas as duplas recebem o mesmo contexto e trabalham sobre a mesma APOSTA-BASE DO CONSELHO.\n\nCada dupla recebe uma lente diferente:\n\n• Dupla 1 — DEFENDER: construir o melhor argumento a favor da aposta-base.\n\n• Dupla 2 — DESAFIAR: identificar riscos, premissas frágeis, consequências indesejadas e pontos cegos.\n\n• Dupla 3 — INVESTIGAR: identificar o que ainda não sabemos, quais evidências precisamos buscar e quais pequenos testes podem reduzir a incerteza.\n\nCada dupla utiliza o PROMPT PARA IA definido nesta atividade.' },
+    { titulo: 'PRIMEIRO USO DA IA', campo: 'preparacaoPrevia', acao: 'substituir_campo',
+      para: 'Imprimir ou deixar previamente disponíveis:\n\n• o Prompt-base da atividade;\n• a missão da Dupla 1 — Defender;\n• a missão da Dupla 2 — Desafiar;\n• a missão da Dupla 3 — Investigar.\n\nLevar também uma resposta pré-gerada para cada missão como plano de contingência caso haja indisponibilidade de internet ou da ferramenta de IA.' },
+    { titulo: 'PRIMEIRO USO DA IA', campo: 'dicasFacilitador', acao: 'substituir',
+      de: 'Isso torna a atividade muito melhor do que três duplas simplesmente perguntarem a mesma coisa.',
+      para: 'POR QUE ESTA ATIVIDADE EXISTE\n\nAs três lentes permitem analisar a mesma aposta sob perspectivas complementares: valor potencial, risco e desconhecidos.\n\nA IA amplia a análise, mas não toma a decisão pelo Conselho.' },
+    { titulo: 'AGORA DÊ NOME AO QUE ELES FIZERAM', campo: 'passoAPasso', acao: 'substituir',
+      de: 'Saíram das iniciativas para o problema × Outcome × Output',
+      para: 'Separaram o que entregamos do resultado que queremos produzir → Output × Outcome' },
+    { titulo: 'Apresentação do desafio', campo: 'dicasFacilitador', acao: 'substituir_campo',
+      para: 'EVITE DIZER:\n\n“Agora o mundo vai mudar e vocês precisarão adaptar o plano.”\n\nNão antecipe a conclusão da experiência.\n\nA intenção é permitir que o grupo perceba a necessidade de adaptação a partir dos sinais recebidos.' },
+    { titulo: 'DECISÃO SEM IA', campo: 'duracaoMinutos', acao: 'duracao', deMinutos: 5, paraMinutos: 8 },
+    { titulo: 'DECISÃO SEM IA', campo: 'dicasFacilitador', acao: 'acrescentar_fim',
+      para: 'DISTRIBUIÇÃO SUGERIDA DO TEMPO (8 min)\n\n3 min — respostas individuais\n4 min — Conselho escolhe uma aposta-base\n1 min — registro da aposta-base' },
+    { titulo: 'FAÇA A COMPARAÇÃO', campo: 'passoAPasso', acao: 'substituir',
+      de: 'Primeiro, coloque lado a lado:\nAPOSTA-BASE DO CONSELHO — SEM IA\n×\nAPOSTA FINAL DO CONSELHO — APÓS A ANÁLISE COM IA\n\nPergunte:\n1. O que mudou?\n2. O que permaneceu?\n3. O que a IA nos fez enxergar que não havíamos percebido?\n4. O que a IA afirmou que ainda precisamos verificar?\n5. Nossa decisão ficou melhor ou apenas mais bem argumentada?\n\nFeche mostrando dois caminhos:\nMODELO A: IDEIA → PROJETO → ESCOPO → PLANO → EXECUÇÃO → ENTREGA\nMODELO B: PROBLEMA → HIPÓTESE → EXPERIMENTO → EVIDÊNCIA → APRENDIZADO → NOVA DECISÃO\n\nDiga: “Nenhum dos modelos é universalmente certo ou errado. Quanto maior a incerteza, mais valioso se torna aprender em ciclos menores antes de aumentar o investimento.”',
+      para: 'Primeiro, coloque lado a lado:\nAPOSTA-BASE DO CONSELHO — SEM IA\n×\nAPOSTA FINAL DO CONSELHO — APÓS A ANÁLISE COM IA\n\nPergunte:\n1. O que mudou entre a aposta sem IA e a aposta final?\n2. O que a IA nos fez enxergar que não havíamos percebido?\n3. O que ainda precisamos verificar antes de aumentar o investimento?\n\nDepois mostre:\n\nMODELO A\nIDEIA → PROJETO → ESCOPO → PLANO → EXECUÇÃO → ENTREGA\n\nMODELO B\nPROBLEMA → HIPÓTESE → EXPERIMENTO → EVIDÊNCIA → APRENDIZADO → NOVA DECISÃO\n\nPergunte: “Em qual situação o Modelo A pode funcionar bem?”\n\nDepois: “E quando existe grande incerteza sobre problema, solução, comportamento ou resultado, o que muda?”\n\nFeche: “Nenhum dos modelos é universalmente certo ou errado. Quando a incerteza é baixa e sabemos bem o que precisa ser feito, planejar mais antecipadamente pode ser eficiente. Quanto maior a incerteza, mais valioso se torna aprender em ciclos menores antes de aumentar o investimento.”' },
+    { tituloQualquer: true, campo: null, acao: 'substituir',
+      de: 'MVP / experimento: Podemos aprender sem construir tudo.',
+      para: 'EXPERIMENTAÇÃO:\nExperimentos pequenos permitem reduzir incerteza antes de construir ou investir em escala.' },
+    { tituloQualquer: true, campo: null, acao: 'substituir',
+      de: 'Empirismo: Evidências são mais fortes que opiniões.',
+      para: 'EMPIRISMO:\nTornamos o que acontece visível, observamos resultados e usamos o aprendizado para orientar a próxima decisão.' },
+    { tituloQualquer: true, campo: null, acao: 'substituir',
+      de: 'Feedback: novas informações entraram.',
+      para: 'FEEDBACK:\nSinais da realidade retornam ao processo e ajudam a orientar a próxima decisão.' }
+  ];
+
+  var CAMPOS_MIGRACAO_LABEL = { passoAPasso: 'Passo a passo', dicasFacilitador: 'Dicas para o facilitador', observacoes: 'Observações', conexaoAgilidade: 'Conexão com a mentalidade ágil', promptIA: 'Prompt para IA', preparacaoPrevia: 'Preparação prévia', duracaoMinutos: 'Duração (minutos)', tipo: 'Tipo' };
 
   /* Texto legível de um campo rico, pra comparar (nunca pra gravar): tags
      de bloco/quebra viram \n, o resto do HTML é descartado. */
@@ -1897,22 +1978,75 @@
   function normalizarTituloMigracao(s) {
     return String(s || '').trim().replace(/[.,;:]+$/, '').trim();
   }
-  function dryRunMigracaoAntesDepois(atividades) {
+  /* Item sem título fixo (tituloQualquer:true): procura o trecho "de"
+     em QUALQUER atividade, dentro dos campos de CAMPOS_BUSCA_AMPLA_
+     MIGRACAO (nunca no Prompt para IA). Só decide sozinho quando bate
+     em exatamente 1 atividade/campo com exatamente 1 ocorrência. */
+  function avaliarItemBuscaAmpla(item, atividades) {
+    var candidatos = [];
+    atividades.forEach(function (a) {
+      CAMPOS_BUSCA_AMPLA_MIGRACAO.forEach(function (campo) {
+        var oc = contarOcorrenciasTolerante(a[campo] || '', item.de);
+        if (oc > 0) candidatos.push({ atividade: a, campo: campo, ocorrencias: oc });
+      });
+    });
+    if (!candidatos.length) {
+      var achouPara = atividades.some(function (a) {
+        return CAMPOS_BUSCA_AMPLA_MIGRACAO.some(function (campo) { return contemTolerante(a[campo] || '', item.para); });
+      });
+      return { item: item, status: achouPara ? 'JÁ ATUALIZADO' : 'TRECHO NÃO LOCALIZADO' };
+    }
+    if (candidatos.length > 1 || candidatos[0].ocorrencias > 1) {
+      return { item: item, status: 'TRECHO ENCONTRADO EM MAIS DE UM LUGAR', candidatos: candidatos };
+    }
+    var c = candidatos[0];
+    var itemResolvido = Object.assign({}, item, { titulo: c.atividade.titulo, campo: c.campo });
+    return { item: itemResolvido, atividade: c.atividade, status: 'OK PARA ALTERAR', valorAtual: c.atividade[c.campo] || '', ocorrencias: 1 };
+  }
+  function dryRunMigracaoAntesDepois(atividades, lista) {
+    lista = lista || MIGRACAO_ANTES_DEPOIS;
     var porTitulo = {};
     atividades.forEach(function (a) {
       var t = normalizarTituloMigracao(a.titulo);
       (porTitulo[t] = porTitulo[t] || []).push(a);
     });
-    return MIGRACAO_ANTES_DEPOIS.map(function (item) {
-      var lista = porTitulo[normalizarTituloMigracao(item.titulo)] || [];
-      if (!lista.length) return { item: item, status: 'ATIVIDADE NÃO ENCONTRADA' };
-      if (lista.length > 1) return { item: item, status: 'REGISTRO AMBÍGUO' };
-      var a = lista[0];
+    return lista.map(function (item) {
+      if (item.tituloQualquer) return avaliarItemBuscaAmpla(item, atividades);
+      var lista2 = porTitulo[normalizarTituloMigracao(item.titulo)] || [];
+      if (!lista2.length) return { item: item, status: 'ATIVIDADE NÃO ENCONTRADA' };
+      if (lista2.length > 1) return { item: item, status: 'REGISTRO AMBÍGUO' };
+      var a = lista2[0];
       if (item.acao === 'tipo') {
         var tipoAtual = (a.tipo || '').trim();
         if (tipoAtual === item.para) return { item: item, atividade: a, status: 'JÁ ATUALIZADO', valorAtual: tipoAtual };
         if (tipoAtual === item.de) return { item: item, atividade: a, status: 'OK PARA ALTERAR', valorAtual: tipoAtual };
         return { item: item, atividade: a, status: 'VALOR ATUAL DIVERGENTE', valorAtual: tipoAtual };
+      }
+      /* "duracao": muda duracaoMinutos e recalcula o horário final da
+         própria atividade + o início/fim das atividades seguintes do
+         mesmo dia (nível principal, com horário próprio) pela mesma
+         diferença — sempre calculado aqui, mesmo quando a duração atual
+         diverge do "de" esperado, pra já aparecer no dry run/revisão
+         qual seria o efeito de aplicar "para" mesmo assim. */
+      if (item.acao === 'duracao') {
+        var duracaoAtual = Number(a.duracaoMinutos) || 0;
+        var delta = item.paraMinutos - duracaoAtual;
+        var horaFimAtual = a.horaFim;
+        var horaFimNovo = (horaFimAtual && delta) ? minParaHhmm(hhmmParaMin(horaFimAtual) + delta) : horaFimAtual;
+        var seguintes = [];
+        if (a.horaInicio && !a.paiKey && delta) {
+          var topoMesmoDia = atividadesTopoDoDia(atividades, a.diaKey);
+          var idxTopo = topoMesmoDia.findIndex(function (x) { return x.key === a.key; });
+          seguintes = topoMesmoDia.slice(idxTopo + 1).filter(function (x) { return x.horaInicio; }).map(function (s) {
+            return {
+              atividade: s,
+              horaInicioAtual: s.horaInicio, horaInicioNovo: minParaHhmm(hhmmParaMin(s.horaInicio) + delta),
+              horaFimAtual: s.horaFim, horaFimNovo: s.horaFim ? minParaHhmm(hhmmParaMin(s.horaFim) + delta) : s.horaFim
+            };
+          });
+        }
+        var statusDuracao = duracaoAtual === item.paraMinutos ? 'JÁ ATUALIZADO' : (duracaoAtual === item.deMinutos ? 'OK PARA ALTERAR' : 'VALOR ATUAL DIVERGENTE');
+        return { item: item, atividade: a, status: statusDuracao, valorAtual: duracaoAtual, delta: delta, horaFimAtual: horaFimAtual, horaFimNovo: horaFimNovo, seguintes: seguintes };
       }
       var rawAtual = a[item.campo] || '';
       /* "substituir" e "substituir_trecho" usam a MESMA lógica: o "DE"
@@ -1941,6 +2075,17 @@
         if (contemTolerante(rawAtual, item.para) || plano2 === espacoNormal(item.para)) return { item: item, atividade: a, status: 'JÁ ATUALIZADO', valorAtual: rawAtual };
         return { item: item, atividade: a, status: 'VALOR ATUAL DIVERGENTE', valorAtual: rawAtual };
       }
+      /* "substituir_campo": troca o CAMPO INTEIRO — não há "de" pra
+         comparar/localizar, então nunca vira "OK PARA ALTERAR" sozinho:
+         só "JÁ ATUALIZADO" (já bate com o "para") ou sempre revisão
+         manual, pra nunca sobrescrever o que já estiver lá sem alguém
+         conferir de verdade. */
+      if (item.acao === 'substituir_campo') {
+        var planoAtualCampo = espacoNormal(textoPlanoMigracao(rawAtual));
+        var planoParaCampo = espacoNormal(textoPlanoMigracao(paraHtmlMigracao(item.para)));
+        if (planoAtualCampo === planoParaCampo) return { item: item, atividade: a, status: 'JÁ ATUALIZADO', valorAtual: rawAtual };
+        return { item: item, atividade: a, status: 'VALOR ATUAL DIVERGENTE', valorAtual: rawAtual };
+      }
       if (item.acao === 'acrescentar_fim' || item.acao === 'acrescentar_inicio') {
         var contem = contemTolerante(rawAtual, item.para);
         return { item: item, atividade: a, status: contem ? 'JÁ ATUALIZADO' : 'OK PARA ALTERAR', valorAtual: rawAtual };
@@ -1949,38 +2094,77 @@
     });
   }
 
+  /* Monta as escritas de UMA linha aplicada + os itens de backup
+     correspondentes. Normalmente é uma escrita só (uma atividade, um
+     campo) — "duracao" é a exceção: mexe na atividade principal
+     (duracaoMinutos + horaFim) e em cascata no horaInicio/horaFim de
+     cada atividade seguinte do mesmo dia, então vira uma escrita por
+     atividade tocada, todas no mesmo backup (uma única leva pra
+     desfazer tudo de uma vez). */
+  function montarEscritasLinha(l) {
+    if (l.item.acao === 'duracao') {
+      var escritasDuracao = [];
+      var backupDuracao = [{ atividadeKey: l.atividade.key, campo: 'duracaoMinutos', valorAnterior: l.valorAtual }];
+      var patchPrincipal = { duracaoMinutos: l.item.paraMinutos };
+      if (l.horaFimNovo !== l.horaFimAtual) {
+        backupDuracao.push({ atividadeKey: l.atividade.key, campo: 'horaFim', valorAnterior: l.horaFimAtual });
+        patchPrincipal.horaFim = l.horaFimNovo;
+      }
+      escritasDuracao.push({ atividadeKey: l.atividade.key, patch: patchPrincipal });
+      (l.seguintes || []).forEach(function (s) {
+        var patchSeguinte = { horaInicio: s.horaInicioNovo };
+        backupDuracao.push({ atividadeKey: s.atividade.key, campo: 'horaInicio', valorAnterior: s.horaInicioAtual });
+        if (s.horaFimNovo !== s.horaFimAtual) {
+          patchSeguinte.horaFim = s.horaFimNovo;
+          backupDuracao.push({ atividadeKey: s.atividade.key, campo: 'horaFim', valorAnterior: s.horaFimAtual });
+        }
+        escritasDuracao.push({ atividadeKey: s.atividade.key, patch: patchSeguinte });
+      });
+      return { escritas: escritasDuracao, backup: backupDuracao };
+    }
+    var patch = {};
+    if (l.valorMesclado != null) {
+      patch[l.item.campo] = paraHtmlMigracao(l.valorMesclado);
+    } else if (l.item.acao === 'tipo') {
+      patch = { tipo: l.item.para };
+    } else if (l.item.acao === 'substituir_vazio' || l.item.acao === 'substituir_campo') {
+      patch[l.item.campo] = paraHtmlMigracao(l.item.para);
+    } else if (l.item.acao === 'acrescentar_fim') {
+      var existenteFim = l.valorAtual ? htmlRicoSeguro(l.valorAtual) + '<br><br>' : '';
+      patch[l.item.campo] = existenteFim + paraHtmlMigracao(l.item.para);
+    } else if (l.item.acao === 'acrescentar_inicio') {
+      var existenteInicio = l.valorAtual ? '<br><br>' + htmlRicoSeguro(l.valorAtual) : '';
+      patch[l.item.campo] = paraHtmlMigracao(l.item.para) + existenteInicio;
+    } else if (l.item.acao === 'substituir' || l.item.acao === 'substituir_trecho') {
+      /* Só troca o TRECHO "de" pelo "para" dentro do valor atual —
+         preserva todo o resto do campo, nunca substitui o campo
+         inteiro (ver dryRunMigracaoAntesDepois acima). */
+      patch[l.item.campo] = substituirTolerante(l.valorAtual, l.item.de, l.item.para);
+    }
+    var backupUnico = [{ atividadeKey: l.atividade.key, campo: l.item.campo, valorAnterior: l.item.acao === 'tipo' ? (l.atividade.tipo || '') : (l.atividade[l.item.campo] || '') }];
+    return { escritas: [{ atividadeKey: l.atividade.key, patch: patch }], backup: backupUnico };
+  }
+
   function aplicarMigracaoAntesDepois(eventoKey, linhasOk, cb) {
-    var backupItens = linhasOk.map(function (l) {
-      return { atividadeKey: l.atividade.key, campo: l.item.campo, valorAnterior: l.item.acao === 'tipo' ? (l.atividade.tipo || '') : (l.atividade[l.item.campo] || '') };
-    });
+    var linhasEscritas = linhasOk.map(montarEscritasLinha);
+    var backupItens = [];
+    linhasEscritas.forEach(function (le) { backupItens = backupItens.concat(le.backup); });
     var backupRef = db().ref('roteiros-evento/' + eventoKey + '/_migracoesBackup').push();
     backupRef.set({ criadoEm: new Date().toISOString(), itens: backupItens }, function (errBackup) {
       if (errBackup) return cb(errBackup);
-      var pendentes = linhasOk.length, atualizados = 0;
-      if (!pendentes) return cb(null, 0);
-      linhasOk.forEach(function (l) {
-        var patch;
-        if (l.valorMesclado != null) {
-          patch = {}; patch[l.item.campo] = paraHtmlMigracao(l.valorMesclado);
-        } else if (l.item.acao === 'tipo') {
-          patch = { tipo: l.item.para };
-        } else if (l.item.acao === 'substituir_vazio') {
-          patch = {}; patch[l.item.campo] = paraHtmlMigracao(l.item.para);
-        } else if (l.item.acao === 'acrescentar_fim') {
-          var existenteFim = l.valorAtual ? htmlRicoSeguro(l.valorAtual) + '<br><br>' : '';
-          patch = {}; patch[l.item.campo] = existenteFim + paraHtmlMigracao(l.item.para);
-        } else if (l.item.acao === 'acrescentar_inicio') {
-          var existenteInicio = l.valorAtual ? '<br><br>' + htmlRicoSeguro(l.valorAtual) : '';
-          patch = {}; patch[l.item.campo] = paraHtmlMigracao(l.item.para) + existenteInicio;
-        } else if (l.item.acao === 'substituir' || l.item.acao === 'substituir_trecho') {
-          /* Só troca o TRECHO "de" pelo "para" dentro do valor atual —
-             preserva todo o resto do campo, nunca substitui o campo
-             inteiro (ver dryRunMigracaoAntesDepois acima). */
-          patch = {}; patch[l.item.campo] = substituirTolerante(l.valorAtual, l.item.de, l.item.para);
-        }
-        editarAtividade(eventoKey, l.atividade.key, patch, function (err) {
-          if (!err) atualizados++;
-          if (!--pendentes) cb(null, atualizados);
+      var pendentesLinhas = linhasEscritas.length, atualizados = 0;
+      if (!pendentesLinhas) return cb(null, 0);
+      linhasEscritas.forEach(function (le) {
+        var pendentesEscritas = le.escritas.length, algumErro = false;
+        if (!pendentesEscritas) { if (!--pendentesLinhas) cb(null, atualizados); return; }
+        le.escritas.forEach(function (e) {
+          editarAtividade(eventoKey, e.atividadeKey, e.patch, function (err) {
+            if (err) algumErro = true;
+            if (!--pendentesEscritas) {
+              if (!algumErro) atualizados++;
+              if (!--pendentesLinhas) cb(null, atualizados);
+            }
+          });
         });
       });
     });
@@ -2013,8 +2197,10 @@
     });
   }
 
-  function abrirModalMigracaoAntesDepois(eventoKey, atividades, reload) {
-    var linhas = dryRunMigracaoAntesDepois(atividades);
+  function abrirModalMigracaoAntesDepois(eventoKey, atividades, reload, lista, tituloModal) {
+    lista = lista || MIGRACAO_ANTES_DEPOIS;
+    tituloModal = tituloModal || 'Migração de conteúdo — Antes x Depois';
+    var linhas = dryRunMigracaoAntesDepois(atividades, lista);
 
     var overlay = document.createElement('div');
     overlay.className = 'modal-overlay';
@@ -2030,6 +2216,8 @@
       'JÁ ATUALIZADO': '#4caf7d',
       'VALOR ATUAL DIVERGENTE': '#ff8a5c',
       'TRECHO AMBÍGUO': '#ff8a5c',
+      'TRECHO NÃO LOCALIZADO': '#ff8a5c',
+      'TRECHO ENCONTRADO EM MAIS DE UM LUGAR': '#ff8a5c',
       'ATIVIDADE NÃO ENCONTRADA': '#ff6b60',
       'REGISTRO AMBÍGUO': '#ff6b60',
       'DIVERGÊNCIA RESOLVIDA': '#c9a94a'
@@ -2069,9 +2257,35 @@
     }
     var revisandoIdx = proximaDivergentePendente(-1);
 
+    /* "duracao" divergente tem seu próprio painel simples — valorAtual
+       é um NÚMERO de minutos, não texto rico, então não passa pelo
+       cabeçalho ATUAL/DE/PARA genérico abaixo (nem faz sentido
+       "mesclar" dois números). Sempre mostra o recálculo de horário
+       projetado, mesmo quando a duração atual diverge do "de"
+       esperado — a pessoa decide com o efeito já visível. */
+    function painelRevisaoDuracaoHtml(l) {
+      var linhaSeguintes = (l.seguintes || []).length
+        ? '<div style="margin-bottom:8px"><strong style="color:var(--ink-3);text-transform:uppercase;font-size:.66rem;letter-spacing:.06em">Atividades seguintes do dia (início recalculado)</strong><div style="margin-top:4px;color:var(--ink-2)">' +
+          l.seguintes.map(function (s) { return esc(s.atividade.titulo) + ': ' + esc(s.horaInicioAtual) + ' → ' + esc(s.horaInicioNovo); }).join('<br>') + '</div></div>'
+        : '';
+      return '<div class="mig-painel" style="background:var(--panel-2);border:1px solid var(--line-strong);border-radius:8px;padding:14px;margin:6px 0;font-size:.8rem">' +
+        '<div style="margin-bottom:8px"><strong style="color:var(--ink-3);text-transform:uppercase;font-size:.66rem;letter-spacing:.06em">Duração atual</strong><div style="margin-top:4px;color:var(--ink)">' + l.valorAtual + ' min' + (l.horaFimAtual ? ' (fim ' + esc(l.horaFimAtual) + ')' : '') + '</div></div>' +
+        '<div style="margin-bottom:8px"><strong style="color:var(--ink-3);text-transform:uppercase;font-size:.66rem;letter-spacing:.06em">Duração esperada (DE)</strong><div style="margin-top:4px;color:var(--ink-2)">' + l.item.deMinutos + ' min</div></div>' +
+        '<div style="margin-bottom:10px"><strong style="color:var(--ink-3);text-transform:uppercase;font-size:.66rem;letter-spacing:.06em">Duração nova (PARA)</strong><div style="margin-top:4px;color:var(--ink-2)">' + l.item.paraMinutos + ' min' + (l.horaFimNovo ? ' (fim recalculado ' + esc(l.horaFimNovo) + ')' : '') + '</div></div>' +
+        linhaSeguintes +
+        '<p style="color:#ff8a5c;font-size:.72rem;margin:0 0 8px">A duração atual não bate com o valor esperado (' + l.item.deMinutos + ' min) nem já está em ' + l.item.paraMinutos + ' min — confira antes de decidir.</p>' +
+        '<div class="mig-decisao-botoes" style="display:flex;gap:8px;flex-wrap:wrap">' +
+          '<button class="btn mig-dec" data-dec="manter">Manter atual</button>' +
+          '<button class="btn mig-dec" data-dec="usar_para">Aplicar ' + l.item.paraMinutos + ' min mesmo assim</button>' +
+        '</div>' +
+      '</div>';
+    }
     function painelRevisaoHtml(l) {
+      if (l.item.acao === 'duracao') return painelRevisaoDuracaoHtml(l);
       var atualPlano = textoPlanoMigracao(l.valorAtual).trim() || '(vazio)';
-      var deTxt = l.item.de || '(sem "DE" — este item é uma inclusão nova, o campo estava vazio)';
+      var deTxt = l.item.acao === 'substituir_campo'
+        ? '(sem "DE" — este item substitui o CAMPO INTEIRO, não é busca de trecho)'
+        : (l.item.de || '(sem "DE" — este item é uma inclusão nova, o campo estava vazio)');
       var paraTxt = l.item.para;
       var ehTrecho = l.item.acao === 'substituir' || l.item.acao === 'substituir_trecho';
       var trechoRepetido = l.status === 'TRECHO AMBÍGUO';
@@ -2128,7 +2342,11 @@
       var manterCount = linhas.filter(function (l) { return l.decisaoTipo === 'manter'; }).length;
       var usarParaCount = linhas.filter(function (l) { return l.decisaoTipo === 'usar_para'; }).length;
       var mesclaCount = linhas.filter(function (l) { return l.decisaoTipo === 'mesclar'; }).length;
-      var pendenciasCount = linhas.filter(function (l) { return l.status === 'ATIVIDADE NÃO ENCONTRADA' || l.status === 'REGISTRO AMBÍGUO' || (precisaRevisao(l) && !l.decisaoTipo); }).length;
+      var pendenciasCount = linhas.filter(function (l) {
+        return l.status === 'ATIVIDADE NÃO ENCONTRADA' || l.status === 'REGISTRO AMBÍGUO' ||
+          l.status === 'TRECHO NÃO LOCALIZADO' || l.status === 'TRECHO ENCONTRADO EM MAIS DE UM LUGAR' ||
+          (precisaRevisao(l) && !l.decisaoTipo);
+      }).length;
       var totalDiv = totalDivergentes();
       var resolvidasDiv = divergentesResolvidas();
       var podeAplicar = !pendenteAlgumaDivergencia();
@@ -2145,17 +2363,37 @@
             acaoCol = '<button class="btn btn--primary mig-revisar-btn" data-idx="' + i + '" style="font-size:.7rem;padding:4px 8px">REVISAR</button>';
           }
         }
+        /* Item "tituloQualquer" (busca ampla, sem título fixo): a coluna
+           Atividade mostra onde foi achado (ou por que não), já que
+           l.item.titulo só existe quando resolveu pra um lugar único. */
+        var tituloCol = l.item.tituloQualquer
+          ? (l.atividade ? l.atividade.titulo + ' (localizado automaticamente)' :
+             (l.status === 'TRECHO ENCONTRADO EM MAIS DE UM LUGAR' ? l.candidatos.length + ' lugares diferentes' : '(trecho não encontrado em nenhuma atividade)'))
+          : l.item.titulo;
+        var campoCol = l.item.campo ? (CAMPOS_MIGRACAO_LABEL[l.item.campo] || l.item.campo) : '—';
         var linhaTr = '<tr' + (revisandoIdx === i ? ' style="background:rgba(255,255,255,.05)"' : '') + '>' +
-          '<td>' + esc(l.item.titulo) + '</td>' +
-          '<td>' + esc(CAMPOS_MIGRACAO_LABEL[l.item.campo] || l.item.campo) + '</td>' +
+          '<td>' + esc(tituloCol) + '</td>' +
+          '<td>' + esc(campoCol) + '</td>' +
           '<td style="color:' + cor + '">' + esc(statusTxt) + '</td>' +
           '<td>' + acaoCol + '</td>' +
           '</tr>';
-        return linhaTr + (revisandoIdx === i ? ('<tr><td colspan="4">' + painelRevisaoHtml(l) + '</td></tr>') : '');
+        var linhaDetalhe = '';
+        if (l.item.acao === 'duracao' && l.status !== 'JÁ ATUALIZADO') {
+          linhaDetalhe = '<tr><td colspan="4" style="font-size:.72rem;color:var(--ink-3);padding:2px 10px 10px">' +
+            'Duração: ' + l.valorAtual + ' min → ' + l.item.paraMinutos + ' min' +
+            (l.horaFimAtual ? ' · Fim: ' + esc(l.horaFimAtual) + ' → ' + esc(l.horaFimNovo) : '') +
+            (l.seguintes && l.seguintes.length ? ' · Ajusta o início de ' + l.seguintes.length + ' atividade(s) seguinte(s) do dia: ' + l.seguintes.map(function (s) { return esc(s.atividade.titulo) + ' (' + esc(s.horaInicioAtual) + '→' + esc(s.horaInicioNovo) + ')'; }).join(', ') : '') +
+            '</td></tr>';
+        } else if (l.status === 'TRECHO ENCONTRADO EM MAIS DE UM LUGAR') {
+          linhaDetalhe = '<tr><td colspan="4" style="font-size:.72rem;color:var(--ink-3);padding:2px 10px 10px">Encontrado em: ' +
+            l.candidatos.map(function (c) { return esc(c.atividade.titulo) + ' — ' + esc(CAMPOS_MIGRACAO_LABEL[c.campo] || c.campo) + (c.ocorrencias > 1 ? ' (' + c.ocorrencias + 'x)' : ''); }).join('; ') +
+            ' — resolva manualmente qual é o lugar certo, o sistema não decide sozinho quando há mais de uma opção.</td></tr>';
+        }
+        return linhaTr + linhaDetalhe + (revisandoIdx === i ? ('<tr><td colspan="4">' + painelRevisaoHtml(l) + '</td></tr>') : '');
       }).join('');
 
       box.innerHTML =
-        '<h3 style="font-size:1.1rem;font-family:var(--font-head);letter-spacing:.05em;color:var(--ink)">Migração de conteúdo — Antes x Depois</h3>' +
+        '<h3 style="font-size:1.1rem;font-family:var(--font-head);letter-spacing:.05em;color:var(--ink)">' + esc(tituloModal) + '</h3>' +
         '<p style="font-size:.82rem;color:var(--ink-3)">DRY RUN — nada foi gravado ainda.' + (totalDiv ? ' Revisadas ' + resolvidasDiv + ' de ' + totalDiv + ' divergências.' : '') + '</p>' +
         '<div style="overflow:auto;max-height:48vh;border:1px solid var(--line-strong);border-radius:8px">' +
           '<table style="width:100%;border-collapse:collapse;font-size:.78rem">' +
@@ -2369,7 +2607,7 @@
           });
         });
       }
-      var migracaoBtn = null, desfazerMigracaoBtn = null;
+      var migracaoBtn = null, limpezaBtn = null, desfazerMigracaoBtn = null;
       if (temAncoraImportacao) {
         migracaoBtn = document.createElement('button');
         migracaoBtn.className = 'btn btn--sm';
@@ -2378,6 +2616,14 @@
         migracaoBtn.title = 'Mostra um DRY RUN (só leitura) comparando o valor atual de cada campo com o texto revisado da planilha "Antes x Depois" — nada é gravado até clicar "Aplicar" na janela que abre.';
         migracaoBtn.addEventListener('click', function () {
           abrirModalMigracaoAntesDepois(eventoKey, roteiro.atividades, reload);
+        });
+        limpezaBtn = document.createElement('button');
+        limpezaBtn.className = 'btn btn--sm';
+        limpezaBtn.style.cssText = 'padding:6px 10px;font-size:.72rem';
+        limpezaBtn.textContent = '🧹 Limpeza final de consistência';
+        limpezaBtn.title = 'Mostra um DRY RUN (só leitura) com a 3ª leva de ajustes: elimina a duplicidade do Primeiro uso da IA, corrige o resto de Output x Outcome, ajusta a duração de Decisão sem IA (com recálculo de horários), simplifica Faça a comparação e revê os três conceitos do fechamento final — nada é gravado até clicar "Aplicar" na janela que abre.';
+        limpezaBtn.addEventListener('click', function () {
+          abrirModalMigracaoAntesDepois(eventoKey, roteiro.atividades, reload, MIGRACAO_LIMPEZA_FINAL, 'Limpeza final de consistência');
         });
         desfazerMigracaoBtn = document.createElement('button');
         desfazerMigracaoBtn.className = 'btn btn--sm';
@@ -2414,6 +2660,7 @@
       diaHdr.appendChild(imprimirPassoAPassoBtn);
       if (importarResultadosBtn) diaHdr.appendChild(importarResultadosBtn);
       if (migracaoBtn) diaHdr.appendChild(migracaoBtn);
+      if (limpezaBtn) diaHdr.appendChild(limpezaBtn);
       if (desfazerMigracaoBtn) diaHdr.appendChild(desfazerMigracaoBtn);
       diaHdr.appendChild(delDiaBtn);
       container.appendChild(diaHdr);
