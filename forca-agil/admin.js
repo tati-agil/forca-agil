@@ -305,7 +305,7 @@
         var t = val[key] || {};
         var dias = (t.dias || []).slice().sort();
         var fmt = window.faTurmasUtil.formatDias(dias);
-        return { key: key, label: t.label || key.toUpperCase(), dates: fmt.dates, dias: dias, order: t.order || 0, cmflexLink: t.cmflexLink || '', eventoKey: t.eventoKey || '', avaliacaoHabilitada: !!t.avaliacaoHabilitada };
+        return { key: key, label: t.label || key.toUpperCase(), dates: fmt.dates, dias: dias, order: t.order || 0, cmflexLink: t.cmflexLink || '', eventoKey: t.eventoKey || '', avaliacaoHabilitada: !!t.avaliacaoHabilitada, resultadoEsperado: t.resultadoEsperado || '' };
       }).sort(function (a, b) { return a.order - b.order; });
       cb();
     });
@@ -2615,6 +2615,7 @@
       '<label class="auth-label">Evento<select id="turmaFormEvento" style="padding:8px 10px;background:var(--panel-2);border:1px solid var(--line-strong);border-radius:6px;color:var(--ink);font-family:var(--font-body);width:100%">' + eventoOpts + '</select></label>' +
       '<label class="auth-label">Nome da turma<input type="text" id="turmaFormLabel" placeholder="Ex: Turma 4 — Janeiro" autocomplete="off" /></label>' +
       '<label class="auth-label">Link do CMFlex <span style="opacity:.6;font-weight:400">(opcional)</span><input type="url" id="turmaFormCmflex" placeholder="https://..." autocomplete="off" /></label>' +
+      '<label class="auth-label">Resultado esperado da turma <span style="opacity:.6;font-weight:400">(opcional)</span><textarea id="turmaFormResultadoEsperado" rows="3" placeholder="O que se espera alcançar com esta turma?" style="width:100%;padding:8px 10px;background:var(--panel-2);border:1px solid var(--line-strong);border-radius:6px;color:var(--ink);font-family:var(--font-body);resize:vertical"></textarea></label>' +
       '<div>' +
         '<span class="auth-label" style="display:block;margin-bottom:8px">Datas dos encontros</span>' +
         '<div id="turmaDatesList" style="display:flex;flex-direction:column;gap:8px;"></div>' +
@@ -2632,12 +2633,14 @@
     var eventoSel   = box.querySelector('#turmaFormEvento');
     var labelInput  = box.querySelector('#turmaFormLabel');
     var cmflexInput = box.querySelector('#turmaFormCmflex');
+    var resultadoInput = box.querySelector('#turmaFormResultadoEsperado');
     var datesList   = box.querySelector('#turmaDatesList');
     var errEl       = box.querySelector('#turmaFormErr');
 
     eventoSel.value   = isEdit ? (existing.eventoKey || '') : (defaultEventoKey || '');
     labelInput.value  = isEdit ? existing.label : '';
     cmflexInput.value = isEdit ? (existing.cmflexLink || '') : '';
+    resultadoInput.value = isEdit ? (existing.resultadoEsperado || '') : '';
 
     function addDateRow(value) {
       var row = document.createElement('div');
@@ -2676,7 +2679,8 @@
       if (!label) { errEl.textContent = 'Dê um nome pra turma.'; errEl.style.display = ''; return; }
       if (!dias.length) { errEl.textContent = 'Adicione pelo menos uma data.'; errEl.style.display = ''; return; }
 
-      var data = { label: label, dias: dias, cmflexLink: cmflexLink, eventoKey: eventoSel.value || '' };
+      var resultadoEsperado = (resultadoInput.value || '').trim();
+      var data = { label: label, dias: dias, cmflexLink: cmflexLink, resultadoEsperado: resultadoEsperado, eventoKey: eventoSel.value || '' };
       if (isEdit) {
         firebase.database().ref('turmas/' + existing.key).update(data, function (err) {
           if (err) { errEl.textContent = 'Erro ao salvar. Tente novamente.'; errEl.style.display = ''; return; }
