@@ -1816,21 +1816,39 @@
     { titulo: 'DECISÃO SEM IA', campo: 'duracaoMinutos', acao: 'duracao', deMinutos: 5, paraMinutos: 8 },
     { titulo: 'DECISÃO SEM IA', campo: 'dicasFacilitador', acao: 'acrescentar_fim',
       para: 'DISTRIBUIÇÃO SUGERIDA DO TEMPO (8 min)\n\n3 min — respostas individuais\n4 min — Conselho escolhe uma aposta-base\n1 min — registro da aposta-base' },
-    { titulo: 'FAÇA A COMPARAÇÃO', campo: 'passoAPasso', acao: 'substituir',
-      de: 'Primeiro, coloque lado a lado:\nAPOSTA-BASE DO CONSELHO — SEM IA\n×\nAPOSTA FINAL DO CONSELHO — APÓS A ANÁLISE COM IA\n\nPergunte:\n1. O que mudou?\n2. O que permaneceu?\n3. O que a IA nos fez enxergar que não havíamos percebido?\n4. O que a IA afirmou que ainda precisamos verificar?\n5. Nossa decisão ficou melhor ou apenas mais bem argumentada?\n\nFeche mostrando dois caminhos:\nMODELO A: IDEIA → PROJETO → ESCOPO → PLANO → EXECUÇÃO → ENTREGA\nMODELO B: PROBLEMA → HIPÓTESE → EXPERIMENTO → EVIDÊNCIA → APRENDIZADO → NOVA DECISÃO\n\nDiga: “Nenhum dos modelos é universalmente certo ou errado. Quanto maior a incerteza, mais valioso se torna aprender em ciclos menores antes de aumentar o investimento.”',
+    /* "substituir_campo" (não "substituir" com "de"): pedido explícito é
+       "substituir o conteúdo inteiro" — funciona igual esteja o campo
+       ainda na versão de 5 perguntas de uma leva anterior (nesse caso
+       vira revisão manual, igual sempre) ou já na versão de 3
+       perguntas aplicada antes (aí já bate com o "para" = "JÁ
+       ATUALIZADO", sem re-perguntar nada). */
+    { titulo: 'FAÇA A COMPARAÇÃO', campo: 'passoAPasso', acao: 'substituir_campo',
       para: 'Primeiro, coloque lado a lado:\nAPOSTA-BASE DO CONSELHO — SEM IA\n×\nAPOSTA FINAL DO CONSELHO — APÓS A ANÁLISE COM IA\n\nPergunte:\n1. O que mudou entre a aposta sem IA e a aposta final?\n2. O que a IA nos fez enxergar que não havíamos percebido?\n3. O que ainda precisamos verificar antes de aumentar o investimento?\n\nDepois mostre:\n\nMODELO A\nIDEIA → PROJETO → ESCOPO → PLANO → EXECUÇÃO → ENTREGA\n\nMODELO B\nPROBLEMA → HIPÓTESE → EXPERIMENTO → EVIDÊNCIA → APRENDIZADO → NOVA DECISÃO\n\nPergunte: “Em qual situação o Modelo A pode funcionar bem?”\n\nDepois: “E quando existe grande incerteza sobre problema, solução, comportamento ou resultado, o que muda?”\n\nFeche: “Nenhum dos modelos é universalmente certo ou errado. Quando a incerteza é baixa e sabemos bem o que precisa ser feito, planejar mais antecipadamente pode ser eficiente. Quanto maior a incerteza, mais valioso se torna aprender em ciclos menores antes de aumentar o investimento.”' },
-    { tituloQualquer: true, campo: null, acao: 'substituir',
-      origemPedido: 'Pedido de limpeza final, item "Fechamento final — Experimentação": trocar a formulação "MVP / experimento: Podemos aprender sem construir tudo." pela versão revisada. O pedido não indicou o título exato da atividade nem o campo onde esse texto vive — por isso a busca roda em qualquer atividade do roteiro.',
-      de: 'MVP / experimento: Podemos aprender sem construir tudo.',
-      para: 'EXPERIMENTAÇÃO:\nExperimentos pequenos permitem reduzir incerteza antes de construir ou investir em escala.' },
-    { tituloQualquer: true, campo: null, acao: 'substituir',
-      origemPedido: 'Pedido de limpeza final, item "Fechamento final — Empirismo": trocar a formulação "Empirismo: Evidências são mais fortes que opiniões." pela versão revisada. O pedido não indicou o título exato da atividade nem o campo onde esse texto vive — por isso a busca roda em qualquer atividade do roteiro.',
+    /* Removida integralmente do "Observações" — o prompt oficial já
+       vive só em "Prompt para IA" (ver CONTEXTO/MISSÃO das duplas mais
+       acima) e nunca deve ficar duplicado aqui. Sem "de" confiável (o
+       bloco antigo tinha placeholders tipo "[dupla escreve]" que podem
+       ou não ter sido preenchidos) — por isso troca o campo inteiro,
+       sempre com revisão manual, nunca reescreve às cegas; se já
+       estiver vazio, "JÁ ATUALIZADO". */
+    { titulo: 'PRIMEIRO USO DA IA', campo: 'observacoes', acao: 'substituir_campo', para: '' },
+    /* Quatro trechos dentro do mesmo campo "Observações" de UMA
+       atividade com título exato conhecido — cada um troca só o seu
+       próprio trecho, preservando os demais itens da lista (Priorização,
+       Foco, Incerteza, Adaptação, Fail small, IA, Pensamento crítico,
+       Liderança ágil) e os outros três conceitos revisados entre si. */
+    { titulo: 'EPISÓDIO FINAL — O COMPROMISSO DA LIDERANÇA', campo: 'observacoes', acao: 'substituir',
+      de: 'Feedback: Novas informações entram no sistema.',
+      para: 'Feedback: Sinais da realidade retornam ao processo e ajudam a orientar a próxima decisão.' },
+    { titulo: 'EPISÓDIO FINAL — O COMPROMISSO DA LIDERANÇA', campo: 'observacoes', acao: 'substituir',
       de: 'Empirismo: Evidências são mais fortes que opiniões.',
-      para: 'EMPIRISMO:\nTornamos o que acontece visível, observamos resultados e usamos o aprendizado para orientar a próxima decisão.' },
-    { tituloQualquer: true, campo: null, acao: 'substituir',
-      origemPedido: 'Pedido de limpeza final, item "Fechamento final — Feedback": SE ainda existir a formulação "Feedback: novas informações entraram.", trocar pela versão revisada. O pedido é condicional ("se ainda existir") e não indicou título exato de atividade nem campo — por isso a busca roda em qualquer atividade do roteiro.',
-      de: 'Feedback: novas informações entraram.',
-      para: 'FEEDBACK:\nSinais da realidade retornam ao processo e ajudam a orientar a próxima decisão.' }
+      para: 'Empirismo: Tornamos o que acontece visível, observamos resultados e usamos o aprendizado para orientar a próxima decisão.' },
+    { titulo: 'EPISÓDIO FINAL — O COMPROMISSO DA LIDERANÇA', campo: 'observacoes', acao: 'substituir',
+      de: 'MVP / experimento: Podemos aprender sem construir tudo.',
+      para: 'Experimentação: Experimentos pequenos permitem reduzir incerteza antes de construir ou investir em escala.' },
+    { titulo: 'EPISÓDIO FINAL — O COMPROMISSO DA LIDERANÇA', campo: 'observacoes', acao: 'substituir',
+      de: 'Outcome x Output: Resolver problema é diferente de entregar projeto.',
+      para: 'Outcome × Output: Entregar algo é diferente de produzir o resultado que queremos alcançar.' }
   ];
 
   var CAMPOS_MIGRACAO_LABEL = { passoAPasso: 'Passo a passo', dicasFacilitador: 'Dicas para o facilitador', observacoes: 'Observações', conexaoAgilidade: 'Conexão com a mentalidade ágil', promptIA: 'Prompt para IA', preparacaoPrevia: 'Preparação prévia', duracaoMinutos: 'Duração (minutos)', tipo: 'Tipo' };
@@ -2217,84 +2235,129 @@
      cada atividade seguinte do mesmo dia, então vira uma escrita por
      atividade tocada, todas no mesmo backup (uma única leva pra
      desfazer tudo de uma vez). */
-  function montarEscritasLinha(l) {
-    if (l.item.acao === 'duracao') {
-      var escritasDuracao = [];
-      var backupDuracao = [{ atividadeKey: l.atividade.key, campo: 'duracaoMinutos', valorAnterior: l.valorAtual }];
-      var patchPrincipal = { duracaoMinutos: l.item.paraMinutos };
-      if (l.horaFimNovo !== l.horaFimAtual) {
-        backupDuracao.push({ atividadeKey: l.atividade.key, campo: 'horaFim', valorAnterior: l.horaFimAtual });
-        patchPrincipal.horaFim = l.horaFimNovo;
-      }
-      escritasDuracao.push({ atividadeKey: l.atividade.key, patch: patchPrincipal });
-
-      var compensarKey = l.decisaoTipo === 'compensar' ? l.atividadeCompensarKey : null;
-      var passouCompensar = false;
-      (l.seguintes || []).forEach(function (s) {
-        /* Cenário B ("compensar"): tudo DEPOIS da atividade escolhida
-           pra encolher fica exatamente como estava — nenhuma escrita.
-           Cenário A (sem compensarKey) sempre desloca todo mundo, como
-           antes. */
-        if (compensarKey && passouCompensar) return;
-        if (compensarKey && s.atividade.key === compensarKey) {
-          var novaDuracao = (Number(s.atividade.duracaoMinutos) || 0) - l.delta;
-          backupDuracao.push({ atividadeKey: s.atividade.key, campo: 'duracaoMinutos', valorAnterior: s.atividade.duracaoMinutos });
-          backupDuracao.push({ atividadeKey: s.atividade.key, campo: 'horaInicio', valorAnterior: s.horaInicioAtual });
-          escritasDuracao.push({ atividadeKey: s.atividade.key, patch: { duracaoMinutos: novaDuracao, horaInicio: s.horaInicioNovo } });
-          passouCompensar = true;
-          return;
-        }
-        var patchSeguinte = { horaInicio: s.horaInicioNovo };
-        backupDuracao.push({ atividadeKey: s.atividade.key, campo: 'horaInicio', valorAnterior: s.horaInicioAtual });
-        if (s.horaFimNovo !== s.horaFimAtual) {
-          patchSeguinte.horaFim = s.horaFimNovo;
-          backupDuracao.push({ atividadeKey: s.atividade.key, campo: 'horaFim', valorAnterior: s.horaFimAtual });
-        }
-        escritasDuracao.push({ atividadeKey: s.atividade.key, patch: patchSeguinte });
-      });
-      return { escritas: escritasDuracao, backup: backupDuracao };
+  function montarEscritasLinhaDuracao(l) {
+    var escritasDuracao = [];
+    var backupDuracao = [{ atividadeKey: l.atividade.key, campo: 'duracaoMinutos', valorAnterior: l.valorAtual }];
+    var patchPrincipal = { duracaoMinutos: l.item.paraMinutos };
+    if (l.horaFimNovo !== l.horaFimAtual) {
+      backupDuracao.push({ atividadeKey: l.atividade.key, campo: 'horaFim', valorAnterior: l.horaFimAtual });
+      patchPrincipal.horaFim = l.horaFimNovo;
     }
-    var patch = {};
-    if (l.valorMesclado != null) {
-      patch[l.item.campo] = paraHtmlMigracao(l.valorMesclado);
-    } else if (l.item.acao === 'tipo') {
-      patch = { tipo: l.item.para };
-    } else if (l.item.acao === 'substituir_vazio' || l.item.acao === 'substituir_campo') {
-      patch[l.item.campo] = paraHtmlMigracao(l.item.para);
-    } else if (l.item.acao === 'acrescentar_fim') {
-      var existenteFim = l.valorAtual ? htmlRicoSeguro(l.valorAtual) + '<br><br>' : '';
-      patch[l.item.campo] = existenteFim + paraHtmlMigracao(l.item.para);
-    } else if (l.item.acao === 'acrescentar_inicio') {
-      var existenteInicio = l.valorAtual ? '<br><br>' + htmlRicoSeguro(l.valorAtual) : '';
-      patch[l.item.campo] = paraHtmlMigracao(l.item.para) + existenteInicio;
-    } else if (l.item.acao === 'substituir' || l.item.acao === 'substituir_trecho') {
+    escritasDuracao.push({ atividadeKey: l.atividade.key, patch: patchPrincipal });
+
+    var compensarKey = l.decisaoTipo === 'compensar' ? l.atividadeCompensarKey : null;
+    var passouCompensar = false;
+    (l.seguintes || []).forEach(function (s) {
+      /* Cenário B ("compensar"): tudo DEPOIS da atividade escolhida
+         pra encolher fica exatamente como estava — nenhuma escrita.
+         Cenário A (sem compensarKey) sempre desloca todo mundo, como
+         antes. */
+      if (compensarKey && passouCompensar) return;
+      if (compensarKey && s.atividade.key === compensarKey) {
+        var novaDuracao = (Number(s.atividade.duracaoMinutos) || 0) - l.delta;
+        backupDuracao.push({ atividadeKey: s.atividade.key, campo: 'duracaoMinutos', valorAnterior: s.atividade.duracaoMinutos });
+        backupDuracao.push({ atividadeKey: s.atividade.key, campo: 'horaInicio', valorAnterior: s.horaInicioAtual });
+        escritasDuracao.push({ atividadeKey: s.atividade.key, patch: { duracaoMinutos: novaDuracao, horaInicio: s.horaInicioNovo } });
+        passouCompensar = true;
+        return;
+      }
+      var patchSeguinte = { horaInicio: s.horaInicioNovo };
+      backupDuracao.push({ atividadeKey: s.atividade.key, campo: 'horaInicio', valorAnterior: s.horaInicioAtual });
+      if (s.horaFimNovo !== s.horaFimAtual) {
+        patchSeguinte.horaFim = s.horaFimNovo;
+        backupDuracao.push({ atividadeKey: s.atividade.key, campo: 'horaFim', valorAnterior: s.horaFimAtual });
+      }
+      escritasDuracao.push({ atividadeKey: s.atividade.key, patch: patchSeguinte });
+    });
+    return { escritas: escritasDuracao, backup: backupDuracao };
+  }
+
+  /* Calcula o valor NOVO de um campo de texto/tipo a partir de um valor
+     "corrente" — que pode já vir alterado por OUTRA linha do mesmo lote
+     que mexe no mesmo campo da mesma atividade (ver agrupamento em
+     aplicarMigracaoAntesDepois logo abaixo). Nunca lê l.valorAtual
+     diretamente: se ler, duas linhas tocando o mesmo campo (ex: dois
+     "substituir" trocando trechos DIFERENTES nas mesmas Observações)
+     partiriam cada uma do valor ORIGINAL e a segunda escrita apagaria
+     o que a primeira tinha acabado de trocar. */
+  function novoValorCampoMigracao(l, valorAtualCorrente) {
+    if (l.valorMesclado != null) return paraHtmlMigracao(l.valorMesclado);
+    if (l.item.acao === 'tipo') return l.item.para;
+    if (l.item.acao === 'substituir_vazio' || l.item.acao === 'substituir_campo') return paraHtmlMigracao(l.item.para);
+    if (l.item.acao === 'acrescentar_fim') {
+      var existenteFim = valorAtualCorrente ? htmlRicoSeguro(valorAtualCorrente) + '<br><br>' : '';
+      return existenteFim + paraHtmlMigracao(l.item.para);
+    }
+    if (l.item.acao === 'acrescentar_inicio') {
+      var existenteInicio = valorAtualCorrente ? '<br><br>' + htmlRicoSeguro(valorAtualCorrente) : '';
+      return paraHtmlMigracao(l.item.para) + existenteInicio;
+    }
+    if (l.item.acao === 'substituir' || l.item.acao === 'substituir_trecho') {
       /* Só troca o TRECHO "de" pelo "para" dentro do valor atual —
          preserva todo o resto do campo, nunca substitui o campo
          inteiro (ver dryRunMigracaoAntesDepois acima). */
-      patch[l.item.campo] = substituirTolerante(l.valorAtual, l.item.de, l.item.para);
+      return substituirTolerante(valorAtualCorrente, l.item.de, l.item.para);
     }
-    var backupUnico = [{ atividadeKey: l.atividade.key, campo: l.item.campo, valorAnterior: l.item.acao === 'tipo' ? (l.atividade.tipo || '') : (l.atividade[l.item.campo] || '') }];
-    return { escritas: [{ atividadeKey: l.atividade.key, patch: patch }], backup: backupUnico };
+    return valorAtualCorrente;
   }
 
   function aplicarMigracaoAntesDepois(eventoKey, linhasOk, cb) {
-    var linhasEscritas = linhasOk.map(montarEscritasLinha);
     var backupItens = [];
-    linhasEscritas.forEach(function (le) { backupItens = backupItens.concat(le.backup); });
+    var unidades = []; /* { escritas: [...], linhasCount: N } — uma unidade = uma escrita física (ou o grupo de escritas de uma linha "duracao"); linhasCount é quantas linhas do DRY RUN ela representa, pra "X de Y aplicadas" continuar contando por linha, não por escrita física. */
+
+    linhasOk.filter(function (l) { return l.item.acao === 'duracao'; }).forEach(function (l) {
+      var r = montarEscritasLinhaDuracao(l);
+      backupItens = backupItens.concat(r.backup);
+      unidades.push({ escritas: r.escritas, linhasCount: 1 });
+    });
+
+    /* Linhas que escrevem um único campo de uma atividade (todas as
+       ações exceto "duracao") são agrupadas por atividade+campo ANTES
+       de gerar a escrita: mais de uma linha mexendo no MESMO campo da
+       MESMA atividade (ex: quatro "substituir" trocando trechos
+       diferentes nas mesmas Observações) vira UMA escrita só, com cada
+       transformação aplicada em cadeia sobre o resultado da anterior —
+       nunca escritas paralelas independentes, que fariam a última
+       vencer e apagar as outras. O backup guarda o valor de ANTES de
+       qualquer uma das transformações do lote, não um valor
+       intermediário. */
+    var grupos = {}, ordemGrupos = [];
+    linhasOk.filter(function (l) { return l.item.acao !== 'duracao'; }).forEach(function (l) {
+      var campo = l.item.acao === 'tipo' ? 'tipo' : l.item.campo;
+      var chave = l.atividade.key + '::' + campo;
+      if (!grupos[chave]) {
+        grupos[chave] = {
+          atividadeKey: l.atividade.key, campo: campo,
+          valorInicial: l.item.acao === 'tipo' ? (l.atividade.tipo || '') : (l.atividade[l.item.campo] || ''),
+          linhas: []
+        };
+        ordemGrupos.push(chave);
+      }
+      grupos[chave].linhas.push(l);
+    });
+    ordemGrupos.forEach(function (chave) {
+      var g = grupos[chave];
+      var valorCorrente = g.valorInicial;
+      g.linhas.forEach(function (l) { valorCorrente = novoValorCampoMigracao(l, valorCorrente); });
+      backupItens.push({ atividadeKey: g.atividadeKey, campo: g.campo, valorAnterior: g.valorInicial });
+      var patch = {}; patch[g.campo] = valorCorrente;
+      unidades.push({ escritas: [{ atividadeKey: g.atividadeKey, patch: patch }], linhasCount: g.linhas.length });
+    });
+
     var backupRef = db().ref('roteiros-evento/' + eventoKey + '/_migracoesBackup').push();
     backupRef.set({ criadoEm: new Date().toISOString(), itens: backupItens }, function (errBackup) {
       if (errBackup) return cb(errBackup);
-      var pendentesLinhas = linhasEscritas.length, atualizados = 0;
-      if (!pendentesLinhas) return cb(null, 0);
-      linhasEscritas.forEach(function (le) {
-        var pendentesEscritas = le.escritas.length, algumErro = false;
-        if (!pendentesEscritas) { if (!--pendentesLinhas) cb(null, atualizados); return; }
-        le.escritas.forEach(function (e) {
+      var pendentesUnidades = unidades.length, atualizados = 0;
+      if (!pendentesUnidades) return cb(null, 0);
+      unidades.forEach(function (u) {
+        var pendentesEscritas = u.escritas.length, algumErro = false;
+        if (!pendentesEscritas) { if (!--pendentesUnidades) cb(null, atualizados); return; }
+        u.escritas.forEach(function (e) {
           editarAtividade(eventoKey, e.atividadeKey, e.patch, function (err) {
             if (err) algumErro = true;
             if (!--pendentesEscritas) {
-              if (!algumErro) atualizados++;
-              if (!--pendentesLinhas) cb(null, atualizados);
+              if (!algumErro) atualizados += u.linhasCount;
+              if (!--pendentesUnidades) cb(null, atualizados);
             }
           });
         });
@@ -2490,10 +2553,16 @@
       var paraTxt = l.item.para;
       var ehTrecho = l.item.acao === 'substituir' || l.item.acao === 'substituir_trecho';
       var trechoRepetido = l.status === 'TRECHO AMBÍGUO';
+      /* Exibição do "PARA" vazio (item que pede remover o campo por
+         inteiro, ex: Observações do Primeiro uso da IA) — só cosmético,
+         nunca troca o valor de verdade usado pra gravar (paraTxt em
+         si continua '' pra "Mesclar manualmente" abrir uma caixa
+         realmente vazia, não um texto fictício). */
+      var paraTxtExibicao = paraTxt ? paraTxt : '(campo deve ficar vazio)';
       var cabecalho =
         '<div style="margin-bottom:8px"><strong style="color:var(--ink-3);text-transform:uppercase;font-size:.66rem;letter-spacing:.06em">Atual no sistema</strong><div style="white-space:pre-wrap;margin-top:4px;color:var(--ink)">' + esc(atualPlano) + '</div></div>' +
         '<div style="margin-bottom:8px"><strong style="color:var(--ink-3);text-transform:uppercase;font-size:.66rem;letter-spacing:.06em">DE do Excel' + (ehTrecho ? ' (trecho procurado dentro do campo acima)' : '') + '</strong><div style="white-space:pre-wrap;margin-top:4px;color:var(--ink-2)">' + esc(deTxt) + '</div></div>' +
-        '<div style="margin-bottom:10px"><strong style="color:var(--ink-3);text-transform:uppercase;font-size:.66rem;letter-spacing:.06em">PARA do Excel</strong><div style="white-space:pre-wrap;margin-top:4px;color:var(--ink-2)">' + esc(paraTxt) + '</div></div>';
+        '<div style="margin-bottom:10px"><strong style="color:var(--ink-3);text-transform:uppercase;font-size:.66rem;letter-spacing:.06em">PARA do Excel</strong><div style="white-space:pre-wrap;margin-top:4px;color:var(--ink-2)">' + esc(paraTxtExibicao) + '</div></div>';
 
       /* "VALOR ATUAL DIVERGENTE" num campo de texto (nunca em Tipo, que
          não tem o que mesclar) ganha uma PROPOSTA DE MESCLA gerada
