@@ -4558,7 +4558,7 @@
           firebase.database().ref('roteiro-tipos-atividade').set(writes, function (err) {
             if (err) { c.innerHTML = '<p class="loading-msg" style="color:var(--red)">Erro ao inicializar a lista de tipos.</p>'; return; }
             render();
-          });
+          }).catch(function () {});
           return;
         }
 
@@ -4608,7 +4608,7 @@
             if (e.target.closest('.tipoAtv-del-btn')) {
               const nomeAtual = tr.querySelector('.tipoAtv-nome').textContent;
               adminConfirm('Remover o tipo "' + nomeAtual + '"? Atividades que já usam esse tipo continuam com o valor gravado, só deixam de aparecer pré-selecionadas no formulário.', function () {
-                firebase.database().ref('roteiro-tipos-atividade/' + key).remove(function () { render(); });
+                firebase.database().ref('roteiro-tipos-atividade/' + key).remove(function () { render(); }).catch(function () {});
               });
               return;
             }
@@ -4630,7 +4630,7 @@
               firebase.database().ref('roteiro-tipos-atividade/' + key + '/nome').set(novoNome, function (err) {
                 if (err) { adminAlert('Erro ao salvar. Tente novamente.'); return; }
                 render();
-              });
+              }).catch(function () {});
             }
           });
         }
@@ -4658,12 +4658,12 @@
             document.getElementById('tipoAtvNovoNome').value = '';
             msg.style.color = 'var(--cyan)'; msg.textContent = '"' + nome + '" adicionado.';
             render();
-          });
+          }).catch(function () {});
         });
       }, function (err) {
         console.error('[admin] erro ao carregar roteiro-tipos-atividade', err);
         c.innerHTML = '<p class="loading-msg" style="color:var(--red)">Erro ao carregar tipos de atividade. Recarregue a página ou verifique sua conexão.</p>';
-      });
+      }).catch(function () {});
     }
 
     render();
