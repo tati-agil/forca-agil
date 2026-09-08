@@ -1820,12 +1820,15 @@
       de: 'Primeiro, coloque lado a lado:\nAPOSTA-BASE DO CONSELHO — SEM IA\n×\nAPOSTA FINAL DO CONSELHO — APÓS A ANÁLISE COM IA\n\nPergunte:\n1. O que mudou?\n2. O que permaneceu?\n3. O que a IA nos fez enxergar que não havíamos percebido?\n4. O que a IA afirmou que ainda precisamos verificar?\n5. Nossa decisão ficou melhor ou apenas mais bem argumentada?\n\nFeche mostrando dois caminhos:\nMODELO A: IDEIA → PROJETO → ESCOPO → PLANO → EXECUÇÃO → ENTREGA\nMODELO B: PROBLEMA → HIPÓTESE → EXPERIMENTO → EVIDÊNCIA → APRENDIZADO → NOVA DECISÃO\n\nDiga: “Nenhum dos modelos é universalmente certo ou errado. Quanto maior a incerteza, mais valioso se torna aprender em ciclos menores antes de aumentar o investimento.”',
       para: 'Primeiro, coloque lado a lado:\nAPOSTA-BASE DO CONSELHO — SEM IA\n×\nAPOSTA FINAL DO CONSELHO — APÓS A ANÁLISE COM IA\n\nPergunte:\n1. O que mudou entre a aposta sem IA e a aposta final?\n2. O que a IA nos fez enxergar que não havíamos percebido?\n3. O que ainda precisamos verificar antes de aumentar o investimento?\n\nDepois mostre:\n\nMODELO A\nIDEIA → PROJETO → ESCOPO → PLANO → EXECUÇÃO → ENTREGA\n\nMODELO B\nPROBLEMA → HIPÓTESE → EXPERIMENTO → EVIDÊNCIA → APRENDIZADO → NOVA DECISÃO\n\nPergunte: “Em qual situação o Modelo A pode funcionar bem?”\n\nDepois: “E quando existe grande incerteza sobre problema, solução, comportamento ou resultado, o que muda?”\n\nFeche: “Nenhum dos modelos é universalmente certo ou errado. Quando a incerteza é baixa e sabemos bem o que precisa ser feito, planejar mais antecipadamente pode ser eficiente. Quanto maior a incerteza, mais valioso se torna aprender em ciclos menores antes de aumentar o investimento.”' },
     { tituloQualquer: true, campo: null, acao: 'substituir',
+      origemPedido: 'Pedido de limpeza final, item "Fechamento final — Experimentação": trocar a formulação "MVP / experimento: Podemos aprender sem construir tudo." pela versão revisada. O pedido não indicou o título exato da atividade nem o campo onde esse texto vive — por isso a busca roda em qualquer atividade do roteiro.',
       de: 'MVP / experimento: Podemos aprender sem construir tudo.',
       para: 'EXPERIMENTAÇÃO:\nExperimentos pequenos permitem reduzir incerteza antes de construir ou investir em escala.' },
     { tituloQualquer: true, campo: null, acao: 'substituir',
+      origemPedido: 'Pedido de limpeza final, item "Fechamento final — Empirismo": trocar a formulação "Empirismo: Evidências são mais fortes que opiniões." pela versão revisada. O pedido não indicou o título exato da atividade nem o campo onde esse texto vive — por isso a busca roda em qualquer atividade do roteiro.',
       de: 'Empirismo: Evidências são mais fortes que opiniões.',
       para: 'EMPIRISMO:\nTornamos o que acontece visível, observamos resultados e usamos o aprendizado para orientar a próxima decisão.' },
     { tituloQualquer: true, campo: null, acao: 'substituir',
+      origemPedido: 'Pedido de limpeza final, item "Fechamento final — Feedback": SE ainda existir a formulação "Feedback: novas informações entraram.", trocar pela versão revisada. O pedido é condicional ("se ainda existir") e não indicou título exato de atividade nem campo — por isso a busca roda em qualquer atividade do roteiro.',
       de: 'Feedback: novas informações entraram.',
       para: 'FEEDBACK:\nSinais da realidade retornam ao processo e ajudam a orientar a próxima decisão.' }
   ];
@@ -2003,6 +2006,119 @@
     var itemResolvido = Object.assign({}, item, { titulo: c.atividade.titulo, campo: c.campo });
     return { item: itemResolvido, atividade: c.atividade, status: 'OK PARA ALTERAR', valorAtual: c.atividade[c.campo] || '', ocorrencias: 1 };
   }
+
+  /* Busca SEMÂNTICA (aproximada, por palavras-chave) — só usada como
+     DICA visual quando um item de busca ampla vira "TRECHO NÃO
+     LOCALIZADO", pra ajudar a pessoa a achar manualmente um lugar onde
+     o texto pode ter sido reescrito demais pra bater nem tolerando
+     formatação. Nunca decide sozinha, nunca aplica nada — só lista
+     candidatos por sobreposição de palavras significativas do "DE". */
+  var PALAVRAS_IRRELEVANTES_BUSCA = { de: 1, da: 1, do: 1, das: 1, dos: 1, e: 1, a: 1, o: 1, as: 1, os: 1, que: 1, para: 1, um: 1, uma: 1, no: 1, na: 1, nos: 1, nas: 1, ao: 1, aos: 1, em: 1, por: 1, com: 1, se: 1, ou: 1, mais: 1, sem: 1, ainda: 1, entrou: 1, entraram: 1 };
+  function palavrasSignificativasBusca(texto) {
+    return String(texto || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '')
+      .replace(/[^a-z0-9\s]/g, ' ').split(/\s+/)
+      .filter(function (w) { return w.length > 2 && !PALAVRAS_IRRELEVANTES_BUSCA[w]; });
+  }
+  function buscaSemanticaCandidatos(item, atividades) {
+    var palavrasDe = palavrasSignificativasBusca(item.de);
+    if (!palavrasDe.length) return [];
+    var candidatos = [];
+    atividades.forEach(function (a) {
+      CAMPOS_BUSCA_AMPLA_MIGRACAO.forEach(function (campo) {
+        var palavrasCampo = {};
+        palavrasSignificativasBusca(a[campo] || '').forEach(function (w) { palavrasCampo[w] = true; });
+        if (!Object.keys(palavrasCampo).length) return;
+        var bateram = palavrasDe.filter(function (w) { return palavrasCampo[w]; }).length;
+        var score = bateram / palavrasDe.length;
+        if (bateram >= 2 && score >= 0.4) candidatos.push({ atividade: a, campo: campo, score: score });
+      });
+    });
+    candidatos.sort(function (x, y) { return y.score - x.score; });
+    return candidatos.slice(0, 5);
+  }
+
+  /* Clona a lista de atividades de UM DIA (nível principal + filhas) e
+     aplica, na cópia, o efeito de uma decisão sobre um item "duracao" —
+     nunca escreve no banco, serve só pra CALCULAR/MOSTRAR o impacto no
+     horário antes de aplicar de verdade. Sem `compensarKey`: a
+     atividade principal muda de duração e TODAS as seguintes do dia
+     deslizam a mesma diferença (cenário A — aceitar o atraso). Com
+     `compensarKey`: as atividades ANTES do alvo escolhido deslizam
+     normalmente, o próprio alvo entra deslocado mas encolhe pela mesma
+     diferença (saindo no MESMO horário de fim de antes) e tudo DEPOIS
+     dele volta a ficar idêntico ao original (cenário B — retirar o
+     tempo de outra atividade em vez de atrasar o resto do dia). */
+  function projetarAtividadesDoDia(todasAtividadesDoDia, l, compensarKey) {
+    var porKey = {};
+    var clone = todasAtividadesDoDia.map(function (a) { var c = Object.assign({}, a); porKey[c.key] = c; return c; });
+    var principal = porKey[l.atividade.key];
+    if (principal) {
+      principal.duracaoMinutos = l.item.paraMinutos;
+      if (l.horaFimNovo !== l.horaFimAtual) principal.horaFim = l.horaFimNovo;
+    }
+    var passouCompensar = false;
+    (l.seguintes || []).forEach(function (s) {
+      var alvo = porKey[s.atividade.key];
+      if (!alvo) return;
+      if (compensarKey && passouCompensar) return;
+      if (compensarKey && s.atividade.key === compensarKey) {
+        alvo.duracaoMinutos = (Number(s.atividade.duracaoMinutos) || 0) - l.delta;
+        alvo.horaInicio = s.horaInicioNovo;
+        passouCompensar = true;
+        return;
+      }
+      alvo.horaInicio = s.horaInicioNovo;
+      if (s.horaFimNovo !== s.horaFimAtual) alvo.horaFim = s.horaFimNovo;
+    });
+    return clone;
+  }
+  /* Só oferece compensar em atividades que sobrevivem ao corte (duração
+     maior que a diferença) — nunca deixa a pessoa escolher uma que
+     zeraria ou ficaria negativa. */
+  function candidatosCompensarDuracao(l) {
+    return (l.seguintes || []).filter(function (s) { return (Number(s.atividade.duracaoMinutos) || 0) > l.delta; });
+  }
+  /* Tabela antes/depois + resumo de sessão/dia pra UM cenário (A ou B,
+     conforme `compensarKey`) — reaproveita agruparPorSessao/
+     calcularResumoDia, as MESMAS funções que o editor usa pra mostrar
+     "Programado/Facilitação/Pausas/Lacunas" na tela normal, em vez de
+     recalcular isso tudo na mão de novo (evita duas lógicas divergentes
+     pro mesmo número). */
+  function resumoImpactoDuracaoHtml(atividadesGlobais, l, compensarKey) {
+    var diaKey = l.atividade.diaKey;
+    var todasAntes = atividadesDoDia(atividadesGlobais, diaKey);
+    var topoAntes = todasAntes.filter(function (a) { return !a.paiKey; });
+    var gruposAntes = agruparPorSessao(topoAntes, todasAntes);
+    var grupoAtividade = gruposAntes.filter(function (g) { return g.atividades.some(function (a) { return a.key === l.atividade.key; }); })[0];
+    var resumoDiaAntes = calcularResumoDia(topoAntes, todasAntes);
+    var resumoSessaoAntes = grupoAtividade ? calcularResumoDia(grupoAtividade.atividades, todasAntes) : null;
+
+    var todasDepois = projetarAtividadesDoDia(todasAntes, l, compensarKey);
+    var topoDepois = todasDepois.filter(function (a) { return !a.paiKey; });
+    var gruposDepois = agruparPorSessao(topoDepois, todasDepois);
+    var grupoAtividadeDepois = gruposDepois.filter(function (g) { return g.atividades.some(function (a) { return a.key === l.atividade.key; }); })[0];
+    var resumoDiaDepois = calcularResumoDia(topoDepois, todasDepois);
+    var resumoSessaoDepois = grupoAtividadeDepois ? calcularResumoDia(grupoAtividadeDepois.atividades, todasDepois) : null;
+
+    var linhasAfetadas = [l.atividade].concat((l.seguintes || []).map(function (s) { return s.atividade; }));
+    var linhasTabela = linhasAfetadas.map(function (aOriginal) {
+      var aDepois = todasDepois.filter(function (x) { return x.key === aOriginal.key; })[0] || aOriginal;
+      var mudou = aOriginal.horaInicio !== aDepois.horaInicio || aOriginal.horaFim !== aDepois.horaFim || Number(aOriginal.duracaoMinutos) !== Number(aDepois.duracaoMinutos);
+      if (!mudou) return '';
+      return '<tr><td style="padding:3px 6px">' + esc(aOriginal.titulo) + '</td>' +
+        '<td style="padding:3px 6px;color:var(--ink-3)">' + esc(aOriginal.horaInicio || '—') + '–' + esc(aOriginal.horaFim || '—') + ' (' + (Number(aOriginal.duracaoMinutos) || 0) + ' min)</td>' +
+        '<td style="padding:3px 6px">' + esc(aDepois.horaInicio || '—') + '–' + esc(aDepois.horaFim || '—') + ' (' + (Number(aDepois.duracaoMinutos) || 0) + ' min)</td></tr>';
+    }).join('');
+
+    function fimTxt(r) { return r && r.janelaFimMin != null ? minParaHhmm(r.janelaFimMin) : '—'; }
+    function duracaoTxt(r) { return r && r.janelaMin != null ? fmtDuracao(r.janelaMin) : '—'; }
+
+    return (linhasTabela
+      ? '<table style="width:100%;border-collapse:collapse;font-size:.72rem;margin-bottom:6px"><thead><tr style="color:var(--ink-3);text-transform:uppercase;font-size:.62rem"><th style="text-align:left;padding:3px 6px">Atividade</th><th style="text-align:left;padding:3px 6px">Antes</th><th style="text-align:left;padding:3px 6px">Depois</th></tr></thead><tbody>' + linhasTabela + '</tbody></table>'
+      : '<p style="font-size:.72rem;color:var(--ink-3);margin:0 0 6px">Nenhuma atividade tem horário afetado neste cenário.</p>') +
+      '<div style="font-size:.72rem;color:var(--ink-2)">Horário final da sessão' + (grupoAtividade && grupoAtividade.nome ? ' "' + esc(grupoAtividade.nome) + '"' : '') + ': ' + fimTxt(resumoSessaoAntes) + ' → ' + fimTxt(resumoSessaoDepois) + ' · Duração da sessão: ' + duracaoTxt(resumoSessaoAntes) + ' → ' + duracaoTxt(resumoSessaoDepois) + '</div>' +
+      '<div style="font-size:.72rem;color:var(--ink-2)">Horário final do dia: ' + fimTxt(resumoDiaAntes) + ' → ' + fimTxt(resumoDiaDepois) + ' · Duração total do dia: ' + duracaoTxt(resumoDiaAntes) + ' → ' + duracaoTxt(resumoDiaDepois) + '</div>';
+  }
   function dryRunMigracaoAntesDepois(atividades, lista) {
     lista = lista || MIGRACAO_ANTES_DEPOIS;
     var porTitulo = {};
@@ -2111,7 +2227,23 @@
         patchPrincipal.horaFim = l.horaFimNovo;
       }
       escritasDuracao.push({ atividadeKey: l.atividade.key, patch: patchPrincipal });
+
+      var compensarKey = l.decisaoTipo === 'compensar' ? l.atividadeCompensarKey : null;
+      var passouCompensar = false;
       (l.seguintes || []).forEach(function (s) {
+        /* Cenário B ("compensar"): tudo DEPOIS da atividade escolhida
+           pra encolher fica exatamente como estava — nenhuma escrita.
+           Cenário A (sem compensarKey) sempre desloca todo mundo, como
+           antes. */
+        if (compensarKey && passouCompensar) return;
+        if (compensarKey && s.atividade.key === compensarKey) {
+          var novaDuracao = (Number(s.atividade.duracaoMinutos) || 0) - l.delta;
+          backupDuracao.push({ atividadeKey: s.atividade.key, campo: 'duracaoMinutos', valorAnterior: s.atividade.duracaoMinutos });
+          backupDuracao.push({ atividadeKey: s.atividade.key, campo: 'horaInicio', valorAnterior: s.horaInicioAtual });
+          escritasDuracao.push({ atividadeKey: s.atividade.key, patch: { duracaoMinutos: novaDuracao, horaInicio: s.horaInicioNovo } });
+          passouCompensar = true;
+          return;
+        }
         var patchSeguinte = { horaInicio: s.horaInicioNovo };
         backupDuracao.push({ atividadeKey: s.atividade.key, campo: 'horaInicio', valorAnterior: s.horaInicioAtual });
         if (s.horaFimNovo !== s.horaFimAtual) {
@@ -2222,21 +2354,35 @@
       'REGISTRO AMBÍGUO': '#ff6b60',
       'DIVERGÊNCIA RESOLVIDA': '#c9a94a'
     };
-    var labelDecisao = { manter: 'MANTER ATUAL', usar_para: 'USAR PARA', mesclar: 'MESCLA APROVADA' };
+    var labelDecisao = { manter: 'MANTER ATUAL', usar_para: 'USAR PARA', mesclar: 'MESCLA APROVADA', visto: 'CONFIRMADO (SEM AÇÃO)', compensar: 'COMPENSADO EM OUTRA ATIVIDADE' };
     /* "VALOR ATUAL DIVERGENTE" (trecho não achado) e "TRECHO AMBÍGUO"
-       (trecho achado mais de uma vez) são os dois casos que precisam
-       de revisão humana — os dois entram na mesma fila de revisão
-       (mesmos 3 botões de decisão). "REGISTRO AMBÍGUO" de título
-       duplicado é outra coisa: não existe UMA atividade pra mostrar
-       "valor atual", então esse fica só como pendência, sem revisão
-       aqui dentro. */
-    function precisaRevisao(l) { return l.status === 'VALOR ATUAL DIVERGENTE' || l.status === 'TRECHO AMBÍGUO'; }
+       (trecho achado mais de uma vez) são dois dos casos que precisam
+       de revisão humana. Os outros três: "TRECHO NÃO LOCALIZADO" e
+       "TRECHO ENCONTRADO EM MAIS DE UM LUGAR" (busca sem título fixo)
+       nunca têm nada pra aplicar sozinhos, mas mesmo assim exigem uma
+       decisão explícita ("Marquei como visto") antes de liberar
+       "Aplicar" — não é pra passar batido por um item que ninguém
+       conferiu; e "duracao" (muda horário de outras atividades em
+       cadeia) NUNCA entra em "OK PARA ALTERAR" automático, mesmo
+       quando a duração atual bate exatamente com o "de" esperado —
+       sempre precisa de uma decisão explícita sobre o impacto no
+       horário (aceitar o atraso ou compensar tirando de outra
+       atividade), só "JÁ ATUALIZADO" (já está no valor novo) dispensa
+       revisão. "REGISTRO AMBÍGUO"/"ATIVIDADE NÃO ENCONTRADA" são outra
+       coisa: não existe UMA atividade pra mostrar "valor atual", então
+       ficam só como pendência, sem revisão aqui dentro. */
+    function precisaRevisao(l) {
+      if (l.item.acao === 'duracao') return l.status !== 'JÁ ATUALIZADO';
+      return l.status === 'VALOR ATUAL DIVERGENTE' || l.status === 'TRECHO AMBÍGUO' ||
+        l.status === 'TRECHO NÃO LOCALIZADO' || l.status === 'TRECHO ENCONTRADO EM MAIS DE UM LUGAR';
+    }
 
     function totalDivergentes() { return linhas.filter(precisaRevisao).length; }
     function divergentesResolvidas() { return linhas.filter(function (l) { return precisaRevisao(l) && l.decisaoTipo; }).length; }
     function pendenteAlgumaDivergencia() { return linhas.some(function (l) { return precisaRevisao(l) && !l.decisaoTipo; }); }
     function linhasParaAplicar() {
       return linhas.filter(function (l) {
+        if (l.item.acao === 'duracao') return l.decisaoTipo === 'usar_para' || l.decisaoTipo === 'compensar';
         if (l.status === 'OK PARA ALTERAR') return true;
         if (precisaRevisao(l) && (l.decisaoTipo === 'usar_para' || l.decisaoTipo === 'mesclar')) return true;
         return false;
@@ -2257,31 +2403,86 @@
     }
     var revisandoIdx = proximaDivergentePendente(-1);
 
-    /* "duracao" divergente tem seu próprio painel simples — valorAtual
-       é um NÚMERO de minutos, não texto rico, então não passa pelo
-       cabeçalho ATUAL/DE/PARA genérico abaixo (nem faz sentido
-       "mesclar" dois números). Sempre mostra o recálculo de horário
-       projetado, mesmo quando a duração atual diverge do "de"
-       esperado — a pessoa decide com o efeito já visível. */
+    /* "duracao" tem seu próprio painel — valorAtual é um NÚMERO de
+       minutos, não texto rico, então não passa pelo cabeçalho ATUAL/
+       DE/PARA genérico abaixo (nem faz sentido "mesclar" dois
+       números). NUNCA aplica sozinho, mesmo com status "OK PARA
+       ALTERAR" — a mudança de duração desloca o horário de outras
+       atividades, então sempre exige uma escolha explícita entre dois
+       cenários: A) aceitar terminar mais tarde (desloca as atividades
+       seguintes do dia) ou B) retirar a diferença de outra atividade
+       escolhida à mão (mantém os horários finais, mas encolhe aquela
+       atividade). As duas tabelas de impacto reaproveitam a mesma
+       lógica de resumo de dia/sessão da tela normal do roteiro —
+       nunca inventam um cálculo paralelo. */
     function painelRevisaoDuracaoHtml(l) {
-      var linhaSeguintes = (l.seguintes || []).length
-        ? '<div style="margin-bottom:8px"><strong style="color:var(--ink-3);text-transform:uppercase;font-size:.66rem;letter-spacing:.06em">Atividades seguintes do dia (início recalculado)</strong><div style="margin-top:4px;color:var(--ink-2)">' +
-          l.seguintes.map(function (s) { return esc(s.atividade.titulo) + ': ' + esc(s.horaInicioAtual) + ' → ' + esc(s.horaInicioNovo); }).join('<br>') + '</div></div>'
-        : '';
+      var divergente = l.status === 'VALOR ATUAL DIVERGENTE';
+      var candidatosB = candidatosCompensarDuracao(l);
+      var opcoesSelectB = '<option value="">— escolha uma atividade —</option>' +
+        candidatosB.map(function (s) { return '<option value="' + esc(s.atividade.key) + '">' + esc(s.atividade.titulo) + ' (' + (Number(s.atividade.duracaoMinutos) || 0) + ' min)</option>'; }).join('');
       return '<div class="mig-painel" style="background:var(--panel-2);border:1px solid var(--line-strong);border-radius:8px;padding:14px;margin:6px 0;font-size:.8rem">' +
-        '<div style="margin-bottom:8px"><strong style="color:var(--ink-3);text-transform:uppercase;font-size:.66rem;letter-spacing:.06em">Duração atual</strong><div style="margin-top:4px;color:var(--ink)">' + l.valorAtual + ' min' + (l.horaFimAtual ? ' (fim ' + esc(l.horaFimAtual) + ')' : '') + '</div></div>' +
-        '<div style="margin-bottom:8px"><strong style="color:var(--ink-3);text-transform:uppercase;font-size:.66rem;letter-spacing:.06em">Duração esperada (DE)</strong><div style="margin-top:4px;color:var(--ink-2)">' + l.item.deMinutos + ' min</div></div>' +
-        '<div style="margin-bottom:10px"><strong style="color:var(--ink-3);text-transform:uppercase;font-size:.66rem;letter-spacing:.06em">Duração nova (PARA)</strong><div style="margin-top:4px;color:var(--ink-2)">' + l.item.paraMinutos + ' min' + (l.horaFimNovo ? ' (fim recalculado ' + esc(l.horaFimNovo) + ')' : '') + '</div></div>' +
-        linhaSeguintes +
-        '<p style="color:#ff8a5c;font-size:.72rem;margin:0 0 8px">A duração atual não bate com o valor esperado (' + l.item.deMinutos + ' min) nem já está em ' + l.item.paraMinutos + ' min — confira antes de decidir.</p>' +
+        '<div style="display:flex;gap:18px;flex-wrap:wrap;margin-bottom:10px">' +
+          '<div><strong style="color:var(--ink-3);text-transform:uppercase;font-size:.66rem;letter-spacing:.06em">Duração atual</strong><div style="margin-top:4px;color:var(--ink)">' + l.valorAtual + ' min' + (l.horaFimAtual ? ' (fim ' + esc(l.horaFimAtual) + ')' : '') + '</div></div>' +
+          '<div><strong style="color:var(--ink-3);text-transform:uppercase;font-size:.66rem;letter-spacing:.06em">Duração esperada (DE)</strong><div style="margin-top:4px;color:var(--ink-2)">' + l.item.deMinutos + ' min</div></div>' +
+          '<div><strong style="color:var(--ink-3);text-transform:uppercase;font-size:.66rem;letter-spacing:.06em">Duração nova (PARA)</strong><div style="margin-top:4px;color:var(--ink-2)">' + l.item.paraMinutos + ' min</div></div>' +
+        '</div>' +
+        (divergente ? '<p style="color:#ff8a5c;font-size:.72rem;margin:0 0 10px">A duração atual não bate com o valor esperado (' + l.item.deMinutos + ' min) nem já está em ' + l.item.paraMinutos + ' min — confira antes de decidir.</p>' : '') +
+        '<div style="margin-bottom:12px"><strong style="color:var(--gold);text-transform:uppercase;font-size:.66rem;letter-spacing:.06em">Cenário A — aceitar terminar ' + l.delta + ' min mais tarde</strong>' +
+          '<div style="margin-top:6px">' + resumoImpactoDuracaoHtml(atividades, l, null) + '</div>' +
+          '<button class="btn btn--primary mig-dec" data-dec="usar_para" style="margin-top:6px">Aceitar cenário A — desloca ' + l.delta + ' min</button>' +
+        '</div>' +
+        '<div style="margin-bottom:12px;padding-top:10px;border-top:1px solid var(--line-strong)"><strong style="color:var(--gold);text-transform:uppercase;font-size:.66rem;letter-spacing:.06em">Cenário B — retirar ' + l.delta + ' min de outra atividade (mantém os horários finais)</strong>' +
+          (candidatosB.length
+            ? '<div style="margin-top:6px"><select class="mig-duracao-compensar-select" style="padding:6px 8px;background:var(--panel);border:1px solid var(--line-strong);border-radius:6px;color:var(--ink)">' + opcoesSelectB + '</select></div>' +
+              '<div class="mig-duracao-preview-b" style="margin-top:6px;font-size:.72rem;color:var(--ink-3)">Escolha uma atividade acima para ver o impacto.</div>' +
+              '<button class="btn mig-duracao-compensar-confirmar" style="margin-top:6px" disabled>Confirmar cenário B</button>'
+            : '<p style="font-size:.72rem;color:var(--ink-3);margin:6px 0 0">Nenhuma atividade seguinte do dia tem duração suficiente pra absorver ' + l.delta + ' min sem zerar.</p>') +
+        '</div>' +
         '<div class="mig-decisao-botoes" style="display:flex;gap:8px;flex-wrap:wrap">' +
-          '<button class="btn mig-dec" data-dec="manter">Manter atual</button>' +
-          '<button class="btn mig-dec" data-dec="usar_para">Aplicar ' + l.item.paraMinutos + ' min mesmo assim</button>' +
+          '<button class="btn mig-dec" data-dec="manter">Manter atual (não mudar a duração)</button>' +
+        '</div>' +
+      '</div>';
+    }
+    /* Painel dos itens de busca sem título fixo que não deram pra
+       resolver sozinhos — nunca tem "atual/de/para" de UM campo certo
+       (por definição, não sabemos ainda onde está), então mostra o
+       contexto do pedido original, o texto DE/PARA esperado, o motivo
+       técnico de não ter achado (ou de ter achado em mais de um
+       lugar) e, só quando não achou em lugar nenhum, uma busca
+       aproximada por palavras-chave como DICA (nunca decide sozinha).
+       Não existe nada pra aplicar aqui — só um "Marquei como visto"
+       que libera a pendência sem gravar nada. */
+    function painelRevisaoBuscaAmplaHtml(l) {
+      var origem = l.item.origemPedido || '(sem contexto adicional registrado para este item)';
+      var camposBuscados = CAMPOS_BUSCA_AMPLA_MIGRACAO.map(function (c) { return CAMPOS_MIGRACAO_LABEL[c] || c; }).join(', ');
+      var motivoTxt, extraHtml;
+      if (l.status === 'TRECHO ENCONTRADO EM MAIS DE UM LUGAR') {
+        motivoTxt = 'O texto "DE" foi encontrado em mais de um lugar (listados abaixo) — o sistema não escolhe sozinho qual é o certo.';
+        extraHtml = '<div style="margin-bottom:8px"><strong style="color:var(--ink-3);text-transform:uppercase;font-size:.66rem;letter-spacing:.06em">Encontrado em</strong><div style="margin-top:4px;color:var(--ink-2)">' +
+          l.candidatos.map(function (c) { return esc(c.atividade.titulo) + ' — ' + esc(CAMPOS_MIGRACAO_LABEL[c.campo] || c.campo) + (c.ocorrencias > 1 ? ' (' + c.ocorrencias + 'x)' : ''); }).join('<br>') + '</div></div>';
+      } else {
+        motivoTxt = 'O texto "DE" não foi encontrado — nem exatamente, nem tolerando diferença de formatação — em nenhuma atividade, dentro dos campos varridos (' + camposBuscados + '; nunca no Prompt para IA).';
+        var semanticos = buscaSemanticaCandidatos(l.item, atividades);
+        extraHtml = semanticos.length
+          ? '<div style="margin-bottom:8px"><strong style="color:var(--ink-3);text-transform:uppercase;font-size:.66rem;letter-spacing:.06em">Lugares parecidos (busca aproximada por palavras-chave — sem certeza, confira manualmente)</strong><div style="margin-top:4px;color:var(--ink-2)">' +
+            semanticos.map(function (c) { return esc(c.atividade.titulo) + ' — ' + esc(CAMPOS_MIGRACAO_LABEL[c.campo] || c.campo) + ' (' + Math.round(c.score * 100) + '% das palavras do "DE" aparecem lá)'; }).join('<br>') + '</div></div>'
+          : '<p style="font-size:.72rem;color:var(--ink-3);margin:0 0 8px">Nenhum lugar parecido encontrado, nem por busca aproximada de palavras-chave.</p>';
+      }
+      return '<div class="mig-painel" style="background:var(--panel-2);border:1px solid var(--line-strong);border-radius:8px;padding:14px;margin:6px 0;font-size:.8rem">' +
+        '<div style="margin-bottom:8px"><strong style="color:var(--ink-3);text-transform:uppercase;font-size:.66rem;letter-spacing:.06em">Atividade esperada (origem do pedido)</strong><div style="white-space:pre-wrap;margin-top:4px;color:var(--ink)">' + esc(origem) + '</div></div>' +
+        '<div style="margin-bottom:8px"><strong style="color:var(--ink-3);text-transform:uppercase;font-size:.66rem;letter-spacing:.06em">Campo esperado</strong><div style="margin-top:4px;color:var(--ink-2)">Qualquer um entre: ' + esc(camposBuscados) + '</div></div>' +
+        '<div style="margin-bottom:8px"><strong style="color:var(--ink-3);text-transform:uppercase;font-size:.66rem;letter-spacing:.06em">Texto DE</strong><div style="white-space:pre-wrap;margin-top:4px;color:var(--ink-2)">' + esc(l.item.de) + '</div></div>' +
+        '<div style="margin-bottom:10px"><strong style="color:var(--ink-3);text-transform:uppercase;font-size:.66rem;letter-spacing:.06em">Texto PARA</strong><div style="white-space:pre-wrap;margin-top:4px;color:var(--ink-2)">' + esc(l.item.para) + '</div></div>' +
+        '<p style="font-size:.72rem;color:#ff8a5c;margin:0 0 8px">' + esc(motivoTxt) + '</p>' +
+        extraHtml +
+        '<div class="mig-decisao-botoes" style="display:flex;gap:8px;flex-wrap:wrap">' +
+          '<button class="btn btn--primary mig-dec" data-dec="visto">Marquei como visto (nada a gravar aqui)</button>' +
         '</div>' +
       '</div>';
     }
     function painelRevisaoHtml(l) {
       if (l.item.acao === 'duracao') return painelRevisaoDuracaoHtml(l);
+      if (l.status === 'TRECHO NÃO LOCALIZADO' || l.status === 'TRECHO ENCONTRADO EM MAIS DE UM LUGAR') return painelRevisaoBuscaAmplaHtml(l);
       var atualPlano = textoPlanoMigracao(l.valorAtual).trim() || '(vazio)';
       var deTxt = l.item.acao === 'substituir_campo'
         ? '(sem "DE" — este item substitui o CAMPO INTEIRO, não é busca de trecho)'
@@ -2343,9 +2544,7 @@
       var usarParaCount = linhas.filter(function (l) { return l.decisaoTipo === 'usar_para'; }).length;
       var mesclaCount = linhas.filter(function (l) { return l.decisaoTipo === 'mesclar'; }).length;
       var pendenciasCount = linhas.filter(function (l) {
-        return l.status === 'ATIVIDADE NÃO ENCONTRADA' || l.status === 'REGISTRO AMBÍGUO' ||
-          l.status === 'TRECHO NÃO LOCALIZADO' || l.status === 'TRECHO ENCONTRADO EM MAIS DE UM LUGAR' ||
-          (precisaRevisao(l) && !l.decisaoTipo);
+        return l.status === 'ATIVIDADE NÃO ENCONTRADA' || l.status === 'REGISTRO AMBÍGUO' || (precisaRevisao(l) && !l.decisaoTipo);
       }).length;
       var totalDiv = totalDivergentes();
       var resolvidasDiv = divergentesResolvidas();
@@ -2456,6 +2655,32 @@
           confirmarMescla.addEventListener('click', function () {
             l.decisaoTipo = 'mesclar';
             l.valorMesclado = painel.querySelector('.mig-mescla-texto').value;
+            revisandoIdx = proximaDivergentePendente(revisandoIdx);
+            render();
+          });
+        }
+        /* Cenário B da "duracao": o <select> atualiza só a prévia (sem
+           re-renderizar o modal inteiro, pra não perder a seleção) —
+           só "Confirmar cenário B" de fato registra a decisão e avança. */
+        var selectCompensar = painel.querySelector('.mig-duracao-compensar-select');
+        if (selectCompensar) {
+          var previewB = painel.querySelector('.mig-duracao-preview-b');
+          var confirmarCompensarBtn = painel.querySelector('.mig-duracao-compensar-confirmar');
+          selectCompensar.addEventListener('change', function () {
+            var key = selectCompensar.value;
+            if (!key) {
+              previewB.innerHTML = 'Escolha uma atividade acima para ver o impacto.';
+              confirmarCompensarBtn.disabled = true;
+              return;
+            }
+            previewB.innerHTML = resumoImpactoDuracaoHtml(atividades, l, key);
+            confirmarCompensarBtn.disabled = false;
+          });
+          confirmarCompensarBtn.addEventListener('click', function () {
+            var key = selectCompensar.value;
+            if (!key) return;
+            l.decisaoTipo = 'compensar';
+            l.atividadeCompensarKey = key;
             revisandoIdx = proximaDivergentePendente(revisandoIdx);
             render();
           });
