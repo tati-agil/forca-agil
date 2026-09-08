@@ -1479,12 +1479,17 @@
       var linhasHtml = '';
       grupo.atividades.forEach(function (a, i) {
         var gapAntes = resumo.gaps.filter(function (g) { return g.fimMin === hhmmParaMin(a.horaInicio); })[0];
+        /* Alterna sombreado por ATIVIDADE (ela + todas as suas sub-etapas
+           compartilham a mesma faixa) — deixa visualmente óbvio onde um
+           bloco de atividade termina e o próximo começa, sem precisar
+           abrir/fechar uma caixa por grupo dentro de uma tabela. */
+        var classeGrupo = 'rp-grupo-' + (i % 2 === 0 ? 'a' : 'b');
         if (gapAntes) linhasHtml += '<tr class="rp-gap"><td colspan="5">⚠ Lacuna: ' + esc(minParaHhmm(gapAntes.inicioMin)) + '–' + esc(minParaHhmm(gapAntes.fimMin)) + ' (' + esc(fmtDuracao(gapAntes.min)) + ')</td></tr>';
         var horario = (a.horaInicio || '—') + (a.horaFim ? '–' + a.horaFim : '');
-        linhasHtml += '<tr><td>' + (i + 1) + '</td><td>' + esc(horario) + '</td><td>' + esc(a.titulo) + '</td><td>' + esc(a.tipo || '') + '</td><td>' + esc(fmtDuracao(duracaoEfetiva(a, todasAtividades))) + '</td></tr>';
+        linhasHtml += '<tr class="rp-grupo-inicio ' + classeGrupo + '"><td>' + (i + 1) + '</td><td>' + esc(horario) + '</td><td>' + esc(a.titulo) + '</td><td>' + esc(a.tipo || '') + '</td><td>' + esc(fmtDuracao(duracaoEfetiva(a, todasAtividades))) + '</td></tr>';
         filhosDe(todasAtividades, a.key).forEach(function (sub, j) {
           var horarioSub = sub.horaInicio ? ((sub.horaInicio || '—') + (sub.horaFim ? '–' + sub.horaFim : '')) : '';
-          linhasHtml += '<tr class="rp-sub"><td>' + (i + 1) + '.' + (j + 1) + '</td><td>' + esc(horarioSub) + '</td><td>' + esc(sub.titulo) + '</td><td>' + esc(sub.tipo || '') + '</td><td>' + esc(fmtDuracao(duracaoEfetiva(sub, todasAtividades))) + '</td></tr>';
+          linhasHtml += '<tr class="rp-sub ' + classeGrupo + '"><td>' + (i + 1) + '.' + (j + 1) + '</td><td>' + esc(horarioSub) + '</td><td>↳ ' + esc(sub.titulo) + '</td><td>' + esc(sub.tipo || '') + '</td><td>' + esc(fmtDuracao(duracaoEfetiva(sub, todasAtividades))) + '</td></tr>';
         });
       });
       corpo += '<table><thead><tr><th class="rp-col-num">#</th><th class="rp-col-horario">Horário</th><th>Atividade</th><th class="rp-col-tipo">Tipo</th><th class="rp-col-duracao">Duração</th></tr></thead>' +
@@ -1498,9 +1503,12 @@
       '.rp-col-num{width:42px;}.rp-col-horario{width:96px;}.rp-col-tipo{width:140px;}.rp-col-duracao{width:84px;}' +
       'tr:last-child td{border-bottom:none;}' +
       'th{background:var(--ppanel);color:var(--pink3);font-family:"Oswald",Arial,sans-serif;text-transform:uppercase;font-size:.66rem;letter-spacing:.06em;font-weight:600;}' +
+      '.rp-grupo-b td{background:rgba(255,255,255,.065);}' +
+      '.rp-grupo-inicio td{border-top:2px solid rgba(245,197,24,.4);}' +
+      'tbody tr.rp-grupo-inicio:first-child td{border-top:none;}' +
       '.rp-gap td{background:rgba(255,138,92,.14);color:#ffb37e;font-style:italic;}' +
       '.rp-sub td:first-child{color:var(--pink3);}' +
-      '.rp-sub td:nth-child(3){padding-left:26px;color:var(--pink2);}' +
+      '.rp-sub td:nth-child(3){padding-left:22px;color:var(--pink2);}' +
       'tr{page-break-inside:avoid;break-inside:avoid-page;}',
       corpo
     );
@@ -1516,14 +1524,14 @@
      (mesma regra de "nunca mostra rótulo vazio" das outras exportações);
      usa o mesmo intérprete de Markdown do Roteiro completo (campos
      migrados em Markdown puro saem formatados aqui também). */
-  function detalheObjetivoResultadoHtml(a) {
+  function detalheObjetivoResultadoHtml(a, classeGrupo) {
     var objetivo = blocoTextoImpressaoHtml(a.objetivo);
     var resultado = blocoTextoImpressaoHtml(a.resultadoEsperado);
     if (!objetivo && !resultado) return '';
     var campos = '';
     if (objetivo) campos += '<div class="rp-campo"><strong>Objetivo</strong><div class="rp-campo-txt">' + objetivo + '</div></div>';
     if (resultado) campos += '<div class="rp-campo"><strong>Resultado esperado</strong><div class="rp-campo-txt">' + resultado + '</div></div>';
-    return '<tr class="rp-detalhe"><td colspan="5">' + campos + '</td></tr>';
+    return '<tr class="rp-detalhe ' + classeGrupo + '"><td colspan="5">' + campos + '</td></tr>';
   }
 
   function imprimirRoteiroAgendaObjetivos(tituloContexto, dia, atividadesTopo, todasAtividades) {
@@ -1544,14 +1552,18 @@
       var linhasHtml = '';
       grupo.atividades.forEach(function (a, i) {
         var gapAntes = resumo.gaps.filter(function (g) { return g.fimMin === hhmmParaMin(a.horaInicio); })[0];
+        /* Mesma faixa alternada por atividade (ela + sub-etapas) da
+           Agenda resumida — deixa óbvio onde um bloco de atividade
+           termina e o próximo começa. */
+        var classeGrupo = 'rp-grupo-' + (i % 2 === 0 ? 'a' : 'b');
         if (gapAntes) linhasHtml += '<tr class="rp-gap"><td colspan="5">⚠ Lacuna: ' + esc(minParaHhmm(gapAntes.inicioMin)) + '–' + esc(minParaHhmm(gapAntes.fimMin)) + ' (' + esc(fmtDuracao(gapAntes.min)) + ')</td></tr>';
         var horario = (a.horaInicio || '—') + (a.horaFim ? '–' + a.horaFim : '');
-        linhasHtml += '<tr><td>' + (i + 1) + '</td><td>' + esc(horario) + '</td><td>' + esc(a.titulo) + '</td><td>' + esc(a.tipo || '') + '</td><td>' + esc(fmtDuracao(duracaoEfetiva(a, todasAtividades))) + '</td></tr>';
-        linhasHtml += detalheObjetivoResultadoHtml(a);
+        linhasHtml += '<tr class="rp-grupo-inicio ' + classeGrupo + '"><td>' + (i + 1) + '</td><td>' + esc(horario) + '</td><td>' + esc(a.titulo) + '</td><td>' + esc(a.tipo || '') + '</td><td>' + esc(fmtDuracao(duracaoEfetiva(a, todasAtividades))) + '</td></tr>';
+        linhasHtml += detalheObjetivoResultadoHtml(a, classeGrupo);
         filhosDe(todasAtividades, a.key).forEach(function (sub, j) {
           var horarioSub = sub.horaInicio ? ((sub.horaInicio || '—') + (sub.horaFim ? '–' + sub.horaFim : '')) : '';
-          linhasHtml += '<tr class="rp-sub"><td>' + (i + 1) + '.' + (j + 1) + '</td><td>' + esc(horarioSub) + '</td><td>' + esc(sub.titulo) + '</td><td>' + esc(sub.tipo || '') + '</td><td>' + esc(fmtDuracao(duracaoEfetiva(sub, todasAtividades))) + '</td></tr>';
-          linhasHtml += detalheObjetivoResultadoHtml(sub);
+          linhasHtml += '<tr class="rp-sub ' + classeGrupo + '"><td>' + (i + 1) + '.' + (j + 1) + '</td><td>' + esc(horarioSub) + '</td><td>↳ ' + esc(sub.titulo) + '</td><td>' + esc(sub.tipo || '') + '</td><td>' + esc(fmtDuracao(duracaoEfetiva(sub, todasAtividades))) + '</td></tr>';
+          linhasHtml += detalheObjetivoResultadoHtml(sub, classeGrupo);
         });
       });
       corpo += '<table><thead><tr><th class="rp-col-num">#</th><th class="rp-col-horario">Horário</th><th>Atividade</th><th class="rp-col-tipo">Tipo</th><th class="rp-col-duracao">Duração</th></tr></thead>' +
@@ -1565,9 +1577,12 @@
       '.rp-col-num{width:42px;}.rp-col-horario{width:96px;}.rp-col-tipo{width:140px;}.rp-col-duracao{width:84px;}' +
       'tr:last-child td{border-bottom:none;}' +
       'th{background:var(--ppanel);color:var(--pink3);font-family:"Oswald",Arial,sans-serif;text-transform:uppercase;font-size:.66rem;letter-spacing:.06em;font-weight:600;}' +
+      '.rp-grupo-b td{background:rgba(255,255,255,.065);}' +
+      '.rp-grupo-inicio td{border-top:2px solid rgba(245,197,24,.4);}' +
+      'tbody tr.rp-grupo-inicio:first-child td{border-top:none;}' +
       '.rp-gap td{background:rgba(255,138,92,.14);color:#ffb37e;font-style:italic;}' +
       '.rp-sub td:first-child{color:var(--pink3);}' +
-      '.rp-sub td:nth-child(3){padding-left:26px;color:var(--pink2);}' +
+      '.rp-sub td:nth-child(3){padding-left:22px;color:var(--pink2);}' +
       'tr{page-break-inside:avoid;break-inside:avoid-page;}' +
       /* Sem esse "auto" aqui, a linha de detalhe herdaria o avoid-break
          geral acima — inofensivo pras linhas curtas da tabela, mas um
