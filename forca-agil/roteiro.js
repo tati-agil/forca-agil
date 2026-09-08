@@ -1473,6 +1473,103 @@
     );
   }
 
+  /* ---- Renderização de Markdown literal SÓ no PDF ------------------
+     Alguns campos de texto vieram de migração/importação em massa (ver
+     RESULTADOS_ESPERADOS_DIRETORES e MIGRACAO_ANTES_DEPOIS acima) e
+     guardam sintaxe de Markdown puro como texto normal — "1\. Explique",
+     "\*\*palavra\*\*", "\* pergunta" — porque nunca passaram pelo editor
+     rico (que gravaria HTML de verdade: <ol>/<strong>/etc). htmlRicoSeguro
+     não reconhece essa sintaxe como tag nenhuma, então só escapa e quebra
+     linha — e a impressão saía com a sintaxe à mostra. As funções abaixo
+     interpretam esse texto exclusivamente para a IMPRESSÃO (nunca leem
+     nem gravam nada no banco, nunca tocam htmlRicoSeguro/campoDetalhe —
+     o editor e a tela de detalhes continuam mostrando o texto como
+     sempre mostraram). Campo que já é HTML de verdade (criado pelo
+     editor rico) passa direto pelo caminho de sempre, sem essa análise. */
+  function pareceHtmlRicoImpressao(valor) {
+    return /<\s*(b|strong|i|em|u|ul|ol|li|div|br|p|span)[\s>/]/i.test(valor);
+  }
+  function desfazerEscapesMarkdown(texto) {
+    /* Quem escreve/exporta Markdown escapa "1\." e "\*" pra EVITAR virar
+       lista/negrito sem querer — aqui é o oposto: a pessoa quer mesmo o
+       item de lista/o negrito, só a barra invertida não pode aparecer.
+       Some com ela antes de qualquer pontuação de marcação, sem checar
+       contexto (é só o que os exemplos do pedido cobrem). */
+    return texto.replace(/\\([.*_\-#+()[\]`~>])/g, '$1');
+  }
+  function inlineMarkdownImpressao(texto) {
+    return esc(texto).replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>');
+  }
+  /* Item de lista avulso (ex: cada material de "Materiais necessários")
+     — só precisa de negrito/desescape, nunca vira sublista. */
+  function itemImpressaoHtml(valor) {
+    if (!valor) return '';
+    if (pareceHtmlRicoImpressao(valor)) return htmlRicoItemLista(valor);
+    return inlineMarkdownImpressao(desfazerEscapesMarkdown(String(valor)));
+  }
+  /* Converte um bloco de texto puro em HTML: listas numeradas, bullets,
+     negrito, parágrafos e sublistas — tanto por indentação de verdade
+     quanto pelo caso comum de texto colado sem recuo, onde só a TROCA de
+     marcador (linha numerada seguida de linhas com "-"/"*") já indica
+     que aquelas linhas pertencem ao item anterior, não à lista principal
+     (ver pedido: perguntas do item 9 não podem virar itens 10, 11, 12). */
+  function markdownBlocoImpressaoHtml(texto) {
+    var tokens = String(texto).replace(/\r\n?/g, '\n').split('\n').map(function (linha) {
+      if (!linha.trim()) return { blank: true };
+      var indentTxt = linha.match(/^[ \t]*/)[0];
+      var indent = indentTxt.replace(/\t/g, '    ').length;
+      var resto = linha.slice(indentTxt.length);
+      var mOl = resto.match(/^(\d+)[.)]\s+(.*)$/);
+      if (mOl) return { indent: indent, tipo: 'ol', num: mOl[1], texto: mOl[2] };
+      var mUl = resto.match(/^[-*•]\s+(.*)$/);
+      if (mUl) return { indent: indent, tipo: 'ul', texto: mUl[1] };
+      return { indent: indent, tipo: 'p', texto: resto };
+    });
+    var pos = 0;
+    function consumirFluxo(indentMinimo) {
+      var partes = [];
+      while (pos < tokens.length) {
+        var t = tokens[pos];
+        if (t.blank) { pos++; continue; }
+        if (t.indent < indentMinimo) break;
+        if (t.tipo === 'ol' || t.tipo === 'ul') {
+          var tipoLista = t.tipo, indentLista = t.indent, primeiroNum = t.num;
+          var itens = [];
+          while (pos < tokens.length && !tokens[pos].blank && tokens[pos].indent === indentLista && tokens[pos].tipo === tipoLista) {
+            var item = tokens[pos]; pos++;
+            var htmlItem = inlineMarkdownImpressao(item.texto);
+            /* sublista por indentação de verdade */
+            while (pos < tokens.length && !tokens[pos].blank && tokens[pos].indent > indentLista) {
+              htmlItem += consumirFluxo(tokens[pos].indent);
+            }
+            /* sublista "achatada" (sem recuo, só troca de marcador) */
+            while (pos < tokens.length && !tokens[pos].blank && tokens[pos].indent === indentLista &&
+                   (tokens[pos].tipo === 'ol' || tokens[pos].tipo === 'ul') && tokens[pos].tipo !== tipoLista) {
+              htmlItem += consumirFluxo(indentLista);
+            }
+            itens.push(tipoLista === 'ol' ? ('<li value="' + esc(item.num) + '">' + htmlItem + '</li>') : ('<li>' + htmlItem + '</li>'));
+          }
+          partes.push(tipoLista === 'ol'
+            ? '<ol start="' + esc(primeiroNum) + '">' + itens.join('') + '</ol>'
+            : '<ul>' + itens.join('') + '</ul>');
+        } else {
+          var linhasPar = [];
+          while (pos < tokens.length && !tokens[pos].blank && tokens[pos].tipo === 'p' && tokens[pos].indent >= indentMinimo) {
+            linhasPar.push(tokens[pos].texto); pos++;
+          }
+          partes.push('<p>' + linhasPar.map(inlineMarkdownImpressao).join('<br>') + '</p>');
+        }
+      }
+      return partes.join('');
+    }
+    return consumirFluxo(0);
+  }
+  function blocoTextoImpressaoHtml(valor) {
+    if (!valor) return '';
+    if (pareceHtmlRicoImpressao(valor)) return htmlRicoSeguro(valor);
+    return markdownBlocoImpressaoHtml(desfazerEscapesMarkdown(String(valor)));
+  }
+
   /* Impressão "completa": um bloco por atividade/sub-etapa com todo o
      conteúdo de facilitação preenchido (objetivo, passo a passo etc.) —
      só os campos que de fato têm valor, igual ao corpo expandido do
@@ -1480,8 +1577,8 @@
   function campoImpressao(label, valor) {
     if (!valor || (Array.isArray(valor) && !valor.length)) return '';
     var conteudo = Array.isArray(valor)
-      ? '<ul>' + valor.map(function (l) { return '<li>' + htmlRicoItemLista(l) + '</li>'; }).join('') + '</ul>'
-      : '<div class="rp-campo-txt">' + htmlRicoSeguro(valor) + '</div>';
+      ? '<ul>' + valor.map(function (l) { return '<li>' + itemImpressaoHtml(l) + '</li>'; }).join('') + '</ul>'
+      : '<div class="rp-campo-txt">' + blocoTextoImpressaoHtml(valor) + '</div>';
     return '<div class="rp-campo"><strong>' + esc(label) + '</strong>' + conteudo + '</div>';
   }
 
@@ -1550,12 +1647,24 @@
       '.rp-tipo{font-weight:400;color:var(--pink3);font-size:.82rem;}' +
       '.rp-atv-meta{font-size:.78rem;color:var(--pcyan);margin:4px 0 10px;font-family:"Oswald",Arial,sans-serif;letter-spacing:.02em;page-break-after:avoid;break-after:avoid-page;}' +
       '.rp-campo{margin-bottom:10px;font-size:.85rem;color:var(--pink2);}' +
-      '.rp-campo strong{display:block;font-size:.66rem;letter-spacing:.08em;text-transform:uppercase;color:var(--pgold);margin-bottom:3px;font-family:"Oswald",Arial,sans-serif;page-break-after:avoid;break-after:avoid-page;}' +
+      /* Seletor de FILHO direto (não descendente qualquer): o rótulo do
+         campo ("OBJETIVO" etc.) é o único <strong> filho direto de
+         .rp-campo — um **negrito** no meio do texto (agora um <strong>
+         de verdade, gerado pela análise de Markdown abaixo) fica dentro
+         de .rp-campo-txt, então nunca deveria herdar esse estilo de
+         rótulo (maiúsculo, dourado, em bloco); um seletor descendente
+         pegaria os dois por igual e quebraria o negrito inline. */
+      '.rp-campo > strong{display:block;font-size:.66rem;letter-spacing:.08em;text-transform:uppercase;color:var(--pgold);margin-bottom:3px;font-family:"Oswald",Arial,sans-serif;page-break-after:avoid;break-after:avoid-page;}' +
       '.rp-campo-txt{margin:0;}' +
       '.rp-campo-txt div, .rp-campo-txt p{margin:0 0 4px;}' +
       '.rp-campo-txt div:last-child, .rp-campo-txt p:last-child{margin-bottom:0;}' +
       '.rp-campo-txt blockquote{margin:0 0 4px;}' +
-      '.rp-campo ul{margin:2px 0 0 18px;padding:0;}' +
+      '.rp-campo-txt ul, .rp-campo-txt ol{margin:2px 0 6px 20px;padding:0;}' +
+      '.rp-campo-txt li{margin:0 0 3px;}' +
+      '.rp-campo-txt li:last-child{margin-bottom:0;}' +
+      '.rp-campo-txt li > ul, .rp-campo-txt li > ol{margin-top:4px;margin-bottom:2px;}' +
+      '.rp-campo-txt ul:last-child, .rp-campo-txt ol:last-child{margin-bottom:0;}' +
+      '.rp-campo > ul{margin:2px 0 0 18px;padding:0;}' +
       '.rp-contexto{font-size:.72rem;color:var(--pink3);font-style:italic;margin-bottom:4px;page-break-after:avoid;break-after:avoid-page;}' +
       '.rp-gap-bloco{border:1px dashed rgba(255,138,92,.5);background:rgba(255,138,92,.12);color:#ffb37e;font-style:italic;font-size:.82rem;padding:8px 14px;border-radius:8px;margin-bottom:12px;}',
       corpo
@@ -1601,12 +1710,24 @@
       '.rp-tipo{font-weight:400;color:var(--pink3);font-size:.82rem;}' +
       '.rp-atv-meta{font-size:.78rem;color:var(--pcyan);margin:4px 0 10px;font-family:"Oswald",Arial,sans-serif;letter-spacing:.02em;page-break-after:avoid;break-after:avoid-page;}' +
       '.rp-campo{margin-bottom:10px;font-size:.85rem;color:var(--pink2);}' +
-      '.rp-campo strong{display:block;font-size:.66rem;letter-spacing:.08em;text-transform:uppercase;color:var(--pgold);margin-bottom:3px;font-family:"Oswald",Arial,sans-serif;page-break-after:avoid;break-after:avoid-page;}' +
+      /* Seletor de FILHO direto (não descendente qualquer): o rótulo do
+         campo ("OBJETIVO" etc.) é o único <strong> filho direto de
+         .rp-campo — um **negrito** no meio do texto (agora um <strong>
+         de verdade, gerado pela análise de Markdown abaixo) fica dentro
+         de .rp-campo-txt, então nunca deveria herdar esse estilo de
+         rótulo (maiúsculo, dourado, em bloco); um seletor descendente
+         pegaria os dois por igual e quebraria o negrito inline. */
+      '.rp-campo > strong{display:block;font-size:.66rem;letter-spacing:.08em;text-transform:uppercase;color:var(--pgold);margin-bottom:3px;font-family:"Oswald",Arial,sans-serif;page-break-after:avoid;break-after:avoid-page;}' +
       '.rp-campo-txt{margin:0;}' +
       '.rp-campo-txt div, .rp-campo-txt p{margin:0 0 4px;}' +
       '.rp-campo-txt div:last-child, .rp-campo-txt p:last-child{margin-bottom:0;}' +
       '.rp-campo-txt blockquote{margin:0 0 4px;}' +
-      '.rp-campo ul{margin:2px 0 0 18px;padding:0;}' +
+      '.rp-campo-txt ul, .rp-campo-txt ol{margin:2px 0 6px 20px;padding:0;}' +
+      '.rp-campo-txt li{margin:0 0 3px;}' +
+      '.rp-campo-txt li:last-child{margin-bottom:0;}' +
+      '.rp-campo-txt li > ul, .rp-campo-txt li > ol{margin-top:4px;margin-bottom:2px;}' +
+      '.rp-campo-txt ul:last-child, .rp-campo-txt ol:last-child{margin-bottom:0;}' +
+      '.rp-campo > ul{margin:2px 0 0 18px;padding:0;}' +
       '.rp-contexto{font-size:.72rem;color:var(--pink3);font-style:italic;margin-bottom:4px;page-break-after:avoid;break-after:avoid-page;}' +
       '.rp-gap-bloco{border:1px dashed rgba(255,138,92,.5);background:rgba(255,138,92,.12);color:#ffb37e;font-style:italic;font-size:.82rem;padding:8px 14px;border-radius:8px;margin-bottom:12px;}',
       corpo
