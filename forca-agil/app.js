@@ -408,7 +408,8 @@
     function renderTurmasGrid() {
       var host = document.querySelector('.turmas-eventos');
       if (!host) return;
-      var hoje = new Date().toISOString().slice(0, 10);
+      var agora = new Date();
+      var hoje = agora.getFullYear() + '-' + String(agora.getMonth() + 1).padStart(2, '0') + '-' + String(agora.getDate()).padStart(2, '0');
       var porEvento = {};
       var semEvento = [];
       _turmasList.forEach(function (t) {
