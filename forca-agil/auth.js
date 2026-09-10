@@ -85,48 +85,111 @@
   }
 
   var _enrolledRefs = [];
+  /* Mesmo papel do _adminsResolvidos: distinguir "não está inscrita" de
+     "ainda não sei se está". Enquanto for false, nenhum portão de rota
+     pode expulsar ninguém por nível de acesso — foi assim que gente
+     inscrita levou "não disponível para o seu nível de acesso" na cara
+     no meio da oficina. Só vira true com resposta de verdade do banco;
+     resposta por tempo esgotado não conta. */
+  var _inscricaoResolvida = false;
+  function isEnrolledReady() { return _inscricaoResolvida; }
+  function marcarInscricaoResolvida() {
+    if (_inscricaoResolvida) return;
+    _inscricaoResolvida = true;
+    window.dispatchEvent(new CustomEvent('fa-enrolled-ready'));
+  }
 
   /* Enrolled só para quem foi confirmado pelo admin (status='inscrito' + confirmedByAdmin preenchido).
      Manifestar interesse (status='interessado') não concede acesso. */
   function isInscrito(val) { return !!(val && !val.removed && val.status === 'inscrito' && val.confirmedByAdmin); }
 
   /* Turmas não são mais fixas (t1/t2/t3) — a lista de chaves vem de turmas/ no Firebase,
-     editável pelo admin (criar/excluir turma) */
+     editável pelo admin (criar/excluir turma).
+
+     NENHUMA leitura aqui pode deixar de responder: o fa-auth-ready só
+     dispara dentro do callback desta função, e sem ele o body inteiro
+     continua escondido pela classe "aguardando-auth" — ou seja, tela
+     preta depois de logar. Eram N+1 leituras sem tratamento de erro
+     nenhum: em rede móvel instável bastava UMA delas não voltar para a
+     pessoa ficar olhando preto até o socorro de 10s do router derrubar
+     a sessão dela. Agora toda leitura tem saída pelo erro, e um limite
+     de tempo garante resposta mesmo quando o banco não responde nem
+     com erro. Responder 'não inscrita' por tempo esgotado é seguro: o
+     watchEnrolledStatus logo abaixo corrige assim que os dados chegam. */
   function checkEnrolledStatus(email, cb) {
     const key = emailKey(email);
+    var respondeu = false;
+    function responder(v) {
+      if (respondeu) return;
+      respondeu = true;
+      clearTimeout(socorro);
+      cb(v);
+    }
+    var socorro = setTimeout(function () { responder(false); }, 8000);
+
     firebase.database().ref('turmas').once('value', function (turmasSnap) {
       var turmaKeys = Object.keys(turmasSnap.val() || {});
-      if (!turmaKeys.length) { cb(false); return; }
+      if (!turmaKeys.length) { marcarInscricaoResolvida(); responder(false); return; }
       var found = false;
       var checked = 0;
+      function contabilizar() {
+        if (++checked !== turmaKeys.length) return;
+        marcarInscricaoResolvida();
+        responder(found);
+      }
       turmaKeys.forEach(function (t) {
-        firebase.database().ref('turmas-interesse/' + t + '/' + key).once('value', function (snap) {
-          checked++;
-          if (isInscrito(snap.val())) found = true;
-          if (checked === turmaKeys.length) cb(found);
-        });
+        firebase.database().ref('turmas-interesse/' + t + '/' + key)
+          .once('value', function (snap) {
+            if (isInscrito(snap.val())) found = true;
+            contabilizar();
+          }, function () { contabilizar(); })
+          .catch(function () {});
       });
-    });
+    }, function () { responder(false); })
+      .catch(function () {});
   }
 
   /* Observa em tempo real (finalizar/reabrir/remover turma) — evita exigir logout/login
      para o nível de acesso (Conteúdos/Treinamento Jedi) refletir a mudança */
+  /* Um listener POR TURMA, e cada um chega no seu tempo. O callback só
+     pode ser chamado quando TODOS já responderam pelo menos uma vez —
+     antes disso o mapa `vals` está incompleto e o "está inscrita em
+     alguma?" responde não por desconhecimento, não por resposta.
+
+     Era exatamente esse o bug que tirava do ar quem ESTAVA inscrita:
+     inscrita na turma de setembro, com o listener de agosto chegando
+     primeiro, o some() rodava sobre um mapa vazio, devolvia false, e o
+     nível caía para 'member' — escondendo os links do menu e expulsando
+     a pessoa de #treinamento com "não disponível para o seu nível de
+     acesso". No desktop os listeners chegam todos no mesmo instante e
+     a janela é invisível; no 4G ela fica aberta segundos, que é quando
+     a pessoa clica. Depois da primeira rodada completa, cada mudança
+     volta a valer na hora (finalizar/reabrir/remover turma). */
   function watchEnrolledStatus(email, cb) {
     stopWatchingEnrolledStatus();
     const key = emailKey(email);
     firebase.database().ref('turmas').once('value', function (turmasSnap) {
       var turmaKeys = Object.keys(turmasSnap.val() || {});
       const vals = {};
+      const responderam = {};
+      var primeiraRodadaCompleta = false;
       turmaKeys.forEach(function (t) {
         const ref = firebase.database().ref('turmas-interesse/' + t + '/' + key);
         const handler = function (snap) {
           vals[t] = snap.val();
+          responderam[t] = true;
+          if (!primeiraRodadaCompleta) {
+            if (Object.keys(responderam).length < turmaKeys.length) return;
+            primeiraRodadaCompleta = true;
+            marcarInscricaoResolvida();
+          }
           cb(turmaKeys.some(function (tt) { return isInscrito(vals[tt]); }));
         };
         ref.on('value', handler);
         _enrolledRefs.push({ ref: ref, handler: handler });
       });
-    });
+    }, function () { /* sem a lista de turmas não há o que observar */ })
+      .catch(function () {});
   }
 
   function stopWatchingEnrolledStatus() {
@@ -151,6 +214,10 @@
     /* E a sessão também: a lista de admins costuma chegar antes dela, e
        sem sessão o getAccessLevel() responde 'member' pra qualquer um. */
     if (!_session) return;
+    /* E a própria inscrição: sem ela resolvida, _accessLevel é 'member'
+       por desconhecimento — expulsar aqui é justamente o que derrubava
+       quem estava inscrita. Quando resolver, esta função roda de novo. */
+    if (!_inscricaoResolvida && !isAdmin(_session.email)) return;
     const page = window.faRouter.current();
     const level = getAccessLevel();
     if (page === 'repositorio' && !level) {
@@ -827,6 +894,7 @@
     resendVerification: resendVerification,
     isAuthReady: function () { return _authReady; },
     isAdminReady: isAdminReady,
+    isEnrolledReady: isEnrolledReady,
     isFacilitadorReady: isFacilitadorReady,
     autoPreviDominio: autoPreviDominio
   };
