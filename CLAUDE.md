@@ -47,3 +47,26 @@ pedido de autorização.
 Se o PR anterior desse branch já foi mergeado, os commits novos precisam de um
 PR novo — mergeado é mergeado, não dá para reaproveitar. Abra o novo PR do
 mesmo jeito, sem perguntar.
+
+**Celular e computador são a mesma entrega.** Nenhuma funcionalidade deste site
+está pronta se só funciona num dos dois. Isso não é um capricho de qualidade: as
+participantes usam o site **no celular, na sala da oficina, na rede da Previ** —
+esse é o uso real, e o computador é a exceção. Quem desenvolve olhando só a tela
+larga inverte a prioridade sem perceber.
+
+Vale para tudo, não só para layout: **rede lenta é uma condição de mobile, não um
+caso raro.** Corridas que duram milissegundos no wi-fi duram segundos no 4G, e é
+exatamente nesses segundos que a pessoa clica. Os dois desastres da oficina de
+08-09/09/2026 foram disso: gente inscrita sendo expulsa do Treinamento porque
+"ainda não sei" foi tratado como "não tem acesso" (PR #111), e a tela preta que
+era só o site esperando calado (PR #116). Nenhum dos dois aparecia no
+computador do escritório.
+
+Na prática, antes de considerar qualquer mudança pronta:
+- se ela toca a interface, verifique nos **dois** formatos de tela (375px é a
+  referência de celular usada nos testes deste repo);
+- se ela depende de leitura do Firebase, pense no caminho lento e no caminho que
+  nunca responde, não só no caminho feliz;
+- prefira provar rodando a página num navegador a raciocinar sobre o código —
+  `.github/scripts/teste-tela-preta.js` é o exemplo de como fazer isso sem
+  depender de rede nem de segredo, e roda desktop e celular lado a lado.
