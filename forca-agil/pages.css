@@ -796,6 +796,20 @@
 .admin-restore-btn:hover { background: rgba(26,178,174,.1); }
 .admin-perm-del-btn { border-color: rgba(255,59,48,.45); color: var(--red); }
 .loading-msg { color: var(--ink-3); font-style: italic; font-size: .86rem; }
+
+/* Corpo de modal que abre vazio e é preenchido depois de uma leitura do
+   Firebase. Sem reservar altura, a caixa pinta minúscula (só o título) e
+   PULA para o tamanho final quando os dados chegam — como o overlay
+   centraliza, ela cresce para os dois lados e parece que um modal menor
+   apareceu e sumiu. A reserva vive no próprio bloco de carregamento, não
+   no container: quando o conteúdo substitui o innerHTML, a reserva vai
+   junto, sem ninguém precisar lembrar de remover classe. */
+.loading-bloco {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 40vh;
+}
 .admin-gate {
   padding: 64px 32px; text-align: center; color: var(--ink-3);
 }

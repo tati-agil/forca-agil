@@ -2792,7 +2792,7 @@
     var box = document.createElement('div');
     box.className = 'modal-box';
     box.style.cssText = 'max-width:560px;width:92%;padding:28px;display:flex;flex-direction:column;gap:16px;max-height:85vh;overflow:auto';
-    box.innerHTML = '<h3 style="font-size:1.1rem;font-family:var(--font-head);letter-spacing:.05em;color:var(--ink)">Equipe de facilitação — ' + esc(turma.label) + '</h3><div id="equipeBody"><p class="loading-msg">Carregando…</p></div>' +
+    box.innerHTML = '<h3 style="font-size:1.1rem;font-family:var(--font-head);letter-spacing:.05em;color:var(--ink)">Equipe de facilitação — ' + esc(turma.label) + '</h3><div id="equipeBody"><div class="loading-bloco"><p class="loading-msg">Carregando…</p></div></div>' +
       '<div style="display:flex;justify-content:flex-end"><button class="btn admin-modal-cancel-btn">Fechar</button></div>';
     overlay.appendChild(box);
     document.body.appendChild(overlay);
@@ -2905,7 +2905,7 @@
         '<h3 style="font-size:1.05rem;font-family:var(--font-head);letter-spacing:.05em;color:var(--ink)">Roteiro de Facilitação — ' + esc(evento.nome) + '</h3>' +
         '<button class="btn btn--sm rt-fechar">Fechar</button></div>' +
       '<p class="admin-empty" style="margin:0">Roteiro-base do evento: toda turma criada aqui herda este roteiro e pode personalizá-lo sem afetar as demais (aba "Roteiro da turma", dentro de cada turma).</p>' +
-      '<div id="rtEventoBody"></div>';
+      '<div id="rtEventoBody"><div class="loading-bloco"><p class="loading-msg">Carregando…</p></div></div>';
     overlay.appendChild(box);
     document.body.appendChild(overlay);
     function closeModal() { document.body.removeChild(overlay); }
@@ -2929,7 +2929,7 @@
       '<div style="display:flex;justify-content:space-between;align-items:center">' +
         '<h3 style="font-size:1.05rem;font-family:var(--font-head);letter-spacing:.05em;color:var(--ink)">Roteiro da turma — ' + esc(turma.label) + '</h3>' +
         '<button class="btn btn--sm rt-fechar">Fechar</button></div>' +
-      '<div id="rtTurmaBody"><p class="loading-msg">Carregando…</p></div>';
+      '<div id="rtTurmaBody"><div class="loading-bloco"><p class="loading-msg">Carregando…</p></div></div>';
     overlay.appendChild(box);
     document.body.appendChild(overlay);
     function closeModal() { document.body.removeChild(overlay); }
