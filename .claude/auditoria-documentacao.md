@@ -14,7 +14,7 @@ afirmações · `[ ]` não conferido.
 
 | camada | total | conferido |
 |---|---|---|
-| regras do Manual (`manual.js`) | 227 | **38** + 8 parciais |
+| regras do Manual (`manual.js`) | 227 | **44** + 8 parciais |
 | features do Mapa (`mapa.js`) | 227 | 0 |
 | itens técnicos do Mapa | 120 | 0 |
 | testes manuais (`testes.js`) | 195 | 0 |
@@ -26,7 +26,7 @@ aspas (`teste-rotulos-doc.js`, que ainda não é portão — ver o cabeçalho de
 
 ## Regras do Manual, por seção
 
-### `admin` — 98 regras (38 conferidas)
+### `admin` — 98 regras (44 conferidas)
 
 - [~] Lista de espera — data e hora de cada registro
 - [x] Sair da turma — um caminho só, sempre com motivo
@@ -110,12 +110,12 @@ aspas (`teste-rotulos-doc.js`, que ainda não é portão — ver o cabeçalho de
 - [x] Roteiro-base — aviso de atividades fora da ordem cronológica
 - [x] Roteiro-base — recalcular horários seguintes ao mudar a duração
 - [x] Roteiro — exportar (Agenda resumida / Agenda + Objetivos / Roteiro completo / Passo a passo)
-- [ ] Roteiro — hierarquia visual atividade/sub-etapa nas exportações em tabela ("Agenda resumida" e "Agenda + Objetivos")
-- [ ] Roteiro — campos "Resultado esperado" e "Prompt para IA"
-- [ ] Roteiro — identidade visual no PDF exportado (Agenda resumida e Roteiro completo)
-- [ ] Roteiro — paginação sem grandes áreas vazias no PDF exportado ("Roteiro completo" e "Passo a passo")
-- [ ] Roteiro — Markdown de campos de texto renderizado no PDF exportado ("Agenda + Objetivos", "Roteiro completo" e "Passo a passo")
-- [ ] Roteiro — rodapé próprio de página no PDF exportado
+- [x] Roteiro — hierarquia visual atividade/sub-etapa nas exportações em tabela ("Agenda resumida" e "Agenda + Objetivos")
+- [x] Roteiro — campos "Resultado esperado" e "Prompt para IA"
+- [x] Roteiro — identidade visual no PDF exportado (Agenda resumida e Roteiro completo)
+- [x] Roteiro — paginação sem grandes áreas vazias no PDF exportado ("Roteiro completo" e "Passo a passo")
+- [x] Roteiro — Markdown de campos de texto renderizado no PDF exportado ("Agenda + Objetivos", "Roteiro completo" e "Passo a passo")
+- [x] Roteiro — rodapé próprio de página no PDF exportado
 - [ ] Aba: Manual
 - [ ] Aba: Manual — filtrar por seção e persona
 - [ ] Aba: Manual — expandir/recolher tudo
