@@ -14,7 +14,7 @@ afirmações · `[ ]` não conferido.
 
 | camada | total | conferido |
 |---|---|---|
-| regras do Manual (`manual.js`) | 227 | **83** + 8 parciais |
+| regras do Manual (`manual.js`) | 227 | **90** + 8 parciais |
 | features do Mapa (`mapa.js`) | 227 | 0 |
 | itens técnicos do Mapa | 120 | 0 |
 | testes manuais (`testes.js`) | 195 | 0 |
@@ -26,7 +26,7 @@ aspas (`teste-rotulos-doc.js`, que ainda não é portão — ver o cabeçalho de
 
 ## Regras do Manual, por seção
 
-### `admin` — 98 regras (83 conferidas)
+### `admin` — 98 regras (90 conferidas)
 
 - [~] Lista de espera — data e hora de cada registro
 - [x] Sair da turma — um caminho só, sempre com motivo
@@ -90,20 +90,20 @@ aspas (`teste-rotulos-doc.js`, que ainda não é portão — ver o cabeçalho de
 - [x] Aba: Administradores — consultar lista
 - [x] Aba: Administradores — super-admins fixos
 - [x] Aba: Administradores — admins adicionais
-- [ ] Painel Admin — carregamento ao abrir #admin direto
+- [x] Painel Admin — carregamento ao abrir #admin direto
 - [x] Aba: Administradores — tratamento de erro na leitura
 - [x] Aba: Diretores
 - [x] Aba: Tipos de atividade
 - [x] Aba: Facilitadores — cadastro global
-- [ ] Aba: Eventos — Equipe de facilitação de uma turma
-- [ ] Aba: Eventos — Roteiro de Facilitação do evento (roteiro-base)
-- [ ] Aba: Eventos — Roteiro da turma (personalização)
+- [x] Aba: Eventos — Equipe de facilitação de uma turma
+- [x] Aba: Eventos — Roteiro de Facilitação do evento (roteiro-base)
+- [x] Aba: Eventos — Roteiro da turma (personalização)
 - [x] Roteiro — Tipo de atividade (lista administrável)
 - [x] Roteiro — campo de texto não força mais maiúsculas ao digitar
 - [x] Roteiro — resumo do dia (janela, programado, facilitação, pausas, lacunas reais)
 - [x] Roteiro — diferença entre Intervalo (pausa) e Lacuna (buraco)
 - [x] Roteiro — Sessões/janelas (ex: Manhã e Tarde) num mesmo dia
-- [ ] Roteiro — resumo agregado "Sessões" no topo do dia
+- [x] Roteiro — resumo agregado "Sessões" no topo do dia
 - [x] Roteiro — aviso de sobreposição de horário
 - [x] Roteiro — seções com sub-etapas (etapas filhas)
 - [x] Roteiro-base — "+ Etapa" atrás do menu "⋯" em atividade simples
@@ -119,8 +119,8 @@ aspas (`teste-rotulos-doc.js`, que ainda não é portão — ver o cabeçalho de
 - [x] Aba: Manual
 - [x] Aba: Manual — filtrar por seção e persona
 - [x] Aba: Manual — expandir/recolher tudo
-- [ ] Aba: Mapa
-- [ ] Aba: Mapa — estrutura dos dados em mapa.js
+- [x] Aba: Mapa
+- [x] Aba: Mapa — estrutura dos dados em mapa.js
 - [x] Aba: Testes
 - [x] Aba: Pedidos
 - [x] Aba: Pedidos — responder um pedido
