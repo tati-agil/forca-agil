@@ -91,6 +91,7 @@ mesma escrita que o Desconfirmar faz.
 | contagem de participantes | `dashboard.js` |
 | turmas com avaliação liberada | `avaliacao.js` |
 | painel: cabeçalho, filtro "Confirmados", sorteio, linha da tabela, "Já participou" | `admin.js` `inscricaoValida` |
+| rótulo de status nas exportações CSV | `admin.js` `getStatus` |
 
 **Leitores que ainda olham só o `status`** — decisão consciente, não
 esquecimento: mudá-los altera o que a PESSOA consegue fazer (não o que a admin
@@ -102,7 +103,6 @@ caminhos só são alcançáveis por registros antigos:
 |---|---|---|
 | registrar presença por QR | `checkin.js` | registro antigo consegue check-in sem ter acesso ao conteúdo |
 | lista de presença para impressão | `admin.js` `imprimirListaPresenca` | pode listar quem o painel mostra como pendente |
-| CSV da turma / histórico | `admin.js` `getStatus` | rótulo do CSV diverge do rótulo da tela |
 | certificados: elegíveis | `admin.js` `loadInscritos` | pode oferecer certificado a registro incompleto |
 | eventos do quiz | `game.js` | pode liberar o quiz a registro incompleto |
 | botão "Tenho interesse" travado | `app.js` | card mostra "✓ Inscrita" a quem não tem acesso |

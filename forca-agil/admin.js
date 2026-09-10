@@ -1521,8 +1521,13 @@
     return (email || '').toLowerCase().replace(/[@.]/g, '_').replace(/[^a-z0-9_]/g, '').slice(0, 64);
   }
 
+  /* Rótulo de status usado nas exportações CSV. Usa o MESMO critério do
+     painel (inscricaoValida): olhar só o status faria o arquivo entregue ao
+     RH dizer "inscrito" para quem a tela mostra como pendente com o selo
+     "Confirmação incompleta" — duas verdades sobre a mesma pessoa, e a que
+     sai do sistema é a que ninguém confere. */
   function getStatus(r) {
-    return r.status === 'inscrito' ? 'inscrito' : 'interessado';
+    return inscricaoValida(r) ? 'inscrito' : 'interessado';
   }
 
   /* ---- Check-in actions ---- */
@@ -2770,6 +2775,11 @@
       updates['turmas-interesse-log/' + t.key] = null;
       updates['turmas-equipe/' + t.key] = null;
       updates['turmas-roteiro/' + t.key] = null;
+      /* Sem isto, os sorteios da turma ficavam órfãos: a aba Sorteios lê
+         turmas-sorteio inteiro e, sem a turma na lista, rotula a linha com a
+         chave crua sob "(sem evento)" — um fantasma para sempre, porque o
+         "Limpar histórico" mora no card da turma que acabou de ser apagada. */
+      updates['turmas-sorteio/' + t.key] = null;
       firebase.database().ref().update(updates, function (err) {
         if (err) { adminAlert('Erro ao excluir. Tente novamente.'); return; }
         loadInterests();
