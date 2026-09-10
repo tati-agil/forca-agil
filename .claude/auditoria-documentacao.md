@@ -14,7 +14,7 @@ afirmações · `[ ]` não conferido.
 
 | camada | total | conferido |
 |---|---|---|
-| regras do Manual (`manual.js`) | 227 | **49** + 8 parciais |
+| regras do Manual (`manual.js`) | 227 | **57** + 8 parciais |
 | features do Mapa (`mapa.js`) | 227 | 0 |
 | itens técnicos do Mapa | 120 | 0 |
 | testes manuais (`testes.js`) | 195 | 0 |
@@ -26,7 +26,7 @@ aspas (`teste-rotulos-doc.js`, que ainda não é portão — ver o cabeçalho de
 
 ## Regras do Manual, por seção
 
-### `admin` — 98 regras (49 conferidas)
+### `admin` — 98 regras (57 conferidas)
 
 - [~] Lista de espera — data e hora de cada registro
 - [x] Sair da turma — um caminho só, sempre com motivo
@@ -36,10 +36,10 @@ aspas (`teste-rotulos-doc.js`, que ainda não é portão — ver o cabeçalho de
 - [x] Acesso — só quem está na lista de admins
 - [x] Admin tem acesso total ao site, mesmo sem turma própria
 - [ ] Navegação por abas — desktop e mobile
-- [ ] Aba: Dashboard — ler o que cada pessoa respondeu
-- [ ] Aba: Dashboard — como cada número é calculado
-- [ ] Aba: Dashboard
-- [ ] Aba: Dashboard — destaques e temas
+- [x] Aba: Dashboard — ler o que cada pessoa respondeu
+- [x] Aba: Dashboard — como cada número é calculado
+- [x] Aba: Dashboard
+- [x] Aba: Dashboard — destaques e temas
 - [x] Aba: Eventos — visão geral
 - [x] Aba: Eventos — filtro e expand/collapse
 - [x] Aba: Eventos — Eventos (entidade pai das turmas)
@@ -83,10 +83,10 @@ aspas (`teste-rotulos-doc.js`, que ainda não é portão — ver o cabeçalho de
 - [ ] Aba: Repositório — ocultar conteúdo
 - [ ] Aba: Repositório — restaurar conteúdo
 - [ ] Aba: Repositório — deletar permanentemente
-- [ ] Aba: Cadastrados — listar
-- [ ] Aba: Cadastrados — criar conta pelo admin
-- [ ] Aba: Cadastrados — resetar progresso
-- [ ] Aba: Cadastrados — redefinir senha
+- [x] Aba: Cadastrados — listar
+- [x] Aba: Cadastrados — criar conta pelo admin
+- [x] Aba: Cadastrados — resetar progresso
+- [x] Aba: Cadastrados — redefinir senha
 - [ ] Aba: Administradores — consultar lista
 - [ ] Aba: Administradores — super-admins fixos
 - [ ] Aba: Administradores — admins adicionais
