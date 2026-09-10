@@ -14,7 +14,7 @@ afirmações · `[ ]` não conferido.
 
 | camada | total | conferido |
 |---|---|---|
-| regras do Manual (`manual.js`) | 227 | **57** + 8 parciais |
+| regras do Manual (`manual.js`) | 227 | **69** + 8 parciais |
 | features do Mapa (`mapa.js`) | 227 | 0 |
 | itens técnicos do Mapa | 120 | 0 |
 | testes manuais (`testes.js`) | 195 | 0 |
@@ -26,7 +26,7 @@ aspas (`teste-rotulos-doc.js`, que ainda não é portão — ver o cabeçalho de
 
 ## Regras do Manual, por seção
 
-### `admin` — 98 regras (57 conferidas)
+### `admin` — 98 regras (69 conferidas)
 
 - [~] Lista de espera — data e hora de cada registro
 - [x] Sair da turma — um caminho só, sempre com motivo
@@ -79,19 +79,19 @@ aspas (`teste-rotulos-doc.js`, que ainda não é portão — ver o cabeçalho de
 - [x] Aba: Certificados — o que pertence ao template (não alterar)
 - [x] Aba: Certificados — campos dinâmicos e coordenadas aprovadas
 - [ ] Aba: Eventos — reabrir turma
-- [ ] Aba: Repositório — listar todos os conteúdos
-- [ ] Aba: Repositório — ocultar conteúdo
-- [ ] Aba: Repositório — restaurar conteúdo
-- [ ] Aba: Repositório — deletar permanentemente
+- [x] Aba: Repositório — listar todos os conteúdos
+- [x] Aba: Repositório — ocultar conteúdo
+- [x] Aba: Repositório — restaurar conteúdo
+- [x] Aba: Repositório — deletar permanentemente
 - [x] Aba: Cadastrados — listar
 - [x] Aba: Cadastrados — criar conta pelo admin
 - [x] Aba: Cadastrados — resetar progresso
 - [x] Aba: Cadastrados — redefinir senha
-- [ ] Aba: Administradores — consultar lista
-- [ ] Aba: Administradores — super-admins fixos
-- [ ] Aba: Administradores — admins adicionais
+- [x] Aba: Administradores — consultar lista
+- [x] Aba: Administradores — super-admins fixos
+- [x] Aba: Administradores — admins adicionais
 - [ ] Painel Admin — carregamento ao abrir #admin direto
-- [ ] Aba: Administradores — tratamento de erro na leitura
+- [x] Aba: Administradores — tratamento de erro na leitura
 - [ ] Aba: Diretores
 - [ ] Aba: Tipos de atividade
 - [ ] Aba: Facilitadores — cadastro global
@@ -122,10 +122,10 @@ aspas (`teste-rotulos-doc.js`, que ainda não é portão — ver o cabeçalho de
 - [ ] Aba: Mapa
 - [ ] Aba: Mapa — estrutura dos dados em mapa.js
 - [ ] Aba: Testes
-- [ ] Aba: Pedidos
-- [ ] Aba: Pedidos — responder um pedido
-- [ ] Aba: Pedidos — marcar como respondido e prazo em dias úteis
-- [ ] Aba: Pedidos — excluir com justificativa
+- [x] Aba: Pedidos
+- [x] Aba: Pedidos — responder um pedido
+- [x] Aba: Pedidos — marcar como respondido e prazo em dias úteis
+- [x] Aba: Pedidos — excluir com justificativa
 
 ### `turmas` — 24 regras (0 conferidas)
 
