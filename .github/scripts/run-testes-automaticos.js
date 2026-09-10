@@ -348,10 +348,18 @@ async function submitLogin(page, email, password) {
        re-executa initCheckin(). Precisa sair pra #home e voltar. */
     await p.goto(BASE_URL + '#home', { waitUntil: 'networkidle' });
     await p.goto(BASE_URL + '#checkin?turma=chave-inexistente-teste-ci', { waitUntil: 'networkidle' });
-    await p.waitForTimeout(500); // leitura assíncrona no Firebase antes de renderizar o erro
-    bodyText = await p.textContent('body');
-    if (!bodyText.includes('QR Code inválido ou turma não encontrada')) {
-      throw new Error('chave inexistente: mensagem de erro não encontrada na página');
+    /* Esperar 500ms fixos aqui reprovava o teste sempre que o Firebase real
+       demorava mais que isso — falha sem nada a ver com o que está sendo
+       testado. Espera pela MENSAGEM, não pelo relógio: passa assim que ela
+       aparece e só desiste depois de 15s, que é tempo de sobra para uma
+       leitura que normalmente leva milissegundos. */
+    try {
+      await p.waitForFunction(
+        () => document.body.innerText.includes('QR Code inválido ou turma não encontrada'),
+        null, { timeout: 15000 }
+      );
+    } catch (e) {
+      throw new Error('chave inexistente: mensagem de erro não apareceu em 15s');
     }
   });
 
