@@ -14,7 +14,7 @@ afirmações · `[ ]` não conferido.
 
 | camada | total | conferido |
 |---|---|---|
-| regras do Manual (`manual.js`) | 227 | **90** + 8 parciais |
+| regras do Manual (`manual.js`) | 227 | **100** + 8 parciais |
 | features do Mapa (`mapa.js`) | 227 | 0 |
 | itens técnicos do Mapa | 120 | 0 |
 | testes manuais (`testes.js`) | 195 | 0 |
@@ -127,32 +127,32 @@ aspas (`teste-rotulos-doc.js`, que ainda não é portão — ver o cabeçalho de
 - [x] Aba: Pedidos — marcar como respondido e prazo em dias úteis
 - [x] Aba: Pedidos — excluir com justificativa
 
-### `turmas` — 24 regras (0 conferidas)
+### `turmas` — 24 regras (10 conferidas)
 
 - [ ] Lista de espera — entrar
-- [ ] Lista de espera — sair
-- [ ] Lista de espera — quem saiu da fila
+- [x] Lista de espera — sair
+- [x] Lista de espera — quem saiu da fila
 - [ ] Lista de espera — conferência da fila
-- [ ] Lista de espera — uma linha por turma de origem
+- [x] Lista de espera — uma linha por turma de origem
 - [ ] Lista de espera — mover para turma
 - [ ] Lista de espera — remover sem mover
 - [ ] Lista de espera — migrar da turma
 - [ ] Acesso geral — mesma página para todos os perfis
-- [ ] Turma com interesse encerrado — inscrições encerradas (antes da turma iniciar)
-- [ ] Turma em andamento — card automático a partir do primeiro dia
-- [ ] Turma realizada — card automático após o último dia ou ação do admin
+- [x] Turma com interesse encerrado — inscrições encerradas (antes da turma iniciar)
+- [x] Turma em andamento — card automático a partir do primeiro dia
+- [x] Turma realizada — card automático após o último dia ou ação do admin
 - [ ] Bloco "A Missão" e "Como funciona" — por evento, opcional
 - [ ] Itinerário dia a dia — por evento, itens estáticos
 - [ ] Se a sessão expirar com a página aberta
-- [ ] Registrar interesse → botão vira "Remover interesse" + mensagem sobre CMFlex
-- [ ] Remover interesse → botão volta a "Tenho interesse"
-- [ ] Quem já é Inscrita não pode se autorremover — botão fica travado
+- [x] Registrar interesse → botão vira "Remover interesse" + mensagem sobre CMFlex
+- [x] Remover interesse → botão volta a "Tenho interesse"
+- [x] Quem já é Inscrita não pode se autorremover — botão fica travado
 - [ ] Corrida: turma encerra interesse entre carregar a página e clicar em "Tenho interesse"
 - [ ] Corrida rara: turma encerra interesse com a página já aberta
 - [ ] Falha ao gravar no Firebase
 - [ ] Se a verificação inicial falhar, a pessoa não vê nenhum aviso
 - [ ] Botão "Tenho interesse"/"Remover interesse" não duplica ações ao sair e voltar da página
-- [ ] Botão "Tenho interesse"/"Remover interesse" fica desabilitado durante a gravação no Firebase
+- [x] Botão "Tenho interesse"/"Remover interesse" fica desabilitado durante a gravação no Firebase
 
 ### `cadastrar` — 14 regras (0 conferidas)
 
