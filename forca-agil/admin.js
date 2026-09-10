@@ -384,6 +384,23 @@
     return String((a && a.email) || '').localeCompare(String((b && b.email) || ''), 'pt-BR', { sensitivity: 'base' });
   }
 
+  /* Um único lugar no painel responde "essa pessoa está inscrita?".
+     A resposta exige os DOIS campos, igual ao resto do sistema (auth.js
+     isInscrito, aluno.js, dashboard.js, avaliacao.js): status 'inscrito'
+     E confirmedByAdmin. Existe como função porque o painel faz essa mesma
+     pergunta em quatro lugares — contagem do cabeçalho, filtro
+     "Confirmados", pool do sorteio e a linha da tabela — e eles precisam
+     concordar entre si. Quando divergiram, o cabeçalho dizia "1 confirmado"
+     e a linha do único confirmado aparecia como pendente. */
+  function inscricaoValida(r) {
+    return !!(r && !r.removed && r.status === 'inscrito' && r.confirmedByAdmin);
+  }
+  /* Registro com o status mas sem quem confirmou: não vale como inscrição,
+     e é o que o selo "Confirmação incompleta" denuncia na tabela. */
+  function confirmacaoIncompletaDe(r) {
+    return !!(r && !r.removed && r.status === 'inscrito' && !r.confirmedByAdmin);
+  }
+
   /* ---- Turmas tab ---- */
   /* Estado da interface da aba Eventos, preservado entre recargas.
      loadInterests() reconstrói a aba inteira do zero — é chamada depois de
@@ -496,8 +513,8 @@
             var active     = all.filter(function (r) { return !r.removed; });
             var removed    = all.filter(function (r) { return r.removed; });
             var checkinT   = checkin[t.key] || {};
-            var inscritos    = active.filter(function (r) { return r.status === 'inscrito'; });
-            var interessados = active.filter(function (r) { return r.status !== 'inscrito'; });
+            var inscritos    = active.filter(inscricaoValida);
+            var interessados = active.filter(function (r) { return !inscricaoValida(r); });
             /* O cabeçalho fala a mesma língua dos filtros logo abaixo: quem
                não foi removida nem confirmada está aguardando uma decisão sua,
                e é o número que se procura ao planejar a próxima turma. */
@@ -1049,7 +1066,7 @@
        traço e ainda empurrariam a coluna de ações para fora da tela, fazendo
        parecer que não dá mais para confirmar ou remover. Mesma regra já usada
        na lista de quem saiu. */
-    var comPresenca = finalizada && records.some(function (r) { return r.status === 'inscrito'; });
+    var comPresenca = finalizada && records.some(inscricaoValida);
 
     var tbl = '<table class="admin-table participantes-table' + (comPresenca ? ' presenca-table' : '') + '"><thead><tr>' +
       '<th>Nome</th><th>E-mail</th><th>Área</th><th>Status</th>';
@@ -1074,8 +1091,8 @@
          mostrar essas pessoas como pendentes — com o selo abaixo
          explicando o porquê — e o botão da linha já vira "Confirmar",
          que conserta o registro num clique. */
-      var confirmacaoIncompleta = r.status === 'inscrito' && !r.confirmedByAdmin;
-      var isInscrito = r.status === 'inscrito' && !!r.confirmedByAdmin;
+      var confirmacaoIncompleta = confirmacaoIncompletaDe(r);
+      var isInscrito = inscricaoValida(r);
       /* Registros anteriores ao fim do "Justificar…" ainda carregam
          motivoNaoConfirmado. O selo continua sendo desenhado para não
          apagar da tela o que já foi anotado — mas nada grava esse campo
@@ -2023,7 +2040,7 @@
       var label = (turmasVal[tk] && turmasVal[tk].label) || tk;
       Object.keys(data[tk] || {}).forEach(function (k) {
         var r = data[tk][k];
-        if (!r || r.removed || r.status !== 'inscrito' || !r.confirmedByAdmin) return;
+        if (!inscricaoValida(r)) return;
         (_turmasConfirmadas[k] = _turmasConfirmadas[k] || []).push({ tk: tk, label: label });
       });
     });
