@@ -14,7 +14,7 @@ afirmações · `[ ]` não conferido.
 
 | camada | total | conferido |
 |---|---|---|
-| regras do Manual (`manual.js`) | 227 | **69** + 8 parciais |
+| regras do Manual (`manual.js`) | 227 | **83** + 8 parciais |
 | features do Mapa (`mapa.js`) | 227 | 0 |
 | itens técnicos do Mapa | 120 | 0 |
 | testes manuais (`testes.js`) | 195 | 0 |
@@ -26,7 +26,7 @@ aspas (`teste-rotulos-doc.js`, que ainda não é portão — ver o cabeçalho de
 
 ## Regras do Manual, por seção
 
-### `admin` — 98 regras (69 conferidas)
+### `admin` — 98 regras (83 conferidas)
 
 - [~] Lista de espera — data e hora de cada registro
 - [x] Sair da turma — um caminho só, sempre com motivo
@@ -35,7 +35,7 @@ aspas (`teste-rotulos-doc.js`, que ainda não é portão — ver o cabeçalho de
 - [x] Filtros da turma — cada pessoa em um grupo só
 - [x] Acesso — só quem está na lista de admins
 - [x] Admin tem acesso total ao site, mesmo sem turma própria
-- [ ] Navegação por abas — desktop e mobile
+- [x] Navegação por abas — desktop e mobile
 - [x] Aba: Dashboard — ler o que cada pessoa respondeu
 - [x] Aba: Dashboard — como cada número é calculado
 - [x] Aba: Dashboard
@@ -54,11 +54,11 @@ aspas (`teste-rotulos-doc.js`, que ainda não é portão — ver o cabeçalho de
 - [x] Aba: Eventos — encerrar turma (marcar como realizada)
 - [x] Aplicar migração no Roteiro-base não tem desfazer
 - [x] Modais que carregam dados não piscam mais de tamanho
-- [ ] Aba: Eventos — o selo "Confirmação incompleta" e por que ele existe
+- [x] Aba: Eventos — o selo "Confirmação incompleta" e por que ele existe
 - [~] Aba: Eventos — confirmar inscrição (CMFlex)
 - [~] Aba: Eventos — desconfirmar inscrição
 - [x] Aba: Eventos — check-in do dia
-- [ ] Aba: Sorteios — consulta de quem foi sorteado
+- [x] Aba: Sorteios — consulta de quem foi sorteado
 - [x] Aba: Eventos — sorteio da turma
 - [~] Aba: Eventos — a tela não se recolhe a cada ação
 - [x] Aba: Eventos — QR Code
@@ -70,15 +70,15 @@ aspas (`teste-rotulos-doc.js`, que ainda não é portão — ver o cabeçalho de
 - [~] Aba: Eventos — quem está aguardando decisão
 - [x] Aba: Eventos — remover participante
 - [~] Aba: Eventos — pessoa removida pode ser readicionada
-- [ ] Aba: Eventos — seção "Removidos"
-- [ ] Pop-ups do admin — modais visuais (não nativos)
-- [ ] Aba: Treinamentos — a quais eventos cada treinamento pertence
+- [x] Aba: Eventos — seção "Removidos"
+- [x] Pop-ups do admin — modais visuais (não nativos)
+- [x] Aba: Treinamentos — a quais eventos cada treinamento pertence
 - [x] Aba: Certificados — Gerador v1.0
 - [x] Aba: Certificados — estados: Prévia Administrativa vs. Emissão
 - [x] Aba: Certificados — frequência mínima para certificado
 - [x] Aba: Certificados — o que pertence ao template (não alterar)
 - [x] Aba: Certificados — campos dinâmicos e coordenadas aprovadas
-- [ ] Aba: Eventos — reabrir turma
+- [x] Aba: Eventos — reabrir turma
 - [x] Aba: Repositório — listar todos os conteúdos
 - [x] Aba: Repositório — ocultar conteúdo
 - [x] Aba: Repositório — restaurar conteúdo
@@ -92,9 +92,9 @@ aspas (`teste-rotulos-doc.js`, que ainda não é portão — ver o cabeçalho de
 - [x] Aba: Administradores — admins adicionais
 - [ ] Painel Admin — carregamento ao abrir #admin direto
 - [x] Aba: Administradores — tratamento de erro na leitura
-- [ ] Aba: Diretores
-- [ ] Aba: Tipos de atividade
-- [ ] Aba: Facilitadores — cadastro global
+- [x] Aba: Diretores
+- [x] Aba: Tipos de atividade
+- [x] Aba: Facilitadores — cadastro global
 - [ ] Aba: Eventos — Equipe de facilitação de uma turma
 - [ ] Aba: Eventos — Roteiro de Facilitação do evento (roteiro-base)
 - [ ] Aba: Eventos — Roteiro da turma (personalização)
@@ -116,12 +116,12 @@ aspas (`teste-rotulos-doc.js`, que ainda não é portão — ver o cabeçalho de
 - [x] Roteiro — paginação sem grandes áreas vazias no PDF exportado ("Roteiro completo" e "Passo a passo")
 - [x] Roteiro — Markdown de campos de texto renderizado no PDF exportado ("Agenda + Objetivos", "Roteiro completo" e "Passo a passo")
 - [x] Roteiro — rodapé próprio de página no PDF exportado
-- [ ] Aba: Manual
-- [ ] Aba: Manual — filtrar por seção e persona
-- [ ] Aba: Manual — expandir/recolher tudo
+- [x] Aba: Manual
+- [x] Aba: Manual — filtrar por seção e persona
+- [x] Aba: Manual — expandir/recolher tudo
 - [ ] Aba: Mapa
 - [ ] Aba: Mapa — estrutura dos dados em mapa.js
-- [ ] Aba: Testes
+- [x] Aba: Testes
 - [x] Aba: Pedidos
 - [x] Aba: Pedidos — responder um pedido
 - [x] Aba: Pedidos — marcar como respondido e prazo em dias úteis
