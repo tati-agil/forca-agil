@@ -14,7 +14,7 @@ afirmações · `[ ]` não conferido.
 
 | camada | total | conferido |
 |---|---|---|
-| regras do Manual (`manual.js`) | 227 | **27** + 8 parciais |
+| regras do Manual (`manual.js`) | 227 | **34** + 8 parciais |
 | features do Mapa (`mapa.js`) | 227 | 0 |
 | itens técnicos do Mapa | 120 | 0 |
 | testes manuais (`testes.js`) | 195 | 0 |
@@ -26,7 +26,7 @@ aspas (`teste-rotulos-doc.js`, que ainda não é portão — ver o cabeçalho de
 
 ## Regras do Manual, por seção
 
-### `admin` — 98 regras (27 conferidas)
+### `admin` — 98 regras (34 conferidas)
 
 - [~] Lista de espera — data e hora de cada registro
 - [x] Sair da turma — um caminho só, sempre com motivo
@@ -98,14 +98,14 @@ aspas (`teste-rotulos-doc.js`, que ainda não é portão — ver o cabeçalho de
 - [ ] Aba: Eventos — Equipe de facilitação de uma turma
 - [ ] Aba: Eventos — Roteiro de Facilitação do evento (roteiro-base)
 - [ ] Aba: Eventos — Roteiro da turma (personalização)
-- [ ] Roteiro — Tipo de atividade (lista administrável)
-- [ ] Roteiro — campo de texto não força mais maiúsculas ao digitar
-- [ ] Roteiro — resumo do dia (janela, programado, facilitação, pausas, lacunas reais)
-- [ ] Roteiro — diferença entre Intervalo (pausa) e Lacuna (buraco)
-- [ ] Roteiro — Sessões/janelas (ex: Manhã e Tarde) num mesmo dia
+- [x] Roteiro — Tipo de atividade (lista administrável)
+- [x] Roteiro — campo de texto não força mais maiúsculas ao digitar
+- [x] Roteiro — resumo do dia (janela, programado, facilitação, pausas, lacunas reais)
+- [x] Roteiro — diferença entre Intervalo (pausa) e Lacuna (buraco)
+- [x] Roteiro — Sessões/janelas (ex: Manhã e Tarde) num mesmo dia
 - [ ] Roteiro — resumo agregado "Sessões" no topo do dia
-- [ ] Roteiro — aviso de sobreposição de horário
-- [ ] Roteiro — seções com sub-etapas (etapas filhas)
+- [x] Roteiro — aviso de sobreposição de horário
+- [x] Roteiro — seções com sub-etapas (etapas filhas)
 - [ ] Roteiro-base — "+ Etapa" atrás do menu "⋮" em atividade simples
 - [ ] Roteiro-base — aviso de atividades fora da ordem cronológica
 - [ ] Roteiro-base — recalcular horários seguintes ao mudar a duração
