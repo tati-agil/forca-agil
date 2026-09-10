@@ -2381,6 +2381,15 @@
       errEl.style.display = 'none';
       if (!status) { errEl.textContent = 'Selecione o status.'; errEl.style.display = ''; return; }
 
+      /* Adicionar já como Inscrita É uma confirmação — precisa gravar quem
+         confirmou, igual ao botão "Confirmar". Sem sessão não dá pra saber
+         quem é, e gravar sem esse campo cria o registro pela metade descrito
+         em save(). Melhor recusar do que gravar errado. */
+      if (status === 'inscrito' && !sess) {
+        errEl.textContent = 'Sua sessão de admin não está ativa neste momento — recarregue a página e adicione de novo. Nada foi gravado.';
+        errEl.style.display = ''; return;
+      }
+
       var eKey = emailKeyFromEmail(email);
       var ref  = firebase.database().ref('turmas-interesse/' + turmaKey + '/' + eKey);
       ref.once('value', function (snap) {
@@ -2390,14 +2399,26 @@
 
         function save(overlaps) {
           var adminName = sess ? (sess.name || sess.email) : 'Admin';
+          var now = new Date().toISOString();
           var updates = {};
-          updates['turmas-interesse/' + turmaKey + '/' + eKey] = {
+          var registro = {
             name: name, email: email, area: area,
-            date: new Date().toISOString(),
+            date: now,
             status: status, addedByAdmin: true,
             addedByAdminName: adminName
           };
-          var now = new Date().toISOString();
+          /* Uma inscrição só é reconhecida pelo resto do sistema com os DOIS
+             campos: status 'inscrito' E confirmedByAdmin (auth.js isInscrito,
+             aluno.js, dashboard.js, avaliacao.js). addedByAdmin não conta —
+             antes disso, quem era adicionada direto como Inscrita aparecia
+             inscrita no painel mas ficava sem acesso a Conteúdos/Treinamento
+             e via a própria Minha Área como não confirmada. */
+          if (status === 'inscrito') {
+            registro.confirmedByAdmin = sess.email;
+            registro.confirmedByAdminName = adminName;
+            registro.confirmedDate = now;
+          }
+          updates['turmas-interesse/' + turmaKey + '/' + eKey] = registro;
           overlaps.forEach(function (o) {
             updates['turmas-interesse/' + o.turma + '/' + o.eKey + '/removed'] = true;
             updates['turmas-interesse/' + o.turma + '/' + o.eKey + '/removedDate'] = now;
