@@ -1063,7 +1063,19 @@
 
     records.forEach(function (r) {
       var eKey = emailKeyFromEmail(r.email);
-      var isInscrito = r.status === 'inscrito';
+      /* MESMA regra do resto do sistema: inscrita é status 'inscrito' E
+         confirmedByAdmin preenchido. Aqui o painel olhava só o status, e
+         essa diferença escondeu um problema real (08-09/09/2026, turma
+         de setembro): uma confirmação gravada sem sessão de admin ficava
+         com o status 'inscrito' e sem quem confirmou, então o painel
+         dizia "Inscrito" enquanto a pessoa não tinha acesso a
+         Conteúdos/Treinamento e via a própria Minha Área como se
+         ninguém a tivesse confirmado. Alinhado, o painel volta a
+         mostrar essas pessoas como pendentes — com o selo abaixo
+         explicando o porquê — e o botão da linha já vira "Confirmar",
+         que conserta o registro num clique. */
+      var confirmacaoIncompleta = r.status === 'inscrito' && !r.confirmedByAdmin;
+      var isInscrito = r.status === 'inscrito' && !!r.confirmedByAdmin;
       /* Registros anteriores ao fim do "Justificar…" ainda carregam
          motivoNaoConfirmado. O selo continua sendo desenhado para não
          apagar da tela o que já foi anotado — mas nada grava esse campo
@@ -1083,6 +1095,9 @@
           ? ' por ' + r.substituidaPorNome : '';
         motivoBadge = '<span class="motivo-badge ' + motivoCls + '" title="' + esc(motivoLabel + porQuem) + '">' +
           motivoLabel + (porQuem ? ' <span class="motivo-porquem">' + esc(r.substituidaPorNome) + '</span>' : '') + '</span>';
+      }
+      if (confirmacaoIncompleta) {
+        motivoBadge = '<span class="motivo-badge motivo-incompleta" title="Esta inscrição foi gravada sem registrar quem confirmou, então o sistema não a reconhece: a pessoa fica sem acesso a Conteúdos/Treinamento e vê a própria Minha Área como não confirmada. Clique em Confirmar para regravar corretamente.">Confirmação incompleta</span>' + motivoBadge;
       }
       var statusCell = '<td><span class="status-badge ' + (isInscrito ? 'status-inscrito">Inscrito' : 'status-interessado">Interessado') + '</span>' + motivoBadge + '</td>';
 
@@ -2956,10 +2971,26 @@
       }
       adminConfirm(msg, function () {
         var sess = window.faAuth && window.faAuth.getSession();
+        /* Sem sessão NÃO dá para confirmar ninguém. Gravar
+           confirmedByAdmin: null aqui apagaria o campo (no Realtime
+           Database null é remoção) e criaria uma confirmação pela
+           metade: status 'inscrito' sem quem confirmou. O painel
+           mostrava "Inscrito" — ele olhava só o status — enquanto o
+           resto do sistema, que exige os dois campos, tratava a pessoa
+           como não confirmada: sem acesso a Conteúdos/Treinamento e
+           aparecendo na Minha Área dela como se ninguém a tivesse
+           confirmado. Aconteceu em campo (08-09/09/2026, turma de
+           setembro) — a sessão do admin some sozinha quando a leitura
+           do perfil falha na rede, e o clique seguinte gravava isso
+           sem nenhum aviso. */
+        if (!sess) {
+          adminAlert('Sua sessão de admin não está ativa neste momento — recarregue a página e confirme de novo. Nada foi gravado.');
+          return;
+        }
         var updates = {};
         updates['turmas-interesse/' + turmaKey + '/' + eKey + '/status'] = 'inscrito';
-        updates['turmas-interesse/' + turmaKey + '/' + eKey + '/confirmedByAdmin'] = sess ? sess.email : null;
-        updates['turmas-interesse/' + turmaKey + '/' + eKey + '/confirmedByAdminName'] = sess ? (sess.name || sess.email) : null;
+        updates['turmas-interesse/' + turmaKey + '/' + eKey + '/confirmedByAdmin'] = sess.email;
+        updates['turmas-interesse/' + turmaKey + '/' + eKey + '/confirmedByAdminName'] = sess.name || sess.email;
         updates['turmas-interesse/' + turmaKey + '/' + eKey + '/confirmedDate'] = new Date().toISOString();
         var now = new Date().toISOString();
         overlaps.forEach(function (o) {
@@ -3940,6 +3971,14 @@
 
   function moverParaTurma(person, turmaKey) {
     var sess = window.faAuth && window.faAuth.getSession();
+    /* Mesmo motivo do confirmarInscrito: sem sessão, confirmedByAdmin
+       viraria null (= campo apagado) e a pessoa entraria na turma como
+       inscrita pela metade — vista como confirmada no painel e sem
+       acesso nenhum na prática. */
+    if (!sess) {
+      adminAlert('Sua sessão de admin não está ativa neste momento — recarregue a página e tente de novo. Nada foi gravado.');
+      return;
+    }
     var eKey = emailKeyFromEmail(person.email);
     var now  = new Date().toISOString();
     var destEventoKey = turmaEventoKey(turmaKey);
@@ -3947,8 +3986,8 @@
     updates['turmas-interesse/' + turmaKey + '/' + eKey] = {
       name: person.name, email: person.email, area: person.area || '',
       date: now, removed: false, status: 'inscrito',
-      confirmedByAdmin: sess ? sess.email : null,
-      confirmedByAdminName: sess ? (sess.name || sess.email) : null,
+      confirmedByAdmin: sess.email,
+      confirmedByAdminName: sess.name || sess.email,
       confirmedDate: now,
       fromEspera: true
     };
