@@ -2562,10 +2562,8 @@
      desfazer tudo de uma vez). */
   function montarEscritasLinhaDuracao(l) {
     var escritasDuracao = [];
-    var backupDuracao = [{ atividadeKey: l.atividade.key, campo: 'duracaoMinutos', valorAnterior: l.valorAtual }];
     var patchPrincipal = { duracaoMinutos: l.item.paraMinutos };
     if (l.horaFimNovo !== l.horaFimAtual) {
-      backupDuracao.push({ atividadeKey: l.atividade.key, campo: 'horaFim', valorAnterior: l.horaFimAtual });
       patchPrincipal.horaFim = l.horaFimNovo;
     }
     escritasDuracao.push({ atividadeKey: l.atividade.key, patch: patchPrincipal });
@@ -2580,21 +2578,17 @@
       if (compensarKey && passouCompensar) return;
       if (compensarKey && s.atividade.key === compensarKey) {
         var novaDuracao = (Number(s.atividade.duracaoMinutos) || 0) - l.delta;
-        backupDuracao.push({ atividadeKey: s.atividade.key, campo: 'duracaoMinutos', valorAnterior: s.atividade.duracaoMinutos });
-        backupDuracao.push({ atividadeKey: s.atividade.key, campo: 'horaInicio', valorAnterior: s.horaInicioAtual });
         escritasDuracao.push({ atividadeKey: s.atividade.key, patch: { duracaoMinutos: novaDuracao, horaInicio: s.horaInicioNovo } });
         passouCompensar = true;
         return;
       }
       var patchSeguinte = { horaInicio: s.horaInicioNovo };
-      backupDuracao.push({ atividadeKey: s.atividade.key, campo: 'horaInicio', valorAnterior: s.horaInicioAtual });
       if (s.horaFimNovo !== s.horaFimAtual) {
         patchSeguinte.horaFim = s.horaFimNovo;
-        backupDuracao.push({ atividadeKey: s.atividade.key, campo: 'horaFim', valorAnterior: s.horaFimAtual });
       }
       escritasDuracao.push({ atividadeKey: s.atividade.key, patch: patchSeguinte });
     });
-    return { escritas: escritasDuracao, backup: backupDuracao };
+    return { escritas: escritasDuracao };
   }
 
   /* Calcula o valor NOVO de um campo de texto/tipo a partir de um valor
@@ -2627,12 +2621,10 @@
   }
 
   function aplicarMigracaoAntesDepois(eventoKey, linhasOk, cb) {
-    var backupItens = [];
     var unidades = []; /* { escritas: [...], linhasCount: N } — uma unidade = uma escrita física (ou o grupo de escritas de uma linha "duracao"); linhasCount é quantas linhas do DRY RUN ela representa, pra "X de Y aplicadas" continuar contando por linha, não por escrita física. */
 
     linhasOk.filter(function (l) { return l.item.acao === 'duracao'; }).forEach(function (l) {
       var r = montarEscritasLinhaDuracao(l);
-      backupItens = backupItens.concat(r.backup);
       unidades.push({ escritas: r.escritas, linhasCount: 1 });
     });
 
@@ -2664,55 +2656,29 @@
       var g = grupos[chave];
       var valorCorrente = g.valorInicial;
       g.linhas.forEach(function (l) { valorCorrente = novoValorCampoMigracao(l, valorCorrente); });
-      backupItens.push({ atividadeKey: g.atividadeKey, campo: g.campo, valorAnterior: g.valorInicial });
       var patch = {}; patch[g.campo] = valorCorrente;
       unidades.push({ escritas: [{ atividadeKey: g.atividadeKey, patch: patch }], linhasCount: g.linhas.length });
     });
 
-    var backupRef = db().ref('roteiros-evento/' + eventoKey + '/_migracoesBackup').push();
-    backupRef.set({ criadoEm: new Date().toISOString(), itens: backupItens }, function (errBackup) {
-      if (errBackup) return cb(errBackup);
-      var pendentesUnidades = unidades.length, atualizados = 0;
-      if (!pendentesUnidades) return cb(null, 0);
-      unidades.forEach(function (u) {
-        var pendentesEscritas = u.escritas.length, algumErro = false;
-        if (!pendentesEscritas) { if (!--pendentesUnidades) cb(null, atualizados); return; }
-        u.escritas.forEach(function (e) {
-          editarAtividade(eventoKey, e.atividadeKey, e.patch, function (err) {
-            if (err) algumErro = true;
-            if (!--pendentesEscritas) {
-              if (!algumErro) atualizados += u.linhasCount;
-              if (!--pendentesUnidades) cb(null, atualizados);
-            }
-          });
+    /* Aqui existia uma gravacao em roteiros-evento/<evento>/_migracoesBackup
+       com o valor anterior de cada campo tocado, para o botao "Desfazer
+       ultima migracao" poder reverter. O botao foi removido; sem leitor, a
+       gravacao virou lixo acumulando no banco a cada aplicacao, e os textos
+       dos dialogos prometiam um desfazer que nao existe mais. Removida junto
+       com as duas funcoes que a liam. */
+    var pendentesUnidades = unidades.length, atualizados = 0;
+    if (!pendentesUnidades) return cb(null, 0);
+    unidades.forEach(function (u) {
+      var pendentesEscritas = u.escritas.length, algumErro = false;
+      if (!pendentesEscritas) { if (!--pendentesUnidades) cb(null, atualizados); return; }
+      u.escritas.forEach(function (e) {
+        editarAtividade(eventoKey, e.atividadeKey, e.patch, function (err) {
+          if (err) algumErro = true;
+          if (!--pendentesEscritas) {
+            if (!algumErro) atualizados += u.linhasCount;
+            if (!--pendentesUnidades) cb(null, atualizados);
+          }
         });
-      });
-    });
-  }
-
-  function carregarUltimoBackupMigracao(eventoKey, cb) {
-    db().ref('roteiros-evento/' + eventoKey + '/_migracoesBackup').once('value', function (snap) {
-      var val = snap.val() || {};
-      var chaves = Object.keys(val).sort();
-      if (!chaves.length) return cb(null, null);
-      var ultimaChave = chaves[chaves.length - 1];
-      cb(null, { key: ultimaChave, val: val[ultimaChave] });
-    }, function (err) { cb(err); });
-  }
-
-  function desfazerMigracao(eventoKey, backup, cb) {
-    var itens = backup.itens || [];
-    var pendentes = itens.length;
-    if (!pendentes) return cb(null, 0);
-    var restaurados = 0;
-    itens.forEach(function (it) {
-      var patch = {};
-      patch[it.campo] = it.valorAnterior;
-      editarAtividade(eventoKey, it.atividadeKey, patch, function (err) {
-        if (!err) restaurados++;
-        if (!--pendentes) {
-          db().ref('roteiros-evento/' + eventoKey + '/_migracoesBackup/' + backup.key).remove(function () { cb(null, restaurados); });
-        }
       });
     });
   }
@@ -3084,11 +3050,11 @@
       if (aplicarBtn) {
         aplicarBtn.addEventListener('click', function () {
           var lista = linhasParaAplicar();
-          confirmDialog('Isso vai gravar ' + lista.length + ' alteração(ões) no roteiro-base (inclui as decisões tomadas nesta revisão). O valor anterior de cada campo tocado fica guardado — dá pra desfazer depois pelo botão "↩ Desfazer última migração". Continuar?', function () {
+          confirmDialog('Isso vai gravar ' + lista.length + ' alteração(ões) no roteiro-base (inclui as decisões tomadas nesta revisão). Não há como desfazer automaticamente: confira o Antes x Depois antes de aplicar. Continuar?', function () {
             aplicarMigracaoAntesDepois(eventoKey, lista, function (err, atualizados) {
               close();
               if (err) { alertDialog('Erro ao aplicar a migração: ' + err); return; }
-              alertDialog('Aplicado: ' + atualizados + ' de ' + lista.length + ' alteração(ões).\n\nUse "↩ Desfazer última migração" se precisar reverter.');
+              alertDialog('Aplicado: ' + atualizados + ' de ' + lista.length + ' alteração(ões).');
               reload();
             });
           });
