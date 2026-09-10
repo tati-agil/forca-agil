@@ -14,7 +14,7 @@ afirmações · `[ ]` não conferido.
 
 | camada | total | conferido |
 |---|---|---|
-| regras do Manual (`manual.js`) | 227 | **34** + 8 parciais |
+| regras do Manual (`manual.js`) | 227 | **38** + 8 parciais |
 | features do Mapa (`mapa.js`) | 227 | 0 |
 | itens técnicos do Mapa | 120 | 0 |
 | testes manuais (`testes.js`) | 195 | 0 |
@@ -26,7 +26,7 @@ aspas (`teste-rotulos-doc.js`, que ainda não é portão — ver o cabeçalho de
 
 ## Regras do Manual, por seção
 
-### `admin` — 98 regras (34 conferidas)
+### `admin` — 98 regras (38 conferidas)
 
 - [~] Lista de espera — data e hora de cada registro
 - [x] Sair da turma — um caminho só, sempre com motivo
@@ -106,10 +106,10 @@ aspas (`teste-rotulos-doc.js`, que ainda não é portão — ver o cabeçalho de
 - [ ] Roteiro — resumo agregado "Sessões" no topo do dia
 - [x] Roteiro — aviso de sobreposição de horário
 - [x] Roteiro — seções com sub-etapas (etapas filhas)
-- [ ] Roteiro-base — "+ Etapa" atrás do menu "⋮" em atividade simples
-- [ ] Roteiro-base — aviso de atividades fora da ordem cronológica
-- [ ] Roteiro-base — recalcular horários seguintes ao mudar a duração
-- [ ] Roteiro — exportar (Agenda resumida / Agenda + Objetivos / Roteiro completo / Passo a passo)
+- [x] Roteiro-base — "+ Etapa" atrás do menu "⋯" em atividade simples
+- [x] Roteiro-base — aviso de atividades fora da ordem cronológica
+- [x] Roteiro-base — recalcular horários seguintes ao mudar a duração
+- [x] Roteiro — exportar (Agenda resumida / Agenda + Objetivos / Roteiro completo / Passo a passo)
 - [ ] Roteiro — hierarquia visual atividade/sub-etapa nas exportações em tabela ("Agenda resumida" e "Agenda + Objetivos")
 - [ ] Roteiro — campos "Resultado esperado" e "Prompt para IA"
 - [ ] Roteiro — identidade visual no PDF exportado (Agenda resumida e Roteiro completo)

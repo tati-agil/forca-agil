@@ -78,7 +78,7 @@
     });
   }
 
-  /* Menu "⋮" (mesmo padrão visual de .taa-more-btn/.taa-dropdown já usado
+  /* Menu "⋯" (mesmo padrão visual de .taa-more-btn/.taa-dropdown já usado
      nos cards de turma do admin) só pra "+ Etapa" numa atividade simples
      (sem etapas ainda) — reduz a quantidade de botões na linha até a
      atividade realmente virar seção. Um único listener de documento fecha
@@ -3378,7 +3378,7 @@
             acoes.appendChild(addSubBtn);
           } else {
             /* Atividade ainda simples (sem etapas): "+ Etapa" fica atrás
-               do "⋮" pra não poluir a linha com uma ação pouco usada
+               do "⋯" pra não poluir a linha com uma ação pouco usada
                aqui — assim que a primeira etapa é criada, a atividade
                vira seção e o botão passa a aparecer direto (ramo acima). */
             var moreWrap = document.createElement('div');
