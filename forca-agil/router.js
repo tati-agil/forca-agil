@@ -16,6 +16,15 @@
   function listaFacilitadoresPronta() {
     return !(window.faAuth && window.faAuth.isFacilitadorReady) || window.faAuth.isFacilitadorReady();
   }
+  /* Mesma pergunta, para a inscrição em turma: "já dá pra confiar nesse
+     'member'?". Enquanto as leituras de turmas-interesse não voltaram,
+     getAccessLevel() responde 'member' por não saber ainda — e isso não
+     pode virar expulsão de Conteúdos/Treinamento/Avaliação. Foi o que
+     derrubou gente inscrita no celular, onde as leituras demoram o
+     suficiente pra pessoa clicar antes. */
+  function nivelInscricaoPronto() {
+    return !(window.faAuth && window.faAuth.isEnrolledReady) || window.faAuth.isEnrolledReady();
+  }
 
   /* #facilitador é como #admin — admin OU facilitador, nunca mais ninguém. */
   function podeVerFacilitador(s) {
@@ -49,7 +58,7 @@
        ANTES da sessão, então checar só a lista não bastava. */
     const sessAtual = window.faAuth && window.faAuth.getSession ? window.faAuth.getSession() : null;
     const level = window.faAuth && window.faAuth.getAccessLevel ? window.faAuth.getAccessLevel() : 'member';
-    if ((page === 'conteudos' || page === 'treinamento' || page === 'avaliacao') && sessAtual && level === 'member' && listaAdminsPronta()) {
+    if ((page === 'conteudos' || page === 'treinamento' || page === 'avaliacao') && sessAtual && level === 'member' && listaAdminsPronta() && nivelInscricaoPronto()) {
       location.hash = '#home';
       showAccessMsg('Disponível após confirmação em uma turma.');
       return;
@@ -127,7 +136,7 @@
          A lista chega antes da sessão, então esperar só por ela não bastava
          — era o que ainda derrubava #avaliacao. */
       const blocked = (page === 'conteudos' || page === 'treinamento' || page === 'avaliacao')
-                      && sess && level !== 'enrolled' && listaAdminsPronta();
+                      && sess && level !== 'enrolled' && listaAdminsPronta() && nivelInscricaoPronto();
       if (blocked) {
         page = 'home';
         history.replaceState(null, '', '#home');
@@ -615,6 +624,11 @@
   });
   window.addEventListener('fa-facilitador-ready', function () {
     if (route() === 'facilitador') show('facilitador');
+  });
+  /* A inscrição em turma terminou de ser lida: refaz a decisão de rota,
+     que até agora estava propositalmente sem expulsar ninguém. */
+  window.addEventListener('fa-enrolled-ready', function () {
+    show(route());
   });
 
   window.faRouter = {
