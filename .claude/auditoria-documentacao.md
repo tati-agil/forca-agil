@@ -14,7 +14,7 @@ afirmações · `[ ]` não conferido.
 
 | camada | total | conferido |
 |---|---|---|
-| regras do Manual (`manual.js`) | 227 | **27** + 8 parciais |
+| regras do Manual (`manual.js`) | 227 | **100** + 8 parciais |
 | features do Mapa (`mapa.js`) | 227 | 0 |
 | itens técnicos do Mapa | 120 | 0 |
 | testes manuais (`testes.js`) | 195 | 0 |
@@ -26,7 +26,7 @@ aspas (`teste-rotulos-doc.js`, que ainda não é portão — ver o cabeçalho de
 
 ## Regras do Manual, por seção
 
-### `admin` — 98 regras (27 conferidas)
+### `admin` — 98 regras (90 conferidas)
 
 - [~] Lista de espera — data e hora de cada registro
 - [x] Sair da turma — um caminho só, sempre com motivo
@@ -35,11 +35,11 @@ aspas (`teste-rotulos-doc.js`, que ainda não é portão — ver o cabeçalho de
 - [x] Filtros da turma — cada pessoa em um grupo só
 - [x] Acesso — só quem está na lista de admins
 - [x] Admin tem acesso total ao site, mesmo sem turma própria
-- [ ] Navegação por abas — desktop e mobile
-- [ ] Aba: Dashboard — ler o que cada pessoa respondeu
-- [ ] Aba: Dashboard — como cada número é calculado
-- [ ] Aba: Dashboard
-- [ ] Aba: Dashboard — destaques e temas
+- [x] Navegação por abas — desktop e mobile
+- [x] Aba: Dashboard — ler o que cada pessoa respondeu
+- [x] Aba: Dashboard — como cada número é calculado
+- [x] Aba: Dashboard
+- [x] Aba: Dashboard — destaques e temas
 - [x] Aba: Eventos — visão geral
 - [x] Aba: Eventos — filtro e expand/collapse
 - [x] Aba: Eventos — Eventos (entidade pai das turmas)
@@ -54,11 +54,11 @@ aspas (`teste-rotulos-doc.js`, que ainda não é portão — ver o cabeçalho de
 - [x] Aba: Eventos — encerrar turma (marcar como realizada)
 - [x] Aplicar migração no Roteiro-base não tem desfazer
 - [x] Modais que carregam dados não piscam mais de tamanho
-- [ ] Aba: Eventos — o selo "Confirmação incompleta" e por que ele existe
+- [x] Aba: Eventos — o selo "Confirmação incompleta" e por que ele existe
 - [~] Aba: Eventos — confirmar inscrição (CMFlex)
 - [~] Aba: Eventos — desconfirmar inscrição
 - [x] Aba: Eventos — check-in do dia
-- [ ] Aba: Sorteios — consulta de quem foi sorteado
+- [x] Aba: Sorteios — consulta de quem foi sorteado
 - [x] Aba: Eventos — sorteio da turma
 - [~] Aba: Eventos — a tela não se recolhe a cada ação
 - [x] Aba: Eventos — QR Code
@@ -70,89 +70,89 @@ aspas (`teste-rotulos-doc.js`, que ainda não é portão — ver o cabeçalho de
 - [~] Aba: Eventos — quem está aguardando decisão
 - [x] Aba: Eventos — remover participante
 - [~] Aba: Eventos — pessoa removida pode ser readicionada
-- [ ] Aba: Eventos — seção "Removidos"
-- [ ] Pop-ups do admin — modais visuais (não nativos)
-- [ ] Aba: Treinamentos — a quais eventos cada treinamento pertence
-- [ ] Aba: Certificados — Gerador v1.0
-- [ ] Aba: Certificados — estados: Prévia Administrativa vs. Emissão
-- [ ] Aba: Certificados — frequência mínima para certificado
-- [ ] Aba: Certificados — o que pertence ao template (não alterar)
-- [ ] Aba: Certificados — campos dinâmicos e coordenadas aprovadas
-- [ ] Aba: Eventos — reabrir turma
-- [ ] Aba: Repositório — listar todos os conteúdos
-- [ ] Aba: Repositório — ocultar conteúdo
-- [ ] Aba: Repositório — restaurar conteúdo
-- [ ] Aba: Repositório — deletar permanentemente
-- [ ] Aba: Cadastrados — listar
-- [ ] Aba: Cadastrados — criar conta pelo admin
-- [ ] Aba: Cadastrados — resetar progresso
-- [ ] Aba: Cadastrados — redefinir senha
-- [ ] Aba: Administradores — consultar lista
-- [ ] Aba: Administradores — super-admins fixos
-- [ ] Aba: Administradores — admins adicionais
-- [ ] Painel Admin — carregamento ao abrir #admin direto
-- [ ] Aba: Administradores — tratamento de erro na leitura
-- [ ] Aba: Diretores
-- [ ] Aba: Tipos de atividade
-- [ ] Aba: Facilitadores — cadastro global
-- [ ] Aba: Eventos — Equipe de facilitação de uma turma
-- [ ] Aba: Eventos — Roteiro de Facilitação do evento (roteiro-base)
-- [ ] Aba: Eventos — Roteiro da turma (personalização)
-- [ ] Roteiro — Tipo de atividade (lista administrável)
-- [ ] Roteiro — campo de texto não força mais maiúsculas ao digitar
-- [ ] Roteiro — resumo do dia (janela, programado, facilitação, pausas, lacunas reais)
-- [ ] Roteiro — diferença entre Intervalo (pausa) e Lacuna (buraco)
-- [ ] Roteiro — Sessões/janelas (ex: Manhã e Tarde) num mesmo dia
-- [ ] Roteiro — resumo agregado "Sessões" no topo do dia
-- [ ] Roteiro — aviso de sobreposição de horário
-- [ ] Roteiro — seções com sub-etapas (etapas filhas)
-- [ ] Roteiro-base — "+ Etapa" atrás do menu "⋮" em atividade simples
-- [ ] Roteiro-base — aviso de atividades fora da ordem cronológica
-- [ ] Roteiro-base — recalcular horários seguintes ao mudar a duração
-- [ ] Roteiro — exportar (Agenda resumida / Agenda + Objetivos / Roteiro completo / Passo a passo)
-- [ ] Roteiro — hierarquia visual atividade/sub-etapa nas exportações em tabela ("Agenda resumida" e "Agenda + Objetivos")
-- [ ] Roteiro — campos "Resultado esperado" e "Prompt para IA"
-- [ ] Roteiro — identidade visual no PDF exportado (Agenda resumida e Roteiro completo)
-- [ ] Roteiro — paginação sem grandes áreas vazias no PDF exportado ("Roteiro completo" e "Passo a passo")
-- [ ] Roteiro — Markdown de campos de texto renderizado no PDF exportado ("Agenda + Objetivos", "Roteiro completo" e "Passo a passo")
-- [ ] Roteiro — rodapé próprio de página no PDF exportado
-- [ ] Aba: Manual
-- [ ] Aba: Manual — filtrar por seção e persona
-- [ ] Aba: Manual — expandir/recolher tudo
-- [ ] Aba: Mapa
-- [ ] Aba: Mapa — estrutura dos dados em mapa.js
-- [ ] Aba: Testes
-- [ ] Aba: Pedidos
-- [ ] Aba: Pedidos — responder um pedido
-- [ ] Aba: Pedidos — marcar como respondido e prazo em dias úteis
-- [ ] Aba: Pedidos — excluir com justificativa
+- [x] Aba: Eventos — seção "Removidos"
+- [x] Pop-ups do admin — modais visuais (não nativos)
+- [x] Aba: Treinamentos — a quais eventos cada treinamento pertence
+- [x] Aba: Certificados — Gerador v1.0
+- [x] Aba: Certificados — estados: Prévia Administrativa vs. Emissão
+- [x] Aba: Certificados — frequência mínima para certificado
+- [x] Aba: Certificados — o que pertence ao template (não alterar)
+- [x] Aba: Certificados — campos dinâmicos e coordenadas aprovadas
+- [x] Aba: Eventos — reabrir turma
+- [x] Aba: Repositório — listar todos os conteúdos
+- [x] Aba: Repositório — ocultar conteúdo
+- [x] Aba: Repositório — restaurar conteúdo
+- [x] Aba: Repositório — deletar permanentemente
+- [x] Aba: Cadastrados — listar
+- [x] Aba: Cadastrados — criar conta pelo admin
+- [x] Aba: Cadastrados — resetar progresso
+- [x] Aba: Cadastrados — redefinir senha
+- [x] Aba: Administradores — consultar lista
+- [x] Aba: Administradores — super-admins fixos
+- [x] Aba: Administradores — admins adicionais
+- [x] Painel Admin — carregamento ao abrir #admin direto
+- [x] Aba: Administradores — tratamento de erro na leitura
+- [x] Aba: Diretores
+- [x] Aba: Tipos de atividade
+- [x] Aba: Facilitadores — cadastro global
+- [x] Aba: Eventos — Equipe de facilitação de uma turma
+- [x] Aba: Eventos — Roteiro de Facilitação do evento (roteiro-base)
+- [x] Aba: Eventos — Roteiro da turma (personalização)
+- [x] Roteiro — Tipo de atividade (lista administrável)
+- [x] Roteiro — campo de texto não força mais maiúsculas ao digitar
+- [x] Roteiro — resumo do dia (janela, programado, facilitação, pausas, lacunas reais)
+- [x] Roteiro — diferença entre Intervalo (pausa) e Lacuna (buraco)
+- [x] Roteiro — Sessões/janelas (ex: Manhã e Tarde) num mesmo dia
+- [x] Roteiro — resumo agregado "Sessões" no topo do dia
+- [x] Roteiro — aviso de sobreposição de horário
+- [x] Roteiro — seções com sub-etapas (etapas filhas)
+- [x] Roteiro-base — "+ Etapa" atrás do menu "⋯" em atividade simples
+- [x] Roteiro-base — aviso de atividades fora da ordem cronológica
+- [x] Roteiro-base — recalcular horários seguintes ao mudar a duração
+- [x] Roteiro — exportar (Agenda resumida / Agenda + Objetivos / Roteiro completo / Passo a passo)
+- [x] Roteiro — hierarquia visual atividade/sub-etapa nas exportações em tabela ("Agenda resumida" e "Agenda + Objetivos")
+- [x] Roteiro — campos "Resultado esperado" e "Prompt para IA"
+- [x] Roteiro — identidade visual no PDF exportado (Agenda resumida e Roteiro completo)
+- [x] Roteiro — paginação sem grandes áreas vazias no PDF exportado ("Roteiro completo" e "Passo a passo")
+- [x] Roteiro — Markdown de campos de texto renderizado no PDF exportado ("Agenda + Objetivos", "Roteiro completo" e "Passo a passo")
+- [x] Roteiro — rodapé próprio de página no PDF exportado
+- [x] Aba: Manual
+- [x] Aba: Manual — filtrar por seção e persona
+- [x] Aba: Manual — expandir/recolher tudo
+- [x] Aba: Mapa
+- [x] Aba: Mapa — estrutura dos dados em mapa.js
+- [x] Aba: Testes
+- [x] Aba: Pedidos
+- [x] Aba: Pedidos — responder um pedido
+- [x] Aba: Pedidos — marcar como respondido e prazo em dias úteis
+- [x] Aba: Pedidos — excluir com justificativa
 
-### `turmas` — 24 regras (0 conferidas)
+### `turmas` — 24 regras (10 conferidas)
 
 - [ ] Lista de espera — entrar
-- [ ] Lista de espera — sair
-- [ ] Lista de espera — quem saiu da fila
+- [x] Lista de espera — sair
+- [x] Lista de espera — quem saiu da fila
 - [ ] Lista de espera — conferência da fila
-- [ ] Lista de espera — uma linha por turma de origem
+- [x] Lista de espera — uma linha por turma de origem
 - [ ] Lista de espera — mover para turma
 - [ ] Lista de espera — remover sem mover
 - [ ] Lista de espera — migrar da turma
 - [ ] Acesso geral — mesma página para todos os perfis
-- [ ] Turma com interesse encerrado — inscrições encerradas (antes da turma iniciar)
-- [ ] Turma em andamento — card automático a partir do primeiro dia
-- [ ] Turma realizada — card automático após o último dia ou ação do admin
+- [x] Turma com interesse encerrado — inscrições encerradas (antes da turma iniciar)
+- [x] Turma em andamento — card automático a partir do primeiro dia
+- [x] Turma realizada — card automático após o último dia ou ação do admin
 - [ ] Bloco "A Missão" e "Como funciona" — por evento, opcional
 - [ ] Itinerário dia a dia — por evento, itens estáticos
 - [ ] Se a sessão expirar com a página aberta
-- [ ] Registrar interesse → botão vira "Remover interesse" + mensagem sobre CMFlex
-- [ ] Remover interesse → botão volta a "Tenho interesse"
-- [ ] Quem já é Inscrita não pode se autorremover — botão fica travado
+- [x] Registrar interesse → botão vira "Remover interesse" + mensagem sobre CMFlex
+- [x] Remover interesse → botão volta a "Tenho interesse"
+- [x] Quem já é Inscrita não pode se autorremover — botão fica travado
 - [ ] Corrida: turma encerra interesse entre carregar a página e clicar em "Tenho interesse"
 - [ ] Corrida rara: turma encerra interesse com a página já aberta
 - [ ] Falha ao gravar no Firebase
 - [ ] Se a verificação inicial falhar, a pessoa não vê nenhum aviso
 - [ ] Botão "Tenho interesse"/"Remover interesse" não duplica ações ao sair e voltar da página
-- [ ] Botão "Tenho interesse"/"Remover interesse" fica desabilitado durante a gravação no Firebase
+- [x] Botão "Tenho interesse"/"Remover interesse" fica desabilitado durante a gravação no Firebase
 
 ### `cadastrar` — 14 regras (0 conferidas)
 
@@ -297,10 +297,16 @@ aspas (`teste-rotulos-doc.js`, que ainda não é portão — ver o cabeçalho de
 
 ## Ordem sugerida para continuar
 
-1. **As 22 regras do Roteiro de Facilitação** (dentro de `admin`, sem prefixo de
-   aba). Maior rendimento esperado: é a feature mais nova, e o padrão desta
-   auditoria é que a documentação apodrece com a MUDANÇA, não com o tempo — as
-   regras estáveis há meses conferiram palavra por palavra.
+1. ~~As 21 regras do Roteiro de Facilitação~~ — FEITO, e a previsão estava
+   errada. Eu esperava o maior rendimento por ser a feature mais nova; deu 3
+   divergências em 21 (14%), MENOS que a aba Eventos (7 em 21, 33%). As regras
+   de PDF, as mais detalhadas do Manual inteiro, passaram inteiras.
+
+   A correlação não é "código recente". É **"código que mudou depois de o texto
+   ser escrito"**. O Roteiro foi documentado junto com a implementação e não foi
+   mexido desde então; a aba Eventos descreve código reescrito várias vezes por
+   cima. Ao escolher o próximo lote, procure onde houve RETRABALHO — não onde é
+   novo.
 2. As 8 abas menores de `admin` (Certificados, Dashboard, Repositório,
    Cadastrados, Administradores, Pedidos, Tipos de atividade, Sorteios).
 3. `turmas` (24) e `cadastrar` (14) — fluxo público, muita mudança em agosto.
