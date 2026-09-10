@@ -22,6 +22,10 @@ Este repositório não tem bundler, linter nem suíte de testes automatizada loc
 
 3. Se `index.html` foi alterado, uma checagem rápida de sanidade (tags balanceadas é demais para checar sem parser HTML de verdade — pelo menos confirme visualmente, na revisão do diff, que toda tag `<div>`/`<section>` aberta para uma feature nova foi fechada).
 
+4. **Se a mudança tem efeito visual ou depende de leitura do Firebase, carregue a página de verdade — nos dois formatos de tela.** Sintaxe não vê tela, e provas de lógica escritas à mão testam uma cópia do código, não o código. Rode `node .github/scripts/teste-tela-preta.js` (com o site servido em `127.0.0.1:8811`, como o CI faz): ele já carrega o `index.html` real em desktop e celular, com o Firebase substituído por um falso, e não precisa de rede nem de segredo. Se a sua mudança mexe em algo que aquele teste não cobre, copie o padrão dele — servidor local + `page.route('**/firebasejs/**')` para o falso + `devices['Pixel 5']` ao lado do desktop — e meça o que interessa, em vez de raciocinar sobre o que deveria acontecer.
+
+   O motivo está no `CLAUDE.md`: celular e computador são a mesma entrega, e rede lenta é condição normal de celular. Os dois piores defeitos deste projeto (expulsão de rota por corrida de leitura, e a tela preta na espera do login) eram invisíveis no computador do escritório e só apareceram com 20 pessoas no 4G de uma sala.
+
 Só depois de tudo passar, siga com o `git push` e a abertura do PR, como já é de praxe neste projeto.
 
 ## Se algo falhar
