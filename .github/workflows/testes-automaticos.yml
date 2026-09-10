@@ -30,6 +30,16 @@ jobs:
           python3 -m http.server 8811 --bind 127.0.0.1 &
           sleep 2
 
+      # Roda ANTES da suíte do painel: é hermético (Firebase falso, sem
+      # segredo e sem rede) e cobre justamente o que a outra suíte não
+      # alcança — a espera antes do login resolver. Se a tela fica preta,
+      # não adianta testar o painel que vem depois dela.
+      - name: Tela preta na espera do login (desktop e celular)
+        env:
+          NODE_PATH: /tmp/pw-deps/node_modules
+          FA_BASE_URL: http://127.0.0.1:8811
+        run: node .github/scripts/teste-tela-preta.js
+
       - name: Rodar suíte "Automáticos" de testes.js
         env:
           NODE_PATH: /tmp/pw-deps/node_modules

@@ -99,7 +99,68 @@ input[type="number"]::-webkit-outer-spin-button {
 }
 
 body.aguardando-auth { background: #000 !important; }
-body.aguardando-auth > *:not(#authModal) { display: none !important; }
+body.aguardando-auth > *:not(#authModal):not(#bootStatus) { display: none !important; }
+
+/* ---------- Estado de carregamento (ver #bootStatus no index.html) ----------
+   Enquanto a sessão não resolve, isto é a ÚNICA coisa na tela. Antes daqui
+   existir, a espera era preto absoluto: medido em 0 elemento visível aos 2s
+   em rede lenta, leitura travada, auth sem resposta e SDK fora do ar — nos
+   quatro casos, desktop e mobile. Tudo em CSS puro, de propósito: não pode
+   depender de nenhum script, porque o script é justamente o que pode estar
+   sem carregar quando esta tela aparece. */
+#bootStatus { display: none; }
+body.aguardando-auth #bootStatus {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 18px;
+  position: fixed;
+  inset: 0;
+  padding: 24px;
+  text-align: center;
+  color: var(--ink-2, #b8c6e4);
+  font-family: var(--font-body, system-ui, sans-serif);
+}
+/* Modal de login aberto → a espera acabou, este bloco sai da frente.
+   Seletor de irmão, sem JavaScript: o #bootStatus vem depois do #authModal. */
+body.aguardando-auth #authModal:not([hidden]) ~ #bootStatus { display: none !important; }
+
+.boot-orbita { position: relative; width: 64px; height: 64px; }
+.boot-orbita span {
+  position: absolute;
+  inset: 0;
+  border: 2px solid transparent;
+  border-top-color: var(--gold, #f5c518);
+  border-radius: 50%;
+  animation: bootGira 1.4s linear infinite;
+}
+.boot-orbita span:nth-child(2) { inset: 10px; border-top-color: var(--cyan, #18c2ba); animation-duration: 2s; animation-direction: reverse; }
+.boot-orbita span:nth-child(3) { inset: 20px; border-top-color: var(--blue-glow, #5aa0ee); animation-duration: 2.6s; }
+@keyframes bootGira { to { transform: rotate(360deg); } }
+
+.boot-msg {
+  margin: 0;
+  font-size: .95rem;
+  letter-spacing: .12em;
+  text-transform: uppercase;
+}
+/* Só aparece se a espera passar de 4s — quem entra numa rede boa nunca vê,
+   e quem está numa rede ruim para de achar que o site morreu. */
+.boot-lenta {
+  margin: 0;
+  max-width: 30ch;
+  font-size: .82rem;
+  color: var(--ink-3, #8ea0c4);
+  opacity: 0;
+  animation: bootLenta .4s ease 4s forwards;
+}
+@keyframes bootLenta { to { opacity: 1; } }
+
+@media (prefers-reduced-motion: reduce) {
+  .boot-orbita span { animation: none; border-top-color: var(--gold, #f5c518); }
+  .boot-lenta { animation-duration: .01s; }
+}
 body {
   font-family: var(--font-body);
   background: var(--space-0);
