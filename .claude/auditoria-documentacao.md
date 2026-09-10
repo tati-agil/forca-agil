@@ -14,7 +14,7 @@ afirmações · `[ ]` não conferido.
 
 | camada | total | conferido |
 |---|---|---|
-| regras do Manual (`manual.js`) | 227 | **44** + 8 parciais |
+| regras do Manual (`manual.js`) | 227 | **49** + 8 parciais |
 | features do Mapa (`mapa.js`) | 227 | 0 |
 | itens técnicos do Mapa | 120 | 0 |
 | testes manuais (`testes.js`) | 195 | 0 |
@@ -26,7 +26,7 @@ aspas (`teste-rotulos-doc.js`, que ainda não é portão — ver o cabeçalho de
 
 ## Regras do Manual, por seção
 
-### `admin` — 98 regras (44 conferidas)
+### `admin` — 98 regras (49 conferidas)
 
 - [~] Lista de espera — data e hora de cada registro
 - [x] Sair da turma — um caminho só, sempre com motivo
@@ -73,11 +73,11 @@ aspas (`teste-rotulos-doc.js`, que ainda não é portão — ver o cabeçalho de
 - [ ] Aba: Eventos — seção "Removidos"
 - [ ] Pop-ups do admin — modais visuais (não nativos)
 - [ ] Aba: Treinamentos — a quais eventos cada treinamento pertence
-- [ ] Aba: Certificados — Gerador v1.0
-- [ ] Aba: Certificados — estados: Prévia Administrativa vs. Emissão
-- [ ] Aba: Certificados — frequência mínima para certificado
-- [ ] Aba: Certificados — o que pertence ao template (não alterar)
-- [ ] Aba: Certificados — campos dinâmicos e coordenadas aprovadas
+- [x] Aba: Certificados — Gerador v1.0
+- [x] Aba: Certificados — estados: Prévia Administrativa vs. Emissão
+- [x] Aba: Certificados — frequência mínima para certificado
+- [x] Aba: Certificados — o que pertence ao template (não alterar)
+- [x] Aba: Certificados — campos dinâmicos e coordenadas aprovadas
 - [ ] Aba: Eventos — reabrir turma
 - [ ] Aba: Repositório — listar todos os conteúdos
 - [ ] Aba: Repositório — ocultar conteúdo
@@ -297,10 +297,16 @@ aspas (`teste-rotulos-doc.js`, que ainda não é portão — ver o cabeçalho de
 
 ## Ordem sugerida para continuar
 
-1. **As 22 regras do Roteiro de Facilitação** (dentro de `admin`, sem prefixo de
-   aba). Maior rendimento esperado: é a feature mais nova, e o padrão desta
-   auditoria é que a documentação apodrece com a MUDANÇA, não com o tempo — as
-   regras estáveis há meses conferiram palavra por palavra.
+1. ~~As 21 regras do Roteiro de Facilitação~~ — FEITO, e a previsão estava
+   errada. Eu esperava o maior rendimento por ser a feature mais nova; deu 3
+   divergências em 21 (14%), MENOS que a aba Eventos (7 em 21, 33%). As regras
+   de PDF, as mais detalhadas do Manual inteiro, passaram inteiras.
+
+   A correlação não é "código recente". É **"código que mudou depois de o texto
+   ser escrito"**. O Roteiro foi documentado junto com a implementação e não foi
+   mexido desde então; a aba Eventos descreve código reescrito várias vezes por
+   cima. Ao escolher o próximo lote, procure onde houve RETRABALHO — não onde é
+   novo.
 2. As 8 abas menores de `admin` (Certificados, Dashboard, Repositório,
    Cadastrados, Administradores, Pedidos, Tipos de atividade, Sorteios).
 3. `turmas` (24) e `cadastrar` (14) — fluxo público, muita mudança em agosto.
