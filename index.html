@@ -4,8 +4,16 @@
 <head>
 <meta charset="UTF-8" />
 <style>
+/* Portão de espera, inline de propósito: vale já na primeira pintura, antes
+   de qualquer CSS externo chegar. A cortina preta do ::before cobre tudo até
+   z-index 899, então quem precisa aparecer por cima dela (o login e o
+   indicador de carregamento) tem que ficar acima disso — e precisa estar
+   isento das duas regras, aqui e no styles.css. Sem o #bootStatus isento,
+   esta espera é preto absoluto: 0 elemento visível aos 2s em rede lenta,
+   medido no desktop e no celular. */
 body.aguardando-auth::before{content:'';position:fixed;inset:0;background:#000;z-index:899}
-body.aguardando-auth>*:not(#authModal){visibility:hidden}
+body.aguardando-auth>*:not(#authModal):not(#bootStatus){visibility:hidden}
+body.aguardando-auth>#bootStatus{z-index:900}
 </style>
 <meta name="robots" content="noindex, nofollow" />
 <meta name="google-site-verification" content="i5xbn0vjNdwGMe7vWJQyg8uJ5qRDVDhy7pNe4GQVeAc" />
@@ -1672,6 +1680,23 @@ body.aguardando-auth>*:not(#authModal){visibility:hidden}
     <p class="qr-modal-url" id="qrModalUrl"></p>
     <button class="btn btn--sm" id="qrModalClose">FECHAR</button>
   </div>
+</div>
+
+<!-- ======================================================
+     ESTADO DE CARREGAMENTO
+     O body inteiro fica escondido (class "aguardando-auth") até o Firebase
+     confirmar a sessão. Sem nada aqui, isso é uma tela PRETA de até 10
+     segundos numa rede ruim — indistinguível de um site quebrado, e foi
+     exatamente o que aconteceu no 4G da oficina. Este bloco é a única
+     coisa, além do modal de login, que o CSS deixa aparecer enquanto a
+     espera dura. Fica depois do #authModal de propósito: quando o modal
+     abre, o seletor irmão apaga este bloco sem precisar de JavaScript —
+     e assim nada aqui pode travar o caminho que revela o site.
+     ====================================================== -->
+<div id="bootStatus" role="status" aria-live="polite">
+  <div class="boot-orbita" aria-hidden="true"><span></span><span></span><span></span></div>
+  <p class="boot-msg">Carregando…</p>
+  <p class="boot-lenta">A conexão está lenta. Se esta tela não sair, verifique a rede e recarregue a página.</p>
 </div>
 
 <!-- ===== Scripts ===== -->
