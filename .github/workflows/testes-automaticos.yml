@@ -30,6 +30,12 @@ jobs:
           python3 -m http.server 8811 --bind 127.0.0.1 &
           sleep 2
 
+      # Não precisa de navegador nem de rede: só lê os arquivos e compara o
+      # que a documentação AFIRMA com o que o código faz. É o mais rápido de
+      # todos, então roda primeiro.
+      - name: Consistência entre documentação e implementação
+        run: node .github/scripts/teste-consistencia-docs.js
+
       # Roda ANTES da suíte do painel: é hermético (Firebase falso, sem
       # segredo e sem rede) e cobre justamente o que a outra suíte não
       # alcança — a espera antes do login resolver. Se a tela fica preta,
