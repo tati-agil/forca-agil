@@ -237,6 +237,11 @@
        a turma restrita apareceria por um instante para quem não pode vê-la —
        e um vislumbre já é o vazamento que a restrição existe para evitar. */
     var _publicoPorTurma = {};
+    /* Público restrito por EVENTO (eventos-publico/<evento>/<chave do e-mail>):
+       a mesma ideia um nível acima, valendo para todas as turmas do evento e
+       para o card de lista de espera dele. Lido na mesma corrente, pelo mesmo
+       motivo: chegar depois é piscar na tela o que não devia aparecer. */
+    var _publicoPorEvento = {};
 
     /* Formato dos encontros do evento (eventos/<evento>/formato) — usado no
        chip "dia(s) de encontro(s)" do bloco "Como funciona". "hibrido" é os
@@ -283,6 +288,7 @@
                 esperaAtiva: e.esperaAtiva !== false,
                 publicado: e.publicado !== false,
                 restritoADiretores: !!e.restritoADiretores,
+                publicoRestrito: !!e.publicoRestrito,
                 /* Chips do bloco "Como funciona" — vazio usa o texto padrão
                    (ver renderMissaoEventos), então evento antigo sem esses
                    campos continua mostrando exatamente o que sempre mostrou. */
@@ -304,20 +310,40 @@
                 publicoRestrito: !!val[key].publicoRestrito
               };
             }).sort(function (a, b) { return a.order - b.order; });
-            db.ref('turmas-publico').once('value', function (pubSnap) {
-              _publicoPorTurma = pubSnap.val() || {};
+            Promise.all([
+              db.ref('turmas-publico').once('value'),
+              db.ref('eventos-publico').once('value')
+            ]).then(function (pubSnaps) {
+              _publicoPorTurma  = pubSnaps[0].val() || {};
+              _publicoPorEvento = pubSnaps[1].val() || {};
               cb(_turmasList);
-            }, function () {
-              /* Leitura falhou: trata como "não conheço lista nenhuma", e a
-                 regra abaixo esconde toda turma restrita. Falhar escondendo é
-                 o lado seguro — o contrário mostraria turma fechada a quem
-                 não devia ver. */
-              _publicoPorTurma = {};
+            }).catch(function () {
+              /* Leitura falhou: trata como "não conheço lista nenhuma", e as
+                 regras abaixo escondem toda turma e todo evento restrito.
+                 Falhar escondendo é o lado seguro — o contrário mostraria
+                 turma fechada a quem não devia ver. */
+              _publicoPorTurma  = {};
+              _publicoPorEvento = {};
               cb(_turmasList);
             });
           });
         });
       });
+    }
+
+    /* Evento de público predefinido (eventos/<evento>/publicoRestrito): só
+       existe, no site, para quem está na lista de e-mails dele — e para admin,
+       que vê tudo, como no evento restrito a diretores e na turma restrita.
+       É a restrição mais ampla: some o título, as turmas, o card de espera e
+       a Missão, porque oferecer o que a pessoa não pode fazer é pior do que
+       não oferecer. Vale por PESSOA, não é o mesmo que despublicar. */
+    function eventoVisivelPara(ev) {
+      if (!ev.publicoRestrito) return true;
+      var email = _sess && _sess.email;
+      if (!email) return false;
+      if (window.faAuth && window.faAuth.isAdmin(email)) return true;
+      var lista = _publicoPorEvento[ev.key];
+      return !!(lista && lista[emailKey(email)]);
     }
 
     /* Quem pode ver esta turma. Turma aberta: todo mundo, como sempre.
@@ -432,6 +458,7 @@
         var podeVer = !!(email && window.faAuth && (window.faAuth.isAdmin(email) || window.faAuth.isDiretor(email)));
         if (!podeVer) return false;
       }
+      if (!eventoVisivelPara(ev)) return false;
       return !!(porEvento[ev.key] && porEvento[ev.key].length) || !!ev.esperaAtiva;
     }
 
@@ -649,17 +676,35 @@
       btn.disabled = true;
       var key = emailKey(sess.email);
       var now = new Date().toISOString();
-      /* Uma origem por evento — "lista:<eventoKey>" — para dar pra esperar
-         por mais de um evento sem uma entrada escrever por cima da outra. */
-      var origem = window.faTurmasUtil.ORIGEM_DIRETA + ':' + eventoKey;
-      firebase.database().ref('fa-espera/' + key + '/' + origem).set({
-        name: sess.name, email: sess.email, area: sess.area || '', date: now, removed: false,
-        eventoKey: eventoKey
-      }, function (err) {
-        btn.disabled = false;
-        if (err) { showEsperaMsg(btn, 'Erro ao registrar. Tente novamente.'); return; }
-        setEsperaDone(btn);
+      /* A fila é do evento, então a lista do evento vale aqui igual: o card
+         só aparece para quem está nela, mas a página pode estar aberta desde
+         antes de o evento virar restrito — revalidar no clique é o mesmo
+         cuidado do "Tenho interesse". */
+      firebase.database().ref('eventos/' + eventoKey + '/publicoRestrito').once('value', function (restSnap) {
+        if (!restSnap.val()) { gravarEspera(); return; }
+        firebase.database().ref('eventos-publico/' + eventoKey + '/' + key).once('value', function (pubSnap) {
+          if (!pubSnap.val()) {
+            btn.disabled = false;
+            showEsperaMsg(btn, 'Este evento &eacute; de p&uacute;blico restrito e voc&ecirc; n&atilde;o est&aacute; na lista dele.');
+            return;
+          }
+          gravarEspera();
+        });
       });
+
+      function gravarEspera() {
+        /* Uma origem por evento — "lista:<eventoKey>" — para dar pra esperar
+           por mais de um evento sem uma entrada escrever por cima da outra. */
+        var origem = window.faTurmasUtil.ORIGEM_DIRETA + ':' + eventoKey;
+        firebase.database().ref('fa-espera/' + key + '/' + origem).set({
+          name: sess.name, email: sess.email, area: sess.area || '', date: now, removed: false,
+          eventoKey: eventoKey
+        }, function (err) {
+          btn.disabled = false;
+          if (err) { showEsperaMsg(btn, 'Erro ao registrar. Tente novamente.'); return; }
+          setEsperaDone(btn);
+        });
+      }
     }
 
     function removeEspera(btn, sess, eventoKey) {
@@ -762,12 +807,19 @@
          tempo e o admin ter encerrado o interesse nesse meio-tempo */
       firebase.database().ref('turmas-config/' + turmaKey + '/finalizada').once('value', function (cfgSnap) {
         if (cfgSnap.val()) { btn.disabled = false; showMsg(turmaKey, 'Esta turma está encerrada para novas inscrições.'); return; }
-        /* Mesma ideia da checagem acima: a turma pode ter virado restrita, ou
-           a pessoa pode ter saído da lista, depois de a página carregar. */
-        firebase.database().ref('turmas/' + turmaKey + '/publicoRestrito').once('value', function (restSnap) {
-          if (!restSnap.val()) { gravarInteresse(); return; }
-          firebase.database().ref('turmas-publico/' + turmaKey + '/' + key).once('value', function (pubSnap) {
-            if (!pubSnap.val()) {
+        /* Mesma ideia da checagem acima: a turma (ou o evento dela) pode ter
+           virado restrita, ou a pessoa pode ter saído da lista, depois de a
+           página carregar. As duas restrições se somam: o evento é a mais
+           ampla e por isso vem primeiro. */
+        var evKey = (_turmasList.filter(function (t) { return t.key === turmaKey; })[0] || {}).eventoKey || '';
+        checarPublicoRestrito('eventos/' + evKey, 'eventos-publico/' + evKey, evKey, function (okEvento) {
+          if (!okEvento) {
+            btn.disabled = false;
+            showMsg(turmaKey, 'Este evento é de público restrito e você não está na lista dele.');
+            return;
+          }
+          checarPublicoRestrito('turmas/' + turmaKey, 'turmas-publico/' + turmaKey, turmaKey, function (okTurma) {
+            if (!okTurma) {
               btn.disabled = false;
               showMsg(turmaKey, 'Esta turma é de público restrito e você não está na lista dela.');
               return;
@@ -775,6 +827,19 @@
             gravarInteresse();
           });
         });
+
+        /* Pergunta ao banco (não ao que a página leu quando abriu) se a
+           restrição está ligada e, se estiver, se esta pessoa está na lista.
+           Alvo inexistente — turma sem evento — nunca restringe nada. */
+        function checarPublicoRestrito(refBase, refLista, alvoKey, done) {
+          if (!alvoKey) { done(true); return; }
+          firebase.database().ref(refBase + '/publicoRestrito').once('value', function (restSnap) {
+            if (!restSnap.val()) { done(true); return; }
+            firebase.database().ref(refLista + '/' + key).once('value', function (pubSnap) {
+              done(!!pubSnap.val());
+            }, function () { done(false); });
+          }, function () { done(false); });
+        }
 
         function gravarInteresse() {
           firebase.database().ref('turmas-interesse/' + turmaKey + '/' + key).set(entry, function (err) {
@@ -855,6 +920,14 @@
        renderizou sem o evento restrito. Este segundo listener cobre esse
        atraso, sem re-executar nada enquanto ele não chegar. */
     window.addEventListener('fa-diretor-ready', function () {
+      if (window.faRouter && window.faRouter.current() === 'turmas') initTurmaInterest();
+    });
+    /* Mesmo atraso, outra leitura: isAdmin() também só resolve depois de ler
+       fa-admins, e é ele que dá à admin o passe livre nas turmas e eventos de
+       público restrito. Sem este listener, a admin que não está na lista via
+       a página sem eles até navegar de novo — e, no 4G da sala, esse "até"
+       dura segundos. */
+    window.addEventListener('fa-admin-ready', function () {
       if (window.faRouter && window.faRouter.current() === 'turmas') initTurmaInterest();
     });
   });

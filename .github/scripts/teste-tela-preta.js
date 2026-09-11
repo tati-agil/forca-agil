@@ -43,7 +43,7 @@ function bancoBase() {
     'turmas-interesse': interesse, 'fa-users': users, 'fa-admins': admins,
     'turmas-config': {}, 'turmas-checkin': {}, 'turmas-espera': {},
     'turmas-equipe': {}, 'fa-facilitadores': {}, 'fa-diretores': {}, eventos: {},
-    'turmas-publico': {}
+    'turmas-publico': {}, 'eventos-publico': {}
   };
 }
 
@@ -60,6 +60,11 @@ const CENARIOS = [
      novo: se travar ou falhar, nada do que depende dela pode apagar a tela. */
   { nome: 'turmas-publico travado',   cfg: { delayDefault: 20, delays: { 'turmas-publico': 999000 } } },
   { nome: 'turmas-publico com erro',  cfg: { delayDefault: 20, fail: ['turmas-publico'] } },
+  /* eventos-publico entrou nas MESMAS correntes quando nasceu o evento de
+     público predefinido, e travar uma leitura da corrente trava a corrente
+     inteira — o mesmo risco, um nó novo. */
+  { nome: 'eventos-publico travado',  cfg: { delayDefault: 20, delays: { 'eventos-publico': 999000 } } },
+  { nome: 'eventos-publico com erro', cfg: { delayDefault: 20, fail: ['eventos-publico'] } },
   { nome: 'auth nunca responde',      cfg: { delayDefault: 20, authDelay: 999000 } },
   { nome: 'SDK do Firebase fora',     cfg: { delayDefault: 20 }, semSdk: true },
 ];
