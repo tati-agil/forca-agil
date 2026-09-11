@@ -4767,6 +4767,404 @@
   }
 
   /* ---- Cadastrados (todos que fizeram cadastro) ---- */
+  /* ---- Editar o cadastro de uma pessoa -----------------------------------
+     O nome e a área NÃO moram só em fa-users. Toda vez que alguém entra numa
+     turma, na fila de espera, numa lista de público restrito, numa equipe de
+     facilitação ou registra presença, o nome e a área são COPIADOS para
+     dentro daquele registro — é assim que o painel monta cada tabela sem ter
+     de ler o cadastro de todo mundo.
+
+     Então corrigir o nome só em fa-users conserta o cadastro e deixa o nome
+     errado em todos os outros lugares: a admin corrigiria, olharia a tabela
+     da turma e juraria que o site ignorou. É a divergência silenciosa que a
+     skill criterio-de-estado existe para impedir. Por isso a edição atualiza
+     o cadastro E todas as cópias, numa gravação atômica só — ou vai tudo, ou
+     não vai nada.
+
+     O que NÃO é reescrito, de propósito: turmas-interesse-log e os sorteios
+     já realizados. Log e sorteio são história — registram o que aconteceu e
+     com que nome na hora. Reescrever história é falsificá-la. */
+  var CADASTRO_COPIAS = [
+    /* nivel = em que profundidade a chave de e-mail aparece dentro do nó */
+    { no: 'turmas-interesse', nivel: 2, campos: ['name', 'area'], oque: 'inscrição em turma' },
+    { no: 'turmas-publico',   nivel: 2, campos: ['name', 'area'], oque: 'público restrito de turma', maiuscula: true },
+    { no: 'eventos-publico',  nivel: 2, campos: ['name', 'area'], oque: 'público restrito de evento', maiuscula: true },
+    { no: 'turmas-equipe',    nivel: 2, campos: ['name'],         oque: 'equipe de facilitação' },
+    { no: 'turmas-checkin',   nivel: 3, campos: ['name', 'area'], oque: 'presença registrada' },
+    { no: 'fa-admins',        nivel: 1, campos: ['name'],         oque: 'lista de administradores' },
+    { no: 'fa-diretores',     nivel: 1, campos: ['name'],         oque: 'lista de diretores' },
+    { no: 'fa-facilitadores', nivel: 1, campos: ['name'],         oque: 'lista de facilitadores' },
+  ];
+
+  /* Caminhos, dentro de um nó, onde esta pessoa tem registro. `nivel` é a
+     profundidade da chave de e-mail: 1 em fa-admins/<eKey>, 2 em
+     turmas-interesse/<turma>/<eKey>, 3 em turmas-checkin/<turma>/<data>/<eKey>. */
+  function caminhosDaPessoa(raiz, eKey, nivel) {
+    var achados = [];
+    (function anda(obj, prefixo, nivelAtual) {
+      if (!obj || typeof obj !== 'object') return;
+      if (nivelAtual === nivel) {
+        if (obj[eKey] && typeof obj[eKey] === 'object') achados.push(prefixo + eKey);
+        return;
+      }
+      Object.keys(obj).forEach(function (k) { anda(obj[k], prefixo + k + '/', nivelAtual + 1); });
+    })(raiz, '', 1);
+    return achados;
+  }
+
+  /* Lê tudo que guarda uma cópia do nome/área desta pessoa. Sempre chama de
+     volta: se alguma leitura falhar, devolve ok=false e a edição é recusada
+     inteira, em vez de gravar só metade das cópias e deixar o nome divergente
+     em lugares que ninguém vai conferir. */
+  function lerCopiasDaPessoa(eKey, cb) {
+    var refs = CADASTRO_COPIAS.map(function (c) {
+      return firebase.database().ref(c.no).once('value');
+    });
+    refs.push(firebase.database().ref('fa-espera/' + eKey).once('value'));
+    Promise.all(refs).then(function (snaps) {
+      var copias = [];
+      CADASTRO_COPIAS.forEach(function (c, i) {
+        caminhosDaPessoa(snaps[i].val() || {}, eKey, c.nivel).forEach(function (caminho) {
+          copias.push({ path: c.no + '/' + caminho, campos: c.campos, oque: c.oque, maiuscula: !!c.maiuscula });
+        });
+      });
+      /* fa-espera é a exceção de formato: a chave da pessoa vem PRIMEIRO e os
+         registros são os filhos dela (uma entrada por origem). */
+      var espera = snaps[snaps.length - 1].val() || {};
+      Object.keys(espera).forEach(function (origem) {
+        copias.push({
+          path: 'fa-espera/' + eKey + '/' + origem,
+          campos: ['name', 'area'], oque: 'lista de espera', maiuscula: false
+        });
+      });
+      cb(copias, true);
+    }).catch(function () { cb([], false); });
+  }
+
+  /* Todo lugar onde a pessoa é indexada pela CHAVE do e-mail. Corrigir o
+     e-mail muda essa chave, então tudo isto muda de endereço junto — senão a
+     pessoa entra com o login novo e não encontra a própria turma, a própria
+     presença nem o próprio certificado. */
+  var CADASTRO_NOS_POR_CHAVE = [
+    { no: 'fa-users',             nivel: 1 },
+    { no: 'fa-users-log',         nivel: 1 },
+    { no: 'fa-progress',          nivel: 1 },
+    { no: 'fa-espera',            nivel: 1 },
+    { no: 'fa-admins',            nivel: 1 },
+    { no: 'fa-diretores',         nivel: 1 },
+    { no: 'fa-facilitadores',     nivel: 1 },
+    { no: 'fa-reset-signal',      nivel: 1 },
+    { no: 'turmas-interesse',     nivel: 2 },
+    { no: 'turmas-interesse-log', nivel: 2 },
+    { no: 'turmas-publico',       nivel: 2 },
+    { no: 'eventos-publico',      nivel: 2 },
+    { no: 'turmas-equipe',        nivel: 2 },
+    { no: 'avaliacoes',           nivel: 2 },
+    { no: 'turmas-checkin',       nivel: 3 },
+  ];
+
+  /* Move TUDO da chave antiga para a nova e já grava nome/área corrigidos.
+     Uma gravação atômica só: ou a pessoa inteira muda de endereço, ou nada
+     muda. Meia mudança aqui é o pior resultado possível — metade do histórico
+     numa chave, metade na outra, e ninguém descobre até a pessoa reclamar. */
+  function moverDadosDePessoa(eKeyAntigo, eKeyNovo, nome, area, emailAntigo, emailNovo, cbErro, cbOk) {
+    var sess = window.faAuth && window.faAuth.getSession();
+    var leituras = CADASTRO_NOS_POR_CHAVE.map(function (n) {
+      return firebase.database().ref(n.no).once('value');
+    });
+    leituras.push(firebase.database().ref('pedidos').once('value'));
+    leituras.push(firebase.database().ref('holocron').once('value'));
+
+    Promise.all(leituras).then(function (snaps) {
+      var updates = {};
+      var movidos = 0;
+      /* Os nomes das listas de público restrito são gravados em caixa alta por
+         quem as escreve; manter a convenção evita a lista alternar de estilo. */
+      var maiuscula = { 'turmas-publico': true, 'eventos-publico': true };
+
+      CADASTRO_NOS_POR_CHAVE.forEach(function (n, i) {
+        var raiz = snaps[i].val() || {};
+        caminhosDaPessoa(raiz, eKeyAntigo, n.nivel).forEach(function (caminho) {
+          var valor = caminho.split('/').reduce(function (o, k) { return o[k]; }, raiz);
+          var copia = JSON.parse(JSON.stringify(valor));
+          /* Nome, área e e-mail viajam já corrigidos — o registro novo não
+             pode nascer repetindo o dado errado que motivou a correção. */
+          if (Object.prototype.hasOwnProperty.call(copia, 'name')) {
+            copia.name = maiuscula[n.no] ? nome.toUpperCase() : nome;
+          }
+          if (Object.prototype.hasOwnProperty.call(copia, 'area'))  copia.area = area;
+          if (Object.prototype.hasOwnProperty.call(copia, 'email')) copia.email = emailNovo;
+          var novoCaminho = caminho.split('/');
+          novoCaminho[novoCaminho.length - 1] = eKeyNovo;
+          updates[n.no + '/' + novoCaminho.join('/')] = copia;
+          updates[n.no + '/' + caminho] = null;
+          movidos++;
+        });
+      });
+
+      /* fa-users é o único que pode não existir ainda na chave nova e precisa
+         existir: é ele que segura nome, área e o e-mail corrigido. */
+      var usuarios = snaps[0].val() || {};
+      var cadastro = usuarios[eKeyAntigo];
+      if (cadastro) {
+        var novo = JSON.parse(JSON.stringify(cadastro));
+        novo.name = nome; novo.area = area; novo.email = emailNovo;
+        novo.emailCorrigidoDe = emailAntigo;
+        updates['fa-users/' + eKeyNovo] = novo;
+      }
+
+      /* Pedidos e conteúdos do Repositório não são indexados pela chave: a
+         Minha Área acha os pedidos por emailEnviou e o Repositório decide
+         quem pode editar por authorEmail. Sem atualizar os dois, a pessoa
+         perde os próprios pedidos e o controle do próprio conteúdo. */
+      var pedidos = snaps[snaps.length - 2].val() || {};
+      Object.keys(pedidos).forEach(function (k) {
+        if (((pedidos[k] || {}).emailEnviou || '').toLowerCase() !== emailAntigo) return;
+        updates['pedidos/' + k + '/emailEnviou'] = emailNovo;
+        updates['pedidos/' + k + '/nomeEnviou']  = nome;
+        movidos++;
+      });
+      var holocron = snaps[snaps.length - 1].val() || {};
+      Object.keys(holocron).forEach(function (k) {
+        if (((holocron[k] || {}).authorEmail || '').toLowerCase() !== emailAntigo) return;
+        updates['holocron/' + k + '/authorEmail'] = emailNovo;
+        movidos++;
+      });
+
+      var logKey = firebase.database().ref('fa-users-log/' + eKeyNovo).push().key;
+      updates['fa-users-log/' + eKeyNovo + '/' + logKey] = {
+        mudancas: [{ campo: 'email', de: emailAntigo, para: emailNovo }],
+        porAdmin: sess ? sess.email : null,
+        porAdminNome: sess ? (sess.name || sess.email) : null,
+        quando: new Date().toISOString(),
+        registrosMovidos: movidos
+      };
+
+      firebase.database().ref().update(updates, function (err) {
+        if (err) {
+          cbErro('O login já foi trocado para ' + emailNovo + ', mas os dados NÃO foram movidos.\n\n' +
+            'A pessoa entra com o e-mail novo e ainda não encontra as turmas dela. ' +
+            'Abra este cadastro de novo e salve outra vez para completar a mudança.');
+          return;
+        }
+        cbOk(movidos);
+      });
+    }).catch(function () {
+      cbErro('O login já foi trocado para ' + emailNovo + ', mas não consegui ler os dados para movê-los.\n\n' +
+        'Abra este cadastro de novo e salve outra vez para completar a mudança.');
+    });
+  }
+
+  /* O e-mail é a IDENTIDADE: é o login no Firebase Auth e é a chave que liga
+     a pessoa a inscrições, presenças, certificado, avaliações e fila. Trocar
+     exige entrar na conta dela, e a única senha que o painel conhece é a
+     padrão das contas que ele mesmo criou. Por isso a regra: só cadastro
+     feito pelo admin (createdByAdmin) pode ter o e-mail corrigido — é
+     exatamente o caso de quem digitou errado ao criar e deixou a pessoa sem
+     conseguir entrar. Cadastro feito pela própria pessoa tem senha que só ela
+     sabe; ali o e-mail é intocável. Nome e área, ao contrário, qualquer uma
+     pode ter digitado errado — esses são sempre editáveis. */
+  function podeCorrigirEmail(p) {
+    return !!p.createdByAdmin;
+  }
+
+  function openCadastroEditModal(pessoa) {
+    var eKey = pessoa._key;
+    var emailEditavel = podeCorrigirEmail(pessoa);
+
+    var overlay = document.createElement('div');
+    overlay.className = 'modal-overlay';
+    overlay.style.cssText = 'display:flex;align-items:center;justify-content:center;z-index:9999';
+    var box = document.createElement('div');
+    box.className = 'modal-box';
+    box.style.cssText = 'max-width:520px;width:92%;padding:28px;display:flex;flex-direction:column;gap:16px;max-height:85vh;overflow:auto';
+
+    /* Área fora da lista fechada (cadastro antigo) não pode sumir só porque
+       o <select> não a conhece: ela entra como opção própria. */
+    var areaAtual = pessoa.area || '';
+    var areas = AREAS_LIST.slice();
+    if (areaAtual && areas.indexOf(areaAtual) === -1) areas.unshift(areaAtual);
+    var areaOptions = '<option value="">— sem área —</option>' + areas.map(function (a) {
+      return '<option value="' + esc(a) + '"' + (a === areaAtual ? ' selected' : '') + '>' + esc(a) + '</option>';
+    }).join('');
+
+    box.innerHTML =
+      '<h3 style="font-size:1.1rem;font-family:var(--font-head);letter-spacing:.05em;color:var(--ink)">' +
+        '&#x270E; Editar cadastro</h3>' +
+      '<label class="auth-label">Nome completo<input type="text" id="cadEditNome" autocomplete="off" /></label>' +
+      '<label class="auth-label">Área / Gerência<select id="cadEditArea" style="padding:8px 10px;background:var(--panel-2);border:1px solid var(--line-strong);border-radius:6px;color:var(--ink);font-family:var(--font-body);width:100%">' + areaOptions + '</select></label>' +
+      '<label class="auth-label">E-mail<input type="email" id="cadEditEmail" autocomplete="off"' + (emailEditavel ? '' : ' disabled') + ' /></label>' +
+      (emailEditavel
+        ? '<p style="font-size:.78rem;color:var(--ink-2);margin:-8px 0 0">Este cadastro foi criado pelo painel, então dá para corrigir o e-mail se ele foi digitado errado. Corrigir troca o login da pessoa e move TODOS os dados dela para a chave nova, de uma vez. Só funciona enquanto a senha ainda for a padrão (12345678) — se ela já entrou e trocou a senha, o e-mail não pode mais ser corrigido por aqui.</p>'
+        : '<p style="font-size:.78rem;color:var(--ink-2);margin:-8px 0 0">O e-mail não pode ser alterado: foi a própria pessoa que se cadastrou, e a senha é só dela. Como o e-mail é o login e a chave que liga tudo (inscrições, presenças, certificado), trocá-lo exigiria entrar na conta dela. Se o e-mail está errado, crie a conta certa em "+ Criar conta para colaboradora" e bloqueie esta.</p>') +
+      (emailEditavel
+        ? '<label class="auth-label">Sua senha de admin <span style="opacity:.6;font-weight:400">(só se mudar o e-mail)</span><input type="password" id="cadEditAdminPwd" placeholder="Sua senha" autocomplete="off" /></label>'
+        : '') +
+      '<p id="cadEditInfo" style="font-size:.78rem;color:var(--ink-3);margin:0"></p>' +
+      '<p id="cadEditErr" style="color:var(--red,#ff3b30);font-size:.85rem;display:none;white-space:pre-line"></p>' +
+      '<div style="display:flex;justify-content:flex-end;gap:8px;margin-top:4px">' +
+        '<button class="btn admin-modal-cancel-btn">Cancelar</button>' +
+        '<button class="btn btn--primary admin-modal-save-btn">Salvar</button>' +
+      '</div>';
+    overlay.appendChild(box);
+    document.body.appendChild(overlay);
+
+    var nomeInput  = box.querySelector('#cadEditNome');
+    var areaInput  = box.querySelector('#cadEditArea');
+    var emailInput = box.querySelector('#cadEditEmail');
+    var pwdInput   = box.querySelector('#cadEditAdminPwd');
+    var infoEl     = box.querySelector('#cadEditInfo');
+    var errEl      = box.querySelector('#cadEditErr');
+    var salvarBtn  = box.querySelector('.admin-modal-save-btn');
+
+    nomeInput.value  = pessoa.name  || '';
+    emailInput.value = pessoa.email || '';
+
+    function closeModal() { document.body.removeChild(overlay); }
+    box.querySelector('.admin-modal-cancel-btn').addEventListener('click', closeModal);
+    var foraDoBox = false;
+    overlay.addEventListener('mousedown', function (e) { foraDoBox = !box.contains(e.target); });
+    overlay.addEventListener('click', function (e) { if (foraDoBox && !box.contains(e.target)) closeModal(); });
+    overlay.addEventListener('keydown', function (e) { if (e.key === 'Escape') { e.preventDefault(); closeModal(); } });
+
+    /* Conta as cópias antes de salvar, para a admin saber o alcance da edição
+       — e para a recusa por falha de leitura aparecer ANTES de ela digitar. */
+    var _copias = null;
+    salvarBtn.disabled = true;
+    infoEl.textContent = 'Verificando onde este nome aparece…';
+    lerCopiasDaPessoa(eKey, function (copias, ok) {
+      if (!ok) {
+        infoEl.textContent = '';
+        errEl.textContent = 'Não consegui ler onde o nome desta pessoa aparece (inscrições, presenças, listas).\n\n' +
+          'Salvar sem isso corrigiria o cadastro e deixaria o nome antigo em todo o resto, sem aviso. ' +
+          'Recarregue a página e tente de novo. Nada foi gravado.';
+        errEl.style.display = '';
+        return;
+      }
+      _copias = copias;
+      salvarBtn.disabled = false;
+      infoEl.textContent = copias.length
+        ? 'O nome e a área também serão atualizados em ' + copias.length +
+          (copias.length === 1 ? ' outro registro' : ' outros registros') + ' (inscrições, presenças e listas).'
+        : 'Esta pessoa ainda não aparece em nenhuma turma, fila ou lista.';
+    });
+
+    salvarBtn.addEventListener('click', function () {
+      errEl.style.display = 'none';
+      var nome  = (nomeInput.value || '').trim();
+      var area  = areaInput.value || '';
+      var email = (emailInput.value || '').trim().toLowerCase();
+      var emailAntigo = (pessoa.email || '').trim().toLowerCase();
+      var mudouEmail = emailEditavel && email !== emailAntigo;
+
+      if (!nome) { errEl.textContent = 'O nome não pode ficar vazio.'; errEl.style.display = ''; return; }
+      if (emailEditavel && !email) { errEl.textContent = 'O e-mail não pode ficar vazio.'; errEl.style.display = ''; return; }
+      if (mudouEmail && !/@previ\.com\.br$/.test(email)) {
+        errEl.textContent = 'Use um e-mail @previ.com.br.'; errEl.style.display = ''; return;
+      }
+      if (mudouEmail && !(pwdInput && pwdInput.value)) {
+        errEl.textContent = 'Para trocar o e-mail, confirme sua senha de admin — o painel precisa dela para voltar à sua sessão depois.';
+        errEl.style.display = ''; return;
+      }
+      if (!_copias) { errEl.textContent = 'Ainda verificando os registros. Aguarde um instante.'; errEl.style.display = ''; return; }
+
+      function falhou(msg) {
+        errEl.textContent = msg; errEl.style.display = '';
+        salvarBtn.disabled = false; salvarBtn.textContent = 'Salvar';
+      }
+      function travar() { salvarBtn.disabled = true; salvarBtn.textContent = 'Salvando…'; }
+
+      if (mudouEmail) {
+        /* O botão só trava DEPOIS da confirmação: adminConfirm não avisa quando
+           é cancelado, e travar antes deixaria o botão preso em "Salvando…"
+           para quem desistiu. */
+        adminConfirm(
+          'Corrigir o e-mail de "' + nome + '"?\n\n' +
+          'De:   ' + emailAntigo + '\n' +
+          'Para: ' + email + '\n\n' +
+          'Isso troca o LOGIN da pessoa e move todos os dados dela para a chave nova. ' +
+          'Só funciona se ela ainda não trocou a senha padrão.',
+          function () { travar(); salvarComEmail(nome, area, emailAntigo, email, falhou); }
+        );
+        return;
+      }
+      travar();
+      salvarCampos(nome, area, null, falhou);
+    });
+
+    /* Grava nome/área no cadastro E em todas as cópias, de uma vez só. */
+    function salvarCampos(nome, area, emailNovo, falhou) {
+      var sess = window.faAuth && window.faAuth.getSession();
+      if (!sess) { falhou('Sessão de admin não encontrada. Recarregue a página.'); return; }
+      var updates = {};
+      updates['fa-users/' + eKey + '/name'] = nome;
+      updates['fa-users/' + eKey + '/area'] = area;
+      if (emailNovo) updates['fa-users/' + eKey + '/email'] = emailNovo;
+      _copias.forEach(function (c) {
+        if (c.campos.indexOf('name') !== -1) {
+          /* Cada lista mantém a convenção de quem a escreve: as de público
+             restrito guardam o nome em CAIXA ALTA. Escrever diferente aqui
+             faria a mesma lista alternar de estilo a cada edição. */
+          updates[c.path + '/name'] = c.maiuscula ? nome.toUpperCase() : nome;
+        }
+        if (c.campos.indexOf('area') !== -1) updates[c.path + '/area'] = area;
+        if (emailNovo) updates[c.path + '/email'] = emailNovo;
+      });
+      /* Histórico: o que mudou, de quê para quê, por quem e quando. Sem isso,
+         um nome trocado vira mistério — ninguém sabe se foi correção ou engano. */
+      var mudancas = [];
+      if ((pessoa.name || '') !== nome) mudancas.push({ campo: 'nome', de: pessoa.name || '', para: nome });
+      if ((pessoa.area || '') !== area) mudancas.push({ campo: 'area', de: pessoa.area || '', para: area });
+      if (emailNovo) mudancas.push({ campo: 'email', de: pessoa.email || '', para: emailNovo });
+      if (!mudancas.length) { closeModal(); return; }
+      var logKey = firebase.database().ref('fa-users-log/' + eKey).push().key;
+      updates['fa-users-log/' + eKey + '/' + logKey] = {
+        mudancas: mudancas,
+        porAdmin: sess.email,
+        porAdminNome: sess.name || sess.email,
+        quando: new Date().toISOString(),
+        copiasAtualizadas: _copias.length
+      };
+      firebase.database().ref().update(updates, function (err) {
+        if (err) { falhou('Erro ao salvar. Nada foi gravado — tente de novo.'); return; }
+        closeModal();
+        loadCadastrados();
+      });
+    }
+
+    /* Trocar o e-mail é uma operação em duas etapas que NÃO é atômica: o login
+       vive no Firebase Auth, os dados no banco. A ordem importa. Trocar o login
+       PRIMEIRO deixa a falha recuperável — se a segunda etapa falhar, a admin
+       vê o erro e reexecuta; o contrário deixaria os dados na chave nova com o
+       login ainda no e-mail antigo, e a pessoa entraria num cadastro vazio sem
+       ninguém saber por quê. */
+    function salvarComEmail(nome, area, emailAntigo, emailNovo, falhou) {
+      if (!window.faAuth || !window.faAuth.corrigirEmailPorAdmin) {
+        falhou('Este painel não sabe corrigir e-mail. Recarregue a página.');
+        return;
+      }
+      window.faAuth.corrigirEmailPorAdmin(
+        { emailAntigo: emailAntigo, emailNovo: emailNovo },
+        pwdInput.value,
+        function (r) {
+          if (r.error) { falhou(r.error); return; }
+          /* Login já trocado. Agora os dados mudam de chave: o novo e-mail gera
+             uma chave nova, e tudo que estava na antiga precisa ir junto, senão
+             a pessoa entra e não encontra a própria turma. */
+          moverDadosDePessoa(eKey, emailKey(emailNovo), nome, area, emailAntigo, emailNovo,
+            falhou,
+            function (movidos) {
+              closeModal();
+              adminAlert('E-mail corrigido para ' + emailNovo + '.\n\n' +
+                movidos + (movidos === 1 ? ' registro foi movido' : ' registros foram movidos') +
+                ' para a chave nova. A senha continua a padrão 12345678.');
+              loadCadastrados();
+            });
+        }
+      );
+    }
+  }
+
   function loadCadastrados() {
     const c = document.getElementById('adminCadastrados');
     if (!c) return;
@@ -4859,7 +5257,7 @@
 
     const tbl = document.createElement('table');
     tbl.className = 'admin-table';
-    tbl.innerHTML = '<thead><tr><th>Nome</th><th>E-mail</th><th>Área</th><th>Cadastro</th><th>Status</th><th>E-mail</th><th></th><th></th><th></th></tr></thead>';
+    tbl.innerHTML = '<thead><tr><th>Nome</th><th>E-mail</th><th>Área</th><th>Cadastro</th><th>Status</th><th>E-mail</th><th></th><th></th><th></th><th></th></tr></thead>';
     const tbody = document.createElement('tbody');
 
     function applyFilters() {
@@ -4892,6 +5290,7 @@
           '<td>' + fmtDate(p.createdAt) + '</td>' +
           '<td><span class="admin-badge" style="background:' + (bloqueado ? 'rgba(255,59,48,.18)' : 'rgba(26,178,174,.18)') + ';color:' + (bloqueado ? 'var(--red)' : 'var(--cyan)') + '">' + (bloqueado ? 'Bloqueado' : 'Ativo') + '</span></td>' +
           '<td>' + emailBadge + '</td>' +
+          '<td><button class="admin-del-btn admin-edit-cad-btn" data-key="' + esc(p._key) + '" title="Editar nome, área e e-mail">&#x270E; Editar</button></td>' +
           '<td><button class="admin-del-btn admin-pwd-btn" data-key="' + esc(p._key) + '" data-email="' + esc(p.email || '') + '" data-name="' + esc(p.name || p.email) + '" title="Redefinir senha">Redef. senha</button></td>' +
           '<td><button class="admin-del-btn admin-reset-btn" data-key="' + esc(p._key) + '" data-email="' + esc(p.email || '') + '" data-name="' + esc(p.name || p.email) + '" title="Resetar progresso">Resetar</button></td>' +
           '<td><button class="admin-del-btn admin-block-btn" data-key="' + esc(p._key) + '" data-name="' + esc(p.name || p.email) + '" data-blocked="' + (bloqueado ? '1' : '0') + '">' + (bloqueado ? 'Desbloquear' : 'Bloquear') + '</button></td>' +
@@ -4923,6 +5322,12 @@
     tbody.addEventListener('click', function (e) {
       var btn = e.target.closest('button');
       if (!btn) return;
+
+      if (btn.classList.contains('admin-edit-cad-btn')) {
+        var pessoaEdit = list.filter(function (x) { return x._key === btn.dataset.key; })[0];
+        if (pessoaEdit) openCadastroEditModal(pessoaEdit);
+        return;
+      }
 
       if (btn.classList.contains('admin-pwd-btn')) {
         handlePwdReset(btn);

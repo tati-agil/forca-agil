@@ -460,6 +460,59 @@
   }
 
   /* ---- Criar conta pelo admin (sem verificação de e-mail) ---- */
+  /* Corrige o e-mail de LOGIN de uma conta criada pelo painel.
+     Só é possível porque o painel conhece a senha dessas contas: ele mesmo as
+     criou com a padrão 12345678. Conta feita pela própria pessoa tem senha que
+     só ela sabe, e por isso admin.js nem oferece a opção (podeCorrigirEmail).
+     Se a pessoa JÁ entrou e trocou a senha, o login abaixo falha — e falhar
+     aqui é o certo: significa que a conta é dela agora, não do painel.
+
+     Mesmo mecanismo do criarContaPorAdmin: entra na conta alvo, faz a troca,
+     sai e volta para a sessão da admin. _criandoConta faz os onAuthStateChanged
+     ignorarem esse vai-e-vem, senão o painel pisca pro login no meio. */
+  function corrigirEmailPorAdmin(data, adminPwd, cb) {
+    const emailAntigo = (data.emailAntigo || '').trim().toLowerCase();
+    const emailNovo   = (data.emailNovo   || '').trim().toLowerCase();
+    const adminSess   = _session;
+
+    if (!isPrevi(emailNovo))            return cb({ error: 'Use e-mail @previ.com.br.' });
+    if (emailNovo === emailAntigo)      return cb({ error: 'O e-mail novo é igual ao atual.' });
+    if (!adminPwd)                      return cb({ error: 'Confirme sua senha de admin.' });
+    if (!adminSess)                     return cb({ error: 'Sessão admin não encontrada.' });
+    if (emailAntigo === adminSess.email) {
+      return cb({ error: 'Não dá para corrigir o seu próprio e-mail por aqui — você perderia a sessão no meio da troca.' });
+    }
+
+    /* Volta para a sessão da admin aconteça o que acontecer. Sem isto, uma
+       falha no meio deixaria o painel logado como OUTRA pessoa. */
+    function voltarParaAdmin() {
+      return firebase.auth().signOut()
+        .then(function () { return firebase.auth().signInWithEmailAndPassword(adminSess.email, adminPwd); });
+    }
+
+    _criandoConta = true;
+    firebase.auth().signInWithEmailAndPassword(emailAntigo, '12345678')
+      .then(function (cred) { return cred.user.updateEmail(emailNovo); })
+      .then(function () {
+        return voltarParaAdmin().then(function () { _criandoConta = false; cb({ success: true }); });
+      })
+      .catch(function (err) {
+        let msg = 'Não consegui corrigir o e-mail. Nada foi alterado.';
+        if (err.code === 'auth/wrong-password' || err.code === 'auth/invalid-credential') {
+          msg = 'A senha desta conta não é mais a padrão (12345678) — a pessoa já entrou e trocou.\n\n' +
+                'Por isso o e-mail não pode ser corrigido por aqui. Crie a conta com o e-mail certo em ' +
+                '"+ Criar conta para colaboradora" e bloqueie esta.';
+        }
+        if (err.code === 'auth/email-already-in-use') msg = 'Já existe uma conta com esse e-mail.';
+        if (err.code === 'auth/user-not-found')       msg = 'Não existe conta de login com o e-mail antigo.';
+        if (err.code === 'auth/requires-recent-login') msg = 'O Firebase pediu login recente. Tente de novo.';
+        /* A sessão da admin precisa voltar mesmo no erro. */
+        return voltarParaAdmin()
+          .catch(function () {})
+          .then(function () { _criandoConta = false; cb({ error: msg }); });
+      });
+  }
+
   function criarContaPorAdmin(data, adminPwd, cb) {
     const email     = (data.email || '').trim().toLowerCase();
     const name      = (data.name  || '').trim().toUpperCase();
@@ -886,6 +939,7 @@
   });
 
   window.faAuth = {
+    corrigirEmailPorAdmin: corrigirEmailPorAdmin,
     getSession: getSession, isAdmin: isAdmin, isDiretor: isDiretor, isFacilitador: isFacilitador, isPrevi: isPrevi,
     register: register, login: login,
     logout: logout, sendPasswordReset: sendPasswordReset,
