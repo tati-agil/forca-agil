@@ -14,7 +14,7 @@ afirmações · `[ ]` não conferido.
 
 | camada | total | conferido |
 |---|---|---|
-| regras do Manual (`manual.js`) | 227 | **100** + 8 parciais |
+| regras do Manual (`manual.js`) | 227 | **114** + 8 parciais |
 | features do Mapa (`mapa.js`) | 227 | 0 |
 | itens técnicos do Mapa | 120 | 0 |
 | testes manuais (`testes.js`) | 195 | 0 |
@@ -127,32 +127,70 @@ aspas (`teste-rotulos-doc.js`, que ainda não é portão — ver o cabeçalho de
 - [x] Aba: Pedidos — marcar como respondido e prazo em dias úteis
 - [x] Aba: Pedidos — excluir com justificativa
 
-### `turmas` — 24 regras (10 conferidas)
+### `turmas` — 24 regras (24 conferidas)
 
-- [ ] Lista de espera — entrar
+- [x] Lista de espera — entrar
 - [x] Lista de espera — sair
 - [x] Lista de espera — quem saiu da fila
-- [ ] Lista de espera — conferência da fila
+- [x] Lista de espera — conferência da fila
 - [x] Lista de espera — uma linha por turma de origem
-- [ ] Lista de espera — mover para turma
-- [ ] Lista de espera — remover sem mover
-- [ ] Lista de espera — migrar da turma
-- [ ] Acesso geral — mesma página para todos os perfis
+- [x] Lista de espera — mover para turma
+- [x] Lista de espera — remover sem mover
+- [x] Lista de espera — migrar da turma
+- [x] Acesso geral — mesma página para todos os perfis
 - [x] Turma com interesse encerrado — inscrições encerradas (antes da turma iniciar)
 - [x] Turma em andamento — card automático a partir do primeiro dia
 - [x] Turma realizada — card automático após o último dia ou ação do admin
-- [ ] Bloco "A Missão" e "Como funciona" — por evento, opcional
-- [ ] Itinerário dia a dia — por evento, itens estáticos
-- [ ] Se a sessão expirar com a página aberta
+- [x] Bloco "A Missão" e "Como funciona" — por evento, opcional
+- [x] Itinerário dia a dia — por evento, itens estáticos
+- [x] Se a sessão expirar com a página aberta
 - [x] Registrar interesse → botão vira "Remover interesse" + mensagem sobre CMFlex
 - [x] Remover interesse → botão volta a "Tenho interesse"
 - [x] Quem já é Inscrita não pode se autorremover — botão fica travado
-- [ ] Corrida: turma encerra interesse entre carregar a página e clicar em "Tenho interesse"
-- [ ] Corrida rara: turma encerra interesse com a página já aberta
-- [ ] Falha ao gravar no Firebase
-- [ ] Se a verificação inicial falhar, a pessoa não vê nenhum aviso
-- [ ] Botão "Tenho interesse"/"Remover interesse" não duplica ações ao sair e voltar da página
+- [x] Corrida: turma encerra interesse entre carregar a página e clicar em "Tenho interesse"
+- [x] Corrida rara: turma encerra interesse com a página já aberta
+- [x] Falha ao gravar no Firebase
+- [x] Se a verificação inicial falhar, a pessoa não vê nenhum aviso
+- [x] Botão "Tenho interesse"/"Remover interesse" não duplica ações ao sair e voltar da página
 - [x] Botão "Tenho interesse"/"Remover interesse" fica desabilitado durante a gravação no Firebase
+
+Divergências deste lote (todas de documentação, nenhum bug de código):
+
+1. **card "Em andamento"** — Manual, Mapa e Testes citavam a mensagem "As
+   aulas estão acontecendo. Fique de olho nas próximas turmas!"; o código
+   (`app.js:334`) diz "Acompanhe as próximas turmas." desde `cbf1b5d`, o
+   commit que criou o estado — a frase documentada **nunca existiu**. Não foi
+   pega pelo `teste-rotulos-doc.js` porque a citação tem mais de 40
+   caracteres, o teto de "parece rótulo".
+2. **card de Lista de Espera** — a regra dizia "cada evento que já tem pelo
+   menos uma turma na vitrine", e o resto da MESMA regra dizia o contrário
+   ("aparece na página Turmas mesmo sem turma nenhuma"). O código
+   (`eventoNaVitrine`, `app.js:392`) exige publicado + (turma OU fila ligada).
+3. **bloco "A Missão"/"Como funciona"** — mesma condição errada ("que já tem
+   turma"), e dois chips descritos como fixos ("Prática", "Opcional") que
+   viraram campo do evento, com esses textos só como padrão. "4 métricas"
+   também não é sempre 4: sem itinerário não há os chips de dias/horas.
+4. **conferência da fila** — o Manual falava em "os dois números lado a lado";
+   a linha tem quatro (pessoas na fila, registros na fila, saídas registradas
+   nas turmas, pessoas distintas nessas saídas).
+5. **caixa "Colocar na lista de espera"** — duas regras diziam que a única
+   exceção é "vai fazer em outra turma". A caixa também desaparece (e é
+   forçada a desmarcada) em "já participou de uma turma": o teste do código é
+   `pedeTurma(motivo)`, e os DOIS motivos pedem turma. O comportamento é
+   defensável — `migrarParaEspera` não grava `jaParticipouTurma`, então
+   marcar a caixa perderia a turma escolhida em silêncio —, mas era o texto
+   que estava errado, não o código.
+
+O que passou no exame e vale registrar: as três portas de escrita da fila
+seguem o critério completo de inscrição (`moverParaTurma` grava
+`confirmedByAdmin`/`confirmedByAdminName`/`confirmedDate` e recusa sem sessão
+— consistente com a skill `criterio-de-estado`); `fa-espera` não é lido por
+nenhum leitor de nível de acesso (`auth.js`, `game.js`, `checkin.js`,
+`dashboard.js`, `avaliacao.js`, `router.js`), então "estar na fila" mesmo
+mantém acesso de Logada; a data da fila é a do interesse original, e a mais
+antiga quando há duas (`admin.js:3997`); a prévia "Turmas abertas no momento"
+da Minha Área aplica o mesmo filtro de vitrine da página Turmas
+(`aluno.js:237`), incluindo `restritoADiretores`.
 
 ### `cadastrar` — 14 regras (0 conferidas)
 
@@ -309,7 +347,8 @@ aspas (`teste-rotulos-doc.js`, que ainda não é portão — ver o cabeçalho de
    novo.
 2. As 8 abas menores de `admin` (Certificados, Dashboard, Repositório,
    Cadastrados, Administradores, Pedidos, Tipos de atividade, Sorteios).
-3. `turmas` (24) e `cadastrar` (14) — fluxo público, muita mudança em agosto.
+3. ~~`turmas` (24)~~ — FEITO: 5 divergências, todas de texto. Segue
+   `cadastrar` (14) — fluxo público, muita mudança em agosto.
 4. A triagem dos ~85 candidatos restantes do `teste-rotulos-doc.js`, até zerar,
    para ele virar portão de CI.
 5. As features do Mapa e os testes manuais, que ninguém tocou ainda.
@@ -323,3 +362,12 @@ aspas (`teste-rotulos-doc.js`, que ainda não é portão — ver o cabeçalho de
   faltava uma coluna na seção Removidos; era o `grep` pegando duas tabelas.
 - **Registre o que PASSOU no exame, não só o que falhou.** `dataConclusao`
   parecia ter o bug de fuso do #109 e não tinha; isso vale ser escrito.
+- **`[x]` não é imune a revisão.** Duas regras marcadas como conferidas nos
+  lotes anteriores tinham divergência: a mensagem do card "Em andamento" e a
+  exceção da caixa "Colocar na lista de espera". Nos dois casos eu havia
+  conferido o COMPORTAMENTO (o estado troca por data local; a caixa vem
+  marcada) e não o TEXTO citado entre aspas nem a lista de exceções. Ao
+  auditar uma regra vizinha, releia as marcadas que citam a mesma tela.
+- **Aspa longa não é coberta por teste.** O `teste-rotulos-doc.js` ignora
+  citações com mais de 40 caracteres, que é onde moram justamente as
+  mensagens de status inteiras. Frase longa entre aspas só se confere lendo.
