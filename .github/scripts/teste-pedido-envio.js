@@ -121,6 +121,41 @@ const FORMATOS = [
       await ctx.close();
     }
 
+    /* 1b. O formulário aparece SEM ROLAR, e antes do FAQ.
+           Ele já morou no fim da página, embaixo de sete perguntas: quem não
+           rolava até o rodapé não descobria que dava para pedir alguma coisa.
+           Um canal que ninguém vê não existe, então a posição é requisito —
+           principalmente no celular, onde o cabeçalho da página sozinho já
+           gastava a tela inteira. */
+    {
+      const { ctx, page, erros } = await abrir(browser, formato);
+      const m = await page.evaluate(() => {
+        const form = document.querySelector('#pedidosFormWrap');
+        const faq  = document.querySelector('.faq-list');
+        const chips = document.querySelector('.ped-tipos');
+        const ultimoChip = document.querySelectorAll('.ped-tipo-btn');
+        return {
+          temFaq: !!faq,
+          pedidoAntesDoFaq: !!(faq && (form.compareDocumentPosition(faq) & Node.DOCUMENT_POSITION_FOLLOWING)),
+          topoChips: chips.getBoundingClientRect().top + window.scrollY,
+          fimDosChips: ultimoChip.length
+            ? ultimoChip[ultimoChip.length - 1].getBoundingClientRect().bottom + window.scrollY
+            : Infinity,
+          tela: window.innerHeight,
+        };
+      });
+      const p = [];
+      if (!m.temFaq) p.push('não achei o FAQ para comparar a posição');
+      else if (!m.pedidoAntesDoFaq) p.push('o formulário voltou para DEPOIS do FAQ — fica escondido de novo');
+      if (m.fimDosChips > m.tela) {
+        p.push('ENTERRADO: os tipos de pedido só aparecem rolando (terminam em ' +
+          Math.round(m.fimDosChips) + 'px numa tela de ' + m.tela + 'px)');
+      }
+      if (erros.length) p.push('erro JS: ' + erros[0]);
+      anota('o formulário aparece sem rolar e antes do FAQ', p);
+      await ctx.close();
+    }
+
     /* 2. Caminho feliz. */
     {
       const { ctx, page, erros } = await abrir(browser, formato);
