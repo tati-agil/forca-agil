@@ -1431,9 +1431,21 @@ body.aguardando-auth>#bootStatus{z-index:900}
     <div class="page-hero">
       <span class="eyebrow">Central de Ajuda</span>
       <h1>Como podemos ajudar?</h1>
-      <p>Encontre respostas para as dúvidas mais comuns sobre o portal Força Ágil.</p>
+      <p>Peça o que você precisa — ou veja as dúvidas mais comuns.</p>
     </div>
+    <!-- "Faça um pedido" vem ANTES do FAQ de propósito. Estava no fim da
+         página, embaixo de sete perguntas: quem não rolava até o rodapé não
+         descobria que dava para pedir alguma coisa — o canal existia e
+         ninguém via. É a ação que a página oferece; o FAQ é consulta, e
+         consulta quem procura acha. -->
     <section class="section">
+      <h2 class="sec-title" style="font-size:clamp(1.4rem,3vw,1.8rem);letter-spacing:.08em;margin-bottom:6px">Faça um pedido</h2>
+      <p style="margin-bottom:20px;max-width:540px;color:var(--ink-2);font-size:.9rem">Escolha o tipo e conta pra gente.</p>
+      <div id="pedidosFormWrap"></div>
+    </section>
+
+    <section class="section" style="margin-top:56px">
+      <h2 class="sec-title" style="font-size:clamp(1.4rem,3vw,1.8rem);letter-spacing:.08em;margin-bottom:20px">Perguntas frequentes</h2>
       <div class="faq-list">
 
         <details class="faq-item reveal">
@@ -1476,11 +1488,6 @@ body.aguardando-auth>#bootStatus{z-index:900}
       </div>
     </section>
 
-    <section class="section" style="margin-top:48px">
-      <h2 class="sec-title" style="font-size:clamp(1.4rem,3vw,1.8rem);letter-spacing:.08em;margin-bottom:8px">Faça um pedido</h2>
-      <p style="margin-bottom:28px;max-width:540px">Quer aprender sobre um tema, sugerir um curso, pedir material, tirar uma dúvida ou outra coisa? Conta pra gente.</p>
-      <div id="pedidosFormWrap"></div>
-    </section>
   </div>
   <footer class="footer">
     <div class="footer-inner" style="max-width:var(--maxw);margin:0 auto;padding:0 24px">
