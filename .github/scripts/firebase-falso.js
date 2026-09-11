@@ -62,8 +62,23 @@
     return ok;
   };
   Ref.prototype.off = function () {};
-  Ref.prototype.update = function (v, cb) { if (cb) cb(null); return Promise.resolve(); };
-  Ref.prototype.set    = function (v, cb) { if (cb) cb(null); return Promise.resolve(); };
+  /* Gravação obedece aos mesmos delays/fail da leitura. Antes ela respondia
+     sempre, na hora e com sucesso — o que tornava impossível testar o pior
+     caso real do 4G da sala: a escrita que NUNCA volta. Um formulário que
+     fica "Enviando…" para sempre é indistinguível de site quebrado, e era
+     justamente esse caminho que nenhum teste alcançava. */
+  function escrever(self, cb) {
+    setTimeout(function () {
+      if (failsFor(self.path)) {
+        var e = new Error('PERMISSION_DENIED (falso): ' + self.path);
+        if (cb) cb(e);
+        return;
+      }
+      if (cb) cb(null);
+    }, delayFor(self.path));
+  }
+  Ref.prototype.update = function (v, cb) { escrever(this, cb); return Promise.resolve(); };
+  Ref.prototype.set    = function (v, cb) { escrever(this, cb); return Promise.resolve(); };
   Ref.prototype.remove = function (cb)    { if (cb) cb(null); return Promise.resolve(); };
   Ref.prototype.push   = function (v, cb) { if (cb) cb(null); var r = new Ref(this.path + '/fake'); r.key = 'fake'; return r; };
   Ref.prototype.orderByChild = function () { return this; };

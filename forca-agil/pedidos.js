@@ -15,12 +15,18 @@
     var html = '<div class="ped-form">';
     html += '<div class="ped-tipos">';
     TIPOS.forEach(function (t) {
-      html += '<button class="ped-tipo-btn" data-tipo="' + t.key + '" style="--tc:' + t.color + '">' + t.label + '</button>';
+      html += '<button type="button" class="ped-tipo-btn" data-tipo="' + t.key + '" aria-pressed="false" style="--tc:' + t.color + '">' + t.label + '</button>';
     });
     html += '</div>';
     html += '<textarea class="ped-texto" id="pedTexto" placeholder="Descreva com mais detalhes… (opcional)" rows="4"></textarea>';
     html += '<div class="ped-actions">';
-    html += '<button class="btn btn--gold" id="pedEnviar" disabled>Enviar pedido</button>';
+    /* O botão NÃO nasce desabilitado. Nasceu assim, e era esse o bug: sem
+       estilo de :disabled, ele ficava idêntico a um botão vivo — tocar nele
+       não dava mensagem, não dava erro, não fazia nada. Quem não tinha
+       escolhido o tipo concluía que o site estava quebrado, e não havia como
+       descobrir o contrário na tela. Agora ele sempre responde ao toque: se
+       falta escolher o tipo, quem diz isso é uma frase, não um silêncio. */
+    html += '<button type="button" class="btn btn--gold" id="pedEnviar">Enviar pedido</button>';
     html += '<span class="ped-msg" id="pedMsg"></span>';
     html += '</div>';
     html += '</div>';
@@ -31,23 +37,59 @@
 
     wrap.querySelectorAll('.ped-tipo-btn').forEach(function (btn) {
       btn.addEventListener('click', function () {
-        wrap.querySelectorAll('.ped-tipo-btn').forEach(function (b) { b.classList.remove('active'); });
+        wrap.querySelectorAll('.ped-tipo-btn').forEach(function (b) {
+          b.classList.remove('active');
+          b.setAttribute('aria-pressed', 'false');
+        });
         btn.classList.add('active');
+        btn.setAttribute('aria-pressed', 'true');
         tipoSel = btn.dataset.tipo;
-        btnEnviar.disabled = false;
+        msgEl.textContent = '';
+        msgEl.className = 'ped-msg';
       });
     });
 
+    function erro(texto) {
+      msgEl.textContent = texto;
+      msgEl.className = 'ped-msg ped-msg--erro';
+    }
+    function destravar() {
+      btnEnviar.disabled = false;
+      btnEnviar.textContent = 'Enviar pedido';
+    }
+
     btnEnviar.addEventListener('click', function () {
+      /* Toda recusa daqui pra baixo FALA. Antes, a única recusa possível era
+         o botão desabilitado, que não fala nada. */
+      if (!tipoSel) {
+        erro('Escolha primeiro o tipo do pedido, ali em cima.');
+        var primeiro = wrap.querySelector('.ped-tipo-btn');
+        if (primeiro && primeiro.focus) primeiro.focus();
+        return;
+      }
       var session = window.faAuth && window.faAuth.getSession();
       if (!session) {
-        msgEl.textContent = 'Faça login para enviar um pedido.';
-        msgEl.className = 'ped-msg ped-msg--erro';
+        erro('Faça login para enviar um pedido.');
         return;
       }
       var texto = wrap.querySelector('#pedTexto').value.trim();
       btnEnviar.disabled = true;
       btnEnviar.textContent = 'Enviando…';
+      msgEl.textContent = '';
+      msgEl.className = 'ped-msg';
+
+      /* Uma gravação que nunca responde não pode virar "Enviando…" pra
+         sempre. No 4G da sala isso acontece, e calado é indistinguível de
+         site quebrado — a mesma lição da tela preta (PR #116). Quem responde
+         primeiro ganha: o Firebase ou o relógio. */
+      var respondido = false;
+      var relogio = setTimeout(function () {
+        if (respondido) return;
+        respondido = true;
+        erro('A conexão está demorando e não deu para confirmar o envio. Toque em "Enviar pedido" de novo.');
+        destravar();
+      }, 12000);
+
       var ref = firebase.database().ref('pedidos').push();
       ref.set({
         tipo:        tipoSel,
@@ -56,11 +98,12 @@
         emailEnviou: session.email || '',
         dataEnvio:   new Date().toISOString(),
       }, function (err) {
+        if (respondido) return;   /* o relógio já falou; não atropela a mensagem */
+        respondido = true;
+        clearTimeout(relogio);
         if (err) {
-          msgEl.textContent = 'Erro ao enviar. Tente novamente.';
-          msgEl.className = 'ped-msg ped-msg--erro';
-          btnEnviar.disabled = false;
-          btnEnviar.textContent = 'Enviar pedido';
+          erro('Erro ao enviar. Tente novamente.');
+          destravar();
         } else {
           wrap.innerHTML = '<div class="ped-sucesso">✓ Pedido enviado! Obrigada — vamos analisar em breve.</div>';
         }

@@ -93,6 +93,7 @@
       db.ref('pedidos').once('value'),
       db.ref('fa-espera').once('value'),
       db.ref('turmas-publico').once('value'),
+      db.ref('eventos-publico').once('value'),
     ]).then(function (r) {
       var d = {
         interesse: r[0].val() || {},
@@ -103,6 +104,7 @@
         pedidos:   r[5].val() || {},
         espera:    r[6].val() || {},
         publico:   r[7].val() || {},
+        publicoEv: r[8].val() || {},
         avaliacoes: {},
       };
       /* As avaliações são lidas UMA A UMA, só a da própria pessoa em cada
@@ -236,10 +238,20 @@
      certo, só esta prévia na Minha Área não conferia. Usa o e-mail de
      quem está vendo a tela: o real, ou o do "ver como" quando um admin
      está simulando a visão de outra pessoa — é o que "ver como" promete. */
-  function eventoVisivelPara(ev, email) {
+  function eventoVisivelPara(ev, email, publicoEv) {
     if (ev.publicado === false) return false;
     if (ev.restritoADiretores) {
-      return !!(email && window.faAuth && (window.faAuth.isAdmin(email) || window.faAuth.isDiretor(email)));
+      if (!(email && window.faAuth && (window.faAuth.isAdmin(email) || window.faAuth.isDiretor(email)))) return false;
+    }
+    /* Mesma regra de eventoVisivelPara (app.js): evento de público predefinido
+       só existe para quem está na lista de e-mails dele. Esta prévia é
+       justamente o lugar onde a regra do evento restrito a diretores foi
+       esquecida quando nasceu — a página Turmas escondia certo e a Minha Área
+       vazava. Não repetir, pela terceira vez. */
+    if (ev.publicoRestrito) {
+      if (!email) return false;
+      if (window.faAuth && window.faAuth.isAdmin(email)) return true;
+      return !!(publicoEv && publicoEv[emailKey(email)]);
     }
     return true;
   }
@@ -272,10 +284,11 @@
         interesseEncerrado: !!cfg.finalizada,
         jaComecou: !!(dias[0] && dias[0] <= hoje),
         evento: turma.eventoKey ? (d.eventos[turma.eventoKey] || {}) : {},
+        publicoEvento: turma.eventoKey ? ((d.publicoEv || {})[turma.eventoKey] || {}) : {},
       };
     }).filter(function (t) {
       return !t.encerrada && !t.interesseEncerrado && !t.jaComecou &&
-        eventoVisivelPara(t.evento, email) && turmaVisivelPara(t, email);
+        eventoVisivelPara(t.evento, email, t.publicoEvento) && turmaVisivelPara(t, email);
     }).sort(function (a, b) { return (a.inicio || '').localeCompare(b.inicio || ''); });
   }
 

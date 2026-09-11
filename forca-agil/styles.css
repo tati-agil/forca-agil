@@ -1527,11 +1527,28 @@ details.manual-admin-subgroup[open] > .manual-admin-subhead,
 .ped-form { max-width: 560px; }
 .ped-tipos { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 20px; }
 .ped-tipo-btn { text-align: left; padding: 8px 16px; border-radius: 20px; border: 1px solid var(--line-strong); color: var(--ink-2); background: transparent; cursor: pointer; font-size: .82rem; transition: border-color .15s, color .15s, background .15s; }
-.ped-tipo-btn:hover { border-color: var(--gold); color: var(--gold); }
-.ped-tipo-btn.active { border-color: var(--gold); color: var(--gold); background: color-mix(in srgb, var(--gold) 10%, transparent); font-weight: 600; }
+/* No iPhone o :hover GRUDA depois do toque: um chip que o dedo só encostou
+   ficava dourado igual a um chip escolhido de verdade — e, como o escolhido
+   se distinguia só por um color-mix que o Safari mais velho ignora, dava pra
+   jurar que tinha escolhido o tipo sem ter escolhido. (hover: hover) tira o
+   hover de quem usa dedo; o mouse continua igual. */
+@media (hover: hover) {
+  .ped-tipo-btn:hover { border-color: var(--gold); color: var(--gold); }
+}
+/* O selecionado não depende mais de color-mix (Safari < 16.2 descarta a
+   declaração inteira): fundo em rgba, que todo mundo entende, mais um ✓ no
+   ::before — forma, não só cor, para não depender de enxergar matiz. */
+.ped-tipo-btn.active { border-color: var(--gold); color: var(--gold); background: rgba(245,197,24,.14); font-weight: 600; }
+.ped-tipo-btn.active::before { content: '\2713\00a0'; }
 .ped-texto { width: 100%; box-sizing: border-box; background: var(--surface); border: 1px solid var(--line-strong); border-radius: 8px; color: var(--ink); padding: 12px 14px; font-size: .88rem; resize: vertical; margin-bottom: 16px; }
 .ped-texto:focus { outline: none; border-color: var(--gold); }
-.ped-actions { display: flex; align-items: center; gap: 16px; }
+.ped-actions { display: flex; align-items: center; gap: 16px; flex-wrap: wrap; }
+/* Botão desabilitado tem que PARECER desabilitado. O "Enviar pedido" nascia
+   desabilitado e idêntico a um botão vivo: tocar nele não fazia nada, não
+   dizia nada, e a pessoa concluía que o site estava quebrado. Hoje ele não
+   nasce mais assim (ver pedidos.js), mas fica desabilitado durante o envio —
+   e nesse instante também precisa se anunciar. */
+.ped-form .btn:disabled { opacity: .55; cursor: default; }
 .ped-msg { font-size: .82rem; }
 .ped-msg--erro { color: #ff6b6b; }
 .ped-sucesso { color: #4caf7d; font-size: .95rem; padding: 20px 0; }

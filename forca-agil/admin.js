@@ -317,9 +317,19 @@
      presa em "Carregando dados…" — a lista é de uma feature opcional, não
      pode derrubar o painel que a admin usa no dia da oficina. */
   function lerPublico(cb) {
-    firebase.database().ref('turmas-publico').once('value',
-      function (snap) { cb(snap.val() || {}, true); },
-      function ()     { cb({}, false); });
+    /* As duas listas viajam juntas porque o card da turma precisa das duas
+       para decidir: a turma pode ser restrita, o evento dela pode ser, ou os
+       dois. Uma só falhar já basta para o painel não saber responder quem
+       pode entrar, então ok é o E das duas leituras — meio conhecimento
+       decidiria errado com a cara de quem sabe. */
+    Promise.all([
+      firebase.database().ref('turmas-publico').once('value'),
+      firebase.database().ref('eventos-publico').once('value')
+    ]).then(function (snaps) {
+      cb(snaps[0].val() || {}, snaps[1].val() || {}, true);
+    }).catch(function () {
+      cb({}, {}, false);
+    });
   }
 
   /* Eventos — entidade que agrupa turmas. Armazena nome e carga horária
@@ -341,6 +351,7 @@
           esperaAtiva: e.esperaAtiva !== false,
           publicado: e.publicado !== false,
           restritoADiretores: !!e.restritoADiretores,
+          publicoRestrito: !!e.publicoRestrito,
           modalidadeLabel: e.modalidadeLabel || '', modalidadeDesc: e.modalidadeDesc || '',
           publicoLabel: e.publicoLabel || '', publicoDesc: e.publicoDesc || '',
           formato: e.formato || 'presencial'
@@ -425,7 +436,14 @@
      "Mover para turma" — perguntam todas aqui. Acrescentar uma exigência
      nova se faz mudando esta função, nunca as três cópias. O lado público
      (app.js) faz a mesma pergunta com os mesmos dois dados. */
-  var _publicoPorTurma = {};   /* { [turmaKey]: { [emailKey]: {name,email,area,...} } } */
+  var _publicoPorTurma  = {};  /* { [turmaKey]:  { [emailKey]: {name,email,area,...} } } */
+  /* Mesma ideia um nível acima: evento marcado "publicoRestrito" só admite
+     quem está em eventos-publico/<evento>/<chave do e-mail>, e isso vale para
+     TODAS as turmas dele. As duas restrições são independentes e se somam —
+     turma restrita dentro de evento restrito exige estar nas duas listas.
+     Restringir o evento é o caminho para uma turma fechada a um público
+     predefinido sem ter de repetir a mesma lista em cada turma nova. */
+  var _publicoPorEvento = {};  /* { [eventoKey]: { [emailKey]: {name,email,area,...} } } */
   /* "Não sei ainda" é diferente de "a lista está vazia" — a lição do PR #111,
      aqui do lado do painel. Se a leitura de turmas-publico falhar, tratar como
      vazia faria o painel recusar TODO MUNDO e acusar toda a turma de estar
@@ -444,15 +462,43 @@
     var p = _publicoPorTurma[turmaKey];
     return !!(p && p[eKey]);
   }
+  function eventoRestrito(eventoKey) {
+    if (!eventoKey) return false;
+    for (var i = 0; i < EVENTOS_LIST.length; i++) {
+      if (EVENTOS_LIST[i].key === eventoKey) return !!EVENTOS_LIST[i].publicoRestrito;
+    }
+    return false;
+  }
+  function noPublicoDoEvento(eventoKey, eKey) {
+    var p = _publicoPorEvento[eventoKey];
+    return !!(p && p[eKey]);
+  }
+  function falhaLeituraPublico(alvo) {
+    return 'Não consegui ler o público restrito de ' + alvo + ' nesta carga da página.\n\n' +
+      'Como só admite quem está na lista, não dá para decidir sem ela — ' +
+      'recarregue a página e tente de novo. Nada foi gravado.';
+  }
+
   /* Devolve a mensagem de recusa, ou null quando pode seguir. A mensagem diz
      o conserto: recusar sem dizer como resolver é o que faz a admin achar
      que o site quebrou. */
   function barradoPeloPublico(turmaKey, nome, eKey) {
+    var evKey = turmaEventoKey(turmaKey);
+    /* O evento é verificado ANTES da turma porque é a restrição mais ampla:
+       quem não pode estar no evento não pode estar em turma nenhuma dele, e
+       mandar a admin procurar a lista da turma nesse caso é mandar consertar
+       no lugar errado. */
+    if (eventoRestrito(evKey)) {
+      if (!_publicoResolvido) return falhaLeituraPublico('o evento "' + eventoLabel(evKey) + '"');
+      if (!noPublicoDoEvento(evKey, eKey)) {
+        return (nome || 'Essa pessoa') + ' não está no público restrito do evento "' + eventoLabel(evKey) + '".\n\n' +
+          'Este evento só admite quem está na lista dele, em qualquer uma de suas turmas. Para incluir, ' +
+          'abra "\u{1F465} Público restrito" no cabeçalho do evento, adicione a pessoa lá e volte aqui.\n\nNada foi gravado.';
+      }
+    }
     if (!turmaRestrita(turmaKey)) return null;
     if (!_publicoResolvido) {
-      return 'Não consegui ler o público restrito de "' + turmaLabel(turmaKey) + '" nesta carga da página.\n\n' +
-        'Como esta turma só admite quem está na lista, não dá para decidir sem ela — ' +
-        'recarregue a página e tente de novo. Nada foi gravado.';
+      return falhaLeituraPublico('a turma "' + turmaLabel(turmaKey) + '"');
     }
     if (noPublicoDaTurma(turmaKey, eKey)) return null;
     return (nome || 'Essa pessoa') + ' não está no público restrito de "' + turmaLabel(turmaKey) + '".\n\n' +
@@ -492,11 +538,12 @@
            do público para desenhar o selo, o aviso de divergência e para as
            portas recusarem. Se viesse depois, a primeira pintura da tela
            mostraria turma restrita como se fosse aberta. */
-        lerPublico(function (pub, ok) {
+        lerPublico(function (pub, pubEv, ok) {
           var data    = snapI.val()  || {};
           var config  = snapC.val()  || {};
           var checkin = snapCk.val() || {};
-          _publicoPorTurma = pub;
+          _publicoPorTurma  = pub;
+          _publicoPorEvento = pubEv;
           _publicoResolvido = ok;
           /* Precisa vir antes de desenhar qualquer turma: é daqui que sai
              o "Já participou · Turma 1 — Agosto". */
@@ -794,7 +841,9 @@
               publicoBtn.className = 'btn btn--sm';
               publicoBtn.style.cssText = 'padding:6px 10px;font-size:.72rem;border-color:rgba(138,127,255,.5);color:#a99dff';
               publicoBtn.innerHTML = '&#x1F465; Público restrito';
-              publicoBtn.addEventListener('click', (function (tt) { return function () { openPublicoModal(tt); }; })(t));
+              publicoBtn.addEventListener('click', (function (tt) {
+                return function () { openPublicoModal({ tipo: 'turma', key: tt.key, label: tt.label }); };
+              })(t));
               moreMenu.appendChild(publicoBtn);
             }
 
@@ -836,35 +885,53 @@
             var body = document.createElement('div');
             body.className = 'turma-admin-body';
 
-            /* Marcar "público restrito" numa turma que já tem gente não
-               expulsa ninguém — marcar uma caixa nunca deve remover pessoa em
-               silêncio. Mas o que sobra é uma divergência real: gente na
-               turma que a lista não reconhece. Em vez de esconder, o card diz
-               quem são, para a decisão ser sua, vendo os nomes. */
-            if (t.publicoRestrito && active.length && _publicoResolvido) {
-              var foraDaLista = active.filter(function (r) {
-                return !noPublicoDaTurma(t.key, emailKey(r.email));
+            /* Marcar "público restrito" numa turma (ou no evento dela) que já
+               tem gente não expulsa ninguém — marcar uma caixa nunca deve
+               remover pessoa em silêncio. Mas o que sobra é uma divergência
+               real: gente na turma que a lista não reconhece. Em vez de
+               esconder, o card diz quem são, para a decisão ser sua, vendo os
+               nomes. As duas restrições fazem a mesma pergunta e ganham o
+               mesmo aviso — separadas, porque o conserto de cada uma é numa
+               lista diferente. */
+            var restricoesDaTurma = [];
+            if (t.publicoRestrito) {
+              restricoesDaTurma.push({
+                qual: 'público restrito desta turma',
+                onde: 'no menu ⋯ da turma',
+                virou: 'a turma virar restrita',
+                dentro: function (k) { return noPublicoDaTurma(t.key, k); }
               });
-              if (foraDaLista.length) {
-                var aviso = document.createElement('p');
-                aviso.className = 'admin-empty turma-aviso-publico';
-                aviso.textContent = foraDaLista.length + (foraDaLista.length !== 1
-                    ? ' pessoas estão nesta turma sem estar no público restrito: '
-                    : ' pessoa está nesta turma sem estar no público restrito: ') +
-                  foraDaLista.map(function (r) { return r.name || r.email; }).join(', ') +
-                  '. Elas entraram antes de a turma virar restrita e continuam valendo — ' +
-                  'inclua no público restrito para regularizar, ou remova da turma.';
-                body.appendChild(aviso);
+            }
+            if (eventoRestrito(t.eventoKey)) {
+              restricoesDaTurma.push({
+                qual: 'público restrito do evento "' + eventoLabel(t.eventoKey) + '"',
+                onde: 'no cabeçalho do evento',
+                virou: 'o evento virar restrito',
+                dentro: function (k) { return noPublicoDoEvento(t.eventoKey, k); }
+              });
+            }
+            restricoesDaTurma.forEach(function (r) {
+              if (!_publicoResolvido) {
+                var avisoFalha = document.createElement('p');
+                avisoFalha.className = 'admin-empty turma-aviso-publico';
+                avisoFalha.textContent = 'Não consegui ler o ' + r.qual + ' nesta carga da página. ' +
+                  'A lista pode estar incompleta na tela, e adicionar ou confirmar alguém vai ser recusado até ' +
+                  'a leitura funcionar — recarregue a página.';
+                body.appendChild(avisoFalha);
+                return;
               }
-            }
-            if (t.publicoRestrito && !_publicoResolvido) {
-              var avisoFalha = document.createElement('p');
-              avisoFalha.className = 'admin-empty turma-aviso-publico';
-              avisoFalha.textContent = 'Não consegui ler o público restrito desta turma nesta carga da página. ' +
-                'A lista pode estar incompleta na tela, e adicionar ou confirmar alguém vai ser recusado até ' +
-                'a leitura funcionar — recarregue a página.';
-              body.appendChild(avisoFalha);
-            }
+              if (!active.length) return;
+              var foraDaLista = active.filter(function (reg) { return !r.dentro(emailKey(reg.email)); });
+              if (!foraDaLista.length) return;
+              var aviso = document.createElement('p');
+              aviso.className = 'admin-empty turma-aviso-publico';
+              aviso.textContent = foraDaLista.length + (foraDaLista.length !== 1
+                  ? ' pessoas estão nesta turma sem estar no ' : ' pessoa está nesta turma sem estar no ') + r.qual + ': ' +
+                foraDaLista.map(function (reg) { return reg.name || reg.email; }).join(', ') +
+                '. Elas entraram antes de ' + r.virou + ' e continuam valendo — ' +
+                'inclua na lista ' + r.onde + ' para regularizar, ou remova da turma.';
+              body.appendChild(aviso);
+            });
 
             if (!active.length) {
               body.innerHTML = '<p class="admin-empty">Nenhum participante ativo.</p>';
@@ -1056,6 +1123,33 @@
                 'text-transform:uppercase;color:var(--gold);border:1px solid rgba(245,197,24,.5);' +
                 'border-radius:99px;padding:3px 9px;white-space:nowrap';
               evHdr.appendChild(evRestrito);
+            }
+            /* Terceiro selo da mesma família: sem ele, "ninguém se inscreveu"
+               e "ninguém PODE se inscrever" se parecem na tela. O número é o
+               tamanho da lista — lista vazia num evento restrito quer dizer
+               que ele está invisível para todo mundo que não é admin. */
+            if (ev.publicoRestrito) {
+              var noPublicoEv = Object.keys(_publicoPorEvento[ev.key] || {}).length;
+              var evPub = document.createElement('span');
+              evPub.textContent = '\u{1F465} público restrito · ' + noPublicoEv;
+              evPub.title = 'Este evento só aparece na página Turmas, e só admite participantes, para quem está na lista dele. Vale para todas as turmas do evento.';
+              evPub.style.cssText = 'flex-shrink:0;font-family:var(--font-mono);font-size:.62rem;letter-spacing:.08em;' +
+                'text-transform:uppercase;color:#a99dff;border:1px solid rgba(138,127,255,.5);' +
+                'border-radius:99px;padding:3px 9px;white-space:nowrap';
+              evHdr.appendChild(evPub);
+            }
+            /* Só aparece em evento restrito, como o botão equivalente no menu
+               ⋯ da turma: num evento aberto a lista não decide nada. */
+            if (ev.publicoRestrito) {
+              var evPublicoBtn = document.createElement('button');
+              evPublicoBtn.className = 'btn btn--sm';
+              evPublicoBtn.style.cssText = 'padding:4px 10px;font-size:.72rem;border-color:rgba(138,127,255,.5);color:#a99dff';
+              evPublicoBtn.innerHTML = '&#x1F465; Público restrito';
+              evPublicoBtn.title = 'Quem pode ver e participar deste evento';
+              evPublicoBtn.addEventListener('click', (function (ee) {
+                return function (e) { e.stopPropagation(); openPublicoModal({ tipo: 'evento', key: ee.key, label: ee.nome }); };
+              })(ev));
+              evHdr.appendChild(evPublicoBtn);
             }
             evHdr.appendChild(evEditBtn);
             evHdr.appendChild(evNewTurmaBtn);
@@ -2447,7 +2541,19 @@
     var allUsers = [];   /* carregados do Firebase */
     var selected = null; /* { name, email, area } */
 
-    var restrita = turmaRestrita(turmaKey);
+    var evKeyPart  = turmaEventoKey(turmaKey);
+    var evRestrito = eventoRestrito(evKeyPart);
+    var restrita   = turmaRestrita(turmaKey);
+    if (evRestrito) {
+      /* Mesmo aviso da turma restrita, um nível acima: a busca só enxerga
+         quem pode estar no evento, e o texto diz onde se muda isso. */
+      var avisoEv = document.createElement('p');
+      avisoEv.style.cssText = 'font-size:.8rem;color:#a99dff;margin:0;line-height:1.5';
+      avisoEv.innerHTML = '&#x1F465; O evento <strong>' + esc(eventoLabel(evKeyPart)) + '</strong> tem ' +
+        '<strong>público restrito</strong>: a busca abaixo só encontra quem está na lista dele. ' +
+        'Para incluir outra pessoa, feche isto e use "&#x1F465; Público restrito" no cabeçalho do evento.';
+      box.insertBefore(avisoEv, box.querySelector('#addPartSearchWrap'));
+    }
     if (restrita) {
       /* Melhor não oferecer do que recusar depois de escolher: numa turma de
          público restrito a busca só enxerga quem está na lista, e o aviso diz
@@ -2464,6 +2570,13 @@
     firebase.database().ref('fa-users').once('value', function (snap) {
       var data = snap.val() || {};
       allUsers = Object.values(data).filter(function (u) { return u.email && u.name; });
+      /* As duas listas se somam: numa turma restrita dentro de um evento
+         restrito, só sobra quem está nas duas. */
+      if (evRestrito) {
+        allUsers = allUsers.filter(function (u) {
+          return noPublicoDoEvento(evKeyPart, emailKey(u.email));
+        });
+      }
       if (restrita) {
         allUsers = allUsers.filter(function (u) {
           return noPublicoDaTurma(turmaKey, emailKey(u.email));
@@ -2634,6 +2747,8 @@
       '<p style="font-size:.78rem;color:var(--ink-2);margin:-8px 0 0">Desmarcado, o card "Lista de Espera" não aparece na página Turmas e ninguém novo entra na fila deste evento. Quem já está na fila continua aqui no painel — nada é apagado.</p>' +
       '<label class="auth-label" style="flex-direction:row;align-items:center;gap:10px"><input type="checkbox" id="eventoFormRestritoDiretores" style="width:auto;margin:0" />Visível só para diretores e administradores</label>' +
       '<p style="font-size:.78rem;color:var(--ink-2);margin:-8px 0 0">Marcado, este evento some da página Turmas para quem não está na aba Diretores nem é admin — mesmo efeito de "fora da página", mas só pra elas. Quem tem acesso vê e se inscreve normalmente. Gerencie quem é diretor na aba Diretores.</p>' +
+      '<label class="auth-label" style="flex-direction:row;align-items:center;gap:10px"><input type="checkbox" id="eventoFormPublicoRestrito" style="width:auto;margin:0" />Visível só para um público predefinido (lista de e-mails)</label>' +
+      '<p style="font-size:.78rem;color:var(--ink-2);margin:-8px 0 0">Marcado, este evento só aparece — e só admite participantes — para quem estiver na lista de e-mails dele, em qualquer uma de suas turmas. A lista se monta aqui no painel, em "\u{1F465} Público restrito" no cabeçalho do evento, depois de salvar. Enquanto estiver vazia, o evento fica invisível para todo mundo que não é admin. Marcar não remove ninguém: quem já está inscrita continua, e o card da turma avisa quem ficou fora da lista. É diferente de "só diretores": ali vale a aba Diretores inteira, aqui vale só quem você listar.</p>' +
       '<hr style="border:none;border-top:1px solid var(--line-strong);margin:4px 0">' +
       '<p style="font-size:.78rem;color:var(--ink-2);margin:0">Conteúdo público da página Turmas — aparece abaixo dos cards deste evento, só quando preenchido. Deixe em branco pra não mostrar nada.</p>' +
       '<label class="auth-label">Missão (título curto)<input type="text" id="eventoFormMissaoTitulo" placeholder="Ex: Oficina de Agilidade Organizacional" autocomplete="off" /></label>' +
@@ -2691,6 +2806,7 @@
     var esperaInput       = box.querySelector('#eventoFormEspera');
     var publicadoInput    = box.querySelector('#eventoFormPublicado');
     var restritoInput     = box.querySelector('#eventoFormRestritoDiretores');
+    var publicoRestritoInput = box.querySelector('#eventoFormPublicoRestrito');
     var formatoInput      = box.querySelector('#eventoFormFormato');
     var modalidadeLabelInput = box.querySelector('#eventoFormModalidadeLabel');
     var modalidadeDescInput  = box.querySelector('#eventoFormModalidadeDesc');
@@ -2710,6 +2826,9 @@
     esperaInput.checked     = isEdit ? existing.esperaAtiva !== false : true;
     publicadoInput.checked  = isEdit ? existing.publicado !== false : true;
     restritoInput.checked   = isEdit ? !!existing.restritoADiretores : false;
+    /* Ausente = evento aberto: evento criado antes deste controle continua
+       exatamente como sempre esteve, sem migração nenhuma. */
+    publicoRestritoInput.checked = isEdit ? !!existing.publicoRestrito : false;
     formatoInput.value      = isEdit ? (existing.formato || 'presencial') : 'presencial';
     modalidadeLabelInput.value = isEdit ? (existing.modalidadeLabel || '') : '';
     modalidadeDescInput.value  = isEdit ? (existing.modalidadeDesc  || '') : '';
@@ -2769,6 +2888,7 @@
         esperaAtiva: !!esperaInput.checked,
         publicado: !!publicadoInput.checked,
         restritoADiretores: !!restritoInput.checked,
+        publicoRestrito: !!publicoRestritoInput.checked,
         formato: formatoInput.value || 'presencial',
         modalidadeLabel: (modalidadeLabelInput.value || '').trim(),
         modalidadeDesc: (modalidadeDescInput.value || '').trim(),
@@ -2938,10 +3058,13 @@
     });
   }
 
-  /* ---- Público restrito de uma turma ------------------------------------
-     A lista mora em turmas-publico/<turma>/<chave do e-mail> e é a fonte da
-     verdade de quem pode estar na turma. Só admin escreve (ver
-     database.rules.json) — diferente de turmas-interesse, que qualquer pessoa
+  /* ---- Público restrito de uma turma OU de um evento ---------------------
+     A lista mora em turmas-publico/<turma>/<chave do e-mail> ou em
+     eventos-publico/<evento>/<chave do e-mail> e é a fonte da verdade de quem
+     pode estar ali. A do evento vale para todas as turmas dele, e é o caminho
+     para abrir um evento só a um público predefinido sem repetir a mesma
+     lista em cada turma nova; as duas se somam quando as duas existem.
+     Só admin escreve (ver database.rules.json) — diferente de turmas-interesse, que qualquer pessoa
      logada pode escrever, então esta lista é a parte do mecanismo que o banco
      de fato protege.
 
@@ -2952,7 +3075,18 @@
      Remover daqui NÃO remove da turma. São duas decisões: a lista diz quem
      PODE, a turma diz quem ESTÁ. Quem sobra numa e não na outra aparece no
      aviso do card, com nome — em vez de o sistema decidir sozinho. */
-  function openPublicoModal(turma) {
+  function openPublicoModal(alvo) {
+    var ehEvento = alvo.tipo === 'evento';
+    /* Um modal só para as duas listas: mudam o nó, o alcance e as palavras —
+       a mecânica (quem já está, quem entra, quem sai) é a mesma, e duas
+       cópias dela é que fariam as duas restrições divergirem com o tempo. */
+    var noPath   = ehEvento ? 'eventos-publico/' : 'turmas-publico/';
+    var oQue     = ehEvento ? 'evento' : 'turma';
+    var alcance  = ehEvento
+      ? 'Só quem está nesta lista vê o evento no site — em todas as turmas dele — pode manifestar ' +
+        'interesse, entrar na lista de espera e ser adicionada por você.'
+      : 'Só quem está nesta lista vê a turma no site, pode manifestar interesse e pode ser ' +
+        'adicionada por você.';
     var overlay = document.createElement('div');
     overlay.className = 'modal-overlay';
     overlay.style.cssText = 'display:flex;align-items:center;justify-content:center;z-index:9999';
@@ -2961,10 +3095,9 @@
     box.style.cssText = 'max-width:560px;width:92%;padding:28px;display:flex;flex-direction:column;gap:16px;max-height:85vh;overflow:auto';
     box.innerHTML =
       '<h3 style="font-size:1.1rem;font-family:var(--font-head);letter-spacing:.05em;color:var(--ink)">' +
-        '&#x1F465; Público restrito &mdash; ' + esc(turma.label) + '</h3>' +
+        '&#x1F465; Público restrito &mdash; ' + esc(alvo.label) + '</h3>' +
       '<p style="font-size:.82rem;color:var(--ink-3);margin:0;line-height:1.6">' +
-        'Só quem está nesta lista vê a turma no site, pode manifestar interesse e pode ser ' +
-        'adicionada por você. Remover daqui não remove ninguém da turma.</p>' +
+        alcance + ' Remover daqui não remove ninguém da turma.</p>' +
       '<div id="pubBody"><div class="loading-bloco"><p class="loading-msg">Carregando…</p></div></div>' +
       '<div style="display:flex;justify-content:flex-end"><button class="btn admin-modal-cancel-btn">Fechar</button></div>';
     overlay.appendChild(box);
@@ -2983,11 +3116,31 @@
 
     function reload() {
       Promise.all([
-        firebase.database().ref('turmas-publico/' + turma.key).once('value'),
+        firebase.database().ref(noPath + alvo.key).once('value'),
         firebase.database().ref('fa-users').once('value'),
-        firebase.database().ref('turmas-interesse/' + turma.key).once('value')
+        /* Na turma basta o nó dela. No evento a pergunta é outra — "está em
+           ALGUMA turma deste evento?" — e a resposta se monta juntando os
+           nós das turmas dele. */
+        ehEvento
+          ? firebase.database().ref('turmas-interesse').once('value')
+          : firebase.database().ref('turmas-interesse/' + alvo.key).once('value')
       ]).then(function (snaps) {
-        render(snaps[0].val() || {}, snaps[1].val() || {}, snaps[2].val() || {});
+        var interesse = snaps[2].val() || {};
+        if (ehEvento) {
+          var doEvento = {};
+          TURMAS_LIST.forEach(function (t) {
+            if (t.eventoKey !== alvo.key) return;
+            var reg = interesse[t.key] || {};
+            Object.keys(reg).forEach(function (k) {
+              /* Uma pessoa não pode estar inscrita em duas turmas do mesmo
+                 evento, mas PODE ter saído de uma e estar noutra: o registro
+                 ativo é que vale, senão o removido apagaria o bom. */
+              if (!doEvento[k] || (doEvento[k].removed && !reg[k].removed)) doEvento[k] = reg[k];
+            });
+          });
+          interesse = doEvento;
+        }
+        render(snaps[0].val() || {}, snaps[1].val() || {}, interesse);
       }).catch(function () {
         body.innerHTML = '<p class="admin-empty">Não foi possível carregar a lista. Feche e abra de novo.</p>';
       });
@@ -3001,7 +3154,7 @@
       if (!chaves.length) {
         body.insertAdjacentHTML('beforeend',
           '<p class="admin-empty">Ninguém na lista ainda. Enquanto estiver vazia, ' +
-          'a turma não aparece para pessoa nenhuma no site &mdash; só para você, no painel.</p>');
+          'o ' + oQue + ' não aparece para pessoa nenhuma no site &mdash; só para você, no painel.</p>');
       } else {
         var wrap = document.createElement('div');
         wrap.className = 'table-scroll-wrap';
@@ -3025,7 +3178,7 @@
                 '" style="padding:4px 9px;font-size:.72rem;border-color:rgba(255,80,80,.5);color:#ff8080">Remover</button></td></tr>';
           }).join('');
         wrap.innerHTML = '<table class="admin-table"><thead><tr>' +
-          '<th>Nome</th><th>E-mail</th><th>Área</th><th>Na turma</th><th>Incluída em</th><th></th>' +
+          '<th>Nome</th><th>E-mail</th><th>Área</th><th>' + (ehEvento ? 'Em alguma turma' : 'Na turma') + '</th><th>Incluída em</th><th></th>' +
           '</tr></thead><tbody>' + linhas + '</tbody></table>';
         body.appendChild(wrap);
         wrap.addEventListener('click', function (e) {
@@ -3033,12 +3186,13 @@
           if (!b) return;
           var reg = interesse[b.dataset.ekey];
           var extra = (reg && !reg.removed)
-            ? '\n\nAtenção: ela está NA TURMA agora. Remover da lista não a remove da turma — ' +
+            ? '\n\nAtenção: ela está ' + (ehEvento ? 'numa turma deste evento' : 'NA TURMA') + ' agora. ' +
+              'Remover da lista não a remove da turma — ' +
               'ela continua participando, e o card vai passar a avisar que está lá sem estar na lista.'
             : '';
-          adminConfirm('Remover ' + b.dataset.name + ' do público restrito de "' + turma.label + '"?' + extra,
+          adminConfirm('Remover ' + b.dataset.name + ' do público restrito de "' + alvo.label + '"?' + extra,
             function () {
-              firebase.database().ref('turmas-publico/' + turma.key + '/' + b.dataset.ekey).remove(function (err) {
+              firebase.database().ref(noPath + alvo.key + '/' + b.dataset.ekey).remove(function (err) {
                 if (err) { adminAlert('Erro ao remover. Tente novamente.'); return; }
                 reload();
               });
@@ -3056,7 +3210,7 @@
         '<ul id="pubResults" style="margin:4px 0 0;padding:0;list-style:none;max-height:180px;overflow-y:auto;' +
           'border:1px solid var(--line-strong);border-radius:6px;background:var(--panel-2);display:none"></ul>' +
         '<p style="font-size:.78rem;color:var(--ink-3);margin:6px 0 0">' +
-          'Aparecem só pessoas já cadastradas no site: sem cadastro ninguém consegue entrar para ver a turma.</p>';
+          'Aparecem só pessoas já cadastradas no site: sem cadastro ninguém consegue entrar para ver o ' + oQue + '.</p>';
       body.appendChild(addWrap);
 
       var candidatos = Object.values(users).filter(function (u) {
@@ -3093,7 +3247,7 @@
       function incluir(u) {
         var sess = window.faAuth && window.faAuth.getSession();
         var eKey = emailKey(u.email);
-        firebase.database().ref('turmas-publico/' + turma.key + '/' + eKey).set({
+        firebase.database().ref(noPath + alvo.key + '/' + eKey).set({
           name: (u.name || '').toUpperCase(), email: u.email.toLowerCase(), area: u.area || '',
           date: new Date().toISOString(),
           addedBy: sess ? sess.email : null,
