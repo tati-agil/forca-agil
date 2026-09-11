@@ -1552,6 +1552,11 @@ details.manual-admin-subgroup[open] > .manual-admin-subhead,
 .ped-msg { font-size: .82rem; }
 .ped-msg--erro { color: #ff6b6b; }
 .ped-sucesso { color: #4caf7d; font-size: .95rem; padding: 20px 0; }
+.ped-sucesso-msg { margin: 0; }
+/* A linha de apoio é informação, não celebração: fica em cinza pra não
+   disputar com o ✓ verde, que é o que confirma o envio. */
+.ped-sucesso-sub { margin: 6px 0 0; color: var(--ink-2); font-size: .84rem; }
+.ped-outro-btn { margin-top: 18px; }
 
 /* ── Pedidos — painel admin ── */
 .ped-admin-bar { display: flex; align-items: center; flex-wrap: wrap; gap: 12px; margin-bottom: 24px; }

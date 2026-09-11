@@ -136,6 +136,54 @@ const FORMATOS = [
       await ctx.close();
     }
 
+    /* 2b. Depois de enviar, dá pra mandar OUTRO sem recarregar a página.
+           Antes o sucesso substituía o formulário e não devolvia nada: o
+           caminho feliz terminava num beco sem saída, e a única saída era o
+           F5 — que no celular, na sala, é onde a pessoa desiste. */
+    {
+      const { ctx, page, erros } = await abrir(browser, formato);
+      await page.click('.ped-tipo-btn[data-tipo="tema"]');
+      await page.click('#pedEnviar');
+      await page.waitForSelector('.ped-sucesso', { timeout: 10000 });
+      const p = [];
+      const temBotao = await page.evaluate(() => !!document.querySelector('.ped-outro-btn'));
+      if (!temBotao) {
+        p.push('BECO SEM SAÍDA: depois de enviar não há como fazer outro pedido sem recarregar');
+        anota('depois de enviar, dá pra fazer outro sem recarregar', p);
+      } else {
+        await page.click('.ped-outro-btn');
+        await page.waitForSelector('#pedEnviar', { timeout: 10000 });
+        const limpo = await page.evaluate(() => {
+          const t = document.querySelector('#pedTexto');
+          const ativos = document.querySelectorAll('.ped-tipo-btn.active').length;
+          const m = document.querySelector('#pedMsg');
+          return {
+            texto: t ? t.value : null,
+            tiposAtivos: ativos,
+            msg: m ? m.textContent.trim() : '',
+            aindaTemSucesso: !!document.querySelector('.ped-sucesso'),
+          };
+        });
+        if (limpo.texto) p.push('o formulário voltou com a descrição do pedido anterior: "' + limpo.texto + '"');
+        if (limpo.tiposAtivos !== 0) p.push('o formulário voltou com o tipo anterior ainda escolhido');
+        if (limpo.msg) p.push('o formulário voltou com mensagem sobrando: "' + limpo.msg + '"');
+        if (limpo.aindaTemSucesso) p.push('a confirmação do envio anterior continua na tela junto do formulário');
+        if (erros.length) p.push('erro JS: ' + erros[0]);
+        anota('depois de enviar, dá pra fazer outro sem recarregar', p);
+
+        /* E o formulário devolvido funciona de verdade: o segundo pedido vai. */
+        const p2 = [];
+        await page.click('.ped-tipo-btn[data-tipo="curso"]');
+        await page.click('#pedEnviar');
+        await page.waitForTimeout(800);
+        const d2 = await lerForm(page);
+        if (!d2.sucesso) p2.push('o segundo pedido não foi enviado (rótulo: "' + d2.rotulo + '", msg: "' + d2.msg + '")');
+        if (erros.length) p2.push('erro JS: ' + erros[0]);
+        anota('o formulário devolvido envia o segundo pedido normalmente', p2);
+      }
+      await ctx.close();
+    }
+
     /* 3. O chip escolhido se distingue por FORMA, não só por cor — no iPhone
           o hover gruda e cor sozinha não diz quem está escolhido. */
     {

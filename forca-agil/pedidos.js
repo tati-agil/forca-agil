@@ -9,6 +9,30 @@
     { key: 'outros',   label: 'Outros',                       color: '#8a93a8' },
   ];
 
+  /* Confirmação do envio. Ela SUBSTITUI o formulário de propósito — a
+     confirmação tem que ser inconfundível, e um formulário vazio de volta na
+     tela deixa dúvida se foi ou não foi. Mas quem manda um pedido muitas
+     vezes quer mandar outro logo em seguida, e antes a única saída daqui era
+     recarregar a página: o site tinha um beco sem saída no fim do caminho
+     feliz. O botão abaixo refaz o formulário limpo, sem recarregar nada. */
+  function mostrarSucesso(wrap) {
+    wrap.innerHTML =
+      '<div class="ped-sucesso">' +
+        '<p class="ped-sucesso-msg">&#x2713; Pedido enviado! Obrigada &mdash; vamos analisar em breve.</p>' +
+        '<p class="ped-sucesso-sub">Ele fica registrado em <strong>Minha &Aacute;rea &rarr; Meus pedidos</strong>, ' +
+          'onde d&aacute; pra acompanhar se j&aacute; foi respondido.</p>' +
+        '<button type="button" class="btn ped-outro-btn">+ Fazer outro pedido</button>' +
+      '</div>';
+    wrap.querySelector('.ped-outro-btn').addEventListener('click', function () {
+      renderForm(wrap);
+      /* Leva o foco pro primeiro tipo: no celular, o formulário reaparece
+         acima da dobra e sem isto a pessoa não percebe que ele voltou. */
+      var primeiro = wrap.querySelector('.ped-tipo-btn');
+      if (primeiro && primeiro.focus) primeiro.focus();
+      if (primeiro && primeiro.scrollIntoView) primeiro.scrollIntoView({ block: 'center' });
+    });
+  }
+
   /* ── Formulário público (página Ajuda) ── */
   function renderForm(wrap) {
     var tipoSel = null;
@@ -105,7 +129,7 @@
           erro('Erro ao enviar. Tente novamente.');
           destravar();
         } else {
-          wrap.innerHTML = '<div class="ped-sucesso">✓ Pedido enviado! Obrigada — vamos analisar em breve.</div>';
+          mostrarSucesso(wrap);
         }
       });
     });
