@@ -92,6 +92,7 @@
       db.ref('eventos').once('value'),
       db.ref('pedidos').once('value'),
       db.ref('fa-espera').once('value'),
+      db.ref('turmas-publico').once('value'),
     ]).then(function (r) {
       var d = {
         interesse: r[0].val() || {},
@@ -101,6 +102,7 @@
         eventos:   r[4].val() || {},
         pedidos:   r[5].val() || {},
         espera:    r[6].val() || {},
+        publico:   r[7].val() || {},
         avaliacoes: {},
       };
       /* As avaliações são lidas UMA A UMA, só a da própria pessoa em cada
@@ -242,6 +244,17 @@
     return true;
   }
 
+  /* Mesma regra de turmaVisivelPara (app.js): turma de público restrito só
+     existe para quem está na lista dela. Esta prévia é justamente o lugar
+     onde a regra foi esquecida quando o evento restrito a diretores nasceu —
+     a página Turmas escondia certo e a Minha Área vazava. Não repetir. */
+  function turmaVisivelPara(t, email) {
+    if (!t.publicoRestrito) return true;
+    if (!email) return false;
+    if (window.faAuth && window.faAuth.isAdmin(email)) return true;
+    return !!t.publico[emailKey(email)];
+  }
+
   function turmasAbertas(d, email) {
     var hoje = todayISO();
     return Object.keys(d.turmas).map(function (tk) {
@@ -250,6 +263,8 @@
       var dias  = (turma.dias || []).slice().sort();
       return {
         key: tk,
+        publicoRestrito: !!turma.publicoRestrito,
+        publico: (d.publico || {})[tk] || {},
         label: turma.label || tk,
         datas: textoDatas(turma.dias),
         inicio: dias[0] || '',
@@ -259,7 +274,8 @@
         evento: turma.eventoKey ? (d.eventos[turma.eventoKey] || {}) : {},
       };
     }).filter(function (t) {
-      return !t.encerrada && !t.interesseEncerrado && !t.jaComecou && eventoVisivelPara(t.evento, email);
+      return !t.encerrada && !t.interesseEncerrado && !t.jaComecou &&
+        eventoVisivelPara(t.evento, email) && turmaVisivelPara(t, email);
     }).sort(function (a, b) { return (a.inicio || '').localeCompare(b.inicio || ''); });
   }
 

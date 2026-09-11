@@ -110,6 +110,51 @@ caminhos só são alcançáveis por registros antigos:
 
 Ao mexer em qualquer um deles, reveja esta tabela inteira antes.
 
+## Inventário: "poder estar numa turma de público restrito"
+
+Turma com `turmas/<turma>/publicoRestrito` só admite quem está em
+`turmas-publico/<turma>/<emailKey>`. É o critério mais novo, e nasceu com o
+inventário fechado de propósito — a lição da tabela acima.
+
+O critério é uma função só, em cada lado: `barradoPeloPublico()` em `admin.js`
+e `turmaVisivelPara()` em `app.js` / `aluno.js`.
+
+**Portas de escrita** (produzem "estar na turma") — as três recusam:
+
+| porta | onde |
+|---|---|
+| botão Confirmar | `admin.js` `confirmarInscrito` |
+| ＋ Participante | `admin.js` `addParticipante` (a busca já sai filtrada, e revalida ao gravar) |
+| Mover para turma | `admin.js` `moverParaTurma` |
+| "Tenho interesse" (a pessoa) | `app.js` `registerInterest` — revalida no clique |
+
+**Leitores** (decidem o que aparece):
+
+| leitor | onde |
+|---|---|
+| grade da página Turmas | `app.js` `renderTurmasGrid` (filtra antes de agrupar por evento) |
+| blocos A Missão / Plano de Voo | `app.js` `renderMissaoEventos` (mesmo filtro, senão evento ganha missão sem grade) |
+| prévia "Turmas abertas no momento" | `aluno.js` `turmasAbertas` |
+| painel: selo, aviso de divergência, menu ⋯ | `admin.js` `buildTurmaCard` |
+
+**Decisões conscientes, não esquecimento:**
+
+- **Remover o próprio interesse continua permitido** numa turma que virou
+  restrita. Quem já se inscreveu e quer desistir não pode ficar presa; a
+  restrição é sobre ENTRAR.
+- **Marcar a caixa não remove ninguém.** Quem já estava na turma continua, e o
+  card denuncia a divergência com os NOMES. Mesma regra do `esperaAtiva`:
+  desligar impede entrada nova, não apaga registro.
+- **Falha de leitura esconde a turma restrita** (`_publicoPorTurma = {}` no
+  erro). Falhar escondendo é o lado seguro — o contrário vazaria turma fechada.
+- **Admin vê tudo**, como no evento `restritoADiretores`.
+
+**Limite conhecido:** `turmas-interesse` aceita escrita de qualquer pessoa
+logada `@previ.com.br` nas regras do banco, então a recusa vive na interface.
+`turmas-publico` é o único nó de turma cuja escrita é só de admin — é ali que
+a restrição tem dente. Endurecer `turmas-interesse` é outra mudança, que
+afeta todos os fluxos de inscrição.
+
 ## Outros critérios de estado deste projeto
 
 Mesma disciplina se aplica, e cada um tem seu próprio inventário a levantar:

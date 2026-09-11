@@ -42,7 +42,8 @@ function bancoBase() {
     turmas: { turma1: { label: 'Turma de teste', dias: ['2026-01-01'] } },
     'turmas-interesse': interesse, 'fa-users': users, 'fa-admins': admins,
     'turmas-config': {}, 'turmas-checkin': {}, 'turmas-espera': {},
-    'turmas-equipe': {}, 'fa-facilitadores': {}, 'fa-diretores': {}, eventos: {}
+    'turmas-equipe': {}, 'fa-facilitadores': {}, 'fa-diretores': {}, eventos: {},
+    'turmas-publico': {}
   };
 }
 
@@ -54,6 +55,11 @@ const CENARIOS = [
   { nome: 'turmas-interesse com erro',cfg: { delayDefault: 20, fail: ['turmas-interesse'] } },
   { nome: 'fa-users com erro',        cfg: { delayDefault: 20, fail: ['fa-users'] } },
   { nome: 'fa-admins travado',        cfg: { delayDefault: 20, delays: { 'fa-admins': 999000 } } },
+  /* turmas-publico entrou na corrente de leituras da página Turmas e da aba
+     Eventos quando nasceu a turma de público restrito. Leitura nova é risco
+     novo: se travar ou falhar, nada do que depende dela pode apagar a tela. */
+  { nome: 'turmas-publico travado',   cfg: { delayDefault: 20, delays: { 'turmas-publico': 999000 } } },
+  { nome: 'turmas-publico com erro',  cfg: { delayDefault: 20, fail: ['turmas-publico'] } },
   { nome: 'auth nunca responde',      cfg: { delayDefault: 20, authDelay: 999000 } },
   { nome: 'SDK do Firebase fora',     cfg: { delayDefault: 20 }, semSdk: true },
 ];
