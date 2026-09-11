@@ -56,6 +56,16 @@ jobs:
           FA_BASE_URL: http://127.0.0.1:8811
         run: node .github/scripts/teste-publico-restrito-evento.js
 
+      # Hermético também. Regra: depois de tocar em "Enviar pedido", alguma
+      # coisa SEMPRE muda na tela. A regressão de 11/09/2026 era justamente o
+      # contrário — botão desabilitado com cara de botão vivo, toque engolido,
+      # nenhuma mensagem — e no computador do escritório passava despercebida.
+      - name: "Enviar pedido nunca fica calado (desktop e iPhone)"
+        env:
+          NODE_PATH: /tmp/pw-deps/node_modules
+          FA_BASE_URL: http://127.0.0.1:8811
+        run: node .github/scripts/teste-pedido-envio.js
+
       - name: Rodar suíte "Automáticos" de testes.js
         env:
           NODE_PATH: /tmp/pw-deps/node_modules

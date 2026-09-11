@@ -1417,6 +1417,9 @@
 
     /* ── Ajuda / Faça um pedido ──────────────────────────────── */
     { section: 'Ajuda',
+      title: 'Formulário "Faça um pedido" — nenhuma recusa pode ser silenciosa',
+      motivo: 'Regressão relatada em 11/09/2026: no iPhone, tocar em "Enviar pedido" não fazia nada — sem erro, sem mensagem —, e no Android funcionava. A causa não era o iPhone: o botão nascia desabilitado até o tipo ser escolhido e não havia estilo de :disabled, então ele ficava idêntico a um botão vivo e o toque era engolido pelo navegador. Testar no CELULAR, de preferência num iPhone: (1) abrir Ajuda sem escolher tipo nenhum e tocar direto em "Enviar pedido" — tem que aparecer "Escolha primeiro o tipo do pedido, ali em cima." e o foco ir para o primeiro chip; nada de silêncio; (2) tocar num chip — ele ganha um ✓ na frente, além do dourado: no iPhone o hover gruda depois do toque e um chip só encostado fica dourado sem estar escolhido, então a cor sozinha não serve de prova; (3) com o tipo escolhido, enviar e conferir a confirmação verde; (4) escolher o tipo e enviar com a rede desligada (modo avião) — em até ~12 segundos o botão tem que sair de "Enviando…", voltar a dizer "Enviar pedido" e avisar que a conexão demorou, em vez de ficar preso para sempre; (5) durante o envio, enquanto diz "Enviando…", o botão tem que ficar visivelmente apagado, não com cara de clicável. O automático equivalente é .github/scripts/teste-pedido-envio.js, que roda desktop e iPhone no CI.' },
+    { section: 'Ajuda',
       title: 'Formulário "Faça um pedido" — envio com login funciona',
       motivo: 'Logado, preencher o formulário e clicar "Enviar pedido". Verificar: (1) grava em pedidos/ no Firebase com tipo, descricao, nomeEnviou e emailEnviou; (2) no painel Admin → aba Pedidos, o novo pedido aparece na lista, ordenado mais recente primeiro, com o chip de tipo na cor correta (inclusive "Outros", cor cinza-azulada #8a93a8).' },
     { section: 'Admin',
