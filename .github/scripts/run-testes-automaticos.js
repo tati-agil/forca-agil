@@ -704,7 +704,7 @@ async function submitLogin(page, email, password) {
     if (problema) throw new Error(problema);
   });
 
-  await runIsolated('Ajuda: os 5 tipos de pedido aparecem e o "Enviar" só habilita depois de escolher um', async (p) => {
+  await runIsolated('Ajuda: os 5 tipos de pedido aparecem e o "Enviar" recusa EM VOZ ALTA sem tipo escolhido', async (p) => {
     await p.goto(BASE_URL, { waitUntil: 'networkidle' });
     const r = await submitLogin(p, EMAIL, PASSWORD);
     if (!r.ok) throw new Error('login falhou: ' + r.errorText);
@@ -715,10 +715,27 @@ async function submitLogin(page, email, password) {
     if (tipos.length !== 5 || !esperados.every((t) => tipos.indexOf(t) !== -1)) {
       throw new Error('tipos inesperados: ' + JSON.stringify(tipos));
     }
+    /* Este teste já exigiu o CONTRÁRIO — que o botão nascesse desabilitado até
+       escolherem o tipo. Era exatamente o bug relatado em 11/09/2026: sem
+       estilo de :disabled, o botão desabilitado ficava idêntico a um botão
+       vivo, o toque era engolido pelo navegador e nada aparecia na tela. A
+       regra certa não é travar o botão, é fazer a recusa FALAR. */
     const antes = await p.evaluate(() => document.getElementById('pedEnviar').disabled);
-    if (antes !== true) throw new Error('"Enviar pedido" já começa habilitado, sem tipo escolhido');
+    if (antes !== false) throw new Error('"Enviar pedido" nasce desabilitado — tocar nele não diria nada');
+    /* Tocar sem escolher o tipo é seguro: o clique volta antes de qualquer
+       gravação. O que se exige aqui é a frase, não o silêncio. */
+    await p.click('#pedEnviar');
+    await p.waitForFunction(() => {
+      const m = document.getElementById('pedMsg');
+      return !!(m && m.textContent.trim());
+    }, null, { timeout: 5000 });
+    const enviou = await p.evaluate(() => !!document.querySelector('.ped-sucesso'));
+    if (enviou) throw new Error('enviou um pedido sem tipo escolhido');
     await p.click('.ped-tipo-btn[data-tipo="curso"]');
-    await p.waitForFunction(() => document.getElementById('pedEnviar').disabled === false, null, { timeout: 5000 });
+    const marcado = await p.evaluate(function () {
+      return document.querySelector('.ped-tipo-btn[data-tipo="curso"]').classList.contains('active');
+    });
+    if (!marcado) throw new Error('o chip tocado não ficou marcado como escolhido');
     /* Nada é enviado: o teste para aqui, sem clicar em "Enviar pedido". */
   });
 
