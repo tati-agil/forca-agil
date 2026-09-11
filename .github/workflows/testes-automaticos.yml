@@ -66,6 +66,15 @@ jobs:
           FA_BASE_URL: http://127.0.0.1:8811
         run: node .github/scripts/teste-pedido-envio.js
 
+      # Hermético. Prova que corrigir um cadastro chega em TODAS as cópias do
+      # nome/área (inscrição, presença, fila, listas, equipe) — e não só em
+      # fa-users, que é a versão da feature que passaria despercebida.
+      - name: Editar cadastro chega em todo lugar (desktop e iPhone)
+        env:
+          NODE_PATH: /tmp/pw-deps/node_modules
+          FA_BASE_URL: http://127.0.0.1:8811
+        run: node .github/scripts/teste-editar-cadastro.js
+
       - name: Rodar suíte "Automáticos" de testes.js
         env:
           NODE_PATH: /tmp/pw-deps/node_modules

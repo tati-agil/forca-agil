@@ -67,6 +67,23 @@
      caso real do 4G da sala: a escrita que NUNCA volta. Um formulário que
      fica "Enviando…" para sempre é indistinguível de site quebrado, e era
      justamente esse caminho que nenhum teste alcançava. */
+  /* Registra toda escrita em window.__ESCRITAS. Sem isto não dá para provar
+     que uma edição chegou em TODOS os lugares que deveria — só que a tela não
+     deu erro, que é coisa bem diferente. */
+  function anotar(path, valor) {
+    window.__ESCRITAS = window.__ESCRITAS || [];
+    if (valor && typeof valor === 'object' && !Array.isArray(valor)) {
+      /* update() multi-caminho: cada chave é um caminho próprio a partir da raiz */
+      var chaves = Object.keys(valor);
+      var pareceMultiPath = path === '' && chaves.some(function (k) { return k.indexOf('/') !== -1; });
+      if (pareceMultiPath) {
+        chaves.forEach(function (k) { window.__ESCRITAS.push({ path: k, valor: valor[k] }); });
+        return;
+      }
+    }
+    window.__ESCRITAS.push({ path: path, valor: valor });
+  }
+
   function escrever(self, cb) {
     setTimeout(function () {
       if (failsFor(self.path)) {
@@ -77,9 +94,9 @@
       if (cb) cb(null);
     }, delayFor(self.path));
   }
-  Ref.prototype.update = function (v, cb) { escrever(this, cb); return Promise.resolve(); };
-  Ref.prototype.set    = function (v, cb) { escrever(this, cb); return Promise.resolve(); };
-  Ref.prototype.remove = function (cb)    { if (cb) cb(null); return Promise.resolve(); };
+  Ref.prototype.update = function (v, cb) { anotar(this.path, v); escrever(this, cb); return Promise.resolve(); };
+  Ref.prototype.set    = function (v, cb) { anotar(this.path, v); escrever(this, cb); return Promise.resolve(); };
+  Ref.prototype.remove = function (cb)    { anotar(this.path, null); if (cb) cb(null); return Promise.resolve(); };
   Ref.prototype.push   = function (v, cb) { if (cb) cb(null); var r = new Ref(this.path + '/fake'); r.key = 'fake'; return r; };
   Ref.prototype.orderByChild = function () { return this; };
   Ref.prototype.equalTo      = function () { return this; };
