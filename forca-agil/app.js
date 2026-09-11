@@ -232,6 +232,11 @@
     var _turmasList  = []; // [{ key, label, dias, cmflexLink, finalizada, eventoKey }]
     var _eventosList = []; // [{ key, nome, order, cargaHoraria, missaoTitulo, missaoTexto, topicos, itinerario, esperaAtiva, publicado, restritoADiretores, formato }]
     var _sess        = null; // sessão atual, usada por eventoNaVitrine para decidir eventos restritos
+    /* Público restrito por turma (turmas-publico/<turma>/<chave do e-mail>).
+       Lido junto com as turmas, antes de desenhar a grade: se viesse depois,
+       a turma restrita apareceria por um instante para quem não pode vê-la —
+       e um vislumbre já é o vazamento que a restrição existe para evitar. */
+    var _publicoPorTurma = {};
 
     /* Formato dos encontros do evento (eventos/<evento>/formato) — usado no
        chip "dia(s) de encontro(s)" do bloco "Como funciona". "hibrido" é os
@@ -295,13 +300,38 @@
                 eventoKey: val[key].eventoKey || '',
                 cmflexLink: val[key].cmflexLink || '',
                 finalizada: !!(cfg[key] && cfg[key].finalizada),
-                encerrada:  !!(cfg[key] && cfg[key].encerrada)
+                encerrada:  !!(cfg[key] && cfg[key].encerrada),
+                publicoRestrito: !!val[key].publicoRestrito
               };
             }).sort(function (a, b) { return a.order - b.order; });
-            cb(_turmasList);
+            db.ref('turmas-publico').once('value', function (pubSnap) {
+              _publicoPorTurma = pubSnap.val() || {};
+              cb(_turmasList);
+            }, function () {
+              /* Leitura falhou: trata como "não conheço lista nenhuma", e a
+                 regra abaixo esconde toda turma restrita. Falhar escondendo é
+                 o lado seguro — o contrário mostraria turma fechada a quem
+                 não devia ver. */
+              _publicoPorTurma = {};
+              cb(_turmasList);
+            });
           });
         });
       });
+    }
+
+    /* Quem pode ver esta turma. Turma aberta: todo mundo, como sempre.
+       Turma de público restrito: só quem está na lista dela — e admin, que vê
+       tudo (mesma regra do evento restrito a diretores). Não é só sobre o
+       botão: a turma inteira desaparece do site de quem está fora, porque
+       oferecer o que a pessoa não pode fazer é pior do que não oferecer. */
+    function turmaVisivelPara(t) {
+      if (!t.publicoRestrito) return true;
+      var email = _sess && _sess.email;
+      if (!email) return false;
+      if (window.faAuth && window.faAuth.isAdmin(email)) return true;
+      var lista = _publicoPorTurma[t.key];
+      return !!(lista && lista[emailKey(email)]);
     }
 
     function turmaCardHtml(t, hoje) {
@@ -413,6 +443,7 @@
       var porEvento = {};
       var semEvento = [];
       _turmasList.forEach(function (t) {
+        if (!turmaVisivelPara(t)) return;
         if (t.eventoKey) (porEvento[t.eventoKey] = porEvento[t.eventoKey] || []).push(t);
         else semEvento.push(t);
       });
@@ -468,6 +499,7 @@
     function renderMissaoEventos() {
       var porEvento = {};
       _turmasList.forEach(function (t) {
+        if (!turmaVisivelPara(t)) return;
         if (t.eventoKey) (porEvento[t.eventoKey] = porEvento[t.eventoKey] || []).push(t);
       });
 
@@ -730,13 +762,29 @@
          tempo e o admin ter encerrado o interesse nesse meio-tempo */
       firebase.database().ref('turmas-config/' + turmaKey + '/finalizada').once('value', function (cfgSnap) {
         if (cfgSnap.val()) { btn.disabled = false; showMsg(turmaKey, 'Esta turma está encerrada para novas inscrições.'); return; }
-        firebase.database().ref('turmas-interesse/' + turmaKey + '/' + key).set(entry, function (err) {
-          if (err) { btn.disabled = false; showMsg(turmaKey, 'Erro ao registrar. Tente novamente.'); return; }
-          firebase.database().ref('turmas-interesse-log/' + turmaKey + '/' + key).push(
-            { name: sess.name, email: sess.email, area: sess.area || '', action: 'registrado', date: now }
-          );
-          setDone(btn, turmaKey);
+        /* Mesma ideia da checagem acima: a turma pode ter virado restrita, ou
+           a pessoa pode ter saído da lista, depois de a página carregar. */
+        firebase.database().ref('turmas/' + turmaKey + '/publicoRestrito').once('value', function (restSnap) {
+          if (!restSnap.val()) { gravarInteresse(); return; }
+          firebase.database().ref('turmas-publico/' + turmaKey + '/' + key).once('value', function (pubSnap) {
+            if (!pubSnap.val()) {
+              btn.disabled = false;
+              showMsg(turmaKey, 'Esta turma é de público restrito e você não está na lista dela.');
+              return;
+            }
+            gravarInteresse();
+          });
         });
+
+        function gravarInteresse() {
+          firebase.database().ref('turmas-interesse/' + turmaKey + '/' + key).set(entry, function (err) {
+            if (err) { btn.disabled = false; showMsg(turmaKey, 'Erro ao registrar. Tente novamente.'); return; }
+            firebase.database().ref('turmas-interesse-log/' + turmaKey + '/' + key).push(
+              { name: sess.name, email: sess.email, area: sess.area || '', action: 'registrado', date: now }
+            );
+            setDone(btn, turmaKey);
+          });
+        }
       });
     }
 
