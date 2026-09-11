@@ -342,10 +342,10 @@
     {
       group: 'Cadastrar',
       tests: [
-        { id: 'c-reg-area',     label: 'Campo área/setor com 20 gerências carregadas em ordem alfabética',
+        { id: 'c-reg-area',     label: 'Campo área/setor com 26 áreas carregadas em ordem alfabética',
           run: function () {
             var items = Array.from(document.querySelectorAll('#regAreaSelect [data-val]'));
-            if (items.length !== 20) return false;
+            if (items.length !== 26) return false;
             var vals = items.map(function (el) { return el.dataset.val; });
             var sorted = vals.slice().sort();
             return JSON.stringify(vals) === JSON.stringify(sorted);

@@ -1564,8 +1564,10 @@
   }
 
   /* ---- Helpers: modais visuais (substituem confirm/alert/prompt nativos) ---- */
-  var AREAS_LIST = ['ASJUR','AUDIT','CONIN','GABIN','GEBEN','GECAP','GECAT','GECON',
-    'GEINT','GEPAR','GEPRO','GERAI','GERAT','GEROP','GESOP','GETHO','INFOR','OUVIR','PNSEG','SECEX'];
+  var AREAS_LIST = ['ASJUR','AUDIT','CONIN','DIPAR','DIPLA','DIRAD','DIRIN','DISEG',
+    'GABIN','GEBEN','GECAP','GECAT','GECON','GEINT','GEPAR','GEPRO',
+    'GERAI','GERAT','GEROP','GESOP','GETHO','INFOR','OUVIR','PNSEG',
+    'PRESI','SECEX'];
 
   function adminAlert(mensagem, callbackOk) {
     var overlay = document.createElement('div');
@@ -2276,10 +2278,6 @@
     overlay.className = 'modal-overlay';
     overlay.style.cssText = 'display:flex;align-items:center;justify-content:center;z-index:9999';
 
-    var areasOptions = AREAS_LIST.map(function (a) {
-      return '<option value="' + a + '">' + a + '</option>';
-    }).join('');
-
     var box = document.createElement('div');
     box.className = 'modal-box';
     box.style.cssText = 'max-width:460px;width:90%;padding:28px;display:flex;flex-direction:column;gap:14px';
@@ -2341,7 +2339,6 @@
       selectedDiv.style.display = '';
       resultsList.style.display = 'none';
       searchInput.value = '';
-      showManual(false);
       box.querySelector('#addPartStatus').focus();
     }
 
