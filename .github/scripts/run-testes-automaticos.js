@@ -704,16 +704,35 @@ async function submitLogin(page, email, password) {
     if (problema) throw new Error(problema);
   });
 
-  await runIsolated('Ajuda: os 5 tipos de pedido aparecem e o "Enviar" recusa EM VOZ ALTA sem tipo escolhido', async (p) => {
+  await runIsolated('Ajuda: os tipos de pedido aparecem inteiros e o "Enviar" recusa EM VOZ ALTA sem tipo escolhido', async (p) => {
     await p.goto(BASE_URL, { waitUntil: 'networkidle' });
     const r = await submitLogin(p, EMAIL, PASSWORD);
     if (!r.ok) throw new Error('login falhou: ' + r.errorText);
     await p.goto(BASE_URL + '#ajuda', { waitUntil: 'networkidle' });
     await p.waitForSelector('.ped-tipo-btn', { timeout: 15000 });
-    const tipos = await p.$$eval('.ped-tipo-btn', (bs) => bs.map((b) => b.dataset.tipo));
-    const esperados = ['tema', 'curso', 'material', 'duvida', 'outros'];
-    if (tipos.length !== 5 || !esperados.every((t) => tipos.indexOf(t) !== -1)) {
-      throw new Error('tipos inesperados: ' + JSON.stringify(tipos));
+    const tipos = await p.$$eval('.ped-tipo-btn', (bs) =>
+      bs.map((b) => ({ key: b.dataset.tipo, rotulo: (b.textContent || '').trim() })));
+    /* Esta conferência já foi uma lista fechada de cinco tipos, e quebrou no
+       dia em que nasceu o sexto ("iniciativas") — ela reprovava a adição de um
+       tipo, que é uma mudança normal e desejada, em vez de reprovar defeito.
+       O que não pode mudar em silêncio são as REGRAS: os tipos que já existiam
+       continuam existindo (sumir um perde os pedidos antigos naquele balde),
+       nenhum tipo aparece sem rótulo ou com chave repetida, e "Outros" é o
+       último — é a saída para o que não coube nas outras, e uma saída no meio
+       da lista faz parar de ler o resto. Tipo NOVO é exercitado sozinho por
+       .github/scripts/teste-pedido-envio.js, que percorre a lista inteira. */
+    const chaves = tipos.map((t) => t.key);
+    const jaExistiam = ['tema', 'curso', 'material', 'duvida', 'iniciativas', 'outros'];
+    const sumiram = jaExistiam.filter((t) => chaves.indexOf(t) === -1);
+    if (sumiram.length) {
+      throw new Error('tipo de pedido que existia sumiu: ' + JSON.stringify(sumiram) + ' (hoje: ' + JSON.stringify(chaves) + ')');
+    }
+    const semRotulo = tipos.filter((t) => !t.key || !t.rotulo);
+    if (semRotulo.length) throw new Error('tipo sem chave ou sem rótulo: ' + JSON.stringify(semRotulo));
+    const repetidas = chaves.filter((k, i) => chaves.indexOf(k) !== i);
+    if (repetidas.length) throw new Error('chave de tipo repetida: ' + JSON.stringify(repetidas));
+    if (chaves[chaves.length - 1] !== 'outros') {
+      throw new Error('"Outros" deixou de ser o último tipo: ' + JSON.stringify(chaves));
     }
     /* Este teste já exigiu o CONTRÁRIO — que o botão nascesse desabilitado até
        escolherem o tipo. Era exatamente o bug relatado em 11/09/2026: sem
