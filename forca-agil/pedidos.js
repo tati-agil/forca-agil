@@ -50,7 +50,7 @@
        escolhido o tipo concluía que o site estava quebrado, e não havia como
        descobrir o contrário na tela. Agora ele sempre responde ao toque: se
        falta escolher o tipo, quem diz isso é uma frase, não um silêncio. */
-    html += '<button type="button" class="btn btn--gold" id="pedEnviar">Enviar pedido</button>';
+    html += '<button type="button" class="btn" id="pedEnviar">Enviar pedido</button>';
     html += '<span class="ped-msg" id="pedMsg"></span>';
     html += '</div>';
     html += '</div>';

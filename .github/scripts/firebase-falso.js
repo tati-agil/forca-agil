@@ -103,7 +103,30 @@
   Ref.prototype.limitToLast  = function () { return this; };
 
   var authCbs = [];
-  var currentUser = CFG.user || null;
+
+  /* O usuário do Firebase real traz métodos próprios; o falso precisa dos que
+     o site usa, senão o caminho que os chama estoura em vez de ser testado. */
+  function novoUsuario(email) {
+    return {
+      email: email, emailVerified: true, uid: 'u1',
+      updateEmail: function (novo) {
+        if ((CFG.falharUpdateEmail || []).indexOf(novo) !== -1) {
+          var err = new Error('e-mail já em uso (falso)');
+          err.code = 'auth/email-already-in-use';
+          return Promise.reject(err);
+        }
+        this.email = novo;
+        if (CFG.senhas && CFG.senhas[email] !== undefined) {
+          CFG.senhas[novo] = CFG.senhas[email];
+          delete CFG.senhas[email];
+        }
+        return Promise.resolve();
+      },
+      sendEmailVerification: function () { return Promise.resolve(); }
+    };
+  }
+
+  var currentUser = CFG.user ? novoUsuario(CFG.user.email) : null;
 
   var firebase = {
     apps: [],
@@ -116,8 +139,24 @@
           setTimeout(function () { cb(currentUser); }, CFG.authDelay || 0);
           return function () {};
         },
-        signInWithEmailAndPassword: function (e) {
-          currentUser = { email: e, emailVerified: true, uid: 'u1' };
+        /* A senha importa quando CFG.senhas existe. Sem esse mapa, qualquer
+           senha entra — é o comportamento de sempre, que os testes antigos
+           usam. Com ele dá para exercitar o que não tinha como testar: o
+           painel entrando na conta de outra pessoa para corrigir o e-mail, e
+           a recusa quando a pessoa já trocou a senha padrão. */
+        signInWithEmailAndPassword: function (e, senha) {
+          var mapa = CFG.senhas;
+          if (mapa && mapa[e] !== undefined && mapa[e] !== senha) {
+            var err = new Error('senha incorreta (falso)');
+            err.code = 'auth/wrong-password';
+            return Promise.reject(err);
+          }
+          if (mapa && mapa[e] === undefined) {
+            var err2 = new Error('conta inexistente (falso)');
+            err2.code = 'auth/user-not-found';
+            return Promise.reject(err2);
+          }
+          currentUser = novoUsuario(e);
           authCbs.forEach(function (cb) { cb(currentUser); });
           return Promise.resolve({ user: currentUser });
         },
