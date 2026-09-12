@@ -369,14 +369,24 @@ h1,h2,h3,h4 { font-family: var(--font-head); font-weight: 600; line-height: 1.02
   border: 1px solid var(--line-strong); color: var(--ink); background: rgba(16,28,52,.5);
   transition: transform .2s var(--ease), box-shadow .25s, background .25s, border-color .25s;
 }
-.btn:hover { transform: translateY(-2px); border-color: var(--accent); box-shadow: 0 0 24px -6px var(--accent); }
+/* Botão desabilitado não pode parecer vivo. Era exatamente essa a causa do
+   "no iPhone o Enviar pedido não faz nada" (11/09/2026): o botão nascia
+   desabilitado, o navegador engolia o toque sem disparar evento, e como não
+   havia estilo de :disabled ele ficava pixel a pixel igual a um botão normal
+   — sem erro, sem mensagem, sem nada. A correção daquele dia ficou escopada
+   ao formulário de pedido; a armadilha continuava armada em todo o resto do
+   site. Aqui ela sai do tabuleiro: qualquer .btn desabilitado se anuncia, e
+   não levanta nem brilha no hover. Regras mais específicas (os botões de
+   certificado, por exemplo) continuam mandando na própria aparência. */
+.btn:disabled { opacity: .55; cursor: default; }
+.btn:hover:not(:disabled) { transform: translateY(-2px); border-color: var(--accent); box-shadow: 0 0 24px -6px var(--accent); }
 .btn--primary {
   background: var(--accent); color: var(--space-0); border-color: var(--accent); font-weight: 700;
   box-shadow: 0 0 30px -8px var(--accent);
 }
-.btn--primary:hover { filter: brightness(1.08); }
+.btn--primary:hover:not(:disabled) { filter: brightness(1.08); }
 .btn--ghost { background: transparent; border-color: var(--line); color: var(--ink-3); font-size: .72rem; padding: 6px 12px; box-shadow: none; }
-.btn--ghost:hover { border-color: var(--ink-3); color: var(--ink); box-shadow: none; transform: none; }
+.btn--ghost:hover:not(:disabled) { border-color: var(--ink-3); color: var(--ink); box-shadow: none; transform: none; }
 
 /* ---------- HERO ---------- */
 .hero {
@@ -1543,12 +1553,7 @@ details.manual-admin-subgroup[open] > .manual-admin-subhead,
 .ped-texto { width: 100%; box-sizing: border-box; background: var(--surface); border: 1px solid var(--line-strong); border-radius: 8px; color: var(--ink); padding: 12px 14px; font-size: .88rem; resize: vertical; margin-bottom: 16px; }
 .ped-texto:focus { outline: none; border-color: var(--gold); }
 .ped-actions { display: flex; align-items: center; gap: 16px; flex-wrap: wrap; }
-/* Botão desabilitado tem que PARECER desabilitado. O "Enviar pedido" nascia
-   desabilitado e idêntico a um botão vivo: tocar nele não fazia nada, não
-   dizia nada, e a pessoa concluía que o site estava quebrado. Hoje ele não
-   nasce mais assim (ver pedidos.js), mas fica desabilitado durante o envio —
-   e nesse instante também precisa se anunciar. */
-.ped-form .btn:disabled { opacity: .55; cursor: default; }
+/* (o estilo de :disabled agora vale para todo .btn — ver .btn:disabled acima) */
 .ped-msg { font-size: .82rem; }
 .ped-msg--erro { color: #ff6b6b; }
 .ped-sucesso { color: #4caf7d; font-size: .95rem; padding: 20px 0; }

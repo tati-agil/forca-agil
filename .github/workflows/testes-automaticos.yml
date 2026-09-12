@@ -75,6 +75,16 @@ jobs:
           FA_BASE_URL: http://127.0.0.1:8811
         run: node .github/scripts/teste-editar-cadastro.js
 
+      # Hermético. A correção de e-mail é o caminho mais arriscado do painel:
+      # troca o login da pessoa no Auth e depois move TODOS os dados dela de
+      # uma chave para outra. Errar aqui não dá erro na tela — a pessoa só
+      # descobre depois, sem inscrição, sem presença, sem os próprios pedidos.
+      - name: Corrigir e-mail leva os dados junto (desktop e iPhone)
+        env:
+          NODE_PATH: /tmp/pw-deps/node_modules
+          FA_BASE_URL: http://127.0.0.1:8811
+        run: node .github/scripts/teste-corrigir-email.js
+
       - name: Rodar suíte "Automáticos" de testes.js
         env:
           NODE_PATH: /tmp/pw-deps/node_modules
