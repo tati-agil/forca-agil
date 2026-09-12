@@ -51,15 +51,95 @@
     return vals.reduce(function (s, v) { return s + v; }, 0) / vals.length;
   }
 
+  var SEM_EVENTO = '__sem_evento__';
+
+  /* Quantas pessoas estão confirmadas em CADA turma. Antes era um número só,
+     somando tudo; com o escopo por evento/turma ele precisa ser por turma,
+     senão o "% de participação" de uma turma seria dividido pelo total de
+     inscritos do programa inteiro. */
+  function participantesPorTurma(interesseData) {
+    var out = {};
+    Object.keys(interesseData).forEach(function (turmaKey) {
+      var n = 0;
+      Object.keys(interesseData[turmaKey] || {}).forEach(function (uKey) {
+        var e = interesseData[turmaKey][uKey];
+        if (e && !e.removed && e.status === 'inscrito' && e.confirmedByAdmin) n++;
+      });
+      out[turmaKey] = n;
+    });
+    return out;
+  }
+
+  /* Catálogo de turmas e eventos que alimenta o filtro de escopo.
+
+     Uma avaliação de turma que não existe mais em turmas/ não pode sumir da
+     conta: antes ela entrava no total porque nada era filtrado por turma, e
+     com o escopo passaria a ser descartada em silêncio — o total mudaria sem
+     explicação. Então ela entra no catálogo como turma órfã, no grupo "sem
+     evento", com o rótulo que ficou gravado na própria avaliação. */
+  function montarCatalogo(turmasData, eventosData, interesseData, avals) {
+    var porTurma = participantesPorTurma(interesseData);
+    var turmas = Object.keys(turmasData).map(function (tk) {
+      var t = turmasData[tk] || {};
+      var evKey = t.eventoKey || SEM_EVENTO;
+      var ev = eventosData[evKey] || {};
+      return {
+        key: tk,
+        label: t.label || tk,
+        eventoKey: evKey,
+        eventoNome: ev.nome || (evKey === SEM_EVENTO ? 'Sem evento' : evKey),
+        eventoOrder: typeof ev.order === 'number' ? ev.order : 1e9,
+        participantes: porTurma[tk] || 0,
+        orfa: false,
+      };
+    });
+
+    var conhecidas = {};
+    turmas.forEach(function (t) { conhecidas[t.key] = true; });
+    avals.forEach(function (a) {
+      if (conhecidas[a.turmaKey]) return;
+      conhecidas[a.turmaKey] = true;
+      turmas.push({
+        key: a.turmaKey,
+        label: (a.turmaLabel || a.turmaKey) + ' (turma excluída)',
+        eventoKey: SEM_EVENTO,
+        eventoNome: 'Sem evento',
+        eventoOrder: 1e9,
+        participantes: porTurma[a.turmaKey] || 0,
+        orfa: true,
+      });
+    });
+
+    turmas.sort(function (a, b) {
+      if (a.eventoOrder !== b.eventoOrder) return a.eventoOrder - b.eventoOrder;
+      if (a.eventoNome !== b.eventoNome) return a.eventoNome.localeCompare(b.eventoNome, 'pt');
+      return a.label.localeCompare(b.label, 'pt');
+    });
+
+    var eventos = [];
+    var vistos = {};
+    turmas.forEach(function (t) {
+      if (!vistos[t.eventoKey]) {
+        vistos[t.eventoKey] = { key: t.eventoKey, nome: t.eventoNome, turmas: [] };
+        eventos.push(vistos[t.eventoKey]);
+      }
+      vistos[t.eventoKey].turmas.push(t.key);
+    });
+
+    return { turmas: turmas, eventos: eventos };
+  }
+
   function carregarDados(cb) {
     Promise.all([
       firebase.database().ref('avaliacoes').once('value'),
       firebase.database().ref('turmas').once('value'),
       firebase.database().ref('turmas-interesse').once('value'),
+      firebase.database().ref('eventos').once('value'),
     ]).then(function (res) {
       var avaliacoesRaw = res[0].val() || {};
       var turmasData    = res[1].val() || {};
       var interesseData = res[2].val() || {};
+      var eventosData   = res[3].val() || {};
 
       var avals = [];
       Object.keys(avaliacoesRaw).forEach(function (turmaKey) {
@@ -68,22 +148,15 @@
         });
       });
 
-      var participantes = 0;
-      Object.keys(interesseData).forEach(function (turmaKey) {
-        Object.keys(interesseData[turmaKey] || {}).forEach(function (uKey) {
-          var e = interesseData[turmaKey][uKey];
-          if (e && !e.removed && e.status === 'inscrito' && e.confirmedByAdmin) participantes++;
-        });
-      });
-
-      cb(avals, turmasData, participantes);
+      var cat = montarCatalogo(turmasData, eventosData, interesseData, avals);
+      cb({ avals: avals, turmas: cat.turmas, eventos: cat.eventos });
     }).catch(function (err) {
       console.error('[dashboard]', err);
       cb(null);
     });
   }
 
-  function calcular(avals, turmasData, participantes) {
+  function calcular(avals, turmasEscopo, participantes) {
     var total = avals.length;
     var mediaGeral = avg(avals, 'notaGeral');
     var mediaNps   = avg(avals, 'npsNota');
@@ -109,13 +182,39 @@
       if (!porTurma[a.turmaKey]) porTurma[a.turmaKey] = [];
       porTurma[a.turmaKey].push(a);
     });
-    /* Mostra TODAS as turmas cadastradas (mesmo sem avaliação ainda) — barra em 0
-       em vez de a turma simplesmente sumir do gráfico quando não há dado. */
-    var turmasArr = Object.keys(turmasData).map(function (tk) {
-      var label = turmasData[tk].label || tk;
-      var arr = porTurma[tk] || [];
-      return { key: tk, label: label, media: avg(arr, 'notaGeral'), n: arr.length };
-    }).sort(function (a, b) { return a.label.localeCompare(b.label, 'pt'); });
+    /* Mostra todas as turmas DO ESCOPO, mesmo as que ainda não têm avaliação:
+       sumir do gráfico esconderia que a turma existe e não respondeu. Mas elas
+       ficam com média nula, não com média zero — zero é uma nota péssima, e
+       "ninguém respondeu" não é nota nenhuma. */
+    var turmasArr = turmasEscopo.map(function (t) {
+      var arr = porTurma[t.key] || [];
+      return {
+        key: t.key, label: t.label, eventoKey: t.eventoKey, eventoNome: t.eventoNome,
+        media: arr.length ? avg(arr, 'notaGeral') : null,
+        n: arr.length, participantes: t.participantes,
+      };
+    });
+
+    /* Mesmas médias agrupadas por evento — é a visão que responde "como foi
+       ESTE evento", e cada grupo traz a média do evento inteiro, que não é a
+       média das médias das turmas: é calculada sobre todas as avaliações
+       dele, senão uma turma de 2 respostas pesaria igual a uma de 30. */
+    var gruposArr = [];
+    var porEvento = {};
+    turmasArr.forEach(function (t) {
+      if (!porEvento[t.eventoKey]) {
+        porEvento[t.eventoKey] = { key: t.eventoKey, nome: t.eventoNome, turmas: [], avals: [], participantes: 0 };
+        gruposArr.push(porEvento[t.eventoKey]);
+      }
+      porEvento[t.eventoKey].turmas.push(t);
+      porEvento[t.eventoKey].avals = porEvento[t.eventoKey].avals.concat(porTurma[t.key] || []);
+      porEvento[t.eventoKey].participantes += t.participantes;
+    });
+    gruposArr.forEach(function (g) {
+      g.n = g.avals.length;
+      g.media = g.n ? avg(g.avals, 'notaGeral') : null;
+      delete g.avals;
+    });
 
     var destaques = SECOES_RATING.map(function (s) {
       var vals = nums(avals, s.field);
@@ -139,45 +238,57 @@
     return {
       total: total, mediaGeral: mediaGeral, mediaNps: mediaNps, npsScore: npsScore, pct7maisNps: pct7maisNps,
       comentarios: comentarios, participantes: participantes, pctParticipacao: pctParticipacao,
-      distrib: distrib, pct7mais: pct7mais, notasContadas: notasValidas.length, turmasArr: turmasArr, destaques: destaques,
+      distrib: distrib, pct7mais: pct7mais, notasContadas: notasValidas.length,
+      turmasArr: turmasArr, gruposArr: gruposArr, destaques: destaques,
       temasArr: temasArr, feedbacks: feedbacks,
       /* Dados brutos, para o bloco de respostas individuais */
-      avals: avals, turmasData: turmasData,
+      avals: avals,
     };
   }
 
-  /* ── SVG: barras de média por turma ──
-     viewBox mais estreito (perto da largura real da coluna) + fontes maiores —
-     um viewBox largo (ex: 640) escalado pra caber numa coluna estreita do
-     grid encolhe o texto proporcionalmente, ficando ilegível. */
-  function svgBarras(turmasArr) {
-    if (!turmasArr.length) return '<p class="dash-empty">Nenhuma avaliação registrada ainda.</p>';
-    /* padT precisa caber o valor escrito ACIMA da barra (fonte 15, deslocada
-       8px para cima). Com padT baixo, uma barra perto de 10 empurrava o
-       número para fora do viewBox e ele aparecia cortado pela metade. */
-    var W = 420, H = 240, padL = 30, padB = 40, padT = 32;
-    var chartW = W - padL - 10, chartH = H - padT - padB;
-    var barW = Math.min(64, chartW / turmasArr.length - 20);
-    var cores = ['#9b7fff', '#4caf7d', '#42a5f5', '#f5c542', '#e8854a', '#e05c7f'];
-    var svg = '<svg viewBox="0 0 ' + W + ' ' + H + '" class="dash-svg-barras" role="img" aria-label="Média por turma">';
-    [0, 2, 4, 6, 8, 10].forEach(function (v) {
-      var y = padT + chartH - (v / 10) * chartH;
-      svg += '<line x1="' + padL + '" y1="' + y + '" x2="' + (W - 6) + '" y2="' + y + '" stroke="var(--line)" stroke-width="1"/>';
-      svg += '<text x="' + (padL - 6) + '" y="' + (y + 4) + '" text-anchor="end" font-size="13" fill="var(--ink-2)">' + v + '</text>';
+  /* ── Médias por evento e por turma ──
+     Era um gráfico de barras verticais em SVG, com o nome da turma escrito
+     embaixo de cada barra. Com uma turma funcionava; com cinco, os nomes se
+     sobrepunham e viravam um borrão ilegível ("...ATIVIDADE-Agilidade2 —
+     SeTembac3 — Novemb"), e com mais de um evento não havia como saber qual
+     barra era de qual evento. Barras horizontais resolvem o problema pela
+     forma: o nome tem uma linha inteira para si e a lista cresce para baixo,
+     quantas turmas houver. O evento vira o cabeçalho do grupo, com a média
+     dele ao lado — a visão por evento e a visão por turma na mesma leitura. */
+  var CORES_BARRA = ['#9b7fff', '#4caf7d', '#42a5f5', '#f5c542', '#e8854a', '#e05c7f'];
+
+  function linhaMedia(t, cor) {
+    var semDado = t.media === null;
+    var pct = semDado ? 0 : Math.max(0, Math.min(100, (t.media / 10) * 100));
+    /* Nome em cima, barra embaixo: o painel é a coluna estreita do grid, e
+       nome ao lado da barra obrigava a cortar o nome com reticências
+       ("TURMA 1 — ..."), que é o mesmo problema de legibilidade de antes
+       numa embalagem nova. */
+    return '<div class="dash-media-linha' + (semDado ? ' dash-media-linha--vazia' : '') + '">' +
+      '<span class="dash-media-nome">' + esc(t.label) + '</span>' +
+      '<span class="dash-media-valor">' + (semDado ? '—' : fmt1(t.media)) + '</span>' +
+      '<span class="dash-media-trilho"><i style="width:' + pct + '%;background:' + cor + '"></i></span>' +
+      '<span class="dash-media-n">' + (semDado ? 'sem avaliação' : t.n + ' avaliaç' + (t.n !== 1 ? 'ões' : 'ão')) + '</span>' +
+      '</div>';
+  }
+
+  function barrasMedias(gruposArr) {
+    if (!gruposArr.length) return '<p class="dash-empty">Nenhuma turma neste escopo.</p>';
+    var mostrarGrupo = gruposArr.length > 1;
+    var h = '<div class="dash-medias">';
+    gruposArr.forEach(function (g, gi) {
+      h += '<div class="dash-media-grupo">';
+      if (mostrarGrupo) {
+        h += '<p class="dash-media-evento">' + esc(g.nome) +
+             '<span>' + (g.media === null ? 'sem avaliação' : fmt1(g.media) + ' · ' + g.n + ' avaliaç' + (g.n !== 1 ? 'ões' : 'ão')) + '</span></p>';
+      }
+      g.turmas.forEach(function (t, ti) {
+        h += linhaMedia(t, CORES_BARRA[(mostrarGrupo ? gi : ti) % CORES_BARRA.length]);
+      });
+      h += '</div>';
     });
-    turmasArr.forEach(function (t, i) {
-      var slotW = chartW / turmasArr.length;
-      var x = padL + i * slotW + (slotW - barW) / 2;
-      var h = (t.media / 10) * chartH;
-      var y = padT + chartH - h;
-      var cor = cores[i % cores.length];
-      svg += '<rect x="' + x + '" y="' + y + '" width="' + barW + '" height="' + h + '" rx="4" fill="' + cor + '"/>';
-      svg += '<text x="' + (x + barW / 2) + '" y="' + (y - 8) + '" text-anchor="middle" font-size="15" font-weight="700" fill="var(--ink)">' + fmt1(t.media) + '</text>';
-      svg += '<text x="' + (x + barW / 2) + '" y="' + (H - padB + 18) + '" text-anchor="middle" font-size="12" fill="var(--ink-2)">' + esc(t.label) + '</text>';
-      svg += '<text x="' + (x + barW / 2) + '" y="' + (H - padB + 32) + '" text-anchor="middle" font-size="11" fill="var(--ink-3)">(' + t.n + ' avaliaç' + (t.n !== 1 ? 'ões' : 'ão') + ')</text>';
-    });
-    svg += '</svg>';
-    return svg;
+    h += '</div>';
+    return h;
   }
 
   /* ── SVG: gauge semicircular de recomendação ── */
@@ -204,8 +315,10 @@
      ══════════════════════════════════════════════════════════════════ */
   function blocoComoCalcula(d) {
     var itens = [
+      ['🔍 O escopo (evento e turma)',
+       'Os filtros no topo decidem de quais eventos e turmas são TODOS os números desta tela — cards, gráficos, destaques, temas e respostas individuais. Dá para marcar mais de um evento e mais de uma turma ao mesmo tempo, para comparar. Sem nada marcado, a tela mostra tudo junto, como sempre mostrou.'],
       ['👥 Participantes',
-       'Quantas pessoas estão confirmadas em alguma turma — somando todas as turmas. Conta quem tem inscrição confirmada pela organização e não foi removida. Quem só manifestou interesse não entra.'],
+       'Quantas pessoas estão confirmadas nas turmas do escopo. Conta quem tem inscrição confirmada pela organização e não foi removida. Quem só manifestou interesse não entra.'],
       ['✅ Avaliações recebidas',
        'Quantas avaliações foram enviadas, somando todas as turmas. O percentual ao lado é esse número dividido pelo de Participantes. Atenção: quem responde sem estar confirmado — um admin testando, por exemplo — soma no primeiro número e não no segundo, então o percentual pode passar de 100%.'],
       ['⭐ Média geral',
@@ -214,8 +327,8 @@
        'NÃO é média. Usa a pergunta “quanto você indicaria esta Oficina para um colega?” (seção 2) e aplica a fórmula de mercado: percentual de quem deu 9 ou 10 MENOS percentual de quem deu de 0 a 6. Quem deu 7 ou 8 não conta para nenhum dos lados. O resultado vai de −100 a +100 — por isso não se compara com as notas de 0 a 10.'],
       ['💬 Comentários',
        'Quantas avaliações têm pelo menos um dos três campos de texto preenchidos: o que devemos continuar fazendo, o que devemos melhorar, ou o espaço aberto. É por avaliação, não por comentário — quem escreveu nos três conta uma vez.'],
-      ['📊 Média por turma',
-       'A mesma nota da Média geral, separada por turma. Todas as turmas cadastradas aparecem, inclusive as que ainda não têm avaliação — essas ficam com barra em zero, para não sumirem do gráfico.'],
+      ['📊 Média por evento e turma',
+       'A mesma nota da Média geral, separada por turma e agrupada pelo evento de cada uma. Todas as turmas do escopo aparecem, inclusive as que ainda não têm avaliação — essas mostram um travessão (—) e "sem avaliação", nunca zero: zero é a pior nota possível, e ninguém ter respondido não é nota nenhuma. A média do evento no cabeçalho do grupo é calculada sobre todas as avaliações dele, não é a média das médias das turmas — senão uma turma com 2 respostas pesaria igual a uma com 30.'],
       ['😐 Distribuição das notas',
        'Também a nota da oficina (seção 1), agrupada em cinco faixas de duas notas: 0-2, 3-4, 5-6, 7-8 e 9-10. A primeira carrega três notas porque a escala tem 11 pontos e não há divisão exata. Os cortes em 7 e em 9 são os mesmos usados pelo NPS. Os percentuais são sobre quem respondeu essa pergunta.'],
       ['🎯 Recomendaria a um colega?',
@@ -413,17 +526,20 @@
     desenhar();
   }
 
-  function render(wrap, dados) {
-    if (!dados) { wrap.innerHTML = '<p class="loading-msg" style="color:var(--red)">Erro ao carregar dashboard. Recarregue a página.</p>'; return; }
-
+  function htmlConteudo(dados) {
     var html = '';
     if (!dados.total) {
-      html += '<div class="dash-aviso-vazio">📭 Nenhuma avaliação recebida ainda — os números abaixo estão zerados. Libere a avaliação de uma turma na aba Eventos (menu ⋯ → "Liberar avaliação") para começar a receber respostas.</div>';
+      html += '<div class="dash-aviso-vazio">' + (dados.filtrando
+        ? '🔍 Nenhuma avaliação neste escopo — os números abaixo estão zerados. Escolha outro evento ou turma no filtro acima.'
+        : '📭 Nenhuma avaliação recebida ainda — os números abaixo estão zerados. Libere a avaliação de uma turma na aba Eventos (menu ⋯ → "Liberar avaliação") para começar a receber respostas.') +
+        '</div>';
     }
 
     html += '<div class="dash-stats-row">';
     html += statCard('👥', 'Participantes', dados.participantes, 'Total de inscritos', '#9b7fff');
-    html += statCard('✅', 'Avaliações recebidas', dados.total, dados.pctParticipacao + '% de participação', '#4caf7d');
+    /* fmt1 aqui também: este era o único percentual da tela que saía com
+       ponto ("27.8%") no meio de outros que já saíam com vírgula. */
+    html += statCard('✅', 'Avaliações recebidas', dados.total, fmt1(dados.pctParticipacao) + '% de participação', '#4caf7d');
     html += statCard('⭐', 'Média geral', fmt1(dados.mediaGeral) + ' / 10', dados.mediaGeral >= 8 ? 'Ótimo 🚀' : (dados.mediaGeral >= 6 ? 'Bom' : 'Atenção'), '#f5c542');
     html += statCard('📈', 'NPS (recomendação)', (dados.npsScore >= 0 ? '+' : '') + dados.npsScore, dados.npsScore >= 50 ? 'Zona de excelência' : 'Acompanhar', '#e8854a');
     html += statCard('💬', 'Comentários', dados.comentarios, 'Feedbacks recebidos', '#e05c7f');
@@ -433,7 +549,9 @@
 
     html += '<div class="dash-grid-3">';
 
-    html += '<div class="dash-panel"><h4 class="dash-panel-title">Média por turma</h4>' + svgBarras(dados.turmasArr) + '</div>';
+    html += '<div class="dash-panel"><h4 class="dash-panel-title">' +
+            (dados.gruposArr.length > 1 ? 'Média por evento e turma' : 'Média por turma') + '</h4>' +
+            barrasMedias(dados.gruposArr) + '</div>';
 
     html += '<div class="dash-panel"><h4 class="dash-panel-title">Distribuição das notas (geral)</h4>';
     html += '<div class="dash-distrib-row">';
@@ -505,19 +623,162 @@
     }
     html += '</div>';
 
-    html += blocoRespostas(dados.avals || [], dados.turmasData || {});
+    /* O bloco de respostas monta o próprio filtro de turma a partir das
+       avaliações; o mapa serve só de reserva para o rótulo. */
+    var rotulos = {};
+    dados.turmasArr.forEach(function (t) { rotulos[t.key] = { label: t.label }; });
+    html += blocoRespostas(dados.avals || [], rotulos);
 
-    wrap.innerHTML = html;
-    ligarRespostas(wrap, dados.avals || []);
+    return html;
+  }
+
+  /* ══════════════════════════════════════════════════════════════════
+     ESCOPO — de quais eventos e turmas são os números da tela.
+
+     Antes o Dashboard só sabia somar tudo: um número só, de todas as
+     turmas de todos os eventos juntos. Isso serve enquanto existe uma
+     oficina; a partir da segunda, "média 9,8" deixa de responder a
+     pergunta que se faz de verdade — como foi ESTA turma, como foi
+     ESTE evento, um comparado com o outro.
+
+     A seleção é múltipla de propósito: comparar duas turmas de um mesmo
+     evento, ou dois eventos inteiros, é o uso normal. Nenhum chip
+     marcado significa "tudo" — é o estado em que a tela abre, igual ao
+     que ela mostrava antes.
+     ══════════════════════════════════════════════════════════════════ */
+  function chip(tipo, key, rotulo, extra, ligado) {
+    return '<button type="button" class="dash-chip' + (ligado ? ' is-on' : '') + '"' +
+      ' data-tipo="' + tipo + '" data-key="' + esc(key) + '"' +
+      ' aria-pressed="' + (ligado ? 'true' : 'false') + '">' + esc(rotulo) +
+      (extra ? '<span class="dash-chip-n">' + esc(extra) + '</span>' : '') + '</button>';
+  }
+
+  function htmlEscopo(ctx, dados) {
+    var evSel = ctx.escopoEv, tuSel = ctx.escopoTu;
+    var h = '';
+
+    if (ctx.eventos.length > 1) {
+      h += '<div class="dash-escopo-linha"><span class="dash-escopo-rotulo">Evento</span><div class="dash-escopo-chips">';
+      h += chip('evento', '', 'Todos', '', !evSel.length);
+      ctx.eventos.forEach(function (ev) {
+        h += chip('evento', ev.key, ev.nome, ev.turmas.length + (ev.turmas.length !== 1 ? ' turmas' : ' turma'),
+                  evSel.indexOf(ev.key) !== -1);
+      });
+      h += '</div></div>';
+    }
+
+    /* As turmas oferecidas são só as dos eventos escolhidos: oferecer uma
+       turma que o filtro de cima já excluiu é oferecer um caminho para
+       "nenhum resultado". */
+    var turmasOferecidas = ctx.turmas.filter(function (t) {
+      return !evSel.length || evSel.indexOf(t.eventoKey) !== -1;
+    });
+    if (turmasOferecidas.length > 1) {
+      h += '<div class="dash-escopo-linha"><span class="dash-escopo-rotulo">Turma</span><div class="dash-escopo-chips">';
+      h += chip('turma', '', 'Todas', '', !tuSel.length);
+      turmasOferecidas.forEach(function (t) {
+        h += chip('turma', t.key, t.label,
+                  ctx.eventos.length > 1 ? t.eventoNome : '',
+                  tuSel.indexOf(t.key) !== -1);
+      });
+      h += '</div></div>';
+    }
+
+    if (h) {
+      h += '<p class="dash-escopo-resumo">' + esc(dados.resumoEscopo) +
+           (evSel.length || tuSel.length
+             ? ' <button type="button" class="dash-escopo-limpar" data-tipo="limpar" data-key="">limpar filtro</button>'
+             : '') +
+           '</p>';
+    }
+    return h;
+  }
+
+  function resumoDoEscopo(ctx, turmasEscopo, avalsEscopo, participantes) {
+    var eventosNoEscopo = {};
+    turmasEscopo.forEach(function (t) { eventosNoEscopo[t.eventoKey] = true; });
+    var nEv = Object.keys(eventosNoEscopo).length;
+    var nTu = turmasEscopo.length;
+    var partes = [];
+    if (ctx.eventos.length > 1) partes.push(nEv + (nEv !== 1 ? ' eventos' : ' evento'));
+    partes.push(nTu + (nTu !== 1 ? ' turmas' : ' turma'));
+    partes.push(avalsEscopo.length + (avalsEscopo.length !== 1 ? ' avaliações' : ' avaliação'));
+    partes.push(participantes + (participantes !== 1 ? ' inscritos' : ' inscrito'));
+    return 'Mostrando: ' + partes.join(' · ');
+  }
+
+  function render(wrap, ctx) {
+    if (!ctx) { wrap.innerHTML = '<p class="loading-msg" style="color:var(--red)">Erro ao carregar dashboard. Recarregue a página.</p>'; return; }
+
+    wrap.innerHTML = '';
+    var barra = document.createElement('div');
+    barra.className = 'dash-escopo';
+    var conteudo = document.createElement('div');
+    conteudo.className = 'dash-conteudo';
+    wrap.appendChild(barra);
+    wrap.appendChild(conteudo);
+
+    function desenhar() {
+      /* Uma turma escolhida que não pertence a nenhum evento escolhido não
+         pode continuar filtrando em silêncio. */
+      if (ctx.escopoEv.length) {
+        ctx.escopoTu = ctx.escopoTu.filter(function (tk) {
+          var t = ctx.turmas.filter(function (x) { return x.key === tk; })[0];
+          return t && ctx.escopoEv.indexOf(t.eventoKey) !== -1;
+        });
+      }
+
+      var turmasEscopo = ctx.turmas.filter(function (t) {
+        if (ctx.escopoEv.length && ctx.escopoEv.indexOf(t.eventoKey) === -1) return false;
+        if (ctx.escopoTu.length && ctx.escopoTu.indexOf(t.key) === -1) return false;
+        return true;
+      });
+      var dentro = {};
+      turmasEscopo.forEach(function (t) { dentro[t.key] = true; });
+      var avalsEscopo = ctx.avals.filter(function (a) { return dentro[a.turmaKey]; });
+      var participantes = turmasEscopo.reduce(function (n, t) { return n + t.participantes; }, 0);
+
+      var dados = calcular(avalsEscopo, turmasEscopo, participantes);
+      dados.resumoEscopo = resumoDoEscopo(ctx, turmasEscopo, avalsEscopo, participantes);
+      dados.filtrando = !!(ctx.escopoEv.length || ctx.escopoTu.length);
+
+      barra.innerHTML = htmlEscopo(ctx, dados);
+      conteudo.innerHTML = htmlConteudo(dados);
+      ligarRespostas(conteudo, dados.avals || []);
+    }
+
+    barra.addEventListener('click', function (e) {
+      var btn = e.target.closest('[data-tipo]');
+      if (!btn) return;
+      var tipo = btn.dataset.tipo, key = btn.dataset.key;
+      if (tipo === 'limpar')      { ctx.escopoEv = []; ctx.escopoTu = []; }
+      else if (tipo === 'evento') { ctx.escopoEv = alterna(ctx.escopoEv, key); }
+      else if (tipo === 'turma')  { ctx.escopoTu = alterna(ctx.escopoTu, key); }
+      else return;
+      desenhar();
+    });
+
+    desenhar();
+  }
+
+  /* Chip sem chave é o "Todos": limpa a dimensão inteira. */
+  function alterna(lista, key) {
+    if (!key) return [];
+    var i = lista.indexOf(key);
+    if (i === -1) return lista.concat([key]);
+    return lista.slice(0, i).concat(lista.slice(i + 1));
   }
 
   window.faInitDashboard = function () {
     var wrap = document.getElementById('adminDashboard');
     if (!wrap || wrap._dashboardBound) return;
     wrap._dashboardBound = true;
-    carregarDados(function (avals, turmasData, participantes) {
-      var dados = avals ? calcular(avals, turmasData, participantes) : null;
-      render(wrap, dados);
+    carregarDados(function (dados) {
+      if (!dados) { render(wrap, null); return; }
+      render(wrap, {
+        avals: dados.avals, turmas: dados.turmas, eventos: dados.eventos,
+        escopoEv: [], escopoTu: [],
+      });
     });
   };
 })();

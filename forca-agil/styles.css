@@ -1655,7 +1655,67 @@ details.manual-admin-subgroup[open] > .manual-admin-subhead,
 .dash-panel--center { display: flex; flex-direction: column; align-items: center; text-align: center; }
 .dash-panel-title { font-family: var(--font-mono); font-size: .74rem; letter-spacing: .06em; text-transform: uppercase; color: var(--ink-2); margin-bottom: 14px; }
 
-.dash-svg-barras { width: 100%; height: auto; }
+/* ---- Escopo do Dashboard: de quais eventos/turmas são os números ----
+   Seleção múltipla de propósito: comparar duas turmas do mesmo evento, ou
+   dois eventos inteiros, é o uso normal a partir da segunda oficina. */
+.dash-escopo { margin-bottom: 18px; display: flex; flex-direction: column; gap: 10px; }
+.dash-escopo:empty { display: none; }
+.dash-escopo-linha { display: flex; align-items: baseline; gap: 10px; flex-wrap: wrap; }
+.dash-escopo-rotulo {
+  font-family: var(--font-mono); font-size: .68rem; letter-spacing: .06em;
+  text-transform: uppercase; color: var(--ink-3); flex: 0 0 56px;
+}
+.dash-escopo-chips { display: flex; flex-wrap: wrap; gap: 6px; flex: 1; min-width: 0; }
+.dash-chip {
+  display: inline-flex; align-items: center; gap: 6px;
+  background: var(--panel-2); border: 1px solid var(--line-strong); color: var(--ink-2);
+  border-radius: 20px; padding: 6px 13px; font-size: .8rem; font-family: inherit;
+  cursor: pointer; min-height: 32px;
+  transition: border-color .2s, color .2s, background .2s;
+}
+.dash-chip:hover:not(:disabled) { border-color: var(--accent); color: var(--accent); }
+/* O escolhido precisa se distinguir por mais que cor: no iPhone o :hover gruda
+   depois do toque e deixa um chip só encostado com a mesma cara do escolhido. */
+.dash-chip.is-on { border-color: var(--accent); color: var(--accent); background: rgba(245,197,66,.12); }
+.dash-chip.is-on::before { content: '\2713\00a0'; }
+.dash-chip-n { font-size: .68rem; color: var(--ink-3); font-family: var(--font-mono); }
+.dash-chip.is-on .dash-chip-n { color: var(--accent); opacity: .75; }
+.dash-escopo-resumo { font-family: var(--font-mono); font-size: .72rem; color: var(--ink-3); margin: 0; }
+/* Celular: o rótulo sai da frente dos chips (ele roubava um terço da largura
+   e obrigava cada chip a quebrar em duas linhas) e os chips encolhem — mas
+   não abaixo de 32px de altura, que é alvo de dedo. */
+@media (max-width: 640px) {
+  .dash-escopo-linha { flex-direction: column; align-items: stretch; gap: 6px; }
+  .dash-escopo-rotulo { flex: none; }
+  .dash-chip { font-size: .76rem; padding: 5px 11px; }
+  .dash-chip-n { font-size: .64rem; }
+}
+.dash-escopo-limpar {
+  background: none; border: none; color: var(--cyan); cursor: pointer;
+  font-family: inherit; font-size: .72rem; text-decoration: underline; padding: 4px;
+}
+
+/* ---- Médias por evento e turma (barras horizontais) ----
+   Verticais, o nome de cada turma ficava escrito embaixo da barra e os nomes
+   se sobrepunham a partir da segunda turma. Deitada, cada turma tem uma linha
+   inteira para o nome e a lista cresce para baixo, sem limite de quantas. */
+.dash-medias { display: flex; flex-direction: column; gap: 14px; }
+.dash-media-grupo { display: flex; flex-direction: column; gap: 8px; }
+.dash-media-evento {
+  display: flex; align-items: baseline; justify-content: space-between; gap: 10px;
+  font-family: var(--font-mono); font-size: .7rem; letter-spacing: .05em;
+  text-transform: uppercase; color: var(--ink-2); margin: 0;
+  border-bottom: 1px solid var(--line); padding-bottom: 5px;
+}
+.dash-media-evento span { color: var(--accent); white-space: nowrap; letter-spacing: 0; text-transform: none; }
+.dash-media-linha { display: grid; grid-template-columns: minmax(0,1fr) auto; align-items: baseline; gap: 4px 10px; }
+.dash-media-nome { font-size: .82rem; color: var(--ink); line-height: 1.3; }
+.dash-media-valor { font-family: var(--font-head); font-size: .95rem; color: var(--ink); justify-self: end; }
+.dash-media-trilho { grid-column: 1 / -1; height: 10px; border-radius: 6px; background: var(--line); overflow: hidden; }
+.dash-media-trilho i { display: block; height: 100%; border-radius: 6px; }
+.dash-media-n { grid-column: 1 / -1; font-size: .7rem; color: var(--ink-3); font-family: var(--font-mono); }
+.dash-media-linha--vazia .dash-media-nome,
+.dash-media-linha--vazia .dash-media-valor { color: var(--ink-3); }
 .dash-svg-gauge { width: 200px; height: auto; }
 .dash-gauge-value { font-family: var(--font-head); font-size: 2rem; color: var(--ink); margin-top: -8px; }
 .dash-gauge-value span { font-size: 1rem; color: var(--ink-3); }
