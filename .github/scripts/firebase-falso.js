@@ -58,10 +58,16 @@
     return p;
   };
   Ref.prototype.on = function (evt, ok, err) {
+    ouvintes.push({ path: this.path, cb: ok });
     this.once(evt, ok, err);
     return ok;
   };
-  Ref.prototype.off = function () {};
+  Ref.prototype.off = function (evt, cb) {
+    var self = this;
+    ouvintes = ouvintes.filter(function (l) {
+      return !(norm(l.path) === norm(self.path) && (!cb || l.cb === cb));
+    });
+  };
   /* Gravação obedece aos mesmos delays/fail da leitura. Antes ela respondia
      sempre, na hora e com sucesso — o que tornava impossível testar o pior
      caso real do 4G da sala: a escrita que NUNCA volta. Um formulário que
@@ -84,19 +90,79 @@
     window.__ESCRITAS.push({ path: path, valor: valor });
   }
 
-  function escrever(self, cb) {
+  /* A escrita agora MUDA o banco falso e avisa quem está ouvindo.
+     Antes ela só era anotada: o banco continuava o mesmo e nenhum listener
+     acordava. Isso deixava um buraco inteiro fora de alcance — o site lê o
+     que gravou (ref.on('value')) para redesenhar a tela, então dava para
+     provar que a gravação saiu, e não que a TELA passou a mostrar o
+     resultado. É a diferença entre "o pedido foi reenquadrado no banco" e
+     "a lista mostra o tipo novo", e a segunda é a que a pessoa vê. */
+  function aplicar(path, valor, merge) {
+    var parts = String(path).split('/').filter(Boolean);
+    if (!parts.length) {
+      /* update() na raiz: cada chave é um caminho completo */
+      Object.keys(valor || {}).forEach(function (k) { aplicar(k, valor[k], false); });
+      return;
+    }
+    var node = DB;
+    for (var i = 0; i < parts.length - 1; i++) {
+      if (node[parts[i]] == null || typeof node[parts[i]] !== 'object') node[parts[i]] = {};
+      node = node[parts[i]];
+    }
+    var ultima = parts[parts.length - 1];
+    if (valor === null || valor === undefined) { delete node[ultima]; return; }
+    if (merge && node[ultima] && typeof node[ultima] === 'object' && typeof valor === 'object' && !Array.isArray(valor)) {
+      Object.keys(valor).forEach(function (k) {
+        if (valor[k] === null) delete node[ultima][k];
+        else node[ultima][k] = valor[k];
+      });
+    } else {
+      node[ultima] = valor;
+    }
+  }
+
+  var ouvintes = [];
+  function norm(p) { return String(p).split('/').filter(Boolean).join('/'); }
+  /* Quem ouve a raiz de um nó também é afetado pela escrita num filho dele,
+     e vice-versa — é assim que o Firebase de verdade se comporta. */
+  function afetado(ouvido, escrito) {
+    var a = norm(ouvido), b = norm(escrito);
+    if (!a || !b) return true;
+    return a === b || b.indexOf(a + '/') === 0 || a.indexOf(b + '/') === 0;
+  }
+  function notificar(path) {
+    ouvintes.slice().forEach(function (l) {
+      if (!afetado(l.path, path)) return;
+      if (failsFor(l.path)) return;
+      setTimeout(function () { l.cb(snap(l.path)); }, delayFor(l.path));
+    });
+  }
+
+  function escrever(self, cb, valor, merge) {
     setTimeout(function () {
       if (failsFor(self.path)) {
         var e = new Error('PERMISSION_DENIED (falso): ' + self.path);
         if (cb) cb(e);
         return;
       }
+      aplicar(self.path, valor, merge);
       if (cb) cb(null);
+      notificar(self.path);
     }, delayFor(self.path));
   }
-  Ref.prototype.update = function (v, cb) { anotar(this.path, v); escrever(this, cb); return Promise.resolve(); };
-  Ref.prototype.set    = function (v, cb) { anotar(this.path, v); escrever(this, cb); return Promise.resolve(); };
-  Ref.prototype.remove = function (cb)    { anotar(this.path, null); if (cb) cb(null); return Promise.resolve(); };
+  Ref.prototype.update = function (v, cb) {
+    anotar(this.path, v);
+    /* Chave com "/" dentro de um update é caminho relativo, não nome de campo. */
+    var self = this, direto = {}, relativos = [];
+    Object.keys(v || {}).forEach(function (k) {
+      if (k.indexOf('/') !== -1) relativos.push(k); else direto[k] = v[k];
+    });
+    relativos.forEach(function (k) { aplicar(norm(self.path + '/' + k), v[k], false); });
+    escrever(this, cb, direto, true);
+    return Promise.resolve();
+  };
+  Ref.prototype.set    = function (v, cb) { anotar(this.path, v); escrever(this, cb, v, false); return Promise.resolve(); };
+  Ref.prototype.remove = function (cb)    { anotar(this.path, null); aplicar(this.path, null, false); if (cb) cb(null); notificar(this.path); return Promise.resolve(); };
   Ref.prototype.push   = function (v, cb) { if (cb) cb(null); var r = new Ref(this.path + '/fake'); r.key = 'fake'; return r; };
   Ref.prototype.orderByChild = function () { return this; };
   Ref.prototype.equalTo      = function () { return this; };

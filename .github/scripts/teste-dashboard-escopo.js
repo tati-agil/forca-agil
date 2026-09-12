@@ -93,13 +93,37 @@ function banco() {
   };
 }
 
-async function abrirDashboard(browser, formato) {
+/* Um programa que cresceu: N eventos com N turmas cada. É o caso que fez o
+   filtro antigo virar um paredão — ele desenhava um chip por turma, sempre
+   todos, e a lista cresce a cada oficina. */
+function bancoGrande(nEv, nTu) {
+  const users = {}; users[chave(ADM)] = { name: 'ADMIN', email: ADM, area: 'INFOR' };
+  const admins = {}; admins[chave(ADM)] = { email: ADM, name: 'ADMIN' };
+  const eventos = {}, turmas = {}, interesse = {};
+  for (let e = 1; e <= nEv; e++) {
+    eventos['ev' + e] = { nome: 'FORÇA ÁGIL · EVENTO ' + e, order: e, publicado: true, cargaHoraria: '8' };
+    for (let t = 1; t <= nTu; t++) {
+      const k = 'ev' + e + 't' + t;
+      turmas[k] = { label: 'Turma ' + t + ' do evento ' + e + ' — 2026', eventoKey: 'ev' + e, dias: ['2026-01-01'] };
+      interesse[k] = { p1: { status: 'inscrito', confirmedByAdmin: ADM, name: 'P' } };
+    }
+  }
+  return {
+    'fa-users': users, 'fa-admins': admins, 'fa-diretores': {}, 'fa-facilitadores': {},
+    'fa-users-log': {}, 'fa-progress': {}, 'fa-reset-signal': {}, 'fa-espera': {},
+    eventos: eventos, turmas: turmas, 'turmas-interesse': interesse, avaliacoes: {},
+    'turmas-interesse-log': {}, 'turmas-config': {}, 'turmas-checkin': {}, 'turmas-publico': {},
+    'eventos-publico': {}, 'turmas-equipe': {}, 'turmas-sorteio': {}, pedidos: {}, holocron: {},
+  };
+}
+
+async function abrirDashboard(browser, formato, dbUsado) {
   const ctx = await browser.newContext(formato.opts);
   const page = await ctx.newPage();
   const erros = [];
   page.on('pageerror', (e) => erros.push(String(e).split('\n')[0]));
   await page.addInitScript('window.__CFG = ' + JSON.stringify({
-    db: banco(), user: { email: ADM, emailVerified: true, uid: 'u1' }, delayDefault: 20,
+    db: dbUsado || banco(), user: { email: ADM, emailVerified: true, uid: 'u1' }, delayDefault: 20,
   }) + ';');
   await page.route('**/firebasejs/**', (r) =>
     r.fulfill({ status: 200, contentType: 'text/javascript', body: FALSO }));
@@ -153,9 +177,38 @@ function lerTela(page) {
   });
 }
 
-async function clicar(page, tipo, key) {
-  await page.click('.dash-chip[data-tipo="' + tipo + '"][data-key="' + key + '"]');
+/* Escolhe uma opção no controle de escopo: abre o painel se preciso e clica.
+   (Os filtros eram chips soltos; viraram dois controles que abrem uma lista,
+   para não encher a tela quando os eventos e turmas aumentarem.) */
+async function clicar(page, campo, key) {
+  await page.evaluate((c) => {
+    const filtro = document.querySelector('.dash-filtro[data-campo="' + c + '"]');
+    if (filtro && !filtro.classList.contains('aberto')) filtro.querySelector('.dash-filtro-btn').click();
+  }, campo);
+  await page.waitForSelector('.dash-filtro[data-campo="' + campo + '"].aberto', { timeout: 5000 });
+  await page.click('.dash-filtro[data-campo="' + campo + '"] .dash-filtro-opt[data-key="' + key + '"]');
   await page.waitForTimeout(150);
+}
+
+/* Altura do controle de escopo FECHADO — é o espaço que ele rouba dos
+   números antes de alguém sequer querer filtrar. */
+function medirFiltro(page) {
+  return page.evaluate(() => {
+    const esc = document.querySelector('.dash-escopo');
+    return {
+      altura: esc ? Math.round(esc.getBoundingClientRect().height) : 0,
+      temBusca: !!document.querySelector('.dash-filtro-busca'),
+    };
+  });
+}
+
+function anotaCompacto(linha, problemas, falhas) {
+  if (problemas.length) {
+    falhas.push(linha + ' → ' + problemas.join('; '));
+    console.log('  FALHA ' + linha + ' → ' + problemas.join('; '));
+  } else {
+    console.log('  ok    ' + linha);
+  }
 }
 
 const FORMATOS = [
@@ -274,6 +327,57 @@ const FORMATOS = [
     }
 
     await ctx.close();
+  }
+
+  /* 8. O filtro NÃO cresce quando o programa cresce.
+        Este é o defeito que motivou a mudança: com um chip por turma sempre
+        à vista, três eventos de seis turmas empilhavam 406px de filtro no
+        computador e 949px no celular — mais de uma tela inteira de chips
+        antes do primeiro número. E não havia teto: cada oficina nova
+        somava mais. O controle de agora tem tamanho fixo, então dobrar o
+        número de turmas não pode mudar nada. */
+  for (const formato of FORMATOS) {
+    const seis = await abrirDashboard(browser, formato, bancoGrande(3, 6));
+    const m6 = await medirFiltro(seis.page);
+    await seis.ctx.close();
+
+    const doze = await abrirDashboard(browser, formato, bancoGrande(3, 12));
+    const m12 = await medirFiltro(doze.page);
+
+    const p = [];
+    const teto = formato.nome === 'celular' ? 220 : 150;
+    if (m6.altura > teto) {
+      p.push('com 18 turmas o filtro já ocupa ' + m6.altura + 'px (teto ' + teto + 'px)');
+    }
+    /* 12px de tolerância: o resumo embaixo ("Mostrando: …") pode quebrar uma
+       linha a mais quando os números ficam maiores. O que não pode é o filtro
+       crescer com a lista. */
+    if (m12.altura > m6.altura + 12) {
+      p.push('dobrar as turmas (18 → 36) fez o filtro crescer de ' + m6.altura + 'px para ' + m12.altura + 'px — volta a ser um paredão');
+    }
+    if (!m12.temBusca) p.push('com 36 turmas não apareceu campo de busca na lista');
+    if (doze.erros.length) p.push('erro JS: ' + doze.erros[0]);
+
+    /* A busca precisa realmente reduzir a lista. */
+    const filtrou = await doze.page.evaluate(async () => {
+      const filtro = document.querySelector('.dash-filtro[data-campo="turma"]');
+      filtro.querySelector('.dash-filtro-btn').click();
+      const busca = filtro.querySelector('.dash-filtro-busca');
+      const antes = filtro.querySelectorAll('.dash-filtro-opt:not([hidden])').length;
+      busca.value = 'Turma 7 do evento 2';
+      busca.dispatchEvent(new Event('input', { bubbles: true }));
+      const depois = Array.from(filtro.querySelectorAll('.dash-filtro-opt:not([hidden])'))
+        .map((o) => o.textContent.trim());
+      return { antes: antes, depois: depois };
+    });
+    if (filtrou.antes < 30) p.push('a lista aberta mostrou só ' + filtrou.antes + ' opções — deveria trazer as 36 turmas');
+    /* Sobram a turma buscada e a opção "Todas", que nunca some: é a saída
+       para desfazer o filtro. */
+    if (filtrou.depois.length !== 2 || !filtrou.depois.some((t) => t.indexOf('Turma 7 do evento 2') !== -1)) {
+      p.push('buscar não reduziu a lista à turma procurada (sobrou: ' + JSON.stringify(filtrou.depois) + ')');
+    }
+    anotaCompacto(formato.nome + ' · o filtro não cresce quando os eventos e turmas aumentam', p, falhas);
+    await doze.ctx.close();
   }
 
   await browser.close();

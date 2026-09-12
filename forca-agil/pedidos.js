@@ -1,12 +1,20 @@
 (function () {
   'use strict';
 
+  /* A ordem é a da tela. "Outros" fica sempre por último: é a saída para o
+     que não coube nas outras, e uma saída no meio da lista faz parar de ler
+     as opções seguintes.
+
+     A chave é o que fica GRAVADO no banco, então ela nunca muda depois de
+     existir — pedido antigo continua apontando para ela. O rótulo é só o que
+     se lê na tela e pode ser reescrito à vontade. */
   var TIPOS = [
-    { key: 'tema',     label: 'Quero aprender sobre um tema', color: '#9b7fff' },
-    { key: 'curso',    label: 'Quero sugerir um curso',       color: '#1ab2ae' },
-    { key: 'material', label: 'Preciso de material',          color: '#4caf7d' },
-    { key: 'duvida',   label: 'Tenho uma dúvida',             color: '#f5a623' },
-    { key: 'outros',   label: 'Outros',                       color: '#8a93a8' },
+    { key: 'tema',        label: 'Quero aprender sobre um tema', color: '#9b7fff' },
+    { key: 'curso',       label: 'Quero sugerir um curso',       color: '#1ab2ae' },
+    { key: 'material',    label: 'Preciso de material',          color: '#4caf7d' },
+    { key: 'duvida',      label: 'Tenho uma dúvida',             color: '#f5a623' },
+    { key: 'iniciativas', label: 'Quero fazer parte de iniciativas do Time Força Ágil', color: '#e05c7f' },
+    { key: 'outros',      label: 'Outros',                       color: '#8a93a8' },
   ];
 
   /* Confirmação do envio. Ela SUBSTITUI o formulário de propósito — a
@@ -295,6 +303,17 @@
           html += '</div>';
           if (p.descricao) html += '<p class="ped-admin-desc">' + p.descricao.replace(/&/g,'&amp;').replace(/</g,'&lt;') + '</p>';
 
+          /* Reenquadramento fica à vista. Mudar o tipo de um pedido é mexer no
+             que a PESSOA escolheu: ela marcou "Outros" e alguém decidiu que
+             era outra coisa. Pode ser o certo (o tipo certo nem existia
+             quando ela escreveu), mas não pode ser invisível — quem olhar a
+             lista depois precisa saber que aquele selo foi posto pelo painel,
+             não pela pessoa. */
+          if (p.tipoAnterior) {
+            html += '<p class="ped-admin-prazo ped-admin-reenquadrado">&#x21C4; Reenquadrado de "' + esc(tipoLabel(p.tipoAnterior)) +
+              '" por <strong>' + esc((p.tipoAlteradoPor && p.tipoAlteradoPor.name) || '—') + '</strong> em ' + fmtData(p.tipoAlteradoEm) + '.</p>';
+          }
+
           if (excluido) {
             html += '<p class="ped-admin-prazo ped-admin-prazo--excluido">Excluído por <strong>' + esc(p.excluidoPor && p.excluidoPor.name || '—') +
               '</strong> em ' + fmtData(p.excluidoEm) + '. Justificativa: "' + esc(p.justificativaExclusao || '') + '"</p>';
@@ -337,6 +356,19 @@
             html += '<button class="btn btn--sm ped-cancelar-btn">Cancelar</button>';
             html += '</span>';
             html += '</div>';
+          } else if (acao === 'tipo') {
+            html += '<div class="ped-admin-tipo-form">';
+            html += '<label class="ped-admin-tipo-label" for="pedTipoSel-' + p._key + '">Reenquadrar este pedido como:</label>';
+            html += '<select class="ped-admin-select-tipo" id="pedTipoSel-' + p._key + '" data-key="' + p._key + '">';
+            TIPOS.forEach(function (t) {
+              html += '<option value="' + esc(t.key) + '"' + (t.key === p.tipo ? ' selected' : '') + '>' + esc(t.label) + '</option>';
+            });
+            html += '</select>';
+            html += '<span class="ped-admin-select-wrap">';
+            html += '<button class="btn btn--sm btn--primary ped-confirmar-tipo-btn" data-key="' + p._key + '">Salvar tipo</button>';
+            html += '<button class="btn btn--sm ped-cancelar-btn">Cancelar</button>';
+            html += '</span>';
+            html += '</div>';
           } else if (excluido) {
             html += '<button class="btn btn--sm ped-restaurar-btn" data-key="' + p._key + '">↺ Restaurar</button>';
           } else {
@@ -356,6 +388,7 @@
             } else {
               html += '<button class="btn btn--sm ped-marcar-btn" data-key="' + p._key + '">✓ Marcar como respondido</button>';
             }
+            html += '<button class="btn btn--sm ped-tipo-btn-admin" data-key="' + p._key + '">&#x21C4; Mudar tipo</button>';
             html += '<button class="btn btn--sm ped-excluir-btn" data-key="' + p._key + '">🗑 Excluir</button>';
           }
           html += '</div>';
@@ -381,6 +414,41 @@
         btn.addEventListener('click', function () {
           abrindoAcao = { key: btn.dataset.key, acao: 'responder' };
           render();
+        });
+      });
+      wrap.querySelectorAll('.ped-tipo-btn-admin').forEach(function (btn) {
+        btn.addEventListener('click', function () {
+          abrindoAcao = { key: btn.dataset.key, acao: 'tipo' };
+          render();
+        });
+      });
+      wrap.querySelectorAll('.ped-confirmar-tipo-btn').forEach(function (btn) {
+        btn.addEventListener('click', function () {
+          var key = btn.dataset.key;
+          var sel = wrap.querySelector('.ped-admin-select-tipo[data-key="' + key + '"]');
+          var novo = sel ? sel.value : '';
+          var pedido = todosPedidos.filter(function (x) { return x._key === key; })[0];
+          if (!novo || !pedido) return;
+          /* Mesmo tipo: fecha e não grava. Gravar aqui carimbaria um
+             reenquadramento que não aconteceu, e a linha de histórico passaria
+             a dizer que alguém mudou o tipo sem ter mudado nada. */
+          if (novo === pedido.tipo) { abrindoAcao = null; render(); return; }
+          /* Quem reenquadra é quem está logada. Os outros fluxos desta aba
+             perguntam "quem respondeu?"/"quem está excluindo?" porque podem
+             ser registrados em nome de outra pessoa, depois do fato.
+             Reenquadrar não: é uma correção feita na hora, por quem está
+             olhando a tela. */
+          var sess = window.faAuth && window.faAuth.getSession();
+          abrindoAcao = null;
+          firebase.database().ref('pedidos/' + key).update({
+            tipo: novo,
+            /* Guarda o tipo ORIGINAL, não o imediatamente anterior: depois de
+               dois reenquadramentos, o que interessa saber é o que a pessoa
+               escolheu — o meio do caminho é história do painel. */
+            tipoAnterior: pedido.tipoAnterior || pedido.tipo,
+            tipoAlteradoEm: new Date().toISOString(),
+            tipoAlteradoPor: sess ? { name: sess.name || sess.email, email: sess.email } : null,
+          });
         });
       });
       wrap.querySelectorAll('.ped-excluir-btn').forEach(function (btn) {

@@ -81,6 +81,54 @@ async function abrir(browser, formato, cfgExtra) {
   return { ctx, page, erros };
 }
 
+/* Do outro lado do pedido: o painel. Um banco com UM pedido de cada tipo,
+   para conferir como cada rótulo se comporta na lista do admin. */
+const ADM = 'adm@previ.com.br';
+
+function bancoAdmin(tipos) {
+  const users = {};
+  users[chave(ADM)] = { name: 'ADMIN TESTE', email: ADM, area: 'TI' };
+  const admins = {}; admins[chave(ADM)] = { email: ADM, name: 'ADMIN TESTE' };
+  const pedidos = {};
+  tipos.forEach(function (t, i) {
+    pedidos['p' + i] = {
+      tipo: t, descricao: 'Pedido do tipo ' + t + '.', nomeEnviou: 'PESSOA TESTE',
+      emailEnviou: EMAIL, dataEnvio: '2026-09-0' + ((i % 8) + 1) + 'T10:00:00.000Z',
+    };
+  });
+  return {
+    'fa-users': users, 'fa-admins': admins, 'fa-diretores': {}, 'fa-facilitadores': {},
+    turmas: {}, eventos: {}, 'turmas-interesse': {}, 'turmas-config': {}, 'turmas-checkin': {},
+    'turmas-publico': {}, 'eventos-publico': {}, 'turmas-equipe': {}, 'fa-espera': {},
+    'fa-progress': {}, 'fa-users-log': {}, 'fa-reset-signal': {}, 'turmas-interesse-log': {},
+    'turmas-sorteio': {}, holocron: {}, pedidos: pedidos, avaliacoes: {},
+  };
+}
+
+async function abrirAdminPedidos(browser, formato, tipos) {
+  const ctx = await browser.newContext(formato.opts);
+  const page = await ctx.newPage();
+  const erros = [];
+  page.on('pageerror', (e) => erros.push(String(e).split('\n')[0]));
+  await page.addInitScript('window.__CFG = ' + JSON.stringify({
+    db: bancoAdmin(tipos), user: { email: ADM, emailVerified: true, uid: 'u1' }, delayDefault: 20,
+  }) + ';');
+  await page.route('**/firebasejs/**', (r) =>
+    r.fulfill({ status: 200, contentType: 'text/javascript', body: FALSO }));
+  await page.route('**fonts.googleapis.com**', (r) =>
+    r.fulfill({ status: 200, contentType: 'text/css', body: '' }));
+  await page.route('**fonts.gstatic.com**', (r) => r.abort());
+  await page.goto(BASE + '/index.html#admin', { waitUntil: 'domcontentloaded' });
+  await page.waitForSelector('.admin-tab-btn', { timeout: 15000 });
+  await page.evaluate(() => {
+    const b = Array.from(document.querySelectorAll('.admin-tab-btn'))
+      .find((x) => /Pedidos/i.test(x.textContent));
+    if (b) b.click();
+  });
+  await page.waitForSelector('.ped-admin-badge', { timeout: 15000 });
+  return { ctx, page, erros };
+}
+
 const FORMATOS = [
   { nome: 'desktop', opts: { viewport: { width: 1440, height: 900 } } },
   { nome: 'celular', opts: devices['iPhone 13'] },
@@ -89,6 +137,10 @@ const FORMATOS = [
 (async () => {
   const browser = await chromium.launch();
   const falhas = [];
+  /* Preenchido ao ler os chips do formulário público: assim o teste do lado
+     do admin usa exatamente os tipos que o site oferece hoje, sem uma
+     segunda lista para alguém esquecer de atualizar. */
+  let tiposDoSite = [];
   const anota = (linha, problemas) => {
     if (problemas.length) {
       falhas.push(linha + ' → ' + problemas.join('; '));
@@ -153,6 +205,47 @@ const FORMATOS = [
       }
       if (erros.length) p.push('erro JS: ' + erros[0]);
       anota('o formulário aparece sem rolar e antes do FAQ', p);
+      await ctx.close();
+    }
+
+    /* 1c. TODO tipo oferecido grava o tipo que diz.
+           O tipo é só um <button> com data-tipo e um rótulo; nada liga um ao
+           outro além do código que lê o atributo no clique. Um tipo novo
+           entra na lista e parece funcionar — o chip acende, o envio confirma
+           — mesmo que o que chegue no banco seja outro, ou nada. E isso não
+           dá erro: quem descobre é o admin, meses depois, com um pedido no
+           balde errado. Este caso percorre a lista inteira, então um tipo
+           novo passa a ser exercitado no dia em que é criado, sem ninguém
+           lembrar de escrever um teste para ele. */
+    {
+      const { ctx, page, erros } = await abrir(browser, formato);
+      const tipos = await page.evaluate(() => Array.from(document.querySelectorAll('.ped-tipo-btn'))
+        .map((b) => ({ key: b.dataset.tipo, rotulo: (b.textContent || '').trim() })));
+      tiposDoSite = tipos.map((t) => t.key);
+      const p = [];
+      if (tipos.length < 2) p.push('a lista de tipos veio com ' + tipos.length + ' opção(ões) — algo não renderizou');
+      const semRotulo = tipos.filter((t) => !t.rotulo || !t.key);
+      if (semRotulo.length) p.push(semRotulo.length + ' tipo(s) sem rótulo ou sem chave');
+
+      for (const t of tipos) {
+        await page.click('.ped-tipo-btn[data-tipo="' + t.key + '"]');
+        await page.fill('#pedTexto', 'Pedido de teste do tipo ' + t.key + '.');
+        await page.click('#pedEnviar');
+        await page.waitForSelector('.ped-sucesso', { timeout: 10000 });
+        const gravado = await page.evaluate(() => {
+          const w = (window.__ESCRITAS || []).filter((e) => e.path.indexOf('pedidos') === 0);
+          return w.length ? w[w.length - 1].valor : null;
+        });
+        if (!gravado) p.push(t.rotulo + ': confirmou o envio mas não gravou nada');
+        else if (gravado.tipo !== t.key) {
+          p.push(t.rotulo + ': gravou tipo "' + gravado.tipo + '" em vez de "' + t.key + '"');
+        }
+        /* Volta ao formulário limpo para o próximo tipo. */
+        await page.click('.ped-outro-btn');
+        await page.waitForSelector('.ped-tipo-btn', { timeout: 10000 });
+      }
+      if (erros.length) p.push('erro JS: ' + erros[0]);
+      anota('cada tipo oferecido grava o tipo que diz (' + tipos.length + ' tipos)', p);
       await ctx.close();
     }
 
@@ -286,6 +379,87 @@ const FORMATOS = [
       anota('gravação recusada mostra erro e libera nova tentativa', p);
       await ctx.close();
     }
+  }
+
+  /* 6. O outro lado: no painel, o selo do tipo tem que caber no card.
+        O selo era nowrap. Com rótulo curto isso nunca apareceu; o primeiro
+        rótulo longo passou do fim do card no celular e o texto sumia
+        cortado, sem nada indicando que havia mais. O tipo é justamente o
+        que diz do que o pedido se trata. */
+  for (const formato of FORMATOS) {
+    const { ctx, page, erros } = await abrirAdminPedidos(browser, formato, tiposDoSite);
+    const m = await page.evaluate(() => {
+      const badges = Array.from(document.querySelectorAll('.ped-admin-item .ped-admin-badge'));
+      return badges.map((b) => {
+        const card = b.closest('.ped-admin-item');
+        return {
+          texto: (b.textContent || '').trim(),
+          vaza: b.getBoundingClientRect().right > card.getBoundingClientRect().right + 0.5,
+          cortado: b.scrollWidth > b.clientWidth + 1,
+        };
+      });
+    });
+    const p = [];
+    if (!m.length) p.push('nenhum pedido apareceu no painel');
+    const ruins = m.filter((x) => x.vaza || x.cortado).map((x) => x.texto);
+    if (ruins.length) p.push('selo do tipo cortado/para fora do card: ' + ruins.join(' | '));
+    if (erros.length) p.push('erro JS: ' + erros[0]);
+    anota(formato.nome + ' · no painel, o selo do tipo cabe no card', p);
+    await ctx.close();
+  }
+
+  /* 7. Reenquadrar: o admin corrige o tipo de um pedido já enviado.
+        Existe porque a pessoa escolhe o tipo no momento em que escreve, e o
+        tipo certo pode nem existir ainda — foi o que aconteceu com quem
+        pediu para "participar do grupo" em "Outros" antes de haver a opção
+        de iniciativas. Mudar o tipo é mexer no que a PESSOA escolheu, então
+        o teste exige as duas coisas: que o pedido mude de balde de verdade,
+        e que a tela diga que foi o painel que mudou. */
+  for (const formato of FORMATOS) {
+    const { ctx, page, erros } = await abrirAdminPedidos(browser, formato, ['outros']);
+    const p = [];
+    const seloAntes = (await page.textContent('.ped-admin-item .ped-admin-badge')).trim();
+
+    await page.click('.ped-tipo-btn-admin');
+    await page.waitForSelector('.ped-admin-select-tipo', { timeout: 10000 });
+    const opcoes = await page.$$eval('.ped-admin-select-tipo option', (os) => os.map((o) => o.value));
+    if (opcoes.indexOf('iniciativas') === -1) p.push('o tipo novo nem é oferecido no reenquadramento');
+
+    await page.selectOption('.ped-admin-select-tipo', 'iniciativas');
+    await page.click('.ped-confirmar-tipo-btn');
+    await page.waitForTimeout(600);
+
+    const gravado = await page.evaluate(() => {
+      const w = (window.__ESCRITAS || []).filter((e) => e.path.indexOf('pedidos') === 0);
+      return w.length ? w[w.length - 1].valor : null;
+    });
+    if (!gravado || gravado.tipo !== 'iniciativas') {
+      p.push('não gravou o tipo novo (gravou: ' + JSON.stringify(gravado) + ')');
+    } else {
+      if (gravado.tipoAnterior !== 'outros') p.push('não guardou o tipo que a pessoa tinha escolhido');
+      if (!gravado.tipoAlteradoPor || !gravado.tipoAlteradoPor.email) p.push('não registrou QUEM reenquadrou');
+      if (!gravado.tipoAlteradoEm) p.push('não registrou QUANDO foi reenquadrado');
+    }
+
+    const seloDepois = (await page.textContent('.ped-admin-item .ped-admin-badge')).trim();
+    if (seloDepois === seloAntes) {
+      p.push('a lista continua mostrando "' + seloAntes + '" — a tela não acompanhou a mudança');
+    }
+    const hist = await page.$('.ped-admin-reenquadrado');
+    if (!hist) p.push('nada na tela diz que o tipo foi mudado pelo painel, e não pela pessoa');
+
+    /* Salvar o MESMO tipo não pode carimbar um reenquadramento que não houve. */
+    const antesDoNada = await page.evaluate(() => (window.__ESCRITAS || []).length);
+    await page.click('.ped-tipo-btn-admin');
+    await page.waitForSelector('.ped-admin-select-tipo', { timeout: 10000 });
+    await page.click('.ped-confirmar-tipo-btn');
+    await page.waitForTimeout(400);
+    const depoisDoNada = await page.evaluate(() => (window.__ESCRITAS || []).length);
+    if (depoisDoNada !== antesDoNada) p.push('salvar o mesmo tipo gravou assim mesmo — inventaria um reenquadramento');
+
+    if (erros.length) p.push('erro JS: ' + erros[0]);
+    anota(formato.nome + ' · o admin reenquadra o tipo, e a tela conta que foi ele', p);
+    await ctx.close();
   }
 
   await browser.close();

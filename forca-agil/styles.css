@@ -1548,6 +1548,16 @@ details.manual-admin-subgroup[open] > .manual-admin-subhead,
    ::before — forma, não só cor, para não depender de enxergar matiz. */
 .ped-tipo-btn.active { border-color: var(--gold); color: var(--gold); background: rgba(245,197,24,.14); font-weight: 600; }
 .ped-tipo-btn.active::before { content: '\2713\00a0'; }
+/* Celular: com seis tipos — um deles de rótulo longo, que quebra em duas
+   linhas — o bloco de chips passou a terminar a 5px da dobra. Cinco pixels
+   não são folga: o requisito é que os tipos apareçam SEM ROLAR (o pedido já
+   ficou enterrado no fim da página, e o que ninguém vê não existe), e ele
+   não pode depender da altura exata de uma fonte. O espaço vem do respiro
+   ENTRE os chips, não do tamanho deles: apertar o chip encolheria o alvo do
+   dedo, que é o que menos pode encolher no celular. */
+@media (max-width: 640px) {
+  .ped-tipos { gap: 6px; margin-bottom: 16px; }
+}
 .ped-texto { width: 100%; box-sizing: border-box; background: var(--surface); border: 1px solid var(--line-strong); border-radius: 8px; color: var(--ink); padding: 12px 14px; font-size: .88rem; resize: vertical; margin-bottom: 16px; }
 .ped-texto:focus { outline: none; border-color: var(--gold); }
 .ped-actions { display: flex; align-items: center; gap: 16px; flex-wrap: wrap; }
@@ -1572,7 +1582,11 @@ details.manual-admin-subgroup[open] > .manual-admin-subhead,
 .ped-admin-lista { display: flex; flex-direction: column; gap: 12px; }
 .ped-admin-item { background: var(--surface); border: 1px solid var(--line); border-radius: 10px; padding: 14px 18px; }
 .ped-admin-item-header { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; margin-bottom: 8px; }
-.ped-admin-badge { font-family: var(--font-mono); font-size: .7rem; letter-spacing: .06em; text-transform: uppercase; padding: 3px 10px; border-radius: 20px; border: 1px solid var(--tc, #888); color: var(--tc, #888); background: color-mix(in srgb, var(--tc, #888) 12%, transparent); white-space: nowrap; }
+/* O selo do tipo quebra linha quando precisa. Era nowrap: com rótulos curtos
+   ("Tenho uma dúvida") nunca fez diferença, mas o primeiro tipo de rótulo
+   longo passou do fim do card no celular e o texto era cortado em silêncio —
+   quem lê a lista não vê que existe mais texto ali. */
+.ped-admin-badge { font-family: var(--font-mono); font-size: .7rem; letter-spacing: .06em; text-transform: uppercase; padding: 3px 10px; border-radius: 20px; border: 1px solid var(--tc, #888); color: var(--tc, #888); background: color-mix(in srgb, var(--tc, #888) 12%, transparent); max-width: 100%; }
 .ped-admin-meta { font-size: .78rem; color: var(--ink-3); }
 .ped-admin-desc { font-size: .85rem; color: var(--ink-2); line-height: 1.5; margin: 0; }
 .ped-admin-item--respondido { opacity: .68; }
@@ -1614,6 +1628,17 @@ details.manual-admin-subgroup[open] > .manual-admin-subhead,
 .ped-admin-item--excluido { opacity: .55; }
 .ped-admin-badge--excluido { --tc: #ff3b30; }
 .ped-admin-prazo--excluido { color: #ff6961; }
+/* Reenquadramento: o selo do tipo pode ter sido posto pelo painel, não pela
+   pessoa que escreveu o pedido. Quem lê a lista precisa ver a diferença. */
+.ped-admin-reenquadrado { color: var(--cyan); }
+.ped-admin-tipo-form { display: flex; flex-direction: column; gap: 8px; width: 100%; }
+.ped-admin-tipo-label { font-size: .78rem; color: var(--ink-2); }
+.ped-admin-select-tipo {
+  font-family: var(--font-body); font-size: .82rem; background: rgba(16,28,52,.8); color: var(--ink);
+  border: 1px solid var(--line-strong); border-radius: 6px; padding: 8px 10px; cursor: pointer;
+  max-width: 100%; align-self: flex-start;
+}
+.ped-admin-select-tipo:focus { outline: none; border-color: var(--accent); }
 .ped-admin-excluir-form { display: flex; flex-direction: column; gap: 8px; width: 100%; }
 .ped-admin-select-quem-exclui {
   font-family: var(--font-mono); font-size: .78rem; background: rgba(16,28,52,.8); color: var(--ink);
@@ -1656,43 +1681,84 @@ details.manual-admin-subgroup[open] > .manual-admin-subhead,
 .dash-panel-title { font-family: var(--font-mono); font-size: .74rem; letter-spacing: .06em; text-transform: uppercase; color: var(--ink-2); margin-bottom: 14px; }
 
 /* ---- Escopo do Dashboard: de quais eventos/turmas são os números ----
-   Seleção múltipla de propósito: comparar duas turmas do mesmo evento, ou
-   dois eventos inteiros, é o uso normal a partir da segunda oficina. */
-.dash-escopo { margin-bottom: 18px; display: flex; flex-direction: column; gap: 10px; }
+   Era uma fileira de chips, um por evento e um por turma, todos sempre à
+   vista. Com três eventos e cinco turmas já eram três fileiras empilhadas
+   antes do primeiro número da tela — e a lista cresce a cada oficina, sem
+   ter para onde crescer. Agora são dois controles do tamanho de um botão,
+   que abrem a lista só na hora de escolher: dez eventos ocupam o mesmo
+   espaço que um. A seleção continua múltipla; comparar duas turmas ou dois
+   eventos é o uso normal a partir da segunda oficina. */
+.dash-escopo { margin-bottom: 18px; display: flex; flex-direction: column; gap: 8px; }
 .dash-escopo:empty { display: none; }
-.dash-escopo-linha { display: flex; align-items: baseline; gap: 10px; flex-wrap: wrap; }
-.dash-escopo-rotulo {
-  font-family: var(--font-mono); font-size: .68rem; letter-spacing: .06em;
-  text-transform: uppercase; color: var(--ink-3); flex: 0 0 56px;
-}
-.dash-escopo-chips { display: flex; flex-wrap: wrap; gap: 6px; flex: 1; min-width: 0; }
-.dash-chip {
-  display: inline-flex; align-items: center; gap: 6px;
-  background: var(--panel-2); border: 1px solid var(--line-strong); color: var(--ink-2);
-  border-radius: 20px; padding: 6px 13px; font-size: .8rem; font-family: inherit;
-  cursor: pointer; min-height: 32px;
-  transition: border-color .2s, color .2s, background .2s;
-}
-.dash-chip:hover:not(:disabled) { border-color: var(--accent); color: var(--accent); }
-/* O escolhido precisa se distinguir por mais que cor: no iPhone o :hover gruda
-   depois do toque e deixa um chip só encostado com a mesma cara do escolhido. */
-.dash-chip.is-on { border-color: var(--accent); color: var(--accent); background: rgba(245,197,66,.12); }
-.dash-chip.is-on::before { content: '\2713\00a0'; }
-.dash-chip-n { font-size: .68rem; color: var(--ink-3); font-family: var(--font-mono); }
-.dash-chip.is-on .dash-chip-n { color: var(--accent); opacity: .75; }
+.dash-escopo-controles { display: flex; flex-wrap: wrap; gap: 10px; align-items: flex-start; }
 .dash-escopo-resumo { font-family: var(--font-mono); font-size: .72rem; color: var(--ink-3); margin: 0; }
-/* Celular: o rótulo sai da frente dos chips (ele roubava um terço da largura
-   e obrigava cada chip a quebrar em duas linhas) e os chips encolhem — mas
-   não abaixo de 32px de altura, que é alvo de dedo. */
-@media (max-width: 640px) {
-  .dash-escopo-linha { flex-direction: column; align-items: stretch; gap: 6px; }
-  .dash-escopo-rotulo { flex: none; }
-  .dash-chip { font-size: .76rem; padding: 5px 11px; }
-  .dash-chip-n { font-size: .64rem; }
-}
 .dash-escopo-limpar {
   background: none; border: none; color: var(--cyan); cursor: pointer;
   font-family: inherit; font-size: .72rem; text-decoration: underline; padding: 4px;
+}
+
+.dash-filtro { position: relative; }
+.dash-filtro-btn {
+  display: inline-flex; align-items: baseline; gap: 8px; max-width: 100%;
+  background: var(--panel-2); border: 1px solid var(--line-strong); color: var(--ink);
+  border-radius: 8px; padding: 8px 12px; font-family: inherit; font-size: .84rem;
+  cursor: pointer; min-height: 38px;
+  transition: border-color .2s, background .2s;
+}
+.dash-filtro-btn:hover:not(:disabled) { border-color: var(--accent); }
+.dash-filtro.aberto .dash-filtro-btn { border-color: var(--accent); }
+.dash-filtro-titulo {
+  font-family: var(--font-mono); font-size: .66rem; letter-spacing: .06em;
+  text-transform: uppercase; color: var(--ink-3); flex: 0 0 auto;
+}
+/* O valor pode ser um nome comprido de turma: encurta com reticências em vez
+   de esticar o botão para fora da tela. O nome inteiro está na lista aberta. */
+.dash-filtro-valor { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; }
+.dash-filtro-seta { color: var(--ink-3); font-size: .7rem; flex: 0 0 auto; }
+
+.dash-filtro-pop {
+  display: none; position: absolute; z-index: 300; top: calc(100% + 6px); left: 0;
+  min-width: 260px; max-width: min(360px, 92vw);
+  background: #111827; border: 1px solid var(--line-strong); border-radius: 10px;
+  padding: 10px; box-shadow: 0 10px 30px rgba(0,0,0,.55);
+}
+.dash-filtro.aberto .dash-filtro-pop { display: block; }
+.dash-filtro-busca {
+  width: 100%; box-sizing: border-box; margin-bottom: 8px;
+  background: var(--space-1); border: 1px solid var(--line-strong); border-radius: 6px;
+  color: var(--ink); padding: 7px 10px; font-family: inherit; font-size: .82rem;
+}
+.dash-filtro-busca:focus { outline: none; border-color: var(--accent); }
+/* Rola por dentro: a lista pode ter dezenas de turmas e não pode empurrar a
+   página nem sair pela borda de baixo. */
+.dash-filtro-lista { display: flex; flex-direction: column; gap: 2px; max-height: 46vh; overflow-y: auto; }
+.dash-filtro-opt {
+  display: flex; align-items: baseline; gap: 8px; width: 100%; text-align: left;
+  background: none; border: none; color: var(--ink-2); cursor: pointer;
+  font-family: inherit; font-size: .82rem; padding: 8px 8px; border-radius: 6px;
+  min-height: 36px;
+}
+.dash-filtro-opt:hover { background: rgba(255,255,255,.05); color: var(--ink); }
+/* O escolhido se distingue por um ✓, não só por cor: no iPhone o hover gruda
+   depois do toque e cor sozinha vira dúvida. */
+.dash-filtro-opt.is-on { color: var(--accent); }
+.dash-filtro-marca { flex: 0 0 14px; color: var(--accent); font-size: .8rem; }
+.dash-filtro-texto { display: flex; flex-direction: column; gap: 1px; min-width: 0; }
+.dash-filtro-extra { font-size: .68rem; color: var(--ink-3); font-family: var(--font-mono); }
+.dash-filtro-vazio { font-size: .78rem; color: var(--ink-3); margin: 8px 4px 0; font-style: italic; }
+.dash-filtro-rodape {
+  display: flex; justify-content: space-between; gap: 8px;
+  margin-top: 8px; padding-top: 8px; border-top: 1px solid var(--line);
+}
+.dash-filtro-link {
+  background: none; border: none; color: var(--cyan); cursor: pointer;
+  font-family: inherit; font-size: .76rem; padding: 6px 4px;
+}
+@media (max-width: 640px) {
+  .dash-escopo-controles { flex-direction: column; align-items: stretch; }
+  .dash-filtro-btn { width: 100%; justify-content: flex-start; }
+  /* No celular o painel ocupa a largura do controle inteiro. */
+  .dash-filtro-pop { left: 0; right: 0; min-width: 0; max-width: none; }
 }
 
 /* ---- Médias por evento e turma (barras horizontais) ----
