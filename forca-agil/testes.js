@@ -225,13 +225,18 @@
           input.dispatchEvent(new Event('input'));
           return todasContemTermo && reduziu;
         } },
-        { id: 'adm-cadastrados-colunas', label: 'Cadastrados: tabela tem exatamente as colunas Nome/E-mail/Área/Cadastro', run: function () {
+        { id: 'adm-cadastrados-colunas', label: 'Cadastrados: colunas Nome/E-mail/Área/Cadastro/Situação/Ações, sem coluna solta de botão', run: function () {
           var c = document.getElementById('adminCadastrados');
           if (!c) return false;
           var ths = Array.from(c.querySelectorAll('thead th')).map(function(th) { return th.textContent.trim(); });
           var temXP = ths.some(function(t) { return t === 'XP'; });
-          var temEssenciais = ['Nome','E-mail','Área','Cadastro'].every(function(col) { return ths.indexOf(col) !== -1; });
-          return temEssenciais && !temXP;
+          var temEssenciais = ['Nome','E-mail','Área','Cadastro','Situação','Ações'].every(function(col) { return ths.indexOf(col) !== -1; });
+          /* Cada ação numa coluna própria era o que estourava a largura da
+             tabela e empurrava os botões para trás de uma rolagem lateral.
+             Cabeçalho vazio é o rastro desse formato: a coluna existia só
+             para segurar um botão. */
+          var colunaDeBotao = ths.some(function(t) { return t === ''; });
+          return temEssenciais && !temXP && !colunaDeBotao && ths.length === 6;
         } },
         { id: 'adm-table-scroll-wrap', label: 'Tabelas admin envolvidas em .table-scroll-wrap (scroll horizontal automático)', run: function () {
           var wraps = document.querySelectorAll('.table-scroll-wrap');
@@ -1283,6 +1288,9 @@ title: 'Cadastrados — corrigir nome/gerência chega em TODO lugar, não só no
 title: 'Cadastrados — corrigir e-mail só em cadastro criado pelo painel',
       motivo: 'O e-mail é o login e é a chave que liga a pessoa a inscrições, presenças e certificado, então só dá para corrigir onde o painel conhece a senha: contas que ele mesmo criou. Verificar os dois lados. (1) Abrir "✎ Editar" numa pessoa que se cadastrou SOZINHA pelo site: o campo E-mail tem que estar travado, com a explicação na tela de por quê e do que fazer (criar a conta certa e bloquear a errada). (2) Criar uma conta em "+ Criar conta para colaboradora" com um e-mail de teste, e abrir "✎ Editar" nela: o campo E-mail tem que estar liberado e aparecer o pedido da sua senha de admin. (3) Corrigir o e-mail e salvar: confirmar no modal, conferir que o painel avisa quantos registros foram movidos, que a pessoa aparece na lista com o e-mail novo, e que você CONTINUA logada como admin (o painel entra na conta dela e volta pra sua sessão — não pode deixar você deslogada nem logada como outra pessoa). (4) Testar o login com o e-mail novo e a senha 12345678. (5) Numa conta criada pelo painel em que a pessoa JÁ trocou a senha, tentar corrigir o e-mail: tem que recusar explicando que a senha não é mais a padrão, sem alterar nada. (6) Conferir que a correção ficou registrada no histórico (fa-users-log). O automático equivalente é .github/scripts/teste-corrigir-email.js, que roda desktop e iPhone no CI: com o Firebase substituído pelo falso, ele corrige o e-mail de verdade e confere que o login novo funciona, que a inscrição, a presença, a fila de espera e os pedidos dela foram todos para a chave nova, que a sessão volta a ser a da admin e que a senha trocada é recusada sem alterar nada. Ele não substitui o teste na mão: o caminho que ele NÃO alcança é o e-mail de verdade chegando na caixa da pessoa.' },
     { section: 'Admin',
+      title: 'Cadastrados — a linha cabe na tela e as ações do menu "⋯" gravam',
+      motivo: 'A tabela tinha uma coluna por ação e não cabia na tela nem no computador: os últimos botões ficavam atrás de uma rolagem lateral cuja barra só aparecia no fim de uma tabela de milhares de pixels de altura. Ação que não se alcança é ação que não existe — e isso não dá erro nenhum, a tela parece inteira. Conferir no CELULAR e no computador: (1) a tabela não rola para o lado e nenhum botão fica cortado na borda direita; (2) no celular cada pessoa aparece como um cartão com todos os campos (nada de coluna escondida); (3) o "⋯" abre um modal com o NOME e o e-mail da pessoa no topo — é o que impede errar de linha numa lista de centenas; (4) Bloquear, Resetar progresso e Redefinir senha continuam funcionando de dentro do menu (saíram de dentro da tabela, onde o clique era capturado); (5) "Confirmar cadastro" só aparece para quem está Pendente; (6) quem está bloqueada vê "Desbloquear", nunca "Bloquear". O automático equivalente é .github/scripts/teste-acoes-cadastrado.js, que roda desktop e iPhone no CI e confere que cada ação chegou no banco, não só que a tela não deu erro.' },
+    { section: 'Admin',
       title: 'Cadastrados — resetar progresso',
       motivo: 'Ação destrutiva e irreversível. Verificar: se a pessoa estiver logada no momento do reset, a página dela recarrega automaticamente e o autodiagnóstico fica disponível para refazer. Para testar o reload em tempo real: abrir a página como usuária em uma aba e o painel admin em outra — ao clicar Resetar, a aba da usuária deve recarregar sozinha.' },
     { section: 'Admin',
@@ -1344,10 +1352,10 @@ title: 'Cadastrados — corrigir e-mail só em cadastro criado pelo painel',
       motivo: 'Requer turma finalizada com pelo menos 1 inscrito que tenha presença registrada. Verificar: (1) hover sobre "✓ adm" ou "✓ qr" mostra risco (line-through) na etiqueta; (2) clicar abre modal visual de confirmação (não confirm() nativo); (3) ao confirmar, o registro é removido do Firebase (turmas-checkin) e a célula volta a "—"; (4) a frequência na última coluna atualiza imediatamente.' },
     { section: 'Admin',
       title: 'Cadastrados — badge "Pendente" aparece para quem não verificou e-mail',
-      motivo: 'Verificar com conta que se cadastrou pelo site e não clicou no link: na aba Cadastrados a coluna E-mail deve mostrar badge amarelo "Pendente" e botão "Confirmar cadastro". Contas criadas pelo admin ou já verificadas mostram badge verde "Verificado" e sem botão.' },
+      motivo: 'Verificar com conta que se cadastrou pelo site e não clicou no link: na aba Cadastrados a coluna Situação deve mostrar o badge amarelo "Pendente", e o menu "⋯" da linha dela deve oferecer "Confirmar cadastro". Contas criadas pelo admin ou já verificadas mostram badge verde "Verificado" e NÃO podem oferecer essa ação no menu.' },
     { section: 'Admin',
       title: 'Cadastrados — confirmar cadastro manualmente libera o acesso',
-      motivo: 'Clicar "Confirmar cadastro" de uma conta pendente → confirmar → badge vira "Verificado", botão desaparece. A pessoa deve conseguir logar normalmente após isso (testa com conta real — gravaria adminApproved:true em fa-users/).' },
+      motivo: 'Abrir o menu "⋯" de uma conta pendente, clicar "Confirmar cadastro" → confirmar → badge vira "Verificado" e a ação some do menu. A pessoa deve conseguir logar normalmente após isso (testa com conta real — gravaria adminApproved:true em fa-users/).' },
     { section: 'Admin',
       title: 'Turmas — adicionar participante: busca em cadastros existentes',
       motivo: 'Funciona com a turma aberta ou com interesse encerrado. Clicar em "＋ Participante". Verificar: (1) abre modal com campo de busca por nome ou e-mail — ao digitar, filtra em tempo real os cadastros em fa-users; (2) ao clicar numa pessoa da lista, o card dourado mostra nome, e-mail e área; (3) admin escolhe o status (Interessada/Inscrita) e confirma; (4) se a pessoa não aparecer na busca, o modal exibe aviso orientando a se cadastrar primeiro — não há campo de preenchimento manual; (5) ao confirmar com "Inscrita", pessoa aparece na tabela com status Inscrito — e SEM o selo "Confirmação incompleta"; (6) ao confirmar com "Interessada", aparece com status Interessado e botão "Confirmar"; (7) Firebase tem addedByAdmin:true e addedByAdminName; (8) nome é normalizado para maiúsculas ao salvar; (9) testar com turma aberta e também encerrada. O MAIS IMPORTANTE, porque foi o que quebrou de verdade: depois de adicionar alguém como "Inscrita", conferir no Firebase que o registro tem confirmedByAdmin/confirmedByAdminName/confirmedDate, e entrar com a conta DELA para ver que ela realmente acessa Conteúdos/Treinamento e que a Minha Área mostra a turma como confirmada. Adicionar direto como Inscrita é uma confirmação — se o registro sair só com addedByAdmin, o painel diz "Inscrito" mas a pessoa fica sem acesso a nada.' },
