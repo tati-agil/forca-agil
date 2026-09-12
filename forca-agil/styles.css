@@ -1548,6 +1548,16 @@ details.manual-admin-subgroup[open] > .manual-admin-subhead,
    ::before — forma, não só cor, para não depender de enxergar matiz. */
 .ped-tipo-btn.active { border-color: var(--gold); color: var(--gold); background: rgba(245,197,24,.14); font-weight: 600; }
 .ped-tipo-btn.active::before { content: '\2713\00a0'; }
+/* Celular: com seis tipos — um deles de rótulo longo, que quebra em duas
+   linhas — o bloco de chips passou a terminar a 5px da dobra. Cinco pixels
+   não são folga: o requisito é que os tipos apareçam SEM ROLAR (o pedido já
+   ficou enterrado no fim da página, e o que ninguém vê não existe), e ele
+   não pode depender da altura exata de uma fonte. O espaço vem do respiro
+   ENTRE os chips, não do tamanho deles: apertar o chip encolheria o alvo do
+   dedo, que é o que menos pode encolher no celular. */
+@media (max-width: 640px) {
+  .ped-tipos { gap: 6px; margin-bottom: 16px; }
+}
 .ped-texto { width: 100%; box-sizing: border-box; background: var(--surface); border: 1px solid var(--line-strong); border-radius: 8px; color: var(--ink); padding: 12px 14px; font-size: .88rem; resize: vertical; margin-bottom: 16px; }
 .ped-texto:focus { outline: none; border-color: var(--gold); }
 .ped-actions { display: flex; align-items: center; gap: 16px; flex-wrap: wrap; }
@@ -1572,7 +1582,11 @@ details.manual-admin-subgroup[open] > .manual-admin-subhead,
 .ped-admin-lista { display: flex; flex-direction: column; gap: 12px; }
 .ped-admin-item { background: var(--surface); border: 1px solid var(--line); border-radius: 10px; padding: 14px 18px; }
 .ped-admin-item-header { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; margin-bottom: 8px; }
-.ped-admin-badge { font-family: var(--font-mono); font-size: .7rem; letter-spacing: .06em; text-transform: uppercase; padding: 3px 10px; border-radius: 20px; border: 1px solid var(--tc, #888); color: var(--tc, #888); background: color-mix(in srgb, var(--tc, #888) 12%, transparent); white-space: nowrap; }
+/* O selo do tipo quebra linha quando precisa. Era nowrap: com rótulos curtos
+   ("Tenho uma dúvida") nunca fez diferença, mas o primeiro tipo de rótulo
+   longo passou do fim do card no celular e o texto era cortado em silêncio —
+   quem lê a lista não vê que existe mais texto ali. */
+.ped-admin-badge { font-family: var(--font-mono); font-size: .7rem; letter-spacing: .06em; text-transform: uppercase; padding: 3px 10px; border-radius: 20px; border: 1px solid var(--tc, #888); color: var(--tc, #888); background: color-mix(in srgb, var(--tc, #888) 12%, transparent); max-width: 100%; }
 .ped-admin-meta { font-size: .78rem; color: var(--ink-3); }
 .ped-admin-desc { font-size: .85rem; color: var(--ink-2); line-height: 1.5; margin: 0; }
 .ped-admin-item--respondido { opacity: .68; }

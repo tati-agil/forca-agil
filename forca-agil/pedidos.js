@@ -1,12 +1,20 @@
 (function () {
   'use strict';
 
+  /* A ordem é a da tela. "Outros" fica sempre por último: é a saída para o
+     que não coube nas outras, e uma saída no meio da lista faz parar de ler
+     as opções seguintes.
+
+     A chave é o que fica GRAVADO no banco, então ela nunca muda depois de
+     existir — pedido antigo continua apontando para ela. O rótulo é só o que
+     se lê na tela e pode ser reescrito à vontade. */
   var TIPOS = [
-    { key: 'tema',     label: 'Quero aprender sobre um tema', color: '#9b7fff' },
-    { key: 'curso',    label: 'Quero sugerir um curso',       color: '#1ab2ae' },
-    { key: 'material', label: 'Preciso de material',          color: '#4caf7d' },
-    { key: 'duvida',   label: 'Tenho uma dúvida',             color: '#f5a623' },
-    { key: 'outros',   label: 'Outros',                       color: '#8a93a8' },
+    { key: 'tema',        label: 'Quero aprender sobre um tema', color: '#9b7fff' },
+    { key: 'curso',       label: 'Quero sugerir um curso',       color: '#1ab2ae' },
+    { key: 'material',    label: 'Preciso de material',          color: '#4caf7d' },
+    { key: 'duvida',      label: 'Tenho uma dúvida',             color: '#f5a623' },
+    { key: 'iniciativas', label: 'Quero fazer parte de iniciativas do Time Força Ágil', color: '#e05c7f' },
+    { key: 'outros',      label: 'Outros',                       color: '#8a93a8' },
   ];
 
   /* Confirmação do envio. Ela SUBSTITUI o formulário de propósito — a
