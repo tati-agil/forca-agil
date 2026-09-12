@@ -647,14 +647,81 @@
 
 /* Scroll horizontal automático para tabelas largas em qualquer tela */
 .table-scroll-wrap { width: 100%; overflow-x: auto; -webkit-overflow-scrolling: touch; }
-/* Mobile: oculta colunas secundárias da tabela CADASTRADOS (Área, Cadastro, E-mail badge) */
+/* ---- Aba Cadastrados: linha da pessoa ----
+   A tabela tinha uma coluna por ação — cinco botões, todos com a cara
+   vermelha de "excluir" — e não cabia na tela nem no computador: o que
+   sobrava ficava atrás de uma rolagem lateral cuja barra só aparecia depois
+   de 3.000px de tabela. Agora a linha tem seis colunas e as ações moram num
+   menu; o que é destrutivo é o único que continua vermelho. */
+.admin-row-btn {
+  padding: 5px 10px; font-size: .78rem; background: transparent;
+  border: 1px solid var(--line-strong); color: var(--ink-2);
+  border-radius: 6px; cursor: pointer; white-space: nowrap;
+  font-family: inherit;
+  transition: border-color .2s, color .2s, background .2s;
+}
+.admin-row-btn:hover:not(:disabled) { border-color: var(--accent); color: var(--accent); }
+.cad-acoes    { display: inline-flex; gap: 6px; align-items: center; }
+.cad-mais-btn { font-size: 1rem; line-height: 1; padding: 4px 9px; }
+.cad-situacao { display: inline-flex; gap: 6px; flex-wrap: wrap; }
+/* Bloqueada: apaga os dados, não os botões — quem está apagado é o cadastro,
+   e o "Desbloquear" precisa continuar legível justamente nessa linha. */
+.cad-linha-bloqueada td:not(:last-child) { opacity: .55; }
+
+/* Ações do menu "⋯" — rótulo por extenso e uma linha dizendo o que faz. */
+.cad-acoes-lista { display: flex; flex-direction: column; gap: 8px; }
+.cad-acao-btn {
+  display: flex; flex-direction: column; gap: 3px; width: 100%; text-align: left;
+  padding: 11px 14px; border-radius: 9px; cursor: pointer;
+  background: var(--panel-2); border: 1px solid var(--line-strong); color: var(--ink);
+  font-family: inherit; transition: border-color .2s, background .2s;
+}
+.cad-acao-btn:hover { border-color: var(--accent); }
+.cad-acao-rotulo { font-size: .9rem; }
+.cad-acao-ajuda  { font-size: .74rem; color: var(--ink-3); line-height: 1.4; }
+.cad-acao-btn--perigo { border-color: rgba(255,59,48,.45); }
+.cad-acao-btn--perigo .cad-acao-rotulo { color: var(--red, #ff3b30); }
+.cad-acao-btn--perigo:hover { border-color: var(--red, #ff3b30); background: rgba(255,59,48,.08); }
+
+/* Celular: a tabela deixa de ser tabela. Esconder colunas (como era antes)
+   escondia informação; rolar de lado uma tabela de 40 linhas põe a barra de
+   rolagem a milhares de pixels de distância do dedo. Cada pessoa vira um
+   cartão, com o rótulo de cada campo vindo do data-label da célula — nada
+   fica escondido e nada rola para o lado. */
 @media (max-width: 640px) {
-  #adminCadastrados .admin-table th:nth-child(3),
-  #adminCadastrados .admin-table td:nth-child(3),
-  #adminCadastrados .admin-table th:nth-child(4),
-  #adminCadastrados .admin-table td:nth-child(4),
-  #adminCadastrados .admin-table th:nth-child(6),
-  #adminCadastrados .admin-table td:nth-child(6) { display: none; }
+  #adminCadastrados .admin-table,
+  #adminCadastrados .admin-table tbody,
+  #adminCadastrados .admin-table tr,
+  #adminCadastrados .admin-table td { display: block; width: 100%; }
+  #adminCadastrados .admin-table thead { display: none; }
+  #adminCadastrados .admin-table { background: transparent; }
+  #adminCadastrados .admin-table tr {
+    background: var(--panel); border: 1px solid var(--line);
+    border-radius: 10px; margin-bottom: 10px; padding: 8px 0;
+  }
+  #adminCadastrados .admin-table td {
+    display: flex; align-items: baseline; justify-content: space-between; gap: 12px;
+    padding: 5px 14px; border-bottom: none; text-align: right;
+  }
+  #adminCadastrados .admin-table td::before {
+    content: attr(data-label); flex: 0 0 auto; text-align: left;
+    font-family: var(--font-mono); font-size: .66rem; letter-spacing: .04em;
+    text-transform: uppercase; color: var(--ink-3);
+  }
+  /* O nome é o título do cartão, não mais um campo entre outros. */
+  #adminCadastrados .admin-table td[data-label="Nome"] {
+    display: block; text-align: left; color: var(--ink);
+    font-size: .95rem; padding-bottom: 8px;
+  }
+  #adminCadastrados .admin-table td[data-label="Nome"]::before { content: none; }
+  #adminCadastrados .cad-col-email { word-break: break-all; }
+  #adminCadastrados .admin-table td[data-label="Ações"] { padding-top: 8px; }
+  #adminCadastrados .cad-acoes { flex-wrap: wrap; justify-content: flex-end; }
+  /* Alvo de dedo: no computador 27px de altura é uma linha densa de tabela;
+     no celular é um botão que se erra. No cartão sobra espaço, então aqui
+     eles crescem. */
+  #adminCadastrados .admin-row-btn { min-height: 40px; padding: 8px 14px; font-size: .82rem; }
+  #adminCadastrados .cad-mais-btn  { min-width: 48px; }
 }
 .table-scroll-wrap::-webkit-scrollbar { height: 4px; }
 .table-scroll-wrap::-webkit-scrollbar-track { background: transparent; }

@@ -3942,9 +3942,7 @@
     });
   }
 
-  function handlePwdReset(btn) {
-    const email = btn.dataset.email;
-    const name  = btn.dataset.name;
+  function handlePwdReset(email, name) {
     adminConfirm('Enviar e-mail de redefinição de senha para ' + name + ' (' + email + ')?', function () {
       firebase.auth().sendPasswordResetEmail(email)
         .then(function () {
@@ -4968,6 +4966,137 @@
     return !!p.createdByAdmin;
   }
 
+  /* ── Ações de uma pessoa ──────────────────────────────────────────
+     Cada uma existia como uma coluna de botão na tabela. Viraram funções
+     porque agora o menu "⋯" as chama de dentro de um modal, fora do tbody
+     onde a delegação de clique vive. */
+
+  function acaoResetarProgresso(eKey, email, name) {
+    adminConfirm('Resetar TODO o progresso do jogo de ' + name + '?\n\nIsso apaga autodiagnóstico e patente. Essa ação não pode ser desfeita.', function () {
+      const updates = {};
+      updates['fa-progress/' + eKey]     = null;
+      updates['fa-reset-signal/' + eKey] = { at: firebase.database.ServerValue.TIMESTAMP };
+      firebase.database().ref('players').orderByChild('email').equalTo(email).once('value', function (snap) {
+        snap.forEach(function (child) { updates['players/' + child.key] = null; });
+        firebase.database().ref().update(updates, function (err) {
+          if (err) { adminAlert('Erro ao resetar. Tente novamente.'); return; }
+          loadCadastrados();
+        });
+      });
+    });
+  }
+
+  function acaoBloquear(eKey, name, bloquear) {
+    var msg = bloquear
+      ? 'Bloquear ' + name + '?\n\nA pessoa não conseguirá mais acessar o portal.'
+      : 'Desbloquear ' + name + '?\n\nA pessoa voltará a conseguir acessar o portal.';
+    adminConfirm(msg, function () {
+      firebase.database().ref('fa-users/' + eKey + '/blocked').set(bloquear ? true : null, function (err) {
+        if (err) { adminAlert('Erro ao atualizar. Tente novamente.'); return; }
+        loadCadastrados();
+      });
+    });
+  }
+
+  function acaoConfirmarCadastro(eKey, name) {
+    adminConfirm(
+      'Confirmar cadastro de ' + name + ' manualmente?\n\nO acesso ao portal será liberado sem que ela precise clicar no link de e-mail.',
+      function () {
+        var sess = window.faAuth && window.faAuth.getSession();
+        var updates = {};
+        updates['fa-users/' + eKey + '/adminApproved']       = true;
+        updates['fa-users/' + eKey + '/approvedByAdmin']     = sess ? sess.email : null;
+        updates['fa-users/' + eKey + '/approvedByAdminName'] = sess ? (sess.name || sess.email) : null;
+        updates['fa-users/' + eKey + '/approvedAt']          = new Date().toISOString();
+        firebase.database().ref().update(updates, function (err) {
+          if (err) { adminAlert('Erro ao confirmar. Tente novamente.'); return; }
+          loadCadastrados();
+        });
+      }
+    );
+  }
+
+  /* O menu "⋯" da linha. É um modal, não um balãozinho: a tabela vive dentro
+     de um container que corta o que passa da borda, e no celular um menu
+     flutuante minúsculo perto do rodapé é uma armadilha de dedo. O modal
+     também resolve o risco de errar de linha numa lista de centenas — ele
+     começa dizendo de quem é a ação, com nome, e-mail e situação. */
+  function openCadastroAcoesModal(pessoa) {
+    var eKey  = pessoa._key;
+    var nome  = pessoa.name || pessoa.email || '—';
+    var email = pessoa.email || '';
+    var bloqueado = !!pessoa.blocked;
+    var precisaVerificacao = !!(pessoa.emailVerificationRequired && !pessoa.adminApproved);
+
+    var overlay = document.createElement('div');
+    overlay.className = 'modal-overlay';
+    overlay.style.cssText = 'display:flex;align-items:center;justify-content:center;z-index:9999';
+    var box = document.createElement('div');
+    box.className = 'modal-box cad-acoes-modal';
+    box.style.cssText = 'max-width:420px;width:92%;padding:24px;display:flex;flex-direction:column;gap:14px;max-height:85vh;overflow:auto';
+
+    var acoes = [
+      { id: 'editar',   rotulo: '&#x270E; Editar cadastro',
+        ajuda: 'Corrigir nome, área/gerência' + (podeCorrigirEmail(pessoa) ? ' e e-mail.' : '. O e-mail deste cadastro não pode ser alterado.') },
+      { id: 'senha',    rotulo: 'Redefinir senha',
+        ajuda: 'Envia para ' + (email || 'a pessoa') + ' um link para ela mesma criar uma senha nova.' },
+      { id: 'progresso', rotulo: 'Resetar progresso do jogo',
+        ajuda: 'Apaga autodiagnóstico e patente. Não dá para desfazer.' },
+    ];
+    if (precisaVerificacao) {
+      acoes.push({ id: 'confirmar', rotulo: 'Confirmar cadastro',
+        ajuda: 'Libera o acesso sem esperar ela clicar no link do e-mail.' });
+    }
+    acoes.push({ id: 'bloqueio', perigo: !bloqueado,
+      rotulo: bloqueado ? 'Desbloquear acesso' : 'Bloquear acesso',
+      ajuda: bloqueado ? 'Ela volta a conseguir entrar no portal.' : 'Ela deixa de conseguir entrar no portal. Nada é apagado.' });
+
+    box.innerHTML =
+      '<div>' +
+        '<h3 style="font-size:1.05rem;font-family:var(--font-head);letter-spacing:.04em;color:var(--ink);margin:0 0 4px">' + esc(nome) + '</h3>' +
+        '<p style="font-size:.8rem;color:var(--ink-3);margin:0">' +
+          '<span style="word-break:break-all">' + esc(email) + '</span>' +
+          (pessoa.area ? ' · ' + esc(pessoa.area) : '') + '</p>' +
+        (bloqueado ? '<p style="font-size:.8rem;color:var(--red,#ff3b30);margin:6px 0 0">Cadastro bloqueado.</p>' : '') +
+      '</div>' +
+      '<div class="cad-acoes-lista">' +
+        acoes.map(function (a) {
+          return '<button class="cad-acao-btn' + (a.perigo ? ' cad-acao-btn--perigo' : '') + '" data-acao="' + a.id + '">' +
+                   '<span class="cad-acao-rotulo">' + a.rotulo + '</span>' +
+                   '<span class="cad-acao-ajuda">' + esc(a.ajuda) + '</span>' +
+                 '</button>';
+        }).join('') +
+      '</div>' +
+      '<div style="display:flex;justify-content:flex-end">' +
+        '<button class="btn admin-modal-cancel-btn">Fechar</button>' +
+      '</div>';
+    overlay.appendChild(box);
+    document.body.appendChild(overlay);
+
+    function fechar() { if (overlay.parentNode) document.body.removeChild(overlay); }
+    box.querySelector('.admin-modal-cancel-btn').addEventListener('click', fechar);
+    var mousedownFora = false;
+    overlay.addEventListener('mousedown', function (e) { mousedownFora = !box.contains(e.target); });
+    overlay.addEventListener('click', function (e) { if (mousedownFora && !box.contains(e.target)) fechar(); });
+    overlay.addEventListener('keydown', function (e) { if (e.key === 'Escape') { e.preventDefault(); fechar(); } });
+    overlay.tabIndex = -1;
+    overlay.focus();
+
+    /* Fecha ANTES de agir: toda ação abre a própria confirmação, e duas
+       camadas de modal empilhadas escondem qual pergunta é qual. */
+    box.querySelectorAll('.cad-acao-btn').forEach(function (btn) {
+      btn.addEventListener('click', function () {
+        var acao = btn.dataset.acao;
+        fechar();
+        if (acao === 'editar')    { openCadastroEditModal(pessoa); return; }
+        if (acao === 'senha')     { handlePwdReset(email, nome); return; }
+        if (acao === 'progresso') { acaoResetarProgresso(eKey, email, nome); return; }
+        if (acao === 'confirmar') { acaoConfirmarCadastro(eKey, nome); return; }
+        if (acao === 'bloqueio')  { acaoBloquear(eKey, nome, !bloqueado); return; }
+      });
+    });
+  }
+
   function openCadastroEditModal(pessoa) {
     var eKey = pessoa._key;
     var emailEditavel = podeCorrigirEmail(pessoa);
@@ -5257,7 +5386,15 @@
 
     const tbl = document.createElement('table');
     tbl.className = 'admin-table';
-    tbl.innerHTML = '<thead><tr><th>Nome</th><th>E-mail</th><th>Área</th><th>Cadastro</th><th>Status</th><th>E-mail</th><th></th><th></th><th></th><th></th></tr></thead>';
+    /* Uma coluna por ação enchia a tabela de botões: dez colunas, cinco delas
+       só de botão, todas vermelhas de "admin-del-btn" — e o que não cabia na
+       tela ficava escondido atrás de uma rolagem lateral cuja barra só
+       aparecia no fim de uma tabela de milhares de pixels de altura. Ninguém
+       rola 3.000px para descobrir que existe um "Bloquear". Agora a linha
+       mostra o que identifica a pessoa e a ação do dia a dia; o resto mora no
+       menu "⋯", com o nome dela no topo — assim também não se erra de linha
+       numa lista de centenas. */
+    tbl.innerHTML = '<thead><tr><th>Nome</th><th>E-mail</th><th>Área</th><th>Cadastro</th><th>Situação</th><th>Ações</th></tr></thead>';
     const tbody = document.createElement('tbody');
 
     function applyFilters() {
@@ -5278,23 +5415,22 @@
         var emailBadge = precisaVerificacao
           ? '<span class="admin-badge" style="background:rgba(245,197,66,.18);color:var(--accent)" title="Cadastro próprio — e-mail ainda não verificado">Pendente</span>'
           : '<span class="admin-badge" style="background:rgba(26,178,174,.18);color:var(--cyan)">Verificado</span>';
-        var confirmBtn = precisaVerificacao
-          ? '<td><button class="admin-del-btn admin-confirm-email-btn" data-key="' + esc(p._key) + '" data-name="' + esc(p.name || p.email) + '" title="Confirmar cadastro manualmente — libera o acesso sem precisar clicar no link de e-mail">Confirmar</button></td>'
-          : '<td></td>';
+        var statusBadge = '<span class="admin-badge" style="background:' + (bloqueado ? 'rgba(255,59,48,.18)' : 'rgba(26,178,174,.18)') + ';color:' + (bloqueado ? 'var(--red)' : 'var(--cyan)') + '">' + (bloqueado ? 'Bloqueado' : 'Ativo') + '</span>';
+        var nomeP = p.name || p.email || '—';
         var tr = document.createElement('tr');
-        if (bloqueado) tr.style.opacity = '0.55';
+        if (bloqueado) tr.classList.add('cad-linha-bloqueada');
+        /* data-label é o que vira o rótulo de cada campo quando a tabela
+           deixa de ser tabela e vira cartão, no celular (ver pages.css). */
         tr.innerHTML =
-          '<td>' + esc(p.name || '—') + '</td>' +
-          '<td>' + esc(p.email || '—') + '</td>' +
-          '<td>' + esc(p.area || '—') + '</td>' +
-          '<td>' + fmtDate(p.createdAt) + '</td>' +
-          '<td><span class="admin-badge" style="background:' + (bloqueado ? 'rgba(255,59,48,.18)' : 'rgba(26,178,174,.18)') + ';color:' + (bloqueado ? 'var(--red)' : 'var(--cyan)') + '">' + (bloqueado ? 'Bloqueado' : 'Ativo') + '</span></td>' +
-          '<td>' + emailBadge + '</td>' +
-          '<td><button class="admin-del-btn admin-edit-cad-btn" data-key="' + esc(p._key) + '" title="Editar nome, área e e-mail">&#x270E; Editar</button></td>' +
-          '<td><button class="admin-del-btn admin-pwd-btn" data-key="' + esc(p._key) + '" data-email="' + esc(p.email || '') + '" data-name="' + esc(p.name || p.email) + '" title="Redefinir senha">Redef. senha</button></td>' +
-          '<td><button class="admin-del-btn admin-reset-btn" data-key="' + esc(p._key) + '" data-email="' + esc(p.email || '') + '" data-name="' + esc(p.name || p.email) + '" title="Resetar progresso">Resetar</button></td>' +
-          '<td><button class="admin-del-btn admin-block-btn" data-key="' + esc(p._key) + '" data-name="' + esc(p.name || p.email) + '" data-blocked="' + (bloqueado ? '1' : '0') + '">' + (bloqueado ? 'Desbloquear' : 'Bloquear') + '</button></td>' +
-          confirmBtn;
+          '<td data-label="Nome">' + esc(p.name || '—') + '</td>' +
+          '<td data-label="E-mail" class="cad-col-email">' + esc(p.email || '—') + '</td>' +
+          '<td data-label="Área">' + esc(p.area || '—') + '</td>' +
+          '<td data-label="Cadastro">' + fmtDate(p.createdAt) + '</td>' +
+          '<td data-label="Situação"><span class="cad-situacao">' + statusBadge + emailBadge + '</span></td>' +
+          '<td data-label="Ações"><span class="cad-acoes">' +
+            '<button class="admin-row-btn admin-edit-cad-btn" data-key="' + esc(p._key) + '" title="Editar nome, área e e-mail">&#x270E; Editar</button>' +
+            '<button class="admin-row-btn cad-mais-btn" data-key="' + esc(p._key) + '" title="Mais ações para ' + esc(nomeP) + '" aria-label="Mais ações para ' + esc(nomeP) + '">&#x22EF;</button>' +
+          '</span></td>';
         tbody.appendChild(tr);
       });
     }
@@ -5318,77 +5454,17 @@
     /* Busca por texto */
     document.getElementById('cadastradosFiltro').addEventListener('input', applyFilters);
 
-    /* Delegação de eventos */
+    /* Delegação de eventos. A linha tem duas portas: a edição, que é o do
+       dia a dia, e o "⋯", que abre o resto num modal com o nome da pessoa
+       no topo. */
     tbody.addEventListener('click', function (e) {
       var btn = e.target.closest('button');
       if (!btn) return;
+      var pessoa = list.filter(function (x) { return x._key === btn.dataset.key; })[0];
+      if (!pessoa) return;
 
-      if (btn.classList.contains('admin-edit-cad-btn')) {
-        var pessoaEdit = list.filter(function (x) { return x._key === btn.dataset.key; })[0];
-        if (pessoaEdit) openCadastroEditModal(pessoaEdit);
-        return;
-      }
-
-      if (btn.classList.contains('admin-pwd-btn')) {
-        handlePwdReset(btn);
-        return;
-      }
-
-      if (btn.classList.contains('admin-reset-btn')) {
-        const eKey  = btn.dataset.key;
-        const email = btn.dataset.email;
-        const name  = btn.dataset.name;
-        adminConfirm('Resetar TODO o progresso do jogo de ' + name + '?\n\nIsso apaga autodiagnóstico e patente. Essa ação não pode ser desfeita.', function () {
-          const updates = {};
-          updates['fa-progress/' + eKey]     = null;
-          updates['fa-reset-signal/' + eKey] = { at: firebase.database.ServerValue.TIMESTAMP };
-          firebase.database().ref('players').orderByChild('email').equalTo(email).once('value', function (snap) {
-            snap.forEach(function (child) { updates['players/' + child.key] = null; });
-            firebase.database().ref().update(updates, function (err) {
-              if (err) { adminAlert('Erro ao resetar. Tente novamente.'); return; }
-              loadCadastrados();
-            });
-          });
-        });
-        return;
-      }
-
-      if (btn.classList.contains('admin-block-btn')) {
-        const eKey     = btn.dataset.key;
-        const name     = btn.dataset.name;
-        const blocking = btn.dataset.blocked === '0';
-        const msg      = blocking
-          ? 'Bloquear ' + name + '?\n\nA pessoa não conseguirá mais acessar o portal.'
-          : 'Desbloquear ' + name + '?\n\nA pessoa voltará a conseguir acessar o portal.';
-        adminConfirm(msg, function () {
-          firebase.database().ref('fa-users/' + eKey + '/blocked').set(blocking ? true : null, function (err) {
-            if (err) { adminAlert('Erro ao atualizar. Tente novamente.'); return; }
-            loadCadastrados();
-          });
-        });
-        return;
-      }
-
-      if (btn.classList.contains('admin-confirm-email-btn')) {
-        const eKey = btn.dataset.key;
-        const name = btn.dataset.name;
-        adminConfirm(
-          'Confirmar cadastro de ' + name + ' manualmente?\n\nO acesso ao portal será liberado sem que ela precise clicar no link de e-mail.',
-          function () {
-            var sess = window.faAuth && window.faAuth.getSession();
-            var updates = {};
-            updates['fa-users/' + eKey + '/adminApproved']           = true;
-            updates['fa-users/' + eKey + '/approvedByAdmin']         = sess ? sess.email : null;
-            updates['fa-users/' + eKey + '/approvedByAdminName']     = sess ? (sess.name || sess.email) : null;
-            updates['fa-users/' + eKey + '/approvedAt']              = new Date().toISOString();
-            firebase.database().ref().update(updates, function (err) {
-              if (err) { adminAlert('Erro ao confirmar. Tente novamente.'); return; }
-              loadCadastrados();
-            });
-          }
-        );
-        return;
-      }
+      if (btn.classList.contains('admin-edit-cad-btn')) { openCadastroEditModal(pessoa); return; }
+      if (btn.classList.contains('cad-mais-btn'))       { openCadastroAcoesModal(pessoa); return; }
     });
   }
 

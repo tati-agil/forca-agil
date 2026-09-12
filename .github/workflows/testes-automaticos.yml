@@ -75,6 +75,16 @@ jobs:
           FA_BASE_URL: http://127.0.0.1:8811
         run: node .github/scripts/teste-editar-cadastro.js
 
+      # Hermético. A linha da aba Cadastrados tinha uma coluna por ação e não
+      # cabia na tela: os últimos botões ficavam atrás de uma rolagem lateral
+      # cuja barra só aparecia no fim de uma tabela de milhares de pixels.
+      # Ação que ninguém alcança é ação que não existe — e isso não dá erro.
+      - name: Ações do cadastrado cabem na tela e gravam (desktop e iPhone)
+        env:
+          NODE_PATH: /tmp/pw-deps/node_modules
+          FA_BASE_URL: http://127.0.0.1:8811
+        run: node .github/scripts/teste-acoes-cadastrado.js
+
       # Hermético. A correção de e-mail é o caminho mais arriscado do painel:
       # troca o login da pessoa no Auth e depois move TODOS os dados dela de
       # uma chave para outra. Errar aqui não dá erro na tela — a pessoa só
