@@ -408,6 +408,60 @@ const FORMATOS = [
     await ctx.close();
   }
 
+  /* 7. Reenquadrar: o admin corrige o tipo de um pedido já enviado.
+        Existe porque a pessoa escolhe o tipo no momento em que escreve, e o
+        tipo certo pode nem existir ainda — foi o que aconteceu com quem
+        pediu para "participar do grupo" em "Outros" antes de haver a opção
+        de iniciativas. Mudar o tipo é mexer no que a PESSOA escolheu, então
+        o teste exige as duas coisas: que o pedido mude de balde de verdade,
+        e que a tela diga que foi o painel que mudou. */
+  for (const formato of FORMATOS) {
+    const { ctx, page, erros } = await abrirAdminPedidos(browser, formato, ['outros']);
+    const p = [];
+    const seloAntes = (await page.textContent('.ped-admin-item .ped-admin-badge')).trim();
+
+    await page.click('.ped-tipo-btn-admin');
+    await page.waitForSelector('.ped-admin-select-tipo', { timeout: 10000 });
+    const opcoes = await page.$$eval('.ped-admin-select-tipo option', (os) => os.map((o) => o.value));
+    if (opcoes.indexOf('iniciativas') === -1) p.push('o tipo novo nem é oferecido no reenquadramento');
+
+    await page.selectOption('.ped-admin-select-tipo', 'iniciativas');
+    await page.click('.ped-confirmar-tipo-btn');
+    await page.waitForTimeout(600);
+
+    const gravado = await page.evaluate(() => {
+      const w = (window.__ESCRITAS || []).filter((e) => e.path.indexOf('pedidos') === 0);
+      return w.length ? w[w.length - 1].valor : null;
+    });
+    if (!gravado || gravado.tipo !== 'iniciativas') {
+      p.push('não gravou o tipo novo (gravou: ' + JSON.stringify(gravado) + ')');
+    } else {
+      if (gravado.tipoAnterior !== 'outros') p.push('não guardou o tipo que a pessoa tinha escolhido');
+      if (!gravado.tipoAlteradoPor || !gravado.tipoAlteradoPor.email) p.push('não registrou QUEM reenquadrou');
+      if (!gravado.tipoAlteradoEm) p.push('não registrou QUANDO foi reenquadrado');
+    }
+
+    const seloDepois = (await page.textContent('.ped-admin-item .ped-admin-badge')).trim();
+    if (seloDepois === seloAntes) {
+      p.push('a lista continua mostrando "' + seloAntes + '" — a tela não acompanhou a mudança');
+    }
+    const hist = await page.$('.ped-admin-reenquadrado');
+    if (!hist) p.push('nada na tela diz que o tipo foi mudado pelo painel, e não pela pessoa');
+
+    /* Salvar o MESMO tipo não pode carimbar um reenquadramento que não houve. */
+    const antesDoNada = await page.evaluate(() => (window.__ESCRITAS || []).length);
+    await page.click('.ped-tipo-btn-admin');
+    await page.waitForSelector('.ped-admin-select-tipo', { timeout: 10000 });
+    await page.click('.ped-confirmar-tipo-btn');
+    await page.waitForTimeout(400);
+    const depoisDoNada = await page.evaluate(() => (window.__ESCRITAS || []).length);
+    if (depoisDoNada !== antesDoNada) p.push('salvar o mesmo tipo gravou assim mesmo — inventaria um reenquadramento');
+
+    if (erros.length) p.push('erro JS: ' + erros[0]);
+    anota(formato.nome + ' · o admin reenquadra o tipo, e a tela conta que foi ele', p);
+    await ctx.close();
+  }
+
   await browser.close();
 
   if (falhas.length) {

@@ -646,48 +646,98 @@
      marcado significa "tudo" — é o estado em que a tela abre, igual ao
      que ela mostrava antes.
      ══════════════════════════════════════════════════════════════════ */
-  function chip(tipo, key, rotulo, extra, ligado) {
-    return '<button type="button" class="dash-chip' + (ligado ? ' is-on' : '') + '"' +
-      ' data-tipo="' + tipo + '" data-key="' + esc(key) + '"' +
-      ' aria-pressed="' + (ligado ? 'true' : 'false') + '">' + esc(rotulo) +
-      (extra ? '<span class="dash-chip-n">' + esc(extra) + '</span>' : '') + '</button>';
+  /* Os filtros eram uma fileira de chips, um por evento e um por turma, todos
+     sempre à vista. Com um evento e três turmas cabia; com três eventos e
+     cinco turmas já eram três fileiras empilhadas antes do primeiro número da
+     tela, e a cada oficina nova fica pior — a lista cresce para sempre e não
+     tem para onde crescer. Agora são dois controles do tamanho de um botão,
+     que abrem a lista só quando alguém vai escolher. A lista rola por dentro
+     e ganha um campo de busca quando passa de oito opções, então dez eventos
+     ocupam o mesmo espaço que um. */
+  var LIMITE_BUSCA = 8;
+
+  function opcaoFiltro(campo, key, rotulo, extra, ligado) {
+    return '<button type="button" class="dash-filtro-opt' + (ligado ? ' is-on' : '') + '"' +
+      ' data-acao="escolher" data-campo="' + campo + '" data-key="' + esc(key) + '"' +
+      ' aria-pressed="' + (ligado ? 'true' : 'false') + '">' +
+      '<span class="dash-filtro-marca" aria-hidden="true">' + (ligado ? '\u2713' : '') + '</span>' +
+      '<span class="dash-filtro-texto">' + esc(rotulo) +
+      (extra ? '<span class="dash-filtro-extra">' + esc(extra) + '</span>' : '') +
+      '</span></button>';
+  }
+
+  /* O que o botão fechado diz. Um nome quando é um só — é a informação útil;
+     "1 de 3" obrigaria a abrir para lembrar qual. */
+  function resumoControle(selecionados, opcoes, palavraTudo) {
+    if (!selecionados.length) return palavraTudo;
+    if (selecionados.length === 1) {
+      var achada = opcoes.filter(function (o) { return o.key === selecionados[0]; })[0];
+      return achada ? achada.rotulo : palavraTudo;
+    }
+    return selecionados.length + ' de ' + opcoes.length;
+  }
+
+  function htmlControle(campo, titulo, opcoes, selecionados, palavraTudo, aberto) {
+    var h = '<div class="dash-filtro' + (aberto ? ' aberto' : '') + '" data-campo="' + campo + '">';
+    h += '<button type="button" class="dash-filtro-btn" data-acao="abrir" data-campo="' + campo + '"' +
+         ' aria-expanded="' + (aberto ? 'true' : 'false') + '">' +
+         '<span class="dash-filtro-titulo">' + esc(titulo) + '</span>' +
+         '<span class="dash-filtro-valor">' + esc(resumoControle(selecionados, opcoes, palavraTudo)) + '</span>' +
+         '<span class="dash-filtro-seta" aria-hidden="true">\u25BE</span></button>';
+    h += '<div class="dash-filtro-pop">';
+    if (opcoes.length > LIMITE_BUSCA) {
+      h += '<input type="search" class="dash-filtro-busca" data-campo="' + campo + '" placeholder="Buscar…" aria-label="Buscar ' + esc(titulo) + '" />';
+    }
+    h += '<div class="dash-filtro-lista">';
+    h += opcaoFiltro(campo, '', palavraTudo.charAt(0).toUpperCase() + palavraTudo.slice(1), '', !selecionados.length);
+    opcoes.forEach(function (o) {
+      h += opcaoFiltro(campo, o.key, o.rotulo, o.extra, selecionados.indexOf(o.key) !== -1);
+    });
+    h += '</div>';
+    h += '<p class="dash-filtro-vazio" hidden>Nada com esse nome.</p>';
+    h += '<div class="dash-filtro-rodape">' +
+           '<button type="button" class="dash-filtro-link" data-acao="escolher" data-campo="' + campo + '" data-key="">Limpar</button>' +
+           '<button type="button" class="dash-filtro-link" data-acao="fechar" data-campo="' + campo + '">Fechar</button>' +
+         '</div>';
+    h += '</div></div>';
+    return h;
   }
 
   function htmlEscopo(ctx, dados) {
     var evSel = ctx.escopoEv, tuSel = ctx.escopoTu;
     var h = '';
 
-    if (ctx.eventos.length > 1) {
-      h += '<div class="dash-escopo-linha"><span class="dash-escopo-rotulo">Evento</span><div class="dash-escopo-chips">';
-      h += chip('evento', '', 'Todos', '', !evSel.length);
-      ctx.eventos.forEach(function (ev) {
-        h += chip('evento', ev.key, ev.nome, ev.turmas.length + (ev.turmas.length !== 1 ? ' turmas' : ' turma'),
-                  evSel.indexOf(ev.key) !== -1);
-      });
-      h += '</div></div>';
-    }
-
+    var opEventos = ctx.eventos.map(function (ev) {
+      return { key: ev.key, rotulo: ev.nome,
+               extra: ev.turmas.length + (ev.turmas.length !== 1 ? ' turmas' : ' turma') };
+    });
     /* As turmas oferecidas são só as dos eventos escolhidos: oferecer uma
        turma que o filtro de cima já excluiu é oferecer um caminho para
        "nenhum resultado". */
-    var turmasOferecidas = ctx.turmas.filter(function (t) {
+    var opTurmas = ctx.turmas.filter(function (t) {
       return !evSel.length || evSel.indexOf(t.eventoKey) !== -1;
+    }).map(function (t) {
+      return { key: t.key, rotulo: t.label, extra: ctx.eventos.length > 1 ? t.eventoNome : '' };
     });
-    if (turmasOferecidas.length > 1) {
-      h += '<div class="dash-escopo-linha"><span class="dash-escopo-rotulo">Turma</span><div class="dash-escopo-chips">';
-      h += chip('turma', '', 'Todas', '', !tuSel.length);
-      turmasOferecidas.forEach(function (t) {
-        h += chip('turma', t.key, t.label,
-                  ctx.eventos.length > 1 ? t.eventoNome : '',
-                  tuSel.indexOf(t.key) !== -1);
-      });
-      h += '</div></div>';
+
+    var temControle = false;
+    if (opEventos.length > 1 || opTurmas.length > 1) {
+      h += '<div class="dash-escopo-controles">';
+      if (opEventos.length > 1) {
+        h += htmlControle('evento', 'Evento', opEventos, evSel, 'todos', ctx.aberto === 'evento');
+        temControle = true;
+      }
+      if (opTurmas.length > 1) {
+        h += htmlControle('turma', 'Turma', opTurmas, tuSel, 'todas', ctx.aberto === 'turma');
+        temControle = true;
+      }
+      h += '</div>';
     }
 
-    if (h) {
+    if (temControle) {
       h += '<p class="dash-escopo-resumo">' + esc(dados.resumoEscopo) +
            (evSel.length || tuSel.length
-             ? ' <button type="button" class="dash-escopo-limpar" data-tipo="limpar" data-key="">limpar filtro</button>'
+             ? ' <button type="button" class="dash-escopo-limpar" data-acao="limpar">limpar filtro</button>'
              : '') +
            '</p>';
     }
@@ -745,23 +795,86 @@
       barra.innerHTML = htmlEscopo(ctx, dados);
       conteudo.innerHTML = htmlConteudo(dados);
       ligarRespostas(conteudo, dados.avals || []);
+      ligarBusca(barra);
+      /* O painel aberto continua aberto depois de escolher: quem marca um
+         evento quase sempre vai marcar o próximo. Aí o foco volta para o
+         campo de busca, senão a pessoa digita no vazio. */
+      var busca = barra.querySelector('.dash-filtro.aberto .dash-filtro-busca');
+      if (busca && ctx.buscaTexto) { busca.value = ctx.buscaTexto; filtrarLista(busca); }
+      if (busca && ctx.focoBusca) { busca.focus(); ctx.focoBusca = false; }
     }
 
+    /* Filtra a lista SEM redesenhar: redesenhar a cada tecla tiraria o foco
+       do campo e perderia o cursor no meio da palavra. */
+    function filtrarLista(input) {
+      var pop = input.closest('.dash-filtro-pop');
+      var termo = (input.value || '').trim().toLowerCase();
+      var achou = 0;
+      pop.querySelectorAll('.dash-filtro-opt').forEach(function (opt) {
+        /* A opção "todas" nunca some: é a saída para desfazer o filtro. */
+        var sempre = !opt.dataset.key;
+        var casa = sempre || (opt.textContent || '').toLowerCase().indexOf(termo) !== -1;
+        opt.hidden = !casa;
+        if (casa && !sempre) achou++;
+      });
+      var vazio = pop.querySelector('.dash-filtro-vazio');
+      if (vazio) vazio.hidden = !(termo && !achou);
+    }
+
+    function ligarBusca(raiz) {
+      raiz.querySelectorAll('.dash-filtro-busca').forEach(function (input) {
+        input.addEventListener('input', function () {
+          ctx.buscaTexto = input.value;
+          filtrarLista(input);
+        });
+      });
+    }
+
+    /* O clique na barra redesenha a barra inteira, então quando ele chega ao
+       document o elemento clicado já não está no DOM e "veio de dentro da
+       barra?" responderia não — fechando o painel que acabou de abrir. Este
+       aviso guarda a informação antes de a resposta ficar impossível. */
+    var veioDaBarra = false;
     barra.addEventListener('click', function (e) {
-      var btn = e.target.closest('[data-tipo]');
+      veioDaBarra = true;
+      var btn = e.target.closest('[data-acao]');
       if (!btn) return;
-      var tipo = btn.dataset.tipo, key = btn.dataset.key;
-      if (tipo === 'limpar')      { ctx.escopoEv = []; ctx.escopoTu = []; }
-      else if (tipo === 'evento') { ctx.escopoEv = alterna(ctx.escopoEv, key); }
-      else if (tipo === 'turma')  { ctx.escopoTu = alterna(ctx.escopoTu, key); }
-      else return;
+      var acao = btn.dataset.acao, campo = btn.dataset.campo, key = btn.dataset.key || '';
+      if (acao === 'abrir') {
+        ctx.aberto = ctx.aberto === campo ? null : campo;
+        ctx.buscaTexto = '';
+        ctx.focoBusca = ctx.aberto === campo;
+      } else if (acao === 'fechar') {
+        ctx.aberto = null;
+      } else if (acao === 'limpar') {
+        ctx.escopoEv = []; ctx.escopoTu = []; ctx.aberto = null;
+      } else if (acao === 'escolher') {
+        if (campo === 'evento') ctx.escopoEv = alterna(ctx.escopoEv, key);
+        else if (campo === 'turma') ctx.escopoTu = alterna(ctx.escopoTu, key);
+        else return;
+      } else {
+        return;
+      }
       desenhar();
+    });
+
+    /* Clique fora fecha o painel: sem isto ele fica aberto por cima dos
+       números, e no celular tapa a tela inteira. */
+    document.addEventListener('click', function (e) {
+      var deDentro = veioDaBarra || barra.contains(e.target);
+      veioDaBarra = false;
+      if (!ctx.aberto || deDentro) return;
+      ctx.aberto = null;
+      desenhar();
+    });
+    barra.addEventListener('keydown', function (e) {
+      if (e.key === 'Escape' && ctx.aberto) { ctx.aberto = null; desenhar(); }
     });
 
     desenhar();
   }
 
-  /* Chip sem chave é o "Todos": limpa a dimensão inteira. */
+  /* Opção sem chave é o "Todos": limpa a dimensão inteira. */
   function alterna(lista, key) {
     if (!key) return [];
     var i = lista.indexOf(key);
@@ -777,7 +890,7 @@
       if (!dados) { render(wrap, null); return; }
       render(wrap, {
         avals: dados.avals, turmas: dados.turmas, eventos: dados.eventos,
-        escopoEv: [], escopoTu: [],
+        escopoEv: [], escopoTu: [], aberto: null, buscaTexto: '', focoBusca: false,
       });
     });
   };
