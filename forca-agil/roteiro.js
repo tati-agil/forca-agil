@@ -847,9 +847,15 @@
         '<label class="auth-label">Tipo de atividade<select id="rfTipo" style="width:100%;padding:8px 10px;background:var(--panel-2);border:1px solid var(--line-strong);border-radius:6px;color:var(--ink)"><option value="">—</option>' + tipoOpts + '</select></label>') +
       bloco('Tempo',
         '<div style="display:flex;gap:10px;flex-wrap:wrap">' +
-          '<label class="auth-label" style="flex:1;min-width:110px">Início<input type="time" id="rfInicio" value="' + esc(a.horaInicio || '') + '" /></label>' +
-          '<label class="auth-label" style="flex:1;min-width:110px">Fim<input type="time" id="rfFim" value="' + esc(a.horaFim || '') + '" /></label>' +
-          '<label class="auth-label" style="flex:1;min-width:110px">Duração (min)<input type="number" min="0" id="rfDuracao"' + (duracaoFixa ? ' disabled title="Soma das sub-etapas — travado"' : '') + ' value="' + esc(duracaoFixa ? opts.duracaoSomaFilhos : (a.duracaoMinutos || '')) + '" /></label>' +
+          /* autocomplete="off" nos três — sem isso, o navegador (sobretudo
+             celular) às vezes sugere/substitui um valor numérico salvo de
+             outro lugar (telefone, código) ao perder o foco: a pessoa digita
+             "10" na Duração, sai do campo, e vê outro número no lugar, sem
+             ter mexido em mais nada. Já era assim nos outros campos deste
+             formulário (campoTexto), só faltava nestes três. */
+          '<label class="auth-label" style="flex:1;min-width:110px">Início<input type="time" id="rfInicio" value="' + esc(a.horaInicio || '') + '" autocomplete="off" /></label>' +
+          '<label class="auth-label" style="flex:1;min-width:110px">Fim<input type="time" id="rfFim" value="' + esc(a.horaFim || '') + '" autocomplete="off" /></label>' +
+          '<label class="auth-label" style="flex:1;min-width:110px">Duração (min)<input type="number" min="0" id="rfDuracao"' + (duracaoFixa ? ' disabled title="Soma das sub-etapas — travado"' : '') + ' value="' + esc(duracaoFixa ? opts.duracaoSomaFilhos : (a.duracaoMinutos || '')) + '" autocomplete="off" /></label>' +
         '</div>' +
         '<p style="font-size:.72rem;color:var(--ink-3);margin-top:4px">Preencha início + duração, início + fim, ou fim + duração — o terceiro campo se completa sozinho.</p>' +
         avisoFilhos +
