@@ -378,6 +378,22 @@
     overlay.addEventListener('keydown', function (e) { if (e.key === 'Escape') { e.preventDefault(); close(); onB(); } });
   }
 
+  /* Toda escrita deste editor (base e turma) terminava chamando reload()
+     sem olhar se a gravação deu certo. Consequência: "roteiros-evento" só
+     pode ser escrito por dois e-mails fixos nas regras do banco — qualquer
+     outro admin que edite o roteiro-base tem a escrita negada, mas a tela
+     não acusa nada; ela recarrega os dados de sempre (que não mudaram) e
+     parece ter salvado. É a mesma família de silêncio das PRs #111/#116:
+     nada quebra visivelmente, a pessoa só descobre depois. Todo callback
+     de escrita deste arquivo passa a envolver o reload() nisto: erro vira
+     aviso na tela, sucesso segue pro que viria depois. */
+  function ok(cb) {
+    return function (err) {
+      if (err) { alertDialog('Não foi possível salvar. Verifique sua conexão e tente novamente.\n\n(' + (err.message || err) + ')'); return; }
+      cb.apply(null, Array.prototype.slice.call(arguments, 1));
+    };
+  }
+
   /* ══════════════════════════════════════════════════════════════
      DADOS — roteiro-base do evento
      ══════════════════════════════════════════════════════════════ */
@@ -3095,8 +3111,12 @@
             updates[s.key] = { horaInicio: minParaHhmm(novoInicio), horaFim: s.horaFim ? minParaHhmm(hhmmParaMin(s.horaFim) + delta) : s.horaFim };
           });
           var chamadas = Object.keys(updates).length;
+          var deuErro = false;
           Object.keys(updates).forEach(function (k) {
-            editarAtividade(eventoKey, k, updates[k], function () { if (!--chamadas) cb(); });
+            editarAtividade(eventoKey, k, updates[k], function (err) {
+              if (err) deuErro = true;
+              if (!--chamadas) { if (deuErro) alertDialog('Não foi possível recalcular os horários seguintes. Verifique sua conexão e tente novamente.'); else cb(); }
+            });
           });
         },
         'Manter horários', cb
@@ -3126,7 +3146,7 @@
       addDiaBtn.style.cssText = 'padding:6px 12px;font-size:.75rem';
       addDiaBtn.textContent = '+ Dia';
       addDiaBtn.addEventListener('click', function () {
-        criarDia(eventoKey, roteiro.dias, function (err, key) { if (!err) { diaAtivoKey = key; reload(); } });
+        criarDia(eventoKey, roteiro.dias, ok(function (key) { diaAtivoKey = key; reload(); }));
       });
       tabs.appendChild(addDiaBtn);
       tabsWrap.appendChild(tabs);
@@ -3153,7 +3173,7 @@
       renameInput.placeholder = 'Título do dia (opcional)';
       renameInput.value = dia.titulo || '';
       renameInput.style.cssText = 'flex:1;min-width:180px;padding:6px 10px;background:var(--panel-2);border:1px solid var(--line-strong);border-radius:6px;color:var(--ink)';
-      renameInput.addEventListener('change', function () { renomearDia(eventoKey, dia.key, renameInput.value.trim(), function () { reload(); }); });
+      renameInput.addEventListener('change', function () { renomearDia(eventoKey, dia.key, renameInput.value.trim(), ok(reload)); });
       var imprimirBtn = document.createElement('button');
       imprimirBtn.className = 'btn btn--sm';
       imprimirBtn.style.cssText = 'padding:6px 10px;font-size:.72rem';
@@ -3186,7 +3206,7 @@
         var msg = atividadesDia.length
           ? 'Excluir este dia e suas ' + atividadesDia.length + ' atividade(s)? Personalizações feitas por turmas nessas atividades também serão apagadas. Não é possível desfazer.'
           : 'Excluir este dia?';
-        confirmDialog(msg, function () { excluirDia(eventoKey, dia.key, atividadesDia, function () { diaAtivoKey = null; reload(); }); });
+        confirmDialog(msg, function () { excluirDia(eventoKey, dia.key, atividadesDia, ok(function () { diaAtivoKey = null; reload(); })); });
       });
       diaHdr.appendChild(renameInput);
       diaHdr.appendChild(imprimirBtn);
@@ -3226,8 +3246,12 @@
             comHorario.forEach(function (a, i) { updates[a.key] = (i + 1) * 10; });
             var pend = comHorario.length;
             if (!pend) return;
+            var deuErro = false;
             comHorario.forEach(function (a) {
-              db().ref('roteiros-evento/' + eventoKey + '/atividades/' + a.key + '/ordem').set(updates[a.key], function () { if (!--pend) reload(); });
+              db().ref('roteiros-evento/' + eventoKey + '/atividades/' + a.key + '/ordem').set(updates[a.key], function (err) {
+                if (err) deuErro = true;
+                if (!--pend) { if (deuErro) alertDialog('Não foi possível reordenar. Verifique sua conexão e tente novamente.'); else reload(); }
+              });
             });
           });
           bannerOrdem.appendChild(ordenarBtn);
@@ -3272,7 +3296,7 @@
       addAtvBtn.addEventListener('click', function () {
         abrirFormAtividade({
           titulo: 'Nova atividade',
-          onSalvar: function (dados) { criarAtividade(eventoKey, dia.key, dados, atividadesTopo, function () { reload(); }); }
+          onSalvar: function (dados) { criarAtividade(eventoKey, dia.key, dados, atividadesTopo, ok(reload)); }
         });
       });
       container.appendChild(addAtvBtn);
@@ -3321,11 +3345,11 @@
           acoes.appendChild(toggleBtn);
         }
         var upBtn = document.createElement('button'); upBtn.className = 'btn btn--sm'; upBtn.style.cssText = estiloBtnAcao; upBtn.textContent = '▲'; upBtn.disabled = numero === 1;
-        upBtn.addEventListener('click', function () { moverAtividade(eventoKey, a.key, 'up', irmaos, function () { reload(); }); });
+        upBtn.addEventListener('click', function () { moverAtividade(eventoKey, a.key, 'up', irmaos, ok(reload)); });
         var downBtn = document.createElement('button'); downBtn.className = 'btn btn--sm'; downBtn.style.cssText = estiloBtnAcao; downBtn.textContent = '▼'; downBtn.disabled = numero === irmaos.length;
-        downBtn.addEventListener('click', function () { moverAtividade(eventoKey, a.key, 'down', irmaos, function () { reload(); }); });
+        downBtn.addEventListener('click', function () { moverAtividade(eventoKey, a.key, 'down', irmaos, ok(reload)); });
         var dupBtn = document.createElement('button'); dupBtn.className = 'btn btn--sm'; dupBtn.style.cssText = estiloBtnAcaoTxt; dupBtn.textContent = 'Duplicar';
-        dupBtn.addEventListener('click', function () { duplicarAtividade(eventoKey, a, irmaos, atividadesDia, function () { reload(); }); });
+        dupBtn.addEventListener('click', function () { duplicarAtividade(eventoKey, a, irmaos, atividadesDia, ok(reload)); });
         var editBtn = document.createElement('button'); editBtn.className = 'btn btn--sm'; editBtn.style.cssText = estiloBtnAcaoTxt; editBtn.textContent = 'Editar';
         editBtn.addEventListener('click', function () {
           abrirFormAtividade({
@@ -3333,7 +3357,7 @@
             duracaoSomaFilhos: filhosDesta.length ? duracaoEfetiva(a, atividadesDia) : undefined,
             onSalvar: function (dados) {
               var duracaoAntes = duracaoEfetiva(a, atividadesDia);
-              editarAtividade(eventoKey, a.key, dados, function () {
+              editarAtividade(eventoKey, a.key, dados, ok(function () {
                 var duracaoDepois = filhosDesta.length ? duracaoAntes : (Number(dados.duracaoMinutos) || 0);
                 if (!ehFilho) {
                   /* "irmãos" já é a lista da mesma sessão (não o dia inteiro) —
@@ -3350,12 +3374,12 @@
                 var deltaPai = duracaoDepois - duracaoAntes;
                 if (!deltaPai || !paiInfo.atividade.horaInicio) return reload();
                 var novoFimPai = minParaHhmm(hhmmParaMin(paiInfo.atividade.horaInicio) + duracaoEfetiva(paiInfo.atividade, atividadesDia) + deltaPai);
-                editarAtividade(eventoKey, paiInfo.atividade.key, { horaFim: novoFimPai }, function () {
+                editarAtividade(eventoKey, paiInfo.atividade.key, { horaFim: novoFimPai }, ok(function () {
                   ofereceRecalculo(paiInfo.atividade.key, deltaPai, paiInfo.atividade.horaInicio, paiInfo.irmaos, function () { reload(); });
-                });
-              });
+                }));
+              }));
             },
-            onExcluir: function () { excluirAtividade(eventoKey, a.key, atividadesDia, function () { reload(); }); }
+            onExcluir: function () { excluirAtividade(eventoKey, a.key, atividadesDia, ok(reload)); }
           });
         });
         acoes.appendChild(upBtn); acoes.appendChild(downBtn); acoes.appendChild(dupBtn); acoes.appendChild(editBtn);
@@ -3364,10 +3388,10 @@
             abrirFormAtividade({
               titulo: 'Nova etapa de "' + a.titulo + '"',
               onSalvar: function (dados) {
-                criarAtividade(eventoKey, dia.key, Object.assign({ paiKey: a.key }, dados), filhosDesta, function () {
+                criarAtividade(eventoKey, dia.key, Object.assign({ paiKey: a.key }, dados), filhosDesta, ok(function () {
                   _secoesRecolhidas[a.key] = false;
                   reload();
-                });
+                }));
               }
             });
           };
@@ -3548,7 +3572,7 @@
         addExclusivaBtn.addEventListener('click', function () {
           abrirFormAtividade({
             titulo: 'Nova atividade exclusiva desta turma',
-            onSalvar: function (dados) { criarAtividadeExclusiva(turma.key, dia.key, dados, function () { reload(); }); }
+            onSalvar: function (dados) { criarAtividadeExclusiva(turma.key, dia.key, dados, ok(reload)); }
           });
         });
         container.appendChild(addExclusivaBtn);
@@ -3565,7 +3589,7 @@
             row.innerHTML = '<span class="turma-status-badge badge-roteiro-removida">Removida desta turma</span><span style="flex:1;color:var(--ink-2)">' + esc(a.titulo) + '</span>';
             var restBtn = document.createElement('button');
             restBtn.className = 'btn btn--sm'; restBtn.style.cssText = 'padding:4px 10px;font-size:.72rem'; restBtn.textContent = 'Restaurar';
-            restBtn.addEventListener('click', function () { restaurarAtividade(turma.key, a.key, function () { reload(); }); });
+            restBtn.addEventListener('click', function () { restaurarAtividade(turma.key, a.key, ok(reload)); });
             row.appendChild(restBtn);
             remWrap.appendChild(row);
           });
@@ -3672,7 +3696,7 @@
           var principal = body.querySelector('.rt-principal-sel').value;
           var apoio = Array.prototype.map.call(body.querySelectorAll('.rt-apoio-chk:checked'), function (c) { return c.value; });
           if (principal && apoio.indexOf(principal) !== -1) { alertDialog('A mesma pessoa não pode ser condução principal e apoio na mesma atividade.'); return; }
-          salvarFacilitacaoAtividade(turma.key, a.key, principal, apoio, function () { reload(); });
+          salvarFacilitacaoAtividade(turma.key, a.key, principal, apoio, ok(reload));
         });
         body.appendChild(salvarFacBtn);
       } else if (a._facilitacao && (a._facilitacao.principal || (a._facilitacao.apoio || []).length)) {
@@ -3695,8 +3719,8 @@
           abrirFormAtividade({
             titulo: 'Editar atividade exclusiva', existente: a, filhosCount: filhosDesta.length,
             duracaoSomaFilhos: filhosDesta.length ? duracaoEfetiva(a, dia.todasEfetivas) : undefined,
-            onSalvar: function (dados) { editarAtividadeExclusiva(turma.key, a.key, dados, function () { reload(); }); },
-            onExcluir: function () { excluirAtividadeExclusiva(turma.key, a.key, dia.todasEfetivas, function () { reload(); }); }
+            onSalvar: function (dados) { editarAtividadeExclusiva(turma.key, a.key, dados, ok(reload)); },
+            onExcluir: function () { excluirAtividadeExclusiva(turma.key, a.key, dia.todasEfetivas, ok(reload)); }
           });
         });
         acoes.appendChild(editExclBtn);
@@ -3707,7 +3731,7 @@
           abrirFormAtividade({
             titulo: 'Personalizar atividade nesta turma', existente: a, filhosCount: filhosDesta.length,
             duracaoSomaFilhos: filhosDesta.length ? duracaoEfetiva(a, dia.todasEfetivas) : undefined,
-            onSalvar: function (dados) { customizarAtividade(turma.key, a._base, dados, function () { reload(); }); }
+            onSalvar: function (dados) { customizarAtividade(turma.key, a._base, dados, ok(reload)); }
           });
         });
         acoes.appendChild(editBtn);
@@ -3717,7 +3741,7 @@
           restBtn.className = 'btn btn--sm'; restBtn.style.cssText = 'padding:5px 12px;font-size:.72rem'; restBtn.textContent = 'Restaurar padrão do evento';
           restBtn.addEventListener('click', function () {
             confirmDialog('Esta ação descartará as personalizações desta atividade para esta turma e restaurará os dados definidos no roteiro-base do evento. Deseja continuar?',
-              function () { restaurarAtividade(turma.key, a.key, function () { reload(); }); });
+              function () { restaurarAtividade(turma.key, a.key, ok(reload)); });
           });
           acoes.appendChild(restBtn);
         }
@@ -3725,7 +3749,7 @@
         remBtn.className = 'btn btn--sm'; remBtn.style.cssText = 'padding:5px 12px;font-size:.72rem;border-color:rgba(255,80,80,.5);color:#ff8080'; remBtn.textContent = 'Remover desta turma';
         remBtn.addEventListener('click', function () {
           confirmDialog('Remover "' + a.titulo + '" apenas desta turma? A atividade continua no roteiro-base do evento e nas demais turmas.',
-            function () { removerAtividadeDaTurma(turma.key, a.key, function () { reload(); }); });
+            function () { removerAtividadeDaTurma(turma.key, a.key, ok(reload)); });
         });
         acoes.appendChild(remBtn);
       }
@@ -3740,7 +3764,7 @@
         addSubBtn.addEventListener('click', function () {
           abrirFormAtividade({
             titulo: 'Nova etapa de "' + a.titulo + '" (só nesta turma)',
-            onSalvar: function (dados) { criarAtividadeExclusiva(turma.key, dia.key, Object.assign({ paiKey: a.key }, dados), function () { _secoesRecolhidas[a.key] = false; reload(); }); }
+            onSalvar: function (dados) { criarAtividadeExclusiva(turma.key, dia.key, Object.assign({ paiKey: a.key }, dados), ok(function () { _secoesRecolhidas[a.key] = false; reload(); })); }
           });
         });
         acoes.appendChild(addSubBtn);
