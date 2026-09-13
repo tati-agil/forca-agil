@@ -70,3 +70,15 @@ Na prática, antes de considerar qualquer mudança pronta:
 - prefira provar rodando a página num navegador a raciocinar sobre o código —
   `.github/scripts/teste-tela-preta.js` é o exemplo de como fazer isso sem
   depender de rede nem de segredo, e roda desktop e celular lado a lado.
+
+**Editar sem conseguir salvar não é uma funcionalidade menor — é quebrada.**
+Nas palavras dela: "se admin pode mexer, pode gravar. ou não deixa mexer ou
+deixa e salva." Toda tela é uma destas duas coisas, nunca uma terceira: só
+consulta (não mostra edição pra quem não pode gravar), ou edição de verdade
+(quem abre o formulário também consegue salvar). Isso já aconteceu de
+verdade: `roteiros-evento` e `eventos` deixavam qualquer admin editar no
+painel, mas as regras do banco (`database.rules.json`) só permitiam a
+gravação a dois e-mails fixos — silêncio total até a PR #135 fazer o erro
+aparecer, e o descompasso de permissão em si só saiu na PR #136. Ver a skill
+`editar-e-salvar` antes de adicionar um formulário de edição, um botão
+"Salvar" ligado a uma escrita no Firebase, ou mexer em `database.rules.json`.
