@@ -72,10 +72,17 @@
 (function () {
   'use strict';
 
+  /* Precisa ser IDEMPOTENTE (esc(esc(x)) === esc(x)): esta função escapa o
+     valor toda vez que o formulário de atividade é aberto, não só na
+     primeira. Um "&" que já introduz uma entidade de verdade (&amp; &nbsp;
+     &lt; etc.) não pode virar "&amp;amp;"/"&amp;nbsp;" de novo, senão cada
+     abrir-e-salvar sem tocar o campo acrescenta mais uma camada de escape —
+     foi assim que um "&nbsp;" digitado à mão virou "&amp;amp;nbsp;" depois
+     de duas rodadas, aparecendo na tela como texto literal em vez de espaço. */
   function esc(s) {
-    return String(s || '').replace(/[&<>"]/g, function (c) {
-      return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c];
-    });
+    return String(s || '')
+      .replace(/&(?!(?:amp|lt|gt|quot|apos|nbsp|#39|#\d+|#x[0-9a-fA-F]+);)/g, '&amp;')
+      .replace(/[<>"]/g, function (c) { return { '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]; });
   }
 
   /* Menu "⋯" (mesmo padrão visual de .taa-more-btn/.taa-dropdown já usado
