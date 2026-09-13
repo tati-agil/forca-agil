@@ -336,4 +336,144 @@
   /* Mantido: game.js e os testes já liam daqui, e enquanto só existe o
      conteúdo "jedi" isto continua sendo ele. */
   window.faGameData = _data;
+
+  /* ══════════════════════════════════════════════════════════════════
+     CONTEÚDO DE TREINAMENTO GUARDADO NO BANCO
+
+     Um treinamento pode ter conteúdo PRÓPRIO, criado no painel e gravado
+     em treinamentos-conteudo/<treinoKey>, em vez de apontar para um
+     conjunto daqui do código. É o que permite criar um treinamento novo
+     sem deploy.
+
+     Este módulo é o contrato entre os dois lados: o painel usa para
+     validar e mostrar o que falta, a página usa para decidir se dá para
+     responder. Um critério só — se cada lado tivesse o seu, o painel
+     diria "pronto" numa tela onde a pessoa vê um quiz quebrado, que é
+     exatamente a falha silenciosa que a skill criterio-de-estado existe
+     para impedir.
+     ══════════════════════════════════════════════════════════════════ */
+  var LEVELS_PADRAO = ['Nunca', 'Raramente', 'Às vezes', 'Frequentemente'];
+
+  function texto(v) { return typeof v === 'string' ? v.trim() : ''; }
+  function lista(v) {
+    if (!Array.isArray(v)) return [];
+    return v.map(texto).filter(function (x) { return !!x; });
+  }
+
+  /* O banco devolve objetos com chaves numéricas quando um array tem
+     buracos (o Firebase não guarda array esparso), então tudo que deveria
+     ser lista passa por aqui antes de ser usado. */
+  function paraLista(v) {
+    if (Array.isArray(v)) return v;
+    if (v && typeof v === 'object') {
+      return Object.keys(v).sort(function (a, b) { return Number(a) - Number(b); })
+        .map(function (k) { return v[k]; });
+    }
+    return [];
+  }
+
+  function normalizar(raw) {
+    var r = raw || {};
+    var blocos = paraLista(r.blocos).map(function (b, i) {
+      b = b || {};
+      return {
+        id: texto(b.id) || ('bloco' + (i + 1)),
+        label: texto(b.label) || ('Bloco ' + (i + 1)),
+        icon: texto(b.icon) || '🔹',
+        afirmacoes: lista(paraLista(b.afirmacoes)),
+      };
+    });
+    var levels = lista(paraLista(r.levels));
+    if (levels.length < 2) levels = LEVELS_PADRAO.slice();
+    var ranks = paraLista(r.ranks).map(function (k, i) {
+      k = k || {};
+      return {
+        id: texto(k.id) || ('patente' + (i + 1)),
+        name: texto(k.name) || ('Patente ' + (i + 1)),
+        tag: texto(k.tag),
+        icon: texto(k.icon) || '⭐',
+        sym: texto(k.sym) || ('#char-' + (i % 4)),
+        minDiag: Number(k.minDiag) || 0,
+        maxDiag: Number(k.maxDiag) || 0,
+        desc: texto(k.desc),
+        carac: lista(paraLista(k.carac)),
+        proximo: lista(paraLista(k.proximo)),
+        frase: texto(k.frase),
+      };
+    }).sort(function (a, b) { return a.minDiag - b.minDiag; });
+
+    return {
+      BLOCOS: blocos,
+      LEVELS: levels,
+      RANKS: ranks,
+      /* Quem responde dá de 0 a (levels-1) por afirmação. */
+      PONTO_MAX: Math.max(0, levels.length - 1),
+    };
+  }
+
+  function totalAfirmacoes(c) {
+    return (c.BLOCOS || []).reduce(function (n, b) { return n + (b.afirmacoes || []).length; }, 0);
+  }
+
+  /* O que IMPEDE alguém de responder. Lista vazia = pronto para usar.
+     Não é capricho de validação: cada item aqui é uma tela quebrada do
+     lado de quem responde — sem afirmação não há o que perguntar, sem
+     patente o resultado sai em branco, e faixa que não cobre a pontuação
+     faz a pessoa terminar o quiz e não receber patente nenhuma. */
+  function problemas(c) {
+    var out = [];
+    var total = totalAfirmacoes(c);
+    var max = total * c.PONTO_MAX;
+    if (!total) out.push('não tem nenhuma afirmação para responder');
+    if (!(c.RANKS || []).length) out.push('não tem nenhuma patente');
+
+    if (total && (c.RANKS || []).length) {
+      var faixas = c.RANKS.slice().sort(function (a, b) { return a.minDiag - b.minDiag; });
+      var invertida = faixas.filter(function (k) { return k.maxDiag < k.minDiag; });
+      if (invertida.length) {
+        out.push('patente com faixa invertida (fim menor que o início): ' +
+          invertida.map(function (k) { return k.name; }).join(', '));
+      }
+      if (faixas[0].minDiag > 0) out.push('nenhuma patente cobre a pontuação 0');
+      if (faixas[faixas.length - 1].maxDiag < max) {
+        out.push('nenhuma patente cobre a pontuação máxima (' + max + ')');
+      }
+      for (var i = 1; i < faixas.length; i++) {
+        if (faixas[i].minDiag > faixas[i - 1].maxDiag + 1) {
+          out.push('faixa sem patente entre ' + (faixas[i - 1].maxDiag + 1) + ' e ' + (faixas[i].minDiag - 1) + ' pontos');
+        } else if (faixas[i].minDiag <= faixas[i - 1].maxDiag) {
+          out.push('faixas de "' + faixas[i - 1].name + '" e "' + faixas[i].name + '" se sobrepõem');
+        }
+      }
+    }
+    return out;
+  }
+
+  /* Não impede ninguém de responder, mas quase certamente não é o que se
+     quis dizer. Patente cuja faixa começa acima da pontuação máxima nunca
+     vai ser alcançada por ninguém — acontece ao copiar patentes de um
+     treinamento com mais afirmações que o novo. Fica como AVISO, não como
+     problema: esconder o treinamento por causa disso seria pior que o
+     defeito. */
+  function avisos(c) {
+    var out = [];
+    var max = totalAfirmacoes(c) * c.PONTO_MAX;
+    var inalcancaveis = (c.RANKS || []).filter(function (k) { return k.minDiag > max; });
+    if (inalcancaveis.length) {
+      out.push('patente que ninguém consegue alcançar (a faixa começa acima de ' + max + ' pontos): ' +
+        inalcancaveis.map(function (k) { return k.name; }).join(', '));
+    }
+    return out;
+  }
+
+  window.faTreinoConteudo = {
+    LEVELS_PADRAO: LEVELS_PADRAO,
+    normalizar: normalizar,
+    problemas: problemas,
+    avisos: avisos,
+    totalAfirmacoes: totalAfirmacoes,
+    /* Personagens que existem no SVG embutido do index.html: conteúdo novo
+       escolhe entre eles, porque desenho novo exige deploy. */
+    PERSONAGENS: ['#char-0', '#char-1', '#char-2', '#char-3'],
+  };
 })();

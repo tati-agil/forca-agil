@@ -4596,11 +4596,41 @@
     });
   }
 
+  /* Conteúdo próprio de cada treinamento (nó treinamentos-conteudo), criado
+     aqui no painel. O catálogo em código continua existindo para o
+     treinamento Jedi; o que muda é que agora dá para criar um treinamento
+     novo sem depender de deploy. */
+  var TREINO_CONTEUDOS = {};
+
+  function loadTreinoConteudos(cb) {
+    firebase.database().ref('treinamentos-conteudo').once('value', function (snap) {
+      TREINO_CONTEUDOS = snap.val() || {};
+      cb();
+    }, function () { TREINO_CONTEUDOS = {}; cb(); });
+  }
+
+  /* O MESMO critério que a página do treinamento usa para decidir se dá para
+     responder (window.faTreinoConteudo, em game-data.js). Um critério só: se
+     o painel tivesse o seu, ele diria "pronto" numa tela onde a pessoa vê um
+     quiz sem pergunta. */
+  function conteudoProprioDe(t) {
+    var c = window.faTreinoConteudo;
+    if (!c) return null;
+    return c.normalizar(TREINO_CONTEUDOS[t.key] || {});
+  }
+  function problemasDoTreinamento(t) {
+    var c = window.faTreinoConteudo;
+    if (!c || t.conteudoKey) return [];   /* conteúdo do código é sempre completo */
+    return c.problemas(conteudoProprioDe(t));
+  }
+
   function loadTreinamentos() {
     var c = document.getElementById('adminTreinamentos');
     if (!c) return;
     loadEventosList(function () {
-      loadTreinamentosList(function () { renderTreinamentos(c); });
+      loadTreinamentosList(function () {
+        loadTreinoConteudos(function () { renderTreinamentos(c); });
+      });
     });
   }
 
@@ -4639,15 +4669,35 @@
         : '<span class="removido-sem-motivo">nenhum evento associado — ninguém vê este treinamento</span>';
 
       var conteudo = conteudosDisponiveis().filter(function (x) { return x.key === t.conteudoKey; })[0];
+      var proprio = !t.conteudoKey;
+      var faltas = problemasDoTreinamento(t);
+      var linhaConteudo;
+      if (proprio) {
+        var cc = conteudoProprioDe(t) || { BLOCOS: [], RANKS: [], PONTO_MAX: 3 };
+        var nAfirm = window.faTreinoConteudo ? window.faTreinoConteudo.totalAfirmacoes(cc) : 0;
+        linhaConteudo = 'Conteúdo próprio — ' + nAfirm + ' afirmaç' + (nAfirm === 1 ? 'ão' : 'ões') +
+          ' · ' + cc.RANKS.length + ' patente' + (cc.RANKS.length === 1 ? '' : 's');
+      } else {
+        linhaConteudo = 'Conteúdo: ' + (conteudo
+          ? esc(conteudo.nome) + ' <span style="color:var(--ink-3)">(do código)</span>'
+          : '<span class="removido-sem-motivo">conteúdo "' + esc(t.conteudoKey) + '" não existe no catálogo</span>');
+      }
+
+      /* Um treinamento associado a eventos mas sem conteúdo pronto não chega
+         a ninguém. Sem dizer isso aqui, ela marcaria o evento, ninguém veria
+         nada e a tela não daria pista nenhuma do motivo. */
+      var aviso = faltas.length
+        ? '<div class="treino-falta">⚠ Ainda não aparece para ninguém. Falta: ' +
+            faltas.map(function (f) { return esc(f); }).join('; ') + '.</div>'
+        : '';
 
       card.innerHTML =
         '<div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin-bottom:10px">' +
           '<span style="flex:1;min-width:180px;font-family:var(--font-head);letter-spacing:.05em;color:var(--ink)">' + esc(t.nome) + '</span>' +
         '</div>' +
-        '<div style="font-size:.8rem;color:var(--ink-2);margin-bottom:8px">Conteúdo: ' +
-          (conteudo ? esc(conteudo.nome) : '<span class="removido-sem-motivo">conteúdo "' + esc(t.conteudoKey) + '" não existe no catálogo</span>') +
-        '</div>' +
-        '<div style="display:flex;gap:6px;flex-wrap:wrap;align-items:center">' + chips + '</div>';
+        '<div style="font-size:.8rem;color:var(--ink-2);margin-bottom:8px">' + linhaConteudo + '</div>' +
+        '<div style="display:flex;gap:6px;flex-wrap:wrap;align-items:center">' + chips + '</div>' +
+        aviso;
 
       var acoes = document.createElement('div');
       acoes.style.cssText = 'display:flex;gap:8px;margin-top:14px;flex-wrap:wrap';
@@ -4656,12 +4706,21 @@
       editBtn.style.cssText = 'padding:4px 10px;font-size:.72rem';
       editBtn.innerHTML = '&#x270E; Editar';
       editBtn.addEventListener('click', function () { openTreinamentoFormModal(t); });
+      var conteudoBtn = null;
+      if (proprio) {
+        conteudoBtn = document.createElement('button');
+        conteudoBtn.className = 'btn btn--sm';
+        conteudoBtn.style.cssText = 'padding:4px 10px;font-size:.72rem';
+        conteudoBtn.innerHTML = '&#x270E; Editar conteúdo';
+        conteudoBtn.addEventListener('click', function () { openTreinoConteudoModal(t); });
+      }
       var delBtn = document.createElement('button');
       delBtn.className = 'btn btn--sm';
       delBtn.style.cssText = 'padding:4px 10px;font-size:.72rem;border-color:rgba(255,80,80,.5);color:#ff8080';
       delBtn.textContent = '🗑 Excluir';
       delBtn.addEventListener('click', function () { excluirTreinamento(t); });
       acoes.appendChild(editBtn);
+      if (conteudoBtn) acoes.appendChild(conteudoBtn);
       acoes.appendChild(delBtn);
       card.appendChild(acoes);
       c.appendChild(card);
@@ -4678,9 +4737,12 @@
     box.className = 'modal-box';
     box.style.cssText = 'max-width:480px;width:90%;padding:28px;display:flex;flex-direction:column;gap:16px;max-height:85vh;overflow:auto';
 
-    var conteudoOpts = conteudosDisponiveis().map(function (x) {
-      return '<option value="' + esc(x.key) + '">' + esc(x.nome) + '</option>';
-    }).join('');
+    /* Primeira opção: conteúdo criado aqui. É o caminho para um treinamento
+       novo — o catálogo em código só cresce com deploy. */
+    var conteudoOpts = '<option value="">Conteúdo próprio (escrito aqui no painel)</option>' +
+      conteudosDisponiveis().map(function (x) {
+        return '<option value="' + esc(x.key) + '">' + esc(x.nome) + ' (do código)</option>';
+      }).join('');
 
     var eventosHtml = EVENTOS_LIST.length
       ? EVENTOS_LIST.map(function (ev) {
@@ -4694,7 +4756,7 @@
       '<h3 style="font-size:1.1rem;font-family:var(--font-head);letter-spacing:.05em;color:var(--ink)">' + (isEdit ? 'Editar Treinamento' : 'Novo Treinamento') + '</h3>' +
       '<label class="auth-label">Nome do treinamento<input type="text" id="treinoFormNome" placeholder="Ex: Treinamento Jedi" autocomplete="off" /></label>' +
       '<label class="auth-label">Conteúdo<select id="treinoFormConteudo" style="padding:8px 10px;background:var(--panel-2);border:1px solid var(--line-strong);border-radius:6px;color:var(--ink);font-family:var(--font-body);width:100%">' + conteudoOpts + '</select></label>' +
-      '<p style="font-size:.76rem;color:var(--ink-3);margin:-8px 0 0">O conteúdo (afirmações e patentes) vem do código. Um treinamento com conteúdo novo precisa de um conjunto novo cadastrado lá.</p>' +
+      '<p style="font-size:.76rem;color:var(--ink-3);margin:-8px 0 0">Com "conteúdo próprio", as afirmações e as patentes são escritas aqui mesmo, no botão "✎ Editar conteúdo" do treinamento — sem depender de publicação nova do site. As outras opções são conjuntos que já existem no código.</p>' +
       '<div>' +
         '<span class="auth-label" style="display:block;margin-bottom:8px">Eventos com acesso a este treinamento</span>' +
         '<div style="display:flex;flex-direction:column;gap:8px">' + eventosHtml + '</div>' +
@@ -4714,7 +4776,7 @@
     var errEl         = box.querySelector('#treinoFormErr');
 
     nomeInput.value = isEdit ? existing.nome : '';
-    if (isEdit && existing.conteudoKey) conteudoSel.value = existing.conteudoKey;
+    conteudoSel.value = isEdit ? (existing.conteudoKey || '') : '';
     if (isEdit) {
       box.querySelectorAll('.treino-ev').forEach(function (cb) {
         cb.checked = !!(existing.eventos || {})[cb.value];
@@ -4749,6 +4811,286 @@
         loadTreinamentos();
       }
     });
+  }
+
+  /* ══════════════════════════════════════════════════════════════════
+     EDITOR DE CONTEÚDO DO TREINAMENTO
+
+     O conteúdo é o que a pessoa responde: as afirmações (em blocos) e as
+     patentes que o resultado pode dar. Ele vivia só no código, então criar
+     um treinamento diferente do Jedi dependia de deploy — e por isso, na
+     prática, só existia um treinamento.
+
+     As afirmações são escritas UMA POR LINHA numa caixa de texto, e não
+     num campo por afirmação: quem escreve esse conteúdo já tem a lista
+     pronta num documento, e colar vinte linhas de uma vez é o caminho
+     real. Vinte campinhos seriam vinte colagens.
+
+     Salvar sem terminar é permitido de propósito — ninguém escreve um
+     treinamento inteiro numa sentada. O que não acontece é o conteúdo pela
+     metade chegar a quem responde: a página só oferece treinamento sem
+     pendência (mesmo critério, window.faTreinoConteudo), e tanto o card do
+     painel quanto este editor dizem exatamente o que falta.
+     ══════════════════════════════════════════════════════════════════ */
+  function openTreinoConteudoModal(t) {
+    var CT = window.faTreinoConteudo;
+    if (!CT) { adminAlert('Não consegui carregar o editor de conteúdo. Recarregue a página.'); return; }
+
+    /* Estado do editor: começa do que está gravado. */
+    var atual = CT.normalizar(TREINO_CONTEUDOS[t.key] || {});
+    var c = {
+      levels: atual.LEVELS.slice(),
+      blocos: atual.BLOCOS.map(function (b) {
+        return { id: b.id, label: b.label, icon: b.icon, afirmacoes: b.afirmacoes.slice() };
+      }),
+      ranks: atual.RANKS.map(function (r) { return Object.assign({}, r); }),
+    };
+    if (!c.blocos.length) c.blocos.push({ id: 'bloco1', label: 'Bloco 1', icon: '🔹', afirmacoes: [] });
+
+    var overlay = document.createElement('div');
+    overlay.className = 'modal-overlay';
+    overlay.style.cssText = 'display:flex;align-items:center;justify-content:center;z-index:9999';
+    var box = document.createElement('div');
+    box.className = 'modal-box treino-conteudo-modal';
+    box.style.cssText = 'max-width:720px;width:94%;padding:24px;display:flex;flex-direction:column;gap:16px;max-height:88vh;overflow:auto';
+    overlay.appendChild(box);
+    document.body.appendChild(overlay);
+
+    function fechar() { if (overlay.parentNode) document.body.removeChild(overlay); }
+
+    /* Lê o que está na tela de volta para o estado. Roda antes de qualquer
+       mudança de estrutura (adicionar/remover), senão o que foi digitado e
+       ainda não saiu do DOM se perde no redesenho. */
+    function sincronizar() {
+      c.levels = Array.prototype.map.call(box.querySelectorAll('.tc-level'), function (i) { return i.value.trim(); })
+        .filter(function (x) { return !!x; });
+      c.blocos = Array.prototype.map.call(box.querySelectorAll('.tc-bloco'), function (el) {
+        return {
+          id: el.dataset.id,
+          icon: el.querySelector('.tc-bloco-icon').value.trim() || '🔹',
+          label: el.querySelector('.tc-bloco-label').value.trim(),
+          afirmacoes: el.querySelector('.tc-bloco-afirm').value.split('\n')
+            .map(function (x) { return x.trim(); }).filter(function (x) { return !!x; }),
+        };
+      });
+      c.ranks = Array.prototype.map.call(box.querySelectorAll('.tc-rank'), function (el) {
+        return {
+          id: el.dataset.id,
+          name: el.querySelector('.tc-rank-nome').value.trim(),
+          tag: el.querySelector('.tc-rank-tag').value.trim(),
+          icon: el.querySelector('.tc-rank-icon').value.trim() || '⭐',
+          sym: el.querySelector('.tc-rank-sym').value,
+          minDiag: Number(el.querySelector('.tc-rank-min').value) || 0,
+          maxDiag: Number(el.querySelector('.tc-rank-max').value) || 0,
+          desc: el.querySelector('.tc-rank-desc').value.trim(),
+          carac: el.querySelector('.tc-rank-carac').value.split('\n')
+            .map(function (x) { return x.trim(); }).filter(function (x) { return !!x; }),
+          proximo: el.querySelector('.tc-rank-proximo').value.split('\n')
+            .map(function (x) { return x.trim(); }).filter(function (x) { return !!x; }),
+          frase: el.querySelector('.tc-rank-frase').value.trim(),
+        };
+      });
+    }
+
+    function resumo() {
+      var norm = CT.normalizar(c);
+      var total = CT.totalAfirmacoes(norm);
+      var faltas = CT.problemas(norm);
+      return {
+        texto: total + ' afirmaç' + (total === 1 ? 'ão' : 'ões') + ' · pontuação de 0 a ' +
+               (total * norm.PONTO_MAX) + ' · ' + norm.RANKS.length + ' patente' + (norm.RANKS.length === 1 ? '' : 's'),
+        faltas: faltas,
+        avisos: CT.avisos ? CT.avisos(norm) : [],
+      };
+    }
+
+    function pintarResumo() {
+      /* Lê da TELA, não do estado: o resumo existe para responder enquanto a
+         pessoa digita, e o estado só é atualizado nas mudanças de estrutura. */
+      sincronizar();
+      var r = resumo();
+      var el = box.querySelector('.tc-resumo');
+      if (!el) return;
+      el.innerHTML = '<span class="tc-resumo-conta">' + esc(r.texto) + '</span>' +
+        (r.faltas.length
+          ? '<span class="tc-resumo-falta">Falta para ficar disponível: ' +
+              r.faltas.map(function (f) { return esc(f); }).join('; ') + '.</span>'
+          : '<span class="tc-resumo-ok">✓ Pronto — quem está inscrita nos eventos deste treinamento já consegue responder.</span>') +
+        (r.avisos.length
+          ? '<span class="tc-resumo-aviso">⚠ ' + r.avisos.map(function (a) { return esc(a); }).join('; ') + '.</span>'
+          : '');
+    }
+
+    function desenhar() {
+      var totalAfirm = c.blocos.reduce(function (n, b) { return n + b.afirmacoes.length; }, 0);
+      var maxPontos = totalAfirm * Math.max(0, c.levels.length - 1);
+
+      var h = '<h3 style="font-size:1.1rem;font-family:var(--font-head);letter-spacing:.05em;color:var(--ink);margin:0">' +
+        'Conteúdo de “' + esc(t.nome) + '”</h3>';
+      h += '<p class="tc-resumo"></p>';
+
+      /* ESCALA */
+      h += '<div class="tc-secao"><div class="tc-secao-head"><span class="tc-secao-titulo">Escala de resposta</span>' +
+        '<button type="button" class="btn btn--sm tc-add-level">+ Opção</button></div>' +
+        '<p class="tc-ajuda">Cada afirmação vale de 0 (primeira opção) a ' + Math.max(0, c.levels.length - 1) +
+        ' (última). Com ' + totalAfirm + ' afirmações, a pontuação vai de 0 a ' + maxPontos + '.</p>' +
+        '<div class="tc-levels">' +
+        c.levels.map(function (lv, i) {
+          return '<span class="tc-level-wrap"><span class="tc-level-num">' + i + '</span>' +
+            '<input type="text" class="tc-level" value="' + esc(lv) + '" />' +
+            '<button type="button" class="tc-x tc-del-level" data-i="' + i + '" aria-label="Remover opção">×</button></span>';
+        }).join('') + '</div></div>';
+
+      /* BLOCOS */
+      h += '<div class="tc-secao"><div class="tc-secao-head"><span class="tc-secao-titulo">Blocos e afirmações</span>' +
+        '<button type="button" class="btn btn--sm tc-add-bloco">+ Bloco</button></div>';
+      c.blocos.forEach(function (b, i) {
+        h += '<div class="tc-bloco" data-id="' + esc(b.id || ('bloco' + (i + 1))) + '">' +
+          '<div class="tc-bloco-head">' +
+            '<input type="text" class="tc-bloco-icon" value="' + esc(b.icon) + '" maxlength="4" aria-label="Ícone do bloco" />' +
+            '<input type="text" class="tc-bloco-label" value="' + esc(b.label) + '" placeholder="Título do bloco" aria-label="Título do bloco" />' +
+            '<button type="button" class="tc-x tc-del-bloco" data-i="' + i + '" aria-label="Remover bloco">×</button>' +
+          '</div>' +
+          '<textarea class="tc-bloco-afirm" rows="6" placeholder="Uma afirmação por linha…">' + esc(b.afirmacoes.join('\n')) + '</textarea>' +
+          '<p class="tc-ajuda">Uma afirmação por linha. Dá para colar a lista inteira de uma vez.</p>' +
+        '</div>';
+      });
+      h += '</div>';
+
+      /* PATENTES */
+      h += '<div class="tc-secao"><div class="tc-secao-head"><span class="tc-secao-titulo">Patentes</span>' +
+        '<span style="display:flex;gap:6px;flex-wrap:wrap">' +
+          (c.ranks.length ? '' : '<button type="button" class="btn btn--sm tc-copiar-jedi">Copiar as do Jedi</button>') +
+          '<button type="button" class="btn btn--sm tc-add-rank">+ Patente</button>' +
+        '</span></div>' +
+        '<p class="tc-ajuda">As faixas precisam cobrir de 0 até ' + maxPontos + ' pontos, sem buraco e sem sobreposição — senão alguém termina o quiz e não recebe patente nenhuma.</p>';
+      c.ranks.forEach(function (r, i) {
+        h += '<div class="tc-rank" data-id="' + esc(r.id || ('patente' + (i + 1))) + '">' +
+          '<div class="tc-rank-head">' +
+            '<input type="text" class="tc-rank-icon" value="' + esc(r.icon) + '" maxlength="4" aria-label="Ícone da patente" />' +
+            '<input type="text" class="tc-rank-nome" value="' + esc(r.name) + '" placeholder="Nome da patente" aria-label="Nome da patente" />' +
+            '<button type="button" class="tc-x tc-del-rank" data-i="' + i + '" aria-label="Remover patente">×</button>' +
+          '</div>' +
+          '<div class="tc-rank-grid">' +
+            '<label class="tc-campo">Subtítulo<input type="text" class="tc-rank-tag" value="' + esc(r.tag) + '" placeholder="Ex: Aprendiz Jedi" /></label>' +
+            '<label class="tc-campo">Personagem<select class="tc-rank-sym">' +
+              CT.PERSONAGENS.map(function (sym, si) {
+                return '<option value="' + esc(sym) + '"' + (sym === r.sym ? ' selected' : '') + '>Personagem ' + (si + 1) + '</option>';
+              }).join('') +
+            '</select></label>' +
+            '<label class="tc-campo">De (pontos)<input type="number" class="tc-rank-min" value="' + Number(r.minDiag || 0) + '" min="0" /></label>' +
+            '<label class="tc-campo">Até (pontos)<input type="number" class="tc-rank-max" value="' + Number(r.maxDiag || 0) + '" min="0" /></label>' +
+          '</div>' +
+          '<label class="tc-campo">Descrição<input type="text" class="tc-rank-desc" value="' + esc(r.desc) + '" placeholder="Uma frase sobre quem chega aqui" /></label>' +
+          '<label class="tc-campo">Características (uma por linha)<textarea class="tc-rank-carac" rows="3">' + esc((r.carac || []).join('\n')) + '</textarea></label>' +
+          '<label class="tc-campo">Próximos passos (uma por linha)<textarea class="tc-rank-proximo" rows="3">' + esc((r.proximo || []).join('\n')) + '</textarea></label>' +
+          '<label class="tc-campo">Frase de efeito<input type="text" class="tc-rank-frase" value="' + esc(r.frase) + '" /></label>' +
+        '</div>';
+      });
+      h += '</div>';
+
+      h += '<p id="tcErr" style="color:var(--red,#ff3b30);font-size:.85rem;display:none"></p>';
+      h += '<div style="display:flex;justify-content:flex-end;gap:8px">' +
+        '<button class="btn admin-modal-cancel-btn">Cancelar</button>' +
+        '<button class="btn btn--primary tc-salvar">Salvar conteúdo</button>' +
+        '</div>';
+
+      box.innerHTML = h;
+      pintarResumo();
+      ligar();
+    }
+
+    function ligar() {
+      box.querySelector('.tc-add-level').addEventListener('click', function () {
+        sincronizar(); c.levels.push(''); desenhar();
+      });
+      box.querySelectorAll('.tc-del-level').forEach(function (b) {
+        b.addEventListener('click', function () {
+          sincronizar();
+          if (c.levels.length <= 2) { adminAlert('A escala precisa de pelo menos duas opções.'); return; }
+          c.levels.splice(Number(b.dataset.i), 1); desenhar();
+        });
+      });
+      box.querySelector('.tc-add-bloco').addEventListener('click', function () {
+        sincronizar();
+        c.blocos.push({ id: 'bloco' + (c.blocos.length + 1) + '-' + Date.now(), label: 'Bloco ' + (c.blocos.length + 1), icon: '🔹', afirmacoes: [] });
+        desenhar();
+      });
+      box.querySelectorAll('.tc-del-bloco').forEach(function (b) {
+        b.addEventListener('click', function () {
+          sincronizar(); c.blocos.splice(Number(b.dataset.i), 1);
+          if (!c.blocos.length) c.blocos.push({ id: 'bloco1', label: 'Bloco 1', icon: '🔹', afirmacoes: [] });
+          desenhar();
+        });
+      });
+      box.querySelector('.tc-add-rank').addEventListener('click', function () {
+        sincronizar();
+        var ultimo = c.ranks[c.ranks.length - 1];
+        var de = ultimo ? Number(ultimo.maxDiag) + 1 : 0;
+        c.ranks.push({ id: 'patente' + (c.ranks.length + 1) + '-' + Date.now(), name: '', tag: '', icon: '⭐',
+          sym: CT.PERSONAGENS[c.ranks.length % CT.PERSONAGENS.length], minDiag: de, maxDiag: de, desc: '', carac: [], proximo: [], frase: '' });
+        desenhar();
+      });
+      box.querySelectorAll('.tc-del-rank').forEach(function (b) {
+        b.addEventListener('click', function () {
+          sincronizar(); c.ranks.splice(Number(b.dataset.i), 1); desenhar();
+        });
+      });
+      var copiar = box.querySelector('.tc-copiar-jedi');
+      if (copiar) {
+        copiar.addEventListener('click', function () {
+          sincronizar();
+          var jedi = (window.faGameConteudos || {}).jedi || window.faGameData || {};
+          c.ranks = (jedi.RANKS || []).map(function (r) { return Object.assign({}, r); });
+          desenhar();
+        });
+      }
+
+      box.querySelector('.admin-modal-cancel-btn').addEventListener('click', fechar);
+      box.querySelector('.tc-salvar').addEventListener('click', salvar);
+    }
+
+    function salvar() {
+      sincronizar();
+      var errEl = box.querySelector('#tcErr');
+      errEl.style.display = 'none';
+      var semNome = c.ranks.filter(function (r) { return !r.name; });
+      if (semNome.length) {
+        errEl.textContent = 'Toda patente precisa de um nome — é o que aparece no resultado de quem responde.';
+        errEl.style.display = '';
+        return;
+      }
+      var sess = window.faAuth && window.faAuth.getSession();
+      var dados = {
+        blocos: c.blocos.map(function (b, i) {
+          return { id: b.id || ('bloco' + (i + 1)), label: b.label || ('Bloco ' + (i + 1)), icon: b.icon || '🔹',
+                   afirmacoes: b.afirmacoes };
+        }),
+        levels: c.levels,
+        ranks: c.ranks,
+        atualizadoEm: new Date().toISOString(),
+        atualizadoPor: sess ? (sess.name || sess.email) : null,
+      };
+      firebase.database().ref('treinamentos-conteudo/' + t.key).set(dados, function (err) {
+        if (err) {
+          errEl.textContent = 'Erro ao salvar. Tente novamente.';
+          errEl.style.display = '';
+          return;
+        }
+        fechar();
+        loadTreinamentos();
+      });
+    }
+
+    var mousedownFora = false;
+    overlay.addEventListener('mousedown', function (e) { mousedownFora = !box.contains(e.target); });
+    overlay.addEventListener('click', function (e) { if (mousedownFora && !box.contains(e.target)) fechar(); });
+    overlay.addEventListener('keydown', function (e) { if (e.key === 'Escape') { e.preventDefault(); fechar(); } });
+
+    /* No box, uma vez só: desenhar() troca o innerHTML, então um listener
+       registrado dentro de ligar() seria somado a cada redesenho. */
+    box.addEventListener('input', pintarResumo);
+    desenhar();
   }
 
   function excluirTreinamento(t) {

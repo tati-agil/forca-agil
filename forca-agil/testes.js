@@ -677,7 +677,19 @@
           return document.querySelectorAll('#treinamento-welcome .jedi-step').length === 4;
         } },
         { id: 'c-quiz-patente',   label: 'Painel de patente presente',             run: function () { return !!document.getElementById('rankHud'); } },
-        { id: 'c-quiz-patentes',  label: '4 patentes exibidas (Youngling→Mestre)', run: function () { return document.querySelectorAll('.char-card').length >= 4; } },
+        { id: 'c-quiz-patentes',  label: 'Escada de patentes é a do treinamento ativo (nome por nome)', run: function () {
+          /* Era "pelo menos 4 cartões", e isso passava mesmo quando a escada
+             mostrava as patentes do Jedi num treinamento que não era ele — a
+             escada era HTML fixo. Agora ela é desenhada a partir das patentes
+             do treinamento ativo, e é isso que se confere. */
+          var cards = Array.prototype.map.call(
+            document.querySelectorAll('#charLadder .char-card .cc-name'),
+            function (n) { return (n.textContent || '').trim(); });
+          if (!cards.length) return false;
+          if (!window.faGamePatentes) return cards.length >= 2;
+          var esperado = window.faGamePatentes().map(function (r) { return r.name; });
+          return JSON.stringify(cards) === JSON.stringify(esperado);
+        } },
         { id: 'c-quiz-previx',    label: 'Droide Previx (guia) presente',          run: function () { return !!document.querySelector('.guide-droide') || !!document.getElementById('guideMsg'); } },
         { id: 'c-quiz-auto-1x', label: 'Autodiagnóstico (1×): opções bloqueadas após concluído', run: function () {
           if (!window.faGameData || !window.faGameReload) return false;
@@ -1454,6 +1466,9 @@ title: 'Cadastrados — corrigir e-mail só em cadastro criado pelo painel',
     { section: 'Admin',
       title: 'Aba Dashboard — destaques usam só notas, não texto livre',
       motivo: 'Comparar "Principais destaques dos feedbacks" com os comentários de texto livre reais (campos "continuar"/"melhorar"/"espaço aberto") de algumas avaliações. Verificar que os destaques mostrados (ex: "Instrutores capacitados", "Conteúdo prático e aplicável") vêm das MÉDIAS das notas por seção (facilitadoresNota, conteudoRelevancia etc.), e não de palavras encontradas nos comentários — ou seja, mesmo que ninguém tenha escrito "instrutores" no texto livre, a seção "Facilitadores" ainda aparece como destaque se a nota média dela for alta.' },
+    { section: 'Admin',
+      title: 'Treinamentos — criar um treinamento com conteúdo próprio',
+      motivo: 'Precisa de um evento com turma e alguém confirmado nela. O conteúdo do treinamento (afirmações e patentes) vivia só no código, então na prática só existia um treinamento. Conferir, de ponta a ponta e nos DOIS formatos de tela: (1) aba Treinamentos → "+ Novo treinamento", escolher "Conteúdo próprio", marcar o evento e salvar — o cartão tem que avisar em amarelo que ele ainda não aparece para ninguém, dizendo o que falta; (2) "✎ Editar conteúdo": escrever a escala, um bloco com algumas afirmações (uma por linha — colar uma lista inteira tem que funcionar) e as patentes; o resumo no topo acompanha o que você digita e mostra a pontuação máxima; (3) deixar de propósito um buraco entre duas faixas de patente e conferir que o resumo acusa — e que o treinamento continua não aparecendo para quem está inscrita; (4) fechar o buraco, salvar, e entrar com uma conta INSCRITA numa turma daquele evento: o treinamento novo aparece no seletor, as afirmações são as dele, a escada de patentes é a dele (não a do Jedi) e a pontuação máxima bate com a escala; (5) responder tudo e revelar: a patente tem que ser a da faixa correspondente; (6) com a conta de admin, abrir um treinamento ainda incompleto e conferir que a própria página do Treinamento explica o que falta, em vez de mostrar um quiz vazio; (7) conferir que o progresso de um treinamento não mexe no outro. O automático equivalente é .github/scripts/teste-treinamento-conteudo.js, que roda desktop e iPhone no CI.' },
     { section: 'Admin',
       title: 'Pedidos — reenquadrar o tipo de um pedido',
       motivo: 'Precisa de um pedido já enviado. A pessoa escolhe o tipo na hora em que escreve, e o tipo certo pode nem existir ainda — foi o que aconteceu com quem pediu para participar das iniciativas do Time quando só havia "Outros". Conferir: (1) "⇄ Mudar tipo" abre a lista com o tipo atual já selecionado; (2) escolher outro e salvar — o selo do pedido muda na hora e ele passa a contar no filtro do tipo novo, e a sair do antigo; (3) o pedido passa a mostrar "⇄ Reenquadrado de X por Fulana", com o SEU nome: mexer no que a pessoa escolheu não pode ficar invisível; (4) reenquadrar uma segunda vez — o "anterior" continua sendo o tipo ORIGINAL, o que a pessoa escolheu, não o do meio do caminho; (5) salvar o MESMO tipo não pode gravar nada nem carimbar um reenquadramento; (6) o texto, o nome de quem enviou e a data do pedido não mudam. O automático equivalente é .github/scripts/teste-pedido-envio.js, que roda desktop e iPhone no CI.' },

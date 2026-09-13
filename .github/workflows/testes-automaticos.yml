@@ -95,6 +95,16 @@ jobs:
           FA_BASE_URL: http://127.0.0.1:8811
         run: node .github/scripts/teste-dashboard-escopo.js
 
+      # Hermético. O conteúdo do treinamento passou a poder ser escrito no
+      # painel. Duas maneiras silenciosas de quebrar a tela de quem responde:
+      # conteúdo pela metade chegando a ela, e a escada de patentes de um
+      # treinamento aparecendo em outro (ela era HTML fixo).
+      - name: Treinamento com conteúdo próprio (desktop e iPhone)
+        env:
+          NODE_PATH: /tmp/pw-deps/node_modules
+          FA_BASE_URL: http://127.0.0.1:8811
+        run: node .github/scripts/teste-treinamento-conteudo.js
+
       # Hermético. A correção de e-mail é o caminho mais arriscado do painel:
       # troca o login da pessoa no Auth e depois move TODOS os dados dela de
       # uma chave para outra. Errar aqui não dá erro na tela — a pessoa só
