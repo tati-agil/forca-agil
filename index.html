@@ -1078,6 +1078,9 @@ body.aguardando-auth>#bootStatus{z-index:900}
       <p class="jb-sub">Responda as 20 afirmações e descubra qual é a sua patente na Ordem Jedi Ágil — de Youngling a Mestre.</p>
     </div>
 
+    <!-- Aviso de conteúdo incompleto — só o admin vê (game.js decide). -->
+    <div class="treino-incompleto" id="treinoIncompleto" hidden></div>
+
     <!-- Droide guia -->
     <div class="guide reveal">
       <div class="guide-droide"><img src="forca-agil/assets/droide.png" alt="Previx, droide guia da Força Ágil" /></div>
@@ -1097,33 +1100,10 @@ body.aguardando-auth>#bootStatus{z-index:900}
       </div>
     </div>
 
-    <!-- Character ladder -->
-    <div class="ladder reveal" id="ladder" style="display:flex;flex-direction:row;gap:12px;flex-wrap:wrap;justify-content:center">
-      <div class="char-card" data-rank="0" style="padding:12px 10px;min-width:120px;max-width:150px">
-        <div class="cc-fig"><svg viewBox="0 0 120 220" width="70" height="128"><use href="#char-0"/></svg></div>
-        <div class="cc-lvl" style="font-size:.6rem">PATENTE 01</div><div class="cc-name" style="font-size:.85rem">Youngling</div>
-        <div class="cc-tag" style="font-size:.7rem">Iniciado na Força</div>
-        <div class="cc-lock"><svg width="14" height="14"><use href="#i-lock"/></svg></div>
-      </div>
-      <div class="char-card" data-rank="1" style="padding:12px 10px;min-width:120px;max-width:150px">
-        <div class="cc-fig"><svg viewBox="0 0 120 220" width="70" height="128"><use href="#char-1"/></svg></div>
-        <div class="cc-lvl" style="font-size:.6rem">PATENTE 02</div><div class="cc-name" style="font-size:.85rem">Padawan</div>
-        <div class="cc-tag" style="font-size:.7rem">Aprendiz Jedi</div>
-        <div class="cc-lock"><svg width="14" height="14"><use href="#i-lock"/></svg></div>
-      </div>
-      <div class="char-card" data-rank="2" style="padding:12px 10px;min-width:120px;max-width:150px">
-        <div class="cc-fig"><svg viewBox="0 0 120 220" width="70" height="128"><use href="#char-2"/></svg></div>
-        <div class="cc-lvl" style="font-size:.6rem">PATENTE 03</div><div class="cc-name" style="font-size:.85rem">Cavaleiro</div>
-        <div class="cc-tag" style="font-size:.7rem">Cavaleiro Jedi</div>
-        <div class="cc-lock"><svg width="14" height="14"><use href="#i-lock"/></svg></div>
-      </div>
-      <div class="char-card" data-rank="3" style="padding:12px 10px;min-width:120px;max-width:150px">
-        <div class="cc-fig"><svg viewBox="0 0 120 220" width="70" height="128"><use href="#char-3"/></svg></div>
-        <div class="cc-lvl" style="font-size:.6rem">PATENTE 04</div><div class="cc-name" style="font-size:.85rem">Mestre</div>
-        <div class="cc-tag" style="font-size:.7rem">Mestre Jedi</div>
-        <div class="cc-lock"><svg width="14" height="14"><use href="#i-lock"/></svg></div>
-      </div>
-    </div>
+    <!-- Character ladder — desenhada por game.js a partir das patentes do
+         treinamento ativo. Era HTML fixo com os quatro nomes Jedi, o que
+         mostrava a escada errada em qualquer treinamento que não fosse ele. -->
+    <div class="ladder reveal" id="charLadder" style="display:flex;flex-direction:row;gap:12px;flex-wrap:wrap;justify-content:center"></div>
 
     <!-- Quiz -->
     <div class="quiz panel reveal" id="quiz">
