@@ -19,17 +19,43 @@
     (window.faGameData ? { jedi: window.faGameData } : {});
 
   /* Conteúdo ativo — trocado ao selecionar outro treinamento. */
-  let BLOCOS = [], LEVELS = [], RANKS = [], TOTAL_AFIRM = 0;
+  let BLOCOS = [], LEVELS = [], RANKS = [], TOTAL_AFIRM = 0, PONTO_MAX = 3;
   let state = { quiz: [], revealed: false };
   let DISPONIVEIS = [];
   let TREINO_ATIVO = null;
+  /* Conteúdos criados no painel, lidos de treinamentos-conteudo/<treinoKey>. */
+  let CONTEUDOS_BANCO = {};
 
-  function aplicarConteudo(conteudoKey) {
-    const c = CATALOGO[conteudoKey] || window.faGameData || {};
+  const CONTRATO = window.faTreinoConteudo || null;
+
+  /* O conteúdo vem de dois lugares — do catálogo em código (conteudoKey) ou
+     do banco, criado no painel (o treinamento sem conteudoKey). Os dois saem
+     daqui pelo mesmo formato, passando pelo mesmo normalizador, para o resto
+     da página não precisar saber de onde veio. */
+  function conteudoDe(t) {
+    const bruto = (t && t.conteudoKey)
+      ? (CATALOGO[t.conteudoKey] || window.faGameData || {})
+      : (CONTEUDOS_BANCO[t && t.key] || {});
+    if (!CONTRATO) {
+      return { BLOCOS: bruto.BLOCOS || [], LEVELS: bruto.LEVELS || [], RANKS: bruto.RANKS || [], PONTO_MAX: 3 };
+    }
+    /* O conteúdo do código já vem no formato final; o do banco usa nomes em
+       minúsculas (blocos/levels/ranks) porque é assim que fica gravado. */
+    return (t && t.conteudoKey)
+      ? CONTRATO.normalizar({ blocos: bruto.BLOCOS, levels: bruto.LEVELS, ranks: bruto.RANKS })
+      : CONTRATO.normalizar(bruto);
+  }
+
+  function aplicarConteudoResolvido(c) {
     BLOCOS = c.BLOCOS || [];
     LEVELS = c.LEVELS || [];
     RANKS  = c.RANKS  || [];
+    PONTO_MAX = typeof c.PONTO_MAX === 'number' ? c.PONTO_MAX : Math.max(0, LEVELS.length - 1);
     TOTAL_AFIRM = BLOCOS.reduce((acc, b) => acc + ((b.afirmacoes || []).length), 0);
+  }
+
+  function aplicarConteudo(conteudoKey) {
+    aplicarConteudoResolvido(conteudoDe({ conteudoKey: conteudoKey }));
   }
 
   function emailKey(email) {
@@ -161,6 +187,32 @@
     });
   }
 
+  /* A escada de patentes era HTML fixo no index.html, com os quatro nomes
+     Jedi escritos à mão. Isso já estava errado no dia em que o treinamento
+     deixou de ser um só: outro conteúdo mostrava as afirmações dele e a
+     escada do Jedi. Agora ela sai dos dados do treinamento ativo — é o que
+     também permite patente criada no painel. */
+  function desenharEscada() {
+    const trilha = document.getElementById('charLadder');
+    if (!trilha) return;
+    const assinatura = RANKS.map(r => r.id + '|' + r.name + '|' + r.sym).join('§');
+    if (trilha.dataset.assinatura === assinatura) return;  /* nada mudou */
+    trilha.dataset.assinatura = assinatura;
+    trilha.innerHTML = RANKS.map((r, i) =>
+      '<div class="char-card" data-rank="' + i + '" style="padding:12px 10px;min-width:120px;max-width:150px">' +
+        '<div class="cc-fig"><svg viewBox="0 0 120 220" width="70" height="128"><use href="' + esc(r.sym || '#char-0') + '"/></svg></div>' +
+        '<div class="cc-lvl" style="font-size:.6rem">PATENTE ' + (i + 1 < 10 ? '0' : '') + (i + 1) + '</div>' +
+        '<div class="cc-name" style="font-size:.85rem">' + esc(r.name) + '</div>' +
+        '<div class="cc-tag" style="font-size:.7rem">' + esc(r.tag || '') + '</div>' +
+        '<div class="cc-lock"><svg width="14" height="14"><use href="#i-lock"/></svg></div>' +
+      '</div>').join('');
+  }
+
+  function esc(v) {
+    return String(v == null ? '' : v).replace(/[&<>"]/g, c => ({
+      '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+  }
+
   // ---- Render ----
   function render() {
     const done = quizDone();
@@ -183,6 +235,7 @@
     if (hudTag)  hudTag.textContent  = rank.tag || '';
 
     // ladder cards
+    desenharEscada();
     document.querySelectorAll('.char-card').forEach(card => {
       const i = +card.dataset.rank;
       card.classList.toggle('active', i === ri);
@@ -217,7 +270,7 @@
     quizResult.innerHTML =
       '<div class="diag-result">' +
         '<svg class="diag-result-img" viewBox="0 0 120 220"><use href="' + (rank.sym || '#char-0') + '"/></svg>' +
-        '<div class="diag-result-score">' + score + '<span>/' + (TOTAL_AFIRM * 3) + '</span></div>' +
+        '<div class="diag-result-score">' + score + '<span>/' + (TOTAL_AFIRM * PONTO_MAX) + '</span></div>' +
         '<div class="diag-result-rank">' + rank.icon + ' ' + rank.name + ' — ' + rank.tag + '</div>' +
         '<div class="diag-result-desc">' + rank.desc + '</div>' +
         '<ul class="diag-result-carac">' + (rank.carac || []).map(c => '<li>' + c + '</li>').join('') + '</ul>' +
@@ -239,7 +292,15 @@
     const sess = window.faAuth && window.faAuth.getSession && window.faAuth.getSession();
     if (!sess || !window.firebase || !firebase.database) { cb([], false); return; }
 
-    firebase.database().ref('treinamentos').once('value').then(function (tSnap) {
+    Promise.all([
+      firebase.database().ref('treinamentos').once('value'),
+      /* Conteúdo criado no painel. Vem junto porque a lista de treinamentos
+         disponíveis depende dele: treinamento sem conteúdo utilizável não
+         pode ser oferecido a quem vai responder. */
+      firebase.database().ref('treinamentos-conteudo').once('value').catch(function () { return null; }),
+    ]).then(function (res) {
+      const tSnap = res[0];
+      CONTEUDOS_BANCO = (res[1] && res[1].val && res[1].val()) || {};
       const todos = tSnap.val() || {};
       const lista = Object.keys(todos).map(function (k) {
         const t = todos[k] || {};
@@ -253,6 +314,20 @@
          nenhum é dos eventos dela" — o primeiro caso não pode tirar acesso
          de quem já tinha. */
       if (!lista.length) { cb([], true); return; }
+
+      /* Conteúdo pela metade não chega a quem responde. Um treinamento criado
+         no painel nasce vazio — é assim que se cria — e entre criar e terminar
+         de escrever as afirmações existe uma janela em que ele já está ligado
+         a um evento. Oferecer ali é entregar um quiz sem pergunta, ou um
+         resultado sem patente: a pessoa responde tudo e não recebe nada, sem
+         nenhum erro na tela. O painel mostra exatamente o que falta. */
+      const prontos = lista.filter(function (t) {
+        if (!CONTRATO) return true;
+        return !CONTRATO.problemas(conteudoDe(t)).length;
+      });
+
+      /* Admin vê todos, inclusive os que ainda não estão prontos: é quem
+         precisa revisar antes de liberar — e é quem consegue consertar. */
       if (window.faAuth.isAdmin && window.faAuth.isAdmin(sess.email)) { cb(lista, false); return; }
 
       const uKey = emailKey(sess.email);
@@ -271,7 +346,7 @@
             const ev = turmas[tk] && turmas[tk].eventoKey;
             if (ev) meusEventos[ev] = true;
           });
-          cb(lista.filter(function (t) {
+          cb(prontos.filter(function (t) {
             return Object.keys(t.eventos).some(function (ev) {
               return t.eventos[ev] && meusEventos[ev];
             });
@@ -310,11 +385,33 @@
     const t = DISPONIVEIS.filter(function (x) { return x.key === key; })[0];
     if (!t) return;
     TREINO_ATIVO = t.key;
-    aplicarConteudo(t.conteudoKey);
+    aplicarConteudoResolvido(conteudoDe(t));
     buildQuiz();
     carregarEstado();
     render();
     renderSeletor();
+    avisarConteudoIncompleto(t);
+  }
+
+  /* O admin é o único que enxerga um treinamento ainda incompleto, e
+     precisa saber POR QUE ele não chegou a ninguém — senão a conclusão
+     natural é que o site está quebrado, e não que falta escrever o
+     conteúdo. A mesma lista de problemas que o painel mostra. */
+  function avisarConteudoIncompleto(t) {
+    const box = $('treinoIncompleto');
+    if (!box) return;
+    const sess = window.faAuth && window.faAuth.getSession && window.faAuth.getSession();
+    const isAdmin = !!(sess && window.faAuth.isAdmin && window.faAuth.isAdmin(sess.email));
+    const faltas = (CONTRATO && isAdmin) ? CONTRATO.problemas(conteudoDe(t)) : [];
+    if (!faltas.length) { box.hidden = true; box.innerHTML = ''; return; }
+    box.hidden = false;
+    box.innerHTML =
+      '<strong>Este treinamento ainda não está pronto</strong> — só você, como admin, está vendo. ' +
+      'Quem está inscrita não vê enquanto faltar: ' +
+      '<ul class="treino-incompleto-lista">' +
+        faltas.map(f => '<li>' + esc(f) + '</li>').join('') +
+      '</ul>' +
+      '<span class="treino-incompleto-onde">Painel Admin → aba Treinamentos → ✎ Editar conteúdo.</span>';
   }
 
   // ---- Welcome / sem acesso / conteúdo -----------------------------------
@@ -398,6 +495,9 @@
   };
   /* Usado pelos testes: qual treinamento está sendo respondido agora. */
   window.faGameTreinamentoAtivo = function () { return TREINO_ATIVO; };
+  /* Usado pelos testes: as patentes do conteúdo ativo, que são as que a
+     escada tem que estar mostrando. */
+  window.faGamePatentes = function () { return RANKS.slice(); };
 
   /* Primeira pintura antes da resposta do banco: sem treinamento resolvido
      ainda, usa o conteúdo padrão só para o DOM não nascer vazio. */

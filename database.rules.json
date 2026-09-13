@@ -107,6 +107,13 @@
       }
     },
 
+    "treinamentos-conteudo": {
+      ".read": "auth != null && auth.token.email.matches(/.*@previ\\.com\\.br/)",
+      "$treinamentoKey": {
+        ".write": "auth != null && auth.token.email.matches(/.*@previ\\.com\\.br/)"
+      }
+    },
+
     "turmas-interesse": {
       ".read": "auth != null && auth.token.email.matches(/.*@previ\\.com\\.br/)",
       "$turmaKey": {

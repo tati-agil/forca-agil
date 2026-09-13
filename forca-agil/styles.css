@@ -1035,6 +1035,16 @@ html:not(.js) .reveal { opacity: 1 !important; transform: none !important; }
 
 /* Character ladder */
 .ladder { display:grid; grid-template-columns: repeat(4,1fr); gap:14px; margin-top: 22px; }
+/* Aviso de treinamento ainda sem conteúdo — só o admin enxerga. */
+.treino-incompleto {
+  margin: 0 auto 20px; max-width: 760px; padding: 14px 18px; border-radius: 10px;
+  background: rgba(245,166,35,.1); border: 1px solid rgba(245,166,35,.45);
+  color: var(--ink-2); font-size: .86rem; line-height: 1.5;
+}
+.treino-incompleto strong { color: var(--accent); }
+.treino-incompleto-lista { margin: 8px 0 6px; padding-left: 20px; }
+.treino-incompleto-onde { display: block; font-size: .78rem; color: var(--ink-3); font-family: var(--font-mono); }
+
 .char-card { position:relative; text-align:center; padding: 20px 12px 18px; border-radius:14px; border:1px solid var(--line); background: linear-gradient(180deg,var(--panel),var(--panel-2)); transition: transform .25s var(--ease), border-color .25s, box-shadow .25s, opacity .3s; }
 .char-card .cc-fig { height: 152px; display:grid; place-items:center; }
 .char-card .cc-fig svg { width: 84px; height: 152px; transition: filter .3s, transform .3s; }
