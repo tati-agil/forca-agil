@@ -56,6 +56,17 @@ jobs:
           FA_BASE_URL: http://127.0.0.1:8811
         run: node .github/scripts/teste-publico-restrito-evento.js
 
+      # Hermético. Não existia critério pra ordem de exibição quando a
+      # pessoa é destinatária de mais de uma oferta ao mesmo tempo — tudo
+      # saía só na ordem manual do admin. O que é mais exclusivo PARA QUEM
+      # está vendo (só-diretores, depois lista restrita da qual ela faz
+      # parte) agora vem antes do que é aberto a todo mundo.
+      - name: Ordem da vitrine por exclusividade para quem vê (desktop e iPhone)
+        env:
+          NODE_PATH: /tmp/pw-deps/node_modules
+          FA_BASE_URL: http://127.0.0.1:8811
+        run: node .github/scripts/teste-ordem-vitrine.js
+
       # Hermético também. Regra: depois de tocar em "Enviar pedido", alguma
       # coisa SEMPRE muda na tela. A regressão de 11/09/2026 era justamente o
       # contrário — botão desabilitado com cara de botão vivo, toque engolido,
