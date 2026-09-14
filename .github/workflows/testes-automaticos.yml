@@ -95,6 +95,18 @@ jobs:
           FA_BASE_URL: http://127.0.0.1:8811
         run: node .github/scripts/teste-dashboard-escopo.js
 
+      # Hermético. Minha Área: contagem de turmas por fase e lista de espera
+      # por evento. Um selo "1" sozinho ao lado de "Em andamento" não diz o
+      # que conta; e quem espera por mais de um evento via só UM cartão
+      # genérico (fa-espera guarda uma entrada por evento, a tela só lia a
+      # mais antiga) — os outros somem em silêncio, sem dizer nem que
+      # existem.
+      - name: Minha Área — contagens e lista de espera por evento (desktop e iPhone)
+        env:
+          NODE_PATH: /tmp/pw-deps/node_modules
+          FA_BASE_URL: http://127.0.0.1:8811
+        run: node .github/scripts/teste-minha-area-fila.js
+
       # Hermético. O conteúdo do treinamento passou a poder ser escrito no
       # painel. Duas maneiras silenciosas de quebrar a tela de quem responde:
       # conteúdo pela metade chegando a ela, e a escada de patentes de um

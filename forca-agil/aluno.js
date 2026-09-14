@@ -207,22 +207,25 @@
     return out.sort(function (a, b) { return (a.label || '').localeCompare(b.label || '', 'pt'); });
   }
 
-  /* Registro da pessoa na lista de espera, se houver */
-  function meuRegistroEspera(d, uKey) {
-    /* A fila guarda uma entrada por ORIGEM — quem passou por duas turmas tem
-       duas. Para a pessoa o que importa é desde quando ela espera, então
-       vale a mais antiga. */
+  /* Registros da pessoa na lista de espera — TODOS os ativos, um por
+     ORIGEM (evento em que ela clicou "Entrar na lista de espera", ou turma
+     de onde saiu e foi migrada pra espera). Antes só devolvia o mais
+     antigo e sem dizer de qual evento: quem espera por mais de um evento
+     via só "Você está na lista de espera", sem saber quais — e quem espera
+     por um só via a mesma frase igualmente muda, sem nome nenhum. Cada
+     entrada carrega eventoKey desde que passou a existir uma origem por
+     evento (ver ORIGEM_DIRETA em turmas-util.js); resolvido aqui pro nome
+     aparecer na tela. */
+  function meusRegistrosEspera(d, uKey) {
     var ativas = window.faTurmasUtil.esperaAtivas(d.espera[uKey]);
-    if (!ativas.length) return null;
-    ativas.sort(function (a, b) {
-      return String(a.date || a.migratedAt || '').localeCompare(String(b.date || b.migratedAt || ''));
-    });
-    var reg = ativas[0];
-    var origem = !window.faTurmasUtil.ehOrigemDireta(reg._origem) ? reg._origem : '';
-    return {
-      desde: reg.date || reg.migratedAt || '',
-      veioDe: origem ? ((d.turmas[origem] || {}).label || origem) : '',
-    };
+    return ativas.map(function (reg) {
+      var origemTurma = !window.faTurmasUtil.ehOrigemDireta(reg._origem) ? reg._origem : '';
+      return {
+        desde: reg.date || reg.migratedAt || '',
+        evento: reg.eventoKey ? (d.eventos[reg.eventoKey] || {}) : {},
+        veioDe: origemTurma ? ((d.turmas[origemTurma] || {}).label || origemTurma) : '',
+      };
+    }).sort(function (a, b) { return String(a.desde || '').localeCompare(String(b.desde || '')); });
   }
 
   /* Turmas em que ainda dá para manifestar interesse — a vitrine de quem
@@ -408,20 +411,24 @@
     }
     var turmas    = minhasTurmas(d, uKey);
     var pendentes = interessesPendentes(d, uKey);
-    var espera    = meuRegistroEspera(d, uKey);
+    var espera    = meusRegistrosEspera(d, uKey);
     var html = '';
 
     if (turmas.length) {
       html += '<h3 class="aluno-sec-title">Minhas turmas</h3>';
       /* Ordem pensada pela ação que cada grupo exige: primeiro o que
          está acontecendo agora, depois o que vai acontecer, por último
-         o histórico. */
+         o histórico. O selo ao lado do título é a contagem de turmas
+         NAQUELE grupo — escreve "turma"/"turmas" por extenso (não só o
+         número solto) porque um número sozinho ao lado de um título não
+         diz o que está contando, e no celular não existe hover pra
+         explicar com title. */
       [['andamento',  'Em andamento'],
        ['programada', 'Programadas'],
        ['concluida',  'Concluídas']].forEach(function (g) {
         var doGrupo = turmas.filter(function (t) { return t.fase === g[0]; });
         if (!doGrupo.length) return;
-        html += '<h4 class="aluno-grupo">' + g[1] + ' <span class="aluno-grupo-qtd">' + doGrupo.length + '</span></h4>';
+        html += '<h4 class="aluno-grupo">' + g[1] + ' <span class="aluno-grupo-qtd">' + doGrupo.length + ' turma' + (doGrupo.length !== 1 ? 's' : '') + '</span></h4>';
         html += '<div class="aluno-turmas">';
         doGrupo.forEach(function (t, i) { html += cardTurma(t, i); });
         html += '</div>';
@@ -448,23 +455,35 @@
       html += '</div>';
     }
 
-    if (espera) {
+    if (espera.length) {
+      /* Uma origem por evento — quem espera por mais de um tinha só UM
+         cartão genérico ("Você está na lista de espera", sem dizer qual),
+         e via só o mais antigo: os outros somem em silêncio. Agora é um
+         cartão por espera, cada um dizendo o nome do evento — sem isso a
+         pessoa não tem como saber do que está esperando, nem quantas
+         filas ocupa. */
       html += '<h3 class="aluno-sec-title">Lista de espera</h3>';
-      html += '<div class="aluno-card aluno-card--info">' +
-        '<div class="aluno-card-head">' +
-          '<h3 class="aluno-card-title">Você está na lista de espera</h3>' +
-          '<span class="aluno-badge aluno-badge--espera">Na fila</span>' +
-        '</div>' +
-        '<p class="aluno-info-msg">🕒 Registrado' +
-          (espera.desde ? ' desde ' + new Date(espera.desde).toLocaleDateString('pt-BR') : '') +
-          (espera.veioDe ? ', vindo da ' + esc(espera.veioDe) : '') +
-          '. Assim que abrir vaga em uma próxima turma, a organização entra em contato.</p>' +
-      '</div>';
+      html += '<div class="aluno-turmas">';
+      espera.forEach(function (e) {
+        var titulo = e.evento.nome ? esc(e.evento.nome) : 'Evento';
+        html += '<div class="aluno-card aluno-card--info">' +
+          '<div class="aluno-card-head">' +
+            '<h3 class="aluno-card-title">' + titulo + '</h3>' +
+            '<span class="aluno-badge aluno-badge--espera">Na fila</span>' +
+          '</div>' +
+          (e.evento.cargaHoraria ? '<p class="aluno-card-sub">' + esc(e.evento.cargaHoraria) + 'h</p>' : '') +
+          '<p class="aluno-info-msg">🕒 Você está na lista de espera' +
+            (e.desde ? ' desde ' + new Date(e.desde).toLocaleDateString('pt-BR') : '') +
+            (e.veioDe ? ', depois de sair da ' + esc(e.veioDe) : '') +
+            '. Assim que abrir vaga em uma próxima turma deste evento, a organização entra em contato.</p>' +
+        '</div>';
+      });
+      html += '</div>';
     }
 
     /* Nada em nenhum dos três estados acima: a pessoa nunca interagiu.
        Em vez de uma frase de "nada aqui", mostra por onde começar. */
-    if (!turmas.length && !pendentes.length && !espera) {
+    if (!turmas.length && !pendentes.length && !espera.length) {
       var abertas = turmasAbertas(d, email);
       html += '<h3 class="aluno-sec-title">Bem-vindo!</h3>';
       html += '<div class="aluno-card aluno-card--info">' +
