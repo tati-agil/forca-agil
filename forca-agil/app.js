@@ -462,17 +462,50 @@
       return !!(porEvento[ev.key] && porEvento[ev.key].length) || !!ev.esperaAtiva;
     }
 
+    /* Ordem de exibição por quão exclusivo cada evento/turma é PARA QUEM
+       está vendo a tela — não existia critério nenhum antes disto, então
+       tudo saía só na ordem manual do admin (o campo "order"), mesmo quando
+       a pessoa era destinatária de mais de uma oferta ao mesmo tempo. Pedido:
+       uma diretora deve ver primeiro o que é feito especificamente para
+       diretores, depois o que é restrito a uma lista da qual ela faz parte,
+       e só por último o que é aberto a todo mundo — a oferta mais dirigida a
+       ELA vem primeiro.
+
+       Só entram aqui evento/turma já visíveis (eventoNaVitrine/turmaVisivelPara
+       já filtraram antes) — então "publicoRestrito" aqui já significa "e a
+       pessoa está na lista", nunca precisa reconferir a lista de novo.
+       "order" continua valendo como critério de desempate DENTRO do mesmo
+       nível de exclusividade (Array.prototype.sort é estável), preservando
+       a curadoria manual do admin onde não há motivo pra mudar.
+
+       Não existe "só para diretores" no nível de turma (só de evento) — por
+       isso a turma usa só dois níveis; o evento usa três. */
+    function prioridadeEvento(ev, souDiretor) {
+      if (ev.restritoADiretores && souDiretor) return 0;
+      if (ev.publicoRestrito) return 1;
+      return 2;
+    }
+    function prioridadeTurma(t) {
+      return t.publicoRestrito ? 0 : 1;
+    }
+
     function renderTurmasGrid() {
       var host = document.querySelector('.turmas-eventos');
       if (!host) return;
       var agora = new Date();
       var hoje = agora.getFullYear() + '-' + String(agora.getMonth() + 1).padStart(2, '0') + '-' + String(agora.getDate()).padStart(2, '0');
+      var email = _sess && _sess.email;
+      var souDiretor = !!(email && window.faAuth && window.faAuth.isDiretor(email));
+      _eventosList.sort(function (a, b) { return prioridadeEvento(a, souDiretor) - prioridadeEvento(b, souDiretor); });
       var porEvento = {};
       var semEvento = [];
       _turmasList.forEach(function (t) {
         if (!turmaVisivelPara(t)) return;
         if (t.eventoKey) (porEvento[t.eventoKey] = porEvento[t.eventoKey] || []).push(t);
         else semEvento.push(t);
+      });
+      Object.keys(porEvento).forEach(function (ek) {
+        porEvento[ek].sort(function (a, b) { return prioridadeTurma(a) - prioridadeTurma(b); });
       });
 
       var html = '';
