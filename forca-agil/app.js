@@ -563,6 +563,17 @@
         if (t.eventoKey) (porEvento[t.eventoKey] = porEvento[t.eventoKey] || []).push(t);
       });
 
+      /* Com um evento só, o bloco abre sozinho — comportamento de sempre.
+         Com dois ou mais, cada um nasce fechado: o resumo ("Sobre X") já é
+         o divisor entre um evento e outro, sem precisar rolar por um bloco
+         inteiro (Missão + Como funciona + Plano de voo) pra saber que já
+         acabou o de cima e começou o de baixo. */
+      var comConteudo = _eventosList.filter(function (ev) {
+        if (!eventoNaVitrine(ev, porEvento)) return false;
+        return !!(ev.missaoTexto || ev.topicos || (ev.itinerario || []).length);
+      });
+      var abreSozinho = comConteudo.length === 1;
+
       _eventosList.forEach(function (ev) {
         var host = document.querySelector('.turmas-evento-grupo[data-evento-key="' + ev.key + '"] .turmas-evento-missao');
         if (!host) return;
@@ -577,7 +588,12 @@
           horasPorDia = (Number.isInteger(h) ? h : h.toFixed(1)) + 'h';
         }
 
-        html += '<div class="divider"><svg width="14" height="14"><use href="#i-mark"/></svg></div>';
+        html += '<details class="turmas-missao"' + (abreSozinho ? ' open' : '') + '>';
+        html += '<summary class="turmas-missao-summary">' +
+          '<svg class="turmas-missao-summary-icone" width="14" height="14"><use href="#i-mark"/></svg>' +
+          '<span class="turmas-missao-summary-texto">Sobre ' + ev.nome + '</span>' +
+          '<svg class="turmas-missao-chev" width="14" height="14" viewBox="0 0 14 14"><polyline points="2,4 7,10 12,4" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>' +
+          '</summary>';
         html += '<section class="section">';
         html += '<div class="reveal in"><span class="eyebrow">A Missão</span>' +
           '<h3 class="sec-title">' + (ev.missaoTitulo ? 'A <span class="glow-gold">' + ev.missaoTitulo + '</span>' : ev.nome) + '</h3>';
@@ -637,6 +653,7 @@
         }
 
         html += '</section>';
+        html += '</details>';
         host.innerHTML = html;
       });
     }
