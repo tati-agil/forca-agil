@@ -59,15 +59,22 @@
      nunca existiu: o resultado era vazio no card e, pior, no certificado
      baixado aqui, que saía sem o período. O mesmo certificado emitido
      pelo painel vinha correto — daí a divergência entre as duas telas. */
-  function textoDatas(dias) {
+  function textoDatas(dias, comRotulo) {
     if (!dias || !dias.length) return '';
+    var texto;
     if (window.faTurmasUtil && window.faTurmasUtil.formatDias) {
       var f = window.faTurmasUtil.formatDias(dias.slice().sort());
-      if (f && f.dates) return f.dates;
+      texto = f && f.dates;
     }
     /* Reserva: se o utilitário não estiver disponível, ainda é melhor
        mostrar os dias do que deixar o certificado sem período. */
-    return dias.slice().sort().map(function (d) { return String(d).split('-')[2]; }).join(', ');
+    if (!texto) texto = dias.slice().sort().map(function (d) { return String(d).split('-')[2]; }).join(', ');
+    if (!comRotulo) return texto; /* período do certificado: formato de sempre, sem rótulo */
+    /* Pra tela ("Encontros: 22"), o número sozinho não lê como dia — com uma
+       data só falta a vírgula/"e" que, com duas ou mais, já dá a pista de
+       lista. "dia"/"dias" na frente resolve os dois casos com a mesma regra
+       (mesmo raciocínio do card da página Turmas, ver app.js). */
+    return (dias.length === 1 ? 'dia ' : 'dias ') + texto;
   }
 
   function todayISO() {
@@ -165,6 +172,7 @@
         key: tk,
         label: turma.label || tk,
         datas: textoDatas(turma.dias),
+        datasRotuladas: textoDatas(turma.dias, true),
         dias: dias,
         presentes: presentes,
         freq: freq,
@@ -199,6 +207,7 @@
         key: tk,
         label: turma.label || tk,
         datas: textoDatas(turma.dias),
+        datasRotuladas: textoDatas(turma.dias, true),
         evento: evento,
         desde: reg.date || '',
         encerrada: !!cfg.encerrada,
@@ -282,6 +291,7 @@
         publico: (d.publico || {})[tk] || {},
         label: turma.label || tk,
         datas: textoDatas(turma.dias),
+        datasRotuladas: textoDatas(turma.dias, true),
         inicio: dias[0] || '',
         encerrada: !!cfg.encerrada,
         interesseEncerrado: !!cfg.finalizada,
@@ -341,7 +351,7 @@
          '</summary>';
     h += '<div class="aluno-card-corpo">';
     if (t.evento.nome) h += '<p class="aluno-card-sub">' + esc(t.evento.nome) + (t.evento.cargaHoraria ? ' · ' + esc(t.evento.cargaHoraria) + 'h' : '') + '</p>';
-    if (t.datas) h += '<p class="aluno-card-sub">Encontros: ' + esc(t.datas) + '</p>';
+    if (t.datas) h += '<p class="aluno-card-sub">Encontros: ' + esc(t.datasRotuladas) + '</p>';
 
     /* Turma programada: ainda não começou. Mostrar frequência 0% aqui daria
        a impressão de que a pessoa faltou a tudo — então o bloco de
@@ -484,7 +494,7 @@
             '<span class="aluno-badge aluno-badge--analise">Em análise</span>' +
           '</div>' +
           (p.evento.nome ? '<p class="aluno-card-sub">' + esc(p.evento.nome) + '</p>' : '') +
-          (p.datas ? '<p class="aluno-card-sub">Encontros: ' + esc(p.datas) + '</p>' : '') +
+          (p.datas ? '<p class="aluno-card-sub">Encontros: ' + esc(p.datasRotuladas) + '</p>' : '') +
           '<p class="aluno-info-msg">⏳ Interesse registrado' +
             (p.desde ? ' em ' + new Date(p.desde).toLocaleDateString('pt-BR') : '') +
             '. A confirmação da vaga é feita pela organização — quando ela sair, esta turma passa para “Minhas turmas” com sua frequência e o certificado.</p>' +
@@ -532,7 +542,7 @@
         abertas.forEach(function (t) {
           html += '<li><strong>' + esc(t.label) + '</strong>' +
                   (t.evento.nome ? ' — ' + esc(t.evento.nome) : '') +
-                  (t.datas ? ' <span class="aluno-abertas-data">(' + esc(t.datas) + ')</span>' : '') + '</li>';
+                  (t.datas ? ' <span class="aluno-abertas-data">(' + esc(t.datasRotuladas) + ')</span>' : '') + '</li>';
         });
         html += '</ul>';
       } else {

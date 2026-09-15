@@ -67,6 +67,17 @@ jobs:
           FA_BASE_URL: http://127.0.0.1:8811
         run: node .github/scripts/teste-publico-restrito-incluir-todos.js
 
+      # Hermético. Selo/botão de público restrito usava o MESMO texto pro
+      # evento e pra turma — uma turma restrita mostra 1 elemento (o dela),
+      # um evento restrito mostra 2 (selo + botão), e sem dizer "do evento"
+      # ou "desta turma" dava pra empilhar até 3 menções idênticas sem saber
+      # qual era qual.
+      - name: Público restrito — selo e botão dizem de qual nível são (evento ou turma)
+        env:
+          NODE_PATH: /tmp/pw-deps/node_modules
+          FA_BASE_URL: http://127.0.0.1:8811
+        run: node .github/scripts/teste-publico-restrito-rotulo-nivel.js
+
       # Hermético. Não existia critério pra ordem de exibição quando a
       # pessoa é destinatária de mais de uma oferta ao mesmo tempo — tudo
       # saía só na ordem manual do admin. O que é mais exclusivo PARA QUEM
@@ -128,6 +139,16 @@ jobs:
           NODE_PATH: /tmp/pw-deps/node_modules
           FA_BASE_URL: http://127.0.0.1:8811
         run: node .github/scripts/teste-minha-area-fila.js
+
+      # Hermético. Turma de encontro único mostrava "Encontros: 22" — sem a
+      # vírgula/"e" que uma lista de datas dá de graça, o número sozinho lia
+      # como se "Encontros" fosse uma contagem (22 encontros!), não uma
+      # data. Mesma classe de bug já corrigida no card da página Turmas.
+      - name: "Minha Área — dia do mês sempre rotulado, singular e plural (desktop e iPhone)"
+        env:
+          NODE_PATH: /tmp/pw-deps/node_modules
+          FA_BASE_URL: http://127.0.0.1:8811
+        run: node .github/scripts/teste-minha-area-dia-rotulo.js
 
       # Hermético. O conteúdo do treinamento passou a poder ser escrito no
       # painel. Duas maneiras silenciosas de quebrar a tela de quem responde:

@@ -655,7 +655,7 @@
             var publico      = _publicoPorTurma[t.key] || {};
             var noPublico    = Object.keys(publico).length;
             var restritoBadge = t.publicoRestrito
-              ? '<span class="turma-status-badge badge-restrito">&#x1F465; PÚBLICO RESTRITO · ' + noPublico + '</span>'
+              ? '<span class="turma-status-badge badge-restrito">&#x1F465; PÚBLICO RESTRITO DESTA TURMA · ' + noPublico + '</span>'
               : '';
             hdr.innerHTML =
               '<div class="turma-admin-title" style="cursor:pointer;user-select:none">' +
@@ -840,7 +840,7 @@
               var publicoBtn = document.createElement('button');
               publicoBtn.className = 'btn btn--sm';
               publicoBtn.style.cssText = 'padding:6px 10px;font-size:.72rem;border-color:rgba(138,127,255,.5);color:#a99dff';
-              publicoBtn.innerHTML = '&#x1F465; Público restrito';
+              publicoBtn.innerHTML = '&#x1F465; Público restrito desta turma';
               publicoBtn.addEventListener('click', (function (tt) {
                 return function () { openPublicoModal({ tipo: 'turma', key: tt.key, label: tt.label }); };
               })(t));
@@ -1111,7 +1111,7 @@
 
             /* cabeçalho do evento — clicável para expandir/recolher */
             var evHdr = document.createElement('div');
-            evHdr.style.cssText = 'display:flex;align-items:center;gap:12px;padding:14px 18px;background:var(--panel-2);border-bottom:1px solid var(--line-strong);cursor:pointer;user-select:none;border-radius:8px 8px 0 0';
+            evHdr.style.cssText = 'display:flex;align-items:center;flex-wrap:wrap;gap:12px;padding:14px 18px;background:var(--panel-2);border-bottom:1px solid var(--line-strong);cursor:pointer;user-select:none;border-radius:8px 8px 0 0';
             var evToggleIcon = document.createElement('span');
             evToggleIcon.className = 'ev-toggle-icon';
             evToggleIcon.style.cssText = 'color:var(--ink-2);font-size:.85rem;flex-shrink:0;transition:transform .15s';
@@ -1174,7 +1174,7 @@
             if (ev.publicoRestrito) {
               var noPublicoEv = Object.keys(_publicoPorEvento[ev.key] || {}).length;
               var evPub = document.createElement('span');
-              evPub.textContent = '\u{1F465} público restrito · ' + noPublicoEv;
+              evPub.textContent = '\u{1F465} público restrito do evento · ' + noPublicoEv;
               evPub.title = 'Este evento só aparece na página Turmas, e só admite participantes, para quem está na lista dele. Vale para todas as turmas do evento.';
               evPub.style.cssText = 'flex-shrink:0;font-family:var(--font-mono);font-size:.62rem;letter-spacing:.08em;' +
                 'text-transform:uppercase;color:#a99dff;border:1px solid rgba(138,127,255,.5);' +
@@ -1187,7 +1187,7 @@
               var evPublicoBtn = document.createElement('button');
               evPublicoBtn.className = 'btn btn--sm';
               evPublicoBtn.style.cssText = 'padding:4px 10px;font-size:.72rem;border-color:rgba(138,127,255,.5);color:#a99dff';
-              evPublicoBtn.innerHTML = '&#x1F465; Público restrito';
+              evPublicoBtn.innerHTML = '&#x1F465; Público restrito do evento';
               evPublicoBtn.title = 'Quem pode ver e participar deste evento';
               evPublicoBtn.addEventListener('click', (function (ee) {
                 return function (e) { e.stopPropagation(); openPublicoModal({ tipo: 'evento', key: ee.key, label: ee.nome }); };
@@ -3158,7 +3158,7 @@
     box.style.cssText = 'max-width:560px;width:92%;padding:28px;display:flex;flex-direction:column;gap:16px;max-height:85vh;overflow:auto';
     box.innerHTML =
       '<h3 style="font-size:1.1rem;font-family:var(--font-head);letter-spacing:.05em;color:var(--ink)">' +
-        '&#x1F465; Público restrito &mdash; ' + esc(alvo.label) + '</h3>' +
+        '&#x1F465; Público restrito ' + (ehEvento ? 'do evento' : 'da turma') + ' &mdash; ' + esc(alvo.label) + '</h3>' +
       '<p style="font-size:.82rem;color:var(--ink-3);margin:0;line-height:1.6">' +
         alcance + ' Remover daqui não remove ninguém da turma.</p>' +
       '<div id="pubBody"><div class="loading-bloco"><p class="loading-msg">Carregando…</p></div></div>' +
