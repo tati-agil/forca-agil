@@ -300,8 +300,13 @@
    de bloco sempre aberto. Com um evento só ele nasce aberto (nada muda pra
    quem só vê um); com dois ou mais, o resumo recolhido já É o divisor entre
    um evento e outro — não precisa rolar Missão+Como funciona+Plano de voo
-   inteiros pra notar que trocou de evento. */
-.turmas-missao { border: 1px solid var(--line-strong); border-radius: 12px; margin-top: 40px; overflow: hidden; }
+   inteiros pra notar que trocou de evento.
+
+   Fica ANTES da grade de turmas (logo após o título do evento), não depois:
+   com vários cards de turma mais o card de espera, o resumo sobrando embaixo
+   de uma pilha de cards parecia uma tira solta. Como resumo do evento, o
+   lugar dele é junto do título — a grade (o que tem ação) fecha a seção. */
+.turmas-missao { border: 1px solid var(--line-strong); border-radius: 12px; margin-bottom: 32px; overflow: hidden; }
 .turmas-missao-summary {
   display: flex; align-items: center; gap: 12px; padding: 16px 22px;
   background: var(--panel-2); cursor: pointer; list-style: none; user-select: none;
@@ -318,7 +323,7 @@
 .turmas-missao[open] .turmas-missao-chev { transform: rotate(180deg); }
 .turmas-missao .section { padding-left: var(--pad-x); padding-right: var(--pad-x); }
 @media (max-width: 800px) {
-  .turmas-missao { margin-top: 28px; }
+  .turmas-missao { margin-bottom: 24px; }
   .turmas-missao-summary { padding: 14px 16px; }
 }
 .turma-card-new {

@@ -152,6 +152,17 @@ jobs:
           FA_BASE_URL: http://127.0.0.1:8811
         run: node .github/scripts/teste-turmas-expansiveis.js
 
+      # Hermético. O card de turma mostra só o número do dia embaixo do mês.
+      # Com 2+ datas a vírgula/"e" dá a pista de que é uma lista; com uma
+      # data só, o número ficava sozinho e não lia como dia nenhum — "16"
+      # parecia um valor perdido. "dia"/"dias" na frente resolve os dois
+      # casos com a mesma regra.
+      - name: "Turmas — dia do mês sempre rotulado, singular e plural (desktop e iPhone)"
+        env:
+          NODE_PATH: /tmp/pw-deps/node_modules
+          FA_BASE_URL: http://127.0.0.1:8811
+        run: node .github/scripts/teste-turmas-dia-rotulo.js
+
       # Hermético. A correção de e-mail é o caminho mais arriscado do painel:
       # troca o login da pessoa no Auth e depois move TODOS os dados dela de
       # uma chave para outra. Errar aqui não dá erro na tela — a pessoa só
