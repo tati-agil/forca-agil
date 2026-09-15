@@ -899,6 +899,7 @@
                 qual: 'público restrito desta turma',
                 onde: 'no menu ⋯ da turma',
                 virou: 'a turma virar restrita',
+                path: 'turmas-publico/' + t.key,
                 dentro: function (k) { return noPublicoDaTurma(t.key, k); }
               });
             }
@@ -907,6 +908,7 @@
                 qual: 'público restrito do evento "' + eventoLabel(t.eventoKey) + '"',
                 onde: 'no cabeçalho do evento',
                 virou: 'o evento virar restrito',
+                path: 'eventos-publico/' + t.eventoKey,
                 dentro: function (k) { return noPublicoDoEvento(t.eventoKey, k); }
               });
             }
@@ -923,13 +925,54 @@
               if (!active.length) return;
               var foraDaLista = active.filter(function (reg) { return !r.dentro(emailKey(reg.email)); });
               if (!foraDaLista.length) return;
-              var aviso = document.createElement('p');
+              var aviso = document.createElement('div');
               aviso.className = 'admin-empty turma-aviso-publico';
-              aviso.textContent = foraDaLista.length + (foraDaLista.length !== 1
+              var avisoTexto = document.createElement('p');
+              avisoTexto.style.margin = '0';
+              avisoTexto.textContent = foraDaLista.length + (foraDaLista.length !== 1
                   ? ' pessoas estão nesta turma sem estar no ' : ' pessoa está nesta turma sem estar no ') + r.qual + ': ' +
                 foraDaLista.map(function (reg) { return reg.name || reg.email; }).join(', ') +
                 '. Elas entraram antes de ' + r.virou + ' e continuam valendo — ' +
                 'inclua na lista ' + r.onde + ' para regularizar, ou remova da turma.';
+              aviso.appendChild(avisoTexto);
+
+              /* Regularizar uma por uma no modal de "Público restrito" é o
+                 caminho de sempre, mas buscar e clicar em N nomes duas vezes
+                 (turma e evento) é trabalho repetitivo pra algo que a tela já
+                 sabe listar. Este botão faz a mesma escrita que "Incluir
+                 pessoa" faria pra cada uma, de uma vez só. */
+              var addAllBtn = document.createElement('button');
+              addAllBtn.className = 'btn btn--sm';
+              addAllBtn.style.cssText = 'margin-top:8px;padding:5px 12px;font-size:.74rem;border-color:rgba(138,127,255,.5);color:#a99dff';
+              addAllBtn.textContent = foraDaLista.length === 1
+                ? 'Incluir esta pessoa na lista'
+                : 'Incluir as ' + foraDaLista.length + ' na lista';
+              addAllBtn.addEventListener('click', function () {
+                addAllBtn.disabled = true;
+                addAllBtn.textContent = 'Incluindo…';
+                var sess = window.faAuth && window.faAuth.getSession();
+                var payload = {};
+                foraDaLista.forEach(function (reg) {
+                  payload[emailKey(reg.email)] = {
+                    name: (reg.name || '').toUpperCase(), email: (reg.email || '').toLowerCase(), area: reg.area || '',
+                    date: new Date().toISOString(),
+                    addedBy: sess ? sess.email : null,
+                    addedByName: sess ? (sess.name || sess.email) : null
+                  };
+                });
+                firebase.database().ref(r.path).update(payload, function (err) {
+                  if (err) {
+                    adminAlert('Erro ao incluir. Tente novamente.');
+                    addAllBtn.disabled = false;
+                    addAllBtn.textContent = foraDaLista.length === 1
+                      ? 'Incluir esta pessoa na lista'
+                      : 'Incluir as ' + foraDaLista.length + ' na lista';
+                    return;
+                  }
+                  loadInterests();
+                });
+              });
+              aviso.appendChild(addAllBtn);
               body.appendChild(aviso);
             });
 
