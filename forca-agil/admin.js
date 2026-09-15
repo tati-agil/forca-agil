@@ -306,7 +306,7 @@
         var t = val[key] || {};
         var dias = (t.dias || []).slice().sort();
         var fmt = window.faTurmasUtil.formatDias(dias);
-        return { key: key, label: t.label || key.toUpperCase(), dates: fmt.dates, dias: dias, order: t.order || 0, cmflexLink: t.cmflexLink || '', eventoKey: t.eventoKey || '', avaliacaoHabilitada: !!t.avaliacaoHabilitada, resultadoEsperado: t.resultadoEsperado || '', publicoRestrito: !!t.publicoRestrito };
+        return { key: key, label: t.label || key.toUpperCase(), dates: fmt.dates, dias: dias, order: t.order || 0, cmflexLink: t.cmflexLink || '', eventoKey: t.eventoKey || '', avaliacaoHabilitada: !!t.avaliacaoHabilitada, resultadoEsperado: t.resultadoEsperado || '', publicoRestrito: !!t.publicoRestrito, horarioInicio: t.horarioInicio || '09:00', horarioFim: t.horarioFim || '13:00' };
       }).sort(function (a, b) { return a.order - b.order; });
       cb();
     });
@@ -2932,6 +2932,15 @@
       '<h3 style="font-size:1.1rem;font-family:var(--font-head);letter-spacing:.05em;color:var(--ink)">' + (isEdit ? 'Editar Turma' : 'Nova Turma') + '</h3>' +
       '<label class="auth-label">Evento<select id="turmaFormEvento" style="padding:8px 10px;background:var(--panel-2);border:1px solid var(--line-strong);border-radius:6px;color:var(--ink);font-family:var(--font-body);width:100%">' + eventoOpts + '</select></label>' +
       '<label class="auth-label">Nome da turma<input type="text" id="turmaFormLabel" placeholder="Ex: Turma 4 — Janeiro" autocomplete="off" /></label>' +
+      /* grid + auto-fit em vez de flex:1: o input nativo type=time tem uma
+         largura mínima que o flex não respeita, e num modal estreito (375px,
+         a referência de celular) os dois lado a lado espremiam e vazavam do
+         card. Com auto-fit, quando não cabem os dois lado a lado eles
+         empilham sozinhos — sem depender de media query. */
+      '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:12px">' +
+        '<label class="auth-label">Início<input type="time" id="turmaFormHoraInicio" autocomplete="off" /></label>' +
+        '<label class="auth-label">Término<input type="time" id="turmaFormHoraFim" autocomplete="off" /></label>' +
+      '</div>' +
       '<label class="auth-label">Link do CMFlex <span style="opacity:.6;font-weight:400">(opcional)</span><input type="url" id="turmaFormCmflex" placeholder="https://..." autocomplete="off" /></label>' +
       '<label class="auth-label">Resultado esperado da turma <span style="opacity:.6;font-weight:400">(opcional)</span><textarea id="turmaFormResultadoEsperado" rows="3" placeholder="O que se espera alcançar com esta turma?" style="width:100%;padding:8px 10px;background:var(--panel-2);border:1px solid var(--line-strong);border-radius:6px;color:var(--ink);font-family:var(--font-body);resize:vertical"></textarea></label>' +
       '<label class="admin-motivo-check" style="display:flex;gap:8px;align-items:flex-start">' +
@@ -2957,6 +2966,8 @@
 
     var eventoSel   = box.querySelector('#turmaFormEvento');
     var labelInput  = box.querySelector('#turmaFormLabel');
+    var horaInicioInput = box.querySelector('#turmaFormHoraInicio');
+    var horaFimInput    = box.querySelector('#turmaFormHoraFim');
     var cmflexInput = box.querySelector('#turmaFormCmflex');
     var resultadoInput = box.querySelector('#turmaFormResultadoEsperado');
     var restritoInput  = box.querySelector('#turmaFormPublicoRestrito');
@@ -2965,6 +2976,11 @@
 
     eventoSel.value   = isEdit ? (existing.eventoKey || '') : (defaultEventoKey || '');
     labelInput.value  = isEdit ? existing.label : '';
+    /* Ausente = 09:00–13:00: era o horário fixo do card antes deste campo
+       existir, então turma antiga abre aqui já mostrando o valor que
+       sempre esteve na tela, não um campo vazio. */
+    horaInicioInput.value = isEdit ? (existing.horarioInicio || '09:00') : '09:00';
+    horaFimInput.value    = isEdit ? (existing.horarioFim    || '13:00') : '13:00';
     cmflexInput.value = isEdit ? (existing.cmflexLink || '') : '';
     resultadoInput.value = isEdit ? (existing.resultadoEsperado || '') : '';
     /* Ausente = turma aberta: turma criada antes deste controle continua
@@ -3000,6 +3016,8 @@
 
     box.querySelector('.admin-modal-save-btn').addEventListener('click', function () {
       var label = (labelInput.value || '').trim();
+      var horarioInicio = horaInicioInput.value || '';
+      var horarioFim    = horaFimInput.value || '';
       var cmflexLink = (cmflexInput.value || '').trim();
       var dias = Array.prototype.map.call(datesList.querySelectorAll('input[type=date]'), function (i) { return i.value; })
         .filter(Boolean).sort();
@@ -3007,9 +3025,11 @@
       errEl.style.display = 'none';
       if (!label) { errEl.textContent = 'Dê um nome pra turma.'; errEl.style.display = ''; return; }
       if (!dias.length) { errEl.textContent = 'Adicione pelo menos uma data.'; errEl.style.display = ''; return; }
+      if (!horarioInicio || !horarioFim) { errEl.textContent = 'Preencha o horário de início e término.'; errEl.style.display = ''; return; }
+      if (horarioFim <= horarioInicio) { errEl.textContent = 'O término precisa ser depois do início.'; errEl.style.display = ''; return; }
 
       var resultadoEsperado = (resultadoInput.value || '').trim();
-      var data = { label: label, dias: dias, cmflexLink: cmflexLink, resultadoEsperado: resultadoEsperado, eventoKey: eventoSel.value || '', publicoRestrito: !!restritoInput.checked };
+      var data = { label: label, dias: dias, horarioInicio: horarioInicio, horarioFim: horarioFim, cmflexLink: cmflexLink, resultadoEsperado: resultadoEsperado, eventoKey: eventoSel.value || '', publicoRestrito: !!restritoInput.checked };
       if (isEdit) {
         firebase.database().ref('turmas/' + existing.key).update(data, function (err) {
           if (err) { errEl.textContent = 'Erro ao salvar. Tente novamente.'; errEl.style.display = ''; return; }
