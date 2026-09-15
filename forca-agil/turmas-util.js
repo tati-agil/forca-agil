@@ -62,6 +62,24 @@
     return String(p.d).padStart(2, '0') + '/' + String(p.m).padStart(2, '0') + '/' + p.y;
   }
 
+  /* "09:00" -> "9h", "13:30" -> "13h30". Turma sem horário salvo (criada
+     antes deste campo existir) usa 09:00–13:00 — o valor que sempre esteve
+     fixo no card antes, então nenhuma turma antiga muda de aparência sem
+     o admin editar. */
+  function formatHora(hhmm) {
+    var p = String(hhmm || '').split(':');
+    var h = parseInt(p[0], 10);
+    if (isNaN(h)) return '';
+    var m = parseInt(p[1], 10) || 0;
+    return h + 'h' + (m ? String(m).padStart(2, '0') : '');
+  }
+  function formatHorario(inicio, fim) {
+    var hi = formatHora(inicio || '09:00');
+    var hf = formatHora(fim || '13:00');
+    if (!hi || !hf) return '';
+    return hi + ' – ' + hf;
+  }
+
   /* ── Lista de espera ──────────────────────────────────────────────────
      fa-espera guarda uma entrada por pessoa E por ORIGEM:
 
@@ -110,7 +128,7 @@
   }
 
   window.faTurmasUtil = {
-    formatDias: formatDias, formatISOBr: formatISOBr, MESES: MESES,
+    formatDias: formatDias, formatISOBr: formatISOBr, formatHorario: formatHorario, MESES: MESES,
     ORIGEM_DIRETA: ORIGEM_DIRETA, ehOrigemDireta: ehOrigemDireta,
     esperaEntradas: esperaEntradas, esperaAtivas: esperaAtivas, esperaNaFila: esperaNaFila
   };

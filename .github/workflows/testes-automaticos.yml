@@ -163,6 +163,19 @@ jobs:
           FA_BASE_URL: http://127.0.0.1:8811
         run: node .github/scripts/teste-turmas-dia-rotulo.js
 
+      # Hermético. O card de turma mostrava "9h – 13h" fixo no código pra
+      # qualquer turma, sem campo nenhum no painel para diferenciar. Agora
+      # cada turma tem seu próprio horário, editável em "✎ Editar turma",
+      # com 09:00–13:00 como padrão pra turma criada antes deste campo
+      # existir — cobre o fluxo completo: abrir com o padrão certo, recusar
+      # término antes do início, gravar o horário novo e refletir no card
+      # público.
+      - name: "Turmas — horário de início/término por turma, editável no painel"
+        env:
+          NODE_PATH: /tmp/pw-deps/node_modules
+          FA_BASE_URL: http://127.0.0.1:8811
+        run: node .github/scripts/teste-turma-horario.js
+
       # Hermético. A correção de e-mail é o caminho mais arriscado do painel:
       # troca o login da pessoa no Auth e depois move TODOS os dados dela de
       # uma chave para outra. Errar aqui não dá erro na tela — a pessoa só

@@ -598,7 +598,7 @@
           var realizada = document.querySelectorAll('.turma-realizada-msg').length;
           return cards === abertos + encerrados + andamento + realizada;
         } },
-        { id: 'c-turmas-horario', label: 'Cards de turma exibem horário 9h – 13h (.tc-horario)', run: function () {
+        { id: 'c-turmas-horario', label: 'Cards de turma exibem o horário da turma (.tc-horario)', run: function () {
           var cards = document.querySelectorAll('.turma-card-new:not(.turma-card-espera)').length;
           if (!cards) return true; /* página Turmas ainda não carregada nesta sessão */
           return document.querySelectorAll('.tc-horario').length === cards;
@@ -1317,6 +1317,9 @@ title: 'Cadastrados — corrigir e-mail só em cadastro criado pelo painel',
     { section: 'Admin',
       title: 'Turmas — cadastrar link do CMFlex ao criar/editar turma',
       motivo: 'Abrir "+ Nova turma" ou "✎ Editar turma". Verificar: (1) campo "Link do CMFlex" opcional aparece no formulário; (2) ao salvar com o campo preenchido, o botão "Ir para o CMFlex" no card público usa esse link; (3) deixando em branco, o card mostra aviso de link ainda não disponível em vez de um botão quebrado.' },
+    { section: 'Admin',
+      title: 'Turmas — horário de início/término ao criar/editar turma',
+      motivo: 'Abrir "+ Nova turma": campos "Início" e "Término" vêm preenchidos com 09:00 e 13:00. (1) Trocar para um horário diferente (ex: 14:00–18:00) e salvar — o card desta turma na página Turmas mostra "14h – 18h", não mais "9h – 13h". (2) Tentar salvar com término igual ou antes do início (ex: 10:00–09:00) — o formulário recusa com "O término precisa ser depois do início" e nada é gravado. (3) Reabrir "✎ Editar turma": os horários salvos vêm carregados corretamente. (4) Abrir "✎ Editar turma" numa turma criada ANTES deste campo existir — os campos vêm preenchidos com 09:00–13:00 (o valor que sempre esteve fixo na página Turmas), sem exigir edição; o card dela na página Turmas continua mostrando "9h – 13h" até o admin salvar algo diferente.' },
     { section: 'Admin',
       title: 'Turmas — campo "Resultado esperado da turma" ao criar/editar turma',
       motivo: 'Abrir "+ Nova turma" ou "✎ Editar turma". Verificar: (1) campo "Resultado esperado da turma (opcional)" aparece no formulário, entre "Link do CMFlex" e "Datas dos encontros"; (2) criar uma turma preenchendo esse campo, salvar, e reabrir "✎ Editar turma" na mesma turma — o texto deve vir carregado exatamente como foi digitado; (3) editar só esse campo (sem mexer em nome/datas/CMFlex) e salvar — conferir que nome, datas e link do CMFlex continuam exatamente como estavam; (4) criar outra turma SEM preencher esse campo — não pode dar erro nem gravar algo diferente de vazio; reabrir "✎ Editar turma" nela e conferir que o campo aparece vazio, não com a palavra "undefined" nem repetindo texto de outra turma. Esse campo é um resultado esperado da TURMA como um todo (um por turma) — diferente do "Resultado esperado" que já existe por ATIVIDADE dentro do roteiro; só é editável aqui pelo admin, mas já aparece também no PDF "🖨 Agenda resumida" do Roteiro desta turma (ver regra própria).' },
