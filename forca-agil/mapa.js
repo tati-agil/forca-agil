@@ -319,7 +319,7 @@
         { label: 'Admin pode ver a tela como qualquer participante vê — seletor "Ver esta tela como" no topo, com a situação de cada pessoa ao lado do nome (confirmada, inscrita sem confirmação, interesse, removida); é só visualização, nada é gravado em nome da pessoa', p: ['admin'] },
         { label: 'Acessar "Minha Área" pelo menu — disponível para qualquer pessoa logada, mesmo sem turma confirmada', p: ['logado','inscrito','admin'] },
         { label: 'Ver as turmas em que está confirmada, agrupadas por fase e nesta ordem: Em andamento, Programadas e Concluídas — primeiro o que exige ação agora, depois o que vai acontecer, por último o histórico. Cada grupo mostra a quantidade de turmas', p: ['inscrito','admin'] },
-        { label: 'Cada turma traz selo "Em andamento", "Programada" ou "Concluída", nome do evento, carga horária e datas dos encontros', p: ['inscrito','admin'] },
+        { label: 'Cada turma é um acordeão: o cabeçalho (nome, selo de fase, resumo de frequência ou de dias até começar) fica sempre visível e é a fronteira entre uma turma e outra; um clique abre o resto (frequência, certificado, avaliação). A primeira turma da tela já nasce aberta; com uma turma só, abre do mesmo jeito', p: ['inscrito','admin'] },
         { label: 'Turma programada (o primeiro encontro ainda não chegou) mostra "Faltam N dias" / "Começa amanhã" / "É hoje!" e a data do primeiro encontro, sem barra de frequência e sem bloco de certificado — cobrar frequência de quem ainda não começou daria a impressão de que a pessoa faltou a tudo', p: ['inscrito','admin'] },
         { label: 'Ver as turmas com interesse registrado mas ainda não confirmado, no bloco "Inscrições em análise" com selo "Em análise" e a data em que o interesse foi registrado', p: ['logado','inscrito','admin'] },
         { label: 'Se a turma em análise já foi encerrada, o cartão avisa e orienta a procurar a organização pela página Ajuda', p: ['logado','inscrito','admin'] },
@@ -388,8 +388,7 @@
         { label: 'Card de turma Realizada — após o último dia OU quando o admin encerra manualmente, o card mostra "Turma realizada · Esta turma já foi concluída. Fique de olho nas próximas!" sem nenhum botão', p: ['logado','inscrito','admin'] },
         { label: 'Turma de público restrito não aparece para quem está fora da lista dela (turmas-publico) — nem o card, nem o botão de interesse; admin vê todas. Um clique que escape da corrida (a turma virou restrita com a página aberta) é recusado com "Esta turma é de público restrito e você não está na lista dela."', p: ['logado','inscrito','admin'] },
         { label: 'Cards de turma agrupados por evento, com o nome do evento como título acima da grade — mesma ordem do painel admin', p: ['logado','inscrito','admin'] },
-        { label: 'Bloco "A Missão" + "Como funciona" por evento (título, texto, tópicos, métricas calculadas do itinerário/carga horária) — só quando o admin preencheu esse conteúdo naquele evento', p: ['logado','inscrito','admin'] },
-        { label: 'Itinerário dia a dia por evento (itens estáticos, D1, D2... até o admin cadastrar) — só quando o evento tem pelo menos um dia cadastrado', p: ['logado','inscrito','admin'] },
+        { label: 'Bloco "A Missão" + "Como funciona" + itinerário dia a dia por evento (título, texto, tópicos, métricas calculadas do itinerário/carga horária) — só quando o admin preencheu esse conteúdo naquele evento. Vem dentro de um acordeão ("Sobre [nome do evento]", com seta): fechado por padrão quando a vitrine tem 2+ eventos (o próprio resumo fechado já marca onde um evento termina e o outro começa, sem rolar o bloco inteiro pra notar a virada); com um evento só, abre sozinho, igual sempre foi', p: ['logado','inscrito','admin'] },
       ]
     },
   ];

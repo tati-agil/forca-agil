@@ -140,6 +140,18 @@ jobs:
           FA_BASE_URL: http://127.0.0.1:8811
         run: node .github/scripts/teste-roteiro-texto-rico.js
 
+      # Hermético. Turmas e Minha Área: cada turma virou um acordeão
+      # (<details>/<summary>, mesmo idioma do Manual) porque com duas ou
+      # mais turmas/eventos a fronteira entre um e outro não ficava clara —
+      # borda quase invisível no tema escuro em Minha Área, e um bloco
+      # "A Missão" inteiro entre um evento e o próximo na aba Turmas. O
+      # cabeçalho fechado agora É a fronteira.
+      - name: Turmas e Minha Área — acordeão de turma não mistura uma com a outra (desktop e iPhone)
+        env:
+          NODE_PATH: /tmp/pw-deps/node_modules
+          FA_BASE_URL: http://127.0.0.1:8811
+        run: node .github/scripts/teste-turmas-expansiveis.js
+
       # Hermético. A correção de e-mail é o caminho mais arriscado do painel:
       # troca o login da pessoa no Auth e depois move TODOS os dados dela de
       # uma chave para outra. Errar aqui não dá erro na tela — a pessoa só

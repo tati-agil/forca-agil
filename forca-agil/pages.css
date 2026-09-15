@@ -296,6 +296,31 @@
 @media (max-width: 800px) {
   .turmas-evento-grupo + .turmas-evento-grupo { margin-top: 64px; padding-top: 40px; }
 }
+/* "A Missão" de cada evento: acordeão (mesmo idioma de .manual-card) em vez
+   de bloco sempre aberto. Com um evento só ele nasce aberto (nada muda pra
+   quem só vê um); com dois ou mais, o resumo recolhido já É o divisor entre
+   um evento e outro — não precisa rolar Missão+Como funciona+Plano de voo
+   inteiros pra notar que trocou de evento. */
+.turmas-missao { border: 1px solid var(--line-strong); border-radius: 12px; margin-top: 40px; overflow: hidden; }
+.turmas-missao-summary {
+  display: flex; align-items: center; gap: 12px; padding: 16px 22px;
+  background: var(--panel-2); cursor: pointer; list-style: none; user-select: none;
+  transition: background .15s;
+}
+.turmas-missao-summary::-webkit-details-marker { display: none; }
+.turmas-missao-summary:hover { background: color-mix(in srgb, var(--accent) 7%, var(--panel-2)); }
+.turmas-missao-summary-icone { color: var(--accent-2); flex-shrink: 0; }
+.turmas-missao-summary-texto {
+  flex: 1; font-family: var(--font-mono); font-size: .74rem; letter-spacing: .12em;
+  text-transform: uppercase; color: var(--ink);
+}
+.turmas-missao-chev { color: var(--ink-3); flex-shrink: 0; transition: transform .2s; }
+.turmas-missao[open] .turmas-missao-chev { transform: rotate(180deg); }
+.turmas-missao .section { padding-left: var(--pad-x); padding-right: var(--pad-x); }
+@media (max-width: 800px) {
+  .turmas-missao { margin-top: 28px; }
+  .turmas-missao-summary { padding: 14px 16px; }
+}
 .turma-card-new {
   background: var(--panel); border: 1px solid var(--line-strong);
   border-radius: 14px; padding: 28px 24px;

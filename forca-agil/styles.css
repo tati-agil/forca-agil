@@ -1378,6 +1378,25 @@ details.manual-admin-subgroup[open] > .manual-admin-subhead,
 
 /* Cartões informativos: em análise, lista de espera, boas-vindas */
 .aluno-card--info { border-style: dashed; }
+
+/* Acordeão dos cards de turma (mesmo idioma de .manual-card): o cabeçalho é
+   a única coisa sempre visível, e É a fronteira entre uma turma e outra —
+   ver comentário em cardTurma (aluno.js) sobre por que isso existia sem
+   fronteira nenhuma antes. */
+.aluno-card--expansivel { padding: 0; border-color: var(--line-strong); overflow: hidden; }
+.aluno-card-toggle {
+  display: flex; align-items: center; flex-wrap: wrap; gap: 6px 12px;
+  width: 100%; box-sizing: border-box; padding: 16px 20px;
+  cursor: pointer; list-style: none; user-select: none; transition: background .15s;
+}
+.aluno-card-toggle::-webkit-details-marker { display: none; }
+.aluno-card-toggle:hover { background: rgba(255,255,255,.03); }
+.aluno-card-toggle-chev { color: var(--ink-3); flex-shrink: 0; transition: transform .2s; }
+.aluno-card--expansivel[open] > .aluno-card-toggle .aluno-card-toggle-chev { transform: rotate(180deg); }
+.aluno-card-toggle-titulo { flex: 1 1 140px; min-width: 0; font-family: var(--font-head); font-size: 1rem; color: var(--ink); }
+.aluno-card-toggle-acao { font-size: .78rem; color: var(--accent); white-space: nowrap; }
+.aluno-card-toggle-resumo { font-family: var(--font-mono); font-size: .78rem; color: var(--ink-3); white-space: nowrap; }
+.aluno-card-corpo { padding: 2px 22px 20px; border-top: 1px solid var(--line); }
 .aluno-info-msg { margin: 14px 0 0; font-size: .88rem; line-height: 1.65; color: var(--ink-2); }
 .aluno-info-obs { margin: 10px 0 0; font-size: .82rem; line-height: 1.6; color: var(--ink-3); }
 .aluno-info-obs a { color: var(--accent); }

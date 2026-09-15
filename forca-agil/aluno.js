@@ -295,15 +295,51 @@
     }).sort(function (a, b) { return (a.inicio || '').localeCompare(b.inicio || ''); });
   }
 
-  function cardTurma(t, idx) {
-    var h = '<div class="aluno-card">';
-    h += '<div class="aluno-card-head">';
-    h += '<h3 class="aluno-card-title">' + esc(t.label) + '</h3>';
+  /* Um cabeçalho por turma sempre visível (título + selo + um resumo de
+     1 chip) e o resto — frequência, certificado, avaliação — dentro de um
+     corpo que abre/fecha ao clicar. Existia um card por turma já antes,
+     mas TODOS abertos e cheios de seções com o mesmo texto ("Sua
+     frequência", "O certificado fica disponível...", "A avaliação ainda
+     não foi liberada...") — com duas ou mais turmas, sem nenhuma fronteira
+     forte entre elas (só uma borda quase invisível no tema escuro), dava
+     pra rolar a tela achando que era tudo uma turma só. O cabeçalho agora
+     É a fronteira: sempre visível, nunca se confunde com o de baixo, e
+     carrega um resumo (frequência ou contagem de dias) pra dar pra
+     conferir sem precisar abrir. `expandidoPorPadrao` mantém a primeira
+     turma da tela já aberta (a mais relevante, sempre a de cima) — só as
+     demais nascem fechadas; com uma turma só não faz diferença, ela abre
+     do mesmo jeito. */
+  function cardTurma(t, idx, expandidoPorPadrao) {
     var selo = { concluida:  ['aluno-badge--ok',        'Concluída'],
                  programada: ['aluno-badge--programada', 'Programada'],
                  andamento:  ['aluno-badge--andamento',  'Em andamento'] }[t.fase];
-    h += '<span class="aluno-badge ' + selo[0] + '">' + selo[1] + '</span>';
-    h += '</div>';
+
+    /* Chip de resumo no cabeçalho — o que dá pra saber sem abrir. */
+    var resumo;
+    if (t.fase === 'programada') {
+      var falta = t.faltam;
+      resumo = falta === 0 ? 'É hoje' : falta === 1 ? 'Amanhã' : 'Em ' + falta + ' dias';
+    } else {
+      resumo = String(t.freq).replace('.', ',') + '%';
+    }
+    /* Chip extra só quando há algo esperando a pessoa — assim uma turma
+       fechada não esconde um certificado liberado ou uma avaliação em
+       aberto atrás de um clique a mais. */
+    var acao = '';
+    if (t.fase !== 'programada') {
+      if (t.encerrada && t.atingiu) acao = '<span class="aluno-card-toggle-acao">🎉 Certificado</span>';
+      else if (t.avaliacaoLiberada && !t.avaliacaoRespondida) acao = '<span class="aluno-card-toggle-acao">📝 Avaliar</span>';
+    }
+
+    var h = '<details class="aluno-card aluno-card--expansivel"' + (expandidoPorPadrao ? ' open' : '') + '>';
+    h += '<summary class="aluno-card-toggle">' +
+           '<svg class="aluno-card-toggle-chev" width="14" height="14" viewBox="0 0 14 14"><polyline points="2,4 7,10 12,4" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>' +
+           '<span class="aluno-card-toggle-titulo">' + esc(t.label) + '</span>' +
+           '<span class="aluno-badge ' + selo[0] + '">' + selo[1] + '</span>' +
+           acao +
+           '<span class="aluno-card-toggle-resumo">' + resumo + '</span>' +
+         '</summary>';
+    h += '<div class="aluno-card-corpo">';
     if (t.evento.nome) h += '<p class="aluno-card-sub">' + esc(t.evento.nome) + (t.evento.cargaHoraria ? ' · ' + esc(t.evento.cargaHoraria) + 'h' : '') + '</p>';
     if (t.datas) h += '<p class="aluno-card-sub">Encontros: ' + esc(t.datas) + '</p>';
 
@@ -311,7 +347,6 @@
        a impressão de que a pessoa faltou a tudo — então o bloco de
        frequência e o de certificado dão lugar à contagem para o início. */
     if (t.fase === 'programada') {
-      var falta = t.faltam;
       var quando = falta === 0 ? 'É hoje!'
                  : falta === 1 ? 'Começa amanhã'
                  : 'Faltam ' + falta + ' dias';
@@ -324,7 +359,7 @@
         t.dias.forEach(function (dia) { h += '<span class="aluno-dia">' + fmtDia(dia) + '</span>'; });
         h += '</div>';
       }
-      h += '</div>';
+      h += '</div></details>';
       return h;
     }
 
@@ -372,7 +407,7 @@
     }
     h += '</div>';
 
-    h += '</div>';
+    h += '</div></details>';
     return h;
   }
 
@@ -423,6 +458,7 @@
          número solto) porque um número sozinho ao lado de um título não
          diz o que está contando, e no celular não existe hover pra
          explicar com title. */
+      var primeiraTurma = true;
       [['andamento',  'Em andamento'],
        ['programada', 'Programadas'],
        ['concluida',  'Concluídas']].forEach(function (g) {
@@ -430,7 +466,10 @@
         if (!doGrupo.length) return;
         html += '<h4 class="aluno-grupo">' + g[1] + ' <span class="aluno-grupo-qtd">' + doGrupo.length + ' turma' + (doGrupo.length !== 1 ? 's' : '') + '</span></h4>';
         html += '<div class="aluno-turmas">';
-        doGrupo.forEach(function (t, i) { html += cardTurma(t, i); });
+        doGrupo.forEach(function (t, i) {
+          html += cardTurma(t, i, primeiraTurma);
+          primeiraTurma = false;
+        });
         html += '</div>';
       });
     }
