@@ -365,6 +365,13 @@
       var diasOrdenados = t.dias.slice().sort();
       var primeiroDia = diasOrdenados[0] || '';
       var ultimoDia   = diasOrdenados[diasOrdenados.length - 1] || '';
+      /* "16" sozinho embaixo do mês não lê como dia nenhum — falta uma
+         palavra que ancore o número; com 2+ dias a vírgula/"e" já dá essa
+         pista ("11, 12 e 18"), mas com um só ("16") ele fica solto, parece
+         perdido. "dia"/"dias" na frente resolve os dois casos com a mesma
+         regra, sem tratar o singular como exceção. */
+      var diasLabel = (diasOrdenados.length === 1 ? 'dia ' : 'dias ') + fmt.dates;
+      var emDias = (diasOrdenados.length === 1 ? 'no dia ' : 'nos dias ') + fmt.dates;
 
       /* encerrada pelo admin OU já passou do último dia → Realizada */
       if (t.encerrada || (ultimoDia && hoje > ultimoDia)) {
@@ -372,7 +379,7 @@
           '<div class="turma-card-new reveal in turma-card-realizada">' +
             '<span class="tc-label">' + t.label + '</span>' +
             '<div class="tc-month">' + fmt.mes + '</div>' +
-            '<div class="tc-dates">' + fmt.dates + '</div>' +
+            '<div class="tc-dates">' + diasLabel + '</div>' +
             '<div class="tc-horario">&#x23F0; 9h &ndash; 13h</div>' +
             '<div class="turma-status-msg turma-realizada-msg"><strong>Turma realizada</strong>Esta turma já foi concluída. Fique de olho nas próximas.</div>' +
           '</div>'
@@ -385,7 +392,7 @@
           '<div class="turma-card-new reveal in turma-card-andamento">' +
             '<span class="tc-label">' + t.label + '</span>' +
             '<div class="tc-month">' + fmt.mes + '</div>' +
-            '<div class="tc-dates">' + fmt.dates + '</div>' +
+            '<div class="tc-dates">' + diasLabel + '</div>' +
             '<div class="tc-horario">&#x23F0; 9h &ndash; 13h</div>' +
             '<div class="turma-status-msg turma-andamento-msg"><strong>Turma em andamento</strong>As aulas estão acontecendo. Acompanhe as próximas turmas.</div>' +
           '</div>'
@@ -405,10 +412,10 @@
           '<div class="turma-card-new reveal in turma-card-lotada">' +
             '<span class="tc-label">' + t.label + '</span>' +
             '<div class="tc-month">' + fmt.mes + '</div>' +
-            '<div class="tc-dates">' + fmt.dates + '</div>' +
+            '<div class="tc-dates">' + diasLabel + '</div>' +
             '<div class="tc-horario">&#x23F0; 9h &ndash; 13h</div>' +
             '<div class="turma-status-msg turma-lotada-msg"><strong>Inscrições encerradas</strong>' +
-              'As vagas desta turma já foram preenchidas. Ela será realizada em ' + fmt.dates + '. ' +
+              'As vagas desta turma já foram preenchidas. Ela será realizada ' + emDias + '. ' +
               'Acompanhe as próximas turmas para participar.</div>' +
           '</div>'
         );
@@ -419,7 +426,7 @@
         '<div class="turma-card-new reveal in">' +
           '<span class="tc-label">' + t.label + '</span>' +
           '<div class="tc-month">' + fmt.mes + '</div>' +
-          '<div class="tc-dates">' + fmt.dates + '</div>' +
+          '<div class="tc-dates">' + diasLabel + '</div>' +
           '<div class="tc-horario">&#x23F0; 9h &ndash; 13h</div>' +
           '<button class="btn--interest" data-turma="' + t.key + '"><span class="btn-heart">&#x2661;</span>&nbsp; Tenho interesse</button>' +
           '<div class="turma-intent-msg" id="intent-msg-' + t.key + '"></div>' +
@@ -523,10 +530,15 @@
               '<span class="turmas-evento-eyebrow">Evento</span>' +
               '<h2 class="turmas-evento-titulo">' + ev.nome + '</h2>' +
             '</div>' +
-            '<div class="turmas-grid">' + turmasEv.map(function (t) { return turmaCardHtml(t, hoje); }).join('') + '</div>' +
-            /* A Missão deste evento entra aqui, preenchida por
-               renderMissaoEventos logo depois. */
+            /* A Missão (preenchida por renderMissaoEventos logo depois) vem
+               ANTES da grade de turmas, não depois. Com vários cards de
+               turma na grade — e mais o card de espera — o bloco de "Sobre
+               o evento" sobrando embaixo de uma pilha de cards parecia uma
+               tira solta, sem relação com nada; como resumo do evento, o
+               lugar dele é junto do título, e a grade de turmas (o que tem
+               ação) fica sendo o fim da seção, não o meio. */
             '<div class="turmas-evento-missao"></div>' +
+            '<div class="turmas-grid">' + turmasEv.map(function (t) { return turmaCardHtml(t, hoje); }).join('') + '</div>' +
           '</div>';
       });
       if (semEvento.length) {
