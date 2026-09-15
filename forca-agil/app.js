@@ -260,12 +260,18 @@
        pra nunca ficar em desacordo do padrão. "Quadro próprio" concorda no
        singular ("todo o"), as demais no plural ("todos os"). Categoria
        desconhecida ou vazia cai em "empregados", o texto de sempre. */
+    /* Cada categoria tem duas variantes: aberta (todo mundo daquela categoria)
+       e restrita (evento marcado "público restrito" — só quem está na lista
+       dele, mesmo sendo da categoria certa). Sem isso, um evento "Executivos"
+       com público restrito dizia "aberta a todos os Executivos", o que é
+       falso duas vezes: nem é aberta, nem é a todos — só a quem está na
+       lista. */
     var PUBLICO_TXT = {
-      '':               'aberta a todos os<br>empregados da Previ',
-      'Diretores':      'aberta a todos os<br>Diretores da Previ',
-      'Executivos':     'aberta a todos os<br>Executivos da Previ',
-      'Cedidos':        'aberta a todos os<br>Cedidos da Previ',
-      'Quadro próprio': 'aberta a todo o<br>Quadro próprio da Previ'
+      '':               { aberta: 'aberta a todos os<br>empregados da Previ',        restrita: 'restrita a uma lista de<br>empregados da Previ' },
+      'Diretores':      { aberta: 'aberta a todos os<br>Diretores da Previ',         restrita: 'restrita a uma lista de<br>Diretores da Previ' },
+      'Executivos':     { aberta: 'aberta a todos os<br>Executivos da Previ',        restrita: 'restrita a uma lista de<br>Executivos da Previ' },
+      'Cedidos':        { aberta: 'aberta a todos os<br>Cedidos da Previ',           restrita: 'restrita a uma lista de<br>Cedidos da Previ' },
+      'Quadro próprio': { aberta: 'aberta a todo o<br>Quadro próprio da Previ',      restrita: 'restrita a uma lista do<br>Quadro próprio da Previ' }
     };
 
     function loadTurmas(cb) {
@@ -649,7 +655,8 @@
           var modalidadeLabel = ev.modalidadeLabel || 'Prática';
           var modalidadeDesc  = ev.modalidadeDesc  || 'dinâmicas, jogos e<br>exercícios em grupo';
           var publicoLabel    = ev.publicoLabel    || 'Opcional';
-          var publicoDesc     = PUBLICO_TXT[ev.publicoDesc] || PUBLICO_TXT[''];
+          var publicoVariante = (PUBLICO_TXT[ev.publicoDesc] || PUBLICO_TXT['']);
+          var publicoDesc     = publicoVariante[ev.publicoRestrito ? 'restrita' : 'aberta'];
           html += '<div class="ofinfo-item"><span class="ofinfo-num">' + modalidadeLabel + '</span><span class="ofinfo-label">' + modalidadeDesc + '</span></div>' +
             '<div class="ofinfo-item"><span class="ofinfo-num">' + publicoLabel + '</span><span class="ofinfo-label">' + publicoDesc + '</span></div>' +
             '</div>';

@@ -195,6 +195,17 @@ jobs:
           FA_BASE_URL: http://127.0.0.1:8811
         run: node .github/scripts/teste-turmas-dia-rotulo.js
 
+      # Hermético. O chip "Quem participa" do bloco "Como funciona" era
+      # montado só pela categoria (Executivos, Diretores...), sempre "aberta
+      # a todos os ___ da Previ" — falso quando o evento também é de
+      # público restrito: nem é aberta, nem é a todos, só a quem está na
+      # lista.
+      - name: "Turmas — chip de público não diz 'aberta a todos' quando é restrito"
+        env:
+          NODE_PATH: /tmp/pw-deps/node_modules
+          FA_BASE_URL: http://127.0.0.1:8811
+        run: node .github/scripts/teste-como-funciona-publico-restrito.js
+
       # Hermético. O card de turma mostrava "9h – 13h" fixo no código pra
       # qualquer turma, sem campo nenhum no painel para diferenciar. Agora
       # cada turma tem seu próprio horário, editável em "✎ Editar turma",
