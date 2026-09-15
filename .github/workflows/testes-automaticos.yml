@@ -129,6 +129,16 @@ jobs:
           FA_BASE_URL: http://127.0.0.1:8811
         run: node .github/scripts/teste-minha-area-fila.js
 
+      # Hermético. Turma de encontro único mostrava "Encontros: 22" — sem a
+      # vírgula/"e" que uma lista de datas dá de graça, o número sozinho lia
+      # como se "Encontros" fosse uma contagem (22 encontros!), não uma
+      # data. Mesma classe de bug já corrigida no card da página Turmas.
+      - name: "Minha Área — dia do mês sempre rotulado, singular e plural (desktop e iPhone)"
+        env:
+          NODE_PATH: /tmp/pw-deps/node_modules
+          FA_BASE_URL: http://127.0.0.1:8811
+        run: node .github/scripts/teste-minha-area-dia-rotulo.js
+
       # Hermético. O conteúdo do treinamento passou a poder ser escrito no
       # painel. Duas maneiras silenciosas de quebrar a tela de quem responde:
       # conteúdo pela metade chegando a ela, e a escada de patentes de um
