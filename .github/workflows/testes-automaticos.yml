@@ -56,6 +56,17 @@ jobs:
           FA_BASE_URL: http://127.0.0.1:8811
         run: node .github/scripts/teste-publico-restrito-evento.js
 
+      # Hermético. Regularizar quem já está na turma (ou no evento dela) sem
+      # estar no público restrito exigia abrir "👥 Público restrito" e
+      # buscar+clicar em cada pessoa, nome por nome, até duas vezes (lista da
+      # turma e lista do evento). O aviso que já lista essas pessoas ganhou
+      # um botão que grava todo mundo dele de uma vez.
+      - name: Público restrito — incluir todos de uma vez no aviso de divergência
+        env:
+          NODE_PATH: /tmp/pw-deps/node_modules
+          FA_BASE_URL: http://127.0.0.1:8811
+        run: node .github/scripts/teste-publico-restrito-incluir-todos.js
+
       # Hermético. Não existia critério pra ordem de exibição quando a
       # pessoa é destinatária de mais de uma oferta ao mesmo tempo — tudo
       # saía só na ordem manual do admin. O que é mais exclusivo PARA QUEM
