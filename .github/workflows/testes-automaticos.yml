@@ -67,6 +67,17 @@ jobs:
           FA_BASE_URL: http://127.0.0.1:8811
         run: node .github/scripts/teste-publico-restrito-incluir-todos.js
 
+      # Hermético. Selo/botão de público restrito usava o MESMO texto pro
+      # evento e pra turma — uma turma restrita mostra 1 elemento (o dela),
+      # um evento restrito mostra 2 (selo + botão), e sem dizer "do evento"
+      # ou "desta turma" dava pra empilhar até 3 menções idênticas sem saber
+      # qual era qual.
+      - name: Público restrito — selo e botão dizem de qual nível são (evento ou turma)
+        env:
+          NODE_PATH: /tmp/pw-deps/node_modules
+          FA_BASE_URL: http://127.0.0.1:8811
+        run: node .github/scripts/teste-publico-restrito-rotulo-nivel.js
+
       # Hermético. Não existia critério pra ordem de exibição quando a
       # pessoa é destinatária de mais de uma oferta ao mesmo tempo — tudo
       # saía só na ordem manual do admin. O que é mais exclusivo PARA QUEM
