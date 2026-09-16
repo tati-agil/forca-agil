@@ -206,6 +206,19 @@ jobs:
           FA_BASE_URL: http://127.0.0.1:8811
         run: node .github/scripts/teste-como-funciona-publico-restrito.js
 
+      # Hermético. "Ver esta tela como" (o preview de admin que já existia
+      # na Minha Área) chega na página Turmas: a vitrine decide o que
+      # aparece POR PESSOA (público restrito, restrito a diretores), regra
+      # já esquecida mais de uma vez por faltar como conferir na prática o
+      # que uma pessoa específica vê, sem ter a conta dela. Confere que
+      # trocar de pessoa no seletor muda o que a vitrine mostra e nunca
+      # mexe em interesse/lista de espera (isso continua na sessão real).
+      - name: "Turmas — 'Ver esta tela como' muda a vitrine, sem gravar nada"
+        env:
+          NODE_PATH: /tmp/pw-deps/node_modules
+          FA_BASE_URL: http://127.0.0.1:8811
+        run: node .github/scripts/teste-ver-como-turmas.js
+
       # Hermético. O card de turma mostrava "9h – 13h" fixo no código pra
       # qualquer turma, sem campo nenhum no painel para diferenciar. Agora
       # cada turma tem seu próprio horário, editável em "✎ Editar turma",
