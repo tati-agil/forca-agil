@@ -69,6 +69,19 @@ jobs:
           FA_BASE_URL: http://127.0.0.1:8811
         run: node .github/scripts/teste-admin-nome-evento-completo.js
 
+      # Hermético. Numa turma de público restrito, "＋ Participante" recusa
+      # quem não está na lista DELA — certo — mas o único caminho até essa
+      # lista era um botão escondido no menu ⋯, e o selo "público restrito
+      # desta turma", que é onde a mão vai, era texto inerte. Quem não
+      # achava lia "Nenhum cadastro encontrado" e concluía que faltava
+      # cadastro da pessoa, que já existia. Cobre também a rede lenta: a
+      # busca não pode dizer "não achei" enquanto fa-users não chegou.
+      - name: "Admin — a lista de público restrito da turma se alcança (desktop, celular e rede lenta)"
+        env:
+          NODE_PATH: /tmp/pw-deps/node_modules
+          FA_BASE_URL: http://127.0.0.1:8811
+        run: node .github/scripts/teste-admin-abrir-lista-restrita.js
+
       # Também hermético (Firebase falso). Confere o que só aparece na conta de
       # OUTRA pessoa: quem está fora da lista de e-mails de um evento restrito
       # não pode ver nada dele. Quem desenvolve está sempre logado como admin,
