@@ -127,9 +127,49 @@
     return esperaAtivas(noDaPessoa).length > 0;
   }
 
+  /* ── "Ver esta tela como" ─────────────────────────────────────────────
+     Lista, para o seletor que a Minha Área e a página Turmas mostram ao
+     admin, todo mundo que aparece em turmas-interesse — cada pessoa com o
+     rótulo da situação mais relevante (confirmada > inscrita sem
+     confirmação > interesse > removida) — para o admin poder conferir a
+     tela como aquela pessoa específica veria. Era montada só dentro de
+     aluno.js; extraída aqui para a página Turmas reusar a mesma consulta
+     em vez de duplicá-la — as duas telas têm o mesmo motivo pra existir:
+     regra de visibilidade por pessoa (público restrito, restrito a
+     diretores) já foi esquecida mais de uma vez por faltar como conferir
+     na prática o que cada pessoa vê. */
+  function listarPessoasVerComo(cb) {
+    firebase.database().ref('turmas-interesse').once('value', function (snap) {
+      var dados = snap.val() || {};
+      firebase.database().ref('turmas').once('value', function (snapT) {
+        var turmas = snapT.val() || {};
+        var pessoas = {};
+        Object.keys(dados).forEach(function (tk) {
+          var rotuloTurma = (turmas[tk] || {}).label || tk;
+          Object.keys(dados[tk] || {}).forEach(function (uk) {
+            var r = dados[tk][uk] || {};
+            if (!r.email) return;
+            var situacao = r.removed ? 'removida de ' + rotuloTurma
+              : (r.status === 'inscrito' && r.confirmedByAdmin) ? 'confirmada em ' + rotuloTurma
+              : r.status === 'inscrito' ? 'inscrita sem confirmação em ' + rotuloTurma
+              : 'interesse em ' + rotuloTurma;
+            if (!pessoas[uk]) pessoas[uk] = { uk: uk, nome: r.name || r.email, email: r.email, situacoes: [] };
+            /* Confirmada é a situação mais relevante: vai para a frente */
+            if (situacao.indexOf('confirmada') === 0) pessoas[uk].situacoes.unshift(situacao);
+            else pessoas[uk].situacoes.push(situacao);
+          });
+        });
+        cb(Object.keys(pessoas)
+          .map(function (uk) { return pessoas[uk]; })
+          .sort(function (a, b) { return (a.nome || '').localeCompare(b.nome || '', 'pt'); }));
+      });
+    });
+  }
+
   window.faTurmasUtil = {
     formatDias: formatDias, formatISOBr: formatISOBr, formatHorario: formatHorario, MESES: MESES,
     ORIGEM_DIRETA: ORIGEM_DIRETA, ehOrigemDireta: ehOrigemDireta,
-    esperaEntradas: esperaEntradas, esperaAtivas: esperaAtivas, esperaNaFila: esperaNaFila
+    esperaEntradas: esperaEntradas, esperaAtivas: esperaAtivas, esperaNaFila: esperaNaFila,
+    listarPessoasVerComo: listarPessoasVerComo
   };
 })();

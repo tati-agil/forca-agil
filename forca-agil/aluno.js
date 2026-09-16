@@ -617,38 +617,17 @@
 
     /* Lista todo mundo que aparece nas turmas, com o rótulo dizendo em
        que situação a pessoa está — é justamente isso que o admin quer
-       comparar (confirmada, em análise, removida). */
-    firebase.database().ref('turmas-interesse').once('value', function (snap) {
-      var dados = snap.val() || {};
-      firebase.database().ref('turmas').once('value', function (snapT) {
-        var turmas = snapT.val() || {};
-        var pessoas = {};
-        Object.keys(dados).forEach(function (tk) {
-          var rotuloTurma = (turmas[tk] || {}).label || tk;
-          Object.keys(dados[tk] || {}).forEach(function (uk) {
-            var r = dados[tk][uk] || {};
-            if (!r.email) return;
-            var situacao = r.removed ? 'removida de ' + rotuloTurma
-              : (r.status === 'inscrito' && r.confirmedByAdmin) ? 'confirmada em ' + rotuloTurma
-              : r.status === 'inscrito' ? 'inscrita sem confirmação em ' + rotuloTurma
-              : 'interesse em ' + rotuloTurma;
-            if (!pessoas[uk]) pessoas[uk] = { nome: r.name || r.email, email: r.email, situacoes: [] };
-            /* Confirmada é a situação mais relevante: vai para a frente */
-            if (situacao.indexOf('confirmada') === 0) pessoas[uk].situacoes.unshift(situacao);
-            else pessoas[uk].situacoes.push(situacao);
-          });
-        });
-        Object.keys(pessoas)
-          .map(function (uk) { return Object.assign({ uk: uk }, pessoas[uk]); })
-          .sort(function (a, b) { return (a.nome || '').localeCompare(b.nome || '', 'pt'); })
-          .forEach(function (p) {
-            var opt = document.createElement('option');
-            opt.value = p.uk;
-            opt.dataset.email = p.email;
-            opt.dataset.nome = p.nome;
-            opt.textContent = p.nome + '  ·  ' + p.situacoes[0];
-            sel.appendChild(opt);
-          });
+       comparar (confirmada, em análise, removida). Consulta compartilhada
+       com a página Turmas (ver forca-agil/turmas-util.js) — mesma pergunta
+       em duas telas diferentes. */
+    window.faTurmasUtil.listarPessoasVerComo(function (pessoas) {
+      pessoas.forEach(function (p) {
+        var opt = document.createElement('option');
+        opt.value = p.uk;
+        opt.dataset.email = p.email;
+        opt.dataset.nome = p.nome;
+        opt.textContent = p.nome + '  ·  ' + p.situacoes[0];
+        sel.appendChild(opt);
       });
     });
 

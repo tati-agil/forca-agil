@@ -667,6 +667,26 @@ async function submitLogin(page, email, password) {
     if (!barra.avisa) throw new Error('a barra não avisa que é só visualização');
   });
 
+  await runIsolated('Turmas: a barra "Ver esta tela como" também aparece para admin (mesmo recurso da Minha Área)', async (p) => {
+    await p.goto(BASE_URL, { waitUntil: 'networkidle' });
+    const r = await submitLogin(p, EMAIL, PASSWORD);
+    if (!r.ok) throw new Error('login falhou: ' + r.errorText);
+    await p.goto(BASE_URL + '#turmas', { waitUntil: 'networkidle' });
+    await p.waitForSelector('.turmas-vercomo', { timeout: 20000 });
+    const barra = await p.evaluate(() => {
+      var b = document.querySelector('.turmas-vercomo');
+      var sel = b && b.querySelector('.aluno-vercomo-sel');
+      return {
+        temSelect: !!sel,
+        primeiraOpcao: sel && sel.options[0] ? sel.options[0].textContent : '',
+      };
+    });
+    if (!barra.temSelect) throw new Error('barra existe mas sem o seletor de pessoa');
+    if (barra.primeiraOpcao.indexOf('eu mesma') === -1) {
+      throw new Error('primeira opção deveria voltar pra própria admin, veio "' + barra.primeiraOpcao + '"');
+    }
+  });
+
   await runIsolated('Minha Área: os grupos de turma aparecem na ordem Em andamento → Programadas → Concluídas', async (p) => {
     await p.goto(BASE_URL, { waitUntil: 'networkidle' });
     const r = await submitLogin(p, EMAIL, PASSWORD);

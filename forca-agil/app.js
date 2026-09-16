@@ -242,6 +242,17 @@
        para o card de lista de espera dele. Lido na mesma corrente, pelo mesmo
        motivo: chegar depois é piscar na tela o que não devia aparecer. */
     var _publicoPorEvento = {};
+    /* "Ver esta tela como" (admin) — { email, name } de quem está sendo
+       simulada, ou null quando é a própria sessão. Só afeta _sess (o que
+       decide o que aparece na vitrine); interesse e lista de espera
+       continuam lendo a sessão REAL de quem clica (ver initInterestButtons
+       e renderEsperaCard), então o preview nunca grava nada em nome de
+       outra pessoa. Fica fora de initTurmaInterest de propósito: essa
+       função roda de novo a cada fa-admin-ready/fa-diretor-ready (a
+       sessão real ainda resolvendo isAdmin/isDiretor), e resetar a
+       escolha do admin a cada uma dessas rodadas derrubaria o preview
+       sem ele mexer em nada. */
+    var _verComoPessoa = null;
 
     /* Formato dos encontros do evento (eventos/<evento>/formato) — usado no
        chip "dia(s) de encontro(s)" do bloco "Como funciona". "hibrido" é os
@@ -682,14 +693,85 @@
       });
     }
 
+    function esc(s) {
+      return String(s || '').replace(/[&<>"]/g, function (c) {
+        return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c];
+      });
+    }
+
+    /* ══════════════════════════════════════════════════════════════════
+       VER COMO — só admin. Mesmo recurso da Minha Área (aluno.js), agora
+       também na vitrine: quem decide o que aparece aqui é a PESSOA
+       (público restrito, evento restrito a diretores — eventoVisivelPara/
+       turmaVisivelPara/eventoNaVitrine, todas por _sess.email), e essa
+       regra já foi esquecida mais de uma vez por só existir no código, sem
+       um jeito de o admin conferir na prática o que uma pessoa específica
+       vê. Troca só _sess (o que decide visibilidade e ordem); os botões de
+       interesse e lista de espera continuam lendo a sessão REAL de quem
+       clica (initInterestButtons/renderEsperaCard recebem `sessReal`, não
+       a pessoa escolhida), então o preview nunca grava nada em nome de
+       outra pessoa — mesma garantia da Minha Área, com a mesma consulta
+       (window.faTurmasUtil.listarPessoasVerComo, ver turmas-util.js). */
+    function montarBarraVerComoTurmas(sessReal) {
+      var host = document.querySelector('.turmas-eventos');
+      if (!host || document.querySelector('.turmas-vercomo')) return;
+
+      var barra = document.createElement('div');
+      barra.className = 'aluno-vercomo turmas-vercomo';
+      barra.innerHTML =
+        '<span class="aluno-vercomo-tag">ADMIN</span>' +
+        '<label class="aluno-vercomo-campo">Ver esta tela como ' +
+          '<select class="aluno-vercomo-sel"><option value="">— eu mesma —</option></select>' +
+        '</label>' +
+        '<span class="aluno-vercomo-dica">Só muda o que aparece — interesse e lista de espera continuam em seu próprio nome.</span>';
+      host.parentNode.insertBefore(barra, host);
+
+      var aviso = document.createElement('div');
+      aviso.className = 'aluno-vercomo-aviso';
+      aviso.style.display = 'none';
+      host.parentNode.insertBefore(aviso, host);
+
+      var sel = barra.querySelector('.aluno-vercomo-sel');
+      window.faTurmasUtil.listarPessoasVerComo(function (pessoas) {
+        pessoas.forEach(function (p) {
+          var opt = document.createElement('option');
+          opt.value = p.uk;
+          opt.dataset.email = p.email;
+          opt.dataset.nome = p.nome;
+          opt.textContent = p.nome + '  ·  ' + p.situacoes[0];
+          sel.appendChild(opt);
+        });
+      });
+
+      sel.addEventListener('change', function () {
+        var opt = sel.options[sel.selectedIndex];
+        barra.classList.toggle('aluno-vercomo--ativo', !!sel.value);
+        if (!sel.value) {
+          _verComoPessoa = null;
+          aviso.style.display = 'none';
+        } else {
+          _verComoPessoa = { email: opt.dataset.email, name: opt.dataset.nome };
+          aviso.innerHTML = '👁️ Você está vendo a vitrine como <strong>' + esc(opt.dataset.nome) +
+            '</strong> veria. Tudo abaixo é o que aparece para essa pessoa.';
+          aviso.style.display = '';
+        }
+        _sess = _verComoPessoa || sessReal;
+        renderTurmasGrid();
+        renderEsperaCard(sessReal);
+        renderMissaoEventos();
+        initInterestButtons(sessReal);
+      });
+    }
+
     function initTurmaInterest() {
       var sess = window.faAuth && window.faAuth.getSession();
-      _sess = sess;
+      _sess = _verComoPessoa || sess;
       loadTurmas(function () {
         renderTurmasGrid();
         renderEsperaCard(sess);
         renderMissaoEventos();
         initInterestButtons(sess);
+        if (sess && window.faAuth.isAdmin && window.faAuth.isAdmin(sess.email)) montarBarraVerComoTurmas(sess);
       });
     }
 
