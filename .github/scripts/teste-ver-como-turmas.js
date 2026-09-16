@@ -136,6 +136,16 @@ async function selecionarPorEmail(page, email) {
     await page.goto(BASE + '/index.html#turmas', { waitUntil: 'domcontentloaded' });
     await page.waitForSelector('.turmas-evento-grupo', { timeout: 15000 });
     await page.waitForSelector('.turmas-vercomo .aluno-vercomo-sel', { timeout: 15000 });
+    /* O <select> nasce só com "— eu mesma —"; as duas pessoas chegam depois,
+       por window.faTurmasUtil.listarPessoasVerComo (duas leituras assíncronas
+       encadeadas). Sem esperar isso, a checagem de quantidade de opções — e
+       a seleção por e-mail logo abaixo — corre uma corrida contra essa
+       consulta e falha só às vezes (dependia de o ambiente ser rápido o
+       bastante para a consulta já ter voltado). */
+    await page.waitForFunction(() => {
+      var sel = document.querySelector('.turmas-vercomo .aluno-vercomo-sel');
+      return !!sel && sel.options.length >= 3;
+    }, { timeout: 15000 });
 
     anota('barra "Ver esta tela como" aparece na página Turmas para o admin',
       await page.locator('.turmas-vercomo').count() === 1);
