@@ -440,6 +440,16 @@
 .badge-checkin-aberto { background: rgba(100,220,100,.15); color: #64dc64; border: 1px solid rgba(100,220,100,.35); animation: pulse-green 2s ease-in-out infinite; }
 @keyframes pulse-green { 0%,100%{opacity:1} 50%{opacity:.6} }
 
+/* Público restrito da turma: é um <button> que abre a lista (admin.js), não
+   uma etiqueta — por isso ganha alvo de toque de dedo, não só de cursor. */
+.badge-restrito {
+  background: rgba(138,127,255,.15); color: #a99dff; border: 1px solid rgba(138,127,255,.45);
+  cursor: pointer; padding: 5px 10px; min-height: 30px;
+  display: inline-flex; align-items: center;
+}
+.badge-restrito:hover,
+.badge-restrito:focus-visible { background: rgba(138,127,255,.3); color: #c4bcff; }
+
 /* Roteiro de Facilitação — selos de origem de cada atividade no roteiro
    da turma (ver forca-agil/roteiro.js): sem selo = padrão do evento. */
 .badge-roteiro-alterada  { background: rgba(245,197,24,.15); color: var(--gold); border: 1px solid rgba(245,197,24,.3); }

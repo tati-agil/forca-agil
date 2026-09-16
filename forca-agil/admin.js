@@ -654,8 +654,16 @@
                sem o selo as duas se parecem na tela. */
             var publico      = _publicoPorTurma[t.key] || {};
             var noPublico    = Object.keys(publico).length;
+            /* Botão, não etiqueta: o selo é o lugar óbvio para clicar quando
+               se quer mexer na lista, e enquanto foi só texto o clique não
+               fazia nada — a lista só se alcançava pelo item escondido no
+               menu ⋯, que ninguém acha justo depois de "＋ Participante"
+               recusar a pessoa. O evento já tinha botão visível no cabeçalho;
+               a turma, não, e era a turma que barrava. */
             var restritoBadge = t.publicoRestrito
-              ? '<span class="turma-status-badge badge-restrito">&#x1F465; PÚBLICO RESTRITO DESTA TURMA · ' + noPublico + '</span>'
+              ? '<button type="button" class="turma-status-badge badge-restrito js-pub-badge" ' +
+                'title="Quem pode participar desta turma — clique para abrir a lista">' +
+                '&#x1F465; PÚBLICO RESTRITO DESTA TURMA · ' + noPublico + '</button>'
               : '';
             hdr.innerHTML =
               '<div class="turma-admin-title" style="cursor:pointer;user-select:none">' +
@@ -670,6 +678,19 @@
               '</div>' +
               '<div class="turma-admin-actions" id="turma-actions-' + t.key + '"></div>';
             card.appendChild(hdr);
+
+            /* stopPropagation porque o selo mora dentro do título, e o título
+               recolhe/expande o card: sem isso, abrir a lista também fecharia
+               a turma embaixo do modal. */
+            var pubBadgeBtn = hdr.querySelector('.js-pub-badge');
+            if (pubBadgeBtn) {
+              pubBadgeBtn.addEventListener('click', (function (tt) {
+                return function (e) {
+                  e.stopPropagation();
+                  openPublicoModal({ tipo: 'turma', key: tt.key, label: tt.label });
+                };
+              })(t));
+            }
 
             var actWrap = hdr.querySelector('#turma-actions-' + t.key);
             var primaryWrap = document.createElement('div');
@@ -2552,6 +2573,10 @@
     overlay.className = 'modal-overlay';
     overlay.style.cssText = 'display:flex;align-items:center;justify-content:center;z-index:9999';
 
+    var evKeyPart  = turmaEventoKey(turmaKey);
+    var evRestrito = eventoRestrito(evKeyPart);
+    var restrita   = turmaRestrita(turmaKey);
+
     var box = document.createElement('div');
     box.className = 'modal-box';
     box.style.cssText = 'max-width:460px;width:90%;padding:28px;display:flex;flex-direction:column;gap:14px';
@@ -2574,8 +2599,16 @@
         '</div>' +
       '</div>' +
 
-      /* aviso quando não encontrar */
-      '<p style="font-size:.8rem;color:var(--ink-3);margin:0">Não encontrou a pessoa? Peça que ela faça o cadastro no site primeiro — após isso, ela aparecerá aqui na busca.</p>' +
+      /* aviso quando não encontrar — em lista restrita, mandar "peça o
+         cadastro" é a dica errada e cara: a pessoa costuma JÁ ter cadastro e
+         só estar fora da lista, e quem acredita no texto vai esperar por um
+         cadastro que já existe em vez de abrir a lista. */
+      '<p style="font-size:.8rem;color:var(--ink-3);margin:0">' +
+        (evRestrito || restrita
+          ? 'Não encontrou a pessoa? Ela pode já ter cadastro no site e apenas não estar na lista — ' +
+            'abra a lista acima e inclua. Só peça cadastro a quem nunca entrou no site.'
+          : 'Não encontrou a pessoa? Peça que ela faça o cadastro no site primeiro — após isso, ela aparecerá aqui na busca.') +
+      '</p>' +
 
       '<label class="auth-label" style="margin:0">Status<select id="addPartStatus" style="width:100%;padding:10px 12px;background:var(--panel-2);border:1px solid var(--line-strong);border-radius:6px;color:var(--ink);font-family:var(--font-body)">' +
         '<option value="">Selecione o status…</option>' +
@@ -2601,33 +2634,57 @@
 
     var allUsers = [];   /* carregados do Firebase */
     var selected = null; /* { name, email, area } */
+    var usuariosCarregados = false;
+    var usuariosFalharam   = false;
 
-    var evKeyPart  = turmaEventoKey(turmaKey);
-    var evRestrito = eventoRestrito(evKeyPart);
-    var restrita   = turmaRestrita(turmaKey);
+    /* Melhor não oferecer do que recusar depois de escolher: numa turma (ou
+       evento) de público restrito a busca só enxerga quem está na lista. A
+       checagem de verdade acontece de novo ao gravar (barradoPeloPublico),
+       porque a lista pode mudar com o modal aberto.
+
+       O aviso não manda mais procurar: leva. Dizer "feche isto e use o menu ⋯
+       da turma" é mandar caçar um botão escondido no meio da tarefa que
+       acabou de falhar — e quem não acha conclui que falta cadastro ou
+       inscrição da pessoa, que é falso e faz esperar por quem já está pronta. */
+    function avisoRestrito(texto, alvo) {
+      var wrap = document.createElement('div');
+      wrap.style.cssText = 'font-size:.8rem;color:#a99dff;margin:0;line-height:1.5;' +
+        'display:flex;flex-direction:column;gap:8px;align-items:flex-start';
+      var p = document.createElement('p');
+      p.style.cssText = 'margin:0';
+      p.innerHTML = texto;
+      var btn = document.createElement('button');
+      btn.type = 'button';
+      btn.className = 'btn btn--sm';
+      btn.style.cssText = 'padding:7px 12px;font-size:.72rem;border-color:rgba(138,127,255,.5);color:#a99dff';
+      /* Rótulo inteiro em cada ramo, não montado por pedaços: é assim que
+         teste-rotulos-doc.js consegue casar o que a documentação promete
+         com o que a tela escreve. */
+      btn.innerHTML = alvo.tipo === 'evento'
+        ? '&#x1F465; Abrir a lista do evento'
+        : '&#x1F465; Abrir a lista desta turma';
+      btn.addEventListener('click', function () { closeModal(); openPublicoModal(alvo); });
+      wrap.appendChild(p);
+      wrap.appendChild(btn);
+      box.insertBefore(wrap, box.querySelector('#addPartSearchWrap'));
+    }
     if (evRestrito) {
-      /* Mesmo aviso da turma restrita, um nível acima: a busca só enxerga
-         quem pode estar no evento, e o texto diz onde se muda isso. */
-      var avisoEv = document.createElement('p');
-      avisoEv.style.cssText = 'font-size:.8rem;color:#a99dff;margin:0;line-height:1.5';
-      avisoEv.innerHTML = '&#x1F465; O evento <strong>' + esc(eventoLabel(evKeyPart)) + '</strong> tem ' +
-        '<strong>público restrito</strong>: a busca abaixo só encontra quem está na lista dele. ' +
-        'Para incluir outra pessoa, feche isto e use "&#x1F465; Público restrito" no cabeçalho do evento.';
-      box.insertBefore(avisoEv, box.querySelector('#addPartSearchWrap'));
+      avisoRestrito('&#x1F465; O evento <strong>' + esc(eventoLabel(evKeyPart)) + '</strong> tem ' +
+        '<strong>público restrito</strong>: a busca abaixo só encontra quem está na lista dele.',
+        { tipo: 'evento', key: evKeyPart, label: eventoLabel(evKeyPart) });
     }
     if (restrita) {
-      /* Melhor não oferecer do que recusar depois de escolher: numa turma de
-         público restrito a busca só enxerga quem está na lista, e o aviso diz
-         onde se muda isso. A checagem de verdade acontece de novo ao gravar
-         (barradoPeloPublico), porque a lista pode mudar com o modal aberto. */
-      var aviso = document.createElement('p');
-      aviso.style.cssText = 'font-size:.8rem;color:#a99dff;margin:0;line-height:1.5';
-      aviso.innerHTML = '&#x1F465; Esta turma tem <strong>público restrito</strong>: a busca abaixo só ' +
-        'encontra quem está na lista dela. Para incluir outra pessoa, feche isto e use ' +
-        '"&#x1F465; Público restrito" no menu ⋯ da turma.';
-      box.insertBefore(aviso, box.querySelector('#addPartSearchWrap'));
+      avisoRestrito('&#x1F465; Esta turma tem <strong>público restrito</strong>: a busca abaixo só ' +
+        'encontra quem está na lista dela. As duas listas se somam — estar na do evento não basta.',
+        { tipo: 'turma', key: turmaKey, label: turmaLabel(turmaKey) });
     }
 
+    /* A lição do PR #111 nesta busca: enquanto fa-users não chega, "ainda não
+       sei" não pode ser dito como "não tem". A caixa abre na hora e aceita
+       digitação antes da leitura terminar — no 4G da sala isso são segundos
+       em que o campo afirmava "Nenhum cadastro encontrado" sobre uma lista
+       que ainda estava vazia, e quem lia ia procurar um problema que não
+       existia (cadastro da pessoa, lista errada) em vez de esperar. */
     firebase.database().ref('fa-users').once('value', function (snap) {
       var data = snap.val() || {};
       allUsers = Object.values(data).filter(function (u) { return u.email && u.name; });
@@ -2643,6 +2700,11 @@
           return noPublicoDaTurma(turmaKey, emailKey(u.email));
         });
       }
+      usuariosCarregados = true;
+      renderBusca();
+    }, function () {
+      usuariosFalharam = true;
+      renderBusca();
     });
 
     function selectUser(u) {
@@ -2661,7 +2723,18 @@
       searchInput.focus();
     });
 
-    searchInput.addEventListener('input', function () {
+    function vazioDaBusca() {
+      if (usuariosFalharam) return 'Não consegui ler os cadastros. Recarregue a página e tente de novo.';
+      if (!usuariosCarregados) return 'Carregando cadastros…';
+      /* "Nenhum cadastro encontrado" numa lista restrita aponta para a
+         causa errada: o mais provável é que a pessoa tenha cadastro e
+         esteja fora da lista, não que não tenha conta. */
+      return (evRestrito || restrita)
+        ? 'Ninguém com esse nome na lista de quem pode participar.'
+        : 'Nenhum cadastro encontrado.';
+    }
+
+    function renderBusca() {
       var q = searchInput.value.trim().toLowerCase();
       if (!q) { resultsList.style.display = 'none'; return; }
       var matches = allUsers.filter(function (u) {
@@ -2671,7 +2744,7 @@
       if (!matches.length) {
         var li = document.createElement('li');
         li.style.cssText = 'padding:10px 14px;font-size:.83rem;color:var(--ink-3)';
-        li.textContent = 'Nenhum cadastro encontrado.';
+        li.textContent = vazioDaBusca();
         resultsList.appendChild(li);
       } else {
         matches.forEach(function (u) {
@@ -2686,7 +2759,9 @@
         });
       }
       resultsList.style.display = '';
-    });
+    }
+
+    searchInput.addEventListener('input', renderBusca);
 
     function closeModal() { document.body.removeChild(overlay); }
 
@@ -3163,6 +3238,23 @@
        cópias dela é que fariam as duas restrições divergirem com o tempo. */
     var noPath   = ehEvento ? 'eventos-publico/' : 'turmas-publico/';
     var oQue     = ehEvento ? 'evento' : 'turma';
+    /* O que acabou de ser gravado vale na hora, não só depois que a aba
+       inteira recarregar. _publicoPorTurma/_publicoPorEvento só eram
+       reescritos por loadInterests(), e é dele que "＋ Participante" e
+       barradoPeloPublico tiram a resposta: no 4G da sala, entre fechar este
+       modal e a releitura terminar, a pessoa recém-incluída continuava
+       invisível na busca — a admin concluía que a inclusão não pegou e
+       repetia tudo. Escrita bem-sucedida atualiza o cache aqui mesmo; a
+       releitura depois só confirma. */
+    function sincronizarCache(eKey, registro) {
+      var cache = ehEvento ? _publicoPorEvento : _publicoPorTurma;
+      if (registro) {
+        if (!cache[alvo.key]) cache[alvo.key] = {};
+        cache[alvo.key][eKey] = registro;
+      } else if (cache[alvo.key]) {
+        delete cache[alvo.key][eKey];
+      }
+    }
     var alcance  = ehEvento
       ? 'Só quem está nesta lista vê o evento no site — em todas as turmas dele — pode manifestar ' +
         'interesse, entrar na lista de espera e ser adicionada por você.'
@@ -3275,6 +3367,7 @@
             function () {
               firebase.database().ref(noPath + alvo.key + '/' + b.dataset.ekey).remove(function (err) {
                 if (err) { adminAlert('Erro ao remover. Tente novamente.'); return; }
+                sincronizarCache(b.dataset.ekey, null);
                 reload();
               });
             });
@@ -3328,13 +3421,15 @@
       function incluir(u) {
         var sess = window.faAuth && window.faAuth.getSession();
         var eKey = emailKey(u.email);
-        firebase.database().ref(noPath + alvo.key + '/' + eKey).set({
+        var registro = {
           name: (u.name || '').toUpperCase(), email: u.email.toLowerCase(), area: u.area || '',
           date: new Date().toISOString(),
           addedBy: sess ? sess.email : null,
           addedByName: sess ? (sess.name || sess.email) : null
-        }, function (err) {
+        };
+        firebase.database().ref(noPath + alvo.key + '/' + eKey).set(registro, function (err) {
           if (err) { adminAlert('Erro ao incluir. Tente novamente.'); return; }
+          sincronizarCache(eKey, registro);
           searchInput.value = '';
           resultsList.style.display = 'none';
           reload();
