@@ -422,6 +422,35 @@
     return !!(r && !r.removed && r.status === 'inscrito' && !r.confirmedByAdmin);
   }
 
+  /* O contrário de inscricaoValida, do lado de quem ESCREVE: as portas que
+     criam o registro inteiro montam por aqui, para que um campo novo não
+     precise ser lembrado em cada uma delas. É a lição do PR #113 (ver a
+     skill criterio-de-estado): quando a leitura passou a exigir os DOIS
+     campos, uma porta continuou gravando só o status e produziu gente
+     "inscrita" sem acesso a nada, em silêncio, por 27 dias.
+
+     Quem chama com 'inscrito' precisa de sessão de admin — gravar
+     confirmedByAdmin: null APAGA o campo no Realtime Database, que é a
+     mesma escrita do Desconfirmar. */
+  function registroInscricaoAdmin(pessoa, status, sess, quando) {
+    var adminName = sess ? (sess.name || sess.email) : 'Admin';
+    var reg = {
+      name:  (pessoa.name || '').toUpperCase(),
+      email: (pessoa.email || '').toLowerCase(),
+      area:  pessoa.area || '',
+      date: quando,
+      status: status,
+      addedByAdmin: true,
+      addedByAdminName: adminName
+    };
+    if (status === 'inscrito') {
+      reg.confirmedByAdmin = sess.email;
+      reg.confirmedByAdminName = adminName;
+      reg.confirmedDate = quando;
+    }
+    return reg;
+  }
+
   /* ---- Público restrito da turma -----------------------------------------
      Turma marcada "publicoRestrito" só admite quem está na lista dela
      (turmas-publico/<turma>/<chave do e-mail>). A lista NÃO é só sobre o que
@@ -2808,26 +2837,13 @@
         }
 
         function save(overlaps) {
-          var adminName = sess ? (sess.name || sess.email) : 'Admin';
           var now = new Date().toISOString();
           var updates = {};
-          var registro = {
-            name: name, email: email, area: area,
-            date: now,
-            status: status, addedByAdmin: true,
-            addedByAdminName: adminName
-          };
-          /* Uma inscrição só é reconhecida pelo resto do sistema com os DOIS
-             campos: status 'inscrito' E confirmedByAdmin (auth.js isInscrito,
-             aluno.js, dashboard.js, avaliacao.js). addedByAdmin não conta —
-             antes disso, quem era adicionada direto como Inscrita aparecia
-             inscrita no painel mas ficava sem acesso a Conteúdos/Treinamento
-             e via a própria Minha Área como não confirmada. */
-          if (status === 'inscrito') {
-            registro.confirmedByAdmin = sess.email;
-            registro.confirmedByAdminName = adminName;
-            registro.confirmedDate = now;
-          }
+          /* Registro montado no lugar único (registroInscricaoAdmin): é ele
+             que garante os DOIS campos que fazem a inscrição ser reconhecida
+             pelo resto do sistema. */
+          var registro = registroInscricaoAdmin(
+            { name: name, email: email, area: area }, status, sess, now);
           updates['turmas-interesse/' + turmaKey + '/' + eKey] = registro;
           overlaps.forEach(function (o) {
             updates['turmas-interesse/' + o.turma + '/' + o.eKey + '/removed'] = true;
@@ -3238,6 +3254,8 @@
        cópias dela é que fariam as duas restrições divergirem com o tempo. */
     var noPath   = ehEvento ? 'eventos-publico/' : 'turmas-publico/';
     var oQue     = ehEvento ? 'evento' : 'turma';
+    /* "o turma" — o artigo tem de acompanhar a palavra que varia. */
+    var oAQue    = ehEvento ? 'o evento' : 'a turma';
     /* O que acabou de ser gravado vale na hora, não só depois que a aba
        inteira recarregar. _publicoPorTurma/_publicoPorEvento só eram
        reescritos por loadInterests(), e é dele que "＋ Participante" e
@@ -3327,7 +3345,7 @@
       if (!chaves.length) {
         body.insertAdjacentHTML('beforeend',
           '<p class="admin-empty">Ninguém na lista ainda. Enquanto estiver vazia, ' +
-          'o ' + oQue + ' não aparece para pessoa nenhuma no site &mdash; só para você, no painel.</p>');
+          oAQue + ' não aparece para pessoa nenhuma no site &mdash; só para você, no painel.</p>');
       } else {
         var wrap = document.createElement('div');
         wrap.className = 'table-scroll-wrap';
@@ -3374,6 +3392,38 @@
         });
       }
 
+      /* ── Matricular de uma vez quem está na lista e ainda não está na turma ──
+         A lista diz quem PODE, a turma diz quem ESTÁ, e uma não vira a outra
+         sozinha — isso é de propósito. Mas montar uma turma fechada é quase
+         sempre "são estas pessoas", e sem isto cada uma exige um "＋
+         Participante" inteiro: buscar, escolher o status, adicionar, repetir.
+         Com 12 na lista viram 12 formulários. Continua sendo decisão da
+         admin: o botão só faz de uma vez o que ela faria N vezes, passando
+         pelas MESMAS recusas (ver skill criterio-de-estado). */
+      if (!ehEvento) {
+        var foraDaTurma = chaves.filter(function (k) {
+          var reg = interesse[k];
+          return !reg || reg.removed;
+        });
+        if (foraDaTurma.length) {
+          var bulkWrap = document.createElement('div');
+          bulkWrap.style.cssText = 'display:flex;flex-direction:column;gap:6px;align-items:flex-start;margin-top:4px';
+          var bulkBtn = document.createElement('button');
+          bulkBtn.type = 'button';
+          bulkBtn.className = 'btn btn--sm';
+          bulkBtn.style.cssText = 'padding:8px 14px;font-size:.75rem;border-color:rgba(138,127,255,.5);color:#a99dff';
+          bulkBtn.textContent = '＋ Adicionar à turma as ' + foraDaTurma.length +
+            (foraDaTurma.length > 1 ? ' que ainda não estão' : ' que ainda não está');
+          var bulkHint = document.createElement('p');
+          bulkHint.style.cssText = 'font-size:.78rem;color:var(--ink-3);margin:0';
+          bulkHint.textContent = 'Entram como Inscritas, com você como quem confirmou — o mesmo que "＋ Participante" faria uma por uma.';
+          bulkWrap.appendChild(bulkBtn);
+          bulkWrap.appendChild(bulkHint);
+          body.appendChild(bulkWrap);
+          bulkBtn.addEventListener('click', function () { matricularNaTurma(foraDaTurma, lista); });
+        }
+      }
+
       /* ── Incluir pessoa ── */
       var addWrap = document.createElement('div');
       addWrap.style.cssText = 'margin-top:4px';
@@ -3384,7 +3434,7 @@
         '<ul id="pubResults" style="margin:4px 0 0;padding:0;list-style:none;max-height:180px;overflow-y:auto;' +
           'border:1px solid var(--line-strong);border-radius:6px;background:var(--panel-2);display:none"></ul>' +
         '<p style="font-size:.78rem;color:var(--ink-3);margin:6px 0 0">' +
-          'Aparecem só pessoas já cadastradas no site: sem cadastro ninguém consegue entrar para ver o ' + oQue + '.</p>';
+          'Aparecem só pessoas já cadastradas no site: sem cadastro ninguém consegue entrar para ver ' + oAQue + '.</p>';
       body.appendChild(addWrap);
 
       var candidatos = Object.values(users).filter(function (u) {
@@ -3435,6 +3485,71 @@
           reload();
         });
       }
+    }
+
+    /* Porta nova para o estado "inscrita" — a quarta, ao lado de Confirmar,
+       "＋ Participante" e "Mover para turma". Por isso repete as exigências
+       das outras, e não um atalho por ser em massa:
+         · sem sessão de admin não grava (registro pela metade é pior);
+         · barradoPeloPublico pessoa por pessoa — estar na lista DA TURMA não
+           basta quando o EVENTO também é restrito, e a lista pode ter mudado
+           noutra aba com este modal aberto;
+         · exclusividade de turma (checkOutrasTurmas), removendo a inscrição
+           anterior como o "＋ Participante" faz;
+         · registro montado por registroInscricaoAdmin, com os dois campos.
+       Uma escrita multi-caminho só: ou entra todo mundo, ou não entra
+       ninguém — meia turma gravada seria pior que o erro. */
+    function matricularNaTurma(eKeys, lista) {
+      var sess = window.faAuth && window.faAuth.getSession();
+      if (!sess) {
+        adminAlert('Sua sessão de admin não está ativa neste momento — recarregue a página e tente de novo.\n\nNada foi gravado.');
+        return;
+      }
+
+      var podem = [], barradas = [];
+      eKeys.forEach(function (k) {
+        var p = lista[k] || {};
+        var nome = p.name || p.email || k;
+        if (barradoPeloPublico(alvo.key, nome, k)) barradas.push(nome);
+        else podem.push(k);
+      });
+
+      if (!podem.length) {
+        adminAlert('Ninguém desta lista pode entrar na turma agora.\n\n' +
+          'Fora do público restrito do evento:\n' + barradas.join('\n') +
+          '\n\nInclua essas pessoas na lista do EVENTO primeiro. Nada foi gravado.');
+        return;
+      }
+
+      checkOutrasTurmas(alvo.key, podem, function (overlaps) {
+        var msg = 'Adicionar ' + podem.length + (podem.length > 1 ? ' pessoas' : ' pessoa') +
+          ' à turma "' + alvo.label + '" como INSCRITAS?\n\n' +
+          'Elas passam a ter acesso a Conteúdos e Treinamento, como se você tivesse confirmado uma por uma.';
+        if (barradas.length) {
+          msg += '\n\nFicam de fora, por não estarem no público restrito do evento:\n' + barradas.join('\n');
+        }
+        if (overlaps.length) {
+          msg += '\n\nJá inscritas em outra turma — essa inscrição anterior será removida, porque ninguém fica em duas:\n' +
+            overlaps.map(function (o) { return '• ' + o.name + ' — ' + turmaLabel(o.turma); }).join('\n');
+        }
+        adminConfirm(msg, function () {
+          var now = new Date().toISOString();
+          var updates = {};
+          podem.forEach(function (k) {
+            updates['turmas-interesse/' + alvo.key + '/' + k] =
+              registroInscricaoAdmin(lista[k] || {}, 'inscrito', sess, now);
+          });
+          overlaps.forEach(function (o) {
+            updates['turmas-interesse/' + o.turma + '/' + o.eKey + '/removed'] = true;
+            updates['turmas-interesse/' + o.turma + '/' + o.eKey + '/removedDate'] = now;
+            updates['turmas-interesse/' + o.turma + '/' + o.eKey + '/removedReason'] = 'Inscrita automaticamente na turma "' + turmaLabel(alvo.key) + '"';
+          });
+          firebase.database().ref().update(updates, function (err) {
+            if (err) { adminAlert('Erro ao adicionar à turma. Nada foi gravado — tente novamente.'); return; }
+            reload();
+          });
+        });
+      });
     }
 
     reload();
