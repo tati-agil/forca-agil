@@ -41,8 +41,13 @@ const chave = (e) => e.toLowerCase().replace(/[@.]/g, '_').replace(/[^a-z0-9_]/g
 
 const ADM     = 'adm@previ.com.br';
 const NATALIA = 'natalia.kinhirin@previ.com.br';
+/* Está na lista DA TURMA e fora da lista DO EVENTO: o caso que a matrícula
+   em massa tem de recusar, porque as duas listas se somam. */
+const ADRIANA = 'adriana.pizarro@previ.com.br';
 const EV      = 'evExec';
 const TURMA   = 'tExec';
+const EV2     = 'evOutro';
+const TOUTRA  = 'tOutra';
 
 /* O cenário real: NATALIA tem cadastro no site e já está na lista do EVENTO,
    mas não na lista da TURMA. As duas listas se somam, então ela fica de fora
@@ -51,6 +56,7 @@ function banco() {
   const users = {};
   users[chave(ADM)]     = { name: 'ADMIN', email: ADM, area: 'INFOR' };
   users[chave(NATALIA)] = { name: 'NATALIA KINHIRIN', email: NATALIA, area: 'PRESI' };
+  users[chave(ADRIANA)] = { name: 'ADRIANA PIZARRO', email: ADRIANA, area: 'DISEG' };
   const admins = {}; admins[chave(ADM)] = { email: ADM, name: 'ADMIN' };
 
   const naTurma = {};
@@ -63,18 +69,33 @@ function banco() {
   const publicoEvento = {};
   publicoEvento[chave(NATALIA)] = { name: 'NATALIA KINHIRIN', email: NATALIA, area: 'PRESI' };
   Object.keys(naTurma).forEach((k) => { publicoEvento[k] = naTurma[k]; });
+  /* ADRIANA entra só na lista da TURMA — de propósito. */
+  const publicoTurma = Object.assign({}, naTurma);
+  publicoTurma[chave(ADRIANA)] = { name: 'ADRIANA PIZARRO', email: ADRIANA, area: 'DISEG' };
+
+  /* DEBORA já é inscrita noutra turma: a matrícula em massa tem de remover
+     essa inscrição, como o "＋ Participante" faz — ninguém fica em duas. */
+  const interesseOutra = {};
+  interesseOutra[chave('debora@previ.com.br')] = {
+    name: 'DEBORA DA SILVA', email: 'debora@previ.com.br', area: 'GETHO',
+    status: 'inscrito', confirmedByAdmin: ADM, confirmedByAdminName: 'ADMIN',
+    confirmedDate: '2026-09-01T10:00:00.000Z', date: '2026-09-01T10:00:00.000Z',
+  };
 
   return {
     'fa-users': users, 'fa-admins': admins, 'fa-diretores': {}, 'fa-facilitadores': {},
     'fa-users-log': {}, 'fa-progress': {}, 'fa-reset-signal': {}, 'fa-espera': {},
     eventos: {
-      [EV]: { nome: 'FORÇA ÁGIL - EXECUTIVOS', order: 1, publicado: true, cargaHoraria: '3.5', publicoRestrito: true },
+      [EV]:  { nome: 'FORÇA ÁGIL - EXECUTIVOS', order: 1, publicado: true, cargaHoraria: '3.5', publicoRestrito: true },
+      [EV2]: { nome: 'FORÇA ÁGIL - ABERTO', order: 2, publicado: true, cargaHoraria: '3.5' },
     },
     turmas: {
-      [TURMA]: { label: 'EXPERIÊNCIA EXECUTIVA MENTALIDADE ÁGIL + IA', eventoKey: EV, order: 1, dias: ['2027-09-16'], publicoRestrito: true },
+      [TURMA]:  { label: 'EXPERIÊNCIA EXECUTIVA MENTALIDADE ÁGIL + IA', eventoKey: EV, order: 1, dias: ['2027-09-16'], publicoRestrito: true },
+      [TOUTRA]: { label: 'TURMA ABERTA', eventoKey: EV2, order: 1, dias: ['2027-10-20'] },
     },
-    'turmas-interesse': {}, 'turmas-interesse-log': {}, 'turmas-config': {}, 'turmas-checkin': {},
-    'turmas-publico': { [TURMA]: naTurma }, 'eventos-publico': { [EV]: publicoEvento },
+    'turmas-interesse': { [TOUTRA]: interesseOutra },
+    'turmas-interesse-log': {}, 'turmas-config': {}, 'turmas-checkin': {},
+    'turmas-publico': { [TURMA]: publicoTurma }, 'eventos-publico': { [EV]: publicoEvento },
     'turmas-equipe': {}, 'turmas-sorteio': {}, avaliacoes: {}, pedidos: {}, holocron: {},
   };
 }
@@ -271,6 +292,90 @@ const buscarParticipante = async (page, termo) => {
         /NATALIA/i.test(document.querySelector('#addPartResults').textContent || ''));
       anota('depois de incluída na lista, a pessoa aparece na busca de participante', agoraAparece);
       await fecharModal(page);
+
+      /* ── 6: matricular de uma vez quem está na lista e não está na turma ──
+         Porta nova para o estado "inscrita": tem de repetir as exigências das
+         outras três (skill criterio-de-estado), não encurtá-las por ser em
+         massa. Neste ponto a lista da turma tem 8 pessoas e a turma está
+         vazia; ADRIANA está fora da lista do EVENTO e DEBORA já é inscrita
+         noutra turma. */
+      await page.evaluate(() => { window.__ESCRITAS = []; });
+      await page.click('#turma-card-' + TURMA + ' .js-pub-badge');
+      await esperarModal(page);
+      /* O modal aparece já com "Carregando…": medir antes da tabela existir
+         é medir a tela errada. */
+      await page.waitForFunction(() => {
+        const box = window.__boxVis();
+        return !!(box && box.querySelector('.admin-table'));
+      }, { timeout: 10000 });
+
+      const rotuloBulk = await page.evaluate(() => {
+        const box = window.__boxVis();
+        const b = Array.from(box.querySelectorAll('button'))
+          .find((x) => /Adicionar à turma/i.test(x.textContent || ''));
+        return b ? (b.textContent || '').trim() : '';
+      });
+      anota('a lista oferece matricular de uma vez quem ainda não está na turma',
+        /Adicionar à turma/i.test(rotuloBulk), rotuloBulk || 'botão não encontrado');
+      anota('o botão conta as 8 que estão na lista e fora da turma',
+        /\b8\b/.test(rotuloBulk), rotuloBulk);
+
+      await botaoDoModal(page, /Adicionar à turma/);
+      await page.waitForFunction(() => {
+        const box = window.__boxVis();
+        return box && /INSCRITAS\?/i.test(box.textContent || '');
+      }, { timeout: 10000 });
+      const txtConfirma = await textoDoModal(page);
+      anota('a confirmação avisa que quem está fora da lista do EVENTO fica de fora',
+        /ADRIANA/i.test(txtConfirma), txtConfirma.slice(0, 200));
+      anota('a confirmação avisa que a inscrição em outra turma será removida',
+        /DEBORA/i.test(txtConfirma) && /TURMA ABERTA/i.test(txtConfirma), txtConfirma.slice(0, 260));
+      anota('a confirmação diz que são 7 (as 8 menos quem o evento barra)',
+        /\b7\b/.test(txtConfirma), txtConfirma.slice(0, 120));
+
+      await page.evaluate(() => window.__boxVis().querySelector('.admin-modal-confirm-btn').click());
+      await page.waitForFunction(() => {
+        const box = window.__boxVis();
+        const tabela = box && box.querySelector('.admin-table');
+        return !!tabela && (tabela.textContent.match(/Inscrita/g) || []).length >= 7;
+      }, { timeout: 10000 });
+
+      /* A prova numérica que a skill exige: o registro gravado pela porta
+         nova, lido do próprio banco falso, tem de satisfazer o critério
+         completo — status 'inscrito' E confirmedByAdmin — senão nasce gente
+         "inscrita" sem acesso a nada, em silêncio (PR #113). */
+      const escritas = await page.evaluate((t) => {
+        const todas = window.__ESCRITAS || [];
+        const novos = todas.filter((e) => e.path.indexOf('turmas-interesse/' + t + '/') === 0);
+        return {
+          novos: novos.map((e) => ({ path: e.path, v: e.valor })),
+          removidas: todas.filter((e) => /\/removed$/.test(e.path)).map((e) => e.path),
+        };
+      }, TURMA);
+
+      const completos = escritas.novos.filter((r) => r.v && r.v.status === 'inscrito' &&
+        r.v.confirmedByAdmin && r.v.confirmedByAdminName && r.v.confirmedDate && !r.v.removed);
+      anota('gravou 7 registros novos na turma', escritas.novos.length === 7, 'foram ' + escritas.novos.length);
+      anota('TODOS os registros gravados passam no critério completo de inscrição',
+        completos.length === escritas.novos.length,
+        completos.length + ' de ' + escritas.novos.length + ' — ' + JSON.stringify(escritas.novos[0] && escritas.novos[0].v));
+      anota('não gravou ninguém que o público restrito do evento barra',
+        !escritas.novos.some((r) => r.path.indexOf(chave(ADRIANA)) !== -1),
+        'ADRIANA foi gravada');
+      anota('removeu a inscrição anterior em outra turma (ninguém fica em duas)',
+        escritas.removidas.some((p) => p.indexOf(TOUTRA) !== -1 && p.indexOf(chave('debora@previ.com.br')) !== -1),
+        JSON.stringify(escritas.removidas));
+
+      await fecharModal(page);
+      /* O leitor de verdade: o cabeçalho conta por inscricaoValida, que exige
+         os dois campos. Se faltasse um, aqui apareceria 0 confirmados. */
+      await page.waitForFunction((tk) => {
+        const c = document.querySelector('#turma-card-' + tk);
+        return c && /7 confirmados/.test(c.textContent || '');
+      }, TURMA, { timeout: 10000 }).then(
+        () => anota('o painel passa a contar as 7 como confirmadas', true),
+        () => anota('o painel passa a contar as 7 como confirmadas', false,
+          'cabeçalho não chegou a "7 confirmados"'));
 
       if (erros.length) anota('nenhum erro de JavaScript', false, erros[0]);
       else anota('nenhum erro de JavaScript', true);
