@@ -65,6 +65,19 @@
   const emptyMsg  = document.getElementById('repoEmpty');
   if (!grid) return;
 
+  /* A grade só ganha conteúdo dentro de render(), chamada de dentro de três
+     listeners assíncronos do Firebase (fa-seeds-hidden, fa-holocron-hidden,
+     holocron) — enquanto nenhum deles respondeu, #repoGrid fica vazio, sem
+     nenhuma pista de que falta carregar algo: parece "não tem nada aqui" ou
+     "quebrou", nunca "espera um pouco". Em rede lenta (a rede da Previ na
+     sala da oficina, não o wi-fi do escritório) essa janela é grande o
+     bastante pra alguém clicar em "Todos" — o mesmo filtro que já estava
+     ativo — só pra "religar" a tela, e funcionar por coincidência: a
+     resposta do Firebase e o clique chegam perto um do outro, mas quem
+     resolve é a resposta, não o clique. render() já limpa este aviso no
+     primeiro innerHTML='' antes de desenhar os cards de verdade. */
+  grid.innerHTML = '<p class="loading-msg">Carregando conteúdos…</p>';
+
   // event delegation para "ver mais / ver menos" — configurado uma vez, funciona após qualquer re-render
   grid.addEventListener('click', function(e) {
     const btn = e.target.closest('.rc-more');

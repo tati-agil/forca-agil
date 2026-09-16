@@ -46,6 +46,29 @@ jobs:
           FA_BASE_URL: http://127.0.0.1:8811
         run: node .github/scripts/teste-tela-preta.js
 
+      # Mesma família da tela preta, agora no Repositório: a grade de cards
+      # (#repoGrid) só é desenhada dentro de listeners assíncronos do
+      # Firebase, e sem aviso de carregamento ficava vazia e indistinguível
+      # de "não tem nada aqui" enquanto a leitura não respondia — em rede
+      # lenta, dava pra achar que precisava clicar em "Todos" (o filtro que
+      # já estava ativo) pra "religar" a tela.
+      - name: "Repositório: a grade nunca fica vazia calada esperando o Firebase"
+        env:
+          NODE_PATH: /tmp/pw-deps/node_modules
+          FA_BASE_URL: http://127.0.0.1:8811
+        run: node .github/scripts/teste-repositorio-carregando.js
+
+      # Hermético. "Os nomes aparecem cortados" — o nome do evento, no
+      # cabeçalho do acordeão da aba Eventos, tinha white-space:nowrap +
+      # text-overflow:ellipsis; um evento com poucos selos escondia o
+      # problema, mas um com público restrito (dois elementos a mais na
+      # mesma linha) fazia o nome perder a disputa por espaço e virar "…".
+      - name: "Admin — nome do evento não corta com reticências (nem com público restrito)"
+        env:
+          NODE_PATH: /tmp/pw-deps/node_modules
+          FA_BASE_URL: http://127.0.0.1:8811
+        run: node .github/scripts/teste-admin-nome-evento-completo.js
+
       # Também hermético (Firebase falso). Confere o que só aparece na conta de
       # OUTRA pessoa: quem está fora da lista de e-mails de um evento restrito
       # não pode ver nada dele. Quem desenvolve está sempre logado como admin,

@@ -1116,8 +1116,18 @@
             evToggleIcon.className = 'ev-toggle-icon';
             evToggleIcon.style.cssText = 'color:var(--ink-2);font-size:.85rem;flex-shrink:0;transition:transform .15s';
             evToggleIcon.textContent = '▸';
+            /* flex:1;min-width:0 sem white-space:nowrap: o nome QUEBRA linha
+               em vez de truncar com "…". Um evento com poucos selos (sem
+               público restrito) cabia inteiro numa linha e escondia o
+               problema; um com "público restrito do evento · N" (dois
+               selos, cada um mais largo que "fora da página" sozinho)
+               disputa espaço na MESMA linha do nome — com nowrap+ellipsis,
+               ele cortava o nome ("FORÇA ÁGIL - ...") já que os selos, os
+               botões e o nome não têm nenhuma prioridade entre si. O nome
+               do evento é a única coisa ali que não pode virar reticências:
+               é o que identifica QUAL evento é aquele card. */
             var evNome = document.createElement('span');
-            evNome.style.cssText = 'flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-family:var(--font-head);letter-spacing:.06em;font-size:.9rem;color:var(--ink)';
+            evNome.style.cssText = 'flex:1;min-width:0;overflow-wrap:anywhere;font-family:var(--font-head);letter-spacing:.06em;font-size:.9rem;color:var(--ink)';
             evNome.textContent = ev.nome;
             var evMeta = document.createElement('span');
             evMeta.style.cssText = 'color:var(--ink-2);font-size:.85rem;white-space:nowrap';
