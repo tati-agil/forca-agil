@@ -1361,6 +1361,25 @@
   padding-bottom: 11px; color: var(--ink-2); font-size: .95rem; line-height: 1.5;
 }
 .aposta-molde .aposta-campo { flex: 1 1 220px; min-width: 160px; }
+/* Texto fixo + a lacuna que ele apresenta, num par que não se separa:
+   solto, o fixo cai numa linha sozinha entre dois campos largos e fica
+   sem dono ("e medir", no Experimento). */
+.aposta-par {
+  display: flex; flex-direction: column; gap: 4px;
+  flex: 1 1 220px; min-width: 160px;
+}
+.aposta-par--largo { flex-basis: 100%; }
+.aposta-par--qtd   { flex: 1 1 260px; min-width: 250px; }
+/* Em coluna, flex-basis vira ALTURA: o que está dentro do par tem de
+   voltar ao tamanho natural. Precisa ganhar em especificidade das regras
+   ".aposta-molde .aposta-campo*" que vêm depois neste arquivo — sem isso
+   a lacuna do prazo herdava 230px de ALTURA e abria um buraco no meio
+   da frase. */
+.aposta-molde .aposta-par .aposta-campo,
+.aposta-molde .aposta-par .aposta-campo--largo,
+.aposta-molde .aposta-par .aposta-campo--qtd,
+.aposta-molde .aposta-par .aposta-escolha { flex: 0 0 auto; min-width: 0; }
+.aposta-par .aposta-molde-fixo { padding-bottom: 0; font-size: .92rem; }
 .aposta-molde .aposta-campo--largo { flex-basis: 100%; }
 .aposta-molde .aposta-escolha { flex-basis: 100%; }
 /* Duas formas do mesmo verbo: é texto fixo com duas versões, não mais
@@ -1402,7 +1421,20 @@
   margin: 0; font-family: var(--font-mono); font-size: .64rem;
   letter-spacing: .08em; text-transform: uppercase; color: var(--ink-3);
 }
+.aposta-grupo-dica { margin: 0; font-size: .82rem; line-height: 1.55; color: var(--ink-2); max-width: 70ch; }
+.aposta-grupo-dica b { color: var(--ink); font-weight: 600; }
+.aposta-grupo-agora { color: var(--cyan); }
 .aposta-molde--grupo { background: none; border: none; padding: 0; }
+/* No painel do facilitador as lacunas são curtas e cabem numa linha. */
+.aposta-molde--fac { gap: 8px; align-items: center; }
+.aposta-molde--fac .aposta-campo-input { flex: 1 1 8em; min-width: 6em; padding: 8px 10px; }
+.aposta-molde--fac .aposta-qtd { flex: 1 1 12em; }
+.aposta-molde--fac .aposta-molde-fixo { padding-bottom: 0; }
+.aposta-herdada {
+  margin: 0 0 12px; font-size: .84rem; line-height: 1.55; color: var(--cyan);
+  background: rgba(24,194,186,.08); border: 1px solid rgba(24,194,186,.3);
+  border-radius: 8px; padding: 9px 12px;
+}
 .aposta-campo-rot { font-family: var(--font-mono); font-size: .68rem; letter-spacing: .09em; text-transform: uppercase; color: var(--ink-3); }
 .aposta-campo-rot em { text-transform: none; letter-spacing: 0; opacity: .8; }
 .aposta-campo-input {
@@ -1453,7 +1485,9 @@
 /* Mapa final */
 .aposta-palco--mapa { text-align: center; }
 .aposta-mapa-titulo { font-family: var(--font-head); font-size: clamp(1.6rem, 4vw, 2.2rem); letter-spacing: .08em; color: var(--ink); margin: 0; }
-.aposta-mapa-sub { color: var(--ink-3); font-size: .85rem; margin: 8px 0 26px; }
+.aposta-mapa-sub { color: var(--ink-3); font-size: .85rem; margin: 8px 0 18px; }
+.aposta-mapa-print { display: none; }
+.aposta-mapa-acoes { display: flex; gap: 8px; justify-content: center; flex-wrap: wrap; margin-bottom: 22px; }
 .aposta-mapa { display: flex; flex-direction: column; align-items: center; gap: 0; max-width: 680px; margin: 0 auto; }
 .aposta-mapa-seta { color: var(--ink-3); font-size: 1.1rem; line-height: 1; padding: 6px 0; }
 .aposta-mapa-card {
@@ -1537,6 +1571,7 @@
   .aposta-molde .aposta-campo,
   .aposta-molde .aposta-campo--largo,
   .aposta-molde .aposta-campo--qtd,
+  .aposta-molde .aposta-par,
   .aposta-molde .aposta-escolha { flex: 0 0 auto; }
   .aposta-qtd-un { max-width: 45%; }
   .aposta-molde-fixo { padding-bottom: 0; }
@@ -1579,3 +1614,35 @@
 .aposta-frase-pronta { margin: 8px 0 0 !important; font-size: .78rem !important; color: var(--cyan) !important; }
 .aposta-mudanca-frase .aposta-frase-fixo  { color: var(--ink-3); }
 .aposta-mudanca-frase .aposta-frase-valor { color: var(--cyan); font-weight: 600; }
+
+
+/* ── A APOSTA EM PAPEL (e em PDF) ──────────────────────────────────
+   O "Salvar como PDF" do navegador é o gerador de PDF que já existe
+   no computador e no celular; o que falta é a folha. Aqui a tela
+   cheia da dinâmica vira uma página branca com os dez cards, sem
+   trilha, sem botões e sem fundo escuro — que o navegador costuma
+   descartar na impressão, deixando texto claro em papel branco. */
+@media print {
+  body > *:not(.aposta-tela) { display: none !important; }
+  .aposta-tela {
+    position: static !important; inset: auto !important; overflow: visible !important;
+    background: #fff !important; color: #000 !important; display: block !important;
+  }
+  .aposta-corpo { display: block !important; }
+  .aposta-topo, .aposta-trilha, .aposta-navegacao, .aposta-mapa-acoes,
+  .aposta-mapa-sub, .aposta-toast, .aposta-progresso { display: none !important; }
+  .aposta-palco { overflow: visible !important; padding: 0 !important; }
+  .aposta-mapa { max-width: none !important; }
+  .aposta-mapa-titulo { color: #000 !important; }
+  .aposta-mapa-print {
+    display: block !important; color: #333 !important; font-size: .8rem; margin: 4px 0 18px;
+  }
+  .aposta-mapa-card {
+    break-inside: avoid; page-break-inside: avoid; width: 100% !important;
+    background: #fff !important; border: 1px solid #999 !important; color: #000 !important;
+  }
+  .aposta-mapa-rot { color: #444 !important; }
+  .aposta-mapa-txt { color: #000 !important; }
+  .aposta-mapa-seta { color: #666 !important; }
+  .aposta-revelacao, .aposta-revelacao * { color: #000 !important; background: #fff !important; }
+}
