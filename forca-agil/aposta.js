@@ -512,9 +512,16 @@
     if (!c) return chave;
     return c.curto || String(c.rotulo || chave).toLowerCase();
   }
+  /* O campo aceita as opções prontas OU qualquer outro texto — "não
+     consegue"/"não conseguem" não esgotam toda concordância possível
+     ("não tem conseguido", por exemplo). Só cai na primeira opção
+     quando ainda não há nada escrito; o que já foi digitado (mesmo que
+     não bata com nenhuma das opções) é respeitado como está. */
   function valorVariante(campo, valor) {
+    var v = String(valor == null ? '' : valor).trim();
+    if (v) return v;
     var op = (campo && campo.opcoes) || [];
-    return valor && op.indexOf(valor) !== -1 ? valor : op[0];
+    return op[0] || '';
   }
 
   /* Devolve a frase em pedaços: { tipo: 'fixo' | 'valor' | 'vazio' }. */
@@ -1158,17 +1165,28 @@
     return MASCARAS[tipo](bruto) === bruto ? { valor: bruto, sobra: '' } : { valor: '', sobra: bruto };
   }
 
-  /* A escolha entre duas formas do mesmo verbo: é texto fixo da frase,
-     só que com duas versões possíveis. Fica com cara de fixo porque é
-     isso que ela é — não é mais uma coisa para escrever. */
-  function varianteHtml(c, valor) {
-    return '<span class="aposta-variante">' +
-      '<select id="ap-' + c.chave + '" data-campo="' + esc(c.chave) + '" class="aposta-campo-input aposta-variante-sel" aria-label="' + esc(c.rotulo) + '">' +
-        (c.opcoes || []).map(function (o) {
-          return '<option' + (valorVariante(c, valor) === o ? ' selected' : '') + '>' + esc(o) + '</option>';
+  /* A escolha entre formas prontas do mesmo texto (a concordância do
+     verbo, a direção de uma mudança mensurável): dois cliques preenchem
+     na hora com o texto de sempre, mas por baixo é um campo comum —
+     "restringir demais", relatado no uso real diante de uma lista com
+     só duas opções. Quem tem uma variante que não é nenhuma das prontas
+     escreve por cima, e o que for digitado é o que fica salvo — os
+     chips são atalho, não portão. */
+  function variantePicker(atributo, chave, opcoes, valor, rotulo, id, classeExtra) {
+    var v = valorVariante({ opcoes: opcoes }, valor);
+    return '<span class="aposta-variante' + (classeExtra ? ' ' + classeExtra : '') + '">' +
+      '<input type="text"' + (id ? ' id="' + esc(id) + '"' : '') +
+        ' ' + atributo + '="' + esc(chave) + '" class="aposta-campo-input aposta-variante-input"' +
+        ' value="' + esc(v) + '" aria-label="' + esc(rotulo) + '" />' +
+      '<span class="aposta-variante-chips">' +
+        (opcoes || []).map(function (o) {
+          return '<button type="button" class="aposta-variante-chip' + (v === o ? ' is-ativa' : '') + '" data-valor="' + esc(o) + '">' + esc(o) + '</button>';
         }).join('') +
-      '</select>' +
+      '</span>' +
     '</span>';
+  }
+  function varianteHtml(c, valor) {
+    return variantePicker('data-campo', c.chave, c.opcoes || [], valor, c.rotulo, 'ap-' + c.chave);
   }
 
   /* Texto fixo e lacunas, na ordem da frase. Serve tanto para a frase da
@@ -1397,11 +1415,8 @@
         return '<div class="aposta-mudanca" data-i="' + i + '">' +
           '<div class="aposta-mudanca-grade">' +
             '<label class="aposta-campo"><span class="aposta-campo-rot">Queremos</span>' +
-              '<select class="aposta-campo-input" data-m="direcao">' +
-                ['Aumentar', 'Reduzir'].map(function (o) {
-                  return '<option' + (m.direcao === o ? ' selected' : '') + '>' + o + '</option>';
-                }).join('') +
-              '</select></label>' +
+              variantePicker('data-m', 'direcao', ['Aumentar', 'Reduzir'], m.direcao, 'Queremos', null, 'aposta-variante--campo') +
+            '</label>' +
             '<label class="aposta-campo"><span class="aposta-campo-rot">Indicador</span>' +
               '<input type="text" class="aposta-campo-input" data-m="indicador" value="' + esc(m.indicador || '') + '" placeholder="contatos sobre andamento" /></label>' +
             '<label class="aposta-campo"><span class="aposta-campo-rot">Situação atual</span>' +
@@ -1533,6 +1548,28 @@
     _tela.querySelectorAll('.aposta-campo-input').forEach(function (el) {
       el.addEventListener('input', function () { aplicarMascara(el); salvarDepois(); });
       el.addEventListener('change', function () { aplicarMascara(el); salvarDepois(); });
+    });
+
+    /* Os chips são atalho para o campo ao lado, não um controle à parte:
+       clicar preenche o texto de sempre (e dispara o mesmo salvamento de
+       digitar), e o destaque acompanha o que está no campo — inclusive
+       quando a pessoa digita por cima e nenhum chip bate mais. */
+    _tela.querySelectorAll('.aposta-variante').forEach(function (wrap) {
+      var input = wrap.querySelector('.aposta-variante-input');
+      if (!input) return;
+      function sincronizarChips() {
+        wrap.querySelectorAll('.aposta-variante-chip').forEach(function (c) {
+          c.classList.toggle('is-ativa', c.dataset.valor === input.value);
+        });
+      }
+      input.addEventListener('input', sincronizarChips);
+      wrap.querySelectorAll('.aposta-variante-chip').forEach(function (b) {
+        b.addEventListener('click', function () {
+          input.value = b.dataset.valor;
+          input.dispatchEvent(new Event('input', { bubbles: true }));
+          input.focus();
+        });
+      });
     });
 
     _tela.querySelectorAll('.aposta-opcao').forEach(function (b) {
