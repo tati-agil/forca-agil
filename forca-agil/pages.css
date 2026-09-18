@@ -1406,13 +1406,34 @@
 .aposta-par .aposta-molde-fixo { padding-bottom: 0; font-size: .92rem; }
 .aposta-molde .aposta-campo--largo { flex-basis: 100%; }
 .aposta-molde .aposta-escolha { flex-basis: 100%; }
-/* Duas formas do mesmo verbo: é texto fixo com duas versões, não mais
-   uma coisa para escrever — por isso tem cara de texto, não de campo. */
-.aposta-variante { padding-bottom: 7px; }
-.aposta-variante-sel {
-  width: auto; padding: 4px 8px; font-size: .95rem; color: var(--ink-2);
-  background: rgba(255,255,255,.05); border-style: dashed;
+/* Duas (ou mais) formas prontas do mesmo texto — a concordância do
+   verbo, a direção de uma mudança mensurável. Os chips preenchem com um
+   clique; o campo por baixo é editável, para quem tem uma variante que
+   não é nenhuma das prontas — uma lista fechada de duas opções restringe
+   demais quando a real é uma terceira, relatado no uso real.
+
+   O campo tem a MESMA cara de qualquer outro campo preenchido (borda
+   sólida, cor de texto normal) — não a de um texto fixo/tracejado. Ele
+   já chega com um valor de verdade (a primeira opção, ou o que foi
+   escolhido/digitado antes), não uma dica de exemplo: parecer
+   "apagado" faz a pessoa achar que precisa clicar antes de valer, e o
+   que já está ali é exatamente o que vai para o mapa se ninguém mexer. */
+.aposta-variante { padding-bottom: 7px; display: inline-flex; flex-direction: column; gap: 6px; vertical-align: top; }
+.aposta-variante-input {
+  width: auto; min-width: 9em; padding: 8px 10px; font-size: .95rem;
 }
+/* Dentro de um campo de formulário comum (a grade de Mudanças
+   mensuráveis), o campo ocupa a célula inteira, como os vizinhos. */
+.aposta-variante--campo { display: flex; padding-bottom: 0; }
+.aposta-variante--campo .aposta-variante-input { width: 100%; min-width: 0; }
+.aposta-variante-chips { display: flex; flex-wrap: wrap; gap: 6px; }
+.aposta-variante-chip {
+  padding: 3px 10px; border-radius: 99px; cursor: pointer;
+  border: 1px solid var(--line-strong); background: none;
+  color: var(--ink-3); font-family: var(--font-body); font-size: .74rem;
+}
+.aposta-variante-chip:hover { border-color: #a99dff; color: var(--ink); }
+.aposta-variante-chip.is-ativa { background: rgba(138,127,255,.18); border-color: #a99dff; color: var(--ink); }
 .aposta-complementos {
   border: 1px dashed var(--line-strong); border-radius: 10px; padding: 14px 16px;
   display: flex; flex-direction: column; gap: 12px;
@@ -1605,8 +1626,8 @@ select.aposta-campo-input { width: auto; min-width: 8.5em; }
   .aposta-molde .aposta-escolha { flex: 0 0 auto; }
   .aposta-qtd-un { max-width: 45%; }
   .aposta-molde-fixo { padding-bottom: 0; }
-  .aposta-variante   { padding-bottom: 0; }
-  .aposta-variante-sel { width: 100%; }
+  .aposta-variante   { padding-bottom: 0; display: flex; }
+  .aposta-variante-input { width: 100%; min-width: 0; }
   .aposta-navegacao { flex-wrap: wrap; gap: 10px; }
   .aposta-convite, .convite-card-cab { flex-direction: column; align-items: flex-start; }
   .convite-card-cab .btn { width: 100%; }

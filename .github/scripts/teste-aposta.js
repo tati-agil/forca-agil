@@ -504,13 +504,27 @@ const textoDaTela = (page) => page.evaluate(() => {
             previa.slice(0, 120));
 
           /* "Os participantes não consegue" é o plural errado que o molde
-             fixo produzia. A forma do verbo é de quem escreve. */
-          await page.selectOption('[data-campo="verbo"]', 'não conseguem');
+             fixo produzia. A forma do verbo é de quem escreve — um clique
+             no chip preenche rápido com uma das formas prontas. */
+          await page.locator('.aposta-variante:has([data-campo="verbo"]) .aposta-variante-chip', { hasText: 'não conseguem' }).click();
           await page.waitForTimeout(300);
           const comPlural = await page.evaluate(() =>
             ((document.getElementById('apostaFrase') || {}).textContent || '').replace(/\s+/g, ' '));
           anota('a concordância do verbo é escolhida por quem escreve',
             /Os participantes não conseguem acompanhar/i.test(comPlural), comPlural.slice(0, 120));
+
+          /* "restringir demais" — nem toda concordância cabe nas duas formas
+             prontas ("não tem conseguido" não é nenhuma delas). Relatado no
+             uso real: precisa dar para escrever por cima, não só escolher. */
+          await page.fill('[data-campo="verbo"]', 'não tem conseguido');
+          await page.waitForTimeout(300);
+          const livre = await page.evaluate(() =>
+            ((document.getElementById('apostaFrase') || {}).textContent || '').replace(/\s+/g, ' '));
+          anota('o campo aceita uma variante que não é nenhuma das prontas',
+            /Os participantes não tem conseguido acompanhar/i.test(livre), livre.slice(0, 120));
+          const chipsSemAtivo = await page.evaluate(() =>
+            !document.querySelector('.aposta-variante:has([data-campo="verbo"]) .aposta-variante-chip.is-ativa'));
+          anota('nenhum chip fica marcado quando o texto não bate com nenhum deles', chipsSemAtivo);
           continue;
         }
 
@@ -528,6 +542,7 @@ const textoDaTela = (page) => page.evaluate(() => {
             inicio.blocos === 1, inicio.blocos + ' blocos');
           anota('a mudança em branco não conta como etapa preenchida', !inicio.feita);
           anota('com uma só, não aparece "Remover"', !inicio.temRemover);
+          await page.locator('.aposta-variante:has([data-m="direcao"]) .aposta-variante-chip', { hasText: 'Reduzir' }).click();
           await page.fill('[data-m="indicador"]', 'contatos sobre andamento');
           await page.fill('[data-m="atual"]', '1000');
           await page.fill('[data-m="meta"]', '700');
@@ -538,6 +553,14 @@ const textoDaTela = (page) => page.evaluate(() => {
             (document.querySelector('.aposta-mudanca-frase') || {}).textContent || '');
           anota('a frase consolidada é montada sozinha',
             /de 1000/.test(frase) && /para 700/.test(frase) && /90 dias/.test(frase), frase);
+
+          /* "Queremos" também não pode travar em só duas direções. */
+          await page.fill('[data-m="direcao"]', 'Manter estável');
+          await page.waitForTimeout(300);
+          const fraseLivre = await page.evaluate(() =>
+            (document.querySelector('.aposta-mudanca-frase') || {}).textContent || '');
+          anota('"Queremos" aceita uma direção que não é Aumentar nem Reduzir',
+            /Manter estável/.test(fraseLivre), fraseLivre);
         } else {
           if (i === 7) {
             /* EXPERIMENTO: custo com máscara de moeda. */
