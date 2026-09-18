@@ -5627,9 +5627,15 @@
      onde a delegação de clique vive. */
 
   function acaoResetarProgresso(eKey, email, name) {
-    adminConfirm('Resetar TODO o progresso do jogo de ' + name + '?\n\nIsso apaga autodiagnóstico e patente. Essa ação não pode ser desfeita.', function () {
+    adminConfirm('Resetar TODO o progresso do jogo de ' + name + '?\n\nIsso apaga autodiagnóstico, patente e o histórico de resultados. Essa ação não pode ser desfeita.', function () {
       const updates = {};
-      updates['fa-progress/' + eKey]     = null;
+      updates['fa-progress/' + eKey]           = null;
+      /* Reset é "apaga tudo" — diferente de "Refazer autodiagnóstico" (da
+         própria pessoa, ver game.js), que preserva o histórico de
+         propósito. Sem esta linha, uma pessoa resetada ainda veria as
+         patentes reveladas antes do reset, como se ele não tivesse
+         acontecido. */
+      updates['fa-progress-historico/' + eKey] = null;
       updates['fa-reset-signal/' + eKey] = { at: firebase.database.ServerValue.TIMESTAMP };
       firebase.database().ref('players').orderByChild('email').equalTo(email).once('value', function (snap) {
         snap.forEach(function (child) { updates['players/' + child.key] = null; });

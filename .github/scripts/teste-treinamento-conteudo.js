@@ -214,6 +214,11 @@ const FORMATOS = [
     {
       const { ctx, page, erros } = await abrirTreinamento(browser, formato, ALUNA);
       await escolher(page, 'tnovo');
+      /* O cartão do treinamento nasce fechado (mesmo peso visual do
+         convite da Aposta) — precisa abrir antes de clicar em algo
+         dentro dele, senão #revelarBtn não é "visível" para o Playwright. */
+      await page.click('#treinoCardToggle');
+      await page.waitForSelector('#qList .q-item', { state: 'visible', timeout: 5000 });
       /* Responde tudo com a nota máxima da escala do treinamento. */
       await page.evaluate(() => {
         document.querySelectorAll('#qList .q-item').forEach((item) => {

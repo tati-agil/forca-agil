@@ -1049,79 +1049,104 @@ body.aguardando-auth>#bootStatus{z-index:900}
          (preenchido por game.js a partir do nó "treinamentos" e dos eventos dela) -->
     <div class="treino-seletor" id="treinamentoSeletor" hidden></div>
 
-    <!-- Jedi Banner -->
-    <div class="jedi-banner reveal" style="padding:40px 24px">
-      <div class="jedi-glow"></div>
-      <svg class="jedi-skyline" viewBox="0 0 1200 200" preserveAspectRatio="xMidYMax slice" aria-hidden="true">
-        <defs><linearGradient id="cityGrad" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#0d2e3c"/><stop offset="1" stop-color="#03111d"/></linearGradient></defs>
-        <g fill="url(#cityGrad)">
-          <rect x="0" y="118" width="74" height="82"/><rect x="95" y="132" width="58" height="68"/>
-          <rect x="150" y="92" width="42" height="108"/><rect x="200" y="122" width="72" height="78"/>
-          <rect x="305" y="140" width="62" height="60"/><rect x="372" y="100" width="50" height="100"/>
-          <rect x="422" y="128" width="82" height="72"/><rect x="508" y="70" width="38" height="130"/>
-          <rect x="602" y="120" width="62" height="80"/><rect x="668" y="96" width="46" height="104"/>
-          <rect x="716" y="134" width="76" height="66"/><rect x="828" y="112" width="66" height="88"/>
-          <rect x="898" y="150" width="52" height="50"/><rect x="954" y="104" width="80" height="96"/>
-          <rect x="1038" y="72" width="42" height="128"/><rect x="1084" y="132" width="72" height="68"/>
-          <rect x="1158" y="96" width="52" height="104"/>
-          <polygon points="60,44 67,30 74,44 74,200 60,200"/>
-          <polygon points="272,32 286,12 300,32 300,200 272,200"/>
-          <polygon points="546,24 569,0 592,24 592,200 546,200"/>
-          <polygon points="796,48 810,28 824,48 824,200 796,200"/>
-        </g>
-        <g fill="#7af0e8" opacity=".55">
-          <rect x="160" y="104" width="3" height="5"/><rect x="172" y="118" width="3" height="5"/>
-          <rect x="520" y="92" width="3" height="6"/><rect x="528" y="120" width="3" height="6"/>
-          <rect x="978" y="120" width="3" height="5"/><rect x="1000" y="140" width="3" height="5"/>
-          <rect x="1050" y="96" width="3" height="6"/><rect x="438" y="150" width="3" height="5"/>
-          <rect x="685" y="120" width="3" height="5"/>
-        </g>
-      </svg>
-      <div class="jb-inner">
-        <span class="eyebrow mx-auto" style="justify-content:center">Treinamento Jedi</span>
-        <h2 class="glow-title" style="font-size:clamp(1.8rem,5vw,3rem);text-shadow:0 0 8px rgba(255,255,255,0.3)">Sociedade Jedi</h2>
-        <div class="jb-rule"></div>
+    <!-- Cartão do treinamento — MESMO peso visual do convite da Construção
+         da Aposta acima (mesma classe .convite-card): fechado por padrão,
+         com o essencial (nome, status, patente atual) já visível sem abrir.
+         Antes este bloco era um banner grande, sempre expandido — ao lado
+         de um convite pequeno e fechado, os dois pareciam de telas
+         diferentes. Quem preenche vê o conteúdo, quem só passa por aqui
+         não precisa rolar um banner inteiro para chegar no resto da
+         página. game.js controla abrir/fechar (treinoCardAberto) e
+         preenche o resumo a cada render(). -->
+    <div class="convite-card treino-card reveal" id="treinoCard">
+      <div class="convite-card-cab" id="treinoCardCab">
+        <div class="convite-card-txt">
+          <span class="eyebrow">Treinamento</span>
+          <h2 id="treinoCardTitulo">Sociedade Jedi</h2>
+          <p id="treinoCardSub">Responda o autodiagnóstico e descubra sua patente na Ordem Jedi Ágil.</p>
+          <span class="convite-card-status" id="treinoCardStatus"></span>
+        </div>
+        <button type="button" class="btn btn--primary" id="treinoCardToggle">Abrir treinamento →</button>
       </div>
-      <p class="jb-sub">Responda as 20 afirmações e descubra qual é a sua patente na Ordem Jedi Ágil — de Youngling a Mestre.</p>
-    </div>
 
-    <!-- Aviso de conteúdo incompleto — só o admin vê (game.js decide). -->
-    <div class="treino-incompleto" id="treinoIncompleto" hidden></div>
+      <div class="convite-card-corpo" id="treinoCardCorpo" hidden>
+        <!-- Jedi Banner -->
+        <div class="jedi-banner reveal" style="padding:40px 24px">
+          <div class="jedi-glow"></div>
+          <svg class="jedi-skyline" viewBox="0 0 1200 200" preserveAspectRatio="xMidYMax slice" aria-hidden="true">
+            <defs><linearGradient id="cityGrad" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#0d2e3c"/><stop offset="1" stop-color="#03111d"/></linearGradient></defs>
+            <g fill="url(#cityGrad)">
+              <rect x="0" y="118" width="74" height="82"/><rect x="95" y="132" width="58" height="68"/>
+              <rect x="150" y="92" width="42" height="108"/><rect x="200" y="122" width="72" height="78"/>
+              <rect x="305" y="140" width="62" height="60"/><rect x="372" y="100" width="50" height="100"/>
+              <rect x="422" y="128" width="82" height="72"/><rect x="508" y="70" width="38" height="130"/>
+              <rect x="602" y="120" width="62" height="80"/><rect x="668" y="96" width="46" height="104"/>
+              <rect x="716" y="134" width="76" height="66"/><rect x="828" y="112" width="66" height="88"/>
+              <rect x="898" y="150" width="52" height="50"/><rect x="954" y="104" width="80" height="96"/>
+              <rect x="1038" y="72" width="42" height="128"/><rect x="1084" y="132" width="72" height="68"/>
+              <rect x="1158" y="96" width="52" height="104"/>
+              <polygon points="60,44 67,30 74,44 74,200 60,200"/>
+              <polygon points="272,32 286,12 300,32 300,200 272,200"/>
+              <polygon points="546,24 569,0 592,24 592,200 546,200"/>
+              <polygon points="796,48 810,28 824,48 824,200 796,200"/>
+            </g>
+            <g fill="#7af0e8" opacity=".55">
+              <rect x="160" y="104" width="3" height="5"/><rect x="172" y="118" width="3" height="5"/>
+              <rect x="520" y="92" width="3" height="6"/><rect x="528" y="120" width="3" height="6"/>
+              <rect x="978" y="120" width="3" height="5"/><rect x="1000" y="140" width="3" height="5"/>
+              <rect x="1050" y="96" width="3" height="6"/><rect x="438" y="150" width="3" height="5"/>
+              <rect x="685" y="120" width="3" height="5"/>
+            </g>
+          </svg>
+          <div class="jb-inner">
+            <span class="eyebrow mx-auto" style="justify-content:center">Treinamento Jedi</span>
+            <h2 class="glow-title" style="font-size:clamp(1.8rem,5vw,3rem);text-shadow:0 0 8px rgba(255,255,255,0.3)">Sociedade Jedi</h2>
+            <div class="jb-rule"></div>
+          </div>
+          <p class="jb-sub">Responda as 20 afirmações e descubra qual é a sua patente na Ordem Jedi Ágil — de Youngling a Mestre.</p>
+        </div>
 
-    <!-- Droide guia -->
-    <div class="guide reveal">
-      <div class="guide-droide"><img src="forca-agil/assets/droide.png" alt="Previx, droide guia da Força Ágil" /></div>
-      <div class="guide-bubble">
-        <span class="guide-name">PREVIX · DROIDE GUIA</span>
-        <p id="guideMsg">Olá! Eu sou o Previx. Vou te acompanhar nessa jornada. Comece pelo autodiagnóstico aqui embaixo — depois é só cumprir missões e subir de patente. Que a Força Ágil esteja com você!</p>
-      </div>
-    </div>
+        <!-- Aviso de conteúdo incompleto — só o admin vê (game.js decide). -->
+        <div class="treino-incompleto" id="treinoIncompleto" hidden></div>
 
-    <!-- HUD patente atual -->
-    <div class="rank-hud panel hud-corner reveal" id="rankHud" style="padding:12px 16px">
-      <div class="rh-avatar"><svg id="hudAvatar" viewBox="0 0 120 220" width="56" height="100"><use href="#char-0"/></svg></div>
-      <div class="rh-body">
-        <div class="rh-k" style="font-size:.65rem">PATENTE ATUAL</div>
-        <div class="rh-name" id="hudName" style="font-size:1rem">Youngling</div>
-        <div class="rh-tag"  id="hudTag" style="font-size:.75rem">Iniciado na Força</div>
-      </div>
-    </div>
+        <!-- Droide guia -->
+        <div class="guide reveal">
+          <div class="guide-droide"><img src="forca-agil/assets/droide.png" alt="Previx, droide guia da Força Ágil" /></div>
+          <div class="guide-bubble">
+            <span class="guide-name">PREVIX · DROIDE GUIA</span>
+            <p id="guideMsg">Olá! Eu sou o Previx. Vou te acompanhar nessa jornada. Comece pelo autodiagnóstico aqui embaixo — depois é só cumprir missões e subir de patente. Que a Força Ágil esteja com você!</p>
+          </div>
+        </div>
 
-    <!-- Character ladder — desenhada por game.js a partir das patentes do
-         treinamento ativo. Era HTML fixo com os quatro nomes Jedi, o que
-         mostrava a escada errada em qualquer treinamento que não fosse ele. -->
-    <div class="ladder reveal" id="charLadder" style="display:flex;flex-direction:row;gap:12px;flex-wrap:wrap;justify-content:center"></div>
+        <!-- HUD patente atual -->
+        <div class="rank-hud panel hud-corner reveal" id="rankHud" style="padding:12px 16px">
+          <div class="rh-avatar"><svg id="hudAvatar" viewBox="0 0 120 220" width="56" height="100"><use href="#char-0"/></svg></div>
+          <div class="rh-body">
+            <div class="rh-k" style="font-size:.65rem">PATENTE ATUAL</div>
+            <div class="rh-name" id="hudName" style="font-size:1rem">Youngling</div>
+            <div class="rh-tag"  id="hudTag" style="font-size:.75rem">Iniciado na Força</div>
+          </div>
+        </div>
 
-    <!-- Quiz -->
-    <div class="quiz panel reveal" id="quiz">
-      <div class="quiz-head">
-        <span class="eyebrow" style="margin:0">Autodiagnóstico</span>
-        <h4>Onde você está em cada dimensão?</h4>
-        <p>Para cada tema, escolha o nível que melhor descreve você hoje. As respostas viram pontos de experiência iniciais.</p>
-      </div>
-      <div class="q-list" id="qList"></div>
-      <div class="quiz-foot">
-        <span class="quiz-result" id="quizResult"></span>
+        <!-- Character ladder — desenhada por game.js a partir das patentes do
+             treinamento ativo. Era HTML fixo com os quatro nomes Jedi, o que
+             mostrava a escada errada em qualquer treinamento que não fosse ele. -->
+        <div class="ladder reveal" id="charLadder" style="display:flex;flex-direction:row;gap:12px;flex-wrap:wrap;justify-content:center"></div>
+
+        <!-- Quiz -->
+        <div class="quiz panel reveal" id="quiz">
+          <div class="quiz-head">
+            <span class="eyebrow" style="margin:0">Autodiagnóstico</span>
+            <h4>Onde você está em cada dimensão?</h4>
+            <p>Para cada tema, escolha o nível que melhor descreve você hoje. As respostas viram pontos de experiência iniciais.</p>
+          </div>
+          <div class="q-list" id="qList"></div>
+          <div class="quiz-foot">
+            <span class="quiz-result" id="quizResult"></span>
+          </div>
+        </div>
+
+        <button type="button" class="btn btn--sm convite-card-recolher" id="treinoCardRecolher">← Recolher</button>
       </div>
     </div>
 

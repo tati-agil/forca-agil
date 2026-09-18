@@ -1249,21 +1249,45 @@
    percorrer o raciocínio, não de ver o formulário inteiro.
    ══════════════════════════════════════════════════════════════════ */
 
-/* Convite dentro do Treinamento */
-.aposta-convite {
-  display: flex; align-items: center; justify-content: space-between; gap: 20px; flex-wrap: wrap;
+/* Convite dentro do Treinamento — MESMO cartão que .convite-card, do
+   Treinamento Jedi logo abaixo (ver bloco mais adiante): um convite
+   pequeno e um banner sempre aberto pareciam de telas diferentes
+   empilhados na mesma página. .convite-card é o frame comum; as
+   classes -txt/-acao/-turma continuam só da Aposta, que não tem corpo
+   recolhível (o clique dela abre a dinâmica em tela cheia, não expande
+   aqui dentro). */
+.aposta-convite, .convite-card {
   background: linear-gradient(135deg, rgba(138,127,255,.14), rgba(24,194,186,.10));
   border: 1px solid rgba(138,127,255,.42); border-radius: 14px;
   padding: 22px 26px; margin-bottom: 28px;
 }
-.aposta-convite-txt h2 { font-family: var(--font-head); font-size: 1.3rem; color: var(--ink); margin: 4px 0 6px; }
-.aposta-convite-txt p  { color: var(--ink-2); font-size: .9rem; margin: 0; max-width: 46ch; }
+.aposta-convite {
+  display: flex; align-items: center; justify-content: space-between; gap: 20px; flex-wrap: wrap;
+}
+.aposta-convite-txt h2, .convite-card-txt h2 { font-family: var(--font-head); font-size: 1.3rem; color: var(--ink); margin: 4px 0 6px; }
+.aposta-convite-txt p,  .convite-card-txt p  { color: var(--ink-2); font-size: .9rem; margin: 0; max-width: 46ch; }
 .aposta-convite-acao   { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
 .aposta-convite-turma  { font-family: var(--font-mono); font-size: .75rem; color: #a99dff; letter-spacing: .06em; }
 .aposta-select {
   padding: 9px 12px; background: var(--panel-2); border: 1px solid var(--line-strong);
   border-radius: 8px; color: var(--ink); font-family: var(--font-body); font-size: .88rem;
 }
+
+/* ── Cartão do Treinamento — fechado por padrão, mesmo peso do convite
+      acima. .convite-card-cab é a linha sempre visível (o que a Aposta
+      resolve com o próprio .aposta-convite, de uma vez só); o corpo só
+      aparece com o botão de abrir. ── */
+.convite-card-cab {
+  display: flex; align-items: center; justify-content: space-between; gap: 20px; flex-wrap: wrap;
+}
+.convite-card-status {
+  display: inline-block; margin-top: 8px; font-family: var(--font-mono);
+  font-size: .75rem; color: #a99dff; letter-spacing: .04em;
+}
+.convite-card-corpo {
+  margin-top: 22px; padding-top: 22px; border-top: 1px solid rgba(138,127,255,.25);
+}
+.convite-card-recolher { display: block; margin: 18px auto 0; }
 
 /* Tela cheia */
 .aposta-tela {
@@ -1578,7 +1602,8 @@
   .aposta-variante   { padding-bottom: 0; }
   .aposta-variante-sel { width: 100%; }
   .aposta-navegacao { flex-wrap: wrap; gap: 10px; }
-  .aposta-convite { flex-direction: column; align-items: flex-start; }
+  .aposta-convite, .convite-card-cab { flex-direction: column; align-items: flex-start; }
+  .convite-card-cab .btn { width: 100%; }
 }
 
 /* Turma ainda não liberada: quem conduz consegue ensaiar a dinâmica antes
