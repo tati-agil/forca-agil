@@ -568,6 +568,10 @@
   }
 
   function fecharDinamica() {
+    /* Grava o que estava agendado ANTES de derrubar o estado: sair da tela
+       no meio dos 600ms do salvamento automático não pode custar a última
+       frase digitada. */
+    gravarPendente();
     pararDeOuvir();
     document.removeEventListener('keydown', escFecha);
     if (_tela && _tela.parentNode) _tela.parentNode.removeChild(_tela);
@@ -966,10 +970,16 @@
       return d;
     }
 
-    var timer = null;
+    /* Lê os campos AGORA e guarda o que leu; o temporizador só grava.
+       Antes ele chamava coletar() 600ms depois — e 600ms depois a tela já
+       podia ter trocado de etapa. O que ele lia eram os campos VAZIOS da
+       etapa seguinte, e o que ele gravava era o id da etapa anterior:
+       bastava digitar e clicar em Continuar em menos de 600ms para a
+       etapa recém-preenchida ser sobrescrita por vazio. No mapa ela
+       aparecia como "ainda não preenchido", e voltar nela mostrava o
+       campo em branco — o texto tinha sido apagado de verdade. */
     function salvarDepois() {
-      clearTimeout(timer);
-      timer = setTimeout(function () { salvarEtapa(etapa.id, coletar()); }, 600);
+      agendarSalvamento(etapa.id, coletar());
       if (etapa.lista) atualizarFrases(); else atualizarFrase();
     }
 
@@ -1079,8 +1089,32 @@
     render();
   }
 
-  /* ── Salvamento automático ── */
+  /* ── Salvamento automático ───────────────────────────────────────
+     O agendamento guarda o CONTEÚDO, não a promessa de reler a tela
+     depois: quando o temporizador dispara, a etapa em edição pode já
+     não ser a mesma. E qualquer gravação explícita (Continuar, Voltar,
+     clique na trilha) cancela a agendada — deixar a antiga cair depois
+     desfaria o que acabou de ser salvo. */
+  var _timerSalvar = null;
+  var _pendente = null;   /* { etapaId, dados } ainda não gravado */
+
+  function agendarSalvamento(etapaId, dados) {
+    _pendente = { etapaId: etapaId, dados: dados };
+    _dados[etapaId] = dados;
+    clearTimeout(_timerSalvar);
+    _timerSalvar = setTimeout(gravarPendente, 600);
+  }
+
+  function gravarPendente() {
+    if (!_pendente) return;
+    var p = _pendente;
+    salvarEtapa(p.etapaId, p.dados);
+  }
+
   function salvarEtapa(etapaId, dados, redesenhar) {
+    clearTimeout(_timerSalvar);
+    _timerSalvar = null;
+    _pendente = null;
     if (!_grupoId) return;
     _dados[etapaId] = dados;
     var s = sessao();

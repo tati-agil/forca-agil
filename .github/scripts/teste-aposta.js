@@ -336,6 +336,48 @@ const textoDaTela = (page) => page.evaluate(() => {
       anota('nenhuma etapa vazou os termos do final da dinâmica',
         vazados.length === 0, vazados.join('; '));
 
+      /* ── 3b: digitar e seguir DENTRO dos 600ms não pode apagar a etapa ──
+         O salvamento automático espera 600ms. Enquanto ele relia a tela na
+         hora de gravar, quem clicava em Continuar antes disso via a etapa
+         recém-preenchida ser sobrescrita pelos campos vazios da etapa
+         seguinte — e o mapa a mostrava como "ainda não preenchido".
+         Relatado no primeiro uso real. */
+      await page.evaluate(() => {
+        const t = Array.from(document.querySelectorAll('.aposta-trilha-item'))
+          .find((i) => /Ideia de solução/.test(i.textContent));
+        if (t && !t.disabled) t.click();
+      });
+      await page.waitForFunction(() =>
+        /IDEIA DE SOLU/i.test((document.querySelector('.aposta-etapa-titulo') || {}).textContent || ''),
+        { timeout: 15000 });
+      await page.locator('.aposta-campo-input').first().fill('texto que não pode sumir');
+      /* Sem esperar o debounce: é essa pressa que reproduzia o defeito. */
+      await page.click('#apostaSeguir');
+      await page.waitForTimeout(1400);   /* tempo de o temporizador antigo disparar */
+      await page.evaluate(() => {
+        const t = Array.from(document.querySelectorAll('.aposta-trilha-item'))
+          .find((i) => /Ideia de solução/.test(i.textContent));
+        if (t) t.click();
+      });
+      await page.waitForTimeout(500);
+      const sobreviveu = await page.evaluate(() =>
+        (document.querySelector('.aposta-campo-input') || {}).value || '');
+      anota('seguir antes do salvamento automático NÃO apaga a etapa',
+        /texto que não pode sumir/.test(sobreviveu), 'campo voltou como "' + sobreviveu + '"');
+
+      /* Volta ao mapa clicando Continuar até chegar lá — não importa em que
+         etapa o desvio acima deixou a tela. */
+      for (let n = 0; n < 14; n++) {
+        if (await page.evaluate(() => !!document.querySelector('.aposta-mapa'))) break;
+        await page.click('#apostaSeguir');
+        await page.waitForTimeout(350);
+        const segurou = await page.evaluate(() => {
+          const el = document.querySelector('#apostaAvisos');
+          return !!el && !!el.textContent.trim();
+        });
+        if (segurou) { await page.click('#apostaSeguir'); await page.waitForTimeout(350); }
+      }
+
       /* ── 4: o mapa final, antes da revelação ── */
       await page.waitForSelector('.aposta-mapa', { timeout: 15000 });
       const mapa = await page.evaluate(() => ({
