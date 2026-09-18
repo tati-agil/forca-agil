@@ -268,9 +268,21 @@
         { chave: 'proxHipCausa', tipo: 'textarea', rotulo: 'Causa provável', placeholder: 'a mensagem não chega a quem está em análise' },
         { chave: 'proxHipIndicio', tipo: 'textarea', rotulo: 'Qual indício temos?', placeholder: 'os contatos caíram só no grupo que recebeu a mensagem' }
       ],
-      molde: ['Com base na evidência, vamos', { escolha: true, baixa: true }, '—', { c: 'proximaAcao' }, '.'],
+      /* O traço solto ("vamos ampliar — a comunicação com um grupo maior")
+         não dizia que relação as duas partes têm. A decisão é uma coisa;
+         o que se faz a seguir é outra, e agora a frase diz isso. */
+      molde: ['Com base na evidência, vamos', { escolha: true, baixa: true }, '. Próxima ação:', { c: 'proximaAcao' }, '.'],
       grupos: [{
-        rotulo: 'Próxima hipótese (quando aplicável)',
+        rotulo: 'Próxima hipótese — só quando a decisão pede uma explicação nova',
+        dica: 'As duas lacunas abaixo formam <b>uma frase só</b>: a hipótese do próximo ciclo. ' +
+          'O critério é a decisão que vocês acabaram de tomar — se ela recomeça a investigação ' +
+          '(<b>ajustar e testar novamente</b>, <b>formular nova hipótese</b> ou <b>investigar mais</b>), ' +
+          'o próximo ciclo precisa de uma explicação nova para testar. Se a decisão encerra a pergunta ' +
+          '(<b>ampliar</b> ou <b>abandonar essa ideia</b>), deixe em branco.',
+        /* A decisão escolhida decide se este bloco se aplica — dizer isso na
+           hora poupa o grupo de reler o critério e concluir sozinho. */
+        aplicaQuando: ['Ajustar e testar novamente', 'Formular nova hipótese', 'Investigar mais'],
+        dependeDaEscolha: 'decisao',
         legado: 'proximaHipotese',
         molde: ['Acreditamos que isso acontece porque', { c: 'proxHipCausa' }, ', pois', { c: 'proxHipIndicio' }, '.']
       }]
@@ -1080,10 +1092,17 @@
     };
   }
 
-  function campoHtml(c, valor, d) {
+  /* `semRotulo` é para a lacuna que já vem apresentada pelo texto fixo da
+     frase ("e medir" em cima do campo). Repetir "O QUE SERÁ MEDIDO"
+     logo abaixo seria dizer a mesma coisa duas vezes; o rótulo continua
+     existindo para quem usa leitor de tela, como aria-label. */
+  function campoHtml(c, valor, d, semRotulo) {
     var id = 'ap-' + c.chave;
-    var rot = '<span class="aposta-campo-rot">' + esc(c.rotulo) +
-      (c.antes ? ' <em>(antes do experimento)</em>' : '') + '</span>';
+    var rot = semRotulo
+      ? ''
+      : '<span class="aposta-campo-rot">' + esc(c.rotulo) +
+        (c.antes ? ' <em>(antes do experimento)</em>' : '') + '</span>';
+    var aria = semRotulo ? ' aria-label="' + esc(c.rotulo) + '"' : '';
 
     if (c.tipo === 'quantidade') {
       var q = lerQuantidade(c, d || {});
@@ -1091,7 +1110,7 @@
         '<span class="aposta-qtd">' +
           '<input type="text" inputmode="numeric" id="' + id + '" data-campo="' + esc(c.chave) + '"' +
             ' data-mascara="numero" class="aposta-campo-input aposta-qtd-num"' +
-            ' value="' + esc(q.num) + '" placeholder="' + esc(c.placeholder || '') + '" />' +
+            ' value="' + esc(q.num) + '" placeholder="' + esc(c.placeholder || '') + '"' + aria + ' />' +
           '<select data-campo="' + esc(chaveUnidade(c.chave)) + '" class="aposta-campo-input aposta-qtd-un"' +
             ' aria-label="Unidade de ' + esc(c.rotulo) + '">' +
             UNIDADES.map(function (u) {
@@ -1103,15 +1122,35 @@
       '</label>';
     }
 
-    var comum = 'id="' + id + '" data-campo="' + esc(c.chave) + '" class="aposta-campo-input" placeholder="' + esc(c.placeholder || '') + '"';
+    var comum = 'id="' + id + '" data-campo="' + esc(c.chave) + '" class="aposta-campo-input" placeholder="' + esc(c.placeholder || '') + '"' + aria;
+    var sobra = '';
     if (c.tipo === 'data' || c.tipo === 'moeda') {
       comum += ' inputmode="numeric" data-mascara="' + (c.tipo === 'data' ? 'data' : 'moeda') + '"';
+      /* A máscara só corria enquanto se digitava: o que uma execução
+         anterior gravou (o custo "10.0000", visto no uso real) aparecia
+         cru, como se a máscara não existisse. Reformatar por conta
+         própria também não serve — "10.0000" tanto pode ser R$ 10,00
+         quanto R$ 10.000,00, e o site escolheria por ela. Então: o que
+         JÁ está no formato fica; o resto sai do campo e aparece escrito
+         ao lado, para ser redigitado sem palpite nosso. */
+      var visto = valorMascarado(c.tipo, valor);
+      valor = visto.valor;
+      sobra = visto.sobra;
     }
     return '<label class="aposta-campo' + (c.tipo === 'textarea' ? ' aposta-campo--largo' : '') + '">' + rot +
       (c.tipo === 'textarea'
         ? '<textarea ' + comum + ' rows="2">' + esc(valor || '') + '</textarea>'
         : '<input type="text" ' + comum + ' value="' + esc(valor || '') + '" />') +
+      (sobra ? '<span class="aposta-legado-inline">Você tinha escrito aqui: “' + esc(sobra) + '”.</span>' : '') +
     '</label>';
+  }
+
+  /* Só sobrevive no campo o que a própria máscara produziria — assim a
+     tela nunca mostra um valor que ela mesma não aceitaria. */
+  function valorMascarado(tipo, valor) {
+    var bruto = String(valor == null ? '' : valor).trim();
+    if (!bruto) return { valor: '', sobra: '' };
+    return MASCARAS[tipo](bruto) === bruto ? { valor: bruto, sobra: '' } : { valor: '', sobra: bruto };
   }
 
   /* A escolha entre duas formas do mesmo verbo: é texto fixo da frase,
@@ -1130,21 +1169,71 @@
   /* Texto fixo e lacunas, na ordem da frase. Serve tanto para a frase da
      etapa quanto para os blocos guiados de dentro dela (a próxima
      hipótese, que é uma hipótese e merece o mesmo apoio). */
+  /* A pontuação pertence à frase montada, não à tela: um bloco só com
+     "." ou "—" seria ruído. O resto do texto fixo aparece. */
+  function fixoVisivel(p) {
+    var t = String(p).replace(/^[,.;:]+\s*/, '').trim();
+    return t && !/^[.…—–-]+$/.test(t) ? t : '';
+  }
+
+  function lacunaHtml(etapa, p, d, usados, semRotulo) {
+    if (p.escolha) { usados['@escolha'] = 1; return escolhaHtml(etapa.escolha, d, semRotulo); }
+    var c = campoPorChave(etapa, p.c);
+    if (!c) return '';
+    usados[c.chave] = 1;
+    if (c.tipo === 'quantidade') usados[chaveUnidade(c.chave)] = 1;
+    if (c.tipo === 'variantes') return varianteHtml(c, d[p.c]);
+    return campoHtml(c, d[p.c], d, semRotulo);
+  }
+
+  function classeDoPar(etapa, p) {
+    if (p.escolha) return ' aposta-par--largo';
+    var c = campoPorChave(etapa, p.c);
+    if (!c) return '';
+    if (c.tipo === 'textarea') return ' aposta-par--largo';
+    if (c.tipo === 'quantidade') return ' aposta-par--qtd';
+    return '';
+  }
+
+  /* O texto fixo sai GRUDADO na lacuna que ele apresenta. Solto, ele cai
+     numa linha sozinha entre dois campos largos — foi assim que "e medir"
+     apareceu perdido no meio do Experimento, sem nada dizendo a que
+     campo pertencia. Junto, cada pedaço da frase é a legenda da sua
+     lacuna, e a linha nunca quebra entre os dois. */
   function blocosDoMolde(etapa, molde, d, usados) {
-    return (molde || []).map(function (p) {
+    var partes = molde || [];
+    var out = [];
+    for (var i = 0; i < partes.length; i++) {
+      var p = partes[i];
       if (typeof p === 'string') {
-        /* A pontuação pertence à frase montada, não à tela: um bloco só
-           com "." ou "—" seria ruído. O resto do texto fixo aparece. */
-        var t = p.replace(/^[,.;:]+\s*/, '').trim();
-        return t && !/^[.…—–-]+$/.test(t) ? '<span class="aposta-molde-fixo">' + esc(t) + '</span>' : '';
+        var t = fixoVisivel(p);
+        if (!t) continue;
+        var seguinte = partes[i + 1];
+        if (seguinte && typeof seguinte !== 'string') {
+          out.push('<div class="aposta-par' + classeDoPar(etapa, seguinte) + '">' +
+            '<span class="aposta-molde-fixo">' + esc(t) + '</span>' +
+            lacunaHtml(etapa, seguinte, d, usados, true) +
+          '</div>');
+          i++;
+          continue;
+        }
+        out.push('<span class="aposta-molde-fixo">' + esc(t) + '</span>');
+        continue;
       }
-      if (p.escolha) { usados['@escolha'] = 1; return escolhaHtml(etapa.escolha, d); }
-      var c = campoPorChave(etapa, p.c);
-      if (!c) return '';
-      usados[c.chave] = 1;
-      if (c.tipo === 'quantidade') usados[chaveUnidade(c.chave)] = 1;
-      return c.tipo === 'variantes' ? varianteHtml(c, d[p.c]) : campoHtml(c, d[p.c], d);
-    }).join('');
+      out.push(lacunaHtml(etapa, p, d, usados, false));
+    }
+    return out.join('');
+  }
+
+  /* Diz, com a decisão já escolhida, se o bloco se aplica — em vez de
+     deixar o grupo reler o critério e concluir sozinho. */
+  function avisoDaEscolha(g, d) {
+    if (!g.aplicaQuando || !g.dependeDaEscolha) return '';
+    var escolhido = (d || {})[g.dependeDaEscolha];
+    if (!escolhido) return '';
+    return g.aplicaQuando.indexOf(escolhido) !== -1
+      ? 'A decisão de vocês (' + escolhido.toLowerCase() + ') pede uma próxima hipótese.'
+      : 'Com a decisão de vocês (' + escolhido.toLowerCase() + '), este bloco pode ficar em branco.';
   }
 
   /* Execução gravada quando o campo era texto livre: o que estava lá
@@ -1180,6 +1269,8 @@
       });
       html += '<div class="aposta-grupo">' +
         '<p class="aposta-grupo-rot">' + esc(g.rotulo) + '</p>' +
+        (g.dica ? '<p class="aposta-grupo-dica">' + g.dica +
+          '<span class="aposta-grupo-agora" id="apostaGrupoAgora"> ' + esc(avisoDaEscolha(g, d)) + '</span></p>' : '') +
         '<div class="aposta-molde aposta-molde--grupo">' + blocos + '</div>' +
         (g.legado ? legadoHtml(g.legado, d, vazio) : '') +
       '</div>';
@@ -1208,7 +1299,16 @@
     var d = _dados[etapa.id] || {};
     var idx = indiceEtapa(etapa.id);
 
-    var corpo = etapa.lista ? mudancasHtml(d) : moldeHtml(etapa, d);
+    /* Etapa 1 com missão cadastrada pela facilitação: abre com ela na
+       tela, ainda não gravada no grupo — quem seguir adiante a adota,
+       quem ajustar grava o ajuste. */
+    var herdada = etapa.id === 'missao' && !etapaPreenchida('missao', _dados) && temMissaoDaExecucao();
+    if (herdada) d = missaoDaExecucao();
+
+    var corpo = (herdada
+      ? '<p class="aposta-herdada">Missão cadastrada pela facilitação. Vocês podem ajustar — ' +
+        'o que ficar aqui é a missão do grupo.</p>'
+      : '') + (etapa.lista ? mudancasHtml(d) : moldeHtml(etapa, d));
 
     _tela.innerHTML = cabecalho() +
       '<div class="aposta-corpo">' +
@@ -1251,9 +1351,9 @@
     ligarEtapa(etapa);
   }
 
-  function escolhaHtml(escolha, d) {
+  function escolhaHtml(escolha, d, semRotulo) {
     return '<div class="aposta-escolha">' +
-      '<span class="aposta-campo-rot">' + esc(escolha.rotulo) + '</span>' +
+      (semRotulo ? '' : '<span class="aposta-campo-rot">' + esc(escolha.rotulo) + '</span>') +
       '<div class="aposta-escolha-opcoes">' +
         escolha.opcoes.map(function (o) {
           return '<button type="button" class="aposta-opcao' + (d[escolha.chave] === o ? ' is-ativa' : '') +
@@ -1370,6 +1470,12 @@
       var html = usaLegado
         ? '<strong class="aposta-frase-valor">' + esc(String(d[etapa.legado]).trim()) + '</strong>'
         : htmlDaFrase(partes);
+
+      var agora = document.getElementById('apostaGrupoAgora');
+      if (agora) {
+        var g0 = (etapa.grupos || [])[0];
+        agora.textContent = g0 ? ' ' + avisoDaEscolha(g0, d) : '';
+      }
 
       el.hidden = false;
       el.innerHTML = '<span class="aposta-frase-rot">Fica assim no mapa</span>' +
@@ -1549,7 +1655,17 @@
         trilhaHtml() +
         '<main class="aposta-palco aposta-palco--mapa">' +
           '<h1 class="aposta-mapa-titulo">Mapa da Aposta</h1>' +
+          '<p class="aposta-mapa-print">' + esc(_turma.label) +
+            (_grupo.nome ? ' · ' + esc(_grupo.nome) : '') + ' · ' + esc(dataDeHoje()) + '</p>' +
           '<p class="aposta-mapa-sub">Clique em qualquer card para editar aquela etapa.</p>' +
+          /* Levar a aposta embora: em papel/PDF para a sala e em texto
+             para colar onde for analisada. São os dois destinos que a
+             oficina pede, e nenhum deles é o CSV do painel (que é da
+             facilitadora, com todos os grupos). */
+          '<div class="aposta-mapa-acoes">' +
+            '<button class="btn btn--sm" id="apostaCopiarBtn">⧉ Copiar em texto</button>' +
+            '<button class="btn btn--sm" id="apostaPdfBtn">🖨 Salvar em PDF</button>' +
+          '</div>' +
           '<div class="aposta-mapa">' +
             ETAPAS.map(function (e, i) {
               var texto = resumoEtapa(e.id, _dados);
@@ -1578,6 +1694,142 @@
     if (rev) rev.addEventListener('click', function () {
       db().ref(caminhoExec() + '/revelado').set(true);
     });
+    var copiar = document.getElementById('apostaCopiarBtn');
+    if (copiar) copiar.addEventListener('click', copiarAposta);
+    var pdf = document.getElementById('apostaPdfBtn');
+    if (pdf) pdf.addEventListener('click', function () { window.print(); });
+  }
+
+  /* ══════════════════════════════════════════════════════════════
+     LEVAR A APOSTA EMBORA
+
+     Dois formatos, o mesmo conteúdo do mapa:
+
+     · PDF — window.print() com uma folha de impressão própria. Sem
+       biblioteca: o "Salvar como PDF" do navegador já existe no
+       computador e no celular, e uma biblioteca de PDF neste repo
+       (sem bundler, tudo em <script> global) custaria centenas de KB
+       para fazer o que o próprio navegador faz.
+     · TEXTO — markdown simples, para colar onde a aposta for analisada
+       (inclusive numa IA). Sai etapa por etapa, com a pergunta de cada
+       uma, porque sem a pergunta o texto vira uma lista de frases soltas
+       e quem lê depois não sabe o que cada uma responde.
+
+     Os termos do final da dinâmica não entram em nenhum dos dois: o
+     texto sai do mesmo resumoEtapa que alimenta a tela.
+     ══════════════════════════════════════════════════════════════ */
+  /* ── A missão que a facilitação cadastra ───────────────────────────
+     Ela existia como um campo de texto no painel que era gravado e não
+     chegava a lugar nenhum: nenhuma tela lia. Enquanto isso a etapa 1
+     pedia a missão do zero, e quem tinha acabado de cadastrar uma via a
+     pergunta de novo, sem relação com o que escreveu.
+
+     Agora é o começo da etapa 1: o grupo abre com ela já escrita, nas
+     mesmas lacunas, e ajusta se quiser — o que ficar na tela é a missão
+     do grupo, gravada no grupo. Deixar em branco no painel mantém o
+     comportamento antigo: cada grupo escreve a sua. */
+  function missaoDaExecucao() {
+    var m = _exec.missao;
+    if (!m) return {};
+    if (typeof m === 'string') return m.trim() ? { texto: m.trim() } : {};
+    return m;
+  }
+  function temMissaoDaExecucao() {
+    return etapaPreenchida('missao', { missao: missaoDaExecucao() });
+  }
+
+  function dataDeHoje() {
+    try { return new Date().toLocaleDateString('pt-BR'); } catch (e) { return ''; }
+  }
+
+  function complementosEmTexto(etapa) {
+    var d = _dados[etapa.id] || {};
+    var usados = {};
+    (etapa.molde || []).forEach(function (p) {
+      if (typeof p !== 'string' && p.c) {
+        usados[p.c] = 1;
+        var c0 = campoPorChave(etapa, p.c);
+        if (c0 && c0.tipo === 'quantidade') usados[chaveUnidade(p.c)] = 1;
+      }
+    });
+    (etapa.grupos || []).forEach(function (g) {
+      (g.molde || []).forEach(function (p) { if (typeof p !== 'string' && p.c) usados[p.c] = 1; });
+    });
+    return (etapa.campos || []).filter(function (c) {
+      return !usados[c.chave] && c.tipo !== 'variantes' && String(d[c.chave] || '').trim();
+    }).map(function (c) {
+      return c.rotulo + ': ' + String(d[c.chave]).trim();
+    });
+  }
+
+  function textoDaAposta() {
+    var l = [];
+    l.push('# Construção da Aposta');
+    l.push('Turma: ' + _turma.label);
+    if (_grupo.nome) l.push('Grupo: ' + _grupo.nome);
+    l.push('Exportado em: ' + dataDeHoje());
+    l.push('');
+    ETAPAS.forEach(function (e, i) {
+      l.push('## ' + (i + 1) + '. ' + e.curto);
+      l.push('_' + e.pergunta + '_');
+      if (e.lista) {
+        var itens = (_dados[e.id] || {}).itens || [];
+        if (itens.length) itens.forEach(function (m) { l.push('- ' + fraseMudanca(m)); });
+        else l.push('(ainda não preenchido)');
+      } else {
+        l.push(resumoEtapa(e.id, _dados) || '(ainda não preenchido)');
+      }
+      /* A frase da próxima hipótese é da Decisão, mas não entra na frase
+         dela — sem esta linha, sumiria do texto exportado. */
+      (e.grupos || []).forEach(function (g) {
+        var partes = partesDaFrase({ campos: e.campos, escolha: e.escolha, molde: g.molde }, _dados[e.id] || {});
+        if (partes.some(function (p) { return p.tipo === 'valor'; })) {
+          l.push('');
+          l.push('**' + g.rotulo.split('—')[0].trim() + ':** ' +
+            juntarPartes(partes, function () { return '—'; }));
+        }
+      });
+      var extras = complementosEmTexto(e);
+      if (extras.length) { l.push(''); l.push('Complementos — ' + extras.join(' · ')); }
+      l.push('');
+    });
+    return l.join('\n');
+  }
+
+  function copiarAposta() {
+    var txt = textoDaAposta();
+    function caiuNoManual() { mostrarTextoParaCopiar(txt); }
+    try {
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        navigator.clipboard.writeText(txt).then(function () {
+          avisar('Aposta copiada — é só colar onde você vai analisar.');
+        }, caiuNoManual);
+        return;
+      }
+    } catch (e) { /* cai no manual */ }
+    caiuNoManual();
+  }
+
+  /* Copiar pode ser recusado (permissão, navegador antigo, aba sem foco).
+     Dizer "copiado" nesse caso seria mentir — então a saída é mostrar o
+     texto já selecionado, que funciona em qualquer navegador. */
+  function mostrarTextoParaCopiar(txt) {
+    var overlay = document.createElement('div');
+    overlay.className = 'modal-overlay';
+    overlay.style.cssText = 'display:flex;align-items:center;justify-content:center;z-index:10000';
+    var box = document.createElement('div');
+    box.className = 'modal-box';
+    box.style.cssText = 'max-width:680px;width:94%;padding:22px;display:flex;flex-direction:column;gap:12px';
+    box.innerHTML = '<h3 style="margin:0;font-family:var(--font-head);color:var(--ink)">Copiar a aposta</h3>' +
+      '<p style="margin:0;font-size:.85rem;color:var(--ink-3)">Selecione tudo e copie (Ctrl+C, ou segure para copiar no celular).</p>' +
+      '<textarea readonly rows="12" style="width:100%;font-family:var(--font-mono);font-size:.78rem"></textarea>' +
+      '<div style="display:flex;justify-content:flex-end"><button class="btn admin-modal-cancel-btn">Fechar</button></div>';
+    box.querySelector('textarea').value = txt;
+    overlay.appendChild(box);
+    document.body.appendChild(overlay);
+    var ta = box.querySelector('textarea');
+    ta.focus(); ta.select();
+    box.querySelector('button').addEventListener('click', function () { document.body.removeChild(overlay); });
   }
 
   /* ══════════════════════════════════════════════════════════════
@@ -1628,6 +1880,48 @@
   /* ══════════════════════════════════════════════════════════════
      PAINEL DO FACILITADOR
      ══════════════════════════════════════════════════════════════ */
+
+  /* As mesmas lacunas da etapa 1, com o mesmo texto fixo: se as duas
+     telas pedem a mesma frase, elas têm de pedir do mesmo jeito. Os
+     campos são marcados com data-mis (e não com id/data-campo) porque
+     a etapa continua montada atrás do painel — dois campos com o mesmo
+     id na página fazem um esconder o outro. */
+  function missaoFacHtml() {
+    var etapa = etapaPorId('missao');
+    var d = missaoDaExecucao();
+    var blocos = '';
+    (etapa.molde || []).forEach(function (p, i) {
+      if (typeof p === 'string') {
+        var t = fixoVisivel(p);
+        if (t) blocos += '<span class="aposta-molde-fixo">' + esc(t) + '</span>';
+        return;
+      }
+      var c = campoPorChave(etapa, p.c);
+      if (!c) return;
+      if (c.tipo === 'quantidade') {
+        var q = lerQuantidade(c, d);
+        blocos += '<span class="aposta-qtd">' +
+          '<input type="text" inputmode="numeric" data-mascara="numero" data-mis="' + esc(c.chave) + '"' +
+            ' class="aposta-campo-input aposta-qtd-num" value="' + esc(q.num) + '"' +
+            ' placeholder="' + esc(c.placeholder || '') + '" aria-label="' + esc(c.rotulo) + '" />' +
+          '<select data-mis="' + esc(chaveUnidade(c.chave)) + '" class="aposta-campo-input aposta-qtd-un"' +
+            ' aria-label="Unidade de ' + esc(c.rotulo) + '">' +
+            UNIDADES.map(function (u) {
+              return '<option value="' + u + '"' + (q.un === u ? ' selected' : '') + '>' + u + '</option>';
+            }).join('') +
+          '</select></span>';
+        return;
+      }
+      blocos += '<input type="text" data-mis="' + esc(c.chave) + '" class="aposta-campo-input"' +
+        ' value="' + esc(d[c.chave] || '') + '" placeholder="' + esc(c.placeholder || '') + '"' +
+        ' aria-label="' + esc(c.rotulo) + '" />';
+    });
+    var legado = String(d[etapa.legado] || '').trim();
+    return '<div class="aposta-molde aposta-molde--fac">' + blocos + '</div>' +
+      (legado && !temLacunaPreenchida(etapa, d)
+        ? '<p class="aposta-legado">Você tinha escrito aqui: “' + esc(legado) + '”. Distribua nas lacunas acima.</p>'
+        : '');
+  }
   function abrirPainelFacilitador() {
     var overlay = document.createElement('div');
     overlay.className = 'modal-overlay';
@@ -1646,9 +1940,9 @@
         '<h3 style="font-family:var(--font-head);letter-spacing:.05em;color:var(--ink);margin:0">Painel do facilitador</h3>' +
         '<p style="font-size:.82rem;color:var(--ink-3);margin:0">' + esc(_turma.label) + '</p>' +
 
-        '<label class="auth-label" style="margin:0">Missão da dinâmica (cadastrada por você)' +
-          '<textarea id="apostaMissaoFac" rows="3" placeholder="Melhorar… para… em…">' + esc(_exec.missao || '') + '</textarea>' +
-        '</label>' +
+        '<h4 style="margin:8px 0 0">Missão da dinâmica</h4>' +
+        '<p style="font-size:.8rem;color:var(--ink-3);margin:0">Se você cadastrar aqui, os grupos abrem a etapa 1 com esta missão já escrita e podem ajustar. Em branco, cada grupo escreve a sua.</p>' +
+        missaoFacHtml() +
         '<button class="btn btn--sm" id="apostaSalvarMissao">Salvar missão</button>' +
 
         '<h4 style="margin:8px 0 0">Grupos</h4>' +
@@ -1690,10 +1984,16 @@
       /* As três escritas abaixo confirmam o erro antes de dizer que deu
          certo. Dizer "Missão salva" sobre uma gravação recusada é o
          defeito que a skill editar-e-salvar existe para impedir. */
+      box.querySelectorAll('[data-mis]').forEach(function (el) {
+        el.addEventListener('input', function () { aplicarMascara(el); });
+      });
       box.querySelector('#apostaSalvarMissao').addEventListener('click', function () {
         var b = box.querySelector('#apostaSalvarMissao');
-        db().ref(caminhoExec() + '/missao').set(box.querySelector('#apostaMissaoFac').value, function (err) {
+        var m = {};
+        box.querySelectorAll('[data-mis]').forEach(function (el) { m[el.dataset.mis] = el.value; });
+        db().ref(caminhoExec() + '/missao').set(m, function (err) {
           if (err) { b.textContent = 'Não salvou — tente de novo'; return; }
+          _exec.missao = m;
           b.textContent = 'Missão salva';
           setTimeout(function () { b.textContent = 'Salvar missão'; }, 1600);
         });
@@ -1760,7 +2060,8 @@
     /* expostos para os testes automatizados da aba Testes */
     _validar: validar,
     _resumo: function (id, dados) { return resumoEtapa(id, dados); },
-    _etapas: function () { return ETAPAS.map(function (e) { return e.id; }); }
+    _etapas: function () { return ETAPAS.map(function (e) { return e.id; }); },
+    _texto: function () { return textoDaAposta(); }
   };
 
   window.addEventListener('fa-auth-ready', montarEntrada);

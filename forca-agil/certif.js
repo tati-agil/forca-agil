@@ -1,6 +1,19 @@
 /* ============================================================
    certif.js — Gerador de Certificados Força Ágil
-   Versão: v1.0  |  Status: APROVADO PARA PRODUÇÃO
+   Versão: v1.1  |  Status: APROVADO PARA PRODUÇÃO
+   ============================================================
+
+   v1.1 — dois ajustes de leitura, sem mexer em template nem em
+   coordenada de campo:
+     · periodoTurma passou a receber a data por extenso ("16 de
+       setembro de 2026") em vez do texto do site ("16"). No site o
+       mês está no rótulo ao lado; no certificado o campo fica sozinho
+       numa linha comprida, e numa turma de UM dia o número solto não
+       lia como data de curso. Vale de 1 a 5 dias.
+     · cargaHoraria com fração ("3.5") sai como "3,5h", e o vão que o
+       monoespaçado abre em volta da vírgula é fechado no desenho — em
+       Courier o ponto ocupa uma célula inteira e a carga aparecia como
+       "3 . 5 h".
    ============================================================
 
    ARQUITETURA — DUAS CAMADAS
@@ -28,6 +41,7 @@
        2. nomeEvento        — x:724  y:535  maxW:920   size:29/13
        3. identificacaoTurma— x:724  y:581  maxW:680   size:19/12
        4. periodoTurma      — x:598  y:658  maxW:400   size:24/13
+                              data por extenso ("16 de setembro de 2026")
        5. cargaHoraria      — x:613  y:757  maxW:160   size:48/24
                               sufixo fixo: "h" (o valor gravado é só o número)
        6. dataEmissao       — x:1055 y:922  maxW:360   size:19/10
@@ -107,7 +121,9 @@
       x: 613, y: 757, maxWidth: 160, align: 'center',
       size: 48, minSize: 24, weight: 'bold',
       color: '#f5c542', family: '"Courier New",Courier,monospace',
-      suffix: 'h'  /* valor vem só como número ("20"); o "h" é do layout */
+      suffix: 'h',      /* valor vem só como número ("20"); o "h" é do layout */
+      decimalBr: true,  /* "3.5" → "3,5": o certificado é em português */
+      apertar: 9        /* fecha o vão do monoespaçado em volta da vírgula */
     },
     /* "Emitido em" removido do template v2; frase completa renderizada como campo dinâmico */
     dataEmissao: {
@@ -124,7 +140,38 @@
      (hoje só o nome do evento) são desenhados letra a letra por spacedText,
      que soma o espaçamento entre elas — medir só com measureText subestima
      a largura e deixava o texto estourar o maxWidth mesmo "cabendo". */
+  /* Em fonte monoespaçada a vírgula ocupa uma célula inteira, quase toda
+     vazia: "3,5h" aparece como "3 , 5 h". O aperto tira essa sobra dos
+     dois lados do separador e não toca no resto do texto — inteiros
+     ("20h") saem exatamente como antes. */
+  var SEPARADOR = /[.,]/;
+  function folgaEntre(cfg, a, b) {
+    if (!cfg.apertar) return cfg.spacing || 0;
+    return (SEPARADOR.test(a) || SEPARADOR.test(b)) ? -cfg.apertar : (cfg.spacing || 0);
+  }
+  function larguraComFolga(ctx, text, cfg) {
+    var chars = text.split('');
+    return chars.reduce(function (soma, c, i) {
+      return soma + ctx.measureText(c).width +
+        (i < chars.length - 1 ? folgaEntre(cfg, c, chars[i + 1]) : 0);
+    }, 0);
+  }
+  function textoComFolga(ctx, text, cfg) {
+    var chars = text.split('');
+    var total = larguraComFolga(ctx, text, cfg);
+    var cx = cfg.align === 'center' ? cfg.x - total / 2
+           : cfg.align === 'right'  ? cfg.x - total : cfg.x;
+    var antes = ctx.textAlign;
+    ctx.textAlign = 'left';
+    chars.forEach(function (c, i) {
+      ctx.fillText(c, cx, cfg.y);
+      cx += ctx.measureText(c).width + (i < chars.length - 1 ? folgaEntre(cfg, c, chars[i + 1]) : 0);
+    });
+    ctx.textAlign = antes;
+  }
+
   function larguraReal(ctx, text, cfg) {
+    if (cfg.apertar) return larguraComFolga(ctx, text, cfg);
     if (!cfg.spacing) return ctx.measureText(text).width;
     var chars = text.split('');
     return chars.reduce(function (s, c) {
@@ -155,14 +202,25 @@
     });
   }
 
+  /* O miolo do campo, antes de prefixo e sufixo. Fica numa função só
+     porque a medição dos testes (medirCampo) tem de passar pelas mesmas
+     regras do desenho — senão ela mede um texto que não é o desenhado. */
+  function valorFormatado(raw, cfg) {
+    var txt = String(raw);
+    if (cfg.decimalBr) txt = txt.replace('.', ',');
+    return cfg.upper ? txt.toUpperCase() : txt;
+  }
+
   function drawFieldText(ctx, raw, cfg) {
     if (!raw) return;
-    var text = (cfg.prefix || '') + (cfg.upper ? String(raw).toUpperCase() : String(raw)) + (cfg.suffix || '');
+    var text = (cfg.prefix || '') + valorFormatado(raw, cfg) + (cfg.suffix || '');
     fitFont(ctx, text, cfg);
     ctx.fillStyle    = cfg.color;
     ctx.textAlign    = cfg.align;
     ctx.textBaseline = 'middle';
-    if (cfg.spacing) {
+    if (cfg.apertar) {
+      textoComFolga(ctx, text, cfg);
+    } else if (cfg.spacing) {
       spacedText(ctx, text, cfg.x, cfg.y, cfg.spacing);
     } else {
       ctx.fillText(text, cfg.x, cfg.y);
@@ -362,7 +420,7 @@
     medirCampo:      function (raw, cfg) {
       var canvas = document.createElement('canvas');
       var ctx = canvas.getContext('2d');
-      var text = (cfg.prefix || '') + (cfg.upper ? String(raw).toUpperCase() : String(raw)) + (cfg.suffix || '');
+      var text = (cfg.prefix || '') + valorFormatado(raw, cfg) + (cfg.suffix || '');
       var size = fitFont(ctx, text, cfg);
       return { texto: text, size: size, largura: larguraReal(ctx, text, cfg) };
     }

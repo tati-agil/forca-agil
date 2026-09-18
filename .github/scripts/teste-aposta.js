@@ -223,6 +223,27 @@ const textoDaTela = (page) => page.evaluate(() => {
         await novo.waitForTimeout(500);
         const criou = await novo.evaluate(() => /Grupo 1/.test(document.body.textContent || ''));
         anota('a facilitadora abre a dinâmica do zero e cria um grupo', criou);
+
+        /* O painel pede a missão nas MESMAS lacunas da etapa 1: se as duas
+           telas pedem a mesma frase, pedem do mesmo jeito. */
+        const painelMissao = await novo.evaluate(() => ({
+          lacunas: Array.from(document.querySelectorAll('[data-mis]')).map((e) => e.dataset.mis).join(','),
+          fixo: Array.from(document.querySelectorAll('.aposta-molde--fac .aposta-molde-fixo'))
+            .map((e) => e.textContent.trim()).join(' '),
+        }));
+        anota('o painel pede a missão nas mesmas lacunas da etapa 1',
+          /verbo/.test(painelMissao.lacunas) && /oQue/.test(painelMissao.lacunas) &&
+          /prazo/.test(painelMissao.lacunas) && /prazoUnidade/.test(painelMissao.lacunas),
+          painelMissao.lacunas);
+        await novo.fill('[data-mis="verbo"]', 'Reduzir');
+        await novo.click('#apostaSalvarMissao');
+        await novo.waitForTimeout(400);
+        const gravouMissao = await novo.evaluate(() => (window.__ESCRITAS || [])
+          .filter((x) => /\/missao$/.test(x.path)).slice(-1)[0] || null);
+        const salvo = gravouMissao && (gravouMissao.valor !== undefined ? gravouMissao.valor : gravouMissao.value);
+        anota('salvar a missão grava as lacunas, não um texto solto',
+          !!salvo && typeof salvo === 'object' && salvo.verbo === 'Reduzir',
+          JSON.stringify(gravouMissao));
         await ctxNovo.close();
       }
 
@@ -255,6 +276,86 @@ const textoDaTela = (page) => page.evaluate(() => {
         anota('a trilha revelada não tem buracos (nome depois de etapa escondida)',
           !buraco, nomeados.map((n, i) => (i + 1) + (n ? ':nome' : ':—')).join(' '));
         await ctxT.close();
+      }
+
+      /* ── 2c: texto fixo colado na lacuna, e valor antigo fora de formato ──
+         Dois defeitos vistos na tela: "e medir" sozinho numa linha entre
+         dois campos largos, sem nada dizendo a que campo pertencia; e o
+         custo "10.0000", gravado antes da máscara existir, aparecendo cru
+         como se máscara nenhuma houvesse. */
+      {
+        const semeado = apostasSemeadas();
+        const g = semeado[TURMA_LIB].execucoes[EXEC].grupos[GRUPO];
+        g.etapa = 'experimento';
+        g.dados = { experimento: { custo: '10.0000', duracao: '3', duracaoUnidade: 'semanas' } };
+        const { ctx: ctxE, page: pg } = await novaPagina(browser, formato, DIRETORA, erros, semeado);
+        await pg.goto(BASE + '/index.html#treinamento', { waitUntil: 'domcontentloaded' });
+        await pg.waitForSelector('#apostaAbrirBtn', { timeout: 15000 });
+        await pg.click('#apostaAbrirBtn');
+        await pg.waitForSelector('.aposta-grupo-btn', { timeout: 15000 });
+        await pg.click('.aposta-grupo-btn');
+        await pg.waitForSelector('.aposta-molde', { timeout: 15000 });
+
+        const soltos = await pg.evaluate(() => Array.from(document.querySelectorAll('.aposta-molde-fixo'))
+          .filter((f) => !f.parentElement.classList.contains('aposta-par'))
+          .map((f) => f.textContent.trim()));
+        anota('nenhum pedaço de texto fixo fica solto, longe da lacuna dele',
+          soltos.length === 0, soltos.join(' | '));
+        const juntos = await pg.evaluate(() => {
+          const par = Array.from(document.querySelectorAll('.aposta-par'))
+            .find((p) => /e medir/.test((p.querySelector('.aposta-molde-fixo') || {}).textContent || ''));
+          return !!(par && par.querySelector('[data-campo="medida"]'));
+        });
+        anota('"e medir" vem no mesmo bloco do campo que ele apresenta', juntos);
+
+        /* Em coluna, flex-basis vira altura: a lacuna do prazo já herdou
+           230px de ALTURA e abriu um buraco no meio da frase. */
+        const alturas = await pg.evaluate(() => Array.from(document.querySelectorAll('.aposta-par'))
+          .map((p) => Math.round(p.getBoundingClientRect().height)));
+        anota('nenhum bloco da frase estica a linha (buraco no meio)',
+          alturas.every((h) => h < 160), alturas.join(', '));
+
+        const custo = await pg.evaluate(() => {
+          const el = document.querySelector('[data-campo="custo"]');
+          const nota = el ? el.parentElement.querySelector('.aposta-legado-inline') : null;
+          return { valor: el ? el.value : '(sem campo)', nota: nota ? nota.textContent : '' };
+        });
+        anota('valor antigo fora do formato não aparece cru no campo de moeda',
+          custo.valor === '' && /10\.0000/.test(custo.nota), JSON.stringify(custo));
+        await ctxE.close();
+      }
+
+      /* ── 2d: a missão cadastrada no painel chega na etapa 1 ──
+         Ela era gravada e não chegava a lugar nenhum: o grupo abria a
+         etapa 1 pedindo a missão do zero, e quem tinha acabado de
+         cadastrar uma via a pergunta de novo. */
+      {
+        const semeado = apostasSemeadas();
+        semeado[TURMA_LIB].execucoes[EXEC].missao = {
+          verbo: 'Melhorar', oQue: 'a experiência do participante',
+          contexto: 'na concessão', prazo: '90', prazoUnidade: 'dias',
+        };
+        const { ctx: ctxM, page: pg } = await novaPagina(browser, formato, DIRETORA, erros, semeado);
+        await pg.goto(BASE + '/index.html#treinamento', { waitUntil: 'domcontentloaded' });
+        await pg.waitForSelector('#apostaAbrirBtn', { timeout: 15000 });
+        await pg.click('#apostaAbrirBtn');
+        await pg.waitForSelector('.aposta-grupo-btn', { timeout: 15000 });
+        await pg.click('.aposta-grupo-btn');
+        await pg.waitForSelector('.aposta-molde', { timeout: 15000 });
+        const etapa1 = await pg.evaluate(() => ({
+          verbo: (document.getElementById('ap-verbo') || {}).value || '',
+          oQue: (document.getElementById('ap-oQue') || {}).value || '',
+          prazo: (document.getElementById('ap-prazo') || {}).value || '',
+          aviso: (document.querySelector('.aposta-herdada') || {}).textContent || '',
+          feita: !!document.querySelector('.aposta-trilha-item.is-feita'),
+        }));
+        anota('a missão cadastrada pela facilitação abre preenchida na etapa 1',
+          etapa1.verbo === 'Melhorar' && /experiência do participante/.test(etapa1.oQue) && etapa1.prazo === '90',
+          JSON.stringify(etapa1));
+        anota('a etapa 1 diz de onde veio a missão e que dá para ajustar',
+          /cadastrada pela facilitação/i.test(etapa1.aviso) && /ajustar/i.test(etapa1.aviso));
+        anota('a missão herdada ainda não conta como escrita pelo grupo', !etapa1.feita);
+        await ctxM.close();
       }
 
       /* ── 3: a diretora entra, escolhe o grupo e percorre as etapas ── */
@@ -465,6 +566,26 @@ const textoDaTela = (page) => page.evaluate(() => {
               /Próxima hipótese/i.test(grupo.rotulo) && /Acreditamos que isso acontece porque/.test(grupo.fixo) &&
               /pois/.test(grupo.fixo) && grupo.lacunas === 2,
               JSON.stringify(grupo));
+
+            /* "Quando aplicável" não dizia qual é o critério — e o
+               critério é a decisão que acabou de ser tomada, então a
+               escolha vem antes da conferência. */
+            await page.locator('.aposta-opcao').first().click();
+            await page.waitForTimeout(300);
+            const criterio = await page.evaluate(() => ({
+              dica: (document.querySelector('.aposta-grupo-dica') || {}).textContent || '',
+              agora: (document.querySelector('.aposta-grupo-agora') || {}).textContent || '',
+            }));
+            anota('o bloco diz que as duas lacunas são uma frase só, e quando preencher',
+              /uma frase só/i.test(criterio.dica) && /formular nova hipótese/i.test(criterio.dica) &&
+              /deixe em branco/i.test(criterio.dica), criterio.dica.slice(0, 120));
+            anota('a decisão escolhida já diz se este bloco se aplica',
+              /pede uma próxima hipótese|pode ficar em branco/i.test(criterio.agora), criterio.agora);
+
+            const fraseDec = await page.evaluate(() =>
+              ((document.getElementById('apostaFrase') || {}).textContent || '').replace(/\s+/g, ' '));
+            anota('a frase da decisão não tem traço solto no meio',
+              /Próxima ação:/.test(fraseDec) && !/—/.test(fraseDec), fraseDec.slice(0, 140));
           }
           const campo = page.locator('.aposta-campo-input').first();
           if (await campo.count()) await campo.fill('conteúdo da etapa ' + (i + 1));
@@ -549,6 +670,21 @@ const textoDaTela = (page) => page.evaluate(() => {
       const txtMapa = await textoDaTela(page);
       anota('nem o mapa final vaza os termos antes do facilitador revelar',
         !SEGREDO.test(txtMapa), (txtMapa.match(SEGREDO) || [''])[0]);
+
+      /* ── 4b: levar a aposta embora ── */
+      const exporta = await page.evaluate(() => ({
+        temCopiar: !!document.getElementById('apostaCopiarBtn'),
+        temPdf: !!document.getElementById('apostaPdfBtn'),
+        texto: window.faAposta._texto(),
+      }));
+      anota('o mapa oferece copiar em texto e salvar em PDF', exporta.temCopiar && exporta.temPdf);
+      anota('o texto exportado traz as dez etapas, com a pergunta de cada uma',
+        (exporta.texto.match(/^## /gm) || []).length === 10 &&
+        /O que queremos melhorar\?/.test(exporta.texto) &&
+        /não sabe o status/.test(exporta.texto),
+        exporta.texto.slice(0, 120).replace(/\n/g, ' | '));
+      anota('o texto exportado também não vaza os termos do final',
+        !SEGREDO.test(exporta.texto), (exporta.texto.match(SEGREDO) || [''])[0]);
 
       /* ── 5: a diretora NÃO pode revelar; só quem conduz ── */
       const temBotaoRevelar = await page.evaluate(() => !!document.querySelector('#apostaRevelarBtn'));
