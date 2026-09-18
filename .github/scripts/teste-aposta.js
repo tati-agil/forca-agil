@@ -11,12 +11,19 @@
  *    para o efeito acabar, e ninguém percebe lendo o código: são dez
  *    telas de texto. Aqui a conferência é mecânica, tela por tela.
  *
- * 2. AS ETAPAS SEGUINTES NÃO PODEM ABRIR SOZINHAS. O valor está em
- *    percorrer o raciocínio — sintoma, depois problema, depois
- *    hipótese. Se o formulário inteiro aparecer de uma vez, o grupo
- *    pula direto para a solução, que é o hábito que a oficina existe
- *    para interromper. A trilha mostra os NOMES das dez etapas; o
- *    conteúdo, não.
+ * 2. AS ETAPAS SEGUINTES NÃO PODEM ABRIR SOZINHAS — NEM PELO NOME. O
+ *    valor está em percorrer o raciocínio — sintoma, depois problema,
+ *    depois hipótese. Se o formulário inteiro aparecer de uma vez, o
+ *    grupo pula direto para a solução, que é o hábito que a oficina
+ *    existe para interromper. E o nome sozinho já induz: quem lê
+ *    "Hipótese" na trilha escreve o sintoma pensando na explicação.
+ *    A trilha mostra os NÚMEROS das dez etapas; os nomes só quando
+ *    chega a vez de cada uma (ou depois de preenchida).
+ *
+ * 3. QUEM PREENCHE PRECISA VER O QUE É FIXO E COMO ESTÁ FICANDO. Os
+ *    campos de uma etapa são pedaços de uma frase. Sem ver a frase se
+ *    montar, a pessoa escreve o molde inteiro dentro de um campo só —
+ *    aconteceu no primeiro uso real.
  *
  * Roda com o Firebase SUBSTITUÍDO pelo falso (.github/scripts/firebase-falso.js):
  * sem rede, sem segredo, sem banco real.
@@ -247,8 +254,50 @@ const textoDaTela = (page) => page.evaluate(() => {
       });
       anota('a trilha mostra as dez etapas desde o começo', trilha.total === 10, 'vieram ' + trilha.total);
       anota('as etapas ainda não alcançadas estão fechadas', trilha.bloqueadas >= 8, trilha.bloqueadas + ' fechadas');
-      anota('a trilha nomeia as etapas (o grupo vê onde vai chegar)',
-        /Sintoma/.test(trilha.nomes) && /Decisão/.test(trilha.nomes), trilha.nomes.slice(0, 90));
+      /* O nome da etapa seguinte é resposta adiantada: ler "Hipótese" ou
+         "Evidência" antes da hora muda o que se escreve agora. */
+      anota('a trilha NÃO entrega os nomes das etapas seguintes',
+        !/Sintoma|Problema|Hip[óo]tese|Experimento|Evid[êe]ncia|Decis[ãa]o/.test(trilha.nomes),
+        trilha.nomes.slice(0, 90));
+      anota('a etapa da vez aparece nomeada na trilha', /Miss[ãa]o/.test(trilha.nomes), trilha.nomes.slice(0, 40));
+
+      /* ── A etapa 1 preenchida em lacunas: o fixo à vista, o que falta
+            marcado no lugar exato e clicável. É a tela da queixa: "preciso
+            ser guiado para ir preenchendo o que falta". ── */
+      const molde = await page.evaluate(() => ({
+        fixos: Array.from(document.querySelectorAll('.aposta-molde-fixo')).map((e) => e.textContent.trim()),
+        lacunas: document.querySelectorAll('.aposta-molde .aposta-campo-input').length,
+        previa: (document.querySelector('.aposta-frase') || {}).textContent || '',
+        semQuadroAntigo: !document.querySelector('.aposta-template'),
+      }));
+      anota('a etapa mostra o texto FIXO da frase na própria tela',
+        molde.fixos.indexOf('em') !== -1, molde.fixos.join(' | '));
+      anota('a frase é preenchida em lacunas, não num campo único', molde.lacunas >= 4, molde.lacunas + ' lacunas');
+      anota('o quadro com a frase-modelo abstrata saiu de cena', molde.semQuadroAntigo);
+      anota('a prévia diz o que ainda falta, desde o início',
+        /Ainda falta/.test(molde.previa) && /prazo/i.test(molde.previa), molde.previa.replace(/\s+/g, ' ').slice(0, 120));
+
+      /* Clicar na lacuna leva ao campo dela — no celular, procurar o campo
+         que falta é o que faz a pessoa desistir de completar. */
+      await page.evaluate(() => {
+        const l = Array.from(document.querySelectorAll('.aposta-frase-vazio'))
+          .find((e) => /prazo/i.test(e.textContent));
+        if (l) l.click();
+      });
+      await page.waitForTimeout(250);
+      const focou = await page.evaluate(() => (document.activeElement || {}).id || '');
+      anota('clicar na lacuna leva ao campo que falta', focou === 'ap-prazo', 'foco em "' + focou + '"');
+
+      await page.fill('#ap-verbo', 'Melhorar');
+      await page.fill('#ap-oQue', 'a experiência do participante');
+      await page.fill('#ap-contexto', 'durante a concessão');
+      await page.fill('#ap-prazo', '90 dias');
+      await page.waitForTimeout(300);
+      const completa = await page.evaluate(() =>
+        ((document.querySelector('.aposta-frase') || {}).textContent || '').replace(/\s+/g, ' '));
+      anota('com tudo preenchido, a prévia mostra a frase inteira e diz que está completa',
+        /Melhorar a experiência do participante durante a concessão em 90 dias/.test(completa) &&
+        /completa/i.test(completa) && !/Ainda falta/.test(completa), completa.slice(0, 140));
 
       /* Percorre as dez etapas preenchendo um campo em cada. */
       const vazados = [];
@@ -277,6 +326,13 @@ const textoDaTela = (page) => page.evaluate(() => {
           anota('a etapa seguinte mostra a anterior no card de conexão',
             /não sabe o status/.test(conexao), conexao.slice(0, 80));
 
+          const nomesAgora = await page.evaluate(() => Array.from(
+            document.querySelectorAll('.aposta-trilha-item')).map((i) => i.textContent.trim()).join(' | '));
+          anota('o nome da etapa aparece na trilha quando chega a vez dela',
+            /Sintoma/.test(nomesAgora) && /Problema/.test(nomesAgora), nomesAgora.slice(0, 80));
+          anota('a trilha continua sem entregar as etapas mais à frente',
+            !/Hip[óo]tese|Evid[êe]ncia|Decis[ãa]o/.test(nomesAgora), nomesAgora.slice(0, 90));
+
           /* A frase montada ao vivo, na etapa do Problema: os campos são
              pedaços, e sem ver o resultado a pessoa escreve a frase inteira
              no primeiro campo — foi o que aconteceu no primeiro uso real. */
@@ -291,6 +347,15 @@ const textoDaTela = (page) => page.evaluate(() => {
             /Fica assim no mapa/i.test(previa) &&
             /Os participantes não consegue acompanhar o andamento/i.test(previa),
             previa.slice(0, 120));
+
+          /* "Os participantes não consegue" é o plural errado que o molde
+             fixo produzia. A forma do verbo é de quem escreve. */
+          await page.selectOption('[data-campo="verbo"]', 'não conseguem');
+          await page.waitForTimeout(300);
+          const comPlural = await page.evaluate(() =>
+            ((document.getElementById('apostaFrase') || {}).textContent || '').replace(/\s+/g, ' '));
+          anota('a concordância do verbo é escolhida por quem escreve',
+            /Os participantes não conseguem acompanhar/i.test(comPlural), comPlural.slice(0, 120));
           continue;
         }
 
@@ -450,6 +515,11 @@ const textoDaTela = (page) => page.evaluate(() => {
       anota('a revelação traz o ciclo PHEED', /PHEED/.test(rev));
       anota('a revelação não afirma que Missão e Objective são sinônimos universais',
         /exerceu o papel de Objective/i.test(rev), rev.slice(-160));
+
+      /* Execução gravada antes das lacunas (a missão era um campo de texto
+         só): o que o grupo escreveu continua aparecendo. */
+      anota('o que foi escrito numa execução antiga continua no mapa',
+        /Melhorar a experiência do participante em 90 dias/.test(rev), rev.slice(0, 160));
 
       /* ── 7: o que foi escrito ficou gravado no caminho certo ── */
       const gravou = await page.evaluate(() => {
