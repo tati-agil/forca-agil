@@ -834,6 +834,18 @@
                    return r.largura <= C.periodoTurma.maxWidth && r.size >= C.periodoTurma.minSize;
                  });
         } },
+        { id: 'c-cert-traco-calendario', label: 'O traço sob o calendário cobre o pior caso do período (virada de ano)', run: function () {
+          if (!window.faCertif || !window.faTurmasUtil || !window.faTurmasUtil.periodoCertificado) return false;
+          var C = window.faCertif.CFG, m = window.faCertif.medirCampo, P = window.faTurmasUtil.periodoCertificado;
+          /* O texto por extenso da v1.1 passou a sair depois do fim do
+             traço do template ("2026" sobrando) — visto no uso real. O
+             traço (cert-template-v4.png) foi alongado para além do pior
+             caso; aqui a conferência é que o texto continua cabendo
+             dentro da largura do campo, que é o que o traço acompanha. */
+          var pior = P(['2026-12-30', '2027-01-02']);
+          var r = m(pior, C.periodoTurma);
+          return r.largura <= C.periodoTurma.maxWidth;
+        } },
         { id: 'c-cert-curto-sem-reducao', label: 'Cenário curto (ANA LIMA / SCRUM / 8h): nenhum campo é reduzido à toa', run: function () {
           if (!window.faCertif) return false;
           var C = window.faCertif.CFG, m = window.faCertif.medirCampo;

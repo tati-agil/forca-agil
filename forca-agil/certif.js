@@ -1,7 +1,12 @@
 /* ============================================================
    certif.js — Gerador de Certificados Força Ágil
-   Versão: v1.1  |  Status: APROVADO PARA PRODUÇÃO
+   Versão: v1.2  |  Status: APROVADO PARA PRODUÇÃO
    ============================================================
+
+   v1.2 — o template (cert-template-v4.png) teve o traço sob o
+   calendário alongado, porque o texto por extenso da v1.1 passou a
+   sair depois do fim dele ("2026" sobrando). Nenhuma coordenada de
+   campo mudou — só a arte de fundo.
 
    v1.1 — dois ajustes de leitura, sem mexer em template nem em
    coordenada de campo:
@@ -87,8 +92,16 @@
 
   /* v3 = v2 com o símbolo da Previ do cabeçalho trocado pelo mesmo do site
      (assets/previ-symbol.png). O template trazia outra marca. As posições
-     dos campos não mudaram: a arte é idêntica fora desse detalhe. */
-  var TEMPLATE_SRC = 'forca-agil/cert-template-v3.png';
+     dos campos não mudaram: a arte é idêntica fora desse detalhe.
+
+     v4 = v3 com o traço dourado sob o ícone de calendário mais longo e
+     mais próximo do ícone. Ele era curto o bastante para "2026" sair
+     escrito depois do fim do traço assim que o período passou a ir por
+     extenso (v1.1) — visto no uso real. Esticado com o mesmo gradiente
+     do original (a faixa foi recortada em rampa-de-entrada + platô +
+     rampa-de-saída, e só o platô foi alongado), não desenhado do zero:
+     nenhum outro elemento do template mudou. */
+  var TEMPLATE_SRC = 'forca-agil/cert-template-v4.png';
 
   /* Dimensões do template (lidas do PNG ao carregar) */
   var TW = 1448, TH = 1086;
