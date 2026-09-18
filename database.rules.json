@@ -26,6 +26,14 @@
       }
     },
 
+    "fa-progress-historico": {
+      ".read": "auth != null && auth.token.email.matches(/.*@previ\\.com\\.br/)",
+      "$userKey": {
+        ".read": "auth != null && auth.token.email.matches(/.*@previ\\.com\\.br/)",
+        ".write": "auth != null && auth.token.email.matches(/.*@previ\\.com\\.br/)"
+      }
+    },
+
     "fa-admins": {
       ".read": "auth != null && auth.token.email.matches(/.*@previ\\.com\\.br/)",
       "$userKey": {
