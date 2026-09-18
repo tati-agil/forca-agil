@@ -1331,10 +1331,13 @@
     /* "Sem construir" pede de novo, com outras palavras, a mesma solução
        que "Ideia de solução" já nomeou — abrir em branco fazia o grupo
        reler a etapa anterior e retranscrever o que já tinha escrito.
-       "Esperávamos" pede de novo a mudança mensurável que o experimento
-       está testando. Os dois só servem de ponto de partida: nascem
-       editáveis, e o que o grupo mudar é o que fica salvo (coletar() lê
-       o campo da tela, nunca este valor).
+       "Esperávamos" pede de novo O QUE SERÁ MEDIDO, que o Experimento
+       (a etapa logo antes, já à vista no card de conexão) acabou de
+       nomear — não a mudança mensurável lá de trás, que é mais abstrata
+       e nem sempre bate com o que o experimento efetivamente mede. Os
+       dois só servem de ponto de partida: nascem editáveis, e o que o
+       grupo mudar é o que fica salvo (coletar() lê o campo da tela,
+       nunca este valor).
 
        "Vazio" inclui o caso de o campo ainda guardar só o próprio
        exemplo (dica) como se fosse resposta — sobra de quando o campo
@@ -1350,9 +1353,9 @@
         aindaSemResposta(campoPorChave(etapa, 'semConstruir'), d.semConstruir)) {
       d = Object.assign({}, d, { semConstruir: _dados.ideia.acao });
     }
-    if (etapa.id === 'evidencia' && aindaSemResposta(campoPorChave(etapa, 'esperado'), d.esperado)) {
-      var resumoMudancas = resumoEtapa('mudancas', _dados);
-      if (normalizar(resumoMudancas)) d = Object.assign({}, d, { esperado: resumoMudancas });
+    if (etapa.id === 'evidencia' && _dados.experimento && normalizar(_dados.experimento.medida) &&
+        aindaSemResposta(campoPorChave(etapa, 'esperado'), d.esperado)) {
+      d = Object.assign({}, d, { esperado: _dados.experimento.medida });
     }
 
     var corpo = (herdada
