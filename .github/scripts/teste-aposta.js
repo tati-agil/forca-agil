@@ -904,6 +904,60 @@ const textoDaTela = (page) => page.evaluate(() => {
         await ctxP.close();
       }
 
+      /* ── 9b: sobra do próprio exemplo não trava o prefill para sempre —
+            relatado no uso real: "Sem construir" continuava mostrando "o
+            acompanhamento no portal" (a dica do campo, escrita ali antes de
+            o prefill existir) mesmo depois de a Ideia ganhar uma resposta
+            de verdade. Um valor de verdade, diferente do exemplo, continua
+            preservado — não é para sobrescrever o que o grupo escolheu. ── */
+      {
+        const semeadoSobra = apostasSemeadas();
+        semeadoSobra[TURMA_LIB].execucoes[EXEC].grupos[GRUPO].etapa = 'versao';
+        semeadoSobra[TURMA_LIB].execucoes[EXEC].grupos[GRUPO].dados = {
+          ideia: { acao: 'disponibilizar no portal os status da concessão', mudanca: 'para reduzir contatos' },
+          versao: { semConstruir: 'o acompanhamento no portal' },
+        };
+        const { ctx: ctxS, page: pgS } = await novaPagina(browser, formato, DIRETORA, erros, semeadoSobra);
+        await pgS.goto(BASE + '/index.html#treinamento', { waitUntil: 'domcontentloaded' });
+        await pgS.click('#apostaAbrirBtn');
+        await pgS.waitForSelector('.aposta-grupo-btn', { timeout: 15000 });
+        await pgS.click('.aposta-grupo-btn');
+        await pgS.waitForFunction(() =>
+          /VERS[ÃA]O TEST[ÁA]VEL/.test((document.querySelector('.aposta-etapa-titulo') || {}).textContent || ''),
+          { timeout: 15000 });
+        const semConstruirSobra = await pgS.evaluate(() => (document.getElementById('ap-semConstruir') || {}).value || '');
+        anota('a sobra do exemplo é substituída pela resposta de verdade da Ideia',
+          semConstruirSobra === 'disponibilizar no portal os status da concessão',
+          'ficou "' + semConstruirSobra + '"');
+        await ctxS.close();
+      }
+
+      /* ── 9c: uma resposta de verdade em "Sem construir", diferente da
+            Ideia, NÃO é sobrescrita — o prefill só entra quando o campo
+            está vazio ou com a própria dica, nunca por cima do que o
+            grupo escolheu escrever. ── */
+      {
+        const semeadoReal = apostasSemeadas();
+        semeadoReal[TURMA_LIB].execucoes[EXEC].grupos[GRUPO].etapa = 'versao';
+        semeadoReal[TURMA_LIB].execucoes[EXEC].grupos[GRUPO].dados = {
+          ideia: { acao: 'disponibilizar no portal os status da concessão', mudanca: 'para reduzir contatos' },
+          versao: { semConstruir: 'um painel completo de acompanhamento' },
+        };
+        const { ctx: ctxR, page: pgR } = await novaPagina(browser, formato, DIRETORA, erros, semeadoReal);
+        await pgR.goto(BASE + '/index.html#treinamento', { waitUntil: 'domcontentloaded' });
+        await pgR.click('#apostaAbrirBtn');
+        await pgR.waitForSelector('.aposta-grupo-btn', { timeout: 15000 });
+        await pgR.click('.aposta-grupo-btn');
+        await pgR.waitForFunction(() =>
+          /VERS[ÃA]O TEST[ÁA]VEL/.test((document.querySelector('.aposta-etapa-titulo') || {}).textContent || ''),
+          { timeout: 15000 });
+        const semConstruirReal = await pgR.evaluate(() => (document.getElementById('ap-semConstruir') || {}).value || '');
+        anota('uma resposta de verdade, diferente da Ideia, não é sobrescrita',
+          semConstruirReal === 'um painel completo de acompanhamento',
+          'ficou "' + semConstruirReal + '"');
+        await ctxR.close();
+      }
+
       anota('nenhum erro de JavaScript', erros.length === 0, erros[0]);
 
       await ctx.close();

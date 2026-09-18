@@ -1334,11 +1334,23 @@
        "Esperávamos" pede de novo a mudança mensurável que o experimento
        está testando. Os dois só servem de ponto de partida: nascem
        editáveis, e o que o grupo mudar é o que fica salvo (coletar() lê
-       o campo da tela, nunca este valor). */
-    if (etapa.id === 'versao' && !normalizar(d.semConstruir) && _dados.ideia && normalizar(_dados.ideia.acao)) {
+       o campo da tela, nunca este valor).
+
+       "Vazio" inclui o caso de o campo ainda guardar só o próprio
+       exemplo (dica) como se fosse resposta — sobra de quando o campo
+       ainda não vinha preenchido e alguém digitou exatamente o que via
+       ali. Sem essa checagem, essa sobra travava o prefill para sempre,
+       mesmo depois de a Ideia ganhar uma resposta de verdade. */
+    function aindaSemResposta(campo, valor) {
+      var v = normalizar(valor);
+      if (!v) return true;
+      return !!(campo && campo.placeholder && v === normalizar(campo.placeholder));
+    }
+    if (etapa.id === 'versao' && _dados.ideia && normalizar(_dados.ideia.acao) &&
+        aindaSemResposta(campoPorChave(etapa, 'semConstruir'), d.semConstruir)) {
       d = Object.assign({}, d, { semConstruir: _dados.ideia.acao });
     }
-    if (etapa.id === 'evidencia' && !normalizar(d.esperado)) {
+    if (etapa.id === 'evidencia' && aindaSemResposta(campoPorChave(etapa, 'esperado'), d.esperado)) {
       var resumoMudancas = resumoEtapa('mudancas', _dados);
       if (normalizar(resumoMudancas)) d = Object.assign({}, d, { esperado: resumoMudancas });
     }
