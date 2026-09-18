@@ -62,6 +62,77 @@
     return (email || '').toLowerCase().replace(/[@.]/g, '_').replace(/[^a-z0-9_]/g, '').slice(0, 64);
   }
 
+  /* ── Histórico de resultados ────────────────────────────────────────
+     "a própria pessoa precisa ter uma forma de fazer outra [rodada]" —
+     relatado no uso real, contra a mensagem antiga ("resultado
+     bloqueado, peça ao admin"). Refazer não pode custar o resultado
+     anterior: cada revelação grava uma linha nova em
+     fa-progress-historico/<eKey>/<treino>, e refazer só reabre o quiz
+     — não apaga o que já foi revelado. */
+  function emailAtual() {
+    const p = getPlayer();
+    if (p && p.email) return p.email;
+    const sess = window.faAuth && window.faAuth.getSession && window.faAuth.getSession();
+    return (sess && sess.email) || '';
+  }
+  function historicoPath() {
+    const eKey = emailKey(emailAtual());
+    if (!eKey) return null;
+    return 'fa-progress-historico/' + eKey + '/' + (TREINO_ATIVO || '_');
+  }
+  function registrarHistorico(ri) {
+    const path = historicoPath();
+    if (!path || !window.firebase || !firebase.database) return;
+    const rank = RANKS[ri] || {};
+    /* push() sem valor + set() no ref filho, não push(valor): é o mesmo
+       padrão do resto do site (ver aposta.js) — e o único que o Firebase
+       falso dos testes sabe seguir. */
+    const ref = firebase.database().ref(path).push();
+    ref.set({
+      score: diagScore(),
+      totalMax: TOTAL_AFIRM * PONTO_MAX,
+      rankName: rank.name || '',
+      rankTag: rank.tag || '',
+      respondidoEm: new Date().toISOString()
+    }, function (e) { if (e) console.warn('registrarHistorico error:', e); });
+  }
+  function fmtDataHistorico(iso) {
+    try {
+      const d = new Date(iso);
+      if (isNaN(d)) return '';
+      return d.toLocaleDateString('pt-BR') + ' às ' + d.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
+    } catch (e) { return ''; }
+  }
+  /* Lê e desenha por fora do render() geral: renderReveal já reconstrói o
+     HTML do resultado a cada chamada, e esperar a leitura do banco para
+     terminar de montar essa tela deixaria a patente sem aparecer por um
+     instante. O histórico enche a área dele à parte, quando a leitura
+     responder. */
+  function carregarHistoricoEExibir() {
+    const box = document.getElementById('diagHistorico');
+    if (!box) return;
+    const path = historicoPath();
+    if (!path || !window.firebase || !firebase.database) { box.innerHTML = ''; return; }
+    firebase.database().ref(path).once('value').then(function (snap) {
+      const v = snap.val() || {};
+      const itens = Object.keys(v).map(function (k) { return v[k]; })
+        .sort(function (a, b) { return String(b.respondidoEm || '').localeCompare(String(a.respondidoEm || '')); });
+      if (!itens.length) { box.innerHTML = ''; return; }
+      box.innerHTML =
+        '<p class="diag-historico-titulo">Seu histórico — ' + itens.length +
+          (itens.length === 1 ? ' resultado' : ' resultados') + '</p>' +
+        '<ul class="diag-historico-lista">' +
+          itens.map(function (it) {
+            return '<li>' +
+              '<span class="diag-historico-data">' + esc(fmtDataHistorico(it.respondidoEm)) + '</span>' +
+              '<span class="diag-historico-rank">' + esc(it.rankName || '') + '</span>' +
+              '<span class="diag-historico-score">' + (it.score != null ? it.score : '—') + '/' + (it.totalMax != null ? it.totalMax : '—') + '</span>' +
+            '</li>';
+          }).join('') +
+        '</ul>';
+    }).catch(function () { box.innerHTML = ''; });
+  }
+
   // ---- Progresso, guardado por treinamento -------------------------------
   /* Antes havia UM progresso por pessoa: com dois treinamentos, o segundo
      apagaria o primeiro. Agora a chave guarda um mapa treinamento → progresso.
@@ -256,6 +327,7 @@
         if (btn) btn.addEventListener('click', () => {
           state.revealed = true;
           save();
+          registrarHistorico(ri);
           render();
         });
       } else {
@@ -277,11 +349,53 @@
         '<div class="diag-result-proximo-titulo">Próximos passos:</div>' +
         '<ul class="diag-result-proximo">' + (rank.proximo || []).map(p => '<li>' + p + '</li>').join('') + '</ul>' +
         '<div class="diag-result-frase">' + rank.frase + '</div>' +
-        '<p class="diag-result-lock">🔒 Resultado bloqueado. Para refazer, solicite ao admin o reset do seu progresso.</p>' +
+        '<div class="diag-result-acoes">' +
+          '<button type="button" class="btn btn--sm" id="refazerBtn">🔁 Refazer autodiagnóstico</button>' +
+        '</div>' +
+        '<div class="diag-historico" id="diagHistorico"><p class="diag-historico-carregando">Carregando seu histórico…</p></div>' +
       '</div>';
     if (!reduce && rankHud) {
       rankHud.classList.remove('levelup'); void rankHud.offsetWidth; rankHud.classList.add('levelup');
     }
+    const refazerBtn = document.getElementById('refazerBtn');
+    if (refazerBtn) refazerBtn.addEventListener('click', refazerDiagnostico);
+    carregarHistoricoEExibir();
+  }
+
+  /* Refazer NÃO é resetar: o resultado que está na tela já foi gravado no
+     histórico (na revelação); esta ação só reabre o quiz para uma rodada
+     nova, sem tocar no que já foi respondido antes — é a diferença entre
+     isto e "solicitar ao admin o reset do progresso", que apaga tudo.
+     A confirmação é um modal próprio, não window.confirm — é a mesma
+     linguagem visual do resto do site (adminConfirm no painel), em vez
+     de um diálogo nativo do navegador. */
+  function confirmarRefazer(cb) {
+    const overlay = document.createElement('div');
+    overlay.className = 'modal-overlay';
+    overlay.style.cssText = 'display:flex;align-items:center;justify-content:center;z-index:9999';
+    const box = document.createElement('div');
+    box.className = 'modal-box';
+    box.style.cssText = 'max-width:420px;width:90%;padding:26px;display:flex;flex-direction:column;gap:16px';
+    box.innerHTML =
+      '<p style="margin:0;font-size:.95rem;line-height:1.6;color:var(--ink)">Refazer o autodiagnóstico?</p>' +
+      '<p style="margin:0;font-size:.84rem;color:var(--ink-3)">Suas respostas atuais serão substituídas por uma rodada nova. O resultado de agora já está no seu histórico.</p>' +
+      '<div style="display:flex;justify-content:flex-end;gap:8px">' +
+        '<button type="button" class="btn" id="refazerCancelar">Cancelar</button>' +
+        '<button type="button" class="btn btn--primary" id="refazerConfirmar">Refazer</button>' +
+      '</div>';
+    overlay.appendChild(box);
+    document.body.appendChild(overlay);
+    function fechar() { if (overlay.parentNode) overlay.parentNode.removeChild(overlay); }
+    box.querySelector('#refazerCancelar').addEventListener('click', fechar);
+    box.querySelector('#refazerConfirmar').addEventListener('click', function () { fechar(); cb(); });
+  }
+  function refazerDiagnostico() {
+    confirmarRefazer(function () {
+      state = { quiz: new Array(TOTAL_AFIRM).fill(null), revealed: false };
+      save();
+      render();
+      if (qList) qList.scrollIntoView({ behavior: reduce ? 'auto' : 'smooth', block: 'start' });
+    });
   }
 
   // ---- Quais treinamentos esta pessoa pode fazer -------------------------

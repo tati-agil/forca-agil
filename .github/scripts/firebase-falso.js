@@ -163,7 +163,18 @@
   };
   Ref.prototype.set    = function (v, cb) { anotar(this.path, v); escrever(this, cb, v, false); return Promise.resolve(); };
   Ref.prototype.remove = function (cb)    { anotar(this.path, null); aplicar(this.path, null, false); if (cb) cb(null); notificar(this.path); return Promise.resolve(); };
-  Ref.prototype.push   = function (v, cb) { if (cb) cb(null); var r = new Ref(this.path + '/fake'); r.key = 'fake'; return r; };
+  /* Uma chave nova por chamada — não "/fake" sempre igual, senão duas
+     pushes no mesmo caminho (comum quando um teste revela/refaz mais de
+     uma vez, ou cria mais de um grupo) se sobrescreveriam em vez de
+     virarem duas entradas, o que o Firebase de verdade nunca faria. */
+  var _pushSeq = 0;
+  Ref.prototype.push   = function (v, cb) {
+    var key = 'fake' + (_pushSeq++);
+    var r = new Ref(this.path + '/' + key);
+    r.key = key;
+    if (v !== undefined) { r.set(v, cb); } else if (cb) { cb(null); }
+    return r;
+  };
   Ref.prototype.orderByChild = function () { return this; };
   Ref.prototype.equalTo      = function () { return this; };
   Ref.prototype.limitToLast  = function () { return this; };

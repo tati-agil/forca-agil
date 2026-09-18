@@ -209,6 +209,16 @@ jobs:
           FA_BASE_URL: http://127.0.0.1:8811
         run: node .github/scripts/teste-treinamento-conteudo.js
 
+      # Hermético. "Resultado bloqueado. Para refazer, solicite ao admin o
+      # reset do seu progresso" — pedido no uso real: a própria pessoa
+      # precisa conseguir refazer, sem apagar o histórico. Refazer é
+      # diferente de resetar (ação do admin, que apaga tudo).
+      - name: "Autodiagnóstico — refazer sem apagar o histórico (desktop e iPhone)"
+        env:
+          NODE_PATH: /tmp/pw-deps/node_modules
+          FA_BASE_URL: http://127.0.0.1:8811
+        run: node .github/scripts/teste-autodiagnostico-refazer.js
+
       # Hermético. As caixas de texto rico do Roteiro decidem se um valor é
       # HTML novo ou texto puro antigo olhando só se tem alguma tag — nunca
       # se já tem uma entidade (&amp; &nbsp;). Um "&" sem tag nenhuma era
