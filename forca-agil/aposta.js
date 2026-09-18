@@ -568,6 +568,10 @@
   }
 
   function fecharDinamica() {
+    /* Grava o que estava agendado ANTES de derrubar o estado: sair da tela
+       no meio dos 600ms do salvamento automático não pode custar a última
+       frase digitada. */
+    gravarPendente();
     pararDeOuvir();
     document.removeEventListener('keydown', escFecha);
     if (_tela && _tela.parentNode) _tela.parentNode.removeChild(_tela);
@@ -869,6 +873,17 @@
             (etapa.orientacao ? '<p class="aposta-template">' + esc(etapa.orientacao) + '</p>' : '') +
             (etapa.template ? '<p class="aposta-template">' + esc(etapa.template) + '</p>' : '') +
             '<div class="aposta-campos">' + corpo + '</div>' +
+            /* A frase montada, ao vivo, embaixo dos campos.
+               Os campos são PEDAÇOS ("porque…", "pois…") e o molde no topo
+               mostra a frase INTEIRA — quem lê o molde escreve a frase toda
+               no primeiro campo, e o card do mapa sai lendo "Acreditamos que
+               acontece porque Acreditamos que…", com o começo duplicado.
+               Aconteceu no primeiro uso real. Mostrar o resultado enquanto
+               se digita resolve sem repreender ninguém: a duplicação salta
+               aos olhos e a pessoa corrige sozinha. A etapa das Mudanças
+               Mensuráveis já fazia isso; as outras não faziam. */
+            (etapa.lista ? '' :
+              '<div class="aposta-frase" id="apostaFrase" hidden></div>') +
             (etapa.rodape ? '<p class="aposta-rodape">' + esc(etapa.rodape) + '</p>' : '') +
             (etapa.exemplo
               ? '<details class="aposta-exemplo"><summary>Ver exemplo</summary><p>' + esc(etapa.exemplo) + '</p></details>'
@@ -955,12 +970,35 @@
       return d;
     }
 
-    var timer = null;
+    /* Lê os campos AGORA e guarda o que leu; o temporizador só grava.
+       Antes ele chamava coletar() 600ms depois — e 600ms depois a tela já
+       podia ter trocado de etapa. O que ele lia eram os campos VAZIOS da
+       etapa seguinte, e o que ele gravava era o id da etapa anterior:
+       bastava digitar e clicar em Continuar em menos de 600ms para a
+       etapa recém-preenchida ser sobrescrita por vazio. No mapa ela
+       aparecia como "ainda não preenchido", e voltar nela mostrava o
+       campo em branco — o texto tinha sido apagado de verdade. */
     function salvarDepois() {
-      clearTimeout(timer);
-      timer = setTimeout(function () { salvarEtapa(etapa.id, coletar()); }, 600);
-      if (etapa.lista) atualizarFrases();
+      agendarSalvamento(etapa.id, coletar());
+      if (etapa.lista) atualizarFrases(); else atualizarFrase();
     }
+
+    /* Mesma função que monta o card do Mapa da Aposta (resumoEtapa): o que
+       a pessoa lê aqui enquanto digita é exatamente o que vai sair lá. Duas
+       montagens diferentes acabariam divergindo, e aí a prévia mentiria. */
+    function atualizarFrase() {
+      var el = document.getElementById('apostaFrase');
+      if (!el) return;
+      var dadosPrevia = {};
+      dadosPrevia[etapa.id] = coletar();
+      var frase = resumoEtapa(etapa.id, dadosPrevia);
+      el.hidden = !frase;
+      el.innerHTML = frase
+        ? '<span class="aposta-frase-rot">Fica assim no mapa</span><p>' + esc(frase) + '</p>'
+        : '';
+    }
+
+    atualizarFrase();
 
     function atualizarFrases() {
       _tela.querySelectorAll('.aposta-mudanca').forEach(function (bloco) {
@@ -981,6 +1019,7 @@
         _tela.querySelectorAll('.aposta-opcao').forEach(function (o) { o.classList.remove('is-ativa'); });
         b.classList.add('is-ativa');
         salvarEtapa(etapa.id, coletar());
+        atualizarFrase();
       });
     });
 
@@ -1050,8 +1089,32 @@
     render();
   }
 
-  /* ── Salvamento automático ── */
+  /* ── Salvamento automático ───────────────────────────────────────
+     O agendamento guarda o CONTEÚDO, não a promessa de reler a tela
+     depois: quando o temporizador dispara, a etapa em edição pode já
+     não ser a mesma. E qualquer gravação explícita (Continuar, Voltar,
+     clique na trilha) cancela a agendada — deixar a antiga cair depois
+     desfaria o que acabou de ser salvo. */
+  var _timerSalvar = null;
+  var _pendente = null;   /* { etapaId, dados } ainda não gravado */
+
+  function agendarSalvamento(etapaId, dados) {
+    _pendente = { etapaId: etapaId, dados: dados };
+    _dados[etapaId] = dados;
+    clearTimeout(_timerSalvar);
+    _timerSalvar = setTimeout(gravarPendente, 600);
+  }
+
+  function gravarPendente() {
+    if (!_pendente) return;
+    var p = _pendente;
+    salvarEtapa(p.etapaId, p.dados);
+  }
+
   function salvarEtapa(etapaId, dados, redesenhar) {
+    clearTimeout(_timerSalvar);
+    _timerSalvar = null;
+    _pendente = null;
     if (!_grupoId) return;
     _dados[etapaId] = dados;
     var s = sessao();
