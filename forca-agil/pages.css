@@ -1432,7 +1432,7 @@
    evita "90 dias"/"90dias"/"3 mes" e a flexão fica com o site. */
 .aposta-qtd { display: flex; gap: 6px; align-items: stretch; }
 .aposta-qtd-num { flex: 0 1 5.5em; min-width: 4.5em; text-align: center; }
-.aposta-qtd-un  { flex: 1 1 auto; width: auto; min-width: 7em; padding: 11px 8px; color: var(--ink-2); }
+.aposta-qtd-un  { flex: 0 0 auto; width: auto; min-width: 7em; padding: 11px 8px; color: var(--ink-2); }
 .aposta-molde .aposta-campo--qtd { flex: 1 1 230px; min-width: 230px; }
 
 /* Bloco guiado dentro de uma etapa (a próxima hipótese): é uma frase
@@ -1466,6 +1466,12 @@
   border: 1px solid var(--line-strong); border-radius: 8px;
   color: var(--ink); font-family: var(--font-body); font-size: .95rem; line-height: 1.5;
 }
+/* Um <select> não precisa da largura toda: "Reduzir" ou "trimestres" não
+   pedem o mesmo espaço que um texto digitado do lado — largo demais
+   parecia uma caixa vazia esperando alguma coisa maior. Cada select
+   encolhe para o próprio conteúdo (o mais longo entre as opções), com um
+   mínimo para não ficar apertado nem trocar de tamanho ao selecionar. */
+select.aposta-campo-input { width: auto; min-width: 8.5em; }
 .aposta-campo-input:focus { outline: none; border-color: #a99dff; box-shadow: 0 0 0 3px rgba(138,127,255,.18); }
 .aposta-rodape { margin: 18px 0 0; font-size: .84rem; color: var(--ink-2); font-style: italic; }
 .aposta-exemplo { margin-top: 16px; }
