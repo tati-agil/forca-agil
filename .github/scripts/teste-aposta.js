@@ -163,6 +163,43 @@ const textoDaTela = (page) => page.evaluate(() => {
         await ctx.close();
       }
 
+      /* ── 1b: quem conduz consegue ENSAIAR antes de liberar ──
+         Liberar é um ato público: a dinâmica passa a aparecer para toda a
+         turma. Se a única forma de ver a tela fosse liberando, o ensaio da
+         facilitadora estrearia na frente do grupo. */
+      {
+        const { ctx, page } = await novaPagina(browser, formato, ADM, erros);
+        await page.goto(BASE + '/index.html#treinamento', { waitUntil: 'domcontentloaded' });
+        await page.waitForSelector('#apostaAbrirBtn', { timeout: 15000 });
+        const visaoAdmin = await page.evaluate(() => {
+          const el = document.getElementById('apostaEntrada');
+          const t = el.textContent || '';
+          const sel = document.getElementById('apostaTurmaSel');
+          return {
+            temNaoLiberada: /TURMA SEM APOSTA/.test(t),
+            marcaEnsaio: sel ? /ensaio/i.test(sel.textContent || '') : false,
+            opcoes: sel ? sel.options.length : 1,
+            primeiraEhLiberada: sel ? /TURMA LIBERADA/.test(sel.options[0].textContent) : true,
+          };
+        });
+        anota('quem conduz vê também a turma ainda não liberada, para ensaiar',
+          visaoAdmin.temNaoLiberada, JSON.stringify(visaoAdmin));
+        anota('a turma não liberada vem marcada como ensaio', visaoAdmin.marcaEnsaio);
+        anota('as turmas já liberadas vêm primeiro na lista', visaoAdmin.primeiraEhLiberada);
+
+        /* Escolhendo a não liberada, o aviso diz que só a facilitação vê. */
+        if (visaoAdmin.opcoes > 1) {
+          await page.selectOption('#apostaTurmaSel', TURMA_NAO);
+          await page.waitForTimeout(200);
+          const aviso = await page.evaluate(() =>
+            (document.getElementById('apostaConviteAviso').textContent || ''));
+          anota('o convite avisa que a turma não liberada é só ensaio',
+            /ainda não foi liberada/i.test(aviso) && /só você e a facilitação/i.test(aviso),
+            aviso.slice(0, 90));
+        }
+        await ctx.close();
+      }
+
       /* ── 2: a facilitadora abre a dinâmica do zero e cria um grupo ── */
       {
         const { ctx: ctxNovo, page: novo } = await novaPagina(browser, formato, ADM, erros);
@@ -192,7 +229,7 @@ const textoDaTela = (page) => page.evaluate(() => {
         return { temLiberada: /TURMA LIBERADA/.test(t), temNaoLiberada: /TURMA SEM APOSTA/.test(t) };
       });
       anota('o convite aparece para a turma liberada', soLiberada.temLiberada);
-      anota('a turma não liberada não é oferecida', !soLiberada.temNaoLiberada);
+      anota('a turma não liberada NÃO é oferecida a quem participa', !soLiberada.temNaoLiberada);
 
       await page.click('#apostaAbrirBtn');
       await page.waitForSelector('.aposta-grupo-btn', { timeout: 15000 });
