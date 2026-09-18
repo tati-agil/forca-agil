@@ -306,7 +306,7 @@
         var t = val[key] || {};
         var dias = (t.dias || []).slice().sort();
         var fmt = window.faTurmasUtil.formatDias(dias);
-        return { key: key, label: t.label || key.toUpperCase(), dates: fmt.dates, dias: dias, order: t.order || 0, cmflexLink: t.cmflexLink || '', eventoKey: t.eventoKey || '', avaliacaoHabilitada: !!t.avaliacaoHabilitada, resultadoEsperado: t.resultadoEsperado || '', publicoRestrito: !!t.publicoRestrito, horarioInicio: t.horarioInicio || '09:00', horarioFim: t.horarioFim || '13:00' };
+        return { key: key, label: t.label || key.toUpperCase(), dates: fmt.dates, dias: dias, order: t.order || 0, cmflexLink: t.cmflexLink || '', eventoKey: t.eventoKey || '', avaliacaoHabilitada: !!t.avaliacaoHabilitada, apostaHabilitada: !!t.apostaHabilitada, resultadoEsperado: t.resultadoEsperado || '', publicoRestrito: !!t.publicoRestrito, horarioInicio: t.horarioInicio || '09:00', horarioFim: t.horarioFim || '13:00' };
       }).sort(function (a, b) { return a.order - b.order; });
       cb();
     });
@@ -830,6 +830,28 @@
               };
             })(t.key, t.label, t.avaliacaoHabilitada));
             moreMenu.appendChild(avalBtn);
+
+            /* Construção da Aposta — mesmo par de exigências da avaliação:
+               a turma precisa estar liberada aqui E a pessoa precisa estar
+               confirmada nela. Uma dinâmica de oficina aparecendo para turma
+               que não vai fazê-la só confunde quem abre o Treinamento. */
+            var apostaBtn = document.createElement('button');
+            apostaBtn.className = 'btn btn--sm';
+            apostaBtn.style.cssText = 'padding:6px 10px;font-size:.72rem;' + (t.apostaHabilitada ? 'border-color:rgba(26,178,174,.5);color:var(--cyan)' : 'border-color:rgba(245,197,66,.4);color:var(--accent)');
+            apostaBtn.textContent = t.apostaHabilitada ? '🔒 Encerrar Construção da Aposta' : '🎯 Liberar Construção da Aposta';
+            apostaBtn.addEventListener('click', (function (tk, tl, habilitada) {
+              return function () {
+                var msg = habilitada
+                  ? 'Encerrar a Construção da Aposta na turma "' + tl + '"?\n\nA dinâmica some do Treinamento dos inscritos. O que os grupos escreveram continua guardado.'
+                  : 'Liberar a Construção da Aposta na turma "' + tl + '"?\n\nOs inscritos confirmados passam a ver a dinâmica dentro do Treinamento.';
+                adminConfirm(msg, function () {
+                  firebase.database().ref('turmas/' + tk + '/apostaHabilitada').set(!habilitada, function (err) {
+                    if (!err) loadInterests();
+                  });
+                });
+              };
+            })(t.key, t.label, t.apostaHabilitada));
+            moreMenu.appendChild(apostaBtn);
 
             if (finalizada && !encerrada) {
               var encerrarBtn = document.createElement('button');

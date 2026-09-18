@@ -1237,3 +1237,241 @@
   color: var(--ink-3); padding: 3px 8px; cursor: pointer;
 }
 .registro-del-btn:hover { color: #ff8080; border-color: rgba(255,80,80,.7); border-style: solid; }
+
+/* ══════════════════════════════════════════════════════════════════
+   CONSTRUÇÃO DA APOSTA  (forca-agil/aposta.js)
+
+   Feita para ser projetada numa sala e preenchida num notebook: uma
+   etapa por tela, pouco texto, alvo de clique grande. A trilha à
+   esquerda mostra os NOMES das dez etapas desde o começo — dá para ver
+   onde a conversa chega — mas as etapas ainda não alcançadas ficam
+   apagadas e sem clique, porque o efeito da dinâmica depende de
+   percorrer o raciocínio, não de ver o formulário inteiro.
+   ══════════════════════════════════════════════════════════════════ */
+
+/* Convite dentro do Treinamento */
+.aposta-convite {
+  display: flex; align-items: center; justify-content: space-between; gap: 20px; flex-wrap: wrap;
+  background: linear-gradient(135deg, rgba(138,127,255,.14), rgba(24,194,186,.10));
+  border: 1px solid rgba(138,127,255,.42); border-radius: 14px;
+  padding: 22px 26px; margin-bottom: 28px;
+}
+.aposta-convite-txt h2 { font-family: var(--font-head); font-size: 1.3rem; color: var(--ink); margin: 4px 0 6px; }
+.aposta-convite-txt p  { color: var(--ink-2); font-size: .9rem; margin: 0; max-width: 46ch; }
+.aposta-convite-acao   { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+.aposta-convite-turma  { font-family: var(--font-mono); font-size: .75rem; color: #a99dff; letter-spacing: .06em; }
+.aposta-select {
+  padding: 9px 12px; background: var(--panel-2); border: 1px solid var(--line-strong);
+  border-radius: 8px; color: var(--ink); font-family: var(--font-body); font-size: .88rem;
+}
+
+/* Tela cheia */
+.aposta-tela {
+  position: fixed; inset: 0; z-index: 9500; background: var(--bg, #070d1a);
+  display: flex; flex-direction: column; overflow: hidden;
+}
+.aposta-topo {
+  display: flex; align-items: center; justify-content: space-between; gap: 16px; flex-wrap: wrap;
+  padding: 14px 22px; border-bottom: 1px solid var(--line); background: rgba(255,255,255,.03);
+}
+.aposta-topo-id strong { display: block; font-family: var(--font-head); font-size: .95rem; color: var(--ink); letter-spacing: .05em; }
+.aposta-topo-id span   { font-family: var(--font-mono); font-size: .72rem; color: var(--ink-3); letter-spacing: .05em; }
+.aposta-topo-acoes     { display: flex; gap: 8px; flex-wrap: wrap; }
+
+.aposta-corpo { flex: 1; display: flex; min-height: 0; }
+.aposta-centro { flex: 1; display: flex; align-items: center; justify-content: center; padding: 24px; }
+.aposta-carregando { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 16px; padding: 40px; }
+.aposta-aviso { max-width: 520px; text-align: center; }
+.aposta-aviso h2 { font-family: var(--font-head); font-size: 1.4rem; color: var(--ink); margin-bottom: 10px; }
+.aposta-aviso p  { color: var(--ink-2); font-size: .92rem; line-height: 1.6; margin-bottom: 18px; }
+
+/* Trilha */
+.aposta-trilha {
+  width: 220px; flex-shrink: 0; overflow-y: auto; padding: 18px 12px;
+  border-right: 1px solid var(--line); display: flex; flex-direction: column; gap: 2px;
+}
+.aposta-trilha-item {
+  display: flex; align-items: center; gap: 10px; width: 100%; text-align: left;
+  background: none; border: none; border-radius: 8px; padding: 9px 10px; cursor: pointer;
+  color: var(--ink-3); font-family: var(--font-body); font-size: .82rem;
+}
+.aposta-trilha-item:hover:not([disabled]) { background: rgba(255,255,255,.06); color: var(--ink); }
+.aposta-trilha-num {
+  flex-shrink: 0; width: 22px; height: 22px; border-radius: 50%; display: grid; place-items: center;
+  border: 1px solid var(--line-strong); font-family: var(--font-mono); font-size: .65rem;
+}
+.aposta-trilha-item.is-feita  { color: var(--ink-2); }
+.aposta-trilha-item.is-feita .aposta-trilha-num { border-color: rgba(24,194,186,.55); color: var(--cyan); }
+.aposta-trilha-item.is-atual  { background: rgba(138,127,255,.16); color: var(--ink); font-weight: 600; }
+.aposta-trilha-item.is-atual .aposta-trilha-num { border-color: #a99dff; color: #a99dff; }
+/* Etapa ainda não alcançada: o NOME aparece (o grupo vê onde vai chegar),
+   o conteúdo não — é isso que faz percorrer o raciocínio em vez de
+   preencher um formulário. */
+.aposta-trilha-item.is-bloqueada { opacity: .38; cursor: not-allowed; }
+
+/* Palco */
+.aposta-palco { flex: 1; overflow-y: auto; padding: 26px clamp(18px, 5vw, 56px) 40px; }
+.aposta-progresso {
+  position: relative; height: 4px; background: rgba(255,255,255,.08); border-radius: 99px; margin-bottom: 26px;
+}
+.aposta-progresso-barra { height: 100%; background: linear-gradient(90deg, #a99dff, var(--cyan)); border-radius: 99px; transition: width .35s ease; }
+.aposta-progresso-txt { position: absolute; right: 0; top: 8px; font-family: var(--font-mono); font-size: .65rem; color: var(--ink-3); }
+
+.aposta-conexao {
+  border-left: 3px solid rgba(138,127,255,.6); background: rgba(138,127,255,.08);
+  border-radius: 0 10px 10px 0; padding: 12px 16px; margin-bottom: 22px; max-width: 820px;
+}
+.aposta-conexao-rot { font-family: var(--font-mono); font-size: .62rem; letter-spacing: .12em; text-transform: uppercase; color: #a99dff; }
+.aposta-conexao p   { margin: 4px 0 0; color: var(--ink-2); font-size: .88rem; line-height: 1.55; }
+
+.aposta-etapa { max-width: 820px; }
+.aposta-etapa-cab { display: flex; align-items: center; gap: 10px; }
+.aposta-etapa-titulo {
+  font-family: var(--font-head); font-size: clamp(1.5rem, 3.4vw, 2.1rem);
+  letter-spacing: .08em; color: var(--ink); margin: 0;
+}
+.aposta-ajuda {
+  width: 24px; height: 24px; border-radius: 50%; flex-shrink: 0; cursor: help;
+  border: 1px solid var(--line-strong); background: none; color: var(--ink-3);
+  font-family: var(--font-mono); font-size: .75rem;
+}
+.aposta-ajuda:hover { color: var(--ink); border-color: var(--ink-3); }
+.aposta-pergunta { font-size: 1.05rem; color: var(--ink); margin: 14px 0 0; }
+.aposta-auxiliar { color: var(--ink-2); font-size: .9rem; line-height: 1.6; margin: 10px 0 0; max-width: 64ch; }
+.aposta-template {
+  font-family: var(--font-mono); font-size: .76rem; color: var(--ink-3);
+  background: rgba(255,255,255,.04); border: 1px dashed var(--line-strong);
+  border-radius: 8px; padding: 10px 14px; margin: 14px 0 0; line-height: 1.5;
+}
+.aposta-campos { margin-top: 20px; display: flex; flex-direction: column; gap: 14px; }
+.aposta-campo { display: flex; flex-direction: column; gap: 5px; }
+.aposta-campo-rot { font-family: var(--font-mono); font-size: .68rem; letter-spacing: .09em; text-transform: uppercase; color: var(--ink-3); }
+.aposta-campo-rot em { text-transform: none; letter-spacing: 0; opacity: .8; }
+.aposta-campo-input {
+  width: 100%; padding: 11px 14px; background: var(--panel-2);
+  border: 1px solid var(--line-strong); border-radius: 8px;
+  color: var(--ink); font-family: var(--font-body); font-size: .95rem; line-height: 1.5;
+}
+.aposta-campo-input:focus { outline: none; border-color: #a99dff; box-shadow: 0 0 0 3px rgba(138,127,255,.18); }
+.aposta-rodape { margin: 18px 0 0; font-size: .84rem; color: var(--ink-2); font-style: italic; }
+.aposta-exemplo { margin-top: 16px; }
+.aposta-exemplo summary { cursor: pointer; font-size: .8rem; color: var(--ink-3); font-family: var(--font-mono); letter-spacing: .06em; }
+.aposta-exemplo p { margin: 8px 0 0; padding: 12px 14px; background: rgba(255,255,255,.04); border-radius: 8px; color: var(--ink-2); font-size: .87rem; line-height: 1.6; }
+
+/* Mudanças mensuráveis */
+.aposta-mudancas { display: flex; flex-direction: column; gap: 16px; }
+.aposta-mudanca { border: 1px solid var(--line); border-radius: 10px; padding: 14px 16px; background: rgba(255,255,255,.03); }
+.aposta-mudanca-grade { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 12px; }
+.aposta-mudanca-frase { margin: 12px 0 0; font-size: .9rem; color: var(--cyan); font-family: var(--font-mono); line-height: 1.5; }
+.aposta-mudanca-del { margin-top: 8px; background: none; border: none; cursor: pointer; font-size: .72rem; color: var(--ink-3); text-decoration: underline; }
+
+/* Escolhas por botão */
+.aposta-escolha { display: flex; flex-direction: column; gap: 8px; }
+.aposta-escolha-opcoes { display: flex; gap: 8px; flex-wrap: wrap; }
+.aposta-opcao {
+  padding: 10px 16px; border-radius: 99px; cursor: pointer;
+  border: 1px solid var(--line-strong); background: var(--panel-2);
+  color: var(--ink-2); font-family: var(--font-body); font-size: .85rem;
+}
+.aposta-opcao:hover { border-color: #a99dff; color: var(--ink); }
+.aposta-opcao.is-ativa { background: rgba(138,127,255,.2); border-color: #a99dff; color: var(--ink); font-weight: 600; }
+
+/* Avisos didáticos — convite a reler, nunca portão */
+.aposta-avisos:empty { display: none; }
+.aposta-avisos { margin-top: 20px; display: flex; flex-direction: column; gap: 8px; }
+.aposta-aviso-didatico {
+  margin: 0; padding: 12px 16px; border-radius: 10px; font-size: .88rem; line-height: 1.55;
+  background: rgba(245,197,24,.10); border: 1px solid rgba(245,197,24,.35); color: #f3d98a;
+}
+.aposta-aviso-ok { margin: 0; font-size: .8rem; color: var(--ink-3); }
+
+.aposta-navegacao {
+  display: flex; align-items: center; justify-content: space-between; gap: 16px;
+  max-width: 820px; margin-top: 30px; padding-top: 20px; border-top: 1px solid var(--line);
+}
+.aposta-salvo { font-family: var(--font-mono); font-size: .68rem; color: var(--ink-3); }
+.aposta-salvo.is-erro { color: #ff8080; }
+
+/* Mapa final */
+.aposta-palco--mapa { text-align: center; }
+.aposta-mapa-titulo { font-family: var(--font-head); font-size: clamp(1.6rem, 4vw, 2.2rem); letter-spacing: .08em; color: var(--ink); margin: 0; }
+.aposta-mapa-sub { color: var(--ink-3); font-size: .85rem; margin: 8px 0 26px; }
+.aposta-mapa { display: flex; flex-direction: column; align-items: center; gap: 0; max-width: 680px; margin: 0 auto; }
+.aposta-mapa-seta { color: var(--ink-3); font-size: 1.1rem; line-height: 1; padding: 6px 0; }
+.aposta-mapa-card {
+  width: 100%; text-align: left; cursor: pointer; display: flex; flex-direction: column; gap: 6px;
+  background: var(--panel-2); border: 1px solid var(--line-strong); border-radius: 12px; padding: 14px 18px;
+}
+.aposta-mapa-card:hover { border-color: #a99dff; background: rgba(138,127,255,.10); }
+.aposta-mapa-rot { font-family: var(--font-mono); font-size: .64rem; letter-spacing: .12em; color: #a99dff; }
+.aposta-mapa-txt { color: var(--ink); font-size: .9rem; line-height: 1.55; }
+.aposta-mapa-card.is-vazio .aposta-mapa-txt { color: var(--ink-3); font-style: italic; }
+
+/* Revelação final */
+.aposta-revelacao {
+  margin: 44px auto 0; max-width: 820px; text-align: left;
+  border: 1px solid rgba(245,197,24,.4); border-radius: 16px; padding: 28px;
+  background: rgba(245,197,24,.06); animation: aposta-revelar .6s ease both;
+}
+@keyframes aposta-revelar { from { opacity: 0; transform: translateY(14px); } to { opacity: 1; transform: none; } }
+.aposta-revelacao h2 { font-family: var(--font-head); font-size: 1.5rem; letter-spacing: .06em; color: var(--gold); margin: 0 0 6px; text-align: center; }
+.aposta-revelacao-frase { text-align: center; color: var(--ink); font-size: 1rem; margin: 0 0 24px; }
+.aposta-rev-par { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 16px; }
+.aposta-rev-card { border: 1px solid var(--line-strong); border-radius: 12px; padding: 16px; background: var(--panel-2); }
+.aposta-rev-de   { display: block; font-family: var(--font-mono); font-size: .62rem; letter-spacing: .12em; color: var(--ink-3); }
+.aposta-rev-seta { display: block; color: var(--gold); font-size: .9rem; margin: 2px 0; }
+.aposta-rev-para { display: block; font-family: var(--font-head); font-size: 1.15rem; color: var(--gold); letter-spacing: .04em; }
+.aposta-rev-pergunta { margin: 8px 0 10px; font-size: .82rem; color: var(--ink-2); font-style: italic; }
+.aposta-rev-conteudo { margin: 0; font-size: .88rem; color: var(--ink); line-height: 1.55; }
+.aposta-rev-lista { margin: 0; padding-left: 18px; color: var(--ink); font-size: .88rem; line-height: 1.7; }
+.aposta-rev-ciclo {
+  margin-top: 18px; padding: 14px 16px; border-radius: 12px; text-align: center;
+  background: rgba(24,194,186,.08); border: 1px solid rgba(24,194,186,.35);
+}
+.aposta-rev-ciclo .aposta-rev-para { color: var(--cyan); }
+.aposta-rev-fecho { margin: 20px 0 0; color: var(--ink-2); font-size: .9rem; line-height: 1.65; }
+.aposta-rev-ressalva { margin: 10px 0 0; color: var(--ink-3); font-size: .8rem; font-style: italic; }
+
+/* Painel do facilitador */
+.aposta-fac-grupos { display: flex; flex-direction: column; gap: 8px; }
+.aposta-fac-grupo {
+  display: flex; align-items: center; gap: 10px; flex-wrap: wrap;
+  padding: 10px 12px; background: var(--panel-2); border-radius: 8px;
+}
+.aposta-fac-grupo strong { color: var(--ink); font-size: .88rem; }
+.aposta-fac-grupo span   { font-family: var(--font-mono); font-size: .7rem; color: var(--ink-3); }
+.aposta-fac-membros { flex: 1; min-width: 120px; }
+
+/* Grupos na escolha */
+.aposta-grupos-escolha { display: flex; gap: 12px; flex-wrap: wrap; justify-content: center; }
+.aposta-grupo-btn {
+  display: flex; flex-direction: column; gap: 4px; min-width: 140px; cursor: pointer;
+  padding: 16px 20px; border-radius: 12px; background: var(--panel-2); border: 1px solid var(--line-strong);
+}
+.aposta-grupo-btn:hover { border-color: #a99dff; background: rgba(138,127,255,.12); }
+.aposta-grupo-btn strong { color: var(--ink); font-family: var(--font-head); letter-spacing: .04em; }
+.aposta-grupo-btn span   { font-family: var(--font-mono); font-size: .68rem; color: var(--ink-3); }
+
+/* Aviso de gravação */
+.aposta-toast {
+  position: fixed; bottom: 22px; left: 50%; transform: translateX(-50%); z-index: 10001;
+  padding: 11px 20px; border-radius: 8px; font-size: .85rem;
+  background: #1a2035; border: 1px solid rgba(24,194,186,.45); color: var(--cyan-soft);
+  box-shadow: 0 6px 22px rgba(0,0,0,.45);
+}
+.aposta-toast.is-erro { border-color: rgba(255,80,80,.55); color: #ff9a9a; }
+
+/* Celular: a trilha vira uma faixa horizontal no topo. Ela continua
+   mostrando as dez etapas — só deita, em vez de sumir. */
+@media (max-width: 860px) {
+  .aposta-corpo  { flex-direction: column; }
+  .aposta-trilha {
+    width: auto; flex-direction: row; overflow-x: auto; gap: 6px;
+    border-right: none; border-bottom: 1px solid var(--line); padding: 10px 12px;
+  }
+  .aposta-trilha-item { width: auto; flex-shrink: 0; padding: 7px 10px; }
+  .aposta-trilha-nome { white-space: nowrap; font-size: .76rem; }
+  .aposta-palco  { padding: 20px 16px 36px; }
+  .aposta-navegacao { flex-wrap: wrap; gap: 10px; }
+  .aposta-convite { flex-direction: column; align-items: flex-start; }
+}

@@ -1038,6 +1038,13 @@ body.aguardando-auth>#bootStatus{z-index:900}
   <!-- Conteúdo do jogo — exibido apenas para usuários logados -->
   <div class="wrap game" id="treinamento">
 
+    <!-- Construção da Aposta — convite para a dinâmica, preenchido por
+         forca-agil/aposta.js. Só aparece para quem está CONFIRMADA numa turma
+         que o admin liberou (turmas/<turma>/apostaHabilitada); para todo mundo
+         mais fica escondido e não ocupa espaço nenhum. A dinâmica em si abre
+         em tela cheia, porque é feita para ser projetada numa sala. -->
+    <div id="apostaEntrada" hidden></div>
+
     <!-- Seletor de treinamento — só aparece quando a pessoa tem acesso a mais de um
          (preenchido por game.js a partir do nó "treinamentos" e dos eventos dela) -->
     <div class="treino-seletor" id="treinamentoSeletor" hidden></div>
@@ -1725,6 +1732,9 @@ body.aguardando-auth>#bootStatus{z-index:900}
 <script src="forca-agil/dashboard.js"></script>
 <script src="forca-agil/aluno.js"></script>
 <script src="forca-agil/facilitador.js"></script>
+<!-- Construção da Aposta: depende de auth (quem está confirmada) e do router
+     (para montar a entrada quando o Treinamento abre), então entra depois deles. -->
+<script src="forca-agil/aposta.js"></script>
 
 <!-- Admin guard: show/hide content based on auth -->
 <script src="forca-agil/init.js"></script>

@@ -82,6 +82,19 @@ jobs:
           FA_BASE_URL: http://127.0.0.1:8811
         run: node .github/scripts/teste-admin-abrir-lista-restrita.js
 
+      # Hermético. A Construção da Aposta tem duas exigências que só
+      # quebram em sala e não dá para ver lendo dez telas de texto: o
+      # final da dinâmica (OKR / Objective / Key Result) não pode vazar
+      # em NENHUMA etapa antes de a facilitadora revelar, e as etapas
+      # seguintes não podem abrir sozinhas — com o formulário inteiro à
+      # mostra, o grupo pula direto para a solução, que é o hábito que a
+      # oficina existe para interromper.
+      - name: "Construção da Aposta — o final não vaza e as etapas abrem uma por vez (desktop e celular)"
+        env:
+          NODE_PATH: /tmp/pw-deps/node_modules
+          FA_BASE_URL: http://127.0.0.1:8811
+        run: node .github/scripts/teste-aposta.js
+
       # Também hermético (Firebase falso). Confere o que só aparece na conta de
       # OUTRA pessoa: quem está fora da lista de e-mails de um evento restrito
       # não pode ver nada dele. Quem desenvolve está sempre logado como admin,
