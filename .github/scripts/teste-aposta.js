@@ -865,7 +865,7 @@ const textoDaTela = (page) => page.evaluate(() => {
         semeadoPre[TURMA_LIB].execucoes[EXEC].grupos[GRUPO].etapa = 'evidencia';
         semeadoPre[TURMA_LIB].execucoes[EXEC].grupos[GRUPO].dados = {
           ideia: { acao: 'dar mais visibilidade sobre o andamento', mudanca: 'para reduzir contatos' },
-          experimento: { oQue: 'enviar a mensagem de status', medida: 'número de contatos sobre andamento' },
+          mudancas: { itens: [{ direcao: 'Reduzir', indicador: 'contatos sobre andamento', atual: '1000', meta: '700', unidade: 'por mês', prazo: '90', prazoUnidade: 'dias' }] },
         };
         const { ctx: ctxP, page: pgP } = await novaPagina(browser, formato, DIRETORA, erros, semeadoPre);
         await pgP.goto(BASE + '/index.html#treinamento', { waitUntil: 'domcontentloaded' });
@@ -876,13 +876,13 @@ const textoDaTela = (page) => page.evaluate(() => {
           /EVID[ÊE]NCIA/.test((document.querySelector('.aposta-etapa-titulo') || {}).textContent || ''),
           { timeout: 15000 });
 
-        /* "Esperávamos" vem do que o Experimento disse que ia medir — a
-           etapa logo antes, não a mudança mensurável lá de trás, que é
-           mais abstrata e nem sempre bate com o que o experimento mede
-           de fato. Relatado no uso real: "não está vindo do resultado". */
+        /* "Esperávamos" é literalmente a mudança que se queria ver — vem
+           da mudança mensurável já registrada, números incluídos. */
         const esperado = await pgP.evaluate(() => (document.getElementById('ap-esperado') || {}).value || '');
-        anota('"Esperávamos" nasce com o que o Experimento disse que ia medir, não em branco',
-          esperado === 'número de contatos sobre andamento', 'ficou "' + esperado.slice(0, 100) + '"');
+        anota('"Esperávamos" nasce com a mudança mensurável já nomeada, não em branco',
+          /Reduzir/.test(esperado) && /contatos sobre andamento/.test(esperado) &&
+          /1000/.test(esperado) && /700/.test(esperado),
+          'ficou "' + esperado.slice(0, 100) + '"');
 
         await pgP.evaluate(() => {
           const t = Array.from(document.querySelectorAll('.aposta-trilha-item'))
@@ -988,13 +988,12 @@ const textoDaTela = (page) => page.evaluate(() => {
       }
 
       /* ── 9d: mesma checagem de sobra do exemplo, agora em "Esperávamos"
-            (Evidência), que nasce do que o Experimento disse que ia
-            medir. ── */
+            (Evidência), que nasce da mudança mensurável já registrada. ── */
       {
         const semeadoSobraEv = apostasSemeadas();
         semeadoSobraEv[TURMA_LIB].execucoes[EXEC].grupos[GRUPO].etapa = 'evidencia';
         semeadoSobraEv[TURMA_LIB].execucoes[EXEC].grupos[GRUPO].dados = {
-          experimento: { medida: 'nº de reclamações sobre prazo' },
+          mudancas: { itens: [{ direcao: 'Reduzir', indicador: 'reclamações sobre prazo', atual: '200', meta: '50', unidade: 'por mês', prazo: '60', prazoUnidade: 'dias' }] },
           evidencia: { esperado: 'redução dos contatos sobre andamento' },
         };
         const { ctx: ctxSE, page: pgSE } = await novaPagina(browser, formato, DIRETORA, erros, semeadoSobraEv);
@@ -1006,18 +1005,20 @@ const textoDaTela = (page) => page.evaluate(() => {
           /EVID[ÊE]NCIA/.test((document.querySelector('.aposta-etapa-titulo') || {}).textContent || ''),
           { timeout: 15000 });
         const esperadoSobra = await pgSE.evaluate(() => (document.getElementById('ap-esperado') || {}).value || '');
-        anota('a sobra do exemplo em "Esperávamos" é substituída pelo que o Experimento mede de verdade',
-          esperadoSobra === 'nº de reclamações sobre prazo', 'ficou "' + esperadoSobra + '"');
+        anota('a sobra do exemplo em "Esperávamos" é substituída pela mudança mensurável de verdade',
+          /Reduzir/.test(esperadoSobra) && /reclamações sobre prazo/.test(esperadoSobra) &&
+          /200/.test(esperadoSobra) && /50/.test(esperadoSobra),
+          'ficou "' + esperadoSobra + '"');
         await ctxSE.close();
       }
 
-      /* ── 9e: uma resposta de verdade em "Esperávamos", diferente do que
-            o Experimento mede, não é sobrescrita. ── */
+      /* ── 9e: uma resposta de verdade em "Esperávamos", diferente da
+            mudança mensurável, não é sobrescrita. ── */
       {
         const semeadoRealEv = apostasSemeadas();
         semeadoRealEv[TURMA_LIB].execucoes[EXEC].grupos[GRUPO].etapa = 'evidencia';
         semeadoRealEv[TURMA_LIB].execucoes[EXEC].grupos[GRUPO].dados = {
-          experimento: { medida: 'nº de reclamações sobre prazo' },
+          mudancas: { itens: [{ direcao: 'Reduzir', indicador: 'reclamações sobre prazo', atual: '200', meta: '50', unidade: 'por mês', prazo: '60', prazoUnidade: 'dias' }] },
           evidencia: { esperado: 'uma resposta que o grupo escreveu com outras palavras' },
         };
         const { ctx: ctxRE, page: pgRE } = await novaPagina(browser, formato, DIRETORA, erros, semeadoRealEv);
