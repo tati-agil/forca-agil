@@ -125,13 +125,13 @@ const FORMATOS = [
   { nome: 'celular', opts: { viewport: { width: 375, height: 812 }, isMobile: true, hasTouch: true } },
 ];
 
-async function novaPagina(browser, formato, email, erros, apostas) {
+async function novaPagina(browser, formato, email, erros, apostas, cfgExtra) {
   const ctx = await browser.newContext(formato.opts);
   const page = await ctx.newPage();
   page.on('pageerror', (e) => erros.push(String(e).split('\n')[0]));
-  await page.addInitScript('window.__CFG = ' + JSON.stringify({
+  await page.addInitScript('window.__CFG = ' + JSON.stringify(Object.assign({
     db: banco(apostas), user: { email: email, emailVerified: true, uid: 'u1' }, delayDefault: 20,
-  }) + ';');
+  }, cfgExtra || {})) + ';');
   await page.route('**/firebasejs/**', (r) => r.fulfill({ status: 200, contentType: 'text/javascript', body: FALSO }));
   await page.route('**fonts.googleapis.com**', (r) => r.fulfill({ status: 200, contentType: 'text/css', body: '' }));
   await page.route('**fonts.gstatic.com**', (r) => r.abort());
@@ -768,6 +768,118 @@ const textoDaTela = (page) => page.evaluate(() => {
       });
       anota('o salvamento automático grava no caminho da execução e do grupo',
         gravou.temDados, gravou.total + ' escritas em apostas/');
+
+      /* ── 8: a gravação da Missão é recusada pelo banco — relatado no uso
+            real: a pessoa digitava a Missão, clicava Continuar, seguia a
+            dinâmica normalmente por várias etapas, e só ao voltar na
+            trilha via a Missão em branco de novo. A escrita disparava e a
+            tela já tinha ido embora ANTES de saber se ela tinha dado
+            certo — no wi-fi da sala isso nunca aparecia (a resposta chega
+            rápido demais para reparar), mas no 4G da oficina de verdade
+            a demora é o suficiente para o grupo já ter clicado e saído.
+            Se a escrita falhava de vez, o aviso de erro (quando aparecia)
+            já estava na etapa ERRADA, e ninguém relacionava um ao outro. */
+      {
+        const caminhoMissao = 'apostas/' + TURMA_LIB + '/execucoes/' + EXEC + '/grupos/' + GRUPO + '/dados/missao';
+        const { ctx: ctxF, page: pgF } = await novaPagina(
+          browser, formato, DIRETORA, erros, apostasSemeadas(), { fail: [caminhoMissao] });
+        await pgF.goto(BASE + '/index.html#treinamento', { waitUntil: 'domcontentloaded' });
+        await pgF.click('#apostaAbrirBtn');
+        await pgF.waitForSelector('.aposta-grupo-btn', { timeout: 15000 });
+        await pgF.click('.aposta-grupo-btn');
+        await pgF.waitForSelector('.aposta-etapa-titulo', { timeout: 15000 });
+
+        await pgF.fill('#ap-verbo', 'Melhorar');
+        await pgF.fill('#ap-oQue', 'a experiência do participante');
+        await pgF.fill('#ap-contexto', 'durante a concessão');
+        await pgF.fill('#ap-prazo', '90');
+        await pgF.click('#apostaSeguir');
+        await pgF.waitForTimeout(600);
+
+        const comFalha = await pgF.evaluate(() => ({
+          titulo: (document.querySelector('.aposta-etapa-titulo') || {}).textContent || '',
+          verbo: (document.getElementById('ap-verbo') || {}).value || '',
+          botaoTravado: !!(document.getElementById('apostaSeguir') || {}).disabled,
+          toast: (document.querySelector('.aposta-toast') || {}).textContent || '',
+        }));
+        anota('gravação recusada NÃO avança a tela — sem isso, a Missão sumia sem ninguém perceber',
+          /MISS[ÃA]O/.test(comFalha.titulo), 'título ficou "' + comFalha.titulo + '"');
+        anota('o que foi digitado continua na tela — nada foi perdido',
+          comFalha.verbo === 'Melhorar', 'campo voltou "' + comFalha.verbo + '"');
+        anota('o botão Continuar volta a ficar utilizável, para tentar de novo', !comFalha.botaoTravado);
+        anota('o erro de gravação aparece — silêncio sobre um dado que não foi salvo é pior que o erro',
+          /Não consegui salvar/.test(comFalha.toast) && /MISS[ÃA]O|Missão/i.test(comFalha.toast),
+          comFalha.toast.slice(0, 140));
+
+        /* A "rede volta a funcionar": mesmo clique, mesmos dados — agora vai. */
+        await pgF.evaluate(() => { window.__CFG.fail = []; });
+        await pgF.click('#apostaSeguir');
+        await pgF.waitForFunction(() =>
+          /SINTOMA/.test((document.querySelector('.aposta-etapa-titulo') || {}).textContent || ''),
+          { timeout: 15000 });
+        /* window.__ESCRITAS registra toda TENTATIVA de gravação, inclusive a
+           que falhou — não prova que o dado ficou no banco. Ler o banco
+           falso direto é o que confirma que desta vez a escrita pegou. */
+        const noBanco = await pgF.evaluate(({ turma, exec, grupo }) => {
+          var g = ((((window.__CFG.db.apostas || {})[turma] || {}).execucoes || {})[exec] || {}).grupos || {};
+          return ((g[grupo] || {}).dados || {}).missao || null;
+        }, { turma: TURMA_LIB, exec: EXEC, grupo: GRUPO });
+        anota('assim que a gravação passa a funcionar, o mesmo clique salva de verdade e avança',
+          !!noBanco && noBanco.verbo === 'Melhorar', JSON.stringify(noBanco));
+
+        await ctxF.close();
+      }
+
+      /* ── 9: "Sem construir" e "Esperávamos" nascem com um ponto de
+            partida, em vez de pedir de novo o que já foi escrito noutra
+            etapa — "não deveria vir preenchido?", perguntado no uso real
+            olhando a etapa em branco logo depois de nomear a mesma
+            solução em Ideia de solução. Os dois continuam editáveis: é
+            só o valor inicial que muda, o que fica salvo é sempre o que
+            está na tela quando o grupo segue em frente. ── */
+      {
+        const semeadoPre = apostasSemeadas();
+        semeadoPre[TURMA_LIB].execucoes[EXEC].grupos[GRUPO].etapa = 'evidencia';
+        semeadoPre[TURMA_LIB].execucoes[EXEC].grupos[GRUPO].dados = {
+          ideia: { acao: 'dar mais visibilidade sobre o andamento', mudanca: 'para reduzir contatos' },
+          mudancas: { itens: [{ direcao: 'Reduzir', indicador: 'contatos sobre andamento', atual: '1000', meta: '700', unidade: 'por mês', prazo: '90', prazoUnidade: 'dias' }] },
+        };
+        const { ctx: ctxP, page: pgP } = await novaPagina(browser, formato, DIRETORA, erros, semeadoPre);
+        await pgP.goto(BASE + '/index.html#treinamento', { waitUntil: 'domcontentloaded' });
+        await pgP.click('#apostaAbrirBtn');
+        await pgP.waitForSelector('.aposta-grupo-btn', { timeout: 15000 });
+        await pgP.click('.aposta-grupo-btn');
+        await pgP.waitForFunction(() =>
+          /EVID[ÊE]NCIA/.test((document.querySelector('.aposta-etapa-titulo') || {}).textContent || ''),
+          { timeout: 15000 });
+
+        const esperado = await pgP.evaluate(() => (document.getElementById('ap-esperado') || {}).value || '');
+        anota('"Esperávamos" nasce com a mudança mensurável já nomeada, não em branco',
+          /Reduzir/.test(esperado) && /contatos sobre andamento/.test(esperado) &&
+          /1000/.test(esperado) && /700/.test(esperado),
+          'ficou "' + esperado.slice(0, 100) + '"');
+
+        await pgP.evaluate(() => {
+          const t = Array.from(document.querySelectorAll('.aposta-trilha-item'))
+            .find((i) => /Vers[ãa]o test[áa]vel/.test(i.textContent));
+          if (t && !t.disabled) t.click();
+        });
+        await pgP.waitForFunction(() =>
+          /VERS[ÃA]O TEST[ÁA]VEL/.test((document.querySelector('.aposta-etapa-titulo') || {}).textContent || ''),
+          { timeout: 15000 });
+        const semConstruir = await pgP.evaluate(() => (document.getElementById('ap-semConstruir') || {}).value || '');
+        anota('"Sem construir" nasce com a ação já escrita em Ideia de solução, não em branco',
+          semConstruir === 'dar mais visibilidade sobre o andamento', 'ficou "' + semConstruir + '"');
+
+        /* Continua editável: é só um ponto de partida, não um valor travado. */
+        await pgP.fill('#ap-semConstruir', 'outra coisa que o grupo decidiu escrever');
+        await pgP.waitForTimeout(300);
+        const editado = await pgP.evaluate(() => (document.getElementById('ap-semConstruir') || {}).value || '');
+        anota('o valor inicial pode ser editado normalmente',
+          editado === 'outra coisa que o grupo decidiu escrever', 'ficou "' + editado + '"');
+
+        await ctxP.close();
+      }
 
       anota('nenhum erro de JavaScript', erros.length === 0, erros[0]);
 
