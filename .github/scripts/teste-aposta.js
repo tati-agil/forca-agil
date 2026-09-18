@@ -276,6 +276,21 @@ const textoDaTela = (page) => page.evaluate(() => {
           });
           anota('a etapa seguinte mostra a anterior no card de conexão',
             /não sabe o status/.test(conexao), conexao.slice(0, 80));
+
+          /* A frase montada ao vivo, na etapa do Problema: os campos são
+             pedaços, e sem ver o resultado a pessoa escreve a frase inteira
+             no primeiro campo — foi o que aconteceu no primeiro uso real. */
+          await page.locator('[data-campo="quem"]').fill('Os participantes');
+          await page.locator('[data-campo="naoConsegue"]').fill('acompanhar o andamento');
+          await page.waitForTimeout(300);
+          const previa = await page.evaluate(() => {
+            const el = document.getElementById('apostaFrase');
+            return el && !el.hidden ? (el.textContent || '').replace(/\s+/g, ' ') : '';
+          });
+          anota('a etapa monta a frase ao vivo, como vai sair no mapa',
+            /Fica assim no mapa/i.test(previa) &&
+            /Os participantes não consegue acompanhar o andamento/i.test(previa),
+            previa.slice(0, 120));
           continue;
         }
 

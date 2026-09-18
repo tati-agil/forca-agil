@@ -869,6 +869,17 @@
             (etapa.orientacao ? '<p class="aposta-template">' + esc(etapa.orientacao) + '</p>' : '') +
             (etapa.template ? '<p class="aposta-template">' + esc(etapa.template) + '</p>' : '') +
             '<div class="aposta-campos">' + corpo + '</div>' +
+            /* A frase montada, ao vivo, embaixo dos campos.
+               Os campos são PEDAÇOS ("porque…", "pois…") e o molde no topo
+               mostra a frase INTEIRA — quem lê o molde escreve a frase toda
+               no primeiro campo, e o card do mapa sai lendo "Acreditamos que
+               acontece porque Acreditamos que…", com o começo duplicado.
+               Aconteceu no primeiro uso real. Mostrar o resultado enquanto
+               se digita resolve sem repreender ninguém: a duplicação salta
+               aos olhos e a pessoa corrige sozinha. A etapa das Mudanças
+               Mensuráveis já fazia isso; as outras não faziam. */
+            (etapa.lista ? '' :
+              '<div class="aposta-frase" id="apostaFrase" hidden></div>') +
             (etapa.rodape ? '<p class="aposta-rodape">' + esc(etapa.rodape) + '</p>' : '') +
             (etapa.exemplo
               ? '<details class="aposta-exemplo"><summary>Ver exemplo</summary><p>' + esc(etapa.exemplo) + '</p></details>'
@@ -959,8 +970,25 @@
     function salvarDepois() {
       clearTimeout(timer);
       timer = setTimeout(function () { salvarEtapa(etapa.id, coletar()); }, 600);
-      if (etapa.lista) atualizarFrases();
+      if (etapa.lista) atualizarFrases(); else atualizarFrase();
     }
+
+    /* Mesma função que monta o card do Mapa da Aposta (resumoEtapa): o que
+       a pessoa lê aqui enquanto digita é exatamente o que vai sair lá. Duas
+       montagens diferentes acabariam divergindo, e aí a prévia mentiria. */
+    function atualizarFrase() {
+      var el = document.getElementById('apostaFrase');
+      if (!el) return;
+      var dadosPrevia = {};
+      dadosPrevia[etapa.id] = coletar();
+      var frase = resumoEtapa(etapa.id, dadosPrevia);
+      el.hidden = !frase;
+      el.innerHTML = frase
+        ? '<span class="aposta-frase-rot">Fica assim no mapa</span><p>' + esc(frase) + '</p>'
+        : '';
+    }
+
+    atualizarFrase();
 
     function atualizarFrases() {
       _tela.querySelectorAll('.aposta-mudanca').forEach(function (bloco) {
@@ -981,6 +1009,7 @@
         _tela.querySelectorAll('.aposta-opcao').forEach(function (o) { o.classList.remove('is-ativa'); });
         b.classList.add('is-ativa');
         salvarEtapa(etapa.id, coletar());
+        atualizarFrase();
       });
     });
 

@@ -1483,3 +1483,16 @@
   color: #f3d98a; background: rgba(245,197,24,.10);
   border: 1px solid rgba(245,197,24,.35); border-radius: 8px; padding: 9px 12px;
 }
+
+/* Frase montada ao vivo. Os campos de uma etapa são PEDAÇOS e o molde do
+   topo mostra a frase inteira — sem ver o resultado, a pessoa escreve a
+   frase toda no primeiro campo e o card do mapa sai duplicado. */
+.aposta-frase {
+  margin-top: 18px; padding: 12px 16px; border-radius: 10px;
+  background: rgba(24,194,186,.08); border: 1px solid rgba(24,194,186,.3);
+}
+.aposta-frase-rot {
+  display: block; font-family: var(--font-mono); font-size: .62rem;
+  letter-spacing: .12em; text-transform: uppercase; color: var(--cyan);
+}
+.aposta-frase p { margin: 5px 0 0; color: var(--ink); font-size: .92rem; line-height: 1.55; }
