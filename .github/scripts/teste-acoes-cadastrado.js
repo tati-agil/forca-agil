@@ -21,7 +21,7 @@
  *   2. o menu "⋯" diz de QUEM é a ação (nome e e-mail) — errar de linha numa
  *      lista de centenas é fácil demais;
  *   3. Bloquear grava fa-users/<chave>/blocked;
- *   4. Resetar progresso apaga fa-progress e pede o sinal de reset;
+ *   4. Resetar progresso apaga fa-progress E fa-progress-historico, e pede o sinal de reset;
  *   5. "Confirmar cadastro" só aparece para quem está Pendente, e grava;
  *   6. quem está bloqueada vê "Desbloquear", não "Bloquear";
  *   7. nenhum erro de JavaScript não tratado.
@@ -53,7 +53,7 @@ function banco() {
   const admins = {}; admins[chave(ADM)] = { email: ADM, name: 'ADMIN' };
   return {
     'fa-users': users, 'fa-admins': admins, 'fa-diretores': {}, 'fa-facilitadores': {},
-    'fa-users-log': {}, 'fa-progress': {}, 'fa-reset-signal': {}, 'fa-espera': {},
+    'fa-users-log': {}, 'fa-progress': {}, 'fa-progress-historico': {}, 'fa-reset-signal': {}, 'fa-espera': {},
     eventos: {}, turmas: {}, 'turmas-interesse': {}, 'turmas-interesse-log': {},
     'turmas-config': {}, 'turmas-checkin': {}, 'turmas-publico': {}, 'eventos-publico': {},
     'turmas-equipe': {}, 'turmas-sorteio': {}, avaliacoes: {}, pedidos: {}, holocron: {},
@@ -202,6 +202,12 @@ const FORMATOS = [
       const p = [];
       if (!esc.some((e) => e.indexOf('fa-progress/' + chave(ATIVA)) === 0)) {
         p.push('não apagou fa-progress. Escritas: ' + JSON.stringify(esc));
+      }
+      /* Reset é "apaga tudo" — diferente de "Refazer autodiagnóstico" (da
+         própria pessoa), que preserva o histórico de propósito. Sem isto
+         a pessoa resetada continuaria vendo patentes de antes do reset. */
+      if (!esc.some((e) => e.indexOf('fa-progress-historico/' + chave(ATIVA)) === 0)) {
+        p.push('não apagou fa-progress-historico — o histórico de resultados sobreviveria ao reset. Escritas: ' + JSON.stringify(esc));
       }
       if (!esc.some((e) => e.indexOf('fa-reset-signal/' + chave(ATIVA)) === 0)) {
         p.push('não gravou o sinal de reset — a pessoa logada não seria avisada');

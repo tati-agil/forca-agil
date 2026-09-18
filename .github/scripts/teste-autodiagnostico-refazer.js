@@ -91,7 +91,13 @@ async function abrirTreinamento(browser, formato) {
     r.fulfill({ status: 200, contentType: 'text/css', body: '' }));
   await page.route('**fonts.gstatic.com**', (r) => r.abort());
   await page.goto(BASE + '/index.html#treinamento', { waitUntil: 'domcontentloaded' });
-  await page.waitForSelector('#qList .q-item', { timeout: 15000 });
+  await page.waitForSelector('#treinoCardToggle', { timeout: 15000 });
+  /* O cartão do treinamento nasce fechado, do mesmo jeito que o convite
+     da Aposta — abre uma vez, e o resto do teste interage com o quiz
+     já visível (só troca de treinamento fecharia de novo, e este teste
+     usa um só). */
+  await page.click('#treinoCardToggle');
+  await page.waitForSelector('#qList .q-item', { state: 'visible', timeout: 15000 });
   await page.waitForTimeout(400);
   return { ctx, page, erros };
 }

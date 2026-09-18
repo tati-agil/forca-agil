@@ -203,6 +203,68 @@
   const hudTag      = $('hudTag');
   const hudAvatar   = $('hudAvatar');
 
+  /* ── Cartão do treinamento ────────────────────────────────────────
+     Fechado por padrão, do mesmo peso visual do convite da Construção
+     da Aposta logo acima (.convite-card) — antes este bloco era um
+     banner grande, sempre expandido, ao lado de um convite pequeno e
+     fechado: pareciam duas telas diferentes empilhadas. Ver a nota no
+     HTML (index.html, dentro de #treinamento). */
+  const treinoCard        = $('treinoCard');
+  const treinoCardTitulo  = $('treinoCardTitulo');
+  const treinoCardSub     = $('treinoCardSub');
+  const treinoCardStatus  = $('treinoCardStatus');
+  const treinoCardToggle  = $('treinoCardToggle');
+  const treinoCardCorpo   = $('treinoCardCorpo');
+  const treinoCardRecolher = $('treinoCardRecolher');
+  let cardAberto = false;
+
+  function abrirFecharCartao(aberto) {
+    cardAberto = aberto;
+    atualizarCartao();
+    if (aberto && treinoCardCorpo) {
+      treinoCardCorpo.scrollIntoView({ behavior: reduce ? 'auto' : 'smooth', block: 'start' });
+    } else if (!aberto && treinoCard) {
+      treinoCard.scrollIntoView({ behavior: reduce ? 'auto' : 'smooth', block: 'start' });
+    }
+  }
+  if (treinoCardToggle)   treinoCardToggle.addEventListener('click', function () { abrirFecharCartao(!cardAberto); });
+  if (treinoCardRecolher) treinoCardRecolher.addEventListener('click', function () { abrirFecharCartao(false); });
+
+  /* O nome do treinamento ativo, para o título do cartão — sem
+     treinamento cadastrado (modo legado) ou treinamento não encontrado,
+     mantém o "Sociedade Jedi" que já está escrito no HTML. */
+  function nomeTreinoAtivo() {
+    if (!TREINO_ATIVO) return '';
+    const t = DISPONIVEIS.filter(function (x) { return x.key === TREINO_ATIVO; })[0];
+    return t ? t.nome : '';
+  }
+
+  /* Resumo de uma linha: o que dá para saber sem abrir o cartão — a
+     mesma função de "turma · ensaio" no convite da Aposta. */
+  function statusResumoTreino() {
+    if (!TOTAL_AFIRM) return '';
+    if (state.revealed) {
+      const rank = RANKS[diagRankIdx()] || {};
+      return (rank.icon ? rank.icon + ' ' : '') + 'Patente revelada: ' + (rank.name || '—');
+    }
+    const answered = state.quiz.filter(function (v) { return v != null; }).length;
+    if (answered >= TOTAL_AFIRM) return 'Pronto para revelar — todas as afirmações respondidas.';
+    if (answered) return answered + '/' + TOTAL_AFIRM + ' afirmações respondidas';
+    return 'Ainda não iniciado';
+  }
+
+  function atualizarCartao() {
+    if (!treinoCard) return;
+    const nome = nomeTreinoAtivo();
+    if (treinoCardTitulo && nome) treinoCardTitulo.textContent = nome;
+    if (treinoCardSub && TOTAL_AFIRM) {
+      treinoCardSub.textContent = 'Responda as ' + TOTAL_AFIRM + ' afirmações e descubra sua patente.';
+    }
+    if (treinoCardStatus) treinoCardStatus.textContent = statusResumoTreino();
+    if (treinoCardCorpo)  treinoCardCorpo.hidden = !cardAberto;
+    if (treinoCardToggle) treinoCardToggle.textContent = cardAberto ? '← Recolher' : 'Abrir treinamento →';
+  }
+
   // ---- Build quiz por blocos ----
   /* Redesenhado a cada troca de treinamento: dois treinamentos podem apontar
      para conteúdos diferentes, com outras afirmações. */
@@ -290,6 +352,8 @@
     const answered = state.quiz.filter(v => v != null).length;
     const ri = diagRankIdx();
     const rank = RANKS[ri] || {};
+
+    atualizarCartao();
 
     // quiz opts — marca selecionados
     qList && qList.querySelectorAll('.q-opt').forEach(b => {
@@ -499,6 +563,9 @@
     const t = DISPONIVEIS.filter(function (x) { return x.key === key; })[0];
     if (!t) return;
     TREINO_ATIVO = t.key;
+    /* Troca de conteúdo debaixo do cartão — fecha, para não deixar o
+       corpo de um treinamento aberto sobre o resumo de outro. */
+    cardAberto = false;
     aplicarConteudoResolvido(conteudoDe(t));
     buildQuiz();
     carregarEstado();
