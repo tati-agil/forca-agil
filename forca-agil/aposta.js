@@ -197,7 +197,14 @@
         { chave: 'semConstruir', tipo: 'input', rotulo: 'A solução completa', curto: 'a solução completa', placeholder: 'o acompanhamento no portal' },
         { chave: 'podemos', tipo: 'textarea', rotulo: 'Forma simples, manual ou protótipo', curto: 'a forma simples de representar', placeholder: 'uma mensagem manual com a etapa atual' }
       ],
-      molde: ['Sem construir', { c: 'semConstruir' }, ', podemos representar essa ideia por meio de', { c: 'podemos' }, '.']
+      /* Só "Sem", não "Sem construir": o texto que cai na lacuna às vezes
+         vem pronto da Ideia de solução, e lá ele é um VERBO ("Poderíamos
+         disponibilizar…"), não um substantivo. Com o "construir" fixo na
+         frase, o resultado saía com dois verbos emendados ("Sem construir
+         disponibilizar…") — relatado no uso real. "Sem" sozinho aceita os
+         dois jeitos de responder, verbo ("Sem disponibilizar…") ou
+         substantivo ("Sem o acompanhamento no portal…"). */
+      molde: ['Sem', { c: 'semConstruir' }, ', podemos representar essa ideia por meio de', { c: 'podemos' }, '.']
     },
     {
       id: 'experimento',
