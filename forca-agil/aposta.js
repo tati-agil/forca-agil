@@ -1310,6 +1310,21 @@
     var herdada = etapa.id === 'missao' && !etapaPreenchida('missao', _dados) && temMissaoDaExecucao();
     if (herdada) d = missaoDaExecucao();
 
+    /* "Sem construir" pede de novo, com outras palavras, a mesma solução
+       que "Ideia de solução" já nomeou — abrir em branco fazia o grupo
+       reler a etapa anterior e retranscrever o que já tinha escrito.
+       "Esperávamos" pede de novo a mudança mensurável que o experimento
+       está testando. Os dois só servem de ponto de partida: nascem
+       editáveis, e o que o grupo mudar é o que fica salvo (coletar() lê
+       o campo da tela, nunca este valor). */
+    if (etapa.id === 'versao' && !normalizar(d.semConstruir) && _dados.ideia && normalizar(_dados.ideia.acao)) {
+      d = Object.assign({}, d, { semConstruir: _dados.ideia.acao });
+    }
+    if (etapa.id === 'evidencia' && !normalizar(d.esperado)) {
+      var resumoMudancas = resumoEtapa('mudancas', _dados);
+      if (normalizar(resumoMudancas)) d = Object.assign({}, d, { esperado: resumoMudancas });
+    }
+
     var corpo = (herdada
       ? '<p class="aposta-herdada">Missão cadastrada pela facilitação. Vocês podem ajustar — ' +
         'o que ficar aqui é a missão do grupo.</p>'
@@ -1555,19 +1570,47 @@
       });
     });
 
+    /* As três navegações abaixo (Voltar, Continuar, clicar na trilha) só
+       trocam de tela DEPOIS de confirmar que a gravação chegou ao banco.
+       Antes, salvarEtapa() disparava a escrita e a navegação seguia na
+       hora, sem esperar — no wi-fi da sala a resposta chega rápido, mas
+       no 4G da oficina real ela demora segundos, e o grupo já tinha
+       clicado e trocado de etapa muito antes disso. Se a escrita falhava
+       (ou só demorava), o aviso de erro aparecia depois, na tela ERRADA
+       (a etapa nova, não a que falhou) ou nem chegava a ser visto — e o
+       grupo seguia em frente confiando num dado que nunca foi salvo.
+       Esperar trava a tela por um instante, mas é a diferença entre um
+       erro visível, na hora, na etapa certa, e um dado que só se
+       descobre perdido dias depois. */
+    function comEscritaConfirmada(botao, ir) {
+      if (botao) botao.disabled = true;
+      salvarEtapa(etapa.id, coletar(), false, function (err) {
+        if (err) {
+          if (botao) botao.disabled = false;
+          avisar('Não consegui salvar "' + etapa.curto + '" — verifique a conexão e tente de novo. ' +
+            'Nada foi perdido: o que está na tela continua aqui.', true);
+          return;
+        }
+        ir();
+      });
+    }
+
     var voltar = document.getElementById('apostaVoltar');
     if (voltar) voltar.addEventListener('click', function () {
-      salvarEtapa(etapa.id, coletar());
-      _etapaAtual = ETAPAS[Math.max(0, indiceEtapa(etapa.id) - 1)].id;
-      render();
+      comEscritaConfirmada(voltar, function () {
+        _etapaAtual = ETAPAS[Math.max(0, indiceEtapa(etapa.id) - 1)].id;
+        render();
+      });
     });
 
     document.getElementById('apostaSeguir').addEventListener('click', function () {
+      var seguirBtn = this;
       var d = coletar();
-      salvarEtapa(etapa.id, d);
       var avisos = validar(etapa.id, d);
       /* Não bloqueia: mostra o convite a reler e só avança no
-         segundo clique, para o aviso ter tempo de ser lido. */
+         segundo clique, para o aviso ter tempo de ser lido. Isso é sobre
+         o CONTEÚDO (um convite a reler), diferente do erro de gravação
+         acima (que impede seguir de verdade, porque nada foi salvo). */
       if (avisos.length && !avisosEl.dataset.mostrado) {
         avisosEl.dataset.mostrado = '1';
         avisosEl.innerHTML = avisos.map(function (a) {
@@ -1576,16 +1619,27 @@
         avisosEl.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
         return;
       }
-      avancar(etapa);
+      seguirBtn.disabled = true;
+      salvarEtapa(etapa.id, d, false, function (err) {
+        if (err) {
+          seguirBtn.disabled = false;
+          avisar('Não consegui salvar "' + etapa.curto + '" — verifique a conexão e tente de novo. ' +
+            'Nada foi perdido: o que está na tela continua aqui.', true);
+          return;
+        }
+        avancar(etapa);
+      });
     });
 
     _tela.querySelectorAll('.aposta-trilha-item').forEach(function (b) {
       b.addEventListener('click', function () {
         if (b.disabled) return;
-        salvarEtapa(etapa.id, coletar());
-        _vendoMapa = false;
-        _etapaAtual = b.dataset.etapa;
-        render();
+        var destino = b.dataset.etapa;
+        comEscritaConfirmada(b, function () {
+          _vendoMapa = false;
+          _etapaAtual = destino;
+          render();
+        });
       });
     });
   }
@@ -1625,11 +1679,11 @@
     salvarEtapa(p.etapaId, p.dados);
   }
 
-  function salvarEtapa(etapaId, dados, redesenhar) {
+  function salvarEtapa(etapaId, dados, redesenhar, cb) {
     clearTimeout(_timerSalvar);
     _timerSalvar = null;
     _pendente = null;
-    if (!_grupoId) return;
+    if (!_grupoId) { if (cb) cb(null); return; }
     _dados[etapaId] = dados;
     var s = sessao();
     var updates = {};
@@ -1643,6 +1697,7 @@
         el.className = 'aposta-salvo' + (err ? ' is-erro' : '');
       }
       if (redesenhar && !err) render();
+      if (cb) cb(err);
     });
   }
 

@@ -150,6 +150,13 @@
       notificar(self.path);
     }, delayFor(self.path));
   }
+  /* update() multi-caminho é UMA gravação atômica de verdade (todos os
+     caminhos ou nenhum) — mas os caminhos com "/" (o caso comum: gravar
+     numa etapa de dentro de uma execução) passavam direto por `aplicar`,
+     sem nunca consultar delayFor/failsFor. Uma tela que chamava só
+     update() nunca conseguia ser testada sob rede lenta ou gravação
+     recusada — o pior caso real (a pessoa clica, a escrita nem chega,
+     e a tela já foi embora) ficava fora do alcance de qualquer teste. */
   Ref.prototype.update = function (v, cb) {
     anotar(this.path, v);
     /* Chave com "/" dentro de um update é caminho relativo, não nome de campo. */
@@ -157,8 +164,21 @@
     Object.keys(v || {}).forEach(function (k) {
       if (k.indexOf('/') !== -1) relativos.push(k); else direto[k] = v[k];
     });
-    relativos.forEach(function (k) { aplicar(norm(self.path + '/' + k), v[k], false); });
-    escrever(this, cb, direto, true);
+    var caminhosRelativos = relativos.map(function (k) { return norm(self.path + '/' + k); });
+    var todosCaminhos = caminhosRelativos.concat(self.path);
+    var falha = todosCaminhos.some(failsFor);
+    var atraso = todosCaminhos.reduce(function (m, p) { return Math.max(m, delayFor(p)); }, 0);
+    setTimeout(function () {
+      if (falha) {
+        var e = new Error('PERMISSION_DENIED (falso): update ' + todosCaminhos.join(', '));
+        if (cb) cb(e);
+        return;
+      }
+      relativos.forEach(function (k) { aplicar(norm(self.path + '/' + k), v[k], false); });
+      aplicar(self.path, direto, true);
+      if (cb) cb(null);
+      notificar(self.path);
+    }, atraso);
     return Promise.resolve();
   };
   Ref.prototype.set    = function (v, cb) { anotar(this.path, v); escrever(this, cb, v, false); return Promise.resolve(); };
