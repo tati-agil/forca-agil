@@ -896,6 +896,14 @@ const textoDaTela = (page) => page.evaluate(() => {
         anota('"Sem construir" nasce com a ação já escrita em Ideia de solução, não em branco',
           semConstruir === 'dar mais visibilidade sobre o andamento', 'ficou "' + semConstruir + '"');
 
+        /* A ação de Ideia de solução é um VERBO ("dar…"), e o texto fixo
+           antes da lacuna não pode emendar outro ("Sem construir dar…") —
+           relatado no uso real. Só "Sem" fica antes, sem "construir". */
+        const fraseSemConstruir = await pgP.evaluate(() =>
+          ((document.querySelector('.aposta-molde-fixo') || {}).textContent || '').trim());
+        anota('o texto fixo antes da lacuna é só "Sem", sem grudar outro verbo',
+          fraseSemConstruir === 'Sem', 'ficou "' + fraseSemConstruir + '"');
+
         /* Continua editável: é só um ponto de partida, não um valor travado. */
         await pgP.fill('#ap-semConstruir', 'outra coisa que o grupo decidiu escrever');
         await pgP.waitForTimeout(300);
