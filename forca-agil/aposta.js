@@ -10,9 +10,24 @@
    perceber que sintoma, problema, hipótese e solução são coisas
    diferentes. Um formulário com tudo à mostra deixa o grupo pular
    direto para a solução — que é exatamente o hábito que a oficina
-   quer interromper. Por isso a trilha mostra os NOMES das dez
-   etapas desde o começo (dá para ver onde a conversa vai chegar),
-   mas o conteúdo de cada uma só abre quando chega a vez dela.
+   quer interromper.
+
+   Por isso a trilha mostra os NÚMEROS das dez etapas desde o começo
+   (dá para ver que são dez e onde a conversa está), mas não os
+   nomes: ler "Hipótese", "Experimento" e "Evidência" à frente já
+   entrega o caminho e muda o que se escreve na etapa atual. O nome
+   aparece quando chega a vez — ou quando a etapa já foi preenchida,
+   que é quando o grupo pode voltar nela.
+
+   POR QUE O FORMULÁRIO É A PRÓPRIA FRASE
+   Cada etapa tem um `molde`: a frase em pedaços, texto fixo e
+   lacunas. O fixo aparece na tela como texto, e só as lacunas são
+   digitáveis — quem preenche vê o que é dele e o que já está pronto.
+   Antes a frase-modelo ficava num quadro no topo e os campos
+   embaixo, sem ligação visível: no primeiro uso real a frase inteira
+   foi digitada dentro de um campo só, e o mapa saiu com o começo
+   duplicado. Embaixo das lacunas, a mesma frase se monta ao vivo,
+   com o que falta marcado no lugar exato — e clicável.
 
    POR QUE "OKR" NÃO APARECE ATÉ O FIM
    A revelação final ("vocês também construíram um OKR") só tem
@@ -81,10 +96,16 @@
       titulo: 'MISSÃO',
       curto: 'Missão',
       pergunta: 'O que queremos melhorar?',
-      orientacao: '[Verbo de mudança] + [o que queremos melhorar] + [para quem/em qual contexto] + [prazo].',
       exemplo: 'Melhorar significativamente a experiência do participante durante a concessão do benefício em 90 dias.',
       dica: 'A missão é o destino da conversa. Ela não descreve o que será feito, e sim o que queremos que fique diferente.',
-      campos: [{ chave: 'texto', rotulo: 'Missão', tipo: 'textarea', placeholder: 'Melhorar… para… em…' }]
+      legado: 'texto',
+      campos: [
+        { chave: 'verbo', tipo: 'input', rotulo: 'Verbo de mudança', curto: 'o verbo', placeholder: 'Melhorar' },
+        { chave: 'oQue', tipo: 'input', rotulo: 'O que queremos melhorar', curto: 'o que queremos melhorar', placeholder: 'a experiência do participante' },
+        { chave: 'contexto', tipo: 'input', rotulo: 'Para quem / em qual contexto', curto: 'para quem ou em qual contexto', placeholder: 'durante a concessão do benefício' },
+        { chave: 'prazo', tipo: 'input', rotulo: 'Prazo', curto: 'o prazo', placeholder: '90 dias' }
+      ],
+      molde: [{ c: 'verbo' }, { c: 'oQue' }, { c: 'contexto' }, 'em', { c: 'prazo' }, '.']
     },
     {
       id: 'sintoma',
@@ -92,10 +113,12 @@
       curto: 'Sintoma',
       pergunta: 'O que vemos hoje?',
       auxiliar: 'Comece pelo que é possível observar na realidade. Ainda não tente explicar por que isso acontece.',
-      template: 'Hoje observamos que [fato ou comportamento observável].',
       exemplo: 'Hoje observamos que muitos participantes entram em contato para saber em que etapa está a concessão.',
       dica: 'Sintoma = o que estamos vendo acontecer. Se duas pessoas olhassem para a mesma realidade, as duas veriam isso.',
-      campos: [{ chave: 'texto', tipo: 'textarea', rotulo: 'O que observamos', placeholder: 'Hoje observamos que…' }]
+      campos: [
+        { chave: 'texto', tipo: 'textarea', rotulo: 'O fato observável', curto: 'o que observamos', placeholder: 'muitos participantes entram em contato para saber em que etapa está a concessão' }
+      ],
+      molde: ['Hoje observamos que', { c: 'texto' }, '.']
     },
     {
       id: 'problema',
@@ -103,15 +126,20 @@
       curto: 'Problema',
       pergunta: 'Que problema esse sintoma está revelando?',
       auxiliar: 'Agora transforme o sintoma observado na situação indesejada que ele revela.',
-      template: '[Quem é afetado] não consegue [situação/comportamento desejado], evidenciado por [sintoma observado].',
       exemplo: 'Os participantes não conseguem acompanhar o andamento da concessão com autonomia, evidenciado pelos frequentes contatos para saber em que etapa está o processo.',
       dica: 'Sintoma = o que vemos. Problema = a situação indesejada que esse sintoma revela.',
       dependeDe: 'sintoma',
       campos: [
-        { chave: 'quem', tipo: 'input', rotulo: 'Quem é afetado', placeholder: 'Os participantes…' },
-        { chave: 'naoConsegue', tipo: 'input', rotulo: 'Não consegue…', placeholder: 'acompanhar o andamento com autonomia' },
-        { chave: 'evidenciadoPor', tipo: 'textarea', rotulo: 'Evidenciado por', placeholder: 'contatos frequentes para saber a etapa' }
-      ]
+        { chave: 'quem', tipo: 'input', rotulo: 'Quem é afetado', curto: 'quem é afetado', placeholder: 'Os participantes' },
+        /* A concordância é de quem escreve: "O participante não consegue" e
+           "Os participantes não conseguem" são as duas corretas, e o site não
+           tem como adivinhar qual. Fixar uma delas fazia o mapa sair com o
+           verbo errado — dois cliques resolvem sem pedir para digitar. */
+        { chave: 'verbo', tipo: 'variantes', rotulo: 'Verbo', opcoes: ['não consegue', 'não conseguem'] },
+        { chave: 'naoConsegue', tipo: 'input', rotulo: 'O quê', curto: 'o que não consegue', placeholder: 'acompanhar o andamento com autonomia' },
+        { chave: 'evidenciadoPor', tipo: 'textarea', rotulo: 'O que evidencia isso', curto: 'o que evidencia isso', placeholder: 'contatos frequentes para saber a etapa' }
+      ],
+      molde: [{ c: 'quem' }, { c: 'verbo' }, { c: 'naoConsegue' }, ', evidenciado por', { c: 'evidenciadoPor' }, '.']
     },
     {
       id: 'mudancas',
@@ -130,26 +158,30 @@
       curto: 'Hipótese',
       pergunta: 'Por que achamos que esse problema acontece?',
       auxiliar: 'Agora podemos explicar. Mas ainda é uma hipótese, não um fato.',
-      template: 'Acreditamos que [problema] acontece porque [causa provável], pois [indício que sustenta essa crença].',
-      exemplo: 'Acreditamos que os participantes não conseguem acompanhar o andamento com autonomia porque as informações sobre etapa atual e próximo passo não são suficientemente claras, pois muitas solicitações recebidas são perguntas sobre status e prazo.',
+      exemplo: 'Acreditamos que isso acontece porque as informações sobre etapa atual e próximo passo não são suficientemente claras, pois muitas solicitações recebidas são perguntas sobre status e prazo.',
       dica: 'Hipótese = nossa explicação atual para o problema. Ela ainda precisa ser testada.',
       dependeDe: 'problema',
       campos: [
-        { chave: 'causa', tipo: 'textarea', rotulo: 'Causa provável', placeholder: 'porque…' },
-        { chave: 'indicio', tipo: 'textarea', rotulo: 'Por que pensamos assim? Qual indício temos?', placeholder: 'pois…' }
-      ]
+        { chave: 'causa', tipo: 'textarea', rotulo: 'Causa provável', curto: 'a causa provável', placeholder: 'as informações sobre etapa atual não são claras' },
+        { chave: 'indicio', tipo: 'textarea', rotulo: 'Qual indício temos?', curto: 'o indício', placeholder: 'muitas perguntas recebidas são sobre status e prazo' }
+      ],
+      molde: ['Acreditamos que isso acontece porque', { c: 'causa' }, ', pois', { c: 'indicio' }, '.']
     },
     {
       id: 'ideia',
       titulo: 'IDEIA DE SOLUÇÃO',
       curto: 'Ideia de solução',
       pergunta: 'O que poderíamos fazer a respeito?',
-      template: 'Poderíamos [ação ou abordagem] para [mudança que pretendemos provocar].',
-      exemplo: 'Poderíamos dar ao participante maior visibilidade sobre o andamento da concessão, para que consiga se orientar com mais autonomia.',
+      exemplo: 'Poderíamos dar ao participante mais visibilidade sobre o andamento da concessão, para que ele consiga se orientar com mais autonomia.',
       rodape: 'A hipótese diz o que acreditamos estar acontecendo. A ideia de solução diz o que imaginamos que podemos fazer a respeito.',
       dica: 'Ainda não é hora de decidir tecnologia. O que importa é a mudança que a ideia pretende provocar.',
       dependeDe: 'hipotese',
-      campos: [{ chave: 'texto', tipo: 'textarea', rotulo: 'Ideia', placeholder: 'Poderíamos… para…' }]
+      legado: 'texto',
+      campos: [
+        { chave: 'acao', tipo: 'textarea', rotulo: 'Ação ou abordagem', curto: 'a ação', placeholder: 'dar ao participante mais visibilidade sobre o andamento' },
+        { chave: 'mudanca', tipo: 'textarea', rotulo: 'Mudança que pretendemos provocar', curto: 'a mudança pretendida', placeholder: 'que ele consiga se orientar com mais autonomia' }
+      ],
+      molde: ['Poderíamos', { c: 'acao' }, 'para', { c: 'mudanca' }, '.']
     },
     {
       id: 'versao',
@@ -157,35 +189,35 @@
       curto: 'Versão testável',
       pergunta: 'Como representar essa ideia sem construir tudo?',
       auxiliar: 'Não precisamos construir a solução completa para aprender se a ideia faz sentido.',
-      template: 'Sem construir [solução completa], podemos representar essa ideia por meio de [forma simples, manual ou protótipo].',
-      exemplo: 'Sem construir um acompanhamento integrado no portal, podemos enviar manualmente uma mensagem com a etapa atual e o próximo passo.',
+      exemplo: 'Sem construir um acompanhamento integrado no portal, podemos representar essa ideia por meio de uma mensagem enviada manualmente com a etapa atual e o próximo passo.',
       rodape: 'Solução imaginada ≠ versão testável. A versão testável é menor, mais barata e mais rápida.',
       dica: 'Vale papel, planilha, mensagem manual, atendimento simulado. O objetivo é aprender, não entregar.',
       dependeDe: 'ideia',
       campos: [
-        { chave: 'semConstruir', tipo: 'input', rotulo: 'Sem construir…', placeholder: 'o acompanhamento no portal' },
-        { chave: 'podemos', tipo: 'textarea', rotulo: '…podemos representar por meio de', placeholder: 'uma mensagem manual com a etapa atual' }
-      ]
+        { chave: 'semConstruir', tipo: 'input', rotulo: 'A solução completa', curto: 'a solução completa', placeholder: 'o acompanhamento no portal' },
+        { chave: 'podemos', tipo: 'textarea', rotulo: 'Forma simples, manual ou protótipo', curto: 'a forma simples de representar', placeholder: 'uma mensagem manual com a etapa atual' }
+      ],
+      molde: ['Sem construir', { c: 'semConstruir' }, ', podemos representar essa ideia por meio de', { c: 'podemos' }, '.']
     },
     {
       id: 'experimento',
       titulo: 'E — EXPERIMENTO',
       curto: 'Experimento',
       pergunta: 'Como vamos testar essa versão?',
-      template: 'Durante [tempo], com [público/quantidade], vamos [aplicar a versão testável] e medir/observar [o quê].',
       exemplo: 'Durante 3 semanas, com 50 participantes, vamos enviar a mensagem de status e medir quantos contatos sobre andamento eles realizam.',
       rodape: 'O experimento não é a solução completa. É a forma organizada de testar uma versão simplificada da ideia.',
       dica: 'Um experimento precisa de três coisas para valer: com quem, por quanto tempo e o que será medido.',
       dependeDe: 'versao',
       campos: [
-        { chave: 'oQue', tipo: 'textarea', rotulo: 'O que será feito?', placeholder: 'enviar a mensagem de status' },
-        { chave: 'comQuem', tipo: 'input', rotulo: 'Com quem?', placeholder: 'participantes em concessão' },
-        { chave: 'quantidade', tipo: 'input', rotulo: 'Quantidade', placeholder: '50' },
+        { chave: 'duracao', tipo: 'input', rotulo: 'Duração', curto: 'quanto tempo', placeholder: '3 semanas' },
+        { chave: 'quantidade', tipo: 'input', rotulo: 'Quantidade', curto: 'quantas pessoas', placeholder: '50' },
+        { chave: 'comQuem', tipo: 'input', rotulo: 'Com quem', curto: 'com quem', placeholder: 'participantes em concessão' },
+        { chave: 'oQue', tipo: 'textarea', rotulo: 'O que será feito', curto: 'o que será feito', placeholder: 'enviar a mensagem de status' },
+        { chave: 'medida', tipo: 'textarea', rotulo: 'O que será medido', curto: 'o que será medido', placeholder: 'nº de contatos sobre andamento' },
         { chave: 'responsavel', tipo: 'input', rotulo: 'Responsável', placeholder: 'nome' },
-        { chave: 'duracao', tipo: 'input', rotulo: 'Duração', placeholder: '3 semanas' },
-        { chave: 'custo', tipo: 'input', rotulo: 'Custo estimado', placeholder: 'baixo / R$…' },
-        { chave: 'medida', tipo: 'textarea', rotulo: 'O que será medido?', placeholder: 'nº de contatos sobre andamento' }
-      ]
+        { chave: 'custo', tipo: 'input', rotulo: 'Custo estimado', placeholder: 'baixo / R$…' }
+      ],
+      molde: ['Durante', { c: 'duracao' }, ', com', { c: 'quantidade' }, { c: 'comQuem' }, ', vamos', { c: 'oQue' }, 'e medir', { c: 'medida' }, '.']
     },
     {
       id: 'evidencia',
@@ -198,37 +230,41 @@
       dica: 'A evidência não julga quem teve a ideia. Ela só diz o que a realidade respondeu.',
       dependeDe: 'experimento',
       campos: [
-        { chave: 'esperado', tipo: 'textarea', rotulo: 'O que esperamos observar?', antes: true, placeholder: 'esperávamos…' },
-        { chave: 'medir', tipo: 'textarea', rotulo: 'O que vamos medir?', antes: true, placeholder: 'nº de contatos por semana' },
-        { chave: 'observado', tipo: 'textarea', rotulo: 'O que realmente aconteceu?', placeholder: 'observamos…' }
+        { chave: 'esperado', tipo: 'textarea', rotulo: 'O que esperamos observar', curto: 'o que esperávamos', antes: true, placeholder: 'redução dos contatos sobre andamento' },
+        { chave: 'observado', tipo: 'textarea', rotulo: 'O que realmente aconteceu', curto: 'o que observamos', placeholder: '25% menos contatos no grupo testado' },
+        { chave: 'medir', tipo: 'textarea', rotulo: 'O que vamos medir', antes: true, placeholder: 'nº de contatos por semana' }
       ],
       escolha: {
         chave: 'classificacao',
         rotulo: 'Nossa hipótese foi:',
+        curto: 'como a hipótese ficou',
         opcoes: ['Sustentada', 'Parcialmente sustentada', 'Não sustentada']
-      }
+      },
+      molde: ['Esperávamos', { c: 'esperado' }, '. Observamos', { c: 'observado' },
+              '. Portanto, nossa hipótese foi', { escolha: true, baixa: true }, '.']
     },
     {
       id: 'decisao',
       titulo: 'D — DECISÃO',
       curto: 'Decisão',
       pergunta: 'O que fazemos com o que aprendemos?',
-      template: 'Com base na evidência, vamos [decisão] + [próxima ação].',
-      exemplo: 'Com base na evidência, vamos ajustar a comunicação e realizar um novo teste com um grupo maior.',
+      exemplo: 'Com base na evidência, vamos ajustar e testar novamente — ajustar a comunicação e repetir o teste com um grupo maior.',
       dica: 'A decisão precisa nascer da evidência registrada — não da preferência de quem defende a ideia.',
       dependeDe: 'evidencia',
       escolha: {
         chave: 'decisao',
         rotulo: 'Decisão',
+        curto: 'a decisão',
         opcoes: ['Ampliar', 'Ajustar e testar novamente', 'Abandonar essa ideia', 'Formular nova hipótese', 'Investigar mais']
       },
       campos: [
-        { chave: 'proximaAcao', tipo: 'textarea', rotulo: 'Próxima ação', placeholder: 'o que acontece a seguir' },
+        { chave: 'proximaAcao', tipo: 'textarea', rotulo: 'Próxima ação', curto: 'a próxima ação', placeholder: 'ajustar a comunicação e repetir o teste com um grupo maior' },
         { chave: 'responsavel', tipo: 'input', rotulo: 'Responsável', placeholder: 'nome' },
         { chave: 'prazo', tipo: 'input', rotulo: 'Prazo', placeholder: 'até…' },
         { chave: 'reavaliacao', tipo: 'input', rotulo: 'Data de reavaliação', placeholder: 'dd/mm' },
         { chave: 'proximaHipotese', tipo: 'textarea', rotulo: 'Próxima hipótese (quando aplicável)', placeholder: 'acreditamos que…' }
-      ]
+      ],
+      molde: ['Com base na evidência, vamos', { escolha: true, baixa: true }, '—', { c: 'proximaAcao' }, '.']
     }
   ];
 
@@ -306,13 +342,13 @@
     }
 
     if (etapaId === 'ideia') {
-      if (MUITA_TECNOLOGIA.test(d.texto || '')) {
+      if (MUITA_TECNOLOGIA.test([d.acao, d.mudanca, d.texto].join(' '))) {
         avisos.push('Antes de definir a implementação, qual mudança você pretende provocar?');
       }
     }
 
     if (etapaId === 'versao') {
-      var ideia = normalizar((_dados.ideia || {}).texto);
+      var ideia = normalizar(resumoEtapa('ideia', _dados));
       var versao = normalizar([d.semConstruir, d.podemos].join(' '));
       if (ideia && versao.indexOf(ideia) !== -1) {
         avisos.push('Há uma maneira menor, manual ou mais rápida de representar essa ideia?');
@@ -349,60 +385,162 @@
   /* Uma etapa está "preenchida" quando tem conteúdo de verdade — é o
      que move a trilha e libera a próxima. Não exige perfeição: exige
      que o grupo tenha escrito alguma coisa. */
+  /* Uma etapa está "preenchida" quando tem conteúdo de verdade — é o
+     que move a trilha e libera a próxima. Não exige perfeição: exige
+     que o grupo tenha escrito alguma coisa.
+
+     Campo de VARIANTES não conta: ele já nasce com um valor escolhido
+     (a concordância do verbo), e contar esse valor como conteúdo faria
+     a etapa se dar por preenchida sem ninguém ter escrito nada — a
+     trilha marcaria como feita e liberaria a seguinte. */
   function etapaPreenchida(etapaId, dados) {
     var d = (dados || {})[etapaId] || {};
     if (etapaId === 'mudancas') return !!(d.itens && d.itens.length);
     var etapa = etapaPorId(etapaId);
     if (!etapa) return false;
-    if (etapa.escolha && !d[etapa.escolha.chave]) return false;
+    if (etapa.escolha && d[etapa.escolha.chave]) return true;
     var campos = etapa.campos || [];
     for (var i = 0; i < campos.length; i++) {
+      if (campos[i].tipo === 'variantes') continue;
       if (normalizar(d[campos[i].chave])) return true;
     }
-    return !campos.length && !!etapa.escolha;
+    if (etapa.legado && normalizar(d[etapa.legado])) return true;
+    return false;
   }
 
-  /* ── Frases consolidadas: o que vai no card do mapa e nos cards de
-        conexão entre etapas. Uma função só, para o mapa final e a
-        trilha nunca contarem histórias diferentes. ── */
-  function fraseMudanca(m) {
-    if (!m) return '';
-    var direcao = m.direcao || 'Alterar';
-    var unidade = m.unidade ? ' ' + m.unidade : '';
-    return direcao + ' ' + (m.indicador || '—') +
-      ' de ' + (m.atual || '—') + unidade +
-      ' para ' + (m.meta || '—') + unidade +
-      ' em ' + (m.prazo || '—') + '.';
+  /* ══════════════════════════════════════════════════════════════
+     A FRASE DE CADA ETAPA — UM MOLDE SÓ
+
+     `molde` descreve a frase inteira numa lista: texto FIXO (string)
+     e LACUNAS ({ c: 'chave' } de um campo, ou { escolha: true }).
+     Dele saem as três coisas que precisam concordar entre si:
+
+       · o formulário  — o fixo aparece na tela como texto, e só as
+                         lacunas são digitáveis. Antes a frase-modelo
+                         ficava num quadro no topo ("[Quem] não
+                         consegue [o quê]…") e os campos embaixo, sem
+                         ligação visível: no primeiro uso real a frase
+                         inteira foi digitada dentro de um campo só;
+       · a prévia      — "fica assim no mapa", ao vivo, com o que
+                         ainda falta marcado no lugar exato;
+       · o mapa/CSV    — resumoEtapa, a mesma montagem.
+
+     Uma descrição só é o que impede a prévia de mentir sobre o mapa.
+     ══════════════════════════════════════════════════════════════ */
+  function campoPorChave(etapa, chave) {
+    var campos = etapa.campos || [];
+    for (var i = 0; i < campos.length; i++) if (campos[i].chave === chave) return campos[i];
+    return null;
   }
+  function rotuloCurto(c, chave) {
+    if (!c) return chave;
+    return c.curto || String(c.rotulo || chave).toLowerCase();
+  }
+  function valorVariante(campo, valor) {
+    var op = (campo && campo.opcoes) || [];
+    return valor && op.indexOf(valor) !== -1 ? valor : op[0];
+  }
+
+  /* Devolve a frase em pedaços: { tipo: 'fixo' | 'valor' | 'vazio' }. */
+  function partesDaFrase(etapa, d) {
+    d = d || {};
+    var out = [];
+    (etapa.molde || []).forEach(function (p) {
+      if (typeof p === 'string') { out.push({ tipo: 'fixo', txt: p }); return; }
+      if (p.escolha) {
+        var esc_ = etapa.escolha || {};
+        var v = d[esc_.chave] || '';
+        if (v && p.baixa) v = v.toLowerCase();
+        out.push(v
+          ? { tipo: 'valor', txt: v, chave: esc_.chave, escolha: true }
+          : { tipo: 'vazio', rotulo: esc_.curto || String(esc_.rotulo || '').toLowerCase(), chave: esc_.chave, escolha: true });
+        return;
+      }
+      var campo = campoPorChave(etapa, p.c);
+      var val = String(d[p.c] == null ? '' : d[p.c]).trim();
+      if (campo && campo.tipo === 'variantes') {
+        out.push({ tipo: 'valor', txt: valorVariante(campo, val), chave: p.c, variante: true });
+        return;
+      }
+      out.push(val
+        ? { tipo: 'valor', txt: val, chave: p.c }
+        : { tipo: 'vazio', rotulo: rotuloCurto(campo, p.c), chave: p.c, opcional: !!(campo && campo.opcional) });
+    });
+    return out;
+  }
+
+  /* Junta os pedaços numa frase. Pontuação cola no que vem antes —
+     senão sairia "…autonomia , evidenciado por". */
+  function juntarPartes(partes, textoDoVazio) {
+    var s = '';
+    partes.forEach(function (p) {
+      var txt = p.tipo === 'vazio' ? textoDoVazio(p) : p.txt;
+      if (!txt) return;
+      if (!s) { s = txt; return; }
+      s += (/^[,.;:!?]/.test(txt) ? '' : ' ') + txt;
+    });
+    return s;
+  }
+
+  /* A mesma frase em HTML, para a prévia ao vivo: o que a pessoa
+     escreveu em destaque, o texto fixo apagado e a lacuna com o nome
+     do que falta, no lugar exato em que vai entrar. */
+  function htmlDaFrase(partes) {
+    var html = '';
+    partes.forEach(function (p) {
+      var bruto = p.tipo === 'vazio' ? (p.opcional ? '' : p.rotulo) : p.txt;
+      if (!bruto) return;
+      var peca = p.tipo === 'vazio'
+        ? '<span class="aposta-frase-vazio" data-ir="' + esc(p.chave) + '">' + esc(p.rotulo) + '</span>'
+        : (p.tipo === 'valor'
+            ? '<strong class="aposta-frase-valor">' + esc(p.txt) + '</strong>'
+            : '<span class="aposta-frase-fixo">' + esc(p.txt) + '</span>');
+      html += (html && !/^[,.;:!?]/.test(bruto) ? ' ' : '') + peca;
+    });
+    return html;
+  }
+
+  /* ── Mudanças mensuráveis: a mesma ideia, uma frase por item ── */
+  var MUDANCA_MOLDE = [
+    { c: 'direcao', rotulo: 'a direção' },
+    { c: 'indicador', rotulo: 'o indicador' },
+    'de', { c: 'atual', rotulo: 'a situação atual' }, { c: 'unidade', opcional: true },
+    'para', { c: 'meta', rotulo: 'a meta' }, { c: 'unidade', opcional: true },
+    'em', { c: 'prazo', rotulo: 'o prazo' }, '.'
+  ];
+  function partesMudanca(m) {
+    m = m || {};
+    return MUDANCA_MOLDE.map(function (p) {
+      if (typeof p === 'string') return { tipo: 'fixo', txt: p };
+      var val = String(m[p.c] == null ? '' : m[p.c]).trim();
+      if (p.c === 'direcao') return { tipo: 'valor', txt: val || 'Aumentar', chave: 'direcao' };
+      if (val) return { tipo: 'valor', txt: val, chave: p.c };
+      return { tipo: 'vazio', rotulo: p.rotulo || p.c, chave: p.c, opcional: !!p.opcional };
+    });
+  }
+  function fraseMudanca(m) {
+    return juntarPartes(partesMudanca(m), function (p) { return p.opcional ? '' : '—'; });
+  }
+
+  /* O que vai no card do mapa, no card de conexão e no CSV. Vazio
+     quando o grupo ainda não escreveu nada naquela etapa. */
   function resumoEtapa(etapaId, dados) {
     var d = (dados || {})[etapaId] || {};
-    switch (etapaId) {
-      case 'missao':   return d.texto || '';
-      case 'sintoma':  return d.texto ? 'Hoje observamos que ' + d.texto : '';
-      case 'problema': return d.quem
-        ? d.quem + ' não consegue ' + (d.naoConsegue || '—') + ', evidenciado por ' + (d.evidenciadoPor || '—') + '.'
-        : '';
-      case 'mudancas': return (d.itens || []).map(fraseMudanca).join(' ');
-      case 'hipotese': return d.causa
-        ? 'Acreditamos que acontece porque ' + d.causa + (d.indicio ? ', pois ' + d.indicio : '') + '.'
-        : '';
-      case 'ideia':    return d.texto || '';
-      case 'versao':   return d.semConstruir
-        ? 'Sem construir ' + d.semConstruir + ', podemos ' + (d.podemos || '—') + '.'
-        : (d.podemos || '');
-      case 'experimento': return d.oQue
-        ? 'Durante ' + (d.duracao || '—') + ', com ' + (d.quantidade || '—') + ' ' + (d.comQuem || '') +
-          ', vamos ' + d.oQue + ' e medir ' + (d.medida || '—') + '.'
-        : '';
-      case 'evidencia': return d.observado
-        ? 'Esperávamos ' + (d.esperado || '—') + '. Observamos ' + d.observado + '. Portanto, nossa hipótese foi ' +
-          (d.classificacao ? d.classificacao.toLowerCase() : '—') + '.'
-        : '';
-      case 'decisao': return d.decisao
-        ? 'Com base na evidência, vamos ' + d.decisao.toLowerCase() + (d.proximaAcao ? ' — ' + d.proximaAcao : '') + '.'
-        : '';
+    if (etapaId === 'mudancas') return (d.itens || []).map(fraseMudanca).join(' ');
+    var etapa = etapaPorId(etapaId);
+    if (!etapa || !etapaPreenchida(etapaId, dados)) return '';
+    /* Execuções anteriores guardaram a etapa num campo de texto só.
+       Enquanto as lacunas novas estiverem vazias, é esse texto que a
+       pessoa escreveu — mostrá-lo é o mínimo para não parecer que a
+       dinâmica apagou o que ela tinha feito. */
+    if (etapa.legado && normalizar(d[etapa.legado]) && !temLacunaPreenchida(etapa, d)) {
+      return String(d[etapa.legado]).trim();
     }
-    return '';
+    return juntarPartes(partesDaFrase(etapa, d), function (p) { return p.opcional ? '' : '—'; });
+  }
+
+  function temLacunaPreenchida(etapa, d) {
+    return partesDaFrase(etapa, d).some(function (p) { return p.tipo === 'valor' && !p.variante; });
   }
 
   /* ══════════════════════════════════════════════════════════════
@@ -793,19 +931,28 @@
   }
 
   /* ── Trilha: nomes desde o começo, conteúdo só na vez ── */
+  /* ── Trilha: o nome de cada etapa só aparece quando chega a vez ──
+     Ver a nota no topo do arquivo. Os números ficam à vista desde o
+     começo (dá para ver que são dez e onde a conversa está), os nomes
+     não: ler "Hipótese" e "Evidência" à frente já entrega o caminho e
+     muda o que o grupo escreve na etapa atual. */
   function trilhaHtml() {
     var atual = indiceEtapa(_etapaAtual);
     return '<nav class="aposta-trilha" aria-label="Etapas da dinâmica">' +
       ETAPAS.map(function (e, i) {
         var feita = etapaPreenchida(e.id, _dados);
+        var aberta = _vendoMapa || i <= atual || feita;
         var cls = 'aposta-trilha-item' +
           (i === atual && !_vendoMapa ? ' is-atual' : '') +
           (feita ? ' is-feita' : '') +
+          (aberta ? '' : ' is-oculta') +
           (i > atual && !feita ? ' is-bloqueada' : '');
         return '<button class="' + cls + '" data-etapa="' + e.id + '"' +
-          (i > atual && !feita ? ' disabled aria-disabled="true"' : '') + '>' +
+          (i > atual && !feita ? ' disabled aria-disabled="true"' : '') +
+          ' title="' + (aberta ? esc(e.curto) : 'Esta etapa aparece quando chegar a vez dela') + '"' +
+          ' aria-label="Etapa ' + (i + 1) + (aberta ? ': ' + esc(e.curto) : ', ainda não revelada') + '">' +
           '<span class="aposta-trilha-num">' + (i + 1) + '</span>' +
-          '<span class="aposta-trilha-nome">' + esc(e.curto) + '</span>' +
+          '<span class="aposta-trilha-nome">' + (aberta ? esc(e.curto) : '· · ·') + '</span>' +
         '</button>';
       }).join('') +
     '</nav>';
@@ -834,12 +981,73 @@
   function campoHtml(c, valor) {
     var id = 'ap-' + c.chave;
     var comum = 'id="' + id + '" data-campo="' + esc(c.chave) + '" class="aposta-campo-input" placeholder="' + esc(c.placeholder || '') + '"';
-    return '<label class="aposta-campo">' +
+    return '<label class="aposta-campo' + (c.tipo === 'textarea' ? ' aposta-campo--largo' : '') + '">' +
       '<span class="aposta-campo-rot">' + esc(c.rotulo) + (c.antes ? ' <em>(antes do experimento)</em>' : '') + '</span>' +
       (c.tipo === 'textarea'
-        ? '<textarea ' + comum + ' rows="3">' + esc(valor || '') + '</textarea>'
+        ? '<textarea ' + comum + ' rows="2">' + esc(valor || '') + '</textarea>'
         : '<input type="text" ' + comum + ' value="' + esc(valor || '') + '" />') +
     '</label>';
+  }
+
+  /* A escolha entre duas formas do mesmo verbo: é texto fixo da frase,
+     só que com duas versões possíveis. Fica com cara de fixo porque é
+     isso que ela é — não é mais uma coisa para escrever. */
+  function varianteHtml(c, valor) {
+    return '<span class="aposta-variante">' +
+      '<select id="ap-' + c.chave + '" data-campo="' + esc(c.chave) + '" class="aposta-campo-input aposta-variante-sel" aria-label="' + esc(c.rotulo) + '">' +
+        (c.opcoes || []).map(function (o) {
+          return '<option' + (valorVariante(c, valor) === o ? ' selected' : '') + '>' + esc(o) + '</option>';
+        }).join('') +
+      '</select>' +
+    '</span>';
+  }
+
+  /* O formulário É a frase: o texto fixo aparece como texto, e só as
+     lacunas são digitáveis, na ordem em que vão sair no mapa. */
+  function moldeHtml(etapa, d) {
+    var usados = {};
+    var blocos = (etapa.molde || []).map(function (p) {
+      if (typeof p === 'string') {
+        /* A pontuação pertence à frase montada, não à tela: um bloco só
+           com "." ou "—" seria ruído. O resto do texto fixo aparece. */
+        var t = p.replace(/^[,.;:]+\s*/, '').trim();
+        return t && !/^[.…—–-]+$/.test(t) ? '<span class="aposta-molde-fixo">' + esc(t) + '</span>' : '';
+      }
+      if (p.escolha) { usados['@escolha'] = 1; return escolhaHtml(etapa.escolha, d); }
+      var c = campoPorChave(etapa, p.c);
+      if (!c) return '';
+      usados[c.chave] = 1;
+      return c.tipo === 'variantes' ? varianteHtml(c, d[p.c]) : campoHtml(c, d[p.c]);
+    }).join('');
+
+    var html = '<div class="aposta-molde">' +
+      '<p class="aposta-molde-legenda">Preencha as lacunas — o texto claro já faz parte da frase.</p>' +
+      blocos +
+    '</div>';
+
+    if (etapa.escolha && !usados['@escolha']) html += escolhaHtml(etapa.escolha, d);
+
+    /* Campos que não entram na frase (responsável, custo, prazo…) ficam
+       separados: misturá-los ao molde faria a frase parecer maior do que é. */
+    var extras = (etapa.campos || []).filter(function (c) { return !usados[c.chave]; });
+    if (extras.length) {
+      html += '<div class="aposta-complementos">' +
+        '<p class="aposta-complementos-rot">Complementos — combinados do grupo, não entram na frase</p>' +
+        extras.map(function (c) { return campoHtml(c, d[c.chave]); }).join('') +
+      '</div>';
+    }
+
+    /* Execução antiga, escrita quando a etapa era um campo de texto só:
+       o texto continua guardado (input escondido) e fica à vista até as
+       lacunas serem preenchidas. Nada do que o grupo escreveu some. */
+    if (etapa.legado && String(d[etapa.legado] || '').trim()) {
+      html += '<input type="hidden" data-campo="' + esc(etapa.legado) + '" value="' + esc(d[etapa.legado]) + '" />';
+      if (!temLacunaPreenchida(etapa, d)) {
+        html += '<p class="aposta-legado">Você tinha escrito aqui: “' + esc(d[etapa.legado]) + '”. ' +
+          'Distribua nas lacunas acima — enquanto elas estiverem vazias, é esse texto que vai para o mapa.</p>';
+      }
+    }
+    return html;
   }
 
   function renderEtapa() {
@@ -847,15 +1055,7 @@
     var d = _dados[etapa.id] || {};
     var idx = indiceEtapa(etapa.id);
 
-    var corpo;
-    if (etapa.lista) {
-      corpo = mudancasHtml(d);
-    } else {
-      corpo = (etapa.campos || []).map(function (c) { return campoHtml(c, d[c.chave]); }).join('');
-      if (etapa.escolha) {
-        corpo = (etapa.id === 'decisao' ? escolhaHtml(etapa.escolha, d) + corpo : corpo + escolhaHtml(etapa.escolha, d));
-      }
-    }
+    var corpo = etapa.lista ? mudancasHtml(d) : moldeHtml(etapa, d);
 
     _tela.innerHTML = cabecalho() +
       '<div class="aposta-corpo">' +
@@ -870,20 +1070,14 @@
             '</div>' +
             '<p class="aposta-pergunta">' + esc(etapa.pergunta) + '</p>' +
             (etapa.auxiliar ? '<p class="aposta-auxiliar">' + esc(etapa.auxiliar) + '</p>' : '') +
-            (etapa.orientacao ? '<p class="aposta-template">' + esc(etapa.orientacao) + '</p>' : '') +
-            (etapa.template ? '<p class="aposta-template">' + esc(etapa.template) + '</p>' : '') +
             '<div class="aposta-campos">' + corpo + '</div>' +
-            /* A frase montada, ao vivo, embaixo dos campos.
-               Os campos são PEDAÇOS ("porque…", "pois…") e o molde no topo
-               mostra a frase INTEIRA — quem lê o molde escreve a frase toda
-               no primeiro campo, e o card do mapa sai lendo "Acreditamos que
-               acontece porque Acreditamos que…", com o começo duplicado.
-               Aconteceu no primeiro uso real. Mostrar o resultado enquanto
-               se digita resolve sem repreender ninguém: a duplicação salta
-               aos olhos e a pessoa corrige sozinha. A etapa das Mudanças
-               Mensuráveis já fazia isso; as outras não faziam. */
+            /* A frase montada, ao vivo, embaixo das lacunas: o que ainda
+               falta aparece marcado no lugar exato em que vai entrar, e
+               clicar nele leva o cursor para o campo. É a resposta a
+               "não sei mais o que falta preencher" — a etapa não depende
+               de a pessoa reler os campos um por um para descobrir. */
             (etapa.lista ? '' :
-              '<div class="aposta-frase" id="apostaFrase" hidden></div>') +
+              '<div class="aposta-frase" id="apostaFrase"></div>') +
             (etapa.rodape ? '<p class="aposta-rodape">' + esc(etapa.rodape) + '</p>' : '') +
             (etapa.exemplo
               ? '<details class="aposta-exemplo"><summary>Ver exemplo</summary><p>' + esc(etapa.exemplo) + '</p></details>'
@@ -940,7 +1134,7 @@
             '<label class="aposta-campo"><span class="aposta-campo-rot">Prazo</span>' +
               '<input type="text" class="aposta-campo-input" data-m="prazo" value="' + esc(m.prazo || '') + '" placeholder="90 dias" /></label>' +
           '</div>' +
-          '<p class="aposta-mudanca-frase">' + esc(fraseMudanca(m)) + '</p>' +
+          '<p class="aposta-mudanca-frase">' + htmlDaFrase(partesMudanca(m)) + '</p>' +
           '<button type="button" class="aposta-mudanca-del" data-del="' + i + '">Remover</button>' +
         '</div>';
       }).join('') +
@@ -983,19 +1177,46 @@
       if (etapa.lista) atualizarFrases(); else atualizarFrase();
     }
 
-    /* Mesma função que monta o card do Mapa da Aposta (resumoEtapa): o que
-       a pessoa lê aqui enquanto digita é exatamente o que vai sair lá. Duas
-       montagens diferentes acabariam divergindo, e aí a prévia mentiria. */
+    /* Mesmo molde que monta o card do Mapa da Aposta: o que a pessoa lê
+       aqui enquanto digita é exatamente o que vai sair lá. Duas montagens
+       diferentes acabariam divergindo, e aí a prévia mentiria.
+
+       A diferença é o que fazer com o que ainda não foi escrito: no mapa
+       vira "—", aqui vira a lacuna com nome, no lugar exato da frase, e
+       clicável — é assim que a pessoa vê o que falta sem ter de reler os
+       campos um a um. */
     function atualizarFrase() {
       var el = document.getElementById('apostaFrase');
       if (!el) return;
-      var dadosPrevia = {};
-      dadosPrevia[etapa.id] = coletar();
-      var frase = resumoEtapa(etapa.id, dadosPrevia);
-      el.hidden = !frase;
-      el.innerHTML = frase
-        ? '<span class="aposta-frase-rot">Fica assim no mapa</span><p>' + esc(frase) + '</p>'
-        : '';
+      var d = coletar();
+      var partes = partesDaFrase(etapa, d);
+      var faltam = partes.filter(function (p) { return p.tipo === 'vazio' && !p.opcional; });
+      var usaLegado = etapa.legado && String(d[etapa.legado] || '').trim() && !temLacunaPreenchida(etapa, d);
+
+      var html = usaLegado
+        ? '<strong class="aposta-frase-valor">' + esc(String(d[etapa.legado]).trim()) + '</strong>'
+        : htmlDaFrase(partes);
+
+      el.hidden = false;
+      el.innerHTML = '<span class="aposta-frase-rot">Fica assim no mapa</span>' +
+        '<p>' + html + '</p>' +
+        (faltam.length
+          ? '<p class="aposta-frase-falta">Ainda falta: ' +
+              faltam.map(function (p) { return esc(p.rotulo); }).join(' · ') + '</p>'
+          : '<p class="aposta-frase-pronta">A frase desta etapa está completa.</p>');
+
+      /* Clicar na lacuna leva ao campo dela — em celular, a frase fica
+         longe do campo que falta, e procurar de novo é o que faz a pessoa
+         desistir de completar. */
+      el.querySelectorAll('.aposta-frase-vazio').forEach(function (b) {
+        b.addEventListener('click', function () {
+          var alvo = document.getElementById('ap-' + b.dataset.ir);
+          if (!alvo) alvo = _tela.querySelector('.aposta-escolha');
+          if (!alvo) return;
+          alvo.scrollIntoView({ behavior: 'smooth', block: 'center' });
+          if (alvo.focus) alvo.focus();
+        });
+      });
     }
 
     atualizarFrase();
@@ -1005,7 +1226,7 @@
         var m = {};
         bloco.querySelectorAll('[data-m]').forEach(function (el) { m[el.dataset.m] = el.value; });
         var p = bloco.querySelector('.aposta-mudanca-frase');
-        if (p) p.textContent = fraseMudanca(m);
+        if (p) p.innerHTML = htmlDaFrase(partesMudanca(m));
       });
     }
 
