@@ -1383,6 +1383,26 @@
   background: rgba(245,197,24,.10); border: 1px solid rgba(245,197,24,.35);
   border-radius: 8px; padding: 9px 12px;
 }
+.aposta-legado-inline { font-size: .74rem; color: #f3d98a; }
+
+/* Prazo: número + unidade. Quem preenche escreve só o número; a lista
+   evita "90 dias"/"90dias"/"3 mes" e a flexão fica com o site. */
+.aposta-qtd { display: flex; gap: 6px; align-items: stretch; }
+.aposta-qtd-num { flex: 0 1 5.5em; min-width: 4.5em; text-align: center; }
+.aposta-qtd-un  { flex: 1 1 auto; width: auto; min-width: 7em; padding: 11px 8px; color: var(--ink-2); }
+.aposta-molde .aposta-campo--qtd { flex: 1 1 230px; min-width: 230px; }
+
+/* Bloco guiado dentro de uma etapa (a próxima hipótese): é uma frase
+   como as outras, então tem o mesmo apoio de preenchimento. */
+.aposta-grupo {
+  border: 1px dashed var(--line-strong); border-radius: 10px; padding: 14px 16px;
+  display: flex; flex-direction: column; gap: 10px;
+}
+.aposta-grupo-rot {
+  margin: 0; font-family: var(--font-mono); font-size: .64rem;
+  letter-spacing: .08em; text-transform: uppercase; color: var(--ink-3);
+}
+.aposta-molde--grupo { background: none; border: none; padding: 0; }
 .aposta-campo-rot { font-family: var(--font-mono); font-size: .68rem; letter-spacing: .09em; text-transform: uppercase; color: var(--ink-3); }
 .aposta-campo-rot em { text-transform: none; letter-spacing: 0; opacity: .8; }
 .aposta-campo-input {
@@ -1516,7 +1536,9 @@
   .aposta-molde  { flex-direction: column; align-items: stretch; gap: 10px; padding: 14px; }
   .aposta-molde .aposta-campo,
   .aposta-molde .aposta-campo--largo,
+  .aposta-molde .aposta-campo--qtd,
   .aposta-molde .aposta-escolha { flex: 0 0 auto; }
+  .aposta-qtd-un { max-width: 45%; }
   .aposta-molde-fixo { padding-bottom: 0; }
   .aposta-variante   { padding-bottom: 0; }
   .aposta-variante-sel { width: 100%; }

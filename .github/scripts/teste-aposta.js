@@ -226,6 +226,37 @@ const textoDaTela = (page) => page.evaluate(() => {
         await ctxNovo.close();
       }
 
+      /* ── 2b: a trilha revelada NÃO pode ter buracos ──
+         Relatado no uso real: "apareceu até Hipótese, depois só 6, 7 e 8
+         como números, e Evidência e Decisão como nomes". Era um grupo
+         retomado — as etapas do fim tinham conteúdo de uma passagem
+         anterior e o nome vinha junto, sem explicação possível para quem
+         olha. O que vale é até onde o grupo chegou, sem pular. */
+      {
+        const semeado = apostasSemeadas();
+        const g = semeado[TURMA_LIB].execucoes[EXEC].grupos[GRUPO];
+        g.etapa = 'sintoma';
+        g.dados = {
+          missao:    { verbo: 'Melhorar', oQue: 'a experiência', prazo: '90', prazoUnidade: 'dias' },
+          evidencia: { esperado: 'menos contatos', observado: '25% menos' },
+          decisao:   { decisao: 'Ampliar', proximaAcao: 'novo teste' },
+        };
+        const { ctx: ctxT, page: pg } = await novaPagina(browser, formato, DIRETORA, erros, semeado);
+        await pg.goto(BASE + '/index.html#treinamento', { waitUntil: 'domcontentloaded' });
+        await pg.waitForSelector('#apostaAbrirBtn', { timeout: 15000 });
+        await pg.click('#apostaAbrirBtn');
+        await pg.waitForSelector('.aposta-grupo-btn', { timeout: 15000 });
+        await pg.click('.aposta-grupo-btn');
+        await pg.waitForSelector('.aposta-trilha-item', { timeout: 15000 });
+        const nomeados = await pg.evaluate(() => Array.from(document.querySelectorAll('.aposta-trilha-item'))
+          .map((i) => !i.classList.contains('is-oculta')));
+        const primeiraOculta = nomeados.indexOf(false);
+        const buraco = primeiraOculta !== -1 && nomeados.slice(primeiraOculta).some(Boolean);
+        anota('a trilha revelada não tem buracos (nome depois de etapa escondida)',
+          !buraco, nomeados.map((n, i) => (i + 1) + (n ? ':nome' : ':—')).join(' '));
+        await ctxT.close();
+      }
+
       /* ── 3: a diretora entra, escolhe o grupo e percorre as etapas ── */
       const { ctx, page } = await novaPagina(browser, formato, DIRETORA, erros, apostasSemeadas());
       await page.goto(BASE + '/index.html#treinamento', { waitUntil: 'domcontentloaded' });
@@ -291,7 +322,30 @@ const textoDaTela = (page) => page.evaluate(() => {
       await page.fill('#ap-verbo', 'Melhorar');
       await page.fill('#ap-oQue', 'a experiência do participante');
       await page.fill('#ap-contexto', 'durante a concessão');
+
+      /* PRAZO: a pessoa escreve só o número e escolhe a unidade. Digitar
+         "90 dias" no campo do número não pode virar dado — o mapa saía
+         com "90 dias dias", e cada grupo escrevia a unidade de um jeito. */
       await page.fill('#ap-prazo', '90 dias');
+      await page.waitForTimeout(250);
+      const soNumero = await page.evaluate(() => (document.getElementById('ap-prazo') || {}).value || '');
+      anota('no prazo, o campo do número aceita só número', soNumero === '90', 'ficou "' + soNumero + '"');
+      const temUnidades = await page.evaluate(() => {
+        const sel = document.querySelector('[data-campo="prazoUnidade"]');
+        return sel ? Array.from(sel.options).map((o) => o.value).join(',') : '';
+      });
+      anota('a unidade do prazo é escolhida numa lista (de segundos a anos)',
+        /segundos/.test(temUnidades) && /meses/.test(temUnidades) && /trimestres/.test(temUnidades) && /anos/.test(temUnidades),
+        temUnidades);
+      await page.selectOption('[data-campo="prazoUnidade"]', 'meses');
+      await page.fill('#ap-prazo', '1');
+      await page.waitForTimeout(300);
+      const singular = await page.evaluate(() =>
+        ((document.getElementById('apostaFrase') || {}).textContent || '').replace(/\s+/g, ' '));
+      anota('a unidade concorda com o número (1 vira singular)',
+        /em 1 mês/.test(singular) && !/1 meses/.test(singular), singular.slice(0, 140));
+      await page.fill('#ap-prazo', '90');
+      await page.selectOption('[data-campo="prazoUnidade"]', 'dias');
       await page.waitForTimeout(300);
       const completa = await page.evaluate(() =>
         ((document.querySelector('.aposta-frase') || {}).textContent || '').replace(/\s+/g, ' '));
@@ -360,19 +414,58 @@ const textoDaTela = (page) => page.evaluate(() => {
         }
 
         if (i === 3) {
-          /* Mudanças mensuráveis: lista, com frase consolidada automática. */
-          await page.click('#apostaAddMudanca');
-          await page.waitForTimeout(300);
+          /* Mudanças mensuráveis: a primeira já aparece em branco. Antes,
+             uma etapa sem nenhuma mudança mostrava só "+ OUTRA mudança
+             mensurável" — outra que quê? — e era preciso descobrir o
+             botão para começar. */
+          const inicio = await page.evaluate(() => ({
+            blocos: document.querySelectorAll('.aposta-mudanca').length,
+            temRemover: !!document.querySelector('.aposta-mudanca-del'),
+            feita: !!document.querySelector('.aposta-trilha-item.is-atual.is-feita'),
+          }));
+          anota('a primeira mudança mensurável já está na tela, sem precisar de botão',
+            inicio.blocos === 1, inicio.blocos + ' blocos');
+          anota('a mudança em branco não conta como etapa preenchida', !inicio.feita);
+          anota('com uma só, não aparece "Remover"', !inicio.temRemover);
           await page.fill('[data-m="indicador"]', 'contatos sobre andamento');
           await page.fill('[data-m="atual"]', '1000');
           await page.fill('[data-m="meta"]', '700');
-          await page.fill('[data-m="prazo"]', '90 dias');
+          await page.fill('[data-m="prazo"]', '90');
+          await page.selectOption('[data-m="prazoUnidade"]', 'dias');
           await page.waitForTimeout(300);
           const frase = await page.evaluate(() =>
             (document.querySelector('.aposta-mudanca-frase') || {}).textContent || '');
           anota('a frase consolidada é montada sozinha',
             /de 1000/.test(frase) && /para 700/.test(frase) && /90 dias/.test(frase), frase);
         } else {
+          if (i === 7) {
+            /* EXPERIMENTO: custo com máscara de moeda. */
+            await page.fill('[data-campo="custo"]', '250000');
+            await page.waitForTimeout(250);
+            const custo = await page.evaluate(() => (document.querySelector('[data-campo="custo"]') || {}).value || '');
+            anota('o custo estimado sai formatado como moeda', /^R\$\s?2\.500,00$/.test(custo), 'ficou "' + custo + '"');
+          }
+          if (i === 9) {
+            /* DECISÃO: datas com ano, e a próxima hipótese guiada igual à
+               etapa da hipótese — é uma hipótese, não um campo em branco. */
+            await page.fill('[data-campo="reavaliacao"]', '31122026');
+            await page.waitForTimeout(250);
+            const data = await page.evaluate(() => (document.querySelector('[data-campo="reavaliacao"]') || {}).value || '');
+            anota('a data de reavaliação sai com dia, mês e ano', data === '31/12/2026', 'ficou "' + data + '"');
+
+            const grupo = await page.evaluate(() => {
+              const g = document.querySelector('.aposta-grupo');
+              return {
+                rotulo: g ? (g.querySelector('.aposta-grupo-rot') || {}).textContent || '' : '',
+                fixo: g ? Array.from(g.querySelectorAll('.aposta-molde-fixo')).map((e) => e.textContent.trim()).join(' | ') : '',
+                lacunas: g ? g.querySelectorAll('.aposta-campo-input').length : 0,
+              };
+            });
+            anota('a próxima hipótese tem o mesmo apoio de preenchimento da hipótese',
+              /Próxima hipótese/i.test(grupo.rotulo) && /Acreditamos que isso acontece porque/.test(grupo.fixo) &&
+              /pois/.test(grupo.fixo) && grupo.lacunas === 2,
+              JSON.stringify(grupo));
+          }
           const campo = page.locator('.aposta-campo-input').first();
           if (await campo.count()) await campo.fill('conteúdo da etapa ' + (i + 1));
           const opcao = page.locator('.aposta-opcao').first();

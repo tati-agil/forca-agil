@@ -103,7 +103,7 @@
         { chave: 'verbo', tipo: 'input', rotulo: 'Verbo de mudança', curto: 'o verbo', placeholder: 'Melhorar' },
         { chave: 'oQue', tipo: 'input', rotulo: 'O que queremos melhorar', curto: 'o que queremos melhorar', placeholder: 'a experiência do participante' },
         { chave: 'contexto', tipo: 'input', rotulo: 'Para quem / em qual contexto', curto: 'para quem ou em qual contexto', placeholder: 'durante a concessão do benefício' },
-        { chave: 'prazo', tipo: 'input', rotulo: 'Prazo', curto: 'o prazo', placeholder: '90 dias' }
+        { chave: 'prazo', tipo: 'quantidade', rotulo: 'Prazo', curto: 'o prazo', placeholder: '90', unidadePadrao: 'dias' }
       ],
       molde: [{ c: 'verbo' }, { c: 'oQue' }, { c: 'contexto' }, 'em', { c: 'prazo' }, '.']
     },
@@ -209,13 +209,13 @@
       dica: 'Um experimento precisa de três coisas para valer: com quem, por quanto tempo e o que será medido.',
       dependeDe: 'versao',
       campos: [
-        { chave: 'duracao', tipo: 'input', rotulo: 'Duração', curto: 'quanto tempo', placeholder: '3 semanas' },
+        { chave: 'duracao', tipo: 'quantidade', rotulo: 'Duração', curto: 'quanto tempo', placeholder: '3', unidadePadrao: 'semanas' },
         { chave: 'quantidade', tipo: 'input', rotulo: 'Quantidade', curto: 'quantas pessoas', placeholder: '50' },
         { chave: 'comQuem', tipo: 'input', rotulo: 'Com quem', curto: 'com quem', placeholder: 'participantes em concessão' },
         { chave: 'oQue', tipo: 'textarea', rotulo: 'O que será feito', curto: 'o que será feito', placeholder: 'enviar a mensagem de status' },
         { chave: 'medida', tipo: 'textarea', rotulo: 'O que será medido', curto: 'o que será medido', placeholder: 'nº de contatos sobre andamento' },
         { chave: 'responsavel', tipo: 'input', rotulo: 'Responsável', placeholder: 'nome' },
-        { chave: 'custo', tipo: 'input', rotulo: 'Custo estimado', placeholder: 'baixo / R$…' }
+        { chave: 'custo', tipo: 'moeda', rotulo: 'Custo estimado', placeholder: 'R$ 0,00' }
       ],
       molde: ['Durante', { c: 'duracao' }, ', com', { c: 'quantidade' }, { c: 'comQuem' }, ', vamos', { c: 'oQue' }, 'e medir', { c: 'medida' }, '.']
     },
@@ -260,11 +260,20 @@
       campos: [
         { chave: 'proximaAcao', tipo: 'textarea', rotulo: 'Próxima ação', curto: 'a próxima ação', placeholder: 'ajustar a comunicação e repetir o teste com um grupo maior' },
         { chave: 'responsavel', tipo: 'input', rotulo: 'Responsável', placeholder: 'nome' },
-        { chave: 'prazo', tipo: 'input', rotulo: 'Prazo', placeholder: 'até…' },
-        { chave: 'reavaliacao', tipo: 'input', rotulo: 'Data de reavaliação', placeholder: 'dd/mm' },
-        { chave: 'proximaHipotese', tipo: 'textarea', rotulo: 'Próxima hipótese (quando aplicável)', placeholder: 'acreditamos que…' }
+        { chave: 'prazo', tipo: 'data', rotulo: 'Prazo (até quando)', placeholder: 'dd/mm/aaaa' },
+        { chave: 'reavaliacao', tipo: 'data', rotulo: 'Data de reavaliação', placeholder: 'dd/mm/aaaa' },
+        /* A próxima hipótese é uma hipótese: ganha o mesmo apoio de
+           preenchimento da etapa 5, senão volta a ser um campo em branco
+           pedindo uma frase que a pessoa acabou de aprender a montar. */
+        { chave: 'proxHipCausa', tipo: 'textarea', rotulo: 'Causa provável', placeholder: 'a mensagem não chega a quem está em análise' },
+        { chave: 'proxHipIndicio', tipo: 'textarea', rotulo: 'Qual indício temos?', placeholder: 'os contatos caíram só no grupo que recebeu a mensagem' }
       ],
-      molde: ['Com base na evidência, vamos', { escolha: true, baixa: true }, '—', { c: 'proximaAcao' }, '.']
+      molde: ['Com base na evidência, vamos', { escolha: true, baixa: true }, '—', { c: 'proximaAcao' }, '.'],
+      grupos: [{
+        rotulo: 'Próxima hipótese (quando aplicável)',
+        legado: 'proximaHipotese',
+        molde: ['Acreditamos que isso acontece porque', { c: 'proxHipCausa' }, ', pois', { c: 'proxHipIndicio' }, '.']
+      }]
     }
   ];
 
@@ -395,7 +404,11 @@
      trilha marcaria como feita e liberaria a seguinte. */
   function etapaPreenchida(etapaId, dados) {
     var d = (dados || {})[etapaId] || {};
-    if (etapaId === 'mudancas') return !!(d.itens && d.itens.length);
+    if (etapaId === 'mudancas') {
+      return (d.itens || []).some(function (m) {
+        return ['indicador', 'atual', 'meta', 'unidade', 'prazo'].some(function (k) { return normalizar(m[k]); });
+      });
+    }
     var etapa = etapaPorId(etapaId);
     if (!etapa) return false;
     if (etapa.escolha && d[etapa.escolha.chave]) return true;
@@ -427,6 +440,52 @@
 
      Uma descrição só é o que impede a prévia de mentir sobre o mapa.
      ══════════════════════════════════════════════════════════════ */
+  /* ── Prazo: número + unidade ──────────────────────────────────────
+     "90 dias" digitado à mão vira "90 dia", "3 mes", "90dias" — e o mapa
+     sai com a unidade de cada grupo escrita de um jeito. Quem preenche
+     escreve só o número e escolhe a unidade numa lista; a flexão é do
+     site, não de quem está com o celular na mão numa sala. */
+  var UNIDADES = ['segundos', 'minutos', 'horas', 'dias', 'semanas', 'meses', 'bimestres', 'trimestres', 'anos'];
+  var SINGULAR = {
+    segundos: 'segundo', minutos: 'minuto', horas: 'hora', dias: 'dia', semanas: 'semana',
+    meses: 'mês', bimestres: 'bimestre', trimestres: 'trimestre', anos: 'ano'
+  };
+  function unidadeFlexionada(unidade, numero) {
+    var u = UNIDADES.indexOf(unidade) !== -1 ? unidade : 'dias';
+    return Number(String(numero).replace(',', '.')) === 1 ? SINGULAR[u] : u;
+  }
+  function chaveUnidade(chave) { return chave + 'Unidade'; }
+  function quantidadeEmTexto(campo, d) {
+    var num = String(d[campo.chave] == null ? '' : d[campo.chave]).trim();
+    if (!num) return '';
+    return num + ' ' + unidadeFlexionada(d[chaveUnidade(campo.chave)] || campo.unidadePadrao, num);
+  }
+
+  /* ── Máscaras ──
+     Aplicadas enquanto se digita. São de tela: o que vai para o banco é
+     o que está no campo, já formatado, para o mapa e o CSV saírem iguais
+     ao que a pessoa viu. */
+  function mascaraNumero(v) { return String(v == null ? '' : v).replace(/\D/g, '').slice(0, 6); }
+  function mascaraData(v) {
+    var d = String(v == null ? '' : v).replace(/\D/g, '').slice(0, 8);
+    if (d.length > 4) return d.slice(0, 2) + '/' + d.slice(2, 4) + '/' + d.slice(4);
+    if (d.length > 2) return d.slice(0, 2) + '/' + d.slice(2);
+    return d;
+  }
+  function mascaraMoeda(v) {
+    var d = String(v == null ? '' : v).replace(/\D/g, '').slice(0, 12);
+    if (!d) return '';
+    var n = parseInt(d, 10) / 100;
+    return 'R$ ' + n.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  }
+  var MASCARAS = { numero: mascaraNumero, data: mascaraData, moeda: mascaraMoeda };
+  function aplicarMascara(el) {
+    var f = MASCARAS[el.dataset.mascara];
+    if (!f) return;
+    var novo = f(el.value);
+    if (novo !== el.value) el.value = novo;
+  }
+
   function campoPorChave(etapa, chave) {
     var campos = etapa.campos || [];
     for (var i = 0; i < campos.length; i++) if (campos[i].chave === chave) return campos[i];
@@ -462,6 +521,7 @@
         out.push({ tipo: 'valor', txt: valorVariante(campo, val), chave: p.c, variante: true });
         return;
       }
+      if (campo && campo.tipo === 'quantidade') val = quantidadeEmTexto(campo, d);
       out.push(val
         ? { tipo: 'valor', txt: val, chave: p.c }
         : { tipo: 'vazio', rotulo: rotuloCurto(campo, p.c), chave: p.c, opcional: !!(campo && campo.opcional) });
@@ -514,6 +574,7 @@
       if (typeof p === 'string') return { tipo: 'fixo', txt: p };
       var val = String(m[p.c] == null ? '' : m[p.c]).trim();
       if (p.c === 'direcao') return { tipo: 'valor', txt: val || 'Aumentar', chave: 'direcao' };
+      if (p.c === 'prazo' && val) val = val + ' ' + unidadeFlexionada(m.prazoUnidade, val);
       if (val) return { tipo: 'valor', txt: val, chave: p.c };
       return { tipo: 'vazio', rotulo: p.rotulo || p.c, chave: p.c, opcional: !!p.opcional };
     });
@@ -935,20 +996,36 @@
      Ver a nota no topo do arquivo. Os números ficam à vista desde o
      começo (dá para ver que são dez e onde a conversa está), os nomes
      não: ler "Hipótese" e "Evidência" à frente já entrega o caminho e
-     muda o que o grupo escreve na etapa atual. */
+     muda o que o grupo escreve na etapa atual.
+
+     A revelação é CONTÍNUA, até onde o grupo já chegou. Antes bastava a
+     etapa ter conteúdo para o nome aparecer, e uma execução retomada
+     mostrava "…5 Hipótese, 6, 7, 8, 9 Evidência, 10 Decisão": os nomes
+     do fim entregues, os do meio escondidos, e nenhuma explicação
+     possível para a pessoa que olha. Agora o que vale é o ponto mais
+     longe alcançado — a etapa em que o grupo está, a que o painel
+     registrou e a última preenchida, o que vier mais adiante. */
+  function ateOndeChegou() {
+    var alcancado = Math.max(indiceEtapa(_etapaAtual), _grupo && _grupo.etapa ? indiceEtapa(_grupo.etapa) : 0);
+    ETAPAS.forEach(function (e, i) {
+      if (i > alcancado && etapaPreenchida(e.id, _dados)) alcancado = i;
+    });
+    return alcancado;
+  }
+
   function trilhaHtml() {
     var atual = indiceEtapa(_etapaAtual);
+    var alcancado = _vendoMapa ? ETAPAS.length - 1 : ateOndeChegou();
     return '<nav class="aposta-trilha" aria-label="Etapas da dinâmica">' +
       ETAPAS.map(function (e, i) {
         var feita = etapaPreenchida(e.id, _dados);
-        var aberta = _vendoMapa || i <= atual || feita;
+        var aberta = i <= alcancado;
         var cls = 'aposta-trilha-item' +
           (i === atual && !_vendoMapa ? ' is-atual' : '') +
           (feita ? ' is-feita' : '') +
-          (aberta ? '' : ' is-oculta') +
-          (i > atual && !feita ? ' is-bloqueada' : '');
+          (aberta ? '' : ' is-oculta is-bloqueada');
         return '<button class="' + cls + '" data-etapa="' + e.id + '"' +
-          (i > atual && !feita ? ' disabled aria-disabled="true"' : '') +
+          (aberta ? '' : ' disabled aria-disabled="true"') +
           ' title="' + (aberta ? esc(e.curto) : 'Esta etapa aparece quando chegar a vez dela') + '"' +
           ' aria-label="Etapa ' + (i + 1) + (aberta ? ': ' + esc(e.curto) : ', ainda não revelada') + '">' +
           '<span class="aposta-trilha-num">' + (i + 1) + '</span>' +
@@ -978,11 +1055,59 @@
     '</div>';
   }
 
-  function campoHtml(c, valor) {
+  /* Uma quantidade guardada por uma execução anterior veio como texto
+     livre ("90 dias"). Lê-se o número e a unidade de dentro dele, para a
+     tela nova abrir com o que já estava escrito em vez de em branco. */
+  var PISTAS_UNIDADE = [
+    ['trimestres', /trimestr/i], ['bimestres', /bimestr/i], ['semanas', /seman/i],
+    ['segundos', /segund/i], ['minutos', /minut/i], ['horas', /hora/i],
+    ['meses', /m[êe]s/i], ['dias', /dia/i], ['anos', /\bano/i]
+  ];
+  function lerQuantidade(c, d) {
+    var bruto = String((d || {})[c.chave] == null ? '' : d[c.chave]).trim();
+    var un = (d || {})[chaveUnidade(c.chave)] || '';
+    if (!un) {
+      for (var i = 0; i < PISTAS_UNIDADE.length && !un; i++) {
+        if (PISTAS_UNIDADE[i][1].test(bruto)) un = PISTAS_UNIDADE[i][0];
+      }
+    }
+    return {
+      num: bruto.replace(/\D/g, '').slice(0, 6),
+      un: UNIDADES.indexOf(un) !== -1 ? un : (c.unidadePadrao || 'dias'),
+      /* Texto que não tem número nenhum não vira quantidade — some se
+         ninguém avisar. Ver a nota "você tinha escrito aqui". */
+      sobra: /\d/.test(bruto) ? '' : bruto
+    };
+  }
+
+  function campoHtml(c, valor, d) {
     var id = 'ap-' + c.chave;
+    var rot = '<span class="aposta-campo-rot">' + esc(c.rotulo) +
+      (c.antes ? ' <em>(antes do experimento)</em>' : '') + '</span>';
+
+    if (c.tipo === 'quantidade') {
+      var q = lerQuantidade(c, d || {});
+      return '<label class="aposta-campo aposta-campo--qtd">' + rot +
+        '<span class="aposta-qtd">' +
+          '<input type="text" inputmode="numeric" id="' + id + '" data-campo="' + esc(c.chave) + '"' +
+            ' data-mascara="numero" class="aposta-campo-input aposta-qtd-num"' +
+            ' value="' + esc(q.num) + '" placeholder="' + esc(c.placeholder || '') + '" />' +
+          '<select data-campo="' + esc(chaveUnidade(c.chave)) + '" class="aposta-campo-input aposta-qtd-un"' +
+            ' aria-label="Unidade de ' + esc(c.rotulo) + '">' +
+            UNIDADES.map(function (u) {
+              return '<option value="' + u + '"' + (q.un === u ? ' selected' : '') + '>' + u + '</option>';
+            }).join('') +
+          '</select>' +
+        '</span>' +
+        (q.sobra ? '<span class="aposta-legado-inline">Você tinha escrito aqui: “' + esc(q.sobra) + '”.</span>' : '') +
+      '</label>';
+    }
+
     var comum = 'id="' + id + '" data-campo="' + esc(c.chave) + '" class="aposta-campo-input" placeholder="' + esc(c.placeholder || '') + '"';
-    return '<label class="aposta-campo' + (c.tipo === 'textarea' ? ' aposta-campo--largo' : '') + '">' +
-      '<span class="aposta-campo-rot">' + esc(c.rotulo) + (c.antes ? ' <em>(antes do experimento)</em>' : '') + '</span>' +
+    if (c.tipo === 'data' || c.tipo === 'moeda') {
+      comum += ' inputmode="numeric" data-mascara="' + (c.tipo === 'data' ? 'data' : 'moeda') + '"';
+    }
+    return '<label class="aposta-campo' + (c.tipo === 'textarea' ? ' aposta-campo--largo' : '') + '">' + rot +
       (c.tipo === 'textarea'
         ? '<textarea ' + comum + ' rows="2">' + esc(valor || '') + '</textarea>'
         : '<input type="text" ' + comum + ' value="' + esc(valor || '') + '" />') +
@@ -1002,11 +1127,11 @@
     '</span>';
   }
 
-  /* O formulário É a frase: o texto fixo aparece como texto, e só as
-     lacunas são digitáveis, na ordem em que vão sair no mapa. */
-  function moldeHtml(etapa, d) {
-    var usados = {};
-    var blocos = (etapa.molde || []).map(function (p) {
+  /* Texto fixo e lacunas, na ordem da frase. Serve tanto para a frase da
+     etapa quanto para os blocos guiados de dentro dela (a próxima
+     hipótese, que é uma hipótese e merece o mesmo apoio). */
+  function blocosDoMolde(etapa, molde, d, usados) {
+    return (molde || []).map(function (p) {
       if (typeof p === 'string') {
         /* A pontuação pertence à frase montada, não à tela: um bloco só
            com "." ou "—" seria ruído. O resto do texto fixo aparece. */
@@ -1017,35 +1142,63 @@
       var c = campoPorChave(etapa, p.c);
       if (!c) return '';
       usados[c.chave] = 1;
-      return c.tipo === 'variantes' ? varianteHtml(c, d[p.c]) : campoHtml(c, d[p.c]);
+      if (c.tipo === 'quantidade') usados[chaveUnidade(c.chave)] = 1;
+      return c.tipo === 'variantes' ? varianteHtml(c, d[p.c]) : campoHtml(c, d[p.c], d);
     }).join('');
+  }
 
+  /* Execução gravada quando o campo era texto livre: o que estava lá
+     continua guardado (input escondido) e à vista até as lacunas novas
+     serem preenchidas. Nada do que o grupo escreveu some. */
+  function legadoHtml(chave, d, mostrarAviso) {
+    var txt = String((d || {})[chave] || '').trim();
+    if (!txt) return '';
+    return '<input type="hidden" data-campo="' + esc(chave) + '" value="' + esc(txt) + '" />' +
+      (mostrarAviso
+        ? '<p class="aposta-legado">Você tinha escrito aqui: “' + esc(txt) + '”. ' +
+          'Distribua nas lacunas — enquanto elas estiverem vazias, é esse texto que vai para o mapa.</p>'
+        : '');
+  }
+
+  /* O formulário É a frase: o texto fixo aparece como texto, e só as
+     lacunas são digitáveis, na ordem em que vão sair no mapa. */
+  function moldeHtml(etapa, d) {
+    var usados = {};
     var html = '<div class="aposta-molde">' +
       '<p class="aposta-molde-legenda">Preencha as lacunas — o texto claro já faz parte da frase.</p>' +
-      blocos +
+      blocosDoMolde(etapa, etapa.molde, d, usados) +
     '</div>';
 
     if (etapa.escolha && !usados['@escolha']) html += escolhaHtml(etapa.escolha, d);
 
-    /* Campos que não entram na frase (responsável, custo, prazo…) ficam
-       separados: misturá-los ao molde faria a frase parecer maior do que é. */
+    /* Blocos guiados que não entram na frase da etapa, mas também são
+       frases (hoje: a próxima hipótese). */
+    (etapa.grupos || []).forEach(function (g) {
+      var blocos = blocosDoMolde(etapa, g.molde, d, usados);
+      var vazio = !(g.molde || []).some(function (p) {
+        return typeof p !== 'string' && p.c && String(d[p.c] || '').trim();
+      });
+      html += '<div class="aposta-grupo">' +
+        '<p class="aposta-grupo-rot">' + esc(g.rotulo) + '</p>' +
+        '<div class="aposta-molde aposta-molde--grupo">' + blocos + '</div>' +
+        (g.legado ? legadoHtml(g.legado, d, vazio) : '') +
+      '</div>';
+      if (g.legado) usados[g.legado] = 1;
+    });
+
+    /* Campos que não entram em frase nenhuma (responsável, custo, prazo…)
+       ficam separados: misturados ao molde, faziam a frase parecer maior
+       do que é. */
     var extras = (etapa.campos || []).filter(function (c) { return !usados[c.chave]; });
     if (extras.length) {
       html += '<div class="aposta-complementos">' +
         '<p class="aposta-complementos-rot">Complementos — combinados do grupo, não entram na frase</p>' +
-        extras.map(function (c) { return campoHtml(c, d[c.chave]); }).join('') +
+        extras.map(function (c) { return campoHtml(c, d[c.chave], d); }).join('') +
       '</div>';
     }
 
-    /* Execução antiga, escrita quando a etapa era um campo de texto só:
-       o texto continua guardado (input escondido) e fica à vista até as
-       lacunas serem preenchidas. Nada do que o grupo escreveu some. */
-    if (etapa.legado && String(d[etapa.legado] || '').trim()) {
-      html += '<input type="hidden" data-campo="' + esc(etapa.legado) + '" value="' + esc(d[etapa.legado]) + '" />';
-      if (!temLacunaPreenchida(etapa, d)) {
-        html += '<p class="aposta-legado">Você tinha escrito aqui: “' + esc(d[etapa.legado]) + '”. ' +
-          'Distribua nas lacunas acima — enquanto elas estiverem vazias, é esse texto que vai para o mapa.</p>';
-      }
+    if (etapa.legado && !usados[etapa.legado]) {
+      html += legadoHtml(etapa.legado, d, !temLacunaPreenchida(etapa, d));
     }
     return html;
   }
@@ -1112,9 +1265,15 @@
 
   /* ── Mudanças mensuráveis: várias por missão ── */
   function mudancasHtml(d) {
-    var itens = d.itens || [];
+    /* Começa com uma em branco. Antes, uma etapa sem nenhuma mudança
+       mostrava só um botão "+ OUTRA mudança mensurável" — outra que
+       quê? — e quem lia isso tinha de descobrir que era ali que se
+       começava. O botão continua, para a segunda em diante. */
+    var itens = (d.itens && d.itens.length) ? d.itens : [{}];
+    var podeRemover = itens.length > 1;
     return '<div class="aposta-mudancas">' +
       itens.map(function (m, i) {
+        var q = lerQuantidade({ chave: 'prazo', unidadePadrao: 'dias' }, m);
         return '<div class="aposta-mudanca" data-i="' + i + '">' +
           '<div class="aposta-mudanca-grade">' +
             '<label class="aposta-campo"><span class="aposta-campo-rot">Queremos</span>' +
@@ -1131,11 +1290,18 @@
               '<input type="text" class="aposta-campo-input" data-m="meta" value="' + esc(m.meta || '') + '" placeholder="700" /></label>' +
             '<label class="aposta-campo"><span class="aposta-campo-rot">Unidade</span>' +
               '<input type="text" class="aposta-campo-input" data-m="unidade" value="' + esc(m.unidade || '') + '" placeholder="por mês" /></label>' +
-            '<label class="aposta-campo"><span class="aposta-campo-rot">Prazo</span>' +
-              '<input type="text" class="aposta-campo-input" data-m="prazo" value="' + esc(m.prazo || '') + '" placeholder="90 dias" /></label>' +
+            '<label class="aposta-campo aposta-campo--qtd"><span class="aposta-campo-rot">Prazo</span>' +
+              '<span class="aposta-qtd">' +
+                '<input type="text" inputmode="numeric" data-mascara="numero" class="aposta-campo-input aposta-qtd-num" data-m="prazo" value="' + esc(q.num) + '" placeholder="90" />' +
+                '<select class="aposta-campo-input aposta-qtd-un" data-m="prazoUnidade" aria-label="Unidade do prazo">' +
+                  UNIDADES.map(function (u) {
+                    return '<option value="' + u + '"' + (q.un === u ? ' selected' : '') + '>' + u + '</option>';
+                  }).join('') +
+                '</select>' +
+              '</span></label>' +
           '</div>' +
           '<p class="aposta-mudanca-frase">' + htmlDaFrase(partesMudanca(m)) + '</p>' +
-          '<button type="button" class="aposta-mudanca-del" data-del="' + i + '">Remover</button>' +
+          (podeRemover ? '<button type="button" class="aposta-mudanca-del" data-del="' + i + '">Remover</button>' : '') +
         '</div>';
       }).join('') +
       '<button type="button" class="btn btn--sm" id="apostaAddMudanca">+ Outra mudança mensurável</button>' +
@@ -1152,7 +1318,15 @@
         _tela.querySelectorAll('.aposta-mudanca').forEach(function (bloco) {
           var m = {};
           bloco.querySelectorAll('[data-m]').forEach(function (el) { m[el.dataset.m] = el.value; });
-          d.itens.push(m);
+          /* A primeira mudança já aparece na tela em branco, para ninguém
+             precisar descobrir um botão antes de começar a escrever. Um
+             bloco em que só as listas (direção e unidade de tempo) têm
+             valor não é uma mudança: contá-lo daria a etapa por
+             preenchida sem ninguém ter escrito nada. */
+          var escreveu = ['indicador', 'atual', 'meta', 'unidade', 'prazo'].some(function (k) {
+            return normalizar(m[k]);
+          });
+          if (escreveu) d.itens.push(m);
         });
       } else {
         _tela.querySelectorAll('[data-campo]').forEach(function (el) { d[el.dataset.campo] = el.value; });
@@ -1231,8 +1405,8 @@
     }
 
     _tela.querySelectorAll('.aposta-campo-input').forEach(function (el) {
-      el.addEventListener('input', salvarDepois);
-      el.addEventListener('change', salvarDepois);
+      el.addEventListener('input', function () { aplicarMascara(el); salvarDepois(); });
+      el.addEventListener('change', function () { aplicarMascara(el); salvarDepois(); });
     });
 
     _tela.querySelectorAll('.aposta-opcao').forEach(function (b) {
@@ -1247,16 +1421,24 @@
     var add = document.getElementById('apostaAddMudanca');
     if (add) {
       add.addEventListener('click', function () {
+        /* Só desenha o bloco novo: gravar um item vazio daria a etapa por
+           preenchida sem ninguém ter escrito nada. O que estava digitado
+           vai junto, porque vem de coletar(). */
         var d = coletar();
         d.itens.push({ direcao: 'Reduzir' });
         _dados[etapa.id] = d;
-        salvarEtapa(etapa.id, d, true);
+        render();
       });
     }
+    /* Remover age sobre o BLOCO da tela, não sobre o índice do que foi
+       gravado: com um bloco em branco no meio, os dois deixam de
+       corresponder e o clique apagaria a mudança errada. */
     _tela.querySelectorAll('[data-del]').forEach(function (b) {
       b.addEventListener('click', function () {
+        var blocos = Array.prototype.slice.call(_tela.querySelectorAll('.aposta-mudanca'));
+        var alvo = blocos[Number(b.dataset.del)];
+        if (alvo && alvo.parentNode) alvo.parentNode.removeChild(alvo);
         var d = coletar();
-        d.itens.splice(Number(b.dataset.del), 1);
         _dados[etapa.id] = d;
         salvarEtapa(etapa.id, d, true);
       });
