@@ -547,12 +547,20 @@ const textoDaTela = (page) => page.evaluate(() => {
             anota('o custo estimado sai formatado como moeda', /^R\$\s?2\.500,00$/.test(custo), 'ficou "' + custo + '"');
           }
           if (i === 9) {
-            /* DECISÃO: datas com ano, e a próxima hipótese guiada igual à
-               etapa da hipótese — é uma hipótese, não um campo em branco. */
+            /* DECISÃO: a data de reavaliação é um DIA marcado no calendário
+               (sai com ano); "Prazo" é DURAÇÃO ("em quanto tempo"), não uma
+               data — as execuções antigas guardavam "10 dias", não uma data
+               absoluta. */
             await page.fill('[data-campo="reavaliacao"]', '31122026');
             await page.waitForTimeout(250);
             const data = await page.evaluate(() => (document.querySelector('[data-campo="reavaliacao"]') || {}).value || '');
             anota('a data de reavaliação sai com dia, mês e ano', data === '31/12/2026', 'ficou "' + data + '"');
+
+            await page.fill('[data-campo="prazo"]', '10');
+            await page.selectOption('[data-campo="prazoUnidade"]', 'dias');
+            await page.waitForTimeout(250);
+            const prazoDecisao = await page.evaluate(() => (document.querySelector('[data-campo="prazo"]') || {}).value || '');
+            anota('o prazo da decisão é número + unidade, não uma data', prazoDecisao === '10', 'ficou "' + prazoDecisao + '"');
 
             const grupo = await page.evaluate(() => {
               const g = document.querySelector('.aposta-grupo');

@@ -260,7 +260,12 @@
       campos: [
         { chave: 'proximaAcao', tipo: 'textarea', rotulo: 'Próxima ação', curto: 'a próxima ação', placeholder: 'ajustar a comunicação e repetir o teste com um grupo maior' },
         { chave: 'responsavel', tipo: 'input', rotulo: 'Responsável', placeholder: 'nome' },
-        { chave: 'prazo', tipo: 'data', rotulo: 'Prazo (até quando)', placeholder: 'dd/mm/aaaa' },
+        /* "Prazo" aqui é DURAÇÃO ("em quanto tempo"), não uma data — o
+           que as próprias execuções antigas mostravam era "10 dias", não
+           "30/10/2026". Data de reavaliação é o outro caso: um DIA
+           marcado no calendário para reencontrar o grupo, esse sim fica
+           bem como data. */
+        { chave: 'prazo', tipo: 'quantidade', rotulo: 'Prazo', curto: 'o prazo', placeholder: '10', unidadePadrao: 'dias' },
         { chave: 'reavaliacao', tipo: 'data', rotulo: 'Data de reavaliação', placeholder: 'dd/mm/aaaa' },
         /* A próxima hipótese é uma hipótese: ganha o mesmo apoio de
            preenchimento da etapa 5, senão volta a ser um campo em branco
