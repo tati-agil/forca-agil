@@ -438,17 +438,44 @@
     db().ref('turmas').once('value', function (snapT) {
       var turmas = snapT.val() || {};
       var habilitadas = Object.keys(turmas).filter(function (tk) { return !!turmas[tk].apostaHabilitada; });
-      if (!habilitadas.length) { cb([]); return; }
 
       function montar(keys) {
         cb(keys.map(function (tk) {
-          return { key: tk, label: turmas[tk].label || tk, eventoKey: turmas[tk].eventoKey || '' };
+          return {
+            key: tk,
+            label: turmas[tk].label || tk,
+            eventoKey: turmas[tk].eventoKey || '',
+            habilitada: !!turmas[tk].apostaHabilitada
+          };
         }));
       }
-      /* Admin revisa antes de liberar: vê todas as turmas habilitadas
-         sem precisar estar inscrita em nenhuma. */
-      if (souAdmin() || souFacilitadora()) { montar(habilitadas); return; }
 
+      /* Quem conduz precisa ENSAIAR antes de liberar, e liberar é um ato
+         público: a dinâmica passa a aparecer para todas as pessoas
+         confirmadas naquela turma. Se a única forma de ver a tela fosse
+         liberando, o ensaio da facilitadora estrearia na frente da turma
+         — e voltar atrás depois já teria sido visto.
+
+         Por isso admin e facilitadora enxergam TODAS as turmas, liberadas
+         ou não; a turma ainda não liberada vem marcada, e o convite diz
+         que só a facilitação a está vendo. É a mesma regra que a Avaliação
+         já segue (admin vê a aba independente do flag, para revisar antes
+         e depois de liberar) — a alternativa seria um terceiro critério
+         para a mesma pergunta. Liberadas primeiro, que é o caso do dia
+         da oficina. */
+      if (souAdmin() || souFacilitadora()) {
+        var todas = Object.keys(turmas).sort(function (a, b) {
+          var ha = !!turmas[a].apostaHabilitada, hb = !!turmas[b].apostaHabilitada;
+          if (ha !== hb) return ha ? -1 : 1;
+          return String(turmas[a].label || a).localeCompare(String(turmas[b].label || b), 'pt-BR');
+        });
+        montar(todas);
+        return;
+      }
+
+      /* Para o resto do site, as duas exigências valem juntas: turma
+         liberada E pessoa confirmada nela. */
+      if (!habilitadas.length) { cb([]); return; }
       db().ref('turmas-interesse').once('value', function (snapI) {
         var interesse = snapI.val() || {};
         var minhas = habilitadas.filter(function (tk) {
@@ -471,29 +498,48 @@
     turmasElegiveis(function (turmas) {
       if (!turmas.length) { host.hidden = true; return; }
       host.hidden = false;
+
+      /* O aviso de ensaio muda com a turma escolhida, então é redesenhado
+         a cada troca do select: dizer "só você está vendo" sobre uma turma
+         que JÁ foi liberada seria pior que não dizer nada. */
+      function avisoDe(t) {
+        return t && t.habilitada ? '' :
+          '<p class="aposta-convite-ensaio">Esta turma ainda não foi liberada: só você e a facilitação estão vendo a dinâmica. ' +
+          'Para abrir à turma, use "🎯 Liberar Construção da Aposta" no menu ⋯ dela, no painel.</p>';
+      }
+
       host.innerHTML =
         '<div class="aposta-convite">' +
           '<div class="aposta-convite-txt">' +
             '<span class="eyebrow">Dinâmica</span>' +
             '<h2>Construção da Aposta</h2>' +
             '<p>Da missão até uma decisão baseada em evidência, uma etapa por vez.</p>' +
+            '<div id="apostaConviteAviso">' + avisoDe(turmas[0]) + '</div>' +
           '</div>' +
           '<div class="aposta-convite-acao">' +
             (turmas.length > 1
               ? '<select id="apostaTurmaSel" class="aposta-select">' +
-                  turmas.map(function (t) { return '<option value="' + esc(t.key) + '">' + esc(t.label) + '</option>'; }).join('') +
+                  turmas.map(function (t) {
+                    return '<option value="' + esc(t.key) + '">' + esc(t.label) +
+                      (t.habilitada ? '' : ' · ensaio') + '</option>';
+                  }).join('') +
                 '</select>'
               : '<span class="aposta-convite-turma">' + esc(turmas[0].label) + '</span>') +
             '<button class="btn btn--primary" id="apostaAbrirBtn">Abrir dinâmica</button>' +
           '</div>' +
         '</div>';
 
-      document.getElementById('apostaAbrirBtn').addEventListener('click', function () {
+      function escolhida() {
         var sel = document.getElementById('apostaTurmaSel');
-        var escolhida = sel
-          ? turmas.filter(function (t) { return t.key === sel.value; })[0]
-          : turmas[0];
-        abrirDinamica(escolhida);
+        return sel ? turmas.filter(function (t) { return t.key === sel.value; })[0] : turmas[0];
+      }
+      var sel = document.getElementById('apostaTurmaSel');
+      if (sel) sel.addEventListener('change', function () {
+        document.getElementById('apostaConviteAviso').innerHTML = avisoDe(escolhida());
+      });
+
+      document.getElementById('apostaAbrirBtn').addEventListener('click', function () {
+        abrirDinamica(escolhida());
       });
     });
   }
