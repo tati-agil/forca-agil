@@ -6857,7 +6857,9 @@
         nomeParticipante:   participant.name || '',
         nomeEvento:         _evento ? (_evento.nome || '') : '',
         identificacaoTurma: turma.label,
-        periodoTurma:       turma.dates || '',
+        /* Por extenso, não o texto do site: ver periodoCertificado. */
+        periodoTurma:       (window.faTurmasUtil && window.faTurmasUtil.periodoCertificado
+                              ? window.faTurmasUtil.periodoCertificado(turma.dias) : '') || turma.dates || '',
         cargaHoraria:       _evento ? (_evento.cargaHoraria || '20') : '20',
         dataEmissao:        fmtData(_dataConclusao)
       };

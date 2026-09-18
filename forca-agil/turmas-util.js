@@ -55,6 +55,32 @@
     return { mes: mesTitulo, dates: grupos.join(' · ') };
   }
 
+  /* Período como ele tem de aparecer NO CERTIFICADO: uma data que se
+     explica sozinha. No site o texto sai sem mês porque o mês está no
+     rótulo ao lado ("Encontros: 16"); no certificado ele fica sozinho
+     numa linha comprida, ao lado de um ícone de calendário, e um número
+     solto não lê como data de curso — visto num certificado de turma de
+     um dia só. Vale de 1 a 5 dias, no mesmo mês ou não. */
+  function periodoCertificado(dias) {
+    var list = (dias || []).filter(Boolean).slice().sort();
+    if (!list.length) return '';
+    var grupos = [];
+    list.map(parseISO).forEach(function (p) {
+      var ultimo = grupos[grupos.length - 1];
+      if (ultimo && ultimo.m === p.m && ultimo.y === p.y) { ultimo.d.push(p.d); return; }
+      grupos.push({ m: p.m, y: p.y, d: [p.d] });
+    });
+    /* O ano aparece uma vez só, no fim — a não ser que a turma atravesse
+       a virada do ano, quando cada trecho precisa do seu. */
+    var variosAnos = grupos.some(function (g) { return g.y !== grupos[0].y; });
+    var textos = grupos.map(function (g, i) {
+      var base = joinDias(g.d) + ' de ' + (MESES[g.m - 1] || '');
+      return (variosAnos || i === grupos.length - 1) ? base + ' de ' + g.y : base;
+    });
+    if (textos.length === 1) return textos[0];
+    return textos.slice(0, -1).join(', ') + ' e ' + textos[textos.length - 1];
+  }
+
   /* "2026-08-11" -> "11/08/2026" (uso em selects/tabelas do admin) */
   function formatISOBr(iso) {
     var p = parseISO(iso);
@@ -167,7 +193,7 @@
   }
 
   window.faTurmasUtil = {
-    formatDias: formatDias, formatISOBr: formatISOBr, formatHorario: formatHorario, MESES: MESES,
+    formatDias: formatDias, periodoCertificado: periodoCertificado, formatISOBr: formatISOBr, formatHorario: formatHorario, MESES: MESES,
     ORIGEM_DIRETA: ORIGEM_DIRETA, ehOrigemDireta: ehOrigemDireta,
     esperaEntradas: esperaEntradas, esperaAtivas: esperaAtivas, esperaNaFila: esperaNaFila,
     listarPessoasVerComo: listarPessoasVerComo

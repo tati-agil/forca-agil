@@ -562,7 +562,9 @@
         nomeParticipante:   nome,
         nomeEvento:         (t.evento && t.evento.nome) || '',
         identificacaoTurma: t.label,
-        periodoTurma:       t.datas,
+        /* Por extenso, não o texto do site: ver periodoCertificado. */
+        periodoTurma:       (window.faTurmasUtil && window.faTurmasUtil.periodoCertificado
+                              ? window.faTurmasUtil.periodoCertificado(t.dias) : '') || t.datas,
         cargaHoraria:       (t.evento && t.evento.cargaHoraria) || '20',
         dataEmissao:        fmtDataLonga(t.dataConclusao),
       };

@@ -807,6 +807,33 @@
           var data  = window.faCertif.medirCampo('27 de agosto de 2026', C.dataEmissao);
           return carga.texto === '20h' && data.texto === 'Emitido em 27 de agosto de 2026';
         } },
+        { id: 'c-cert-carga-fracionada', label: 'Carga com fração sai "3,5h" (vírgula) e sem o vão do monoespaçado', run: function () {
+          if (!window.faCertif) return false;
+          var C = window.faCertif.CFG;
+          var meia  = window.faCertif.medirCampo('3.5', C.cargaHoraria);
+          var cheia = window.faCertif.medirCampo('20', C.cargaHoraria);
+          /* Três caracteres desenhados (3 , 5 h = 4) não podem ocupar o
+             equivalente a 4 células inteiras do monoespaçado: é o vão que
+             fazia a carga aparecer como "3 . 5 h". */
+          return meia.texto === '3,5h' && meia.largura < (cheia.largura / 3) * 4 &&
+                 meia.size === C.cargaHoraria.size;
+        } },
+        { id: 'c-cert-periodo-extenso', label: 'Período do certificado sai por extenso e cabe (de 1 a 5 dias)', run: function () {
+          if (!window.faCertif || !window.faTurmasUtil || !window.faTurmasUtil.periodoCertificado) return false;
+          var C = window.faCertif.CFG, m = window.faCertif.medirCampo, P = window.faTurmasUtil.periodoCertificado;
+          var um = P(['2026-09-16']);
+          var cinco = P(['2026-08-11', '2026-08-12', '2026-08-18', '2026-08-19', '2026-08-20']);
+          var virada = P(['2026-12-30', '2027-01-02']);
+          /* Um dia só é o caso que motivou a mudança: "16" sozinho, ao lado
+             do calendário, não lia como data de curso. */
+          return um === '16 de setembro de 2026' &&
+                 cinco === '11, 12, 18, 19 e 20 de agosto de 2026' &&
+                 /2026 e 2 de janeiro de 2027$/.test(virada) &&
+                 [um, cinco, virada].every(function (t) {
+                   var r = m(t, C.periodoTurma);
+                   return r.largura <= C.periodoTurma.maxWidth && r.size >= C.periodoTurma.minSize;
+                 });
+        } },
         { id: 'c-cert-curto-sem-reducao', label: 'Cenário curto (ANA LIMA / SCRUM / 8h): nenhum campo é reduzido à toa', run: function () {
           if (!window.faCertif) return false;
           var C = window.faCertif.CFG, m = window.faCertif.medirCampo;
