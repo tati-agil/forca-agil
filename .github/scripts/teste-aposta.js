@@ -911,6 +911,25 @@ const textoDaTela = (page) => page.evaluate(() => {
         anota('o valor inicial pode ser editado normalmente',
           editado === 'outra coisa que o grupo decidiu escrever', 'ficou "' + editado + '"');
 
+        /* "por meio de" + "do envio…" lia "por meio de do envio…" — duas
+           preposições coladas. Relatado no uso real. */
+        await pgP.fill('#ap-podemos', 'do envio de mensagem manual sobre o andamento');
+        await pgP.waitForTimeout(300);
+        const fraseSemDeDuplo = await pgP.evaluate(() =>
+          ((document.getElementById('apostaFrase') || {}).textContent || '').replace(/\s+/g, ' '));
+        anota('"de" + "do" não vira "de do" quando a resposta já começa com a preposição',
+          /por meio do envio de mensagem/.test(fraseSemDeDuplo) && !/por meio de do/.test(fraseSemDeDuplo),
+          fraseSemDeDuplo.slice(0, 160));
+
+        /* E quando a resposta NÃO começa com "de"/"do", o "de" fixo continua
+           — não é para sumir sempre, só quando bateria de frente. */
+        await pgP.fill('#ap-podemos', 'uma mensagem manual com a etapa atual');
+        await pgP.waitForTimeout(300);
+        const fraseComDe = await pgP.evaluate(() =>
+          ((document.getElementById('apostaFrase') || {}).textContent || '').replace(/\s+/g, ' '));
+        anota('o "de" continua quando a resposta não começa com preposição',
+          /por meio de uma mensagem manual/.test(fraseComDe), fraseComDe.slice(0, 160));
+
         await ctxP.close();
       }
 

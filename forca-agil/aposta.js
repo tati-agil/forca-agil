@@ -557,6 +557,11 @@
         ? { tipo: 'valor', txt: val, chave: p.c }
         : { tipo: 'vazio', rotulo: rotuloCurto(campo, p.c), chave: p.c, opcional: !!(campo && campo.opcional) });
     });
+    for (var i = 0; i < out.length - 1; i++) {
+      if (out[i].tipo === 'fixo' && out[i + 1].tipo === 'valor') {
+        out[i].txt = semPreposicaoDupla(out[i].txt, out[i + 1].txt);
+      }
+    }
     return out;
   }
 
@@ -1206,6 +1211,18 @@
     return t && !/^[.…—–-]+$/.test(t) ? t : '';
   }
 
+  /* "por meio de" + "do envio..." lida "por meio de do envio..." — duas
+     preposições coladas. Relatado no uso real. Quando o que foi escrito
+     já começa com a preposição contraída com artigo (do/da/dos/das) ou
+     repete "de", o "de" solto no fim do texto fixo sai de cena — sem
+     mexer no resto da frase, e só quando o choque existe de verdade. */
+  var PREP_CONTRAIDA = /^(de|do|da|dos|das)\b/i;
+  function semPreposicaoDupla(fixo, valorSeguinte) {
+    var v = String(valorSeguinte == null ? '' : valorSeguinte).trim();
+    if (!v || !/\bde$/i.test(fixo)) return fixo;
+    return PREP_CONTRAIDA.test(v) ? fixo.replace(/\s*de\s*$/i, '') : fixo;
+  }
+
   function lacunaHtml(etapa, p, d, usados, semRotulo) {
     if (p.escolha) { usados['@escolha'] = 1; return escolhaHtml(etapa.escolha, d, semRotulo); }
     var c = campoPorChave(etapa, p.c);
@@ -1240,6 +1257,7 @@
         if (!t) continue;
         var seguinte = partes[i + 1];
         if (seguinte && typeof seguinte !== 'string') {
+          if (!seguinte.escolha) t = semPreposicaoDupla(t, d[seguinte.c]);
           out.push('<div class="aposta-par' + classeDoPar(etapa, seguinte) + '">' +
             '<span class="aposta-molde-fixo">' + esc(t) + '</span>' +
             lacunaHtml(etapa, seguinte, d, usados, true) +
