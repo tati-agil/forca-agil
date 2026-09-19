@@ -791,6 +791,23 @@ const textoDaTela = (page) => page.evaluate(() => {
       anota('o que foi escrito numa execução antiga continua no mapa',
         /Melhorar a experiência do participante em 90 dias/.test(rev), rev.slice(0, 160));
 
+      /* ── 6b: o painel do facilitador precisa dizer, com a própria revelação
+            já feita, que ela vale pros grupos todos e onde ver o resultado —
+            relatado no uso real: "isso só faz sentido dentro de cada grupo e
+            não nesta tela. eu não entendi". Sem aviso nenhum, o botão do
+            painel parecia não fazer nada (o efeito só aparece no Mapa). ── */
+      await adm.click('#apostaPainelBtn');
+      await adm.waitForSelector('#apostaToggleRevelar', { timeout: 15000 });
+      const painelRevelado = await adm.evaluate(() => ({
+        rotuloBotao: (document.getElementById('apostaToggleRevelar') || {}).textContent || '',
+        aviso: (document.getElementById('apostaToggleRevelar') || { previousElementSibling: {} }).previousElementSibling.textContent || '',
+      }));
+      anota('o painel, já revelado, diz que vale para os grupos todos e onde ver',
+        /Esconder de novo/.test(painelRevelado.rotuloBotao) &&
+        /vale para os 3 grupos/.test(painelRevelado.aviso) && /Mapa da Aposta/.test(painelRevelado.aviso),
+        JSON.stringify(painelRevelado));
+      await adm.click('#apostaFecharPainel');
+
       /* ── 7: o que foi escrito ficou gravado no caminho certo ── */
       const gravou = await page.evaluate(() => {
         const e = (window.__ESCRITAS || []).filter((x) => /^apostas\//.test(x.path));
