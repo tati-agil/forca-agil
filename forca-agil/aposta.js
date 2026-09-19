@@ -745,11 +745,20 @@
       return partesA;
     }
 
-    /* Aumentar / Reduzir / uma direção livre digitada por cima. */
+    /* Aumentar / Reduzir / uma direção livre digitada por cima. Unidade e
+       período de medição qualificam TANTO a situação atual quanto a meta
+       — são a mesma referência de medição para os dois números, não só
+       do último. "de 1.000 contatos por semana para 700 contatos por
+       semana" deixa isso explícito; grudar o sufixo só depois da meta
+       ("de 1.000 para 700 contatos por semana") lia como se unidade e
+       período fossem só da meta — relatado no pedido de ajuste. */
+    var sufixoUP = unidadePeriodoTxt();
     function numeroComUnidade(chave, rotulo) {
       var val = String(m[chave] == null ? '' : m[chave]).trim();
       if (!val) return { tipo: 'vazio', rotulo: rotulo, chave: chave };
-      return { tipo: 'valor', txt: comSufixo(val), chave: chave };
+      var txt = comSufixo(val);
+      if (sufixoUP) txt += ' ' + sufixoUP;
+      return { tipo: 'valor', txt: txt, chave: chave };
     }
     var partes = [
       { tipo: 'valor', txt: direcao, chave: 'direcao' },
@@ -757,17 +766,11 @@
       { tipo: 'fixo', txt: 'de' },
       numeroComUnidade('atual', 'a situação atual'),
       { tipo: 'fixo', txt: 'para' },
-      numeroComUnidade('meta', 'a meta')
+      numeroComUnidade('meta', 'a meta'),
+      { tipo: 'fixo', txt: 'em' },
+      prazo ? { tipo: 'valor', txt: prazo, chave: 'prazo' } : { tipo: 'vazio', rotulo: 'o prazo', chave: 'prazo' },
+      { tipo: 'fixo', txt: '.' }
     ];
-    if (!ehPercentual) {
-      partes.push(mig.unidade
-        ? { tipo: 'valor', txt: mig.unidade, chave: 'unidade' }
-        : { tipo: 'vazio', rotulo: 'a unidade', chave: 'unidade', opcional: true });
-    }
-    if (periodoAplica) partes.push({ tipo: 'valor', txt: mig.periodo, chave: 'periodo' });
-    partes.push({ tipo: 'fixo', txt: 'em' });
-    partes.push(prazo ? { tipo: 'valor', txt: prazo, chave: 'prazo' } : { tipo: 'vazio', rotulo: 'o prazo', chave: 'prazo' });
-    partes.push({ tipo: 'fixo', txt: '.' });
     return partes;
   }
   function fraseMudanca(m) {
@@ -790,6 +793,32 @@
       'A meta informada é ' + (sugestao === 'Reduzir' ? 'menor' : 'maior') + ' que a situação atual. Você quis selecionar “' + sugestao + '”? ' +
       '<button type="button" class="btn btn--sm" data-corrigir="' + esc(sugestao) + '">Usar "' + esc(sugestao) + '"</button>' +
     '</p>';
+  }
+
+  /* Diferente de alertaConsistenciaMudanca (um convite a corrigir, com
+     botão, que não impede seguir) e das avisos didáticas de validar()
+     (nunca bloqueiam nesta dinâmica): "Reduzir" com meta igual ou maior
+     que a situação atual, ou "Aumentar" com meta igual ou menor, não é
+     uma mudança mensurável coerente — não uma questão de estilo, é a
+     direção contradizendo os próprios números. Só entra em jogo com
+     Aumentar/Reduzir e os dois valores numéricos (Manter/Atingir e uma
+     direção livre digitada por cima não têm essa relação obrigatória —
+     ver seção 8 do pedido). CONTINUAR fica bloqueado enquanto isso não
+     for corrigido, sem escape por segundo clique. */
+  function errosMudancas(dados) {
+    var erros = [];
+    (dados.itens || []).forEach(function (m) {
+      var direcao = String((m || {}).direcao || '').trim();
+      if (direcao !== 'Aumentar' && direcao !== 'Reduzir') return;
+      var atual = paraNumero(m.atual), meta = paraNumero(m.meta);
+      if (atual == null || meta == null) return;
+      if (direcao === 'Reduzir' && !(meta < atual)) {
+        erros.push('Para reduzir, a meta desejada deve ser menor que a situação atual.');
+      } else if (direcao === 'Aumentar' && !(meta > atual)) {
+        erros.push('Para aumentar, a meta desejada deve ser maior que a situação atual.');
+      }
+    });
+    return erros;
   }
 
   /* ── Rastreabilidade: Experimento escolhe quais Mudanças mensuráveis
@@ -2509,6 +2538,25 @@
     document.getElementById('apostaSeguir').addEventListener('click', function () {
       var seguirBtn = this;
       var d = coletar();
+
+      /* Só em Mudanças mensuráveis: "Reduzir" com meta ≥ situação atual
+         (ou "Aumentar" com meta ≤ situação atual) não é uma mudança
+         coerente — a direção contradiz os próprios números. Diferente
+         das avisos didáticas logo abaixo, isso BLOQUEIA de verdade,
+         sem escape por segundo clique: nenhum outro comportamento desta
+         dinâmica muda, só esta etapa passa a exigir os números coerentes
+         com a direção escolhida antes de deixar seguir. */
+      if (etapa.id === 'mudancas') {
+        var errosCoerencia = errosMudancas(d);
+        if (errosCoerencia.length) {
+          avisosEl.innerHTML = errosCoerencia.map(function (e) {
+            return '<p class="aposta-aviso-didatico">' + esc(e) + '</p>';
+          }).join('');
+          avisosEl.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+          return;
+        }
+      }
+
       var avisos = validar(etapa.id, d);
       /* Não bloqueia: mostra o convite a reler e só avança no
          segundo clique, para o aviso ter tempo de ser lido. Isso é sobre
