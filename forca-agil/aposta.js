@@ -103,7 +103,11 @@
         { chave: 'verbo', tipo: 'input', rotulo: 'Verbo de mudança', curto: 'o verbo', placeholder: 'Melhorar' },
         { chave: 'oQue', tipo: 'input', rotulo: 'O que queremos melhorar', curto: 'o que queremos melhorar', placeholder: 'a experiência do participante' },
         { chave: 'contexto', tipo: 'input', rotulo: 'Para quem / em qual contexto', curto: 'para quem ou em qual contexto', placeholder: 'durante a concessão do benefício' },
-        { chave: 'prazo', tipo: 'quantidade', rotulo: 'Prazo', curto: 'o prazo', placeholder: '90', unidadePadrao: 'dias' }
+        /* "em" é a palavra que faz parte da FRASE ("…em 90 dias.") — o
+           rótulo mostrado colado à lacuna é outra coisa, e "em" sozinho
+           não dizia o que preencher ali. `rotuloMolde` troca só o que
+           aparece na tela, sem mudar a palavra que vai para o mapa. */
+        { chave: 'prazo', tipo: 'quantidade', rotulo: 'Prazo', rotuloMolde: 'Prazo', curto: 'o prazo', placeholder: '90', unidadePadrao: 'dias' }
       ],
       molde: [{ c: 'verbo' }, { c: 'oQue' }, { c: 'contexto' }, 'em', { c: 'prazo' }, '.']
     },
@@ -112,9 +116,12 @@
       titulo: 'SINTOMA',
       curto: 'Sintoma',
       pergunta: 'O que vemos hoje?',
-      auxiliar: 'Comece pelo que é possível observar na realidade. Ainda não tente explicar por que isso acontece.',
-      exemplo: 'Hoje observamos que muitos participantes entram em contato para saber em que etapa está a concessão.',
-      dica: 'Sintoma = o que estamos vendo acontecer. Se duas pessoas olhassem para a mesma realidade, as duas veriam isso.',
+      auxiliar: 'Descreva um fato, sinal ou comportamento que pode ser observado na realidade. Ainda não tente explicar a causa nem propor uma solução.',
+      exemplo: 'Hoje observamos que muitos participantes entram em contato para saber como está o processo de concessão do benefício.',
+      rodape: 'Sintoma mostra o que vemos. O problema será definido na próxima etapa.',
+      dica: 'Sintoma é um sinal observável de que algo pode não estar funcionando como desejado. Ele descreve o que está acontecendo na realidade, sem explicar ainda por que isso acontece.\n\n' +
+        'Bom exemplo: “Muitos participantes entram em contato para perguntar sobre o andamento da concessão.”\n\n' +
+        'Não é um bom sintoma: “A comunicação é ruim” — isso já é uma interpretação. Nesta etapa, prefira registrar aquilo que pode ser observado.',
       campos: [
         { chave: 'texto', tipo: 'textarea', rotulo: 'O fato observável', curto: 'o que observamos', placeholder: 'muitos participantes entram em contato para saber em que etapa está a concessão' }
       ],
@@ -125,21 +132,16 @@
       titulo: 'P — PROBLEMA',
       curto: 'Problema',
       pergunta: 'Que problema esse sintoma está revelando?',
-      auxiliar: 'Agora transforme o sintoma observado na situação indesejada que ele revela.',
-      exemplo: 'Os participantes não conseguem acompanhar o andamento da concessão com autonomia, evidenciado pelos frequentes contatos para saber em que etapa está o processo.',
+      auxiliar: 'Transforme o sintoma observado na situação indesejada vivida por quem é afetado. Ainda não tente explicar por que isso acontece.',
+      exemplo: 'O participante não consegue acompanhar com clareza e autonomia o andamento do seu processo de concessão de benefício.',
       dica: 'Sintoma = o que vemos. Problema = a situação indesejada que esse sintoma revela.',
+      rodape: 'O sintoma mostra o que estamos observando. O problema descreve a situação indesejada que esse sinal pode estar revelando. A causa será explorada na etapa Hipótese.',
       dependeDe: 'sintoma',
       campos: [
-        { chave: 'quem', tipo: 'input', rotulo: 'Quem é afetado', curto: 'quem é afetado', placeholder: 'Os participantes' },
-        /* A concordância é de quem escreve: "O participante não consegue" e
-           "Os participantes não conseguem" são as duas corretas, e o site não
-           tem como adivinhar qual. Fixar uma delas fazia o mapa sair com o
-           verbo errado — dois cliques resolvem sem pedir para digitar. */
-        { chave: 'verbo', tipo: 'variantes', rotulo: 'Verbo', opcoes: ['não consegue', 'não conseguem'] },
-        { chave: 'naoConsegue', tipo: 'input', rotulo: 'O quê', curto: 'o que não consegue', placeholder: 'acompanhar o andamento com autonomia' },
-        { chave: 'evidenciadoPor', tipo: 'textarea', rotulo: 'O que evidencia isso', curto: 'o que evidencia isso', placeholder: 'contatos frequentes para saber a etapa' }
+        { chave: 'quem', tipo: 'input', rotulo: 'Quem é afetado', curto: 'quem é afetado', placeholder: 'O participante', dica: 'Quem vive diretamente essa situação indesejada?' },
+        { chave: 'situacaoIndesejada', tipo: 'textarea', rotulo: 'Situação indesejada', curto: 'a situação indesejada', placeholder: 'não consegue acompanhar com clareza e autonomia o andamento do seu processo de concessão de benefício', dica: 'Descreva o que essa pessoa ou grupo não consegue fazer, vivencia ou enfrenta. Não explique ainda a causa.' }
       ],
-      molde: [{ c: 'quem' }, { c: 'verbo' }, { c: 'naoConsegue' }, ', evidenciado por', { c: 'evidenciadoPor' }, '.']
+      molde: [{ c: 'quem' }, { c: 'situacaoIndesejada' }, '.']
     },
     {
       id: 'mudancas',
@@ -172,14 +174,14 @@
       titulo: 'IDEIA DE SOLUÇÃO',
       curto: 'Ideia de solução',
       pergunta: 'O que poderíamos fazer a respeito?',
-      exemplo: 'Poderíamos dar ao participante mais visibilidade sobre o andamento da concessão, para que ele consiga se orientar com mais autonomia.',
-      rodape: 'A hipótese diz o que acreditamos estar acontecendo. A ideia de solução diz o que imaginamos que podemos fazer a respeito.',
+      exemplo: 'Poderíamos disponibilizar no portal de autoatendimento o status do processo de concessão de benefício para que o participante consiga acompanhar o andamento sem precisar entrar em contato.',
+      rodape: 'A hipótese diz o que acreditamos estar acontecendo. A ideia de solução diz o que imaginamos que podemos fazer a respeito. A ideia ainda é uma possibilidade — na próxima etapa, ela será transformada em um experimento.',
       dica: 'Ainda não é hora de decidir tecnologia. O que importa é a mudança que a ideia pretende provocar.',
       dependeDe: 'hipotese',
       legado: 'texto',
       campos: [
-        { chave: 'acao', tipo: 'textarea', rotulo: 'Ação ou abordagem', curto: 'a ação', placeholder: 'dar ao participante mais visibilidade sobre o andamento' },
-        { chave: 'mudanca', tipo: 'textarea', rotulo: 'Mudança que pretendemos provocar', curto: 'a mudança pretendida', placeholder: 'que ele consiga se orientar com mais autonomia' }
+        { chave: 'acao', tipo: 'textarea', rotulo: 'Ação ou abordagem', curto: 'a ação', placeholder: 'dar ao participante mais visibilidade sobre o andamento', dica: 'Descreva uma possível intervenção. Ainda não precisa explicar como ela será testada.' },
+        { chave: 'mudanca', tipo: 'textarea', rotulo: 'Mudança que pretendemos provocar', curto: 'a mudança pretendida', placeholder: 'que o participante consiga acompanhar o andamento sem precisar entrar em contato', dica: 'Que efeito esperamos que essa ideia provoque? Não repita aqui a meta numérica das Mudanças mensuráveis.' }
       ],
       molde: ['Poderíamos', { c: 'acao' }, 'para', { c: 'mudanca' }, '.']
     },
@@ -233,45 +235,63 @@
       titulo: 'D — DECISÃO',
       curto: 'Decisão',
       pergunta: 'O que fazemos com o que aprendemos?',
-      exemplo: 'Com base na evidência, vamos ajustar e testar novamente — ajustar a comunicação e repetir o teste com um grupo maior.',
+      exemplo: 'Com base nas evidências observadas, vamos ajustar e testar novamente. Próxima ação: revisar a mensagem de status e repetir o teste com 100 participantes.',
       dica: 'A decisão precisa nascer da evidência registrada — não da preferência de quem defende a ideia.',
       dependeDe: 'evidencia',
       escolha: {
         chave: 'decisao',
         rotulo: 'Decisão',
         curto: 'a decisão',
-        opcoes: ['Ampliar', 'Ajustar e testar novamente', 'Abandonar essa ideia', 'Formular nova hipótese', 'Investigar mais']
+        opcoes: ['Ampliar', 'Ajustar e testar novamente', 'Interromper esta ideia', 'Investigar mais', 'Reformular a hipótese'],
+        /* Só ajuda/tooltip — a interpretação não decide pela dupla, e o
+           bloco de evidência acima já não emite nenhum veredito
+           automático de "hipótese certa/errada" (ver cardConexao). */
+        dicas: {
+          'Ampliar': 'Há evidências suficientes para testar a ideia em uma escala maior ou incorporá-la progressivamente.',
+          'Ajustar e testar novamente': 'As evidências sugerem que vale modificar algum aspecto da ideia ou do experimento e realizar novo teste.',
+          'Interromper esta ideia': 'As evidências não justificam continuar investindo nesta solução neste momento.',
+          'Investigar mais': 'Ainda faltam informações para decidir. É necessário aprender mais antes de escolher o próximo caminho.',
+          'Reformular a hipótese': 'As evidências indicam que a explicação atual para o problema precisa ser revista.'
+        }
       },
       campos: [
-        { chave: 'proximaAcao', tipo: 'textarea', rotulo: 'Próxima ação', curto: 'a próxima ação', placeholder: 'ajustar a comunicação e repetir o teste com um grupo maior' },
-        { chave: 'responsavel', tipo: 'input', rotulo: 'Responsável', placeholder: 'nome' },
+        { chave: 'proximaAcao', tipo: 'textarea', rotulo: 'Próxima ação', curto: 'a próxima ação', placeholder: 'ajustar a comunicação e repetir o teste com um grupo maior', dica: 'O que faremos agora?' },
+        { chave: 'responsavel', tipo: 'input', rotulo: 'Responsável', placeholder: 'nome', dica: 'Quem será responsável por conduzir a próxima ação?' },
         /* "Prazo" aqui é DURAÇÃO ("em quanto tempo"), não uma data — o
            que as próprias execuções antigas mostravam era "10 dias", não
            "30/10/2026". Data de reavaliação é o outro caso: um DIA
            marcado no calendário para reencontrar o grupo, esse sim fica
            bem como data. */
-        { chave: 'prazo', tipo: 'quantidade', rotulo: 'Prazo', curto: 'o prazo', placeholder: '10', unidadePadrao: 'dias' },
-        { chave: 'reavaliacao', tipo: 'data', rotulo: 'Data de reavaliação', placeholder: 'dd/mm/aaaa' },
+        { chave: 'prazo', tipo: 'quantidade', rotulo: 'Prazo', curto: 'o prazo', placeholder: '10', unidadePadrao: 'dias', dica: 'Em quanto tempo a próxima ação deverá ser executada?' },
+        { chave: 'reavaliacao', tipo: 'data', rotulo: 'Data de reavaliação', placeholder: 'dd/mm/aaaa', dica: 'Quando o grupo voltará a avaliar essa decisão?' },
         /* A próxima hipótese é uma hipótese: ganha o mesmo apoio de
-           preenchimento da etapa 5, senão volta a ser um campo em branco
-           pedindo uma frase que a pessoa acabou de aprender a montar. */
+           preenchimento da etapa 5 — mesmo molde, mesmas duas lacunas —,
+           senão volta a ser um campo em branco pedindo uma frase que a
+           pessoa acabou de aprender a montar. O prefixo "proxHip" é só
+           para não sobrescrever o que ficou registrado na etapa
+           Hipótese: a hipótese original continua lá, intacta. */
         { chave: 'proxHipCausa', tipo: 'textarea', rotulo: 'Causa provável', placeholder: 'a mensagem não chega a quem está em análise' },
         { chave: 'proxHipIndicio', tipo: 'textarea', rotulo: 'Qual indício temos?', placeholder: 'os contatos caíram só no grupo que recebeu a mensagem' }
       ],
       /* O traço solto ("vamos ampliar — a comunicação com um grupo maior")
          não dizia que relação as duas partes têm. A decisão é uma coisa;
          o que se faz a seguir é outra, e agora a frase diz isso. */
-      molde: ['Com base na evidência, vamos', { escolha: true, baixa: true }, '. Próxima ação:', { c: 'proximaAcao' }, '.'],
+      molde: ['Com base nas evidências observadas, vamos', { escolha: true, baixa: true }, '. Próxima ação:', { c: 'proximaAcao' }, '.'],
+      /* A Nova Hipótese não aparece do mesmo jeito para toda decisão (ver
+         moldeHtml() e atualizarGruposPorEscolha()): "Ampliar" e
+         "Investigar mais" encerram ou adiam a pergunta, e o bloco fica
+         oculto; "Ajustar e testar novamente" e "Interromper esta ideia"
+         deixam a porta aberta, mas começam recolhidos — ninguém é
+         obrigado a reformular a hipótese por causa delas; só "Reformular
+         a hipótese" abre sozinho, porque é a única que PEDE uma
+         explicação nova agora. */
       grupos: [{
-        rotulo: 'Próxima hipótese — só quando a decisão pede uma explicação nova',
-        dica: 'As duas lacunas abaixo formam <b>uma frase só</b>: a hipótese do próximo ciclo. ' +
-          'O critério é a decisão que vocês acabaram de tomar — se ela recomeça a investigação ' +
-          '(<b>ajustar e testar novamente</b>, <b>formular nova hipótese</b> ou <b>investigar mais</b>), ' +
-          'o próximo ciclo precisa de uma explicação nova para testar. Se a decisão encerra a pergunta ' +
-          '(<b>ampliar</b> ou <b>abandonar essa ideia</b>), deixe em branco.',
-        /* A decisão escolhida decide se este bloco se aplica — dizer isso na
-           hora poupa o grupo de reler o critério e concluir sozinho. */
-        aplicaQuando: ['Ajustar e testar novamente', 'Formular nova hipótese', 'Investigar mais'],
+        id: 'apostaGrupoNovaHipotese',
+        rotulo: 'Nova hipótese',
+        resumoQuando: 'Reformular hipótese também',
+        dicaObrigatoria: 'A decisão "Reformular a hipótese" pede uma explicação nova para o próximo ciclo.',
+        escondeQuando: ['Ampliar', 'Investigar mais'],
+        abreAutoQuando: ['Reformular a hipótese'],
         dependeDaEscolha: 'decisao',
         legado: 'proximaHipotese',
         molde: ['Acreditamos que isso acontece porque', { c: 'proxHipCausa' }, ', pois', { c: 'proxHipIndicio' }, '.']
@@ -324,7 +344,7 @@
 
     if (etapaId === 'problema') {
       var sint = normalizar((_dados.sintoma || {}).texto);
-      var prob = normalizar([d.quem, d.naoConsegue, d.evidenciadoPor].join(' '));
+      var prob = normalizar([d.quem, d.situacaoIndesejada].join(' '));
       /* Repetição literal: o grupo copiou o sintoma e não transformou nada. */
       if (sint && prob.indexOf(sint) !== -1) {
         avisos.push('Isso repete o sintoma. Que situação indesejada esse sintoma revela?');
@@ -381,6 +401,14 @@
       var temEvidencia = itensEv.some(function (ev) { return normalizar(ev.observado) || ev.naoMedido === 'sim'; });
       if (!temEvidencia) {
         avisos.push('A decisão precisa se apoiar na evidência. Volte e registre o que realmente aconteceu no experimento.');
+      }
+      /* Não bloqueia — nenhum aviso aqui bloqueia. É o mesmo convite a
+         reler, só que agora específico da decisão escolhida. */
+      if (d.decisao === 'Reformular a hipótese' && !normalizar(d.proxHipCausa) && !normalizar(d.proxHipIndicio)) {
+        avisos.push('A decisão "Reformular a hipótese" pede uma nova hipótese: o que passa a explicar o problema agora?');
+      }
+      if (d.decisao && !normalizar(d.proximaAcao)) {
+        avisos.push('Toda decisão precisa de uma próxima ação: o que o grupo vai fazer agora?');
       }
     }
 
@@ -780,6 +808,36 @@
     if (direcao === 'Atingir') return 'atingir ' + comPercentual(m.meta || '—') + unidadeTxt;
     return comPercentual(atual) + ' → ' + comPercentual(m.meta || '—') + unidadeTxt + periodoTxt;
   }
+  /* Seta que resume a direção no bloco "Resultados que queremos
+     produzir" da Ideia de solução — Aumentar sobe, Reduzir desce,
+     Manter/Atingir são uma mira (não uma trajetória) e ficam com "→". */
+  function setaDirecaoMudanca(m) {
+    var direcao = String((m || {}).direcao || '').trim();
+    if (direcao === 'Aumentar') return '↑ ';
+    if (direcao === 'Reduzir') return '↓ ';
+    return '→ ';
+  }
+  /* Bloco somente-leitura entre a Hipótese e o título "Ideia de
+     solução": lembra ao grupo qual resultado a ideia pretende produzir,
+     antes de pensar na solução. Mesma lista/estilo do "Resultados que
+     vamos observar" do Experimento (reaproveita resumoCurtoMudanca) —
+     aqui sem seleção, sem checkbox, todas as mudanças mensuráveis já
+     cadastradas. */
+  function resultadosProduzirHtml() {
+    var todos = ((_dados.mudancas || {}).itens || []).filter(function (m) { return normalizar(m.indicador); });
+    if (!todos.length) return '';
+    return '<div class="aposta-resultados-observar">' +
+      '<span class="aposta-frase-rot">Resultados que queremos produzir</span>' +
+      '<ul class="aposta-resultados-observar-lista">' +
+        todos.map(function (m) {
+          return '<li data-resultado-id="' + esc(m.id || '') + '">' +
+            '<strong>' + esc(setaDirecaoMudanca(m) + m.indicador) + '</strong>' +
+            '<span>' + esc(resumoCurtoMudanca(m)) + '</span>' +
+          '</li>';
+        }).join('') +
+      '</ul>' +
+    '</div>';
+  }
   var FONTES_EVIDENCIA = ['Dados do sistema', 'Pesquisa com participantes', 'Registros de atendimento',
     'Observação do experimento', 'Entrevistas', 'Medição manual', 'Relatório', 'Outro'];
   /* O sufixo "contatos por mês" / "%" que acompanha os números, igual
@@ -864,6 +922,20 @@
 
   /* O que vai no card do mapa, no card de conexão e no CSV. Vazio
      quando o grupo ainda não escreveu nada naquela etapa. */
+  /* A "Nova hipótese" da Decisão usa o MESMO molde da etapa Hipótese —
+     só os nomes dos campos mudam (proxHipCausa/proxHipIndicio), para não
+     sobrescrever a hipótese original. Reaproveita partesDaFrase/
+     juntarPartes com um objeto-etapa avulso (campos de 'decisao', molde
+     do grupo), em vez de duplicar a montagem da frase. */
+  function novaHipoteseTexto(d) {
+    d = d || {};
+    if (!normalizar(d.proxHipCausa) && !normalizar(d.proxHipIndicio)) return '';
+    var etapaDecisao = etapaPorId('decisao');
+    var g = (etapaDecisao && etapaDecisao.grupos || [])[0];
+    if (!g) return '';
+    return juntarPartes(partesDaFrase({ campos: etapaDecisao.campos, molde: g.molde }, d), function (p) { return p.opcional ? '' : '—'; });
+  }
+
   function resumoEtapa(etapaId, dados) {
     var d = (dados || {})[etapaId] || {};
     if (etapaId === 'mudancas') return (d.itens || []).map(fraseMudanca).join(' ');
@@ -884,7 +956,15 @@
     if (etapa.legado && normalizar(d[etapa.legado]) && !temLacunaPreenchida(etapa, d)) {
       return String(d[etapa.legado]).trim();
     }
-    return juntarPartes(partesDaFrase(etapa, d), function (p) { return p.opcional ? '' : '—'; });
+    var base = juntarPartes(partesDaFrase(etapa, d), function (p) { return p.opcional ? '' : '—'; });
+    /* A nova hipótese só entra na frase quando a decisão for "Reformular
+       a hipótese" — nas outras, ela pode existir preenchida de uma volta
+       anterior e mesmo assim não fazer parte desta decisão. */
+    if (etapaId === 'decisao' && d.decisao === 'Reformular a hipótese') {
+      var nh = novaHipoteseTexto(d);
+      if (nh) base += ' Nova hipótese: ' + nh;
+    }
+    return base;
   }
 
   function temLacunaPreenchida(etapa, d) {
@@ -1332,10 +1412,59 @@
   /* Card de conexão: a etapa anterior fica à vista enquanto a
      próxima é escrita. É o que faz o encadeamento ser sentido em
      vez de explicado. */
+  /* Só a Decisão depende da Evidência (dependeDe: 'evidencia') — por
+     isso o formato compacto abaixo (indicador + situação inicial/meta/
+     observado, sem "Portanto, nossa hipótese foi…") fica só aqui, sem
+     mexer em como a própria etapa Evidência ou o mapa final mostram os
+     mesmos dados (resumoEtapa continua igual para eles). */
+  function metaLinhaDecisao(m, sufixo) {
+    var direcao = String((m || {}).direcao || '').trim();
+    if (direcao !== 'Manter') return (m.meta || '—') + sufixo;
+    var tipoLimite = String(m.tipoLimite || '').trim() || 'Pelo menos';
+    if (tipoLimite === 'Entre') return 'manter entre ' + (m.limiteMinimo || '—') + ' e ' + (m.limiteMaximo || '—') + sufixo;
+    return 'manter em ' + (tipoLimite === 'No máximo' ? 'no máximo ' : 'pelo menos ') + (m.meta || '—') + sufixo;
+  }
+  /* Cada item vira indicador + linhas — nunca uma frase remontada com
+     lacunas em branco: se o resultado escolhido no Experimento não for
+     mais encontrado nas Mudanças mensuráveis, aparece um aviso de
+     inconsistência no lugar dele, não uma frase quebrada. */
+  function corpoEvidenciaParaDecisao() {
+    var itens = ((_dados.evidencia || {}).itens || []);
+    if (!itens.length) return '';
+    var linhas = itens.map(function (ev) {
+      var m = resultadosDe(_dados.mudancas, [ev.resultadoId])[0];
+      if (!m) {
+        return '<li><span class="aposta-aviso-didatico">Um resultado selecionado no Experimento não foi encontrado nas Mudanças mensuráveis.</span></li>';
+      }
+      var sufixo = sufixoUnidade(m);
+      var direcao = String(m.direcao || '').trim();
+      var temAtual = direcao !== 'Atingir' && normalizar(m.atual);
+      var observadoTxt = ev.naoMedido === 'sim'
+        ? 'Não foi possível medir' + (normalizar(ev.motivo) ? ' (' + ev.motivo + ')' : '')
+        : (normalizar(ev.observado) ? (ev.observado + sufixo) : '—');
+      return '<li>' +
+        '<strong>' + esc(m.indicador || 'Resultado') + '</strong>' +
+        (temAtual ? '<span>Situação inicial: ' + esc(m.atual + sufixo) + '</span>' : '') +
+        '<span>Meta: ' + esc(metaLinhaDecisao(m, sufixo)) + '</span>' +
+        '<span>Observado: ' + esc(observadoTxt) + '</span>' +
+      '</li>';
+    }).join('');
+    return '<ul class="aposta-resultados-observar-lista">' + linhas + '</ul>';
+  }
+
   function cardConexao(etapaId) {
     var origem = etapaPorId(etapaId);
+    if (!origem) return '';
+    if (etapaId === 'evidencia') {
+      var corpo = corpoEvidenciaParaDecisao();
+      if (!corpo) return '';
+      return '<div class="aposta-conexao">' +
+        '<span class="aposta-conexao-rot">' + esc(origem.curto) + '</span>' +
+        corpo +
+      '</div>';
+    }
     var texto = resumoEtapa(etapaId, _dados);
-    if (!origem || !texto) return '';
+    if (!texto) return '';
     return '<div class="aposta-conexao">' +
       '<span class="aposta-conexao-rot">' + esc(origem.curto) + '</span>' +
       '<p>' + esc(texto) + '</p>' +
@@ -1375,7 +1504,7 @@
     var id = 'ap-' + c.chave;
     var rot = semRotulo
       ? ''
-      : '<span class="aposta-campo-rot">' + esc(c.rotulo) +
+      : '<span class="aposta-campo-rot"' + (c.dica ? ' title="' + esc(c.dica) + '"' : '') + '>' + esc(c.rotulo) +
         (c.antes ? ' <em>(antes do experimento)</em>' : '') + '</span>';
     var aria = semRotulo ? ' aria-label="' + esc(c.rotulo) + '"' : '';
 
@@ -1515,8 +1644,18 @@
         var seguinte = partes[i + 1];
         if (seguinte && typeof seguinte !== 'string') {
           if (!seguinte.escolha) t = semPreposicaoDupla(t, d[seguinte.c]);
+          /* O texto fixo é quem serve de rótulo visível para a lacuna
+             (lacunaHtml chama campoHtml com semRotulo=true) — a dica do
+             campo, quando existe, não teria onde aparecer, então vira
+             tooltip nele mesmo. `rotuloMolde` troca só o que é MOSTRADO
+             ("Prazo" em vez de "em"), sem mudar a palavra que entra na
+             frase montada (`t`, inalterado). */
+          var campoSeg = !seguinte.escolha ? campoPorChave(etapa, seguinte.c) : null;
+          var tExibido = (campoSeg && campoSeg.rotuloMolde) ? campoSeg.rotuloMolde : t;
+          var classeFixo = (campoSeg && campoSeg.rotuloMolde) ? 'aposta-campo-rot' : 'aposta-molde-fixo';
+          var tituloFixo = campoSeg && campoSeg.dica ? ' title="' + esc(campoSeg.dica) + '"' : '';
           out.push('<div class="aposta-par' + classeDoPar(etapa, seguinte) + '">' +
-            '<span class="aposta-molde-fixo">' + esc(t) + '</span>' +
+            '<span class="' + classeFixo + '"' + tituloFixo + '>' + esc(tExibido) + '</span>' +
             lacunaHtml(etapa, seguinte, d, usados, true) +
           '</div>');
           i++;
@@ -1528,17 +1667,6 @@
       out.push(lacunaHtml(etapa, p, d, usados, false));
     }
     return out.join('');
-  }
-
-  /* Diz, com a decisão já escolhida, se o bloco se aplica — em vez de
-     deixar o grupo reler o critério e concluir sozinho. */
-  function avisoDaEscolha(g, d) {
-    if (!g.aplicaQuando || !g.dependeDaEscolha) return '';
-    var escolhido = (d || {})[g.dependeDaEscolha];
-    if (!escolhido) return '';
-    return g.aplicaQuando.indexOf(escolhido) !== -1
-      ? 'A decisão de vocês (' + escolhido.toLowerCase() + ') pede uma próxima hipótese.'
-      : 'Com a decisão de vocês (' + escolhido.toLowerCase() + '), este bloco pode ficar em branco.';
   }
 
   /* Execução gravada quando o campo era texto livre: o que estava lá
@@ -1570,19 +1698,30 @@
     if (etapa.id === 'experimento') html += resultadosPickerHtml(d);
 
     /* Blocos guiados que não entram na frase da etapa, mas também são
-       frases (hoje: a próxima hipótese). */
+       frases (hoje: a nova hipótese da Decisão). Quando o bloco depende
+       de uma escolha (dependeDaEscolha), a visibilidade não é só uma
+       mensagem — o bloco fica de fato oculto, recolhido ou aberto,
+       conforme escondeQuando/abreAutoQuando (ver também
+       atualizarGruposPorEscolha, que refaz isso ao vivo quando a
+       escolha muda sem recarregar a tela). Um <details> só, com/sem
+       `open`, evita trocar a estrutura do DOM ao alternar entre
+       recolhido e aberto. */
     (etapa.grupos || []).forEach(function (g) {
       var blocos = blocosDoMolde(etapa, g.molde, d, usados);
       var vazio = !(g.molde || []).some(function (p) {
         return typeof p !== 'string' && p.c && String(d[p.c] || '').trim();
       });
-      html += '<div class="aposta-grupo">' +
-        '<p class="aposta-grupo-rot">' + esc(g.rotulo) + '</p>' +
-        (g.dica ? '<p class="aposta-grupo-dica">' + g.dica +
-          '<span class="aposta-grupo-agora" id="apostaGrupoAgora"> ' + esc(avisoDaEscolha(g, d)) + '</span></p>' : '') +
+      var escolhido = g.dependeDaEscolha ? String(d[g.dependeDaEscolha] || '').trim() : '';
+      var temCondicao = !!(g.escondeQuando || g.abreAutoQuando);
+      var escondido = temCondicao && (!escolhido || (g.escondeQuando && g.escondeQuando.indexOf(escolhido) !== -1));
+      var abreAuto = temCondicao && !!(g.abreAutoQuando && g.abreAutoQuando.indexOf(escolhido) !== -1);
+      html += '<details class="aposta-grupo"' + (g.id ? ' id="' + esc(g.id) + '"' : '') +
+          (escondido ? ' hidden' : '') + (abreAuto || !temCondicao ? ' open' : '') + '>' +
+        '<summary class="aposta-grupo-rot">' + esc(abreAuto || !temCondicao ? g.rotulo : (g.resumoQuando || g.rotulo)) + '</summary>' +
+        (abreAuto && g.dicaObrigatoria ? '<p class="aposta-grupo-dica">' + esc(g.dicaObrigatoria) + '</p>' : '') +
         '<div class="aposta-molde aposta-molde--grupo">' + blocos + '</div>' +
         (g.legado ? legadoHtml(g.legado, d, vazio) : '') +
-      '</div>';
+      '</details>';
       if (g.legado) usados[g.legado] = 1;
     });
 
@@ -1625,6 +1764,7 @@
         '<main class="aposta-palco">' +
           progressoHtml() +
           (etapa.dependeDe ? cardConexao(etapa.dependeDe) : '') +
+          (etapa.id === 'ideia' ? resultadosProduzirHtml() : '') +
           '<div class="aposta-etapa">' +
             '<div class="aposta-etapa-cab">' +
               '<h1 class="aposta-etapa-titulo">' + esc(etapa.titulo) + '</h1>' +
@@ -1665,8 +1805,10 @@
       (semRotulo ? '' : '<span class="aposta-campo-rot">' + esc(escolha.rotulo) + '</span>') +
       '<div class="aposta-escolha-opcoes">' +
         escolha.opcoes.map(function (o) {
+          var dica = escolha.dicas && escolha.dicas[o];
           return '<button type="button" class="aposta-opcao' + (d[escolha.chave] === o ? ' is-ativa' : '') +
-            '" data-escolha="' + esc(escolha.chave) + '" data-valor="' + esc(o) + '">' + esc(o) + '</button>';
+            '"' + (dica ? ' title="' + esc(dica) + '"' : '') +
+            ' data-escolha="' + esc(escolha.chave) + '" data-valor="' + esc(o) + '">' + esc(o) + '</button>';
         }).join('') +
       '</div>' +
     '</div>';
@@ -1977,10 +2119,14 @@
         }
       }
 
-      var agora = document.getElementById('apostaGrupoAgora');
-      if (agora) {
-        var g0 = (etapa.grupos || [])[0];
-        agora.textContent = g0 ? ' ' + avisoDaEscolha(g0, d) : '';
+      /* A nova hipótese (Decisão) só entra na frase quando a decisão
+         escolhida for "Reformular a hipótese" — e só se já tiver algo
+         escrito. Mesmo texto que resumoEtapa monta para o mapa/CSV. */
+      if (etapa.id === 'decisao' && d.decisao === 'Reformular a hipótese') {
+        var nh = novaHipoteseTexto(d);
+        if (nh) {
+          html += ' <span class="aposta-frase-fixo">Nova hipótese:</span> <strong class="aposta-frase-valor">' + esc(nh) + '</strong>';
+        }
       }
 
       el.hidden = false;
@@ -2231,12 +2377,43 @@
       });
     }
 
+    /* Troca de decisão muda quais blocos de grupo (hoje: a Nova
+       Hipótese) ficam visíveis, recolhidos ou abertos — sem recarregar
+       a tela inteira. Mesmo padrão de nó estável já usado em
+       atualizarAlertaMudanca: mexe só no que mudou (hidden/open,
+       texto do <summary>, a dica), nunca substitui o <details>. */
+    function atualizarGruposPorEscolha(chave, valor) {
+      (etapa.grupos || []).forEach(function (g) {
+        if (g.dependeDaEscolha !== chave || !g.id) return;
+        var el = document.getElementById(g.id);
+        if (!el) return;
+        var escondido = !valor || (g.escondeQuando && g.escondeQuando.indexOf(valor) !== -1);
+        var abreAuto = !!(g.abreAutoQuando && g.abreAutoQuando.indexOf(valor) !== -1);
+        el.hidden = escondido;
+        el.open = abreAuto;
+        var sum = el.querySelector('summary');
+        if (sum) sum.textContent = abreAuto ? g.rotulo : (g.resumoQuando || g.rotulo);
+        var dicaEl = el.querySelector('.aposta-grupo-dica');
+        if (abreAuto && g.dicaObrigatoria) {
+          if (!dicaEl) {
+            dicaEl = document.createElement('p');
+            dicaEl.className = 'aposta-grupo-dica';
+            el.insertBefore(dicaEl, el.querySelector('.aposta-molde'));
+          }
+          dicaEl.textContent = g.dicaObrigatoria;
+        } else if (dicaEl) {
+          dicaEl.parentNode.removeChild(dicaEl);
+        }
+      });
+    }
+
     _tela.querySelectorAll('.aposta-opcao').forEach(function (b) {
       b.addEventListener('click', function () {
         _tela.querySelectorAll('.aposta-opcao').forEach(function (o) { o.classList.remove('is-ativa'); });
         b.classList.add('is-ativa');
         salvarEtapa(etapa.id, coletar());
         atualizarFrase();
+        atualizarGruposPorEscolha(b.dataset.escolha, b.dataset.valor);
       });
     });
 
