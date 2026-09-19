@@ -1395,7 +1395,15 @@
       var mudancaCompleta = ((_dados.mudancas || {}).itens || []).filter(function (m) {
         return partesMudanca(m).every(function (p) { return p.tipo !== 'vazio' || p.opcional; });
       })[0];
-      if (mudancaCompleta) d = Object.assign({}, d, { esperado: fraseMudanca(mudancaCompleta) });
+      /* A mudança é frase própria ("Aumentar X de..."), com maiúscula de
+         início de frase — mas aqui ela entra depois de "Esperávamos", no
+         meio de OUTRA frase. Só a primeira letra baixa (não a frase
+         inteira: "cc"/siglas no meio continuam do jeito que a pessoa
+         escreveu). Relatado no uso real. */
+      if (mudancaCompleta) {
+        var fraseMud = fraseMudanca(mudancaCompleta);
+        d = Object.assign({}, d, { esperado: fraseMud.charAt(0).toLowerCase() + fraseMud.slice(1) });
+      }
     }
 
     var corpo = (herdada
