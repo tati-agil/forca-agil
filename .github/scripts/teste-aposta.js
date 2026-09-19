@@ -224,6 +224,14 @@ const textoDaTela = (page) => page.evaluate(() => {
         const criou = await novo.evaluate(() => /Grupo 1/.test(document.body.textContent || ''));
         anota('a facilitadora abre a dinâmica do zero e cria um grupo', criou);
 
+        /* "X/9 etapas" sozinho não dizia se o grupo tinha acabado de abrir
+           ou estava parado no meio — o status (não iniciado/em andamento/
+           concluído) responde isso sem precisar comparar X com 9. */
+        const statusGrupoNovo = await novo.evaluate(() =>
+          ((Array.from(document.querySelectorAll('.aposta-fac-grupo')).find((g) => /Grupo 1/.test(g.textContent)) || {}).textContent || ''));
+        anota('grupo recém-criado, sem nenhuma etapa, aparece como "0/9 etapas · não iniciado"',
+          /0\/9 etapas · n[ãa]o iniciado/.test(statusGrupoNovo), statusGrupoNovo.replace(/\s+/g, ' '));
+
         /* O painel pede a missão nas MESMAS lacunas da etapa 1: se as duas
            telas pedem a mesma frase, pedem do mesmo jeito. */
         const painelMissao = await novo.evaluate(() => ({
@@ -508,6 +516,25 @@ const textoDaTela = (page) => page.evaluate(() => {
         anota('a etapa 1 diz de onde veio a missão e que dá para ajustar',
           /cadastrada pela facilitação/i.test(etapa1.aviso) && /ajustar/i.test(etapa1.aviso));
         anota('a missão herdada ainda não conta como escrita pelo grupo', !etapa1.feita);
+
+        /* Missão-base só pré-preenche; CONTINUAR é quem confirma. Depois
+           do clique, a missão do GRUPO (não mais a missão-base) é quem
+           conta como etapa concluída — exatamente com o que estava na
+           tela no momento do clique. */
+        await pg.click('#apostaSeguir');
+        await pg.waitForFunction(() =>
+          /SINTOMA/.test((document.querySelector('.aposta-etapa-titulo') || {}).textContent || ''),
+          { timeout: 15000 });
+        const gravouMissaoGrupo = await pg.evaluate(() => (window.__ESCRITAS || [])
+          .filter((x) => /\/dados\/missao$/.test(x.path)).slice(-1)[0] || null);
+        const salvoGrupo = gravouMissaoGrupo && (gravouMissaoGrupo.valor !== undefined ? gravouMissaoGrupo.valor : gravouMissaoGrupo.value);
+        anota('CONTINUAR confirma a missão do grupo com exatamente o que estava na tela (a missão-base herdada)',
+          !!salvoGrupo && salvoGrupo.verbo === 'Melhorar' && /experiência do participante/.test(salvoGrupo.oQue) && salvoGrupo.prazo === '90',
+          JSON.stringify(gravouMissaoGrupo));
+        const trilhaDepois = await pg.evaluate(() => Array.from(document.querySelectorAll('.aposta-trilha-item'))
+          .find((i) => /Miss[ãa]o/.test(i.textContent) && i.classList.contains('is-feita')) ? true : false);
+        anota('depois de confirmar, a Missão conta como etapa concluída na trilha do grupo', trilhaDepois);
+
         await ctxM.close();
       }
 
