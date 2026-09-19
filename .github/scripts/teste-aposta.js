@@ -549,10 +549,69 @@ const textoDaTela = (page) => page.evaluate(() => {
           await page.fill('[data-m="prazo"]', '90');
           await page.selectOption('[data-m="prazoUnidade"]', 'dias');
           await page.waitForTimeout(300);
+
+          /* Unidade nasce vazia de verdade (nenhuma Forma de medição
+             escolhida ainda) — não força a primeira opção. */
+          const unidadeInicial = await page.evaluate(() => (document.querySelector('[data-m="unidade"]') || {}).value || '');
+          anota('a Unidade nasce vazia de verdade (não força a primeira opção)', unidadeInicial === '', 'ficou "' + unidadeInicial + '"');
+
+          /* Forma de medição decide as sugestões de Unidade — Quantidade
+             sugere substantivos de contagem, não os "por X" de Período. */
+          await page.selectOption('[data-m="formaMedicao"]', 'Quantidade');
+          await page.waitForTimeout(200);
+          await page.locator('.aposta-variante:has([data-m="unidade"]) .aposta-variante-chip', { hasText: 'contatos' }).click();
+          await page.waitForTimeout(200);
+          const unidadeChip = await page.evaluate(() => (document.querySelector('[data-m="unidade"]') || {}).value || '');
+          anota('um clique no chip preenche a Unidade com a sugestão de Quantidade', unidadeChip === 'contatos', 'ficou "' + unidadeChip + '"');
+
+          /* Período é campo separado — "por mês" não mora mais dentro de
+             Unidade (relatado no uso real: os dois se confundiam). */
+          await page.locator('.aposta-variante:has([data-m="periodo"]) .aposta-variante-chip', { hasText: 'por mês' }).click();
+          await page.waitForTimeout(200);
+          const periodoChip = await page.evaluate(() => (document.querySelector('[data-m="periodo"]') || {}).value || '');
+          anota('um clique no chip preenche o Período, separado da Unidade', periodoChip === 'por mês', 'ficou "' + periodoChip + '"');
+
           const frase = await page.evaluate(() =>
             (document.querySelector('.aposta-mudanca-frase') || {}).textContent || '');
-          anota('a frase consolidada é montada sozinha',
-            /de 1000/.test(frase) && /para 700/.test(frase) && /90 dias/.test(frase), frase);
+          anota('a frase consolidada junta unidade e período depois da meta, sem repetir',
+            /de 1000 para 700 contatos por mês em 90 dias/.test(frase), frase);
+
+          /* Alerta de consistência: Reduzir pede meta MENOR que a situação
+             atual — 1500 > 1000 é o caso contrário, e o alerta aparece
+             perto do campo, com um jeito de corrigir num clique só. */
+          await page.fill('[data-m="meta"]', '1500');
+          await page.waitForTimeout(300);
+          const comInconsistencia = await page.evaluate(() => ({
+            visivel: !!document.querySelector('.aposta-mudanca-alerta'),
+            texto: (document.querySelector('.aposta-mudanca-alerta') || {}).textContent || '',
+          }));
+          anota('a meta menor esperada mas maior digitada mostra um alerta perto do campo',
+            comInconsistencia.visivel && /maior que a situação atual/.test(comInconsistencia.texto) &&
+            /Aumentar/.test(comInconsistencia.texto), comInconsistencia.texto);
+          await page.click('.aposta-mudanca-alerta [data-corrigir]');
+          await page.waitForTimeout(300);
+          const corrigido = await page.evaluate(() => ({
+            direcao: (document.querySelector('[data-m="direcao"]') || {}).value || '',
+            alertaSumiu: !document.querySelector('.aposta-mudanca-alerta'),
+          }));
+          anota('um clique no alerta corrige a direção e o alerta some', corrigido.direcao === 'Aumentar' && corrigido.alertaSumiu,
+            JSON.stringify(corrigido));
+          /* Devolve ao estado consistente para o resto do teste. */
+          await page.locator('.aposta-variante:has([data-m="direcao"]) .aposta-variante-chip', { hasText: 'Reduzir' }).click();
+          await page.fill('[data-m="meta"]', '700');
+          await page.waitForTimeout(300);
+
+          /* Percentual não pede escolha de unidade: preenche "%" sozinho,
+             e ele gruda nos dois números da frase ("de 1000% para 700%"),
+             diferente de contatos/dias, que só aparecem uma vez. */
+          await page.selectOption('[data-m="formaMedicao"]', 'Percentual');
+          await page.waitForTimeout(300);
+          const unidadePercentual = await page.evaluate(() => (document.querySelector('[data-m="unidade"]') || {}).value || '');
+          anota('Percentual preenche a Unidade com "%" sozinho, sem exigir escolha', unidadePercentual === '%', 'ficou "' + unidadePercentual + '"');
+          const frasePercentual = await page.evaluate(() =>
+            (document.querySelector('.aposta-mudanca-frase') || {}).textContent || '');
+          anota('em Percentual, o "%" gruda nos dois números, sem espaço',
+            /de 1000% para 700%/.test(frasePercentual), frasePercentual);
 
           /* "Queremos" também não pode travar em só duas direções. */
           await page.fill('[data-m="direcao"]', 'Manter estável');
@@ -561,16 +620,6 @@ const textoDaTela = (page) => page.evaluate(() => {
             (document.querySelector('.aposta-mudanca-frase') || {}).textContent || '');
           anota('"Queremos" aceita uma direção que não é Aumentar nem Reduzir',
             /Manter estável/.test(fraseLivre), fraseLivre);
-
-          /* Unidade: também virou chips + texto livre, mas é OPCIONAL — não
-             pode nascer com "por mês" já escrito como se alguém tivesse
-             respondido, só a dica. */
-          const unidadeInicial = await page.evaluate(() => (document.querySelector('[data-m="unidade"]') || {}).value || '');
-          anota('a Unidade nasce vazia de verdade (não força a primeira opção)', unidadeInicial === '', 'ficou "' + unidadeInicial + '"');
-          await page.locator('.aposta-variante:has([data-m="unidade"]) .aposta-variante-chip', { hasText: 'por semana' }).click();
-          await page.waitForTimeout(200);
-          const unidadeChip = await page.evaluate(() => (document.querySelector('[data-m="unidade"]') || {}).value || '');
-          anota('um clique no chip preenche a Unidade', unidadeChip === 'por semana', 'ficou "' + unidadeChip + '"');
         } else {
           if (i === 6) {
             /* EXPERIMENTO: custo com máscara de moeda. */
@@ -988,6 +1037,34 @@ const textoDaTela = (page) => page.evaluate(() => {
         anota('mudança com prazo em aberto não deixa "—" solto em "Esperávamos"', !/—/.test(esperadoIncompleto),
           'ficou "' + esperadoIncompleto + '"');
         await ctxI.close();
+      }
+
+      /* ── 9e: uma mudança gravada antes de existir o campo Período — a
+            cadência ("por mês") morava dentro de Unidade (PR #165/#171).
+            Reabrir essa mudança precisa mostrar "por mês" no campo
+            Período, não em Unidade, senão os dois campos saem trocados
+            para quem só está reabrindo o que já tinha escrito. ── */
+      {
+        const semeadoLegado = apostasSemeadas();
+        semeadoLegado[TURMA_LIB].execucoes[EXEC].grupos[GRUPO].etapa = 'mudancas';
+        semeadoLegado[TURMA_LIB].execucoes[EXEC].grupos[GRUPO].dados = {
+          mudancas: { itens: [{ direcao: 'Reduzir', indicador: 'contatos sobre andamento', atual: '1000', meta: '700', unidade: 'por mês', prazo: '90', prazoUnidade: 'dias' }] },
+        };
+        const { ctx: ctxL, page: pgL } = await novaPagina(browser, formato, DIRETORA, erros, semeadoLegado);
+        await pgL.goto(BASE + '/index.html#treinamento', { waitUntil: 'domcontentloaded' });
+        await pgL.click('#apostaAbrirBtn');
+        await pgL.waitForSelector('.aposta-grupo-btn', { timeout: 15000 });
+        await pgL.click('.aposta-grupo-btn');
+        await pgL.waitForFunction(() =>
+          /MUDAN[ÇC]AS MENSUR[ÁA]VEIS/i.test((document.querySelector('.aposta-etapa-titulo') || {}).textContent || ''),
+          { timeout: 15000 });
+        const legado = await pgL.evaluate(() => ({
+          unidade: (document.querySelector('[data-m="unidade"]') || {}).value || '',
+          periodo: (document.querySelector('[data-m="periodo"]') || {}).value || '',
+        }));
+        anota('mudança antiga com "por mês" em Unidade reabre com isso em Período, não em Unidade',
+          legado.unidade === '' && legado.periodo === 'por mês', JSON.stringify(legado));
+        await ctxL.close();
       }
 
       anota('nenhum erro de JavaScript', erros.length === 0, erros[0]);

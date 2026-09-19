@@ -146,7 +146,7 @@
       titulo: 'MUDANÇAS MENSURÁVEIS',
       curto: 'Mudanças mensuráveis',
       pergunta: 'O que queremos ver diferente e quanto?',
-      auxiliar: 'Agora transforme a melhoria desejada em uma mudança que possa ser observada e medida.',
+      auxiliar: 'Transforme a melhoria desejada em um resultado observável e mensurável. Defina o que será medido, quanto é hoje, quanto queremos alcançar e em quanto tempo.',
       rodape: 'Uma mudança mensurável diz o que precisa mudar na realidade — não o que será feito.',
       exemplo: 'Reduzir os contatos sobre andamento de 1.000 para 700 por mês em 90 dias.',
       dica: 'Se a frase descreve uma entrega ("criar", "implantar"), ainda não é uma mudança mensurável. Pergunte: se essa entrega funcionasse, o que mudaria na realidade?',
@@ -341,6 +341,14 @@
         }
         if (!TEM_NUMERO.test(String(m.atual || '') + String(m.meta || ''))) {
           avisos.push('Falta a medida em "' + (m.indicador || 'sua mudança') + '". Como você saberia objetivamente que isso melhorou?');
+        }
+        var atualN = paraNumero(m.atual), metaN = paraNumero(m.meta);
+        if (atualN != null && metaN != null && atualN !== metaN) {
+          if (m.direcao === 'Aumentar' && metaN < atualN) {
+            avisos.push('Em "' + (m.indicador || 'sua mudança') + '", a meta é menor que a situação atual — confere se não é "Reduzir"?');
+          } else if (m.direcao === 'Reduzir' && metaN > atualN) {
+            avisos.push('Em "' + (m.indicador || 'sua mudança') + '", a meta é maior que a situação atual — confere se não é "Aumentar"?');
+          }
         }
       });
     }
@@ -565,27 +573,102 @@
     return html;
   }
 
-  /* ── Mudanças mensuráveis: a mesma ideia, uma frase por item ── */
-  var MUDANCA_MOLDE = [
-    { c: 'direcao', rotulo: 'a direção' },
-    { c: 'indicador', rotulo: 'o indicador' },
-    'de', { c: 'atual', rotulo: 'a situação atual' }, { c: 'unidade', opcional: true },
-    'para', { c: 'meta', rotulo: 'a meta' }, { c: 'unidade', opcional: true },
-    'em', { c: 'prazo', rotulo: 'o prazo' }, '.'
-  ];
+  /* ── Mudanças mensuráveis: a mesma ideia, uma frase por item ──
+     [Direção] [indicador] de [situação atual] para [meta] [unidade]
+     [período, quando aplicável] em [prazo]. Percentual é o único caso
+     em que a unidade gruda nos dois números ("de 30% para 60%") — nos
+     demais ela só aparece uma vez, depois da meta ("para 500 contatos
+     por mês"), do jeito que se fala. */
+  var FORMAS_MEDICAO = ['Quantidade', 'Percentual', 'Tempo', 'Moeda', 'Pontos / Escala', 'Índice', 'Taxa / Razão', 'Outro'];
+  var UNIDADES_SUGERIDAS = {
+    'Quantidade': ['contatos', 'processos', 'casos', 'atendimentos', 'pessoas', 'ocorrências', 'demandas', 'iniciativas', 'experimentos', 'decisões'],
+    'Tempo': ['minutos', 'horas', 'dias', 'semanas', 'meses'],
+    'Pontos / Escala': ['pontos', 'escala de 0 a 5', 'escala de 0 a 10'],
+    'Índice': ['NPS', 'índice de satisfação', 'índice interno'],
+    'Taxa / Razão': ['erros por 1.000 processos', 'incidentes por atendimento', 'reclamações por 100 concessões']
+  };
+  /* Percentual e Moeda não pedem escolha: a unidade já nasce certa, e
+     continua editável se alguém quiser outra coisa. */
+  var UNIDADE_AUTOMATICA = { 'Percentual': '%', 'Moeda': 'R$' };
+  var PERIODOS_SUGERIDOS = ['por dia', 'por semana', 'por mês', 'por trimestre', 'por semestre', 'por ano', 'por atendimento', 'por processo', 'não se aplica'];
+
+  /* Antes de existir um campo Período próprio, o que hoje é Período
+     morava dentro de Unidade ("por mês", "por atendimento" — ver
+     PR #165/#171). Uma execução antiga com esse valor em "unidade"
+     continua lida corretamente: é período, não unidade de contagem. */
+  var PARECE_PERIODO = /^(por |n[ãa]o se aplica$)/i;
+  function migrarUnidadePeriodo(m) {
+    var unidade = String((m || {}).unidade == null ? '' : m.unidade).trim();
+    var periodo = String((m || {}).periodo == null ? '' : m.periodo).trim();
+    if (!periodo && unidade && PARECE_PERIODO.test(unidade)) { periodo = unidade; unidade = ''; }
+    return { unidade: unidade, periodo: periodo };
+  }
+
+  /* "1.000", "1000" e "1.000,5" viram um número comparável — ponto é
+     separador de milhar, vírgula é decimal, a mesma convenção de
+     mascaraMoeda. null quando não dá para comparar. */
+  function paraNumero(v) {
+    var s = String(v == null ? '' : v).trim().replace(/\./g, '').replace(',', '.');
+    if (!s || !/^-?\d+(\.\d+)?$/.test(s)) return null;
+    return parseFloat(s);
+  }
+
   function partesMudanca(m) {
     m = m || {};
-    return MUDANCA_MOLDE.map(function (p) {
-      if (typeof p === 'string') return { tipo: 'fixo', txt: p };
-      var val = String(m[p.c] == null ? '' : m[p.c]).trim();
-      if (p.c === 'direcao') return { tipo: 'valor', txt: val || 'Aumentar', chave: 'direcao' };
-      if (p.c === 'prazo' && val) val = val + ' ' + unidadeFlexionada(m.prazoUnidade, val);
-      if (val) return { tipo: 'valor', txt: val, chave: p.c };
-      return { tipo: 'vazio', rotulo: p.rotulo || p.c, chave: p.c, opcional: !!p.opcional };
-    });
+    var direcao = String(m.direcao || '').trim() || 'Aumentar';
+    var indicador = String(m.indicador || '').trim();
+    var mig = migrarUnidadePeriodo(m);
+    var periodoAplica = mig.periodo && normalizar(mig.periodo) !== 'não se aplica';
+    var ehPercentual = mig.unidade === '%';
+
+    function numeroComUnidade(chave, rotulo) {
+      var val = String(m[chave] == null ? '' : m[chave]).trim();
+      if (!val) return { tipo: 'vazio', rotulo: rotulo, chave: chave };
+      return { tipo: 'valor', txt: ehPercentual ? val + '%' : val, chave: chave };
+    }
+
+    var prazo = String(m.prazo == null ? '' : m.prazo).trim();
+    if (prazo) prazo = prazo + ' ' + unidadeFlexionada(m.prazoUnidade, prazo);
+
+    var partes = [
+      { tipo: 'valor', txt: direcao, chave: 'direcao' },
+      indicador ? { tipo: 'valor', txt: indicador, chave: 'indicador' } : { tipo: 'vazio', rotulo: 'o indicador', chave: 'indicador' },
+      { tipo: 'fixo', txt: 'de' },
+      numeroComUnidade('atual', 'a situação atual'),
+      { tipo: 'fixo', txt: 'para' },
+      numeroComUnidade('meta', 'a meta')
+    ];
+    if (!ehPercentual) {
+      partes.push(mig.unidade
+        ? { tipo: 'valor', txt: mig.unidade, chave: 'unidade' }
+        : { tipo: 'vazio', rotulo: 'a unidade', chave: 'unidade', opcional: true });
+    }
+    if (periodoAplica) partes.push({ tipo: 'valor', txt: mig.periodo, chave: 'periodo' });
+    partes.push({ tipo: 'fixo', txt: 'em' });
+    partes.push(prazo ? { tipo: 'valor', txt: prazo, chave: 'prazo' } : { tipo: 'vazio', rotulo: 'o prazo', chave: 'prazo' });
+    partes.push({ tipo: 'fixo', txt: '.' });
+    return partes;
   }
   function fraseMudanca(m) {
     return juntarPartes(partesMudanca(m), function (p) { return p.opcional ? '' : '—'; });
+  }
+
+  /* Alerta próximo ao campo, não um portão: "Aumentar" pede meta maior
+     que a situação atual, "Reduzir" pede meta menor. Quando os dois
+     números batem com a direção contrária, um clique troca a direção
+     — sem exigir apagar e escolher de novo. */
+  function alertaConsistenciaMudanca(m) {
+    var atual = paraNumero((m || {}).atual), meta = paraNumero((m || {}).meta);
+    if (atual == null || meta == null || atual === meta) return '';
+    var direcao = String((m || {}).direcao || '').trim();
+    var sugestao = null;
+    if (direcao === 'Aumentar' && meta < atual) sugestao = 'Reduzir';
+    else if (direcao === 'Reduzir' && meta > atual) sugestao = 'Aumentar';
+    if (!sugestao) return '';
+    return '<p class="aposta-aviso-didatico aposta-mudanca-alerta">' +
+      'A meta informada é ' + (sugestao === 'Reduzir' ? 'menor' : 'maior') + ' que a situação atual. Você quis selecionar “' + sugestao + '”? ' +
+      '<button type="button" class="btn btn--sm" data-corrigir="' + esc(sugestao) + '">Usar "' + esc(sugestao) + '"</button>' +
+    '</p>';
   }
 
   /* O que vai no card do mapa, no card de conexão e no CSV. Vazio
@@ -1437,21 +1520,37 @@
     return '<div class="aposta-mudancas">' +
       itens.map(function (m, i) {
         var q = lerQuantidade({ chave: 'prazo', unidadePadrao: 'dias' }, m);
+        var mig = migrarUnidadePeriodo(m);
+        var chipsUnidade = UNIDADES_SUGERIDAS[m.formaMedicao] || [];
+        var valorUnidade = UNIDADE_AUTOMATICA[m.formaMedicao] || mig.unidade || '';
         return '<div class="aposta-mudanca" data-i="' + i + '">' +
           '<div class="aposta-mudanca-grade">' +
+            /* Linha 1 */
             '<label class="aposta-campo"><span class="aposta-campo-rot">Queremos</span>' +
               variantePicker('data-m', 'direcao', ['Aumentar', 'Reduzir'], m.direcao, 'Queremos', null, 'aposta-variante--campo') +
             '</label>' +
-            '<label class="aposta-campo"><span class="aposta-campo-rot">Indicador</span>' +
-              '<input type="text" class="aposta-campo-input" data-m="indicador" value="' + esc(m.indicador || '') + '" placeholder="contatos sobre andamento" /></label>' +
-            '<label class="aposta-campo"><span class="aposta-campo-rot">Situação atual</span>' +
-              '<input type="text" class="aposta-campo-input" data-m="atual" value="' + esc(m.atual || '') + '" placeholder="1.000" /></label>' +
-            '<label class="aposta-campo"><span class="aposta-campo-rot">Meta desejada</span>' +
-              '<input type="text" class="aposta-campo-input" data-m="meta" value="' + esc(m.meta || '') + '" placeholder="700" /></label>' +
-            '<label class="aposta-campo"><span class="aposta-campo-rot">Unidade</span>' +
-              variantePicker('data-m', 'unidade', ['por mês', 'por semana', 'por atendimento'], m.unidade, 'Unidade', null, 'aposta-variante--campo', true) +
+            '<label class="aposta-campo"><span class="aposta-campo-rot" title="O indicador define o que será observado para saber se a realidade mudou.">Indicador</span>' +
+              '<input type="text" class="aposta-campo-input" data-m="indicador" value="' + esc(m.indicador || '') + '" placeholder="Ex.: contatos sobre o andamento da concessão" /></label>' +
+            '<label class="aposta-campo"><span class="aposta-campo-rot" title="Qual é o valor atual deste indicador?">Situação atual</span>' +
+              '<input type="text" inputmode="decimal" class="aposta-campo-input" data-m="atual" value="' + esc(m.atual || '') + '" placeholder="1.000" /></label>' +
+            '<label class="aposta-campo"><span class="aposta-campo-rot" title="Qual valor queremos alcançar?">Meta desejada</span>' +
+              '<input type="text" inputmode="decimal" class="aposta-campo-input" data-m="meta" value="' + esc(m.meta || '') + '" placeholder="700" /></label>' +
+            /* Linha 2 */
+            '<label class="aposta-campo"><span class="aposta-campo-rot" title="Como este indicador é expresso?">Forma de medição</span>' +
+              '<select class="aposta-campo-input" data-m="formaMedicao">' +
+                '<option value="">Selecione</option>' +
+                FORMAS_MEDICAO.map(function (f) {
+                  return '<option value="' + esc(f) + '"' + (m.formaMedicao === f ? ' selected' : '') + '>' + esc(f) + '</option>';
+                }).join('') +
+              '</select>' +
             '</label>' +
-            '<label class="aposta-campo aposta-campo--qtd"><span class="aposta-campo-rot">Prazo</span>' +
+            '<label class="aposta-campo" data-campo-unidade><span class="aposta-campo-rot">Unidade</span>' +
+              variantePicker('data-m', 'unidade', chipsUnidade, valorUnidade, 'Unidade', null, 'aposta-variante--campo', true) +
+            '</label>' +
+            '<label class="aposta-campo"><span class="aposta-campo-rot">Período</span>' +
+              variantePicker('data-m', 'periodo', PERIODOS_SUGERIDOS, mig.periodo, 'Período', null, 'aposta-variante--campo', true) +
+            '</label>' +
+            '<label class="aposta-campo aposta-campo--qtd"><span class="aposta-campo-rot" title="Até quando queremos atingir essa mudança?">Prazo</span>' +
               '<span class="aposta-qtd">' +
                 '<input type="text" inputmode="numeric" data-mascara="numero" class="aposta-campo-input aposta-qtd-num" data-m="prazo" value="' + esc(q.num) + '" placeholder="90" />' +
                 '<select class="aposta-campo-input aposta-qtd-un" data-m="prazoUnidade" aria-label="Unidade do prazo">' +
@@ -1461,6 +1560,7 @@
                 '</select>' +
               '</span></label>' +
           '</div>' +
+          alertaConsistenciaMudanca(m) +
           '<p class="aposta-mudanca-frase">' + htmlDaFrase(partesMudanca(m)) + '</p>' +
           (podeRemover ? '<button type="button" class="aposta-mudanca-del" data-del="' + i + '">Remover</button>' : '') +
         '</div>';
@@ -1562,26 +1662,75 @@
 
     atualizarFrase();
 
+    /* Atualiza o alerta de consistência (meta x direção) de um bloco SEM
+       recriar o nó — só o texto e o rótulo do botão mudam. Substituir o
+       elemento inteiro a cada tecla (outerHTML) tem uma corrida real: o
+       clique em "Usar…" solta o foco do campo Meta, e esse blur dispara
+       o mesmo recálculo — trocar o nó bem nesse instante faz o clique
+       ainda em voo (já resolvido pelo Playwright num nó antigo) cair no
+       vazio. Um nó estável não tem essa corrida. */
+    function atualizarAlertaMudanca(bloco, m) {
+      var atual = paraNumero(m.atual), meta = paraNumero(m.meta);
+      var direcao = String(m.direcao || '').trim();
+      var sugestao = null;
+      if (atual != null && meta != null && atual !== meta) {
+        if (direcao === 'Aumentar' && meta < atual) sugestao = 'Reduzir';
+        else if (direcao === 'Reduzir' && meta > atual) sugestao = 'Aumentar';
+      }
+      var el = bloco.querySelector('.aposta-mudanca-alerta');
+      if (!sugestao) {
+        if (el && el.parentNode) el.parentNode.removeChild(el);
+        return;
+      }
+      if (!el) {
+        el = document.createElement('p');
+        el.className = 'aposta-aviso-didatico aposta-mudanca-alerta';
+        el.appendChild(document.createTextNode(''));
+        var btn = document.createElement('button');
+        btn.type = 'button';
+        btn.className = 'btn btn--sm';
+        btn.addEventListener('click', function () {
+          var direcaoInput = bloco.querySelector('[data-m="direcao"]');
+          if (!direcaoInput) return;
+          direcaoInput.value = btn.dataset.corrigir;
+          direcaoInput.dispatchEvent(new Event('input', { bubbles: true }));
+        });
+        el.appendChild(btn);
+        var frase = bloco.querySelector('.aposta-mudanca-frase');
+        if (frase) frase.insertAdjacentElement('beforebegin', el);
+        else bloco.querySelector('.aposta-mudanca-grade').insertAdjacentElement('afterend', el);
+      }
+      el.firstChild.nodeValue = 'A meta informada é ' +
+        (sugestao === 'Reduzir' ? 'menor' : 'maior') + ' que a situação atual. Você quis selecionar “' + sugestao + '”? ';
+      var botao = el.querySelector('button');
+      botao.dataset.corrigir = sugestao;
+      botao.textContent = 'Usar "' + sugestao + '"';
+    }
+
+    /* Atualiza a frase e o alerta de consistência de cada bloco — os dois
+       dependem dos mesmos campos e mudam juntos a cada tecla. */
     function atualizarFrases() {
       _tela.querySelectorAll('.aposta-mudanca').forEach(function (bloco) {
         var m = {};
         bloco.querySelectorAll('[data-m]').forEach(function (el) { m[el.dataset.m] = el.value; });
         var p = bloco.querySelector('.aposta-mudanca-frase');
         if (p) p.innerHTML = htmlDaFrase(partesMudanca(m));
+        atualizarAlertaMudanca(bloco, m);
       });
     }
 
-    _tela.querySelectorAll('.aposta-campo-input').forEach(function (el) {
+    function ligarCampoInput(el) {
       el.addEventListener('input', function () { aplicarMascara(el); salvarDepois(); });
       el.addEventListener('change', function () { aplicarMascara(el); salvarDepois(); });
-    });
+    }
+    _tela.querySelectorAll('.aposta-campo-input').forEach(ligarCampoInput);
 
     /* Os chips são atalho para o campo ao lado, não um controle à parte:
        clicar preenche o texto de sempre (e dispara o mesmo salvamento de
        digitar), e o destaque acompanha o que está no campo — inclusive
        quando a pessoa digita por cima e nenhum chip bate mais. */
-    _tela.querySelectorAll('.aposta-variante').forEach(function (wrap) {
-      var input = wrap.querySelector('.aposta-variante-input');
+    function ligarVariante(wrap) {
+      var input = wrap && wrap.querySelector('.aposta-variante-input');
       if (!input) return;
       function sincronizarChips() {
         wrap.querySelectorAll('.aposta-variante-chip').forEach(function (c) {
@@ -1596,7 +1745,52 @@
           input.focus();
         });
       });
+    }
+    _tela.querySelectorAll('.aposta-variante').forEach(ligarVariante);
+
+    /* A Unidade sugere opções diferentes conforme a Forma de medição —
+       só o pedaço da Unidade é reconstruído (chips + campo), o resto do
+       card fica como está. Escolher Percentual ou Moeda É a resposta
+       ("%" e "R$" não têm outro sentido possível ali) — por isso os
+       dois substituem o que estiver na Unidade, diferente das demais
+       formas, que só SUGEREM e nunca apagam o que já foi digitado. */
+    function reconstruirUnidade(bloco) {
+      var selForma = bloco.querySelector('[data-m="formaMedicao"]');
+      var wrapUnidade = bloco.querySelector('[data-campo-unidade]');
+      if (!selForma || !wrapUnidade) return;
+      var formaMedicao = selForma.value;
+      var inputAtual = wrapUnidade.querySelector('.aposta-variante-input');
+      var valor = inputAtual ? inputAtual.value.trim() : '';
+      var auto = UNIDADE_AUTOMATICA[formaMedicao];
+      if (auto) valor = auto;
+      var chips = UNIDADES_SUGERIDAS[formaMedicao] || [];
+      wrapUnidade.innerHTML = '<span class="aposta-campo-rot">Unidade</span>' +
+        variantePicker('data-m', 'unidade', chips, valor, 'Unidade', null, 'aposta-variante--campo', true);
+      ligarVariante(wrapUnidade.querySelector('.aposta-variante'));
+      var novoInput = wrapUnidade.querySelector('.aposta-campo-input');
+      if (novoInput) ligarCampoInput(novoInput);
+      salvarDepois();
+    }
+    _tela.querySelectorAll('[data-m="formaMedicao"]').forEach(function (sel) {
+      sel.addEventListener('change', function () { reconstruirUnidade(sel.closest('.aposta-mudanca')); });
     });
+
+    /* O botão do alerta de consistência troca a direção com um clique só
+       — o alerta é recriado a cada tecla (ver atualizarFrases), então o
+       clique é ouvido por delegação num ancestral estável, não no botão
+       em si. */
+    var mudancasWrap = _tela.querySelector('.aposta-mudancas');
+    if (mudancasWrap) {
+      mudancasWrap.addEventListener('click', function (e) {
+        var btn = e.target.closest('[data-corrigir]');
+        if (!btn) return;
+        var bloco = btn.closest('.aposta-mudanca');
+        var direcaoInput = bloco && bloco.querySelector('[data-m="direcao"]');
+        if (!direcaoInput) return;
+        direcaoInput.value = btn.dataset.corrigir;
+        direcaoInput.dispatchEvent(new Event('input', { bubbles: true }));
+      });
+    }
 
     _tela.querySelectorAll('.aposta-opcao').forEach(function (b) {
       b.addEventListener('click', function () {

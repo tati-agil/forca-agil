@@ -1503,6 +1503,8 @@ select.aposta-campo-input { width: auto; min-width: 8.5em; }
 .aposta-mudancas { display: flex; flex-direction: column; gap: 16px; }
 .aposta-mudanca { border: 1px solid var(--line); border-radius: 10px; padding: 14px 16px; background: rgba(255,255,255,.03); }
 .aposta-mudanca-grade { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 12px; }
+.aposta-mudanca-alerta { margin: 12px 0 0 !important; }
+.aposta-mudanca-alerta button { margin-left: 4px; }
 .aposta-mudanca-frase { margin: 12px 0 0; font-size: .9rem; color: var(--cyan); font-family: var(--font-mono); line-height: 1.5; }
 .aposta-mudanca-del { margin-top: 8px; background: none; border: none; cursor: pointer; font-size: .72rem; color: var(--ink-3); text-decoration: underline; }
 
