@@ -188,9 +188,9 @@
       titulo: 'E — EXPERIMENTO',
       curto: 'Experimento',
       pergunta: 'Como vamos testar essa ideia?',
-      exemplo: 'Durante 3 semanas, com 50 participantes, vamos enviar a mensagem de status e observar a mudança em contatos sobre o andamento da concessão.',
-      rodape: 'O experimento não é a solução completa. É a forma organizada de testar uma versão simplificada da ideia.',
-      dica: 'Um experimento precisa de três coisas para valer: com quem, por quanto tempo e o que será medido.',
+      exemplo: 'Durante 3 semanas, com 50 participantes, vamos enviar a mensagem de status.',
+      rodape: 'O experimento não é a solução completa. É uma forma organizada de testar a ideia em pequena escala e observar se os resultados esperados começam a acontecer.',
+      dica: 'Um experimento precisa de três coisas para valer: com quem, por quanto tempo e o que vai observar.',
       dependeDe: 'ideia',
       campos: [
         { chave: 'duracao', tipo: 'quantidade', rotulo: 'Duração', curto: 'quanto tempo', placeholder: '3', unidadePadrao: 'semanas' },
@@ -200,10 +200,11 @@
         { chave: 'responsavel', tipo: 'input', rotulo: 'Responsável', placeholder: 'nome' },
         { chave: 'custo', tipo: 'moeda', rotulo: 'Custo estimado', placeholder: 'R$ 0,00' }
       ],
-      /* "e medir X" saiu do molde — o que se mede não é mais um texto
-         redigitado aqui, é uma ESCOLHA entre as mudanças mensuráveis já
-         cadastradas (ver resultadosPickerHtml). A frase ganha essa parte
-         à parte, em fraseObservar(). */
+      /* "e medir X" saiu do molde — a frase do Experimento descreve só o
+         desenho do teste. O que se observa é uma ESCOLHA entre as
+         mudanças mensuráveis já cadastradas (ver resultadosPickerHtml),
+         mostrada à parte, como lista — não emendada nesta frase (ver
+         "Resultados que vamos observar" em atualizarFrase()). */
       molde: ['Durante', { c: 'duracao' }, ', com', { c: 'quantidade' }, { c: 'comQuem' }, ', vamos', { c: 'oQue' }, '.']
     },
     {
@@ -369,7 +370,7 @@
       var faltando = [];
       if (!normalizar(d.comQuem) && !normalizar(d.quantidade)) faltando.push('com quem / quantas pessoas');
       if (!normalizar(d.duracao)) faltando.push('por quanto tempo');
-      if (!(d.resultadoIds || []).length) faltando.push('o que será medido');
+      if (!(d.resultadoIds || []).length) faltando.push('o que vamos observar');
       if (faltando.length) {
         avisos.push('Para o experimento poder ser executado, ainda falta: ' + faltando.join('; ') + '.');
       }
@@ -401,7 +402,7 @@
     var d = (dados || {})[etapaId] || {};
     if (etapaId === 'mudancas') {
       return (d.itens || []).some(function (m) {
-        return ['indicador', 'atual', 'meta', 'unidade', 'prazo'].some(function (k) { return normalizar(m[k]); });
+        return ['indicador', 'atual', 'meta', 'unidade', 'prazo', 'limiteMinimo', 'limiteMaximo'].some(function (k) { return normalizar(m[k]); });
       });
     }
     if (etapaId === 'evidencia') {
@@ -611,6 +612,13 @@
     return parseFloat(s);
   }
 
+  /* Direção da mudança: as quatro opções cobrem tudo, sem precisar de
+     uma quinta para "eliminar" (Reduzir para 0), "não ultrapassar"
+     (Manter + No máximo), "não ficar abaixo de" (Manter + Pelo menos)
+     ou "permanecer numa faixa" (Manter + Entre). */
+  var DIRECOES_MUDANCA = ['Aumentar', 'Reduzir', 'Manter', 'Atingir'];
+  var TIPOS_LIMITE = ['Pelo menos', 'No máximo', 'Entre'];
+
   function partesMudanca(m) {
     m = m || {};
     var direcao = String(m.direcao || '').trim() || 'Aumentar';
@@ -619,15 +627,83 @@
     var periodoAplica = mig.periodo && normalizar(mig.periodo) !== 'não se aplica';
     var ehPercentual = mig.unidade === '%';
 
-    function numeroComUnidade(chave, rotulo) {
-      var val = String(m[chave] == null ? '' : m[chave]).trim();
-      if (!val) return { tipo: 'vazio', rotulo: rotulo, chave: chave };
-      return { tipo: 'valor', txt: ehPercentual ? val + '%' : val, chave: chave };
+    function comSufixo(val) { return ehPercentual ? val + '%' : val; }
+    /* "contatos por mês" — só entra depois do ÚLTIMO número da frase,
+       nunca repetido em cada um (ver Percentual, que já gruda "%" em
+       cada valor por conta própria). */
+    function unidadePeriodoTxt() {
+      var partes = [];
+      if (!ehPercentual && mig.unidade) partes.push(mig.unidade);
+      if (periodoAplica) partes.push(mig.periodo);
+      return partes.join(' ');
     }
 
     var prazo = String(m.prazo == null ? '' : m.prazo).trim();
     if (prazo) prazo = prazo + ' ' + unidadeFlexionada(m.prazoUnidade, prazo);
 
+    if (direcao === 'Manter') {
+      var tipoLimite = String(m.tipoLimite || '').trim() || 'Pelo menos';
+      var partesM = [
+        { tipo: 'valor', txt: 'Manter', chave: 'direcao' },
+        indicador ? { tipo: 'valor', txt: indicador, chave: 'indicador' } : { tipo: 'vazio', rotulo: 'o indicador', chave: 'indicador' }
+      ];
+      if (tipoLimite === 'Entre') {
+        var minV = String(m.limiteMinimo == null ? '' : m.limiteMinimo).trim();
+        var maxV = String(m.limiteMaximo == null ? '' : m.limiteMaximo).trim();
+        partesM.push({ tipo: 'fixo', txt: 'entre' });
+        partesM.push(minV
+          ? { tipo: 'valor', txt: comSufixo(minV), chave: 'limiteMinimo' }
+          : { tipo: 'vazio', rotulo: 'o limite mínimo', chave: 'limiteMinimo' });
+        partesM.push({ tipo: 'fixo', txt: 'e' });
+        var up = unidadePeriodoTxt();
+        partesM.push(maxV
+          ? { tipo: 'valor', txt: comSufixo(maxV) + (up ? ' ' + up : ''), chave: 'limiteMaximo' }
+          : { tipo: 'vazio', rotulo: 'o limite máximo', chave: 'limiteMaximo' });
+      } else {
+        partesM.push({ tipo: 'fixo', txt: tipoLimite === 'No máximo' ? 'em no máximo' : 'em pelo menos' });
+        var metaV = String(m.meta == null ? '' : m.meta).trim();
+        var up2 = unidadePeriodoTxt();
+        partesM.push(metaV
+          ? { tipo: 'valor', txt: comSufixo(metaV) + (up2 ? ' ' + up2 : ''), chave: 'meta' }
+          : { tipo: 'vazio', rotulo: 'a meta', chave: 'meta' });
+      }
+      partesM.push({ tipo: 'fixo', txt: 'durante' });
+      partesM.push(prazo ? { tipo: 'valor', txt: prazo, chave: 'prazo' } : { tipo: 'vazio', rotulo: 'o prazo', chave: 'prazo' });
+      partesM.push({ tipo: 'fixo', txt: '.' });
+      return partesM;
+    }
+
+    if (direcao === 'Atingir') {
+      var metaA = String(m.meta == null ? '' : m.meta).trim();
+      /* "Atingir 60 NPS de NPS da experiência..." repete a unidade —
+         quando o indicador já começa pelo nome da própria unidade
+         (caso comum em índices como NPS), a unidade some do meio da
+         frase e some antes do número: "Atingir NPS 60 em 90 dias." */
+      var indicadorComecaComUnidade = !!mig.unidade &&
+        normalizar(indicador).indexOf(normalizar(mig.unidade)) === 0;
+      var partesA = [{ tipo: 'valor', txt: 'Atingir', chave: 'direcao' }];
+      if (indicadorComecaComUnidade) {
+        partesA.push({ tipo: 'valor', txt: mig.unidade, chave: 'unidade' });
+        partesA.push(metaA ? { tipo: 'valor', txt: metaA, chave: 'meta' } : { tipo: 'vazio', rotulo: 'a meta', chave: 'meta' });
+      } else {
+        var metaTxt = metaA ? comSufixo(metaA) + (!ehPercentual && mig.unidade ? ' ' + mig.unidade : '') : '';
+        partesA.push(metaA ? { tipo: 'valor', txt: metaTxt, chave: 'meta' } : { tipo: 'vazio', rotulo: 'a meta', chave: 'meta' });
+        partesA.push({ tipo: 'fixo', txt: 'de' });
+        partesA.push(indicador ? { tipo: 'valor', txt: indicador, chave: 'indicador' } : { tipo: 'vazio', rotulo: 'o indicador', chave: 'indicador' });
+        if (periodoAplica) partesA.push({ tipo: 'valor', txt: mig.periodo, chave: 'periodo' });
+      }
+      partesA.push({ tipo: 'fixo', txt: 'em' });
+      partesA.push(prazo ? { tipo: 'valor', txt: prazo, chave: 'prazo' } : { tipo: 'vazio', rotulo: 'o prazo', chave: 'prazo' });
+      partesA.push({ tipo: 'fixo', txt: '.' });
+      return partesA;
+    }
+
+    /* Aumentar / Reduzir / uma direção livre digitada por cima. */
+    function numeroComUnidade(chave, rotulo) {
+      var val = String(m[chave] == null ? '' : m[chave]).trim();
+      if (!val) return { tipo: 'vazio', rotulo: rotulo, chave: chave };
+      return { tipo: 'valor', txt: comSufixo(val), chave: chave };
+    }
     var partes = [
       { tipo: 'valor', txt: direcao, chave: 'direcao' },
       indicador ? { tipo: 'valor', txt: indicador, chave: 'indicador' } : { tipo: 'vazio', rotulo: 'o indicador', chave: 'indicador' },
@@ -683,23 +759,26 @@
       return todos.filter(function (m) { return m.id === id; })[0];
     }).filter(Boolean);
   }
-  /* "1.000 → 500 contatos por mês", "40% → 80%" — o resumo compacto
-     nos cards de seleção do Experimento e no topo de cada card de
-     Evidência. */
+  /* "1.000 → 500 contatos por mês", "40% → 80%", "→ entre 2 e 5 dias",
+     "→ pelo menos 98%", "atingir NPS 60" — o resumo compacto nos cards
+     de seleção do Experimento e no topo de cada card de Evidência. */
   function resumoCurtoMudanca(m) {
     var mig = migrarUnidadePeriodo(m);
-    var atual = m.atual || '—', meta = m.meta || '—';
-    if (mig.unidade === '%') return atual + '% → ' + meta + '%';
+    var direcao = String(m.direcao || '').trim();
+    var comPercentual = function (v) { return mig.unidade === '%' ? v + '%' : v; };
     var periodoTxt = (mig.periodo && normalizar(mig.periodo) !== 'não se aplica') ? ' ' + mig.periodo : '';
-    return atual + ' → ' + meta + (mig.unidade ? ' ' + mig.unidade : '') + periodoTxt;
-  }
-  /* A cláusula "e observar…" do Experimento não é mais texto
-     redigitado: é o nome dos resultados escolhidos no seletor. */
-  function fraseObservar(d, dadosMudancas) {
-    var sel = resultadosDe(dadosMudancas, d.resultadoIds);
-    if (!sel.length) return '';
-    if (sel.length === 1) return 'e observar a mudança em ' + sel[0].indicador + '.';
-    return 'e observar: ' + sel.map(function (m) { return m.indicador; }).join('; ') + '.';
+    var unidadeTxt = (mig.unidade && mig.unidade !== '%') ? ' ' + mig.unidade : '';
+    var atual = m.atual || '—';
+    if (direcao === 'Manter') {
+      var tipoLimite = String(m.tipoLimite || '').trim() || 'Pelo menos';
+      if (tipoLimite === 'Entre') {
+        return comPercentual(atual) + ' → entre ' + (m.limiteMinimo || '—') + ' e ' + comPercentual(m.limiteMaximo || '—') + unidadeTxt + periodoTxt;
+      }
+      var rotulo = tipoLimite === 'No máximo' ? 'no máx. ' : 'pelo menos ';
+      return comPercentual(atual) + ' → ' + rotulo + comPercentual(m.meta || '—') + unidadeTxt + periodoTxt;
+    }
+    if (direcao === 'Atingir') return 'atingir ' + comPercentual(m.meta || '—') + unidadeTxt;
+    return comPercentual(atual) + ' → ' + comPercentual(m.meta || '—') + unidadeTxt + periodoTxt;
   }
   var FONTES_EVIDENCIA = ['Dados do sistema', 'Pesquisa com participantes', 'Registros de atendimento',
     'Observação do experimento', 'Entrevistas', 'Medição manual', 'Relatório', 'Outro'];
@@ -711,30 +790,76 @@
     var periodoTxt = (mig.periodo && normalizar(mig.periodo) !== 'não se aplica') ? ' ' + mig.periodo : '';
     return (mig.unidade ? ' ' + mig.unidade : '') + periodoTxt;
   }
-  /* "Esperávamos reduzir X de 1.000 para 500 contatos por mês. Após o
-     experimento, observamos 650 contatos por mês." — nada redigitado:
-     indicador/situação/meta vêm de Mudanças mensuráveis, só o
-     observado é novo. */
+  /* O que o card de Evidência mostra no campo "Meta" (sempre
+     desabilitado ali) — em "Manter" não é um valor só, é "pelo menos
+     X" / "no máximo X" / "entre X e Y". */
+  function metaOuLimiteTexto(m, sufixo) {
+    if (String(m.direcao || '').trim() === 'Manter') {
+      var tipoLimite = String(m.tipoLimite || '').trim() || 'Pelo menos';
+      if (tipoLimite === 'Entre') return 'entre ' + (m.limiteMinimo || '—') + ' e ' + (m.limiteMaximo || '—') + sufixo;
+      return (tipoLimite === 'No máximo' ? 'no máximo ' : 'pelo menos ') + (m.meta || '—') + sufixo;
+    }
+    return (m.meta || '—') + sufixo;
+  }
+  /* "Esperávamos reduzir X de 1.000 para 500 contatos por mês em 90
+     dias. Após o experimento, observamos 650 contatos por mês." — a
+     primeira frase é a MESMA que Mudanças mensuráveis já monta
+     (fraseMudanca cobre as quatro direções sozinha), só com "Esperávamos"
+     na frente; nada é redigitado, só o observado é novo. */
   function fraseEvidenciaCard(m, ev) {
     ev = ev || {};
     var sufixo = sufixoUnidade(m);
-    var direcao = String(m.direcao || 'Aumentar').trim();
-    var direcaoBaixa = direcao.charAt(0).toLowerCase() + direcao.slice(1);
-    var base = 'Esperávamos ' + direcaoBaixa + ' ' + (m.indicador || '') + ' de ' + (m.atual || '—') + ' para ' + (m.meta || '—') + sufixo + '.';
+    var moldeM = fraseMudanca(m);
+    var esperavamos = 'Esperávamos ' + moldeM.charAt(0).toLowerCase() + moldeM.slice(1);
     if (ev.naoMedido === 'sim') {
-      return base + ' Não foi possível medir neste experimento' + (normalizar(ev.motivo) ? ' (' + ev.motivo + ')' : '') + '.';
+      return esperavamos + ' Não foi possível medir neste experimento' + (normalizar(ev.motivo) ? ' (' + ev.motivo + ')' : '') + '.';
     }
-    if (!normalizar(ev.observado)) return base;
-    return base + ' Após o experimento, observamos ' + ev.observado + sufixo + '.';
+    if (!normalizar(ev.observado)) return esperavamos;
+    return esperavamos + ' Após o experimento, observamos ' + ev.observado + sufixo + '.';
   }
   /* Avanço em direção à meta, respeitando a direção — a razão entre a
      mudança OBTIDA (observado − situação atual) e a mudança NECESSÁRIA
      (meta − situação atual) já inverte sozinha para "Reduzir": não é
-     comparação simples de números. */
+     comparação simples de números. Só serve para Aumentar/Reduzir/
+     Atingir — "Manter" é dentro/fora do limite, não um "% do caminho"
+     (ver avaliarLimiteMudanca). */
   function progressoEvidencia(m, valorObservado) {
+    if (String(m.direcao || '').trim() === 'Manter') return null;
     var atual = paraNumero(m.atual), meta = paraNumero(m.meta), obs = paraNumero(valorObservado);
     if (atual == null || meta == null || obs == null || atual === meta) return null;
     return Math.round(((obs - atual) / (meta - atual)) * 100);
+  }
+  /* "Manter" não tem "% do caminho": o resultado observado está dentro
+     do limite combinado, ou não está. */
+  function avaliarLimiteMudanca(m, valorObservado) {
+    if (String(m.direcao || '').trim() !== 'Manter') return null;
+    var obs = paraNumero(valorObservado);
+    if (obs == null) return null;
+    var tipoLimite = String(m.tipoLimite || '').trim() || 'Pelo menos';
+    if (tipoLimite === 'Entre') {
+      var min = paraNumero(m.limiteMinimo), max = paraNumero(m.limiteMaximo);
+      if (min == null || max == null) return null;
+      return obs >= min && obs <= max;
+    }
+    var meta = paraNumero(m.meta);
+    if (meta == null) return null;
+    return tipoLimite === 'No máximo' ? obs <= meta : obs >= meta;
+  }
+  /* O texto de avanço do card de Evidência — "% do caminho até a meta"
+     para Aumentar/Reduzir/Atingir, "dentro/fora do limite" para Manter.
+     null quando ainda não dá para calcular nada (falta número). */
+  function progressoResumo(m, valorObservado) {
+    if (String(m.direcao || '').trim() === 'Manter') {
+      var dentro = avaliarLimiteMudanca(m, valorObservado);
+      if (dentro == null) return null;
+      return { texto: dentro ? 'Dentro do limite combinado' : 'Fora do limite combinado', ok: dentro };
+    }
+    var pct = progressoEvidencia(m, valorObservado);
+    if (pct == null) return null;
+    /* Ao contrário de "Manter" (dentro/fora é bom/ruim), um percentual
+       é só informação — 70% não é "problema", é o quanto já andou.
+       Sempre no estilo neutro, mesmo abaixo de 100% ou acima. */
+    return { texto: Math.max(0, pct) + '% do caminho até a meta', ok: true };
   }
 
   /* O que vai no card do mapa, no card de conexão e no CSV. Vazio
@@ -759,12 +884,7 @@
     if (etapa.legado && normalizar(d[etapa.legado]) && !temLacunaPreenchida(etapa, d)) {
       return String(d[etapa.legado]).trim();
     }
-    var base = juntarPartes(partesDaFrase(etapa, d), function (p) { return p.opcional ? '' : '—'; });
-    if (etapaId === 'experimento') {
-      var obs = fraseObservar(d, (dados || {}).mudancas);
-      if (obs) base = (base ? base + ' ' : '') + obs;
-    }
-    return base;
+    return juntarPartes(partesDaFrase(etapa, d), function (p) { return p.opcional ? '' : '—'; });
   }
 
   function temLacunaPreenchida(etapa, d) {
@@ -1552,6 +1672,34 @@
     '</div>';
   }
 
+  /* O 4º campo da linha 1 muda com a Direção — Meta desejada para
+     Aumentar/Reduzir/Atingir; para Manter, Tipo de limite e, dependendo
+     dele, Meta OU os dois Limites. Um <span data-meta-area> com
+     display:contents (CSS) segura esse pedaço: os campos continuam
+     itens diretos do grid, e o JS troca só esse trecho quando a
+     Direção ou o Tipo de limite mudam (ver reconstruirCamposMeta). */
+  function camposMetaHtml(m) {
+    var direcao = String(m.direcao || '').trim();
+    if (direcao !== 'Manter') {
+      return '<label class="aposta-campo"><span class="aposta-campo-rot" title="Qual valor queremos alcançar?">Meta desejada</span>' +
+        '<input type="text" inputmode="decimal" class="aposta-campo-input" data-m="meta" value="' + esc(m.meta || '') + '" placeholder="700" /></label>';
+    }
+    var tipoLimite = String(m.tipoLimite || '').trim() || 'Pelo menos';
+    var html = '<label class="aposta-campo"><span class="aposta-campo-rot">Tipo de limite</span>' +
+      variantePicker('data-m', 'tipoLimite', TIPOS_LIMITE, m.tipoLimite, 'Tipo de limite', null, 'aposta-variante--campo') +
+    '</label>';
+    if (tipoLimite === 'Entre') {
+      html += '<label class="aposta-campo"><span class="aposta-campo-rot">Limite mínimo</span>' +
+          '<input type="text" inputmode="decimal" class="aposta-campo-input" data-m="limiteMinimo" value="' + esc(m.limiteMinimo || '') + '" placeholder="2" /></label>' +
+        '<label class="aposta-campo"><span class="aposta-campo-rot">Limite máximo</span>' +
+          '<input type="text" inputmode="decimal" class="aposta-campo-input" data-m="limiteMaximo" value="' + esc(m.limiteMaximo || '') + '" placeholder="5" /></label>';
+    } else {
+      html += '<label class="aposta-campo"><span class="aposta-campo-rot" title="O nível, teto ou piso que não queremos perder.">Meta</span>' +
+        '<input type="text" inputmode="decimal" class="aposta-campo-input" data-m="meta" value="' + esc(m.meta || '') + '" placeholder="98" /></label>';
+    }
+    return html;
+  }
+
   /* ── Mudanças mensuráveis: várias por missão ── */
   function mudancasHtml(d) {
     /* Começa com uma em branco. Antes, uma etapa sem nenhuma mudança
@@ -1577,15 +1725,14 @@
           '<input type="hidden" data-m="id" value="' + esc(m.id) + '" />' +
           '<div class="aposta-mudanca-grade">' +
             /* Linha 1 */
-            '<label class="aposta-campo"><span class="aposta-campo-rot">Queremos</span>' +
-              variantePicker('data-m', 'direcao', ['Aumentar', 'Reduzir'], m.direcao, 'Queremos', null, 'aposta-variante--campo') +
+            '<label class="aposta-campo"><span class="aposta-campo-rot">Direção da mudança</span>' +
+              variantePicker('data-m', 'direcao', DIRECOES_MUDANCA, m.direcao, 'Direção da mudança', null, 'aposta-variante--campo') +
             '</label>' +
             '<label class="aposta-campo"><span class="aposta-campo-rot" title="O indicador define o que será observado para saber se a realidade mudou.">Indicador</span>' +
               '<input type="text" class="aposta-campo-input" data-m="indicador" value="' + esc(m.indicador || '') + '" placeholder="Ex.: contatos sobre o andamento da concessão" /></label>' +
             '<label class="aposta-campo"><span class="aposta-campo-rot" title="Qual é o valor atual deste indicador?">Situação atual</span>' +
               '<input type="text" inputmode="decimal" class="aposta-campo-input" data-m="atual" value="' + esc(m.atual || '') + '" placeholder="1.000" /></label>' +
-            '<label class="aposta-campo"><span class="aposta-campo-rot" title="Qual valor queremos alcançar?">Meta desejada</span>' +
-              '<input type="text" inputmode="decimal" class="aposta-campo-input" data-m="meta" value="' + esc(m.meta || '') + '" placeholder="700" /></label>' +
+            '<span data-meta-area>' + camposMetaHtml(m) + '</span>' +
             /* Linha 2 */
             '<label class="aposta-campo"><span class="aposta-campo-rot" title="Como este indicador é expresso?">Forma de medição</span>' +
               '<select class="aposta-campo-input" data-m="formaMedicao">' +
@@ -1620,7 +1767,7 @@
     '</div>';
   }
 
-  /* ── "O que vamos medir?" — o Experimento escolhe quais Mudanças
+  /* ── "O que vamos observar?" — o Experimento escolhe quais Mudanças
      mensuráveis vai observar, em vez de redigitar um indicador em
      texto livre. Uma só mudança: já vem marcada, sem pedir escolha.
      Várias: todas vêm marcadas (o caso comum é observar tudo), e dá
@@ -1629,14 +1776,14 @@
     var todos = ((_dados.mudancas || {}).itens || []).filter(function (m) { return normalizar(m.indicador); });
     if (!todos.length) {
       return '<div class="aposta-resultados">' +
-        '<p class="aposta-campo-rot">O que vamos medir?</p>' +
+        '<p class="aposta-campo-rot">O que vamos observar?</p>' +
         '<p class="aposta-auxiliar">Ainda não há nenhuma mudança mensurável cadastrada — volte lá para registrar o que este experimento vai observar.</p>' +
       '</div>';
     }
     var unico = todos.length === 1;
     var jaEscolheu = Array.isArray(d.resultadoIds);
     return '<div class="aposta-resultados">' +
-      '<p class="aposta-campo-rot">O que vamos medir?</p>' +
+      '<p class="aposta-campo-rot">O que vamos observar?</p>' +
       '<p class="aposta-auxiliar">Selecione quais resultados esperados este experimento ajudará a testar.</p>' +
       todos.map(function (m) {
         var marcado = unico || (jaEscolheu ? d.resultadoIds.indexOf(m.id) !== -1 : true);
@@ -1670,7 +1817,8 @@
       var ev = evidenciaDe(m.id);
       var naoMedido = ev.naoMedido === 'sim';
       var sufixo = sufixoUnidade(m);
-      var progresso = !naoMedido ? progressoEvidencia(m, ev.observado) : null;
+      var metaTxt = metaOuLimiteTexto(m, sufixo);
+      var progresso = !naoMedido ? progressoResumo(m, ev.observado) : null;
       return '<div class="aposta-mudanca" data-resultado="' + esc(m.id) + '">' +
         '<p class="aposta-campo-rot" style="margin:0 0 2px">RESULTADO ESPERADO ' + (i + 1) + '</p>' +
         '<p style="margin:0 0 12px;color:var(--ink)"><strong>' + esc(m.indicador) + '</strong></p>' +
@@ -1678,7 +1826,7 @@
           '<label class="aposta-campo"><span class="aposta-campo-rot">Situação inicial</span>' +
             '<input type="text" class="aposta-campo-input" value="' + esc((m.atual || '—') + sufixo) + '" disabled /></label>' +
           '<label class="aposta-campo"><span class="aposta-campo-rot">Meta</span>' +
-            '<input type="text" class="aposta-campo-input" value="' + esc((m.meta || '—') + sufixo) + '" disabled /></label>' +
+            '<input type="text" class="aposta-campo-input" value="' + esc(metaTxt) + '" disabled /></label>' +
           '<label class="aposta-campo"><span class="aposta-campo-rot" title="O que a realidade respondeu, na mesma unidade da meta.">Resultado observado</span>' +
             '<input type="text" inputmode="decimal" class="aposta-campo-input" data-e="observado" value="' + esc(ev.observado || '') + '"' +
               (naoMedido ? ' disabled' : ' placeholder="' + esc(m.meta || '650') + '"') + ' /></label>' +
@@ -1701,7 +1849,7 @@
         '<label class="aposta-campo aposta-campo--largo"><span class="aposta-campo-rot">Motivo (opcional)</span>' +
           '<input type="text" class="aposta-campo-input" data-e="motivo" value="' + esc(ev.motivo || '') + '" placeholder="ex.: pesquisa não foi concluída dentro do período" /></label>' +
         '<p class="aposta-mudanca-frase">' + esc(fraseEvidenciaCard(m, ev)) + '</p>' +
-        (progresso != null ? '<p class="aposta-frase-pronta">' + Math.max(0, progresso) + '% do caminho até a meta</p>' : '') +
+        (progresso ? '<p class="' + (progresso.ok ? 'aposta-frase-pronta' : 'aposta-frase-falta') + '">' + esc(progresso.texto) + '</p>' : '') +
       '</div>';
     }).join('');
 
@@ -1712,7 +1860,7 @@
       var sufixo = sufixoUnidade(m);
       var obsTxt = normalizar(ev.observado) ? (ev.observado + sufixo) : (ev.naoMedido === 'sim' ? 'não medido' : '—');
       return '<p><strong>' + esc(m.indicador) + ':</strong><br>' +
-        esc((m.atual || '—') + sufixo) + ' → ' + esc(obsTxt) + ' · Meta: ' + esc((m.meta || '—') + sufixo) + '</p>';
+        esc((m.atual || '—') + sufixo) + ' → ' + esc(obsTxt) + ' · Meta: ' + esc(metaOuLimiteTexto(m, sufixo)) + '</p>';
     }).join('');
 
     return '<div class="aposta-mudancas">' + html + '</div>' +
@@ -1738,7 +1886,7 @@
              bloco em que só as listas (direção e unidade de tempo) têm
              valor não é uma mudança: contá-lo daria a etapa por
              preenchida sem ninguém ter escrito nada. */
-          var escreveu = ['indicador', 'atual', 'meta', 'unidade', 'prazo'].some(function (k) {
+          var escreveu = ['indicador', 'atual', 'meta', 'unidade', 'prazo', 'limiteMinimo', 'limiteMaximo'].some(function (k) {
             return normalizar(m[k]);
           });
           if (escreveu) d.itens.push(m);
@@ -1808,16 +1956,24 @@
         ? '<strong class="aposta-frase-valor">' + esc(String(d[etapa.legado]).trim()) + '</strong>'
         : htmlDaFrase(partes);
 
-      /* O que o Experimento vai medir não é uma lacuna do molde — é a
-         escolha feita no seletor "O que vamos medir?" — mas ainda
-         precisa aparecer na prévia "Fica assim no mapa", porque é o
-         mesmo texto que vai para lá. */
+      /* O que o Experimento vai observar não é uma lacuna da frase — é a
+         escolha feita em "O que vamos observar?" — mas ainda precisa
+         aparecer na prévia, num bloco à parte: uma lista curta, não
+         uma frase longa emendada na do experimento. */
+      var resultadosHtml = '';
       if (etapa.id === 'experimento') {
-        var obs = fraseObservar(d, _dados.mudancas);
-        if (obs) {
-          html += ' <span class="aposta-frase-fixo">' + esc(obs) + '</span>';
+        var sel = resultadosDe(_dados.mudancas, d.resultadoIds);
+        if (sel.length) {
+          resultadosHtml = '<div class="aposta-resultados-observar">' +
+            '<span class="aposta-frase-rot">Resultados que vamos observar</span>' +
+            '<ul class="aposta-resultados-observar-lista">' +
+              sel.map(function (m) {
+                return '<li><strong>' + esc(m.indicador) + '</strong><span>' + esc(resumoCurtoMudanca(m)) + '</span></li>';
+              }).join('') +
+            '</ul>' +
+          '</div>';
         } else {
-          faltam = faltam.concat([{ rotulo: 'o que vamos medir' }]);
+          faltam = faltam.concat([{ rotulo: 'o que vamos observar' }]);
         }
       }
 
@@ -1830,6 +1986,7 @@
       el.hidden = false;
       el.innerHTML = '<span class="aposta-frase-rot">Fica assim no mapa</span>' +
         '<p>' + html + '</p>' +
+        resultadosHtml +
         (faltam.length
           ? '<p class="aposta-frase-falta">Ainda falta: ' +
               faltam.map(function (p) { return esc(p.rotulo); }).join(' · ') + '</p>'
@@ -1930,12 +2087,12 @@
         });
         var frase = bloco.querySelector('.aposta-mudanca-frase');
         if (frase) frase.textContent = fraseEvidenciaCard(m, ev);
-        var progressoEl = bloco.querySelector('.aposta-frase-pronta');
-        var progresso = !naoMedido ? progressoEvidencia(m, ev.observado) : null;
-        if (progresso != null) {
-          var texto = Math.max(0, progresso) + '% do caminho até a meta';
-          if (progressoEl) progressoEl.textContent = texto;
-          else if (frase) frase.insertAdjacentHTML('afterend', '<p class="aposta-frase-pronta">' + esc(texto) + '</p>');
+        var progressoEl = bloco.querySelector('.aposta-frase-pronta, .aposta-frase-falta');
+        var progresso = !naoMedido ? progressoResumo(m, ev.observado) : null;
+        if (progresso) {
+          var classeCerta = progresso.ok ? 'aposta-frase-pronta' : 'aposta-frase-falta';
+          if (progressoEl) { progressoEl.className = classeCerta; progressoEl.textContent = progresso.texto; }
+          else if (frase) frase.insertAdjacentHTML('afterend', '<p class="' + classeCerta + '">' + esc(progresso.texto) + '</p>');
         } else if (progressoEl) {
           progressoEl.parentNode.removeChild(progressoEl);
         }
@@ -1953,7 +2110,7 @@
         var sufixo = sufixoUnidade(m);
         var obsTxt = normalizar(ev.observado) ? (ev.observado + sufixo) : (ev.naoMedido === 'sim' ? 'não medido' : '—');
         return '<p><strong>' + esc(m.indicador) + ':</strong><br>' +
-          esc((m.atual || '—') + sufixo) + ' → ' + esc(obsTxt) + ' · Meta: ' + esc((m.meta || '—') + sufixo) + '</p>';
+          esc((m.atual || '—') + sufixo) + ' → ' + esc(obsTxt) + ' · Meta: ' + esc(metaOuLimiteTexto(m, sufixo)) + '</p>';
       }).join('');
       wrap.innerHTML = '<p class="aposta-campo-rot">Resultados do experimento</p>' + resumo;
     }
@@ -2026,6 +2183,35 @@
     }
     _tela.querySelectorAll('[data-m="formaMedicao"]').forEach(function (sel) {
       sel.addEventListener('change', function () { reconstruirUnidade(sel.closest('.aposta-mudanca')); });
+    });
+
+    /* "Manter" pede Tipo de limite e, conforme ele, Meta OU os dois
+       Limites — as outras três direções só pedem Meta desejada. Só o
+       [data-meta-area] é reconstruído; Direção, Indicador e Situação
+       atual ficam como estão, sem perder foco nem valor. */
+    function reconstruirCamposMeta(bloco) {
+      var area = bloco.querySelector('[data-meta-area]');
+      var direcaoInput = bloco.querySelector('[data-m="direcao"]');
+      if (!area || !direcaoInput) return;
+      var m = {
+        direcao: direcaoInput.value,
+        tipoLimite: (bloco.querySelector('[data-m="tipoLimite"]') || {}).value || '',
+        meta: (bloco.querySelector('[data-m="meta"]') || {}).value || '',
+        limiteMinimo: (bloco.querySelector('[data-m="limiteMinimo"]') || {}).value || '',
+        limiteMaximo: (bloco.querySelector('[data-m="limiteMaximo"]') || {}).value || ''
+      };
+      area.innerHTML = camposMetaHtml(m);
+      area.querySelectorAll('.aposta-campo-input').forEach(ligarCampoInput);
+      area.querySelectorAll('.aposta-variante').forEach(ligarVariante);
+      var tipoLimiteInput = area.querySelector('[data-m="tipoLimite"]');
+      if (tipoLimiteInput) tipoLimiteInput.addEventListener('input', function () { reconstruirCamposMeta(bloco); });
+      salvarDepois();
+    }
+    _tela.querySelectorAll('[data-m="direcao"]').forEach(function (input) {
+      input.addEventListener('input', function () { reconstruirCamposMeta(input.closest('.aposta-mudanca')); });
+    });
+    _tela.querySelectorAll('[data-m="tipoLimite"]').forEach(function (input) {
+      input.addEventListener('input', function () { reconstruirCamposMeta(input.closest('.aposta-mudanca')); });
     });
 
     /* O botão do alerta de consistência troca a direção com um clique só
