@@ -2869,14 +2869,21 @@
 
     function desenhar() {
       var grupos = _exec.grupos || {};
+      var missaoBaseSalva = temMissaoDaExecucao();
       box.innerHTML =
         '<h3 style="font-family:var(--font-head);letter-spacing:.05em;color:var(--ink);margin:0">Painel do facilitador</h3>' +
         '<p style="font-size:.82rem;color:var(--ink-3);margin:0">' + esc(_turma.label) + '</p>' +
 
-        '<h4 style="margin:8px 0 0">Missão da dinâmica</h4>' +
-        '<p style="font-size:.8rem;color:var(--ink-3);margin:0">Se você cadastrar aqui, os grupos abrem a etapa 1 com esta missão já escrita e podem ajustar. Em branco, cada grupo escreve a sua.</p>' +
+        '<h4 style="margin:8px 0 0">Missão-base da dinâmica</h4>' +
+        '<p style="font-size:.8rem;color:var(--ink-3);margin:0">Se cadastrada, esta missão será usada como ponto de partida apenas para grupos que ainda não preencheram a Etapa 1. Cada grupo poderá ajustá-la livremente.</p>' +
+        '<p style="font-size:.8rem;color:var(--ink-3);margin:0">Alterações nesta missão não modificam grupos que já iniciaram a Etapa 1.</p>' +
         missaoFacHtml() +
-        '<button class="btn btn--sm" id="apostaSalvarMissao">Salvar missão</button>' +
+        '<div class="aposta-frase" id="apostaPreviaMissaoFac" style="margin-top:0"></div>' +
+        '<div style="display:flex;gap:12px;align-items:center;flex-wrap:wrap">' +
+          '<button class="btn btn--sm" id="apostaSalvarMissao">' + (missaoBaseSalva ? 'Atualizar missão-base' : 'Salvar missão-base') + '</button>' +
+          (missaoBaseSalva ? '<span class="aposta-salvo" id="apostaMissaoFacStatus">✓ Missão-base salva</span>' : '') +
+          (missaoBaseSalva ? '<button type="button" class="aposta-mudanca-del" id="apostaRemoverMissaoFac">Remover missão-base</button>' : '') +
+        '</div>' +
 
         '<h4 style="margin:8px 0 0">Grupos</h4>' +
         (Object.keys(grupos).length
@@ -2918,23 +2925,62 @@
         '<div style="display:flex;justify-content:flex-end"><button class="btn admin-modal-cancel-btn" id="apostaFecharPainel">Fechar</button></div>';
 
       box.querySelector('#apostaFecharPainel').addEventListener('click', fechar);
+
+      /* A prévia compacta usa o mesmo molde/engine da etapa 1 — é a
+         MESMA frase que o grupo vai ver, só que aqui reagindo ao que a
+         facilitação está digitando, antes de salvar. */
+      function coletarMissaoFac() {
+        var d = {};
+        box.querySelectorAll('[data-mis]').forEach(function (el) { d[el.dataset.mis] = el.value; });
+        return d;
+      }
+      function atualizarPreviaMissaoFac() {
+        var el = box.querySelector('#apostaPreviaMissaoFac');
+        if (!el) return;
+        var etapaM = etapaPorId('missao');
+        var partes = partesDaFrase(etapaM, coletarMissaoFac());
+        var falta = partes.some(function (p) { return p.tipo === 'vazio' && !p.opcional; });
+        el.innerHTML = '<span class="aposta-frase-rot">Missão-base</span>' +
+          '<p>' + htmlDaFrase(partes) + '</p>' +
+          (falta ? '' : '<p class="aposta-frase-pronta">A frase está completa.</p>');
+        el.querySelectorAll('.aposta-frase-vazio').forEach(function (b) {
+          b.addEventListener('click', function () {
+            var alvo = box.querySelector('[data-mis="' + b.dataset.ir + '"]');
+            if (!alvo) return;
+            alvo.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+            alvo.focus();
+          });
+        });
+      }
+      atualizarPreviaMissaoFac();
+
       /* As três escritas abaixo confirmam o erro antes de dizer que deu
-         certo. Dizer "Missão salva" sobre uma gravação recusada é o
+         certo. Dizer "Missão-base salva" sobre uma gravação recusada é o
          defeito que a skill editar-e-salvar existe para impedir. */
       box.querySelectorAll('[data-mis]').forEach(function (el) {
-        el.addEventListener('input', function () { aplicarMascara(el); });
+        el.addEventListener('input', function () { aplicarMascara(el); atualizarPreviaMissaoFac(); });
       });
       box.querySelector('#apostaSalvarMissao').addEventListener('click', function () {
         var b = box.querySelector('#apostaSalvarMissao');
-        var m = {};
-        box.querySelectorAll('[data-mis]').forEach(function (el) { m[el.dataset.mis] = el.value; });
+        var m = coletarMissaoFac();
         db().ref(caminhoExec() + '/missao').set(m, function (err) {
           if (err) { b.textContent = 'Não salvou — tente de novo'; return; }
           _exec.missao = m;
-          b.textContent = 'Missão salva';
-          setTimeout(function () { b.textContent = 'Salvar missão'; }, 1600);
+          b.textContent = 'Missão-base salva';
+          setTimeout(function () { desenhar(); }, 1200);
         });
       });
+      var btnRemoverMissaoFac = box.querySelector('#apostaRemoverMissaoFac');
+      if (btnRemoverMissaoFac) {
+        btnRemoverMissaoFac.addEventListener('click', function () {
+          if (!confirm('Remover a missão-base? Grupos que já criaram sua própria missão não serão alterados. Novos grupos passarão a iniciar a Etapa 1 em branco.')) return;
+          db().ref(caminhoExec() + '/missao').remove(function (err) {
+            if (err) { avisar('Não consegui remover a missão-base. Tente de novo.', true); return; }
+            _exec.missao = null;
+            desenhar();
+          });
+        });
+      }
       box.querySelector('#apostaCriarGrupo').addEventListener('click', function () {
         var nome = (box.querySelector('#apostaNovoGrupo').value || '').trim() ||
           ('Grupo ' + (Object.keys(_exec.grupos || {}).length + 1));
