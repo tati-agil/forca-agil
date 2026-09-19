@@ -887,10 +887,14 @@ const textoDaTela = (page) => page.evaluate(() => {
           { timeout: 15000 });
 
         /* "Esperávamos" é literalmente a mudança que se queria ver — vem
-           da mudança mensurável já registrada, números incluídos. */
+           da mudança mensurável já registrada, números incluídos. A
+           direção ("Reduzir") começa a mudança com maiúscula de início
+           de frase própria — mas aqui ela entra DEPOIS de "Esperávamos",
+           então a primeira letra vem minúscula, para continuar a frase
+           em vez de começar outra no meio dela. */
         const esperado = await pgP.evaluate(() => (document.getElementById('ap-esperado') || {}).value || '');
         anota('"Esperávamos" nasce com a mudança mensurável já nomeada, não em branco',
-          /Reduzir/.test(esperado) && /contatos sobre andamento/.test(esperado) &&
+          /^reduzir/.test(esperado) && /contatos sobre andamento/.test(esperado) &&
           /1000/.test(esperado) && /700/.test(esperado),
           'ficou "' + esperado.slice(0, 100) + '"');
 
@@ -1016,7 +1020,7 @@ const textoDaTela = (page) => page.evaluate(() => {
           { timeout: 15000 });
         const esperadoSobra = await pgSE.evaluate(() => (document.getElementById('ap-esperado') || {}).value || '');
         anota('a sobra do exemplo em "Esperávamos" é substituída pela mudança mensurável de verdade',
-          /Reduzir/.test(esperadoSobra) && /reclamações sobre prazo/.test(esperadoSobra) &&
+          /^reduzir/.test(esperadoSobra) && /reclamações sobre prazo/.test(esperadoSobra) &&
           /200/.test(esperadoSobra) && /50/.test(esperadoSobra),
           'ficou "' + esperadoSobra + '"');
         await ctxSE.close();
