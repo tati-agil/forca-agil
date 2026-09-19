@@ -865,6 +865,37 @@ const textoDaTela = (page) => page.evaluate(() => {
           anota('"Queremos" aceita uma direção que não é Aumentar nem Reduzir',
             /Manter estável/.test(fraseLivre), fraseLivre);
         } else {
+          if (i === 4) {
+            /* HIPÓTESE: o Problema aparece só leitura acima; o molde virou
+               duas frases separadas — a explicação de um lado, o sinal
+               que motivou ela do outro. "pois" saiu porque o sinal NÃO é
+               prova da hipótese, só o motivo de cogitá-la. */
+            const hipoteseUi = await page.evaluate(() => {
+              const conexao = document.querySelector('.aposta-conexao');
+              const fixos = Array.from(document.querySelectorAll('.aposta-molde-fixo')).map((e) => e.textContent.trim());
+              return {
+                conexaoRot: conexao ? (conexao.querySelector('.aposta-conexao-rot') || {}).textContent || '' : '',
+                conexaoTxt: conexao ? conexao.textContent || '' : '',
+                temPois: fixos.some((t) => /^pois$/i.test(t)),
+                temNovaFrase: fixos.some((t) => /Essa hip[óo]tese surgiu porque observamos que/i.test(t)),
+              };
+            });
+            anota('o Problema aparece só leitura acima da Hipótese',
+              /Problema/i.test(hipoteseUi.conexaoRot) && /n[ãa]o consegue/i.test(hipoteseUi.conexaoTxt),
+              hipoteseUi.conexaoTxt.slice(0, 120));
+            anota('"pois" saiu do molde — o sinal vira uma frase própria, não é prova da hipótese',
+              !hipoteseUi.temPois && hipoteseUi.temNovaFrase, JSON.stringify(hipoteseUi));
+
+            const dicasHipotese = await page.evaluate(() => {
+              const fixos = Array.from(document.querySelectorAll('.aposta-molde-fixo'));
+              const porque = fixos.find((e) => /Acreditamos que isso acontece porque/i.test(e.textContent));
+              const surgiu = fixos.find((e) => /Essa hip[óo]tese surgiu porque observamos que/i.test(e.textContent));
+              return { causa: porque ? porque.title : '', indicio: surgiu ? surgiu.title : '' };
+            });
+            anota('os campos "hipótese causal" e "sinal que motivou a hipótese" têm tooltip próprio',
+              /ainda precisa ser testada/i.test(dicasHipotese.causa) && /n[ãa]o significa que a hip[óo]tese esteja comprovada/i.test(dicasHipotese.indicio),
+              JSON.stringify(dicasHipotese));
+          }
           if (i === 5) {
             /* IDEIA DE SOLUÇÃO: "Resultados que queremos produzir" lembra
                qual mudança mensurável a ideia deve produzir, antes de
@@ -1020,8 +1051,8 @@ const textoDaTela = (page) => page.evaluate(() => {
                 dicaObrigatoria: g ? (g.querySelector('.aposta-grupo-dica') || {}).textContent || '' : '',
               };
             });
-            anota('a nova hipótese reusa o mesmo molde da etapa Hipótese (duas lacunas, "Acreditamos que isso acontece porque… pois…")',
-              /Acreditamos que isso acontece porque/.test(grupo.fixo) && /pois/.test(grupo.fixo) && grupo.lacunas === 2,
+            anota('a nova hipótese reusa o mesmo molde da etapa Hipótese (duas frases: "Acreditamos que isso acontece porque…" e "Essa hipótese surgiu porque observamos que…")',
+              /Acreditamos que isso acontece porque/.test(grupo.fixo) && /Essa hip[óo]tese surgiu porque observamos que/.test(grupo.fixo) && grupo.lacunas === 2,
               JSON.stringify(grupo));
             anota('quando obrigatória (Reformular a hipótese), a tela diz por quê', /pede uma explica[çc][ãa]o nova/i.test(grupo.dicaObrigatoria));
 
@@ -1333,6 +1364,8 @@ const textoDaTela = (page) => page.evaluate(() => {
           /Esperávamos reduzir contatos sobre o andamento da concessão de 1000 para 500 contatos por mês/.test(card.frase) &&
           /observamos 650 contatos por mês/.test(card.frase),
           card.frase);
+        anota('a frase da evidência não repete o prazo da mudança mensurável ("em 90 dias" fica só lá)',
+          !/em 90 dias/.test(card.frase), card.frase);
         anota('o avanço até a meta é calculado sozinho, respeitando a direção (Reduzir)',
           /70% do caminho até a meta/.test(card.progresso), card.progresso);
 

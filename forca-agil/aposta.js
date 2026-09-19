@@ -160,14 +160,21 @@
       curto: 'Hipótese',
       pergunta: 'Por que achamos que esse problema acontece?',
       auxiliar: 'Agora podemos explicar. Mas ainda é uma hipótese, não um fato.',
-      exemplo: 'Acreditamos que isso acontece porque as informações sobre etapa atual e próximo passo não são suficientemente claras, pois muitas solicitações recebidas são perguntas sobre status e prazo.',
+      exemplo: 'Acreditamos que isso acontece porque as informações sobre a etapa atual do processo não são suficientemente claras. Essa hipótese surgiu porque observamos que muitos participantes entram em contato perguntando sobre o andamento do processo.',
+      rodape: 'Uma hipótese é uma explicação possível para o problema. O que observamos pode justificar investigá-la, mas ainda não prova que ela seja verdadeira.',
       dica: 'Hipótese = nossa explicação atual para o problema. Ela ainda precisa ser testada.',
       dependeDe: 'problema',
+      /* "Pois" ligava causa e indício como se fossem uma coisa só —
+         mas são duas: o que acreditamos (a explicação, ainda não
+         testada) e o que observamos (o sinal que tornou essa explicação
+         plausível). O sinal não é prova da hipótese, só o motivo de
+         cogitá-la; por isso vira uma frase própria, não uma oração
+         subordinada da primeira. */
       campos: [
-        { chave: 'causa', tipo: 'textarea', rotulo: 'Causa provável', curto: 'a causa provável', placeholder: 'as informações sobre etapa atual não são claras' },
-        { chave: 'indicio', tipo: 'textarea', rotulo: 'Qual indício temos?', curto: 'o indício', placeholder: 'muitas perguntas recebidas são sobre status e prazo' }
+        { chave: 'causa', tipo: 'textarea', rotulo: 'Hipótese causal', curto: 'a hipótese causal', placeholder: 'as informações sobre a etapa atual do processo não são suficientemente claras', dica: 'Descreva a explicação que o grupo acredita que pode estar causando o problema. Ela ainda precisa ser testada.' },
+        { chave: 'indicio', tipo: 'textarea', rotulo: 'Sinal que motivou a hipótese', curto: 'o sinal que motivou a hipótese', placeholder: 'muitos participantes entram em contato perguntando sobre o andamento do processo', dica: 'Registre o fato ou sinal que levou o grupo a considerar essa explicação plausível. Isso não significa que a hipótese esteja comprovada.' }
       ],
-      molde: ['Acreditamos que isso acontece porque', { c: 'causa' }, ', pois', { c: 'indicio' }, '.']
+      molde: ['Acreditamos que isso acontece porque', { c: 'causa' }, '. Essa hipótese surgiu porque observamos que', { c: 'indicio' }, '.']
     },
     {
       id: 'ideia',
@@ -294,7 +301,9 @@
         abreAutoQuando: ['Reformular a hipótese'],
         dependeDaEscolha: 'decisao',
         legado: 'proximaHipotese',
-        molde: ['Acreditamos que isso acontece porque', { c: 'proxHipCausa' }, ', pois', { c: 'proxHipIndicio' }, '.']
+        /* Mesmo molde de duas frases da etapa Hipótese (ver comentário
+           lá): o sinal continua não sendo prova, só motivo de cogitar. */
+        molde: ['Acreditamos que isso acontece porque', { c: 'proxHipCausa' }, '. Essa hipótese surgiu porque observamos que', { c: 'proxHipIndicio' }, '.']
       }]
     }
   ];
@@ -864,10 +873,21 @@
      primeira frase é a MESMA que Mudanças mensuráveis já monta
      (fraseMudanca cobre as quatro direções sozinha), só com "Esperávamos"
      na frente; nada é redigitado, só o observado é novo. */
+  /* A frase "Esperávamos..." da Evidência não repete o prazo — ele já
+     está registrado (e visível) em Mudanças mensuráveis, e aqui só
+     confundia: "de 1.000 para 700 contatos por mês em 90 dias. Após o
+     experimento..." lia como se o prazo fosse sobre a EVIDÊNCIA, não
+     sobre a mudança original. As três últimas peças de partesMudanca
+     são sempre a cláusula do prazo (fixo "em"/"durante" + valor + ponto
+     final, nas três direções) — reaproveita tudo antes disso e fecha
+     com o ponto, sem duplicar a lógica de direção. */
+  function partesMudancaSemPrazo(m) {
+    return partesMudanca(m).slice(0, -3).concat([{ tipo: 'fixo', txt: '.' }]);
+  }
   function fraseEvidenciaCard(m, ev) {
     ev = ev || {};
     var sufixo = sufixoUnidade(m);
-    var moldeM = fraseMudanca(m);
+    var moldeM = juntarPartes(partesMudancaSemPrazo(m), function (p) { return p.opcional ? '' : '—'; });
     var esperavamos = 'Esperávamos ' + moldeM.charAt(0).toLowerCase() + moldeM.slice(1);
     if (ev.naoMedido === 'sim') {
       return esperavamos + ' Não foi possível medir neste experimento' + (normalizar(ev.motivo) ? ' (' + ev.motivo + ')' : '') + '.';
