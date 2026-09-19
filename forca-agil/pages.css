@@ -1508,6 +1508,34 @@ select.aposta-campo-input { width: auto; min-width: 8.5em; }
 .aposta-mudanca-frase { margin: 12px 0 0; font-size: .9rem; color: var(--cyan); font-family: var(--font-mono); line-height: 1.5; }
 .aposta-mudanca-del { margin-top: 8px; background: none; border: none; cursor: pointer; font-size: .72rem; color: var(--ink-3); text-decoration: underline; }
 
+/* "O que vamos medir?" (Experimento) — cards selecionáveis das mudanças
+   mensuráveis já cadastradas. Rastreabilidade e Evidência (cards de
+   resultado, resumo) reaproveitam .aposta-mudanca/.aposta-complementos. */
+.aposta-resultados { display: flex; flex-direction: column; gap: 10px; margin-top: 4px; }
+.aposta-resultado-item {
+  display: flex; align-items: flex-start; gap: 10px; cursor: pointer;
+  border: 1px solid var(--line-strong); border-radius: 10px; padding: 10px 14px;
+  background: var(--panel-2);
+}
+.aposta-resultado-item.is-marcado { border-color: #a99dff; background: rgba(138,127,255,.10); }
+.aposta-resultado-item input[type="checkbox"],
+.aposta-checkbox-linha input[type="checkbox"] {
+  width: 16px; height: 16px; margin-top: 3px; flex: 0 0 auto;
+  accent-color: var(--cyan, #18c2ba); cursor: pointer;
+}
+.aposta-resultado-txt { display: flex; flex-direction: column; gap: 2px; }
+.aposta-resultado-txt strong { color: var(--ink); font-size: .9rem; }
+.aposta-resultado-txt span { color: var(--ink-3); font-size: .8rem; font-family: var(--font-mono); }
+.aposta-checkbox-linha {
+  display: flex; align-items: center; gap: 8px; margin-top: 10px;
+  font-size: .84rem; color: var(--ink-2); cursor: pointer;
+}
+.aposta-resultados-resumo {
+  border: 1px dashed var(--line-strong); border-radius: 10px; padding: 14px 16px;
+  margin-top: 18px; display: flex; flex-direction: column; gap: 10px;
+}
+.aposta-resultados-resumo p { margin: 0; font-size: .85rem; color: var(--ink-2); line-height: 1.5; }
+
 /* Escolhas por botão */
 .aposta-escolha { display: flex; flex-direction: column; gap: 8px; }
 .aposta-escolha-opcoes { display: flex; gap: 8px; flex-wrap: wrap; }

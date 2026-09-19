@@ -188,7 +188,7 @@
       titulo: 'E — EXPERIMENTO',
       curto: 'Experimento',
       pergunta: 'Como vamos testar essa ideia?',
-      exemplo: 'Durante 3 semanas, com 50 participantes, vamos enviar a mensagem de status e medir quantos contatos sobre andamento eles realizam.',
+      exemplo: 'Durante 3 semanas, com 50 participantes, vamos enviar a mensagem de status e observar a mudança em contatos sobre o andamento da concessão.',
       rodape: 'O experimento não é a solução completa. É a forma organizada de testar uma versão simplificada da ideia.',
       dica: 'Um experimento precisa de três coisas para valer: com quem, por quanto tempo e o que será medido.',
       dependeDe: 'ideia',
@@ -197,35 +197,35 @@
         { chave: 'quantidade', tipo: 'input', rotulo: 'Quantidade', curto: 'quantas pessoas', placeholder: '50' },
         { chave: 'comQuem', tipo: 'input', rotulo: 'Com quem', curto: 'com quem', placeholder: 'participantes em concessão' },
         { chave: 'oQue', tipo: 'textarea', rotulo: 'O que será feito', curto: 'o que será feito', placeholder: 'enviar a mensagem de status' },
-        { chave: 'medida', tipo: 'textarea', rotulo: 'O que será medido', curto: 'o que será medido', placeholder: 'nº de contatos sobre andamento' },
         { chave: 'responsavel', tipo: 'input', rotulo: 'Responsável', placeholder: 'nome' },
         { chave: 'custo', tipo: 'moeda', rotulo: 'Custo estimado', placeholder: 'R$ 0,00' }
       ],
-      molde: ['Durante', { c: 'duracao' }, ', com', { c: 'quantidade' }, { c: 'comQuem' }, ', vamos', { c: 'oQue' }, 'e medir', { c: 'medida' }, '.']
+      /* "e medir X" saiu do molde — o que se mede não é mais um texto
+         redigitado aqui, é uma ESCOLHA entre as mudanças mensuráveis já
+         cadastradas (ver resultadosPickerHtml). A frase ganha essa parte
+         à parte, em fraseObservar(). */
+      molde: ['Durante', { c: 'duracao' }, ', com', { c: 'quantidade' }, { c: 'comQuem' }, ', vamos', { c: 'oQue' }, '.']
     },
     {
       id: 'evidencia',
       titulo: 'E — EVIDÊNCIA',
       curto: 'Evidência',
-      pergunta: 'O que aconteceu de verdade?',
-      auxiliar: 'Antes de rodar o experimento, registre o que vocês esperam. Depois, o que realmente aconteceu.',
-      exemplo: 'Esperávamos redução dos contatos. Observamos 25% menos contatos no grupo testado. Portanto, nossa hipótese foi parcialmente sustentada.',
+      pergunta: 'O que aconteceu de fato?',
+      auxiliar: 'Compare o que observamos no experimento com os resultados que esperávamos alcançar.',
+      exemplo: 'Esperávamos reduzir os contatos sobre o andamento da concessão de 1.000 para 500 contatos por mês. Após o experimento, observamos 650 contatos por mês.',
       rodape: 'O objetivo do experimento é aprender, não provar que estávamos certos.',
       dica: 'A evidência não julga quem teve a ideia. Ela só diz o que a realidade respondeu.',
       dependeDe: 'experimento',
-      campos: [
-        { chave: 'esperado', tipo: 'textarea', rotulo: 'O que esperamos observar', curto: 'o que esperávamos', antes: true, placeholder: 'redução dos contatos sobre andamento' },
-        { chave: 'observado', tipo: 'textarea', rotulo: 'O que realmente aconteceu', curto: 'o que observamos', placeholder: '25% menos contatos no grupo testado' },
-        { chave: 'medir', tipo: 'textarea', rotulo: 'O que vamos medir', antes: true, placeholder: 'nº de contatos por semana' }
-      ],
+      /* Um card por resultado esperado selecionado no Experimento — o
+         indicador, a situação inicial, a meta, a unidade e o período vêm
+         de Mudanças mensuráveis (por resultadoId) e não são editáveis
+         aqui. Ver evidenciaHtml(). */
       escolha: {
         chave: 'classificacao',
         rotulo: 'Nossa hipótese foi:',
         curto: 'como a hipótese ficou',
         opcoes: ['Sustentada', 'Parcialmente sustentada', 'Não sustentada']
-      },
-      molde: ['Esperávamos', { c: 'esperado' }, '. Observamos', { c: 'observado' },
-              '. Portanto, nossa hipótese foi', { escolha: true, baixa: true }, '.']
+      }
     },
     {
       id: 'decisao',
@@ -369,21 +369,15 @@
       var faltando = [];
       if (!normalizar(d.comQuem) && !normalizar(d.quantidade)) faltando.push('com quem / quantas pessoas');
       if (!normalizar(d.duracao)) faltando.push('por quanto tempo');
-      if (!normalizar(d.medida)) faltando.push('o que será medido');
+      if (!(d.resultadoIds || []).length) faltando.push('o que será medido');
       if (faltando.length) {
         avisos.push('Para o experimento poder ser executado, ainda falta: ' + faltando.join('; ') + '.');
       }
     }
 
-    if (etapaId === 'evidencia') {
-      var esp = normalizar(d.esperado), obs = normalizar(d.observado);
-      if (esp && obs && esp === obs) {
-        avisos.push('O que foi observado está igual ao que era esperado. Descreva o que a realidade mostrou, com seus números.');
-      }
-    }
-
     if (etapaId === 'decisao') {
-      var temEvidencia = normalizar((_dados.evidencia || {}).observado);
+      var itensEv = (_dados.evidencia || {}).itens || [];
+      var temEvidencia = itensEv.some(function (ev) { return normalizar(ev.observado) || ev.naoMedido === 'sim'; });
       if (!temEvidencia) {
         avisos.push('A decisão precisa se apoiar na evidência. Volte e registre o que realmente aconteceu no experimento.');
       }
@@ -409,6 +403,10 @@
       return (d.itens || []).some(function (m) {
         return ['indicador', 'atual', 'meta', 'unidade', 'prazo'].some(function (k) { return normalizar(m[k]); });
       });
+    }
+    if (etapaId === 'evidencia') {
+      return (d.itens || []).some(function (ev) { return normalizar(ev.observado) || ev.naoMedido === 'sim'; }) ||
+        !!d.classificacao;
     }
     var etapa = etapaPorId(etapaId);
     if (!etapa) return false;
@@ -671,11 +669,87 @@
     '</p>';
   }
 
+  /* ── Rastreabilidade: Experimento escolhe quais Mudanças mensuráveis
+     vai observar; Evidência usa essa escolha para montar um card por
+     resultado, sem pedir para redigitar indicador, situação atual,
+     meta, unidade ou período — já definidos em Mudanças mensuráveis. */
+  function gerarResultadoId() {
+    return 'r' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
+  }
+  function resultadosDe(dadosMudancas, ids) {
+    var todos = (dadosMudancas || {}).itens || [];
+    if (!ids) return [];
+    return ids.map(function (id) {
+      return todos.filter(function (m) { return m.id === id; })[0];
+    }).filter(Boolean);
+  }
+  /* "1.000 → 500 contatos por mês", "40% → 80%" — o resumo compacto
+     nos cards de seleção do Experimento e no topo de cada card de
+     Evidência. */
+  function resumoCurtoMudanca(m) {
+    var mig = migrarUnidadePeriodo(m);
+    var atual = m.atual || '—', meta = m.meta || '—';
+    if (mig.unidade === '%') return atual + '% → ' + meta + '%';
+    var periodoTxt = (mig.periodo && normalizar(mig.periodo) !== 'não se aplica') ? ' ' + mig.periodo : '';
+    return atual + ' → ' + meta + (mig.unidade ? ' ' + mig.unidade : '') + periodoTxt;
+  }
+  /* A cláusula "e observar…" do Experimento não é mais texto
+     redigitado: é o nome dos resultados escolhidos no seletor. */
+  function fraseObservar(d, dadosMudancas) {
+    var sel = resultadosDe(dadosMudancas, d.resultadoIds);
+    if (!sel.length) return '';
+    if (sel.length === 1) return 'e observar a mudança em ' + sel[0].indicador + '.';
+    return 'e observar: ' + sel.map(function (m) { return m.indicador; }).join('; ') + '.';
+  }
+  var FONTES_EVIDENCIA = ['Dados do sistema', 'Pesquisa com participantes', 'Registros de atendimento',
+    'Observação do experimento', 'Entrevistas', 'Medição manual', 'Relatório', 'Outro'];
+  /* O sufixo "contatos por mês" / "%" que acompanha os números, igual
+     ao que Mudanças mensuráveis já decidiu para aquele resultado. */
+  function sufixoUnidade(m) {
+    var mig = migrarUnidadePeriodo(m);
+    if (mig.unidade === '%') return '%';
+    var periodoTxt = (mig.periodo && normalizar(mig.periodo) !== 'não se aplica') ? ' ' + mig.periodo : '';
+    return (mig.unidade ? ' ' + mig.unidade : '') + periodoTxt;
+  }
+  /* "Esperávamos reduzir X de 1.000 para 500 contatos por mês. Após o
+     experimento, observamos 650 contatos por mês." — nada redigitado:
+     indicador/situação/meta vêm de Mudanças mensuráveis, só o
+     observado é novo. */
+  function fraseEvidenciaCard(m, ev) {
+    ev = ev || {};
+    var sufixo = sufixoUnidade(m);
+    var direcao = String(m.direcao || 'Aumentar').trim();
+    var direcaoBaixa = direcao.charAt(0).toLowerCase() + direcao.slice(1);
+    var base = 'Esperávamos ' + direcaoBaixa + ' ' + (m.indicador || '') + ' de ' + (m.atual || '—') + ' para ' + (m.meta || '—') + sufixo + '.';
+    if (ev.naoMedido === 'sim') {
+      return base + ' Não foi possível medir neste experimento' + (normalizar(ev.motivo) ? ' (' + ev.motivo + ')' : '') + '.';
+    }
+    if (!normalizar(ev.observado)) return base;
+    return base + ' Após o experimento, observamos ' + ev.observado + sufixo + '.';
+  }
+  /* Avanço em direção à meta, respeitando a direção — a razão entre a
+     mudança OBTIDA (observado − situação atual) e a mudança NECESSÁRIA
+     (meta − situação atual) já inverte sozinha para "Reduzir": não é
+     comparação simples de números. */
+  function progressoEvidencia(m, valorObservado) {
+    var atual = paraNumero(m.atual), meta = paraNumero(m.meta), obs = paraNumero(valorObservado);
+    if (atual == null || meta == null || obs == null || atual === meta) return null;
+    return Math.round(((obs - atual) / (meta - atual)) * 100);
+  }
+
   /* O que vai no card do mapa, no card de conexão e no CSV. Vazio
      quando o grupo ainda não escreveu nada naquela etapa. */
   function resumoEtapa(etapaId, dados) {
     var d = (dados || {})[etapaId] || {};
     if (etapaId === 'mudancas') return (d.itens || []).map(fraseMudanca).join(' ');
+    if (etapaId === 'evidencia') {
+      var frases = (d.itens || []).map(function (ev) {
+        var m = resultadosDe((dados || {}).mudancas, [ev.resultadoId])[0];
+        return m ? fraseEvidenciaCard(m, ev) : '';
+      }).filter(Boolean);
+      if (d.classificacao) frases.push('Portanto, nossa hipótese foi ' + d.classificacao.toLowerCase() + '.');
+      return frases.join(' ');
+    }
     var etapa = etapaPorId(etapaId);
     if (!etapa || !etapaPreenchida(etapaId, dados)) return '';
     /* Execuções anteriores guardaram a etapa num campo de texto só.
@@ -685,7 +759,12 @@
     if (etapa.legado && normalizar(d[etapa.legado]) && !temLacunaPreenchida(etapa, d)) {
       return String(d[etapa.legado]).trim();
     }
-    return juntarPartes(partesDaFrase(etapa, d), function (p) { return p.opcional ? '' : '—'; });
+    var base = juntarPartes(partesDaFrase(etapa, d), function (p) { return p.opcional ? '' : '—'; });
+    if (etapaId === 'experimento') {
+      var obs = fraseObservar(d, (dados || {}).mudancas);
+      if (obs) base = (base ? base + ' ' : '') + obs;
+    }
+    return base;
   }
 
   function temLacunaPreenchida(etapa, d) {
@@ -1366,6 +1445,10 @@
 
     if (etapa.escolha && !usados['@escolha']) html += escolhaHtml(etapa.escolha, d);
 
+    /* O que o Experimento vai medir não é mais texto redigitado: é a
+       escolha de quais Mudanças mensuráveis este teste observa. */
+    if (etapa.id === 'experimento') html += resultadosPickerHtml(d);
+
     /* Blocos guiados que não entram na frase da etapa, mas também são
        frases (hoje: a próxima hipótese). */
     (etapa.grupos || []).forEach(function (g) {
@@ -1411,50 +1494,10 @@
     var herdada = etapa.id === 'missao' && !etapaPreenchida('missao', _dados) && temMissaoDaExecucao();
     if (herdada) d = missaoDaExecucao();
 
-    /* "Esperávamos" pede de novo A MUDANÇA MENSURÁVEL que o grupo já
-       registrou — "esperávamos" é literalmente a mudança que se queria
-       ver (com os números: "de 1000 para 700"), não só o nome da
-       métrica que o Experimento vai medir, que não carrega expectativa
-       nenhuma. Serve só de ponto de partida: nasce editável, e o que o
-       grupo mudar é o que fica salvo (coletar() lê o campo da tela,
-       nunca este valor).
-
-       "Vazio" inclui o caso de o campo ainda guardar só o próprio
-       exemplo (dica) como se fosse resposta — sobra de quando o campo
-       ainda não vinha preenchido e alguém digitou exatamente o que via
-       ali. Sem essa checagem, essa sobra travava o prefill para sempre,
-       mesmo depois de a mudança mensurável ganhar uma resposta de verdade. */
-    function aindaSemResposta(campo, valor) {
-      var v = normalizar(valor);
-      if (!v) return true;
-      return !!(campo && campo.placeholder && v === normalizar(campo.placeholder));
-    }
-    /* Só usa a mudança como ponto de partida se ela estiver completa —
-       "Esperávamos" é um campo de texto comum, não a prévia da etapa
-       Mudanças mensuráveis, e o "—" que marca lacuna ali (útil no mapa,
-       onde é só leitura) virava texto de verdade aqui dentro ("...em
-       —."), relatado no uso real. Uma mudança com prazo em aberto não
-       vira ponto de partida; melhor nascer em branco do que com um
-       traço solto no meio da frase. */
-    if (etapa.id === 'evidencia' && aindaSemResposta(campoPorChave(etapa, 'esperado'), d.esperado)) {
-      var mudancaCompleta = ((_dados.mudancas || {}).itens || []).filter(function (m) {
-        return partesMudanca(m).every(function (p) { return p.tipo !== 'vazio' || p.opcional; });
-      })[0];
-      /* A mudança é frase própria ("Aumentar X de..."), com maiúscula de
-         início de frase — mas aqui ela entra depois de "Esperávamos", no
-         meio de OUTRA frase. Só a primeira letra baixa (não a frase
-         inteira: "cc"/siglas no meio continuam do jeito que a pessoa
-         escreveu). Relatado no uso real. */
-      if (mudancaCompleta) {
-        var fraseMud = fraseMudanca(mudancaCompleta);
-        d = Object.assign({}, d, { esperado: fraseMud.charAt(0).toLowerCase() + fraseMud.slice(1) });
-      }
-    }
-
     var corpo = (herdada
       ? '<p class="aposta-herdada">Missão cadastrada pela facilitação. Vocês podem ajustar — ' +
         'o que ficar aqui é a missão do grupo.</p>'
-      : '') + (etapa.lista ? mudancasHtml(d) : moldeHtml(etapa, d));
+      : '') + (etapa.lista ? mudancasHtml(d) : (etapa.id === 'evidencia' ? evidenciaHtml(d) : moldeHtml(etapa, d)));
 
     _tela.innerHTML = cabecalho() +
       '<div class="aposta-corpo">' +
@@ -1475,7 +1518,7 @@
                clicar nele leva o cursor para o campo. É a resposta a
                "não sei mais o que falta preencher" — a etapa não depende
                de a pessoa reler os campos um por um para descobrir. */
-            (etapa.lista ? '' :
+            (etapa.lista || etapa.id === 'evidencia' ? '' :
               '<div class="aposta-frase" id="apostaFrase"></div>') +
             (etapa.rodape ? '<p class="aposta-rodape">' + esc(etapa.rodape) + '</p>' : '') +
             (etapa.exemplo
@@ -1517,6 +1560,13 @@
        começava. O botão continua, para a segunda em diante. */
     var itens = (d.itens && d.itens.length) ? d.itens : [{}];
     var podeRemover = itens.length > 1;
+    /* Cada mudança precisa de um id estável para o Experimento poder
+       apontar para ela (resultadoIds) e a Evidência montar o card
+       certo — inclusive uma mudança gravada antes de isso existir.
+       Gerado uma vez e mantido: mutar `d.itens[i]` aqui é o que faz o
+       id sobreviver ao próximo salvamento (coletar() relê o campo
+       escondido abaixo). */
+    itens.forEach(function (m) { if (!m.id) m.id = gerarResultadoId(); });
     return '<div class="aposta-mudancas">' +
       itens.map(function (m, i) {
         var q = lerQuantidade({ chave: 'prazo', unidadePadrao: 'dias' }, m);
@@ -1524,6 +1574,7 @@
         var chipsUnidade = UNIDADES_SUGERIDAS[m.formaMedicao] || [];
         var valorUnidade = UNIDADE_AUTOMATICA[m.formaMedicao] || mig.unidade || '';
         return '<div class="aposta-mudanca" data-i="' + i + '">' +
+          '<input type="hidden" data-m="id" value="' + esc(m.id) + '" />' +
           '<div class="aposta-mudanca-grade">' +
             /* Linha 1 */
             '<label class="aposta-campo"><span class="aposta-campo-rot">Queremos</span>' +
@@ -1569,6 +1620,109 @@
     '</div>';
   }
 
+  /* ── "O que vamos medir?" — o Experimento escolhe quais Mudanças
+     mensuráveis vai observar, em vez de redigitar um indicador em
+     texto livre. Uma só mudança: já vem marcada, sem pedir escolha.
+     Várias: todas vêm marcadas (o caso comum é observar tudo), e dá
+     para desmarcar as que não valem para este teste. */
+  function resultadosPickerHtml(d) {
+    var todos = ((_dados.mudancas || {}).itens || []).filter(function (m) { return normalizar(m.indicador); });
+    if (!todos.length) {
+      return '<div class="aposta-resultados">' +
+        '<p class="aposta-campo-rot">O que vamos medir?</p>' +
+        '<p class="aposta-auxiliar">Ainda não há nenhuma mudança mensurável cadastrada — volte lá para registrar o que este experimento vai observar.</p>' +
+      '</div>';
+    }
+    var unico = todos.length === 1;
+    var jaEscolheu = Array.isArray(d.resultadoIds);
+    return '<div class="aposta-resultados">' +
+      '<p class="aposta-campo-rot">O que vamos medir?</p>' +
+      '<p class="aposta-auxiliar">Selecione quais resultados esperados este experimento ajudará a testar.</p>' +
+      todos.map(function (m) {
+        var marcado = unico || (jaEscolheu ? d.resultadoIds.indexOf(m.id) !== -1 : true);
+        return '<label class="aposta-resultado-item' + (marcado ? ' is-marcado' : '') + '">' +
+          '<input type="checkbox" data-campo="resultadoIds" value="' + esc(m.id) + '"' +
+            (marcado ? ' checked' : '') + (unico ? ' disabled' : '') + ' />' +
+          '<span class="aposta-resultado-txt">' +
+            '<strong>' + esc(m.indicador) + '</strong>' +
+            '<span>' + esc(resumoCurtoMudanca(m)) + '</span>' +
+          '</span>' +
+        '</label>';
+      }).join('') +
+    '</div>';
+  }
+
+  /* ── Evidência: um card por resultado escolhido no Experimento —
+     indicador, situação inicial, meta, unidade e período vêm prontos
+     de Mudanças mensuráveis, sem poder ser editados aqui. O único
+     dado novo é o que a realidade respondeu. */
+  function evidenciaHtml(d) {
+    var experimento = _dados.experimento || {};
+    var resultados = resultadosDe(_dados.mudancas, experimento.resultadoIds);
+    var itens = d.itens || [];
+    function evidenciaDe(id) { return itens.filter(function (ev) { return ev.resultadoId === id; })[0] || {}; }
+
+    if (!resultados.length) {
+      return '<p class="admin-empty">Volte ao Experimento e escolha ao menos um resultado esperado para medir — é a partir dessa escolha que os cards de evidência aparecem aqui.</p>';
+    }
+
+    var html = resultados.map(function (m, i) {
+      var ev = evidenciaDe(m.id);
+      var naoMedido = ev.naoMedido === 'sim';
+      var sufixo = sufixoUnidade(m);
+      var progresso = !naoMedido ? progressoEvidencia(m, ev.observado) : null;
+      return '<div class="aposta-mudanca" data-resultado="' + esc(m.id) + '">' +
+        '<p class="aposta-campo-rot" style="margin:0 0 2px">RESULTADO ESPERADO ' + (i + 1) + '</p>' +
+        '<p style="margin:0 0 12px;color:var(--ink)"><strong>' + esc(m.indicador) + '</strong></p>' +
+        '<div class="aposta-mudanca-grade">' +
+          '<label class="aposta-campo"><span class="aposta-campo-rot">Situação inicial</span>' +
+            '<input type="text" class="aposta-campo-input" value="' + esc((m.atual || '—') + sufixo) + '" disabled /></label>' +
+          '<label class="aposta-campo"><span class="aposta-campo-rot">Meta</span>' +
+            '<input type="text" class="aposta-campo-input" value="' + esc((m.meta || '—') + sufixo) + '" disabled /></label>' +
+          '<label class="aposta-campo"><span class="aposta-campo-rot" title="O que a realidade respondeu, na mesma unidade da meta.">Resultado observado</span>' +
+            '<input type="text" inputmode="decimal" class="aposta-campo-input" data-e="observado" value="' + esc(ev.observado || '') + '"' +
+              (naoMedido ? ' disabled' : ' placeholder="' + esc(m.meta || '650') + '"') + ' /></label>' +
+          '<label class="aposta-campo"><span class="aposta-campo-rot">Fonte da evidência</span>' +
+            '<select class="aposta-campo-input" data-e="fonte"' + (naoMedido ? ' disabled' : '') + '>' +
+              '<option value="">Selecione</option>' +
+              FONTES_EVIDENCIA.map(function (f) {
+                return '<option value="' + esc(f) + '"' + (ev.fonte === f ? ' selected' : '') + '>' + esc(f) + '</option>';
+              }).join('') +
+            '</select>' +
+          '</label>' +
+        '</div>' +
+        '<label class="aposta-campo aposta-campo--largo" style="margin-top:10px"><span class="aposta-campo-rot">Detalhe da fonte (opcional)</span>' +
+          '<input type="text" class="aposta-campo-input" data-e="fonteDetalhe" value="' + esc(ev.fonteDetalhe || '') + '"' +
+            (naoMedido ? ' disabled' : '') + ' placeholder="ex.: ServiceNow, período de 01/09 a 21/09" /></label>' +
+        '<label class="aposta-checkbox-linha">' +
+          '<input type="checkbox" data-e="naoMedido" value="sim"' + (naoMedido ? ' checked' : '') + ' />' +
+          ' Não foi possível medir neste experimento' +
+        '</label>' +
+        '<label class="aposta-campo aposta-campo--largo"><span class="aposta-campo-rot">Motivo (opcional)</span>' +
+          '<input type="text" class="aposta-campo-input" data-e="motivo" value="' + esc(ev.motivo || '') + '" placeholder="ex.: pesquisa não foi concluída dentro do período" /></label>' +
+        '<p class="aposta-mudanca-frase">' + esc(fraseEvidenciaCard(m, ev)) + '</p>' +
+        (progresso != null ? '<p class="aposta-frase-pronta">' + Math.max(0, progresso) + '% do caminho até a meta</p>' : '') +
+      '</div>';
+    }).join('');
+
+    /* Resumo automático — o que a etapa Decisão vai usar para apoiar a
+       conversa, sem concluir sozinha se a hipótese estava certa. */
+    var resumo = resultados.map(function (m) {
+      var ev = evidenciaDe(m.id);
+      var sufixo = sufixoUnidade(m);
+      var obsTxt = normalizar(ev.observado) ? (ev.observado + sufixo) : (ev.naoMedido === 'sim' ? 'não medido' : '—');
+      return '<p><strong>' + esc(m.indicador) + ':</strong><br>' +
+        esc((m.atual || '—') + sufixo) + ' → ' + esc(obsTxt) + ' · Meta: ' + esc((m.meta || '—') + sufixo) + '</p>';
+    }).join('');
+
+    return '<div class="aposta-mudancas">' + html + '</div>' +
+      '<div class="aposta-resultados-resumo">' +
+        '<p class="aposta-campo-rot">Resultados do experimento</p>' +
+        resumo +
+      '</div>' +
+      escolhaHtml(etapaPorId('evidencia').escolha, d);
+  }
+
   function ligarEtapa(etapa) {
     var avisosEl = document.getElementById('apostaAvisos');
 
@@ -1589,12 +1743,32 @@
           });
           if (escreveu) d.itens.push(m);
         });
+      } else if (etapa.id === 'evidencia') {
+        d.itens = [];
+        _tela.querySelectorAll('.aposta-mudanca[data-resultado]').forEach(function (bloco) {
+          var ev = { resultadoId: bloco.dataset.resultado };
+          bloco.querySelectorAll('[data-e]').forEach(function (el) {
+            ev[el.dataset.e] = el.type === 'checkbox' ? (el.checked ? 'sim' : '') : el.value;
+          });
+          d.itens.push(ev);
+        });
       } else {
-        _tela.querySelectorAll('[data-campo]').forEach(function (el) { d[el.dataset.campo] = el.value; });
-        if (etapa.escolha) {
-          var ativa = _tela.querySelector('.aposta-opcao.is-ativa');
-          if (ativa) d[etapa.escolha.chave] = ativa.dataset.valor;
-        }
+        _tela.querySelectorAll('[data-campo]').forEach(function (el) {
+          /* Checkbox de múltipla escolha (hoje só "O que vamos medir?"):
+             junta os valores marcados numa lista, em vez de sobrescrever
+             um pelo outro — é o único campo desta etapa que não é
+             "um valor por vez". */
+          if (el.type === 'checkbox') {
+            if (!Array.isArray(d[el.dataset.campo])) d[el.dataset.campo] = [];
+            if (el.checked) d[el.dataset.campo].push(el.value);
+          } else {
+            d[el.dataset.campo] = el.value;
+          }
+        });
+      }
+      if (etapa.escolha) {
+        var ativa = _tela.querySelector('.aposta-opcao.is-ativa');
+        if (ativa) d[etapa.escolha.chave] = ativa.dataset.valor;
       }
       return d;
     }
@@ -1609,7 +1783,9 @@
        campo em branco — o texto tinha sido apagado de verdade. */
     function salvarDepois() {
       agendarSalvamento(etapa.id, coletar());
-      if (etapa.lista) atualizarFrases(); else atualizarFrase();
+      if (etapa.lista) atualizarFrases();
+      else if (etapa.id === 'evidencia') atualizarCardsEvidencia();
+      else atualizarFrase();
     }
 
     /* Mesmo molde que monta o card do Mapa da Aposta: o que a pessoa lê
@@ -1631,6 +1807,19 @@
       var html = usaLegado
         ? '<strong class="aposta-frase-valor">' + esc(String(d[etapa.legado]).trim()) + '</strong>'
         : htmlDaFrase(partes);
+
+      /* O que o Experimento vai medir não é uma lacuna do molde — é a
+         escolha feita no seletor "O que vamos medir?" — mas ainda
+         precisa aparecer na prévia "Fica assim no mapa", porque é o
+         mesmo texto que vai para lá. */
+      if (etapa.id === 'experimento') {
+        var obs = fraseObservar(d, _dados.mudancas);
+        if (obs) {
+          html += ' <span class="aposta-frase-fixo">' + esc(obs) + '</span>';
+        } else {
+          faltam = faltam.concat([{ rotulo: 'o que vamos medir' }]);
+        }
+      }
 
       var agora = document.getElementById('apostaGrupoAgora');
       if (agora) {
@@ -1719,11 +1908,75 @@
       });
     }
 
+    /* O mesmo, para os cards de Evidência: a frase "Esperávamos… Após o
+       experimento, observamos…", o "% do caminho até a meta" e o
+       resumo automático mudam juntos a cada tecla. "Não foi possível
+       medir" desliga os campos que ele torna irrelevantes, na hora. */
+    function evidenciaColetada(bloco) {
+      var ev = { resultadoId: bloco.dataset.resultado };
+      bloco.querySelectorAll('[data-e]').forEach(function (el) {
+        ev[el.dataset.e] = el.type === 'checkbox' ? (el.checked ? 'sim' : '') : el.value;
+      });
+      return ev;
+    }
+    function atualizarCardsEvidencia() {
+      _tela.querySelectorAll('.aposta-mudanca[data-resultado]').forEach(function (bloco) {
+        var m = resultadosDe(_dados.mudancas, [bloco.dataset.resultado])[0];
+        if (!m) return;
+        var ev = evidenciaColetada(bloco);
+        var naoMedido = ev.naoMedido === 'sim';
+        bloco.querySelectorAll('[data-e="observado"], [data-e="fonte"], [data-e="fonteDetalhe"]').forEach(function (el) {
+          el.disabled = naoMedido;
+        });
+        var frase = bloco.querySelector('.aposta-mudanca-frase');
+        if (frase) frase.textContent = fraseEvidenciaCard(m, ev);
+        var progressoEl = bloco.querySelector('.aposta-frase-pronta');
+        var progresso = !naoMedido ? progressoEvidencia(m, ev.observado) : null;
+        if (progresso != null) {
+          var texto = Math.max(0, progresso) + '% do caminho até a meta';
+          if (progressoEl) progressoEl.textContent = texto;
+          else if (frase) frase.insertAdjacentHTML('afterend', '<p class="aposta-frase-pronta">' + esc(texto) + '</p>');
+        } else if (progressoEl) {
+          progressoEl.parentNode.removeChild(progressoEl);
+        }
+      });
+      atualizarResumoEvidencia();
+    }
+    function atualizarResumoEvidencia() {
+      var wrap = _tela.querySelector('.aposta-resultados-resumo');
+      if (!wrap) return;
+      var resultados = resultadosDe(_dados.mudancas, (_dados.experimento || {}).resultadoIds);
+      var itens = Array.prototype.map.call(_tela.querySelectorAll('.aposta-mudanca[data-resultado]'), evidenciaColetada);
+      function evidenciaDe(id) { return itens.filter(function (e) { return e.resultadoId === id; })[0] || {}; }
+      var resumo = resultados.map(function (m) {
+        var ev = evidenciaDe(m.id);
+        var sufixo = sufixoUnidade(m);
+        var obsTxt = normalizar(ev.observado) ? (ev.observado + sufixo) : (ev.naoMedido === 'sim' ? 'não medido' : '—');
+        return '<p><strong>' + esc(m.indicador) + ':</strong><br>' +
+          esc((m.atual || '—') + sufixo) + ' → ' + esc(obsTxt) + ' · Meta: ' + esc((m.meta || '—') + sufixo) + '</p>';
+      }).join('');
+      wrap.innerHTML = '<p class="aposta-campo-rot">Resultados do experimento</p>' + resumo;
+    }
+
     function ligarCampoInput(el) {
       el.addEventListener('input', function () { aplicarMascara(el); salvarDepois(); });
       el.addEventListener('change', function () { aplicarMascara(el); salvarDepois(); });
     }
     _tela.querySelectorAll('.aposta-campo-input').forEach(ligarCampoInput);
+    /* Os checkboxes ("O que vamos medir?", "Não foi possível medir")
+       não levam a classe aposta-campo-input — essa classe é a caixa de
+       texto/select cheia, e um checkbox com ela virava um retângulo
+       gigante em vez do quadradinho de sempre. */
+    _tela.querySelectorAll('.aposta-resultado-item input[type="checkbox"], .aposta-checkbox-linha input[type="checkbox"]').forEach(ligarCampoInput);
+
+    /* O card do "O que vamos medir?" destaca visualmente o que está
+       marcado — o mesmo card mostra o checkbox e o resumo do
+       resultado, então o realce precisa acompanhar o clique. */
+    _tela.querySelectorAll('.aposta-resultado-item').forEach(function (item) {
+      var caixa = item.querySelector('input[type="checkbox"]');
+      if (!caixa) return;
+      caixa.addEventListener('change', function () { item.classList.toggle('is-marcado', caixa.checked); });
+    });
 
     /* Os chips são atalho para o campo ao lado, não um controle à parte:
        clicar preenche o texto de sempre (e dispara o mesmo salvamento de

@@ -259,7 +259,7 @@ const textoDaTela = (page) => page.evaluate(() => {
         g.etapa = 'sintoma';
         g.dados = {
           missao:    { verbo: 'Melhorar', oQue: 'a experiência', prazo: '90', prazoUnidade: 'dias' },
-          evidencia: { esperado: 'menos contatos', observado: '25% menos' },
+          evidencia: { itens: [{ resultadoId: 'r1', observado: '25% menos' }] },
           decisao:   { decisao: 'Ampliar', proximaAcao: 'novo teste' },
         };
         const { ctx: ctxT, page: pg } = await novaPagina(browser, formato, DIRETORA, erros, semeado);
@@ -279,10 +279,11 @@ const textoDaTela = (page) => page.evaluate(() => {
       }
 
       /* ── 2c: texto fixo colado na lacuna, e valor antigo fora de formato ──
-         Dois defeitos vistos na tela: "e medir" sozinho numa linha entre
-         dois campos largos, sem nada dizendo a que campo pertencia; e o
-         custo "10.0000", gravado antes da máscara existir, aparecendo cru
-         como se máscara nenhuma houvesse. */
+         Dois defeitos vistos na tela: um texto fixo sozinho numa linha
+         entre dois campos largos, sem nada dizendo a que campo pertencia
+         (o caso original era "e medir", removido do molde nesta etapa);
+         e o custo "10.0000", gravado antes da máscara existir,
+         aparecendo cru como se máscara nenhuma houvesse. */
       {
         const semeado = apostasSemeadas();
         const g = semeado[TURMA_LIB].execucoes[EXEC].grupos[GRUPO];
@@ -303,10 +304,10 @@ const textoDaTela = (page) => page.evaluate(() => {
           soltos.length === 0, soltos.join(' | '));
         const juntos = await pg.evaluate(() => {
           const par = Array.from(document.querySelectorAll('.aposta-par'))
-            .find((p) => /e medir/.test((p.querySelector('.aposta-molde-fixo') || {}).textContent || ''));
-          return !!(par && par.querySelector('[data-campo="medida"]'));
+            .find((p) => /vamos/.test((p.querySelector('.aposta-molde-fixo') || {}).textContent || ''));
+          return !!(par && par.querySelector('[data-campo="oQue"]'));
         });
-        anota('"e medir" vem no mesmo bloco do campo que ele apresenta', juntos);
+        anota('"vamos" vem no mesmo bloco do campo que ele apresenta', juntos);
 
         /* Em coluna, flex-basis vira altura: a lacuna do prazo já herdou
            230px de ALTURA e abriu um buraco no meio da frase. */
@@ -627,6 +628,32 @@ const textoDaTela = (page) => page.evaluate(() => {
             await page.waitForTimeout(250);
             const custo = await page.evaluate(() => (document.querySelector('[data-campo="custo"]') || {}).value || '');
             anota('o custo estimado sai formatado como moeda', /^R\$\s?2\.500,00$/.test(custo), 'ficou "' + custo + '"');
+
+            /* "O que vamos medir?" — só existe UMA mudança mensurável até
+               aqui no percurso, então ela já vem marcada e travada (não
+               é uma escolha real quando só há uma opção). */
+            const medir = await page.evaluate(() => {
+              const caixa = document.querySelector('.aposta-resultado-item input[type="checkbox"]');
+              return caixa ? { marcada: caixa.checked, travada: caixa.disabled } : null;
+            });
+            anota('com uma só mudança mensurável, "o que vamos medir" já vem marcado e travado',
+              !!medir && medir.marcada && medir.travada, JSON.stringify(medir));
+          }
+          if (i === 7) {
+            /* EVIDÊNCIA: o card vem pronto com o que a única mudança
+               mensurável do grupo já tinha — nada disso é digitável aqui,
+               só o resultado observado e a fonte (o resto da cobertura,
+               com números de verdade e o "% do caminho até a meta", está
+               nos blocos dedicados mais abaixo). */
+            const card = await page.evaluate(() => {
+              const bloco = document.querySelector('.aposta-mudanca[data-resultado]');
+              if (!bloco) return null;
+              const campos = Array.from(bloco.querySelectorAll('.aposta-campo-input[disabled]')).map((e) => e.value);
+              return { titulo: (bloco.querySelector('strong') || {}).textContent || '', campos: campos };
+            });
+            anota('o card de evidência já chega com indicador, situação inicial e meta — nada redigitado',
+              !!card && /andamento/.test(card.titulo) && card.campos.some((v) => /1000/.test(v)) && card.campos.some((v) => /700/.test(v)),
+              JSON.stringify(card));
           }
           if (i === 8) {
             /* DECISÃO: a data de reavaliação é um DIA marcado no calendário
@@ -677,7 +704,12 @@ const textoDaTela = (page) => page.evaluate(() => {
             anota('a frase da decisão não tem traço solto no meio',
               /Próxima ação:/.test(fraseDec) && !/—/.test(fraseDec), fraseDec.slice(0, 140));
           }
-          const campo = page.locator('.aposta-campo-input').first();
+          /* :not([disabled]) — a Evidência mostra Situação inicial/Meta
+             como campos desabilitados (herdados de Mudanças mensuráveis,
+             não editáveis ali); preencher o primeiro campo "genérico"
+             sem esse filtro tentaria digitar num campo que a tela
+             correta e propositalmente não deixa editar. */
+          const campo = page.locator('.aposta-campo-input:not([disabled])').first();
           if (await campo.count()) await campo.fill('conteúdo da etapa ' + (i + 1));
           const opcao = page.locator('.aposta-opcao').first();
           if (await opcao.count()) await opcao.click();
@@ -791,11 +823,11 @@ const textoDaTela = (page) => page.evaluate(() => {
         missao:   { texto: 'Melhorar a experiência do participante em 90 dias' },
         sintoma:  { texto: 'muita gente liga para saber o status' },
         problema: { quem: 'Os participantes', naoConsegue: 'acompanhar o andamento', evidenciadoPor: 'contatos frequentes' },
-        mudancas: { itens: [{ direcao: 'Reduzir', indicador: 'contatos sobre andamento', atual: '1000', meta: '700', unidade: 'por mês', prazo: '90 dias' }] },
+        mudancas: { itens: [{ id: 'r1', direcao: 'Reduzir', indicador: 'contatos sobre andamento', atual: '1000', meta: '700', unidade: 'por mês', prazo: '90 dias' }] },
         hipotese: { causa: 'as informações não são claras', indicio: 'muitas perguntas de status' },
         ideia:    { texto: 'dar visibilidade do andamento' },
-        experimento: { oQue: 'enviar a mensagem', comQuem: 'participantes', quantidade: '50', duracao: '3 semanas', medida: 'nº de contatos' },
-        evidencia: { esperado: 'menos contatos', observado: '25% menos contatos', classificacao: 'Parcialmente sustentada' },
+        experimento: { oQue: 'enviar a mensagem', comQuem: 'participantes', quantidade: '50', duracao: '3 semanas', resultadoIds: ['r1'] },
+        evidencia: { itens: [{ resultadoId: 'r1', observado: '750', fonte: 'Registros de atendimento' }], classificacao: 'Parcialmente sustentada' },
         decisao:  { decisao: 'Ajustar e testar novamente', proximaAcao: 'novo teste com grupo maior' }
       };
       semeado[TURMA_LIB].execucoes[EXEC].grupos[GRUPO].etapa = 'decisao';
@@ -928,115 +960,122 @@ const textoDaTela = (page) => page.evaluate(() => {
         await ctxF.close();
       }
 
-      /* ── 9: "Esperávamos" nasce com um ponto de partida, em vez de
-            pedir de novo o que já foi escrito noutra etapa — "não
-            deveria vir preenchido?", perguntado no uso real. Continua
-            editável: é só o valor inicial que muda, o que fica salvo é
-            sempre o que está na tela quando o grupo segue em frente. ── */
+      /* ── 9: o card de Evidência herda indicador, situação inicial, meta
+            e unidade de Mudanças mensuráveis — nada disso é redigitado.
+            Só o resultado observado e a fonte são novos, e a frase e o
+            "% do caminho até a meta" se montam sozinhos a partir do que
+            já existia mais o que a pessoa acabou de preencher. ── */
       {
-        const semeadoPre = apostasSemeadas();
-        semeadoPre[TURMA_LIB].execucoes[EXEC].grupos[GRUPO].etapa = 'evidencia';
-        semeadoPre[TURMA_LIB].execucoes[EXEC].grupos[GRUPO].dados = {
-          ideia: { acao: 'dar mais visibilidade sobre o andamento', mudanca: 'para reduzir contatos' },
-          mudancas: { itens: [{ direcao: 'Reduzir', indicador: 'contatos sobre andamento', atual: '1000', meta: '700', unidade: 'por mês', prazo: '90', prazoUnidade: 'dias' }] },
+        const semeadoEv = apostasSemeadas();
+        semeadoEv[TURMA_LIB].execucoes[EXEC].grupos[GRUPO].etapa = 'evidencia';
+        semeadoEv[TURMA_LIB].execucoes[EXEC].grupos[GRUPO].dados = {
+          mudancas: { itens: [{ id: 'r1', direcao: 'Reduzir', indicador: 'contatos sobre o andamento da concessão', atual: '1000', meta: '500', formaMedicao: 'Quantidade', unidade: 'contatos', periodo: 'por mês', prazo: '90', prazoUnidade: 'dias' }] },
+          experimento: { resultadoIds: ['r1'] },
         };
-        const { ctx: ctxP, page: pgP } = await novaPagina(browser, formato, DIRETORA, erros, semeadoPre);
-        await pgP.goto(BASE + '/index.html#treinamento', { waitUntil: 'domcontentloaded' });
-        await pgP.click('#apostaAbrirBtn');
-        await pgP.waitForSelector('.aposta-grupo-btn', { timeout: 15000 });
-        await pgP.click('.aposta-grupo-btn');
-        await pgP.waitForFunction(() =>
+        const { ctx: ctxEv, page: pgEv } = await novaPagina(browser, formato, DIRETORA, erros, semeadoEv);
+        await pgEv.goto(BASE + '/index.html#treinamento', { waitUntil: 'domcontentloaded' });
+        await pgEv.click('#apostaAbrirBtn');
+        await pgEv.waitForSelector('.aposta-grupo-btn', { timeout: 15000 });
+        await pgEv.click('.aposta-grupo-btn');
+        await pgEv.waitForFunction(() =>
           /EVID[ÊE]NCIA/.test((document.querySelector('.aposta-etapa-titulo') || {}).textContent || ''),
           { timeout: 15000 });
 
-        /* "Esperávamos" é literalmente a mudança que se queria ver — vem
-           da mudança mensurável já registrada, números incluídos. A
-           direção ("Reduzir") começa a mudança com maiúscula de início
-           de frase própria — mas aqui ela entra DEPOIS de "Esperávamos",
-           então a primeira letra vem minúscula, para continuar a frase
-           em vez de começar outra no meio dela. */
-        const esperado = await pgP.evaluate(() => (document.getElementById('ap-esperado') || {}).value || '');
-        anota('"Esperávamos" nasce com a mudança mensurável já nomeada, não em branco',
-          /^reduzir/.test(esperado) && /contatos sobre andamento/.test(esperado) &&
-          /1000/.test(esperado) && /700/.test(esperado),
-          'ficou "' + esperado.slice(0, 100) + '"');
+        const herdado = await pgEv.evaluate(() => {
+          const bloco = document.querySelector('.aposta-mudanca[data-resultado]');
+          const disabled = bloco ? Array.from(bloco.querySelectorAll('.aposta-campo-input[disabled]')).map((e) => e.value) : [];
+          return { um: document.querySelectorAll('.aposta-mudanca[data-resultado]').length, disabled: disabled };
+        });
+        anota('a evidência tem um card, e situação inicial/meta chegam prontas, não editáveis',
+          herdado.um === 1 && /1000 contatos por mês/.test(herdado.disabled[0]) && /500 contatos por mês/.test(herdado.disabled[1]),
+          JSON.stringify(herdado));
 
-        await ctxP.close();
+        await pgEv.fill('[data-e="observado"]', '650');
+        await pgEv.selectOption('[data-e="fonte"]', 'Registros de atendimento');
+        await pgEv.waitForTimeout(300);
+        const card = await pgEv.evaluate(() => ({
+          frase: (document.querySelector('.aposta-mudanca-frase') || {}).textContent || '',
+          progresso: (document.querySelector('.aposta-frase-pronta') || {}).textContent || '',
+        }));
+        anota('a frase da evidência junta o que já existia com o que foi observado, sem redigitar nada',
+          /Esperávamos reduzir contatos sobre o andamento da concessão de 1000 para 500 contatos por mês/.test(card.frase) &&
+          /observamos 650 contatos por mês/.test(card.frase),
+          card.frase);
+        anota('o avanço até a meta é calculado sozinho, respeitando a direção (Reduzir)',
+          /70% do caminho até a meta/.test(card.progresso), card.progresso);
+
+        await ctxEv.close();
       }
 
-      /* ── 9b: sobra do próprio exemplo não trava o prefill para sempre em
-            "Esperávamos" (Evidência), que nasce da mudança mensurável já
-            registrada. ── */
+      /* ── 9b: o Experimento pode observar vários resultados esperados de
+            uma vez — cada um vira o seu próprio card na Evidência, com
+            dados independentes. ── */
       {
-        const semeadoSobraEv = apostasSemeadas();
-        semeadoSobraEv[TURMA_LIB].execucoes[EXEC].grupos[GRUPO].etapa = 'evidencia';
-        semeadoSobraEv[TURMA_LIB].execucoes[EXEC].grupos[GRUPO].dados = {
-          mudancas: { itens: [{ direcao: 'Reduzir', indicador: 'reclamações sobre prazo', atual: '200', meta: '50', unidade: 'por mês', prazo: '60', prazoUnidade: 'dias' }] },
-          evidencia: { esperado: 'redução dos contatos sobre andamento' },
+        const semeadoVarios = apostasSemeadas();
+        semeadoVarios[TURMA_LIB].execucoes[EXEC].grupos[GRUPO].etapa = 'evidencia';
+        semeadoVarios[TURMA_LIB].execucoes[EXEC].grupos[GRUPO].dados = {
+          mudancas: { itens: [
+            { id: 'r1', direcao: 'Reduzir', indicador: 'contatos sobre o andamento', atual: '1000', meta: '500', unidade: 'contatos', periodo: 'por mês', prazo: '90', prazoUnidade: 'dias' },
+            { id: 'r2', direcao: 'Aumentar', indicador: 'participantes que sabem a etapa', atual: '40', meta: '80', unidade: '%', prazo: '90', prazoUnidade: 'dias' },
+          ] },
+          experimento: { resultadoIds: ['r1', 'r2'] },
+          evidencia: { itens: [{ resultadoId: 'r1', observado: '650' }] },
         };
-        const { ctx: ctxSE, page: pgSE } = await novaPagina(browser, formato, DIRETORA, erros, semeadoSobraEv);
-        await pgSE.goto(BASE + '/index.html#treinamento', { waitUntil: 'domcontentloaded' });
-        await pgSE.click('#apostaAbrirBtn');
-        await pgSE.waitForSelector('.aposta-grupo-btn', { timeout: 15000 });
-        await pgSE.click('.aposta-grupo-btn');
-        await pgSE.waitForFunction(() =>
+        const { ctx: ctxV, page: pgV } = await novaPagina(browser, formato, DIRETORA, erros, semeadoVarios);
+        await pgV.goto(BASE + '/index.html#treinamento', { waitUntil: 'domcontentloaded' });
+        await pgV.click('#apostaAbrirBtn');
+        await pgV.waitForSelector('.aposta-grupo-btn', { timeout: 15000 });
+        await pgV.click('.aposta-grupo-btn');
+        await pgV.waitForFunction(() =>
           /EVID[ÊE]NCIA/.test((document.querySelector('.aposta-etapa-titulo') || {}).textContent || ''),
           { timeout: 15000 });
-        const esperadoSobra = await pgSE.evaluate(() => (document.getElementById('ap-esperado') || {}).value || '');
-        anota('a sobra do exemplo em "Esperávamos" é substituída pela mudança mensurável de verdade',
-          /^reduzir/.test(esperadoSobra) && /reclamações sobre prazo/.test(esperadoSobra) &&
-          /200/.test(esperadoSobra) && /50/.test(esperadoSobra),
-          'ficou "' + esperadoSobra + '"');
-        await ctxSE.close();
+        const cards = await pgV.evaluate(() => Array.from(document.querySelectorAll('.aposta-mudanca[data-resultado]')).map((b) => ({
+          resultado: b.dataset.resultado,
+          observado: (b.querySelector('[data-e="observado"]') || {}).value || '',
+        })));
+        anota('dois resultados selecionados no Experimento viram dois cards na Evidência',
+          cards.length === 2 && cards[0].resultado === 'r1' && cards[0].observado === '650' &&
+          cards[1].resultado === 'r2' && cards[1].observado === '',
+          JSON.stringify(cards));
+        await pgV.fill('[data-resultado="r2"] [data-e="observado"]', '76');
+        await pgV.waitForTimeout(300);
+        const r1Intacto = await pgV.evaluate(() => (document.querySelector('[data-resultado="r1"] [data-e="observado"]') || {}).value || '');
+        anota('preencher o segundo card não mexe no primeiro — cada card guarda o seu', r1Intacto === '650', 'ficou "' + r1Intacto + '"');
+        await ctxV.close();
       }
 
-      /* ── 9c: uma resposta de verdade em "Esperávamos", diferente da
-            mudança mensurável, não é sobrescrita. ── */
+      /* ── 9c: "Não foi possível medir" desliga os campos que ele torna
+            irrelevantes (observado, fonte, detalhe) e a frase passa a
+            dizer isso, sem exigir um número que não existe — ausência de
+            evidência também é uma informação. ── */
       {
-        const semeadoRealEv = apostasSemeadas();
-        semeadoRealEv[TURMA_LIB].execucoes[EXEC].grupos[GRUPO].etapa = 'evidencia';
-        semeadoRealEv[TURMA_LIB].execucoes[EXEC].grupos[GRUPO].dados = {
-          mudancas: { itens: [{ direcao: 'Reduzir', indicador: 'reclamações sobre prazo', atual: '200', meta: '50', unidade: 'por mês', prazo: '60', prazoUnidade: 'dias' }] },
-          evidencia: { esperado: 'uma resposta que o grupo escreveu com outras palavras' },
+        const semeadoNM = apostasSemeadas();
+        semeadoNM[TURMA_LIB].execucoes[EXEC].grupos[GRUPO].etapa = 'evidencia';
+        semeadoNM[TURMA_LIB].execucoes[EXEC].grupos[GRUPO].dados = {
+          mudancas: { itens: [{ id: 'r1', direcao: 'Aumentar', indicador: 'satisfação com a comunicação', atual: '6,2', meta: '8', unidade: 'pontos', prazo: '90', prazoUnidade: 'dias' }] },
+          experimento: { resultadoIds: ['r1'] },
         };
-        const { ctx: ctxRE, page: pgRE } = await novaPagina(browser, formato, DIRETORA, erros, semeadoRealEv);
-        await pgRE.goto(BASE + '/index.html#treinamento', { waitUntil: 'domcontentloaded' });
-        await pgRE.click('#apostaAbrirBtn');
-        await pgRE.waitForSelector('.aposta-grupo-btn', { timeout: 15000 });
-        await pgRE.click('.aposta-grupo-btn');
-        await pgRE.waitForFunction(() =>
+        const { ctx: ctxNM, page: pgNM } = await novaPagina(browser, formato, DIRETORA, erros, semeadoNM);
+        await pgNM.goto(BASE + '/index.html#treinamento', { waitUntil: 'domcontentloaded' });
+        await pgNM.click('#apostaAbrirBtn');
+        await pgNM.waitForSelector('.aposta-grupo-btn', { timeout: 15000 });
+        await pgNM.click('.aposta-grupo-btn');
+        await pgNM.waitForFunction(() =>
           /EVID[ÊE]NCIA/.test((document.querySelector('.aposta-etapa-titulo') || {}).textContent || ''),
           { timeout: 15000 });
-        const esperadoReal = await pgRE.evaluate(() => (document.getElementById('ap-esperado') || {}).value || '');
-        anota('uma resposta de verdade em "Esperávamos" não é sobrescrita',
-          esperadoReal === 'uma resposta que o grupo escreveu com outras palavras',
-          'ficou "' + esperadoReal + '"');
-        await ctxRE.close();
-      }
-
-      /* ── 9d: uma mudança incompleta (prazo em aberto) não pode deixar um
-            "—" solto dentro de "Esperávamos" — relatado no uso real, com
-            print mostrando "...para 700 por mês em —.". O "—" marca lacuna
-            no MAPA (onde é só leitura); virando texto de verdade dentro de
-            um campo editável, ficava quebrado. ── */
-      {
-        const semeadoIncompleta = apostasSemeadas();
-        semeadoIncompleta[TURMA_LIB].execucoes[EXEC].grupos[GRUPO].etapa = 'evidencia';
-        semeadoIncompleta[TURMA_LIB].execucoes[EXEC].grupos[GRUPO].dados = {
-          mudancas: { itens: [{ direcao: 'Reduzir', indicador: 'contatos sobre andamento', atual: '1000', meta: '700', unidade: 'por mês' }] },
-        };
-        const { ctx: ctxI, page: pgI } = await novaPagina(browser, formato, DIRETORA, erros, semeadoIncompleta);
-        await pgI.goto(BASE + '/index.html#treinamento', { waitUntil: 'domcontentloaded' });
-        await pgI.click('#apostaAbrirBtn');
-        await pgI.waitForSelector('.aposta-grupo-btn', { timeout: 15000 });
-        await pgI.click('.aposta-grupo-btn');
-        await pgI.waitForFunction(() =>
-          /EVID[ÊE]NCIA/.test((document.querySelector('.aposta-etapa-titulo') || {}).textContent || ''),
-          { timeout: 15000 });
-        const esperadoIncompleto = await pgI.evaluate(() => (document.getElementById('ap-esperado') || {}).value || '');
-        anota('mudança com prazo em aberto não deixa "—" solto em "Esperávamos"', !/—/.test(esperadoIncompleto),
-          'ficou "' + esperadoIncompleto + '"');
-        await ctxI.close();
+        await pgNM.fill('[data-e="motivo"]', 'Pesquisa de satisfação não foi concluída dentro do período.');
+        await pgNM.click('[data-e="naoMedido"]');
+        await pgNM.waitForTimeout(300);
+        const desligado = await pgNM.evaluate(() => ({
+          observado: (document.querySelector('[data-e="observado"]') || {}).disabled,
+          fonte: (document.querySelector('[data-e="fonte"]') || {}).disabled,
+          frase: (document.querySelector('.aposta-mudanca-frase') || {}).textContent || '',
+        }));
+        anota('"Não foi possível medir" desliga o resultado observado e a fonte',
+          desligado.observado && desligado.fonte, JSON.stringify(desligado));
+        anota('a frase da evidência diz que não foi possível medir, com o motivo',
+          /Não foi possível medir neste experimento \(Pesquisa de satisfação/.test(desligado.frase), desligado.frase);
+        await ctxNM.close();
       }
 
       /* ── 9e: uma mudança gravada antes de existir o campo Período — a
