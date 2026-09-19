@@ -8,7 +8,7 @@
  *    grupo NÃO saber que está montando um OKR enquanto preenche — a
  *    revelação no fim é o ponto alto da oficina. Basta um rótulo, uma
  *    dica ou um texto de ajuda escaparem "Objective" ou "Key Result"
- *    para o efeito acabar, e ninguém percebe lendo o código: são dez
+ *    para o efeito acabar, e ninguém percebe lendo o código: são nove
  *    telas de texto. Aqui a conferência é mecânica, tela por tela.
  *
  * 2. AS ETAPAS SEGUINTES NÃO PODEM ABRIR SOZINHAS — NEM PELO NOME. O
@@ -17,7 +17,7 @@
  *    grupo pula direto para a solução, que é o hábito que a oficina
  *    existe para interromper. E o nome sozinho já induz: quem lê
  *    "Hipótese" na trilha escreve o sintoma pensando na explicação.
- *    A trilha mostra os NÚMEROS das dez etapas; os nomes só quando
+ *    A trilha mostra os NÚMEROS das nove etapas; os nomes só quando
  *    chega a vez de cada uma (ou depois de preenchida).
  *
  * 3. QUEM PREENCHE PRECISA VER O QUE É FIXO E COMO ESTÁ FICANDO. Os
@@ -33,7 +33,7 @@
  *      admin liberou — turma não liberada não mostra nada;
  *   2. nenhuma variação de OKR/Objective/Key Result aparece em etapa
  *      nenhuma antes da revelação;
- *   3. a trilha lista as dez etapas, mas as ainda não alcançadas estão
+ *   3. a trilha lista as nove etapas, mas as ainda não alcançadas estão
  *      desabilitadas;
  *   4. o que o grupo escreve é gravado no caminho certo (salvamento
  *      automático), e a etapa seguinte enxerga a anterior no card de
@@ -375,7 +375,7 @@ const textoDaTela = (page) => page.evaluate(() => {
       await page.click('.aposta-grupo-btn');
       await page.waitForSelector('.aposta-etapa-titulo', { timeout: 15000 });
 
-      /* Trilha: dez nomes, e as etapas à frente fechadas. */
+      /* Trilha: nove nomes, e as etapas à frente fechadas. */
       const trilha = await page.evaluate(() => {
         const itens = Array.from(document.querySelectorAll('.aposta-trilha-item'));
         return {
@@ -384,8 +384,8 @@ const textoDaTela = (page) => page.evaluate(() => {
           nomes: itens.map((i) => (i.textContent || '').trim()).join(' | '),
         };
       });
-      anota('a trilha mostra as dez etapas desde o começo', trilha.total === 10, 'vieram ' + trilha.total);
-      anota('as etapas ainda não alcançadas estão fechadas', trilha.bloqueadas >= 8, trilha.bloqueadas + ' fechadas');
+      anota('a trilha mostra as nove etapas desde o começo', trilha.total === 9, 'vieram ' + trilha.total);
+      anota('as etapas ainda não alcançadas estão fechadas', trilha.bloqueadas >= 7, trilha.bloqueadas + ' fechadas');
       /* O nome da etapa seguinte é resposta adiantada: ler "Hipótese" ou
          "Evidência" antes da hora muda o que se escreve agora. */
       anota('a trilha NÃO entrega os nomes das etapas seguintes',
@@ -454,9 +454,9 @@ const textoDaTela = (page) => page.evaluate(() => {
         /Melhorar a experiência do participante durante a concessão em 90 dias/.test(completa) &&
         /completa/i.test(completa) && !/Ainda falta/.test(completa), completa.slice(0, 140));
 
-      /* Percorre as dez etapas preenchendo um campo em cada. */
+      /* Percorre as nove etapas preenchendo um campo em cada. */
       const vazados = [];
-      for (let i = 0; i < 10; i++) {
+      for (let i = 0; i < 9; i++) {
         const txt = await textoDaTela(page);
         if (SEGREDO.test(txt)) vazados.push((txt.match(SEGREDO) || [''])[0] + ' na etapa ' + (i + 1));
 
@@ -549,10 +549,69 @@ const textoDaTela = (page) => page.evaluate(() => {
           await page.fill('[data-m="prazo"]', '90');
           await page.selectOption('[data-m="prazoUnidade"]', 'dias');
           await page.waitForTimeout(300);
+
+          /* Unidade nasce vazia de verdade (nenhuma Forma de medição
+             escolhida ainda) — não força a primeira opção. */
+          const unidadeInicial = await page.evaluate(() => (document.querySelector('[data-m="unidade"]') || {}).value || '');
+          anota('a Unidade nasce vazia de verdade (não força a primeira opção)', unidadeInicial === '', 'ficou "' + unidadeInicial + '"');
+
+          /* Forma de medição decide as sugestões de Unidade — Quantidade
+             sugere substantivos de contagem, não os "por X" de Período. */
+          await page.selectOption('[data-m="formaMedicao"]', 'Quantidade');
+          await page.waitForTimeout(200);
+          await page.locator('.aposta-variante:has([data-m="unidade"]) .aposta-variante-chip', { hasText: 'contatos' }).click();
+          await page.waitForTimeout(200);
+          const unidadeChip = await page.evaluate(() => (document.querySelector('[data-m="unidade"]') || {}).value || '');
+          anota('um clique no chip preenche a Unidade com a sugestão de Quantidade', unidadeChip === 'contatos', 'ficou "' + unidadeChip + '"');
+
+          /* Período é campo separado — "por mês" não mora mais dentro de
+             Unidade (relatado no uso real: os dois se confundiam). */
+          await page.locator('.aposta-variante:has([data-m="periodo"]) .aposta-variante-chip', { hasText: 'por mês' }).click();
+          await page.waitForTimeout(200);
+          const periodoChip = await page.evaluate(() => (document.querySelector('[data-m="periodo"]') || {}).value || '');
+          anota('um clique no chip preenche o Período, separado da Unidade', periodoChip === 'por mês', 'ficou "' + periodoChip + '"');
+
           const frase = await page.evaluate(() =>
             (document.querySelector('.aposta-mudanca-frase') || {}).textContent || '');
-          anota('a frase consolidada é montada sozinha',
-            /de 1000/.test(frase) && /para 700/.test(frase) && /90 dias/.test(frase), frase);
+          anota('a frase consolidada junta unidade e período depois da meta, sem repetir',
+            /de 1000 para 700 contatos por mês em 90 dias/.test(frase), frase);
+
+          /* Alerta de consistência: Reduzir pede meta MENOR que a situação
+             atual — 1500 > 1000 é o caso contrário, e o alerta aparece
+             perto do campo, com um jeito de corrigir num clique só. */
+          await page.fill('[data-m="meta"]', '1500');
+          await page.waitForTimeout(300);
+          const comInconsistencia = await page.evaluate(() => ({
+            visivel: !!document.querySelector('.aposta-mudanca-alerta'),
+            texto: (document.querySelector('.aposta-mudanca-alerta') || {}).textContent || '',
+          }));
+          anota('a meta menor esperada mas maior digitada mostra um alerta perto do campo',
+            comInconsistencia.visivel && /maior que a situação atual/.test(comInconsistencia.texto) &&
+            /Aumentar/.test(comInconsistencia.texto), comInconsistencia.texto);
+          await page.click('.aposta-mudanca-alerta [data-corrigir]');
+          await page.waitForTimeout(300);
+          const corrigido = await page.evaluate(() => ({
+            direcao: (document.querySelector('[data-m="direcao"]') || {}).value || '',
+            alertaSumiu: !document.querySelector('.aposta-mudanca-alerta'),
+          }));
+          anota('um clique no alerta corrige a direção e o alerta some', corrigido.direcao === 'Aumentar' && corrigido.alertaSumiu,
+            JSON.stringify(corrigido));
+          /* Devolve ao estado consistente para o resto do teste. */
+          await page.locator('.aposta-variante:has([data-m="direcao"]) .aposta-variante-chip', { hasText: 'Reduzir' }).click();
+          await page.fill('[data-m="meta"]', '700');
+          await page.waitForTimeout(300);
+
+          /* Percentual não pede escolha de unidade: preenche "%" sozinho,
+             e ele gruda nos dois números da frase ("de 1000% para 700%"),
+             diferente de contatos/dias, que só aparecem uma vez. */
+          await page.selectOption('[data-m="formaMedicao"]', 'Percentual');
+          await page.waitForTimeout(300);
+          const unidadePercentual = await page.evaluate(() => (document.querySelector('[data-m="unidade"]') || {}).value || '');
+          anota('Percentual preenche a Unidade com "%" sozinho, sem exigir escolha', unidadePercentual === '%', 'ficou "' + unidadePercentual + '"');
+          const frasePercentual = await page.evaluate(() =>
+            (document.querySelector('.aposta-mudanca-frase') || {}).textContent || '');
+          anota('em Percentual, o "%" gruda nos dois números, sem espaço',
+            /de 1000% para 700%/.test(frasePercentual), frasePercentual);
 
           /* "Queremos" também não pode travar em só duas direções. */
           await page.fill('[data-m="direcao"]', 'Manter estável');
@@ -561,25 +620,15 @@ const textoDaTela = (page) => page.evaluate(() => {
             (document.querySelector('.aposta-mudanca-frase') || {}).textContent || '');
           anota('"Queremos" aceita uma direção que não é Aumentar nem Reduzir',
             /Manter estável/.test(fraseLivre), fraseLivre);
-
-          /* Unidade: também virou chips + texto livre, mas é OPCIONAL — não
-             pode nascer com "por mês" já escrito como se alguém tivesse
-             respondido, só a dica. */
-          const unidadeInicial = await page.evaluate(() => (document.querySelector('[data-m="unidade"]') || {}).value || '');
-          anota('a Unidade nasce vazia de verdade (não força a primeira opção)', unidadeInicial === '', 'ficou "' + unidadeInicial + '"');
-          await page.locator('.aposta-variante:has([data-m="unidade"]) .aposta-variante-chip', { hasText: 'por semana' }).click();
-          await page.waitForTimeout(200);
-          const unidadeChip = await page.evaluate(() => (document.querySelector('[data-m="unidade"]') || {}).value || '');
-          anota('um clique no chip preenche a Unidade', unidadeChip === 'por semana', 'ficou "' + unidadeChip + '"');
         } else {
-          if (i === 7) {
+          if (i === 6) {
             /* EXPERIMENTO: custo com máscara de moeda. */
             await page.fill('[data-campo="custo"]', '250000');
             await page.waitForTimeout(250);
             const custo = await page.evaluate(() => (document.querySelector('[data-campo="custo"]') || {}).value || '');
             anota('o custo estimado sai formatado como moeda', /^R\$\s?2\.500,00$/.test(custo), 'ficou "' + custo + '"');
           }
-          if (i === 9) {
+          if (i === 8) {
             /* DECISÃO: a data de reavaliação é um DIA marcado no calendário
                (sai com ano); "Prazo" é DURAÇÃO ("em quanto tempo"), não uma
                data — as execuções antigas guardavam "10 dias", não uma data
@@ -705,7 +754,7 @@ const textoDaTela = (page) => page.evaluate(() => {
         texto: (document.querySelector('.aposta-mapa').textContent || '').replace(/\s+/g, ' '),
         temRevelacao: !!document.querySelector('.aposta-revelacao'),
       }));
-      anota('o mapa final tem um card por etapa', mapa.cards === 10, 'vieram ' + mapa.cards);
+      anota('o mapa final tem um card por etapa', mapa.cards === 9, 'vieram ' + mapa.cards);
       anota('o mapa mostra o que o grupo escreveu', /não sabe o status/.test(mapa.texto), mapa.texto.slice(0, 90));
       anota('a revelação NÃO aparece sozinha ao chegar no mapa', !mapa.temRevelacao);
       const txtMapa = await textoDaTela(page);
@@ -719,8 +768,8 @@ const textoDaTela = (page) => page.evaluate(() => {
         texto: window.faAposta._texto(),
       }));
       anota('o mapa oferece copiar em texto e salvar em PDF', exporta.temCopiar && exporta.temPdf);
-      anota('o texto exportado traz as dez etapas, com a pergunta de cada uma',
-        (exporta.texto.match(/^## /gm) || []).length === 10 &&
+      anota('o texto exportado traz as nove etapas, com a pergunta de cada uma',
+        (exporta.texto.match(/^## /gm) || []).length === 9 &&
         /O que queremos melhorar\?/.test(exporta.texto) &&
         /não sabe o status/.test(exporta.texto),
         exporta.texto.slice(0, 120).replace(/\n/g, ' | '));
@@ -736,7 +785,7 @@ const textoDaTela = (page) => page.evaluate(() => {
          que o grupo escreveu é semeado igual ao que a diretora acabou de
          preencher, para a revelação ter o que mostrar. */
       const semeado = apostasSemeadas();
-      /* Grupo com as dez etapas preenchidas: é assim que a turma chega ao
+      /* Grupo com as nove etapas preenchidas: é assim que a turma chega ao
          fim da dinâmica, e é o estado em que a revelação faz sentido. */
       semeado[TURMA_LIB].execucoes[EXEC].grupos[GRUPO].dados = {
         missao:   { texto: 'Melhorar a experiência do participante em 90 dias' },
@@ -745,7 +794,6 @@ const textoDaTela = (page) => page.evaluate(() => {
         mudancas: { itens: [{ direcao: 'Reduzir', indicador: 'contatos sobre andamento', atual: '1000', meta: '700', unidade: 'por mês', prazo: '90 dias' }] },
         hipotese: { causa: 'as informações não são claras', indicio: 'muitas perguntas de status' },
         ideia:    { texto: 'dar visibilidade do andamento' },
-        versao:   { semConstruir: 'o portal', podemos: 'enviar mensagem manual' },
         experimento: { oQue: 'enviar a mensagem', comQuem: 'participantes', quantidade: '50', duracao: '3 semanas', medida: 'nº de contatos' },
         evidencia: { esperado: 'menos contatos', observado: '25% menos contatos', classificacao: 'Parcialmente sustentada' },
         decisao:  { decisao: 'Ajustar e testar novamente', proximaAcao: 'novo teste com grupo maior' }
@@ -880,13 +928,11 @@ const textoDaTela = (page) => page.evaluate(() => {
         await ctxF.close();
       }
 
-      /* ── 9: "Sem construir" e "Esperávamos" nascem com um ponto de
-            partida, em vez de pedir de novo o que já foi escrito noutra
-            etapa — "não deveria vir preenchido?", perguntado no uso real
-            olhando a etapa em branco logo depois de nomear a mesma
-            solução em Ideia de solução. Os dois continuam editáveis: é
-            só o valor inicial que muda, o que fica salvo é sempre o que
-            está na tela quando o grupo segue em frente. ── */
+      /* ── 9: "Esperávamos" nasce com um ponto de partida, em vez de
+            pedir de novo o que já foi escrito noutra etapa — "não
+            deveria vir preenchido?", perguntado no uso real. Continua
+            editável: é só o valor inicial que muda, o que fica salvo é
+            sempre o que está na tela quando o grupo segue em frente. ── */
       {
         const semeadoPre = apostasSemeadas();
         semeadoPre[TURMA_LIB].execucoes[EXEC].grupos[GRUPO].etapa = 'evidencia';
@@ -915,111 +961,12 @@ const textoDaTela = (page) => page.evaluate(() => {
           /1000/.test(esperado) && /700/.test(esperado),
           'ficou "' + esperado.slice(0, 100) + '"');
 
-        await pgP.evaluate(() => {
-          const t = Array.from(document.querySelectorAll('.aposta-trilha-item'))
-            .find((i) => /Vers[ãa]o test[áa]vel/.test(i.textContent));
-          if (t && !t.disabled) t.click();
-        });
-        await pgP.waitForFunction(() =>
-          /VERS[ÃA]O TEST[ÁA]VEL/.test((document.querySelector('.aposta-etapa-titulo') || {}).textContent || ''),
-          { timeout: 15000 });
-        const semConstruir = await pgP.evaluate(() => (document.getElementById('ap-semConstruir') || {}).value || '');
-        anota('"Sem construir" nasce com a ação já escrita em Ideia de solução, não em branco',
-          semConstruir === 'dar mais visibilidade sobre o andamento', 'ficou "' + semConstruir + '"');
-
-        /* A ação de Ideia de solução é um VERBO ("dar…"), e o texto fixo
-           antes da lacuna não pode emendar outro ("Sem construir dar…") —
-           relatado no uso real. Só "Sem" fica antes, sem "construir". */
-        const fraseSemConstruir = await pgP.evaluate(() =>
-          ((document.querySelector('.aposta-molde-fixo') || {}).textContent || '').trim());
-        anota('o texto fixo antes da lacuna é só "Sem", sem grudar outro verbo',
-          fraseSemConstruir === 'Sem', 'ficou "' + fraseSemConstruir + '"');
-
-        /* Continua editável: é só um ponto de partida, não um valor travado. */
-        await pgP.fill('#ap-semConstruir', 'outra coisa que o grupo decidiu escrever');
-        await pgP.waitForTimeout(300);
-        const editado = await pgP.evaluate(() => (document.getElementById('ap-semConstruir') || {}).value || '');
-        anota('o valor inicial pode ser editado normalmente',
-          editado === 'outra coisa que o grupo decidiu escrever', 'ficou "' + editado + '"');
-
-        /* "por meio de" + "do envio…" lia "por meio de do envio…" — duas
-           preposições coladas. Relatado no uso real. */
-        await pgP.fill('#ap-podemos', 'do envio de mensagem manual sobre o andamento');
-        await pgP.waitForTimeout(300);
-        const fraseSemDeDuplo = await pgP.evaluate(() =>
-          ((document.getElementById('apostaFrase') || {}).textContent || '').replace(/\s+/g, ' '));
-        anota('"de" + "do" não vira "de do" quando a resposta já começa com a preposição',
-          /por meio do envio de mensagem/.test(fraseSemDeDuplo) && !/por meio de do/.test(fraseSemDeDuplo),
-          fraseSemDeDuplo.slice(0, 160));
-
-        /* E quando a resposta NÃO começa com "de"/"do", o "de" fixo continua
-           — não é para sumir sempre, só quando bateria de frente. */
-        await pgP.fill('#ap-podemos', 'uma mensagem manual com a etapa atual');
-        await pgP.waitForTimeout(300);
-        const fraseComDe = await pgP.evaluate(() =>
-          ((document.getElementById('apostaFrase') || {}).textContent || '').replace(/\s+/g, ' '));
-        anota('o "de" continua quando a resposta não começa com preposição',
-          /por meio de uma mensagem manual/.test(fraseComDe), fraseComDe.slice(0, 160));
-
         await ctxP.close();
       }
 
-      /* ── 9b: sobra do próprio exemplo não trava o prefill para sempre —
-            relatado no uso real: "Sem construir" continuava mostrando "o
-            acompanhamento no portal" (a dica do campo, escrita ali antes de
-            o prefill existir) mesmo depois de a Ideia ganhar uma resposta
-            de verdade. Um valor de verdade, diferente do exemplo, continua
-            preservado — não é para sobrescrever o que o grupo escolheu. ── */
-      {
-        const semeadoSobra = apostasSemeadas();
-        semeadoSobra[TURMA_LIB].execucoes[EXEC].grupos[GRUPO].etapa = 'versao';
-        semeadoSobra[TURMA_LIB].execucoes[EXEC].grupos[GRUPO].dados = {
-          ideia: { acao: 'disponibilizar no portal os status da concessão', mudanca: 'para reduzir contatos' },
-          versao: { semConstruir: 'o acompanhamento no portal' },
-        };
-        const { ctx: ctxS, page: pgS } = await novaPagina(browser, formato, DIRETORA, erros, semeadoSobra);
-        await pgS.goto(BASE + '/index.html#treinamento', { waitUntil: 'domcontentloaded' });
-        await pgS.click('#apostaAbrirBtn');
-        await pgS.waitForSelector('.aposta-grupo-btn', { timeout: 15000 });
-        await pgS.click('.aposta-grupo-btn');
-        await pgS.waitForFunction(() =>
-          /VERS[ÃA]O TEST[ÁA]VEL/.test((document.querySelector('.aposta-etapa-titulo') || {}).textContent || ''),
-          { timeout: 15000 });
-        const semConstruirSobra = await pgS.evaluate(() => (document.getElementById('ap-semConstruir') || {}).value || '');
-        anota('a sobra do exemplo é substituída pela resposta de verdade da Ideia',
-          semConstruirSobra === 'disponibilizar no portal os status da concessão',
-          'ficou "' + semConstruirSobra + '"');
-        await ctxS.close();
-      }
-
-      /* ── 9c: uma resposta de verdade em "Sem construir", diferente da
-            Ideia, NÃO é sobrescrita — o prefill só entra quando o campo
-            está vazio ou com a própria dica, nunca por cima do que o
-            grupo escolheu escrever. ── */
-      {
-        const semeadoReal = apostasSemeadas();
-        semeadoReal[TURMA_LIB].execucoes[EXEC].grupos[GRUPO].etapa = 'versao';
-        semeadoReal[TURMA_LIB].execucoes[EXEC].grupos[GRUPO].dados = {
-          ideia: { acao: 'disponibilizar no portal os status da concessão', mudanca: 'para reduzir contatos' },
-          versao: { semConstruir: 'um painel completo de acompanhamento' },
-        };
-        const { ctx: ctxR, page: pgR } = await novaPagina(browser, formato, DIRETORA, erros, semeadoReal);
-        await pgR.goto(BASE + '/index.html#treinamento', { waitUntil: 'domcontentloaded' });
-        await pgR.click('#apostaAbrirBtn');
-        await pgR.waitForSelector('.aposta-grupo-btn', { timeout: 15000 });
-        await pgR.click('.aposta-grupo-btn');
-        await pgR.waitForFunction(() =>
-          /VERS[ÃA]O TEST[ÁA]VEL/.test((document.querySelector('.aposta-etapa-titulo') || {}).textContent || ''),
-          { timeout: 15000 });
-        const semConstruirReal = await pgR.evaluate(() => (document.getElementById('ap-semConstruir') || {}).value || '');
-        anota('uma resposta de verdade, diferente da Ideia, não é sobrescrita',
-          semConstruirReal === 'um painel completo de acompanhamento',
-          'ficou "' + semConstruirReal + '"');
-        await ctxR.close();
-      }
-
-      /* ── 9d: mesma checagem de sobra do exemplo, agora em "Esperávamos"
-            (Evidência), que nasce da mudança mensurável já registrada. ── */
+      /* ── 9b: sobra do próprio exemplo não trava o prefill para sempre em
+            "Esperávamos" (Evidência), que nasce da mudança mensurável já
+            registrada. ── */
       {
         const semeadoSobraEv = apostasSemeadas();
         semeadoSobraEv[TURMA_LIB].execucoes[EXEC].grupos[GRUPO].etapa = 'evidencia';
@@ -1043,7 +990,7 @@ const textoDaTela = (page) => page.evaluate(() => {
         await ctxSE.close();
       }
 
-      /* ── 9e: uma resposta de verdade em "Esperávamos", diferente da
+      /* ── 9c: uma resposta de verdade em "Esperávamos", diferente da
             mudança mensurável, não é sobrescrita. ── */
       {
         const semeadoRealEv = apostasSemeadas();
@@ -1067,7 +1014,7 @@ const textoDaTela = (page) => page.evaluate(() => {
         await ctxRE.close();
       }
 
-      /* ── 9f: uma mudança incompleta (prazo em aberto) não pode deixar um
+      /* ── 9d: uma mudança incompleta (prazo em aberto) não pode deixar um
             "—" solto dentro de "Esperávamos" — relatado no uso real, com
             print mostrando "...para 700 por mês em —.". O "—" marca lacuna
             no MAPA (onde é só leitura); virando texto de verdade dentro de
@@ -1090,6 +1037,34 @@ const textoDaTela = (page) => page.evaluate(() => {
         anota('mudança com prazo em aberto não deixa "—" solto em "Esperávamos"', !/—/.test(esperadoIncompleto),
           'ficou "' + esperadoIncompleto + '"');
         await ctxI.close();
+      }
+
+      /* ── 9e: uma mudança gravada antes de existir o campo Período — a
+            cadência ("por mês") morava dentro de Unidade (PR #165/#171).
+            Reabrir essa mudança precisa mostrar "por mês" no campo
+            Período, não em Unidade, senão os dois campos saem trocados
+            para quem só está reabrindo o que já tinha escrito. ── */
+      {
+        const semeadoLegado = apostasSemeadas();
+        semeadoLegado[TURMA_LIB].execucoes[EXEC].grupos[GRUPO].etapa = 'mudancas';
+        semeadoLegado[TURMA_LIB].execucoes[EXEC].grupos[GRUPO].dados = {
+          mudancas: { itens: [{ direcao: 'Reduzir', indicador: 'contatos sobre andamento', atual: '1000', meta: '700', unidade: 'por mês', prazo: '90', prazoUnidade: 'dias' }] },
+        };
+        const { ctx: ctxL, page: pgL } = await novaPagina(browser, formato, DIRETORA, erros, semeadoLegado);
+        await pgL.goto(BASE + '/index.html#treinamento', { waitUntil: 'domcontentloaded' });
+        await pgL.click('#apostaAbrirBtn');
+        await pgL.waitForSelector('.aposta-grupo-btn', { timeout: 15000 });
+        await pgL.click('.aposta-grupo-btn');
+        await pgL.waitForFunction(() =>
+          /MUDAN[ÇC]AS MENSUR[ÁA]VEIS/i.test((document.querySelector('.aposta-etapa-titulo') || {}).textContent || ''),
+          { timeout: 15000 });
+        const legado = await pgL.evaluate(() => ({
+          unidade: (document.querySelector('[data-m="unidade"]') || {}).value || '',
+          periodo: (document.querySelector('[data-m="periodo"]') || {}).value || '',
+        }));
+        anota('mudança antiga com "por mês" em Unidade reabre com isso em Período, não em Unidade',
+          legado.unidade === '' && legado.periodo === 'por mês', JSON.stringify(legado));
+        await ctxL.close();
       }
 
       anota('nenhum erro de JavaScript', erros.length === 0, erros[0]);
