@@ -466,6 +466,64 @@ const clicarSemRolagem = (page, seletor) => page.$eval(seletor, (el) => el.click
         anota('a frase de "Manter" + "Entre" usa os dois limites, com "durante" no lugar de "em"',
           /Manter tempo de resposta entre 2 e 5 dias durante 90 dias/.test(fraseManter), fraseManter);
 
+        /* "Manter" não tem uma meta única — a coerência é contra o
+           LIMITE escolhido, não contra "atual == meta". Situação atual
+           fora do intervalo [2, 5]: esconde a frase e sugere DUAS
+           direções (Aumentar/Atingir ou Reduzir/Atingir, conforme o
+           lado), sem trocar nada sozinho. */
+        await pgDir.fill('[data-m="atual"]', '9');
+        await pgDir.waitForTimeout(600);
+        const manterAcima = await pgDir.evaluate(() => ({
+          frase: (document.querySelector('.aposta-mudanca-frase') || {}).textContent || '',
+          alerta: (document.querySelector('.aposta-mudanca-alerta') || {}).textContent || '',
+          botoes: Array.from(document.querySelectorAll('.aposta-mudanca-alerta button')).map((b) => b.textContent),
+        }));
+        anota('"Manter" com situação atual acima do limite "Entre" esconde a frase e sugere Reduzir/Atingir',
+          /Corrija a inconsistência acima/.test(manterAcima.frase) &&
+          /acima do intervalo/.test(manterAcima.alerta) &&
+          manterAcima.botoes.some((b) => /Reduzir/.test(b)) && manterAcima.botoes.some((b) => /Atingir/.test(b)),
+          JSON.stringify(manterAcima));
+
+        const tituloAntesManter = await pgDir.evaluate(() => (document.querySelector('.aposta-etapa-titulo') || {}).textContent || '');
+        await clicarSemRolagem(pgDir, '#apostaSeguir');
+        await pgDir.waitForTimeout(300);
+        const tituloDepoisManter = await pgDir.evaluate(() => (document.querySelector('.aposta-etapa-titulo') || {}).textContent || '');
+        anota('"Manter" incoerente com o limite também bloqueia CONTINUAR', tituloDepoisManter === tituloAntesManter);
+
+        await pgDir.locator('.aposta-mudanca-alerta button', { hasText: 'Atingir' }).click();
+        await pgDir.waitForTimeout(200);
+        const corrigidoManter = await pgDir.evaluate(() => ({
+          direcao: (document.querySelector('[data-m="direcao"]') || {}).value || '',
+          alertaSumiu: !document.querySelector('.aposta-mudanca-alerta'),
+        }));
+        anota('clicar "Usar Atingir" no alerta de "Manter" muda a direção (nunca sozinho) e o alerta some',
+          corrigidoManter.direcao === 'Atingir' && corrigidoManter.alertaSumiu, JSON.stringify(corrigidoManter));
+
+        /* Limite mínimo > máximo: inconsistente por si só, sem sugerir
+           direção nenhuma (o problema é a ordem dos limites, não a
+           direção escolhida). */
+        await pgDir.locator('.aposta-variante:has([data-m="direcao"]) .aposta-variante-chip', { hasText: 'Manter' }).click();
+        await pgDir.waitForTimeout(200);
+        await pgDir.locator('.aposta-variante:has([data-m="tipoLimite"]) .aposta-variante-chip', { hasText: 'Entre' }).click();
+        await pgDir.waitForTimeout(200);
+        await pgDir.fill('[data-m="limiteMinimo"]', '10');
+        await pgDir.fill('[data-m="limiteMaximo"]', '4');
+        await pgDir.waitForTimeout(600);
+        const limitesInvertidos = await pgDir.evaluate(() => ({
+          frase: (document.querySelector('.aposta-mudanca-frase') || {}).textContent || '',
+          alerta: (document.querySelector('.aposta-mudanca-alerta') || {}).textContent || '',
+          temBotao: !!document.querySelector('.aposta-mudanca-alerta button'),
+        }));
+        anota('limite mínimo maior que o máximo esconde a frase, avisa e não sugere direção nenhuma',
+          /Corrija a inconsistência acima/.test(limitesInvertidos.frase) &&
+          /não pode ser maior/.test(limitesInvertidos.alerta) && !limitesInvertidos.temBotao,
+          JSON.stringify(limitesInvertidos));
+        /* Devolve ao estado consistente para o resto do teste. */
+        await pgDir.fill('[data-m="limiteMinimo"]', '2');
+        await pgDir.fill('[data-m="limiteMaximo"]', '5');
+        await pgDir.fill('[data-m="atual"]', '3');
+        await pgDir.waitForTimeout(300);
+
         /* Atingir: mesmos campos de Aumentar/Reduzir (Meta desejada
            volta), mas a frase não fala em "situação atual" nem "para". */
         await pgDir.locator('.aposta-variante:has([data-m="direcao"]) .aposta-variante-chip', { hasText: 'Atingir' }).click();
@@ -946,6 +1004,38 @@ const clicarSemRolagem = (page, seletor) => page.$eval(seletor, (el) => el.click
             anota('os campos "hipótese causal" e "sinal que motivou a hipótese" têm tooltip próprio',
               /ainda precisa ser testada/i.test(dicasHipotese.causa) && /n[ãa]o significa que a hip[óo]tese esteja comprovada/i.test(dicasHipotese.indicio),
               JSON.stringify(dicasHipotese));
+
+            /* Sem os dois campos preenchidos, "Fica assim no mapa" não
+               mostra a frase com lacunas por dentro (nada de "a causa
+               percebida" como se fosse texto de verdade) — só a
+               orientação do que falta, e CONTINUAR fica bloqueado. */
+            const hipoteseVazia = await page.evaluate(() =>
+              ((document.getElementById('apostaFrase') || {}).textContent || '').replace(/\s+/g, ' '));
+            anota('Hipótese incompleta não mostra a frase com lacunas — só a orientação do que falta',
+              /Preencha a causa percebida e o que foi observado/i.test(hipoteseVazia) &&
+              !/Acreditamos que isso acontece porque/i.test(hipoteseVazia),
+              hipoteseVazia.slice(0, 160));
+            const tituloAntesHipotese = await page.evaluate(() => (document.querySelector('.aposta-etapa-titulo') || {}).textContent || '');
+            await clicarSemRolagem(page, '#apostaSeguir');
+            await page.waitForTimeout(300);
+            const tituloDepoisHipoteseVazia = await page.evaluate(() => (document.querySelector('.aposta-etapa-titulo') || {}).textContent || '');
+            anota('Hipótese incompleta bloqueia CONTINUAR', tituloDepoisHipoteseVazia === tituloAntesHipotese);
+
+            await page.fill('[data-campo="causa"]', 'as informações não são claras');
+            await page.waitForTimeout(250);
+            const hipoteseParcial = await page.evaluate(() =>
+              ((document.getElementById('apostaFrase') || {}).textContent || '').replace(/\s+/g, ' '));
+            anota('com só um dos dois campos, ainda pede o que falta (não mostra a frase pela metade)',
+              /Preencha a causa percebida e o que foi observado/i.test(hipoteseParcial), hipoteseParcial.slice(0, 160));
+
+            await page.fill('[data-campo="indicio"]', 'muitos participantes entram em contato para saber do andamento do processo de concessão do benefício');
+            await page.waitForTimeout(250);
+            const hipoteseCompleta = await page.evaluate(() =>
+              ((document.getElementById('apostaFrase') || {}).textContent || '').replace(/\s+/g, ' '));
+            anota('com os dois campos preenchidos, mostra a frase completa e "está completa"',
+              /Acreditamos que isso acontece porque as informações não são claras\. Essa hip[óo]tese surgiu porque observamos que muitos participantes/i.test(hipoteseCompleta) &&
+              /A frase desta etapa está completa/i.test(hipoteseCompleta),
+              hipoteseCompleta.slice(0, 260));
           }
           if (i === 5) {
             /* IDEIA DE SOLUÇÃO: "Resultados que queremos produzir" lembra
@@ -976,8 +1066,63 @@ const clicarSemRolagem = (page, seletor) => page.$eval(seletor, (el) => el.click
             anota('os campos "Poderíamos" e "para" têm tooltip próprio',
               /poss[íi]vel interven[çc][ãa]o/i.test(dicasIdeia.poderiamos) && /efeito esperamos/i.test(dicasIdeia.para),
               JSON.stringify(dicasIdeia));
+
+            /* Mesma regra da Hipótese: sem os dois campos, nada de
+               "Poderíamos [a ação] para que [o efeito]" com lacunas —
+               só a orientação, e CONTINUAR bloqueado. */
+            const ideiaVazia = await page.evaluate(() =>
+              ((document.getElementById('apostaFrase') || {}).textContent || '').replace(/\s+/g, ' '));
+            anota('Ideia de solução incompleta não mostra a frase com lacunas — só a orientação do que falta',
+              ideiaVazia === 'Fica assim no mapaPreencha o que poderíamos fazer e para quê, para visualizar a ideia de solução.',
+              ideiaVazia.slice(0, 160));
+            const tituloAntesIdeia = await page.evaluate(() => (document.querySelector('.aposta-etapa-titulo') || {}).textContent || '');
+            await clicarSemRolagem(page, '#apostaSeguir');
+            await page.waitForTimeout(300);
+            const tituloDepoisIdeiaVazia = await page.evaluate(() => (document.querySelector('.aposta-etapa-titulo') || {}).textContent || '');
+            anota('Ideia de solução incompleta bloqueia CONTINUAR', tituloDepoisIdeiaVazia === tituloAntesIdeia);
+
+            await page.fill('[data-campo="acao"]', 'dar ao participante visibilidade sobre o andamento do processo de concessão do benefício');
+            await page.fill('[data-campo="mudanca"]', 'o participante consiga ter autonomia');
+            await page.waitForTimeout(250);
+            const ideiaCompleta = await page.evaluate(() =>
+              ((document.getElementById('apostaFrase') || {}).textContent || '').replace(/\s+/g, ' '));
+            anota('com os dois campos preenchidos, mostra a frase completa e "está completa"',
+              /Poder[íi]amos dar ao participante visibilidade sobre o andamento do processo de concessão do benef[íi]cio para o participante consiga ter autonomia/i.test(ideiaCompleta) &&
+              /A frase desta etapa está completa/i.test(ideiaCompleta),
+              ideiaCompleta.slice(0, 260));
           }
           if (i === 6) {
+            /* EXPERIMENTO: sem duração, quantidade, com quem e o que
+               será feito, nada de "Durante [quanto tempo], com
+               [quantas pessoas] [com quem], vamos [o que será feito]."
+               com lacunas por dentro — só a orientação do que falta
+               (dinâmica: lista só o que realmente falta), e CONTINUAR
+               bloqueado. */
+            const experimentoVazio = await page.evaluate(() =>
+              ((document.getElementById('apostaFrase') || {}).textContent || '').replace(/\s+/g, ' '));
+            anota('Experimento incompleto não mostra a frase com lacunas — só a orientação do que falta',
+              /^Complete quanto tempo, quantas pessoas, com quem, o que será feito/i.test(experimentoVazio.replace('Fica assim no mapa', '').trim()) &&
+              !/Durante/i.test(experimentoVazio),
+              experimentoVazio.slice(0, 200));
+            const tituloAntesExperimento = await page.evaluate(() => (document.querySelector('.aposta-etapa-titulo') || {}).textContent || '');
+            await clicarSemRolagem(page, '#apostaSeguir');
+            await page.waitForTimeout(300);
+            const tituloDepoisExperimentoVazio = await page.evaluate(() => (document.querySelector('.aposta-etapa-titulo') || {}).textContent || '');
+            anota('Experimento incompleto bloqueia CONTINUAR', tituloDepoisExperimentoVazio === tituloAntesExperimento);
+
+            await page.fill('[data-campo="duracao"]', '3');
+            await page.selectOption('[data-campo="duracaoUnidade"]', 'semanas');
+            await page.fill('[data-campo="quantidade"]', '50');
+            await page.fill('[data-campo="comQuem"]', 'participantes em concessão');
+            await page.fill('[data-campo="oQue"]', 'enviar manualmente mensagens de status');
+            await page.waitForTimeout(300);
+            const experimentoCompleto = await page.evaluate(() =>
+              ((document.getElementById('apostaFrase') || {}).textContent || '').replace(/\s+/g, ' '));
+            anota('com os campos obrigatórios preenchidos, mostra a frase completa e "está completa"',
+              /Durante 3 semanas, com 50 participantes em concess[ãa]o, vamos enviar manualmente mensagens de status\./i.test(experimentoCompleto) &&
+              /A frase desta etapa está completa/i.test(experimentoCompleto),
+              experimentoCompleto.slice(0, 300));
+
             /* EXPERIMENTO: custo com máscara de moeda. */
             await page.fill('[data-campo="custo"]', '250000');
             await page.waitForTimeout(250);
