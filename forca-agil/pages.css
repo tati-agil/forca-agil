@@ -1243,7 +1243,7 @@
 
    Feita para ser projetada numa sala e preenchida num notebook: uma
    etapa por tela, pouco texto, alvo de clique grande. A trilha à
-   esquerda mostra os NOMES das dez etapas desde o começo — dá para ver
+   esquerda mostra os NOMES das nove etapas desde o começo — dá para ver
    onde a conversa chega — mas as etapas ainda não alcançadas ficam
    apagadas e sem clique, porque o efeito da dinâmica depende de
    percorrer o raciocínio, não de ver o formulário inteiro.
@@ -1605,7 +1605,7 @@ select.aposta-campo-input { width: auto; min-width: 8.5em; }
 .aposta-toast.is-erro { border-color: rgba(255,80,80,.55); color: #ff9a9a; }
 
 /* Celular: a trilha vira uma faixa horizontal no topo. Ela continua
-   mostrando as dez etapas — só deita, em vez de sumir. */
+   mostrando as nove etapas — só deita, em vez de sumir. */
 @media (max-width: 860px) {
   .aposta-corpo  { flex-direction: column; }
   .aposta-trilha {

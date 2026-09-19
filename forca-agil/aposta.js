@@ -12,7 +12,7 @@
    direto para a solução — que é exatamente o hábito que a oficina
    quer interromper.
 
-   Por isso a trilha mostra os NÚMEROS das dez etapas desde o começo
+   Por isso a trilha mostra os NÚMEROS das nove etapas desde o começo
    (dá para ver que são dez e onde a conversa está), mas não os
    nomes: ler "Hipótese", "Experimento" e "Evidência" à frente já
    entrega o caminho e muda o que se escreve na etapa atual. O nome
@@ -80,7 +80,7 @@
   }
 
   /* ══════════════════════════════════════════════════════════════
-     AS DEZ ETAPAS
+     AS NOVE ETAPAS
 
      Cada etapa carrega o texto que a tela mostra e a função que lê
      e escreve os seus campos. Ter tudo numa lista só é o que
@@ -184,37 +184,14 @@
       molde: ['Poderíamos', { c: 'acao' }, 'para', { c: 'mudanca' }, '.']
     },
     {
-      id: 'versao',
-      titulo: 'VERSÃO TESTÁVEL',
-      curto: 'Versão testável',
-      pergunta: 'Como representar essa ideia sem construir tudo?',
-      auxiliar: 'Não precisamos construir a solução completa para aprender se a ideia faz sentido.',
-      exemplo: 'Sem construir um acompanhamento integrado no portal, podemos representar essa ideia por meio de uma mensagem enviada manualmente com a etapa atual e o próximo passo.',
-      rodape: 'Solução imaginada ≠ versão testável. A versão testável é menor, mais barata e mais rápida.',
-      dica: 'Vale papel, planilha, mensagem manual, atendimento simulado. O objetivo é aprender, não entregar.',
-      dependeDe: 'ideia',
-      campos: [
-        { chave: 'semConstruir', tipo: 'input', rotulo: 'A solução completa', curto: 'a solução completa', placeholder: 'o acompanhamento no portal' },
-        { chave: 'podemos', tipo: 'textarea', rotulo: 'Forma simples, manual ou protótipo', curto: 'a forma simples de representar', placeholder: 'uma mensagem manual com a etapa atual' }
-      ],
-      /* Só "Sem", não "Sem construir": o texto que cai na lacuna às vezes
-         vem pronto da Ideia de solução, e lá ele é um VERBO ("Poderíamos
-         disponibilizar…"), não um substantivo. Com o "construir" fixo na
-         frase, o resultado saía com dois verbos emendados ("Sem construir
-         disponibilizar…") — relatado no uso real. "Sem" sozinho aceita os
-         dois jeitos de responder, verbo ("Sem disponibilizar…") ou
-         substantivo ("Sem o acompanhamento no portal…"). */
-      molde: ['Sem', { c: 'semConstruir' }, ', podemos representar essa ideia por meio de', { c: 'podemos' }, '.']
-    },
-    {
       id: 'experimento',
       titulo: 'E — EXPERIMENTO',
       curto: 'Experimento',
-      pergunta: 'Como vamos testar essa versão?',
+      pergunta: 'Como vamos testar essa ideia?',
       exemplo: 'Durante 3 semanas, com 50 participantes, vamos enviar a mensagem de status e medir quantos contatos sobre andamento eles realizam.',
       rodape: 'O experimento não é a solução completa. É a forma organizada de testar uma versão simplificada da ideia.',
       dica: 'Um experimento precisa de três coisas para valer: com quem, por quanto tempo e o que será medido.',
-      dependeDe: 'versao',
+      dependeDe: 'ideia',
       campos: [
         { chave: 'duracao', tipo: 'quantidade', rotulo: 'Duração', curto: 'quanto tempo', placeholder: '3', unidadePadrao: 'semanas' },
         { chave: 'quantidade', tipo: 'input', rotulo: 'Quantidade', curto: 'quantas pessoas', placeholder: '50' },
@@ -377,14 +354,6 @@
     if (etapaId === 'ideia') {
       if (MUITA_TECNOLOGIA.test([d.acao, d.mudanca, d.texto].join(' '))) {
         avisos.push('Antes de definir a implementação, qual mudança você pretende provocar?');
-      }
-    }
-
-    if (etapaId === 'versao') {
-      var ideia = normalizar(resumoEtapa('ideia', _dados));
-      var versao = normalizar([d.semConstruir, d.podemos].join(' '));
-      if (ideia && versao.indexOf(ideia) !== -1) {
-        avisos.push('Há uma maneira menor, manual ou mais rápida de representar essa ideia?');
       }
     }
 
@@ -1359,30 +1328,23 @@
     var herdada = etapa.id === 'missao' && !etapaPreenchida('missao', _dados) && temMissaoDaExecucao();
     if (herdada) d = missaoDaExecucao();
 
-    /* "Sem construir" pede de novo, com outras palavras, a mesma solução
-       que "Ideia de solução" já nomeou — abrir em branco fazia o grupo
-       reler a etapa anterior e retranscrever o que já tinha escrito.
-       "Esperávamos" pede de novo A MUDANÇA MENSURÁVEL que o grupo já
+    /* "Esperávamos" pede de novo A MUDANÇA MENSURÁVEL que o grupo já
        registrou — "esperávamos" é literalmente a mudança que se queria
        ver (com os números: "de 1000 para 700"), não só o nome da
        métrica que o Experimento vai medir, que não carrega expectativa
-       nenhuma. Os dois só servem de ponto de partida: nascem editáveis,
-       e o que o grupo mudar é o que fica salvo (coletar() lê o campo da
-       tela, nunca este valor).
+       nenhuma. Serve só de ponto de partida: nasce editável, e o que o
+       grupo mudar é o que fica salvo (coletar() lê o campo da tela,
+       nunca este valor).
 
        "Vazio" inclui o caso de o campo ainda guardar só o próprio
        exemplo (dica) como se fosse resposta — sobra de quando o campo
        ainda não vinha preenchido e alguém digitou exatamente o que via
        ali. Sem essa checagem, essa sobra travava o prefill para sempre,
-       mesmo depois de a Ideia ganhar uma resposta de verdade. */
+       mesmo depois de a mudança mensurável ganhar uma resposta de verdade. */
     function aindaSemResposta(campo, valor) {
       var v = normalizar(valor);
       if (!v) return true;
       return !!(campo && campo.placeholder && v === normalizar(campo.placeholder));
-    }
-    if (etapa.id === 'versao' && _dados.ideia && normalizar(_dados.ideia.acao) &&
-        aindaSemResposta(campoPorChave(etapa, 'semConstruir'), d.semConstruir)) {
-      d = Object.assign({}, d, { semConstruir: _dados.ideia.acao });
     }
     /* Só usa a mudança como ponto de partida se ela estiver completa —
        "Esperávamos" é um campo de texto comum, não a prévia da etapa
