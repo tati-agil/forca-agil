@@ -1169,6 +1169,12 @@ const clicarSemRolagem = (page, seletor) => page.$eval(seletor, (el) => el.click
             anota('o card de evidência já chega com indicador, situação inicial e meta — nada redigitado',
               !!card && /andamento/.test(card.titulo) && card.campos.some((v) => /1000/.test(v)) && card.campos.some((v) => /700/.test(v)),
               JSON.stringify(card));
+
+            /* CONTINUAR exige fonte da evidência e a avaliação da
+               hipótese — nenhuma das duas vem preenchida sozinha. */
+            await page.selectOption('[data-e="fonte"]', 'Relatório');
+            await page.locator('.aposta-opcao', { hasText: 'Parcialmente sustentada' }).click();
+            await page.waitForTimeout(200);
           }
           if (i === 8) {
             /* O bloco "Evidência" no topo da Decisão mostra só os dados
@@ -1563,9 +1569,135 @@ const clicarSemRolagem = (page, seletor) => page.$eval(seletor, (el) => el.click
         anota('a frase da evidência não repete o prazo da mudança mensurável ("em 90 dias" fica só lá)',
           !/em 90 dias/.test(card.frase), card.frase);
         anota('o avanço até a meta é calculado sozinho, respeitando a direção (Reduzir)',
-          /70% do caminho até a meta/.test(card.progresso), card.progresso);
+          /70% da mudança esperada foi alcançada/.test(card.progresso), card.progresso);
+
+        /* O quadro "Resultados do experimento" nunca troca a Meta pelo
+           Resultado observado — os dois ficam sempre visíveis e
+           diferentes um do outro. */
+        const resumoQuadro = await pgEv.evaluate(() => (document.querySelector('.aposta-resultados-resumo') || {}).textContent.replace(/\s+/g, ' ') || '');
+        anota('"Resultados do experimento" mostra início → observado, e a Meta original, sem substituir uma pela outra',
+          /1000 contatos por m[êe]s.*650 contatos por m[êe]s.*Meta: 500 contatos por m[êe]s/.test(resumoQuadro), resumoQuadro);
+
+        /* Meta atingida exatamente: mensagem própria, sem percentual. */
+        await pgEv.fill('[data-e="observado"]', '500');
+        await pgEv.waitForTimeout(300);
+        const metaAtingida = await pgEv.evaluate(() => (document.querySelector('.aposta-frase-pronta') || {}).textContent || '');
+        anota('resultado observado igual à meta mostra "a mudança esperada foi alcançada", sem percentual',
+          metaAtingida === 'A mudança esperada foi alcançada.', metaAtingida);
+
+        /* Meta superada: nunca um percentual acima de 100% como
+           mensagem principal — a diferença, na mesma unidade/período. */
+        await pgEv.fill('[data-e="observado"]', '400');
+        await pgEv.waitForTimeout(300);
+        const metaSuperada = await pgEv.evaluate(() => (document.querySelector('.aposta-frase-pronta') || {}).textContent || '');
+        anota('meta superada mostra a diferença, nunca um percentual acima de 100%',
+          metaSuperada === 'A mudança esperada foi superada em 100 contatos por mês.', metaSuperada);
+
+        /* Piora do indicador (foi na direção contrária): nunca um
+           percentual negativo como mensagem principal. */
+        await pgEv.fill('[data-e="observado"]', '1200');
+        await pgEv.waitForTimeout(300);
+        const semMelhora = await pgEv.evaluate(() => (document.querySelector('.aposta-frase-falta') || {}).textContent || '');
+        anota('piora do indicador não mostra percentual negativo — mostra o que foi observado x a situação inicial',
+          semMelhora === 'O resultado observado não avançou na direção esperada. Foram observados 1200 contatos por mês, acima da situação inicial de 1000 contatos por mês.',
+          semMelhora);
+
+        /* Devolve ao estado consistente para o resto do teste. */
+        await pgEv.fill('[data-e="observado"]', '650');
+        await pgEv.waitForTimeout(300);
+
+        /* CONTINUAR: sem fonte, mesmo com observado preenchido, e sem
+           escolher "Nossa hipótese foi", fica bloqueado de verdade — sem
+           escape por segundo clique. (Volta a fonte para vazio: já
+           tinha sido escolhida lá em cima, para os testes de frase.) */
+        await pgEv.selectOption('[data-e="fonte"]', '');
+        await pgEv.waitForTimeout(200);
+        const tituloAntesEv = await pgEv.evaluate(() => (document.querySelector('.aposta-etapa-titulo') || {}).textContent || '');
+        await pgEv.$eval('#apostaSeguir', (el) => el.click());
+        await pgEv.waitForTimeout(300);
+        const bloqueioSemFonte = await pgEv.evaluate(() => (document.getElementById('apostaAvisos') || {}).textContent || '');
+        anota('CONTINUAR bloqueia sem Fonte da evidência, mesmo com Resultado observado preenchido',
+          /preencha .Resultado observado. e .Fonte da evidência./i.test(bloqueioSemFonte), bloqueioSemFonte);
+        await pgEv.$eval('#apostaSeguir', (el) => el.click());
+        await pgEv.waitForTimeout(300);
+        const tituloDepoisSemFonte = await pgEv.evaluate(() => (document.querySelector('.aposta-etapa-titulo') || {}).textContent || '');
+        anota('o bloqueio de Evidência incompleta NÃO tem escape por segundo clique', tituloDepoisSemFonte === tituloAntesEv);
+
+        await pgEv.selectOption('[data-e="fonte"]', 'Registros de atendimento');
+        await pgEv.waitForTimeout(200);
+        await pgEv.$eval('#apostaSeguir', (el) => el.click());
+        await pgEv.waitForTimeout(300);
+        const bloqueioSemClassificacao = await pgEv.evaluate(() => (document.getElementById('apostaAvisos') || {}).textContent || '');
+        anota('com o resultado completo, CONTINUAR ainda bloqueia sem escolher "Nossa hipótese foi"',
+          /Escolha uma das opções em .Nossa hip[óo]tese foi./i.test(bloqueioSemClassificacao), bloqueioSemClassificacao);
+
+        /* "Não foi possível medir" desliga Resultado observado/Fonte e
+           passa a exigir Motivo em vez deles — nunca os dois ao mesmo
+           tempo. */
+        await pgEv.click('[data-e="naoMedido"]');
+        await pgEv.waitForTimeout(200);
+        const motivoRot = await pgEv.evaluate(() => {
+          const input = document.querySelector('[data-e="motivo"]');
+          const label = input ? input.closest('.aposta-campo').querySelector('.aposta-campo-rot') : null;
+          return label ? label.textContent : '';
+        });
+        anota('marcar "Não foi possível medir" tira o "(opcional)" de Motivo — passa a ser obrigatório',
+          motivoRot === 'Motivo', motivoRot);
+        await pgEv.$eval('#apostaSeguir', (el) => el.click());
+        await pgEv.waitForTimeout(300);
+        const bloqueioSemMotivo = await pgEv.evaluate(() => (document.getElementById('apostaAvisos') || {}).textContent || '');
+        anota('marcado "Não foi possível medir" mas sem Motivo, CONTINUAR continua bloqueado',
+          /preencha .Resultado observado. e .Fonte da evidência./i.test(bloqueioSemMotivo), bloqueioSemMotivo);
+
+        await pgEv.fill('[data-e="motivo"]', 'a pesquisa não foi concluída dentro do período do experimento');
+        await pgEv.waitForTimeout(200);
+        await pgEv.locator('.aposta-opcao', { hasText: 'Não sustentada' }).click();
+        await pgEv.waitForTimeout(200);
+        await pgEv.$eval('#apostaSeguir', (el) => el.click());
+        await pgEv.waitForTimeout(300);
+        const tituloDepoisCompleto = await pgEv.evaluate(() => (document.querySelector('.aposta-etapa-titulo') || {}).textContent || '');
+        anota('"Não foi possível medir" + Motivo + escolha da hipótese: CONTINUAR libera (não precisa de número)',
+          tituloDepoisCompleto !== tituloAntesEv, tituloDepoisCompleto);
 
         await ctxEv.close();
+      }
+
+      /* ── 9c: "Manter" na Evidência usa mensagem própria por tipo de
+            limite — nunca percentual de progresso. ── */
+      for (const cenario of [
+        { tipoLimite: 'Pelo menos', meta: '90', observado: '95', esperado: 'O resultado permaneceu dentro da condição que queríamos manter.' },
+        { tipoLimite: 'Pelo menos', meta: '90', observado: '85', esperado: 'O resultado ficou abaixo da condição que queríamos manter.' },
+        { tipoLimite: 'No máximo', meta: '670', observado: '600', esperado: 'O resultado permaneceu dentro da condição que queríamos manter.' },
+        { tipoLimite: 'No máximo', meta: '670', observado: '700', esperado: 'O resultado ficou acima da condição que queríamos manter.' },
+        { tipoLimite: 'Entre', limiteMinimo: '8', limiteMaximo: '12', observado: '10', esperado: 'O resultado permaneceu dentro da condição que queríamos manter.' },
+        { tipoLimite: 'Entre', limiteMinimo: '8', limiteMaximo: '12', observado: '15', esperado: 'O resultado ficou fora da condição que queríamos manter.' },
+      ]) {
+        const semeadoManter = apostasSemeadas();
+        semeadoManter[TURMA_LIB].execucoes[EXEC].grupos[GRUPO].etapa = 'evidencia';
+        semeadoManter[TURMA_LIB].execucoes[EXEC].grupos[GRUPO].dados = {
+          mudancas: { itens: [{
+            id: 'rm', direcao: 'Manter', tipoLimite: cenario.tipoLimite,
+            indicador: 'índice de satisfação', atual: '10',
+            meta: cenario.meta, limiteMinimo: cenario.limiteMinimo, limiteMaximo: cenario.limiteMaximo,
+            prazo: '90', prazoUnidade: 'dias',
+          }] },
+          experimento: { resultadoIds: ['rm'] },
+        };
+        const { ctx: ctxM, page: pgM } = await novaPagina(browser, formato, DIRETORA, erros, semeadoManter);
+        await pgM.goto(BASE + '/index.html#treinamento', { waitUntil: 'domcontentloaded' });
+        await pgM.click('#apostaAbrirBtn');
+        await pgM.waitForSelector('.aposta-grupo-btn', { timeout: 15000 });
+        await pgM.click('.aposta-grupo-btn');
+        await pgM.waitForFunction(() =>
+          /EVID[ÊE]NCIA/.test((document.querySelector('.aposta-etapa-titulo') || {}).textContent || ''),
+          { timeout: 15000 });
+        await pgM.fill('[data-e="observado"]', cenario.observado);
+        await pgM.waitForTimeout(300);
+        const msgManter = await pgM.evaluate(() =>
+          ((document.querySelector('.aposta-frase-pronta, .aposta-frase-falta') || {}).textContent || ''));
+        anota('"Manter" (' + cenario.tipoLimite + ', observado ' + cenario.observado + ') mostra a mensagem certa, sem percentual',
+          msgManter === cenario.esperado, msgManter);
+        await ctxM.close();
       }
 
       /* ── 9b: o Experimento pode observar vários resultados esperados de
