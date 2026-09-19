@@ -218,6 +218,9 @@ const textoDaTela = (page) => page.evaluate(() => {
         await novo.waitForSelector('#apostaPainelBtn', { timeout: 15000 });
         await novo.click('#apostaPainelBtn');
         await novo.waitForSelector('#apostaCriarGrupo', { timeout: 10000 });
+        const notaGrupo = await novo.evaluate(() => document.body.textContent || '');
+        anota('o painel avisa que um grupo pode ser uma pessoa sozinha ou várias',
+          /Cada grupo pode ser formado por uma ou mais pessoas/i.test(notaGrupo));
         await novo.fill('#apostaNovoGrupo', 'Grupo 1');
         await novo.click('#apostaCriarGrupo');
         await novo.waitForTimeout(500);

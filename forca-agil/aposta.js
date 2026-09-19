@@ -2965,6 +2965,7 @@
         '</div>' +
 
         '<h4 style="margin:8px 0 0">Grupos</h4>' +
+        '<p style="font-size:.8rem;color:var(--ink-3);margin:0">Cada grupo pode ser formado por uma ou mais pessoas.</p>' +
         (Object.keys(grupos).length
           ? '<div class="aposta-fac-grupos">' + Object.keys(grupos).map(function (g) {
               var gr = grupos[g];
