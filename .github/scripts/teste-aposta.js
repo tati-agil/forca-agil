@@ -976,6 +976,56 @@ const textoDaTela = (page) => page.evaluate(() => {
             anota('o card de evidência já chega com indicador, situação inicial e meta — nada redigitado',
               !!card && /andamento/.test(card.titulo) && card.campos.some((v) => /1000/.test(v)) && card.campos.some((v) => /700/.test(v)),
               JSON.stringify(card));
+
+            /* Sem classificação global da hipótese: uma etapa que produz
+               várias evidências diferentes não pode ser reduzida a um
+               veredito único aqui — isso é da Decisão. */
+            const semClassificacao = await page.evaluate(() =>
+              !/Nossa hip[óo]tese foi/i.test(document.body.textContent || '') && !document.querySelector('.aposta-escolha'));
+            anota('não existe mais "Nossa hipótese foi" nem classificação de sustentada/não sustentada na Evidência', semClassificacao);
+
+            /* Sem resultado observado ainda, a frase não finge que há
+               evidência, e Continuar começa desabilitado. */
+            const antesDePreencher = await page.evaluate(() => ({
+              falta: (document.querySelector('.aposta-frase-falta') || {}).textContent || '',
+              seguirDesabilitado: !!(document.getElementById('apostaSeguir') || {}).disabled,
+            }));
+            anota('sem resultado observado, a tela diz que ainda falta, sem inventar uma frase completa',
+              /Ainda falta: o resultado observado/i.test(antesDePreencher.falta), antesDePreencher.falta);
+            anota('Continuar começa desabilitado até haver evidência de verdade para cada resultado',
+              antesDePreencher.seguirDesabilitado);
+
+            await page.fill('[data-e="observado"]', '850');
+            await page.waitForTimeout(300);
+            const soObservado = await page.evaluate(() => !!(document.getElementById('apostaSeguir') || {}).disabled);
+            anota('só o resultado observado, sem fonte, ainda não libera Continuar', soObservado);
+
+            await page.selectOption('[data-e="fonte"]', 'Registros de atendimento');
+            await page.waitForTimeout(300);
+            const comFonte = await page.evaluate(() => !!(document.getElementById('apostaSeguir') || {}).disabled);
+            anota('resultado observado + fonte libera Continuar', !comFonte);
+
+            /* Aprendizado é por card, com tooltip próprio — não é a mesma
+               coisa que classificar a hipótese inteira. */
+            const aprendizadoUi = await page.evaluate(() => {
+              const rot = Array.from(document.querySelectorAll('.aposta-campo-rot'))
+                .find((r) => /O que aprendemos com esta evid[êe]ncia/i.test(r.textContent));
+              return { rotulo: rot ? rot.textContent : '', dica: rot ? rot.title : '' };
+            });
+            anota('o card pergunta "O que aprendemos com esta evidência?", com tooltip evitando prova definitiva',
+              /O que aprendemos com esta evid[êe]ncia/i.test(aprendizadoUi.rotulo) && /prova definitiva/i.test(aprendizadoUi.dica),
+              JSON.stringify(aprendizadoUi));
+            await page.fill('[data-e="aprendizado"]',
+              'A redução dos contatos sugere que a maior visibilidade pode estar ajudando, mas precisamos observar numa amostra maior.');
+
+            /* Linguagem de prova ("comprovou", "sucesso"...) recebe aviso
+               didático — sem tocar no formulário ao vivo, via o mesmo
+               validar() exposto para a suíte "▶ Automáticos". */
+            const avisoProva = await page.evaluate(() => window.faAposta._validar('evidencia', {
+              itens: [{ resultadoId: 'r1', observado: '850', fonte: 'Registros de atendimento', aprendizado: 'Isso comprovou que a hipótese está certa' }],
+            }));
+            anota('linguagem de prova ("comprovou") no aprendizado recebe aviso didático (não bloqueia)',
+              avisoProva.some((a) => /conclus[ãa]o fechada/i.test(a)), JSON.stringify(avisoProva));
           }
           if (i === 8) {
             /* O bloco "Evidência" no topo da Decisão mostra só os dados
@@ -990,6 +1040,9 @@ const textoDaTela = (page) => page.evaluate(() => {
               /contatos sobre andamento/i.test(evidenciaTopo) && /Situa[çc][ãa]o inicial/i.test(evidenciaTopo) &&
               /Meta/.test(evidenciaTopo) && /Observado/.test(evidenciaTopo) && !/Portanto, nossa hip[óo]tese foi/i.test(evidenciaTopo),
               evidenciaTopo.slice(0, 200));
+            anota('a Decisão também recebe a fonte da evidência e o aprendizado registrado, herdados por id',
+              /Fonte: Registros de atendimento/i.test(evidenciaTopo) && /Aprendizado:/i.test(evidenciaTopo),
+              evidenciaTopo.slice(0, 300));
 
             /* DECISÃO: a data de reavaliação é um DIA marcado no calendário
                (sai com ano); "Prazo" é DURAÇÃO ("em quanto tempo"), não uma
@@ -1193,7 +1246,7 @@ const textoDaTela = (page) => page.evaluate(() => {
         hipotese: { causa: 'as informações não são claras', indicio: 'muitas perguntas de status' },
         ideia:    { texto: 'dar visibilidade do andamento' },
         experimento: { oQue: 'enviar a mensagem', comQuem: 'participantes', quantidade: '50', duracao: '3 semanas', resultadoIds: ['r1'] },
-        evidencia: { itens: [{ resultadoId: 'r1', observado: '750', fonte: 'Registros de atendimento' }], classificacao: 'Parcialmente sustentada' },
+        evidencia: { itens: [{ resultadoId: 'r1', observado: '750', fonte: 'Registros de atendimento', aprendizado: 'Os contatos caíram, sugerindo que a visibilidade ajuda.' }] },
         decisao:  { decisao: 'Ajustar e testar novamente', proximaAcao: 'novo teste com grupo maior' }
       };
       semeado[TURMA_LIB].execucoes[EXEC].grupos[GRUPO].etapa = 'decisao';
@@ -1443,6 +1496,9 @@ const textoDaTela = (page) => page.evaluate(() => {
           desligado.observado && desligado.fonte, JSON.stringify(desligado));
         anota('a frase da evidência diz que não foi possível medir, com o motivo',
           /Não foi possível medir neste experimento \(Pesquisa de satisfação/.test(desligado.frase), desligado.frase);
+        const seguirComNaoMedido = await pgNM.evaluate(() => !!(document.getElementById('apostaSeguir') || {}).disabled);
+        anota('"não foi possível medir" + motivo também libera Continuar (é a outra forma válida de completar)',
+          !seguirComNaoMedido);
         await ctxNM.close();
       }
 
