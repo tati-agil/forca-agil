@@ -651,6 +651,17 @@
     return { unidade: unidade, periodo: periodo };
   }
 
+  /* NPS (Forma de medição "Índice", Unidade "NPS") é um índice, não uma
+     contagem ao longo do tempo — "5 NPS por dia" não quer dizer nada.
+     Período trava em "não se aplica" enquanto essa combinação estiver
+     selecionada (ver mudancasHtml/atualizarPeriodoNPS), e as funções que
+     montam frase/resumo (partesMudanca, resumoCurtoMudanca,
+     sufixoUnidade) leem esse período já corrigido — nenhuma delas
+     precisa checar NPS por conta própria. */
+  function ehIndiceNPS(m) {
+    return String((m || {}).formaMedicao || '').trim() === 'Índice' && normalizar((m || {}).unidade) === 'nps';
+  }
+
   /* "1.000", "1000" e "1.000,5" viram um número comparável — ponto é
      separador de milhar, vírgula é decimal, a mesma convenção de
      mascaraMoeda. null quando não dá para comparar. */
@@ -672,8 +683,18 @@
     var direcao = String(m.direcao || '').trim() || 'Aumentar';
     var indicador = String(m.indicador || '').trim();
     var mig = migrarUnidadePeriodo(m);
-    var periodoAplica = mig.periodo && normalizar(mig.periodo) !== 'não se aplica';
+    var periodoAplica = mig.periodo && normalizar(mig.periodo) !== 'não se aplica' && !ehIndiceNPS(m);
     var ehPercentual = mig.unidade === '%';
+    /* "Aumentar NPS de 5 NPS para 7 NPS" repete a unidade — só para NPS
+       (Índice + Unidade "NPS"): ali o indicador costuma ser o próprio
+       nome do índice, e repeti-lo depois de cada número é ruído, não
+       informação. Para as demais unidades (ex.: indicador "contatos
+       sobre o andamento" com Unidade "contatos") a repetição continua
+       de propósito — ver comentário abaixo de numeroComUnidade — por
+       isso esta supressão fica restrita a ehIndiceNPS, sem mexer no
+       comportamento geral (inclusive o do ramo "Atingir" logo abaixo,
+       que já tinha sua própria checagem, mais ampla, antes disto). */
+    var suprimirUnidadeNPS = ehIndiceNPS(m);
 
     function comSufixo(val) { return ehPercentual ? val + '%' : val; }
     /* "contatos por mês" — só entra depois do ÚLTIMO número da frase,
@@ -681,7 +702,7 @@
        cada valor por conta própria). */
     function unidadePeriodoTxt() {
       var partes = [];
-      if (!ehPercentual && mig.unidade) partes.push(mig.unidade);
+      if (!ehPercentual && mig.unidade && !suprimirUnidadeNPS) partes.push(mig.unidade);
       if (periodoAplica) partes.push(mig.periodo);
       return partes.join(' ');
     }
@@ -888,8 +909,12 @@
     var mig = migrarUnidadePeriodo(m);
     var direcao = String(m.direcao || '').trim();
     var comPercentual = function (v) { return mig.unidade === '%' ? v + '%' : v; };
-    var periodoTxt = (mig.periodo && normalizar(mig.periodo) !== 'não se aplica') ? ' ' + mig.periodo : '';
-    var unidadeTxt = (mig.unidade && mig.unidade !== '%') ? ' ' + mig.unidade : '';
+    var periodoTxt = (mig.periodo && normalizar(mig.periodo) !== 'não se aplica' && !ehIndiceNPS(m)) ? ' ' + mig.periodo : '';
+    /* "NPS \n 5 → 7 NPS" repete o indicador, que já está no título acima
+       deste resumo (ver resultadosPickerHtml/resultadosProduzirHtml) —
+       mesma supressão de partesMudanca, restrita a NPS pelo mesmo motivo
+       (para as demais unidades, ex. "contatos", repetir é de propósito). */
+    var unidadeTxt = (mig.unidade && mig.unidade !== '%' && !ehIndiceNPS(m)) ? ' ' + mig.unidade : '';
     var atual = m.atual || '—';
     if (direcao === 'Manter') {
       var tipoLimite = String(m.tipoLimite || '').trim() || 'Pelo menos';
@@ -937,6 +962,12 @@
   /* O sufixo "contatos por mês" / "%" que acompanha os números, igual
      ao que Mudanças mensuráveis já decidiu para aquele resultado. */
   function sufixoUnidade(m) {
+    /* NPS não leva sufixo nenhum — nem unidade, nem período: o
+       indicador já aparece como título em todo lugar que usa este
+       sufixo (card de Evidência, resumo da Decisão, "Resultados do
+       experimento"...), e "5 NPS" ao lado de "NPS" no título é
+       repetição, não informação (ver ehIndiceNPS). */
+    if (ehIndiceNPS(m)) return '';
     var mig = migrarUnidadePeriodo(m);
     if (mig.unidade === '%') return '%';
     var periodoTxt = (mig.periodo && normalizar(mig.periodo) !== 'não se aplica') ? ' ' + mig.periodo : '';
@@ -1807,17 +1838,18 @@
      verdade (a unidade de uma mudança mensurável nem sempre tem um
      "por X" natural) — aí não força a primeira opção como valor, só
      como sugestão (placeholder), igual um campo comum vazio. */
-  function variantePicker(atributo, chave, opcoes, valor, rotulo, id, classeExtra, opcional) {
+  function variantePicker(atributo, chave, opcoes, valor, rotulo, id, classeExtra, opcional, desabilitado) {
     var v = opcional ? String(valor == null ? '' : valor).trim() : valorVariante({ opcoes: opcoes }, valor);
     return '<span class="aposta-variante' + (classeExtra ? ' ' + classeExtra : '') + '">' +
       '<input type="text"' + (id ? ' id="' + esc(id) + '"' : '') +
         ' ' + atributo + '="' + esc(chave) + '" class="aposta-campo-input aposta-variante-input"' +
         ' value="' + esc(v) + '"' +
         (opcional ? ' placeholder="' + esc((opcoes || [])[0] || '') + '"' : '') +
+        (desabilitado ? ' disabled' : '') +
         ' aria-label="' + esc(rotulo) + '" />' +
       '<span class="aposta-variante-chips">' +
         (opcoes || []).map(function (o) {
-          return '<button type="button" class="aposta-variante-chip' + (v === o ? ' is-ativa' : '') + '" data-valor="' + esc(o) + '">' + esc(o) + '</button>';
+          return '<button type="button" class="aposta-variante-chip' + (v === o ? ' is-ativa' : '') + '" data-valor="' + esc(o) + '"' + (desabilitado ? ' disabled' : '') + '>' + esc(o) + '</button>';
         }).join('') +
       '</span>' +
     '</span>';
@@ -2117,6 +2149,11 @@
         var mig = migrarUnidadePeriodo(m);
         var chipsUnidade = UNIDADES_SUGERIDAS[m.formaMedicao] || [];
         var valorUnidade = UNIDADE_AUTOMATICA[m.formaMedicao] || mig.unidade || '';
+        var indiceNPS = ehIndiceNPS(m);
+        var valorPeriodo = indiceNPS ? 'não se aplica' : mig.periodo;
+        var tituloPeriodo = indiceNPS
+          ? 'NPS é um índice, não uma contagem ao longo do tempo — não se mede "por dia" ou "por mês".'
+          : 'Esses valores são medidos em qual período? Ex.: por dia, por semana, por mês, por trimestre, por semestre, por ano, por atendimento, por processo, não se aplica.';
         return '<div class="aposta-mudanca" data-i="' + i + '">' +
           '<input type="hidden" data-m="id" value="' + esc(m.id) + '" />' +
           '<div class="aposta-mudanca-grade">' +
@@ -2141,8 +2178,8 @@
             '<label class="aposta-campo" data-campo-unidade><span class="aposta-campo-rot">Unidade</span>' +
               variantePicker('data-m', 'unidade', chipsUnidade, valorUnidade, 'Unidade', null, 'aposta-variante--campo', true) +
             '</label>' +
-            '<label class="aposta-campo"><span class="aposta-campo-rot" title="Esses valores são medidos em qual período? Ex.: por dia, por semana, por mês, por trimestre, por semestre, por ano, por atendimento, por processo, não se aplica.">Período de medição</span>' +
-              variantePicker('data-m', 'periodo', PERIODOS_SUGERIDOS, mig.periodo, 'Período de medição', null, 'aposta-variante--campo', true) +
+            '<label class="aposta-campo" data-campo-periodo><span class="aposta-campo-rot" title="' + esc(tituloPeriodo) + '">Período de medição</span>' +
+              variantePicker('data-m', 'periodo', PERIODOS_SUGERIDOS, valorPeriodo, 'Período de medição', null, 'aposta-variante--campo', true, indiceNPS) +
             '</label>' +
             '<label class="aposta-campo aposta-campo--qtd"><span class="aposta-campo-rot" title="Até quando queremos atingir essa mudança?">Prazo</span>' +
               '<span class="aposta-qtd">' +
@@ -2332,6 +2369,39 @@
       return d;
     }
 
+    /* As três checagens que bloqueiam CONTINUAR de verdade (mudança
+       mensurável incoerente, frase estrita incompleta, card de
+       evidência incompleto) marcam avisosEl com data-bloqueio ao
+       aparecer, no clique. Sem isso, corrigir o campo enquanto o aviso
+       já está na tela não tirava ele: "Fica assim no mapa" passava a
+       dizer "a frase está completa" e o aviso amarelo continuava
+       dizendo o contrário, um ao lado do outro, até o próximo clique —
+       o estado contraditório relatado no pedido de ajuste. Chamado a
+       cada tecla (salvarDepois), este é o único lugar que também
+       APAGA esses avisos — nunca os de "convite a reler" (esses usam
+       data-mostrado, de propósito só somem no segundo clique). */
+    function limparAvisoBloqueioResolvido() {
+      var tipo = avisosEl.dataset.bloqueio;
+      if (!tipo) return;
+      var d = coletar();
+      var aindaBloqueado;
+      if (tipo === 'mudancas') {
+        aindaBloqueado = indiceMudancaIncoerente(d) !== -1;
+      } else if (tipo === 'frase') {
+        var faltam = partesFaltantesEtapa(etapa, d);
+        var temLegadoValido = etapa.legado && String(d[etapa.legado] || '').trim() && !temLacunaPreenchida(etapa, d);
+        aindaBloqueado = faltam.length > 0 && !temLegadoValido;
+      } else if (tipo === 'evidencia') {
+        aindaBloqueado = (d.itens || []).some(function (ev) {
+          return ev.naoMedido === 'sim' ? !normalizar(ev.motivo) : !(normalizar(ev.observado) && normalizar(ev.fonte));
+        });
+      }
+      if (!aindaBloqueado) {
+        avisosEl.innerHTML = '';
+        delete avisosEl.dataset.bloqueio;
+      }
+    }
+
     /* Lê os campos AGORA e guarda o que leu; o temporizador só grava.
        Antes ele chamava coletar() 600ms depois — e 600ms depois a tela já
        podia ter trocado de etapa. O que ele lia eram os campos VAZIOS da
@@ -2342,6 +2412,7 @@
        campo em branco — o texto tinha sido apagado de verdade. */
     function salvarDepois() {
       agendarSalvamento(etapa.id, coletar());
+      limparAvisoBloqueioResolvido();
       if (etapa.lista) atualizarFrases();
       else if (etapa.id === 'evidencia') atualizarCardsEvidencia();
       else atualizarFrase();
@@ -2569,9 +2640,29 @@
       bloco.querySelectorAll('[data-m]').forEach(function (el) { m[el.dataset.m] = el.value; });
       return m;
     }
+    /* Mantém o campo Período em sincronia com Forma de medição/Unidade a
+       cada tecla: trava em "não se aplica" assim que a combinação vira
+       Índice+NPS, e destrava se deixar de ser — sem substituir o nó (só
+       muda value/disabled), para não perder foco no meio da digitação. */
+    function atualizarPeriodoNPS(bloco, m) {
+      var wrap = bloco.querySelector('[data-campo-periodo]');
+      var inputPeriodo = wrap && wrap.querySelector('[data-m="periodo"]');
+      if (!inputPeriodo) return;
+      var travar = ehIndiceNPS(m);
+      if (travar) {
+        inputPeriodo.value = 'não se aplica';
+        m.periodo = 'não se aplica';
+        wrap.querySelectorAll('.aposta-variante-chip').forEach(function (c) {
+          c.classList.toggle('is-ativa', c.dataset.valor === 'não se aplica');
+        });
+      }
+      inputPeriodo.disabled = travar;
+      wrap.querySelectorAll('.aposta-variante-chip').forEach(function (c) { c.disabled = travar; });
+    }
     function atualizarFrases() {
       _tela.querySelectorAll('.aposta-mudanca').forEach(function (bloco) {
         var m = lerCampos(bloco);
+        atualizarPeriodoNPS(bloco, m);
         var idx = bloco.dataset.i;
         atualizarAlertaMudanca(bloco, m);
         var p = bloco.querySelector('.aposta-mudanca-frase');
@@ -2891,6 +2982,7 @@
       if (etapa.id === 'mudancas') {
         var idxIncoerente = indiceMudancaIncoerente(d);
         if (idxIncoerente !== -1) {
+          avisosEl.dataset.bloqueio = 'mudancas';
           avisosEl.innerHTML = '<p class="aposta-aviso-didatico">Corrija a mudança mensurável destacada acima antes de continuar.</p>';
           var blocoIncoerente = _tela.querySelector('.aposta-mudanca[data-i="' + idxIncoerente + '"]');
           (blocoIncoerente || avisosEl).scrollIntoView({ behavior: 'smooth', block: 'center' });
@@ -2907,6 +2999,7 @@
         var faltamContinuar = partesFaltantesEtapa(etapa, d);
         var temLegadoValido = etapa.legado && String(d[etapa.legado] || '').trim() && !temLacunaPreenchida(etapa, d);
         if (faltamContinuar.length && !temLegadoValido) {
+          avisosEl.dataset.bloqueio = 'frase';
           avisosEl.innerHTML = '<p class="aposta-aviso-didatico">' + esc(mensagemFraseIncompleta(etapa.id, faltamContinuar)) + '</p>';
           var apostaFraseEl = document.getElementById('apostaFrase');
           (apostaFraseEl || avisosEl).scrollIntoView({ behavior: 'smooth', block: 'center' });
@@ -2929,6 +3022,7 @@
           if (!completo) idxEvidenciaIncompleta = idx;
         });
         if (idxEvidenciaIncompleta !== -1) {
+          avisosEl.dataset.bloqueio = 'evidencia';
           avisosEl.innerHTML = '<p class="aposta-aviso-didatico">Complete o resultado destacado acima: preencha "Resultado observado" e "Fonte da evidência", ou marque "Não foi possível medir" e informe o motivo.</p>';
           var blocosEvidencia = _tela.querySelectorAll('.aposta-mudanca[data-resultado]');
           (blocosEvidencia[idxEvidenciaIncompleta] || avisosEl).scrollIntoView({ behavior: 'smooth', block: 'center' });
@@ -3416,7 +3510,11 @@
               return '<div class="aposta-fac-grupo">' +
                 '<strong>' + esc(gr.nome || 'Grupo') + '</strong>' +
                 '<span>' + feitas + '/' + ETAPAS.length + ' etapas · ' + status + '</span>' +
-                '<span class="aposta-fac-membros">' + esc(membros.join(', ') || 'ninguém ainda') + '</span>' +
+                /* "ninguém ainda" ficava perto do status de etapas
+                   (não iniciado/em andamento/concluído) e lia como se
+                   fosse sobre progresso — esta linha é sobre QUEM está
+                   no grupo, informação diferente. */
+                '<span class="aposta-fac-membros">' + esc(membros.join(', ') || 'sem participantes ainda') + '</span>' +
                 '<button class="btn btn--sm aposta-fac-ver" data-grupo="' + esc(g) + '">Projetar</button>' +
               '</div>';
             }).join('') + '</div>'

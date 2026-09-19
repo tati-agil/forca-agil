@@ -243,6 +243,12 @@ const clicarSemRolagem = (page, seletor) => page.$eval(seletor, (el) => el.click
           ((Array.from(document.querySelectorAll('.aposta-fac-grupo')).find((g) => /Grupo 1/.test(g.textContent)) || {}).textContent || ''));
         anota('grupo recém-criado, sem nenhuma etapa, aparece como "0/9 etapas · não iniciado"',
           /0\/9 etapas · n[ãa]o iniciado/.test(statusGrupoNovo), statusGrupoNovo.replace(/\s+/g, ' '));
+        /* "ninguém ainda" ficava colado ao status de etapas e lia como se
+           fosse sobre progresso — a lista de participantes é outra
+           informação (quem está no grupo, não quantas etapas fez). */
+        anota('grupo sem participante nenhum mostra "sem participantes ainda", nunca "ninguém ainda"',
+          /sem participantes ainda/i.test(statusGrupoNovo) && !/ningu[ée]m ainda/i.test(statusGrupoNovo),
+          statusGrupoNovo.replace(/\s+/g, ' '));
 
         /* O painel pede a missão nas MESMAS lacunas da etapa 1: se as duas
            telas pedem a mesma frase, pedem do mesmo jeito. */
@@ -552,6 +558,37 @@ const clicarSemRolagem = (page, seletor) => page.$eval(seletor, (el) => el.click
         const fraseNps = await pgDir.evaluate(() => (document.querySelector('.aposta-mudanca-frase') || {}).textContent || '');
         anota('"Atingir" com indicador que já começa pela unidade (NPS) não repete a unidade',
           /Atingir NPS 60 em 90 dias/.test(fraseNps) && !/NPS.*NPS/.test(fraseNps), fraseNps);
+
+        /* NPS não usa período temporal — Forma de medição "Índice" com
+           Unidade "NPS" trava o campo Período em "não se aplica",
+           travado (não dá para escolher "por dia"/"por mês" etc.). */
+        const periodoNps = await pgDir.evaluate(() => {
+          const campo = document.querySelector('[data-m="periodo"]');
+          return campo ? { valor: campo.value, desabilitado: campo.disabled } : null;
+        });
+        anota('Índice + NPS trava o Período em "não se aplica", desabilitado',
+          !!periodoNps && periodoNps.valor === 'não se aplica' && periodoNps.desabilitado === true,
+          JSON.stringify(periodoNps));
+
+        /* Aumentar/Reduzir com NPS: a frase não repete a unidade depois
+           de cada número nem anexa um período incompatível — "Aumentar
+           NPS... de 5 para 7 em 90 dias.", nunca "5 NPS por dia". */
+        await pgDir.locator('.aposta-variante:has([data-m="direcao"]) .aposta-variante-chip', { hasText: 'Aumentar' }).click();
+        await pgDir.waitForTimeout(200);
+        await pgDir.fill('[data-m="atual"]', '5');
+        await pgDir.fill('[data-m="meta"]', '7');
+        await pgDir.waitForTimeout(300);
+        const fraseNpsAumentar = await pgDir.evaluate(() => (document.querySelector('.aposta-mudanca-frase') || {}).textContent || '');
+        anota('"Aumentar" com NPS não gera "NPS por dia" nem repete a unidade nos números',
+          /de 5 para 7 em 90 dias\./.test(fraseNpsAumentar) && !/por (dia|semana|m[êe]s|trimestre|semestre|ano)/i.test(fraseNpsAumentar) && !/5 NPS|7 NPS/.test(fraseNpsAumentar),
+          fraseNpsAumentar);
+
+        /* Trocar Forma de medição para outra coisa destrava o Período de
+           novo — a trava é só enquanto Índice + NPS estiver selecionado. */
+        await pgDir.selectOption('[data-m="formaMedicao"]', 'Quantidade');
+        await pgDir.waitForTimeout(200);
+        const periodoDepois = await pgDir.evaluate(() => (document.querySelector('[data-m="periodo"]') || {}).disabled);
+        anota('trocar a Forma de medição para outra coisa destrava o Período', periodoDepois === false);
 
         await ctxDir.close();
       }
@@ -1135,6 +1172,16 @@ const clicarSemRolagem = (page, seletor) => page.$eval(seletor, (el) => el.click
               /Durante 3 semanas, com 50 participantes em concess[ãa]o, vamos enviar manualmente mensagens de status\./i.test(experimentoCompleto) &&
               /A frase desta etapa está completa/i.test(experimentoCompleto),
               experimentoCompleto.slice(0, 300));
+            /* O clique em CONTINUAR (linha 1158) deixou o aviso amarelo
+               "Complete o que será feito..." na tela — preencher os
+               campos, sem clicar de novo, precisa apagar esse aviso
+               sozinho: senão "a frase está completa" e "complete o que
+               será feito" ficam lado a lado, o estado contraditório
+               relatado no pedido de ajuste. */
+            const avisoDepoisDeCompletar = await page.evaluate(() =>
+              ((document.getElementById('apostaAvisos') || {}).textContent || '').trim());
+            anota('preencher os campos apaga sozinho o aviso "Complete o que será feito" (sem precisar clicar de novo)',
+              avisoDepoisDeCompletar === '', 'aviso ficou: "' + avisoDepoisDeCompletar + '"');
 
             /* EXPERIMENTO: custo com máscara de moeda. */
             await page.fill('[data-campo="custo"]', '250000');
@@ -1790,6 +1837,65 @@ const clicarSemRolagem = (page, seletor) => page.$eval(seletor, (el) => el.click
         const r1Intacto = await pgV.evaluate(() => (document.querySelector('[data-resultado="r1"] [data-e="observado"]') || {}).value || '');
         anota('preencher o segundo card não mexe no primeiro — cada card guarda o seu', r1Intacto === '650', 'ficou "' + r1Intacto + '"');
         await ctxV.close();
+      }
+
+      /* ── 9b2: NPS (Forma de medição "Índice", Unidade "NPS") não leva
+            sufixo nenhum em "O que vamos observar?" nem na Evidência —
+            nem unidade, nem período — porque o indicador já aparece
+            como título em todo lugar que mostraria esse sufixo. ── */
+      {
+        const semeadoNps = apostasSemeadas();
+        semeadoNps[TURMA_LIB].execucoes[EXEC].grupos[GRUPO].etapa = 'experimento';
+        semeadoNps[TURMA_LIB].execucoes[EXEC].grupos[GRUPO].dados = {
+          mudancas: { itens: [{ id: 'rnps', direcao: 'Aumentar', indicador: 'NPS', formaMedicao: 'Índice', unidade: 'NPS', atual: '5', meta: '7', periodo: 'por mês', prazo: '90', prazoUnidade: 'dias' }] },
+        };
+        const { ctx: ctxNpsExp, page: pgNpsExp } = await novaPagina(browser, formato, DIRETORA, erros, semeadoNps);
+        await pgNpsExp.goto(BASE + '/index.html#treinamento', { waitUntil: 'domcontentloaded' });
+        await pgNpsExp.click('#apostaAbrirBtn');
+        await pgNpsExp.waitForSelector('.aposta-grupo-btn', { timeout: 15000 });
+        await pgNpsExp.click('.aposta-grupo-btn');
+        await pgNpsExp.waitForFunction(() =>
+          /EXPERIMENTO/.test((document.querySelector('.aposta-etapa-titulo') || {}).textContent || ''),
+          { timeout: 15000 });
+        const itemNps = await pgNpsExp.evaluate(() => {
+          const item = document.querySelector('.aposta-resultado-item');
+          return item ? { titulo: (item.querySelector('strong') || {}).textContent || '', resumo: (item.querySelector('.aposta-resultado-txt span:last-child') || {}).textContent || '' } : null;
+        });
+        anota('"O que vamos observar?" mostra NPS sem sufixo — "5 → 7", nunca "5 → 7 NPS por mês"',
+          !!itemNps && itemNps.titulo === 'NPS' && itemNps.resumo.trim() === '5 → 7',
+          JSON.stringify(itemNps));
+        await ctxNpsExp.close();
+
+        const semeadoNpsEv = apostasSemeadas();
+        semeadoNpsEv[TURMA_LIB].execucoes[EXEC].grupos[GRUPO].etapa = 'evidencia';
+        semeadoNpsEv[TURMA_LIB].execucoes[EXEC].grupos[GRUPO].dados = {
+          mudancas: { itens: [{ id: 'rnps', direcao: 'Aumentar', indicador: 'NPS', formaMedicao: 'Índice', unidade: 'NPS', atual: '5', meta: '7', periodo: 'por mês', prazo: '90', prazoUnidade: 'dias' }] },
+          experimento: { resultadoIds: ['rnps'] },
+          evidencia: { itens: [{ resultadoId: 'rnps', observado: '6', fonte: 'Pesquisa com participantes' }] },
+        };
+        const { ctx: ctxNpsEv, page: pgNpsEv } = await novaPagina(browser, formato, DIRETORA, erros, semeadoNpsEv);
+        await pgNpsEv.goto(BASE + '/index.html#treinamento', { waitUntil: 'domcontentloaded' });
+        await pgNpsEv.click('#apostaAbrirBtn');
+        await pgNpsEv.waitForSelector('.aposta-grupo-btn', { timeout: 15000 });
+        await pgNpsEv.click('.aposta-grupo-btn');
+        await pgNpsEv.waitForFunction(() =>
+          /EVID[ÊE]NCIA/.test((document.querySelector('.aposta-etapa-titulo') || {}).textContent || ''),
+          { timeout: 15000 });
+        const cardNps = await pgNpsEv.evaluate(() => {
+          const bloco = document.querySelector('.aposta-mudanca[data-resultado]');
+          if (!bloco) return null;
+          const campos = Array.from(bloco.querySelectorAll('.aposta-campo-input[disabled]')).map((e) => e.value);
+          return { inicial: campos[0] || '', meta: campos[1] || '', frase: (bloco.querySelector('.aposta-mudanca-frase') || {}).textContent || '' };
+        });
+        anota('a Evidência mostra Inicial/Meta do NPS sem sufixo ("5", "7", não "5 NPS", "7 NPS")',
+          !!cardNps && cardNps.inicial === '5' && cardNps.meta === '7', JSON.stringify(cardNps));
+        anota('a frase da evidência não anexa período incompatível nem repete a unidade ao NPS',
+          !!cardNps && /Esperávamos aumentar NPS de 5 para 7\./.test(cardNps.frase) &&
+            /observamos 6\./.test(cardNps.frase) &&
+            !/por (dia|semana|m[êe]s|trimestre|semestre|ano)/i.test(cardNps.frase) &&
+            !/6 NPS/.test(cardNps.frase),
+          cardNps ? cardNps.frase : '');
+        await ctxNpsEv.close();
       }
 
       /* ── 9c: "Não foi possível medir" desliga os campos que ele torna
