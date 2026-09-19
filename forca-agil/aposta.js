@@ -2823,8 +2823,19 @@
     var etapa = etapaPorId('missao');
     var d = missaoDaExecucao();
     var blocos = '';
-    (etapa.molde || []).forEach(function (p, i) {
+    var molde = etapa.molde || [];
+    molde.forEach(function (p, i) {
       if (typeof p === 'string') {
+        /* "em" é palavra da FRASE ("…em 90 dias."), não rótulo de campo —
+           igual na etapa 1 (ver blocosDoMolde/rotuloMolde), quando o
+           campo seguinte tem rotuloMolde, é ELE que aparece aqui, e o
+           texto fixo fica de fora da área de edição. */
+        var seguinte = molde[i + 1];
+        var campoSeg = seguinte && typeof seguinte !== 'string' ? campoPorChave(etapa, seguinte.c) : null;
+        if (campoSeg && campoSeg.rotuloMolde) {
+          blocos += '<span class="aposta-campo-rot">' + esc(campoSeg.rotuloMolde) + '</span>';
+          return;
+        }
         var t = fixoVisivel(p);
         if (t) blocos += '<span class="aposta-molde-fixo">' + esc(t) + '</span>';
         return;
@@ -2866,6 +2877,54 @@
     document.body.appendChild(overlay);
 
     function fechar() { document.body.removeChild(overlay); }
+
+    /* A prévia compacta usa o mesmo molde/engine da etapa 1 — é a MESMA
+       frase que o grupo vai ver, só que aqui reagindo ao que a
+       facilitação está digitando, antes de salvar. Ficam no escopo de
+       fora de desenhar() (não redefinidas a cada redesenho) porque
+       comMissaoPreservada precisa delas depois de um desenhar() disparado
+       por OUTRA ação do painel. */
+    function coletarMissaoFac() {
+      var d = {};
+      box.querySelectorAll('[data-mis]').forEach(function (el) { d[el.dataset.mis] = el.value; });
+      return d;
+    }
+    function atualizarPreviaMissaoFac() {
+      var el = box.querySelector('#apostaPreviaMissaoFac');
+      if (!el) return;
+      var etapaM = etapaPorId('missao');
+      var partes = partesDaFrase(etapaM, coletarMissaoFac());
+      var falta = partes.some(function (p) { return p.tipo === 'vazio' && !p.opcional; });
+      el.innerHTML = '<span class="aposta-frase-rot">Missão-base</span>' +
+        '<p>' + htmlDaFrase(partes) + '</p>' +
+        (falta ? '' : '<p class="aposta-frase-pronta">A frase está completa.</p>');
+      el.querySelectorAll('.aposta-frase-vazio').forEach(function (b) {
+        b.addEventListener('click', function () {
+          var alvo = box.querySelector('[data-mis="' + b.dataset.ir + '"]');
+          if (!alvo) return;
+          alvo.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+          alvo.focus();
+        });
+      });
+    }
+    /* Criar grupo e Revelar conexões também chamam desenhar() — que
+       redesenha o painel INTEIRO a partir do que já está gravado. Um
+       rascunho da missão-base ainda não salvo (a pessoa só digitou, não
+       clicou em Salvar/Atualizar) seria apagado nesse redesenho, mesmo
+       sem relação nenhuma com o que a ação fez. Relatado no uso real:
+       preencher a missão-base e clicar em "Criar grupo" limpava tudo o
+       que tinha sido digitado em cima. Captura antes, reaplica depois —
+       o mesmo cuidado que o resto da dinâmica já tem com "não perder o
+       que foi digitado". */
+    function comMissaoPreservada(acao) {
+      var rascunho = coletarMissaoFac();
+      acao();
+      Object.keys(rascunho).forEach(function (k) {
+        var el = box.querySelector('[data-mis="' + k + '"]');
+        if (el && rascunho[k]) el.value = rascunho[k];
+      });
+      atualizarPreviaMissaoFac();
+    }
 
     function desenhar() {
       var grupos = _exec.grupos || {};
@@ -2925,33 +2984,6 @@
         '<div style="display:flex;justify-content:flex-end"><button class="btn admin-modal-cancel-btn" id="apostaFecharPainel">Fechar</button></div>';
 
       box.querySelector('#apostaFecharPainel').addEventListener('click', fechar);
-
-      /* A prévia compacta usa o mesmo molde/engine da etapa 1 — é a
-         MESMA frase que o grupo vai ver, só que aqui reagindo ao que a
-         facilitação está digitando, antes de salvar. */
-      function coletarMissaoFac() {
-        var d = {};
-        box.querySelectorAll('[data-mis]').forEach(function (el) { d[el.dataset.mis] = el.value; });
-        return d;
-      }
-      function atualizarPreviaMissaoFac() {
-        var el = box.querySelector('#apostaPreviaMissaoFac');
-        if (!el) return;
-        var etapaM = etapaPorId('missao');
-        var partes = partesDaFrase(etapaM, coletarMissaoFac());
-        var falta = partes.some(function (p) { return p.tipo === 'vazio' && !p.opcional; });
-        el.innerHTML = '<span class="aposta-frase-rot">Missão-base</span>' +
-          '<p>' + htmlDaFrase(partes) + '</p>' +
-          (falta ? '' : '<p class="aposta-frase-pronta">A frase está completa.</p>');
-        el.querySelectorAll('.aposta-frase-vazio').forEach(function (b) {
-          b.addEventListener('click', function () {
-            var alvo = box.querySelector('[data-mis="' + b.dataset.ir + '"]');
-            if (!alvo) return;
-            alvo.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
-            alvo.focus();
-          });
-        });
-      }
       atualizarPreviaMissaoFac();
 
       /* As três escritas abaixo confirmam o erro antes de dizer que deu
@@ -2987,13 +3019,13 @@
         var ref = db().ref(caminhoExec() + '/grupos').push();
         ref.set({ nome: nome, criadoEm: new Date().toISOString(), etapa: 'missao' }, function (err) {
           if (err) { avisar('Não consegui criar o grupo. Tente de novo.', true); return; }
-          desenhar();
+          comMissaoPreservada(desenhar);
         });
       });
       box.querySelector('#apostaToggleRevelar').addEventListener('click', function () {
         db().ref(caminhoExec() + '/revelado').set(!_exec.revelado, function (err) {
           if (err) { avisar('Não consegui mudar a revelação. Tente de novo.', true); return; }
-          desenhar();
+          comMissaoPreservada(desenhar);
         });
       });
       box.querySelector('#apostaReiniciar').addEventListener('click', function () {
