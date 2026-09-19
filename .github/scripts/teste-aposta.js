@@ -820,8 +820,8 @@ const textoDaTela = (page) => page.evaluate(() => {
 
           const frase = await page.evaluate(() =>
             (document.querySelector('.aposta-mudanca-frase') || {}).textContent || '');
-          anota('a frase consolidada junta unidade e período depois da meta, sem repetir',
-            /de 1000 para 700 contatos por mês em 90 dias/.test(frase), frase);
+          anota('a frase consolidada repete unidade e período na situação atual E na meta, para não parecer que são só da meta',
+            /de 1000 contatos por mês para 700 contatos por mês em 90 dias/.test(frase), frase);
 
           /* Alerta de consistência: Reduzir pede meta MENOR que a situação
              atual — 1500 > 1000 é o caso contrário, e o alerta aparece
@@ -835,6 +835,26 @@ const textoDaTela = (page) => page.evaluate(() => {
           anota('a meta menor esperada mas maior digitada mostra um alerta perto do campo',
             comInconsistencia.visivel && /maior que a situação atual/.test(comInconsistencia.texto) &&
             /Aumentar/.test(comInconsistencia.texto), comInconsistencia.texto);
+
+          /* Diferente do alerta acima (um convite, com botão de corrigir):
+             clicar CONTINUAR com a direção contradizendo os números é
+             bloqueado de verdade, sem escape por segundo clique — "Reduzir"
+             exige meta MENOR que a situação atual. */
+          const tituloAntesBloqueio = await page.evaluate(() => (document.querySelector('.aposta-etapa-titulo') || {}).textContent || '');
+          await page.click('#apostaSeguir');
+          await page.waitForTimeout(300);
+          const bloqueio1 = await page.evaluate(() => (document.getElementById('apostaAvisos') || {}).textContent || '');
+          anota('"Reduzir" com meta maior que a situação atual BLOQUEIA Continuar, com a mensagem certa',
+            /Para reduzir, a meta desejada deve ser menor que a situação atual/.test(bloqueio1), bloqueio1);
+          await page.click('#apostaSeguir');   /* diferente do aviso didático: o 2º clique NÃO libera */
+          await page.waitForTimeout(300);
+          const aindaBloqueado = await page.evaluate(() => ({
+            titulo: (document.querySelector('.aposta-etapa-titulo') || {}).textContent || '',
+            aviso: (document.getElementById('apostaAvisos') || {}).textContent || '',
+          }));
+          anota('o bloqueio de coerência NÃO tem escape por segundo clique, ao contrário do aviso didático',
+            aindaBloqueado.titulo === tituloAntesBloqueio && /Para reduzir/.test(aindaBloqueado.aviso), JSON.stringify(aindaBloqueado));
+
           await page.click('.aposta-mudanca-alerta [data-corrigir]');
           await page.waitForTimeout(300);
           const corrigido = await page.evaluate(() => ({
@@ -850,9 +870,16 @@ const textoDaTela = (page) => page.evaluate(() => {
 
           /* Percentual não pede escolha de unidade: preenche "%" sozinho,
              e ele gruda nos dois números da frase ("de 1000% para 700%"),
-             diferente de contatos/dias, que só aparecem uma vez. */
+             diferente de contatos/dias, que só aparecem uma vez. Um
+             indicador percentual normalmente não tem período de medição
+             (ver seção 10 do pedido) — "não se aplica" limpa o "por mês"
+             deixado pelo passo anterior, senão ele grudaria nos dois "%"
+             também (unidade e período qualificam os dois números por
+             igual, percentual incluído). */
           await page.selectOption('[data-m="formaMedicao"]', 'Percentual');
           await page.waitForTimeout(300);
+          await page.locator('.aposta-variante:has([data-m="periodo"]) .aposta-variante-chip', { hasText: 'não se aplica' }).click();
+          await page.waitForTimeout(200);
           const unidadePercentual = await page.evaluate(() => (document.querySelector('[data-m="unidade"]') || {}).value || '');
           anota('Percentual preenche a Unidade com "%" sozinho, sem exigir escolha', unidadePercentual === '%', 'ficou "' + unidadePercentual + '"');
           const frasePercentual = await page.evaluate(() =>
@@ -1364,7 +1391,7 @@ const textoDaTela = (page) => page.evaluate(() => {
           progresso: (document.querySelector('.aposta-frase-pronta') || {}).textContent || '',
         }));
         anota('a frase da evidência junta o que já existia com o que foi observado, sem redigitar nada',
-          /Esperávamos reduzir contatos sobre o andamento da concessão de 1000 para 500 contatos por mês/.test(card.frase) &&
+          /Esperávamos reduzir contatos sobre o andamento da concessão de 1000 contatos por mês para 500 contatos por mês/.test(card.frase) &&
           /observamos 650 contatos por mês/.test(card.frase),
           card.frase);
         anota('a frase da evidência não repete o prazo da mudança mensurável ("em 90 dias" fica só lá)',
