@@ -244,6 +244,56 @@ const textoDaTela = (page) => page.evaluate(() => {
         anota('salvar a missão grava as lacunas, não um texto solto',
           !!salvo && typeof salvo === 'object' && salvo.verbo === 'Reduzir',
           JSON.stringify(gravouMissao));
+
+        /* Missão-base: título, textos de apoio e o estado depois de salva —
+           o painel espera o redesenho (desenhar() roda de novo ~1,2s depois
+           do "salvo" para atualizar botão/selo). */
+        await novo.waitForTimeout(1200);
+        const missaoBaseUi = await novo.evaluate(() => {
+          /* .modal-box é classe genérica (admin.js, game.js, facilitador.js
+             também usam) — escopar pelo h4 já localizado, não pegar o
+             primeiro ".modal-box" da página, que pode ser de outro módulo. */
+          var h4 = Array.from(document.querySelectorAll('h4')).find(function (h) { return /Miss[ãa]o-base/i.test(h.textContent); });
+          var box = h4 ? h4.closest('.modal-box') : null;
+          return {
+            titulo: h4 ? h4.textContent : '',
+            textos: box ? box.textContent : '',
+            status: (document.getElementById('apostaMissaoFacStatus') || {}).textContent || '',
+            botao: (document.getElementById('apostaSalvarMissao') || {}).textContent || '',
+            temRemover: !!document.getElementById('apostaRemoverMissaoFac'),
+          };
+        });
+        anota('o título da seção virou "Missão-base da dinâmica"', /Miss[ãa]o-base da din[âa]mica/i.test(missaoBaseUi.titulo));
+        anota('o texto explica que vale só para quem ainda não preencheu, e que não afeta quem já começou',
+          /ponto de partida apenas para grupos que ainda não preencheram/i.test(missaoBaseUi.textos) &&
+          /não modificam grupos que já iniciaram/i.test(missaoBaseUi.textos));
+        anota('depois de salvar, o botão vira "Atualizar missão-base" e aparece "✓ Missão-base salva"',
+          /Atualizar miss[ãa]o-base/i.test(missaoBaseUi.botao) && /Miss[ãa]o-base salva/i.test(missaoBaseUi.status));
+        anota('depois de salva, aparece a ação discreta "Remover missão-base"', missaoBaseUi.temRemover);
+
+        /* Prévia compacta ao vivo — a mesma frase que a etapa 1 vai montar,
+           reagindo ao que está sendo digitado, antes de salvar. */
+        await novo.fill('[data-mis="oQue"]', 'os contatos sobre andamento');
+        await novo.waitForTimeout(200);
+        const previaMissaoBase = await novo.evaluate(() =>
+          ((document.getElementById('apostaPreviaMissaoFac') || {}).textContent || '').replace(/\s+/g, ' '));
+        anota('a prévia "Missão-base" reage ao que está sendo digitado, antes de salvar',
+          /Miss[ãa]o-base/.test(previaMissaoBase) && /os contatos sobre andamento/.test(previaMissaoBase),
+          previaMissaoBase.slice(0, 140));
+
+        /* Remover missão-base: pede confirmação e volta ao estado sem missão-base. */
+        novo.once('dialog', (d) => d.accept());
+        await novo.click('#apostaRemoverMissaoFac');
+        await novo.waitForTimeout(400);
+        const depoisRemover = await novo.evaluate(() => ({
+          botao: ((document.getElementById('apostaSalvarMissao') || {}).textContent || '').trim(),
+          temStatus: !!document.getElementById('apostaMissaoFacStatus'),
+          temRemover: !!document.getElementById('apostaRemoverMissaoFac'),
+        }));
+        anota('remover a missão-base pede confirmação e volta o botão para "Salvar missão-base", sem selo nem ação de remover',
+          /^Salvar miss[ãa]o-base$/i.test(depoisRemover.botao) && !depoisRemover.temStatus && !depoisRemover.temRemover,
+          JSON.stringify(depoisRemover));
+
         await ctxNovo.close();
       }
 
@@ -435,6 +485,45 @@ const textoDaTela = (page) => page.evaluate(() => {
           /cadastrada pela facilitação/i.test(etapa1.aviso) && /ajustar/i.test(etapa1.aviso));
         anota('a missão herdada ainda não conta como escrita pelo grupo', !etapa1.feita);
         await ctxM.close();
+      }
+
+      /* ── 2e: missão-base não sobrescreve o grupo que já escreveu a própria ──
+         Mesmo que a facilitação cadastre ou troque a missão-base depois, um
+         grupo que já tem conteúdo próprio na Etapa 1 continua vendo o que
+         ele escreveu — nunca a missão-base por cima. */
+      {
+        const semeado = apostasSemeadas();
+        semeado[TURMA_LIB].execucoes[EXEC].missao = {
+          verbo: 'Reduzir', oQue: 'os contatos sobre status', contexto: 'na concessão', prazo: '60', prazoUnidade: 'dias',
+        };
+        semeado[TURMA_LIB].execucoes[EXEC].grupos[GRUPO].dados = {
+          missao: { verbo: 'Aumentar', oQue: 'a satisfação', contexto: 'no atendimento', prazo: '120', prazoUnidade: 'dias' },
+        };
+        semeado[TURMA_LIB].execucoes[EXEC].grupos[GRUPO].etapa = 'sintoma';
+        const { ctx: ctxP, page: pgP } = await novaPagina(browser, formato, DIRETORA, erros, semeado);
+        await pgP.goto(BASE + '/index.html#treinamento', { waitUntil: 'domcontentloaded' });
+        await pgP.waitForSelector('#apostaAbrirBtn', { timeout: 15000 });
+        await pgP.click('#apostaAbrirBtn');
+        await pgP.waitForSelector('.aposta-grupo-btn', { timeout: 15000 });
+        await pgP.click('.aposta-grupo-btn');
+        await pgP.waitForSelector('.aposta-trilha-item', { timeout: 15000 });
+        await pgP.evaluate(() => {
+          const t = Array.from(document.querySelectorAll('.aposta-trilha-item')).find((i) => /Miss[ãa]o/.test(i.textContent));
+          if (t) t.click();
+        });
+        await pgP.waitForFunction(() =>
+          /^MISS[ÃA]O$/.test((document.querySelector('.aposta-etapa-titulo') || {}).textContent || ''),
+          { timeout: 15000 });
+        const etapa1Grupo = await pgP.evaluate(() => ({
+          verbo: (document.getElementById('ap-verbo') || {}).value || '',
+          oQue: (document.getElementById('ap-oQue') || {}).value || '',
+          prazo: (document.getElementById('ap-prazo') || {}).value || '',
+          temHerdada: !!document.querySelector('.aposta-herdada'),
+        }));
+        anota('um grupo que já escreveu a própria missão continua vendo a SUA, mesmo com uma missão-base diferente cadastrada',
+          etapa1Grupo.verbo === 'Aumentar' && /satisfação/.test(etapa1Grupo.oQue) && etapa1Grupo.prazo === '120' && !etapa1Grupo.temHerdada,
+          JSON.stringify(etapa1Grupo));
+        await ctxP.close();
       }
 
       /* ── 3: a diretora entra, escolhe o grupo e percorre as etapas ── */
