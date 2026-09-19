@@ -1260,6 +1260,10 @@ const clicarSemRolagem = (page, seletor) => page.$eval(seletor, (el) => el.click
 
             await page.fill('[data-campo="proxHipCausa"]', 'a mensagem não chega a quem está em análise');
             await page.fill('[data-campo="proxHipIndicio"]', 'os contatos caíram só no grupo que recebeu a mensagem');
+            /* Decisão é frase estrita (ver ETAPAS_FRASE_ESTRITA): sem a
+               próxima ação, a prévia mostra só a orientação do que
+               falta, não a frase com "Próxima ação:" em branco. */
+            await page.fill('[data-campo="proximaAcao"]', 'testar a nova hipótese com um novo experimento');
             await page.waitForTimeout(300);
             const fraseDec = await page.evaluate(() =>
               ((document.getElementById('apostaFrase') || {}).textContent || '').replace(/\s+/g, ' '));
@@ -1797,6 +1801,142 @@ const clicarSemRolagem = (page, seletor) => page.$eval(seletor, (el) => el.click
         anota('mudança antiga com "por mês" em Unidade reabre com isso em Período, não em Unidade',
           legado.unidade === '' && legado.periodo === 'por mês', JSON.stringify(legado));
         await ctxL.close();
+      }
+
+      /* ── 9f: DECISÃO — frase estrita, bloqueio, placeholder dinâmico,
+            contexto da Evidência (classificação + conclusão) e os dois
+            alertas de coerência não-bloqueantes (Ampliar sem meta batida,
+            Prazo × Data de reavaliação). Semeado com um resultado que
+            NÃO bateu a meta (Reduzir 1000→500, observado 800 = 40%),
+            para exercitar exatamente a contradição que o alerta cobre. ── */
+      {
+        const semeadoDec = apostasSemeadas();
+        semeadoDec[TURMA_LIB].execucoes[EXEC].grupos[GRUPO].etapa = 'decisao';
+        semeadoDec[TURMA_LIB].execucoes[EXEC].grupos[GRUPO].dados = {
+          mudancas: { itens: [{ id: 'r1', direcao: 'Reduzir', indicador: 'contatos sobre andamento', atual: '1000', meta: '500', unidade: 'contatos', periodo: 'por mês' }] },
+          experimento: { resultadoIds: ['r1'] },
+          evidencia: {
+            itens: [{ resultadoId: 'r1', observado: '800', fonte: 'Relatório' }],
+            classificacao: 'Parcialmente sustentada',
+            conclusao: 'a redução ainda não foi suficiente para confirmar a hipótese',
+          },
+        };
+        const { ctx: ctxDec, page: pgDec } = await novaPagina(browser, formato, DIRETORA, erros, semeadoDec);
+        await pgDec.goto(BASE + '/index.html#treinamento', { waitUntil: 'domcontentloaded' });
+        await pgDec.click('#apostaAbrirBtn');
+        await pgDec.waitForSelector('.aposta-grupo-btn', { timeout: 15000 });
+        await pgDec.click('.aposta-grupo-btn');
+        await pgDec.waitForFunction(() =>
+          /DECIS[ÃA]O/.test((document.querySelector('.aposta-etapa-titulo') || {}).textContent || ''),
+          { timeout: 15000 });
+
+        const contexto = await pgDec.evaluate(() =>
+          ((document.querySelector('.aposta-conexao') || {}).textContent || '').replace(/\s+/g, ' '));
+        anota('a Decisão mostra a avaliação da hipótese e a conclusão registradas na Evidência',
+          /Nossa hip[óo]tese foi:\s*Parcialmente sustentada/i.test(contexto) &&
+          /a redução ainda não foi suficiente/i.test(contexto),
+          contexto.slice(0, 260));
+
+        const semNada = await pgDec.evaluate(() =>
+          ((document.getElementById('apostaFrase') || {}).textContent || '').replace(/\s+/g, ' '));
+        anota('Decisão sem nada escolhido não mostra a frase com lacunas — só a orientação do que falta',
+          semNada === 'Fica assim no mapaEscolha o que faremos com base no que aprendemos.', semNada);
+
+        const tituloAntesDec = await pgDec.evaluate(() => (document.querySelector('.aposta-etapa-titulo') || {}).textContent || '');
+        await pgDec.$eval('#apostaSeguir', (el) => el.click());
+        await pgDec.waitForTimeout(300);
+        const tituloDepoisSemEscolha = await pgDec.evaluate(() => (document.querySelector('.aposta-etapa-titulo') || {}).textContent || '');
+        anota('Decisão sem decisão escolhida bloqueia CONTINUAR/VER O MAPA, sem escape por segundo clique', tituloDepoisSemEscolha === tituloAntesDec);
+
+        await pgDec.locator('.aposta-opcao', { hasText: 'Ajustar e testar novamente' }).click();
+        await pgDec.waitForTimeout(200);
+        const placeholderAjustar = await pgDec.evaluate(() => (document.getElementById('ap-proximaAcao') || {}).placeholder || '');
+        anota('o exemplo de "Próxima ação" muda com a decisão escolhida',
+          placeholderAjustar === 'ajustar a comunicação e repetir o teste com um grupo maior', placeholderAjustar);
+        const soFaltaAcao = await pgDec.evaluate(() =>
+          ((document.getElementById('apostaFrase') || {}).textContent || '').replace(/\s+/g, ' '));
+        anota('com a decisão escolhida mas sem próxima ação, a orientação pede só o que falta',
+          soFaltaAcao === 'Fica assim no mapaDefina a próxima ação para completar a decisão.', soFaltaAcao);
+        await pgDec.$eval('#apostaSeguir', (el) => el.click());
+        await pgDec.waitForTimeout(300);
+        const tituloDepoisSemAcao = await pgDec.evaluate(() => (document.querySelector('.aposta-etapa-titulo') || {}).textContent || '');
+        anota('Decisão com decisão escolhida mas sem próxima ação continua bloqueando', tituloDepoisSemAcao === tituloAntesDec);
+
+        /* "Ampliar" com uma meta que não foi batida: alerta não-bloqueante,
+           com os dois botões — nunca muda a decisão sozinho. */
+        await pgDec.locator('.aposta-opcao', { hasText: 'Ampliar' }).click();
+        await pgDec.waitForTimeout(200);
+        const alertaAmpliar = await pgDec.evaluate(() => {
+          const el = document.getElementById('apostaDecisaoAlerta');
+          return el ? { texto: el.textContent.replace(/\s+/g, ' '), botoes: Array.from(el.querySelectorAll('button')).map((b) => b.textContent.trim()) } : null;
+        });
+        anota('escolher "Ampliar" sem a meta batida mostra o alerta de coerência, com os dois botões',
+          !!alertaAmpliar && /Ampliar/.test(alertaAmpliar.texto) &&
+          alertaAmpliar.botoes.includes('MANTER DECISÃO') && alertaAmpliar.botoes.includes('REVER DECISÃO'),
+          JSON.stringify(alertaAmpliar));
+
+        await pgDec.locator('#apostaDecisaoAlerta button', { hasText: 'MANTER DECISÃO' }).click();
+        await pgDec.waitForTimeout(150);
+        const decisaoContinuaAmpliar = await pgDec.evaluate(() => {
+          const ativa = document.querySelector('.aposta-opcao.is-ativa');
+          const alerta = document.getElementById('apostaDecisaoAlerta');
+          return { valor: ativa ? ativa.dataset.valor : '', alertaVazio: !alerta || !alerta.textContent.trim() };
+        });
+        anota('"MANTER DECISÃO" só dispensa o alerta — não muda a decisão escolhida',
+          decisaoContinuaAmpliar.valor === 'Ampliar' && decisaoContinuaAmpliar.alertaVazio, JSON.stringify(decisaoContinuaAmpliar));
+
+        await pgDec.locator('.aposta-opcao', { hasText: 'Ampliar' }).click();
+        await pgDec.waitForTimeout(200);
+        await pgDec.locator('#apostaDecisaoAlerta button', { hasText: 'REVER DECISÃO' }).click();
+        await pgDec.waitForTimeout(150);
+        const depoisDeRever = await pgDec.evaluate(() => ({
+          ativa: !!document.querySelector('.aposta-opcao.is-ativa'),
+          frase: ((document.getElementById('apostaFrase') || {}).textContent || '').replace(/\s+/g, ' '),
+          alertaVazio: !(document.getElementById('apostaDecisaoAlerta') || {}).textContent.trim(),
+        }));
+        anota('"REVER DECISÃO" limpa a decisão escolhida, para o grupo escolher de novo',
+          !depoisDeRever.ativa && depoisDeRever.frase === 'Fica assim no mapaEscolha o que faremos com base no que aprendemos.' && depoisDeRever.alertaVazio,
+          JSON.stringify(depoisDeRever));
+
+        /* Prazo × Data de reavaliação: sugestão quando só o Prazo está
+           preenchido, alerta (sem trocar nada sozinho) quando os dois
+           não combinam. */
+        await pgDec.fill('[data-campo="prazo"]', '10');
+        await pgDec.selectOption('[data-campo="prazoUnidade"]', 'dias');
+        await pgDec.waitForTimeout(250);
+        const sugestaoPrazo = await pgDec.evaluate(() => {
+          const el = document.getElementById('apostaPrazoAlerta');
+          return el ? { texto: el.textContent.replace(/\s+/g, ' '), temBotaoUsar: !!el.querySelector('[data-prazo-usar]') } : null;
+        });
+        anota('só com o Prazo preenchido, sugere a Data de reavaliação (sem preencher sozinho)',
+          !!sugestaoPrazo && /reavalia[çc][ãa]o/i.test(sugestaoPrazo.texto) && sugestaoPrazo.temBotaoUsar &&
+          !(await pgDec.evaluate(() => (document.getElementById('ap-reavaliacao') || {}).value || '')),
+          JSON.stringify(sugestaoPrazo));
+
+        await pgDec.$eval('#apostaPrazoAlerta [data-prazo-usar]', (el) => el.click());
+        await pgDec.waitForTimeout(250);
+        const depoisDeUsar = await pgDec.evaluate(() => ({
+          reavaliacao: (document.getElementById('ap-reavaliacao') || {}).value || '',
+          alertaVazio: !(document.getElementById('apostaPrazoAlerta') || {}).textContent.trim(),
+        }));
+        anota('"Usar" a sugestão preenche a Data de reavaliação e o alerta some',
+          /^\d{2}\/\d{2}\/\d{4}$/.test(depoisDeUsar.reavaliacao) && depoisDeUsar.alertaVazio, JSON.stringify(depoisDeUsar));
+
+        await pgDec.fill('[data-campo="reavaliacao"]', '01012099');
+        await pgDec.waitForTimeout(250);
+        const conflito = await pgDec.evaluate(() => {
+          const el = document.getElementById('apostaPrazoAlerta');
+          return el ? { texto: el.textContent.replace(/\s+/g, ' '), botoes: Array.from(el.querySelectorAll('button')).map((b) => b.textContent.trim()) } : null;
+        });
+        anota('Prazo e Data de reavaliação incompatíveis avisam sem trocar nada sozinho',
+          !!conflito && /n[ãa]o bate com o prazo/i.test(conflito.texto) && conflito.botoes.some((b) => /^Manter/.test(b)),
+          JSON.stringify(conflito));
+        await pgDec.locator('#apostaPrazoAlerta button', { hasText: /^Manter/ }).click();
+        await pgDec.waitForTimeout(150);
+        const dataMantida = await pgDec.evaluate(() => (document.getElementById('ap-reavaliacao') || {}).value || '');
+        anota('"Manter" a data informada não a substitui pela sugestão', dataMantida === '01/01/2099', dataMantida);
+
+        await ctxDec.close();
       }
 
       anota('nenhum erro de JavaScript', erros.length === 0, erros[0]);

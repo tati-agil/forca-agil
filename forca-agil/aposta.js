@@ -416,9 +416,6 @@
       if (d.decisao === 'Reformular a hipótese' && !normalizar(d.proxHipCausa) && !normalizar(d.proxHipIndicio)) {
         avisos.push('A decisão "Reformular a hipótese" pede uma nova hipótese: o que passa a explicar o problema agora?');
       }
-      if (d.decisao && !normalizar(d.proximaAcao)) {
-        avisos.push('Toda decisão precisa de uma próxima ação: o que o grupo vai fazer agora?');
-      }
     }
 
     return avisos;
@@ -1004,11 +1001,11 @@
     if (direcao === 'Manter') {
       var dentro = avaliarLimiteMudanca(m, valorObservado);
       if (dentro == null) return null;
-      if (dentro) return { texto: 'O resultado permaneceu dentro da condição que queríamos manter.', ok: true };
+      if (dentro) return { texto: 'O resultado permaneceu dentro da condição que queríamos manter.', ok: true, atingiu: true };
       var tipoLimite = String(m.tipoLimite || '').trim() || 'Pelo menos';
-      if (tipoLimite === 'No máximo') return { texto: 'O resultado ficou acima da condição que queríamos manter.', ok: false };
-      if (tipoLimite === 'Entre') return { texto: 'O resultado ficou fora da condição que queríamos manter.', ok: false };
-      return { texto: 'O resultado ficou abaixo da condição que queríamos manter.', ok: false };
+      if (tipoLimite === 'No máximo') return { texto: 'O resultado ficou acima da condição que queríamos manter.', ok: false, atingiu: false };
+      if (tipoLimite === 'Entre') return { texto: 'O resultado ficou fora da condição que queríamos manter.', ok: false, atingiu: false };
+      return { texto: 'O resultado ficou abaixo da condição que queríamos manter.', ok: false, atingiu: false };
     }
 
     /* Aumentar / Reduzir / Atingir compartilham a mesma conta: a razão
@@ -1021,7 +1018,7 @@
     if (atual == null || meta == null || obs == null || atual === meta) return null;
     var sufixo = sufixoUnidade(m);
 
-    if (obs === meta) return { texto: 'A mudança esperada foi alcançada.', ok: true };
+    if (obs === meta) return { texto: 'A mudança esperada foi alcançada.', ok: true, atingiu: true };
 
     var esperada = meta - atual;
     var alcancada = obs - atual;
@@ -1036,19 +1033,20 @@
       return {
         texto: 'O resultado observado não avançou na direção esperada.' +
           (comparativo ? ' Foram observados ' + numeroLimpo(obs) + sufixo + ', ' + comparativo + ' da situação inicial de ' + numeroLimpo(atual) + sufixo + '.' : ''),
-        ok: false
+        ok: false,
+        atingiu: false
       };
     }
     /* Foi além do que a meta pedia — não um percentual acima de 100%,
        a diferença em relação ao que se esperava (sempre positiva, já
        que só chega aqui quando a mudança alcançada supera a esperada). */
     if (Math.abs(alcancada) > Math.abs(esperada)) {
-      return { texto: 'A mudança esperada foi superada em ' + numeroLimpo(Math.abs(alcancada - esperada)) + sufixo + '.', ok: true };
+      return { texto: 'A mudança esperada foi superada em ' + numeroLimpo(Math.abs(alcancada - esperada)) + sufixo + '.', ok: true, atingiu: true };
     }
     /* Ao contrário de "Manter" (dentro/fora é bom/ruim), um percentual
        é só informação — não é "problema", é o quanto já andou. */
     var pct = Math.round((alcancada / esperada) * 100);
-    return { texto: pct + '% da mudança esperada foi alcançada.', ok: true };
+    return { texto: pct + '% da mudança esperada foi alcançada.', ok: true, atingiu: false };
   }
 
   /* O que vai no card do mapa, no card de conexão e no CSV. Vazio
@@ -1102,14 +1100,14 @@
     return partesDaFrase(etapa, d).some(function (p) { return p.tipo === 'valor' && !p.variante; });
   }
 
-  /* Hipótese, Ideia de solução e Experimento não mostram a frase com
-     lacunas por dentro enquanto está incompleta (ao contrário de
-     Missão/Sintoma/Problema/Decisão, que continuam com o padrão de
-     sempre) — aqui, ou a frase está pronta, ou não aparece frase
-     nenhuma, só a orientação do que falta. Pedido explícito: nunca
-     mostrar algo como "com quantas pessoas…" ou "vamos o que será
-     feito" como se fosse texto de verdade. */
-  var ETAPAS_FRASE_ESTRITA = { hipotese: true, ideia: true, experimento: true };
+  /* Hipótese, Ideia de solução, Experimento e Decisão não mostram a
+     frase com lacunas por dentro enquanto está incompleta (ao contrário
+     de Missão/Sintoma/Problema, que continuam com o padrão de sempre)
+     — aqui, ou a frase está pronta, ou não aparece frase nenhuma, só a
+     orientação do que falta. Pedido explícito: nunca mostrar algo como
+     "com quantas pessoas…" ou "vamos a decisão" como se fosse texto de
+     verdade. */
+  var ETAPAS_FRASE_ESTRITA = { hipotese: true, ideia: true, experimento: true, decisao: true };
 
   /* O que falta para a frase desta etapa ficar completa — mesma lista
      usada pela prévia (para decidir se mostra a frase ou a orientação)
@@ -1135,6 +1133,11 @@
     if (etapaId === 'ideia') return 'Preencha o que poderíamos fazer e para quê, para visualizar a ideia de solução.';
     if (etapaId === 'experimento') {
       return 'Complete ' + faltam.map(function (p) { return p.rotulo; }).join(', ') + ' para visualizar o experimento.';
+    }
+    if (etapaId === 'decisao') {
+      var faltaDecisao = faltam.some(function (p) { return p.chave === 'decisao'; });
+      if (faltaDecisao) return 'Escolha o que faremos com base no que aprendemos.';
+      return 'Defina a próxima ação para completar a decisão.';
     }
     return 'Preencha os campos obrigatórios para visualizar a frase desta etapa.';
   }
@@ -1585,6 +1588,33 @@
      observado, sem "Portanto, nossa hipótese foi…") fica só aqui, sem
      mexer em como a própria etapa Evidência ou o mapa final mostram os
      mesmos dados (resumoEtapa continua igual para eles). */
+  /* O exemplo de "Próxima ação" muda com a decisão escolhida — o mesmo
+     texto genérico ("ajustar a comunicação…") não fazia sentido para
+     quem tinha acabado de escolher "Ampliar" ou "Interromper esta
+     ideia". Só placeholder: nunca preenche o campo sozinho. */
+  var PLACEHOLDER_PROXIMA_ACAO = {
+    'Ampliar': 'testar a ideia com um grupo maior ou incorporá-la ao processo padrão',
+    'Ajustar e testar novamente': 'ajustar a comunicação e repetir o teste com um grupo maior',
+    'Interromper esta ideia': 'encerrar este experimento e registrar o que foi aprendido',
+    'Investigar mais': 'conversar com o grupo para entender melhor o que foi observado',
+    'Reformular a hipótese': 'testar a nova hipótese com um novo experimento'
+  };
+
+  /* Conversão aproximada só para SUGERIR uma data — meses/bimestres/
+     trimestres/anos não têm um número fixo de dias, mas a sugestão é um
+     ponto de partida a confirmar, nunca um cálculo que precise ser
+     exato. */
+  var DIAS_POR_UNIDADE_PRAZO = {
+    segundos: 1 / 86400, minutos: 1 / 1440, horas: 1 / 24, dias: 1,
+    semanas: 7, meses: 30, bimestres: 60, trimestres: 90, anos: 365
+  };
+  function dataSugeridaPeloPrazo(num, unidade) {
+    var n = parseInt(num, 10);
+    if (!n) return '';
+    var dias = n * (DIAS_POR_UNIDADE_PRAZO[unidade] || 1);
+    try { return new Date(Date.now() + dias * 86400000).toLocaleDateString('pt-BR'); } catch (e) { return ''; }
+  }
+
   function metaLinhaDecisao(m, sufixo) {
     var direcao = String((m || {}).direcao || '').trim();
     if (direcao !== 'Manter') return (m.meta || '—') + sufixo;
@@ -1597,7 +1627,8 @@
      mais encontrado nas Mudanças mensuráveis, aparece um aviso de
      inconsistência no lugar dele, não uma frase quebrada. */
   function corpoEvidenciaParaDecisao() {
-    var itens = ((_dados.evidencia || {}).itens || []);
+    var ev0 = _dados.evidencia || {};
+    var itens = ev0.itens || [];
     if (!itens.length) return '';
     var linhas = itens.map(function (ev) {
       var m = resultadosDe(_dados.mudancas, [ev.resultadoId])[0];
@@ -1617,7 +1648,44 @@
         '<span>Observado: ' + esc(observadoTxt) + '</span>' +
       '</li>';
     }).join('');
-    return '<ul class="aposta-resultados-observar-lista">' + linhas + '</ul>';
+    /* A avaliação da hipótese e a conclusão registradas na Evidência são
+       o que a Decisão precisa ter à vista para não repetir o julgamento
+       do zero — sem elas, quem decide vê só números, não o que o grupo
+       já concluiu sobre eles. */
+    var extra = '';
+    if (normalizar(ev0.classificacao)) {
+      extra += '<p><strong>Nossa hipótese foi:</strong> ' + esc(ev0.classificacao) + '</p>';
+    }
+    if (normalizar(ev0.conclusao)) {
+      extra += '<p><strong>O que esta evidência nos faz concluir:</strong> ' + esc(ev0.conclusao) + '</p>';
+    }
+    return '<ul class="aposta-resultados-observar-lista">' + linhas + '</ul>' + extra;
+  }
+
+  /* "Ampliar" pressupõe evidência favorável — ver isso escolhido junto
+     com uma meta ainda não atingida, ou com a hipótese avaliada como
+     "Não sustentada", é o tipo de contradição que vale mostrar sem
+     travar a decisão do grupo (só quem decide sabe o contexto todo). */
+  function algumaMetaNaoAtingida() {
+    var itens = (_dados.evidencia || {}).itens || [];
+    return itens.some(function (item) {
+      if (item.naoMedido === 'sim') return true;
+      var m = resultadosDe(_dados.mudancas, [item.resultadoId])[0];
+      if (!m) return false;
+      var p = progressoResumo(m, item.observado);
+      return !!p && !p.atingiu;
+    });
+  }
+  function mensagemAlertaDecisao(d) {
+    if (String(d.decisao || '').trim() !== 'Ampliar') return '';
+    var classificacao = String((_dados.evidencia || {}).classificacao || '').trim();
+    if (classificacao === 'Não sustentada') {
+      return 'A hipótese foi avaliada como "Não sustentada", mas a decisão escolhida foi "Ampliar". Reveja se ampliar faz sentido quando a explicação para o problema não se confirmou.';
+    }
+    if (algumaMetaNaoAtingida()) {
+      return 'Pelo menos um resultado esperado ainda não atingiu a meta, mas a decisão escolhida foi "Ampliar". Reveja se já há evidência suficiente para ampliar agora.';
+    }
+    return '';
   }
 
   function cardConexao(etapaId) {
@@ -1784,6 +1852,12 @@
     usados[c.chave] = 1;
     if (c.tipo === 'quantidade') usados[chaveUnidade(c.chave)] = 1;
     if (c.tipo === 'variantes') return varianteHtml(c, d[p.c]);
+    /* Decisão: o exemplo da Próxima ação acompanha a decisão escolhida
+       (ver PLACEHOLDER_PROXIMA_ACAO) — só troca o placeholder, nunca o
+       valor já digitado. */
+    if (c.chave === 'proximaAcao' && PLACEHOLDER_PROXIMA_ACAO[d.decisao]) {
+      c = Object.assign({}, c, { placeholder: PLACEHOLDER_PROXIMA_ACAO[d.decisao] });
+    }
     return campoHtml(c, d[p.c], d, semRotulo);
   }
 
@@ -1865,6 +1939,11 @@
        escolha de quais Mudanças mensuráveis este teste observa. */
     if (etapa.id === 'experimento') html += resultadosPickerHtml(d);
 
+    /* Decisão: alerta de coerência não-bloqueante entre a decisão
+       escolhida e o que a Evidência registrou (ver atualizarAlertaDecisao)
+       — nasce vazio, só ganha conteúdo depois do primeiro cálculo. */
+    if (etapa.id === 'decisao') html += '<div class="aposta-decisao-alerta" id="apostaDecisaoAlerta"></div>';
+
     /* Blocos guiados que não entram na frase da etapa, mas também são
        frases (hoje: a nova hipótese da Decisão). Quando o bloco depende
        de uma escolha (dependeDaEscolha), a visibilidade não é só uma
@@ -1901,6 +1980,10 @@
       html += '<div class="aposta-complementos">' +
         '<p class="aposta-complementos-rot">Complementos — combinados do grupo, não entram na frase</p>' +
         extras.map(function (c) { return campoHtml(c, d[c.chave], d); }).join('') +
+        /* Prazo e Data de reavaliação são combinados separadamente (ver
+           atualizarAlertaPrazo) — a sugestão nasce vazia, calculada só
+           depois do primeiro cálculo, e nunca preenche o campo sozinha. */
+        (etapa.id === 'decisao' ? '<div class="aposta-decisao-alerta" id="apostaPrazoAlerta"></div>' : '') +
       '</div>';
     }
 
@@ -2260,6 +2343,7 @@
       if (etapa.lista) atualizarFrases();
       else if (etapa.id === 'evidencia') atualizarCardsEvidencia();
       else atualizarFrase();
+      if (etapa.id === 'decisao') atualizarAlertaPrazo();
     }
 
     /* Mesmo molde que monta o card do Mapa da Aposta: o que a pessoa lê
@@ -2347,6 +2431,73 @@
     }
 
     atualizarFrase();
+
+    /* Decisão: alerta de coerência entre a decisão escolhida e a
+       evidência registrada — recalcula a cada clique numa opção (nunca
+       a cada tecla nos outros campos, porque a evidência já está
+       gravada e fixa nesta etapa). Nunca bloqueia CONTINUAR. */
+    function atualizarAlertaDecisao() {
+      var el = document.getElementById('apostaDecisaoAlerta');
+      if (!el) return;
+      var msg = mensagemAlertaDecisao(coletar());
+      if (!msg) { el.innerHTML = ''; return; }
+      el.innerHTML = '<p class="aposta-aviso-didatico">' + esc(msg) + '</p>' +
+        '<div class="aposta-decisao-alerta-botoes">' +
+          '<button type="button" class="btn btn--sm" data-decisao-alerta="manter">MANTER DECISÃO</button>' +
+          '<button type="button" class="btn btn--sm" data-decisao-alerta="rever">REVER DECISÃO</button>' +
+        '</div>';
+      var btnManter = el.querySelector('[data-decisao-alerta="manter"]');
+      var btnRever = el.querySelector('[data-decisao-alerta="rever"]');
+      if (btnManter) btnManter.addEventListener('click', function () { el.innerHTML = ''; });
+      if (btnRever) btnRever.addEventListener('click', function () {
+        _tela.querySelectorAll('.aposta-opcao').forEach(function (o) { o.classList.remove('is-ativa'); });
+        salvarEtapa(etapa.id, coletar());
+        atualizarFrase();
+        atualizarGruposPorEscolha(etapa.escolha.chave, '');
+        el.innerHTML = '';
+        var escolhaEl = _tela.querySelector('.aposta-opcao');
+        if (escolhaEl) escolhaEl.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      });
+    }
+    if (etapa.id === 'decisao') atualizarAlertaDecisao();
+
+    /* Prazo (duração) e Data de reavaliação são dois jeitos de dizer
+       "quando" — quando só o Prazo está preenchido, sugere a data (um
+       clique aceita); quando os dois estão preenchidos e não combinam,
+       avisa sem trocar nada sozinho: quem decide escolhe qual manter. */
+    function atualizarAlertaPrazo() {
+      var el = document.getElementById('apostaPrazoAlerta');
+      if (!el) return;
+      var prazoEl = document.getElementById('ap-prazo');
+      var unidadeEl = _tela.querySelector('[data-campo="prazoUnidade"]');
+      var reavEl = document.getElementById('ap-reavaliacao');
+      var sugestao = dataSugeridaPeloPrazo(prazoEl ? prazoEl.value : '', unidadeEl ? unidadeEl.value : '');
+      var reavAtual = reavEl ? reavEl.value.trim() : '';
+      if (!sugestao || reavAtual === sugestao) { el.innerHTML = ''; return; }
+      function usarSugestao() {
+        if (!reavEl) return;
+        reavEl.value = sugestao;
+        reavEl.dispatchEvent(new Event('input', { bubbles: true }));
+      }
+      if (!reavAtual) {
+        el.innerHTML = '<p class="aposta-aviso-didatico">Com base no prazo informado, a reavaliação cairia perto de ' +
+          esc(sugestao) + '. Quer usar esta data?</p>' +
+          '<div class="aposta-decisao-alerta-botoes"><button type="button" class="btn btn--sm" data-prazo-usar>Usar ' + esc(sugestao) + '</button></div>';
+      } else {
+        el.innerHTML = '<p class="aposta-aviso-didatico">A data de reavaliação (' + esc(reavAtual) +
+          ') não bate com o prazo informado — pelo prazo, cairia perto de ' + esc(sugestao) +
+          '. Qual informação você deseja manter?</p>' +
+          '<div class="aposta-decisao-alerta-botoes">' +
+            '<button type="button" class="btn btn--sm" data-prazo-usar>Usar ' + esc(sugestao) + '</button>' +
+            '<button type="button" class="btn btn--sm" data-prazo-manter>Manter ' + esc(reavAtual) + '</button>' +
+          '</div>';
+        var btnManter = el.querySelector('[data-prazo-manter]');
+        if (btnManter) btnManter.addEventListener('click', function () { el.innerHTML = ''; });
+      }
+      var btnUsar = el.querySelector('[data-prazo-usar]');
+      if (btnUsar) btnUsar.addEventListener('click', usarSugestao);
+    }
+    if (etapa.id === 'decisao') atualizarAlertaPrazo();
 
     /* Atualiza o alerta de consistência de um bloco SEM recriar o nó — só
        o texto e os botões mudam. Substituir o elemento inteiro a cada
@@ -2649,6 +2800,13 @@
         salvarEtapa(etapa.id, coletar());
         atualizarFrase();
         atualizarGruposPorEscolha(b.dataset.escolha, b.dataset.valor);
+        if (etapa.id === 'decisao') {
+          atualizarAlertaDecisao();
+          var proximaAcaoInput = document.getElementById('ap-proximaAcao');
+          if (proximaAcaoInput && PLACEHOLDER_PROXIMA_ACAO[b.dataset.valor]) {
+            proximaAcaoInput.placeholder = PLACEHOLDER_PROXIMA_ACAO[b.dataset.valor];
+          }
+        }
       });
     });
 
