@@ -1184,12 +1184,18 @@
      só duas opções. Quem tem uma variante que não é nenhuma das prontas
      escreve por cima, e o que for digitado é o que fica salvo — os
      chips são atalho, não portão. */
-  function variantePicker(atributo, chave, opcoes, valor, rotulo, id, classeExtra) {
-    var v = valorVariante({ opcoes: opcoes }, valor);
+  /* `opcional` é para campos que fazem sentido ficar em branco de
+     verdade (a unidade de uma mudança mensurável nem sempre tem um
+     "por X" natural) — aí não força a primeira opção como valor, só
+     como sugestão (placeholder), igual um campo comum vazio. */
+  function variantePicker(atributo, chave, opcoes, valor, rotulo, id, classeExtra, opcional) {
+    var v = opcional ? String(valor == null ? '' : valor).trim() : valorVariante({ opcoes: opcoes }, valor);
     return '<span class="aposta-variante' + (classeExtra ? ' ' + classeExtra : '') + '">' +
       '<input type="text"' + (id ? ' id="' + esc(id) + '"' : '') +
         ' ' + atributo + '="' + esc(chave) + '" class="aposta-campo-input aposta-variante-input"' +
-        ' value="' + esc(v) + '" aria-label="' + esc(rotulo) + '" />' +
+        ' value="' + esc(v) + '"' +
+        (opcional ? ' placeholder="' + esc((opcoes || [])[0] || '') + '"' : '') +
+        ' aria-label="' + esc(rotulo) + '" />' +
       '<span class="aposta-variante-chips">' +
         (opcoes || []).map(function (o) {
           return '<button type="button" class="aposta-variante-chip' + (v === o ? ' is-ativa' : '') + '" data-valor="' + esc(o) + '">' + esc(o) + '</button>';
@@ -1378,9 +1384,18 @@
         aindaSemResposta(campoPorChave(etapa, 'semConstruir'), d.semConstruir)) {
       d = Object.assign({}, d, { semConstruir: _dados.ideia.acao });
     }
+    /* Só usa a mudança como ponto de partida se ela estiver completa —
+       "Esperávamos" é um campo de texto comum, não a prévia da etapa
+       Mudanças mensuráveis, e o "—" que marca lacuna ali (útil no mapa,
+       onde é só leitura) virava texto de verdade aqui dentro ("...em
+       —."), relatado no uso real. Uma mudança com prazo em aberto não
+       vira ponto de partida; melhor nascer em branco do que com um
+       traço solto no meio da frase. */
     if (etapa.id === 'evidencia' && aindaSemResposta(campoPorChave(etapa, 'esperado'), d.esperado)) {
-      var resumoMudancas = resumoEtapa('mudancas', _dados);
-      if (normalizar(resumoMudancas)) d = Object.assign({}, d, { esperado: resumoMudancas });
+      var mudancaCompleta = ((_dados.mudancas || {}).itens || []).filter(function (m) {
+        return partesMudanca(m).every(function (p) { return p.tipo !== 'vazio' || p.opcional; });
+      })[0];
+      if (mudancaCompleta) d = Object.assign({}, d, { esperado: fraseMudanca(mudancaCompleta) });
     }
 
     var corpo = (herdada
@@ -1464,7 +1479,8 @@
             '<label class="aposta-campo"><span class="aposta-campo-rot">Meta desejada</span>' +
               '<input type="text" class="aposta-campo-input" data-m="meta" value="' + esc(m.meta || '') + '" placeholder="700" /></label>' +
             '<label class="aposta-campo"><span class="aposta-campo-rot">Unidade</span>' +
-              '<input type="text" class="aposta-campo-input" data-m="unidade" value="' + esc(m.unidade || '') + '" placeholder="por mês" /></label>' +
+              variantePicker('data-m', 'unidade', ['por mês', 'por semana', 'por atendimento'], m.unidade, 'Unidade', null, 'aposta-variante--campo', true) +
+            '</label>' +
             '<label class="aposta-campo aposta-campo--qtd"><span class="aposta-campo-rot">Prazo</span>' +
               '<span class="aposta-qtd">' +
                 '<input type="text" inputmode="numeric" data-mascara="numero" class="aposta-campo-input aposta-qtd-num" data-m="prazo" value="' + esc(q.num) + '" placeholder="90" />' +
