@@ -561,6 +561,16 @@ const textoDaTela = (page) => page.evaluate(() => {
             (document.querySelector('.aposta-mudanca-frase') || {}).textContent || '');
           anota('"Queremos" aceita uma direção que não é Aumentar nem Reduzir',
             /Manter estável/.test(fraseLivre), fraseLivre);
+
+          /* Unidade: também virou chips + texto livre, mas é OPCIONAL — não
+             pode nascer com "por mês" já escrito como se alguém tivesse
+             respondido, só a dica. */
+          const unidadeInicial = await page.evaluate(() => (document.querySelector('[data-m="unidade"]') || {}).value || '');
+          anota('a Unidade nasce vazia de verdade (não força a primeira opção)', unidadeInicial === '', 'ficou "' + unidadeInicial + '"');
+          await page.locator('.aposta-variante:has([data-m="unidade"]) .aposta-variante-chip', { hasText: 'por semana' }).click();
+          await page.waitForTimeout(200);
+          const unidadeChip = await page.evaluate(() => (document.querySelector('[data-m="unidade"]') || {}).value || '');
+          anota('um clique no chip preenche a Unidade', unidadeChip === 'por semana', 'ficou "' + unidadeChip + '"');
         } else {
           if (i === 7) {
             /* EXPERIMENTO: custo com máscara de moeda. */
@@ -1034,6 +1044,31 @@ const textoDaTela = (page) => page.evaluate(() => {
           esperadoReal === 'uma resposta que o grupo escreveu com outras palavras',
           'ficou "' + esperadoReal + '"');
         await ctxRE.close();
+      }
+
+      /* ── 9f: uma mudança incompleta (prazo em aberto) não pode deixar um
+            "—" solto dentro de "Esperávamos" — relatado no uso real, com
+            print mostrando "...para 700 por mês em —.". O "—" marca lacuna
+            no MAPA (onde é só leitura); virando texto de verdade dentro de
+            um campo editável, ficava quebrado. ── */
+      {
+        const semeadoIncompleta = apostasSemeadas();
+        semeadoIncompleta[TURMA_LIB].execucoes[EXEC].grupos[GRUPO].etapa = 'evidencia';
+        semeadoIncompleta[TURMA_LIB].execucoes[EXEC].grupos[GRUPO].dados = {
+          mudancas: { itens: [{ direcao: 'Reduzir', indicador: 'contatos sobre andamento', atual: '1000', meta: '700', unidade: 'por mês' }] },
+        };
+        const { ctx: ctxI, page: pgI } = await novaPagina(browser, formato, DIRETORA, erros, semeadoIncompleta);
+        await pgI.goto(BASE + '/index.html#treinamento', { waitUntil: 'domcontentloaded' });
+        await pgI.click('#apostaAbrirBtn');
+        await pgI.waitForSelector('.aposta-grupo-btn', { timeout: 15000 });
+        await pgI.click('.aposta-grupo-btn');
+        await pgI.waitForFunction(() =>
+          /EVID[ÊE]NCIA/.test((document.querySelector('.aposta-etapa-titulo') || {}).textContent || ''),
+          { timeout: 15000 });
+        const esperadoIncompleto = await pgI.evaluate(() => (document.getElementById('ap-esperado') || {}).value || '');
+        anota('mudança com prazo em aberto não deixa "—" solto em "Esperávamos"', !/—/.test(esperadoIncompleto),
+          'ficou "' + esperadoIncompleto + '"');
+        await ctxI.close();
       }
 
       anota('nenhum erro de JavaScript', erros.length === 0, erros[0]);
