@@ -380,6 +380,16 @@
             avisos.push('Em "' + (m.indicador || 'sua mudança') + '", a meta é maior que a situação atual — confere se não é "Aumentar"?');
           }
         }
+        /* "1.000 contatos" sozinho não diz se é por dia ou por ano — uma
+           contagem ou uma taxa só quer dizer alguma coisa com uma base de
+           tempo junto. Não inventa o período (nunca deduzido do prazo,
+           nunca de outro campo): só pede para a pessoa informar, ou dizer
+           que não se aplica a este indicador. */
+        if (m.formaMedicao === 'Quantidade' || m.formaMedicao === 'Taxa / Razão') {
+          if (!normalizar(migrarUnidadePeriodo(m).periodo)) {
+            avisos.push('"' + (m.indicador || 'sua mudança') + '" conta algo ao longo do tempo — em qual período (por mês, por semana...)? Se não se aplicar, marque "não se aplica".');
+          }
+        }
       });
     }
 
@@ -1907,8 +1917,8 @@
             '<label class="aposta-campo" data-campo-unidade><span class="aposta-campo-rot">Unidade</span>' +
               variantePicker('data-m', 'unidade', chipsUnidade, valorUnidade, 'Unidade', null, 'aposta-variante--campo', true) +
             '</label>' +
-            '<label class="aposta-campo"><span class="aposta-campo-rot">Período</span>' +
-              variantePicker('data-m', 'periodo', PERIODOS_SUGERIDOS, mig.periodo, 'Período', null, 'aposta-variante--campo', true) +
+            '<label class="aposta-campo"><span class="aposta-campo-rot" title="Esses valores são medidos em qual período? Ex.: por dia, por semana, por mês, por trimestre, por semestre, por ano, por atendimento, por processo, não se aplica.">Período de medição</span>' +
+              variantePicker('data-m', 'periodo', PERIODOS_SUGERIDOS, mig.periodo, 'Período de medição', null, 'aposta-variante--campo', true) +
             '</label>' +
             '<label class="aposta-campo aposta-campo--qtd"><span class="aposta-campo-rot" title="Até quando queremos atingir essa mudança?">Prazo</span>' +
               '<span class="aposta-qtd">' +
