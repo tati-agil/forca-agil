@@ -203,7 +203,11 @@
       dependeDe: 'ideia',
       campos: [
         { chave: 'duracao', tipo: 'quantidade', rotulo: 'Duração', curto: 'quanto tempo', placeholder: '3', unidadePadrao: 'semanas' },
-        { chave: 'quantidade', tipo: 'input', rotulo: 'Quantidade', curto: 'quantas pessoas', placeholder: '50' },
+        /* "com" é a palavra que faz parte da FRASE ("…com 50 pessoas…")
+           — o rótulo mostrado colado à lacuna é outra coisa, e "com"
+           sozinho não dizia o que preencher ali (mesmo caso do "em" da
+           Missão: ver rotuloMolde). */
+        { chave: 'quantidade', tipo: 'input', rotulo: 'Quantidade', rotuloMolde: 'Quantas pessoas', curto: 'quantas pessoas', placeholder: '50' },
         { chave: 'comQuem', tipo: 'input', rotulo: 'Com quem', curto: 'com quem', placeholder: 'participantes em concessão' },
         { chave: 'oQue', tipo: 'textarea', rotulo: 'O que será feito', curto: 'o que será feito', placeholder: 'enviar a mensagem de status' },
         { chave: 'responsavel', tipo: 'input', rotulo: 'Responsável', placeholder: 'nome' },

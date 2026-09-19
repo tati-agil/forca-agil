@@ -1104,6 +1104,19 @@ const clicarSemRolagem = (page, seletor) => page.$eval(seletor, (el) => el.click
               /^Complete quanto tempo, quantas pessoas, com quem, o que será feito/i.test(experimentoVazio.replace('Fica assim no mapa', '').trim()) &&
               !/Durante/i.test(experimentoVazio),
               experimentoVazio.slice(0, 200));
+
+            /* "com" continua na FRASE ("…com 50 pessoas…"), mas o rótulo
+               colado à lacuna da quantidade virou "Quantas pessoas" —
+               mesmo caso do "em"/"Prazo" da Missão: "com" sozinho não
+               dizia o que preencher ali. */
+            const rotuloQuantidade = await page.evaluate(() => {
+              const campo = document.querySelector('[data-campo="quantidade"]');
+              const par = campo ? campo.closest('.aposta-par') : null;
+              const rot = par ? par.querySelector('.aposta-campo-rot') : null;
+              return rot ? rot.textContent.trim() : '';
+            });
+            anota('o rótulo colado à quantidade diz "Quantas pessoas", não a palavra "com"',
+              /^quantas pessoas$/i.test(rotuloQuantidade), 'rótulo: "' + rotuloQuantidade + '"');
             const tituloAntesExperimento = await page.evaluate(() => (document.querySelector('.aposta-etapa-titulo') || {}).textContent || '');
             await clicarSemRolagem(page, '#apostaSeguir');
             await page.waitForTimeout(300);
