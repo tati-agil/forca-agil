@@ -326,6 +326,84 @@ const textoDaTela = (page) => page.evaluate(() => {
         await ctxE.close();
       }
 
+      /* ── 2c2: Direção da mudança — Manter e Atingir, além de Aumentar/
+            Reduzir. "Manter" pede Tipo de limite (Pelo menos/No máximo/
+            Entre); "Entre" troca Meta desejada por dois campos (Limite
+            mínimo/máximo). Nada disso redesenha a tela: só o 4º campo
+            da linha muda, o resto do card fica como estava. ── */
+      {
+        const semeadoDir = apostasSemeadas();
+        semeadoDir[TURMA_LIB].execucoes[EXEC].grupos[GRUPO].etapa = 'mudancas';
+        const { ctx: ctxDir, page: pgDir } = await novaPagina(browser, formato, DIRETORA, erros, semeadoDir);
+        await pgDir.goto(BASE + '/index.html#treinamento', { waitUntil: 'domcontentloaded' });
+        await pgDir.click('#apostaAbrirBtn');
+        await pgDir.waitForSelector('.aposta-grupo-btn', { timeout: 15000 });
+        await pgDir.click('.aposta-grupo-btn');
+        await pgDir.waitForFunction(() => /MUDAN/i.test((document.querySelector('.aposta-etapa-titulo') || {}).textContent || ''), { timeout: 15000 });
+
+        const rotulo = await pgDir.evaluate(() => {
+          const rot = Array.from(document.querySelectorAll('.aposta-campo-rot')).find((r) => /Dire[çc][ãa]o da mudan[çc]a/.test(r.textContent));
+          return rot ? rot.textContent : '';
+        });
+        anota('o campo "Queremos" virou "Direção da mudança"', /Direção da mudança/.test(rotulo), rotulo);
+
+        await pgDir.fill('[data-m="indicador"]', 'tempo de resposta');
+        await pgDir.fill('[data-m="atual"]', '3');
+        await pgDir.selectOption('[data-m="formaMedicao"]', 'Tempo');
+        await pgDir.waitForTimeout(200);
+        await pgDir.locator('.aposta-variante:has([data-m="unidade"]) .aposta-variante-chip', { hasText: 'dias' }).click();
+        await pgDir.waitForTimeout(200);
+
+        /* Manter + Entre: some o campo Meta, aparecem os dois limites. */
+        await pgDir.locator('.aposta-variante:has([data-m="direcao"]) .aposta-variante-chip', { hasText: 'Manter' }).click();
+        await pgDir.waitForTimeout(250);
+        await pgDir.locator('.aposta-variante:has([data-m="tipoLimite"]) .aposta-variante-chip', { hasText: 'Entre' }).click();
+        await pgDir.waitForTimeout(250);
+        const camposEntre = await pgDir.evaluate(() => ({
+          temMeta: !!document.querySelector('[data-m="meta"]'),
+          temLimites: !!document.querySelector('[data-m="limiteMinimo"]') && !!document.querySelector('[data-m="limiteMaximo"]'),
+        }));
+        anota('"Manter" + "Entre" troca Meta desejada pelos dois limites', !camposEntre.temMeta && camposEntre.temLimites, JSON.stringify(camposEntre));
+        await pgDir.fill('[data-m="limiteMinimo"]', '2');
+        await pgDir.fill('[data-m="limiteMaximo"]', '5');
+        await pgDir.fill('[data-m="prazo"]', '90');
+        await pgDir.waitForTimeout(300);
+        const fraseManter = await pgDir.evaluate(() => (document.querySelector('.aposta-mudanca-frase') || {}).textContent || '');
+        anota('a frase de "Manter" + "Entre" usa os dois limites, com "durante" no lugar de "em"',
+          /Manter tempo de resposta entre 2 e 5 dias durante 90 dias/.test(fraseManter), fraseManter);
+
+        /* Atingir: mesmos campos de Aumentar/Reduzir (Meta desejada
+           volta), mas a frase não fala em "situação atual" nem "para". */
+        await pgDir.locator('.aposta-variante:has([data-m="direcao"]) .aposta-variante-chip', { hasText: 'Atingir' }).click();
+        await pgDir.waitForTimeout(250);
+        const camposAtingir = await pgDir.evaluate(() => ({
+          temMeta: !!document.querySelector('[data-m="meta"]'),
+          temTipoLimite: !!document.querySelector('[data-m="tipoLimite"]'),
+        }));
+        anota('"Atingir" volta a mostrar Meta desejada, sem Tipo de limite', camposAtingir.temMeta && !camposAtingir.temTipoLimite, JSON.stringify(camposAtingir));
+        await pgDir.fill('[data-m="meta"]', '80');
+        await pgDir.waitForTimeout(300);
+        const fraseAtingir = await pgDir.evaluate(() => (document.querySelector('.aposta-mudanca-frase') || {}).textContent || '');
+        anota('a frase de "Atingir" não repete "situação atual" nem usa "para"',
+          /Atingir 80 dias de tempo de resposta em 90 dias/.test(fraseAtingir) && !/situação atual|3 para/.test(fraseAtingir), fraseAtingir);
+
+        /* NPS: quando o indicador já começa pelo nome da própria unidade
+           (Forma de medição = Índice, Unidade = NPS), a frase não repete
+           a unidade duas vezes — "Atingir NPS 60", não "Atingir 60 NPS
+           de NPS da experiência…". */
+        await pgDir.fill('[data-m="indicador"]', 'NPS da experiência do participante');
+        await pgDir.selectOption('[data-m="formaMedicao"]', 'Índice');
+        await pgDir.waitForTimeout(200);
+        await pgDir.locator('.aposta-variante:has([data-m="unidade"]) .aposta-variante-chip', { hasText: 'NPS' }).click();
+        await pgDir.fill('[data-m="meta"]', '60');
+        await pgDir.waitForTimeout(300);
+        const fraseNps = await pgDir.evaluate(() => (document.querySelector('.aposta-mudanca-frase') || {}).textContent || '');
+        anota('"Atingir" com indicador que já começa pela unidade (NPS) não repete a unidade',
+          /Atingir NPS 60 em 90 dias/.test(fraseNps) && !/NPS.*NPS/.test(fraseNps), fraseNps);
+
+        await ctxDir.close();
+      }
+
       /* ── 2d: a missão cadastrada no painel chega na etapa 1 ──
          Ela era gravada e não chegava a lugar nenhum: o grupo abria a
          etapa 1 pedindo a missão do zero, e quem tinha acabado de
@@ -629,15 +707,30 @@ const textoDaTela = (page) => page.evaluate(() => {
             const custo = await page.evaluate(() => (document.querySelector('[data-campo="custo"]') || {}).value || '');
             anota('o custo estimado sai formatado como moeda', /^R\$\s?2\.500,00$/.test(custo), 'ficou "' + custo + '"');
 
-            /* "O que vamos medir?" — só existe UMA mudança mensurável até
-               aqui no percurso, então ela já vem marcada e travada (não
-               é uma escolha real quando só há uma opção). */
-            const medir = await page.evaluate(() => {
+            /* "O que vamos observar?" — só existe UMA mudança mensurável
+               até aqui no percurso, então ela já vem marcada e travada
+               (não é uma escolha real quando só há uma opção). */
+            const observar = await page.evaluate(() => {
               const caixa = document.querySelector('.aposta-resultado-item input[type="checkbox"]');
               return caixa ? { marcada: caixa.checked, travada: caixa.disabled } : null;
             });
-            anota('com uma só mudança mensurável, "o que vamos medir" já vem marcado e travado',
-              !!medir && medir.marcada && medir.travada, JSON.stringify(medir));
+            anota('com uma só mudança mensurável, "o que vamos observar" já vem marcado e travado',
+              !!observar && observar.marcada && observar.travada, JSON.stringify(observar));
+
+            /* A frase "Fica assim no mapa" descreve só o desenho do
+               teste; os resultados escolhidos vêm numa lista à parte,
+               não emendados na frase. */
+            const listaResultados = await page.evaluate(() => {
+              const bloco = document.querySelector('.aposta-resultados-observar');
+              return {
+                existe: !!bloco,
+                naoEstaNaFrase: !/e observar/i.test((document.querySelector('#apostaFrase p') || {}).textContent || ''),
+                itens: bloco ? bloco.querySelectorAll('li').length : 0,
+              };
+            });
+            anota('"Resultados que vamos observar" aparece como lista à parte, fora da frase principal',
+              listaResultados.existe && listaResultados.naoEstaNaFrase && listaResultados.itens === 1,
+              JSON.stringify(listaResultados));
           }
           if (i === 7) {
             /* EVIDÊNCIA: o card vem pronto com o que a única mudança
