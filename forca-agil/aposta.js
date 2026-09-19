@@ -2949,10 +2949,15 @@
           ? '<div class="aposta-fac-grupos">' + Object.keys(grupos).map(function (g) {
               var gr = grupos[g];
               var feitas = ETAPAS.filter(function (e) { return etapaPreenchida(e.id, gr.dados || {}); }).length;
+              /* "X/9 etapas" sozinho não dizia se o grupo tinha acabado de
+                 abrir a dinâmica ou estava parado no meio — o status ao
+                 lado (não iniciado / em andamento / concluído) responde
+                 isso de cara, sem precisar comparar o X com o 9. */
+              var status = feitas === 0 ? 'não iniciado' : (feitas === ETAPAS.length ? 'concluído' : 'em andamento');
               var membros = Object.keys(gr.membros || {}).map(function (k) { return (gr.membros[k] || {}).name; }).filter(Boolean);
               return '<div class="aposta-fac-grupo">' +
                 '<strong>' + esc(gr.nome || 'Grupo') + '</strong>' +
-                '<span>' + feitas + '/' + ETAPAS.length + ' etapas</span>' +
+                '<span>' + feitas + '/' + ETAPAS.length + ' etapas · ' + status + '</span>' +
                 '<span class="aposta-fac-membros">' + esc(membros.join(', ') || 'ninguém ainda') + '</span>' +
                 '<button class="btn btn--sm aposta-fac-ver" data-grupo="' + esc(g) + '">Projetar</button>' +
               '</div>';
