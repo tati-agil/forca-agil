@@ -795,30 +795,32 @@
     '</p>';
   }
 
-  /* Diferente de alertaConsistenciaMudanca (um convite a corrigir, com
-     botão, que não impede seguir) e das avisos didáticas de validar()
-     (nunca bloqueiam nesta dinâmica): "Reduzir" com meta igual ou maior
-     que a situação atual, ou "Aumentar" com meta igual ou menor, não é
-     uma mudança mensurável coerente — não uma questão de estilo, é a
-     direção contradizendo os próprios números. Só entra em jogo com
-     Aumentar/Reduzir e os dois valores numéricos (Manter/Atingir e uma
-     direção livre digitada por cima não têm essa relação obrigatória —
-     ver seção 8 do pedido). CONTINUAR fica bloqueado enquanto isso não
-     for corrigido, sem escape por segundo clique. */
-  function errosMudancas(dados) {
-    var erros = [];
-    (dados.itens || []).forEach(function (m) {
-      var direcao = String((m || {}).direcao || '').trim();
-      if (direcao !== 'Aumentar' && direcao !== 'Reduzir') return;
-      var atual = paraNumero(m.atual), meta = paraNumero(m.meta);
-      if (atual == null || meta == null) return;
-      if (direcao === 'Reduzir' && !(meta < atual)) {
-        erros.push('Para reduzir, a meta desejada deve ser menor que a situação atual.');
-      } else if (direcao === 'Aumentar' && !(meta > atual)) {
-        erros.push('Para aumentar, a meta desejada deve ser maior que a situação atual.');
-      }
-    });
-    return erros;
+  /* Única fonte da verdade sobre "os números batem com a direção
+     escolhida" — usada para decidir se a frase aparece (em vez do
+     convite a corrigir) e para bloquear CONTINUAR. Mesmo critério do
+     alerta acima (alertaConsistenciaMudanca/atualizarAlertaMudanca):
+     só entra em jogo com Aumentar/Reduzir e os dois valores numéricos
+     preenchidos — Manter tem sua própria checagem de limites, Atingir
+     mira um valor-alvo sem "maior/menor" automático, e uma direção
+     livre digitada por cima não tem essa relação obrigatória. Situação
+     atual/meta em branco não é "incoerente", é "incompleto" — a lacuna
+     já avisa o que falta, sem precisar de mais um aviso por cima. */
+  function mudancaCoerente(m) {
+    var direcao = String((m || {}).direcao || '').trim();
+    if (direcao !== 'Aumentar' && direcao !== 'Reduzir') return true;
+    var atual = paraNumero((m || {}).atual), meta = paraNumero((m || {}).meta);
+    if (atual == null || meta == null || atual === meta) return true;
+    return direcao === 'Reduzir' ? meta < atual : meta > atual;
+  }
+  /* Índice da primeira mudança incoerente (ou -1) — usado só por
+     CONTINUAR, para bloquear e destacar exatamente o card errado, sem
+     escape por segundo clique. */
+  function indiceMudancaIncoerente(dados) {
+    var itens = (dados || {}).itens || [];
+    for (var i = 0; i < itens.length; i++) {
+      if (!mudancaCoerente(itens[i])) return i;
+    }
+    return -1;
   }
 
   /* ── Rastreabilidade: Experimento escolhe quais Mudanças mensuráveis
@@ -1960,7 +1962,9 @@
               '</span></label>' +
           '</div>' +
           alertaConsistenciaMudanca(m) +
-          '<p class="aposta-mudanca-frase">' + htmlDaFrase(partesMudanca(m)) + '</p>' +
+          (mudancaCoerente(m)
+            ? '<p class="aposta-mudanca-frase">' + htmlDaFrase(partesMudanca(m)) + '</p>'
+            : '<p class="aposta-mudanca-frase aposta-frase-falta">Corrija a inconsistência acima para visualizar a mudança mensurável.</p>') +
           (podeRemover ? '<button type="button" class="aposta-mudanca-del" data-del="' + i + '">Remover</button>' : '') +
         '</div>';
       }).join('') +
@@ -2259,14 +2263,46 @@
     }
 
     /* Atualiza a frase e o alerta de consistência de cada bloco — os dois
-       dependem dos mesmos campos e mudam juntos a cada tecla. */
+       dependem dos mesmos campos e mudam juntos a cada tecla.
+
+       Enquanto a mudança está coerente, a frase reage na hora, a cada
+       tecla — inclusive voltando a aparecer assim que uma inconsistência
+       é corrigida, sem demora nenhuma. Quando fica incoerente, a frase
+       continua mostrando o que já foi digitado (não trava a
+       experimentação de quem ainda está no meio de escrever um número),
+       mas só troca pela mensagem "corrija a inconsistência" depois de
+       uma pausa curta sem digitar — reagir a cada tecla enquanto "1100"
+       ainda é só "1" faria a mensagem piscar sem motivo. */
+    var _timersCoerencia = {};
+    function lerCampos(bloco) {
+      var m = {};
+      bloco.querySelectorAll('[data-m]').forEach(function (el) { m[el.dataset.m] = el.value; });
+      return m;
+    }
     function atualizarFrases() {
       _tela.querySelectorAll('.aposta-mudanca').forEach(function (bloco) {
-        var m = {};
-        bloco.querySelectorAll('[data-m]').forEach(function (el) { m[el.dataset.m] = el.value; });
-        var p = bloco.querySelector('.aposta-mudanca-frase');
-        if (p) p.innerHTML = htmlDaFrase(partesMudanca(m));
+        var m = lerCampos(bloco);
+        var idx = bloco.dataset.i;
         atualizarAlertaMudanca(bloco, m);
+        var p = bloco.querySelector('.aposta-mudanca-frase');
+        if (p) { p.classList.remove('aposta-frase-falta'); p.innerHTML = htmlDaFrase(partesMudanca(m)); }
+        if (mudancaCoerente(m)) {
+          clearTimeout(_timersCoerencia[idx]);
+          delete _timersCoerencia[idx];
+          return;
+        }
+        clearTimeout(_timersCoerencia[idx]);
+        _timersCoerencia[idx] = setTimeout(function () {
+          delete _timersCoerencia[idx];
+          if (!bloco.isConnected) return;
+          var mDepois = lerCampos(bloco);
+          if (mudancaCoerente(mDepois)) return;
+          var pDepois = bloco.querySelector('.aposta-mudanca-frase');
+          if (pDepois) {
+            pDepois.classList.add('aposta-frase-falta');
+            pDepois.textContent = 'Corrija a inconsistência acima para visualizar a mudança mensurável.';
+          }
+        }, 500);
       });
     }
 
@@ -2541,18 +2577,18 @@
 
       /* Só em Mudanças mensuráveis: "Reduzir" com meta ≥ situação atual
          (ou "Aumentar" com meta ≤ situação atual) não é uma mudança
-         coerente — a direção contradiz os próprios números. Diferente
-         das avisos didáticas logo abaixo, isso BLOQUEIA de verdade,
-         sem escape por segundo clique: nenhum outro comportamento desta
-         dinâmica muda, só esta etapa passa a exigir os números coerentes
-         com a direção escolhida antes de deixar seguir. */
+         coerente — a direção contradiz os próprios números, e o card já
+         mostra o porquê (alertaConsistenciaMudanca, com o botão de
+         corrigir num clique). Diferente das avisos didáticas logo
+         abaixo, isso BLOQUEIA de verdade, sem escape por segundo
+         clique — só destaca exatamente o card errado, não redigita nada
+         sozinho. */
       if (etapa.id === 'mudancas') {
-        var errosCoerencia = errosMudancas(d);
-        if (errosCoerencia.length) {
-          avisosEl.innerHTML = errosCoerencia.map(function (e) {
-            return '<p class="aposta-aviso-didatico">' + esc(e) + '</p>';
-          }).join('');
-          avisosEl.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+        var idxIncoerente = indiceMudancaIncoerente(d);
+        if (idxIncoerente !== -1) {
+          avisosEl.innerHTML = '<p class="aposta-aviso-didatico">Corrija a mudança mensurável destacada acima antes de continuar.</p>';
+          var blocoIncoerente = _tela.querySelector('.aposta-mudanca[data-i="' + idxIncoerente + '"]');
+          (blocoIncoerente || avisosEl).scrollIntoView({ behavior: 'smooth', block: 'center' });
           return;
         }
       }
