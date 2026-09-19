@@ -143,6 +143,15 @@ const textoDaTela = (page) => page.evaluate(() => {
   return t ? (t.textContent || '').replace(/\s+/g, ' ') : '';
 });
 
+/* `html { scroll-behavior: smooth }` (styles.css) faz o clique comum do
+   Playwright (que rola o elemento pra tela antes de clicar) mirar numa
+   posição que já mudou quando o clique de verdade dispara — some sem
+   erro nenhum, e sem esse recurso o clique só falha logo depois de uma
+   troca de conteúdo que desloca a página (como a frase de Mudanças
+   mensuráveis virando "corrija a inconsistência" bem antes do clique em
+   CONTINUAR). Clique nativo via DOM não depende de rolagem nenhuma. */
+const clicarSemRolagem = (page, seletor) => page.$eval(seletor, (el) => el.click());
+
 (async () => {
   const browser = await chromium.launch();
   let falhas = 0;
@@ -836,33 +845,45 @@ const textoDaTela = (page) => page.evaluate(() => {
             comInconsistencia.visivel && /maior que a situação atual/.test(comInconsistencia.texto) &&
             /Aumentar/.test(comInconsistencia.texto), comInconsistencia.texto);
 
+          /* A frase reage na hora enquanto a pessoa ainda está digitando
+             (não trava a experimentação), mas depois de uma pausa sem
+             digitar (>500ms) troca pela mensagem de "corrija" — nunca
+             mostra uma frase com direção e números se contradizendo. */
+          await page.waitForTimeout(600);
+          const fraseInconsistente = await page.evaluate(() => (document.querySelector('.aposta-mudanca-frase') || {}).textContent || '');
+          anota('depois de uma pausa, a inconsistência esconde a frase e mostra o convite a corrigir, em vez de "Reduzir... de 1000 para 1500"',
+            /Corrija a inconsistência acima para visualizar a mudança mensurável/.test(fraseInconsistente), fraseInconsistente);
+
           /* Diferente do alerta acima (um convite, com botão de corrigir):
              clicar CONTINUAR com a direção contradizendo os números é
              bloqueado de verdade, sem escape por segundo clique — "Reduzir"
              exige meta MENOR que a situação atual. */
           const tituloAntesBloqueio = await page.evaluate(() => (document.querySelector('.aposta-etapa-titulo') || {}).textContent || '');
-          await page.click('#apostaSeguir');
+          await clicarSemRolagem(page, '#apostaSeguir');
           await page.waitForTimeout(300);
           const bloqueio1 = await page.evaluate(() => (document.getElementById('apostaAvisos') || {}).textContent || '');
-          anota('"Reduzir" com meta maior que a situação atual BLOQUEIA Continuar, com a mensagem certa',
-            /Para reduzir, a meta desejada deve ser menor que a situação atual/.test(bloqueio1), bloqueio1);
-          await page.click('#apostaSeguir');   /* diferente do aviso didático: o 2º clique NÃO libera */
+          anota('"Reduzir" com meta maior que a situação atual BLOQUEIA Continuar, apontando para o card errado',
+            /Corrija a mudança mensurável destacada/.test(bloqueio1), bloqueio1);
+          await clicarSemRolagem(page, '#apostaSeguir');   /* diferente do aviso didático: o 2º clique NÃO libera */
           await page.waitForTimeout(300);
           const aindaBloqueado = await page.evaluate(() => ({
             titulo: (document.querySelector('.aposta-etapa-titulo') || {}).textContent || '',
             aviso: (document.getElementById('apostaAvisos') || {}).textContent || '',
           }));
           anota('o bloqueio de coerência NÃO tem escape por segundo clique, ao contrário do aviso didático',
-            aindaBloqueado.titulo === tituloAntesBloqueio && /Para reduzir/.test(aindaBloqueado.aviso), JSON.stringify(aindaBloqueado));
+            aindaBloqueado.titulo === tituloAntesBloqueio && /Corrija a mudança mensurável destacada/.test(aindaBloqueado.aviso), JSON.stringify(aindaBloqueado));
 
           await page.click('.aposta-mudanca-alerta [data-corrigir]');
           await page.waitForTimeout(300);
           const corrigido = await page.evaluate(() => ({
             direcao: (document.querySelector('[data-m="direcao"]') || {}).value || '',
             alertaSumiu: !document.querySelector('.aposta-mudanca-alerta'),
+            frase: (document.querySelector('.aposta-mudanca-frase') || {}).textContent || '',
           }));
           anota('um clique no alerta corrige a direção e o alerta some', corrigido.direcao === 'Aumentar' && corrigido.alertaSumiu,
             JSON.stringify(corrigido));
+          anota('corrigida a inconsistência, a frase volta na hora, sem esperar a pausa',
+            /Aumentar/.test(corrigido.frase) && /1500/.test(corrigido.frase), corrigido.frase);
           /* Devolve ao estado consistente para o resto do teste. */
           await page.locator('.aposta-variante:has([data-m="direcao"]) .aposta-variante-chip', { hasText: 'Reduzir' }).click();
           await page.fill('[data-m="meta"]', '700');
