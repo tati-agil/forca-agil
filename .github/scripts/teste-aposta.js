@@ -143,6 +143,15 @@ const textoDaTela = (page) => page.evaluate(() => {
   return t ? (t.textContent || '').replace(/\s+/g, ' ') : '';
 });
 
+/* `html { scroll-behavior: smooth }` (styles.css) faz o clique comum do
+   Playwright (que rola o elemento pra tela antes de clicar) mirar numa
+   posição que já mudou quando o clique de verdade dispara — some sem
+   erro nenhum, e sem esse recurso o clique só falha logo depois de uma
+   troca de conteúdo que desloca a página (como a frase de Mudanças
+   mensuráveis virando "corrija a inconsistência" bem antes do clique em
+   CONTINUAR). Clique nativo via DOM não depende de rolagem nenhuma. */
+const clicarSemRolagem = (page, seletor) => page.$eval(seletor, (el) => el.click());
+
 (async () => {
   const browser = await chromium.launch();
   let falhas = 0;
@@ -456,6 +465,64 @@ const textoDaTela = (page) => page.evaluate(() => {
         const fraseManter = await pgDir.evaluate(() => (document.querySelector('.aposta-mudanca-frase') || {}).textContent || '');
         anota('a frase de "Manter" + "Entre" usa os dois limites, com "durante" no lugar de "em"',
           /Manter tempo de resposta entre 2 e 5 dias durante 90 dias/.test(fraseManter), fraseManter);
+
+        /* "Manter" não tem uma meta única — a coerência é contra o
+           LIMITE escolhido, não contra "atual == meta". Situação atual
+           fora do intervalo [2, 5]: esconde a frase e sugere DUAS
+           direções (Aumentar/Atingir ou Reduzir/Atingir, conforme o
+           lado), sem trocar nada sozinho. */
+        await pgDir.fill('[data-m="atual"]', '9');
+        await pgDir.waitForTimeout(600);
+        const manterAcima = await pgDir.evaluate(() => ({
+          frase: (document.querySelector('.aposta-mudanca-frase') || {}).textContent || '',
+          alerta: (document.querySelector('.aposta-mudanca-alerta') || {}).textContent || '',
+          botoes: Array.from(document.querySelectorAll('.aposta-mudanca-alerta button')).map((b) => b.textContent),
+        }));
+        anota('"Manter" com situação atual acima do limite "Entre" esconde a frase e sugere Reduzir/Atingir',
+          /Corrija a inconsistência acima/.test(manterAcima.frase) &&
+          /acima do intervalo/.test(manterAcima.alerta) &&
+          manterAcima.botoes.some((b) => /Reduzir/.test(b)) && manterAcima.botoes.some((b) => /Atingir/.test(b)),
+          JSON.stringify(manterAcima));
+
+        const tituloAntesManter = await pgDir.evaluate(() => (document.querySelector('.aposta-etapa-titulo') || {}).textContent || '');
+        await clicarSemRolagem(pgDir, '#apostaSeguir');
+        await pgDir.waitForTimeout(300);
+        const tituloDepoisManter = await pgDir.evaluate(() => (document.querySelector('.aposta-etapa-titulo') || {}).textContent || '');
+        anota('"Manter" incoerente com o limite também bloqueia CONTINUAR', tituloDepoisManter === tituloAntesManter);
+
+        await pgDir.locator('.aposta-mudanca-alerta button', { hasText: 'Atingir' }).click();
+        await pgDir.waitForTimeout(200);
+        const corrigidoManter = await pgDir.evaluate(() => ({
+          direcao: (document.querySelector('[data-m="direcao"]') || {}).value || '',
+          alertaSumiu: !document.querySelector('.aposta-mudanca-alerta'),
+        }));
+        anota('clicar "Usar Atingir" no alerta de "Manter" muda a direção (nunca sozinho) e o alerta some',
+          corrigidoManter.direcao === 'Atingir' && corrigidoManter.alertaSumiu, JSON.stringify(corrigidoManter));
+
+        /* Limite mínimo > máximo: inconsistente por si só, sem sugerir
+           direção nenhuma (o problema é a ordem dos limites, não a
+           direção escolhida). */
+        await pgDir.locator('.aposta-variante:has([data-m="direcao"]) .aposta-variante-chip', { hasText: 'Manter' }).click();
+        await pgDir.waitForTimeout(200);
+        await pgDir.locator('.aposta-variante:has([data-m="tipoLimite"]) .aposta-variante-chip', { hasText: 'Entre' }).click();
+        await pgDir.waitForTimeout(200);
+        await pgDir.fill('[data-m="limiteMinimo"]', '10');
+        await pgDir.fill('[data-m="limiteMaximo"]', '4');
+        await pgDir.waitForTimeout(600);
+        const limitesInvertidos = await pgDir.evaluate(() => ({
+          frase: (document.querySelector('.aposta-mudanca-frase') || {}).textContent || '',
+          alerta: (document.querySelector('.aposta-mudanca-alerta') || {}).textContent || '',
+          temBotao: !!document.querySelector('.aposta-mudanca-alerta button'),
+        }));
+        anota('limite mínimo maior que o máximo esconde a frase, avisa e não sugere direção nenhuma',
+          /Corrija a inconsistência acima/.test(limitesInvertidos.frase) &&
+          /não pode ser maior/.test(limitesInvertidos.alerta) && !limitesInvertidos.temBotao,
+          JSON.stringify(limitesInvertidos));
+        /* Devolve ao estado consistente para o resto do teste. */
+        await pgDir.fill('[data-m="limiteMinimo"]', '2');
+        await pgDir.fill('[data-m="limiteMaximo"]', '5');
+        await pgDir.fill('[data-m="atual"]', '3');
+        await pgDir.waitForTimeout(300);
 
         /* Atingir: mesmos campos de Aumentar/Reduzir (Meta desejada
            volta), mas a frase não fala em "situação atual" nem "para". */
@@ -820,8 +887,8 @@ const textoDaTela = (page) => page.evaluate(() => {
 
           const frase = await page.evaluate(() =>
             (document.querySelector('.aposta-mudanca-frase') || {}).textContent || '');
-          anota('a frase consolidada junta unidade e período depois da meta, sem repetir',
-            /de 1000 para 700 contatos por mês em 90 dias/.test(frase), frase);
+          anota('a frase consolidada repete unidade e período na situação atual E na meta, para não parecer que são só da meta',
+            /de 1000 contatos por mês para 700 contatos por mês em 90 dias/.test(frase), frase);
 
           /* Alerta de consistência: Reduzir pede meta MENOR que a situação
              atual — 1500 > 1000 é o caso contrário, e o alerta aparece
@@ -835,14 +902,46 @@ const textoDaTela = (page) => page.evaluate(() => {
           anota('a meta menor esperada mas maior digitada mostra um alerta perto do campo',
             comInconsistencia.visivel && /maior que a situação atual/.test(comInconsistencia.texto) &&
             /Aumentar/.test(comInconsistencia.texto), comInconsistencia.texto);
+
+          /* A frase reage na hora enquanto a pessoa ainda está digitando
+             (não trava a experimentação), mas depois de uma pausa sem
+             digitar (>500ms) troca pela mensagem de "corrija" — nunca
+             mostra uma frase com direção e números se contradizendo. */
+          await page.waitForTimeout(600);
+          const fraseInconsistente = await page.evaluate(() => (document.querySelector('.aposta-mudanca-frase') || {}).textContent || '');
+          anota('depois de uma pausa, a inconsistência esconde a frase e mostra o convite a corrigir, em vez de "Reduzir... de 1000 para 1500"',
+            /Corrija a inconsistência acima para visualizar a mudança mensurável/.test(fraseInconsistente), fraseInconsistente);
+
+          /* Diferente do alerta acima (um convite, com botão de corrigir):
+             clicar CONTINUAR com a direção contradizendo os números é
+             bloqueado de verdade, sem escape por segundo clique — "Reduzir"
+             exige meta MENOR que a situação atual. */
+          const tituloAntesBloqueio = await page.evaluate(() => (document.querySelector('.aposta-etapa-titulo') || {}).textContent || '');
+          await clicarSemRolagem(page, '#apostaSeguir');
+          await page.waitForTimeout(300);
+          const bloqueio1 = await page.evaluate(() => (document.getElementById('apostaAvisos') || {}).textContent || '');
+          anota('"Reduzir" com meta maior que a situação atual BLOQUEIA Continuar, apontando para o card errado',
+            /Corrija a mudança mensurável destacada/.test(bloqueio1), bloqueio1);
+          await clicarSemRolagem(page, '#apostaSeguir');   /* diferente do aviso didático: o 2º clique NÃO libera */
+          await page.waitForTimeout(300);
+          const aindaBloqueado = await page.evaluate(() => ({
+            titulo: (document.querySelector('.aposta-etapa-titulo') || {}).textContent || '',
+            aviso: (document.getElementById('apostaAvisos') || {}).textContent || '',
+          }));
+          anota('o bloqueio de coerência NÃO tem escape por segundo clique, ao contrário do aviso didático',
+            aindaBloqueado.titulo === tituloAntesBloqueio && /Corrija a mudança mensurável destacada/.test(aindaBloqueado.aviso), JSON.stringify(aindaBloqueado));
+
           await page.click('.aposta-mudanca-alerta [data-corrigir]');
           await page.waitForTimeout(300);
           const corrigido = await page.evaluate(() => ({
             direcao: (document.querySelector('[data-m="direcao"]') || {}).value || '',
             alertaSumiu: !document.querySelector('.aposta-mudanca-alerta'),
+            frase: (document.querySelector('.aposta-mudanca-frase') || {}).textContent || '',
           }));
           anota('um clique no alerta corrige a direção e o alerta some', corrigido.direcao === 'Aumentar' && corrigido.alertaSumiu,
             JSON.stringify(corrigido));
+          anota('corrigida a inconsistência, a frase volta na hora, sem esperar a pausa',
+            /Aumentar/.test(corrigido.frase) && /1500/.test(corrigido.frase), corrigido.frase);
           /* Devolve ao estado consistente para o resto do teste. */
           await page.locator('.aposta-variante:has([data-m="direcao"]) .aposta-variante-chip', { hasText: 'Reduzir' }).click();
           await page.fill('[data-m="meta"]', '700');
@@ -850,9 +949,16 @@ const textoDaTela = (page) => page.evaluate(() => {
 
           /* Percentual não pede escolha de unidade: preenche "%" sozinho,
              e ele gruda nos dois números da frase ("de 1000% para 700%"),
-             diferente de contatos/dias, que só aparecem uma vez. */
+             diferente de contatos/dias, que só aparecem uma vez. Um
+             indicador percentual normalmente não tem período de medição
+             (ver seção 10 do pedido) — "não se aplica" limpa o "por mês"
+             deixado pelo passo anterior, senão ele grudaria nos dois "%"
+             também (unidade e período qualificam os dois números por
+             igual, percentual incluído). */
           await page.selectOption('[data-m="formaMedicao"]', 'Percentual');
           await page.waitForTimeout(300);
+          await page.locator('.aposta-variante:has([data-m="periodo"]) .aposta-variante-chip', { hasText: 'não se aplica' }).click();
+          await page.waitForTimeout(200);
           const unidadePercentual = await page.evaluate(() => (document.querySelector('[data-m="unidade"]') || {}).value || '');
           anota('Percentual preenche a Unidade com "%" sozinho, sem exigir escolha', unidadePercentual === '%', 'ficou "' + unidadePercentual + '"');
           const frasePercentual = await page.evaluate(() =>
@@ -898,6 +1004,38 @@ const textoDaTela = (page) => page.evaluate(() => {
             anota('os campos "hipótese causal" e "sinal que motivou a hipótese" têm tooltip próprio',
               /ainda precisa ser testada/i.test(dicasHipotese.causa) && /n[ãa]o significa que a hip[óo]tese esteja comprovada/i.test(dicasHipotese.indicio),
               JSON.stringify(dicasHipotese));
+
+            /* Sem os dois campos preenchidos, "Fica assim no mapa" não
+               mostra a frase com lacunas por dentro (nada de "a causa
+               percebida" como se fosse texto de verdade) — só a
+               orientação do que falta, e CONTINUAR fica bloqueado. */
+            const hipoteseVazia = await page.evaluate(() =>
+              ((document.getElementById('apostaFrase') || {}).textContent || '').replace(/\s+/g, ' '));
+            anota('Hipótese incompleta não mostra a frase com lacunas — só a orientação do que falta',
+              /Preencha a causa percebida e o que foi observado/i.test(hipoteseVazia) &&
+              !/Acreditamos que isso acontece porque/i.test(hipoteseVazia),
+              hipoteseVazia.slice(0, 160));
+            const tituloAntesHipotese = await page.evaluate(() => (document.querySelector('.aposta-etapa-titulo') || {}).textContent || '');
+            await clicarSemRolagem(page, '#apostaSeguir');
+            await page.waitForTimeout(300);
+            const tituloDepoisHipoteseVazia = await page.evaluate(() => (document.querySelector('.aposta-etapa-titulo') || {}).textContent || '');
+            anota('Hipótese incompleta bloqueia CONTINUAR', tituloDepoisHipoteseVazia === tituloAntesHipotese);
+
+            await page.fill('[data-campo="causa"]', 'as informações não são claras');
+            await page.waitForTimeout(250);
+            const hipoteseParcial = await page.evaluate(() =>
+              ((document.getElementById('apostaFrase') || {}).textContent || '').replace(/\s+/g, ' '));
+            anota('com só um dos dois campos, ainda pede o que falta (não mostra a frase pela metade)',
+              /Preencha a causa percebida e o que foi observado/i.test(hipoteseParcial), hipoteseParcial.slice(0, 160));
+
+            await page.fill('[data-campo="indicio"]', 'muitos participantes entram em contato para saber do andamento do processo de concessão do benefício');
+            await page.waitForTimeout(250);
+            const hipoteseCompleta = await page.evaluate(() =>
+              ((document.getElementById('apostaFrase') || {}).textContent || '').replace(/\s+/g, ' '));
+            anota('com os dois campos preenchidos, mostra a frase completa e "está completa"',
+              /Acreditamos que isso acontece porque as informações não são claras\. Essa hip[óo]tese surgiu porque observamos que muitos participantes/i.test(hipoteseCompleta) &&
+              /A frase desta etapa está completa/i.test(hipoteseCompleta),
+              hipoteseCompleta.slice(0, 260));
           }
           if (i === 5) {
             /* IDEIA DE SOLUÇÃO: "Resultados que queremos produzir" lembra
@@ -928,8 +1066,63 @@ const textoDaTela = (page) => page.evaluate(() => {
             anota('os campos "Poderíamos" e "para" têm tooltip próprio',
               /poss[íi]vel interven[çc][ãa]o/i.test(dicasIdeia.poderiamos) && /efeito esperamos/i.test(dicasIdeia.para),
               JSON.stringify(dicasIdeia));
+
+            /* Mesma regra da Hipótese: sem os dois campos, nada de
+               "Poderíamos [a ação] para que [o efeito]" com lacunas —
+               só a orientação, e CONTINUAR bloqueado. */
+            const ideiaVazia = await page.evaluate(() =>
+              ((document.getElementById('apostaFrase') || {}).textContent || '').replace(/\s+/g, ' '));
+            anota('Ideia de solução incompleta não mostra a frase com lacunas — só a orientação do que falta',
+              ideiaVazia === 'Fica assim no mapaPreencha o que poderíamos fazer e para quê, para visualizar a ideia de solução.',
+              ideiaVazia.slice(0, 160));
+            const tituloAntesIdeia = await page.evaluate(() => (document.querySelector('.aposta-etapa-titulo') || {}).textContent || '');
+            await clicarSemRolagem(page, '#apostaSeguir');
+            await page.waitForTimeout(300);
+            const tituloDepoisIdeiaVazia = await page.evaluate(() => (document.querySelector('.aposta-etapa-titulo') || {}).textContent || '');
+            anota('Ideia de solução incompleta bloqueia CONTINUAR', tituloDepoisIdeiaVazia === tituloAntesIdeia);
+
+            await page.fill('[data-campo="acao"]', 'dar ao participante visibilidade sobre o andamento do processo de concessão do benefício');
+            await page.fill('[data-campo="mudanca"]', 'o participante consiga ter autonomia');
+            await page.waitForTimeout(250);
+            const ideiaCompleta = await page.evaluate(() =>
+              ((document.getElementById('apostaFrase') || {}).textContent || '').replace(/\s+/g, ' '));
+            anota('com os dois campos preenchidos, mostra a frase completa e "está completa"',
+              /Poder[íi]amos dar ao participante visibilidade sobre o andamento do processo de concessão do benef[íi]cio para o participante consiga ter autonomia/i.test(ideiaCompleta) &&
+              /A frase desta etapa está completa/i.test(ideiaCompleta),
+              ideiaCompleta.slice(0, 260));
           }
           if (i === 6) {
+            /* EXPERIMENTO: sem duração, quantidade, com quem e o que
+               será feito, nada de "Durante [quanto tempo], com
+               [quantas pessoas] [com quem], vamos [o que será feito]."
+               com lacunas por dentro — só a orientação do que falta
+               (dinâmica: lista só o que realmente falta), e CONTINUAR
+               bloqueado. */
+            const experimentoVazio = await page.evaluate(() =>
+              ((document.getElementById('apostaFrase') || {}).textContent || '').replace(/\s+/g, ' '));
+            anota('Experimento incompleto não mostra a frase com lacunas — só a orientação do que falta',
+              /^Complete quanto tempo, quantas pessoas, com quem, o que será feito/i.test(experimentoVazio.replace('Fica assim no mapa', '').trim()) &&
+              !/Durante/i.test(experimentoVazio),
+              experimentoVazio.slice(0, 200));
+            const tituloAntesExperimento = await page.evaluate(() => (document.querySelector('.aposta-etapa-titulo') || {}).textContent || '');
+            await clicarSemRolagem(page, '#apostaSeguir');
+            await page.waitForTimeout(300);
+            const tituloDepoisExperimentoVazio = await page.evaluate(() => (document.querySelector('.aposta-etapa-titulo') || {}).textContent || '');
+            anota('Experimento incompleto bloqueia CONTINUAR', tituloDepoisExperimentoVazio === tituloAntesExperimento);
+
+            await page.fill('[data-campo="duracao"]', '3');
+            await page.selectOption('[data-campo="duracaoUnidade"]', 'semanas');
+            await page.fill('[data-campo="quantidade"]', '50');
+            await page.fill('[data-campo="comQuem"]', 'participantes em concessão');
+            await page.fill('[data-campo="oQue"]', 'enviar manualmente mensagens de status');
+            await page.waitForTimeout(300);
+            const experimentoCompleto = await page.evaluate(() =>
+              ((document.getElementById('apostaFrase') || {}).textContent || '').replace(/\s+/g, ' '));
+            anota('com os campos obrigatórios preenchidos, mostra a frase completa e "está completa"',
+              /Durante 3 semanas, com 50 participantes em concess[ãa]o, vamos enviar manualmente mensagens de status\./i.test(experimentoCompleto) &&
+              /A frase desta etapa está completa/i.test(experimentoCompleto),
+              experimentoCompleto.slice(0, 300));
+
             /* EXPERIMENTO: custo com máscara de moeda. */
             await page.fill('[data-campo="custo"]', '250000');
             await page.waitForTimeout(250);
@@ -985,25 +1178,25 @@ const textoDaTela = (page) => page.evaluate(() => {
             anota('não existe mais "Nossa hipótese foi" nem classificação de sustentada/não sustentada na Evidência', semClassificacao);
 
             /* Sem resultado observado ainda, a frase não finge que há
-               evidência, e Continuar começa desabilitado. */
-            const antesDePreencher = await page.evaluate(() => ({
-              falta: (document.querySelector('.aposta-frase-falta') || {}).textContent || '',
-              seguirDesabilitado: !!(document.getElementById('apostaSeguir') || {}).disabled,
-            }));
+               evidência. CONTINUAR bloqueia de verdade neste estado —
+               a cobertura exaustiva do bloqueio (sem escape por segundo
+               clique, "não foi possível medir" como alternativa) mora
+               no bloco isolado mais abaixo; aqui só confirmamos que o
+               clique não avança enquanto falta o essencial. */
+            const antesDePreencher = await page.evaluate(() => (document.querySelector('.aposta-frase-falta') || {}).textContent || '');
             anota('sem resultado observado, a tela diz que ainda falta, sem inventar uma frase completa',
-              /Ainda falta: o resultado observado/i.test(antesDePreencher.falta), antesDePreencher.falta);
-            anota('Continuar começa desabilitado até haver evidência de verdade para cada resultado',
-              antesDePreencher.seguirDesabilitado);
+              /Ainda falta: o resultado observado/i.test(antesDePreencher), antesDePreencher);
+
+            const tituloAntesEvVazia = await page.evaluate(() => (document.querySelector('.aposta-etapa-titulo') || {}).textContent || '');
+            await clicarSemRolagem(page, '#apostaSeguir');
+            await page.waitForTimeout(300);
+            const tituloDepoisEvVazia = await page.evaluate(() => (document.querySelector('.aposta-etapa-titulo') || {}).textContent || '');
+            anota('Continuar bloqueia de verdade até haver evidência de verdade para cada resultado',
+              tituloDepoisEvVazia === tituloAntesEvVazia);
 
             await page.fill('[data-e="observado"]', '850');
-            await page.waitForTimeout(300);
-            const soObservado = await page.evaluate(() => !!(document.getElementById('apostaSeguir') || {}).disabled);
-            anota('só o resultado observado, sem fonte, ainda não libera Continuar', soObservado);
-
             await page.selectOption('[data-e="fonte"]', 'Registros de atendimento');
             await page.waitForTimeout(300);
-            const comFonte = await page.evaluate(() => !!(document.getElementById('apostaSeguir') || {}).disabled);
-            anota('resultado observado + fonte libera Continuar', !comFonte);
 
             /* Aprendizado é por card, com tooltip próprio — não é a mesma
                coisa que classificar a hipótese inteira. */
@@ -1114,6 +1307,10 @@ const textoDaTela = (page) => page.evaluate(() => {
 
             await page.fill('[data-campo="proxHipCausa"]', 'a mensagem não chega a quem está em análise');
             await page.fill('[data-campo="proxHipIndicio"]', 'os contatos caíram só no grupo que recebeu a mensagem');
+            /* Decisão é frase estrita (ver ETAPAS_FRASE_ESTRITA): sem a
+               próxima ação, a prévia mostra só a orientação do que
+               falta, não a frase com "Próxima ação:" em branco. */
+            await page.fill('[data-campo="proximaAcao"]', 'testar a nova hipótese com um novo experimento');
             await page.waitForTimeout(300);
             const fraseDec = await page.evaluate(() =>
               ((document.getElementById('apostaFrase') || {}).textContent || '').replace(/\s+/g, ' '));
@@ -1417,15 +1614,132 @@ const textoDaTela = (page) => page.evaluate(() => {
           progresso: (document.querySelector('.aposta-frase-pronta') || {}).textContent || '',
         }));
         anota('a frase da evidência junta o que já existia com o que foi observado, sem redigitar nada',
-          /Esperávamos reduzir contatos sobre o andamento da concessão de 1000 para 500 contatos por mês/.test(card.frase) &&
+          /Esperávamos reduzir contatos sobre o andamento da concessão de 1000 contatos por mês para 500 contatos por mês/.test(card.frase) &&
           /observamos 650 contatos por mês/.test(card.frase),
           card.frase);
         anota('a frase da evidência não repete o prazo da mudança mensurável ("em 90 dias" fica só lá)',
           !/em 90 dias/.test(card.frase), card.frase);
         anota('o avanço até a meta é calculado sozinho, respeitando a direção (Reduzir)',
-          /70% do caminho até a meta/.test(card.progresso), card.progresso);
+          /70% da mudança esperada foi alcançada/.test(card.progresso), card.progresso);
+
+        /* O quadro "Resultados do experimento" nunca troca a Meta pelo
+           Resultado observado — os dois ficam sempre visíveis e
+           diferentes um do outro. */
+        const resumoQuadro = await pgEv.evaluate(() => (document.querySelector('.aposta-resultados-resumo') || {}).textContent.replace(/\s+/g, ' ') || '');
+        anota('"Resultados do experimento" mostra início → observado, e a Meta original, sem substituir uma pela outra',
+          /1000 contatos por m[êe]s.*650 contatos por m[êe]s.*Meta: 500 contatos por m[êe]s/.test(resumoQuadro), resumoQuadro);
+
+        /* Meta atingida exatamente: mensagem própria, sem percentual. */
+        await pgEv.fill('[data-e="observado"]', '500');
+        await pgEv.waitForTimeout(300);
+        const metaAtingida = await pgEv.evaluate(() => (document.querySelector('.aposta-frase-pronta') || {}).textContent || '');
+        anota('resultado observado igual à meta mostra "a mudança esperada foi alcançada", sem percentual',
+          metaAtingida === 'A mudança esperada foi alcançada.', metaAtingida);
+
+        /* Meta superada: nunca um percentual acima de 100% como
+           mensagem principal — a diferença, na mesma unidade/período. */
+        await pgEv.fill('[data-e="observado"]', '400');
+        await pgEv.waitForTimeout(300);
+        const metaSuperada = await pgEv.evaluate(() => (document.querySelector('.aposta-frase-pronta') || {}).textContent || '');
+        anota('meta superada mostra a diferença, nunca um percentual acima de 100%',
+          metaSuperada === 'A mudança esperada foi superada em 100 contatos por mês.', metaSuperada);
+
+        /* Piora do indicador (foi na direção contrária): nunca um
+           percentual negativo como mensagem principal. */
+        await pgEv.fill('[data-e="observado"]', '1200');
+        await pgEv.waitForTimeout(300);
+        const semMelhora = await pgEv.evaluate(() => (document.querySelector('.aposta-frase-falta') || {}).textContent || '');
+        anota('piora do indicador não mostra percentual negativo — mostra o que foi observado x a situação inicial',
+          semMelhora === 'O resultado observado não avançou na direção esperada. Foram observados 1200 contatos por mês, acima da situação inicial de 1000 contatos por mês.',
+          semMelhora);
+
+        /* Devolve ao estado consistente para o resto do teste. */
+        await pgEv.fill('[data-e="observado"]', '650');
+        await pgEv.waitForTimeout(300);
+
+        /* CONTINUAR: sem fonte, mesmo com observado preenchido, fica
+           bloqueado de verdade — sem escape por segundo clique. (Volta a
+           fonte para vazio: já tinha sido escolhida lá em cima, para os
+           testes de frase.) Não há classificação global da hipótese para
+           checar aqui — só o próprio card precisa estar completo. */
+        await pgEv.selectOption('[data-e="fonte"]', '');
+        await pgEv.waitForTimeout(200);
+        const tituloAntesEv = await pgEv.evaluate(() => (document.querySelector('.aposta-etapa-titulo') || {}).textContent || '');
+        await pgEv.$eval('#apostaSeguir', (el) => el.click());
+        await pgEv.waitForTimeout(300);
+        const bloqueioSemFonte = await pgEv.evaluate(() => (document.getElementById('apostaAvisos') || {}).textContent || '');
+        anota('CONTINUAR bloqueia sem Fonte da evidência, mesmo com Resultado observado preenchido',
+          /preencha .Resultado observado. e .Fonte da evidência./i.test(bloqueioSemFonte), bloqueioSemFonte);
+        await pgEv.$eval('#apostaSeguir', (el) => el.click());
+        await pgEv.waitForTimeout(300);
+        const tituloDepoisSemFonte = await pgEv.evaluate(() => (document.querySelector('.aposta-etapa-titulo') || {}).textContent || '');
+        anota('o bloqueio de Evidência incompleta NÃO tem escape por segundo clique', tituloDepoisSemFonte === tituloAntesEv);
+
+        /* "Não foi possível medir" desliga Resultado observado/Fonte e
+           passa a exigir Motivo em vez deles — nunca os dois ao mesmo
+           tempo. */
+        await pgEv.click('[data-e="naoMedido"]');
+        await pgEv.waitForTimeout(200);
+        const motivoRot = await pgEv.evaluate(() => {
+          const input = document.querySelector('[data-e="motivo"]');
+          const label = input ? input.closest('.aposta-campo').querySelector('.aposta-campo-rot') : null;
+          return label ? label.textContent : '';
+        });
+        anota('marcar "Não foi possível medir" tira o "(opcional)" de Motivo — passa a ser obrigatório',
+          motivoRot === 'Motivo', motivoRot);
+        await pgEv.$eval('#apostaSeguir', (el) => el.click());
+        await pgEv.waitForTimeout(300);
+        const bloqueioSemMotivo = await pgEv.evaluate(() => (document.getElementById('apostaAvisos') || {}).textContent || '');
+        anota('marcado "Não foi possível medir" mas sem Motivo, CONTINUAR continua bloqueado',
+          /preencha .Resultado observado. e .Fonte da evidência./i.test(bloqueioSemMotivo), bloqueioSemMotivo);
+
+        await pgEv.fill('[data-e="motivo"]', 'a pesquisa não foi concluída dentro do período do experimento');
+        await pgEv.waitForTimeout(200);
+        await pgEv.$eval('#apostaSeguir', (el) => el.click());
+        await pgEv.waitForTimeout(300);
+        const tituloDepoisCompleto = await pgEv.evaluate(() => (document.querySelector('.aposta-etapa-titulo') || {}).textContent || '');
+        anota('"Não foi possível medir" + Motivo: CONTINUAR libera (não precisa de número nem de classificação)',
+          tituloDepoisCompleto !== tituloAntesEv, tituloDepoisCompleto);
 
         await ctxEv.close();
+      }
+
+      /* ── 9c: "Manter" na Evidência usa mensagem própria por tipo de
+            limite — nunca percentual de progresso. ── */
+      for (const cenario of [
+        { tipoLimite: 'Pelo menos', meta: '90', observado: '95', esperado: 'O resultado permaneceu dentro da condição que queríamos manter.' },
+        { tipoLimite: 'Pelo menos', meta: '90', observado: '85', esperado: 'O resultado ficou abaixo da condição que queríamos manter.' },
+        { tipoLimite: 'No máximo', meta: '670', observado: '600', esperado: 'O resultado permaneceu dentro da condição que queríamos manter.' },
+        { tipoLimite: 'No máximo', meta: '670', observado: '700', esperado: 'O resultado ficou acima da condição que queríamos manter.' },
+        { tipoLimite: 'Entre', limiteMinimo: '8', limiteMaximo: '12', observado: '10', esperado: 'O resultado permaneceu dentro da condição que queríamos manter.' },
+        { tipoLimite: 'Entre', limiteMinimo: '8', limiteMaximo: '12', observado: '15', esperado: 'O resultado ficou fora da condição que queríamos manter.' },
+      ]) {
+        const semeadoManter = apostasSemeadas();
+        semeadoManter[TURMA_LIB].execucoes[EXEC].grupos[GRUPO].etapa = 'evidencia';
+        semeadoManter[TURMA_LIB].execucoes[EXEC].grupos[GRUPO].dados = {
+          mudancas: { itens: [{
+            id: 'rm', direcao: 'Manter', tipoLimite: cenario.tipoLimite,
+            indicador: 'índice de satisfação', atual: '10',
+            meta: cenario.meta, limiteMinimo: cenario.limiteMinimo, limiteMaximo: cenario.limiteMaximo,
+            prazo: '90', prazoUnidade: 'dias',
+          }] },
+          experimento: { resultadoIds: ['rm'] },
+        };
+        const { ctx: ctxM, page: pgM } = await novaPagina(browser, formato, DIRETORA, erros, semeadoManter);
+        await pgM.goto(BASE + '/index.html#treinamento', { waitUntil: 'domcontentloaded' });
+        await pgM.click('#apostaAbrirBtn');
+        await pgM.waitForSelector('.aposta-grupo-btn', { timeout: 15000 });
+        await pgM.click('.aposta-grupo-btn');
+        await pgM.waitForFunction(() =>
+          /EVID[ÊE]NCIA/.test((document.querySelector('.aposta-etapa-titulo') || {}).textContent || ''),
+          { timeout: 15000 });
+        await pgM.fill('[data-e="observado"]', cenario.observado);
+        await pgM.waitForTimeout(300);
+        const msgManter = await pgM.evaluate(() =>
+          ((document.querySelector('.aposta-frase-pronta, .aposta-frase-falta') || {}).textContent || ''));
+        anota('"Manter" (' + cenario.tipoLimite + ', observado ' + cenario.observado + ') mostra a mensagem certa, sem percentual',
+          msgManter === cenario.esperado, msgManter);
+        await ctxM.close();
       }
 
       /* ── 9b: o Experimento pode observar vários resultados esperados de
@@ -1496,9 +1810,12 @@ const textoDaTela = (page) => page.evaluate(() => {
           desligado.observado && desligado.fonte, JSON.stringify(desligado));
         anota('a frase da evidência diz que não foi possível medir, com o motivo',
           /Não foi possível medir neste experimento \(Pesquisa de satisfação/.test(desligado.frase), desligado.frase);
-        const seguirComNaoMedido = await pgNM.evaluate(() => !!(document.getElementById('apostaSeguir') || {}).disabled);
+        const tituloAntesNM = await pgNM.evaluate(() => (document.querySelector('.aposta-etapa-titulo') || {}).textContent || '');
+        await pgNM.$eval('#apostaSeguir', (el) => el.click());
+        await pgNM.waitForTimeout(300);
+        const tituloDepoisNM = await pgNM.evaluate(() => (document.querySelector('.aposta-etapa-titulo') || {}).textContent || '');
         anota('"não foi possível medir" + motivo também libera Continuar (é a outra forma válida de completar)',
-          !seguirComNaoMedido);
+          tituloDepoisNM !== tituloAntesNM, tituloDepoisNM);
         await ctxNM.close();
       }
 
@@ -1528,6 +1845,143 @@ const textoDaTela = (page) => page.evaluate(() => {
         anota('mudança antiga com "por mês" em Unidade reabre com isso em Período, não em Unidade',
           legado.unidade === '' && legado.periodo === 'por mês', JSON.stringify(legado));
         await ctxL.close();
+      }
+
+      /* ── 9f: DECISÃO — frase estrita, bloqueio, placeholder dinâmico,
+            contexto da Evidência (fonte + aprendizado, por resultado —
+            não existe classificação nem conclusão únicas da etapa) e os
+            dois alertas de coerência não-bloqueantes (Ampliar sem meta
+            batida, Prazo × Data de reavaliação). Semeado com um
+            resultado que NÃO bateu a meta (Reduzir 1000→500, observado
+            800 = 40%), para exercitar exatamente a contradição que o
+            alerta cobre. ── */
+      {
+        const semeadoDec = apostasSemeadas();
+        semeadoDec[TURMA_LIB].execucoes[EXEC].grupos[GRUPO].etapa = 'decisao';
+        semeadoDec[TURMA_LIB].execucoes[EXEC].grupos[GRUPO].dados = {
+          mudancas: { itens: [{ id: 'r1', direcao: 'Reduzir', indicador: 'contatos sobre andamento', atual: '1000', meta: '500', unidade: 'contatos', periodo: 'por mês' }] },
+          experimento: { resultadoIds: ['r1'] },
+          evidencia: {
+            itens: [{ resultadoId: 'r1', observado: '800', fonte: 'Relatório', aprendizado: 'a redução ainda não foi suficiente para confirmar a hipótese' }],
+          },
+        };
+        const { ctx: ctxDec, page: pgDec } = await novaPagina(browser, formato, DIRETORA, erros, semeadoDec);
+        await pgDec.goto(BASE + '/index.html#treinamento', { waitUntil: 'domcontentloaded' });
+        await pgDec.click('#apostaAbrirBtn');
+        await pgDec.waitForSelector('.aposta-grupo-btn', { timeout: 15000 });
+        await pgDec.click('.aposta-grupo-btn');
+        await pgDec.waitForFunction(() =>
+          /DECIS[ÃA]O/.test((document.querySelector('.aposta-etapa-titulo') || {}).textContent || ''),
+          { timeout: 15000 });
+
+        const contexto = await pgDec.evaluate(() =>
+          ((document.querySelector('.aposta-conexao') || {}).textContent || '').replace(/\s+/g, ' '));
+        anota('a Decisão mostra a fonte e o aprendizado registrados na Evidência, sem classificação única da hipótese',
+          /Fonte: Relat[óo]rio/i.test(contexto) &&
+          /a redução ainda não foi suficiente/i.test(contexto) &&
+          !/Nossa hip[óo]tese foi/i.test(contexto),
+          contexto.slice(0, 260));
+
+        const semNada = await pgDec.evaluate(() =>
+          ((document.getElementById('apostaFrase') || {}).textContent || '').replace(/\s+/g, ' '));
+        anota('Decisão sem nada escolhido não mostra a frase com lacunas — só a orientação do que falta',
+          semNada === 'Fica assim no mapaEscolha o que faremos com base no que aprendemos.', semNada);
+
+        const tituloAntesDec = await pgDec.evaluate(() => (document.querySelector('.aposta-etapa-titulo') || {}).textContent || '');
+        await pgDec.$eval('#apostaSeguir', (el) => el.click());
+        await pgDec.waitForTimeout(300);
+        const tituloDepoisSemEscolha = await pgDec.evaluate(() => (document.querySelector('.aposta-etapa-titulo') || {}).textContent || '');
+        anota('Decisão sem decisão escolhida bloqueia CONTINUAR/VER O MAPA, sem escape por segundo clique', tituloDepoisSemEscolha === tituloAntesDec);
+
+        await pgDec.locator('.aposta-opcao', { hasText: 'Ajustar e testar novamente' }).click();
+        await pgDec.waitForTimeout(200);
+        const placeholderAjustar = await pgDec.evaluate(() => (document.getElementById('ap-proximaAcao') || {}).placeholder || '');
+        anota('o exemplo de "Próxima ação" muda com a decisão escolhida',
+          placeholderAjustar === 'ajustar a comunicação e repetir o teste com um grupo maior', placeholderAjustar);
+        const soFaltaAcao = await pgDec.evaluate(() =>
+          ((document.getElementById('apostaFrase') || {}).textContent || '').replace(/\s+/g, ' '));
+        anota('com a decisão escolhida mas sem próxima ação, a orientação pede só o que falta',
+          soFaltaAcao === 'Fica assim no mapaDefina a próxima ação para completar a decisão.', soFaltaAcao);
+        await pgDec.$eval('#apostaSeguir', (el) => el.click());
+        await pgDec.waitForTimeout(300);
+        const tituloDepoisSemAcao = await pgDec.evaluate(() => (document.querySelector('.aposta-etapa-titulo') || {}).textContent || '');
+        anota('Decisão com decisão escolhida mas sem próxima ação continua bloqueando', tituloDepoisSemAcao === tituloAntesDec);
+
+        /* "Ampliar" com uma meta que não foi batida: alerta não-bloqueante,
+           com os dois botões — nunca muda a decisão sozinho. */
+        await pgDec.locator('.aposta-opcao', { hasText: 'Ampliar' }).click();
+        await pgDec.waitForTimeout(200);
+        const alertaAmpliar = await pgDec.evaluate(() => {
+          const el = document.getElementById('apostaDecisaoAlerta');
+          return el ? { texto: el.textContent.replace(/\s+/g, ' '), botoes: Array.from(el.querySelectorAll('button')).map((b) => b.textContent.trim()) } : null;
+        });
+        anota('escolher "Ampliar" sem a meta batida mostra o alerta de coerência, com os dois botões',
+          !!alertaAmpliar && /Ampliar/.test(alertaAmpliar.texto) &&
+          alertaAmpliar.botoes.includes('MANTER DECISÃO') && alertaAmpliar.botoes.includes('REVER DECISÃO'),
+          JSON.stringify(alertaAmpliar));
+
+        await pgDec.locator('#apostaDecisaoAlerta button', { hasText: 'MANTER DECISÃO' }).click();
+        await pgDec.waitForTimeout(150);
+        const decisaoContinuaAmpliar = await pgDec.evaluate(() => {
+          const ativa = document.querySelector('.aposta-opcao.is-ativa');
+          const alerta = document.getElementById('apostaDecisaoAlerta');
+          return { valor: ativa ? ativa.dataset.valor : '', alertaVazio: !alerta || !alerta.textContent.trim() };
+        });
+        anota('"MANTER DECISÃO" só dispensa o alerta — não muda a decisão escolhida',
+          decisaoContinuaAmpliar.valor === 'Ampliar' && decisaoContinuaAmpliar.alertaVazio, JSON.stringify(decisaoContinuaAmpliar));
+
+        await pgDec.locator('.aposta-opcao', { hasText: 'Ampliar' }).click();
+        await pgDec.waitForTimeout(200);
+        await pgDec.locator('#apostaDecisaoAlerta button', { hasText: 'REVER DECISÃO' }).click();
+        await pgDec.waitForTimeout(150);
+        const depoisDeRever = await pgDec.evaluate(() => ({
+          ativa: !!document.querySelector('.aposta-opcao.is-ativa'),
+          frase: ((document.getElementById('apostaFrase') || {}).textContent || '').replace(/\s+/g, ' '),
+          alertaVazio: !(document.getElementById('apostaDecisaoAlerta') || {}).textContent.trim(),
+        }));
+        anota('"REVER DECISÃO" limpa a decisão escolhida, para o grupo escolher de novo',
+          !depoisDeRever.ativa && depoisDeRever.frase === 'Fica assim no mapaEscolha o que faremos com base no que aprendemos.' && depoisDeRever.alertaVazio,
+          JSON.stringify(depoisDeRever));
+
+        /* Prazo × Data de reavaliação: sugestão quando só o Prazo está
+           preenchido, alerta (sem trocar nada sozinho) quando os dois
+           não combinam. */
+        await pgDec.fill('[data-campo="prazo"]', '10');
+        await pgDec.selectOption('[data-campo="prazoUnidade"]', 'dias');
+        await pgDec.waitForTimeout(250);
+        const sugestaoPrazo = await pgDec.evaluate(() => {
+          const el = document.getElementById('apostaPrazoAlerta');
+          return el ? { texto: el.textContent.replace(/\s+/g, ' '), temBotaoUsar: !!el.querySelector('[data-prazo-usar]') } : null;
+        });
+        anota('só com o Prazo preenchido, sugere a Data de reavaliação (sem preencher sozinho)',
+          !!sugestaoPrazo && /reavalia[çc][ãa]o/i.test(sugestaoPrazo.texto) && sugestaoPrazo.temBotaoUsar &&
+          !(await pgDec.evaluate(() => (document.getElementById('ap-reavaliacao') || {}).value || '')),
+          JSON.stringify(sugestaoPrazo));
+
+        await pgDec.$eval('#apostaPrazoAlerta [data-prazo-usar]', (el) => el.click());
+        await pgDec.waitForTimeout(250);
+        const depoisDeUsar = await pgDec.evaluate(() => ({
+          reavaliacao: (document.getElementById('ap-reavaliacao') || {}).value || '',
+          alertaVazio: !(document.getElementById('apostaPrazoAlerta') || {}).textContent.trim(),
+        }));
+        anota('"Usar" a sugestão preenche a Data de reavaliação e o alerta some',
+          /^\d{2}\/\d{2}\/\d{4}$/.test(depoisDeUsar.reavaliacao) && depoisDeUsar.alertaVazio, JSON.stringify(depoisDeUsar));
+
+        await pgDec.fill('[data-campo="reavaliacao"]', '01012099');
+        await pgDec.waitForTimeout(250);
+        const conflito = await pgDec.evaluate(() => {
+          const el = document.getElementById('apostaPrazoAlerta');
+          return el ? { texto: el.textContent.replace(/\s+/g, ' '), botoes: Array.from(el.querySelectorAll('button')).map((b) => b.textContent.trim()) } : null;
+        });
+        anota('Prazo e Data de reavaliação incompatíveis avisam sem trocar nada sozinho',
+          !!conflito && /n[ãa]o bate com o prazo/i.test(conflito.texto) && conflito.botoes.some((b) => /^Manter/.test(b)),
+          JSON.stringify(conflito));
+        await pgDec.locator('#apostaPrazoAlerta button', { hasText: /^Manter/ }).click();
+        await pgDec.waitForTimeout(150);
+        const dataMantida = await pgDec.evaluate(() => (document.getElementById('ap-reavaliacao') || {}).value || '');
+        anota('"Manter" a data informada não a substitui pela sugestão', dataMantida === '01/01/2099', dataMantida);
+
+        await ctxDec.close();
       }
 
       anota('nenhum erro de JavaScript', erros.length === 0, erros[0]);
