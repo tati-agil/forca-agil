@@ -235,6 +235,12 @@ const textoDaTela = (page) => page.evaluate(() => {
           /verbo/.test(painelMissao.lacunas) && /oQue/.test(painelMissao.lacunas) &&
           /prazo/.test(painelMissao.lacunas) && /prazoUnidade/.test(painelMissao.lacunas),
           painelMissao.lacunas);
+        anota('o painel não deixa o "em" solto na área de edição — só na frase automática',
+          !/(^|\s)em(\s|$)/.test(painelMissao.fixo), '"' + painelMissao.fixo + '"');
+        const rotuloPrazoFac = await novo.evaluate(() =>
+          ((document.querySelector('.aposta-molde--fac .aposta-campo-rot') || {}).textContent || '').trim());
+        anota('o painel mostra o rótulo "Prazo", igual à etapa 1',
+          /^prazo$/i.test(rotuloPrazoFac), 'rótulo: "' + rotuloPrazoFac + '"');
         await novo.fill('[data-mis="verbo"]', 'Reduzir');
         await novo.click('#apostaSalvarMissao');
         await novo.waitForTimeout(400);
@@ -293,6 +299,24 @@ const textoDaTela = (page) => page.evaluate(() => {
         anota('remover a missão-base pede confirmação e volta o botão para "Salvar missão-base", sem selo nem ação de remover',
           /^Salvar miss[ãa]o-base$/i.test(depoisRemover.botao) && !depoisRemover.temStatus && !depoisRemover.temRemover,
           JSON.stringify(depoisRemover));
+
+        /* Bug relatado no uso real: preencher a missão-base (sem salvar)
+           e clicar em "Criar grupo" apagava tudo o que tinha sido
+           digitado em cima — desenhar() redesenha o painel inteiro a
+           partir do que já está gravado (nada, aqui), e o rascunho ainda
+           não salvo ia junto. */
+        await novo.fill('[data-mis="verbo"]', 'Melhorar');
+        await novo.fill('[data-mis="oQue"]', 'a experiência do participante');
+        await novo.fill('#apostaNovoGrupo', 'Grupo 2');
+        await novo.click('#apostaCriarGrupo');
+        await novo.waitForTimeout(500);
+        const rascunhoSobreviveu = await novo.evaluate(() => ({
+          verbo: (document.querySelector('[data-mis="verbo"]') || {}).value || '',
+          oQue: (document.querySelector('[data-mis="oQue"]') || {}).value || '',
+        }));
+        anota('criar um grupo não apaga o que já estava digitado (e ainda não salvo) na missão-base',
+          rascunhoSobreviveu.verbo === 'Melhorar' && /experiência do participante/.test(rascunhoSobreviveu.oQue),
+          JSON.stringify(rascunhoSobreviveu));
 
         await ctxNovo.close();
       }
