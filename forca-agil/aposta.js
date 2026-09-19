@@ -2129,7 +2129,11 @@
         '</div>' +
 
         '<h4 style="margin:8px 0 0">Revelação</h4>' +
-        '<p style="font-size:.8rem;color:var(--ink-3);margin:0">Enquanto não for revelada, a interface não mostra os termos do final da dinâmica em lugar nenhum.</p>' +
+        '<p style="font-size:.8rem;color:var(--ink-3);margin:0">' +
+          (_exec.revelado
+            ? 'Revelado — vale para os 3 grupos de uma vez. O Mapa da Aposta de cada um já mostra a conexão com OKR; clique em "Projetar" num grupo para ver.'
+            : 'Enquanto não for revelada, a interface não mostra os termos do final da dinâmica em lugar nenhum. Vale para os grupos todos de uma vez — o efeito aparece no Mapa da Aposta de cada um, não aqui neste painel.') +
+        '</p>' +
         '<button class="btn btn--sm' + (_exec.revelado ? '' : ' btn--primary') + '" id="apostaToggleRevelar">' +
           (_exec.revelado ? 'Esconder de novo' : 'Revelar conexões') + '</button>' +
 
