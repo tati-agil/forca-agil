@@ -969,18 +969,6 @@
     if (!normalizar(ev.observado)) return esperavamos;
     return esperavamos + ' Após o experimento, observamos ' + ev.observado + sufixo + '.';
   }
-  /* Avanço em direção à meta, respeitando a direção — a razão entre a
-     mudança OBTIDA (observado − situação atual) e a mudança NECESSÁRIA
-     (meta − situação atual) já inverte sozinha para "Reduzir": não é
-     comparação simples de números. Só serve para Aumentar/Reduzir/
-     Atingir — "Manter" é dentro/fora do limite, não um "% do caminho"
-     (ver avaliarLimiteMudanca). */
-  function progressoEvidencia(m, valorObservado) {
-    if (String(m.direcao || '').trim() === 'Manter') return null;
-    var atual = paraNumero(m.atual), meta = paraNumero(m.meta), obs = paraNumero(valorObservado);
-    if (atual == null || meta == null || obs == null || atual === meta) return null;
-    return Math.round(((obs - atual) / (meta - atual)) * 100);
-  }
   /* "Manter" não tem "% do caminho": o resultado observado está dentro
      do limite combinado, ou não está. */
   function avaliarLimiteMudanca(m, valorObservado) {
@@ -1000,18 +988,67 @@
   /* O texto de avanço do card de Evidência — "% do caminho até a meta"
      para Aumentar/Reduzir/Atingir, "dentro/fora do limite" para Manter.
      null quando ainda não dá para calcular nada (falta número). */
+  /* Número "limpo" para mensagens (sem resíduo de ponto flutuante tipo
+     19.999999999998, sem casas decimais quando o resultado é inteiro). */
+  function numeroLimpo(n) {
+    return String(Math.round(n * 100) / 100);
+  }
   function progressoResumo(m, valorObservado) {
-    if (String(m.direcao || '').trim() === 'Manter') {
+    var direcao = String((m || {}).direcao || '').trim();
+
+    /* "Manter" não compara com uma meta única — compara com o LIMITE
+       escolhido, e cada lado tem sua própria mensagem (a mesma
+       distinção que o alerta de coerência já usa: "abaixo"/"acima"/
+       "fora", nunca um "fora do limite" genérico que não diz de que
+       lado). Nunca percentual de progresso aqui. */
+    if (direcao === 'Manter') {
       var dentro = avaliarLimiteMudanca(m, valorObservado);
       if (dentro == null) return null;
-      return { texto: dentro ? 'Dentro do limite combinado' : 'Fora do limite combinado', ok: dentro };
+      if (dentro) return { texto: 'O resultado permaneceu dentro da condição que queríamos manter.', ok: true };
+      var tipoLimite = String(m.tipoLimite || '').trim() || 'Pelo menos';
+      if (tipoLimite === 'No máximo') return { texto: 'O resultado ficou acima da condição que queríamos manter.', ok: false };
+      if (tipoLimite === 'Entre') return { texto: 'O resultado ficou fora da condição que queríamos manter.', ok: false };
+      return { texto: 'O resultado ficou abaixo da condição que queríamos manter.', ok: false };
     }
-    var pct = progressoEvidencia(m, valorObservado);
-    if (pct == null) return null;
+
+    /* Aumentar / Reduzir / Atingir compartilham a mesma conta: a razão
+       entre a mudança OBTIDA (observado − situação atual) e a mudança
+       NECESSÁRIA (meta − situação atual) já inverte sozinha o sinal
+       para "Reduzir" (e funciona igual para "Atingir", que também é só
+       "chegar de A a B" — não há uma conta diferente e incompatível
+       para reaproveitar aqui). */
+    var atual = paraNumero(m.atual), meta = paraNumero(m.meta), obs = paraNumero(valorObservado);
+    if (atual == null || meta == null || obs == null || atual === meta) return null;
+    var sufixo = sufixoUnidade(m);
+
+    if (obs === meta) return { texto: 'A mudança esperada foi alcançada.', ok: true };
+
+    var esperada = meta - atual;
+    var alcancada = obs - atual;
+    /* Sinais iguais = andou na direção certa (mesmo que ainda não
+       tenha chegado, ou tenha ido além); sinais diferentes (ou uma das
+       duas é zero) = não avançou na direção esperada — nunca um
+       percentual negativo como mensagem principal, só o que foi
+       observado comparado com o ponto de partida. */
+    var mesmoSentido = (esperada > 0 && alcancada > 0) || (esperada < 0 && alcancada < 0);
+    if (!mesmoSentido) {
+      var comparativo = obs > atual ? 'acima' : (obs < atual ? 'abaixo' : '');
+      return {
+        texto: 'O resultado observado não avançou na direção esperada.' +
+          (comparativo ? ' Foram observados ' + numeroLimpo(obs) + sufixo + ', ' + comparativo + ' da situação inicial de ' + numeroLimpo(atual) + sufixo + '.' : ''),
+        ok: false
+      };
+    }
+    /* Foi além do que a meta pedia — não um percentual acima de 100%,
+       a diferença em relação ao que se esperava (sempre positiva, já
+       que só chega aqui quando a mudança alcançada supera a esperada). */
+    if (Math.abs(alcancada) > Math.abs(esperada)) {
+      return { texto: 'A mudança esperada foi superada em ' + numeroLimpo(Math.abs(alcancada - esperada)) + sufixo + '.', ok: true };
+    }
     /* Ao contrário de "Manter" (dentro/fora é bom/ruim), um percentual
-       é só informação — 70% não é "problema", é o quanto já andou.
-       Sempre no estilo neutro, mesmo abaixo de 100% ou acima. */
-    return { texto: Math.max(0, pct) + '% do caminho até a meta', ok: true };
+       é só informação — não é "problema", é o quanto já andou. */
+    var pct = Math.round((alcancada / esperada) * 100);
+    return { texto: pct + '% da mudança esperada foi alcançada.', ok: true };
   }
 
   /* O que vai no card do mapa, no card de conexão e no CSV. Vazio
@@ -2121,7 +2158,7 @@
           '<input type="checkbox" data-e="naoMedido" value="sim"' + (naoMedido ? ' checked' : '') + ' />' +
           ' Não foi possível medir neste experimento' +
         '</label>' +
-        '<label class="aposta-campo aposta-campo--largo"><span class="aposta-campo-rot">Motivo (opcional)</span>' +
+        '<label class="aposta-campo aposta-campo--largo"><span class="aposta-campo-rot">Motivo' + (naoMedido ? '' : ' (opcional)') + '</span>' +
           '<input type="text" class="aposta-campo-input" data-e="motivo" value="' + esc(ev.motivo || '') + '" placeholder="ex.: pesquisa não foi concluída dentro do período" /></label>' +
         '<p class="aposta-mudanca-frase">' + esc(fraseEvidenciaCard(m, ev)) + '</p>' +
         (progresso ? '<p class="' + (progresso.ok ? 'aposta-frase-pronta' : 'aposta-frase-falta') + '">' + esc(progresso.texto) + '</p>' : '') +
@@ -2143,7 +2180,16 @@
         '<p class="aposta-campo-rot">Resultados do experimento</p>' +
         resumo +
       '</div>' +
-      escolhaHtml(etapaPorId('evidencia').escolha, d);
+      escolhaHtml(etapaPorId('evidencia').escolha, d) +
+      /* A conclusão é interpretação de quem está na dinâmica, nunca da
+         aplicação — por isso nasce sempre em branco, mesmo quando a
+         escolha acima e as evidências já estão preenchidas. */
+      '<label class="aposta-campo aposta-campo--largo" style="margin-top:12px">' +
+        '<span class="aposta-campo-rot">O que esta evidência nos faz concluir?</span>' +
+        '<textarea class="aposta-campo-input" data-campo="conclusao" rows="2" placeholder="' +
+          esc('ex.: a redução dos contatos sugere que dar visibilidade ao andamento pode estar ajudando, mas precisamos testar com uma amostra maior') +
+          '">' + esc(d.conclusao || '') + '</textarea>' +
+      '</label>';
   }
 
   function ligarEtapa(etapa) {
@@ -2175,6 +2221,11 @@
           });
           d.itens.push(ev);
         });
+        /* A conclusão ("o que esta evidência nos faz concluir?") é um
+           campo só, fora dos cards por resultado — mesma leitura
+           genérica do resto das etapas, feita à parte porque a
+           Evidência já usa d.itens para os cards. */
+        _tela.querySelectorAll('[data-campo]').forEach(function (el) { d[el.dataset.campo] = el.value; });
       } else {
         _tela.querySelectorAll('[data-campo]').forEach(function (el) {
           /* Checkbox de múltipla escolha (hoje só "O que vamos medir?"):
@@ -2412,6 +2463,9 @@
         bloco.querySelectorAll('[data-e="observado"], [data-e="fonte"], [data-e="fonteDetalhe"]').forEach(function (el) {
           el.disabled = naoMedido;
         });
+        var motivoInput = bloco.querySelector('[data-e="motivo"]');
+        var motivoRot = motivoInput && motivoInput.closest('.aposta-campo').querySelector('.aposta-campo-rot');
+        if (motivoRot) motivoRot.textContent = 'Motivo' + (naoMedido ? '' : ' (opcional)');
         var frase = bloco.querySelector('.aposta-mudanca-frase');
         if (frase) frase.textContent = fraseEvidenciaCard(m, ev);
         var progressoEl = bloco.querySelector('.aposta-frase-pronta, .aposta-frase-falta');
@@ -2691,6 +2745,33 @@
           avisosEl.innerHTML = '<p class="aposta-aviso-didatico">' + esc(mensagemFraseIncompleta(etapa.id, faltamContinuar)) + '</p>';
           var apostaFraseEl = document.getElementById('apostaFrase');
           (apostaFraseEl || avisosEl).scrollIntoView({ behavior: 'smooth', block: 'center' });
+          return;
+        }
+      }
+
+      /* Evidência: cada resultado esperado precisa de Resultado
+         observado + Fonte da evidência, OU de "Não foi possível medir"
+         + Motivo — e a avaliação da hipótese (Sustentada/Parcialmente
+         sustentada/Não sustentada) é obrigatória, nunca escolhida
+         sozinha. CONTINUAR bloqueia de verdade, sem escape por segundo
+         clique, destacando exatamente o card ou a pergunta que falta. */
+      if (etapa.id === 'evidencia') {
+        var idxEvidenciaIncompleta = -1;
+        (d.itens || []).forEach(function (ev, idx) {
+          if (idxEvidenciaIncompleta !== -1) return;
+          var completo = ev.naoMedido === 'sim' ? normalizar(ev.motivo) : (normalizar(ev.observado) && normalizar(ev.fonte));
+          if (!completo) idxEvidenciaIncompleta = idx;
+        });
+        if (idxEvidenciaIncompleta !== -1) {
+          avisosEl.innerHTML = '<p class="aposta-aviso-didatico">Complete o resultado destacado acima: preencha "Resultado observado" e "Fonte da evidência", ou marque "Não foi possível medir" e informe o motivo.</p>';
+          var blocosEvidencia = _tela.querySelectorAll('.aposta-mudanca[data-resultado]');
+          (blocosEvidencia[idxEvidenciaIncompleta] || avisosEl).scrollIntoView({ behavior: 'smooth', block: 'center' });
+          return;
+        }
+        if (!d.classificacao) {
+          avisosEl.innerHTML = '<p class="aposta-aviso-didatico">Escolha uma das opções em "Nossa hipótese foi:" antes de continuar.</p>';
+          var escolhaEvidenciaEl = _tela.querySelector('.aposta-escolha');
+          (escolhaEvidenciaEl || avisosEl).scrollIntoView({ behavior: 'smooth', block: 'center' });
           return;
         }
       }
