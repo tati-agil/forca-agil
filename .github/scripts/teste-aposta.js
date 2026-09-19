@@ -477,12 +477,21 @@ const textoDaTela = (page) => page.evaluate(() => {
             ser guiado para ir preenchendo o que falta". ── */
       const molde = await page.evaluate(() => ({
         fixos: Array.from(document.querySelectorAll('.aposta-molde-fixo')).map((e) => e.textContent.trim()),
+        /* "em" continua na FRASE ("…em 90 dias."), mas o rótulo colado à
+           lacuna do prazo virou "Prazo" — "em" sozinho não dizia o que
+           preencher ali. */
+        rotuloPrazo: (() => {
+          const campo = document.querySelector('[data-campo="prazo"]');
+          const par = campo ? campo.closest('.aposta-par') : null;
+          const rot = par ? par.querySelector('.aposta-campo-rot') : null;
+          return rot ? rot.textContent.trim() : '';
+        })(),
         lacunas: document.querySelectorAll('.aposta-molde .aposta-campo-input').length,
         previa: (document.querySelector('.aposta-frase') || {}).textContent || '',
         semQuadroAntigo: !document.querySelector('.aposta-template'),
       }));
-      anota('a etapa mostra o texto FIXO da frase na própria tela',
-        molde.fixos.indexOf('em') !== -1, molde.fixos.join(' | '));
+      anota('o rótulo colado ao prazo diz "Prazo", não a palavra "em"',
+        /^prazo$/i.test(molde.rotuloPrazo), 'rótulo: "' + molde.rotuloPrazo + '"');
       anota('a frase é preenchida em lacunas, não num campo único', molde.lacunas >= 4, molde.lacunas + ' lacunas');
       anota('o quadro com a frase-modelo abstrata saiu de cena', molde.semQuadroAntigo);
       anota('a prévia diz o que ainda falta, desde o início',
@@ -540,8 +549,29 @@ const textoDaTela = (page) => page.evaluate(() => {
         if (SEGREDO.test(txt)) vazados.push((txt.match(SEGREDO) || [''])[0] + ' na etapa ' + (i + 1));
 
         if (i === 1) {
-          /* Etapa do sintoma: escreve uma causa de propósito e confere que
-             o aviso aparece — e que ainda assim dá para seguir. */
+          /* Sintoma: texto de apoio, dica do "?" (com exemplos) e a
+             orientação curta abaixo do card — só texto, sem mudar
+             estrutura nem permitir mais de um sintoma. */
+          const textosSintoma = await page.evaluate(() => ({
+            auxiliar: (document.querySelector('.aposta-auxiliar') || {}).textContent || '',
+            dica: (document.querySelector('.aposta-ajuda') || {}).title || '',
+            rodape: (document.querySelector('.aposta-rodape') || {}).textContent || '',
+            umSoCampo: document.querySelectorAll('.aposta-campos .aposta-campo-input').length === 1,
+            semOutroSintoma: !Array.from(document.querySelectorAll('button')).some((b) => /outro sintoma/i.test(b.textContent)),
+          }));
+          anota('o texto de apoio do Sintoma fala em fato/sinal/comportamento observável, sem causa nem solução',
+            /fato, sinal ou comportamento/i.test(textosSintoma.auxiliar) && /Ainda não tente explicar a causa/i.test(textosSintoma.auxiliar),
+            textosSintoma.auxiliar);
+          anota('a dica do "?" explica sintoma com bom e mau exemplo',
+            /sinal observ[áa]vel/i.test(textosSintoma.dica) && /Bom exemplo/i.test(textosSintoma.dica) && /não é um bom sintoma/i.test(textosSintoma.dica),
+            textosSintoma.dica.slice(0, 160));
+          anota('a orientação curta abaixo do card diferencia sintoma de problema',
+            /Sintoma mostra o que vemos/i.test(textosSintoma.rodape), textosSintoma.rodape);
+          anota('continua um único sintoma principal, sem botão "Outro sintoma"',
+            textosSintoma.umSoCampo && textosSintoma.semOutroSintoma);
+
+          /* Escreve uma causa de propósito e confere que o aviso aparece —
+             e que ainda assim dá para seguir. */
           await page.locator('.aposta-campo-input').first().fill('muita gente liga porque não sabe o status');
           await page.click('#apostaSeguir');
           await page.waitForTimeout(400);
@@ -569,9 +599,12 @@ const textoDaTela = (page) => page.evaluate(() => {
 
           /* A frase montada ao vivo, na etapa do Problema: os campos são
              pedaços, e sem ver o resultado a pessoa escreve a frase inteira
-             no primeiro campo — foi o que aconteceu no primeiro uso real. */
-          await page.locator('[data-campo="quem"]').fill('Os participantes');
-          await page.locator('[data-campo="naoConsegue"]').fill('acompanhar o andamento');
+             no primeiro campo — foi o que aconteceu no primeiro uso real.
+             O template agora é só [quem é afetado] + [situação
+             indesejada]: sem "evidenciado por" e sem pedir concordância de
+             verbo à parte, porque o texto livre já inclui o verbo. */
+          await page.locator('[data-campo="quem"]').fill('O participante');
+          await page.locator('[data-campo="situacaoIndesejada"]').fill('não consegue acompanhar com clareza o andamento');
           await page.waitForTimeout(300);
           const previa = await page.evaluate(() => {
             const el = document.getElementById('apostaFrase');
@@ -579,31 +612,23 @@ const textoDaTela = (page) => page.evaluate(() => {
           });
           anota('a etapa monta a frase ao vivo, como vai sair no mapa',
             /Fica assim no mapa/i.test(previa) &&
-            /Os participantes não consegue acompanhar o andamento/i.test(previa),
+            /O participante não consegue acompanhar com clareza o andamento/i.test(previa),
             previa.slice(0, 120));
 
-          /* "Os participantes não consegue" é o plural errado que o molde
-             fixo produzia. A forma do verbo é de quem escreve — um clique
-             no chip preenche rápido com uma das formas prontas. */
-          await page.locator('.aposta-variante:has([data-campo="verbo"]) .aposta-variante-chip', { hasText: 'não conseguem' }).click();
-          await page.waitForTimeout(300);
-          const comPlural = await page.evaluate(() =>
-            ((document.getElementById('apostaFrase') || {}).textContent || '').replace(/\s+/g, ' '));
-          anota('a concordância do verbo é escolhida por quem escreve',
-            /Os participantes não conseguem acompanhar/i.test(comPlural), comPlural.slice(0, 120));
+          const semCamposAntigos = await page.evaluate(() =>
+            !document.querySelector('[data-campo="evidenciadoPor"]') && !document.querySelector('[data-campo="naoConsegue"]') &&
+            !document.querySelector('[data-campo="verbo"]'));
+          anota('"evidenciado por" e a concordância do verbo saíram da tela do Problema', semCamposAntigos);
 
-          /* "restringir demais" — nem toda concordância cabe nas duas formas
-             prontas ("não tem conseguido" não é nenhuma delas). Relatado no
-             uso real: precisa dar para escrever por cima, não só escolher. */
-          await page.fill('[data-campo="verbo"]', 'não tem conseguido');
-          await page.waitForTimeout(300);
-          const livre = await page.evaluate(() =>
-            ((document.getElementById('apostaFrase') || {}).textContent || '').replace(/\s+/g, ' '));
-          anota('o campo aceita uma variante que não é nenhuma das prontas',
-            /Os participantes não tem conseguido acompanhar/i.test(livre), livre.slice(0, 120));
-          const chipsSemAtivo = await page.evaluate(() =>
-            !document.querySelector('.aposta-variante:has([data-campo="verbo"]) .aposta-variante-chip.is-ativa'));
-          anota('nenhum chip fica marcado quando o texto não bate com nenhum deles', chipsSemAtivo);
+          /* Tooltip por campo: a dica de "quem é afetado" e "situação
+             indesejada" fica num title, além do "?" geral da etapa. */
+          const dicasProblema = await page.evaluate(() => ({
+            quem: ((document.querySelector('[data-campo="quem"]').closest('.aposta-campo') || {}).querySelector('.aposta-campo-rot') || {}).title || '',
+            situacao: ((document.querySelector('[data-campo="situacaoIndesejada"]').closest('.aposta-campo') || {}).querySelector('.aposta-campo-rot') || {}).title || '',
+          }));
+          anota('"quem é afetado" e "situação indesejada" têm tooltip próprio',
+            /vive diretamente/i.test(dicasProblema.quem) && /não explique ainda a causa/i.test(dicasProblema.situacao),
+            JSON.stringify(dicasProblema));
           continue;
         }
 
@@ -700,6 +725,36 @@ const textoDaTela = (page) => page.evaluate(() => {
           anota('"Queremos" aceita uma direção que não é Aumentar nem Reduzir',
             /Manter estável/.test(fraseLivre), fraseLivre);
         } else {
+          if (i === 5) {
+            /* IDEIA DE SOLUÇÃO: "Resultados que queremos produzir" lembra
+               qual mudança mensurável a ideia deve produzir, antes de
+               pensar na solução — lista somente-leitura, entre a
+               Hipótese e o título da etapa. */
+            const resultados = await page.evaluate(() => {
+              const bloco = document.querySelector('.aposta-resultados-observar');
+              if (!bloco) return null;
+              return {
+                rot: (bloco.querySelector('.aposta-frase-rot') || {}).textContent || '',
+                itens: Array.from(bloco.querySelectorAll('li')).map((li) => li.textContent.replace(/\s+/g, ' ').trim()),
+              };
+            });
+            anota('"Resultados que queremos produzir" aparece com a mudança mensurável já cadastrada',
+              !!resultados && /Resultados que queremos produzir/i.test(resultados.rot) &&
+              resultados.itens.some((t) => /contatos sobre andamento/.test(t)),
+              JSON.stringify(resultados));
+
+            /* Tooltip em "Poderíamos" e "para" — a dica fica no texto
+               fixo da frase, que é quem serve de rótulo visível aqui. */
+            const dicasIdeia = await page.evaluate(() => {
+              const fixos = Array.from(document.querySelectorAll('.aposta-molde-fixo'));
+              const poderiamos = fixos.find((e) => /poder[íi]amos/i.test(e.textContent));
+              const para = fixos.find((e) => e.textContent.trim().toLowerCase() === 'para');
+              return { poderiamos: poderiamos ? poderiamos.title : '', para: para ? para.title : '' };
+            });
+            anota('os campos "Poderíamos" e "para" têm tooltip próprio',
+              /poss[íi]vel interven[çc][ãa]o/i.test(dicasIdeia.poderiamos) && /efeito esperamos/i.test(dicasIdeia.para),
+              JSON.stringify(dicasIdeia));
+          }
           if (i === 6) {
             /* EXPERIMENTO: custo com máscara de moeda. */
             await page.fill('[data-campo="custo"]', '250000');
@@ -749,6 +804,19 @@ const textoDaTela = (page) => page.evaluate(() => {
               JSON.stringify(card));
           }
           if (i === 8) {
+            /* O bloco "Evidência" no topo da Decisão mostra só os dados
+               observados (indicador, situação inicial, meta, observado) —
+               sem "Portanto, nossa hipótese foi…" nem qualquer veredito
+               automático de certo/errado. */
+            const evidenciaTopo = await page.evaluate(() => {
+              const c = document.querySelector('.aposta-conexao');
+              return c ? c.textContent.replace(/\s+/g, ' ') : '';
+            });
+            anota('a Decisão mostra a Evidência sem classificar automaticamente a hipótese',
+              /contatos sobre andamento/i.test(evidenciaTopo) && /Situa[çc][ãa]o inicial/i.test(evidenciaTopo) &&
+              /Meta/.test(evidenciaTopo) && /Observado/.test(evidenciaTopo) && !/Portanto, nossa hip[óo]tese foi/i.test(evidenciaTopo),
+              evidenciaTopo.slice(0, 200));
+
             /* DECISÃO: a data de reavaliação é um DIA marcado no calendário
                (sai com ano); "Prazo" é DURAÇÃO ("em quanto tempo"), não uma
                data — as execuções antigas guardavam "10 dias", não uma data
@@ -764,38 +832,69 @@ const textoDaTela = (page) => page.evaluate(() => {
             const prazoDecisao = await page.evaluate(() => (document.querySelector('[data-campo="prazo"]') || {}).value || '');
             anota('o prazo da decisão é número + unidade, não uma data', prazoDecisao === '10', 'ficou "' + prazoDecisao + '"');
 
+            /* Opções renomeadas: "Abandonar essa ideia" → "Interromper
+               esta ideia", "Formular nova hipótese" → "Reformular a
+               hipótese" — e cada opção tem sua própria dica/tooltip. */
+            const opcoes = await page.evaluate(() =>
+              Array.from(document.querySelectorAll('.aposta-opcao')).map((b) => ({ texto: b.textContent.trim(), dica: b.title || '' })));
+            anota('as cinco opções de decisão têm os nomes novos',
+              opcoes.some((o) => o.texto === 'Interromper esta ideia') &&
+              opcoes.some((o) => o.texto === 'Reformular a hipótese') &&
+              !opcoes.some((o) => /Abandonar essa ideia|Formular nova hip[óo]tese/.test(o.texto)),
+              opcoes.map((o) => o.texto).join(' | '));
+            anota('cada opção de decisão tem uma dica própria (ajuda, não decide pelo grupo)',
+              opcoes.every((o) => !!o.dica), JSON.stringify(opcoes));
+
+            /* Nova hipótese: some para "Ampliar", recolhida (mas visível)
+               para "Ajustar e testar novamente", aberta sozinha só para
+               "Reformular a hipótese" — nunca aparece do mesmo jeito para
+               toda decisão. */
+            async function estadoNovaHipotese() {
+              return page.evaluate(() => {
+                const el = document.getElementById('apostaGrupoNovaHipotese');
+                return el ? { hidden: el.hidden, open: el.open, resumo: (el.querySelector('summary') || {}).textContent || '' } : null;
+              });
+            }
+            await page.locator('.aposta-opcao', { hasText: 'Ampliar' }).click();
+            await page.waitForTimeout(200);
+            let estado = await estadoNovaHipotese();
+            anota('decisão "Ampliar" não mostra a Nova hipótese', !!estado && estado.hidden, JSON.stringify(estado));
+
+            await page.locator('.aposta-opcao', { hasText: 'Ajustar e testar novamente' }).click();
+            await page.waitForTimeout(200);
+            estado = await estadoNovaHipotese();
+            anota('decisão "Ajustar e testar novamente" mostra a Nova hipótese recolhida, com o convite "Reformular hipótese também"',
+              !!estado && !estado.hidden && !estado.open && /Reformular hip[óo]tese também/i.test(estado.resumo), JSON.stringify(estado));
+
+            await page.locator('.aposta-opcao', { hasText: 'Reformular a hipótese' }).click();
+            await page.waitForTimeout(200);
+            estado = await estadoNovaHipotese();
+            anota('decisão "Reformular a hipótese" abre a Nova hipótese sozinha',
+              !!estado && !estado.hidden && estado.open, JSON.stringify(estado));
+
             const grupo = await page.evaluate(() => {
-              const g = document.querySelector('.aposta-grupo');
+              const g = document.getElementById('apostaGrupoNovaHipotese');
               return {
-                rotulo: g ? (g.querySelector('.aposta-grupo-rot') || {}).textContent || '' : '',
                 fixo: g ? Array.from(g.querySelectorAll('.aposta-molde-fixo')).map((e) => e.textContent.trim()).join(' | ') : '',
                 lacunas: g ? g.querySelectorAll('.aposta-campo-input').length : 0,
+                dicaObrigatoria: g ? (g.querySelector('.aposta-grupo-dica') || {}).textContent || '' : '',
               };
             });
-            anota('a próxima hipótese tem o mesmo apoio de preenchimento da hipótese',
-              /Próxima hipótese/i.test(grupo.rotulo) && /Acreditamos que isso acontece porque/.test(grupo.fixo) &&
-              /pois/.test(grupo.fixo) && grupo.lacunas === 2,
+            anota('a nova hipótese reusa o mesmo molde da etapa Hipótese (duas lacunas, "Acreditamos que isso acontece porque… pois…")',
+              /Acreditamos que isso acontece porque/.test(grupo.fixo) && /pois/.test(grupo.fixo) && grupo.lacunas === 2,
               JSON.stringify(grupo));
+            anota('quando obrigatória (Reformular a hipótese), a tela diz por quê', /pede uma explica[çc][ãa]o nova/i.test(grupo.dicaObrigatoria));
 
-            /* "Quando aplicável" não dizia qual é o critério — e o
-               critério é a decisão que acabou de ser tomada, então a
-               escolha vem antes da conferência. */
-            await page.locator('.aposta-opcao').first().click();
+            await page.fill('[data-campo="proxHipCausa"]', 'a mensagem não chega a quem está em análise');
+            await page.fill('[data-campo="proxHipIndicio"]', 'os contatos caíram só no grupo que recebeu a mensagem');
             await page.waitForTimeout(300);
-            const criterio = await page.evaluate(() => ({
-              dica: (document.querySelector('.aposta-grupo-dica') || {}).textContent || '',
-              agora: (document.querySelector('.aposta-grupo-agora') || {}).textContent || '',
-            }));
-            anota('o bloco diz que as duas lacunas são uma frase só, e quando preencher',
-              /uma frase só/i.test(criterio.dica) && /formular nova hipótese/i.test(criterio.dica) &&
-              /deixe em branco/i.test(criterio.dica), criterio.dica.slice(0, 120));
-            anota('a decisão escolhida já diz se este bloco se aplica',
-              /pede uma próxima hipótese|pode ficar em branco/i.test(criterio.agora), criterio.agora);
-
             const fraseDec = await page.evaluate(() =>
               ((document.getElementById('apostaFrase') || {}).textContent || '').replace(/\s+/g, ' '));
             anota('a frase da decisão não tem traço solto no meio',
               /Próxima ação:/.test(fraseDec) && !/—/.test(fraseDec), fraseDec.slice(0, 140));
+            anota('a nova hipótese entra na "Fica assim no mapa" quando a decisão for "Reformular a hipótese"',
+              /Nova hip[óo]tese:/.test(fraseDec) && /a mensagem não chega a quem está em análise/.test(fraseDec),
+              fraseDec.slice(0, 220));
           }
           /* :not([disabled]) — a Evidência mostra Situação inicial/Meta
              como campos desabilitados (herdados de Mudanças mensuráveis,
@@ -915,7 +1014,7 @@ const textoDaTela = (page) => page.evaluate(() => {
       semeado[TURMA_LIB].execucoes[EXEC].grupos[GRUPO].dados = {
         missao:   { texto: 'Melhorar a experiência do participante em 90 dias' },
         sintoma:  { texto: 'muita gente liga para saber o status' },
-        problema: { quem: 'Os participantes', naoConsegue: 'acompanhar o andamento', evidenciadoPor: 'contatos frequentes' },
+        problema: { quem: 'O participante', situacaoIndesejada: 'não consegue acompanhar o andamento' },
         mudancas: { itens: [{ id: 'r1', direcao: 'Reduzir', indicador: 'contatos sobre andamento', atual: '1000', meta: '700', unidade: 'por mês', prazo: '90 dias' }] },
         hipotese: { causa: 'as informações não são claras', indicio: 'muitas perguntas de status' },
         ideia:    { texto: 'dar visibilidade do andamento' },
