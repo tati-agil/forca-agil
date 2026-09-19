@@ -1170,11 +1170,55 @@ const clicarSemRolagem = (page, seletor) => page.$eval(seletor, (el) => el.click
               !!card && /andamento/.test(card.titulo) && card.campos.some((v) => /1000/.test(v)) && card.campos.some((v) => /700/.test(v)),
               JSON.stringify(card));
 
-            /* CONTINUAR exige fonte da evidência e a avaliação da
-               hipótese — nenhuma das duas vem preenchida sozinha. */
-            await page.selectOption('[data-e="fonte"]', 'Relatório');
-            await page.locator('.aposta-opcao', { hasText: 'Parcialmente sustentada' }).click();
-            await page.waitForTimeout(200);
+            /* Sem classificação global da hipótese: uma etapa que produz
+               várias evidências diferentes não pode ser reduzida a um
+               veredito único aqui — isso é da Decisão. */
+            const semClassificacao = await page.evaluate(() =>
+              !/Nossa hip[óo]tese foi/i.test(document.body.textContent || '') && !document.querySelector('.aposta-escolha'));
+            anota('não existe mais "Nossa hipótese foi" nem classificação de sustentada/não sustentada na Evidência', semClassificacao);
+
+            /* Sem resultado observado ainda, a frase não finge que há
+               evidência. CONTINUAR bloqueia de verdade neste estado —
+               a cobertura exaustiva do bloqueio (sem escape por segundo
+               clique, "não foi possível medir" como alternativa) mora
+               no bloco isolado mais abaixo; aqui só confirmamos que o
+               clique não avança enquanto falta o essencial. */
+            const antesDePreencher = await page.evaluate(() => (document.querySelector('.aposta-frase-falta') || {}).textContent || '');
+            anota('sem resultado observado, a tela diz que ainda falta, sem inventar uma frase completa',
+              /Ainda falta: o resultado observado/i.test(antesDePreencher), antesDePreencher);
+
+            const tituloAntesEvVazia = await page.evaluate(() => (document.querySelector('.aposta-etapa-titulo') || {}).textContent || '');
+            await clicarSemRolagem(page, '#apostaSeguir');
+            await page.waitForTimeout(300);
+            const tituloDepoisEvVazia = await page.evaluate(() => (document.querySelector('.aposta-etapa-titulo') || {}).textContent || '');
+            anota('Continuar bloqueia de verdade até haver evidência de verdade para cada resultado',
+              tituloDepoisEvVazia === tituloAntesEvVazia);
+
+            await page.fill('[data-e="observado"]', '850');
+            await page.selectOption('[data-e="fonte"]', 'Registros de atendimento');
+            await page.waitForTimeout(300);
+
+            /* Aprendizado é por card, com tooltip próprio — não é a mesma
+               coisa que classificar a hipótese inteira. */
+            const aprendizadoUi = await page.evaluate(() => {
+              const rot = Array.from(document.querySelectorAll('.aposta-campo-rot'))
+                .find((r) => /O que aprendemos com esta evid[êe]ncia/i.test(r.textContent));
+              return { rotulo: rot ? rot.textContent : '', dica: rot ? rot.title : '' };
+            });
+            anota('o card pergunta "O que aprendemos com esta evidência?", com tooltip evitando prova definitiva',
+              /O que aprendemos com esta evid[êe]ncia/i.test(aprendizadoUi.rotulo) && /prova definitiva/i.test(aprendizadoUi.dica),
+              JSON.stringify(aprendizadoUi));
+            await page.fill('[data-e="aprendizado"]',
+              'A redução dos contatos sugere que a maior visibilidade pode estar ajudando, mas precisamos observar numa amostra maior.');
+
+            /* Linguagem de prova ("comprovou", "sucesso"...) recebe aviso
+               didático — sem tocar no formulário ao vivo, via o mesmo
+               validar() exposto para a suíte "▶ Automáticos". */
+            const avisoProva = await page.evaluate(() => window.faAposta._validar('evidencia', {
+              itens: [{ resultadoId: 'r1', observado: '850', fonte: 'Registros de atendimento', aprendizado: 'Isso comprovou que a hipótese está certa' }],
+            }));
+            anota('linguagem de prova ("comprovou") no aprendizado recebe aviso didático (não bloqueia)',
+              avisoProva.some((a) => /conclus[ãa]o fechada/i.test(a)), JSON.stringify(avisoProva));
           }
           if (i === 8) {
             /* O bloco "Evidência" no topo da Decisão mostra só os dados
@@ -1189,6 +1233,9 @@ const clicarSemRolagem = (page, seletor) => page.$eval(seletor, (el) => el.click
               /contatos sobre andamento/i.test(evidenciaTopo) && /Situa[çc][ãa]o inicial/i.test(evidenciaTopo) &&
               /Meta/.test(evidenciaTopo) && /Observado/.test(evidenciaTopo) && !/Portanto, nossa hip[óo]tese foi/i.test(evidenciaTopo),
               evidenciaTopo.slice(0, 200));
+            anota('a Decisão também recebe a fonte da evidência e o aprendizado registrado, herdados por id',
+              /Fonte: Registros de atendimento/i.test(evidenciaTopo) && /Aprendizado:/i.test(evidenciaTopo),
+              evidenciaTopo.slice(0, 300));
 
             /* DECISÃO: a data de reavaliação é um DIA marcado no calendário
                (sai com ano); "Prazo" é DURAÇÃO ("em quanto tempo"), não uma
@@ -1396,7 +1443,7 @@ const clicarSemRolagem = (page, seletor) => page.$eval(seletor, (el) => el.click
         hipotese: { causa: 'as informações não são claras', indicio: 'muitas perguntas de status' },
         ideia:    { texto: 'dar visibilidade do andamento' },
         experimento: { oQue: 'enviar a mensagem', comQuem: 'participantes', quantidade: '50', duracao: '3 semanas', resultadoIds: ['r1'] },
-        evidencia: { itens: [{ resultadoId: 'r1', observado: '750', fonte: 'Registros de atendimento' }], classificacao: 'Parcialmente sustentada' },
+        evidencia: { itens: [{ resultadoId: 'r1', observado: '750', fonte: 'Registros de atendimento', aprendizado: 'Os contatos caíram, sugerindo que a visibilidade ajuda.' }] },
         decisao:  { decisao: 'Ajustar e testar novamente', proximaAcao: 'novo teste com grupo maior' }
       };
       semeado[TURMA_LIB].execucoes[EXEC].grupos[GRUPO].etapa = 'decisao';
@@ -1610,10 +1657,11 @@ const clicarSemRolagem = (page, seletor) => page.$eval(seletor, (el) => el.click
         await pgEv.fill('[data-e="observado"]', '650');
         await pgEv.waitForTimeout(300);
 
-        /* CONTINUAR: sem fonte, mesmo com observado preenchido, e sem
-           escolher "Nossa hipótese foi", fica bloqueado de verdade — sem
-           escape por segundo clique. (Volta a fonte para vazio: já
-           tinha sido escolhida lá em cima, para os testes de frase.) */
+        /* CONTINUAR: sem fonte, mesmo com observado preenchido, fica
+           bloqueado de verdade — sem escape por segundo clique. (Volta a
+           fonte para vazio: já tinha sido escolhida lá em cima, para os
+           testes de frase.) Não há classificação global da hipótese para
+           checar aqui — só o próprio card precisa estar completo. */
         await pgEv.selectOption('[data-e="fonte"]', '');
         await pgEv.waitForTimeout(200);
         const tituloAntesEv = await pgEv.evaluate(() => (document.querySelector('.aposta-etapa-titulo') || {}).textContent || '');
@@ -1626,14 +1674,6 @@ const clicarSemRolagem = (page, seletor) => page.$eval(seletor, (el) => el.click
         await pgEv.waitForTimeout(300);
         const tituloDepoisSemFonte = await pgEv.evaluate(() => (document.querySelector('.aposta-etapa-titulo') || {}).textContent || '');
         anota('o bloqueio de Evidência incompleta NÃO tem escape por segundo clique', tituloDepoisSemFonte === tituloAntesEv);
-
-        await pgEv.selectOption('[data-e="fonte"]', 'Registros de atendimento');
-        await pgEv.waitForTimeout(200);
-        await pgEv.$eval('#apostaSeguir', (el) => el.click());
-        await pgEv.waitForTimeout(300);
-        const bloqueioSemClassificacao = await pgEv.evaluate(() => (document.getElementById('apostaAvisos') || {}).textContent || '');
-        anota('com o resultado completo, CONTINUAR ainda bloqueia sem escolher "Nossa hipótese foi"',
-          /Escolha uma das opções em .Nossa hip[óo]tese foi./i.test(bloqueioSemClassificacao), bloqueioSemClassificacao);
 
         /* "Não foi possível medir" desliga Resultado observado/Fonte e
            passa a exigir Motivo em vez deles — nunca os dois ao mesmo
@@ -1655,12 +1695,10 @@ const clicarSemRolagem = (page, seletor) => page.$eval(seletor, (el) => el.click
 
         await pgEv.fill('[data-e="motivo"]', 'a pesquisa não foi concluída dentro do período do experimento');
         await pgEv.waitForTimeout(200);
-        await pgEv.locator('.aposta-opcao', { hasText: 'Não sustentada' }).click();
-        await pgEv.waitForTimeout(200);
         await pgEv.$eval('#apostaSeguir', (el) => el.click());
         await pgEv.waitForTimeout(300);
         const tituloDepoisCompleto = await pgEv.evaluate(() => (document.querySelector('.aposta-etapa-titulo') || {}).textContent || '');
-        anota('"Não foi possível medir" + Motivo + escolha da hipótese: CONTINUAR libera (não precisa de número)',
+        anota('"Não foi possível medir" + Motivo: CONTINUAR libera (não precisa de número nem de classificação)',
           tituloDepoisCompleto !== tituloAntesEv, tituloDepoisCompleto);
 
         await ctxEv.close();
@@ -1772,6 +1810,12 @@ const clicarSemRolagem = (page, seletor) => page.$eval(seletor, (el) => el.click
           desligado.observado && desligado.fonte, JSON.stringify(desligado));
         anota('a frase da evidência diz que não foi possível medir, com o motivo',
           /Não foi possível medir neste experimento \(Pesquisa de satisfação/.test(desligado.frase), desligado.frase);
+        const tituloAntesNM = await pgNM.evaluate(() => (document.querySelector('.aposta-etapa-titulo') || {}).textContent || '');
+        await pgNM.$eval('#apostaSeguir', (el) => el.click());
+        await pgNM.waitForTimeout(300);
+        const tituloDepoisNM = await pgNM.evaluate(() => (document.querySelector('.aposta-etapa-titulo') || {}).textContent || '');
+        anota('"não foi possível medir" + motivo também libera Continuar (é a outra forma válida de completar)',
+          tituloDepoisNM !== tituloAntesNM, tituloDepoisNM);
         await ctxNM.close();
       }
 
@@ -1804,11 +1848,13 @@ const clicarSemRolagem = (page, seletor) => page.$eval(seletor, (el) => el.click
       }
 
       /* ── 9f: DECISÃO — frase estrita, bloqueio, placeholder dinâmico,
-            contexto da Evidência (classificação + conclusão) e os dois
-            alertas de coerência não-bloqueantes (Ampliar sem meta batida,
-            Prazo × Data de reavaliação). Semeado com um resultado que
-            NÃO bateu a meta (Reduzir 1000→500, observado 800 = 40%),
-            para exercitar exatamente a contradição que o alerta cobre. ── */
+            contexto da Evidência (fonte + aprendizado, por resultado —
+            não existe classificação nem conclusão únicas da etapa) e os
+            dois alertas de coerência não-bloqueantes (Ampliar sem meta
+            batida, Prazo × Data de reavaliação). Semeado com um
+            resultado que NÃO bateu a meta (Reduzir 1000→500, observado
+            800 = 40%), para exercitar exatamente a contradição que o
+            alerta cobre. ── */
       {
         const semeadoDec = apostasSemeadas();
         semeadoDec[TURMA_LIB].execucoes[EXEC].grupos[GRUPO].etapa = 'decisao';
@@ -1816,9 +1862,7 @@ const clicarSemRolagem = (page, seletor) => page.$eval(seletor, (el) => el.click
           mudancas: { itens: [{ id: 'r1', direcao: 'Reduzir', indicador: 'contatos sobre andamento', atual: '1000', meta: '500', unidade: 'contatos', periodo: 'por mês' }] },
           experimento: { resultadoIds: ['r1'] },
           evidencia: {
-            itens: [{ resultadoId: 'r1', observado: '800', fonte: 'Relatório' }],
-            classificacao: 'Parcialmente sustentada',
-            conclusao: 'a redução ainda não foi suficiente para confirmar a hipótese',
+            itens: [{ resultadoId: 'r1', observado: '800', fonte: 'Relatório', aprendizado: 'a redução ainda não foi suficiente para confirmar a hipótese' }],
           },
         };
         const { ctx: ctxDec, page: pgDec } = await novaPagina(browser, formato, DIRETORA, erros, semeadoDec);
@@ -1832,9 +1876,10 @@ const clicarSemRolagem = (page, seletor) => page.$eval(seletor, (el) => el.click
 
         const contexto = await pgDec.evaluate(() =>
           ((document.querySelector('.aposta-conexao') || {}).textContent || '').replace(/\s+/g, ' '));
-        anota('a Decisão mostra a avaliação da hipótese e a conclusão registradas na Evidência',
-          /Nossa hip[óo]tese foi:\s*Parcialmente sustentada/i.test(contexto) &&
-          /a redução ainda não foi suficiente/i.test(contexto),
+        anota('a Decisão mostra a fonte e o aprendizado registrados na Evidência, sem classificação única da hipótese',
+          /Fonte: Relat[óo]rio/i.test(contexto) &&
+          /a redução ainda não foi suficiente/i.test(contexto) &&
+          !/Nossa hip[óo]tese foi/i.test(contexto),
           contexto.slice(0, 260));
 
         const semNada = await pgDec.evaluate(() =>

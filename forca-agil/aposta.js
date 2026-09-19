@@ -229,13 +229,15 @@
       /* Um card por resultado esperado selecionado no Experimento — o
          indicador, a situação inicial, a meta, a unidade e o período vêm
          de Mudanças mensuráveis (por resultadoId) e não são editáveis
-         aqui. Ver evidenciaHtml(). */
-      escolha: {
-        chave: 'classificacao',
-        rotulo: 'Nossa hipótese foi:',
-        curto: 'como a hipótese ficou',
-        opcoes: ['Sustentada', 'Parcialmente sustentada', 'Não sustentada']
-      }
+         aqui. Ver evidenciaHtml().
+
+         Não existe escolha de classificação da hipótese aqui ("Nossa
+         hipótese foi: Sustentada/Parcialmente sustentada/Não
+         sustentada") — um mesmo experimento pode produzir evidências
+         que apontam em direções diferentes (contatos melhoraram, NPS
+         quase não mudou), e reduzir isso a um veredito único nesta
+         etapa era exatamente o julgamento automático que a dinâmica
+         quer evitar. A leitura do conjunto é da etapa Decisão. */
     },
     {
       id: 'decisao',
@@ -335,6 +337,7 @@
   var TEM_NUMERO = /\d/;
   var CERTEZA = /\b(com certeza|certamente|obviamente|[ée] [óo]bvio|sabemos que|com toda certeza|sem d[úu]vida|claramente)\b/i;
   var MUITA_TECNOLOGIA = /\b(api|integra[çc][ãa]o|microsservi[çc]o|banco de dados|app|aplicativo|sistema|plataforma|chatbot|portal|infraestrutura)\b/i;
+  var LINGUAGEM_DE_PROVA = /\b(prova que|comprov(ou|a)|confirm(ou|a)|hip[óo]tese (correta|errada)|deu certo|deu errado|sucesso|fracasso)\b/i;
 
   function normalizar(s) {
     return String(s || '').toLowerCase().replace(/\s+/g, ' ').trim();
@@ -405,6 +408,14 @@
       }
     }
 
+    if (etapaId === 'evidencia') {
+      (d.itens || []).forEach(function (ev) {
+        if (LINGUAGEM_DE_PROVA.test(ev.aprendizado || '')) {
+          avisos.push('Isso soa como uma conclusão fechada. O que esta evidência sugere, sem tratá-la como prova definitiva da hipótese?');
+        }
+      });
+    }
+
     if (etapaId === 'decisao') {
       var itensEv = (_dados.evidencia || {}).itens || [];
       var temEvidencia = itensEv.some(function (ev) { return normalizar(ev.observado) || ev.naoMedido === 'sim'; });
@@ -440,8 +451,7 @@
       });
     }
     if (etapaId === 'evidencia') {
-      return (d.itens || []).some(function (ev) { return normalizar(ev.observado) || ev.naoMedido === 'sim'; }) ||
-        !!d.classificacao;
+      return (d.itens || []).some(function (ev) { return normalizar(ev.observado) || ev.naoMedido === 'sim'; });
     }
     var etapa = etapaPorId(etapaId);
     if (!etapa) return false;
@@ -1071,9 +1081,10 @@
     if (etapaId === 'evidencia') {
       var frases = (d.itens || []).map(function (ev) {
         var m = resultadosDe((dados || {}).mudancas, [ev.resultadoId])[0];
-        return m ? fraseEvidenciaCard(m, ev) : '';
+        if (!m) return '';
+        var f = fraseEvidenciaCard(m, ev);
+        return normalizar(ev.aprendizado) ? f + ' Aprendizado: ' + ev.aprendizado : f;
       }).filter(Boolean);
-      if (d.classificacao) frases.push('Portanto, nossa hipótese foi ' + d.classificacao.toLowerCase() + '.');
       return frases.join(' ');
     }
     var etapa = etapaPorId(etapaId);
@@ -1646,26 +1657,18 @@
         (temAtual ? '<span>Situação inicial: ' + esc(m.atual + sufixo) + '</span>' : '') +
         '<span>Meta: ' + esc(metaLinhaDecisao(m, sufixo)) + '</span>' +
         '<span>Observado: ' + esc(observadoTxt) + '</span>' +
+        (normalizar(ev.fonte) ? '<span>Fonte: ' + esc(ev.fonte) + '</span>' : '') +
+        (normalizar(ev.aprendizado) ? '<span>Aprendizado: ' + esc(ev.aprendizado) + '</span>' : '') +
       '</li>';
     }).join('');
-    /* A avaliação da hipótese e a conclusão registradas na Evidência são
-       o que a Decisão precisa ter à vista para não repetir o julgamento
-       do zero — sem elas, quem decide vê só números, não o que o grupo
-       já concluiu sobre eles. */
-    var extra = '';
-    if (normalizar(ev0.classificacao)) {
-      extra += '<p><strong>Nossa hipótese foi:</strong> ' + esc(ev0.classificacao) + '</p>';
-    }
-    if (normalizar(ev0.conclusao)) {
-      extra += '<p><strong>O que esta evidência nos faz concluir:</strong> ' + esc(ev0.conclusao) + '</p>';
-    }
-    return '<ul class="aposta-resultados-observar-lista">' + linhas + '</ul>' + extra;
+    return '<ul class="aposta-resultados-observar-lista">' + linhas + '</ul>';
   }
 
   /* "Ampliar" pressupõe evidência favorável — ver isso escolhido junto
-     com uma meta ainda não atingida, ou com a hipótese avaliada como
-     "Não sustentada", é o tipo de contradição que vale mostrar sem
-     travar a decisão do grupo (só quem decide sabe o contexto todo). */
+     com uma meta ainda não atingida é o tipo de contradição que vale
+     mostrar sem travar a decisão do grupo (só quem decide sabe o
+     contexto todo). Não existe mais uma classificação única da hipótese
+     para checar aqui — a leitura é sempre por resultado. */
   function algumaMetaNaoAtingida() {
     var itens = (_dados.evidencia || {}).itens || [];
     return itens.some(function (item) {
@@ -1678,10 +1681,6 @@
   }
   function mensagemAlertaDecisao(d) {
     if (String(d.decisao || '').trim() !== 'Ampliar') return '';
-    var classificacao = String((_dados.evidencia || {}).classificacao || '').trim();
-    if (classificacao === 'Não sustentada') {
-      return 'A hipótese foi avaliada como "Não sustentada", mas a decisão escolhida foi "Ampliar". Reveja se ampliar faz sentido quando a explicação para o problema não se confirmou.';
-    }
     if (algumaMetaNaoAtingida()) {
       return 'Pelo menos um resultado esperado ainda não atingiu a meta, mas a decisão escolhida foi "Ampliar". Reveja se já há evidência suficiente para ampliar agora.';
     }
@@ -2243,8 +2242,17 @@
         '</label>' +
         '<label class="aposta-campo aposta-campo--largo"><span class="aposta-campo-rot">Motivo' + (naoMedido ? '' : ' (opcional)') + '</span>' +
           '<input type="text" class="aposta-campo-input" data-e="motivo" value="' + esc(ev.motivo || '') + '" placeholder="ex.: pesquisa não foi concluída dentro do período" /></label>' +
+        /* Aprendizado é por card, não um veredito único da etapa —
+           várias evidências do mesmo experimento podem apontar em
+           direções diferentes, e cada uma guarda o que ensinou por si. */
+        '<label class="aposta-campo aposta-campo--largo" style="margin-top:10px">' +
+          '<span class="aposta-campo-rot" title="Registre o que esta observação nos ensinou. Evite tratar uma única evidência como prova definitiva da hipótese.">O que aprendemos com esta evidência?</span>' +
+          '<textarea class="aposta-campo-input" data-e="aprendizado" rows="2" placeholder="ex.: a redução dos contatos sugere que a maior visibilidade pode estar ajudando, mas precisamos observar numa amostra maior">' + esc(ev.aprendizado || '') + '</textarea>' +
+        '</label>' +
         '<p class="aposta-mudanca-frase">' + esc(fraseEvidenciaCard(m, ev)) + '</p>' +
-        (progresso ? '<p class="' + (progresso.ok ? 'aposta-frase-pronta' : 'aposta-frase-falta') + '">' + esc(progresso.texto) + '</p>' : '') +
+        (progresso
+          ? '<p class="' + (progresso.ok ? 'aposta-frase-pronta' : 'aposta-frase-falta') + '">' + esc(progresso.texto) + '</p>'
+          : (!naoMedido ? '<p class="aposta-frase-falta">Ainda falta: o resultado observado</p>' : '')) +
       '</div>';
     }).join('');
 
@@ -2262,17 +2270,7 @@
       '<div class="aposta-resultados-resumo">' +
         '<p class="aposta-campo-rot">Resultados do experimento</p>' +
         resumo +
-      '</div>' +
-      escolhaHtml(etapaPorId('evidencia').escolha, d) +
-      /* A conclusão é interpretação de quem está na dinâmica, nunca da
-         aplicação — por isso nasce sempre em branco, mesmo quando a
-         escolha acima e as evidências já estão preenchidas. */
-      '<label class="aposta-campo aposta-campo--largo" style="margin-top:12px">' +
-        '<span class="aposta-campo-rot">O que esta evidência nos faz concluir?</span>' +
-        '<textarea class="aposta-campo-input" data-campo="conclusao" rows="2" placeholder="' +
-          esc('ex.: a redução dos contatos sugere que dar visibilidade ao andamento pode estar ajudando, mas precisamos testar com uma amostra maior') +
-          '">' + esc(d.conclusao || '') + '</textarea>' +
-      '</label>';
+      '</div>';
   }
 
   function ligarEtapa(etapa) {
@@ -2625,6 +2623,11 @@
           var classeCerta = progresso.ok ? 'aposta-frase-pronta' : 'aposta-frase-falta';
           if (progressoEl) { progressoEl.className = classeCerta; progressoEl.textContent = progresso.texto; }
           else if (frase) frase.insertAdjacentHTML('afterend', '<p class="' + classeCerta + '">' + esc(progresso.texto) + '</p>');
+        } else if (!naoMedido) {
+          /* Sem resultado observado ainda, sem "não foi possível medir"
+             marcado: nunca finge que já existe evidência. */
+          if (progressoEl) { progressoEl.className = 'aposta-frase-falta'; progressoEl.textContent = 'Ainda falta: o resultado observado'; }
+          else if (frase) frase.insertAdjacentHTML('afterend', '<p class="aposta-frase-falta">Ainda falta: o resultado observado</p>');
         } else if (progressoEl) {
           progressoEl.parentNode.removeChild(progressoEl);
         }
@@ -2909,10 +2912,11 @@
 
       /* Evidência: cada resultado esperado precisa de Resultado
          observado + Fonte da evidência, OU de "Não foi possível medir"
-         + Motivo — e a avaliação da hipótese (Sustentada/Parcialmente
-         sustentada/Não sustentada) é obrigatória, nunca escolhida
-         sozinha. CONTINUAR bloqueia de verdade, sem escape por segundo
-         clique, destacando exatamente o card ou a pergunta que falta. */
+         + Motivo. Não existe classificação única da hipótese a escolher
+         aqui — um mesmo experimento pode produzir evidências em
+         direções diferentes, e essa leitura é da Decisão, não desta
+         etapa. CONTINUAR bloqueia de verdade, sem escape por segundo
+         clique, destacando exatamente o card que falta. */
       if (etapa.id === 'evidencia') {
         var idxEvidenciaIncompleta = -1;
         (d.itens || []).forEach(function (ev, idx) {
@@ -2924,12 +2928,6 @@
           avisosEl.innerHTML = '<p class="aposta-aviso-didatico">Complete o resultado destacado acima: preencha "Resultado observado" e "Fonte da evidência", ou marque "Não foi possível medir" e informe o motivo.</p>';
           var blocosEvidencia = _tela.querySelectorAll('.aposta-mudanca[data-resultado]');
           (blocosEvidencia[idxEvidenciaIncompleta] || avisosEl).scrollIntoView({ behavior: 'smooth', block: 'center' });
-          return;
-        }
-        if (!d.classificacao) {
-          avisosEl.innerHTML = '<p class="aposta-aviso-didatico">Escolha uma das opções em "Nossa hipótese foi:" antes de continuar.</p>';
-          var escolhaEvidenciaEl = _tela.querySelector('.aposta-escolha');
-          (escolhaEvidenciaEl || avisosEl).scrollIntoView({ behavior: 'smooth', block: 'center' });
           return;
         }
       }
