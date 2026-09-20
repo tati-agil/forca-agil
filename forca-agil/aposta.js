@@ -230,7 +230,7 @@
       titulo: 'E — EVIDÊNCIA',
       curto: 'Evidência',
       pergunta: 'O que aconteceu de fato?',
-      auxiliar: 'Esta etapa tem dois momentos. Antes de executar o experimento, defina só como cada resultado será medido (Plano de evidência) — ainda não é preciso ter nenhum resultado observado. Depois de executar, volte aqui e registre o que a realidade respondeu.',
+      auxiliar: 'Antes de executar, defina só como cada resultado será medido. Depois de executar, volte e clique em "REGISTRAR RESULTADOS" em cada card.',
       exemplo: 'Esperávamos reduzir os contatos sobre o andamento da concessão de 1.000 para 500 contatos por mês. Após o experimento, observamos 650 contatos por mês.',
       rodape: 'O objetivo do experimento é aprender, não provar que estávamos certos.',
       dica: 'A evidência não julga quem teve a ideia. Ela só diz o que a realidade respondeu.',
@@ -2362,7 +2362,7 @@
       var execucaoIniciada = iniciouExecucao(ev);
       var momentoTxt = naoMedido ? 'Registrado como não medido'
         : (normalizar(ev.observado) ? 'Execução registrada'
-          : (execucaoIniciada ? 'Aguardando resultado observado' : 'Planejamento — plano de evidência'));
+          : (execucaoIniciada ? 'Aguardando resultado observado' : 'Planejamento'));
       var momentoClasse = naoMedido ? 'aposta-badge--neutro'
         : (normalizar(ev.observado) ? 'aposta-badge--ok' : 'aposta-badge--pendente');
       return '<div class="aposta-mudanca" data-resultado="' + esc(m.id) + '">' +
@@ -2399,7 +2399,7 @@
         '<input type="hidden" data-e="execucaoIniciada" value="' + (execucaoIniciada ? 'sim' : '') + '" />' +
         (!execucaoIniciada
           ? '<div class="aposta-registrar-resultados" style="margin-top:14px">' +
-              '<p class="aposta-aviso-didatico">O experimento ainda não foi executado — isso é esperado, e nada acima se perde enquanto isso. Quando a execução acontecer, volte aqui e clique no botão abaixo para registrar o resultado observado.</p>' +
+              '<p class="aposta-aviso-ok">Ainda não executado — sem pressa.</p>' +
               '<button type="button" class="btn" data-registrar-resultados="' + esc(m.id) + '">REGISTRAR RESULTADOS</button>' +
             '</div>'
           : blocoExecucaoHtml(m, ev)) +
@@ -2422,7 +2422,7 @@
        e não falta nada além de executar de verdade. */
     var nenhumIniciado = resultados.every(function (m) { return !iniciouExecucao(evidenciaDe(m.id)); });
     var statusEtapa = nenhumIniciado
-      ? '<p class="aposta-aviso-ok" data-status-etapa>Aposta pronta para teste — plano de evidência definido. Quando o experimento acontecer, volte aqui e clique em "REGISTRAR RESULTADOS" em cada resultado.</p>'
+      ? '<p class="aposta-aviso-ok" data-status-etapa>Aposta pronta para teste.</p>'
       : '';
 
     return statusEtapa +
@@ -2830,7 +2830,7 @@
         if (badge) {
           var momentoTxt = naoMedido ? 'Registrado como não medido'
             : (normalizar(ev.observado) ? 'Execução registrada'
-              : (execucaoIniciada ? 'Aguardando resultado observado' : 'Planejamento — plano de evidência'));
+              : (execucaoIniciada ? 'Aguardando resultado observado' : 'Planejamento'));
           var momentoClasse = naoMedido ? 'aposta-badge--neutro'
             : (normalizar(ev.observado) ? 'aposta-badge--ok' : 'aposta-badge--pendente');
           badge.className = 'aposta-badge ' + momentoClasse;
@@ -3239,7 +3239,7 @@
           var evIncompleta = (d.itens || [])[idxEvidenciaIncompleta] || {};
           avisosEl.innerHTML = evIncompleta.execucaoIniciada === 'sim'
             ? '<p class="aposta-aviso-didatico">Complete o resultado destacado acima: preencha "Resultado observado", "Fonte efetivamente utilizada" e "O que aprendemos com esta evidência?", ou marque "Não foi possível medir" e informe o motivo.</p>'
-            : '<p class="aposta-aviso-didatico">O resultado destacado acima ainda não teve a execução registrada — isso é esperado enquanto o experimento não aconteceu, e não é preciso clicar em Continuar agora. Quando executar, clique em "REGISTRAR RESULTADOS" naquele card; o Plano de Evidência já preenchido continua salvo.</p>';
+            : '<p class="aposta-aviso-didatico">Ainda em planejamento — clique em "REGISTRAR RESULTADOS" no card destacado quando o experimento acontecer. Sem pressa: use o botão "Sair" no topo para encerrar por agora.</p>';
           var blocosEvidencia = _tela.querySelectorAll('.aposta-mudanca[data-resultado]');
           (blocosEvidencia[idxEvidenciaIncompleta] || avisosEl).scrollIntoView({ behavior: 'smooth', block: 'center' });
           return;
