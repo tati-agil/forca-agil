@@ -1282,9 +1282,27 @@ const clicarSemRolagem = (page, seletor) => page.$eval(seletor, (el) => el.click
                clique, "não foi possível medir" como alternativa) mora
                no bloco isolado mais abaixo; aqui só confirmamos que o
                clique não avança enquanto falta o essencial. */
-            const antesDePreencher = await page.evaluate(() => (document.querySelector('.aposta-frase-falta') || {}).textContent || '');
-            anota('sem resultado observado, a tela diz que ainda falta, sem inventar uma frase completa',
-              /Ainda falta: o resultado observado/i.test(antesDePreencher), antesDePreencher);
+            /* Seção 23 do prompt consolidado: antes da execução, o card
+               nem mostra o campo de resultado observado — só o botão
+               "REGISTRAR RESULTADOS", para nunca parecer que a etapa
+               está exigindo um dado que ainda não existe. */
+            const antesDePreencher = await page.evaluate(() => {
+              const bloco = document.querySelector('.aposta-mudanca[data-resultado]');
+              const btn = bloco && bloco.querySelector('[data-registrar-resultados]');
+              const aviso = bloco && bloco.querySelector('.aposta-registrar-resultados');
+              const temCampoObservado = !!(bloco && bloco.querySelector('[data-e="observado"]'));
+              return { temBotao: !!btn, textoAviso: aviso ? aviso.textContent : '', temCampoObservado: temCampoObservado };
+            });
+            anota('sem resultado observado, a tela oferece REGISTRAR RESULTADOS em vez de exigir o campo',
+              antesDePreencher.temBotao && !antesDePreencher.temCampoObservado && /ainda não foi executado/i.test(antesDePreencher.textoAviso),
+              JSON.stringify(antesDePreencher));
+
+            /* Seção 21: enquanto nenhum resultado teve a execução
+               iniciada, a etapa mostra que a aposta está pronta para
+               teste — não só cada card por si. */
+            const statusEtapaAntes = await page.evaluate(() => (document.querySelector('[data-status-etapa]') || {}).textContent || '');
+            anota('a etapa mostra "Aposta pronta para teste" enquanto nenhum resultado foi para execução',
+              /pronta para teste/i.test(statusEtapaAntes), statusEtapaAntes);
 
             const tituloAntesEvVazia = await page.evaluate(() => (document.querySelector('.aposta-etapa-titulo') || {}).textContent || '');
             await clicarSemRolagem(page, '#apostaSeguir');
@@ -1292,7 +1310,15 @@ const clicarSemRolagem = (page, seletor) => page.$eval(seletor, (el) => el.click
             const tituloDepoisEvVazia = await page.evaluate(() => (document.querySelector('.aposta-etapa-titulo') || {}).textContent || '');
             anota('Continuar bloqueia de verdade até haver evidência de verdade para cada resultado',
               tituloDepoisEvVazia === tituloAntesEvVazia);
+            const avisoAntesRegistrar = await page.evaluate(() => (document.getElementById('apostaAvisos') || {}).textContent || '');
+            anota('o bloqueio antes de REGISTRAR RESULTADOS orienta a clicar no botão, não a preencher campos inexistentes',
+              /ainda não teve a execução registrada/i.test(avisoAntesRegistrar) && /REGISTRAR RESULTADOS/.test(avisoAntesRegistrar),
+              avisoAntesRegistrar);
 
+            await page.click('[data-registrar-resultados]');
+            await page.waitForTimeout(200);
+            const statusEtapaDepois = await page.evaluate(() => !document.querySelector('[data-status-etapa]'));
+            anota('depois de REGISTRAR RESULTADOS, o selo "pronta para teste" some (não é mais só planejamento)', statusEtapaDepois);
             await page.fill('[data-e="observado"]', '850');
             await page.selectOption('[data-e="fonte"]', 'Registros de atendimento');
             await page.waitForTimeout(300);
@@ -1756,11 +1782,20 @@ const clicarSemRolagem = (page, seletor) => page.$eval(seletor, (el) => el.click
         const planoRotulos = await pgEv.evaluate(() => ({
           fontePrevista: !!document.querySelector('[data-e="fontePrevista"]'),
           comoSeraMedido: !!document.querySelector('[data-e="comoSeraMedido"]'),
-          fonteEfetivaRot: Array.from(document.querySelectorAll('.aposta-campo-rot')).some((r) => /Fonte efetivamente utilizada/i.test(r.textContent)),
         }));
-        anota('o Plano de Evidência tem Fonte prevista e Detalhe/como será medido, e a fonte pós-execução virou "Fonte efetivamente utilizada"',
-          planoRotulos.fontePrevista && planoRotulos.comoSeraMedido && planoRotulos.fonteEfetivaRot,
+        anota('o Plano de Evidência tem Fonte prevista e Detalhe/como será medido',
+          planoRotulos.fontePrevista && planoRotulos.comoSeraMedido,
           JSON.stringify(planoRotulos));
+
+        /* Seção 23 do prompt consolidado: os campos de Evidência
+           Observada (fonte efetiva, resultado observado etc.) só
+           aparecem depois de "REGISTRAR RESULTADOS" — antes disso nem
+           existem no DOM. */
+        await pgEv.click('[data-registrar-resultados]');
+        await pgEv.waitForTimeout(200);
+        const fonteEfetivaRot = await pgEv.evaluate(() =>
+          Array.from(document.querySelectorAll('.aposta-campo-rot')).some((r) => /Fonte efetivamente utilizada/i.test(r.textContent)));
+        anota('depois de REGISTRAR RESULTADOS, a fonte pós-execução aparece como "Fonte efetivamente utilizada"', fonteEfetivaRot);
 
         await pgEv.selectOption('[data-e="fontePrevista"]', 'Dados do sistema');
         await pgEv.waitForTimeout(300);
@@ -1933,6 +1968,8 @@ const clicarSemRolagem = (page, seletor) => page.$eval(seletor, (el) => el.click
         await pgM.waitForFunction(() =>
           /EVID[ÊE]NCIA/.test((document.querySelector('.aposta-etapa-titulo') || {}).textContent || ''),
           { timeout: 15000 });
+        await pgM.click('[data-registrar-resultados]');
+        await pgM.waitForTimeout(200);
         await pgM.fill('[data-e="observado"]', cenario.observado);
         await pgM.waitForTimeout(300);
         const msgManter = await pgM.evaluate(() =>
@@ -1972,6 +2009,8 @@ const clicarSemRolagem = (page, seletor) => page.$eval(seletor, (el) => el.click
           cards.length === 2 && cards[0].resultado === 'r1' && cards[0].observado === '650' &&
           cards[1].resultado === 'r2' && cards[1].observado === '',
           JSON.stringify(cards));
+        await pgV.click('[data-resultado="r2"] [data-registrar-resultados]');
+        await pgV.waitForTimeout(200);
         await pgV.fill('[data-resultado="r2"] [data-e="observado"]', '76');
         await pgV.waitForTimeout(300);
         const r1Intacto = await pgV.evaluate(() => (document.querySelector('[data-resultado="r1"] [data-e="observado"]') || {}).value || '');
@@ -2057,6 +2096,8 @@ const clicarSemRolagem = (page, seletor) => page.$eval(seletor, (el) => el.click
         await pgNM.waitForFunction(() =>
           /EVID[ÊE]NCIA/.test((document.querySelector('.aposta-etapa-titulo') || {}).textContent || ''),
           { timeout: 15000 });
+        await pgNM.click('[data-registrar-resultados]');
+        await pgNM.waitForTimeout(200);
         await pgNM.fill('[data-e="motivo"]', 'Pesquisa de satisfação não foi concluída dentro do período.');
         await pgNM.click('[data-e="naoMedido"]');
         await pgNM.waitForTimeout(300);
