@@ -2721,10 +2721,14 @@ const clicarSemRolagem = (page, seletor) => page.$eval(seletor, (el) => el.click
       }
 
       /* ── 9j: FASE 1 — proteção de concorrência real: duas chamadas de
-            "iniciar nova execução" quase simultâneas (mesma pessoa em
-            duas abas, ou clique duplo bem no meio da rede lenta) nunca
-            podem resultar em números repetidos nem em "atual" apontando
-            para uma execução que não existe. ── */
+            "iniciar nova execução" quase simultâneas, partindo da MESMA
+            execução atual (mesma pessoa em duas abas, ou clique duplo
+            bem no meio da rede lenta), NUNCA podem resultar em duas
+            execuções com status "ativa" ao mesmo tempo — nem em uma
+            delas ficando órfã (ativa, mas fora do "atual"). Só uma pode
+            vencer a disputa pelo ponteiro "atual"; a outra é abortada
+            sem criar execução nenhuma, e avisa a pessoa em vez de
+            travar ou quebrar a tela. ── */
       {
         const semeadoConc = apostasSemeadas();
         const { ctx: ctxConc, page: pgConc } = await novaPagina(browser, formato, ADM, erros, semeadoConc);
@@ -2734,7 +2738,8 @@ const clicarSemRolagem = (page, seletor) => page.$eval(seletor, (el) => el.click
 
         await pgConc.evaluate(() => {
           /* Disparadas de propósito sem esperar a primeira terminar —
-             é exatamente a corrida que o teste quer provocar. */
+             é exatamente a corrida que o teste quer provocar: as duas
+             partem do mesmo "atual". */
           window.faAposta._criarExecucao();
           window.faAposta._criarExecucao();
         });
@@ -2744,26 +2749,35 @@ const clicarSemRolagem = (page, seletor) => page.$eval(seletor, (el) => el.click
           firebase.database().ref('apostas/' + turmaKey).once('value', (s) => {
             const v = s.val() || {};
             const execucoes = v.execucoes || {};
-            const novasIds = Object.keys(execucoes).filter((id) => id !== execOriginal);
-            const numeros = novasIds.map((id) => execucoes[id].numero).sort((a, b) => a - b);
+            const todasIds = Object.keys(execucoes);
+            const novasIds = todasIds.filter((id) => id !== execOriginal);
+            const ativasIds = todasIds.filter((id) => execucoes[id].status === 'ativa');
             res({
               atual: v.atual,
               atualExiste: !!execucoes[v.atual],
               qtdNovas: novasIds.length,
-              numeros: numeros,
-              numerosUnicos: new Set(numeros).size === numeros.length,
+              qtdAtivas: ativasIds.length,
+              ativasSaoSoAtual: ativasIds.length === 1 && ativasIds[0] === v.atual,
               originalEncerrada: (execucoes[execOriginal] || {}).status === 'encerrada',
             });
           });
         }), { turmaKey: TURMA_LIB, execOriginal: EXEC });
-        anota('duas chamadas quase simultâneas criam duas execuções com NÚMEROS DIFERENTES, nunca repetidos',
-          resultadoConc.qtdNovas === 2 && resultadoConc.numerosUnicos &&
-          resultadoConc.numeros[1] === resultadoConc.numeros[0] + 1,
-          JSON.stringify(resultadoConc));
-        anota('"atual" continua apontando para uma execução que EXISTE de verdade, nunca um ponteiro quebrado',
-          resultadoConc.atualExiste, JSON.stringify(resultadoConc));
+
+        anota('duas chamadas partindo do mesmo "atual" criam SÓ UMA execução nova — a perdedora não cria uma segunda (Z)',
+          resultadoConc.qtdNovas === 1, JSON.stringify(resultadoConc));
+        anota('existe EXATAMENTE uma execução com status "ativa" depois da disputa, nunca duas',
+          resultadoConc.qtdAtivas === 1, JSON.stringify(resultadoConc));
+        anota('"atual" aponta para a única execução ativa — nenhuma execução ativa fica órfã, fora de "atual"',
+          resultadoConc.ativasSaoSoAtual && resultadoConc.atualExiste, JSON.stringify(resultadoConc));
         anota('a execução original é encerrada mesmo com a corrida entre as duas chamadas',
           resultadoConc.originalEncerrada, JSON.stringify(resultadoConc));
+
+        const avisoPerdedora = await pgConc.evaluate(() => {
+          const t = document.querySelector('.aposta-toast--persistente');
+          return t ? t.textContent : '';
+        });
+        anota('a chamada que perde a disputa mostra um aviso controlado (não trava nem quebra a tela)',
+          /outra execu[çc][ãa]o j[áa] foi iniciada/i.test(avisoPerdedora), avisoPerdedora);
 
         await ctxConc.close();
       }

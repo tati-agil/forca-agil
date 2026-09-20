@@ -45,7 +45,10 @@
    cheia, porque é feita para ser projetada numa sala.
 
    COMO OS DADOS SÃO GUARDADOS
-   apostas/<turmaKey>/atual                  → id da execução em curso
+   apostas/<turmaKey>/atual                  → id da execução em curso —
+                                                também é o PONTEIRO usado
+                                                como trava de concorrência
+                                                (ver criarExecucao)
    apostas/<turmaKey>/contadorExecucoes      → só o número da última execução
                                                 criada (transaction() — ver
                                                 criarExecucao), nunca lido
@@ -58,11 +61,19 @@
      · grupos/<grupoId> → nome, membros, etapa, dados de cada etapa
    "Iniciar nova execução" (Fase 1 da evolução de execuções) encerra
    formalmente a execução atual (status/encerradaEm/encerradaPor) e cria
-   uma NOVA num único update() atômico junto com o ponteiro "atual" —
-   nunca existe um instante em que "atual" aponte para uma execução
-   inexistente. Nada do que um grupo escreveu é apagado nem alterado.
-   Execuções de antes desta fase não têm `numero`/`status` — ver
-   compatibilidade em qualquer leitura futura desses campos.
+   uma NOVA. A regra da dinâmica é estrita: no máximo UMA execução com
+   status 'ativa' por turma, sempre — nunca duas, mesmo que uma delas
+   fique invisível na interface. Por isso a troca do ponteiro "atual"
+   passa primeiro por uma transaction() que só aceita a troca se ele
+   ainda for exatamente a execução que está sendo substituída; se duas
+   chamadas concorrerem pela mesma execução atual, só uma vence — a
+   outra é abortada SEM criar execução nenhuma (nem uma órfã) e mostra
+   um aviso pedindo para atualizar a tela. Só depois de vencer essa
+   disputa é que a execução nova é criada e a antiga é marcada como
+   encerrada, num update() atômico só. Nada do que um grupo escreveu é
+   apagado nem alterado. Execuções de antes desta fase não têm
+   `numero`/`status` — ver compatibilidade em qualquer leitura futura
+   desses campos.
    ============================================================ */
 (function () {
   'use strict';
@@ -1684,22 +1695,62 @@
      para "Iniciar nova execução" (_execId aponta para a execução que
      está sendo substituída).
 
-     Duas pessoas clicando quase ao mesmo tempo (ou a mesma pessoa em
-     duas abas) não pode resultar em números de execução repetidos nem
-     numa janela em que "atual" aponte para uma execução que ainda não
-     existe. Por isso o número de cada execução vem de uma transaction()
-     bem pequena (só o contador, não a turma inteira — baixar/regravar
-     todas as execuções existentes a cada clique seria pesado demais numa
-     turma com histórico longo) — o Firebase serializa tentativas
-     concorrentes nesse mesmo caminho, garantindo números distintos e
-     sem corrida. A criação de verdade (encerrar a execução antiga, criar
-     a nova, apontar "atual") é UM update() só, com os três caminhos
-     juntos — ou tudo grava, ou nada grava; nunca fica um estado pela
-     metade. */
+     A regra é estrita: no máximo UMA execução com status 'ativa' por
+     turma, sempre — nunca duas, mesmo que uma fique invisível na
+     interface por não ser apontada por "atual". Um contador sozinho
+     (a versão anterior desta função) garante só números distintos:
+     ele NÃO impede que duas chamadas concorrentes, cada uma partindo
+     da mesma execução atual, cheguem a criar CADA UMA a sua própria
+     execução "ativa" — uma delas vira "atual", a outra fica órfã e
+     ativa do mesmo jeito, sem que a interface a mostre.
+
+     Por isso a criação agora é uma disputa em duas etapas:
+
+     1) transaction() no PONTEIRO "atual" (não no contador). Ela só
+        aceita a troca se "atual" ainda for exatamente a execução que
+        esta chamada está tentando substituir (ou null, na primeira
+        abertura da turma). Se outra chamada já venceu antes desta
+        terminar, a transaction() é abortada — devolve undefined, o
+        Firebase não grava nada — e esta chamada não cria execução
+        nenhuma, nem uma órfã: ela avisa que outra execução já foi
+        iniciada e atualiza a própria tela para a execução vencedora.
+
+     2) Só quem vence essa disputa segue para pegar o número (ainda
+        numa transaction() pequena, só no contador — baixar/regravar
+        todas as execuções existentes a cada clique seria pesado demais
+        numa turma com histórico longo) e gravar, num update() atômico
+        só, a execução nova E o encerramento formal da antiga juntos.
+
+     Uma janela pequena e só do lado de quem venceu fica entre o passo
+     1 (o ponteiro já mudou) e o passo 2 (a execução nova ainda não foi
+     gravada) — se o navegador de quem venceu cair bem nesse meio-tempo
+     (não uma segunda pessoa disputando, só essa mesma chamada morrendo
+     no meio do caminho), "atual" fica apontando para uma execução que
+     ainda não existe, e precisa de conserto manual. É um cenário raro
+     e categoricamente diferente do que esta mudança elimina: nunca
+     mais duas execuções 'ativa' de verdade ao mesmo tempo. */
   function criarExecucao() {
     var s = sessao();
     if (!s) return;
-    var execAnteriorId = _execId;
+    var execAnteriorId = _execId || null;
+    var novoKey = db().ref('apostas/' + _turma.key + '/execucoes').push().key;
+    var atualRef = db().ref('apostas/' + _turma.key + '/atual');
+    atualRef.transaction(function (atualNoServidor) {
+      if ((atualNoServidor || null) !== execAnteriorId) return undefined;
+      return novoKey;
+    }, function (errPonteiro, venceu, snapPonteiro) {
+      if (errPonteiro) { avisar('Não consegui abrir a dinâmica. Nada foi criado — tente de novo.', true); return; }
+      if (!venceu) {
+        avisarPosSaida('Outra execução já foi iniciada para esta turma. A tela será atualizada.');
+        _execId = snapPonteiro ? snapPonteiro.val() : null;
+        if (_execId) ouvirExecucao(); else renderSemExecucao();
+        return;
+      }
+      concluirCriacaoExecucao(novoKey, execAnteriorId, s);
+    });
+  }
+
+  function concluirCriacaoExecucao(novoKey, execAnteriorId, s) {
     var contadorRef = db().ref('apostas/' + _turma.key + '/contadorExecucoes');
     contadorRef.transaction(function (atual) {
       return (atual || 0) + 1;
@@ -1707,8 +1758,6 @@
       if (errContador) { avisar('Não consegui abrir a dinâmica. Nada foi criado — tente de novo.', true); return; }
       if (!commitedContador) { avisar('Não consegui abrir a dinâmica — tente de novo.', true); return; }
       var meuNumero = snapContador.val();
-      var novoRef = db().ref('apostas/' + _turma.key + '/execucoes').push();
-      var novoKey = novoRef.key;
       var agora = new Date().toISOString();
       var updates = {};
       /* Só encerra formalmente uma execução anterior quando ela existe —
@@ -1736,12 +1785,6 @@
         revelado: false,
         encerrada: false
       };
-      /* "atual" é o que faz os outros enxergarem esta execução: se ele
-         não gravar, a facilitadora acha que abriu e a sala continua sem
-         ver nada. Está no MESMO update() da criação — nunca existe um
-         instante em que "atual" aponte para uma execução que ainda não
-         foi gravada. */
-      updates['apostas/' + _turma.key + '/atual'] = novoKey;
       db().ref().update(updates, function (err2) {
         if (err2) { avisar('Não consegui abrir a dinâmica. Tente de novo.', true); return; }
         _execId = novoKey;
@@ -4341,8 +4384,10 @@
     /* Só para o teste de concorrência da Fase 1 (duas chamadas quase
        simultâneas de "Iniciar nova execução") — chamar isso direto,
        sem passar pelo modal de confirmação, é o único jeito de provar
-       de verdade que duas transactions() disputando o mesmo contador
-       nunca resultam em números repetidos nem em execução perdida. */
+       de verdade que duas transactions() disputando o mesmo ponteiro
+       "atual" nunca resultam em duas execuções "ativa" nem em uma
+       execução perdida: uma vence e cria a execução nova, a outra é
+       abortada sem criar nada. */
     _criarExecucao: function () { return criarExecucao(); }
   };
 
