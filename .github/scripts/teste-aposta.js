@@ -261,6 +261,16 @@ const clicarSemRolagem = (page, seletor) => page.$eval(seletor, (el) => el.click
         await novo.click('#apostaAbrirBtn');
         await novo.waitForSelector('#apostaNovaExecBtn', { timeout: 15000 });
         await novo.click('#apostaNovaExecBtn');
+        /* #apostaPainelBtn faz parte do cabeçalho comum a TODAS as telas —
+           inclusive "A dinâmica ainda não começou", que já aparece antes
+           de criarExecucao() terminar. Esperar só por ele é uma corrida
+           real: clicar cedo demais abre o painel com a execução ainda não
+           carregada (_execId ainda null), e criar um grupo nesse instante
+           grava no caminho errado (execucoes/null/...) em vez da execução
+           nova. Esperar o aviso "Nenhum grupo criado ainda" — que só
+           aparece depois que a execução nova de fato carregou — é o sinal
+           correto de que dá para abrir o painel com segurança. */
+        await novo.waitForSelector('text=Nenhum grupo criado ainda', { timeout: 15000 });
         await novo.waitForSelector('#apostaPainelBtn', { timeout: 15000 });
         await novo.click('#apostaPainelBtn');
         await novo.waitForSelector('#apostaCriarGrupo', { timeout: 10000 });
