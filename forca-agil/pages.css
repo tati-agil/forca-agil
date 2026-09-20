@@ -1513,17 +1513,6 @@ select.aposta-campo-input { width: auto; min-width: 8.5em; }
 .aposta-mudanca-frase { margin: 12px 0 0; font-size: .9rem; color: var(--cyan); font-family: var(--font-mono); line-height: 1.5; }
 .aposta-mudanca-del { margin-top: 8px; background: none; border: none; cursor: pointer; font-size: .72rem; color: var(--ink-3); text-decoration: underline; }
 
-/* Selo de momento do card de Evidência — deixa explícito se o grupo ainda
-   está planejando (antes de executar) ou já registrou a execução, em vez
-   de deixar essa distinção implícita na ordem dos campos. */
-.aposta-badge {
-  display: inline-block; padding: 3px 10px; border-radius: 999px;
-  font-family: var(--font-mono); font-size: .68rem; letter-spacing: .04em;
-}
-.aposta-badge--pendente { background: rgba(169,157,255,.14); border: 1px solid rgba(169,157,255,.4); color: #a99dff; }
-.aposta-badge--ok { background: rgba(64,224,208,.14); border: 1px solid rgba(64,224,208,.4); color: var(--cyan); }
-.aposta-badge--neutro { background: rgba(255,255,255,.06); border: 1px solid var(--line); color: var(--ink-3); }
-
 /* "O que vamos medir?" (Experimento) — cards selecionáveis das mudanças
    mensuráveis já cadastradas. Rastreabilidade e Evidência (cards de
    resultado, resumo) reaproveitam .aposta-mudanca/.aposta-complementos. */

@@ -230,7 +230,10 @@
       titulo: 'E — EVIDÊNCIA',
       curto: 'Evidência',
       pergunta: 'O que aconteceu de fato?',
-      auxiliar: 'Antes de executar, defina só como cada resultado será medido. Depois de executar, volte e clique em "REGISTRAR RESULTADOS" em cada card.',
+      /* Sem `auxiliar` estático: a etapa muda de modo (planejamento x
+         registro de resultados) e o banner com a explicação de cada
+         modo é montado dinamicamente dentro de evidenciaHtml(), para
+         nunca ficar desatualizado em relação ao que a tela mostra. */
       exemplo: 'Esperávamos reduzir os contatos sobre o andamento da concessão de 1.000 para 500 contatos por mês. Após o experimento, observamos 650 contatos por mês.',
       rodape: 'O objetivo do experimento é aprender, não provar que estávamos certos.',
       dica: 'A evidência não julga quem teve a ideia. Ela só diz o que a realidade respondeu.',
@@ -2076,6 +2079,20 @@
         'o que ficar aqui é a missão do grupo.</p>'
       : '') + (etapa.lista ? mudancasHtml(d) : (etapa.id === 'evidencia' ? evidenciaHtml(d) : moldeHtml(etapa, d)));
 
+    /* Evidência muda de pergunta e de rótulo do botão principal conforme
+       o modo (planejamento x registro de resultados) — o banner com a
+       explicação de cada modo já vem dentro de evidenciaHtml(), então o
+       texto de apoio estático da etapa (auxiliar) fica só para as
+       demais, para não duplicar a mesma explicação duas vezes. */
+    var statusEv = etapa.id === 'evidencia' ? statusEvidencia({ mudancas: _dados.mudancas, experimento: _dados.experimento, evidencia: d }) : null;
+    var pergunta = statusEv && !statusEv.registrando ? 'Como saberemos o que aconteceu?' : etapa.pergunta;
+    var seguirLabel = idx === ETAPAS.length - 1 ? 'Ver o mapa da aposta →' : 'Continuar →';
+    if (statusEv) {
+      seguirLabel = !statusEv.registrando
+        ? (statusEv.estado === 'pronta' ? 'Registrar resultados do experimento' : 'Salvar plano para execução')
+        : 'Continuar para Decisão →';
+    }
+
     _tela.innerHTML = cabecalho() +
       '<div class="aposta-corpo">' +
         trilhaHtml() +
@@ -2088,8 +2105,8 @@
               '<h1 class="aposta-etapa-titulo">' + esc(etapa.titulo) + '</h1>' +
               '<button class="aposta-ajuda" type="button" title="' + esc(etapa.dica) + '" aria-label="Ajuda">?</button>' +
             '</div>' +
-            '<p class="aposta-pergunta">' + esc(etapa.pergunta) + '</p>' +
-            (etapa.auxiliar ? '<p class="aposta-auxiliar">' + esc(etapa.auxiliar) + '</p>' : '') +
+            '<p class="aposta-pergunta">' + esc(pergunta) + '</p>' +
+            (etapa.auxiliar && etapa.id !== 'evidencia' ? '<p class="aposta-auxiliar">' + esc(etapa.auxiliar) + '</p>' : '') +
             '<div class="aposta-campos">' + corpo + '</div>' +
             /* A frase montada, ao vivo, embaixo das lacunas: o que ainda
                falta aparece marcado no lugar exato em que vai entrar, e
@@ -2107,9 +2124,7 @@
           '<div class="aposta-navegacao">' +
             (idx > 0 ? '<button class="btn" id="apostaVoltar">← Voltar</button>' : '<span></span>') +
             '<span class="aposta-salvo" id="apostaSalvo"></span>' +
-            '<button class="btn btn--primary" id="apostaSeguir">' +
-              (idx === ETAPAS.length - 1 ? 'Ver o mapa da aposta →' : 'Continuar →') +
-            '</button>' +
+            '<button class="btn btn--primary" id="apostaSeguir">' + esc(seguirLabel) + '</button>' +
           '</div>' +
         '</main>' +
       '</div>';
@@ -2270,59 +2285,55 @@
      indicador, situação inicial, meta, unidade e período vêm prontos
      de Mudanças mensuráveis, sem poder ser editados aqui. O único
      dado novo é o que a realidade respondeu. */
-  /* Bloco "EVIDÊNCIA OBSERVADA — depois de executar" de um card — extraído
-     à parte porque é montado tanto no render normal da etapa quanto ao
-     vivo, no clique de "REGISTRAR RESULTADOS" (ligarEtapa), e as duas
-     cópias precisam ficar sempre idênticas. */
-  function blocoExecucaoHtml(m, ev) {
-    var naoMedido = ev.naoMedido === 'sim';
-    var progresso = !naoMedido ? progressoResumo(m, ev.observado) : null;
-    var temFontePlanejada = normalizar(ev.fontePrevista) && !normalizar(ev.fonte) && !naoMedido;
-    return '<div class="aposta-execucao-bloco">' +
-        '<p class="aposta-campo-rot" style="margin:14px 0 0">EVIDÊNCIA OBSERVADA — depois de executar</p>' +
-        '<div class="aposta-mudanca-grade" style="margin-top:6px">' +
-          '<label class="aposta-campo"><span class="aposta-campo-rot" title="O que a realidade respondeu, na mesma unidade da meta.">Resultado observado</span>' +
-            '<input type="text" inputmode="decimal" class="aposta-campo-input" data-e="observado" value="' + esc(ev.observado || '') + '"' +
-              (naoMedido ? ' disabled' : ' placeholder="' + esc(m.meta || '650') + '"') + ' /></label>' +
-          '<label class="aposta-campo"><span class="aposta-campo-rot" title="A fonte que foi realmente usada depois da execução — pode ser a mesma prevista ou não.">Fonte efetivamente utilizada</span>' +
-            '<select class="aposta-campo-input" data-e="fonte"' + (naoMedido ? ' disabled' : '') + '>' +
-              '<option value="">Selecione</option>' +
-              FONTES_EVIDENCIA.map(function (f) {
-                return '<option value="' + esc(f) + '"' + (ev.fonte === f ? ' selected' : '') + '>' + esc(f) + '</option>';
-              }).join('') +
-            '</select>' +
-          '</label>' +
-        '</div>' +
-        (temFontePlanejada
-          ? '<p class="aposta-aviso-didatico" data-usar-fonte-planejada-nota="' + esc(m.id) + '">Fonte planejada: ' + esc(ev.fontePrevista) +
-              ' <button type="button" class="btn btn--sm" data-usar-fonte-planejada="' + esc(m.id) + '">Usamos a fonte planejada</button></p>'
-          : '') +
-        '<label class="aposta-campo aposta-campo--largo" style="margin-top:10px"><span class="aposta-campo-rot">Detalhe da fonte (opcional)</span>' +
-          '<input type="text" class="aposta-campo-input" data-e="fonteDetalhe" value="' + esc(ev.fonteDetalhe || '') + '"' +
-            (naoMedido ? ' disabled' : '') + ' placeholder="ex.: ServiceNow, período de 01/09 a 21/09" /></label>' +
-        '<label class="aposta-checkbox-linha">' +
-          '<input type="checkbox" data-e="naoMedido" value="sim"' + (naoMedido ? ' checked' : '') + ' />' +
-          ' Não foi possível medir neste experimento' +
-        '</label>' +
-        '<label class="aposta-campo aposta-campo--largo"><span class="aposta-campo-rot">Motivo' + (naoMedido ? '' : ' (opcional)') + '</span>' +
-          '<input type="text" class="aposta-campo-input" data-e="motivo" value="' + esc(ev.motivo || '') + '" placeholder="ex.: pesquisa não foi concluída dentro do período" /></label>' +
-        /* Aprendizado é por card, não um veredito único da etapa —
-           várias evidências do mesmo experimento podem apontar em
-           direções diferentes, e cada uma guarda o que ensinou por si. */
-        '<label class="aposta-campo aposta-campo--largo" style="margin-top:10px">' +
-          '<span class="aposta-campo-rot" title="Registre o que esta observação nos ensinou. Evite tratar uma única evidência como prova definitiva da hipótese.">O que aprendemos com esta evidência?</span>' +
-          '<textarea class="aposta-campo-input" data-e="aprendizado" rows="2" placeholder="ex.: a redução dos contatos sugere que a maior visibilidade pode estar ajudando, mas precisamos observar numa amostra maior">' + esc(ev.aprendizado || '') + '</textarea>' +
-        '</label>' +
-        (progresso
-          ? '<p class="' + (progresso.ok ? 'aposta-frase-pronta' : 'aposta-frase-falta') + '">' + esc(progresso.texto) + '</p>'
-          : (!naoMedido ? '<p class="aposta-frase-falta">Ainda falta: o resultado observado</p>' : '')) +
-        /* Um número sozinho não é aprendizado — quando já existe
-           resultado medido, falta mesmo o aprendizado até ele ser
-           escrito (não se aplica a "não foi possível medir": ali o
-           motivo já é obrigatório e o aprendizado continua opcional). */
-        (!naoMedido && normalizar(ev.observado) && !normalizar(ev.aprendizado)
-          ? '<p class="aposta-aviso-didatico" data-falta-aprendizado="' + esc(m.id) + '">Ainda falta: o aprendizado com esta evidência</p>'
-          : '') +
+  /* A etapa Evidência inteira alterna entre dois modos — nunca card a
+     card (melhoria de usabilidade: misturar planejamento e registro no
+     mesmo card, mesmo em momentos diferentes, deixava a pessoa perdida).
+     Um card só tem o Plano de Evidência completo quando a fonte
+     prevista está escolhida (e, se for "Outro", também o detalhe); só
+     está completo como Evidência Observada com Resultado observado +
+     Fonte + Aprendizado, ou "não foi possível medir" + Motivo. */
+  function planoDeEvidenciaCompleto(ev) {
+    return normalizar(ev.fontePrevista) && (ev.fontePrevista !== 'Outro' || normalizar(ev.comoSeraMedido));
+  }
+  function evidenciaCardCompleto(ev) {
+    return ev.naoMedido === 'sim' ? normalizar(ev.motivo)
+      : (normalizar(ev.observado) && normalizar(ev.fonte) && normalizar(ev.aprendizado));
+  }
+  /* Estado da etapa inteira — usado tanto para desenhar a tela quanto
+     para decidir o rótulo/comportamento do botão principal.
+     PLANEJAMENTO = plano de evidência ainda incompleto.
+     PRONTA = plano completo, execução ainda não registrada.
+     REGISTRANDO = execução registrada, cards ainda incompletos.
+     CONCLUIDA = tudo registrado.
+     Uma evidência já registrada por uma versão anterior (sem a flag
+     `registrando`) é reconhecida pelo próprio conteúdo, sem perder
+     nada. */
+  function statusEvidencia(dados) {
+    var resultados = resultadosDe(dados.mudancas, (dados.experimento || {}).resultadoIds);
+    var itens = (dados.evidencia || {}).itens || [];
+    function evidenciaDe(id) { return itens.filter(function (ev) { return ev.resultadoId === id; })[0] || {}; }
+    var registrando = (dados.evidencia || {}).registrando === 'sim' || itens.some(function (ev) {
+      return ev.naoMedido === 'sim' || normalizar(ev.observado) || normalizar(ev.fonte) ||
+        normalizar(ev.motivo) || normalizar(ev.aprendizado);
+    });
+    if (!resultados.length) return { registrando: registrando, estado: 'planejamento' };
+    if (!registrando) {
+      var planoCompleto = resultados.every(function (m) { return planoDeEvidenciaCompleto(evidenciaDe(m.id)); });
+      return { registrando: false, estado: planoCompleto ? 'pronta' : 'planejamento' };
+    }
+    var tudoCompleto = resultados.every(function (m) { return evidenciaCardCompleto(evidenciaDe(m.id)); });
+    return { registrando: true, estado: tudoCompleto ? 'concluida' : 'registrando' };
+  }
+
+  /* Bloco "PLANO DE EVIDÊNCIA PRONTO" — extraído à parte porque é
+     montado tanto no render normal da etapa quanto ao vivo, assim que a
+     última fonte prevista é escolhida (ver atualizarStatusEvidencia em
+     ligarEtapa), e as duas cópias precisam ficar sempre idênticas. */
+  function blocoPlanoProntoHtml() {
+    return '<div class="aposta-herdada" data-plano-pronto>' +
+        '<p style="margin:0 0 8px"><strong>PLANO DE EVIDÊNCIA PRONTO.</strong> Você definiu como os resultados deste experimento serão observados. Os valores observados e os aprendizados serão registrados depois da execução.</p>' +
+        '<p style="margin:0 0 10px">Experimento ainda não executado. Você pode encerrar por agora e voltar a esta aposta depois.</p>' +
+        '<button type="button" class="btn btn--sm" id="apostaSairEvidencia">Encerrar por agora</button>' +
       '</div>';
   }
 
@@ -2331,83 +2342,119 @@
     var resultados = resultadosDe(_dados.mudancas, experimento.resultadoIds);
     var itens = d.itens || [];
     function evidenciaDe(id) { return itens.filter(function (ev) { return ev.resultadoId === id; })[0] || {}; }
-    /* Seção 23 do prompt consolidado: a execução só é considerada
-       "iniciada" para um resultado quando o grupo clicou em REGISTRAR
-       RESULTADOS (ou já existia dado observado/motivo de uma versão
-       anterior). Compartilhado entre o card e o selo geral da etapa. */
-    function iniciouExecucao(ev) {
-      return ev.execucaoIniciada === 'sim' || ev.naoMedido === 'sim' ||
-        normalizar(ev.observado) || normalizar(ev.fonte) || normalizar(ev.fonteDetalhe) ||
-        normalizar(ev.motivo) || normalizar(ev.aprendizado);
-    }
 
     if (!resultados.length) {
       return '<p class="admin-empty">Volte ao Experimento e escolha ao menos um resultado esperado para medir — é a partir dessa escolha que os cards de evidência aparecem aqui.</p>';
     }
+
+    var status = statusEvidencia({ mudancas: _dados.mudancas, experimento: experimento, evidencia: d });
+    var registrando = status.registrando;
+
+    var banner = registrando
+      ? '<p class="aposta-herdada"><strong>REGISTRO DOS RESULTADOS.</strong> Agora registre o que foi observado durante o experimento e o que aprendemos com cada evidência.</p>'
+      : '<p class="aposta-herdada"><strong>PLANEJAMENTO DA EVIDÊNCIA.</strong> Defina agora onde os dados serão buscados. O resultado observado será registrado somente depois da execução do experimento.</p>';
 
     var html = resultados.map(function (m, i) {
       var ev = evidenciaDe(m.id);
       var naoMedido = ev.naoMedido === 'sim';
       var sufixo = sufixoUnidade(m);
       var metaTxt = metaOuLimiteTexto(m, sufixo);
-      /* A etapa tem dois momentos (seção 16 do prompt consolidado): Plano
-         de Evidência ANTES da execução, Evidência Observada DEPOIS. Um
-         card criado agora começa fechado no primeiro momento — os campos
-         de resultado observado só aparecem quando o grupo clica em
-         "REGISTRAR RESULTADOS" (seção 23), nunca antes, para nunca
-         parecer que estão sendo exigidos durante o planejamento. Uma
-         evidência já registrada por uma versão anterior (que não tinha
-         esse botão) é reconhecida automaticamente pelo próprio conteúdo,
-         sem perder o que já foi preenchido. */
-      var execucaoIniciada = iniciouExecucao(ev);
-      var momentoTxt = naoMedido ? 'Registrado como não medido'
-        : (normalizar(ev.observado) ? 'Execução registrada'
-          : (execucaoIniciada ? 'Aguardando resultado observado' : 'Planejamento'));
-      var momentoClasse = naoMedido ? 'aposta-badge--neutro'
-        : (normalizar(ev.observado) ? 'aposta-badge--ok' : 'aposta-badge--pendente');
+      var progresso = !naoMedido ? progressoResumo(m, ev.observado) : null;
+
+      var miolo = !registrando
+        ? (
+          '<p class="aposta-campo-rot" style="margin:14px 0 0">COMO VAMOS MEDIR?</p>' +
+          '<div class="aposta-mudanca-grade" style="margin-top:6px">' +
+            '<label class="aposta-campo"><span class="aposta-campo-rot" title="Como o grupo pretende saber se esta mudança aconteceu, antes de executar o experimento.">Fonte prevista da evidência</span>' +
+              '<select class="aposta-campo-input" data-e="fontePrevista">' +
+                '<option value="">Selecione</option>' +
+                FONTES_EVIDENCIA.map(function (f) {
+                  return '<option value="' + esc(f) + '"' + (ev.fontePrevista === f ? ' selected' : '') + '>' + esc(f) + '</option>';
+                }).join('') +
+              '</select>' +
+            '</label>' +
+            '<label class="aposta-campo aposta-campo--largo"><span class="aposta-campo-rot"' +
+                (ev.fontePrevista === 'Outro' ? ' title="Fonte “Outro” — detalhe como será medido."' : '') +
+              '>Detalhe / como será medido' + (ev.fontePrevista === 'Outro' ? '' : ' (opcional)') + '</span>' +
+              '<textarea class="aposta-campo-input" data-e="comoSeraMedido" rows="2" placeholder="ex.: quantidade de contatos sobre andamento registrados no período">' + esc(ev.comoSeraMedido || '') + '</textarea>' +
+            '</label>' +
+          '</div>' +
+          '<p class="aposta-mudanca-frase">' + esc(fraseEvidenciaCard(m, ev)) + '</p>' +
+          '<p class="aposta-campo-rot" style="margin-top:10px">Resultado observado: aguardando execução</p>'
+        )
+        : (
+          /* Recapitulação só leitura do que foi planejado — na fase de
+             registro, Fonte prevista/Detalhe não são mais editáveis
+             aqui (mudar o plano depois de já ter resultado observado
+             confundiria o que foi de fato testado). */
+          '<p class="aposta-campo-rot" style="margin:14px 0 0">O QUE FOI PLANEJADO</p>' +
+          '<div class="aposta-mudanca-grade" style="margin-top:6px">' +
+            '<label class="aposta-campo"><span class="aposta-campo-rot">Fonte planejada</span>' +
+              '<input type="text" class="aposta-campo-input" value="' + esc(ev.fontePrevista || '—') + '" disabled /></label>' +
+            '<label class="aposta-campo aposta-campo--largo"><span class="aposta-campo-rot">Como seria medido</span>' +
+              '<input type="text" class="aposta-campo-input" value="' + esc(ev.comoSeraMedido || '—') + '" disabled /></label>' +
+          '</div>' +
+          '<p class="aposta-campo-rot" style="margin:14px 0 0">O QUE ACONTECEU</p>' +
+          '<div class="aposta-mudanca-grade" style="margin-top:6px">' +
+            '<label class="aposta-campo"><span class="aposta-campo-rot" title="O que a realidade respondeu, na mesma unidade da meta.">Resultado observado</span>' +
+              '<input type="text" inputmode="decimal" class="aposta-campo-input" data-e="observado" value="' + esc(ev.observado || '') + '"' +
+                (naoMedido ? ' disabled' : ' placeholder="' + esc(m.meta || '650') + '"') + ' /></label>' +
+            '<label class="aposta-campo"><span class="aposta-campo-rot" title="Vem pré-selecionada com a fonte planejada, mas pode ser trocada pela que foi realmente usada.">Fonte utilizada</span>' +
+              '<select class="aposta-campo-input" data-e="fonte"' + (naoMedido ? ' disabled' : '') + '>' +
+                '<option value="">Selecione</option>' +
+                FONTES_EVIDENCIA.map(function (f) {
+                  return '<option value="' + esc(f) + '"' + (ev.fonte === f ? ' selected' : '') + '>' + esc(f) + '</option>';
+                }).join('') +
+              '</select>' +
+            '</label>' +
+          '</div>' +
+          '<label class="aposta-campo aposta-campo--largo" style="margin-top:10px"><span class="aposta-campo-rot">Detalhe da fonte (opcional)</span>' +
+            '<input type="text" class="aposta-campo-input" data-e="fonteDetalhe" value="' + esc(ev.fonteDetalhe || '') + '"' +
+              (naoMedido ? ' disabled' : '') + ' placeholder="ex.: ServiceNow, período de 01/09 a 21/09" /></label>' +
+          '<label class="aposta-checkbox-linha">' +
+            '<input type="checkbox" data-e="naoMedido" value="sim"' + (naoMedido ? ' checked' : '') + ' />' +
+            ' Não foi possível medir neste experimento' +
+          '</label>' +
+          '<label class="aposta-campo aposta-campo--largo"><span class="aposta-campo-rot">Motivo' + (naoMedido ? '' : ' (opcional)') + '</span>' +
+            '<input type="text" class="aposta-campo-input" data-e="motivo" value="' + esc(ev.motivo || '') + '" placeholder="ex.: pesquisa não foi concluída dentro do período" /></label>' +
+          /* Aprendizado é por card, não um veredito único da etapa —
+             várias evidências do mesmo experimento podem apontar em
+             direções diferentes, e cada uma guarda o que ensinou por si. */
+          '<label class="aposta-campo aposta-campo--largo" style="margin-top:10px">' +
+            '<span class="aposta-campo-rot" title="Registre o que esta observação nos ensinou. Evite tratar uma única evidência como prova definitiva da hipótese.">O que aprendemos com esta evidência?</span>' +
+            '<textarea class="aposta-campo-input" data-e="aprendizado" rows="2" placeholder="ex.: a redução dos contatos sugere que a maior visibilidade pode estar ajudando, mas precisamos observar numa amostra maior">' + esc(ev.aprendizado || '') + '</textarea>' +
+          '</label>' +
+          '<p class="aposta-mudanca-frase">' + esc(fraseEvidenciaCard(m, ev)) + '</p>' +
+          (progresso
+            ? '<p class="' + (progresso.ok ? 'aposta-frase-pronta' : 'aposta-frase-falta') + '">' + esc(progresso.texto) + '</p>'
+            : (!naoMedido ? '<p class="aposta-frase-falta">Ainda falta: o resultado observado</p>' : '')) +
+          /* Um número sozinho não é aprendizado — quando já existe
+             resultado medido, falta mesmo o aprendizado até ele ser
+             escrito (não se aplica a "não foi possível medir": ali o
+             motivo já é obrigatório e o aprendizado continua opcional). */
+          (!naoMedido && normalizar(ev.observado) && !normalizar(ev.aprendizado)
+            ? '<p class="aposta-aviso-didatico" data-falta-aprendizado="' + esc(m.id) + '">Ainda falta: o aprendizado com esta evidência</p>'
+            : '')
+        );
+
       return '<div class="aposta-mudanca" data-resultado="' + esc(m.id) + '">' +
         '<p class="aposta-campo-rot" style="margin:0 0 2px">RESULTADO ESPERADO ' + (i + 1) + '</p>' +
-        '<p style="margin:0 0 4px;color:var(--ink)"><strong>' + esc(m.indicador) + '</strong></p>' +
-        '<p class="aposta-badge ' + momentoClasse + '" style="margin:0 0 12px">' + esc(momentoTxt) + '</p>' +
+        '<p style="margin:0 0 12px;color:var(--ink)"><strong>' + esc(m.indicador) + '</strong></p>' +
         '<div class="aposta-mudanca-grade">' +
           '<label class="aposta-campo"><span class="aposta-campo-rot">Situação inicial</span>' +
             '<input type="text" class="aposta-campo-input" value="' + esc((m.atual || '—') + sufixo) + '" disabled /></label>' +
           '<label class="aposta-campo"><span class="aposta-campo-rot">Meta</span>' +
             '<input type="text" class="aposta-campo-input" value="' + esc(metaTxt) + '" disabled /></label>' +
         '</div>' +
-        /* Plano de evidência: preenchido ANTES da execução — como o grupo
-           pretende saber se a mudança aconteceu. Fica sempre editável
-           (não depende de "não foi possível medir"), porque é definido
-           antes de existir qualquer resultado para medir. */
-        '<p class="aposta-campo-rot" style="margin:14px 0 0">PLANO DE EVIDÊNCIA — antes de executar</p>' +
-        '<div class="aposta-mudanca-grade" style="margin-top:6px">' +
-          '<label class="aposta-campo"><span class="aposta-campo-rot" title="Como o grupo pretende saber se esta mudança aconteceu, antes de executar o experimento.">Fonte prevista da evidência</span>' +
-            '<select class="aposta-campo-input" data-e="fontePrevista">' +
-              '<option value="">Selecione</option>' +
-              FONTES_EVIDENCIA.map(function (f) {
-                return '<option value="' + esc(f) + '"' + (ev.fontePrevista === f ? ' selected' : '') + '>' + esc(f) + '</option>';
-              }).join('') +
-            '</select>' +
-          '</label>' +
-          '<label class="aposta-campo aposta-campo--largo"><span class="aposta-campo-rot"' +
-              (ev.fontePrevista === 'Outro' ? ' title="Fonte “Outro” — detalhe como será medido."' : '') +
-            '>Detalhe / como será medido' + (ev.fontePrevista === 'Outro' ? '' : ' (opcional)') + '</span>' +
-            '<textarea class="aposta-campo-input" data-e="comoSeraMedido" rows="2" placeholder="ex.: quantidade de contatos sobre andamento registrados no período">' + esc(ev.comoSeraMedido || '') + '</textarea>' +
-          '</label>' +
-        '</div>' +
-        '<p class="aposta-mudanca-frase">' + esc(fraseEvidenciaCard(m, ev)) + '</p>' +
-        '<input type="hidden" data-e="execucaoIniciada" value="' + (execucaoIniciada ? 'sim' : '') + '" />' +
-        (!execucaoIniciada
-          ? '<div class="aposta-registrar-resultados" style="margin-top:14px">' +
-              '<p class="aposta-aviso-ok">Ainda não executado — sem pressa.</p>' +
-              '<button type="button" class="btn" data-registrar-resultados="' + esc(m.id) + '">REGISTRAR RESULTADOS</button>' +
-            '</div>'
-          : blocoExecucaoHtml(m, ev)) +
+        miolo +
       '</div>';
     }).join('');
 
     /* Resumo automático — o que a etapa Decisão vai usar para apoiar a
-       conversa, sem concluir sozinha se a hipótese estava certa. */
+       conversa, sem concluir sozinha se a hipótese estava certa. O
+       título muda com o modo: antes de executar ainda não existem
+       "resultados do experimento", só resultados que o grupo pretende
+       observar. */
     var resumo = resultados.map(function (m) {
       var ev = evidenciaDe(m.id);
       var sufixo = sufixoUnidade(m);
@@ -2416,21 +2463,15 @@
         esc((m.atual || '—') + sufixo) + ' → ' + esc(obsTxt) + ' · Meta: ' + esc(metaOuLimiteTexto(m, sufixo)) + '</p>';
     }).join('');
 
-    /* Seção 21 do prompt consolidado: enquanto nenhum resultado teve a
-       execução iniciada, a aposta como um todo está "pronta para teste"
-       — o planejamento (Experimento + Plano de Evidência) está completo
-       e não falta nada além de executar de verdade. */
-    var nenhumIniciado = resultados.every(function (m) { return !iniciouExecucao(evidenciaDe(m.id)); });
-    var statusEtapa = nenhumIniciado
-      ? '<p class="aposta-aviso-ok" data-status-etapa>Aposta pronta para teste.</p>'
-      : '';
+    var pronto = (!registrando && status.estado === 'pronta') ? blocoPlanoProntoHtml() : '';
 
-    return statusEtapa +
+    return banner +
       '<div class="aposta-mudancas">' + html + '</div>' +
       '<div class="aposta-resultados-resumo">' +
-        '<p class="aposta-campo-rot">Resultados do experimento</p>' +
+        '<p class="aposta-campo-rot">' + (registrando ? 'Resultados do experimento' : 'Resultados que vamos observar') + '</p>' +
         resumo +
-      '</div>';
+      '</div>' +
+      pronto;
   }
 
   function ligarEtapa(etapa) {
@@ -2510,12 +2551,10 @@
         var faltam = partesFaltantesEtapa(etapa, d);
         var temLegadoValido = etapa.legado && String(d[etapa.legado] || '').trim() && !temLacunaPreenchida(etapa, d);
         aindaBloqueado = faltam.length > 0 && !temLegadoValido;
+      } else if (tipo === 'evidencia-plano') {
+        aindaBloqueado = (d.itens || []).some(function (ev) { return !planoDeEvidenciaCompleto(ev); });
       } else if (tipo === 'evidencia') {
-        aindaBloqueado = (d.itens || []).some(function (ev) {
-          return ev.naoMedido === 'sim'
-            ? !normalizar(ev.motivo)
-            : !(normalizar(ev.observado) && normalizar(ev.fonte) && normalizar(ev.aprendizado));
-        });
+        aindaBloqueado = (d.itens || []).some(function (ev) { return !evidenciaCardCompleto(ev); });
       }
       if (!aindaBloqueado) {
         avisosEl.innerHTML = '';
@@ -2819,55 +2858,48 @@
       });
       return ev;
     }
+    /* Rótulo do botão principal e o bloco "PLANO DE EVIDÊNCIA PRONTO"
+       reagem à digitação (ex.: escolher a última Fonte prevista que
+       faltava) sem esperar por um novo render completo da etapa — só
+       fazem sentido enquanto a etapa ainda está em planejamento; uma vez
+       no modo de registro, o próprio DOM (a existência do campo
+       "Resultado observado") já denuncia isso, e o rótulo do botão para
+       de mudar sozinho. */
+    function atualizarStatusEvidencia() {
+      if (_tela.querySelector('.aposta-mudanca[data-resultado] [data-e="observado"]')) return;
+      var seguirBtn = document.getElementById('apostaSeguir');
+      var se = statusEvidencia({ mudancas: _dados.mudancas, experimento: _dados.experimento, evidencia: coletar() });
+      if (seguirBtn) seguirBtn.textContent = se.estado === 'pronta' ? 'Registrar resultados do experimento' : 'Salvar plano para execução';
+      var prontoEl = _tela.querySelector('[data-plano-pronto]');
+      if (se.estado === 'pronta' && !prontoEl) {
+        var resumoWrap = _tela.querySelector('.aposta-resultados-resumo');
+        if (resumoWrap) {
+          resumoWrap.insertAdjacentHTML('afterend', blocoPlanoProntoHtml());
+          var novoSairBtn = document.getElementById('apostaSairEvidencia');
+          if (novoSairBtn) novoSairBtn.addEventListener('click', fecharDinamica);
+        }
+      } else if (se.estado !== 'pronta' && prontoEl) {
+        prontoEl.parentNode.removeChild(prontoEl);
+      }
+    }
     function atualizarCardsEvidencia() {
+      atualizarStatusEvidencia();
       _tela.querySelectorAll('.aposta-mudanca[data-resultado]').forEach(function (bloco) {
         var m = resultadosDe(_dados.mudancas, [bloco.dataset.resultado])[0];
         if (!m) return;
         var ev = evidenciaColetada(bloco);
         var naoMedido = ev.naoMedido === 'sim';
-        var execucaoIniciada = ev.execucaoIniciada === 'sim';
-        var badge = bloco.querySelector('.aposta-badge');
-        if (badge) {
-          var momentoTxt = naoMedido ? 'Registrado como não medido'
-            : (normalizar(ev.observado) ? 'Execução registrada'
-              : (execucaoIniciada ? 'Aguardando resultado observado' : 'Planejamento'));
-          var momentoClasse = naoMedido ? 'aposta-badge--neutro'
-            : (normalizar(ev.observado) ? 'aposta-badge--ok' : 'aposta-badge--pendente');
-          badge.className = 'aposta-badge ' + momentoClasse;
-          badge.textContent = momentoTxt;
-        }
         var frase = bloco.querySelector('.aposta-mudanca-frase');
         if (frase) frase.textContent = fraseEvidenciaCard(m, ev);
-        /* Todo o resto abaixo (resultado observado, fonte, aprendizado,
-           progresso) só existe no DOM depois de "REGISTRAR RESULTADOS" —
-           antes disso não há nada para sincronizar, e tentar mesmo assim
-           reintroduziria a mesma cobrança prematura que motivou essa
-           separação em dois momentos. */
-        if (!execucaoIniciada) return;
+        /* O modo (planejamento x registro) só muda ao clicar no botão
+           principal da etapa, que recarrega a tela inteira — nunca ao
+           digitar. Por isso, aqui basta checar se este card já está no
+           modo de registro (tem o campo Resultado observado) para saber
+           se há mais alguma coisa a sincronizar ao vivo. */
+        if (!bloco.querySelector('[data-e="observado"]')) return;
         bloco.querySelectorAll('[data-e="observado"], [data-e="fonte"], [data-e="fonteDetalhe"]').forEach(function (el) {
           el.disabled = naoMedido;
         });
-        /* Nota "Fonte planejada" some assim que a Fonte efetivamente
-           utilizada é preenchida (por clique no botão ou digitada à
-           mão) — ela só faz sentido enquanto ainda não se sabe qual
-           fonte foi de fato usada. */
-        var notaFontePlanejada = bloco.querySelector('[data-usar-fonte-planejada-nota]');
-        var mostrarNota = normalizar(ev.fontePrevista) && !normalizar(ev.fonte) && !naoMedido;
-        if (mostrarNota) {
-          if (!notaFontePlanejada) {
-            var gradeFonte = bloco.querySelector('[data-e="fonte"]');
-            var pontoInsercao = gradeFonte && gradeFonte.closest('.aposta-mudanca-grade');
-            if (pontoInsercao) {
-              pontoInsercao.insertAdjacentHTML('afterend',
-                '<p class="aposta-aviso-didatico" data-usar-fonte-planejada-nota="' + esc(m.id) + '">Fonte planejada: ' + esc(ev.fontePrevista) +
-                  ' <button type="button" class="btn btn--sm" data-usar-fonte-planejada="' + esc(m.id) + '">Usamos a fonte planejada</button></p>');
-            }
-          } else {
-            notaFontePlanejada.firstChild.textContent = 'Fonte planejada: ' + ev.fontePrevista + ' ';
-          }
-        } else if (notaFontePlanejada) {
-          notaFontePlanejada.parentNode.removeChild(notaFontePlanejada);
-        }
         var motivoInput = bloco.querySelector('[data-e="motivo"]');
         var motivoRot = motivoInput && motivoInput.closest('.aposta-campo').querySelector('.aposta-campo-rot');
         if (motivoRot) motivoRot.textContent = 'Motivo' + (naoMedido ? '' : ' (opcional)');
@@ -3026,49 +3058,15 @@
           direcaoInput.dispatchEvent(new Event('input', { bubbles: true }));
           return;
         }
-        /* "Usamos a fonte planejada": copia a Fonte prevista para a
-           Fonte efetivamente utilizada com um clique só — nunca troca
-           sozinho, só quando a pessoa confirma que foi mesmo aquela. */
-        var btnFontePlanejada = e.target.closest('[data-usar-fonte-planejada]');
-        if (btnFontePlanejada) {
-          var blocoFonte = btnFontePlanejada.closest('.aposta-mudanca');
-          var fontePrevistaInput = blocoFonte && blocoFonte.querySelector('[data-e="fontePrevista"]');
-          var fonteInput = blocoFonte && blocoFonte.querySelector('[data-e="fonte"]');
-          if (!fontePrevistaInput || !fonteInput) return;
-          fonteInput.value = fontePrevistaInput.value;
-          fonteInput.dispatchEvent(new Event('input', { bubbles: true }));
-          return;
-        }
-        /* "REGISTRAR RESULTADOS" (seção 23 do prompt consolidado): até
-           aqui o card só tinha o Plano de Evidência. Este clique é o que
-           abre, pela primeira vez, os campos de Evidência Observada —
-           eles não existem no DOM antes disso, de propósito. */
-        var btnRegistrar = e.target.closest('[data-registrar-resultados]');
-        if (btnRegistrar) {
-          var blocoRegistrar = btnRegistrar.closest('.aposta-mudanca[data-resultado]');
-          if (!blocoRegistrar) return;
-          var mRegistrar = resultadosDe(_dados.mudancas, [blocoRegistrar.dataset.resultado])[0];
-          if (!mRegistrar) return;
-          var flagIniciada = blocoRegistrar.querySelector('[data-e="execucaoIniciada"]');
-          if (flagIniciada) flagIniciada.value = 'sim';
-          var areaRegistrar = blocoRegistrar.querySelector('.aposta-registrar-resultados');
-          if (areaRegistrar) {
-            areaRegistrar.outerHTML = blocoExecucaoHtml(mRegistrar, {});
-            var blocoNovo = blocoRegistrar.querySelector('.aposta-execucao-bloco');
-            if (blocoNovo) {
-              blocoNovo.querySelectorAll('.aposta-campo-input').forEach(ligarCampoInput);
-              blocoNovo.querySelectorAll('.aposta-checkbox-linha input[type="checkbox"]').forEach(ligarCampoInput);
-              var primeiroCampo = blocoNovo.querySelector('[data-e="observado"]');
-              if (primeiroCampo) primeiroCampo.focus();
-            }
-          }
-          var statusEtapaEl = _tela.querySelector('[data-status-etapa]');
-          if (statusEtapaEl) statusEtapaEl.parentNode.removeChild(statusEtapaEl);
-          atualizarCardsEvidencia();
-          salvarDepois();
-        }
       });
     }
+
+    /* "Encerrar por agora" no bloco "Plano de evidência pronto": mesma
+       saída do botão "Sair" do topo, só que a própria tela da etapa já
+       deixa o comportamento evidente, sem depender de uma instrução
+       longa apontando para o cabeçalho. */
+    var sairEvidenciaBtn = document.getElementById('apostaSairEvidencia');
+    if (sairEvidenciaBtn) sairEvidenciaBtn.addEventListener('click', fecharDinamica);
 
     /* Troca de decisão muda quais blocos de grupo (hoje: a Nova
        Hipótese) ficam visíveis, recolhidos ou abertos — sem recarregar
@@ -3216,30 +3214,59 @@
         }
       }
 
-      /* Evidência: cada resultado esperado medido precisa de Resultado
-         observado + Fonte efetivamente utilizada + Aprendizado, OU de
-         "Não foi possível medir" + Motivo. O aprendizado é obrigatório
-         quando houve medição de verdade — sem ele, um número sozinho
-         não vira aprendizado nenhum. Não existe classificação única da
-         hipótese a escolher aqui — um mesmo experimento pode produzir
-         evidências em direções diferentes, e essa leitura é da Decisão,
-         não desta etapa. CONTINUAR bloqueia de verdade, sem escape por
-         segundo clique, destacando exatamente o card que falta. */
+      /* Evidência: a etapa inteira alterna entre dois modos, nunca card
+         a card. Em planejamento, o clique só libera o modo de registro
+         quando TODO o Plano de Evidência estiver completo (fonte
+         prevista, e detalhe se for "Outro") — sem avançar para a
+         Decisão, porque ela ainda não existe. Já em registro, cada
+         resultado medido precisa de Resultado observado + Fonte +
+         Aprendizado, OU de "Não foi possível medir" + Motivo, antes de
+         seguir para a Decisão de verdade. Nenhum dos dois tem escape
+         por segundo clique. */
       if (etapa.id === 'evidencia') {
+        var seEvClique = statusEvidencia({ mudancas: _dados.mudancas, experimento: _dados.experimento, evidencia: d });
+        if (!seEvClique.registrando) {
+          if (seEvClique.estado !== 'pronta') {
+            var idxPlanoIncompleto = -1;
+            (d.itens || []).forEach(function (ev, idx) {
+              if (idxPlanoIncompleto !== -1) return;
+              if (!planoDeEvidenciaCompleto(ev)) idxPlanoIncompleto = idx;
+            });
+            avisosEl.dataset.bloqueio = 'evidencia-plano';
+            avisosEl.innerHTML = '<p class="aposta-aviso-didatico">Complete o Plano de Evidência do resultado destacado acima: escolha a Fonte prevista (e, se for "Outro", o Detalhe/como será medido).</p>';
+            var blocosPlano = _tela.querySelectorAll('.aposta-mudanca[data-resultado]');
+            (blocosPlano[idxPlanoIncompleto] || avisosEl).scrollIntoView({ behavior: 'smooth', block: 'center' });
+            return;
+          }
+          /* Plano completo: liga o modo de registro e recarrega a MESMA
+             etapa (nunca avança para a Decisão a partir daqui). A Fonte
+             utilizada nasce pré-selecionada com a Fonte planejada — o
+             grupo troca se tiver sido diferente, mas não precisa
+             confirmar a repetição com um clique à parte. */
+          (d.itens || []).forEach(function (ev) {
+            if (!normalizar(ev.fonte) && normalizar(ev.fontePrevista)) ev.fonte = ev.fontePrevista;
+          });
+          d.registrando = 'sim';
+          seguirBtn.disabled = true;
+          salvarEtapa(etapa.id, d, false, function (err) {
+            if (err) {
+              seguirBtn.disabled = false;
+              avisar('Não consegui salvar "' + etapa.curto + '" — verifique a conexão e tente de novo. ' +
+                'Nada foi perdido: o que está na tela continua aqui.', true);
+              return;
+            }
+            render();
+          });
+          return;
+        }
         var idxEvidenciaIncompleta = -1;
         (d.itens || []).forEach(function (ev, idx) {
           if (idxEvidenciaIncompleta !== -1) return;
-          var completo = ev.naoMedido === 'sim'
-            ? normalizar(ev.motivo)
-            : (normalizar(ev.observado) && normalizar(ev.fonte) && normalizar(ev.aprendizado));
-          if (!completo) idxEvidenciaIncompleta = idx;
+          if (!evidenciaCardCompleto(ev)) idxEvidenciaIncompleta = idx;
         });
         if (idxEvidenciaIncompleta !== -1) {
           avisosEl.dataset.bloqueio = 'evidencia';
-          var evIncompleta = (d.itens || [])[idxEvidenciaIncompleta] || {};
-          avisosEl.innerHTML = evIncompleta.execucaoIniciada === 'sim'
-            ? '<p class="aposta-aviso-didatico">Complete o resultado destacado acima: preencha "Resultado observado", "Fonte efetivamente utilizada" e "O que aprendemos com esta evidência?", ou marque "Não foi possível medir" e informe o motivo.</p>'
-            : '<p class="aposta-aviso-didatico">Ainda em planejamento — clique em "REGISTRAR RESULTADOS" no card destacado quando o experimento acontecer. Sem pressa: use o botão "Sair" no topo para encerrar por agora.</p>';
+          avisosEl.innerHTML = '<p class="aposta-aviso-didatico">Complete o resultado destacado acima: preencha "Resultado observado", "Fonte utilizada" e "O que aprendemos com esta evidência?", ou marque "Não foi possível medir" e informe o motivo.</p>';
           var blocosEvidencia = _tela.querySelectorAll('.aposta-mudanca[data-resultado]');
           (blocosEvidencia[idxEvidenciaIncompleta] || avisosEl).scrollIntoView({ behavior: 'smooth', block: 'center' });
           return;
