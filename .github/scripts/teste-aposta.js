@@ -3228,6 +3228,17 @@ const clicarSemRolagem = (page, seletor) => page.$eval(seletor, (el) => el.click
         anota('clique duplo rápido em "Criar grupo" cria só UM grupo (não dois)',
           qtdApos12a === 2 /* GRUPO (seed) + 1 novo */, 'grupos no banco: ' + qtdApos12a);
 
+        /* A contagem no banco já garante um único ID novo (cada grupo é
+           uma chave push() distinta), mas isso sozinho não prova que a
+           TELA não ficou com dois cards do mesmo grupo (ex.: se o
+           redesenho rodasse duas vezes por engano). Conta os cards
+           renderizados com esse nome para confirmar que o contexto da
+           tela também ficou correto, não só o banco. */
+        const qtdCardsGrupoDuplo = await pgGrupo.evaluate(() =>
+          Array.from(document.querySelectorAll('.aposta-fac-grupo')).filter((g) => /Grupo Duplo/.test(g.textContent || '')).length);
+        anota('depois do clique duplo, a tela mostra "Grupo Duplo" em um único card (sem duplicar a exibição)',
+          qtdCardsGrupoDuplo === 1, 'cards na tela: ' + qtdCardsGrupoDuplo);
+
         /* 12b — três cliques em sequência, ainda com a operação
            pendente, continuam criando só um grupo — o botão continua
            desabilitado enquanto a gravação não confirma. */
@@ -3242,6 +3253,11 @@ const clicarSemRolagem = (page, seletor) => page.$eval(seletor, (el) => el.click
         const qtdApos12b = await qtdGruposNoBanco();
         anota('múltiplos cliques (3x) enquanto a criação está pendente também criam só UM grupo',
           qtdApos12b === qtdApos12a + 1, 'grupos no banco: ' + qtdApos12b + ' (antes: ' + qtdApos12a + ')');
+
+        const qtdCardsGrupoTriplo = await pgGrupo.evaluate(() =>
+          Array.from(document.querySelectorAll('.aposta-fac-grupo')).filter((g) => /Grupo Triplo/.test(g.textContent || '')).length);
+        anota('depois dos 3 cliques, a tela mostra "Grupo Triplo" em um único card (sem duplicar a exibição)',
+          qtdCardsGrupoTriplo === 1, 'cards na tela: ' + qtdCardsGrupoTriplo);
 
         await ctxGrupo.close();
       }
