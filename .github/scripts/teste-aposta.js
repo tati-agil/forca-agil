@@ -269,8 +269,15 @@ const clicarSemRolagem = (page, seletor) => page.$eval(seletor, (el) => el.click
           /Cada grupo pode ser formado por uma ou mais pessoas/i.test(notaGrupo));
         await novo.fill('#apostaNovoGrupo', 'Grupo 1');
         await novo.click('#apostaCriarGrupo');
-        await novo.waitForTimeout(500);
-        const criou = await novo.evaluate(() => /Grupo 1/.test(document.body.textContent || ''));
+        /* waitForTimeout(500) fixo era frágil: numa CI mais lenta/carregada,
+           a gravação (setTimeout no Firebase falso) + redesenho do painel
+           podem legitimamente levar mais que isso. waitForFunction espera
+           o texto aparecer de verdade, com folga, em vez de um tempo fixo
+           que pode não ser suficiente. */
+        const criou = await novo.waitForFunction(
+          () => /Grupo 1/.test(document.body.textContent || ''),
+          null, { timeout: 8000 }
+        ).then(() => true).catch(() => false);
         anota('a facilitadora abre a dinâmica do zero e cria um grupo', criou);
 
         /* "X/9 etapas" sozinho não dizia se o grupo tinha acabado de abrir
