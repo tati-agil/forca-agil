@@ -1194,6 +1194,7 @@
         var f = fraseEvidenciaCard(m, ev);
         return normalizar(ev.aprendizado) ? f + ' Aprendizado: ' + ev.aprendizado : f;
       }).filter(Boolean);
+      if (normalizar(d.classificacao)) frases.push('Nossa hipótese foi ' + d.classificacao.toLowerCase() + '.');
       return frases.join(' ');
     }
     var etapa = etapaPorId(etapaId);
@@ -1843,7 +1844,12 @@
         (normalizar(ev.aprendizado) ? '<span>Aprendizado: ' + esc(ev.aprendizado) + '</span>' : '') +
       '</li>';
     }).join('');
-    return '<ul class="aposta-resultados-observar-lista">' + linhas + '</ul>';
+    /* A classificação é do CONJUNTO — fica fora da lista de resultados
+       (cada <li> é de um resultado só), como uma leitura à parte. */
+    var classificacaoTxt = normalizar(ev0.classificacao)
+      ? '<p><strong>Nossa hipótese foi:</strong> ' + esc(ev0.classificacao) + '</p>'
+      : '';
+    return '<ul class="aposta-resultados-observar-lista">' + linhas + '</ul>' + classificacaoTxt;
   }
 
   /* "Ampliar" pressupõe evidência favorável — ver isso escolhido junto
@@ -2469,7 +2475,7 @@
     if (etapa.id === 'evidencia') {
       var se = statusEvidencia({ mudancas: _dados.mudancas, experimento: _dados.experimento, evidencia: d });
       if (!se.registrando) return se.estado !== 'pronta';
-      return (d.itens || []).some(function (ev) { return !evidenciaCardCompleto(ev); });
+      return (d.itens || []).some(function (ev) { return !evidenciaCardCompleto(ev); }) || !normalizar(d.classificacao);
     }
     if (ETAPAS_FRASE_ESTRITA[etapa.id]) {
       var faltam = partesFaltantesEtapa(etapa, d);
@@ -2506,7 +2512,7 @@
      resultado — e reage em tempo real (ver atualizarStatusEvidencia). As
      mesmas três condições de evidenciaCardCompleto(), só que abertas em
      itens nomeados em vez de um booleano só. */
-  function pendenciasEvidencia(resultados, evidenciaDe) {
+  function pendenciasEvidencia(resultados, evidenciaDe, classificacao) {
     var itens = [];
     resultados.forEach(function (m, i) {
       var ev = evidenciaDe(m.id);
@@ -2519,15 +2525,42 @@
       if (!normalizar(ev.fonte)) itens.push('Fonte utilizada do ' + rotulo);
       if (!normalizar(ev.aprendizado)) itens.push('Aprendizado do ' + rotulo);
     });
+    /* "Nossa hipótese foi" é do CONJUNTO, não de um resultado — por isso
+       entra por último na lista, depois de cada resultado nomeado. */
+    if (!normalizar(classificacao)) itens.push('"Nossa hipótese foi" (avaliação do conjunto das evidências)');
     return itens;
   }
-  function pendenciasEvidenciaHtml(resultados, evidenciaDe) {
-    var itens = pendenciasEvidencia(resultados, evidenciaDe);
+  function pendenciasEvidenciaHtml(resultados, evidenciaDe, classificacao) {
+    var itens = pendenciasEvidencia(resultados, evidenciaDe, classificacao);
     if (!itens.length) return '<p class="aposta-aviso-ok" data-evidencia-pendencias>✓ Evidências completas.</p>';
     return '<div class="aposta-aviso-didatico" data-evidencia-pendencias>' +
         '<p style="margin:0 0 6px">Complete os dados abaixo para continuar:</p>' +
         '<ul style="margin:0;padding-left:18px">' + itens.map(function (t) { return '<li>' + esc(t) + '</li>'; }).join('') + '</ul>' +
       '</div>';
+  }
+
+  /* "Nossa hipótese foi:" é uma leitura ÚNICA do CONJUNTO das evidências
+     — nunca por resultado (um mesmo experimento pode produzir evidências
+     que apontam em direções diferentes; reduzir isso a um veredito por
+     card seria exatamente o julgamento automático que a dinâmica evita).
+     Refere-se SEMPRE à hipótese ORIGINAL (etapa H — Hipótese, nunca
+     reescrita) — a eventual hipótese NOVA só existe depois, na Decisão,
+     em campos separados (proxHipCausa/proxHipIndicio) que nunca
+     sobrescrevem esta avaliação nem a hipótese original. */
+  var CLASSIFICACOES_HIPOTESE = ['Sustentada', 'Parcialmente sustentada', 'Não sustentada'];
+  function classificacaoHipoteseHtml(d) {
+    var atual = String(d.classificacao || '').trim();
+    return '<div class="aposta-escolha" id="apostaClassificacaoHipotese">' +
+      '<span class="aposta-campo-rot">Nossa hipótese foi:</span>' +
+      '<p class="aposta-auxiliar">O que as evidências nos dizem sobre a hipótese que testamos?</p>' +
+      '<div class="aposta-escolha-opcoes">' +
+        CLASSIFICACOES_HIPOTESE.map(function (o) {
+          return '<button type="button" class="aposta-opcao' + (atual === o ? ' is-ativa' : '') +
+            '" data-classificacao-valor="' + esc(o) + '">' + esc(o) + '</button>';
+        }).join('') +
+      '</div>' +
+      '<input type="hidden" data-campo="classificacao" value="' + esc(atual) + '" />' +
+    '</div>';
   }
 
   function evidenciaHtml(d) {
@@ -2657,7 +2690,14 @@
     }).join('');
 
     var pronto = (!registrando && status.estado === 'pronta') ? blocoPlanoProntoHtml(true) : '';
-    var pendencias = registrando ? pendenciasEvidenciaHtml(resultados, evidenciaDe) : '';
+    /* A classificação da hipótese só faz sentido depois de já haver
+       resultado a interpretar — some no modo planejamento, junto com o
+       resto do que só existe depois da execução. Fica FORA de
+       .aposta-resultados-resumo de propósito: esse bloco é reconstruído
+       por inteiro a cada tecla (atualizarResumoEvidencia), e um <div>
+       de botões reconstruído a cada tecla perderia o clique em voo. */
+    var classificacaoHtml = registrando ? classificacaoHipoteseHtml(d) : '';
+    var pendencias = registrando ? pendenciasEvidenciaHtml(resultados, evidenciaDe, d.classificacao) : '';
 
     return banner +
       '<div class="aposta-mudancas">' + html + '</div>' +
@@ -2665,6 +2705,7 @@
         '<p class="aposta-campo-rot">' + (registrando ? 'Resultados do experimento' : 'Resultados que vamos observar') + '</p>' +
         resumo +
       '</div>' +
+      classificacaoHtml +
       pendencias +
       pronto;
   }
@@ -2750,6 +2791,8 @@
         aindaBloqueado = (d.itens || []).some(function (ev) { return !planoDeEvidenciaCompleto(ev); });
       } else if (tipo === 'evidencia') {
         aindaBloqueado = (d.itens || []).some(function (ev) { return !evidenciaCardCompleto(ev); });
+      } else if (tipo === 'evidencia-classificacao') {
+        aindaBloqueado = !normalizar(d.classificacao);
       } else if (tipo === 'decisao-nova-hipotese') {
         aindaBloqueado = decisaoFaltaNovaHipotese(d);
       }
@@ -3119,9 +3162,10 @@
       var resultados = resultadosDe(_dados.mudancas, (_dados.experimento || {}).resultadoIds);
       var itensAoVivo = Array.prototype.map.call(_tela.querySelectorAll('.aposta-mudanca[data-resultado]'), evidenciaColetada);
       function evidenciaDeAoVivo(id) { return itensAoVivo.filter(function (e) { return e.resultadoId === id; })[0] || {}; }
+      var classificacaoAoVivo = (_tela.querySelector('#apostaClassificacaoHipotese [data-campo]') || {}).value || '';
       var pendenciasEl = _tela.querySelector('[data-evidencia-pendencias]');
-      if (pendenciasEl) pendenciasEl.outerHTML = pendenciasEvidenciaHtml(resultados, evidenciaDeAoVivo);
-      if (seguirBtn) seguirBtn.disabled = pendenciasEvidencia(resultados, evidenciaDeAoVivo).length > 0;
+      if (pendenciasEl) pendenciasEl.outerHTML = pendenciasEvidenciaHtml(resultados, evidenciaDeAoVivo, classificacaoAoVivo);
+      if (seguirBtn) seguirBtn.disabled = pendenciasEvidencia(resultados, evidenciaDeAoVivo, classificacaoAoVivo).length > 0;
     }
     function atualizarCardsEvidencia() {
       atualizarStatusEvidencia();
@@ -3195,6 +3239,21 @@
        texto/select cheia, e um checkbox com ela virava um retângulo
        gigante em vez do quadradinho de sempre. */
     _tela.querySelectorAll('.aposta-resultado-item input[type="checkbox"], .aposta-checkbox-linha input[type="checkbox"]').forEach(ligarCampoInput);
+
+    /* "Nossa hipótese foi:" — fora do padrão genérico de escolha
+       (etapa.escolha/escolhaHtml), porque a Evidência não passa por
+       moldeHtml (ver evidenciaHtml). O valor vive num input escondido
+       (data-campo="classificacao"), lido por coletar() como qualquer
+       outro campo — só o clique nos botões que é próprio daqui. */
+    _tela.querySelectorAll('#apostaClassificacaoHipotese [data-classificacao-valor]').forEach(function (b) {
+      b.addEventListener('click', function () {
+        _tela.querySelectorAll('#apostaClassificacaoHipotese .aposta-opcao').forEach(function (o) { o.classList.remove('is-ativa'); });
+        b.classList.add('is-ativa');
+        var hidden = _tela.querySelector('#apostaClassificacaoHipotese [data-campo="classificacao"]');
+        if (hidden) hidden.value = b.dataset.classificacaoValor;
+        salvarDepois();
+      });
+    });
 
     /* O card do "O que vamos medir?" destaca visualmente o que está
        marcado — o mesmo card mostra o checkbox e o resumo do
@@ -3559,6 +3618,16 @@
           avisosEl.innerHTML = '<p class="aposta-aviso-didatico">Complete o resultado destacado acima: preencha "Resultado observado", "Fonte utilizada" e "O que aprendemos com esta evidência?", ou marque "Não foi possível medir" e informe o motivo.</p>';
           var blocosEvidencia = _tela.querySelectorAll('.aposta-mudanca[data-resultado]');
           (blocosEvidencia[idxEvidenciaIncompleta] || avisosEl).scrollIntoView({ behavior: 'smooth', block: 'center' });
+          return;
+        }
+        /* Só depois de cada resultado estar completo é que faz sentido
+           pedir a leitura do CONJUNTO — "Nossa hipótese foi" nunca
+           bloqueia antes disso, sempre depois. */
+        if (!normalizar(d.classificacao)) {
+          avisosEl.dataset.bloqueio = 'evidencia-classificacao';
+          avisosEl.innerHTML = '<p class="aposta-aviso-didatico">Escolha "Nossa hipótese foi:" — a leitura do conjunto das evidências — antes de continuar.</p>';
+          var classificacaoEl = _tela.querySelector('#apostaClassificacaoHipotese');
+          (classificacaoEl || avisosEl).scrollIntoView({ behavior: 'smooth', block: 'center' });
           return;
         }
       }
