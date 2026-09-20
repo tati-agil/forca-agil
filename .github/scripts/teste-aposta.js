@@ -129,6 +129,11 @@ async function novaPagina(browser, formato, email, erros, apostas, cfgExtra) {
   const ctx = await browser.newContext(formato.opts);
   const page = await ctx.newPage();
   page.on('pageerror', (e) => erros.push(String(e).split('\n')[0]));
+  /* Sem isso, o Playwright descarta (Cancelar) qualquer confirm()/alert()
+     por padrão — e a confirmação "o experimento já foi executado?" antes
+     de entrar no modo de registro da Evidência (ajuste de usabilidade
+     #4) travaria a suíte inteira esperando um diálogo que nunca fecha. */
+  page.on('dialog', (d) => d.accept());
   await page.addInitScript('window.__CFG = ' + JSON.stringify(Object.assign({
     db: banco(apostas), user: { email: email, emailVerified: true, uid: 'u1' }, delayDefault: 20,
   }, cfgExtra || {})) + ';');
@@ -313,8 +318,8 @@ const clicarSemRolagem = (page, seletor) => page.$eval(seletor, (el) => el.click
           /Miss[ãa]o-base/.test(previaMissaoBase) && /os contatos sobre andamento/.test(previaMissaoBase),
           previaMissaoBase.slice(0, 140));
 
-        /* Remover missão-base: pede confirmação e volta ao estado sem missão-base. */
-        novo.once('dialog', (d) => d.accept());
+        /* Remover missão-base: pede confirmação (aceita globalmente, ver
+           novaPagina) e volta ao estado sem missão-base. */
         await novo.click('#apostaRemoverMissaoFac');
         await novo.waitForTimeout(400);
         const depoisRemover = await novo.evaluate(() => ({
@@ -964,20 +969,23 @@ const clicarSemRolagem = (page, seletor) => page.$eval(seletor, (el) => el.click
              clicar CONTINUAR com a direção contradizendo os números é
              bloqueado de verdade, sem escape por segundo clique — "Reduzir"
              exige meta MENOR que a situação atual. */
+          /* Ajuste de usabilidade (item 6): um bloqueio de verdade agora
+             deixa o botão genuinely disabled — clicar nele (ou tentar)
+             não faz nada, porque o navegador nem dispara o evento. A
+             orientação já está visível ao vivo na própria frase (teste
+             acima), sem precisar do clique para aparecer. */
           const tituloAntesBloqueio = await page.evaluate(() => (document.querySelector('.aposta-etapa-titulo') || {}).textContent || '');
-          await clicarSemRolagem(page, '#apostaSeguir');
-          await page.waitForTimeout(300);
-          const bloqueio1 = await page.evaluate(() => (document.getElementById('apostaAvisos') || {}).textContent || '');
-          anota('"Reduzir" com meta maior que a situação atual BLOQUEIA Continuar, apontando para o card errado',
-            /Corrija a mudança mensurável destacada/.test(bloqueio1), bloqueio1);
-          await clicarSemRolagem(page, '#apostaSeguir');   /* diferente do aviso didático: o 2º clique NÃO libera */
+          const desabilitadoAntes = await page.evaluate(() => (document.getElementById('apostaSeguir') || {}).disabled);
+          anota('"Reduzir" com meta maior que a situação atual desabilita CONTINUAR de verdade',
+            desabilitadoAntes === true, String(desabilitadoAntes));
+          await page.evaluate(() => document.getElementById('apostaSeguir').click());
           await page.waitForTimeout(300);
           const aindaBloqueado = await page.evaluate(() => ({
             titulo: (document.querySelector('.aposta-etapa-titulo') || {}).textContent || '',
-            aviso: (document.getElementById('apostaAvisos') || {}).textContent || '',
+            desabilitado: (document.getElementById('apostaSeguir') || {}).disabled,
           }));
-          anota('o bloqueio de coerência NÃO tem escape por segundo clique, ao contrário do aviso didático',
-            aindaBloqueado.titulo === tituloAntesBloqueio && /Corrija a mudança mensurável destacada/.test(aindaBloqueado.aviso), JSON.stringify(aindaBloqueado));
+          anota('o bloqueio de coerência não tem escape nenhum — clicar no botão desabilitado não muda nada',
+            aindaBloqueado.titulo === tituloAntesBloqueio && aindaBloqueado.desabilitado === true, JSON.stringify(aindaBloqueado));
 
           await page.click('.aposta-mudanca-alerta [data-corrigir]');
           await page.waitForTimeout(300);
@@ -1298,24 +1306,32 @@ const clicarSemRolagem = (page, seletor) => page.$eval(seletor, (el) => el.click
               /PLANEJAMENTO DA EVID[ÊE]NCIA/.test(antesDePreencher.bannerTxt) && /Salvar plano para execu[çc][ãa]o/i.test(antesDePreencher.botaoTxt),
               JSON.stringify(antesDePreencher));
 
+            /* Item 6 do ajuste de usabilidade: sem Fonte prevista, o
+               botão nasce genuinely disabled — nem chega a haver clique
+               que dispare aviso, porque o navegador suprime o evento. A
+               orientação já mora no texto "aguardando execução" de cada
+               card, sempre visível. */
             const tituloAntesEvVazia = await page.evaluate(() => (document.querySelector('.aposta-etapa-titulo') || {}).textContent || '');
+            const desabilitadoPlanoIncompleto = await page.evaluate(() => (document.getElementById('apostaSeguir') || {}).disabled);
+            anota('sem Fonte prevista, "Salvar plano para execução" nasce desabilitado de verdade',
+              desabilitadoPlanoIncompleto === true, String(desabilitadoPlanoIncompleto));
             await clicarSemRolagem(page, '#apostaSeguir');
             await page.waitForTimeout(300);
             const tituloDepoisEvVazia = await page.evaluate(() => (document.querySelector('.aposta-etapa-titulo') || {}).textContent || '');
             anota('Continuar bloqueia de verdade até o Plano de Evidência estar completo',
               tituloDepoisEvVazia === tituloAntesEvVazia);
-            const avisoPlanoIncompleto = await page.evaluate(() => (document.getElementById('apostaAvisos') || {}).textContent || '');
-            anota('o bloqueio em planejamento orienta a completar o Plano de Evidência, não a preencher resultado observado',
-              /Plano de Evid[êe]ncia/i.test(avisoPlanoIncompleto) && !/Resultado observado/i.test(avisoPlanoIncompleto),
-              avisoPlanoIncompleto);
 
             await page.selectOption('[data-e="fontePrevista"]', 'Dados do sistema');
             await page.waitForTimeout(300);
-            const botaoPronto = await page.evaluate(() => (document.getElementById('apostaSeguir') || {}).textContent || '');
-            anota('plano completo: o botão principal muda para "Registrar resultados do experimento"',
-              /Registrar resultados do experimento/i.test(botaoPronto), botaoPronto);
-            const prontoBloco = await page.evaluate(() => (document.body.textContent || '').includes('PLANO DE EVIDÊNCIA PRONTO'));
-            anota('com o plano completo, aparece o bloco "PLANO DE EVIDÊNCIA PRONTO" com a opção de encerrar por agora', prontoBloco);
+            const botaoPronto = await page.evaluate(() => ({
+              texto: (document.getElementById('apostaSeguir') || {}).textContent || '',
+              desabilitado: (document.getElementById('apostaSeguir') || {}).disabled,
+            }));
+            anota('plano completo: o botão principal muda para "Registrar resultados do experimento" e fica habilitado',
+              /Registrar resultados do experimento/i.test(botaoPronto.texto) && botaoPronto.desabilitado === false,
+              JSON.stringify(botaoPronto));
+            const prontoBloco = await page.evaluate(() => (document.body.textContent || '').includes('Plano de evidência salvo'));
+            anota('com o plano completo, aparece o bloco de confirmação com a opção de encerrar por agora', prontoBloco);
 
             await clicarSemRolagem(page, '#apostaSeguir');
             await page.waitForTimeout(300);
@@ -1482,13 +1498,24 @@ const clicarSemRolagem = (page, seletor) => page.$eval(seletor, (el) => el.click
               JSON.stringify(grupo));
             anota('quando obrigatória (Reformular a hipótese), a tela diz por quê', /pede uma explica[çc][ãa]o nova/i.test(grupo.dicaObrigatoria));
 
-            await page.fill('[data-campo="proxHipCausa"]', 'a mensagem não chega a quem está em análise');
-            await page.fill('[data-campo="proxHipIndicio"]', 'os contatos caíram só no grupo que recebeu a mensagem');
             /* Decisão é frase estrita (ver ETAPAS_FRASE_ESTRITA): sem a
                próxima ação, a prévia mostra só a orientação do que
                falta, não a frase com "Próxima ação:" em branco. */
             await page.fill('[data-campo="proximaAcao"]', 'testar a nova hipótese com um novo experimento');
             await page.waitForTimeout(300);
+            /* Ajuste de usabilidade (item 14): "Reformular a hipótese"
+               com Próxima ação já preenchida, mas SEM a Nova Hipótese,
+               continua bloqueando CONTINUAR de verdade — não bastava
+               mais só a orientação, a decisão inteira dependia dela. */
+            const desabilitadoSemNovaHip = await page.evaluate(() => (document.getElementById('apostaSeguir') || {}).disabled);
+            anota('"Reformular a hipótese" sem a Nova Hipótese completa mantém CONTINUAR desabilitado',
+              desabilitadoSemNovaHip === true, String(desabilitadoSemNovaHip));
+
+            await page.fill('[data-campo="proxHipCausa"]', 'a mensagem não chega a quem está em análise');
+            await page.fill('[data-campo="proxHipIndicio"]', 'os contatos caíram só no grupo que recebeu a mensagem');
+            await page.waitForTimeout(300);
+            const habilitadoComNovaHip = await page.evaluate(() => (document.getElementById('apostaSeguir') || {}).disabled);
+            anota('completar a Nova Hipótese libera CONTINUAR de verdade', habilitadoComNovaHip === false, String(habilitadoComNovaHip));
             const fraseDec = await page.evaluate(() =>
               ((document.getElementById('apostaFrase') || {}).textContent || '').replace(/\s+/g, ' '));
             anota('a frase da decisão não tem traço solto no meio',
@@ -1568,13 +1595,17 @@ const clicarSemRolagem = (page, seletor) => page.$eval(seletor, (el) => el.click
          etapa o desvio acima deixou a tela. */
       for (let n = 0; n < 14; n++) {
         if (await page.evaluate(() => !!document.querySelector('.aposta-mapa'))) break;
-        await page.click('#apostaSeguir');
+        /* $eval (não page.click): um botão genuinely disabled (ajuste de
+           usabilidade #6) nunca dispara o clique — usar a ação normal do
+           Playwright aqui travaria 30s esperando ele "ficar habilitado"
+           sozinho, o que nunca vai acontecer sem preencher o que falta. */
+        await clicarSemRolagem(page, '#apostaSeguir');
         await page.waitForTimeout(350);
         const segurou = await page.evaluate(() => {
           const el = document.querySelector('#apostaAvisos');
           return !!el && !!el.textContent.trim();
         });
-        if (segurou) { await page.click('#apostaSeguir'); await page.waitForTimeout(350); }
+        if (segurou) { await clicarSemRolagem(page, '#apostaSeguir'); await page.waitForTimeout(350); }
       }
 
       /* ── 4: o mapa final, antes da revelação ── */
@@ -1876,15 +1907,21 @@ const clicarSemRolagem = (page, seletor) => page.$eval(seletor, (el) => el.click
         await pgEv.selectOption('[data-e="fonte"]', '');
         await pgEv.waitForTimeout(200);
         const tituloAntesEv = await pgEv.evaluate(() => (document.querySelector('.aposta-etapa-titulo') || {}).textContent || '');
-        await pgEv.$eval('#apostaSeguir', (el) => el.click());
-        await pgEv.waitForTimeout(300);
-        const bloqueioSemFonte = await pgEv.evaluate(() => (document.getElementById('apostaAvisos') || {}).textContent || '');
+        /* Ajuste de usabilidade (item 6/7): o botão fica genuinely
+           disabled — clicar nele (mesmo via $eval) não dispara nada, e a
+           pendência já está listada ao vivo (item 8), sem precisar do
+           clique para aparecer. */
+        const semFonte = await pgEv.evaluate(() => ({
+          desabilitado: (document.getElementById('apostaSeguir') || {}).disabled,
+          pendencias: (document.querySelector('[data-evidencia-pendencias]') || {}).textContent || '',
+        }));
         anota('CONTINUAR bloqueia sem Fonte utilizada, mesmo com Resultado observado preenchido',
-          /preencha .Resultado observado.,? .Fonte utilizada./i.test(bloqueioSemFonte), bloqueioSemFonte);
+          semFonte.desabilitado === true && /Fonte utilizada/i.test(semFonte.pendencias), JSON.stringify(semFonte));
         await pgEv.$eval('#apostaSeguir', (el) => el.click());
         await pgEv.waitForTimeout(300);
         const tituloDepoisSemFonte = await pgEv.evaluate(() => (document.querySelector('.aposta-etapa-titulo') || {}).textContent || '');
-        anota('o bloqueio de Evidência incompleta NÃO tem escape por segundo clique', tituloDepoisSemFonte === tituloAntesEv);
+        anota('o bloqueio de Evidência incompleta NÃO tem escape nenhum — nem clicando no botão desabilitado',
+          tituloDepoisSemFonte === tituloAntesEv);
 
         /* Aprendizado é obrigatório quando o resultado foi medido de
            verdade — um número sozinho não é aprendizado. Observado +
@@ -1894,13 +1931,12 @@ const clicarSemRolagem = (page, seletor) => page.$eval(seletor, (el) => el.click
         const notaFaltaAprendizadoAntes = await pgEv.evaluate(() => (document.querySelector('[data-falta-aprendizado]') || {}).textContent || '');
         anota('o card mostra "Ainda falta: o aprendizado" quando observado+fonte já existem mas o aprendizado ainda não',
           /Ainda falta: o aprendizado/i.test(notaFaltaAprendizadoAntes), notaFaltaAprendizadoAntes);
-        await pgEv.$eval('#apostaSeguir', (el) => el.click());
-        await pgEv.waitForTimeout(300);
-        const bloqueioSemAprendizado = await pgEv.evaluate(() => (document.getElementById('apostaAvisos') || {}).textContent || '');
-        const tituloDepoisSemAprendizado = await pgEv.evaluate(() => (document.querySelector('.aposta-etapa-titulo') || {}).textContent || '');
+        const semAprendizado = await pgEv.evaluate(() => ({
+          desabilitado: (document.getElementById('apostaSeguir') || {}).disabled,
+          pendencias: (document.querySelector('[data-evidencia-pendencias]') || {}).textContent || '',
+        }));
         anota('CONTINUAR bloqueia sem o aprendizado, mesmo com Resultado observado e Fonte preenchidos',
-          /aprendemos com esta evid[êe]ncia/i.test(bloqueioSemAprendizado) && tituloDepoisSemAprendizado === tituloAntesEv,
-          bloqueioSemAprendizado);
+          semAprendizado.desabilitado === true && /Aprendizado/i.test(semAprendizado.pendencias), JSON.stringify(semAprendizado));
 
         await pgEv.fill('[data-e="aprendizado"]', 'Os contatos caíram, mas ainda não bateram a meta — a maior visibilidade pode estar ajudando.');
         await pgEv.waitForTimeout(300);
@@ -1926,11 +1962,12 @@ const clicarSemRolagem = (page, seletor) => page.$eval(seletor, (el) => el.click
         });
         anota('marcar "Não foi possível medir" tira o "(opcional)" de Motivo — passa a ser obrigatório',
           motivoRot === 'Motivo', motivoRot);
-        await pgEv.$eval('#apostaSeguir', (el) => el.click());
-        await pgEv.waitForTimeout(300);
-        const bloqueioSemMotivo = await pgEv.evaluate(() => (document.getElementById('apostaAvisos') || {}).textContent || '');
+        const semMotivo = await pgEv.evaluate(() => ({
+          desabilitado: (document.getElementById('apostaSeguir') || {}).disabled,
+          pendencias: (document.querySelector('[data-evidencia-pendencias]') || {}).textContent || '',
+        }));
         anota('marcado "Não foi possível medir" mas sem Motivo, CONTINUAR continua bloqueado',
-          /preencha .Resultado observado.,? .Fonte utilizada./i.test(bloqueioSemMotivo), bloqueioSemMotivo);
+          semMotivo.desabilitado === true && /Motivo/i.test(semMotivo.pendencias), JSON.stringify(semMotivo));
 
         await pgEv.fill('[data-e="motivo"]', 'a pesquisa não foi concluída dentro do período do experimento');
         await pgEv.waitForTimeout(200);
@@ -1941,6 +1978,39 @@ const clicarSemRolagem = (page, seletor) => page.$eval(seletor, (el) => el.click
           tituloDepoisCompleto !== tituloAntesEv, tituloDepoisCompleto);
 
         await ctxEv.close();
+      }
+
+      /* ── 9a-bis: item 4 do ajuste de usabilidade — "AINDA NÃO" na
+            confirmação mantém a etapa em modo de planejamento, sem
+            trocar de estado. Sobrescreve o accept() global só nesta
+            página, para simular a escolha negativa. ── */
+      {
+        const semeadoConfirma = apostasSemeadas();
+        semeadoConfirma[TURMA_LIB].execucoes[EXEC].grupos[GRUPO].etapa = 'evidencia';
+        semeadoConfirma[TURMA_LIB].execucoes[EXEC].grupos[GRUPO].dados = {
+          mudancas: { itens: [{ id: 'r1', direcao: 'Reduzir', indicador: 'contatos sobre o andamento', atual: '1000', meta: '500', unidade: 'contatos', periodo: 'por mês', prazo: '90', prazoUnidade: 'dias' }] },
+          experimento: { resultadoIds: ['r1'] },
+          evidencia: { itens: [{ resultadoId: 'r1', fontePrevista: 'Dados do sistema' }] },
+        };
+        const { ctx: ctxConf, page: pgConf } = await novaPagina(browser, formato, DIRETORA, erros, semeadoConfirma);
+        pgConf.removeAllListeners('dialog');
+        pgConf.on('dialog', (d) => d.dismiss());
+        await pgConf.goto(BASE + '/index.html#treinamento', { waitUntil: 'domcontentloaded' });
+        await pgConf.click('#apostaAbrirBtn');
+        await pgConf.waitForSelector('.aposta-grupo-btn', { timeout: 15000 });
+        await pgConf.click('.aposta-grupo-btn');
+        await pgConf.waitForFunction(() =>
+          /EVID[ÊE]NCIA/.test((document.querySelector('.aposta-etapa-titulo') || {}).textContent || ''),
+          { timeout: 15000 });
+        await pgConf.$eval('#apostaSeguir', (el) => el.click());
+        await pgConf.waitForTimeout(300);
+        const aindaNao = await pgConf.evaluate(() => ({
+          temCampoObservado: !!document.querySelector('[data-e="observado"]'),
+          banner: (document.querySelector('.aposta-campos .aposta-herdada') || {}).textContent || '',
+        }));
+        anota('"AINDA NÃO" na confirmação mantém a etapa em planejamento, sem mudar de modo',
+          !aindaNao.temCampoObservado && /PLANEJAMENTO DA EVID[ÊE]NCIA/.test(aindaNao.banner), JSON.stringify(aindaNao));
+        await ctxConf.close();
       }
 
       /* ── 9c: "Manter" na Evidência usa mensagem própria por tipo de
@@ -2226,17 +2296,17 @@ const clicarSemRolagem = (page, seletor) => page.$eval(seletor, (el) => el.click
         });
         anota('escolher "Ampliar" sem a meta batida mostra o alerta de coerência, com os dois botões',
           !!alertaAmpliar && /Ampliar/.test(alertaAmpliar.texto) &&
-          alertaAmpliar.botoes.includes('MANTER DECISÃO') && alertaAmpliar.botoes.includes('REVER DECISÃO'),
+          alertaAmpliar.botoes.includes('MANTER AMPLIAR') && alertaAmpliar.botoes.includes('REVER DECISÃO'),
           JSON.stringify(alertaAmpliar));
 
-        await pgDec.locator('#apostaDecisaoAlerta button', { hasText: 'MANTER DECISÃO' }).click();
+        await pgDec.locator('#apostaDecisaoAlerta button', { hasText: 'MANTER AMPLIAR' }).click();
         await pgDec.waitForTimeout(150);
         const decisaoContinuaAmpliar = await pgDec.evaluate(() => {
           const ativa = document.querySelector('.aposta-opcao.is-ativa');
           const alerta = document.getElementById('apostaDecisaoAlerta');
           return { valor: ativa ? ativa.dataset.valor : '', alertaVazio: !alerta || !alerta.textContent.trim() };
         });
-        anota('"MANTER DECISÃO" só dispensa o alerta — não muda a decisão escolhida',
+        anota('"MANTER AMPLIAR" só dispensa o alerta — não muda a decisão escolhida',
           decisaoContinuaAmpliar.valor === 'Ampliar' && decisaoContinuaAmpliar.alertaVazio, JSON.stringify(decisaoContinuaAmpliar));
 
         await pgDec.locator('.aposta-opcao', { hasText: 'Ampliar' }).click();

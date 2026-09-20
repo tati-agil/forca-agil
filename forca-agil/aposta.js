@@ -2092,6 +2092,10 @@
         ? (statusEv.estado === 'pronta' ? 'Registrar resultados do experimento' : 'Salvar plano para execução')
         : 'Continuar para Decisão →';
     }
+    /* Item 6/16 do ajuste de usabilidade: o botão principal já nasce
+       desabilitado de verdade quando falta algo, em vez de parecer ativo
+       até o clique provar o contrário. */
+    var seguirBloqueado = seguirDesabilitado(etapa, d);
 
     _tela.innerHTML = cabecalho() +
       '<div class="aposta-corpo">' +
@@ -2124,7 +2128,7 @@
           '<div class="aposta-navegacao">' +
             (idx > 0 ? '<button class="btn" id="apostaVoltar">← Voltar</button>' : '<span></span>') +
             '<span class="aposta-salvo" id="apostaSalvo"></span>' +
-            '<button class="btn btn--primary" id="apostaSeguir">' + esc(seguirLabel) + '</button>' +
+            '<button class="btn btn--primary" id="apostaSeguir"' + (seguirBloqueado ? ' disabled' : '') + '>' + esc(seguirLabel) + '</button>' +
           '</div>' +
         '</main>' +
       '</div>';
@@ -2325,15 +2329,80 @@
     return { registrando: true, estado: tudoCompleto ? 'concluida' : 'registrando' };
   }
 
-  /* Bloco "PLANO DE EVIDÊNCIA PRONTO" — extraído à parte porque é
-     montado tanto no render normal da etapa quanto ao vivo, assim que a
-     última fonte prevista é escolhida (ver atualizarStatusEvidencia em
-     ligarEtapa), e as duas cópias precisam ficar sempre idênticas. */
-  function blocoPlanoProntoHtml() {
+  /* Regra global do ajuste de usabilidade (item 6): um botão bloqueado
+     precisa estar `disabled` de verdade — nunca só "amarelo mas não
+     avança ao clicar". Reaproveita exatamente as mesmas checagens que o
+     clique em CONTINUAR já usa para bloquear (mudança incoerente, frase
+     estrita incompleta, Nova Hipótese faltando, Evidência incompleta em
+     qualquer um dos dois modos), então nunca diverge do que o clique
+     realmente permite. Missão/Sintoma/Problema não entram aqui porque
+     não têm bloqueio de verdade hoje — só avisos didáticos dispensáveis. */
+  function seguirDesabilitado(etapa, d) {
+    if (etapa.id === 'mudancas') {
+      return indiceMudancaIncoerente(d) !== -1;
+    }
+    if (etapa.id === 'evidencia') {
+      var se = statusEvidencia({ mudancas: _dados.mudancas, experimento: _dados.experimento, evidencia: d });
+      if (!se.registrando) return se.estado !== 'pronta';
+      return (d.itens || []).some(function (ev) { return !evidenciaCardCompleto(ev); });
+    }
+    if (ETAPAS_FRASE_ESTRITA[etapa.id]) {
+      var faltam = partesFaltantesEtapa(etapa, d);
+      var temLegadoValido = etapa.legado && String(d[etapa.legado] || '').trim() && !temLacunaPreenchida(etapa, d);
+      if (faltam.length && !temLegadoValido) return true;
+      if (etapa.id === 'decisao' && d.decisao === 'Reformular a hipótese' &&
+        !(normalizar(d.proxHipCausa) && normalizar(d.proxHipIndicio))) return true;
+      return false;
+    }
+    return false;
+  }
+
+  /* Bloco "plano pronto" — dois textos diferentes para o mesmo estado,
+     conforme o jeito de chegar nele (ver ajuste de usabilidade #2/#3):
+     RETOMANDO (render normal da etapa — o plano já estava salvo antes
+     de abrir a tela, por exemplo ao voltar noutro dia) mostra só o
+     status, sem repetir a ação de sair, que a pessoa já usou; RECÉM-
+     COMPLETO (ao vivo, no instante em que a última Fonte prevista é
+     escolhida — ver atualizarStatusEvidencia em ligarEtapa) é o
+     feedback e o convite a encerrar descritos no pedido de usabilidade. */
+  function blocoPlanoProntoHtml(retomando) {
+    if (retomando) {
+      return '<div class="aposta-herdada" data-plano-pronto>' +
+          '<p style="margin:0"><strong>PLANO DE EVIDÊNCIA SALVO.</strong> Aguardando execução do experimento.</p>' +
+        '</div>';
+    }
     return '<div class="aposta-herdada" data-plano-pronto>' +
-        '<p style="margin:0 0 8px"><strong>PLANO DE EVIDÊNCIA PRONTO.</strong> Você definiu como os resultados deste experimento serão observados. Os valores observados e os aprendizados serão registrados depois da execução.</p>' +
-        '<p style="margin:0 0 10px">Experimento ainda não executado. Você pode encerrar por agora e voltar a esta aposta depois.</p>' +
+        '<p style="margin:0 0 8px">✓ Plano de evidência salvo. Pronto para execução.</p>' +
         '<button type="button" class="btn btn--sm" id="apostaSairEvidencia">Encerrar por agora</button>' +
+      '</div>';
+  }
+
+  /* Item 8 do ajuste de usabilidade: no modo de registro, uma mensagem
+     objetiva (nunca genérica) lista exatamente o que falta, por
+     resultado — e reage em tempo real (ver atualizarStatusEvidencia). As
+     mesmas três condições de evidenciaCardCompleto(), só que abertas em
+     itens nomeados em vez de um booleano só. */
+  function pendenciasEvidencia(resultados, evidenciaDe) {
+    var itens = [];
+    resultados.forEach(function (m, i) {
+      var ev = evidenciaDe(m.id);
+      var rotulo = 'Resultado ' + (i + 1);
+      if (ev.naoMedido === 'sim') {
+        if (!normalizar(ev.motivo)) itens.push('Motivo do ' + rotulo);
+        return;
+      }
+      if (!normalizar(ev.observado)) itens.push('Resultado observado do ' + rotulo);
+      if (!normalizar(ev.fonte)) itens.push('Fonte utilizada do ' + rotulo);
+      if (!normalizar(ev.aprendizado)) itens.push('Aprendizado do ' + rotulo);
+    });
+    return itens;
+  }
+  function pendenciasEvidenciaHtml(resultados, evidenciaDe) {
+    var itens = pendenciasEvidencia(resultados, evidenciaDe);
+    if (!itens.length) return '<p class="aposta-aviso-ok" data-evidencia-pendencias>✓ Evidências completas.</p>';
+    return '<div class="aposta-aviso-didatico" data-evidencia-pendencias>' +
+        '<p style="margin:0 0 6px">Complete os dados abaixo para continuar:</p>' +
+        '<ul style="margin:0;padding-left:18px">' + itens.map(function (t) { return '<li>' + esc(t) + '</li>'; }).join('') + '</ul>' +
       '</div>';
   }
 
@@ -2463,7 +2532,8 @@
         esc((m.atual || '—') + sufixo) + ' → ' + esc(obsTxt) + ' · Meta: ' + esc(metaOuLimiteTexto(m, sufixo)) + '</p>';
     }).join('');
 
-    var pronto = (!registrando && status.estado === 'pronta') ? blocoPlanoProntoHtml() : '';
+    var pronto = (!registrando && status.estado === 'pronta') ? blocoPlanoProntoHtml(true) : '';
+    var pendencias = registrando ? pendenciasEvidenciaHtml(resultados, evidenciaDe) : '';
 
     return banner +
       '<div class="aposta-mudancas">' + html + '</div>' +
@@ -2471,6 +2541,7 @@
         '<p class="aposta-campo-rot">' + (registrando ? 'Resultados do experimento' : 'Resultados que vamos observar') + '</p>' +
         resumo +
       '</div>' +
+      pendencias +
       pronto;
   }
 
@@ -2555,6 +2626,8 @@
         aindaBloqueado = (d.itens || []).some(function (ev) { return !planoDeEvidenciaCompleto(ev); });
       } else if (tipo === 'evidencia') {
         aindaBloqueado = (d.itens || []).some(function (ev) { return !evidenciaCardCompleto(ev); });
+      } else if (tipo === 'decisao-nova-hipotese') {
+        aindaBloqueado = !(normalizar(d.proxHipCausa) && normalizar(d.proxHipIndicio));
       }
       if (!aindaBloqueado) {
         avisosEl.innerHTML = '';
@@ -2571,12 +2644,20 @@
        aparecia como "ainda não preenchido", e voltar nela mostrava o
        campo em branco — o texto tinha sido apagado de verdade. */
     function salvarDepois() {
-      agendarSalvamento(etapa.id, coletar());
+      var d = coletar();
+      agendarSalvamento(etapa.id, d);
       limparAvisoBloqueioResolvido();
       if (etapa.lista) atualizarFrases();
       else if (etapa.id === 'evidencia') atualizarCardsEvidencia();
       else atualizarFrase();
       if (etapa.id === 'decisao') atualizarAlertaPrazo();
+      /* Item 6/16: mantém o botão principal realmente desabilitado
+         enquanto se digita — a Evidência já cuida disso sozinha dentro
+         de atualizarCardsEvidencia (dois rótulos, duas checagens). */
+      if (etapa.id !== 'evidencia') {
+        var seguirBtn = document.getElementById('apostaSeguir');
+        if (seguirBtn) seguirBtn.disabled = seguirDesabilitado(etapa, d);
+      }
     }
 
     /* Mesmo molde que monta o card do Mapa da Aposta: o que a pessoa lê
@@ -2676,7 +2757,7 @@
       if (!msg) { el.innerHTML = ''; return; }
       el.innerHTML = '<p class="aposta-aviso-didatico">' + esc(msg) + '</p>' +
         '<div class="aposta-decisao-alerta-botoes">' +
-          '<button type="button" class="btn btn--sm" data-decisao-alerta="manter">MANTER DECISÃO</button>' +
+          '<button type="button" class="btn btn--sm" data-decisao-alerta="manter">MANTER AMPLIAR</button>' +
           '<button type="button" class="btn btn--sm" data-decisao-alerta="rever">REVER DECISÃO</button>' +
         '</div>';
       var btnManter = el.querySelector('[data-decisao-alerta="manter"]');
@@ -2865,22 +2946,45 @@
        no modo de registro, o próprio DOM (a existência do campo
        "Resultado observado") já denuncia isso, e o rótulo do botão para
        de mudar sozinho. */
+    /* Item 1 do ajuste de usabilidade: "Encerrar por agora" precisa dar
+       feedback visível antes de sumir da tela — sem isso, a pessoa não
+       tinha como saber se o planejamento realmente ficou salvo. */
+    function encerrarPlanejamento() {
+      avisar('✓ Planejamento salvo. O experimento está pronto para execução. Você poderá registrar os resultados quando retornar.');
+      setTimeout(fecharDinamica, 1800);
+    }
     function atualizarStatusEvidencia() {
-      if (_tela.querySelector('.aposta-mudanca[data-resultado] [data-e="observado"]')) return;
+      var registrandoAgora = !!_tela.querySelector('.aposta-mudanca[data-resultado] [data-e="observado"]');
       var seguirBtn = document.getElementById('apostaSeguir');
-      var se = statusEvidencia({ mudancas: _dados.mudancas, experimento: _dados.experimento, evidencia: coletar() });
-      if (seguirBtn) seguirBtn.textContent = se.estado === 'pronta' ? 'Registrar resultados do experimento' : 'Salvar plano para execução';
-      var prontoEl = _tela.querySelector('[data-plano-pronto]');
-      if (se.estado === 'pronta' && !prontoEl) {
-        var resumoWrap = _tela.querySelector('.aposta-resultados-resumo');
-        if (resumoWrap) {
-          resumoWrap.insertAdjacentHTML('afterend', blocoPlanoProntoHtml());
-          var novoSairBtn = document.getElementById('apostaSairEvidencia');
-          if (novoSairBtn) novoSairBtn.addEventListener('click', fecharDinamica);
+      if (!registrandoAgora) {
+        var se = statusEvidencia({ mudancas: _dados.mudancas, experimento: _dados.experimento, evidencia: coletar() });
+        if (seguirBtn) {
+          seguirBtn.textContent = se.estado === 'pronta' ? 'Registrar resultados do experimento' : 'Salvar plano para execução';
+          seguirBtn.disabled = se.estado !== 'pronta';
         }
-      } else if (se.estado !== 'pronta' && prontoEl) {
-        prontoEl.parentNode.removeChild(prontoEl);
+        var prontoEl = _tela.querySelector('[data-plano-pronto]');
+        if (se.estado === 'pronta' && !prontoEl) {
+          var resumoWrap = _tela.querySelector('.aposta-resultados-resumo');
+          if (resumoWrap) {
+            resumoWrap.insertAdjacentHTML('afterend', blocoPlanoProntoHtml(false));
+            avisar('✓ Plano de evidência salvo.');
+            var novoSairBtn = document.getElementById('apostaSairEvidencia');
+            if (novoSairBtn) novoSairBtn.addEventListener('click', encerrarPlanejamento);
+          }
+        } else if (se.estado !== 'pronta' && prontoEl) {
+          prontoEl.parentNode.removeChild(prontoEl);
+        }
+        return;
       }
+      /* Modo de registro: item 8 do ajuste de usabilidade — a mensagem de
+         pendências (ou "✓ Evidências completas.") e a habilitação de
+         "Continuar para Decisão" reagem em tempo real, a cada tecla. */
+      var resultados = resultadosDe(_dados.mudancas, (_dados.experimento || {}).resultadoIds);
+      var itensAoVivo = Array.prototype.map.call(_tela.querySelectorAll('.aposta-mudanca[data-resultado]'), evidenciaColetada);
+      function evidenciaDeAoVivo(id) { return itensAoVivo.filter(function (e) { return e.resultadoId === id; })[0] || {}; }
+      var pendenciasEl = _tela.querySelector('[data-evidencia-pendencias]');
+      if (pendenciasEl) pendenciasEl.outerHTML = pendenciasEvidenciaHtml(resultados, evidenciaDeAoVivo);
+      if (seguirBtn) seguirBtn.disabled = pendenciasEvidencia(resultados, evidenciaDeAoVivo).length > 0;
     }
     function atualizarCardsEvidencia() {
       atualizarStatusEvidencia();
@@ -2940,7 +3044,8 @@
         return '<p><strong>' + esc(m.indicador) + ':</strong><br>' +
           esc((m.atual || '—') + sufixo) + ' → ' + esc(obsTxt) + ' · Meta: ' + esc(metaOuLimiteTexto(m, sufixo)) + '</p>';
       }).join('');
-      wrap.innerHTML = '<p class="aposta-campo-rot">Resultados do experimento</p>' + resumo;
+      var registrandoAgora = !!_tela.querySelector('.aposta-mudanca[data-resultado] [data-e="observado"]');
+      wrap.innerHTML = '<p class="aposta-campo-rot">' + (registrandoAgora ? 'Resultados do experimento' : 'Resultados que vamos observar') + '</p>' + resumo;
     }
 
     function ligarCampoInput(el) {
@@ -3061,12 +3166,10 @@
       });
     }
 
-    /* "Encerrar por agora" no bloco "Plano de evidência pronto": mesma
-       saída do botão "Sair" do topo, só que a própria tela da etapa já
-       deixa o comportamento evidente, sem depender de uma instrução
-       longa apontando para o cabeçalho. */
-    var sairEvidenciaBtn = document.getElementById('apostaSairEvidencia');
-    if (sairEvidenciaBtn) sairEvidenciaBtn.addEventListener('click', fecharDinamica);
+    /* "Encerrar por agora" só existe no bloco "plano pronto" recém-
+       completo (ver atualizarStatusEvidencia) — ao retomar uma aposta já
+       salva, o bloco mostra só o status, sem repetir uma ação que a
+       pessoa já usou (itens 2/3 do ajuste de usabilidade). */
 
     /* Troca de decisão muda quais blocos de grupo (hoje: a Nova
        Hipótese) ficam visíveis, recolhidos ou abertos — sem recarregar
@@ -3212,6 +3315,17 @@
           (apostaFraseEl || avisosEl).scrollIntoView({ behavior: 'smooth', block: 'center' });
           return;
         }
+        /* Decisão "Reformular a hipótese": a Nova Hipótese abre sozinha e
+           é obrigatória nesse caso (item 14 do ajuste de usabilidade) —
+           as outras quatro decisões continuam com ela opcional. */
+        if (etapa.id === 'decisao' && d.decisao === 'Reformular a hipótese' &&
+          !(normalizar(d.proxHipCausa) && normalizar(d.proxHipIndicio))) {
+          avisosEl.dataset.bloqueio = 'decisao-nova-hipotese';
+          avisosEl.innerHTML = '<p class="aposta-aviso-didatico">A decisão "Reformular a hipótese" pede a Nova Hipótese completa: preencha a causa provável e o indício que a motivou.</p>';
+          var grupoNovaHip = document.getElementById('apostaGrupoNovaHipotese');
+          (grupoNovaHip || avisosEl).scrollIntoView({ behavior: 'smooth', block: 'center' });
+          return;
+        }
       }
 
       /* Evidência: a etapa inteira alterna entre dois modos, nunca card
@@ -3238,6 +3352,14 @@
             (blocosPlano[idxPlanoIncompleto] || avisosEl).scrollIntoView({ behavior: 'smooth', block: 'center' });
             return;
           }
+          /* Item 4 do ajuste de usabilidade: mudar de modo é irreversível
+             de fato (a partir daqui os campos de planejamento viram
+             recapitulação só leitura), então confirma antes — evita
+             entrar sem querer no estado pós-execução. */
+          if (!confirm('O experimento já foi executado?\n\n' +
+            'OK = Sim, registrar resultados\nCancelar = Ainda não')) {
+            return;
+          }
           /* Plano completo: liga o modo de registro e recarrega a MESMA
              etapa (nunca avança para a Decisão a partir daqui). A Fonte
              utilizada nasce pré-selecionada com a Fonte planejada — o
@@ -3256,6 +3378,7 @@
               return;
             }
             render();
+            avisar('Agora registre o que aconteceu durante o experimento.');
           });
           return;
         }
@@ -3300,6 +3423,13 @@
           seguirBtn.disabled = false;
           avisar('Não consegui salvar "' + etapa.curto + '" — verifique a conexão e tente de novo. ' +
             'Nada foi perdido: o que está na tela continua aqui.', true);
+          return;
+        }
+        /* O toast é filho de _tela, que "avancar" substitui na hora — sem
+           o atraso curto, a mensagem nunca chegaria a aparecer. */
+        if (etapa.id === 'decisao') {
+          avisar('✓ Decisão registrada.');
+          setTimeout(function () { avancar(etapa); }, 700);
           return;
         }
         avancar(etapa);
