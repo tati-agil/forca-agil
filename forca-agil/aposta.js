@@ -45,15 +45,26 @@
    cheia, porque é feita para ser projetada numa sala.
 
    COMO OS DADOS SÃO GUARDADOS
-   apostas/<turmaKey>/atual                  → id da execução em curso —
-                                                também é o PONTEIRO usado
-                                                como trava de concorrência
-                                                (ver criarExecucao)
-   apostas/<turmaKey>/contadorExecucoes      → só o número da última execução
-                                                criada (transaction() — ver
-                                                criarExecucao), nunca lido
-                                                para nada além disso
-   apostas/<turmaKey>/execucoes/<execId>     → uma execução inteira
+   apostas/<turmaKey>/atual                       → id da execução em curso.
+                                                     Só muda dentro do MESMO
+                                                     update() que cria a
+                                                     execução nova — nunca
+                                                     antes (ver criarExecucao)
+   apostas/<turmaKey>/criacaoExecucaoEmAndamento  → lock temporário que
+                                                     disputa quem pode criar
+                                                     a próxima execução (não
+                                                     é "atual" — ver
+                                                     criarExecucao); some ao
+                                                     final de cada ciclo, ou
+                                                     expira sozinho
+                                                     (LOCK_EXPIRA_MS)
+   apostas/<turmaKey>/contadorExecucoes           → só o número da última
+                                                     execução criada
+                                                     (transaction() — ver
+                                                     criarExecucao), nunca
+                                                     lido para nada além
+                                                     disso
+   apostas/<turmaKey>/execucoes/<execId>          → uma execução inteira
      · numero, status ('ativa'/'encerrada'), criadaEm/criadaPor(Nome),
        encerradaEm/encerradaPor(Nome) quando encerrada, missao, revelado
        (`encerrada`, booleano, é campo antigo — mantido por compatibilidade,
@@ -61,19 +72,16 @@
      · grupos/<grupoId> → nome, membros, etapa, dados de cada etapa
    "Iniciar nova execução" (Fase 1 da evolução de execuções) encerra
    formalmente a execução atual (status/encerradaEm/encerradaPor) e cria
-   uma NOVA. A regra da dinâmica é estrita: no máximo UMA execução com
-   status 'ativa' por turma, sempre — nunca duas, mesmo que uma delas
-   fique invisível na interface. Por isso a troca do ponteiro "atual"
-   passa primeiro por uma transaction() que só aceita a troca se ele
-   ainda for exatamente a execução que está sendo substituída; se duas
-   chamadas concorrerem pela mesma execução atual, só uma vence — a
-   outra é abortada SEM criar execução nenhuma (nem uma órfã) e mostra
-   um aviso pedindo para atualizar a tela. Só depois de vencer essa
-   disputa é que a execução nova é criada e a antiga é marcada como
-   encerrada, num update() atômico só. Nada do que um grupo escreveu é
-   apagado nem alterado. Execuções de antes desta fase não têm
-   `numero`/`status` — ver compatibilidade em qualquer leitura futura
-   desses campos.
+   uma NOVA. Duas invariantes valem sempre, mesmo em cima de uma falha
+   no meio do caminho: no máximo UMA execução com status 'ativa' por
+   turma, e "atual" sempre aponta para uma execução que existe e está
+   ativa. A disputa entre chamadas concorrentes usa um lock separado
+   (nunca o próprio "atual" — ver criarExecucao para o porquê), e
+   "atual" só é escrito dentro do update() atômico final, junto com a
+   execução nova inteira e o encerramento da antiga — nunca isolado.
+   Nada do que um grupo escreveu é apagado nem alterado. Execuções de
+   antes desta fase não têm `numero`/`status` — ver compatibilidade em
+   qualquer leitura futura desses campos.
    ============================================================ */
 (function () {
   'use strict';
@@ -1695,101 +1703,186 @@
      para "Iniciar nova execução" (_execId aponta para a execução que
      está sendo substituída).
 
-     A regra é estrita: no máximo UMA execução com status 'ativa' por
-     turma, sempre — nunca duas, mesmo que uma fique invisível na
-     interface por não ser apontada por "atual". Um contador sozinho
-     (a versão anterior desta função) garante só números distintos:
-     ele NÃO impede que duas chamadas concorrentes, cada uma partindo
-     da mesma execução atual, cheguem a criar CADA UMA a sua própria
-     execução "ativa" — uma delas vira "atual", a outra fica órfã e
-     ativa do mesmo jeito, sem que a interface a mostre.
+     Duas invariantes têm de valer SEMPRE, mesmo no meio de uma falha:
+       1) no máximo UMA execução com status 'ativa' por turma;
+       2) "atual" sempre aponta para uma execução que existe e está
+          ativa — nunca para uma execução que não foi gravada.
 
-     Por isso a criação agora é uma disputa em duas etapas:
+     Uma versão anterior desta função trocava o próprio ponteiro
+     "atual" como mecanismo de disputa (transaction() nele). Isso
+     garantia a invariante 1, mas abria uma janela real para quebrar a
+     invariante 2: entre o instante em que "atual" já apontava para a
+     execução nova e o instante em que essa execução era de fato
+     gravada, uma queda do navegador de quem venceu deixava "atual"
+     apontando para nada.
 
-     1) transaction() no PONTEIRO "atual" (não no contador). Ela só
-        aceita a troca se "atual" ainda for exatamente a execução que
-        esta chamada está tentando substituir (ou null, na primeira
-        abertura da turma). Se outra chamada já venceu antes desta
-        terminar, a transaction() é abortada — devolve undefined, o
-        Firebase não grava nada — e esta chamada não cria execução
-        nenhuma, nem uma órfã: ela avisa que outra execução já foi
-        iniciada e atualiza a própria tela para a execução vencedora.
+     Por isso "atual" agora só muda numa única vez, dentro do MESMO
+     update() atômico que cria a execução nova inteira e encerra a
+     antiga — nunca antes disso. Enquanto esse update() não acontece,
+     "atual" continua exatamente onde estava, apontando para uma
+     execução que existe e está ativa de verdade. Uma falha em
+     qualquer etapa anterior a esse update() não altera "atual" em
+     nada.
 
-     2) Só quem vence essa disputa segue para pegar o número (ainda
-        numa transaction() pequena, só no contador — baixar/regravar
-        todas as execuções existentes a cada clique seria pesado demais
-        numa turma com histórico longo) e gravar, num update() atômico
-        só, a execução nova E o encerramento formal da antiga juntos.
+     A disputa entre chamadas concorrentes passa a usar um LOCK
+     separado (apostas/<turmaKey>/criacaoExecucaoEmAndamento), nunca o
+     ponteiro "atual":
 
-     Uma janela pequena e só do lado de quem venceu fica entre o passo
-     1 (o ponteiro já mudou) e o passo 2 (a execução nova ainda não foi
-     gravada) — se o navegador de quem venceu cair bem nesse meio-tempo
-     (não uma segunda pessoa disputando, só essa mesma chamada morrendo
-     no meio do caminho), "atual" fica apontando para uma execução que
-     ainda não existe, e precisa de conserto manual. É um cenário raro
-     e categoricamente diferente do que esta mudança elimina: nunca
-     mais duas execuções 'ativa' de verdade ao mesmo tempo. */
+     1) transaction() no lock: só aceita se ele estiver livre ou tiver
+        expirado (LOCK_EXPIRA_MS — ver abaixo por quê). Quem não
+        vence aborta sem tocar em nada.
+     2) Quem vence relê "atual" (agora com exclusividade garantida —
+        ninguém mais pode mudá-lo enquanto o lock está com esta
+        chamada) e confere se ainda é a execução que esta chamada
+        pensava estar substituindo; se não for (outra chamada já
+        completou um ciclo inteiro antes desta sequer começar a
+        disputar), libera o lock e avisa, sem criar nada.
+     3) Só então pega o número (transaction() pequena, só no contador
+        — baixar/regravar todas as execuções existentes a cada clique
+        seria pesado demais numa turma com histórico longo).
+     4) Só então grava, num ÚNICO update() atômico, a execução nova
+        inteira, o encerramento formal da antiga e a troca de "atual"
+        — os três juntos, ou nada.
+
+     Se a falha acontecer em qualquer ponto ANTES desse update() final
+     (lock adquirido mas a leitura de "atual" falhou; número obtido
+     mas o update() final falhou; a própria rede caiu no meio), o pior
+     resultado possível é: um número de execução pulado (aceitável —
+     ver comentário no contador) e/ou o lock ficando preso até expirar
+     — "atual" nunca é tocado, então nunca pode ficar quebrado. Por
+     isso todo caminho de erro libera o lock quando ainda é seguro
+     fazê-lo (a própria chamada continua viva para tentar), e o
+     LOCK_EXPIRA_MS cobre o caso em que ela não continua viva (o
+     navegador realmente caiu): a próxima tentativa — um novo clique,
+     de quem for — destrava sozinha, sem precisar de conserto manual.
+
+     LOCK_EXPIRA_MS é generoso de propósito: a CLAUDE.md deste projeto
+     é explícita que "rede lenta é uma condição de mobile, não um caso
+     raro" — uma gravação que no wi-fi leva 200ms pode levar vários
+     segundos no 4G da sala. Um valor curto destravaria (e deixaria
+     outra chamada assumir) enquanto a primeira ainda está viva, só
+     lenta — o que reabriria, num caso raríssimo (rede extremamente
+     lenta E uma segunda tentativa nesse meio-tempo), uma versão fraca
+     do problema original. Um valor generoso reduz isso a uma
+     probabilidade desprezível, ao custo de a recuperação de uma queda
+     real levar até esse tanto de tempo. */
+  var LOCK_EXPIRA_MS = 20000;
+
   function criarExecucao() {
     var s = sessao();
     if (!s) return;
     var execAnteriorId = _execId || null;
-    var novoKey = db().ref('apostas/' + _turma.key + '/execucoes').push().key;
-    var atualRef = db().ref('apostas/' + _turma.key + '/atual');
-    atualRef.transaction(function (atualNoServidor) {
-      if ((atualNoServidor || null) !== execAnteriorId) return undefined;
-      return novoKey;
-    }, function (errPonteiro, venceu, snapPonteiro) {
-      if (errPonteiro) { avisar('Não consegui abrir a dinâmica. Nada foi criado — tente de novo.', true); return; }
+    var lockRef = db().ref('apostas/' + _turma.key + '/criacaoExecucaoEmAndamento');
+    lockRef.transaction(function (lockAtual) {
+      if (lockAtual && (Date.now() - new Date(lockAtual.em).getTime()) < LOCK_EXPIRA_MS) return undefined;
+      return { em: new Date().toISOString(), por: s.email };
+    }, function (errLock, venceu) {
+      if (errLock) { avisar('Não consegui abrir a dinâmica. Nada foi criado — tente de novo.', true); return; }
       if (!venceu) {
-        avisarPosSaida('Outra execução já foi iniciada para esta turma. A tela será atualizada.');
-        _execId = snapPonteiro ? snapPonteiro.val() : null;
-        if (_execId) ouvirExecucao(); else renderSemExecucao();
+        /* avisarPosSaida (não avisar): esta chamada pode ser a segunda
+           aba da mesma pessoa, cuja PRIMEIRA aba está vencendo a
+           disputa agora — e o "ouvirExecucao()" dela, ao terminar,
+           redesenha _tela por completo. Um aviso preso a _tela some
+           junto nesse redesenho antes de alguém conseguir ler; preso
+           a document.body, sobrevive. */
+        avisarPosSaida('Outra execução está sendo iniciada agora para esta turma. Tente de novo em alguns segundos.');
         return;
       }
-      concluirCriacaoExecucao(novoKey, execAnteriorId, s);
+      confirmarAtualAindaValido(execAnteriorId, s);
     });
   }
 
-  function concluirCriacaoExecucao(novoKey, execAnteriorId, s) {
+  function liberarLock() {
+    db().ref('apostas/' + _turma.key + '/criacaoExecucaoEmAndamento').remove();
+  }
+
+  /* Só chega aqui com o lock garantido — nenhuma outra chamada pode
+     mudar "atual" enquanto ele está conosco. Ainda assim relemos
+     "atual" (em vez de confiar só no execAnteriorId capturado no
+     clique) porque um ciclo anterior pode ter terminado por completo
+     — lock liberado, "atual" já trocado — entre o carregamento da
+     tela e este clique; sem essa checagem, encerraríamos a execução
+     ERRADA (uma que a pessoa nem sabe que existe). */
+  function confirmarAtualAindaValido(execAnteriorId, s) {
+    db().ref('apostas/' + _turma.key + '/atual').once('value', function (snap) {
+      var atualDeVerdade = snap.val() || null;
+      if (atualDeVerdade !== execAnteriorId) {
+        liberarLock();
+        avisarPosSaida('Outra execução já foi iniciada para esta turma. A tela será atualizada.');
+        _execId = atualDeVerdade;
+        if (_execId) ouvirExecucao(); else renderSemExecucao();
+        return;
+      }
+      obterNumeroEConcluir(execAnteriorId, s);
+    }, function () {
+      liberarLock();
+      avisar('Não consegui abrir a dinâmica. Tente de novo.', true);
+    });
+  }
+
+  function obterNumeroEConcluir(execAnteriorId, s) {
     var contadorRef = db().ref('apostas/' + _turma.key + '/contadorExecucoes');
     contadorRef.transaction(function (atual) {
       return (atual || 0) + 1;
     }, function (errContador, commitedContador, snapContador) {
-      if (errContador) { avisar('Não consegui abrir a dinâmica. Nada foi criado — tente de novo.', true); return; }
-      if (!commitedContador) { avisar('Não consegui abrir a dinâmica — tente de novo.', true); return; }
-      var meuNumero = snapContador.val();
-      var agora = new Date().toISOString();
-      var updates = {};
-      /* Só encerra formalmente uma execução anterior quando ela existe —
-         a primeira execução de uma turma não tem o que encerrar. Nada do
-         que os grupos escreveram nela é tocado, só os metadados de
-         ciclo de vida. */
-      if (execAnteriorId) {
-        var caminhoAnterior = 'apostas/' + _turma.key + '/execucoes/' + execAnteriorId;
-        updates[caminhoAnterior + '/status'] = 'encerrada';
-        updates[caminhoAnterior + '/encerrada'] = true;
-        updates[caminhoAnterior + '/encerradaEm'] = agora;
-        updates[caminhoAnterior + '/encerradaPor'] = s.email;
-        updates[caminhoAnterior + '/encerradaPorNome'] = s.name || s.email;
+      if (errContador || !commitedContador) {
+        liberarLock();
+        avisar('Não consegui abrir a dinâmica. Tente de novo.', true);
+        return;
       }
-      updates['apostas/' + _turma.key + '/execucoes/' + novoKey] = {
-        numero: meuNumero,
-        status: 'ativa',
-        criadaEm: agora,
-        criadaPor: s.email,
-        criadaPorNome: s.name || s.email,
-        turmaKey: _turma.key,
-        turmaLabel: _turma.label,
-        eventoKey: _turma.eventoKey || '',
-        missao: '',
-        revelado: false,
-        encerrada: false
-      };
-      db().ref().update(updates, function (err2) {
-        if (err2) { avisar('Não consegui abrir a dinâmica. Tente de novo.', true); return; }
-        _execId = novoKey;
-        ouvirExecucao();
-      });
+      var meuNumero = snapContador.val();
+      var novoKey = db().ref('apostas/' + _turma.key + '/execucoes').push().key;
+      concluirCriacaoExecucao(novoKey, meuNumero, execAnteriorId, s);
+    });
+  }
+
+  function concluirCriacaoExecucao(novoKey, meuNumero, execAnteriorId, s) {
+    var agora = new Date().toISOString();
+    var updates = {};
+    /* Só encerra formalmente uma execução anterior quando ela existe —
+       a primeira execução de uma turma não tem o que encerrar. Nada do
+       que os grupos escreveram nela é tocado, só os metadados de
+       ciclo de vida. */
+    if (execAnteriorId) {
+      var caminhoAnterior = 'apostas/' + _turma.key + '/execucoes/' + execAnteriorId;
+      updates[caminhoAnterior + '/status'] = 'encerrada';
+      updates[caminhoAnterior + '/encerrada'] = true;
+      updates[caminhoAnterior + '/encerradaEm'] = agora;
+      updates[caminhoAnterior + '/encerradaPor'] = s.email;
+      updates[caminhoAnterior + '/encerradaPorNome'] = s.name || s.email;
+    }
+    updates['apostas/' + _turma.key + '/execucoes/' + novoKey] = {
+      numero: meuNumero,
+      status: 'ativa',
+      criadaEm: agora,
+      criadaPor: s.email,
+      criadaPorNome: s.name || s.email,
+      turmaKey: _turma.key,
+      turmaLabel: _turma.label,
+      eventoKey: _turma.eventoKey || '',
+      missao: '',
+      revelado: false,
+      encerrada: false
+    };
+    /* "atual" só muda AQUI, junto com a criação da execução e o
+       encerramento da antiga — nunca antes. É o que garante que
+       "atual" nunca aponte para uma execução que não existe: ou este
+       update() inteiro grava, ou "atual" continua exatamente onde
+       estava. */
+    updates['apostas/' + _turma.key + '/atual'] = novoKey;
+    updates['apostas/' + _turma.key + '/criacaoExecucaoEmAndamento'] = null;
+    db().ref().update(updates, function (err2) {
+      if (err2) {
+        /* O update() é atômico: se falhou, nada dele foi gravado —
+           "atual" continua na execução antiga, válida. Libera o lock
+           agora (a chamada continua viva, é seguro); se nem isso
+           chegar a gravar, o LOCK_EXPIRA_MS destrava sozinho depois. */
+        liberarLock();
+        avisar('Não consegui abrir a dinâmica. Tente de novo.', true);
+        return;
+      }
+      _execId = novoKey;
+      ouvirExecucao();
     });
   }
 
@@ -4381,13 +4474,14 @@
     _resumo: function (id, dados) { return resumoEtapa(id, dados); },
     _etapas: function () { return ETAPAS.map(function (e) { return e.id; }); },
     _texto: function () { return textoDaAposta(); },
-    /* Só para o teste de concorrência da Fase 1 (duas chamadas quase
-       simultâneas de "Iniciar nova execução") — chamar isso direto,
-       sem passar pelo modal de confirmação, é o único jeito de provar
-       de verdade que duas transactions() disputando o mesmo ponteiro
-       "atual" nunca resultam em duas execuções "ativa" nem em uma
-       execução perdida: uma vence e cria a execução nova, a outra é
-       abortada sem criar nada. */
+    /* Só para os testes de concorrência e falha da Fase 1 (chamadas
+       quase simultâneas de "Iniciar nova execução", e falhas
+       provocadas em pontos específicos via window.__CFG.fail) —
+       chamar isso direto, sem passar pelo modal de confirmação, é o
+       único jeito de provar de verdade que duas chamadas disputando o
+       mesmo lock nunca resultam em duas execuções "ativa", e que uma
+       falha antes do update() final nunca deixa "atual" apontando
+       para uma execução inexistente. */
     _criarExecucao: function () { return criarExecucao(); }
   };
 

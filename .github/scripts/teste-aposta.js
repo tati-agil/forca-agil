@@ -2689,7 +2689,7 @@ const clicarSemRolagem = (page, seletor) => page.$eval(seletor, (el) => el.click
         await pgExec.click('#apostaReiniciar');
         await pgExec.waitForSelector('.aposta-confirmar-overlay .modal-box', { timeout: 5000 });
         await pgExec.$eval('.aposta-confirmar-overlay .aposta-modal-sim-btn', (el) => el.click());
-        await pgExec.waitForTimeout(400);
+        await pgExec.waitForTimeout(600);
 
         const estadoDepois = await pgExec.evaluate(({ turmaKey, execAntigo }) => new Promise((res) => {
           firebase.database().ref('apostas/' + turmaKey).once('value', (s) => {
@@ -2726,9 +2726,9 @@ const clicarSemRolagem = (page, seletor) => page.$eval(seletor, (el) => el.click
             bem no meio da rede lenta), NUNCA podem resultar em duas
             execuções com status "ativa" ao mesmo tempo — nem em uma
             delas ficando órfã (ativa, mas fora do "atual"). Só uma pode
-            vencer a disputa pelo ponteiro "atual"; a outra é abortada
-            sem criar execução nenhuma, e avisa a pessoa em vez de
-            travar ou quebrar a tela. ── */
+            vencer a disputa pelo LOCK; a outra é abortada sem criar
+            execução nenhuma, e avisa a pessoa em vez de travar ou
+            quebrar a tela. ── */
       {
         const semeadoConc = apostasSemeadas();
         const { ctx: ctxConc, page: pgConc } = await novaPagina(browser, formato, ADM, erros, semeadoConc);
@@ -2759,6 +2759,7 @@ const clicarSemRolagem = (page, seletor) => page.$eval(seletor, (el) => el.click
               qtdAtivas: ativasIds.length,
               ativasSaoSoAtual: ativasIds.length === 1 && ativasIds[0] === v.atual,
               originalEncerrada: (execucoes[execOriginal] || {}).status === 'encerrada',
+              temLock: !!v.criacaoExecucaoEmAndamento,
             });
           });
         }), { turmaKey: TURMA_LIB, execOriginal: EXEC });
@@ -2771,15 +2772,195 @@ const clicarSemRolagem = (page, seletor) => page.$eval(seletor, (el) => el.click
           resultadoConc.ativasSaoSoAtual && resultadoConc.atualExiste, JSON.stringify(resultadoConc));
         anota('a execução original é encerrada mesmo com a corrida entre as duas chamadas',
           resultadoConc.originalEncerrada, JSON.stringify(resultadoConc));
+        anota('o lock não fica preso depois que o ciclo vencedor termina', !resultadoConc.temLock, JSON.stringify(resultadoConc));
 
         const avisoPerdedora = await pgConc.evaluate(() => {
           const t = document.querySelector('.aposta-toast--persistente');
           return t ? t.textContent : '';
         });
-        anota('a chamada que perde a disputa mostra um aviso controlado (não trava nem quebra a tela)',
-          /outra execu[çc][ãa]o j[áa] foi iniciada/i.test(avisoPerdedora), avisoPerdedora);
+        anota('a chamada que perde a disputa pelo lock mostra um aviso controlado que sobrevive ao redesenho da vencedora (não trava nem quebra a tela)',
+          /outra execu[çc][ãa]o est[áa] sendo iniciada/i.test(avisoPerdedora), avisoPerdedora);
 
         await ctxConc.close();
+      }
+
+      /* ── 9k: FASE 1 — falha logo depois de adquirir o direito de
+            criação (o lock), mas antes de conseguir reler "atual": a
+            leitura de "atual" falha (rede caiu bem ali). "atual" não
+            pode ter sido tocado nesse ponto — a execução antiga
+            continua íntegra e ativa, e nenhuma execução parcial pode
+            aparecer. Como quem tentou continua vivo para reagir ao
+            erro, o lock é liberado na hora, sem precisar esperar
+            expirar — e o mesmo clique de novo, sem a falha, tem de
+            completar a transição normalmente. ── */
+      {
+        const semeadoFalha1 = apostasSemeadas();
+        const { ctx: ctxFalha1, page: pgFalha1 } = await novaPagina(browser, formato, ADM, erros, semeadoFalha1);
+        await pgFalha1.goto(BASE + '/index.html#treinamento', { waitUntil: 'domcontentloaded' });
+        await pgFalha1.click('#apostaAbrirBtn');
+        await pgFalha1.waitForSelector('.aposta-grupo-btn', { timeout: 15000 });
+
+        await pgFalha1.evaluate((turmaKey) => {
+          window.__CFG.fail = ['apostas/' + turmaKey + '/atual'];
+        }, TURMA_LIB);
+        await pgFalha1.evaluate(() => { window.faAposta._criarExecucao(); });
+        await pgFalha1.waitForTimeout(400);
+
+        const estadoAposFalha1 = await pgFalha1.evaluate(({ turmaKey, execOriginal }) => new Promise((res) => {
+          firebase.database().ref('apostas/' + turmaKey).once('value', (s) => {
+            const v = s.val() || {};
+            const execucoes = v.execucoes || {};
+            /* Execução seed é antiga (sem `status`) — compatibilidade
+               sem migração: ativa é `status === 'ativa'` OU, na
+               ausência de `status`, `encerrada` não ser true. */
+            const orig = execucoes[execOriginal] || {};
+            res({
+              atual: v.atual,
+              originalAtiva: orig.status ? orig.status === 'ativa' : !orig.encerrada,
+              qtdExecucoes: Object.keys(execucoes).length,
+              temLock: !!v.criacaoExecucaoEmAndamento,
+            });
+          });
+        }), { turmaKey: TURMA_LIB, execOriginal: EXEC });
+        anota('falha ao reler "atual" logo após o lock: "atual" não muda, a execução antiga continua ativa, nenhuma execução parcial aparece',
+          estadoAposFalha1.atual === EXEC && estadoAposFalha1.originalAtiva && estadoAposFalha1.qtdExecucoes === 1,
+          JSON.stringify(estadoAposFalha1));
+        anota('essa falha libera o lock na hora — quem tentou continua vivo para reagir, não precisa esperar expirar',
+          !estadoAposFalha1.temLock, JSON.stringify(estadoAposFalha1));
+
+        await pgFalha1.evaluate(() => { window.__CFG.fail = []; });
+        await pgFalha1.evaluate(() => { window.faAposta._criarExecucao(); });
+        await pgFalha1.waitForTimeout(600);
+
+        const estadoAposRetry1 = await pgFalha1.evaluate(({ turmaKey, execOriginal }) => new Promise((res) => {
+          firebase.database().ref('apostas/' + turmaKey).once('value', (s) => {
+            const v = s.val() || {};
+            const execucoes = v.execucoes || {};
+            const ativasIds = Object.keys(execucoes).filter((id) => execucoes[id].status === 'ativa');
+            res({
+              atualExiste: !!execucoes[v.atual],
+              qtdAtivas: ativasIds.length,
+              ativaEhAtual: ativasIds.length === 1 && ativasIds[0] === v.atual,
+              originalEncerrada: (execucoes[execOriginal] || {}).status === 'encerrada',
+            });
+          });
+        }), { turmaKey: TURMA_LIB, execOriginal: EXEC });
+        anota('sem a falha, repetir a mesma chamada completa a transição normalmente (retry recupera sozinho)',
+          estadoAposRetry1.atualExiste && estadoAposRetry1.qtdAtivas === 1 && estadoAposRetry1.ativaEhAtual && estadoAposRetry1.originalEncerrada,
+          JSON.stringify(estadoAposRetry1));
+
+        await ctxFalha1.close();
+      }
+
+      /* ── 9l: FASE 1 — falha depois de obter o número da execução, mas
+            antes do update() atômico final: o update() inteiro falha
+            (rede caiu bem ali). Como o update() é atômico, nada dele
+            grava — nem a execução nova, nem o encerramento da antiga,
+            nem a troca de "atual". O número já consumido fica pulado
+            (aceito de propósito: número perdido é melhor que ponteiro
+            quebrado), mas "atual" continua íntegro. O lock, de novo,
+            é liberado na hora — e o retry completa normalmente. ── */
+      {
+        const semeadoFalha2 = apostasSemeadas();
+        const { ctx: ctxFalha2, page: pgFalha2 } = await novaPagina(browser, formato, ADM, erros, semeadoFalha2);
+        await pgFalha2.goto(BASE + '/index.html#treinamento', { waitUntil: 'domcontentloaded' });
+        await pgFalha2.click('#apostaAbrirBtn');
+        await pgFalha2.waitForSelector('.aposta-grupo-btn', { timeout: 15000 });
+
+        await pgFalha2.evaluate((turmaKey) => {
+          window.__CFG.fail = ['apostas/' + turmaKey + '/execucoes'];
+        }, TURMA_LIB);
+        await pgFalha2.evaluate(() => { window.faAposta._criarExecucao(); });
+        await pgFalha2.waitForTimeout(400);
+
+        const estadoAposFalha2 = await pgFalha2.evaluate(({ turmaKey, execOriginal }) => new Promise((res) => {
+          firebase.database().ref('apostas/' + turmaKey).once('value', (s) => {
+            const v = s.val() || {};
+            const execucoes = v.execucoes || {};
+            /* Execução seed é antiga (sem `status`) — compatibilidade
+               sem migração: ativa é `status === 'ativa'` OU, na
+               ausência de `status`, `encerrada` não ser true. */
+            const orig = execucoes[execOriginal] || {};
+            res({
+              atual: v.atual,
+              originalAtiva: orig.status ? orig.status === 'ativa' : !orig.encerrada,
+              originalEncerrada: orig.status === 'encerrada' || orig.encerrada === true,
+              qtdExecucoes: Object.keys(execucoes).length,
+              temLock: !!v.criacaoExecucaoEmAndamento,
+              temContador: v.contadorExecucoes,
+            });
+          });
+        }), { turmaKey: TURMA_LIB, execOriginal: EXEC });
+        anota('falha no update() final: "atual" não muda e a execução antiga NUNCA é encerrada sem a nova ter sido criada de fato',
+          estadoAposFalha2.atual === EXEC && estadoAposFalha2.originalAtiva && !estadoAposFalha2.originalEncerrada && estadoAposFalha2.qtdExecucoes === 1,
+          JSON.stringify(estadoAposFalha2));
+        anota('essa falha também libera o lock na hora, mesmo já tendo consumido um número (número pulado é aceito; ponteiro quebrado não)',
+          !estadoAposFalha2.temLock && estadoAposFalha2.temContador === 1, JSON.stringify(estadoAposFalha2));
+
+        await pgFalha2.evaluate(() => { window.__CFG.fail = []; });
+        await pgFalha2.evaluate(() => { window.faAposta._criarExecucao(); });
+        await pgFalha2.waitForTimeout(600);
+
+        const estadoAposRetry2 = await pgFalha2.evaluate(({ turmaKey, execOriginal }) => new Promise((res) => {
+          firebase.database().ref('apostas/' + turmaKey).once('value', (s) => {
+            const v = s.val() || {};
+            const execucoes = v.execucoes || {};
+            const ativasIds = Object.keys(execucoes).filter((id) => execucoes[id].status === 'ativa');
+            const novaId = ativasIds[0];
+            res({
+              atualExiste: !!execucoes[v.atual],
+              qtdAtivas: ativasIds.length,
+              ativaEhAtual: ativasIds.length === 1 && ativasIds[0] === v.atual,
+              originalEncerrada: (execucoes[execOriginal] || {}).status === 'encerrada',
+              numeroDaNova: novaId ? execucoes[novaId].numero : null,
+            });
+          });
+        }), { turmaKey: TURMA_LIB, execOriginal: EXEC });
+        anota('sem a falha, repetir a mesma chamada completa a transição normalmente (retry recupera sozinho)',
+          estadoAposRetry2.atualExiste && estadoAposRetry2.qtdAtivas === 1 && estadoAposRetry2.ativaEhAtual && estadoAposRetry2.originalEncerrada,
+          JSON.stringify(estadoAposRetry2));
+        anota('o número pulado na falha aparece como lacuna aceita (a execução criada de fato tem número 2, não 1) — nunca um ponteiro quebrado no lugar',
+          estadoAposRetry2.numeroDaNova === 2, JSON.stringify(estadoAposRetry2));
+
+        await ctxFalha2.close();
+      }
+
+      /* ── 9m: FASE 1 — um lock já preso, deixado por uma queda
+            anterior (simulada aqui semeando o nó direto no banco, com
+            um timestamp bem antigo — o mesmo estado em que uma queda
+            de verdade, sem chance nenhuma de limpar depois de si,
+            deixaria o banco), precisa destravar sozinho quando
+            expira, sem exigir conserto manual: a próxima tentativa
+            consegue prosseguir normalmente. ── */
+      {
+        const semeadoFalha3 = apostasSemeadas();
+        semeadoFalha3[TURMA_LIB].criacaoExecucaoEmAndamento = { em: '2020-01-01T00:00:00.000Z', por: 'alguem@previ.com.br' };
+        const { ctx: ctxFalha3, page: pgFalha3 } = await novaPagina(browser, formato, ADM, erros, semeadoFalha3);
+        await pgFalha3.goto(BASE + '/index.html#treinamento', { waitUntil: 'domcontentloaded' });
+        await pgFalha3.click('#apostaAbrirBtn');
+        await pgFalha3.waitForSelector('.aposta-grupo-btn', { timeout: 15000 });
+
+        await pgFalha3.evaluate(() => { window.faAposta._criarExecucao(); });
+        await pgFalha3.waitForTimeout(600);
+
+        const estadoAposExpirar = await pgFalha3.evaluate(({ turmaKey, execOriginal }) => new Promise((res) => {
+          firebase.database().ref('apostas/' + turmaKey).once('value', (s) => {
+            const v = s.val() || {};
+            const execucoes = v.execucoes || {};
+            const ativasIds = Object.keys(execucoes).filter((id) => execucoes[id].status === 'ativa');
+            res({
+              atualExiste: !!execucoes[v.atual],
+              qtdAtivas: ativasIds.length,
+              ativaEhAtual: ativasIds.length === 1 && ativasIds[0] === v.atual,
+              originalEncerrada: (execucoes[execOriginal] || {}).status === 'encerrada',
+            });
+          });
+        }), { turmaKey: TURMA_LIB, execOriginal: EXEC });
+        anota('um lock preso por uma queda anterior (já expirado) destrava sozinho — a próxima tentativa não precisa de conserto manual no banco',
+          estadoAposExpirar.atualExiste && estadoAposExpirar.qtdAtivas === 1 && estadoAposExpirar.ativaEhAtual && estadoAposExpirar.originalEncerrada,
+          JSON.stringify(estadoAposExpirar));
+
+        await ctxFalha3.close();
       }
 
       anota('nenhum erro de JavaScript', erros.length === 0, erros[0]);
