@@ -2963,6 +2963,47 @@ const clicarSemRolagem = (page, seletor) => page.$eval(seletor, (el) => el.click
         await ctxFalha3.close();
       }
 
+      /* ── 9n: FASE 1 — o lock tem identidade própria por tentativa
+            (token): uma tentativa antiga que só descobre que falhou
+            depois de o lock já ter sido assumido por uma tentativa
+            mais nova NÃO PODE remover o lock dessa tentativa mais
+            nova. Sem isso, uma terceira chamada poderia entrar bem no
+            meio da tentativa mais nova, recriando a corrida que o
+            lock existe para impedir. ── */
+      {
+        const semeadoFalha4 = apostasSemeadas();
+        semeadoFalha4[TURMA_LIB].criacaoExecucaoEmAndamento = { em: new Date().toISOString(), por: ADM, token: 'token-da-tentativa-nova' };
+        const { ctx: ctxFalha4, page: pgFalha4 } = await novaPagina(browser, formato, ADM, erros, semeadoFalha4);
+        await pgFalha4.goto(BASE + '/index.html#treinamento', { waitUntil: 'domcontentloaded' });
+        await pgFalha4.click('#apostaAbrirBtn');
+        await pgFalha4.waitForSelector('.aposta-grupo-btn', { timeout: 15000 });
+
+        await pgFalha4.evaluate((turmaKey) => {
+          window.faAposta._liberarLock('token-de-uma-tentativa-antiga-que-ja-nao-existe-mais');
+        }, TURMA_LIB);
+        await pgFalha4.waitForTimeout(300);
+
+        const lockAposTentativaAntiga = await pgFalha4.evaluate((turmaKey) => new Promise((res) => {
+          firebase.database().ref('apostas/' + turmaKey + '/criacaoExecucaoEmAndamento').once('value', (s) => res(s.val()));
+        }), TURMA_LIB);
+        anota('liberarLock() com o token de uma tentativa antiga NÃO remove o lock de uma tentativa mais nova',
+          lockAposTentativaAntiga && lockAposTentativaAntiga.token === 'token-da-tentativa-nova',
+          JSON.stringify(lockAposTentativaAntiga));
+
+        await pgFalha4.evaluate((turmaKey) => {
+          window.faAposta._liberarLock('token-da-tentativa-nova');
+        }, TURMA_LIB);
+        await pgFalha4.waitForTimeout(300);
+
+        const lockAposTentativaCerta = await pgFalha4.evaluate((turmaKey) => new Promise((res) => {
+          firebase.database().ref('apostas/' + turmaKey + '/criacaoExecucaoEmAndamento').once('value', (s) => res(s.val()));
+        }), TURMA_LIB);
+        anota('liberarLock() com o token certo (o dono de verdade do lock) remove normalmente',
+          lockAposTentativaCerta === null, JSON.stringify(lockAposTentativaCerta));
+
+        await ctxFalha4.close();
+      }
+
       anota('nenhum erro de JavaScript', erros.length === 0, erros[0]);
 
       await ctx.close();

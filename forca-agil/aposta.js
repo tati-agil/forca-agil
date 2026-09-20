@@ -54,7 +54,13 @@
                                                      disputa quem pode criar
                                                      a próxima execução (não
                                                      é "atual" — ver
-                                                     criarExecucao); some ao
+                                                     criarExecucao); guarda um
+                                                     token próprio de cada
+                                                     tentativa, para que só
+                                                     quem o adquiriu consiga
+                                                     removê-lo (nunca um
+                                                     remove() às cegas — ver
+                                                     liberarLock); some ao
                                                      final de cada ciclo, ou
                                                      expira sozinho
                                                      (LOCK_EXPIRA_MS)
@@ -1726,23 +1732,37 @@
 
      A disputa entre chamadas concorrentes passa a usar um LOCK
      separado (apostas/<turmaKey>/criacaoExecucaoEmAndamento), nunca o
-     ponteiro "atual":
+     ponteiro "atual". O lock guarda um TOKEN próprio de cada
+     tentativa (gerado ao adquirir, nunca reaproveitado) — sem isso,
+     uma tentativa antiga que demora demais e só falha depois de
+     LOCK_EXPIRA_MS já ter passado poderia limpar o lock de uma
+     tentativa mais nova que já tinha assumido a disputa nesse
+     meio-tempo. Por isso NENHUM caminho deste código remove o lock
+     sem antes conferir, atomicamente (transaction()), que o token lá
+     gravado ainda é o mesmo que esta chamada recebeu ao adquiri-lo —
+     se não for, a chamada não mexe em nada: o lock já é de outra
+     tentativa, e conferir/limpar o lock errado é exatamente o tipo de
+     bug que este token existe para impedir.
 
      1) transaction() no lock: só aceita se ele estiver livre ou tiver
-        expirado (LOCK_EXPIRA_MS — ver abaixo por quê). Quem não
-        vence aborta sem tocar em nada.
+        expirado (LOCK_EXPIRA_MS — ver abaixo por quê), e grava um
+        token novo. Quem não vence aborta sem tocar em nada.
      2) Quem vence relê "atual" (agora com exclusividade garantida —
         ninguém mais pode mudá-lo enquanto o lock está com esta
         chamada) e confere se ainda é a execução que esta chamada
         pensava estar substituindo; se não for (outra chamada já
         completou um ciclo inteiro antes desta sequer começar a
-        disputar), libera o lock e avisa, sem criar nada.
+        disputar), libera o lock (com o token) e avisa, sem criar
+        nada.
      3) Só então pega o número (transaction() pequena, só no contador
         — baixar/regravar todas as execuções existentes a cada clique
         seria pesado demais numa turma com histórico longo).
      4) Só então grava, num ÚNICO update() atômico, a execução nova
-        inteira, o encerramento formal da antiga e a troca de "atual"
-        — os três juntos, ou nada.
+        inteira e o encerramento formal da antiga — os dois juntos,
+        ou nada. O lock é liberado (com o token) DEPOIS, numa chamada
+        separada — nunca dentro deste mesmo update() atômico, porque
+        um update() não sabe conferir "isso ainda é meu": só uma
+        transaction() com o token confere isso antes de apagar.
 
      Se a falha acontecer em qualquer ponto ANTES desse update() final
      (lock adquirido mas a leitura de "atual" falhou; número obtido
@@ -1750,11 +1770,12 @@
      resultado possível é: um número de execução pulado (aceitável —
      ver comentário no contador) e/ou o lock ficando preso até expirar
      — "atual" nunca é tocado, então nunca pode ficar quebrado. Por
-     isso todo caminho de erro libera o lock quando ainda é seguro
-     fazê-lo (a própria chamada continua viva para tentar), e o
-     LOCK_EXPIRA_MS cobre o caso em que ela não continua viva (o
-     navegador realmente caiu): a próxima tentativa — um novo clique,
-     de quem for — destrava sozinha, sem precisar de conserto manual.
+     isso todo caminho de erro tenta liberar o lock (com o token —
+     nunca às cegas) quando ainda é seguro fazê-lo (a própria chamada
+     continua viva para tentar), e o LOCK_EXPIRA_MS cobre o caso em
+     que ela não continua viva (o navegador realmente caiu): a próxima
+     tentativa — um novo clique, de quem for — destrava sozinha, sem
+     precisar de conserto manual.
 
      LOCK_EXPIRA_MS é generoso de propósito: a CLAUDE.md deste projeto
      é explícita que "rede lenta é uma condição de mobile, não um caso
@@ -1772,10 +1793,11 @@
     var s = sessao();
     if (!s) return;
     var execAnteriorId = _execId || null;
+    var meuToken = db().ref('apostas/' + _turma.key + '/criacaoExecucaoEmAndamento').push().key;
     var lockRef = db().ref('apostas/' + _turma.key + '/criacaoExecucaoEmAndamento');
     lockRef.transaction(function (lockAtual) {
       if (lockAtual && (Date.now() - new Date(lockAtual.em).getTime()) < LOCK_EXPIRA_MS) return undefined;
-      return { em: new Date().toISOString(), por: s.email };
+      return { em: new Date().toISOString(), por: s.email, token: meuToken };
     }, function (errLock, venceu) {
       if (errLock) { avisar('Não consegui abrir a dinâmica. Nada foi criado — tente de novo.', true); return; }
       if (!venceu) {
@@ -1788,12 +1810,23 @@
         avisarPosSaida('Outra execução está sendo iniciada agora para esta turma. Tente de novo em alguns segundos.');
         return;
       }
-      confirmarAtualAindaValido(execAnteriorId, s);
+      confirmarAtualAindaValido(execAnteriorId, s, meuToken);
     });
   }
 
-  function liberarLock() {
-    db().ref('apostas/' + _turma.key + '/criacaoExecucaoEmAndamento').remove();
+  /* Só apaga o lock se o token gravado nele ainda for O MESMO que
+     esta chamada recebeu ao adquiri-lo — nunca um remove() às cegas.
+     Sem essa checagem, uma tentativa antiga (que só descobre que
+     falhou depois de o lock já ter expirado e sido assumido por uma
+     tentativa mais nova) apagaria o lock de quem está trabalhando
+     agora, e uma terceira chamada poderia entrar bem no meio dessa
+     segunda tentativa — reabrindo a corrida que o lock existe para
+     impedir. */
+  function liberarLock(meuToken) {
+    db().ref('apostas/' + _turma.key + '/criacaoExecucaoEmAndamento').transaction(function (lockAtual) {
+      if (lockAtual && lockAtual.token === meuToken) return null;
+      return undefined; /* não é mais o nosso lock — não mexe */
+    });
   }
 
   /* Só chega aqui com o lock garantido — nenhuma outra chamada pode
@@ -1803,40 +1836,40 @@
      — lock liberado, "atual" já trocado — entre o carregamento da
      tela e este clique; sem essa checagem, encerraríamos a execução
      ERRADA (uma que a pessoa nem sabe que existe). */
-  function confirmarAtualAindaValido(execAnteriorId, s) {
+  function confirmarAtualAindaValido(execAnteriorId, s, meuToken) {
     db().ref('apostas/' + _turma.key + '/atual').once('value', function (snap) {
       var atualDeVerdade = snap.val() || null;
       if (atualDeVerdade !== execAnteriorId) {
-        liberarLock();
+        liberarLock(meuToken);
         avisarPosSaida('Outra execução já foi iniciada para esta turma. A tela será atualizada.');
         _execId = atualDeVerdade;
         if (_execId) ouvirExecucao(); else renderSemExecucao();
         return;
       }
-      obterNumeroEConcluir(execAnteriorId, s);
+      obterNumeroEConcluir(execAnteriorId, s, meuToken);
     }, function () {
-      liberarLock();
+      liberarLock(meuToken);
       avisar('Não consegui abrir a dinâmica. Tente de novo.', true);
     });
   }
 
-  function obterNumeroEConcluir(execAnteriorId, s) {
+  function obterNumeroEConcluir(execAnteriorId, s, meuToken) {
     var contadorRef = db().ref('apostas/' + _turma.key + '/contadorExecucoes');
     contadorRef.transaction(function (atual) {
       return (atual || 0) + 1;
     }, function (errContador, commitedContador, snapContador) {
       if (errContador || !commitedContador) {
-        liberarLock();
+        liberarLock(meuToken);
         avisar('Não consegui abrir a dinâmica. Tente de novo.', true);
         return;
       }
       var meuNumero = snapContador.val();
       var novoKey = db().ref('apostas/' + _turma.key + '/execucoes').push().key;
-      concluirCriacaoExecucao(novoKey, meuNumero, execAnteriorId, s);
+      concluirCriacaoExecucao(novoKey, meuNumero, execAnteriorId, s, meuToken);
     });
   }
 
-  function concluirCriacaoExecucao(novoKey, meuNumero, execAnteriorId, s) {
+  function concluirCriacaoExecucao(novoKey, meuNumero, execAnteriorId, s, meuToken) {
     var agora = new Date().toISOString();
     var updates = {};
     /* Só encerra formalmente uma execução anterior quando ela existe —
@@ -1868,20 +1901,21 @@
        encerramento da antiga — nunca antes. É o que garante que
        "atual" nunca aponte para uma execução que não existe: ou este
        update() inteiro grava, ou "atual" continua exatamente onde
-       estava. */
+       estava. O lock NÃO entra neste update() — ele só é liberado
+       depois, com o token conferido (ver liberarLock). */
     updates['apostas/' + _turma.key + '/atual'] = novoKey;
-    updates['apostas/' + _turma.key + '/criacaoExecucaoEmAndamento'] = null;
     db().ref().update(updates, function (err2) {
       if (err2) {
         /* O update() é atômico: se falhou, nada dele foi gravado —
            "atual" continua na execução antiga, válida. Libera o lock
            agora (a chamada continua viva, é seguro); se nem isso
            chegar a gravar, o LOCK_EXPIRA_MS destrava sozinho depois. */
-        liberarLock();
+        liberarLock(meuToken);
         avisar('Não consegui abrir a dinâmica. Tente de novo.', true);
         return;
       }
       _execId = novoKey;
+      liberarLock(meuToken);
       ouvirExecucao();
     });
   }
@@ -4482,7 +4516,12 @@
        mesmo lock nunca resultam em duas execuções "ativa", e que uma
        falha antes do update() final nunca deixa "atual" apontando
        para uma execução inexistente. */
-    _criarExecucao: function () { return criarExecucao(); }
+    _criarExecucao: function () { return criarExecucao(); },
+    /* Só para o teste da identidade do lock (Fase 1): prova direto que
+       liberarLock() com um token que não é mais o do lock atual não
+       remove nada — sem isso, teria que orquestrar uma corrida real
+       entre três tentativas só para chegar nesse ponto. */
+    _liberarLock: function (token) { return liberarLock(token); }
   };
 
   window.addEventListener('fa-auth-ready', montarEntrada);
