@@ -1294,7 +1294,7 @@ const clicarSemRolagem = (page, seletor) => page.$eval(seletor, (el) => el.click
               return { temBotao: !!btn, textoAviso: aviso ? aviso.textContent : '', temCampoObservado: temCampoObservado };
             });
             anota('sem resultado observado, a tela oferece REGISTRAR RESULTADOS em vez de exigir o campo',
-              antesDePreencher.temBotao && !antesDePreencher.temCampoObservado && /ainda não foi executado/i.test(antesDePreencher.textoAviso),
+              antesDePreencher.temBotao && !antesDePreencher.temCampoObservado && /ainda não executado/i.test(antesDePreencher.textoAviso),
               JSON.stringify(antesDePreencher));
 
             /* Seção 21: enquanto nenhum resultado teve a execução
@@ -1312,7 +1312,7 @@ const clicarSemRolagem = (page, seletor) => page.$eval(seletor, (el) => el.click
               tituloDepoisEvVazia === tituloAntesEvVazia);
             const avisoAntesRegistrar = await page.evaluate(() => (document.getElementById('apostaAvisos') || {}).textContent || '');
             anota('o bloqueio antes de REGISTRAR RESULTADOS orienta a clicar no botão, não a preencher campos inexistentes',
-              /ainda não teve a execução registrada/i.test(avisoAntesRegistrar) && /REGISTRAR RESULTADOS/.test(avisoAntesRegistrar),
+              /ainda em planejamento/i.test(avisoAntesRegistrar) && /REGISTRAR RESULTADOS/.test(avisoAntesRegistrar) && /Sair/.test(avisoAntesRegistrar),
               avisoAntesRegistrar);
 
             await page.click('[data-registrar-resultados]');
