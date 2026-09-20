@@ -3188,6 +3188,124 @@ const clicarSemRolagem = (page, seletor) => page.$eval(seletor, (el) => el.click
         await ctxHist.close();
       }
 
+      /* ── 12a-12c: FASE 3 — proteção contra clique duplo em "Criar
+            grupo", a única ação estrutural sem proteção encontrada no
+            mapeamento (criação de execução já é protegida desde a
+            Fase 1 por lock próprio; entrar em grupo, avançar etapa,
+            revelar e salvar/remover missão-base são todos gravações
+            idempotentes de um caminho fixo, não criações de registro
+            novo — nenhuma delas precisou de proteção nova). ── */
+      {
+        const semeadoGrupo = apostasSemeadas();
+        const { ctx: ctxGrupo, page: pgGrupo } = await novaPagina(browser, formato, ADM, erros, semeadoGrupo);
+        await pgGrupo.goto(BASE + '/index.html#treinamento', { waitUntil: 'domcontentloaded' });
+        await pgGrupo.click('#apostaAbrirBtn');
+        await pgGrupo.waitForSelector('#apostaPainelBtn', { timeout: 15000 });
+        await pgGrupo.click('#apostaPainelBtn');
+        await pgGrupo.waitForSelector('#apostaCriarGrupo', { timeout: 15000 });
+
+        const qtdGruposNoBanco = () => pgGrupo.evaluate((turmaKey) => new Promise((res) => {
+          firebase.database().ref('apostas/' + turmaKey).once('value', (s) => {
+            const v = s.val() || {};
+            res(Object.keys(((v.execucoes || {})[Object.keys(v.execucoes || {})[0]] || {}).grupos || {}).length);
+          });
+        }), TURMA_LIB);
+
+        /* 12a — clique duplo rápido (os dois disparados no mesmo
+           evaluate(), sem esperar o primeiro terminar — é exatamente a
+           corrida que um duplo-clique físico ou dois cliques nervosos
+           provocam) cria só UM grupo. */
+        await pgGrupo.fill('#apostaNovoGrupo', 'Grupo Duplo');
+        await pgGrupo.evaluate(() => {
+          document.getElementById('apostaCriarGrupo').click();
+          document.getElementById('apostaCriarGrupo').click();
+        });
+        const desabilitouNaHora = await pgGrupo.evaluate(() => (document.getElementById('apostaCriarGrupo') || {}).disabled);
+        anota('clicar em "Criar grupo" desabilita o botão na hora, antes da gravação terminar',
+          desabilitouNaHora === true, String(desabilitouNaHora));
+        await pgGrupo.waitForTimeout(500);
+        const qtdApos12a = await qtdGruposNoBanco();
+        anota('clique duplo rápido em "Criar grupo" cria só UM grupo (não dois)',
+          qtdApos12a === 2 /* GRUPO (seed) + 1 novo */, 'grupos no banco: ' + qtdApos12a);
+
+        /* A contagem no banco já garante um único ID novo (cada grupo é
+           uma chave push() distinta), mas isso sozinho não prova que a
+           TELA não ficou com dois cards do mesmo grupo (ex.: se o
+           redesenho rodasse duas vezes por engano). Conta os cards
+           renderizados com esse nome para confirmar que o contexto da
+           tela também ficou correto, não só o banco. */
+        const qtdCardsGrupoDuplo = await pgGrupo.evaluate(() =>
+          Array.from(document.querySelectorAll('.aposta-fac-grupo')).filter((g) => /Grupo Duplo/.test(g.textContent || '')).length);
+        anota('depois do clique duplo, a tela mostra "Grupo Duplo" em um único card (sem duplicar a exibição)',
+          qtdCardsGrupoDuplo === 1, 'cards na tela: ' + qtdCardsGrupoDuplo);
+
+        /* 12b — três cliques em sequência, ainda com a operação
+           pendente, continuam criando só um grupo — o botão continua
+           desabilitado enquanto a gravação não confirma. */
+        await pgGrupo.waitForSelector('#apostaCriarGrupo:not([disabled])', { timeout: 15000 });
+        await pgGrupo.fill('#apostaNovoGrupo', 'Grupo Triplo');
+        await pgGrupo.evaluate(() => {
+          document.getElementById('apostaCriarGrupo').click();
+          document.getElementById('apostaCriarGrupo').click();
+          document.getElementById('apostaCriarGrupo').click();
+        });
+        await pgGrupo.waitForTimeout(500);
+        const qtdApos12b = await qtdGruposNoBanco();
+        anota('múltiplos cliques (3x) enquanto a criação está pendente também criam só UM grupo',
+          qtdApos12b === qtdApos12a + 1, 'grupos no banco: ' + qtdApos12b + ' (antes: ' + qtdApos12a + ')');
+
+        const qtdCardsGrupoTriplo = await pgGrupo.evaluate(() =>
+          Array.from(document.querySelectorAll('.aposta-fac-grupo')).filter((g) => /Grupo Triplo/.test(g.textContent || '')).length);
+        anota('depois dos 3 cliques, a tela mostra "Grupo Triplo" em um único card (sem duplicar a exibição)',
+          qtdCardsGrupoTriplo === 1, 'cards na tela: ' + qtdCardsGrupoTriplo);
+
+        await ctxGrupo.close();
+      }
+
+      /* ── 12c: falha ao criar o grupo mostra o erro, reabilita o
+            botão (nunca fica preso) e permite uma nova tentativa
+            controlada — que cria o grupo normalmente. ── */
+      {
+        const semeadoFalhaGrupo = apostasSemeadas();
+        const { ctx: ctxFalhaGrupo, page: pgFalhaGrupo } = await novaPagina(browser, formato, ADM, erros, semeadoFalhaGrupo);
+        await pgFalhaGrupo.goto(BASE + '/index.html#treinamento', { waitUntil: 'domcontentloaded' });
+        await pgFalhaGrupo.click('#apostaAbrirBtn');
+        await pgFalhaGrupo.waitForSelector('#apostaPainelBtn', { timeout: 15000 });
+        await pgFalhaGrupo.click('#apostaPainelBtn');
+        await pgFalhaGrupo.waitForSelector('#apostaCriarGrupo', { timeout: 15000 });
+
+        await pgFalhaGrupo.evaluate((turmaKey) => {
+          window.__CFG.fail = ['apostas/' + turmaKey + '/execucoes/' + 'exec1' + '/grupos'];
+        }, TURMA_LIB);
+        await pgFalhaGrupo.fill('#apostaNovoGrupo', 'Grupo Que Falha');
+        await pgFalhaGrupo.click('#apostaCriarGrupo');
+        await pgFalhaGrupo.waitForSelector('.aposta-toast.is-erro', { timeout: 8000 });
+        const botaoAposErro = await pgFalhaGrupo.evaluate(() => (document.getElementById('apostaCriarGrupo') || {}).disabled);
+        anota('falha ao criar o grupo mostra o erro e reabilita o botão — nunca fica preso',
+          botaoAposErro === false, String(botaoAposErro));
+
+        /* Limpa a falha ANTES de reler o banco: o próprio caminho que
+           acabamos de checar (execucoes/exec1/grupos) ainda estava na
+           lista de falhas, e o once('value', ok) desta leitura não
+           passa callback de erro — com a falha ainda ativa, a Promise
+           deste evaluate() nunca resolveria. O que já foi persistido
+           (ou não) não muda por limpar a falha agora: a escrita que
+           falhou já falhou. */
+        await pgFalhaGrupo.evaluate(() => { window.__CFG.fail = []; });
+        const qtdAposFalha = await pgFalhaGrupo.evaluate((turmaKey) => new Promise((res) => {
+          firebase.database().ref('apostas/' + turmaKey + '/execucoes/exec1/grupos').once('value', (s) => res(Object.keys(s.val() || {}).length));
+        }), TURMA_LIB);
+        anota('a falha não cria nenhum grupo (nem parcial, nem vazio)', qtdAposFalha === 1 /* só o GRUPO do seed */, String(qtdAposFalha));
+        await pgFalhaGrupo.click('#apostaCriarGrupo');
+        await pgFalhaGrupo.waitForFunction(() => /Grupo Que Falha/.test(document.body.textContent || ''), null, { timeout: 8000 });
+        const qtdAposRetry = await pgFalhaGrupo.evaluate((turmaKey) => new Promise((res) => {
+          firebase.database().ref('apostas/' + turmaKey + '/execucoes/exec1/grupos').once('value', (s) => res(Object.keys(s.val() || {}).length));
+        }), TURMA_LIB);
+        anota('depois do erro, a nova tentativa cria o grupo normalmente', qtdAposRetry === 2, String(qtdAposRetry));
+
+        await ctxFalhaGrupo.close();
+      }
+
       anota('nenhum erro de JavaScript', erros.length === 0, erros[0]);
 
       await ctx.close();
