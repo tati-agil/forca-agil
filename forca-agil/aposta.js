@@ -4095,6 +4095,17 @@
     try { return new Date().toLocaleDateString('pt-BR'); } catch (e) { return ''; }
   }
 
+  /* Fase 2 (Histórico de Execuções): datas de criação/encerramento vêm
+     como ISO string — aqui só para exibição, nunca para cálculo. */
+  function formatarDataHora(iso) {
+    if (!iso) return '';
+    try {
+      var d = new Date(iso);
+      if (isNaN(d.getTime())) return String(iso);
+      return d.toLocaleDateString('pt-BR') + ' ' + d.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
+    } catch (e) { return String(iso); }
+  }
+
   function complementosEmTexto(etapa) {
     var d = _dados[etapa.id] || {};
     var usados = {};
@@ -4410,6 +4421,7 @@
         '<div style="display:flex;gap:8px;flex-wrap:wrap">' +
           '<button class="btn btn--sm" id="apostaExportar">↓ Exportar mapa (CSV)</button>' +
           '<button class="btn btn--sm" id="apostaReiniciar">Iniciar nova execução</button>' +
+          '<button class="btn btn--sm" id="apostaVerHistorico">Histórico de execuções</button>' +
         '</div>' +
         '<div style="display:flex;justify-content:flex-end"><button class="btn admin-modal-cancel-btn" id="apostaFecharPainel">Fechar</button></div>';
 
@@ -4465,7 +4477,8 @@
           criarExecucao();
         });
       });
-      box.querySelector('#apostaExportar').addEventListener('click', exportarCSV);
+      box.querySelector('#apostaExportar').addEventListener('click', function () { exportarCSV(); });
+      box.querySelector('#apostaVerHistorico').addEventListener('click', function () { fechar(); abrirHistorico(); });
       box.querySelectorAll('.aposta-fac-ver').forEach(function (b) {
         b.addEventListener('click', function () {
           fechar();
@@ -4480,8 +4493,206 @@
     desenhar();
   }
 
-  function exportarCSV() {
-    var grupos = _exec.grupos || {};
+  /* ══════════════════════════════════════════════════════════════
+     FASE 2 — HISTÓRICO DE EXECUÇÕES (somente leitura)
+
+     Este modal é DELIBERADAMENTE separado do resto da dinâmica: ele
+     nunca lê nem escreve _execId, _exec, _grupoId, _grupo, _dados ou
+     _vendoMapa — só variáveis locais, presas ao fechamento desta
+     função, que desaparecem quando o modal fecha. Isso não é só
+     estilo — é o que garante, por construção, as invariantes da
+     Fase 2:
+
+       · consultar/abrir/exportar uma execução histórica nunca altera
+         "atual" (nenhuma linha aqui escreve em "apostas/.../atual",
+         nem em execução nenhuma — é tudo leitura);
+       · nada do histórico "vaza" para a execução em andamento: como
+         este código nunca toca as variáveis globais que a dinâmica ao
+         vivo usa, fechar o modal não deixa resquício nenhum — a tela
+         de trás nunca soube que o histórico foi aberto;
+       · não existe caminho de escrita: nenhum botão aqui chama
+         salvarEtapa, avancar, criarExecucao ou qualquer outra função
+         que grave no Firebase — "modo histórico" não é a ausência
+         visual de botões de edição, é a ausência REAL deles.
+
+     A lista inteira de execuções (apostas/<turma>/execucoes) é lida
+     de uma vez, com .once() — não .on(): o histórico é uma fotografia
+     do que já aconteceu, não precisa (nem deve) atualizar sozinho
+     enquanto está aberto. Numa turma com histórico longo (a Fase 0
+     encontrou uma com 24 execuções) isso é um único download, feito
+     só quando a facilitadora pede para ver o histórico — nunca em
+     carregamento automático nem repetido. */
+  function abrirHistorico() {
+    var overlay = document.createElement('div');
+    /* aposta-historico-overlay: ".modal-box" é classe genérica (usada
+       também pelo modal de login/cadastro escondido em index.html) —
+       um seletor genérico ".modal-overlay .modal-box" pegaria aquele
+       modal escondido em vez deste, exatamente o cuidado já registrado
+       em confirmarRegistroDeResultados/confirmarNovaExecucao acima. */
+    overlay.className = 'modal-overlay aposta-historico-overlay';
+    overlay.style.cssText = 'display:flex;align-items:center;justify-content:center;z-index:10001';
+    var box = document.createElement('div');
+    box.className = 'modal-box';
+    box.style.cssText = 'max-width:640px;width:94%;padding:26px;display:flex;flex-direction:column;gap:14px;max-height:86vh;overflow:auto';
+    overlay.appendChild(box);
+    document.body.appendChild(overlay);
+    function fechar() { document.body.removeChild(overlay); }
+
+    box.innerHTML = '<p class="admin-empty" style="margin:0">Carregando histórico…</p>';
+
+    /* Compatibilidade por leitura (definida na Fase 1, sem migração):
+       execução apontada por "atual" é a ativa; todas as outras são
+       históricas/encerradas — mesmo as que nunca tiveram `status`. */
+    function statusDeExibicao(exec, execId) {
+      if (exec.status) return exec.status;
+      return execId === _execId ? 'ativa' : 'encerrada';
+    }
+
+    /* Número real quando existe; senão, a POSIÇÃO cronológica dela
+       entre todas as execuções da turma (mais antiga = 1). Nunca
+       grava nada — é só para exibição, marcado como estimativa. */
+    function numeroDeExibicao(idsOrdenados, execucoes, execId) {
+      var exec = execucoes[execId] || {};
+      if (typeof exec.numero === 'number') return { numero: exec.numero, estimado: false };
+      return { numero: idsOrdenados.indexOf(execId) + 1, estimado: true };
+    }
+
+    function idsPorCriadaEm(execucoes) {
+      return Object.keys(execucoes).sort(function (a, b) {
+        return String(execucoes[a].criadaEm || '').localeCompare(String(execucoes[b].criadaEm || ''));
+      });
+    }
+
+    function linhaExecucaoHtml(execucoes, idsOrdenados, execId) {
+      var exec = execucoes[execId] || {};
+      var st = statusDeExibicao(exec, execId);
+      var n = numeroDeExibicao(idsOrdenados, execucoes, execId);
+      var qtdGrupos = Object.keys(exec.grupos || {}).length;
+      return '<div class="aposta-fac-grupo aposta-hist-item" data-exec="' + esc(execId) + '">' +
+        '<strong>Execução nº ' + n.numero + (n.estimado ? ' (estimado pela ordem)' : '') + '</strong>' +
+        '<span>' + (st === 'ativa' ? 'Ativa' : 'Encerrada') + '</span>' +
+        '<span>Início: ' + esc(exec.criadaEm ? formatarDataHora(exec.criadaEm) : 'sem data registrada') + '</span>' +
+        (exec.encerradaEm ? '<span>Encerrada em: ' + esc(formatarDataHora(exec.encerradaEm)) + '</span>' : '') +
+        '<span>Iniciada por: ' + esc(exec.criadaPorNome || exec.criadaPor || 'não registrado') + '</span>' +
+        ((exec.encerradaPorNome || exec.encerradaPor)
+          ? '<span>Encerrada por: ' + esc(exec.encerradaPorNome || exec.encerradaPor) + '</span>' : '') +
+        '<span class="aposta-fac-membros">' + qtdGrupos + ' grupo' + (qtdGrupos !== 1 ? 's' : '') + '</span>' +
+        '<button class="btn btn--sm aposta-hist-abrir" data-exec="' + esc(execId) + '">Ver esta execução</button>' +
+      '</div>';
+    }
+
+    function desenharLista(execucoes) {
+      var idsOrdenados = idsPorCriadaEm(execucoes);
+      var atuais = idsOrdenados.filter(function (id) { return id === _execId; });
+      var anteriores = idsOrdenados.filter(function (id) { return id !== _execId; }).slice().reverse();
+
+      box.innerHTML =
+        '<h3 style="font-family:var(--font-head);letter-spacing:.05em;color:var(--ink);margin:0">Histórico de execuções</h3>' +
+        '<p style="font-size:.82rem;color:var(--ink-3);margin:0">' + esc(_turma.label) + ' — somente leitura</p>' +
+        '<h4 style="margin:8px 0 0">Execução atual</h4>' +
+        (atuais.length
+          ? '<div class="aposta-fac-grupos">' + atuais.map(function (id) { return linhaExecucaoHtml(execucoes, idsOrdenados, id); }).join('') + '</div>'
+          : '<p class="admin-empty" style="margin:0">Nenhuma execução em andamento.</p>') +
+        '<h4 style="margin:8px 0 0">Execuções anteriores</h4>' +
+        (anteriores.length
+          ? '<div class="aposta-fac-grupos">' + anteriores.map(function (id) { return linhaExecucaoHtml(execucoes, idsOrdenados, id); }).join('') + '</div>'
+          : '<p class="admin-empty" style="margin:0">Nenhuma execução anterior ainda.</p>') +
+        '<div style="display:flex;justify-content:flex-end"><button class="btn admin-modal-cancel-btn" id="apostaHistFechar">Fechar</button></div>';
+
+      box.querySelector('#apostaHistFechar').addEventListener('click', fechar);
+      box.querySelectorAll('.aposta-hist-abrir').forEach(function (b) {
+        b.addEventListener('click', function () { desenharDetalhe(execucoes, idsOrdenados, b.dataset.exec); });
+      });
+    }
+
+    function desenharDetalhe(execucoes, idsOrdenados, execId) {
+      var exec = execucoes[execId] || {};
+      var grupos = exec.grupos || {};
+      var gids = Object.keys(grupos);
+      var n = numeroDeExibicao(idsOrdenados, execucoes, execId);
+      var rotuloArquivo = 'exec' + n.numero;
+
+      box.innerHTML =
+        '<h3 style="font-family:var(--font-head);letter-spacing:.05em;color:var(--ink);margin:0">Execução nº ' + n.numero + ' — SOMENTE LEITURA</h3>' +
+        '<p style="font-size:.82rem;color:var(--ink-3);margin:0">' + esc(_turma.label) + '</p>' +
+        '<h4 style="margin:8px 0 0">Grupos</h4>' +
+        (gids.length
+          ? '<div class="aposta-fac-grupos">' + gids.map(function (g) {
+              return '<div class="aposta-fac-grupo">' +
+                '<strong>' + esc(grupos[g].nome || 'Grupo') + '</strong>' +
+                '<button class="btn btn--sm aposta-hist-ver-grupo" data-grupo="' + esc(g) + '">Ver mapa</button>' +
+              '</div>';
+            }).join('') + '</div>'
+          : '<p class="admin-empty" style="margin:0">Esta execução não chegou a ter grupos.</p>') +
+        '<div style="display:flex;gap:8px;flex-wrap:wrap">' +
+          '<button class="btn btn--sm" id="apostaHistExportar">↓ Exportar esta execução (CSV)</button>' +
+        '</div>' +
+        '<div style="display:flex;justify-content:space-between;gap:8px">' +
+          '<button class="btn" id="apostaHistVoltar">← Voltar ao histórico</button>' +
+          '<button class="btn admin-modal-cancel-btn" id="apostaHistFechar">Fechar</button>' +
+        '</div>';
+
+      box.querySelector('#apostaHistFechar').addEventListener('click', fechar);
+      box.querySelector('#apostaHistVoltar').addEventListener('click', function () { desenharLista(execucoes); });
+      /* exportarCSV(grupos, rotulo) só GERA um arquivo local a partir do
+         que já foi lido — não escreve nada de volta no Firebase, e não
+         toca a execução atual (_exec) de jeito nenhum. */
+      box.querySelector('#apostaHistExportar').addEventListener('click', function () {
+        exportarCSV(grupos, rotuloArquivo);
+      });
+      box.querySelectorAll('.aposta-hist-ver-grupo').forEach(function (b) {
+        b.addEventListener('click', function () { desenharMapaGrupo(execucoes, idsOrdenados, execId, b.dataset.grupo); });
+      });
+    }
+
+    function desenharMapaGrupo(execucoes, idsOrdenados, execId, grupoId) {
+      var exec = execucoes[execId] || {};
+      var grupo = (exec.grupos || {})[grupoId] || {};
+      var dados = grupo.dados || {};
+
+      box.innerHTML =
+        '<h3 style="font-family:var(--font-head);letter-spacing:.05em;color:var(--ink);margin:0">Mapa histórico — SOMENTE LEITURA</h3>' +
+        '<p style="font-size:.82rem;color:var(--ink-3);margin:0">' + esc(_turma.label) + (grupo.nome ? ' · ' + esc(grupo.nome) : '') + '</p>' +
+        '<div class="aposta-mapa">' +
+          ETAPAS.map(function (e, i) {
+            var texto = resumoEtapa(e.id, dados);
+            return (i ? '<div class="aposta-mapa-seta">↓</div>' : '') +
+              '<div class="aposta-mapa-card is-somente-leitura' + (texto ? '' : ' is-vazio') + '">' +
+                '<span class="aposta-mapa-rot">' + esc(e.titulo) + '</span>' +
+                '<span class="aposta-mapa-txt">' + esc(texto || 'não preenchido') + '</span>' +
+              '</div>';
+          }).join('') +
+        '</div>' +
+        '<div style="display:flex;justify-content:space-between;gap:8px">' +
+          '<button class="btn" id="apostaHistVoltarDetalhe">← Voltar aos grupos</button>' +
+          '<button class="btn admin-modal-cancel-btn" id="apostaHistFechar">Fechar</button>' +
+        '</div>';
+
+      box.querySelector('#apostaHistFechar').addEventListener('click', fechar);
+      box.querySelector('#apostaHistVoltarDetalhe').addEventListener('click', function () { desenharDetalhe(execucoes, idsOrdenados, execId); });
+    }
+
+    /* Única leitura desta tela inteira: .once(), nunca .on(). Nada aqui
+       assina um listener, então fechar o modal não deixa nada "ouvindo"
+       para trás, e nada é reaproveitado na execução em andamento. */
+    db().ref('apostas/' + _turma.key + '/execucoes').once('value', function (snap) {
+      var execucoes = snap.val() || {};
+      desenharLista(execucoes);
+    }, function () {
+      box.innerHTML = '<p class="admin-empty" style="margin:0">Não consegui carregar o histórico. Tente de novo.</p>' +
+        '<div style="display:flex;justify-content:flex-end"><button class="btn admin-modal-cancel-btn" id="apostaHistFechar">Fechar</button></div>';
+      box.querySelector('#apostaHistFechar').addEventListener('click', fechar);
+    });
+  }
+
+  /* Fase 2 (Histórico de Execuções): gruposOverride/rotuloArquivo
+     existem só para exportar uma execução HISTÓRICA (ver
+     abrirHistorico) sem duplicar esta função — passando ambos, exporta
+     os grupos dessa execução; sem passar nada, continua exportando a
+     execução atual exatamente como antes. Nenhum dos dois caminhos
+     escreve no Firebase — é geração de arquivo local, no navegador. */
+  function exportarCSV(gruposOverride, rotuloArquivo) {
+    var grupos = gruposOverride || _exec.grupos || {};
     var linhas = [['Grupo', 'Etapa', 'Conteúdo']];
     Object.keys(grupos).forEach(function (g) {
       ETAPAS.forEach(function (e) {
@@ -4493,7 +4704,7 @@
     }).join('\n');
     var a = document.createElement('a');
     a.href = URL.createObjectURL(new Blob(['﻿' + csv], { type: 'text/csv;charset=utf-8' }));
-    a.download = 'aposta-' + _turma.key + '.csv';
+    a.download = 'aposta-' + _turma.key + (rotuloArquivo ? '-' + rotuloArquivo : '') + '.csv';
     a.click();
   }
 

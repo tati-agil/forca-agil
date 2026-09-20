@@ -1588,6 +1588,11 @@ select.aposta-campo-input { width: auto; min-width: 8.5em; }
 .aposta-mapa-rot { font-family: var(--font-mono); font-size: .64rem; letter-spacing: .12em; color: #a99dff; }
 .aposta-mapa-txt { color: var(--ink); font-size: .9rem; line-height: 1.55; }
 .aposta-mapa-card.is-vazio .aposta-mapa-txt { color: var(--ink-3); font-style: italic; }
+/* Fase 2 — Histórico de Execuções: mesmo card do mapa, mas <div>, não
+   <button> — nada aqui é clicável, e o cursor/hover não pode sugerir
+   que é. */
+.aposta-mapa-card.is-somente-leitura { cursor: default; }
+.aposta-mapa-card.is-somente-leitura:hover { border-color: var(--line-strong); background: var(--panel-2); }
 
 /* Revelação final */
 .aposta-revelacao {

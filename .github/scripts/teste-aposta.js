@@ -87,6 +87,38 @@ function apostasSemeadas() {
   };
 }
 
+/* Fase 2 (Histórico de Execuções): a mesma turma, mas com DUAS
+   execuções anteriores a EXEC (que continua sendo "atual") — uma
+   LEGADA de verdade (sem status nem numero, do jeito que a Fase 0
+   encontrou execuções reais) e uma já no formato da Fase 1 (com
+   status/numero/encerradaEm/encerradaPor). Isso é o que prova que a
+   Fase 2 lê os dois formatos sem migrar nada. */
+const EXEC_LEGADO = 'execLegado';
+const GRUPO_LEGADO = 'grupoLegado';
+const EXEC_F1 = 'execF1Encerrada';
+function apostasSemeadasComHistorico() {
+  const base = apostasSemeadas();
+  base[TURMA_LIB].execucoes[EXEC_LEGADO] = {
+    criadaEm: '2026-08-01T09:00:00.000Z', criadaPor: DIRETORA, criadaPorNome: 'DIRETORA TESTE',
+    turmaKey: TURMA_LIB, turmaLabel: 'TURMA LIBERADA', eventoKey: EV,
+    missao: '', revelado: false, encerrada: true,
+    grupos: {
+      [GRUPO_LEGADO]: {
+        nome: 'Grupo Antigo', criadoEm: '2026-08-01T09:05:00.000Z', etapa: 'decisao',
+        dados: { missao: { verbo: 'reduzir', oQue: 'o tempo de espera', contexto: 'na fila', prazo: '60', prazoUnidade: 'dias' } },
+      },
+    },
+  };
+  base[TURMA_LIB].execucoes[EXEC_F1] = {
+    numero: 1, status: 'encerrada', criadaEm: '2026-09-01T09:00:00.000Z', criadaPor: ADM, criadaPorNome: 'ADMIN',
+    encerradaEm: '2026-09-10T09:00:00.000Z', encerradaPor: ADM, encerradaPorNome: 'ADMIN',
+    turmaKey: TURMA_LIB, turmaLabel: 'TURMA LIBERADA', eventoKey: EV,
+    missao: '', revelado: false, encerrada: true,
+    grupos: {},
+  };
+  return base;
+}
+
 function banco(apostas) {
   const users = {};
   const interesse = {};
@@ -3002,6 +3034,141 @@ const clicarSemRolagem = (page, seletor) => page.$eval(seletor, (el) => el.click
           lockAposTentativaCerta === null, JSON.stringify(lockAposTentativaCerta));
 
         await ctxFalha4.close();
+      }
+
+      /* ── 10a-10f: FASE 2 — Histórico de Execuções (somente leitura).
+            Turma com histórico real: uma execução LEGADA (sem status
+            nem numero, do jeito que a Fase 0 encontrou execuções
+            reais), uma já no formato da Fase 1 (status/numero/
+            encerradaEm/encerradaPor) e a execução ATUAL (EXEC — que
+            também não tem status/numero, provando que a compatibilidade
+            por leitura vale para os dois lados: "ativa" não depende de
+            `status` existir, depende só de ser apontada por "atual"). ── */
+      {
+        const semeadoHist = apostasSemeadasComHistorico();
+        const { ctx: ctxHist, page: pgHist } = await novaPagina(browser, formato, ADM, erros, semeadoHist);
+        await pgHist.goto(BASE + '/index.html#treinamento', { waitUntil: 'domcontentloaded' });
+        await pgHist.click('#apostaAbrirBtn');
+        await pgHist.waitForSelector('#apostaPainelBtn', { timeout: 15000 });
+
+        const atualNoFirebase = () => pgHist.evaluate((turmaKey) => new Promise((res) => {
+          firebase.database().ref('apostas/' + turmaKey + '/atual').once('value', (s) => res(s.val()));
+        }), TURMA_LIB);
+
+        const atualAntes = await atualNoFirebase();
+        anota('antes de abrir o histórico, "atual" é a execução em andamento', atualAntes === EXEC, atualAntes);
+
+        await pgHist.click('#apostaPainelBtn');
+        await pgHist.waitForSelector('#apostaVerHistorico', { timeout: 15000 });
+        await pgHist.click('#apostaVerHistorico');
+        await pgHist.waitForSelector('.aposta-hist-item', { timeout: 15000 });
+
+        /* 10a — Listagem */
+        const listagem = await pgHist.evaluate(() =>
+          Array.from(document.querySelectorAll('.aposta-hist-item')).map((el) => ({ exec: el.dataset.exec, texto: el.textContent }))
+        );
+        const itemAtual  = listagem.find((i) => i.exec === EXEC);
+        const itemLegado = listagem.find((i) => i.exec === EXEC_LEGADO);
+        const itemF1     = listagem.find((i) => i.exec === EXEC_F1);
+        anota('a execução atual aparece na listagem, marcada como Ativa (mesmo sem `status` gravado)',
+          !!itemAtual && /Ativa/.test(itemAtual.texto), JSON.stringify(itemAtual));
+        anota('as duas execuções anteriores aparecem na listagem',
+          !!itemLegado && !!itemF1, JSON.stringify(listagem.map((i) => i.exec)));
+        anota('a execução legada (sem `status`) aparece como Encerrada — compatibilidade por leitura, sem migração',
+          !!itemLegado && /Encerrada/.test(itemLegado.texto), JSON.stringify(itemLegado));
+        anota('a execução legada (sem `numero`) recebe um número derivado pela ordem de criação, marcado como estimativa',
+          !!itemLegado && /estimado pela ordem/.test(itemLegado.texto), JSON.stringify(itemLegado));
+        const numeroF1 = itemF1 ? (itemF1.texto.match(/nº (\d+)/) || [])[1] : null;
+        anota('a execução já no formato da Fase 1 mostra o número REAL (nº 1), sem marca de estimativa',
+          numeroF1 === '1' && !/estimado/.test(itemF1.texto), JSON.stringify(itemF1));
+
+        anota('abrir a lista do histórico não altera "atual"', (await atualNoFirebase()) === EXEC, '');
+
+        /* 10b/10c — abrir a execução legada, ver seus grupos, abrir o mapa histórico */
+        await pgHist.click('.aposta-hist-item[data-exec="' + EXEC_LEGADO + '"] .aposta-hist-abrir');
+        await pgHist.waitForSelector('.aposta-hist-ver-grupo', { timeout: 15000 });
+        const tituloDetalhe = await pgHist.evaluate(() => (document.querySelector('.aposta-historico-overlay .modal-box h3') || {}).textContent || '');
+        anota('abrir uma execução histórica mostra um título "SOMENTE LEITURA" explícito',
+          /SOMENTE LEITURA/.test(tituloDetalhe), tituloDetalhe);
+        anota('abrir o detalhe da execução histórica não altera "atual"', (await atualNoFirebase()) === EXEC, '');
+
+        await pgHist.click('.aposta-hist-ver-grupo[data-grupo="' + GRUPO_LEGADO + '"]');
+        await pgHist.waitForSelector('.aposta-mapa-card', { timeout: 15000 });
+        const mapaHist = await pgHist.evaluate(() => ({
+          titulo: (document.querySelector('.aposta-historico-overlay .modal-box h3') || {}).textContent || '',
+          texto: (document.querySelector('.aposta-historico-overlay .modal-box') || {}).textContent || '',
+          temBotaoEditar: !!document.querySelector('.aposta-historico-overlay .modal-box button.aposta-mapa-card'),
+          cardsSaoDiv: Array.from(document.querySelectorAll('.aposta-historico-overlay .aposta-mapa-card')).every((el) => el.tagName === 'DIV'),
+        }));
+        anota('o mapa histórico mostra "SOMENTE LEITURA" no título',
+          /SOMENTE LEITURA/.test(mapaHist.titulo), mapaHist.titulo);
+        anota('o mapa histórico mostra os dados DAQUELA execução (o que o Grupo Antigo escreveu — "fila")',
+          /fila/.test(mapaHist.texto), mapaHist.texto);
+        anota('o mapa histórico NÃO mostra dados da execução atual (nenhum resquício de "atendimento", da missão da EXEC)',
+          !/atendimento/.test(mapaHist.texto), mapaHist.texto);
+        anota('os cards do mapa histórico são <div>, nunca <button> — nada ali é clicável para editar',
+          mapaHist.cardsSaoDiv && !mapaHist.temBotaoEditar, JSON.stringify(mapaHist));
+        anota('abrir o mapa histórico não altera "atual"', (await atualNoFirebase()) === EXEC, '');
+
+        /* 10d — Escrita: nenhuma ação de edição existe no histórico */
+        const semEscrita = await pgHist.evaluate(() => {
+          const box = document.querySelector('.aposta-historico-overlay .modal-box');
+          const textoBox = box ? box.textContent : '';
+          return {
+            semBotaoSalvar: !/Salvar|Continuar|Revelar|Criar grupo|Iniciar nova execução/.test(textoBox),
+            semCampoEditavel: box ? box.querySelectorAll('input, textarea, select').length === 0 : true,
+          };
+        });
+        anota('a tela do mapa histórico não tem nenhum campo editável nem botão de escrita (Salvar/Continuar/Revelar/Criar grupo/Iniciar nova execução)',
+          semEscrita.semBotaoSalvar && semEscrita.semCampoEditavel, JSON.stringify(semEscrita));
+
+        /* 10e — Exportação: volta ao detalhe e exporta o CSV da execução antiga */
+        await pgHist.click('#apostaHistVoltarDetalhe');
+        await pgHist.waitForSelector('#apostaHistExportar', { timeout: 15000 });
+        const [downloadHist] = await Promise.all([
+          pgHist.waitForEvent('download'),
+          pgHist.click('#apostaHistExportar'),
+        ]);
+        const caminhoHist = await downloadHist.path();
+        const csvHist = caminhoHist ? fs.readFileSync(caminhoHist, 'utf8') : '';
+        anota('o CSV exportado da execução antiga contém os dados DELA (Grupo Antigo)', /Grupo Antigo/.test(csvHist), csvHist.slice(0, 200));
+        anota('o CSV exportado da execução antiga NÃO contém dados da execução atual (nenhum "Grupo 1")', !/Grupo 1[^0-9]/.test(csvHist), csvHist.slice(0, 200));
+        anota('o nome do arquivo do CSV histórico identifica a execução exportada (não é o mesmo nome do CSV da atual)',
+          /aposta-.*-exec/.test(downloadHist.suggestedFilename()), downloadHist.suggestedFilename());
+        anota('exportar a execução histórica não altera "atual"', (await atualNoFirebase()) === EXEC, '');
+
+        /* 10f — Retorno: fechar tudo e confirmar que a execução atual continua intacta */
+        await pgHist.click('#apostaHistFechar');
+        await pgHist.waitForTimeout(200);
+        const semModalHistorico = await pgHist.evaluate(() => !document.querySelector('.aposta-historico-overlay'));
+        anota('fechar o histórico não deixa modal nenhum aberto, e não altera "atual"',
+          semModalHistorico, '');
+        anota('fechar o histórico não altera "atual"', (await atualNoFirebase()) === EXEC, '');
+
+        /* A dinâmica atual continua funcionando normalmente por baixo:
+           nenhum _execId/_grupoId histórico vazou para a tela ao vivo. */
+        await pgHist.waitForSelector('.aposta-grupo-btn', { timeout: 15000 });
+        await pgHist.click('.aposta-grupo-btn');
+        await pgHist.waitForSelector('.aposta-frase', { timeout: 15000 });
+        const telaAtualOk = await pgHist.evaluate(() => (document.querySelector('.aposta-tela') || {}).textContent || '');
+        anota('depois do histórico, entrar no grupo da execução ATUAL mostra a etapa da EXEC, não da execução legada',
+          !/Grupo Antigo/.test(telaAtualOk), telaAtualOk.slice(0, 200));
+
+        /* CSV da execução atual continua funcionando exatamente como antes */
+        await pgHist.click('#apostaFecharBtn');
+        await pgHist.click('#apostaAbrirBtn');
+        await pgHist.waitForSelector('#apostaPainelBtn', { timeout: 15000 });
+        await pgHist.click('#apostaPainelBtn');
+        await pgHist.waitForSelector('#apostaExportar', { timeout: 15000 });
+        const [downloadAtual] = await Promise.all([
+          pgHist.waitForEvent('download'),
+          pgHist.click('#apostaExportar'),
+        ]);
+        const caminhoAtual = await downloadAtual.path();
+        const csvAtual = caminhoAtual ? fs.readFileSync(caminhoAtual, 'utf8') : '';
+        anota('a exportação da execução ATUAL continua funcionando normalmente (CSV com o Grupo 1)', /Grupo 1/.test(csvAtual), csvAtual.slice(0, 200));
+
+        await ctxHist.close();
       }
 
       anota('nenhum erro de JavaScript', erros.length === 0, erros[0]);
