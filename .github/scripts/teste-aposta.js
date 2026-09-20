@@ -897,6 +897,17 @@ const clicarSemRolagem = (page, seletor) => page.$eval(seletor, (el) => el.click
           await page.fill('[data-m="indicador"]', 'contatos sobre andamento');
           await page.fill('[data-m="atual"]', '1000');
           await page.fill('[data-m="meta"]', '700');
+          /* "Prazo" sozinho não dizia se era o prazo da meta, do
+             experimento ou da próxima ação — os quatro tempos da
+             dinâmica nunca podem se confundir. */
+          const rotuloPrazoMudanca = await page.evaluate(() => {
+            const campo = document.querySelector('[data-m="prazo"]');
+            const rot = campo ? campo.closest('.aposta-campo').querySelector('.aposta-campo-rot') : null;
+            return { texto: rot ? rot.textContent.trim() : '', title: rot ? rot.title : '' };
+          });
+          anota('o prazo de Mudanças mensuráveis diz "Prazo para atingir o resultado", não só "Prazo"',
+            rotuloPrazoMudanca.texto === 'Prazo para atingir o resultado' && /Até quando queremos alcançar esta mudança/i.test(rotuloPrazoMudanca.title),
+            JSON.stringify(rotuloPrazoMudanca));
           await page.fill('[data-m="prazo"]', '90');
           await page.selectOption('[data-m="prazoUnidade"]', 'dias');
           await page.waitForTimeout(300);
@@ -1127,6 +1138,20 @@ const clicarSemRolagem = (page, seletor) => page.$eval(seletor, (el) => el.click
               /Poder[íi]amos dar ao participante visibilidade sobre o andamento do processo de concessão do benef[íi]cio para o participante consiga ter autonomia/i.test(ideiaCompleta) &&
               /A frase desta etapa está completa/i.test(ideiaCompleta),
               ideiaCompleta.slice(0, 260));
+
+            /* "para" já é fixo no molde ("Poderíamos [ação] para [efeito]")
+               — se a pessoa também começar o campo por "para" ou "para
+               que", a frase não pode sair "...para para que...". */
+            await page.fill('[data-campo="mudanca"]', 'para que o participante consiga ter autonomia');
+            await page.waitForTimeout(250);
+            const semParaPara = await page.evaluate(() =>
+              ((document.getElementById('apostaFrase') || {}).textContent || '').replace(/\s+/g, ' '));
+            anota('digitar "para que..." no efeito pretendido não duplica "para" na frase montada',
+              /para que o participante consiga ter autonomia/i.test(semParaPara) && !/para para/i.test(semParaPara),
+              semParaPara.slice(0, 260));
+
+            await page.fill('[data-campo="mudanca"]', 'o participante consiga ter autonomia');
+            await page.waitForTimeout(250);
           }
           if (i === 6) {
             /* EXPERIMENTO: sem duração, quantidade, com quem e o que
@@ -1154,6 +1179,20 @@ const clicarSemRolagem = (page, seletor) => page.$eval(seletor, (el) => el.click
             });
             anota('o rótulo colado à quantidade diz "Quantas pessoas", não a palavra "com"',
               /^quantas pessoas$/i.test(rotuloQuantidade), 'rótulo: "' + rotuloQuantidade + '"');
+
+            /* Mesma ideia para "Durante" — o rótulo colado deixa explícito
+               que esse prazo é só desta execução do teste, não o prazo da
+               meta (Mudanças mensuráveis) nem o da próxima ação (Decisão). */
+            const rotuloDuracao = await page.evaluate(() => {
+              const campo = document.querySelector('[data-campo="duracao"]');
+              const par = campo ? campo.closest('.aposta-par') : null;
+              const rot = par ? par.querySelector('.aposta-campo-rot') : null;
+              return { texto: rot ? rot.textContent.trim() : '', title: rot ? rot.title : '' };
+            });
+            anota('o rótulo colado à duração diz "Duração do experimento", com dica de "por quanto tempo"',
+              rotuloDuracao.texto === 'Duração do experimento' && /Por quanto tempo este teste será executado/i.test(rotuloDuracao.title),
+              JSON.stringify(rotuloDuracao));
+
             const tituloAntesExperimento = await page.evaluate(() => (document.querySelector('.aposta-etapa-titulo') || {}).textContent || '');
             await clicarSemRolagem(page, '#apostaSeguir');
             await page.waitForTimeout(300);
@@ -1279,6 +1318,25 @@ const clicarSemRolagem = (page, seletor) => page.$eval(seletor, (el) => el.click
             }));
             anota('linguagem de prova ("comprovou") no aprendizado recebe aviso didático (não bloqueia)',
               avisoProva.some((a) => /conclus[ãa]o fechada/i.test(a)), JSON.stringify(avisoProva));
+
+            /* Fonte prevista "Outro" sem detalhamento recebe aviso
+               didático (não bloqueia) — mesma checagem isolada. */
+            const avisoOutroSemDetalhe = await page.evaluate(() => window.faAposta._validar('evidencia', {
+              itens: [{ resultadoId: 'r1', observado: '850', fonte: 'Registros de atendimento', aprendizado: 'texto', fontePrevista: 'Outro', comoSeraMedido: '' }],
+            }));
+            anota('Fonte prevista "Outro" sem detalhar como será medido recebe aviso didático',
+              avisoOutroSemDetalhe.some((a) => /detalhar como esse resultado será medido/i.test(a)), JSON.stringify(avisoOutroSemDetalhe));
+
+            /* Mapa/resumo antes da execução: por resultado selecionado no
+               Experimento, "aguardando execução" em vez de ficar em
+               branco — mesmo sem nada ter sido digitado na Evidência. */
+            const resumoAntesExecucao = await page.evaluate(() => window.faAposta._resumo('evidencia', {
+              mudancas: { itens: [{ id: 'rx', indicador: 'NPS do atendimento', direcao: 'Aumentar', atual: '6', meta: '7', formaMedicao: 'Índice', unidade: 'NPS' }] },
+              experimento: { resultadoIds: ['rx'] },
+              evidencia: {},
+            }));
+            anota('o resumo da Evidência mostra "aguardando execução" por resultado, antes de qualquer dado observado',
+              resumoAntesExecucao === 'NPS do atendimento: aguardando execução.', JSON.stringify(resumoAntesExecucao));
           }
           if (i === 8) {
             /* O bloco "Evidência" no topo da Decisão mostra só os dados
@@ -1311,6 +1369,26 @@ const clicarSemRolagem = (page, seletor) => page.$eval(seletor, (el) => el.click
             await page.waitForTimeout(250);
             const prazoDecisao = await page.evaluate(() => (document.querySelector('[data-campo="prazo"]') || {}).value || '');
             anota('o prazo da decisão é número + unidade, não uma data', prazoDecisao === '10', 'ficou "' + prazoDecisao + '"');
+
+            /* "Responsável" e "Prazo" sozinhos, na Decisão, eram os mesmos
+               nomes genéricos usados noutras etapas — os quatro tempos e
+               os dois "responsável" (o da Decisão é sempre da PRÓXIMA
+               AÇÃO) não podem se confundir. */
+            const rotulosDecisao = await page.evaluate(() => {
+              function rotuloDe(campo) {
+                const el = document.querySelector('[data-campo="' + campo + '"]');
+                const rot = el ? el.closest('.aposta-campo').querySelector('.aposta-campo-rot') : null;
+                return { texto: rot ? rot.textContent.trim() : '', title: rot ? rot.title : '' };
+              }
+              return { responsavel: rotuloDe('responsavel'), prazo: rotuloDe('prazo'), reavaliacao: rotuloDe('reavaliacao') };
+            });
+            anota('o rótulo do responsável na Decisão diz "Responsável pela próxima ação"',
+              rotulosDecisao.responsavel.texto === 'Responsável pela próxima ação', JSON.stringify(rotulosDecisao.responsavel));
+            anota('o rótulo do prazo na Decisão diz "Prazo da próxima ação", com dica própria',
+              rotulosDecisao.prazo.texto === 'Prazo da próxima ação' && /pr[óo]ximo passo decidido/i.test(rotulosDecisao.prazo.title),
+              JSON.stringify(rotulosDecisao.prazo));
+            anota('a Data de reavaliação explica quando o grupo volta a olhar a aposta e os aprendizados',
+              /novos aprendizados/i.test(rotulosDecisao.reavaliacao.title), JSON.stringify(rotulosDecisao.reavaliacao));
 
             /* Opções renomeadas: "Abandonar essa ideia" → "Interromper
                esta ideia", "Formular nova hipótese" → "Reformular a
@@ -1384,8 +1462,13 @@ const clicarSemRolagem = (page, seletor) => page.$eval(seletor, (el) => el.click
              como campos desabilitados (herdados de Mudanças mensuráveis,
              não editáveis ali); preencher o primeiro campo "genérico"
              sem esse filtro tentaria digitar num campo que a tela
-             correta e propositalmente não deixa editar. */
-          const campo = page.locator('.aposta-campo-input:not([disabled])').first();
+             correta e propositalmente não deixa editar. :not(select) —
+             desde a Fonte prevista da evidência (Plano de Evidência),
+             o primeiro campo habilitado da Evidência pode ser um
+             <select>, que não aceita .fill(); um <select> preenchido
+             de propósito já é responsabilidade do bloco específico de
+             cada etapa (ver "if (i === 7)"), não deste genérico. */
+          const campo = page.locator('.aposta-campo-input:not([disabled]):not(select)').first();
           if (await campo.count()) await campo.fill('conteúdo da etapa ' + (i + 1));
           const opcao = page.locator('.aposta-opcao').first();
           if (await opcao.count()) await opcao.click();
@@ -1666,6 +1749,35 @@ const clicarSemRolagem = (page, seletor) => page.$eval(seletor, (el) => el.click
           herdado.um === 1 && /1000 contatos por mês/.test(herdado.disabled[0]) && /500 contatos por mês/.test(herdado.disabled[1]),
           JSON.stringify(herdado));
 
+        /* Plano de Evidência — preenchido ANTES da execução: Fonte
+           prevista e Detalhe/como será medido ficam sempre editáveis
+           (não dependem de "não foi possível medir", porque são
+           definidos antes de existir qualquer resultado para medir). */
+        const planoRotulos = await pgEv.evaluate(() => ({
+          fontePrevista: !!document.querySelector('[data-e="fontePrevista"]'),
+          comoSeraMedido: !!document.querySelector('[data-e="comoSeraMedido"]'),
+          fonteEfetivaRot: Array.from(document.querySelectorAll('.aposta-campo-rot')).some((r) => /Fonte efetivamente utilizada/i.test(r.textContent)),
+        }));
+        anota('o Plano de Evidência tem Fonte prevista e Detalhe/como será medido, e a fonte pós-execução virou "Fonte efetivamente utilizada"',
+          planoRotulos.fontePrevista && planoRotulos.comoSeraMedido && planoRotulos.fonteEfetivaRot,
+          JSON.stringify(planoRotulos));
+
+        await pgEv.selectOption('[data-e="fontePrevista"]', 'Dados do sistema');
+        await pgEv.waitForTimeout(300);
+        const notaPlanejada = await pgEv.evaluate(() => (document.querySelector('[data-usar-fonte-planejada-nota]') || {}).textContent || '');
+        anota('escolher a fonte prevista mostra "Fonte planejada: ..." com o botão de usá-la, enquanto a fonte efetiva está vazia',
+          /Fonte planejada: Dados do sistema/.test(notaPlanejada) && /Usamos a fonte planejada/.test(notaPlanejada),
+          notaPlanejada);
+
+        await pgEv.click('[data-usar-fonte-planejada]');
+        await pgEv.waitForTimeout(300);
+        const fonteAposUsar = await pgEv.evaluate(() => ({
+          valor: (document.querySelector('[data-e="fonte"]') || {}).value || '',
+          notaSumiu: !document.querySelector('[data-usar-fonte-planejada-nota]'),
+        }));
+        anota('"Usamos a fonte planejada" copia a fonte prevista para a fonte efetiva, e a nota some',
+          fonteAposUsar.valor === 'Dados do sistema' && fonteAposUsar.notaSumiu, JSON.stringify(fonteAposUsar));
+
         await pgEv.fill('[data-e="observado"]', '650');
         await pgEv.selectOption('[data-e="fonte"]', 'Registros de atendimento');
         await pgEv.waitForTimeout(300);
@@ -1728,12 +1840,40 @@ const clicarSemRolagem = (page, seletor) => page.$eval(seletor, (el) => el.click
         await pgEv.$eval('#apostaSeguir', (el) => el.click());
         await pgEv.waitForTimeout(300);
         const bloqueioSemFonte = await pgEv.evaluate(() => (document.getElementById('apostaAvisos') || {}).textContent || '');
-        anota('CONTINUAR bloqueia sem Fonte da evidência, mesmo com Resultado observado preenchido',
-          /preencha .Resultado observado. e .Fonte da evidência./i.test(bloqueioSemFonte), bloqueioSemFonte);
+        anota('CONTINUAR bloqueia sem Fonte efetivamente utilizada, mesmo com Resultado observado preenchido',
+          /preencha .Resultado observado.,? .Fonte efetivamente utilizada./i.test(bloqueioSemFonte), bloqueioSemFonte);
         await pgEv.$eval('#apostaSeguir', (el) => el.click());
         await pgEv.waitForTimeout(300);
         const tituloDepoisSemFonte = await pgEv.evaluate(() => (document.querySelector('.aposta-etapa-titulo') || {}).textContent || '');
         anota('o bloqueio de Evidência incompleta NÃO tem escape por segundo clique', tituloDepoisSemFonte === tituloAntesEv);
+
+        /* Aprendizado é obrigatório quando o resultado foi medido de
+           verdade — um número sozinho não é aprendizado. Observado +
+           Fonte preenchidos, mas sem aprendizado, continua bloqueado. */
+        await pgEv.selectOption('[data-e="fonte"]', 'Registros de atendimento');
+        await pgEv.waitForTimeout(200);
+        const notaFaltaAprendizadoAntes = await pgEv.evaluate(() => (document.querySelector('[data-falta-aprendizado]') || {}).textContent || '');
+        anota('o card mostra "Ainda falta: o aprendizado" quando observado+fonte já existem mas o aprendizado ainda não',
+          /Ainda falta: o aprendizado/i.test(notaFaltaAprendizadoAntes), notaFaltaAprendizadoAntes);
+        await pgEv.$eval('#apostaSeguir', (el) => el.click());
+        await pgEv.waitForTimeout(300);
+        const bloqueioSemAprendizado = await pgEv.evaluate(() => (document.getElementById('apostaAvisos') || {}).textContent || '');
+        const tituloDepoisSemAprendizado = await pgEv.evaluate(() => (document.querySelector('.aposta-etapa-titulo') || {}).textContent || '');
+        anota('CONTINUAR bloqueia sem o aprendizado, mesmo com Resultado observado e Fonte preenchidos',
+          /aprendemos com esta evid[êe]ncia/i.test(bloqueioSemAprendizado) && tituloDepoisSemAprendizado === tituloAntesEv,
+          bloqueioSemAprendizado);
+
+        await pgEv.fill('[data-e="aprendizado"]', 'Os contatos caíram, mas ainda não bateram a meta — a maior visibilidade pode estar ajudando.');
+        await pgEv.waitForTimeout(300);
+        const notaSumiuAprendizado = await pgEv.evaluate(() => !document.querySelector('[data-falta-aprendizado]'));
+        anota('escrever o aprendizado apaga sozinha a nota "Ainda falta", sem precisar clicar em Continuar de novo', notaSumiuAprendizado);
+
+        /* Devolve fonte a vazio de novo: o teste de "sem fonte" acima já
+           passou; este bloco só precisava confirmar o aprendizado, e o
+           que vem a seguir (naoMedido) parte de observado preenchido,
+           fonte indiferente. */
+        await pgEv.fill('[data-e="aprendizado"]', '');
+        await pgEv.waitForTimeout(200);
 
         /* "Não foi possível medir" desliga Resultado observado/Fonte e
            passa a exigir Motivo em vez deles — nunca os dois ao mesmo
@@ -1751,7 +1891,7 @@ const clicarSemRolagem = (page, seletor) => page.$eval(seletor, (el) => el.click
         await pgEv.waitForTimeout(300);
         const bloqueioSemMotivo = await pgEv.evaluate(() => (document.getElementById('apostaAvisos') || {}).textContent || '');
         anota('marcado "Não foi possível medir" mas sem Motivo, CONTINUAR continua bloqueado',
-          /preencha .Resultado observado. e .Fonte da evidência./i.test(bloqueioSemMotivo), bloqueioSemMotivo);
+          /preencha .Resultado observado.,? .Fonte efetivamente utilizada./i.test(bloqueioSemMotivo), bloqueioSemMotivo);
 
         await pgEv.fill('[data-e="motivo"]', 'a pesquisa não foi concluída dentro do período do experimento');
         await pgEv.waitForTimeout(200);
@@ -2099,6 +2239,22 @@ const clicarSemRolagem = (page, seletor) => page.$eval(seletor, (el) => el.click
         await pgDec.waitForTimeout(150);
         const dataMantida = await pgDec.evaluate(() => (document.getElementById('ap-reavaliacao') || {}).value || '');
         anota('"Manter" a data informada não a substitui pela sugestão', dataMantida === '01/01/2099', dataMantida);
+
+        /* Data da Decisão: auditoria automática de quando a decisão foi
+           registrada — nunca digitada, e diferente da Data de
+           reavaliação (quando o grupo PRETENDE voltar a olhar). */
+        await pgDec.locator('.aposta-opcao', { hasText: 'Ajustar e testar novamente' }).click();
+        await pgDec.fill('[data-campo="proximaAcao"]', 'revisar a comunicação e repetir o teste');
+        await pgDec.waitForTimeout(250);
+        await pgDec.$eval('#apostaSeguir', (el) => el.click());
+        await pgDec.waitForTimeout(400);
+        const dataDecisaoGravada = await pgDec.evaluate(() => {
+          var escritas = (window.__ESCRITAS || []).filter((x) => /\/dados\/decisao$/.test(x.path));
+          var ultima = escritas[escritas.length - 1];
+          return ultima ? (ultima.valor || {}).dataDecisao || null : null;
+        });
+        anota('a Data da Decisão é gravada sozinha quando a Decisão avança, sem o grupo digitar nada',
+          !!dataDecisaoGravada && !isNaN(Date.parse(dataDecisaoGravada)), JSON.stringify(dataDecisaoGravada));
 
         await ctxDec.close();
       }
