@@ -202,7 +202,12 @@
       dica: 'Um experimento precisa de três coisas para valer: com quem, por quanto tempo e o que vai observar.',
       dependeDe: 'ideia',
       campos: [
-        { chave: 'duracao', tipo: 'quantidade', rotulo: 'Duração', curto: 'quanto tempo', placeholder: '3', unidadePadrao: 'semanas' },
+        /* "Durante" já é a palavra que faz parte da FRASE ("Durante 3
+           semanas…") — o rótulo colado à lacuna é outra coisa
+           (rotuloMolde), deixando explícito que este prazo é só desta
+           execução do teste, não o prazo da meta em Mudanças
+           mensuráveis nem o da próxima ação na Decisão. */
+        { chave: 'duracao', tipo: 'quantidade', rotulo: 'Duração do experimento', rotuloMolde: 'Duração do experimento', curto: 'quanto tempo', placeholder: '3', unidadePadrao: 'semanas', dica: 'Por quanto tempo este teste será executado?' },
         /* "com" é a palavra que faz parte da FRASE ("…com 50 pessoas…")
            — o rótulo mostrado colado à lacuna é outra coisa, e "com"
            sozinho não dizia o que preencher ali (mesmo caso do "em" da
@@ -269,14 +274,17 @@
       },
       campos: [
         { chave: 'proximaAcao', tipo: 'textarea', rotulo: 'Próxima ação', curto: 'a próxima ação', placeholder: 'ajustar a comunicação e repetir o teste com um grupo maior', dica: 'O que faremos agora?' },
-        { chave: 'responsavel', tipo: 'input', rotulo: 'Responsável', placeholder: 'nome', dica: 'Quem será responsável por conduzir a próxima ação?' },
-        /* "Prazo" aqui é DURAÇÃO ("em quanto tempo"), não uma data — o
-           que as próprias execuções antigas mostravam era "10 dias", não
-           "30/10/2026". Data de reavaliação é o outro caso: um DIA
-           marcado no calendário para reencontrar o grupo, esse sim fica
-           bem como data. */
-        { chave: 'prazo', tipo: 'quantidade', rotulo: 'Prazo', curto: 'o prazo', placeholder: '10', unidadePadrao: 'dias', dica: 'Em quanto tempo a próxima ação deverá ser executada?' },
-        { chave: 'reavaliacao', tipo: 'data', rotulo: 'Data de reavaliação', placeholder: 'dd/mm/aaaa', dica: 'Quando o grupo voltará a avaliar essa decisão?' },
+        { chave: 'responsavel', tipo: 'input', rotulo: 'Responsável pela próxima ação', placeholder: 'nome', dica: 'Quem será responsável por conduzir o próximo passo?' },
+        /* "Prazo da próxima ação" é DURAÇÃO ("em quanto tempo"), não uma
+           data — o que as próprias execuções antigas mostravam era "10
+           dias", não "30/10/2026". Não é o prazo da meta (esse mora em
+           Mudanças mensuráveis) nem a Data de reavaliação (essa sim um
+           DIA marcado no calendário para reencontrar o grupo) — os
+           quatro tempos da dinâmica (prazo da meta, duração do
+           experimento, prazo da próxima ação, data de reavaliação)
+           nunca se confundem. */
+        { chave: 'prazo', tipo: 'quantidade', rotulo: 'Prazo da próxima ação', curto: 'o prazo da próxima ação', placeholder: '10', unidadePadrao: 'dias', dica: 'Em quanto tempo executaremos o próximo passo decidido?' },
+        { chave: 'reavaliacao', tipo: 'data', rotulo: 'Data de reavaliação', placeholder: 'dd/mm/aaaa', dica: 'Quando voltaremos a analisar esta aposta e os novos aprendizados?' },
         /* A próxima hipótese é uma hipótese: ganha o mesmo apoio de
            preenchimento da etapa 5 — mesmo molde, mesmas duas lacunas —,
            senão volta a ser um campo em branco pedindo uma frase que a
@@ -416,6 +424,9 @@
       (d.itens || []).forEach(function (ev) {
         if (LINGUAGEM_DE_PROVA.test(ev.aprendizado || '')) {
           avisos.push('Isso soa como uma conclusão fechada. O que esta evidência sugere, sem tratá-la como prova definitiva da hipótese?');
+        }
+        if (ev.fontePrevista === 'Outro' && !normalizar(ev.comoSeraMedido)) {
+          avisos.push('A fonte prevista é "Outro" — vale detalhar como esse resultado será medido, para o grupo lembrar depois da execução.');
         }
       });
     }
@@ -1114,9 +1125,20 @@
     var d = (dados || {})[etapaId] || {};
     if (etapaId === 'mudancas') return (d.itens || []).map(fraseMudanca).join(' ');
     if (etapaId === 'evidencia') {
-      var frases = (d.itens || []).map(function (ev) {
-        var m = resultadosDe((dados || {}).mudancas, [ev.resultadoId])[0];
-        if (!m) return '';
+      /* Antes da execução, o Mapa não pode ficar em branco só porque
+         ninguém digitou nada ainda — isso lia como "etapa não
+         preenchida" quando na verdade o grupo já escolheu o que vai
+         observar (Experimento) e só falta executar. Por resultado
+         escolhido, não só pelos itens já salvos: "aguardando execução"
+         enquanto não houver observado nem "não foi possível medir". */
+      var resultadosSel = resultadosDe((dados || {}).mudancas, ((dados || {}).experimento || {}).resultadoIds);
+      if (!resultadosSel.length) return '';
+      function evidenciaDe(id) { return (d.itens || []).filter(function (ev) { return ev.resultadoId === id; })[0] || {}; }
+      var frases = resultadosSel.map(function (m) {
+        var ev = evidenciaDe(m.id);
+        if (!normalizar(ev.observado) && ev.naoMedido !== 'sim') {
+          return (m.indicador || 'Resultado esperado') + ': aguardando execução.';
+        }
         var f = fraseEvidenciaCard(m, ev);
         return normalizar(ev.aprendizado) ? f + ' Aprendizado: ' + ev.aprendizado : f;
       }).filter(Boolean);
@@ -1874,10 +1896,20 @@
      repete "de", o "de" solto no fim do texto fixo sai de cena — sem
      mexer no resto da frase, e só quando o choque existe de verdade. */
   var PREP_CONTRAIDA = /^(de|do|da|dos|das)\b/i;
+  /* "para" duplicado: a Ideia de solução tem "para" fixo no molde
+     ("Poderíamos [ação] para [efeito]") — se a pessoa também começar o
+     campo "efeito" com "para" ou "para que" (respondendo a pergunta
+     como se fosse frase inteira), a frase montada saía "...para para
+     que...". Mesma ideia do "de" duplicado logo acima, só que sem
+     contração de preposição: aqui o próprio "para" já é a palavra que
+     se repete. */
+  var PARA_DUPLICADO = /^para\b/i;
   function semPreposicaoDupla(fixo, valorSeguinte) {
     var v = String(valorSeguinte == null ? '' : valorSeguinte).trim();
-    if (!v || !/\bde$/i.test(fixo)) return fixo;
-    return PREP_CONTRAIDA.test(v) ? fixo.replace(/\s*de\s*$/i, '') : fixo;
+    if (!v) return fixo;
+    if (/\bde$/i.test(fixo)) return PREP_CONTRAIDA.test(v) ? fixo.replace(/\s*de\s*$/i, '') : fixo;
+    if (/\bpara$/i.test(fixo)) return PARA_DUPLICADO.test(v) ? fixo.replace(/\s*para\s*$/i, '') : fixo;
+    return fixo;
   }
 
   function lacunaHtml(etapa, p, d, usados, semRotulo) {
@@ -2181,7 +2213,7 @@
             '<label class="aposta-campo" data-campo-periodo><span class="aposta-campo-rot" title="' + esc(tituloPeriodo) + '">Período de medição</span>' +
               variantePicker('data-m', 'periodo', PERIODOS_SUGERIDOS, valorPeriodo, 'Período de medição', null, 'aposta-variante--campo', true, indiceNPS) +
             '</label>' +
-            '<label class="aposta-campo aposta-campo--qtd"><span class="aposta-campo-rot" title="Até quando queremos atingir essa mudança?">Prazo</span>' +
+            '<label class="aposta-campo aposta-campo--qtd"><span class="aposta-campo-rot" title="Até quando queremos alcançar esta mudança?">Prazo para atingir o resultado</span>' +
               '<span class="aposta-qtd">' +
                 '<input type="text" inputmode="numeric" data-mascara="numero" class="aposta-campo-input aposta-qtd-num" data-m="prazo" value="' + esc(q.num) + '" placeholder="90" />' +
                 '<select class="aposta-campo-input aposta-qtd-un" data-m="prazoUnidade" aria-label="Unidade do prazo">' +
@@ -2254,6 +2286,7 @@
       var sufixo = sufixoUnidade(m);
       var metaTxt = metaOuLimiteTexto(m, sufixo);
       var progresso = !naoMedido ? progressoResumo(m, ev.observado) : null;
+      var temFontePlanejada = normalizar(ev.fontePrevista) && !normalizar(ev.fonte) && !naoMedido;
       return '<div class="aposta-mudanca" data-resultado="' + esc(m.id) + '">' +
         '<p class="aposta-campo-rot" style="margin:0 0 2px">RESULTADO ESPERADO ' + (i + 1) + '</p>' +
         '<p style="margin:0 0 12px;color:var(--ink)"><strong>' + esc(m.indicador) + '</strong></p>' +
@@ -2262,10 +2295,31 @@
             '<input type="text" class="aposta-campo-input" value="' + esc((m.atual || '—') + sufixo) + '" disabled /></label>' +
           '<label class="aposta-campo"><span class="aposta-campo-rot">Meta</span>' +
             '<input type="text" class="aposta-campo-input" value="' + esc(metaTxt) + '" disabled /></label>' +
+        '</div>' +
+        /* Plano de evidência: preenchido ANTES da execução — como o grupo
+           pretende saber se a mudança aconteceu. Fica sempre editável
+           (não depende de "não foi possível medir"), porque é definido
+           antes de existir qualquer resultado para medir. */
+        '<div class="aposta-mudanca-grade" style="margin-top:10px">' +
+          '<label class="aposta-campo"><span class="aposta-campo-rot" title="Como o grupo pretende saber se esta mudança aconteceu, antes de executar o experimento.">Fonte prevista da evidência</span>' +
+            '<select class="aposta-campo-input" data-e="fontePrevista">' +
+              '<option value="">Selecione</option>' +
+              FONTES_EVIDENCIA.map(function (f) {
+                return '<option value="' + esc(f) + '"' + (ev.fontePrevista === f ? ' selected' : '') + '>' + esc(f) + '</option>';
+              }).join('') +
+            '</select>' +
+          '</label>' +
+          '<label class="aposta-campo aposta-campo--largo"><span class="aposta-campo-rot"' +
+              (ev.fontePrevista === 'Outro' ? ' title="Fonte “Outro” — detalhe como será medido."' : '') +
+            '>Detalhe / como será medido' + (ev.fontePrevista === 'Outro' ? '' : ' (opcional)') + '</span>' +
+            '<textarea class="aposta-campo-input" data-e="comoSeraMedido" rows="2" placeholder="ex.: quantidade de contatos sobre andamento registrados no período">' + esc(ev.comoSeraMedido || '') + '</textarea>' +
+          '</label>' +
+        '</div>' +
+        '<div class="aposta-mudanca-grade" style="margin-top:10px">' +
           '<label class="aposta-campo"><span class="aposta-campo-rot" title="O que a realidade respondeu, na mesma unidade da meta.">Resultado observado</span>' +
             '<input type="text" inputmode="decimal" class="aposta-campo-input" data-e="observado" value="' + esc(ev.observado || '') + '"' +
               (naoMedido ? ' disabled' : ' placeholder="' + esc(m.meta || '650') + '"') + ' /></label>' +
-          '<label class="aposta-campo"><span class="aposta-campo-rot">Fonte da evidência</span>' +
+          '<label class="aposta-campo"><span class="aposta-campo-rot" title="A fonte que foi realmente usada depois da execução — pode ser a mesma prevista ou não.">Fonte efetivamente utilizada</span>' +
             '<select class="aposta-campo-input" data-e="fonte"' + (naoMedido ? ' disabled' : '') + '>' +
               '<option value="">Selecione</option>' +
               FONTES_EVIDENCIA.map(function (f) {
@@ -2274,6 +2328,10 @@
             '</select>' +
           '</label>' +
         '</div>' +
+        (temFontePlanejada
+          ? '<p class="aposta-aviso-didatico" data-usar-fonte-planejada-nota="' + esc(m.id) + '">Fonte planejada: ' + esc(ev.fontePrevista) +
+              ' <button type="button" class="btn btn--sm" data-usar-fonte-planejada="' + esc(m.id) + '">Usamos a fonte planejada</button></p>'
+          : '') +
         '<label class="aposta-campo aposta-campo--largo" style="margin-top:10px"><span class="aposta-campo-rot">Detalhe da fonte (opcional)</span>' +
           '<input type="text" class="aposta-campo-input" data-e="fonteDetalhe" value="' + esc(ev.fonteDetalhe || '') + '"' +
             (naoMedido ? ' disabled' : '') + ' placeholder="ex.: ServiceNow, período de 01/09 a 21/09" /></label>' +
@@ -2294,6 +2352,13 @@
         (progresso
           ? '<p class="' + (progresso.ok ? 'aposta-frase-pronta' : 'aposta-frase-falta') + '">' + esc(progresso.texto) + '</p>'
           : (!naoMedido ? '<p class="aposta-frase-falta">Ainda falta: o resultado observado</p>' : '')) +
+        /* Um número sozinho não é aprendizado — quando já existe
+           resultado medido, falta mesmo o aprendizado até ele ser
+           escrito (não se aplica a "não foi possível medir": ali o
+           motivo já é obrigatório e o aprendizado continua opcional). */
+        (!naoMedido && normalizar(ev.observado) && !normalizar(ev.aprendizado)
+          ? '<p class="aposta-aviso-didatico" data-falta-aprendizado="' + esc(m.id) + '">Ainda falta: o aprendizado com esta evidência</p>'
+          : '') +
       '</div>';
     }).join('');
 
@@ -2393,7 +2458,9 @@
         aindaBloqueado = faltam.length > 0 && !temLegadoValido;
       } else if (tipo === 'evidencia') {
         aindaBloqueado = (d.itens || []).some(function (ev) {
-          return ev.naoMedido === 'sim' ? !normalizar(ev.motivo) : !(normalizar(ev.observado) && normalizar(ev.fonte));
+          return ev.naoMedido === 'sim'
+            ? !normalizar(ev.motivo)
+            : !(normalizar(ev.observado) && normalizar(ev.fonte) && normalizar(ev.aprendizado));
         });
       }
       if (!aindaBloqueado) {
@@ -2707,6 +2774,27 @@
         bloco.querySelectorAll('[data-e="observado"], [data-e="fonte"], [data-e="fonteDetalhe"]').forEach(function (el) {
           el.disabled = naoMedido;
         });
+        /* Nota "Fonte planejada" some assim que a Fonte efetivamente
+           utilizada é preenchida (por clique no botão ou digitada à
+           mão) — ela só faz sentido enquanto ainda não se sabe qual
+           fonte foi de fato usada. */
+        var notaFontePlanejada = bloco.querySelector('[data-usar-fonte-planejada-nota]');
+        var mostrarNota = normalizar(ev.fontePrevista) && !normalizar(ev.fonte) && !naoMedido;
+        if (mostrarNota) {
+          if (!notaFontePlanejada) {
+            var gradeFonte = bloco.querySelector('[data-e="fonte"]');
+            var pontoInsercao = gradeFonte && gradeFonte.closest('.aposta-mudanca-grade');
+            if (pontoInsercao) {
+              pontoInsercao.insertAdjacentHTML('afterend',
+                '<p class="aposta-aviso-didatico" data-usar-fonte-planejada-nota="' + esc(m.id) + '">Fonte planejada: ' + esc(ev.fontePrevista) +
+                  ' <button type="button" class="btn btn--sm" data-usar-fonte-planejada="' + esc(m.id) + '">Usamos a fonte planejada</button></p>');
+            }
+          } else {
+            notaFontePlanejada.firstChild.textContent = 'Fonte planejada: ' + ev.fontePrevista + ' ';
+          }
+        } else if (notaFontePlanejada) {
+          notaFontePlanejada.parentNode.removeChild(notaFontePlanejada);
+        }
         var motivoInput = bloco.querySelector('[data-e="motivo"]');
         var motivoRot = motivoInput && motivoInput.closest('.aposta-campo').querySelector('.aposta-campo-rot');
         if (motivoRot) motivoRot.textContent = 'Motivo' + (naoMedido ? '' : ' (opcional)');
@@ -2725,6 +2813,13 @@
           else if (frase) frase.insertAdjacentHTML('afterend', '<p class="aposta-frase-falta">Ainda falta: o resultado observado</p>');
         } else if (progressoEl) {
           progressoEl.parentNode.removeChild(progressoEl);
+        }
+        var notaAprendizado = bloco.querySelector('[data-falta-aprendizado]');
+        var faltaAprendizado = !naoMedido && normalizar(ev.observado) && !normalizar(ev.aprendizado);
+        if (faltaAprendizado && !notaAprendizado) {
+          bloco.insertAdjacentHTML('beforeend', '<p class="aposta-aviso-didatico" data-falta-aprendizado="' + esc(m.id) + '">Ainda falta: o aprendizado com esta evidência</p>');
+        } else if (!faltaAprendizado && notaAprendizado) {
+          notaAprendizado.parentNode.removeChild(notaAprendizado);
         }
       });
       atualizarResumoEvidencia();
@@ -2851,13 +2946,27 @@
     var mudancasWrap = _tela.querySelector('.aposta-mudancas');
     if (mudancasWrap) {
       mudancasWrap.addEventListener('click', function (e) {
-        var btn = e.target.closest('[data-corrigir]');
-        if (!btn) return;
-        var bloco = btn.closest('.aposta-mudanca');
-        var direcaoInput = bloco && bloco.querySelector('[data-m="direcao"]');
-        if (!direcaoInput) return;
-        direcaoInput.value = btn.dataset.corrigir;
-        direcaoInput.dispatchEvent(new Event('input', { bubbles: true }));
+        var btnCorrigir = e.target.closest('[data-corrigir]');
+        if (btnCorrigir) {
+          var blocoCorrigir = btnCorrigir.closest('.aposta-mudanca');
+          var direcaoInput = blocoCorrigir && blocoCorrigir.querySelector('[data-m="direcao"]');
+          if (!direcaoInput) return;
+          direcaoInput.value = btnCorrigir.dataset.corrigir;
+          direcaoInput.dispatchEvent(new Event('input', { bubbles: true }));
+          return;
+        }
+        /* "Usamos a fonte planejada": copia a Fonte prevista para a
+           Fonte efetivamente utilizada com um clique só — nunca troca
+           sozinho, só quando a pessoa confirma que foi mesmo aquela. */
+        var btnFontePlanejada = e.target.closest('[data-usar-fonte-planejada]');
+        if (btnFontePlanejada) {
+          var blocoFonte = btnFontePlanejada.closest('.aposta-mudanca');
+          var fontePrevistaInput = blocoFonte && blocoFonte.querySelector('[data-e="fontePrevista"]');
+          var fonteInput = blocoFonte && blocoFonte.querySelector('[data-e="fonte"]');
+          if (!fontePrevistaInput || !fonteInput) return;
+          fonteInput.value = fontePrevistaInput.value;
+          fonteInput.dispatchEvent(new Event('input', { bubbles: true }));
+        }
       });
     }
 
@@ -3007,23 +3116,27 @@
         }
       }
 
-      /* Evidência: cada resultado esperado precisa de Resultado
-         observado + Fonte da evidência, OU de "Não foi possível medir"
-         + Motivo. Não existe classificação única da hipótese a escolher
-         aqui — um mesmo experimento pode produzir evidências em
-         direções diferentes, e essa leitura é da Decisão, não desta
-         etapa. CONTINUAR bloqueia de verdade, sem escape por segundo
-         clique, destacando exatamente o card que falta. */
+      /* Evidência: cada resultado esperado medido precisa de Resultado
+         observado + Fonte efetivamente utilizada + Aprendizado, OU de
+         "Não foi possível medir" + Motivo. O aprendizado é obrigatório
+         quando houve medição de verdade — sem ele, um número sozinho
+         não vira aprendizado nenhum. Não existe classificação única da
+         hipótese a escolher aqui — um mesmo experimento pode produzir
+         evidências em direções diferentes, e essa leitura é da Decisão,
+         não desta etapa. CONTINUAR bloqueia de verdade, sem escape por
+         segundo clique, destacando exatamente o card que falta. */
       if (etapa.id === 'evidencia') {
         var idxEvidenciaIncompleta = -1;
         (d.itens || []).forEach(function (ev, idx) {
           if (idxEvidenciaIncompleta !== -1) return;
-          var completo = ev.naoMedido === 'sim' ? normalizar(ev.motivo) : (normalizar(ev.observado) && normalizar(ev.fonte));
+          var completo = ev.naoMedido === 'sim'
+            ? normalizar(ev.motivo)
+            : (normalizar(ev.observado) && normalizar(ev.fonte) && normalizar(ev.aprendizado));
           if (!completo) idxEvidenciaIncompleta = idx;
         });
         if (idxEvidenciaIncompleta !== -1) {
           avisosEl.dataset.bloqueio = 'evidencia';
-          avisosEl.innerHTML = '<p class="aposta-aviso-didatico">Complete o resultado destacado acima: preencha "Resultado observado" e "Fonte da evidência", ou marque "Não foi possível medir" e informe o motivo.</p>';
+          avisosEl.innerHTML = '<p class="aposta-aviso-didatico">Complete o resultado destacado acima: preencha "Resultado observado", "Fonte efetivamente utilizada" e "O que aprendemos com esta evidência?", ou marque "Não foi possível medir" e informe o motivo.</p>';
           var blocosEvidencia = _tela.querySelectorAll('.aposta-mudanca[data-resultado]');
           (blocosEvidencia[idxEvidenciaIncompleta] || avisosEl).scrollIntoView({ behavior: 'smooth', block: 'center' });
           return;
@@ -3042,6 +3155,14 @@
         }).join('') + '<p class="aposta-aviso-ok">Você pode seguir assim mesmo — clique em Continuar de novo.</p>';
         avisosEl.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
         return;
+      }
+      /* Data da Decisão: quando esta decisão foi registrada — auditoria
+         automática, nunca digitada. Grava só na primeira vez que a
+         Decisão avança de verdade (não a cada tecla, senão "quando foi
+         decidido" ficaria mudando a cada correção); diferente da Data
+         de reavaliação, que é quando o grupo PRETENDE voltar a olhar. */
+      if (etapa.id === 'decisao' && !((_dados.decisao || {}).dataDecisao)) {
+        d.dataDecisao = new Date().toISOString();
       }
       seguirBtn.disabled = true;
       salvarEtapa(etapa.id, d, false, function (err) {
