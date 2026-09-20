@@ -2643,6 +2643,131 @@ const clicarSemRolagem = (page, seletor) => page.$eval(seletor, (el) => el.click
         await ctxSing.close();
       }
 
+      /* ── 9i: FASE 1 da evolução de execuções — "Reiniciar dinâmica"
+            virou "Iniciar nova execução", com confirmação em modal
+            próprio (não mais window.confirm) e ciclo de vida real:
+            encerra formalmente a execução anterior (status/encerradaEm/
+            encerradaPor) e cria a nova já com status "ativa" e número —
+            tudo preservado, nada apagado. ── */
+      {
+        const semeadoExec = apostasSemeadas();
+        semeadoExec[TURMA_LIB].execucoes[EXEC].grupos[GRUPO].etapa = 'sintoma';
+        semeadoExec[TURMA_LIB].execucoes[EXEC].grupos[GRUPO].dados = {
+          missao: { verbo: 'melhorar', oQue: 'o atendimento', contexto: 'na oficina', prazo: '90', prazoUnidade: 'dias' },
+        };
+        const { ctx: ctxExec, page: pgExec } = await novaPagina(browser, formato, ADM, erros, semeadoExec);
+        await pgExec.goto(BASE + '/index.html#treinamento', { waitUntil: 'domcontentloaded' });
+        await pgExec.click('#apostaAbrirBtn');
+        await pgExec.waitForSelector('#apostaPainelBtn', { timeout: 15000 });
+        await pgExec.click('#apostaPainelBtn');
+        await pgExec.waitForSelector('#apostaReiniciar', { timeout: 15000 });
+
+        const botaoRenomeado = await pgExec.evaluate(() => {
+          const btn = document.getElementById('apostaReiniciar');
+          const aviso = btn ? btn.closest('div').previousElementSibling : null;
+          return { texto: btn ? btn.textContent : '', aviso: aviso ? aviso.textContent : '' };
+        });
+        anota('"Reiniciar dinâmica" virou "Iniciar nova execução", com o aviso atualizado',
+          botaoRenomeado.texto === 'Iniciar nova execução' && /encerra a atual/i.test(botaoRenomeado.aviso),
+          JSON.stringify(botaoRenomeado));
+
+        await pgExec.click('#apostaReiniciar');
+        await pgExec.waitForSelector('.aposta-confirmar-overlay .modal-box', { timeout: 5000 });
+        const modalTxt = await pgExec.evaluate(() => (document.querySelector('.aposta-confirmar-overlay .modal-box') || {}).textContent || '');
+        anota('clicar em "Iniciar nova execução" abre um modal próprio (não window.confirm), com o texto da confirmação',
+          /Deseja iniciar uma nova execução/.test(modalTxt) && /ser[áa] encerrada/i.test(modalTxt) &&
+          /ENCERRAR E INICIAR NOVA EXECU[ÇC][ÃA]O/.test(modalTxt),
+          modalTxt);
+
+        await pgExec.$eval('.aposta-confirmar-overlay .aposta-modal-nao-btn', (el) => el.click());
+        await pgExec.waitForTimeout(250);
+        const atualAposCancelar = await pgExec.evaluate((turmaKey) => new Promise((res) => {
+          firebase.database().ref('apostas/' + turmaKey + '/atual').once('value', (s) => res(s.val()));
+        }), TURMA_LIB);
+        anota('"CANCELAR" não cria execução nenhuma nem muda "atual"', atualAposCancelar === EXEC, atualAposCancelar);
+
+        await pgExec.click('#apostaReiniciar');
+        await pgExec.waitForSelector('.aposta-confirmar-overlay .modal-box', { timeout: 5000 });
+        await pgExec.$eval('.aposta-confirmar-overlay .aposta-modal-sim-btn', (el) => el.click());
+        await pgExec.waitForTimeout(400);
+
+        const estadoDepois = await pgExec.evaluate(({ turmaKey, execAntigo }) => new Promise((res) => {
+          firebase.database().ref('apostas/' + turmaKey).once('value', (s) => {
+            const v = s.val() || {};
+            const antiga = (v.execucoes || {})[execAntigo] || {};
+            const novoId = v.atual;
+            const nova = (v.execucoes || {})[novoId] || {};
+            res({
+              atualMudou: novoId !== execAntigo,
+              antiga: {
+                status: antiga.status, encerrada: antiga.encerrada,
+                temEncerradaEm: !!antiga.encerradaEm, temEncerradaPor: !!antiga.encerradaPor,
+                grupos: Object.keys(antiga.grupos || {}).length,
+              },
+              nova: { status: nova.status, numero: nova.numero, grupos: Object.keys(nova.grupos || {}).length },
+            });
+          });
+        }), { turmaKey: TURMA_LIB, execAntigo: EXEC });
+        anota('confirmar cria a execução nova (status "ativa", com número) e "atual" passa a apontar para ela',
+          estadoDepois.atualMudou && estadoDepois.nova.status === 'ativa' &&
+          typeof estadoDepois.nova.numero === 'number' && estadoDepois.nova.grupos === 0,
+          JSON.stringify(estadoDepois));
+        anota('a execução anterior é encerrada de verdade (status, encerradaEm, encerradaPor) e preserva os grupos',
+          estadoDepois.antiga.status === 'encerrada' && estadoDepois.antiga.encerrada === true &&
+          estadoDepois.antiga.temEncerradaEm && estadoDepois.antiga.temEncerradaPor && estadoDepois.antiga.grupos === 1,
+          JSON.stringify(estadoDepois));
+
+        await ctxExec.close();
+      }
+
+      /* ── 9j: FASE 1 — proteção de concorrência real: duas chamadas de
+            "iniciar nova execução" quase simultâneas (mesma pessoa em
+            duas abas, ou clique duplo bem no meio da rede lenta) nunca
+            podem resultar em números repetidos nem em "atual" apontando
+            para uma execução que não existe. ── */
+      {
+        const semeadoConc = apostasSemeadas();
+        const { ctx: ctxConc, page: pgConc } = await novaPagina(browser, formato, ADM, erros, semeadoConc);
+        await pgConc.goto(BASE + '/index.html#treinamento', { waitUntil: 'domcontentloaded' });
+        await pgConc.click('#apostaAbrirBtn');
+        await pgConc.waitForSelector('.aposta-grupo-btn', { timeout: 15000 });
+
+        await pgConc.evaluate(() => {
+          /* Disparadas de propósito sem esperar a primeira terminar —
+             é exatamente a corrida que o teste quer provocar. */
+          window.faAposta._criarExecucao();
+          window.faAposta._criarExecucao();
+        });
+        await pgConc.waitForTimeout(600);
+
+        const resultadoConc = await pgConc.evaluate(({ turmaKey, execOriginal }) => new Promise((res) => {
+          firebase.database().ref('apostas/' + turmaKey).once('value', (s) => {
+            const v = s.val() || {};
+            const execucoes = v.execucoes || {};
+            const novasIds = Object.keys(execucoes).filter((id) => id !== execOriginal);
+            const numeros = novasIds.map((id) => execucoes[id].numero).sort((a, b) => a - b);
+            res({
+              atual: v.atual,
+              atualExiste: !!execucoes[v.atual],
+              qtdNovas: novasIds.length,
+              numeros: numeros,
+              numerosUnicos: new Set(numeros).size === numeros.length,
+              originalEncerrada: (execucoes[execOriginal] || {}).status === 'encerrada',
+            });
+          });
+        }), { turmaKey: TURMA_LIB, execOriginal: EXEC });
+        anota('duas chamadas quase simultâneas criam duas execuções com NÚMEROS DIFERENTES, nunca repetidos',
+          resultadoConc.qtdNovas === 2 && resultadoConc.numerosUnicos &&
+          resultadoConc.numeros[1] === resultadoConc.numeros[0] + 1,
+          JSON.stringify(resultadoConc));
+        anota('"atual" continua apontando para uma execução que EXISTE de verdade, nunca um ponteiro quebrado',
+          resultadoConc.atualExiste, JSON.stringify(resultadoConc));
+        anota('a execução original é encerrada mesmo com a corrida entre as duas chamadas',
+          resultadoConc.originalEncerrada, JSON.stringify(resultadoConc));
+
+        await ctxConc.close();
+      }
+
       anota('nenhum erro de JavaScript', erros.length === 0, erros[0]);
 
       await ctx.close();

@@ -46,12 +46,23 @@
 
    COMO OS DADOS SÃO GUARDADOS
    apostas/<turmaKey>/atual                  → id da execução em curso
+   apostas/<turmaKey>/contadorExecucoes      → só o número da última execução
+                                                criada (transaction() — ver
+                                                criarExecucao), nunca lido
+                                                para nada além disso
    apostas/<turmaKey>/execucoes/<execId>     → uma execução inteira
-     · missao, revelado, encerrada, quem criou e quando
+     · numero, status ('ativa'/'encerrada'), criadaEm/criadaPor(Nome),
+       encerradaEm/encerradaPor(Nome) quando encerrada, missao, revelado
+       (`encerrada`, booleano, é campo antigo — mantido por compatibilidade,
+       quem decide o estado de verdade é `status`)
      · grupos/<grupoId> → nome, membros, etapa, dados de cada etapa
-   Reiniciar a dinâmica cria uma execução NOVA e deixa a anterior
-   intacta: o que um grupo escreveu numa oficina não pode sumir
-   porque outra turma usou a mesma tela depois.
+   "Iniciar nova execução" (Fase 1 da evolução de execuções) encerra
+   formalmente a execução atual (status/encerradaEm/encerradaPor) e cria
+   uma NOVA num único update() atômico junto com o ponteiro "atual" —
+   nunca existe um instante em que "atual" aponte para uma execução
+   inexistente. Nada do que um grupo escreveu é apagado nem alterado.
+   Execuções de antes desta fase não têm `numero`/`status` — ver
+   compatibilidade em qualquer leitura futura desses campos.
    ============================================================ */
 (function () {
   'use strict';
@@ -1590,6 +1601,33 @@
     box.querySelector('.aposta-modal-sim-btn').addEventListener('click', function () { fechar(); callbackSim(); });
   }
 
+  /* Mesmo padrão acima, para "Iniciar nova execução" — troca o
+     window.confirm() nativo (Fase 1 da evolução de execuções). */
+  function confirmarNovaExecucao(callbackSim) {
+    var overlay = document.createElement('div');
+    overlay.className = 'modal-overlay aposta-confirmar-overlay';
+    overlay.style.cssText = 'display:flex;align-items:center;justify-content:center;z-index:10002';
+    var box = document.createElement('div');
+    box.className = 'modal-box';
+    box.style.cssText = 'max-width:440px;width:90%;padding:28px;display:flex;flex-direction:column;gap:18px';
+    box.innerHTML =
+      '<p style="margin:0;font-size:.95rem;line-height:1.6;color:var(--ink)">Deseja iniciar uma nova execução desta dinâmica?</p>' +
+      '<p style="margin:0;font-size:.82rem;line-height:1.5;color:var(--ink-3)">A execução atual será encerrada e continuará disponível no histórico. Uma nova execução vazia será criada para esta turma.</p>' +
+      '<div style="display:flex;justify-content:flex-end;gap:8px;flex-wrap:wrap">' +
+        '<button type="button" class="btn aposta-modal-nao-btn">CANCELAR</button>' +
+        '<button type="button" class="btn btn--primary aposta-modal-sim-btn">ENCERRAR E INICIAR NOVA EXECUÇÃO</button>' +
+      '</div>';
+    overlay.appendChild(box);
+    document.body.appendChild(overlay);
+    function fechar() { if (overlay.parentNode) overlay.parentNode.removeChild(overlay); }
+    box.querySelector('.aposta-modal-nao-btn').addEventListener('click', fechar);
+    var overlayMousedownFora = false;
+    overlay.addEventListener('mousedown', function (e) { overlayMousedownFora = !box.contains(e.target); });
+    overlay.addEventListener('click', function (e) { if (overlayMousedownFora && !box.contains(e.target)) fechar(); });
+    overlay.addEventListener('keydown', function (e) { if (e.key === 'Escape') { e.preventDefault(); fechar(); } });
+    box.querySelector('.aposta-modal-sim-btn').addEventListener('click', function () { fechar(); callbackSim(); });
+  }
+
   /* ══════════════════════════════════════════════════════════════
      RENDER
      ══════════════════════════════════════════════════════════════ */
@@ -1640,29 +1678,73 @@
     if (b) b.addEventListener('click', criarExecucao);
   }
 
+  /* Fase 1 da evolução de execuções (ver PLANO — "ciclo de vida real +
+     concorrência"): esta função agora serve tanto para abrir a primeira
+     execução de uma turma (_execId ainda vazio, nada a encerrar) quanto
+     para "Iniciar nova execução" (_execId aponta para a execução que
+     está sendo substituída).
+
+     Duas pessoas clicando quase ao mesmo tempo (ou a mesma pessoa em
+     duas abas) não pode resultar em números de execução repetidos nem
+     numa janela em que "atual" aponte para uma execução que ainda não
+     existe. Por isso o número de cada execução vem de uma transaction()
+     bem pequena (só o contador, não a turma inteira — baixar/regravar
+     todas as execuções existentes a cada clique seria pesado demais numa
+     turma com histórico longo) — o Firebase serializa tentativas
+     concorrentes nesse mesmo caminho, garantindo números distintos e
+     sem corrida. A criação de verdade (encerrar a execução antiga, criar
+     a nova, apontar "atual") é UM update() só, com os três caminhos
+     juntos — ou tudo grava, ou nada grava; nunca fica um estado pela
+     metade. */
   function criarExecucao() {
     var s = sessao();
     if (!s) return;
-    var ref = db().ref('apostas/' + _turma.key + '/execucoes').push();
-    var agora = new Date().toISOString();
-    ref.set({
-      criadaEm: agora,
-      criadaPor: s.email,
-      criadaPorNome: s.name || s.email,
-      turmaKey: _turma.key,
-      turmaLabel: _turma.label,
-      eventoKey: _turma.eventoKey || '',
-      missao: '',
-      revelado: false,
-      encerrada: false
-    }, function (err) {
-      if (err) { avisar('Não consegui abrir a dinâmica. Nada foi criado — tente de novo.', true); return; }
+    var execAnteriorId = _execId;
+    var contadorRef = db().ref('apostas/' + _turma.key + '/contadorExecucoes');
+    contadorRef.transaction(function (atual) {
+      return (atual || 0) + 1;
+    }, function (errContador, commitedContador, snapContador) {
+      if (errContador) { avisar('Não consegui abrir a dinâmica. Nada foi criado — tente de novo.', true); return; }
+      if (!commitedContador) { avisar('Não consegui abrir a dinâmica — tente de novo.', true); return; }
+      var meuNumero = snapContador.val();
+      var novoRef = db().ref('apostas/' + _turma.key + '/execucoes').push();
+      var novoKey = novoRef.key;
+      var agora = new Date().toISOString();
+      var updates = {};
+      /* Só encerra formalmente uma execução anterior quando ela existe —
+         a primeira execução de uma turma não tem o que encerrar. Nada do
+         que os grupos escreveram nela é tocado, só os metadados de
+         ciclo de vida. */
+      if (execAnteriorId) {
+        var caminhoAnterior = 'apostas/' + _turma.key + '/execucoes/' + execAnteriorId;
+        updates[caminhoAnterior + '/status'] = 'encerrada';
+        updates[caminhoAnterior + '/encerrada'] = true;
+        updates[caminhoAnterior + '/encerradaEm'] = agora;
+        updates[caminhoAnterior + '/encerradaPor'] = s.email;
+        updates[caminhoAnterior + '/encerradaPorNome'] = s.name || s.email;
+      }
+      updates['apostas/' + _turma.key + '/execucoes/' + novoKey] = {
+        numero: meuNumero,
+        status: 'ativa',
+        criadaEm: agora,
+        criadaPor: s.email,
+        criadaPorNome: s.name || s.email,
+        turmaKey: _turma.key,
+        turmaLabel: _turma.label,
+        eventoKey: _turma.eventoKey || '',
+        missao: '',
+        revelado: false,
+        encerrada: false
+      };
       /* "atual" é o que faz os outros enxergarem esta execução: se ele
          não gravar, a facilitadora acha que abriu e a sala continua sem
-         ver nada. */
-      db().ref('apostas/' + _turma.key + '/atual').set(ref.key, function (err2) {
-        if (err2) { avisar('A dinâmica foi criada, mas não consegui publicá-la para a turma. Tente de novo.', true); return; }
-        _execId = ref.key;
+         ver nada. Está no MESMO update() da criação — nunca existe um
+         instante em que "atual" aponte para uma execução que ainda não
+         foi gravada. */
+      updates['apostas/' + _turma.key + '/atual'] = novoKey;
+      db().ref().update(updates, function (err2) {
+        if (err2) { avisar('Não consegui abrir a dinâmica. Tente de novo.', true); return; }
+        _execId = novoKey;
         ouvirExecucao();
       });
     });
@@ -4154,10 +4236,10 @@
           (_exec.revelado ? 'Esconder de novo' : 'Revelar conexões') + '</button>' +
 
         '<h4 style="margin:8px 0 0">Execução</h4>' +
-        '<p style="font-size:.8rem;color:var(--ink-3);margin:0">Reiniciar abre uma execução nova e mantém a atual guardada — nada do que os grupos escreveram é apagado.</p>' +
+        '<p style="font-size:.8rem;color:var(--ink-3);margin:0">Iniciar uma nova execução encerra a atual (que continua disponível no histórico) e abre uma execução vazia para esta turma — nada do que os grupos escreveram é apagado.</p>' +
         '<div style="display:flex;gap:8px;flex-wrap:wrap">' +
           '<button class="btn btn--sm" id="apostaExportar">↓ Exportar mapa (CSV)</button>' +
-          '<button class="btn btn--sm" id="apostaReiniciar">Reiniciar dinâmica</button>' +
+          '<button class="btn btn--sm" id="apostaReiniciar">Iniciar nova execução</button>' +
         '</div>' +
         '<div style="display:flex;justify-content:flex-end"><button class="btn admin-modal-cancel-btn" id="apostaFecharPainel">Fechar</button></div>';
 
@@ -4207,10 +4289,11 @@
         });
       });
       box.querySelector('#apostaReiniciar').addEventListener('click', function () {
-        if (!confirm('Abrir uma execução nova desta dinâmica?\n\nA execução atual continua guardada, com tudo o que os grupos escreveram.')) return;
-        fechar();
-        _grupoId = null;
-        criarExecucao();
+        confirmarNovaExecucao(function () {
+          fechar();
+          _grupoId = null;
+          criarExecucao();
+        });
       });
       box.querySelector('#apostaExportar').addEventListener('click', exportarCSV);
       box.querySelectorAll('.aposta-fac-ver').forEach(function (b) {
@@ -4254,7 +4337,13 @@
     _validar: validar,
     _resumo: function (id, dados) { return resumoEtapa(id, dados); },
     _etapas: function () { return ETAPAS.map(function (e) { return e.id; }); },
-    _texto: function () { return textoDaAposta(); }
+    _texto: function () { return textoDaAposta(); },
+    /* Só para o teste de concorrência da Fase 1 (duas chamadas quase
+       simultâneas de "Iniciar nova execução") — chamar isso direto,
+       sem passar pelo modal de confirmação, é o único jeito de provar
+       de verdade que duas transactions() disputando o mesmo contador
+       nunca resultam em números repetidos nem em execução perdida. */
+    _criarExecucao: function () { return criarExecucao(); }
   };
 
   window.addEventListener('fa-auth-ready', montarEntrada);
