@@ -378,13 +378,21 @@ h1,h2,h3,h4 { font-family: var(--font-head); font-weight: 600; line-height: 1.02
    site. Aqui ela sai do tabuleiro: qualquer .btn desabilitado se anuncia, e
    não levanta nem brilha no hover. Regras mais específicas (os botões de
    certificado, por exemplo) continuam mandando na própria aparência. */
-.btn:disabled { opacity: .55; cursor: default; }
+.btn:disabled { opacity: .55; cursor: not-allowed; }
 .btn:hover:not(:disabled) { transform: translateY(-2px); border-color: var(--accent); box-shadow: 0 0 24px -6px var(--accent); }
 .btn--primary {
   background: var(--accent); color: var(--space-0); border-color: var(--accent); font-weight: 700;
   box-shadow: 0 0 30px -8px var(--accent);
 }
 .btn--primary:hover:not(:disabled) { filter: brightness(1.08); }
+/* O amarelo forte + o glow de .btn--primary são o próprio sinal de "ação
+   principal, pronta para clicar" — em cima do opacity:.55 genérico de
+   .btn:disabled, ainda ficava amarelo e brilhando o bastante para parecer
+   clicável quando não estava (relatado ao vivo: preencher só o Resultado 1
+   com o Resultado 2 pendente ainda mostrava CONTINUAR "aceso"). Desabilitado,
+   ele vira visualmente idêntico a um botão secundário desabilitado — sem
+   amarelo, sem glow —, porque só o estado funcional pode dizer "pode clicar". */
+.btn--primary:disabled { background: rgba(16,28,52,.5); color: var(--ink-3); border-color: var(--line-strong); box-shadow: none; }
 .btn--ghost { background: transparent; border-color: var(--line); color: var(--ink-3); font-size: .72rem; padding: 6px 12px; box-shadow: none; }
 .btn--ghost:hover:not(:disabled) { border-color: var(--ink-3); color: var(--ink); box-shadow: none; transform: none; }
 

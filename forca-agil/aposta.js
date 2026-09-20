@@ -1467,6 +1467,59 @@
     t._timer = setTimeout(function () { if (t.parentNode) t.parentNode.removeChild(t); }, ehErro ? 6000 : 2200);
   }
 
+  /* "Encerrar por agora" fecha a tela cheia da dinâmica e devolve a
+     pessoa ao Treinamento, que já estava montado por baixo. Um aviso
+     preso a _tela (avisar()) morre junto com _tela nesse fechamento —
+     por isso este é filho de document.body direto, sobrevive ao
+     fecharDinamica() e fica tempo suficiente (ou até ser fechado) para
+     ser lido já na página de destino. */
+  function avisarPosSaida(msg) {
+    var t = document.createElement('div');
+    t.className = 'aposta-toast aposta-toast--persistente';
+    t.innerHTML = '<span></span><button type="button" class="aposta-toast-fechar" aria-label="Fechar aviso">✕</button>';
+    t.querySelector('span').textContent = msg;
+    document.body.appendChild(t);
+    function remover() { if (t.parentNode) t.parentNode.removeChild(t); }
+    t.querySelector('.aposta-toast-fechar').addEventListener('click', remover);
+    t._timer = setTimeout(remover, 5000);
+  }
+
+  /* Item 4 do ajuste de fluxo de Evidência: troca o window.confirm()
+     nativo (que muda de cara entre navegadores e não combina com o
+     visual do site) por um modal próprio, no mesmo padrão de
+     .modal-overlay/.modal-box já usado em admin.js e em
+     mostrarTextoParaCopiar acima — z-index acima de .aposta-tela
+     (9500), senão o modal nasceria escondido atrás da tela cheia da
+     dinâmica. */
+  function confirmarRegistroDeResultados(callbackSim) {
+    var overlay = document.createElement('div');
+    /* aposta-confirmar-overlay: .modal-box é classe genérica (admin.js,
+       game.js, facilitador.js, e o próprio index.html — #authModal/#qrModal
+       — também usam), então um seletor genérico ".modal-overlay .modal-box"
+       pega o modal de login escondido em vez deste. */
+    overlay.className = 'modal-overlay aposta-confirmar-overlay';
+    overlay.style.cssText = 'display:flex;align-items:center;justify-content:center;z-index:10002';
+    var box = document.createElement('div');
+    box.className = 'modal-box';
+    box.style.cssText = 'max-width:440px;width:90%;padding:28px;display:flex;flex-direction:column;gap:18px';
+    box.innerHTML =
+      '<p style="margin:0;font-size:.95rem;line-height:1.6;color:var(--ink)">O experimento já foi executado?</p>' +
+      '<p style="margin:0;font-size:.82rem;line-height:1.5;color:var(--ink-3)">O registro dos resultados deve ser feito depois da execução do experimento.</p>' +
+      '<div style="display:flex;justify-content:flex-end;gap:8px;flex-wrap:wrap">' +
+        '<button type="button" class="btn aposta-modal-nao-btn">AINDA NÃO</button>' +
+        '<button type="button" class="btn btn--primary aposta-modal-sim-btn">SIM, REGISTRAR RESULTADOS</button>' +
+      '</div>';
+    overlay.appendChild(box);
+    document.body.appendChild(overlay);
+    function fechar() { if (overlay.parentNode) overlay.parentNode.removeChild(overlay); }
+    box.querySelector('.aposta-modal-nao-btn').addEventListener('click', fechar);
+    var overlayMousedownFora = false;
+    overlay.addEventListener('mousedown', function (e) { overlayMousedownFora = !box.contains(e.target); });
+    overlay.addEventListener('click', function (e) { if (overlayMousedownFora && !box.contains(e.target)) fechar(); });
+    overlay.addEventListener('keydown', function (e) { if (e.key === 'Escape') { e.preventDefault(); fechar(); } });
+    box.querySelector('.aposta-modal-sim-btn').addEventListener('click', function () { fechar(); callbackSim(); });
+  }
+
   /* ══════════════════════════════════════════════════════════════
      RENDER
      ══════════════════════════════════════════════════════════════ */
@@ -2950,8 +3003,13 @@
        feedback visível antes de sumir da tela — sem isso, a pessoa não
        tinha como saber se o planejamento realmente ficou salvo. */
     function encerrarPlanejamento() {
-      avisar('✓ Planejamento salvo. O experimento está pronto para execução. Você poderá registrar os resultados quando retornar.');
-      setTimeout(fecharDinamica, 1800);
+      /* avisarPosSaida (não avisar) porque este aviso precisa sobreviver
+         ao fecharDinamica() logo abaixo e aparecer já na tela de
+         Treinamento, para onde a pessoa está voltando — não há mais
+         necessidade do atraso de 1,8s que só existia para dar tempo de
+         ler antes de _tela sumir. */
+      avisarPosSaida('✓ Planejamento salvo. O experimento está pronto para execução. Você poderá registrar os resultados quando retornar.');
+      fecharDinamica();
     }
     function atualizarStatusEvidencia() {
       var registrandoAgora = !!_tela.querySelector('.aposta-mudanca[data-resultado] [data-e="observado"]');
@@ -3355,30 +3413,33 @@
           /* Item 4 do ajuste de usabilidade: mudar de modo é irreversível
              de fato (a partir daqui os campos de planejamento viram
              recapitulação só leitura), então confirma antes — evita
-             entrar sem querer no estado pós-execução. */
-          if (!confirm('O experimento já foi executado?\n\n' +
-            'OK = Sim, registrar resultados\nCancelar = Ainda não')) {
-            return;
-          }
-          /* Plano completo: liga o modo de registro e recarrega a MESMA
-             etapa (nunca avança para a Decisão a partir daqui). A Fonte
-             utilizada nasce pré-selecionada com a Fonte planejada — o
-             grupo troca se tiver sido diferente, mas não precisa
-             confirmar a repetição com um clique à parte. */
-          (d.itens || []).forEach(function (ev) {
-            if (!normalizar(ev.fonte) && normalizar(ev.fontePrevista)) ev.fonte = ev.fontePrevista;
-          });
-          d.registrando = 'sim';
-          seguirBtn.disabled = true;
-          salvarEtapa(etapa.id, d, false, function (err) {
-            if (err) {
-              seguirBtn.disabled = false;
-              avisar('Não consegui salvar "' + etapa.curto + '" — verifique a conexão e tente de novo. ' +
-                'Nada foi perdido: o que está na tela continua aqui.', true);
-              return;
-            }
-            render();
-            avisar('Agora registre o que aconteceu durante o experimento.');
+             entrar sem querer no estado pós-execução. Modal próprio (não
+             window.confirm) para manter o visual do site; ver
+             confirmarRegistroDeResultados. */
+          confirmarRegistroDeResultados(function () {
+            /* Plano completo: liga o modo de registro e recarrega a MESMA
+               etapa (nunca avança para a Decisão a partir daqui). A Fonte
+               utilizada nasce pré-selecionada com a Fonte planejada — o
+               grupo troca se tiver sido diferente, mas não precisa
+               confirmar a repetição com um clique à parte. */
+            (d.itens || []).forEach(function (ev) {
+              if (!normalizar(ev.fonte) && normalizar(ev.fontePrevista)) ev.fonte = ev.fontePrevista;
+            });
+            d.registrando = 'sim';
+            seguirBtn.disabled = true;
+            salvarEtapa(etapa.id, d, false, function (err) {
+              if (err) {
+                seguirBtn.disabled = false;
+                avisar('Não consegui salvar "' + etapa.curto + '" — verifique a conexão e tente de novo. ' +
+                  'Nada foi perdido: o que está na tela continua aqui.', true);
+                return;
+              }
+              /* Sem toast aqui: o próprio modo de registro já mostra, de
+                 forma permanente no corpo da tela, o banner "REGISTRO DOS
+                 RESULTADOS" — um aviso que some em 2s seria redundante e
+                 rápido demais para ler. */
+              render();
+            });
           });
           return;
         }

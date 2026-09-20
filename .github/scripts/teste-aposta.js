@@ -1334,13 +1334,28 @@ const clicarSemRolagem = (page, seletor) => page.$eval(seletor, (el) => el.click
             anota('com o plano completo, aparece o bloco de confirmação com a opção de encerrar por agora', prontoBloco);
 
             await clicarSemRolagem(page, '#apostaSeguir');
+            await page.waitForSelector('.aposta-confirmar-overlay .modal-box', { timeout: 5000 });
+            /* Item 4 do ajuste de fluxo: a confirmação não é mais o
+               window.confirm() nativo (aceito globalmente via
+               page.on('dialog',...) no topo do arquivo), e sim um modal
+               próprio do site — precisa do clique explícito no botão
+               "SIM, REGISTRAR RESULTADOS". .modal-box é classe genérica
+               (também usada pelo #authModal escondido em index.html), por
+               isso o seletor é escopado por .aposta-confirmar-overlay. */
+            const modalTxt = await page.evaluate(() => (document.querySelector('.aposta-confirmar-overlay .modal-box') || {}).textContent || '');
+            anota('o clique com o plano completo abre o modal próprio perguntando se o experimento já foi executado',
+              /experimento já foi executado/i.test(modalTxt), modalTxt);
+            await clicarSemRolagem(page, '.aposta-modal-sim-btn');
             await page.waitForTimeout(300);
             const modoRegistro = await page.evaluate(() => ({
               banner: (document.querySelector('.aposta-campos .aposta-herdada') || {}).textContent || '',
               pergunta: (document.querySelector('.aposta-pergunta') || {}).textContent || '',
               fontePreenchida: (document.querySelector('[data-e="fonte"]') || {}).value || '',
               titulo: (document.querySelector('.aposta-etapa-titulo') || {}).textContent || '',
+              toastAparente: (document.querySelector('.aposta-toast') || {}).textContent || '',
             }));
+            anota('sem toast "Agora registre..." — o modo de registro já mostra o banner permanente',
+              !/Agora registre/i.test(modoRegistro.toastAparente), modoRegistro.toastAparente);
             anota('um único clique muda a etapa inteira para o modo de registro, sem avançar para a Decisão',
               /REGISTRO DOS RESULTADOS/.test(modoRegistro.banner) && /O que aconteceu de fato/i.test(modoRegistro.pergunta) &&
               modoRegistro.titulo === tituloAntesEvVazia,
@@ -1839,6 +1854,10 @@ const clicarSemRolagem = (page, seletor) => page.$eval(seletor, (el) => el.click
         await pgEv.selectOption('[data-e="fontePrevista"]', 'Dados do sistema');
         await pgEv.waitForTimeout(300);
         await pgEv.$eval('#apostaSeguir', (el) => el.click());
+        /* Item 4 do ajuste de fluxo: modal próprio (não window.confirm)
+           perguntando se o experimento já foi executado. */
+        await pgEv.waitForSelector('.aposta-modal-sim-btn', { timeout: 5000 });
+        await pgEv.$eval('.aposta-modal-sim-btn', (el) => el.click());
         await pgEv.waitForTimeout(300);
         const fonteEfetivaRot = await pgEv.evaluate(() =>
           Array.from(document.querySelectorAll('.aposta-campo-rot')).some((r) => /Fonte utilizada/i.test(r.textContent)));
@@ -1980,10 +1999,9 @@ const clicarSemRolagem = (page, seletor) => page.$eval(seletor, (el) => el.click
         await ctxEv.close();
       }
 
-      /* ── 9a-bis: item 4 do ajuste de usabilidade — "AINDA NÃO" na
-            confirmação mantém a etapa em modo de planejamento, sem
-            trocar de estado. Sobrescreve o accept() global só nesta
-            página, para simular a escolha negativa. ── */
+      /* ── 9a-bis: item 4 do ajuste de fluxo — "AINDA NÃO" no modal
+            próprio (não mais window.confirm) mantém a etapa em modo de
+            planejamento, sem trocar de estado. ── */
       {
         const semeadoConfirma = apostasSemeadas();
         semeadoConfirma[TURMA_LIB].execucoes[EXEC].grupos[GRUPO].etapa = 'evidencia';
@@ -1993,8 +2011,6 @@ const clicarSemRolagem = (page, seletor) => page.$eval(seletor, (el) => el.click
           evidencia: { itens: [{ resultadoId: 'r1', fontePrevista: 'Dados do sistema' }] },
         };
         const { ctx: ctxConf, page: pgConf } = await novaPagina(browser, formato, DIRETORA, erros, semeadoConfirma);
-        pgConf.removeAllListeners('dialog');
-        pgConf.on('dialog', (d) => d.dismiss());
         await pgConf.goto(BASE + '/index.html#treinamento', { waitUntil: 'domcontentloaded' });
         await pgConf.click('#apostaAbrirBtn');
         await pgConf.waitForSelector('.aposta-grupo-btn', { timeout: 15000 });
@@ -2003,14 +2019,62 @@ const clicarSemRolagem = (page, seletor) => page.$eval(seletor, (el) => el.click
           /EVID[ÊE]NCIA/.test((document.querySelector('.aposta-etapa-titulo') || {}).textContent || ''),
           { timeout: 15000 });
         await pgConf.$eval('#apostaSeguir', (el) => el.click());
+        await pgConf.waitForSelector('.aposta-modal-nao-btn', { timeout: 5000 });
+        await pgConf.$eval('.aposta-modal-nao-btn', (el) => el.click());
         await pgConf.waitForTimeout(300);
         const aindaNao = await pgConf.evaluate(() => ({
           temCampoObservado: !!document.querySelector('[data-e="observado"]'),
           banner: (document.querySelector('.aposta-campos .aposta-herdada') || {}).textContent || '',
+          /* .modal-overlay sozinho pegaria o #authModal escondido de
+             index.html, sempre presente no DOM — precisa escopar pela
+             classe própria deste modal. */
+          modalFechado: !document.querySelector('.aposta-confirmar-overlay'),
         }));
-        anota('"AINDA NÃO" na confirmação mantém a etapa em planejamento, sem mudar de modo',
-          !aindaNao.temCampoObservado && /PLANEJAMENTO DA EVID[ÊE]NCIA/.test(aindaNao.banner), JSON.stringify(aindaNao));
+        anota('"AINDA NÃO" no modal fecha o modal e mantém a etapa em planejamento, sem mudar de modo',
+          aindaNao.modalFechado && !aindaNao.temCampoObservado && /PLANEJAMENTO DA EVID[ÊE]NCIA/.test(aindaNao.banner), JSON.stringify(aindaNao));
         await ctxConf.close();
+      }
+
+      /* ── 9a-ter: item 2 do ajuste de fluxo — "Encerrar por agora"
+            fecha a tela cheia da dinâmica e o aviso de sucesso sobrevive
+            ao fechamento, aparecendo já na página de Treinamento por
+            trás (não é mais preso a _tela, que é removida). ── */
+      {
+        const semeadoSair = apostasSemeadas();
+        semeadoSair[TURMA_LIB].execucoes[EXEC].grupos[GRUPO].etapa = 'evidencia';
+        semeadoSair[TURMA_LIB].execucoes[EXEC].grupos[GRUPO].dados = {
+          mudancas: { itens: [{ id: 'r1', direcao: 'Reduzir', indicador: 'contatos sobre o andamento', atual: '1000', meta: '500', unidade: 'contatos', periodo: 'por mês', prazo: '90', prazoUnidade: 'dias' }] },
+          experimento: { resultadoIds: ['r1'] },
+        };
+        const { ctx: ctxSair, page: pgSair } = await novaPagina(browser, formato, DIRETORA, erros, semeadoSair);
+        await pgSair.goto(BASE + '/index.html#treinamento', { waitUntil: 'domcontentloaded' });
+        await pgSair.click('#apostaAbrirBtn');
+        await pgSair.waitForSelector('.aposta-grupo-btn', { timeout: 15000 });
+        await pgSair.click('.aposta-grupo-btn');
+        await pgSair.waitForFunction(() =>
+          /EVID[ÊE]NCIA/.test((document.querySelector('.aposta-etapa-titulo') || {}).textContent || ''),
+          { timeout: 15000 });
+        /* O bloco "Encerrar por agora" só aparece na transição AO VIVO
+           para "pronta" (ver blocoPlanoProntoHtml) — dados semeados já
+           completos entram direto no modo "retomando", sem o botão
+           (item 3 do ajuste de fluxo, já coberto por outro teste). Por
+           isso completa a Fonte prevista aqui em vez de semear pronta. */
+        await pgSair.selectOption('[data-e="fontePrevista"]', 'Dados do sistema');
+        await pgSair.waitForSelector('#apostaSairEvidencia', { timeout: 15000 });
+        await pgSair.click('#apostaSairEvidencia');
+        await pgSair.waitForTimeout(300);
+        const posSaida = await pgSair.evaluate(() => ({
+          telaFechada: !document.querySelector('.aposta-tela'),
+          toastTxt: (document.querySelector('.aposta-toast--persistente') || {}).textContent || '',
+          toastForaDaTela: !!document.querySelector('body > .aposta-toast--persistente'),
+        }));
+        anota('"Encerrar por agora" fecha a dinâmica e mostra o aviso de sucesso já na página de trás (Treinamento)',
+          posSaida.telaFechada && /Planejamento salvo/i.test(posSaida.toastTxt) && posSaida.toastForaDaTela, JSON.stringify(posSaida));
+        await pgSair.click('.aposta-toast-fechar');
+        await pgSair.waitForTimeout(100);
+        const toastFechado = await pgSair.evaluate(() => !document.querySelector('.aposta-toast--persistente'));
+        anota('o aviso persistente pode ser fechado pelo botão ✕', toastFechado);
+        await ctxSair.close();
       }
 
       /* ── 9c: "Manter" na Evidência usa mensagem própria por tipo de
@@ -2045,6 +2109,8 @@ const clicarSemRolagem = (page, seletor) => page.$eval(seletor, (el) => el.click
         await pgM.selectOption('[data-e="fontePrevista"]', 'Dados do sistema');
         await pgM.waitForTimeout(200);
         await pgM.$eval('#apostaSeguir', (el) => el.click());
+        await pgM.waitForSelector('.aposta-modal-sim-btn', { timeout: 5000 });
+        await pgM.$eval('.aposta-modal-sim-btn', (el) => el.click());
         await pgM.waitForTimeout(300);
         await pgM.fill('[data-e="observado"]', cenario.observado);
         await pgM.waitForTimeout(300);
@@ -2176,6 +2242,8 @@ const clicarSemRolagem = (page, seletor) => page.$eval(seletor, (el) => el.click
         await pgNM.selectOption('[data-e="fontePrevista"]', 'Dados do sistema');
         await pgNM.waitForTimeout(200);
         await pgNM.$eval('#apostaSeguir', (el) => el.click());
+        await pgNM.waitForSelector('.aposta-modal-sim-btn', { timeout: 5000 });
+        await pgNM.$eval('.aposta-modal-sim-btn', (el) => el.click());
         await pgNM.waitForTimeout(300);
         await pgNM.fill('[data-e="motivo"]', 'Pesquisa de satisfação não foi concluída dentro do período.');
         await pgNM.click('[data-e="naoMedido"]');

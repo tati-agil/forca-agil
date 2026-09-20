@@ -1642,6 +1642,18 @@ select.aposta-campo-input { width: auto; min-width: 8.5em; }
   box-shadow: 0 6px 22px rgba(0,0,0,.45);
 }
 .aposta-toast.is-erro { border-color: rgba(255,80,80,.55); color: #ff9a9a; }
+/* Variante que sobrevive ao fechamento da dinâmica (avisarPosSaida em
+   aposta.js) e aparece já na página de Treinamento: por isso é
+   dispensável (botão ✕), não só cronometrada. */
+.aposta-toast--persistente {
+  display: flex; align-items: center; gap: 12px; max-width: 92vw;
+  border-color: rgba(24,194,186,.45);
+}
+.aposta-toast-fechar {
+  background: none; border: none; color: inherit; opacity: .7; cursor: pointer;
+  font-size: .9rem; line-height: 1; padding: 8px; margin: -8px;
+}
+.aposta-toast-fechar:hover { opacity: 1; }
 
 /* Celular: a trilha vira uma faixa horizontal no topo. Ela continua
    mostrando as nove etapas — só deita, em vez de sumir. */
