@@ -181,6 +181,38 @@
     }, atraso);
     return Promise.resolve();
   };
+  /* transaction(): usado hoje só pelo contador de execuções (Fase 1 da
+     evolução de execuções). Cada chamada lê o valor ATUAL do caminho e
+     aplica a função de atualização dentro do mesmo setTimeout em que
+     grava — como o harness é de thread único, isso já garante que duas
+     chamadas em sequência rápida (o caso que os testes de concorrência
+     querem provar) nunca leem o mesmo valor de partida: a segunda só
+     roda depois que a primeira já commitou, exatamente a garantia que o
+     Firebase de verdade dá (mas por serialização de fila, não por
+     retry). Retornar `undefined` da função de atualização aborta, como
+     no SDK real. */
+  Ref.prototype.transaction = function (updateFn, onComplete) {
+    var self = this;
+    setTimeout(function () {
+      if (failsFor(self.path)) {
+        var e = new Error('PERMISSION_DENIED (falso): transaction ' + self.path);
+        if (onComplete) onComplete(e, false, null);
+        return;
+      }
+      var valorAtual = get(self.path);
+      var novoValor = updateFn(valorAtual);
+      if (novoValor === undefined) {
+        if (onComplete) onComplete(null, false, snap(self.path));
+        return;
+      }
+      aplicar(self.path, novoValor, false);
+      anotar(self.path, novoValor);
+      var s = snap(self.path);
+      if (onComplete) onComplete(null, true, s);
+      notificar(self.path);
+    }, delayFor(self.path));
+    return Promise.resolve({ committed: true, snapshot: null });
+  };
   Ref.prototype.set    = function (v, cb) { anotar(this.path, v); escrever(this, cb, v, false); return Promise.resolve(); };
   Ref.prototype.remove = function (cb)    { anotar(this.path, null); aplicar(this.path, null, false); if (cb) cb(null); notificar(this.path); return Promise.resolve(); };
   /* Uma chave nova por chamada — não "/fake" sempre igual, senão duas
