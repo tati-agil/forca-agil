@@ -4455,12 +4455,29 @@
           });
         });
       }
+      /* Fase 3 — proteção contra clique duplo: sem isso, dois cliques
+         rápidos (ou os dois eventos de um duplo-clique físico) liam o
+         mesmo _exec ainda não atualizado, geravam dois nomes-padrão
+         iguais e criavam DOIS grupos — cada um com sua própria chave
+         push(), nenhum "duplicado" no sentido de ter o mesmo id, mas
+         duas linhas reais na turma para o que devia ser um grupo só.
+         Mesmo padrão já usado em #apostaSeguir/comEscritaConfirmada:
+         desabilita antes de gravar, só reabilita se der erro — no
+         sucesso, comMissaoPreservada(desenhar) redesenha o painel
+         inteiro com um botão novo, já habilitado. */
       box.querySelector('#apostaCriarGrupo').addEventListener('click', function () {
+        var btnCriarGrupo = this;
+        if (btnCriarGrupo.disabled) return;
+        btnCriarGrupo.disabled = true;
         var nome = (box.querySelector('#apostaNovoGrupo').value || '').trim() ||
           ('Grupo ' + (Object.keys(_exec.grupos || {}).length + 1));
         var ref = db().ref(caminhoExec() + '/grupos').push();
         ref.set({ nome: nome, criadoEm: new Date().toISOString(), etapa: 'missao' }, function (err) {
-          if (err) { avisar('Não consegui criar o grupo. Tente de novo.', true); return; }
+          if (err) {
+            btnCriarGrupo.disabled = false;
+            avisar('Não consegui criar o grupo. Tente de novo.', true);
+            return;
+          }
           comMissaoPreservada(desenhar);
         });
       });
