@@ -273,6 +273,19 @@
           'Interromper esta ideia': 'As evidências não justificam continuar investindo nesta solução neste momento.',
           'Investigar mais': 'Ainda faltam informações para decidir. É necessário aprender mais antes de escolher o próximo caminho.',
           'Reformular a hipótese': 'As evidências indicam que a explicação atual para o problema precisa ser revista.'
+        },
+        /* Microexplicação — sempre visível embaixo dos botões assim que
+           uma decisão é escolhida (não é o mesmo texto de "dicas" acima,
+           que só aparece no hover/toque longo; aqui o texto tem de estar
+           lendo-se sem precisar descobrir que existe uma dica). Textos
+           exatos pedidos no ajuste — não reaproveita "dicas" de propósito,
+           para não misturar os dois pedidos por engano numa edição futura. */
+        explicacoes: {
+          'Ampliar': 'As evidências são suficientes para aumentar a escala da aposta.',
+          'Ajustar e testar novamente': 'Há sinais promissores, mas algo precisa mudar antes de um novo teste.',
+          'Interromper esta ideia': 'O aprendizado indica que não vale continuar investindo nesta ideia.',
+          'Investigar mais': 'Ainda não temos evidência suficiente para decidir sobre a aposta.',
+          'Reformular a hipótese': 'A evidência sugere que nossa explicação para o problema precisa mudar.'
         }
       },
       campos: [
@@ -740,14 +753,14 @@
         partesM.push({ tipo: 'fixo', txt: 'e' });
         var up = unidadePeriodoTxt();
         partesM.push(maxV
-          ? { tipo: 'valor', txt: comSufixo(maxV) + (up ? ' ' + up : ''), chave: 'limiteMaximo' }
+          ? { tipo: 'valor', txt: comSufixo(maxV) + (up ? ' ' + concordarSufixo(maxV, up) : ''), chave: 'limiteMaximo' }
           : { tipo: 'vazio', rotulo: 'o limite máximo', chave: 'limiteMaximo' });
       } else {
         partesM.push({ tipo: 'fixo', txt: tipoLimite === 'No máximo' ? 'em no máximo' : 'em pelo menos' });
         var metaV = String(m.meta == null ? '' : m.meta).trim();
         var up2 = unidadePeriodoTxt();
         partesM.push(metaV
-          ? { tipo: 'valor', txt: comSufixo(metaV) + (up2 ? ' ' + up2 : ''), chave: 'meta' }
+          ? { tipo: 'valor', txt: comSufixo(metaV) + (up2 ? ' ' + concordarSufixo(metaV, up2) : ''), chave: 'meta' }
           : { tipo: 'vazio', rotulo: 'a meta', chave: 'meta' });
       }
       partesM.push({ tipo: 'fixo', txt: 'durante' });
@@ -769,7 +782,7 @@
         partesA.push({ tipo: 'valor', txt: mig.unidade, chave: 'unidade' });
         partesA.push(metaA ? { tipo: 'valor', txt: metaA, chave: 'meta' } : { tipo: 'vazio', rotulo: 'a meta', chave: 'meta' });
       } else {
-        var metaTxt = metaA ? comSufixo(metaA) + (!ehPercentual && mig.unidade ? ' ' + mig.unidade : '') : '';
+        var metaTxt = metaA ? comSufixo(metaA) + (!ehPercentual && mig.unidade ? ' ' + concordarSufixo(metaA, mig.unidade) : '') : '';
         partesA.push(metaA ? { tipo: 'valor', txt: metaTxt, chave: 'meta' } : { tipo: 'vazio', rotulo: 'a meta', chave: 'meta' });
         partesA.push({ tipo: 'fixo', txt: 'de' });
         partesA.push(indicador ? { tipo: 'valor', txt: indicador, chave: 'indicador' } : { tipo: 'vazio', rotulo: 'o indicador', chave: 'indicador' });
@@ -793,7 +806,7 @@
       var val = String(m[chave] == null ? '' : m[chave]).trim();
       if (!val) return { tipo: 'vazio', rotulo: rotulo, chave: chave };
       var txt = comSufixo(val);
-      if (sufixoUP) txt += ' ' + sufixoUP;
+      if (sufixoUP) txt += ' ' + concordarSufixo(val, sufixoUP);
       return { tipo: 'valor', txt: txt, chave: chave };
     }
     var partes = [
@@ -987,16 +1000,51 @@
     var periodoTxt = (mig.periodo && normalizar(mig.periodo) !== 'não se aplica') ? ' ' + mig.periodo : '';
     return (mig.unidade ? ' ' + mig.unidade : '') + periodoTxt;
   }
+  /* Concordância número-substantivo nas frases automáticas ("1 contato",
+     "2 contatos") — sufixoUnidade() sempre devolve a forma plural (é
+     assim que a unidade nasce, digitada ou escolhida numa sugestão),
+     porque um único sufixo costuma ser reaproveitado para vários números
+     diferentes da mesma frase (situação atual, meta, observado...), e
+     cada um pode valer 1 sem que os outros valham. concordarSufixo()
+     ajusta só a unidade em si para o valor específico que está sendo
+     mostrado — nunca o período ("por mês"), que não concorda com a
+     contagem, nem a cláusula depois de "por" nas unidades de taxa
+     ("erros por 1.000 processos": só "erros" concorda com o valor da
+     frase, "processos" é o denominador, fixo). Unidade é texto livre
+     (a pessoa digita ou escolhe uma sugestão), então não há dicionário
+     fechado possível — a heurística cobre os padrões regulares do
+     português; "meses" é a única irregularidade das sugestões prontas
+     (ver UNIDADES_SUGERIDAS), por isso a exceção explícita. */
+  var SINGULAR_UNIDADE_EXCECOES = { meses: 'mês' };
+  function singularizarPalavra(p) {
+    if (SINGULAR_UNIDADE_EXCECOES[p.toLowerCase()]) return SINGULAR_UNIDADE_EXCECOES[p.toLowerCase()];
+    if (/ões$/i.test(p)) return p.slice(0, -3) + 'ão';
+    if (/ães$/i.test(p)) return p.slice(0, -3) + 'ão';
+    if (/ais$/i.test(p)) return p.slice(0, -3) + 'al';
+    if (/[eé]is$/i.test(p)) return p.slice(0, -3) + 'el';
+    if (/óis$/i.test(p)) return p.slice(0, -3) + 'ol';
+    if (/ns$/i.test(p)) return p.slice(0, -2) + 'm';
+    if (/[rz]es$/i.test(p)) return p.slice(0, -2);
+    if (/s$/i.test(p) && p.length > 1) return p.slice(0, -1);
+    return p;
+  }
+  function concordarSufixo(valor, sufixo) {
+    var n = paraNumero(valor);
+    if (n == null || Math.abs(n) !== 1 || !sufixo) return sufixo;
+    var partes = String(sufixo).split(/(\s+por\s+)/i);
+    partes[0] = partes[0].replace(/\S+/g, singularizarPalavra);
+    return partes.join('');
+  }
   /* O que o card de Evidência mostra no campo "Meta" (sempre
      desabilitado ali) — em "Manter" não é um valor só, é "pelo menos
      X" / "no máximo X" / "entre X e Y". */
   function metaOuLimiteTexto(m, sufixo) {
     if (String(m.direcao || '').trim() === 'Manter') {
       var tipoLimite = String(m.tipoLimite || '').trim() || 'Pelo menos';
-      if (tipoLimite === 'Entre') return 'entre ' + (m.limiteMinimo || '—') + ' e ' + (m.limiteMaximo || '—') + sufixo;
-      return (tipoLimite === 'No máximo' ? 'no máximo ' : 'pelo menos ') + (m.meta || '—') + sufixo;
+      if (tipoLimite === 'Entre') return 'entre ' + (m.limiteMinimo || '—') + ' e ' + (m.limiteMaximo || '—') + concordarSufixo(m.limiteMaximo, sufixo);
+      return (tipoLimite === 'No máximo' ? 'no máximo ' : 'pelo menos ') + (m.meta || '—') + concordarSufixo(m.meta, sufixo);
     }
-    return (m.meta || '—') + sufixo;
+    return (m.meta || '—') + concordarSufixo(m.meta, sufixo);
   }
   /* "Esperávamos reduzir X de 1.000 para 500 contatos por mês em 90
      dias. Após o experimento, observamos 650 contatos por mês." — a
@@ -1023,7 +1071,7 @@
       return esperavamos + ' Não foi possível medir neste experimento' + (normalizar(ev.motivo) ? ' (' + ev.motivo + ')' : '') + '.';
     }
     if (!normalizar(ev.observado)) return esperavamos;
-    return esperavamos + ' Após o experimento, observamos ' + ev.observado + sufixo + '.';
+    return esperavamos + ' Após o experimento, observamos ' + ev.observado + concordarSufixo(ev.observado, sufixo) + '.';
   }
   /* "Manter" não tem "% do caminho": o resultado observado está dentro
      do limite combinado, ou não está. */
@@ -1091,7 +1139,7 @@
       var comparativo = obs > atual ? 'acima' : (obs < atual ? 'abaixo' : '');
       return {
         texto: 'O resultado observado não avançou na direção esperada.' +
-          (comparativo ? ' Foram observados ' + numeroLimpo(obs) + sufixo + ', ' + comparativo + ' da situação inicial de ' + numeroLimpo(atual) + sufixo + '.' : ''),
+          (comparativo ? ' Foram observados ' + numeroLimpo(obs) + concordarSufixo(obs, sufixo) + ', ' + comparativo + ' da situação inicial de ' + numeroLimpo(atual) + concordarSufixo(atual, sufixo) + '.' : ''),
         ok: false,
         atingiu: false
       };
@@ -1100,7 +1148,8 @@
        a diferença em relação ao que se esperava (sempre positiva, já
        que só chega aqui quando a mudança alcançada supera a esperada). */
     if (Math.abs(alcancada) > Math.abs(esperada)) {
-      return { texto: 'A mudança esperada foi superada em ' + numeroLimpo(Math.abs(alcancada - esperada)) + sufixo + '.', ok: true, atingiu: true };
+      var diferenca = Math.abs(alcancada - esperada);
+      return { texto: 'A mudança esperada foi superada em ' + numeroLimpo(diferenca) + concordarSufixo(diferenca, sufixo) + '.', ok: true, atingiu: true };
     }
     /* Ao contrário de "Manter" (dentro/fora é bom/ruim), um percentual
        é só informação — não é "problema", é o quanto já andou. */
@@ -1195,11 +1244,27 @@
     return faltam;
   }
 
+  /* Regra especial da Decisão (item 5 do ajuste): só quando a decisão
+     escolhida for "Reformular a hipótese" a Nova Hipótese (causa +
+     indício) se torna obrigatória — nas outras quatro decisões ela
+     continua opcional, mesmo que já tenha sido preenchida numa volta
+     anterior (por isso a checagem olha só a decisão ATUAL, nunca se o
+     texto já existe). Uma função só, usada tanto para desabilitar
+     CONTINUAR (seguirDesabilitado) quanto para a mensagem de pendência
+     (mensagemFraseIncompleta) e o bloqueio no clique (ligarEtapa) — as
+     três não podem divergir sobre quando falta a nova hipótese. */
+  function decisaoFaltaNovaHipotese(d) {
+    return String((d || {}).decisao || '').trim() === 'Reformular a hipótese' &&
+      !(normalizar(d.proxHipCausa) && normalizar(d.proxHipIndicio));
+  }
+
   /* Mensagem de orientação quando a etapa ainda não pode mostrar sua
      frase — Hipótese e Ideia têm só duas lacunas cada, então o texto
      fixo do pedido já é claro; o Experimento tem até cinco, então lista
-     dinamicamente só o que falta de verdade. */
-  function mensagemFraseIncompleta(etapaId, faltam) {
+     dinamicamente só o que falta de verdade. Na Decisão, "Reformular a
+     hipótese" pode faltar a Nova Hipótese, a Próxima ação, ou as duas —
+     cada combinação tem a sua própria frase (item 5 do ajuste). */
+  function mensagemFraseIncompleta(etapaId, faltam, d) {
     if (etapaId === 'hipotese') return 'Preencha a causa percebida e o que foi observado para completar a hipótese.';
     if (etapaId === 'ideia') return 'Preencha o que poderíamos fazer e para quê, para visualizar a ideia de solução.';
     if (etapaId === 'experimento') {
@@ -1208,6 +1273,10 @@
     if (etapaId === 'decisao') {
       var faltaDecisao = faltam.some(function (p) { return p.chave === 'decisao'; });
       if (faltaDecisao) return 'Escolha o que faremos com base no que aprendemos.';
+      var faltaProximaAcao = faltam.some(function (p) { return p.chave === 'proximaAcao'; });
+      var faltaNovaHip = decisaoFaltaNovaHipotese(d);
+      if (faltaNovaHip && faltaProximaAcao) return 'Defina a nova hipótese e a próxima ação para completar a decisão.';
+      if (faltaNovaHip) return 'Defina a nova hipótese para completar a decisão.';
       return 'Defina a próxima ação para completar a decisão.';
     }
     return 'Preencha os campos obrigatórios para visualizar a frase desta etapa.';
@@ -1741,10 +1810,10 @@
 
   function metaLinhaDecisao(m, sufixo) {
     var direcao = String((m || {}).direcao || '').trim();
-    if (direcao !== 'Manter') return (m.meta || '—') + sufixo;
+    if (direcao !== 'Manter') return (m.meta || '—') + concordarSufixo(m.meta, sufixo);
     var tipoLimite = String(m.tipoLimite || '').trim() || 'Pelo menos';
-    if (tipoLimite === 'Entre') return 'manter entre ' + (m.limiteMinimo || '—') + ' e ' + (m.limiteMaximo || '—') + sufixo;
-    return 'manter em ' + (tipoLimite === 'No máximo' ? 'no máximo ' : 'pelo menos ') + (m.meta || '—') + sufixo;
+    if (tipoLimite === 'Entre') return 'manter entre ' + (m.limiteMinimo || '—') + ' e ' + (m.limiteMaximo || '—') + concordarSufixo(m.limiteMaximo, sufixo);
+    return 'manter em ' + (tipoLimite === 'No máximo' ? 'no máximo ' : 'pelo menos ') + (m.meta || '—') + concordarSufixo(m.meta, sufixo);
   }
   /* Cada item vira indicador + linhas — nunca uma frase remontada com
      lacunas em branco: se o resultado escolhido no Experimento não for
@@ -1764,10 +1833,10 @@
       var temAtual = direcao !== 'Atingir' && normalizar(m.atual);
       var observadoTxt = ev.naoMedido === 'sim'
         ? 'Não foi possível medir' + (normalizar(ev.motivo) ? ' (' + ev.motivo + ')' : '')
-        : (normalizar(ev.observado) ? (ev.observado + sufixo) : '—');
+        : (normalizar(ev.observado) ? (ev.observado + concordarSufixo(ev.observado, sufixo)) : '—');
       return '<li>' +
         '<strong>' + esc(m.indicador || 'Resultado') + '</strong>' +
-        (temAtual ? '<span>Situação inicial: ' + esc(m.atual + sufixo) + '</span>' : '') +
+        (temAtual ? '<span>Situação inicial: ' + esc(m.atual + concordarSufixo(m.atual, sufixo)) + '</span>' : '') +
         '<span>Meta: ' + esc(metaLinhaDecisao(m, sufixo)) + '</span>' +
         '<span>Observado: ' + esc(observadoTxt) + '</span>' +
         (normalizar(ev.fonte) ? '<span>Fonte: ' + esc(ev.fonte) + '</span>' : '') +
@@ -2191,6 +2260,8 @@
   }
 
   function escolhaHtml(escolha, d, semRotulo) {
+    var valorAtual = d[escolha.chave];
+    var explicacao = escolha.explicacoes && valorAtual ? escolha.explicacoes[valorAtual] : '';
     return '<div class="aposta-escolha">' +
       (semRotulo ? '' : '<span class="aposta-campo-rot">' + esc(escolha.rotulo) + '</span>') +
       '<div class="aposta-escolha-opcoes">' +
@@ -2201,6 +2272,7 @@
             ' data-escolha="' + esc(escolha.chave) + '" data-valor="' + esc(o) + '">' + esc(o) + '</button>';
         }).join('') +
       '</div>' +
+      (explicacao ? '<p class="aposta-grupo-dica" data-escolha-explicacao="' + esc(escolha.chave) + '">' + esc(explicacao) + '</p>' : '') +
     '</div>';
   }
 
@@ -2403,8 +2475,7 @@
       var faltam = partesFaltantesEtapa(etapa, d);
       var temLegadoValido = etapa.legado && String(d[etapa.legado] || '').trim() && !temLacunaPreenchida(etapa, d);
       if (faltam.length && !temLegadoValido) return true;
-      if (etapa.id === 'decisao' && d.decisao === 'Reformular a hipótese' &&
-        !(normalizar(d.proxHipCausa) && normalizar(d.proxHipIndicio))) return true;
+      if (etapa.id === 'decisao' && decisaoFaltaNovaHipotese(d)) return true;
       return false;
     }
     return false;
@@ -2564,7 +2635,7 @@
         '<p style="margin:0 0 12px;color:var(--ink)"><strong>' + esc(m.indicador) + '</strong></p>' +
         '<div class="aposta-mudanca-grade">' +
           '<label class="aposta-campo"><span class="aposta-campo-rot">Situação inicial</span>' +
-            '<input type="text" class="aposta-campo-input" value="' + esc((m.atual || '—') + sufixo) + '" disabled /></label>' +
+            '<input type="text" class="aposta-campo-input" value="' + esc((m.atual || '—') + concordarSufixo(m.atual, sufixo)) + '" disabled /></label>' +
           '<label class="aposta-campo"><span class="aposta-campo-rot">Meta</span>' +
             '<input type="text" class="aposta-campo-input" value="' + esc(metaTxt) + '" disabled /></label>' +
         '</div>' +
@@ -2580,9 +2651,9 @@
     var resumo = resultados.map(function (m) {
       var ev = evidenciaDe(m.id);
       var sufixo = sufixoUnidade(m);
-      var obsTxt = normalizar(ev.observado) ? (ev.observado + sufixo) : (ev.naoMedido === 'sim' ? 'não medido' : '—');
+      var obsTxt = normalizar(ev.observado) ? (ev.observado + concordarSufixo(ev.observado, sufixo)) : (ev.naoMedido === 'sim' ? 'não medido' : '—');
       return '<p><strong>' + esc(m.indicador) + ':</strong><br>' +
-        esc((m.atual || '—') + sufixo) + ' → ' + esc(obsTxt) + ' · Meta: ' + esc(metaOuLimiteTexto(m, sufixo)) + '</p>';
+        esc((m.atual || '—') + concordarSufixo(m.atual, sufixo)) + ' → ' + esc(obsTxt) + ' · Meta: ' + esc(metaOuLimiteTexto(m, sufixo)) + '</p>';
     }).join('');
 
     var pronto = (!registrando && status.estado === 'pronta') ? blocoPlanoProntoHtml(true) : '';
@@ -2680,7 +2751,7 @@
       } else if (tipo === 'evidencia') {
         aindaBloqueado = (d.itens || []).some(function (ev) { return !evidenciaCardCompleto(ev); });
       } else if (tipo === 'decisao-nova-hipotese') {
-        aindaBloqueado = !(normalizar(d.proxHipCausa) && normalizar(d.proxHipIndicio));
+        aindaBloqueado = decisaoFaltaNovaHipotese(d);
       }
       if (!aindaBloqueado) {
         avisosEl.innerHTML = '';
@@ -2728,15 +2799,22 @@
       var usaLegado = etapa.legado && String(d[etapa.legado] || '').trim() && !temLacunaPreenchida(etapa, d);
       var faltam = usaLegado ? [] : partesFaltantesEtapa(etapa, d);
       var estrita = !!ETAPAS_FRASE_ESTRITA[etapa.id];
+      /* Item 5 do ajuste de Decisão: com "Reformular a hipótese" e a
+         Nova Hipótese ainda incompleta, a frase principal (decisão +
+         próxima ação) pode estar completa sozinha — mas a etapa como um
+         todo não está, então a prévia não pode mostrar a frase como se
+         estivesse pronta (CONTINUAR continua bloqueado; ver
+         seguirDesabilitado/decisaoFaltaNovaHipotese). */
+      var faltaNovaHipDecisao = etapa.id === 'decisao' && decisaoFaltaNovaHipotese(d);
 
       /* Hipótese, Ideia e Experimento: nada de frase com lacunas por
          dentro enquanto falta algo — só a orientação do que falta.
          Assim que tudo estiver preenchido, cai no mesmo caminho de
          sempre logo abaixo. */
-      if (estrita && faltam.length) {
+      if (estrita && (faltam.length || faltaNovaHipDecisao)) {
         el.hidden = false;
         el.innerHTML = '<span class="aposta-frase-rot">Fica assim no mapa</span>' +
-          '<p class="aposta-frase-falta">' + esc(mensagemFraseIncompleta(etapa.id, faltam)) + '</p>';
+          '<p class="aposta-frase-falta">' + esc(mensagemFraseIncompleta(etapa.id, faltam, d)) + '</p>';
         return;
       }
 
@@ -2821,6 +2899,7 @@
         salvarEtapa(etapa.id, coletar());
         atualizarFrase();
         atualizarGruposPorEscolha(etapa.escolha.chave, '');
+        atualizarEscolhaEBotao();
         el.innerHTML = '';
         var escolhaEl = _tela.querySelector('.aposta-opcao');
         if (escolhaEl) escolhaEl.scrollIntoView({ behavior: 'smooth', block: 'center' });
@@ -3098,9 +3177,9 @@
       var resumo = resultados.map(function (m) {
         var ev = evidenciaDe(m.id);
         var sufixo = sufixoUnidade(m);
-        var obsTxt = normalizar(ev.observado) ? (ev.observado + sufixo) : (ev.naoMedido === 'sim' ? 'não medido' : '—');
+        var obsTxt = normalizar(ev.observado) ? (ev.observado + concordarSufixo(ev.observado, sufixo)) : (ev.naoMedido === 'sim' ? 'não medido' : '—');
         return '<p><strong>' + esc(m.indicador) + ':</strong><br>' +
-          esc((m.atual || '—') + sufixo) + ' → ' + esc(obsTxt) + ' · Meta: ' + esc(metaOuLimiteTexto(m, sufixo)) + '</p>';
+          esc((m.atual || '—') + concordarSufixo(m.atual, sufixo)) + ' → ' + esc(obsTxt) + ' · Meta: ' + esc(metaOuLimiteTexto(m, sufixo)) + '</p>';
       }).join('');
       var registrandoAgora = !!_tela.querySelector('.aposta-mudanca[data-resultado] [data-e="observado"]');
       wrap.innerHTML = '<p class="aposta-campo-rot">' + (registrandoAgora ? 'Resultados do experimento' : 'Resultados que vamos observar') + '</p>' + resumo;
@@ -3259,6 +3338,33 @@
       });
     }
 
+    /* Item 3/6 do ajuste de Decisão: a microexplicação embaixo dos
+       botões (escolha.explicacoes) e o estado do botão principal
+       precisam acompanhar a escolha AO VIVO, sem esperar um clique em
+       CONTINUAR nem recarregar — o mesmo princípio de "estado visual e
+       funcional sempre iguais" já aplicado à Evidência. Reaproveitado
+       tanto pelo clique numa opção quanto por REVER DECISÃO (que limpa
+       a escolha). */
+    function atualizarEscolhaEBotao() {
+      var d = coletar();
+      var esc_ = etapa.escolha;
+      if (esc_) {
+        var explicacaoEl = _tela.querySelector('[data-escolha-explicacao]');
+        var texto = esc_.explicacoes && d[esc_.chave] ? esc_.explicacoes[d[esc_.chave]] : '';
+        if (texto && explicacaoEl) {
+          explicacaoEl.textContent = texto;
+        } else if (texto && !explicacaoEl) {
+          var opcoesWrap = _tela.querySelector('.aposta-escolha-opcoes');
+          if (opcoesWrap) opcoesWrap.insertAdjacentHTML('afterend', '<p class="aposta-grupo-dica" data-escolha-explicacao="' + esc(esc_.chave) + '">' + esc(texto) + '</p>');
+        } else if (!texto && explicacaoEl) {
+          explicacaoEl.parentNode.removeChild(explicacaoEl);
+        }
+      }
+      var seguirBtn = document.getElementById('apostaSeguir');
+      if (seguirBtn) seguirBtn.disabled = seguirDesabilitado(etapa, d);
+      return d;
+    }
+
     _tela.querySelectorAll('.aposta-opcao').forEach(function (b) {
       b.addEventListener('click', function () {
         _tela.querySelectorAll('.aposta-opcao').forEach(function (o) { o.classList.remove('is-ativa'); });
@@ -3266,6 +3372,7 @@
         salvarEtapa(etapa.id, coletar());
         atualizarFrase();
         atualizarGruposPorEscolha(b.dataset.escolha, b.dataset.valor);
+        atualizarEscolhaEBotao();
         if (etapa.id === 'decisao') {
           atualizarAlertaDecisao();
           var proximaAcaoInput = document.getElementById('ap-proximaAcao');
@@ -3368,7 +3475,7 @@
         var temLegadoValido = etapa.legado && String(d[etapa.legado] || '').trim() && !temLacunaPreenchida(etapa, d);
         if (faltamContinuar.length && !temLegadoValido) {
           avisosEl.dataset.bloqueio = 'frase';
-          avisosEl.innerHTML = '<p class="aposta-aviso-didatico">' + esc(mensagemFraseIncompleta(etapa.id, faltamContinuar)) + '</p>';
+          avisosEl.innerHTML = '<p class="aposta-aviso-didatico">' + esc(mensagemFraseIncompleta(etapa.id, faltamContinuar, d)) + '</p>';
           var apostaFraseEl = document.getElementById('apostaFrase');
           (apostaFraseEl || avisosEl).scrollIntoView({ behavior: 'smooth', block: 'center' });
           return;
@@ -3376,8 +3483,7 @@
         /* Decisão "Reformular a hipótese": a Nova Hipótese abre sozinha e
            é obrigatória nesse caso (item 14 do ajuste de usabilidade) —
            as outras quatro decisões continuam com ela opcional. */
-        if (etapa.id === 'decisao' && d.decisao === 'Reformular a hipótese' &&
-          !(normalizar(d.proxHipCausa) && normalizar(d.proxHipIndicio))) {
+        if (etapa.id === 'decisao' && decisaoFaltaNovaHipotese(d)) {
           avisosEl.dataset.bloqueio = 'decisao-nova-hipotese';
           avisosEl.innerHTML = '<p class="aposta-aviso-didatico">A decisão "Reformular a hipótese" pede a Nova Hipótese completa: preencha a causa provável e o indício que a motivou.</p>';
           var grupoNovaHip = document.getElementById('apostaGrupoNovaHipotese');

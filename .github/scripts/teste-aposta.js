@@ -2358,6 +2358,13 @@ const clicarSemRolagem = (page, seletor) => page.$eval(seletor, (el) => el.click
            com os dois botões — nunca muda a decisão sozinho. */
         await pgDec.locator('.aposta-opcao', { hasText: 'Ampliar' }).click();
         await pgDec.waitForTimeout(200);
+        /* Item 3 do ajuste de Decisão: microexplicação sempre visível
+           embaixo dos botões, com o texto exato pedido — não é a mesma
+           coisa que a dica em title (hover). */
+        const explicacaoAmpliar = await pgDec.evaluate(() =>
+          (document.querySelector('[data-escolha-explicacao]') || {}).textContent || '');
+        anota('escolher "Ampliar" mostra a microexplicação exata embaixo dos botões',
+          explicacaoAmpliar === 'As evidências são suficientes para aumentar a escala da aposta.', explicacaoAmpliar);
         const alertaAmpliar = await pgDec.evaluate(() => {
           const el = document.getElementById('apostaDecisaoAlerta');
           return el ? { texto: el.textContent.replace(/\s+/g, ' '), botoes: Array.from(el.querySelectorAll('button')).map((b) => b.textContent.trim()) } : null;
@@ -2445,6 +2452,137 @@ const clicarSemRolagem = (page, seletor) => page.$eval(seletor, (el) => el.click
           !!dataDecisaoGravada && !isNaN(Date.parse(dataDecisaoGravada)), JSON.stringify(dataDecisaoGravada));
 
         await ctxDec.close();
+      }
+
+      /* ── 9g: DECISÃO — "Reformular a hipótese" (item 5 do ajuste):
+            bloco auto-aberto, pendências combinadas (nova hipótese +
+            próxima ação), botão reage a cada tecla e a cada troca de
+            decisão — nunca só ao clicar em CONTINUAR. ── */
+      {
+        const semeadoRef = apostasSemeadas();
+        semeadoRef[TURMA_LIB].execucoes[EXEC].grupos[GRUPO].etapa = 'decisao';
+        semeadoRef[TURMA_LIB].execucoes[EXEC].grupos[GRUPO].dados = {
+          mudancas: { itens: [{ id: 'r1', direcao: 'Reduzir', indicador: 'contatos sobre andamento', atual: '1000', meta: '500', unidade: 'contatos', periodo: 'por mês' }] },
+          experimento: { resultadoIds: ['r1'] },
+          evidencia: { itens: [{ resultadoId: 'r1', observado: '800', fonte: 'Relatório', aprendizado: 'ainda não confirma a hipótese' }] },
+        };
+        const { ctx: ctxRef, page: pgRef } = await novaPagina(browser, formato, DIRETORA, erros, semeadoRef);
+        await pgRef.goto(BASE + '/index.html#treinamento', { waitUntil: 'domcontentloaded' });
+        await pgRef.click('#apostaAbrirBtn');
+        await pgRef.waitForSelector('.aposta-grupo-btn', { timeout: 15000 });
+        await pgRef.click('.aposta-grupo-btn');
+        await pgRef.waitForFunction(() =>
+          /DECIS[ÃA]O/.test((document.querySelector('.aposta-etapa-titulo') || {}).textContent || ''),
+          { timeout: 15000 });
+
+        await pgRef.locator('.aposta-opcao', { hasText: 'Reformular a hipótese' }).click();
+        await pgRef.waitForTimeout(200);
+        const explicacaoRef = await pgRef.evaluate(() =>
+          (document.querySelector('[data-escolha-explicacao]') || {}).textContent || '');
+        anota('escolher "Reformular a hipótese" mostra a microexplicação exata embaixo dos botões',
+          explicacaoRef === 'A evidência sugere que nossa explicação para o problema precisa mudar.', explicacaoRef);
+
+        const semNadaRef = await pgRef.evaluate(() =>
+          ((document.getElementById('apostaFrase') || {}).textContent || '').replace(/\s+/g, ' '));
+        anota('"Reformular a hipótese" sem nova hipótese nem próxima ação mostra as duas pendências juntas',
+          semNadaRef === 'Fica assim no mapaDefina a nova hipótese e a próxima ação para completar a decisão.', semNadaRef);
+        const desabilitadoSemNada = await pgRef.evaluate(() => (document.getElementById('apostaSeguir') || {}).disabled);
+        anota('"Reformular a hipótese" sem nada preenchido: CONTINUAR nasce desabilitado de verdade', desabilitadoSemNada === true);
+
+        await pgRef.fill('[data-campo="proximaAcao"]', 'testar a nova hipótese com um novo experimento');
+        await pgRef.waitForTimeout(250);
+        const soFaltaNovaHip = await pgRef.evaluate(() => ({
+          frase: ((document.getElementById('apostaFrase') || {}).textContent || '').replace(/\s+/g, ' '),
+          desabilitado: (document.getElementById('apostaSeguir') || {}).disabled,
+        }));
+        anota('preencher só a próxima ação: pendência passa a pedir só a nova hipótese, e CONTINUAR continua bloqueado (reativo, sem clicar em CONTINUAR)',
+          soFaltaNovaHip.frase === 'Fica assim no mapaDefina a nova hipótese para completar a decisão.' && soFaltaNovaHip.desabilitado === true,
+          JSON.stringify(soFaltaNovaHip));
+
+        await pgRef.fill('[data-campo="proxHipCausa"]', 'a mensagem não chega a quem está em análise');
+        await pgRef.fill('[data-campo="proxHipIndicio"]', 'os contatos caíram só no grupo que recebeu a mensagem');
+        await pgRef.waitForTimeout(250);
+        const comTudo = await pgRef.evaluate(() => (document.getElementById('apostaSeguir') || {}).disabled);
+        anota('preencher também a nova hipótese habilita CONTINUAR de verdade, reativo (sem clicar em CONTINUAR nem recarregar)',
+          comTudo === false, String(comTudo));
+
+        /* Apagar a nova hipótese depois de já ter preenchido: o botão
+           tem de voltar a desabilitar na hora — mesma exigência já
+           cobrada da Evidência (item 9 do ajuste de fluxo anterior),
+           agora também na Decisão. */
+        await pgRef.fill('[data-campo="proxHipCausa"]', '');
+        await pgRef.waitForTimeout(250);
+        const apagouCausa = await pgRef.evaluate(() => (document.getElementById('apostaSeguir') || {}).disabled);
+        anota('apagar a nova hipótese depois de preenchida volta a desabilitar CONTINUAR imediatamente', apagouCausa === true);
+        await pgRef.fill('[data-campo="proxHipCausa"]', 'a mensagem não chega a quem está em análise');
+        await pgRef.waitForTimeout(250);
+
+        /* Item 6/9: trocar para outra decisão (com a próxima ação já
+           preenchida) tem de reavaliar CONTINUAR na hora do clique — não
+           só a Nova Hipótese recolher visualmente. Antes deste ajuste, o
+           clique só atualizava a frase/os grupos, nunca o disabled. */
+        await pgRef.locator('.aposta-opcao', { hasText: 'Ampliar' }).click();
+        await pgRef.waitForTimeout(200);
+        const trocouParaAmpliar = await pgRef.evaluate(() => ({
+          desabilitado: (document.getElementById('apostaSeguir') || {}).disabled,
+          novaHipVisivel: !(document.getElementById('apostaGrupoNovaHipotese') || {}).hidden,
+          causaPreservada: (document.getElementById('ap-proxHipCausa') || {}).value || '',
+        }));
+        anota('trocar para "Ampliar" com a próxima ação já preenchida habilita CONTINUAR na hora do clique (sem precisar digitar de novo)',
+          trocouParaAmpliar.desabilitado === false, JSON.stringify(trocouParaAmpliar));
+        anota('trocar para "Ampliar" esconde de novo o bloco da Nova Hipótese', !trocouParaAmpliar.novaHipVisivel);
+
+        await pgRef.locator('.aposta-opcao', { hasText: 'Reformular a hipótese' }).click();
+        await pgRef.waitForTimeout(200);
+        const voltouPraReformular = await pgRef.evaluate(() => ({
+          causaPreservada: (document.getElementById('ap-proxHipCausa') || {}).value || '',
+          desabilitado: (document.getElementById('apostaSeguir') || {}).disabled,
+        }));
+        anota('voltar para "Reformular a hipótese" preserva o texto já digitado da nova hipótese e reabilita CONTINUAR na hora',
+          voltouPraReformular.causaPreservada === 'a mensagem não chega a quem está em análise' && voltouPraReformular.desabilitado === false,
+          JSON.stringify(voltouPraReformular));
+
+        await ctxRef.close();
+      }
+
+      /* ── 9h: concordância singular/plural nas frases automáticas
+            (item 1 do ajuste) — via window.faAposta._resumo, sem precisar
+            de UI: "1 contato" e "2 contatos", nunca "1 contatos". ── */
+      {
+        const semeadoSingular = apostasSemeadas();
+        const { ctx: ctxSing, page: pgSing } = await novaPagina(browser, formato, DIRETORA, erros, semeadoSingular);
+        await pgSing.goto(BASE + '/index.html#treinamento', { waitUntil: 'domcontentloaded' });
+        await pgSing.waitForFunction(() => !!(window.faAposta && window.faAposta._resumo), { timeout: 15000 });
+        const singularTxt = await pgSing.evaluate(() => window.faAposta._resumo('evidencia', {
+          mudancas: { itens: [{ id: 'r1', direcao: 'Aumentar', indicador: 'contatos sobre andamento', atual: '0', meta: '2', unidade: 'contatos', periodo: 'por dia' }] },
+          experimento: { resultadoIds: ['r1'] },
+          evidencia: { itens: [{ resultadoId: 'r1', observado: '1', fonte: 'Relatório' }] },
+        }));
+        anota('concordância: "observamos 1 contato por dia" (singular quando o valor é 1, nunca "1 contatos")',
+          /observamos 1 contato por dia\b/.test(singularTxt) && !/1 contatos\b/.test(singularTxt), singularTxt);
+        const pluralTxt = await pgSing.evaluate(() => window.faAposta._resumo('evidencia', {
+          mudancas: { itens: [{ id: 'r1', direcao: 'Aumentar', indicador: 'contatos sobre andamento', atual: '0', meta: '2', unidade: 'contatos', periodo: 'por dia' }] },
+          experimento: { resultadoIds: ['r1'] },
+          evidencia: { itens: [{ resultadoId: 'r1', observado: '2', fonte: 'Relatório' }] },
+        }));
+        anota('concordância: valores maiores que 1 continuam no plural ("2 contatos por dia")',
+          /observamos 2 contatos por dia\b/.test(pluralTxt), pluralTxt);
+        /* partesMudanca()/numeroComUnidade() concordam a situação atual e
+           a meta CADA UMA com seu próprio valor (a frase repete a
+           unidade nos dois números, de propósito — ver comentário em
+           partesMudanca) — testa o outro ponto do fix, independente do
+           "observamos X" acima. */
+        const situacaoSingular = await pgSing.evaluate(() => window.faAposta._resumo('evidencia', {
+          mudancas: { itens: [{ id: 'r1', direcao: 'Aumentar', indicador: 'contatos sobre andamento', atual: '1', meta: '2', unidade: 'contatos', periodo: 'por dia' }] },
+          experimento: { resultadoIds: ['r1'] },
+          /* resumoEtapa('evidencia',...) cai em "aguardando execução" sem
+             observado — precisa de um valor (qualquer um) só para
+             alcançar a frase "Esperávamos..." que este teste quer ler. */
+          evidencia: { itens: [{ resultadoId: 'r1', observado: '3', fonte: 'Relatório' }] },
+        }));
+        anota('concordância na situação inicial da frase "Esperávamos...": "de 1 contato por dia para 2 contatos por dia" (cada número concorda com o próprio valor)',
+          /de 1 contato por dia para 2 contatos por dia\b/.test(situacaoSingular), situacaoSingular);
+        await ctxSing.close();
       }
 
       anota('nenhum erro de JavaScript', erros.length === 0, erros[0]);
