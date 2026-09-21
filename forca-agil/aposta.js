@@ -1746,7 +1746,16 @@
       if (!v) { renderSemExecucao(); return; }
       var revelouAgora = _exec.revelado !== v.revelado;
       _exec = v;
-      if (_grupoId) {
+      /* BUGFIX — _grupoId pode ter sobrado de uma execução que não é
+         mais esta (ver concluirCriacaoExecucao): se o grupo que ele
+         aponta não existe NESTA leitura, nunca finge que ainda é uma
+         edição em andamento — limpa e deixa render() decidir a tela
+         certa (escolha de grupo, ou o estado vazio) em vez de continuar
+         mostrando a etapa de um grupo que não pertence mais à execução
+         atual. */
+      if (_grupoId && !(v.grupos || {})[_grupoId]) {
+        _grupoId = null; _grupo = {}; _dados = {}; _vendoMapa = false;
+      } else if (_grupoId) {
         _grupo = (v.grupos || {})[_grupoId] || {};
         /* Fase 4: _dados aponta para o ciclo atual (explícito, quando
            existe) — nunca direto para _grupo.dados quando já há
@@ -2218,14 +2227,34 @@
        estava. O lock NÃO entra neste update() — ele só é liberado
        depois, com o token conferido (ver liberarLock). */
     updates['apostas/' + _turma.key + '/atual'] = novoKey;
+    /* BUGFIX — desliga o listener da execução ANTIGA ANTES deste update(),
+       não só depois (dentro de ouvirExecucao(), como era antes). O
+       Firebase aplica update() no cache local de forma otimista e avisa
+       quem ainda está ouvindo aquele caminho ANTES de o onComplete deste
+       update() sequer rodar (que só chega depois do round-trip com o
+       servidor) — então o listener antigo (_refExec, ainda preso à
+       execução que está sendo encerrada) recebia um eco a mais, com o
+       "encerrada" novo mas grupos/ intocado, e a "volta direto para o
+       meu grupo" de renderEscolhaGrupoCondutor() (pensada para
+       recarregar a página no meio da oficina) reentrava sozinha num
+       grupo da execução ANTIGA — repovoando _grupoId ANTES de o listener
+       da execução NOVA sequer existir. Quando esse listener novo enfim
+       chegava, via _grupoId preenchido e, achando que era edição em
+       andamento, suprimia o redesenho — a tela ficava presa na etapa do
+       grupo antigo até a página ser recarregada. */
+    pararDeOuvir();
     db().ref().update(updates, function (err2) {
       if (err2) {
         /* O update() é atômico: se falhou, nada dele foi gravado —
            "atual" continua na execução antiga, válida. Libera o lock
            agora (a chamada continua viva, é seguro); se nem isso
-           chegar a gravar, o LOCK_EXPIRA_MS destrava sozinho depois. */
+           chegar a gravar, o LOCK_EXPIRA_MS destrava sozinho depois.
+           _execId continua apontando pra execução antiga (nunca mudou
+           aqui) — ouvirExecucao() volta a ouvi-la, exatamente como
+           antes desta tentativa. */
         liberarLock(meuToken);
         avisar('Não consegui abrir a dinâmica. Tente de novo.', true);
+        ouvirExecucao();
         return;
       }
       _execId = novoKey;
@@ -5596,7 +5625,14 @@
       box.querySelector('#apostaReiniciar').addEventListener('click', function () {
         confirmarNovaExecucao(function () {
           fechar();
-          _grupoId = null;
+          /* BUGFIX — nenhum estado específico do grupo/execução que está
+             sendo substituída pode sobreviver ao clique: além de
+             _grupoId, também _grupo/_dados (o que estava sendo editado)
+             e _vendoMapa (se a tela era o Mapa em vez da etapa). A causa
+             raiz da tela presa era outra (ver concluirCriacaoExecucao),
+             mas nada aqui deve continuar valendo depois de "iniciar nova
+             execução" — nem por um instante. */
+          _grupoId = null; _grupo = {}; _dados = {}; _vendoMapa = false;
           criarExecucao();
         });
       });

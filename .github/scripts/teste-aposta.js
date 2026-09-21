@@ -2850,6 +2850,95 @@ const clicarSemRolagem = (page, seletor) => page.$eval(seletor, (el) => el.click
         await ctxExec.close();
       }
 
+      /* ── 9i-bis: BUGFIX — depois de "Iniciar nova execução", a tela não
+            pode continuar presa no grupo/etapa da execução ANTERIOR.
+            Cenário real que reproduziu o bug: a condutora já era MEMBRO
+            do próprio grupo (comum quando ela ensaia a dinâmica antes de
+            liberar — "quem conduz consegue ensaiar antes de liberar"),
+            estava na etapa Decisão dele, e clicou "Iniciar nova
+            execução" pelo Painel. A execução nova nascia certinha (0
+            grupos, ativa) — mas a tela continuava mostrando a Decisão do
+            grupo da execução ANTIGA, porque o listener antigo (_refExec)
+            ainda recebia um eco do próprio update() de encerramento (o
+            Firebase aplica update() no cache local de forma otimista,
+            ANTES de o onComplete rodar) e a "volta direto para o meu
+            grupo" de renderEscolhaGrupoCondutor() (pensada para
+            sobreviver a um F5 no meio da oficina) reentrava sozinha
+            nesse eco, repovoando _grupoId ANTES de o listener da
+            execução NOVA sequer existir — e esse listener novo, ao
+            chegar, via _grupoId preenchido e suprimia o redesenho (a
+            mesma supressão que protege quem está digitando). ── */
+      {
+        const semeadoUi = apostasSemeadas();
+        const grupoUi = semeadoUi[TURMA_LIB].execucoes[EXEC].grupos[GRUPO];
+        grupoUi.etapa = 'decisao';
+        grupoUi.membros = { [chave(ADM)]: { name: 'ADMIN', email: ADM, entrouEm: '2026-09-18T12:00:00.000Z' } };
+        grupoUi.dados = { decisao: { decisao: 'Ampliar', proximaAcao: 'escalar para as demais turmas' } };
+        const { ctx: ctxUi, page: pgUi } = await novaPagina(browser, formato, ADM, erros, semeadoUi);
+        await pgUi.goto(BASE + '/index.html#treinamento', { waitUntil: 'domcontentloaded' });
+        await pgUi.click('#apostaAbrirBtn');
+        /* Como a condutora já é membro do grupo, a "volta direto para
+           ele" entra sozinha, direto na etapa em que ele estava
+           (Decisão) — sem precisar escolher grupo de novo. */
+        await pgUi.waitForSelector('.aposta-etapa-titulo', { timeout: 15000 });
+        const tituloAntes = await pgUi.evaluate(() => (document.querySelector('.aposta-etapa-titulo') || {}).textContent || '');
+        anota('setup do cenário: a condutora entra direto na Decisão do próprio grupo (ela já era membro)',
+          /DECIS/.test(tituloAntes), tituloAntes);
+
+        await pgUi.click('#apostaPainelBtn');
+        await pgUi.waitForSelector('#apostaReiniciar', { timeout: 15000 });
+        await pgUi.click('#apostaReiniciar');
+        await pgUi.waitForSelector('.aposta-confirmar-overlay .modal-box', { timeout: 5000 });
+        await pgUi.$eval('.aposta-confirmar-overlay .aposta-modal-sim-btn', (el) => el.click());
+        await pgUi.waitForTimeout(600);
+
+        const telaDepois = await pgUi.evaluate(() => ({
+          temEtapaTitulo: !!document.querySelector('.aposta-etapa-titulo'),
+          temMensagemVazia: /Nenhum grupo criado ainda/.test(document.body.textContent || '')
+        }));
+        anota('BUGFIX — depois de "Iniciar nova execução", a tela NÃO continua mostrando a etapa (Decisão) do grupo da execução antiga',
+          !telaDepois.temEtapaTitulo, JSON.stringify(telaDepois));
+        anota('BUGFIX — depois de "Iniciar nova execução", a tela mostra o estado vazio da execução nova (0 grupos), não a Decisão antiga',
+          telaDepois.temMensagemVazia, JSON.stringify(telaDepois));
+
+        const estadoBancoUi = await pgUi.evaluate((turmaKey) => new Promise((res) => {
+          firebase.database().ref('apostas/' + turmaKey).once('value', (s) => {
+            const v = s.val() || {};
+            const novoId = v.atual;
+            const nova = (v.execucoes || {})[novoId] || {};
+            res({ atualMudou: novoId !== 'exec1', novaGrupos: Object.keys(nova.grupos || {}).length, novaStatus: nova.status });
+          });
+        }), TURMA_LIB);
+        anota('confirma nos dados: a execução nova de fato existe, ativa e com 0 grupos (a tela não "inventou" o vazio)',
+          estadoBancoUi.atualMudou && estadoBancoUi.novaStatus === 'ativa' && estadoBancoUi.novaGrupos === 0,
+          JSON.stringify(estadoBancoUi));
+
+        /* Abrir e fechar o Histórico também não pode restaurar o
+           contexto antigo — o Histórico é uma leitura à parte
+           (abrirHistorico() nunca toca _execId/_grupoId), então se a
+           tela por trás já estava certa, ela tem de continuar certa
+           depois do Histórico fechar. */
+        await pgUi.click('#apostaPainelBtn');
+        await pgUi.waitForSelector('#apostaVerHistorico', { timeout: 15000 });
+        await pgUi.click('#apostaVerHistorico');
+        /* '#apostaHistFechar' só existe depois que a leitura assíncrona
+           de execucoes/ termina e desenharLista() roda — a overlay
+           aparece antes disso, ainda em "Carregando histórico…". */
+        await pgUi.waitForSelector('.aposta-historico-overlay #apostaHistFechar', { timeout: 15000 });
+        await pgUi.$eval('.aposta-historico-overlay #apostaHistFechar', (el) => el.click());
+        await pgUi.waitForTimeout(200);
+
+        const telaAposHistorico = await pgUi.evaluate(() => ({
+          temEtapaTitulo: !!document.querySelector('.aposta-etapa-titulo'),
+          temMensagemVazia: /Nenhum grupo criado ainda/.test(document.body.textContent || '')
+        }));
+        anota('BUGFIX — fechar o Histórico de Execuções não restaura a Decisão antiga: a tela continua no estado vazio da execução nova',
+          !telaAposHistorico.temEtapaTitulo && telaAposHistorico.temMensagemVazia,
+          JSON.stringify(telaAposHistorico));
+
+        await ctxUi.close();
+      }
+
       /* ── 9j: FASE 1 — proteção de concorrência real: duas chamadas de
             "iniciar nova execução" quase simultâneas, partindo da MESMA
             execução atual (mesma pessoa em duas abas, ou clique duplo
