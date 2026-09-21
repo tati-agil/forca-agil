@@ -101,18 +101,25 @@ function patchJson(url, body) {
   );
   const idToken = auth.idToken;
 
-  const apostas = (await getJson(DB_URL + '/apostas.json?auth=' + idToken)) || {};
+  /* apostas/ NÃO é legível de uma vez, nem por admin: a Rule é
+     deliberadamente estreita, path por path (é o mesmo princípio que
+     motivou grupos-resumo) — não existe ".read" nem em apostas/ (raiz)
+     nem em apostas/<turma> (o nó da turma) inteiros, só nos campos
+     específicos mais fundo (atual, execucoes/$execKey, etc). Confirmado
+     ao vivo: GET /apostas.json voltou 401 "Permission denied", mesmo
+     autenticado como admin. Por isso a leitura aqui é sempre por turma:
+     lista as turmas (turmas/ é legível por qualquer @previ.com.br) e,
+     para cada uma, lê só apostas/<turma>/atual e, se houver,
+     apostas/<turma>/execucoes/<execId> — os dois caminhos que a Rule
+     realmente autoriza para admin. */
+  const turmas = (await getJson(DB_URL + '/turmas.json?auth=' + idToken)) || {};
+  const turmaKeys = Object.keys(turmas);
 
-  /* Monta a lista de escrita: só grupos de execuções ATUAIS que ainda
-     não têm grupos-resumo. Nunca sobrescreve um resumo já existente
-     (mesmo que os dados pareçam divergentes — isso seria uma correção,
-     não um backfill, e sairia deste script "silenciosamente"). */
   const pendentes = [];
-  Object.keys(apostas).forEach((turmaKey) => {
-    const t = apostas[turmaKey] || {};
-    const atualId = t.atual;
-    if (!atualId) return;
-    const exec = (t.execucoes || {})[atualId] || {};
+  for (const turmaKey of turmaKeys) {
+    const atualId = await getJson(DB_URL + '/apostas/' + turmaKey + '/atual.json?auth=' + idToken);
+    if (!atualId) continue;
+    const exec = (await getJson(DB_URL + '/apostas/' + turmaKey + '/execucoes/' + atualId + '.json?auth=' + idToken)) || {};
     const grupos = exec.grupos || {};
     const resumoExistente = exec['grupos-resumo'] || {};
     Object.keys(grupos).forEach((grupoId) => {
@@ -124,7 +131,7 @@ function patchJson(url, body) {
         nome: grp.nome || null, qtdMembros: qtd
       });
     });
-  });
+  }
 
   if (!pendentes.length) {
     console.log('Nada pendente: toda execução ATUAL já tem grupos-resumo para os grupos que existem hoje. Nenhuma escrita necessária.');

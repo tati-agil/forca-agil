@@ -90,13 +90,27 @@ function caracteresForaDoComum(email) {
   );
   const idToken = auth.idToken;
 
-  const [facilitadores, equipe, turmas, users, apostas] = await Promise.all([
+  const [facilitadores, equipe, turmas, users] = await Promise.all([
     getJson(DB_URL + '/fa-facilitadores.json?auth=' + idToken),
     getJson(DB_URL + '/turmas-equipe.json?auth=' + idToken),
     getJson(DB_URL + '/turmas.json?auth=' + idToken),
-    getJson(DB_URL + '/fa-users.json?auth=' + idToken),
-    getJson(DB_URL + '/apostas.json?auth=' + idToken)
+    getJson(DB_URL + '/fa-users.json?auth=' + idToken)
   ]).then((r) => r.map((v) => v || {}));
+
+  /* apostas/ NÃO é legível de uma vez, nem por admin (Rule deliberadamente
+     estreita, path por path — mesmo princípio que motivou grupos-resumo):
+     GET /apostas.json devolve 401 "Permission denied" mesmo autenticado
+     como admin, porque nem apostas/ nem apostas/<turma> têm .read
+     próprio, só campos específicos mais fundo. Por isso lê por turma:
+     apostas/<turma>/atual, e só se houver, apostas/<turma>/execucoes/
+     <execId> — os únicos caminhos que a Rule realmente autoriza. */
+  const apostas = {};
+  for (const turmaKey of Object.keys(turmas)) {
+    const atualId = await getJson(DB_URL + '/apostas/' + turmaKey + '/atual.json?auth=' + idToken);
+    if (!atualId) continue;
+    const exec = await getJson(DB_URL + '/apostas/' + turmaKey + '/execucoes/' + atualId + '.json?auth=' + idToken);
+    apostas[turmaKey] = { atual: atualId, execucoes: { [atualId]: exec || {} } };
+  }
 
   const linhas = [];
   const md = [];
@@ -187,12 +201,11 @@ function caracteresForaDoComum(email) {
      — essas não precisam de grupos-resumo, já têm leitura própria
      (Fase 2/S5). */
   md.push('\n## Grupos nas execuções ATUAIS (para decidir backfill de grupos-resumo)\n');
-  const turmasComApostas = Object.keys(apostas);
   let algumGrupoAtual = false;
-  turmasComApostas.forEach((turmaKey) => {
-    const t = apostas[turmaKey] || {};
+  Object.keys(turmas).forEach((turmaKey) => {
+    const t = apostas[turmaKey];
+    if (!t) { md.push('- `' + turmaKey + '`: sem `atual` definido (nunca abriu execução) — nada a fazer.'); return; }
     const atualId = t.atual;
-    if (!atualId) { md.push('- `' + turmaKey + '`: sem `atual` definido (nunca abriu execução) — nada a fazer.'); return; }
     const exec = (t.execucoes || {})[atualId] || {};
     const grupos = exec.grupos || {};
     const chaves = Object.keys(grupos);
