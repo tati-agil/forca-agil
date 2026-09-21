@@ -223,7 +223,12 @@
            rótulo mostrado colado à lacuna é outra coisa, e "em" sozinho
            não dizia o que preencher ali. `rotuloMolde` troca só o que
            aparece na tela, sem mudar a palavra que vai para o mapa. */
-        { chave: 'prazo', tipo: 'quantidade', rotulo: 'Prazo', rotuloMolde: 'Prazo', curto: 'o prazo', placeholder: '90', unidadePadrao: 'dias' }
+        /* Opcional (bugfix pós-testes de produção): a missão precisa
+           fazer sentido sem prazo nenhum — "vencer a luta contra o
+           Império" não tem um "em quanto tempo" natural. Quem quiser,
+           preenche; quem não quiser, CONTINUAR não fica esperando por
+           isso (ver missaoPrazoParcial/seguirDesabilitado). */
+        { chave: 'prazo', tipo: 'quantidade', rotulo: 'Prazo', rotuloMolde: 'Prazo', curto: 'o prazo', placeholder: '90', unidadePadrao: 'dias', opcional: true }
       ],
       molde: [{ c: 'verbo' }, { c: 'oQue' }, { c: 'contexto' }, 'em', { c: 'prazo' }, '.']
     },
@@ -673,6 +678,26 @@
     return num + ' ' + unidadeFlexionada(d[chaveUnidade(campo.chave)] || campo.unidadePadrao, num);
   }
 
+  /* Prazo da Missão é opcional — mas se alguém começa a preenchê-lo, o
+     valor e a unidade precisam fazer sentido juntos (nunca uma frase
+     tipo "em dias" sem número, ou um valor "90" com unidade que não
+     existe). "Começar a preencher" é valor não vazio OU unidade
+     diferente da padrão: o <select> sempre tem alguma opção marcada,
+     então a unidade padrão sozinha (ninguém tocou nela) não conta como
+     início de preenchimento — só o valor conta nesse caso. Devolve ''
+     quando está tudo certo (vazio de verdade, ou completo de verdade)
+     e a mensagem específica quando está pela metade. */
+  function missaoPrazoParcial(d) {
+    d = d || {};
+    var valor = String(d.prazo == null ? '' : d.prazo).trim();
+    var unidade = String(d.prazoUnidade == null ? '' : d.prazoUnidade).trim();
+    var unidadeValida = UNIDADES.indexOf(unidade) !== -1;
+    if (!valor && (!unidade || unidade === 'dias')) return '';
+    if (!valor) return 'Informe o valor do prazo ou deixe o prazo em branco.';
+    if (!unidadeValida) return 'Complete a unidade do prazo ou remova o valor informado.';
+    return '';
+  }
+
   /* ── Máscaras ──
      Aplicadas enquanto se digita. São de tela: o que vai para o banco é
      o que está no campo, já formatado, para o mapa e o CSV saírem iguais
@@ -763,6 +788,25 @@
         if (out[j].tipo === 'vazio' && out[j].chave === 'proximaAcao') {
           out.splice(j, 1);
           if (j > 0 && out[j - 1] && out[j - 1].tipo === 'fixo') out.splice(j - 1, 1);
+        }
+      }
+    }
+    /* Bugfix — prazo opcional da Missão: vazio, a lacuna nem entra na
+       frase, e o "em" fixo que a apresenta sai junto (senão sobraria
+       sozinho: "...cidadãos em."). Preenchido pela metade (valor sem
+       unidade válida, ou unidade escolhida sem valor — ver
+       missaoPrazoParcial) também não entra: melhor faltar do que uma
+       frase com um número solto ou uma unidade errada disfarçada de
+       dado válido. A mensagem específica de cada caso mora em
+       missaoPrazoParcial/seguirDesabilitado/atualizarFrase — aqui só
+       cuida de nunca deixar a frase quebrada ou enganosa. */
+    if (etapa.id === 'missao') {
+      var prazoIncompleto = missaoPrazoParcial(d);
+      for (var k = out.length - 1; k >= 0; k--) {
+        if (out[k].chave !== 'prazo') continue;
+        if (out[k].tipo === 'vazio' || prazoIncompleto) {
+          out.splice(k, 1);
+          if (k > 0 && out[k - 1] && out[k - 1].tipo === 'fixo') out.splice(k - 1, 1);
         }
       }
     }
@@ -3623,12 +3667,18 @@
      avança ao clicar". Reaproveita exatamente as mesmas checagens que o
      clique em CONTINUAR já usa para bloquear (mudança incoerente, frase
      estrita incompleta, Nova Hipótese faltando, Evidência incompleta em
-     qualquer um dos dois modos), então nunca diverge do que o clique
-     realmente permite. Missão/Sintoma/Problema não entram aqui porque
-     não têm bloqueio de verdade hoje — só avisos didáticos dispensáveis. */
+     qualquer um dos dois modos, prazo da Missão pela metade), então
+     nunca diverge do que o clique realmente permite. Sintoma/Problema
+     não entram aqui porque não têm bloqueio de verdade hoje — só
+     avisos didáticos dispensáveis; Missão também não tem bloqueio dos
+     campos obrigatórios (verbo/o quê/contexto), só do prazo opcional
+     quando alguém começa a preenchê-lo e não termina. */
   function seguirDesabilitado(etapa, d) {
     if (etapa.id === 'mudancas') {
       return indiceMudancaIncoerente(d) !== -1;
+    }
+    if (etapa.id === 'missao') {
+      return !!missaoPrazoParcial(d);
     }
     if (etapa.id === 'evidencia') {
       var se = statusEvidencia({ mudancas: _dados.mudancas, experimento: _dados.experimento, evidencia: d });
@@ -4087,14 +4137,23 @@
         }
       }
 
+      /* Bugfix — prazo da Missão é opcional: vazio, nunca aparece em
+         "Ainda falta" (já saiu de `faltam` via partesFaltantesEtapa,
+         que ignora lacuna opcional). Pela metade, não é "falta" — é
+         inconsistência —, então mostra a mensagem específica de
+         missaoPrazoParcial em vez da lista genérica. */
+      var msgPrazoParcialFrase = etapa.id === 'missao' ? missaoPrazoParcial(d) : '';
+
       el.hidden = false;
       el.innerHTML = '<span class="aposta-frase-rot">Fica assim no mapa</span>' +
         '<p>' + html + '</p>' +
         resultadosHtml +
-        (faltam.length
-          ? '<p class="aposta-frase-falta">Ainda falta: ' +
-              faltam.map(function (p) { return esc(p.rotulo); }).join(' · ') + '</p>'
-          : '<p class="aposta-frase-pronta">A frase desta etapa está completa.</p>');
+        (msgPrazoParcialFrase
+          ? '<p class="aposta-frase-falta">' + esc(msgPrazoParcialFrase) + '</p>'
+          : faltam.length
+            ? '<p class="aposta-frase-falta">Ainda falta: ' +
+                faltam.map(function (p) { return esc(p.rotulo); }).join(' · ') + '</p>'
+            : '<p class="aposta-frase-pronta">A frase desta etapa está completa.</p>');
 
       /* Clicar na lacuna leva ao campo dela — em celular, a frase fica
          longe do campo que falta, e procurar de novo é o que faz a pessoa
@@ -4750,6 +4809,21 @@
           avisosEl.innerHTML = '<p class="aposta-aviso-didatico">Corrija a mudança mensurável destacada acima antes de continuar.</p>';
           var blocoIncoerente = _tela.querySelector('.aposta-mudanca[data-i="' + idxIncoerente + '"]');
           (blocoIncoerente || avisosEl).scrollIntoView({ behavior: 'smooth', block: 'center' });
+          return;
+        }
+      }
+
+      /* Missão: prazo é opcional (bugfix pós-testes de produção) — só
+         bloqueia quando alguém começa a preenchê-lo e o par valor/
+         unidade fica pela metade (ver missaoPrazoParcial). Vazio de
+         verdade nunca bloqueia. */
+      if (etapa.id === 'missao') {
+        var msgPrazoParcial = missaoPrazoParcial(d);
+        if (msgPrazoParcial) {
+          avisosEl.dataset.bloqueio = 'missao-prazo';
+          avisosEl.innerHTML = '<p class="aposta-aviso-didatico">' + esc(msgPrazoParcial) + '</p>';
+          var campoPrazoEl = document.getElementById('ap-prazo');
+          (campoPrazoEl || avisosEl).scrollIntoView({ behavior: 'smooth', block: 'center' });
           return;
         }
       }
@@ -6657,6 +6731,13 @@
     /* expostos para os testes automatizados da aba Testes */
     _validar: validar,
     _resumo: function (id, dados) { return resumoEtapa(id, dados); },
+    /* Bugfix — prazo opcional da Missão: expõe a checagem de coerência
+       direto, sem depender do <select> da tela (que nunca fica
+       genuinamente "sem unidade" — sempre normaliza para uma opção
+       válida). Assim os testes provam os 4 casos da matriz (valor+
+       unidade vazios/válidos/inválidos) sem precisar forçar um estado
+       que a UI normal não produz sozinha. */
+    _missaoPrazoParcial: function (d) { return missaoPrazoParcial(d); },
     _etapas: function () { return ETAPAS.map(function (e) { return e.id; }); },
     _texto: function () { return textoDaAposta(); },
     /* Só para os testes de concorrência e falha da Fase 1 (chamadas

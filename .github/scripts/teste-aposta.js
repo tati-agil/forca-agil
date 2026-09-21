@@ -929,19 +929,25 @@ const clicarSemRolagem = (page, seletor) => page.$eval(seletor, (el) => el.click
         /^prazo$/i.test(molde.rotuloPrazo), 'rótulo: "' + molde.rotuloPrazo + '"');
       anota('a frase é preenchida em lacunas, não num campo único', molde.lacunas >= 4, molde.lacunas + ' lacunas');
       anota('o quadro com a frase-modelo abstrata saiu de cena', molde.semQuadroAntigo);
-      anota('a prévia diz o que ainda falta, desde o início',
-        /Ainda falta/.test(molde.previa) && /prazo/i.test(molde.previa), molde.previa.replace(/\s+/g, ' ').slice(0, 120));
+      /* Bugfix pós-testes de produção: prazo é opcional (item 1) — vazio,
+         nunca entra em "Ainda falta" nem aparece como lacuna clicável na
+         frase (ver missaoPrazoParcial/partesDaFrase em aposta.js). Os
+         três campos de verdade obrigatórios continuam aparecendo. */
+      anota('a prévia diz o que ainda falta, desde o início (nunca o prazo, que é opcional)',
+        /Ainda falta/.test(molde.previa) && /verbo/i.test(molde.previa) && !/\bprazo\b/i.test(molde.previa),
+        molde.previa.replace(/\s+/g, ' ').slice(0, 120));
 
       /* Clicar na lacuna leva ao campo dela — no celular, procurar o campo
-         que falta é o que faz a pessoa desistir de completar. */
+         que falta é o que faz a pessoa desistir de completar. Usa "o
+         verbo": o prazo, vazio, nem é uma lacuna clicável (é opcional). */
       await page.evaluate(() => {
         const l = Array.from(document.querySelectorAll('.aposta-frase-vazio'))
-          .find((e) => /prazo/i.test(e.textContent));
+          .find((e) => /verbo/i.test(e.textContent));
         if (l) l.click();
       });
       await page.waitForTimeout(250);
       const focou = await page.evaluate(() => (document.activeElement || {}).id || '');
-      anota('clicar na lacuna leva ao campo que falta', focou === 'ap-prazo', 'foco em "' + focou + '"');
+      anota('clicar na lacuna leva ao campo que falta', focou === 'ap-verbo', 'foco em "' + focou + '"');
 
       await page.fill('#ap-verbo', 'Melhorar');
       await page.fill('#ap-oQue', 'a experiência do participante');
@@ -5091,6 +5097,166 @@ const clicarSemRolagem = (page, seletor) => page.$eval(seletor, (el) => el.click
         anota('(c) assim que a leitura lenta responde, o convite aparece sozinho e o painel também, sem precisar recarregar',
           temPainelDepois, String(temPainelDepois));
         await ctx13nc.close();
+      }
+
+      /* ── 15a: BUGFIX PÓS-TESTES DE PRODUÇÃO — MISSÃO, PRAZO OPCIONAL.
+            Relatado em produção: prazo visivelmente preenchido (90/dias)
+            e a tela ainda dizia "Ainda falta: o prazo", a frase saía
+            "...em o prazo." e CONTINUAR parecia preso. Causa raiz: o
+            campo `prazo` nunca tinha `opcional: true` — então
+            partesFaltantesEtapa sempre o contava como faltante, e
+            htmlDaFrase, pra uma lacuna NÃO opcional, imprime o `rotulo`
+            ("o prazo") como se fosse texto de verdade em vez de escondê-
+            lo. Como produto, prazo nunca deveria ser obrigatório — só
+            verbo, o quê e para quem/contexto são. Corrigido com
+            `opcional: true` no campo + um post-processamento em
+            partesDaFrase que tira a lacuna do prazo E o "em" fixo que a
+            apresentava (senão sobrava um "em" solto no fim da frase) —
+            tanto quando o prazo está genuinamente vazio quanto quando
+            está pela metade (ver missaoPrazoParcial). ── */
+      {
+        const semeado15 = apostasSemeadas();
+        const { ctx: ctx15, page: pg15 } = await novaPagina(browser, formato, DIRETORA, erros, semeado15);
+        await pg15.goto(BASE + '/index.html#treinamento', { waitUntil: 'domcontentloaded' });
+        await pg15.click('#apostaAbrirBtn');
+        await pg15.waitForSelector('.aposta-grupo-btn', { timeout: 15000 });
+        await pg15.click('.aposta-grupo-btn');
+        await pg15.waitForSelector('#ap-verbo', { timeout: 15000 });
+
+        await pg15.fill('#ap-verbo', 'Apoiar');
+        await pg15.fill('#ap-oQue', 'a Rebelião Ágil a vencer a luta contra o Império');
+        await pg15.fill('#ap-contexto', 'promovendo uma sociedade guiada por propósito, confiança e colaboração entre todos os seus cidadãos');
+        await pg15.waitForTimeout(300);
+
+        /* A — sem prazo: obrigatórios preenchidos, prazo vazio → válida,
+           CONTINUAR habilitado, nunca "Ainda falta: o prazo", frase
+           termina normalmente (nunca "em o prazo"/"em —"/"em null"/
+           "em undefined"/"em vazio"/"em não informado"). */
+        const semPrazo = await pg15.evaluate(() => ({
+          frase: ((document.getElementById('apostaFrase') || {}).textContent || '').replace(/\s+/g, ' '),
+          seguirDisabled: (document.getElementById('apostaSeguir') || {}).disabled,
+        }));
+        anota('A — Missão sem prazo: CONTINUAR habilitado', semPrazo.seguirDisabled === false, JSON.stringify(semPrazo));
+        anota('A — Missão sem prazo: nunca mostra "Ainda falta: o prazo"',
+          !/Ainda falta:[^<]*prazo/i.test(semPrazo.frase), semPrazo.frase);
+        anota('A — Missão sem prazo: a frase termina normalmente, sem nenhum placeholder de prazo',
+          /entre todos os seus cidadãos\./.test(semPrazo.frase) &&
+          !/em o prazo/i.test(semPrazo.frase) && !/em\s*—/.test(semPrazo.frase) &&
+          !/em null/i.test(semPrazo.frase) && !/em undefined/i.test(semPrazo.frase) &&
+          !/em vazio/i.test(semPrazo.frase) && !/em n[ãa]o informado/i.test(semPrazo.frase),
+          semPrazo.frase);
+
+        /* C — reproduz o caso relatado: digitar 90 no valor (a unidade
+           "dias" já vem pré-selecionada — o <select> nunca fica em
+           branco sozinho). Isso não pode voltar a mostrar "Ainda falta"/
+           "em o prazo", nem deixar CONTINUAR desabilitado. */
+        await pg15.fill('#ap-prazo', '90');
+        await pg15.waitForTimeout(300);
+        const digitado90 = await pg15.evaluate(() => ({
+          unidade: (document.querySelector('[data-campo="prazoUnidade"]') || {}).value || '',
+          frase: ((document.getElementById('apostaFrase') || {}).textContent || '').replace(/\s+/g, ' '),
+          seguirDisabled: (document.getElementById('apostaSeguir') || {}).disabled,
+        }));
+        anota('C — reprodução do bug relatado: "dias" já vem pré-selecionado ao digitar 90',
+          digitado90.unidade === 'dias', digitado90.unidade);
+        anota('C — reprodução do bug relatado: nunca mais "Ainda falta: o prazo" nem "em o prazo"',
+          !/Ainda falta:[^<]*prazo/i.test(digitado90.frase) && !/em o prazo/i.test(digitado90.frase),
+          digitado90.frase);
+        anota('C — reprodução do bug relatado: CONTINUAR habilitado com o prazo preenchido',
+          digitado90.seguirDisabled === false, JSON.stringify(digitado90));
+
+        /* B — prazo completo: a frase contém "em 90 dias", com a
+           pontuação certa. */
+        anota('B — Missão com prazo completo (90/dias): a frase contém "em 90 dias."',
+          /em 90 dias\./.test(digitado90.frase), digitado90.frase);
+
+        /* D/E — prazo pela metade: casos que o <select> da tela nunca
+           produz sozinho (ele sempre normaliza pra uma unidade válida),
+           mas que dados legados ou uma gravação direta no Firebase podem
+           trazer — testados direto via missaoPrazoParcial, exposta em
+           window.faAposta para este fim. */
+        const casoD = await pg15.evaluate(() => window.faAposta._missaoPrazoParcial({ prazo: '90', prazoUnidade: '' }));
+        anota('D — prazo parcial (valor sem unidade válida): mensagem específica de inconsistência',
+          /unidade do prazo/i.test(casoD), casoD);
+        const casoE = await pg15.evaluate(() => window.faAposta._missaoPrazoParcial({ prazo: '', prazoUnidade: 'semanas' }));
+        anota('E — prazo parcial (unidade escolhida sem valor): mensagem específica de inconsistência',
+          /valor do prazo/i.test(casoE), casoE);
+        const casoValido1 = await pg15.evaluate(() => window.faAposta._missaoPrazoParcial({ prazo: '', prazoUnidade: '' }));
+        const casoValido2 = await pg15.evaluate(() => window.faAposta._missaoPrazoParcial({ prazo: '', prazoUnidade: 'dias' }));
+        const casoValido3 = await pg15.evaluate(() => window.faAposta._missaoPrazoParcial({ prazo: '90', prazoUnidade: 'dias' }));
+        anota('prazo genuinamente vazio (valor e unidade em branco, ou unidade ainda no padrão) continua válido/opcional',
+          casoValido1 === '' && casoValido2 === '', JSON.stringify([casoValido1, casoValido2]));
+        anota('prazo completo (valor + unidade válida) continua válido',
+          casoValido3 === '', JSON.stringify(casoValido3));
+
+        /* F — o placeholder interno ("o prazo") nunca vira texto real na
+           frase, nem vazio, nem completo — e nenhum "—"/undefined/null
+           escapa pra tela. */
+        anota('F — o placeholder interno nunca aparece como texto real na frase (nem "o prazo", "—", "undefined", "null")',
+          !/\bo prazo\b/i.test(semPrazo.frase) && !/\bo prazo\b/i.test(digitado90.frase) &&
+          !/undefined|null/i.test(semPrazo.frase) && !/undefined|null/i.test(digitado90.frase),
+          JSON.stringify([semPrazo.frase, digitado90.frase]));
+
+        /* G — o mesmo formatador central (resumoEtapa/partesDaFrase) usado
+           pelo Mapa/CSV/exportações: sem prazo, sai sem sufixo temporal;
+           com prazo, sai corretamente — nenhuma lógica duplicada. */
+        const resumosMissao = await pg15.evaluate(() => ({
+          semPrazo: window.faAposta._resumo('missao', { missao: { verbo: 'Apoiar', oQue: 'a Rebelião Ágil a vencer a luta contra o Império', contexto: 'promovendo uma sociedade guiada por propósito, confiança e colaboração entre todos os seus cidadãos' } }),
+          comPrazo: window.faAposta._resumo('missao', { missao: { verbo: 'Apoiar', oQue: 'a Rebelião Ágil a vencer a luta contra o Império', contexto: 'promovendo uma sociedade guiada por propósito, confiança e colaboração entre todos os seus cidadãos', prazo: '90', prazoUnidade: 'dias' } }),
+        }));
+        anota('G — Mapa/CSV/exportações (resumoEtapa): Missão sem prazo aparece sem sufixo temporal, sem "em o prazo" nem "em ."',
+          /entre todos os seus cidadãos\.$/.test(resumosMissao.semPrazo) && !/em o prazo/i.test(resumosMissao.semPrazo) && !/\bem\.$/i.test(resumosMissao.semPrazo),
+          resumosMissao.semPrazo);
+        anota('G — Mapa/CSV/exportações (resumoEtapa): Missão com prazo aparece corretamente ("em 90 dias.")',
+          /em 90 dias\.$/.test(resumosMissao.comPrazo), resumosMissao.comPrazo);
+
+        /* CONTINUAR de verdade: com o prazo completo, a etapa avança
+           normalmente — nunca fica presa por causa do prazo. */
+        await pg15.click('#apostaSeguir');
+        await pg15.waitForTimeout(400);
+        const tituloDepois15 = await pg15.evaluate(() => (document.querySelector('.aposta-etapa-titulo') || {}).textContent || '');
+        anota('clicar CONTINUAR com Missão completa (com prazo) avança para a etapa seguinte',
+          /SINTOMA/i.test(tituloDepois15), tituloDepois15);
+
+        await ctx15.close();
+      }
+
+      /* ── 15b: item 10 — "Analisar com IA" nunca inventa prazo. Se a
+            Missão registrada não tem prazo, o prompt exportado traz a
+            Missão exatamente como está — sem sufixo temporal, sem supor
+            a duração do experimento nem usar o prazo de uma Mudança
+            Mensurável (que aqui continua com o seu próprio, 60 dias —
+            prova de que ele não "vaza" pra Missão). ── */
+      {
+        const semeado15b = apostasProntaParaDecisao();
+        const dadosSemPrazo15b = Object.assign({}, DADOS_ATE_EVIDENCIA, {
+          missao: { verbo: 'reduzir', oQue: 'o tempo de espera', contexto: 'na fila do atendimento' },
+          evidencia: { itens: [{ resultadoId: 'r1', fontePrevista: 'Registros de atendimento', comoSeraMedido: 'contagem de atendimentos registrados no sistema' }] },
+        });
+        semeado15b[TURMA_LIB].execucoes[EXEC].grupos[GRUPO].dados = dadosSemPrazo15b;
+        semeado15b[TURMA_LIB].execucoes[EXEC].grupos[GRUPO].etapa = 'evidencia';
+        const { ctx: ctx15b, page: pg15b } = await novaPagina(browser, formato, ADM, erros, semeado15b);
+        await pg15b.goto(BASE + '/index.html#treinamento', { waitUntil: 'domcontentloaded' });
+        await pg15b.click('#apostaAbrirBtn');
+        await pg15b.waitForSelector('#apostaPainelBtn', { timeout: 15000 });
+        await pg15b.click('#apostaPainelBtn');
+        await pg15b.waitForSelector('.aposta-fac-ver', { timeout: 15000 });
+        await pg15b.click('.aposta-fac-ver');
+        await pg15b.waitForSelector('.aposta-mapa', { timeout: 15000 });
+
+        const prompt15b = await pg15b.evaluate(() => window.faAposta._promptIA('defende'));
+        const missaoBloco15b = (() => {
+          const inicio = prompt15b.indexOf('MISSÃO');
+          const fim = prompt15b.indexOf('--------------------', inicio);
+          return prompt15b.slice(inicio, fim).replace(/\s+/g, ' ').trim();
+        })();
+        anota('H — "Analisar com IA": Missão sem prazo é exportada exatamente sem prazo, sem inventar nenhuma duração',
+          /reduzir o tempo de espera na fila do atendimento\.?/i.test(missaoBloco15b) &&
+          !/\d+\s*(dias?|semanas?|m[êe]s(es)?|anos?)/i.test(missaoBloco15b) &&
+          !/em 60 dias/i.test(missaoBloco15b) && !/em 90 dias/i.test(missaoBloco15b),
+          missaoBloco15b);
+
+        await ctx15b.close();
       }
 
       anota('nenhum erro de JavaScript', erros.length === 0, erros[0]);
