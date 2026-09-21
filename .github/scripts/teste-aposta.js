@@ -1082,6 +1082,52 @@ const clicarSemRolagem = (page, seletor) => page.$eval(seletor, (el) => el.click
           await page.fill('[data-m="meta"]', '700');
           await page.waitForTimeout(300);
 
+          /* Refinamento pós-teste manual (itens 2/3): meta IGUAL à
+             situação atual era aceita silenciosamente ("Reduzir de
+             1000 para 1000") — logicamente incoerente, e o teste manual
+             encontrou isso de verdade. Agora é tratada como incoerência,
+             nos dois sentidos, nunca corrigindo direção nem meta
+             sozinha — só nomeia o problema e convida a rever. */
+          await page.fill('[data-m="meta"]', '1000');
+          await page.waitForTimeout(600);
+          const igualReduzir = await page.evaluate(() => ({
+            visivel: !!document.querySelector('.aposta-mudanca-alerta'),
+            texto: (document.querySelector('.aposta-mudanca-alerta') || {}).textContent || '',
+            temBotao: !!document.querySelector('.aposta-mudanca-alerta button'),
+            frase: (document.querySelector('.aposta-mudanca-frase') || {}).textContent || '',
+            desabilitado: (document.getElementById('apostaSeguir') || {}).disabled,
+          }));
+          anota('Reduzir com meta igual à situação atual (1000→1000) mostra alerta de incoerência específico, sem sugerir direção sozinha (nenhum botão)',
+            igualReduzir.visivel && /igual à situação atual/.test(igualReduzir.texto) && /Reduzir.{0,40}menor/i.test(igualReduzir.texto) &&
+            /reveja a direção/i.test(igualReduzir.texto) && !igualReduzir.temBotao,
+            igualReduzir.texto);
+          anota('Reduzir 1000→1000 esconde a frase e bloqueia CONTINUAR, mesmo tratamento da inconsistência de direção',
+            /Corrija a inconsistência/.test(igualReduzir.frase) && igualReduzir.desabilitado === true, JSON.stringify(igualReduzir));
+
+          await page.locator('.aposta-variante:has([data-m="direcao"]) .aposta-variante-chip', { hasText: 'Aumentar' }).click();
+          await page.waitForTimeout(600);
+          const igualAumentar = await page.evaluate(() => ({
+            visivel: !!document.querySelector('.aposta-mudanca-alerta'),
+            texto: (document.querySelector('.aposta-mudanca-alerta') || {}).textContent || '',
+          }));
+          anota('mudar a direção reavalia IMEDIATAMENTE: Aumentar com os mesmos valores (1000→1000) já mostra a mensagem específica de Aumentar',
+            igualAumentar.visivel && /igual à situação atual/.test(igualAumentar.texto) && /Aumentar.{0,40}maior/i.test(igualAumentar.texto),
+            igualAumentar.texto);
+
+          await page.fill('[data-m="meta"]', '1200');
+          await page.waitForTimeout(600);
+          const corrigidoValorIgual = await page.evaluate(() => ({
+            alertaSumiu: !document.querySelector('.aposta-mudanca-alerta'),
+            frase: (document.querySelector('.aposta-mudanca-frase') || {}).textContent || '',
+          }));
+          anota('corrigir só o VALOR (1200, mantendo Aumentar) resolve a incoerência — CONTINUAR reabilita',
+            corrigidoValorIgual.alertaSumiu && !/Corrija a inconsistência/.test(corrigidoValorIgual.frase), JSON.stringify(corrigidoValorIgual));
+
+          /* Devolve, de novo, ao estado que o resto do teste espera. */
+          await page.locator('.aposta-variante:has([data-m="direcao"]) .aposta-variante-chip', { hasText: 'Reduzir' }).click();
+          await page.fill('[data-m="meta"]', '700');
+          await page.waitForTimeout(300);
+
           /* Percentual não pede escolha de unidade: preenche "%" sozinho,
              e ele gruda nos dois números da frase ("de 1000% para 700%"),
              diferente de contatos/dias, que só aparecem uma vez. Um
@@ -1419,6 +1465,23 @@ const clicarSemRolagem = (page, seletor) => page.$eval(seletor, (el) => el.click
             anota('em planejamento, o card não tem campo de resultado observado — só o texto "aguardando execução"',
               !antesDePreencher.temCampoObservado && /aguardando execu[çc][ãa]o/i.test(antesDePreencher.aguardandoTxt),
               JSON.stringify(antesDePreencher));
+
+            /* Refinamento pós-teste manual (item 7): o quadro-resumo
+               ("Resultados que vamos observar") mostrava algo como
+               "56 contatos por dia → — · Meta: 67 contatos por dia"
+               antes da execução — o "→ —" lia como dado faltando ou
+               erro. Agora, sem observado nenhum, não existe seta
+               nenhuma: só "Situação inicial / Meta / Resultado:
+               aguardando execução". */
+            const resumoAntesExecucaoResultados = await page.evaluate(() => {
+              const resumo = document.querySelector('.aposta-resultados-resumo');
+              return resumo ? resumo.textContent.replace(/\s+/g, ' ') : '';
+            });
+            anota('item 7 — antes da execução, o resumo NÃO mostra "→ —" (hífen vazio parecendo dado faltando/erro)',
+              !/→\s*—/.test(resumoAntesExecucaoResultados), resumoAntesExecucaoResultados);
+            anota('item 7 — antes da execução, o resumo mostra Situação inicial / Meta / Resultado: aguardando execução, sem seta',
+              /Situa[çc][ãa]o inicial: .*Meta: .*Resultado: aguardando execu[çc][ãa]o/.test(resumoAntesExecucaoResultados),
+              resumoAntesExecucaoResultados);
             anota('o banner da etapa diz "PLANEJAMENTO DA EVIDÊNCIA" e o botão principal diz "Salvar plano para execução"',
               /PLANEJAMENTO DA EVID[ÊE]NCIA/.test(antesDePreencher.bannerTxt) && /Salvar plano para execu[çc][ãa]o/i.test(antesDePreencher.botaoTxt),
               JSON.stringify(antesDePreencher));
@@ -1449,6 +1512,20 @@ const clicarSemRolagem = (page, seletor) => page.$eval(seletor, (el) => el.click
               JSON.stringify(botaoPronto));
             const prontoBloco = await page.evaluate(() => (document.body.textContent || '').includes('Plano de evidência salvo'));
             anota('com o plano completo, aparece o bloco de confirmação com a opção de encerrar por agora', prontoBloco);
+
+            /* Refinamento pós-teste manual (item 8): no teste manual foi
+               preciso perguntar o que "Encerrar por agora" fazia — o
+               texto de apoio agora deixa isso explícito, perto do
+               botão, sem inflar a caixa (a lógica do botão em si não
+               mudou). */
+            const apoioEncerrarPorAgora = await page.evaluate(() => {
+              const btn = document.getElementById('apostaSairEvidencia');
+              const bloco = btn ? btn.closest('[data-plano-pronto]') : null;
+              return bloco ? bloco.textContent.replace(/\s+/g, ' ') : '';
+            });
+            anota('item 8 — "Encerrar por agora" ganhou texto de apoio explicando que o plano está salvo e dá para voltar depois',
+              /Seu plano est[áa] salvo/i.test(apoioEncerrarPorAgora) && /voltar depois para registrar os resultados/i.test(apoioEncerrarPorAgora),
+              apoioEncerrarPorAgora);
 
             await clicarSemRolagem(page, '#apostaSeguir');
             await page.waitForSelector('.aposta-confirmar-overlay .modal-box', { timeout: 5000 });
@@ -1841,8 +1918,12 @@ const clicarSemRolagem = (page, seletor) => page.$eval(seletor, (el) => el.click
       anota('depois de revelado, Mudanças mensuráveis aparecem ligadas a Key Results',
         /MUDAN[ÇC]AS MENSUR[ÁA]VEIS/i.test(rev) && /Key Results/.test(rev), rev.slice(0, 120));
       anota('a revelação traz o ciclo PHEED', /PHEED/.test(rev));
-      anota('a revelação não afirma que Missão e Objective são sinônimos universais',
-        /exerceu o papel de Objective/i.test(rev), rev.slice(-160));
+      anota('a revelação não afirma que Missão e Objective são sinônimos universais (diz que a missão "orienta" o Objective, não que são a mesma coisa)',
+        /orienta o Objective/i.test(rev), rev.slice(-200));
+      anota('a revelação nunca diz que a Aposta "é" um OKR nem que o grupo "criou um OKR completo"',
+        !/Aposta é um OKR/i.test(rev) && !/OKR completo/i.test(rev), rev.slice(-200));
+      anota('com um único ciclo (Ciclo 1 implícito), a revelação NÃO mostra o rótulo de ciclo — "de qual ciclo?" só é uma pergunta real com mais de um',
+        !/CONEX[ÃA]O COM OKR — FORMULA[ÇC][ÃA]O ATUAL/.test(rev), rev.slice(0, 120));
 
       /* Execução gravada antes das lacunas (a missão era um campo de texto
          só): o que o grupo escreveu continua aparecendo. */
@@ -3263,8 +3344,14 @@ const clicarSemRolagem = (page, seletor) => page.$eval(seletor, (el) => el.click
           !!itemLegado && !!itemF1, JSON.stringify(listagem.map((i) => i.exec)));
         anota('a execução legada (sem `status`) aparece como Encerrada — compatibilidade por leitura, sem migração',
           !!itemLegado && /Encerrada/.test(itemLegado.texto), JSON.stringify(itemLegado));
-        anota('a execução legada (sem `numero`) recebe um número derivado pela ordem de criação, marcado como estimativa',
-          !!itemLegado && /estimado pela ordem/.test(itemLegado.texto), JSON.stringify(itemLegado));
+        /* Refinamento pós-teste manual (item 9 — só apresentação): o
+           rótulo mudou de "Execução nº N (estimado pela ordem)" para
+           "Execução legada — posição estimada N", para nunca parecer
+           que está na MESMA sequência numérica das execuções reais
+           (ver numeroDeExibicao em aposta.js). */
+        anota('a execução legada (sem `numero`) usa o rótulo "Execução legada — posição estimada N", nunca "Execução nº N" (evita parecer a mesma sequência das execuções reais)',
+          !!itemLegado && /Execução legada — posição estimada \d+/.test(itemLegado.texto) && !/Execução nº/.test(itemLegado.texto),
+          JSON.stringify(itemLegado));
         const numeroF1 = itemF1 ? (itemF1.texto.match(/nº (\d+)/) || [])[1] : null;
         anota('a execução já no formato da Fase 1 mostra o número REAL (nº 1), sem marca de estimativa',
           numeroF1 === '1' && !/estimado/.test(itemF1.texto), JSON.stringify(itemF1));
@@ -3669,6 +3756,94 @@ const clicarSemRolagem = (page, seletor) => page.$eval(seletor, (el) => el.click
         await ctx13dbis.close();
       }
 
+      /* ── 13d-ter: REFINAMENTO PÓS-TESTE MANUAL (item 1) — "Concluir a
+            aposta": mesmo tratamento estrutural de Ampliar/Interromper
+            (só finaliza, nunca cria sucessor), mas é uma decisão
+            CONCEITUALMENTE diferente das duas — "já aprendemos o
+            suficiente, sem ampliar nem abandonar agora". Mesmo seed de
+            13d-bis (Ciclo 2 explícito), só troca a decisão escolhida,
+            para provar que o mesmo caminho estrutural vale para ela
+            também — e confere que ela aparece normalmente no Mapa e no
+            CSV, com o próprio nome, nunca confundida com "Interromper
+            esta ideia" nem com "Encerrar por agora" (botão da
+            Evidência — ver blocoPlanoProntoHtml — que é uma pausa
+            operacional, testado à parte). ── */
+      {
+        const semeado13dter = apostasProntaParaDecisao();
+        semeado13dter[TURMA_LIB].execucoes[EXEC].grupos[GRUPO].dados.decisao = { decisao: 'Reformular a hipótese', proximaAcao: 'testar de novo', dataDecisao: '2026-09-19T09:00:00.000Z', proxHipCausa: 'causa', proxHipIndicio: 'indicio' };
+        semeado13dter[TURMA_LIB].execucoes[EXEC].grupos[GRUPO].ciclos = {
+          atual: 'c2',
+          porId: {
+            c1: { numero: 1, status: 'FINALIZADO', pontoDeReinicio: null, cicloAnteriorId: null, etapa: 'decisao', dados: semeado13dter[TURMA_LIB].execucoes[EXEC].grupos[GRUPO].dados },
+            c2: { numero: 2, status: 'EM_CONSTRUCAO', pontoDeReinicio: 'hipotese', decisaoOrigem: 'Reformular a hipótese', cicloAnteriorId: 'c1', etapa: 'decisao', dados: Object.assign({}, DADOS_ATE_EVIDENCIA, { hipotese: { causa: 'causa', indicio: 'indicio' }, decisao: {} }) }
+          }
+        };
+        const { ctx: ctx13dter, page: pg13dter } = await novaPagina(browser, formato, ADM, erros, semeado13dter);
+        await pg13dter.goto(BASE + '/index.html#treinamento', { waitUntil: 'domcontentloaded' });
+        await pg13dter.click('#apostaAbrirBtn');
+        await pg13dter.waitForSelector('.aposta-grupo-btn', { timeout: 15000 });
+        await pg13dter.click('.aposta-grupo-btn');
+        await pg13dter.waitForSelector('.aposta-opcao', { timeout: 15000 });
+
+        const opcoesDecisao = await pg13dter.evaluate(() => Array.from(document.querySelectorAll('.aposta-opcao')).map((b) => b.textContent.trim()));
+        anota('item 1 — "Concluir a aposta" aparece como opção de Decisão, ao lado das demais',
+          opcoesDecisao.includes('Concluir a aposta'), JSON.stringify(opcoesDecisao));
+
+        await pg13dter.locator('.aposta-opcao', { hasText: 'Concluir a aposta' }).click();
+        await pg13dter.waitForTimeout(200);
+        const explicacaoConcluir = await pg13dter.evaluate(() => (document.querySelector('[data-escolha-explicacao="decisao"]') || {}).textContent || '');
+        anota('item 1 — a microexplicação de "Concluir a aposta" nunca soa como "Ampliar" nem como "Interromper" (aprendizado suficiente, não abandono nem escala)',
+          /aprendemos o suficiente/i.test(explicacaoConcluir), explicacaoConcluir);
+
+        await pg13dter.fill('[data-campo="proximaAcao"]', 'registrar o aprendizado e comunicar o resultado');
+        await pg13dter.waitForTimeout(200);
+        await pg13dter.click('#apostaSeguir');
+        await pg13dter.waitForSelector('.aposta-mapa', { timeout: 8000 });
+
+        const estadoAposConcluir = await pg13dter.evaluate((turmaKey) => new Promise((res) => {
+          firebase.database().ref('apostas/' + turmaKey + '/execucoes/exec1/grupos/grupo1').once('value', (s) => {
+            const v = s.val() || {};
+            const porId = (v.ciclos || {}).porId || {};
+            res({
+              atual: (v.ciclos || {}).atual, statusC2: (porId.c2 || {}).status, qtdCiclos: Object.keys(porId).length,
+              decisaoC2: ((porId.c2 || {}).dados || {}).decisao || {},
+            });
+          });
+        }), TURMA_LIB);
+        anota('item 1 — "Concluir a aposta" finaliza o ciclo atual (status vira FINALIZADO), mesmo tratamento de Ampliar/Interromper',
+          estadoAposConcluir.statusC2 === 'FINALIZADO', JSON.stringify(estadoAposConcluir));
+        anota('item 1 — "Concluir a aposta" NUNCA cria um Ciclo N+1 — continua exatamente com os 2 ciclos que já existiam',
+          estadoAposConcluir.qtdCiclos === 2, JSON.stringify(estadoAposConcluir));
+        anota('item 1 — a decisão gravada é literalmente "Concluir a aposta" — nunca reaproveita/confunde com "Interromper esta ideia"',
+          estadoAposConcluir.decisaoC2.decisao === 'Concluir a aposta', JSON.stringify(estadoAposConcluir.decisaoC2));
+
+        const mapaTextoConcluir = await pg13dter.evaluate(() => document.querySelector('.aposta-mapa').textContent || '');
+        /* O molde da frase da Decisão usa a escolha em minúsculas dentro
+           da frase ("vamos concluir a aposta" — ver { baixa: true } no
+           molde), então a comparação aqui é sem diferenciar maiúsculas —
+           o texto ("Concluir a aposta") só aparece com C maiúsculo nos
+           BOTÕES de escolha, já testados acima (opcoesDecisao). */
+        anota('item 1 — "Concluir a aposta" aparece normalmente no Mapa (a decisão gravada é lida, não escondida)',
+          /concluir a aposta/i.test(mapaTextoConcluir), mapaTextoConcluir.slice(0, 300));
+
+        await pg13dter.click('#apostaPainelBtn');
+        await pg13dter.waitForSelector('#apostaExportar', { timeout: 8000 });
+        const [downloadConcluir] = await Promise.all([
+          pg13dter.waitForEvent('download'),
+          pg13dter.click('#apostaExportar'),
+        ]).catch(() => [null]);
+        if (downloadConcluir) {
+          const caminhoConcluir = await downloadConcluir.path();
+          const csvConcluir = fs.readFileSync(caminhoConcluir, 'utf8');
+          anota('item 1 — "Concluir a aposta" aparece no CSV exportado, como qualquer outra decisão',
+            /concluir a aposta/i.test(csvConcluir), csvConcluir.slice(0, 200));
+        } else {
+          anota('item 1 — "Concluir a aposta" aparece no CSV exportado, como qualquer outra decisão', false, 'download não disparou');
+        }
+
+        await ctx13dter.close();
+      }
+
       /* ── 13e: editar uma etapa de um ciclo já concluído — confirmar
             cria um ciclo novo a partir EXATAMENTE da etapa clicada
             (edição manual, decisaoOrigem='edicao-manual'), nunca
@@ -3863,6 +4038,99 @@ const clicarSemRolagem = (page, seletor) => page.$eval(seletor, (el) => el.click
           conteudoCsv.slice(0, 200));
 
         await ctx13h.close();
+      }
+
+      /* ── 13h-bis: REFINAMENTO PÓS-TESTE MANUAL — itens 4 e 6.
+            (4) Com múltiplos ciclos, a Conexão com OKR precisa dizer
+            explicitamente de qual ciclo vieram os Key Results — a
+            Missão é estável (mesmo texto herdado em todos os ciclos),
+            mas Mudanças Mensuráveis mudam de ciclo para ciclo, e sem o
+            rótulo não dá para saber qual formulação está sendo
+            mostrada. (6) Os separadores de ciclo no Mapa ganharam
+            hierarquia visual própria (CICLO N maior, ponto de
+            reinício numa linha, status como selo) — mesmos dados de
+            sempre, só apresentação diferente. ── */
+      {
+        const missaoComum = { verbo: 'reduzir', oQue: 'o tempo de espera', contexto: 'na fila do atendimento', prazo: '60', prazoUnidade: 'dias' };
+        const semeadoOkr = apostasProntaParaDecisao();
+        semeadoOkr[TURMA_LIB].execucoes[EXEC].revelado = true;
+        semeadoOkr[TURMA_LIB].execucoes[EXEC].grupos[GRUPO].etapa = 'decisao';
+        semeadoOkr[TURMA_LIB].execucoes[EXEC].grupos[GRUPO].ciclos = {
+          atual: 'c3',
+          porId: {
+            c1: {
+              numero: 1, status: 'FINALIZADO', pontoDeReinicio: null, cicloAnteriorId: null, etapa: 'decisao',
+              dados: Object.assign({}, DADOS_ATE_EVIDENCIA, { missao: missaoComum,
+                decisao: { decisao: 'Reformular a hipótese', proximaAcao: 'testar de novo', dataDecisao: '2026-09-19T10:00:00.000Z', proxHipCausa: 'a comunicação não chega', proxHipIndicio: 'reclamações repetidas' } })
+            },
+            c2: {
+              numero: 2, status: 'FINALIZADO', pontoDeReinicio: 'hipotese', decisaoOrigem: 'Reformular a hipótese', cicloAnteriorId: 'c1', etapa: 'decisao',
+              dados: Object.assign({}, DADOS_ATE_EVIDENCIA, {
+                missao: missaoComum,
+                mudancas: { itens: [{ id: 'r2', direcao: 'Aumentar', indicador: 'satisfação com o atendimento', atual: '60', meta: '80', unidade: 'pontos', periodo: 'por mês', prazo: '60', prazoUnidade: 'dias' }] },
+                decisao: { decisao: 'Rever o problema', proximaAcao: 'redefinir o problema', dataDecisao: '2026-09-19T11:00:00.000Z' }
+              })
+            },
+            c3: {
+              numero: 3, status: 'EM_CONSTRUCAO', pontoDeReinicio: 'problema', decisaoOrigem: 'Rever o problema', cicloAnteriorId: 'c2', etapa: 'evidencia',
+              dados: Object.assign({}, DADOS_ATE_EVIDENCIA, {
+                missao: missaoComum,
+                mudancas: { itens: [{ id: 'r3', direcao: 'Reduzir', indicador: 'reclamações por atraso', atual: '40', meta: '10', unidade: 'reclamações', periodo: 'por mês', prazo: '60', prazoUnidade: 'dias' }] },
+                decisao: {}
+              })
+            }
+          }
+        };
+        const { ctx: ctxOkr, page: pgOkr } = await novaPagina(browser, formato, ADM, erros, semeadoOkr);
+        await pgOkr.goto(BASE + '/index.html#treinamento', { waitUntil: 'domcontentloaded' });
+        await pgOkr.click('#apostaAbrirBtn');
+        await pgOkr.waitForSelector('#apostaPainelBtn', { timeout: 15000 });
+        /* Entra pelo Painel do facilitador ("Projetar"), nunca clicando
+           Continuar na Decisão — clicar Continuar ali EXECUTARIA a
+           consequência da decisão (finalizaria o Ciclo 3, que este
+           teste quer ver EM_CONSTRUCAO/"Em andamento" de verdade). */
+        await pgOkr.click('#apostaPainelBtn');
+        await pgOkr.waitForSelector('.aposta-fac-ver', { timeout: 15000 });
+        await pgOkr.click('.aposta-fac-ver');
+        await pgOkr.waitForSelector('.aposta-revelacao', { timeout: 15000 });
+
+        const revOkr = await pgOkr.evaluate(() => (document.querySelector('.aposta-revelacao').textContent || '').replace(/\s+/g, ' '));
+        anota('item 4 — com 3 ciclos, a Conexão com OKR identifica explicitamente "CICLO 3" (o ciclo atual/mais recente)',
+          /CONEX[ÃA]O COM OKR — FORMULA[ÇC][ÃA]O ATUAL \(CICLO 3\)/.test(revOkr), revOkr.slice(0, 140));
+        anota('item 4 — os Key Results mostrados são os do ciclo ATUAL (reclamações por atraso)',
+          /reclama[çc][õo]es por atraso/i.test(revOkr), revOkr.slice(0, 400));
+        anota('item 4 — os Key Results NÃO misturam com os de um ciclo anterior (satisfação com o atendimento, do Ciclo 2)',
+          !/satisfa[çc][ãa]o com o atendimento/i.test(revOkr), revOkr.slice(0, 400));
+        anota('item 4 — a Missão continua a mesma (contexto estável, fora dos ciclos)',
+          /reduzir.*tempo de espera|tempo de espera.*reduzir/i.test(revOkr) || /Objective/.test(revOkr), revOkr.slice(0, 200));
+
+        const mapaOkrInfo = await pgOkr.evaluate(() => {
+          const titulos = Array.from(document.querySelectorAll('.aposta-ciclo-titulo'));
+          return titulos.map((t) => ({
+            numero: (t.querySelector('.aposta-ciclo-numero') || {}).textContent || '',
+            ponto: (t.querySelector('.aposta-ciclo-ponto') || {}).textContent || '',
+            status: (t.querySelector('.aposta-ciclo-status') || {}).textContent || '',
+            statusClasse: (t.querySelector('.aposta-ciclo-status') || {}).className || '',
+          }));
+        });
+        anota('item 6 — cada separador de ciclo tem CICLO N, ponto de reinício e status em elementos PRÓPRIOS (hierarquia, não uma linha só)',
+          mapaOkrInfo.length === 3 &&
+          mapaOkrInfo.every((t) => /^CICLO \d$/.test(t.numero) && t.status),
+          JSON.stringify(mapaOkrInfo));
+        anota('item 6 — Ciclo 1 (sem ponto de reinício) não mostra a linha de ponto de reinício vazia',
+          mapaOkrInfo[0] && mapaOkrInfo[0].ponto === '', JSON.stringify(mapaOkrInfo[0]));
+        anota('item 6 — Ciclo 2 mostra "Ponto de reinício: Hipótese" numa linha própria',
+          mapaOkrInfo[1] && /Ponto de rein[íi]cio: Hip[óo]tese/i.test(mapaOkrInfo[1].ponto), JSON.stringify(mapaOkrInfo[1]));
+        anota('item 6 — Ciclo 1 e 2 (finalizados) usam o selo "Concluído"; o Ciclo 3 (atual, em construção) usa "Em andamento"',
+          mapaOkrInfo[0] && /Conclu[íi]do/.test(mapaOkrInfo[0].status) &&
+          mapaOkrInfo[1] && /Conclu[íi]do/.test(mapaOkrInfo[1].status) &&
+          mapaOkrInfo[2] && /Em andamento/.test(mapaOkrInfo[2].status),
+          JSON.stringify(mapaOkrInfo));
+        anota('item 6 — o selo de status usa as classes is-concluido/is-andamento (nunca as duas juntas)',
+          /is-concluido/.test(mapaOkrInfo[0].statusClasse) && /is-andamento/.test(mapaOkrInfo[2].statusClasse),
+          JSON.stringify(mapaOkrInfo.map((t) => t.statusClasse)));
+
+        await ctxOkr.close();
       }
 
       /* ── 13i: retomada — fechar e reabrir no meio do Ciclo 2 volta
