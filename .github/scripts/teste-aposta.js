@@ -3761,6 +3761,227 @@ const clicarSemRolagem = (page, seletor) => page.$eval(seletor, (el) => el.click
         await ctx13i.close();
       }
 
+      /* ── 13j: FASE 4 — atomicidade da materialização do Ciclo 1
+            implícito → Ciclo 1 explícito + Ciclo 2. O update() final de
+            concluirCriacaoCiclo() falha (rede caiu bem ali, depois do
+            lock e da leitura do contador, mas ANTES da gravação).
+            Como é um único update() multi-caminho, nada dele pode
+            aparecer: nem o Ciclo 1 congelado, nem o Ciclo 2 novo, nem
+            ciclos/atual apontando para qualquer lugar. O grupo continua
+            exatamente como um Ciclo 1 implícito (grupos/<id>/dados
+            intocado, sem nó `ciclos` nenhum), pronto para a MESMA
+            tentativa ser refeita — sem falha, o retry tem de completar
+            sozinho, sem duplicar nada (nunca dois Ciclo 2/Ciclo 3 para
+            a mesma Decisão). Mesmo padrão dos testes de falha da
+            Fase 1 (9k/9l), agora no ponto exato do pedido do usuário:
+            "confirme exatamente como ocorre a transformação". ── */
+      {
+        const semeado13j = apostasProntaParaDecisao();
+        semeado13j[TURMA_LIB].execucoes[EXEC].grupos[GRUPO].dados.decisao = { decisao: 'Rever o problema', proximaAcao: 'reunir o grupo para redefinir o problema', dataDecisao: '2026-09-19T10:00:00.000Z' };
+        const { ctx: ctx13j, page: pg13j } = await novaPagina(browser, formato, ADM, erros, semeado13j);
+        await pg13j.goto(BASE + '/index.html#treinamento', { waitUntil: 'domcontentloaded' });
+        await pg13j.click('#apostaAbrirBtn');
+        await pg13j.waitForSelector('.aposta-grupo-btn', { timeout: 15000 });
+        await pg13j.click('.aposta-grupo-btn');
+        await pg13j.waitForSelector('.aposta-etapa-titulo', { timeout: 15000 });
+
+        await pg13j.evaluate((turmaKey) => {
+          window.__CFG.fail = ['apostas/' + turmaKey + '/execucoes/exec1/grupos/grupo1/ciclos/porId'];
+        }, TURMA_LIB);
+        const tentativaFalha = await pg13j.evaluate(() => new Promise((res) => {
+          window.faAposta._criarCiclo('problema', 'Rever o problema', (err) => res(err || null));
+        }));
+        anota('a tentativa de materializar falha visivelmente (não engole o erro em silêncio)',
+          !!tentativaFalha, String(tentativaFalha));
+
+        const estadoAposFalha = await pg13j.evaluate((turmaKey) => new Promise((res) => {
+          firebase.database().ref('apostas/' + turmaKey + '/execucoes/exec1/grupos/grupo1').once('value', (s) => {
+            const v = s.val() || {};
+            const ciclos = v.ciclos || {};
+            res({
+              temAtual: !!ciclos.atual,
+              qtdCiclosPorId: Object.keys(ciclos.porId || {}).length,
+              dadosProblemaIntacto: (v.dados || {}).problema && v.dados.problema.situacaoIndesejada,
+              decisaoIntacta: (v.dados || {}).decisao && v.dados.decisao.dataDecisao,
+            });
+          });
+        }), TURMA_LIB);
+        /* O contador (`ciclos/contador`) é uma transaction() SEPARADA do
+           update() atômico final (mesmo desenho da Fase 1: o número já
+           consumido pode ficar "perdido" numa falha bem no meio — ver
+           comentário de obterNumeroCicloEConcluir) — por isso o nó
+           `ciclos` PODE existir só com esse contador incrementado. O que
+           importa de verdade, e é isso que esta prova verifica, é que
+           NENHUM ciclo foi gravado em `ciclos/porId` e `ciclos/atual`
+           continua sem apontar para lugar nenhum: o update() de
+           concluirCriacaoCiclo() é tudo-ou-nada. */
+        anota('falha no update() final: nenhum ciclo aparece em `ciclos/porId` — nem Ciclo 1 parcial, nem Ciclo 2',
+          estadoAposFalha.qtdCiclosPorId === 0, JSON.stringify(estadoAposFalha));
+        anota('falha no update() final: `ciclos/atual` continua sem apontar para nada (nunca aponta para um ciclo inexistente)',
+          !estadoAposFalha.temAtual, JSON.stringify(estadoAposFalha));
+        anota('o grupo continua um Ciclo 1 implícito íntegro — dados e a Decisão já salva não foram tocados pela falha',
+          !!estadoAposFalha.dadosProblemaIntacto && !!estadoAposFalha.decisaoIntacta, JSON.stringify(estadoAposFalha));
+
+        const temLockAposFalha = await pg13j.evaluate((turmaKey) => new Promise((res) => {
+          firebase.database().ref('apostas/' + turmaKey + '/execucoes/exec1/grupos/grupo1/ciclos/criacaoCicloEmAndamento').once('value', (s) => res(!!s.val()));
+        }), TURMA_LIB);
+        anota('o lock é liberado mesmo quando o update() final falha — a mesma tentativa pode ser refeita na hora',
+          !temLockAposFalha, String(temLockAposFalha));
+
+        await pg13j.evaluate(() => { window.__CFG.fail = []; });
+        const retrySucesso = await pg13j.evaluate(() => new Promise((res) => {
+          window.faAposta._criarCiclo('problema', 'Rever o problema', (err, id) => res({ err: err || null, id }));
+        }));
+        const estadoAposRetry = await pg13j.evaluate((turmaKey) => new Promise((res) => {
+          firebase.database().ref('apostas/' + turmaKey + '/execucoes/exec1/grupos/grupo1/ciclos').once('value', (s) => {
+            const v = s.val() || {};
+            const porId = v.porId || {};
+            const numeros = Object.keys(porId).map((k) => porId[k].numero).sort();
+            res({ atualExiste: !!porId[v.atual], qtdCiclos: Object.keys(porId).length, numeros });
+          });
+        }), TURMA_LIB);
+        /* O número da tentativa que falhou já foi consumido pelo
+           contador (transaction() separada, ver acima) — é aceito de
+           propósito que ele fique pulado (nº 2 nunca aparece), o mesmo
+           trade-off já documentado e testado na Fase 1 ("número perdido
+           é melhor que ponteiro quebrado"). O que a atomicidade garante
+           é nunca um TERCEIRO ciclo para a mesma Decisão: exatamente
+           dois ciclos no banco, o primeiro sempre nº 1. */
+        anota('sem a falha, o retry completa sozinho: nascem exatamente DOIS ciclos (Ciclo 1 congelado + o novo atual), nunca um terceiro',
+          !retrySucesso.err && estadoAposRetry.atualExiste && estadoAposRetry.qtdCiclos === 2 && estadoAposRetry.numeros[0] === 1,
+          JSON.stringify({ retrySucesso, estadoAposRetry }));
+
+        await ctx13j.close();
+      }
+
+      /* ── 13k: FASE 4 — dataDecisao sobrevive a um re-salvamento da
+            Decisão. Bug pré-existente (invisível antes da Fase 4, que
+            passou a depender de dataDecisao para saber se um ciclo está
+            finalizado): re-salvar a etapa Decisão sem alterar nada
+            perdia a data já gravada, porque coletar() nunca a
+            carregava de volta para o objeto salvo. Prova pelo caminho
+            REAL (reabre a Decisão já respondida, edita só a Próxima
+            Ação e clica CONTINUAR de novo — o mesmo coletar()+
+            salvarEtapa que qualquer clique repetido em CONTINUAR
+            dispara) que a data continua a MESMA, não vira uma nova nem
+            some. ── */
+      {
+        const semeado13k = apostasProntaParaDecisao();
+        semeado13k[TURMA_LIB].execucoes[EXEC].grupos[GRUPO].dados.decisao = { decisao: 'Ampliar', proximaAcao: 'ampliar para outros horários', dataDecisao: '2026-09-19T10:00:00.000Z' };
+        const { ctx: ctx13k, page: pg13k } = await novaPagina(browser, formato, ADM, erros, semeado13k);
+        await pg13k.goto(BASE + '/index.html#treinamento', { waitUntil: 'domcontentloaded' });
+        await pg13k.click('#apostaAbrirBtn');
+        await pg13k.waitForSelector('.aposta-grupo-btn', { timeout: 15000 });
+        await pg13k.click('.aposta-grupo-btn');
+        await pg13k.waitForSelector('.aposta-opcao', { timeout: 15000 });
+        await pg13k.fill('[data-campo="proximaAcao"]', 'ampliar para mais horários ainda');
+        await pg13k.waitForTimeout(250);
+        await pg13k.click('#apostaSeguir');
+        await pg13k.waitForSelector('.aposta-mapa', { timeout: 8000 });
+
+        const decisaoAposResave = await pg13k.evaluate((turmaKey) => new Promise((res) => {
+          firebase.database().ref('apostas/' + turmaKey + '/execucoes/exec1/grupos/grupo1/dados/decisao').once('value', (s) => res(s.val()));
+        }), TURMA_LIB);
+        anota('re-salvar a Decisão (clicar CONTINUAR de novo) preserva a dataDecisao já gravada — não some, não vira outra',
+          decisaoAposResave && decisaoAposResave.dataDecisao === '2026-09-19T10:00:00.000Z', JSON.stringify(decisaoAposResave));
+        anota('o resto da Decisão (o que de fato mudou) é atualizado normalmente',
+          decisaoAposResave && decisaoAposResave.proximaAcao === 'ampliar para mais horários ainda', JSON.stringify(decisaoAposResave));
+
+        await ctx13k.close();
+      }
+
+      /* ── 13l: FASE 4 — cascata ao editar um campo HERDADO (exemplo
+            exato do pedido: Ciclo 2 nasce na Hipótese, com Problema e
+            Mudanças Mensuráveis herdados do Ciclo 1; a dupla volta e
+            edita o Problema herdado). O que vem depois dele NO MESMO
+            CICLO (Mudanças, Hipótese, Ideia, Experimento, Evidência,
+            Decisão) não pode continuar contando como "confirmado" —
+            some, vira "ainda não preenchida" de novo, e o ponto de
+            reinício efetivo do ciclo passa a ser o Problema. O Ciclo 1
+            (congelado) nunca é tocado — só existe update() no caminho
+            do ciclo ATUAL. ── */
+      {
+        const semeado13l = apostasProntaParaDecisao();
+        semeado13l[TURMA_LIB].execucoes[EXEC].grupos[GRUPO].dados.decisao = { decisao: 'Reformular a hipótese', proximaAcao: 'testar de novo', dataDecisao: '2026-09-19T10:00:00.000Z', proxHipCausa: 'a fila não tem sinalização clara', proxHipIndicio: 'gente perguntando onde é o fim da fila' };
+        semeado13l[TURMA_LIB].execucoes[EXEC].grupos[GRUPO].ciclos = {
+          atual: 'c2',
+          contador: 2,
+          porId: {
+            c1: {
+              numero: 1, status: 'FINALIZADO', pontoDeReinicio: null, cicloAnteriorId: null, etapa: 'decisao',
+              dados: semeado13l[TURMA_LIB].execucoes[EXEC].grupos[GRUPO].dados
+            },
+            c2: {
+              numero: 2, status: 'EM_CONSTRUCAO', pontoDeReinicio: 'hipotese', decisaoOrigem: 'Reformular a hipótese', cicloAnteriorId: 'c1', etapa: 'hipotese',
+              herdadas: ['missao', 'sintoma', 'problema', 'mudancas'],
+              dados: {
+                missao: DADOS_ATE_EVIDENCIA.missao,
+                sintoma: DADOS_ATE_EVIDENCIA.sintoma,
+                problema: DADOS_ATE_EVIDENCIA.problema,
+                mudancas: DADOS_ATE_EVIDENCIA.mudancas,
+                hipotese: { causa: 'a fila não tem sinalização clara', indicio: 'gente perguntando onde é o fim da fila' },
+                ideia: {}, experimento: {}, evidencia: {}, decisao: {}
+              }
+            }
+          }
+        };
+        const c1DadosAntesJson = JSON.stringify(semeado13l[TURMA_LIB].execucoes[EXEC].grupos[GRUPO].ciclos.porId.c1.dados);
+        const { ctx: ctx13l, page: pg13l } = await novaPagina(browser, formato, ADM, erros, semeado13l);
+        await pg13l.goto(BASE + '/index.html#treinamento', { waitUntil: 'domcontentloaded' });
+        await pg13l.click('#apostaAbrirBtn');
+        await pg13l.waitForSelector('.aposta-grupo-btn', { timeout: 15000 });
+        await pg13l.click('.aposta-grupo-btn');
+        await pg13l.waitForSelector('.aposta-etapa-titulo', { timeout: 15000 });
+
+        /* Preenche a Hipótese (não-herdada, ponto de reinício atual) e
+           segue até a Ideia só para ela também ficar preenchida ANTES
+           da edição — assim dá para provar que a cascata realmente
+           LIMPA algo que já estava lá, não que só "continuava vazio". */
+        await pg13l.evaluate(() => new Promise((res) => {
+          window.faAposta._salvarEtapa('ideia', { acao: 'testar sinalização nova', mudanca: 'a fila ficar mais organizada' }, false, () => res());
+        }));
+
+        /* Edita o Problema — que é HERDADO neste ciclo. */
+        await pg13l.evaluate(() => new Promise((res) => {
+          window.faAposta._salvarEtapa('problema', { quem: 'O participante', situacaoIndesejada: 'espera demais e sem noção de quanto falta' }, false, () => res());
+        }));
+
+        const cicloAposEdicao = await pg13l.evaluate((turmaKey) => new Promise((res) => {
+          firebase.database().ref('apostas/' + turmaKey + '/execucoes/exec1/grupos/grupo1/ciclos').once('value', (s) => {
+            const v = s.val() || {};
+            res({ c1: v.porId.c1, c2: v.porId.c2 });
+          });
+        }), TURMA_LIB);
+
+        anota('editar o Problema herdado atualiza o Problema do Ciclo 2 (o dado em si muda, é o que se pediu)',
+          cicloAposEdicao.c2.dados.problema.situacaoIndesejada === 'espera demais e sem noção de quanto falta',
+          JSON.stringify(cicloAposEdicao.c2.dados.problema));
+        anota('Mudanças Mensuráveis (herdada, vinha DEPOIS do Problema) é limpa — não fica implicitamente válida',
+          Object.keys(cicloAposEdicao.c2.dados.mudancas || {}).length === 0, JSON.stringify(cicloAposEdicao.c2.dados.mudancas));
+        anota('Hipótese (a NOVA deste ciclo, não herdada) também é limpa — nasceu depois do Problema na ordem das etapas',
+          Object.keys(cicloAposEdicao.c2.dados.hipotese || {}).length === 0, JSON.stringify(cicloAposEdicao.c2.dados.hipotese));
+        anota('Ideia — que a própria dupla acabara de preencher NESTE ciclo — também é limpa pela cascata, sem exceção',
+          Object.keys(cicloAposEdicao.c2.dados.ideia || {}).length === 0, JSON.stringify(cicloAposEdicao.c2.dados.ideia));
+        anota('Experimento, Evidência e Decisão continuam vazios (já estavam) — cascata não inventa dado, só invalida o que havia',
+          Object.keys(cicloAposEdicao.c2.dados.experimento || {}).length === 0 &&
+          Object.keys(cicloAposEdicao.c2.dados.evidencia || {}).length === 0 &&
+          Object.keys(cicloAposEdicao.c2.dados.decisao || {}).length === 0,
+          JSON.stringify(cicloAposEdicao.c2.dados));
+        anota('Missão e Sintoma — herdados e ANTES do Problema — continuam intocados, nunca fazem parte da cascata',
+          cicloAposEdicao.c2.dados.missao.oQue === DADOS_ATE_EVIDENCIA.missao.oQue &&
+          cicloAposEdicao.c2.dados.sintoma.texto === DADOS_ATE_EVIDENCIA.sintoma.texto,
+          JSON.stringify({ missao: cicloAposEdicao.c2.dados.missao, sintoma: cicloAposEdicao.c2.dados.sintoma }));
+        anota('`herdadas` do Ciclo 2 encolhe para só o que continua genuinamente intocado (Missão, Sintoma) — Problema saiu da lista',
+          JSON.stringify((cicloAposEdicao.c2.herdadas || []).slice().sort()) === JSON.stringify(['missao', 'sintoma']),
+          JSON.stringify(cicloAposEdicao.c2.herdadas));
+        anota('`pontoDeReinicio` efetivo do Ciclo 2 passa a ser o Problema — é daqui que o ciclo precisa ser revisado de novo',
+          cicloAposEdicao.c2.pontoDeReinicio === 'problema', cicloAposEdicao.c2.pontoDeReinicio);
+        anota('o Ciclo 1 (congelado) não é tocado pela cascata — dados byte-a-byte iguais a antes da edição',
+          JSON.stringify(cicloAposEdicao.c1.dados) === c1DadosAntesJson, 'diff detectado no Ciclo 1');
+
+        await ctx13l.close();
+      }
+
       anota('nenhum erro de JavaScript', erros.length === 0, erros[0]);
 
       await ctx.close();

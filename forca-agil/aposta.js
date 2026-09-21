@@ -4526,6 +4526,30 @@
     salvarEtapa(p.etapaId, p.dados);
   }
 
+  /* ══════════════════════════════════════════════════════════════
+     FASE 4 — REVISAR UM CAMPO HERDADO GERA EFEITO CASCATA
+
+     "Herdado" (ciclo.herdadas) é o que foi copiado do ciclo anterior
+     sem pedir para ser revisto. Enquanto ninguém mexe nisso, tudo
+     funciona normal. Mas se o grupo VOLTA e edita de propósito uma
+     etapa herdada — Problema, digamos, num ciclo que nasceu na
+     Hipótese — o que vinha depois dela (Mudanças, Hipótese, Ideia,
+     Experimento, Evidência, Decisão) foi decidido em cima de um
+     Problema que acabou de mudar: não pode continuar valendo como se
+     nada tivesse acontecido. Isso NUNCA toca o ciclo anterior (só
+     existe update() no caminho do ciclo ATUAL) — é sempre uma revisão
+     de dentro do mesmo ciclo, nunca a criação de um novo.
+
+     Sem UX própria de confirmação por campo nesta fase (a dupla não é
+     avisada ANTES de editar que isso vai limpar o que vem depois) —
+     mas o efeito em si é real e imediato, nunca um "válido implícito"
+     silencioso: as etapas afetadas voltam a "ainda não preenchida"
+     (mesmo estado que etapaPreenchida() já sabe reconhecer) assim que
+     o campo herdado é salvo, e um aviso conta o que aconteceu. */
+  function etapasEstritamenteDepoisDe(etapaId) {
+    return ETAPAS.slice(indiceEtapa(etapaId) + 1).map(function (e) { return e.id; });
+  }
+
   function salvarEtapa(etapaId, dados, redesenhar, cb) {
     clearTimeout(_timerSalvar);
     _timerSalvar = null;
@@ -4534,6 +4558,33 @@
     _dados[etapaId] = dados;
     var s = sessao();
     var updates = {};
+
+    var idCicloAtual = cicloAtualId();
+    var cicloRec = idCicloAtual ? ((((_grupo.ciclos || {}).porId) || {})[idCicloAtual]) : null;
+    var revisandoHerdado = !!(cicloRec && (cicloRec.herdadas || []).indexOf(etapaId) !== -1);
+    var etapasLimpas = [];
+    if (revisandoHerdado) {
+      etapasLimpas = etapasEstritamenteDepoisDe(etapaId).filter(function (id) {
+        return Object.keys(_dados[id] || {}).length > 0;
+      });
+      etapasEstritamenteDepoisDe(etapaId).forEach(function (id) {
+        _dados[id] = {};
+        updates[caminhoCiclos() + '/porId/' + idCicloAtual + '/dados/' + id] = {};
+      });
+      /* O ponto de reinício "efetivo" deste ciclo passa a ser aqui — é
+         daqui em diante que o ciclo precisa ser revisado de novo. As
+         etapas entre o pontoDeReinicio original e esta continuam
+         herdadas (nunca foram tocadas); desta em diante, ninguém mais
+         é herdada — é trabalho deste ciclo, revisado agora. */
+      var novasHerdadas = etapasAntesDe(etapaId).filter(function (id) {
+        return (cicloRec.herdadas || []).indexOf(id) !== -1;
+      });
+      updates[caminhoCiclos() + '/porId/' + idCicloAtual + '/herdadas'] = novasHerdadas;
+      updates[caminhoCiclos() + '/porId/' + idCicloAtual + '/pontoDeReinicio'] = etapaId;
+      _grupo.ciclos.porId[idCicloAtual].herdadas = novasHerdadas;
+      _grupo.ciclos.porId[idCicloAtual].pontoDeReinicio = etapaId;
+    }
+
     updates[caminhoDadosAtual() + '/' + etapaId] = dados;
     updates[caminhoGrupo() + '/atualizadoEm'] = new Date().toISOString();
     updates[caminhoGrupo() + '/atualizadoPorNome'] = s ? (s.name || s.email) : '';
@@ -4542,6 +4593,10 @@
       if (el) {
         el.textContent = err ? 'Não consegui salvar' : 'Salvo';
         el.className = 'aposta-salvo' + (err ? ' is-erro' : '');
+      }
+      if (!err && etapasLimpas.length) {
+        var nomes = etapasLimpas.map(function (id) { return (etapaPorId(id) || {}).curto || id; }).join(', ');
+        avisar('Como "' + ((etapaPorId(etapaId) || {}).curto || etapaId) + '" mudou, o que vinha depois neste ciclo (' + nomes + ') foi limpo para ser revisado de novo.', true);
       }
       if (redesenhar && !err) render();
       if (cb) cb(err);
@@ -5499,7 +5554,11 @@
        sucessores para a mesma decisão, e que liberarLockCiclo() com um
        token velho não remove o lock de uma tentativa mais nova. */
     _criarCiclo: function (pontoDeReinicio, decisaoOrigem, cb) { return criarCiclo(pontoDeReinicio, decisaoOrigem, cb); },
-    _liberarLockCiclo: function (token) { return liberarLockCiclo(token); }
+    _liberarLockCiclo: function (token) { return liberarLockCiclo(token); },
+    /* Fase 4 — prova direta da cascata ao editar um campo herdado e do
+       fix de dataDecisao: chamar salvarEtapa() sem depender de digitar
+       em cada campo do formulário e esperar o debounce de 600ms. */
+    _salvarEtapa: function (etapaId, dados, redesenhar, cb) { return salvarEtapa(etapaId, dados, redesenhar, cb); }
   };
 
   window.addEventListener('fa-auth-ready', montarEntrada);
