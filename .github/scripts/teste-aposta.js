@@ -119,6 +119,28 @@ function apostasSemeadasComHistorico() {
   return base;
 }
 
+/* Fase 4 — Ciclos de Aprendizagem: um grupo com as etapas Missão até
+   Evidência já completas (dados reais, coerentes entre si), faltando
+   só responder a Decisão — ponto de partida comum para os cenários de
+   criação de ciclo, que testam justamente o que acontece quando essa
+   resposta é dada. */
+const DADOS_ATE_EVIDENCIA = {
+  missao: { verbo: 'reduzir', oQue: 'o tempo de espera', contexto: 'na fila do atendimento', prazo: '60', prazoUnidade: 'dias' },
+  sintoma: { texto: 'muita gente reclama da demora na fila' },
+  problema: { quem: 'O participante', situacaoIndesejada: 'espera demais na fila do atendimento' },
+  mudancas: { itens: [{ id: 'r1', direcao: 'Reduzir', indicador: 'tempo de espera', atual: '30', meta: '15', unidade: 'minutos', periodo: 'não se aplica', prazo: '60', prazoUnidade: 'dias' }] },
+  hipotese: { causa: 'faltam atendentes no horário de pico', indicio: 'a fila cresce sempre às sextas de manhã' },
+  ideia: { acao: 'reforçar a equipe no horário de pico', mudanca: 'a fila andar mais rápido nesse horário' },
+  experimento: { duracao: '2', duracaoUnidade: 'semanas', quantidade: '20', comQuem: 'participantes do horário de pico', oQue: 'escalar mais um atendente', resultadoIds: ['r1'] },
+  evidencia: { itens: [{ resultadoId: 'r1', observado: '20', fonte: 'Registros de atendimento', aprendizado: 'a fila melhorou, mas não o suficiente' }], classificacao: 'Parcialmente sustentada' }
+};
+function apostasProntaParaDecisao() {
+  const base = apostasSemeadas();
+  base[TURMA_LIB].execucoes[EXEC].grupos[GRUPO].dados = JSON.parse(JSON.stringify(DADOS_ATE_EVIDENCIA));
+  base[TURMA_LIB].execucoes[EXEC].grupos[GRUPO].etapa = 'decisao';
+  return base;
+}
+
 function banco(apostas) {
   const users = {};
   const interesse = {};
@@ -1209,6 +1231,43 @@ const clicarSemRolagem = (page, seletor) => page.$eval(seletor, (el) => el.click
 
             await page.fill('[data-campo="mudanca"]', 'o participante consiga ter autonomia');
             await page.waitForTimeout(250);
+
+            /* ── digitar e seguir DENTRO dos 600ms não pode apagar a etapa ──
+               O salvamento automático espera 600ms. Enquanto ele relia a tela
+               na hora de gravar, quem clicava em Continuar antes disso via a
+               etapa recém-preenchida ser sobrescrita pelos campos vazios da
+               etapa seguinte — e o mapa a mostrava como "ainda não
+               preenchido". Relatado no primeiro uso real.
+
+               Fase 4 — relocado para ANTES da Decisão de propósito: depois
+               dela o ciclo fica concluído, e voltar a editar uma etapa já
+               respondida passa a pedir confirmação para abrir um ciclo novo
+               (ver PROTEÇÃO CONTRA EDITAR CICLO FINALIZADO) — o cenário
+               original ("voltar pela trilha para uma etapa já respondida e
+               editar de novo, no MESMO ciclo") só existe de verdade antes da
+               Decisão. A corrida testada é a mesma, só o ponto de execução
+               mudou. */
+            await page.fill('[data-campo="acao"]', 'texto que não pode sumir');
+            /* Sem esperar o debounce: é essa pressa que reproduzia o defeito. */
+            await clicarSemRolagem(page, '#apostaSeguir');
+            await page.waitForTimeout(1400);   /* tempo de o temporizador antigo disparar */
+            await page.evaluate(() => {
+              const t = Array.from(document.querySelectorAll('.aposta-trilha-item'))
+                .find((i) => /Ideia de solução/.test(i.textContent));
+              if (t && !t.disabled) t.click();
+            });
+            await page.waitForFunction(() =>
+              /IDEIA DE SOLU/i.test((document.querySelector('.aposta-etapa-titulo') || {}).textContent || ''),
+              { timeout: 15000 });
+            const sobreviveu = await page.evaluate(() => (document.querySelector('[data-campo="acao"]') || {}).value || '');
+            anota('seguir antes do salvamento automático NÃO apaga a etapa',
+              /texto que não pode sumir/.test(sobreviveu), 'campo voltou como "' + sobreviveu + '"');
+            /* Deixa a etapa completa de novo, exatamente como estava antes
+               deste desvio — o resto do percurso (Experimento em diante)
+               não pode herdar "texto que não pode sumir" no lugar da ação
+               de verdade. */
+            await page.fill('[data-campo="acao"]', 'dar ao participante visibilidade sobre o andamento do processo de concessão do benefício');
+            await page.waitForTimeout(250);
           }
           if (i === 6) {
             /* EXPERIMENTO: sem duração, quantidade, com quem e o que
@@ -1636,37 +1695,40 @@ const clicarSemRolagem = (page, seletor) => page.$eval(seletor, (el) => el.click
       anota('nenhuma etapa vazou os termos do final da dinâmica',
         vazados.length === 0, vazados.join('; '));
 
-      /* ── 3b: digitar e seguir DENTRO dos 600ms não pode apagar a etapa ──
-         O salvamento automático espera 600ms. Enquanto ele relia a tela na
-         hora de gravar, quem clicava em Continuar antes disso via a etapa
-         recém-preenchida ser sobrescrita pelos campos vazios da etapa
-         seguinte — e o mapa a mostrava como "ainda não preenchido".
-         Relatado no primeiro uso real. */
+      /* ── 3b: FASE 4 — tentar editar uma etapa do ciclo já concluído ──
+         A Decisão da 3a já foi respondida ("Ampliar" — ver o clique
+         genérico ao fim do laço de 3a), o que finaliza o ciclo (implícito
+         — ver CICLO 1 IMPLÍCITO em aposta.js). Clicar num card do Mapa ou
+         na trilha agora tem de pedir confirmação antes de editar — nunca
+         reabrir e sobrescrever silenciosamente o que já foi decidido (item
+         9 do pedido). CANCELAR tem de ser um não-operação completo: nem
+         cicloAtual muda, nem nasce ciclo nenhum, e a tela volta exatamente
+         como estava. (O teste de que CONFIRMAR de fato cria um Ciclo 2 —
+         com herança, cascata e ponto de reinício corretos — mora nos
+         cenários dedicados de Ciclos mais abaixo.) */
       await page.evaluate(() => {
         const t = Array.from(document.querySelectorAll('.aposta-trilha-item'))
           .find((i) => /Ideia de solução/.test(i.textContent));
         if (t && !t.disabled) t.click();
       });
-      await page.waitForFunction(() =>
-        /IDEIA DE SOLU/i.test((document.querySelector('.aposta-etapa-titulo') || {}).textContent || ''),
-        { timeout: 15000 });
-      await page.locator('.aposta-campo-input').first().fill('texto que não pode sumir');
-      /* Sem esperar o debounce: é essa pressa que reproduzia o defeito. */
-      await page.click('#apostaSeguir');
-      await page.waitForTimeout(1400);   /* tempo de o temporizador antigo disparar */
-      await page.evaluate(() => {
-        const t = Array.from(document.querySelectorAll('.aposta-trilha-item'))
-          .find((i) => /Ideia de solução/.test(i.textContent));
-        if (t) t.click();
-      });
-      await page.waitForTimeout(500);
-      const sobreviveu = await page.evaluate(() =>
-        (document.querySelector('.aposta-campo-input') || {}).value || '');
-      anota('seguir antes do salvamento automático NÃO apaga a etapa',
-        /texto que não pode sumir/.test(sobreviveu), 'campo voltou como "' + sobreviveu + '"');
+      await page.waitForSelector('.aposta-confirmar-overlay .modal-box', { timeout: 5000 });
+      const modalCicloTxt = await page.evaluate(() =>
+        (document.querySelector('.aposta-confirmar-overlay .modal-box') || {}).textContent || '');
+      anota('tentar editar uma etapa do ciclo já concluído (Ampliar) pede confirmação antes de reabrir',
+        /ciclo já foi conclu[íi]do/i.test(modalCicloTxt) && /iniciar um novo ciclo/i.test(modalCicloTxt), modalCicloTxt);
+      await clicarSemRolagem(page, '.aposta-modal-nao-btn');
+      await page.waitForTimeout(300);
+      const depoisDeCancelar = await page.evaluate(() => ({
+        temModal: !!document.querySelector('.aposta-confirmar-overlay'),
+        temMapa: !!document.querySelector('.aposta-mapa'),
+        temCiclos: !!window.faAposta,
+      }));
+      anota('CANCELAR fecha o modal sem sair do Mapa e sem criar ciclo nenhum',
+        !depoisDeCancelar.temModal && depoisDeCancelar.temMapa, JSON.stringify(depoisDeCancelar));
 
       /* Volta ao mapa clicando Continuar até chegar lá — não importa em que
-         etapa o desvio acima deixou a tela. */
+         etapa o desvio acima deixou a tela (aqui, CANCELAR já deixou no
+         Mapa; o laço abaixo é só uma rede de segurança, sempre existiu). */
       for (let n = 0; n < 14; n++) {
         if (await page.evaluate(() => !!document.querySelector('.aposta-mapa'))) break;
         /* $eval (não page.click): um botão genuinely disabled (ajuste de
@@ -1731,7 +1793,12 @@ const clicarSemRolagem = (page, seletor) => page.$eval(seletor, (el) => el.click
         ideia:    { texto: 'dar visibilidade do andamento' },
         experimento: { oQue: 'enviar a mensagem', comQuem: 'participantes', quantidade: '50', duracao: '3 semanas', resultadoIds: ['r1'] },
         evidencia: { itens: [{ resultadoId: 'r1', observado: '750', fonte: 'Registros de atendimento', aprendizado: 'Os contatos caíram, sugerindo que a visibilidade ajuda.' }] },
-        decisao:  { decisao: 'Ajustar e testar novamente', proximaAcao: 'novo teste com grupo maior' }
+        /* "Ampliar" (não "Ajustar e testar novamente"): esta cena só quer
+           chegar ao Mapa para testar a revelação — não importa qual
+           decisão. Fase 4: "Ajustar e testar novamente" abriria um Ciclo
+           novo em vez de mostrar o Mapa (e pediria pontoDeReinicioEscolhido,
+           que este seed nem tinha) — "Ampliar" finaliza sem complicação. */
+        decisao:  { decisao: 'Ampliar', proximaAcao: 'novo teste com grupo maior' }
       };
       semeado[TURMA_LIB].execucoes[EXEC].grupos[GRUPO].etapa = 'decisao';
       const { ctx: ctxAdm, page: adm } = await novaPagina(browser, formato, ADM, erros, semeado);
@@ -2454,8 +2521,11 @@ const clicarSemRolagem = (page, seletor) => page.$eval(seletor, (el) => el.click
           placeholderAjustar === 'ajustar a comunicação e repetir o teste com um grupo maior', placeholderAjustar);
         const soFaltaAcao = await pgDec.evaluate(() =>
           ((document.getElementById('apostaFrase') || {}).textContent || '').replace(/\s+/g, ' '));
-        anota('com a decisão escolhida mas sem próxima ação, a orientação pede só o que falta',
-          soFaltaAcao === 'Fica assim no mapaDefina a próxima ação para completar a decisão.', soFaltaAcao);
+        /* Fase 4: "Ajustar e testar novamente" também pede o ponto de
+           reinício (item 20 do pedido) — com os dois faltando, a
+           orientação lista os dois, não só a próxima ação. */
+        anota('com a decisão escolhida mas sem próxima ação nem ponto de reinício, a orientação pede os dois',
+          soFaltaAcao === 'Fica assim no mapaEscolha o que precisa ser revisto e defina a próxima ação para completar a decisão.', soFaltaAcao);
         await pgDec.$eval('#apostaSeguir', (el) => el.click());
         await pgDec.waitForTimeout(300);
         const tituloDepoisSemAcao = await pgDec.evaluate(() => (document.querySelector('.aposta-etapa-titulo') || {}).textContent || '');
@@ -2547,6 +2617,9 @@ const clicarSemRolagem = (page, seletor) => page.$eval(seletor, (el) => el.click
            reavaliação (quando o grupo PRETENDE voltar a olhar). */
         await pgDec.locator('.aposta-opcao', { hasText: 'Ajustar e testar novamente' }).click();
         await pgDec.fill('[data-campo="proximaAcao"]', 'revisar a comunicação e repetir o teste');
+        /* Fase 4: "Ajustar e testar novamente" só libera CONTINUAR com um
+           ponto de reinício escolhido. */
+        await pgDec.locator('.aposta-opcao', { hasText: 'Experimento' }).click();
         await pgDec.waitForTimeout(250);
         await pgDec.$eval('#apostaSeguir', (el) => el.click());
         await pgDec.waitForTimeout(400);
@@ -3304,6 +3377,388 @@ const clicarSemRolagem = (page, seletor) => page.$eval(seletor, (el) => el.click
         anota('depois do erro, a nova tentativa cria o grupo normalmente', qtdAposRetry === 2, String(qtdAposRetry));
 
         await ctxFalhaGrupo.close();
+      }
+
+      /* ══════════════════════════════════════════════════════════════
+         FASE 4 — CICLOS DE APRENDIZAGEM
+         ══════════════════════════════════════════════════════════════ */
+
+      /* ── 13a: compatibilidade — grupo antigo (sem ciclos/) continua
+            funcionando como Ciclo 1 implícito, sem nenhuma escrita
+            automática só por ser aberto. ── */
+      {
+        const semeado13a = apostasSemeadas();
+        const { ctx: ctx13a, page: pg13a } = await novaPagina(browser, formato, ADM, erros, semeado13a);
+        await pg13a.goto(BASE + '/index.html#treinamento', { waitUntil: 'domcontentloaded' });
+        await pg13a.click('#apostaAbrirBtn');
+        await pg13a.waitForSelector('.aposta-grupo-btn', { timeout: 15000 });
+        await pg13a.click('.aposta-grupo-btn');
+        await pg13a.waitForSelector('.aposta-trilha-item', { timeout: 15000 });
+        await pg13a.waitForTimeout(300);
+        const ciclosAposAbrir = await pg13a.evaluate((turmaKey) => new Promise((res) => {
+          firebase.database().ref('apostas/' + turmaKey + '/execucoes/exec1/grupos/grupo1/ciclos').once('value', (s) => res(s.val()));
+        }), TURMA_LIB);
+        anota('grupo antigo sem ciclos/ não ganha a estrutura só por ser aberto (Ciclo 1 implícito)',
+          ciclosAposAbrir === null, JSON.stringify(ciclosAposAbrir));
+        await ctx13a.close();
+      }
+
+      /* ── 13b: "Reformular a hipótese" — materializa Ciclo 1, cria
+            Ciclo 2 na Hipótese, com herança/cascata e a Hipótese
+            ORIGINAL preservada (Invariantes 1, 4, 5, 6). ── */
+      {
+        const semeado13b = apostasProntaParaDecisao();
+        const { ctx: ctx13b, page: pg13b } = await novaPagina(browser, formato, ADM, erros, semeado13b);
+        await pg13b.goto(BASE + '/index.html#treinamento', { waitUntil: 'domcontentloaded' });
+        await pg13b.click('#apostaAbrirBtn');
+        await pg13b.waitForSelector('.aposta-grupo-btn', { timeout: 15000 });
+        await pg13b.click('.aposta-grupo-btn');
+        await pg13b.waitForSelector('.aposta-opcao', { timeout: 15000 });
+        await pg13b.locator('.aposta-opcao', { hasText: 'Reformular a hipótese' }).click();
+        await pg13b.fill('[data-campo="proximaAcao"]', 'testar uma nova hipótese sobre o atendimento');
+        await pg13b.fill('[data-campo="proxHipCausa"]', 'o sistema de senhas está desorganizando a fila');
+        await pg13b.fill('[data-campo="proxHipIndicio"]', 'muitas senhas fora de ordem no horário de pico');
+        await pg13b.waitForTimeout(250);
+        await pg13b.click('#apostaSeguir');
+        await pg13b.waitForFunction(() =>
+          /^H\s*—\s*HIP[ÓO]TESE/i.test((document.querySelector('.aposta-etapa-titulo') || {}).textContent || ''),
+          { timeout: 8000 });
+        anota('"Reformular a hipótese" leva direto ao ponto de reinício (Hipótese) do ciclo novo', true);
+
+        const grupoBanco = await pg13b.evaluate((turmaKey) => new Promise((res) => {
+          firebase.database().ref('apostas/' + turmaKey + '/execucoes/exec1/grupos/grupo1').once('value', (s) => res(s.val()));
+        }), TURMA_LIB);
+        const ciclosNode = grupoBanco.ciclos || {};
+        const porId = ciclosNode.porId || {};
+        const idsPorNumero = Object.keys(porId).sort((a, b) => (porId[a].numero || 0) - (porId[b].numero || 0));
+        const c1 = porId[idsPorNumero[0]] || {};
+        const c2 = porId[idsPorNumero[1]] || {};
+        anota('nasce exatamente um ciclo sucessor para esta decisão (Invariante 3)',
+          idsPorNumero.length === 2, JSON.stringify(idsPorNumero));
+        anota('ciclos/atual aponta para o Ciclo 2 recém-criado (Invariante 5)',
+          ciclosNode.atual === idsPorNumero[1], JSON.stringify(ciclosNode.atual));
+        anota('o grupo legado (grupos/<id>/dados) continua intocado, como registro redundante',
+          grupoBanco.dados && grupoBanco.dados.hipotese.causa === DADOS_ATE_EVIDENCIA.hipotese.causa,
+          JSON.stringify(grupoBanco.dados && grupoBanco.dados.hipotese));
+        anota('Ciclo 1 fica FINALIZADO, com a decisão que o fechou (Invariante 1: nunca sobrescrito depois)',
+          c1.status === 'FINALIZADO' && c1.dados.decisao.decisao === 'Reformular a hipótese',
+          JSON.stringify({ status: c1.status, decisao: c1.dados && c1.dados.decisao }));
+        anota('Ciclo 1 preserva a Hipótese ORIGINAL, nunca reescrita pela nova (Invariante 4)',
+          c1.dados.hipotese.causa === DADOS_ATE_EVIDENCIA.hipotese.causa &&
+          c1.dados.hipotese.indicio === DADOS_ATE_EVIDENCIA.hipotese.indicio,
+          JSON.stringify(c1.dados.hipotese));
+        anota('Ciclo 2 nasce EM_CONSTRUCAO, com pontoDeReinicio=hipotese e cicloAnteriorId apontando pro Ciclo 1',
+          c2.status === 'EM_CONSTRUCAO' && c2.pontoDeReinicio === 'hipotese' && c2.cicloAnteriorId === idsPorNumero[0],
+          JSON.stringify({ status: c2.status, ponto: c2.pontoDeReinicio, anterior: c2.cicloAnteriorId }));
+        anota('Ciclo 2 herda Missão/Sintoma/Problema/Mudanças do Ciclo 1, intocados (herança antes do ponto de reinício)',
+          c2.dados.missao.oQue === DADOS_ATE_EVIDENCIA.missao.oQue &&
+          c2.dados.sintoma.texto === DADOS_ATE_EVIDENCIA.sintoma.texto &&
+          c2.dados.problema.situacaoIndesejada === DADOS_ATE_EVIDENCIA.problema.situacaoIndesejada &&
+          c2.dados.mudancas.itens[0].indicador === DADOS_ATE_EVIDENCIA.mudancas.itens[0].indicador,
+          JSON.stringify({ missao: c2.dados.missao, problema: c2.dados.problema }));
+        anota('Ciclo 2 já nasce com a NOVA hipótese (a que a Decisão coletou) — não fica em branco (item 19)',
+          c2.dados.hipotese.causa === 'o sistema de senhas está desorganizando a fila' &&
+          c2.dados.hipotese.indicio === 'muitas senhas fora de ordem no horário de pico',
+          JSON.stringify(c2.dados.hipotese));
+        anota('Ciclo 2 nasce com Ideia/Experimento/Evidência/Decisão vazios (efeito cascata, item 24)',
+          Object.keys(c2.dados.ideia || {}).length === 0 &&
+          Object.keys(c2.dados.experimento || {}).length === 0 &&
+          Object.keys(c2.dados.evidencia || {}).length === 0 &&
+          Object.keys(c2.dados.decisao || {}).length === 0,
+          JSON.stringify({ ideia: c2.dados.ideia, experimento: c2.dados.experimento }));
+
+        await ctx13b.close();
+      }
+
+      /* ── 13c: "Investigar mais" — pede um ponto de reinício ESCOLHIDO;
+            sem escolher, bloqueia; escolhendo, o ciclo novo nasce
+            exatamente nesse ponto (não num fixo). ── */
+      {
+        const semeado13c = apostasProntaParaDecisao();
+        const { ctx: ctx13c, page: pg13c } = await novaPagina(browser, formato, ADM, erros, semeado13c);
+        await pg13c.goto(BASE + '/index.html#treinamento', { waitUntil: 'domcontentloaded' });
+        await pg13c.click('#apostaAbrirBtn');
+        await pg13c.waitForSelector('.aposta-grupo-btn', { timeout: 15000 });
+        await pg13c.click('.aposta-grupo-btn');
+        await pg13c.waitForSelector('.aposta-opcao', { timeout: 15000 });
+        await pg13c.locator('.aposta-opcao', { hasText: 'Investigar mais' }).click();
+        await pg13c.fill('[data-campo="proximaAcao"]', 'reunir o grupo para revisar as mudanças mensuráveis');
+        await pg13c.waitForTimeout(200);
+        const desabilitadoSemPonto = await pg13c.evaluate(() => (document.getElementById('apostaSeguir') || {}).disabled);
+        anota('"Investigar mais" sem ponto de reinício escolhido mantém CONTINUAR desabilitado',
+          desabilitadoSemPonto === true, String(desabilitadoSemPonto));
+        await pg13c.locator('.aposta-opcao[data-escolha="pontoDeReinicioEscolhido"]', { hasText: 'Mudanças Mensuráveis' }).click();
+        await pg13c.waitForTimeout(200);
+        const habilitadoComPonto = await pg13c.evaluate(() => (document.getElementById('apostaSeguir') || {}).disabled);
+        anota('escolher o ponto de reinício libera CONTINUAR', habilitadoComPonto === false, String(habilitadoComPonto));
+        await pg13c.click('#apostaSeguir');
+        await pg13c.waitForFunction(() =>
+          /MUDAN[ÇC]AS MENSUR[ÁA]VEIS/i.test((document.querySelector('.aposta-etapa-titulo') || {}).textContent || ''),
+          { timeout: 8000 });
+        const c2Ponto = await pg13c.evaluate((turmaKey) => new Promise((res) => {
+          firebase.database().ref('apostas/' + turmaKey + '/execucoes/exec1/grupos/grupo1/ciclos').once('value', (s) => {
+            const v = s.val() || {};
+            const c = (v.porId || {})[v.atual] || {};
+            res({ pontoDeReinicio: c.pontoDeReinicio, decisaoOrigem: c.decisaoOrigem, mudancasVazias: Object.keys(c.dados.mudancas || {}).length === 0 });
+          });
+        }), TURMA_LIB);
+        anota('o ciclo nasce no ponto de reinício ESCOLHIDO pela dupla, não num fixo',
+          c2Ponto.pontoDeReinicio === 'mudancas' && c2Ponto.decisaoOrigem === 'Investigar mais' && c2Ponto.mudancasVazias,
+          JSON.stringify(c2Ponto));
+        await ctx13c.close();
+      }
+
+      /* ── 13d: "Ampliar" e "Interromper esta ideia" só finalizam — nunca
+            criam ciclo sozinhas (itens 12/13). ── */
+      {
+        const semeado13d = apostasProntaParaDecisao();
+        const { ctx: ctx13d, page: pg13d } = await novaPagina(browser, formato, ADM, erros, semeado13d);
+        await pg13d.goto(BASE + '/index.html#treinamento', { waitUntil: 'domcontentloaded' });
+        await pg13d.click('#apostaAbrirBtn');
+        await pg13d.waitForSelector('.aposta-grupo-btn', { timeout: 15000 });
+        await pg13d.click('.aposta-grupo-btn');
+        await pg13d.waitForSelector('.aposta-opcao', { timeout: 15000 });
+        await pg13d.locator('.aposta-opcao', { hasText: 'Interromper esta ideia' }).click();
+        await pg13d.fill('[data-campo="proximaAcao"]', 'encerrar e registrar o aprendizado');
+        await pg13d.waitForTimeout(200);
+        await pg13d.click('#apostaSeguir');
+        await pg13d.waitForSelector('.aposta-mapa', { timeout: 8000 });
+        const semCiclos = await pg13d.evaluate((turmaKey) => new Promise((res) => {
+          firebase.database().ref('apostas/' + turmaKey + '/execucoes/exec1/grupos/grupo1/ciclos').once('value', (s) => res(s.val()));
+        }), TURMA_LIB);
+        anota('"Interromper esta ideia" finaliza sem criar ciclo nenhum — vai direto ao Mapa',
+          semCiclos === null, JSON.stringify(semCiclos));
+        await ctx13d.close();
+      }
+
+      /* ── 13e: editar uma etapa de um ciclo já concluído — confirmar
+            cria um ciclo novo a partir EXATAMENTE da etapa clicada
+            (edição manual, decisaoOrigem='edicao-manual'), nunca
+            sobrescreve o histórico (item 9). ── */
+      {
+        const semeado13e = apostasProntaParaDecisao();
+        semeado13e[TURMA_LIB].execucoes[EXEC].grupos[GRUPO].dados.decisao = { decisao: 'Ampliar', proximaAcao: 'ampliar para outros horários', dataDecisao: '2026-09-19T10:00:00.000Z' };
+        const { ctx: ctx13e, page: pg13e } = await novaPagina(browser, formato, ADM, erros, semeado13e);
+        await pg13e.goto(BASE + '/index.html#treinamento', { waitUntil: 'domcontentloaded' });
+        await pg13e.click('#apostaAbrirBtn');
+        await pg13e.waitForSelector('.aposta-grupo-btn', { timeout: 15000 });
+        await pg13e.click('.aposta-grupo-btn');
+        /* O seed retoma direto na etapa Decisão (já respondida) — como
+           qualquer outra etapa, chegar ao Mapa exige o clique explícito
+           em CONTINUAR/"Ver o mapa da aposta →" (etapa não navega
+           sozinha para lá). */
+        await pg13e.waitForSelector('#apostaSeguir:not([disabled])', { timeout: 15000 });
+        await pg13e.click('#apostaSeguir');
+        await pg13e.waitForSelector('.aposta-mapa', { timeout: 15000 });
+        await pg13e.locator('.aposta-mapa-card', { hasText: 'PROBLEMA' }).click();
+        await pg13e.waitForSelector('.aposta-confirmar-overlay .modal-box', { timeout: 5000 });
+        await pg13e.click('.aposta-modal-sim-btn');
+        await pg13e.waitForFunction(() =>
+          /^P\s*—\s*PROBLEMA/i.test((document.querySelector('.aposta-etapa-titulo') || {}).textContent || ''),
+          { timeout: 8000 });
+        const c2Manual = await pg13e.evaluate((turmaKey) => new Promise((res) => {
+          firebase.database().ref('apostas/' + turmaKey + '/execucoes/exec1/grupos/grupo1/ciclos').once('value', (s) => {
+            const v = s.val() || {};
+            const c = (v.porId || {})[v.atual] || {};
+            res({ pontoDeReinicio: c.pontoDeReinicio, decisaoOrigem: c.decisaoOrigem, missaoHerdada: (c.dados.missao || {}).oQue });
+          });
+        }), TURMA_LIB);
+        anota('confirmar "iniciar novo ciclo" a partir de um card cria o ciclo exatamente nesse ponto',
+          c2Manual.pontoDeReinicio === 'problema' && c2Manual.decisaoOrigem === 'edicao-manual',
+          JSON.stringify(c2Manual));
+        anota('o ciclo criado por edição manual também herda o que vem antes do ponto clicado',
+          c2Manual.missaoHerdada === DADOS_ATE_EVIDENCIA.missao.oQue, JSON.stringify(c2Manual));
+        await ctx13e.close();
+      }
+
+      /* ── 13f: clique duplo/repetido na criação de ciclo nunca cria
+            dois ciclos sucessores para a mesma decisão (item 33). ── */
+      {
+        const semeado13f = apostasProntaParaDecisao();
+        const { ctx: ctx13f, page: pg13f } = await novaPagina(browser, formato, ADM, erros, semeado13f);
+        await pg13f.goto(BASE + '/index.html#treinamento', { waitUntil: 'domcontentloaded' });
+        await pg13f.click('#apostaAbrirBtn');
+        await pg13f.waitForSelector('.aposta-grupo-btn', { timeout: 15000 });
+        await pg13f.click('.aposta-grupo-btn');
+        await pg13f.waitForSelector('.aposta-opcao', { timeout: 15000 });
+        await pg13f.locator('.aposta-opcao', { hasText: 'Rever o problema' }).click();
+        await pg13f.fill('[data-campo="proximaAcao"]', 'reunir o grupo para redefinir o problema');
+        await pg13f.waitForTimeout(200);
+        /* Duas chamadas quase simultâneas de criarCiclo() direto — prova
+           a proteção real de concorrência (lock+token), não só o
+           disabled=true do clique único (esse já é coberto acima, pelo
+           fluxo normal da UI). Mesmo padrão dos testes de concorrência
+           da execução (Fase 1). */
+        const resultado = await pg13f.evaluate(() => Promise.all([
+          new Promise((res) => window.faAposta._criarCiclo('problema', 'Rever o problema', (err, id) => res({ err: err || null, id }))),
+          new Promise((res) => window.faAposta._criarCiclo('problema', 'Rever o problema', (err, id) => res({ err: err || null, id }))),
+        ]));
+        const vitoriosos = resultado.filter((r) => !r.err);
+        anota('duas chamadas quase simultâneas de criarCiclo(): só uma vence, a outra é abortada sem criar nada',
+          vitoriosos.length === 1, JSON.stringify(resultado));
+        const totalCiclos = await pg13f.evaluate((turmaKey) => new Promise((res) => {
+          firebase.database().ref('apostas/' + turmaKey + '/execucoes/exec1/grupos/grupo1/ciclos/porId').once('value', (s) => res(Object.keys(s.val() || {}).length));
+        }), TURMA_LIB);
+        anota('nasce exatamente UM ciclo sucessor no banco, nunca dois',
+          totalCiclos === 2 /* Ciclo 1 materializado + o único Ciclo 2 */, String(totalCiclos));
+        await ctx13f.close();
+      }
+
+      /* ── 13g: liberarLockCiclo com um token velho não remove o lock de
+            uma tentativa mais nova (mesma prova da Fase 1, agora para o
+            lock de ciclo). ── */
+      {
+        const semeado13g = apostasProntaParaDecisao();
+        const { ctx: ctx13g, page: pg13g } = await novaPagina(browser, formato, ADM, erros, semeado13g);
+        await pg13g.goto(BASE + '/index.html#treinamento', { waitUntil: 'domcontentloaded' });
+        await pg13g.click('#apostaAbrirBtn');
+        await pg13g.waitForSelector('.aposta-grupo-btn', { timeout: 15000 });
+        await pg13g.click('.aposta-grupo-btn');
+        await pg13g.waitForSelector('.aposta-trilha-item', { timeout: 15000 });
+        const provaToken = await pg13g.evaluate((turmaKey) => new Promise((res) => {
+          const caminhoLock = 'apostas/' + turmaKey + '/execucoes/exec1/grupos/grupo1/ciclos/criacaoCicloEmAndamento';
+          firebase.database().ref(caminhoLock).set({ em: new Date().toISOString(), por: 'outra@previ.com.br', token: 'token-novo' }, () => {
+            window.faAposta._liberarLockCiclo('token-velho');
+            setTimeout(() => {
+              firebase.database().ref(caminhoLock).once('value', (s) => res(s.val()));
+            }, 50);
+          });
+        }), TURMA_LIB);
+        anota('liberarLockCiclo() com token velho não remove o lock de uma tentativa mais nova',
+          !!provaToken && provaToken.token === 'token-novo', JSON.stringify(provaToken));
+        await ctx13g.close();
+      }
+
+      /* ── 13h: Mapa multiciclo — Ciclo 1 continua legível depois do
+            Ciclo 2 nascer; só o atual é clicável; CSV distingue os
+            ciclos, sem achatar um no outro (itens 26, 36). Semeado
+            direto com os dois ciclos já prontos — a mecânica de
+            CRIAR um ciclo pela UI já foi provada passo a passo em
+            13b/13c; aqui o que se examina é a LEITURA multiciclo. ── */
+      {
+        const semeado13h = apostasProntaParaDecisao();
+        semeado13h[TURMA_LIB].execucoes[EXEC].grupos[GRUPO].dados.decisao = { decisao: 'Reformular a hipótese', proximaAcao: 'testar de novo', dataDecisao: '2026-09-19T10:00:00.000Z', proxHipCausa: 'a fila não tem sinalização clara', proxHipIndicio: 'gente perguntando onde é o fim da fila' };
+        semeado13h[TURMA_LIB].execucoes[EXEC].grupos[GRUPO].ciclos = {
+          atual: 'c2',
+          contador: 2,
+          porId: {
+            c1: {
+              numero: 1, status: 'FINALIZADO', pontoDeReinicio: null, cicloAnteriorId: null, etapa: 'decisao',
+              dados: semeado13h[TURMA_LIB].execucoes[EXEC].grupos[GRUPO].dados
+            },
+            c2: {
+              numero: 2, status: 'EM_CONSTRUCAO', pontoDeReinicio: 'hipotese', decisaoOrigem: 'Reformular a hipótese', cicloAnteriorId: 'c1', etapa: 'decisao',
+              /* Mantém experimento/evidência preenchidos (herdados do
+                 seed base) de propósito: a Decisão exige evidência
+                 registrada para não segurar CONTINUAR no aviso didático
+                 "a decisão precisa se apoiar na evidência" — este cenário
+                 quer chegar ao Mapa sem esse desvio, que já é coberto
+                 noutro teste. */
+              dados: Object.assign({}, DADOS_ATE_EVIDENCIA, {
+                hipotese: { causa: 'a fila não tem sinalização clara', indicio: 'gente perguntando onde é o fim da fila' },
+                decisao: { decisao: 'Ampliar', proximaAcao: 'ampliar a sinalização nova', dataDecisao: '2026-09-19T11:00:00.000Z' }
+              })
+            }
+          }
+        };
+        const { ctx: ctx13h, page: pg13h } = await novaPagina(browser, formato, ADM, erros, semeado13h);
+        await pg13h.goto(BASE + '/index.html#treinamento', { waitUntil: 'domcontentloaded' });
+        await pg13h.click('#apostaAbrirBtn');
+        await pg13h.waitForSelector('.aposta-grupo-btn', { timeout: 15000 });
+        await pg13h.click('.aposta-grupo-btn');
+        await pg13h.waitForSelector('#apostaSeguir:not([disabled])', { timeout: 15000 });
+        await pg13h.click('#apostaSeguir');
+        await pg13h.waitForSelector('.aposta-mapa', { timeout: 8000 });
+
+        const mapaInfo = await pg13h.evaluate(() => {
+          const titulos = Array.from(document.querySelectorAll('.aposta-ciclo-titulo')).map((e) => e.textContent);
+          const cardsBotao = document.querySelectorAll('button.aposta-mapa-card').length;
+          const cardsDiv = document.querySelectorAll('div.aposta-mapa-card').length;
+          const texto = document.querySelector('.aposta-mapa').textContent || '';
+          return { titulos, cardsBotao, cardsDiv, temHipoteseOriginal: /faltam atendentes no hor[áa]rio de pico/.test(texto), temHipoteseNova: /sinaliza[çc][ãa]o clara/.test(texto) };
+        });
+        anota('o Mapa mostra uma seção por ciclo quando há mais de um',
+          mapaInfo.titulos.length === 2 && /CICLO 1/.test(mapaInfo.titulos[0]) && /CICLO 2/.test(mapaInfo.titulos[1]),
+          JSON.stringify(mapaInfo.titulos));
+        anota('só os cards do ciclo ATUAL são clicáveis (<button>) — os do Ciclo 1 são <div>, somente leitura',
+          mapaInfo.cardsDiv > 0 && mapaInfo.cardsBotao > 0, JSON.stringify({ botao: mapaInfo.cardsBotao, div: mapaInfo.cardsDiv }));
+        anota('o Ciclo 1 continua completamente legível no Mapa — a Hipótese ORIGINAL aparece',
+          mapaInfo.temHipoteseOriginal, JSON.stringify(mapaInfo));
+        anota('o Ciclo 2 mostra a hipótese NOVA, sem misturar com a do Ciclo 1',
+          mapaInfo.temHipoteseNova, JSON.stringify(mapaInfo));
+
+        /* Clicar num card do Ciclo 1 (não-atual) não faz nada — nunca
+           navega, nunca abre confirmação, porque nem é <button>. */
+        const cicloAtualAntes = await pg13h.evaluate((turmaKey) => new Promise((res) => {
+          firebase.database().ref('apostas/' + turmaKey + '/execucoes/exec1/grupos/grupo1/ciclos/atual').once('value', (s) => res(s.val()));
+        }), TURMA_LIB);
+        await pg13h.evaluate(() => {
+          const cardAntigo = document.querySelector('div.aposta-mapa-card');
+          if (cardAntigo) cardAntigo.click();
+        });
+        await pg13h.waitForTimeout(300);
+        const depoisDoCliqueNoAntigo = await pg13h.evaluate(() => ({
+          aindaNoMapa: !!document.querySelector('.aposta-mapa'),
+          temModal: !!document.querySelector('.aposta-confirmar-overlay'),
+        }));
+        const cicloAtualDepois = await pg13h.evaluate((turmaKey) => new Promise((res) => {
+          firebase.database().ref('apostas/' + turmaKey + '/execucoes/exec1/grupos/grupo1/ciclos/atual').once('value', (s) => res(s.val()));
+        }), TURMA_LIB);
+        anota('clicar num card do Ciclo 1 (não-atual) não navega, não abre modal e não muda cicloAtual (Invariante 7)',
+          depoisDoCliqueNoAntigo.aindaNoMapa && !depoisDoCliqueNoAntigo.temModal && cicloAtualDepois === cicloAtualAntes,
+          JSON.stringify({ depoisDoCliqueNoAntigo, cicloAtualAntes, cicloAtualDepois }));
+
+        /* CSV: Ciclo 1 e Ciclo 2 aparecem como linhas distintas, cada
+           uma com os dados do SEU ciclo — nunca achatados juntos. O
+           clique de propósito no card antigo (acima) não abre nem fecha
+           o painel — só o botão do cabeçalho faz isso. */
+        await pg13h.click('#apostaPainelBtn');
+        await pg13h.waitForSelector('#apostaExportar', { timeout: 8000 });
+        const [download] = await Promise.all([
+          pg13h.waitForEvent('download'),
+          pg13h.click('#apostaExportar'),
+        ]);
+        const caminho = await download.path();
+        const conteudoCsv = fs.readFileSync(caminho, 'utf8');
+        anota('o CSV tem colunas de Ciclo/Ponto de reinício, distinguindo as duas rodadas de Hipótese',
+          /Ciclo/.test(conteudoCsv) && /Ponto de rein[íi]cio/.test(conteudoCsv) &&
+          /faltam atendentes/.test(conteudoCsv) && /sinaliza[çc][ãa]o clara/.test(conteudoCsv),
+          conteudoCsv.slice(0, 200));
+
+        await ctx13h.close();
+      }
+
+      /* ── 13i: retomada — fechar e reabrir no meio do Ciclo 2 volta
+            para o ciclo/etapa corretos, nunca de volta ao Ciclo 1. ── */
+      {
+        const semeado13i = apostasProntaParaDecisao();
+        semeado13i[TURMA_LIB].execucoes[EXEC].grupos[GRUPO].ciclos = {
+          atual: 'c2',
+          contador: 2,
+          porId: {
+            c1: { numero: 1, status: 'FINALIZADO', pontoDeReinicio: null, cicloAnteriorId: null, etapa: 'decisao', dados: Object.assign({}, DADOS_ATE_EVIDENCIA, { decisao: { decisao: 'Investigar mais', proximaAcao: 'investigar mais', dataDecisao: '2026-09-19T10:00:00.000Z', pontoDeReinicioEscolhido: 'ideia' } }) },
+            c2: {
+              numero: 2, status: 'EM_CONSTRUCAO', pontoDeReinicio: 'ideia', decisaoOrigem: 'Investigar mais', cicloAnteriorId: 'c1', etapa: 'experimento',
+              dados: Object.assign({}, DADOS_ATE_EVIDENCIA, {
+                ideia: { acao: 'testar sinalização nova', mudanca: 'a fila ficar mais organizada' },
+                experimento: {}, evidencia: {}, decisao: {}
+              })
+            }
+          }
+        };
+        const { ctx: ctx13i, page: pg13i } = await novaPagina(browser, formato, ADM, erros, semeado13i);
+        await pg13i.goto(BASE + '/index.html#treinamento', { waitUntil: 'domcontentloaded' });
+        await pg13i.click('#apostaAbrirBtn');
+        await pg13i.waitForSelector('.aposta-grupo-btn', { timeout: 15000 });
+        await pg13i.click('.aposta-grupo-btn');
+        await pg13i.waitForSelector('.aposta-etapa-titulo', { timeout: 15000 });
+        const tituloAoAbrir = await pg13i.evaluate(() => (document.querySelector('.aposta-etapa-titulo') || {}).textContent || '');
+        anota('reabrir um grupo em Ciclo 2 retoma na etapa certa do CICLO ATUAL, nunca no Ciclo 1',
+          /E\s*—\s*EXPERIMENTO/i.test(tituloAoAbrir), tituloAoAbrir);
+        const acaoNaTela = await pg13i.evaluate(() => (document.querySelector('[data-campo="oQue"]') || {}).value || '');
+        anota('os dados mostrados são os do Ciclo 2 (Experimento ainda vazio), não os do Ciclo 1',
+          acaoNaTela === '', 'campo veio com "' + acaoNaTela + '"');
+        await ctx13i.close();
       }
 
       anota('nenhum erro de JavaScript', erros.length === 0, erros[0]);

@@ -299,7 +299,11 @@
         chave: 'decisao',
         rotulo: 'Decisão',
         curto: 'a decisão',
-        opcoes: ['Ampliar', 'Ajustar e testar novamente', 'Interromper esta ideia', 'Investigar mais', 'Reformular a hipótese'],
+        /* Fase 4: duas decisões novas — "Rever a mudança mensurável" e
+           "Rever o problema" — cada uma abre um Ciclo novo com ponto de
+           reinício fixo (ver PONTOS_DE_REINICIO_FIXOS). As cinco
+           anteriores continuam com o mesmo sentido de sempre. */
+        opcoes: ['Ampliar', 'Ajustar e testar novamente', 'Interromper esta ideia', 'Investigar mais', 'Reformular a hipótese', 'Rever a mudança mensurável', 'Rever o problema'],
         /* Só ajuda/tooltip — a interpretação não decide pela dupla, e o
            bloco de evidência acima já não emite nenhum veredito
            automático de "hipótese certa/errada" (ver cardConexao). */
@@ -308,7 +312,9 @@
           'Ajustar e testar novamente': 'As evidências sugerem que vale modificar algum aspecto da ideia ou do experimento e realizar novo teste.',
           'Interromper esta ideia': 'As evidências não justificam continuar investindo nesta solução neste momento.',
           'Investigar mais': 'Ainda faltam informações para decidir. É necessário aprender mais antes de escolher o próximo caminho.',
-          'Reformular a hipótese': 'As evidências indicam que a explicação atual para o problema precisa ser revista.'
+          'Reformular a hipótese': 'As evidências indicam que a explicação atual para o problema precisa ser revista.',
+          'Rever a mudança mensurável': 'O que estava sendo medido, ou a meta definida, não descreve mais o que precisa mudar.',
+          'Rever o problema': 'O que aprendemos aponta que a própria definição do problema precisa ser revista.'
         },
         /* Microexplicação — sempre visível embaixo dos botões assim que
            uma decisão é escolhida (não é o mesmo texto de "dicas" acima,
@@ -321,7 +327,9 @@
           'Ajustar e testar novamente': 'Há sinais promissores, mas algo precisa mudar antes de um novo teste.',
           'Interromper esta ideia': 'O aprendizado indica que não vale continuar investindo nesta ideia.',
           'Investigar mais': 'Ainda não temos evidência suficiente para decidir sobre a aposta.',
-          'Reformular a hipótese': 'A evidência sugere que nossa explicação para o problema precisa mudar.'
+          'Reformular a hipótese': 'A evidência sugere que nossa explicação para o problema precisa mudar.',
+          'Rever a mudança mensurável': 'O aprendizado indica que a mudança mensurável definida precisa ser revista.',
+          'Rever o problema': 'O aprendizado indica que a própria definição do problema precisa ser revista.'
         }
       },
       campos: [
@@ -1295,12 +1303,74 @@
       !(normalizar(d.proxHipCausa) && normalizar(d.proxHipIndicio));
   }
 
+  /* ══════════════════════════════════════════════════════════════
+     FASE 4 — PONTO DE REINÍCIO DA DECISÃO
+
+     Das sete decisões possíveis, cinco abrem um Ciclo novo (ver
+     avancar()/concluirOuIniciarNovoCiclo mais abaixo); "Ampliar" e
+     "Interromper esta ideia" só finalizam o ciclo atual. Três das
+     cinco têm o ponto de reinício FIXO (a própria decisão já diz onde
+     recomeçar); as outras duas ("Ajustar e testar novamente" e
+     "Investigar mais") pedem à dupla para ESCOLHER onde — itens 20/21
+     do pedido, com as opções e a pergunta exatas de lá. */
+  var PONTOS_DE_REINICIO_FIXOS = {
+    'Reformular a hipótese': 'hipotese',
+    'Rever a mudança mensurável': 'mudancas',
+    'Rever o problema': 'problema'
+  };
+  var OPCOES_PONTO_REINICIO = {
+    'Ajustar e testar novamente': [
+      { valor: 'ideia', rotulo: 'Ideia de Solução' },
+      { valor: 'experimento', rotulo: 'Experimento' },
+      { valor: 'evidencia', rotulo: 'Planejamento da Evidência' }
+    ],
+    'Investigar mais': [
+      { valor: 'problema', rotulo: 'Problema' },
+      { valor: 'mudancas', rotulo: 'Mudanças Mensuráveis' },
+      { valor: 'hipotese', rotulo: 'Hipótese' },
+      { valor: 'ideia', rotulo: 'Ideia de Solução' },
+      { valor: 'experimento', rotulo: 'Experimento' },
+      { valor: 'evidencia', rotulo: 'Planejamento da Evidência' }
+    ]
+  };
+  var PERGUNTA_PONTO_REINICIO = {
+    'Ajustar e testar novamente': 'O que precisa ser revisto antes do próximo teste?',
+    'Investigar mais': 'O que precisamos investigar ou rever?'
+  };
+
+  function decisaoPedePontoDeReinicioEscolhido(decisaoValor) {
+    return !!OPCOES_PONTO_REINICIO[decisaoValor];
+  }
+  /* "Ampliar" e "Interromper esta ideia" são as únicas que NÃO abrem
+     ciclo novo — todas as outras cinco abrem (item 7/8/12/13 do
+     pedido: só uma nova rodada depois de uma Decisão finalizada cria
+     ciclo; a decisão em si é sempre humana, nunca automática). */
+  function decisaoGeraNovoCiclo(decisaoValor) {
+    var v = String(decisaoValor || '').trim();
+    return !!v && v !== 'Ampliar' && v !== 'Interromper esta ideia';
+  }
+  function pontoDeReinicioDaDecisao(d) {
+    d = d || {};
+    if (PONTOS_DE_REINICIO_FIXOS[d.decisao]) return PONTOS_DE_REINICIO_FIXOS[d.decisao];
+    if (decisaoPedePontoDeReinicioEscolhido(d.decisao)) return d.pontoDeReinicioEscolhido || '';
+    return '';
+  }
+  /* Obrigatório só quando a decisão PEDE a escolha (Ajustar/Investigar)
+     — as outras três que geram ciclo já sabem sozinhas onde reiniciar,
+     e Ampliar/Interromper nem chegam a precisar disso. */
+  function decisaoFaltaPontoDeReinicio(d) {
+    d = d || {};
+    return decisaoPedePontoDeReinicioEscolhido(d.decisao) && !normalizar(d.pontoDeReinicioEscolhido);
+  }
+
   /* Mensagem de orientação quando a etapa ainda não pode mostrar sua
      frase — Hipótese e Ideia têm só duas lacunas cada, então o texto
      fixo do pedido já é claro; o Experimento tem até cinco, então lista
      dinamicamente só o que falta de verdade. Na Decisão, "Reformular a
      hipótese" pode faltar a Nova Hipótese, a Próxima ação, ou as duas —
-     cada combinação tem a sua própria frase (item 5 do ajuste). */
+     cada combinação tem a sua própria frase (item 5 do ajuste); e as
+     decisões que pedem ponto de reinício (Fase 4) também bloqueiam sem
+     ele, com sua própria mensagem. */
   function mensagemFraseIncompleta(etapaId, faltam, d) {
     if (etapaId === 'hipotese') return 'Preencha a causa percebida e o que foi observado para completar a hipótese.';
     if (etapaId === 'ideia') return 'Preencha o que poderíamos fazer e para quê, para visualizar a ideia de solução.';
@@ -1312,6 +1382,9 @@
       if (faltaDecisao) return 'Escolha o que faremos com base no que aprendemos.';
       var faltaProximaAcao = faltam.some(function (p) { return p.chave === 'proximaAcao'; });
       var faltaNovaHip = decisaoFaltaNovaHipotese(d);
+      var faltaPonto = decisaoFaltaPontoDeReinicio(d);
+      if (faltaPonto && faltaProximaAcao) return 'Escolha o que precisa ser revisto e defina a próxima ação para completar a decisão.';
+      if (faltaPonto) return 'Escolha o que precisa ser revisto para completar a decisão.';
       if (faltaNovaHip && faltaProximaAcao) return 'Defina a nova hipótese e a próxima ação para completar a decisão.';
       if (faltaNovaHip) return 'Defina a nova hipótese para completar a decisão.';
       return 'Defina a próxima ação para completar a decisão.';
@@ -1524,7 +1597,12 @@
       _exec = v;
       if (_grupoId) {
         _grupo = (v.grupos || {})[_grupoId] || {};
-        _dados = _grupo.dados || {};
+        /* Fase 4: _dados aponta para o ciclo atual (explícito, quando
+           existe) — nunca direto para _grupo.dados quando já há
+           ciclos/. _etapaAtual é estado de navegação, puramente local,
+           e continua fora deste listener (só muda por ação explícita:
+           avançar/voltar/clique na trilha/no mapa). */
+        _dados = resolverCicloAtual().dados;
       }
       /* O salvamento automático dispara este mesmo listener, com o eco do
          que acabamos de gravar. Redesenhar a etapa por causa desse eco
@@ -1920,6 +1998,302 @@
     });
   }
 
+  /* ══════════════════════════════════════════════════════════════
+     FASE 4 — CICLOS DE APRENDIZAGEM
+
+     Uma mesma aposta (um grupo) pode passar por várias RODADAS de
+     Problema→Mudanças→Hipótese→Ideia→Experimento→Evidência→Decisão —
+     cada rodada é um CICLO. Isso é diferente de uma EXECUÇÃO (Fase 1):
+     execução é o "jogo" inteiro de uma turma; ciclo é uma volta dentro
+     da aposta de UM grupo, dentro de UMA execução. Uma execução nova
+     nunca é um novo ciclo, e um novo ciclo nunca cria execução nova.
+
+     CICLO 1 IMPLÍCITO — decisão tomada na Fase 4, sem migração:
+     enquanto um grupo nunca precisou de um segundo ciclo, ele continua
+     gravando exatamente onde sempre gravou —
+     grupos/<grupoId>/dados/<etapaId> — sem NENHUM campo novo. Só
+     quando esse grupo de fato precisa de um Ciclo 2 é que a estrutura
+     explícita nasce:
+       grupos/<grupoId>/ciclos/
+         atual                      → id do ciclo em edição agora
+         contador                   → só o número do último ciclo criado
+                                        (mesma ideia de contadorExecucoes)
+         criacaoCicloEmAndamento    → lock (mesmo mecanismo de
+                                        token da Fase 1 — ver
+                                        criarExecucao/liberarLock acima)
+         porId/<cicloId>/
+           numero, status ('EM_CONSTRUCAO'|'FINALIZADO' — os estados
+             intermediários do pedido são DERIVADOS ao vivo da etapa e
+             dos dados, nunca persistidos; ver statusCicloDerivado),
+           criadoEm, criadoPorNome, finalizadoEm,
+           cicloAnteriorId, pontoDeReinicio, decisaoOrigem, herdadas,
+           etapa (mesmo papel de grupos/<grupoId>/etapa, só que por
+             ciclo — cada ciclo tem sua própria trilha),
+           dados/<etapaId>          (exatamente as mesmas 9 chaves de
+             sempre — problema, mudancas, hipotese, ideia, experimento,
+             evidencia, decisao… — nada na engine de moldes/validação/
+             resumo precisa saber que existe mais de um ciclo)
+
+     Nascer um Ciclo 2 congela o Ciclo 1: copia grupos/<grupoId>/dados
+     (e /etapa) para ciclos/porId/<primeiroId>/{dados,etapa} — o
+     caminho legado continua existindo, intocado, como um registro
+     redundante, mas deixa de ser lido (ver resolverCicloAtual/
+     caminhoDadosAtual) assim que ciclos/ existe. Ciclo 1, uma vez
+     copiado, nunca mais é escrito — a decisão que o fechou já
+     aconteceu antes de ele virar histórico.
+
+     "Ciclo atual finalizado" (para decidir se um clique de edição pede
+     confirmação — ver PROTEÇÃO CONTRA EDITAR CICLO FINALIZADO) usa o
+     mesmo princípio de não duplicar estado: enquanto o ciclo continua
+     implícito, "finalizado" é simplesmente "a Decisão já tem
+     dataDecisao" (campo que a etapa Decisão já grava sozinha, desde
+     antes desta fase, na primeira vez que Continuar é confirmado —
+     nenhum campo novo precisou nascer só para isso). Só ciclos
+     explícitos (2, 3…) ganham um `status` de verdade, porque aí já
+     existe um registro próprio para guardá-lo.
+
+     A criação de um ciclo é uma ação ESTRUTURAL (Fase 3): qualquer
+     pessoa do MESMO grupo, em qualquer aba/dispositivo, pode estar
+     clicando Continuar na Decisão ao mesmo tempo — clique duplo real
+     entre pessoas diferentes, não só duplo-clique físico. Por isso usa
+     o MESMO mecanismo de concorrência real da Fase 1 (lock com token
+     próprio de cada tentativa, nunca removido às cegas), não apenas
+     disabled=true no botão — ver LOCK_EXPIRA_MS acima, reaproveitado
+     aqui sem duplicar a constante:
+       1) transaction() no lock — só aceita se livre/expirado;
+       2) relê ciclos/atual (com exclusividade garantida pelo lock) e
+          confere que ainda é o mesmo que esta chamada pensava estar
+          fechando; se não for, libera o lock e avisa, sem criar nada;
+       3) relê o ciclo que está sendo fechado (nunca confia só na
+          cópia em memória — mesmo cuidado do confirmarAtualAindaValido);
+       4) transaction() no contador para o número do novo ciclo;
+       5) um ÚNICO update() atômico: materializa o Ciclo 1 (se for a
+          primeira vez), finaliza o ciclo que está sendo fechado, cria
+          o novo com herança/cascata e aponta ciclos/atual para ele —
+          tudo isso junto, ou nada. O lock só é liberado DEPOIS, numa
+          chamada separada (update() não sabe conferir "isso ainda é
+          meu" — só transaction() com o token confere isso).
+     ══════════════════════════════════════════════════════════════ */
+
+  function caminhoCiclos() { return caminhoGrupo() + '/ciclos'; }
+  function cicloAtualId() { return (_grupo.ciclos || {}).atual || null; }
+
+  /* Resolve, a partir de um GRUPO QUALQUER (não só o _grupo selecionado
+     — o painel do facilitador lista todos de uma vez), qual é o ciclo
+     explícito atual quando ele existe, ou o caminho legado (Ciclo 1
+     implícito) quando aquele grupo nunca teve mais de um ciclo. Nunca
+     escreve nada, só lê. */
+  function cicloAtualDe(gr) {
+    var ciclosNode = (gr || {}).ciclos || {};
+    var id = ciclosNode.atual || null;
+    var c = id && ciclosNode.porId ? ciclosNode.porId[id] : null;
+    if (c) return { dados: c.dados || {}, etapa: c.etapa || 'missao' };
+    return { dados: (gr || {}).dados || {}, etapa: (gr || {}).etapa || 'missao' };
+  }
+  /* Mesma resolução, para o grupo em edição agora (_grupo). */
+  function resolverCicloAtual() { return cicloAtualDe(_grupo); }
+
+  /* Onde GRAVAR a etapa em edição agora — mesma regra de leitura acima,
+     do lado da escrita. */
+  function caminhoDadosAtual() {
+    var id = cicloAtualId();
+    return id ? (caminhoCiclos() + '/porId/' + id + '/dados') : (caminhoGrupo() + '/dados');
+  }
+  function caminhoEtapaAtualPersistida() {
+    var id = cicloAtualId();
+    return id ? (caminhoCiclos() + '/porId/' + id + '/etapa') : (caminhoGrupo() + '/etapa');
+  }
+
+  /* Ciclo ATUAL finalizado — nunca precisa olhar ciclos que não são o
+     atual: esses já são sempre somente leitura por outro caminho (ver
+     Mapa multiciclo), nunca por esta checagem.
+
+     Cuidado deliberado com uma falha bem no meio da transição: se a
+     Decisão já foi salva (dataDecisao gravado) mas o NASCIMENTO do
+     ciclo seguinte falhou (rede caiu nesse instante — ver
+     concluirOuIniciarNovoCiclo), o ciclo atual NÃO conta como
+     finalizado enquanto o sucessor esperado não existir de verdade.
+     Sem esse cuidado, reabrir a Decisão mostraria "ciclo já concluído,
+     iniciar um novo a partir desta etapa?" — e confirmar ali criaria
+     um ciclo com ponto de reinício ERRADO (a própria etapa Decisão, em
+     vez do ponto que a decisão de verdade pedia). Tratar como "ainda
+     não finalizado" deixa o grupo simplesmente reabrir a Decisão e
+     clicar Continuar de novo, retomando a MESMA transição pendente. */
+  function cicloAtualEstaFinalizado() {
+    var d = _dados.decisao || {};
+    if (!normalizar(d.decisao) || !d.dataDecisao) return false;
+    var id = cicloAtualId();
+    var registrado = id ? (((_grupo.ciclos || {}).porId || {})[id] || {}).status === 'FINALIZADO' : true;
+    if (!registrado) return false;
+    if (decisaoGeraNovoCiclo(d.decisao)) {
+      var todos = ((_grupo.ciclos || {}).porId) || {};
+      var temSucessor = Object.keys(todos).some(function (k) { return todos[k].cicloAnteriorId === id; });
+      if (!temSucessor) return false;
+    }
+    return true;
+  }
+
+  /* Etapas estritamente ANTES do ponto de reinício — são as que o novo
+     ciclo HERDA (cópia, nunca a mesma referência); do ponto de
+     reinício em diante, cada etapa nasce vazia (EFEITO CASCATA, item
+     24 do pedido: quanto mais cedo o ponto de reinício, mais etapas
+     posteriores precisam ser revisitadas — "vazia" é o mesmo estado de
+     "ainda não preenchida" que etapaPreenchida() já sabe reconhecer,
+     nenhuma lógica nova precisa entender "cascata"). */
+  function etapasAntesDe(etapaId) {
+    return ETAPAS.slice(0, indiceEtapa(etapaId)).map(function (e) { return e.id; });
+  }
+
+  function montarDadosNovoCiclo(dadosAnteriores, pontoDeReinicio) {
+    dadosAnteriores = dadosAnteriores || {};
+    var herdadas = etapasAntesDe(pontoDeReinicio);
+    var dados = {};
+    herdadas.forEach(function (id) {
+      if (dadosAnteriores[id] !== undefined) dados[id] = JSON.parse(JSON.stringify(dadosAnteriores[id]));
+    });
+    ETAPAS.forEach(function (e) { if (herdadas.indexOf(e.id) === -1) dados[e.id] = {}; });
+    /* "Reformular a hipótese": a Nova Hipótese que a Decisão do ciclo
+       anterior coletou (proxHipCausa/proxHipIndicio) é que vira a
+       Hipótese do ciclo novo — nunca fica em outro lugar, e nunca
+       sobrescreve a hipótese original do ciclo anterior (ela continua
+       congelada em dadosAnteriores, intocada — ver item 19/17 do
+       pedido). */
+    if (pontoDeReinicio === 'hipotese') {
+      var decisaoAnterior = dadosAnteriores.decisao || {};
+      if (normalizar(decisaoAnterior.proxHipCausa) || normalizar(decisaoAnterior.proxHipIndicio)) {
+        dados.hipotese = { causa: decisaoAnterior.proxHipCausa || '', indicio: decisaoAnterior.proxHipIndicio || '' };
+      }
+    }
+    return { dados: dados, herdadas: herdadas };
+  }
+
+  function criarCiclo(pontoDeReinicio, decisaoOrigem, cb) {
+    var s = sessao();
+    if (!s) { if (cb) cb('sem sessão'); return; }
+    var cicloAnteriorIdEsperado = cicloAtualId(); /* null = ainda é o Ciclo 1 implícito */
+    var lockRef = db().ref(caminhoCiclos() + '/criacaoCicloEmAndamento');
+    var meuToken = lockRef.push().key;
+    lockRef.transaction(function (lockAtual) {
+      if (lockAtual && (Date.now() - new Date(lockAtual.em).getTime()) < LOCK_EXPIRA_MS) return undefined;
+      return { em: new Date().toISOString(), por: s.email, token: meuToken };
+    }, function (errLock, venceu) {
+      if (errLock) { if (cb) cb(errLock); return; }
+      if (!venceu) { if (cb) cb('lock-ocupado'); return; }
+      confirmarCicloAindaValido(cicloAnteriorIdEsperado, pontoDeReinicio, decisaoOrigem, s, meuToken, cb);
+    });
+  }
+
+  /* Só apaga o lock se o token gravado nele ainda for O MESMO que esta
+     chamada recebeu ao adquiri-lo — nunca um remove()/set(null) às
+     cegas (mesmo motivo do liberarLock da Fase 1, ver comentário lá). */
+  function liberarLockCiclo(meuToken) {
+    db().ref(caminhoCiclos() + '/criacaoCicloEmAndamento').transaction(function (lockAtual) {
+      if (lockAtual && lockAtual.token === meuToken) return null;
+      return undefined;
+    });
+  }
+
+  function confirmarCicloAindaValido(cicloAnteriorIdEsperado, pontoDeReinicio, decisaoOrigem, s, meuToken, cb) {
+    db().ref(caminhoGrupo() + '/ciclos/atual').once('value', function (snap) {
+      var atualDeVerdade = snap.val() || null;
+      if (atualDeVerdade !== cicloAnteriorIdEsperado) {
+        liberarLockCiclo(meuToken);
+        if (cb) cb('ciclo-mudou');
+        return;
+      }
+      obterNumeroCicloEConcluir(cicloAnteriorIdEsperado, pontoDeReinicio, decisaoOrigem, s, meuToken, cb);
+    }, function () {
+      liberarLockCiclo(meuToken);
+      if (cb) cb('erro-leitura');
+    });
+  }
+
+  function obterNumeroCicloEConcluir(cicloAnteriorIdEsperado, pontoDeReinicio, decisaoOrigem, s, meuToken, cb) {
+    db().ref(caminhoCiclos() + '/contador').transaction(function (atual) {
+      return (atual || 1) + 1; /* 1 é sempre o Ciclo 1 (implícito ou já materializado) */
+    }, function (errContador, comprometido, snapContador) {
+      if (errContador || !comprometido) {
+        liberarLockCiclo(meuToken);
+        if (cb) cb('erro-contador');
+        return;
+      }
+      var meuNumero = snapContador.val();
+      var novoKey = db().ref(caminhoCiclos() + '/porId').push().key;
+      var caminhoCicloAnterior = cicloAnteriorIdEsperado
+        ? (caminhoCiclos() + '/porId/' + cicloAnteriorIdEsperado)
+        : caminhoGrupo();
+      /* Relê o que está sendo fechado bem antes do update() final —
+         mesmo cuidado do confirmarAtualAindaValido da Fase 1: o que vai
+         congelar como histórico tem de ser o que está gravado agora,
+         não uma cópia em memória que pode ter ficado velha. */
+      db().ref(caminhoCicloAnterior).once('value', function (snapAnterior) {
+        concluirCriacaoCiclo(cicloAnteriorIdEsperado, snapAnterior.val() || {}, novoKey, meuNumero, pontoDeReinicio, decisaoOrigem, s, meuToken, cb);
+      }, function () {
+        liberarLockCiclo(meuToken);
+        if (cb) cb('erro-leitura-anterior');
+      });
+    });
+  }
+
+  function concluirCriacaoCiclo(cicloAnteriorIdEsperado, anterior, novoKey, meuNumero, pontoDeReinicio, decisaoOrigem, s, meuToken, cb) {
+    var agora = new Date().toISOString();
+    var updates = {};
+    var primeiraMaterializacao = !cicloAnteriorIdEsperado;
+    var dadosAnteriores = anterior.dados || {};
+    var etapaAnterior = anterior.etapa || 'decisao';
+    var cicloAnteriorIdReal = cicloAnteriorIdEsperado;
+    var finalizadoEmAnterior = (dadosAnteriores.decisao || {}).dataDecisao || agora;
+
+    if (primeiraMaterializacao) {
+      /* Ciclo 1 nasce agora, com exatamente o que já estava gravado no
+         grupo — nunca mais alterado depois disso. grupos/<grupoId>/dados
+         continua existindo, intocado, como registro redundante (ver
+         nota no topo desta seção). */
+      cicloAnteriorIdReal = db().ref(caminhoCiclos() + '/porId').push().key;
+      updates[caminhoCiclos() + '/porId/' + cicloAnteriorIdReal] = {
+        numero: 1,
+        status: 'FINALIZADO',
+        criadoEm: anterior.criadoEm || null,
+        criadoPorNome: null,
+        finalizadoEm: finalizadoEmAnterior,
+        cicloAnteriorId: null,
+        pontoDeReinicio: null,
+        decisaoOrigem: null,
+        etapa: etapaAnterior,
+        dados: dadosAnteriores
+      };
+    } else {
+      updates[caminhoCiclos() + '/porId/' + cicloAnteriorIdReal + '/status'] = 'FINALIZADO';
+      updates[caminhoCiclos() + '/porId/' + cicloAnteriorIdReal + '/finalizadoEm'] = finalizadoEmAnterior;
+    }
+
+    var montado = montarDadosNovoCiclo(dadosAnteriores, pontoDeReinicio);
+    var novoCiclo = {
+      numero: meuNumero,
+      status: 'EM_CONSTRUCAO',
+      criadoEm: agora,
+      criadoPorNome: s.name || s.email,
+      finalizadoEm: null,
+      cicloAnteriorId: cicloAnteriorIdReal,
+      pontoDeReinicio: pontoDeReinicio,
+      decisaoOrigem: decisaoOrigem,
+      herdadas: montado.herdadas,
+      etapa: pontoDeReinicio,
+      dados: montado.dados
+    };
+    updates[caminhoCiclos() + '/porId/' + novoKey] = novoCiclo;
+    /* ciclos/atual só muda AQUI, junto com tudo o mais — nunca antes.
+       Mesma garantia do "atual" de execução (Fase 1): ou o update()
+       inteiro grava, ou ciclos/atual continua exatamente onde estava. */
+    updates[caminhoCiclos() + '/atual'] = novoKey;
+
+    db().ref().update(updates, function (err) {
+      liberarLockCiclo(meuToken);
+      if (err) { if (cb) cb(err); return; }
+      if (cb) cb(null, novoKey, novoCiclo);
+    });
+  }
+
   /* ── Escolha do grupo ── */
   function renderEscolhaGrupo() {
     var grupos = _exec.grupos || {};
@@ -1957,8 +2331,9 @@
   function entrarNoGrupo(grupoId, jaEra) {
     _grupoId = grupoId;
     _grupo = (_exec.grupos || {})[grupoId] || {};
-    _dados = _grupo.dados || {};
-    _etapaAtual = _grupo.etapa || 'missao';
+    var r = resolverCicloAtual();
+    _dados = r.dados;
+    _etapaAtual = r.etapa;
     if (!jaEra) {
       var s = sessao();
       if (s) {
@@ -1990,7 +2365,11 @@
      longe alcançado — a etapa em que o grupo está, a que o painel
      registrou e a última preenchida, o que vier mais adiante. */
   function ateOndeChegou() {
-    var alcancado = Math.max(indiceEtapa(_etapaAtual), _grupo && _grupo.etapa ? indiceEtapa(_grupo.etapa) : 0);
+    /* Fase 4: a etapa "registrada" é a do CICLO atual, não a legada do
+       grupo direto — ver resolverCicloAtual/caminhoEtapaAtualPersistida.
+       Continua idêntico a antes enquanto a aposta tiver um só ciclo. */
+    var etapaRegistrada = resolverCicloAtual().etapa;
+    var alcancado = Math.max(indiceEtapa(_etapaAtual), etapaRegistrada ? indiceEtapa(etapaRegistrada) : 0);
     ETAPAS.forEach(function (e, i) {
       if (i > alcancado && etapaPreenchida(e.id, _dados)) alcancado = i;
     });
@@ -2043,7 +2422,9 @@
     'Ajustar e testar novamente': 'ajustar a comunicação e repetir o teste com um grupo maior',
     'Interromper esta ideia': 'encerrar este experimento e registrar o que foi aprendido',
     'Investigar mais': 'conversar com o grupo para entender melhor o que foi observado',
-    'Reformular a hipótese': 'testar a nova hipótese com um novo experimento'
+    'Reformular a hipótese': 'testar a nova hipótese com um novo experimento',
+    'Rever a mudança mensurável': 'redefinir o que será medido antes de seguir adiante',
+    'Rever o problema': 'reunir o grupo para redefinir o problema antes de seguir adiante'
   };
 
   /* Conversão aproximada só para SUGERIR uma data — meses/bimestres/
@@ -2385,6 +2766,10 @@
 
     if (etapa.escolha && !usados['@escolha']) html += escolhaHtml(etapa.escolha, d);
 
+    /* Fase 4: logo abaixo da escolha principal da Decisão — só existe
+       quando a decisão atual pede um ponto de reinício escolhido. */
+    if (etapa.id === 'decisao') html += pontoReinicioHtml(d);
+
     /* O que o Experimento vai medir não é mais texto redigitado: é a
        escolha de quais Mudanças mensuráveis este teste observa. */
     if (etapa.id === 'experimento') html += resultadosPickerHtml(d);
@@ -2531,6 +2916,28 @@
         }).join('') +
       '</div>' +
       (explicacao ? '<p class="aposta-grupo-dica" data-escolha-explicacao="' + esc(escolha.chave) + '">' + esc(explicacao) + '</p>' : '') +
+    '</div>';
+  }
+
+  /* Fase 4 — ponto de reinício da Decisão: mesmo visual de escolhaHtml
+     (reaproveita as classes .aposta-escolha/.aposta-opcao, para o
+     clique cair no mesmo mecanismo genérico — ver ligarEtapa), mas não
+     é um etapa.escolha declarado no molde porque as OPÇÕES mudam
+     conforme a decisão escolhida (rotulo ≠ valor, ao contrário da
+     escolha principal — ver OPCOES_PONTO_REINICIO). Vazio quando a
+     decisão atual não pede essa escolha. */
+  function pontoReinicioHtml(d) {
+    if (!decisaoPedePontoDeReinicioEscolhido(d.decisao)) return '';
+    var opcoes = OPCOES_PONTO_REINICIO[d.decisao] || [];
+    var atual = d.pontoDeReinicioEscolhido || '';
+    return '<div class="aposta-escolha" id="apostaGrupoPontoReinicio">' +
+      '<span class="aposta-campo-rot">' + esc(PERGUNTA_PONTO_REINICIO[d.decisao] || 'O que precisa ser revisto?') + '</span>' +
+      '<div class="aposta-escolha-opcoes">' +
+        opcoes.map(function (o) {
+          return '<button type="button" class="aposta-opcao' + (atual === o.valor ? ' is-ativa' : '') +
+            '" data-escolha="pontoDeReinicioEscolhido" data-valor="' + esc(o.valor) + '">' + esc(o.rotulo) + '</button>';
+        }).join('') +
+      '</div>' +
     '</div>';
   }
 
@@ -2733,7 +3140,7 @@
       var faltam = partesFaltantesEtapa(etapa, d);
       var temLegadoValido = etapa.legado && String(d[etapa.legado] || '').trim() && !temLacunaPreenchida(etapa, d);
       if (faltam.length && !temLegadoValido) return true;
-      if (etapa.id === 'decisao' && decisaoFaltaNovaHipotese(d)) return true;
+      if (etapa.id === 'decisao' && (decisaoFaltaNovaHipotese(d) || decisaoFaltaPontoDeReinicio(d))) return true;
       return false;
     }
     return false;
@@ -3011,8 +3418,27 @@
         });
       }
       if (etapa.escolha) {
-        var ativa = _tela.querySelector('.aposta-opcao.is-ativa');
+        /* Escopado por data-escolha (chave), não só ".is-ativa" — a
+           Decisão (Fase 4) tem uma SEGUNDA escolha na mesma tela (o
+           ponto de reinício, logo abaixo), e um seletor genérico
+           pegaria qualquer uma das duas, a que vier primeiro no DOM. */
+        var ativa = _tela.querySelector('.aposta-opcao[data-escolha="' + etapa.escolha.chave + '"].is-ativa');
         if (ativa) d[etapa.escolha.chave] = ativa.dataset.valor;
+      }
+      /* Ponto de reinício (Fase 4): não é um etapa.escolha declarado no
+         molde — as opções mudam conforme a decisão escolhida (ver
+         pontoReinicioHtml) — mas usa o mesmo mecanismo de botões. */
+      var ativaPonto = _tela.querySelector('.aposta-opcao[data-escolha="pontoDeReinicioEscolhido"].is-ativa');
+      if (ativaPonto) d.pontoDeReinicioEscolhido = ativaPonto.dataset.valor;
+      /* dataDecisao não tem campo no DOM (não é editável) — sem
+         preservá-la aqui, QUALQUER salvamento da Decisão (autosave ao
+         digitar, clique numa opção, ou o Continuar final) apagaria a
+         data já gravada, porque cada um desses salva o objeto 'decisao'
+         inteiro a partir deste coletar(). Só fica de fato definida no
+         clique de Continuar (ver mais abaixo); aqui só preserva o que
+         já existia — nunca inventa uma data antes da hora. */
+      if (etapa.id === 'decisao' && (_dados.decisao || {}).dataDecisao) {
+        d.dataDecisao = _dados.decisao.dataDecisao;
       }
       return d;
     }
@@ -3047,6 +3473,8 @@
         aindaBloqueado = !normalizar(d.classificacao);
       } else if (tipo === 'decisao-nova-hipotese') {
         aindaBloqueado = decisaoFaltaNovaHipotese(d);
+      } else if (tipo === 'decisao-ponto-reinicio') {
+        aindaBloqueado = decisaoFaltaPontoDeReinicio(d);
       }
       if (!aindaBloqueado) {
         avisosEl.innerHTML = '';
@@ -3101,12 +3529,13 @@
          estivesse pronta (CONTINUAR continua bloqueado; ver
          seguirDesabilitado/decisaoFaltaNovaHipotese). */
       var faltaNovaHipDecisao = etapa.id === 'decisao' && decisaoFaltaNovaHipotese(d);
+      var faltaPontoDecisao = etapa.id === 'decisao' && decisaoFaltaPontoDeReinicio(d);
 
       /* Hipótese, Ideia e Experimento: nada de frase com lacunas por
          dentro enquanto falta algo — só a orientação do que falta.
          Assim que tudo estiver preenchido, cai no mesmo caminho de
          sempre logo abaixo. */
-      if (estrita && (faltam.length || faltaNovaHipDecisao)) {
+      if (estrita && (faltam.length || faltaNovaHipDecisao || faltaPontoDecisao)) {
         el.hidden = false;
         el.innerHTML = '<span class="aposta-frase-rot">Fica assim no mapa</span>' +
           '<p class="aposta-frase-falta">' + esc(mensagemFraseIncompleta(etapa.id, faltam, d)) + '</p>';
@@ -3676,9 +4105,14 @@
       return d;
     }
 
-    _tela.querySelectorAll('.aposta-opcao').forEach(function (b) {
+    /* Fase 4: a Decisão pode ter DUAS escolhas na mesma tela (a decisão
+       em si e, condicionalmente, o ponto de reinício) — "limpar
+       is-ativa" tem de ficar restrito ao MESMO grupo (mesmo
+       data-escolha) do botão clicado, senão clicar numa apagaria a
+       seleção da outra. */
+    function ligarBotaoOpcao(b) {
       b.addEventListener('click', function () {
-        _tela.querySelectorAll('.aposta-opcao').forEach(function (o) { o.classList.remove('is-ativa'); });
+        _tela.querySelectorAll('.aposta-opcao[data-escolha="' + b.dataset.escolha + '"]').forEach(function (o) { o.classList.remove('is-ativa'); });
         b.classList.add('is-ativa');
         salvarEtapa(etapa.id, coletar());
         atualizarFrase();
@@ -3690,9 +4124,34 @@
           if (proximaAcaoInput && PLACEHOLDER_PROXIMA_ACAO[b.dataset.valor]) {
             proximaAcaoInput.placeholder = PLACEHOLDER_PROXIMA_ACAO[b.dataset.valor];
           }
+          /* Trocar a decisão principal invalida uma escolha de ponto de
+             reinício de uma decisão anterior — as opções mudam (ou o
+             bloco nem existe mais para a decisão nova); redesenha o
+             bloco do zero a cada troca da decisão principal, nunca
+             deixa uma opção de outra decisão marcada como ativa. */
+          if (etapa.escolha && b.dataset.escolha === etapa.escolha.chave) atualizarPontoReinicioBloco();
         }
       });
-    });
+    }
+    _tela.querySelectorAll('.aposta-opcao').forEach(ligarBotaoOpcao);
+
+    function atualizarPontoReinicioBloco() {
+      var host = document.getElementById('apostaGrupoPontoReinicio');
+      var d = coletar();
+      d.pontoDeReinicioEscolhido = '';
+      var novoHtml = pontoReinicioHtml(d);
+      if (host) {
+        if (novoHtml) host.outerHTML = novoHtml;
+        else host.parentNode.removeChild(host);
+      } else if (novoHtml) {
+        var escolhaWrap = _tela.querySelector('.aposta-escolha');
+        if (escolhaWrap) escolhaWrap.insertAdjacentHTML('afterend', novoHtml);
+      }
+      var novoHost = document.getElementById('apostaGrupoPontoReinicio');
+      if (novoHost) novoHost.querySelectorAll('.aposta-opcao').forEach(ligarBotaoOpcao);
+      salvarEtapa(etapa.id, coletar());
+      atualizarEscolhaEBotao();
+    }
 
     var add = document.getElementById('apostaAddMudanca');
     if (add) {
@@ -3801,6 +4260,17 @@
           (grupoNovaHip || avisosEl).scrollIntoView({ behavior: 'smooth', block: 'center' });
           return;
         }
+        /* Fase 4 — "Ajustar e testar novamente" e "Investigar mais"
+           pedem à dupla para escolher onde o próximo ciclo recomeça
+           (itens 20/21 do pedido); sem essa escolha, CONTINUAR fica
+           bloqueado de verdade, mesmo padrão da Nova Hipótese acima. */
+        if (etapa.id === 'decisao' && decisaoFaltaPontoDeReinicio(d)) {
+          avisosEl.dataset.bloqueio = 'decisao-ponto-reinicio';
+          avisosEl.innerHTML = '<p class="aposta-aviso-didatico">' + esc(PERGUNTA_PONTO_REINICIO[d.decisao] || 'Escolha o que precisa ser revisto') + ' — escolha uma opção para completar a decisão.</p>';
+          var grupoPontoReinicio = document.getElementById('apostaGrupoPontoReinicio');
+          (grupoPontoReinicio || avisosEl).scrollIntoView({ behavior: 'smooth', block: 'center' });
+          return;
+        }
       }
 
       /* Evidência: a etapa inteira alterna entre dois modos, nunca card
@@ -3898,12 +4368,18 @@
         return;
       }
       /* Data da Decisão: quando esta decisão foi registrada — auditoria
-         automática, nunca digitada. Grava só na primeira vez que a
-         Decisão avança de verdade (não a cada tecla, senão "quando foi
-         decidido" ficaria mudando a cada correção); diferente da Data
-         de reavaliação, que é quando o grupo PRETENDE voltar a olhar. */
-      if (etapa.id === 'decisao' && !((_dados.decisao || {}).dataDecisao)) {
-        d.dataDecisao = new Date().toISOString();
+         automática, nunca digitada. Grava na primeira vez que a Decisão
+         avança de verdade e NUNCA muda depois disso — diferente da Data
+         de reavaliação, que é quando o grupo PRETENDE voltar a olhar.
+         `d` vem de coletar(), que só lê campos com data-campo no DOM:
+         dataDecisao não é um desses (não é editável), então preservá-la
+         aqui é OBRIGATÓRIO — sem isso, qualquer novo Continuar sobre uma
+         Decisão já respondida (Fase 4: reabrir a Decisão para tentar de
+         novo depois de uma falha no nascimento do ciclo, ver
+         concluirOuIniciarNovoCiclo) apagaria a data já gravada, porque
+         salvarEtapa substitui o objeto 'decisao' inteiro. */
+      if (etapa.id === 'decisao') {
+        d.dataDecisao = (_dados.decisao || {}).dataDecisao || new Date().toISOString();
       }
       seguirBtn.disabled = true;
       salvarEtapa(etapa.id, d, false, function (err) {
@@ -3939,15 +4415,93 @@
 
   function avancar(etapa) {
     var idx = indiceEtapa(etapa.id);
-    if (idx === ETAPAS.length - 1) { _vendoMapa = true; render(); return; }
+    if (idx === ETAPAS.length - 1) {
+      /* Decisão confirmada — Fase 4 decide entre só finalizar o ciclo
+         (Ampliar/Interromper) ou também abrir o próximo (as outras
+         cinco decisões). Nas demais etapas (não existe outro caso hoje
+         em que idx seja o último senão 'decisao'), mantém o
+         comportamento de sempre. */
+      if (etapa.id === 'decisao') { concluirOuIniciarNovoCiclo(); return; }
+      _vendoMapa = true; render();
+      return;
+    }
     _etapaAtual = ETAPAS[idx + 1].id;
-    /* A etapa do grupo é o que o painel do facilitador mostra como
-       progresso. Falhar aqui não trava o grupo, mas engana quem
-       acompanha — então avisa. */
-    db().ref(caminhoGrupo() + '/etapa').set(_etapaAtual, function (err) {
+    /* A etapa do grupo (ou do ciclo atual) é o que o painel do
+       facilitador mostra como progresso. Falhar aqui não trava o
+       grupo, mas engana quem acompanha — então avisa. */
+    db().ref(caminhoEtapaAtualPersistida()).set(_etapaAtual, function (err) {
       if (err) avisar('Avancei aqui, mas não consegui registrar o progresso do grupo.', true);
     });
     render();
+  }
+
+  /* ══════════════════════════════════════════════════════════════
+     FASE 4 — O QUE ACONTECE QUANDO A DECISÃO É CONFIRMADA
+
+     "Ampliar" e "Interromper esta ideia" (itens 12/13 do pedido)
+     apenas finalizam o ciclo atual — nenhum ciclo novo nasce sozinho.
+     As outras cinco decisões abrem um ciclo novo, cada uma com seu
+     próprio ponto de reinício (fixo para três delas, escolhido pela
+     dupla para as outras duas — ver PONTOS_DE_REINICIO_FIXOS/
+     OPCOES_PONTO_REINICIO). A decisão continua sempre humana: nada
+     aqui decide sozinha QUAL ciclo nascer — só executa a consequência
+     estrutural da escolha que a dupla já fez. ══════════════════════ */
+  function finalizarCicloAtual(cb) {
+    var id = cicloAtualId();
+    if (!id) {
+      /* Ciclo 1 implícito: nada para persistir além do que a Decisão
+         já gravou (dataDecisao) — é esse campo que sinaliza "concluído"
+         até o dia em que um Ciclo 2 nascer de verdade (ver CICLO 1
+         IMPLÍCITO, na seção de dados de ciclos). */
+      if (cb) cb();
+      return;
+    }
+    var finalizadoEm = (_dados.decisao || {}).dataDecisao || new Date().toISOString();
+    db().ref(caminhoCiclos() + '/porId/' + id).update({ status: 'FINALIZADO', finalizadoEm: finalizadoEm }, function (err) {
+      if (err) avisar('A decisão foi salva, mas não consegui marcar o ciclo como concluído.', true);
+      if (cb) cb();
+    });
+  }
+
+  /* Estado local + navegação depois de um ciclo novo nascer — usado
+     tanto pelo fluxo normal (Decisão → Continuar) quanto pela edição
+     manual de um ciclo já finalizado (ver PROTEÇÃO CONTRA EDITAR CICLO
+     FINALIZADO). Não espera o eco do listener: o mesmo padrão de
+     concluirCriacaoExecucao (Fase 1), que também atualiza o estado
+     local na hora, sem esperar a rodada seguinte de ouvirExecucao(). */
+  function entrarNoNovoCiclo(novoCicloId, novoCiclo, etapaAlvo) {
+    _grupo.ciclos = _grupo.ciclos || {};
+    _grupo.ciclos.atual = novoCicloId;
+    _grupo.ciclos.porId = _grupo.ciclos.porId || {};
+    _grupo.ciclos.porId[novoCicloId] = novoCiclo;
+    _dados = novoCiclo.dados;
+    _etapaAtual = etapaAlvo || novoCiclo.etapa;
+    _vendoMapa = false;
+    render();
+  }
+
+  function concluirOuIniciarNovoCiclo() {
+    var d = _dados.decisao || {};
+    if (!decisaoGeraNovoCiclo(d.decisao)) {
+      finalizarCicloAtual(function () { _vendoMapa = true; render(); });
+      return;
+    }
+    var ponto = pontoDeReinicioDaDecisao(d);
+    criarCiclo(ponto, d.decisao, function (err, novoCicloId, novoCiclo) {
+      if (err) {
+        /* A decisão já foi salva antes de chegar aqui (avancar só roda
+           depois do salvarEtapa da Decisão ter confirmado) — só o
+           NASCIMENTO do próximo ciclo falhou. Nada foi perdido: mostra
+           o mapa com o ciclo atual, já finalizado corretamente por
+           dentro de criarCiclo só em caso de sucesso (numa falha, o
+           update() atômico não grava nada, então o ciclo atual
+           continua exatamente como estava, com a decisão gravada). */
+        avisar('A decisão foi salva, mas não consegui abrir o próximo ciclo — verifique a conexão e tente de novo pelo Mapa.', true);
+        _vendoMapa = true; render();
+        return;
+      }
+      entrarNoNovoCiclo(novoCicloId, novoCiclo, ponto);
+    });
   }
 
   /* ── Salvamento automático ───────────────────────────────────────
@@ -3980,7 +4534,7 @@
     _dados[etapaId] = dados;
     var s = sessao();
     var updates = {};
-    updates[caminhoGrupo() + '/dados/' + etapaId] = dados;
+    updates[caminhoDadosAtual() + '/' + etapaId] = dados;
     updates[caminhoGrupo() + '/atualizadoEm'] = new Date().toISOString();
     updates[caminhoGrupo() + '/atualizadoPorNome'] = s ? (s.name || s.email) : '';
     db().ref().update(updates, function (err) {
@@ -3997,8 +4551,137 @@
   /* ══════════════════════════════════════════════════════════════
      MAPA DA APOSTA
      ══════════════════════════════════════════════════════════════ */
+  /* ══════════════════════════════════════════════════════════════
+     FASE 4 — MAPA MULTICICLO
+
+     Enquanto a aposta tem um só ciclo (o caso de sempre), o Mapa
+     continua idêntico ao que já era — nenhuma seção "CICLO 1" aparece
+     à toa. A partir do Ciclo 2, Missão/Sintoma continuam aparecendo
+     uma ÚNICA vez (item 5 do pedido: são contexto da aposta, não do
+     ciclo), e cada ciclo ganha sua própria seção, começando no seu
+     ponto de reinício (ou em Problema, para o Ciclo 1) — repetir
+     Problema/Mudanças herdados e intocados em todo ciclo posterior só
+     acrescentaria ruído ao que já está exatamente igual ao anterior.
+
+     Só o ciclo ATUAL tem cards clicáveis (<button>) — os demais são
+     <div>, sem clique nenhum, o mesmo padrão já usado no histórico de
+     execuções da Fase 2 (nunca <button> = nada ali é editável por
+     engano). Isso sozinho já satisfaz "consultar um ciclo anterior
+     nunca altera cicloAtual nem escreve nele": não existe UM caminho
+     de código que tente. */
+  /* Lista pura, sem depender de estado global (_grupo/_dados) — usada
+     tanto pelo Mapa ao vivo (com o ciclo atual e ehAtual marcados por
+     cima, ver todosOsCiclosOrdenados) quanto pelo Histórico de
+     Execuções da Fase 2 e pelo CSV, que leem grupos de uma FOTOGRAFIA
+     (.once()) qualquer, atual ou antiga — nunca as variáveis da
+     dinâmica ao vivo. */
+  function listarCiclosDoGrupo(grupo) {
+    var ciclosNode = (grupo || {}).ciclos || {};
+    if (!ciclosNode.porId) {
+      return [{ id: null, numero: 1, dados: (grupo || {}).dados || {}, pontoDeReinicio: null, status: null }];
+    }
+    var porId = ciclosNode.porId;
+    return Object.keys(porId).sort(function (a, b) {
+      return (porId[a].numero || 0) - (porId[b].numero || 0);
+    }).map(function (id) {
+      var c = porId[id] || {};
+      return {
+        id: id, numero: c.numero, dados: c.dados || {}, pontoDeReinicio: c.pontoDeReinicio || null,
+        decisaoOrigem: c.decisaoOrigem || null, status: c.status || 'EM_CONSTRUCAO'
+      };
+    });
+  }
+
+  function todosOsCiclosOrdenados() {
+    var atualId = (_grupo.ciclos || {}).atual || null;
+    return listarCiclosDoGrupo(_grupo).map(function (c) {
+      var ehAtual = c.id === atualId || (c.id === null && atualId === null);
+      return Object.assign({}, c, {
+        ehAtual: ehAtual,
+        status: c.id ? c.status : (cicloAtualEstaFinalizado() ? 'FINALIZADO' : 'EM_CONSTRUCAO')
+      });
+    });
+  }
+
+  function cardsDoCicloHtml(ciclo) {
+    var inicioIdx = ciclo.pontoDeReinicio ? indiceEtapa(ciclo.pontoDeReinicio) : indiceEtapa('problema');
+    return ETAPAS.slice(inicioIdx).map(function (e, i) {
+      var texto = resumoEtapa(e.id, ciclo.dados);
+      var tag = ciclo.ehAtual ? 'button' : 'div';
+      return (i ? '<div class="aposta-mapa-seta">↓</div>' : '') +
+        '<' + tag + ' class="aposta-mapa-card' + (texto ? '' : ' is-vazio') + (ciclo.ehAtual ? '' : ' is-somente-leitura') +
+          '" data-etapa="' + esc(e.id) + '"' + (ciclo.ehAtual ? '' : ' tabindex="-1"') + '>' +
+          '<span class="aposta-mapa-rot">' + esc(e.titulo) + '</span>' +
+          '<span class="aposta-mapa-txt">' + esc(texto || 'ainda não preenchido') + '</span>' +
+        '</' + tag + '>';
+    }).join('');
+  }
+
+  function cicloTituloHtml(ciclo) {
+    var partes = ['CICLO ' + ciclo.numero];
+    if (ciclo.pontoDeReinicio) {
+      var e = etapaPorId(ciclo.pontoDeReinicio);
+      partes.push('Ponto de reinício: ' + (e ? e.curto : ciclo.pontoDeReinicio));
+    }
+    partes.push(ciclo.status === 'FINALIZADO' ? 'Concluído' : (ciclo.ehAtual ? 'Em andamento' : ''));
+    return '<div class="aposta-ciclo-titulo">' + esc(partes.filter(Boolean).join(' · ')) + '</div>';
+  }
+
+  /* Item 9 do pedido: tentar editar uma etapa de um ciclo já concluído
+     nunca reabre e sobrescreve silenciosamente o histórico — pergunta
+     antes, e só cria um Ciclo novo (a partir da etapa clicada) se a
+     dupla confirmar. Mesmo padrão visual de confirmarNovaExecucao. */
+  function confirmarEditarCicloFinalizado(etapaAlvo, callbackSim) {
+    var overlay = document.createElement('div');
+    overlay.className = 'modal-overlay aposta-confirmar-overlay';
+    overlay.style.cssText = 'display:flex;align-items:center;justify-content:center;z-index:10002';
+    var box = document.createElement('div');
+    box.className = 'modal-box';
+    box.style.cssText = 'max-width:440px;width:90%;padding:28px;display:flex;flex-direction:column;gap:18px';
+    box.innerHTML =
+      '<p style="margin:0;font-size:.95rem;line-height:1.6;color:var(--ink)">Este ciclo já foi concluído. Deseja iniciar um novo ciclo a partir desta etapa?</p>' +
+      '<p style="margin:0;font-size:.82rem;line-height:1.5;color:var(--ink-3)">O que já foi decidido neste ciclo continua registrado, sem nenhuma alteração — um Ciclo novo começa a partir de "' +
+        esc((etapaPorId(etapaAlvo) || {}).curto || etapaAlvo) + '".</p>' +
+      '<div style="display:flex;justify-content:flex-end;gap:8px;flex-wrap:wrap">' +
+        '<button type="button" class="btn aposta-modal-nao-btn">CANCELAR</button>' +
+        '<button type="button" class="btn btn--primary aposta-modal-sim-btn">INICIAR NOVO CICLO</button>' +
+      '</div>';
+    overlay.appendChild(box);
+    document.body.appendChild(overlay);
+    function fechar() { if (overlay.parentNode) overlay.parentNode.removeChild(overlay); }
+    box.querySelector('.aposta-modal-nao-btn').addEventListener('click', fechar);
+    var overlayMousedownFora = false;
+    overlay.addEventListener('mousedown', function (e) { overlayMousedownFora = !box.contains(e.target); });
+    overlay.addEventListener('click', function (e) { if (overlayMousedownFora && !box.contains(e.target)) fechar(); });
+    overlay.addEventListener('keydown', function (e) { if (e.key === 'Escape') { e.preventDefault(); fechar(); } });
+    box.querySelector('.aposta-modal-sim-btn').addEventListener('click', function () { fechar(); callbackSim(); });
+  }
+
+  /* Fase 3 — mesmo padrão de proteção contra clique duplo/repetido já
+     usado em #apostaCriarGrupo: desabilita o botão que disparou a
+     criação do ciclo manual (via confirmação acima) assim que o clique
+     acontece, e só reabilita em caso de erro. */
+  function iniciarNovoCicloManual(etapaAlvo, botao) {
+    if (botao) botao.disabled = true;
+    criarCiclo(etapaAlvo, 'edicao-manual', function (err, novoCicloId, novoCiclo) {
+      if (err) {
+        if (botao) botao.disabled = false;
+        avisar('Não consegui iniciar o novo ciclo. Tente de novo.', true);
+        return;
+      }
+      entrarNoNovoCiclo(novoCicloId, novoCiclo, etapaAlvo);
+    });
+  }
+
+  function abrirEtapaDoMapa(etapaAlvo, botao) {
+    if (!cicloAtualEstaFinalizado()) { _vendoMapa = false; _etapaAtual = etapaAlvo; render(); return; }
+    confirmarEditarCicloFinalizado(etapaAlvo, function () { iniciarNovoCicloManual(etapaAlvo, botao); });
+  }
+
   function renderMapa() {
     var conduz = souFacilitadora();
+    var ciclos = todosOsCiclosOrdenados();
+    var multiCiclo = ciclos.length > 1;
     _tela.innerHTML = cabecalho(
       conduz && !_exec.revelado
         ? '<button class="btn btn--sm btn--primary" id="apostaRevelarBtn">Revelar conexões</button>'
@@ -4010,7 +4693,7 @@
           '<h1 class="aposta-mapa-titulo">Mapa da Aposta</h1>' +
           '<p class="aposta-mapa-print">' + esc(_turma.label) +
             (_grupo.nome ? ' · ' + esc(_grupo.nome) : '') + ' · ' + esc(dataDeHoje()) + '</p>' +
-          '<p class="aposta-mapa-sub">Clique em qualquer card para editar aquela etapa.</p>' +
+          '<p class="aposta-mapa-sub">Clique em qualquer card do ciclo atual para editar aquela etapa.</p>' +
           /* Levar a aposta embora: em papel/PDF para a sala e em texto
              para colar onde for analisada. São os dois destinos que a
              oficina pede, e nenhum deles é o CSV do painel (que é da
@@ -4020,13 +4703,19 @@
             '<button class="btn btn--sm" id="apostaPdfBtn">🖨 Salvar em PDF</button>' +
           '</div>' +
           '<div class="aposta-mapa">' +
-            ETAPAS.map(function (e, i) {
-              var texto = resumoEtapa(e.id, _dados);
+            ['missao', 'sintoma'].map(function (id, i) {
+              var texto = resumoEtapa(id, _dados);
+              var e = etapaPorId(id);
               return (i ? '<div class="aposta-mapa-seta">↓</div>' : '') +
-                '<button class="aposta-mapa-card' + (texto ? '' : ' is-vazio') + '" data-etapa="' + e.id + '">' +
+                '<button class="aposta-mapa-card' + (texto ? '' : ' is-vazio') + '" data-etapa="' + id + '">' +
                   '<span class="aposta-mapa-rot">' + esc(e.titulo) + '</span>' +
                   '<span class="aposta-mapa-txt">' + esc(texto || 'ainda não preenchido') + '</span>' +
                 '</button>';
+            }).join('') +
+            ciclos.map(function (ciclo) {
+              return '<div class="aposta-mapa-seta">↓</div>' +
+                (multiCiclo ? cicloTituloHtml(ciclo) : '') +
+                cardsDoCicloHtml(ciclo);
             }).join('') +
           '</div>' +
           (_exec.revelado ? revelacaoHtml() : '') +
@@ -4034,13 +4723,19 @@
       '</div>';
 
     ligarCabecalho();
-    _tela.querySelectorAll('.aposta-mapa-card').forEach(function (b) {
-      b.addEventListener('click', function () { _vendoMapa = false; _etapaAtual = b.dataset.etapa; render(); });
+    /* Escopado a <button> — os cards de ciclos que não são o atual são
+       <div> (ver cardsDoCicloHtml), de propósito, para nunca serem
+       clicáveis. Um seletor genérico pegaria os dois e um clique num
+       card de ciclo ANTERIOR acabaria editando dados do ciclo ATUAL
+       (já que _dados sempre aponta para o atual) — o mesmo cuidado que
+       o histórico de execuções da Fase 2 já toma. */
+    _tela.querySelectorAll('button.aposta-mapa-card').forEach(function (b) {
+      b.addEventListener('click', function () { abrirEtapaDoMapa(b.dataset.etapa, b); });
     });
     _tela.querySelectorAll('.aposta-trilha-item').forEach(function (b) {
       b.addEventListener('click', function () {
         if (b.disabled) return;
-        _vendoMapa = false; _etapaAtual = b.dataset.etapa; render();
+        abrirEtapaDoMapa(b.dataset.etapa, b);
       });
     });
     var rev = document.getElementById('apostaRevelarBtn');
@@ -4380,7 +5075,9 @@
         (Object.keys(grupos).length
           ? '<div class="aposta-fac-grupos">' + Object.keys(grupos).map(function (g) {
               var gr = grupos[g];
-              var feitas = ETAPAS.filter(function (e) { return etapaPreenchida(e.id, gr.dados || {}); }).length;
+              var dadosAtuaisDoGrupo = cicloAtualDe(gr).dados;
+              var feitas = ETAPAS.filter(function (e) { return etapaPreenchida(e.id, dadosAtuaisDoGrupo); }).length;
+              var qtdCiclosDoGrupo = ((gr.ciclos || {}).porId) ? Object.keys(gr.ciclos.porId).length : 1;
               /* "X/9 etapas" sozinho não dizia se o grupo tinha acabado de
                  abrir a dinâmica ou estava parado no meio — o status ao
                  lado (não iniciado / em andamento / concluído) responde
@@ -4389,7 +5086,8 @@
               var membros = Object.keys(gr.membros || {}).map(function (k) { return (gr.membros[k] || {}).name; }).filter(Boolean);
               return '<div class="aposta-fac-grupo">' +
                 '<strong>' + esc(gr.nome || 'Grupo') + '</strong>' +
-                '<span>' + feitas + '/' + ETAPAS.length + ' etapas · ' + status + '</span>' +
+                '<span>' + feitas + '/' + ETAPAS.length + ' etapas · ' + status +
+                  (qtdCiclosDoGrupo > 1 ? ' · ciclo ' + qtdCiclosDoGrupo : '') + '</span>' +
                 /* "ninguém ainda" ficava perto do status de etapas
                    (não iniciado/em andamento/concluído) e lia como se
                    fosse sobre progresso — esta linha é sobre QUEM está
@@ -4501,7 +5199,7 @@
           fechar();
           _grupoId = b.dataset.grupo;
           _grupo = (_exec.grupos || {})[_grupoId] || {};
-          _dados = _grupo.dados || {};
+          _dados = resolverCicloAtual().dados;
           _vendoMapa = true;
           render();
         });
@@ -4662,22 +5360,53 @@
       });
     }
 
+    /* Fase 4: um grupo histórico pode ter tido vários ciclos — mostra
+       todos, cada um com seus próprios cards, exatamente como o Mapa
+       ao vivo (ver cardsDoCicloHtml/cicloTituloHtml), só que aqui TUDO
+       é <div>, nunca <button> — nenhum ciclo de uma execução histórica
+       é editável, nem o "atual" dela (ver nota no topo desta função:
+       não há sequer um caminho de escrita nesta tela inteira). Grupo
+       sem ciclos/ (sempre teve um só) continua mostrando exatamente o
+       que já mostrava antes desta fase. */
+    function cardsDoCicloSomenteLeituraHtml(ciclo) {
+      var inicioIdx = ciclo.pontoDeReinicio ? indiceEtapa(ciclo.pontoDeReinicio) : indiceEtapa('problema');
+      return ETAPAS.slice(inicioIdx).map(function (e, i) {
+        var texto = resumoEtapa(e.id, ciclo.dados);
+        return (i ? '<div class="aposta-mapa-seta">↓</div>' : '') +
+          '<div class="aposta-mapa-card is-somente-leitura' + (texto ? '' : ' is-vazio') + '">' +
+            '<span class="aposta-mapa-rot">' + esc(e.titulo) + '</span>' +
+            '<span class="aposta-mapa-txt">' + esc(texto || 'não preenchido') + '</span>' +
+          '</div>';
+      }).join('');
+    }
+
     function desenharMapaGrupo(execucoes, idsOrdenados, execId, grupoId) {
       var exec = execucoes[execId] || {};
       var grupo = (exec.grupos || {})[grupoId] || {};
-      var dados = grupo.dados || {};
+      var ciclos = listarCiclosDoGrupo(grupo);
+      var multiCiclo = ciclos.length > 1;
+      /* Missão/Sintoma nunca são ponto de reinício — todo ciclo carrega
+         a mesma cópia herdada; ler do último é só para refletir a
+         eventual correção mais recente, se algum dia acontecer. */
+      var dadosContexto = ciclos[ciclos.length - 1].dados;
 
       box.innerHTML =
         '<h3 style="font-family:var(--font-head);letter-spacing:.05em;color:var(--ink);margin:0">Mapa histórico — SOMENTE LEITURA</h3>' +
         '<p style="font-size:.82rem;color:var(--ink-3);margin:0">' + esc(_turma.label) + (grupo.nome ? ' · ' + esc(grupo.nome) : '') + '</p>' +
         '<div class="aposta-mapa">' +
-          ETAPAS.map(function (e, i) {
-            var texto = resumoEtapa(e.id, dados);
+          ['missao', 'sintoma'].map(function (id, i) {
+            var texto = resumoEtapa(id, dadosContexto);
+            var e = etapaPorId(id);
             return (i ? '<div class="aposta-mapa-seta">↓</div>' : '') +
               '<div class="aposta-mapa-card is-somente-leitura' + (texto ? '' : ' is-vazio') + '">' +
                 '<span class="aposta-mapa-rot">' + esc(e.titulo) + '</span>' +
                 '<span class="aposta-mapa-txt">' + esc(texto || 'não preenchido') + '</span>' +
               '</div>';
+          }).join('') +
+          ciclos.map(function (ciclo) {
+            return '<div class="aposta-mapa-seta">↓</div>' +
+              (multiCiclo ? cicloTituloHtml(ciclo) : '') +
+              cardsDoCicloSomenteLeituraHtml(ciclo);
           }).join('') +
         '</div>' +
         '<div style="display:flex;justify-content:space-between;gap:8px">' +
@@ -4707,13 +5436,27 @@
      abrirHistorico) sem duplicar esta função — passando ambos, exporta
      os grupos dessa execução; sem passar nada, continua exportando a
      execução atual exatamente como antes. Nenhum dos dois caminhos
-     escreve no Firebase — é geração de arquivo local, no navegador. */
+     escreve no Firebase — é geração de arquivo local, no navegador.
+
+     Fase 4: a coluna Ciclo (e Ponto de reinício, quando houver um)
+     impede que Ciclo 1 e Ciclo 2 sejam achatados como se fossem a
+     mesma aposta (item 36 do pedido) — cada ciclo gera seu próprio
+     bloco de linhas, a partir dos DADOS DAQUELE ciclo (nunca do
+     "atual"), então hipótese/avaliação/decisão de cada rodada saem
+     naturalmente distintas, sem precisar de colunas extra dedicadas a
+     elas: já são o conteúdo das etapas Hipótese/Evidência/Decisão de
+     cada bloco. Grupo sem ciclos/ continua exportando exatamente uma
+     linha "Ciclo 1" por etapa, igual a antes desta fase. */
   function exportarCSV(gruposOverride, rotuloArquivo) {
     var grupos = gruposOverride || _exec.grupos || {};
-    var linhas = [['Grupo', 'Etapa', 'Conteúdo']];
+    var linhas = [['Grupo', 'Ciclo', 'Ponto de reinício', 'Etapa', 'Conteúdo']];
     Object.keys(grupos).forEach(function (g) {
-      ETAPAS.forEach(function (e) {
-        linhas.push([grupos[g].nome || g, e.curto, resumoEtapa(e.id, grupos[g].dados || {})]);
+      var nomeGrupo = grupos[g].nome || g;
+      listarCiclosDoGrupo(grupos[g]).forEach(function (ciclo) {
+        var rotuloPonto = ciclo.pontoDeReinicio ? ((etapaPorId(ciclo.pontoDeReinicio) || {}).curto || ciclo.pontoDeReinicio) : '';
+        ETAPAS.forEach(function (e) {
+          linhas.push([nomeGrupo, ciclo.numero, rotuloPonto, e.curto, resumoEtapa(e.id, ciclo.dados)]);
+        });
       });
     });
     var csv = linhas.map(function (l) {
@@ -4749,7 +5492,14 @@
        liberarLock() com um token que não é mais o do lock atual não
        remove nada — sem isso, teria que orquestrar uma corrida real
        entre três tentativas só para chegar nesse ponto. */
-    _liberarLock: function (token) { return liberarLock(token); }
+    _liberarLock: function (token) { return liberarLock(token); },
+    /* Fase 4 — mesmo motivo do par acima, agora para o lock de
+       criação de ciclo: provar direto que duas chamadas quase
+       simultâneas de criarCiclo() nunca resultam em dois ciclos
+       sucessores para a mesma decisão, e que liberarLockCiclo() com um
+       token velho não remove o lock de uma tentativa mais nova. */
+    _criarCiclo: function (pontoDeReinicio, decisaoOrigem, cb) { return criarCiclo(pontoDeReinicio, decisaoOrigem, cb); },
+    _liberarLockCiclo: function (token) { return liberarLockCiclo(token); }
   };
 
   window.addEventListener('fa-auth-ready', montarEntrada);
