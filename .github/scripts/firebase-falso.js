@@ -176,8 +176,18 @@
       }
       relativos.forEach(function (k) { aplicar(norm(self.path + '/' + k), v[k], false); });
       aplicar(self.path, direto, true);
-      if (cb) cb(null);
+      /* notificar() ANTES do cb (onComplete) — o Firebase de verdade
+         aplica update() no cache local de forma otimista e avisa quem
+         está ouvindo os caminhos afetados ANTES de o onComplete deste
+         update() disparar (que só chega depois de um round-trip com o
+         servidor). A ordem importa de verdade: um .off() chamado DENTRO
+         do onComplete (ex.: trocar de execução e desligar o listener da
+         antiga) só evita o eco se esse eco ainda não tiver sido
+         agendado — exatamente como no SDK real. Inverter esta ordem
+         (como era antes) escondia essa classe inteira de corrida atrás
+         de um comportamento que o Firebase de verdade nunca teve. */
       notificar(self.path);
+      if (cb) cb(null);
     }, atraso);
     return Promise.resolve();
   };
