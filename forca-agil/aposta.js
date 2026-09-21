@@ -106,13 +106,93 @@
     var s = sessao();
     return !!(s && window.faAuth.isAdmin && window.faAuth.isAdmin(s.email));
   }
-  /* Quem conduz: admin ou facilitadora cadastrada. Mesma régua da rota
-     #facilitador — não inventa um terceiro critério para a mesma pergunta. */
+  /* Quem consegue EXERCER o papel de facilitador em algum lugar (a
+     habilitação global, fa-facilitadores). Mesma régua da rota
+     #facilitador — não inventa um terceiro critério para a mesma
+     pergunta. Isto NÃO é autorização para operar uma turma específica
+     — ver souFacilitadoraDaTurma logo abaixo, e a nota da Fase 5 no
+     topo do arquivo: a flag global diz que a pessoa PODE exercer o
+     papel; turmas-equipe diz ONDE ela está de fato autorizada a
+     exercê-lo. Continua usado para decisões que não são de uma turma
+     específica (ex.: mostrar o link/página #facilitador). */
   function souFacilitadora() {
     var s = sessao();
     if (!s) return false;
     if (souAdmin()) return true;
     return !!(window.faAuth.isFacilitador && window.faAuth.isFacilitador(s.email));
+  }
+
+  /* ══════════════════════════════════════════════════════════════
+     AUTH_FACILITADOR_TURMA — FASE 5: FACILITADOR POR TURMA
+     (não mais só a flag global)
+
+     Antes da Fase 5, qualquer pessoa com a flag global fa-facilitadores
+     conduzia a Aposta de QUALQUER turma — mesmo sem nunca ter sido
+     colocada na equipe daquela turma. As nossas próprias Security
+     Rules agora recusam essa escrita no servidor (database.rules.json
+     não tem comentário — é JSON —, mas toda condição de escrita em
+     apostas/$turmaKey exige `root.child('turmas-equipe')...`; ver
+     também .github/scripts/teste-rules.js), então o cliente precisa
+     concordar ANTES de deixar alguém clicar: nunca mostrar uma ação
+     que o Firebase vai recusar de qualquer forma.
+
+     Reaproveita window.faRoteiro.carregarEquipeGlobal — a mesma função
+     que facilitador.js/admin.js já usam para ler turmas-equipe inteiro
+     de uma vez (o nó é pequeno, uma linha por pessoa por turma) — em
+     vez de inventar um terceiro jeito de ler a mesma informação.
+     Carrega uma única vez por sessão da dinâmica e fica em cache: nada
+     aqui precisa ficar "ao vivo" (entrar/sair da equipe no meio de uma
+     oficina em andamento é um evento raro e administrativo, não algo
+     que a tela precise refletir no mesmo segundo). */
+  var _equipeGlobalCache = null;
+  var _equipeGlobalPendentes = null;
+  function comEquipeGlobal(cb) {
+    if (_equipeGlobalCache) { cb(_equipeGlobalCache); return; }
+    if (_equipeGlobalPendentes) { _equipeGlobalPendentes.push(cb); return; }
+    _equipeGlobalPendentes = [cb];
+    function pronto(equipe) {
+      _equipeGlobalCache = equipe || {};
+      var fila = _equipeGlobalPendentes;
+      _equipeGlobalPendentes = null;
+      fila.forEach(function (f) { f(_equipeGlobalCache); });
+    }
+    if (window.faRoteiro && window.faRoteiro.carregarEquipeGlobal) {
+      window.faRoteiro.carregarEquipeGlobal(function (err, equipe) { pronto(equipe); });
+    } else {
+      db().ref('turmas-equipe').once('value', function (snap) { pronto(snap.val()); }, function () { pronto({}); });
+    }
+  }
+  /* Qualquer entrada em turmas-equipe/<turma>/<minhaChave> autoriza —
+     'facilitador' e 'responsavel' são os dois únicos papéis gravados
+     (ver roteiro.js), e os dois representam vínculo real de
+     facilitação daquela turma (a diferença é só "responsável pela
+     turma" vs. "apoio", nunca nível de acesso). */
+  function facilitadoraTemVinculo(turmaKey, equipeGlobal) {
+    var s = sessao();
+    if (!s) return false;
+    return !!((equipeGlobal || {})[turmaKey] || {})[emailKey(s.email)];
+  }
+  /* A checagem completa para uma turma específica: admin sempre pode
+     (regra administrativa já existente, sem mudança); do contrário,
+     precisa das DUAS condições — habilitação global E vínculo real
+     naquela turma. cb(bool) porque o vínculo depende de uma leitura
+     (cacheada) do Firebase.
+
+     FALHA FECHADA, sempre — nunca cai de volta para "flag global
+     basta": se window.faRoteiro não existir, comEquipeGlobal() usa o
+     próprio fallback (leitura direta de turmas-equipe); se essa
+     leitura falhar (erro, rede fora, regra recusando), pronto({})
+     grava um cache VAZIO, e facilitadoraTemVinculo() sobre um cache
+     vazio é sempre false; se a leitura ainda não respondeu (rede
+     lenta, sala com 4G ruim), o cb(bool) desta chamada simplesmente
+     não roda ainda — e quem chama (abrirDinamica) já inicializa
+     _souConduzoDestaTurma como false, então nenhuma ação de
+     facilitação aparece enquanto a resposta não chegar. Não existe
+     nenhum caminho de erro/timeout/ausência que resulte em true. */
+  function souFacilitadoraDaTurma(turmaKey, cb) {
+    if (souAdmin()) { cb(true); return; }
+    if (!souFacilitadora()) { cb(false); return; }
+    comEquipeGlobal(function (equipe) { cb(facilitadoraTemVinculo(turmaKey, equipe)); });
   }
 
   /* ══════════════════════════════════════════════════════════════
@@ -1396,14 +1476,40 @@
      ESTADO
      ══════════════════════════════════════════════════════════════ */
   var _turma   = null;   /* { key, label, eventoKey } */
+  /* Fase 5: se esta pessoa conduz A TURMA ATUAL (_turma) — nunca a
+     habilitação global sozinha. Resolvido uma vez em abrirDinamica()
+     (ver souFacilitadoraDaTurma) e cacheado aqui porque cabecalho(),
+     renderSemExecucao(), renderEscolhaGrupo() e renderMapa() precisam
+     dele SÍNCRONO, dentro de render(), que roda a cada eco do listener
+     — não dá para reconsultar turmas-equipe a cada redesenho. Começa
+     false (nunca mostra a ação antes de confirmar o vínculo) e
+     re-renderiza sozinho quando a resposta chega. */
+  var _souConduzoDestaTurma = false;
   var _execId  = null;
   var _exec    = {};     /* missao, revelado, encerrada… */
+  /* Fase 5 — GRUPOS-RESUMO: nome+qtdMembros de cada grupo da execução
+     atual, SEM membros/dados/ciclos (ver database.rules.json). Só
+     participante (não-condutor) usa isto — condutor continua lendo
+     _exec.grupos inteiro, sem mudança. Alimentado por ouvirGruposResumo();
+     existe só para a tela de escolha de grupo (descoberta). */
+  var _gruposResumo = {};
   var _grupoId = null;
   var _grupo   = {};     /* nome, membros, etapa… */
   var _dados   = {};     /* dados de cada etapa do grupo */
   var _etapaAtual = 'missao';
   var _vendoMapa  = false;
   var _refExec = null;
+  /* Fase 5 — só usados por quem NÃO conduz a turma: o condutor continua
+     com um único listener amplo (_refExec, em caminhoExec()), que as
+     Rules já permitem ler inteiro. Participante nunca tem esse acesso
+     amplo — em vez disso ouve missao/revelado/grupos-resumo separados
+     (cada um com sua própria Rule estreita) e, só depois de saber qual
+     é o seu grupo, um listener dedicado a esse grupo específico
+     (permitido pela Rule já existente de "sou membro"). */
+  var _refMissao = null;
+  var _refRevelado = null;
+  var _refGruposResumo = null;
+  var _refGrupo = null;
   var _ouvindo = false;
 
   function caminhoExec()  { return 'apostas/' + _turma.key + '/execucoes/' + _execId; }
@@ -1443,20 +1549,30 @@
          liberando, o ensaio da facilitadora estrearia na frente da turma
          — e voltar atrás depois já teria sido visto.
 
-         Por isso admin e facilitadora enxergam TODAS as turmas, liberadas
-         ou não; a turma ainda não liberada vem marcada, e o convite diz
-         que só a facilitação a está vendo. É a mesma regra que a Avaliação
-         já segue (admin vê a aba independente do flag, para revisar antes
+         Por isso admin enxerga TODAS as turmas, liberadas ou não; a
+         turma ainda não liberada vem marcada, e o convite diz que só a
+         facilitação a está vendo. É a mesma regra que a Avaliação já
+         segue (admin vê a aba independente do flag, para revisar antes
          e depois de liberar) — a alternativa seria um terceiro critério
          para a mesma pergunta. Liberadas primeiro, que é o caso do dia
-         da oficina. */
-      if (souAdmin() || souFacilitadora()) {
-        var todas = Object.keys(turmas).sort(function (a, b) {
+         da oficina.
+
+         Facilitadora (não-admin) só vê as turmas às quais tem vínculo
+         real em turmas-equipe (Fase 5) — a flag global sozinha não dá
+         mais acesso a QUALQUER turma; ver AUTH_FACILITADOR_TURMA. */
+      function ordenarPorHabilitadaELabel(keys) {
+        return keys.sort(function (a, b) {
           var ha = !!turmas[a].apostaHabilitada, hb = !!turmas[b].apostaHabilitada;
           if (ha !== hb) return ha ? -1 : 1;
           return String(turmas[a].label || a).localeCompare(String(turmas[b].label || b), 'pt-BR');
         });
-        montar(todas);
+      }
+      if (souAdmin()) { montar(ordenarPorHabilitadaELabel(Object.keys(turmas))); return; }
+      if (souFacilitadora()) {
+        comEquipeGlobal(function (equipe) {
+          var minhas = Object.keys(turmas).filter(function (tk) { return facilitadoraTemVinculo(tk, equipe); });
+          montar(ordenarPorHabilitadaELabel(minhas));
+        });
         return;
       }
 
@@ -1541,12 +1657,28 @@
 
   function abrirDinamica(turma) {
     _turma = turma;
+    _souConduzoDestaTurma = false;
     _tela = document.createElement('div');
     _tela.className = 'aposta-tela';
     document.body.appendChild(_tela);
     document.body.style.overflow = 'hidden';
     _tela.innerHTML = '<div class="aposta-carregando"><p class="loading-msg">Carregando a dinâmica…</p></div>';
-    carregarExecucao();
+    /* FASE 5 — GRUPOS-RESUMO: diferente da versão anterior (que corria
+       isto em paralelo com carregarExecucao() e só redesenhava depois),
+       agora ESPERA souFacilitadoraDaTurma() responder antes de
+       carregar qualquer coisa. Motivo: quem NÃO conduz a turma lê a
+       execução por um caminho estruturalmente diferente de quem
+       conduz (grupos-resumo + leituras estreitas, nunca mais o nó
+       grupos/ inteiro — ver ouvirExecucao/renderEscolhaGrupo) — ler
+       antes de saber qual dos dois caminhos usar arriscaria escolher o
+       caminho largo por engano, exatamente a brecha que esta mudança
+       fecha. Custa uma volta a mais só na primeira vez (o resultado
+       fica em cache em _equipeGlobalCache). */
+    souFacilitadoraDaTurma(turma.key, function (pode) {
+      if (_turma !== turma) return; /* a tela já fechou/trocou de turma */
+      _souConduzoDestaTurma = pode;
+      carregarExecucao();
+    });
     document.addEventListener('keydown', escFecha);
   }
 
@@ -1570,6 +1702,10 @@
   function pararDeOuvir() {
     if (_refExec && _ouvindo) { _refExec.off(); _ouvindo = false; }
     _refExec = null;
+    if (_refMissao) { _refMissao.off(); _refMissao = null; }
+    if (_refRevelado) { _refRevelado.off(); _refRevelado = null; }
+    if (_refGruposResumo) { _refGruposResumo.off(); _refGruposResumo = null; }
+    if (_refGrupo) { _refGrupo.off(); _refGrupo = null; }
   }
 
   /* ── Execução em curso: a que o facilitador abriu por último ── */
@@ -1585,9 +1721,24 @@
 
   /* Escuta ao vivo: numa oficina, o facilitador libera etapas e
      revela as conexões enquanto os grupos estão com a tela aberta.
-     Sem o listener, cada grupo precisaria recarregar para ver. */
+     Sem o listener, cada grupo precisaria recarregar para ver.
+
+     FASE 5 — GRUPOS-RESUMO: quem conduz a turma (_souConduzoDestaTurma)
+     continua com o único listener amplo de sempre, em caminhoExec() —
+     comportamento idêntico ao anterior, porque a Rule dela continua
+     dando leitura ampla da execução (ADMIN/FAC_TURMA). Quem NÃO
+     conduz nunca teve — nem pode ter — essa leitura ampla (ela
+     cascatearia para dados/ciclos de TODOS os grupos, não só do seu):
+     usa três listeners estreitos (missao/revelado/grupos-resumo) e,
+     assim que souber seu grupo, um quarto listener dedicado só a ele
+     — ver ouvirExecucaoComoParticipante/ouvirGrupoComoParticipante. */
   function ouvirExecucao() {
     pararDeOuvir();
+    if (_souConduzoDestaTurma) { ouvirExecucaoComoCondutor(); return; }
+    ouvirExecucaoComoParticipante();
+  }
+
+  function ouvirExecucaoComoCondutor() {
     _refExec = db().ref(caminhoExec());
     _ouvindo = true;
     _refExec.on('value', function (snap) {
@@ -1625,6 +1776,91 @@
       render();
     }, function () {
       _tela.innerHTML = erroHtml('Perdi a conexão com a dinâmica. Recarregue a página.');
+    });
+  }
+
+  /* Fase 5 — leitura de quem NÃO conduz: nunca mais o nó grupos/ inteiro
+     (só o resumo, sem membros/dados/ciclos de ninguém — ver
+     database.rules.json). missao/revelado têm Rule de leitura própria,
+     estreita, adicionada nesta fase. */
+  function ouvirExecucaoComoParticipante() {
+    _exec = {};
+    _gruposResumo = {};
+    _ouvindo = true;
+    _refMissao = db().ref(caminhoExec() + '/missao');
+    _refMissao.on('value', function (snap) {
+      /* Não força render(): no fluxo antigo, uma mudança na missão-base
+         enquanto o grupo já está na tela da etapa 1 também não
+         redesenhava sozinha (mesma supressão de "editando" abaixo) —
+         só valia na próxima navegação. Sem mudança de comportamento. */
+      _exec.missao = snap.val();
+    }, function () {
+      _tela.innerHTML = erroHtml('Perdi a conexão com a dinâmica. Recarregue a página.');
+    });
+    _refRevelado = db().ref(caminhoExec() + '/revelado');
+    _refRevelado.on('value', function (snap) {
+      var v = snap.val();
+      var revelouAgora = !_exec.revelado && v;
+      _exec.revelado = v;
+      var editando = _grupoId && !_vendoMapa;
+      if (editando && !revelouAgora) return;
+      render();
+    }, function () {
+      _tela.innerHTML = erroHtml('Perdi a conexão com a dinâmica. Recarregue a página.');
+    });
+    _refGruposResumo = db().ref(caminhoExec() + '/grupos-resumo');
+    _refGruposResumo.on('value', function (snap) {
+      _gruposResumo = snap.val() || {};
+      /* Só interessa a quem ainda está escolhendo grupo — depois de
+         escolhido, quem manda é o listener do próprio grupo
+         (ouvirGrupoComoParticipante). */
+      if (!_grupoId) render();
+    }, function () {
+      _tela.innerHTML = erroHtml('Perdi a conexão com a dinâmica. Recarregue a página.');
+    });
+  }
+
+  /* Listener dedicado ao grupo de quem NÃO conduz, ligado assim que o
+     grupo é conhecido (descoberto ou recém-escolhido). A Rule que
+     permite isto (grupos/$grupoKey/.read = SOU_MEMBRO) já existia
+     desde antes da Fase 5 — o que faltava era o cliente nunca pedir
+     a leitura NESTE caminho específico (pedia o nó execucoes/$execKey
+     inteiro, largo demais). */
+  function ouvirGrupoComoParticipante(grupoId) {
+    if (_refGrupo) { _refGrupo.off(); _refGrupo = null; }
+    _refGrupo = db().ref(caminhoExec() + '/grupos/' + grupoId);
+    /* A PRIMEIRA leitura deste listener É a entrada no grupo — equivale
+       ao render() direto e síncrono que o condutor já dava em
+       entrarNoGrupo() (ele lê de _exec.grupos, já carregado; o
+       participante só sabe o conteúdo do grupo quando ESTE listener
+       responde). A supressão de "editando" (mesma lógica do condutor,
+       ver ouvirExecucaoComoCondutor) só faz sentido a partir do SEGUNDO
+       eco em diante — nos ecos do próprio salvamento automático, não na
+       entrada. Sem essa distinção, quem participa nunca via a etapa: a
+       tela ficava presa em "Carregando…" porque _grupoId já estava
+       setado quando a primeira resposta chegava, e a supressão achava
+       que era um eco a ignorar. */
+    var primeira = true;
+    _refGrupo.on('value', function (snap) {
+      var v = snap.val();
+      if (!v) return; /* grupos não são apagados; nada a fazer aqui */
+      _grupo = v;
+      var r = resolverCicloAtual();
+      _dados = r.dados;
+      /* _etapaAtual é estado de NAVEGAÇÃO — só pode vir do servidor uma
+         vez, na entrada (aqui, na primeira resposta deste listener,
+         onde equivale ao r.etapa que entrarNoGrupo() já atribuía direto
+         para o condutor). Da segunda resposta em diante ele é sempre
+         local (avançar/voltar/clique na trilha/mapa) — sobrescrever a
+         cada eco reabriria a etapa 1 toda vez que o grupo salvasse algo
+         no meio de qualquer outra etapa. */
+      if (primeira) _etapaAtual = r.etapa;
+      var editando = !primeira && _grupoId && !_vendoMapa;
+      primeira = false;
+      if (editando) return;
+      render();
+    }, function () {
+      _tela.innerHTML = erroHtml('Perdi a conexão com o grupo. Recarregue a página.');
     });
   }
 
@@ -1742,7 +1978,7 @@
   }
 
   function cabecalho(extra) {
-    var conduz = souFacilitadora();
+    var conduz = _souConduzoDestaTurma;
     return '<header class="aposta-topo">' +
       '<div class="aposta-topo-id">' +
         '<strong>Construção da Aposta</strong>' +
@@ -1765,7 +2001,7 @@
 
   /* ── Sem execução aberta ── */
   function renderSemExecucao() {
-    var conduz = souFacilitadora();
+    var conduz = _souConduzoDestaTurma;
     _tela.innerHTML = cabecalho() +
       '<div class="aposta-centro">' +
         '<div class="aposta-aviso">' +
@@ -2303,8 +2539,20 @@
     });
   }
 
-  /* ── Escolha do grupo ── */
+  /* ── Escolha do grupo ──
+     Fase 5: condutor e participante leem de lugares DIFERENTES (ver
+     ouvirExecucao). Condutor continua exatamente como antes (_exec.grupos,
+     que as Rules dão a ele por inteiro). Participante nunca teve — nem
+     tem agora — leitura da lista de membros de outros grupos: usa
+     _gruposResumo (só nome+qtdMembros) para mostrar as opções, e
+     descobrirMeuGrupo() (uma leitura estreita por grupo, só da própria
+     chave) para decidir se já pertence a algum antes de perguntar. */
   function renderEscolhaGrupo() {
+    if (_souConduzoDestaTurma) { renderEscolhaGrupoCondutor(); return; }
+    renderEscolhaGrupoParticipante();
+  }
+
+  function renderEscolhaGrupoCondutor() {
     var grupos = _exec.grupos || {};
     var chaves = Object.keys(grupos);
     var s = sessao();
@@ -2326,9 +2574,7 @@
                   '<span>' + qtd + ' pessoa' + (qtd !== 1 ? 's' : '') + '</span>' +
                 '</button>';
               }).join('') + '</div>'
-            : '<p>' + (souFacilitadora()
-                ? 'Nenhum grupo criado ainda. Abra o painel do facilitador para criar.'
-                : 'A facilitadora ainda não criou os grupos.') + '</p>') +
+            : '<p>Nenhum grupo criado ainda. Abra o painel do facilitador para criar.</p>') +
         '</div>' +
       '</div>';
     ligarCabecalho();
@@ -2337,26 +2583,114 @@
     });
   }
 
+  /* N leituras em paralelo, cada uma restrita à PRÓPRIA chave de membro
+     de um grupo (grupos/$grupoKey/membros/$minhaChave) — a Rule (Fase 5)
+     permite isso a qualquer confirmada, mesmo antes de ela pertencer ao
+     grupo, sem nunca expor a lista inteira de membros. Nunca lê grupos/
+     por inteiro. */
+  function descobrirMeuGrupo(chaves, cb) {
+    var s = sessao();
+    if (!s || !chaves.length) { cb(null); return; }
+    var uKey = emailKey(s.email);
+    var pendentes = chaves.length;
+    var achou = null;
+    function resolveu() { pendentes--; if (pendentes === 0) cb(achou); }
+    chaves.forEach(function (g) {
+      db().ref(caminhoExec() + '/grupos/' + g + '/membros/' + uKey).once('value', function (snap) {
+        if (snap.exists() && !achou) achou = g;
+        resolveu();
+      }, resolveu);
+    });
+  }
+
+  function renderEscolhaGrupoParticipante() {
+    var resumo = _gruposResumo || {};
+    var chaves = Object.keys(resumo);
+    descobrirMeuGrupo(chaves, function (meu) {
+      if (!_tela || _grupoId) return; /* tela fechou, ou outra chamada já resolveu nesse meio-tempo */
+      if (meu) { entrarNoGrupo(meu, true); return; }
+      _tela.innerHTML = cabecalho() +
+        '<div class="aposta-centro">' +
+          '<div class="aposta-aviso">' +
+            '<h2>Escolha seu grupo</h2>' +
+            (chaves.length
+              ? '<div class="aposta-grupos-escolha">' + chaves.map(function (g) {
+                  var qtd = resumo[g].qtdMembros || 0;
+                  return '<button class="aposta-grupo-btn" data-grupo="' + esc(g) + '">' +
+                    '<strong>' + esc(resumo[g].nome || 'Grupo') + '</strong>' +
+                    '<span>' + qtd + ' pessoa' + (qtd !== 1 ? 's' : '') + '</span>' +
+                  '</button>';
+                }).join('') + '</div>'
+              : '<p>A facilitadora ainda não criou os grupos.</p>') +
+          '</div>' +
+        '</div>';
+      ligarCabecalho();
+      _tela.querySelectorAll('.aposta-grupo-btn').forEach(function (b) {
+        b.addEventListener('click', function () { entrarNoGrupo(b.dataset.grupo); });
+      });
+    });
+  }
+
   function entrarNoGrupo(grupoId, jaEra) {
     _grupoId = grupoId;
-    _grupo = (_exec.grupos || {})[grupoId] || {};
-    var r = resolverCicloAtual();
-    _dados = r.dados;
-    _etapaAtual = r.etapa;
-    if (!jaEra) {
-      var s = sessao();
-      if (s) {
-        db().ref(caminhoGrupo() + '/membros/' + emailKey(s.email)).set({
-          name: s.name || s.email, email: s.email, entrouEm: new Date().toISOString()
-        }, function (err) {
-          /* Sem isto, a pessoa não consta no grupo: a facilitadora não a vê
-             na lista e um F5 faz escolher de novo. Não impede de trabalhar,
-             mas não pode passar em silêncio. */
-          if (err) avisar('Entrei no grupo, mas não consegui registrar seu nome nele.', true);
-        });
-      }
+    if (_souConduzoDestaTurma) {
+      _grupo = (_exec.grupos || {})[grupoId] || {};
+      var r = resolverCicloAtual();
+      _dados = r.dados;
+      _etapaAtual = r.etapa;
+      render();
+      return;
     }
-    render();
+    /* Participante: nunca leu (nem lê agora) _exec.grupos — liga um
+       listener dedicado a ESTE grupo, o único caminho de leitura que a
+       Rule (souMembro) permite a ele. */
+    ouvirGrupoComoParticipante(grupoId);
+    if (jaEra) return;
+    var s = sessao();
+    if (!s) return;
+    gravarEntradaNoGrupo(grupoId, s, false);
+  }
+
+  /* Grava a entrada de um participante no grupo: membros/<minhaChave> E
+     grupos-resumo/<grupoId>/qtdMembros no MESMO update() — a Rule de
+     qtdMembros (Fase 5) exige que o número gravado seja exatamente o
+     numChildren() real de membros DEPOIS desta escrita (newData, já
+     mesclado com os dois caminhos deste update()), então não há como
+     forjar a contagem: quem tenta gravar um número que não bate com o
+     grupo real tem o update() inteiro recusado — inclusive a própria
+     entrada no grupo, por isso o retry abaixo.
+
+     _gruposResumo[grupoId].qtdMembros é só um PALPITE do valor atual
+     (o último que o listener ao vivo recebeu) — não uma leitura fresca:
+     participante nunca tem leitura da lista de membros para calcular
+     isso com certeza. Se duas pessoas entrarem no mesmo grupo quase ao
+     mesmo tempo, o palpite de uma delas pode ficar desatualizado e a
+     Rule recusa o update() INTEIRO — a entrada no grupo (membros) e a
+     contagem (qtdMembros) só existem juntas ou não existem, nunca uma
+     sem a outra. Por isso tenta UMA vez de novo, já com o palpite mais
+     recente (o listener ao vivo deve ter alcançado o valor verdadeiro
+     nesse meio-tempo, já que a outra pessoa terminou de entrar). Se
+     ainda assim falhar — uma terceira entrada na mesma fração de
+     segundo, por exemplo — a pessoa realmente NÃO entrou no grupo, e o
+     aviso abaixo precisa dizer isso, não fingir sucesso (ver a skill
+     editar-e-salvar: silêncio sobre uma gravação recusada é pior que o
+     erro). Recarregar a página tenta o fluxo inteiro de novo. */
+  function gravarEntradaNoGrupo(grupoId, s, jaTentouDeNovo) {
+    var uKey = emailKey(s.email);
+    var resumoAtual = (_gruposResumo || {})[grupoId] || {};
+    var updates = {};
+    updates[caminhoGrupo() + '/membros/' + uKey] = {
+      name: s.name || s.email, email: s.email, entrouEm: new Date().toISOString()
+    };
+    updates[caminhoExec() + '/grupos-resumo/' + grupoId + '/qtdMembros'] = (resumoAtual.qtdMembros || 0) + 1;
+    db().ref().update(updates, function (err) {
+      if (!err) return;
+      if (!jaTentouDeNovo) { gravarEntradaNoGrupo(grupoId, s, true); return; }
+      avisar('Não consegui registrar sua entrada no grupo. Tente de novo.', true);
+      _grupoId = null;
+      if (_refGrupo) { _refGrupo.off(); _refGrupo = null; }
+      render();
+    });
   }
 
   /* ── Trilha: nomes desde o começo, conteúdo só na vez ── */
@@ -4743,7 +5077,7 @@
   }
 
   function renderMapa() {
-    var conduz = souFacilitadora();
+    var conduz = _souConduzoDestaTurma;
     var ciclos = todosOsCiclosOrdenados();
     var multiCiclo = ciclos.length > 1;
     _tela.innerHTML = cabecalho(
@@ -5233,8 +5567,18 @@
         btnCriarGrupo.disabled = true;
         var nome = (box.querySelector('#apostaNovoGrupo').value || '').trim() ||
           ('Grupo ' + (Object.keys(_exec.grupos || {}).length + 1));
-        var ref = db().ref(caminhoExec() + '/grupos').push();
-        ref.set({ nome: nome, criadoEm: new Date().toISOString(), etapa: 'missao' }, function (err) {
+        /* Fase 5 — GRUPOS-RESUMO: o grupo em si e seu resumo (nome +
+           qtdMembros:0, sem membros/dados/ciclos — ver database.rules.json)
+           nascem juntos, na MESMA chave (mesma disciplina de atomicidade
+           das Fases 1 e 4): update() com os dois caminhos ou grava os dois
+           ou não grava nenhum — nunca um grupo sem resumo (que deixaria
+           os participantes sem enxergá-lo na escolha) nem um resumo
+           apontando para um grupo inexistente. */
+        var novaChave = db().ref(caminhoExec() + '/grupos').push().key;
+        var updates = {};
+        updates['grupos/' + novaChave] = { nome: nome, criadoEm: new Date().toISOString(), etapa: 'missao' };
+        updates['grupos-resumo/' + novaChave] = { nome: nome, qtdMembros: 0 };
+        db().ref(caminhoExec()).update(updates, function (err) {
           if (err) {
             btnCriarGrupo.disabled = false;
             avisar('Não consegui criar o grupo. Tente de novo.', true);
@@ -5572,5 +5916,16 @@
 
   window.addEventListener('fa-auth-ready', montarEntrada);
   window.addEventListener('fa-auth-change', montarEntrada);
+  /* fa-auth-ready dispara a partir da sessão + nível de acesso
+     (member/enrolled) — nunca espera admin/facilitador global
+     resolverem, que são checagens assíncronas SEPARADAS (ver auth.js).
+     Sem isto, turmasElegiveis() podia rodar com souFacilitadora()
+     ainda respondendo false (a leitura de fa-facilitadores daquela
+     pessoa nem chegou), esconder o convite, e nunca mais reavaliar —
+     a pessoa só veria a Aposta dando F5. fa-admin-ready/
+     fa-facilitador-ready existem exatamente pra isso ("quem já decidiu
+     antes poder decidir de novo"), mas nada aqui os escutava ainda. */
+  window.addEventListener('fa-admin-ready', montarEntrada);
+  window.addEventListener('fa-facilitador-ready', montarEntrada);
   if (window.faRouter) window.faRouter.onPageInit('treinamento', montarEntrada);
 })();

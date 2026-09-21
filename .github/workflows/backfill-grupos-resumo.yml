@@ -1,0 +1,32 @@
+name: Backfill — grupos-resumo (Fase 5)
+
+# SÓ disparo manual, nunca em push/PR: isto pode GRAVAR em produção (só
+# no nó grupos-resumo/, nunca no grupo original — ver o script). Por
+# padrão roda em modo dry-run (lista o que faria, não grava nada); só
+# grava de fato quando "Confirmar gravação" é marcado explicitamente ao
+# disparar. Ver .github/scripts/backfill-grupos-resumo.js.
+on:
+  workflow_dispatch:
+    inputs:
+      confirmar:
+        description: 'Gravar de verdade (fora isso, roda em dry-run)'
+        required: true
+        type: boolean
+        default: false
+
+jobs:
+  backfill:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Backfill de grupos-resumo (dry-run por padrão)
+        env:
+          FA_TEST_ADMIN_EMAIL: ${{ secrets.FA_TEST_ADMIN_EMAIL }}
+          FA_TEST_ADMIN_PASSWORD: ${{ secrets.FA_TEST_ADMIN_PASSWORD }}
+          BACKFILL_CONFIRMAR: ${{ inputs.confirmar && 'sim' || 'nao' }}
+        run: node .github/scripts/backfill-grupos-resumo.js

@@ -56,6 +56,7 @@ const chave = (e) => e.toLowerCase().replace(/[@.]/g, '_').replace(/[^a-z0-9_]/g
 const ADM      = 'adm@previ.com.br';
 const DIRETORA = 'diretora@previ.com.br';
 const DE_FORA  = 'defora@previ.com.br';
+const FACILITADORA_TURMA = 'facilitadora.turma@previ.com.br'; /* flag global + vínculo real em TURMA_LIB — nunca admin */
 
 const EV = 'evDir';
 const TURMA_LIB = 'tLiberada';
@@ -80,7 +81,14 @@ function apostasSemeadas() {
           criadaEm: '2026-09-18T12:00:00.000Z', criadaPor: ADM, criadaPorNome: 'ADMIN',
           turmaKey: TURMA_LIB, turmaLabel: 'TURMA LIBERADA', eventoKey: EV,
           missao: '', revelado: false, encerrada: false,
-          grupos: { [GRUPO]: { nome: 'Grupo 1', criadoEm: '2026-09-18T12:00:00.000Z', etapa: 'missao' } }
+          grupos: { [GRUPO]: { nome: 'Grupo 1', criadoEm: '2026-09-18T12:00:00.000Z', etapa: 'missao' } },
+          /* Fase 5 — GRUPOS-RESUMO: nasce junto com o grupo (mesma
+             disciplina de #apostaCriarGrupo em aposta.js). Sem isto, quem
+             NÃO conduz a turma (o caso de DIRETORA na maioria destes
+             cenários) não vê o botão de escolher o Grupo 1 — a tela de
+             escolha, para quem não conduz, lê grupos-resumo/, nunca mais
+             grupos/ inteiro. */
+          'grupos-resumo': { [GRUPO]: { nome: 'Grupo 1', qtdMembros: 0 } }
         }
       }
     }
@@ -179,7 +187,7 @@ const FORMATOS = [
   { nome: 'celular', opts: { viewport: { width: 375, height: 812 }, isMobile: true, hasTouch: true } },
 ];
 
-async function novaPagina(browser, formato, email, erros, apostas, cfgExtra) {
+async function novaPagina(browser, formato, email, erros, apostas, cfgExtra, dbOverrides) {
   const ctx = await browser.newContext(formato.opts);
   const page = await ctx.newPage();
   page.on('pageerror', (e) => erros.push(String(e).split('\n')[0]));
@@ -189,7 +197,7 @@ async function novaPagina(browser, formato, email, erros, apostas, cfgExtra) {
      #4) travaria a suíte inteira esperando um diálogo que nunca fecha. */
   page.on('dialog', (d) => d.accept());
   await page.addInitScript('window.__CFG = ' + JSON.stringify(Object.assign({
-    db: banco(apostas), user: { email: email, emailVerified: true, uid: 'u1' }, delayDefault: 20,
+    db: Object.assign(banco(apostas), dbOverrides || {}), user: { email: email, emailVerified: true, uid: 'u1' }, delayDefault: 20,
   }, cfgExtra || {})) + ';');
   await page.route('**/firebasejs/**', (r) => r.fulfill({ status: 200, contentType: 'text/javascript', body: FALSO }));
   await page.route('**fonts.googleapis.com**', (r) => r.fulfill({ status: 200, contentType: 'text/css', body: '' }));
@@ -4099,6 +4107,121 @@ const clicarSemRolagem = (page, seletor) => page.$eval(seletor, (el) => el.click
           JSON.stringify(numerosFinais) === JSON.stringify([1, 2, 3, 4, 5]), JSON.stringify(numerosFinais));
 
         await ctx13m.close();
+      }
+
+      /* ── 13n: FASE 5 — souFacilitadoraDaTurma() FALHA FECHADA.
+            Uma facilitadora GLOBAL (fa-facilitadores) com vínculo REAL
+            em turmas-equipe para TURMA_LIB precisa ver o painel; mas se
+            a leitura de turmas-equipe falhar, atrasar, ou o módulo que
+            a fornece não existir, o resultado tem de ser "não
+            autorizado" — nunca cair de volta para "a flag global já
+            basta" (era exatamente essa brecha que a Fase 5 fechou). ── */
+      {
+        const dbComVinculo = {
+          'fa-facilitadores': { [chave(FACILITADORA_TURMA)]: { email: FACILITADORA_TURMA, name: 'FACILITADORA TURMA' } },
+          'turmas-equipe': { [TURMA_LIB]: { [chave(FACILITADORA_TURMA)]: { email: FACILITADORA_TURMA, name: 'FACILITADORA TURMA', papel: 'facilitador' } } },
+          /* Facilitador não-admin só chega em #treinamento (onde vive o
+             convite da Aposta) se TAMBÉM tiver nível 'enrolled' — a
+             flag de facilitador sozinha não basta pra rota, e não é
+             isso que este teste quer examinar (ver router.js). Confirmada
+             na própria TURMA_LIB, papel duplo (facilitadora E participante),
+             cenário realista. */
+          'turmas-interesse': { [TURMA_LIB]: { [chave(FACILITADORA_TURMA)]: {
+            name: 'FACILITADORA TURMA', email: FACILITADORA_TURMA, area: 'DIRAD', status: 'inscrito',
+            confirmedByAdmin: ADM, confirmedByAdminName: 'ADMIN', confirmedDate: '2026-09-01T10:00:00.000Z', date: '2026-09-01T10:00:00.000Z',
+          } } },
+        };
+
+        /* (a) caminho feliz: flag global + vínculo real -> vê o painel. */
+        const semeado13n = apostasProntaParaDecisao();
+        const { ctx: ctx13n, page: pg13n } = await novaPagina(browser, formato, FACILITADORA_TURMA, erros, semeado13n, {}, dbComVinculo);
+        await pg13n.goto(BASE + '/index.html#treinamento', { waitUntil: 'domcontentloaded' });
+        await pg13n.click('#apostaAbrirBtn');
+        await pg13n.waitForSelector('.aposta-topo', { timeout: 15000 });
+        await pg13n.waitForTimeout(300);
+        const temPainelFeliz = await pg13n.evaluate(() => !!document.getElementById('apostaPainelBtn'));
+        anota('(a) facilitadora global COM vínculo real em turmas-equipe vê o painel do facilitador',
+          temPainelFeliz, String(temPainelFeliz));
+        await ctx13n.close();
+      }
+
+      {
+        const dbComVinculo = {
+          'fa-facilitadores': { [chave(FACILITADORA_TURMA)]: { email: FACILITADORA_TURMA, name: 'FACILITADORA TURMA' } },
+          'turmas-equipe': { [TURMA_LIB]: { [chave(FACILITADORA_TURMA)]: { email: FACILITADORA_TURMA, name: 'FACILITADORA TURMA', papel: 'facilitador' } } },
+          /* Facilitador não-admin só chega em #treinamento (onde vive o
+             convite da Aposta) se TAMBÉM tiver nível 'enrolled' — a
+             flag de facilitador sozinha não basta pra rota, e não é
+             isso que este teste quer examinar (ver router.js). Confirmada
+             na própria TURMA_LIB, papel duplo (facilitadora E participante),
+             cenário realista. */
+          'turmas-interesse': { [TURMA_LIB]: { [chave(FACILITADORA_TURMA)]: {
+            name: 'FACILITADORA TURMA', email: FACILITADORA_TURMA, area: 'DIRAD', status: 'inscrito',
+            confirmedByAdmin: ADM, confirmedByAdminName: 'ADMIN', confirmedDate: '2026-09-01T10:00:00.000Z', date: '2026-09-01T10:00:00.000Z',
+          } } },
+        };
+
+        /* (b) a MESMA pessoa, com o MESMO vínculo real gravado — mas a
+              leitura de turmas-equipe falha (rede caiu, regra recusou,
+              tanto faz o motivo). turmasElegiveis() já decide isso
+              antes de qualquer convite aparecer: como esta pessoa só é
+              elegível pelo caminho de facilitadora (nunca também
+              confirmada como participante neste cenário), o convite
+              inteiro fica ausente — nunca cai para "a flag global já
+              basta" nem mostra um convite quebrado. */
+        const semeado13nb = apostasProntaParaDecisao();
+        const { ctx: ctx13nb, page: pg13nb } = await novaPagina(browser, formato, FACILITADORA_TURMA, erros, semeado13nb, { fail: ['turmas-equipe'] }, dbComVinculo);
+        await pg13nb.goto(BASE + '/index.html#treinamento', { waitUntil: 'domcontentloaded' });
+        await pg13nb.waitForTimeout(600);
+        const conviteComFalha = await pg13nb.evaluate(() => {
+          const host = document.getElementById('apostaEntrada');
+          return { escondido: !host || host.hidden, temBotao: !!document.getElementById('apostaAbrirBtn') };
+        });
+        anota('(b) FALHA FECHADA: leitura de turmas-equipe falhando nunca concede convite algum, mesmo com vínculo real gravado no banco',
+          conviteComFalha.escondido && !conviteComFalha.temBotao, JSON.stringify(conviteComFalha));
+        await ctx13nb.close();
+      }
+
+      {
+        const dbComVinculo = {
+          'fa-facilitadores': { [chave(FACILITADORA_TURMA)]: { email: FACILITADORA_TURMA, name: 'FACILITADORA TURMA' } },
+          'turmas-equipe': { [TURMA_LIB]: { [chave(FACILITADORA_TURMA)]: { email: FACILITADORA_TURMA, name: 'FACILITADORA TURMA', papel: 'facilitador' } } },
+          /* Facilitador não-admin só chega em #treinamento (onde vive o
+             convite da Aposta) se TAMBÉM tiver nível 'enrolled' — a
+             flag de facilitador sozinha não basta pra rota, e não é
+             isso que este teste quer examinar (ver router.js). Confirmada
+             na própria TURMA_LIB, papel duplo (facilitadora E participante),
+             cenário realista. */
+          'turmas-interesse': { [TURMA_LIB]: { [chave(FACILITADORA_TURMA)]: {
+            name: 'FACILITADORA TURMA', email: FACILITADORA_TURMA, area: 'DIRAD', status: 'inscrito',
+            confirmedByAdmin: ADM, confirmedByAdminName: 'ADMIN', confirmedDate: '2026-09-01T10:00:00.000Z', date: '2026-09-01T10:00:00.000Z',
+          } } },
+        };
+
+        /* (c) a leitura de turmas-equipe é LENTA (4G ruim, mesma
+              condição que este projeto trata como normal em sala, não
+              exceção — ver CLAUDE.md). Enquanto ela não responde, o
+              convite NÃO pode aparecer (começa fechado); assim que
+              responde, aparece sozinho, sem precisar recarregar — e só
+              então dá para abrir a dinâmica e ver o painel. */
+        const semeado13nc = apostasProntaParaDecisao();
+        const { ctx: ctx13nc, page: pg13nc } = await novaPagina(browser, formato, FACILITADORA_TURMA, erros, semeado13nc, { delays: { 'turmas-equipe': 2500 } }, dbComVinculo);
+        await pg13nc.goto(BASE + '/index.html#treinamento', { waitUntil: 'domcontentloaded' });
+        await pg13nc.waitForTimeout(600);
+        const anteDeResponder = await pg13nc.evaluate(() => {
+          const host = document.getElementById('apostaEntrada');
+          return !host || host.hidden;
+        });
+        anota('(c) enquanto turmas-equipe não respondeu (rede lenta), o convite começa AUSENTE — nunca aparece "otimista"',
+          anteDeResponder, String(anteDeResponder));
+        await pg13nc.waitForSelector('#apostaAbrirBtn', { timeout: 5000 });
+        await pg13nc.click('#apostaAbrirBtn');
+        await pg13nc.waitForSelector('.aposta-topo', { timeout: 15000 });
+        await pg13nc.waitForTimeout(300);
+        const temPainelDepois = await pg13nc.evaluate(() => !!document.getElementById('apostaPainelBtn'));
+        anota('(c) assim que a leitura lenta responde, o convite aparece sozinho e o painel também, sem precisar recarregar',
+          temPainelDepois, String(temPainelDepois));
+        await ctx13nc.close();
       }
 
       anota('nenhum erro de JavaScript', erros.length === 0, erros[0]);

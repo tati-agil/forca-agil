@@ -1,0 +1,31 @@
+name: Auditoria — facilitadores × turmas-equipe (Fase 5)
+
+# workflow_dispatch (disparo manual) só é aceito pela API do GitHub para
+# um workflow já registrado na branch padrão — inútil enquanto este
+# arquivo só existir aqui. Por isso também roda em push, mas restrito a
+# mudanças neste próprio script/workflow, nunca em toda PR/push do
+# projeto. Somente leitura: usa a mesma conta de teste admin já usada
+# pela suíte automática, só para GET no Realtime Database. Nunca escreve
+# nada — remover o gatilho de push depois que a Fase 5 estiver na main.
+on:
+  workflow_dispatch: {}
+  push:
+    paths:
+      - '.github/scripts/audit-facilitadores-turmas.js'
+      - '.github/workflows/audit-facilitadores-turmas.yml'
+
+jobs:
+  auditoria:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Ler fa-facilitadores × turmas-equipe (somente leitura)
+        env:
+          FA_TEST_ADMIN_EMAIL: ${{ secrets.FA_TEST_ADMIN_EMAIL }}
+          FA_TEST_ADMIN_PASSWORD: ${{ secrets.FA_TEST_ADMIN_PASSWORD }}
+        run: node .github/scripts/audit-facilitadores-turmas.js
