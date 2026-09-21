@@ -90,10 +90,11 @@ function caracteresForaDoComum(email) {
   );
   const idToken = auth.idToken;
 
-  const [facilitadores, equipe, turmas] = await Promise.all([
+  const [facilitadores, equipe, turmas, users] = await Promise.all([
     getJson(DB_URL + '/fa-facilitadores.json?auth=' + idToken),
     getJson(DB_URL + '/turmas-equipe.json?auth=' + idToken),
-    getJson(DB_URL + '/turmas.json?auth=' + idToken)
+    getJson(DB_URL + '/turmas.json?auth=' + idToken),
+    getJson(DB_URL + '/fa-users.json?auth=' + idToken)
   ]).then((r) => r.map((v) => v || {}));
 
   const linhas = [];
@@ -149,23 +150,32 @@ function caracteresForaDoComum(email) {
   /* Dados de formato de e-mail, para a derivação de identidade nas Rules
      (não é possível fazer replace global/regex nas Firebase Rules —
      preciso saber se e-mails reais fogem do padrão "sem ponto/hífen no
-     local-part" antes de decidir como comparar identidade nas rules). */
-  md.push('\n## Formato de e-mail (para a estratégia de identidade nas Security Rules)\n');
+     local-part" antes de decidir como comparar identidade nas rules).
+     Cobre TODO fa-users, não só facilitadores: a checagem de "sou membro
+     deste grupo" nas rules precisa derivar a chave de QUALQUER
+     participante, não só de facilitadores. */
+  md.push('\n## Formato de e-mail — TODOS os usuários (fa-users), para a estratégia de identidade nas Security Rules\n');
   const todosEmails = new Set();
+  Object.keys(users).forEach((k) => users[k].email && todosEmails.add(users[k].email));
   facKeys.forEach((k) => facilitadores[k].email && todosEmails.add(facilitadores[k].email));
   Object.keys(equipe).forEach((t) => Object.keys(equipe[t] || {}).forEach((fk) => {
     const e = (equipe[t][fk] || {}).email;
     if (e) todosEmails.add(e);
   }));
+  md.push('Total de e-mails distintos analisados: ' + todosEmails.size + '\n');
   let algumForaDoComum = false;
+  let maxPontos = 0;
   todosEmails.forEach((e) => {
     const motivos = caracteresForaDoComum(e);
+    const pontosLocal = ((String(e).split('@')[0] || '').match(/\./g) || []).length;
+    if (pontosLocal > maxPontos) maxPontos = pontosLocal;
     if (motivos.length) {
       algumForaDoComum = true;
       md.push('- ' + e + ' — ' + motivos.join('; '));
     }
   });
-  if (!algumForaDoComum) md.push('Nenhum e-mail de facilitador/equipe foge do padrão simples (sem ponto, hífen ou maiúscula no local-part).');
+  if (!algumForaDoComum) md.push('Nenhum e-mail foge do padrão simples (sem ponto, hífen ou maiúscula no local-part).');
+  md.push('\nMáximo de pontos encontrados no local-part de um único e-mail: ' + maxPontos + ' (domínio @previ.com.br soma sempre +2 pontos fixos).');
 
   const relatorio = md.join('\n');
   console.log(relatorio);
