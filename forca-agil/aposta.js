@@ -176,7 +176,19 @@
      (regra administrativa já existente, sem mudança); do contrário,
      precisa das DUAS condições — habilitação global E vínculo real
      naquela turma. cb(bool) porque o vínculo depende de uma leitura
-     (cacheada) do Firebase. */
+     (cacheada) do Firebase.
+
+     FALHA FECHADA, sempre — nunca cai de volta para "flag global
+     basta": se window.faRoteiro não existir, comEquipeGlobal() usa o
+     próprio fallback (leitura direta de turmas-equipe); se essa
+     leitura falhar (erro, rede fora, regra recusando), pronto({})
+     grava um cache VAZIO, e facilitadoraTemVinculo() sobre um cache
+     vazio é sempre false; se a leitura ainda não respondeu (rede
+     lenta, sala com 4G ruim), o cb(bool) desta chamada simplesmente
+     não roda ainda — e quem chama (abrirDinamica) já inicializa
+     _souConduzoDestaTurma como false, então nenhuma ação de
+     facilitação aparece enquanto a resposta não chegar. Não existe
+     nenhum caminho de erro/timeout/ausência que resulte em true. */
   function souFacilitadoraDaTurma(turmaKey, cb) {
     if (souAdmin()) { cb(true); return; }
     if (!souFacilitadora()) { cb(false); return; }
@@ -5669,5 +5681,16 @@
 
   window.addEventListener('fa-auth-ready', montarEntrada);
   window.addEventListener('fa-auth-change', montarEntrada);
+  /* fa-auth-ready dispara a partir da sessão + nível de acesso
+     (member/enrolled) — nunca espera admin/facilitador global
+     resolverem, que são checagens assíncronas SEPARADAS (ver auth.js).
+     Sem isto, turmasElegiveis() podia rodar com souFacilitadora()
+     ainda respondendo false (a leitura de fa-facilitadores daquela
+     pessoa nem chegou), esconder o convite, e nunca mais reavaliar —
+     a pessoa só veria a Aposta dando F5. fa-admin-ready/
+     fa-facilitador-ready existem exatamente pra isso ("quem já decidiu
+     antes poder decidir de novo"), mas nada aqui os escutava ainda. */
+  window.addEventListener('fa-admin-ready', montarEntrada);
+  window.addEventListener('fa-facilitador-ready', montarEntrada);
   if (window.faRouter) window.faRouter.onPageInit('treinamento', montarEntrada);
 })();

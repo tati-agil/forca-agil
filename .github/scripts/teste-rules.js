@@ -300,6 +300,87 @@ async function main() {
       anota('depois que ciclos/ nasce, o caminho legado dados/<etapa> fica congelado (não é mais escrito por ninguém)', true);
     }
 
+    /* ══════════════ S6 — execução LEGADA (sem status/numero, formato
+          anterior à Fase 1) continua funcionando sem migração ══════════════ */
+    await testEnv.clearDatabase();
+    await semearBase();
+    {
+      const EXEC_LEGADO = 'execLegado';
+      await semear(async (adminDb) => {
+        /* Formato de antes da Fase 1: sem status, sem numero -- só o
+           que a Fase 0 já gravava. EXEC_ATIVA precisa tratar "sem
+           status nenhum" como "não encerrada", do mesmo jeito que o
+           cliente sempre tratou (ver CLAUDE.md/aposta.js). */
+        await adminDb.ref('apostas/' + TURMA_A + '/execucoes/' + EXEC_LEGADO).set({
+          criadaEm: '2026-01-10T09:00:00.000Z', turmaKey: TURMA_A,
+          grupos: { grupoLegado: { nome: 'Grupo Legado', criadoEm: '2026-01-10T09:05:00.000Z', etapa: 'decisao',
+            membros: { [emailKey(PART_A_EMAIL)]: { name: PART_A_EMAIL, email: PART_A_EMAIL, entrouEm: '2026-01-10T09:05:00.000Z' } },
+            dados: { missao: { oQue: 'fila' } } } }
+        });
+        await adminDb.ref('apostas/' + TURMA_A + '/atual').set(EXEC_LEGADO);
+      });
+
+      await assertSucceeds(db(PART_A_EMAIL).ref('apostas/' + TURMA_A + '/execucoes/' + EXEC_LEGADO + '/grupos/grupoLegado/dados/decisao').set({ decisao: 'Ampliar' }));
+      anota('S6 — execução legada (sem status/numero) aceita escrita normal do participante, sem migração nenhuma', true);
+      await assertSucceeds(db(FAC_A_EMAIL).ref('apostas/' + TURMA_A + '/execucoes/' + EXEC_LEGADO + '/revelado').set(true));
+      anota('S6 — facilitadora com vínculo opera normalmente uma execução no formato legado', true);
+    }
+
+    /* ══════════════ S5 — HISTÓRICO: legível por quem tinha acesso,
+          nenhuma escrita, e só do(s) grupo(s) de que participou quando
+          a execução NÃO é mais a atual (item 25) ══════════════ */
+    await testEnv.clearDatabase();
+    await semearBase();
+    {
+      const EXEC_NOVA = 'execNovaA';
+      /* PART_A2_EMAIL nunca foi membro do GRUPO_A1 (só do GRUPO_A2) --
+         é exatamente o caso que decide se a leitura de uma execução
+         HISTÓRICA está restrita ao(s) grupo(s) da própria pessoa. */
+      await semear(async (adminDb) => {
+        await adminDb.ref('apostas/' + TURMA_A + '/execucoes/' + EXEC_NOVA).set({ status: 'ativa', criadoEm: new Date().toISOString(), numero: 2, grupos: {} });
+        await adminDb.ref('apostas/' + TURMA_A + '/atual').set(EXEC_NOVA);
+        await adminDb.ref('apostas/' + TURMA_A + '/execucoes/' + EXEC_A + '/status').set('encerrada');
+      });
+
+      /* Agora EXEC_A é HISTÓRICA (não é mais "atual"). */
+      await assertSucceeds(db(PART_A_EMAIL).ref('apostas/' + TURMA_A + '/execucoes/' + EXEC_A + '/grupos/' + GRUPO_A1).once('value'));
+      anota('S5 — participante lê o PRÓPRIO grupo numa execução histórica (não-atual) da turma dela', true);
+      await assertFails(db(PART_A2_EMAIL).ref('apostas/' + TURMA_A + '/execucoes/' + EXEC_A + '/grupos/' + GRUPO_A1).once('value'));
+      anota('S5/item 25 — participante confirmada na turma, mas que NÃO era membro DESTE grupo, não lê o histórico dele', true);
+      await assertSucceeds(db(PART_A2_EMAIL).ref('apostas/' + TURMA_A + '/execucoes/' + EXEC_A + '/grupos/' + GRUPO_A2).once('value'));
+      anota('S5/item 25 — mas lê normalmente o histórico do PRÓPRIO grupo (A2) nessa mesma execução histórica', true);
+      await assertSucceeds(db(FAC_A_EMAIL).ref('apostas/' + TURMA_A + '/execucoes/' + EXEC_A).once('value'));
+      anota('S5 — facilitadora com vínculo lê a execução histórica INTEIRA (todos os grupos), sem essa restrição', true);
+
+      await assertFails(db(PART_A_EMAIL).ref('apostas/' + TURMA_A + '/execucoes/' + EXEC_A + '/grupos/' + GRUPO_A1 + '/dados/problema').set({ x: 1 }));
+      anota('S5 — nenhuma escrita é aceita na execução histórica, nem do próprio membro do grupo', true);
+      await assertFails(db(FAC_A_EMAIL).ref('apostas/' + TURMA_A + '/execucoes/' + EXEC_A + '/revelado').set(false));
+      anota('S5 — nem a facilitadora escreve na execução histórica', true);
+    }
+
+    /* ══════════════ Transição atômica legítima da FASE 1 (execução):
+          encerrar a antiga + criar a nova + mudar "atual", tudo no
+          MESMO update() multi-caminho ══════════════ */
+    await testEnv.clearDatabase();
+    await semearBase();
+    {
+      const EXEC_NOVA2 = 'execNova2';
+      const updates = {};
+      updates['apostas/' + TURMA_A + '/execucoes/' + EXEC_A + '/status'] = 'encerrada';
+      updates['apostas/' + TURMA_A + '/execucoes/' + EXEC_A + '/encerradaEm'] = new Date().toISOString();
+      updates['apostas/' + TURMA_A + '/execucoes/' + EXEC_NOVA2] = {
+        status: 'ativa', criadoEm: new Date().toISOString(), numero: 2, grupos: {}
+      };
+      updates['apostas/' + TURMA_A + '/atual'] = EXEC_NOVA2;
+      await assertSucceeds(db(FAC_A_EMAIL).ref().update(updates));
+      anota('transição atômica da Fase 1 (encerrar antiga + criar nova + mudar atual, no mesmo update) continua permitida', true);
+
+      await assertFails(db(FAC_A_EMAIL).ref('apostas/' + TURMA_A + '/execucoes/' + EXEC_A + '/missao').set({ oQue: 'x' }));
+      anota('depois da transição, a execução antiga já está imutável (mesma checagem de S2)', true);
+      await assertSucceeds(db(FAC_A_EMAIL).ref('apostas/' + TURMA_A + '/execucoes/' + EXEC_NOVA2 + '/missao').set({ oQue: 'nova missão' }));
+      anota('a execução nova, essa sim, aceita escrita normal', true);
+    }
+
     console.log('\n' + total + ' verificações, ' + falhas + ' falha(s).');
   } finally {
     await testEnv.cleanup();
