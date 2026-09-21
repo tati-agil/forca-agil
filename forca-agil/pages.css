@@ -1493,21 +1493,19 @@
   border-radius: 8px; padding: 9px 12px;
 }
 
-/* Refinamento — etapas opcionais (Sintoma/Ideia de solução): "Pular
-   esta etapa" precisa parecer uma alternativa válida, nunca competir
-   com CONTINUAR — por isso vive dentro do card, discreto, sem o
-   destaque de botão principal nem secundário forte. */
-.aposta-pular-bloco {
-  margin-top: 18px; padding-top: 14px; border-top: 1px dashed var(--line);
-  display: flex; flex-direction: column; gap: 8px; align-items: flex-start;
+/* Refinamento — etapas opcionais (Sintoma/Ideia de solução): bugfix de
+   descoberta pós-uso real — a versão anterior só tinha um link no FIM
+   do formulário (fácil de nunca ver, principalmente em celular, atrás
+   de cards de contexto mais longos). Esta faixa mora logo depois da
+   pergunta/auxiliar, antes do formulário — visível de cara — mas
+   continua secundária: btn--ghost (contorno, sem cor de destaque),
+   nunca a cor/glow de CONTINUAR. */
+.aposta-opcional-faixa {
+  margin: 4px 0 14px; padding: 12px 14px; border-radius: 8px;
+  background: rgba(255,255,255,.02); border: 1px dashed var(--line);
+  display: flex; flex-wrap: wrap; align-items: center; gap: 10px 14px;
 }
-.aposta-pular-texto { margin: 0; font-size: .8rem; line-height: 1.5; color: var(--ink-3); }
-.aposta-pular-btn {
-  background: none; border: none; padding: 0; margin: 0; cursor: pointer;
-  font-family: var(--font-mono); font-size: .74rem; letter-spacing: .05em;
-  color: var(--ink-3); text-decoration: underline; text-underline-offset: 3px;
-}
-.aposta-pular-btn:hover { color: var(--ink); }
+.aposta-opcional-texto { margin: 0; font-size: .8rem; line-height: 1.5; color: var(--ink-3); flex: 1 1 220px; }
 
 /* Estado PULADA: ocupa o lugar do formulário inteiro — nunca some
    sozinho, nunca lê como erro (sem vermelho, sem ícone de alerta). */

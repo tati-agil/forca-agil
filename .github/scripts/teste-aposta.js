@@ -5285,8 +5285,53 @@ const clicarSemRolagem = (page, seletor) => page.$eval(seletor, (el) => el.click
         const temBotaoPular16a = await pg16a.evaluate(() => !!document.getElementById('apostaPularEtapa'));
         anota('A — Sintoma tem a ação "Pular esta etapa", secundária ao formulário', temBotaoPular16a);
 
+        /* Refinamento pós-uso real (2): a "Pular esta etapa" sozinha não
+           bastava — na primeira visita ela era sutil demais (link solto
+           no fim do formulário) e só ficava evidente na volta. Agora a
+           faixa "Esta etapa é opcional" aparece logo após a pergunta,
+           antes do formulário — visível sem rolar — com um botão
+           secundário (nunca amarelo/primário, para não competir com
+           CONTINUAR). */
+        const faixa16a = await pg16a.evaluate(() => {
+          const faixa = document.querySelector('.aposta-opcional-faixa');
+          const btn = document.getElementById('apostaPularEtapa');
+          const seguir = document.getElementById('apostaSeguir');
+          return {
+            temFaixa: !!faixa,
+            textoFaixa: (faixa && faixa.querySelector('.aposta-opcional-texto') || {}).textContent || '',
+            btnDentroDaFaixa: !!(faixa && btn && faixa.contains(btn)),
+            btnNuncaPrimario: !!btn && !btn.classList.contains('btn--primary'),
+            seguirContinuaPrimario: !!seguir && seguir.classList.contains('btn--primary'),
+          };
+        });
+        anota('1 — primeira visita do Sintoma mostra a faixa "Esta etapa é opcional" antes do formulário',
+          faixa16a.temFaixa && /opcional/i.test(faixa16a.textoFaixa) && faixa16a.btnDentroDaFaixa,
+          JSON.stringify(faixa16a));
+        anota('2 — o botão "Pular esta etapa" nunca é o botão primário (amarelo) — CONTINUAR segue sendo o único primário',
+          faixa16a.btnNuncaPrimario && faixa16a.seguirContinuaPrimario, JSON.stringify(faixa16a));
+
+        if (formato.nome === 'celular') {
+          const posicao16a = await pg16a.evaluate(() => {
+            const btn = document.getElementById('apostaPularEtapa');
+            const r = btn && btn.getBoundingClientRect();
+            return { top: r && r.top, visivel: !!r && r.top >= 0 && r.top < window.innerHeight };
+          });
+          anota('2 — no celular, "Pular esta etapa" (Sintoma) fica visível sem precisar rolar toda a tela',
+            posicao16a.visivel, JSON.stringify(posicao16a));
+        }
+
         // B/C — pular sem conteúdo: nunca pede confirmação, avança para Problema sem bloqueio.
         await pg16a.click('#apostaPularEtapa');
+        /* Bugfix pós-uso real: sem nenhum aviso, o clique em "Pular esta
+           etapa" mudava de tela no mesmo instante — quem clicou não via
+           confirmação nenhuma de que tinha sido um PULO (podia parecer
+           que CONTINUAR tinha sido clicado). Confere o toast "✓ Sintoma
+           pulado." ANTES da navegação completar (ele é transitório —
+           depois que a próxima etapa carrega, já não existe mais). */
+        await pg16a.waitForSelector('.aposta-toast', { timeout: 5000 }).catch(() => {});
+        const toast16a = await pg16a.evaluate(() => (document.querySelector('.aposta-toast') || {}).textContent || '');
+        anota('3 — pular mostra confirmação visível ("✓ Sintoma pulado.") antes de avançar, nunca muda de tela sem aviso nenhum',
+          /^✓ Sintoma pulado\.$/.test(toast16a), toast16a);
         await pg16a.waitForFunction(() => /PROBLEMA/.test((document.querySelector('.aposta-etapa-titulo') || {}).textContent || ''), { timeout: 15000 });
         const semModalNoPular = await pg16a.evaluate(() => !document.querySelector('.aposta-confirmar-overlay'));
         anota('B — pular Sintoma vazio nunca pede confirmação e avança direto para Problema', semModalNoPular);
@@ -5394,8 +5439,55 @@ const clicarSemRolagem = (page, seletor) => page.$eval(seletor, (el) => el.click
         anota('A — Ideia vazia (sem decidir preencher ou pular) continua bloqueando CONTINUAR — regra de frase estrita intocada',
           seguirVazio16c === true, String(seguirVazio16c));
 
+        /* 5 — equivalência Sintoma/Ideia: a Ideia é a etapa que motivou o
+           refinamento (no celular, Hipótese + "Resultados que queremos
+           produzir" empurravam o link antigo para baixo da dobra). A
+           faixa precisa aparecer com exatamente o mesmo texto/estrutura
+           da de Sintoma, e — no celular — visível sem rolar mesmo com
+           esses blocos acima dela. */
+        const faixa16c = await pg16c.evaluate(() => {
+          const faixa = document.querySelector('.aposta-opcional-faixa');
+          const btn = document.getElementById('apostaPularEtapa');
+          return {
+            temFaixa: !!faixa,
+            textoFaixa: (faixa && faixa.querySelector('.aposta-opcional-texto') || {}).textContent || '',
+            btnDentroDaFaixa: !!(faixa && btn && faixa.contains(btn)),
+            btnNuncaPrimario: !!btn && !btn.classList.contains('btn--primary'),
+          };
+        });
+        anota('1 — primeira visita da Ideia mostra a faixa "Esta etapa é opcional" antes do formulário',
+          faixa16c.temFaixa && /opcional/i.test(faixa16c.textoFaixa) && faixa16c.btnDentroDaFaixa,
+          JSON.stringify(faixa16c));
+        anota('2 — o botão "Pular esta etapa" da Ideia também nunca é primário (amarelo)',
+          faixa16c.btnNuncaPrimario, JSON.stringify(faixa16c));
+        anota('5 — Sintoma e Ideia usam exatamente a mesma faixa (mesmo texto) — mesma regra visual/funcional',
+          faixa16c.textoFaixa === 'Esta etapa é opcional. Você pode preenchê-la ou seguir sem ela.',
+          faixa16c.textoFaixa);
+
+        if (formato.nome === 'celular') {
+          /* Este é o caso que estava quebrado: Hipótese (cardConexao) +
+             "Resultados que queremos produzir" ficam ACIMA da faixa —
+             mantidos de propósito (são compartilhados por toda
+             renderEtapa) — mas a faixa, posicionada logo após a
+             pergunta/auxiliar e antes do formulário, já cabe na tela
+             375×812 sem precisar rolar por eles. */
+          const posicao16c = await pg16c.evaluate(() => {
+            const btn = document.getElementById('apostaPularEtapa');
+            const r = btn && btn.getBoundingClientRect();
+            return { top: r && r.top, visivel: !!r && r.top >= 0 && r.top < window.innerHeight };
+          });
+          anota('2 — no celular, "Pular esta etapa" (Ideia) fica visível sem precisar rolar toda a tela, mesmo com Hipótese e Resultados acima',
+            posicao16c.visivel, JSON.stringify(posicao16c));
+        }
+
         // B/C — pular avança direto para Experimento, nunca bloqueia.
         await pg16c.click('#apostaPularEtapa');
+        /* Mesma confirmação de 16a, com a concordância certa ("pulada",
+           não "pulado" — "a ideia"). */
+        await pg16c.waitForSelector('.aposta-toast', { timeout: 5000 }).catch(() => {});
+        const toastIdeia16c = await pg16c.evaluate(() => (document.querySelector('.aposta-toast') || {}).textContent || '');
+        anota('3 — pular Ideia mostra confirmação visível ("✓ Ideia de solução pulada.") antes de avançar',
+          /^✓ Ideia de solução pulada\.$/.test(toastIdeia16c), toastIdeia16c);
         await pg16c.waitForFunction(() => /^E — EXPERIMENTO$/.test((document.querySelector('.aposta-etapa-titulo') || {}).textContent || ''), { timeout: 15000 });
         const tituloExperimento16c = await pg16c.evaluate(() => (document.querySelector('.aposta-etapa-titulo') || {}).textContent || '');
         anota('B/C — pular Ideia avança direto para o Experimento (Hipótese → Experimento)',
@@ -5409,6 +5501,41 @@ const clicarSemRolagem = (page, seletor) => page.$eval(seletor, (el) => el.click
         anota('D — a trilha marca Ideia de solução como "Pulada"', trilhaIdeia16c);
 
         await ctx16c.close();
+      }
+
+      /* ── 16c2: EQUIVALÊNCIA SINTOMA/IDEIA (4) — reabrir a Ideia já
+            pulada mostra o mesmo estado forte ("Esta etapa foi pulada")
+            que 16b já confere para o Sintoma, com as mesmas duas ações.
+            Este banner de retorno é intencionalmente mantido "forte" —
+            representa uma escolha já feita, ao contrário da faixa
+            discreta da primeira visita. ── */
+      {
+        const semeado16c2 = apostasSemeadas();
+        semeado16c2[TURMA_LIB].execucoes[EXEC].grupos[GRUPO].dados = {
+          missao: { verbo: 'Apoiar', oQue: 'a Rebelião', contexto: 'contra o Império' },
+          sintoma: { pulada: true },
+          problema: { quem: 'O povo', situacaoIndesejada: 'vive sob o domínio do Império' },
+          mudancas: { itens: [{ id: 'r1', direcao: 'Aumentar', indicador: 'planetas livres', atual: '2', meta: '10', unidade: 'planetas' }] },
+          hipotese: { causa: 'o Império controla a comunicação', indicio: 'os planetas não se coordenam' },
+          ideia: { pulada: true },
+        };
+        semeado16c2[TURMA_LIB].execucoes[EXEC].grupos[GRUPO].etapa = 'ideia';
+        const { ctx: ctx16c2, page: pg16c2 } = await novaPagina(browser, formato, DIRETORA, erros, semeado16c2);
+        await pg16c2.goto(BASE + '/index.html#treinamento', { waitUntil: 'domcontentloaded' });
+        await pg16c2.click('#apostaAbrirBtn');
+        await pg16c2.waitForSelector('.aposta-grupo-btn', { timeout: 15000 });
+        await pg16c2.click('.aposta-grupo-btn');
+        await pg16c2.waitForSelector('.aposta-pulada', { timeout: 15000 });
+
+        const banner16c2 = await pg16c2.evaluate(() => ({
+          texto: (document.querySelector('.aposta-pulada-texto') || {}).textContent || '',
+          temPreencher: !!document.getElementById('apostaPreencherAgora'),
+          temManter: !!document.getElementById('apostaManterPulada'),
+        }));
+        anota('4 — reabrir a Ideia já pulada mostra o mesmo estado forte ("Esta etapa foi pulada") que o Sintoma, com as duas ações',
+          /pulada/i.test(banner16c2.texto) && banner16c2.temPreencher && banner16c2.temManter, JSON.stringify(banner16c2));
+
+        await ctx16c2.close();
       }
 
       /* ── 16d: ETAPAS OPCIONAIS — DUAS PULADAS JUNTAS: aposta continua

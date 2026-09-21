@@ -245,12 +245,11 @@
         'Não é um bom sintoma: “A comunicação é ruim” — isso já é uma interpretação. Nesta etapa, prefira registrar aquilo que pode ser observado.',
       /* Refinamento — etapas opcionais: nem toda dinâmica precisa
          registrar um sintoma (às vezes o problema já está claro). Ver
-         moldeHtml/renderEtapa (bloco "Pular esta etapa") e
-         etapaPreenchida/resumoEtapa (que tratam `d.pulada` como
-         "não existe" para a trilha, o Mapa, o CSV e a IA — nunca como
-         "faltando"). */
+         opcionalFaixaHtml/renderEtapa (o convite "Esta etapa é
+         opcional...") e etapaPreenchida/resumoEtapa (que tratam
+         `d.pulada` como "não existe" para a trilha, o Mapa, o CSV e a
+         IA — nunca como "faltando"). */
       permitePular: true,
-      textoOpcional: 'O Sintoma ajuda a registrar o que estamos observando hoje. Se o problema já estiver claro, você pode seguir sem esta etapa.',
       campos: [
         { chave: 'texto', tipo: 'textarea', rotulo: 'O fato observável', curto: 'o que observamos', placeholder: 'muitos participantes entram em contato para saber em que etapa está a concessão' }
       ],
@@ -324,7 +323,6 @@
          dado — editar/pular nesse caso já aciona a cascata normal de
          "revisandoHerdado" em salvarEtapa). */
       permitePular: true,
-      textoOpcional: 'A Ideia de solução registra uma possibilidade de ação. Se ainda não quiser se comprometer com uma solução, você pode seguir diretamente para o experimento.',
       campos: [
         { chave: 'acao', tipo: 'textarea', rotulo: 'Ação ou abordagem', curto: 'a ação', placeholder: 'dar ao participante mais visibilidade sobre o andamento', dica: 'Descreva uma possível intervenção. Ainda não precisa explicar como ela será testada.' },
         { chave: 'mudanca', tipo: 'textarea', rotulo: 'Mudança que pretendemos provocar', curto: 'a mudança pretendida', placeholder: 'que o participante consiga acompanhar o andamento sem precisar entrar em contato', dica: 'Que efeito esperamos que essa ideia provoque? Não repita aqui a meta numérica das Mudanças mensuráveis.' }
@@ -3443,19 +3441,26 @@
     if (etapa.legado && !usados[etapa.legado]) {
       html += legadoHtml(etapa.legado, d, !temLacunaPreenchida(etapa, d));
     }
-    /* Refinamento — etapas opcionais: convite discreto, nunca mais
-       chamativo que o fluxo principal (CONTINUAR continua sendo a ação
-       óbvia) — o clique é ligado em ligarEtapa (ver confirmarPularEtapa).
-       Só aparece enquanto a etapa NÃO está pulada; pulada, é
-       puladaHtml() que ocupa o lugar do formulário inteiro (ver
-       renderEtapa). */
-    if (etapa.permitePular) {
-      html += '<div class="aposta-pular-bloco">' +
-        (etapa.textoOpcional ? '<p class="aposta-pular-texto">' + esc(etapa.textoOpcional) + '</p>' : '') +
-        '<button type="button" class="aposta-pular-btn" id="apostaPularEtapa">Pular esta etapa</button>' +
-      '</div>';
-    }
     return html;
+  }
+
+  /* Refinamento — etapas opcionais (bugfix de descoberta pós-uso real):
+     a primeira versão só tinha um link sutil no FIM do formulário —
+     depois de um card de conexão (Hipótese, na Ideia) e do bloco
+     "Resultados que queremos produzir", que em celular já empurram o
+     link para baixo da dobra. Esta faixa mora ANTES do formulário —
+     logo depois da pergunta/auxiliar, ainda dentro de .aposta-etapa —
+     visível desde o primeiro olhar, em qualquer tela. Continua
+     secundária (botão outline, nunca a cor/glow de CONTINUAR): o texto
+     é o mesmo para as duas etapas de propósito (mesma regra visual e
+     funcional, nunca uma explicação diferente que pareça dar mais
+     peso a uma das duas). Só aparece enquanto a etapa NÃO está pulada;
+     pulada, é puladaHtml() que ocupa o lugar do formulário inteiro. */
+  function opcionalFaixaHtml() {
+    return '<div class="aposta-opcional-faixa">' +
+      '<p class="aposta-opcional-texto">Esta etapa é opcional. Você pode preenchê-la ou seguir sem ela.</p>' +
+      '<button type="button" class="btn btn--sm btn--ghost" id="apostaPularEtapa">Pular esta etapa</button>' +
+    '</div>';
   }
 
   /* Estado PULADA (refinamento — etapas opcionais): substitui o
@@ -3463,7 +3468,10 @@
      etapa já está resolvida, só que sem conteúdo. "Preencher agora"
      tira o estado pulada e mostra o formulário de novo; "Manter como
      pulada" só confirma, sem navegar (CONTINUAR, sempre visível na
-     navegação abaixo, já é o jeito normal de seguir em frente). */
+     navegação abaixo, já é o jeito normal de seguir em frente). Este
+     estado continua "forte" de propósito — ele representa uma escolha
+     já feita, não um convite; só o convite (opcionalFaixaHtml, acima)
+     precisa ser discreto. */
   function puladaHtml(etapa) {
     return '<div class="aposta-pulada">' +
       '<p class="aposta-pulada-texto">Esta etapa foi pulada' + (etapa.id === 'ideia' ? ' neste ciclo' : '') + '.</p>' +
@@ -3528,6 +3536,7 @@
             '</div>' +
             '<p class="aposta-pergunta">' + esc(pergunta) + '</p>' +
             (etapa.auxiliar && etapa.id !== 'evidencia' ? '<p class="aposta-auxiliar">' + esc(etapa.auxiliar) + '</p>' : '') +
+            (etapa.permitePular && !pulada ? opcionalFaixaHtml() : '') +
             '<div class="aposta-campos">' + corpo + '</div>' +
             /* A frase montada, ao vivo, embaixo das lacunas: o que ainda
                falta aparece marcado no lugar exato em que vai entrar, e
@@ -4908,8 +4917,19 @@
        de salvarEtapa que já troca "decisao"/"missao" por completo),
        então nunca sobra um campo fantasma de uma tentativa anterior.
        Com algo já digitado, confirma antes de descartar (nunca some
-       sozinho); vazio, pula direto. Depois de salvar, avança exatamente
-       como um CONTINUAR bem-sucedido — a etapa já está resolvida. */
+       sozinho); vazio, pula direto.
+
+       Bugfix pós-uso real: sem toast nenhum, o clique passava direto
+       para a etapa seguinte no mesmo instante — quem clicou "Pular esta
+       etapa" via a tela mudar, mas nada dizia QUE tinha sido um pulo
+       (podia parecer que CONTINUAR tinha sido clicado por engano). Só
+       ficava claro voltando depois e vendo o estado "Esta etapa foi
+       pulada" — daí a confirmação parecer "sutil na ida, evidente na
+       volta". Mesmo padrão já usado na Decisão ("✓ Decisão
+       registrada."): mostra o toast primeiro, só then avança — o toast
+       é filho de _tela, que avancar()/render() substitui na hora, então
+       precisa do atraso curto para dar tempo de aparecer antes da
+       troca de tela. */
     var pularBtn = document.getElementById('apostaPularEtapa');
     if (pularBtn) pularBtn.addEventListener('click', function () {
       var d = coletar();
@@ -4923,7 +4943,13 @@
               'Nada foi perdido: o que está na tela continua aqui.', true);
             return;
           }
-          avancar(etapa);
+          /* Concordância manual, não heurística: "Sintoma" termina em
+             "a" mas é masculino ("o sintoma", como "o problema") — um
+             regex por sufixo erraria esse caso. Só duas etapas têm
+             permitePular, então hardcode é mais seguro que adivinhar.
+             "✓" no início — mesmo padrão do "✓ Decisão registrada." */
+          avisar('✓ ' + (etapa.curto || etapa.titulo) + (etapa.id === 'ideia' ? ' pulada.' : ' pulado.'));
+          setTimeout(function () { avancar(etapa); }, 700);
         });
       }
       if (temConteudo) confirmarPularEtapa(executarPular);
