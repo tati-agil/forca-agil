@@ -1841,8 +1841,10 @@ const clicarSemRolagem = (page, seletor) => page.$eval(seletor, (el) => el.click
       anota('depois de revelado, Mudanças mensuráveis aparecem ligadas a Key Results',
         /MUDAN[ÇC]AS MENSUR[ÁA]VEIS/i.test(rev) && /Key Results/.test(rev), rev.slice(0, 120));
       anota('a revelação traz o ciclo PHEED', /PHEED/.test(rev));
-      anota('a revelação não afirma que Missão e Objective são sinônimos universais',
-        /exerceu o papel de Objective/i.test(rev), rev.slice(-160));
+      anota('a revelação não afirma que Missão e Objective são sinônimos universais (diz que a missão "orienta" o Objective, não que são a mesma coisa)',
+        /orienta o Objective/i.test(rev), rev.slice(-200));
+      anota('a revelação nunca diz que a Aposta "é" um OKR nem que o grupo "criou um OKR completo"',
+        !/Aposta é um OKR/i.test(rev) && !/OKR completo/i.test(rev), rev.slice(-200));
 
       /* Execução gravada antes das lacunas (a missão era um campo de texto
          só): o que o grupo escreveu continua aparecendo. */

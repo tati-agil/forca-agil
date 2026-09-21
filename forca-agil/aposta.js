@@ -5299,8 +5299,8 @@
   function revelacaoHtml() {
     var mudancas = (_dados.mudancas || {}).itens || [];
     return '<section class="aposta-revelacao">' +
-      '<h2>Vocês fizeram 2 em 1</h2>' +
-      '<p class="aposta-revelacao-frase">Sem perceber, vocês também construíram a lógica de um OKR.</p>' +
+      '<h2>Vocês conectaram a Aposta a uma lógica de OKR</h2>' +
+      '<p class="aposta-revelacao-frase">Sem perceber, vocês também estruturaram parte da lógica de um OKR.</p>' +
 
       '<div class="aposta-rev-par">' +
         '<div class="aposta-rev-card is-objective">' +
@@ -5314,7 +5314,7 @@
           '<span class="aposta-rev-de">MUDANÇAS MENSURÁVEIS</span>' +
           '<span class="aposta-rev-seta">→</span>' +
           '<span class="aposta-rev-para">Key Results</span>' +
-          '<p class="aposta-rev-pergunta">"Como saberemos, de forma mensurável, que estamos alcançando isso?"</p>' +
+          '<p class="aposta-rev-pergunta">"Como saberemos, de forma mensurável, que estamos avançando?"</p>' +
           (mudancas.length
             ? '<ul class="aposta-rev-lista">' + mudancas.map(function (m) {
                 return '<li>' + esc(fraseMudanca(m)) + '</li>';
@@ -5328,9 +5328,11 @@
         '<span class="aposta-rev-para">ciclo PHEED</span>' +
       '</div>' +
 
-      '<p class="aposta-rev-fecho">O OKR deixou claro o que queremos mudar e como reconhecer o avanço. ' +
-        'O PHEED ajudou a investigar e testar caminhos capazes de produzir essa mudança.</p>' +
-      '<p class="aposta-rev-ressalva">Nesta dinâmica, aquilo que chamamos de Missão exerceu o papel de Objective.</p>' +
+      '<p class="aposta-rev-fecho">A missão orienta o Objective e as mudanças mensuráveis ajudam a definir os Key Results.</p>' +
+      '<p class="aposta-rev-fecho">A Aposta acrescenta uma camada que o OKR, sozinho, não explica: como vamos investigar, ' +
+        'experimentar, aprender com evidências e decidir qual caminho faz sentido para avançar.</p>' +
+      '<p class="aposta-rev-ressalva">OKR ajuda a deixar claro o que queremos mudar e como reconhecer o avanço. ' +
+        'A Aposta ajuda a aprender qual caminho funciona para chegar lá.</p>' +
     '</section>';
   }
 
