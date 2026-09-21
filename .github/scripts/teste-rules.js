@@ -655,27 +655,189 @@ async function main() {
       }
     }
 
-    /* ══════════════ Transição atômica legítima da FASE 1 (execução):
-          encerrar a antiga + criar a nova + mudar "atual", tudo no
-          MESMO update() multi-caminho ══════════════ */
+    /* ══════════════════════════════════════════════════════════════
+          BUGFIX PÓS-FASE 5 — "Iniciar nova execução" recusada pelas
+          Rules: concluirCriacaoExecucao() (aposta.js) grava, num único
+          update() atômico multi-caminho, CINCO campos na execução
+          antiga — status, encerrada, encerradaEm, encerradaPor,
+          encerradaPorNome — mas só status/encerradaEm tinham Rule
+          própria. encerrada e encerradaPor (sem Rule própria) herdavam
+          a Rule do NÓ PAI (execucoes/$execKey, só !data.exists() —
+          "só criação"), que é sempre falsa para uma execução que já
+          existe. Um único caminho sem permissão derruba o update()
+          inteiro (é tudo-ou-nada) — por isso a execução nova nunca
+          chegava a nascer, "atual" nunca avançava, e o clique em
+          "ENCERRAR E INICIAR NOVA EXECUÇÃO" sempre terminava em erro.
+
+          O teste abaixo substitui o teste antigo (que só exercitava
+          status+encerradaEm, por isso nunca pegou o buraco nos outros
+          três campos) por um que grava exatamente os MESMOS campos que
+          concluirCriacaoExecucao() grava hoje — nenhum a mais, nenhum
+          a menos — para que qualquer campo novo que o código passe a
+          gravar no futuro sem Rule correspondente quebre este teste
+          antes de quebrar produção. ══════════════════════════════════ */
     await testEnv.clearDatabase();
     await semearBase();
     {
       const EXEC_NOVA2 = 'execNova2';
-      const updates = {};
-      updates['apostas/' + TURMA_A + '/execucoes/' + EXEC_A + '/status'] = 'encerrada';
-      updates['apostas/' + TURMA_A + '/execucoes/' + EXEC_A + '/encerradaEm'] = new Date().toISOString();
-      updates['apostas/' + TURMA_A + '/execucoes/' + EXEC_NOVA2] = {
-        status: 'ativa', criadoEm: new Date().toISOString(), numero: 2, grupos: {}
+      const agora = new Date().toISOString();
+      /* Espelha updates{} de concluirCriacaoExecucao() campo por campo —
+         ver forca-agil/aposta.js. */
+      const updatesTransicao = {};
+      updatesTransicao['apostas/' + TURMA_A + '/execucoes/' + EXEC_A + '/status'] = 'encerrada';
+      updatesTransicao['apostas/' + TURMA_A + '/execucoes/' + EXEC_A + '/encerrada'] = true;
+      updatesTransicao['apostas/' + TURMA_A + '/execucoes/' + EXEC_A + '/encerradaEm'] = agora;
+      updatesTransicao['apostas/' + TURMA_A + '/execucoes/' + EXEC_A + '/encerradaPor'] = FAC_A_EMAIL;
+      updatesTransicao['apostas/' + TURMA_A + '/execucoes/' + EXEC_A + '/encerradaPorNome'] = 'FACILITADORA A';
+      updatesTransicao['apostas/' + TURMA_A + '/execucoes/' + EXEC_NOVA2] = {
+        numero: 2, status: 'ativa', criadaEm: agora, criadaPor: FAC_A_EMAIL, criadaPorNome: 'FACILITADORA A',
+        turmaKey: TURMA_A, turmaLabel: 'Turma A', eventoKey: '', missao: '', revelado: false, encerrada: false
       };
-      updates['apostas/' + TURMA_A + '/atual'] = EXEC_NOVA2;
-      await assertSucceeds(db(FAC_A_EMAIL).ref().update(updates));
-      anota('transição atômica da Fase 1 (encerrar antiga + criar nova + mudar atual, no mesmo update) continua permitida', true);
+      updatesTransicao['apostas/' + TURMA_A + '/atual'] = EXEC_NOVA2;
+
+      await assertSucceeds(db(FAC_A_EMAIL).ref().update(updatesTransicao));
+      anota('BUGFIX — transição real completa (status+encerrada+encerradaEm+encerradaPor+encerradaPorNome da antiga + execução nova inteira + atual, no MESMO update atômico) é aceita', true);
+
+      const grupoDepois = (await db(FAC_A_EMAIL).ref('apostas/' + TURMA_A + '/execucoes/' + EXEC_A + '/grupos/' + GRUPO_A1).once('value')).val();
+      anota('execução ANTIGA — o grupo (e seus dados/aposta) continuam intactos depois da transição, byte a byte',
+        grupoDepois && grupoDepois.nome === 'Grupo A1' && grupoDepois.dados && grupoDepois.dados.missao && grupoDepois.dados.missao.oQue === 'reduzir a espera',
+        JSON.stringify(grupoDepois));
+      const execAntigaDepois = (await db(FAC_A_EMAIL).ref('apostas/' + TURMA_A + '/execucoes/' + EXEC_A).once('value')).val();
+      anota('execução ANTIGA — status=encerrada, encerrada=true, encerradaEm/encerradaPor/encerradaPorNome gravados',
+        execAntigaDepois.status === 'encerrada' && execAntigaDepois.encerrada === true &&
+        !!execAntigaDepois.encerradaEm && execAntigaDepois.encerradaPor === FAC_A_EMAIL && execAntigaDepois.encerradaPorNome === 'FACILITADORA A',
+        JSON.stringify(execAntigaDepois));
+
+      const execNovaDepois = (await db(FAC_A_EMAIL).ref('apostas/' + TURMA_A + '/execucoes/' + EXEC_NOVA2).once('value')).val();
+      anota('execução NOVA — existe, status=ativa, ZERO grupos, ZERO grupos-resumo, nenhum dado/ciclo herdado',
+        !!execNovaDepois && execNovaDepois.status === 'ativa' && !execNovaDepois.grupos && !execNovaDepois['grupos-resumo'],
+        JSON.stringify(execNovaDepois));
+
+      const atualDepois = (await db(FAC_A_EMAIL).ref('apostas/' + TURMA_A + '/atual').once('value')).val();
+      anota('ponteiro "atual" aponta para a execução NOVA', atualDepois === EXEC_NOVA2, atualDepois);
 
       await assertFails(db(FAC_A_EMAIL).ref('apostas/' + TURMA_A + '/execucoes/' + EXEC_A + '/missao').set({ oQue: 'x' }));
       anota('depois da transição, a execução antiga já está imutável (mesma checagem de S2)', true);
       await assertSucceeds(db(FAC_A_EMAIL).ref('apostas/' + TURMA_A + '/execucoes/' + EXEC_NOVA2 + '/missao').set({ oQue: 'nova missão' }));
       anota('a execução nova, essa sim, aceita escrita normal', true);
+
+      /* Imutabilidade estendida: nenhum dos TRÊS campos novos pode ser
+         reescrito depois que a execução já está encerrada — mesma
+         garantia que status/encerradaEm já tinham (S2), agora provada
+         também para encerrada/encerradaPor/encerradaPorNome. */
+      await assertFails(db(FAC_A_EMAIL).ref('apostas/' + TURMA_A + '/execucoes/' + EXEC_A + '/encerrada').set(false));
+      anota('BUGFIX/S2 — execução já encerrada: "encerrada" não pode ser reescrito (nem para reabrir)', true);
+      await assertFails(db(ADMIN_EMAIL).ref('apostas/' + TURMA_A + '/execucoes/' + EXEC_A + '/encerradaPor').set(ADMIN_EMAIL));
+      anota('BUGFIX/S2 — execução já encerrada: "encerradaPor" é imutável mesmo para admin', true);
+      await assertFails(db(ADMIN_EMAIL).ref('apostas/' + TURMA_A + '/execucoes/' + EXEC_A + '/encerradaPorNome').set('outra pessoa'));
+      anota('BUGFIX/S2 — execução já encerrada: "encerradaPorNome" é imutável mesmo para admin', true);
+    }
+
+    /* ══ BUGFIX — negativos: quem NÃO pode fazer a transição ══ */
+    await testEnv.clearDatabase();
+    await semearBase();
+    {
+      const EXEC_NOVA3 = 'execNova3';
+      function updatesDeTransicao(porEmail, porNome) {
+        const agora = new Date().toISOString();
+        const u = {};
+        u['apostas/' + TURMA_A + '/execucoes/' + EXEC_A + '/status'] = 'encerrada';
+        u['apostas/' + TURMA_A + '/execucoes/' + EXEC_A + '/encerrada'] = true;
+        u['apostas/' + TURMA_A + '/execucoes/' + EXEC_A + '/encerradaEm'] = agora;
+        u['apostas/' + TURMA_A + '/execucoes/' + EXEC_A + '/encerradaPor'] = porEmail;
+        u['apostas/' + TURMA_A + '/execucoes/' + EXEC_A + '/encerradaPorNome'] = porNome;
+        u['apostas/' + TURMA_A + '/execucoes/' + EXEC_NOVA3] = {
+          numero: 2, status: 'ativa', criadaEm: agora, criadaPor: porEmail, criadaPorNome: porNome,
+          turmaKey: TURMA_A, turmaLabel: 'Turma A', eventoKey: '', missao: '', revelado: false, encerrada: false
+        };
+        u['apostas/' + TURMA_A + '/atual'] = EXEC_NOVA3;
+        return u;
+      }
+
+      await assertFails(db(PART_A_EMAIL).ref().update(updatesDeTransicao(PART_A_EMAIL, 'Participante A')));
+      anota('BUGFIX — participante NÃO consegue "iniciar nova execução" (encerrar a antiga + criar a nova)', true);
+      await assertFails(db(FAC_SEM_VINCULO_EMAIL).ref().update(updatesDeTransicao(FAC_SEM_VINCULO_EMAIL, 'Facilitador Solto')));
+      anota('BUGFIX — facilitador global SEM vínculo na turma NÃO consegue iniciar nova execução ali', true);
+      await assertFails(db(EQUIPE_SEM_FLAG_EMAIL).ref().update(updatesDeTransicao(EQUIPE_SEM_FLAG_EMAIL, 'Equipe sem flag')));
+      anota('BUGFIX — vínculo em turmas-equipe sem a flag global fa-facilitadores também não consegue', true);
+
+      const atualContinuaA = (await db(ADMIN_EMAIL).ref('apostas/' + TURMA_A + '/atual').once('value')).val();
+      anota('BUGFIX — depois das tentativas recusadas, "atual" continua apontando para a execução original (nada foi criado pela metade)', atualContinuaA === EXEC_A, atualContinuaA);
+      const novaNaoExiste = (await db(ADMIN_EMAIL).ref('apostas/' + TURMA_A + '/execucoes/' + EXEC_NOVA3).once('value')).val();
+      anota('BUGFIX — a execução nova (execNova3) não chegou a ser criada por nenhuma tentativa recusada', novaNaoExiste === null, JSON.stringify(novaNaoExiste));
+    }
+
+    /* ══ BUGFIX — execução LEGADA (sem status/numero, S6) também pode
+          ser encerrada corretamente pelo fluxo atual, sem migração ══ */
+    await testEnv.clearDatabase();
+    await semearBase();
+    {
+      const EXEC_LEGADO2 = 'execLegado2', EXEC_NOVA4 = 'execNova4';
+      await semear(async (adminDb) => {
+        await adminDb.ref('apostas/' + TURMA_A + '/execucoes/' + EXEC_LEGADO2).set({
+          criadaEm: '2026-01-10T09:00:00.000Z', turmaKey: TURMA_A,
+          grupos: { grupoLegado2: { nome: 'Grupo Legado 2', criadoEm: '2026-01-10T09:05:00.000Z', etapa: 'decisao' } }
+        });
+        await adminDb.ref('apostas/' + TURMA_A + '/atual').set(EXEC_LEGADO2);
+      });
+
+      const agora = new Date().toISOString();
+      const updatesLegado = {};
+      updatesLegado['apostas/' + TURMA_A + '/execucoes/' + EXEC_LEGADO2 + '/status'] = 'encerrada';
+      updatesLegado['apostas/' + TURMA_A + '/execucoes/' + EXEC_LEGADO2 + '/encerrada'] = true;
+      updatesLegado['apostas/' + TURMA_A + '/execucoes/' + EXEC_LEGADO2 + '/encerradaEm'] = agora;
+      updatesLegado['apostas/' + TURMA_A + '/execucoes/' + EXEC_LEGADO2 + '/encerradaPor'] = FAC_A_EMAIL;
+      updatesLegado['apostas/' + TURMA_A + '/execucoes/' + EXEC_LEGADO2 + '/encerradaPorNome'] = 'FACILITADORA A';
+      updatesLegado['apostas/' + TURMA_A + '/execucoes/' + EXEC_NOVA4] = {
+        numero: 1, status: 'ativa', criadaEm: agora, criadaPor: FAC_A_EMAIL, criadaPorNome: 'FACILITADORA A',
+        turmaKey: TURMA_A, turmaLabel: 'Turma A', eventoKey: '', missao: '', revelado: false, encerrada: false
+      };
+      updatesLegado['apostas/' + TURMA_A + '/atual'] = EXEC_NOVA4;
+      await assertSucceeds(db(FAC_A_EMAIL).ref().update(updatesLegado));
+      anota('BUGFIX/S6 — uma execução LEGADA (nunca teve status/numero, como as de produção anteriores a esta feature) é encerrada normalmente pelo fluxo atual', true);
+
+      const legadoDepois = (await db(FAC_A_EMAIL).ref('apostas/' + TURMA_A + '/execucoes/' + EXEC_LEGADO2).once('value')).val();
+      anota('BUGFIX/S6 — a execução legada fica com status=encerrada e os campos de encerramento, sem perder o que já tinha (grupoLegado2 continua lá)',
+        legadoDepois.status === 'encerrada' && legadoDepois.encerrada === true && legadoDepois.grupos && legadoDepois.grupos.grupoLegado2,
+        JSON.stringify(legadoDepois));
+    }
+
+    /* ══ BUGFIX — tudo-ou-nada: se QUALQUER caminho do mesmo update()
+          for recusado, NADA é gravado — nem os campos de encerramento
+          da antiga, mesmo que esses em si fossem válidos sozinhos ══ */
+    await testEnv.clearDatabase();
+    await semearBase();
+    {
+      /* execAJaExiste já existe ANTES deste update() — usá-la como
+         "execução nova" viola !data.exists() (só criação), então o
+         update() inteiro deve ser recusado, inclusive os campos (por
+         si só válidos) da execução antiga. Chave IRMÃ de EXEC_A (não
+         ancestral/descendente dela), para não colidir caminhos no
+         mesmo update() multi-caminho. */
+      const EXEC_JA_EXISTE = 'execAJaExiste';
+      await semear(async (adminDb) => {
+        await adminDb.ref('apostas/' + TURMA_A + '/execucoes/' + EXEC_JA_EXISTE).set({ status: 'ativa', criadaEm: '2026-08-01T09:00:00.000Z', numero: 0 });
+      });
+
+      const agora = new Date().toISOString();
+      const updatesQuebrado = {};
+      updatesQuebrado['apostas/' + TURMA_A + '/execucoes/' + EXEC_A + '/status'] = 'encerrada';
+      updatesQuebrado['apostas/' + TURMA_A + '/execucoes/' + EXEC_A + '/encerrada'] = true;
+      updatesQuebrado['apostas/' + TURMA_A + '/execucoes/' + EXEC_A + '/encerradaEm'] = agora;
+      updatesQuebrado['apostas/' + TURMA_A + '/execucoes/' + EXEC_A + '/encerradaPor'] = FAC_A_EMAIL;
+      updatesQuebrado['apostas/' + TURMA_A + '/execucoes/' + EXEC_A + '/encerradaPorNome'] = 'FACILITADORA A';
+      updatesQuebrado['apostas/' + TURMA_A + '/execucoes/' + EXEC_JA_EXISTE] = {
+        numero: 99, status: 'ativa', criadaEm: agora, criadaPor: FAC_A_EMAIL, criadaPorNome: 'FACILITADORA A',
+        turmaKey: TURMA_A, turmaLabel: 'Turma A', eventoKey: '', missao: '', revelado: false, encerrada: false
+      };
+      updatesQuebrado['apostas/' + TURMA_A + '/atual'] = EXEC_JA_EXISTE;
+      await assertFails(db(FAC_A_EMAIL).ref().update(updatesQuebrado));
+      anota('BUGFIX — se um único caminho do update() for recusado (aqui, a "execução nova" reaproveita uma chave que já existe), o update() inteiro falha', true);
+
+      const execAIntacta = (await db(ADMIN_EMAIL).ref('apostas/' + TURMA_A + '/execucoes/' + EXEC_A).once('value')).val();
+      anota('BUGFIX — depois da falha, a execução antiga NÃO ficou "meio encerrada": status continua o de antes', execAIntacta.status !== 'encerrada', JSON.stringify(execAIntacta));
+      const atualAindaA = (await db(ADMIN_EMAIL).ref('apostas/' + TURMA_A + '/atual').once('value')).val();
+      anota('BUGFIX — "atual" continua apontando para a execução original depois da falha', atualAindaA === EXEC_A, atualAindaA);
     }
 
     console.log('\n' + total + ' verificações, ' + falhas + ' falha(s).');
