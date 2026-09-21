@@ -81,7 +81,14 @@ function apostasSemeadas() {
           criadaEm: '2026-09-18T12:00:00.000Z', criadaPor: ADM, criadaPorNome: 'ADMIN',
           turmaKey: TURMA_LIB, turmaLabel: 'TURMA LIBERADA', eventoKey: EV,
           missao: '', revelado: false, encerrada: false,
-          grupos: { [GRUPO]: { nome: 'Grupo 1', criadoEm: '2026-09-18T12:00:00.000Z', etapa: 'missao' } }
+          grupos: { [GRUPO]: { nome: 'Grupo 1', criadoEm: '2026-09-18T12:00:00.000Z', etapa: 'missao' } },
+          /* Fase 5 — GRUPOS-RESUMO: nasce junto com o grupo (mesma
+             disciplina de #apostaCriarGrupo em aposta.js). Sem isto, quem
+             NÃO conduz a turma (o caso de DIRETORA na maioria destes
+             cenários) não vê o botão de escolher o Grupo 1 — a tela de
+             escolha, para quem não conduz, lê grupos-resumo/, nunca mais
+             grupos/ inteiro. */
+          'grupos-resumo': { [GRUPO]: { nome: 'Grupo 1', qtdMembros: 0 } }
         }
       }
     }

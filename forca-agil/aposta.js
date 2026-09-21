@@ -1487,12 +1487,29 @@
   var _souConduzoDestaTurma = false;
   var _execId  = null;
   var _exec    = {};     /* missao, revelado, encerrada… */
+  /* Fase 5 — GRUPOS-RESUMO: nome+qtdMembros de cada grupo da execução
+     atual, SEM membros/dados/ciclos (ver database.rules.json). Só
+     participante (não-condutor) usa isto — condutor continua lendo
+     _exec.grupos inteiro, sem mudança. Alimentado por ouvirGruposResumo();
+     existe só para a tela de escolha de grupo (descoberta). */
+  var _gruposResumo = {};
   var _grupoId = null;
   var _grupo   = {};     /* nome, membros, etapa… */
   var _dados   = {};     /* dados de cada etapa do grupo */
   var _etapaAtual = 'missao';
   var _vendoMapa  = false;
   var _refExec = null;
+  /* Fase 5 — só usados por quem NÃO conduz a turma: o condutor continua
+     com um único listener amplo (_refExec, em caminhoExec()), que as
+     Rules já permitem ler inteiro. Participante nunca tem esse acesso
+     amplo — em vez disso ouve missao/revelado/grupos-resumo separados
+     (cada um com sua própria Rule estreita) e, só depois de saber qual
+     é o seu grupo, um listener dedicado a esse grupo específico
+     (permitido pela Rule já existente de "sou membro"). */
+  var _refMissao = null;
+  var _refRevelado = null;
+  var _refGruposResumo = null;
+  var _refGrupo = null;
   var _ouvindo = false;
 
   function caminhoExec()  { return 'apostas/' + _turma.key + '/execucoes/' + _execId; }
@@ -1646,15 +1663,21 @@
     document.body.appendChild(_tela);
     document.body.style.overflow = 'hidden';
     _tela.innerHTML = '<div class="aposta-carregando"><p class="loading-msg">Carregando a dinâmica…</p></div>';
-    carregarExecucao();
-    /* Corre em paralelo com carregarExecucao() — se a resposta chegar
-       depois da primeira tela desenhada, redesenha para mostrar as
-       ações de facilitação assim que confirmadas (nunca antes). */
+    /* FASE 5 — GRUPOS-RESUMO: diferente da versão anterior (que corria
+       isto em paralelo com carregarExecucao() e só redesenhava depois),
+       agora ESPERA souFacilitadoraDaTurma() responder antes de
+       carregar qualquer coisa. Motivo: quem NÃO conduz a turma lê a
+       execução por um caminho estruturalmente diferente de quem
+       conduz (grupos-resumo + leituras estreitas, nunca mais o nó
+       grupos/ inteiro — ver ouvirExecucao/renderEscolhaGrupo) — ler
+       antes de saber qual dos dois caminhos usar arriscaria escolher o
+       caminho largo por engano, exatamente a brecha que esta mudança
+       fecha. Custa uma volta a mais só na primeira vez (o resultado
+       fica em cache em _equipeGlobalCache). */
     souFacilitadoraDaTurma(turma.key, function (pode) {
       if (_turma !== turma) return; /* a tela já fechou/trocou de turma */
-      var mudou = _souConduzoDestaTurma !== pode;
       _souConduzoDestaTurma = pode;
-      if (mudou && _tela) render();
+      carregarExecucao();
     });
     document.addEventListener('keydown', escFecha);
   }
@@ -1679,6 +1702,10 @@
   function pararDeOuvir() {
     if (_refExec && _ouvindo) { _refExec.off(); _ouvindo = false; }
     _refExec = null;
+    if (_refMissao) { _refMissao.off(); _refMissao = null; }
+    if (_refRevelado) { _refRevelado.off(); _refRevelado = null; }
+    if (_refGruposResumo) { _refGruposResumo.off(); _refGruposResumo = null; }
+    if (_refGrupo) { _refGrupo.off(); _refGrupo = null; }
   }
 
   /* ── Execução em curso: a que o facilitador abriu por último ── */
@@ -1694,9 +1721,24 @@
 
   /* Escuta ao vivo: numa oficina, o facilitador libera etapas e
      revela as conexões enquanto os grupos estão com a tela aberta.
-     Sem o listener, cada grupo precisaria recarregar para ver. */
+     Sem o listener, cada grupo precisaria recarregar para ver.
+
+     FASE 5 — GRUPOS-RESUMO: quem conduz a turma (_souConduzoDestaTurma)
+     continua com o único listener amplo de sempre, em caminhoExec() —
+     comportamento idêntico ao anterior, porque a Rule dela continua
+     dando leitura ampla da execução (ADMIN/FAC_TURMA). Quem NÃO
+     conduz nunca teve — nem pode ter — essa leitura ampla (ela
+     cascatearia para dados/ciclos de TODOS os grupos, não só do seu):
+     usa três listeners estreitos (missao/revelado/grupos-resumo) e,
+     assim que souber seu grupo, um quarto listener dedicado só a ele
+     — ver ouvirExecucaoComoParticipante/ouvirGrupoComoParticipante. */
   function ouvirExecucao() {
     pararDeOuvir();
+    if (_souConduzoDestaTurma) { ouvirExecucaoComoCondutor(); return; }
+    ouvirExecucaoComoParticipante();
+  }
+
+  function ouvirExecucaoComoCondutor() {
     _refExec = db().ref(caminhoExec());
     _ouvindo = true;
     _refExec.on('value', function (snap) {
@@ -1734,6 +1776,91 @@
       render();
     }, function () {
       _tela.innerHTML = erroHtml('Perdi a conexão com a dinâmica. Recarregue a página.');
+    });
+  }
+
+  /* Fase 5 — leitura de quem NÃO conduz: nunca mais o nó grupos/ inteiro
+     (só o resumo, sem membros/dados/ciclos de ninguém — ver
+     database.rules.json). missao/revelado têm Rule de leitura própria,
+     estreita, adicionada nesta fase. */
+  function ouvirExecucaoComoParticipante() {
+    _exec = {};
+    _gruposResumo = {};
+    _ouvindo = true;
+    _refMissao = db().ref(caminhoExec() + '/missao');
+    _refMissao.on('value', function (snap) {
+      /* Não força render(): no fluxo antigo, uma mudança na missão-base
+         enquanto o grupo já está na tela da etapa 1 também não
+         redesenhava sozinha (mesma supressão de "editando" abaixo) —
+         só valia na próxima navegação. Sem mudança de comportamento. */
+      _exec.missao = snap.val();
+    }, function () {
+      _tela.innerHTML = erroHtml('Perdi a conexão com a dinâmica. Recarregue a página.');
+    });
+    _refRevelado = db().ref(caminhoExec() + '/revelado');
+    _refRevelado.on('value', function (snap) {
+      var v = snap.val();
+      var revelouAgora = !_exec.revelado && v;
+      _exec.revelado = v;
+      var editando = _grupoId && !_vendoMapa;
+      if (editando && !revelouAgora) return;
+      render();
+    }, function () {
+      _tela.innerHTML = erroHtml('Perdi a conexão com a dinâmica. Recarregue a página.');
+    });
+    _refGruposResumo = db().ref(caminhoExec() + '/grupos-resumo');
+    _refGruposResumo.on('value', function (snap) {
+      _gruposResumo = snap.val() || {};
+      /* Só interessa a quem ainda está escolhendo grupo — depois de
+         escolhido, quem manda é o listener do próprio grupo
+         (ouvirGrupoComoParticipante). */
+      if (!_grupoId) render();
+    }, function () {
+      _tela.innerHTML = erroHtml('Perdi a conexão com a dinâmica. Recarregue a página.');
+    });
+  }
+
+  /* Listener dedicado ao grupo de quem NÃO conduz, ligado assim que o
+     grupo é conhecido (descoberto ou recém-escolhido). A Rule que
+     permite isto (grupos/$grupoKey/.read = SOU_MEMBRO) já existia
+     desde antes da Fase 5 — o que faltava era o cliente nunca pedir
+     a leitura NESTE caminho específico (pedia o nó execucoes/$execKey
+     inteiro, largo demais). */
+  function ouvirGrupoComoParticipante(grupoId) {
+    if (_refGrupo) { _refGrupo.off(); _refGrupo = null; }
+    _refGrupo = db().ref(caminhoExec() + '/grupos/' + grupoId);
+    /* A PRIMEIRA leitura deste listener É a entrada no grupo — equivale
+       ao render() direto e síncrono que o condutor já dava em
+       entrarNoGrupo() (ele lê de _exec.grupos, já carregado; o
+       participante só sabe o conteúdo do grupo quando ESTE listener
+       responde). A supressão de "editando" (mesma lógica do condutor,
+       ver ouvirExecucaoComoCondutor) só faz sentido a partir do SEGUNDO
+       eco em diante — nos ecos do próprio salvamento automático, não na
+       entrada. Sem essa distinção, quem participa nunca via a etapa: a
+       tela ficava presa em "Carregando…" porque _grupoId já estava
+       setado quando a primeira resposta chegava, e a supressão achava
+       que era um eco a ignorar. */
+    var primeira = true;
+    _refGrupo.on('value', function (snap) {
+      var v = snap.val();
+      if (!v) return; /* grupos não são apagados; nada a fazer aqui */
+      _grupo = v;
+      var r = resolverCicloAtual();
+      _dados = r.dados;
+      /* _etapaAtual é estado de NAVEGAÇÃO — só pode vir do servidor uma
+         vez, na entrada (aqui, na primeira resposta deste listener,
+         onde equivale ao r.etapa que entrarNoGrupo() já atribuía direto
+         para o condutor). Da segunda resposta em diante ele é sempre
+         local (avançar/voltar/clique na trilha/mapa) — sobrescrever a
+         cada eco reabriria a etapa 1 toda vez que o grupo salvasse algo
+         no meio de qualquer outra etapa. */
+      if (primeira) _etapaAtual = r.etapa;
+      var editando = !primeira && _grupoId && !_vendoMapa;
+      primeira = false;
+      if (editando) return;
+      render();
+    }, function () {
+      _tela.innerHTML = erroHtml('Perdi a conexão com o grupo. Recarregue a página.');
     });
   }
 
@@ -2412,8 +2539,20 @@
     });
   }
 
-  /* ── Escolha do grupo ── */
+  /* ── Escolha do grupo ──
+     Fase 5: condutor e participante leem de lugares DIFERENTES (ver
+     ouvirExecucao). Condutor continua exatamente como antes (_exec.grupos,
+     que as Rules dão a ele por inteiro). Participante nunca teve — nem
+     tem agora — leitura da lista de membros de outros grupos: usa
+     _gruposResumo (só nome+qtdMembros) para mostrar as opções, e
+     descobrirMeuGrupo() (uma leitura estreita por grupo, só da própria
+     chave) para decidir se já pertence a algum antes de perguntar. */
   function renderEscolhaGrupo() {
+    if (_souConduzoDestaTurma) { renderEscolhaGrupoCondutor(); return; }
+    renderEscolhaGrupoParticipante();
+  }
+
+  function renderEscolhaGrupoCondutor() {
     var grupos = _exec.grupos || {};
     var chaves = Object.keys(grupos);
     var s = sessao();
@@ -2435,9 +2574,7 @@
                   '<span>' + qtd + ' pessoa' + (qtd !== 1 ? 's' : '') + '</span>' +
                 '</button>';
               }).join('') + '</div>'
-            : '<p>' + (_souConduzoDestaTurma
-                ? 'Nenhum grupo criado ainda. Abra o painel do facilitador para criar.'
-                : 'A facilitadora ainda não criou os grupos.') + '</p>') +
+            : '<p>Nenhum grupo criado ainda. Abra o painel do facilitador para criar.</p>') +
         '</div>' +
       '</div>';
     ligarCabecalho();
@@ -2446,26 +2583,114 @@
     });
   }
 
+  /* N leituras em paralelo, cada uma restrita à PRÓPRIA chave de membro
+     de um grupo (grupos/$grupoKey/membros/$minhaChave) — a Rule (Fase 5)
+     permite isso a qualquer confirmada, mesmo antes de ela pertencer ao
+     grupo, sem nunca expor a lista inteira de membros. Nunca lê grupos/
+     por inteiro. */
+  function descobrirMeuGrupo(chaves, cb) {
+    var s = sessao();
+    if (!s || !chaves.length) { cb(null); return; }
+    var uKey = emailKey(s.email);
+    var pendentes = chaves.length;
+    var achou = null;
+    function resolveu() { pendentes--; if (pendentes === 0) cb(achou); }
+    chaves.forEach(function (g) {
+      db().ref(caminhoExec() + '/grupos/' + g + '/membros/' + uKey).once('value', function (snap) {
+        if (snap.exists() && !achou) achou = g;
+        resolveu();
+      }, resolveu);
+    });
+  }
+
+  function renderEscolhaGrupoParticipante() {
+    var resumo = _gruposResumo || {};
+    var chaves = Object.keys(resumo);
+    descobrirMeuGrupo(chaves, function (meu) {
+      if (!_tela || _grupoId) return; /* tela fechou, ou outra chamada já resolveu nesse meio-tempo */
+      if (meu) { entrarNoGrupo(meu, true); return; }
+      _tela.innerHTML = cabecalho() +
+        '<div class="aposta-centro">' +
+          '<div class="aposta-aviso">' +
+            '<h2>Escolha seu grupo</h2>' +
+            (chaves.length
+              ? '<div class="aposta-grupos-escolha">' + chaves.map(function (g) {
+                  var qtd = resumo[g].qtdMembros || 0;
+                  return '<button class="aposta-grupo-btn" data-grupo="' + esc(g) + '">' +
+                    '<strong>' + esc(resumo[g].nome || 'Grupo') + '</strong>' +
+                    '<span>' + qtd + ' pessoa' + (qtd !== 1 ? 's' : '') + '</span>' +
+                  '</button>';
+                }).join('') + '</div>'
+              : '<p>A facilitadora ainda não criou os grupos.</p>') +
+          '</div>' +
+        '</div>';
+      ligarCabecalho();
+      _tela.querySelectorAll('.aposta-grupo-btn').forEach(function (b) {
+        b.addEventListener('click', function () { entrarNoGrupo(b.dataset.grupo); });
+      });
+    });
+  }
+
   function entrarNoGrupo(grupoId, jaEra) {
     _grupoId = grupoId;
-    _grupo = (_exec.grupos || {})[grupoId] || {};
-    var r = resolverCicloAtual();
-    _dados = r.dados;
-    _etapaAtual = r.etapa;
-    if (!jaEra) {
-      var s = sessao();
-      if (s) {
-        db().ref(caminhoGrupo() + '/membros/' + emailKey(s.email)).set({
-          name: s.name || s.email, email: s.email, entrouEm: new Date().toISOString()
-        }, function (err) {
-          /* Sem isto, a pessoa não consta no grupo: a facilitadora não a vê
-             na lista e um F5 faz escolher de novo. Não impede de trabalhar,
-             mas não pode passar em silêncio. */
-          if (err) avisar('Entrei no grupo, mas não consegui registrar seu nome nele.', true);
-        });
-      }
+    if (_souConduzoDestaTurma) {
+      _grupo = (_exec.grupos || {})[grupoId] || {};
+      var r = resolverCicloAtual();
+      _dados = r.dados;
+      _etapaAtual = r.etapa;
+      render();
+      return;
     }
-    render();
+    /* Participante: nunca leu (nem lê agora) _exec.grupos — liga um
+       listener dedicado a ESTE grupo, o único caminho de leitura que a
+       Rule (souMembro) permite a ele. */
+    ouvirGrupoComoParticipante(grupoId);
+    if (jaEra) return;
+    var s = sessao();
+    if (!s) return;
+    gravarEntradaNoGrupo(grupoId, s, false);
+  }
+
+  /* Grava a entrada de um participante no grupo: membros/<minhaChave> E
+     grupos-resumo/<grupoId>/qtdMembros no MESMO update() — a Rule de
+     qtdMembros (Fase 5) exige que o número gravado seja exatamente o
+     numChildren() real de membros DEPOIS desta escrita (newData, já
+     mesclado com os dois caminhos deste update()), então não há como
+     forjar a contagem: quem tenta gravar um número que não bate com o
+     grupo real tem o update() inteiro recusado — inclusive a própria
+     entrada no grupo, por isso o retry abaixo.
+
+     _gruposResumo[grupoId].qtdMembros é só um PALPITE do valor atual
+     (o último que o listener ao vivo recebeu) — não uma leitura fresca:
+     participante nunca tem leitura da lista de membros para calcular
+     isso com certeza. Se duas pessoas entrarem no mesmo grupo quase ao
+     mesmo tempo, o palpite de uma delas pode ficar desatualizado e a
+     Rule recusa o update() INTEIRO — a entrada no grupo (membros) e a
+     contagem (qtdMembros) só existem juntas ou não existem, nunca uma
+     sem a outra. Por isso tenta UMA vez de novo, já com o palpite mais
+     recente (o listener ao vivo deve ter alcançado o valor verdadeiro
+     nesse meio-tempo, já que a outra pessoa terminou de entrar). Se
+     ainda assim falhar — uma terceira entrada na mesma fração de
+     segundo, por exemplo — a pessoa realmente NÃO entrou no grupo, e o
+     aviso abaixo precisa dizer isso, não fingir sucesso (ver a skill
+     editar-e-salvar: silêncio sobre uma gravação recusada é pior que o
+     erro). Recarregar a página tenta o fluxo inteiro de novo. */
+  function gravarEntradaNoGrupo(grupoId, s, jaTentouDeNovo) {
+    var uKey = emailKey(s.email);
+    var resumoAtual = (_gruposResumo || {})[grupoId] || {};
+    var updates = {};
+    updates[caminhoGrupo() + '/membros/' + uKey] = {
+      name: s.name || s.email, email: s.email, entrouEm: new Date().toISOString()
+    };
+    updates[caminhoExec() + '/grupos-resumo/' + grupoId + '/qtdMembros'] = (resumoAtual.qtdMembros || 0) + 1;
+    db().ref().update(updates, function (err) {
+      if (!err) return;
+      if (!jaTentouDeNovo) { gravarEntradaNoGrupo(grupoId, s, true); return; }
+      avisar('Não consegui registrar sua entrada no grupo. Tente de novo.', true);
+      _grupoId = null;
+      if (_refGrupo) { _refGrupo.off(); _refGrupo = null; }
+      render();
+    });
   }
 
   /* ── Trilha: nomes desde o começo, conteúdo só na vez ── */
@@ -5342,8 +5567,18 @@
         btnCriarGrupo.disabled = true;
         var nome = (box.querySelector('#apostaNovoGrupo').value || '').trim() ||
           ('Grupo ' + (Object.keys(_exec.grupos || {}).length + 1));
-        var ref = db().ref(caminhoExec() + '/grupos').push();
-        ref.set({ nome: nome, criadoEm: new Date().toISOString(), etapa: 'missao' }, function (err) {
+        /* Fase 5 — GRUPOS-RESUMO: o grupo em si e seu resumo (nome +
+           qtdMembros:0, sem membros/dados/ciclos — ver database.rules.json)
+           nascem juntos, na MESMA chave (mesma disciplina de atomicidade
+           das Fases 1 e 4): update() com os dois caminhos ou grava os dois
+           ou não grava nenhum — nunca um grupo sem resumo (que deixaria
+           os participantes sem enxergá-lo na escolha) nem um resumo
+           apontando para um grupo inexistente. */
+        var novaChave = db().ref(caminhoExec() + '/grupos').push().key;
+        var updates = {};
+        updates['grupos/' + novaChave] = { nome: nome, criadoEm: new Date().toISOString(), etapa: 'missao' };
+        updates['grupos-resumo/' + novaChave] = { nome: nome, qtdMembros: 0 };
+        db().ref(caminhoExec()).update(updates, function (err) {
           if (err) {
             btnCriarGrupo.disabled = false;
             avisar('Não consegui criar o grupo. Tente de novo.', true);

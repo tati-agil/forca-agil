@@ -162,13 +162,21 @@ async function main() {
     await testEnv.clearDatabase();
     await semearBase();
 
-    /* ══════════════ 32/S1 — PARTICIPANTE LEGÍTIMO ══════════════ */
+    /* ══════════════ 32/S1 — PARTICIPANTE LEGÍTIMO (FASE 5 —
+          GRUPOS-RESUMO: a leitura deixou de ser a execução inteira; ver
+          o cenário Alice/Bruno mais abaixo para a cobertura completa
+          de isolamento entre grupos) ══════════════ */
     {
       await assertSucceeds(db(PART_A_EMAIL).ref('apostas/' + TURMA_A + '/atual').once('value'));
       anota('participante confirmada lê apostas/<turma>/atual', true);
 
-      await assertSucceeds(db(PART_A_EMAIL).ref('apostas/' + TURMA_A + '/execucoes/' + EXEC_A).once('value'));
-      anota('participante confirmada lê a execução ATUAL inteira (precisa pra escolher grupo)', true);
+      await assertFails(db(PART_A_EMAIL).ref('apostas/' + TURMA_A + '/execucoes/' + EXEC_A).once('value'));
+      anota('FASE 5 — participante NÃO lê mais a execução inteira (o nó grupos/ cascatearia dados/ciclos de todos os grupos, não só do seu)', true);
+
+      await assertSucceeds(db(PART_A_EMAIL).ref('apostas/' + TURMA_A + '/execucoes/' + EXEC_A + '/missao').once('value'));
+      anota('FASE 5 — participante lê a missão-base isoladamente', true);
+      await assertSucceeds(db(PART_A_EMAIL).ref('apostas/' + TURMA_A + '/execucoes/' + EXEC_A + '/revelado').once('value'));
+      anota('FASE 5 — participante lê a revelação isoladamente', true);
 
       await assertSucceeds(db(PART_A_EMAIL).ref('apostas/' + TURMA_A + '/execucoes/' + EXEC_A + '/grupos/' + GRUPO_A1 + '/dados/problema')
         .set({ quem: 'O participante', situacaoIndesejada: 'espera demais' }));
@@ -414,6 +422,184 @@ async function main() {
       anota('S5 — nenhuma escrita é aceita na execução histórica, nem do próprio membro do grupo', true);
       await assertFails(db(FAC_A_EMAIL).ref('apostas/' + TURMA_A + '/execucoes/' + EXEC_A + '/revelado').set(false));
       anota('S5 — nem a facilitadora escreve na execução histórica', true);
+    }
+
+    /* ══════════════ FASE 5 — GRUPOS-RESUMO: Alice (Grupo Alice) e
+          Bruno (Grupo Bruno) na mesma turma, execução atual. Cobertura
+          completa do cenário pedido: descoberta pelo resumo, consulta
+          da própria chave em qualquer grupo, leitura plena do próprio
+          grupo, negação de leitura/escrita cruzada (inclusive
+          Evidência/Decisão e a lista de membros do outro grupo),
+          criação atômica grupo+resumo, duplo clique, ingresso coerente,
+          impossibilidade de forjar qtdMembros, e a garantia de que a
+          AUSÊNCIA de grupos-resumo nunca reabre o antigo caminho largo
+          (fail-closed). ══════════════ */
+    await testEnv.clearDatabase();
+    await semearBase();
+    {
+      const TURMA_T = 'turmaResumo', EXEC_T = 'execResumo';
+      const GRUPO_ALICE = 'grupoAlice', GRUPO_BRUNO = 'grupoBruno';
+      const ALICE_EMAIL = 'alice.resumo@previ.com.br', BRUNO_EMAIL = 'bruno.resumo@previ.com.br';
+      const FAC_T_EMAIL = 'facilitadora.t@previ.com.br';
+
+      await semear(async (adminDb) => {
+        await adminDb.ref('fa-facilitadores/' + emailKey(FAC_T_EMAIL)).set({ email: FAC_T_EMAIL, name: 'FACILITADORA T' });
+        await adminDb.ref('turmas-equipe/' + TURMA_T + '/' + emailKey(FAC_T_EMAIL)).set({ email: FAC_T_EMAIL, name: 'FACILITADORA T', papel: 'responsavel' });
+        const confirmada = (email) => ({ name: email, email: email, status: 'inscrito', confirmedByAdmin: ADMIN_EMAIL, date: '2026-09-01T10:00:00.000Z' });
+        await adminDb.ref('turmas-interesse/' + TURMA_T + '/' + emailKey(ALICE_EMAIL)).set(confirmada(ALICE_EMAIL));
+        await adminDb.ref('turmas-interesse/' + TURMA_T + '/' + emailKey(BRUNO_EMAIL)).set(confirmada(BRUNO_EMAIL));
+        await adminDb.ref('apostas/' + TURMA_T + '/atual').set(EXEC_T);
+        await adminDb.ref('apostas/' + TURMA_T + '/execucoes/' + EXEC_T).set({ status: 'ativa', criadoEm: '2026-09-01T10:00:00.000Z', numero: 1, grupos: {}, 'grupos-resumo': {} });
+      });
+
+      /* ── Criação: grupo real + resumo nascem juntos, mesma chave ── */
+      {
+        const updates = {};
+        updates['apostas/' + TURMA_T + '/execucoes/' + EXEC_T + '/grupos/' + GRUPO_ALICE] = { nome: 'Grupo Alice', criadoEm: '2026-09-01T10:00:00.000Z', etapa: 'missao' };
+        updates['apostas/' + TURMA_T + '/execucoes/' + EXEC_T + '/grupos-resumo/' + GRUPO_ALICE] = { nome: 'Grupo Alice', qtdMembros: 0 };
+        await assertSucceeds(db(FAC_T_EMAIL).ref().update(updates));
+        anota('grupos-resumo — criar grupo grava o grupo real e o resumo (nome+qtdMembros:0) no mesmo update()', true);
+      }
+      {
+        const updates = {};
+        updates['apostas/' + TURMA_T + '/execucoes/' + EXEC_T + '/grupos/' + GRUPO_BRUNO] = { nome: 'Grupo Bruno', criadoEm: '2026-09-01T10:00:00.000Z', etapa: 'missao' };
+        updates['apostas/' + TURMA_T + '/execucoes/' + EXEC_T + '/grupos-resumo/' + GRUPO_BRUNO] = { nome: 'Grupo Bruno', qtdMembros: 0 };
+        await assertSucceeds(db(FAC_T_EMAIL).ref().update(updates));
+        anota('grupos-resumo — segundo grupo (Bruno) criado da mesma forma', true);
+      }
+
+      /* Duplo clique: a mesma chave (já existe) não pode ser criada de novo, nem no grupo nem no resumo. */
+      {
+        const updatesRepetido = {};
+        updatesRepetido['apostas/' + TURMA_T + '/execucoes/' + EXEC_T + '/grupos/' + GRUPO_ALICE] = { nome: 'Grupo Alice (de novo)', criadoEm: new Date().toISOString(), etapa: 'missao' };
+        updatesRepetido['apostas/' + TURMA_T + '/execucoes/' + EXEC_T + '/grupos-resumo/' + GRUPO_ALICE] = { nome: 'Grupo Alice (de novo)', qtdMembros: 0 };
+        await assertFails(db(FAC_T_EMAIL).ref().update(updatesRepetido));
+        anota('grupos-resumo — duplo clique (mesma chave já existe) é recusado, nunca sobrescreve nem cria um "grupo fantasma"', true);
+      }
+
+      /* Resumo cujo nome não bate com o grupo real gravado no mesmo update(): recusado. */
+      {
+        const chaveDivergente = 'grupoDivergente';
+        const updatesDivergente = {};
+        updatesDivergente['apostas/' + TURMA_T + '/execucoes/' + EXEC_T + '/grupos/' + chaveDivergente] = { nome: 'Nome Real', criadoEm: new Date().toISOString(), etapa: 'missao' };
+        updatesDivergente['apostas/' + TURMA_T + '/execucoes/' + EXEC_T + '/grupos-resumo/' + chaveDivergente] = { nome: 'Nome Falso', qtdMembros: 0 };
+        await assertFails(db(FAC_T_EMAIL).ref().update(updatesDivergente));
+        anota('grupos-resumo — nome do resumo tem que bater com o nome do grupo real gravado no MESMO update()', true);
+      }
+
+      /* ── Ingresso: Alice entra no Grupo Alice, Bruno no Grupo Bruno ── */
+      {
+        const updatesAlice = {};
+        updatesAlice['apostas/' + TURMA_T + '/execucoes/' + EXEC_T + '/grupos/' + GRUPO_ALICE + '/membros/' + emailKey(ALICE_EMAIL)] =
+          { name: 'Alice', email: ALICE_EMAIL, entrouEm: new Date().toISOString() };
+        updatesAlice['apostas/' + TURMA_T + '/execucoes/' + EXEC_T + '/grupos-resumo/' + GRUPO_ALICE + '/qtdMembros'] = 1;
+        await assertSucceeds(db(ALICE_EMAIL).ref().update(updatesAlice));
+        anota('grupos-resumo — Alice entra no Grupo Alice: membros e qtdMembros gravados juntos, no mesmo update()', true);
+      }
+      {
+        const updatesBruno = {};
+        updatesBruno['apostas/' + TURMA_T + '/execucoes/' + EXEC_T + '/grupos/' + GRUPO_BRUNO + '/membros/' + emailKey(BRUNO_EMAIL)] =
+          { name: 'Bruno', email: BRUNO_EMAIL, entrouEm: new Date().toISOString() };
+        updatesBruno['apostas/' + TURMA_T + '/execucoes/' + EXEC_T + '/grupos-resumo/' + GRUPO_BRUNO + '/qtdMembros'] = 1;
+        await assertSucceeds(db(BRUNO_EMAIL).ref().update(updatesBruno));
+        anota('grupos-resumo — Bruno entra no Grupo Bruno', true);
+      }
+
+      /* qtdMembros não pode ser forjado — nem sozinho, nem bundlado com
+         a própria entrada legítima no grupo, se o número não bater com
+         a contagem real de membros DEPOIS da escrita. */
+      {
+        const updatesForjado = {};
+        updatesForjado['apostas/' + TURMA_T + '/execucoes/' + EXEC_T + '/grupos-resumo/' + GRUPO_ALICE + '/qtdMembros'] = 99;
+        await assertFails(db(ALICE_EMAIL).ref().update(updatesForjado));
+        anota('grupos-resumo — qtdMembros sozinho NÃO pode ser gravado com um número que não bate com a contagem real', true);
+
+        const updatesRegravar = {};
+        updatesRegravar['apostas/' + TURMA_T + '/execucoes/' + EXEC_T + '/grupos/' + GRUPO_ALICE + '/membros/' + emailKey(ALICE_EMAIL)] =
+          { name: 'Alice', email: ALICE_EMAIL, entrouEm: new Date().toISOString() };
+        updatesRegravar['apostas/' + TURMA_T + '/execucoes/' + EXEC_T + '/grupos-resumo/' + GRUPO_ALICE + '/qtdMembros'] = 7;
+        await assertFails(db(ALICE_EMAIL).ref().update(updatesRegravar));
+        anota('grupos-resumo — mesmo combinado com a própria escrita legítima de membros, um número errado (7, o real é 1) derruba o update() inteiro', true);
+      }
+
+      /* ── Descoberta: resumo de TODOS os grupos, nunca a lista de membros do outro ── */
+      await assertSucceeds(db(ALICE_EMAIL).ref('apostas/' + TURMA_T + '/execucoes/' + EXEC_T + '/grupos-resumo').once('value'));
+      anota('grupos-resumo — Alice lê o resumo de TODOS os grupos da execução atual (descoberta)', true);
+
+      /* Consulta só da própria chave, em QUALQUER grupo — nunca a lista inteira. */
+      await assertSucceeds(db(ALICE_EMAIL).ref('apostas/' + TURMA_T + '/execucoes/' + EXEC_T + '/grupos/' + GRUPO_ALICE + '/membros/' + emailKey(ALICE_EMAIL)).once('value'));
+      anota('grupos-resumo — Alice consulta a PRÓPRIA chave no Grupo Alice (pertence)', true);
+      await assertSucceeds(db(ALICE_EMAIL).ref('apostas/' + TURMA_T + '/execucoes/' + EXEC_T + '/grupos/' + GRUPO_BRUNO + '/membros/' + emailKey(ALICE_EMAIL)).once('value'));
+      anota('grupos-resumo — Alice também consulta a PRÓPRIA chave no Grupo Bruno mesmo sem pertencer (só essa chave, nunca a lista)', true);
+      await assertFails(db(ALICE_EMAIL).ref('apostas/' + TURMA_T + '/execucoes/' + EXEC_T + '/grupos/' + GRUPO_BRUNO + '/membros/' + emailKey(BRUNO_EMAIL)).once('value'));
+      anota('grupos-resumo — Alice NÃO lê a chave de Bruno no Grupo Bruno (chave alheia)', true);
+      await assertFails(db(ALICE_EMAIL).ref('apostas/' + TURMA_T + '/execucoes/' + EXEC_T + '/grupos/' + GRUPO_BRUNO + '/membros').once('value'));
+      anota('grupos-resumo — Alice NÃO lê a lista inteira de membros do Grupo Bruno', true);
+
+      /* Leitura plena do PRÓPRIO grupo. */
+      await assertSucceeds(db(ALICE_EMAIL).ref('apostas/' + TURMA_T + '/execucoes/' + EXEC_T + '/grupos/' + GRUPO_ALICE).once('value'));
+      anota('grupos-resumo — Alice lê o PRÓPRIO grupo inteiro (nome, membros, dados, ciclos)', true);
+
+      /* Negações: grupo/dados/ciclos/Evidência/Decisão do OUTRO grupo. */
+      await assertFails(db(ALICE_EMAIL).ref('apostas/' + TURMA_T + '/execucoes/' + EXEC_T + '/grupos/' + GRUPO_BRUNO).once('value'));
+      anota('grupos-resumo — Alice NÃO lê o Grupo Bruno inteiro', true);
+      await assertFails(db(ALICE_EMAIL).ref('apostas/' + TURMA_T + '/execucoes/' + EXEC_T + '/grupos/' + GRUPO_BRUNO + '/dados').once('value'));
+      anota('grupos-resumo — Alice NÃO lê dados do Grupo Bruno', true);
+      await assertFails(db(ALICE_EMAIL).ref('apostas/' + TURMA_T + '/execucoes/' + EXEC_T + '/grupos/' + GRUPO_BRUNO + '/dados/evidencia').once('value'));
+      anota('grupos-resumo — Alice NÃO lê a Evidência do Grupo Bruno', true);
+      await assertFails(db(ALICE_EMAIL).ref('apostas/' + TURMA_T + '/execucoes/' + EXEC_T + '/grupos/' + GRUPO_BRUNO + '/dados/decisao').once('value'));
+      anota('grupos-resumo — Alice NÃO lê a Decisão do Grupo Bruno', true);
+      await assertFails(db(ALICE_EMAIL).ref('apostas/' + TURMA_T + '/execucoes/' + EXEC_T + '/grupos/' + GRUPO_BRUNO + '/ciclos').once('value'));
+      anota('grupos-resumo — Alice NÃO lê ciclos do Grupo Bruno', true);
+      await assertFails(db(ALICE_EMAIL).ref('apostas/' + TURMA_T + '/execucoes/' + EXEC_T + '/grupos/' + GRUPO_BRUNO + '/dados/problema').set({ x: 1 }));
+      anota('grupos-resumo — Alice NÃO escreve no Grupo Bruno', true);
+
+      /* Simétrico para Bruno. */
+      await assertSucceeds(db(BRUNO_EMAIL).ref('apostas/' + TURMA_T + '/execucoes/' + EXEC_T + '/grupos/' + GRUPO_BRUNO).once('value'));
+      anota('grupos-resumo — Bruno lê o PRÓPRIO grupo inteiro (simétrico)', true);
+      await assertFails(db(BRUNO_EMAIL).ref('apostas/' + TURMA_T + '/execucoes/' + EXEC_T + '/grupos/' + GRUPO_ALICE).once('value'));
+      anota('grupos-resumo — Bruno NÃO lê o Grupo Alice inteiro (simétrico)', true);
+      await assertFails(db(BRUNO_EMAIL).ref('apostas/' + TURMA_T + '/execucoes/' + EXEC_T + '/grupos/' + GRUPO_ALICE + '/dados/evidencia').once('value'));
+      anota('grupos-resumo — Bruno NÃO lê a Evidência do Grupo Alice (simétrico)', true);
+      await assertFails(db(BRUNO_EMAIL).ref('apostas/' + TURMA_T + '/execucoes/' + EXEC_T + '/grupos/' + GRUPO_ALICE + '/membros').once('value'));
+      anota('grupos-resumo — Bruno NÃO lê a lista de membros do Grupo Alice (simétrico)', true);
+      await assertFails(db(BRUNO_EMAIL).ref('apostas/' + TURMA_T + '/execucoes/' + EXEC_T + '/grupos/' + GRUPO_ALICE + '/dados/problema').set({ x: 1 }));
+      anota('grupos-resumo — Bruno NÃO escreve no Grupo Alice (simétrico)', true);
+
+      /* Facilitadora autorizada lê os dois grupos inteiros (cascata da Rule ampla de execucoes/$execKey). */
+      await assertSucceeds(db(FAC_T_EMAIL).ref('apostas/' + TURMA_T + '/execucoes/' + EXEC_T + '/grupos/' + GRUPO_ALICE).once('value'));
+      anota('grupos-resumo — facilitadora autorizada lê o Grupo Alice inteiro', true);
+      await assertSucceeds(db(FAC_T_EMAIL).ref('apostas/' + TURMA_T + '/execucoes/' + EXEC_T + '/grupos/' + GRUPO_BRUNO).once('value'));
+      anota('grupos-resumo — facilitadora autorizada lê o Grupo Bruno inteiro', true);
+
+      /* Facilitador global SEM vínculo NESTA turma continua recusado. */
+      await assertFails(db(FAC_SEM_VINCULO_EMAIL).ref('apostas/' + TURMA_T + '/execucoes/' + EXEC_T + '/grupos/' + GRUPO_ALICE).once('value'));
+      anota('grupos-resumo — facilitador global SEM vínculo em turmaResumo continua recusado', true);
+      await assertFails(db(FAC_SEM_VINCULO_EMAIL).ref('apostas/' + TURMA_T + '/execucoes/' + EXEC_T + '/grupos-resumo').once('value'));
+      anota('grupos-resumo — facilitador sem vínculo também não lê o resumo (nem confirmado, nem autorizado)', true);
+
+      /* Ausência de grupos-resumo NUNCA reabre o fallback amplo. */
+      {
+        const TURMA_SEM_RESUMO = 'turmaSemResumo', EXEC_SEM_RESUMO = 'execSemResumo';
+        await semear(async (adminDb) => {
+          await adminDb.ref('turmas-interesse/' + TURMA_SEM_RESUMO + '/' + emailKey(ALICE_EMAIL)).set({
+            name: ALICE_EMAIL, email: ALICE_EMAIL, status: 'inscrito', confirmedByAdmin: ADMIN_EMAIL, date: '2026-09-01T10:00:00.000Z'
+          });
+          await adminDb.ref('apostas/' + TURMA_SEM_RESUMO + '/atual').set(EXEC_SEM_RESUMO);
+          /* Propositalmente SEM grupos-resumo/ — simula uma execução
+             criada antes desta fase, ou um backfill que ainda não rodou. */
+          await adminDb.ref('apostas/' + TURMA_SEM_RESUMO + '/execucoes/' + EXEC_SEM_RESUMO).set({
+            status: 'ativa', criadoEm: '2026-09-01T10:00:00.000Z', numero: 1,
+            grupos: { grupoOrfa: { nome: 'Grupo Órfão', criadoEm: '2026-09-01T10:00:00.000Z', etapa: 'missao' } }
+          });
+        });
+        await assertFails(db(ALICE_EMAIL).ref('apostas/' + TURMA_SEM_RESUMO + '/execucoes/' + EXEC_SEM_RESUMO).once('value'));
+        anota('grupos-resumo AUSENTE — participante confirmada NÃO recupera a leitura ampla da execução como "fallback" (fail-closed)', true);
+        await assertFails(db(ALICE_EMAIL).ref('apostas/' + TURMA_SEM_RESUMO + '/execucoes/' + EXEC_SEM_RESUMO + '/grupos').once('value'));
+        anota('grupos-resumo AUSENTE — nem o nó grupos/ inteiro fica acessível por tabela (continua exigindo SOU_MEMBRO em cada grupo)', true);
+        await assertSucceeds(db(ALICE_EMAIL).ref('apostas/' + TURMA_SEM_RESUMO + '/execucoes/' + EXEC_SEM_RESUMO + '/missao').once('value'));
+        anota('grupos-resumo AUSENTE — missao/revelado continuam legíveis normalmente (Rules independentes de grupos-resumo existir)', true);
+      }
     }
 
     /* ══════════════ Transição atômica legítima da FASE 1 (execução):
