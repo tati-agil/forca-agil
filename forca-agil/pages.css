@@ -1677,6 +1677,27 @@ select.aposta-campo-input { width: auto; min-width: 8.5em; }
 .aposta-fac-grupo span   { font-family: var(--font-mono); font-size: .7rem; color: var(--ink-3); }
 .aposta-fac-membros { flex: 1; min-width: 120px; }
 
+/* Analisar com IA — uma aposta, três lentes (não três grupos/apostas). */
+.aposta-ia-diagrama {
+  display: flex; flex-direction: column; align-items: center; gap: 4px;
+  padding: 12px 0; font-family: var(--font-mono);
+}
+.aposta-ia-diagrama-topo {
+  font-size: .72rem; letter-spacing: .08em; text-transform: uppercase; color: var(--ink);
+}
+.aposta-ia-diagrama-seta { color: var(--ink-3); font-size: .85rem; }
+.aposta-ia-diagrama-linha { display: flex; gap: 18px; flex-wrap: wrap; justify-content: center; }
+.aposta-ia-diagrama-linha span { font-size: .72rem; color: var(--ink-2); }
+.aposta-ia-cards { display: flex; flex-direction: column; gap: 12px; }
+.aposta-ia-card {
+  display: flex; flex-direction: column; gap: 8px;
+  padding: 14px 16px; border-radius: 10px;
+  background: var(--panel-2); border: 1px solid var(--line-strong);
+}
+.aposta-ia-card strong { color: var(--ink); font-size: .9rem; }
+.aposta-ia-card p { margin: 0; color: var(--ink-3); font-size: .82rem; line-height: 1.5; }
+.aposta-ia-card-botoes { display: flex; gap: 8px; flex-wrap: wrap; }
+
 /* Grupos na escolha */
 .aposta-grupos-escolha { display: flex; gap: 12px; flex-wrap: wrap; justify-content: center; }
 .aposta-grupo-btn {
