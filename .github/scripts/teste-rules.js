@@ -101,6 +101,54 @@ async function main() {
   }
 
   try {
+    /* ══════════════ IDENTIDADE NAS RULES — emailKey() com 0/1/2/4
+          pontos no local-part. String.replace(substr, repl) nas
+          Firebase Rules substitui TODAS as ocorrências (diferente do
+          replace() comum do JS, que só troca a primeira) — então uma
+          única .replace('.','_') já basta, sem cadeia repetida (ver
+          database.rules.json). Prova direta, sem depender do perfil
+          atual de e-mails auditado: para cada contagem de pontos,
+          grava o vínculo de facilitação usando a chave REAL
+          (emailKey() do cliente) e confirma que a Rule — que deriva a
+          própria chave a partir de auth.token.email — concorda com
+          ela em todos os casos, não só nos observados hoje. Cobre
+          também o autoingresso (que compara $membroKey === chave
+          derivada), a outra rota que depende da mesma derivação. ══ */
+    {
+      await testEnv.clearDatabase();
+      const TURMA_ID = 'turmaIdentidade';
+      const EXEC_ID = 'execIdentidade';
+      const casos = [
+        { rotulo: '0 pontos', email: 'semponto@previ.com.br' },
+        { rotulo: '1 ponto', email: 'um.ponto@previ.com.br' },
+        { rotulo: '2 pontos', email: 'dois.pontos.aqui@previ.com.br' },
+        { rotulo: '4 pontos (vários)', email: 'a.b.c.d.varios@previ.com.br' },
+      ];
+      await semear(async (adminDb) => {
+        await adminDb.ref('apostas/' + TURMA_ID + '/atual').set(EXEC_ID);
+        await adminDb.ref('apostas/' + TURMA_ID + '/execucoes/' + EXEC_ID).set({ status: 'ativa', criadoEm: '2026-09-01T10:00:00.000Z', numero: 1, grupos: { g1: { nome: 'G1', criadoEm: '2026-09-01T10:00:00.000Z', etapa: 'missao' } } });
+        for (const c of casos) {
+          await adminDb.ref('fa-facilitadores/' + emailKey(c.email)).set({ email: c.email, name: c.rotulo });
+          await adminDb.ref('turmas-equipe/' + TURMA_ID + '/' + emailKey(c.email)).set({ email: c.email, name: c.rotulo, papel: 'facilitador' });
+        }
+      });
+
+      for (const c of casos) {
+        await assertSucceeds(db(c.email).ref('apostas/' + TURMA_ID + '/execucoes/' + EXEC_ID + '/revelado').set(true));
+        anota('emailKey (' + c.rotulo + ' no local-part, ' + c.email + '): vínculo de facilitação reconhecido pela Rule',
+          true);
+
+        await assertSucceeds(db(c.email).ref('apostas/' + TURMA_ID + '/execucoes/' + EXEC_ID + '/grupos/g1/membros/' + emailKey(c.email))
+          .set({ name: c.rotulo, email: c.email, entrouEm: new Date().toISOString() }));
+        anota('emailKey (' + c.rotulo + '): autoingresso (chave própria) também reconhecido pela Rule', true);
+
+        const outraChave = emailKey('outra.pessoa.' + casos.indexOf(c) + '@previ.com.br');
+        await assertFails(db(c.email).ref('apostas/' + TURMA_ID + '/execucoes/' + EXEC_ID + '/grupos/g1/membros/' + outraChave)
+          .set({ name: 'x', email: 'outra@previ.com.br', entrouEm: new Date().toISOString() }));
+        anota('emailKey (' + c.rotulo + '): NÃO consegue se passar por uma chave que não é a própria', true);
+      }
+    }
+
     await testEnv.clearDatabase();
     await semearBase();
 
