@@ -5287,6 +5287,16 @@ const clicarSemRolagem = (page, seletor) => page.$eval(seletor, (el) => el.click
 
         // B/C — pular sem conteúdo: nunca pede confirmação, avança para Problema sem bloqueio.
         await pg16a.click('#apostaPularEtapa');
+        /* Bugfix pós-uso real: sem nenhum aviso, o clique em "Pular esta
+           etapa" mudava de tela no mesmo instante — quem clicou não via
+           confirmação nenhuma de que tinha sido um PULO (podia parecer
+           que CONTINUAR tinha sido clicado). Confere o toast "Sintoma
+           pulado." ANTES da navegação completar (ele é transitório —
+           depois que a próxima etapa carrega, já não existe mais). */
+        await pg16a.waitForSelector('.aposta-toast', { timeout: 5000 }).catch(() => {});
+        const toast16a = await pg16a.evaluate(() => (document.querySelector('.aposta-toast') || {}).textContent || '');
+        anota('B — pular mostra confirmação visível ("Sintoma pulado.") antes de avançar, nunca muda de tela sem aviso nenhum',
+          /^Sintoma pulado\.$/.test(toast16a), toast16a);
         await pg16a.waitForFunction(() => /PROBLEMA/.test((document.querySelector('.aposta-etapa-titulo') || {}).textContent || ''), { timeout: 15000 });
         const semModalNoPular = await pg16a.evaluate(() => !document.querySelector('.aposta-confirmar-overlay'));
         anota('B — pular Sintoma vazio nunca pede confirmação e avança direto para Problema', semModalNoPular);
@@ -5396,6 +5406,12 @@ const clicarSemRolagem = (page, seletor) => page.$eval(seletor, (el) => el.click
 
         // B/C — pular avança direto para Experimento, nunca bloqueia.
         await pg16c.click('#apostaPularEtapa');
+        /* Mesma confirmação de 16a, com a concordância certa ("pulada",
+           não "pulado" — "a ideia"). */
+        await pg16c.waitForSelector('.aposta-toast', { timeout: 5000 }).catch(() => {});
+        const toastIdeia16c = await pg16c.evaluate(() => (document.querySelector('.aposta-toast') || {}).textContent || '');
+        anota('B/C — pular Ideia mostra confirmação visível ("Ideia de solução pulada.") antes de avançar',
+          /^Ideia de solução pulada\.$/.test(toastIdeia16c), toastIdeia16c);
         await pg16c.waitForFunction(() => /^E — EXPERIMENTO$/.test((document.querySelector('.aposta-etapa-titulo') || {}).textContent || ''), { timeout: 15000 });
         const tituloExperimento16c = await pg16c.evaluate(() => (document.querySelector('.aposta-etapa-titulo') || {}).textContent || '');
         anota('B/C — pular Ideia avança direto para o Experimento (Hipótese → Experimento)',

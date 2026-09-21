@@ -4908,8 +4908,19 @@
        de salvarEtapa que já troca "decisao"/"missao" por completo),
        então nunca sobra um campo fantasma de uma tentativa anterior.
        Com algo já digitado, confirma antes de descartar (nunca some
-       sozinho); vazio, pula direto. Depois de salvar, avança exatamente
-       como um CONTINUAR bem-sucedido — a etapa já está resolvida. */
+       sozinho); vazio, pula direto.
+
+       Bugfix pós-uso real: sem toast nenhum, o clique passava direto
+       para a etapa seguinte no mesmo instante — quem clicou "Pular esta
+       etapa" via a tela mudar, mas nada dizia QUE tinha sido um pulo
+       (podia parecer que CONTINUAR tinha sido clicado por engano). Só
+       ficava claro voltando depois e vendo o estado "Esta etapa foi
+       pulada" — daí a confirmação parecer "sutil na ida, evidente na
+       volta". Mesmo padrão já usado na Decisão ("✓ Decisão
+       registrada."): mostra o toast primeiro, só then avança — o toast
+       é filho de _tela, que avancar()/render() substitui na hora, então
+       precisa do atraso curto para dar tempo de aparecer antes da
+       troca de tela. */
     var pularBtn = document.getElementById('apostaPularEtapa');
     if (pularBtn) pularBtn.addEventListener('click', function () {
       var d = coletar();
@@ -4923,7 +4934,12 @@
               'Nada foi perdido: o que está na tela continua aqui.', true);
             return;
           }
-          avancar(etapa);
+          /* Concordância manual, não heurística: "Sintoma" termina em
+             "a" mas é masculino ("o sintoma", como "o problema") — um
+             regex por sufixo erraria esse caso. Só duas etapas têm
+             permitePular, então hardcode é mais seguro que adivinhar. */
+          avisar((etapa.curto || etapa.titulo) + (etapa.id === 'ideia' ? ' pulada.' : ' pulado.'));
+          setTimeout(function () { avancar(etapa); }, 700);
         });
       }
       if (temConteudo) confirmarPularEtapa(executarPular);
