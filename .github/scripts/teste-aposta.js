@@ -677,6 +677,110 @@ const clicarSemRolagem = (page, seletor) => page.$eval(seletor, (el) => el.click
         await ctxDir.close();
       }
 
+      /* ── 2c3: "Atingir" — validação de coerência (bugfix pós-PR#210,
+            achado em teste manual em produção). Antes deste bugfix,
+            "Atingir" não tinha checagem nenhuma: situação atual 67 e
+            meta 50 era aceito e gerava "Atingir 50% de DAD..." como se
+            fosse coerente — quando 67→50 é uma REDUÇÃO disfarçada de
+            meta. Semântica adotada: Atingir é "chegar a um patamar
+            ainda não alcançado", então exige meta ESTRITAMENTE MAIOR
+            que a situação atual (igual a Aumentar); meta igual à
+            situação atual não é "já atingido", é a mesma etapa; meta
+            menor é uma redução com outro nome — nunca troca a direção
+            nem corrige a meta sozinho, só nomeia o problema e (só
+            quando existe) convida a trocar para "Reduzir" com um
+            clique. ── */
+      {
+        const semeadoAtingir = apostasSemeadas();
+        semeadoAtingir[TURMA_LIB].execucoes[EXEC].grupos[GRUPO].etapa = 'mudancas';
+        const { ctx: ctxAtingir, page: pgAtingir } = await novaPagina(browser, formato, DIRETORA, erros, semeadoAtingir);
+        await pgAtingir.goto(BASE + '/index.html#treinamento', { waitUntil: 'domcontentloaded' });
+        await pgAtingir.click('#apostaAbrirBtn');
+        await pgAtingir.waitForSelector('.aposta-grupo-btn', { timeout: 15000 });
+        await pgAtingir.click('.aposta-grupo-btn');
+        await pgAtingir.waitForFunction(() => /MUDAN/i.test((document.querySelector('.aposta-etapa-titulo') || {}).textContent || ''), { timeout: 15000 });
+
+        await pgAtingir.fill('[data-m="indicador"]', 'DAD');
+        await pgAtingir.selectOption('[data-m="formaMedicao"]', 'Percentual');
+        await pgAtingir.waitForTimeout(200);
+        await pgAtingir.locator('.aposta-variante:has([data-m="direcao"]) .aposta-variante-chip', { hasText: 'Atingir' }).click();
+        await pgAtingir.waitForTimeout(200);
+        await pgAtingir.fill('[data-m="prazo"]', '78');
+        await pgAtingir.waitForTimeout(200);
+
+        async function estadoAtingir() {
+          return pgAtingir.evaluate(() => ({
+            frase: (document.querySelector('.aposta-mudanca-frase') || {}).textContent || '',
+            alerta: (document.querySelector('.aposta-mudanca-alerta') || {}).textContent || '',
+            botoes: Array.from(document.querySelectorAll('.aposta-mudanca-alerta button')).map((b) => b.textContent),
+          }));
+        }
+
+        await pgAtingir.fill('[data-m="atual"]', '0');
+        await pgAtingir.fill('[data-m="meta"]', '50');
+        await pgAtingir.waitForTimeout(600);
+        const atingirValido1 = await estadoAtingir();
+        anota('Atingir: situação atual 0, meta 50 — válido, sem alerta',
+          !atingirValido1.alerta && /Atingir/.test(atingirValido1.frase) && /50/.test(atingirValido1.frase) && !/Corrija a inconsistência/.test(atingirValido1.frase),
+          JSON.stringify(atingirValido1));
+
+        await pgAtingir.fill('[data-m="atual"]', '40');
+        await pgAtingir.waitForTimeout(600);
+        const atingirValido2 = await estadoAtingir();
+        anota('Atingir: situação atual 40, meta 50 — válido, sem alerta',
+          !atingirValido2.alerta && /Atingir/.test(atingirValido2.frase) && /50/.test(atingirValido2.frase) && !/Corrija a inconsistência/.test(atingirValido2.frase),
+          JSON.stringify(atingirValido2));
+
+        await pgAtingir.fill('[data-m="atual"]', '50');
+        await pgAtingir.waitForTimeout(600);
+        const atingirIgual = await estadoAtingir();
+        anota('Atingir: situação atual 50, meta 50 — inválido (meta já corresponde à situação atual), sem sugestão de direção',
+          /Corrija a inconsistência acima/.test(atingirIgual.frase) &&
+          /já corresponde à situação atual/.test(atingirIgual.alerta) &&
+          atingirIgual.botoes.length === 0,
+          JSON.stringify(atingirIgual));
+
+        const tituloAntesAtingir = await pgAtingir.evaluate(() => (document.querySelector('.aposta-etapa-titulo') || {}).textContent || '');
+        await clicarSemRolagem(pgAtingir, '#apostaSeguir');
+        await pgAtingir.waitForTimeout(300);
+        const tituloDepoisAtingir = await pgAtingir.evaluate(() => (document.querySelector('.aposta-etapa-titulo') || {}).textContent || '');
+        anota('Atingir com meta igual à situação atual também bloqueia CONTINUAR', tituloDepoisAtingir === tituloAntesAtingir);
+
+        /* O caso relatado no teste manual em produção: atual 67, meta
+           50 — a mesma inconsistência de "Reduzir" só que escondida
+           atrás de "Atingir". */
+        await pgAtingir.fill('[data-m="atual"]', '67');
+        await pgAtingir.waitForTimeout(600);
+        const atingirMenor = await estadoAtingir();
+        anota('Atingir: situação atual 67, meta 50 — inválido (redução disfarçada de meta), sugere só "Reduzir"',
+          /Corrija a inconsistência acima/.test(atingirMenor.frase) &&
+          /abaixo da situação atual/.test(atingirMenor.alerta) &&
+          /passar de 67 para 50/.test(atingirMenor.alerta) &&
+          atingirMenor.botoes.some((b) => /Reduzir/.test(b)) && !atingirMenor.botoes.some((b) => /Aumentar/.test(b)),
+          JSON.stringify(atingirMenor));
+
+        await pgAtingir.locator('.aposta-mudanca-alerta button', { hasText: 'Reduzir' }).click();
+        await pgAtingir.waitForTimeout(200);
+        const corrigidoAtingir = await pgAtingir.evaluate(() => ({
+          direcao: (document.querySelector('[data-m="direcao"]') || {}).value || '',
+          atual: (document.querySelector('[data-m="atual"]') || {}).value || '',
+          meta: (document.querySelector('[data-m="meta"]') || {}).value || '',
+          alertaSumiu: !document.querySelector('.aposta-mudanca-alerta'),
+        }));
+        anota('"Usar Reduzir" no alerta de Atingir troca só a direção — nunca os números (67 e 50 continuam lá)',
+          corrigidoAtingir.direcao === 'Reduzir' && corrigidoAtingir.atual === '67' && corrigidoAtingir.meta === '50' && corrigidoAtingir.alertaSumiu,
+          JSON.stringify(corrigidoAtingir));
+
+        const tituloAntesCorrecao = await pgAtingir.evaluate(() => (document.querySelector('.aposta-etapa-titulo') || {}).textContent || '');
+        await clicarSemRolagem(pgAtingir, '#apostaSeguir');
+        await pgAtingir.waitForTimeout(400);
+        const tituloAposCorrecao = await pgAtingir.evaluate(() => (document.querySelector('.aposta-etapa-titulo') || {}).textContent || '');
+        anota('depois de corrigir para "Reduzir" (67→50, coerente), CONTINUAR volta a funcionar e a etapa avança',
+          tituloAposCorrecao !== tituloAntesCorrecao, tituloAposCorrecao);
+
+        await ctxAtingir.close();
+      }
+
       /* ── 2d: a missão cadastrada no painel chega na etapa 1 ──
          Ela era gravada e não chegava a lugar nenhum: o grupo abria a
          etapa 1 pedindo a missão do zero, e quem tinha acabado de
@@ -3795,8 +3899,32 @@ const clicarSemRolagem = (page, seletor) => page.$eval(seletor, (el) => el.click
         anota('item 1 — a microexplicação de "Concluir a aposta" nunca soa como "Ampliar" nem como "Interromper" (aprendizado suficiente, não abandono nem escala)',
           /aprendemos o suficiente/i.test(explicacaoConcluir), explicacaoConcluir);
 
-        await pg13dter.fill('[data-campo="proximaAcao"]', 'registrar o aprendizado e comunicar o resultado');
-        await pg13dter.waitForTimeout(200);
+        /* Bugfix pós-PR#210: a interface ainda herdava a exigência de
+           Próxima ação das outras sete decisões (todas pressupõem
+           continuidade; só esta é conclusão) — no teste manual, foi
+           preciso digitar um texto artificial só para conseguir
+           concluir e abrir o mapa. Confere sem tocar em Próxima ação
+           nenhuma: rótulo avisa "(opcional)", "Reformular hipótese
+           também" e os Complementos (Responsável/Prazo/Reavaliação)
+           ficam ocultos, e CONTINUAR/"Ver o mapa da aposta →" já está
+           habilitado — nenhum erro, nenhuma exigência escondida. */
+        const estadoSemProximaAcao = await pg13dter.evaluate(() => ({
+          rotulo: (document.querySelector('[data-rotulo-de="proximaAcao"]') || {}).textContent || '',
+          novaHipoteseVisivel: !!document.getElementById('apostaGrupoNovaHipotese') && !document.getElementById('apostaGrupoNovaHipotese').hidden &&
+            getComputedStyle(document.getElementById('apostaGrupoNovaHipotese')).display !== 'none',
+          complementosVisivel: !!document.getElementById('apostaComplementos') && !document.getElementById('apostaComplementos').hidden &&
+            getComputedStyle(document.getElementById('apostaComplementos')).display !== 'none',
+          seguirDesabilitado: (document.getElementById('apostaSeguir') || {}).disabled,
+        }));
+        anota('item 2 — sem Próxima ação, o rótulo já diz "(opcional)" em vez de parecer obrigatório',
+          /Próxima ação \(opcional\)/.test(estadoSemProximaAcao.rotulo), JSON.stringify(estadoSemProximaAcao));
+        anota('item 2 — "Reformular hipótese também" fica oculto de verdade (hidden + display:none) em "Concluir a aposta"',
+          !estadoSemProximaAcao.novaHipoteseVisivel, JSON.stringify(estadoSemProximaAcao));
+        anota('item 2 — sem Próxima ação escrita, os Complementos (Responsável/Prazo/Reavaliação) ficam ocultos, não vazios à toa',
+          !estadoSemProximaAcao.complementosVisivel, JSON.stringify(estadoSemProximaAcao));
+        anota('item 2 — CONTINUAR/"Ver o mapa da aposta →" já está habilitado sem Próxima ação nenhuma (genuinely enabled, não só visualmente)',
+          estadoSemProximaAcao.seguirDesabilitado === false, JSON.stringify(estadoSemProximaAcao));
+
         await pg13dter.click('#apostaSeguir');
         await pg13dter.waitForSelector('.aposta-mapa', { timeout: 8000 });
 
@@ -3825,6 +3953,19 @@ const clicarSemRolagem = (page, seletor) => page.$eval(seletor, (el) => el.click
            BOTÕES de escolha, já testados acima (opcoesDecisao). */
         anota('item 1 — "Concluir a aposta" aparece normalmente no Mapa (a decisão gravada é lida, não escondida)',
           /concluir a aposta/i.test(mapaTextoConcluir), mapaTextoConcluir.slice(0, 300));
+        /* Este seed tem DOIS ciclos: o Ciclo 1 (já concluído com
+           "Reformular a hipótese" + Próxima ação preenchida — "Próxima
+           ação:" ali é legítimo) e o Ciclo 2, atual, agora com "Concluir
+           a aposta" sem Próxima ação nenhuma. A ausência de "Próxima
+           ação:" tem de ser conferida só no card do ciclo ATUAL — os
+           cards de ciclos passados são <div>, só o do ciclo atual é
+           <button> (ver Invariante 7, testada acima). */
+        const cardDecisaoAtual = await pg13dter.evaluate(() => {
+          const card = Array.from(document.querySelectorAll('button.aposta-mapa-card')).find((c) => /DECIS[ÃA]O/.test(c.textContent));
+          return card ? card.textContent : '';
+        });
+        anota('item 2 — sem Próxima ação, o card de Decisão do ciclo atual mostra só "...vamos concluir a aposta." — sem "Próxima ação:" sobrando sozinho',
+          /vamos concluir a aposta\./i.test(cardDecisaoAtual) && !/Próxima ação/i.test(cardDecisaoAtual), cardDecisaoAtual.slice(0, 300));
 
         await pg13dter.click('#apostaPainelBtn');
         await pg13dter.waitForSelector('#apostaExportar', { timeout: 8000 });
@@ -3837,11 +3978,125 @@ const clicarSemRolagem = (page, seletor) => page.$eval(seletor, (el) => el.click
           const csvConcluir = fs.readFileSync(caminhoConcluir, 'utf8');
           anota('item 1 — "Concluir a aposta" aparece no CSV exportado, como qualquer outra decisão',
             /concluir a aposta/i.test(csvConcluir), csvConcluir.slice(0, 200));
+          /* Mesmo motivo do card do Mapa acima: este CSV tem uma linha de
+             Decisão por ciclo — a do Ciclo 1 ("Reformular a hipótese")
+             legitimamente traz "Próxima ação: testar de novo.". A
+             ausência tem de ser conferida só na linha do Ciclo 2 (a
+             "Concluir a aposta" sem Próxima ação nenhuma). */
+          const linhaDecisaoC2 = csvConcluir.split('\n').find((l) => /;"2";"[^"]*";"Decis[ãa]o";/i.test(l));
+          anota('item 2 — sem Próxima ação, a linha de Decisão do Ciclo 2 no CSV não traz "Próxima ação:" sobrando',
+            !!linhaDecisaoC2 && /vamos concluir a aposta/i.test(linhaDecisaoC2) && !/Próxima ação/i.test(linhaDecisaoC2),
+            linhaDecisaoC2 || '(linha do Ciclo 2 / Decisão não encontrada) ' + csvConcluir.slice(0, 200));
         } else {
           anota('item 1 — "Concluir a aposta" aparece no CSV exportado, como qualquer outra decisão', false, 'download não disparou');
         }
 
         await ctx13dter.close();
+      }
+
+      /* ── 13d-quater: bugfix pós-PR#210 — "Concluir a aposta": trocar de
+            decisão restaura/relaxa a exigência de Próxima ação na hora
+            (sem recarregar a etapa), e escrever um encaminhamento
+            voluntário mostra os Complementos de volta — sempre opcionais,
+            nunca migram nem exigem nada. ── */
+      {
+        const semeado13dquater = apostasProntaParaDecisao();
+        const { ctx: ctx13dquater, page: pg13dquater } = await novaPagina(browser, formato, ADM, erros, semeado13dquater);
+        await pg13dquater.goto(BASE + '/index.html#treinamento', { waitUntil: 'domcontentloaded' });
+        await pg13dquater.click('#apostaAbrirBtn');
+        await pg13dquater.waitForSelector('.aposta-grupo-btn', { timeout: 15000 });
+        await pg13dquater.click('.aposta-grupo-btn');
+        await pg13dquater.waitForSelector('.aposta-opcao', { timeout: 15000 });
+
+        /* Primeiro escolhe "Ampliar" — decisão comum, com a exigência de
+           sempre — para confirmar que ela continua intacta antes de
+           testar a troca. */
+        await pg13dquater.locator('.aposta-opcao', { hasText: 'Ampliar' }).click();
+        await pg13dquater.waitForTimeout(200);
+        const bloqueadoAmpliar = await pg13dquater.evaluate(() => (document.getElementById('apostaSeguir') || {}).disabled);
+        anota('item 2 — "Ampliar" continua exigindo Próxima ação normalmente (CONTINUAR desabilitado sem ela)',
+          bloqueadoAmpliar === true, 'disabled=' + bloqueadoAmpliar);
+
+        /* Troca para "Concluir a aposta" SEM tocar em Próxima ação —
+           CONTINUAR tem de habilitar na hora, sem recarregar a etapa. */
+        await pg13dquater.locator('.aposta-opcao', { hasText: 'Concluir a aposta' }).click();
+        await pg13dquater.waitForTimeout(200);
+        const estadoTrocaConcluir = await pg13dquater.evaluate(() => {
+          var comp = document.getElementById('apostaComplementos');
+          return {
+            seguirDesabilitado: (document.getElementById('apostaSeguir') || {}).disabled,
+            rotulo: (document.querySelector('[data-rotulo-de="proximaAcao"]') || {}).textContent || '',
+            complementosVisivel: !!comp && !comp.hidden && getComputedStyle(comp).display !== 'none',
+          };
+        });
+        anota('item 2 — trocar PARA "Concluir a aposta" habilita CONTINUAR na hora, sem digitar nada',
+          estadoTrocaConcluir.seguirDesabilitado === false, JSON.stringify(estadoTrocaConcluir));
+        anota('item 2 — o rótulo muda para "(opcional)" ao vivo, sem recarregar a etapa',
+          /Próxima ação \(opcional\)/.test(estadoTrocaConcluir.rotulo), JSON.stringify(estadoTrocaConcluir));
+        anota('item 2 — Complementos continuam ocultos logo após a troca, enquanto nada foi escrito',
+          estadoTrocaConcluir.complementosVisivel === false, JSON.stringify(estadoTrocaConcluir));
+
+        /* Escrever um encaminhamento voluntário mostra os Complementos —
+           sempre opcionais, nunca exigidos, só deixam de fazer sentido
+           escondidos quando existe alguma próxima ação combinada. */
+        await pg13dquater.fill('[data-campo="proximaAcao"]', 'registrar o aprendizado e comunicar o resultado');
+        await pg13dquater.waitForTimeout(300);
+        const complementosAposEscrever = await pg13dquater.evaluate(() => {
+          var comp = document.getElementById('apostaComplementos');
+          return !!comp && !comp.hidden && getComputedStyle(comp).display !== 'none';
+        });
+        anota('item 2 — escrever um encaminhamento voluntário mostra os Complementos de volta, ao vivo',
+          complementosAposEscrever === true);
+
+        await pg13dquater.fill('[data-campo="proximaAcao"]', '');
+        await pg13dquater.waitForTimeout(300);
+        const complementosAposApagar = await pg13dquater.evaluate(() => {
+          var comp = document.getElementById('apostaComplementos');
+          return !!comp && !comp.hidden && getComputedStyle(comp).display !== 'none';
+        });
+        anota('item 2 — apagar o encaminhamento volta a ocultar os Complementos',
+          complementosAposApagar === false);
+
+        /* Volta para "Ampliar" — a exigência normal de Próxima ação tem
+           de reaparecer, mesmo com "Concluir a aposta" tendo acabado de
+           liberar o campo. */
+        await pg13dquater.locator('.aposta-opcao', { hasText: 'Ampliar' }).click();
+        await pg13dquater.waitForTimeout(200);
+        const voltaAmpliar = await pg13dquater.evaluate(() => ({
+          seguirDesabilitado: (document.getElementById('apostaSeguir') || {}).disabled,
+          rotulo: (document.querySelector('[data-rotulo-de="proximaAcao"]') || {}).textContent || '',
+        }));
+        anota('item 2 — voltar para "Ampliar" restaura a exigência normal de Próxima ação (CONTINUAR desabilita de novo)',
+          voltaAmpliar.seguirDesabilitado === true, JSON.stringify(voltaAmpliar));
+        anota('item 2 — o rótulo volta a "Próxima ação:" (sem "opcional") fora de "Concluir a aposta"',
+          voltaAmpliar.rotulo === 'Próxima ação:', JSON.stringify(voltaAmpliar));
+
+        await ctx13dquater.close();
+      }
+
+      /* ── 13d-quinquies: bugfix pós-PR#210 — compatibilidade retroativa:
+            uma decisão "Concluir a aposta" já gravada ANTES deste bugfix,
+            com Próxima ação preenchida (inclusive as criadas durante o
+            teste manual em produção), continua sendo lida e mostrada
+            normalmente — nada migra, nada é apagado. Entra pelo Painel
+            do facilitador ("Projetar"), nunca clicando Continuar na
+            Decisão (que executaria a consequência de novo). ── */
+      {
+        const semeado13dquinquies = apostasProntaParaDecisao();
+        semeado13dquinquies[TURMA_LIB].execucoes[EXEC].grupos[GRUPO].dados.decisao =
+          { decisao: 'Concluir a aposta', proximaAcao: 'DASD', dataDecisao: '2026-09-19T09:00:00.000Z' };
+        const { ctx: ctx13dquinquies, page: pg13dquinquies } = await novaPagina(browser, formato, ADM, erros, semeado13dquinquies);
+        await pg13dquinquies.goto(BASE + '/index.html#treinamento', { waitUntil: 'domcontentloaded' });
+        await pg13dquinquies.click('#apostaAbrirBtn');
+        await pg13dquinquies.waitForSelector('#apostaPainelBtn', { timeout: 15000 });
+        await pg13dquinquies.click('#apostaPainelBtn');
+        await pg13dquinquies.waitForSelector('.aposta-fac-ver', { timeout: 15000 });
+        await pg13dquinquies.click('.aposta-fac-ver');
+        await pg13dquinquies.waitForSelector('.aposta-mapa', { timeout: 15000 });
+        const mapaCompat = await pg13dquinquies.evaluate(() => document.querySelector('.aposta-mapa').textContent || '');
+        anota('item 2 — decisão "Concluir a aposta" gravada ANTES do bugfix, com Próxima ação já preenchida, continua aparecendo normalmente no Mapa',
+          /vamos concluir a aposta\. Pr[óo]xima a[çc][ãa]o: DASD\./i.test(mapaCompat), mapaCompat.slice(0, 300));
+        await ctx13dquinquies.close();
       }
 
       /* ── 13e: editar uma etapa de um ciclo já concluído — confirmar

@@ -750,6 +750,22 @@
         out[i].txt = semPreposicaoDupla(out[i].txt, out[i + 1].txt);
       }
     }
+    /* Bugfix pós-PR#210: "Concluir a aposta" não exige Próxima ação —
+       a interface ainda herdava a exigência das outras sete decisões
+       (todas pressupõem continuidade; esta é a única que é conclusão).
+       Vazia, a lacuna nem entra na frase — e o rótulo fixo que a
+       apresenta ("Próxima ação:") sai junto, senão sobraria sozinho
+       ("...vamos concluir a aposta. Próxima ação:."). Preenchida
+       (inclusive em dados antigos, gravados antes deste bugfix), o par
+       aparece normalmente — nunca migra nem apaga o que já existe. */
+    if (etapa.id === 'decisao' && String(d.decisao || '').trim() === 'Concluir a aposta') {
+      for (var j = out.length - 1; j >= 0; j--) {
+        if (out[j].tipo === 'vazio' && out[j].chave === 'proximaAcao') {
+          out.splice(j, 1);
+          if (j > 0 && out[j - 1] && out[j - 1].tipo === 'fixo') out.splice(j - 1, 1);
+        }
+      }
+    }
     return out;
   }
 
@@ -1008,22 +1024,48 @@
      escolhida" — usada pelo alerta perto do campo (que corrige com um
      clique, mas nunca sozinho), para decidir se a frase aparece (em vez
      do convite a corrigir) e para bloquear CONTINUAR. Só entra em jogo
-     com Aumentar/Reduzir/Manter e os valores numéricos preenchidos —
-     Atingir mira um valor-alvo sem "maior/menor" automático, e uma
-     direção livre digitada por cima não tem relação obrigatória
-     nenhuma. Campos em branco não são "incoerentes", são "incompletos"
-     — a lacuna já avisa o que falta, sem mais um aviso por cima. */
+     com Aumentar/Reduzir/Atingir/Manter e os valores numéricos
+     preenchidos — uma direção livre digitada por cima não tem relação
+     obrigatória nenhuma. Campos em branco não são "incoerentes", são
+     "incompletos" — a lacuna já avisa o que falta, sem mais um aviso
+     por cima. */
   function alertaInfoMudanca(m) {
     var direcao = String((m || {}).direcao || '').trim();
     if (direcao === 'Manter') return inconsistenciaManter(m);
-    if (direcao !== 'Aumentar' && direcao !== 'Reduzir') return null;
+    if (direcao !== 'Aumentar' && direcao !== 'Reduzir' && direcao !== 'Atingir') return null;
     var atual = paraNumero((m || {}).atual), meta = paraNumero((m || {}).meta);
     if (atual == null || meta == null) return null;
-    /* Refinamento pós-teste manual: meta igual à situação atual passava
-       batido ("Aumentar de 56 para 56"), logicamente incoerente — sem
-       isso, Aumentar exigia só meta >= atual, nunca estritamente maior.
-       Nunca troca a direção nem corrige a meta sozinha (mesmo princípio
-       dos dois casos abaixo): só nomeia o problema e convida a rever. */
+    /* Bugfix pós-PR#210 (teste manual em produção): "Atingir" não tinha
+       validação nenhuma — aceitava uma meta ABAIXO da situação atual
+       como se fosse coerente (ex.: atual 67, meta 50, "Atingir 50% de
+       DAD" — uma redução disfarçada de meta). Semântica adotada:
+       Atingir é "chegar a um patamar que ainda não foi alcançado", logo
+       exige meta ESTRITAMENTE MAIOR que a situação atual, como
+       Aumentar; igual não é "já atingido" — é a mesma etapa, sem
+       mudança nenhuma —, e menor é uma redução com outro nome. Nunca
+       troca a direção nem corrige a meta sozinho: só nomeia o problema
+       e, quando existe uma direção coerente plausível, convida a
+       trocar com um clique (nunca escolhe por conta própria). */
+    if (direcao === 'Atingir') {
+      if (meta === atual) {
+        return {
+          mensagem: 'A meta informada já corresponde à situação atual. Defina uma meta que ainda precise ser atingida ou reveja a direção da mudança.',
+          opcoes: []
+        };
+      }
+      if (meta < atual) {
+        return {
+          mensagem: 'A meta informada está abaixo da situação atual. Para passar de ' + atual + ' para ' + meta + ', a direção da mudança é uma redução. Você quis selecionar “Reduzir”?',
+          opcoes: ['Reduzir']
+        };
+      }
+      return null;
+    }
+    /* Refinamento pós-teste manual (PR#210): meta igual à situação atual
+       passava batido ("Aumentar de 56 para 56"), logicamente incoerente
+       — sem isso, Aumentar exigia só meta >= atual, nunca estritamente
+       maior. Nunca troca a direção nem corrige a meta sozinha (mesmo
+       princípio do caso acima): só nomeia o problema e convida a rever. */
     if (atual === meta) {
       return {
         mensagem: (direcao === 'Aumentar'
@@ -1432,6 +1474,20 @@
   function decisaoFaltaNovaHipotese(d) {
     return String((d || {}).decisao || '').trim() === 'Reformular a hipótese' &&
       !(normalizar(d.proxHipCausa) && normalizar(d.proxHipIndicio));
+  }
+
+  /* Bugfix pós-PR#210: Responsável/Prazo/Data de reavaliação são
+     "combinados do grupo" sobre a PRÓXIMA AÇÃO — em "Concluir a
+     aposta" (que não tem próxima ação obrigatória, ver
+     partesDaFrase), mostrá-los vazios sugeria uma exigência que não
+     existe. Ficam ocultos só enquanto a Próxima ação/Encaminhamento
+     também estiver vazio; a dupla que escrever um encaminhamento
+     voluntário volta a ver os três, sempre opcionais. Única fonte da
+     verdade, usada no primeiro render (moldeHtml) e ao vivo (a cada
+     tecla em salvarDepois, e ao trocar de decisão em
+     ligarBotaoOpcao). */
+  function decisaoOcultaComplementos(d) {
+    return String((d || {}).decisao || '').trim() === 'Concluir a aposta' && !normalizar((d || {}).proximaAcao);
   }
 
   /* ══════════════════════════════════════════════════════════════
@@ -3152,10 +3208,19 @@
              frase montada (`t`, inalterado). */
           var campoSeg = !seguinte.escolha ? campoPorChave(etapa, seguinte.c) : null;
           var tExibido = (campoSeg && campoSeg.rotuloMolde) ? campoSeg.rotuloMolde : t;
+          /* Bugfix pós-PR#210: só em "Concluir a aposta", a Próxima ação
+             deixa de ser obrigatória — o rótulo fixo diz isso explicitamente,
+             em vez de continuar parecendo uma exigência (ver também a
+             troca ao vivo em ligarBotaoOpcao, que usa este mesmo
+             data-rotulo-de para não precisar recarregar a etapa). */
+          if (etapa.id === 'decisao' && campoSeg && campoSeg.chave === 'proximaAcao' && String(d.decisao || '').trim() === 'Concluir a aposta') {
+            tExibido = 'Próxima ação (opcional):';
+          }
           var classeFixo = (campoSeg && campoSeg.rotuloMolde) ? 'aposta-campo-rot' : 'aposta-molde-fixo';
           var tituloFixo = campoSeg && campoSeg.dica ? ' title="' + esc(campoSeg.dica) + '"' : '';
+          var rotuloDeAttr = campoSeg ? ' data-rotulo-de="' + esc(campoSeg.chave) + '"' : '';
           out.push('<div class="aposta-par' + classeDoPar(etapa, seguinte) + '">' +
-            '<span class="' + classeFixo + '"' + tituloFixo + '>' + esc(tExibido) + '</span>' +
+            '<span class="' + classeFixo + '"' + tituloFixo + rotuloDeAttr + '>' + esc(tExibido) + '</span>' +
             lacunaHtml(etapa, seguinte, d, usados, true) +
           '</div>');
           i++;
@@ -3239,7 +3304,14 @@
        do que é. */
     var extras = (etapa.campos || []).filter(function (c) { return !usados[c.chave]; });
     if (extras.length) {
-      html += '<div class="aposta-complementos">' +
+      /* Bugfix pós-PR#210: em "Concluir a aposta" sem próxima ação/
+         encaminhamento nenhum escrito, Responsável/Prazo/Reavaliação
+         (que só fazem sentido combinados sobre uma próxima ação) ficam
+         ocultos — mostrá-los vazios lia como exigência que não existe
+         (ver decisaoOcultaComplementos). Some/some ao vivo, sem
+         recarregar (ver salvarDepois e ligarBotaoOpcao). */
+      var complementosOcultos = etapa.id === 'decisao' && decisaoOcultaComplementos(d);
+      html += '<div class="aposta-complementos" id="apostaComplementos"' + (complementosOcultos ? ' hidden' : '') + '>' +
         '<p class="aposta-complementos-rot">Complementos — combinados do grupo, não entram na frase</p>' +
         extras.map(function (c) { return campoHtml(c, d[c.chave], d); }).join('') +
         /* Prazo e Data de reavaliação são combinados separadamente (ver
@@ -3928,7 +4000,15 @@
       if (etapa.lista) atualizarFrases();
       else if (etapa.id === 'evidencia') atualizarCardsEvidencia();
       else atualizarFrase();
-      if (etapa.id === 'decisao') atualizarAlertaPrazo();
+      if (etapa.id === 'decisao') {
+        atualizarAlertaPrazo();
+        /* Bugfix pós-PR#210: reage a cada tecla em Próxima ação/
+           encaminhamento — escrever um voluntário, com "Concluir a
+           aposta" escolhida, mostra os complementos na hora; apagar
+           tudo volta a escondê-los. */
+        var comp = document.getElementById('apostaComplementos');
+        if (comp) comp.hidden = decisaoOcultaComplementos(d);
+      }
       /* Item 6/16: mantém o botão principal realmente desabilitado
          enquanto se digita — a Evidência já cuida disso sozinha dentro
          de atualizarCardsEvidencia (dois rótulos, duas checagens). */
@@ -4556,7 +4636,19 @@
              bloco nem existe mais para a decisão nova); redesenha o
              bloco do zero a cada troca da decisão principal, nunca
              deixa uma opção de outra decisão marcada como ativa. */
-          if (etapa.escolha && b.dataset.escolha === etapa.escolha.chave) atualizarPontoReinicioBloco();
+          if (etapa.escolha && b.dataset.escolha === etapa.escolha.chave) {
+            /* Bugfix pós-PR#210: trocar PARA "Concluir a aposta" marca a
+               Próxima ação como opcional (rótulo + complementos) na
+               hora; trocar PARA FORA dela restaura a exigência normal —
+               nunca precisa recarregar a etapa para ver o estado certo. */
+            var rotProximaAcao = document.querySelector('[data-rotulo-de="proximaAcao"]');
+            if (rotProximaAcao) {
+              rotProximaAcao.textContent = (b.dataset.valor === 'Concluir a aposta') ? 'Próxima ação (opcional):' : 'Próxima ação:';
+            }
+            var comp = document.getElementById('apostaComplementos');
+            if (comp) comp.hidden = decisaoOcultaComplementos(coletar());
+            atualizarPontoReinicioBloco();
+          }
         }
       });
     }

@@ -1438,6 +1438,12 @@
   border: 1px dashed var(--line-strong); border-radius: 10px; padding: 14px 16px;
   display: flex; flex-direction: column; gap: 12px;
 }
+/* Bugfix pós-PR#210: sem isso, [hidden] (usado quando "Concluir a
+   aposta" não tem próxima ação nenhuma escrita — ver
+   decisaoOcultaComplementos em aposta.js) não bastaria para esconder
+   o bloco, porque a regra acima já fixa `display: flex` com mais
+   especificidade que a folha de estilo padrão do navegador. */
+.aposta-complementos[hidden] { display: none; }
 .aposta-complementos-rot {
   margin: 0; font-family: var(--font-mono); font-size: .64rem;
   letter-spacing: .08em; text-transform: uppercase; color: var(--ink-3);
@@ -1462,6 +1468,12 @@
   border: 1px dashed var(--line-strong); border-radius: 10px; padding: 14px 16px;
   display: flex; flex-direction: column; gap: 10px;
 }
+/* Bugfix pós-PR#210: causa real de "Reformular hipótese também"
+   continuar aparecendo em "Concluir a aposta" no teste manual — o
+   JS já marcava o <details> com [hidden] (escondeQuando já incluía
+   "Concluir a aposta"), mas essa regra, sem exceção, sempre vencia a
+   folha de estilo padrão do navegador e mantinha `display: flex`. */
+.aposta-grupo[hidden] { display: none; }
 .aposta-grupo-rot {
   margin: 0; font-family: var(--font-mono); font-size: .64rem;
   letter-spacing: .08em; text-transform: uppercase; color: var(--ink-3);
