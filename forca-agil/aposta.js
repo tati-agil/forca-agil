@@ -2016,8 +2016,6 @@
      explícita nasce:
        grupos/<grupoId>/ciclos/
          atual                      → id do ciclo em edição agora
-         contador                   → só o número do último ciclo criado
-                                        (mesma ideia de contadorExecucoes)
          criacaoCicloEmAndamento    → lock (mesmo mecanismo de
                                         token da Fase 1 — ver
                                         criarExecucao/liberarLock acima)
@@ -2064,15 +2062,27 @@
        2) relê ciclos/atual (com exclusividade garantida pelo lock) e
           confere que ainda é o mesmo que esta chamada pensava estar
           fechando; se não for, libera o lock e avisa, sem criar nada;
-       3) relê o ciclo que está sendo fechado (nunca confia só na
-          cópia em memória — mesmo cuidado do confirmarAtualAindaValido);
-       4) transaction() no contador para o número do novo ciclo;
-       5) um ÚNICO update() atômico: materializa o Ciclo 1 (se for a
+       3) relê o ciclo que está sendo fechado (nunca confia só na cópia
+          em memória — mesmo cuidado do confirmarAtualAindaValido) e
+          deriva dali o número do novo ciclo: nº do anterior + 1 (Ciclo
+          1 implícito não tem `numero` gravado, conta como 1). SEM
+          contador global — diferente de contadorExecucoes (que pode
+          ter mais de uma execução concorrendo pelo próximo número),
+          aqui só existe um cicloAtual e uma decisão gera no máximo um
+          sucessor: o lock+token acima já garante sozinho que só uma
+          chamada por vez chega a ler o anterior e escrever o novo
+          número, então não sobra concorrência nenhuma para um contador
+          arbitrar. Sem um nó separado para "consumir", uma tentativa
+          que falha ANTES do update() final nunca gasta um número que
+          nenhum ciclo chegou a usar de verdade (INVARIANTE 8:
+          numeração sequencial, sem lacunas — Ciclo 1 → 2 → 3…, nunca
+          Ciclo 1 → 3 sem um Ciclo 2 ter existido);
+       4) um ÚNICO update() atômico: materializa o Ciclo 1 (se for a
           primeira vez), finaliza o ciclo que está sendo fechado, cria
-          o novo com herança/cascata e aponta ciclos/atual para ele —
-          tudo isso junto, ou nada. O lock só é liberado DEPOIS, numa
-          chamada separada (update() não sabe conferir "isso ainda é
-          meu" — só transaction() com o token confere isso).
+          o novo com herança/cascata/número e aponta ciclos/atual para
+          ele — tudo isso junto, ou nada. O lock só é liberado DEPOIS,
+          numa chamada separada (update() não sabe conferir "isso ainda
+          é meu" — só transaction() com o token confere isso).
      ══════════════════════════════════════════════════════════════ */
 
   function caminhoCiclos() { return caminhoGrupo() + '/ciclos'; }
@@ -2208,30 +2218,29 @@
     });
   }
 
+  /* Deriva o número do novo ciclo do ciclo que está sendo fechado —
+     nº do anterior + 1 (Ciclo 1 implícito não tem `numero` gravado,
+     conta como 1) — em vez de um contador global. Ver INVARIANTE 8 no
+     comentário de FASE 4 — CICLOS DE APRENDIZAGEM, acima: sem um nó
+     separado para "consumir" um número, uma tentativa que falha antes
+     do update() final nunca deixa lacuna na numeração. */
   function obterNumeroCicloEConcluir(cicloAnteriorIdEsperado, pontoDeReinicio, decisaoOrigem, s, meuToken, cb) {
-    db().ref(caminhoCiclos() + '/contador').transaction(function (atual) {
-      return (atual || 1) + 1; /* 1 é sempre o Ciclo 1 (implícito ou já materializado) */
-    }, function (errContador, comprometido, snapContador) {
-      if (errContador || !comprometido) {
-        liberarLockCiclo(meuToken);
-        if (cb) cb('erro-contador');
-        return;
-      }
-      var meuNumero = snapContador.val();
-      var novoKey = db().ref(caminhoCiclos() + '/porId').push().key;
-      var caminhoCicloAnterior = cicloAnteriorIdEsperado
-        ? (caminhoCiclos() + '/porId/' + cicloAnteriorIdEsperado)
-        : caminhoGrupo();
-      /* Relê o que está sendo fechado bem antes do update() final —
-         mesmo cuidado do confirmarAtualAindaValido da Fase 1: o que vai
-         congelar como histórico tem de ser o que está gravado agora,
-         não uma cópia em memória que pode ter ficado velha. */
-      db().ref(caminhoCicloAnterior).once('value', function (snapAnterior) {
-        concluirCriacaoCiclo(cicloAnteriorIdEsperado, snapAnterior.val() || {}, novoKey, meuNumero, pontoDeReinicio, decisaoOrigem, s, meuToken, cb);
-      }, function () {
-        liberarLockCiclo(meuToken);
-        if (cb) cb('erro-leitura-anterior');
-      });
+    var novoKey = db().ref(caminhoCiclos() + '/porId').push().key;
+    var caminhoCicloAnterior = cicloAnteriorIdEsperado
+      ? (caminhoCiclos() + '/porId/' + cicloAnteriorIdEsperado)
+      : caminhoGrupo();
+    /* Relê o que está sendo fechado bem antes do update() final — mesmo
+       cuidado do confirmarAtualAindaValido da Fase 1: o que vai
+       congelar como histórico (e o número do próximo ciclo) tem de vir
+       do que está gravado agora, não de uma cópia em memória que pode
+       ter ficado velha. */
+    db().ref(caminhoCicloAnterior).once('value', function (snapAnterior) {
+      var anterior = snapAnterior.val() || {};
+      var meuNumero = (anterior.numero || 1) + 1;
+      concluirCriacaoCiclo(cicloAnteriorIdEsperado, anterior, novoKey, meuNumero, pontoDeReinicio, decisaoOrigem, s, meuToken, cb);
+    }, function () {
+      liberarLockCiclo(meuToken);
+      if (cb) cb('erro-leitura-anterior');
     });
   }
 

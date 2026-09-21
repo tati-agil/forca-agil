@@ -3531,6 +3531,47 @@ const clicarSemRolagem = (page, seletor) => page.$eval(seletor, (el) => el.click
         await ctx13d.close();
       }
 
+      /* ── 13d-bis: "Ampliar" também só finaliza — nunca cria sucessor
+            (item 12) — seeded já num Ciclo 2 EXPLÍCITO (não o implícito)
+            para que "cicloAtual não aponta pra ciclo inexistente" seja
+            uma prova de verdade, não trivial por ausência de `ciclos`. ── */
+      {
+        const semeado13dbis = apostasProntaParaDecisao();
+        semeado13dbis[TURMA_LIB].execucoes[EXEC].grupos[GRUPO].dados.decisao = { decisao: 'Reformular a hipótese', proximaAcao: 'testar de novo', dataDecisao: '2026-09-19T09:00:00.000Z', proxHipCausa: 'causa', proxHipIndicio: 'indicio' };
+        semeado13dbis[TURMA_LIB].execucoes[EXEC].grupos[GRUPO].ciclos = {
+          atual: 'c2',
+          porId: {
+            c1: { numero: 1, status: 'FINALIZADO', pontoDeReinicio: null, cicloAnteriorId: null, etapa: 'decisao', dados: semeado13dbis[TURMA_LIB].execucoes[EXEC].grupos[GRUPO].dados },
+            c2: { numero: 2, status: 'EM_CONSTRUCAO', pontoDeReinicio: 'hipotese', decisaoOrigem: 'Reformular a hipótese', cicloAnteriorId: 'c1', etapa: 'decisao', dados: Object.assign({}, DADOS_ATE_EVIDENCIA, { hipotese: { causa: 'causa', indicio: 'indicio' }, decisao: {} }) }
+          }
+        };
+        const { ctx: ctx13dbis, page: pg13dbis } = await novaPagina(browser, formato, ADM, erros, semeado13dbis);
+        await pg13dbis.goto(BASE + '/index.html#treinamento', { waitUntil: 'domcontentloaded' });
+        await pg13dbis.click('#apostaAbrirBtn');
+        await pg13dbis.waitForSelector('.aposta-grupo-btn', { timeout: 15000 });
+        await pg13dbis.click('.aposta-grupo-btn');
+        await pg13dbis.waitForSelector('.aposta-opcao', { timeout: 15000 });
+        await pg13dbis.locator('.aposta-opcao', { hasText: 'Ampliar' }).click();
+        await pg13dbis.fill('[data-campo="proximaAcao"]', 'ampliar para outras filas');
+        await pg13dbis.waitForTimeout(200);
+        await pg13dbis.click('#apostaSeguir');
+        await pg13dbis.waitForSelector('.aposta-mapa', { timeout: 8000 });
+        const estadoAposAmpliar = await pg13dbis.evaluate((turmaKey) => new Promise((res) => {
+          firebase.database().ref('apostas/' + turmaKey + '/execucoes/exec1/grupos/grupo1/ciclos').once('value', (s) => {
+            const v = s.val() || {};
+            const porId = v.porId || {};
+            res({ atual: v.atual, statusC2: (porId.c2 || {}).status, qtdCiclos: Object.keys(porId).length, atualAponta: !!porId[v.atual] });
+          });
+        }), TURMA_LIB);
+        anota('"Ampliar" finaliza o ciclo atual (status vira FINALIZADO)',
+          estadoAposAmpliar.statusC2 === 'FINALIZADO', JSON.stringify(estadoAposAmpliar));
+        anota('"Ampliar" não cria nenhum sucessor — continua exatamente com os 2 ciclos que já existiam',
+          estadoAposAmpliar.qtdCiclos === 2, JSON.stringify(estadoAposAmpliar));
+        anota('cicloAtual continua apontando para um ciclo que existe de verdade (o mesmo Ciclo 2, agora finalizado) — nunca para um ciclo inexistente',
+          estadoAposAmpliar.atual === 'c2' && estadoAposAmpliar.atualAponta, JSON.stringify(estadoAposAmpliar));
+        await ctx13dbis.close();
+      }
+
       /* ── 13e: editar uma etapa de um ciclo já concluído — confirmar
             cria um ciclo novo a partir EXATAMENTE da etapa clicada
             (edição manual, decisaoOrigem='edicao-manual'), nunca
@@ -3640,7 +3681,6 @@ const clicarSemRolagem = (page, seletor) => page.$eval(seletor, (el) => el.click
         semeado13h[TURMA_LIB].execucoes[EXEC].grupos[GRUPO].dados.decisao = { decisao: 'Reformular a hipótese', proximaAcao: 'testar de novo', dataDecisao: '2026-09-19T10:00:00.000Z', proxHipCausa: 'a fila não tem sinalização clara', proxHipIndicio: 'gente perguntando onde é o fim da fila' };
         semeado13h[TURMA_LIB].execucoes[EXEC].grupos[GRUPO].ciclos = {
           atual: 'c2',
-          contador: 2,
           porId: {
             c1: {
               numero: 1, status: 'FINALIZADO', pontoDeReinicio: null, cicloAnteriorId: null, etapa: 'decisao',
@@ -3734,7 +3774,6 @@ const clicarSemRolagem = (page, seletor) => page.$eval(seletor, (el) => el.click
         const semeado13i = apostasProntaParaDecisao();
         semeado13i[TURMA_LIB].execucoes[EXEC].grupos[GRUPO].ciclos = {
           atual: 'c2',
-          contador: 2,
           porId: {
             c1: { numero: 1, status: 'FINALIZADO', pontoDeReinicio: null, cicloAnteriorId: null, etapa: 'decisao', dados: Object.assign({}, DADOS_ATE_EVIDENCIA, { decisao: { decisao: 'Investigar mais', proximaAcao: 'investigar mais', dataDecisao: '2026-09-19T10:00:00.000Z', pontoDeReinicioEscolhido: 'ideia' } }) },
             c2: {
@@ -3764,15 +3803,16 @@ const clicarSemRolagem = (page, seletor) => page.$eval(seletor, (el) => el.click
       /* ── 13j: FASE 4 — atomicidade da materialização do Ciclo 1
             implícito → Ciclo 1 explícito + Ciclo 2. O update() final de
             concluirCriacaoCiclo() falha (rede caiu bem ali, depois do
-            lock e da leitura do contador, mas ANTES da gravação).
+            lock e da leitura do ciclo anterior, mas ANTES da gravação).
             Como é um único update() multi-caminho, nada dele pode
             aparecer: nem o Ciclo 1 congelado, nem o Ciclo 2 novo, nem
             ciclos/atual apontando para qualquer lugar. O grupo continua
             exatamente como um Ciclo 1 implícito (grupos/<id>/dados
-            intocado, sem nó `ciclos` nenhum), pronto para a MESMA
-            tentativa ser refeita — sem falha, o retry tem de completar
-            sozinho, sem duplicar nada (nunca dois Ciclo 2/Ciclo 3 para
-            a mesma Decisão). Mesmo padrão dos testes de falha da
+            intocado), pronto para a MESMA tentativa ser refeita — sem
+            falha, o retry tem de completar sozinho, sem duplicar nada
+            (nunca dois Ciclo 2/Ciclo 3 para a mesma Decisão) e SEM
+            pular número (INVARIANTE 8 — ver 13m para a bateria
+            dedicada à numeração). Mesmo padrão dos testes de falha da
             Fase 1 (9k/9l), agora no ponto exato do pedido do usuário:
             "confirme exatamente como ocorre a transformação". ── */
       {
@@ -3806,15 +3846,10 @@ const clicarSemRolagem = (page, seletor) => page.$eval(seletor, (el) => el.click
             });
           });
         }), TURMA_LIB);
-        /* O contador (`ciclos/contador`) é uma transaction() SEPARADA do
-           update() atômico final (mesmo desenho da Fase 1: o número já
-           consumido pode ficar "perdido" numa falha bem no meio — ver
-           comentário de obterNumeroCicloEConcluir) — por isso o nó
-           `ciclos` PODE existir só com esse contador incrementado. O que
-           importa de verdade, e é isso que esta prova verifica, é que
-           NENHUM ciclo foi gravado em `ciclos/porId` e `ciclos/atual`
-           continua sem apontar para lugar nenhum: o update() de
-           concluirCriacaoCiclo() é tudo-ou-nada. */
+        /* Sem contador global (ver INVARIANTE 8), a única escrita antes
+           do update() final é o lock (criacaoCicloEmAndamento, liberado
+           logo abaixo) — nenhum número, nem ciclo nenhum, é gravado
+           antes do update() atômico que pode falhar. */
         anota('falha no update() final: nenhum ciclo aparece em `ciclos/porId` — nem Ciclo 1 parcial, nem Ciclo 2',
           estadoAposFalha.qtdCiclosPorId === 0, JSON.stringify(estadoAposFalha));
         anota('falha no update() final: `ciclos/atual` continua sem apontar para nada (nunca aponta para um ciclo inexistente)',
@@ -3840,15 +3875,13 @@ const clicarSemRolagem = (page, seletor) => page.$eval(seletor, (el) => el.click
             res({ atualExiste: !!porId[v.atual], qtdCiclos: Object.keys(porId).length, numeros });
           });
         }), TURMA_LIB);
-        /* O número da tentativa que falhou já foi consumido pelo
-           contador (transaction() separada, ver acima) — é aceito de
-           propósito que ele fique pulado (nº 2 nunca aparece), o mesmo
-           trade-off já documentado e testado na Fase 1 ("número perdido
-           é melhor que ponteiro quebrado"). O que a atomicidade garante
-           é nunca um TERCEIRO ciclo para a mesma Decisão: exatamente
-           dois ciclos no banco, o primeiro sempre nº 1. */
-        anota('sem a falha, o retry completa sozinho: nascem exatamente DOIS ciclos (Ciclo 1 congelado + o novo atual), nunca um terceiro',
-          !retrySucesso.err && estadoAposRetry.atualExiste && estadoAposRetry.qtdCiclos === 2 && estadoAposRetry.numeros[0] === 1,
+        /* Sem contador global, a tentativa que falhou não consumiu
+           nenhum número — o retry tem de nascer com o número CERTO
+           (nº 2), nunca um nº 3 "pulando" um Ciclo 2 que nunca existiu
+           (INVARIANTE 8). */
+        anota('sem a falha, o retry completa sozinho: nascem exatamente Ciclo 1 (nº 1) e Ciclo 2 (nº 2), nunca um nº 3 nem um terceiro ciclo',
+          !retrySucesso.err && estadoAposRetry.atualExiste && estadoAposRetry.qtdCiclos === 2 &&
+          JSON.stringify(estadoAposRetry.numeros) === JSON.stringify([1, 2]),
           JSON.stringify({ retrySucesso, estadoAposRetry }));
 
         await ctx13j.close();
@@ -3905,7 +3938,6 @@ const clicarSemRolagem = (page, seletor) => page.$eval(seletor, (el) => el.click
         semeado13l[TURMA_LIB].execucoes[EXEC].grupos[GRUPO].dados.decisao = { decisao: 'Reformular a hipótese', proximaAcao: 'testar de novo', dataDecisao: '2026-09-19T10:00:00.000Z', proxHipCausa: 'a fila não tem sinalização clara', proxHipIndicio: 'gente perguntando onde é o fim da fila' };
         semeado13l[TURMA_LIB].execucoes[EXEC].grupos[GRUPO].ciclos = {
           atual: 'c2',
-          contador: 2,
           porId: {
             c1: {
               numero: 1, status: 'FINALIZADO', pontoDeReinicio: null, cicloAnteriorId: null, etapa: 'decisao',
@@ -3980,6 +4012,93 @@ const clicarSemRolagem = (page, seletor) => page.$eval(seletor, (el) => el.click
           JSON.stringify(cicloAposEdicao.c1.dados) === c1DadosAntesJson, 'diff detectado no Ciclo 1');
 
         await ctx13l.close();
+      }
+
+      /* ── 13m: FASE 4 — INVARIANTE 8: numeração sequencial de ciclos,
+            sem lacunas. Sem contador global, o número do novo ciclo
+            vem sempre do ciclo que está fechando (+1) — uma tentativa
+            que falha ANTES do update() final nunca "gasta" um número
+            que nenhum ciclo chegou a usar de verdade. Chama
+            _criarCiclo() direto e em sequência (mesmo padrão de
+            13f/13g/13j) para percorrer vários ciclos sem depender da
+            UI passo a passo — essa mecânica em si já foi provada via
+            UI em 13b/13c/13e. Uma pausa entre chamadas deixa o
+            listener .on('value') da execução sincronizar `_grupo` (é
+            dele que cicloAtualId() lê o ciclo atual) antes da PRÓXIMA
+            chamada precisar saber qual ciclo está fechando. ── */
+      {
+        const semeado13m = apostasProntaParaDecisao();
+        const { ctx: ctx13m, page: pg13m } = await novaPagina(browser, formato, ADM, erros, semeado13m);
+        await pg13m.goto(BASE + '/index.html#treinamento', { waitUntil: 'domcontentloaded' });
+        await pg13m.click('#apostaAbrirBtn');
+        await pg13m.waitForSelector('.aposta-grupo-btn', { timeout: 15000 });
+        await pg13m.click('.aposta-grupo-btn');
+        await pg13m.waitForSelector('.aposta-etapa-titulo', { timeout: 15000 });
+
+        /* (1) Ciclo 1 (implícito) → criação bem-sucedida → Ciclo 2 */
+        const r1 = await pg13m.evaluate(() => new Promise((res) => {
+          window.faAposta._criarCiclo('problema', 'Rever o problema', (err, id, ciclo) => res({ err: err || null, numero: ciclo && ciclo.numero }));
+        }));
+        await pg13m.waitForTimeout(300);
+        anota('(1) Ciclo 1 → criação bem-sucedida → nasce Ciclo 2 (número 2)',
+          !r1.err && r1.numero === 2, JSON.stringify(r1));
+
+        /* (2) Ciclo 2 → criação bem-sucedida → Ciclo 3 */
+        const r2 = await pg13m.evaluate(() => new Promise((res) => {
+          window.faAposta._criarCiclo('mudancas', 'Rever a mudança mensurável', (err, id, ciclo) => res({ err: err || null, numero: ciclo && ciclo.numero }));
+        }));
+        await pg13m.waitForTimeout(300);
+        anota('(2) Ciclo 2 → criação bem-sucedida → nasce Ciclo 3 (número 3)',
+          !r2.err && r2.numero === 3, JSON.stringify(r2));
+
+        /* (3)/(4) Falha ao tentar criar o sucessor do Ciclo 3 → retry →
+              continua nascendo o CICLO 4 (o sucessor de verdade do
+              Ciclo 3) — nunca um número 5, que "pularia" um Ciclo 4 que
+              a falha não chegou a criar. */
+        await pg13m.evaluate((turmaKey) => {
+          window.__CFG.fail = ['apostas/' + turmaKey + '/execucoes/exec1/grupos/grupo1/ciclos/porId'];
+        }, TURMA_LIB);
+        const falhaC4 = await pg13m.evaluate(() => new Promise((res) => {
+          window.faAposta._criarCiclo('hipotese', 'Reformular a hipótese', (err) => res(err || null));
+        }));
+        anota('a tentativa que cria o sucessor do Ciclo 3 falha visivelmente',
+          !!falhaC4, String(falhaC4));
+        await pg13m.evaluate(() => { window.__CFG.fail = []; });
+        await pg13m.waitForTimeout(200);
+        const r3 = await pg13m.evaluate(() => new Promise((res) => {
+          window.faAposta._criarCiclo('hipotese', 'Reformular a hipótese', (err, id, ciclo) => res({ err: err || null, numero: ciclo && ciclo.numero }));
+        }));
+        await pg13m.waitForTimeout(300);
+        anota('(3)/(4) falha ao criar o sucessor do Ciclo 3 e retry: nasce o Ciclo 4 (número 4) — nunca um número 5 pulando o Ciclo 4 que a falha não criou',
+          !!falhaC4 && !r3.err && r3.numero === 4, JSON.stringify({ falhaC4, r3 }));
+
+        /* (5) Concorrência na criação do sucessor do Ciclo 4: duas
+              chamadas quase simultâneas — só uma vence, nasce só UM
+              ciclo novo, com o número CERTO. */
+        const concorrencia = await pg13m.evaluate(() => Promise.all([
+          new Promise((res) => window.faAposta._criarCiclo('problema', 'Rever o problema', (err, id, ciclo) => res({ err: err || null, numero: ciclo && ciclo.numero }))),
+          new Promise((res) => window.faAposta._criarCiclo('problema', 'Rever o problema', (err, id, ciclo) => res({ err: err || null, numero: ciclo && ciclo.numero }))),
+        ]));
+        const vitoriosos5 = concorrencia.filter((r) => !r.err);
+        anota('(5) concorrência na criação do sucessor do Ciclo 4: só uma chamada vence, a outra é abortada sem criar nada',
+          vitoriosos5.length === 1, JSON.stringify(concorrencia));
+        anota('(5) o único ciclo que nasce da concorrência tem o número CERTO (5) — não pulado, não duplicado',
+          vitoriosos5.length === 1 && vitoriosos5[0].numero === 5, JSON.stringify(concorrencia));
+
+        const numerosFinais = await pg13m.evaluate((turmaKey) => new Promise((res) => {
+          firebase.database().ref('apostas/' + turmaKey + '/execucoes/exec1/grupos/grupo1/ciclos/porId').once('value', (s) => {
+            const v = s.val() || {};
+            res(Object.keys(v).map((k) => v[k].numero).sort(function (a, b) { return a - b; }));
+          });
+        }), TURMA_LIB);
+        /* (6) Os IDs internos (as chaves de porId) continuam sendo o
+              push() key aleatório de sempre — nunca precisaram ser
+              sequenciais. A INVARIANTE 8 exige só isto: a sequência de
+              NÚMEROS é 1..5, sem lacuna e sem repetição. */
+        anota('(6) a sequência final de números dos ciclos é exatamente 1,2,3,4,5 — sem lacunas, sem repetição; IDs internos continuam aleatórios',
+          JSON.stringify(numerosFinais) === JSON.stringify([1, 2, 3, 4, 5]), JSON.stringify(numerosFinais));
+
+        await ctx13m.close();
       }
 
       anota('nenhum erro de JavaScript', erros.length === 0, erros[0]);
