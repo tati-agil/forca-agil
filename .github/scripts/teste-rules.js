@@ -487,6 +487,59 @@ async function main() {
         anota('grupos-resumo — nome do resumo tem que bater com o nome do grupo real gravado no MESMO update()', true);
       }
 
+      /* Criação normal (grupo nascendo NESTE update()) com qtdMembros != 0
+         é recusada — só o CASO B (backfill de grupo PRÉ-EXISTENTE, abaixo)
+         aceita um valor diferente de 0. */
+      {
+        const chaveQtdErrada = 'grupoQtdErrada';
+        const updatesQtdErrada = {};
+        updatesQtdErrada['apostas/' + TURMA_T + '/execucoes/' + EXEC_T + '/grupos/' + chaveQtdErrada] = { nome: 'Grupo Qtd Errada', criadoEm: new Date().toISOString(), etapa: 'missao' };
+        updatesQtdErrada['apostas/' + TURMA_T + '/execucoes/' + EXEC_T + '/grupos-resumo/' + chaveQtdErrada] = { nome: 'Grupo Qtd Errada', qtdMembros: 5 };
+        await assertFails(db(FAC_T_EMAIL).ref().update(updatesQtdErrada));
+        anota('grupos-resumo — criação normal (grupo nascendo agora) com qtdMembros != 0 é recusada', true);
+      }
+
+      /* ══ BACKFILL — grupo PRÉ-EXISTENTE (nasceu ANTES deste update(),
+            nunca teve grupos-resumo) ganhando o resumo agora. Distinto da
+            criação normal acima: aqui o grupo real já existia antes desta
+            escrita (root, pré-escrita, já tem esse $grupoKey). ══ */
+      {
+        const GRUPO_PREEXISTENTE = 'grupoPreExistente';
+        await semear(async (adminDb) => {
+          await adminDb.ref('apostas/' + TURMA_T + '/execucoes/' + EXEC_T + '/grupos/' + GRUPO_PREEXISTENTE).set({
+            nome: 'Grupo Pré-existente', criadoEm: '2026-08-01T09:00:00.000Z', etapa: 'missao',
+            membros: { [emailKey('membro.preexistente@previ.com.br')]: { name: 'Membro Pré-existente', email: 'membro.preexistente@previ.com.br', entrouEm: '2026-08-01T09:05:00.000Z' } }
+          });
+        });
+
+        const updatesBackfill = {};
+        updatesBackfill['apostas/' + TURMA_T + '/execucoes/' + EXEC_T + '/grupos-resumo/' + GRUPO_PREEXISTENTE] = { nome: 'Grupo Pré-existente', qtdMembros: 1 };
+        await assertSucceeds(db(FAC_T_EMAIL).ref().update(updatesBackfill));
+        anota('grupos-resumo — BACKFILL: facilitadora autorizada cria o resumo (qtdMembros=1) de um grupo PRÉ-EXISTENTE que nunca teve resumo', true);
+
+        const GRUPO_PREEXISTENTE2 = 'grupoPreExistente2';
+        await semear(async (adminDb) => {
+          await adminDb.ref('apostas/' + TURMA_T + '/execucoes/' + EXEC_T + '/grupos/' + GRUPO_PREEXISTENTE2).set({
+            nome: 'Grupo Pré-existente 2', criadoEm: '2026-08-01T09:00:00.000Z', etapa: 'missao'
+          });
+        });
+        const updatesBackfillParticipante = {};
+        updatesBackfillParticipante['apostas/' + TURMA_T + '/execucoes/' + EXEC_T + '/grupos-resumo/' + GRUPO_PREEXISTENTE2] = { nome: 'Grupo Pré-existente 2', qtdMembros: 0 };
+        await assertFails(db(ALICE_EMAIL).ref().update(updatesBackfillParticipante));
+        anota('grupos-resumo — BACKFILL não é permitido a participante comum (Alice não é facilitadoraAutorizada), só a facilitadora/admin', true);
+
+        const grupoInexistente = 'grupoNuncaExistiu';
+        const updatesInexistente = {};
+        updatesInexistente['apostas/' + TURMA_T + '/execucoes/' + EXEC_T + '/grupos-resumo/' + grupoInexistente] = { nome: 'Fantasma', qtdMembros: 3 };
+        await assertFails(db(FAC_T_EMAIL).ref().update(updatesInexistente));
+        anota('grupos-resumo — BACKFILL recusado quando o grupoId não corresponde a nenhum grupo real (nem antes, nem neste update — nome não bate com nada)', true);
+
+        const updatesSobrescrever = {};
+        updatesSobrescrever['apostas/' + TURMA_T + '/execucoes/' + EXEC_T + '/grupos-resumo/' + GRUPO_ALICE] = { nome: 'Grupo Alice', qtdMembros: 99 };
+        await assertFails(db(FAC_T_EMAIL).ref().update(updatesSobrescrever));
+        anota('grupos-resumo — BACKFILL não sobrescreve um resumo que já existe (Grupo Alice já tem resumo desde a criação normal, acima) — !data.exists() vale para os dois casos', true);
+      }
+
       /* ── Ingresso: Alice entra no Grupo Alice, Bruno no Grupo Bruno ── */
       {
         const updatesAlice = {};
