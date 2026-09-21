@@ -90,11 +90,12 @@ function caracteresForaDoComum(email) {
   );
   const idToken = auth.idToken;
 
-  const [facilitadores, equipe, turmas, users] = await Promise.all([
+  const [facilitadores, equipe, turmas, users, apostas] = await Promise.all([
     getJson(DB_URL + '/fa-facilitadores.json?auth=' + idToken),
     getJson(DB_URL + '/turmas-equipe.json?auth=' + idToken),
     getJson(DB_URL + '/turmas.json?auth=' + idToken),
-    getJson(DB_URL + '/fa-users.json?auth=' + idToken)
+    getJson(DB_URL + '/fa-users.json?auth=' + idToken),
+    getJson(DB_URL + '/apostas.json?auth=' + idToken)
   ]).then((r) => r.map((v) => v || {}));
 
   const linhas = [];
@@ -176,6 +177,38 @@ function caracteresForaDoComum(email) {
   });
   if (!algumForaDoComum) md.push('Nenhum e-mail foge do padrão simples (sem ponto, hífen ou maiúscula no local-part).');
   md.push('\nMáximo de pontos encontrados no local-part de um único e-mail: ' + maxPontos + ' (domínio @previ.com.br soma sempre +2 pontos fixos).');
+
+  /* Grupos hoje persistidos nas execuções ATUAIS (grupos-resumo,
+     Fase 5) — "0 turmas com apostaHabilitada" não prova "0 grupos
+     existentes": turmas com execução aberta ANTES de a Aposta ser
+     desabilitada de novo continuam com apostas/<turma>/atual
+     apontando pra uma execução real, que pode ter grupos. Só
+     execuções HISTÓRICAS (as que não são mais "atual") ficam de fora
+     — essas não precisam de grupos-resumo, já têm leitura própria
+     (Fase 2/S5). */
+  md.push('\n## Grupos nas execuções ATUAIS (para decidir backfill de grupos-resumo)\n');
+  const turmasComApostas = Object.keys(apostas);
+  let algumGrupoAtual = false;
+  turmasComApostas.forEach((turmaKey) => {
+    const t = apostas[turmaKey] || {};
+    const atualId = t.atual;
+    if (!atualId) { md.push('- `' + turmaKey + '`: sem `atual` definido (nunca abriu execução) — nada a fazer.'); return; }
+    const exec = (t.execucoes || {})[atualId] || {};
+    const grupos = exec.grupos || {};
+    const chaves = Object.keys(grupos);
+    if (!chaves.length) {
+      md.push('- `' + turmaKey + '` (execução atual `' + atualId + '`): 0 grupos — nada a fazer.');
+      return;
+    }
+    algumGrupoAtual = true;
+    md.push('- `' + turmaKey + '` (execução atual `' + atualId + '`): **' + chaves.length + ' grupo(s)** —');
+    chaves.forEach((g) => {
+      const grp = grupos[g] || {};
+      const qtd = Object.keys(grp.membros || {}).length;
+      md.push('  - `' + g + '`: nome="' + (grp.nome || '(sem nome)') + '", ' + qtd + ' membro(s)');
+    });
+  });
+  if (!algumGrupoAtual) md.push('Nenhuma turma tem grupos na execução atual — nenhum backfill de `grupos-resumo` é necessário; a estrutura nasce correta a partir daqui.');
 
   const relatorio = md.join('\n');
   console.log(relatorio);
