@@ -118,34 +118,44 @@ async function main() {
       await testEnv.clearDatabase();
       const TURMA_ID = 'turmaIdentidade';
       const EXEC_ID = 'execIdentidade';
+      /* Duas identidades por contagem de pontos, de propósito: uma
+         SÓ facilitadora (testa a derivação no vínculo turmas-equipe),
+         outra SÓ participante confirmada, nunca facilitadora (testa a
+         derivação no autoingresso sem a permissão mais ampla da
+         facilitadora mascarar um bug de identidade — facilitador pode
+         gravar QUALQUER chave de membros por desenho, então usar a
+         mesma pessoa pros dois papéis testaria a coisa errada). */
       const casos = [
-        { rotulo: '0 pontos', email: 'semponto@previ.com.br' },
-        { rotulo: '1 ponto', email: 'um.ponto@previ.com.br' },
-        { rotulo: '2 pontos', email: 'dois.pontos.aqui@previ.com.br' },
-        { rotulo: '4 pontos (vários)', email: 'a.b.c.d.varios@previ.com.br' },
+        { rotulo: '0 pontos', fac: 'semponto.fac@previ.com.br', part: 'semponto.part@previ.com.br' },
+        { rotulo: '1 ponto', fac: 'um.ponto.fac@previ.com.br', part: 'um.ponto.part@previ.com.br' },
+        { rotulo: '2 pontos', fac: 'dois.pontos.aqui.fac@previ.com.br', part: 'dois.pontos.aqui.part@previ.com.br' },
+        { rotulo: '4 pontos (vários)', fac: 'a.b.c.d.varios.fac@previ.com.br', part: 'a.b.c.d.varios.part@previ.com.br' },
       ];
       await semear(async (adminDb) => {
         await adminDb.ref('apostas/' + TURMA_ID + '/atual').set(EXEC_ID);
         await adminDb.ref('apostas/' + TURMA_ID + '/execucoes/' + EXEC_ID).set({ status: 'ativa', criadoEm: '2026-09-01T10:00:00.000Z', numero: 1, grupos: { g1: { nome: 'G1', criadoEm: '2026-09-01T10:00:00.000Z', etapa: 'missao' } } });
         for (const c of casos) {
-          await adminDb.ref('fa-facilitadores/' + emailKey(c.email)).set({ email: c.email, name: c.rotulo });
-          await adminDb.ref('turmas-equipe/' + TURMA_ID + '/' + emailKey(c.email)).set({ email: c.email, name: c.rotulo, papel: 'facilitador' });
+          await adminDb.ref('fa-facilitadores/' + emailKey(c.fac)).set({ email: c.fac, name: c.rotulo + ' (facilitadora)' });
+          await adminDb.ref('turmas-equipe/' + TURMA_ID + '/' + emailKey(c.fac)).set({ email: c.fac, name: c.rotulo + ' (facilitadora)', papel: 'facilitador' });
+          await adminDb.ref('turmas-interesse/' + TURMA_ID + '/' + emailKey(c.part)).set({
+            name: c.rotulo + ' (participante)', email: c.part, status: 'inscrito', confirmedByAdmin: ADMIN_EMAIL, date: '2026-09-01T10:00:00.000Z'
+          });
         }
       });
 
       for (const c of casos) {
-        await assertSucceeds(db(c.email).ref('apostas/' + TURMA_ID + '/execucoes/' + EXEC_ID + '/revelado').set(true));
-        anota('emailKey (' + c.rotulo + ' no local-part, ' + c.email + '): vínculo de facilitação reconhecido pela Rule',
+        await assertSucceeds(db(c.fac).ref('apostas/' + TURMA_ID + '/execucoes/' + EXEC_ID + '/revelado').set(true));
+        anota('emailKey (' + c.rotulo + ' no local-part, ' + c.fac + '): vínculo de facilitação reconhecido pela Rule',
           true);
 
-        await assertSucceeds(db(c.email).ref('apostas/' + TURMA_ID + '/execucoes/' + EXEC_ID + '/grupos/g1/membros/' + emailKey(c.email))
-          .set({ name: c.rotulo, email: c.email, entrouEm: new Date().toISOString() }));
-        anota('emailKey (' + c.rotulo + '): autoingresso (chave própria) também reconhecido pela Rule', true);
+        await assertSucceeds(db(c.part).ref('apostas/' + TURMA_ID + '/execucoes/' + EXEC_ID + '/grupos/g1/membros/' + emailKey(c.part))
+          .set({ name: c.rotulo, email: c.part, entrouEm: new Date().toISOString() }));
+        anota('emailKey (' + c.rotulo + '): autoingresso (chave própria de uma PARTICIPANTE, nunca facilitadora) reconhecido pela Rule', true);
 
         const outraChave = emailKey('outra.pessoa.' + casos.indexOf(c) + '@previ.com.br');
-        await assertFails(db(c.email).ref('apostas/' + TURMA_ID + '/execucoes/' + EXEC_ID + '/grupos/g1/membros/' + outraChave)
+        await assertFails(db(c.part).ref('apostas/' + TURMA_ID + '/execucoes/' + EXEC_ID + '/grupos/g1/membros/' + outraChave)
           .set({ name: 'x', email: 'outra@previ.com.br', entrouEm: new Date().toISOString() }));
-        anota('emailKey (' + c.rotulo + '): NÃO consegue se passar por uma chave que não é a própria', true);
+        anota('emailKey (' + c.rotulo + '): participante (sem ser facilitadora) NÃO consegue se passar por uma chave que não é a própria', true);
       }
     }
 
