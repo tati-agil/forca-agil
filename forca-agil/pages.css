@@ -1594,6 +1594,15 @@ select.aposta-campo-input { width: auto; min-width: 8.5em; }
 .aposta-mapa-card.is-somente-leitura { cursor: default; }
 .aposta-mapa-card.is-somente-leitura:hover { border-color: var(--line-strong); background: var(--panel-2); }
 
+/* Fase 4 — Ciclos de Aprendizagem: separador de seção no Mapa, entre
+   os cards de um ciclo e o próximo (só aparece quando há mais de um
+   ciclo — ver renderMapa/cicloTituloHtml). */
+.aposta-ciclo-titulo {
+  width: 100%; text-align: center; font-family: var(--font-mono); font-size: .68rem;
+  letter-spacing: .1em; text-transform: uppercase; color: var(--ink-3);
+  padding: 10px 0 4px; border-top: 1px dashed var(--line-strong); margin-top: 8px;
+}
+
 /* Revelação final */
 .aposta-revelacao {
   margin: 44px auto 0; max-width: 820px; text-align: left;
