@@ -4388,6 +4388,263 @@ const clicarSemRolagem = (page, seletor) => page.$eval(seletor, (el) => el.click
         await ctxOkr.close();
       }
 
+      /* ── 14a: NOVA FUNCIONALIDADE — "Analisar com IA": uma aposta,
+            três lentes (Defende/Desafia/Investiga). Não são três
+            grupos nem três apostas — é a mesma aposta do ciclo atual,
+            empacotada em três prompts que só diferem na pergunta feita
+            à IA. Entra pelo Painel do facilitador ("Projetar"), igual
+            aos testes de OKR acima: a funcionalidade não depende da
+            Decisão (item 18 do pedido), então nunca precisa passar por
+            ela para chegar ao Mapa. Evidência é sempre "planejada"
+            (fontePrevista/comoSeraMedido), nunca "observada" — por
+            isso o seed limpa observado/fonte/aprendizado do fixture
+            base e preenche só os campos de planejamento. ── */
+      {
+        const semeado14a = apostasProntaParaDecisao();
+        semeado14a[TURMA_LIB].execucoes[EXEC].grupos[GRUPO].dados = Object.assign({}, DADOS_ATE_EVIDENCIA, {
+          evidencia: { itens: [{ resultadoId: 'r1', fontePrevista: 'Registros de atendimento', comoSeraMedido: 'contagem de atendimentos registrados no sistema' }] }
+        });
+        semeado14a[TURMA_LIB].execucoes[EXEC].grupos[GRUPO].etapa = 'evidencia';
+        const { ctx: ctx14a, page: pg14a } = await novaPagina(browser, formato, ADM, erros, semeado14a);
+        await pg14a.goto(BASE + '/index.html#treinamento', { waitUntil: 'domcontentloaded' });
+        await pg14a.click('#apostaAbrirBtn');
+        await pg14a.waitForSelector('#apostaPainelBtn', { timeout: 15000 });
+        await pg14a.click('#apostaPainelBtn');
+        await pg14a.waitForSelector('.aposta-fac-ver', { timeout: 15000 });
+        await pg14a.click('.aposta-fac-ver');
+        await pg14a.waitForSelector('.aposta-mapa', { timeout: 15000 });
+
+        const temBotaoIa = await pg14a.evaluate(() => !!document.getElementById('apostaAnalisarIaBtn'));
+        anota('o Mapa tem o botão "Analisar com IA"', temBotaoIa);
+
+        const prompts14a = await pg14a.evaluate(() => ({
+          defende: window.faAposta._promptIA('defende'),
+          desafia: window.faAposta._promptIA('desafia'),
+          investiga: window.faAposta._promptIA('investiga'),
+        }));
+
+        /* A — geração: os três prompts existem, e a Missão é a do
+           CADASTRO REAL da aposta (nunca um texto fixo do exemplo
+           antigo, "experiência do participante na concessão de
+           benefício") — prova que a função continua funcionando
+           quando a missão é completamente diferente (item 4/A do
+           pedido). */
+        anota('A — os três prompts (Defende/Desafia/Investiga) são gerados',
+          !!prompts14a.defende && !!prompts14a.desafia && !!prompts14a.investiga,
+          JSON.stringify({ tamanhos: [prompts14a.defende.length, prompts14a.desafia.length, prompts14a.investiga.length] }));
+        anota('A — a Missão exportada é a do cadastro real da aposta (dinâmica), não um texto fixo',
+          [prompts14a.defende, prompts14a.desafia, prompts14a.investiga].every((p) => /reduzir o tempo de espera na fila do atendimento em 60 dias/.test(p)) &&
+          ![prompts14a.defende, prompts14a.desafia, prompts14a.investiga].some((p) => /experi[êe]ncia do participante durante a concess[ãa]o do benef[íi]cio/i.test(p)),
+          prompts14a.defende.slice(0, 200));
+
+        /* B — campos: os oito blocos aparecem nos três prompts. */
+        const blocosEsperados = ['MISSÃO', 'SINTOMA', 'PROBLEMA', 'MUDANÇAS MENSURÁVEIS', 'HIPÓTESE', 'IDEIA DE SOLUÇÃO', 'EXPERIMENTO PLANEJADO', 'EVIDÊNCIAS PLANEJADAS'];
+        ['defende', 'desafia', 'investiga'].forEach((chave) => {
+          const p = prompts14a[chave];
+          const faltando = blocosEsperados.filter((b) => p.indexOf(b) === -1);
+          anota('B — o prompt "' + chave + '" contém os oito blocos da aposta-base',
+            faltando.length === 0, 'faltando: ' + JSON.stringify(faltando));
+        });
+
+        /* C — evidência: título exato "AINDA NÃO OBSERVADAS" + aviso de
+           que o experimento não rodou, nos três — e NUNCA como
+           resultado (o rótulo "Fonte planejada" aparece; "Resultado
+           observado"/valor observado do fixture antigo, não). */
+        ['defende', 'desafia', 'investiga'].forEach((chave) => {
+          const p = prompts14a[chave];
+          anota('C — o prompt "' + chave + '" usa "EVIDÊNCIAS PLANEJADAS — AINDA NÃO OBSERVADAS" (nunca só "EVIDÊNCIA")',
+            /\[EVID[ÊE]NCIAS PLANEJADAS — AINDA N[ÃA]O OBSERVADAS\]/.test(p), p.slice(0, 50));
+          anota('C — o prompt "' + chave + '" diz explicitamente que o experimento ainda não foi executado',
+            /O experimento ainda n[ãa]o foi executado\./.test(p));
+          anota('C — o prompt "' + chave + '" traz Fonte planejada/Como será medido, nunca um resultado observado',
+            /Fonte planejada:/.test(p) && /Como será medido:/.test(p) && !/Resultado observado/i.test(p),
+            p.slice(0, 50));
+        });
+
+        /* D — lentes: cada uma só na sua, e a aposta-base é idêntica
+           entre as três (tudo antes da lente e depois da aposta-base). */
+        anota('D — só o prompt "defende" tem o marcador da lente DEFENDE',
+          /\[SUA LENTE — A VOZ QUE DEFENDE\]/.test(prompts14a.defende) &&
+          !/\[SUA LENTE — A VOZ QUE DEFENDE\]/.test(prompts14a.desafia) &&
+          !/\[SUA LENTE — A VOZ QUE DEFENDE\]/.test(prompts14a.investiga));
+        anota('D — só o prompt "desafia" tem o marcador da lente DESAFIA',
+          /\[SUA LENTE — A VOZ QUE DESAFIA\]/.test(prompts14a.desafia) &&
+          !/\[SUA LENTE — A VOZ QUE DESAFIA\]/.test(prompts14a.defende) &&
+          !/\[SUA LENTE — A VOZ QUE DESAFIA\]/.test(prompts14a.investiga));
+        anota('D — só o prompt "investiga" tem o marcador da lente INVESTIGA',
+          /\[SUA LENTE — A VOZ QUE INVESTIGA\]/.test(prompts14a.investiga) &&
+          !/\[SUA LENTE — A VOZ QUE INVESTIGA\]/.test(prompts14a.defende) &&
+          !/\[SUA LENTE — A VOZ QUE INVESTIGA\]/.test(prompts14a.desafia));
+        function apostaBaseDoPrompt(p) {
+          const inicio = p.indexOf('[APOSTA-BASE');
+          const fim = p.indexOf('[SUA LENTE');
+          return p.slice(inicio, fim);
+        }
+        const basesIguais = apostaBaseDoPrompt(prompts14a.defende) === apostaBaseDoPrompt(prompts14a.desafia) &&
+          apostaBaseDoPrompt(prompts14a.desafia) === apostaBaseDoPrompt(prompts14a.investiga);
+        anota('D — a aposta-base é BIT A BIT idêntica nos três prompts — só a lente muda',
+          basesIguais, 'tamanhos: ' + JSON.stringify([apostaBaseDoPrompt(prompts14a.defende).length, apostaBaseDoPrompt(prompts14a.desafia).length, apostaBaseDoPrompt(prompts14a.investiga).length]));
+
+        /* E — saída: os três terminam pedindo as mesmas 3 afirmações,
+           com ACEITAR/QUESTIONAR/REJEITAR e o fecho fixo. */
+        ['defende', 'desafia', 'investiga'].forEach((chave) => {
+          const p = prompts14a[chave];
+          anota('E — o prompt "' + chave + '" termina pedindo 3 afirmações centrais com ACEITAR/QUESTIONAR/REJEITAR',
+            /TR[ÊE]S AFIRMA[ÇC][ÕO]ES CENTRAIS/.test(p) && /ACEITAR/.test(p) && /QUESTIONAR/.test(p) && /REJEITAR/.test(p) &&
+            /DECIDIR CONTINUA SENDO RESPONSABILIDADE DO CONSELHO JEDI/.test(p));
+        });
+
+        /* Privacidade (item 20): nada de e-mail, ID de grupo/execução
+           ou timestamp interno no texto exportado. */
+        anota('privacidade — o prompt não contém e-mails, IDs de grupo/execução nem timestamps internos',
+          !/@previ\.com\.br/.test(prompts14a.defende) && !/grupo1|exec1/.test(prompts14a.defende) && !/\d{4}-\d{2}-\d{2}T/.test(prompts14a.defende),
+          prompts14a.defende.slice(0, 100));
+
+        /* Mensagem para Teams/e-mail: identifica a lente e carrega o
+           prompt completo, sem integração nenhuma (é só texto pronto
+           para copiar — item 13/19 do pedido). */
+        const msgDefende = await pg14a.evaluate(() => window.faAposta._mensagemIA('defende'));
+        anota('mensagem Teams/e-mail identifica a lente e traz o prompt completo',
+          /FORÇA ÁGIL — CONSELHO JEDI/.test(msgDefende) && /SUA LENTE:/.test(msgDefende) && /A Voz que Defende/.test(msgDefende) &&
+          /PROMPT PARA A IA/.test(msgDefende) && msgDefende.indexOf(prompts14a.defende) !== -1,
+          msgDefende.slice(0, 200));
+
+        /* F — cópia: clicar "Analisar com IA" mostra os 3 cards; clicar
+           "Copiar prompt" dá algum feedback de sucesso (toast) ou, se o
+           navegador recusar a permissão de clipboard, cai no modal de
+           seleção manual com o texto certo — os dois são sucesso, o
+           silêncio total é que seria falha. */
+        await pg14a.click('#apostaAnalisarIaBtn');
+        await pg14a.waitForSelector('.aposta-ia-card', { timeout: 8000 });
+        const cards14a = await pg14a.evaluate(() => Array.from(document.querySelectorAll('.aposta-ia-card strong')).map((e) => e.textContent));
+        anota('o modal "Analisar com IA" mostra os 3 cards (Defende/Desafia/Investiga)',
+          cards14a.length === 3 && /Defende/.test(cards14a[0]) && /Desafia/.test(cards14a[1]) && /Investiga/.test(cards14a[2]),
+          JSON.stringify(cards14a));
+
+        await pg14a.click('[data-ia-prompt="defende"]');
+        await pg14a.waitForTimeout(400);
+        const feedbackCopia = await pg14a.evaluate(() => ({
+          toast: (document.querySelector('.aposta-toast') || {}).textContent || '',
+          modalTexto: (document.querySelector('.modal-box textarea') || {}).value || '',
+        }));
+        anota('clicar "Copiar prompt" dá feedback de sucesso (toast "Prompt copiado." ou o texto pronto para selecionar)',
+          /Prompt copiado\./.test(feedbackCopia.toast) || feedbackCopia.modalTexto === prompts14a.defende,
+          JSON.stringify({ toast: feedbackCopia.toast, modalTemTexto: !!feedbackCopia.modalTexto }));
+
+        await ctx14a.close();
+      }
+
+      /* ── 14b: "Analisar com IA" com estado incompleto — não inventa
+            conteúdo nem gera prompt aparentemente completo; lista
+            objetivamente o que falta, sem travar o resto do site
+            (item 17 do pedido). ── */
+      {
+        const semeado14b = apostasProntaParaDecisao();
+        semeado14b[TURMA_LIB].execucoes[EXEC].grupos[GRUPO].dados = {
+          missao: DADOS_ATE_EVIDENCIA.missao,
+          sintoma: DADOS_ATE_EVIDENCIA.sintoma,
+          problema: DADOS_ATE_EVIDENCIA.problema,
+          /* Faltam Mudanças mensuráveis, Hipótese, Ideia, Experimento e
+             Evidência planejada de propósito. */
+        };
+        semeado14b[TURMA_LIB].execucoes[EXEC].grupos[GRUPO].etapa = 'problema';
+        const { ctx: ctx14b, page: pg14b } = await novaPagina(browser, formato, ADM, erros, semeado14b);
+        await pg14b.goto(BASE + '/index.html#treinamento', { waitUntil: 'domcontentloaded' });
+        await pg14b.click('#apostaAbrirBtn');
+        await pg14b.waitForSelector('#apostaPainelBtn', { timeout: 15000 });
+        await pg14b.click('#apostaPainelBtn');
+        await pg14b.waitForSelector('.aposta-fac-ver', { timeout: 15000 });
+        await pg14b.click('.aposta-fac-ver');
+        await pg14b.waitForSelector('.aposta-mapa', { timeout: 15000 });
+
+        const faltamIa = await pg14b.evaluate(() => window.faAposta._faltamIA());
+        anota('G — com a aposta-base incompleta, faltamIA() lista objetivamente o que falta (nunca inventa)',
+          faltamIa.indexOf('Mudanças mensuráveis') !== -1 && faltamIa.indexOf('Hipótese') !== -1 &&
+          faltamIa.indexOf('Ideia de solução') !== -1 && faltamIa.indexOf('Experimento planejado') !== -1 &&
+          faltamIa.indexOf('Evidência planejada') !== -1 && faltamIa.indexOf('Missão') === -1,
+          JSON.stringify(faltamIa));
+
+        await pg14b.click('#apostaAnalisarIaBtn');
+        await pg14b.waitForTimeout(300);
+        const estadoIncompleto = await pg14b.evaluate(() => ({
+          mensagem: document.querySelector('.aposta-ia-box') ? document.querySelector('.aposta-ia-box').textContent : '',
+          temCards: !!document.querySelector('.aposta-ia-card'),
+        }));
+        anota('G — com dados incompletos, o modal mostra "Complete a aposta-base..." e a lista do que falta, sem gerar prompt nenhum',
+          /Complete a aposta-base antes de gerar os prompts para IA/.test(estadoIncompleto.mensagem) &&
+          /Mudanças mensuráveis/.test(estadoIncompleto.mensagem) && !estadoIncompleto.temCards,
+          estadoIncompleto.mensagem.slice(0, 200));
+
+        /* Fechar o modal e confirmar que o resto do site continua
+           funcionando — a funcionalidade não bloqueia navegação. Só
+           conta overlays VISÍVEIS: a página sempre carrega authModal/
+           qrModal escondidos (hidden), que também usam .modal-overlay
+           — contá-los daria falso positivo de "modal preso". */
+        await pg14b.click('#apostaIaFechar');
+        await pg14b.waitForTimeout(200);
+        const mapaContinuaAtivo = await pg14b.evaluate(() => ({
+          temMapa: !!document.querySelector('.aposta-mapa'),
+          overlaysVisiveis: document.querySelectorAll('.modal-overlay:not([hidden])').length,
+        }));
+        anota('fechar o aviso de estado incompleto não deixa nenhum modal preso — o Mapa continua normal',
+          mapaContinuaAtivo.temMapa && mapaContinuaAtivo.overlaysVisiveis === 0, JSON.stringify(mapaContinuaAtivo));
+
+        await ctx14b.close();
+      }
+
+      /* ── 14c: "Analisar com IA" no multiciclo — usa o CICLO ATUAL,
+            nunca mistura Problema/Hipótese/Experimento/Evidência do
+            Ciclo 1 com os do Ciclo 2 (item 16 do pedido). Mesmo padrão
+            de seed do 13h/13h-bis: os dois ciclos já prontos no banco,
+            leitura examinada via Projetar. ── */
+      {
+        const semeado14c = apostasProntaParaDecisao();
+        const dadosCiclo1_14c = Object.assign({}, DADOS_ATE_EVIDENCIA, {
+          decisao: { decisao: 'Rever o problema', proximaAcao: 'redefinir o problema', dataDecisao: '2026-09-19T09:00:00.000Z' }
+        });
+        semeado14c[TURMA_LIB].execucoes[EXEC].grupos[GRUPO].dados = dadosCiclo1_14c;
+        semeado14c[TURMA_LIB].execucoes[EXEC].grupos[GRUPO].ciclos = {
+          atual: 'c2',
+          porId: {
+            c1: { numero: 1, status: 'FINALIZADO', pontoDeReinicio: null, cicloAnteriorId: null, etapa: 'decisao', dados: dadosCiclo1_14c },
+            c2: {
+              numero: 2, status: 'EM_CONSTRUCAO', pontoDeReinicio: 'problema', decisaoOrigem: 'Rever o problema', cicloAnteriorId: 'c1', etapa: 'evidencia',
+              dados: Object.assign({}, DADOS_ATE_EVIDENCIA, {
+                problema: { quem: 'O gestor da fila', situacaoIndesejada: 'não consegue prever picos de demanda com antecedência' },
+                mudancas: { itens: [{ id: 'r2', direcao: 'Aumentar', indicador: 'previsibilidade dos picos', atual: '20', meta: '70', unidade: '%', periodo: 'não se aplica', prazo: '60', prazoUnidade: 'dias' }] },
+                hipotese: { causa: 'não há histórico de picos por dia da semana', indicio: 'os picos parecem aleatórios para quem está na escala' },
+                ideia: { acao: 'registrar o horário de cada pico por 3 semanas', mudanca: 'a equipe consiga antecipar a escala nos dias de pico' },
+                experimento: { duracao: '3', duracaoUnidade: 'semanas', quantidade: '1', comQuem: 'a equipe da fila', oQue: 'registrar o horário de cada pico', resultadoIds: ['r2'] },
+                evidencia: { itens: [{ resultadoId: 'r2', fontePrevista: 'Observação do experimento', comoSeraMedido: 'planilha de horários de pico registrados' }] },
+                decisao: {}
+              })
+            }
+          }
+        };
+        const { ctx: ctx14c, page: pg14c } = await novaPagina(browser, formato, ADM, erros, semeado14c);
+        await pg14c.goto(BASE + '/index.html#treinamento', { waitUntil: 'domcontentloaded' });
+        await pg14c.click('#apostaAbrirBtn');
+        await pg14c.waitForSelector('#apostaPainelBtn', { timeout: 15000 });
+        await pg14c.click('#apostaPainelBtn');
+        await pg14c.waitForSelector('.aposta-fac-ver', { timeout: 15000 });
+        await pg14c.click('.aposta-fac-ver');
+        await pg14c.waitForSelector('.aposta-mapa', { timeout: 15000 });
+
+        const promptCiclo2 = await pg14c.evaluate(() => window.faAposta._promptIA('investiga'));
+        anota('H — multiciclo: o Problema exportado é o do CICLO 2 (reconstruído), não o do Ciclo 1',
+          /gestor da fila/.test(promptCiclo2) && !/espera demais na fila do atendimento/.test(promptCiclo2),
+          promptCiclo2.slice(0, 400));
+        anota('H — multiciclo: a Hipótese exportada é a do Ciclo 2, sem misturar com a original do Ciclo 1',
+          /n[ãa]o h[áa] hist[óo]rico de picos por dia da semana/.test(promptCiclo2) && !/faltam atendentes no hor[áa]rio de pico/.test(promptCiclo2),
+          promptCiclo2.slice(0, 600));
+        anota('H — multiciclo: o Experimento planejado exportado é o do Ciclo 2',
+          /registrar o hor[áa]rio de cada pico/.test(promptCiclo2) && !/escalar mais um atendente/.test(promptCiclo2));
+        anota('H — multiciclo: a Evidência planejada exportada é a do Ciclo 2 (Observação do experimento), nunca a do Ciclo 1',
+          /Observa[çc][ãa]o do experimento/.test(promptCiclo2) && !/Registros de atendimento/.test(promptCiclo2));
+
+        await ctx14c.close();
+      }
+
       /* ── 13i: retomada — fechar e reabrir no meio do Ciclo 2 volta
             para o ciclo/etapa corretos, nunca de volta ao Ciclo 1. ── */
       {

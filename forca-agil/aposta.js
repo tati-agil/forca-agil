@@ -5285,6 +5285,7 @@
           '<div class="aposta-mapa-acoes">' +
             '<button class="btn btn--sm" id="apostaCopiarBtn">⧉ Copiar em texto</button>' +
             '<button class="btn btn--sm" id="apostaPdfBtn">🖨 Salvar em PDF</button>' +
+            '<button class="btn btn--sm" id="apostaAnalisarIaBtn">🤖 Analisar com IA</button>' +
           '</div>' +
           '<div class="aposta-mapa">' +
             ['missao', 'sintoma'].map(function (id, i) {
@@ -5330,6 +5331,8 @@
     if (copiar) copiar.addEventListener('click', copiarAposta);
     var pdf = document.getElementById('apostaPdfBtn');
     if (pdf) pdf.addEventListener('click', function () { window.print(); });
+    var analisarIa = document.getElementById('apostaAnalisarIaBtn');
+    if (analisarIa) analisarIa.addEventListener('click', abrirAnaliseIA);
   }
 
   /* ══════════════════════════════════════════════════════════════
@@ -5439,6 +5442,539 @@
     return l.join('\n');
   }
 
+  /* ══════════════════════════════════════════════════════════════
+     ANALISAR COM IA — 3 lentes sobre a MESMA aposta-base
+
+     Não são três grupos, três apostas nem três ciclos: é a mesma
+     aposta do ciclo atual (_dados, já ciclo-aware por arquitetura),
+     empacotada em três prompts que só diferem na pergunta feita à
+     IA. Cada bloco (contexto comum, aposta-base, saída padrão) tem
+     uma função só, chamada pelos três — nunca há três cópias
+     independentes dos mesmos campos (item 15 do pedido).
+
+     Não chama nenhuma API de IA, não grava nada, não cria grupo/
+     ciclo/execução: só monta texto e devolve para copiar. A decisão
+     de enviar para qual IA, e o que fazer com a resposta, é humana e
+     fora do sistema. */
+
+  /* Evidências ainda não observadas — nunca "Evidência" sozinho, e
+     nunca observado/aprendizado/classificação aqui, mesmo que o
+     experimento já tenha rodado de verdade: esta exportação
+     representa a aposta ANTES da execução (item 5 do pedido, ponto
+     crítico). Reaproveita resultadosDe/metaOuLimiteTexto/
+     sufixoUnidade — os mesmos que já montam a Evidência na tela —,
+     só troca o que é mostrado (fonte planejada/como será medido, não
+     observado). */
+  function evidenciasPlanejadasTexto() {
+    var itens = resultadosDe(_dados.mudancas, (_dados.experimento || {}).resultadoIds);
+    if (!itens.length) return '(nenhuma evidência planejada ainda)';
+    var evDados = (_dados.evidencia || {}).itens || [];
+    function evDe(id) { return evDados.filter(function (e) { return e.resultadoId === id; })[0] || {}; }
+    return itens.map(function (m, i) {
+      var ev = evDe(m.id);
+      var sufixo = sufixoUnidade(m);
+      var situacaoInicial = (m.atual || '—') + concordarSufixo(m.atual, sufixo);
+      return [
+        'EVIDÊNCIA PLANEJADA ' + (i + 1),
+        '',
+        'Indicador:', m.indicador || '—',
+        '',
+        'Situação inicial:', situacaoInicial,
+        '',
+        'Meta:', metaOuLimiteTexto(m, sufixo),
+        '',
+        'Fonte planejada:', ev.fontePrevista || '—',
+        '',
+        'Como será medido:', ev.comoSeraMedido || '—'
+      ].join('\n');
+    }).join('\n\n--------------------------------------------------\n\n');
+  }
+
+  /* Uma linha por mudança mensurável, com o mesmo fraseMudanca() que
+     já monta a frase em Mudanças mensuráveis e no Mapa — nunca
+     reescreve o que a dupla definiu. */
+  function mudancasMensuraveisTexto() {
+    var itens = (_dados.mudancas || {}).itens || [];
+    if (!itens.length) return '—';
+    return itens.map(fraseMudanca).join('\n');
+  }
+
+  function contextoComumIA() {
+    return [
+      '[CONTEXTO COMUM]',
+      '',
+      'Somos o Conselho Jedi da PREVI.',
+      '',
+      'A aposta-base abaixo foi construída pelas lideranças sem apoio de IA.',
+      '',
+      'Sua análise deve se limitar às informações fornecidas e à lente específica atribuída a você.',
+      '',
+      'Não substitua, reescreva ou altere a Missão, o Sintoma, o Problema, as Mudanças Mensuráveis, a Hipótese, a Ideia de Solução, o Experimento ou as Evidências Planejadas.',
+      '',
+      'Não invente fatos, números, resultados ou informações que não estejam presentes.',
+      '',
+      'Quando uma conclusão depender de informação que não temos, declare explicitamente:',
+      '',
+      '“NÃO SABEMOS”.',
+      '',
+      'Diferencie claramente:',
+      '- fato informado;',
+      '- hipótese;',
+      '- suposição;',
+      '- risco;',
+      '- possibilidade;',
+      '- informação ainda necessária.',
+      '',
+      'Você NÃO toma a decisão pelo Conselho Jedi.',
+      '',
+      'Sua função é ampliar a qualidade da análise para apoiar o julgamento humano.'
+    ].join('\n');
+  }
+
+  /* Bloco idêntico nos três prompts (item 7 do pedido) — MISSÃO/
+     SINTOMA/PROBLEMA/HIPÓTESE/IDEIA/EXPERIMENTO vêm de resumoEtapa,
+     a mesma função que já monta essas frases para o Mapa e o CSV:
+     texto preservado exatamente como a dupla escreveu, nunca
+     resumido/reescrito/completado. */
+  function apostaBaseIA() {
+    return [
+      '[APOSTA-BASE DO CONSELHO JEDI — CONSTRUÍDA SEM IA]',
+      '',
+      'MISSÃO', '', (resumoEtapa('missao', _dados) || '—'),
+      '', '--------------------', '',
+      'SINTOMA', '', (resumoEtapa('sintoma', _dados) || '—'),
+      '', '--------------------', '',
+      'PROBLEMA', '', (resumoEtapa('problema', _dados) || '—'),
+      '', '--------------------', '',
+      'MUDANÇAS MENSURÁVEIS', '', mudancasMensuraveisTexto(),
+      '', '--------------------', '',
+      'HIPÓTESE', '', (resumoEtapa('hipotese', _dados) || '—'),
+      '', '--------------------', '',
+      'IDEIA DE SOLUÇÃO', '', (resumoEtapa('ideia', _dados) || '—'),
+      '', '--------------------', '',
+      'EXPERIMENTO PLANEJADO', '', (resumoEtapa('experimento', _dados) || '—'),
+      '', '--------------------', '',
+      '[EVIDÊNCIAS PLANEJADAS — AINDA NÃO OBSERVADAS]',
+      '',
+      'As evidências abaixo foram definidas pelo Conselho Jedi antes da execução do experimento.',
+      '',
+      'Elas representam o que pretendemos observar e NÃO resultados já obtidos.',
+      '',
+      evidenciasPlanejadasTexto(),
+      '',
+      'IMPORTANTE:',
+      '',
+      'O experimento ainda não foi executado.',
+      '',
+      'Não trate as evidências planejadas como resultados, fatos observados, comprovação ou validação da hipótese.'
+    ].join('\n');
+  }
+
+  function lenteDefendeTexto() {
+    return [
+      '[SUA LENTE — A VOZ QUE DEFENDE]',
+      '',
+      'Atue como uma voz de defesa crítica e fundamentada da aposta apresentada.',
+      '',
+      'Sua função NÃO é elogiar a ideia automaticamente.',
+      '',
+      'Sua função é construir a melhor defesa possível utilizando somente o que pode ser sustentado pela aposta e identificando claramente aquilo que ainda é hipótese.',
+      '',
+      'Analise:',
+      '',
+      '1. VALOR POTENCIAL',
+      '',
+      'De que maneira esta aposta PODE gerar valor relacionado à Missão e ao Problema definidos pelo Conselho Jedi?',
+      '',
+      'Não apresente benefícios possíveis como benefícios comprovados.',
+      '',
+      'Quando o benefício ainda não estiver demonstrado, identifique-o como:',
+      '',
+      'HIPÓTESE DE VALOR.',
+      '',
+      '2. CONEXÃO LÓGICA DA APOSTA',
+      '',
+      'Analise se existe uma linha coerente entre:',
+      '',
+      'Missão',
+      '→ Sintoma',
+      '→ Problema',
+      '→ Mudanças Mensuráveis',
+      '→ Hipótese',
+      '→ Ideia',
+      '→ Experimento',
+      '→ Evidências Planejadas.',
+      '',
+      'Mostre onde essa cadeia parece especialmente consistente.',
+      '',
+      '3. PREMISSAS CRÍTICAS DE SUCESSO',
+      '',
+      'Quais condições PRECISAM ser verdadeiras para que a hipótese e a ideia produzam o resultado esperado?',
+      '',
+      'Separe:',
+      '- premissas já sustentadas pelas informações fornecidas;',
+      '- premissas que continuam sem evidência.',
+      '',
+      '4. SINAIS FUTUROS QUE AUMENTARIAM A CONFIANÇA',
+      '',
+      'Considerando que o experimento AINDA NÃO foi executado:',
+      '',
+      'Que resultados futuros, se efetivamente observados, aumentariam nossa confiança nesta aposta?',
+      '',
+      'Não trate esses sinais como resultados atuais.',
+      '',
+      '5. QUALIDADE DAS EVIDÊNCIAS PLANEJADAS',
+      '',
+      'As evidências que pretendemos observar seriam capazes de fortalecer a análise da aposta?',
+      '',
+      'O que elas conseguiriam nos mostrar?',
+      '',
+      'O que elas NÃO conseguiriam demonstrar?'
+    ].join('\n');
+  }
+
+  function lenteDesafiaTexto() {
+    return [
+      '[SUA LENTE — A VOZ QUE DESAFIA]',
+      '',
+      'Atue como uma voz crítica e rigorosa da aposta apresentada.',
+      '',
+      'Sua missão é estressar a lógica da aposta para revelar fragilidades antes que o Conselho Jedi amplie seu investimento.',
+      '',
+      'Não destrua a aposta apenas por exercer a função crítica.',
+      '',
+      'Não invente riscos genéricos.',
+      '',
+      'Considere riscos operacionais, regulatórios, tecnológicos, humanos, comportamentais ou de experiência somente quando forem pertinentes às informações fornecidas.',
+      '',
+      'Analise:',
+      '',
+      '1. PREMISSAS FRÁGEIS',
+      '',
+      'Que partes da aposta dependem de alguma suposição que ainda não foi demonstrada?',
+      '',
+      'Onde podemos estar confundindo:',
+      '',
+      'hipótese',
+      'com',
+      'fato?',
+      '',
+      '2. PONTOS CEGOS',
+      '',
+      'Que aspectos relevantes podem não estar representados na aposta?',
+      '',
+      'O que poderíamos estar deixando de enxergar?',
+      '',
+      'Se não houver informação suficiente para afirmar a existência do ponto cego, diga:',
+      '',
+      '“NÃO SABEMOS”.',
+      '',
+      '3. RISCOS',
+      '',
+      'Quais riscos concretos podem afetar a capacidade da aposta de produzir o resultado esperado?',
+      '',
+      'Para cada risco, identifique quando possível:',
+      '- de onde ele surge;',
+      '- que parte da aposta ele ameaça;',
+      '- qual sinal poderia indicar que está ocorrendo.',
+      '',
+      '4. CONSEQUÊNCIAS INDESEJADAS',
+      '',
+      'Mesmo que a aposta funcione parcialmente, o que poderia piorar ou produzir efeitos colaterais?',
+      '',
+      'Não invente consequências sem relação com a aposta fornecida.',
+      '',
+      '5. EXPERIMENTO',
+      '',
+      'O experimento planejado realmente coloca a hipótese em risco de ser contrariada?',
+      '',
+      'Ou ele foi desenhado de forma que tende apenas a confirmar aquilo em que já acreditamos?',
+      '',
+      '6. EVIDÊNCIAS PLANEJADAS',
+      '',
+      'As evidências que pretendemos observar seriam capazes de revelar que estamos errados?',
+      '',
+      'O que poderia acontecer no experimento e ainda assim permanecer invisível pelas evidências planejadas?',
+      '',
+      'IMPORTANTE:',
+      '',
+      'Não proponha imediatamente outra solução ou outro projeto.',
+      '',
+      'Primeiro estresse a aposta atual.'
+    ].join('\n');
+  }
+
+  function lenteInvestigaTexto() {
+    return [
+      '[SUA LENTE — A VOZ QUE INVESTIGA]',
+      '',
+      'Atue como uma voz investigativa orientada a aprendizado e redução de incerteza.',
+      '',
+      'Sua função é identificar:',
+      '',
+      'O que ainda não sabemos?',
+      '',
+      'E:',
+      '',
+      'O que precisamos aprender antes de investir mais?',
+      '',
+      'Não parta diretamente para a criação de uma solução diferente.',
+      '',
+      'Primeiro analise a aposta construída pelo Conselho Jedi.',
+      '',
+      'Analise:',
+      '',
+      '1. PRINCIPAIS INCERTEZAS',
+      '',
+      'Quais são as perguntas mais importantes que a aposta ainda não consegue responder?',
+      '',
+      'Classifique, quando possível:',
+      '- sabemos;',
+      '- supomos;',
+      '- precisamos descobrir.',
+      '',
+      '2. INFORMAÇÕES FALTANTES',
+      '',
+      'Que informações fariam maior diferença para nossa capacidade de decidir?',
+      '',
+      'Não peça dados apenas porque seria interessante tê-los.',
+      '',
+      'Priorize informações que podem realmente mudar a decisão.',
+      '',
+      '3. HIPÓTESE',
+      '',
+      'A hipótese está suficientemente clara para ser investigada?',
+      '',
+      'O experimento planejado consegue gerar aprendizado sobre essa hipótese?',
+      '',
+      '4. EXPERIMENTO PLANEJADO',
+      '',
+      'AVALIE PRIMEIRO o experimento que o Conselho Jedi já construiu.',
+      '',
+      'Pergunte:',
+      '- ele testa realmente a hipótese?',
+      '- ele reduz a principal incerteza?',
+      '- é possível aprender algo mesmo se o resultado for diferente do esperado?',
+      '- existe alguma variável importante que ficará sem observação?',
+      '',
+      'Não descarte automaticamente o experimento existente.',
+      '',
+      '5. EVIDÊNCIAS PLANEJADAS',
+      '',
+      'As evidências planejadas são adequadas para responder às principais perguntas?',
+      '',
+      'O que cada evidência poderá nos ensinar?',
+      '',
+      'Que lacunas permanecerão mesmo depois de coletá-la?',
+      '',
+      'LEMBRE-SE:',
+      '',
+      'Essas evidências ainda NÃO foram observadas.',
+      '',
+      '6. MENOR APRENDIZADO NECESSÁRIO',
+      '',
+      'Somente se o experimento atual não for suficiente:',
+      '',
+      'proponha o MENOR ajuste possível capaz de reduzir a principal incerteza.',
+      '',
+      'Prefira ajustar o experimento existente antes de criar outro completamente diferente.',
+      '',
+      'Não invente restrições como:',
+      '- número de participantes;',
+      '- prazo;',
+      '- tecnologia;',
+      '- orçamento;',
+      '',
+      'se essas restrições não estiverem explicitamente presentes na aposta.'
+    ].join('\n');
+  }
+
+  function saidaPadraoIA() {
+    return [
+      '[SAÍDA PARA O CONSELHO JEDI]',
+      '',
+      'Organize sua análise de forma executiva e objetiva.',
+      '',
+      'Ao final, apresente obrigatoriamente:',
+      '',
+      'TRÊS AFIRMAÇÕES CENTRAIS',
+      '',
+      'Produza exatamente 3 afirmações decorrentes da sua lente.',
+      '',
+      'Cada afirmação deve:',
+      '- ser curta;',
+      '- ser específica;',
+      '- estar relacionada diretamente à aposta;',
+      '- deixar claro quando se trata de hipótese ou incerteza;',
+      '- ser suficientemente provocativa para gerar discussão.',
+      '',
+      'NÃO diga ao Conselho Jedi se ele deve aceitar a afirmação.',
+      '',
+      'Os participantes irão posteriormente classificar cada uma como:',
+      '',
+      'ACEITAR',
+      'QUESTIONAR',
+      'REJEITAR',
+      '',
+      'e explicar por quê.',
+      '',
+      'Finalize com:',
+      '',
+      '“DECIDIR CONTINUA SENDO RESPONSABILIDADE DO CONSELHO JEDI.”'
+    ].join('\n');
+  }
+
+  /* Um prompt = contexto comum + aposta-base (idênticos nos três) +
+     a lente específica + a mesma saída padrão. Nunca monta os três
+     prompts em três lugares diferentes — uma função só, parametrizada
+     pela lente (item 15 do pedido: nenhuma cópia independente). */
+  function promptIA(lenteTexto) {
+    return [contextoComumIA(), '', apostaBaseIA(), '', lenteTexto(), '', saidaPadraoIA()].join('\n');
+  }
+  function promptDefendeIA() { return promptIA(lenteDefendeTexto); }
+  function promptDesafiaIA() { return promptIA(lenteDesafiaTexto); }
+  function promptInvestigaIA() { return promptIA(lenteInvestigaTexto); }
+
+  var LENTES_IA = [
+    { chave: 'defende', nome: 'A Voz que Defende', emoji: '🛡️',
+      desc: 'Procura valor, coerência e condições que aumentariam nossa confiança.', prompt: promptDefendeIA },
+    { chave: 'desafia', nome: 'A Voz que Desafia', emoji: '⚠️',
+      desc: 'Procura fragilidades, riscos, efeitos colaterais e pontos cegos.', prompt: promptDesafiaIA },
+    { chave: 'investiga', nome: 'A Voz que Investiga', emoji: '🔎',
+      desc: 'Procura incertezas e aquilo que ainda precisamos aprender.', prompt: promptInvestigaIA }
+  ];
+
+  /* Mensagem pronta para copiar e colar no Teams/e-mail — nunca envia
+     nada sozinha (item 13/19 do pedido: sem integração, sem chamada
+     de API de IA nenhuma). */
+  function mensagemTeamsIA(nomeLente, prompt) {
+    return [
+      'FORÇA ÁGIL — CONSELHO JEDI',
+      '',
+      'SUA LENTE:',
+      nomeLente,
+      '',
+      'A aposta abaixo foi construída pelo Conselho Jedi sem apoio de IA.',
+      '',
+      'Copiem integralmente o prompt abaixo e enviem para a IA utilizada pela dupla.',
+      '',
+      'IMPORTANTE:',
+      '',
+      'Não alterem a aposta-base antes de receber a análise.',
+      '',
+      'Queremos observar o que esta lente revela sobre exatamente a mesma aposta analisada pelas outras duplas.',
+      '',
+      '--------------------------------------------',
+      '',
+      'PROMPT PARA A IA',
+      '',
+      prompt
+    ].join('\n');
+  }
+
+  /* Estado mínimo (item 17 do pedido): só os oito itens abaixo — nunca
+     resultado observado, classificação, decisão, próxima ação,
+     responsável, prazo ou ciclo finalizado (item 18: esta exportação
+     é anterior ao resultado do experimento). Nunca inventa conteúdo
+     para completar o que falta — só lista, objetivamente. */
+  function faltamParaAnaliseIA() {
+    var falta = [];
+    if (!etapaPreenchida('missao', _dados)) falta.push('Missão');
+    if (!etapaPreenchida('sintoma', _dados)) falta.push('Sintoma');
+    if (!etapaPreenchida('problema', _dados)) falta.push('Problema');
+    if (!etapaPreenchida('mudancas', _dados)) falta.push('Mudanças mensuráveis');
+    if (!etapaPreenchida('hipotese', _dados)) falta.push('Hipótese');
+    if (!etapaPreenchida('ideia', _dados)) falta.push('Ideia de solução');
+    if (!etapaPreenchida('experimento', _dados)) falta.push('Experimento planejado');
+    if (!((_dados.experimento || {}).resultadoIds || []).length) falta.push('Evidência planejada');
+    return falta;
+  }
+
+  /* Modal "Análise com IA": gera, mostra e copia — nunca chama uma IA
+     nem grava a resposta dela (item 19/24 do pedido). Não cria grupo,
+     aposta, ciclo ou execução nenhuma — os "3 grupos" existem só
+     fisicamente na sala; para o sistema é uma aposta só. */
+  function abrirAnaliseIA() {
+    var overlay = document.createElement('div');
+    overlay.className = 'modal-overlay';
+    overlay.style.cssText = 'display:flex;align-items:center;justify-content:center;z-index:10000';
+    var box = document.createElement('div');
+    box.className = 'modal-box aposta-ia-box';
+    box.style.cssText = 'max-width:720px;width:94%;padding:24px;display:flex;flex-direction:column;gap:16px;max-height:88vh;overflow:auto';
+    overlay.appendChild(box);
+    document.body.appendChild(overlay);
+    function fechar() { document.body.removeChild(overlay); }
+
+    var falta = faltamParaAnaliseIA();
+    if (falta.length) {
+      box.innerHTML =
+        '<h3 style="margin:0;font-family:var(--font-head);color:var(--ink)">Análise com IA</h3>' +
+        '<p class="aposta-aviso-didatico" style="margin:0">Complete a aposta-base antes de gerar os prompts para IA.</p>' +
+        '<p style="margin:0;font-size:.8rem;color:var(--ink-3)">Ainda falta:</p>' +
+        '<ul style="margin:0;padding-left:20px;font-size:.82rem;color:var(--ink-2)">' +
+          falta.map(function (f) { return '<li>' + esc(f) + '</li>'; }).join('') +
+        '</ul>' +
+        '<div style="display:flex;justify-content:flex-end"><button class="btn admin-modal-cancel-btn" id="apostaIaFechar">Fechar</button></div>';
+      box.querySelector('#apostaIaFechar').addEventListener('click', fechar);
+      return;
+    }
+
+    box.innerHTML =
+      '<h3 style="margin:0;font-family:var(--font-head);color:var(--ink)">Análise com IA</h3>' +
+      '<p style="margin:0;font-size:.85rem;color:var(--ink-3)">A mesma aposta será analisada por três lentes diferentes.</p>' +
+      '<p style="margin:0;font-size:.85rem;color:var(--ink-3)">Todos recebem exatamente a mesma aposta-base. O que muda é a pergunta feita à IA.</p>' +
+      '<div class="aposta-ia-diagrama">' +
+        '<span class="aposta-ia-diagrama-topo">UMA APOSTA</span>' +
+        '<span class="aposta-ia-diagrama-seta">↓</span>' +
+        '<div class="aposta-ia-diagrama-linha">' +
+          LENTES_IA.map(function (l) { return '<span>' + esc(l.emoji) + ' ' + esc(l.nome.replace('A Voz que ', '')) + '</span>'; }).join('') +
+        '</div>' +
+      '</div>' +
+      '<div class="aposta-ia-cards">' +
+        LENTES_IA.map(function (l) {
+          return '<div class="aposta-ia-card">' +
+            '<strong>' + esc(l.emoji) + ' ' + esc(l.nome) + '</strong>' +
+            '<p>' + esc(l.desc) + '</p>' +
+            '<div class="aposta-ia-card-botoes">' +
+              '<button type="button" class="btn btn--sm" data-ia-prompt="' + esc(l.chave) + '">Copiar prompt</button>' +
+              '<button type="button" class="btn btn--sm" data-ia-mensagem="' + esc(l.chave) + '">Copiar mensagem para Teams / e-mail</button>' +
+            '</div>' +
+          '</div>';
+        }).join('') +
+      '</div>' +
+      '<div style="display:flex;justify-content:flex-end"><button class="btn admin-modal-cancel-btn" id="apostaIaFechar">Fechar</button></div>';
+
+    box.querySelector('#apostaIaFechar').addEventListener('click', fechar);
+
+    function lentePorChave(ch) {
+      return LENTES_IA.filter(function (l) { return l.chave === ch; })[0];
+    }
+    function copiarTextoIA(txt, titulo, msgOk) {
+      function caiuNoManual() { mostrarTextoParaCopiar(txt, titulo); }
+      try {
+        if (navigator.clipboard && navigator.clipboard.writeText) {
+          navigator.clipboard.writeText(txt).then(function () { avisar(msgOk); }, caiuNoManual);
+          return;
+        }
+      } catch (e) { /* cai no manual */ }
+      caiuNoManual();
+    }
+    box.querySelectorAll('[data-ia-prompt]').forEach(function (b) {
+      b.addEventListener('click', function () {
+        var l = lentePorChave(b.dataset.iaPrompt);
+        if (!l) return;
+        copiarTextoIA(l.prompt(), 'Copiar prompt — ' + l.nome, 'Prompt copiado.');
+      });
+    });
+    box.querySelectorAll('[data-ia-mensagem]').forEach(function (b) {
+      b.addEventListener('click', function () {
+        var l = lentePorChave(b.dataset.iaMensagem);
+        if (!l) return;
+        copiarTextoIA(mensagemTeamsIA(l.nome, l.prompt()), 'Copiar mensagem — ' + l.nome, 'Mensagem copiada.');
+      });
+    });
+  }
+
   function copiarAposta() {
     var txt = textoDaAposta();
     function caiuNoManual() { mostrarTextoParaCopiar(txt); }
@@ -5456,14 +5992,14 @@
   /* Copiar pode ser recusado (permissão, navegador antigo, aba sem foco).
      Dizer "copiado" nesse caso seria mentir — então a saída é mostrar o
      texto já selecionado, que funciona em qualquer navegador. */
-  function mostrarTextoParaCopiar(txt) {
+  function mostrarTextoParaCopiar(txt, titulo) {
     var overlay = document.createElement('div');
     overlay.className = 'modal-overlay';
     overlay.style.cssText = 'display:flex;align-items:center;justify-content:center;z-index:10000';
     var box = document.createElement('div');
     box.className = 'modal-box';
     box.style.cssText = 'max-width:680px;width:94%;padding:22px;display:flex;flex-direction:column;gap:12px';
-    box.innerHTML = '<h3 style="margin:0;font-family:var(--font-head);color:var(--ink)">Copiar a aposta</h3>' +
+    box.innerHTML = '<h3 style="margin:0;font-family:var(--font-head);color:var(--ink)">' + esc(titulo || 'Copiar a aposta') + '</h3>' +
       '<p style="margin:0;font-size:.85rem;color:var(--ink-3)">Selecione tudo e copie (Ctrl+C, ou segure para copiar no celular).</p>' +
       '<textarea readonly rows="12" style="width:100%;font-family:var(--font-mono);font-size:.78rem"></textarea>' +
       '<div style="display:flex;justify-content:flex-end"><button class="btn admin-modal-cancel-btn">Fechar</button></div>';
@@ -6147,7 +6683,22 @@
     /* Fase 4 — prova direta da cascata ao editar um campo herdado e do
        fix de dataDecisao: chamar salvarEtapa() sem depender de digitar
        em cada campo do formulário e esperar o debounce de 600ms. */
-    _salvarEtapa: function (etapaId, dados, redesenhar, cb) { return salvarEtapa(etapaId, dados, redesenhar, cb); }
+    _salvarEtapa: function (etapaId, dados, redesenhar, cb) { return salvarEtapa(etapaId, dados, redesenhar, cb); },
+    /* "Analisar com IA" — mesmo padrão de _texto() acima: os testes
+       leem o texto gerado diretamente, sem depender de permissão de
+       clipboard do navegador (que "Copiar em texto" também nunca
+       precisou). */
+    _promptIA: function (lente) {
+      if (lente === 'defende') return promptDefendeIA();
+      if (lente === 'desafia') return promptDesafiaIA();
+      if (lente === 'investiga') return promptInvestigaIA();
+      return '';
+    },
+    _mensagemIA: function (lente) {
+      var l = LENTES_IA.filter(function (x) { return x.chave === lente; })[0];
+      return l ? mensagemTeamsIA(l.nome, l.prompt()) : '';
+    },
+    _faltamIA: function () { return faltamParaAnaliseIA(); }
   };
 
   window.addEventListener('fa-auth-ready', montarEntrada);
