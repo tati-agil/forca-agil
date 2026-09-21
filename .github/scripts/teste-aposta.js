@@ -4564,9 +4564,13 @@ const clicarSemRolagem = (page, seletor) => page.$eval(seletor, (el) => el.click
         await pg14b.waitForSelector('.aposta-mapa', { timeout: 15000 });
 
         const faltamIa = await pg14b.evaluate(() => window.faAposta._faltamIA());
+        /* Refinamento — etapas opcionais: Ideia de solução (que também
+           não foi decidida neste fixture) agora pede "preencher ou
+           pular", não mais só o nome — mesma checagem por conteúdo
+           (some), nunca igualdade exata de string. */
         anota('G — com a aposta-base incompleta, faltamIA() lista objetivamente o que falta (nunca inventa)',
           faltamIa.indexOf('Mudanças mensuráveis') !== -1 && faltamIa.indexOf('Hipótese') !== -1 &&
-          faltamIa.indexOf('Ideia de solução') !== -1 && faltamIa.indexOf('Experimento planejado') !== -1 &&
+          faltamIa.some(function (f) { return /Ideia de solução/.test(f); }) && faltamIa.indexOf('Experimento planejado') !== -1 &&
           faltamIa.indexOf('Evidência planejada') !== -1 && faltamIa.indexOf('Missão') === -1,
           JSON.stringify(faltamIa));
 
@@ -5257,6 +5261,276 @@ const clicarSemRolagem = (page, seletor) => page.$eval(seletor, (el) => el.click
           missaoBloco15b);
 
         await ctx15b.close();
+      }
+
+      /* ── 16a: REFINAMENTO — ETAPAS OPCIONAIS — SINTOMA.
+            "Pular esta etapa" é uma decisão explícita, distinta de
+            "ainda não visitada" e de "preenchida" — nunca bloqueia,
+            nunca some sozinha, nunca aparece como "não informado" em
+            lugar nenhum (Mapa, IA, trilha). ── */
+      {
+        const semeado16a = apostasSemeadas();
+        const { ctx: ctx16a, page: pg16a } = await novaPagina(browser, formato, DIRETORA, erros, semeado16a);
+        await pg16a.goto(BASE + '/index.html#treinamento', { waitUntil: 'domcontentloaded' });
+        await pg16a.click('#apostaAbrirBtn');
+        await pg16a.waitForSelector('.aposta-grupo-btn', { timeout: 15000 });
+        await pg16a.click('.aposta-grupo-btn');
+        await pg16a.waitForSelector('#ap-verbo', { timeout: 15000 });
+        await pg16a.fill('#ap-verbo', 'Apoiar');
+        await pg16a.fill('#ap-oQue', 'a Rebelião');
+        await pg16a.fill('#ap-contexto', 'contra o Império');
+        await pg16a.click('#apostaSeguir');
+        await pg16a.waitForFunction(() => /^SINTOMA$/.test((document.querySelector('.aposta-etapa-titulo') || {}).textContent || ''), { timeout: 15000 });
+
+        const temBotaoPular16a = await pg16a.evaluate(() => !!document.getElementById('apostaPularEtapa'));
+        anota('A — Sintoma tem a ação "Pular esta etapa", secundária ao formulário', temBotaoPular16a);
+
+        // B/C — pular sem conteúdo: nunca pede confirmação, avança para Problema sem bloqueio.
+        await pg16a.click('#apostaPularEtapa');
+        await pg16a.waitForFunction(() => /PROBLEMA/.test((document.querySelector('.aposta-etapa-titulo') || {}).textContent || ''), { timeout: 15000 });
+        const semModalNoPular = await pg16a.evaluate(() => !document.querySelector('.aposta-confirmar-overlay'));
+        anota('B — pular Sintoma vazio nunca pede confirmação e avança direto para Problema', semModalNoPular);
+
+        // C — a trilha mostra "Pulada" no Sintoma, sem tratar como erro/bloqueio.
+        const trilha16a = await pg16a.evaluate(() => {
+          const b = document.querySelector('.aposta-trilha-item[data-etapa="sintoma"]');
+          return { temBadge: !!(b && b.querySelector('.aposta-trilha-badge')), bloqueada: !!(b && b.classList.contains('is-bloqueada')), desabilitado: !!(b && b.disabled) };
+        });
+        anota('C — a trilha marca Sintoma como "Pulada" (nunca bloqueada/desabilitada)',
+          trilha16a.temBadge && !trilha16a.bloqueada && !trilha16a.desabilitado, JSON.stringify(trilha16a));
+
+        // D — o formatador central (resumoEtapa, usado por Mapa/CSV/IA) já devolve vazio para Sintoma pulado
+        // (Mapa e IA com as duas etapas puladas juntas são conferidos a fundo no bloco 16d, com fixture direto).
+        const resumoSintoma16a = await pg16a.evaluate(() => window.faAposta._resumo('sintoma', { sintoma: { pulada: true } }));
+        anota('D — resumoEtapa (o formatador central do Mapa/CSV/IA) devolve vazio para Sintoma pulado',
+          resumoSintoma16a === '', JSON.stringify(resumoSintoma16a));
+
+        await ctx16a.close();
+      }
+
+      /* ── 16b: ETAPAS OPCIONAIS — SINTOMA: voltar e preencher depois,
+            e conteúdo digitado + Pular pede confirmação (nunca some
+            silenciosamente). ── */
+      {
+        const semeado16b = apostasSemeadas();
+        semeado16b[TURMA_LIB].execucoes[EXEC].grupos[GRUPO].dados = {
+          missao: { verbo: 'Apoiar', oQue: 'a Rebelião', contexto: 'contra o Império' },
+          sintoma: { pulada: true },
+        };
+        semeado16b[TURMA_LIB].execucoes[EXEC].grupos[GRUPO].etapa = 'sintoma';
+        const { ctx: ctx16b, page: pg16b } = await novaPagina(browser, formato, DIRETORA, erros, semeado16b);
+        await pg16b.goto(BASE + '/index.html#treinamento', { waitUntil: 'domcontentloaded' });
+        await pg16b.click('#apostaAbrirBtn');
+        await pg16b.waitForSelector('.aposta-grupo-btn', { timeout: 15000 });
+        await pg16b.click('.aposta-grupo-btn');
+        await pg16b.waitForSelector('.aposta-pulada', { timeout: 15000 });
+
+        const banner16b = await pg16b.evaluate(() => ({
+          texto: (document.querySelector('.aposta-pulada-texto') || {}).textContent || '',
+          temPreencher: !!document.getElementById('apostaPreencherAgora'),
+          temManter: !!document.getElementById('apostaManterPulada'),
+        }));
+        anota('F — reabrir uma etapa pulada mostra o estado dedicado ("Esta etapa foi pulada") com as duas ações',
+          /pulada/i.test(banner16b.texto) && banner16b.temPreencher && banner16b.temManter, JSON.stringify(banner16b));
+
+        await pg16b.click('#apostaPreencherAgora');
+        await pg16b.waitForSelector('[data-campo="texto"]', { timeout: 15000 });
+        const semBannerAposPreencher = await pg16b.evaluate(() => !document.querySelector('.aposta-pulada'));
+        anota('F — "Preencher agora" remove o estado pulada e mostra o formulário, sem pedir confirmação',
+          semBannerAposPreencher);
+
+        await pg16b.fill('[data-campo="texto"]', 'muita gente reclama do domínio do Império');
+        await pg16b.waitForTimeout(300);
+        const resumoAposPreencher = await pg16b.evaluate(() => window.faAposta._resumo('sintoma', { sintoma: { texto: 'muita gente reclama do domínio do Império' } }));
+        anota('F — o conteúdo digitado depois de "Preencher agora" é salvo e aparece no formatador central',
+          /muita gente reclama do dom[íi]nio do Imp[ée]rio/.test(resumoAposPreencher), resumoAposPreencher);
+
+        // G — texto digitado + Pular pede confirmação (nunca descarta sozinho).
+        await pg16b.click('#apostaPularEtapa');
+        await pg16b.waitForTimeout(300);
+        const modalAbriu16b = await pg16b.evaluate(() => !!document.querySelector('.aposta-confirmar-overlay'));
+        anota('G — pular com conteúdo já digitado abre confirmação antes de descartar', modalAbriu16b);
+        const textoModal16b = await pg16b.evaluate(() => (document.querySelector('.aposta-confirmar-overlay p') || {}).textContent || '');
+        anota('G — a confirmação avisa que o conteúdo será descartado', /j[áa] come[çc]ou a preencher.*descart/i.test(textoModal16b), textoModal16b);
+
+        await pg16b.click('.aposta-modal-nao-btn');
+        await pg16b.waitForTimeout(200);
+        const conteudoPreservado16b = await pg16b.evaluate(() => (document.querySelector('[data-campo="texto"]') || {}).value || '');
+        anota('G — cancelar a confirmação preserva o texto já digitado (nunca apaga sozinho)',
+          /muita gente reclama/.test(conteudoPreservado16b), conteudoPreservado16b);
+
+        await pg16b.click('#apostaPularEtapa');
+        await pg16b.waitForTimeout(200);
+        await pg16b.click('.aposta-modal-sim-btn');
+        await pg16b.waitForFunction(() => /PROBLEMA/.test((document.querySelector('.aposta-etapa-titulo') || {}).textContent || ''), { timeout: 15000 });
+        const tituloAposConfirmarPular = await pg16b.evaluate(() => (document.querySelector('.aposta-etapa-titulo') || {}).textContent || '');
+        anota('G — confirmando "PULAR E DESCARTAR", a etapa é descartada e avança normalmente',
+          /PROBLEMA/.test(tituloAposConfirmarPular), tituloAposConfirmarPular);
+
+        await ctx16b.close();
+      }
+
+      /* ── 16c: ETAPAS OPCIONAIS — IDEIA DE SOLUÇÃO: pular avança direto
+            para o Experimento; sem pular, CONTINUAR segue bloqueado de
+            verdade como sempre (frase estrita). ── */
+      {
+        const semeado16c = apostasSemeadas();
+        semeado16c[TURMA_LIB].execucoes[EXEC].grupos[GRUPO].dados = {
+          missao: { verbo: 'Apoiar', oQue: 'a Rebelião', contexto: 'contra o Império' },
+          sintoma: { pulada: true },
+          problema: { quem: 'O povo', situacaoIndesejada: 'vive sob o domínio do Império' },
+          mudancas: { itens: [{ id: 'r1', direcao: 'Aumentar', indicador: 'planetas livres', atual: '2', meta: '10', unidade: 'planetas' }] },
+          hipotese: { causa: 'o Império controla a comunicação', indicio: 'os planetas não se coordenam' },
+        };
+        semeado16c[TURMA_LIB].execucoes[EXEC].grupos[GRUPO].etapa = 'ideia';
+        const { ctx: ctx16c, page: pg16c } = await novaPagina(browser, formato, DIRETORA, erros, semeado16c);
+        await pg16c.goto(BASE + '/index.html#treinamento', { waitUntil: 'domcontentloaded' });
+        await pg16c.click('#apostaAbrirBtn');
+        await pg16c.waitForSelector('.aposta-grupo-btn', { timeout: 15000 });
+        await pg16c.click('.aposta-grupo-btn');
+        await pg16c.waitForFunction(() => /IDEIA/.test((document.querySelector('.aposta-etapa-titulo') || {}).textContent || ''), { timeout: 15000 });
+
+        const seguirVazio16c = await pg16c.evaluate(() => (document.getElementById('apostaSeguir') || {}).disabled);
+        anota('A — Ideia vazia (sem decidir preencher ou pular) continua bloqueando CONTINUAR — regra de frase estrita intocada',
+          seguirVazio16c === true, String(seguirVazio16c));
+
+        // B/C — pular avança direto para Experimento, nunca bloqueia.
+        await pg16c.click('#apostaPularEtapa');
+        await pg16c.waitForFunction(() => /^E — EXPERIMENTO$/.test((document.querySelector('.aposta-etapa-titulo') || {}).textContent || ''), { timeout: 15000 });
+        const tituloExperimento16c = await pg16c.evaluate(() => (document.querySelector('.aposta-etapa-titulo') || {}).textContent || '');
+        anota('B/C — pular Ideia avança direto para o Experimento (Hipótese → Experimento)',
+          /^E — EXPERIMENTO$/.test(tituloExperimento16c), tituloExperimento16c);
+
+        // D — trilha mostra Ideia pulada.
+        const trilhaIdeia16c = await pg16c.evaluate(() => {
+          const b = document.querySelector('.aposta-trilha-item[data-etapa="ideia"]');
+          return !!(b && b.querySelector('.aposta-trilha-badge'));
+        });
+        anota('D — a trilha marca Ideia de solução como "Pulada"', trilhaIdeia16c);
+
+        await ctx16c.close();
+      }
+
+      /* ── 16d: ETAPAS OPCIONAIS — DUAS PULADAS JUNTAS: aposta continua
+            válida, Mapa fica Missão→Problema→Mudanças→Hipótese→
+            Experimento→Evidência→Decisão, e os 3 prompts da IA são
+            gerados sem revelar em nenhum deles que alguma etapa foi
+            pulada. ── */
+      {
+        const semeado16d = apostasProntaParaDecisao();
+        const dados16d = Object.assign({}, DADOS_ATE_EVIDENCIA, {
+          sintoma: { pulada: true },
+          ideia: { pulada: true },
+          evidencia: { itens: [{ resultadoId: 'r1', fontePrevista: 'Registros de atendimento', comoSeraMedido: 'contagem de atendimentos' }] },
+        });
+        semeado16d[TURMA_LIB].execucoes[EXEC].grupos[GRUPO].dados = dados16d;
+        semeado16d[TURMA_LIB].execucoes[EXEC].grupos[GRUPO].etapa = 'evidencia';
+        const { ctx: ctx16d, page: pg16d } = await novaPagina(browser, formato, ADM, erros, semeado16d);
+        await pg16d.goto(BASE + '/index.html#treinamento', { waitUntil: 'domcontentloaded' });
+        await pg16d.click('#apostaAbrirBtn');
+        await pg16d.waitForSelector('#apostaPainelBtn', { timeout: 15000 });
+        await pg16d.click('#apostaPainelBtn');
+        await pg16d.waitForSelector('.aposta-fac-ver', { timeout: 15000 });
+        await pg16d.click('.aposta-fac-ver');
+        await pg16d.waitForSelector('.aposta-mapa', { timeout: 15000 });
+
+        const mapaCards16d = await pg16d.evaluate(() => Array.from(document.querySelectorAll('.aposta-mapa-rot')).map((e) => e.textContent));
+        anota('E — Mapa com as duas etapas puladas: nenhum card de Sintoma nem de Ideia de solução',
+          !mapaCards16d.some((t) => /^SINTOMA$/.test(t)) && !mapaCards16d.some((t) => /IDEIA DE SOLU[ÇC][ÃA]O/.test(t)),
+          JSON.stringify(mapaCards16d));
+        anota('E — o Mapa fica MISSÃO → PROBLEMA → MUDANÇAS → HIPÓTESE → EXPERIMENTO → EVIDÊNCIA → DECISÃO, sem espaço nem card fantasma',
+          JSON.stringify(mapaCards16d) === JSON.stringify(['MISSÃO', 'P — PROBLEMA', 'MUDANÇAS MENSURÁVEIS', 'H — HIPÓTESE', 'E — EXPERIMENTO', 'E — EVIDÊNCIA', 'D — DECISÃO']),
+          JSON.stringify(mapaCards16d));
+
+        const prompts16d = await pg16d.evaluate(() => ({
+          defende: window.faAposta._promptIA('defende'),
+          desafia: window.faAposta._promptIA('desafia'),
+          investiga: window.faAposta._promptIA('investiga'),
+        }));
+        ['defende', 'desafia', 'investiga'].forEach((chave) => {
+          var p = prompts16d[chave];
+          anota('E — o prompt "' + chave + '" existe e nunca revela que Sintoma ou Ideia foram pulados',
+            !!p && !/\bSINTOMA\b/.test(p) && !/IDEIA DE SOLU[ÇC][ÃA]O/i.test(p) &&
+            !/pulad[oa]/i.test(p) && !/n[ãa]o informad[oa]/i.test(p) && !/n[ãa]o se aplica/i.test(p),
+            'tamanho: ' + (p || '').length);
+        });
+        anota('E — a aposta-base continua idêntica nos três prompts mesmo com etapas puladas',
+          prompts16d.defende.slice(0, prompts16d.defende.indexOf('[SUA LENTE')) === prompts16d.desafia.slice(0, prompts16d.desafia.indexOf('[SUA LENTE')));
+
+        const faltamIa16d = await pg16d.evaluate(() => window.faAposta._faltamIA());
+        anota('E — faltamIA() considera a aposta completa com as duas etapas puladas (núcleo obrigatório não inclui Sintoma/Ideia)',
+          faltamIa16d.length === 0, JSON.stringify(faltamIa16d));
+
+        await pg16d.click('#apostaAnalisarIaBtn');
+        await pg16d.waitForSelector('.aposta-ia-card', { timeout: 8000 });
+        const cards16d = await pg16d.evaluate(() => document.querySelectorAll('.aposta-ia-card').length);
+        anota('E — o modal "Analisar com IA" gera os 3 cards normalmente com as duas etapas puladas', cards16d === 3, String(cards16d));
+
+        await ctx16d.close();
+      }
+
+      /* ── 16e: MULTICICLO — Ideia é dado do CICLO: o Ciclo 1 pode ter
+            Ideia preenchida e o Ciclo 2, pulada, sem que o Mapa/IA do
+            Ciclo 2 usem a Ideia do Ciclo 1 (item 10/28 do pedido). ── */
+      {
+        const semeado16e = apostasProntaParaDecisao();
+        semeado16e[TURMA_LIB].execucoes[EXEC].grupos[GRUPO].dados.decisao = {
+          decisao: 'Reformular a hipótese', proximaAcao: 'testar de novo', dataDecisao: '2026-09-19T10:00:00.000Z',
+          proxHipCausa: 'a fila não tem sinalização clara', proxHipIndicio: 'gente perguntando onde é o fim da fila'
+        };
+        semeado16e[TURMA_LIB].execucoes[EXEC].grupos[GRUPO].ciclos = {
+          atual: 'c2',
+          porId: {
+            c1: {
+              numero: 1, status: 'FINALIZADO', pontoDeReinicio: null, cicloAnteriorId: null, etapa: 'decisao',
+              /* Ciclo 1: Ideia PREENCHIDA de verdade. */
+              dados: semeado16e[TURMA_LIB].execucoes[EXEC].grupos[GRUPO].dados
+            },
+            c2: {
+              numero: 2, status: 'EM_CONSTRUCAO', pontoDeReinicio: 'hipotese', decisaoOrigem: 'Reformular a hipótese', cicloAnteriorId: 'c1', etapa: 'decisao',
+              /* Ciclo 2: Ideia PULADA — nunca deve mostrar a do Ciclo 1. */
+              dados: Object.assign({}, DADOS_ATE_EVIDENCIA, {
+                hipotese: { causa: 'a fila não tem sinalização clara', indicio: 'gente perguntando onde é o fim da fila' },
+                ideia: { pulada: true },
+                decisao: { decisao: 'Ampliar', proximaAcao: 'ampliar a sinalização nova', dataDecisao: '2026-09-19T11:00:00.000Z' }
+              })
+            }
+          }
+        };
+        const { ctx: ctx16e, page: pg16e } = await novaPagina(browser, formato, ADM, erros, semeado16e);
+        await pg16e.goto(BASE + '/index.html#treinamento', { waitUntil: 'domcontentloaded' });
+        await pg16e.click('#apostaAbrirBtn');
+        await pg16e.waitForSelector('.aposta-grupo-btn', { timeout: 15000 });
+        await pg16e.click('.aposta-grupo-btn');
+        await pg16e.waitForSelector('#apostaSeguir:not([disabled])', { timeout: 15000 });
+        await pg16e.click('#apostaSeguir');
+        await pg16e.waitForSelector('.aposta-mapa', { timeout: 8000 });
+
+        const mapaMultic16e = await pg16e.evaluate(() => {
+          const secoes = Array.from(document.querySelectorAll('.aposta-ciclo-titulo'));
+          const texto = document.querySelector('.aposta-mapa').textContent || '';
+          return {
+            titulos: secoes.map((e) => e.textContent),
+            temIdeiaDoCiclo1NoTexto: /dar ao participante mais visibilidade sobre o andamento/.test(texto),
+          };
+        });
+        anota('o Mapa mostra os dois ciclos (Ciclo 1 com Ideia preenchida, Ciclo 2 com Ideia pulada)',
+          mapaMultic16e.titulos.length === 2, JSON.stringify(mapaMultic16e.titulos));
+
+        const idxCiclo2 = await pg16e.evaluate(() => {
+          const titulos = Array.from(document.querySelectorAll('.aposta-ciclo-titulo'));
+          return titulos.findIndex((e) => /CICLO 2/.test(e.textContent));
+        });
+        const rotsAposCiclo2 = await pg16e.evaluate((corte) => {
+          const nodes = Array.from(document.querySelectorAll('.aposta-mapa > *'));
+          const tituloEl = Array.from(document.querySelectorAll('.aposta-ciclo-titulo')).find((e) => /CICLO 2/.test(e.textContent));
+          const posTitulo = nodes.indexOf(tituloEl);
+          return nodes.slice(posTitulo).filter((n) => n.classList.contains('aposta-mapa-rot')).map((e) => e.textContent);
+        }, idxCiclo2);
+        anota('o Ciclo 2 (Ideia pulada) não mostra card de Ideia de solução — nem a do Ciclo 1, nem nenhuma',
+          !rotsAposCiclo2.some((t) => /IDEIA DE SOLU[ÇC][ÃA]O/.test(t)), JSON.stringify(rotsAposCiclo2));
+
+        await ctx16e.close();
       }
 
       anota('nenhum erro de JavaScript', erros.length === 0, erros[0]);

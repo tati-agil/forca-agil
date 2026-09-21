@@ -243,6 +243,14 @@
       dica: 'Sintoma é um sinal observável de que algo pode não estar funcionando como desejado. Ele descreve o que está acontecendo na realidade, sem explicar ainda por que isso acontece.\n\n' +
         'Bom exemplo: “Muitos participantes entram em contato para perguntar sobre o andamento da concessão.”\n\n' +
         'Não é um bom sintoma: “A comunicação é ruim” — isso já é uma interpretação. Nesta etapa, prefira registrar aquilo que pode ser observado.',
+      /* Refinamento — etapas opcionais: nem toda dinâmica precisa
+         registrar um sintoma (às vezes o problema já está claro). Ver
+         moldeHtml/renderEtapa (bloco "Pular esta etapa") e
+         etapaPreenchida/resumoEtapa (que tratam `d.pulada` como
+         "não existe" para a trilha, o Mapa, o CSV e a IA — nunca como
+         "faltando"). */
+      permitePular: true,
+      textoOpcional: 'O Sintoma ajuda a registrar o que estamos observando hoje. Se o problema já estiver claro, você pode seguir sem esta etapa.',
       campos: [
         { chave: 'texto', tipo: 'textarea', rotulo: 'O fato observável', curto: 'o que observamos', placeholder: 'muitos participantes entram em contato para saber em que etapa está a concessão' }
       ],
@@ -307,6 +315,16 @@
       dica: 'Ainda não é hora de decidir tecnologia. O que importa é a mudança que a ideia pretende provocar.',
       dependeDe: 'hipotese',
       legado: 'texto',
+      /* Refinamento — etapas opcionais: mesmo mecanismo do Sintoma
+         (ver a nota lá). Ideia é dado do CICLO — cada ciclo decide de
+         novo se preenche ou pula (ver montarDadosNovoCiclo: um ciclo
+         novo com ponto de reinício antes de Ideia nasce com ela
+         genuinamente vazia, nunca herdando "pulada" do ciclo anterior;
+         um ponto de reinício depois dela a herda como qualquer outro
+         dado — editar/pular nesse caso já aciona a cascata normal de
+         "revisandoHerdado" em salvarEtapa). */
+      permitePular: true,
+      textoOpcional: 'A Ideia de solução registra uma possibilidade de ação. Se ainda não quiser se comprometer com uma solução, você pode seguir diretamente para o experimento.',
       campos: [
         { chave: 'acao', tipo: 'textarea', rotulo: 'Ação ou abordagem', curto: 'a ação', placeholder: 'dar ao participante mais visibilidade sobre o andamento', dica: 'Descreva uma possível intervenção. Ainda não precisa explicar como ela será testada.' },
         { chave: 'mudanca', tipo: 'textarea', rotulo: 'Mudança que pretendemos provocar', curto: 'a mudança pretendida', placeholder: 'que o participante consiga acompanhar o andamento sem precisar entrar em contato', dica: 'Que efeito esperamos que essa ideia provoque? Não repita aqui a meta numérica das Mudanças mensuráveis.' }
@@ -605,9 +623,18 @@
     return avisos;
   }
 
-  /* Uma etapa está "preenchida" quando tem conteúdo de verdade — é o
-     que move a trilha e libera a próxima. Não exige perfeição: exige
-     que o grupo tenha escrito alguma coisa. */
+  /* Refinamento — etapas opcionais (Sintoma/Ideia): "pulada" é uma
+     terceira condição, distinta de "não visitada" (sem d.pulada, sem
+     conteúdo) e de "preenchida" (com conteúdo) — uma decisão explícita
+     do grupo de seguir sem aquela etapa. Função única: quem decide se
+     esconde um card do Mapa, se soma "—" na IA, se marca "Pulada" na
+     trilha, nunca pode divergir de quem gravou a decisão. */
+  function etapaEstaPulada(etapaId, dados) {
+    var etapa = etapaPorId(etapaId);
+    var d = (dados || {})[etapaId] || {};
+    return !!(etapa && etapa.permitePular && d.pulada);
+  }
+
   /* Uma etapa está "preenchida" quando tem conteúdo de verdade — é o
      que move a trilha e libera a próxima. Não exige perfeição: exige
      que o grupo tenha escrito alguma coisa.
@@ -618,6 +645,12 @@
      trilha marcaria como feita e liberaria a seguinte. */
   function etapaPreenchida(etapaId, dados) {
     var d = (dados || {})[etapaId] || {};
+    /* Pulada conta como "resolvida" para a trilha, o progresso e a
+       validação de "Analisar com IA" — é uma decisão explícita, não um
+       vazio pendente. Vem antes de tudo porque nenhuma outra checagem
+       abaixo faria sentido nesse caso (não há campo nenhum para olhar). */
+    if (etapaEstaPulada(etapaId, dados)) return true;
+    var etapaDef = etapaPorId(etapaId);
     if (etapaId === 'mudancas') {
       return (d.itens || []).some(function (m) {
         return ['indicador', 'atual', 'meta', 'unidade', 'prazo', 'limiteMinimo', 'limiteMaximo'].some(function (k) { return normalizar(m[k]); });
@@ -626,7 +659,7 @@
     if (etapaId === 'evidencia') {
       return (d.itens || []).some(function (ev) { return normalizar(ev.observado) || ev.naoMedido === 'sim'; });
     }
-    var etapa = etapaPorId(etapaId);
+    var etapa = etapaDef;
     if (!etapa) return false;
     if (etapa.escolha && d[etapa.escolha.chave]) return true;
     var campos = etapa.campos || [];
@@ -1459,7 +1492,15 @@
       return frases.join(' ');
     }
     var etapa = etapaPorId(etapaId);
-    if (!etapa || !etapaPreenchida(etapaId, dados)) return '';
+    if (!etapa) return '';
+    /* Refinamento — etapas opcionais: pulada não tem frase nenhuma —
+       nem "não informado", nem "—". Some da mesma forma que "ainda não
+       preenchida" some hoje (cardConexao/Mapa/CSV/IA já tratam string
+       vazia como "esta etapa não existe aqui"); a diferença fica só na
+       trilha/progresso, que tratam pulada como concluída (ver
+       etapaPreenchida). */
+    if (etapaEstaPulada(etapaId, dados)) return '';
+    if (!etapaPreenchida(etapaId, dados)) return '';
     /* Execuções anteriores guardaram a etapa num campo de texto só.
        Enquanto as lacunas novas estiverem vazias, é esse texto que a
        pessoa escreveu — mostrá-lo é o mínimo para não parecer que a
@@ -2091,6 +2132,34 @@
       '<div style="display:flex;justify-content:flex-end;gap:8px;flex-wrap:wrap">' +
         '<button type="button" class="btn aposta-modal-nao-btn">AINDA NÃO</button>' +
         '<button type="button" class="btn btn--primary aposta-modal-sim-btn">SIM, REGISTRAR RESULTADOS</button>' +
+      '</div>';
+    overlay.appendChild(box);
+    document.body.appendChild(overlay);
+    function fechar() { if (overlay.parentNode) overlay.parentNode.removeChild(overlay); }
+    box.querySelector('.aposta-modal-nao-btn').addEventListener('click', fechar);
+    var overlayMousedownFora = false;
+    overlay.addEventListener('mousedown', function (e) { overlayMousedownFora = !box.contains(e.target); });
+    overlay.addEventListener('click', function (e) { if (overlayMousedownFora && !box.contains(e.target)) fechar(); });
+    overlay.addEventListener('keydown', function (e) { if (e.key === 'Escape') { e.preventDefault(); fechar(); } });
+    box.querySelector('.aposta-modal-sim-btn').addEventListener('click', function () { fechar(); callbackSim(); });
+  }
+
+  /* Mesmo padrão acima — refinamento "etapas opcionais" (item 5 do
+     pedido): "Pular esta etapa" nunca descarta texto já digitado sem
+     perguntar. Só abre quando há de fato algo escrito (ver o clique em
+     apostaPularEtapa); vazio, pula direto sem modal nenhum. */
+  function confirmarPularEtapa(callbackSim) {
+    var overlay = document.createElement('div');
+    overlay.className = 'modal-overlay aposta-confirmar-overlay';
+    overlay.style.cssText = 'display:flex;align-items:center;justify-content:center;z-index:10002';
+    var box = document.createElement('div');
+    box.className = 'modal-box';
+    box.style.cssText = 'max-width:440px;width:90%;padding:28px;display:flex;flex-direction:column;gap:18px';
+    box.innerHTML =
+      '<p style="margin:0;font-size:.95rem;line-height:1.6;color:var(--ink)">Você já começou a preencher esta etapa. Deseja descartá-la e pular?</p>' +
+      '<div style="display:flex;justify-content:flex-end;gap:8px;flex-wrap:wrap">' +
+        '<button type="button" class="btn aposta-modal-nao-btn">CANCELAR</button>' +
+        '<button type="button" class="btn btn--primary aposta-modal-sim-btn">PULAR E DESCARTAR</button>' +
       '</div>';
     overlay.appendChild(box);
     document.body.appendChild(overlay);
@@ -2909,16 +2978,22 @@
       ETAPAS.map(function (e, i) {
         var feita = etapaPreenchida(e.id, _dados);
         var aberta = i <= alcancado;
+        /* Refinamento — etapas opcionais: pulada não é erro nem
+           pendência — um selo discreto, do mesmo jeito que "is-feita"
+           já marca o que foi respondido, nunca um destaque de alerta. */
+        var pulada = aberta && etapaEstaPulada(e.id, _dados);
         var cls = 'aposta-trilha-item' +
           (i === atual && !_vendoMapa ? ' is-atual' : '') +
           (feita ? ' is-feita' : '') +
+          (pulada ? ' is-pulada' : '') +
           (aberta ? '' : ' is-oculta is-bloqueada');
         return '<button class="' + cls + '" data-etapa="' + e.id + '"' +
           (aberta ? '' : ' disabled aria-disabled="true"') +
           ' title="' + (aberta ? esc(e.curto) : 'Esta etapa aparece quando chegar a vez dela') + '"' +
-          ' aria-label="Etapa ' + (i + 1) + (aberta ? ': ' + esc(e.curto) : ', ainda não revelada') + '">' +
+          ' aria-label="Etapa ' + (i + 1) + (aberta ? ': ' + esc(e.curto) + (pulada ? ', pulada' : '') : ', ainda não revelada') + '">' +
           '<span class="aposta-trilha-num">' + (i + 1) + '</span>' +
           '<span class="aposta-trilha-nome">' + (aberta ? esc(e.curto) : '· · ·') + '</span>' +
+          (pulada ? '<span class="aposta-trilha-badge">Pulada</span>' : '') +
         '</button>';
       }).join('') +
     '</nav>';
@@ -3368,7 +3443,35 @@
     if (etapa.legado && !usados[etapa.legado]) {
       html += legadoHtml(etapa.legado, d, !temLacunaPreenchida(etapa, d));
     }
+    /* Refinamento — etapas opcionais: convite discreto, nunca mais
+       chamativo que o fluxo principal (CONTINUAR continua sendo a ação
+       óbvia) — o clique é ligado em ligarEtapa (ver confirmarPularEtapa).
+       Só aparece enquanto a etapa NÃO está pulada; pulada, é
+       puladaHtml() que ocupa o lugar do formulário inteiro (ver
+       renderEtapa). */
+    if (etapa.permitePular) {
+      html += '<div class="aposta-pular-bloco">' +
+        (etapa.textoOpcional ? '<p class="aposta-pular-texto">' + esc(etapa.textoOpcional) + '</p>' : '') +
+        '<button type="button" class="aposta-pular-btn" id="apostaPularEtapa">Pular esta etapa</button>' +
+      '</div>';
+    }
     return html;
+  }
+
+  /* Estado PULADA (refinamento — etapas opcionais): substitui o
+     formulário inteiro (nunca "Ainda falta"/frase com lacunas) — a
+     etapa já está resolvida, só que sem conteúdo. "Preencher agora"
+     tira o estado pulada e mostra o formulário de novo; "Manter como
+     pulada" só confirma, sem navegar (CONTINUAR, sempre visível na
+     navegação abaixo, já é o jeito normal de seguir em frente). */
+  function puladaHtml(etapa) {
+    return '<div class="aposta-pulada">' +
+      '<p class="aposta-pulada-texto">Esta etapa foi pulada' + (etapa.id === 'ideia' ? ' neste ciclo' : '') + '.</p>' +
+      '<div class="aposta-pulada-acoes">' +
+        '<button type="button" class="btn btn--sm" id="apostaPreencherAgora">Preencher agora</button>' +
+        '<button type="button" class="btn btn--sm btn--ghost" id="apostaManterPulada">Manter como pulada</button>' +
+      '</div>' +
+    '</div>';
   }
 
   function renderEtapa() {
@@ -3382,10 +3485,16 @@
     var herdada = etapa.id === 'missao' && !etapaPreenchida('missao', _dados) && temMissaoDaExecucao();
     if (herdada) d = missaoDaExecucao();
 
-    var corpo = (herdada
-      ? '<p class="aposta-herdada">Missão cadastrada pela facilitação. Vocês podem ajustar — ' +
-        'o que ficar aqui é a missão do grupo.</p>'
-      : '') + (etapa.lista ? mudancasHtml(d) : (etapa.id === 'evidencia' ? evidenciaHtml(d) : moldeHtml(etapa, d)));
+    /* Refinamento — etapas opcionais: pulada substitui o formulário
+       inteiro pelo estado "Esta etapa foi pulada" — nunca a frase com
+       lacunas, nunca "Ainda falta". */
+    var pulada = etapa.permitePular && d.pulada;
+    var corpo = pulada
+      ? puladaHtml(etapa)
+      : (herdada
+        ? '<p class="aposta-herdada">Missão cadastrada pela facilitação. Vocês podem ajustar — ' +
+          'o que ficar aqui é a missão do grupo.</p>'
+        : '') + (etapa.lista ? mudancasHtml(d) : (etapa.id === 'evidencia' ? evidenciaHtml(d) : moldeHtml(etapa, d)));
 
     /* Evidência muda de pergunta e de rótulo do botão principal conforme
        o modo (planejamento x registro de resultados) — o banner com a
@@ -3425,7 +3534,7 @@
                clicar nele leva o cursor para o campo. É a resposta a
                "não sei mais o que falta preencher" — a etapa não depende
                de a pessoa reler os campos um por um para descobrir. */
-            (etapa.lista || etapa.id === 'evidencia' ? '' :
+            (etapa.lista || etapa.id === 'evidencia' || pulada ? '' :
               '<div class="aposta-frase" id="apostaFrase"></div>') +
             (etapa.rodape ? '<p class="aposta-rodape">' + esc(etapa.rodape) + '</p>' : '') +
             (etapa.exemplo
@@ -3674,6 +3783,10 @@
      campos obrigatórios (verbo/o quê/contexto), só do prazo opcional
      quando alguém começa a preenchê-lo e não termina. */
   function seguirDesabilitado(etapa, d) {
+    /* Refinamento — etapas opcionais: pulada é um estado completo, não
+       incompleto — nunca bloqueia, nem em Ideia (que normalmente
+       bloqueia de verdade por estar em ETAPAS_FRASE_ESTRITA). */
+    if (etapa.permitePular && d.pulada) return false;
     if (etapa.id === 'mudancas') {
       return indiceMudancaIncoerente(d) !== -1;
     }
@@ -4790,6 +4903,55 @@
       });
     });
 
+    /* Refinamento — etapas opcionais: "Pular esta etapa" grava
+       `{ pulada: true }` — substitui o objeto inteiro (mesmo mecanismo
+       de salvarEtapa que já troca "decisao"/"missao" por completo),
+       então nunca sobra um campo fantasma de uma tentativa anterior.
+       Com algo já digitado, confirma antes de descartar (nunca some
+       sozinho); vazio, pula direto. Depois de salvar, avança exatamente
+       como um CONTINUAR bem-sucedido — a etapa já está resolvida. */
+    var pularBtn = document.getElementById('apostaPularEtapa');
+    if (pularBtn) pularBtn.addEventListener('click', function () {
+      var d = coletar();
+      var temConteudo = temLacunaPreenchida(etapa, d) || !!(etapa.legado && normalizar(d[etapa.legado]));
+      function executarPular() {
+        pularBtn.disabled = true;
+        salvarEtapa(etapa.id, { pulada: true }, false, function (err) {
+          if (err) {
+            pularBtn.disabled = false;
+            avisar('Não consegui pular "' + etapa.curto + '" — verifique a conexão e tente de novo. ' +
+              'Nada foi perdido: o que está na tela continua aqui.', true);
+            return;
+          }
+          avancar(etapa);
+        });
+      }
+      if (temConteudo) confirmarPularEtapa(executarPular);
+      else executarPular();
+    });
+
+    /* Retomando uma etapa pulada (ver puladaHtml): "Preencher agora"
+       tira o estado e mostra o formulário de novo, sem pedir
+       confirmação (nada a perder — pulada nunca tem conteúdo).
+       "Manter como pulada" só confirma a escolha; CONTINUAR, sempre
+       visível na navegação, já é o jeito normal de seguir em frente. */
+    var preencherAgoraBtn = document.getElementById('apostaPreencherAgora');
+    if (preencherAgoraBtn) preencherAgoraBtn.addEventListener('click', function () {
+      preencherAgoraBtn.disabled = true;
+      salvarEtapa(etapa.id, { pulada: false }, false, function (err) {
+        if (err) {
+          preencherAgoraBtn.disabled = false;
+          avisar('Não consegui atualizar "' + etapa.curto + '" — verifique a conexão e tente de novo.', true);
+          return;
+        }
+        render();
+      });
+    });
+    var manterPuladaBtn = document.getElementById('apostaManterPulada');
+    if (manterPuladaBtn) manterPuladaBtn.addEventListener('click', function () {
+      avisar('Etapa continua pulada.');
+    });
+
     document.getElementById('apostaSeguir').addEventListener('click', function () {
       var seguirBtn = this;
       var d = coletar();
@@ -4832,8 +4994,10 @@
          obrigatórios (e, no Experimento, sem nenhum resultado
          escolhido), CONTINUAR fica bloqueado de verdade, sem escape por
          segundo clique — a prévia já mostra a mesma orientação do que
-         falta, em vez da frase. */
-      if (ETAPAS_FRASE_ESTRITA[etapa.id]) {
+         falta, em vez da frase. Ideia pulada nunca entra aqui: pular é
+         uma resposta completa, não uma frase incompleta (ver
+         seguirDesabilitado, mesma condição). */
+      if (ETAPAS_FRASE_ESTRITA[etapa.id] && !(etapa.permitePular && d.pulada)) {
         var faltamContinuar = partesFaltantesEtapa(etapa, d);
         var temLegadoValido = etapa.legado && String(d[etapa.legado] || '').trim() && !temLacunaPreenchida(etapa, d);
         if (faltamContinuar.length && !temLegadoValido) {
@@ -5254,7 +5418,13 @@
 
   function cardsDoCicloHtml(ciclo) {
     var inicioIdx = ciclo.pontoDeReinicio ? indiceEtapa(ciclo.pontoDeReinicio) : indiceEtapa('problema');
-    return ETAPAS.slice(inicioIdx).map(function (e, i) {
+    /* Refinamento — etapas opcionais: Ideia pulada (dado do próprio
+       ciclo — ver ETAPAS['ideia']) some do Mapa deste ciclo, com as
+       setas se reencaixando sozinhas (o índice do .map roda sobre o
+       array já filtrado). */
+    return ETAPAS.slice(inicioIdx).filter(function (e) {
+      return !etapaEstaPulada(e.id, ciclo.dados);
+    }).map(function (e, i) {
       var texto = resumoEtapa(e.id, ciclo.dados);
       var tag = ciclo.ehAtual ? 'button' : 'div';
       return (i ? '<div class="aposta-mapa-seta">↓</div>' : '') +
@@ -5362,7 +5532,13 @@
             '<button class="btn btn--sm" id="apostaAnalisarIaBtn">🤖 Analisar com IA</button>' +
           '</div>' +
           '<div class="aposta-mapa">' +
-            ['missao', 'sintoma'].map(function (id, i) {
+            /* Refinamento — etapas opcionais: Sintoma pulado simplesmente
+               não vira card — nunca "não informado"/"pulado"/"—" (item 8
+               do pedido). Missão nunca é opcional, então o filtro nunca
+               afeta ela. */
+            ['missao', 'sintoma'].filter(function (id) {
+              return !etapaEstaPulada(id, _dados);
+            }).map(function (id, i) {
               var texto = resumoEtapa(id, _dados);
               var e = etapaPorId(id);
               return (i ? '<div class="aposta-mapa-seta">↓</div>' : '') +
@@ -5490,6 +5666,12 @@
     l.push('Exportado em: ' + dataDeHoje());
     l.push('');
     ETAPAS.forEach(function (e, i) {
+      /* Refinamento — etapas opcionais (item 20 do pedido): Sintoma/
+         Ideia pulados saem da exportação em texto — nunca "(ainda não
+         preenchido)" nem qualquer outro valor artificial (mesma lógica
+         do Mapa e da IA). A numeração continua a mesma de sempre (a
+         posição da etapa em ETAPAS), sem renumerar. */
+      if (etapaEstaPulada(e.id, _dados)) return;
       l.push('## ' + (i + 1) + '. ' + e.curto);
       l.push('_' + e.pergunta + '_');
       if (e.lista) {
@@ -5583,7 +5765,12 @@
       '',
       'Sua análise deve se limitar às informações fornecidas e à lente específica atribuída a você.',
       '',
-      'Não substitua, reescreva ou altere a Missão, o Sintoma, o Problema, as Mudanças Mensuráveis, a Hipótese, a Ideia de Solução, o Experimento ou as Evidências Planejadas.',
+      /* Refinamento — etapas opcionais (item 15 do pedido): texto
+         genérico, nunca a lista fixa de nomes — Sintoma e Ideia podem
+         estar ausentes por decisão explícita do grupo (ver
+         apostaBaseIA), e "não substitua o Sintoma" soaria estranho
+         quando ele nem aparece no prompt. */
+      'Não substitua, reescreva ou altere os elementos da aposta fornecidos abaixo.',
       '',
       'Não invente fatos, números, resultados ou informações que não estejam presentes.',
       '',
@@ -5610,23 +5797,28 @@
      a mesma função que já monta essas frases para o Mapa e o CSV:
      texto preservado exatamente como a dupla escreveu, nunca
      resumido/reescrito/completado. */
+  /* Refinamento — etapas opcionais (item 11 do pedido): Sintoma/Ideia
+     puladas simplesmente NÃO EXISTEM no prompt — nenhum cabeçalho
+     vazio, nenhum "não informado"/"pulado"/"não se aplica". Monta a
+     lista de seções presentes primeiro, para nunca sobrar um separador
+     "--------------------" dobrado ou solto quando uma seção falta. */
   function apostaBaseIA() {
-    return [
-      '[APOSTA-BASE DO CONSELHO JEDI — CONSTRUÍDA SEM IA]',
-      '',
-      'MISSÃO', '', (resumoEtapa('missao', _dados) || '—'),
-      '', '--------------------', '',
-      'SINTOMA', '', (resumoEtapa('sintoma', _dados) || '—'),
-      '', '--------------------', '',
-      'PROBLEMA', '', (resumoEtapa('problema', _dados) || '—'),
-      '', '--------------------', '',
-      'MUDANÇAS MENSURÁVEIS', '', mudancasMensuraveisTexto(),
-      '', '--------------------', '',
-      'HIPÓTESE', '', (resumoEtapa('hipotese', _dados) || '—'),
-      '', '--------------------', '',
-      'IDEIA DE SOLUÇÃO', '', (resumoEtapa('ideia', _dados) || '—'),
-      '', '--------------------', '',
-      'EXPERIMENTO PLANEJADO', '', (resumoEtapa('experimento', _dados) || '—'),
+    var secoes = [
+      ['MISSÃO', resumoEtapa('missao', _dados) || '—']
+    ];
+    if (!etapaEstaPulada('sintoma', _dados)) secoes.push(['SINTOMA', resumoEtapa('sintoma', _dados) || '—']);
+    secoes.push(['PROBLEMA', resumoEtapa('problema', _dados) || '—']);
+    secoes.push(['MUDANÇAS MENSURÁVEIS', mudancasMensuraveisTexto()]);
+    secoes.push(['HIPÓTESE', resumoEtapa('hipotese', _dados) || '—']);
+    if (!etapaEstaPulada('ideia', _dados)) secoes.push(['IDEIA DE SOLUÇÃO', resumoEtapa('ideia', _dados) || '—']);
+    secoes.push(['EXPERIMENTO PLANEJADO', resumoEtapa('experimento', _dados) || '—']);
+
+    var partes = ['[APOSTA-BASE DO CONSELHO JEDI — CONSTRUÍDA SEM IA]', ''];
+    secoes.forEach(function (s, i) {
+      if (i) partes.push('', '--------------------', '');
+      partes.push(s[0], '', s[1]);
+    });
+    partes.push(
       '', '--------------------', '',
       '[EVIDÊNCIAS PLANEJADAS — AINDA NÃO OBSERVADAS]',
       '',
@@ -5641,7 +5833,8 @@
       'O experimento ainda não foi executado.',
       '',
       'Não trate as evidências planejadas como resultados, fatos observados, comprovação ou validação da hipótese.'
-    ].join('\n');
+    );
+    return partes.join('\n');
   }
 
   function lenteDefendeTexto() {
@@ -5668,16 +5861,12 @@
       '',
       '2. CONEXÃO LÓGICA DA APOSTA',
       '',
-      'Analise se existe uma linha coerente entre:',
-      '',
-      'Missão',
-      '→ Sintoma',
-      '→ Problema',
-      '→ Mudanças Mensuráveis',
-      '→ Hipótese',
-      '→ Ideia',
-      '→ Experimento',
-      '→ Evidências Planejadas.',
+      /* Refinamento — etapas opcionais (item 16 do pedido): a cadeia
+         fixa nomeava Sintoma e Ideia mesmo quando o grupo pulou uma
+         das duas por decisão explícita — orientação genérica, sobre o
+         que de fato está no prompt (ver apostaBaseIA), nunca uma lista
+         presumindo etapas que podem não existir aqui. */
+      'Analise a coerência entre os elementos efetivamente presentes na aposta apresentada — desde a Missão até as Evidências Planejadas, na ordem em que aparecem.',
       '',
       'Mostre onde essa cadeia parece especialmente consistente.',
       '',
@@ -5951,14 +6140,21 @@
      responsável, prazo ou ciclo finalizado (item 18: esta exportação
      é anterior ao resultado do experimento). Nunca inventa conteúdo
      para completar o que falta — só lista, objetivamente. */
+  /* Refinamento — etapas opcionais (item 19 do pedido): núcleo
+     obrigatório de conteúdo (Missão/Problema/Mudança/Hipótese/
+     Experimento/Evidência) continua exigindo TEXTO de verdade — só
+     Sintoma e Ideia aceitam uma DECISÃO (preencher OU pular) em vez de
+     conteúdo; etapaPreenchida já trata "pulada" como resolvida, então
+     a mesma checagem de sempre já produz o comportamento novo — só a
+     mensagem muda, para deixar claro que pular também resolve. */
   function faltamParaAnaliseIA() {
     var falta = [];
     if (!etapaPreenchida('missao', _dados)) falta.push('Missão');
-    if (!etapaPreenchida('sintoma', _dados)) falta.push('Sintoma');
+    if (!etapaPreenchida('sintoma', _dados)) falta.push('Sintoma: preencher ou pular');
     if (!etapaPreenchida('problema', _dados)) falta.push('Problema');
     if (!etapaPreenchida('mudancas', _dados)) falta.push('Mudanças mensuráveis');
     if (!etapaPreenchida('hipotese', _dados)) falta.push('Hipótese');
-    if (!etapaPreenchida('ideia', _dados)) falta.push('Ideia de solução');
+    if (!etapaPreenchida('ideia', _dados)) falta.push('Ideia de solução: preencher ou pular');
     if (!etapaPreenchida('experimento', _dados)) falta.push('Experimento planejado');
     if (!((_dados.experimento || {}).resultadoIds || []).length) falta.push('Evidência planejada');
     return falta;
@@ -6624,7 +6820,9 @@
        que já mostrava antes desta fase. */
     function cardsDoCicloSomenteLeituraHtml(ciclo) {
       var inicioIdx = ciclo.pontoDeReinicio ? indiceEtapa(ciclo.pontoDeReinicio) : indiceEtapa('problema');
-      return ETAPAS.slice(inicioIdx).map(function (e, i) {
+      return ETAPAS.slice(inicioIdx).filter(function (e) {
+        return !etapaEstaPulada(e.id, ciclo.dados);
+      }).map(function (e, i) {
         var texto = resumoEtapa(e.id, ciclo.dados);
         return (i ? '<div class="aposta-mapa-seta">↓</div>' : '') +
           '<div class="aposta-mapa-card is-somente-leitura' + (texto ? '' : ' is-vazio') + '">' +
@@ -6648,7 +6846,9 @@
         '<h3 style="font-family:var(--font-head);letter-spacing:.05em;color:var(--ink);margin:0">Mapa histórico — SOMENTE LEITURA</h3>' +
         '<p style="font-size:.82rem;color:var(--ink-3);margin:0">' + esc(_turma.label) + (grupo.nome ? ' · ' + esc(grupo.nome) : '') + '</p>' +
         '<div class="aposta-mapa">' +
-          ['missao', 'sintoma'].map(function (id, i) {
+          ['missao', 'sintoma'].filter(function (id) {
+            return !etapaEstaPulada(id, dadosContexto);
+          }).map(function (id, i) {
             var texto = resumoEtapa(id, dadosContexto);
             var e = etapaPorId(id);
             return (i ? '<div class="aposta-mapa-seta">↓</div>' : '') +
