@@ -106,13 +106,81 @@
     var s = sessao();
     return !!(s && window.faAuth.isAdmin && window.faAuth.isAdmin(s.email));
   }
-  /* Quem conduz: admin ou facilitadora cadastrada. Mesma régua da rota
-     #facilitador — não inventa um terceiro critério para a mesma pergunta. */
+  /* Quem consegue EXERCER o papel de facilitador em algum lugar (a
+     habilitação global, fa-facilitadores). Mesma régua da rota
+     #facilitador — não inventa um terceiro critério para a mesma
+     pergunta. Isto NÃO é autorização para operar uma turma específica
+     — ver souFacilitadoraDaTurma logo abaixo, e a nota da Fase 5 no
+     topo do arquivo: a flag global diz que a pessoa PODE exercer o
+     papel; turmas-equipe diz ONDE ela está de fato autorizada a
+     exercê-lo. Continua usado para decisões que não são de uma turma
+     específica (ex.: mostrar o link/página #facilitador). */
   function souFacilitadora() {
     var s = sessao();
     if (!s) return false;
     if (souAdmin()) return true;
     return !!(window.faAuth.isFacilitador && window.faAuth.isFacilitador(s.email));
+  }
+
+  /* ══════════════════════════════════════════════════════════════
+     AUTH_FACILITADOR_TURMA — FASE 5: FACILITADOR POR TURMA
+     (não mais só a flag global)
+
+     Antes da Fase 5, qualquer pessoa com a flag global fa-facilitadores
+     conduzia a Aposta de QUALQUER turma — mesmo sem nunca ter sido
+     colocada na equipe daquela turma. As nossas próprias Security
+     Rules agora recusam essa escrita no servidor (database.rules.json
+     não tem comentário — é JSON —, mas toda condição de escrita em
+     apostas/$turmaKey exige `root.child('turmas-equipe')...`; ver
+     também .github/scripts/teste-rules.js), então o cliente precisa
+     concordar ANTES de deixar alguém clicar: nunca mostrar uma ação
+     que o Firebase vai recusar de qualquer forma.
+
+     Reaproveita window.faRoteiro.carregarEquipeGlobal — a mesma função
+     que facilitador.js/admin.js já usam para ler turmas-equipe inteiro
+     de uma vez (o nó é pequeno, uma linha por pessoa por turma) — em
+     vez de inventar um terceiro jeito de ler a mesma informação.
+     Carrega uma única vez por sessão da dinâmica e fica em cache: nada
+     aqui precisa ficar "ao vivo" (entrar/sair da equipe no meio de uma
+     oficina em andamento é um evento raro e administrativo, não algo
+     que a tela precise refletir no mesmo segundo). */
+  var _equipeGlobalCache = null;
+  var _equipeGlobalPendentes = null;
+  function comEquipeGlobal(cb) {
+    if (_equipeGlobalCache) { cb(_equipeGlobalCache); return; }
+    if (_equipeGlobalPendentes) { _equipeGlobalPendentes.push(cb); return; }
+    _equipeGlobalPendentes = [cb];
+    function pronto(equipe) {
+      _equipeGlobalCache = equipe || {};
+      var fila = _equipeGlobalPendentes;
+      _equipeGlobalPendentes = null;
+      fila.forEach(function (f) { f(_equipeGlobalCache); });
+    }
+    if (window.faRoteiro && window.faRoteiro.carregarEquipeGlobal) {
+      window.faRoteiro.carregarEquipeGlobal(function (err, equipe) { pronto(equipe); });
+    } else {
+      db().ref('turmas-equipe').once('value', function (snap) { pronto(snap.val()); }, function () { pronto({}); });
+    }
+  }
+  /* Qualquer entrada em turmas-equipe/<turma>/<minhaChave> autoriza —
+     'facilitador' e 'responsavel' são os dois únicos papéis gravados
+     (ver roteiro.js), e os dois representam vínculo real de
+     facilitação daquela turma (a diferença é só "responsável pela
+     turma" vs. "apoio", nunca nível de acesso). */
+  function facilitadoraTemVinculo(turmaKey, equipeGlobal) {
+    var s = sessao();
+    if (!s) return false;
+    return !!((equipeGlobal || {})[turmaKey] || {})[emailKey(s.email)];
+  }
+  /* A checagem completa para uma turma específica: admin sempre pode
+     (regra administrativa já existente, sem mudança); do contrário,
+     precisa das DUAS condições — habilitação global E vínculo real
+     naquela turma. cb(bool) porque o vínculo depende de uma leitura
+     (cacheada) do Firebase. */
+  function souFacilitadoraDaTurma(turmaKey, cb) {
+    if (souAdmin()) { cb(true); return; }
+    if (!souFacilitadora()) { cb(false); return; }
+    comEquipeGlobal(function (equipe) { cb(facilitadoraTemVinculo(turmaKey, equipe)); });
   }
 
   /* ══════════════════════════════════════════════════════════════
@@ -1396,6 +1464,15 @@
      ESTADO
      ══════════════════════════════════════════════════════════════ */
   var _turma   = null;   /* { key, label, eventoKey } */
+  /* Fase 5: se esta pessoa conduz A TURMA ATUAL (_turma) — nunca a
+     habilitação global sozinha. Resolvido uma vez em abrirDinamica()
+     (ver souFacilitadoraDaTurma) e cacheado aqui porque cabecalho(),
+     renderSemExecucao(), renderEscolhaGrupo() e renderMapa() precisam
+     dele SÍNCRONO, dentro de render(), que roda a cada eco do listener
+     — não dá para reconsultar turmas-equipe a cada redesenho. Começa
+     false (nunca mostra a ação antes de confirmar o vínculo) e
+     re-renderiza sozinho quando a resposta chega. */
+  var _souConduzoDestaTurma = false;
   var _execId  = null;
   var _exec    = {};     /* missao, revelado, encerrada… */
   var _grupoId = null;
@@ -1443,20 +1520,30 @@
          liberando, o ensaio da facilitadora estrearia na frente da turma
          — e voltar atrás depois já teria sido visto.
 
-         Por isso admin e facilitadora enxergam TODAS as turmas, liberadas
-         ou não; a turma ainda não liberada vem marcada, e o convite diz
-         que só a facilitação a está vendo. É a mesma regra que a Avaliação
-         já segue (admin vê a aba independente do flag, para revisar antes
+         Por isso admin enxerga TODAS as turmas, liberadas ou não; a
+         turma ainda não liberada vem marcada, e o convite diz que só a
+         facilitação a está vendo. É a mesma regra que a Avaliação já
+         segue (admin vê a aba independente do flag, para revisar antes
          e depois de liberar) — a alternativa seria um terceiro critério
          para a mesma pergunta. Liberadas primeiro, que é o caso do dia
-         da oficina. */
-      if (souAdmin() || souFacilitadora()) {
-        var todas = Object.keys(turmas).sort(function (a, b) {
+         da oficina.
+
+         Facilitadora (não-admin) só vê as turmas às quais tem vínculo
+         real em turmas-equipe (Fase 5) — a flag global sozinha não dá
+         mais acesso a QUALQUER turma; ver AUTH_FACILITADOR_TURMA. */
+      function ordenarPorHabilitadaELabel(keys) {
+        return keys.sort(function (a, b) {
           var ha = !!turmas[a].apostaHabilitada, hb = !!turmas[b].apostaHabilitada;
           if (ha !== hb) return ha ? -1 : 1;
           return String(turmas[a].label || a).localeCompare(String(turmas[b].label || b), 'pt-BR');
         });
-        montar(todas);
+      }
+      if (souAdmin()) { montar(ordenarPorHabilitadaELabel(Object.keys(turmas))); return; }
+      if (souFacilitadora()) {
+        comEquipeGlobal(function (equipe) {
+          var minhas = Object.keys(turmas).filter(function (tk) { return facilitadoraTemVinculo(tk, equipe); });
+          montar(ordenarPorHabilitadaELabel(minhas));
+        });
         return;
       }
 
@@ -1541,12 +1628,22 @@
 
   function abrirDinamica(turma) {
     _turma = turma;
+    _souConduzoDestaTurma = false;
     _tela = document.createElement('div');
     _tela.className = 'aposta-tela';
     document.body.appendChild(_tela);
     document.body.style.overflow = 'hidden';
     _tela.innerHTML = '<div class="aposta-carregando"><p class="loading-msg">Carregando a dinâmica…</p></div>';
     carregarExecucao();
+    /* Corre em paralelo com carregarExecucao() — se a resposta chegar
+       depois da primeira tela desenhada, redesenha para mostrar as
+       ações de facilitação assim que confirmadas (nunca antes). */
+    souFacilitadoraDaTurma(turma.key, function (pode) {
+      if (_turma !== turma) return; /* a tela já fechou/trocou de turma */
+      var mudou = _souConduzoDestaTurma !== pode;
+      _souConduzoDestaTurma = pode;
+      if (mudou && _tela) render();
+    });
     document.addEventListener('keydown', escFecha);
   }
 
@@ -1742,7 +1839,7 @@
   }
 
   function cabecalho(extra) {
-    var conduz = souFacilitadora();
+    var conduz = _souConduzoDestaTurma;
     return '<header class="aposta-topo">' +
       '<div class="aposta-topo-id">' +
         '<strong>Construção da Aposta</strong>' +
@@ -1765,7 +1862,7 @@
 
   /* ── Sem execução aberta ── */
   function renderSemExecucao() {
-    var conduz = souFacilitadora();
+    var conduz = _souConduzoDestaTurma;
     _tela.innerHTML = cabecalho() +
       '<div class="aposta-centro">' +
         '<div class="aposta-aviso">' +
@@ -2326,7 +2423,7 @@
                   '<span>' + qtd + ' pessoa' + (qtd !== 1 ? 's' : '') + '</span>' +
                 '</button>';
               }).join('') + '</div>'
-            : '<p>' + (souFacilitadora()
+            : '<p>' + (_souConduzoDestaTurma
                 ? 'Nenhum grupo criado ainda. Abra o painel do facilitador para criar.'
                 : 'A facilitadora ainda não criou os grupos.') + '</p>') +
         '</div>' +
@@ -4743,7 +4840,7 @@
   }
 
   function renderMapa() {
-    var conduz = souFacilitadora();
+    var conduz = _souConduzoDestaTurma;
     var ciclos = todosOsCiclosOrdenados();
     var multiCiclo = ciclos.length > 1;
     _tela.innerHTML = cabecalho(

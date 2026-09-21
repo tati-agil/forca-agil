@@ -1,0 +1,42 @@
+name: Testes das Firebase Security Rules (Fase 5)
+
+on:
+  pull_request:
+    branches:
+      - main
+      - v2
+      - v3-quiz
+  push:
+    branches:
+      - claude/campo-direita-navegacao-rl6h3k
+
+jobs:
+  testes-rules:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Instalar firebase-tools + @firebase/rules-unit-testing
+        run: |
+          mkdir -p /tmp/rules-deps
+          cd /tmp/rules-deps
+          npm init -y
+          npm install firebase-tools@13 @firebase/rules-unit-testing
+
+      # O emulador do Realtime Database roda as REGRAS DE VERDADE
+      # (database.rules.json) contra chamadas reais do SDK cliente —
+      # nunca uma reimplementação em JS das rules. `emulators:exec`
+      # sobe o emulador, espera ficar pronto, roda o script e derruba
+      # tudo, propagando o código de saída do script.
+      - name: Rodar testes de rules contra o emulador real
+        env:
+          NODE_PATH: /tmp/rules-deps/node_modules
+        run: |
+          /tmp/rules-deps/node_modules/.bin/firebase emulators:exec \
+            --only database \
+            --project demo-kyber-agil-rules-test \
+            "node .github/scripts/teste-rules.js"
