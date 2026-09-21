@@ -383,7 +383,18 @@
            "Rever o problema" — cada uma abre um Ciclo novo com ponto de
            reinício fixo (ver PONTOS_DE_REINICIO_FIXOS). As cinco
            anteriores continuam com o mesmo sentido de sempre. */
-        opcoes: ['Ampliar', 'Ajustar e testar novamente', 'Interromper esta ideia', 'Investigar mais', 'Reformular a hipótese', 'Rever a mudança mensurável', 'Rever o problema'],
+        /* "Concluir a aposta" (refinamento pós-teste manual) preenche um
+           caso legítimo que faltava: aprendemos o suficiente e não
+           precisamos de outra rodada agora — sem ser "Ampliar" (não há
+           decisão de aumentar escala) nem "Interromper esta ideia" (não
+           é abandono, é conclusão de um aprendizado válido). Mesmo
+           tratamento estrutural de Ampliar/Interromper: só finaliza o
+           ciclo atual, nunca abre um Ciclo N+1 (ver decisaoGeraNovoCiclo
+           mais abaixo). Nunca confundir com "Encerrar por agora" (botão
+           da Evidência, uma pausa operacional antes mesmo de haver
+           Decisão — ver blocoPlanoProntoHtml): aquele é "saio e volto
+           depois"; este é "esta rodada está concluída". */
+        opcoes: ['Ampliar', 'Ajustar e testar novamente', 'Interromper esta ideia', 'Investigar mais', 'Reformular a hipótese', 'Rever a mudança mensurável', 'Rever o problema', 'Concluir a aposta'],
         /* Só ajuda/tooltip — a interpretação não decide pela dupla, e o
            bloco de evidência acima já não emite nenhum veredito
            automático de "hipótese certa/errada" (ver cardConexao). */
@@ -394,7 +405,8 @@
           'Investigar mais': 'Ainda faltam informações para decidir. É necessário aprender mais antes de escolher o próximo caminho.',
           'Reformular a hipótese': 'As evidências indicam que a explicação atual para o problema precisa ser revista.',
           'Rever a mudança mensurável': 'O que estava sendo medido, ou a meta definida, não descreve mais o que precisa mudar.',
-          'Rever o problema': 'O que aprendemos aponta que a própria definição do problema precisa ser revista.'
+          'Rever o problema': 'O que aprendemos aponta que a própria definição do problema precisa ser revista.',
+          'Concluir a aposta': 'O aprendizado deste ciclo é suficiente e não precisamos iniciar uma nova rodada neste momento.'
         },
         /* Microexplicação — sempre visível embaixo dos botões assim que
            uma decisão é escolhida (não é o mesmo texto de "dicas" acima,
@@ -409,7 +421,8 @@
           'Investigar mais': 'Ainda não temos evidência suficiente para decidir sobre a aposta.',
           'Reformular a hipótese': 'A evidência sugere que nossa explicação para o problema precisa mudar.',
           'Rever a mudança mensurável': 'O aprendizado indica que a mudança mensurável definida precisa ser revista.',
-          'Rever o problema': 'O aprendizado indica que a própria definição do problema precisa ser revista.'
+          'Rever o problema': 'O aprendizado indica que a própria definição do problema precisa ser revista.',
+          'Concluir a aposta': 'Já aprendemos o suficiente e não precisamos de outra rodada neste momento.'
         }
       },
       campos: [
@@ -451,7 +464,7 @@
         rotulo: 'Nova hipótese',
         resumoQuando: 'Reformular hipótese também',
         dicaObrigatoria: 'A decisão "Reformular a hipótese" pede uma explicação nova para o próximo ciclo.',
-        escondeQuando: ['Ampliar', 'Investigar mais'],
+        escondeQuando: ['Ampliar', 'Investigar mais', 'Concluir a aposta'],
         abreAutoQuando: ['Reformular a hipótese'],
         dependeDaEscolha: 'decisao',
         legado: 'proximaHipotese',
@@ -1005,7 +1018,21 @@
     if (direcao === 'Manter') return inconsistenciaManter(m);
     if (direcao !== 'Aumentar' && direcao !== 'Reduzir') return null;
     var atual = paraNumero((m || {}).atual), meta = paraNumero((m || {}).meta);
-    if (atual == null || meta == null || atual === meta) return null;
+    if (atual == null || meta == null) return null;
+    /* Refinamento pós-teste manual: meta igual à situação atual passava
+       batido ("Aumentar de 56 para 56"), logicamente incoerente — sem
+       isso, Aumentar exigia só meta >= atual, nunca estritamente maior.
+       Nunca troca a direção nem corrige a meta sozinha (mesmo princípio
+       dos dois casos abaixo): só nomeia o problema e convida a rever. */
+    if (atual === meta) {
+      return {
+        mensagem: (direcao === 'Aumentar'
+          ? 'A meta informada é igual à situação atual. Para Aumentar, a meta precisa ser maior que o valor atual.'
+          : 'A meta informada é igual à situação atual. Para Reduzir, a meta precisa ser menor que o valor atual.') +
+          ' Se a intenção é permanecer nesse nível, reveja a direção da mudança.',
+        opcoes: []
+      };
+    }
     if (direcao === 'Aumentar' && meta < atual) {
       return { mensagem: 'A meta informada é menor que a situação atual. Você quis selecionar “Reduzir”?', opcoes: ['Reduzir'] };
     }
@@ -1169,6 +1196,30 @@
       return (tipoLimite === 'No máximo' ? 'no máximo ' : 'pelo menos ') + (m.meta || '—') + concordarSufixo(m.meta, sufixo);
     }
     return (m.meta || '—') + concordarSufixo(m.meta, sufixo);
+  }
+  /* Refinamento pós-teste manual (item 7): antes da execução do
+     experimento, "56 contatos por dia → —" lia como dado faltando ou
+     erro — não é nenhum dos dois, é só um resultado que ainda não
+     existe. Sem seta nenhuma nesse caso (a seta é para uma
+     TRAJETÓRIA, de X observado para Y; antes da execução não há
+     trajetória, só um plano) — "não medido" continua com seta,
+     porque esse sim é um resultado real (o experimento rodou e não
+     deu para medir). Uma função só, usada nos dois lugares que
+     mostravam esse resumo (evidenciaHtml e atualizarResumoEvidencia)
+     para nunca divergir entre a montagem inicial e a atualização ao
+     vivo a cada tecla. */
+  function resumoLinhaResultadoHtml(m, ev) {
+    ev = ev || {};
+    var sufixo = sufixoUnidade(m);
+    var situacaoInicial = esc((m.atual || '—') + concordarSufixo(m.atual, sufixo));
+    var metaTxt = esc(metaOuLimiteTexto(m, sufixo));
+    if (!normalizar(ev.observado) && ev.naoMedido !== 'sim') {
+      return '<p><strong>' + esc(m.indicador) + ':</strong><br>' +
+        'Situação inicial: ' + situacaoInicial + ' · Meta: ' + metaTxt + ' · Resultado: aguardando execução</p>';
+    }
+    var obsTxt = normalizar(ev.observado) ? esc(ev.observado + concordarSufixo(ev.observado, sufixo)) : 'não medido';
+    return '<p><strong>' + esc(m.indicador) + ':</strong><br>' +
+      situacaoInicial + ' → ' + obsTxt + ' · Meta: ' + metaTxt + '</p>';
   }
   /* "Esperávamos reduzir X de 1.000 para 500 contatos por mês em 90
      dias. Após o experimento, observamos 650 contatos por mês." — a
@@ -1386,11 +1437,12 @@
   /* ══════════════════════════════════════════════════════════════
      FASE 4 — PONTO DE REINÍCIO DA DECISÃO
 
-     Das sete decisões possíveis, cinco abrem um Ciclo novo (ver
-     avancar()/concluirOuIniciarNovoCiclo mais abaixo); "Ampliar" e
-     "Interromper esta ideia" só finalizam o ciclo atual. Três das
-     cinco têm o ponto de reinício FIXO (a própria decisão já diz onde
-     recomeçar); as outras duas ("Ajustar e testar novamente" e
+     Das oito decisões possíveis, cinco abrem um Ciclo novo (ver
+     avancar()/concluirOuIniciarNovoCiclo mais abaixo); "Ampliar",
+     "Interromper esta ideia" e "Concluir a aposta" só finalizam o
+     ciclo atual. Três das cinco têm o ponto de reinício FIXO (a
+     própria decisão já diz onde recomeçar); as outras duas ("Ajustar
+     e testar novamente" e
      "Investigar mais") pedem à dupla para ESCOLHER onde — itens 20/21
      do pedido, com as opções e a pergunta exatas de lá. */
   var PONTOS_DE_REINICIO_FIXOS = {
@@ -1421,13 +1473,15 @@
   function decisaoPedePontoDeReinicioEscolhido(decisaoValor) {
     return !!OPCOES_PONTO_REINICIO[decisaoValor];
   }
-  /* "Ampliar" e "Interromper esta ideia" são as únicas que NÃO abrem
-     ciclo novo — todas as outras cinco abrem (item 7/8/12/13 do
-     pedido: só uma nova rodada depois de uma Decisão finalizada cria
-     ciclo; a decisão em si é sempre humana, nunca automática). */
+  /* "Ampliar", "Interromper esta ideia" e "Concluir a aposta" são as
+     únicas que NÃO abrem ciclo novo — todas as outras cinco abrem
+     (item 7/8/12/13 do pedido original de ciclos, mais o refinamento
+     pós-teste manual que acrescentou "Concluir a aposta": só uma nova
+     rodada depois de uma Decisão finalizada cria ciclo; a decisão em
+     si é sempre humana, nunca automática). */
   function decisaoGeraNovoCiclo(decisaoValor) {
     var v = String(decisaoValor || '').trim();
-    return !!v && v !== 'Ampliar' && v !== 'Interromper esta ideia';
+    return !!v && v !== 'Ampliar' && v !== 'Interromper esta ideia' && v !== 'Concluir a aposta';
   }
   function pontoDeReinicioDaDecisao(d) {
     d = d || {};
@@ -2796,7 +2850,8 @@
     'Investigar mais': 'conversar com o grupo para entender melhor o que foi observado',
     'Reformular a hipótese': 'testar a nova hipótese com um novo experimento',
     'Rever a mudança mensurável': 'redefinir o que será medido antes de seguir adiante',
-    'Rever o problema': 'reunir o grupo para redefinir o problema antes de seguir adiante'
+    'Rever o problema': 'reunir o grupo para redefinir o problema antes de seguir adiante',
+    'Concluir a aposta': 'registrar o aprendizado e comunicar o resultado para quem precisa saber'
   };
 
   /* Conversão aproximada só para SUGERIR uma data — meses/bimestres/
@@ -3532,9 +3587,17 @@
           '<p style="margin:0"><strong>PLANO DE EVIDÊNCIA SALVO.</strong> Aguardando execução do experimento.</p>' +
         '</div>';
     }
+    /* Refinamento pós-teste manual (item 8): no teste manual foi preciso
+       perguntar o que "Encerrar por agora" fazia — o comportamento
+       estava certo (pausa operacional: sai e volta depois para
+       registrar), só faltava dizer isso na tela, perto do botão, sem
+       inflar a caixa. Nunca confundir com "Concluir a aposta" (decisão
+       final, na etapa Decisão) nem com cancelar/perder dado nenhum —
+       ver nota em ETAPAS['decisao'].escolha.opcoes acima. */
     return '<div class="aposta-herdada" data-plano-pronto>' +
         '<p style="margin:0 0 8px">✓ Plano de evidência salvo. Pronto para execução.</p>' +
         '<button type="button" class="btn btn--sm" id="apostaSairEvidencia">Encerrar por agora</button>' +
+        '<p style="margin:8px 0 0;font-size:.78rem;color:var(--ink-3)">Seu plano está salvo. Você poderá voltar depois para registrar os resultados do experimento.</p>' +
       '</div>';
   }
 
@@ -3713,11 +3776,7 @@
        "resultados do experimento", só resultados que o grupo pretende
        observar. */
     var resumo = resultados.map(function (m) {
-      var ev = evidenciaDe(m.id);
-      var sufixo = sufixoUnidade(m);
-      var obsTxt = normalizar(ev.observado) ? (ev.observado + concordarSufixo(ev.observado, sufixo)) : (ev.naoMedido === 'sim' ? 'não medido' : '—');
-      return '<p><strong>' + esc(m.indicador) + ':</strong><br>' +
-        esc((m.atual || '—') + concordarSufixo(m.atual, sufixo)) + ' → ' + esc(obsTxt) + ' · Meta: ' + esc(metaOuLimiteTexto(m, sufixo)) + '</p>';
+      return resumoLinhaResultadoHtml(m, evidenciaDe(m.id));
     }).join('');
 
     var pronto = (!registrando && status.estado === 'pronta') ? blocoPlanoProntoHtml(true) : '';
@@ -4272,11 +4331,7 @@
       var itens = Array.prototype.map.call(_tela.querySelectorAll('.aposta-mudanca[data-resultado]'), evidenciaColetada);
       function evidenciaDe(id) { return itens.filter(function (e) { return e.resultadoId === id; })[0] || {}; }
       var resumo = resultados.map(function (m) {
-        var ev = evidenciaDe(m.id);
-        var sufixo = sufixoUnidade(m);
-        var obsTxt = normalizar(ev.observado) ? (ev.observado + concordarSufixo(ev.observado, sufixo)) : (ev.naoMedido === 'sim' ? 'não medido' : '—');
-        return '<p><strong>' + esc(m.indicador) + ':</strong><br>' +
-          esc((m.atual || '—') + concordarSufixo(m.atual, sufixo)) + ' → ' + esc(obsTxt) + ' · Meta: ' + esc(metaOuLimiteTexto(m, sufixo)) + '</p>';
+        return resumoLinhaResultadoHtml(m, evidenciaDe(m.id));
       }).join('');
       var registrandoAgora = !!_tela.querySelector('.aposta-mudanca[data-resultado] [data-e="observado"]');
       wrap.innerHTML = '<p class="aposta-campo-rot">' + (registrandoAgora ? 'Resultados do experimento' : 'Resultados que vamos observar') + '</p>' + resumo;
@@ -4789,10 +4844,10 @@
     var idx = indiceEtapa(etapa.id);
     if (idx === ETAPAS.length - 1) {
       /* Decisão confirmada — Fase 4 decide entre só finalizar o ciclo
-         (Ampliar/Interromper) ou também abrir o próximo (as outras
-         cinco decisões). Nas demais etapas (não existe outro caso hoje
-         em que idx seja o último senão 'decisao'), mantém o
-         comportamento de sempre. */
+         (Ampliar/Interromper/Concluir a aposta) ou também abrir o
+         próximo (as outras cinco decisões). Nas demais etapas (não
+         existe outro caso hoje em que idx seja o último senão
+         'decisao'), mantém o comportamento de sempre. */
       if (etapa.id === 'decisao') { concluirOuIniciarNovoCiclo(); return; }
       _vendoMapa = true; render();
       return;
@@ -4810,7 +4865,8 @@
   /* ══════════════════════════════════════════════════════════════
      FASE 4 — O QUE ACONTECE QUANDO A DECISÃO É CONFIRMADA
 
-     "Ampliar" e "Interromper esta ideia" (itens 12/13 do pedido)
+     "Ampliar", "Interromper esta ideia" (itens 12/13 do pedido
+     original) e "Concluir a aposta" (refinamento pós-teste manual)
      apenas finalizam o ciclo atual — nenhum ciclo novo nasce sozinho.
      As outras cinco decisões abrem um ciclo novo, cada uma com seu
      próprio ponto de reinício (fixo para três delas, escolhido pela
@@ -5044,14 +5100,23 @@
     }).join('');
   }
 
+  /* Refinamento pós-teste manual (item 6): mesmo conteúdo de sempre
+     (número do ciclo, ponto de reinício quando houver, status) — só a
+     apresentação virou hierarquia (CICLO N maior, ponto de reinício
+     numa linha própria, status como selo), em vez de uma linha só
+     discreta. Nenhum dado novo, nenhuma estrutura nova. */
   function cicloTituloHtml(ciclo) {
-    var partes = ['CICLO ' + ciclo.numero];
+    var pontoTxt = '';
     if (ciclo.pontoDeReinicio) {
       var e = etapaPorId(ciclo.pontoDeReinicio);
-      partes.push('Ponto de reinício: ' + (e ? e.curto : ciclo.pontoDeReinicio));
+      pontoTxt = 'Ponto de reinício: ' + (e ? e.curto : ciclo.pontoDeReinicio);
     }
-    partes.push(ciclo.status === 'FINALIZADO' ? 'Concluído' : (ciclo.ehAtual ? 'Em andamento' : ''));
-    return '<div class="aposta-ciclo-titulo">' + esc(partes.filter(Boolean).join(' · ')) + '</div>';
+    var statusTxt = ciclo.status === 'FINALIZADO' ? 'Concluído' : (ciclo.ehAtual ? 'Em andamento' : '');
+    return '<div class="aposta-ciclo-titulo">' +
+      '<span class="aposta-ciclo-numero">' + esc('CICLO ' + ciclo.numero) + '</span>' +
+      (pontoTxt ? '<span class="aposta-ciclo-ponto">' + esc(pontoTxt) + '</span>' : '') +
+      (statusTxt ? '<span class="aposta-ciclo-status ' + (ciclo.status === 'FINALIZADO' ? 'is-concluido' : 'is-andamento') + '">' + esc(statusTxt) + '</span>' : '') +
+    '</div>';
   }
 
   /* Item 9 do pedido: tentar editar uma etapa de um ciclo já concluído
@@ -5325,11 +5390,37 @@
      sinônimos universais. A frase diz o que aconteceu NESTA
      dinâmica, e só.
      ══════════════════════════════════════════════════════════════ */
+  /* Refinamento pós-teste manual (item 4): com múltiplos ciclos, "de
+     qual ciclo vieram os Key Results?" virou uma pergunta real — a
+     Missão é contexto estável (fora dos ciclos, nunca reescrita por
+     eles), mas Mudanças Mensuráveis pertencem ao ciclo ATUAL/mais
+     recente (_dados já é ciclo-aware — resolverCicloAtual()). Só
+     identifica o ciclo explicitamente quando há mais de um; com um só,
+     a pergunta nem chega a existir. Nunca lê nada fora do que já está
+     em _grupo — mesma leitura de todosOsCiclosOrdenados() usada pelo
+     Mapa, sem gravar nada. */
+  function cicloUsadoNaConexaoOKR() {
+    var ciclos = todosOsCiclosOrdenados();
+    var atual = ciclos.filter(function (c) { return c.ehAtual; })[0] || ciclos[ciclos.length - 1] || { numero: 1 };
+    return { numero: atual.numero || 1, multiCiclo: ciclos.length > 1 };
+  }
+
+  /* Refinamento pós-teste manual (item 5): o texto anterior ("Vocês
+     fizeram 2 em 1" / "construíram A lógica de um OKR") dava a entender
+     que Aposta e OKR são a mesma coisa. O texto novo é de CONEXÃO, não
+     de equivalência — nunca diz que a Aposta "é" um OKR, nem que o
+     grupo "criou um OKR completo"; nomeia explicitamente o que o OKR
+     sozinho não cobre (investigar, experimentar, aprender com
+     evidência, decidir). */
   function revelacaoHtml() {
     var mudancas = (_dados.mudancas || {}).itens || [];
+    var ciclo = cicloUsadoNaConexaoOKR();
     return '<section class="aposta-revelacao">' +
-      '<h2>Vocês fizeram 2 em 1</h2>' +
-      '<p class="aposta-revelacao-frase">Sem perceber, vocês também construíram a lógica de um OKR.</p>' +
+      (ciclo.multiCiclo
+        ? '<p class="aposta-rev-kicker">CONEXÃO COM OKR — FORMULAÇÃO ATUAL (CICLO ' + ciclo.numero + ')</p>'
+        : '') +
+      '<h2>Vocês conectaram a Aposta a uma lógica de OKR</h2>' +
+      '<p class="aposta-revelacao-frase">Sem perceber, vocês também estruturaram parte da lógica de um OKR.</p>' +
 
       '<div class="aposta-rev-par">' +
         '<div class="aposta-rev-card is-objective">' +
@@ -5343,7 +5434,7 @@
           '<span class="aposta-rev-de">MUDANÇAS MENSURÁVEIS</span>' +
           '<span class="aposta-rev-seta">→</span>' +
           '<span class="aposta-rev-para">Key Results</span>' +
-          '<p class="aposta-rev-pergunta">"Como saberemos, de forma mensurável, que estamos alcançando isso?"</p>' +
+          '<p class="aposta-rev-pergunta">"Como saberemos, de forma mensurável, que estamos avançando?"</p>' +
           (mudancas.length
             ? '<ul class="aposta-rev-lista">' + mudancas.map(function (m) {
                 return '<li>' + esc(fraseMudanca(m)) + '</li>';
@@ -5357,9 +5448,11 @@
         '<span class="aposta-rev-para">ciclo PHEED</span>' +
       '</div>' +
 
-      '<p class="aposta-rev-fecho">O OKR deixou claro o que queremos mudar e como reconhecer o avanço. ' +
-        'O PHEED ajudou a investigar e testar caminhos capazes de produzir essa mudança.</p>' +
-      '<p class="aposta-rev-ressalva">Nesta dinâmica, aquilo que chamamos de Missão exerceu o papel de Objective.</p>' +
+      '<p class="aposta-rev-fecho">A missão orienta o Objective e as mudanças mensuráveis ajudam a definir os Key Results.</p>' +
+      '<p class="aposta-rev-fecho">A Aposta acrescenta uma camada que o OKR, sozinho, não explica: como vamos investigar, ' +
+        'experimentar, aprender com evidências e decidir qual caminho faz sentido para avançar.</p>' +
+      '<p class="aposta-rev-ressalva">OKR ajuda a deixar claro o que queremos mudar e como reconhecer o avanço. ' +
+        'A Aposta ajuda a aprender qual caminho funciona para chegar lá.</p>' +
     '</section>';
   }
 
@@ -5709,11 +5802,26 @@
 
     /* Número real quando existe; senão, a POSIÇÃO cronológica dela
        entre todas as execuções da turma (mais antiga = 1). Nunca
-       grava nada — é só para exibição, marcado como estimativa. */
+       grava nada — é só para exibição, marcado como estimativa.
+
+       Refinamento pós-teste manual (item 9 — só apresentação, nenhuma
+       migração/backfill/mudança de contador): antes, uma execução
+       legada aparecia como "Execução nº 24 (estimado pela ordem)" e a
+       primeira execução real do formato novo, logo em seguida na
+       mesma lista, como "Execução nº 3" — mesmo rótulo "nº", números
+       diferentes, parecendo uma sequência que regrediu (24 → 3).
+       Não é regressão: são DUAS contagens diferentes (posição
+       estimada entre execuções legadas vs. numeroDeExibicao real,
+       sequencial desde que o contador existe) que só coincidem de
+       aparecer na mesma lista. O rótulo agora deixa isso explícito —
+       "Execução legada" nunca usa "nº", só "posição estimada N". */
     function numeroDeExibicao(idsOrdenados, execucoes, execId) {
       var exec = execucoes[execId] || {};
-      if (typeof exec.numero === 'number') return { numero: exec.numero, estimado: false };
-      return { numero: idsOrdenados.indexOf(execId) + 1, estimado: true };
+      if (typeof exec.numero === 'number') {
+        return { numero: exec.numero, estimado: false, rotulo: 'Execução nº ' + exec.numero };
+      }
+      var posicao = idsOrdenados.indexOf(execId) + 1;
+      return { numero: posicao, estimado: true, rotulo: 'Execução legada — posição estimada ' + posicao };
     }
 
     function idsPorCriadaEm(execucoes) {
@@ -5728,7 +5836,7 @@
       var n = numeroDeExibicao(idsOrdenados, execucoes, execId);
       var qtdGrupos = Object.keys(exec.grupos || {}).length;
       return '<div class="aposta-fac-grupo aposta-hist-item" data-exec="' + esc(execId) + '">' +
-        '<strong>Execução nº ' + n.numero + (n.estimado ? ' (estimado pela ordem)' : '') + '</strong>' +
+        '<strong>' + esc(n.rotulo) + '</strong>' +
         '<span>' + (st === 'ativa' ? 'Ativa' : 'Encerrada') + '</span>' +
         '<span>Início: ' + esc(exec.criadaEm ? formatarDataHora(exec.criadaEm) : 'sem data registrada') + '</span>' +
         (exec.encerradaEm ? '<span>Encerrada em: ' + esc(formatarDataHora(exec.encerradaEm)) + '</span>' : '') +
@@ -5772,7 +5880,7 @@
       var rotuloArquivo = 'exec' + n.numero;
 
       box.innerHTML =
-        '<h3 style="font-family:var(--font-head);letter-spacing:.05em;color:var(--ink);margin:0">Execução nº ' + n.numero + ' — SOMENTE LEITURA</h3>' +
+        '<h3 style="font-family:var(--font-head);letter-spacing:.05em;color:var(--ink);margin:0">' + esc(n.rotulo) + ' — SOMENTE LEITURA</h3>' +
         '<p style="font-size:.82rem;color:var(--ink-3);margin:0">' + esc(_turma.label) + '</p>' +
         '<h4 style="margin:8px 0 0">Grupos</h4>' +
         (gids.length

@@ -1596,12 +1596,32 @@ select.aposta-campo-input { width: auto; min-width: 8.5em; }
 
 /* Fase 4 — Ciclos de Aprendizagem: separador de seção no Mapa, entre
    os cards de um ciclo e o próximo (só aparece quando há mais de um
-   ciclo — ver renderMapa/cicloTituloHtml). */
+   ciclo — ver renderMapa/cicloTituloHtml). Refinamento pós-teste
+   manual (item 6): era uma linha só, discreta demais para notar onde
+   um ciclo termina e o outro começa — CICLO N ganhou hierarquia
+   própria (maior, gold, como os demais títulos de seção da dinâmica),
+   o ponto de reinício vira uma linha abaixo, e o status vira um selo,
+   no mesmo padrão visual dos badges já usados no resto do site (ex.:
+   .badge-aberta/.badge-finalizada). Só isto muda — nenhum dado novo,
+   nenhuma estrutura nova. */
 .aposta-ciclo-titulo {
-  width: 100%; text-align: center; font-family: var(--font-mono); font-size: .68rem;
-  letter-spacing: .1em; text-transform: uppercase; color: var(--ink-3);
-  padding: 10px 0 4px; border-top: 1px dashed var(--line-strong); margin-top: 8px;
+  width: 100%; display: flex; flex-direction: column; align-items: center; gap: 4px;
+  text-align: center; padding: 18px 0 10px; margin-top: 14px;
+  border-top: 2px solid var(--line-strong);
 }
+.aposta-ciclo-numero {
+  font-family: var(--font-head); font-size: 1.05rem; letter-spacing: .08em;
+  color: var(--gold); text-transform: uppercase;
+}
+.aposta-ciclo-ponto {
+  font-family: var(--font-mono); font-size: .72rem; letter-spacing: .04em; color: var(--ink-3);
+}
+.aposta-ciclo-status {
+  font-size: .66rem; font-family: var(--font-mono); font-weight: 700; letter-spacing: .06em;
+  text-transform: uppercase; padding: 2px 10px; border-radius: 20px; margin-top: 2px;
+}
+.aposta-ciclo-status.is-andamento { background: rgba(24,194,186,.15); color: var(--cyan); border: 1px solid rgba(24,194,186,.3); }
+.aposta-ciclo-status.is-concluido { background: rgba(245,197,24,.15); color: var(--gold); border: 1px solid rgba(245,197,24,.3); }
 
 /* Revelação final */
 .aposta-revelacao {
@@ -1610,6 +1630,13 @@ select.aposta-campo-input { width: auto; min-width: 8.5em; }
   background: rgba(245,197,24,.06); animation: aposta-revelar .6s ease both;
 }
 @keyframes aposta-revelar { from { opacity: 0; transform: translateY(14px); } to { opacity: 1; transform: none; } }
+/* Refinamento pós-teste manual (item 4): só aparece com mais de um
+   ciclo — diz explicitamente de qual ciclo vieram os Key Results, para
+   ninguém precisar adivinhar. */
+.aposta-rev-kicker {
+  text-align: center; font-family: var(--font-mono); font-size: .68rem; letter-spacing: .1em;
+  text-transform: uppercase; color: var(--cyan); margin: 0 0 10px;
+}
 .aposta-revelacao h2 { font-family: var(--font-head); font-size: 1.5rem; letter-spacing: .06em; color: var(--gold); margin: 0 0 6px; text-align: center; }
 .aposta-revelacao-frase { text-align: center; color: var(--ink); font-size: 1rem; margin: 0 0 24px; }
 .aposta-rev-par { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 16px; }
@@ -1771,5 +1798,9 @@ select.aposta-campo-input { width: auto; min-width: 8.5em; }
   .aposta-mapa-rot { color: #444 !important; }
   .aposta-mapa-txt { color: #000 !important; }
   .aposta-mapa-seta { color: #666 !important; }
+  .aposta-ciclo-titulo { border-top-color: #999 !important; }
+  .aposta-ciclo-numero { color: #000 !important; }
+  .aposta-ciclo-ponto { color: #444 !important; }
+  .aposta-ciclo-status { color: #000 !important; background: #fff !important; border-color: #999 !important; }
   .aposta-revelacao, .aposta-revelacao * { color: #000 !important; background: #fff !important; }
 }
