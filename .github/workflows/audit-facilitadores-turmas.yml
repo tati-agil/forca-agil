@@ -1,0 +1,23 @@
+name: Auditoria — facilitadores × turmas-equipe (Fase 5)
+
+# Disparo manual, sob demanda — não roda em toda PR nem em todo push.
+# Somente leitura: usa a mesma conta de teste admin já usada pela suíte
+# automática, só para GET no Realtime Database. Nunca escreve nada.
+on:
+  workflow_dispatch: {}
+
+jobs:
+  auditoria:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Ler fa-facilitadores × turmas-equipe (somente leitura)
+        env:
+          FA_TEST_ADMIN_EMAIL: ${{ secrets.FA_TEST_ADMIN_EMAIL }}
+          FA_TEST_ADMIN_PASSWORD: ${{ secrets.FA_TEST_ADMIN_PASSWORD }}
+        run: node .github/scripts/audit-facilitadores-turmas.js
