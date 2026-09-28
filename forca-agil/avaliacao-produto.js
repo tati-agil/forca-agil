@@ -216,21 +216,24 @@
   var TODAS_PERGUNTAS = CRITERIOS.concat(EXCLUSOES);
 
   /* Taxonomia arquitetural completa — o resultado de identificarCamada é
-     sempre um destes 12 valores. "produto" marca só a camada que conta como
-     Produto/Serviço principal; todas as outras são camadas legítimas mas
-     não-produto (ver RESULTADO_POR_CAMADA). */
+     sempre um destes 11 valores, a lista consolidada e aprovada do modelo
+     (nunca introduzir categoria nova sem especificação explícita — "Ferramenta"
+     foi removida daqui por não fazer parte dela: era uma inferência interna
+     de uma reescrita anterior do motor, capacidade+componente juntos, nunca
+     uma categoria vinda de fora; esse caso hoje cai em Componente). "produto"
+     marca só a camada que conta como Produto/Serviço principal; todas as
+     outras são camadas legítimas mas não-produto (ver RESULTADO_POR_CAMADA). */
   var CAMADAS = [
     { id: 'produto-principal', label: 'Produto/Serviço principal' },
     { id: 'unidade-valor-associada', label: 'Unidade de valor associada' },
     { id: 'modalidade-subproduto', label: 'Modalidade/Subproduto' },
     { id: 'funcionalidade-operacao', label: 'Funcionalidade/Operação' },
     { id: 'componente', label: 'Componente' },
-    { id: 'regra-condicao', label: 'Regra/Condição' },
+    { id: 'regra-condicao', label: 'Regra/Opção' },
     { id: 'processo-etapa', label: 'Processo/Etapa de processo' },
     { id: 'capacidade-organizacional', label: 'Capacidade organizacional' },
-    { id: 'ferramenta', label: 'Ferramenta' },
     { id: 'canal', label: 'Canal' },
-    { id: 'documento-informacao', label: 'Documento/Informação' },
+    { id: 'documento-informacao', label: 'Informação/Documento' },
     { id: 'a-validar', label: 'A validar' }
   ];
   function camadaPorId(id) { return CAMADAS.filter(function (c) { return c.id === id; })[0]; }
@@ -327,6 +330,20 @@
 
   function db() { return firebase.database(); }
 
+  /* Camadas que têm um eixo de especialização reconhecido pelo modelo — a
+     especialização NUNCA é uma categoria concorrente, só detalha a
+     classificação principal (ver especializacaoPara). As quatro únicas com
+     esse eixo hoje: Componente (opção/configuração — a única com um sinal
+     real no questionário, "modalidade"), Unidade de valor associada
+     (institutos/benefícios), Funcionalidade/Operação (formas de vinculação)
+     e Regra/Opção (políticas do plano). Sem pergunta nova para distinguir as
+     três últimas (item explicitamente proibido: não alterar o
+     questionário), elas sempre mostram "não determinada pelo questionário"
+     — isso NUNCA vira A validar, é só uma informação a menos, não um
+     conflito. */
+  var CAMADAS_COM_ESPECIALIZACAO = ['componente', 'unidade-valor-associada', 'funcionalidade-operacao', 'regra-condicao'];
+  var ESPECIALIZACAO_NAO_DETERMINADA = 'não determinada pelo questionário';
+
   /* ---- motor de decisão -------------------------------------------------
      identificarCamada NÃO conta quantos SIM existem — decide por PRECEDÊNCIA
      entre critérios estruturais (autonomia, resultado próprio, papel exercido
@@ -340,29 +357,30 @@
        0. Incoerência direta (funcionalidade E autonomia, ao mesmo tempo)
        1. Produto/Serviço principal   (núcleo essencial completo + autonomia)
        2. Funcionalidade/Operação     (é uma ação — sinal direto e decisivo)
-       3. Unidade de valor associada  (resultado próprio, mas sem autonomia)
-       4. Ferramenta                  (capacidade + componente juntos)
+       3. Canal / Informação-Documento (sinais diretos e explícitos — contam
+          mesmo que o item também pareça ter algum resultado percebido, como
+          "ver o saldo" é um resultado fraco demais para caracterizar
+          Produto/Serviço; não dependem de !resultado)
+       4. Unidade de valor associada  (resultado próprio, mas sem autonomia)
        5. Conflito real: Processo × Capacidade, sem nenhum outro sinal que
           desempate — aqui sim é ambiguidade de verdade, não hierarquia
        6. Capacidade organizacional
        7. Componente (também cobre "opção/configuração de personalização" —
           uma característica secundária do componente, nunca uma categoria
-          concorrente: ver especializacao)
+          concorrente: ver especializacaoPara)
        8. Modalidade/Subproduto       (só quando tem resultado próprio — uma
           variante reconhecível da oferta, não uma simples configuração)
-       9. Regra/Condição
+       9. Regra/Opção
       10. Processo/Etapa de processo
-      11. Canal
-      12. Documento/Informação
-      13. Evidência insuficiente → A validar (nunca força uma escolha)
+      11. Evidência insuficiente → A validar (nunca força uma escolha)
 
      "autonomia" (o item existe e entrega resultado independentemente de
      outro Produto/Serviço?) e "funcionalidade" (o item é uma ação que atua
      dentro de outro Produto/Serviço?) continuam os dois sinais decisivos:
      resultado próprio, fronteira e mensuração sozinhos NUNCA bastam para
      Produto/Serviço principal. Nada aqui olha para nome/descrição do item —
-     "especializacao" também vem só de uma resposta já existente (modalidade
-     dentro de Componente), nunca inventada. */
+     especializacaoPara também só usa uma resposta já existente (modalidade
+     dentro de Componente), nunca inventa um valor. */
   function identificarCamada(atual) {
     var r = atual.respostas || {};
     function sim(id) { return !!(r[id] && r[id].valor === 'sim'); }
@@ -374,10 +392,18 @@
 
     var exclusoesSim = EXCLUSOES.filter(function (e) { return sim(e.id); }).map(function (e) { return e.id; });
     function motivo(id) { return ROTULOS_SINAL[id] + ': ' + (sim(id) ? 'SIM' : 'NÃO'); }
-    function resultadoFn(camada, sinais, especializacao) {
+    /* Uma especialização real (hoje, só Componente+modalidade) vence; caso
+       contrário, qualquer camada do eixo mostra "não determinada" em vez de
+       simplesmente não ter o campo — nunca null para essas quatro. */
+    function especializacaoPara(camadaId) {
+      if (CAMADAS_COM_ESPECIALIZACAO.indexOf(camadaId) === -1) return null;
+      if (camadaId === 'componente' && modalidade) return 'Opção/configuração de personalização';
+      return ESPECIALIZACAO_NAO_DETERMINADA;
+    }
+    function resultadoFn(camada, sinais) {
       return {
         camada: camada, motivos: sinais.map(motivo), conflito: null, incoerencia: false,
-        especializacao: especializacao || null, exclusoesSim: exclusoesSim
+        especializacao: especializacaoPara(camada), exclusoesSim: exclusoesSim
       };
     }
 
@@ -415,20 +441,33 @@
       return resultadoFn('funcionalidade-operacao', ['funcionalidade', 'autonomia']);
     }
 
-    /* 3. Unidade de valor associada: tem resultado próprio, fronteira e
-       necessidade de cliente (como um produto), mas SEM autonomia
-       estrutural — depende de um Produto/Serviço maior — e não é, ela
-       mesma, a ação/funcionalidade que atua sobre outra coisa. A diferença
-       para Produto/Serviço principal é só a autonomia. */
-    if (resultado && fronteira && necessidade && !autonomia && !funcionalidade) {
-      return resultadoFn('unidade-valor-associada', ['resultado', 'fronteira', 'necessidade', 'autonomia']);
+    /* 3. Canal / Informação-Documento: sinais diretos sobre a NATUREZA do
+       item ("é principalmente um canal?", "é principalmente uma
+       informação/documento?") — decisivos por si só, sem depender de
+       "resultado" estar em NÃO. Um item como "Saldo de Conta" pode
+       perfeitamente ter resultado=SIM (ver o saldo já é, num sentido frouxo,
+       um resultado percebido) e ainda assim não ser Produto/Serviço nem
+       Unidade de valor — é a NATUREZA informacional que decide, e essa
+       pergunta já captura isso diretamente, sem olhar pro nome do item.
+       Ficam antes de "Unidade de valor associada" por serem mais
+       específicos: um "sim" explícito aqui pesa mais que um "resultado"
+       genérico que poderia, sozinho, sugerir outra coisa. */
+    if (canal) {
+      return resultadoFn('canal', ['canal']);
+    }
+    if (artefato) {
+      return resultadoFn('documento-informacao', ['artefato']);
     }
 
-    /* 4. Ferramenta: instrumento de apoio interno reutilizável — capacidade
-       E componente ao mesmo tempo (mais específico que qualquer um
-       sozinho), sem necessidade de cliente nem resultado próprio. */
-    if (capacidade && componente && !necessidade && !resultado) {
-      return resultadoFn('ferramenta', ['capacidade', 'componente', 'necessidade', 'resultado']);
+    /* 4. Unidade de valor associada: tem resultado próprio, fronteira e
+       necessidade de cliente (como um produto), mas SEM autonomia
+       estrutural — depende de um Produto/Serviço maior — e não é, ela
+       mesma, a ação/funcionalidade que atua sobre outra coisa. Autonomia=NÃO
+       não elimina esta camada — só impede que ela seja tratada como
+       Produto/Serviço principal (a diferença entre as duas é só a
+       autonomia). */
+    if (resultado && fronteira && necessidade && !autonomia && !funcionalidade) {
+      return resultadoFn('unidade-valor-associada', ['resultado', 'fronteira', 'necessidade', 'autonomia']);
     }
 
     /* 5. Conflito real (não hierárquico): processo e capacidade indicados ao
@@ -446,7 +485,8 @@
     }
 
     /* 6. Capacidade organizacional: capacidade interna, sem necessidade de
-       cliente identificável nem papel de componente de outra solução. */
+       cliente identificável nem papel de componente de outra solução —
+       "Componente pertence à solução; Capacidade pertence à organização". */
     if (capacidade && !necessidade && !componente) {
       return resultadoFn('capacidade-organizacional', ['capacidade', 'necessidade', 'componente']);
     }
@@ -456,14 +496,13 @@
        autônomo. "Modalidade/opção/configuração" aqui NUNCA vira uma
        categoria concorrente à parte — é tratada como uma característica
        secundária do próprio componente (especialização), evitando o falso
-       conflito que a resposta “é uma modalidade” costumava gerar quando
-       aparecia ao lado de “existe para outro Produto/Serviço entregar
-       resultado”. Também é o destino padrão de uma modalidade/opção/
+       conflito que a resposta "é uma modalidade" costumava gerar quando
+       aparecia ao lado de "existe para outro Produto/Serviço entregar
+       resultado". Também é o destino padrão de uma modalidade/opção/
        configuração isolada, sem resultado próprio que a distinga como uma
        variante de verdade da oferta (ver item 8, Modalidade/Subproduto). */
-    if ((componente || modalidade) && !autonomia && !funcionalidade && !resultado && !processo && !regra && !canal && !artefato) {
-      return resultadoFn('componente', ['componente', 'modalidade', 'resultado'],
-        modalidade ? 'Opção/configuração de personalização' : null);
+    if ((componente || modalidade) && !autonomia && !funcionalidade && !resultado && !processo && !regra) {
+      return resultadoFn('componente', ['componente', 'modalidade', 'resultado']);
     }
 
     /* 8. Modalidade/Subproduto: só quando o item tem resultado próprio
@@ -479,12 +518,6 @@
     }
     if (processo && !funcionalidade && !autonomia && !resultado) {
       return resultadoFn('processo-etapa', ['processo', 'funcionalidade', 'autonomia']);
-    }
-    if (canal && !resultado) {
-      return resultadoFn('canal', ['canal', 'resultado']);
-    }
-    if (artefato && !resultado) {
-      return resultadoFn('documento-informacao', ['artefato', 'resultado']);
     }
 
     /* Nada acima se sustentou: evidência insuficiente para recomendar
@@ -523,8 +556,6 @@
         return 'É um processo ou etapa de processo de outro Produto/Serviço.';
       case 'capacidade-organizacional':
         return 'É uma capacidade organizacional interna, sem necessidade de cliente identificável associada.';
-      case 'ferramenta':
-        return 'É um instrumento de apoio interno reutilizável, sem necessidade de cliente nem resultado próprio.';
       case 'canal':
         return 'É um canal de acesso ou relacionamento a um ou mais Produto/Serviço.';
       case 'documento-informacao':
@@ -565,8 +596,6 @@
         return 'funciona predominantemente como um processo ou etapa de processo de outro Produto/Serviço';
       case 'capacidade-organizacional':
         return 'funciona predominantemente como uma capacidade organizacional interna, sem necessidade de cliente identificável associada';
-      case 'ferramenta':
-        return 'funciona predominantemente como um instrumento de apoio interno reutilizável, sem necessidade de cliente nem resultado próprio';
       case 'canal':
         return 'funciona predominantemente como um canal de acesso ou relacionamento, e não como uma solução com resultado próprio';
       case 'documento-informacao':
@@ -589,7 +618,6 @@
     'regra-condicao': 'a regra/condição',
     'processo-etapa': 'o processo/etapa de processo',
     'capacidade-organizacional': 'a capacidade organizacional',
-    'ferramenta': 'a ferramenta',
     'canal': 'o canal',
     'documento-informacao': 'o documento/informação'
   };
@@ -607,7 +635,6 @@
     'regra-condicao': 'regra/condição',
     'processo-etapa': 'processo',
     'capacidade-organizacional': 'capacidade organizacional',
-    'ferramenta': 'ferramenta de apoio interno',
     'canal': 'canal',
     'documento-informacao': 'documento/informação'
   };
@@ -690,9 +717,15 @@
       return 'O item foi classificado como Produto/Serviço principal porque as respostas confirmam ' + listaComE(camada.motivos) +
         ', sem nenhum sinal de que exerça predominantemente outro papel arquitetural.';
     }
+    /* A especialização só entra na frase corrida quando é uma determinação real
+       (ex.: "Opção/configuração de personalização") — o texto de fallback
+       ("não determinada pelo questionário") já tem seu próprio campo separado
+       na tela (ver renderResultado) e não deve soar como ressalva ou dúvida
+       dentro da justificativa da classificação principal. */
+    var especializacaoReal = camada.especializacao && camada.especializacao !== ESPECIALIZACAO_NAO_DETERMINADA;
     return 'O item foi classificado como ' + camada.label + ', e não como Produto/Serviço principal, porque ' +
       motivoJustificativa(camada.id) + '.' +
-      (camada.especializacao ? ' A especialização identificada é ' + camada.especializacao.toLowerCase() + '.' : '');
+      (especializacaoReal ? ' A especialização identificada é ' + camada.especializacao.toLowerCase() + '.' : '');
   }
 
   function todasRespondidas(atual) {
@@ -911,46 +944,91 @@
     itens.forEach(function (it, i) { corpo += montarSecaoAvaliacaoPdf(it, i === 0); });
     return '<div class="pdf-doc"><style>' + CSS_PDF + '</style>' + corpo + '</div>';
   }
+  /* Espera determinística por: fontes carregadas (document.fonts.ready, quando
+     existir) e layout assentado (dois requestAnimationFrame seguidos — o primeiro
+     garante que o navegador processou o reflow do container recém-inserido, o
+     segundo garante que esse reflow já foi pintado). Nunca usa setTimeout com
+     prazo arbitrário: aguarda sinais reais de que o conteúdo está pronto. */
+  function aguardarRenderizacaoCompleta(cb) {
+    var fontesProntas = (document.fonts && document.fonts.ready) ? document.fonts.ready : Promise.resolve();
+    fontesProntas.then(function () {
+      requestAnimationFrame(function () { requestAnimationFrame(cb); });
+    }, function () { requestAnimationFrame(function () { requestAnimationFrame(cb); }); });
+  }
   /* cbFim(erro|null). O container fica fora da tela (nunca visível) durante
-     a geração e é removido ao final, sucesso ou erro. */
+     a geração e é removido ao final, sucesso ou erro.
+
+     CAUSA RAIZ do PDF em branco (item individual, telas altas): o html2pdf.js
+     clona o container num overlay próprio (position:fixed;overflow:hidden)
+     que ele mesmo cria e anexa ao fim do <body>. Ao delegar para o html2canvas,
+     a biblioteca tenta calcular sozinha o deslocamento (scrollX/scrollY/x/y) do
+     elemento a capturar em relação à janela — e quando o container real está
+     posicionado bem abaixo no documento (por estar no fim do <body>, atrás de
+     todo o conteúdo já renderizado da aplicação), esse cálculo automático erra
+     e produz um recorte deslocado para fora da área realmente desenhada: o
+     canvas final sai com o tamanho e a paginação corretos, mas inteiramente em
+     branco, porque o conteúdo foi desenhado fora da janela de recorte usada.
+     Isso foi confirmado interceptando o canvas que o html2canvas realmente
+     devolve: os fillText do conteúdo aconteciam com cor e texto corretos, mas
+     a leitura de pixels do canvas final continuava em branco — até se passar
+     explicitamente scrollX:0, scrollY:0, x:0, y:0, o que elimina o cálculo
+     automático (dependente da posição/scroll da página) e faz o html2canvas
+     recortar exatamente a partir da origem do próprio container. Por isso a
+     geração de PDF não pode depender de posição de rolagem da tela — e, com
+     esses valores fixos, não depende mesmo. */
   function gerarPdf(itens, nomeArquivo, cbFim) {
     carregarScript('forca-agil/html2pdf.bundle.min.js', function () { return typeof window.html2pdf === 'function'; }, function (erroCarga) {
       if (erroCarga) { cbFim(erroCarga); return; }
       var container = document.createElement('div');
-      container.style.cssText = 'width:190mm;background:#fff;';
+      /* 186mm = largura A4 (210mm) menos as margens esquerda+direita definidas
+         abaixo (12mm cada). Precisa bater exatamente com pageSize.inner.width
+         do jsPDF — um container mais largo que a área imprimível fica cortado
+         na borda direita (ficava mascarado pelo bug do PDF em branco, mas é um
+         problema separado de largura, não de conteúdo ausente). */
+      container.style.cssText = 'width:186mm;background:#fff;';
       container.innerHTML = montarDocumentoPdf(itens);
       document.body.appendChild(container);
-      /* html2canvas às vezes falha em medir a altura de um container recém-
-         inserido (mede 0 e produz um PDF em branco) quando ele não fica em
-         fluxo normal visível — por isso mora no fim do <body> em fluxo
-         normal (não fixed/absolute) enquanto gera, e a altura real
-         (scrollHeight, já com o layout aplicado) é passada explicitamente,
-         em vez de deixar a biblioteca tentar adivinhar. */
-      var alturaReal = container.scrollHeight;
       function limpar() { if (container.parentNode) document.body.removeChild(container); }
-      try {
-        window.html2pdf().set({
-          margin: [14, 12, 16, 12],
-          filename: nomeArquivo,
-          image: { type: 'jpeg', quality: 0.95 },
-          html2canvas: { scale: 2, backgroundColor: '#ffffff', useCORS: false, height: alturaReal, windowHeight: alturaReal },
-          jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' },
-          pagebreak: { mode: ['css', 'avoid-all'] }
-        }).from(container).toPdf().get('pdf').then(function (pdf) {
-          var total = pdf.internal.getNumberOfPages();
-          var largura = pdf.internal.pageSize.getWidth();
-          var altura = pdf.internal.pageSize.getHeight();
-          for (var i = 1; i <= total; i++) {
-            pdf.setPage(i);
-            pdf.setFontSize(8);
-            pdf.setTextColor(120);
-            pdf.text('Página ' + i + ' de ' + total, largura / 2, altura - 6, { align: 'center' });
-          }
-        }).save().then(function () { limpar(); cbFim(null); }, function (erroSave) { limpar(); cbFim(erroSave); });
-      } catch (erroGeral) {
-        limpar();
-        cbFim(erroGeral);
-      }
+      aguardarRenderizacaoCompleta(function () {
+        /* html2canvas às vezes falha em medir a altura de um container recém-
+           inserido (mede 0 e produz um PDF em branco) quando ele não fica em
+           fluxo normal visível — por isso mora no fim do <body> em fluxo
+           normal (não fixed/absolute) enquanto gera, e a altura real
+           (scrollHeight, já com o layout assentado) é passada explicitamente,
+           em vez de deixar a biblioteca tentar adivinhar. */
+        var alturaReal = container.scrollHeight;
+        if (!alturaReal) { limpar(); cbFim(new Error('Container de exportação sem conteúdo renderizado.')); return; }
+        try {
+          window.html2pdf().set({
+            margin: [14, 12, 16, 12],
+            filename: nomeArquivo,
+            image: { type: 'jpeg', quality: 0.95 },
+            html2canvas: {
+              scale: 2, backgroundColor: '#ffffff', useCORS: false,
+              height: alturaReal, windowHeight: alturaReal,
+              /* Ver comentário de causa raiz acima: zera o cálculo automático
+                 de deslocamento do html2canvas, que é o que produzia o PDF em
+                 branco em telas de resultado altas. */
+              x: 0, y: 0, scrollX: 0, scrollY: 0
+            },
+            jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' },
+            pagebreak: { mode: ['css', 'avoid-all'] }
+          }).from(container).toPdf().get('pdf').then(function (pdf) {
+            var total = pdf.internal.getNumberOfPages();
+            var largura = pdf.internal.pageSize.getWidth();
+            var altura = pdf.internal.pageSize.getHeight();
+            for (var i = 1; i <= total; i++) {
+              pdf.setPage(i);
+              pdf.setFontSize(8);
+              pdf.setTextColor(120);
+              pdf.text('Página ' + i + ' de ' + total, largura / 2, altura - 6, { align: 'center' });
+            }
+          }).save().then(function () { limpar(); cbFim(null); }, function (erroSave) { limpar(); cbFim(erroSave); });
+        } catch (erroGeral) {
+          limpar();
+          cbFim(erroGeral);
+        }
+      });
     });
   }
 
