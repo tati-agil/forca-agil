@@ -14,11 +14,22 @@
      justificativaAutomatica: texto,
      decisaoFinal: 'produto' | 'nao-produto' | 'a-validar' (igual à automática até o admin discordar),
      decisaoManual, justificativaDecisao, alteradoPor: {name,email}, alteradoEm,
-     responsavel: {name,email}, criadoEm, atualizadoEm
+     responsavel: {name,email}, criadoEm, atualizadoEm,
+     itemId: chave da 1ª versão (agrupa todas as versões do mesmo item),
+     versao: número (1 na avaliação original, incrementa a cada reavaliação),
+     versaoAnteriorKey: chave da versão da qual esta foi reavaliada, ou null
    }
 
    resultadoAutomatico nunca é reescrito pela decisão manual — é o
    histórico que a seção 10 do pedido exige que nunca desapareça.
+
+   Cada reavaliação (abrirReavaliacao) grava um registro NOVO — nunca
+   sobrescreve o anterior — encadeado por versaoAnteriorKey; a lista mostra
+   só a versão mais nova de cada item (temVersaoMaisNova) e "Ver histórico"
+   percorre a cadeia inteira. Reavaliar começa com TODAS as respostas e
+   justificativas da versão anterior já preenchidas — quem reavalia decide
+   o que mantém, muda ou apaga; nada é limpo automaticamente (diferente de
+   "Duplicar", que cria um item à parte com o checklist em branco).
 
    O motor (identificarCamada, mais abaixo) primeiro descobre a camada
    arquitetural mais provável a partir do CONJUNTO das 14 respostas — nunca
@@ -90,7 +101,20 @@
       justNao: 'NÃO — A fronteira do item não está suficientemente clara para caracterizá-lo como uma solução autônoma.'
     },
     {
-      id: 'jornada', essencial: false, ordem: 5,
+      id: 'autonomia', essencial: true, ordem: 5, destaque: 'CRITÉRIO DECISIVO',
+      titulo: 'Autonomia estrutural',
+      pergunta: 'O item consegue existir e entregar seu resultado de forma independente, sem depender estruturalmente de outro Produto/Serviço?',
+      ajuda: {
+        significado: 'Resultado próprio, fronteira e mensuração não bastam: uma funcionalidade dentro de outro Produto/Serviço também pode ter tudo isso sem ser, ela mesma, uma solução independente. Este critério verifica a autonomia estrutural.',
+        quandoSim: 'O item continuaria fazendo sentido como solução própria mesmo se o Produto/Serviço ao qual está relacionado deixasse de existir.',
+        quandoNao: 'O item só existe, ou só faz sentido, porque outro Produto/Serviço existe — ele depende estruturalmente dessa outra solução.',
+        exemplo: 'Um seguro de vida faz sentido como solução própria mesmo sem nenhum outro produto; "Alterar Perfil de Investimento" só existe porque o plano de previdência ao qual pertence existe.'
+      },
+      justSim: 'SIM — O item tem autonomia estrutural: existiria como solução própria mesmo sem outro Produto/Serviço.',
+      justNao: 'NÃO — O item depende estruturalmente de outro Produto/Serviço para existir ou fazer sentido.'
+    },
+    {
+      id: 'jornada', essencial: false, ordem: 6,
       titulo: 'Jornada própria',
       pergunta: 'Existe uma jornada ou ciclo de vida identificável para esse item na relação com o cliente?',
       ajuda: {
@@ -103,7 +127,7 @@
       justNao: 'NÃO — O item aparece principalmente como parte da jornada de outra solução.'
     },
     {
-      id: 'medicao', essencial: false, ordem: 6,
+      id: 'medicao', essencial: false, ordem: 7,
       titulo: 'Medição de resultado',
       pergunta: 'É possível medir o resultado desse item de forma própria?',
       ajuda: {
@@ -116,7 +140,7 @@
       justNao: 'NÃO — A mensuração parece depender essencialmente de outro produto ou de indicadores puramente operacionais.'
     },
     {
-      id: 'gestao', essencial: false, ordem: 7,
+      id: 'gestao', essencial: false, ordem: 8,
       titulo: 'Gestão ponta a ponta',
       pergunta: 'Este item poderia ser gerido de ponta a ponta como uma solução?',
       ajuda: {
@@ -179,6 +203,13 @@
       ajudaExtra: 'Pergunte: se o produto principal deixasse de existir, este item ainda faria sentido como uma solução independente para o cliente?',
       justSim: 'SIM — O item apresenta características de componente ou elemento de suporte de outra solução.',
       justNao: 'NÃO — O item demonstra maior independência em relação a outras soluções.'
+    },
+    {
+      id: 'funcionalidade', ordem: 8, classificacao: 'Funcionalidade/Operação',
+      pergunta: 'O item é principalmente uma funcionalidade ou operação que permite consultar, escolher, solicitar, contratar, alterar, executar ou administrar algo dentro de outro Produto/Serviço?',
+      exemplos: ['alterar uma configuração', 'solicitar uma opção', 'consultar saldo', 'alterar contribuição', 'executar uma operação dentro de uma solução maior'],
+      justSim: 'SIM — O item apresenta características predominantes de funcionalidade/operação que atua dentro de outro Produto/Serviço.',
+      justNao: 'NÃO — O item não se resume a uma funcionalidade ou operação executada dentro de outra solução.'
     }
   ];
 
@@ -218,6 +249,7 @@
     resultado: 'Resultado próprio perceptível para o cliente',
     solucao: 'Reconhecível como solução/oferta própria',
     fronteira: 'Fronteira coerente e delimitável',
+    autonomia: 'Consegue existir e entregar resultado de forma independente de outro Produto/Serviço',
     jornada: 'Jornada própria com o cliente',
     medicao: 'Mensuração própria de resultado',
     gestao: 'Pode ser gerido de ponta a ponta como solução própria',
@@ -227,7 +259,8 @@
     processo: 'Funciona predominantemente como processo/etapa de processo',
     modalidade: 'Funciona predominantemente como modalidade/opção/configuração',
     regra: 'Funciona predominantemente como regra/condição',
-    componente: 'Existe para que outro Produto/Serviço entregue seu resultado'
+    componente: 'Existe para que outro Produto/Serviço entregue seu resultado',
+    funcionalidade: 'Funciona predominantemente como funcionalidade/operação dentro de outro Produto/Serviço'
   };
 
   function criterioPorId(id) { return CRITERIOS.filter(function (c) { return c.id === id; })[0]; }
@@ -297,58 +330,89 @@
   /* ---- motor de decisão -------------------------------------------------
      identificarCamada nunca decide por uma resposta isolada: cada camada
      candidata exige pelo menos duas respostas convergentes (nunca "SIM em
-     modalidade ⇒ é Modalidade"), e as sete respostas de exclusão são
-     sempre cruzadas com sinais de autonomia/resultado próprio dos sete
-     critérios, nunca lidas como testes independentes. Quando duas ou mais
-     camadas ficam igualmente sustentadas pelas respostas, ou nenhuma
-     encontra sustentação suficiente, o resultado é 'a-validar' — o motor
-     nunca força uma escolha. Nada aqui olha para nome/descrição do item. */
+     modalidade ⇒ é Modalidade"). "autonomia" (o item existe e entrega
+     resultado independentemente de outro Produto/Serviço?) e
+     "funcionalidade" (o item é uma ação que atua dentro de outro
+     Produto/Serviço?) são os dois sinais explícitos e decisivos dessa
+     distinção — resultado próprio, fronteira e mensuração sozinhos NUNCA
+     bastam para Produto/Serviço principal, porque uma funcionalidade
+     dentro de outra solução também pode apresentar todos eles. Quando duas
+     ou mais camadas ficam igualmente sustentadas pelas respostas, ou
+     nenhuma encontra sustentação suficiente, o resultado é 'a-validar' — o
+     motor nunca força uma escolha. Nada aqui olha para nome/descrição do
+     item. */
   function identificarCamada(atual) {
     var r = atual.respostas || {};
     function sim(id) { return !!(r[id] && r[id].valor === 'sim'); }
 
     var necessidade = sim('necessidade'), resultado = sim('resultado'), solucao = sim('solucao'),
-      fronteira = sim('fronteira'), jornada = sim('jornada'), gestao = sim('gestao');
+      fronteira = sim('fronteira'), autonomia = sim('autonomia');
     var canal = sim('canal'), artefato = sim('artefato'), capacidade = sim('capacidade'), processo = sim('processo'),
-      modalidade = sim('modalidade'), regra = sim('regra'), componente = sim('componente');
+      modalidade = sim('modalidade'), regra = sim('regra'), componente = sim('componente'), funcionalidade = sim('funcionalidade');
 
-    var nucleoCompleto = necessidade && resultado && solucao && fronteira;
     var exclusoesSim = EXCLUSOES.filter(function (e) { return sim(e.id); }).map(function (e) { return e.id; });
+
+    /* Contradição direta: "atua dentro de outro Produto/Serviço" e "existe
+       de forma independente de outro Produto/Serviço" não podem ser SIM ao
+       mesmo tempo sem incoerência. O sistema nunca resolve essa contradição
+       escolhendo um lado silenciosamente — sinaliza e devolve 'a-validar'. */
+    if (funcionalidade && autonomia) {
+      return {
+        camada: 'a-validar',
+        motivos: [ROTULOS_SINAL.funcionalidade + ': SIM', ROTULOS_SINAL.autonomia + ': SIM'],
+        conflito: null,
+        incoerencia: true,
+        exclusoesSim: exclusoesSim
+      };
+    }
+
+    /* perfilQuaseCompleto identifica um item com o "formato" de produto
+       (necessidade, resultado e fronteira próprios) — usado para dar
+       prioridade a "Unidade de valor associada" sobre as camadas mais
+       genéricas de modalidade/regra/processo quando as duas evidências
+       convergem para o mesmo item (mais específico prevalece, nunca por
+       ordem fixa). */
+    var nucleoCompleto = necessidade && resultado && solucao && fronteira && autonomia;
+    var perfilQuaseCompleto = resultado && fronteira && necessidade;
 
     var candidatos = [];
     function candidata(id, sinais) { candidatos.push({ camada: id, sinais: sinais }); }
 
-    /* Produto/Serviço principal: núcleo essencial completo e nenhum teste
-       de exclusão se sustenta — nada nas respostas contradiz a
-       independência da solução. */
+    /* Produto/Serviço principal: núcleo essencial completo, autonomia
+       estrutural confirmada, e nenhum teste de exclusão se sustenta. A
+       autonomia é obrigatória aqui — sem ela, mesmo com todos os outros
+       critérios em SIM, o item não é recomendado como Produto/Serviço
+       principal (é exatamente o caso de uma funcionalidade completa por
+       fora, mas dependente por dentro). */
     if (nucleoCompleto && exclusoesSim.length === 0) {
-      candidata('produto-principal', ['necessidade', 'resultado', 'solucao', 'fronteira']);
+      candidata('produto-principal', ['necessidade', 'resultado', 'solucao', 'fronteira', 'autonomia']);
     }
 
     /* Unidade de valor associada: tem resultado próprio, fronteira e
-       necessidade de cliente (como um produto), mas não passa no teste de
-       gestão ponta a ponta E também se autodeclara modalidade/componente de
-       algo maior — ou seja, tem valor próprio mas continua subordinada. */
-    if (resultado && fronteira && necessidade && !gestao && (modalidade || componente)) {
-      candidata('unidade-valor-associada', ['resultado', 'fronteira', 'necessidade', modalidade ? 'modalidade' : 'componente', 'gestao']);
+       necessidade de cliente (como um produto), mas SEM autonomia
+       estrutural — depende de um Produto/Serviço maior — e não é, ela
+       mesma, a ação/funcionalidade que atua sobre outra coisa. A diferença
+       para Produto/Serviço principal é só a autonomia. */
+    if (resultado && fronteira && necessidade && !autonomia && !funcionalidade) {
+      candidata('unidade-valor-associada', ['resultado', 'fronteira', 'necessidade', 'autonomia']);
     }
 
-    /* Modalidade/opção SIM sem resultado próprio marcante nem gestão ponta a
-       ponta: é a própria opção/configuração, não uma ação sobre ela. */
-    if (modalidade && !resultado && !gestao) {
-      candidata('modalidade-subproduto', ['modalidade', 'resultado', 'gestao']);
+    /* Funcionalidade/Operação: sinal direto e explícito (a própria pergunta
+       "é uma ação que atua dentro de outro Produto/Serviço?"), combinado
+       com a ausência de autonomia — é uma ação sobre outra coisa, nunca a
+       coisa em si. Isso substitui qualquer inferência indireta a partir de
+       modalidade/regra/processo: a pergunta já captura a relação
+       diretamente, sem depender do nome do item. */
+    if (funcionalidade && !autonomia) {
+      candidata('funcionalidade-operacao', ['funcionalidade', 'autonomia']);
     }
 
-    /* Funcionalidade/Operação: a mesma resposta de modalidade/regra/processo
-       SIM, mas agora COM sinal de autonomia (resultado próprio ou gestão
-       ponta a ponta) e SEM o par fronteira+solução que caracterizaria uma
-       oferta independente — é uma ação que atua sobre outra coisa, não a
-       coisa em si nem um produto à parte. Este é o sinal que separa, por
-       exemplo, a opção em si da ação que a altera, usando só respostas do
-       questionário, nunca o nome do item. */
-    if ((modalidade || regra || processo) && (resultado || gestao) && !(fronteira && solucao)) {
-      var gatilhoFuncional = modalidade ? 'modalidade' : (regra ? 'regra' : 'processo');
-      candidata('funcionalidade-operacao', [gatilhoFuncional, resultado ? 'resultado' : 'gestao', fronteira ? 'solucao' : 'fronteira']);
+    /* Modalidade/opção SIM, mas SEM ser a ação sobre ela (funcionalidade=NÃO)
+       e SEM autonomia — é a própria opção/configuração. Se o item também
+       tiver o "formato" completo de produto (perfilQuaseCompleto), prevalece
+       "Unidade de valor associada" em vez desta, por ser mais específica. */
+    if (modalidade && !funcionalidade && !autonomia && !perfilQuaseCompleto) {
+      candidata('modalidade-subproduto', ['modalidade', 'funcionalidade', 'autonomia']);
     }
 
     /* Ferramenta: instrumento de apoio interno reutilizável — capacidade E
@@ -363,15 +427,15 @@
     } else if (capacidade && !necessidade && !componente) {
       candidata('capacidade-organizacional', ['capacidade', 'necessidade', 'componente']);
     }
-    if (componente && !resultado && !ehFerramenta) {
+    if (componente && !resultado && !funcionalidade && !ehFerramenta) {
       candidata('componente', ['componente', 'resultado']);
     }
 
-    if (regra && !resultado && !gestao) {
-      candidata('regra-condicao', ['regra', 'resultado', 'gestao']);
+    if (regra && !funcionalidade && !autonomia && !perfilQuaseCompleto) {
+      candidata('regra-condicao', ['regra', 'funcionalidade', 'autonomia']);
     }
-    if (processo && !jornada && !gestao) {
-      candidata('processo-etapa', ['processo', 'jornada', 'gestao']);
+    if (processo && !funcionalidade && !autonomia && !perfilQuaseCompleto) {
+      candidata('processo-etapa', ['processo', 'funcionalidade', 'autonomia']);
     }
     if (canal && !resultado) {
       candidata('canal', ['canal', 'resultado']);
@@ -399,7 +463,47 @@
       });
     }
 
-    return { camada: camadaEscolhida, motivos: motivos, conflito: conflito, exclusoesSim: exclusoesSim };
+    return { camada: camadaEscolhida, motivos: motivos, conflito: conflito, incoerencia: false, exclusoesSim: exclusoesSim };
+  }
+
+  /* Descreve, numa frase própria, COMO o item se relaciona com o
+     Produto/Serviço do qual depende — o terceiro bloco do resultado
+     ("Relação arquitetural"). Produto/Serviço principal e A validar não têm
+     relação de dependência a descrever (retornam null e o bloco não
+     aparece). Para Funcionalidade/Operação, o alvo da ação é composto a
+     partir de QUAL outra resposta de exclusão também está em SIM — nunca
+     do nome do item. */
+  function relacaoArquitetural(camadaId, atual) {
+    var r = atual.respostas || {};
+    function sim(id) { return !!(r[id] && r[id].valor === 'sim'); }
+    switch (camadaId) {
+      case 'unidade-valor-associada':
+        return 'Depende estruturalmente de um Produto/Serviço maior, embora tenha resultado, fronteira e necessidade de cliente próprios.';
+      case 'funcionalidade-operacao':
+        var alvo = sim('modalidade') ? 'uma modalidade/opção/configuração' :
+          sim('regra') ? 'uma regra/condição' :
+          sim('processo') ? 'um processo' :
+          sim('componente') ? 'um componente' : 'um elemento';
+        return 'Atua sobre ' + alvo + ' pertencente a outro Produto/Serviço — não existe de forma independente dele.';
+      case 'modalidade-subproduto':
+        return 'É uma modalidade/opção/configuração pertencente a outro Produto/Serviço, e não uma ação sobre ela.';
+      case 'componente':
+        return 'Existe para que outro Produto/Serviço consiga entregar seu resultado — não tem resultado próprio perceptível.';
+      case 'regra-condicao':
+        return 'É uma regra ou condição de outro Produto/Serviço.';
+      case 'processo-etapa':
+        return 'É um processo ou etapa de processo de outro Produto/Serviço.';
+      case 'capacidade-organizacional':
+        return 'É uma capacidade organizacional interna, sem necessidade de cliente identificável associada.';
+      case 'ferramenta':
+        return 'É um instrumento de apoio interno reutilizável, sem necessidade de cliente nem resultado próprio.';
+      case 'canal':
+        return 'É um canal de acesso ou relacionamento a um ou mais Produto/Serviço.';
+      case 'documento-informacao':
+        return 'É um documento ou informação entregue a partir de outro Produto/Serviço.';
+      default:
+        return null;
+    }
   }
 
   function computeResultado(atual) {
@@ -422,7 +526,9 @@
         id: ident.camada,
         label: camadaPorId(ident.camada).label,
         motivos: ident.motivos,
-        conflito: ident.conflito
+        conflito: ident.conflito,
+        incoerencia: ident.incoerencia,
+        relacao: relacaoArquitetural(ident.camada, atual)
       }
     };
   }
@@ -431,6 +537,9 @@
      próprios motivos (pergunta + resposta real) que a sustentaram. */
   function gerarJustificativaAutomatica(atual, calc) {
     var camada = calc.camadaSugerida;
+    if (camada.incoerencia) {
+      return 'Há respostas que indicam autonomia e outras que indicam dependência. Revise os critérios destacados.';
+    }
     if (camada.id === 'a-validar') {
       if (camada.conflito && camada.conflito.length > 1) {
         return 'As respostas indicam características de mais de uma categoria arquitetural (' + listaComE(camada.conflito) +
@@ -444,7 +553,7 @@
         ', sem nenhum sinal de que exerça predominantemente outro papel arquitetural.';
     }
     return 'O item foi classificado como ' + camada.label + ', e não como Produto/Serviço principal, porque as respostas indicam ' +
-      listaComE(camada.motivos) + '.';
+      listaComE(camada.motivos) + '. ' + camada.relacao;
   }
 
   function todasRespondidas(atual) {
@@ -458,6 +567,27 @@
       return !(r[p.id] && (r[p.id].valor === 'sim' || r[p.id].valor === 'nao'));
     });
     return faltante.length ? faltante[0].id : null;
+  }
+  /* Resumo de "o que mudou" numa reavaliação em andamento, comparando o
+     rascunho atual (atual) contra a fotografia da avaliação anterior (base).
+     Devolve null quando nada mudou ainda — o resumo só deve aparecer quando
+     há alguma alteração real (ver pedido). */
+  function calcularAlteracoesReavaliacao(atual, base) {
+    if (!base) return null;
+    var respostasAlteradas = 0, justificativasModificadas = 0;
+    TODAS_PERGUNTAS.forEach(function (p) {
+      var atualR = atual.respostas[p.id];
+      if (!atualR) return;
+      var baseR = base.respostas[p.id];
+      if (baseR && baseR.valor !== atualR.valor) respostasAlteradas++;
+      var obsAtual = (atualR.observacao || '').trim();
+      var obsBase = ((baseR && baseR.observacao) || '').trim();
+      if (obsAtual !== obsBase) justificativasModificadas++;
+    });
+    var camposCadastrais = ['nome', 'descricao', 'publico', 'necessidade', 'observacoesGerais'];
+    var dadosAlterados = camposCadastrais.some(function (c) { return (atual[c] || '') !== (base[c] || ''); });
+    if (!respostasAlteradas && !justificativasModificadas && !dadosAlterados) return null;
+    return { respostasAlteradas: respostasAlteradas, justificativasModificadas: justificativasModificadas, dadosAlterados: dadosAlterados };
   }
   function upsertItem(itens, item) {
     var copia = itens.filter(function (it) { return it._key !== item._key; });
@@ -491,7 +621,9 @@
       decisaoForm: null,
       flashLista: null,     /* confirmação persistente mostrada na lista após salvar rascunho */
       flashResultado: null, /* confirmação persistente mostrada no resultado após concluir */
-      flashDecisao: null    /* confirmação persistente mostrada após salvar a decisão arquitetural */
+      flashDecisao: null,   /* confirmação persistente mostrada após salvar a decisão arquitetural */
+      reavaliacaoBase: null /* fotografia da avaliação anterior, só durante uma reavaliação — usada para
+                                mostrar "resposta alterada" e o resumo de alterações; nunca gravada */
     };
 
     function temCampoInvalido(campo) {
@@ -507,6 +639,7 @@
 
     /* ===================== LISTA ===================== */
     function itemPassaFiltro(it) {
+      if (temVersaoMaisNova(it._key)) return false;
       if (state.lixeira) return !!it.excluido;
       if (it.excluido) return false;
       if (state.filtro.resultado !== 'todos') {
@@ -536,7 +669,7 @@
         'para a entrega sem constituir uma solução independente para o cliente.</p>';
       html += '</div>';
 
-      var ativos = state.itens.filter(function (it) { return !it.excluido; });
+      var ativos = state.itens.filter(function (it) { return !it.excluido && !temVersaoMaisNova(it._key); });
       var excluidos = state.itens.filter(function (it) { return !!it.excluido; });
 
       html += '<div class="avp-actions-bar">';
@@ -588,7 +721,7 @@
           var decisao = it.decisaoFinal || it.resultadoAutomatico;
           var camadaLabel = (it.camadaSugerida && it.camadaSugerida.label) || '—';
           html += '<tr>';
-          html += '<td data-label="Item">' + esc(it.nome) + '</td>';
+          html += '<td data-label="Item">' + esc(it.nome) + (it.versao > 1 ? ' <span class="avp-tag-versao">v' + it.versao + '</span>' : '') + '</td>';
           html += '<td data-label="Resultado automático">' + resultadoBadge(it.resultadoAutomatico) + '</td>';
           html += '<td data-label="Decisão final">' + resultadoBadge(decisao) + (it.decisaoManual ? ' <span class="avp-tag-alterado">alterada</span>' : '') + '</td>';
           html += '<td data-label="Classificação arquitetural">' + esc(camadaLabel) + '</td>';
@@ -622,6 +755,7 @@
       var novoBtn = document.getElementById('avpNovoBtn');
       if (novoBtn) novoBtn.addEventListener('click', function () {
         state.atual = { nome: '', descricao: '', publico: '', necessidade: '', observacoesGerais: '', respostas: {} };
+        state.reavaliacaoBase = null;
         state.erroForm = null;
         state.camposInvalidos = [];
         state.flashLista = null;
@@ -676,6 +810,13 @@
 
     function buscarItem(key) { return state.itens.filter(function (it) { return it._key === key; })[0]; }
     function clonarItem(it) { return JSON.parse(JSON.stringify(it)); }
+    /* Uma versão "superada" (existe uma reavaliação mais nova apontando pra
+       ela via versaoAnteriorKey) nunca aparece como linha própria na lista —
+       nem ativa nem na Lixeira — só é alcançável pelo "Ver histórico" da
+       versão atual. Isso é outra dimensão, à parte de excluído. */
+    function temVersaoMaisNova(key) {
+      return state.itens.some(function (o) { return o.versaoAnteriorKey === key; });
+    }
 
     /* jaSalvouAntes distingue "nunca mexi nisso" de "já tem uma decisão
        manual salva antes" — só nesse segundo caso um novo ajuste deve dizer
@@ -709,6 +850,7 @@
       if (!it) return;
       state.atual = clonarItem(it);
       if (!state.atual.respostas) state.atual.respostas = {};
+      state.reavaliacaoBase = null;
       state.erroForm = null;
       state.camposInvalidos = [];
       state.pendenteId = null;
@@ -716,11 +858,32 @@
       state.tela = 'checklist';
       render();
     }
+    /* Reavaliar NÃO é duplicar nem começar do zero: reabre o MESMO item com
+       a avaliação anterior inteira como ponto de partida — respostas e
+       justificativas incluídas — e a pessoa decide o que mantém, muda ou
+       apaga. Nada é limpo automaticamente. A avaliação anterior nunca é
+       sobrescrita: a reavaliação vira um registro NOVO (chave nova,
+       encadeado por itemId/versaoAnteriorKey em salvarRegistro), e o
+       histórico completo continua acessível pelo "Ver histórico". */
     function abrirReavaliacao(key) {
       var it = buscarItem(key);
       if (!it) return;
       state.atual = clonarItem(it);
-      state.atual.respostas = {};
+      delete state.atual._key;
+      if (!state.atual.respostas) state.atual.respostas = {};
+      state.atual.itemId = it.itemId || it._key;
+      state.atual.versaoAnteriorKey = it._key;
+      state.atual.versao = (it.versao || 1) + 1;
+      /* criadoEm/responsavel são desta VERSÃO, não os da avaliação original
+         — sem isto, salvarRegistro herdaria a data e a autoria de quem
+         avaliou da primeira vez. */
+      state.atual.criadoEm = null;
+      state.atual.responsavel = null;
+      state.atual.excluido = false;
+      state.atual.excluidoEm = null;
+      state.atual.excluidoPor = null;
+      state.atual.justificativaExclusao = null;
+      state.reavaliacaoBase = clonarItem(it);
       state.erroForm = null;
       state.camposInvalidos = [];
       state.pendenteId = null;
@@ -736,6 +899,7 @@
         descricao: it.descricao || '', publico: it.publico || '', necessidade: it.necessidade || '',
         observacoesGerais: '', respostas: {}
       };
+      state.reavaliacaoBase = null;
       state.erroForm = null;
       state.camposInvalidos = [];
       state.pendenteId = null;
@@ -766,6 +930,9 @@
         html += '<button class="btn avp-menu-item" data-acao="editar">Editar</button>';
       }
       html += '<button class="btn avp-menu-item" data-acao="duplicar">Duplicar</button>';
+      if (it.versaoAnteriorKey) {
+        html += '<button class="btn avp-menu-item" data-acao="historico">🕘 Ver histórico</button>';
+      }
       html += '<button class="btn avp-menu-item avp-menu-item--perigo" data-acao="excluir">🗑 Excluir</button>';
       html += '</div>';
       html += '<button class="btn" id="avpMenuAcoesFechar">Cancelar</button>';
@@ -782,8 +949,55 @@
           if (acao === 'editar') abrirEdicao(key);
           else if (acao === 'reavaliar') abrirReavaliacao(key);
           else if (acao === 'duplicar') duplicar(key);
+          else if (acao === 'historico') abrirHistorico(key);
           else if (acao === 'excluir') abrirModalExcluir(key);
         });
+      });
+    }
+
+    /* Percorre a cadeia de versaoAnteriorKey a partir de uma versão (sempre
+       a mais nova, já que versões superadas não aparecem na lista) até a
+       avaliação original, e mostra cada uma com data, resultado e
+       responsável — sem alterar nada, só consulta. */
+    function abrirHistorico(key) {
+      var it = buscarItem(key);
+      if (!it) return;
+      var cadeia = [];
+      var passo = it;
+      var protecao = 0;
+      while (passo && protecao < 50) {
+        cadeia.unshift(passo);
+        passo = passo.versaoAnteriorKey ? buscarItem(passo.versaoAnteriorKey) : null;
+        protecao++;
+      }
+      var overlay = document.createElement('div');
+      overlay.className = 'modal-overlay';
+      overlay.style.cssText = 'display:flex;align-items:center;justify-content:center;z-index:9999';
+      var box = document.createElement('div');
+      box.className = 'modal-box avp-historico-box';
+      box.style.cssText = 'max-width:520px;width:92%;max-height:80vh;overflow:auto;padding:24px;display:flex;flex-direction:column;gap:14px';
+      var html = '<p class="avp-menu-acoes-titulo">Histórico de "' + esc(it.nome) + '"</p>';
+      html += '<div class="avp-historico-lista">';
+      cadeia.forEach(function (versao) {
+        var decisao = versao.decisaoFinal || versao.resultadoAutomatico;
+        html += '<div class="avp-historico-item">';
+        html += '<p class="avp-historico-cabecalho">' +
+          '<strong>' + (versao.versao > 1 ? 'Reavaliação ' + versao.versao : 'Avaliação 1') + '</strong> — ' + fmtData(versao.criadoEm) + '</p>';
+        html += '<p>' + resultadoBadge(decisao) + (versao.decisaoManual ? ' <span class="avp-tag-alterado">alterada</span>' : '') + ' · ' + statusBadge(versao.status) + '</p>';
+        html += '<p class="avp-historico-resp">Por ' + esc(versao.responsavel && versao.responsavel.name || '—') + '</p>';
+        html += '<button class="btn btn--sm avp-historico-ver" data-key="' + versao._key + '">Visualizar</button>';
+        html += '</div>';
+      });
+      html += '</div>';
+      html += '<button class="btn" id="avpHistoricoFechar">Fechar</button>';
+      box.innerHTML = html;
+      overlay.appendChild(box);
+      document.body.appendChild(overlay);
+      function fechar() { if (overlay.parentNode) document.body.removeChild(overlay); }
+      box.querySelector('#avpHistoricoFechar').addEventListener('click', fechar);
+      overlay.addEventListener('keydown', function (e) { if (e.key === 'Escape') { e.preventDefault(); fechar(); } });
+      box.querySelectorAll('.avp-historico-ver').forEach(function (btn) {
+        btn.addEventListener('click', function () { fechar(); abrirVisualizacao(btn.dataset.key); });
       });
     }
 
@@ -957,10 +1171,16 @@
     /* ===================== CHECKLIST ===================== */
     function renderChecklist() {
       var a = state.atual;
+      var base = state.reavaliacaoBase;
+      var reavaliando = !!base;
       var html = '<div class="avp-checklist">';
       html += '<button class="avp-voltar-link" id="avpVoltarLista">‹ Avaliações de Produto/Serviço</button>';
       html += '<div class="avp-form-card">';
-      html += '<h3>' + (a._key ? 'Editando avaliação' : 'Nova avaliação') + '</h3>';
+      html += '<h3>' + esc(reavaliando ? 'Reavaliação — v' + a.versao : (a._key ? 'Editando avaliação' : 'Nova avaliação')) + '</h3>';
+      if (reavaliando) {
+        html += '<p class="avp-reavaliacao-intro">Esta reavaliação começa com as respostas e justificativas da avaliação anterior. ' +
+          'Nada foi apagado — mantenha, altere ou apague o que quiser antes de concluir.</p>';
+      }
       html += campoTexto('avpcNome', 'Nome do item', a.nome, true, false, temCampoInvalido('nome'));
       html += campoTexto('avpcDescricao', 'Descrição do item', a.descricao, false, true);
       html += campoTexto('avpcPublico', 'Público/cliente relacionado', a.publico, false, false);
@@ -970,21 +1190,51 @@
 
       if (state.erroForm) html += '<p class="avp-error-msg">' + esc(state.erroForm) + '</p>';
 
+      /* "Atua dentro de outro Produto/Serviço" (funcionalidade) e "existe de
+         forma independente de outro Produto/Serviço" (autonomia) não podem
+         ser SIM ao mesmo tempo — quando isso acontece, destaca as duas
+         perguntas em vez de deixar o resultado final ser a única pista. */
+      var incoerenciaAtual = !!(a.respostas.autonomia && a.respostas.autonomia.valor === 'sim' &&
+        a.respostas.funcionalidade && a.respostas.funcionalidade.valor === 'sim');
+
       html += '<div class="avp-criterios">';
-      CRITERIOS.forEach(function (c) { html += renderPergunta(c, a.respostas[c.id]); });
+      CRITERIOS.forEach(function (c) {
+        html += renderPergunta(c, a.respostas[c.id], base && base.respostas[c.id], incoerenciaAtual && c.id === 'autonomia');
+      });
       html += '</div>';
 
       html += '<div class="avp-exclusao-section">';
       html += '<h3 class="avp-exclusao-titulo">TESTE DE CLASSIFICAÇÃO</h3>';
       html += '<p class="avp-exclusao-intro">Agora verifique se o item é, na realidade, outro tipo de elemento arquitetural.</p>';
-      EXCLUSOES.forEach(function (e) { html += renderPergunta(e, a.respostas[e.id]); });
+      EXCLUSOES.forEach(function (e) {
+        html += renderPergunta(e, a.respostas[e.id], base && base.respostas[e.id], incoerenciaAtual && e.id === 'funcionalidade');
+      });
       html += '</div>';
+
+      if (reavaliando) {
+        var alteracoes = calcularAlteracoesReavaliacao(a, base);
+        if (alteracoes) {
+          html += '<div class="avp-form-card avp-alteracoes-card">';
+          html += '<h4>Alterações nesta reavaliação</h4>';
+          html += '<ul class="avp-alteracoes-list">';
+          if (alteracoes.respostasAlteradas) {
+            html += '<li>' + alteracoes.respostasAlteradas + ' resposta' + (alteracoes.respostasAlteradas === 1 ? '' : 's') +
+              ' alterada' + (alteracoes.respostasAlteradas === 1 ? '' : 's') + '</li>';
+          }
+          if (alteracoes.justificativasModificadas) {
+            html += '<li>' + alteracoes.justificativasModificadas + ' justificativa' + (alteracoes.justificativasModificadas === 1 ? '' : 's') +
+              ' modificada' + (alteracoes.justificativasModificadas === 1 ? '' : 's') + '</li>';
+          }
+          html += '<li>Dados do item ' + (alteracoes.dadosAlterados ? 'alterados' : 'mantidos') + '</li>';
+          html += '</ul></div>';
+        }
+      }
 
       html += '<div class="avp-actions-footer">';
       html += '<button class="btn" id="avpSalvarRascunhoBtn"' + (state.salvando ? ' disabled' : '') + '>' +
         (state.salvando === 'rascunho' ? 'SALVANDO…' : 'SALVAR RASCUNHO') + '</button>';
       html += '<button class="btn btn--primary" id="avpConcluirBtn"' + (state.salvando ? ' disabled' : '') + '>' +
-        (state.salvando === 'concluido' ? 'SALVANDO…' : 'CONCLUIR AVALIAÇÃO') + '</button>';
+        (state.salvando === 'concluido' ? 'SALVANDO…' : (reavaliando ? 'CONCLUIR REAVALIAÇÃO' : 'CONCLUIR AVALIAÇÃO')) + '</button>';
       html += '<button class="btn" id="avpCancelarChecklistBtn"' + (state.salvando ? ' disabled' : '') + '>CANCELAR</button>';
       html += '</div>';
       html += '</div>';
@@ -1024,6 +1274,10 @@
           var id = ta.dataset.id;
           if (a.respostas[id]) a.respostas[id].observacao = ta.value;
         });
+        /* Sem re-render a cada tecla (perderia o cursor); o resumo "Alterações
+           nesta reavaliação" só precisa refletir o texto quando o campo perde
+           o foco, e nesse ponto perder o foco não incomoda ninguém. */
+        if (reavaliando) ta.addEventListener('blur', function () { render(); });
       });
 
       document.getElementById('avpSalvarRascunhoBtn').addEventListener('click', function () {
@@ -1043,6 +1297,7 @@
           state.salvando = null;
           state.itens = upsertItem(state.itens, Object.assign({ _key: key }, payload));
           state.atual = null;
+          state.reavaliacaoBase = null;
           state.flashLista = '✓ Rascunho salvo com sucesso.';
           state.tela = 'lista';
           render();
@@ -1083,6 +1338,7 @@
           state.salvando = null;
           state.itens = upsertItem(state.itens, Object.assign({ _key: key }, payload));
           state.decisaoForm = decisaoFormInicial(payload);
+          state.reavaliacaoBase = null;
           state.flashResultado = '✓ Avaliação salva com sucesso.';
           state.tela = 'resultado';
           render();
@@ -1104,16 +1360,21 @@
       if (state.salvando) return; /* não deixa sair no meio de um salvamento em andamento */
       avpConfirm('Descartar esta avaliação sem salvar?', function () {
         state.atual = null;
+        state.reavaliacaoBase = null;
         state.tela = 'lista';
         render();
       });
     }
 
-    function renderPergunta(def, resposta) {
+    function renderPergunta(def, resposta, respostaBase, incoerente) {
       var essencialClass = def.essencial ? ' avp-question--essencial' : '';
       var pendenteClass = state.pendenteId === def.id ? ' avp-question--pendente' : '';
-      var html = '<div class="avp-question' + essencialClass + pendenteClass + '" id="avpQuestion-' + def.id + '">';
+      var incoerenteClass = incoerente ? ' avp-question--incoerente' : '';
+      var html = '<div class="avp-question' + essencialClass + pendenteClass + incoerenteClass + '" id="avpQuestion-' + def.id + '">';
       if (pendenteClass) html += '<p class="avp-field-invalid-msg">Responda esta pergunta antes de concluir.</p>';
+      if (incoerente) {
+        html += '<p class="avp-field-invalid-msg avp-incoerencia-msg">⚠ Contradiz outra resposta do questionário (autonomia x funcionalidade). Revise.</p>';
+      }
       html += '<div class="avp-question-head">';
       if (def.destaque) html += '<span class="avp-badge avp-badge--essencial">' + esc(def.destaque) + '</span>';
       html += '<p class="avp-question-text">' + esc(def.pergunta) + '</p>';
@@ -1140,6 +1401,12 @@
       html += '</div>';
       if (resposta && resposta.valor) {
         html += '<p class="avp-justificativa avp-justificativa--' + resposta.valor + '">' + esc(resposta.justificativaAuto) + '</p>';
+        /* Reavaliação: a justificativa anterior nunca é apagada só porque a
+           resposta mudou — só sinaliza, discretamente, que vale a pena
+           revisar o texto (a pessoa decide manter, editar ou apagar). */
+        if (respostaBase && respostaBase.valor && respostaBase.valor !== resposta.valor) {
+          html += '<p class="avp-reavaliacao-alerta">↺ A resposta foi alterada. Revise a justificativa, se necessário.</p>';
+        }
         html += '<textarea class="avp-observacao" data-id="' + def.id + '" placeholder="Observação do avaliador (opcional)">' + esc(resposta.observacao) + '</textarea>';
       }
       html += '</div>';
@@ -1168,6 +1435,13 @@
         observacoesGerais: a.observacoesGerais || '',
         respostas: a.respostas || {},
         status: status,
+        /* itemId agrupa todas as versões do mesmo item; a primeira versão
+           nunca teve reavaliação, então usa a própria chave. versao/
+           versaoAnteriorKey (ambos ausentes fora de uma reavaliação) são
+           quem monta a cadeia de histórico em abrirHistorico. */
+        itemId: a.itemId || key,
+        versao: a.versao || 1,
+        versaoAnteriorKey: a.versaoAnteriorKey || null,
         responsavel: a.responsavel || sessaoAtual(),
         criadoEm: a.criadoEm || agora,
         atualizadoEm: agora,
@@ -1234,10 +1508,13 @@
       }
 
       html += '<div class="avp-result-card ' + cardClasse + '">';
-      html += '<span class="avp-result-label">RESULTADO DA AVALIAÇÃO</span>';
-      html += '<h3 class="avp-result-nome">' + esc(a.nome) + '</h3>';
+      html += '<span class="avp-result-label">RESULTADO SOBRE PRODUTO/SERVIÇO</span>';
+      html += '<h3 class="avp-result-nome">' + esc(a.nome) + (a.versao > 1 ? ' <span class="avp-tag-versao">v' + a.versao + '</span>' : '') + '</h3>';
       html += '<div class="avp-result-badge-grande">' + badgeTexto + '</div>';
       html += '<p class="avp-result-secundario">Critérios atendidos: ' + a.criteriosAtendidos + ' de ' + CRITERIOS.length + '</p>';
+      if (a.versaoAnteriorKey) {
+        html += '<button type="button" class="avp-historico-link" id="avpVerHistoricoResultado">🕘 Ver histórico de versões</button>';
+      }
       html += '</div>';
 
       html += '<div class="avp-form-card">';
@@ -1256,7 +1533,17 @@
       if (camada.conflito && camada.conflito.length) {
         html += '<p class="avp-alt-outras">Categorias em conflito nas respostas: ' + esc(camada.conflito.join(', ')) + '.</p>';
       }
+      if (camada.incoerencia) {
+        html += '<p class="avp-alt-outras avp-incoerencia-msg">⚠ Há respostas que indicam autonomia e outras que indicam dependência. Revise os critérios destacados.</p>';
+      }
       html += '</div>';
+
+      if (camada.relacao) {
+        html += '<div class="avp-form-card avp-relacao-card">';
+        html += '<h4>Relação arquitetural</h4>';
+        html += '<p>' + esc(camada.relacao) + '</p>';
+        html += '</div>';
+      }
 
       if (camada.motivos && camada.motivos.length) {
         html += '<div class="avp-form-card">';
@@ -1282,6 +1569,9 @@
 
       var flashResultadoClose = document.getElementById('avpFlashResultadoClose');
       if (flashResultadoClose) flashResultadoClose.addEventListener('click', function () { state.flashResultado = null; render(); });
+
+      var verHistoricoResultado = document.getElementById('avpVerHistoricoResultado');
+      if (verHistoricoResultado) verHistoricoResultado.addEventListener('click', function () { abrirHistorico(a._key); });
 
       document.getElementById('avpVoltarListaResultado').addEventListener('click', function () {
         state.atual = null;
