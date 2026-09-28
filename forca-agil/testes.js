@@ -95,7 +95,7 @@
         } },
         { id: 'adm-manual', label: 'faInitManual disponível',   run: function () { return typeof window.faInitManual === 'function'; } },
         { id: 'adm-mapa',   label: 'faInitMapa disponível',     run: function () { return typeof window.faInitMapa === 'function'; } },
-        { id: 'adm-tabs',   label: 'Abas Admin presentes (15: Dashboard/Eventos/Certificados/Treinamentos/Repositório/Cadastrados/Administradores/Tipos de atividade/Diretores/Facilitadores/Manual/Mapa/Testes/Pedidos/Sorteios)', run: function () { return document.querySelectorAll('.admin-tab-btn').length === 15; } },
+        { id: 'adm-tabs',   label: 'Abas Admin presentes (16: Dashboard/Eventos/Certificados/Treinamentos/Repositório/Cadastrados/Administradores/Tipos de atividade/Diretores/Facilitadores/Manual/Mapa/Testes/Pedidos/Sorteios/Arquitetura)', run: function () { return document.querySelectorAll('.admin-tab-btn').length === 16; } },
         { id: 'adm-manual-panel', label: 'Painel Manual presente', run: function () { return !!document.getElementById('adminPanelManual'); } },
         { id: 'adm-mapa-panel',   label: 'Painel Mapa presente',   run: function () { return !!document.getElementById('adminPanelMapa'); } },
         { id: 'adm-testes-panel', label: 'Painel Testes presente', run: function () { return !!document.getElementById('adminPanelTestes'); } },
@@ -118,6 +118,11 @@
           return soma === total;
         } },
         { id: 'adm-pedidos-panel', label: 'Painel Pedidos presente', run: function () { return !!document.getElementById('adminPanelPedidos'); } },
+        { id: 'adm-avaliacao-produto', label: 'faInitAvaliacaoProduto disponível', run: function () { return typeof window.faInitAvaliacaoProduto === 'function'; } },
+        { id: 'adm-avaliacao-produto-panel', label: 'Painel Arquitetura presente (aba + container da Avaliação de Produto/Serviço)', run: function () {
+          return !!document.getElementById('adminPanelArquitetura') && !!document.getElementById('adminAvaliacaoProduto') &&
+                 !!document.querySelector('.admin-tab-btn[data-panel="adminPanelArquitetura"]');
+        } },
         { id: 'adm-sorteios-panel', label: 'Painel Sorteios presente (aba + container)', run: function () {
           return !!document.getElementById('adminPanelSorteios') && !!document.getElementById('adminSorteios') &&
                  !!document.querySelector('.admin-tab-btn[data-panel="adminPanelSorteios"]');

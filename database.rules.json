@@ -379,6 +379,11 @@
           ".write": "auth != null && auth.token.email.matches(/.*@previ\\.com\\.br/) && $userKey === auth.token.email.replace('@','_').replace('.','_')"
         }
       }
+    },
+
+    "avaliacoes-produto": {
+      ".read":  "auth != null && (auth.token.email === 'tatianefdirene@previ.com.br' || auth.token.email === 'danielfrazao@previ.com.br' || root.child('fa-admins').child(auth.token.email.replace('@','_').replace('.','_')).exists())",
+      ".write": "auth != null && (auth.token.email === 'tatianefdirene@previ.com.br' || auth.token.email === 'danielfrazao@previ.com.br' || root.child('fa-admins').child(auth.token.email.replace('@','_').replace('.','_')).exists())"
     }
   }
 }

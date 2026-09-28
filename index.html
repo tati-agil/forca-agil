@@ -1279,6 +1279,7 @@ body.aguardando-auth>#bootStatus{z-index:900}
         <button class="admin-tab-btn" data-panel="adminPanelTestes">Testes</button>
         <button class="admin-tab-btn" data-panel="adminPanelPedidos">Pedidos</button>
         <button class="admin-tab-btn" data-panel="adminPanelSorteios">Sorteios</button>
+        <button class="admin-tab-btn" data-panel="adminPanelArquitetura">Arquitetura</button>
       </div>
       <div class="admin-expand-bar" id="adminExpandBar">
         <span class="admin-expand-label">Expansíveis:</span>
@@ -1360,6 +1361,13 @@ body.aguardando-auth>#bootStatus{z-index:900}
       <div class="admin-tab-panel" id="adminPanelSorteios">
         <div id="adminSorteios">
           <p class="loading-msg">Carregando sorteios…</p>
+        </div>
+      </div>
+
+      <div class="admin-tab-panel" id="adminPanelArquitetura">
+        <h3 class="avp-panel-titulo">Avaliação de Produto/Serviço</h3>
+        <div id="adminAvaliacaoProduto">
+          <p class="loading-msg">Carregando avaliações…</p>
         </div>
       </div>
 
@@ -1755,6 +1763,7 @@ body.aguardando-auth>#bootStatus{z-index:900}
 <script src="forca-agil/testes.js"></script>
 <script src="forca-agil/pedidos.js"></script>
 <script src="forca-agil/dashboard.js"></script>
+<script src="forca-agil/avaliacao-produto.js"></script>
 <script src="forca-agil/aluno.js"></script>
 <script src="forca-agil/facilitador.js"></script>
 <!-- Construção da Aposta: depende de auth (quem está confirmada) e do router
