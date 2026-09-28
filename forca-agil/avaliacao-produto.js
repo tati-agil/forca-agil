@@ -602,6 +602,334 @@
     }, 30);
   }
 
+  /* ===================== EXPORTAÇÃO (PDF e Excel) =====================
+     A exportação é só leitura: usa exclusivamente os dados já gravados
+     (respostas, justificativas, resultadoAutomatico, camadaSugerida,
+     decisaoFinal…) — nunca recalcula, reinterpreta ou inventa nada. As duas
+     bibliotecas (html2pdf.js e SheetJS/xlsx) são vendorizadas localmente em
+     forca-agil/ porque este projeto não tem build step/bundler/npm em
+     produção (ver CLAUDE.md), e são carregadas SOB DEMANDA — nunca no
+     carregamento inicial da página — para não pesar a experiência de quem
+     nunca usa a aba Arquitetura (a maioria: participantes na oficina, no
+     celular, muitas vezes em rede lenta). */
+  function carregarScript(src, jaDisponivel, cb) {
+    if (jaDisponivel()) { cb(); return; }
+    var existente = document.querySelector('script[data-avp-lib="' + src + '"]');
+    if (existente) {
+      existente.addEventListener('load', function () { cb(); });
+      existente.addEventListener('error', function () { cb(new Error('Falha ao carregar ' + src)); });
+      return;
+    }
+    var s = document.createElement('script');
+    s.src = src;
+    s.setAttribute('data-avp-lib', src);
+    s.onload = function () { cb(); };
+    s.onerror = function () { cb(new Error('Falha ao carregar ' + src)); };
+    document.head.appendChild(s);
+  }
+  function sanitizarNomeArquivo(s) {
+    var t = String(s || 'item').normalize('NFD').replace(/[̀-ͯ]/g, '');
+    t = t.replace(/[^A-Za-z0-9]+/g, '_').replace(/_+/g, '_').replace(/^_|_$/g, '');
+    return (t || 'item').slice(0, 80);
+  }
+  function dataParaNomeArquivo(iso) {
+    var d = iso ? new Date(iso) : new Date();
+    function p(n) { return String(n).length < 2 ? '0' + n : String(n); }
+    return d.getFullYear() + '-' + p(d.getMonth() + 1) + '-' + p(d.getDate());
+  }
+  function nomeArquivoPdf(it) {
+    return 'Avaliacao_Produto_Servico_' + sanitizarNomeArquivo(it.nome) + '_' + dataParaNomeArquivo() + '.pdf';
+  }
+  function nomeArquivoExcel(sufixo) {
+    return 'Avaliacoes_Produto_Servico_' + sufixo + '_' + dataParaNomeArquivo() + '.xlsx';
+  }
+
+  var CSS_PDF = '' +
+    '.pdf-doc{font-family:Arial,Helvetica,sans-serif;color:#1a1a1a;background:#ffffff;font-size:11px;line-height:1.5;padding:4px 6px}' +
+    '.pdf-header{text-align:center;border-bottom:2px solid #16306a;padding-bottom:10px;margin-bottom:16px}' +
+    '.pdf-header-marca{font-size:12px;letter-spacing:.08em;color:#16306a;text-transform:uppercase}' +
+    '.pdf-header-titulo{font-size:20px;margin:4px 0;color:#0e1f44}' +
+    '.pdf-header-data{font-size:10px;color:#666;margin:0}' +
+    '.pdf-versao{font-size:10px;color:#666;font-style:italic;margin:0 0 10px}' +
+    '.pdf-secao-titulo{font-size:13px;color:#16306a;border-bottom:1px solid #ccc;padding-bottom:3px;margin:16px 0 8px;page-break-after:avoid}' +
+    '.pdf-subsecao{font-size:12px;color:#333;margin:10px 0 6px;page-break-after:avoid}' +
+    '.pdf-tabela-id{width:100%;border-collapse:collapse;margin-bottom:10px}' +
+    '.pdf-tabela-id th{text-align:left;width:220px;padding:4px 8px;background:#f2f4f8;border:1px solid #ddd;vertical-align:top;font-weight:bold}' +
+    '.pdf-tabela-id td{padding:4px 8px;border:1px solid #ddd;vertical-align:top}' +
+    '.pdf-resultado{font-size:14px;font-weight:bold;padding:6px 10px;border-radius:4px;display:inline-block;margin:0}' +
+    '.pdf-resultado--produto{background:#d7f3ef;color:#0b6b62}' +
+    '.pdf-resultado--nao-produto{background:#fdf1cf;color:#8a6800}' +
+    '.pdf-resultado--a-validar{background:#dfe9fb;color:#1f4e9c}' +
+    '.pdf-aviso{color:#8a6800;font-style:italic;margin:4px 0}' +
+    '.pdf-pergunta{border:1px solid #e2e2e2;border-radius:4px;padding:8px 10px;margin-bottom:6px;page-break-inside:avoid}' +
+    '.pdf-pergunta-texto{margin:0 0 4px}' +
+    '.pdf-pergunta-campo{margin:0 0 2px;font-size:10px}' +
+    '.pdf-quebra{page-break-before:always}';
+
+  function pdfLinhaTabela(rotulo, valor) {
+    return '<tr><th>' + esc(rotulo) + '</th><td>' + esc(valor || '—') + '</td></tr>';
+  }
+  function pdfPergunta(def, resposta) {
+    if (!resposta || !resposta.valor) return '';
+    var valor = resposta.valor === 'sim' ? 'SIM' : 'NÃO';
+    var obs = (resposta.observacao || '').trim();
+    return '' +
+      '<div class="pdf-pergunta">' +
+      '<p class="pdf-pergunta-texto">' + esc(def.titulo || def.pergunta) + ' — <strong>' + valor + '</strong></p>' +
+      '<p class="pdf-pergunta-campo"><strong>Justificativa do usuário:</strong> ' +
+        (obs ? esc(obs) : '<em>Nenhuma observação registrada.</em>') + '</p>' +
+      '<p class="pdf-pergunta-campo"><strong>Interpretação do sistema:</strong> ' + esc(semPrefixo(resposta.justificativaAuto)) + '</p>' +
+      '</div>';
+  }
+  function montarCabecalhoPdf() {
+    return '' +
+      '<div class="pdf-header">' +
+      '<p class="pdf-header-marca">PREVI · Força Ágil</p>' +
+      '<h1 class="pdf-header-titulo">Avaliação de Produto/Serviço</h1>' +
+      '<p class="pdf-header-data">Documento gerado em ' + esc(fmtData(new Date().toISOString())) + '</p>' +
+      '</div>';
+  }
+  /* Reflete só o que já está gravado no registro — nunca recalcula
+     resultado/camada/decisão nem reformula uma justificativa. */
+  function montarSecaoAvaliacaoPdf(it, primeira) {
+    var html = '<section class="pdf-av' + (primeira ? '' : ' pdf-quebra') + '">';
+    var rotuloVersao = it.versao > 1 ? ('Reavaliação — versão ' + it.versao) : 'Avaliação original — versão 1';
+    html += '<p class="pdf-versao">' + esc(rotuloVersao) + ' · ' + esc(fmtData(it.criadoEm)) + ' · ' +
+      esc(it.responsavel && it.responsavel.name || '—') + '</p>';
+
+    html += '<h2 class="pdf-secao-titulo">Identificação da avaliação</h2>';
+    html += '<table class="pdf-tabela-id">';
+    html += pdfLinhaTabela('Nome do item', it.nome);
+    html += pdfLinhaTabela('Descrição do item', it.descricao);
+    html += pdfLinhaTabela('Público/cliente relacionado', it.publico);
+    html += pdfLinhaTabela('Necessidade que o item pretende atender', it.necessidade);
+    html += pdfLinhaTabela('Observações', it.observacoesGerais);
+    html += pdfLinhaTabela('Responsável pela avaliação', it.responsavel && it.responsavel.name);
+    html += pdfLinhaTabela('Data da avaliação', fmtData(it.criadoEm));
+    html += pdfLinhaTabela('Status', it.status === 'concluido' ? 'Concluído' : 'Rascunho');
+    html += '</table>';
+
+    if (it.status !== 'concluido') {
+      html += '<p class="pdf-aviso">Esta avaliação está em rascunho: ainda não há resultado, classificação ' +
+        'nem decisão arquitetural calculados.</p></section>';
+      return html;
+    }
+
+    var rotuloResultadoTxt = it.resultadoAutomatico === 'produto' ? 'É Produto/Serviço' :
+      (it.resultadoAutomatico === 'a-validar' ? 'A validar' : 'Não é Produto/Serviço');
+    html += '<h2 class="pdf-secao-titulo">Resultado sobre Produto/Serviço</h2>';
+    html += '<p class="pdf-resultado pdf-resultado--' + esc(it.resultadoAutomatico || 'a-validar') + '">' +
+      esc(rotuloResultadoTxt) + '</p>';
+
+    var camada = it.camadaSugerida;
+    html += '<h2 class="pdf-secao-titulo">Classificação arquitetural sugerida</h2>';
+    html += '<p>' + esc(camada && camada.label || '—') + '</p>';
+    if (camada && camada.conflito && camada.conflito.length) {
+      html += '<p class="pdf-aviso">Categorias em conflito nas respostas: ' + esc(camada.conflito.join(', ')) + '.</p>';
+    }
+    if (camada && camada.incoerencia) {
+      html += '<p class="pdf-aviso">Há respostas que indicam autonomia e outras que indicam dependência. Revise os critérios destacados.</p>';
+    }
+
+    if (camada && camada.relacao) {
+      html += '<h2 class="pdf-secao-titulo">Relação arquitetural</h2>';
+      html += '<p>' + esc(camada.relacao) + '</p>';
+    }
+
+    html += '<h2 class="pdf-secao-titulo">Justificativa da classificação</h2>';
+    html += '<p>' + esc(it.justificativaAutomatica || '—') + '</p>';
+
+    html += '<h2 class="pdf-secao-titulo">Como chegamos a essa conclusão</h2>';
+    html += '<h3 class="pdf-subsecao">Critérios principais</h3>';
+    CRITERIOS.forEach(function (c) { html += pdfPergunta(c, it.respostas[c.id]); });
+    html += '<h3 class="pdf-subsecao">Teste de Classificação</h3>';
+    EXCLUSOES.forEach(function (e) { html += pdfPergunta(e, it.respostas[e.id]); });
+
+    html += '<h2 class="pdf-secao-titulo">Decisão arquitetural</h2>';
+    html += '<table class="pdf-tabela-id">';
+    html += pdfLinhaTabela('Recomendação do sistema', rotuloResultadoTxt);
+    html += pdfLinhaTabela('Classificação sugerida', camada && camada.label);
+    var decisaoTxt = it.decisaoFinal === 'produto' ? 'É Produto/Serviço' :
+      (it.decisaoFinal === 'a-validar' ? 'A validar' : 'Não é Produto/Serviço');
+    html += pdfLinhaTabela('Decisão final', decisaoTxt);
+    html += pdfLinhaTabela('Forma da decisão', it.decisaoManual ? 'Alterada manualmente' : 'Recomendação do sistema aceita');
+    if (it.decisaoManual) {
+      html += pdfLinhaTabela('Justificativa da decisão manual', it.justificativaDecisao);
+      html += pdfLinhaTabela('Responsável pela decisão', it.alteradoPor && it.alteradoPor.name);
+      html += pdfLinhaTabela('Data e hora da decisão', fmtData(it.alteradoEm));
+    }
+    html += '</table></section>';
+    return html;
+  }
+  function montarDocumentoPdf(itens) {
+    var corpo = montarCabecalhoPdf();
+    itens.forEach(function (it, i) { corpo += montarSecaoAvaliacaoPdf(it, i === 0); });
+    return '<div class="pdf-doc"><style>' + CSS_PDF + '</style>' + corpo + '</div>';
+  }
+  /* cbFim(erro|null). O container fica fora da tela (nunca visível) durante
+     a geração e é removido ao final, sucesso ou erro. */
+  function gerarPdf(itens, nomeArquivo, cbFim) {
+    carregarScript('forca-agil/html2pdf.bundle.min.js', function () { return typeof window.html2pdf === 'function'; }, function (erroCarga) {
+      if (erroCarga) { cbFim(erroCarga); return; }
+      var container = document.createElement('div');
+      container.style.cssText = 'width:190mm;background:#fff;';
+      container.innerHTML = montarDocumentoPdf(itens);
+      document.body.appendChild(container);
+      /* html2canvas às vezes falha em medir a altura de um container recém-
+         inserido (mede 0 e produz um PDF em branco) quando ele não fica em
+         fluxo normal visível — por isso mora no fim do <body> em fluxo
+         normal (não fixed/absolute) enquanto gera, e a altura real
+         (scrollHeight, já com o layout aplicado) é passada explicitamente,
+         em vez de deixar a biblioteca tentar adivinhar. */
+      var alturaReal = container.scrollHeight;
+      function limpar() { if (container.parentNode) document.body.removeChild(container); }
+      try {
+        window.html2pdf().set({
+          margin: [14, 12, 16, 12],
+          filename: nomeArquivo,
+          image: { type: 'jpeg', quality: 0.95 },
+          html2canvas: { scale: 2, backgroundColor: '#ffffff', useCORS: false, height: alturaReal, windowHeight: alturaReal },
+          jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' },
+          pagebreak: { mode: ['css', 'avoid-all'] }
+        }).from(container).toPdf().get('pdf').then(function (pdf) {
+          var total = pdf.internal.getNumberOfPages();
+          var largura = pdf.internal.pageSize.getWidth();
+          var altura = pdf.internal.pageSize.getHeight();
+          for (var i = 1; i <= total; i++) {
+            pdf.setPage(i);
+            pdf.setFontSize(8);
+            pdf.setTextColor(120);
+            pdf.text('Página ' + i + ' de ' + total, largura / 2, altura - 6, { align: 'center' });
+          }
+        }).save().then(function () { limpar(); cbFim(null); }, function (erroSave) { limpar(); cbFim(erroSave); });
+      } catch (erroGeral) {
+        limpar();
+        cbFim(erroGeral);
+      }
+    });
+  }
+
+  var EXCEL_COLS_RESUMO = [
+    { largura: 26, rotulo: 'ID da avaliação' }, { largura: 30, rotulo: 'Nome do item' },
+    { largura: 34, rotulo: 'Descrição' }, { largura: 22, rotulo: 'Público/cliente' },
+    { largura: 30, rotulo: 'Necessidade' }, { largura: 20, rotulo: 'Responsável' },
+    { largura: 16, rotulo: 'Data' }, { largura: 12, rotulo: 'Status' }, { largura: 8, rotulo: 'Versão' },
+    { largura: 20, rotulo: 'Resultado automático' }, { largura: 28, rotulo: 'Classificação arquitetural sugerida' },
+    { largura: 40, rotulo: 'Relação arquitetural' }, { largura: 20, rotulo: 'Decisão arquitetural final' },
+    { largura: 14, rotulo: 'Tipo da decisão' }, { largura: 20, rotulo: 'Responsável pela decisão' },
+    { largura: 16, rotulo: 'Data da decisão' }, { largura: 40, rotulo: 'Justificativa da decisão manual' }
+  ];
+  function linhaResumoExcel(it) {
+    var camada = it.camadaSugerida;
+    return [
+      it._key, it.nome || '', it.descricao || '', it.publico || '', it.necessidade || '',
+      (it.responsavel && it.responsavel.name) || '', it.criadoEm ? new Date(it.criadoEm) : '',
+      it.status === 'concluido' ? 'Concluído' : 'Rascunho', it.versao || 1,
+      it.status === 'concluido' ? rotuloResultadoExcel(it.resultadoAutomatico) : '',
+      (camada && camada.label) || '', (camada && camada.relacao) || '',
+      it.status === 'concluido' ? rotuloResultadoExcel(it.decisaoFinal) : '',
+      it.status === 'concluido' ? (it.decisaoManual ? 'Manual' : 'Automática') : '',
+      it.decisaoManual ? ((it.alteradoPor && it.alteradoPor.name) || '') : '',
+      it.decisaoManual && it.alteradoEm ? new Date(it.alteradoEm) : '',
+      it.decisaoManual ? (it.justificativaDecisao || '') : ''
+    ];
+  }
+  function rotuloResultadoExcel(v) {
+    if (v === 'produto') return 'É Produto/Serviço';
+    if (v === 'a-validar') return 'A validar';
+    if (v === 'nao-produto') return 'Não é Produto/Serviço';
+    return '';
+  }
+  var EXCEL_COLS_RESPOSTAS = [
+    { largura: 26 }, { largura: 30 }, { largura: 8 }, { largura: 18 }, { largura: 10 },
+    { largura: 46 }, { largura: 10 }, { largura: 46 }, { largura: 46 }
+  ];
+  var EXCEL_HEAD_RESPOSTAS = ['ID da avaliação', 'Nome do item', 'Versão', 'Grupo da pergunta', 'Número da pergunta',
+    'Pergunta', 'Resposta', 'Justificativa do usuário', 'Interpretação do sistema'];
+  function linhasRespostasExcel(itens) {
+    var linhas = [];
+    itens.forEach(function (it) {
+      if (it.status !== 'concluido' || !it.respostas) return;
+      TODAS_PERGUNTAS.forEach(function (p, idx) {
+        var r = it.respostas[p.id];
+        if (!r || !r.valor) return;
+        linhas.push([
+          it._key, it.nome || '', it.versao || 1,
+          criterioPorId(p.id) ? 'Critério principal' : 'Teste de classificação',
+          idx + 1, p.titulo || p.pergunta, r.valor === 'sim' ? 'SIM' : 'NÃO',
+          r.observacao || '', semPrefixo(r.justificativaAuto || '')
+        ]);
+      });
+    });
+    return linhas;
+  }
+  var EXCEL_COLS_HISTORICO = [
+    { largura: 26 }, { largura: 26 }, { largura: 8 }, { largura: 16 }, { largura: 20 },
+    { largura: 20 }, { largura: 28 }, { largura: 20 }, { largura: 40 }
+  ];
+  var EXCEL_HEAD_HISTORICO = ['ID do item', 'ID da avaliação', 'Versão', 'Data', 'Responsável',
+    'Resultado automático', 'Classificação sugerida', 'Decisão final', 'Justificativa de divergência'];
+  /* Uma linha por versão de cada item incluído no export, mesmo quando essa
+     versão já foi superada por uma reavaliação — é exatamente disso que o
+     histórico trata. Nunca inventa uma versão anterior que não existe: se o
+     item nunca foi reavaliado, aparece só a linha da própria versão 1. */
+  function linhasHistoricoExcel(itensExportados, todosOsItens) {
+    var idsIncluidos = {};
+    itensExportados.forEach(function (it) { idsIncluidos[it.itemId || it._key] = true; });
+    return todosOsItens.filter(function (it) { return !it.excluido && idsIncluidos[it.itemId || it._key]; })
+      .sort(function (x, y) {
+        var idA = x.itemId || x._key, idB = y.itemId || y._key;
+        if (idA !== idB) return idA < idB ? -1 : 1;
+        return (x.versao || 1) - (y.versao || 1);
+      })
+      .map(function (it) {
+        return [
+          it.itemId || it._key, it._key, it.versao || 1, it.criadoEm ? new Date(it.criadoEm) : '',
+          (it.responsavel && it.responsavel.name) || '',
+          it.status === 'concluido' ? rotuloResultadoExcel(it.resultadoAutomatico) : '',
+          (it.camadaSugerida && it.camadaSugerida.label) || '',
+          it.status === 'concluido' ? rotuloResultadoExcel(it.decisaoFinal) : '',
+          it.decisaoManual ? (it.justificativaDecisao || '') : ''
+        ];
+      });
+  }
+  function planilhaComColunas(XLSXLib, cabecalho, linhas, colunas) {
+    var ws = XLSXLib.utils.aoa_to_sheet([cabecalho].concat(linhas));
+    ws['!cols'] = colunas.map(function (c) { return { wch: c.largura }; });
+    var ultimaLinha = linhas.length; /* +1 do cabeçalho, -1 por ser índice 0 */
+    ws['!autofilter'] = { ref: XLSXLib.utils.encode_range({ s: { r: 0, c: 0 }, e: { r: ultimaLinha, c: cabecalho.length - 1 } }) };
+    return ws;
+  }
+  /* cbFim(erro|null). itensExportados é o conjunto respeitando o filtro/
+     seleção escolhida na tela; todosOsItens é state.itens completo, usado
+     só para montar o histórico de versões desses mesmos itens. */
+  function gerarExcel(itensExportados, todosOsItens, nomeArquivo, cbFim) {
+    carregarScript('forca-agil/xlsx.mini.min.js', function () { return !!window.XLSX; }, function (erroCarga) {
+      if (erroCarga) { cbFim(erroCarga); return; }
+      try {
+        var XLSXLib = window.XLSX;
+        var wb = XLSXLib.utils.book_new();
+        var wsResumo = planilhaComColunas(XLSXLib,
+          EXCEL_COLS_RESUMO.map(function (c) { return c.rotulo; }),
+          itensExportados.map(linhaResumoExcel), EXCEL_COLS_RESUMO);
+        XLSXLib.utils.book_append_sheet(wb, wsResumo, 'Resumo');
+
+        var wsRespostas = planilhaComColunas(XLSXLib, EXCEL_HEAD_RESPOSTAS,
+          linhasRespostasExcel(itensExportados), EXCEL_COLS_RESPOSTAS);
+        XLSXLib.utils.book_append_sheet(wb, wsRespostas, 'Respostas do questionário');
+
+        var wsHistorico = planilhaComColunas(XLSXLib, EXCEL_HEAD_HISTORICO,
+          linhasHistoricoExcel(itensExportados, todosOsItens), EXCEL_COLS_HISTORICO);
+        XLSXLib.utils.book_append_sheet(wb, wsHistorico, 'Histórico');
+
+        XLSXLib.writeFile(wb, nomeArquivo, { cellDates: true });
+        cbFim(null);
+      } catch (erroGeral) {
+        cbFim(erroGeral);
+      }
+    });
+  }
+
   window.faInitAvaliacaoProduto = function () {
     var wrap = document.getElementById('adminAvaliacaoProduto');
     if (!wrap || wrap._avpBound) return;
@@ -622,8 +950,12 @@
       flashLista: null,     /* confirmação persistente mostrada na lista após salvar rascunho */
       flashResultado: null, /* confirmação persistente mostrada no resultado após concluir */
       flashDecisao: null,   /* confirmação persistente mostrada após salvar a decisão arquitetural */
-      reavaliacaoBase: null /* fotografia da avaliação anterior, só durante uma reavaliação — usada para
+      reavaliacaoBase: null, /* fotografia da avaliação anterior, só durante uma reavaliação — usada para
                                 mostrar "resposta alterada" e o resumo de alterações; nunca gravada */
+      selecionados: {},      /* chaves marcadas na lista, para "PDF das selecionadas" — nunca persistido */
+      menuExportarAberto: false,
+      exportando: null,      /* null | 'pdf' | 'excel' — trava os botões de exportação durante a geração */
+      flashExportacao: null  /* mensagem de sucesso/erro da última exportação, mostrada na lista */
     };
 
     function temCampoInvalido(campo) {
@@ -671,13 +1003,33 @@
 
       var ativos = state.itens.filter(function (it) { return !it.excluido && !temVersaoMaisNova(it._key); });
       var excluidos = state.itens.filter(function (it) { return !!it.excluido; });
+      var chavesSelecionadas = Object.keys(state.selecionados).filter(function (k) { return state.selecionados[k]; });
 
       html += '<div class="avp-actions-bar">';
       html += '<span class="avp-total">' + ativos.length + ' avaliaç' + (ativos.length === 1 ? 'ão' : 'ões') + ' registrada' + (ativos.length === 1 ? '' : 's') + '</span>';
       if (!state.lixeira) html += '<button class="btn btn--primary" id="avpNovoBtn">+ Avaliar novo item</button>';
+      if (!state.lixeira) {
+        html += '<div class="avp-exportar-wrap">';
+        html += '<button class="btn btn--sm" id="avpExportarBtn"' + (state.exportando ? ' disabled' : '') + '>' +
+          (state.exportando ? 'Gerando arquivo…' : 'Exportar ▾') + '</button>';
+        if (state.menuExportarAberto) {
+          html += '<div class="avp-exportar-menu" id="avpExportarMenu">';
+          html += '<button type="button" class="btn" id="avpExportarExcelFiltrados">📊 Excel — resultados filtrados (' + filtrados.length + ')</button>';
+          html += '<button type="button" class="btn" id="avpExportarExcelTodas">📊 Excel — todas as avaliações (' + ativos.length + ')</button>';
+          if (chavesSelecionadas.length) {
+            html += '<button type="button" class="btn" id="avpExportarPdfSelecionadas">📄 PDF das selecionadas (' + chavesSelecionadas.length + ')</button>';
+          }
+          html += '</div>';
+        }
+        html += '</div>';
+      }
       html += '<button class="btn btn--sm avp-lixeira-btn' + (state.lixeira ? ' active' : '') + '" id="avpLixeiraBtn">' +
         (state.lixeira ? '‹ Voltar' : '🗑 Lixeira (' + excluidos.length + ')') + '</button>';
       html += '</div>';
+      if (state.flashExportacao) {
+        html += '<p class="avp-export-status' + (state.flashExportacao.erro ? ' avp-export-status--erro' : '') + '">' +
+          esc(state.flashExportacao.texto) + '</p>';
+      }
 
       if (state.lixeira) {
         html += '<p class="avp-lixeira-aviso">🗑 Mostrando avaliações excluídas. Elas não são apagadas do banco — use "↺ Restaurar" para trazer de volta.</p>';
@@ -714,13 +1066,17 @@
         });
         html += '</tbody></table></div>';
       } else {
+        var todosFiltradosSelecionados = filtrados.length > 0 && filtrados.every(function (it) { return !!state.selecionados[it._key]; });
         html += '<div class="table-scroll-wrap"><table class="admin-table avp-table"><thead><tr>' +
+          '<th class="avp-check-col"><input type="checkbox" id="avpSelecionarTodos"' + (todosFiltradosSelecionados ? ' checked' : '') + ' aria-label="Selecionar todas as avaliações filtradas"></th>' +
           '<th>Item</th><th>Resultado automático</th><th>Decisão final</th><th>Classificação arquitetural</th>' +
           '<th>Responsável</th><th>Data</th><th>Status</th><th>Ações</th></tr></thead><tbody>';
         filtrados.forEach(function (it) {
           var decisao = it.decisaoFinal || it.resultadoAutomatico;
           var camadaLabel = (it.camadaSugerida && it.camadaSugerida.label) || '—';
           html += '<tr>';
+          html += '<td class="avp-check-col"><input type="checkbox" class="avp-check-item" data-key="' + it._key + '"' +
+            (state.selecionados[it._key] ? ' checked' : '') + ' aria-label="Selecionar ' + esc(it.nome) + '"></td>';
           html += '<td data-label="Item">' + esc(it.nome) + (it.versao > 1 ? ' <span class="avp-tag-versao">v' + it.versao + '</span>' : '') + '</td>';
           html += '<td data-label="Resultado automático">' + resultadoBadge(it.resultadoAutomatico) + '</td>';
           html += '<td data-label="Decisão final">' + resultadoBadge(decisao) + (it.decisaoManual ? ' <span class="avp-tag-alterado">alterada</span>' : '') + '</td>';
@@ -749,6 +1105,8 @@
       document.getElementById('avpLixeiraBtn').addEventListener('click', function () {
         state.lixeira = !state.lixeira;
         state.flashLista = null;
+        state.selecionados = {};
+        state.menuExportarAberto = false;
         render();
       });
 
@@ -780,6 +1138,78 @@
       });
       wrap.querySelectorAll('.avp-act-restaurar').forEach(function (btn) {
         btn.addEventListener('click', function () { restaurarItem(btn.dataset.key); });
+      });
+
+      wrap.querySelectorAll('.avp-check-item').forEach(function (chk) {
+        chk.addEventListener('change', function () {
+          if (chk.checked) state.selecionados[chk.dataset.key] = true;
+          else delete state.selecionados[chk.dataset.key];
+          render();
+        });
+      });
+      var selecionarTodos = document.getElementById('avpSelecionarTodos');
+      if (selecionarTodos) selecionarTodos.addEventListener('change', function () {
+        filtrados.forEach(function (it) {
+          if (selecionarTodos.checked) state.selecionados[it._key] = true;
+          else delete state.selecionados[it._key];
+        });
+        render();
+      });
+
+      var exportarBtn = document.getElementById('avpExportarBtn');
+      if (exportarBtn) exportarBtn.addEventListener('click', function () {
+        state.menuExportarAberto = !state.menuExportarAberto;
+        render();
+      });
+      var exportarExcelFiltrados = document.getElementById('avpExportarExcelFiltrados');
+      if (exportarExcelFiltrados) exportarExcelFiltrados.addEventListener('click', function () {
+        executarExportacaoExcel(filtrados, 'filtradas');
+      });
+      var exportarExcelTodas = document.getElementById('avpExportarExcelTodas');
+      if (exportarExcelTodas) exportarExcelTodas.addEventListener('click', function () {
+        executarExportacaoExcel(ativos, 'todas');
+      });
+      var exportarPdfSelecionadas = document.getElementById('avpExportarPdfSelecionadas');
+      if (exportarPdfSelecionadas) exportarPdfSelecionadas.addEventListener('click', function () {
+        var itensSelecionados = chavesSelecionadas.map(function (k) { return buscarItem(k); }).filter(Boolean);
+        if (!itensSelecionados.length) return;
+        executarExportacaoPdfLista(itensSelecionados);
+      });
+    }
+
+    /* onde a exportação da LISTA de fato dispara a geração — nunca recalcula
+       nada, só decide QUAIS itens (já carregados em state.itens) entram no
+       arquivo, respeitando o filtro ou a seleção escolhida na tela. */
+    function executarExportacaoExcel(itensParaExportar, sufixo) {
+      if (state.exportando) return;
+      state.exportando = 'excel';
+      state.menuExportarAberto = false;
+      state.flashExportacao = null;
+      render();
+      gerarExcel(itensParaExportar, state.itens, nomeArquivoExcel(sufixo), function (erro) {
+        state.exportando = null;
+        state.flashExportacao = erro
+          ? { erro: true, texto: 'Não foi possível gerar o arquivo. Tente novamente.' }
+          : { erro: false, texto: 'Arquivo gerado com sucesso.' };
+        if (erro) console.error('[avaliacao-produto] erro ao gerar Excel:', erro);
+        render();
+      });
+    }
+    function executarExportacaoPdfLista(itensSelecionados) {
+      if (state.exportando) return;
+      state.exportando = 'pdf';
+      state.menuExportarAberto = false;
+      state.flashExportacao = null;
+      render();
+      var nome = itensSelecionados.length === 1 ? nomeArquivoPdf(itensSelecionados[0])
+        : 'Avaliacoes_Produto_Servico_Selecionadas_' + dataParaNomeArquivo() + '.pdf';
+      gerarPdf(itensSelecionados, nome, function (erro) {
+        state.exportando = null;
+        state.flashExportacao = erro
+          ? { erro: true, texto: 'Não foi possível gerar o arquivo. Tente novamente.' }
+          : { erro: false, texto: 'Arquivo gerado com sucesso.' };
+        if (erro) console.error('[avaliacao-produto] erro ao gerar PDF da lista:', erro);
+        render();
       });
     }
 
@@ -1517,6 +1947,15 @@
       }
       html += '</div>';
 
+      html += '<div class="avp-export-bar">';
+      html += '<button class="btn btn--sm" id="avpGerarPdfBtn"' + (state.exportando ? ' disabled' : '') + '>' +
+        (state.exportando === 'pdf' ? 'Gerando arquivo…' : '📄 Gerar PDF') + '</button>';
+      if (state.flashExportacao) {
+        html += '<span class="avp-export-status' + (state.flashExportacao.erro ? ' avp-export-status--erro' : '') + '">' +
+          esc(state.flashExportacao.texto) + '</span>';
+      }
+      html += '</div>';
+
       html += '<div class="avp-form-card">';
       html += '<h4>Justificativa da classificação</h4>';
       html += '<p>' + esc(a.justificativaAutomatica) + '</p>';
@@ -1573,10 +2012,26 @@
       var verHistoricoResultado = document.getElementById('avpVerHistoricoResultado');
       if (verHistoricoResultado) verHistoricoResultado.addEventListener('click', function () { abrirHistorico(a._key); });
 
+      document.getElementById('avpGerarPdfBtn').addEventListener('click', function () {
+        if (state.exportando) return; /* clique repetido enquanto já está gerando: ignora */
+        state.exportando = 'pdf';
+        state.flashExportacao = null;
+        render();
+        gerarPdf([a], nomeArquivoPdf(a), function (erro) {
+          state.exportando = null;
+          state.flashExportacao = erro
+            ? { erro: true, texto: 'Não foi possível gerar o arquivo. Tente novamente.' }
+            : { erro: false, texto: 'Arquivo gerado com sucesso.' };
+          if (erro) console.error('[avaliacao-produto] erro ao gerar PDF:', erro);
+          render();
+        });
+      });
+
       document.getElementById('avpVoltarListaResultado').addEventListener('click', function () {
         state.atual = null;
         state.flashResultado = null;
         state.flashDecisao = null;
+        state.flashExportacao = null;
         state.tela = 'lista';
         render();
       });
