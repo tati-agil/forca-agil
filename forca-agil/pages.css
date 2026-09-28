@@ -1998,8 +1998,12 @@ select.aposta-campo-input { width: auto; min-width: 8.5em; }
 .avp-reasoning-list { display: flex; flex-direction: column; gap: 10px; }
 .avp-reasoning-item { border-bottom: 1px solid var(--line); padding-bottom: 10px; }
 .avp-reasoning-item:last-child { border-bottom: none; padding-bottom: 0; }
-.avp-reasoning-q { margin: 0 0 3px; font-size: .86rem; color: var(--ink); }
-.avp-reasoning-a { margin: 0; font-size: .8rem; color: var(--ink-3); }
+.avp-reasoning-q { margin: 0 0 5px; font-size: .86rem; color: var(--ink); }
+.avp-reasoning-user { margin: 0 0 4px; font-size: .82rem; color: var(--ink-2); line-height: 1.5; }
+.avp-reasoning-user strong { color: var(--ink); }
+.avp-reasoning-user em { color: var(--ink-3); font-style: italic; }
+.avp-reasoning-auto { margin: 0; font-size: .8rem; color: var(--ink-3); line-height: 1.5; }
+.avp-reasoning-auto strong { color: var(--ink-2); }
 .avp-reasoning-sep {
   font-family: var(--font-mono); font-size: .72rem; letter-spacing: .08em; text-transform: uppercase;
   color: #cabdff; margin: 8px 0 0; padding-top: 8px; border-top: 1px solid rgba(155,127,255,.3);
@@ -2069,3 +2073,27 @@ select.aposta-campo-input { width: auto; min-width: 8.5em; }
   font-size: 1rem; line-height: 1; padding: 4px 6px; flex-shrink: 0;
 }
 .avp-flash-close:hover { opacity: 1; }
+
+/* Botão "Salvar decisão": estado salvo tem visual de confirmação, não de
+   botão comum desabilitado — sem isso, "✓ DECISÃO SALVA" pareceria só
+   apagado/indisponível, em vez de "já está gravado, pode confiar". */
+.avp-btn-decisao--salva:disabled {
+  background: rgba(24,194,186,.1); color: var(--cyan-soft); border-color: rgba(24,194,186,.4);
+  opacity: 1; cursor: default;
+}
+
+/* Lista: uma ação principal por linha + menu "⋯" para o resto — em vez de
+   empilhar Visualizar/Editar/Reavaliar/Duplicar, todos com o mesmo peso
+   visual (mesmo problema, mesma solução, da aba Cadastrados do admin). */
+.avp-lixeira-btn { border-color: rgba(255,197,24,.35); color: var(--ink-3); }
+.avp-lixeira-btn:hover, .avp-lixeira-btn.active { background: rgba(255,197,24,.08); color: var(--accent); }
+.avp-lixeira-aviso { color: var(--ink-3); font-size: .82rem; font-style: italic; margin: 0 0 14px; }
+
+.avp-menu-acoes-titulo { font-size: .95rem; color: var(--ink); margin: 0; font-family: var(--font-head); letter-spacing: .02em; }
+.avp-menu-acoes-lista { display: flex; flex-direction: column; gap: 8px; }
+.avp-menu-item { width: 100%; text-align: left; padding: 10px 14px; }
+.avp-menu-item--perigo { border-color: rgba(255,59,48,.4); color: var(--red); }
+.avp-menu-item--perigo:hover { background: rgba(255,59,48,.1); }
+
+.avp-excluir-alerta { margin: 0; font-family: var(--font-head); letter-spacing: .02em; color: var(--red); font-size: 1rem; }
+.avp-excluir-texto { margin: 0; font-size: .88rem; color: var(--ink-2); line-height: 1.6; }

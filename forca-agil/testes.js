@@ -123,6 +123,9 @@
           return !!document.getElementById('adminPanelArquitetura') && !!document.getElementById('adminAvaliacaoProduto') &&
                  !!document.querySelector('.admin-tab-btn[data-panel="adminPanelArquitetura"]');
         } },
+        { id: 'adm-avaliacao-produto-lixeira', label: 'Avaliação de Produto/Serviço: botão de Lixeira presente na lista (exclusão lógica)', run: function () {
+          return !!document.getElementById('avpLixeiraBtn');
+        } },
         { id: 'adm-sorteios-panel', label: 'Painel Sorteios presente (aba + container)', run: function () {
           return !!document.getElementById('adminPanelSorteios') && !!document.getElementById('adminSorteios') &&
                  !!document.querySelector('.admin-tab-btn[data-panel="adminPanelSorteios"]');

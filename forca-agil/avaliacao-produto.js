@@ -334,6 +334,7 @@
       tela: 'lista', /* 'lista' | 'form-inicial' | 'checklist' | 'resultado' */
       itens: [],
       filtro: { resultado: 'todos', status: 'todos', alterado: 'todos', alternativa: 'todos' },
+      lixeira: false,        /* alterna a lista entre ativos e excluídos — "excluído" é outra dimensão, não um status irmão de rascunho/concluído */
       atual: null,
       erroForm: null,
       camposInvalidos: [],
@@ -359,6 +360,8 @@
 
     /* ===================== LISTA ===================== */
     function itemPassaFiltro(it) {
+      if (state.lixeira) return !!it.excluido;
+      if (it.excluido) return false;
       if (state.filtro.resultado !== 'todos') {
         var decisao = it.decisaoFinal || it.resultadoAutomatico;
         if (decisao !== state.filtro.resultado) return false;
@@ -387,28 +390,50 @@
         'para a entrega sem constituir uma solução independente para o cliente.</p>';
       html += '</div>';
 
+      var ativos = state.itens.filter(function (it) { return !it.excluido; });
+      var excluidos = state.itens.filter(function (it) { return !!it.excluido; });
+
       html += '<div class="avp-actions-bar">';
-      html += '<span class="avp-total">' + state.itens.length + ' avaliaç' + (state.itens.length === 1 ? 'ão' : 'ões') + ' registrada' + (state.itens.length === 1 ? '' : 's') + '</span>';
-      html += '<button class="btn btn--primary" id="avpNovoBtn">+ Avaliar novo item</button>';
+      html += '<span class="avp-total">' + ativos.length + ' avaliaç' + (ativos.length === 1 ? 'ão' : 'ões') + ' registrada' + (ativos.length === 1 ? '' : 's') + '</span>';
+      if (!state.lixeira) html += '<button class="btn btn--primary" id="avpNovoBtn">+ Avaliar novo item</button>';
+      html += '<button class="btn btn--sm avp-lixeira-btn' + (state.lixeira ? ' active' : '') + '" id="avpLixeiraBtn">' +
+        (state.lixeira ? '‹ Voltar' : '🗑 Lixeira (' + excluidos.length + ')') + '</button>';
       html += '</div>';
 
-      html += '<div class="avp-filters">';
-      html += filtroSelect('avpFiltroResultado', state.filtro.resultado, [
-        ['todos', 'Todos os resultados'], ['produto', 'É Produto/Serviço'], ['nao-produto', 'Não é Produto/Serviço']
-      ]);
-      html += filtroSelect('avpFiltroStatus', state.filtro.status, [
-        ['todos', 'Todos os status'], ['rascunho', 'Rascunho'], ['concluido', 'Concluído']
-      ]);
-      html += filtroSelect('avpFiltroAlterado', state.filtro.alterado, [
-        ['todos', 'Decisão automática ou manual'], ['sim', 'Alterado manualmente']
-      ]);
-      html += filtroSelect('avpFiltroAlternativa', state.filtro.alternativa, [['todos', 'Todas as classificações alternativas']].concat(
-        ALTERNATIVAS_LABELS.map(function (l) { return [l, l]; })
-      ));
-      html += '</div>';
+      if (state.lixeira) {
+        html += '<p class="avp-lixeira-aviso">🗑 Mostrando avaliações excluídas. Elas não são apagadas do banco — use "↺ Restaurar" para trazer de volta.</p>';
+      } else {
+        html += '<div class="avp-filters">';
+        html += filtroSelect('avpFiltroResultado', state.filtro.resultado, [
+          ['todos', 'Todos os resultados'], ['produto', 'É Produto/Serviço'], ['nao-produto', 'Não é Produto/Serviço']
+        ]);
+        html += filtroSelect('avpFiltroStatus', state.filtro.status, [
+          ['todos', 'Todos os status'], ['rascunho', 'Rascunho'], ['concluido', 'Concluído']
+        ]);
+        html += filtroSelect('avpFiltroAlterado', state.filtro.alterado, [
+          ['todos', 'Decisão automática ou manual'], ['sim', 'Alterado manualmente']
+        ]);
+        html += filtroSelect('avpFiltroAlternativa', state.filtro.alternativa, [['todos', 'Todas as classificações alternativas']].concat(
+          ALTERNATIVAS_LABELS.map(function (l) { return [l, l]; })
+        ));
+        html += '</div>';
+      }
 
       if (!filtrados.length) {
-        html += '<p class="admin-empty">Nenhuma avaliação nessa combinação de filtros.</p>';
+        html += '<p class="admin-empty">' + (state.lixeira ? 'Nenhuma avaliação excluída.' : 'Nenhuma avaliação nessa combinação de filtros.') + '</p>';
+      } else if (state.lixeira) {
+        html += '<div class="table-scroll-wrap"><table class="admin-table avp-table"><thead><tr>' +
+          '<th>Item</th><th>Excluído por</th><th>Quando</th><th>Justificativa</th><th>Ações</th></tr></thead><tbody>';
+        filtrados.forEach(function (it) {
+          html += '<tr>';
+          html += '<td data-label="Item">' + esc(it.nome) + '</td>';
+          html += '<td data-label="Excluído por">' + esc(it.excluidoPor && it.excluidoPor.name || '—') + '</td>';
+          html += '<td data-label="Quando">' + fmtData(it.excluidoEm) + '</td>';
+          html += '<td data-label="Justificativa">' + esc(it.justificativaExclusao || '—') + '</td>';
+          html += '<td data-label="Ações"><button class="btn btn--sm avp-act-restaurar" data-key="' + it._key + '">↺ Restaurar</button></td>';
+          html += '</tr>';
+        });
+        html += '</tbody></table></div>';
       } else {
         html += '<div class="table-scroll-wrap"><table class="admin-table avp-table"><thead><tr>' +
           '<th>Item</th><th>Resultado automático</th><th>Decisão final</th><th>Classificação alternativa</th>' +
@@ -427,13 +452,11 @@
           html += '<td data-label="Status">' + statusBadge(it.status) + '</td>';
           html += '<td data-label="Ações"><div class="avp-row-actions">';
           if (it.status === 'concluido') {
-            html += '<button class="btn btn--sm avp-act-ver" data-key="' + it._key + '">Visualizar</button>';
-            html += '<button class="btn btn--sm avp-act-editar" data-key="' + it._key + '">Editar</button>';
-            html += '<button class="btn btn--sm avp-act-reavaliar" data-key="' + it._key + '">Reavaliar</button>';
+            html += '<button class="btn btn--sm btn--primary avp-act-ver" data-key="' + it._key + '">Visualizar</button>';
           } else {
             html += '<button class="btn btn--sm btn--primary avp-act-editar" data-key="' + it._key + '">Continuar</button>';
           }
-          html += '<button class="btn btn--sm avp-act-duplicar" data-key="' + it._key + '">Duplicar</button>';
+          html += '<button class="btn btn--sm avp-act-mais" data-key="' + it._key + '" aria-label="Mais ações">⋯</button>';
           html += '</div></td>';
           html += '</tr>';
         });
@@ -445,7 +468,14 @@
       var flashListaClose = document.getElementById('avpFlashListaClose');
       if (flashListaClose) flashListaClose.addEventListener('click', function () { state.flashLista = null; render(); });
 
-      document.getElementById('avpNovoBtn').addEventListener('click', function () {
+      document.getElementById('avpLixeiraBtn').addEventListener('click', function () {
+        state.lixeira = !state.lixeira;
+        state.flashLista = null;
+        render();
+      });
+
+      var novoBtn = document.getElementById('avpNovoBtn');
+      if (novoBtn) novoBtn.addEventListener('click', function () {
         state.atual = { nome: '', descricao: '', publico: '', necessidade: '', observacoesGerais: '', respostas: {} };
         state.erroForm = null;
         state.camposInvalidos = [];
@@ -455,7 +485,7 @@
       });
       ['Resultado', 'Status', 'Alterado', 'Alternativa'].forEach(function (campo) {
         var sel = document.getElementById('avpFiltro' + campo);
-        sel.addEventListener('change', function () {
+        if (sel) sel.addEventListener('change', function () {
           state.filtro[campo.toLowerCase()] = sel.value;
           render();
         });
@@ -466,11 +496,11 @@
       wrap.querySelectorAll('.avp-act-editar').forEach(function (btn) {
         btn.addEventListener('click', function () { abrirEdicao(btn.dataset.key); });
       });
-      wrap.querySelectorAll('.avp-act-reavaliar').forEach(function (btn) {
-        btn.addEventListener('click', function () { abrirReavaliacao(btn.dataset.key); });
+      wrap.querySelectorAll('.avp-act-mais').forEach(function (btn) {
+        btn.addEventListener('click', function () { abrirMenuAcoes(btn.dataset.key); });
       });
-      wrap.querySelectorAll('.avp-act-duplicar').forEach(function (btn) {
-        btn.addEventListener('click', function () { duplicar(btn.dataset.key); });
+      wrap.querySelectorAll('.avp-act-restaurar').forEach(function (btn) {
+        btn.addEventListener('click', function () { restaurarItem(btn.dataset.key); });
       });
     }
 
@@ -496,11 +526,27 @@
     function buscarItem(key) { return state.itens.filter(function (it) { return it._key === key; })[0]; }
     function clonarItem(it) { return JSON.parse(JSON.stringify(it)); }
 
+    /* jaSalvouAntes distingue "nunca mexi nisso" de "já tem uma decisão
+       manual salva antes" — só nesse segundo caso um novo ajuste deve dizer
+       SALVAR ALTERAÇÃO em vez de SALVAR DECISÃO. ultimoSalvo é a fotografia
+       do que está realmente gravado; comparar contra ela (não contra um
+       booleano solto) é o que permite o botão voltar sozinho pro estado
+       "✓ DECISÃO SALVA" se a pessoa desfizer a mudança na mão. */
+    function decisaoFormInicial(it) {
+      var salvo = { opcao: it.decisaoManual ? it.decisaoFinal : 'auto', justificativa: it.justificativaDecisao || '' };
+      return { opcao: salvo.opcao, justificativa: salvo.justificativa, erro: null, jaSalvouAntes: !!it.decisaoManual, ultimoSalvo: salvo };
+    }
+    function decisaoIguais(x, y) {
+      if (x.opcao !== y.opcao) return false;
+      if (x.opcao === 'auto') return true;
+      return (x.justificativa || '').trim() === (y.justificativa || '').trim();
+    }
+
     function abrirVisualizacao(key) {
       var it = buscarItem(key);
       if (!it) return;
       state.atual = clonarItem(it);
-      state.decisaoForm = { opcao: it.decisaoManual ? it.decisaoFinal : 'auto', justificativa: it.justificativaDecisao || '', erro: null };
+      state.decisaoForm = decisaoFormInicial(it);
       state.flashLista = null;
       state.flashResultado = null;
       state.flashDecisao = null;
@@ -545,6 +591,154 @@
       state.flashLista = null;
       state.tela = 'checklist';
       render();
+    }
+
+    /* ---- menu "⋯" (ações secundárias) e exclusão lógica ----
+       Mesmo padrão da aba Cadastrados do admin: uma ação principal visível
+       por linha e um menu à parte para o resto, em vez de empilhar botões —
+       aqui como modal, não dropdown, pelo mesmo motivo de lá (nada de
+       posicionamento/clique-fora para acertar). */
+    function abrirMenuAcoes(key) {
+      var it = buscarItem(key);
+      if (!it) return;
+      var overlay = document.createElement('div');
+      overlay.className = 'modal-overlay';
+      overlay.style.cssText = 'display:flex;align-items:center;justify-content:center;z-index:9999';
+      var box = document.createElement('div');
+      box.className = 'modal-box avp-menu-acoes-box';
+      box.style.cssText = 'max-width:360px;width:90%;padding:24px;display:flex;flex-direction:column;gap:14px';
+      var html = '<p class="avp-menu-acoes-titulo">' + esc(it.nome) + '</p>';
+      html += '<div class="avp-menu-acoes-lista">';
+      if (it.status === 'concluido') {
+        html += '<button class="btn avp-menu-item" data-acao="reavaliar">Reavaliar</button>';
+      } else {
+        html += '<button class="btn avp-menu-item" data-acao="editar">Editar</button>';
+      }
+      html += '<button class="btn avp-menu-item" data-acao="duplicar">Duplicar</button>';
+      html += '<button class="btn avp-menu-item avp-menu-item--perigo" data-acao="excluir">🗑 Excluir</button>';
+      html += '</div>';
+      html += '<button class="btn" id="avpMenuAcoesFechar">Cancelar</button>';
+      box.innerHTML = html;
+      overlay.appendChild(box);
+      document.body.appendChild(overlay);
+      function fechar() { if (overlay.parentNode) document.body.removeChild(overlay); }
+      box.querySelector('#avpMenuAcoesFechar').addEventListener('click', fechar);
+      overlay.addEventListener('keydown', function (e) { if (e.key === 'Escape') { e.preventDefault(); fechar(); } });
+      box.querySelectorAll('.avp-menu-item').forEach(function (btn) {
+        btn.addEventListener('click', function () {
+          var acao = btn.dataset.acao;
+          fechar();
+          if (acao === 'editar') abrirEdicao(key);
+          else if (acao === 'reavaliar') abrirReavaliacao(key);
+          else if (acao === 'duplicar') duplicar(key);
+          else if (acao === 'excluir') abrirModalExcluir(key);
+        });
+      });
+    }
+
+    function abrirModalExcluir(key) {
+      var it = buscarItem(key);
+      if (!it) return;
+      var overlay = document.createElement('div');
+      overlay.className = 'modal-overlay';
+      overlay.style.cssText = 'display:flex;align-items:center;justify-content:center;z-index:9999';
+      var box = document.createElement('div');
+      box.className = 'modal-box avp-excluir-box';
+      box.style.cssText = 'max-width:440px;width:90%;padding:28px;display:flex;flex-direction:column;gap:14px';
+      box.innerHTML =
+        '<p class="avp-excluir-alerta">⚠ Excluir avaliação</p>' +
+        '<p class="avp-excluir-texto">Tem certeza que deseja excluir <strong>"' + esc(it.nome) + '"</strong>? ' +
+          'Ela sai da lista, mas não é apagada do banco — dá para recuperar pela Lixeira.</p>' +
+        '<div class="avp-field">' +
+          '<label for="avpExcluirJustificativa">Justificativa da exclusão *</label>' +
+          '<textarea id="avpExcluirJustificativa" rows="3" placeholder="Explique por que esta avaliação está sendo excluída…"></textarea>' +
+        '</div>' +
+        '<p class="avp-error-msg" id="avpExcluirErro" hidden></p>' +
+        '<div style="display:flex;justify-content:flex-end;gap:8px">' +
+          '<button class="btn" id="avpExcluirCancelar">Cancelar</button>' +
+          '<button class="btn btn--danger" id="avpExcluirConfirmar" disabled>Confirmar exclusão</button>' +
+        '</div>';
+      overlay.appendChild(box);
+      document.body.appendChild(overlay);
+      var salvando = false;
+      function fechar() { if (salvando) return; if (overlay.parentNode) document.body.removeChild(overlay); }
+      overlay.addEventListener('keydown', function (e) { if (e.key === 'Escape') { e.preventDefault(); fechar(); } });
+      box.querySelector('#avpExcluirCancelar').addEventListener('click', fechar);
+
+      var textarea = box.querySelector('#avpExcluirJustificativa');
+      var btnConfirmar = box.querySelector('#avpExcluirConfirmar');
+      var erroEl = box.querySelector('#avpExcluirErro');
+      textarea.addEventListener('input', function () {
+        btnConfirmar.disabled = !textarea.value.trim();
+      });
+      textarea.focus();
+
+      btnConfirmar.addEventListener('click', function () {
+        var justificativa = textarea.value.trim();
+        if (!justificativa || salvando) return;
+        salvando = true;
+        erroEl.hidden = true;
+        btnConfirmar.disabled = true;
+        btnConfirmar.textContent = 'EXCLUINDO…';
+        box.querySelector('#avpExcluirCancelar').disabled = true;
+
+        var updates = {
+          excluido: true,
+          excluidoEm: new Date().toISOString(),
+          excluidoPor: sessaoAtual(),
+          justificativaExclusao: justificativa,
+          atualizadoEm: new Date().toISOString()
+        };
+        var respondido = false;
+        var relogio = setTimeout(function () {
+          if (respondido) return;
+          respondido = true;
+          salvando = false;
+          btnConfirmar.disabled = false;
+          btnConfirmar.textContent = 'Confirmar exclusão';
+          box.querySelector('#avpExcluirCancelar').disabled = false;
+          erroEl.hidden = false;
+          erroEl.textContent = 'A conexão está demorando e não deu para confirmar a exclusão. Toque em "Confirmar exclusão" de novo.';
+        }, 12000);
+
+        db().ref(NODE + '/' + key).update(updates, function (err) {
+          if (respondido) return;
+          respondido = true;
+          clearTimeout(relogio);
+          if (err) {
+            console.error('[avaliacao-produto] erro ao excluir avaliação:', err);
+            salvando = false;
+            btnConfirmar.disabled = false;
+            btnConfirmar.textContent = 'Confirmar exclusão';
+            box.querySelector('#avpExcluirCancelar').disabled = false;
+            erroEl.hidden = false;
+            erroEl.textContent = 'Não foi possível excluir a avaliação. Tente novamente.';
+            return;
+          }
+          var atualizado = Object.assign(clonarItem(it), updates);
+          state.itens = upsertItem(state.itens, atualizado);
+          salvando = false; /* libera fechar() — senão a guarda que impede fechar DURANTE o salvamento também bloqueia o fechamento de sucesso */
+          fechar();
+          state.flashLista = '✓ Avaliação excluída. Ela continua disponível na Lixeira.';
+          render();
+        });
+      });
+    }
+
+    function restaurarItem(key) {
+      var it = buscarItem(key);
+      if (!it) return;
+      var updates = { excluido: false, excluidoEm: null, excluidoPor: null, justificativaExclusao: null, atualizadoEm: new Date().toISOString() };
+      db().ref(NODE + '/' + key).update(updates, function (err) {
+        if (err) {
+          console.error('[avaliacao-produto] erro ao restaurar avaliação:', err);
+          avpAlert('Não foi possível restaurar a avaliação. Tente novamente.');
+          return;
+        }
+        state.itens = upsertItem(state.itens, Object.assign(clonarItem(it), updates));
+        state.flashLista = '✓ Avaliação restaurada.';
+        render();
+      });
     }
 
     /* ===================== FORM INICIAL ===================== */
@@ -737,7 +931,7 @@
         salvarRegistro('concluido', function (payload, key) {
           state.salvando = null;
           state.itens = upsertItem(state.itens, Object.assign({ _key: key }, payload));
-          state.decisaoForm = { opcao: 'auto', justificativa: '', erro: null };
+          state.decisaoForm = decisaoFormInicial(payload);
           state.flashResultado = '✓ Avaliação salva com sucesso.';
           state.tela = 'resultado';
           render();
@@ -937,12 +1131,20 @@
       bindDecisaoCard();
     }
 
+    /* Mostra a resposta e as DUAS justificativas lado a lado, nunca uma no
+       lugar da outra: a do avaliador (texto livre, digitado por quem
+       preencheu) e a interpretação automática (fixa, gerada pelo sistema).
+       Vale igualmente para os 7 critérios e para os 7 testes de exclusão —
+       renderRaciocinio é a mesma função para as duas seções. */
     function renderRaciocinio(def, resposta) {
       if (!resposta) return '';
       var valor = resposta.valor === 'sim' ? 'SIM' : 'NÃO';
+      var justificativaUsuario = (resposta.observacao || '').trim();
       return '<div class="avp-reasoning-item">' +
         '<p class="avp-reasoning-q">' + esc(def.titulo || def.pergunta) + ' — ' + valor + '</p>' +
-        '<p class="avp-reasoning-a">✓ ' + esc(semPrefixo(resposta.justificativaAuto)) + '</p>' +
+        '<p class="avp-reasoning-user"><strong>Sua justificativa:</strong> ' +
+          (justificativaUsuario ? esc(justificativaUsuario) : '<em>Nenhuma observação registrada pelo avaliador.</em>') + '</p>' +
+        '<p class="avp-reasoning-auto"><strong>Interpretação do sistema:</strong> ' + esc(semPrefixo(resposta.justificativaAuto)) + '</p>' +
         '</div>';
     }
 
@@ -970,10 +1172,24 @@
         html += '<p class="avp-flash-success avp-flash-success--inline" id="avpFlashDecisao">' + esc(state.flashDecisao) +
           ' <button type="button" class="avp-flash-close" id="avpFlashDecisaoClose" aria-label="Fechar">×</button></p>';
       }
-      html += '<button class="btn btn--primary" id="avpSalvarDecisaoBtn"' + (state.salvandoDecisao ? ' disabled' : '') + '>' +
-        (state.salvandoDecisao ? 'SALVANDO…' : 'Salvar decisão') + '</button>';
+      var estado = estadoBotaoDecisao(f);
+      html += '<button class="btn btn--primary avp-btn-decisao' + (estado.salva ? ' avp-btn-decisao--salva' : '') + '" id="avpSalvarDecisaoBtn"' +
+        (estado.desabilitado ? ' disabled' : '') + '>' + esc(estado.label) + '</button>';
       html += '</div>';
       return html;
+    }
+    /* Os três estados que a seção pede: nunca salvo (ativo, "SALVAR
+       DECISÃO"), salvo e sem mudança (desabilitado, "✓ DECISÃO SALVA") e
+       alterado depois de já ter salvo (ativo de novo, "SALVAR ALTERAÇÃO").
+       jaSalvouAntes é o que decide entre o primeiro rótulo e o terceiro —
+       sem ele, desfazer e refazer a mesma escolha não teria como saber se
+       aquilo já foi salvo uma vez ou nunca. */
+    function estadoBotaoDecisao(f) {
+      if (state.salvandoDecisao) return { label: 'SALVANDO…', desabilitado: true, salva: false };
+      var dirty = !decisaoIguais({ opcao: f.opcao, justificativa: f.justificativa }, f.ultimoSalvo);
+      if (!f.jaSalvouAntes) return { label: 'SALVAR DECISÃO', desabilitado: false, salva: false };
+      if (dirty) return { label: 'SALVAR ALTERAÇÃO', desabilitado: false, salva: false };
+      return { label: '✓ DECISÃO SALVA', desabilitado: true, salva: true };
     }
     function justificativaPreenchida(f) { return !!(f.justificativa || '').trim(); }
     function decisaoOpcao(valor, label, atual) {
@@ -1001,6 +1217,7 @@
       if (state.salvandoDecisao) return; /* clique repetido enquanto já está salvando: ignora */
       var a = state.atual;
       var f = state.decisaoForm;
+      if (estadoBotaoDecisao(f).salva) return; /* nada mudou desde o último salvamento: não há o que salvar */
       var justificativa = (f.justificativa || '').trim();
       if (f.opcao !== 'auto' && !justificativa) {
         f.erro = 'Justificativa obrigatória para decisão manual.';
@@ -1049,6 +1266,8 @@
         }
         Object.assign(a, updates);
         state.itens = upsertItem(state.itens, clonarItem(a));
+        f.ultimoSalvo = { opcao: f.opcao, justificativa: f.justificativa };
+        f.jaSalvouAntes = true;
         state.flashDecisao = '✓ Decisão salva com sucesso.';
         render();
       });
