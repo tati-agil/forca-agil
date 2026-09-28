@@ -7,18 +7,29 @@
      nome, descricao, publico, necessidade, observacoesGerais,
      respostas: { <criterioId|exclusaoId>: { valor:'sim'|'nao', justificativaAuto, observacao } },
      status: 'rascunho' | 'concluido',
-     resultadoAutomatico: 'produto' | 'nao-produto' | null (null em rascunho),
+     resultadoAutomatico: 'produto' | 'nao-produto' | 'a-validar' | null (null em rascunho),
      criteriosEssenciaisFalhos: [id...], exclusoesConflitantes: [id...],
      criteriosAtendidos: número de critérios (não exclusões) respondidos SIM,
-     classificacaoAlternativa: { label, motivo, outras: [label...] } | null,
+     camadaSugerida: { id, label, motivos: [texto...], conflito: [label...]|null } | null,
      justificativaAutomatica: texto,
-     decisaoFinal: 'produto' | 'nao-produto' (igual à automática até o admin discordar),
+     decisaoFinal: 'produto' | 'nao-produto' | 'a-validar' (igual à automática até o admin discordar),
      decisaoManual, justificativaDecisao, alteradoPor: {name,email}, alteradoEm,
      responsavel: {name,email}, criadoEm, atualizadoEm
    }
 
    resultadoAutomatico nunca é reescrito pela decisão manual — é o
    histórico que a seção 10 do pedido exige que nunca desapareça.
+
+   O motor (identificarCamada, mais abaixo) primeiro descobre a camada
+   arquitetural mais provável a partir do CONJUNTO das 14 respostas — nunca
+   de uma resposta isolada, e nunca do nome/descrição do item — e só depois
+   traduz essa camada em "é/não é Produto/Serviço" por um mapa fixo
+   (RESULTADO_POR_CAMADA). Isso evita que duas coisas que respondem "sim"
+   para a mesma pergunta de exclusão (ex.: modalidade/opção/configuração)
+   sejam necessariamente classificadas do mesmo jeito — outras respostas do
+   mesmo questionário (resultado próprio, gestão ponta a ponta, fronteira)
+   decidem se aquele "sim" descreve a própria opção ou uma funcionalidade
+   que age sobre ela.
    ============================================================ */
 (function () {
   'use strict';
@@ -172,7 +183,52 @@
   ];
 
   var TODAS_PERGUNTAS = CRITERIOS.concat(EXCLUSOES);
-  var ALTERNATIVAS_LABELS = EXCLUSOES.map(function (e) { return e.classificacao; }).concat(['a validar']);
+
+  /* Taxonomia arquitetural completa — o resultado de identificarCamada é
+     sempre um destes 12 valores. "produto" marca só a camada que conta como
+     Produto/Serviço principal; todas as outras são camadas legítimas mas
+     não-produto (ver RESULTADO_POR_CAMADA). */
+  var CAMADAS = [
+    { id: 'produto-principal', label: 'Produto/Serviço principal' },
+    { id: 'unidade-valor-associada', label: 'Unidade de valor associada' },
+    { id: 'modalidade-subproduto', label: 'Modalidade/Subproduto' },
+    { id: 'funcionalidade-operacao', label: 'Funcionalidade/Operação' },
+    { id: 'componente', label: 'Componente' },
+    { id: 'regra-condicao', label: 'Regra/Condição' },
+    { id: 'processo-etapa', label: 'Processo/Etapa de processo' },
+    { id: 'capacidade-organizacional', label: 'Capacidade organizacional' },
+    { id: 'ferramenta', label: 'Ferramenta' },
+    { id: 'canal', label: 'Canal' },
+    { id: 'documento-informacao', label: 'Documento/Informação' },
+    { id: 'a-validar', label: 'A validar' }
+  ];
+  function camadaPorId(id) { return CAMADAS.filter(function (c) { return c.id === id; })[0]; }
+
+  /* Mapa fixo e simples: só decide se a camada JÁ IDENTIFICADA conta como
+     Produto/Serviço. Nunca o inverso — o motor não tenta primeiro decidir
+     "é/não é produto" e só depois adivinhar uma camada alternativa. */
+  var RESULTADO_POR_CAMADA = { 'produto-principal': 'produto', 'a-validar': 'a-validar' };
+  function resultadoDaCamada(camadaId) { return RESULTADO_POR_CAMADA[camadaId] || 'nao-produto'; }
+
+  /* Rótulo de cada uma das 14 perguntas, para compor dinamicamente a lista
+     "Por que o sistema chegou a essa conclusão" com a resposta real dada
+     (nunca uma reformulação silenciosa dela). */
+  var ROTULOS_SINAL = {
+    necessidade: 'Necessidade de cliente identificável',
+    resultado: 'Resultado próprio perceptível para o cliente',
+    solucao: 'Reconhecível como solução/oferta própria',
+    fronteira: 'Fronteira coerente e delimitável',
+    jornada: 'Jornada própria com o cliente',
+    medicao: 'Mensuração própria de resultado',
+    gestao: 'Pode ser gerido de ponta a ponta como solução própria',
+    canal: 'Funciona predominantemente como canal de acesso',
+    artefato: 'Funciona predominantemente como documento/informação entregue',
+    capacidade: 'Funciona predominantemente como capacidade organizacional',
+    processo: 'Funciona predominantemente como processo/etapa de processo',
+    modalidade: 'Funciona predominantemente como modalidade/opção/configuração',
+    regra: 'Funciona predominantemente como regra/condição',
+    componente: 'Existe para que outro Produto/Serviço entregue seu resultado'
+  };
 
   function criterioPorId(id) { return CRITERIOS.filter(function (c) { return c.id === id; })[0]; }
   function exclusaoPorId(id) { return EXCLUSOES.filter(function (e) { return e.id === id; })[0]; }
@@ -238,7 +294,114 @@
 
   function db() { return firebase.database(); }
 
-  /* ---- motor de decisão ---- */
+  /* ---- motor de decisão -------------------------------------------------
+     identificarCamada nunca decide por uma resposta isolada: cada camada
+     candidata exige pelo menos duas respostas convergentes (nunca "SIM em
+     modalidade ⇒ é Modalidade"), e as sete respostas de exclusão são
+     sempre cruzadas com sinais de autonomia/resultado próprio dos sete
+     critérios, nunca lidas como testes independentes. Quando duas ou mais
+     camadas ficam igualmente sustentadas pelas respostas, ou nenhuma
+     encontra sustentação suficiente, o resultado é 'a-validar' — o motor
+     nunca força uma escolha. Nada aqui olha para nome/descrição do item. */
+  function identificarCamada(atual) {
+    var r = atual.respostas || {};
+    function sim(id) { return !!(r[id] && r[id].valor === 'sim'); }
+
+    var necessidade = sim('necessidade'), resultado = sim('resultado'), solucao = sim('solucao'),
+      fronteira = sim('fronteira'), jornada = sim('jornada'), gestao = sim('gestao');
+    var canal = sim('canal'), artefato = sim('artefato'), capacidade = sim('capacidade'), processo = sim('processo'),
+      modalidade = sim('modalidade'), regra = sim('regra'), componente = sim('componente');
+
+    var nucleoCompleto = necessidade && resultado && solucao && fronteira;
+    var exclusoesSim = EXCLUSOES.filter(function (e) { return sim(e.id); }).map(function (e) { return e.id; });
+
+    var candidatos = [];
+    function candidata(id, sinais) { candidatos.push({ camada: id, sinais: sinais }); }
+
+    /* Produto/Serviço principal: núcleo essencial completo e nenhum teste
+       de exclusão se sustenta — nada nas respostas contradiz a
+       independência da solução. */
+    if (nucleoCompleto && exclusoesSim.length === 0) {
+      candidata('produto-principal', ['necessidade', 'resultado', 'solucao', 'fronteira']);
+    }
+
+    /* Unidade de valor associada: tem resultado próprio, fronteira e
+       necessidade de cliente (como um produto), mas não passa no teste de
+       gestão ponta a ponta E também se autodeclara modalidade/componente de
+       algo maior — ou seja, tem valor próprio mas continua subordinada. */
+    if (resultado && fronteira && necessidade && !gestao && (modalidade || componente)) {
+      candidata('unidade-valor-associada', ['resultado', 'fronteira', 'necessidade', modalidade ? 'modalidade' : 'componente', 'gestao']);
+    }
+
+    /* Modalidade/opção SIM sem resultado próprio marcante nem gestão ponta a
+       ponta: é a própria opção/configuração, não uma ação sobre ela. */
+    if (modalidade && !resultado && !gestao) {
+      candidata('modalidade-subproduto', ['modalidade', 'resultado', 'gestao']);
+    }
+
+    /* Funcionalidade/Operação: a mesma resposta de modalidade/regra/processo
+       SIM, mas agora COM sinal de autonomia (resultado próprio ou gestão
+       ponta a ponta) e SEM o par fronteira+solução que caracterizaria uma
+       oferta independente — é uma ação que atua sobre outra coisa, não a
+       coisa em si nem um produto à parte. Este é o sinal que separa, por
+       exemplo, a opção em si da ação que a altera, usando só respostas do
+       questionário, nunca o nome do item. */
+    if ((modalidade || regra || processo) && (resultado || gestao) && !(fronteira && solucao)) {
+      var gatilhoFuncional = modalidade ? 'modalidade' : (regra ? 'regra' : 'processo');
+      candidata('funcionalidade-operacao', [gatilhoFuncional, resultado ? 'resultado' : 'gestao', fronteira ? 'solucao' : 'fronteira']);
+    }
+
+    /* Ferramenta: instrumento de apoio interno reutilizável — capacidade E
+       componente ao mesmo tempo (mais específico que qualquer um sozinho),
+       sem necessidade de cliente nem resultado próprio. Por ser mais
+       específica, prevalece sobre "Capacidade organizacional" e sobre
+       "Componente" quando as três respostas coincidem — nunca por ordem
+       fixa de prioridade, e sim porque exige mais evidência convergente. */
+    var ehFerramenta = capacidade && componente && !necessidade && !resultado;
+    if (ehFerramenta) {
+      candidata('ferramenta', ['capacidade', 'componente', 'necessidade', 'resultado']);
+    } else if (capacidade && !necessidade && !componente) {
+      candidata('capacidade-organizacional', ['capacidade', 'necessidade', 'componente']);
+    }
+    if (componente && !resultado && !ehFerramenta) {
+      candidata('componente', ['componente', 'resultado']);
+    }
+
+    if (regra && !resultado && !gestao) {
+      candidata('regra-condicao', ['regra', 'resultado', 'gestao']);
+    }
+    if (processo && !jornada && !gestao) {
+      candidata('processo-etapa', ['processo', 'jornada', 'gestao']);
+    }
+    if (canal && !resultado) {
+      candidata('canal', ['canal', 'resultado']);
+    }
+    if (artefato && !resultado) {
+      candidata('documento-informacao', ['artefato', 'resultado']);
+    }
+
+    var camadaEscolhida, motivos = [], conflito = null;
+    if (candidatos.length === 1) {
+      camadaEscolhida = candidatos[0].camada;
+      motivos = candidatos[0].sinais.map(function (id) { return ROTULOS_SINAL[id] + ': ' + (sim(id) ? 'SIM' : 'NÃO'); });
+    } else if (candidatos.length === 0) {
+      camadaEscolhida = 'a-validar';
+    } else {
+      camadaEscolhida = 'a-validar';
+      conflito = candidatos.map(function (c) { return camadaPorId(c.camada).label; });
+      var vistos = {};
+      candidatos.forEach(function (c) {
+        c.sinais.forEach(function (id) {
+          if (vistos[id]) return;
+          vistos[id] = true;
+          motivos.push(ROTULOS_SINAL[id] + ': ' + (sim(id) ? 'SIM' : 'NÃO'));
+        });
+      });
+    }
+
+    return { camada: camadaEscolhida, motivos: motivos, conflito: conflito, exclusoesSim: exclusoesSim };
+  }
+
   function computeResultado(atual) {
     var respostas = atual.respostas || {};
     var essenciaisFalhos = CRITERIOS.filter(function (c) {
@@ -247,57 +410,41 @@
     var criteriosAtendidos = CRITERIOS.filter(function (c) {
       return respostas[c.id] && respostas[c.id].valor === 'sim';
     }).length;
-    var exclusoesConflitantes = EXCLUSOES.filter(function (e) {
-      return respostas[e.id] && respostas[e.id].valor === 'sim';
-    }).map(function (e) { return e.id; });
 
-    /* Regra de decisão (seção 5 do pedido): um NÃO essencial já decide;
-       sem isso, um SIM predominante num teste de exclusão ainda derruba a
-       classificação — é o item se autodeclarar "principalmente" outra
-       coisa mesmo tendo passado nos critérios essenciais isoladamente. */
-    var resultadoAutomatico = 'produto';
-    if (essenciaisFalhos.length > 0 || exclusoesConflitantes.length > 0) resultadoAutomatico = 'nao-produto';
-
-    var classificacaoAlternativa = null;
-    if (resultadoAutomatico === 'nao-produto' && exclusoesConflitantes.length > 0) {
-      var ordenadas = exclusoesConflitantes.slice().sort(function (a, b) {
-        return exclusaoPorId(a).ordem - exclusaoPorId(b).ordem;
-      });
-      var principal = exclusaoPorId(ordenadas[0]);
-      classificacaoAlternativa = {
-        label: principal.classificacao,
-        motivo: semPrefixo(principal.justSim),
-        outras: ordenadas.slice(1).map(function (id) { return exclusaoPorId(id).classificacao; })
-      };
-    }
+    var ident = identificarCamada(atual);
 
     return {
       essenciaisFalhos: essenciaisFalhos,
       criteriosAtendidos: criteriosAtendidos,
-      exclusoesConflitantes: exclusoesConflitantes,
-      resultadoAutomatico: resultadoAutomatico,
-      classificacaoAlternativa: classificacaoAlternativa
+      exclusoesConflitantes: ident.exclusoesSim,
+      resultadoAutomatico: resultadoDaCamada(ident.camada),
+      camadaSugerida: {
+        id: ident.camada,
+        label: camadaPorId(ident.camada).label,
+        motivos: ident.motivos,
+        conflito: ident.conflito
+      }
     };
   }
 
+  /* Nunca um texto fixo: a frase muda com a camada encontrada e com os
+     próprios motivos (pergunta + resposta real) que a sustentaram. */
   function gerarJustificativaAutomatica(atual, calc) {
-    if (calc.resultadoAutomatico === 'produto') {
-      var texto = 'O item foi classificado como Produto/Serviço porque atende a uma necessidade identificável, ' +
-        'entrega resultado próprio para o cliente, possui fronteira coerente e pode ser reconhecido como uma solução independente.';
-      var complementares = CRITERIOS.filter(function (c) {
-        return !c.essencial && atual.respostas[c.id] && atual.respostas[c.id].valor === 'sim';
-      }).map(function (c) { return c.titulo.toLowerCase(); });
-      if (complementares.length) texto += ' Também apresenta ' + listaComE(complementares) + '.';
-      return texto;
+    var camada = calc.camadaSugerida;
+    if (camada.id === 'a-validar') {
+      if (camada.conflito && camada.conflito.length > 1) {
+        return 'As respostas indicam características de mais de uma categoria arquitetural (' + listaComE(camada.conflito) +
+          ') e não há evidência suficiente para recomendar uma classificação única.';
+      }
+      return 'As respostas não reúnem evidência suficiente para indicar com segurança nenhuma das categorias arquiteturais previstas. ' +
+        'Revise as respostas do questionário ou registre uma decisão manual com a justificativa correspondente.';
     }
-    if (calc.essenciaisFalhos.length > 0) {
-      var nomes = calc.essenciaisFalhos.map(function (id) { return criterioPorId(id).titulo.toLowerCase(); });
-      return 'O item não foi classificado como Produto/Serviço porque não atende a um ou mais critérios essenciais: ' + listaComE(nomes) + '.';
+    if (camada.id === 'produto-principal') {
+      return 'O item foi classificado como Produto/Serviço principal porque as respostas confirmam ' + listaComE(camada.motivos) +
+        ', sem nenhum sinal de que exerça predominantemente outro papel arquitetural.';
     }
-    var alt = calc.classificacaoAlternativa;
-    return 'O item não foi classificado como Produto/Serviço porque, embora atenda isoladamente aos critérios essenciais, ' +
-      'as respostas do teste de classificação indicam que ele exerce principalmente o papel de ' +
-      (alt ? alt.label.toLowerCase() : 'outro elemento arquitetural') + ', e não de uma solução independente para o cliente.';
+    return 'O item foi classificado como ' + camada.label + ', e não como Produto/Serviço principal, porque as respostas indicam ' +
+      listaComE(camada.motivos) + '.';
   }
 
   function todasRespondidas(atual) {
@@ -369,9 +516,8 @@
       if (state.filtro.status !== 'todos' && it.status !== state.filtro.status) return false;
       if (state.filtro.alterado === 'sim' && !it.decisaoManual) return false;
       if (state.filtro.alternativa !== 'todos') {
-        var alt = (it.classificacaoAlternativa && it.classificacaoAlternativa.label) ||
-          (it.status === 'concluido' && it.resultadoAutomatico === 'nao-produto' ? 'a validar' : null);
-        if (alt !== state.filtro.alternativa) return false;
+        var camadaLabel = it.camadaSugerida && it.camadaSugerida.label;
+        if (camadaLabel !== state.filtro.alternativa) return false;
       }
       return true;
     }
@@ -405,7 +551,7 @@
       } else {
         html += '<div class="avp-filters">';
         html += filtroSelect('avpFiltroResultado', state.filtro.resultado, [
-          ['todos', 'Todos os resultados'], ['produto', 'É Produto/Serviço'], ['nao-produto', 'Não é Produto/Serviço']
+          ['todos', 'Todos os resultados'], ['produto', 'É Produto/Serviço'], ['nao-produto', 'Não é Produto/Serviço'], ['a-validar', 'A validar']
         ]);
         html += filtroSelect('avpFiltroStatus', state.filtro.status, [
           ['todos', 'Todos os status'], ['rascunho', 'Rascunho'], ['concluido', 'Concluído']
@@ -413,8 +559,8 @@
         html += filtroSelect('avpFiltroAlterado', state.filtro.alterado, [
           ['todos', 'Decisão automática ou manual'], ['sim', 'Alterado manualmente']
         ]);
-        html += filtroSelect('avpFiltroAlternativa', state.filtro.alternativa, [['todos', 'Todas as classificações alternativas']].concat(
-          ALTERNATIVAS_LABELS.map(function (l) { return [l, l]; })
+        html += filtroSelect('avpFiltroAlternativa', state.filtro.alternativa, [['todos', 'Todas as classificações arquiteturais']].concat(
+          CAMADAS.map(function (c) { return [c.label, c.label]; })
         ));
         html += '</div>';
       }
@@ -436,17 +582,16 @@
         html += '</tbody></table></div>';
       } else {
         html += '<div class="table-scroll-wrap"><table class="admin-table avp-table"><thead><tr>' +
-          '<th>Item</th><th>Resultado automático</th><th>Decisão final</th><th>Classificação alternativa</th>' +
+          '<th>Item</th><th>Resultado automático</th><th>Decisão final</th><th>Classificação arquitetural</th>' +
           '<th>Responsável</th><th>Data</th><th>Status</th><th>Ações</th></tr></thead><tbody>';
         filtrados.forEach(function (it) {
           var decisao = it.decisaoFinal || it.resultadoAutomatico;
-          var alt = (it.classificacaoAlternativa && it.classificacaoAlternativa.label) ||
-            (it.status === 'concluido' && it.resultadoAutomatico === 'nao-produto' ? 'a validar' : '—');
+          var camadaLabel = (it.camadaSugerida && it.camadaSugerida.label) || '—';
           html += '<tr>';
           html += '<td data-label="Item">' + esc(it.nome) + '</td>';
           html += '<td data-label="Resultado automático">' + resultadoBadge(it.resultadoAutomatico) + '</td>';
           html += '<td data-label="Decisão final">' + resultadoBadge(decisao) + (it.decisaoManual ? ' <span class="avp-tag-alterado">alterada</span>' : '') + '</td>';
-          html += '<td data-label="Classificação alternativa">' + esc(alt) + '</td>';
+          html += '<td data-label="Classificação arquitetural">' + esc(camadaLabel) + '</td>';
           html += '<td data-label="Responsável">' + esc(it.responsavel && it.responsavel.name || '—') + '</td>';
           html += '<td data-label="Data">' + fmtData(it.atualizadoEm) + '</td>';
           html += '<td data-label="Status">' + statusBadge(it.status) + '</td>';
@@ -515,7 +660,13 @@
     function resultadoBadge(v) {
       if (v === 'produto') return '<span class="avp-badge avp-badge--produto">É Produto/Serviço</span>';
       if (v === 'nao-produto') return '<span class="avp-badge avp-badge--nao-produto">Não é Produto/Serviço</span>';
+      if (v === 'a-validar') return '<span class="avp-badge avp-badge--a-validar">A validar</span>';
       return '<span class="avp-badge">—</span>';
+    }
+    function rotuloResultado(v) {
+      if (v === 'produto') return 'É Produto/Serviço';
+      if (v === 'a-validar') return 'A validar';
+      return 'Não é Produto/Serviço';
     }
     function statusBadge(v) {
       return v === 'concluido'
@@ -1024,7 +1175,7 @@
         criteriosEssenciaisFalhos: null,
         exclusoesConflitantes: null,
         criteriosAtendidos: null,
-        classificacaoAlternativa: null,
+        camadaSugerida: null,
         justificativaAutomatica: null,
         decisaoFinal: null,
         decisaoManual: false,
@@ -1038,7 +1189,7 @@
         payload.criteriosEssenciaisFalhos = calc.essenciaisFalhos;
         payload.exclusoesConflitantes = calc.exclusoesConflitantes;
         payload.criteriosAtendidos = calc.criteriosAtendidos;
-        payload.classificacaoAlternativa = calc.classificacaoAlternativa;
+        payload.camadaSugerida = calc.camadaSugerida;
         payload.justificativaAutomatica = gerarJustificativaAutomatica(a, calc);
         payload.decisaoFinal = calc.resultadoAutomatico;
       }
@@ -1069,7 +1220,11 @@
     /* ===================== RESULTADO ===================== */
     function renderResultado() {
       var a = state.atual;
-      var produto = a.resultadoAutomatico === 'produto';
+      var resultado = a.resultadoAutomatico;
+      var cardClasse = resultado === 'produto' ? 'avp-result-card--produto' :
+        (resultado === 'a-validar' ? 'avp-result-card--a-validar' : 'avp-result-card--nao-produto');
+      var badgeTexto = resultado === 'produto' ? 'É PRODUTO/SERVIÇO' :
+        (resultado === 'a-validar' ? 'A VALIDAR' : 'NÃO É PRODUTO/SERVIÇO');
       var html = '<div class="avp-resultado">';
       html += '<button class="avp-voltar-link" id="avpVoltarListaResultado">‹ Avaliações de Produto/Serviço</button>';
 
@@ -1078,10 +1233,10 @@
           ' <button type="button" class="avp-flash-close" id="avpFlashResultadoClose" aria-label="Fechar">×</button></div>';
       }
 
-      html += '<div class="avp-result-card ' + (produto ? 'avp-result-card--produto' : 'avp-result-card--nao-produto') + '">';
+      html += '<div class="avp-result-card ' + cardClasse + '">';
       html += '<span class="avp-result-label">RESULTADO DA AVALIAÇÃO</span>';
       html += '<h3 class="avp-result-nome">' + esc(a.nome) + '</h3>';
-      html += '<div class="avp-result-badge-grande">' + (produto ? 'É PRODUTO/SERVIÇO' : 'NÃO É PRODUTO/SERVIÇO') + '</div>';
+      html += '<div class="avp-result-badge-grande">' + badgeTexto + '</div>';
       html += '<p class="avp-result-secundario">Critérios atendidos: ' + a.criteriosAtendidos + ' de ' + CRITERIOS.length + '</p>';
       html += '</div>';
 
@@ -1090,18 +1245,25 @@
       html += '<p>' + esc(a.justificativaAutomatica) + '</p>';
       html += '</div>';
 
-      if (!produto) {
-        html += '<div class="avp-form-card avp-alt-card">';
-        html += '<h4>O que este item parece ser?</h4>';
-        if (a.classificacaoAlternativa) {
-          html += '<p class="avp-alt-label">Classificação sugerida: <strong>' + esc(a.classificacaoAlternativa.label) + '</strong></p>';
-          html += '<p><strong>Motivo:</strong> ' + esc(a.classificacaoAlternativa.motivo) + '</p>';
-          if (a.classificacaoAlternativa.outras && a.classificacaoAlternativa.outras.length) {
-            html += '<p class="avp-alt-outras">Também apresenta sinais de: ' + esc(a.classificacaoAlternativa.outras.join(', ')) + '.</p>';
-          }
-        } else {
-          html += '<p class="avp-alt-label">Classificação alternativa: <em>a validar</em></p>';
-        }
+      /* Classificação arquitetural sugerida — sempre mostrada, não só quando
+         o resultado é "não é produto" (a camada é útil mesmo quando o item
+         É o Produto/Serviço principal, e obrigatória quando a evidência é
+         insuficiente/contraditória). */
+      var camada = a.camadaSugerida || camadaPorId('a-validar');
+      html += '<div class="avp-form-card avp-alt-card">';
+      html += '<h4>Classificação arquitetural sugerida</h4>';
+      html += '<p class="avp-alt-label">Camada identificada: <strong>' + esc(camada.label) + '</strong></p>';
+      if (camada.conflito && camada.conflito.length) {
+        html += '<p class="avp-alt-outras">Categorias em conflito nas respostas: ' + esc(camada.conflito.join(', ')) + '.</p>';
+      }
+      html += '</div>';
+
+      if (camada.motivos && camada.motivos.length) {
+        html += '<div class="avp-form-card">';
+        html += '<h4>Por que o sistema chegou a essa conclusão</h4>';
+        html += '<ul class="avp-motivos-list">';
+        camada.motivos.forEach(function (m) { html += '<li>' + esc(m) + '</li>'; });
+        html += '</ul>';
         html += '</div>';
       }
 
@@ -1157,7 +1319,7 @@
           '</strong> em ' + fmtData(a.alteradoEm) + '. Justificativa registrada: "' + esc(a.justificativaDecisao || '') + '"</p>';
       }
       html += '<div class="avp-decisao-options">';
-      html += decisaoOpcao('auto', 'Aceitar recomendação do sistema (' + (a.resultadoAutomatico === 'produto' ? 'É Produto/Serviço' : 'Não é Produto/Serviço') + ')', f.opcao);
+      html += decisaoOpcao('auto', 'Aceitar recomendação do sistema (' + rotuloResultado(a.resultadoAutomatico) + ')', f.opcao);
       html += decisaoOpcao('produto', 'Classificar manualmente como Produto/Serviço', f.opcao);
       html += decisaoOpcao('nao-produto', 'Classificar manualmente como não Produto/Serviço', f.opcao);
       html += '</div>';
