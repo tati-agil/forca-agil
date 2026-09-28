@@ -576,9 +576,7 @@
       case 'modalidade-subproduto':
         return 'É uma modalidade/opção/configuração pertencente a outro Produto/Serviço, e não uma ação sobre ela.';
       case 'componente':
-        return sim('componente')
-          ? 'Existe para que outro Produto/Serviço consiga entregar seu resultado — não tem resultado próprio perceptível.'
-          : 'É um elemento configurável de outro Produto/Serviço, sem resultado próprio perceptível que o caracterize como uma oferta independente.';
+        return 'Pertence estruturalmente a outro Produto/Serviço e funciona como elemento configurável da solução, sem autonomia para existir como solução independente.';
       case 'regra-condicao':
         return 'É uma regra ou condição de outro Produto/Serviço.';
       case 'processo-etapa':
@@ -660,7 +658,7 @@
   var TERMO_GESTAO_POR_CAMADA = {
     'funcionalidade-operacao': 'funcionalidade/operação',
     'modalidade-subproduto': 'modalidade/opção',
-    'componente': 'componente de suporte',
+    'componente': 'componente da solução',
     'regra-condicao': 'regra/condição',
     'processo-etapa': 'processo',
     'capacidade-organizacional': 'capacidade organizacional',
