@@ -2045,3 +2045,27 @@ select.aposta-campo-input { width: auto; min-width: 8.5em; }
   #adminAvaliacaoProduto .admin-table td[data-label="Ações"] { padding-top: 8px; }
   #adminAvaliacaoProduto .avp-row-actions { flex-wrap: wrap; justify-content: flex-end; width: 100%; }
 }
+
+/* Destaque de campo/pergunta pendente (botão Salvar recusou e precisa
+   apontar exatamente o que falta, não só dizer isso em texto solto) */
+.avp-field--invalid input, .avp-field--invalid textarea {
+  border-color: var(--red); box-shadow: 0 0 0 2px rgba(255,59,48,.2);
+}
+.avp-field-invalid-msg { color: var(--red); font-size: .78rem; margin: 4px 0 0; }
+.avp-question--pendente { border-color: var(--red); box-shadow: 0 0 0 2px rgba(255,59,48,.18); }
+.avp-question--pendente > .avp-field-invalid-msg { margin: 0 0 8px; }
+
+/* Confirmação persistente de salvamento — não é um toast que some sozinho:
+   fica até a pessoa fechar ou sair da tela, porque "salvou e sumiu rápido"
+   é quase indistinguível de "não salvou". */
+.avp-flash-success {
+  display: flex; align-items: center; justify-content: space-between; gap: 12px;
+  background: rgba(24,194,186,.12); border: 1px solid rgba(24,194,186,.5); color: var(--cyan-soft);
+  border-radius: 10px; padding: 12px 16px; margin-bottom: 16px; font-size: .88rem;
+}
+.avp-flash-success--inline { margin: 0 0 14px; }
+.avp-flash-close {
+  background: none; border: none; color: inherit; opacity: .75; cursor: pointer;
+  font-size: 1rem; line-height: 1; padding: 4px 6px; flex-shrink: 0;
+}
+.avp-flash-close:hover { opacity: 1; }
