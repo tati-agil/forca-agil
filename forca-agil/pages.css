@@ -1930,6 +1930,11 @@ select.aposta-campo-input { width: auto; min-width: 8.5em; }
 }
 .avp-error-msg { color: var(--red); font-size: .82rem; margin: 0 0 14px; }
 
+.avp-progresso-perguntas { margin: 0 0 16px; font-size: .8rem; color: var(--ink-3); font-family: var(--font-mono); }
+
+.avp-secao-titulo { margin: 0; }
+.avp-secao-subtitulo { margin: -8px 0 16px; font-size: .78rem; color: var(--ink-3); font-family: var(--font-mono); letter-spacing: .04em; }
+
 .avp-criterios { display: flex; flex-direction: column; gap: 16px; margin-bottom: 24px; }
 
 .avp-question {
@@ -1937,7 +1942,15 @@ select.aposta-campo-input { width: auto; min-width: 8.5em; }
 }
 .avp-question--essencial { border-color: rgba(245,197,24,.4); }
 .avp-question-head { display: flex; align-items: flex-start; gap: 10px; flex-wrap: wrap; margin-bottom: 6px; }
+.avp-question-num {
+  flex-shrink: 0; font-family: var(--font-mono); font-weight: 700; font-size: .88rem; color: var(--ink-3);
+  padding-top: 2px;
+}
 .avp-question-text { flex: 1; min-width: 200px; margin: 0; font-size: .92rem; color: var(--ink); line-height: 1.5; }
+.avp-question-progresso {
+  flex-shrink: 0; font-family: var(--font-mono); font-size: .7rem; color: var(--ink-3);
+  align-self: center; white-space: nowrap;
+}
 .avp-help-btn {
   flex-shrink: 0; width: 26px; height: 26px; border-radius: 50%; border: 1px solid var(--line-strong);
   background: var(--panel-2); color: var(--ink-2); cursor: pointer; font-family: var(--font-mono); font-size: .82rem;
@@ -2014,6 +2027,7 @@ select.aposta-campo-input { width: auto; min-width: 8.5em; }
   font-family: var(--font-mono); font-size: .72rem; letter-spacing: .08em; text-transform: uppercase;
   color: #cabdff; margin: 8px 0 0; padding-top: 8px; border-top: 1px solid rgba(155,127,255,.3);
 }
+.avp-reasoning-sep--primeiro { margin-top: 0; padding-top: 0; border-top: none; }
 
 .avp-decisao-card { border-color: rgba(120,160,220,.4); }
 .avp-decisao-aviso { font-size: .8rem; color: var(--ink-3); font-style: italic; margin: 0 0 14px; }

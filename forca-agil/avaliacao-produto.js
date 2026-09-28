@@ -215,6 +215,13 @@
 
   var TODAS_PERGUNTAS = CRITERIOS.concat(EXCLUSOES);
 
+  /* Única fonte de numeração visível das perguntas (1 a 16): deriva da
+     posição real em TODAS_PERGUNTAS, nunca de um número digitado à parte —
+     evita duas numerações divergentes (uma no texto, outra na interface).
+     Critérios principais ficam 1..CRITERIOS.length; Testes de classificação
+     continuam a numeração a partir daí, nunca reiniciando em 1. */
+  function numeroGlobal(def) { return TODAS_PERGUNTAS.indexOf(def) + 1; }
+
   /* Taxonomia arquitetural completa — o resultado de identificarCamada é
      sempre um destes 11 valores, a lista consolidada e aprovada do modelo
      (nunca introduzir categoria nova sem especificação explícita — "Ferramenta"
@@ -852,7 +859,7 @@
        atravessar duas páginas do PDF. */
     return '' +
       '<div class="pdf-pergunta pdf-pergunta-bloco">' +
-      '<p class="pdf-pergunta-texto">' + esc(def.titulo || def.pergunta) + ' — <strong>' + valor + '</strong></p>' +
+      '<p class="pdf-pergunta-texto">' + numeroGlobal(def) + '. ' + esc(def.titulo || def.pergunta) + ' — <strong>' + valor + '</strong></p>' +
       '<p class="pdf-pergunta-campo"><strong>Justificativa do usuário:</strong> ' +
         (obs ? esc(obs) : '<em>Nenhuma observação registrada.</em>') + '</p>' +
       '<p class="pdf-pergunta-campo"><strong>Interpretação do sistema:</strong> ' + esc(interpretacaoSistema(def, resposta, it)) + '</p>' +
@@ -919,9 +926,9 @@
     html += '<p>' + esc(it.justificativaAutomatica || '—') + '</p>';
 
     html += '<h2 class="pdf-secao-titulo">Como chegamos a essa conclusão</h2>';
-    html += '<h3 class="pdf-subsecao">Critérios principais</h3>';
+    html += '<h3 class="pdf-subsecao">Critérios principais — perguntas 1 a ' + CRITERIOS.length + '</h3>';
     CRITERIOS.forEach(function (c) { html += pdfPergunta(c, it.respostas[c.id], it); });
-    html += '<h3 class="pdf-subsecao">Teste de Classificação</h3>';
+    html += '<h3 class="pdf-subsecao">Testes de classificação — perguntas ' + (CRITERIOS.length + 1) + ' a ' + TODAS_PERGUNTAS.length + '</h3>';
     EXCLUSOES.forEach(function (e) { html += pdfPergunta(e, it.respostas[e.id], it); });
 
     html += '<h2 class="pdf-secao-titulo">Decisão arquitetural</h2>';
@@ -1936,6 +1943,11 @@
 
       if (state.erroForm) html += '<p class="avp-error-msg">' + esc(state.erroForm) + '</p>';
 
+      /* Progresso discreto (não muda o fluxo, é só um auxílio visual): quantas
+         das 16 perguntas já têm resposta registrada nesta avaliação. */
+      var respondidas = TODAS_PERGUNTAS.filter(function (p) { return a.respostas[p.id] && a.respostas[p.id].valor; }).length;
+      html += '<p class="avp-progresso-perguntas">' + respondidas + ' de ' + TODAS_PERGUNTAS.length + ' perguntas respondidas</p>';
+
       /* "Atua dentro de outro Produto/Serviço" (funcionalidade) e "existe de
          forma independente de outro Produto/Serviço" (autonomia) não podem
          ser SIM ao mesmo tempo — quando isso acontece, destaca as duas
@@ -1943,6 +1955,8 @@
       var incoerenciaAtual = !!(a.respostas.autonomia && a.respostas.autonomia.valor === 'sim' &&
         a.respostas.funcionalidade && a.respostas.funcionalidade.valor === 'sim');
 
+      html += '<h3 class="avp-secao-titulo">CRITÉRIOS PRINCIPAIS</h3>';
+      html += '<p class="avp-secao-subtitulo">Perguntas 1 a ' + CRITERIOS.length + '</p>';
       html += '<div class="avp-criterios">';
       CRITERIOS.forEach(function (c) {
         html += renderPergunta(c, a.respostas[c.id], base && base.respostas[c.id], incoerenciaAtual && c.id === 'autonomia');
@@ -1950,7 +1964,8 @@
       html += '</div>';
 
       html += '<div class="avp-exclusao-section">';
-      html += '<h3 class="avp-exclusao-titulo">TESTE DE CLASSIFICAÇÃO</h3>';
+      html += '<h3 class="avp-exclusao-titulo">TESTES DE CLASSIFICAÇÃO</h3>';
+      html += '<p class="avp-secao-subtitulo">Perguntas ' + (CRITERIOS.length + 1) + ' a ' + TODAS_PERGUNTAS.length + '</p>';
       html += '<p class="avp-exclusao-intro">Agora verifique se o item é, na realidade, outro tipo de elemento arquitetural.</p>';
       EXCLUSOES.forEach(function (e) {
         html += renderPergunta(e, a.respostas[e.id], base && base.respostas[e.id], incoerenciaAtual && e.id === 'funcionalidade');
@@ -2123,8 +2138,10 @@
         html += '<p class="avp-field-invalid-msg avp-incoerencia-msg">⚠ Contradiz outra resposta do questionário (autonomia x funcionalidade). Revise.</p>';
       }
       html += '<div class="avp-question-head">';
+      html += '<span class="avp-question-num">' + numeroGlobal(def) + '.</span>';
       if (def.destaque) html += '<span class="avp-badge avp-badge--essencial">' + esc(def.destaque) + '</span>';
       html += '<p class="avp-question-text">' + esc(def.pergunta) + '</p>';
+      html += '<span class="avp-question-progresso">' + numeroGlobal(def) + '/' + TODAS_PERGUNTAS.length + '</span>';
       html += '<button type="button" class="avp-help-btn" data-id="' + def.id + '" aria-label="Ajuda sobre este critério">?</button>';
       html += '</div>';
       if (def.exemplos) {
@@ -2307,8 +2324,9 @@
       html += '<div class="avp-form-card">';
       html += '<h4>Como chegamos a essa conclusão?</h4>';
       html += '<div class="avp-reasoning-list">';
+      html += '<p class="avp-reasoning-sep avp-reasoning-sep--primeiro">Critérios principais — perguntas 1 a ' + CRITERIOS.length + '</p>';
       CRITERIOS.forEach(function (c) { html += renderRaciocinio(c, a.respostas[c.id], a); });
-      html += '<p class="avp-reasoning-sep">Testes de classificação</p>';
+      html += '<p class="avp-reasoning-sep">Testes de classificação — perguntas ' + (CRITERIOS.length + 1) + ' a ' + TODAS_PERGUNTAS.length + '</p>';
       EXCLUSOES.forEach(function (e) { html += renderRaciocinio(e, a.respostas[e.id], a); });
       html += '</div></div>';
 
@@ -2379,7 +2397,7 @@
       var valor = resposta.valor === 'sim' ? 'SIM' : 'NÃO';
       var justificativaUsuario = (resposta.observacao || '').trim();
       return '<div class="avp-reasoning-item">' +
-        '<p class="avp-reasoning-q">' + esc(def.titulo || def.pergunta) + ' — ' + valor + '</p>' +
+        '<p class="avp-reasoning-q">' + numeroGlobal(def) + '. ' + esc(def.titulo || def.pergunta) + ' — ' + valor + '</p>' +
         '<p class="avp-reasoning-user"><strong>Sua justificativa:</strong> ' +
           (justificativaUsuario ? esc(justificativaUsuario) : '<em>Nenhuma observação registrada pelo avaliador.</em>') + '</p>' +
         '<p class="avp-reasoning-auto"><strong>Interpretação do sistema:</strong> ' + esc(interpretacaoSistema(def, resposta, item)) + '</p>' +
