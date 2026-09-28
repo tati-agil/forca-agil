@@ -592,7 +592,7 @@
       case 'unidade-valor-associada':
         return 'entrega um resultado próprio e perceptível para o cliente, mas depende estruturalmente de um Produto/Serviço maior para existir';
       case 'funcionalidade-operacao':
-        return 'atua predominantemente dentro de outro Produto/Serviço e não possui autonomia estrutural para existir e entregar seu resultado de forma independente';
+        return 'atua predominantemente dentro de outro Produto/Serviço e não possui autonomia estrutural para existir de forma independente';
       case 'modalidade-subproduto':
         return 'é predominantemente uma modalidade, opção ou configuração de outro Produto/Serviço, e não uma ação realizada sobre ela';
       case 'componente':
@@ -730,9 +730,32 @@
        na tela (ver renderResultado) e não deve soar como ressalva ou dúvida
        dentro da justificativa da classificação principal. */
     var especializacaoReal = camada.especializacao && camada.especializacao !== ESPECIALIZACAO_NAO_DETERMINADA;
+    var especializacaoFrase = especializacaoReal ? ' Especialização: ' + camada.especializacao + '.' : '';
+
+    /* Componente tem um texto próprio (3 frases, em vez do template genérico
+       "foi classificado como X, e não como Produto/Serviço principal, porque
+       Y") porque a ausência de autonomia/jornada/resultado autônomo é, aqui,
+       a própria evidência positiva da camada — não só a negação de
+       Produto/Serviço. Continua vindo só da camada já identificada, nunca do
+       nome do item: qualquer item com o mesmo padrão estrutural de respostas
+       recebe o mesmo texto. */
+    if (camada.id === 'componente') {
+      return 'O item não possui autonomia estrutural, jornada própria nem resultado autônomo suficiente para caracterizar Produto/Serviço principal. ' +
+        'As respostas indicam que ele pertence estruturalmente a outra solução e funciona como elemento configurável dela. ' +
+        'Por isso, sua classificação predominante é Componente.' + especializacaoFrase;
+    }
+
+    /* Funcionalidade/Operação ganha uma segunda frase fixa descrevendo o
+       papel típico da camada (consultar/escolher/solicitar/alterar/
+       executar/administrar um elemento da solução principal) — é uma
+       propriedade da PRÓPRIA camada, igual para qualquer item que caia nela,
+       não uma inferência sobre este item específico. */
+    var complemento = camada.id === 'funcionalidade-operacao'
+      ? ' Sua função predominante é permitir que o cliente consulte, escolha, solicite, altere, execute ou administre um elemento pertencente à solução principal.'
+      : '';
+
     return 'O item foi classificado como ' + camada.label + ', e não como Produto/Serviço principal, porque ' +
-      motivoJustificativa(camada.id) + '.' +
-      (especializacaoReal ? ' A especialização identificada é ' + camada.especializacao.toLowerCase() + '.' : '');
+      motivoJustificativa(camada.id) + '.' + complemento + especializacaoFrase;
   }
 
   function todasRespondidas(atual) {
@@ -1004,6 +1027,7 @@
            (scrollHeight, já com o layout assentado) é passada explicitamente,
            em vez de deixar a biblioteca tentar adivinhar. */
         var alturaReal = container.scrollHeight;
+        var larguraReal = container.scrollWidth;
         if (!alturaReal) { limpar(); cbFim(new Error('Container de exportação sem conteúdo renderizado.')); return; }
         try {
           window.html2pdf().set({
@@ -1012,10 +1036,22 @@
             image: { type: 'jpeg', quality: 0.95 },
             html2canvas: {
               scale: 2, backgroundColor: '#ffffff', useCORS: false,
+              width: larguraReal, windowWidth: larguraReal,
               height: alturaReal, windowHeight: alturaReal,
               /* Ver comentário de causa raiz acima: zera o cálculo automático
                  de deslocamento do html2canvas, que é o que produzia o PDF em
-                 branco em telas de resultado altas. */
+                 branco em telas de resultado altas. windowWidth precisa do
+                 mesmo tratamento que windowHeight já tinha: sem ele, o
+                 html2canvas usa document.documentElement.clientWidth (a
+                 largura REAL da tela de quem está gerando o PDF) como
+                 "janela" interna de renderização — como o container tem
+                 largura fixa (186mm), isso não altera seu tamanho, mas desloca
+                 e corta o conteúdo capturado sempre que a tela é mais larga
+                 que o container (ex.: um computador de escritório, 1280px):
+                 o PDF saía com metade esquerda em branco e o conteúdo
+                 comprimido contra a borda direita. Fixar windowWidth na
+                 largura real do próprio container elimina essa dependência
+                 da largura de tela de quem gera o PDF. */
               x: 0, y: 0, scrollX: 0, scrollY: 0
             },
             jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' },
