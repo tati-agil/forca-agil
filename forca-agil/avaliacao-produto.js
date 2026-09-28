@@ -1160,7 +1160,7 @@
     wrap._avpBound = true;
 
     var state = {
-      tela: 'lista', /* 'lista' | 'form-inicial' | 'checklist' | 'resultado' | 'nao-encontrada' | 'sem-permissao' */
+      tela: 'lista', /* 'lista' | 'form-inicial' | 'checklist' | 'resultado' | 'nao-encontrada' | 'sem-permissao' | 'carregando' */
       itens: [],
       itensCarregados: false, /* true depois da primeira resposta (sucesso OU erro) do Firebase — evita
                                   mostrar "não encontrada" antes dos dados terem sequer chegado (ex.: F5) */
@@ -1182,7 +1182,8 @@
       selecionados: {},      /* chaves marcadas na lista, para "PDF das selecionadas" — nunca persistido */
       menuExportarAberto: false,
       exportando: null,      /* null | 'pdf' | 'excel' — trava os botões de exportação durante a geração */
-      flashExportacao: null  /* mensagem de sucesso/erro da última exportação, mostrada na lista */
+      flashExportacao: null, /* mensagem de sucesso/erro da última exportação, mostrada na lista */
+      carregandoTravado: false /* true quando a tela 'carregando' esperou demais pela leitura de avaliacoes-produto */
     };
 
     function temCampoInvalido(campo) {
@@ -1196,6 +1197,39 @@
       else if (state.tela === 'resultado') renderResultado();
       else if (state.tela === 'nao-encontrada') renderNaoEncontrada();
       else if (state.tela === 'sem-permissao') renderSemPermissao();
+      else if (state.tela === 'carregando') renderCarregandoAvaliacao();
+    }
+
+    /* Tela de carregamento de #admin?avp=<chave> (F5, link direto, nova aba)
+       enquanto a leitura de avaliacoes-produto ainda não respondeu. Sem isto,
+       a primeira renderização (antes de qualquer dado chegar) caía no
+       default 'lista' e mostrava "0 avaliações registradas" + "+ Avaliar
+       novo item" — uma tela de LISTA VAZIA que parece a aplicação ter
+       esquecido a URL e voltado para o início, exatamente o efeito relatado
+       como "F5 não funciona" (a leitura era lenta o bastante, numa rede real,
+       para essa janela ficar visível). Nunca mostra "não encontrada" nem
+       volta pra lista aqui — só espera o dado chegar. Se a leitura nunca
+       responder (rede travada — condição normal de 4G/rede corporativa,
+       não um caso raro), carregandoTravado passa a true depois de um tempo
+       e oferece uma saída em vez de deixar "Carregando…" para sempre. */
+    function renderCarregandoAvaliacao() {
+      if (!state.carregandoTravado) {
+        wrap.innerHTML = '<div class="avp-form-card"><p class="admin-empty">Carregando avaliação…</p></div>';
+        return;
+      }
+      wrap.innerHTML = '<div class="avp-form-card">' +
+        '<p class="admin-empty">A conexão está demorando e não foi possível carregar esta avaliação. Verifique sua internet.</p>' +
+        '<div class="avp-actions-footer">' +
+        '<button class="btn btn--primary" id="avpRecarregarTravado">TENTAR NOVAMENTE</button>' +
+        '<button class="btn" id="avpVoltarCarregandoTravado">VOLTAR PARA A LISTA</button>' +
+        '</div></div>';
+      document.getElementById('avpRecarregarTravado').addEventListener('click', function () { location.reload(); });
+      document.getElementById('avpVoltarCarregandoTravado').addEventListener('click', function () {
+        state.carregandoTravado = false;
+        state.tela = 'lista';
+        irParaListaNaHash();
+        render();
+      });
     }
 
     /* ===================== ROTA PERSISTENTE (#admin?avp=<key>) =====================
@@ -1229,9 +1263,35 @@
     function irParaListaNaHash() {
       if (location.hash !== '#admin') location.hash = '#admin';
     }
+    /* CAUSA RAIZ (F5/link direto para uma avaliação específica, achada por
+       instrumentação, não suposição): onPageInit('admin', initAdmin), em
+       admin.js, chama initAdmin() de forma SÍNCRONA quando a página 'admin'
+       já é a atual — o que é exatamente o caso de um F5 em #admin?avp=...,
+       porque router.js já rodou show('admin') antes de admin.js registrar
+       seu init. Se a sessão do Firebase Auth já tiver resolvido a essa
+       altura (sessão "quente"/cache — comum, não hipotético: confirmado
+       ocorrendo sob condições normais de mock local, e Firebase Auth real
+       também pode resolver antes do DOMContentLoaded terminar de disparar
+       para todos os scripts), essa chamada síncrona atravessa toda a cadeia
+       initAdmin → faInitAvaliacaoProduto → sincronizarComHash →
+       ativarAbaArquitetura ANTES de admin.js chegar às linhas seguintes da
+       MESMA função, que são as que registram os addEventListener('click')
+       dos botões de aba (inclusive o desta aba). Um btn.click() disparado
+       aqui não tem NENHUM listener ainda — é um no-op silencioso: a
+       avaliação carrega certinho por trás, mas a aba errada (a que já
+       estava marcada 'active' no HTML estático) continua visível, e a
+       pessoa vê a URL certa com o conteúdo errado. Por isso a ativação é
+       feita diretamente aqui (mesma lógica do handler de clique em
+       admin.js), em vez de depender de um listener que pode ainda não
+       existir. */
     function ativarAbaArquitetura() {
       var btn = document.querySelector('.admin-tab-btn[data-panel="adminPanelArquitetura"]');
-      if (btn && !btn.classList.contains('active')) btn.click();
+      if (!btn || btn.classList.contains('active')) return;
+      document.querySelectorAll('.admin-tab-btn').forEach(function (b) { b.classList.remove('active'); });
+      document.querySelectorAll('.admin-tab-panel').forEach(function (p) { p.classList.remove('active'); });
+      btn.classList.add('active');
+      var painel = document.getElementById('adminPanelArquitetura');
+      if (painel) painel.classList.add('active');
     }
     /* Reage tanto à carga inicial quanto a QUALQUER mudança de hash (botão
        voltar/avançar do navegador, link colado). Deliberadamente não mexe
@@ -2555,6 +2615,26 @@
       sincronizarComHash();
     });
 
+    /* Na carga inicial (F5, link direto, nova aba), se a URL já pede uma
+       avaliação específica, a PRIMEIRA renderização não pode cair no default
+       'lista' — a leitura de avaliacoes-produto ainda nem começou a
+       responder nesse instante, então mostrar a lista (vazia) aqui é
+       mostrar um estado que nunca existiu de verdade. 'carregando' cobre
+       exatamente essa janela; sincronizarComHash() (chamado tanto agora
+       quanto de novo quando os dados chegarem) decide o destino final. */
+    if (avpKeyDaHash()) {
+      state.tela = 'carregando';
+      /* Rede travada é condição normal (ver CLAUDE.md), não caso raro — sem
+         este relógio, uma leitura que nunca responde deixava "Carregando
+         avaliação…" para sempre, sem nenhuma saída (mesmo padrão já usado em
+         salvarRegistro e no socorro de auth do router.js). */
+      setTimeout(function () {
+        if (state.tela === 'carregando' && !state.itensCarregados) {
+          state.carregandoTravado = true;
+          render();
+        }
+      }, 12000);
+    }
     render();
     sincronizarComHash(); /* ativa a aba Arquitetura e tenta resolver um link direto já na carga inicial */
   };
