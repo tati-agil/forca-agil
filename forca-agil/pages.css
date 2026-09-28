@@ -2125,3 +2125,17 @@ select.aposta-campo-input { width: auto; min-width: 8.5em; }
 .avp-historico-item { border: 1px solid var(--line); border-radius: 10px; padding: 12px 14px; display: flex; flex-direction: column; gap: 6px; }
 .avp-historico-cabecalho { margin: 0; font-size: .86rem; color: var(--ink); }
 .avp-historico-resp { margin: 0; font-size: .78rem; color: var(--ink-3); }
+
+/* Exportação (PDF/Excel) é sempre secundária visualmente — nunca disputa
+   destaque com as ações principais da avaliação (salvar, decidir, reavaliar). */
+.avp-export-bar { display: flex; align-items: center; gap: 10px; margin: 4px 0 18px; flex-wrap: wrap; }
+.avp-export-status { font-size: .8rem; color: var(--ink-3); }
+.avp-export-status--erro { color: var(--red); }
+.avp-exportar-wrap { position: relative; display: inline-block; }
+.avp-exportar-menu {
+  position: absolute; top: calc(100% + 4px); right: 0; z-index: 20; min-width: 240px;
+  background: var(--panel-2); border: 1px solid var(--line-strong); border-radius: 10px;
+  padding: 8px; display: flex; flex-direction: column; gap: 4px; box-shadow: 0 8px 24px rgba(0,0,0,.4);
+}
+.avp-exportar-menu button { width: 100%; text-align: left; padding: 8px 10px; }
+.avp-check-col { width: 32px; text-align: center; }
