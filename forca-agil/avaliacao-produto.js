@@ -328,19 +328,41 @@
   function db() { return firebase.database(); }
 
   /* ---- motor de decisão -------------------------------------------------
-     identificarCamada nunca decide por uma resposta isolada: cada camada
-     candidata exige pelo menos duas respostas convergentes (nunca "SIM em
-     modalidade ⇒ é Modalidade"). "autonomia" (o item existe e entrega
-     resultado independentemente de outro Produto/Serviço?) e
-     "funcionalidade" (o item é uma ação que atua dentro de outro
-     Produto/Serviço?) são os dois sinais explícitos e decisivos dessa
-     distinção — resultado próprio, fronteira e mensuração sozinhos NUNCA
-     bastam para Produto/Serviço principal, porque uma funcionalidade
-     dentro de outra solução também pode apresentar todos eles. Quando duas
-     ou mais camadas ficam igualmente sustentadas pelas respostas, ou
-     nenhuma encontra sustentação suficiente, o resultado é 'a-validar' — o
-     motor nunca força uma escolha. Nada aqui olha para nome/descrição do
-     item. */
+     identificarCamada NÃO conta quantos SIM existem — decide por PRECEDÊNCIA
+     entre critérios estruturais (autonomia, resultado próprio, papel exercido
+     dentro de outra solução) e só depois pela natureza indicada pelos testes
+     de classificação, na ordem abaixo (a primeira condição satisfeita decide
+     — nunca uma votação entre "candidatos" igualmente válidos, que era o que
+     antes gerava A VALIDAR sempre que duas respostas relacionadas apareciam
+     juntas, mesmo quando uma delas era só uma especialização da outra, nunca
+     um conflito de verdade):
+
+       0. Incoerência direta (funcionalidade E autonomia, ao mesmo tempo)
+       1. Produto/Serviço principal   (núcleo essencial completo + autonomia)
+       2. Funcionalidade/Operação     (é uma ação — sinal direto e decisivo)
+       3. Unidade de valor associada  (resultado próprio, mas sem autonomia)
+       4. Ferramenta                  (capacidade + componente juntos)
+       5. Conflito real: Processo × Capacidade, sem nenhum outro sinal que
+          desempate — aqui sim é ambiguidade de verdade, não hierarquia
+       6. Capacidade organizacional
+       7. Componente (também cobre "opção/configuração de personalização" —
+          uma característica secundária do componente, nunca uma categoria
+          concorrente: ver especializacao)
+       8. Modalidade/Subproduto       (só quando tem resultado próprio — uma
+          variante reconhecível da oferta, não uma simples configuração)
+       9. Regra/Condição
+      10. Processo/Etapa de processo
+      11. Canal
+      12. Documento/Informação
+      13. Evidência insuficiente → A validar (nunca força uma escolha)
+
+     "autonomia" (o item existe e entrega resultado independentemente de
+     outro Produto/Serviço?) e "funcionalidade" (o item é uma ação que atua
+     dentro de outro Produto/Serviço?) continuam os dois sinais decisivos:
+     resultado próprio, fronteira e mensuração sozinhos NUNCA bastam para
+     Produto/Serviço principal. Nada aqui olha para nome/descrição do item —
+     "especializacao" também vem só de uma resposta já existente (modalidade
+     dentro de Componente), nunca inventada. */
   function identificarCamada(atual) {
     var r = atual.respostas || {};
     function sim(id) { return !!(r[id] && r[id].valor === 'sim'); }
@@ -351,119 +373,123 @@
       modalidade = sim('modalidade'), regra = sim('regra'), componente = sim('componente'), funcionalidade = sim('funcionalidade');
 
     var exclusoesSim = EXCLUSOES.filter(function (e) { return sim(e.id); }).map(function (e) { return e.id; });
-
-    /* Contradição direta: "atua dentro de outro Produto/Serviço" e "existe
-       de forma independente de outro Produto/Serviço" não podem ser SIM ao
-       mesmo tempo sem incoerência. O sistema nunca resolve essa contradição
-       escolhendo um lado silenciosamente — sinaliza e devolve 'a-validar'. */
-    if (funcionalidade && autonomia) {
+    function motivo(id) { return ROTULOS_SINAL[id] + ': ' + (sim(id) ? 'SIM' : 'NÃO'); }
+    function resultadoFn(camada, sinais, especializacao) {
       return {
-        camada: 'a-validar',
-        motivos: [ROTULOS_SINAL.funcionalidade + ': SIM', ROTULOS_SINAL.autonomia + ': SIM'],
-        conflito: null,
-        incoerencia: true,
-        exclusoesSim: exclusoesSim
+        camada: camada, motivos: sinais.map(motivo), conflito: null, incoerencia: false,
+        especializacao: especializacao || null, exclusoesSim: exclusoesSim
       };
     }
 
-    /* perfilQuaseCompleto identifica um item com o "formato" de produto
-       (necessidade, resultado e fronteira próprios) — usado para dar
-       prioridade a "Unidade de valor associada" sobre as camadas mais
-       genéricas de modalidade/regra/processo quando as duas evidências
-       convergem para o mesmo item (mais específico prevalece, nunca por
-       ordem fixa). */
-    var nucleoCompleto = necessidade && resultado && solucao && fronteira && autonomia;
-    var perfilQuaseCompleto = resultado && fronteira && necessidade;
-
-    var candidatos = [];
-    function candidata(id, sinais) { candidatos.push({ camada: id, sinais: sinais }); }
-
-    /* Produto/Serviço principal: núcleo essencial completo, autonomia
-       estrutural confirmada, e nenhum teste de exclusão se sustenta. A
-       autonomia é obrigatória aqui — sem ela, mesmo com todos os outros
-       critérios em SIM, o item não é recomendado como Produto/Serviço
-       principal (é exatamente o caso de uma funcionalidade completa por
-       fora, mas dependente por dentro). */
-    if (nucleoCompleto && exclusoesSim.length === 0) {
-      candidata('produto-principal', ['necessidade', 'resultado', 'solucao', 'fronteira', 'autonomia']);
+    /* 0. Contradição direta: "atua dentro de outro Produto/Serviço" e
+       "existe de forma independente de outro Produto/Serviço" não podem ser
+       SIM ao mesmo tempo sem incoerência. O sistema nunca resolve essa
+       contradição escolhendo um lado silenciosamente. */
+    if (funcionalidade && autonomia) {
+      return {
+        camada: 'a-validar', motivos: [motivo('funcionalidade'), motivo('autonomia')],
+        conflito: null, incoerencia: true, especializacao: null, exclusoesSim: exclusoesSim
+      };
     }
 
-    /* Unidade de valor associada: tem resultado próprio, fronteira e
+    var nucleoCompleto = necessidade && resultado && solucao && fronteira && autonomia;
+
+    /* 1. Produto/Serviço principal: núcleo essencial completo, autonomia
+       estrutural confirmada, e nenhum teste de exclusão se sustenta. Sem
+       autonomia, mesmo com todos os outros critérios em SIM, o item não é
+       recomendado como Produto/Serviço principal — é exatamente o caso de
+       uma funcionalidade completa por fora, mas dependente por dentro. */
+    if (nucleoCompleto && exclusoesSim.length === 0) {
+      return resultadoFn('produto-principal', ['necessidade', 'resultado', 'solucao', 'fronteira', 'autonomia']);
+    }
+
+    /* 2. Funcionalidade/Operação: sinal direto e explícito (a própria
+       pergunta "é uma ação que atua dentro de outro Produto/Serviço?"),
+       combinado com a ausência de autonomia — é uma ação sobre outra coisa,
+       nunca a coisa em si. Tem precedência sobre "Unidade de valor
+       associada" porque é mais específico (a pergunta captura a relação
+       diretamente, sem depender do nome do item) — na prática as duas
+       condições já são mutuamente exclusivas (uma exige funcionalidade=SIM,
+       a outra funcionalidade=NÃO). */
+    if (funcionalidade && !autonomia) {
+      return resultadoFn('funcionalidade-operacao', ['funcionalidade', 'autonomia']);
+    }
+
+    /* 3. Unidade de valor associada: tem resultado próprio, fronteira e
        necessidade de cliente (como um produto), mas SEM autonomia
        estrutural — depende de um Produto/Serviço maior — e não é, ela
        mesma, a ação/funcionalidade que atua sobre outra coisa. A diferença
        para Produto/Serviço principal é só a autonomia. */
     if (resultado && fronteira && necessidade && !autonomia && !funcionalidade) {
-      candidata('unidade-valor-associada', ['resultado', 'fronteira', 'necessidade', 'autonomia']);
+      return resultadoFn('unidade-valor-associada', ['resultado', 'fronteira', 'necessidade', 'autonomia']);
     }
 
-    /* Funcionalidade/Operação: sinal direto e explícito (a própria pergunta
-       "é uma ação que atua dentro de outro Produto/Serviço?"), combinado
-       com a ausência de autonomia — é uma ação sobre outra coisa, nunca a
-       coisa em si. Isso substitui qualquer inferência indireta a partir de
-       modalidade/regra/processo: a pergunta já captura a relação
-       diretamente, sem depender do nome do item. */
-    if (funcionalidade && !autonomia) {
-      candidata('funcionalidade-operacao', ['funcionalidade', 'autonomia']);
+    /* 4. Ferramenta: instrumento de apoio interno reutilizável — capacidade
+       E componente ao mesmo tempo (mais específico que qualquer um
+       sozinho), sem necessidade de cliente nem resultado próprio. */
+    if (capacidade && componente && !necessidade && !resultado) {
+      return resultadoFn('ferramenta', ['capacidade', 'componente', 'necessidade', 'resultado']);
     }
 
-    /* Modalidade/opção SIM, mas SEM ser a ação sobre ela (funcionalidade=NÃO)
-       e SEM autonomia — é a própria opção/configuração. Se o item também
-       tiver o "formato" completo de produto (perfilQuaseCompleto), prevalece
-       "Unidade de valor associada" em vez desta, por ser mais específica. */
-    if (modalidade && !funcionalidade && !autonomia && !perfilQuaseCompleto) {
-      candidata('modalidade-subproduto', ['modalidade', 'funcionalidade', 'autonomia']);
+    /* 5. Conflito real (não hierárquico): processo e capacidade indicados ao
+       mesmo tempo, sem nenhum outro sinal (componente, resultado próprio)
+       para desempatar qual dos dois é a natureza predominante. Diferente de
+       "Componente + opção/configuração" (item 7 abaixo), aqui as duas
+       categorias são mutuamente exclusivas — nenhuma é especialização da
+       outra — então A validar é a resposta honesta, não uma escolha forçada. */
+    if (processo && capacidade && !componente && !resultado && !funcionalidade) {
+      return {
+        camada: 'a-validar', motivos: [motivo('processo'), motivo('capacidade')],
+        conflito: [camadaPorId('processo-etapa').label, camadaPorId('capacidade-organizacional').label],
+        incoerencia: false, especializacao: null, exclusoesSim: exclusoesSim
+      };
     }
 
-    /* Ferramenta: instrumento de apoio interno reutilizável — capacidade E
-       componente ao mesmo tempo (mais específico que qualquer um sozinho),
-       sem necessidade de cliente nem resultado próprio. Por ser mais
-       específica, prevalece sobre "Capacidade organizacional" e sobre
-       "Componente" quando as três respostas coincidem — nunca por ordem
-       fixa de prioridade, e sim porque exige mais evidência convergente. */
-    var ehFerramenta = capacidade && componente && !necessidade && !resultado;
-    if (ehFerramenta) {
-      candidata('ferramenta', ['capacidade', 'componente', 'necessidade', 'resultado']);
-    } else if (capacidade && !necessidade && !componente) {
-      candidata('capacidade-organizacional', ['capacidade', 'necessidade', 'componente']);
-    }
-    if (componente && !resultado && !funcionalidade && !ehFerramenta) {
-      candidata('componente', ['componente', 'resultado']);
+    /* 6. Capacidade organizacional: capacidade interna, sem necessidade de
+       cliente identificável nem papel de componente de outra solução. */
+    if (capacidade && !necessidade && !componente) {
+      return resultadoFn('capacidade-organizacional', ['capacidade', 'necessidade', 'componente']);
     }
 
-    if (regra && !funcionalidade && !autonomia && !perfilQuaseCompleto) {
-      candidata('regra-condicao', ['regra', 'funcionalidade', 'autonomia']);
+    /* 7. Componente: pertence estruturalmente a outra solução, sem
+       autonomia, sem ser a ação (funcionalidade) e sem resultado próprio
+       autônomo. "Modalidade/opção/configuração" aqui NUNCA vira uma
+       categoria concorrente à parte — é tratada como uma característica
+       secundária do próprio componente (especialização), evitando o falso
+       conflito que a resposta “é uma modalidade” costumava gerar quando
+       aparecia ao lado de “existe para outro Produto/Serviço entregar
+       resultado”. Também é o destino padrão de uma modalidade/opção/
+       configuração isolada, sem resultado próprio que a distinga como uma
+       variante de verdade da oferta (ver item 8, Modalidade/Subproduto). */
+    if ((componente || modalidade) && !autonomia && !funcionalidade && !resultado && !processo && !regra && !canal && !artefato) {
+      return resultadoFn('componente', ['componente', 'modalidade', 'resultado'],
+        modalidade ? 'Opção/configuração de personalização' : null);
     }
-    if (processo && !funcionalidade && !autonomia && !perfilQuaseCompleto) {
-      candidata('processo-etapa', ['processo', 'funcionalidade', 'autonomia']);
+
+    /* 8. Modalidade/Subproduto: só quando o item tem resultado próprio
+       perceptível — o que o diferencia de uma simples opção/configuração
+       (que vira Componente, item 7) e o caracteriza como uma variante
+       reconhecível da oferta principal, com identidade própria. */
+    if (modalidade && resultado && !funcionalidade && !autonomia && !componente) {
+      return resultadoFn('modalidade-subproduto', ['modalidade', 'resultado', 'funcionalidade', 'autonomia']);
+    }
+
+    if (regra && !funcionalidade && !autonomia && !resultado) {
+      return resultadoFn('regra-condicao', ['regra', 'funcionalidade', 'autonomia']);
+    }
+    if (processo && !funcionalidade && !autonomia && !resultado) {
+      return resultadoFn('processo-etapa', ['processo', 'funcionalidade', 'autonomia']);
     }
     if (canal && !resultado) {
-      candidata('canal', ['canal', 'resultado']);
+      return resultadoFn('canal', ['canal', 'resultado']);
     }
     if (artefato && !resultado) {
-      candidata('documento-informacao', ['artefato', 'resultado']);
+      return resultadoFn('documento-informacao', ['artefato', 'resultado']);
     }
 
-    var camadaEscolhida, motivos = [], conflito = null;
-    if (candidatos.length === 1) {
-      camadaEscolhida = candidatos[0].camada;
-      motivos = candidatos[0].sinais.map(function (id) { return ROTULOS_SINAL[id] + ': ' + (sim(id) ? 'SIM' : 'NÃO'); });
-    } else if (candidatos.length === 0) {
-      camadaEscolhida = 'a-validar';
-    } else {
-      camadaEscolhida = 'a-validar';
-      conflito = candidatos.map(function (c) { return camadaPorId(c.camada).label; });
-      var vistos = {};
-      candidatos.forEach(function (c) {
-        c.sinais.forEach(function (id) {
-          if (vistos[id]) return;
-          vistos[id] = true;
-          motivos.push(ROTULOS_SINAL[id] + ': ' + (sim(id) ? 'SIM' : 'NÃO'));
-        });
-      });
-    }
-
-    return { camada: camadaEscolhida, motivos: motivos, conflito: conflito, incoerencia: false, exclusoesSim: exclusoesSim };
+    /* Nada acima se sustentou: evidência insuficiente para recomendar
+       qualquer categoria com segurança — nunca uma escolha forçada. */
+    return { camada: 'a-validar', motivos: [], conflito: null, incoerencia: false, especializacao: null, exclusoesSim: exclusoesSim };
   }
 
   /* Descreve, numa frase própria, COMO o item se relaciona com o
@@ -488,7 +514,9 @@
       case 'modalidade-subproduto':
         return 'É uma modalidade/opção/configuração pertencente a outro Produto/Serviço, e não uma ação sobre ela.';
       case 'componente':
-        return 'Existe para que outro Produto/Serviço consiga entregar seu resultado — não tem resultado próprio perceptível.';
+        return sim('componente')
+          ? 'Existe para que outro Produto/Serviço consiga entregar seu resultado — não tem resultado próprio perceptível.'
+          : 'É um elemento configurável de outro Produto/Serviço, sem resultado próprio perceptível que o caracterize como uma oferta independente.';
       case 'regra-condicao':
         return 'É uma regra ou condição de outro Produto/Serviço.';
       case 'processo-etapa':
@@ -504,6 +532,115 @@
       default:
         return null;
     }
+  }
+
+  /* Rótulo único do resultado/decisão em qualquer lugar do site — tela,
+     PDF e Excel. "NÃO É PRODUTO/SERVIÇO" sozinho dava a entender que o
+     item foi descartado; o "PRINCIPAL" deixa explícito que o sistema está
+     avaliando autonomia/independência, não impedindo que o item seja, por
+     exemplo, um Componente ou uma Funcionalidade/Operação legítimos. */
+  function rotuloResultado(v) {
+    if (v === 'produto') return 'É Produto/Serviço';
+    if (v === 'a-validar') return 'A validar';
+    return 'Não é Produto/Serviço Principal';
+  }
+
+  /* Cláusula "porque ..." da justificativa consolidada (gerarJustificativaAutomatica),
+     uma por camada — nunca a partir do nome do item, sempre da camada já
+     identificada pelo motor. Cada frase é hand-escrita para ler bem em
+     português; o motor decide QUAL usar, nunca o texto em si. */
+  function motivoJustificativa(camadaId) {
+    switch (camadaId) {
+      case 'unidade-valor-associada':
+        return 'entrega um resultado próprio e perceptível para o cliente, mas depende estruturalmente de um Produto/Serviço maior para existir';
+      case 'funcionalidade-operacao':
+        return 'atua predominantemente dentro de outro Produto/Serviço e não possui autonomia estrutural para existir e entregar seu resultado de forma independente';
+      case 'modalidade-subproduto':
+        return 'é predominantemente uma modalidade, opção ou configuração de outro Produto/Serviço, e não uma ação realizada sobre ela';
+      case 'componente':
+        return 'pertence estruturalmente a outra solução e contribui para que ela entregue seu resultado, sem ter, ele mesmo, um resultado próprio perceptível para o cliente';
+      case 'regra-condicao':
+        return 'funciona predominantemente como uma regra ou condição de outro Produto/Serviço';
+      case 'processo-etapa':
+        return 'funciona predominantemente como um processo ou etapa de processo de outro Produto/Serviço';
+      case 'capacidade-organizacional':
+        return 'funciona predominantemente como uma capacidade organizacional interna, sem necessidade de cliente identificável associada';
+      case 'ferramenta':
+        return 'funciona predominantemente como um instrumento de apoio interno reutilizável, sem necessidade de cliente nem resultado próprio';
+      case 'canal':
+        return 'funciona predominantemente como um canal de acesso ou relacionamento, e não como uma solução com resultado próprio';
+      case 'documento-informacao':
+        return 'funciona predominantemente como um documento ou informação entregue ao cliente, e não como uma solução com resultado próprio';
+      default:
+        return null;
+    }
+  }
+
+  /* Termo usado nas interpretações contextuais (fronteira, gestão) que
+     precisam nomear "o que" foi identificado, sem chamar tudo de "solução"
+     quando a camada final já diz que o item não é uma. Nunca o nome do
+     item — sempre a camada já identificada. */
+  var TERMO_CAMADA = {
+    'produto-principal': 'a solução',
+    'unidade-valor-associada': 'a solução',
+    'modalidade-subproduto': 'a modalidade/opção',
+    'funcionalidade-operacao': 'a funcionalidade/operação',
+    'componente': 'o componente',
+    'regra-condicao': 'a regra/condição',
+    'processo-etapa': 'o processo/etapa de processo',
+    'capacidade-organizacional': 'a capacidade organizacional',
+    'ferramenta': 'a ferramenta',
+    'canal': 'o canal',
+    'documento-informacao': 'o documento/informação'
+  };
+  function termoCamada(camadaId) { return TERMO_CAMADA[camadaId] || 'o item'; }
+
+  /* Só as camadas com um papel de suporte/execução reconhecível emprestam
+     um termo para a interpretação de "gestão ponta a ponta = NÃO" — para as
+     demais (produto-principal, unidade-valor-associada, a-validar) não há
+     papel específico a apontar, então a interpretação cai num texto neutro
+     em vez de inventar "processo/capacidade/suporte" sem evidência. */
+  var TERMO_GESTAO_POR_CAMADA = {
+    'funcionalidade-operacao': 'funcionalidade/operação',
+    'modalidade-subproduto': 'modalidade/opção',
+    'componente': 'componente de suporte',
+    'regra-condicao': 'regra/condição',
+    'processo-etapa': 'processo',
+    'capacidade-organizacional': 'capacidade organizacional',
+    'ferramenta': 'ferramenta de apoio interno',
+    'canal': 'canal',
+    'documento-informacao': 'documento/informação'
+  };
+
+  /* Interpretação do sistema para uma pergunta já respondida, ajustada de
+     acordo com a classificação FINAL já identificada (item.camadaSugerida)
+     quando isso evita um texto incoerente — nunca a partir do nome do
+     item, sempre da camada e das próprias respostas já gravadas. Fora de
+     um resultado concluído (checklist em andamento, camada ainda
+     desconhecida) ou para perguntas não afetadas, cai sempre na leitura
+     fixa por pergunta (justificativaAuto), gravada no momento da resposta. */
+  function interpretacaoSistema(def, resposta, item) {
+    var base = semPrefixo(resposta && resposta.justificativaAuto);
+    var camada = item && item.status === 'concluido' && item.camadaSugerida;
+    if (!camada || !resposta || !resposta.valor) return base;
+    var r = item.respostas || {};
+    function sim(id) { return !!(r[id] && r[id].valor === 'sim'); }
+
+    if (def.id === 'fronteira' && resposta.valor === 'sim') {
+      return 'Existe uma fronteira coerente e identificável para ' + termoCamada(camada.id) + '.';
+    }
+    if (def.id === 'gestao' && resposta.valor === 'nao') {
+      var termoGestao = TERMO_GESTAO_POR_CAMADA[camada.id];
+      if (termoGestao) {
+        return 'O item pode ser administrado como ' + termoGestao + ', mas não como uma solução autônoma independente do Produto/Serviço ao qual pertence.';
+      }
+      return 'Este critério, isoladamente, não determina se o item é gerido como processo, capacidade ou suporte compartilhado — a classificação final considera o conjunto das respostas.';
+    }
+    if (def.id === 'componente' && resposta.valor === 'nao' && !sim('autonomia')) {
+      return 'Embora dependa estruturalmente de outro Produto/Serviço, o item entrega um resultado diretamente percebido pelo cliente e não existe apenas ' +
+        'como suporte para que outra solução entregue seu resultado.';
+    }
+    return base;
   }
 
   function computeResultado(atual) {
@@ -528,6 +665,7 @@
         motivos: ident.motivos,
         conflito: ident.conflito,
         incoerencia: ident.incoerencia,
+        especializacao: ident.especializacao,
         relacao: relacaoArquitetural(ident.camada, atual)
       }
     };
@@ -552,8 +690,9 @@
       return 'O item foi classificado como Produto/Serviço principal porque as respostas confirmam ' + listaComE(camada.motivos) +
         ', sem nenhum sinal de que exerça predominantemente outro papel arquitetural.';
     }
-    return 'O item foi classificado como ' + camada.label + ', e não como Produto/Serviço principal, porque as respostas indicam ' +
-      listaComE(camada.motivos) + '. ' + camada.relacao;
+    return 'O item foi classificado como ' + camada.label + ', e não como Produto/Serviço principal, porque ' +
+      motivoJustificativa(camada.id) + '.' +
+      (camada.especializacao ? ' A especialização identificada é ' + camada.especializacao.toLowerCase() + '.' : '');
   }
 
   function todasRespondidas(atual) {
@@ -661,24 +800,29 @@
     '.pdf-resultado--nao-produto{background:#fdf1cf;color:#8a6800}' +
     '.pdf-resultado--a-validar{background:#dfe9fb;color:#1f4e9c}' +
     '.pdf-aviso{color:#8a6800;font-style:italic;margin:4px 0}' +
-    '.pdf-pergunta{border:1px solid #e2e2e2;border-radius:4px;padding:8px 10px;margin-bottom:6px;page-break-inside:avoid}' +
+    '.pdf-pergunta{border:1px solid #e2e2e2;border-radius:4px;padding:8px 10px;margin-bottom:6px;' +
+      'page-break-inside:avoid;break-inside:avoid}' +
     '.pdf-pergunta-texto{margin:0 0 4px}' +
     '.pdf-pergunta-campo{margin:0 0 2px;font-size:10px}' +
-    '.pdf-quebra{page-break-before:always}';
+    '.pdf-quebra{page-break-before:always}' +
+    '.pdf-tabela-id tr{page-break-inside:avoid;break-inside:avoid}';
 
   function pdfLinhaTabela(rotulo, valor) {
     return '<tr><th>' + esc(rotulo) + '</th><td>' + esc(valor || '—') + '</td></tr>';
   }
-  function pdfPergunta(def, resposta) {
+  function pdfPergunta(def, resposta, it) {
     if (!resposta || !resposta.valor) return '';
     var valor = resposta.valor === 'sim' ? 'SIM' : 'NÃO';
     var obs = (resposta.observacao || '').trim();
+    /* pdf-pergunta-bloco é o bloco indivisível (pergunta + resposta +
+       justificativa do usuário + interpretação do sistema) — nunca deve
+       atravessar duas páginas do PDF. */
     return '' +
-      '<div class="pdf-pergunta">' +
+      '<div class="pdf-pergunta pdf-pergunta-bloco">' +
       '<p class="pdf-pergunta-texto">' + esc(def.titulo || def.pergunta) + ' — <strong>' + valor + '</strong></p>' +
       '<p class="pdf-pergunta-campo"><strong>Justificativa do usuário:</strong> ' +
         (obs ? esc(obs) : '<em>Nenhuma observação registrada.</em>') + '</p>' +
-      '<p class="pdf-pergunta-campo"><strong>Interpretação do sistema:</strong> ' + esc(semPrefixo(resposta.justificativaAuto)) + '</p>' +
+      '<p class="pdf-pergunta-campo"><strong>Interpretação do sistema:</strong> ' + esc(interpretacaoSistema(def, resposta, it)) + '</p>' +
       '</div>';
   }
   function montarCabecalhoPdf() {
@@ -715,8 +859,7 @@
       return html;
     }
 
-    var rotuloResultadoTxt = it.resultadoAutomatico === 'produto' ? 'É Produto/Serviço' :
-      (it.resultadoAutomatico === 'a-validar' ? 'A validar' : 'Não é Produto/Serviço');
+    var rotuloResultadoTxt = rotuloResultado(it.resultadoAutomatico);
     html += '<h2 class="pdf-secao-titulo">Resultado sobre Produto/Serviço</h2>';
     html += '<p class="pdf-resultado pdf-resultado--' + esc(it.resultadoAutomatico || 'a-validar') + '">' +
       esc(rotuloResultadoTxt) + '</p>';
@@ -724,6 +867,9 @@
     var camada = it.camadaSugerida;
     html += '<h2 class="pdf-secao-titulo">Classificação arquitetural sugerida</h2>';
     html += '<p>' + esc(camada && camada.label || '—') + '</p>';
+    if (camada && camada.especializacao) {
+      html += '<p><strong>Especialização:</strong> ' + esc(camada.especializacao) + '</p>';
+    }
     if (camada && camada.conflito && camada.conflito.length) {
       html += '<p class="pdf-aviso">Categorias em conflito nas respostas: ' + esc(camada.conflito.join(', ')) + '.</p>';
     }
@@ -741,16 +887,15 @@
 
     html += '<h2 class="pdf-secao-titulo">Como chegamos a essa conclusão</h2>';
     html += '<h3 class="pdf-subsecao">Critérios principais</h3>';
-    CRITERIOS.forEach(function (c) { html += pdfPergunta(c, it.respostas[c.id]); });
+    CRITERIOS.forEach(function (c) { html += pdfPergunta(c, it.respostas[c.id], it); });
     html += '<h3 class="pdf-subsecao">Teste de Classificação</h3>';
-    EXCLUSOES.forEach(function (e) { html += pdfPergunta(e, it.respostas[e.id]); });
+    EXCLUSOES.forEach(function (e) { html += pdfPergunta(e, it.respostas[e.id], it); });
 
     html += '<h2 class="pdf-secao-titulo">Decisão arquitetural</h2>';
     html += '<table class="pdf-tabela-id">';
     html += pdfLinhaTabela('Recomendação do sistema', rotuloResultadoTxt);
     html += pdfLinhaTabela('Classificação sugerida', camada && camada.label);
-    var decisaoTxt = it.decisaoFinal === 'produto' ? 'É Produto/Serviço' :
-      (it.decisaoFinal === 'a-validar' ? 'A validar' : 'Não é Produto/Serviço');
+    var decisaoTxt = rotuloResultado(it.decisaoFinal);
     html += pdfLinhaTabela('Decisão final', decisaoTxt);
     html += pdfLinhaTabela('Forma da decisão', it.decisaoManual ? 'Alterada manualmente' : 'Recomendação do sistema aceita');
     if (it.decisaoManual) {
@@ -825,20 +970,14 @@
       it._key, it.nome || '', it.descricao || '', it.publico || '', it.necessidade || '',
       (it.responsavel && it.responsavel.name) || '', it.criadoEm ? new Date(it.criadoEm) : '',
       it.status === 'concluido' ? 'Concluído' : 'Rascunho', it.versao || 1,
-      it.status === 'concluido' ? rotuloResultadoExcel(it.resultadoAutomatico) : '',
+      it.status === 'concluido' ? rotuloResultado(it.resultadoAutomatico) : '',
       (camada && camada.label) || '', (camada && camada.relacao) || '',
-      it.status === 'concluido' ? rotuloResultadoExcel(it.decisaoFinal) : '',
+      it.status === 'concluido' ? rotuloResultado(it.decisaoFinal) : '',
       it.status === 'concluido' ? (it.decisaoManual ? 'Manual' : 'Automática') : '',
       it.decisaoManual ? ((it.alteradoPor && it.alteradoPor.name) || '') : '',
       it.decisaoManual && it.alteradoEm ? new Date(it.alteradoEm) : '',
       it.decisaoManual ? (it.justificativaDecisao || '') : ''
     ];
-  }
-  function rotuloResultadoExcel(v) {
-    if (v === 'produto') return 'É Produto/Serviço';
-    if (v === 'a-validar') return 'A validar';
-    if (v === 'nao-produto') return 'Não é Produto/Serviço';
-    return '';
   }
   var EXCEL_COLS_RESPOSTAS = [
     { largura: 26 }, { largura: 30 }, { largura: 8 }, { largura: 18 }, { largura: 10 },
@@ -857,7 +996,7 @@
           it._key, it.nome || '', it.versao || 1,
           criterioPorId(p.id) ? 'Critério principal' : 'Teste de classificação',
           idx + 1, p.titulo || p.pergunta, r.valor === 'sim' ? 'SIM' : 'NÃO',
-          r.observacao || '', semPrefixo(r.justificativaAuto || '')
+          r.observacao || '', interpretacaoSistema(p, r, it)
         ]);
       });
     });
@@ -886,9 +1025,9 @@
         return [
           it.itemId || it._key, it._key, it.versao || 1, it.criadoEm ? new Date(it.criadoEm) : '',
           (it.responsavel && it.responsavel.name) || '',
-          it.status === 'concluido' ? rotuloResultadoExcel(it.resultadoAutomatico) : '',
+          it.status === 'concluido' ? rotuloResultado(it.resultadoAutomatico) : '',
           (it.camadaSugerida && it.camadaSugerida.label) || '',
-          it.status === 'concluido' ? rotuloResultadoExcel(it.decisaoFinal) : '',
+          it.status === 'concluido' ? rotuloResultado(it.decisaoFinal) : '',
           it.decisaoManual ? (it.justificativaDecisao || '') : ''
         ];
       });
@@ -936,8 +1075,11 @@
     wrap._avpBound = true;
 
     var state = {
-      tela: 'lista', /* 'lista' | 'form-inicial' | 'checklist' | 'resultado' */
+      tela: 'lista', /* 'lista' | 'form-inicial' | 'checklist' | 'resultado' | 'nao-encontrada' | 'sem-permissao' */
       itens: [],
+      itensCarregados: false, /* true depois da primeira resposta (sucesso OU erro) do Firebase — evita
+                                  mostrar "não encontrada" antes dos dados terem sequer chegado (ex.: F5) */
+      erroCarga: null,        /* null | 'permissao' | 'geral' — motivo de itensCarregados nunca ter dados */
       filtro: { resultado: 'todos', status: 'todos', alterado: 'todos', alternativa: 'todos' },
       lixeira: false,        /* alterna a lista entre ativos e excluídos — "excluído" é outra dimensão, não um status irmão de rascunho/concluído */
       atual: null,
@@ -967,6 +1109,105 @@
       else if (state.tela === 'form-inicial') renderFormInicial();
       else if (state.tela === 'checklist') renderChecklist();
       else if (state.tela === 'resultado') renderResultado();
+      else if (state.tela === 'nao-encontrada') renderNaoEncontrada();
+      else if (state.tela === 'sem-permissao') renderSemPermissao();
+    }
+
+    /* ===================== ROTA PERSISTENTE (#admin?avp=<key>) =====================
+       A tela de resultado é um registro consultável, não uma página de
+       transição — precisa sobreviver a F5, funcionar com link copiado/aberto
+       em outra aba, e reagir ao botão voltar/avançar do navegador. O router
+       central (router.js) só entende páginas fixas (#admin, #home…) e ignora
+       tudo depois de "?" ao decidir qual página mostrar — por isso o `?avp=`
+       vive dentro do MESMO hash de #admin, sem exigir nenhuma rota nova ali:
+       o router mostra #admin normalmente, e este módulo lê o parâmetro para
+       decidir se mostra a lista ou uma avaliação específica dela.
+       form-inicial/checklist (edição em andamento, nunca salva) ficam DE
+       PROPÓSITO fora dessa persistência — só a tela de RESULTADO (um
+       registro já salvo) precisa sobreviver a F5/link/histórico. */
+    function paramsDaHash() {
+      var h = location.hash || '';
+      var i = h.indexOf('?');
+      var params = {};
+      if (i === -1) return params;
+      h.slice(i + 1).split('&').forEach(function (par) {
+        var partes = par.split('=');
+        if (partes[0]) params[decodeURIComponent(partes[0])] = decodeURIComponent(partes[1] || '');
+      });
+      return params;
+    }
+    function avpKeyDaHash() { return paramsDaHash().avp || null; }
+    function irParaAvaliacaoNaHash(key) {
+      var novo = '#admin?avp=' + encodeURIComponent(key);
+      if (location.hash !== novo) location.hash = novo; /* empilha uma entrada nova no histórico — permite "voltar" do navegador */
+    }
+    function irParaListaNaHash() {
+      if (location.hash !== '#admin') location.hash = '#admin';
+    }
+    function ativarAbaArquitetura() {
+      var btn = document.querySelector('.admin-tab-btn[data-panel="adminPanelArquitetura"]');
+      if (btn && !btn.classList.contains('active')) btn.click();
+    }
+    /* Reage tanto à carga inicial quanto a QUALQUER mudança de hash (botão
+       voltar/avançar do navegador, link colado). Deliberadamente não mexe
+       em nada enquanto há um formulário em andamento (form-inicial/
+       checklist) sem gravação: perder um rascunho por causa de uma mudança
+       de hash que a própria pessoa não pediu seria pior do que ignorá-la. */
+    function sincronizarComHash() {
+      if (state.tela === 'form-inicial' || state.tela === 'checklist') return;
+      var key = avpKeyDaHash();
+      if (!key) {
+        if (state.tela === 'resultado' || state.tela === 'nao-encontrada' || state.tela === 'sem-permissao') {
+          state.atual = null;
+          state.tela = 'lista';
+          render();
+        }
+        return;
+      }
+      ativarAbaArquitetura();
+      if (state.tela === 'resultado' && state.atual && state.atual._key === key) return; /* já é esta mesma avaliação — nada a fazer */
+      if (!state.itensCarregados) return; /* os dados ainda não chegaram — a própria carga chama isto de novo ao terminar */
+      if (state.erroCarga === 'permissao') { state.tela = 'sem-permissao'; render(); return; }
+      if (state.erroCarga === 'geral') { state.tela = 'nao-encontrada'; state.atual = null; render(); return; }
+      var it = buscarItem(key);
+      if (!it || it.excluido) { state.tela = 'nao-encontrada'; state.atual = null; render(); return; }
+      state.atual = clonarItem(it);
+      state.decisaoForm = decisaoFormInicial(it);
+      state.flashLista = null;
+      state.flashResultado = null;
+      state.flashDecisao = null;
+      state.flashExportacao = null;
+      state.tela = 'resultado';
+      render();
+    }
+    window.addEventListener('hashchange', sincronizarComHash);
+
+    function renderNaoEncontrada() {
+      var msg = state.erroCarga === 'geral'
+        ? 'Não foi possível carregar esta avaliação. Recarregue a página.'
+        : 'Avaliação não encontrada.';
+      wrap.innerHTML =
+        '<div class="avp-form-card">' +
+        '<p class="admin-empty">' + esc(msg) + '</p>' +
+        '<div class="avp-actions-footer"><button class="btn btn--primary" id="avpVoltarNaoEncontrada">VOLTAR PARA A LISTA</button></div>' +
+        '</div>';
+      document.getElementById('avpVoltarNaoEncontrada').addEventListener('click', function () {
+        state.tela = 'lista';
+        irParaListaNaHash();
+        render();
+      });
+    }
+    function renderSemPermissao() {
+      wrap.innerHTML =
+        '<div class="avp-form-card">' +
+        '<p class="admin-empty">Você não possui permissão para visualizar esta avaliação.</p>' +
+        '<div class="avp-actions-footer"><button class="btn btn--primary" id="avpVoltarSemPermissao">VOLTAR PARA A LISTA</button></div>' +
+        '</div>';
+      document.getElementById('avpVoltarSemPermissao').addEventListener('click', function () {
+        state.tela = 'lista';
+        irParaListaNaHash();
+        render();
+      });
     }
 
     /* ===================== LISTA ===================== */
@@ -1036,7 +1277,7 @@
       } else {
         html += '<div class="avp-filters">';
         html += filtroSelect('avpFiltroResultado', state.filtro.resultado, [
-          ['todos', 'Todos os resultados'], ['produto', 'É Produto/Serviço'], ['nao-produto', 'Não é Produto/Serviço'], ['a-validar', 'A validar']
+          ['todos', 'Todos os resultados'], ['produto', 'É Produto/Serviço'], ['nao-produto', 'Não é Produto/Serviço Principal'], ['a-validar', 'A validar']
         ]);
         html += filtroSelect('avpFiltroStatus', state.filtro.status, [
           ['todos', 'Todos os status'], ['rascunho', 'Rascunho'], ['concluido', 'Concluído']
@@ -1223,14 +1464,9 @@
     }
     function resultadoBadge(v) {
       if (v === 'produto') return '<span class="avp-badge avp-badge--produto">É Produto/Serviço</span>';
-      if (v === 'nao-produto') return '<span class="avp-badge avp-badge--nao-produto">Não é Produto/Serviço</span>';
+      if (v === 'nao-produto') return '<span class="avp-badge avp-badge--nao-produto">Não é Produto/Serviço Principal</span>';
       if (v === 'a-validar') return '<span class="avp-badge avp-badge--a-validar">A validar</span>';
       return '<span class="avp-badge">—</span>';
-    }
-    function rotuloResultado(v) {
-      if (v === 'produto') return 'É Produto/Serviço';
-      if (v === 'a-validar') return 'A validar';
-      return 'Não é Produto/Serviço';
     }
     function statusBadge(v) {
       return v === 'concluido'
@@ -1274,6 +1510,7 @@
       state.flashDecisao = null;
       state.tela = 'resultado';
       render();
+      irParaAvaliacaoNaHash(key);
     }
     function abrirEdicao(key) {
       var it = buscarItem(key);
@@ -1320,6 +1557,7 @@
       state.flashLista = null;
       state.tela = 'checklist';
       render();
+      irParaListaNaHash(); /* sai da rota da avaliação anterior — o rascunho da reavaliação não é persistente até ser concluído */
     }
     function duplicar(key) {
       var it = buscarItem(key);
@@ -1772,6 +2010,7 @@
           state.flashResultado = '✓ Avaliação salva com sucesso.';
           state.tela = 'resultado';
           render();
+          irParaAvaliacaoNaHash(key);
         }, function (tipo) {
           state.salvando = null;
           if (tipo === 'timeout') {
@@ -1928,7 +2167,7 @@
       var cardClasse = resultado === 'produto' ? 'avp-result-card--produto' :
         (resultado === 'a-validar' ? 'avp-result-card--a-validar' : 'avp-result-card--nao-produto');
       var badgeTexto = resultado === 'produto' ? 'É PRODUTO/SERVIÇO' :
-        (resultado === 'a-validar' ? 'A VALIDAR' : 'NÃO É PRODUTO/SERVIÇO');
+        (resultado === 'a-validar' ? 'A VALIDAR' : 'NÃO É PRODUTO/SERVIÇO PRINCIPAL');
       var html = '<div class="avp-resultado">';
       html += '<button class="avp-voltar-link" id="avpVoltarListaResultado">‹ Avaliações de Produto/Serviço</button>';
 
@@ -1941,18 +2180,9 @@
       html += '<span class="avp-result-label">RESULTADO SOBRE PRODUTO/SERVIÇO</span>';
       html += '<h3 class="avp-result-nome">' + esc(a.nome) + (a.versao > 1 ? ' <span class="avp-tag-versao">v' + a.versao + '</span>' : '') + '</h3>';
       html += '<div class="avp-result-badge-grande">' + badgeTexto + '</div>';
-      html += '<p class="avp-result-secundario">Critérios atendidos: ' + a.criteriosAtendidos + ' de ' + CRITERIOS.length + '</p>';
+      html += '<p class="avp-result-secundario">Critérios favoráveis a Produto/Serviço: ' + a.criteriosAtendidos + ' de ' + CRITERIOS.length + '</p>';
       if (a.versaoAnteriorKey) {
         html += '<button type="button" class="avp-historico-link" id="avpVerHistoricoResultado">🕘 Ver histórico de versões</button>';
-      }
-      html += '</div>';
-
-      html += '<div class="avp-export-bar">';
-      html += '<button class="btn btn--sm" id="avpGerarPdfBtn"' + (state.exportando ? ' disabled' : '') + '>' +
-        (state.exportando === 'pdf' ? 'Gerando arquivo…' : '📄 Gerar PDF') + '</button>';
-      if (state.flashExportacao) {
-        html += '<span class="avp-export-status' + (state.flashExportacao.erro ? ' avp-export-status--erro' : '') + '">' +
-          esc(state.flashExportacao.texto) + '</span>';
       }
       html += '</div>';
 
@@ -1969,6 +2199,9 @@
       html += '<div class="avp-form-card avp-alt-card">';
       html += '<h4>Classificação arquitetural sugerida</h4>';
       html += '<p class="avp-alt-label">Camada identificada: <strong>' + esc(camada.label) + '</strong></p>';
+      if (camada.especializacao) {
+        html += '<p class="avp-alt-label">Especialização: <strong>' + esc(camada.especializacao) + '</strong></p>';
+      }
       if (camada.conflito && camada.conflito.length) {
         html += '<p class="avp-alt-outras">Categorias em conflito nas respostas: ' + esc(camada.conflito.join(', ')) + '.</p>';
       }
@@ -1996,12 +2229,26 @@
       html += '<div class="avp-form-card">';
       html += '<h4>Como chegamos a essa conclusão?</h4>';
       html += '<div class="avp-reasoning-list">';
-      CRITERIOS.forEach(function (c) { html += renderRaciocinio(c, a.respostas[c.id]); });
+      CRITERIOS.forEach(function (c) { html += renderRaciocinio(c, a.respostas[c.id], a); });
       html += '<p class="avp-reasoning-sep">Testes de classificação</p>';
-      EXCLUSOES.forEach(function (e) { html += renderRaciocinio(e, a.respostas[e.id]); });
+      EXCLUSOES.forEach(function (e) { html += renderRaciocinio(e, a.respostas[e.id], a); });
       html += '</div></div>';
 
       html += renderDecisaoCard(a);
+
+      /* Ações organizadas num único grupo, sempre visível ao final da
+         página: voltar para a lista, gerar PDF e reavaliar — em vez de um
+         botão solto no topo sem relação clara com os demais. */
+      html += '<div class="avp-actions-footer avp-result-actions-footer">';
+      html += '<button class="btn" id="avpVoltarListaRodape">VOLTAR PARA A LISTA</button>';
+      html += '<button class="btn btn--sm" id="avpGerarPdfBtn"' + (state.exportando ? ' disabled' : '') + '>' +
+        (state.exportando === 'pdf' ? 'Gerando arquivo…' : '📄 GERAR PDF') + '</button>';
+      html += '<button class="btn" id="avpReavaliarBtn">REAVALIAR</button>';
+      html += '</div>';
+      if (state.flashExportacao) {
+        html += '<p class="avp-export-status' + (state.flashExportacao.erro ? ' avp-export-status--erro' : '') + '">' +
+          esc(state.flashExportacao.texto) + '</p>';
+      }
 
       html += '</div>';
       wrap.innerHTML = html;
@@ -2027,23 +2274,29 @@
         });
       });
 
-      document.getElementById('avpVoltarListaResultado').addEventListener('click', function () {
+      document.getElementById('avpReavaliarBtn').addEventListener('click', function () { abrirReavaliacao(a._key); });
+
+      function voltarParaLista() {
         state.atual = null;
         state.flashResultado = null;
         state.flashDecisao = null;
         state.flashExportacao = null;
         state.tela = 'lista';
+        irParaListaNaHash();
         render();
-      });
+      }
+      document.getElementById('avpVoltarListaResultado').addEventListener('click', voltarParaLista);
+      document.getElementById('avpVoltarListaRodape').addEventListener('click', voltarParaLista);
       bindDecisaoCard();
     }
 
     /* Mostra a resposta e as DUAS justificativas lado a lado, nunca uma no
        lugar da outra: a do avaliador (texto livre, digitado por quem
-       preencheu) e a interpretação automática (fixa, gerada pelo sistema).
+       preencheu) e a interpretação automática (contextualizada pela
+       classificação final quando é o caso — ver interpretacaoSistema).
        Vale igualmente para os 7 critérios e para os 7 testes de exclusão —
        renderRaciocinio é a mesma função para as duas seções. */
-    function renderRaciocinio(def, resposta) {
+    function renderRaciocinio(def, resposta, item) {
       if (!resposta) return '';
       var valor = resposta.valor === 'sim' ? 'SIM' : 'NÃO';
       var justificativaUsuario = (resposta.observacao || '').trim();
@@ -2051,7 +2304,7 @@
         '<p class="avp-reasoning-q">' + esc(def.titulo || def.pergunta) + ' — ' + valor + '</p>' +
         '<p class="avp-reasoning-user"><strong>Sua justificativa:</strong> ' +
           (justificativaUsuario ? esc(justificativaUsuario) : '<em>Nenhuma observação registrada pelo avaliador.</em>') + '</p>' +
-        '<p class="avp-reasoning-auto"><strong>Interpretação do sistema:</strong> ' + esc(semPrefixo(resposta.justificativaAuto)) + '</p>' +
+        '<p class="avp-reasoning-auto"><strong>Interpretação do sistema:</strong> ' + esc(interpretacaoSistema(def, resposta, item)) + '</p>' +
         '</div>';
     }
 
@@ -2068,7 +2321,7 @@
       html += '<div class="avp-decisao-options">';
       html += decisaoOpcao('auto', 'Aceitar recomendação do sistema (' + rotuloResultado(a.resultadoAutomatico) + ')', f.opcao);
       html += decisaoOpcao('produto', 'Classificar manualmente como Produto/Serviço', f.opcao);
-      html += decisaoOpcao('nao-produto', 'Classificar manualmente como não Produto/Serviço', f.opcao);
+      html += decisaoOpcao('nao-produto', 'Classificar manualmente como não Produto/Serviço Principal', f.opcao);
       html += '</div>';
       if (f.opcao !== 'auto') {
         html += '<div class="avp-field' + (f.erro && !justificativaPreenchida(f) ? ' avp-field--invalid' : '') + '">';
@@ -2188,13 +2441,25 @@
       snap.forEach(function (c) { arr.push(Object.assign({ _key: c.key }, c.val())); });
       arr.sort(function (x, y) { return (y.atualizadoEm || '').localeCompare(x.atualizadoEm || ''); });
       state.itens = arr;
+      state.itensCarregados = true;
+      state.erroCarga = null;
       if (state.tela === 'lista') render();
-    }, function () {
-      if (state.tela === 'lista') {
+      sincronizarComHash(); /* resolve um #admin?avp=<key> pendente (F5, link direto) assim que os dados chegarem */
+    }, function (err) {
+      state.itensCarregados = true;
+      /* Todo o node avaliacoes-produto já exige admin de verdade nas regras
+         do Firebase (ver database.rules.json) — chegar aqui sem ser admin só
+         é alcançável na prática se a sessão mudar no meio da visita; ainda
+         assim, distinguir os dois casos evita confundir "sem acesso" com
+         "fora do ar" quando alguém abre um link direto de avaliação. */
+      state.erroCarga = (err && err.code === 'PERMISSION_DENIED') ? 'permissao' : 'geral';
+      if (state.tela === 'lista' && !avpKeyDaHash()) {
         wrap.innerHTML = '<p class="admin-empty" style="color:var(--red)">Erro ao carregar avaliações. Recarregue a página.</p>';
       }
+      sincronizarComHash();
     });
 
     render();
+    sincronizarComHash(); /* ativa a aba Arquitetura e tenta resolver um link direto já na carga inicial */
   };
 })();

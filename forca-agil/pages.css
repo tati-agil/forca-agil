@@ -2127,8 +2127,11 @@ select.aposta-campo-input { width: auto; min-width: 8.5em; }
 .avp-historico-resp { margin: 0; font-size: .78rem; color: var(--ink-3); }
 
 /* Exportação (PDF/Excel) é sempre secundária visualmente — nunca disputa
-   destaque com as ações principais da avaliação (salvar, decidir, reavaliar). */
-.avp-export-bar { display: flex; align-items: center; gap: 10px; margin: 4px 0 18px; flex-wrap: wrap; }
+   destaque com as ações principais da avaliação (salvar, decidir, reavaliar).
+   Por isso "Gerar PDF" mora dentro do MESMO grupo de ações do rodapé do
+   resultado (avp-result-actions-footer), como um botão a mais entre
+   "Voltar" e "Reavaliar" — nunca um bloco à parte competindo por atenção. */
+.avp-result-actions-footer { margin-top: 18px; padding-top: 18px; border-top: 1px solid var(--line); }
 .avp-export-status { font-size: .8rem; color: var(--ink-3); }
 .avp-export-status--erro { color: var(--red); }
 .avp-exportar-wrap { position: relative; display: inline-block; }
