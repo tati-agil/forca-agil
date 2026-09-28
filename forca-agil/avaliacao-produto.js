@@ -1604,6 +1604,8 @@
       var f = state.decisaoForm;
       var html = '<div class="avp-form-card avp-decisao-card">';
       html += '<h4>Decisão arquitetural</h4>';
+      html += '<p class="avp-decisao-aviso">Isto registra uma decisão sobre a CONCLUSÃO, sem alterar nenhuma resposta do questionário — ' +
+        'a recomendação automática permanece intacta no histórico. Para mudar respostas ou justificativas, use "Reavaliar" na lista.</p>';
       if (a.decisaoManual) {
         html += '<p class="avp-history-note">Alterado manualmente por <strong>' + esc(a.alteradoPor && a.alteradoPor.name || '—') +
           '</strong> em ' + fmtData(a.alteradoEm) + '. Justificativa registrada: "' + esc(a.justificativaDecisao || '') + '"</p>';
