@@ -1904,6 +1904,7 @@ select.aposta-campo-input { width: auto; min-width: 8.5em; }
 }
 .avp-badge--produto { border-color: rgba(24,194,186,.5); color: var(--cyan-soft); background: rgba(24,194,186,.1); }
 .avp-badge--nao-produto { border-color: rgba(245,197,24,.45); color: var(--gold-soft); background: rgba(245,197,24,.08); }
+.avp-badge--a-validar { border-color: rgba(90,160,238,.5); color: var(--blue-glow); background: rgba(90,160,238,.1); }
 .avp-badge--rascunho { border-color: var(--line-strong); color: var(--ink-3); }
 .avp-badge--concluido { border-color: rgba(24,194,186,.5); color: var(--cyan-soft); }
 .avp-badge--essencial { background: rgba(245,197,24,.12); border-color: rgba(245,197,24,.5); color: var(--gold-soft); white-space: nowrap; }
@@ -1984,16 +1985,21 @@ select.aposta-campo-input { width: auto; min-width: 8.5em; }
 }
 .avp-result-card--produto { background: rgba(24,194,186,.08); border-color: rgba(24,194,186,.4); }
 .avp-result-card--nao-produto { background: rgba(245,197,24,.07); border-color: rgba(245,197,24,.35); }
+.avp-result-card--a-validar { background: rgba(90,160,238,.08); border-color: rgba(90,160,238,.4); }
 .avp-result-label { font-family: var(--font-mono); font-size: .72rem; letter-spacing: .1em; color: var(--ink-3); }
 .avp-result-nome { margin: 6px 0 14px; }
 .avp-result-badge-grande { font-family: var(--font-head); font-size: 1.5rem; letter-spacing: .03em; }
 .avp-result-card--produto .avp-result-badge-grande { color: var(--cyan-soft); }
 .avp-result-card--nao-produto .avp-result-badge-grande { color: var(--gold-soft); }
+.avp-result-card--a-validar .avp-result-badge-grande { color: var(--blue-glow); }
 .avp-result-secundario { margin: 10px 0 0; font-size: .8rem; color: var(--ink-3); font-family: var(--font-mono); }
 
 .avp-alt-card { border-color: rgba(245,197,24,.3); }
 .avp-alt-label { font-size: .95rem; }
 .avp-alt-outras { font-size: .8rem; color: var(--ink-3); }
+
+.avp-motivos-list { margin: 0; padding-left: 20px; display: flex; flex-direction: column; gap: 6px; }
+.avp-motivos-list li { font-size: .84rem; color: var(--ink-2); line-height: 1.5; }
 
 .avp-reasoning-list { display: flex; flex-direction: column; gap: 10px; }
 .avp-reasoning-item { border-bottom: 1px solid var(--line); padding-bottom: 10px; }
