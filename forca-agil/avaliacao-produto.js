@@ -301,8 +301,28 @@
   }
 
   function todasRespondidas(atual) {
+    return primeiraPerguntaFaltando(atual) === null;
+  }
+  /* Devolve o id da primeira pergunta sem resposta (para focar/destacar),
+     ou null se todas as 14 já foram respondidas. */
+  function primeiraPerguntaFaltando(atual) {
     var r = atual.respostas || {};
-    return TODAS_PERGUNTAS.every(function (p) { return r[p.id] && (r[p.id].valor === 'sim' || r[p.id].valor === 'nao'); });
+    var faltante = TODAS_PERGUNTAS.filter(function (p) {
+      return !(r[p.id] && (r[p.id].valor === 'sim' || r[p.id].valor === 'nao'));
+    });
+    return faltante.length ? faltante[0].id : null;
+  }
+  function upsertItem(itens, item) {
+    var copia = itens.filter(function (it) { return it._key !== item._key; });
+    copia.unshift(item);
+    copia.sort(function (x, y) { return (y.atualizadoEm || '').localeCompare(x.atualizadoEm || ''); });
+    return copia;
+  }
+  function focarCampo(id) {
+    setTimeout(function () {
+      var el = document.getElementById(id);
+      if (el && el.focus) { el.focus(); if (el.scrollIntoView) el.scrollIntoView({ block: 'center', behavior: 'smooth' }); }
+    }, 30);
   }
 
   window.faInitAvaliacaoProduto = function () {
@@ -316,8 +336,19 @@
       filtro: { resultado: 'todos', status: 'todos', alterado: 'todos', alternativa: 'todos' },
       atual: null,
       erroForm: null,
-      decisaoForm: null
+      camposInvalidos: [],
+      pendenteId: null,
+      salvando: null,       /* null | 'rascunho' | 'concluido' — trava os botões de salvar do checklist */
+      salvandoDecisao: false,
+      decisaoForm: null,
+      flashLista: null,     /* confirmação persistente mostrada na lista após salvar rascunho */
+      flashResultado: null, /* confirmação persistente mostrada no resultado após concluir */
+      flashDecisao: null    /* confirmação persistente mostrada após salvar a decisão arquitetural */
     };
+
+    function temCampoInvalido(campo) {
+      return !!(state.camposInvalidos && state.camposInvalidos.indexOf(campo) !== -1);
+    }
 
     function render() {
       if (state.tela === 'lista') renderLista();
@@ -345,6 +376,10 @@
     function renderLista() {
       var filtrados = state.itens.filter(itemPassaFiltro);
       var html = '';
+      if (state.flashLista) {
+        html += '<div class="avp-flash-success" id="avpFlashLista">' + esc(state.flashLista) +
+          ' <button type="button" class="avp-flash-close" id="avpFlashListaClose" aria-label="Fechar">×</button></div>';
+      }
       html += '<div class="avp-intro">';
       html += '<p><strong>Conceito-base:</strong> Produto ou Serviço é uma solução que gera valor perceptível para o cliente ao atender a uma necessidade identificável. ' +
         'Uma solução deve possuir uma fronteira coerente: seus elementos pertencem ao mesmo propósito e contribuem para um resultado de cliente identificável.</p>';
@@ -407,9 +442,14 @@
 
       wrap.innerHTML = html;
 
+      var flashListaClose = document.getElementById('avpFlashListaClose');
+      if (flashListaClose) flashListaClose.addEventListener('click', function () { state.flashLista = null; render(); });
+
       document.getElementById('avpNovoBtn').addEventListener('click', function () {
         state.atual = { nome: '', descricao: '', publico: '', necessidade: '', observacoesGerais: '', respostas: {} };
         state.erroForm = null;
+        state.camposInvalidos = [];
+        state.flashLista = null;
         state.tela = 'form-inicial';
         render();
       });
@@ -461,6 +501,9 @@
       if (!it) return;
       state.atual = clonarItem(it);
       state.decisaoForm = { opcao: it.decisaoManual ? it.decisaoFinal : 'auto', justificativa: it.justificativaDecisao || '', erro: null };
+      state.flashLista = null;
+      state.flashResultado = null;
+      state.flashDecisao = null;
       state.tela = 'resultado';
       render();
     }
@@ -470,6 +513,9 @@
       state.atual = clonarItem(it);
       if (!state.atual.respostas) state.atual.respostas = {};
       state.erroForm = null;
+      state.camposInvalidos = [];
+      state.pendenteId = null;
+      state.flashLista = null;
       state.tela = 'checklist';
       render();
     }
@@ -479,6 +525,9 @@
       state.atual = clonarItem(it);
       state.atual.respostas = {};
       state.erroForm = null;
+      state.camposInvalidos = [];
+      state.pendenteId = null;
+      state.flashLista = null;
       state.tela = 'checklist';
       render();
     }
@@ -491,6 +540,9 @@
         observacoesGerais: '', respostas: {}
       };
       state.erroForm = null;
+      state.camposInvalidos = [];
+      state.pendenteId = null;
+      state.flashLista = null;
       state.tela = 'checklist';
       render();
     }
@@ -501,7 +553,7 @@
       var html = '<div class="avp-form-card">';
       html += '<h3>Avaliar novo item</h3>';
       if (state.erroForm) html += '<p class="avp-error-msg">' + esc(state.erroForm) + '</p>';
-      html += campoTexto('avpfNome', 'Nome do item', a.nome, true, false);
+      html += campoTexto('avpfNome', 'Nome do item', a.nome, true, false, temCampoInvalido('nome'));
       html += campoTexto('avpfDescricao', 'Descrição do item', a.descricao, false, true);
       html += campoTexto('avpfPublico', 'Público/cliente relacionado', a.publico, false, false);
       html += campoTexto('avpfNecessidade', 'Necessidade que o item pretende atender', a.necessidade, false, true);
@@ -521,10 +573,13 @@
       document.getElementById('avpIniciarBtn').addEventListener('click', function () {
         if (!state.atual.nome || !state.atual.nome.trim()) {
           state.erroForm = 'Informe o nome do item.';
+          state.camposInvalidos = ['nome'];
           render();
+          focarCampo('avpfNome');
           return;
         }
         state.erroForm = null;
+        state.camposInvalidos = [];
         state.tela = 'checklist';
         render();
       });
@@ -535,17 +590,23 @@
       });
     }
 
-    function campoTexto(id, label, valor, obrigatorio, textarea) {
-      var html = '<div class="avp-field">';
+    function campoTexto(id, label, valor, obrigatorio, textarea, invalido) {
+      var html = '<div class="avp-field' + (invalido ? ' avp-field--invalid' : '') + '">';
       html += '<label for="' + id + '">' + esc(label) + (obrigatorio ? ' *' : '') + '</label>';
       if (textarea) html += '<textarea id="' + id + '" rows="3">' + esc(valor) + '</textarea>';
       else html += '<input type="text" id="' + id + '" value="' + esc(valor) + '">';
+      if (invalido) html += '<p class="avp-field-invalid-msg">Campo obrigatório.</p>';
       html += '</div>';
       return html;
     }
     function bindCampoTexto(id, campo) {
       var el = document.getElementById(id);
-      el.addEventListener('input', function () { state.atual[campo] = el.value; });
+      el.addEventListener('input', function () {
+        state.atual[campo] = el.value;
+        if (state.camposInvalidos && state.camposInvalidos.length) {
+          state.camposInvalidos = state.camposInvalidos.filter(function (c) { return c !== campo; });
+        }
+      });
     }
 
     /* ===================== CHECKLIST ===================== */
@@ -555,7 +616,7 @@
       html += '<button class="avp-voltar-link" id="avpVoltarLista">‹ Avaliações de Produto/Serviço</button>';
       html += '<div class="avp-form-card">';
       html += '<h3>' + (a._key ? 'Editando avaliação' : 'Nova avaliação') + '</h3>';
-      html += campoTexto('avpcNome', 'Nome do item', a.nome, true, false);
+      html += campoTexto('avpcNome', 'Nome do item', a.nome, true, false, temCampoInvalido('nome'));
       html += campoTexto('avpcDescricao', 'Descrição do item', a.descricao, false, true);
       html += campoTexto('avpcPublico', 'Público/cliente relacionado', a.publico, false, false);
       html += campoTexto('avpcNecessidade', 'Necessidade que o item pretende atender', a.necessidade, false, true);
@@ -575,9 +636,11 @@
       html += '</div>';
 
       html += '<div class="avp-actions-footer">';
-      html += '<button class="btn" id="avpSalvarRascunhoBtn">SALVAR RASCUNHO</button>';
-      html += '<button class="btn btn--primary" id="avpConcluirBtn">CONCLUIR AVALIAÇÃO</button>';
-      html += '<button class="btn" id="avpCancelarChecklistBtn">CANCELAR</button>';
+      html += '<button class="btn" id="avpSalvarRascunhoBtn"' + (state.salvando ? ' disabled' : '') + '>' +
+        (state.salvando === 'rascunho' ? 'SALVANDO…' : 'SALVAR RASCUNHO') + '</button>';
+      html += '<button class="btn btn--primary" id="avpConcluirBtn"' + (state.salvando ? ' disabled' : '') + '>' +
+        (state.salvando === 'concluido' ? 'SALVANDO…' : 'CONCLUIR AVALIAÇÃO') + '</button>';
+      html += '<button class="btn" id="avpCancelarChecklistBtn"' + (state.salvando ? ' disabled' : '') + '>CANCELAR</button>';
       html += '</div>';
       html += '</div>';
       wrap.innerHTML = html;
@@ -607,6 +670,7 @@
             observacao: obsAnterior
           };
           state.erroForm = null;
+          if (state.pendenteId === id) state.pendenteId = null;
           render();
         });
       });
@@ -618,31 +682,81 @@
       });
 
       document.getElementById('avpSalvarRascunhoBtn').addEventListener('click', function () {
-        if (!a.nome || !a.nome.trim()) { state.erroForm = 'Informe o nome do item.'; render(); return; }
-        salvarRegistro('rascunho', function () {
+        if (state.salvando) return; /* clique repetido enquanto já está salvando: ignora */
+        if (!a.nome || !a.nome.trim()) {
+          state.erroForm = 'Informe o nome do item.';
+          state.camposInvalidos = ['nome'];
+          render();
+          focarCampo('avpcNome');
+          return;
+        }
+        state.erroForm = null;
+        state.camposInvalidos = [];
+        state.salvando = 'rascunho';
+        render();
+        salvarRegistro('rascunho', function (payload, key) {
+          state.salvando = null;
+          state.itens = upsertItem(state.itens, Object.assign({ _key: key }, payload));
           state.atual = null;
+          state.flashLista = '✓ Rascunho salvo com sucesso.';
           state.tela = 'lista';
           render();
+        }, function (tipo) {
+          state.salvando = null;
+          if (tipo === 'timeout') {
+            state.erroForm = 'A conexão está demorando e não deu para confirmar o salvamento. Toque em "SALVAR RASCUNHO" de novo.';
+            render();
+          } else {
+            render();
+            avpAlert('Não foi possível salvar a avaliação. Tente novamente.');
+          }
         });
       });
       document.getElementById('avpConcluirBtn').addEventListener('click', function () {
-        if (!a.nome || !a.nome.trim()) { state.erroForm = 'Informe o nome do item.'; render(); return; }
-        if (!todasRespondidas(a)) {
-          state.erroForm = 'Responda SIM ou NÃO em todas as perguntas antes de concluir a avaliação.';
+        if (state.salvando) return; /* clique repetido enquanto já está salvando: ignora */
+        if (!a.nome || !a.nome.trim()) {
+          state.erroForm = 'Informe o nome do item.';
+          state.camposInvalidos = ['nome'];
           render();
-          window.scrollTo({ top: wrap.offsetTop, behavior: 'smooth' });
+          focarCampo('avpcNome');
           return;
         }
-        salvarRegistro('concluido', function () {
+        var faltando = primeiraPerguntaFaltando(a);
+        if (faltando) {
+          state.erroForm = 'Responda SIM ou NÃO em todas as perguntas antes de concluir a avaliação.';
+          state.pendenteId = faltando;
+          render();
+          focarCampo('avpQuestion-' + faltando);
+          return;
+        }
+        state.erroForm = null;
+        state.camposInvalidos = [];
+        state.pendenteId = null;
+        state.salvando = 'concluido';
+        render();
+        salvarRegistro('concluido', function (payload, key) {
+          state.salvando = null;
+          state.itens = upsertItem(state.itens, Object.assign({ _key: key }, payload));
           state.decisaoForm = { opcao: 'auto', justificativa: '', erro: null };
+          state.flashResultado = '✓ Avaliação salva com sucesso.';
           state.tela = 'resultado';
           render();
+        }, function (tipo) {
+          state.salvando = null;
+          if (tipo === 'timeout') {
+            state.erroForm = 'A conexão está demorando e não deu para confirmar o salvamento. Toque em "CONCLUIR AVALIAÇÃO" de novo.';
+            render();
+          } else {
+            render();
+            avpAlert('Não foi possível salvar a avaliação. Tente novamente.');
+          }
         });
       });
       document.getElementById('avpCancelarChecklistBtn').addEventListener('click', function () { cancelarChecklist(); });
     }
 
     function cancelarChecklist() {
+      if (state.salvando) return; /* não deixa sair no meio de um salvamento em andamento */
       avpConfirm('Descartar esta avaliação sem salvar?', function () {
         state.atual = null;
         state.tela = 'lista';
@@ -652,7 +766,9 @@
 
     function renderPergunta(def, resposta) {
       var essencialClass = def.essencial ? ' avp-question--essencial' : '';
-      var html = '<div class="avp-question' + essencialClass + '">';
+      var pendenteClass = state.pendenteId === def.id ? ' avp-question--pendente' : '';
+      var html = '<div class="avp-question' + essencialClass + pendenteClass + '" id="avpQuestion-' + def.id + '">';
+      if (pendenteClass) html += '<p class="avp-field-invalid-msg">Responda esta pergunta antes de concluir.</p>';
       html += '<div class="avp-question-head">';
       if (def.destaque) html += '<span class="avp-badge avp-badge--essencial">' + esc(def.destaque) + '</span>';
       html += '<p class="avp-question-text">' + esc(def.pergunta) + '</p>';
@@ -686,9 +802,19 @@
     }
 
     /* ===================== SALVAR ===================== */
-    function salvarRegistro(status, cb) {
+    /* onErro(tipo, err) — tipo é 'timeout' (nunca respondeu) ou 'erro' (o
+       Firebase recusou/falhou). Nos dois casos os dados digitados por quem
+       avalia permanecem intocados em state.atual: só quem chama decide o
+       que fazer com o formulário. */
+    function salvarRegistro(status, cb, onErro) {
       var a = state.atual;
       var agora = new Date().toISOString();
+      /* Reserva a chave ANTES de escrever, e prende ela em a._key na hora —
+         não só depois do sucesso. Assim, se a escrita nunca responder (rede
+         travada) e a pessoa tocar em SALVAR de novo, o retry grava na MESMA
+         chave em vez de criar um registro duplicado. */
+      var key = a._key || db().ref(NODE).push().key;
+      if (!a._key) a._key = key;
       var payload = {
         nome: a.nome.trim(),
         descricao: a.descricao || '',
@@ -722,11 +848,27 @@
         payload.justificativaAutomatica = gerarJustificativaAutomatica(a, calc);
         payload.decisaoFinal = calc.resultadoAutomatico;
       }
-      var ref = a._key ? db().ref(NODE + '/' + a._key) : db().ref(NODE).push();
+      var ref = db().ref(NODE + '/' + key);
+      var respondido = false;
+      /* Rede lenta é condição normal de celular (ver CLAUDE.md) — sem este
+         relógio, "Salvando…" ficava preso para sempre e o clique parecia
+         não ter feito nada, exatamente o defeito relatado. */
+      var relogio = setTimeout(function () {
+        if (respondido) return;
+        respondido = true;
+        if (onErro) onErro('timeout');
+      }, 12000);
       ref.set(payload, function (err) {
-        if (err) { avpAlert('Erro ao salvar. Tente novamente.'); return; }
-        state.atual = Object.assign({ _key: ref.key }, payload);
-        if (cb) cb();
+        if (respondido) return;
+        respondido = true;
+        clearTimeout(relogio);
+        if (err) {
+          console.error('[avaliacao-produto] erro ao salvar avaliação (' + status + '):', err);
+          if (onErro) onErro('erro', err);
+          return;
+        }
+        state.atual = Object.assign({ _key: key }, payload);
+        if (cb) cb(payload, key);
       });
     }
 
@@ -736,6 +878,11 @@
       var produto = a.resultadoAutomatico === 'produto';
       var html = '<div class="avp-resultado">';
       html += '<button class="avp-voltar-link" id="avpVoltarListaResultado">‹ Avaliações de Produto/Serviço</button>';
+
+      if (state.flashResultado) {
+        html += '<div class="avp-flash-success" id="avpFlashResultado">' + esc(state.flashResultado) +
+          ' <button type="button" class="avp-flash-close" id="avpFlashResultadoClose" aria-label="Fechar">×</button></div>';
+      }
 
       html += '<div class="avp-result-card ' + (produto ? 'avp-result-card--produto' : 'avp-result-card--nao-produto') + '">';
       html += '<span class="avp-result-label">RESULTADO DA AVALIAÇÃO</span>';
@@ -777,8 +924,13 @@
       html += '</div>';
       wrap.innerHTML = html;
 
+      var flashResultadoClose = document.getElementById('avpFlashResultadoClose');
+      if (flashResultadoClose) flashResultadoClose.addEventListener('click', function () { state.flashResultado = null; render(); });
+
       document.getElementById('avpVoltarListaResultado').addEventListener('click', function () {
         state.atual = null;
+        state.flashResultado = null;
+        state.flashDecisao = null;
         state.tela = 'lista';
         render();
       });
@@ -808,16 +960,22 @@
       html += decisaoOpcao('nao-produto', 'Classificar manualmente como não Produto/Serviço', f.opcao);
       html += '</div>';
       if (f.opcao !== 'auto') {
-        html += '<div class="avp-field">';
+        html += '<div class="avp-field' + (f.erro && !justificativaPreenchida(f) ? ' avp-field--invalid' : '') + '">';
         html += '<label for="avpJustificativaDecisao">Justificativa da decisão arquitetural *</label>';
         html += '<textarea id="avpJustificativaDecisao" rows="3">' + esc(f.justificativa) + '</textarea>';
         html += '</div>';
       }
       if (f.erro) html += '<p class="avp-error-msg">' + esc(f.erro) + '</p>';
-      html += '<button class="btn btn--primary" id="avpSalvarDecisaoBtn">Salvar decisão</button>';
+      if (state.flashDecisao) {
+        html += '<p class="avp-flash-success avp-flash-success--inline" id="avpFlashDecisao">' + esc(state.flashDecisao) +
+          ' <button type="button" class="avp-flash-close" id="avpFlashDecisaoClose" aria-label="Fechar">×</button></p>';
+      }
+      html += '<button class="btn btn--primary" id="avpSalvarDecisaoBtn"' + (state.salvandoDecisao ? ' disabled' : '') + '>' +
+        (state.salvandoDecisao ? 'SALVANDO…' : 'Salvar decisão') + '</button>';
       html += '</div>';
       return html;
     }
+    function justificativaPreenchida(f) { return !!(f.justificativa || '').trim(); }
     function decisaoOpcao(valor, label, atual) {
       return '<label class="avp-decisao-option"><input type="radio" name="avpDecisao" value="' + valor + '"' +
         (valor === atual ? ' checked' : '') + '> ' + esc(label) + '</label>';
@@ -825,8 +983,10 @@
     function bindDecisaoCard() {
       wrap.querySelectorAll('input[name="avpDecisao"]').forEach(function (radio) {
         radio.addEventListener('change', function () {
+          if (state.salvandoDecisao) return;
           state.decisaoForm.opcao = radio.value;
           state.decisaoForm.erro = null;
+          state.flashDecisao = null;
           render();
         });
       });
@@ -834,14 +994,18 @@
       if (ta) ta.addEventListener('input', function () { state.decisaoForm.justificativa = ta.value; });
       var btn = document.getElementById('avpSalvarDecisaoBtn');
       if (btn) btn.addEventListener('click', salvarDecisao);
+      var flashDecisaoClose = document.getElementById('avpFlashDecisaoClose');
+      if (flashDecisaoClose) flashDecisaoClose.addEventListener('click', function () { state.flashDecisao = null; render(); });
     }
     function salvarDecisao() {
+      if (state.salvandoDecisao) return; /* clique repetido enquanto já está salvando: ignora */
       var a = state.atual;
       var f = state.decisaoForm;
       var justificativa = (f.justificativa || '').trim();
       if (f.opcao !== 'auto' && !justificativa) {
         f.erro = 'Justificativa obrigatória para decisão manual.';
         render();
+        focarCampo('avpJustificativaDecisao');
         return;
       }
       var updates = { atualizadoEm: new Date().toISOString() };
@@ -859,10 +1023,33 @@
         updates.alteradoPor = sess;
         updates.alteradoEm = new Date().toISOString();
       }
+      f.erro = null;
+      state.salvandoDecisao = true;
+      render();
+
+      var respondido = false;
+      var relogio = setTimeout(function () {
+        if (respondido) return;
+        respondido = true;
+        state.salvandoDecisao = false;
+        f.erro = 'A conexão está demorando e não deu para confirmar o salvamento. Toque em "Salvar decisão" de novo.';
+        render();
+      }, 12000);
+
       db().ref(NODE + '/' + a._key).update(updates, function (err) {
-        if (err) { avpAlert('Erro ao salvar a decisão. Tente novamente.'); return; }
+        if (respondido) return;
+        respondido = true;
+        clearTimeout(relogio);
+        state.salvandoDecisao = false;
+        if (err) {
+          console.error('[avaliacao-produto] erro ao salvar decisão arquitetural:', err);
+          render();
+          avpAlert('Não foi possível salvar a decisão. Tente novamente.');
+          return;
+        }
         Object.assign(a, updates);
-        f.erro = null;
+        state.itens = upsertItem(state.itens, clonarItem(a));
+        state.flashDecisao = '✓ Decisão salva com sucesso.';
         render();
       });
     }
