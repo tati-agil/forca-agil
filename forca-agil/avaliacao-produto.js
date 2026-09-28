@@ -17,11 +17,21 @@
      responsavel: {name,email}, criadoEm, atualizadoEm,
      itemId: chave da 1ª versão (agrupa todas as versões do mesmo item),
      versao: número (1 na avaliação original, incrementa a cada reavaliação),
-     versaoAnteriorKey: chave da versão da qual esta foi reavaliada, ou null
+     versaoAnteriorKey: chave da versão da qual esta foi reavaliada, ou null,
+     motorVersion: versão do motor (MOTOR_VERSION) vigente quando a
+       recomendação automática atual foi calculada — ausente em avaliações
+       concluídas antes deste campo existir (tratado como "motor antigo"),
+     historicoMotor: [{ motorVersion, resultadoAutomatico, camadaSugerida,
+       justificativaAutomatica, processadoEm }...] | ausente — cada
+       recomendação automática SUBSTITUÍDA por "REPROCESSAR COM MOTOR ATUAL"
+       (nunca pelas respostas em si, que não mudam), mais antiga primeiro
    }
 
    resultadoAutomatico nunca é reescrito pela decisão manual — é o
-   histórico que a seção 10 do pedido exige que nunca desapareça.
+   histórico que a seção 10 do pedido exige que nunca desapareça. Pela mesma
+   razão, reprocessar com uma versão mais nova do motor NUNCA sobrescreve
+   silenciosamente a recomendação automática anterior: ela migra para
+   historicoMotor (ver reprocessarMotor) antes de ser substituída.
 
    Cada reavaliação (abrirReavaliacao) grava um registro NOVO — nunca
    sobrescreve o anterior — encadeado por versaoAnteriorKey; a lista mostra
@@ -244,6 +254,18 @@
     { id: 'a-validar', label: 'A validar' }
   ];
   function camadaPorId(id) { return CAMADAS.filter(function (c) { return c.id === id; })[0]; }
+
+  /* Versão do motor de classificação (identificarCamada + motivoJustificativa/
+     gerarJustificativaAutomatica). Incrementar SEMPRE que uma mudança nessas
+     funções puder alterar o resultado, a camada, a especialização ou o texto
+     da justificativa consolidada de respostas JÁ gravadas — nunca por uma
+     mudança cosmética alheia ao motor (CSS, PDF, etc.). Cada avaliação
+     concluída grava a versão vigente no momento em que a recomendação
+     automática foi calculada (item.motorVersion); a tela de resultado compara
+     com esta constante para saber se existe uma versão mais nova do motor e
+     oferecer "REPROCESSAR COM MOTOR ATUAL" — nunca reprocessa sozinha, e
+     nunca exige responder o questionário de novo (ver reprocessarMotor). */
+  var MOTOR_VERSION = '2026.09.28-3';
 
   /* Mapa fixo e simples: só decide se a camada JÁ IDENTIFICADA conta como
      Produto/Serviço. Nunca o inverso — o motor não tenta primeiro decidir
@@ -1209,6 +1231,7 @@
       pendenteId: null,
       salvando: null,       /* null | 'rascunho' | 'concluido' — trava os botões de salvar do checklist */
       salvandoDecisao: false,
+      reprocessando: false, /* trava o botão REPROCESSAR COM MOTOR ATUAL enquanto grava */
       decisaoForm: null,
       flashLista: null,     /* confirmação persistente mostrada na lista após salvar rascunho */
       flashResultado: null, /* confirmação persistente mostrada no resultado após concluir */
@@ -2315,7 +2338,13 @@
         decisaoManual: false,
         justificativaDecisao: null,
         alteradoPor: null,
-        alteradoEm: null
+        alteradoEm: null,
+        motorVersion: null,
+        /* Uma reavaliação (chave nova) começa sem histórico de reprocessamento
+           próprio — o historicoMotor pertence à recomendação automática desta
+           versão específica, não é herdado da versão anterior (que mantém o
+           seu, intacto, na sua própria chave). */
+        historicoMotor: null
       };
       if (status === 'concluido') {
         var calc = computeResultado(a);
@@ -2325,6 +2354,7 @@
         payload.criteriosAtendidos = calc.criteriosAtendidos;
         payload.camadaSugerida = calc.camadaSugerida;
         payload.justificativaAutomatica = gerarJustificativaAutomatica(a, calc);
+        payload.motorVersion = MOTOR_VERSION;
         payload.decisaoFinal = calc.resultadoAutomatico;
       }
       var ref = db().ref(NODE + '/' + key);
@@ -2377,6 +2407,17 @@
       }
       html += '</div>';
 
+      /* Aviso discreto — nunca bloqueia a leitura do resultado, só oferece a
+         ação; ver reprocessarMotor/precisaReprocessar. Só para avaliação
+         concluída (rascunho não tem recomendação automática nenhuma ainda). */
+      if (precisaReprocessar(a)) {
+        html += '<div class="avp-form-card avp-motor-aviso">';
+        html += '<p class="avp-motor-aviso-texto">⚠ Esta avaliação foi processada por uma versão anterior do motor de classificação.</p>';
+        html += '<button type="button" class="btn btn--sm" id="avpReprocessarBtn"' + (state.reprocessando ? ' disabled' : '') + '>' +
+          (state.reprocessando ? 'Reprocessando…' : 'REPROCESSAR COM MOTOR ATUAL') + '</button>';
+        html += '</div>';
+      }
+
       html += '<div class="avp-form-card">';
       html += '<h4>Justificativa da classificação</h4>';
       html += '<p>' + esc(a.justificativaAutomatica) + '</p>';
@@ -2426,6 +2467,7 @@
       EXCLUSOES.forEach(function (e) { html += renderRaciocinio(e, a.respostas[e.id], a); });
       html += '</div></div>';
 
+      html += renderHistoricoMotorCard(a);
       html += renderDecisaoCard(a);
 
       /* Ações organizadas num único grupo, sempre visível ao final da
@@ -2450,6 +2492,20 @@
 
       var verHistoricoResultado = document.getElementById('avpVerHistoricoResultado');
       if (verHistoricoResultado) verHistoricoResultado.addEventListener('click', function () { abrirHistorico(a._key); });
+
+      var reprocessarBtn = document.getElementById('avpReprocessarBtn');
+      if (reprocessarBtn) {
+        reprocessarBtn.addEventListener('click', function () {
+          if (state.reprocessando) return;
+          avpConfirm(
+            'Isso recalcula a recomendação automática (resultado, classificação, especialização e justificativa) ' +
+            'usando a versão atual do motor de classificação, a partir das MESMAS respostas e justificativas já ' +
+            'registradas — nenhuma resposta será alterada. A recomendação anterior fica preservada no histórico ' +
+            'desta avaliação. Deseja continuar?',
+            reprocessarMotor
+          );
+        });
+      }
 
       document.getElementById('avpGerarPdfBtn').addEventListener('click', function () {
         if (state.exportando) return; /* clique repetido enquanto já está gerando: ignora */
@@ -2498,6 +2554,34 @@
           (justificativaUsuario ? esc(justificativaUsuario) : '<em>Nenhuma observação registrada pelo avaliador.</em>') + '</p>' +
         '<p class="avp-reasoning-auto"><strong>Interpretação do sistema:</strong> ' + esc(interpretacaoSistema(def, resposta, item)) + '</p>' +
         '</div>';
+    }
+
+    /* Recomendações automáticas SUBSTITUÍDAS por "REPROCESSAR COM MOTOR
+       ATUAL" — nunca aparecem quando não há reprocessamento (historicoMotor
+       ausente/vazio é o caso normal). Mostra a mais recente superada primeiro
+       (a mais antiga fica lá embaixo), cada uma com a versão do motor que a
+       produziu, o resultado/camada/especialização e a justificativa daquela
+       época — nunca a atual, para não confundir qual era qual. */
+    function renderHistoricoMotorCard(a) {
+      if (!a.historicoMotor || !a.historicoMotor.length) return '';
+      var html = '<div class="avp-form-card avp-historico-motor-card">';
+      html += '<h4>Recomendações automáticas anteriores (motor desatualizado)</h4>';
+      html += '<p class="avp-decisao-aviso">Substituídas ao reprocessar esta avaliação com uma versão mais nova do motor — as respostas do questionário nunca mudaram.</p>';
+      a.historicoMotor.slice().reverse().forEach(function (h) {
+        var camadaAntiga = h.camadaSugerida;
+        html += '<div class="avp-historico-motor-item">';
+        html += '<p class="avp-historico-motor-data">Calculada em ' + fmtData(h.processadoEm) +
+          (h.motorVersion ? ' · motor ' + esc(h.motorVersion) : ' · motor sem versão registrada') + '</p>';
+        html += '<p>' + esc(rotuloResultado(h.resultadoAutomatico)) +
+          (camadaAntiga && camadaAntiga.label ? ' — ' + esc(camadaAntiga.label) : '') +
+          (camadaAntiga && camadaAntiga.especializacao ? ' (' + esc(camadaAntiga.especializacao) + ')' : '') + '</p>';
+        if (h.justificativaAutomatica) {
+          html += '<p class="avp-historico-motor-justificativa">' + esc(h.justificativaAutomatica) + '</p>';
+        }
+        html += '</div>';
+      });
+      html += '</div>';
+      return html;
     }
 
     function renderDecisaoCard(a) {
@@ -2623,6 +2707,87 @@
         f.ultimoSalvo = { opcao: f.opcao, justificativa: f.justificativa };
         f.jaSalvouAntes = true;
         state.flashDecisao = '✓ Decisão salva com sucesso.';
+        render();
+      });
+    }
+
+    /* ===================== REPROCESSAR COM MOTOR ATUAL =====================
+       DIFERENTE de "Reavaliar": aqui as respostas e as justificativas do
+       avaliador não mudam em nada — só a recomendação automática (resultado,
+       camada, especialização, justificativa consolidada) é recalculada com a
+       versão ATUAL do motor sobre as MESMAS respostas já persistidas. Nunca
+       pede pra responder o questionário de novo, nunca abre o checklist,
+       nunca cria uma versão nova (mesma chave, sem versao+1/versaoAnteriorKey)
+       — é só a lógica automática que avança, não o conteúdo da avaliação.
+       A recomendação automática anterior nunca é descartada: migra para
+       historicoMotor (mais antiga primeiro) antes de ser substituída, o
+       mesmo princípio de "resultadoAutomatico nunca é reescrito" que já vale
+       pra decisão manual. Se a avaliação nunca teve decisão manual
+       (decisaoManual=false, "aceita a recomendação do sistema"), decisaoFinal
+       acompanha a nova recomendação — exatamente como já acontece ao
+       concluir/aceitar; havendo decisão manual, ela e toda a sua auditoria
+       (responsável, data, justificativa) ficam intocadas: reprocessar o
+       motor nunca apaga nem reinterpreta uma decisão que um humano já tomou. */
+    function precisaReprocessar(it) {
+      return !!it && it.status === 'concluido' && it.motorVersion !== MOTOR_VERSION;
+    }
+    function reprocessarMotor() {
+      if (state.reprocessando) return;
+      var a = state.atual;
+      if (!precisaReprocessar(a)) return; /* já está na versão atual: nada a fazer */
+      var calc = computeResultado(a);
+      var novaJustificativa = gerarJustificativaAutomatica(a, calc);
+      var entradaHistorico = {
+        motorVersion: a.motorVersion || null,
+        resultadoAutomatico: a.resultadoAutomatico,
+        camadaSugerida: a.camadaSugerida,
+        justificativaAutomatica: a.justificativaAutomatica,
+        processadoEm: a.atualizadoEm || a.criadoEm
+      };
+      var updates = {
+        resultadoAutomatico: calc.resultadoAutomatico,
+        criteriosEssenciaisFalhos: calc.essenciaisFalhos,
+        exclusoesConflitantes: calc.exclusoesConflitantes,
+        criteriosAtendidos: calc.criteriosAtendidos,
+        camadaSugerida: calc.camadaSugerida,
+        justificativaAutomatica: novaJustificativa,
+        motorVersion: MOTOR_VERSION,
+        historicoMotor: (a.historicoMotor || []).concat([entradaHistorico]),
+        atualizadoEm: new Date().toISOString()
+      };
+      /* "Aceitar recomendação do sistema" segue significando isso mesmo depois
+         de reprocessado: decisaoFinal acompanha a nova recomendação. Uma
+         decisão manual já registrada, ao contrário, não é uma opinião sobre O
+         MOTOR — é uma divergência sobre a conclusão, e continua valendo até
+         alguém trocá-la explicitamente em "Decisão arquitetural". */
+      if (!a.decisaoManual) updates.decisaoFinal = calc.resultadoAutomatico;
+
+      state.reprocessando = true;
+      render();
+
+      var respondido = false;
+      var relogio = setTimeout(function () {
+        if (respondido) return;
+        respondido = true;
+        state.reprocessando = false;
+        avpAlert('A conexão está demorando e não deu para confirmar o reprocessamento. Toque em "REPROCESSAR COM MOTOR ATUAL" de novo.');
+        render();
+      }, 12000);
+
+      db().ref(NODE + '/' + a._key).update(updates, function (err) {
+        if (respondido) return;
+        respondido = true;
+        clearTimeout(relogio);
+        state.reprocessando = false;
+        if (err) {
+          console.error('[avaliacao-produto] erro ao reprocessar com o motor atual:', err);
+          render();
+          avpAlert('Não foi possível reprocessar esta avaliação. Tente novamente.');
+          return;
+        }
+        Object.assign(a, updates);
+        state.itens = upsertItem(state.itens, clonarItem(a));
+        state.flashResultado = '✓ Avaliação reprocessada com a versão atual do motor de classificação.';
         render();
       });
     }
