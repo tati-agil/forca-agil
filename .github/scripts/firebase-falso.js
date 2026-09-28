@@ -45,6 +45,7 @@
       setTimeout(function () {
         if (failsFor(self.path)) {
           var e = new Error('PERMISSION_DENIED (falso): ' + self.path);
+          e.code = 'PERMISSION_DENIED';
           if (err) err(e);
           reject(e);
           return;
@@ -142,6 +143,7 @@
     setTimeout(function () {
       if (failsFor(self.path)) {
         var e = new Error('PERMISSION_DENIED (falso): ' + self.path);
+        e.code = 'PERMISSION_DENIED';
         if (cb) cb(e);
         return;
       }
@@ -171,6 +173,7 @@
     setTimeout(function () {
       if (falha) {
         var e = new Error('PERMISSION_DENIED (falso): update ' + todosCaminhos.join(', '));
+        e.code = 'PERMISSION_DENIED';
         if (cb) cb(e);
         return;
       }
@@ -206,6 +209,7 @@
     setTimeout(function () {
       if (failsFor(self.path)) {
         var e = new Error('PERMISSION_DENIED (falso): transaction ' + self.path);
+        e.code = 'PERMISSION_DENIED';
         if (onComplete) onComplete(e, false, null);
         return;
       }
