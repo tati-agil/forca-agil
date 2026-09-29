@@ -45,9 +45,25 @@
        recomendação automática atual foi calculada — ausente em avaliações
        concluídas antes deste campo existir (tratado como "motor antigo"),
      historicoMotor: [{ motorVersion, resultadoAutomatico, camadaSugerida,
-       justificativaAutomatica, processadoEm }...] | ausente — cada
-       recomendação automática SUBSTITUÍDA por "REPROCESSAR COM MOTOR ATUAL"
-       (nunca pelas respostas em si, que não mudam), mais antiga primeiro
+       justificativaAutomatica, respostas, processadoEm }...] | ausente —
+       cada recomendação automática SUBSTITUÍDA por "REPROCESSAR COM MOTOR
+       ATUAL" (individual ou em lote), mais antiga primeiro; respostas é uma
+       cópia de como cada pergunta estava calculada por aquela versão do
+       motor (SIM/NÃO e observação nunca mudam, mas a "Interpretação do
+       sistema" pode — essa cópia preserva a redação de antes),
+     reprocessedAt: ISO string | null — quando a recomendação atual foi
+       produzida por um reprocessamento (individual ou em lote); ausente/null
+       numa avaliação que nunca foi reprocessada,
+     reprocessedFromVersion: string | null — motorVersion de que ela veio
+       antes do último reprocessamento; ausente/null se nunca reprocessada,
+     bloqueadaParaReprocessamentoAutomatico: boolean | ausente — metadado
+       cadastrado à parte (nunca inferido do nome do item) que impede só o
+       reprocessamento EM LOTE ("REPROCESSAR TUDO COM MOTOR ATUAL") de tocar
+       nesta avaliação — para casos cuja classificação arquitetural ainda
+       está em definição conceitual. O botão INDIVIDUAL "REPROCESSAR COM
+       MOTOR ATUAL" continua funcionando normalmente mesmo bloqueada: é uma
+       ação explícita de quem está olhando aquela avaliação, diferente de um
+       lote automático sobre avaliações que ninguém está revisando uma a uma
    }
 
    resultadoAutomatico nunca é reescrito pela decisão manual — é o
@@ -1319,7 +1335,7 @@
       itensCarregados: false, /* true depois da primeira resposta (sucesso OU erro) do Firebase — evita
                                   mostrar "não encontrada" antes dos dados terem sequer chegado (ex.: F5) */
       erroCarga: null,        /* null | 'permissao' | 'geral' — motivo de itensCarregados nunca ter dados */
-      filtro: { resultado: 'todos', status: 'todos', alterado: 'todos', alternativa: 'todos' },
+      filtro: { resultado: 'todos', status: 'todos', alterado: 'todos', alternativa: 'todos', motor: 'todos' },
       lixeira: false,        /* alterna a lista entre ativos e excluídos — "excluído" é outra dimensão, não um status irmão de rascunho/concluído */
       atual: null,
       erroForm: null,
@@ -1341,7 +1357,9 @@
       menuExportarAberto: false,
       exportando: null,      /* null | 'pdf' | 'excel' — trava os botões de exportação durante a geração */
       flashExportacao: null, /* mensagem de sucesso/erro da última exportação, mostrada na lista */
-      carregandoTravado: false /* true quando a tela 'carregando' esperou demais pela leitura de avaliacoes-produto */
+      carregandoTravado: false, /* true quando a tela 'carregando' esperou demais pela leitura de avaliacoes-produto */
+      reprocessamentoLote: null /* null | { total, feitos, sucesso, erros:[{key,nome,mensagem}], emAndamento } —
+                                    ver executarReprocessamentoEmLote; some quando fechado depois de concluído */
     };
 
     function temCampoInvalido(campo) {
@@ -1530,6 +1548,12 @@
         var camadaLabel = it.camadaSugerida && it.camadaSugerida.label;
         if (camadaLabel !== state.filtro.alternativa) return false;
       }
+      /* Motor só diz respeito a avaliações concluídas (rascunho não tem
+         recomendação automática calculada) — "desatualizado" nunca inclui
+         rascunho, e "atual" o inclui trivialmente (nada pra desatualizar),
+         o que é aceitável: o filtro existe pra auditar concluídas. */
+      if (state.filtro.motor === 'desatualizado' && !precisaReprocessar(it)) return false;
+      if (state.filtro.motor === 'atual' && precisaReprocessar(it)) return false;
       return true;
     }
 
@@ -1577,6 +1601,17 @@
           esc(state.flashExportacao.texto) + '</p>';
       }
 
+      /* Linha própria, separada da barra de ações principal (+ Avaliar novo
+         item / Exportar / Lixeira) e dos filtros — pedido explícito de não
+         competir visualmente com nenhum dos dois. Só existe fora da lixeira,
+         igual ao resto das ações de lote. */
+      if (!state.lixeira) {
+        var concluidas = ativos.filter(function (it) { return it.status === 'concluido'; });
+        var elegiveisLote = concluidas.filter(elegivelParaReprocessamentoEmLote);
+        html += renderBarraReprocessarTudo(elegiveisLote);
+        if (state.reprocessamentoLote) html += renderReprocessamentoLoteCard();
+      }
+
       if (state.lixeira) {
         html += '<p class="avp-lixeira-aviso">🗑 Mostrando avaliações excluídas. Elas não são apagadas do banco — use "↺ Restaurar" para trazer de volta.</p>';
       } else {
@@ -1593,6 +1628,9 @@
         html += filtroSelect('avpFiltroAlternativa', state.filtro.alternativa, [['todos', 'Todas as classificações arquiteturais']].concat(
           CAMADAS.map(function (c) { return [c.label, c.label]; })
         ));
+        html += filtroSelect('avpFiltroMotor', state.filtro.motor, [
+          ['todos', 'Motor: todas'], ['desatualizado', 'Motor desatualizado'], ['atual', 'Motor atual']
+        ]);
         html += '</div>';
       }
 
@@ -1629,7 +1667,7 @@
           html += '<td data-label="Classificação arquitetural">' + esc(camadaLabel) + '</td>';
           html += '<td data-label="Responsável">' + esc(it.responsavel && it.responsavel.name || '—') + '</td>';
           html += '<td data-label="Data">' + fmtData(it.atualizadoEm) + '</td>';
-          html += '<td data-label="Status">' + statusBadge(it.status) + '</td>';
+          html += '<td data-label="Status">' + statusBadge(it.status) + badgeMotor(it) + '</td>';
           html += '<td data-label="Ações"><div class="avp-row-actions">';
           if (it.status === 'concluido') {
             html += '<button class="btn btn--sm btn--primary avp-act-ver" data-key="' + it._key + '">Visualizar</button>';
@@ -1656,6 +1694,11 @@
         render();
       });
 
+      var reprocessarTudoBtn = document.getElementById('avpReprocessarTudoBtn');
+      if (reprocessarTudoBtn) reprocessarTudoBtn.addEventListener('click', abrirModalReprocessarTudo);
+      var loteFecharBtn = document.getElementById('avpLoteFechar');
+      if (loteFecharBtn) loteFecharBtn.addEventListener('click', function () { state.reprocessamentoLote = null; render(); });
+
       var novoBtn = document.getElementById('avpNovoBtn');
       if (novoBtn) novoBtn.addEventListener('click', function () {
         state.atual = { nome: '', descricao: '', publico: '', necessidade: '', observacoesGerais: '', respostas: {} };
@@ -1666,7 +1709,7 @@
         state.tela = 'form-inicial';
         render();
       });
-      ['Resultado', 'Status', 'Alterado', 'Alternativa'].forEach(function (campo) {
+      ['Resultado', 'Status', 'Alterado', 'Alternativa', 'Motor'].forEach(function (campo) {
         var sel = document.getElementById('avpFiltro' + campo);
         if (sel) sel.addEventListener('change', function () {
           state.filtro[campo.toLowerCase()] = sel.value;
@@ -1777,6 +1820,15 @@
       return v === 'concluido'
         ? '<span class="avp-badge avp-badge--concluido">Concluído</span>'
         : '<span class="avp-badge avp-badge--rascunho">Rascunho</span>';
+    }
+    /* Indicador visual de auditoria — só existe para concluídas (rascunho não
+       tem motorVersion nenhuma, então não entra nem como "atual" nem como
+       "desatualizado" aqui, ao contrário do filtro em itemPassaFiltro). */
+    function badgeMotor(it) {
+      if (it.status !== 'concluido') return '';
+      return precisaReprocessar(it)
+        ? ' <span class="avp-tag-motor avp-tag-motor--desatualizado">Motor desatualizado</span>'
+        : ' <span class="avp-tag-motor avp-tag-motor--atual">Motor atual</span>';
     }
 
     function buscarItem(key) { return state.itens.filter(function (it) { return it._key === key; })[0]; }
@@ -1922,6 +1974,11 @@
       if (it.versaoAnteriorKey) {
         html += '<button class="btn avp-menu-item" data-acao="historico">🕘 Ver histórico</button>';
       }
+      if (it.status === 'concluido') {
+        html += it.bloqueadaParaReprocessamentoAutomatico
+          ? '<button class="btn avp-menu-item" data-acao="desbloquear">🔓 Desbloquear reprocessamento automático</button>'
+          : '<button class="btn avp-menu-item" data-acao="bloquear">🔒 Bloquear reprocessamento automático</button>';
+      }
       html += '<button class="btn avp-menu-item avp-menu-item--perigo" data-acao="excluir">🗑 Excluir</button>';
       html += '</div>';
       html += '<button class="btn" id="avpMenuAcoesFechar">Cancelar</button>';
@@ -1940,7 +1997,31 @@
           else if (acao === 'duplicar') duplicar(key);
           else if (acao === 'historico') abrirHistorico(key);
           else if (acao === 'excluir') abrirModalExcluir(key);
+          else if (acao === 'bloquear') alternarBloqueioReprocessamento(key, true);
+          else if (acao === 'desbloquear') alternarBloqueioReprocessamento(key, false);
         });
+      });
+    }
+    /* Metadado cadastrado à parte (nunca pelo nome do item) que só afeta o
+       "REPROCESSAR TUDO" em lote (ver elegivelParaReprocessamentoEmLote) —
+       um único .update() na mesma chave, sem tocar em mais nada (respostas,
+       resultadoAutomatico, justificativaAutomatica, decisão, historicoMotor
+       ficam exatamente como estavam). */
+    function alternarBloqueioReprocessamento(key, bloquear) {
+      var it = buscarItem(key);
+      if (!it) return;
+      db().ref(NODE + '/' + key).update({ bloqueadaParaReprocessamentoAutomatico: bloquear }, function (err) {
+        if (err) {
+          console.error('[avaliacao-produto] erro ao alternar bloqueio de reprocessamento:', err);
+          avpAlert('Não foi possível salvar. Tente novamente.');
+          return;
+        }
+        it.bloqueadaParaReprocessamentoAutomatico = bloquear;
+        state.itens = upsertItem(state.itens, clonarItem(it));
+        state.flashLista = bloquear
+          ? '✓ Avaliação bloqueada para reprocessamento automático em lote.'
+          : '✓ Avaliação desbloqueada para reprocessamento automático em lote.';
+        render();
       });
     }
 
@@ -3019,6 +3100,14 @@
     function precisaReprocessar(it) {
       return !!it && it.status === 'concluido' && it.motorVersion !== MOTOR_VERSION;
     }
+    /* Só quem alimenta o "REPROCESSAR TUDO" em lote — o botão INDIVIDUAL
+       continua obedecendo só precisaReprocessar, sem olhar pra esse
+       bloqueio: bloquear é sobre não tocar sozinho num caso ainda em
+       definição conceitual dentro de um lote automático, nunca sobre
+       impedir uma ação explícita de quem já abriu aquela avaliação. */
+    function elegivelParaReprocessamentoEmLote(it) {
+      return precisaReprocessar(it) && !it.bloqueadaParaReprocessamentoAutomatico;
+    }
     /* justificativaAuto é 100% determinado por (pergunta, SIM/NÃO) — olhe o
        clique de resposta no checklist, que grava exatamente
        "valor === 'sim' ? def.justSim : def.justNao" e nada mais. Por isso dá
@@ -3040,10 +3129,15 @@
       });
       return novo;
     }
-    function reprocessarMotor() {
-      if (state.reprocessando) return;
-      var a = state.atual;
-      if (!precisaReprocessar(a)) return; /* já está na versão atual: nada a fazer */
+    /* Função PURA (sem Firebase, sem state) — a mesma rotina de cálculo usada
+       tanto pelo botão individual "REPROCESSAR COM MOTOR ATUAL" quanto pelo
+       "REPROCESSAR TUDO COM MOTOR ATUAL" em lote, para as duas nunca
+       divergirem: um único lugar decide o que reprocessar significa. Recebe
+       o item JÁ persistido e devolve só o objeto de updates a gravar — quem
+       chama decide COMO gravar (um .update() com timeout/retry para o
+       botão individual, vários em paralelo com tratamento de erro por item
+       para o lote). */
+    function construirAtualizacaoReprocessamento(a) {
       var calc = computeResultado(a);
       var novaJustificativa = gerarJustificativaAutomatica(a, calc);
       var entradaHistorico = {
@@ -3058,6 +3152,7 @@
         respostas: a.respostas,
         processadoEm: a.atualizadoEm || a.criadoEm
       };
+      var agora = new Date().toISOString();
       var updates = {
         resultadoAutomatico: calc.resultadoAutomatico,
         criteriosEssenciaisFalhos: calc.essenciaisFalhos,
@@ -3071,15 +3166,27 @@
            responder de novo. */
         respostas: recalcularInterpretacoesRespostas(a.respostas),
         motorVersion: MOTOR_VERSION,
+        reprocessedAt: agora,
+        reprocessedFromVersion: a.motorVersion || null,
         historicoMotor: (a.historicoMotor || []).concat([entradaHistorico]),
-        atualizadoEm: new Date().toISOString()
+        atualizadoEm: agora
       };
       /* "Aceitar recomendação do sistema" segue significando isso mesmo depois
          de reprocessado: decisaoFinal acompanha a nova recomendação. Uma
          decisão manual já registrada, ao contrário, não é uma opinião sobre O
          MOTOR — é uma divergência sobre a conclusão, e continua valendo até
-         alguém trocá-la explicitamente em "Decisão arquitetural". */
+         alguém trocá-la explicitamente em "Decisão arquitetural"; o motor
+         pode divergir da decisão manual (fica visível comparando Resultado
+         automático x Decisão final na tela/PDF/Excel), mas nunca a muda
+         sozinho. */
       if (!a.decisaoManual) updates.decisaoFinal = calc.resultadoAutomatico;
+      return updates;
+    }
+    function reprocessarMotor() {
+      if (state.reprocessando) return;
+      var a = state.atual;
+      if (!precisaReprocessar(a)) return; /* já está na versão atual: nada a fazer */
+      var updates = construirAtualizacaoReprocessamento(a);
 
       state.reprocessando = true;
       render();
@@ -3109,6 +3216,169 @@
         state.flashResultado = '✓ Avaliação reprocessada com a versão atual do motor de classificação.';
         render();
       });
+    }
+
+    /* ===================== REPROCESSAR TUDO COM MOTOR ATUAL (LOTE) =====================
+       Orquestra em lote a MESMA rotina do botão individual — nunca duplica a
+       lógica de cálculo (construirAtualizacaoReprocessamento é a única fonte
+       de verdade para os dois). Diferente do botão individual, o lote NUNCA
+       toca numa avaliação com bloqueadaParaReprocessamentoAutomatico=true
+       (ver elegivelParaReprocessamentoEmLote) — o bloqueio existe justamente
+       para permitir "reprocessar tudo" com segurança mesmo havendo um caso
+       ainda em discussão conceitual. */
+    function renderBarraReprocessarTudo(elegiveisLote) {
+      var html = '<div class="avp-lote-bar">';
+      if (elegiveisLote.length) {
+        html += '<button class="btn btn--sm" id="avpReprocessarTudoBtn"' +
+          (state.reprocessamentoLote && state.reprocessamentoLote.emAndamento ? ' disabled' : '') + '>' +
+          'REPROCESSAR TUDO COM MOTOR ATUAL (' + elegiveisLote.length + ')</button>';
+      } else {
+        html += '<button class="btn btn--sm" id="avpReprocessarTudoBtn" disabled>Todas as avaliações estão atualizadas</button>';
+      }
+      html += '</div>';
+      return html;
+    }
+    /* Progresso ("X de Y concluídas") enquanto roda, resumo final (com a
+       lista de quem falhou, se houver) depois — o mesmo card muda de
+       conteúdo conforme reprocessamentoLote.emAndamento, sem duas telas
+       separadas para uma operação só. */
+    function renderReprocessamentoLoteCard() {
+      var l = state.reprocessamentoLote;
+      var html = '<div class="avp-form-card avp-lote-progresso-card" id="avpLoteProgressoCard">';
+      if (l.emAndamento) {
+        html += '<p class="avp-lote-progresso-texto" id="avpLoteProgressoTexto">Reprocessando avaliações… ' +
+          l.feitos + ' de ' + l.total + ' concluídas</p>';
+      } else {
+        html += '<h4>Reprocessamento concluído</h4>';
+        html += '<ul class="avp-lote-resumo-final" id="avpLoteResumoFinal">';
+        html += '<li>' + l.sucesso + ' avaliaç' + (l.sucesso === 1 ? 'ão atualizada' : 'ões atualizadas') + '</li>';
+        html += '<li>' + l.jaAtualizadas + ' já estava' + (l.jaAtualizadas === 1 ? '' : 'm') + ' no motor atual</li>';
+        if (l.bloqueadas) {
+          html += '<li>' + l.bloqueadas + ' ignorada' + (l.bloqueadas === 1 ? '' : 's') + ' por estar bloqueada para atualização automática</li>';
+        }
+        if (l.erros.length) {
+          html += '<li>' + l.erros.length + ' apresentou' + (l.erros.length === 1 ? '' : 'aram') + ' erro</li>';
+        }
+        html += '</ul>';
+        if (l.erros.length) {
+          html += '<div class="avp-lote-erros" id="avpLoteErros">';
+          html += '<p class="avp-lote-erros-titulo">Não foi possível reprocessar:</p><ul>';
+          l.erros.forEach(function (e) { html += '<li>' + esc(e.nome) + ' — ' + esc(e.mensagem) + '</li>'; });
+          html += '</ul></div>';
+        }
+        html += '<button class="btn btn--sm" id="avpLoteFechar">Fechar</button>';
+      }
+      html += '</div>';
+      return html;
+    }
+    /* Modal de confirmação — mostra a contagem ANTES de mexer em qualquer
+       coisa, para nunca reprocessar tudo cegamente. As contagens são
+       recalculadas na hora (nunca reaproveitadas de um render antigo), então
+       refletem exatamente o estado atual da lista. */
+    function abrirModalReprocessarTudo() {
+      var ativos = state.itens.filter(function (it) { return !it.excluido && !temVersaoMaisNova(it._key); });
+      var concluidas = ativos.filter(function (it) { return it.status === 'concluido'; });
+      var elegiveis = concluidas.filter(elegivelParaReprocessamentoEmLote);
+      var atualizadas = concluidas.filter(function (it) { return !precisaReprocessar(it); });
+      var bloqueadas = concluidas.filter(function (it) { return precisaReprocessar(it) && it.bloqueadaParaReprocessamentoAutomatico; });
+      if (!elegiveis.length) return; /* botão já vem desabilitado nesse caso — defesa dupla */
+
+      var overlay = document.createElement('div');
+      overlay.className = 'modal-overlay';
+      overlay.style.cssText = 'display:flex;align-items:center;justify-content:center;z-index:9999';
+      var box = document.createElement('div');
+      box.className = 'modal-box avp-lote-modal-box';
+      box.style.cssText = 'max-width:440px;width:92%;padding:24px;display:flex;flex-direction:column;gap:14px';
+      var html = '<p class="avp-menu-acoes-titulo">Reprocessar avaliações com o motor atual</p>';
+      html += '<p>Encontramos:</p><ul class="avp-lote-resumo-contagens" id="avpLoteResumoContagens">';
+      html += '<li>' + concluidas.length + ' avaliaç' + (concluidas.length === 1 ? 'ão concluída' : 'ões concluídas') + '</li>';
+      html += '<li>' + elegiveis.length + ' precisa' + (elegiveis.length === 1 ? '' : 'm') + ' ser reprocessada' + (elegiveis.length === 1 ? '' : 's') + '</li>';
+      html += '<li>' + atualizadas.length + ' já est' + (atualizadas.length === 1 ? 'á' : 'ão') + ' no motor atual</li>';
+      if (bloqueadas.length) {
+        html += '<li>' + bloqueadas.length + ' não pode' + (bloqueadas.length === 1 ? '' : 'm') + ' ser reprocessada' + (bloqueadas.length === 1 ? '' : 's') + ' automaticamente</li>';
+      }
+      html += '</ul>';
+      html += '<p class="avp-decisao-aviso">O reprocessamento não altera respostas nem justificativas fornecidas pelos usuários. ' +
+        'O sistema recalculará apenas conteúdos gerados pelo motor e preservará todas as versões anteriores no histórico.</p>';
+      html += '<div class="avp-lote-modal-botoes">';
+      html += '<button class="btn" id="avpLoteCancelar">CANCELAR</button>';
+      html += '<button class="btn btn--primary" id="avpLoteConfirmar">REPROCESSAR ' + elegiveis.length +
+        (elegiveis.length === 1 ? ' AVALIAÇÃO' : ' AVALIAÇÕES') + '</button>';
+      html += '</div>';
+      box.innerHTML = html;
+      overlay.appendChild(box);
+      document.body.appendChild(overlay);
+      function fechar() { if (overlay.parentNode) document.body.removeChild(overlay); }
+      box.querySelector('#avpLoteCancelar').addEventListener('click', fechar);
+      overlay.addEventListener('keydown', function (e) { if (e.key === 'Escape') { e.preventDefault(); fechar(); } });
+      box.querySelector('#avpLoteConfirmar').addEventListener('click', function () {
+        fechar();
+        executarReprocessamentoEmLote(elegiveis);
+      });
+    }
+    /* Processamento com concorrência limitada (nunca todas de uma vez): um
+       pequeno número fixo de "workers" consome a fila um item de cada vez,
+       cada .update() com seu próprio callback de sucesso/erro — uma falha
+       NUNCA para as demais, nem desfaz o que já foi gravado com sucesso.
+       Idempotente por construção: quem chama já filtrou por
+       elegivelParaReprocessamentoEmLote, então rodar de novo sobre uma
+       avaliação já no MOTOR_VERSION atual simplesmente não a inclui na fila
+       — nenhuma versão nova é criada à toa. */
+    function executarReprocessamentoEmLote(itens) {
+      if (state.reprocessamentoLote && state.reprocessamentoLote.emAndamento) return;
+      var ativosAgora = state.itens.filter(function (it) { return !it.excluido && !temVersaoMaisNova(it._key); });
+      var concluidasAgora = ativosAgora.filter(function (it) { return it.status === 'concluido'; });
+      var jaAtualizadas = concluidasAgora.filter(function (it) { return !precisaReprocessar(it); }).length;
+      var bloqueadas = concluidasAgora.filter(function (it) { return precisaReprocessar(it) && it.bloqueadaParaReprocessamentoAutomatico; }).length;
+
+      var fila = itens.slice();
+      var CONCORRENCIA = 3;
+      state.reprocessamentoLote = {
+        total: itens.length, feitos: 0, sucesso: 0, erros: [],
+        jaAtualizadas: jaAtualizadas, bloqueadas: bloqueadas, emAndamento: true
+      };
+      render();
+
+      var workersAtivos = 0;
+      function terminouItem() {
+        state.reprocessamentoLote.feitos++;
+        render();
+        worker();
+      }
+      function worker() {
+        if (!fila.length) {
+          workersAtivos--;
+          if (workersAtivos === 0) {
+            state.reprocessamentoLote.emAndamento = false;
+            render();
+          }
+          return;
+        }
+        var it = fila.shift();
+        var updates;
+        try {
+          updates = construirAtualizacaoReprocessamento(it);
+        } catch (e) {
+          console.error('[avaliacao-produto] erro ao calcular reprocessamento em lote:', it._key, e);
+          state.reprocessamentoLote.erros.push({ key: it._key, nome: it.nome, mensagem: 'Não foi possível calcular a nova recomendação.' });
+          terminouItem();
+          return;
+        }
+        db().ref(NODE + '/' + it._key).update(updates, function (err) {
+          if (err) {
+            console.error('[avaliacao-produto] erro ao reprocessar em lote:', it._key, err);
+            state.reprocessamentoLote.erros.push({ key: it._key, nome: it.nome, mensagem: 'Não foi possível gravar.' });
+          } else {
+            state.reprocessamentoLote.sucesso++;
+            Object.assign(it, updates);
+            state.itens = upsertItem(state.itens, clonarItem(it));
+          }
+          terminouItem();
+        });
+      }
+      var n = Math.min(CONCORRENCIA, fila.length);
+      workersAtivos = n;
+      for (var i = 0; i < n; i++) worker();
     }
 
     /* ===================== CARGA ===================== */
