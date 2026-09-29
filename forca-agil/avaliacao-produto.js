@@ -422,16 +422,24 @@
 
   /* Camadas que têm um eixo de especialização reconhecido pelo modelo — a
      especialização NUNCA é uma categoria concorrente, só detalha a
-     classificação principal (ver especializacaoPara). As cinco únicas com
-     esse eixo hoje: Componente (opção/configuração — a única com um sinal
-     real no questionário, "modalidade"), Unidade de valor associada
-     (institutos/benefícios), Funcionalidade/Operação (formas de vinculação),
-     Regra/Opção (políticas do plano) e Informação/Documento (informações da
-     reserva). Sem pergunta nova para distinguir as quatro últimas (item
-     explicitamente proibido: não alterar o questionário), elas sempre
-     mostram "não determinada pelo questionário" — isso NUNCA vira A validar,
-     é só uma informação a menos, não um conflito. */
-  var CAMADAS_COM_ESPECIALIZACAO = ['componente', 'unidade-valor-associada', 'funcionalidade-operacao', 'regra-condicao', 'documento-informacao'];
+     classificação principal (ver especializacaoPara). Seis camadas com esse
+     eixo hoje: Componente (opção/configuração — a única com um sinal real no
+     questionário, "modalidade"), Unidade de valor associada (institutos/
+     benefícios), Funcionalidade/Operação (formas de vinculação), Regra/Opção
+     (políticas do plano), Informação/Documento (informações da reserva) e
+     Produto/Serviço principal (Produto vs. Serviço — nenhuma pergunta do
+     questionário distingue os dois, e a classificação em si já significa
+     "tem autonomia estrutural", então a especialização aqui só pode vir de
+     cadastro, nunca inferida). Sem pergunta nova para distinguir nenhuma
+     delas (item explicitamente proibido: não alterar o questionário), todas
+     sempre mostram "não determinada pelo questionário" até serem cadastradas
+     — isso NUNCA vira A validar, é só uma informação a menos, não um
+     conflito. Produto/Serviço principal entrou nesta lista só para permitir
+     o CADASTRO (ex.: "Serviço", "Produto") a quem já sabe essa informação
+     por outra fonte — identificarCamada continua decidindo QUAL camada o
+     item é sem olhar para isso, e nenhuma avaliação já concluída precisa ser
+     reprocessada por causa desta mudança (ver rotuloEspecializacaoApresentacao). */
+  var CAMADAS_COM_ESPECIALIZACAO = ['componente', 'unidade-valor-associada', 'funcionalidade-operacao', 'regra-condicao', 'documento-informacao', 'produto-principal'];
   var ESPECIALIZACAO_NAO_DETERMINADA = 'não determinada pelo questionário';
 
   /* Terceira dimensão, independente de classificação e especialização —
@@ -442,9 +450,32 @@
      — são só um atributo a mais sobre um Componente já identificado, e só
      vêm de metadado/cadastro confiável, nunca inferidos das respostas nem
      do nome do item (ex.: o fato de o participante poder escolher/alterar
-     não basta para inferir "Opcional" sozinho). */
+     não basta para inferir "Opcional" sozinho). Continua só para Componente
+     — nenhuma camada nova ganhou a possibilidade de CADASTRAR um papel
+     estrutural neste ajuste; a linha "Papel estrutural" passou só a
+     aparecer SEMPRE na apresentação (tela/PDF), com "não determinado" como
+     texto para qualquer camada fora desta lista (ver
+     rotuloPapelEstruturalApresentacao). */
   var CAMADAS_COM_PAPEL_ESTRUTURAL = ['componente'];
   var PAPEL_ESTRUTURAL_NAO_DETERMINADO = 'não determinado';
+
+  /* Normalização de APRESENTAÇÃO (tela, PDF — nunca calcula, nunca persiste):
+     a linha de Especialização/Papel estrutural aparece SEMPRE, para
+     qualquer classificação arquitetural, nunca escondida por causa da
+     camada (ajuste de consistência: antes, o `if (camada.especializacao)`/
+     `if (camada.papelEstrutural)` em cada ponto de renderização escondia a
+     linha inteira sempre que o valor vinha null — exatamente o caso de toda
+     camada fora de CAMADAS_COM_ESPECIALIZACAO/CAMADAS_COM_PAPEL_ESTRUTURAL,
+     inclusive Produto/Serviço principal antes desta mudança). O fallback é
+     só de exibição — nunca grava nada em camadaSugerida nem exige
+     reprocessamento para as avaliações já concluídas mostrarem o texto
+     padrão no lugar de uma linha ausente. */
+  function rotuloEspecializacaoApresentacao(camada) {
+    return (camada && camada.especializacao) || ESPECIALIZACAO_NAO_DETERMINADA;
+  }
+  function rotuloPapelEstruturalApresentacao(camada) {
+    return (camada && camada.papelEstrutural) || PAPEL_ESTRUTURAL_NAO_DETERMINADO;
+  }
 
   /* ---- motor de decisão -------------------------------------------------
      identificarCamada NÃO conta quantos SIM existem — decide por PRECEDÊNCIA
@@ -1075,12 +1106,11 @@
     var camada = it.camadaSugerida;
     html += '<h2 class="pdf-secao-titulo">Classificação arquitetural sugerida</h2>';
     html += '<p>' + esc(camada && camada.label || '—') + '</p>';
-    if (camada && camada.especializacao) {
-      html += '<p><strong>Especialização:</strong> ' + esc(camada.especializacao) + '</p>';
-    }
-    if (camada && camada.papelEstrutural) {
-      html += '<p><strong>Papel estrutural:</strong> ' + esc(camada.papelEstrutural) + '</p>';
-    }
+    /* Especialização/Papel estrutural aparecem SEMPRE, para qualquer
+       classificação — nunca escondidas por causa da camada (ver
+       rotuloEspecializacaoApresentacao/rotuloPapelEstruturalApresentacao). */
+    html += '<p><strong>Especialização:</strong> ' + esc(rotuloEspecializacaoApresentacao(camada)) + '</p>';
+    html += '<p><strong>Papel estrutural:</strong> ' + esc(rotuloPapelEstruturalApresentacao(camada)) + '</p>';
     if (camada && camada.conflito && camada.conflito.length) {
       html += '<p class="pdf-aviso">Categorias em conflito nas respostas: ' + esc(camada.conflito.join(', ')) + '.</p>';
     }
@@ -1116,12 +1146,8 @@
     html += '<table class="pdf-tabela-id">';
     html += pdfLinhaTabela('Recomendação do sistema', rotuloResultadoTxt);
     html += pdfLinhaTabela('Classificação sugerida', camada && camada.label);
-    if (camada && camada.especializacao) {
-      html += pdfLinhaTabela('Especialização', camada.especializacao);
-    }
-    if (camada && camada.papelEstrutural) {
-      html += pdfLinhaTabela('Papel estrutural', camada.papelEstrutural);
-    }
+    html += pdfLinhaTabela('Especialização', rotuloEspecializacaoApresentacao(camada));
+    html += pdfLinhaTabela('Papel estrutural', rotuloPapelEstruturalApresentacao(camada));
     var decisaoTxt = rotuloResultado(it.decisaoFinal);
     html += pdfLinhaTabela('Decisão final', decisaoTxt);
     html += pdfLinhaTabela('Forma da decisão', it.decisaoManual ? 'Alterada manualmente' : 'Recomendação do sistema aceita');
@@ -2682,12 +2708,12 @@
       html += '<div class="avp-form-card avp-alt-card">';
       html += '<h4>Classificação arquitetural sugerida</h4>';
       html += '<p class="avp-alt-label">Camada identificada: <strong>' + esc(camada.label) + '</strong></p>';
-      if (camada.especializacao) {
-        html += '<p class="avp-alt-label">Especialização: <strong>' + esc(camada.especializacao) + '</strong></p>';
-      }
-      if (camada.papelEstrutural) {
-        html += '<p class="avp-alt-label">Papel estrutural: <strong>' + esc(camada.papelEstrutural) + '</strong></p>';
-      }
+      /* Especialização/Papel estrutural aparecem SEMPRE, para qualquer
+         classificação — nunca escondidas por causa da camada (mesma regra
+         do PDF, ver rotuloEspecializacaoApresentacao/
+         rotuloPapelEstruturalApresentacao). */
+      html += '<p class="avp-alt-label">Especialização: <strong>' + esc(rotuloEspecializacaoApresentacao(camada)) + '</strong></p>';
+      html += '<p class="avp-alt-label">Papel estrutural: <strong>' + esc(rotuloPapelEstruturalApresentacao(camada)) + '</strong></p>';
       if (camada.conflito && camada.conflito.length) {
         html += '<p class="avp-alt-outras">Categorias em conflito nas respostas: ' + esc(camada.conflito.join(', ')) + '.</p>';
       }
