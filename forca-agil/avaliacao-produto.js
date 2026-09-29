@@ -2072,6 +2072,14 @@
           html += '<div class="avp-field"><label for="avpCfgExemplo' + idx + '">Exemplo</label>' +
             '<textarea id="avpCfgExemplo' + idx + '" data-idx="' + idx + '" data-campo="exemplo" rows="2">' + esc(p.exemplo || '') + '</textarea></div>';
         }
+        /* justSim/justNao são a "Interpretação do sistema" registrada
+           automaticamente quando alguém responde SIM/NÃO — também editorial,
+           também parametrizado, nunca lido pelo motor (identificarCamada só
+           usa o valor SIM/NÃO em si, nunca este texto). */
+        html += '<div class="avp-field"><label for="avpCfgJustSim' + idx + '">Interpretação automática quando a resposta é SIM</label>' +
+          '<textarea id="avpCfgJustSim' + idx + '" data-idx="' + idx + '" data-campo="justSim" rows="2">' + esc(p.justSim || '') + '</textarea></div>';
+        html += '<div class="avp-field"><label for="avpCfgJustNao' + idx + '">Interpretação automática quando a resposta é NÃO</label>' +
+          '<textarea id="avpCfgJustNao' + idx + '" data-idx="' + idx + '" data-campo="justNao" rows="2">' + esc(p.justNao || '') + '</textarea></div>';
         html += '<div class="avp-field"><label for="avpCfgObs' + idx + '">Observação administrativa (opcional, não aparece pra quem responde)</label>' +
           '<textarea id="avpCfgObs' + idx + '" data-idx="' + idx + '" data-campo="observacaoAdministrativa" rows="2">' + esc(p.observacaoAdministrativa || '') + '</textarea></div>';
         html += '</div>';
