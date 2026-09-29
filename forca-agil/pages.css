@@ -2057,6 +2057,9 @@ select.aposta-campo-input { width: auto; min-width: 8.5em; }
 
 .avp-decisao-card { border-color: rgba(120,160,220,.4); }
 .avp-decisao-aviso { font-size: .8rem; color: var(--ink-3); font-style: italic; margin: 0 0 14px; }
+
+.avp-config-item-card, .avp-config-pergunta-card, .avp-config-confirmar-card { margin-bottom: 14px; }
+.avp-config-readonly-tag { font-size: .78rem; color: var(--ink-3); font-style: italic; }
 .avp-history-note { font-size: .8rem; color: var(--ink-3); background: var(--space-1); border-radius: 8px; padding: 10px 12px; margin: 0 0 14px; }
 .avp-decisao-options { display: flex; flex-direction: column; gap: 10px; margin-bottom: 14px; }
 .avp-decisao-option { display: flex; align-items: center; gap: 8px; font-size: .86rem; color: var(--ink-2); cursor: pointer; }
