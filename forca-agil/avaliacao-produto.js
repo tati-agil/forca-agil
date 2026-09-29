@@ -2713,12 +2713,16 @@
        ausente/vazio é o caso normal). Mostra a mais recente superada primeiro
        (a mais antiga fica lá embaixo), cada uma com a versão do motor que a
        produziu, o resultado/camada/especialização e a justificativa daquela
-       época — nunca a atual, para não confundir qual era qual. */
+       época — nunca a atual, para não confundir qual era qual. Cada entrada
+       também guarda uma cópia de respostas (h.respostas, com a
+       "Interpretação do sistema" de cada pergunta como estava calculada por
+       aquela versão do motor) — não tem tela própria para navegar isso hoje,
+       mas o dado fica preservado, nunca perdido, caso vire necessário. */
     function renderHistoricoMotorCard(a) {
       if (!a.historicoMotor || !a.historicoMotor.length) return '';
       var html = '<div class="avp-form-card avp-historico-motor-card">';
       html += '<h4>Recomendações automáticas anteriores (motor desatualizado)</h4>';
-      html += '<p class="avp-decisao-aviso">Substituídas ao reprocessar esta avaliação com uma versão mais nova do motor — as respostas do questionário nunca mudaram.</p>';
+      html += '<p class="avp-decisao-aviso">Substituídas ao reprocessar esta avaliação com uma versão mais nova do motor — a resposta SIM/NÃO e a observação do avaliador em cada pergunta nunca mudam; só a interpretação automática do sistema pode ser atualizada.</p>';
       a.historicoMotor.slice().reverse().forEach(function (h) {
         var camadaAntiga = h.camadaSugerida;
         html += '<div class="avp-historico-motor-item">';
@@ -2989,24 +2993,52 @@
     }
 
     /* ===================== REPROCESSAR COM MOTOR ATUAL =====================
-       DIFERENTE de "Reavaliar": aqui as respostas e as justificativas do
-       avaliador não mudam em nada — só a recomendação automática (resultado,
-       camada, especialização, justificativa consolidada) é recalculada com a
-       versão ATUAL do motor sobre as MESMAS respostas já persistidas. Nunca
-       pede pra responder o questionário de novo, nunca abre o checklist,
-       nunca cria uma versão nova (mesma chave, sem versao+1/versaoAnteriorKey)
-       — é só a lógica automática que avança, não o conteúdo da avaliação.
-       A recomendação automática anterior nunca é descartada: migra para
-       historicoMotor (mais antiga primeiro) antes de ser substituída, o
-       mesmo princípio de "resultadoAutomatico nunca é reescrito" que já vale
-       pra decisão manual. Se a avaliação nunca teve decisão manual
-       (decisaoManual=false, "aceita a recomendação do sistema"), decisaoFinal
-       acompanha a nova recomendação — exatamente como já acontece ao
-       concluir/aceitar; havendo decisão manual, ela e toda a sua auditoria
-       (responsável, data, justificativa) ficam intocadas: reprocessar o
-       motor nunca apaga nem reinterpreta uma decisão que um humano já tomou. */
+       DIFERENTE de "Reavaliar": o dado do usuário nunca muda — nem a
+       resposta SIM/NÃO, nem a observação que a pessoa digitou — só a SAÍDA
+       do motor é recalculada com a versão ATUAL sobre as MESMAS respostas já
+       persistidas: resultado, camada, especialização, papel estrutural,
+       justificativa consolidada e, agora, também a "Interpretação do
+       sistema" de cada uma das 16 perguntas (respostas[id].justificativaAuto
+       — texto gerado pelo sistema a partir só de (pergunta, SIM/NÃO), nunca
+       digitado por ninguém, então recalculá-lo não é reescrever histórico do
+       usuário, é só atualizar uma saída do motor que ficou desatualizada).
+       Nunca pede pra responder o questionário de novo, nunca abre o
+       checklist, nunca cria uma versão nova (mesma chave, sem
+       versao+1/versaoAnteriorKey) — é só a lógica automática que avança, não
+       o conteúdo da avaliação. A recomendação automática anterior nunca é
+       descartada: migra para historicoMotor (mais antiga primeiro, com uma
+       cópia de respostas incluída, para nunca perder qual era a redação
+       antiga) antes de ser substituída, o mesmo princípio de
+       "resultadoAutomatico nunca é reescrito" que já vale pra decisão
+       manual. Se a avaliação nunca teve decisão manual (decisaoManual=false,
+       "aceita a recomendação do sistema"), decisaoFinal acompanha a nova
+       recomendação — exatamente como já acontece ao concluir/aceitar;
+       havendo decisão manual, ela e toda a sua auditoria (responsável, data,
+       justificativa) ficam intocadas: reprocessar o motor nunca apaga nem
+       reinterpreta uma decisão que um humano já tomou. */
     function precisaReprocessar(it) {
       return !!it && it.status === 'concluido' && it.motorVersion !== MOTOR_VERSION;
+    }
+    /* justificativaAuto é 100% determinado por (pergunta, SIM/NÃO) — olhe o
+       clique de resposta no checklist, que grava exatamente
+       "valor === 'sim' ? def.justSim : def.justNao" e nada mais. Por isso dá
+       pra recalcular com segurança a qualquer momento a partir da definição
+       ATUAL da pergunta (CRITERIOS/EXCLUSOES), sem precisar que ninguém
+       clique de novo: nunca é um texto composto com dado do usuário. valor e
+       observacao (a única coisa que a pessoa realmente escreveu) são
+       copiados sem tocar. */
+    function recalcularInterpretacoesRespostas(respostas) {
+      var novo = {};
+      Object.keys(respostas || {}).forEach(function (id) {
+        var r = respostas[id];
+        var def = definicaoPorId(id);
+        novo[id] = {
+          valor: r.valor,
+          justificativaAuto: def ? (r.valor === 'sim' ? def.justSim : def.justNao) : r.justificativaAuto,
+          observacao: r.observacao || ''
+        };
+      });
+      return novo;
     }
     function reprocessarMotor() {
       if (state.reprocessando) return;
@@ -3019,6 +3051,11 @@
         resultadoAutomatico: a.resultadoAutomatico,
         camadaSugerida: a.camadaSugerida,
         justificativaAutomatica: a.justificativaAutomatica,
+        /* Cópia das respostas EXATAMENTE como estavam calculadas por esta
+           versão do motor (incluindo a "Interpretação do sistema" antiga de
+           cada pergunta) — nunca perde a redação anterior, mesmo depois de
+           recalculada abaixo. */
+        respostas: a.respostas,
         processadoEm: a.atualizadoEm || a.criadoEm
       };
       var updates = {
@@ -3028,6 +3065,11 @@
         criteriosAtendidos: calc.criteriosAtendidos,
         camadaSugerida: calc.camadaSugerida,
         justificativaAutomatica: novaJustificativa,
+        /* SIM/NÃO e a observação do avaliador seguem exatamente iguais —
+           só a "Interpretação do sistema" de cada pergunta é atualizada
+           para a redação vigente. Nunca abre o checklist, nunca pede pra
+           responder de novo. */
+        respostas: recalcularInterpretacoesRespostas(a.respostas),
         motorVersion: MOTOR_VERSION,
         historicoMotor: (a.historicoMotor || []).concat([entradaHistorico]),
         atualizadoEm: new Date().toISOString()
