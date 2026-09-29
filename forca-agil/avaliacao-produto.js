@@ -28,6 +28,15 @@
      justificativaAutomatica: texto,
      decisaoFinal: 'produto' | 'nao-produto' | 'a-validar' (igual à automática até o admin discordar),
      decisaoManual, justificativaDecisao, alteradoPor: {name,email}, alteradoEm,
+     decisaoConfirmada: boolean — só controla o botão "SALVAR DECISÃO"
+       (jaSalvouAntes): true assim que alguém clica em salvar, seja aceitando
+       a recomendação automática (decisaoManual fica false) seja divergindo
+       dela (decisaoManual fica true) — sem isto, aceitar explicitamente a
+       recomendação mostrava "✓ Decisão salva com sucesso." mas, ao recarregar
+       a tela, o botão voltava a "SALVAR DECISÃO" como se nada tivesse sido
+       salvo, porque jaSalvouAntes dependia só de decisaoManual (que
+       continua false nesse caso, corretamente, para todo o resto: filtro
+       "alterada manualmente", Excel, PDF, reprocessarMotor),
      responsavel: {name,email}, criadoEm, atualizadoEm,
      itemId: chave da 1ª versão (agrupa todas as versões do mesmo item),
      versao: número (1 na avaliação original, incrementa a cada reavaliação),
@@ -279,7 +288,7 @@
      com esta constante para saber se existe uma versão mais nova do motor e
      oferecer "REPROCESSAR COM MOTOR ATUAL" — nunca reprocessa sozinha, e
      nunca exige responder o questionário de novo (ver reprocessarMotor). */
-  var MOTOR_VERSION = '2026.09.28-3';
+  var MOTOR_VERSION = '2026.09.29-1';
 
   /* Mapa fixo e simples: só decide se a camada JÁ IDENTIFICADA conta como
      Produto/Serviço. Nunca o inverso — o motor não tenta primeiro decidir
@@ -1780,15 +1789,20 @@
       return state.itens.some(function (o) { return o.versaoAnteriorKey === key; });
     }
 
-    /* jaSalvouAntes distingue "nunca mexi nisso" de "já tem uma decisão
-       manual salva antes" — só nesse segundo caso um novo ajuste deve dizer
-       SALVAR ALTERAÇÃO em vez de SALVAR DECISÃO. ultimoSalvo é a fotografia
-       do que está realmente gravado; comparar contra ela (não contra um
-       booleano solto) é o que permite o botão voltar sozinho pro estado
-       "✓ DECISÃO SALVA" se a pessoa desfizer a mudança na mão. */
+    /* jaSalvouAntes distingue "nunca mexi nisso" de "já cliquei em salvar
+       antes" (decisaoConfirmada — vale tanto para aceitar a recomendação
+       automática quanto para divergir dela) — só nesse segundo caso um novo
+       ajuste deve dizer SALVAR ALTERAÇÃO em vez de SALVAR DECISÃO.
+       decisaoManual sozinho não bastaria: ele fica false tanto para "nunca
+       mexi" quanto para "cliquei salvar e aceitei a recomendação", e as duas
+       situações precisam de rótulos diferentes no botão. ultimoSalvo é a
+       fotografia do que está realmente gravado; comparar contra ela (não
+       contra um booleano solto) é o que permite o botão voltar sozinho pro
+       estado "✓ DECISÃO SALVA" se a pessoa desfizer a mudança na mão. */
     function decisaoFormInicial(it) {
       var salvo = { opcao: it.decisaoManual ? it.decisaoFinal : 'auto', justificativa: it.justificativaDecisao || '' };
-      return { opcao: salvo.opcao, justificativa: salvo.justificativa, erro: null, jaSalvouAntes: !!it.decisaoManual, ultimoSalvo: salvo };
+      return { opcao: salvo.opcao, justificativa: salvo.justificativa, erro: null,
+        jaSalvouAntes: !!(it.decisaoManual || it.decisaoConfirmada), ultimoSalvo: salvo };
     }
     function decisaoIguais(x, y) {
       if (x.opcao !== y.opcao) return false;
@@ -2442,6 +2456,7 @@
         justificativaAutomatica: null,
         decisaoFinal: null,
         decisaoManual: false,
+        decisaoConfirmada: false,
         justificativaDecisao: null,
         alteradoPor: null,
         alteradoEm: null,
@@ -2860,7 +2875,7 @@
         focarCampo('avpJustificativaDecisao');
         return;
       }
-      var updates = { atualizadoEm: new Date().toISOString() };
+      var updates = { atualizadoEm: new Date().toISOString(), decisaoConfirmada: true };
       if (f.opcao === 'auto') {
         updates.decisaoFinal = a.resultadoAutomatico;
         updates.decisaoManual = false;
