@@ -96,171 +96,86 @@
 
   var NODE = 'avaliacoes-produto';
 
+  /* IDENTIDADE/REGRA das 16 perguntas — nunca texto exibido ao usuário.
+     id: chave interna usada por todo o motor (identificarCamada, respostas
+     persistidas) — NUNCA renomeada, mesmo que a redação da pergunta mude,
+     para não exigir migração de dados de avaliações já gravadas.
+     codigoEstavel: identificador PÚBLICO e estável (P1..P16) usado pelo
+     módulo de configuração (window.faQuestionarios), pelo snapshot de cada
+     resposta e pela auditoria — é o "nome de fábrica" da pergunta, imutável
+     por configuração (só existe em código).
+     essencial/ordem/destaque: regra/peso da pergunta para o motor —
+     também imutáveis por configuração. Título, texto da pergunta, ajuda,
+     exemplo e as duas justificativas automáticas (SIM/NÃO) NÃO estão mais
+     aqui: são conteúdo editorial, parametrizado e versionado por
+     window.faQuestionarios (ver conteudoDe) — alterar essa redação nunca
+     precisa de PR nem de deploy, e nunca muda o que está declarado nesta
+     lista. */
   var CRITERIOS = [
-    {
-      id: 'necessidade', essencial: true, ordem: 1,
-      titulo: 'Necessidade do cliente',
-      pergunta: 'Este item atende a uma necessidade identificável de um cliente ou público específico?',
-      ajuda: {
-        significado: 'Este critério verifica se existe alguém para quem a solução faz sentido e uma necessidade que justifica sua existência.',
-        quandoSim: 'Existe um cliente/público identificável e uma necessidade concreta atendida pelo item.',
-        quandoNao: 'O item existe principalmente por uma necessidade interna, administrativa, tecnológica ou operacional, sem uma necessidade de cliente claramente identificável.',
-        exemplo: 'Um participante quer se preparar para se aposentar com mais segurança financeira — essa é uma necessidade de cliente identificável.'
-      },
-      justSim: 'SIM — Existe uma necessidade de cliente identificável associada ao item.',
-      justNao: 'NÃO — Não foi identificada uma necessidade de cliente suficientemente clara para caracterizar uma oferta.'
-    },
-    {
-      id: 'resultado', essencial: true, ordem: 2, destaque: 'CRITÉRIO ESSENCIAL',
-      titulo: 'Resultado próprio para o cliente',
-      pergunta: 'O item entrega um resultado próprio e perceptível para o cliente?',
-      ajuda: {
-        significado: 'Este é o principal critério da avaliação. Um Produto/Serviço precisa produzir um resultado que faça sentido para o cliente por si só.',
-        quandoSim: 'O cliente consegue reconhecer o benefício ou resultado obtido ao utilizar a solução — por exemplo: receber uma renda; obter proteção; adquirir um imóvel financiado; receber crédito; obter uma orientação estruturada.',
-        quandoNao: 'O item apenas ajuda outra solução a produzir seu resultado — por exemplo: cadastro; cálculo; folha; autenticação; documento; cobrança; análise interna.',
-        exemplo: 'Um empréstimo consignado entrega um resultado próprio (o crédito recebido); a análise de crédito que o viabiliza, sozinha, não entrega um resultado independente ao cliente.'
-      },
-      justSim: 'SIM — O item produz um resultado próprio e perceptível para o cliente.',
-      justNao: 'NÃO — O item contribui para uma entrega, mas não apresenta resultado de cliente suficientemente independente.'
-    },
-    {
-      id: 'solucao', essencial: true, ordem: 3,
-      titulo: 'Solução identificável',
-      pergunta: 'O item pode ser entendido pelo cliente como uma solução ou oferta identificável?',
-      ajuda: {
-        significado: 'Avalie se o item representa algo que o cliente consegue reconhecer como uma solução, e não apenas uma parte invisível da operação.',
-        quandoSim: 'O item possui identidade e propósito próprios na relação com o cliente.',
-        quandoNao: 'O item é apenas uma atividade, mecanismo ou elemento interno de outra solução.',
-        exemplo: 'Um plano de previdência é reconhecido pelo participante como uma oferta própria; a rotina interna que atualiza saldo mensalmente não é.'
-      },
-      justSim: 'SIM — O item pode ser reconhecido como uma solução/oferta com propósito próprio.',
-      justNao: 'NÃO — O item parece representar uma parte da operação ou de outra solução, e não uma oferta independente.'
-    },
-    {
-      id: 'fronteira', essencial: true, ordem: 4,
-      titulo: 'Fronteira coerente',
-      pergunta: 'É possível delimitar claramente onde essa solução começa e termina?',
-      ajuda: {
-        significado: 'Uma solução deve ter uma fronteira coerente. Seus elementos devem pertencer ao mesmo propósito e contribuir para o mesmo resultado.',
-        quandoSim: 'É possível identificar o que faz e o que não faz parte da solução.',
-        quandoNao: 'O item é excessivamente genérico, transversal ou misturado com diversas outras soluções.',
-        exemplo: 'Um seguro de vida tem escopo claro (o que cobre, quem cobre, por quanto tempo); "atendimento ao participante" em geral atravessa vários produtos e não tem essa fronteira.'
-      },
-      justSim: 'SIM — Existe uma fronteira coerente e identificável para a solução.',
-      justNao: 'NÃO — A fronteira do item não está suficientemente clara para caracterizá-lo como uma solução autônoma.'
-    },
-    {
-      id: 'autonomia', essencial: true, ordem: 5, destaque: 'CRITÉRIO DECISIVO',
-      titulo: 'Autonomia estrutural',
-      pergunta: 'O item consegue existir e entregar seu resultado de forma independente, sem depender estruturalmente de outro Produto/Serviço?',
-      ajuda: {
-        significado: 'Resultado próprio, fronteira e mensuração não bastam: uma funcionalidade dentro de outro Produto/Serviço também pode ter tudo isso sem ser, ela mesma, uma solução independente. Este critério verifica a autonomia estrutural.',
-        quandoSim: 'O item continuaria fazendo sentido como solução própria mesmo se o Produto/Serviço ao qual está relacionado deixasse de existir.',
-        quandoNao: 'O item só existe, ou só faz sentido, porque outro Produto/Serviço existe — ele depende estruturalmente dessa outra solução.',
-        exemplo: 'Um seguro de vida faz sentido como solução própria mesmo sem nenhum outro produto; "Alterar Perfil de Investimento" só existe porque o plano de previdência ao qual pertence existe.'
-      },
-      justSim: 'SIM — O item tem autonomia estrutural: existiria como solução própria mesmo sem outro Produto/Serviço.',
-      justNao: 'NÃO — O item depende estruturalmente de outro Produto/Serviço para existir ou fazer sentido.'
-    },
-    {
-      id: 'jornada', essencial: false, ordem: 6,
-      titulo: 'Jornada própria',
-      pergunta: 'Existe uma jornada ou ciclo de vida identificável para esse item na relação com o cliente?',
-      ajuda: {
-        significado: 'Verifique se é possível reconhecer uma sequência coerente como contratar, utilizar, manter, alterar ou encerrar a solução.',
-        quandoSim: 'Existe uma jornada identificável associada à solução.',
-        quandoNao: 'O item ocorre somente como uma atividade dentro da jornada de outro produto.',
-        exemplo: 'Contratar, acompanhar e resgatar um plano de previdência é uma jornada própria; preencher um cadastro não é.'
-      },
-      justSim: 'SIM — O item possui uma jornada ou ciclo de vida identificável.',
-      justNao: 'NÃO — O item aparece principalmente como parte da jornada de outra solução.'
-    },
-    {
-      id: 'medicao', essencial: false, ordem: 7,
-      titulo: 'Medição de resultado',
-      pergunta: 'É possível medir o resultado desse item de forma própria?',
-      ajuda: {
-        significado: 'O objetivo não é apenas medir quantidade de tarefas ou volume operacional. Deve ser possível medir se a solução está gerando seu resultado.',
-        quandoSim: 'Existem ou podem existir indicadores próprios relacionados ao resultado da solução.',
-        quandoNao: 'Os indicadores disponíveis medem somente atividades internas ou desempenho de outro produto.',
-        exemplo: 'Taxa de satisfação de quem recebeu o benefício é um indicador de resultado; volume de cadastros processados por dia é um indicador operacional.'
-      },
-      justSim: 'SIM — O item admite mensuração própria de resultado.',
-      justNao: 'NÃO — A mensuração parece depender essencialmente de outro produto ou de indicadores puramente operacionais.'
-    },
-    {
-      id: 'gestao', essencial: false, ordem: 8,
-      titulo: 'Gestão ponta a ponta',
-      pergunta: 'Este item poderia ser gerido de ponta a ponta como uma solução?',
-      ajuda: {
-        significado: 'Avalie se seria possível atribuir responsabilidade sobre a evolução da solução, seu resultado, suas regras, sua experiência e seu desempenho.',
-        quandoSim: 'Existe uma unidade coerente passível de gestão ponta a ponta.',
-        quandoNao: 'O item é tão transversal ou fragmentado que funciona melhor como capacidade, processo ou componente de outras soluções.',
-        exemplo: 'Um cartão consignado pode ter um dono responsável pela sua evolução; "processamento de pagamentos" em geral é transversal demais para isso.'
-      },
-      justSim: 'SIM — O item possui coerência suficiente para gestão ponta a ponta.',
-      justNao: 'NÃO — O item parece exercer papel de suporte, processo ou capacidade compartilhada.'
-    }
+    { id: 'necessidade', codigoEstavel: 'P1', essencial: true, ordem: 1 },
+    { id: 'resultado', codigoEstavel: 'P2', essencial: true, ordem: 2, destaque: 'CRITÉRIO ESSENCIAL' },
+    { id: 'solucao', codigoEstavel: 'P3', essencial: true, ordem: 3 },
+    { id: 'fronteira', codigoEstavel: 'P4', essencial: true, ordem: 4 },
+    { id: 'autonomia', codigoEstavel: 'P5', essencial: true, ordem: 5, destaque: 'CRITÉRIO DECISIVO' },
+    { id: 'jornada', codigoEstavel: 'P6', essencial: false, ordem: 6 },
+    { id: 'medicao', codigoEstavel: 'P7', essencial: false, ordem: 7 },
+    { id: 'gestao', codigoEstavel: 'P8', essencial: false, ordem: 8 }
   ];
 
   var EXCLUSOES = [
-    {
-      id: 'canal', ordem: 1, classificacao: 'Canal',
-      pergunta: 'O item é principalmente um canal de acesso ou relacionamento?',
-      exemplos: ['portal', 'aplicativo', 'telefone', 'atendimento', 'agência', 'chatbot'],
-      justSim: 'SIM — O item apresenta características predominantes de canal, e não de Produto/Serviço.',
-      justNao: 'NÃO — O item não se resume a um canal de acesso ou relacionamento.'
-    },
-    {
-      id: 'artefato', ordem: 2, classificacao: 'Artefato informacional',
-      pergunta: 'O item é principalmente um documento, relatório ou informação entregue ao cliente?',
-      exemplos: ['contracheque', 'demonstrativo', 'informe', 'extrato', 'relatório'],
-      justSim: 'SIM — O item apresenta características predominantes de artefato informacional, e não de Produto/Serviço independente.',
-      justNao: 'NÃO — O item não se limita a uma saída informacional entregue ao cliente.'
-    },
-    {
-      id: 'capacidade', ordem: 3, classificacao: 'Capacidade',
-      pergunta: 'O item é principalmente uma capacidade que a organização precisa possuir?',
-      exemplos: ['gestão de dados', 'gestão atuarial', 'segurança', 'tecnologia', 'cobrança', 'cadastro'],
-      justSim: 'SIM — O item apresenta características predominantes de capacidade organizacional.',
-      justNao: 'NÃO — O item não se resume a uma capacidade organizacional interna.'
-    },
-    {
-      id: 'processo', ordem: 4, classificacao: 'Processo/Etapa de processo',
-      pergunta: 'O item é principalmente um processo ou uma etapa de processo?',
-      exemplos: ['análise', 'cálculo', 'concessão', 'formalização', 'pagamento', 'habilitação'],
-      justSim: 'SIM — O item apresenta características predominantes de processo ou etapa operacional.',
-      justNao: 'NÃO — O item não se limita a um processo ou etapa operacional.'
-    },
-    {
-      id: 'modalidade', ordem: 5, classificacao: 'Modalidade/opção',
-      pergunta: 'O item é principalmente uma modalidade, opção ou configuração de outro produto?',
-      exemplos: ['perfil', 'modalidade', 'forma de recebimento', 'opção tributária'],
-      justSim: 'SIM — O item apresenta características predominantes de modalidade ou configuração de uma solução maior.',
-      justNao: 'NÃO — O item não se resume a uma modalidade ou configuração de outra solução.'
-    },
-    {
-      id: 'regra', ordem: 6, classificacao: 'Regra/condição',
-      pergunta: 'O item é principalmente uma regra ou condição de outro produto?',
-      exemplos: ['elegibilidade', 'prazo', 'limite', 'carência', 'regime tributário'],
-      justSim: 'SIM — O item apresenta características predominantes de regra ou condição de outra solução.',
-      justNao: 'NÃO — O item não se limita a uma regra ou condição de outra solução.'
-    },
-    {
-      id: 'componente', ordem: 7, classificacao: 'Componente',
-      pergunta: 'O item existe principalmente para que outro Produto/Serviço consiga entregar seu resultado?',
-      ajudaExtra: 'Pergunte: se o produto principal deixasse de existir, este item ainda faria sentido como uma solução independente para o cliente?',
-      justSim: 'SIM — O item apresenta características de componente ou elemento pertencente a outra solução.',
-      justNao: 'NÃO — O item demonstra maior independência em relação a outras soluções.'
-    },
-    {
-      id: 'funcionalidade', ordem: 8, classificacao: 'Funcionalidade/Operação',
-      pergunta: 'O item é principalmente uma funcionalidade ou operação que permite consultar, escolher, solicitar, contratar, alterar, executar ou administrar algo dentro de outro Produto/Serviço?',
-      exemplos: ['alterar uma configuração', 'solicitar uma opção', 'consultar saldo', 'alterar contribuição', 'executar uma operação dentro de uma solução maior'],
-      justSim: 'SIM — O item apresenta características predominantes de funcionalidade/operação que atua dentro de outro Produto/Serviço.',
-      justNao: 'NÃO — O item não se resume a uma funcionalidade ou operação executada dentro de outra solução.'
-    }
+    { id: 'canal', codigoEstavel: 'P9', ordem: 1, classificacao: 'Canal' },
+    { id: 'artefato', codigoEstavel: 'P10', ordem: 2, classificacao: 'Artefato informacional' },
+    { id: 'capacidade', codigoEstavel: 'P11', ordem: 3, classificacao: 'Capacidade' },
+    { id: 'processo', codigoEstavel: 'P12', ordem: 4, classificacao: 'Processo/Etapa de processo' },
+    { id: 'modalidade', codigoEstavel: 'P13', ordem: 5, classificacao: 'Modalidade/opção' },
+    { id: 'regra', codigoEstavel: 'P14', ordem: 6, classificacao: 'Regra/condição' },
+    { id: 'componente', codigoEstavel: 'P15', ordem: 7, classificacao: 'Componente' },
+    { id: 'funcionalidade', codigoEstavel: 'P16', ordem: 8, classificacao: 'Funcionalidade/Operação' }
   ];
+
+  /* Código do questionário no módulo de configuração (window.faQuestionarios)
+     — CLASSIFICACAO_ARQUITETURAL é o único usado por este arquivo; o
+     questionário ADEQUACAO_SQUAD (S1-S8) tem tela própria. */
+  var CODIGO_QUESTIONARIO = 'CLASSIFICACAO_ARQUITETURAL';
+
+  /* Única porta de leitura de conteúdo editorial (título/texto/ajuda/
+     exemplo/justificativas) para qualquer pergunta de P1 a P16 — em
+     código nenhum outro lugar lê essas propriedades de CRITERIOS/EXCLUSOES
+     diretamente (elas não existem mais lá). versao ausente = versão atual
+     publicada agora mesmo (uso típico: checklist em andamento, antes de
+     responder); versao explícita = usada para reconstruir o texto de uma
+     avaliação específica (a sua própria questionnaireContentVersion). */
+  function conteudoDe(def, versao) {
+    return window.faQuestionarios.conteudoPergunta(CODIGO_QUESTIONARIO, def.codigoEstavel, versao);
+  }
+
+  /* Para uma pergunta JÁ RESPONDIDA, prefere sempre o snapshot gravado na
+     própria resposta (textoPerguntaNaEpoca/tituloNaEpoca — ver o clique de
+     SIM/NÃO em renderChecklist) — é a única fonte fiel do que a pessoa viu
+     no momento em que respondeu, mesmo que o conteúdo já tenha sido
+     republicado depois. Só cai em conteudoDe (versão vigente na época da
+     AVALIAÇÃO, nunca a mais recente) quando não existe snapshot — avaliação
+     legada, de antes deste snapshot existir (ver item 21: nunca inventa,
+     só usa o fallback de apresentação). */
+  function conteudoSnapshotOuAtual(def, resposta, item) {
+    if (resposta && resposta.textoPerguntaNaEpoca) {
+      return { titulo: resposta.tituloNaEpoca || null, texto: resposta.textoPerguntaNaEpoca };
+    }
+    return conteudoDe(def, item && item.questionnaireContentVersion);
+  }
+
+  /* Replica o comportamento visual que já existia antes deste módulo (nunca
+     um requisito novo): os 8 critérios principais (P1-P8) sempre tiveram um
+     título curto próprio, mostrado no PDF e em "Como chegamos a essa
+     conclusão"; os 8 testes de classificação (P9-P16) nunca tiveram título
+     próprio nesses dois lugares, então sempre mostraram a pergunta inteira.
+     Isso é uma decisão de APRESENTAÇÃO ligada à identidade da pergunta
+     (é critério ou é teste de classificação?), não conteúdo editorial —
+     por isso fica em código, e não é afetada por o admin cadastrar (ou não)
+     um "título" para P9-P16 na tela de configuração. */
+  function rotuloCompacto(def, conteudo) {
+    return CRITERIOS.indexOf(def) !== -1 ? (conteudo.titulo || conteudo.texto) : conteudo.texto;
+  }
 
   var TODAS_PERGUNTAS = CRITERIOS.concat(EXCLUSOES);
 
@@ -1028,6 +943,7 @@
     '.pdf-header-titulo{font-size:20px;margin:4px 0;color:#0e1f44}' +
     '.pdf-header-data{font-size:10px;color:#666;margin:0}' +
     '.pdf-versao{font-size:10px;color:#666;font-style:italic;margin:0 0 10px}' +
+    '.pdf-meta-versoes{font-size:9px;color:#888;font-style:italic;margin:0 0 8px}' +
     '.pdf-secao-titulo{font-size:13px;color:#16306a;border-bottom:1px solid #ccc;padding-bottom:3px;margin:16px 0 8px;page-break-after:avoid}' +
     '.pdf-subsecao{font-size:12px;color:#333;margin:10px 0 6px;page-break-after:avoid}' +
     '.pdf-tabela-id{width:100%;border-collapse:collapse;margin-bottom:10px}' +
@@ -1053,12 +969,13 @@
     if (!resposta || !resposta.valor) return '';
     var valor = resposta.valor === 'sim' ? 'SIM' : 'NÃO';
     var obs = (resposta.observacao || '').trim();
+    var conteudo = conteudoSnapshotOuAtual(def, resposta, it);
     /* pdf-pergunta-bloco é o bloco indivisível (pergunta + resposta +
        justificativa do usuário + interpretação do sistema) — nunca deve
        atravessar duas páginas do PDF. */
     return '' +
       '<div class="pdf-pergunta pdf-pergunta-bloco">' +
-      '<p class="pdf-pergunta-texto">' + numeroGlobal(def) + '. ' + esc(def.titulo || def.pergunta) + ' — <strong>' + valor + '</strong></p>' +
+      '<p class="pdf-pergunta-texto">' + numeroGlobal(def) + '. ' + esc(rotuloCompacto(def, conteudo)) + ' — <strong>' + valor + '</strong></p>' +
       '<p class="pdf-pergunta-campo"><strong>Justificativa do usuário:</strong> ' +
         (obs ? esc(obs) : '<em>Nenhuma observação registrada.</em>') + '</p>' +
       '<p class="pdf-pergunta-campo"><strong>Interpretação do sistema:</strong> ' + esc(interpretacaoSistema(def, resposta, it)) + '</p>' +
@@ -1097,6 +1014,14 @@
         'nem decisão arquitetural calculados.</p></section>';
       return html;
     }
+
+    /* Metadados discretos (item 20 da parametrização de questionários):
+       registram exatamente qual REDAÇÃO das perguntas (questionário) e qual
+       REGRA de classificação (motor) produziram este resultado — os dois
+       eixos são independentes, e cada avaliação preserva os dois números
+       vigentes quando ela foi calculada, nunca os mais recentes. */
+    html += '<p class="pdf-meta-versoes">Versão do questionário: ' + esc(it.questionnaireContentVersion || 1) +
+      ' · Versão do motor: ' + esc(it.motorVersion || '—') + '</p>';
 
     var rotuloResultadoTxt = rotuloResultado(it.resultadoAutomatico);
     html += '<h2 class="pdf-secao-titulo">Resultado sobre Produto/Serviço</h2>';
@@ -1325,7 +1250,7 @@
         linhas.push([
           it._key, it.nome || '', it.versao || 1,
           criterioPorId(p.id) ? 'Critério principal' : 'Teste de classificação',
-          idx + 1, p.titulo || p.pergunta, r.valor === 'sim' ? 'SIM' : 'NÃO',
+          idx + 1, rotuloCompacto(p, conteudoSnapshotOuAtual(p, r, it)), r.valor === 'sim' ? 'SIM' : 'NÃO',
           r.observacao || '', interpretacaoSistema(p, r, it)
         ]);
       });
@@ -1433,8 +1358,10 @@
       exportando: null,      /* null | 'pdf' | 'excel' — trava os botões de exportação durante a geração */
       flashExportacao: null, /* mensagem de sucesso/erro da última exportação, mostrada na lista */
       carregandoTravado: false, /* true quando a tela 'carregando' esperou demais pela leitura de avaliacoes-produto */
-      reprocessamentoLote: null /* null | { total, feitos, sucesso, erros:[{key,nome,mensagem}], emAndamento } —
+      reprocessamentoLote: null, /* null | { total, feitos, sucesso, erros:[{key,nome,mensagem}], emAndamento } —
                                     ver executarReprocessamentoEmLote; some quando fechado depois de concluído */
+      config: null /* null fora da tela de configuração; ver abrirConfigQuestionarios — nunca persistido aqui,
+                       só o rascunho gravado explicitamente em window.faQuestionarios */
     };
 
     function temCampoInvalido(campo) {
@@ -1449,6 +1376,7 @@
       else if (state.tela === 'nao-encontrada') renderNaoEncontrada();
       else if (state.tela === 'sem-permissao') renderSemPermissao();
       else if (state.tela === 'carregando') renderCarregandoAvaliacao();
+      else if (state.tela === 'config-questionario') renderConfigQuestionarios();
     }
 
     /* Tela de carregamento de #admin?avp=<chave> (F5, link direto, nova aba)
@@ -1670,6 +1598,7 @@
       }
       html += '<button class="btn btn--sm avp-lixeira-btn' + (state.lixeira ? ' active' : '') + '" id="avpLixeiraBtn">' +
         (state.lixeira ? '‹ Voltar' : '🗑 Lixeira (' + excluidos.length + ')') + '</button>';
+      if (!state.lixeira) html += '<button class="btn btn--sm" id="avpConfigQuestionariosBtn">⚙ Configuração dos Questionários</button>';
       html += '</div>';
       if (state.flashExportacao) {
         html += '<p class="avp-export-status' + (state.flashExportacao.erro ? ' avp-export-status--erro' : '') + '">' +
@@ -1769,6 +1698,9 @@
         render();
       });
 
+      var configBtn = document.getElementById('avpConfigQuestionariosBtn');
+      if (configBtn) configBtn.addEventListener('click', abrirConfigQuestionarios);
+
       var reprocessarTudoBtn = document.getElementById('avpReprocessarTudoBtn');
       if (reprocessarTudoBtn) reprocessarTudoBtn.addEventListener('click', abrirModalReprocessarTudo);
       var loteFecharBtn = document.getElementById('avpLoteFechar');
@@ -1776,7 +1708,8 @@
 
       var novoBtn = document.getElementById('avpNovoBtn');
       if (novoBtn) novoBtn.addEventListener('click', function () {
-        state.atual = { nome: '', descricao: '', publico: '', necessidade: '', observacoesGerais: '', respostas: {} };
+        state.atual = { nome: '', descricao: '', publico: '', necessidade: '', observacoesGerais: '', respostas: {},
+          questionnaireContentVersion: window.faQuestionarios.versaoAtual(CODIGO_QUESTIONARIO) };
         state.reavaliacaoBase = null;
         state.erroForm = null;
         state.camposInvalidos = [];
@@ -1989,6 +1922,13 @@
       state.atual.itemId = it.itemId || it._key;
       state.atual.versaoAnteriorKey = it._key;
       state.atual.versao = (it.versao || 1) + 1;
+      /* Uma reavaliação é uma NOVA rodada de respostas, feita agora — fixa a
+         versão de conteúdo vigente NESTE momento (nunca a da avaliação
+         anterior). Perguntas que a pessoa não tocar de novo mantêm o
+         snapshot antigo (já gravado em cada resposta, herdado de it via
+         clonarItem); só uma resposta CLICADA de novo é re-carimbada com
+         esta versão (ver o clique de SIM/NÃO em renderChecklist). */
+      state.atual.questionnaireContentVersion = window.faQuestionarios.versaoAtual(CODIGO_QUESTIONARIO);
       /* criadoEm/responsavel são desta VERSÃO, não os da avaliação original
          — sem isto, salvarRegistro herdaria a data e a autoria de quem
          avaliou da primeira vez. */
@@ -2013,7 +1953,8 @@
       state.atual = {
         nome: (it.nome || '') + ' (cópia)',
         descricao: it.descricao || '', publico: it.publico || '', necessidade: it.necessidade || '',
-        observacoesGerais: '', respostas: {}
+        observacoesGerais: '', respostas: {},
+        questionnaireContentVersion: window.faQuestionarios.versaoAtual(CODIGO_QUESTIONARIO)
       };
       state.reavaliacaoBase = null;
       state.erroForm = null;
@@ -2022,6 +1963,264 @@
       state.flashLista = null;
       state.tela = 'checklist';
       render();
+    }
+
+    /* ===================== CONFIGURAÇÃO DOS QUESTIONÁRIOS =====================
+       Tela administrativa para editar a REDAÇÃO de P1-P16 (e, na sua própria
+       aba, S1-S8 — ver ADEQUACAO_SQUAD) sem código/PR/deploy. Três sub-telas:
+       'lista' (situação de cada questionário), 'editar' (rascunho de um
+       questionário) e 'auditoria' (histórico de alterações já publicadas).
+       Nunca edita a versão PUBLICADA diretamente — sempre um rascunho à
+       parte (window.faQuestionarios.salvarRascunho), só efetivado em
+       PUBLICAR NOVA VERSÃO. */
+    function abrirConfigQuestionarios() {
+      state.config = { sub: 'lista', codigo: null, rascunho: null, flash: null, salvando: false,
+        confirmandoPublicacao: false, publicando: false, auditoria: null };
+      state.tela = 'config-questionario';
+      render();
+    }
+    function fecharConfigQuestionarios() {
+      state.config = null;
+      state.tela = 'lista';
+      render();
+    }
+    function abrirEdicaoQuestionario(codigo) {
+      state.config.sub = 'editar';
+      state.config.codigo = codigo;
+      state.config.rascunho = window.faQuestionarios.iniciarOuObterRascunho(codigo);
+      state.config.flash = null;
+      state.config.confirmandoPublicacao = false;
+      render();
+    }
+    function abrirAuditoriaQuestionario(codigo) {
+      state.config.sub = 'auditoria';
+      state.config.codigo = codigo;
+      state.config.auditoria = null;
+      render();
+      window.faQuestionarios.auditoria(codigo, function (lista) {
+        state.config.auditoria = lista;
+        render();
+      });
+    }
+
+    function renderConfigQuestionarios() {
+      var c = state.config;
+      var html = '<div class="avp-config-questionarios">';
+      html += '<button class="avp-voltar-link" id="avpConfigVoltar">‹ Avaliações de Produto/Serviço</button>';
+      if (c.sub === 'lista') html += renderConfigLista();
+      else if (c.sub === 'editar') html += renderConfigEditar();
+      else if (c.sub === 'auditoria') html += renderConfigAuditoria();
+      html += '</div>';
+      wrap.innerHTML = html;
+
+      document.getElementById('avpConfigVoltar').addEventListener('click', fecharConfigQuestionarios);
+      if (c.sub === 'lista') bindConfigLista();
+      else if (c.sub === 'editar') bindConfigEditar();
+      else if (c.sub === 'auditoria') bindConfigAuditoria();
+    }
+
+    function renderConfigLista() {
+      var html = '<div class="avp-form-card"><h3>Configuração dos Questionários</h3>';
+      html += '<p class="avp-decisao-aviso">Altere título, texto, ajuda e exemplo das perguntas sem precisar de código, PR ou deploy. ' +
+        'O identificador de cada pergunta (ex.: "P5") e a regra que ele representa para o motor de classificação nunca mudam por aqui.</p></div>';
+      Object.keys(window.faQuestionarios.CODIGOS).forEach(function (chave) {
+        var codigo = window.faQuestionarios.CODIGOS[chave];
+        var sit = window.faQuestionarios.situacao(codigo);
+        html += '<div class="avp-form-card avp-config-item-card">';
+        html += '<h4>' + esc(sit.nome) + '</h4>';
+        html += '<p>' + esc(sit.qtdPerguntas) + ' pergunta' + (sit.qtdPerguntas === 1 ? '' : 's') + ' · Versão publicada: ' + esc(sit.versaoPublicada) + '</p>';
+        html += '<p>Situação: ' + (sit.temRascunho ? '<strong>há um rascunho não publicado</strong>' : 'sem alterações pendentes') + '</p>';
+        html += '<p>Última publicação: ' + (sit.ultimaAlteracaoEm ? esc(fmtData(sit.ultimaAlteracaoEm)) + (sit.ultimaAlteracaoPor ? ' · ' + esc(sit.ultimaAlteracaoPor) : '') : 'nunca alterado (conteúdo de fábrica)') + '</p>';
+        html += '<div class="avp-actions-footer">';
+        html += '<button class="btn btn--sm avp-config-editar-btn" data-codigo="' + codigo + '">Editar perguntas</button>';
+        html += '<button class="btn btn--sm avp-config-auditoria-btn" data-codigo="' + codigo + '">Ver histórico de alterações</button>';
+        html += '</div></div>';
+      });
+      return html;
+    }
+    function bindConfigLista() {
+      wrap.querySelectorAll('.avp-config-editar-btn').forEach(function (btn) {
+        btn.addEventListener('click', function () { abrirEdicaoQuestionario(btn.dataset.codigo); });
+      });
+      wrap.querySelectorAll('.avp-config-auditoria-btn').forEach(function (btn) {
+        btn.addEventListener('click', function () { abrirAuditoriaQuestionario(btn.dataset.codigo); });
+      });
+    }
+
+    function renderConfigEditar() {
+      var c = state.config;
+      var sit = window.faQuestionarios.situacao(c.codigo);
+      var html = '<div class="avp-form-card"><h3>Editar perguntas — ' + esc(sit.nome) + '</h3>';
+      html += '<p class="avp-decisao-aviso">Atenção: altere a redação para melhorar clareza, sem modificar o significado do critério. ' +
+        'Mudanças conceituais podem exigir alteração da regra do motor.</p></div>';
+      c.rascunho.perguntas.forEach(function (p, idx) {
+        html += '<div class="avp-form-card avp-config-pergunta-card">';
+        html += '<p class="avp-alt-label">Código: <strong>' + esc(p.codigoEstavel) + '</strong> <span class="avp-config-readonly-tag">(somente leitura)</span></p>';
+        html += '<div class="avp-field"><label for="avpCfgTitulo' + idx + '">Título</label>' +
+          '<input type="text" id="avpCfgTitulo' + idx + '" data-idx="' + idx + '" data-campo="titulo" value="' + esc(p.titulo || '') + '"></div>';
+        html += '<div class="avp-field"><label for="avpCfgTexto' + idx + '">Texto da pergunta</label>' +
+          '<textarea id="avpCfgTexto' + idx + '" data-idx="' + idx + '" data-campo="texto" rows="2">' + esc(p.texto || '') + '</textarea></div>';
+        if (p.textoAjuda) {
+          html += '<div class="avp-field"><label for="avpCfgAjudaSig' + idx + '">Ajuda — o que significa</label>' +
+            '<textarea id="avpCfgAjudaSig' + idx + '" data-idx="' + idx + '" data-campo="textoAjuda.significado" rows="2">' + esc(p.textoAjuda.significado || '') + '</textarea></div>';
+          html += '<div class="avp-field"><label for="avpCfgAjudaSim' + idx + '">Ajuda — quando marcar SIM</label>' +
+            '<textarea id="avpCfgAjudaSim' + idx + '" data-idx="' + idx + '" data-campo="textoAjuda.quandoSim" rows="2">' + esc(p.textoAjuda.quandoSim || '') + '</textarea></div>';
+          html += '<div class="avp-field"><label for="avpCfgAjudaNao' + idx + '">Ajuda — quando marcar NÃO</label>' +
+            '<textarea id="avpCfgAjudaNao' + idx + '" data-idx="' + idx + '" data-campo="textoAjuda.quandoNao" rows="2">' + esc(p.textoAjuda.quandoNao || '') + '</textarea></div>';
+        }
+        if ('exemplo' in p) {
+          html += '<div class="avp-field"><label for="avpCfgExemplo' + idx + '">Exemplo</label>' +
+            '<textarea id="avpCfgExemplo' + idx + '" data-idx="' + idx + '" data-campo="exemplo" rows="2">' + esc(p.exemplo || '') + '</textarea></div>';
+        }
+        /* justSim/justNao são a "Interpretação do sistema" registrada
+           automaticamente quando alguém responde SIM/NÃO — também editorial,
+           também parametrizado, nunca lido pelo motor (identificarCamada só
+           usa o valor SIM/NÃO em si, nunca este texto). */
+        html += '<div class="avp-field"><label for="avpCfgJustSim' + idx + '">Interpretação automática quando a resposta é SIM</label>' +
+          '<textarea id="avpCfgJustSim' + idx + '" data-idx="' + idx + '" data-campo="justSim" rows="2">' + esc(p.justSim || '') + '</textarea></div>';
+        html += '<div class="avp-field"><label for="avpCfgJustNao' + idx + '">Interpretação automática quando a resposta é NÃO</label>' +
+          '<textarea id="avpCfgJustNao' + idx + '" data-idx="' + idx + '" data-campo="justNao" rows="2">' + esc(p.justNao || '') + '</textarea></div>';
+        html += '<div class="avp-field"><label for="avpCfgObs' + idx + '">Observação administrativa (opcional, não aparece pra quem responde)</label>' +
+          '<textarea id="avpCfgObs' + idx + '" data-idx="' + idx + '" data-campo="observacaoAdministrativa" rows="2">' + esc(p.observacaoAdministrativa || '') + '</textarea></div>';
+        html += '</div>';
+      });
+      if (c.flash) html += '<p class="avp-flash-success">' + esc(c.flash) + '</p>';
+      html += '<div class="avp-actions-footer">';
+      html += '<button class="btn btn--sm" id="avpCfgSalvarRascunhoBtn"' + (c.salvando ? ' disabled' : '') + '>' + (c.salvando ? 'SALVANDO…' : 'SALVAR RASCUNHO') + '</button>';
+      html += '<button class="btn btn--primary btn--sm" id="avpCfgPublicarBtn">PUBLICAR NOVA VERSÃO</button>';
+      html += '<button class="btn btn--sm" id="avpCfgVoltarListaBtn">‹ Voltar</button>';
+      html += '</div>';
+      if (c.confirmandoPublicacao) html += renderConfigConfirmarPublicacao();
+      return html;
+    }
+    function renderConfigConfirmarPublicacao() {
+      var c = state.config;
+      var atuais = window.faQuestionarios.perguntasDaVersao(c.codigo);
+      var alteradas = window.faQuestionarios.diffPerguntas(atuais, c.rascunho.perguntas);
+      var html = '<div class="avp-form-card avp-config-confirmar-card">';
+      html += '<h4>Confirmar publicação</h4>';
+      if (!alteradas.length) {
+        html += '<p>Nenhum campo foi alterado em relação à versão publicada atual.</p>';
+      } else {
+        html += '<p>' + alteradas.length + ' pergunta' + (alteradas.length === 1 ? '' : 's') + ' alterada' + (alteradas.length === 1 ? '' : 's') + ':</p>';
+        html += '<ul class="avp-motivos-list">';
+        alteradas.forEach(function (a) { html += '<li>' + esc(a.codigoEstavel) + '</li>'; });
+        html += '</ul>';
+      }
+      html += '<p class="avp-decisao-aviso">Você está alterando apenas o conteúdo da pergunta. A lógica de classificação não será modificada.</p>';
+      html += '<div class="avp-actions-footer">';
+      html += '<button class="btn btn--primary btn--sm" id="avpCfgConfirmarPublicarBtn"' + (c.publicando ? ' disabled' : '') + '>' + (c.publicando ? 'PUBLICANDO…' : 'CONFIRMAR E PUBLICAR') + '</button>';
+      html += '<button class="btn btn--sm" id="avpCfgCancelarPublicarBtn">CANCELAR</button>';
+      html += '</div></div>';
+      return html;
+    }
+    function bindConfigEditar() {
+      var c = state.config;
+      wrap.querySelectorAll('[data-campo]').forEach(function (el) {
+        el.addEventListener('input', function () {
+          var p = c.rascunho.perguntas[Number(el.dataset.idx)];
+          var campo = el.dataset.campo;
+          if (campo.indexOf('.') !== -1) {
+            var partes = campo.split('.');
+            if (!p[partes[0]]) p[partes[0]] = {};
+            p[partes[0]][partes[1]] = el.value;
+          } else {
+            p[campo] = el.value;
+          }
+        });
+      });
+      document.getElementById('avpCfgVoltarListaBtn').addEventListener('click', function () { c.sub = 'lista'; render(); });
+      document.getElementById('avpCfgSalvarRascunhoBtn').addEventListener('click', function () {
+        c.salvando = true;
+        render();
+        window.faQuestionarios.salvarRascunho(c.codigo, c.rascunho.perguntas, sessaoAtual(), function (err) {
+          c.salvando = false;
+          c.flash = err ? null : '✓ Rascunho salvo. Ainda não está visível para quem responde o questionário.';
+          if (err) avpAlert('Não foi possível salvar o rascunho. Tente novamente.');
+          render();
+        });
+      });
+      document.getElementById('avpCfgPublicarBtn').addEventListener('click', function () {
+        c.confirmandoPublicacao = true;
+        render();
+      });
+      var confirmarBtn = document.getElementById('avpCfgConfirmarPublicarBtn');
+      if (confirmarBtn) confirmarBtn.addEventListener('click', function () {
+        if (c.publicando) return;
+        c.publicando = true;
+        render();
+        /* Publica DIRETAMENTE o rascunho que está em memória na tela — nunca
+           depende de reler o rascunho do cache local do Firebase entre
+           salvá-lo e publicá-lo (a leitura do cache só atualiza quando o
+           listener de onMudanca dispara, de forma assíncrona; encadear
+           salvarRascunho → publicarRascunho conseguia publicar a versão
+           ANTERIOR do rascunho, presa numa corrida). Grava o rascunho em
+           paralelo só como registro (nunca bloqueia a publicação por ele). */
+        window.faQuestionarios.salvarRascunho(c.codigo, c.rascunho.perguntas, sessaoAtual());
+        window.faQuestionarios.publicarPerguntas(c.codigo, c.rascunho.perguntas, sessaoAtual(), function (err) {
+          c.publicando = false;
+          c.confirmandoPublicacao = false;
+          if (err) {
+            avpAlert('Não foi possível publicar. Tente novamente.');
+            render();
+            return;
+          }
+          c.sub = 'lista';
+          render();
+        });
+      });
+      var cancelarBtn = document.getElementById('avpCfgCancelarPublicarBtn');
+      if (cancelarBtn) cancelarBtn.addEventListener('click', function () { c.confirmandoPublicacao = false; render(); });
+    }
+
+    function renderConfigAuditoria() {
+      var c = state.config;
+      var sit = window.faQuestionarios.situacao(c.codigo);
+      var html = '<div class="avp-form-card"><h3>Histórico de alterações — ' + esc(sit.nome) + '</h3></div>';
+      var versoes = window.faQuestionarios.listarVersoes(c.codigo);
+      if (versoes.length > 1) {
+        html += '<div class="avp-form-card"><h4>Versões publicadas</h4>';
+        html += '<p class="avp-decisao-aviso">Restaurar uma versão anterior publica o CONTEÚDO dela como uma versão nova — nunca apaga ' +
+          'nem reescreve nenhuma versão existente, e nunca altera avaliações já respondidas.</p>';
+        versoes.slice().reverse().forEach(function (v) {
+          html += '<p>Versão ' + esc(v) + (v === sit.versaoPublicada ? ' (vigente)' : '') +
+            (v === sit.versaoPublicada ? '' : ' <button class="btn btn--sm avp-config-restaurar-btn" data-versao="' + v + '">Restaurar esta versão</button>') + '</p>';
+        });
+        html += '</div>';
+      }
+      if (c.auditoria === null) {
+        html += '<p class="admin-empty">Carregando…</p>';
+      } else if (!c.auditoria.length) {
+        html += '<p class="admin-empty">Nenhuma alteração publicada ainda — o conteúdo em uso é o de fábrica.</p>';
+      } else {
+        html += '<div class="table-scroll-wrap"><table class="admin-table"><thead><tr>' +
+          '<th>Pergunta</th><th>Campo</th><th>Versão anterior</th><th>Versão nova</th><th>Quando</th><th>Quem</th></tr></thead><tbody>';
+        c.auditoria.forEach(function (a) {
+          html += '<tr><td data-label="Pergunta">' + esc(a.pergunta) + '</td>' +
+            '<td data-label="Campo">' + esc(a.campo) + '</td>' +
+            '<td data-label="Versão anterior">' + esc(a.versaoAnterior) + '</td>' +
+            '<td data-label="Versão nova">' + esc(a.novaVersao) + '</td>' +
+            '<td data-label="Quando">' + fmtData(a.dataHora) + '</td>' +
+            '<td data-label="Quem">' + esc(a.usuario && (a.usuario.name || a.usuario.email) || '—') + '</td></tr>';
+        });
+        html += '</tbody></table></div>';
+      }
+      html += '<div class="avp-actions-footer"><button class="btn btn--sm" id="avpCfgAuditoriaVoltarBtn">‹ Voltar</button></div>';
+      return html;
+    }
+    function bindConfigAuditoria() {
+      document.getElementById('avpCfgAuditoriaVoltarBtn').addEventListener('click', function () { state.config.sub = 'lista'; render(); });
+      wrap.querySelectorAll('.avp-config-restaurar-btn').forEach(function (btn) {
+        btn.addEventListener('click', function () {
+          var versaoAlvo = Number(btn.dataset.versao);
+          avpConfirm('Isso publica o conteúdo da versão ' + versaoAlvo + ' como uma versão NOVA — não apaga nem reescreve nenhuma versão existente, e não altera nenhuma avaliação já respondida. Deseja continuar?', function () {
+            window.faQuestionarios.publicarVersaoAnterior(state.config.codigo, versaoAlvo, sessaoAtual(), function (err) {
+              if (err) { avpAlert('Não foi possível restaurar esta versão. Tente novamente.'); return; }
+              abrirAuditoriaQuestionario(state.config.codigo);
+            });
+          });
+        });
+      });
     }
 
     /* ---- menu "⋯" (ações secundárias) e exclusão lógica ----
@@ -2411,11 +2610,20 @@
           var id = btn.closest('.avp-choice-group').dataset.id;
           var valor = btn.dataset.valor;
           var def = definicaoPorId(id);
+          var conteudo = conteudoDe(def, a.questionnaireContentVersion);
           var obsAnterior = (a.respostas[id] && a.respostas[id].observacao) || '';
+          /* Snapshot gravado NO MOMENTO da resposta (item 7 da parametrização
+             de questionários): preserva a redação exata que a pessoa viu,
+             mesmo que a pergunta seja reescrita depois — nunca alterado
+             retroativamente por uma republicação de conteúdo. */
           a.respostas[id] = {
             valor: valor,
-            justificativaAuto: valor === 'sim' ? def.justSim : def.justNao,
-            observacao: obsAnterior
+            justificativaAuto: valor === 'sim' ? conteudo.justSim : conteudo.justNao,
+            observacao: obsAnterior,
+            codigoPergunta: def.codigoEstavel,
+            textoPerguntaNaEpoca: conteudo.texto,
+            tituloNaEpoca: conteudo.titulo || null,
+            questionnaireContentVersion: a.questionnaireContentVersion
           };
           state.erroForm = null;
           if (state.pendenteId === id) state.pendenteId = null;
@@ -2522,6 +2730,7 @@
     }
 
     function renderPergunta(def, resposta, respostaBase, incoerente) {
+      var conteudo = conteudoDe(def, state.atual.questionnaireContentVersion);
       var essencialClass = def.essencial ? ' avp-question--essencial' : '';
       var pendenteClass = state.pendenteId === def.id ? ' avp-question--pendente' : '';
       var incoerenteClass = incoerente ? ' avp-question--incoerente' : '';
@@ -2533,23 +2742,23 @@
       html += '<div class="avp-question-head">';
       html += '<span class="avp-question-num">' + numeroGlobal(def) + '.</span>';
       if (def.destaque) html += '<span class="avp-badge avp-badge--essencial">' + esc(def.destaque) + '</span>';
-      html += '<p class="avp-question-text">' + esc(def.pergunta) + '</p>';
+      html += '<p class="avp-question-text">' + esc(conteudo.texto) + '</p>';
       html += '<span class="avp-question-progresso">' + numeroGlobal(def) + '/' + TODAS_PERGUNTAS.length + '</span>';
       html += '<button type="button" class="avp-help-btn" data-id="' + def.id + '" aria-label="Ajuda sobre este critério">?</button>';
       html += '</div>';
-      if (def.exemplos) {
-        html += '<p class="avp-exemplos">Exemplos: ' + esc(def.exemplos.join('; ')) + '.</p>';
+      if (conteudo.exemplos) {
+        html += '<p class="avp-exemplos">Exemplos: ' + esc(conteudo.exemplos.join('; ')) + '.</p>';
       }
       html += '<div class="avp-help-box" id="avpHelp-' + def.id + '" hidden>';
-      if (def.ajuda) {
-        html += '<p><strong>O que significa:</strong> ' + esc(def.ajuda.significado) + '</p>';
-        html += '<p><strong>Quando marcar SIM:</strong> ' + esc(def.ajuda.quandoSim) + '</p>';
-        html += '<p><strong>Quando marcar NÃO:</strong> ' + esc(def.ajuda.quandoNao) + '</p>';
-        html += '<p><strong>Exemplo:</strong> ' + esc(def.ajuda.exemplo) + '</p>';
+      if (conteudo.textoAjuda) {
+        html += '<p><strong>O que significa:</strong> ' + esc(conteudo.textoAjuda.significado) + '</p>';
+        if (conteudo.textoAjuda.quandoSim) html += '<p><strong>Quando marcar SIM:</strong> ' + esc(conteudo.textoAjuda.quandoSim) + '</p>';
+        if (conteudo.textoAjuda.quandoNao) html += '<p><strong>Quando marcar NÃO:</strong> ' + esc(conteudo.textoAjuda.quandoNao) + '</p>';
+        if (conteudo.exemplo) html += '<p><strong>Exemplo:</strong> ' + esc(conteudo.exemplo) + '</p>';
       } else {
-        if (def.ajudaExtra) html += '<p>' + esc(def.ajudaExtra) + '</p>';
-        html += '<p><strong>Se SIM:</strong> ' + esc(semPrefixo(def.justSim)) + '</p>';
-        html += '<p><strong>Se NÃO:</strong> ' + esc(semPrefixo(def.justNao)) + '</p>';
+        if (conteudo.ajudaExtra) html += '<p>' + esc(conteudo.ajudaExtra) + '</p>';
+        html += '<p><strong>Se SIM:</strong> ' + esc(semPrefixo(conteudo.justSim)) + '</p>';
+        html += '<p><strong>Se NÃO:</strong> ' + esc(semPrefixo(conteudo.justNao)) + '</p>';
       }
       html += '</div>';
       html += '<div class="avp-choice-group" data-id="' + def.id + '">';
@@ -2593,6 +2802,15 @@
         especializacaoCadastrada: (a.especializacaoCadastrada || '').trim() || null,
         papelEstruturalCadastrado: normalizarPapelEstrutural(a.papelEstruturalCadastrado),
         respostas: a.respostas || {},
+        /* Versão do CONTEÚDO do questionário (título/texto/ajuda/
+           justificativas de P1-P16) vigente quando esta avaliação foi
+           INICIADA — fixada uma única vez (ver novoBtn/abrirReavaliacao/
+           duplicar) e nunca trocada sozinha, mesmo que uma nova versão seja
+           publicada enquanto esta avaliação ainda está em rascunho (item 14
+           da parametrização de questionários: avaliação em andamento nunca
+           troca de questionário no meio). Eixo TOTALMENTE independente de
+           motorVersion — nunca incrementado nem lido por precisaReprocessar. */
+        questionnaireContentVersion: a.questionnaireContentVersion || window.faQuestionarios.versaoAtual(CODIGO_QUESTIONARIO),
         status: status,
         /* itemId agrupa todas as versões do mesmo item; a primeira versão
            nunca teve reavaliação, então usa a própria chave. versao/
@@ -2856,8 +3074,9 @@
       if (!resposta) return '';
       var valor = resposta.valor === 'sim' ? 'SIM' : 'NÃO';
       var justificativaUsuario = (resposta.observacao || '').trim();
+      var conteudo = conteudoSnapshotOuAtual(def, resposta, item);
       return '<div class="avp-reasoning-item">' +
-        '<p class="avp-reasoning-q">' + numeroGlobal(def) + '. ' + esc(def.titulo || def.pergunta) + ' — ' + valor + '</p>' +
+        '<p class="avp-reasoning-q">' + numeroGlobal(def) + '. ' + esc(rotuloCompacto(def, conteudo)) + ' — ' + valor + '</p>' +
         '<p class="avp-reasoning-user"><strong>Sua justificativa:</strong> ' +
           (justificativaUsuario ? esc(justificativaUsuario) : '<em>Nenhuma observação registrada pelo avaliador.</em>') + '</p>' +
         '<p class="avp-reasoning-auto"><strong>Interpretação do sistema:</strong> ' + esc(interpretacaoSistema(def, resposta, item)) + '</p>' +
@@ -3191,15 +3410,24 @@
        clique de novo: nunca é um texto composto com dado do usuário. valor e
        observacao (a única coisa que a pessoa realmente escreveu) são
        copiados sem tocar. */
-    function recalcularInterpretacoesRespostas(respostas) {
+    function recalcularInterpretacoesRespostas(respostas, questionnaireContentVersion) {
       var novo = {};
       Object.keys(respostas || {}).forEach(function (id) {
         var r = respostas[id];
         var def = definicaoPorId(id);
+        /* Usa a versão de CONTEÚDO já fixada nesta avaliação — reprocessar o
+           MOTOR nunca migra uma avaliação pra uma redação de pergunta mais
+           nova sozinho (isso é um eixo independente, nunca ligado a
+           motorVersion — ver questionnaireContentVersion). */
+        var conteudo = def ? conteudoDe(def, questionnaireContentVersion) : null;
         novo[id] = {
           valor: r.valor,
-          justificativaAuto: def ? (r.valor === 'sim' ? def.justSim : def.justNao) : r.justificativaAuto,
-          observacao: r.observacao || ''
+          justificativaAuto: conteudo ? (r.valor === 'sim' ? conteudo.justSim : conteudo.justNao) : r.justificativaAuto,
+          observacao: r.observacao || '',
+          codigoPergunta: def ? def.codigoEstavel : r.codigoPergunta,
+          textoPerguntaNaEpoca: conteudo ? conteudo.texto : r.textoPerguntaNaEpoca,
+          tituloNaEpoca: conteudo ? (conteudo.titulo || null) : (r.tituloNaEpoca || null),
+          questionnaireContentVersion: questionnaireContentVersion || r.questionnaireContentVersion
         };
       });
       return novo;
@@ -3239,7 +3467,7 @@
            só a "Interpretação do sistema" de cada pergunta é atualizada
            para a redação vigente. Nunca abre o checklist, nunca pede pra
            responder de novo. */
-        respostas: recalcularInterpretacoesRespostas(a.respostas),
+        respostas: recalcularInterpretacoesRespostas(a.respostas, a.questionnaireContentVersion),
         motorVersion: MOTOR_VERSION,
         reprocessedAt: agora,
         reprocessedFromVersion: a.motorVersion || null,
@@ -3455,6 +3683,14 @@
       workersAtivos = n;
       for (var i = 0; i < n; i++) worker();
     }
+
+    /* Config de conteúdo dos questionários (window.faQuestionarios) —
+       re-renderiza sempre que chega a primeira leitura ou uma nova versão é
+       publicada (por esta aba ou por outra), do mesmo jeito que a leitura
+       das próprias avaliações abaixo. Nunca precisa disso pra decidir SE
+       reprocessar — é um eixo só de apresentação (ver questionnaireContentVersion). */
+    window.faQuestionarios.onMudanca(CODIGO_QUESTIONARIO, function () { render(); });
+    window.faQuestionarios.onMudanca(window.faQuestionarios.CODIGOS.ADEQUACAO_SQUAD, function () { render(); });
 
     /* ===================== CARGA ===================== */
     db().ref(NODE).on('value', function (snap) {
