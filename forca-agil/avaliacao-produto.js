@@ -13,6 +13,12 @@
        especializacaoPara) — é assim que "Instituto previdenciário" aparece
        para uma Unidade de valor associada sem o motor precisar adivinhar
        isso das respostas, que não distinguem tipos de Unidade de Valor,
+     papelEstruturalCadastrado: 'essencial' | 'opcional' | null — metadado
+       CADASTRADO à parte (nunca inferido das respostas nem do nome do
+       item), terceira dimensão independente de classificação/especialização,
+       hoje só relevante para Componente (ver CAMADAS_COM_PAPEL_ESTRUTURAL,
+       papelEstruturalPara) — "Essencial"/"Opcional" nunca são classificações
+       à parte, só um atributo a mais sobre um Componente já identificado,
      respostas: { <criterioId|exclusaoId>: { valor:'sim'|'nao', justificativaAuto, observacao } },
      status: 'rascunho' | 'concluido',
      resultadoAutomatico: 'produto' | 'nao-produto' | 'a-validar' | null (null em rascunho),
@@ -327,6 +333,13 @@
     var sess = window.faAuth && window.faAuth.getSession();
     return sess ? { name: sess.name || sess.email, email: sess.email } : null;
   }
+  /* papelEstruturalCadastrado só aceita os dois valores reais do cadastro —
+     qualquer outra coisa (vazio, lixo digitado) vira null ("não determinado"
+     na tela), nunca um valor inventado. */
+  function normalizarPapelEstrutural(v) {
+    var norm = String(v || '').trim().toLowerCase();
+    return (norm === 'essencial' || norm === 'opcional') ? norm : null;
+  }
 
   /* ---- modais próprios (mesmo padrão visual de admin.js, sem depender dele) ---- */
   function avpAlert(mensagem, callbackOk) {
@@ -369,17 +382,29 @@
 
   /* Camadas que têm um eixo de especialização reconhecido pelo modelo — a
      especialização NUNCA é uma categoria concorrente, só detalha a
-     classificação principal (ver especializacaoPara). As quatro únicas com
+     classificação principal (ver especializacaoPara). As cinco únicas com
      esse eixo hoje: Componente (opção/configuração — a única com um sinal
      real no questionário, "modalidade"), Unidade de valor associada
-     (institutos/benefícios), Funcionalidade/Operação (formas de vinculação)
-     e Regra/Opção (políticas do plano). Sem pergunta nova para distinguir as
-     três últimas (item explicitamente proibido: não alterar o
-     questionário), elas sempre mostram "não determinada pelo questionário"
-     — isso NUNCA vira A validar, é só uma informação a menos, não um
-     conflito. */
-  var CAMADAS_COM_ESPECIALIZACAO = ['componente', 'unidade-valor-associada', 'funcionalidade-operacao', 'regra-condicao'];
+     (institutos/benefícios), Funcionalidade/Operação (formas de vinculação),
+     Regra/Opção (políticas do plano) e Informação/Documento (informações da
+     reserva). Sem pergunta nova para distinguir as quatro últimas (item
+     explicitamente proibido: não alterar o questionário), elas sempre
+     mostram "não determinada pelo questionário" — isso NUNCA vira A validar,
+     é só uma informação a menos, não um conflito. */
+  var CAMADAS_COM_ESPECIALIZACAO = ['componente', 'unidade-valor-associada', 'funcionalidade-operacao', 'regra-condicao', 'documento-informacao'];
   var ESPECIALIZACAO_NAO_DETERMINADA = 'não determinada pelo questionário';
+
+  /* Terceira dimensão, independente de classificação e especialização —
+     hoje só faz sentido para Componente (é a única camada em que "essencial
+     vs. opcional" descreve algo concreto: um componente que falta impede a
+     solução principal de funcionar, ou não). Essencial/Opcional NUNCA são
+     classificações à parte ("Componente essencial" não existe como camada)
+     — são só um atributo a mais sobre um Componente já identificado, e só
+     vêm de metadado/cadastro confiável, nunca inferidos das respostas nem
+     do nome do item (ex.: o fato de o participante poder escolher/alterar
+     não basta para inferir "Opcional" sozinho). */
+  var CAMADAS_COM_PAPEL_ESTRUTURAL = ['componente'];
+  var PAPEL_ESTRUTURAL_NAO_DETERMINADO = 'não determinado';
 
   /* ---- motor de decisão -------------------------------------------------
      identificarCamada NÃO conta quantos SIM existem — decide por PRECEDÊNCIA
@@ -446,10 +471,26 @@
       if (camadaId === 'componente' && modalidade) return 'Opção/configuração de personalização';
       return ESPECIALIZACAO_NAO_DETERMINADA;
     }
+    /* Papel estrutural (Essencial/Opcional) é uma terceira dimensão,
+       independente da classificação e da especialização — só existe hoje
+       para Componente, e só vem de cadastro/metadado (papelEstruturalCadastrado
+       no schema), NUNCA das respostas: nada no questionário permite concluir
+       sozinho se um componente é essencial ou opcional para a solução
+       principal (ex.: o fato de o participante poder escolher/alterar um
+       Componente não basta para inferir "Opcional"). Sem cadastro, mostra
+       "não determinado" — nunca vira A validar, e nunca é confundido com uma
+       classificação à parte ("Componente essencial" não é uma camada). */
+    function papelEstruturalPara(camadaId) {
+      if (CAMADAS_COM_PAPEL_ESTRUTURAL.indexOf(camadaId) === -1) return null;
+      var cadastrado = (atual.papelEstruturalCadastrado || '').trim().toLowerCase();
+      if (cadastrado === 'essencial') return 'Essencial';
+      if (cadastrado === 'opcional') return 'Opcional';
+      return PAPEL_ESTRUTURAL_NAO_DETERMINADO;
+    }
     function resultadoFn(camada, sinais) {
       return {
         camada: camada, motivos: sinais.map(motivo), conflito: null, incoerencia: false,
-        especializacao: especializacaoPara(camada), exclusoesSim: exclusoesSim
+        especializacao: especializacaoPara(camada), papelEstrutural: papelEstruturalPara(camada), exclusoesSim: exclusoesSim
       };
     }
 
@@ -746,6 +787,7 @@
         conflito: ident.conflito,
         incoerencia: ident.incoerencia,
         especializacao: ident.especializacao,
+        papelEstrutural: ident.papelEstrutural,
         relacao: relacaoArquitetural(ident.camada, atual)
       }
     };
@@ -777,6 +819,13 @@
        dentro da justificativa da classificação principal. */
     var especializacaoReal = camada.especializacao && camada.especializacao !== ESPECIALIZACAO_NAO_DETERMINADA;
     var especializacaoFrase = especializacaoReal ? ' Especialização: ' + camada.especializacao + '.' : '';
+    /* Mesmo princípio da especialização: só entra na frase corrida quando é
+       uma determinação real (cadastrada, nunca inferida das respostas) —
+       "não determinado" já tem campo próprio na tela e não deve soar como
+       ressalva dentro da justificativa. Só existe para Componente hoje (ver
+       CAMADAS_COM_PAPEL_ESTRUTURAL), então só compõe a frase nessa camada. */
+    var papelEstruturalReal = camada.papelEstrutural && camada.papelEstrutural !== PAPEL_ESTRUTURAL_NAO_DETERMINADO;
+    var papelEstruturalFrase = papelEstruturalReal ? ' Papel estrutural: ' + camada.papelEstrutural + '.' : '';
 
     /* Componente tem um texto próprio (3 frases, em vez do template genérico
        "foi classificado como X, e não como Produto/Serviço principal, porque
@@ -797,7 +846,7 @@
       var papelComponente = configuravel ? 'funciona como elemento configurável dela' : 'exerce um papel estrutural dentro dela';
       return 'O item não possui autonomia estrutural, jornada própria nem resultado autônomo suficiente para caracterizar Produto/Serviço principal. ' +
         'As respostas indicam que ele pertence estruturalmente a outra solução e ' + papelComponente + '. ' +
-        'Por isso, sua classificação predominante é Componente.' + especializacaoFrase;
+        'Por isso, sua classificação predominante é Componente.' + especializacaoFrase + papelEstruturalFrase;
     }
 
     /* Funcionalidade/Operação ganha uma segunda frase fixa descrevendo o
@@ -988,6 +1037,9 @@
     if (camada && camada.especializacao) {
       html += '<p><strong>Especialização:</strong> ' + esc(camada.especializacao) + '</p>';
     }
+    if (camada && camada.papelEstrutural) {
+      html += '<p><strong>Papel estrutural:</strong> ' + esc(camada.papelEstrutural) + '</p>';
+    }
     if (camada && camada.conflito && camada.conflito.length) {
       html += '<p class="pdf-aviso">Categorias em conflito nas respostas: ' + esc(camada.conflito.join(', ')) + '.</p>';
     }
@@ -1136,6 +1188,7 @@
     { largura: 30, rotulo: 'Necessidade' }, { largura: 20, rotulo: 'Responsável' },
     { largura: 16, rotulo: 'Data' }, { largura: 12, rotulo: 'Status' }, { largura: 8, rotulo: 'Versão' },
     { largura: 20, rotulo: 'Resultado automático' }, { largura: 28, rotulo: 'Classificação arquitetural sugerida' },
+    { largura: 26, rotulo: 'Especialização' }, { largura: 16, rotulo: 'Papel estrutural' },
     { largura: 40, rotulo: 'Relação arquitetural' }, { largura: 20, rotulo: 'Decisão arquitetural final' },
     { largura: 14, rotulo: 'Tipo da decisão' }, { largura: 20, rotulo: 'Responsável pela decisão' },
     { largura: 16, rotulo: 'Data da decisão' }, { largura: 40, rotulo: 'Justificativa da decisão manual' }
@@ -1147,7 +1200,8 @@
       (it.responsavel && it.responsavel.name) || '', it.criadoEm ? new Date(it.criadoEm) : '',
       it.status === 'concluido' ? 'Concluído' : 'Rascunho', it.versao || 1,
       it.status === 'concluido' ? rotuloResultado(it.resultadoAutomatico) : '',
-      (camada && camada.label) || '', (camada && camada.relacao) || '',
+      (camada && camada.label) || '', (camada && camada.especializacao) || '', (camada && camada.papelEstrutural) || '',
+      (camada && camada.relacao) || '',
       it.status === 'concluido' ? rotuloResultado(it.decisaoFinal) : '',
       it.status === 'concluido' ? (it.decisaoManual ? 'Manual' : 'Automática') : '',
       it.decisaoManual ? ((it.alteradoPor && it.alteradoPor.name) || '') : '',
@@ -1747,7 +1801,8 @@
        salvo" só comparando o campo atual contra ela. */
     function especializacaoFormInicial(it) {
       var salvo = it.especializacaoCadastrada || '';
-      return { valor: salvo, erro: null, ultimoSalvo: salvo };
+      var papelSalvo = it.papelEstruturalCadastrado || '';
+      return { valor: salvo, ultimoSalvo: salvo, papel: papelSalvo, papelUltimoSalvo: papelSalvo, erro: null };
     }
 
     function abrirVisualizacao(key) {
@@ -2366,6 +2421,7 @@
         necessidade: a.necessidade || '',
         observacoesGerais: a.observacoesGerais || '',
         especializacaoCadastrada: (a.especializacaoCadastrada || '').trim() || null,
+        papelEstruturalCadastrado: normalizarPapelEstrutural(a.papelEstruturalCadastrado),
         respostas: a.respostas || {},
         status: status,
         /* itemId agrupa todas as versões do mesmo item; a primeira versão
@@ -2484,6 +2540,9 @@
       if (camada.especializacao) {
         html += '<p class="avp-alt-label">Especialização: <strong>' + esc(camada.especializacao) + '</strong></p>';
       }
+      if (camada.papelEstrutural) {
+        html += '<p class="avp-alt-label">Papel estrutural: <strong>' + esc(camada.papelEstrutural) + '</strong></p>';
+      }
       if (camada.conflito && camada.conflito.length) {
         html += '<p class="avp-alt-outras">Categorias em conflito nas respostas: ' + esc(camada.conflito.join(', ')) + '.</p>';
       }
@@ -2493,7 +2552,7 @@
       html += '</div>';
 
       if (CAMADAS_COM_ESPECIALIZACAO.indexOf(camada.id) !== -1) {
-        html += renderEspecializacaoCadastradaCard();
+        html += renderEspecializacaoCadastradaCard(camada.id);
       }
 
       if (camada.relacao) {
@@ -2565,6 +2624,15 @@
       if (especializacaoInput) {
         especializacaoInput.addEventListener('input', function () {
           state.especializacaoForm.valor = especializacaoInput.value;
+          state.especializacaoForm.erro = null;
+          state.flashEspecializacao = null;
+          render();
+        });
+      }
+      var papelEstruturalSelect = document.getElementById('avpPapelEstruturalCadastrado');
+      if (papelEstruturalSelect) {
+        papelEstruturalSelect.addEventListener('change', function () {
+          state.especializacaoForm.papel = papelEstruturalSelect.value;
           state.especializacaoForm.erro = null;
           state.flashEspecializacao = null;
           render();
@@ -2655,12 +2723,18 @@
 
     /* Especialização CADASTRADA (metadado arquitetural, nunca inferido das
        respostas) — só faz sentido para camadas com eixo de especialização
-       (ver especializacaoPara). Editável a qualquer momento, mesmo depois de
-       concluída, sem precisar de "Reavaliar": grava só especializacaoCadastrada
-       + camadaSugerida/especializacao (ver salvarEspecializacaoCadastrada) —
-       nunca resultadoAutomatico, motivos, justificativaAutomatica ou decisão. */
-    function renderEspecializacaoCadastradaCard() {
+       (ver especializacaoPara). Para Componente, o mesmo cartão também
+       cadastra o Papel estrutural (Essencial/Opcional) — terceira dimensão
+       independente, só relevante para essa camada (ver
+       CAMADAS_COM_PAPEL_ESTRUTURAL). Editável a qualquer momento, mesmo
+       depois de concluída, sem precisar de "Reavaliar": um único botão grava
+       os dois campos cadastrados + os paths aninhados camadaSugerida/
+       especializacao e camadaSugerida/papelEstrutural já recalculados (ver
+       salvarEspecializacaoCadastrada) — nunca resultadoAutomatico, motivos,
+       justificativaAutomatica ou decisão. */
+    function renderEspecializacaoCadastradaCard(camadaId) {
       var f = state.especializacaoForm;
+      var papelAplicavel = CAMADAS_COM_PAPEL_ESTRUTURAL.indexOf(camadaId) !== -1;
       var html = '<div class="avp-form-card avp-especializacao-cadastro-card">';
       html += '<h4>Especialização arquitetural (cadastro)</h4>';
       html += '<p class="avp-decisao-aviso">Metadado opcional, cadastrado à parte — nunca inferido das respostas do ' +
@@ -2670,26 +2744,41 @@
       html += '<label for="avpEspecializacaoCadastrada">Especialização (opcional)</label>';
       html += '<input type="text" id="avpEspecializacaoCadastrada" value="' + esc(f.valor) + '" placeholder="Ex.: Instituto previdenciário">';
       html += '</div>';
+      if (papelAplicavel) {
+        html += '<div class="avp-field">';
+        html += '<label for="avpPapelEstruturalCadastrado">Papel estrutural (opcional)</label>';
+        html += '<select id="avpPapelEstruturalCadastrado">';
+        html += '<option value=""' + (f.papel ? '' : ' selected') + '>Não determinado</option>';
+        html += '<option value="essencial"' + (f.papel === 'essencial' ? ' selected' : '') + '>Essencial</option>';
+        html += '<option value="opcional"' + (f.papel === 'opcional' ? ' selected' : '') + '>Opcional</option>';
+        html += '</select>';
+        html += '</div>';
+      }
       if (f.erro) html += '<p class="avp-error-msg">' + esc(f.erro) + '</p>';
       if (state.flashEspecializacao) {
         html += '<p class="avp-flash-success avp-flash-success--inline" id="avpFlashEspecializacao">' + esc(state.flashEspecializacao) +
           ' <button type="button" class="avp-flash-close" id="avpFlashEspecializacaoClose" aria-label="Fechar">×</button></p>';
       }
-      var estado = estadoBotaoEspecializacao(f);
+      var estado = estadoBotaoEspecializacao(f, papelAplicavel);
       html += '<button class="btn btn--sm' + (estado.salva ? ' avp-btn-decisao--salva' : '') + '" id="avpSalvarEspecializacaoBtn"' +
         (estado.desabilitado ? ' disabled' : '') + '>' + esc(estado.label) + '</button>';
       html += '</div>';
       return html;
     }
-    /* Mesmos três estados do botão de decisão, adaptados: nunca digitado
-       nada além do que já está salvo (mesmo vazio) desabilita; digitar algo
-       diferente do último salvo habilita "SALVAR ESPECIALIZAÇÃO"; depois de
-       salvo, sem mudança, mostra "✓ SALVO". */
-    function estadoBotaoEspecializacao(f) {
+    /* Mesmos três estados do botão de decisão, adaptados: nunca digitado/
+       selecionado nada além do que já está salvo desabilita; mudar qualquer
+       um dos dois campos aplicáveis habilita "SALVAR ESPECIALIZAÇÃO"; depois
+       de salvo, sem mudança, mostra "✓ SALVO". papelAplicavel decide se o
+       campo de papel estrutural entra na comparação de "sujo" — camadas sem
+       esse eixo (tudo exceto Componente) nunca o consideram. */
+    function estadoBotaoEspecializacao(f, papelAplicavel) {
       if (state.salvandoEspecializacao) return { label: 'SALVANDO…', desabilitado: true, salva: false };
-      var dirty = (f.valor || '').trim() !== (f.ultimoSalvo || '').trim();
+      var dirtyEspec = (f.valor || '').trim() !== (f.ultimoSalvo || '').trim();
+      var dirtyPapel = papelAplicavel && (f.papel || '') !== (f.papelUltimoSalvo || '');
+      var dirty = dirtyEspec || dirtyPapel;
       if (dirty) return { label: 'SALVAR ESPECIALIZAÇÃO', desabilitado: false, salva: false };
-      return { label: f.ultimoSalvo ? '✓ SALVO' : 'SALVAR ESPECIALIZAÇÃO', desabilitado: true, salva: !!f.ultimoSalvo };
+      var jaSalvouAlgo = !!f.ultimoSalvo || (papelAplicavel && !!f.papelUltimoSalvo);
+      return { label: jaSalvouAlgo ? '✓ SALVO' : 'SALVAR ESPECIALIZAÇÃO', desabilitado: true, salva: jaSalvouAlgo };
     }
 
     function renderDecisaoCard(a) {
@@ -2833,12 +2922,19 @@
       if (state.salvandoEspecializacao) return;
       var a = state.atual;
       var f = state.especializacaoForm;
-      if (estadoBotaoEspecializacao(f).desabilitado) return;
+      var papelAplicavel = !!(a.camadaSugerida && CAMADAS_COM_PAPEL_ESTRUTURAL.indexOf(a.camadaSugerida.id) !== -1);
+      if (estadoBotaoEspecializacao(f, papelAplicavel).desabilitado) return;
       var valor = (f.valor || '').trim();
-      var especializacaoRecalculada = identificarCamada(Object.assign({}, a, { especializacaoCadastrada: valor })).especializacao;
+      var papel = papelAplicavel ? (f.papel || '') : '';
+      var itemRecalculo = Object.assign({}, a, { especializacaoCadastrada: valor, papelEstruturalCadastrado: papel || null });
+      var identCalc = identificarCamada(itemRecalculo);
+      var especializacaoRecalculada = identCalc.especializacao;
+      var papelRecalculado = identCalc.papelEstrutural;
       var updates = {
         especializacaoCadastrada: valor || null,
+        papelEstruturalCadastrado: papel || null,
         'camadaSugerida/especializacao': especializacaoRecalculada,
+        'camadaSugerida/papelEstrutural': papelRecalculado,
         atualizadoEm: new Date().toISOString()
       };
       state.salvandoEspecializacao = true;
@@ -2866,10 +2962,12 @@
         }
         f.erro = null;
         a.especializacaoCadastrada = updates.especializacaoCadastrada;
+        a.papelEstruturalCadastrado = updates.papelEstruturalCadastrado;
         a.atualizadoEm = updates.atualizadoEm;
-        a.camadaSugerida = Object.assign({}, a.camadaSugerida, { especializacao: especializacaoRecalculada });
+        a.camadaSugerida = Object.assign({}, a.camadaSugerida, { especializacao: especializacaoRecalculada, papelEstrutural: papelRecalculado });
         state.itens = upsertItem(state.itens, clonarItem(a));
         f.ultimoSalvo = valor;
+        f.papelUltimoSalvo = papel;
         state.flashEspecializacao = '✓ Especialização salva com sucesso.';
         render();
       });
