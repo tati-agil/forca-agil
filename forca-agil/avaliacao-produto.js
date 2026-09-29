@@ -234,7 +234,7 @@
       id: 'componente', ordem: 7, classificacao: 'Componente',
       pergunta: 'O item existe principalmente para que outro Produto/Serviço consiga entregar seu resultado?',
       ajudaExtra: 'Pergunte: se o produto principal deixasse de existir, este item ainda faria sentido como uma solução independente para o cliente?',
-      justSim: 'SIM — O item apresenta características de componente ou elemento de suporte de outra solução.',
+      justSim: 'SIM — O item apresenta características de componente ou elemento pertencente a outra solução.',
       justNao: 'NÃO — O item demonstra maior independência em relação a outras soluções.'
     },
     {
