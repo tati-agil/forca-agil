@@ -593,7 +593,16 @@
       case 'modalidade-subproduto':
         return 'É uma modalidade/opção/configuração pertencente a outro Produto/Serviço, e não uma ação sobre ela.';
       case 'componente':
-        return 'Pertence estruturalmente a outro Produto/Serviço e funciona como elemento configurável da solução, sem autonomia para existir como solução independente.';
+        /* "elemento configurável" só descreve um componente de verdade
+           configurável (sinal real: modalidade/opção/configuração = SIM,
+           P13) — usá-la sempre, mesmo quando o único sinal foi "existe para
+           outro Produto/Serviço entregar resultado" (P15), inventaria uma
+           natureza de configuração que a resposta não sustenta. Sem esse
+           sinal, a redação genérica de Componente ("elemento da solução")
+           não afirma nada que as respostas não confirmem. */
+        return sim('modalidade')
+          ? 'Pertence estruturalmente a outro Produto/Serviço e funciona como elemento configurável da solução, sem autonomia para existir como solução independente.'
+          : 'Pertence estruturalmente a outro Produto/Serviço e atua como elemento da solução, sem autonomia para existir como solução independente.';
       case 'regra-condicao':
         return 'É uma regra ou condição de outro Produto/Serviço.';
       case 'processo-etapa':
@@ -775,10 +784,19 @@
        a própria evidência positiva da camada — não só a negação de
        Produto/Serviço. Continua vindo só da camada já identificada, nunca do
        nome do item: qualquer item com o mesmo padrão estrutural de respostas
-       recebe o mesmo texto. */
+       recebe o mesmo texto. "Funciona como elemento configurável dela" só
+       descreve um componente de verdade configurável (sinal real: modalidade
+       = SIM, P13) — sem esse sinal, mesmo quando o único sinal foi "existe
+       para outro Produto/Serviço entregar resultado" (P15), afirmar
+       "configurável" inventaria uma natureza que as respostas não sustentam;
+       a redação genérica ("papel estrutural dentro dela") não afirma nada
+       além do que o motor realmente verificou. */
     if (camada.id === 'componente') {
+      var respostasComponente = atual.respostas || {};
+      var configuravel = !!(respostasComponente.modalidade && respostasComponente.modalidade.valor === 'sim');
+      var papelComponente = configuravel ? 'funciona como elemento configurável dela' : 'exerce um papel estrutural dentro dela';
       return 'O item não possui autonomia estrutural, jornada própria nem resultado autônomo suficiente para caracterizar Produto/Serviço principal. ' +
-        'As respostas indicam que ele pertence estruturalmente a outra solução e funciona como elemento configurável dela. ' +
+        'As respostas indicam que ele pertence estruturalmente a outra solução e ' + papelComponente + '. ' +
         'Por isso, sua classificação predominante é Componente.' + especializacaoFrase;
     }
 
