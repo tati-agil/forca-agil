@@ -298,13 +298,28 @@
      gerarJustificativaAutomatica). Incrementar SEMPRE que uma mudança nessas
      funções puder alterar o resultado, a camada, a especialização ou o texto
      da justificativa consolidada de respostas JÁ gravadas — nunca por uma
-     mudança cosmética alheia ao motor (CSS, PDF, etc.). Cada avaliação
-     concluída grava a versão vigente no momento em que a recomendação
-     automática foi calculada (item.motorVersion); a tela de resultado compara
-     com esta constante para saber se existe uma versão mais nova do motor e
-     oferecer "REPROCESSAR COM MOTOR ATUAL" — nunca reprocessa sozinha, e
-     nunca exige responder o questionário de novo (ver reprocessarMotor). */
-  var MOTOR_VERSION = '2026.09.29-1';
+     mudança cosmética alheia ao motor (CSS, PDF, etc.).
+
+     ATENÇÃO — invariante que passou a valer desde que reprocessarMotor ganhou
+     recalcularInterpretacoesRespostas: como reprocessar agora TAMBÉM
+     recalcula respostas[id].justificativaAuto ("Interpretação do sistema") a
+     partir de CRITERIOS/EXCLUSOES, qualquer mudança na redação de justSim/
+     justNao de qualquer pergunta PRECISA incrementar esta constante também —
+     mesmo que identificarCamada em si não mude nada. Sem o incremento, uma
+     avaliação cujo motorVersion já bateu com a constante ANTES da correção de
+     texto nunca mais é sinalizada como desatualizada (precisaReprocessar
+     compara só o número da versão), e fica com a redação antiga PARA SEMPRE,
+     mesmo depois do texto corrigido no código — foi exatamente o que
+     aconteceu quando a correção "elemento de suporte" → "elemento
+     pertencente a outra solução" não veio acompanhada do incremento.
+
+     Cada avaliação concluída grava a versão vigente no momento em que a
+     recomendação automática foi calculada (item.motorVersion); a tela de
+     resultado compara com esta constante para saber se existe uma versão
+     mais nova do motor e oferecer "REPROCESSAR COM MOTOR ATUAL" — nunca
+     reprocessa sozinha, e nunca exige responder o questionário de novo (ver
+     reprocessarMotor). */
+  var MOTOR_VERSION = '2026.09.29-2';
 
   /* Mapa fixo e simples: só decide se a camada JÁ IDENTIFICADA conta como
      Produto/Serviço. Nunca o inverso — o motor não tenta primeiro decidir
@@ -997,7 +1012,8 @@
     '.pdf-pergunta-texto{margin:0 0 4px}' +
     '.pdf-pergunta-campo{margin:0 0 2px;font-size:10px}' +
     '.pdf-quebra{page-break-before:always}' +
-    '.pdf-tabela-id tr{page-break-inside:avoid;break-inside:avoid}';
+    '.pdf-tabela-id tr{page-break-inside:avoid;break-inside:avoid}' +
+    '.pdf-decisao-bloco{page-break-inside:avoid;break-inside:avoid}';
 
   function pdfLinhaTabela(rotulo, valor) {
     return '<tr><th>' + esc(rotulo) + '</th><td>' + esc(valor || '—') + '</td></tr>';
@@ -1086,10 +1102,26 @@
     html += '<h3 class="pdf-subsecao">Testes de classificação — perguntas ' + (CRITERIOS.length + 1) + ' a ' + TODAS_PERGUNTAS.length + '</h3>';
     EXCLUSOES.forEach(function (e) { html += pdfPergunta(e, it.respostas[e.id], it); });
 
+    /* pdf-decisao-bloco (page-break-inside:avoid) — mesma proteção já usada
+       em pdf-pergunta-bloco: sem envolver título+tabela num único bloco
+       indivisível, html2pdf.js podia "prender" só o título à primeira linha
+       (page-break-after:avoid no h2 é uma regra fraca, glue de dois
+       elementos, não do bloco inteiro) e cortar as linhas seguintes da
+       tabela na borda da página sem empurrar o resto pra uma página nova —
+       confirmado renderizando o PDF de verdade (pixels, via pdf.js), não só
+       inspecionando o HTML fonte antes de virar canvas/imagem, que sempre
+       parecia completo mesmo quando o resultado final saía cortado. */
+    html += '<div class="pdf-decisao-bloco">';
     html += '<h2 class="pdf-secao-titulo">Decisão arquitetural</h2>';
     html += '<table class="pdf-tabela-id">';
     html += pdfLinhaTabela('Recomendação do sistema', rotuloResultadoTxt);
     html += pdfLinhaTabela('Classificação sugerida', camada && camada.label);
+    if (camada && camada.especializacao) {
+      html += pdfLinhaTabela('Especialização', camada.especializacao);
+    }
+    if (camada && camada.papelEstrutural) {
+      html += pdfLinhaTabela('Papel estrutural', camada.papelEstrutural);
+    }
     var decisaoTxt = rotuloResultado(it.decisaoFinal);
     html += pdfLinhaTabela('Decisão final', decisaoTxt);
     html += pdfLinhaTabela('Forma da decisão', it.decisaoManual ? 'Alterada manualmente' : 'Recomendação do sistema aceita');
@@ -1098,7 +1130,7 @@
       html += pdfLinhaTabela('Responsável pela decisão', it.alteradoPor && it.alteradoPor.name);
       html += pdfLinhaTabela('Data e hora da decisão', fmtData(it.alteradoEm));
     }
-    html += '</table></section>';
+    html += '</table></div></section>';
     return html;
   }
   function montarDocumentoPdf(itens) {
@@ -1168,27 +1200,44 @@
             image: { type: 'jpeg', quality: 0.95 },
             html2canvas: {
               scale: 2, backgroundColor: '#ffffff', useCORS: false,
-              width: larguraReal, windowWidth: larguraReal,
-              height: alturaReal, windowHeight: alturaReal,
               /* Ver comentário de causa raiz acima: zera o cálculo automático
                  de deslocamento do html2canvas, que é o que produzia o PDF em
-                 branco em telas de resultado altas. windowWidth precisa do
-                 mesmo tratamento que windowHeight já tinha: sem ele, o
-                 html2canvas usa document.documentElement.clientWidth (a
-                 largura REAL da tela de quem está gerando o PDF) como
-                 "janela" interna de renderização — como o container tem
-                 largura fixa (186mm), isso não altera seu tamanho, mas desloca
-                 e corta o conteúdo capturado sempre que a tela é mais larga
-                 que o container (ex.: um computador de escritório, 1280px):
-                 o PDF saía com metade esquerda em branco e o conteúdo
-                 comprimido contra a borda direita. Fixar windowWidth na
-                 largura real do próprio container elimina essa dependência
-                 da largura de tela de quem gera o PDF. */
+                 branco em telas de resultado altas — nunca depende de scroll
+                 nem de posição na página. width/height/windowWidth/
+                 windowHeight NÃO entram aqui: são fixados só depois de
+                 toContainer() (ver abaixo), porque medir antes cortava o fim
+                 do documento sempre que o plugin de quebra de página
+                 (pagebreak: avoid-all/css) precisava empurrar um bloco
+                 protegido (ex.: a seção "Decisão arquitetural") para a
+                 página seguinte. */
               x: 0, y: 0, scrollX: 0, scrollY: 0
             },
             jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' },
             pagebreak: { mode: ['css', 'avoid-all'] }
-          }).from(container).toPdf().get('pdf').then(function (pdf) {
+          }).from(container).toContainer().then(function () {
+            /* CAUSA RAIZ do corte no fim do documento (ex.: a tabela "Decisão
+               arquitetural" aparecendo cortada/em branco): o plugin de
+               pagebreak do próprio html2pdf.js (mode: avoid-all/css) roda
+               DENTRO de toContainer(), inserindo divs espaçadoras no CLONE
+               interno (this.prop.container) para empurrar qualquer bloco que
+               cairia dividido entre duas páginas — o que pode deixar o clone
+               MAIS ALTO do que o container original. Se width/height/
+               windowWidth/windowHeight do html2canvas já tivessem sido
+               fixados ANTES dessa etapa (medidos no container original, sem
+               os espaçadores), a janela de captura ficava presa no tamanho
+               antigo, e qualquer conteúdo empurrado para além dele nunca era
+               desenhado — sumia, mesmo estando corretamente no HTML/DOM (só
+               não estava sendo fotografado). Por isso a medição de
+               width/height só acontece agora, sobre o clone JÁ processado
+               pelo pagebreak, exatamente como windowWidth/scrollX/scrollY já
+               precisavam ser explícitos por um motivo parecido (ver acima). */
+            var alturaClonada = this.prop.container.scrollHeight;
+            var larguraClonada = this.prop.container.scrollWidth;
+            this.opt.html2canvas.width = larguraClonada;
+            this.opt.html2canvas.windowWidth = larguraClonada;
+            this.opt.html2canvas.height = alturaClonada;
+            this.opt.html2canvas.windowHeight = alturaClonada;
+          }).toCanvas().toPdf().get('pdf').then(function (pdf) {
             var total = pdf.internal.getNumberOfPages();
             var largura = pdf.internal.pageSize.getWidth();
             var altura = pdf.internal.pageSize.getHeight();
