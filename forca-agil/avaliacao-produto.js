@@ -279,7 +279,7 @@
      com esta constante para saber se existe uma versão mais nova do motor e
      oferecer "REPROCESSAR COM MOTOR ATUAL" — nunca reprocessa sozinha, e
      nunca exige responder o questionário de novo (ver reprocessarMotor). */
-  var MOTOR_VERSION = '2026.09.28-3';
+  var MOTOR_VERSION = '2026.09.29-1';
 
   /* Mapa fixo e simples: só decide se a camada JÁ IDENTIFICADA conta como
      Produto/Serviço. Nunca o inverso — o motor não tenta primeiro decidir
