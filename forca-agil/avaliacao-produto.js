@@ -5,6 +5,14 @@
    ser classificado como Produto/Serviço. Node do Firebase:
    avaliacoes-produto/<key> = {
      nome, descricao, publico, necessidade, observacoesGerais,
+     especializacaoCadastrada: texto livre opcional | null — metadado
+       arquitetural CADASTRADO à parte (nunca inferido das 16 respostas nem
+       de uma pergunta nova, ambas proibidas); quando presente, tem
+       precedência sobre a especialização calculada pelo questionário para
+       qualquer camada do eixo (ver CAMADAS_COM_ESPECIALIZACAO,
+       especializacaoPara) — é assim que "Instituto previdenciário" aparece
+       para uma Unidade de valor associada sem o motor precisar adivinhar
+       isso das respostas, que não distinguem tipos de Unidade de Valor,
      respostas: { <criterioId|exclusaoId>: { valor:'sim'|'nao', justificativaAuto, observacao } },
      status: 'rascunho' | 'concluido',
      resultadoAutomatico: 'produto' | 'nao-produto' | 'a-validar' | null (null em rascunho),
@@ -421,11 +429,20 @@
 
     var exclusoesSim = EXCLUSOES.filter(function (e) { return sim(e.id); }).map(function (e) { return e.id; });
     function motivo(id) { return ROTULOS_SINAL[id] + ': ' + (sim(id) ? 'SIM' : 'NÃO'); }
-    /* Uma especialização real (hoje, só Componente+modalidade) vence; caso
-       contrário, qualquer camada do eixo mostra "não determinada" em vez de
-       simplesmente não ter o campo — nunca null para essas quatro. */
+    /* Uma especialização CADASTRADA (metadado arquitetural confiável, nunca
+       inferido das respostas — ver especializacaoCadastrada no schema) tem
+       precedência sobre qualquer determinação pelo questionário: é assim que
+       "Instituto previdenciário" pode aparecer para uma Unidade de valor
+       associada sem precisar de uma pergunta nova (proibida) nem de inferir
+       isso das 16 respostas, que não distinguem tipos de Unidade de Valor
+       entre si. Sem cadastro, uma especialização real (hoje, só
+       Componente+modalidade) vence; caso contrário, qualquer camada do eixo
+       mostra "não determinada" em vez de simplesmente não ter o campo —
+       nunca null para essas quatro, e nunca A validar por causa disso. */
     function especializacaoPara(camadaId) {
       if (CAMADAS_COM_ESPECIALIZACAO.indexOf(camadaId) === -1) return null;
+      var cadastrada = (atual.especializacaoCadastrada || '').trim();
+      if (cadastrada) return cadastrada;
       if (camadaId === 'componente' && modalidade) return 'Opção/configuração de personalização';
       return ESPECIALIZACAO_NAO_DETERMINADA;
     }
@@ -566,7 +583,7 @@
     function sim(id) { return !!(r[id] && r[id].valor === 'sim'); }
     switch (camadaId) {
       case 'unidade-valor-associada':
-        return 'Depende estruturalmente de um Produto/Serviço maior, embora tenha resultado, fronteira e necessidade de cliente próprios.';
+        return 'Pertence estruturalmente a um Produto/Serviço maior, mas constitui uma Unidade de Valor com resultado próprio, fronteira, jornada e mensuração identificáveis para o cliente.';
       case 'funcionalidade-operacao':
         var alvo = sim('modalidade') ? 'uma modalidade/opção/configuração' :
           sim('regra') ? 'uma regra/condição' :
@@ -576,7 +593,16 @@
       case 'modalidade-subproduto':
         return 'É uma modalidade/opção/configuração pertencente a outro Produto/Serviço, e não uma ação sobre ela.';
       case 'componente':
-        return 'Pertence estruturalmente a outro Produto/Serviço e funciona como elemento configurável da solução, sem autonomia para existir como solução independente.';
+        /* "elemento configurável" só descreve um componente de verdade
+           configurável (sinal real: modalidade/opção/configuração = SIM,
+           P13) — usá-la sempre, mesmo quando o único sinal foi "existe para
+           outro Produto/Serviço entregar resultado" (P15), inventaria uma
+           natureza de configuração que a resposta não sustenta. Sem esse
+           sinal, a redação genérica de Componente ("elemento da solução")
+           não afirma nada que as respostas não confirmem. */
+        return sim('modalidade')
+          ? 'Pertence estruturalmente a outro Produto/Serviço e funciona como elemento configurável da solução, sem autonomia para existir como solução independente.'
+          : 'Pertence estruturalmente a outro Produto/Serviço e atua como elemento da solução, sem autonomia para existir como solução independente.';
       case 'regra-condicao':
         return 'É uma regra ou condição de outro Produto/Serviço.';
       case 'processo-etapa':
@@ -758,10 +784,19 @@
        a própria evidência positiva da camada — não só a negação de
        Produto/Serviço. Continua vindo só da camada já identificada, nunca do
        nome do item: qualquer item com o mesmo padrão estrutural de respostas
-       recebe o mesmo texto. */
+       recebe o mesmo texto. "Funciona como elemento configurável dela" só
+       descreve um componente de verdade configurável (sinal real: modalidade
+       = SIM, P13) — sem esse sinal, mesmo quando o único sinal foi "existe
+       para outro Produto/Serviço entregar resultado" (P15), afirmar
+       "configurável" inventaria uma natureza que as respostas não sustentam;
+       a redação genérica ("papel estrutural dentro dela") não afirma nada
+       além do que o motor realmente verificou. */
     if (camada.id === 'componente') {
+      var respostasComponente = atual.respostas || {};
+      var configuravel = !!(respostasComponente.modalidade && respostasComponente.modalidade.valor === 'sim');
+      var papelComponente = configuravel ? 'funciona como elemento configurável dela' : 'exerce um papel estrutural dentro dela';
       return 'O item não possui autonomia estrutural, jornada própria nem resultado autônomo suficiente para caracterizar Produto/Serviço principal. ' +
-        'As respostas indicam que ele pertence estruturalmente a outra solução e funciona como elemento configurável dela. ' +
+        'As respostas indicam que ele pertence estruturalmente a outra solução e ' + papelComponente + '. ' +
         'Por isso, sua classificação predominante é Componente.' + especializacaoFrase;
     }
 
@@ -1231,9 +1266,12 @@
       salvandoDecisao: false,
       reprocessando: false, /* trava o botão REPROCESSAR COM MOTOR ATUAL enquanto grava */
       decisaoForm: null,
+      salvandoEspecializacao: false, /* trava o botão SALVAR ESPECIALIZAÇÃO enquanto grava */
+      especializacaoForm: null,
       flashLista: null,     /* confirmação persistente mostrada na lista após salvar rascunho */
       flashResultado: null, /* confirmação persistente mostrada no resultado após concluir */
       flashDecisao: null,   /* confirmação persistente mostrada após salvar a decisão arquitetural */
+      flashEspecializacao: null, /* confirmação persistente mostrada após salvar a especialização cadastrada */
       reavaliacaoBase: null, /* fotografia da avaliação anterior, só durante uma reavaliação — usada para
                                 mostrar "resposta alterada" e o resumo de alterações; nunca gravada */
       selecionados: {},      /* chaves marcadas na lista, para "PDF das selecionadas" — nunca persistido */
@@ -1375,9 +1413,11 @@
       if (!it || it.excluido) { state.tela = 'nao-encontrada'; state.atual = null; render(); return; }
       state.atual = clonarItem(it);
       state.decisaoForm = decisaoFormInicial(it);
+      state.especializacaoForm = especializacaoFormInicial(it);
       state.flashLista = null;
       state.flashResultado = null;
       state.flashDecisao = null;
+      state.flashEspecializacao = null;
       state.flashExportacao = null;
       state.tela = 'resultado';
       render();
@@ -1701,15 +1741,25 @@
       if (x.opcao === 'auto') return true;
       return (x.justificativa || '').trim() === (y.justificativa || '').trim();
     }
+    /* Mesmo princípio do decisaoForm: ultimoSalvo é a fotografia do que está
+       realmente gravado (nunca um booleano solto), para o botão distinguir
+       "nada digitado ainda" de "já salvo, sem mudança" de "mudou depois de
+       salvo" só comparando o campo atual contra ela. */
+    function especializacaoFormInicial(it) {
+      var salvo = it.especializacaoCadastrada || '';
+      return { valor: salvo, erro: null, ultimoSalvo: salvo };
+    }
 
     function abrirVisualizacao(key) {
       var it = buscarItem(key);
       if (!it) return;
       state.atual = clonarItem(it);
       state.decisaoForm = decisaoFormInicial(it);
+      state.especializacaoForm = especializacaoFormInicial(it);
       state.flashLista = null;
       state.flashResultado = null;
       state.flashDecisao = null;
+      state.flashEspecializacao = null;
       state.tela = 'resultado';
       render();
       irParaAvaliacaoNaHash(key);
@@ -2216,6 +2266,7 @@
           state.salvando = null;
           state.itens = upsertItem(state.itens, Object.assign({ _key: key }, payload));
           state.decisaoForm = decisaoFormInicial(payload);
+          state.especializacaoForm = especializacaoFormInicial(payload);
           state.reavaliacaoBase = null;
           state.flashResultado = '✓ Avaliação salva com sucesso.';
           state.tela = 'resultado';
@@ -2314,6 +2365,7 @@
         publico: a.publico || '',
         necessidade: a.necessidade || '',
         observacoesGerais: a.observacoesGerais || '',
+        especializacaoCadastrada: (a.especializacaoCadastrada || '').trim() || null,
         respostas: a.respostas || {},
         status: status,
         /* itemId agrupa todas as versões do mesmo item; a primeira versão
@@ -2440,6 +2492,10 @@
       }
       html += '</div>';
 
+      if (CAMADAS_COM_ESPECIALIZACAO.indexOf(camada.id) !== -1) {
+        html += renderEspecializacaoCadastradaCard();
+      }
+
       if (camada.relacao) {
         html += '<div class="avp-form-card avp-relacao-card">';
         html += '<h4>Relação arquitetural</h4>';
@@ -2505,6 +2561,20 @@
         });
       }
 
+      var especializacaoInput = document.getElementById('avpEspecializacaoCadastrada');
+      if (especializacaoInput) {
+        especializacaoInput.addEventListener('input', function () {
+          state.especializacaoForm.valor = especializacaoInput.value;
+          state.especializacaoForm.erro = null;
+          state.flashEspecializacao = null;
+          render();
+        });
+      }
+      var salvarEspecializacaoBtn = document.getElementById('avpSalvarEspecializacaoBtn');
+      if (salvarEspecializacaoBtn) salvarEspecializacaoBtn.addEventListener('click', salvarEspecializacaoCadastrada);
+      var flashEspecializacaoClose = document.getElementById('avpFlashEspecializacaoClose');
+      if (flashEspecializacaoClose) flashEspecializacaoClose.addEventListener('click', function () { state.flashEspecializacao = null; render(); });
+
       document.getElementById('avpGerarPdfBtn').addEventListener('click', function () {
         if (state.exportando) return; /* clique repetido enquanto já está gerando: ignora */
         state.exportando = 'pdf';
@@ -2526,6 +2596,7 @@
         state.atual = null;
         state.flashResultado = null;
         state.flashDecisao = null;
+        state.flashEspecializacao = null;
         state.flashExportacao = null;
         state.tela = 'lista';
         irParaListaNaHash();
@@ -2580,6 +2651,45 @@
       });
       html += '</div>';
       return html;
+    }
+
+    /* Especialização CADASTRADA (metadado arquitetural, nunca inferido das
+       respostas) — só faz sentido para camadas com eixo de especialização
+       (ver especializacaoPara). Editável a qualquer momento, mesmo depois de
+       concluída, sem precisar de "Reavaliar": grava só especializacaoCadastrada
+       + camadaSugerida/especializacao (ver salvarEspecializacaoCadastrada) —
+       nunca resultadoAutomatico, motivos, justificativaAutomatica ou decisão. */
+    function renderEspecializacaoCadastradaCard() {
+      var f = state.especializacaoForm;
+      var html = '<div class="avp-form-card avp-especializacao-cadastro-card">';
+      html += '<h4>Especialização arquitetural (cadastro)</h4>';
+      html += '<p class="avp-decisao-aviso">Metadado opcional, cadastrado à parte — nunca inferido das respostas do ' +
+        'questionário. Preencha quando já se souber, por outra fonte, a natureza específica deste item (ex.: ' +
+        '"Instituto previdenciário", "Benefício").</p>';
+      html += '<div class="avp-field">';
+      html += '<label for="avpEspecializacaoCadastrada">Especialização (opcional)</label>';
+      html += '<input type="text" id="avpEspecializacaoCadastrada" value="' + esc(f.valor) + '" placeholder="Ex.: Instituto previdenciário">';
+      html += '</div>';
+      if (f.erro) html += '<p class="avp-error-msg">' + esc(f.erro) + '</p>';
+      if (state.flashEspecializacao) {
+        html += '<p class="avp-flash-success avp-flash-success--inline" id="avpFlashEspecializacao">' + esc(state.flashEspecializacao) +
+          ' <button type="button" class="avp-flash-close" id="avpFlashEspecializacaoClose" aria-label="Fechar">×</button></p>';
+      }
+      var estado = estadoBotaoEspecializacao(f);
+      html += '<button class="btn btn--sm' + (estado.salva ? ' avp-btn-decisao--salva' : '') + '" id="avpSalvarEspecializacaoBtn"' +
+        (estado.desabilitado ? ' disabled' : '') + '>' + esc(estado.label) + '</button>';
+      html += '</div>';
+      return html;
+    }
+    /* Mesmos três estados do botão de decisão, adaptados: nunca digitado
+       nada além do que já está salvo (mesmo vazio) desabilita; digitar algo
+       diferente do último salvo habilita "SALVAR ESPECIALIZAÇÃO"; depois de
+       salvo, sem mudança, mostra "✓ SALVO". */
+    function estadoBotaoEspecializacao(f) {
+      if (state.salvandoEspecializacao) return { label: 'SALVANDO…', desabilitado: true, salva: false };
+      var dirty = (f.valor || '').trim() !== (f.ultimoSalvo || '').trim();
+      if (dirty) return { label: 'SALVAR ESPECIALIZAÇÃO', desabilitado: false, salva: false };
+      return { label: f.ultimoSalvo ? '✓ SALVO' : 'SALVAR ESPECIALIZAÇÃO', desabilitado: true, salva: !!f.ultimoSalvo };
     }
 
     function renderDecisaoCard(a) {
@@ -2705,6 +2815,62 @@
         f.ultimoSalvo = { opcao: f.opcao, justificativa: f.justificativa };
         f.jaSalvouAntes = true;
         state.flashDecisao = '✓ Decisão salva com sucesso.';
+        render();
+      });
+    }
+
+    /* ===================== ESPECIALIZAÇÃO CADASTRADA =====================
+       Metadado arquitetural cadastrado à parte (nunca inferido das 16
+       respostas nem de uma pergunta nova — ambas proibidas): grava
+       especializacaoCadastrada e, no mesmo update(), o valor já recalculado
+       de camadaSugerida/especializacao (para a tela mostrar sem precisar de
+       um reload) — usando o PRÓPRIO identificarCamada sobre as respostas já
+       persistidas, então camada/resultadoAutomatico/motivos permanecem
+       garantidamente os mesmos (dependem só de respostas, que não mudam
+       aqui). Nunca toca em resultadoAutomatico, justificativaAutomatica,
+       decisão arquitetural ou histórico. */
+    function salvarEspecializacaoCadastrada() {
+      if (state.salvandoEspecializacao) return;
+      var a = state.atual;
+      var f = state.especializacaoForm;
+      if (estadoBotaoEspecializacao(f).desabilitado) return;
+      var valor = (f.valor || '').trim();
+      var especializacaoRecalculada = identificarCamada(Object.assign({}, a, { especializacaoCadastrada: valor })).especializacao;
+      var updates = {
+        especializacaoCadastrada: valor || null,
+        'camadaSugerida/especializacao': especializacaoRecalculada,
+        atualizadoEm: new Date().toISOString()
+      };
+      state.salvandoEspecializacao = true;
+      render();
+
+      var respondido = false;
+      var relogio = setTimeout(function () {
+        if (respondido) return;
+        respondido = true;
+        state.salvandoEspecializacao = false;
+        f.erro = 'A conexão está demorando e não deu para confirmar o salvamento. Toque em "SALVAR ESPECIALIZAÇÃO" de novo.';
+        render();
+      }, 12000);
+
+      db().ref(NODE + '/' + a._key).update(updates, function (err) {
+        if (respondido) return;
+        respondido = true;
+        clearTimeout(relogio);
+        state.salvandoEspecializacao = false;
+        if (err) {
+          console.error('[avaliacao-produto] erro ao salvar especialização arquitetural cadastrada:', err);
+          render();
+          avpAlert('Não foi possível salvar a especialização. Tente novamente.');
+          return;
+        }
+        f.erro = null;
+        a.especializacaoCadastrada = updates.especializacaoCadastrada;
+        a.atualizadoEm = updates.atualizadoEm;
+        a.camadaSugerida = Object.assign({}, a.camadaSugerida, { especializacao: especializacaoRecalculada });
+        state.itens = upsertItem(state.itens, clonarItem(a));
+        f.ultimoSalvo = valor;
+        state.flashEspecializacao = '✓ Especialização salva com sucesso.';
         render();
       });
     }
