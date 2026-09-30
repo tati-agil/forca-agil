@@ -298,7 +298,18 @@
      resultado compara com esta constante para saber se existe uma versão
      mais nova do motor e oferecer "REPROCESSAR COM MOTOR ATUAL" — nunca
      reprocessa sozinha, e nunca exige responder o questionário de novo (ver
-     reprocessarMotor). */
+     reprocessarMotor).
+
+     EXCEÇÃO DECIDIDA (30/09/2026): a redação de relacaoArquitetural e da
+     justificativa consolidada de Informação/Documento (e a do Canal com
+     P2 = SIM) foi corrigida sem incrementar esta constante, por decisão
+     explícita da responsável — é uma correção INTERPRETATIVA, não lógica
+     (nenhuma regra, precedência, camada ou resultado mudou; ver o teste
+     teste-textos-informacao-documento.js, que fixa a classificação das 65.536
+     combinações). Consequência assumida: avaliações já concluídas guardam a
+     relação e a justificativa da época (item.camadaSugerida.relacao e
+     item.justificativaAutomatica, nunca recalculadas ao exibir) e seguem
+     "Motor atual"; só avaliações NOVAS ou reavaliadas usam o texto novo. */
   var MOTOR_VERSION = '2026.09.29-2';
 
   /* Mapa fixo e simples: só decide se a camada JÁ IDENTIFICADA conta como
@@ -592,7 +603,11 @@
       case 'canal':
         return 'É um canal de acesso ou relacionamento a um ou mais Produto/Serviço.';
       case 'documento-informacao':
-        return 'É um documento ou informação entregue a partir de outro Produto/Serviço.';
+        /* NÃO afirma "entregue a partir de outro Produto/Serviço": um item
+           Informação/Documento pode existir de forma transversal, e nenhuma
+           resposta do questionário sustenta essa dependência. Só descreve a
+           natureza da entrega. */
+        return 'É uma entrega cuja natureza predominante é informacional, documental ou de conteúdo.';
       default:
         return null;
     }
@@ -632,11 +647,20 @@
       case 'canal':
         return 'funciona predominantemente como um canal de acesso ou relacionamento, e não como uma solução com resultado próprio';
       case 'documento-informacao':
-        return 'funciona predominantemente como um documento ou informação entregue ao cliente, e não como uma solução com resultado próprio';
+        return 'tem natureza predominantemente informacional, documental ou de conteúdo';
       default:
         return null;
     }
   }
+
+  /* Oração "sua ... predominante é ..." do molde neutro da justificativa
+     consolidada (ver gerarJustificativaAutomatica). Só camadas cujo papel
+     descreve uma NATUREZA/FUNÇÃO do item, e não uma dependência de outro
+     Produto/Serviço. */
+  var NATUREZA_PREDOMINANTE_POR_CAMADA = {
+    'documento-informacao': 'sua natureza predominante é informacional, documental ou de conteúdo',
+    'canal': 'sua função predominante é a de canal de acesso ou relacionamento'
+  };
 
   /* Termo usado nas interpretações contextuais (fronteira, gestão) que
      precisam nomear "o que" foi identificado, sem chamar tudo de "solução"
@@ -791,6 +815,22 @@
       return 'O item não possui autonomia estrutural, jornada própria nem resultado autônomo suficiente para caracterizar Produto/Serviço principal. ' +
         'As respostas indicam que ele pertence estruturalmente a outra solução e ' + papelComponente + '. ' +
         'Por isso, sua classificação predominante é Componente.' + especializacaoFrase + papelEstruturalFrase;
+    }
+
+    /* Informação/Documento — e Canal quando P2 = SIM — ganham um molde próprio,
+       neutro: "não como uma solução com resultado próprio" CONTRADIZ P2 = SIM
+       (achado real: item com P2 = SIM e P10 = SIM, corretamente classificado
+       como Informação/Documento, recebia uma justificativa que negava o
+       resultado próprio que a própria pessoa afirmou). Regra editorial geral:
+       com P2 = SIM nenhum texto automático nega resultado próprio. Ser
+       informacional/de canal descreve a NATUREZA PREDOMINANTE do item, não a
+       ausência de identidade ou de resultado percebido. Continua vindo só da
+       camada e de P2 — nunca do nome do item. */
+    var naturezaPredominante = NATUREZA_PREDOMINANTE_POR_CAMADA[camada.id];
+    var p2Sim = !!(atual.respostas && atual.respostas.resultado && atual.respostas.resultado.valor === 'sim');
+    if (naturezaPredominante && (camada.id === 'documento-informacao' || p2Sim)) {
+      return 'Embora o item possa possuir identidade e produzir resultado percebido pelo usuário, ' + naturezaPredominante + '. ' +
+        'Por isso, foi classificado como ' + camada.label + ', e não como Produto/Serviço principal.' + especializacaoFrase;
     }
 
     /* Funcionalidade/Operação ganha uma segunda frase fixa descrevendo o

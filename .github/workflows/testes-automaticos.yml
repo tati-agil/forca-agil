@@ -280,6 +280,19 @@ jobs:
           FA_BASE_URL: http://127.0.0.1:8811
         run: node .github/scripts/teste-natureza-complementar.js
 
+      # Hermético. Textos automáticos de P5 e de Informação/Documento (caso da
+      # Trilha de Educação Previdenciária: P2 = SIM, P5 = NÃO, P10 = SIM): a
+      # relação arquitetural e a justificativa não negam resultado próprio
+      # nem inferem dependência de outro Produto/Serviço, e a classificação
+      # das 65.536 combinações é idêntica à de antes (impressão digital);
+      # correção de P5 pela configuração parametrizada (versão nova do
+      # questionário, motorVersion intacto), histórico preservado. 375 px.
+      - name: "Textos de P5 e Informação/Documento refletem só o que as respostas sustentam"
+        env:
+          NODE_PATH: /tmp/pw-deps/node_modules
+          FA_BASE_URL: http://127.0.0.1:8811
+        run: node .github/scripts/teste-textos-informacao-documento.js
+
       # Hermético. Não existia critério pra ordem de exibição quando a
       # pessoa é destinatária de mais de uma oferta ao mesmo tempo — tudo
       # saía só na ordem manual do admin. O que é mais exclusivo PARA QUEM
