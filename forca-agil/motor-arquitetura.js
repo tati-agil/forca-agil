@@ -458,14 +458,16 @@
 
   /* Registrada quando uma publicação é rejeitada por concorrência (ver
      publicarRegras) — nunca cria versão nova, só documenta a tentativa
-     bloqueada: quem tentou publicar, contra que base, e qual era a versão
-     realmente vigente na hora. */
-  function registrarConflitoPublicacao(versaoBase, versaoAtualServidor, usuario, cb) {
+     bloqueada: quem tentou publicar, contra que base, qual era a versão
+     realmente vigente na hora, e se a tentativa PARECIA um no-op do ponto
+     de vista de quem chamou (origem) — só diagnóstico, nunca decide nada:
+     a decisão de verdade é sempre feita dentro da transaction. */
+  function registrarConflitoPublicacao(versaoBase, versaoAtualServidor, usuario, origem, cb) {
     var agora = new Date().toISOString();
     var updates = {};
     updates[NODE_AUDITORIA + '/' + db().ref(NODE_AUDITORIA).push().key] = {
       tipo: 'conflito_publicacao', campo: null, valorAnterior: null, valorNovo: null,
-      usuario: usuario || null, dataHora: agora, versaoBase: versaoBase, versaoAtual: versaoAtualServidor
+      usuario: usuario || null, dataHora: agora, versaoBase: versaoBase, versaoAtual: versaoAtualServidor, origem: origem
     };
     db().ref().update(updates, function (err) { if (cb) cb(err || null); });
   }
@@ -475,59 +477,67 @@
      combinação. Cria versão NOVA (nunca sobrescreve), grava auditoria,
      limpa o rascunho.
 
-     SEM MUDANÇA NENHUMA (alteradas.length === 0, sempre contra a versão
-     REALMENTE vigente agora, nunca contra versaoBase) é NO-OP de
-     propósito — nunca cria uma versão nova, nunca versiona
-     motorVersionArquitetura. Achado real: publicar um rascunho idêntico ao
-     publicado (ex.: abrir "Editar regras" só para olhar, sem mudar nada, e
-     clicar em PUBLICAR) incrementava versaoPublicada mesmo sem diferença
-     alguma — o que marcava de novo como "Motor desatualizado" TODA
-     avaliação que acabara de ser reprocessada. Isto também cobre, de
-     propósito, o caso de duas pessoas editando ao mesmo tempo sem conflito
-     real: se o rascunho de alguém com base desatualizada é, na prática,
-     semanticamente igual ao que já está publicado agora, não há por que
-     bloquear — só limpa o rascunho pendente e devolve a MESMA versão em
-     info.novaVersao, com uma entrada de auditoria tipo 'sem_alteracao'.
-
-     CONTROLE DE CONCORRÊNCIA (quando HÁ mudança real): versaoBase é a
-     versão que estava publicada quando o rascunho começou a ser editado
-     (ver salvarRascunhoRegras/versaoBaseDoRascunho). A publicação em si
-     usa uma transaction() do Firebase sobre NODE_CONFIG — nunca um
-     "ler versão / esperar / gravar depois": o updateFn da transaction
-     recebe o valor ATUAL do servidor no momento do commit e só devolve a
-     nova configuração (nova versão + nova entrada em versoes + rascunho
-     limpo) se versaoPublicada no servidor ainda for igual a versaoBase;
-     caso contrário devolve undefined, abortando sem gravar nada — fecha a
-     janela entre "eu li a versão" e "eu gravei", mesmo sob concorrência
-     real. Se a transaction não comprometer (outra publicação venceu a
-     corrida, ou o servidor já estava à frente de versaoBase), a chamada é
-     rejeitada com cb('conflito', {versaoBase, versaoAtual}) — NUNCA
-     sobrescreve a versão publicada por outra pessoa — e fica registrada
-     uma auditoria tipo 'conflito_publicacao'. */
+     TUDO — decidir se é NO-OP ou mudança real, e gravar o resultado — é
+     feito DENTRO de uma ÚNICA transaction() do Firebase sobre NODE_CONFIG,
+     nunca em duas etapas separadas (nunca "ler versão / comparar / decidir
+     no-op" e só DEPOIS, num passo à parte, "gravar/limpar rascunho"). Achado
+     real (complementar ao de PR #243): o caminho de no-op, sozinho,
+     comparava contra a versão do CACHE LOCAL e então fazia um update()
+     incondicional — entre a comparação e a gravação, outra pessoa podia
+     publicar uma mudança real, e o rascunho seria descartado mesmo
+     deixando de ser, de fato, equivalente ao que passou a estar publicado.
+     Agora o updateFn da transaction recebe o valor ATUAL do servidor no
+     momento do commit, recalcula diffRegras contra as regras REALMENTE
+     vigentes NESSE INSTANTE (nunca contra uma leitura anterior, seja do
+     cache local, seja de um parâmetro) e só então decide:
+       - diferença vazia (equivalente ao que está publicado AGORA, mesmo
+         que a versão tenha mudado depois que o rascunho foi comparado da
+         primeira vez) → NO-OP: limpa o rascunho, mantém a mesma
+         versaoPublicada, nunca cria versão nova, nunca versiona
+         motorVersionArquitetura — vale tanto no caso simples (ninguém mais
+         publicou nada) quanto no caso em que outra pessoa publicou uma
+         versão nova que, por coincidência, é semanticamente igual ao
+         rascunho;
+       - diferença real E versaoPublicada do servidor ainda bate com
+         versaoBase (a versão vigente quando o rascunho começou a ser
+         editado — ver salvarRascunhoRegras/versaoBaseDoRascunho) → publica
+         de verdade: cria versão nova, grava auditoria tipo 'regra';
+       - diferença real mas versaoPublicada do servidor NÃO bate mais com
+         versaoBase → aborta (devolve undefined, não grava nada): outra
+         publicação já mudou o que está vigente, e o rascunho ATUAL não é
+         mais equivalente a isso — nunca descarta o rascunho nem sobrescreve
+         a versão alheia; a chamada é rejeitada com
+         cb('conflito', {versaoBase, versaoAtual}) e fica registrada uma
+         auditoria tipo 'conflito_publicacao'.
+     Isso fecha a janela de corrida tanto para publicação real (já corrigido
+     em PR #243) quanto para o próprio caminho de no-op (esta correção). */
   function publicarRegras(regras, usuario, cb, versaoBase) {
     var erros = validarRegras({ regras: regras });
     if (erros.length) { cb('validacao', erros); return; }
-    var versaoAntigaLocal = versaoAtual();
-    var regrasAntigasLocal = regrasDaVersao(versaoAntigaLocal).regras;
-    var alteradas = diffRegras(regrasAntigasLocal, regras);
-    if (!alteradas.length) {
-      var agoraSemMudanca = new Date().toISOString();
-      var updatesSemMudanca = {};
-      updatesSemMudanca[NODE_CONFIG + '/rascunho'] = null;
-      updatesSemMudanca[NODE_AUDITORIA + '/' + db().ref(NODE_AUDITORIA).push().key] = {
-        tipo: 'sem_alteracao', campo: null, valorAnterior: null, valorNovo: null,
-        usuario: usuario || null, dataHora: agoraSemMudanca, versaoAnterior: versaoAntigaLocal, novaVersao: versaoAntigaLocal
-      };
-      db().ref().update(updatesSemMudanca, function (err) {
-        if (cb) cb(err || null, { novaVersao: versaoAntigaLocal, alteradas: [], semMudanca: true });
-      });
-      return;
-    }
-    var baseEsperada = versaoBase != null ? versaoBase : versaoAntigaLocal;
+    var baseEsperada = versaoBase != null ? versaoBase : versaoAtual();
+    /* Só para rotular a auditoria de conflito (nunca decide nada sozinha —
+       quem decide é sempre o updateFn abaixo, contra o servidor): se o
+       cache local, agora, já não vê diferença nenhuma entre o rascunho e o
+       que está publicado, uma eventual rejeição por concorrência é
+       diagnosticada como "eu achava que isso era um no-op"; senão, como
+       tentativa de publicar uma mudança de verdade. */
+    var pareciaNoOpLocalmente = diffRegras(regrasDaVersao(versaoAtual()).regras, regras).length === 0;
     var agora = new Date().toISOString();
+    var alteradasReais = null;
+    var eraNoOp = false;
     db().ref(NODE_CONFIG).transaction(function (atual) {
       var cfg = atual || {};
       var versaoServidor = cfg.versaoPublicada || 1;
+      var regrasVigentes = (cfg.versoes && cfg.versoes[versaoServidor] && cfg.versoes[versaoServidor].regras) || PADRAO_REGRAS.regras;
+      alteradasReais = diffRegras(regrasVigentes, regras);
+      if (!alteradasReais.length) {
+        eraNoOp = true;
+        var cfgNoOp = Object.assign({}, cfg);
+        cfgNoOp.versaoPublicada = versaoServidor;
+        cfgNoOp.rascunho = null;
+        return cfgNoOp;
+      }
+      eraNoOp = false;
       if (versaoServidor !== baseEsperada) return undefined;
       var novoCfg = Object.assign({}, cfg);
       novoCfg.versaoPublicada = versaoServidor + 1;
@@ -540,13 +550,24 @@
       var cfgFinal = (snapshot && snapshot.val()) || {};
       var versaoServidorFinal = cfgFinal.versaoPublicada || baseEsperada;
       if (!comprometido) {
-        registrarConflitoPublicacao(baseEsperada, versaoServidorFinal, usuario, function () {
+        registrarConflitoPublicacao(baseEsperada, versaoServidorFinal, usuario, pareciaNoOpLocalmente ? 'tentativa_noop' : 'tentativa_publicacao', function () {
           if (cb) cb('conflito', { versaoBase: baseEsperada, versaoAtual: versaoServidorFinal });
         });
         return;
       }
+      if (eraNoOp) {
+        var updatesNoOp = {};
+        updatesNoOp[NODE_AUDITORIA + '/' + db().ref(NODE_AUDITORIA).push().key] = {
+          tipo: 'sem_alteracao', campo: null, valorAnterior: null, valorNovo: null,
+          usuario: usuario || null, dataHora: agora, versaoAnterior: versaoServidorFinal, novaVersao: versaoServidorFinal
+        };
+        db().ref().update(updatesNoOp, function (errAud) {
+          if (cb) cb(errAud || null, { novaVersao: versaoServidorFinal, alteradas: [], semMudanca: true });
+        });
+        return;
+      }
       var updatesAuditoria = {};
-      alteradas.forEach(function (alt) {
+      alteradasReais.forEach(function (alt) {
         var chave = db().ref(NODE_AUDITORIA).push().key;
         updatesAuditoria[NODE_AUDITORIA + '/' + chave] = {
           tipo: 'regra', campo: alt.codigo,
@@ -555,7 +576,7 @@
         };
       });
       db().ref().update(updatesAuditoria, function (errAud) {
-        if (cb) cb(errAud || null, { novaVersao: versaoServidorFinal, alteradas: alteradas });
+        if (cb) cb(errAud || null, { novaVersao: versaoServidorFinal, alteradas: alteradasReais });
       });
     });
   }
