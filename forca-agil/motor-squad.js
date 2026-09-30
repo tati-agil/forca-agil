@@ -238,6 +238,63 @@
     return 'INDETERMINADO';
   }
 
+  /* ===================== NORMALIZAÇÃO SEMÂNTICA PARA COMPARAÇÃO (diffRegras) =====================
+     Mesmo princípio de motor-arquitetura.js (robustez de versionamento,
+     nenhuma mudança de regra de negócio — mesmas condições S1-S8, mesma
+     precedência, mesmos resultados A1-A3/B1-B3/C1-C5 intocados): diffRegras
+     precisa comparar o SIGNIFICADO da regra para avaliarCondicao/
+     executarRegras, nunca a serialização. Ordem das propriedades de um
+     objeto e ordem dos elementos dentro de all/any nunca criam diferença
+     aqui; precedência entre regras (campo "ordem"), inclusão/remoção de
+     regra, e mudança de condição/operador/pergunta/valor esperado/
+     resultado continuam detectados normalmente. */
+  function ordenarChavesProfundo(valor) {
+    if (Array.isArray(valor)) return valor.map(ordenarChavesProfundo);
+    if (valor && typeof valor === 'object') {
+      var chaves = Object.keys(valor).sort();
+      var out = {};
+      chaves.forEach(function (k) { out[k] = ordenarChavesProfundo(valor[k]); });
+      return out;
+    }
+    return valor;
+  }
+  function normalizarCondicaoParaComparacao(cond) {
+    if (!cond || typeof cond !== 'object') return null;
+    if (Array.isArray(cond.all)) {
+      var filhosAll = cond.all.map(normalizarCondicaoParaComparacao);
+      filhosAll.sort(function (a, b) {
+        var sa = JSON.stringify(a), sb = JSON.stringify(b);
+        return sa < sb ? -1 : (sa > sb ? 1 : 0);
+      });
+      return { all: filhosAll };
+    }
+    if (Array.isArray(cond.any)) {
+      var filhosAny = cond.any.map(normalizarCondicaoParaComparacao);
+      filhosAny.sort(function (a, b) {
+        var sa = JSON.stringify(a), sb = JSON.stringify(b);
+        return sa < sb ? -1 : (sa > sb ? 1 : 0);
+      });
+      return { any: filhosAny };
+    }
+    if (cond.not) return { not: normalizarCondicaoParaComparacao(cond.not) };
+    if (cond.equals) return normalizarCondicaoParaComparacao(cond.equals);
+    var campo = cond.campo || cond.pergunta;
+    var valor = cond.valor != null ? cond.valor : cond.resposta;
+    return { campo: campo || null, valor: normalizarValor(valor) };
+  }
+  /* Regra canônica: código, ordem (precedência), resultado e condicoes —
+     todo o conteúdo lógico de uma regra deste motor (não há motivos/
+     incoerencia/conflito aqui, ao contrário de motor-arquitetura.js). */
+  function normalizarRegraParaComparacao(regra) {
+    if (!regra) return null;
+    return ordenarChavesProfundo({
+      codigo: regra.codigo || null,
+      ordem: regra.ordem != null ? regra.ordem : null,
+      resultado: regra.resultado || null,
+      condicoes: normalizarCondicaoParaComparacao(regra.condicoes)
+    });
+  }
+
   /* Contexto plano usado pelo intérprete: S1..S8 em 'SIM'/'NAO' (nunca o
      texto da pergunta — código estável só). Perguntas sem resposta (nunca
      deveria acontecer numa avaliação concluída, ver checklist obrigando as
@@ -364,27 +421,41 @@
     if (existente && existente.regras) return JSON.parse(JSON.stringify(existente.regras));
     return JSON.parse(JSON.stringify(regrasDaVersao(versaoAtual())));
   }
-  function salvarRascunhoRegras(regras, usuario, cb) {
+  /* versaoBase: mesmo mecanismo de motor-arquitetura.js — a versão
+     publicada vigente quando o rascunho começou a ser editado, gravada UMA
+     VEZ e preservada em toda gravação seguinte do MESMO rascunho, usada
+     por publicarRegras para detectar concorrência (ver lá). */
+  function salvarRascunhoRegras(regras, usuario, cb, versaoBase) {
+    var existente = rascunhoRegrasAtual();
+    var base = versaoBase != null ? versaoBase
+      : (existente && existente.versaoBase != null ? existente.versaoBase : versaoAtual());
     db().ref(NODE_CONFIG + '/rascunho').set(
-      { regras: regras, atualizadoEm: new Date().toISOString(), atualizadoPor: usuario || null },
+      { regras: regras, atualizadoEm: new Date().toISOString(), atualizadoPor: usuario || null, versaoBase: base },
       function (err) { if (cb) cb(err || null); }
     );
+  }
+  function versaoBaseDoRascunho() {
+    var r = rascunhoRegrasAtual();
+    return (r && r.versaoBase != null) ? r.versaoBase : versaoAtual();
   }
   function descartarRascunhoRegras(cb) {
     db().ref(NODE_CONFIG + '/rascunho').remove(function (err) { if (cb) cb(err || null); });
   }
 
-  /* Diff simplificado para auditoria de REGRAS: compara a serialização de
-     cada regra (por código, por grupo) entre a versão antiga e a nova —
-     qualquer mudança de condição, ordem (precedência) ou resultado gera uma
-     entrada; nunca compara campo a campo dentro da condição (a condição
-     inteira é a "regra"). Sempre pela UNIÃO dos códigos dos dois lados,
-     nunca só pelo lado novo — uma regra REMOVIDA (existia antes, sumiu no
-     rascunho) é tão mudança lógica quanto uma adicionada ou modificada.
-     rotulo/interpretacao de cada veredito nunca moram aqui — vivem em
-     textos/PADRAO_TEXTOS, publicados por salvarTextos (função separada que
-     nunca chama publicarRegras nem toca em versaoPublicada), então uma
-     edição textual nunca aparece neste diff. */
+  /* Diff para auditoria de REGRAS: compara o SIGNIFICADO de cada regra (por
+     código, por grupo) entre a versão antiga e a nova — via
+     normalizarRegraParaComparacao (ver acima), nunca a serialização bruta,
+     então ordem das propriedades de um objeto e ordem dos elementos dentro
+     de all/any nunca geram uma entrada; qualquer mudança real de condição,
+     ordem (precedência) ou resultado continua gerando uma. Sempre pela
+     UNIÃO dos códigos dos dois lados, nunca só pelo lado novo — uma regra
+     REMOVIDA (existia antes, sumiu no rascunho) é tão mudança lógica quanto
+     uma adicionada ou modificada. rotulo/interpretacao de cada veredito
+     nunca moram aqui — vivem em textos/PADRAO_TEXTOS, publicados por
+     salvarTextos (função separada que nunca chama publicarRegras nem toca
+     em versaoPublicada), então uma edição textual nunca aparece neste
+     diff. alteradas guarda os objetos ORIGINAIS (não canônicos) de
+     antigo/novo — é o que a auditoria mostra ao usuário. */
   function diffRegras(regrasAntigas, regrasNovas) {
     var alteradas = [];
     ['eixoA', 'eixoB', 'combinacao'].forEach(function (grupo) {
@@ -397,7 +468,9 @@
       Object.keys(todosCodigos).forEach(function (codigo) {
         var antigo = porCodigoAntigo[codigo] || null;
         var novo = porCodigoNovo[codigo] || null;
-        if (JSON.stringify(antigo) !== JSON.stringify(novo)) {
+        var antigoCanonico = normalizarRegraParaComparacao(antigo);
+        var novoCanonico = normalizarRegraParaComparacao(novo);
+        if (JSON.stringify(antigoCanonico) !== JSON.stringify(novoCanonico)) {
           alteradas.push({ grupo: grupo, codigo: codigo, antigo: antigo, novo: novo });
         }
       });
@@ -405,64 +478,112 @@
     return alteradas;
   }
 
-  /* PUBLICAR REGRAS: cria uma versão NOVA (nunca sobrescreve), aponta
-     versaoPublicada pra ela, limpa o rascunho e grava auditoria — um único
-     update() atômico, mesmo padrão de publicarConteudo em
-     questionarios-config.js. É isto, e só isto, que avança
-     motorSquadVersion; nunca chamado por uma edição de textos.
+  /* Registrada quando uma publicação é rejeitada por concorrência (ver
+     publicarRegras) — nunca cria versão nova, só documenta a tentativa
+     bloqueada. */
+  function registrarConflitoPublicacao(versaoBase, versaoAtualServidor, usuario, cb) {
+    var agora = new Date().toISOString();
+    var updates = {};
+    updates[NODE_AUDITORIA + '/' + db().ref(NODE_AUDITORIA).push().key] = {
+      tipo: 'conflito_publicacao', campo: null, valorAnterior: null, valorNovo: null,
+      usuario: usuario || null, dataHora: agora, versaoBase: versaoBase, versaoAtual: versaoAtualServidor
+    };
+    db().ref().update(updates, function (err) { if (cb) cb(err || null); });
+  }
 
-     SEM MUDANÇA NENHUMA (alteradas.length === 0) é NO-OP de propósito —
-     nunca cria uma versão nova, nunca avança motorSquadVersion (mesmo
+  /* PUBLICAR REGRAS: cria uma versão NOVA (nunca sobrescreve), aponta
+     versaoPublicada pra ela, limpa o rascunho e grava auditoria. É isto, e
+     só isto, que avança motorSquadVersion; nunca chamado por uma edição de
+     textos.
+
+     SEM MUDANÇA NENHUMA (alteradas.length === 0, sempre contra a versão
+     REALMENTE vigente agora, nunca contra versaoBase) é NO-OP de propósito
+     — nunca cria uma versão nova, nunca avança motorSquadVersion (mesmo
      achado do motor-arquitetura.js: publicar um rascunho idêntico ao já
-     publicado não pode invalidar de novo avaliações já reprocessadas). Só
-     limpa o rascunho pendente e devolve a MESMA versão em info.novaVersao.
-     Registra UMA entrada de auditoria tipo 'sem_alteracao' (versaoAnterior
-     === novaVersao) — nunca uma entrada tipo 'regra' de versaoAnterior→
-     versaoAnterior+1, que sugeriria falsamente que uma versão nova nasceu. */
-  function publicarRegras(regras, usuario, cb) {
-    var versaoAntiga = versaoAtual();
-    var regrasAntigas = regrasDaVersao(versaoAntiga);
-    var alteradas = diffRegras(regrasAntigas, regras);
+     publicado não pode invalidar de novo avaliações já reprocessadas, e um
+     rascunho com base desatualizada mas semanticamente igual ao que já
+     está publicado agora também não deve ser bloqueado por concorrência).
+     Só limpa o rascunho pendente e devolve a MESMA versão em
+     info.novaVersao. Registra UMA entrada de auditoria tipo
+     'sem_alteracao' (versaoAnterior === novaVersao) — nunca uma entrada
+     tipo 'regra' de versaoAnterior→versaoAnterior+1, que sugeriria
+     falsamente que uma versão nova nasceu.
+
+     CONTROLE DE CONCORRÊNCIA (quando HÁ mudança real) — mesmo mecanismo de
+     motor-arquitetura.js: versaoBase é a versão publicada vigente quando o
+     rascunho começou a ser editado; a publicação usa uma transaction() do
+     Firebase sobre NODE_CONFIG (nunca "ler versão / esperar / gravar
+     depois") — o updateFn só devolve a nova configuração se
+     versaoPublicada no servidor, NO MOMENTO DO COMMIT, ainda for igual a
+     versaoBase; caso contrário aborta sem gravar nada. Se a transaction não
+     comprometer, a chamada é rejeitada com cb('conflito',
+     {versaoBase, versaoAtual}) — nunca sobrescreve a versão publicada por
+     outra pessoa — e fica registrada uma auditoria tipo
+     'conflito_publicacao'. */
+  function publicarRegras(regras, usuario, cb, versaoBase) {
+    var versaoAntigaLocal = versaoAtual();
+    var regrasAntigasLocal = regrasDaVersao(versaoAntigaLocal);
+    var alteradas = diffRegras(regrasAntigasLocal, regras);
     if (!alteradas.length) {
       var agoraSemMudanca = new Date().toISOString();
       var updatesSemMudanca = {};
       updatesSemMudanca[NODE_CONFIG + '/rascunho'] = null;
       updatesSemMudanca[NODE_AUDITORIA + '/' + db().ref(NODE_AUDITORIA).push().key] = {
         tipo: 'sem_alteracao', campo: null, valorAnterior: null, valorNovo: null,
-        usuario: usuario || null, dataHora: agoraSemMudanca, versaoAnterior: versaoAntiga, novaVersao: versaoAntiga
+        usuario: usuario || null, dataHora: agoraSemMudanca, versaoAnterior: versaoAntigaLocal, novaVersao: versaoAntigaLocal
       };
       db().ref().update(updatesSemMudanca, function (err) {
-        if (cb) cb(err || null, { novaVersao: versaoAntiga, alteradas: [], semMudanca: true });
+        if (cb) cb(err || null, { novaVersao: versaoAntigaLocal, alteradas: [], semMudanca: true });
       });
       return;
     }
-    var novaVersao = versaoAntiga + 1;
+    var baseEsperada = versaoBase != null ? versaoBase : versaoAntigaLocal;
     var agora = new Date().toISOString();
-    var updates = {};
-    updates[NODE_CONFIG + '/versaoPublicada'] = novaVersao;
-    updates[NODE_CONFIG + '/versoes/' + novaVersao] = { regras: regras, publicadoEm: agora, publicadoPor: usuario || null };
-    updates[NODE_CONFIG + '/rascunho'] = null;
-    alteradas.forEach(function (alt) {
-      var chave = db().ref(NODE_AUDITORIA).push().key;
-      updates[NODE_AUDITORIA + '/' + chave] = {
-        tipo: 'regra', campo: alt.grupo + '.' + alt.codigo,
-        valorAnterior: JSON.stringify(alt.antigo), valorNovo: JSON.stringify(alt.novo),
-        usuario: usuario || null, dataHora: agora, versaoAnterior: versaoAntiga, novaVersao: novaVersao
-      };
-    });
-    db().ref().update(updates, function (err) {
-      if (cb) cb(err || null, { novaVersao: novaVersao, alteradas: alteradas });
+    db().ref(NODE_CONFIG).transaction(function (atual) {
+      var cfg = atual || {};
+      var versaoServidor = cfg.versaoPublicada || 1;
+      if (versaoServidor !== baseEsperada) return undefined;
+      var novoCfg = Object.assign({}, cfg);
+      novoCfg.versaoPublicada = versaoServidor + 1;
+      novoCfg.versoes = Object.assign({}, cfg.versoes);
+      novoCfg.versoes[novoCfg.versaoPublicada] = { regras: regras, publicadoEm: agora, publicadoPor: usuario || null };
+      novoCfg.rascunho = null;
+      return novoCfg;
+    }, function (err, comprometido, snapshot) {
+      if (err) { if (cb) cb(err); return; }
+      var cfgFinal = (snapshot && snapshot.val()) || {};
+      var versaoServidorFinal = cfgFinal.versaoPublicada || baseEsperada;
+      if (!comprometido) {
+        registrarConflitoPublicacao(baseEsperada, versaoServidorFinal, usuario, function () {
+          if (cb) cb('conflito', { versaoBase: baseEsperada, versaoAtual: versaoServidorFinal });
+        });
+        return;
+      }
+      var updatesAuditoria = {};
+      alteradas.forEach(function (alt) {
+        var chave = db().ref(NODE_AUDITORIA).push().key;
+        updatesAuditoria[NODE_AUDITORIA + '/' + chave] = {
+          tipo: 'regra', campo: alt.grupo + '.' + alt.codigo,
+          valorAnterior: JSON.stringify(alt.antigo), valorNovo: JSON.stringify(alt.novo),
+          usuario: usuario || null, dataHora: agora, versaoAnterior: baseEsperada, novaVersao: versaoServidorFinal
+        };
+      });
+      db().ref().update(updatesAuditoria, function (errAud) {
+        if (cb) cb(errAud || null, { novaVersao: versaoServidorFinal, alteradas: alteradas });
+      });
     });
   }
 
   /* "Rollback": publica o CONJUNTO DE REGRAS de uma versão antiga como uma
      versão NOVA — nunca apaga nem reescreve versões existentes, e nunca
      toca em avaliações já concluídas (elas continuam com o
-     motorSquadVersion e o resultado que já tinham). */
+     motorSquadVersion e o resultado que já tinham). Sempre publicado
+     contra a versão vigente AGORA — passada como versaoBase automaticamente
+     — para ficar protegido pela mesma transaction de concorrência. */
   function publicarVersaoAnterior(versaoAlvo, usuario, cb) {
     var regras = regrasDaVersao(versaoAlvo);
     if (!regras) { cb('versao-nao-encontrada'); return; }
-    publicarRegras(JSON.parse(JSON.stringify(regras)), usuario, cb);
+    publicarRegras(JSON.parse(JSON.stringify(regras)), usuario, cb, versaoAtual());
   }
 
   function listarVersoes() {
@@ -535,8 +656,10 @@
     rascunhoRegrasAtual: rascunhoRegrasAtual,
     iniciarOuObterRascunhoRegras: iniciarOuObterRascunhoRegras,
     salvarRascunhoRegras: salvarRascunhoRegras,
+    versaoBaseDoRascunho: versaoBaseDoRascunho,
     descartarRascunhoRegras: descartarRascunhoRegras,
     diffRegras: diffRegras,
+    normalizarRegraParaComparacao: normalizarRegraParaComparacao,
     publicarRegras: publicarRegras,
     publicarVersaoAnterior: publicarVersaoAnterior,
     listarVersoes: listarVersoes,

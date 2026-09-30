@@ -153,6 +153,32 @@ jobs:
           FA_BASE_URL: http://127.0.0.1:8811
         run: node .github/scripts/teste-motor-diffregras-semantica.js
 
+      # Hermético. Robustez de versionamento: diffRegras comparava
+      # JSON.stringify bruto, então ordem das PROPRIEDADES de uma regra e
+      # ordem dos ELEMENTOS dentro de all/any (diferença puramente
+      # estrutural, sem nenhum significado para avaliarCondicao/
+      # executarRegras) contavam como mudança lógica por engano. Prova as
+      # duas coisas (nenhuma versiona) sem esconder mudança real nenhuma:
+      # precedência entre regras, remoção de regra e mudança de condição
+      # continuam versionando.
+      - name: "Motor arquitetural/squad: diferença de ordem (propriedades, all/any) nunca versiona — mudança lógica sempre versiona"
+        env:
+          NODE_PATH: /tmp/pw-deps/node_modules
+          FA_BASE_URL: http://127.0.0.1:8811
+        run: node .github/scripts/teste-motor-normalizacao-semantica.js
+
+      # Hermético. Publicação concorrente: duas pessoas abrindo a mesma
+      # versão do motor, uma publica primeiro, a outra tenta publicar em
+      # cima da versão antiga — a segunda publicação precisa ser bloqueada
+      # (nunca sobrescrever silenciosamente o que a primeira gravou), exceto
+      # quando o rascunho da segunda pessoa já é idêntico ao que está
+      # publicado agora (aí é só um no-op inofensivo, não um conflito).
+      - name: "Motor arquitetural/squad: publicação concorrente nunca sobrescreve versão mais nova"
+        env:
+          NODE_PATH: /tmp/pw-deps/node_modules
+          FA_BASE_URL: http://127.0.0.1:8811
+        run: node .github/scripts/teste-motor-concorrencia-publicacao.js
+
       # Hermético. Não existia critério pra ordem de exibição quando a
       # pessoa é destinatária de mais de uma oferta ao mesmo tempo — tudo
       # saía só na ordem manual do admin. O que é mais exclusivo PARA QUEM
