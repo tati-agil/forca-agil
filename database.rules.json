@@ -400,6 +400,15 @@
       ".write": "auth != null && (auth.token.email === 'tatianefdirene@previ.com.br' || auth.token.email === 'danielfrazao@previ.com.br' || root.child('fa-admins').child(auth.token.email.replace('@','_').replace('.','_')).exists())"
     },
 
+    "naturezas-complementares-config": {
+      ".read":  "auth != null && (auth.token.email === 'tatianefdirene@previ.com.br' || auth.token.email === 'danielfrazao@previ.com.br' || root.child('fa-admins').child(auth.token.email.replace('@','_').replace('.','_')).exists())",
+      ".write": "auth != null && (auth.token.email === 'tatianefdirene@previ.com.br' || auth.token.email === 'danielfrazao@previ.com.br' || root.child('fa-admins').child(auth.token.email.replace('@','_').replace('.','_')).exists())"
+    },
+    "naturezas-complementares-auditoria": {
+      ".read":  "auth != null && (auth.token.email === 'tatianefdirene@previ.com.br' || auth.token.email === 'danielfrazao@previ.com.br' || root.child('fa-admins').child(auth.token.email.replace('@','_').replace('.','_')).exists())",
+      ".write": "auth != null && (auth.token.email === 'tatianefdirene@previ.com.br' || auth.token.email === 'danielfrazao@previ.com.br' || root.child('fa-admins').child(auth.token.email.replace('@','_').replace('.','_')).exists())"
+    },
+
     "motor-squad-config": {
       ".read":  "auth != null && (auth.token.email === 'tatianefdirene@previ.com.br' || auth.token.email === 'danielfrazao@previ.com.br' || root.child('fa-admins').child(auth.token.email.replace('@','_').replace('.','_')).exists())",
       ".write": "auth != null && (auth.token.email === 'tatianefdirene@previ.com.br' || auth.token.email === 'danielfrazao@previ.com.br' || root.child('fa-admins').child(auth.token.email.replace('@','_').replace('.','_')).exists())"

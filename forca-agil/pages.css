@@ -2055,6 +2055,12 @@ select.aposta-campo-input { width: auto; min-width: 8.5em; }
 .avp-tag-motor--desatualizado { color: var(--gold-soft); background: rgba(245,197,24,.1); }
 .avp-tag-motor--atual { color: var(--ink-3); background: rgba(255,255,255,.06); }
 .avp-tag-natureza { font-size: .68rem; font-family: var(--font-mono); padding: 1px 6px; border-radius: 4px; white-space: nowrap; color: var(--ink-2); background: rgba(120,170,255,.12); }
+/* Natureza complementar: bloco próprio dentro de "Decisão arquitetural",
+   separado da decisão (tem o seu botão e o seu salvamento) */
+.avp-natureza-bloco { margin-top: 18px; padding-top: 16px; border-top: 1px solid var(--line-strong); }
+.avp-natureza-ajuda { font-size: .8rem; color: var(--ink-3); margin: 4px 0 8px; }
+.avp-natureza-descricao { font-size: .82rem; color: var(--ink-2); margin: 8px 0 0; }
+.avp-natureza-bloco .avp-select { max-width: 100%; }
 .avp-decisao-resumo { display: grid; grid-template-columns: max-content 1fr; gap: 4px 14px; margin: 0 0 12px; font-size: .9rem; }
 .avp-decisao-resumo dt { color: var(--ink-3); }
 .avp-decisao-resumo dd { margin: 0; overflow-wrap: anywhere; }
@@ -2279,6 +2285,7 @@ select.aposta-campo-input { width: auto; min-width: 8.5em; }
   .avp-tabela-scroll .avp-col-res { min-width: 200px; }
   .avp-tabela-scroll .avp-col-dec { min-width: 260px; }
   .avp-tabela-scroll .avp-col-camada { min-width: 280px; }
+  .avp-tabela-scroll .avp-col-natureza { min-width: 280px; }
   .avp-tabela-scroll .avp-col-resp { min-width: 180px; }
   .avp-tabela-scroll .avp-col-data { min-width: 150px; }
   .avp-tabela-scroll .avp-col-status { min-width: 220px; }

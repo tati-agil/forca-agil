@@ -1,6 +1,8 @@
-/* Interpretações de P5/P15 sem inferência cruzada + "Natureza complementar"
- * (T1-T9 do pedido "AJUSTAR INTERPRETAÇÕES P5/P15 + REGISTRAR PROGRAMA
- * TRANSVERSAL COMO NATUREZA COMPLEMENTAR").
+/* Interpretações de P5/P15 sem inferência cruzada + decisão manual do item
+ * (T1-T8 do pedido "AJUSTAR INTERPRETAÇÕES P5/P15 + REGISTRAR PROGRAMA
+ * TRANSVERSAL COMO NATUREZA COMPLEMENTAR"). A natureza complementar em si —
+ * hoje independente da decisão, com catálogo configurável, auditoria, PDF,
+ * coluna na lista e Excel — é coberta por teste-natureza-complementar.js.
  *
  * POR QUE ESTE TESTE EXISTE
  * Item real: "Programa Mais Previ…" respondido P5 = NÃO, P15 = NÃO (com a
@@ -12,7 +14,8 @@
  * outro Produto/Serviço", que P5 = NÃO não diz. Corrigido por: (1) remover
  * o texto que cruzava P5 com P15; (2) corrigir P5/P15 pelo mecanismo
  * parametrizado (versão NOVA do questionário, nunca motorVersion); (3)
- * registrar "Programa transversal" como informação manual, fora do motor.
+ * registrar "Programa transversal" como informação manual, fora do motor
+ * (ver teste-natureza-complementar.js).
  *
  * Banco falso em persistenciaReal (grava/lê como o Firebase de verdade).
  * Hermético: sem rede, sem segredo. Desktop e celular (375 px). */
@@ -245,24 +248,17 @@ const semPrefixo = (t) => t.replace(/^(SIM|NÃO)\s*—\s*/, '');
     afirma((await interpretacao(page, 'P5')).includes(semPrefixo(P5_NAO_ANTIGO)), 'P5 do item histórico: redação da época');
     afirma(!/Embora dependa/i.test(await interpretacao(page, 'P15')), 'P15 do item histórico: sem o texto contraditório');
 
-    console.log('\n== T7 — decisão manual aceita a natureza "Programa transversal" ==');
+    console.log('\n== T7 — decisão manual "não Produto/Serviço Principal" com justificativa ==');
     const JUST = 'O Programa Mais Previ possui identidade, propósito, resultados e governança próprios, mas funciona como um programa transversal que reúne diferentes iniciativas.';
-    afirma(await contar(page, '#avpNaturezaComplementar') === 0, 'com "Aceitar recomendação do sistema" selecionado, o campo natureza não aparece (só em decisão manual)');
     await page.check('input[name="avpDecisao"][value="nao-produto"]');
-    await page.waitForSelector('#avpNaturezaComplementar');
-    const opcoes = await page.locator('#avpNaturezaComplementar option').allInnerTexts();
-    afirma(opcoes.join('|') === 'Nenhuma|Programa transversal|Programa|Iniciativa|Agrupador|Outro', 'opções: ' + opcoes.join(' | '));
     await page.fill('#avpJustificativaDecisao', JUST);
-    await page.selectOption('#avpNaturezaComplementar', 'programa-transversal');
     await page.click('#avpSalvarDecisaoBtn');
     await page.waitForFunction(() => /Decisão salva/.test(document.body.innerText), { timeout: 8000 }).catch(() => {});
     await page.waitForTimeout(200);
     const salvo = (await banco(page))['avaliacoes-produto'].maisprevi;
     afirma(salvo.decisaoManual === true && salvo.decisaoFinal === 'nao-produto' && salvo.justificativaDecisao === JUST, 'decisão manual gravada (não Produto/Serviço Principal + justificativa)');
-    afirma(salvo.naturezaComplementar && salvo.naturezaComplementar.id === 'programa-transversal' && salvo.naturezaComplementar.rotulo === 'Programa transversal',
-      'naturezaComplementar persistida como {id, rotulo}: ' + JSON.stringify(salvo.naturezaComplementar));
 
-    console.log('\n== T8 — natureza complementar não altera o resultado automático nem o motor ==');
+    console.log('\n== T8 — a decisão não altera o resultado automático nem o motor ==');
     const semDecisao = (it) => { const c = JSON.parse(JSON.stringify(it)); ['decisaoFinal', 'decisaoManual', 'decisaoConfirmada', 'justificativaDecisao', 'alteradoPor', 'alteradoEm', 'naturezaComplementar', 'atualizadoEm'].forEach((k) => delete c[k]); return JSON.stringify(c); };
     afirma(semDecisao(salvo) === semDecisao(itemAntes), 'tudo fora da decisão (respostas, snapshots, resultado automático, camada, motorVersion…) idêntico ao de antes');
     afirma(salvo.resultadoAutomatico === 'a-validar' && salvo.camadaSugerida.id === 'a-validar', 'recomendação automática continua "A validar"; camada continua A validar (nunca "Programa transversal")');
@@ -272,67 +268,19 @@ const semPrefixo = (t) => t.replace(/^(SIM|NÃO)\s*—\s*/, '');
       'identificarCamada/computeResultado/reprocessamento não leem a natureza');
     afirma(!CAMADA_TEM_NATUREZA(await page.evaluate(() => window.faMotorArquitetura.CAMADAS_VALIDAS)), 'a natureza não é uma camada válida do motor');
 
-    console.log('\n== Tela: recomendação automática, decisão e natureza SEPARADAS ==');
+    console.log('\n== Tela: recomendação automática e decisão SEPARADAS ==');
     const resumo = await page.locator('#avpDecisaoResumo').innerText();
     afirma(/Recomendação automática\s+A validar/.test(resumo), 'Recomendação automática: A validar');
     afirma(/Decisão arquitetural\s+Não é Produto\/Serviço Principal/.test(resumo), 'Decisão arquitetural: Não é Produto/Serviço Principal');
-    afirma(/Natureza complementar\s+Programa transversal/.test(resumo), 'Natureza complementar: Programa transversal');
     afirma(/Camada identificada:\s*A validar/.test(await page.locator('.avp-alt-card').innerText()), 'a camada identificada continua "A validar"');
-    await page.click('#avpVoltarListaResultado');
-    await page.waitForTimeout(250);
-    afirma(/Programa transversal/.test(await page.locator('tr', { has: page.locator('.avp-act-ver[data-key="maisprevi"]') }).innerText()), 'lista: tag "Programa transversal" ao lado da decisão final');
 
-    console.log('\n== Desfazer: voltar para "Aceitar recomendação" limpa a natureza ==');
-    await page.click('.avp-act-ver[data-key="maisprevi"]');
-    await page.waitForSelector('#avpSalvarDecisaoBtn');
-    afirma(await page.locator('#avpNaturezaComplementar').inputValue() === 'programa-transversal', 'ao reabrir, o campo natureza vem preenchido');
-    afirma(await page.locator('#avpSalvarDecisaoBtn').isDisabled(), 'botão "✓ DECISÃO SALVA" desabilitado sem mudança');
-    await page.selectOption('#avpNaturezaComplementar', '');
-    afirma(!(await page.locator('#avpSalvarDecisaoBtn').isDisabled()), 'trocar só a natureza já habilita "SALVAR ALTERAÇÃO"');
-    await page.selectOption('#avpNaturezaComplementar', 'programa-transversal');
-    afirma(await page.locator('#avpSalvarDecisaoBtn').isDisabled(), 'voltar ao valor salvo desabilita de novo');
-
-    console.log('\n== T9 — PDF: natureza só na área de decisão, como informação manual ==');
-    await page.click('#avpGerarPdfBtn');
-    await page.waitForFunction(() => window.__pdfs && window.__pdfs.length > 0, { timeout: 20000 }).catch(() => {});
-    const pdf = await page.evaluate(() => window.__pdfs[0] || null);
-    afirma(!!pdf, 'HTML do PDF capturado');
-    if (pdf) {
-      afirma(/Natureza complementar\s*Programa transversal/.test(pdf.decisao), 'PDF: "Natureza complementar: Programa transversal" dentro da seção "Decisão arquitetural"');
-      afirma((pdf.tudo.match(/Natureza complementar/g) || []).length === 1, 'PDF: aparece uma única vez (nunca no bloco do resultado automático)');
-      const antesDaDecisao = pdf.tudo.slice(0, pdf.tudo.indexOf('Decisão arquitetural'));
-      afirma(!/Natureza complementar|Programa transversal/.test(antesDaDecisao), 'PDF: nada de natureza no resultado automático nem em "Como chegamos a essa conclusão"');
-      afirma(/Recomendação do sistema\s*A validar/.test(pdf.decisao) && /Decisão final\s*Não é Produto\/Serviço Principal/.test(pdf.decisao), 'PDF: recomendação do sistema e decisão final continuam separadas');
-    }
-    await page.waitForTimeout(800);
-
-    console.log('\n== Excel: coluna própria, só para decisão manual ==');
-    await page.waitForTimeout(800);
-    await page.click('#avpVoltarListaResultado');
-    await page.waitForSelector('#avpExportarBtn');
-    await page.click('#avpExportarBtn');
-    const [dl] = await Promise.all([page.waitForEvent('download', { timeout: 20000 }), page.click('#avpExportarExcelTodas')]);
-    const arq = path.join(require('os').tmpdir(), 'avp-natureza-' + Date.now() + '.xlsx');
-    await dl.saveAs(arq);
-    const wb = XLSX.read(fs.readFileSync(arq), { type: 'buffer' });
-    const linhas = XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]], { header: 1 });
-    const iCol = linhas[0].indexOf('Natureza complementar (manual)');
-    afirma(iCol === linhas[0].length - 1, 'coluna "Natureza complementar (manual)" é a última (nenhuma coluna existente mudou de lugar)');
-    const linhaMais = linhas.find((l) => l[1] && /Mais Previ/.test(l[1]));
-    afirma(linhaMais && linhaMais[iCol] === 'Programa transversal', 'Excel: Mais Previ = "Programa transversal"');
-    const linhaNova = linhas.find((l) => l[1] && /P5 NÃO \/ P15 NÃO/.test(l[1]));
-    afirma(linhaNova && !linhaNova[iCol], 'Excel: avaliação sem decisão manual fica em branco');
-    fs.unlinkSync(arq);
-
-    console.log('\n== Voltar para "Aceitar recomendação" limpa a natureza no banco ==');
-    await page.click('.avp-act-ver[data-key="maisprevi"]');
-    await page.waitForSelector('#avpSalvarDecisaoBtn');
+    console.log('\n== Voltar para "Aceitar recomendação" desfaz a decisão manual ==');
     await page.check('input[name="avpDecisao"][value="auto"]');
     await page.click('#avpSalvarDecisaoBtn');
     await page.waitForFunction(() => /Decisão salva/.test(document.body.innerText), { timeout: 8000 }).catch(() => {});
     await page.waitForTimeout(200);
     const aceito = (await banco(page))['avaliacoes-produto'].maisprevi;
-    afirma(aceito.decisaoManual === false && !aceito.naturezaComplementar && aceito.decisaoFinal === 'a-validar', 'decisão automática aceita: natureza removida, decisão final = A validar');
+    afirma(aceito.decisaoManual === false && aceito.decisaoFinal === 'a-validar', 'decisão automática aceita: decisão final = A validar');
 
     afirma(erros.length === 0, 'nenhum erro de JS (' + erros.length + ')');
     await ctx.close();
@@ -403,7 +351,7 @@ const semPrefixo = (t) => t.replace(/^(SIM|NÃO)\s*—\s*/, '');
     await ctx.close();
   }
 
-  console.log('\n== Celular (375 px): card de correção e natureza complementar ==');
+  console.log('\n== Celular (375 px): card de correção e decisão ==');
   {
     const { ctx, page, erros } = await abrirApp(browser, {}, { width: 375, height: 740 });
     await abrirConfig(page);
@@ -420,19 +368,17 @@ const semPrefixo = (t) => t.replace(/^(SIM|NÃO)\s*—\s*/, '');
     await page.waitForSelector('#avpSalvarDecisaoBtn');
     await page.check('input[name="avpDecisao"][value="nao-produto"]');
     await page.fill('#avpJustificativaDecisao', 'programa transversal');
-    await page.selectOption('#avpNaturezaComplementar', 'programa-transversal');
-    afirma(await page.locator('#avpNaturezaComplementar').isVisible(), 'campo natureza visível');
     afirma(await larguraOk(page), 'tela de decisão sem rolagem horizontal a 375 px');
     await page.click('#avpSalvarDecisaoBtn');
     await page.waitForFunction(() => /Decisão salva/.test(document.body.innerText), { timeout: 8000 }).catch(() => {});
-    afirma(await page.locator('#avpDecisaoResumo').isVisible() && await larguraOk(page), 'resumo recomendação/decisão/natureza visível e sem rolagem horizontal');
+    afirma(await page.locator('#avpDecisaoResumo').isVisible() && await larguraOk(page), 'resumo recomendação/decisão visível e sem rolagem horizontal');
     afirma(erros.length === 0, 'nenhum erro de JS');
     await ctx.close();
   }
 
   await browser.close();
   console.log(falhas === 0
-    ? '\n============================\nOK — interpretações refletem só a resposta dada; "Programa transversal" é natureza manual fora do motor.'
+    ? '\n============================\nOK — interpretações refletem só a resposta dada; a decisão manual não toca o motor.'
     : '\n============================\n' + falhas + ' FALHA(S)');
   process.exit(falhas ? 1 : 0);
 })().catch((e) => { console.error(e); process.exit(1); });

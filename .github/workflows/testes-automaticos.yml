@@ -258,13 +258,27 @@ jobs:
       # de P5/P15 sem inferência cruzada (o texto "Embora dependa
       # estruturalmente…" contradizia P15 = NÃO), correção entregue como
       # versão NOVA do questionário (nunca motorVersion, nunca histórico) e
-      # "Natureza complementar" (Programa transversal) como informação manual
-      # fora do motor: tela, lista, PDF e Excel. Desktop e 375 px.
-      - name: "Interpretações P5/P15 e natureza complementar (Programa transversal)"
+      # a decisão manual do item sem tocar o motor. Desktop e 375 px.
+      - name: "Interpretações P5/P15 e decisão manual sem tocar o motor"
         env:
           NODE_PATH: /tmp/pw-deps/node_modules
           FA_BASE_URL: http://127.0.0.1:8811
         run: node .github/scripts/teste-interpretacoes-p5-p15-natureza.js
+
+      # Hermético, banco falso em persistenciaReal. Natureza complementar
+      # (Clube de Benefícios: Canal + "Plataforma/estrutura de benefícios e
+      # parcerias"; Mais Previ: "A validar" preservado + decisão manual +
+      # "Programa transversal"): independente da decisão e do motor (nada de
+      # camada, respostas, motorVersion ou "Motor desatualizado" muda),
+      # edição posterior sem reavaliar/reprocessar, auditoria atômica com o
+      # valor anterior, catálogo configurável (renomear/desativar não
+      # reescreve o registrado), PDF, coluna na lista, Excel, reavaliar herda,
+      # formato antigo migra, rede lenta/falha e 375 px.
+      - name: "Natureza complementar: independente da decisão e do motor, com catálogo e auditoria"
+        env:
+          NODE_PATH: /tmp/pw-deps/node_modules
+          FA_BASE_URL: http://127.0.0.1:8811
+        run: node .github/scripts/teste-natureza-complementar.js
 
       # Hermético. Não existia critério pra ordem de exibição quando a
       # pessoa é destinatária de mais de uma oferta ao mesmo tempo — tudo
