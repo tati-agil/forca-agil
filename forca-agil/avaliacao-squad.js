@@ -1027,6 +1027,8 @@
       if (c.sub === 'painel') html += renderMotorPainel();
       else if (c.sub === 'editar-regras') html += renderMotorEditarRegras();
       else if (c.sub === 'simulacao') html += renderMotorSimulacao();
+      else if (c.sub === 'conflito-publicacao') html += renderMotorConflitoPublicacao();
+      else if (c.sub === 'comparar-alteracoes') html += renderMotorCompararAlteracoes();
       else if (c.sub === 'editar-textos') html += renderMotorEditarTextos();
       else if (c.sub === 'auditoria') html += renderMotorAuditoria();
       else if (c.sub === 'versoes') html += renderMotorVersoes();
@@ -1036,6 +1038,8 @@
       if (c.sub === 'painel') bindMotorPainel();
       else if (c.sub === 'editar-regras') bindMotorEditarRegras();
       else if (c.sub === 'simulacao') bindMotorSimulacao();
+      else if (c.sub === 'conflito-publicacao') bindMotorConflitoPublicacao();
+      else if (c.sub === 'comparar-alteracoes') bindMotorCompararAlteracoes();
       else if (c.sub === 'editar-textos') bindMotorEditarTextos();
       else if (c.sub === 'auditoria') bindMotorAuditoria();
       else if (c.sub === 'versoes') bindMotorVersoes();
@@ -1063,7 +1067,10 @@
     }
     function bindMotorPainel() {
       document.getElementById('sqMotorEditarRegrasBtn').addEventListener('click', function () {
-        state.motorConfig = { sub: 'editar-regras', regras: window.faMotorSquad.iniciarOuObterRascunhoRegras(), salvando: false };
+        state.motorConfig = {
+          sub: 'editar-regras', regras: window.faMotorSquad.iniciarOuObterRascunhoRegras(),
+          versaoBase: window.faMotorSquad.versaoBaseDoRascunho(), salvando: false
+        };
         render();
       });
       document.getElementById('sqMotorEditarTextosBtn').addEventListener('click', function () {
@@ -1156,12 +1163,12 @@
           if (err) { c.erro = 'Não foi possível salvar o rascunho. Tente novamente.'; render(); return; }
           state.motorConfig.flash = '✓ Rascunho de regras salvo.';
           voltarPainelMotorConfig();
-        });
+        }, c.versaoBase);
       });
       document.getElementById('sqMotorSimularBtn').addEventListener('click', function () {
         var concluidas = state.itens.filter(function (it) { return !it.excluido && it.status === 'concluido'; });
         var simulacao = window.faMotorSquad.simular(c.regras, concluidas);
-        state.motorConfig = { sub: 'simulacao', regras: c.regras, simulacao: simulacao, salvando: false };
+        state.motorConfig = { sub: 'simulacao', regras: c.regras, versaoBase: c.versaoBase, simulacao: simulacao, salvando: false };
         render();
       });
     }
@@ -1197,7 +1204,7 @@
     function bindMotorSimulacao() {
       var c = state.motorConfig;
       document.getElementById('sqMotorVoltarEdicaoBtn').addEventListener('click', function () {
-        state.motorConfig = { sub: 'editar-regras', regras: c.regras, salvando: false };
+        state.motorConfig = { sub: 'editar-regras', regras: c.regras, versaoBase: c.versaoBase, salvando: false };
         render();
       });
       document.getElementById('sqMotorConfirmarPublicarBtn').addEventListener('click', function () {
@@ -1206,12 +1213,93 @@
         render();
         window.faMotorSquad.publicarRegras(c.regras, sessaoAtual(), function (err, info) {
           c.salvando = false;
+          if (err === 'conflito') {
+            state.motorConfig = {
+              sub: 'conflito-publicacao', regras: c.regras,
+              versaoBase: info.versaoBase, versaoAtual: info.versaoAtual, salvando: false
+            };
+            render();
+            return;
+          }
           if (err) { c.erro = 'Não foi possível publicar. Tente novamente.'; render(); return; }
           state.motorConfig = { sub: 'painel', flash: info && info.semMudanca
             ? 'As regras publicadas já são idênticas às do rascunho — nenhuma versão nova foi criada.'
             : '✓ Nova versão das regras publicada com sucesso.' };
           render();
         });
+      });
+    }
+
+    /* ---- CONFLITO DE PUBLICAÇÃO (edição concorrente — mesmo mecanismo de
+       avaliacao-produto.js/motor-arquitetura.js) — nunca oferece
+       sobrescrever silenciosamente. */
+    function renderMotorConflitoPublicacao() {
+      var c = state.motorConfig;
+      var html = '<div class="avp-form-card"><h3>Conflito de publicação</h3>';
+      html += '<p class="avp-error-msg">Não foi possível publicar porque o motor foi alterado por outro usuário desde que você iniciou esta edição.</p>';
+      html += '<p>Sua versão base: <strong>' + esc(c.versaoBase) + '</strong></p>';
+      html += '<p>Versão publicada atual: <strong>' + esc(c.versaoAtual) + '</strong></p>';
+      html += '</div>';
+      html += '<div class="avp-actions-footer">';
+      html += '<button class="btn btn--primary" id="sqMotorConflitoRecarregarBtn">RECARREGAR VERSÃO ATUAL</button>';
+      html += '<button class="btn" id="sqMotorConflitoCompararBtn">COMPARAR ALTERAÇÕES</button>';
+      html += '<button class="btn" id="sqMotorConflitoDescartarBtn">DESCARTAR MEU RASCUNHO</button>';
+      html += '</div>';
+      return html;
+    }
+    function bindMotorConflitoPublicacao() {
+      var c = state.motorConfig;
+      document.getElementById('sqMotorConflitoRecarregarBtn').addEventListener('click', function () {
+        window.faMotorSquad.descartarRascunhoRegras(function () {
+          state.motorConfig = {
+            sub: 'editar-regras', regras: window.faMotorSquad.iniciarOuObterRascunhoRegras(),
+            versaoBase: window.faMotorSquad.versaoBaseDoRascunho(), salvando: false
+          };
+          render();
+        });
+      });
+      document.getElementById('sqMotorConflitoCompararBtn').addEventListener('click', function () {
+        var atuais = window.faMotorSquad.regrasDaVersao(window.faMotorSquad.versaoAtual());
+        var alteradas = window.faMotorSquad.diffRegras(atuais, c.regras);
+        state.motorConfig = {
+          sub: 'comparar-alteracoes', regras: c.regras, versaoBase: c.versaoBase,
+          versaoAtual: c.versaoAtual, alteradas: alteradas
+        };
+        render();
+      });
+      document.getElementById('sqMotorConflitoDescartarBtn').addEventListener('click', function () {
+        window.faMotorSquad.descartarRascunhoRegras(function (err) {
+          if (err) { sqAlert('Não foi possível descartar o rascunho. Tente novamente.'); return; }
+          state.motorConfig = { sub: 'painel', flash: 'Rascunho descartado.' };
+          render();
+        });
+      });
+    }
+
+    /* ---- COMPARAR ALTERAÇÕES (rascunho vs. versão publicada agora) ---- */
+    function renderMotorCompararAlteracoes() {
+      var c = state.motorConfig;
+      var html = '<div class="avp-form-card"><h3>Comparação: seu rascunho × versão publicada atual</h3>';
+      html += '<p class="avp-decisao-aviso">Sua versão base: ' + esc(c.versaoBase) + ' · Versão publicada atual: ' + esc(c.versaoAtual) + '</p></div>';
+      if (!c.alteradas.length) {
+        html += '<div class="avp-form-card"><p class="admin-empty">Nenhuma diferença lógica entre seu rascunho e a versão publicada atual.</p></div>';
+      } else {
+        c.alteradas.forEach(function (alt) {
+          html += '<div class="avp-form-card sq-regra-card"><p class="sq-regra-codigo">' + esc(alt.grupo) + ' — Regra ' + esc(alt.codigo) + '</p>';
+          html += '<p><strong>Publicada agora:</strong> ' + (alt.antigo ? esc(JSON.stringify(alt.antigo)) : '<em>(regra removida no seu rascunho)</em>') + '</p>';
+          html += '<p><strong>No seu rascunho:</strong> ' + (alt.novo ? esc(JSON.stringify(alt.novo)) : '<em>(regra não existe no seu rascunho)</em>') + '</p></div>';
+        });
+      }
+      html += '<div class="avp-actions-footer">';
+      html += '<button class="btn" id="sqMotorCompararVoltarBtn">‹ Voltar ao conflito</button>';
+      html += '</div>';
+      return html;
+    }
+    function bindMotorCompararAlteracoes() {
+      var c = state.motorConfig;
+      document.getElementById('sqMotorCompararVoltarBtn').addEventListener('click', function () {
+        state.motorConfig = { sub: 'conflito-publicacao', regras: c.regras, versaoBase: c.versaoBase, versaoAtual: c.versaoAtual, salvando: false };
+        render();
       });
     }
 
@@ -1272,12 +1360,16 @@
       if (!c.lista.length) { html += '<p class="admin-empty">Nenhuma alteração registrada ainda.</p>'; return html; }
       html += '<div class="table-scroll-wrap"><table class="admin-table"><thead><tr><th>Tipo</th><th>Campo</th><th>Usuário</th><th>Data</th><th>Versão</th></tr></thead><tbody>';
       c.lista.forEach(function (a) {
-        var tipoLabel = a.tipo === 'regra' ? 'Regra' : a.tipo === 'texto' ? 'Texto' : 'Publicação sem alteração';
+        var tipoLabel = a.tipo === 'regra' ? 'Regra' : a.tipo === 'texto' ? 'Texto'
+          : a.tipo === 'conflito_publicacao' ? 'Conflito de publicação (bloqueado)' : 'Publicação sem alteração';
+        var versaoCol = a.tipo === 'conflito_publicacao'
+          ? 'tentativa com base ' + esc(a.versaoBase) + ' — vigente ' + esc(a.versaoAtual)
+          : (a.versaoAnterior === a.novaVersao ? 'sem versão nova (' + esc(a.versaoAnterior) + ')' : esc(a.versaoAnterior) + ' → ' + esc(a.novaVersao));
         html += '<tr><td data-label="Tipo">' + tipoLabel + '</td>' +
           '<td data-label="Campo">' + (a.campo ? esc(a.campo) : '—') + '</td>' +
           '<td data-label="Usuário">' + esc((a.usuario && (a.usuario.name || a.usuario.email)) || '—') + '</td>' +
           '<td data-label="Data">' + fmtData(a.dataHora) + '</td>' +
-          '<td data-label="Versão">' + (a.versaoAnterior === a.novaVersao ? 'sem versão nova (' + esc(a.versaoAnterior) + ')' : esc(a.versaoAnterior) + ' → ' + esc(a.novaVersao)) + '</td></tr>';
+          '<td data-label="Versão">' + versaoCol + '</td></tr>';
       });
       html += '</tbody></table></div>';
       html += '<div class="avp-actions-footer"><button class="btn" id="sqMotorVoltarAuditoriaBtn">‹ Voltar</button></div>';
