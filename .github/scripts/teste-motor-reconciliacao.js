@@ -189,7 +189,7 @@ function semCampos(obj, campos) { const c = JSON.parse(JSON.stringify(obj)); cam
         JSON.stringify(semCampos(antes['avaliacoes-produto'][k], ['motorVersionArquitetura', 'reconciliacoesVersao'])),
         k + ': respostas, justificativas, classificação, decisão, datas e historicoMotor idênticos');
       const h = av[k].reconciliacoesVersao || [];
-      afirma(h.length === 1 && h[0].versaoAnterior === 1 && h[0].versaoAtual === 2 && h[0].equivalenciaComprovada === true &&
+      afirma(h.length === 1 && h[0].versaoAnterior === 1 && h[0].versaoNova === 2 && h[0].equivalenciaComprovada === true &&
         h[0].diferencasSemanticas === 0 && h[0].combinacoesAnalisadas === 65536, k + ': histórico preserva a versão anterior e a prova');
     });
     afirma(!av.k1.reconciliacoesVersao && av.k1.reprocessedAt === '2026-10-01T00:00:00.000Z', 'k1 (mudada por outra pessoa) não foi sobrescrita');
@@ -197,12 +197,12 @@ function semCampos(obj, campos) { const c = JSON.parse(JSON.stringify(obj)); cam
 
     console.log('\n== T9 — auditoria reconciliacao_versao_equivalente ==');
     const aud = Object.values(depois['motor-arquitetura-auditoria'] || {}).filter((a) => a.tipo === 'reconciliacao_versao_equivalente');
-    afirma(aud.length === 2, '2 entradas (uma por operação: individual + lote): ' + aud.length);
-    const lote = aud.find((a) => a.quantidade === 6);
-    afirma(!!lote && lote.versaoAnterior === 1 && lote.versaoAtual === 2 && lote.equivalenciaComprovada === true &&
-      lote.diferencasSemanticas === 0 && lote.combinacoesAnalisadas === 65536 && !!lote.dataHora && lote.usuario && lote.usuario.email === EMAIL,
-      'entrada do lote: versaoAnterior 1, versaoAtual 2, equivalenciaComprovada, 0 diferenças, 65536, data, usuário');
-    afirma(lote && Object.keys(lote.avaliacoes).sort().join() === 'k2,k4,k5,k6,k7,k8', 'entrada lista exatamente as avaliações reconciliadas');
+    afirma(aud.length === 7, '7 entradas — UMA por avaliação reconciliada (1 individual + 6 do lote): ' + aud.length);
+    afirma(aud.map((a) => a.avaliacaoId).sort().join() === 'k2,k3,k4,k5,k6,k7,k8', 'cada entrada identifica a avaliação (avaliacaoId): ' + aud.map((a) => a.avaliacaoId).sort().join());
+    afirma(aud.every((a) => a.versaoAnterior === 1 && a.versaoNova === 2 && a.equivalenciaComprovada === true && a.diferencasSemanticas === 0 &&
+      a.combinacoesAnalisadas === 65536 && !!a.dataHora && a.usuario && a.usuario.email === EMAIL),
+      'todas: versaoAnterior 1, versaoNova 2, equivalenciaComprovada, 0 diferenças, 65536, data e usuário');
+    afirma(!Object.values(depois['motor-arquitetura-auditoria'] || {}).some((a) => /reprocess/i.test(a.tipo)), 'nenhuma entrada de reprocessamento: o motor não foi executado');
     afirma(depois['motor-arquitetura-config'].versaoPublicada === 2 && !depois['motor-arquitetura-config'].versoes[3], 'nenhuma versão nova do motor foi criada');
     await page.click('#avpReconciliacaoFechar');
     await page.waitForTimeout(200);

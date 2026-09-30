@@ -215,6 +215,19 @@ jobs:
           FA_BASE_URL: http://127.0.0.1:8811
         run: node .github/scripts/teste-motor-reconciliacao.js
 
+      # Hermético, banco falso em persistenciaReal. Modal único "Atualizar
+      # avaliações para a versão atual do motor": o cenário da tela (10
+      # avaliações — 8 em versão anterior equivalente + 2 atuais), a situação
+      # mista (5 atuais + 8 equivalentes + 7 realmente desatualizadas, com
+      # botões separados), "verificando" enquanto a configuração do motor não
+      # chega, motivos do "desatualizado", e ausência de prova = sem
+      # reconciliação. Desktop e 375 px.
+      - name: "Modal de atualização do motor: reconciliar x reprocessar, situação mista e 'verificando'"
+        env:
+          NODE_PATH: /tmp/pw-deps/node_modules
+          FA_BASE_URL: http://127.0.0.1:8811
+        run: node .github/scripts/teste-motor-modal-atualizacao.js
+
       # Hermético, banco falso em persistenciaReal. Interpretação automática
       # de P5/P15 sem inferência cruzada (o texto "Embora dependa
       # estruturalmente…" contradizia P15 = NÃO), correção entregue como
