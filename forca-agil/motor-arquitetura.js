@@ -135,13 +135,19 @@
       { codigo: 'PROCESSO_ETAPA', ordem: 11, resultado: 'processo-etapa', incoerencia: false, conflito: null,
         motivos: ['P12', 'P16', 'P5'],
         condicoes: { all: [{ campo: 'P12', valor: 'SIM' }, { campo: 'P16', valor: 'NAO' }, { campo: 'P5', valor: 'NAO' }, { campo: 'P2', valor: 'NAO' }] } },
-      /* Fallback: {all:[]} é vacuamente verdadeiro (Array.every de lista
-         vazia = true) — bate sempre que nenhuma regra anterior bateu, sem
-         precisar de nenhum caso especial no executor (mesmo princípio do
-         fallback A_VALIDAR original: "nada sustentado" nunca é uma escolha
-         forçada). */
-      { codigo: 'FALLBACK_A_VALIDAR', ordem: 12, resultado: 'a-validar', incoerencia: false, conflito: null,
-        motivos: [], condicoes: { all: [] } }
+      /* Fallback EXPLÍCITO (tipo: 'FALLBACK'), sem condicoes: o executor
+         aplica esta regra só quando nenhuma regra anterior bateu (mesmo
+         princípio do fallback A_VALIDAR original: "nada sustentado" nunca é
+         uma escolha forçada). Antes era {all:[]} — vacuamente verdadeiro —,
+         mas o Firebase não grava lista nem objeto vazio: toda versão
+         publicada voltava do banco SEM condicoes nesta regra, o diff
+         acusava mudança lógica falsa e validarRegras rejeitava a própria
+         versão vigente (travando o editor). Um tipo explícito não depende
+         de estrutura vazia nenhuma. Versões já gravadas nesse formato
+         antigo continuam legíveis — ver ehFallback (compatibilidade só
+         para ESTE código, nunca para qualquer regra sem condicoes). */
+      { codigo: 'FALLBACK_A_VALIDAR', tipo: 'FALLBACK', ordem: 12, resultado: 'a-validar', incoerencia: false, conflito: null,
+        motivos: [] }
     ]
   };
 
@@ -181,12 +187,55 @@
     if (!campo) return false;
     return normalizarValor(contexto[campo]) === normalizarValor(valor);
   }
-  function executarRegras(regras, contexto) {
-    var ordenadas = (regras || []).slice().sort(function (a, b) { return (a.ordem || 0) - (b.ordem || 0); });
+  /* ===================== FALLBACK =====================
+     tipo 'FALLBACK' é a ÚNICA forma de uma regra valer sem condicoes: é
+     aplicada só quando nenhuma regra comum bateu, e validarRegras exige
+     exatamente uma, com a maior precedência. Compatibilidade LEGADA,
+     restrita ao código conhecido FALLBACK_A_VALIDAR sem tipo: versões
+     publicadas antes desta correção guardaram {all:[]}, que o Firebase
+     devolve como "sem condicoes" — as duas formas são lidas como o
+     fallback. Qualquer OUTRA regra sem condicoes continua inválida (nunca
+     vira "sempre verdadeira"): esconder uma configuração corrompida seria
+     pior que rejeitá-la. */
+  var TIPO_FALLBACK = 'FALLBACK';
+  var CODIGO_FALLBACK_LEGADO = 'FALLBACK_A_VALIDAR';
+  function ehCondicaoVaziaLegada(cond) {
+    return !!cond && typeof cond === 'object' && Array.isArray(cond.all) && cond.all.length === 0 && Object.keys(cond).length === 1;
+  }
+  function ehFallback(regra) {
+    if (!regra) return false;
+    if (regra.tipo === TIPO_FALLBACK) return true;
+    return regra.tipo == null && regra.codigo === CODIGO_FALLBACK_LEGADO &&
+      (regra.condicoes == null || ehCondicaoVaziaLegada(regra.condicoes));
+  }
+  /* Converte o fallback legado para a forma explícita (cópia — nunca muda
+     o objeto recebido). Usado ao abrir o editor e ao publicar, para que
+     nenhuma versão NOVA volte a gravar a forma antiga; diffRegras trata as
+     duas formas como iguais, então a conversão sozinha nunca cria versão. */
+  function migrarFallbackLegado(regras) {
+    return (regras || []).map(function (r) {
+      var copia = JSON.parse(JSON.stringify(r));
+      if (ehFallback(copia) && copia.tipo !== TIPO_FALLBACK) {
+        copia.tipo = TIPO_FALLBACK;
+        delete copia.condicoes;
+      }
+      return copia;
+    });
+  }
+
+  function ordenarPorPrecedencia(regras) {
+    return (regras || []).slice().sort(function (a, b) { return (a.ordem || 0) - (b.ordem || 0); });
+  }
+  function executarRegrasOrdenadas(ordenadas, contexto) {
+    var fallback = null;
     for (var i = 0; i < ordenadas.length; i++) {
+      if (ehFallback(ordenadas[i])) { if (!fallback) fallback = ordenadas[i]; continue; }
       if (avaliarCondicao(ordenadas[i].condicoes, contexto)) return ordenadas[i];
     }
-    return null;
+    return fallback;
+  }
+  function executarRegras(regras, contexto) {
+    return executarRegrasOrdenadas(ordenarPorPrecedencia(regras), contexto);
   }
 
   /* ===================== NORMALIZAÇÃO SEMÂNTICA PARA COMPARAÇÃO (diffRegras) =====================
@@ -256,6 +305,19 @@
      propriedades do objeto (ordenarChavesProfundo no final). */
   function normalizarRegraParaComparacao(regra) {
     if (!regra) return null;
+    /* Fallback (explícito ou legado — ver ehFallback) tem UMA forma
+       canônica só, sem condicoes: legado {all:[]}, legado sem condicoes
+       (como o Firebase devolve) e tipo FALLBACK são a mesma regra. */
+    if (ehFallback(regra)) {
+      return ordenarChavesProfundo({
+        codigo: regra.codigo || null,
+        tipo: TIPO_FALLBACK,
+        ordem: regra.ordem != null ? regra.ordem : null,
+        resultado: regra.resultado || null,
+        incoerencia: !!regra.incoerencia,
+        conflito: regra.conflito || null
+      });
+    }
     return ordenarChavesProfundo({
       codigo: regra.codigo || null,
       ordem: regra.ordem != null ? regra.ordem : null,
@@ -274,16 +336,107 @@
      antes de chamar, e traduz motivosCodigos de volta para os rótulos de
      apresentação depois — este módulo nunca conhece ROTULOS_SINAL nem
      nomes internos, só códigos P1-P16. */
-  function identificarCamada(respostasPorCodigo, regrasConfig) {
-    var regras = (regrasConfig && regrasConfig.regras) || PADRAO_REGRAS.regras;
+  /* Retorno COMPLETO do motor para uma regra aplicada (ou nenhuma) — um
+     único lugar monta este objeto, tanto para identificarCamada quanto para
+     a prova exaustiva de equivalência entre versões (compararRegrasExaustivamente),
+     para as duas nunca divergirem sobre "o que o motor devolve". */
+  function retornoDoMotor(regra) {
+    if (!regra) return { camada: 'a-validar', regraAplicada: null, motivosCodigos: [], conflito: null, incoerencia: false };
+    return {
+      camada: regra.resultado, regraAplicada: regra.codigo || null, motivosCodigos: regra.motivos || [],
+      conflito: regra.conflito || null, incoerencia: !!regra.incoerencia
+    };
+  }
+  function contextoNormalizado(respostasPorCodigo) {
     var contexto = {};
     Object.keys(respostasPorCodigo || {}).forEach(function (cod) { contexto[cod] = normalizarValor(respostasPorCodigo[cod]); });
+    return contexto;
+  }
+  function identificarCamada(respostasPorCodigo, regrasConfig) {
+    var regras = (regrasConfig && regrasConfig.regras) || PADRAO_REGRAS.regras;
+    var contexto = contextoNormalizado(respostasPorCodigo);
     var regra = executarRegras(regras, contexto);
-    if (!regra) {
-      console.error('[motor-arquitetura] nenhuma regra aplicável (nem o fallback) para o contexto:', contexto);
-      return { camada: 'a-validar', motivosCodigos: [], conflito: null, incoerencia: false };
+    if (!regra) console.error('[motor-arquitetura] nenhuma regra aplicável (nem o fallback) para o contexto:', contexto);
+    return retornoDoMotor(regra);
+  }
+
+  /* ===================== PROVA DE EQUIVALÊNCIA ENTRE CONJUNTOS DE REGRAS =====================
+     Exaustiva: as 2^16 = 65536 combinações de P1-P16, comparando o
+     RETORNO COMPLETO do motor (camada, regra aplicada, motivos, conflito,
+     incoerência) — nunca só a camada final. É a prova exigida antes de
+     reconciliar uma avaliação carimbada numa versão antiga com a versão
+     vigente sem recalcular nada (ver avaliacao-produto.js). */
+  var TOTAL_COMBINACOES = 65536;
+  function contextoDaCombinacao(n) {
+    var contexto = {};
+    for (var b = 0; b < 16; b++) contexto[CAMPOS_VALIDOS[b]] = (n & (1 << b)) ? 'SIM' : 'NAO';
+    return contexto;
+  }
+  /* Espelho EXATO de avaliarCondicao, resolvido uma vez por condição em vez
+     de a cada combinação (só usado pela prova exaustiva). O contexto aqui
+     já chega normalizado ('SIM'/'NAO'); qualquer outro valor passa pelo
+     mesmo normalizarValor do executor. */
+  function compilarCondicao(cond) {
+    if (!cond || typeof cond !== 'object') return function () { return false; };
+    if (Array.isArray(cond.all)) {
+      var filhosAll = cond.all.map(compilarCondicao);
+      return function (ctx) { for (var i = 0; i < filhosAll.length; i++) if (!filhosAll[i](ctx)) return false; return true; };
     }
-    return { camada: regra.resultado, motivosCodigos: regra.motivos || [], conflito: regra.conflito || null, incoerencia: !!regra.incoerencia };
+    if (Array.isArray(cond.any)) {
+      var filhosAny = cond.any.map(compilarCondicao);
+      return function (ctx) { for (var i = 0; i < filhosAny.length; i++) if (filhosAny[i](ctx)) return true; return false; };
+    }
+    if (cond.not) { var negado = compilarCondicao(cond.not); return function (ctx) { return !negado(ctx); }; }
+    if (cond.equals) return compilarCondicao(cond.equals);
+    var campo = cond.campo || cond.pergunta;
+    if (!campo) return function () { return false; };
+    var esperado = normalizarValor(cond.valor != null ? cond.valor : cond.resposta);
+    return function (ctx) {
+      var v = ctx[campo];
+      return (v === 'SIM' || v === 'NAO' ? v : normalizarValor(v)) === esperado;
+    };
+  }
+  /* Mesmo algoritmo de executarRegrasOrdenadas (precedência, fallback só
+     quando nenhuma comum bate), devolvendo o ÍNDICE da regra aplicada
+     (-1 = nenhuma) e a assinatura serializada do retorno de cada uma. */
+  function compilarRegras(regras) {
+    var ordenadas = ordenarPorPrecedencia(regras);
+    var predicados = ordenadas.map(function (r) { return ehFallback(r) ? null : compilarCondicao(r.condicoes); });
+    var idxFallback = -1;
+    for (var i = 0; i < ordenadas.length; i++) if (predicados[i] === null) { idxFallback = i; break; }
+    var assinaturas = {};
+    ordenadas.forEach(function (r, i) { assinaturas[i] = JSON.stringify(retornoDoMotor(r)); });
+    assinaturas[-1] = JSON.stringify(retornoDoMotor(null));
+    return {
+      regras: ordenadas,
+      assinaturas: assinaturas,
+      executar: function (ctx) {
+        for (var j = 0; j < predicados.length; j++) if (predicados[j] !== null && predicados[j](ctx)) return j;
+        return idxFallback;
+      }
+    };
+  }
+  function compararRegrasExaustivamente(regrasA, regrasB, maxExemplos) {
+    var limite = maxExemplos == null ? 5 : maxExemplos;
+    /* Desempenho sem mudar o que é comparado: as condições são
+       "compiladas" uma vez (compilarCondicao — mesma semântica de
+       avaliarCondicao) e o retorno de cada regra é serializado uma vez só;
+       sem isso a prova levava ~0,6 s no computador (bem mais no celular),
+       travando a tela. Os exemplos continuam vindo de retornoDoMotor. */
+    var execA = compilarRegras(regrasA), execB = compilarRegras(regrasB);
+    var diferencas = 0, exemplos = [];
+    var contexto = {};
+    for (var n = 0; n < TOTAL_COMBINACOES; n++) {
+      for (var b = 0; b < 16; b++) contexto[CAMPOS_VALIDOS[b]] = (n & (1 << b)) ? 'SIM' : 'NAO';
+      var ia = execA.executar(contexto), ib = execB.executar(contexto);
+      if (execA.assinaturas[ia] !== execB.assinaturas[ib]) {
+        diferencas++;
+        if (exemplos.length < limite) {
+          exemplos.push({ respostas: contextoDaCombinacao(n), antes: retornoDoMotor(execA.regras[ia] || null), depois: retornoDoMotor(execB.regras[ib] || null) });
+        }
+      }
+    }
+    return { combinacoesAnalisadas: TOTAL_COMBINACOES, diferencas: diferencas, exemplos: exemplos, equivalentes: diferencas === 0 };
   }
 
   /* ===================== SIMULAÇÃO (item 20 do pedido) =====================
@@ -324,6 +477,11 @@
      completa. */
   function validarCondicao(cond, erros, caminho) {
     if (!cond || typeof cond !== 'object') { erros.push('Condição vazia ou inválida em ' + caminho); return; }
+    /* Lista vazia nunca é aceita: "TODAS de nenhuma" seria verdade implícita
+       (e o Firebase nem a grava — ver ehFallback). A única regra que vale
+       sem condição é a de tipo FALLBACK, explicitamente. */
+    if (Array.isArray(cond.all) && !cond.all.length) { erros.push('Grupo "TODAS as condições" vazio em ' + caminho + ' — use uma regra de fallback (tipo FALLBACK) para "sempre".'); return; }
+    if (Array.isArray(cond.any) && !cond.any.length) { erros.push('Grupo "QUALQUER condição" vazio em ' + caminho + '.'); return; }
     if (Array.isArray(cond.all)) { cond.all.forEach(function (c, i) { validarCondicao(c, erros, caminho + '.all[' + i + ']'); }); return; }
     if (Array.isArray(cond.any)) { cond.any.forEach(function (c, i) { validarCondicao(c, erros, caminho + '.any[' + i + ']'); }); return; }
     if (cond.not) { validarCondicao(cond.not, erros, caminho + '.not'); return; }
@@ -339,13 +497,31 @@
     var regras = (regrasConfig && regrasConfig.regras) || [];
     if (!regras.length) { erros.push('Nenhuma regra configurada.'); return erros; }
     var ordens = {};
+    var fallbacks = [], comuns = [];
     regras.forEach(function (r, i) {
-      if (!r.resultado || CAMADAS_VALIDAS.indexOf(r.resultado) === -1) erros.push('Regra ' + (r.codigo || i) + ' sem resultado válido.');
-      if (r.ordem == null) erros.push('Regra ' + (r.codigo || i) + ' sem precedência (ordem).');
+      var nome = r.codigo || i;
+      if (!r.resultado || CAMADAS_VALIDAS.indexOf(r.resultado) === -1) erros.push('Regra ' + nome + ' sem resultado válido.');
+      if (r.ordem == null) erros.push('Regra ' + nome + ' sem precedência (ordem).');
       else if (ordens[r.ordem]) erros.push('Precedência ' + r.ordem + ' duplicada/ambígua entre "' + ordens[r.ordem] + '" e "' + r.codigo + '".');
       else ordens[r.ordem] = r.codigo;
-      validarCondicao(r.condicoes, erros, 'regra ' + (r.codigo || i));
+      if (r.tipo != null && r.tipo !== TIPO_FALLBACK) erros.push('Regra ' + nome + ' com tipo desconhecido "' + r.tipo + '".');
+      if (ehFallback(r)) {
+        fallbacks.push(r);
+        if (r.tipo === TIPO_FALLBACK && r.condicoes != null) erros.push('Regra de fallback ' + nome + ' não pode ter condições — ela vale sozinha quando nenhuma outra regra bate.');
+        return;
+      }
+      comuns.push(r);
+      if (r.condicoes == null) { erros.push('Regra ' + nome + ' sem condições — só a regra de fallback (tipo FALLBACK) pode não ter condições.'); return; }
+      validarCondicao(r.condicoes, erros, 'regra ' + nome);
     });
+    if (!fallbacks.length) erros.push('Nenhuma regra de fallback (tipo FALLBACK) configurada — é ela que decide quando nenhuma outra regra bate.');
+    else if (fallbacks.length > 1) erros.push('Mais de uma regra de fallback: ' + fallbacks.map(function (f) { return f.codigo; }).join(', ') + ' — deve existir exatamente uma.');
+    else if (fallbacks[0].ordem != null) {
+      var fb = fallbacks[0];
+      var depois = comuns.filter(function (r) { return r.ordem != null && r.ordem >= fb.ordem; });
+      if (depois.length) erros.push('A regra de fallback ' + fb.codigo + ' precisa ter a maior precedência (ser a última), mas ' +
+        depois.map(function (r) { return r.codigo; }).join(', ') + ' vem depois dela.');
+    }
     /* Fallback exaustivo: 2^16 = 65536 combinações — trivial de computar. */
     var semFallback = false;
     for (var n = 0; n < 65536 && !semFallback; n++) {
@@ -370,10 +546,47 @@
     carregado = true;
     db().ref(NODE_CONFIG).on('value', function (snap) {
       cache = snap.val();
+      configRecebida = true;
+      memoEquivalencia = {};
       listeners.slice().forEach(function (cb) { cb(); });
     });
   }
   function onMudanca(cb) { garantirSync(); listeners.push(cb); }
+  /* true só depois da PRIMEIRA leitura de motor-arquitetura-config chegar.
+     Antes disso versaoAtual() devolve 1 por falta de dado, não porque a
+     versão vigente é 1 — nada que GRAVA uma versão (reconciliação) pode
+     agir nessa janela, que em rede lenta de celular dura segundos. */
+  var configRecebida = false;
+  function configCarregada() { return configRecebida; }
+
+  /* Regras de uma versão SEM o fallback silencioso de regrasDaVersao: a
+     versão 1 sem registro gravado é, por definição, a configuração de
+     fábrica (nunca houve publicação); qualquer outra versão ausente é
+     "não sei" (null) — nunca pode ser tratada como fábrica numa prova de
+     equivalência. */
+  function regrasDaVersaoEstrita(versao) {
+    if (cache && cache.versoes && cache.versoes[versao] && cache.versoes[versao].regras) return cache.versoes[versao].regras;
+    if (versao === 1) return PADRAO_REGRAS.regras;
+    return null;
+  }
+  /* Prova exaustiva entre duas versões publicadas (memorizada: versoes/<n>
+     nunca são sobrescritas; o memo é zerado a cada leitura nova da config
+     mesmo assim). Sem a config carregada ou sem alguma das versões, nunca
+     afirma equivalência. */
+  var memoEquivalencia = {};
+  function equivalenciaEntreVersoes(versaoA, versaoB) {
+    var a = Number(versaoA), b = Number(versaoB);
+    var base = { versaoA: a, versaoB: b };
+    if (!configRecebida) return Object.assign(base, { equivalentes: false, motivo: 'config-nao-carregada' });
+    if (!(a >= 1) || !(b >= 1) || Math.floor(a) !== a || Math.floor(b) !== b) return Object.assign(base, { equivalentes: false, motivo: 'versao-invalida' });
+    var chave = a + '|' + b;
+    if (memoEquivalencia[chave]) return memoEquivalencia[chave];
+    var regrasA = regrasDaVersaoEstrita(a), regrasB = regrasDaVersaoEstrita(b);
+    if (!regrasA || !regrasB) return Object.assign(base, { equivalentes: false, motivo: 'versao-indisponivel' });
+    var r = Object.assign(base, compararRegrasExaustivamente(regrasA, regrasB));
+    memoEquivalencia[chave] = r;
+    return r;
+  }
 
   function versaoAtual() { return (cache && cache.versaoPublicada) || 1; }
   function regrasDaVersao(versao) {
@@ -393,8 +606,8 @@
   function rascunhoRegrasAtual() { return (cache && cache.rascunho) || null; }
   function iniciarOuObterRascunhoRegras() {
     var existente = rascunhoRegrasAtual();
-    if (existente && existente.regras) return JSON.parse(JSON.stringify(existente.regras));
-    return JSON.parse(JSON.stringify(regrasDaVersao(versaoAtual()).regras));
+    if (existente && existente.regras) return migrarFallbackLegado(existente.regras);
+    return migrarFallbackLegado(regrasDaVersao(versaoAtual()).regras);
   }
   /* versaoBase: a versão publicada que estava vigente quando o rascunho
      começou a ser editado — gravada UMA VEZ (na primeira vez que este
@@ -512,6 +725,10 @@
      Isso fecha a janela de corrida tanto para publicação real (já corrigido
      em PR #243) quanto para o próprio caminho de no-op (esta correção). */
   function publicarRegras(regras, usuario, cb, versaoBase) {
+    /* Nenhuma versão nova grava o fallback na forma legada (inclusive num
+       rollback para uma versão antiga) — e, como diffRegras trata as duas
+       formas como a mesma regra, a conversão sozinha nunca cria versão. */
+    regras = migrarFallbackLegado(regras);
     var erros = validarRegras({ regras: regras });
     if (erros.length) { cb('validacao', erros); return; }
     var baseEsperada = versaoBase != null ? versaoBase : versaoAtual();
@@ -648,8 +865,14 @@
     CAMADAS_VALIDAS: CAMADAS_VALIDAS,
     PADRAO_REGRAS: PADRAO_REGRAS,
     PADRAO_TEXTOS: PADRAO_TEXTOS,
+    TIPO_FALLBACK: TIPO_FALLBACK,
     avaliarCondicao: avaliarCondicao,
+    ehFallback: ehFallback,
+    migrarFallbackLegado: migrarFallbackLegado,
     identificarCamada: identificarCamada,
+    compararRegrasExaustivamente: compararRegrasExaustivamente,
+    equivalenciaEntreVersoes: equivalenciaEntreVersoes,
+    configCarregada: configCarregada,
     simular: simular,
     validarRegras: validarRegras,
     onMudanca: onMudanca,

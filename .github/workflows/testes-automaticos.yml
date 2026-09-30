@@ -194,6 +194,27 @@ jobs:
           FA_BASE_URL: http://127.0.0.1:8811
         run: node .github/scripts/teste-motor-noop-atomico.js
 
+      # Hermético (só Node). O fallback do motor arquitetural era
+      # {all:[]}, que o Firebase REAL não grava: toda versão publicada
+      # voltava sem condicoes, o diff acusava mudança lógica falsa e a
+      # validação rejeitava a própria versão vigente — invisível aqui porque
+      # o banco falso devolvia {all:[]} intacto. Este teste passa cada
+      # configuração pelo formato do Firebase real (persistencia-firebase-real.js)
+      # e exige a mesma semântica antes e depois: validação, diff e o retorno
+      # completo do motor nas 65.536 combinações.
+      - name: "Motor arquitetural: fallback explícito sobrevive à persistência real do Firebase"
+        run: node .github/scripts/teste-motor-fallback-persistencia.js
+
+      # Hermético, com o banco falso em persistenciaReal. Versão anterior
+      # comprovadamente equivalente à vigente é RECONCILIADA (só o carimbo
+      # de versão muda, com histórico e auditoria), nunca reprocessada;
+      # mudança lógica real bloqueia a reconciliação. Desktop e 375 px.
+      - name: "Motor arquitetural: reconciliar versão equivalente sem reprocessar"
+        env:
+          NODE_PATH: /tmp/pw-deps/node_modules
+          FA_BASE_URL: http://127.0.0.1:8811
+        run: node .github/scripts/teste-motor-reconciliacao.js
+
       # Hermético. Não existia critério pra ordem de exibição quando a
       # pessoa é destinatária de mais de uma oferta ao mesmo tempo — tudo
       # saía só na ordem manual do admin. O que é mais exclusivo PARA QUEM
