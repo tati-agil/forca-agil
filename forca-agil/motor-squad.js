@@ -480,13 +480,14 @@
 
   /* Registrada quando uma publicação é rejeitada por concorrência (ver
      publicarRegras) — nunca cria versão nova, só documenta a tentativa
-     bloqueada. */
-  function registrarConflitoPublicacao(versaoBase, versaoAtualServidor, usuario, cb) {
+     bloqueada, incluindo se ela PARECIA um no-op do ponto de vista de quem
+     chamou (origem) — só diagnóstico, nunca decide nada. */
+  function registrarConflitoPublicacao(versaoBase, versaoAtualServidor, usuario, origem, cb) {
     var agora = new Date().toISOString();
     var updates = {};
     updates[NODE_AUDITORIA + '/' + db().ref(NODE_AUDITORIA).push().key] = {
       tipo: 'conflito_publicacao', campo: null, valorAnterior: null, valorNovo: null,
-      usuario: usuario || null, dataHora: agora, versaoBase: versaoBase, versaoAtual: versaoAtualServidor
+      usuario: usuario || null, dataHora: agora, versaoBase: versaoBase, versaoAtual: versaoAtualServidor, origem: origem
     };
     db().ref().update(updates, function (err) { if (cb) cb(err || null); });
   }
@@ -496,52 +497,49 @@
      só isto, que avança motorSquadVersion; nunca chamado por uma edição de
      textos.
 
-     SEM MUDANÇA NENHUMA (alteradas.length === 0, sempre contra a versão
-     REALMENTE vigente agora, nunca contra versaoBase) é NO-OP de propósito
-     — nunca cria uma versão nova, nunca avança motorSquadVersion (mesmo
-     achado do motor-arquitetura.js: publicar um rascunho idêntico ao já
-     publicado não pode invalidar de novo avaliações já reprocessadas, e um
-     rascunho com base desatualizada mas semanticamente igual ao que já
-     está publicado agora também não deve ser bloqueado por concorrência).
-     Só limpa o rascunho pendente e devolve a MESMA versão em
-     info.novaVersao. Registra UMA entrada de auditoria tipo
-     'sem_alteracao' (versaoAnterior === novaVersao) — nunca uma entrada
-     tipo 'regra' de versaoAnterior→versaoAnterior+1, que sugeriria
-     falsamente que uma versão nova nasceu.
-
-     CONTROLE DE CONCORRÊNCIA (quando HÁ mudança real) — mesmo mecanismo de
-     motor-arquitetura.js: versaoBase é a versão publicada vigente quando o
-     rascunho começou a ser editado; a publicação usa uma transaction() do
-     Firebase sobre NODE_CONFIG (nunca "ler versão / esperar / gravar
-     depois") — o updateFn só devolve a nova configuração se
-     versaoPublicada no servidor, NO MOMENTO DO COMMIT, ainda for igual a
-     versaoBase; caso contrário aborta sem gravar nada. Se a transaction não
-     comprometer, a chamada é rejeitada com cb('conflito',
-     {versaoBase, versaoAtual}) — nunca sobrescreve a versão publicada por
-     outra pessoa — e fica registrada uma auditoria tipo
-     'conflito_publicacao'. */
+     TUDO — decidir se é NO-OP ou mudança real, e gravar o resultado — é
+     feito DENTRO de uma ÚNICA transaction() do Firebase sobre NODE_CONFIG,
+     mesmo mecanismo de motor-arquitetura.js (correção complementar à PR
+     #243): o caminho de no-op, sozinho, comparava contra a versão do CACHE
+     LOCAL e fazia um update() incondicional — entre a comparação e a
+     gravação, outra pessoa podia publicar uma mudança real, e o rascunho
+     seria descartado mesmo deixando de ser, de fato, equivalente ao que
+     passou a estar publicado. Agora o updateFn recebe o valor ATUAL do
+     servidor no momento do commit, recalcula diffRegras contra as regras
+     REALMENTE vigentes NESSE INSTANTE e só então decide:
+       - diferença vazia (equivalente ao que está publicado AGORA, mesmo
+         que a versão tenha mudado depois da primeira comparação) → NO-OP:
+         limpa o rascunho, mantém a mesma versaoPublicada, nunca cria
+         versão nova, nunca avança motorSquadVersion — vale tanto se
+         ninguém mais publicou nada quanto se outra pessoa publicou algo
+         que, por coincidência, é semanticamente igual ao rascunho;
+       - diferença real E versaoPublicada do servidor ainda bate com
+         versaoBase → publica de verdade: cria versão nova, grava
+         auditoria tipo 'regra';
+       - diferença real mas versaoPublicada do servidor NÃO bate mais com
+         versaoBase → aborta sem gravar nada — nunca descarta o rascunho
+         nem sobrescreve a versão alheia; rejeitado com
+         cb('conflito', {versaoBase, versaoAtual}) e uma auditoria tipo
+         'conflito_publicacao'. */
   function publicarRegras(regras, usuario, cb, versaoBase) {
-    var versaoAntigaLocal = versaoAtual();
-    var regrasAntigasLocal = regrasDaVersao(versaoAntigaLocal);
-    var alteradas = diffRegras(regrasAntigasLocal, regras);
-    if (!alteradas.length) {
-      var agoraSemMudanca = new Date().toISOString();
-      var updatesSemMudanca = {};
-      updatesSemMudanca[NODE_CONFIG + '/rascunho'] = null;
-      updatesSemMudanca[NODE_AUDITORIA + '/' + db().ref(NODE_AUDITORIA).push().key] = {
-        tipo: 'sem_alteracao', campo: null, valorAnterior: null, valorNovo: null,
-        usuario: usuario || null, dataHora: agoraSemMudanca, versaoAnterior: versaoAntigaLocal, novaVersao: versaoAntigaLocal
-      };
-      db().ref().update(updatesSemMudanca, function (err) {
-        if (cb) cb(err || null, { novaVersao: versaoAntigaLocal, alteradas: [], semMudanca: true });
-      });
-      return;
-    }
-    var baseEsperada = versaoBase != null ? versaoBase : versaoAntigaLocal;
+    var baseEsperada = versaoBase != null ? versaoBase : versaoAtual();
+    var pareciaNoOpLocalmente = diffRegras(regrasDaVersao(versaoAtual()), regras).length === 0;
     var agora = new Date().toISOString();
+    var alteradasReais = null;
+    var eraNoOp = false;
     db().ref(NODE_CONFIG).transaction(function (atual) {
       var cfg = atual || {};
       var versaoServidor = cfg.versaoPublicada || 1;
+      var regrasVigentes = (cfg.versoes && cfg.versoes[versaoServidor] && cfg.versoes[versaoServidor].regras) || PADRAO_REGRAS;
+      alteradasReais = diffRegras(regrasVigentes, regras);
+      if (!alteradasReais.length) {
+        eraNoOp = true;
+        var cfgNoOp = Object.assign({}, cfg);
+        cfgNoOp.versaoPublicada = versaoServidor;
+        cfgNoOp.rascunho = null;
+        return cfgNoOp;
+      }
+      eraNoOp = false;
       if (versaoServidor !== baseEsperada) return undefined;
       var novoCfg = Object.assign({}, cfg);
       novoCfg.versaoPublicada = versaoServidor + 1;
@@ -554,13 +552,24 @@
       var cfgFinal = (snapshot && snapshot.val()) || {};
       var versaoServidorFinal = cfgFinal.versaoPublicada || baseEsperada;
       if (!comprometido) {
-        registrarConflitoPublicacao(baseEsperada, versaoServidorFinal, usuario, function () {
+        registrarConflitoPublicacao(baseEsperada, versaoServidorFinal, usuario, pareciaNoOpLocalmente ? 'tentativa_noop' : 'tentativa_publicacao', function () {
           if (cb) cb('conflito', { versaoBase: baseEsperada, versaoAtual: versaoServidorFinal });
         });
         return;
       }
+      if (eraNoOp) {
+        var updatesNoOp = {};
+        updatesNoOp[NODE_AUDITORIA + '/' + db().ref(NODE_AUDITORIA).push().key] = {
+          tipo: 'sem_alteracao', campo: null, valorAnterior: null, valorNovo: null,
+          usuario: usuario || null, dataHora: agora, versaoAnterior: versaoServidorFinal, novaVersao: versaoServidorFinal
+        };
+        db().ref().update(updatesNoOp, function (errAud) {
+          if (cb) cb(errAud || null, { novaVersao: versaoServidorFinal, alteradas: [], semMudanca: true });
+        });
+        return;
+      }
       var updatesAuditoria = {};
-      alteradas.forEach(function (alt) {
+      alteradasReais.forEach(function (alt) {
         var chave = db().ref(NODE_AUDITORIA).push().key;
         updatesAuditoria[NODE_AUDITORIA + '/' + chave] = {
           tipo: 'regra', campo: alt.grupo + '.' + alt.codigo,
@@ -569,7 +578,7 @@
         };
       });
       db().ref().update(updatesAuditoria, function (errAud) {
-        if (cb) cb(errAud || null, { novaVersao: versaoServidorFinal, alteradas: alteradas });
+        if (cb) cb(errAud || null, { novaVersao: versaoServidorFinal, alteradas: alteradasReais });
       });
     });
   }

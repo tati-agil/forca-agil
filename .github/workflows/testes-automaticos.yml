@@ -179,6 +179,21 @@ jobs:
           FA_BASE_URL: http://127.0.0.1:8811
         run: node .github/scripts/teste-motor-concorrencia-publicacao.js
 
+      # Hermético. Complementa o teste de concorrência acima: o caminho de
+      # NO-OP (publicar um rascunho que já parece idêntico ao vigente)
+      # comparava contra o cache local e limpava o rascunho com um update()
+      # incondicional, fora da transaction — entre a comparação e a
+      # gravação, outra pessoa podia publicar uma mudança real, e o
+      # rascunho seria descartado mesmo deixando de ser, de fato,
+      # equivalente ao que passou a estar publicado. Agora a decisão inteira
+      # (comparar e gravar) acontece dentro da mesma transaction, contra o
+      # valor do servidor no momento do commit.
+      - name: "Motor arquitetural/squad: o caminho de no-op também é atomicamente seguro sob concorrência"
+        env:
+          NODE_PATH: /tmp/pw-deps/node_modules
+          FA_BASE_URL: http://127.0.0.1:8811
+        run: node .github/scripts/teste-motor-noop-atomico.js
+
       # Hermético. Não existia critério pra ordem de exibição quando a
       # pessoa é destinatária de mais de uma oferta ao mesmo tempo — tudo
       # saía só na ordem manual do admin. O que é mais exclusivo PARA QUEM

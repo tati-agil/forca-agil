@@ -2727,8 +2727,9 @@
         var versaoCol = a.tipo === 'conflito_publicacao'
           ? 'tentativa com base ' + esc(a.versaoBase) + ' — vigente ' + esc(a.versaoAtual)
           : (a.versaoAnterior === a.novaVersao ? 'sem versão nova (' + esc(a.versaoAnterior) + ')' : esc(a.versaoAnterior) + ' → ' + esc(a.novaVersao));
+        var campoCol = a.campo ? esc(a.campo) : (a.tipo === 'conflito_publicacao' && a.origem ? esc(a.origem) : '—');
         html += '<tr><td data-label="Tipo">' + tipoLabel + '</td>' +
-          '<td data-label="Campo">' + (a.campo ? esc(a.campo) : '—') + '</td>' +
+          '<td data-label="Campo">' + campoCol + '</td>' +
           '<td data-label="Usuário">' + esc((a.usuario && (a.usuario.name || a.usuario.email)) || '—') + '</td>' +
           '<td data-label="Data">' + fmtData(a.dataHora) + '</td>' +
           '<td data-label="Versão">' + versaoCol + '</td></tr>';
