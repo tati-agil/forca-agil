@@ -429,27 +429,31 @@
      Produto/Serviço principal. Nada aqui olha para nome/descrição do item —
      especializacaoPara também só usa uma resposta já existente (modalidade
      dentro de Componente), nunca inventa um valor. */
+  /* Mapa id interno ↔ codigoEstavel (P1-P16), único ponto de tradução entre
+     a estrutura interna de avaliacoes-produto (respostas por id: necessidade,
+     resultado...) e o motor declarativo (window.faMotorArquitetura, que só
+     conhece P1-P16 — nunca id interno, nunca texto). */
+  var ID_POR_CODIGO = {};
+  TODAS_PERGUNTAS.forEach(function (def) { ID_POR_CODIGO[def.codigoEstavel] = def.id; });
+
+  /* identificarCamada é agora um WRAPPER FINO: a decisão de QUAL camada
+     (e motivos/conflito/incoerência) vem de window.faMotorArquitetura —
+     motor declarativo, versionado e auditável (ver motor-arquitetura.js),
+     migrado a partir desta mesma função por tradução LITERAL condição por
+     condição (equivalência comprovada exaustivamente sobre as 65536
+     combinações possíveis das 16 respostas — ver
+     check-motor-arquitetura-equivalencia.js — antes deste wrapper passar a
+     depender dele). especializacaoPara/papelEstruturalPara continuam
+     EXATAMENTE como antes — metadado de CADASTRO, nunca inferido das
+     respostas nem tocado por esta migração (proibido por especificação). */
   function identificarCamada(atual) {
     var r = atual.respostas || {};
     function sim(id) { return !!(r[id] && r[id].valor === 'sim'); }
-
-    var necessidade = sim('necessidade'), resultado = sim('resultado'), solucao = sim('solucao'),
-      fronteira = sim('fronteira'), autonomia = sim('autonomia');
-    var canal = sim('canal'), artefato = sim('artefato'), capacidade = sim('capacidade'), processo = sim('processo'),
-      modalidade = sim('modalidade'), regra = sim('regra'), componente = sim('componente'), funcionalidade = sim('funcionalidade');
+    var modalidade = sim('modalidade');
 
     var exclusoesSim = EXCLUSOES.filter(function (e) { return sim(e.id); }).map(function (e) { return e.id; });
     function motivo(id) { return ROTULOS_SINAL[id] + ': ' + (sim(id) ? 'SIM' : 'NÃO'); }
-    /* Uma especialização CADASTRADA (metadado arquitetural confiável, nunca
-       inferido das respostas — ver especializacaoCadastrada no schema) tem
-       precedência sobre qualquer determinação pelo questionário: é assim que
-       "Instituto previdenciário" pode aparecer para uma Unidade de valor
-       associada sem precisar de uma pergunta nova (proibida) nem de inferir
-       isso das 16 respostas, que não distinguem tipos de Unidade de Valor
-       entre si. Sem cadastro, uma especialização real (hoje, só
-       Componente+modalidade) vence; caso contrário, qualquer camada do eixo
-       mostra "não determinada" em vez de simplesmente não ter o campo —
-       nunca null para essas quatro, e nunca A validar por causa disso. */
+
     function especializacaoPara(camadaId) {
       if (CAMADAS_COM_ESPECIALIZACAO.indexOf(camadaId) === -1) return null;
       var cadastrada = (atual.especializacaoCadastrada || '').trim();
@@ -457,15 +461,6 @@
       if (camadaId === 'componente' && modalidade) return 'Opção/configuração de personalização';
       return ESPECIALIZACAO_NAO_DETERMINADA;
     }
-    /* Papel estrutural (Essencial/Opcional) é uma terceira dimensão,
-       independente da classificação e da especialização — só existe hoje
-       para Componente, e só vem de cadastro/metadado (papelEstruturalCadastrado
-       no schema), NUNCA das respostas: nada no questionário permite concluir
-       sozinho se um componente é essencial ou opcional para a solução
-       principal (ex.: o fato de o participante poder escolher/alterar um
-       Componente não basta para inferir "Opcional"). Sem cadastro, mostra
-       "não determinado" — nunca vira A validar, e nunca é confundido com uma
-       classificação à parte ("Componente essencial" não é uma camada). */
     function papelEstruturalPara(camadaId) {
       if (CAMADAS_COM_PAPEL_ESTRUTURAL.indexOf(camadaId) === -1) return null;
       var cadastrado = (atual.papelEstruturalCadastrado || '').trim().toLowerCase();
@@ -473,129 +468,22 @@
       if (cadastrado === 'opcional') return 'Opcional';
       return PAPEL_ESTRUTURAL_NAO_DETERMINADO;
     }
-    function resultadoFn(camada, sinais) {
-      return {
-        camada: camada, motivos: sinais.map(motivo), conflito: null, incoerencia: false,
-        especializacao: especializacaoPara(camada), papelEstrutural: papelEstruturalPara(camada), exclusoesSim: exclusoesSim
-      };
-    }
 
-    /* 0. Contradição direta: "atua dentro de outro Produto/Serviço" e
-       "existe de forma independente de outro Produto/Serviço" não podem ser
-       SIM ao mesmo tempo sem incoerência. O sistema nunca resolve essa
-       contradição escolhendo um lado silenciosamente. */
-    if (funcionalidade && autonomia) {
-      return {
-        camada: 'a-validar', motivos: [motivo('funcionalidade'), motivo('autonomia')],
-        conflito: null, incoerencia: true, especializacao: null, exclusoesSim: exclusoesSim
-      };
-    }
+    /* Contexto P1-P16 para o motor declarativo — nunca o inverso (o motor
+       nunca vê id interno nem texto de pergunta). */
+    var contexto = {};
+    TODAS_PERGUNTAS.forEach(function (def) { contexto[def.codigoEstavel] = sim(def.id) ? 'SIM' : 'NAO'; });
+    var regras = window.faMotorArquitetura.regrasDaVersao(window.faMotorArquitetura.versaoAtual());
+    var decisao = window.faMotorArquitetura.identificarCamada(contexto, regras);
 
-    var nucleoCompleto = necessidade && resultado && solucao && fronteira && autonomia;
+    var motivos = decisao.motivosCodigos.map(function (codigo) { return motivo(ID_POR_CODIGO[codigo]); });
+    var conflito = decisao.conflito ? decisao.conflito.map(function (camId) { return camadaPorId(camId).label; }) : null;
 
-    /* 1. Produto/Serviço principal: núcleo essencial completo, autonomia
-       estrutural confirmada, e nenhum teste de exclusão se sustenta. Sem
-       autonomia, mesmo com todos os outros critérios em SIM, o item não é
-       recomendado como Produto/Serviço principal — é exatamente o caso de
-       uma funcionalidade completa por fora, mas dependente por dentro. */
-    if (nucleoCompleto && exclusoesSim.length === 0) {
-      return resultadoFn('produto-principal', ['necessidade', 'resultado', 'solucao', 'fronteira', 'autonomia']);
-    }
-
-    /* 2. Funcionalidade/Operação: sinal direto e explícito (a própria
-       pergunta "é uma ação que atua dentro de outro Produto/Serviço?"),
-       combinado com a ausência de autonomia — é uma ação sobre outra coisa,
-       nunca a coisa em si. Tem precedência sobre "Unidade de valor
-       associada" porque é mais específico (a pergunta captura a relação
-       diretamente, sem depender do nome do item) — na prática as duas
-       condições já são mutuamente exclusivas (uma exige funcionalidade=SIM,
-       a outra funcionalidade=NÃO). */
-    if (funcionalidade && !autonomia) {
-      return resultadoFn('funcionalidade-operacao', ['funcionalidade', 'autonomia']);
-    }
-
-    /* 3. Canal / Informação-Documento: sinais diretos sobre a NATUREZA do
-       item ("é principalmente um canal?", "é principalmente uma
-       informação/documento?") — decisivos por si só, sem depender de
-       "resultado" estar em NÃO. Um item como "Saldo de Conta" pode
-       perfeitamente ter resultado=SIM (ver o saldo já é, num sentido frouxo,
-       um resultado percebido) e ainda assim não ser Produto/Serviço nem
-       Unidade de valor — é a NATUREZA informacional que decide, e essa
-       pergunta já captura isso diretamente, sem olhar pro nome do item.
-       Ficam antes de "Unidade de valor associada" por serem mais
-       específicos: um "sim" explícito aqui pesa mais que um "resultado"
-       genérico que poderia, sozinho, sugerir outra coisa. */
-    if (canal) {
-      return resultadoFn('canal', ['canal']);
-    }
-    if (artefato) {
-      return resultadoFn('documento-informacao', ['artefato']);
-    }
-
-    /* 4. Unidade de valor associada: tem resultado próprio, fronteira e
-       necessidade de cliente (como um produto), mas SEM autonomia
-       estrutural — depende de um Produto/Serviço maior — e não é, ela
-       mesma, a ação/funcionalidade que atua sobre outra coisa. Autonomia=NÃO
-       não elimina esta camada — só impede que ela seja tratada como
-       Produto/Serviço principal (a diferença entre as duas é só a
-       autonomia). */
-    if (resultado && fronteira && necessidade && !autonomia && !funcionalidade) {
-      return resultadoFn('unidade-valor-associada', ['resultado', 'fronteira', 'necessidade', 'autonomia']);
-    }
-
-    /* 5. Conflito real (não hierárquico): processo e capacidade indicados ao
-       mesmo tempo, sem nenhum outro sinal (componente, resultado próprio)
-       para desempatar qual dos dois é a natureza predominante. Diferente de
-       "Componente + opção/configuração" (item 7 abaixo), aqui as duas
-       categorias são mutuamente exclusivas — nenhuma é especialização da
-       outra — então A validar é a resposta honesta, não uma escolha forçada. */
-    if (processo && capacidade && !componente && !resultado && !funcionalidade) {
-      return {
-        camada: 'a-validar', motivos: [motivo('processo'), motivo('capacidade')],
-        conflito: [camadaPorId('processo-etapa').label, camadaPorId('capacidade-organizacional').label],
-        incoerencia: false, especializacao: null, exclusoesSim: exclusoesSim
-      };
-    }
-
-    /* 6. Capacidade organizacional: capacidade interna, sem necessidade de
-       cliente identificável nem papel de componente de outra solução —
-       "Componente pertence à solução; Capacidade pertence à organização". */
-    if (capacidade && !necessidade && !componente) {
-      return resultadoFn('capacidade-organizacional', ['capacidade', 'necessidade', 'componente']);
-    }
-
-    /* 7. Componente: pertence estruturalmente a outra solução, sem
-       autonomia, sem ser a ação (funcionalidade) e sem resultado próprio
-       autônomo. "Modalidade/opção/configuração" aqui NUNCA vira uma
-       categoria concorrente à parte — é tratada como uma característica
-       secundária do próprio componente (especialização), evitando o falso
-       conflito que a resposta "é uma modalidade" costumava gerar quando
-       aparecia ao lado de "existe para outro Produto/Serviço entregar
-       resultado". Também é o destino padrão de uma modalidade/opção/
-       configuração isolada, sem resultado próprio que a distinga como uma
-       variante de verdade da oferta (ver item 8, Modalidade/Subproduto). */
-    if ((componente || modalidade) && !autonomia && !funcionalidade && !resultado && !processo && !regra) {
-      return resultadoFn('componente', ['componente', 'modalidade', 'resultado']);
-    }
-
-    /* 8. Modalidade/Subproduto: só quando o item tem resultado próprio
-       perceptível — o que o diferencia de uma simples opção/configuração
-       (que vira Componente, item 7) e o caracteriza como uma variante
-       reconhecível da oferta principal, com identidade própria. */
-    if (modalidade && resultado && !funcionalidade && !autonomia && !componente) {
-      return resultadoFn('modalidade-subproduto', ['modalidade', 'resultado', 'funcionalidade', 'autonomia']);
-    }
-
-    if (regra && !funcionalidade && !autonomia && !resultado) {
-      return resultadoFn('regra-condicao', ['regra', 'funcionalidade', 'autonomia']);
-    }
-    if (processo && !funcionalidade && !autonomia && !resultado) {
-      return resultadoFn('processo-etapa', ['processo', 'funcionalidade', 'autonomia']);
-    }
-
-    /* Nada acima se sustentou: evidência insuficiente para recomendar
-       qualquer categoria com segurança — nunca uma escolha forçada. */
-    return { camada: 'a-validar', motivos: [], conflito: null, incoerencia: false, especializacao: null, exclusoesSim: exclusoesSim };
+    return {
+      camada: decisao.camada, motivos: motivos, conflito: conflito, incoerencia: decisao.incoerencia,
+      especializacao: especializacaoPara(decisao.camada), papelEstrutural: papelEstruturalPara(decisao.camada),
+      exclusoesSim: exclusoesSim
+    };
   }
 
   /* Descreve, numa frase própria, COMO o item se relaciona com o
@@ -1360,8 +1248,9 @@
       carregandoTravado: false, /* true quando a tela 'carregando' esperou demais pela leitura de avaliacoes-produto */
       reprocessamentoLote: null, /* null | { total, feitos, sucesso, erros:[{key,nome,mensagem}], emAndamento } —
                                     ver executarReprocessamentoEmLote; some quando fechado depois de concluído */
-      config: null /* null fora da tela de configuração; ver abrirConfigQuestionarios — nunca persistido aqui,
+      config: null, /* null fora da tela de configuração; ver abrirConfigQuestionarios — nunca persistido aqui,
                        só o rascunho gravado explicitamente em window.faQuestionarios */
+      configMotores: null /* null fora da tela "⚙ Configuração dos Motores"; ver abrirConfigMotores */
     };
 
     function temCampoInvalido(campo) {
@@ -1377,6 +1266,7 @@
       else if (state.tela === 'sem-permissao') renderSemPermissao();
       else if (state.tela === 'carregando') renderCarregandoAvaliacao();
       else if (state.tela === 'config-questionario') renderConfigQuestionarios();
+      else if (state.tela === 'config-motores') renderConfigMotores();
     }
 
     /* Tela de carregamento de #admin?avp=<chave> (F5, link direto, nova aba)
@@ -1599,6 +1489,7 @@
       html += '<button class="btn btn--sm avp-lixeira-btn' + (state.lixeira ? ' active' : '') + '" id="avpLixeiraBtn">' +
         (state.lixeira ? '‹ Voltar' : '🗑 Lixeira (' + excluidos.length + ')') + '</button>';
       if (!state.lixeira) html += '<button class="btn btn--sm" id="avpConfigQuestionariosBtn">⚙ Configuração dos Questionários</button>';
+      if (!state.lixeira) html += '<button class="btn btn--sm" id="avpConfigMotoresBtn">⚙ Configuração dos Motores</button>';
       if (!state.lixeira && window.faAvaliacaoSquad) html += '<button class="btn btn--sm" id="avpAdequacaoSquadListaBtn">🧭 Adequação à Squad</button>';
       html += '</div>';
       if (state.flashExportacao) {
@@ -1701,6 +1592,9 @@
 
       var configBtn = document.getElementById('avpConfigQuestionariosBtn');
       if (configBtn) configBtn.addEventListener('click', abrirConfigQuestionarios);
+
+      var configMotoresBtn = document.getElementById('avpConfigMotoresBtn');
+      if (configMotoresBtn) configMotoresBtn.addEventListener('click', abrirConfigMotores);
 
       var squadListaBtn = document.getElementById('avpAdequacaoSquadListaBtn');
       if (squadListaBtn) squadListaBtn.addEventListener('click', function () { window.faAvaliacaoSquad.abrirLista(); });
@@ -2454,6 +2348,333 @@
       });
     }
 
+    /* ===================== CONFIGURAÇÃO DOS MOTORES =====================
+       Entrada ÚNICA e consolidada para os dois motores (item 16 do pedido)
+       — NUNCA a mesma tela de "⚙ Configuração dos Questionários" acima
+       (aquela edita REDAÇÃO das perguntas P1-P16/S1-S8; esta edita a
+       LÓGICA de decisão de cada motor: condições e precedência). O motor
+       arquitetural (P1-P16) é administrado aqui mesmo, com o mesmo padrão
+       técnico de motor-squad.js (RASCUNHO → SIMULAÇÃO → PUBLICAÇÃO,
+       versoes/<n> nunca sobrescritas, validação antes de publicar). O
+       motor de squad continua com a tela já criada pela PR #240
+       (avaliacao-squad.js) — não duplicada aqui, só alcançável por um
+       botão que chama window.faAvaliacaoSquad.abrirMotorConfig(). */
+    var CAMADAS_LABEL_POR_ID = {};
+    CAMADAS.forEach(function (c) { CAMADAS_LABEL_POR_ID[c.id] = c.label; });
+    function abrirConfigMotores() {
+      state.configMotores = { sub: 'painel', flash: null };
+      state.tela = 'config-motores';
+      render();
+    }
+    function voltarPainelConfigMotores() {
+      state.configMotores = { sub: 'painel', flash: state.configMotores && state.configMotores.flash };
+      render();
+    }
+    function renderConfigMotores() {
+      var c = state.configMotores;
+      var html = '<button class="avp-voltar-link" id="avpMotoresVoltarLista">‹ Avaliações de Produto/Serviço</button>';
+      html += '<div class="avp-config-motores">';
+      if (c.sub === 'painel') html += renderMotoresPainel();
+      else if (c.sub === 'editar-regras') html += renderMotorArqEditarRegras();
+      else if (c.sub === 'simulacao') html += renderMotorArqSimulacao();
+      else if (c.sub === 'editar-textos') html += renderMotorArqEditarTextos();
+      else if (c.sub === 'auditoria') html += renderMotorArqAuditoria();
+      else if (c.sub === 'versoes') html += renderMotorArqVersoes();
+      html += '</div>';
+      wrap.innerHTML = html;
+      document.getElementById('avpMotoresVoltarLista').addEventListener('click', function () { state.tela = 'lista'; state.configMotores = null; render(); });
+      if (c.sub === 'painel') bindMotoresPainel();
+      else if (c.sub === 'editar-regras') bindMotorArqEditarRegras();
+      else if (c.sub === 'simulacao') bindMotorArqSimulacao();
+      else if (c.sub === 'editar-textos') bindMotorArqEditarTextos();
+      else if (c.sub === 'auditoria') bindMotorArqAuditoria();
+      else if (c.sub === 'versoes') bindMotorArqVersoes();
+    }
+
+    /* ---- PAINEL (visão geral dos dois motores) ---- */
+    function renderMotoresPainel() {
+      var c = state.configMotores;
+      var sitArq = window.faMotorArquitetura.situacao();
+      var html = '<div class="avp-form-card"><h3>⚙ Configuração dos Motores</h3>';
+      html += '<p class="avp-decisao-aviso">Os dois motores decidem por condições lógicas e precedência — nunca peso, pontuação ou contagem de respostas SIM. Alterar a lógica cria uma versão nova; alterar só a redação nunca versiona o motor.</p></div>';
+      if (c.flash) html += '<p class="avp-flash-success">' + esc(c.flash) + '</p>';
+
+      html += '<div class="avp-form-card"><h4>Motor de Classificação Arquitetural (P1-P16)</h4>';
+      html += '<p>Versão publicada: <strong>' + esc(sitArq.versaoPublicada) + '</strong> · Status: ' + (sitArq.temRascunho ? '<strong>há um rascunho não publicado</strong>' : 'Publicada') + ' · Regras: ' + esc(sitArq.qtdRegras) + '</p>';
+      html += '<p>Última publicação: ' + (sitArq.ultimaAlteracaoEm ? esc(fmtData(sitArq.ultimaAlteracaoEm)) + (sitArq.ultimaAlteracaoPor ? ' · ' + esc(sitArq.ultimaAlteracaoPor) : '') : 'nunca alterado (regras de fábrica, migradas de identificarCamada)') + '</p>';
+      html += '<div class="avp-actions-footer">';
+      html += '<button class="btn btn--sm" id="avpMotorArqEditarBtn">Editar regras</button>';
+      html += '<button class="btn btn--sm" id="avpMotorArqTextosBtn">Editar textos</button>';
+      html += '<button class="btn btn--sm" id="avpMotorArqVersoesBtn">Versões publicadas</button>';
+      html += '<button class="btn btn--sm" id="avpMotorArqAuditoriaBtn">Histórico de alterações</button>';
+      html += '</div></div>';
+
+      html += '<div class="avp-form-card"><h4>Motor de Adequação à Gestão por Squad (S1-S8)</h4>';
+      if (window.faAvaliacaoSquad && window.faMotorSquad) {
+        var sitSquad = window.faMotorSquad.situacao();
+        html += '<p>Versão publicada: <strong>' + esc(sitSquad.versaoPublicada) + '</strong> · Status: ' + (sitSquad.temRascunho ? '<strong>há um rascunho não publicado</strong>' : 'Publicada') + '</p>';
+        html += '<div class="avp-actions-footer"><button class="btn btn--sm" id="avpMotorSquadAbrirBtn">Abrir configuração do motor de squad</button></div>';
+      } else {
+        html += '<p class="admin-empty">Módulo de squad não carregado.</p>';
+      }
+      html += '</div>';
+      return html;
+    }
+    function bindMotoresPainel() {
+      document.getElementById('avpMotorArqEditarBtn').addEventListener('click', function () {
+        state.configMotores = { sub: 'editar-regras', regras: window.faMotorArquitetura.iniciarOuObterRascunhoRegras(), erro: null, salvando: false };
+        render();
+      });
+      document.getElementById('avpMotorArqTextosBtn').addEventListener('click', function () {
+        state.configMotores = { sub: 'editar-textos', textos: JSON.parse(JSON.stringify(window.faMotorArquitetura.textosAtuais())), salvando: false };
+        render();
+      });
+      document.getElementById('avpMotorArqVersoesBtn').addEventListener('click', function () {
+        state.configMotores = { sub: 'versoes' };
+        render();
+      });
+      document.getElementById('avpMotorArqAuditoriaBtn').addEventListener('click', function () {
+        state.configMotores = { sub: 'auditoria', lista: null };
+        render();
+        window.faMotorArquitetura.auditoria(function (lista) {
+          if (state.configMotores && state.configMotores.sub === 'auditoria') { state.configMotores.lista = lista; render(); }
+        });
+      });
+      var squadBtn = document.getElementById('avpMotorSquadAbrirBtn');
+      if (squadBtn) squadBtn.addEventListener('click', function () {
+        state.tela = 'lista'; state.configMotores = null;
+        window.faAvaliacaoSquad.abrirMotorConfig();
+      });
+    }
+
+    /* ---- EDITAR REGRAS — lista ÚNICA e ordenada (diferente do squad, que
+       tem 3 grupos eixoA/eixoB/combinacao): o motor arquitetural sempre foi
+       UMA cadeia de precedência só, exatamente como identificarCamada. Só
+       as FOLHAS (campo/valor) são editáveis — mesma restrição de squad
+       (item 18 do pedido: P1-P16 nunca em texto livre, só listas
+       controladas). */
+    function renderCondicaoArqEditavel(cond, leafRefs, prefixo) {
+      if (Array.isArray(cond.all)) {
+        if (!cond.all.length) return '<p class="sq-cond-rotulo">' + prefixo + '(sempre — regra de encerramento/fallback)</p>';
+        return '<div class="sq-cond-grupo"><p class="sq-cond-rotulo">' + prefixo + 'TODAS as condições:</p>' +
+          cond.all.map(function (c) { return renderCondicaoArqEditavel(c, leafRefs, prefixo + '　'); }).join('') + '</div>';
+      }
+      if (Array.isArray(cond.any)) {
+        return '<div class="sq-cond-grupo"><p class="sq-cond-rotulo">' + prefixo + 'QUALQUER uma destas condições:</p>' +
+          cond.any.map(function (c) { return renderCondicaoArqEditavel(c, leafRefs, prefixo + '　'); }).join('') + '</div>';
+      }
+      if (cond.not) {
+        return '<div class="sq-cond-grupo"><p class="sq-cond-rotulo">' + prefixo + 'NENHUMA destas condições:</p>' + renderCondicaoArqEditavel(cond.not, leafRefs, prefixo + '　') + '</div>';
+      }
+      var id = leafRefs.length;
+      leafRefs.push(cond);
+      var campo = cond.campo || cond.pergunta;
+      var valorAtual = (cond.valor != null ? cond.valor : cond.resposta || 'SIM').toUpperCase();
+      return '<p class="sq-cond-folha">' + prefixo + esc(campo) + ' | igual a | ' +
+        '<select class="sq-cond-select" data-leaf-id="' + id + '">' +
+        '<option value="SIM"' + (valorAtual === 'SIM' ? ' selected' : '') + '>SIM</option>' +
+        '<option value="NAO"' + (valorAtual === 'NAO' ? ' selected' : '') + '>NÃO</option>' +
+        '</select></p>';
+    }
+    function renderMotorArqEditarRegras() {
+      var c = state.configMotores;
+      c.leafRefs = [];
+      var html = '<div class="avp-form-card"><h3>Editar regras do motor arquitetural</h3>';
+      html += '<p class="avp-decisao-aviso">A ordem abaixo é a PRECEDÊNCIA: a primeira regra cujas condições baterem decide a camada — nunca uma votação. Mudar o valor esperado (SIM/NÃO) de uma condição muda a lógica do motor; ao publicar, isso cria uma versão nova e nunca recalcula avaliações já concluídas sozinho. É preciso simular o impacto antes de publicar.</p></div>';
+      c.regras.slice().sort(function (a, b) { return (a.ordem || 0) - (b.ordem || 0); }).forEach(function (regra) {
+        html += '<div class="avp-form-card sq-regra-card"><p class="sq-regra-codigo">Precedência ' + esc(regra.ordem) + ' — ' + esc(regra.codigo) +
+          ' → <strong>' + esc(CAMADAS_LABEL_POR_ID[regra.resultado] || regra.resultado) + '</strong>' +
+          (regra.incoerencia ? ' <em>(incoerência)</em>' : '') +
+          (regra.conflito ? ' <em>(conflito: ' + regra.conflito.map(function (id) { return CAMADAS_LABEL_POR_ID[id] || id; }).join(' × ') + ')</em>' : '') + '</p>';
+        html += renderCondicaoArqEditavel(regra.condicoes, c.leafRefs, '');
+        html += '</div>';
+      });
+      if (c.erro) html += '<div class="avp-form-card"><p class="avp-error-msg">' + esc(Array.isArray(c.erro) ? c.erro.join(' ') : c.erro) + '</p></div>';
+      html += '<div class="avp-actions-footer">';
+      html += '<button class="btn" id="avpMotorArqSalvarRascunhoBtn"' + (c.salvando ? ' disabled' : '') + '>SALVAR RASCUNHO</button>';
+      html += '<button class="btn btn--primary" id="avpMotorArqSimularBtn"' + (c.salvando ? ' disabled' : '') + '>SIMULAR IMPACTO</button>';
+      html += '<button class="btn" id="avpMotorArqCancelarBtn"' + (c.salvando ? ' disabled' : '') + '>‹ Voltar</button>';
+      html += '</div>';
+      return html;
+    }
+    function bindMotorArqEditarRegras() {
+      var c = state.configMotores;
+      wrap.querySelectorAll('.sq-cond-select').forEach(function (sel) {
+        sel.addEventListener('change', function () { c.leafRefs[Number(sel.dataset.leafId)].valor = sel.value; });
+      });
+      document.getElementById('avpMotorArqCancelarBtn').addEventListener('click', voltarPainelConfigMotores);
+      document.getElementById('avpMotorArqSalvarRascunhoBtn').addEventListener('click', function () {
+        if (c.salvando) return;
+        c.salvando = true;
+        render();
+        window.faMotorArquitetura.salvarRascunhoRegras(c.regras, sessaoAtual(), function (err) {
+          c.salvando = false;
+          if (err) { c.erro = 'Não foi possível salvar o rascunho. Tente novamente.'; render(); return; }
+          state.configMotores.flash = '✓ Rascunho de regras salvo.';
+          voltarPainelConfigMotores();
+        });
+      });
+      document.getElementById('avpMotorArqSimularBtn').addEventListener('click', function () {
+        var erros = window.faMotorArquitetura.validarRegras({ regras: c.regras });
+        if (erros.length) { c.erro = erros; render(); return; }
+        var concluidas = state.itens.filter(function (it) { return !it.excluido && it.status === 'concluido'; });
+        var simulacao = window.faMotorArquitetura.simular(c.regras, concluidas, respostasArqParaCodigo);
+        state.configMotores = { sub: 'simulacao', regras: c.regras, simulacao: simulacao, salvando: false };
+        render();
+      });
+    }
+    /* Converte item.respostas (ids internos) para o mapa P1-P16 que o motor
+       declarativo entende — usado só pela simulação (o motor NUNCA lê
+       avaliacoes-produto nem conhece ids internos sozinho). */
+    function respostasArqParaCodigo(item) {
+      var r = item.respostas || {};
+      var contexto = {};
+      TODAS_PERGUNTAS.forEach(function (def) { contexto[def.codigoEstavel] = (r[def.id] && r[def.id].valor === 'sim') ? 'SIM' : 'NAO'; });
+      return contexto;
+    }
+
+    /* ---- SIMULAÇÃO (item 20 do pedido) ---- */
+    function renderMotorArqSimulacao() {
+      var c = state.configMotores;
+      var s = c.simulacao;
+      var html = '<div class="avp-form-card"><h3>Simulação de impacto</h3>';
+      html += '<p class="avp-decisao-aviso">Nenhuma avaliação foi alterada — isto só simula a regra candidata sobre as avaliações já concluídas.</p>';
+      html += '<p>' + esc(s.totalAnalisadas) + ' avaliaç' + (s.totalAnalisadas === 1 ? 'ão analisada' : 'ões analisadas') + '</p>';
+      html += '<p>' + esc(s.mantidas) + ' manteriam a classificação</p>';
+      html += '<p>' + esc(s.mudariam.length) + ' mudariam</p></div>';
+      if (s.mudariam.length) {
+        html += '<div class="avp-form-card"><h4>Avaliações que mudariam</h4>';
+        html += '<div class="table-scroll-wrap"><table class="admin-table"><thead><tr><th>Item</th><th>Resultado atual</th><th>Resultado proposto</th></tr></thead><tbody>';
+        s.mudariam.forEach(function (m) {
+          html += '<tr><td data-label="Item">' + esc(m.itemNome) + '</td>' +
+            '<td data-label="Resultado atual">' + esc(CAMADAS_LABEL_POR_ID[m.atual] || m.atual) + '</td>' +
+            '<td data-label="Resultado proposto">' + esc(CAMADAS_LABEL_POR_ID[m.nova] || m.nova) + '</td></tr>';
+        });
+        html += '</tbody></table></div></div>';
+      }
+      if (c.erro) html += '<div class="avp-form-card"><p class="avp-error-msg">' + esc(c.erro) + '</p></div>';
+      html += '<div class="avp-actions-footer">';
+      html += '<button class="btn" id="avpMotorArqVoltarEdicaoBtn"' + (c.salvando ? ' disabled' : '') + '>‹ VOLTAR PARA EDIÇÃO</button>';
+      html += '<button class="btn btn--primary" id="avpMotorArqConfirmarPublicarBtn"' + (c.salvando ? ' disabled' : '') + '>' + (c.salvando ? 'PUBLICANDO…' : 'PUBLICAR NOVA VERSÃO') + '</button>';
+      html += '</div>';
+      return html;
+    }
+    function bindMotorArqSimulacao() {
+      var c = state.configMotores;
+      document.getElementById('avpMotorArqVoltarEdicaoBtn').addEventListener('click', function () {
+        state.configMotores = { sub: 'editar-regras', regras: c.regras, salvando: false };
+        render();
+      });
+      document.getElementById('avpMotorArqConfirmarPublicarBtn').addEventListener('click', function () {
+        if (c.salvando) return;
+        c.salvando = true;
+        render();
+        window.faMotorArquitetura.publicarRegras(c.regras, sessaoAtual(), function (err, info) {
+          c.salvando = false;
+          if (err) {
+            c.erro = err === 'validacao' && Array.isArray(info) ? info.join(' ') : 'Não foi possível publicar. Tente novamente.';
+            render();
+            return;
+          }
+          state.configMotores = { sub: 'painel', flash: '✓ Nova versão das regras publicada com sucesso.' };
+          render();
+        });
+      });
+    }
+
+    /* ---- EDITAR TEXTOS (só rótulos de camada — publicação imediata, nunca versiona) ---- */
+    function renderMotorArqEditarTextos() {
+      var c = state.configMotores;
+      var html = '<div class="avp-form-card"><h3>Editar textos das classificações</h3>';
+      html += '<p class="avp-decisao-aviso">Altera só o rótulo exibido para cada classificação — nunca muda a lógica do motor nem a versão publicada.</p></div>';
+      CAMADAS.forEach(function (camada) {
+        var t = c.textos[camada.id] || { rotulo: camada.label };
+        html += '<div class="avp-form-card"><p class="avp-alt-label">Código: <strong>' + esc(camada.id) + '</strong> <span class="avp-config-readonly-tag">(somente leitura)</span></p>';
+        html += '<div class="avp-field"><label>Rótulo</label><input type="text" class="sq-texto-rotulo" data-codigo="' + camada.id + '" value="' + esc(t.rotulo) + '"></div></div>';
+      });
+      if (c.flash) html += '<p class="avp-flash-success">' + esc(c.flash) + '</p>';
+      if (c.erro) html += '<p class="avp-error-msg">' + esc(c.erro) + '</p>';
+      html += '<div class="avp-actions-footer">';
+      html += '<button class="btn btn--primary" id="avpMotorArqPublicarTextosBtn"' + (c.salvando ? ' disabled' : '') + '>' + (c.salvando ? 'PUBLICANDO…' : 'PUBLICAR TEXTOS') + '</button>';
+      html += '<button class="btn" id="avpMotorArqCancelarTextosBtn"' + (c.salvando ? ' disabled' : '') + '>‹ Voltar</button>';
+      html += '</div>';
+      return html;
+    }
+    function bindMotorArqEditarTextos() {
+      var c = state.configMotores;
+      wrap.querySelectorAll('.sq-texto-rotulo').forEach(function (input) {
+        input.addEventListener('input', function () {
+          c.textos[input.dataset.codigo] = c.textos[input.dataset.codigo] || {};
+          c.textos[input.dataset.codigo].rotulo = input.value;
+        });
+      });
+      document.getElementById('avpMotorArqCancelarTextosBtn').addEventListener('click', voltarPainelConfigMotores);
+      document.getElementById('avpMotorArqPublicarTextosBtn').addEventListener('click', function () {
+        if (c.salvando) return;
+        c.salvando = true;
+        render();
+        window.faMotorArquitetura.salvarTextos(c.textos, sessaoAtual(), function (err) {
+          c.salvando = false;
+          if (err) { c.erro = 'Não foi possível publicar os textos. Tente novamente.'; render(); return; }
+          state.configMotores = { sub: 'painel', flash: '✓ Textos publicados com sucesso.' };
+          render();
+        });
+      });
+    }
+
+    /* ---- AUDITORIA ---- */
+    function renderMotorArqAuditoria() {
+      var c = state.configMotores;
+      var html = '<div class="avp-form-card"><h3>Histórico de alterações do motor arquitetural</h3></div>';
+      if (!c.lista) { html += '<p class="loading-msg">Carregando…</p>'; return html; }
+      if (!c.lista.length) { html += '<p class="admin-empty">Nenhuma alteração registrada ainda.</p>'; return html; }
+      html += '<div class="table-scroll-wrap"><table class="admin-table"><thead><tr><th>Tipo</th><th>Campo</th><th>Usuário</th><th>Data</th><th>Versão</th></tr></thead><tbody>';
+      c.lista.forEach(function (a) {
+        html += '<tr><td data-label="Tipo">' + (a.tipo === 'regra' ? 'Regra' : 'Texto') + '</td>' +
+          '<td data-label="Campo">' + esc(a.campo) + '</td>' +
+          '<td data-label="Usuário">' + esc((a.usuario && (a.usuario.name || a.usuario.email)) || '—') + '</td>' +
+          '<td data-label="Data">' + fmtData(a.dataHora) + '</td>' +
+          '<td data-label="Versão">' + esc(a.versaoAnterior) + ' → ' + esc(a.novaVersao) + '</td></tr>';
+      });
+      html += '</tbody></table></div>';
+      html += '<div class="avp-actions-footer"><button class="btn" id="avpMotorArqVoltarAuditoriaBtn">‹ Voltar</button></div>';
+      return html;
+    }
+    function bindMotorArqAuditoria() {
+      var btn = document.getElementById('avpMotorArqVoltarAuditoriaBtn');
+      if (btn) btn.addEventListener('click', voltarPainelConfigMotores);
+    }
+
+    /* ---- VERSÕES PUBLICADAS (rollback) ---- */
+    function renderMotorArqVersoes() {
+      var versoes = window.faMotorArquitetura.listarVersoes();
+      var atual = window.faMotorArquitetura.versaoAtual();
+      var html = '<div class="avp-form-card"><h3>Versões publicadas do motor arquitetural</h3>' +
+        '<p class="avp-decisao-aviso">Restaurar uma versão anterior cria uma versão NOVA com aquele conjunto de regras — nunca reescreve o histórico nem toca em avaliações já concluídas.</p></div>';
+      html += '<div class="table-scroll-wrap"><table class="admin-table"><thead><tr><th>Versão</th><th>Situação</th><th>Ações</th></tr></thead><tbody>';
+      versoes.forEach(function (v) {
+        html += '<tr><td data-label="Versão">' + esc(v) + '</td><td data-label="Situação">' + (v === atual ? 'Vigente' : '—') + '</td>' +
+          '<td data-label="Ações">' + (v === atual ? '' : '<button class="btn btn--sm avp-motor-arq-restaurar-btn" data-versao="' + v + '">Restaurar como nova versão</button>') + '</td></tr>';
+      });
+      html += '</tbody></table></div>';
+      html += '<div class="avp-actions-footer"><button class="btn" id="avpMotorArqVoltarVersoesBtn">‹ Voltar</button></div>';
+      return html;
+    }
+    function bindMotorArqVersoes() {
+      document.getElementById('avpMotorArqVoltarVersoesBtn').addEventListener('click', voltarPainelConfigMotores);
+      wrap.querySelectorAll('.avp-motor-arq-restaurar-btn').forEach(function (btn) {
+        btn.addEventListener('click', function () {
+          avpConfirm('Restaurar a versão ' + btn.dataset.versao + ' como uma versão nova das regras?', function () {
+            window.faMotorArquitetura.publicarVersaoAnterior(Number(btn.dataset.versao), sessaoAtual(), function (err) {
+              if (err) { avpAlert('Não foi possível restaurar. Tente novamente.'); return; }
+              state.configMotores = { sub: 'painel', flash: '✓ Versão restaurada como uma versão nova.' };
+              render();
+            });
+          });
+        });
+      });
+    }
+
     /* ===================== FORM INICIAL ===================== */
     function renderFormInicial() {
       var a = state.atual;
@@ -2839,6 +3060,19 @@
         alteradoPor: null,
         alteradoEm: null,
         motorVersion: null,
+        /* motorVersionArquitetura: eixo de versionamento TOTALMENTE
+           independente de motorVersion (constante de código, ainda usada
+           para mudanças de prosa/lógica que não vivem na configuração
+           declarativa — motivoJustificativa, relacaoArquitetural, etc.,
+           deliberadamente não migradas nesta PR), de motorSquadVersion e de
+           questionnaireContentVersion. É a versão de motor-arquitetura-config
+           (window.faMotorArquitetura.versaoAtual()) vigente quando a
+           recomendação automática foi calculada — só avança quando uma
+           CONDIÇÃO LÓGICA das regras P1-P16 muda (publicação de nova
+           versão), nunca por texto. precisaReprocessar considera os dois
+           eixos: motor desatualizado em QUALQUER um dos dois já mostra o
+           aviso "REPROCESSAR COM MOTOR ATUAL" (mesmo botão, mesmo fluxo). */
+        motorVersionArquitetura: null,
         /* Uma reavaliação (chave nova) começa sem histórico de reprocessamento
            próprio — o historicoMotor pertence à recomendação automática desta
            versão específica, não é herdado da versão anterior (que mantém o
@@ -2854,6 +3088,7 @@
         payload.camadaSugerida = calc.camadaSugerida;
         payload.justificativaAutomatica = gerarJustificativaAutomatica(a, calc);
         payload.motorVersion = MOTOR_VERSION;
+        payload.motorVersionArquitetura = window.faMotorArquitetura.versaoAtual();
         payload.decisaoFinal = calc.resultadoAutomatico;
       }
       var ref = db().ref(NODE + '/' + key);
@@ -3410,7 +3645,8 @@
        justificativa) ficam intocadas: reprocessar o motor nunca apaga nem
        reinterpreta uma decisão que um humano já tomou. */
     function precisaReprocessar(it) {
-      return !!it && it.status === 'concluido' && it.motorVersion !== MOTOR_VERSION;
+      return !!it && it.status === 'concluido' &&
+        (it.motorVersion !== MOTOR_VERSION || it.motorVersionArquitetura !== window.faMotorArquitetura.versaoAtual());
     }
     /* Só quem alimenta o "REPROCESSAR TUDO" em lote — o botão INDIVIDUAL
        continua obedecendo só precisaReprocessar, sem olhar pra esse
@@ -3463,6 +3699,7 @@
       var novaJustificativa = gerarJustificativaAutomatica(a, calc);
       var entradaHistorico = {
         motorVersion: a.motorVersion || null,
+        motorVersionArquitetura: a.motorVersionArquitetura || null,
         resultadoAutomatico: a.resultadoAutomatico,
         camadaSugerida: a.camadaSugerida,
         justificativaAutomatica: a.justificativaAutomatica,
@@ -3487,6 +3724,7 @@
            responder de novo. */
         respostas: recalcularInterpretacoesRespostas(a.respostas, a.questionnaireContentVersion),
         motorVersion: MOTOR_VERSION,
+        motorVersionArquitetura: window.faMotorArquitetura.versaoAtual(),
         reprocessedAt: agora,
         reprocessedFromVersion: a.motorVersion || null,
         historicoMotor: (a.historicoMotor || []).concat([entradaHistorico]),
@@ -3709,6 +3947,14 @@
        reprocessar — é um eixo só de apresentação (ver questionnaireContentVersion). */
     window.faQuestionarios.onMudanca(CODIGO_QUESTIONARIO, function () { render(); });
     window.faQuestionarios.onMudanca(window.faQuestionarios.CODIGOS.ADEQUACAO_SQUAD, function () { render(); });
+    /* Motor de classificação arquitetural (window.faMotorArquitetura) —
+       este onMudanca é o que efetivamente liga a sincronização com o
+       Firebase (ver garantirSync em motor-arquitetura.js: só se conecta na
+       primeira chamada de onMudanca); sem ele, versaoAtual()/regrasDaVersao()
+       nunca refletiam uma publicação (cache sempre null → sempre a versão 1
+       de fábrica), exatamente como já valia para o motor de squad antes
+       dele (ver window.faMotorSquad.onMudanca em avaliacao-squad.js). */
+    window.faMotorArquitetura.onMudanca(function () { render(); });
 
     /* ===================== CARGA ===================== */
     db().ref(NODE).on('value', function (snap) {

@@ -185,11 +185,69 @@
       exportando: false,
       flashExportacao: null,
       filtroTexto: '',
-      motorConfig: null /* null fora da tela de configuração do motor; ver abrirMotorConfig */
+      motorConfig: null, /* null fora da tela de configuração do motor; ver abrirMotorConfig */
+      itensArquitetura: [],
+      itensArquiteturaCarregados: false
     };
 
     function buscarItem(key) { return state.itens.filter(function (it) { return it._key === key; })[0]; }
     function clonarItem(it) { return JSON.parse(JSON.stringify(it)); }
+    /* Mesmo critério de "versão superada" de avaliacao-produto.js
+       (temVersaoMaisNova): uma versão arquitetural só entra na busca de
+       item quando nenhuma reavaliação mais nova aponta pra ela via
+       versaoAnteriorKey — a busca sempre mostra a classificação ATUAL do
+       item, nunca uma versão antiga dele. */
+    function temVersaoMaisNovaArquitetura(key) {
+      return state.itensArquitetura.some(function (o) { return o.versaoAnteriorKey === key; });
+    }
+    /* Combina os itens "buscáveis" pra Parte A (seleção de item já
+       cadastrado, em vez de digitar o nome de novo): itens arquiteturais
+       (avaliacoes-produto, só a versão mais nova de cada itemId, com a
+       classificação atual pra mostrar como contexto) + itens "só de squad"
+       (avaliacoes-squad sem avaliacaoArquiteturalId — nunca passaram por
+       classificação arquitetural). Nunca cria um cadastro de item paralelo:
+       lê os dois nodes que já existem. */
+    function itensDisponiveisParaBusca() {
+      var porItemId = {};
+      state.itensArquitetura.forEach(function (it) {
+        if (it.excluido) return;
+        if (temVersaoMaisNovaArquitetura(it._key)) return;
+        var id = it.itemId || it._key;
+        porItemId[id] = {
+          itemId: id,
+          itemNome: it.nome,
+          avaliacaoArquiteturalId: it._key,
+          classificacaoLabel: (it.status === 'concluido' && it.camadaSugerida && it.camadaSugerida.label) || null
+        };
+      });
+      state.itens.forEach(function (it) {
+        if (it.excluido || it.avaliacaoArquiteturalId) return;
+        var id = it.itemId || it._key;
+        if (porItemId[id]) return;
+        porItemId[id] = { itemId: id, itemNome: it.itemNome, avaliacaoArquiteturalId: null, classificacaoLabel: null };
+      });
+      return Object.keys(porItemId).map(function (id) { return porItemId[id]; });
+    }
+    /* Dedup por itemId (item 8/12 do pedido original + Parte A): nunca cria
+       uma segunda avaliação de squad EM ANDAMENTO para o mesmo item, venha
+       a seleção de onde vier (busca aqui ou botão "AVALIAR ADEQUAÇÃO À
+       SQUAD" em avaliacao-produto.js). */
+    function buscarEmAndamentoPorItemId(itemId) {
+      return state.itens.filter(function (it) { return !it.excluido && it.status === 'rascunho' && it.itemId === itemId; })[0];
+    }
+    function selecionarItemParaAvaliacao(item) {
+      if (item.itemId) {
+        var emAndamento = buscarEmAndamentoPorItemId(item.itemId);
+        if (emAndamento) { abrirExistente(emAndamento._key); return; }
+      }
+      state.atual.itemId = item.itemId || null;
+      state.atual.itemNome = item.itemNome;
+      state.atual.avaliacaoArquiteturalId = item.avaliacaoArquiteturalId || null;
+      state.erroForm = null;
+      state.tela = 'checklist';
+      render();
+      carregarContextoArquitetural();
+    }
 
     function mostrarPainel() {
       var arqWrap = document.getElementById('adminAvaliacaoProduto');
@@ -279,6 +337,15 @@
       };
       state.erroForm = null;
       state.contextoArquitetural = null;
+      /* Item já identificado (ex.: veio do botão "AVALIAR ADEQUAÇÃO À SQUAD"
+         de um item arquitetural aberto) — nunca pergunta o nome de novo
+         (Parte A do pedido): pula direto pro checklist. */
+      if (opts.itemId && opts.itemNome) {
+        state.tela = 'checklist';
+        render();
+        carregarContextoArquitetural();
+        return;
+      }
       state.tela = 'form-inicial';
       render();
     }
@@ -299,12 +366,11 @@
       abrirLista: function () { mostrarPainel(); state.tela = 'lista'; state.filtroTexto = ''; render(); },
       iniciarOuAbrirParaItem: function (opts) {
         mostrarPainel();
-        var emAndamento = state.itens.filter(function (it) {
-          return !it.excluido && it.status === 'rascunho' && it.itemId === opts.itemId;
-        })[0];
+        var emAndamento = buscarEmAndamentoPorItemId(opts.itemId);
         if (emAndamento) { abrirExistente(emAndamento._key); return; }
         iniciarNovaAvaliacao(opts);
-      }
+      },
+      abrirMotorConfig: abrirMotorConfig
     };
 
     /* Contexto arquitetural (item 11) — SOMENTE LEITURA, nunca usado para
@@ -329,39 +395,91 @@
       if (!c || c === 'carregando') return '';
       return '<div class="avp-form-card sq-contexto-arquitetural">' +
         '<p>Classificação arquitetural: <strong>' + esc(c.label) + '</strong></p>' +
-        '<p class="avp-decisao-aviso">A classificação arquitetural e a adequação à gestão por squad são análises independentes. ' +
+        '<p class="avp-decisao-aviso">A classificação arquitetural e a avaliação de adequação à gestão por Squad são análises independentes. ' +
         'Esta informação é só contexto de leitura e nunca entra no cálculo desta avaliação.</p></div>';
     }
 
-    /* ===================== FORM INICIAL ===================== */
+    /* ===================== FORM INICIAL (busca de item já cadastrado) =====================
+       Parte A do pedido: nunca mais um campo de texto livre como única
+       identificação do item — busca/seleciona um item JÁ cadastrado
+       (arquitetural ou só de squad, ver itensDisponiveisParaBusca) pra
+       nunca duplicar o mesmo item por variação de grafia do nome
+       ("Regularização de Dívida Previdenciária" vs "Regularização Dívida
+       Previdenciária"). Um item genuinamente novo (nunca avaliado, nem
+       arquiteturalmente nem por squad) continua podendo ser cadastrado —
+       o problema que esta tela resolve é o de RETIPAR um item que já
+       existe, não o de impedir cadastro de item novo. A busca manipula só
+       a lista de resultados diretamente no DOM (nunca o render() inteiro do
+       módulo a cada tecla) pra nunca perder o foco do campo — mesmo padrão
+       já usado em admin.js (＋ Participante / Incluir pessoa). */
     function renderFormInicial() {
-      var a = state.atual;
       var html = '<button class="avp-voltar-link" id="sqVoltarListaInicial">‹ Adequação à Squad</button>';
       html += '<div class="avp-form-card">';
       html += '<h3>Avaliação de Adequação à Gestão por Squad</h3>';
       html += '<p class="avp-decisao-aviso">Esta avaliação não altera a classificação arquitetural do item. Seu objetivo é registrar evidências ' +
         'sobre demanda, evolução, autonomia, complexidade e ownership para apoiar a decisão organizacional sobre gestão por squad.</p>';
       html += '<div class="avp-field' + (state.erroForm ? ' avp-field--invalid' : '') + '">';
-      html += '<label for="sqfNome">Nome do item *</label>';
-      html += '<input type="text" id="sqfNome" value="' + esc(a.itemNome) + '">';
+      html += '<label for="sqfBusca">Buscar item já cadastrado *</label>';
+      html += '<input type="text" id="sqfBusca" placeholder="Digite o nome do item…" autocomplete="off">';
+      html += '<ul class="sq-busca-resultados" id="sqfBuscaResultados" hidden></ul>';
       if (state.erroForm) html += '<p class="avp-field-invalid-msg">' + esc(state.erroForm) + '</p>';
+      html += '</div>';
+      html += '<p class="sq-busca-ajuda">Não encontrou o item na busca? ' +
+        '<button type="button" class="link-btn" id="sqfNovoItemBtn">+ Cadastrar como item novo</button></p>';
+      html += '<div class="avp-field" id="sqfNovoItemWrap" hidden>';
+      html += '<label for="sqfNovoItemNome">Nome do novo item *</label>';
+      html += '<input type="text" id="sqfNovoItemNome" autocomplete="off">';
+      html += '<button type="button" class="btn btn--sm" id="sqfNovoItemConfirmar">Usar este nome e continuar</button>';
       html += '</div>';
       html += '</div>';
       html += '<div class="avp-actions-footer">';
-      html += '<button class="btn btn--primary" id="sqIniciarBtn">INICIAR AVALIAÇÃO</button>';
       html += '<button class="btn" id="sqCancelarInicialBtn">CANCELAR</button>';
       html += '</div>';
       wrap.innerHTML = html;
 
       document.getElementById('sqVoltarListaInicial').addEventListener('click', function () { state.tela = 'lista'; state.atual = null; render(); });
-      document.getElementById('sqfNome').addEventListener('input', function (e) { a.itemNome = e.target.value; });
       document.getElementById('sqCancelarInicialBtn').addEventListener('click', function () { state.tela = 'lista'; state.atual = null; render(); });
-      document.getElementById('sqIniciarBtn').addEventListener('click', function () {
-        if (!a.itemNome || !a.itemNome.trim()) { state.erroForm = 'Informe o nome do item.'; render(); return; }
-        state.erroForm = null;
-        state.tela = 'checklist';
-        render();
-        carregarContextoArquitetural();
+
+      var itensDisponiveis = itensDisponiveisParaBusca();
+      var buscaInput = document.getElementById('sqfBusca');
+      var resultsList = document.getElementById('sqfBuscaResultados');
+      function renderResultados(query) {
+        var q = query.trim().toLowerCase();
+        if (!q) { resultsList.hidden = true; resultsList.innerHTML = ''; return; }
+        var matches = itensDisponiveis.filter(function (it) {
+          return (it.itemNome || '').toLowerCase().indexOf(q) !== -1;
+        }).slice(0, 8);
+        resultsList.innerHTML = '';
+        if (!matches.length) {
+          var li0 = document.createElement('li');
+          li0.className = 'sq-busca-item sq-busca-item--vazio';
+          li0.textContent = 'Nenhum item cadastrado encontrado para esse termo.';
+          resultsList.appendChild(li0);
+        } else {
+          matches.forEach(function (it) {
+            var li = document.createElement('li');
+            li.className = 'sq-busca-item';
+            li.innerHTML = '<span class="sq-busca-item-nome">' + esc(it.itemNome) + '</span>' +
+              '<span class="sq-busca-item-classif">' + (it.classificacaoLabel ? esc(it.classificacaoLabel) : 'Sem avaliação arquitetural') + '</span>';
+            li.addEventListener('click', function () { selecionarItemParaAvaliacao(it); });
+            resultsList.appendChild(li);
+          });
+        }
+        resultsList.hidden = false;
+      }
+      buscaInput.addEventListener('input', function () { renderResultados(buscaInput.value); });
+
+      var novoItemBtn = document.getElementById('sqfNovoItemBtn');
+      var novoItemWrap = document.getElementById('sqfNovoItemWrap');
+      novoItemBtn.addEventListener('click', function () {
+        novoItemWrap.hidden = false;
+        novoItemBtn.parentNode.hidden = true;
+        document.getElementById('sqfNovoItemNome').focus();
+      });
+      document.getElementById('sqfNovoItemConfirmar').addEventListener('click', function () {
+        var nome = document.getElementById('sqfNovoItemNome').value.trim();
+        if (!nome) { state.erroForm = 'Informe o nome do novo item.'; render(); return; }
+        selecionarItemParaAvaliacao({ itemId: null, itemNome: nome, avaliacaoArquiteturalId: null });
       });
     }
 
@@ -1222,6 +1340,21 @@
     }, function (err) {
       state.itensCarregados = true;
       console.error('[avaliacao-squad] erro ao carregar avaliacoes-squad:', err);
+    });
+    /* Leitura ao vivo de avaliacoes-produto só pra alimentar a busca de item
+       já cadastrado (Parte A) — nunca usada pra decidir nada de squad, só
+       pra listar itens existentes e mostrar a classificação atual como
+       contexto. Reagir só na tela form-inicial (mesmo guard de !wrap.hidden
+       das outras leituras), pra não custar render fora dela. */
+    db().ref(NODE_ARQUITETURA).on('value', function (snap) {
+      var arr = [];
+      snap.forEach(function (c) { arr.push(Object.assign({ _key: c.key }, c.val())); });
+      state.itensArquitetura = arr;
+      state.itensArquiteturaCarregados = true;
+      if (state.tela === 'form-inicial' && !wrap.hidden) render();
+    }, function (err) {
+      state.itensArquiteturaCarregados = true;
+      console.error('[avaliacao-squad] erro ao carregar avaliacoes-produto (busca de item):', err);
     });
   };
 })();
