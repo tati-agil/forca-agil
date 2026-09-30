@@ -2576,7 +2576,9 @@
             render();
             return;
           }
-          state.configMotores = { sub: 'painel', flash: '✓ Nova versão das regras publicada com sucesso.' };
+          state.configMotores = { sub: 'painel', flash: info && info.semMudanca
+            ? 'As regras publicadas já são idênticas às do rascunho — nenhuma versão nova foi criada.'
+            : '✓ Nova versão das regras publicada com sucesso.' };
           render();
         });
       });
@@ -2630,11 +2632,12 @@
       if (!c.lista.length) { html += '<p class="admin-empty">Nenhuma alteração registrada ainda.</p>'; return html; }
       html += '<div class="table-scroll-wrap"><table class="admin-table"><thead><tr><th>Tipo</th><th>Campo</th><th>Usuário</th><th>Data</th><th>Versão</th></tr></thead><tbody>';
       c.lista.forEach(function (a) {
-        html += '<tr><td data-label="Tipo">' + (a.tipo === 'regra' ? 'Regra' : 'Texto') + '</td>' +
-          '<td data-label="Campo">' + esc(a.campo) + '</td>' +
+        var tipoLabel = a.tipo === 'regra' ? 'Regra' : a.tipo === 'texto' ? 'Texto' : 'Publicação sem alteração';
+        html += '<tr><td data-label="Tipo">' + tipoLabel + '</td>' +
+          '<td data-label="Campo">' + (a.campo ? esc(a.campo) : '—') + '</td>' +
           '<td data-label="Usuário">' + esc((a.usuario && (a.usuario.name || a.usuario.email)) || '—') + '</td>' +
           '<td data-label="Data">' + fmtData(a.dataHora) + '</td>' +
-          '<td data-label="Versão">' + esc(a.versaoAnterior) + ' → ' + esc(a.novaVersao) + '</td></tr>';
+          '<td data-label="Versão">' + (a.versaoAnterior === a.novaVersao ? 'sem versão nova (' + esc(a.versaoAnterior) + ')' : esc(a.versaoAnterior) + ' → ' + esc(a.novaVersao)) + '</td></tr>';
       });
       html += '</tbody></table></div>';
       html += '<div class="avp-actions-footer"><button class="btn" id="avpMotorArqVoltarAuditoriaBtn">‹ Voltar</button></div>';

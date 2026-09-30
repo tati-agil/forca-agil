@@ -375,18 +375,30 @@
   }
 
   /* Diff simplificado para auditoria de REGRAS: compara a serialização de
-     cada regra (por código) entre a versão antiga e a nova — qualquer
-     mudança de condição, ordem ou resultado gera uma entrada; nunca compara
-     campo a campo dentro da condição (a condição inteira é a "regra"). */
+     cada regra (por código, por grupo) entre a versão antiga e a nova —
+     qualquer mudança de condição, ordem (precedência) ou resultado gera uma
+     entrada; nunca compara campo a campo dentro da condição (a condição
+     inteira é a "regra"). Sempre pela UNIÃO dos códigos dos dois lados,
+     nunca só pelo lado novo — uma regra REMOVIDA (existia antes, sumiu no
+     rascunho) é tão mudança lógica quanto uma adicionada ou modificada.
+     rotulo/interpretacao de cada veredito nunca moram aqui — vivem em
+     textos/PADRAO_TEXTOS, publicados por salvarTextos (função separada que
+     nunca chama publicarRegras nem toca em versaoPublicada), então uma
+     edição textual nunca aparece neste diff. */
   function diffRegras(regrasAntigas, regrasNovas) {
     var alteradas = [];
     ['eixoA', 'eixoB', 'combinacao'].forEach(function (grupo) {
-      var porCodigoAntigo = {};
+      var porCodigoAntigo = {}, porCodigoNovo = {};
       (regrasAntigas[grupo] || []).forEach(function (r) { porCodigoAntigo[r.codigo] = r; });
-      (regrasNovas[grupo] || []).forEach(function (novo) {
-        var antigo = porCodigoAntigo[novo.codigo] || {};
+      (regrasNovas[grupo] || []).forEach(function (r) { porCodigoNovo[r.codigo] = r; });
+      var todosCodigos = {};
+      Object.keys(porCodigoAntigo).forEach(function (c) { todosCodigos[c] = true; });
+      Object.keys(porCodigoNovo).forEach(function (c) { todosCodigos[c] = true; });
+      Object.keys(todosCodigos).forEach(function (codigo) {
+        var antigo = porCodigoAntigo[codigo] || null;
+        var novo = porCodigoNovo[codigo] || null;
         if (JSON.stringify(antigo) !== JSON.stringify(novo)) {
-          alteradas.push({ grupo: grupo, codigo: novo.codigo, antigo: antigo, novo: novo });
+          alteradas.push({ grupo: grupo, codigo: codigo, antigo: antigo, novo: novo });
         }
       });
     });
@@ -397,11 +409,33 @@
      versaoPublicada pra ela, limpa o rascunho e grava auditoria — um único
      update() atômico, mesmo padrão de publicarConteudo em
      questionarios-config.js. É isto, e só isto, que avança
-     motorSquadVersion; nunca chamado por uma edição de textos. */
+     motorSquadVersion; nunca chamado por uma edição de textos.
+
+     SEM MUDANÇA NENHUMA (alteradas.length === 0) é NO-OP de propósito —
+     nunca cria uma versão nova, nunca avança motorSquadVersion (mesmo
+     achado do motor-arquitetura.js: publicar um rascunho idêntico ao já
+     publicado não pode invalidar de novo avaliações já reprocessadas). Só
+     limpa o rascunho pendente e devolve a MESMA versão em info.novaVersao.
+     Registra UMA entrada de auditoria tipo 'sem_alteracao' (versaoAnterior
+     === novaVersao) — nunca uma entrada tipo 'regra' de versaoAnterior→
+     versaoAnterior+1, que sugeriria falsamente que uma versão nova nasceu. */
   function publicarRegras(regras, usuario, cb) {
     var versaoAntiga = versaoAtual();
     var regrasAntigas = regrasDaVersao(versaoAntiga);
     var alteradas = diffRegras(regrasAntigas, regras);
+    if (!alteradas.length) {
+      var agoraSemMudanca = new Date().toISOString();
+      var updatesSemMudanca = {};
+      updatesSemMudanca[NODE_CONFIG + '/rascunho'] = null;
+      updatesSemMudanca[NODE_AUDITORIA + '/' + db().ref(NODE_AUDITORIA).push().key] = {
+        tipo: 'sem_alteracao', campo: null, valorAnterior: null, valorNovo: null,
+        usuario: usuario || null, dataHora: agoraSemMudanca, versaoAnterior: versaoAntiga, novaVersao: versaoAntiga
+      };
+      db().ref().update(updatesSemMudanca, function (err) {
+        if (cb) cb(err || null, { novaVersao: versaoAntiga, alteradas: [], semMudanca: true });
+      });
+      return;
+    }
     var novaVersao = versaoAntiga + 1;
     var agora = new Date().toISOString();
     var updates = {};

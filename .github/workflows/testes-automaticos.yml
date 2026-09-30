@@ -127,6 +127,32 @@ jobs:
           FA_BASE_URL: http://127.0.0.1:8811
         run: node .github/scripts/teste-publico-restrito-rotulo-nivel.js
 
+      # Hermético. Relato real: 9 avaliações reprocessadas com o motor
+      # arquitetural atual continuaram marcadas "Motor desatualizado" na
+      # listagem. Causa: publicarRegras() (motor-arquitetura.js e
+      # motor-squad.js) criava uma versão NOVA mesmo publicando regras
+      # byte a byte idênticas às já vigentes — bastava alguém abrir "Editar
+      # regras" só para olhar e clicar em "PUBLICAR" sem mudar nada para
+      # invalidar de novo tudo que acabara de ser reprocessado.
+      - name: "Motor arquitetural/squad: reprocessar limpa o badge, publicar sem mudança nunca re-marca"
+        env:
+          NODE_PATH: /tmp/pw-deps/node_modules
+          FA_BASE_URL: http://127.0.0.1:8811
+        run: node .github/scripts/teste-motor-reprocessamento-badge.js
+
+      # Hermético. Complementa o teste acima fechando duas lacunas de
+      # diffRegras(): só comparava as regras NOVAS (uma regra REMOVIDA por
+      # inteiro nunca era detectada como mudança) e não tinha prova de que
+      # trocar só a PRECEDÊNCIA entre duas regras (sem tocar em nenhuma
+      # condição) é mudança lógica de verdade. Prova também o inverso: texto
+      # (salvarTextos) nunca versiona, e o no-op fica registrado na
+      # auditoria como "sem_alteracao", nunca como uma versão nova fingida.
+      - name: "Motor arquitetural/squad: só versiona por mudança lógica de verdade (precedência, condição, inclusão/exclusão) — nunca por texto ou no-op"
+        env:
+          NODE_PATH: /tmp/pw-deps/node_modules
+          FA_BASE_URL: http://127.0.0.1:8811
+        run: node .github/scripts/teste-motor-diffregras-semantica.js
+
       # Hermético. Não existia critério pra ordem de exibição quando a
       # pessoa é destinatária de mais de uma oferta ao mesmo tempo — tudo
       # saía só na ordem manual do admin. O que é mais exclusivo PARA QUEM
