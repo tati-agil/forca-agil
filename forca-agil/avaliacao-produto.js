@@ -1503,6 +1503,32 @@
       return true;
     }
 
+    /* Altura do quadro da tabela = o que sobra da janela a partir de onde ele
+       começa (ou, se já rolou a página, a partir da barra fixa do site), nunca
+       um número fixo: acima dele há introdução, barras de ação e filtros que
+       mudam de altura (reconciliação, reprocessamento, aviso de exportação…).
+       Assim o rodapé do quadro — onde mora a barra de rolagem horizontal —
+       fica sempre dentro da janela. Piso de 320 px para a tabela nunca virar
+       uma fresta quando o que vem antes já ocupa a tela toda. No celular
+       (≤ 640 px) a tabela vira cartões e o CSS ignora esta variável. */
+    function ajustarAlturaTabela() {
+      var el = document.querySelector('#adminAvaliacaoProduto .avp-tabela-scroll');
+      if (!el || !el.offsetParent) return;
+      var nav = document.querySelector('.nav');
+      var barraFixa = (nav ? nav.offsetHeight : 64) + 8;
+      var topo = Math.max(el.getBoundingClientRect().top, barraFixa);
+      var altura = Math.max(320, Math.floor(window.innerHeight - topo - 16));
+      el.style.setProperty('--avp-tabela-altura', altura + 'px');
+    }
+    var alturaAgendada = false;
+    function agendarAlturaTabela() {
+      if (alturaAgendada) return;
+      alturaAgendada = true;
+      window.requestAnimationFrame(function () { alturaAgendada = false; ajustarAlturaTabela(); });
+    }
+    window.addEventListener('resize', agendarAlturaTabela);
+    window.addEventListener('scroll', agendarAlturaTabela, { passive: true });
+
     function renderLista() {
       var filtrados = state.itens.filter(itemPassaFiltro);
       var html = '';
@@ -1590,39 +1616,39 @@
       if (!filtrados.length) {
         html += '<p class="admin-empty">' + (state.lixeira ? 'Nenhuma avaliação excluída.' : 'Nenhuma avaliação nessa combinação de filtros.') + '</p>';
       } else if (state.lixeira) {
-        html += '<div class="table-scroll-wrap"><table class="admin-table avp-table"><thead><tr>' +
-          '<th>Item</th><th>Excluído por</th><th>Quando</th><th>Justificativa</th><th>Ações</th></tr></thead><tbody>';
+        html += '<div class="table-scroll-wrap avp-tabela-scroll avp-tabela-scroll--lixeira"><table class="admin-table avp-table"><thead><tr>' +
+          '<th class="avp-col-item">Item</th><th>Excluído por</th><th>Quando</th><th class="avp-col-justificativa">Justificativa</th><th class="avp-col-acoes">Ações</th></tr></thead><tbody>';
         filtrados.forEach(function (it) {
           html += '<tr>';
-          html += '<td data-label="Item">' + esc(it.nome) + '</td>';
+          html += '<td class="avp-col-item" data-label="Item">' + esc(it.nome) + '</td>';
           html += '<td data-label="Excluído por">' + esc(it.excluidoPor && it.excluidoPor.name || '—') + '</td>';
           html += '<td data-label="Quando">' + fmtData(it.excluidoEm) + '</td>';
-          html += '<td data-label="Justificativa">' + esc(it.justificativaExclusao || '—') + '</td>';
-          html += '<td data-label="Ações"><button class="btn btn--sm avp-act-restaurar" data-key="' + it._key + '">↺ Restaurar</button></td>';
+          html += '<td class="avp-col-justificativa" data-label="Justificativa" title="' + esc(it.justificativaExclusao || '') + '">' + esc(it.justificativaExclusao || '—') + '</td>';
+          html += '<td class="avp-col-acoes" data-label="Ações"><button class="btn btn--sm avp-act-restaurar" data-key="' + it._key + '">↺ Restaurar</button></td>';
           html += '</tr>';
         });
         html += '</tbody></table></div>';
       } else {
         var todosFiltradosSelecionados = filtrados.length > 0 && filtrados.every(function (it) { return !!state.selecionados[it._key]; });
-        html += '<div class="table-scroll-wrap"><table class="admin-table avp-table"><thead><tr>' +
+        html += '<div class="table-scroll-wrap avp-tabela-scroll"><table class="admin-table avp-table"><thead><tr>' +
           '<th class="avp-check-col"><input type="checkbox" id="avpSelecionarTodos"' + (todosFiltradosSelecionados ? ' checked' : '') + ' aria-label="Selecionar todas as avaliações filtradas"></th>' +
-          '<th>Item</th><th>Resultado automático</th><th>Decisão final</th><th>Classificação arquitetural</th>' +
-          '<th>Responsável</th><th>Data</th><th>Status</th><th>Ações</th></tr></thead><tbody>';
+          '<th class="avp-col-item">Item</th><th class="avp-col-res">Resultado automático</th><th class="avp-col-dec">Decisão final</th><th class="avp-col-camada">Classificação arquitetural</th>' +
+          '<th class="avp-col-resp">Responsável</th><th class="avp-col-data">Data</th><th class="avp-col-status">Status</th><th class="avp-col-acoes">Ações</th></tr></thead><tbody>';
         filtrados.forEach(function (it) {
           var decisao = it.decisaoFinal || it.resultadoAutomatico;
           var camadaLabel = (it.camadaSugerida && it.camadaSugerida.label) || '—';
           html += '<tr>';
           html += '<td class="avp-check-col"><input type="checkbox" class="avp-check-item" data-key="' + it._key + '"' +
             (state.selecionados[it._key] ? ' checked' : '') + ' aria-label="Selecionar ' + esc(it.nome) + '"></td>';
-          html += '<td data-label="Item">' + esc(it.nome) + (it.versao > 1 ? ' <span class="avp-tag-versao">v' + it.versao + '</span>' : '') + '</td>';
-          html += '<td data-label="Resultado automático">' + resultadoBadge(it.resultadoAutomatico) + '</td>';
-          html += '<td data-label="Decisão final">' + resultadoBadge(decisao) + (it.decisaoManual ? ' <span class="avp-tag-alterado">alterada</span>' : '') +
+          html += '<td class="avp-col-item" data-label="Item">' + esc(it.nome) + (it.versao > 1 ? ' <span class="avp-tag-versao">v' + it.versao + '</span>' : '') + '</td>';
+          html += '<td class="avp-col-res" data-label="Resultado automático">' + resultadoBadge(it.resultadoAutomatico) + '</td>';
+          html += '<td class="avp-col-dec" data-label="Decisão final">' + resultadoBadge(decisao) + (it.decisaoManual ? ' <span class="avp-tag-alterado">alterada</span>' : '') +
             (rotuloNaturezaDoItem(it) ? ' <span class="avp-tag-natureza">' + esc(rotuloNaturezaDoItem(it)) + '</span>' : '') + '</td>';
-          html += '<td data-label="Classificação arquitetural">' + esc(camadaLabel) + '</td>';
-          html += '<td data-label="Responsável">' + esc(it.responsavel && it.responsavel.name || '—') + '</td>';
-          html += '<td data-label="Data">' + fmtData(it.atualizadoEm) + '</td>';
-          html += '<td data-label="Status">' + statusBadge(it.status) + badgeMotor(it) + '</td>';
-          html += '<td data-label="Ações"><div class="avp-row-actions">';
+          html += '<td class="avp-col-camada" data-label="Classificação arquitetural" title="' + esc(camadaLabel) + '">' + esc(camadaLabel) + '</td>';
+          html += '<td class="avp-col-resp" data-label="Responsável" title="' + esc(it.responsavel && it.responsavel.name || '') + '">' + esc(it.responsavel && it.responsavel.name || '—') + '</td>';
+          html += '<td class="avp-col-data" data-label="Data">' + fmtData(it.atualizadoEm) + '</td>';
+          html += '<td class="avp-col-status" data-label="Status">' + statusBadge(it.status) + badgeMotor(it) + '</td>';
+          html += '<td class="avp-col-acoes" data-label="Ações"><div class="avp-row-actions">';
           if (it.status === 'concluido') {
             html += '<button class="btn btn--sm btn--primary avp-act-ver" data-key="' + it._key + '">Visualizar</button>';
           } else {
@@ -1635,7 +1661,20 @@
         html += '</tbody></table></div>';
       }
 
+      /* A tabela tem rolagem PRÓPRIA (vertical e horizontal). render() refaz o
+         HTML inteiro a cada clique (marcar uma linha, filtrar…), o que jogaria
+         a tabela de volta ao topo/à esquerda — com 30 linhas, marcar a de baixo
+         faria a pessoa perder o lugar. Guarda a posição antes e devolve depois. */
+      var rolagemAntes = wrap.querySelector('.avp-tabela-scroll');
+      var rolagemTopo = rolagemAntes ? rolagemAntes.scrollTop : 0;
+      var rolagemEsquerda = rolagemAntes ? rolagemAntes.scrollLeft : 0;
       wrap.innerHTML = html;
+      var rolagemDepois = wrap.querySelector('.avp-tabela-scroll');
+      if (rolagemDepois) {
+        rolagemDepois.scrollTop = rolagemTopo;
+        rolagemDepois.scrollLeft = rolagemEsquerda;
+        ajustarAlturaTabela();
+      }
 
       var flashListaClose = document.getElementById('avpFlashListaClose');
       if (flashListaClose) flashListaClose.addEventListener('click', function () { state.flashLista = null; render(); });

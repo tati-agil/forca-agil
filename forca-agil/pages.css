@@ -2232,3 +2232,74 @@ select.aposta-campo-input { width: auto; min-width: 8.5em; }
 }
 .avp-exportar-menu button { width: 100%; text-align: left; padding: 8px 10px; }
 .avp-check-col { width: 32px; text-align: center; }
+
+/* Lista de avaliações (Admin → Arquitetura): a tabela tem muitas colunas e
+ * muitas linhas, então o QUADRO dela rola sozinho (vertical e horizontal) em
+ * vez de a página inteira rolar. Três referências ficam sempre à vista:
+ *   - o cabeçalho das colunas (sticky top: 0 no <th>);
+ *   - o Item (e a caixa de seleção) à esquerda (sticky left);
+ *   - as Ações à direita (sticky right).
+ * A barra de rolagem horizontal é a do próprio quadro, que termina dentro da
+ * janela (altura calculada em avaliacao-produto.js → ajustarAlturaTabela).
+ * Não comprime colunas para caber: a tabela pode ser mais larga que a tela.
+ * Só ≥ 641 px — no celular a tabela já vira cartões (regra própria acima). */
+@media (min-width: 641px) {
+  .avp-tabela-scroll {
+    --avp-check-w: 44px;
+    overflow: auto; max-width: 100%;
+    max-height: var(--avp-tabela-altura, 70vh);
+    border: 1px solid var(--line); border-radius: 10px; background: var(--panel);
+    scrollbar-width: auto; scrollbar-color: rgba(245,197,66,.45) var(--space-1);
+  }
+  .avp-tabela-scroll.table-scroll-wrap::-webkit-scrollbar { width: 12px; height: 12px; }
+  .avp-tabela-scroll.table-scroll-wrap::-webkit-scrollbar-track { background: var(--space-1); }
+  .avp-tabela-scroll.table-scroll-wrap::-webkit-scrollbar-thumb { background: rgba(245,197,66,.45); border-radius: 6px; border: 2px solid var(--space-1); }
+  .avp-tabela-scroll.table-scroll-wrap::-webkit-scrollbar-thumb:hover { background: rgba(245,197,66,.7); }
+  .avp-tabela-scroll--lixeira { --avp-check-w: 0px; }
+
+  /* separate + spacing 0: com border-collapse: collapse as bordas não
+     acompanham a célula sticky e "escorrem" por baixo dela */
+  .avp-tabela-scroll .avp-table {
+    width: max-content; min-width: 100%;
+    border-collapse: separate; border-spacing: 0;
+    border-radius: 0; overflow: visible; background: var(--panel);
+  }
+  .avp-tabela-scroll .avp-table th,
+  .avp-tabela-scroll .avp-table td { white-space: nowrap; }
+
+  /* cabeçalho: opaco (o padrão é translúcido e deixaria as linhas aparecerem por baixo) */
+  .avp-tabela-scroll .avp-table thead th {
+    position: sticky; top: 0; z-index: 3;
+    background: var(--space-1); border-bottom: 1px solid var(--line-strong);
+  }
+
+  /* larguras: nomes reais das colunas sem reticências quando há espaço */
+  .avp-tabela-scroll .avp-col-item { min-width: 340px; max-width: 420px; white-space: normal; }
+  .avp-tabela-scroll .avp-table td.avp-col-item { white-space: normal; overflow-wrap: anywhere; }
+  .avp-tabela-scroll .avp-col-res { min-width: 200px; }
+  .avp-tabela-scroll .avp-col-dec { min-width: 260px; }
+  .avp-tabela-scroll .avp-col-camada { min-width: 280px; }
+  .avp-tabela-scroll .avp-col-resp { min-width: 180px; }
+  .avp-tabela-scroll .avp-col-data { min-width: 150px; }
+  .avp-tabela-scroll .avp-col-status { min-width: 220px; }
+  .avp-tabela-scroll .avp-col-justificativa { min-width: 260px; max-width: 420px; white-space: normal; }
+  .avp-tabela-scroll .avp-col-acoes { min-width: 170px; }
+  .avp-tabela-scroll .avp-row-actions { flex-wrap: nowrap; }
+
+  /* colunas fixas: opacas, com divisor, acima das demais células */
+  .avp-tabela-scroll .avp-table .avp-check-col,
+  .avp-tabela-scroll .avp-table .avp-col-item,
+  .avp-tabela-scroll .avp-table .avp-col-acoes {
+    position: sticky; z-index: 2; background: var(--panel);
+  }
+  .avp-tabela-scroll .avp-table .avp-check-col {
+    left: 0; width: var(--avp-check-w); min-width: var(--avp-check-w); max-width: var(--avp-check-w);
+    padding-left: 0; padding-right: 0; box-sizing: border-box; text-align: center;
+  }
+  .avp-tabela-scroll .avp-table .avp-col-item { left: var(--avp-check-w); border-right: 1px solid var(--line-strong); }
+  .avp-tabela-scroll .avp-table .avp-col-acoes { right: 0; border-left: 1px solid var(--line-strong); }
+  /* cantos (cabeçalho + coluna fixa): por cima de tudo */
+  .avp-tabela-scroll .avp-table thead th.avp-check-col,
+  .avp-tabela-scroll .avp-table thead th.avp-col-item,
+  .avp-tabela-scroll .avp-table thead th.avp-col-acoes { z-index: 5; background: var(--space-1); }
+}

@@ -242,6 +242,18 @@ jobs:
           FA_BASE_URL: http://127.0.0.1:8811
         run: node .github/scripts/teste-motor-reprocessar-lote-robusto.js
 
+      # Hermético. Lista de avaliações (Admin → Arquitetura): o quadro da
+      # tabela rola sozinho, com cabeçalho sticky, Item (+ caixa) fixo à
+      # esquerda e Ações fixas à direita, fundos opacos, barra horizontal
+      # dentro da janela, sem rolagem horizontal da página e sem perder o
+      # lugar ao marcar uma linha. Cenários A-D em 1920x1080, 1600x900 e
+      # 1366x768; 768 px mantém; 375 px continua em cartões.
+      - name: "Tabela de avaliações: rolagem própria, cabeçalho/Item/Ações fixos"
+        env:
+          NODE_PATH: /tmp/pw-deps/node_modules
+          FA_BASE_URL: http://127.0.0.1:8811
+        run: node .github/scripts/teste-tabela-avaliacoes-rolagem.js
+
       # Hermético, banco falso em persistenciaReal. Interpretação automática
       # de P5/P15 sem inferência cruzada (o texto "Embora dependa
       # estruturalmente…" contradizia P15 = NÃO), correção entregue como
