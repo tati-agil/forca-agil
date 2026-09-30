@@ -3,6 +3,25 @@
 (function () {
   var CFG = window.__CFG || {};
   var DB  = CFG.db || {};
+  /* Modo opcional (__CFG.persistenciaReal = true): grava e lê como o
+     Firebase DE VERDADE — some com null, objeto vazio e lista vazia, e
+     devolve listas no formato do RTDB (ver persistencia-firebase-real.js,
+     que precisa ser servido ANTES deste arquivo). Desligado por padrão
+     para não mudar o comportamento dos testes que já existem; ligado nos
+     testes que precisam provar que a semântica sobrevive à persistência
+     (o defeito do fallback do motor arquitetural só existia no banco real). */
+  var REAL = !!CFG.persistenciaReal;
+  if (REAL && typeof window.__comoFirebaseReal !== 'function') {
+    throw new Error('firebase-falso: persistenciaReal exige persistencia-firebase-real.js carregado antes');
+  }
+  function lerComoBanco(v) { return REAL ? window.__comoFirebaseReal(v) : v; }
+  /* O site carrega este arquivo 3 vezes (app/database/auth): a cópia
+     normalizada fica em __CFG.__dbReal para as três usarem o MESMO banco
+     (e para o teste poder inspecioná-lo). */
+  if (REAL) {
+    if (!CFG.__dbReal) CFG.__dbReal = lerComoBanco(DB) || {};
+    DB = CFG.__dbReal;
+  }
 
   function get(path) {
     var parts = String(path).split('/').filter(Boolean);
@@ -14,7 +33,7 @@
     return node === undefined ? null : node;
   }
   function snap(path) {
-    var v = get(path);
+    var v = lerComoBanco(get(path));
     return {
       val: function () { return v; },
       exists: function () { return v !== null; },
@@ -111,14 +130,31 @@
       node = node[parts[i]];
     }
     var ultima = parts[parts.length - 1];
+    if (REAL && !merge) {
+      valor = lerComoBanco(valor);
+      if (valor === null) { delete node[ultima]; podarVazios(parts); return; }
+    }
     if (valor === null || valor === undefined) { delete node[ultima]; return; }
     if (merge && node[ultima] && typeof node[ultima] === 'object' && typeof valor === 'object' && !Array.isArray(valor)) {
       Object.keys(valor).forEach(function (k) {
-        if (valor[k] === null) delete node[ultima][k];
-        else node[ultima][k] = valor[k];
+        var vk = lerComoBanco(valor[k]);
+        if (vk === null || vk === undefined) delete node[ultima][k];
+        else node[ultima][k] = vk;
       });
+      if (REAL) podarVazios(parts.concat(['_']));
     } else {
       node[ultima] = valor;
+    }
+  }
+  /* Firebase real: um nó que ficou sem nenhum filho deixa de existir, e
+     isso sobe pela árvore. */
+  function podarVazios(parts) {
+    for (var fim = parts.length - 1; fim > 0; fim--) {
+      var pai = DB;
+      for (var i = 0; i < fim - 1; i++) { pai = pai && pai[parts[i]]; }
+      var chave = parts[fim - 1];
+      if (!pai || !pai[chave] || typeof pai[chave] !== 'object' || Object.keys(pai[chave]).length) return;
+      delete pai[chave];
     }
   }
 
@@ -213,7 +249,7 @@
         if (onComplete) onComplete(e, false, null);
         return;
       }
-      var valorAtual = get(self.path);
+      var valorAtual = lerComoBanco(get(self.path));
       var novoValor = updateFn(valorAtual);
       if (novoValor === undefined) {
         if (onComplete) onComplete(null, false, snap(self.path));
