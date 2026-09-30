@@ -96,7 +96,29 @@
   /* Registra toda escrita em window.__ESCRITAS. Sem isto não dá para provar
      que uma edição chegou em TODOS os lugares que deveria — só que a tela não
      deu erro, que é coisa bem diferente. */
+  /* O SDK de verdade RECUSA, de forma SÍNCRONA, qualquer set/update/push cujo
+     valor contenha `undefined` em qualquer profundidade ("Reference.update
+     failed: First argument contains undefined in property 'a.b'"). Só em
+     persistenciaReal (o modo que imita o banco de verdade) — nos demais o
+     falso aceita, como sempre aceitou. Sem isso, um `undefined` esquecido
+     num payload passava em todo teste e só estourava em produção, dentro de
+     um clique, sem mensagem nenhuma. */
+  function acharUndefined(valor, caminho) {
+    if (valor === undefined) return caminho;
+    if (valor && typeof valor === 'object') {
+      var chaves = Object.keys(valor);
+      for (var i = 0; i < chaves.length; i++) {
+        var r = acharUndefined(valor[chaves[i]], caminho ? caminho + '.' + chaves[i] : chaves[i]);
+        if (r) return r;
+      }
+    }
+    return null;
+  }
   function anotar(path, valor) {
+    if (REAL) {
+      var onde = acharUndefined(valor, '');
+      if (onde !== null) throw new Error('Reference.update failed: First argument contains undefined in property \'' + onde + '\' (falso em persistenciaReal, como o SDK)');
+    }
     window.__ESCRITAS = window.__ESCRITAS || [];
     if (valor && typeof valor === 'object' && !Array.isArray(valor)) {
       /* update() multi-caminho: cada chave é um caminho próprio a partir da raiz */

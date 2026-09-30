@@ -4066,7 +4066,12 @@
           codigoPergunta: def ? def.codigoEstavel : r.codigoPergunta,
           textoPerguntaNaEpoca: conteudo ? conteudo.texto : r.textoPerguntaNaEpoca,
           tituloNaEpoca: conteudo ? (conteudo.titulo || null) : (r.tituloNaEpoca || null),
-          questionnaireContentVersion: questionnaireContentVersion || r.questionnaireContentVersion
+          /* Avaliação LEGADA (anterior à parametrização) não tem versão de
+             conteúdo nenhuma — nem na avaliação nem na resposta. Sem o
+             "|| null", isto virava undefined, e o SDK do Firebase RECUSA
+             undefined de forma síncrona: era isso que travava o REPROCESSAR
+             TUDO em "0 de N concluídas" sem gravar nada (relato de 30/09). */
+          questionnaireContentVersion: questionnaireContentVersion || r.questionnaireContentVersion || null
         };
       });
       return novo;
@@ -4079,6 +4084,21 @@
        chama decide COMO gravar (um .update() com timeout/retry para o
        botão individual, vários em paralelo com tratamento de erro por item
        para o lote). */
+    /* O SDK do Firebase lança uma exceção SÍNCRONA ("First argument contains
+       undefined…") se QUALQUER valor, em qualquer profundidade, for
+       undefined — e avaliações antigas têm campos que simplesmente não
+       existem. Tudo o que o reprocessamento grava passa por aqui: undefined
+       vira null (ausente, que é o que ele significa), nunca uma exceção. */
+    function semUndefined(valor) {
+      if (valor === undefined) return null;
+      if (Array.isArray(valor)) return valor.map(semUndefined);
+      if (valor && typeof valor === 'object') {
+        var out = {};
+        Object.keys(valor).forEach(function (k) { out[k] = semUndefined(valor[k]); });
+        return out;
+      }
+      return valor;
+    }
     function construirAtualizacaoReprocessamento(a) {
       var calc = computeResultado(a);
       var novaJustificativa = gerarJustificativaAutomatica(a, calc);
@@ -4124,7 +4144,7 @@
          automático x Decisão final na tela/PDF/Excel), mas nunca a muda
          sozinho. */
       if (!a.decisaoManual) updates.decisaoFinal = calc.resultadoAutomatico;
-      return updates;
+      return semUndefined(updates);
     }
     function reprocessarMotor() {
       if (state.reprocessando) return;
@@ -4144,7 +4164,21 @@
         render();
       }, 12000);
 
-      db().ref(NODE + '/' + a._key).update(updates, function (err) {
+      function falhouAoGravar(err) {
+        console.error('[avaliacao-produto] erro ao reprocessar com o motor atual:', err);
+        state.reprocessando = false;
+        render();
+        avpAlert('Não foi possível reprocessar esta avaliação. Tente novamente.');
+      }
+      try {
+        db().ref(NODE + '/' + a._key).update(updates, aoGravar);
+      } catch (e) {
+        if (respondido) return;
+        respondido = true;
+        clearTimeout(relogio);
+        falhouAoGravar(e);
+      }
+      function aoGravar(err) {
         if (respondido) return;
         respondido = true;
         clearTimeout(relogio);
@@ -4159,7 +4193,7 @@
         state.itens = upsertItem(state.itens, clonarItem(a));
         state.flashResultado = '✓ Avaliação reprocessada com a versão atual do motor de classificação.';
         render();
-      });
+      }
     }
 
     /* ===================== RECONCILIAR COM VERSÃO EQUIVALENTE =====================
@@ -4560,6 +4594,7 @@
 
       var fila = itens.slice();
       var CONCORRENCIA = 3;
+      var TEMPO_MAXIMO_POR_ITEM = 20000;
       state.reprocessamentoLote = {
         total: itens.length, feitos: 0, sucesso: 0, erros: [],
         jaAtualizadas: jaAtualizadas, bloqueadas: bloqueadas, emAndamento: true
@@ -4591,17 +4626,36 @@
           terminouItem();
           return;
         }
-        db().ref(NODE + '/' + it._key).update(updates, function (err) {
-          if (err) {
-            console.error('[avaliacao-produto] erro ao reprocessar em lote:', it._key, err);
-            state.reprocessamentoLote.erros.push({ key: it._key, nome: it.nome, mensagem: 'Não foi possível gravar.' });
+        /* Cada item termina UMA vez, aconteça o que acontecer: gravou, deu
+           erro, a chamada lançou exceção síncrona (o SDK faz isso com
+           undefined no payload — era o que congelava o lote em "0 de N"), ou
+           o servidor não respondeu a tempo (rede lenta de celular). Nunca um
+           worker morre em silêncio e deixa o contador parado. */
+        var encerrado = false;
+        function encerrar(mensagemErro, erro) {
+          if (encerrado) return;
+          encerrado = true;
+          clearTimeout(relogioItem);
+          if (mensagemErro) {
+            console.error('[avaliacao-produto] erro ao reprocessar em lote:', it._key, erro || mensagemErro);
+            state.reprocessamentoLote.erros.push({ key: it._key, nome: it.nome, mensagem: mensagemErro });
           } else {
             state.reprocessamentoLote.sucesso++;
             Object.assign(it, updates);
             state.itens = upsertItem(state.itens, clonarItem(it));
           }
           terminouItem();
-        });
+        }
+        var relogioItem = setTimeout(function () {
+          encerrar('Sem confirmação do servidor a tempo (rede lenta) — confira esta avaliação e, se ainda aparecer desatualizada, reprocesse de novo.');
+        }, TEMPO_MAXIMO_POR_ITEM);
+        try {
+          db().ref(NODE + '/' + it._key).update(updates, function (err) {
+            encerrar(err ? 'Não foi possível gravar.' : null, err);
+          });
+        } catch (e) {
+          encerrar('Não foi possível gravar (' + (e && e.message ? e.message : 'erro inesperado') + ').', e);
+        }
       }
       var n = Math.min(CONCORRENCIA, fila.length);
       workersAtivos = n;
