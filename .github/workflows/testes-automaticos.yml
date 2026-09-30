@@ -215,6 +215,18 @@ jobs:
           FA_BASE_URL: http://127.0.0.1:8811
         run: node .github/scripts/teste-motor-reconciliacao.js
 
+      # Hermético, banco falso em persistenciaReal. Interpretação automática
+      # de P5/P15 sem inferência cruzada (o texto "Embora dependa
+      # estruturalmente…" contradizia P15 = NÃO), correção entregue como
+      # versão NOVA do questionário (nunca motorVersion, nunca histórico) e
+      # "Natureza complementar" (Programa transversal) como informação manual
+      # fora do motor: tela, lista, PDF e Excel. Desktop e 375 px.
+      - name: "Interpretações P5/P15 e natureza complementar (Programa transversal)"
+        env:
+          NODE_PATH: /tmp/pw-deps/node_modules
+          FA_BASE_URL: http://127.0.0.1:8811
+        run: node .github/scripts/teste-interpretacoes-p5-p15-natureza.js
+
       # Hermético. Não existia critério pra ordem de exibição quando a
       # pessoa é destinatária de mais de uma oferta ao mesmo tempo — tudo
       # saía só na ordem manual do admin. O que é mais exclusivo PARA QUEM

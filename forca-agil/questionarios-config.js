@@ -242,12 +242,21 @@
   var cache = {};
   var carregado = {};
   var listeners = {};
+  /* true só depois da PRIMEIRA leitura de questionarios-config/<codigo>
+     chegar. Antes disso versaoAtual() devolve 1 e perguntasDaVersao() o
+     conteúdo de fábrica por falta de dado — não porque a versão vigente é
+     a 1. Qualquer PUBLICAÇÃO nessa janela (rede lenta de celular: segundos)
+     criaria "versão 2" em cima de uma versão 2 já existente, e voltaria
+     versaoPublicada para 2. */
+  var recebido = {};
+  function configCarregada(codigo) { return !!recebido[codigo]; }
 
   function garantirSync(codigo) {
     if (carregado[codigo]) return;
     carregado[codigo] = true;
     db().ref(NODE_CONFIG + '/' + codigo).on('value', function (snap) {
       cache[codigo] = snap.val();
+      recebido[codigo] = true;
       (listeners[codigo] || []).slice().forEach(function (cb) { cb(); });
     });
   }
@@ -286,6 +295,97 @@
   function rascunhoAtual(codigo) {
     var cfg = cache[codigo];
     return (cfg && cfg.rascunho) || null;
+  }
+
+  /* ===================== CORREÇÕES EDITORIAIS ===================== *
+     Uma correção de REDAÇÃO conhecida (nunca de regra) entregue pelo código
+     mas aplicada pelo MESMO mecanismo de qualquer outra edição: uma
+     administradora a aplica (um clique, com confirmação) e ela vira uma
+     versão NOVA do questionário (publicarConteudo — versão +1, auditoria
+     por campo, rascunho intocado). O conteúdo de fábrica (PADRAO) NÃO é
+     alterado: ele é a versão 1 de quem nunca publicou nada, e é o que
+     avaliações antigas sem snapshot continuam lendo — reescrevê-lo
+     mudaria o histórico. Nada aqui toca em motorVersion,
+     motorVersionArquitetura, regras do motor ou avaliações já feitas.
+
+     Cada ajuste só é aplicado se o texto VIGENTE ainda for exatamente o
+     texto anterior conhecido ("de"): se alguém já editou aquele campo por
+     conta própria, a edição dela é respeitada e o ajuste é ignorado
+     (situação 'divergente'); se já estiver igual ao novo ("para"), nada a
+     fazer ('aplicada'). Idempotente. */
+  var CORRECOES_EDITORIAIS = [
+    {
+      id: 'interpretacoes-p5-p15',
+      codigo: 'CLASSIFICACAO_ARQUITETURAL',
+      titulo: 'Interpretações automáticas de P5 e P15',
+      descricao: 'A interpretação de cada resposta passa a explicar só o significado daquela resposta, sem afirmar dependência estrutural que não decorre dela: ' +
+        'P5 = NÃO significa apenas que a autonomia estrutural não foi demonstrada; P15 = NÃO não afirma dependência; P15 = SIM descreve a associação a outra solução.',
+      ajustes: [
+        { pergunta: 'P5', campo: 'justNao',
+          de: 'NÃO — O item depende estruturalmente de outro Produto/Serviço para existir ou fazer sentido.',
+          para: 'NÃO — O item não demonstra autonomia estrutural suficiente para ser tratado como uma solução principal independente.' },
+        { pergunta: 'P15', campo: 'justSim',
+          de: 'SIM — O item apresenta características de componente ou elemento pertencente a outra solução.',
+          para: 'SIM — O item existe de forma estruturalmente associada a outra solução e contribui para que essa solução entregue seu resultado.' },
+        { pergunta: 'P15', campo: 'justNao',
+          de: 'NÃO — O item demonstra maior independência em relação a outras soluções.',
+          para: 'NÃO — O item não existe principalmente como suporte estrutural para que outro Produto/Serviço entregue seu resultado.' }
+      ]
+    }
+  ];
+  function correcaoPorId(id) { return CORRECOES_EDITORIAIS.filter(function (c) { return c.id === id; })[0] || null; }
+  function listarCorrecoesEditoriais(codigo) {
+    return CORRECOES_EDITORIAIS.filter(function (c) { return !codigo || c.codigo === codigo; });
+  }
+  function textoVigente(codigo, pergunta, campo) {
+    var p = perguntasDaVersao(codigo, versaoAtual(codigo)).filter(function (x) { return x.codigoEstavel === pergunta; })[0];
+    return p ? p[campo] : undefined;
+  }
+  /* Situação de cada ajuste contra o conteúdo VIGENTE agora:
+     'pendente' (texto ainda é o anterior conhecido), 'aplicada' (já é o
+     novo), 'divergente' (outro texto — edição própria, respeitada). */
+  function situacaoCorrecaoEditorial(id) {
+    var corr = correcaoPorId(id);
+    if (!corr) return null;
+    var ajustes = corr.ajustes.map(function (aj) {
+      var atual = textoVigente(corr.codigo, aj.pergunta, aj.campo);
+      var estado = atual === aj.para ? 'aplicada' : (atual === aj.de ? 'pendente' : 'divergente');
+      return { pergunta: aj.pergunta, campo: aj.campo, de: aj.de, para: aj.para, atual: atual, estado: estado };
+    });
+    var pendentes = ajustes.filter(function (a) { return a.estado === 'pendente'; }).length;
+    var divergentes = ajustes.filter(function (a) { return a.estado === 'divergente'; }).length;
+    return {
+      id: corr.id, codigo: corr.codigo, titulo: corr.titulo, descricao: corr.descricao, ajustes: ajustes,
+      pendentes: pendentes, divergentes: divergentes,
+      aplicada: pendentes === 0 && divergentes === 0,
+      haRascunho: !!rascunhoAtual(corr.codigo),
+      carregada: configCarregada(corr.codigo),
+      versaoAtual: versaoAtual(corr.codigo)
+    };
+  }
+  /* Publica a correção como uma versão NOVA. Nunca às cegas: exige a config
+     do servidor carregada e nenhum rascunho em andamento (publicar limpa o
+     rascunho — descartaria o trabalho de outra pessoa). cb(erro|null,
+     {novaVersao, aplicados, ignorados}). */
+  function aplicarCorrecaoEditorial(id, usuario, cb) {
+    var corr = correcaoPorId(id);
+    if (!corr) { cb('correcao-desconhecida'); return; }
+    if (!configCarregada(corr.codigo)) { cb('config-nao-carregada'); return; }
+    if (rascunhoAtual(corr.codigo)) { cb('rascunho-em-andamento'); return; }
+    var situacaoAntes = situacaoCorrecaoEditorial(id);
+    if (!situacaoAntes.pendentes) { cb('nada-a-aplicar', { divergentes: situacaoAntes.divergentes }); return; }
+    var perguntas = JSON.parse(JSON.stringify(perguntasDaVersao(corr.codigo, versaoAtual(corr.codigo))));
+    var aplicados = [], ignorados = [];
+    situacaoAntes.ajustes.forEach(function (aj) {
+      if (aj.estado !== 'pendente') { if (aj.estado === 'divergente') ignorados.push(aj.pergunta + '.' + aj.campo); return; }
+      var p = perguntas.filter(function (x) { return x.codigoEstavel === aj.pergunta; })[0];
+      p[aj.campo] = aj.para;
+      aplicados.push(aj.pergunta + '.' + aj.campo);
+    });
+    publicarConteudo(corr.codigo, perguntas, usuario, function (err, info) {
+      if (err) { cb(err); return; }
+      cb(null, { novaVersao: info.novaVersao, aplicados: aplicados, ignorados: ignorados, alteradas: info.alteradas });
+    });
   }
 
   /* Ponto de partida pra tela de edição: reaproveita um rascunho já
@@ -340,6 +440,9 @@
   }
 
   function publicarConteudo(codigo, perguntas, usuario, cb) {
+    /* Sem a config do servidor, versaoAtual() não é confiável (ver
+       configCarregada) — nunca publica às cegas. */
+    if (!configCarregada(codigo)) { cb('config-nao-carregada'); return; }
     var versaoAntiga = versaoAtual(codigo);
     var perguntasAntigas = perguntasDaVersao(codigo, versaoAntiga);
     var alteradas = diffPerguntas(perguntasAntigas, perguntas);
@@ -421,6 +524,10 @@
     perguntasDaVersao: perguntasDaVersao,
     conteudoPergunta: conteudoPergunta,
     rascunhoAtual: rascunhoAtual,
+    configCarregada: configCarregada,
+    listarCorrecoesEditoriais: listarCorrecoesEditoriais,
+    situacaoCorrecaoEditorial: situacaoCorrecaoEditorial,
+    aplicarCorrecaoEditorial: aplicarCorrecaoEditorial,
     iniciarOuObterRascunho: iniciarOuObterRascunho,
     salvarRascunho: salvarRascunho,
     descartarRascunho: descartarRascunho,
