@@ -329,13 +329,31 @@
     db().ref(NODE_CONFIG + '/rascunho').remove(function (err) { if (cb) cb(err || null); });
   }
 
+  /* Compara pelo CÓDIGO da regra, nunca pela posição no array — e sempre
+     pela UNIÃO dos códigos dos dois lados, nunca só pelo lado novo: uma
+     regra REMOVIDA (existia antes, sumiu no rascunho) é tão mudança lógica
+     quanto uma adicionada ou modificada, e só aparece do lado "antigo".
+     Comparar objeto inteiro (JSON.stringify) já cobre "qualquer campo da
+     regra mudou" — incluindo ordem (então trocar a PRECEDÊNCIA entre duas
+     regras muda o objeto de cada uma e é detectado), condicoes, resultado,
+     incoerencia, conflito. motivos é só uma lista de códigos estáveis
+     (P1-P16), nunca texto de apresentação — não existe rótulo/descrição
+     dentro do objeto de regra para gerar falso positivo por edição
+     textual (rótulo de camada mora em textos/PADRAO_TEXTOS, publicado por
+     salvarTextos, uma função inteiramente separada que nunca chama
+     publicarRegras nem toca em versaoPublicada). */
   function diffRegras(regrasAntigas, regrasNovas) {
-    var porCodigoAntigo = {};
+    var porCodigoAntigo = {}, porCodigoNovo = {};
     (regrasAntigas || []).forEach(function (r) { porCodigoAntigo[r.codigo] = r; });
+    (regrasNovas || []).forEach(function (r) { porCodigoNovo[r.codigo] = r; });
+    var todosCodigos = {};
+    Object.keys(porCodigoAntigo).forEach(function (c) { todosCodigos[c] = true; });
+    Object.keys(porCodigoNovo).forEach(function (c) { todosCodigos[c] = true; });
     var alteradas = [];
-    (regrasNovas || []).forEach(function (novo) {
-      var antigo = porCodigoAntigo[novo.codigo] || {};
-      if (JSON.stringify(antigo) !== JSON.stringify(novo)) alteradas.push({ codigo: novo.codigo, antigo: antigo, novo: novo });
+    Object.keys(todosCodigos).forEach(function (codigo) {
+      var antigo = porCodigoAntigo[codigo] || null;
+      var novo = porCodigoNovo[codigo] || null;
+      if (JSON.stringify(antigo) !== JSON.stringify(novo)) alteradas.push({ codigo: codigo, antigo: antigo, novo: novo });
     });
     return alteradas;
   }
@@ -354,7 +372,10 @@
      acabara de ser reprocessada com a versão anterior, sem que a
      classificação de ninguém tivesse mudado. Só limpa o rascunho
      pendente (ele já é idêntico ao publicado, não há por que mantê-lo
-     como pendente) e devolve a MESMA versão em info.novaVersao. */
+     como pendente) e devolve a MESMA versão em info.novaVersao. Registra
+     UMA entrada de auditoria tipo 'sem_alteracao' (versaoAnterior ===
+     novaVersao) — nunca uma entrada tipo 'regra' de versaoAnterior→
+     versaoAnterior+1, que sugeriria falsamente que uma versão nova nasceu. */
   function publicarRegras(regras, usuario, cb) {
     var erros = validarRegras({ regras: regras });
     if (erros.length) { cb('validacao', erros); return; }
@@ -362,7 +383,14 @@
     var regrasAntigas = regrasDaVersao(versaoAntiga).regras;
     var alteradas = diffRegras(regrasAntigas, regras);
     if (!alteradas.length) {
-      db().ref(NODE_CONFIG + '/rascunho').remove(function (err) {
+      var agoraSemMudanca = new Date().toISOString();
+      var updatesSemMudanca = {};
+      updatesSemMudanca[NODE_CONFIG + '/rascunho'] = null;
+      updatesSemMudanca[NODE_AUDITORIA + '/' + db().ref(NODE_AUDITORIA).push().key] = {
+        tipo: 'sem_alteracao', campo: null, valorAnterior: null, valorNovo: null,
+        usuario: usuario || null, dataHora: agoraSemMudanca, versaoAnterior: versaoAntiga, novaVersao: versaoAntiga
+      };
+      db().ref().update(updatesSemMudanca, function (err) {
         if (cb) cb(err || null, { novaVersao: versaoAntiga, alteradas: [], semMudanca: true });
       });
       return;
