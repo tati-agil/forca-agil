@@ -228,6 +228,20 @@ jobs:
           FA_BASE_URL: http://127.0.0.1:8811
         run: node .github/scripts/teste-motor-modal-atualizacao.js
 
+      # Hermético, banco falso em persistenciaReal (que agora recusa
+      # `undefined` como o SDK). Incidente de 30/09/2026: "Reprocessando
+      # avaliações… 0 de 7 concluídas" congelado para sempre e nada gravado —
+      # avaliações legadas (sem questionnaireContentVersion) geravam um campo
+      # undefined, o SDK lançava exceção síncrona e o lote travava. Cobre:
+      # 7 legadas em lote, reprocesso individual de legada, exceção numa
+      # avaliação não para as outras, gravação sem resposta encerra por
+      # tempo. Desktop e 375 px.
+      - name: "Reprocessar em lote sempre termina (avaliações legadas, exceção, rede sem resposta)"
+        env:
+          NODE_PATH: /tmp/pw-deps/node_modules
+          FA_BASE_URL: http://127.0.0.1:8811
+        run: node .github/scripts/teste-motor-reprocessar-lote-robusto.js
+
       # Hermético, banco falso em persistenciaReal. Interpretação automática
       # de P5/P15 sem inferência cruzada (o texto "Embora dependa
       # estruturalmente…" contradizia P15 = NÃO), correção entregue como
