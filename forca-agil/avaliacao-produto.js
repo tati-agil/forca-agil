@@ -1499,7 +1499,7 @@
       var situacao = situacaoMotor(it);
       if (state.filtro.motor === 'desatualizado' && situacao !== 'desatualizado') return false;
       if (state.filtro.motor === 'equivalente' && situacao !== 'equivalente') return false;
-      if (state.filtro.motor === 'atual' && (situacao === 'desatualizado' || situacao === 'equivalente')) return false;
+      if (state.filtro.motor === 'atual' && (situacao === 'desatualizado' || situacao === 'equivalente' || situacao === 'verificando')) return false;
       return true;
     }
 
@@ -1558,9 +1558,10 @@
         var concluidas = ativos.filter(function (it) { return it.status === 'concluido'; });
         var elegiveisLote = concluidas.filter(elegivelParaReprocessamentoEmLote);
         var elegiveisReconciliacao = concluidas.filter(elegivelParaReconciliacaoEmLote);
+        var verificandoMotor = concluidas.some(function (it) { return situacaoMotor(it) === 'verificando'; });
         html += renderBarraReconciliar(elegiveisReconciliacao);
         if (state.reconciliacaoLote) html += renderReconciliacaoLoteCard();
-        html += renderBarraReprocessarTudo(elegiveisLote, elegiveisReconciliacao.length);
+        html += renderBarraReprocessarTudo(elegiveisLote, elegiveisReconciliacao.length, verificandoMotor);
         if (state.reprocessamentoLote) html += renderReprocessamentoLoteCard();
       }
 
@@ -1657,11 +1658,11 @@
       if (squadListaBtn) squadListaBtn.addEventListener('click', function () { window.faAvaliacaoSquad.abrirLista(); });
 
       var reprocessarTudoBtn = document.getElementById('avpReprocessarTudoBtn');
-      if (reprocessarTudoBtn) reprocessarTudoBtn.addEventListener('click', abrirModalReprocessarTudo);
+      if (reprocessarTudoBtn) reprocessarTudoBtn.addEventListener('click', abrirModalAtualizarMotor);
       var loteFecharBtn = document.getElementById('avpLoteFechar');
       if (loteFecharBtn) loteFecharBtn.addEventListener('click', function () { state.reprocessamentoLote = null; render(); });
       var reconciliarTudoBtn = document.getElementById('avpReconciliarTudoBtn');
-      if (reconciliarTudoBtn) reconciliarTudoBtn.addEventListener('click', abrirModalReconciliar);
+      if (reconciliarTudoBtn) reconciliarTudoBtn.addEventListener('click', abrirModalAtualizarMotor);
       var reconciliacaoFecharBtn = document.getElementById('avpReconciliacaoFechar');
       if (reconciliacaoFecharBtn) reconciliacaoFecharBtn.addEventListener('click', function () { state.reconciliacaoLote = null; render(); });
 
@@ -1792,9 +1793,11 @@
        tem motorVersion nenhuma, então não entra nem como "atual" nem como
        "desatualizado" aqui, ao contrário do filtro em itemPassaFiltro). */
     function badgeMotor(it) {
-      var situacao = situacaoMotor(it);
-      if (!situacao) return '';
-      if (situacao === 'desatualizado') return ' <span class="avp-tag-motor avp-tag-motor--desatualizado">Motor desatualizado</span>';
+      var d = diagnosticoMotor(it);
+      if (!d) return '';
+      var situacao = d.situacao;
+      if (situacao === 'verificando') return ' <span class="avp-tag-motor avp-tag-motor--verificando">Verificando motor…</span>';
+      if (situacao === 'desatualizado') return ' <span class="avp-tag-motor avp-tag-motor--desatualizado" title="' + esc(textoMotivoMotor(d.motivo)) + '">Motor desatualizado</span>';
       if (situacao === 'equivalente') return ' <span class="avp-tag-motor avp-tag-motor--equivalente">Versão anterior equivalente</span>';
       return ' <span class="avp-tag-motor avp-tag-motor--atual">Motor atual</span>';
     }
@@ -2875,10 +2878,10 @@
         var versaoCol = a.tipo === 'conflito_publicacao'
           ? 'tentativa com base ' + esc(a.versaoBase) + ' — vigente ' + esc(a.versaoAtual)
           : a.tipo === 'reconciliacao_versao_equivalente'
-            ? esc(a.versaoAnterior) + ' → ' + esc(a.versaoAtual) + ' (equivalentes: ' + esc(a.diferencasSemanticas) + ' diferenças em ' + esc(fmtNumero(a.combinacoesAnalisadas)) + ' combinações; sem versão nova)'
+            ? esc(a.versaoAnterior) + ' → ' + esc(a.versaoNova != null ? a.versaoNova : a.versaoAtual) + ' (equivalentes: ' + esc(a.diferencasSemanticas) + ' diferenças em ' + esc(fmtNumero(a.combinacoesAnalisadas)) + ' combinações; motor não executado)'
             : (a.versaoAnterior === a.novaVersao ? 'sem versão nova (' + esc(a.versaoAnterior) + ')' : esc(a.versaoAnterior) + ' → ' + esc(a.novaVersao));
         var campoCol = a.campo ? esc(a.campo)
-          : a.tipo === 'reconciliacao_versao_equivalente' ? esc(a.quantidade) + ' avaliaç' + (a.quantidade === 1 ? 'ão' : 'ões')
+          : a.tipo === 'reconciliacao_versao_equivalente' ? (a.avaliacaoNome ? esc(a.avaliacaoNome) : (a.quantidade != null ? esc(a.quantidade) + ' avaliaç' + (a.quantidade === 1 ? 'ão' : 'ões') : '—'))
           : (a.tipo === 'conflito_publicacao' && a.origem ? esc(a.origem) : '—');
         html += '<tr><td data-label="Tipo">' + tipoLabel + '</td>' +
           '<td data-label="Campo">' + campoCol + '</td>' +
@@ -3981,16 +3984,52 @@
                        (sem prova, nunca se afirma equivalência). Ação:
                        REPROCESSAR COM MOTOR ATUAL, como sempre. */
     function situacaoMotor(it) {
+      var d = diagnosticoMotor(it);
+      return d ? d.situacao : null;
+    }
+    /* Além das três situações, uma QUARTA — 'verificando' — enquanto a
+       configuração do motor não chegou do servidor: versaoAtual() devolve 1
+       por falta de dado, então qualquer conclusão ("atual", "desatualizado"
+       ou "equivalente") seria chute. Em rede lenta de celular essa janela
+       dura segundos, e nela NÃO se oferece reprocessar nem reconciliar
+       (mesma lição do incidente de 08-09/09: "ainda não sei" nunca pode ser
+       tratado como uma resposta). Devolve também o MOTIVO de cada
+       'desatualizado' — para a pessoa ver por que, em vez de só "precisa
+       reprocessar":
+         codigo    — motorVersion (lógica em código) diferente da atual; não
+                     há como provar equivalência de código;
+         sem-versao— a avaliação não tem motorVersionArquitetura;
+         logica    — a versão das regras difere da vigente (diferencas > 0 em
+                     combinacoesAnalisadas);
+         sem-prova — não foi possível comprovar (versão sem registro). */
+    function diagnosticoMotor(it) {
       if (!it || it.status !== 'concluido') return null;
-      if (it.motorVersion !== MOTOR_VERSION) return 'desatualizado';
-      var vigente = window.faMotorArquitetura.versaoAtual();
-      if (it.motorVersionArquitetura === vigente) return 'atual';
-      var eq = equivalenciaDoItem(it);
-      return eq && eq.equivalentes ? 'equivalente' : 'desatualizado';
+      var M = window.faMotorArquitetura;
+      if (!M.configCarregada()) return { situacao: 'verificando' };
+      if (it.motorVersion !== MOTOR_VERSION) {
+        return { situacao: 'desatualizado', motivo: { tipo: 'codigo', encontrada: it.motorVersion || null, esperada: MOTOR_VERSION } };
+      }
+      var vigente = M.versaoAtual();
+      if (it.motorVersionArquitetura === vigente) return { situacao: 'atual' };
+      if (typeof it.motorVersionArquitetura !== 'number') return { situacao: 'desatualizado', motivo: { tipo: 'sem-versao', destino: vigente } };
+      var eq = M.equivalenciaEntreVersoes(it.motorVersionArquitetura, vigente);
+      if (eq.equivalentes) return { situacao: 'equivalente', prova: eq };
+      return { situacao: 'desatualizado', motivo: eq.diferencas > 0
+        ? { tipo: 'logica', origem: eq.versaoA, destino: eq.versaoB, diferencas: eq.diferencas, combinacoes: eq.combinacoesAnalisadas }
+        : { tipo: 'sem-prova', origem: eq.versaoA, destino: eq.versaoB, detalhe: eq.motivo || null } };
+    }
+    function textoMotivoMotor(m) {
+      if (!m) return '';
+      if (m.tipo === 'codigo') return 'lógica do motor em código diferente (registrada ' + (m.encontrada || '—') + ', atual ' + m.esperada + ')';
+      if (m.tipo === 'sem-versao') return 'sem versão das regras registrada';
+      if (m.tipo === 'logica') return 'versão ' + m.origem + ' das regras: ' + fmtNumero(m.diferencas) + ' de ' + fmtNumero(m.combinacoes) +
+        ' combinações de respostas dão resultado diferente da versão atual (' + m.destino + ')';
+      return 'versão ' + m.origem + ' das regras: não foi possível comprovar equivalência com a atual (' + m.destino + ')' +
+        (m.detalhe === 'versao-indisponivel' ? ' — a versão não está registrada' : '');
     }
     function equivalenciaDoItem(it) {
-      if (typeof it.motorVersionArquitetura !== 'number') return null;
-      return window.faMotorArquitetura.equivalenciaEntreVersoes(it.motorVersionArquitetura, window.faMotorArquitetura.versaoAtual());
+      var d = diagnosticoMotor(it);
+      return d && d.prova ? d.prova : null;
     }
     function precisaReprocessar(it) { return situacaoMotor(it) === 'desatualizado'; }
     function podeReconciliar(it) { return situacaoMotor(it) === 'equivalente'; }
@@ -4204,45 +4243,7 @@
       });
       return Object.keys(grupos).map(function (k) { return grupos[k]; });
     }
-    function abrirModalReconciliar() {
-      if (!window.faMotorArquitetura.configCarregada()) { avpAlert('A configuração do motor ainda está carregando. Tente de novo em alguns segundos.'); return; }
-      var ativos = state.itens.filter(function (it) { return !it.excluido && !temVersaoMaisNova(it._key); });
-      var elegiveis = ativos.filter(function (it) { return it.status === 'concluido'; }).filter(elegivelParaReconciliacaoEmLote);
-      if (!elegiveis.length) return;
-      var grupos = provasPorOrigem(elegiveis);
-
-      var overlay = document.createElement('div');
-      overlay.className = 'modal-overlay';
-      overlay.style.cssText = 'display:flex;align-items:center;justify-content:center;z-index:9999';
-      var box = document.createElement('div');
-      box.className = 'modal-box avp-lote-modal-box';
-      box.style.cssText = 'max-width:480px;width:92%;padding:24px;display:flex;flex-direction:column;gap:14px;max-height:90vh;overflow-y:auto';
-      var html = '<p class="avp-menu-acoes-titulo">Reconciliar com versão equivalente</p>';
-      html += '<ul class="avp-lote-resumo-contagens" id="avpReconciliarProvas">';
-      grupos.forEach(function (g) {
-        html += '<li><strong>' + g.itens.length + ' avaliaç' + (g.itens.length === 1 ? 'ão' : 'ões') + ' na versão ' + esc(g.origem) + '.</strong> ' +
-          esc(textoProvaEquivalencia(g.prova)) + ' <strong>Versões semanticamente equivalentes.</strong></li>';
-      });
-      html += '</ul>';
-      html += '<p class="avp-decisao-aviso">Nada é recalculado: respostas, justificativas, interpretação e classificação ficam exatamente como estão, ' +
-        'e o motor não roda de novo. Só o número da versão do motor gravado em cada avaliação passa para a versão ' +
-        esc(window.faMotorArquitetura.versaoAtual()) + ', com a versão anterior preservada no histórico da avaliação e um registro na auditoria do motor.</p>';
-      html += '<div class="avp-lote-modal-botoes">';
-      html += '<button class="btn" id="avpReconciliarCancelar">CANCELAR</button>';
-      html += '<button class="btn btn--primary" id="avpReconciliarConfirmar">RECONCILIAR ' + elegiveis.length +
-        (elegiveis.length === 1 ? ' AVALIAÇÃO' : ' AVALIAÇÕES') + '</button>';
-      html += '</div>';
-      box.innerHTML = html;
-      overlay.appendChild(box);
-      document.body.appendChild(overlay);
-      function fechar() { if (overlay.parentNode) document.body.removeChild(overlay); }
-      box.querySelector('#avpReconciliarCancelar').addEventListener('click', fechar);
-      overlay.addEventListener('keydown', function (e) { if (e.key === 'Escape') { e.preventDefault(); fechar(); } });
-      box.querySelector('#avpReconciliarConfirmar').addEventListener('click', function () {
-        fechar();
-        reconciliarAvaliacoes(elegiveis, function () { render(); }, function () { render(); });
-      });
-    }
+    /* (modal de confirmação: ver abrirModalAtualizarMotor, junto do lote de reprocessamento) */
     /* Motor da reconciliação — usado pelo lote e pelo botão individual.
        onProgresso é chamado a cada item; onFim(resumo) uma vez só, depois
        da auditoria. */
@@ -4315,7 +4316,7 @@
           var novo = Object.assign({}, atual);
           novo.motorVersionArquitetura = destino;
           novo.reconciliacoesVersao = (Array.isArray(atual.reconciliacoesVersao) ? atual.reconciliacoesVersao : []).concat([{
-            versaoAnterior: origem, versaoAtual: destino, equivalenciaComprovada: true,
+            versaoAnterior: origem, versaoNova: destino, equivalenciaComprovada: true,
             diferencasSemanticas: prova.diferencas, combinacoesAnalisadas: prova.combinacoesAnalisadas,
             dataHora: agora, usuario: usuario
           }]);
@@ -4340,18 +4341,27 @@
       function concluir() {
         var origens = Object.keys(reconciliadasPorOrigem);
         if (!origens.length) { terminar(); return; }
+        /* UMA entrada de auditoria por avaliação reconciliada (avaliacaoId) —
+           nunca um resumo por lote: quem consulta a auditoria vê exatamente
+           qual avaliação mudou de qual versão para qual. O histórico da
+           própria avaliação (reconciliacoesVersao) já foi gravado na MESMA
+           transaction que trocou a versão, então ele não existe sem a
+           mudança; este registro vem logo depois e, se falhar, o resumo
+           avisa. NÃO é um reprocessamento: o motor não rodou. */
         var agora = new Date().toISOString();
         var updates = {};
         origens.forEach(function (origem) {
           var prova = provas[origem];
           var avaliacoes = reconciliadasPorOrigem[origem];
-          updates['motor-arquitetura-auditoria/' + db().ref('motor-arquitetura-auditoria').push().key] = {
-            tipo: 'reconciliacao_versao_equivalente', campo: null, valorAnterior: null, valorNovo: null,
-            versaoAnterior: Number(origem), versaoAtual: destino, novaVersao: destino,
-            equivalenciaComprovada: true, diferencasSemanticas: prova.diferencas, combinacoesAnalisadas: prova.combinacoesAnalisadas,
-            quantidade: Object.keys(avaliacoes).length, avaliacoes: avaliacoes,
-            usuario: usuario, dataHora: agora
-          };
+          Object.keys(avaliacoes).forEach(function (avaliacaoId) {
+            updates['motor-arquitetura-auditoria/' + db().ref('motor-arquitetura-auditoria').push().key] = {
+              tipo: 'reconciliacao_versao_equivalente', campo: null, valorAnterior: null, valorNovo: null,
+              avaliacaoId: avaliacaoId, avaliacaoNome: avaliacoes[avaliacaoId] || null,
+              versaoAnterior: Number(origem), versaoNova: destino,
+              equivalenciaComprovada: true, diferencasSemanticas: prova.diferencas, combinacoesAnalisadas: prova.combinacoesAnalisadas,
+              usuario: usuario, dataHora: agora
+            };
+          });
         });
         db().ref().update(updates, function (err) {
           if (err) console.error('[avaliacao-produto] erro ao gravar auditoria da reconciliação:', err);
@@ -4374,9 +4384,13 @@
        (ver elegivelParaReprocessamentoEmLote) — o bloqueio existe justamente
        para permitir "reprocessar tudo" com segurança mesmo havendo um caso
        ainda em discussão conceitual. */
-    function renderBarraReprocessarTudo(elegiveisLote, qtdEquivalentes) {
+    function renderBarraReprocessarTudo(elegiveisLote, qtdEquivalentes, verificando) {
       var html = '<div class="avp-lote-bar">';
-      if (elegiveisLote.length) {
+      if (verificando) {
+        /* A configuração do motor ainda não chegou: não dá para saber o que
+           precisa de quê — nenhuma ação é oferecida (ver diagnosticoMotor). */
+        html += '<button class="btn btn--sm" id="avpReprocessarTudoBtn" disabled>Verificando a versão do motor…</button>';
+      } else if (elegiveisLote.length) {
         html += '<button class="btn btn--sm" id="avpReprocessarTudoBtn"' +
           (state.reprocessamentoLote && state.reprocessamentoLote.emAndamento ? ' disabled' : '') + '>' +
           'REPROCESSAR TUDO COM MOTOR ATUAL (' + elegiveisLote.length + ')</button>';
@@ -4422,53 +4436,111 @@
       html += '</div>';
       return html;
     }
-    /* Modal de confirmação — mostra a contagem ANTES de mexer em qualquer
-       coisa, para nunca reprocessar tudo cegamente. As contagens são
-       recalculadas na hora (nunca reaproveitadas de um render antigo), então
-       refletem exatamente o estado atual da lista. */
-    function abrirModalReprocessarTudo() {
+    /* MODAL ÚNICO "Atualizar avaliações para a versão atual do motor" — uma
+       só tela para as duas operações, que são DIFERENTES e nunca se
+       misturam: cada uma tem a sua contagem, o seu texto e o seu botão, e
+       cada botão age só no seu grupo.
+         já no motor atual      — nada a fazer;
+         podem ser reconciliadas— versão anterior COMPROVADAMENTE equivalente
+                                  (RECONCILIAR: não roda o motor, só o vínculo
+                                  de versão muda);
+         precisam ser reprocessadas — mudança lógica real (ou sem como
+                                  comprovar): REPROCESSAR roda o motor atual.
+       As contagens são recalculadas na hora (nunca de um render antigo). Para
+       cada avaliação que precisa ser reprocessada, o modal diz POR QUÊ (ver
+       textoMotivoMotor), para a pessoa conferir antes de confirmar. */
+    function abrirModalAtualizarMotor() {
+      var M = window.faMotorArquitetura;
+      if (!M.configCarregada()) { avpAlert('A configuração do motor ainda está carregando. Tente de novo em alguns segundos.'); return; }
       var ativos = state.itens.filter(function (it) { return !it.excluido && !temVersaoMaisNova(it._key); });
       var concluidas = ativos.filter(function (it) { return it.status === 'concluido'; });
-      var elegiveis = concluidas.filter(elegivelParaReprocessamentoEmLote);
       var atualizadas = concluidas.filter(function (it) { return situacaoMotor(it) === 'atual'; });
-      var equivalentes = concluidas.filter(podeReconciliar);
-      var bloqueadas = concluidas.filter(function (it) { return precisaReprocessar(it) && it.bloqueadaParaReprocessamentoAutomatico; });
-      if (!elegiveis.length) return; /* botão já vem desabilitado nesse caso — defesa dupla */
+      var paraReconciliar = concluidas.filter(elegivelParaReconciliacaoEmLote);
+      var paraReprocessar = concluidas.filter(elegivelParaReprocessamentoEmLote);
+      var bloqueadas = concluidas.filter(function (it) {
+        var s = situacaoMotor(it);
+        return (s === 'desatualizado' || s === 'equivalente') && it.bloqueadaParaReprocessamentoAutomatico;
+      });
+      if (!paraReconciliar.length && !paraReprocessar.length) return; /* nada a atualizar: os botões da lista já vêm desabilitados */
+      function plural(n, um, varios) { return n + ' ' + (n === 1 ? um : varios); }
 
       var overlay = document.createElement('div');
       overlay.className = 'modal-overlay';
       overlay.style.cssText = 'display:flex;align-items:center;justify-content:center;z-index:9999';
       var box = document.createElement('div');
       box.className = 'modal-box avp-lote-modal-box';
-      box.style.cssText = 'max-width:440px;width:92%;padding:24px;display:flex;flex-direction:column;gap:14px';
-      var html = '<p class="avp-menu-acoes-titulo">Reprocessar avaliações com o motor atual</p>';
+      box.style.cssText = 'max-width:500px;width:92%;padding:24px;display:flex;flex-direction:column;gap:14px;max-height:90vh;overflow-y:auto';
+      var html = '<p class="avp-menu-acoes-titulo">Atualizar avaliações para a versão atual do motor</p>';
       html += '<p>Encontramos:</p><ul class="avp-lote-resumo-contagens" id="avpLoteResumoContagens">';
-      html += '<li>' + concluidas.length + ' avaliaç' + (concluidas.length === 1 ? 'ão concluída' : 'ões concluídas') + '</li>';
-      html += '<li>' + elegiveis.length + ' precisa' + (elegiveis.length === 1 ? '' : 'm') + ' ser reprocessada' + (elegiveis.length === 1 ? '' : 's') + '</li>';
-      html += '<li>' + atualizadas.length + ' já est' + (atualizadas.length === 1 ? 'á' : 'ão') + ' no motor atual</li>';
-      if (equivalentes.length) {
-        html += '<li>' + equivalentes.length + ' em versão anterior equivalente — não ser' + (equivalentes.length === 1 ? 'á reprocessada' : 'ão reprocessadas') + ' (use Reconciliar)</li>';
+      html += '<li>' + plural(concluidas.length, 'avaliação concluída', 'avaliações concluídas') + '</li>';
+      if (atualizadas.length) html += '<li>' + atualizadas.length + ' já ' + (atualizadas.length === 1 ? 'está' : 'estão') + ' no motor atual</li>';
+      if (paraReconciliar.length) {
+        html += '<li>' + paraReconciliar.length + ' ' + (paraReconciliar.length === 1 ? 'pode' : 'podem') + ' ser reconciliada' + (paraReconciliar.length === 1 ? '' : 's') +
+          ' — ' + (paraReconciliar.length === 1 ? 'está' : 'estão') + ' em uma versão anterior equivalente</li>';
+      }
+      if (paraReprocessar.length) {
+        html += '<li>' + paraReprocessar.length + ' precisa' + (paraReprocessar.length === 1 ? '' : 'm') + ' ser reprocessada' + (paraReprocessar.length === 1 ? '' : 's') + ' — motor desatualizado</li>';
       }
       if (bloqueadas.length) {
-        html += '<li>' + bloqueadas.length + ' não pode' + (bloqueadas.length === 1 ? '' : 'm') + ' ser reprocessada' + (bloqueadas.length === 1 ? '' : 's') + ' automaticamente</li>';
+        html += '<li>' + bloqueadas.length + ' não entra' + (bloqueadas.length === 1 ? '' : 'm') + ' no lote (bloqueada' + (bloqueadas.length === 1 ? '' : 's') + ' para atualização automática)</li>';
       }
       html += '</ul>';
-      html += '<p class="avp-decisao-aviso">O reprocessamento não altera respostas nem justificativas fornecidas pelos usuários. ' +
-        'O sistema recalculará apenas conteúdos gerados pelo motor e preservará todas as versões anteriores no histórico.</p>';
-      html += '<div class="avp-lote-modal-botoes">';
-      html += '<button class="btn" id="avpLoteCancelar">CANCELAR</button>';
-      html += '<button class="btn btn--primary" id="avpLoteConfirmar">REPROCESSAR ' + elegiveis.length +
-        (elegiveis.length === 1 ? ' AVALIAÇÃO' : ' AVALIAÇÕES') + '</button>';
-      html += '</div>';
+
+      if (paraReconciliar.length) {
+        var grupos = provasPorOrigem(paraReconciliar);
+        html += '<div class="avp-atualizar-secao" id="avpSecaoReconciliar">';
+        html += '<p class="avp-atualizar-titulo">Reconciliar — sem recalcular</p>';
+        html += '<p>As ' + paraReconciliar.length + ' avaliações foram produzidas por uma versão anterior do motor que foi comprovada como semanticamente equivalente à versão atual. ' +
+          'As respostas, justificativas e classificações não precisam ser recalculadas.</p>';
+        html += '<ul class="avp-lote-resumo-contagens" id="avpReconciliarProvas">';
+        grupos.forEach(function (g) {
+          html += '<li><strong>' + plural(g.itens.length, 'avaliação', 'avaliações') + ' na versão ' + esc(g.origem) + '.</strong> ' +
+            esc(textoProvaEquivalencia(g.prova)) + ' <strong>Versões semanticamente equivalentes.</strong></li>';
+        });
+        html += '</ul>';
+        html += '<p class="avp-decisao-aviso">O motor não roda de novo. Só o número da versão do motor gravado em cada avaliação passa para a versão ' +
+          esc(M.versaoAtual()) + ', com a versão anterior preservada no histórico da avaliação e um registro na auditoria do motor. ' +
+          'Não é um reprocessamento.</p>';
+        html += '<button class="btn btn--primary" id="avpReconciliarConfirmar">RECONCILIAR ' + paraReconciliar.length +
+          (paraReconciliar.length === 1 ? ' AVALIAÇÃO' : ' AVALIAÇÕES') + '</button>';
+        html += '</div>';
+      }
+      if (paraReprocessar.length) {
+        /* motivos agrupados */
+        var motivos = {}, ordemMotivos = [];
+        paraReprocessar.forEach(function (it) {
+          var t = textoMotivoMotor(diagnosticoMotor(it).motivo);
+          if (!motivos[t]) { motivos[t] = 0; ordemMotivos.push(t); }
+          motivos[t]++;
+        });
+        html += '<div class="avp-atualizar-secao" id="avpSecaoReprocessar">';
+        html += '<p class="avp-atualizar-titulo">Reprocessar — recalcula com o motor atual</p>';
+        html += '<p>Por que ' + (paraReprocessar.length === 1 ? 'precisa' : 'precisam') + ' ser reprocessada' + (paraReprocessar.length === 1 ? '' : 's') + ':</p>';
+        html += '<ul class="avp-lote-resumo-contagens" id="avpReprocessarMotivos">';
+        ordemMotivos.forEach(function (t) { html += '<li>' + motivos[t] + ' — ' + esc(t) + '</li>'; });
+        html += '</ul>';
+        html += '<p class="avp-decisao-aviso">O reprocessamento não altera respostas nem justificativas fornecidas pelos usuários. ' +
+          'O sistema recalculará apenas conteúdos gerados pelo motor e preservará todas as versões anteriores no histórico.</p>';
+        html += '<button class="btn btn--primary" id="avpLoteConfirmar">REPROCESSAR ' + paraReprocessar.length +
+          (paraReprocessar.length === 1 ? ' AVALIAÇÃO' : ' AVALIAÇÕES') + '</button>';
+        html += '</div>';
+      }
+      html += '<div class="avp-lote-modal-botoes"><button class="btn" id="avpLoteCancelar">FECHAR</button></div>';
       box.innerHTML = html;
       overlay.appendChild(box);
       document.body.appendChild(overlay);
       function fechar() { if (overlay.parentNode) document.body.removeChild(overlay); }
       box.querySelector('#avpLoteCancelar').addEventListener('click', fechar);
       overlay.addEventListener('keydown', function (e) { if (e.key === 'Escape') { e.preventDefault(); fechar(); } });
-      box.querySelector('#avpLoteConfirmar').addEventListener('click', function () {
+      var btnReconciliar = box.querySelector('#avpReconciliarConfirmar');
+      if (btnReconciliar) btnReconciliar.addEventListener('click', function () {
         fechar();
-        executarReprocessamentoEmLote(elegiveis);
+        reconciliarAvaliacoes(paraReconciliar, function () { render(); }, function () { render(); });
+      });
+      var btnReprocessar = box.querySelector('#avpLoteConfirmar');
+      if (btnReprocessar) btnReprocessar.addEventListener('click', function () {
+        fechar();
+        executarReprocessamentoEmLote(paraReprocessar);
       });
     }
     /* Processamento com concorrência limitada (nunca todas de uma vez): um
