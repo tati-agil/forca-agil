@@ -8,8 +8,18 @@
             para cuidar desse item.
    Nunca existe regra "Produto/Serviço principal = squad" nem
    "Unidade de Valor = não squad" — a decisão sobre squad vem só das
-   respostas S1-S8, quando um dia existir uma regra de interpretação
-   (NÃO criada nesta versão — ver "SEM VEREDITO" abaixo).
+   respostas S1-S8, interpretadas por window.faMotorSquad (ver
+   motor-squad.js) — um motor SEPARADO, sem nenhuma regra compartilhada
+   com identificarCamada, e com seu próprio eixo de versionamento
+   (motorSquadVersion, nunca motorVersion).
+
+   A interpretação (ver motor-squad.js) nunca é um placar: não soma SIM,
+   não calcula score/percentual, não classifica Alta/Média/Baixa adequação
+   nem decide sozinha "criar/não criar squad" — produz uma INDICAÇÃO
+   ORGANIZACIONAL de apoio à decisão, sempre a partir de condições lógicas
+   com precedência explícita sobre dois eixos preservados separadamente
+   (necessidade de capacidade dedicada / condições para a squad funcionar).
+   A ferramenta apoia a decisão; quem decide continua sendo a organização.
 
    Reutiliza inteiramente a fundação de parametrização de questionários
    (window.faQuestionarios, ver questionarios-config.js e a PR que a
@@ -45,15 +55,38 @@
        redação de quando foi respondida,
      excluido/excluidoEm/excluidoPor/justificativaExclusao: soft-delete,
        mesmo padrão de avaliacoes-produto,
-     resultadoAutomatico, justificativaResultado, motorSquadVersion,
-       decisaoFinal, formaDecisao: reservados para um motor de veredito
-       FUTURO — sempre null nesta versão, nunca calculados, nunca
-       exibidos como recomendação.
+     motorSquadVersion: versão das REGRAS do motor de squad (ver
+       motor-squad.js) vigente quando esta avaliação foi CONCLUÍDA/
+       reprocessada — eixo TOTALMENTE independente de
+       questionnaireContentVersion (texto das perguntas) e de motorVersion
+       (motor arquitetural); gravada só ao concluir/reprocessar, nunca ao
+       salvar rascunho,
+     necessidadeCapacidadeDedicada: 'DEMONSTRADA' | 'PARCIALMENTE_DEMONSTRADA'
+       | 'NAO_DEMONSTRADA' — Eixo A do motor (S1/S2/S4/S5),
+     condicoesParaSquad: 'PRESENTES' | 'PARCIAIS' | 'LIMITADAS_PELA_AUTONOMIA'
+       — Eixo B do motor (S3/S6/S7/S8; S7 tem precedência estrutural),
+     indicacaoOrganizacional: um dos 5 códigos que combinam os dois eixos
+       acima (ver motor-squad.js) — nunca lê S1-S8 diretamente,
+     evidenciasFavoraveis, pontosADesenvolver: arrays de códigos S1-S8
+       (nunca texto), derivados diretamente das respostas SIM/NÃO,
+     historicoMotorSquad: [{ motorSquadVersion, necessidadeCapacidadeDedicada,
+       condicoesParaSquad, indicacaoOrganizacional, evidenciasFavoraveis,
+       pontosADesenvolver, processadoEm }] — a interpretação anterior migra
+       pra cá (mais antiga primeiro) sempre que REPROCESSAR COM MOTOR DE
+       SQUAD ATUAL substitui o resultado; nunca reescrita nem apagada,
+     resultadoAutomatico, justificativaResultado, decisaoFinal,
+       formaDecisao: reservados para uma FUTURA decisão organizacional
+       explícita (registrar concordância/divergência com a indicação, como
+       "Decisão arquitetural" faz para P1-P16) — sempre null nesta versão,
+       nunca calculados: esta PR entrega a INDICAÇÃO, não a decisão.
 
-   SEM VEREDITO: esta tela nunca soma SIM, nunca calcula score, nunca
-   decide Alta/Média/Baixa adequação nem "criar/não criar squad" — só
-   coleta, persiste, versiona e apresenta as 8 respostas. A regra de
-   interpretação fica para uma versão futura, definida separadamente. */
+   A interpretação (necessidadeCapacidadeDedicada/condicoesParaSquad/
+   indicacaoOrganizacional) NUNCA recalcula sozinha quando uma nova versão
+   do motor é publicada — uma avaliação concluída continua mostrando,
+   para sempre, o resultado que o motor produziu na sua própria
+   motorSquadVersion, exatamente como o histórico de P1-P16 preserva
+   motorVersion; só "REPROCESSAR COM MOTOR DE SQUAD ATUAL" (ação explícita)
+   atualiza. */
 (function () {
   var NODE = 'avaliacoes-squad';
   var NODE_ARQUITETURA = 'avaliacoes-produto';
@@ -146,11 +179,13 @@
       contextoArquitetural: null, /* { label, resultadoAutomatico } | null | 'carregando' — só leitura, ver renderContextoArquitetural */
       erroForm: null,
       salvando: null,      /* null | 'rascunho' | 'concluido' */
+      reprocessando: false,
       flashLista: null,
       flashResultado: null,
       exportando: false,
       flashExportacao: null,
-      filtroTexto: ''
+      filtroTexto: '',
+      motorConfig: null /* null fora da tela de configuração do motor; ver abrirMotorConfig */
     };
 
     function buscarItem(key) { return state.itens.filter(function (it) { return it._key === key; })[0]; }
@@ -172,6 +207,7 @@
       else if (state.tela === 'form-inicial') renderFormInicial();
       else if (state.tela === 'checklist') renderChecklist();
       else if (state.tela === 'resultado') renderResultadoSquad();
+      else if (state.tela === 'motor-config') renderMotorConfig();
       else if (state.tela === 'carregando') { wrap.innerHTML = '<p class="loading-msg">Carregando…</p>'; }
       else if (state.tela === 'nao-encontrada') {
         wrap.innerHTML = '<p class="admin-empty">Avaliação de squad não encontrada.</p>' +
@@ -197,6 +233,7 @@
       html += '<div class="avp-actions-bar">';
       html += '<span class="avp-total">' + ativos.length + ' avaliaç' + (ativos.length === 1 ? 'ão' : 'ões') + ' de squad registrada' + (ativos.length === 1 ? '' : 's') + '</span>';
       html += '<button class="btn btn--primary" id="sqNovaBtn">+ Nova avaliação de squad</button>';
+      html += '<button class="btn btn--sm" id="sqMotorConfigBtn">⚙ Configuração do Motor de Squad</button>';
       html += '</div>';
       html += '<div class="avp-filters"><input type="text" id="sqFiltroTexto" placeholder="Filtrar por nome do item…" value="' + esc(state.filtroTexto) + '"></div>';
 
@@ -227,6 +264,7 @@
       document.getElementById('sqNovaBtn').addEventListener('click', function () {
         iniciarNovaAvaliacao({ itemId: null, itemNome: '', avaliacaoArquiteturalId: null });
       });
+      document.getElementById('sqMotorConfigBtn').addEventListener('click', abrirMotorConfig);
       wrap.querySelectorAll('.sq-act-abrir').forEach(function (btn) {
         btn.addEventListener('click', function () { abrirExistente(btn.dataset.key); });
       });
@@ -289,8 +327,10 @@
     function renderContextoArquitetural() {
       var c = state.contextoArquitetural;
       if (!c || c === 'carregando') return '';
-      return '<p class="avp-decisao-aviso">Classificação arquitetural atual do item (somente leitura, não influencia esta avaliação): <strong>' +
-        esc(c.label) + '</strong></p>';
+      return '<div class="avp-form-card sq-contexto-arquitetural">' +
+        '<p>Classificação arquitetural: <strong>' + esc(c.label) + '</strong></p>' +
+        '<p class="avp-decisao-aviso">A classificação arquitetural e a adequação à gestão por squad são análises independentes. ' +
+        'Esta informação é só contexto de leitura e nunca entra no cálculo desta avaliação.</p></div>';
     }
 
     /* ===================== FORM INICIAL ===================== */
@@ -462,11 +502,27 @@
     }
 
     /* ===================== SALVAR ===================== */
+    /* Roda o motor de squad (window.faMotorSquad, ver motor-squad.js) só ao
+       CONCLUIR — nunca sobre um rascunho parcialmente respondido — usando
+       sempre a versão de regras PUBLICADA no momento (nunca um rascunho de
+       regras ainda não publicado). O resultado gravado é definitivo até uma
+       ação explícita de reprocessamento (ver reprocessarMotorSquad); nunca
+       recalculado sozinho depois. */
+    function interpretarComMotorAtual(respostas) {
+      var versao = window.faMotorSquad.versaoAtual();
+      var regras = window.faMotorSquad.regrasDaVersao(versao);
+      var resultado = window.faMotorSquad.identificarAdequacaoSquad(respostas, regras);
+      resultado.motorSquadVersion = versao;
+      return resultado;
+    }
     function salvarRegistro(status, cb, onErro) {
       var a = state.atual;
       var agora = new Date().toISOString();
       var key = a._key || db().ref(NODE).push().key;
       if (!a._key) a._key = key;
+      var interpretacao = status === 'concluido'
+        ? interpretarComMotorAtual(a.respostas)
+        : { motorSquadVersion: null, necessidadeCapacidadeDedicada: null, condicoesParaSquad: null, indicacaoOrganizacional: null, evidenciasFavoraveis: null, pontosADesenvolver: null };
       var payload = {
         itemId: a.itemId || key, /* sem vínculo arquitetural, a própria chave agrupa (mesmo padrão de avaliacoes-produto) */
         itemNome: a.itemNome.trim(),
@@ -481,10 +537,17 @@
         atualizadoPor: sessaoAtual(),
         respostas: a.respostas || {},
         excluido: false, excluidoEm: null, excluidoPor: null, justificativaExclusao: null,
-        /* Reservado para um motor de veredito FUTURO — nunca calculado
-           nesta versão (item 16 do pedido: schema pronto, sem inventar
-           valor nenhum). */
-        resultadoAutomatico: null, justificativaResultado: null, motorSquadVersion: null,
+        motorSquadVersion: interpretacao.motorSquadVersion,
+        necessidadeCapacidadeDedicada: interpretacao.necessidadeCapacidadeDedicada,
+        condicoesParaSquad: interpretacao.condicoesParaSquad,
+        indicacaoOrganizacional: interpretacao.indicacaoOrganizacional,
+        evidenciasFavoraveis: interpretacao.evidenciasFavoraveis,
+        pontosADesenvolver: interpretacao.pontosADesenvolver,
+        historicoMotorSquad: a.historicoMotorSquad || [],
+        /* Reservados para uma FUTURA decisão organizacional explícita —
+           nunca calculados nesta versão: esta PR entrega a INDICAÇÃO, não
+           uma decisão automática de criar/manter/extinguir squad. */
+        resultadoAutomatico: null, justificativaResultado: null,
         decisaoFinal: null, formaDecisao: null
       };
       var ref = db().ref(NODE + '/' + key);
@@ -508,6 +571,122 @@
       });
     }
 
+    /* ===================== REPROCESSAMENTO (motor de squad) =====================
+       Ação EXPLÍCITA, nunca automática — publicar uma motorSquadVersion nova
+       nunca recalcula avaliações já concluídas sozinho (item 16 do pedido).
+       Estruturalmente idêntico ao reprocessarMotor de avaliacao-produto.js:
+       preserva respostas/justificativas/snapshot e migra o resultado
+       ANTERIOR para historicoMotorSquad antes de gravar o novo. */
+    function precisaReprocessarMotorSquad(it) {
+      return !!it && it.status === 'concluido' && it.motorSquadVersion !== window.faMotorSquad.versaoAtual();
+    }
+    function construirAtualizacaoReprocessamentoSquad(a) {
+      var nova = interpretarComMotorAtual(a.respostas);
+      var entradaHistorico = {
+        motorSquadVersion: a.motorSquadVersion || null,
+        necessidadeCapacidadeDedicada: a.necessidadeCapacidadeDedicada || null,
+        condicoesParaSquad: a.condicoesParaSquad || null,
+        indicacaoOrganizacional: a.indicacaoOrganizacional || null,
+        evidenciasFavoraveis: a.evidenciasFavoraveis || null,
+        pontosADesenvolver: a.pontosADesenvolver || null,
+        processadoEm: a.atualizadoEm || a.criadoEm
+      };
+      var agora = new Date().toISOString();
+      return {
+        motorSquadVersion: nova.motorSquadVersion,
+        necessidadeCapacidadeDedicada: nova.necessidadeCapacidadeDedicada,
+        condicoesParaSquad: nova.condicoesParaSquad,
+        indicacaoOrganizacional: nova.indicacaoOrganizacional,
+        evidenciasFavoraveis: nova.evidenciasFavoraveis,
+        pontosADesenvolver: nova.pontosADesenvolver,
+        historicoMotorSquad: (a.historicoMotorSquad || []).concat([entradaHistorico]),
+        reprocessedAt: agora,
+        reprocessedFromVersion: a.motorSquadVersion || null,
+        atualizadoEm: agora
+      };
+    }
+    function reprocessarMotorSquad() {
+      if (state.reprocessando) return;
+      var a = state.atual;
+      if (!precisaReprocessarMotorSquad(a)) return;
+      var updates = construirAtualizacaoReprocessamentoSquad(a);
+      state.reprocessando = true;
+      render();
+      var respondido = false;
+      var relogio = setTimeout(function () {
+        if (respondido) return;
+        respondido = true;
+        state.reprocessando = false;
+        render();
+        sqAlert('A conexão está demorando e não deu para confirmar o reprocessamento. Toque em "REPROCESSAR COM MOTOR DE SQUAD ATUAL" de novo.');
+      }, 12000);
+      db().ref(NODE + '/' + a._key).update(updates, function (err) {
+        if (respondido) return;
+        respondido = true;
+        clearTimeout(relogio);
+        state.reprocessando = false;
+        if (err) {
+          console.error('[avaliacao-squad] erro ao reprocessar motor de squad:', err);
+          render();
+          sqAlert('Não foi possível reprocessar. Tente novamente.');
+          return;
+        }
+        Object.assign(a, updates);
+        render();
+      });
+    }
+
+    /* ===================== VEREDITO (Eixo A / Eixo B / Indicação) =====================
+       Só apresentação: nunca recalcula nada aqui, sempre lê os códigos JÁ
+       gravados na avaliação (necessidadeCapacidadeDedicada/condicoesParaSquad/
+       indicacaoOrganizacional) e resolve rótulo/interpretação AO VIVO pelo
+       texto publicado agora (window.faMotorSquad.conteudoTexto) — mudar só a
+       redação de um veredito nunca precisa reprocessar nada (item 13). */
+    function rotuloPergunta(a, codigo) {
+      var r = a.respostas[codigo];
+      return codigo + (r && (r.tituloNaEpoca || r.textoPerguntaNaEpoca) ? ' — ' + (r.tituloNaEpoca || r.textoPerguntaNaEpoca) : '');
+    }
+    function renderVeredito(a) {
+      if (!a.indicacaoOrganizacional) return '';
+      var textoA = window.faMotorSquad.conteudoTexto(a.necessidadeCapacidadeDedicada);
+      var textoB = window.faMotorSquad.conteudoTexto(a.condicoesParaSquad);
+      var textoC = window.faMotorSquad.conteudoTexto(a.indicacaoOrganizacional);
+      var html = '<div class="avp-form-card sq-veredito">';
+      html += '<h4>Necessidade de capacidade dedicada</h4>';
+      html += '<p class="avp-result-badge-grande">' + esc(textoA.rotulo) + '</p>';
+      html += '<p>' + esc(textoA.interpretacao) + '</p>';
+      html += '<h4>Condições para funcionar como squad</h4>';
+      html += '<p class="avp-result-badge-grande">' + esc(textoB.rotulo) + '</p>';
+      html += '<p>' + esc(textoB.interpretacao) + '</p>';
+      html += '<h4>Indicação organizacional</h4>';
+      html += '<p class="avp-result-badge-grande">' + esc(textoC.rotulo) + '</p>';
+      html += '<p>' + esc(textoC.interpretacao) + '</p>';
+      html += '</div>';
+
+      html += '<div class="avp-form-card">';
+      html += '<h4>Evidências favoráveis</h4>';
+      if ((a.evidenciasFavoraveis || []).length) {
+        html += '<ul class="sq-lista-evidencias">' + a.evidenciasFavoraveis.map(function (c) {
+          return '<li>' + esc(rotuloPergunta(a, c)) + '</li>';
+        }).join('') + '</ul>';
+      } else {
+        html += '<p><em>Nenhuma resposta SIM registrada.</em></p>';
+      }
+      html += '<h4>Pontos a desenvolver</h4>';
+      if ((a.pontosADesenvolver || []).length) {
+        html += '<ul class="sq-lista-evidencias">' + a.pontosADesenvolver.map(function (c) {
+          return '<li>' + esc(rotuloPergunta(a, c)) + '</li>';
+        }).join('') + '</ul>';
+      } else {
+        html += '<p><em>Nenhuma resposta NÃO registrada.</em></p>';
+      }
+      html += '</div>';
+
+      html += '<p class="avp-decisao-aviso">Esta avaliação fornece uma indicação para apoio à decisão organizacional. ' +
+        'O resultado não determina automaticamente a criação, manutenção ou extinção de uma squad.</p>';
+      return html;
+    }
+
     /* ===================== RESULTADO (concluída) ===================== */
     function renderResultadoSquad() {
       var a = state.atual;
@@ -518,11 +697,21 @@
           ' <button type="button" class="avp-flash-close" id="sqFlashResultadoClose" aria-label="Fechar">×</button></div>';
       }
       html += '<div class="avp-form-card"><h3>' + esc(a.itemNome) + '</h3>';
-      html += '<p class="avp-decisao-aviso">Avaliação concluída — interpretação organizacional ainda não definida.</p>';
       html += renderContextoArquitetural();
       html += '<p>Responsável: ' + esc((a.criadoPor && a.criadoPor.name) || '—') + ' · Concluída em: ' + fmtData(a.dataConclusao) +
-        ' · Versão do questionário: ' + esc(a.questionnaireContentVersion || 1) + '</p>';
+        ' · Versão do questionário: ' + esc(a.questionnaireContentVersion || 1) +
+        ' · Versão do motor de squad: ' + esc(a.motorSquadVersion || 1) + '</p>';
       html += '</div>';
+
+      if (precisaReprocessarMotorSquad(a)) {
+        html += '<div class="avp-form-card avp-motor-aviso">';
+        html += '<p class="avp-motor-aviso-texto">⚠ Esta avaliação foi processada por uma versão anterior do motor de adequação à squad.</p>';
+        html += '<button type="button" class="btn btn--sm" id="sqReprocessarBtn"' + (state.reprocessando ? ' disabled' : '') + '>' +
+          (state.reprocessando ? 'REPROCESSANDO…' : 'REPROCESSAR COM MOTOR DE SQUAD ATUAL') + '</button>';
+        html += '</div>';
+      }
+
+      html += renderVeredito(a);
 
       html += '<div class="avp-form-card"><h4>8 de 8 perguntas respondidas</h4>';
       html += '<div class="table-scroll-wrap"><table class="admin-table"><thead><tr><th>Pergunta</th><th>Resposta</th><th>Justificativa</th></tr></thead><tbody>';
@@ -549,6 +738,8 @@
       document.getElementById('sqVoltarListaRodape').addEventListener('click', voltar);
       var flashClose = document.getElementById('sqFlashResultadoClose');
       if (flashClose) flashClose.addEventListener('click', function () { state.flashResultado = null; render(); });
+      var reprocessarBtn = document.getElementById('sqReprocessarBtn');
+      if (reprocessarBtn) reprocessarBtn.addEventListener('click', reprocessarMotorSquad);
       document.getElementById('sqGerarPdfBtn').addEventListener('click', function () {
         if (state.exportando) return;
         state.exportando = true;
@@ -599,6 +790,7 @@
       html += pdfLinhaTabela('Data', fmtData(it.dataConclusao || it.criadoEm));
       html += pdfLinhaTabela('Responsável', it.criadoPor && it.criadoPor.name);
       html += pdfLinhaTabela('Versão do questionário', it.questionnaireContentVersion || 1);
+      html += pdfLinhaTabela('Versão do motor de squad', it.motorSquadVersion || 1);
       html += '</table>';
       html += '<h2 class="pdf-secao-titulo">Respostas S1-S8</h2>';
       perguntas.forEach(function (p) {
@@ -608,8 +800,26 @@
           '<p class="pdf-pergunta-campo"><strong>Justificativa:</strong> ' + (r.justificativaUsuario ? esc(r.justificativaUsuario) : '<em>Nenhuma observação registrada.</em>') + '</p>' +
           '</div>';
       });
-      html += '<h2 class="pdf-secao-titulo">Resultado</h2>';
-      html += '<p class="pdf-aviso">Avaliação registrada. Regra de interpretação de adequação à squad ainda não configurada.</p>';
+      if (it.indicacaoOrganizacional && window.faMotorSquad) {
+        var textoA = window.faMotorSquad.conteudoTexto(it.necessidadeCapacidadeDedicada);
+        var textoB = window.faMotorSquad.conteudoTexto(it.condicoesParaSquad);
+        var textoC = window.faMotorSquad.conteudoTexto(it.indicacaoOrganizacional);
+        html += '<h2 class="pdf-secao-titulo">Necessidade de capacidade dedicada</h2>';
+        html += '<p class="pdf-pergunta-texto"><strong>' + esc(textoA.rotulo) + '</strong></p><p class="pdf-pergunta-campo">' + esc(textoA.interpretacao) + '</p>';
+        html += '<h2 class="pdf-secao-titulo">Condições para funcionar como squad</h2>';
+        html += '<p class="pdf-pergunta-texto"><strong>' + esc(textoB.rotulo) + '</strong></p><p class="pdf-pergunta-campo">' + esc(textoB.interpretacao) + '</p>';
+        html += '<h2 class="pdf-secao-titulo">Indicação organizacional</h2>';
+        html += '<p class="pdf-pergunta-texto"><strong>' + esc(textoC.rotulo) + '</strong></p><p class="pdf-pergunta-campo">' + esc(textoC.interpretacao) + '</p>';
+        var pontos = it.pontosADesenvolver || [];
+        html += '<h2 class="pdf-secao-titulo">Pontos a desenvolver</h2>';
+        html += pontos.length
+          ? '<p class="pdf-pergunta-campo">' + pontos.map(function (c) { return esc(c); }).join(', ') + '</p>'
+          : '<p class="pdf-pergunta-campo"><em>Nenhum ponto a desenvolver identificado.</em></p>';
+        html += '<p class="pdf-aviso">Esta avaliação fornece uma indicação para apoio à decisão organizacional. O resultado não determina automaticamente a criação, manutenção ou extinção de uma squad.</p>';
+      } else {
+        html += '<h2 class="pdf-secao-titulo">Resultado</h2>';
+        html += '<p class="pdf-aviso">Avaliação registrada. Regra de interpretação de adequação à squad ainda não configurada.</p>';
+      }
       html += '</div>';
       return html;
     }
@@ -668,6 +878,325 @@
       });
     }
 
+    /* ===================== CONFIGURAÇÃO DO MOTOR DE SQUAD =====================
+       Governança RASCUNHO → SIMULAÇÃO → PUBLICAÇÃO das REGRAS (item 14/15 do
+       pedido) — nunca a mesma tela de "⚙ Configuração dos Questionários"
+       (avaliacao-produto.js), que edita só a REDAÇÃO das perguntas S1-S8;
+       aqui se edita a LÓGICA do motor (condições, sempre via os operadores
+       seguros all/any/not/equals — nunca um campo de texto livre nem eval)
+       e os TEXTOS dos vereditos (rotulo/interpretacao, publicados
+       imediatamente, sem afetar motorSquadVersion). */
+    var CODIGOS_TEXTO_MOTOR = [
+      'DEMONSTRADA', 'PARCIALMENTE_DEMONSTRADA', 'NAO_DEMONSTRADA',
+      'LIMITADAS_PELA_AUTONOMIA', 'PRESENTES', 'PARCIAIS',
+      'FORTE_ADERENCIA_SQUAD_DEDICADA', 'JUSTIFICA_CAPACIDADE_COM_CONDICOES_A_DESENVOLVER',
+      'JUSTIFICA_CAPACIDADE_MAS_AUTONOMIA_PRECISA_SER_TRATADA',
+      'AVALIAR_MODELO_GESTAO_ANTES_DE_SQUAD_EXCLUSIVA', 'NECESSIDADE_SQUAD_DEDICADA_NAO_DEMONSTRADA'
+    ];
+    function abrirMotorConfig() {
+      state.tela = 'motor-config';
+      state.motorConfig = { sub: 'painel', flash: null };
+      render();
+    }
+    function voltarPainelMotorConfig() {
+      state.motorConfig = { sub: 'painel', flash: state.motorConfig && state.motorConfig.flash };
+      render();
+    }
+    function renderMotorConfig() {
+      var c = state.motorConfig;
+      var html = '<button class="avp-voltar-link" id="sqMotorVoltarLista">‹ Adequação à Squad</button>';
+      html += '<div class="sq-motor-config">';
+      if (c.sub === 'painel') html += renderMotorPainel();
+      else if (c.sub === 'editar-regras') html += renderMotorEditarRegras();
+      else if (c.sub === 'simulacao') html += renderMotorSimulacao();
+      else if (c.sub === 'editar-textos') html += renderMotorEditarTextos();
+      else if (c.sub === 'auditoria') html += renderMotorAuditoria();
+      else if (c.sub === 'versoes') html += renderMotorVersoes();
+      html += '</div>';
+      wrap.innerHTML = html;
+      document.getElementById('sqMotorVoltarLista').addEventListener('click', function () { state.tela = 'lista'; state.motorConfig = null; render(); });
+      if (c.sub === 'painel') bindMotorPainel();
+      else if (c.sub === 'editar-regras') bindMotorEditarRegras();
+      else if (c.sub === 'simulacao') bindMotorSimulacao();
+      else if (c.sub === 'editar-textos') bindMotorEditarTextos();
+      else if (c.sub === 'auditoria') bindMotorAuditoria();
+      else if (c.sub === 'versoes') bindMotorVersoes();
+    }
+
+    /* ---- PAINEL (visão geral) ---- */
+    function renderMotorPainel() {
+      var c = state.motorConfig;
+      var sit = window.faMotorSquad.situacao();
+      var html = '<div class="avp-form-card"><h3>Motor de Interpretação da Adequação à Squad</h3>';
+      html += '<p class="avp-decisao-aviso">Interpreta as respostas S1-S8 por condições lógicas e precedência — nunca por soma de respostas SIM, pontuação ou percentual. ' +
+        'Totalmente independente do motor de classificação arquitetural.</p>';
+      html += '<p>Versão de regras publicada: <strong>' + esc(sit.versaoPublicada) + '</strong></p>';
+      html += '<p>Situação: ' + (sit.temRascunho ? '<strong>há um rascunho de regras não publicado</strong>' : 'sem alterações pendentes') + '</p>';
+      html += '<p>Última publicação: ' + (sit.ultimaAlteracaoEm ? esc(fmtData(sit.ultimaAlteracaoEm)) + (sit.ultimaAlteracaoPor ? ' · ' + esc(sit.ultimaAlteracaoPor) : '') : 'nunca alterado (regras de fábrica)') + '</p>';
+      html += '</div>';
+      if (c.flash) html += '<p class="avp-flash-success">' + esc(c.flash) + '</p>';
+      html += '<div class="avp-actions-footer">';
+      html += '<button class="btn btn--sm" id="sqMotorEditarRegrasBtn">Editar regras (Eixo A / Eixo B / Combinação)</button>';
+      html += '<button class="btn btn--sm" id="sqMotorEditarTextosBtn">Editar textos dos vereditos</button>';
+      html += '<button class="btn btn--sm" id="sqMotorVersoesBtn">Versões publicadas</button>';
+      html += '<button class="btn btn--sm" id="sqMotorAuditoriaBtn">Ver histórico de alterações</button>';
+      html += '</div>';
+      return html;
+    }
+    function bindMotorPainel() {
+      document.getElementById('sqMotorEditarRegrasBtn').addEventListener('click', function () {
+        state.motorConfig = { sub: 'editar-regras', regras: window.faMotorSquad.iniciarOuObterRascunhoRegras(), salvando: false };
+        render();
+      });
+      document.getElementById('sqMotorEditarTextosBtn').addEventListener('click', function () {
+        state.motorConfig = { sub: 'editar-textos', textos: JSON.parse(JSON.stringify(window.faMotorSquad.textosAtuais())), salvando: false };
+        render();
+      });
+      document.getElementById('sqMotorVersoesBtn').addEventListener('click', function () {
+        state.motorConfig = { sub: 'versoes' };
+        render();
+      });
+      document.getElementById('sqMotorAuditoriaBtn').addEventListener('click', function () {
+        state.motorConfig = { sub: 'auditoria', lista: null };
+        render();
+        window.faMotorSquad.auditoria(function (lista) {
+          if (state.motorConfig && state.motorConfig.sub === 'auditoria') { state.motorConfig.lista = lista; render(); }
+        });
+      });
+    }
+
+    /* ---- EDITAR REGRAS (rascunho → simulação → publicação) ----
+       Cada condição é renderizada recursivamente; só as FOLHAS (campo/valor)
+       ganham um <select> SIM/NÃO editável — a ESTRUTURA (all/any/not, quais
+       perguntas/eixos cada regra usa, a ordem de precedência) não é editável
+       por aqui nesta versão, só o valor esperado de cada condição. Nunca
+       eval, nunca string executada: o <select> só grava 'SIM'/'NAO' de volta
+       no MESMO objeto de condição (por referência, via leafRefs). */
+    function renderCondicaoEditavel(cond, leafRefs, prefixo) {
+      if (Array.isArray(cond.all)) {
+        return '<div class="sq-cond-grupo"><p class="sq-cond-rotulo">' + prefixo + 'TODAS as condições:</p>' +
+          cond.all.map(function (c) { return renderCondicaoEditavel(c, leafRefs, prefixo + '　'); }).join('') + '</div>';
+      }
+      if (Array.isArray(cond.any)) {
+        return '<div class="sq-cond-grupo"><p class="sq-cond-rotulo">' + prefixo + 'QUALQUER uma destas condições:</p>' +
+          cond.any.map(function (c) { return renderCondicaoEditavel(c, leafRefs, prefixo + '　'); }).join('') + '</div>';
+      }
+      if (cond.not) {
+        return '<div class="sq-cond-grupo"><p class="sq-cond-rotulo">' + prefixo + 'NÃO:</p>' + renderCondicaoEditavel(cond.not, leafRefs, prefixo + '　') + '</div>';
+      }
+      var id = leafRefs.length;
+      leafRefs.push(cond);
+      var campo = cond.campo || cond.pergunta;
+      var valorAtual = (cond.valor != null ? cond.valor : cond.resposta || 'SIM').toUpperCase();
+      return '<p class="sq-cond-folha">' + prefixo + esc(campo) + ' = ' +
+        '<select class="sq-cond-select" data-leaf-id="' + id + '">' +
+        '<option value="SIM"' + (valorAtual === 'SIM' ? ' selected' : '') + '>SIM</option>' +
+        '<option value="NAO"' + (valorAtual === 'NAO' ? ' selected' : '') + '>NÃO</option>' +
+        '</select></p>';
+    }
+    function renderGrupoRegras(titulo, regras, leafRefs) {
+      var html = '<div class="avp-form-card"><h4>' + esc(titulo) + '</h4>';
+      regras.slice().sort(function (a, b) { return (a.ordem || 0) - (b.ordem || 0); }).forEach(function (regra) {
+        html += '<div class="sq-regra-card"><p class="sq-regra-codigo">' + esc(regra.codigo) + ' (ordem ' + esc(regra.ordem) + ') → <strong>' + esc(regra.resultado) + '</strong></p>';
+        html += renderCondicaoEditavel(regra.condicoes, leafRefs, '');
+        html += '</div>';
+      });
+      html += '</div>';
+      return html;
+    }
+    function renderMotorEditarRegras() {
+      var c = state.motorConfig;
+      c.leafRefs = []; /* recriado a cada render — os <select> abaixo indexam nele por posição */
+      var html = '<div class="avp-form-card"><h3>Editar regras do motor de squad</h3>';
+      html += '<p class="avp-decisao-aviso">Alterar o valor esperado (SIM/NÃO) de qualquer condição muda a LÓGICA do motor — ao publicar, isso cria uma motorSquadVersion nova ' +
+        'e não afeta avaliações já concluídas. Antes de publicar, é preciso simular o impacto sobre as avaliações já concluídas.</p></div>';
+      html += renderGrupoRegras('Eixo A — Necessidade de capacidade dedicada', c.regras.eixoA, c.leafRefs);
+      html += renderGrupoRegras('Eixo B — Condições para funcionar como squad', c.regras.eixoB, c.leafRefs);
+      html += renderGrupoRegras('Combinação — Indicação organizacional', c.regras.combinacao, c.leafRefs);
+      if (c.erro) html += '<p class="avp-error-msg">' + esc(c.erro) + '</p>';
+      html += '<div class="avp-actions-footer">';
+      html += '<button class="btn" id="sqMotorSalvarRascunhoBtn"' + (c.salvando ? ' disabled' : '') + '>SALVAR RASCUNHO</button>';
+      html += '<button class="btn btn--primary" id="sqMotorSimularBtn"' + (c.salvando ? ' disabled' : '') + '>SIMULAR IMPACTO</button>';
+      html += '<button class="btn" id="sqMotorCancelarEdicaoBtn"' + (c.salvando ? ' disabled' : '') + '>‹ Voltar</button>';
+      html += '</div>';
+      return html;
+    }
+    function bindMotorEditarRegras() {
+      var c = state.motorConfig;
+      wrap.querySelectorAll('.sq-cond-select').forEach(function (sel) {
+        sel.addEventListener('change', function () {
+          c.leafRefs[Number(sel.dataset.leafId)].valor = sel.value;
+        });
+      });
+      document.getElementById('sqMotorCancelarEdicaoBtn').addEventListener('click', voltarPainelMotorConfig);
+      document.getElementById('sqMotorSalvarRascunhoBtn').addEventListener('click', function () {
+        if (c.salvando) return;
+        c.salvando = true;
+        render();
+        window.faMotorSquad.salvarRascunhoRegras(c.regras, sessaoAtual(), function (err) {
+          c.salvando = false;
+          if (err) { c.erro = 'Não foi possível salvar o rascunho. Tente novamente.'; render(); return; }
+          state.motorConfig.flash = '✓ Rascunho de regras salvo.';
+          voltarPainelMotorConfig();
+        });
+      });
+      document.getElementById('sqMotorSimularBtn').addEventListener('click', function () {
+        var concluidas = state.itens.filter(function (it) { return !it.excluido && it.status === 'concluido'; });
+        var simulacao = window.faMotorSquad.simular(c.regras, concluidas);
+        state.motorConfig = { sub: 'simulacao', regras: c.regras, simulacao: simulacao, salvando: false };
+        render();
+      });
+    }
+
+    /* ---- SIMULAÇÃO (item 15) ---- */
+    function renderMotorSimulacao() {
+      var c = state.motorConfig;
+      var s = c.simulacao;
+      var html = '<div class="avp-form-card"><h3>Simulação de impacto</h3>';
+      html += '<p class="avp-decisao-aviso">Nenhuma avaliação histórica foi alterada — isto é só uma simulação sobre as avaliações já concluídas, com a regra candidata.</p>';
+      html += '<p>' + esc(s.totalAnalisadas) + ' avaliaç' + (s.totalAnalisadas === 1 ? 'ão analisada' : 'ões analisadas') + '</p>';
+      html += '<p>' + esc(s.mantidas) + ' manteriam o mesmo resultado</p>';
+      html += '<p>' + esc(s.mudariam.length) + ' mudariam de resultado</p>';
+      html += '</div>';
+      if (s.mudariam.length) {
+        html += '<div class="avp-form-card"><h4>Avaliações que mudariam</h4>';
+        html += '<div class="table-scroll-wrap"><table class="admin-table"><thead><tr><th>Item</th><th>Atual</th><th>Nova regra</th></tr></thead><tbody>';
+        s.mudariam.forEach(function (m) {
+          html += '<tr><td data-label="Item">' + esc(m.itemNome) + '</td>' +
+            '<td data-label="Atual">' + esc(window.faMotorSquad.conteudoTexto(m.atual).rotulo) + '</td>' +
+            '<td data-label="Nova regra">' + esc(window.faMotorSquad.conteudoTexto(m.nova).rotulo) + '</td></tr>';
+        });
+        html += '</tbody></table></div></div>';
+      }
+      if (c.erro) html += '<p class="avp-error-msg">' + esc(c.erro) + '</p>';
+      html += '<div class="avp-actions-footer">';
+      html += '<button class="btn" id="sqMotorVoltarEdicaoBtn"' + (c.salvando ? ' disabled' : '') + '>‹ VOLTAR PARA EDIÇÃO</button>';
+      html += '<button class="btn btn--primary" id="sqMotorConfirmarPublicarBtn"' + (c.salvando ? ' disabled' : '') + '>' +
+        (c.salvando ? 'PUBLICANDO…' : 'CONFIRMAR PUBLICAÇÃO') + '</button>';
+      html += '</div>';
+      return html;
+    }
+    function bindMotorSimulacao() {
+      var c = state.motorConfig;
+      document.getElementById('sqMotorVoltarEdicaoBtn').addEventListener('click', function () {
+        state.motorConfig = { sub: 'editar-regras', regras: c.regras, salvando: false };
+        render();
+      });
+      document.getElementById('sqMotorConfirmarPublicarBtn').addEventListener('click', function () {
+        if (c.salvando) return;
+        c.salvando = true;
+        render();
+        window.faMotorSquad.publicarRegras(c.regras, sessaoAtual(), function (err) {
+          c.salvando = false;
+          if (err) { c.erro = 'Não foi possível publicar. Tente novamente.'; render(); return; }
+          state.motorConfig = { sub: 'painel', flash: '✓ Nova versão das regras publicada com sucesso.' };
+          render();
+        });
+      });
+    }
+
+    /* ---- EDITAR TEXTOS (publicação imediata, nunca versiona o motor) ---- */
+    function renderMotorEditarTextos() {
+      var c = state.motorConfig;
+      var html = '<div class="avp-form-card"><h3>Editar textos dos vereditos</h3>';
+      html += '<p class="avp-decisao-aviso">Alterar só a redação exibida — nunca muda a lógica do motor nem a versão publicada, e é aplicado imediatamente a todas as avaliações que já tiverem esse código.</p></div>';
+      CODIGOS_TEXTO_MOTOR.forEach(function (codigo) {
+        var t = c.textos[codigo] || { rotulo: '', interpretacao: '' };
+        html += '<div class="avp-form-card"><p class="avp-alt-label">Código: <strong>' + esc(codigo) + '</strong> <span class="avp-config-readonly-tag">(somente leitura)</span></p>';
+        html += '<div class="avp-field"><label>Rótulo</label><input type="text" class="sq-texto-rotulo" data-codigo="' + codigo + '" value="' + esc(t.rotulo) + '"></div>';
+        html += '<div class="avp-field"><label>Interpretação</label><textarea class="sq-texto-interpretacao" data-codigo="' + codigo + '" rows="2">' + esc(t.interpretacao) + '</textarea></div>';
+        html += '</div>';
+      });
+      if (c.flash) html += '<p class="avp-flash-success">' + esc(c.flash) + '</p>';
+      if (c.erro) html += '<p class="avp-error-msg">' + esc(c.erro) + '</p>';
+      html += '<div class="avp-actions-footer">';
+      html += '<button class="btn btn--primary" id="sqMotorPublicarTextosBtn"' + (c.salvando ? ' disabled' : '') + '>' +
+        (c.salvando ? 'PUBLICANDO…' : 'PUBLICAR TEXTOS') + '</button>';
+      html += '<button class="btn" id="sqMotorCancelarTextosBtn"' + (c.salvando ? ' disabled' : '') + '>‹ Voltar</button>';
+      html += '</div>';
+      return html;
+    }
+    function bindMotorEditarTextos() {
+      var c = state.motorConfig;
+      wrap.querySelectorAll('.sq-texto-rotulo').forEach(function (input) {
+        input.addEventListener('input', function () {
+          c.textos[input.dataset.codigo] = c.textos[input.dataset.codigo] || {};
+          c.textos[input.dataset.codigo].rotulo = input.value;
+        });
+      });
+      wrap.querySelectorAll('.sq-texto-interpretacao').forEach(function (ta) {
+        ta.addEventListener('input', function () {
+          c.textos[ta.dataset.codigo] = c.textos[ta.dataset.codigo] || {};
+          c.textos[ta.dataset.codigo].interpretacao = ta.value;
+        });
+      });
+      document.getElementById('sqMotorCancelarTextosBtn').addEventListener('click', voltarPainelMotorConfig);
+      document.getElementById('sqMotorPublicarTextosBtn').addEventListener('click', function () {
+        if (c.salvando) return;
+        c.salvando = true;
+        render();
+        window.faMotorSquad.salvarTextos(c.textos, sessaoAtual(), function (err) {
+          c.salvando = false;
+          if (err) { c.erro = 'Não foi possível publicar os textos. Tente novamente.'; render(); return; }
+          state.motorConfig = { sub: 'painel', flash: '✓ Textos publicados com sucesso.' };
+          render();
+        });
+      });
+    }
+
+    /* ---- AUDITORIA ---- */
+    function renderMotorAuditoria() {
+      var c = state.motorConfig;
+      var html = '<div class="avp-form-card"><h3>Histórico de alterações do motor de squad</h3></div>';
+      if (!c.lista) { html += '<p class="loading-msg">Carregando…</p>'; return html; }
+      if (!c.lista.length) { html += '<p class="admin-empty">Nenhuma alteração registrada ainda.</p>'; return html; }
+      html += '<div class="table-scroll-wrap"><table class="admin-table"><thead><tr><th>Tipo</th><th>Campo</th><th>Usuário</th><th>Data</th><th>Versão</th></tr></thead><tbody>';
+      c.lista.forEach(function (a) {
+        html += '<tr><td data-label="Tipo">' + (a.tipo === 'regra' ? 'Regra' : 'Texto') + '</td>' +
+          '<td data-label="Campo">' + esc(a.campo) + '</td>' +
+          '<td data-label="Usuário">' + esc((a.usuario && (a.usuario.name || a.usuario.email)) || '—') + '</td>' +
+          '<td data-label="Data">' + fmtData(a.dataHora) + '</td>' +
+          '<td data-label="Versão">' + esc(a.versaoAnterior) + ' → ' + esc(a.novaVersao) + '</td></tr>';
+      });
+      html += '</tbody></table></div>';
+      html += '<div class="avp-actions-footer"><button class="btn" id="sqMotorVoltarAuditoriaBtn">‹ Voltar</button></div>';
+      return html;
+    }
+    function bindMotorAuditoria() {
+      var btn = document.getElementById('sqMotorVoltarAuditoriaBtn');
+      if (btn) btn.addEventListener('click', voltarPainelMotorConfig);
+    }
+
+    /* ---- VERSÕES PUBLICADAS (rollback) ---- */
+    function renderMotorVersoes() {
+      var versoes = window.faMotorSquad.listarVersoes();
+      var atual = window.faMotorSquad.versaoAtual();
+      var html = '<div class="avp-form-card"><h3>Versões publicadas do motor de squad</h3>' +
+        '<p class="avp-decisao-aviso">Restaurar uma versão anterior cria uma versão NOVA com aquele conjunto de regras — nunca reescreve o histórico nem toca em avaliações já concluídas.</p></div>';
+      html += '<div class="table-scroll-wrap"><table class="admin-table"><thead><tr><th>Versão</th><th>Situação</th><th>Ações</th></tr></thead><tbody>';
+      versoes.forEach(function (v) {
+        html += '<tr><td data-label="Versão">' + esc(v) + '</td><td data-label="Situação">' + (v === atual ? 'Vigente' : '—') + '</td>' +
+          '<td data-label="Ações">' + (v === atual ? '' : '<button class="btn btn--sm sq-motor-restaurar-btn" data-versao="' + v + '">Restaurar como nova versão</button>') + '</td></tr>';
+      });
+      html += '</tbody></table></div>';
+      html += '<div class="avp-actions-footer"><button class="btn" id="sqMotorVoltarVersoesBtn">‹ Voltar</button></div>';
+      return html;
+    }
+    function bindMotorVersoes() {
+      document.getElementById('sqMotorVoltarVersoesBtn').addEventListener('click', voltarPainelMotorConfig);
+      wrap.querySelectorAll('.sq-motor-restaurar-btn').forEach(function (btn) {
+        btn.addEventListener('click', function () {
+          sqConfirm('Restaurar a versão ' + btn.dataset.versao + ' como uma versão nova das regras?', function () {
+            window.faMotorSquad.publicarVersaoAnterior(Number(btn.dataset.versao), sessaoAtual(), function (err) {
+              if (err) { sqAlert('Não foi possível restaurar. Tente novamente.'); return; }
+              state.motorConfig = { sub: 'painel', flash: '✓ Versão restaurada como uma versão nova.' };
+              render();
+            });
+          });
+        });
+      });
+    }
+
     /* Config de conteúdo — re-renderiza quando uma nova versão de S1-S8 é
        publicada (mesmo princípio de avaliacao-produto.js: eixo só de
        apresentação, nunca decide se reprocessa nada). onMudanca chama o
@@ -679,6 +1208,9 @@
        iniciarOuAbrirParaItem) já chamam render() de novo ao mostrar o painel,
        então pular aqui enquanto está oculto não perde nenhuma atualização. */
     window.faQuestionarios.onMudanca(CODIGO_QUESTIONARIO, function () { if (!wrap.hidden) render(); });
+    /* Idem para o motor de squad — republicar regras/textos só reflete na
+       tela enquanto ela está de fato visível (mesmo guard, mesmo motivo). */
+    window.faMotorSquad.onMudanca(function () { if (!wrap.hidden) render(); });
 
     /* ===================== CARGA ===================== */
     db().ref(NODE).on('value', function (snap) {
