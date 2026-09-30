@@ -89,7 +89,7 @@ Preencher a coluna **Resposta** na Tarefa 0.1 do plano.
 | P-10 | O proxy/firewall interno permite WebSocket e conexões longas (≥ 1 h) entre as estações/celulares e o servidor? A rede Wi-Fi das salas de oficina alcança o servidor? | TI | Fase 5/8 | |
 | P-11 | A política de senha atual (só números, mínimo 8) deve ser mantida? (Paridade = sim.) | dona do repo | — | |
 | P-12 | Manter a senha padrão `12345678` para contas criadas pela admin (paridade) ou passar a "definir senha no primeiro acesso"? | dona do repo | Fase 3 | |
-| P-13 | Os endpoints administrativos devem continuar pedindo a senha da admin? (doc. 11, Tarefa 3.6) | dona do repo | Fase 3 | |
+| P-13 | Os endpoints administrativos devem continuar pedindo a senha da admin? (doc. 11, Tarefa 3.5) | dona do repo | Fase 3 | |
 | P-14 | O site ficará acessível **só pela rede interna** ou também de fora (VPN / internet)? Participantes remotas (formato remoto/híbrido) precisam acessar? | TI + dona do repo | Fase 1 | |
 
 ---

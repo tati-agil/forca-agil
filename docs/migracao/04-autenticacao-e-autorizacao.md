@@ -103,7 +103,7 @@ Endpoints administrativos (`/api/admin/usuarios/*`, exigem **admin**):
 
 | Método e rota | Corpo | O que faz (substitui) |
 |---|---|---|
-| `POST /api/admin/usuarios` | `{ email, nome, area }` | Substitui `criarContaPorAdmin`. Cria `usuarios_auth` com senha padrão `12345678` (**paridade**; ver pendência P-12 para trocar por "definir senha no primeiro acesso") e `emailVerificado: true`; cria `fa_users/<emailKey>` com `{ email, name: NOME.toUpperCase(), area, adminApproved: true, createdByAdmin: <email da admin logada>, createdAt }` na mesma transação. **Não mexe na sessão da admin** — o vai-e-vem de login deixa de existir. Não exige mais que a admin redigite a própria senha (pode continuar exigindo por segurança: `{ senhaAdmin }` opcional validada no servidor — decidir na Tarefa 3.6). |
+| `POST /api/admin/usuarios` | `{ email, nome, area }` | Substitui `criarContaPorAdmin`. Cria `usuarios_auth` com senha padrão `12345678` (**paridade**; ver pendência P-12 para trocar por "definir senha no primeiro acesso") e `emailVerificado: true`; cria `fa_users/<emailKey>` com `{ email, name: NOME.toUpperCase(), area, adminApproved: true, createdByAdmin: <email da admin logada>, createdAt }` na mesma transação. **Não mexe na sessão da admin** — o vai-e-vem de login deixa de existir. Não exige mais que a admin redigite a própria senha (pode continuar exigindo por segurança: `{ senhaAdmin }` opcional validada no servidor — decidir na Tarefa 3.5). |
 | `POST /api/admin/usuarios/:emailKey/corrigir-email` | `{ emailNovo }` | Substitui `corrigirEmailPorAdmin` (**só a parte de login**). Só permitido se `fa_users/<emailKey>.createdByAdmin` existe **e** o hash de senha atual ainda corresponde a `12345678` (mesma trava de hoje: "se a pessoa já trocou a senha, a conta é dela"). Proibido para o próprio e-mail da admin. Troca `usuarios_auth.email` e o `_id` (nova emailKey) numa transação; apaga sessões da conta alvo. **A movimentação dos dados** (`moverDadosDePessoa`) continua sendo feita pelo `admin.js` via API de dados, exatamente como hoje — ver documento 06, seção 4.2. |
 | `POST /api/admin/usuarios/:emailKey/redefinir-senha` | — | Substitui `sendPasswordResetEmail` do painel. Envia o mesmo e-mail de redefinição. |
 | (bloquear) | — | **Não precisa de endpoint próprio:** o painel continua gravando `fa-users/<emailKey>/blocked` pela API de dados; o backend, ao ver essa escrita, **apaga as sessões** da pessoa (hook no `DataService`, documento 05, seção 8). |
@@ -133,7 +133,7 @@ O Firebase Authentication guarda senhas com um **scrypt modificado** e permite e
    - verificar a senha digitada com o algoritmo do Firebase (pacote npm [`firebase-scrypt`](https://www.npmjs.com/package/firebase-scrypt), que implementa exatamente esse algoritmo com os 4 parâmetros);
    - se bater: gravar `senhaHash = argon2id(senha)`, apagar `firebaseHash`, seguir o login normal;
    - se não bater: `401 auth/invalid-credential`.
-5. Critério de aceite (Tarefa 3.4): **três contas reais de teste** criadas no Firebase antes da exportação (uma verificada, uma criada pelo admin com `12345678`, uma que redefiniu senha) conseguem entrar no ambiente de homologação **com a mesma senha**.
+5. Critério de aceite (Tarefas 0.4 e 7.2): **três contas reais de teste** criadas no Firebase antes da exportação (uma verificada, uma criada pelo admin com `12345678`, uma que redefiniu senha) conseguem entrar no ambiente de homologação **com a mesma senha**.
 
 > Se por qualquer motivo não for possível obter os parâmetros de hash (sem acesso de Owner), o plano B é: importar sem senha e **disparar e-mail de redefinição para todos** no dia do corte, com comunicação prévia. Isso é pior para as participantes — só usar se o plano A for impossível (pendência P-03).
 
@@ -147,7 +147,7 @@ Três modelos, em português, texto simples + HTML mínimo, enviados pelo SMTP i
 | Redefinição | "Redefinição de senha — Força Ágil" | `${URL_PUBLICA}/#conta?acao=redefinir&token=<token>` (validade 1 h) |
 | Conta criada pela admin (novo, opcional) | "Sua conta na Força Ágil" | `${URL_PUBLICA}/` + instrução de senha provisória |
 
-Antes de escrever os textos, **copiar os textos atuais** dos templates do Firebase (Console → Authentication → Templates) para manter a mesma comunicação (Tarefa 3.5).
+Antes de escrever os textos, **copiar os textos atuais** dos templates do Firebase (Console → Authentication → Templates) para manter a mesma comunicação (Tarefa 3.4).
 
 A tela `#conta` (nova, pequena) é descrita no documento 06, seção 5.
 

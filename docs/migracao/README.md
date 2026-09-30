@@ -45,7 +45,7 @@ Por isso **tudo foi escrito para ser seguido passo a passo, sem depender de cont
 
 > **Se você é a IA da empresa:** leia os documentos 0 → 12 **inteiros** antes de escrever qualquer código. Depois trabalhe **exclusivamente** pelo [11-plano-de-execucao.md](11-plano-de-execucao.md), uma tarefa por vez, marcando o checklist. Nunca pule um critério de aceite.
 >
-> **Se você é a pessoa desenvolvedora retomando o trabalho:** abra o [11-plano-de-execucao.md](11-plano-de-execucao.md), procure a primeira tarefa com a caixa `[ ]` desmarcada e continue dali. O arquivo `docs/migracao/PROGRESSO.md` (criado na Tarefa 0.3 — ainda não existe) registra o que já foi feito, por quem, e qualquer desvio do plano.
+> **Se você é a pessoa desenvolvedora retomando o trabalho:** abra o [11-plano-de-execucao.md](11-plano-de-execucao.md), consulte a **legenda e o painel de status** no topo (`[ ]` não iniciada, `[~]` em andamento, `[x]` concluída, `[!]` bloqueada, `[-]` dispensada), procure a primeira tarefa que não esteja `[x]` — começando pelas `[~]` — e continue dali. O arquivo [`PROGRESSO.md`](PROGRESSO.md) registra o que já foi feito, por quem, e qualquer desvio do plano.
 
 ---
 

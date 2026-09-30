@@ -470,7 +470,7 @@ RUN find /usr/share/nginx/html -name '*.md' -delete \
 EXPOSE 80 443
 ```
 
-> `robots.txt` é copiado explicitamente porque, apesar de o `firebase.json` ignorar `*.txt`, um `robots.txt` que bloqueie indexação é desejável num site interno. Confirme o conteúdo dele na Tarefa 1.4.
+> `robots.txt` é copiado explicitamente porque, apesar de o `firebase.json` ignorar `*.txt`, um `robots.txt` que bloqueie indexação é desejável num site interno. Confirme o conteúdo dele na Tarefa 1.3.
 
 `infra/web/.dockerignore` **não se aplica** quando o contexto é a raiz — crie um `.dockerignore` **na raiz do repositório** com:
 ```
@@ -641,7 +641,7 @@ echo "restaurado. Reinicie a API: docker compose restart api"
 ### 8.4 Política
 
 - Diário, retenção 30 dias local + cópia para o backup corporativo (pendência P-08).
-- **Teste de restauração mensal** em homologação (Tarefa 10.4 do plano). Backup que nunca foi restaurado não é backup.
+- **Teste de restauração mensal** em homologação (Tarefa 10.2 do plano). Backup que nunca foi restaurado não é backup.
 - Antes de **todo deploy** de produção, o `deploy.sh` roda um backup extra (documento 10).
 
 ---
