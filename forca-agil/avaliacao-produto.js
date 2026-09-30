@@ -1599,6 +1599,7 @@
       html += '<button class="btn btn--sm avp-lixeira-btn' + (state.lixeira ? ' active' : '') + '" id="avpLixeiraBtn">' +
         (state.lixeira ? '‹ Voltar' : '🗑 Lixeira (' + excluidos.length + ')') + '</button>';
       if (!state.lixeira) html += '<button class="btn btn--sm" id="avpConfigQuestionariosBtn">⚙ Configuração dos Questionários</button>';
+      if (!state.lixeira && window.faAvaliacaoSquad) html += '<button class="btn btn--sm" id="avpAdequacaoSquadListaBtn">🧭 Adequação à Squad</button>';
       html += '</div>';
       if (state.flashExportacao) {
         html += '<p class="avp-export-status' + (state.flashExportacao.erro ? ' avp-export-status--erro' : '') + '">' +
@@ -1700,6 +1701,9 @@
 
       var configBtn = document.getElementById('avpConfigQuestionariosBtn');
       if (configBtn) configBtn.addEventListener('click', abrirConfigQuestionarios);
+
+      var squadListaBtn = document.getElementById('avpAdequacaoSquadListaBtn');
+      if (squadListaBtn) squadListaBtn.addEventListener('click', function () { window.faAvaliacaoSquad.abrirLista(); });
 
       var reprocessarTudoBtn = document.getElementById('avpReprocessarTudoBtn');
       if (reprocessarTudoBtn) reprocessarTudoBtn.addEventListener('click', abrirModalReprocessarTudo);
@@ -2980,6 +2984,7 @@
       html += '<button class="btn btn--sm" id="avpGerarPdfBtn"' + (state.exportando ? ' disabled' : '') + '>' +
         (state.exportando === 'pdf' ? 'Gerando arquivo…' : '📄 GERAR PDF') + '</button>';
       html += '<button class="btn" id="avpReavaliarBtn">REAVALIAR</button>';
+      if (window.faAvaliacaoSquad) html += '<button class="btn btn--sm" id="avpAvaliarSquadBtn">🧭 AVALIAR ADEQUAÇÃO À SQUAD</button>';
       html += '</div>';
       if (state.flashExportacao) {
         html += '<p class="avp-export-status' + (state.flashExportacao.erro ? ' avp-export-status--erro' : '') + '">' +
@@ -3048,6 +3053,19 @@
       });
 
       document.getElementById('avpReavaliarBtn').addEventListener('click', function () { abrirReavaliacao(a._key); });
+      var avaliarSquadBtn = document.getElementById('avpAvaliarSquadBtn');
+      if (avaliarSquadBtn) {
+        avaliarSquadBtn.addEventListener('click', function () {
+          /* Adequação à squad é um eixo TOTALMENTE independente da
+             classificação arquitetural (ver window.faAvaliacaoSquad) —
+             este botão só entrega contexto (qual item, qual avaliação
+             arquitetural estava aberta), nunca respostas nem classificação;
+             a.itemId agrupa todas as reavaliações do mesmo item, então uma
+             avaliação de squad iniciada aqui continua válida mesmo que o
+             item seja reavaliado depois. */
+          window.faAvaliacaoSquad.iniciarOuAbrirParaItem({ itemId: a.itemId || a._key, itemNome: a.nome, avaliacaoArquiteturalId: a._key });
+        });
+      }
 
       function voltarParaLista() {
         state.atual = null;
