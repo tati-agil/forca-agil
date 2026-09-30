@@ -2576,7 +2576,9 @@
             render();
             return;
           }
-          state.configMotores = { sub: 'painel', flash: '✓ Nova versão das regras publicada com sucesso.' };
+          state.configMotores = { sub: 'painel', flash: info && info.semMudanca
+            ? 'As regras publicadas já são idênticas às do rascunho — nenhuma versão nova foi criada.'
+            : '✓ Nova versão das regras publicada com sucesso.' };
           render();
         });
       });

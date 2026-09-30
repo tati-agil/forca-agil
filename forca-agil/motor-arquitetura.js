@@ -343,13 +343,30 @@
   /* PUBLICAR: valida antes (validarRegras) — nunca publica uma configuração
      que possa gerar erro de execução ou deixar de cobrir alguma
      combinação. Cria versão NOVA (nunca sobrescreve), grava auditoria,
-     limpa o rascunho — um único update() atômico. */
+     limpa o rascunho — um único update() atômico.
+
+     SEM MUDANÇA NENHUMA (alteradas.length === 0) é NO-OP de propósito —
+     nunca cria uma versão nova, nunca versiona motorVersionArquitetura.
+     Achado real: publicar um rascunho idêntico ao publicado (ex.: abrir
+     "Editar regras" só para olhar, sem mudar nada, e clicar em PUBLICAR)
+     incrementava versaoPublicada mesmo sem diferença alguma — o que
+     marcava de novo como "Motor desatualizado" TODA avaliação que
+     acabara de ser reprocessada com a versão anterior, sem que a
+     classificação de ninguém tivesse mudado. Só limpa o rascunho
+     pendente (ele já é idêntico ao publicado, não há por que mantê-lo
+     como pendente) e devolve a MESMA versão em info.novaVersao. */
   function publicarRegras(regras, usuario, cb) {
     var erros = validarRegras({ regras: regras });
     if (erros.length) { cb('validacao', erros); return; }
     var versaoAntiga = versaoAtual();
     var regrasAntigas = regrasDaVersao(versaoAntiga).regras;
     var alteradas = diffRegras(regrasAntigas, regras);
+    if (!alteradas.length) {
+      db().ref(NODE_CONFIG + '/rascunho').remove(function (err) {
+        if (cb) cb(err || null, { novaVersao: versaoAntiga, alteradas: [], semMudanca: true });
+      });
+      return;
+    }
     var novaVersao = versaoAntiga + 1;
     var agora = new Date().toISOString();
     var updates = {};

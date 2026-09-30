@@ -397,11 +397,23 @@
      versaoPublicada pra ela, limpa o rascunho e grava auditoria — um único
      update() atômico, mesmo padrão de publicarConteudo em
      questionarios-config.js. É isto, e só isto, que avança
-     motorSquadVersion; nunca chamado por uma edição de textos. */
+     motorSquadVersion; nunca chamado por uma edição de textos.
+
+     SEM MUDANÇA NENHUMA (alteradas.length === 0) é NO-OP de propósito —
+     nunca cria uma versão nova, nunca avança motorSquadVersion (mesmo
+     achado do motor-arquitetura.js: publicar um rascunho idêntico ao já
+     publicado não pode invalidar de novo avaliações já reprocessadas). Só
+     limpa o rascunho pendente e devolve a MESMA versão em info.novaVersao. */
   function publicarRegras(regras, usuario, cb) {
     var versaoAntiga = versaoAtual();
     var regrasAntigas = regrasDaVersao(versaoAntiga);
     var alteradas = diffRegras(regrasAntigas, regras);
+    if (!alteradas.length) {
+      db().ref(NODE_CONFIG + '/rascunho').remove(function (err) {
+        if (cb) cb(err || null, { novaVersao: versaoAntiga, alteradas: [], semMudanca: true });
+      });
+      return;
+    }
     var novaVersao = versaoAntiga + 1;
     var agora = new Date().toISOString();
     var updates = {};

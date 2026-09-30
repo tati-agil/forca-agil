@@ -1204,10 +1204,12 @@
         if (c.salvando) return;
         c.salvando = true;
         render();
-        window.faMotorSquad.publicarRegras(c.regras, sessaoAtual(), function (err) {
+        window.faMotorSquad.publicarRegras(c.regras, sessaoAtual(), function (err, info) {
           c.salvando = false;
           if (err) { c.erro = 'Não foi possível publicar. Tente novamente.'; render(); return; }
-          state.motorConfig = { sub: 'painel', flash: '✓ Nova versão das regras publicada com sucesso.' };
+          state.motorConfig = { sub: 'painel', flash: info && info.semMudanca
+            ? 'As regras publicadas já são idênticas às do rascunho — nenhuma versão nova foi criada.'
+            : '✓ Nova versão das regras publicada com sucesso.' };
           render();
         });
       });
