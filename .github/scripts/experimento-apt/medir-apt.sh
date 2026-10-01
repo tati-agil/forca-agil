@@ -8,6 +8,9 @@ set -u
 variante=${1:?variante}; cenario=${2:-real}
 RETRIES=3; TIMEOUT=15
 conf=/etc/apt/apt.conf.d/99experimento-apt
+efetivo() { apt-config dump | grep -iE '(^|::)(Retries|Timeout) ' | sort; }
+echo "== configuração do apt JÁ PRESENTE no runner (antes do experimento) =="
+efetivo; ls /etc/apt/apt.conf.d; grep -rHiE 'retries|timeout' /etc/apt/apt.conf.d 2>/dev/null
 {
   echo 'Debug::pkgAcquire::Worker "true";'   # só para contar retentativas no log; não muda o comportamento
   case "$variante" in
@@ -21,6 +24,7 @@ conf=/etc/apt/apt.conf.d/99experimento-apt
   esac
 } | sudo tee "$conf" >/dev/null
 echo "== configuração do apt desta execução ($variante / $cenario) =="; cat "$conf"
+echo "== valores EFETIVOS depois do experimento =="; efetivo
 
 if [ "$cenario" = trava ] || [ "$cenario" = gotejar ]; then
   : > /tmp/proxy-espelho.log
@@ -49,7 +53,7 @@ variante, cenario, rc, seg, ok, falta = sys.argv[1:7]
 log = open('/tmp/apt.log', errors='replace').read()
 uris = re.findall(r'600%20URI%20Acquire%0aURI:%20(\S+?)%0a', log)
 pedidos = collections.Counter(uris)
-retentativas = sum(n - 1 for n in pedidos.values())
+retentativas = sum(n - 1 for u, n in pedidos.items() if u.split('%0a')[0].endswith('.deb'))
 falhas = len(re.findall(r'400%20URI%20Failure', log))
 transit = len(re.findall(r'Transient-Failure:%20true', log))
 fetched = re.findall(r'^\d+ Fetched ([\d.,]+ \S+) in (\S+(?: \S+)*?) \(([\d.,]+ \S+/s)\)', log, re.M)
@@ -58,8 +62,8 @@ erros = [l for l in log.splitlines() if re.search(r'\d+ (Err:|E: |W: Failed|Ign:
 prox = ''
 if os.path.exists('/tmp/proxy-espelho.log'):
     pl = open('/tmp/proxy-espelho.log').read().splitlines()
-    prox = ' | proxy: ' + ', '.join('%s=%d' % (k, sum(1 for l in pl if l.split()[1].startswith(k))) for k in ('TRAVOU', 'GOTEJANDO', 'CORTADO', 'serviu'))
-msg = ('apt %ss · rc=%s · pacotes instalados %s/%d (faltando %s) · "Setting up" %d · retentativas %d · '
+    prox = ' | proxy: ' + ', '.join('%s=%d' % (k, sum(1 for l in pl if len(l.split()) > 1 and l.split()[1].startswith(k))) for k in ('TRAVOU', 'GOTEJANDO', 'CORTADO', 'serviu', 'tunel', 'ERRO'))
+msg = ('apt %ss · rc=%s · pacotes instalados %s/%d (faltando %s) · "Setting up" %d · retentativas de .deb %d · '
        'falhas %d (transitórias %d) · Fetched %s%s') % (
        seg, rc, ok, int(ok) + int(falta), falta, setting_up, retentativas, falhas, transit,
        ('; '.join(' '.join(f) for f in fetched) or '-'), prox)

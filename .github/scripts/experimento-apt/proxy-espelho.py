@@ -13,7 +13,7 @@ Repassa tudo ao espelho de verdade, exceto o 1º pedido de certos .deb:
 Escreve um registro de cada pedido em /tmp/proxy-espelho.log (usado para contar retentativas:
 mesmo .deb pedido mais de uma vez).
 """
-import http.client, sys, threading, time, urllib.parse
+import http.client, select, socket, sys, threading, time, urllib.parse
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
 MODO = sys.argv[1] if len(sys.argv) > 1 else 'passa'
@@ -83,6 +83,35 @@ class H(BaseHTTPRequestHandler):
                 if gotejar: time.sleep(len(b) / GOTEJAR_BYTES_POR_S)
         except (BrokenPipeError, ConnectionResetError):
             registra('CORTADO   #%d %s (o apt desistiu)' % (n, nome))
+            self.close_connection = True
+
+    def do_CONNECT(self):
+        # HTTPS: só abre o túnel, sem defeito nenhum (o defeito simulado é só no HTTP).
+        host, _, porta = self.path.partition(':')
+        try:
+            up = socket.create_connection((host, int(porta or 443)), timeout=30)
+        except Exception as e:
+            registra('ERRO      CONNECT %s %r' % (self.path, e))
+            self.send_error(502)
+            return
+        self.send_response(200, 'Connection established')
+        self.end_headers()
+        registra('tunel     CONNECT %s' % self.path)
+        a, b = self.connection, up
+        try:
+            while True:
+                r, _, _ = select.select([a, b], [], [], 120)
+                if not r: break
+                fim = False
+                for s in r:
+                    d = s.recv(65536)
+                    if not d: fim = True; break
+                    (b if s is a else a).sendall(d)
+                if fim: break
+        except OSError:
+            pass
+        finally:
+            up.close()
             self.close_connection = True
 
     def do_GET(self): self._serve(True)
