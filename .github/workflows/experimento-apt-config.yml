@@ -1,0 +1,30 @@
+name: EXPERIMENTO apt — configuração que o runner já traz (não é parte do CI)
+
+# Só lê. Mostra o que o runner ubuntu-latest já tem de Retries/Timeout no apt, antes de qualquer
+# mudança nossa. Roda só na branch experimento/apt-retentativas.
+on:
+  push:
+    branches:
+      - experimento/apt-retentativas
+    paths:
+      - .github/workflows/experimento-apt-config.yml
+  workflow_dispatch:
+
+jobs:
+  config:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Ler a configuração do apt do runner
+        run: |
+          . /etc/os-release; echo "imagem: $PRETTY_NAME  ImageVersion=${ImageVersion:-?}"
+          echo "== arquivos em /etc/apt/apt.conf.d =="; ls -1 /etc/apt/apt.conf.d
+          echo "== linhas com retries/timeout =="; grep -rHiE 'retries|timeout' /etc/apt/apt.conf.d /etc/apt/apt.conf 2>/dev/null || true
+          echo "== apt-config dump (valores efetivos) =="; apt-config dump | grep -iE 'retries|timeout' | sort
+          efetivo=$(apt-config dump | grep -iE '^Acquire::(Retries|http::Timeout|https::Timeout) ' | tr '\n' ' ')
+          echo "::notice title=Config apt do runner::${ImageVersion:-?} | ${efetivo:-nenhum Acquire::Retries/Timeout definido}"
+          echo "== simula as variantes e mostra o valor efetivo =="
+          for v in "Acquire::Retries \"3\";" "Acquire::http::Timeout \"15\";"; do
+            echo "$v" | sudo tee /etc/apt/apt.conf.d/99teste >/dev/null
+            echo "com [$v] ->"; apt-config dump | grep -iE '^Acquire::(Retries|http::Timeout) ' | sort
+          done
