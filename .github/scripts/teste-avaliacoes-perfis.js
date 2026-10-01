@@ -14,8 +14,8 @@
  *     "consulta" vale consulta; avaliador NÃO é admin (#admin é barrado);
  *   - "não sei ≠ sem acesso": com o registro do perfil lento, quem abriu
  *     #avaliacoes (F5) NÃO é expulso — espera e entra;
- *   - ADMIN: só parametrização (4 cartões + Usuários e permissões), nada de
- *     avaliar; "Usuários e permissões" pesquisa, grava o perfil e, se o banco
+ *   - ADMIN: só parametrização (4 cartões + Usuários autorizados), nada de
+ *     avaliar; "Usuários autorizados" pesquisa, grava o perfil e, se o banco
  *     recusar, volta o seletor e avisa (nunca parece salvo sem estar);
  *   - link antigo #admin?avp=… abre a mesma avaliação em #avaliacoes.
  * Hermético: sem rede, sem segredo. */
@@ -211,11 +211,13 @@ async function abrirMais(page, key) {
       await r.page.waitForTimeout(500);
       afirma(await hash(r.page) === '#admin', 'mas continua administrador: #admin abre');
       await r.ctx.close();
-      /* admin com registro "nenhum": sem acesso à área, mas ainda admin */
+      /* admin com registro "nenhum": ADMIN sempre vê a área, no mínimo como Consulta (e não vira avaliador) */
       r = await abrir(browser, { email: EM, admin: true, perfil: 'nenhum', viewport });
-      await r.page.waitForTimeout(400);
-      afirma(await hash(r.page) === '#home', 'admin com perfil "nenhum": #avaliacoes leva para #home');
-      afirma(await r.page.evaluate(() => document.querySelector('.nav-link-avaliacoes').hidden), 'e o item "Avaliação" some do menu');
+      await aguardaLista(r.page);
+      afirma(await hash(r.page) === '#avaliacoes', 'admin com perfil "nenhum": continua em #avaliacoes (ADMIN sempre vê a aba)');
+      afirma(await r.page.evaluate(() => !document.querySelector('.nav-link-avaliacoes').hidden), 'e o item "Avaliação" aparece no menu');
+      afirma(await contar(r.page, '#avaliacoesPainel .avp-table tbody tr') === 2, 'no mínimo Consulta: só as 2 concluídas');
+      afirma(await contar(r.page, '#avpNovoBtn') === 0 && await contar(r.page, '.avp-act-mais') === 0, 'e NÃO vira avaliador: sem criar, sem ⋯');
       await r.ctx.close();
       /* sem perfil e sem admin: sem acesso */
       r = await abrir(browser, { email: EM, viewport });
@@ -269,7 +271,7 @@ async function abrirMais(page, key) {
     await page.click('.admin-tab-btn[data-panel="adminPanelArquitetura"]');
     await page.waitForSelector('#avpConfigQuestionariosBtn', { timeout: 8000 });
     afirma(await contar(page, '#avpConfigQuestionariosBtn') === 1 && await contar(page, '#avpConfigMotoresBtn') === 1 && await contar(page, '#avpConfigNaturezasBtn') === 1, 'Admin: Questionários, Motores e Naturezas Complementares');
-    afirma(await contar(page, '#avpAdequacaoSquadListaBtn') === 1 && await contar(page, '#avpUsuariosBtn') === 1, 'Admin: Adequação à Squad e Usuários e permissões');
+    afirma(await contar(page, '#avpAdequacaoSquadListaBtn') === 1 && await contar(page, '#avpUsuariosBtn') === 1, 'Admin: Adequação à Squad e Usuários autorizados');
     afirma(await contar(page, '#adminAvaliacaoProduto #avpNovoBtn') === 0 && await contar(page, '#adminAvaliacaoProduto .avp-table') === 0, 'Admin NÃO tem lista nem "Avaliar novo item" (isso é da área Avaliação)');
     afirma(await larguraOk(page), 'sem rolagem horizontal');
     await page.click('#avpUsuariosBtn');
@@ -297,7 +299,7 @@ async function abrirMais(page, key) {
     await ctx.close();
   }
 
-  console.log('\n== Usuários e permissões: se o banco recusar, o seletor volta e avisa ==');
+  console.log('\n== Usuários autorizados: se o banco recusar, o seletor volta e avisa ==');
   {
     const users = {}; users[chave('ana@previ.com.br')] = { email: 'ana@previ.com.br', name: 'Ana Souza' };
     const { ctx, page, erros } = await abrir(browser, { email: EM, admin: true, hash: '#admin', db: { 'fa-users': users }, fail: ['fa-avaliacao-acessos/' + chave('ana@previ.com.br')] });
@@ -313,7 +315,7 @@ async function abrirMais(page, key) {
     await ctx.close();
   }
 
-  console.log('\n== Usuários e permissões: só super-admin mexe no acesso administrativo ==');
+  console.log('\n== Usuários autorizados: só super-admin mexe no acesso administrativo ==');
   {
     const users = {}; users[chave('ana@previ.com.br')] = { email: 'ana@previ.com.br', name: 'Ana Souza' };
     const { ctx, page } = await abrir(browser, { email: EM, admin: true, hash: '#admin', db: { 'fa-users': users } });

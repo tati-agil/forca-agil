@@ -290,7 +290,7 @@ async function voltarParaAvaliacoes(page) {
     console.log('\n== Tela: recomendação automática e decisão SEPARADAS ==');
     const resumo = await page.locator('#avpDecisaoResumo').innerText();
     afirma(/Recomendação automática\s+A validar/.test(resumo), 'Recomendação automática: A validar');
-    afirma(/Decisão arquitetural\s+Não é Produto\/Serviço Principal/.test(resumo), 'Decisão arquitetural: Não é Produto/Serviço Principal');
+    afirma(/Decisão arquitetural\s+Não é Produto\/Serviço principal/.test(resumo), 'Decisão arquitetural: Não é Produto/Serviço principal');
     afirma(/Camada identificada:\s*A validar/.test(await page.locator('.avp-alt-card').innerText()), 'a camada identificada continua "A validar"');
 
     console.log('\n== Voltar para "Aceitar recomendação" desfaz a decisão manual ==');

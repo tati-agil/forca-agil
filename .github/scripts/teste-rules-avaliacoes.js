@@ -114,8 +114,12 @@ async function main() {
       const s = await assertSucceeds(db(email).ref(NODE).once('value'));
       anota(rotulo + ': lê a lista inteira, inclusive rascunhos', !!(s.val() && s.val().rasc1));
     }
+    /* ADMIN sempre vê a área, no mínimo como CONSULTA — mas isso não o torna avaliador */
     await assertFails(db(ADMIN_NENHUM).ref(NODE).once('value'));
-    anota('ADMIN com perfil explícito "nenhum": NÃO lê avaliações (admin e avaliador são permissões independentes)', true);
+    const sAdmN = await assertSucceeds(consultaConcluidas(ADMIN_NENHUM));
+    anota('ADMIN com perfil explícito "nenhum": lê só as concluídas (no mínimo Consulta), mas NÃO os rascunhos — admin não vira avaliador', !!(sAdmN.val() && !sAdmN.val().rasc1));
+    await assertFails(db(PERFIL_NENHUM).ref(NODE + '/conc1').once('value'));
+    anota('quem NÃO é admin e tem perfil "nenhum" segue sem ler nada', true);
     const sAdmC = await assertSucceeds(consultaConcluidas(ADMIN_CONSULTA));
     await assertFails(db(ADMIN_CONSULTA).ref(NODE).once('value'));
     anota('ADMIN com perfil "consulta": só as concluídas, como qualquer consulta', !!(sAdmC.val() && !sAdmC.val().rasc1));
@@ -268,7 +272,7 @@ async function main() {
     await assertSucceeds(db(ADMIN_LEGADO).ref(NODE + '/conc1/excluido').set(true));
     anota('admin legado (sem registro): continua criando e excluindo, como hoje', true);
     await assertFails(db(ADMIN_NENHUM).ref(NODE + '/adminCria2').set(rascunho({ itemId: 'adminCria2' })));
-    anota('o mesmo admin, depois de receber perfil "nenhum", perde o acesso operacional', true);
+    anota('o mesmo admin, depois de receber perfil "nenhum", perde a escrita (fica só com a Consulta mínima de admin)', true);
     await semear((a) => a.ref('fa-avaliacao-acessos/' + emailKey(ADMIN_LEGADO)).set({ email: ADMIN_LEGADO, perfil: 'avaliador' }));
     await assertSucceeds(db(ADMIN_LEGADO).ref(NODE + '/adminCria3').set(rascunho({ itemId: 'adminCria3' })));
     await assertFails(db(ADMIN_LEGADO).ref(NODE + '/conc2/excluido').set(true));

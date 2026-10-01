@@ -77,7 +77,7 @@ async function abrirApp(browser, avaliacoes, viewport) {
 
 const docSemRolagemHorizontal = (page) => page.evaluate(() =>
   document.documentElement.scrollWidth <= window.innerWidth + 1 && document.body.scrollWidth <= window.innerWidth + 1);
-const COLUNAS = ['Item', 'Resultado final', 'Classificação', 'Status', 'Atualizado em', 'Responsável', 'Ações'];
+const COLUNAS = ['Item', 'Classificação', 'Status', 'Atualizado em', 'Responsável', 'Ações'];
 
 async function cenariosDesktop(browser, w, h) {
   console.log('\n== ' + w + 'x' + h + ' ==');
@@ -111,9 +111,9 @@ async function cenariosDesktop(browser, w, h) {
   const navH = await page.evaluate(() => document.querySelector('.nav').offsetHeight);
   await page.evaluate(() => window.scrollTo({ top: document.querySelector('.avp-table').getBoundingClientRect().top + window.scrollY + 600, behavior: 'instant' }));
   await page.waitForTimeout(250);
-  const th = await page.evaluate(() => { const r = document.querySelector('.avp-table thead th.avp-col-dec').getBoundingClientRect(); return { top: r.top, bottom: r.bottom }; });
+  const th = await page.evaluate(() => { const r = document.querySelector('.avp-table thead th.avp-col-camada').getBoundingClientRect(); return { top: r.top, bottom: r.bottom }; });
   afirma(Math.abs(th.top - navH) <= 3, 'rolando a página, o cabeçalho das colunas fica colado logo abaixo do menu (topo ' + Math.round(th.top) + ', menu ' + navH + ')');
-  const ponto = await page.evaluate(() => { const r = document.querySelector('.avp-table thead th.avp-col-dec').getBoundingClientRect(); const e = document.elementFromPoint(r.left + 10, r.top + r.height / 2); return !!(e && e.closest('th.avp-col-dec')); });
+  const ponto = await page.evaluate(() => { const r = document.querySelector('.avp-table thead th.avp-col-camada').getBoundingClientRect(); const e = document.elementFromPoint(r.left + 10, r.top + r.height / 2); return !!(e && e.closest('th.avp-col-camada')); });
   afirma(ponto, 'o cabeçalho está por cima das linhas (nenhuma célula passa sobre ele)');
   const opaco = await page.evaluate(() => { const m = /rgba?\(([^)]+)\)/.exec(getComputedStyle(document.querySelector('.avp-table thead th')).backgroundColor); const p = m[1].split(',').map(parseFloat); return p.length === 3 || p[3] === 1; });
   afirma(opaco, 'cabeçalho com fundo opaco');
@@ -126,7 +126,7 @@ async function cenariosDesktop(browser, w, h) {
   await page.waitForTimeout(300);
   await page.evaluate(() => window.scrollTo({ top: document.querySelector('.avp-table').getBoundingClientRect().top + window.scrollY + 600, behavior: 'instant' }));
   await page.waitForTimeout(250);
-  const th2 = await page.evaluate(() => document.querySelector('.avp-table thead th.avp-col-dec').getBoundingClientRect().top);
+  const th2 = await page.evaluate(() => document.querySelector('.avp-table thead th.avp-col-camada').getBoundingClientRect().top);
   const navH2 = await page.evaluate(() => document.querySelector('.nav').offsetHeight);
   afirma(Math.abs(th2 - navH2) <= 3, 'renderizada com o menu escondido, o cabeçalho ainda gruda abaixo do menu quando ele aparece (topo ' + Math.round(th2) + ', menu ' + navH2 + ')');
   await page.click('#avpFiltrosBtn');
@@ -195,7 +195,7 @@ async function cenariosDesktop(browser, w, h) {
     afirma(await docSemRolagemHorizontal(page), 'a página não rola na horizontal');
     afirma(await page.locator('.avp-tabela-wrap tbody tr').count() === 30, 'as 30 avaliações continuam (cartões)');
     const rotulos = await page.evaluate(() => Array.from(document.querySelectorAll('.avp-table tbody tr:first-child td[data-label]')).map((td) => td.dataset.label));
-    afirma(rotulos.indexOf('Resultado final') !== -1 && rotulos.indexOf('Atualizado em') !== -1, 'cada campo do cartão tem rótulo: ' + rotulos.join(', '));
+    afirma(rotulos.indexOf('Classificação') !== -1 && rotulos.indexOf('Atualizado em') !== -1, 'cada campo do cartão tem rótulo: ' + rotulos.join(', '));
     afirma(erros.length === 0, 'nenhum erro de JS');
     await ctx.close();
   }

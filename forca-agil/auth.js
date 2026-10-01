@@ -374,7 +374,12 @@
   function getAvaliacaoPerfil() {
     const email = _avaliacaoEmail;
     if (!email) return 'nenhum';
-    if (_dbAvaliacaoEntrada) return _dbAvaliacaoPerfil || 'nenhum';
+    if (_dbAvaliacaoEntrada) {
+      var explicito = _dbAvaliacaoPerfil || 'nenhum';
+      /* ADMIN sempre vê a área, no MÍNIMO como consulta — mesmo com registro 'nenhum'.
+         Isso não lhe dá avaliador nem gestor (só o registro, ou a transição, dá). */
+      return (explicito === 'nenhum' && isAdmin(email)) ? 'consulta' : explicito;
+    }
     return isAdmin(email) ? 'gestor' : 'nenhum';
   }
   /* "Tem pelo menos este nível?" — nivel: 'consulta' | 'avaliador' | 'gestor'. */

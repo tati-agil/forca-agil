@@ -230,7 +230,7 @@ async function voltarParaAvaliacoes(page) {
     afirma(/benefícios e parcerias/.test(depois.naturezaComplementarDescricaoNaEpoca || ''), 'gravou a descrição da época');
     afirma(depois.naturezaComplementarDefinidaPor && depois.naturezaComplementarDefinidaPor.email === EMAIL && !isNaN(Date.parse(depois.naturezaComplementarDefinidaEm)), 'gravou quem definiu e quando');
     afirma(semNatureza(depois) === semNatureza(antes), 'TUDO o mais idêntico ao de antes: respostas, resultado automático, camada, decisão, motorVersion, motorVersionArquitetura, atualizadoEm');
-    afirma(depois.camadaSugerida.id === 'canal' && depois.resultadoAutomatico === 'nao-produto' && depois.respostas.canal.valor === 'sim', 'camada continua Canal, P9 continua SIM, resultado continua "Não é Produto/Serviço Principal"');
+    afirma(depois.camadaSugerida.id === 'canal' && depois.resultadoAutomatico === 'nao-produto' && depois.respostas.canal.valor === 'sim', 'camada continua Canal, P9 continua SIM, resultado continua "Não é Produto/Serviço principal"');
     afirma(depois.motorVersion === antes.motorVersion && depois.motorVersionArquitetura === antes.motorVersionArquitetura, 'motorVersion e motorVersionArquitetura não mudaram');
     afirma(depois.decisaoManual === false && depois.decisaoFinal === 'nao-produto', 'decisão final continua "recomendação do sistema aceita"');
     const aud1 = await auditoria(page, key);
@@ -245,7 +245,7 @@ async function voltarParaAvaliacoes(page) {
     afirma(!!pdf, 'HTML do PDF capturado');
     if (pdf) {
       const d = pdf.decisao.replace(/\s+/g, ' ');
-      afirma(/Classificação sugerida Canal/.test(d) && new RegExp('Natureza complementar ' + PLATAFORMA.replace(/[/]/g, '\\/')).test(d) && /Decisão final Não é Produto\/Serviço Principal/.test(d), 'PDF: Classificação sugerida = Canal · Natureza = plataforma · Decisão final = Não é Produto/Serviço Principal');
+      afirma(/Classificação sugerida Canal/.test(d) && new RegExp('Natureza complementar ' + PLATAFORMA.replace(/[/]/g, '\\/')).test(d) && /Decisão final Não é Produto\/Serviço principal/.test(d), 'PDF: Classificação sugerida = Canal · Natureza = plataforma · Decisão final = Não é Produto/Serviço principal');
       afirma(d.indexOf('Classificação sugerida') < d.indexOf('Natureza complementar') && d.indexOf('Natureza complementar') < d.indexOf('Decisão final'), 'PDF: ordem Classificação sugerida → Natureza complementar → Decisão final');
       afirma(/Forma da decisão Recomendação do sistema aceita/.test(d), 'PDF: a forma da decisão continua "Recomendação do sistema aceita"');
       afirma((pdf.tudo.match(/Natureza complementar/g) || []).length === 1, 'PDF: a natureza aparece uma única vez');
@@ -338,7 +338,7 @@ async function voltarParaAvaliacoes(page) {
     afirma(JSON.stringify(salvo.respostas) === JSON.stringify(antes.respostas), 'respostas P1–P16 intactas');
     afirma(salvo.motorVersion === antes.motorVersion && salvo.motorVersionArquitetura === antes.motorVersionArquitetura, 'motorVersion e motorVersionArquitetura intactos');
     const resumo = await page.locator('#avpDecisaoResumo').innerText();
-    afirma(/Recomendação automática\s+A validar/.test(resumo) && /Decisão arquitetural\s+Não é Produto\/Serviço Principal/.test(resumo), 'tela: a recomendação "A validar" segue visível ao lado da decisão manual');
+    afirma(/Recomendação automática\s+A validar/.test(resumo) && /Decisão arquitetural\s+Não é Produto\/Serviço principal/.test(resumo), 'tela: a recomendação "A validar" segue visível ao lado da decisão manual');
 
     console.log('\n-- a decisão e a natureza são independentes --');
     await page.check('input[name="avpDecisao"][value="auto"]');
@@ -358,7 +358,7 @@ async function voltarParaAvaliacoes(page) {
     const pdf = await gerarPdf(page);
     if (pdf) {
       const d = pdf.decisao.replace(/\s+/g, ' ');
-      afirma(/Recomendação do sistema A validar/.test(d) && /Natureza complementar Programa transversal/.test(d) && /Decisão final Não é Produto\/Serviço Principal/.test(d), 'PDF: Recomendação A validar · Natureza Programa transversal · Decisão final Não Produto/Serviço Principal');
+      afirma(/Recomendação do sistema A validar/.test(d) && /Natureza complementar Programa transversal/.test(d) && /Decisão final Não é Produto\/Serviço principal/.test(d), 'PDF: Recomendação A validar · Natureza Programa transversal · Decisão final Não Produto/Serviço Principal');
       afirma(d.indexOf('Natureza complementar') < d.indexOf('Decisão final'), 'PDF: a natureza vem antes da decisão final');
     } else afirma(false, 'HTML do PDF capturado');
 

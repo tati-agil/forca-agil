@@ -3,7 +3,7 @@
  * Pedido "CORRIGIR TEXTOS AUTOMÁTICOS DE P5 E DA CLASSIFICAÇÃO INFORMAÇÃO/
  * DOCUMENTO". Caso real: Trilha de Educação Previdenciária — P1 SIM, P2 SIM,
  * P3 SIM, P4 SIM, P5 NÃO, P6 SIM, P7 SIM, P8 NÃO, P9 NÃO, P10 SIM, P11-P16 NÃO —
- * corretamente "Não é Produto/Serviço Principal", camada Informação/Documento.
+ * corretamente "Não é Produto/Serviço principal", camada Informação/Documento.
  * A classificação está certa; a NARRATIVA automática não estava:
  *   - relação arquitetural: "entregue a partir de outro Produto/Serviço"
  *     (nenhuma resposta sustenta essa dependência);
@@ -138,7 +138,7 @@ function parteA() {
   const atual = { respostas: respostasTrilha() };
   const c = av.computeResultado(atual);
   const just = av.gerarJustificativaAutomatica(atual, c);
-  afirma(c.resultadoAutomatico === 'nao-produto' && c.camadaSugerida.id === 'documento-informacao', 'resultado "Não é Produto/Serviço Principal", camada Informação/Documento (preservados)');
+  afirma(c.resultadoAutomatico === 'nao-produto' && c.camadaSugerida.id === 'documento-informacao', 'resultado "Não é Produto/Serviço principal", camada Informação/Documento (preservados)');
   afirma(c.camadaSugerida.relacao === RELACAO_NOVA, 'T3: relação arquitetural = "' + c.camadaSugerida.relacao + '"');
   afirma(!/entregue a partir de outro/.test(c.camadaSugerida.relacao), 'T3: não diz "entregue a partir de outro Produto/Serviço"');
   afirma(just.startsWith(JUSTIFICATIVA_NOVA), 'T2: justificativa = "' + just.slice(0, 95) + '…"');
@@ -275,7 +275,7 @@ async function parteB(browser) {
   await novaTrilha(page, 'Trilha de Educação Previdenciária');
   const chave = Object.entries((await banco(page))['avaliacoes-produto']).find(([, v]) => v.nome === 'Trilha de Educação Previdenciária')[0];
   const nova = (await banco(page))['avaliacoes-produto'][chave];
-  afirma(nova.resultadoAutomatico === 'nao-produto' && nova.camadaSugerida.id === 'documento-informacao' && nova.camadaSugerida.label === 'Informação/Documento', 'resultado "Não é Produto/Serviço Principal", camada Informação/Documento (preservado)');
+  afirma(nova.resultadoAutomatico === 'nao-produto' && nova.camadaSugerida.id === 'documento-informacao' && nova.camadaSugerida.label === 'Informação/Documento', 'resultado "Não é Produto/Serviço principal", camada Informação/Documento (preservado)');
   afirma(nova.questionnaireContentVersion === 2 && antigoAntes.questionnaireContentVersion === 1, 'T5: a avaliação nova usa a versão de conteúdo 2 (a antiga segue na 1)');
   afirma(nova.motorVersion === MOTOR_VERSION && nova.motorVersion === antigoAntes.motorVersion && nova.motorVersionArquitetura === antigoAntes.motorVersionArquitetura,
     'T5: motorVersion (' + nova.motorVersion + ') e motorVersionArquitetura (' + nova.motorVersionArquitetura + ') iguais aos da avaliação antiga');
