@@ -1,0 +1,144 @@
+name: EXPERIMENTO apt (cache dos .deb) — não é parte do CI
+
+# Roda SÓ na branch experimento/apt-retentativas. Nunca vai para a main.
+# Mede o mesmo comando do CI (`npx playwright install-deps chromium`) com e sem um cache dos
+# .deb do apt. Não muda a lista de pacotes, não roda teste, não toca na aplicação.
+#
+#   vazio        — sem cache (é o CI de hoje), 4 repetições
+#   semear       — sem cache; salva os .deb baixados (chave por execução)
+#   cheio        — cache restaurado, 4 repetições
+#   versao-nova  — cache com 2 pacotes numa versão ANTIGA (como se o espelho tivesse versão mais nova)
+#   invalido     — cache com .deb ausentes, truncado, vazio e corrompido
+
+on:
+  push:
+    branches:
+      - experimento/apt-retentativas
+    paths:
+      - .github/workflows/experimento-apt-cache.yml
+      - .github/scripts/experimento-apt-cache/**
+  workflow_dispatch:
+
+env:
+  CHAVE: apt-debs-exp-${{ github.run_id }}
+
+jobs:
+  semear:
+    name: semear (cache vazio → salva)
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - name: Playwright (pacote npm, fora da medição)
+        run: |
+          mkdir -p /tmp/pw-deps && cd /tmp/pw-deps
+          npm init -y >/dev/null && npm install playwright@1.56.1 >/dev/null
+      - name: Medir o apt (cache vazio)
+        run: bash .github/scripts/experimento-apt-cache/medir-apt-cache.sh semear
+      - name: Salvar cache dos .deb (chave desta execução)
+        uses: actions/cache/save@v4
+        with:
+          path: /tmp/apt-debs
+          key: ${{ env.CHAVE }}
+      - name: Salvar cache dos .deb (chave fixa, para o teste de visibilidade entre branches)
+        uses: actions/cache/save@v4
+        continue-on-error: true
+        with:
+          path: /tmp/apt-debs
+          key: apt-debs-exp-fixo-v1
+
+  vazio:
+    name: vazio · #${{ matrix.rep }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    strategy:
+      fail-fast: false
+      matrix:
+        rep: [1, 2, 3, 4]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - name: Playwright (pacote npm, fora da medição)
+        run: |
+          mkdir -p /tmp/pw-deps && cd /tmp/pw-deps
+          npm init -y >/dev/null && npm install playwright@1.56.1 >/dev/null
+      - name: Medir o apt (cache vazio)
+        run: bash .github/scripts/experimento-apt-cache/medir-apt-cache.sh vazio
+
+  cheio:
+    name: cheio · #${{ matrix.rep }}
+    needs: semear
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    strategy:
+      fail-fast: false
+      matrix:
+        rep: [1, 2, 3, 4]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - name: Playwright (pacote npm, fora da medição)
+        run: |
+          mkdir -p /tmp/pw-deps && cd /tmp/pw-deps
+          npm init -y >/dev/null && npm install playwright@1.56.1 >/dev/null
+      - name: Restaurar cache dos .deb
+        uses: actions/cache/restore@v4
+        with:
+          path: /tmp/apt-debs
+          key: ${{ env.CHAVE }}
+          fail-on-cache-miss: true
+      - name: Medir o apt (cache cheio)
+        run: bash .github/scripts/experimento-apt-cache/medir-apt-cache.sh cheio
+
+  versao-nova:
+    name: espelho com versão mais nova que o cache
+    needs: semear
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - name: Playwright (pacote npm, fora da medição)
+        run: |
+          mkdir -p /tmp/pw-deps && cd /tmp/pw-deps
+          npm init -y >/dev/null && npm install playwright@1.56.1 >/dev/null
+      - name: Restaurar cache dos .deb
+        uses: actions/cache/restore@v4
+        with:
+          path: /tmp/apt-debs
+          key: ${{ env.CHAVE }}
+          fail-on-cache-miss: true
+      - name: Medir o apt (2 pacotes antigos no cache)
+        run: bash .github/scripts/experimento-apt-cache/medir-apt-cache.sh versao-nova
+
+  invalido:
+    name: .deb do cache ausente ou inválido
+    needs: semear
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - name: Playwright (pacote npm, fora da medição)
+        run: |
+          mkdir -p /tmp/pw-deps && cd /tmp/pw-deps
+          npm init -y >/dev/null && npm install playwright@1.56.1 >/dev/null
+      - name: Restaurar cache dos .deb
+        uses: actions/cache/restore@v4
+        with:
+          path: /tmp/apt-debs
+          key: ${{ env.CHAVE }}
+          fail-on-cache-miss: true
+      - name: Medir o apt (5 .deb estragados no cache)
+        run: bash .github/scripts/experimento-apt-cache/medir-apt-cache.sh invalido

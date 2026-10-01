@@ -1,0 +1,26 @@
+name: EXPERIMENTO apt (visibilidade do cache entre branches) — não é parte do CI
+
+# Só lê. Tenta restaurar o cache de chave fixa criado na branch experimento/apt-retentativas.
+# Rodando na própria branch deve achar (HIT); numa OUTRA branch, não (MISS) — é a regra de
+# escopo de cache do GitHub, que é o que decide se a `main` pode compartilhar o cache entre PRs.
+on:
+  push:
+    branches:
+      - experimento/apt-retentativas
+      - experimento/apt-cache-b
+    paths:
+      - .github/workflows/experimento-apt-cache-visibilidade.yml
+
+jobs:
+  restaurar:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Tentar restaurar o cache de chave fixa
+        id: c
+        uses: actions/cache/restore@v4
+        with:
+          path: /tmp/apt-debs
+          key: apt-debs-exp-fixo-v1
+      - name: Resultado
+        run: echo "::notice title=Visibilidade do cache::branch=${{ github.ref_name }} cache-hit=${{ steps.c.outputs.cache-hit || 'false (MISS)' }}"
