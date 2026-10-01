@@ -72,8 +72,8 @@ async function conferirVoltar(page, sel, rotuloEsperado, descricao) {
     await conferirVoltar(page, '#avpConfigVoltar', 'Avaliação de Produto/Serviço (Admin)', 'lista de questionários');
     await page.click('.avp-config-editar-btn >> nth=0');
     await page.waitForSelector('#avpCfgSalvarRascunhoBtn');
-    await conferirVoltar(page, '#avpConfigVoltar', 'Configuração dos Questionários', 'edição do questionário (topo)');
-    await conferirVoltar(page, '#avpCfgVoltarListaBtn', 'Configuração dos Questionários', 'edição do questionário (rodapé)');
+    await conferirVoltar(page, '#avpConfigVoltar', 'Questionários e versões', 'edição do questionário (topo)');
+    await conferirVoltar(page, '#avpCfgVoltarListaBtn', 'Questionários e versões', 'edição do questionário (rodapé)');
     afirma(await larguraOk(page), 'sem rolagem horizontal na edição');
     /* sem alteração: sai sem perguntar e cai na lista de questionários (um nível) */
     await page.click('#avpConfigVoltar');
@@ -95,8 +95,8 @@ async function conferirVoltar(page, sel, rotuloEsperado, descricao) {
     afirma(await page.locator('.avp-config-editar-btn').count() >= 1, 'Confirmar: volta para a lista de questionários');
     await page.click('.avp-config-auditoria-btn >> nth=0');
     await page.waitForSelector('#avpCfgAuditoriaVoltarBtn');
-    await conferirVoltar(page, '#avpConfigVoltar', 'Configuração dos Questionários', 'histórico do questionário (topo)');
-    await conferirVoltar(page, '#avpCfgAuditoriaVoltarBtn', 'Configuração dos Questionários', 'histórico do questionário (rodapé)');
+    await conferirVoltar(page, '#avpConfigVoltar', 'Questionários e versões', 'histórico do questionário (topo)');
+    await conferirVoltar(page, '#avpCfgAuditoriaVoltarBtn', 'Questionários e versões', 'histórico do questionário (rodapé)');
     await page.click('#avpConfigVoltar');
     await page.click('#avpConfigVoltar');
     await page.waitForSelector('#avpConfigQuestionariosBtn');

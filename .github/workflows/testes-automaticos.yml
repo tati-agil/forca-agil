@@ -93,6 +93,14 @@ jobs:
           FA_BASE_URL: http://127.0.0.1:8811
         run: node .github/scripts/teste-admin-navegacao.js
 
+      # "Questionários e versões": novo nome, texto explicativo e exportação
+      # para Excel da versão publicada (um questionário / todos), sem rascunho.
+      - name: "Avaliação: Questionários e versões — texto e exportação Excel (desktop e celular)"
+        env:
+          NODE_PATH: /tmp/pw-deps/node_modules
+          FA_BASE_URL: http://127.0.0.1:8811
+        run: node .github/scripts/teste-questionarios-excel.js
+
       # Mesma família da tela preta, agora no Repositório: a grade de cards
       # (#repoGrid) só é desenhada dentro de listeners assíncronos do
       # Firebase, e sem aviso de carregamento ficava vazia e indistinguível

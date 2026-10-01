@@ -1012,7 +1012,7 @@
 
     /* ===================== CONFIGURAÇÃO DO MOTOR DE SQUAD =====================
        Governança RASCUNHO → SIMULAÇÃO → PUBLICAÇÃO das REGRAS (item 14/15 do
-       pedido) — nunca a mesma tela de "⚙ Configuração dos Questionários"
+       pedido) — nunca a mesma tela de "⚙ Questionários e versões"
        (avaliacao-produto.js), que edita só a REDAÇÃO das perguntas S1-S8;
        aqui se edita a LÓGICA do motor (condições, sempre via os operadores
        seguros all/any/not/equals — nunca um campo de texto livre nem eval)
