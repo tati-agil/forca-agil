@@ -310,8 +310,25 @@ h1,h2,h3,h4 { font-family: var(--font-head); font-weight: 600; line-height: 1.02
 .nav-toggle { display: none; }
 .nav-actions { display: flex; align-items: center; gap: 8px; margin-left: auto; }
 
-/* ── Mobile nav: menu hamburguer ── */
-@media (max-width: 920px) {
+/* ── Menu compacto em notebook (1241–1499 px) ──
+   O menu de quem tem todos os itens (Início … Admin, 11 itens + nome + Sair)
+   precisa de ~1420 px na tipografia cheia: em 1280/1366 px o "Sair" ficava
+   para fora da tela, sem como alcançá-lo. Nesta faixa o menu usa letra,
+   espaçamento e preenchimento menores, mantendo o nome (cortado com reticências)
+   ao lado do "Sair"; abaixo disso vira hamburguer (bloco seguinte). */
+@media (min-width: 1241px) and (max-width: 1499px) {
+  .nav { padding-left: 20px; padding-right: 20px; }
+  .brand { gap: 9px; }
+  .brand-name { font-size: 1.02rem; letter-spacing: .1em; }
+  .nav-links { margin-left: 16px; gap: 0; }
+  .nav-links a { font-size: .64rem; letter-spacing: .06em; padding: 8px 6px; }
+  .nav-actions { gap: 6px; }
+  #navLogout { font-size: .62rem; padding: 5px 9px; }
+}
+
+/* ── Menu hamburguer (até 1240 px) ──
+   Era até 920 px; entre 921 e 1240 px o menu completo não cabe. */
+@media (max-width: 1240px) {
   .nav { overflow: visible; }
 
   /* Menu dropdown — ancorado abaixo do nav real, sem top hardcoded */
