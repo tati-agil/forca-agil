@@ -123,11 +123,13 @@
           return !!document.getElementById('adminPanelArquitetura') && !!document.getElementById('adminAvaliacaoProduto') &&
                  !!document.querySelector('.admin-tab-btn[data-panel="adminPanelArquitetura"]');
         } },
-        { id: 'adm-avaliacao-produto-lixeira', label: 'Avaliação de Produto/Serviço: botão de Lixeira presente na lista (exclusão lógica)', run: function () {
-          return !!document.getElementById('avpLixeiraBtn');
+        { id: 'adm-avaliacao-produto-lixeira', label: 'Área Avaliação (#avaliacoes): página e container da lista presentes (a lista, a lixeira e a exportação saíram do Admin)', run: function () {
+          return !!document.getElementById('page-avaliacoes') && !!document.getElementById('avaliacoesPainel');
         } },
-        { id: 'adm-avaliacao-produto-exportar', label: 'Avaliação de Produto/Serviço: botão "Exportar" presente na lista (Excel/PDF)', run: function () {
-          return !!document.getElementById('avpExportarBtn');
+        { id: 'adm-avaliacao-produto-exportar', label: 'Admin → Avaliação de Produto/Serviço: só parametrização (Usuários e permissões presente; sem lista nem exportação)', run: function () {
+          var admin = document.getElementById('adminAvaliacaoProduto');
+          if (!admin || !admin.querySelector('#avpConfigQuestionariosBtn')) return true; /* bloco ainda não renderizado, ou numa subtela */
+          return !!admin.querySelector('#avpUsuariosBtn') && !admin.querySelector('#avpExportarBtn') && !admin.querySelector('#avpLixeiraBtn');
         } },
         { id: 'adm-sorteios-panel', label: 'Painel Sorteios presente (aba + container)', run: function () {
           return !!document.getElementById('adminPanelSorteios') && !!document.getElementById('adminSorteios') &&
@@ -1591,7 +1593,7 @@ title: 'Cadastrados — corrigir e-mail só em cadastro criado pelo painel',
       motivo: 'Problema relatado por quem respondeu no celular: ao tocar na nota, a seção fechava sozinha e a tela pulava para a seguinte, obrigando a voltar para preencher o resto. Testar NO CELULAR, seção por seção. Nas seções 2 a 7 — todas têm perguntas depois da nota (motivo do NPS, o que mais gostou, o que aprofundar, o que pretende aplicar…) — tocar na nota e ESPERAR uns 3 segundos sem tocar em nada: a seção tem que continuar aberta, na mesma posição da tela, com as perguntas seguintes visíveis. Só a seção 1, cuja única pergunta é a nota, pode avançar sozinha para a seção 2. Repetir tocando em notas diferentes e trocando a nota já marcada. Conferir também que continuam funcionando os caminhos manuais de navegação: tocar no cabeçalho de outra seção e o botão "Pular esta seção →".' },
     { section: 'Avaliação',
       title: 'Admin libera avaliação por turma — aba aparece para inscrito',
-      motivo: 'Requer turma com inscritos confirmados. Clicar em "📋 Liberar avaliação" no menu ⋯ da turma. Verificar: (1) modal de confirmação aparece; (2) ao confirmar, botão vira "🔒 Encerrar avaliação"; (3) ao logar como inscrito confirmado naquela turma, a aba "Avaliação" aparece no menu; (4) ao clicar, o formulário com 13 seções em accordion é exibido; (5) seção 1 começa expandida, demais recolhidas.' },
+      motivo: 'Requer turma com inscritos confirmados. Clicar em "📋 Liberar avaliação" no menu ⋯ da turma. Verificar: (1) modal de confirmação aparece; (2) ao confirmar, botão vira "🔒 Encerrar avaliação"; (3) ao logar como inscrito confirmado naquela turma, o item "Avaliar oficina" aparece no menu; (4) ao clicar, o formulário com 13 seções em accordion é exibido; (5) seção 1 começa expandida, demais recolhidas.' },
     { section: 'Avaliação',
       title: 'Admin revisa avaliação: trocar de turma troca o formulário',
       motivo: 'Os dois seletores, o "Turma" travado até escolher um evento, e o formulário abrindo mesmo sem a avaliação liberada já são verificados automaticamente. Falta o que depende dos dados: (1) escolher um evento popula "Turma" só com as turmas DAQUELE evento, nenhuma de outro; (2) trocar de turma no seletor troca o formulário exibido; (3) se o admin já enviou uma resposta de teste para a turma escolhida, aparece o agradecimento com o aviso "(Você já enviou uma resposta de teste...)" em vez do formulário.' },

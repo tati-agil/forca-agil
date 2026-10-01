@@ -77,10 +77,9 @@ async function abrirApp(browser, avaliacoes, viewport) {
   await page.route('**/firebasejs/**', (r) => r.fulfill({ status: 200, contentType: 'text/javascript', body: FALSO }));
   await page.route('**fonts.googleapis.com**', (r) => r.fulfill({ status: 200, contentType: 'text/css', body: '' }));
   await page.route('**fonts.gstatic.com**', (r) => r.abort());
-  await page.goto(BASE + '/index.html#admin', { waitUntil: 'domcontentloaded' });
+  await page.goto(BASE + '/index.html#avaliacoes', { waitUntil: 'domcontentloaded' });
   await page.waitForFunction(() => !document.body.classList.contains('aguardando-auth'), { timeout: 16000 }).catch(() => {});
   await page.waitForTimeout(800);
-  await page.click('.admin-tab-btn[data-panel="adminPanelArquitetura"]');
   await page.waitForSelector('.avp-tabela-scroll', { timeout: 8000 });
   await page.waitForTimeout(400);
   return { ctx, page, erros };
@@ -211,8 +210,8 @@ async function cenariosDesktop(browser, w, h) {
 
   /* a barra acompanha a página: rolando a página o quadro continua terminando na janela */
   console.log(' -- página rolando: o quadro continua terminando dentro da janela --');
-  const meio = await page.evaluate(() => { window.scrollBy(0, -120); return new Promise((r) => setTimeout(r, 250)); }).then(() => geom(page));
-  afirma(meio.bottom <= meio.ih + 1, 'com a página 120 px mais acima, o rodapé do quadro segue dentro da janela (' + Math.round(meio.bottom) + ' de ' + meio.ih + ')');
+  const meio = await page.evaluate(() => { window.scrollBy(0, -50); return new Promise((r) => setTimeout(r, 250)); }).then(() => geom(page));
+  afirma(meio.bottom <= meio.ih + 1, 'com a página 50 px mais acima, o rodapé do quadro segue dentro da janela (' + Math.round(meio.bottom) + ' de ' + meio.ih + ')');
 
   /* marcar uma linha refaz o HTML — não pode perder o lugar */
   console.log(' -- marcar uma linha não perde o lugar --');

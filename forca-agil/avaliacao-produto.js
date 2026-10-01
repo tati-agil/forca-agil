@@ -1328,13 +1328,30 @@
     });
   }
 
-  window.faInitAvaliacaoProduto = function () {
-    var wrap = document.getElementById('adminAvaliacaoProduto');
+  /* DUAS INSTÂNCIAS do mesmo módulo, cada uma no seu contêiner e com o seu
+     estado:
+       modo 'operacional' — a área AVALIAÇÃO (#avaliacoesPainel): consultar,
+         avaliar, reavaliar. Quem entra é decidido pelo PERFIL em
+         fa-avaliacao-acessos, não por ser admin;
+       modo 'admin' — o bloco de parametrização dentro do ADMIN
+         (#adminAvaliacaoProduto): configuração de questionários, de motores,
+         das naturezas e dos usuários. Só admin chega aqui.
+     Nenhuma configuração aparece na tela operacional e vice-versa. */
+  window.faInitAvaliacaoProduto = function (opcoes) {
+    var modo = opcoes && opcoes.modo === 'admin' ? 'admin' : 'operacional';
+    var wrap = document.getElementById(modo === 'admin' ? 'adminAvaliacaoProduto' : 'avaliacoesPainel');
     if (!wrap || wrap._avpBound) return;
     wrap._avpBound = true;
 
+    /* O que a pessoa pode fazer aqui. Só decide o que MOSTRAR — quem barra de
+       verdade são as regras do banco (database.rules.json, provadas em
+       teste-rules-avaliacoes.js). consulta < avaliador < gestor. */
+    function pode(nivel) { return !!(window.faAuth && window.faAuth.podeAvaliacao && window.faAuth.podeAvaliacao(nivel)); }
+    function telaInicial() { return modo === 'admin' ? 'admin-inicio' : 'lista'; }
+
     var state = {
-      tela: 'lista', /* 'lista' | 'form-inicial' | 'checklist' | 'resultado' | 'nao-encontrada' | 'sem-permissao' | 'carregando' */
+      tela: telaInicial(), /* 'lista' | 'form-inicial' | 'checklist' | 'resultado' | 'nao-encontrada' | 'sem-permissao' | 'carregando'
+                              (operacional) · 'admin-inicio' | 'config-*' | 'admin-usuarios' (admin) */
       itens: [],
       itensCarregados: false, /* true depois da primeira resposta (sucesso OU erro) do Firebase — evita
                                   mostrar "não encontrada" antes dos dados terem sequer chegado (ex.: F5) */
@@ -1373,6 +1390,7 @@
       reconciliando: false, /* trava o botão individual RECONCILIAR COM VERSÃO EQUIVALENTE enquanto grava */
       config: null, /* null fora da tela de configuração; ver abrirConfigQuestionarios — nunca persistido aqui,
                        só o rascunho gravado explicitamente em window.faQuestionarios */
+      usuarios: null, /* null fora da tela "Usuários e permissões" (admin); ver abrirAdminUsuarios */
       configNaturezas: null, /* null fora da tela "⚙ Naturezas complementares"; ver abrirConfigNaturezas */
       configMotores: null /* null fora da tela "⚙ Configuração dos Motores"; ver abrirConfigMotores */
     };
@@ -1381,8 +1399,38 @@
       return !!(state.camposInvalidos && state.camposInvalidos.indexOf(campo) !== -1);
     }
 
+    /* Sair da lista para uma tela de detalhe guarda onde a página estava; voltar
+       restaura (filtros e pesquisa já vivem em state.filtro e não se perdem). Ir
+       para o detalhe começa no topo, não no meio da rolagem da lista. */
     function render() {
-      if (state.tela === 'lista') renderLista();
+      if (modo === 'operacional') {
+        if (state.telaRenderizada === 'lista' && state.tela !== 'lista') {
+          state.rolagemLista = window.pageYOffset || 0;
+          state.restaurarRolagem = false;
+          window.scrollTo({ top: 0, left: 0, behavior: 'instant' });
+        } else if (state.telaRenderizada && state.telaRenderizada !== 'lista' && state.tela === 'lista') {
+          state.restaurarRolagem = true;
+        }
+        state.telaRenderizada = state.tela;
+      }
+      renderTela();
+      if (modo === 'operacional' && state.restaurarRolagem && state.tela === 'lista') {
+        state.restaurarRolagem = false;
+        var y = state.rolagemLista || 0;
+        window.requestAnimationFrame(function () { window.scrollTo({ top: y, left: 0, behavior: 'instant' }); });
+      }
+    }
+    function renderTela() {
+      /* Enquanto o perfil da pessoa não voltou do banco não dá para decidir o
+         que mostrar (e "ainda não sei" nunca vira "sem acesso"). */
+      if (modo === 'operacional' && window.faAuth.isAvaliacaoReady && !window.faAuth.isAvaliacaoReady()) {
+        wrap.innerHTML = '<p class="loading-msg">Carregando…</p>';
+        return;
+      }
+      if (modo === 'operacional' && !pode('consulta')) { renderSemAcessoArea(); return; }
+      if (state.tela === 'admin-inicio') renderAdminInicio();
+      else if (state.tela === 'admin-usuarios') renderAdminUsuarios();
+      else if (state.tela === 'lista') renderLista();
       else if (state.tela === 'form-inicial') renderFormInicial();
       else if (state.tela === 'checklist') renderChecklist();
       else if (state.tela === 'resultado') renderResultado();
@@ -1394,7 +1442,7 @@
       else if (state.tela === 'config-naturezas') renderConfigNaturezas();
     }
 
-    /* Tela de carregamento de #admin?avp=<chave> (F5, link direto, nova aba)
+    /* Tela de carregamento de #avaliacoes?avp=<chave> (F5, link direto, nova aba)
        enquanto a leitura de avaliacoes-produto ainda não respondeu. Sem isto,
        a primeira renderização (antes de qualquer dado chegar) caía no
        default 'lista' e mostrava "0 avaliações registradas" + "+ Avaliar
@@ -1426,15 +1474,16 @@
       });
     }
 
-    /* ===================== ROTA PERSISTENTE (#admin?avp=<key>) =====================
+    /* ===================== ROTA PERSISTENTE (#avaliacoes?avp=<key>) =====================
        A tela de resultado é um registro consultável, não uma página de
        transição — precisa sobreviver a F5, funcionar com link copiado/aberto
        em outra aba, e reagir ao botão voltar/avançar do navegador. O router
-       central (router.js) só entende páginas fixas (#admin, #home…) e ignora
+       central (router.js) só entende páginas fixas (#avaliacoes, #home…) e ignora
        tudo depois de "?" ao decidir qual página mostrar — por isso o `?avp=`
-       vive dentro do MESMO hash de #admin, sem exigir nenhuma rota nova ali:
-       o router mostra #admin normalmente, e este módulo lê o parâmetro para
-       decidir se mostra a lista ou uma avaliação específica dela.
+       vive dentro do MESMO hash de #avaliacoes: o router mostra a página
+       normalmente, e este módulo lê o parâmetro para decidir se mostra a
+       lista ou uma avaliação específica dela. Links antigos (#admin?avp=…,
+       de quando isto morava no Admin) são redirecionados pelo router.
        form-inicial/checklist (edição em andamento, nunca salva) ficam DE
        PROPÓSITO fora dessa persistência — só a tela de RESULTADO (um
        registro já salvo) precisa sobreviver a F5/link/histórico. */
@@ -1451,41 +1500,12 @@
     }
     function avpKeyDaHash() { return paramsDaHash().avp || null; }
     function irParaAvaliacaoNaHash(key) {
-      var novo = '#admin?avp=' + encodeURIComponent(key);
+      var novo = '#avaliacoes?avp=' + encodeURIComponent(key);
       if (location.hash !== novo) location.hash = novo; /* empilha uma entrada nova no histórico — permite "voltar" do navegador */
     }
     function irParaListaNaHash() {
-      if (location.hash !== '#admin') location.hash = '#admin';
-    }
-    /* CAUSA RAIZ (F5/link direto para uma avaliação específica, achada por
-       instrumentação, não suposição): onPageInit('admin', initAdmin), em
-       admin.js, chama initAdmin() de forma SÍNCRONA quando a página 'admin'
-       já é a atual — o que é exatamente o caso de um F5 em #admin?avp=...,
-       porque router.js já rodou show('admin') antes de admin.js registrar
-       seu init. Se a sessão do Firebase Auth já tiver resolvido a essa
-       altura (sessão "quente"/cache — comum, não hipotético: confirmado
-       ocorrendo sob condições normais de mock local, e Firebase Auth real
-       também pode resolver antes do DOMContentLoaded terminar de disparar
-       para todos os scripts), essa chamada síncrona atravessa toda a cadeia
-       initAdmin → faInitAvaliacaoProduto → sincronizarComHash →
-       ativarAbaArquitetura ANTES de admin.js chegar às linhas seguintes da
-       MESMA função, que são as que registram os addEventListener('click')
-       dos botões de aba (inclusive o desta aba). Um btn.click() disparado
-       aqui não tem NENHUM listener ainda — é um no-op silencioso: a
-       avaliação carrega certinho por trás, mas a aba errada (a que já
-       estava marcada 'active' no HTML estático) continua visível, e a
-       pessoa vê a URL certa com o conteúdo errado. Por isso a ativação é
-       feita diretamente aqui (mesma lógica do handler de clique em
-       admin.js), em vez de depender de um listener que pode ainda não
-       existir. */
-    function ativarAbaArquitetura() {
-      var btn = document.querySelector('.admin-tab-btn[data-panel="adminPanelArquitetura"]');
-      if (!btn || btn.classList.contains('active')) return;
-      document.querySelectorAll('.admin-tab-btn').forEach(function (b) { b.classList.remove('active'); });
-      document.querySelectorAll('.admin-tab-panel').forEach(function (p) { p.classList.remove('active'); });
-      btn.classList.add('active');
-      var painel = document.getElementById('adminPanelArquitetura');
-      if (painel) painel.classList.add('active');
+      if (modo !== 'operacional') return;
+      if (location.hash !== '#avaliacoes') location.hash = '#avaliacoes';
     }
     /* Reage tanto à carga inicial quanto a QUALQUER mudança de hash (botão
        voltar/avançar do navegador, link colado). Deliberadamente não mexe
@@ -1493,6 +1513,7 @@
        checklist) sem gravação: perder um rascunho por causa de uma mudança
        de hash que a própria pessoa não pediu seria pior do que ignorá-la. */
     function sincronizarComHash() {
+      if (modo !== 'operacional') return; /* o bloco do Admin não tem rota própria */
       if (state.tela === 'form-inicial' || state.tela === 'checklist') return;
       var key = avpKeyDaHash();
       if (!key) {
@@ -1503,7 +1524,6 @@
         }
         return;
       }
-      ativarAbaArquitetura();
       if (state.tela === 'resultado' && state.atual && state.atual._key === key) return; /* já é esta mesma avaliação — nada a fazer */
       if (!state.itensCarregados) return; /* os dados ainda não chegaram — a própria carga chama isto de novo ao terminar */
       if (state.erroCarga === 'permissao') { state.tela = 'sem-permissao'; render(); return; }
@@ -1523,7 +1543,7 @@
       state.tela = 'resultado';
       render();
     }
-    window.addEventListener('hashchange', sincronizarComHash);
+    if (modo === 'operacional') window.addEventListener('hashchange', sincronizarComHash);
 
     /* O catálogo de naturezas complementares chega (ou muda) depois do
        primeiro render: quem está olhando um resultado precisa ver o seletor
@@ -1559,6 +1579,11 @@
     }
 
     /* ===================== LISTA ===================== */
+    /* Algum filtro fora do valor "todos" (a pesquisa por texto é da Fase 2). */
+    function filtrosAtivos() {
+      var f = state.filtro;
+      return f.resultado !== 'todos' || f.status !== 'todos' || f.alterado !== 'todos' || f.alternativa !== 'todos' || f.motor !== 'todos';
+    }
     function itemPassaFiltro(it) {
       if (temVersaoMaisNova(it._key)) return false;
       if (state.lixeira) return !!it.excluido;
@@ -1593,7 +1618,7 @@
        uma fresta quando o que vem antes já ocupa a tela toda. No celular
        (≤ 640 px) a tabela vira cartões e o CSS ignora esta variável. */
     function ajustarAlturaTabela() {
-      var el = document.querySelector('#adminAvaliacaoProduto .avp-tabela-scroll');
+      var el = document.querySelector('#avaliacoesPainel .avp-tabela-scroll');
       if (!el || !el.offsetParent) return;
       var nav = document.querySelector('.nav');
       var barraFixa = (nav ? nav.offsetHeight : 64) + 8;
@@ -1630,28 +1655,38 @@
 
       html += '<div class="avp-actions-bar">';
       html += '<span class="avp-total">' + ativos.length + ' avaliaç' + (ativos.length === 1 ? 'ão' : 'ões') + ' registrada' + (ativos.length === 1 ? '' : 's') + '</span>';
-      if (!state.lixeira) html += '<button class="btn btn--primary" id="avpNovoBtn">+ Avaliar novo item</button>';
-      if (!state.lixeira) {
+      if (!state.lixeira && pode('avaliador')) html += '<button class="btn btn--primary" id="avpNovoBtn">+ Avaliar novo item</button>';
+      if (!state.lixeira && pode('gestor')) {
         html += '<div class="avp-exportar-wrap">';
         html += '<button class="btn btn--sm" id="avpExportarBtn"' + (state.exportando ? ' disabled' : '') + '>' +
           (state.exportando ? 'Gerando arquivo…' : 'Exportar ▾') + '</button>';
         if (state.menuExportarAberto) {
           html += '<div class="avp-exportar-menu" id="avpExportarMenu">';
+          /* "Resultados filtrados" = o que a tela mostra agora (pesquisa e filtros aplicados). */
+          var concluidasFiltradas = filtrados.filter(function (it) { return it.status === 'concluido'; });
+          var concluidasSelecionadas = chavesSelecionadas.map(function (k) { return buscarItem(k); }).filter(function (it) { return it && it.status === 'concluido'; });
+          html += '<p class="avp-exportar-escopo">Consulta atual: <strong>' + filtrados.length + '</strong> avaliaç' + (filtrados.length === 1 ? 'ão' : 'ões') +
+            (filtrosAtivos() ? ' (com os filtros aplicados)' : ' (sem filtros)') + '</p>';
           html += '<button type="button" class="btn" id="avpExportarExcelFiltrados">📊 Excel — resultados filtrados (' + filtrados.length + ')</button>';
           html += '<button type="button" class="btn" id="avpExportarExcelTodas">📊 Excel — todas as avaliações (' + ativos.length + ')</button>';
-          if (chavesSelecionadas.length) {
-            html += '<button type="button" class="btn" id="avpExportarPdfSelecionadas">📄 PDF das selecionadas (' + chavesSelecionadas.length + ')</button>';
+          if (concluidasFiltradas.length) {
+            html += '<button type="button" class="btn" id="avpExportarPdfFiltrados">📄 PDFs — todas do resultado atual (' + concluidasFiltradas.length + ' concluída' + (concluidasFiltradas.length === 1 ? '' : 's') + ')</button>';
           }
+          if (concluidasSelecionadas.length) {
+            html += '<button type="button" class="btn" id="avpExportarPdfSelecionadas">📄 PDFs — só as selecionadas (' + concluidasSelecionadas.length + ')</button>';
+          }
+          html += '<p class="avp-exportar-nota">Os PDFs saem num único arquivo, uma avaliação após a outra, no mesmo formato do PDF individual. Rascunhos não entram (ainda não têm resultado).</p>';
           html += '</div>';
         }
         html += '</div>';
       }
-      html += '<button class="btn btn--sm avp-lixeira-btn' + (state.lixeira ? ' active' : '') + '" id="avpLixeiraBtn">' +
-        (state.lixeira ? '‹ Voltar' : '🗑 Lixeira (' + excluidos.length + ')') + '</button>';
-      if (!state.lixeira) html += '<button class="btn btn--sm" id="avpConfigQuestionariosBtn">⚙ Configuração dos Questionários</button>';
-      if (!state.lixeira) html += '<button class="btn btn--sm" id="avpConfigMotoresBtn">⚙ Configuração dos Motores</button>';
-      if (!state.lixeira) html += '<button class="btn btn--sm" id="avpConfigNaturezasBtn">⚙ Naturezas complementares</button>';
-      if (!state.lixeira && window.faAvaliacaoSquad) html += '<button class="btn btn--sm" id="avpAdequacaoSquadListaBtn">🧭 Adequação à Squad</button>';
+      /* Lixeira: só o gestor exclui/restaura. As configurações (questionários,
+         motores, naturezas, adequação à squad) NÃO aparecem mais aqui — ficam
+         exclusivamente no Admin. */
+      if (pode('gestor')) {
+        html += '<button class="btn btn--sm avp-lixeira-btn' + (state.lixeira ? ' active' : '') + '" id="avpLixeiraBtn">' +
+          (state.lixeira ? '‹ Voltar' : '🗑 Lixeira (' + excluidos.length + ')') + '</button>';
+      }
       html += '</div>';
       if (state.flashExportacao) {
         html += '<p class="avp-export-status' + (state.flashExportacao.erro ? ' avp-export-status--erro' : '') + '">' +
@@ -1662,7 +1697,7 @@
          item / Exportar / Lixeira) e dos filtros — pedido explícito de não
          competir visualmente com nenhum dos dois. Só existe fora da lixeira,
          igual ao resto das ações de lote. */
-      if (!state.lixeira) {
+      if (!state.lixeira && pode('gestor')) {
         var concluidas = ativos.filter(function (it) { return it.status === 'concluido'; });
         var elegiveisLote = concluidas.filter(elegivelParaReprocessamentoEmLote);
         var elegiveisReconciliacao = concluidas.filter(elegivelParaReconciliacaoEmLote);
@@ -1676,23 +1711,30 @@
       if (state.lixeira) {
         html += '<p class="avp-lixeira-aviso">🗑 Mostrando avaliações excluídas. Elas não são apagadas do banco — use "↺ Restaurar" para trazer de volta.</p>';
       } else {
+        /* Cada filtro com o PRÓPRIO rótulo visível: "Resultado Produto/Serviço"
+           (se o item É ou não Produto/Serviço — decisão final) e "Classificação
+           arquitetural" (a camada identificada, ex.: Componente, Canal) são
+           conceitos diferentes e não podem parecer o mesmo filtro. Os valores
+           são só os que o sistema realmente grava. */
         html += '<div class="avp-filters">';
         html += filtroSelect('avpFiltroResultado', state.filtro.resultado, [
-          ['todos', 'Todos os resultados'], ['produto', 'É Produto/Serviço'], ['nao-produto', 'Não é Produto/Serviço Principal'], ['a-validar', 'A validar']
-        ]);
-        html += filtroSelect('avpFiltroStatus', state.filtro.status, [
-          ['todos', 'Todos os status'], ['rascunho', 'Rascunho'], ['concluido', 'Concluído']
-        ]);
-        html += filtroSelect('avpFiltroAlterado', state.filtro.alterado, [
-          ['todos', 'Decisão automática ou manual'], ['sim', 'Alterado manualmente']
-        ]);
-        html += filtroSelect('avpFiltroAlternativa', state.filtro.alternativa, [['todos', 'Todas as classificações arquiteturais']].concat(
+          ['todos', 'Todos'], ['produto', 'É Produto/Serviço'], ['nao-produto', 'Não é Produto/Serviço Principal'], ['a-validar', 'A validar']
+        ], 'Resultado Produto/Serviço');
+        html += filtroSelect('avpFiltroAlternativa', state.filtro.alternativa, [['todos', 'Todas']].concat(
           CAMADAS.map(function (c) { return [c.label, c.label]; })
-        ));
+        ), 'Classificação arquitetural');
+        html += filtroSelect('avpFiltroStatus', state.filtro.status, [
+          ['todos', 'Todos'], ['rascunho', 'Rascunho'], ['concluido', 'Concluído']
+        ], 'Status');
+        html += filtroSelect('avpFiltroAlterado', state.filtro.alterado, [
+          ['todos', 'Automática ou manual'], ['sim', 'Alterada manualmente']
+        ], 'Decisão final');
         html += filtroSelect('avpFiltroMotor', state.filtro.motor, [
-          ['todos', 'Motor: todas'], ['desatualizado', 'Motor desatualizado'], ['equivalente', 'Versão anterior equivalente'], ['atual', 'Motor atual']
-        ]);
+          ['todos', 'Todas'], ['desatualizado', 'Motor desatualizado'], ['equivalente', 'Versão anterior equivalente'], ['atual', 'Motor atual']
+        ], 'Versão do motor');
         html += '</div>';
+        html += '<p class="avp-filtros-ajuda">O <strong>resultado Produto/Serviço</strong> diz se o item é ou não Produto/Serviço principal; a ' +
+          '<strong>classificação arquitetural</strong> diz que camada ele ocupa (Componente, Canal, Processo…). São coisas diferentes e podem ser combinadas.</p>';
       }
 
       if (!filtrados.length) {
@@ -1712,16 +1754,22 @@
         html += '</tbody></table></div>';
       } else {
         var todosFiltradosSelecionados = filtrados.length > 0 && filtrados.every(function (it) { return !!state.selecionados[it._key]; });
+        /* Seleção em lote serve à exportação (gestor); "⋯" só tem ações de
+           quem avalia ou gere — consulta só abre. */
+        var podeSelecionar = pode('gestor');
+        var podeMais = pode('avaliador');
         html += '<div class="table-scroll-wrap avp-tabela-scroll"><table class="admin-table avp-table"><thead><tr>' +
-          '<th class="avp-check-col"><input type="checkbox" id="avpSelecionarTodos"' + (todosFiltradosSelecionados ? ' checked' : '') + ' aria-label="Selecionar todas as avaliações filtradas"></th>' +
+          (podeSelecionar ? '<th class="avp-check-col"><input type="checkbox" id="avpSelecionarTodos"' + (todosFiltradosSelecionados ? ' checked' : '') + ' aria-label="Selecionar todas as avaliações filtradas"></th>' : '') +
           '<th class="avp-col-item">Item</th><th class="avp-col-res">Resultado automático</th><th class="avp-col-dec">Decisão final</th><th class="avp-col-camada">Classificação arquitetural</th><th class="avp-col-natureza">Natureza</th>' +
           '<th class="avp-col-resp">Responsável</th><th class="avp-col-data">Data</th><th class="avp-col-status">Status</th><th class="avp-col-acoes">Ações</th></tr></thead><tbody>';
         filtrados.forEach(function (it) {
           var decisao = it.decisaoFinal || it.resultadoAutomatico;
           var camadaLabel = (it.camadaSugerida && it.camadaSugerida.label) || '—';
           html += '<tr>';
-          html += '<td class="avp-check-col"><input type="checkbox" class="avp-check-item" data-key="' + it._key + '"' +
-            (state.selecionados[it._key] ? ' checked' : '') + ' aria-label="Selecionar ' + esc(it.nome) + '"></td>';
+          if (podeSelecionar) {
+            html += '<td class="avp-check-col"><input type="checkbox" class="avp-check-item" data-key="' + it._key + '"' +
+              (state.selecionados[it._key] ? ' checked' : '') + ' aria-label="Selecionar ' + esc(it.nome) + '"></td>';
+          }
           html += '<td class="avp-col-item" data-label="Item">' + esc(it.nome) + (it.versao > 1 ? ' <span class="avp-tag-versao">v' + it.versao + '</span>' : '') + '</td>';
           html += '<td class="avp-col-res" data-label="Resultado automático">' + resultadoBadge(it.resultadoAutomatico) + '</td>';
           html += '<td class="avp-col-dec" data-label="Decisão final">' + resultadoBadge(decisao) + (it.decisaoManual ? ' <span class="avp-tag-alterado">alterada</span>' : '') + '</td>';
@@ -1734,10 +1782,10 @@
           html += '<td class="avp-col-acoes" data-label="Ações"><div class="avp-row-actions">';
           if (it.status === 'concluido') {
             html += '<button class="btn btn--sm btn--primary avp-act-ver" data-key="' + it._key + '">Visualizar</button>';
-          } else {
+          } else if (podeMais) {
             html += '<button class="btn btn--sm btn--primary avp-act-editar" data-key="' + it._key + '">Continuar</button>';
           }
-          html += '<button class="btn btn--sm avp-act-mais" data-key="' + it._key + '" aria-label="Mais ações">⋯</button>';
+          if (podeMais) html += '<button class="btn btn--sm avp-act-mais" data-key="' + it._key + '" aria-label="Mais ações">⋯</button>';
           html += '</div></td>';
           html += '</tr>';
         });
@@ -1762,24 +1810,14 @@
       var flashListaClose = document.getElementById('avpFlashListaClose');
       if (flashListaClose) flashListaClose.addEventListener('click', function () { state.flashLista = null; render(); });
 
-      document.getElementById('avpLixeiraBtn').addEventListener('click', function () {
+      var lixeiraBtnEl = document.getElementById('avpLixeiraBtn');
+      if (lixeiraBtnEl) lixeiraBtnEl.addEventListener('click', function () {
         state.lixeira = !state.lixeira;
         state.flashLista = null;
         state.selecionados = {};
         state.menuExportarAberto = false;
         render();
       });
-
-      var configBtn = document.getElementById('avpConfigQuestionariosBtn');
-      if (configBtn) configBtn.addEventListener('click', abrirConfigQuestionarios);
-
-      var configMotoresBtn = document.getElementById('avpConfigMotoresBtn');
-      if (configMotoresBtn) configMotoresBtn.addEventListener('click', abrirConfigMotores);
-      var configNaturezasBtn = document.getElementById('avpConfigNaturezasBtn');
-      if (configNaturezasBtn) configNaturezasBtn.addEventListener('click', abrirConfigNaturezas);
-
-      var squadListaBtn = document.getElementById('avpAdequacaoSquadListaBtn');
-      if (squadListaBtn) squadListaBtn.addEventListener('click', function () { window.faAvaliacaoSquad.abrirLista(); });
 
       var reprocessarTudoBtn = document.getElementById('avpReprocessarTudoBtn');
       if (reprocessarTudoBtn) reprocessarTudoBtn.addEventListener('click', abrirModalAtualizarMotor);
@@ -1852,9 +1890,16 @@
       });
       var exportarPdfSelecionadas = document.getElementById('avpExportarPdfSelecionadas');
       if (exportarPdfSelecionadas) exportarPdfSelecionadas.addEventListener('click', function () {
-        var itensSelecionados = chavesSelecionadas.map(function (k) { return buscarItem(k); }).filter(Boolean);
+        var itensSelecionados = chavesSelecionadas.map(function (k) { return buscarItem(k); })
+          .filter(function (it) { return it && it.status === 'concluido'; });
         if (!itensSelecionados.length) return;
-        executarExportacaoPdfLista(itensSelecionados);
+        executarExportacaoPdfLista(itensSelecionados, 'Selecionadas');
+      });
+      var exportarPdfFiltrados = document.getElementById('avpExportarPdfFiltrados');
+      if (exportarPdfFiltrados) exportarPdfFiltrados.addEventListener('click', function () {
+        var itensFiltrados = filtrados.filter(function (it) { return it.status === 'concluido'; });
+        if (!itensFiltrados.length) return;
+        executarExportacaoPdfLista(itensFiltrados, filtrosAtivos() ? 'Filtradas' : 'Todas');
       });
     }
 
@@ -1876,14 +1921,14 @@
         render();
       });
     }
-    function executarExportacaoPdfLista(itensSelecionados) {
+    function executarExportacaoPdfLista(itensSelecionados, escopo) {
       if (state.exportando) return;
       state.exportando = 'pdf';
       state.menuExportarAberto = false;
       state.flashExportacao = null;
       render();
       var nome = itensSelecionados.length === 1 ? nomeArquivoPdf(itensSelecionados[0])
-        : 'Avaliacoes_Produto_Servico_Selecionadas_' + dataParaNomeArquivo() + '.pdf';
+        : 'Avaliacoes_Produto_Servico_' + (escopo || 'Selecionadas') + '_' + dataParaNomeArquivo() + '.pdf';
       gerarPdf(itensSelecionados, nome, function (erro) {
         state.exportando = null;
         state.flashExportacao = erro
@@ -1894,12 +1939,13 @@
       });
     }
 
-    function filtroSelect(id, valorAtual, opcoes) {
-      var html = '<select class="avp-select" id="' + id + '">';
+    function filtroSelect(id, valorAtual, opcoes, rotulo) {
+      var html = '<div class="avp-filtro"><label class="avp-filtro-rotulo" for="' + id + '">' + esc(rotulo) + '</label>';
+      html += '<select class="avp-select" id="' + id + '">';
       opcoes.forEach(function (o) {
         html += '<option value="' + esc(o[0]) + '"' + (o[0] === valorAtual ? ' selected' : '') + '>' + esc(o[1]) + '</option>';
       });
-      html += '</select>';
+      html += '</select></div>';
       return html;
     }
     function resultadoBadge(v) {
@@ -2070,7 +2116,7 @@
     }
     function fecharConfigQuestionarios() {
       state.config = null;
-      state.tela = 'lista';
+      state.tela = telaInicial();
       render();
     }
     function abrirEdicaoQuestionario(codigo) {
@@ -2095,7 +2141,7 @@
     function renderConfigQuestionarios() {
       var c = state.config;
       var html = '<div class="avp-config-questionarios">';
-      html += '<button class="avp-voltar-link" id="avpConfigVoltar">‹ Avaliações de Produto/Serviço</button>';
+      html += '<button class="avp-voltar-link" id="avpConfigVoltar">‹ Avaliação de Produto/Serviço (Admin)</button>';
       if (c.sub === 'lista') html += renderConfigLista();
       else if (c.sub === 'editar') html += renderConfigEditar();
       else if (c.sub === 'auditoria') html += renderConfigAuditoria();
@@ -2405,21 +2451,26 @@
       box.style.cssText = 'max-width:360px;width:90%;padding:24px;display:flex;flex-direction:column;gap:14px';
       var html = '<p class="avp-menu-acoes-titulo">' + esc(it.nome) + '</p>';
       html += '<div class="avp-menu-acoes-lista">';
-      if (it.status === 'concluido') {
-        html += '<button class="btn avp-menu-item" data-acao="reavaliar">Reavaliar</button>';
-      } else {
-        html += '<button class="btn avp-menu-item" data-acao="editar">Editar</button>';
+      /* Só as ações que o PERFIL permite (o banco também recusa o resto):
+         avaliador reavalia/edita/duplica e vê o histórico; o gestor também
+         bloqueia reprocessamento e exclui. */
+      if (pode('avaliador')) {
+        if (it.status === 'concluido') {
+          html += '<button class="btn avp-menu-item" data-acao="reavaliar">Reavaliar</button>';
+        } else {
+          html += '<button class="btn avp-menu-item" data-acao="editar">Editar</button>';
+        }
+        html += '<button class="btn avp-menu-item" data-acao="duplicar">Duplicar</button>';
+        if (it.versaoAnteriorKey) {
+          html += '<button class="btn avp-menu-item" data-acao="historico">🕘 Ver histórico</button>';
+        }
       }
-      html += '<button class="btn avp-menu-item" data-acao="duplicar">Duplicar</button>';
-      if (it.versaoAnteriorKey) {
-        html += '<button class="btn avp-menu-item" data-acao="historico">🕘 Ver histórico</button>';
-      }
-      if (it.status === 'concluido') {
+      if (it.status === 'concluido' && pode('gestor')) {
         html += it.bloqueadaParaReprocessamentoAutomatico
           ? '<button class="btn avp-menu-item" data-acao="desbloquear">🔓 Desbloquear reprocessamento automático</button>'
           : '<button class="btn avp-menu-item" data-acao="bloquear">🔒 Bloquear reprocessamento automático</button>';
       }
-      html += '<button class="btn avp-menu-item avp-menu-item--perigo" data-acao="excluir">🗑 Excluir</button>';
+      if (pode('gestor')) html += '<button class="btn avp-menu-item avp-menu-item--perigo" data-acao="excluir">🗑 Excluir</button>';
       html += '</div>';
       html += '<button class="btn" id="avpMenuAcoesFechar">Cancelar</button>';
       box.innerHTML = html;
@@ -2629,6 +2680,230 @@
        botão que chama window.faAvaliacaoSquad.abrirMotorConfig(). */
     var CAMADAS_LABEL_POR_ID = {};
     CAMADAS.forEach(function (c) { CAMADAS_LABEL_POR_ID[c.id] = c.label; });
+    /* ===================== ÁREA OPERACIONAL: SEM ACESSO ===================== */
+    function renderSemAcessoArea() {
+      wrap.innerHTML = '<div class="avp-form-card"><p class="admin-empty">Você não tem acesso à Avaliação de Produto/Serviço. ' +
+        'Peça a um administrador para liberar o seu acesso.</p></div>';
+    }
+
+    /* ===================== ADMIN: INÍCIO DO BLOCO "AVALIAÇÃO DE PRODUTO/SERVIÇO" =====================
+       Só parametrização e governança — nada de avaliar aqui. O trabalho do dia
+       a dia (consultar, avaliar, reavaliar) fica na área AVALIAÇÃO do menu. */
+    function renderAdminInicio() {
+      var html = '<div class="avp-form-card avp-admin-inicio">';
+      html += '<h4>Avaliação de Produto/Serviço</h4>';
+      html += '<p class="avp-decisao-aviso">Parametrização da funcionalidade. Consultar e realizar avaliações é feito na área <strong>Avaliação</strong> do menu principal.</p>';
+      html += '<div class="avp-admin-cards">';
+      html += '<button type="button" class="avp-admin-card" id="avpConfigQuestionariosBtn"><strong>Configuração dos Questionários</strong><span>Redação das perguntas e justificativas, com versões e auditoria.</span></button>';
+      html += '<button type="button" class="avp-admin-card" id="avpConfigMotoresBtn"><strong>Configuração dos Motores</strong><span>Regras que classificam os itens, com simulação e versões.</span></button>';
+      html += '<button type="button" class="avp-admin-card" id="avpConfigNaturezasBtn"><strong>Naturezas complementares</strong><span>Opções do campo opcional de descrição do item.</span></button>';
+      if (window.faAvaliacaoSquad) html += '<button type="button" class="avp-admin-card" id="avpAdequacaoSquadListaBtn"><strong>Adequação à Squad</strong><span>Avaliação de adequação à gestão por squad e o seu motor.</span></button>';
+      html += '</div></div>';
+      html += '<div class="avp-form-card avp-admin-inicio">';
+      html += '<h4>Acessos e permissões</h4>';
+      html += '<div class="avp-admin-cards">';
+      html += '<button type="button" class="avp-admin-card" id="avpUsuariosBtn"><strong>Usuários e permissões</strong><span>Quem pode consultar, avaliar ou gerir as avaliações — e quem é administrador.</span></button>';
+      html += '</div></div>';
+      wrap.innerHTML = html;
+      document.getElementById('avpConfigQuestionariosBtn').addEventListener('click', abrirConfigQuestionarios);
+      document.getElementById('avpConfigMotoresBtn').addEventListener('click', abrirConfigMotores);
+      document.getElementById('avpConfigNaturezasBtn').addEventListener('click', abrirConfigNaturezas);
+      var squadBtn = document.getElementById('avpAdequacaoSquadListaBtn');
+      if (squadBtn) squadBtn.addEventListener('click', function () { window.faAvaliacaoSquad.abrirLista(); });
+      document.getElementById('avpUsuariosBtn').addEventListener('click', abrirAdminUsuarios);
+    }
+
+    /* ===================== ADMIN: USUÁRIOS E PERMISSÕES =====================
+       Perfil na Avaliação de Produto/Serviço (fa-avaliacao-acessos) e acesso
+       administrativo são permissões INDEPENDENTES: ser admin não torna ninguém
+       avaliador e ser avaliador não torna ninguém admin. Transição: um admin
+       que ainda não tem registro aparece como "Gestor da Avaliação (padrão)" —
+       é o acesso que já tinha; escolher um perfil aqui grava o registro
+       explícito (que passa a valer no lugar do padrão).
+       Quem abre esta tela é admin e as regras do banco deixam qualquer admin
+       gravar perfis. Já o acesso administrativo (fa-admins) só os dois
+       super-admins gravam — para os demais esta coluna é só consulta. */
+    var PERFIS_AVALIACAO = [
+      { id: 'nenhum', rotulo: 'Sem acesso' },
+      { id: 'consulta', rotulo: 'Consulta' },
+      { id: 'avaliador', rotulo: 'Avaliador' },
+      { id: 'gestor', rotulo: 'Gestor da Avaliação' }
+    ];
+    function semAcento(t) { return String(t || '').normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase(); }
+    function abrirAdminUsuarios() {
+      state.usuarios = { carregando: true, erro: null, lento: false, lista: [], busca: '', salvando: {}, avisos: {}, flash: null };
+      state.tela = 'admin-usuarios';
+      render();
+      carregarUsuarios();
+    }
+    function carregarUsuarios() {
+      var u = state.usuarios;
+      var dados = { users: null, acessos: null, admins: null };
+      var falhou = false;
+      var relogio = setTimeout(function () { if (u.carregando) { u.lento = true; if (state.tela === 'admin-usuarios') render(); } }, 10000);
+      function fim() {
+        if (falhou || dados.users === null || dados.acessos === null || dados.admins === null) return;
+        clearTimeout(relogio);
+        var porChave = {};
+        function entrada(key, email, nome) {
+          if (!porChave[key]) porChave[key] = { key: key, email: email || '', nome: nome || '', registro: null, admin: false, superAdmin: false };
+          if (email && !porChave[key].email) porChave[key].email = email;
+          if (nome && !porChave[key].nome) porChave[key].nome = nome;
+          return porChave[key];
+        }
+        Object.keys(dados.users).forEach(function (k) { var v = dados.users[k] || {}; entrada(k, v.email, v.name); });
+        Object.keys(dados.acessos).forEach(function (k) { var v = dados.acessos[k] || {}; entrada(k, v.email, v.nome).registro = v.perfil || null; });
+        Object.keys(dados.admins).forEach(function (k) { var v = dados.admins[k] || {}; entrada(k, v.email, v.name).admin = true; });
+        ['tatianefdirene@previ.com.br', 'danielfrazao@previ.com.br'].forEach(function (em) {
+          var e = entrada(em.replace(/[@.]/g, '_'), em, ''); e.admin = true; e.superAdmin = true;
+        });
+        u.lista = Object.keys(porChave).map(function (k) { return porChave[k]; })
+          .filter(function (x) { return x.email; })
+          .sort(function (a, b) { return (a.nome || a.email).localeCompare(b.nome || b.email, 'pt'); });
+        u.carregando = false;
+        if (state.tela === 'admin-usuarios') render();
+      }
+      function falha(err) {
+        if (falhou) return;
+        falhou = true;
+        clearTimeout(relogio);
+        console.error('[avaliacao-produto] erro ao carregar usuários e permissões:', err);
+        u.carregando = false;
+        u.erro = 'Não foi possível carregar os usuários. Recarregue a página.';
+        if (state.tela === 'admin-usuarios') render();
+      }
+      db().ref('fa-users').once('value', function (snap) { dados.users = snap.val() || {}; fim(); }, falha);
+      db().ref('fa-avaliacao-acessos').once('value', function (snap) { dados.acessos = snap.val() || {}; fim(); }, falha);
+      db().ref('fa-admins').once('value', function (snap) { dados.admins = snap.val() || {}; fim(); }, falha);
+    }
+    function perfilExibido(x) { return x.registro || (x.admin ? 'gestor' : 'nenhum'); }
+    function linhasUsuarios() {
+      var u = state.usuarios;
+      var q = semAcento(u.busca).trim();
+      var souSuper = !!(window.faAuth && window.faAuth.isSuperAdmin && window.faAuth.isSuperAdmin((window.faAuth.getSession() || {}).email));
+      var lista = u.lista.filter(function (x) { return !q || semAcento(x.nome).indexOf(q) !== -1 || semAcento(x.email).indexOf(q) !== -1; });
+      if (!lista.length) return '<tr><td colspan="3" class="admin-empty">Nenhum usuário encontrado.</td></tr>';
+      return lista.map(function (x) {
+        var atual = perfilExibido(x);
+        var ocupado = !!u.salvando[x.key];
+        var opcoes = PERFIS_AVALIACAO.map(function (p) {
+          return '<option value="' + p.id + '"' + (p.id === atual ? ' selected' : '') + '>' + esc(p.rotulo) + '</option>';
+        }).join('');
+        var h = '<tr data-key="' + esc(x.key) + '">';
+        h += '<td data-label="Usuário"><strong>' + esc(x.nome || x.email) + '</strong><br><span class="avp-usuario-email">' + esc(x.email) + '</span></td>';
+        h += '<td data-label="Perfil de avaliação"><select class="avp-select avp-usuario-perfil" data-key="' + esc(x.key) + '"' + (ocupado ? ' disabled' : '') + ' aria-label="Perfil de avaliação de ' + esc(x.nome || x.email) + '">' + opcoes + '</select>';
+        if (!x.registro && x.admin) h += '<br><span class="avp-usuario-aviso">padrão do administrador (ainda sem perfil definido)</span>';
+        if (u.avisos[x.key]) h += '<br><span class="avp-usuario-aviso' + (u.avisos[x.key].erro ? ' avp-usuario-aviso--erro' : '') + '">' + esc(u.avisos[x.key].texto) + '</span>';
+        h += '</td>';
+        h += '<td data-label="Administrador">' + (x.admin ? 'Sim' : 'Não');
+        if (x.superAdmin) h += ' <span class="avp-usuario-aviso">(fixo)</span>';
+        else if (souSuper) h += ' <button type="button" class="btn btn--sm avp-usuario-admin" data-key="' + esc(x.key) + '"' + (ocupado ? ' disabled' : '') + '>' + (x.admin ? 'Remover' : 'Tornar administrador') + '</button>';
+        h += '</td></tr>';
+        return h;
+      }).join('');
+    }
+    function renderAdminUsuarios() {
+      var u = state.usuarios;
+      var souSuper = !!(window.faAuth && window.faAuth.isSuperAdmin && window.faAuth.isSuperAdmin((window.faAuth.getSession() || {}).email));
+      var html = '<button class="avp-voltar-link" id="avpUsuariosVoltar">‹ Avaliação de Produto/Serviço</button>';
+      html += '<div class="avp-form-card"><h3>Usuários e permissões</h3>';
+      html += '<p class="avp-decisao-aviso">Defina quem pode usar a Avaliação de Produto/Serviço. <strong>Consulta</strong> só consulta avaliações concluídas; ' +
+        '<strong>Avaliador</strong> também cria, continua e reavalia; <strong>Gestor da Avaliação</strong> também decide, exclui, reprocessa e exporta. ' +
+        'Ser administrador e ter um perfil de avaliação são permissões independentes.</p>';
+      if (u.carregando) {
+        html += '<p class="loading-msg">' + (u.lento ? 'A conexão está demorando… aguardando os usuários.' : 'Carregando usuários…') + '</p>';
+      } else if (u.erro) {
+        html += '<p class="avp-error-msg">' + esc(u.erro) + '</p>';
+      } else {
+        if (u.flash) html += '<p class="avp-flash-success avp-flash-success--inline" id="avpUsuariosFlash">' + esc(u.flash) + '</p>';
+        html += '<div class="avp-field"><label for="avpUsuariosBusca">Pesquisar usuário</label>' +
+          '<input type="search" id="avpUsuariosBusca" placeholder="Nome ou e-mail" value="' + esc(u.busca) + '" autocomplete="off"></div>';
+        html += '<div class="table-scroll-wrap"><table class="admin-table avp-table avp-usuarios-tabela"><thead><tr>' +
+          '<th>Usuário</th><th>Perfil de avaliação</th><th>Administrador</th></tr></thead><tbody id="avpUsuariosCorpo">' + linhasUsuarios() + '</tbody></table></div>';
+        if (!souSuper) html += '<p class="avp-natureza-ajuda">Só os super-admins adicionam ou removem administradores; o perfil de avaliação qualquer administrador altera.</p>';
+      }
+      html += '</div>';
+      wrap.innerHTML = html;
+      document.getElementById('avpUsuariosVoltar').addEventListener('click', function () { state.tela = 'admin-inicio'; state.usuarios = null; render(); });
+      var busca = document.getElementById('avpUsuariosBusca');
+      if (busca) busca.addEventListener('input', function () {
+        u.busca = busca.value;
+        document.getElementById('avpUsuariosCorpo').innerHTML = linhasUsuarios();
+        ligarLinhasUsuarios();
+      });
+      ligarLinhasUsuarios();
+    }
+    function ligarLinhasUsuarios() {
+      wrap.querySelectorAll('.avp-usuario-perfil').forEach(function (sel) {
+        sel.addEventListener('change', function () { salvarPerfilUsuario(sel.dataset.key, sel.value); });
+      });
+      wrap.querySelectorAll('.avp-usuario-admin').forEach(function (btn) {
+        btn.addEventListener('click', function () { alternarAdminUsuario(btn.dataset.key); });
+      });
+    }
+    function usuarioPorChave(key) { return (state.usuarios && state.usuarios.lista || []).filter(function (x) { return x.key === key; })[0]; }
+    /* Grava o registro explícito do perfil (o que vale no lugar do padrão do
+       administrador). Confirma só depois da resposta do banco — e volta o
+       seletor ao valor de antes se falhar, em vez de parecer salvo. */
+    function salvarPerfilUsuario(key, perfil) {
+      var u = state.usuarios;
+      var x = usuarioPorChave(key);
+      if (!x || u.salvando[key]) return;
+      var registro = { email: x.email, nome: x.nome || x.email, perfil: perfil, atribuidoPor: sessaoAtual(), atribuidoEm: new Date().toISOString() };
+      u.salvando[key] = true;
+      u.avisos[key] = { texto: 'Salvando…' };
+      document.getElementById('avpUsuariosCorpo').innerHTML = linhasUsuarios(); ligarLinhasUsuarios();
+      var respondido = false;
+      function concluir(err) {
+        if (respondido) return;
+        respondido = true;
+        clearTimeout(relogio);
+        delete u.salvando[key];
+        if (err) {
+          console.error('[avaliacao-produto] erro ao salvar perfil de avaliação:', err);
+          u.avisos[key] = { erro: true, texto: 'Não foi possível salvar. Tente novamente.' };
+        } else {
+          x.registro = perfil;
+          u.avisos[key] = { texto: '✓ Salvo' };
+        }
+        if (state.tela === 'admin-usuarios') { document.getElementById('avpUsuariosCorpo').innerHTML = linhasUsuarios(); ligarLinhasUsuarios(); }
+      }
+      var relogio = setTimeout(function () { concluir(new Error('sem confirmação do servidor')); }, 12000);
+      try { db().ref('fa-avaliacao-acessos/' + key).set(registro, concluir); } catch (e) { concluir(e); }
+    }
+    function alternarAdminUsuario(key) {
+      var u = state.usuarios;
+      var x = usuarioPorChave(key);
+      if (!x || x.superAdmin || u.salvando[key]) return;
+      var tornar = !x.admin;
+      avpConfirm((tornar ? 'Tornar ' : 'Remover ') + (x.nome || x.email) + (tornar ? ' administrador(a)?' : ' dos administradores?'), function () {
+        u.salvando[key] = true;
+        u.avisos[key] = { texto: 'Salvando…' };
+        document.getElementById('avpUsuariosCorpo').innerHTML = linhasUsuarios(); ligarLinhasUsuarios();
+        var respondido = false;
+        function concluir(err) {
+          if (respondido) return;
+          respondido = true;
+          clearTimeout(relogio);
+          delete u.salvando[key];
+          if (err) {
+            console.error('[avaliacao-produto] erro ao alterar acesso administrativo:', err);
+            u.avisos[key] = { erro: true, texto: 'Não foi possível salvar. Tente novamente.' };
+          } else {
+            x.admin = tornar;
+            u.avisos[key] = { texto: '✓ Salvo' };
+          }
+          if (state.tela === 'admin-usuarios') { document.getElementById('avpUsuariosCorpo').innerHTML = linhasUsuarios(); ligarLinhasUsuarios(); }
+        }
+        var relogio = setTimeout(function () { concluir(new Error('sem confirmação do servidor')); }, 12000);
+        try {
+          var ref = db().ref('fa-admins/' + key);
+          if (tornar) ref.set({ email: x.email, name: (x.nome || x.email).toUpperCase(), addedAt: new Date().toISOString() }, concluir);
+          else ref.remove(concluir);
+        } catch (e) { concluir(e); }
+      });
+    }
+
     /* ===================== CONFIGURAÇÃO DAS NATUREZAS COMPLEMENTARES =====================
        Catálogo das opções do campo "Natureza complementar" (ver
        window.faNaturezas): qualquer admin cria, renomeia, descreve, reordena,
@@ -2647,7 +2922,7 @@
       var c = state.configNaturezas;
       var catalogo = window.faNaturezas.estado();
       var todas = window.faNaturezas.todas();
-      var html = '<button class="avp-voltar-link" id="avpNaturezasVoltar">‹ Avaliações de Produto/Serviço</button>';
+      var html = '<button class="avp-voltar-link" id="avpNaturezasVoltar">‹ Avaliação de Produto/Serviço (Admin)</button>';
       html += '<div class="avp-form-card"><h3>⚙ Naturezas complementares</h3>';
       html += '<p class="avp-decisao-aviso">Opções oferecidas no campo "Natureza complementar" de cada avaliação. É só uma descrição manual do item: não entra no motor, não muda respostas nem classificação e não exige reprocessamento. Renomear ou desativar uma opção não altera as avaliações que já a usam — elas guardam o nome da época.</p>';
       if (catalogo === 'carregando') html += '<p class="loading-msg">Carregando opções…</p>';
@@ -2689,7 +2964,7 @@
       }
       wrap.innerHTML = html;
 
-      document.getElementById('avpNaturezasVoltar').addEventListener('click', function () { state.tela = 'lista'; state.configNaturezas = null; render(); });
+      document.getElementById('avpNaturezasVoltar').addEventListener('click', function () { state.tela = telaInicial(); state.configNaturezas = null; render(); });
       wrap.querySelectorAll('.avp-natureza-editar').forEach(function (btn) {
         btn.addEventListener('click', function () {
           var o = window.faNaturezas.porCodigo(btn.dataset.codigo);
@@ -2781,7 +3056,7 @@
     }
     function renderConfigMotores() {
       var c = state.configMotores;
-      var html = '<button class="avp-voltar-link" id="avpMotoresVoltarLista">‹ Avaliações de Produto/Serviço</button>';
+      var html = '<button class="avp-voltar-link" id="avpMotoresVoltarLista">‹ Avaliação de Produto/Serviço (Admin)</button>';
       html += '<div class="avp-config-motores">';
       if (c.sub === 'painel') html += renderMotoresPainel();
       else if (c.sub === 'editar-regras') html += renderMotorArqEditarRegras();
@@ -2793,7 +3068,7 @@
       else if (c.sub === 'versoes') html += renderMotorArqVersoes();
       html += '</div>';
       wrap.innerHTML = html;
-      document.getElementById('avpMotoresVoltarLista').addEventListener('click', function () { state.tela = 'lista'; state.configMotores = null; render(); });
+      document.getElementById('avpMotoresVoltarLista').addEventListener('click', function () { state.tela = telaInicial(); state.configMotores = null; render(); });
       if (c.sub === 'painel') bindMotoresPainel();
       else if (c.sub === 'editar-regras') bindMotorArqEditarRegras();
       else if (c.sub === 'simulacao') bindMotorArqSimulacao();
@@ -2858,7 +3133,7 @@
       });
       var squadBtn = document.getElementById('avpMotorSquadAbrirBtn');
       if (squadBtn) squadBtn.addEventListener('click', function () {
-        state.tela = 'lista'; state.configMotores = null;
+        state.tela = telaInicial(); state.configMotores = null;
         window.faAvaliacaoSquad.abrirMotorConfig();
       });
     }
@@ -3197,7 +3472,8 @@
     /* ===================== FORM INICIAL ===================== */
     function renderFormInicial() {
       var a = state.atual;
-      var html = '<div class="avp-form-card">';
+      var html = '<button class="avp-voltar-link" id="avpVoltarFormInicial">← Voltar para avaliações</button>';
+      html += '<div class="avp-form-card">';
       html += '<h3>Avaliar novo item</h3>';
       if (state.erroForm) html += '<p class="avp-error-msg">' + esc(state.erroForm) + '</p>';
       html += campoTexto('avpfNome', 'Nome do item', a.nome, true, false, temCampoInvalido('nome'));
@@ -3230,11 +3506,13 @@
         state.tela = 'checklist';
         render();
       });
-      document.getElementById('avpCancelarInicialBtn').addEventListener('click', function () {
+      function cancelarInicial() {
         state.atual = null;
         state.tela = 'lista';
         render();
-      });
+      }
+      document.getElementById('avpCancelarInicialBtn').addEventListener('click', cancelarInicial);
+      document.getElementById('avpVoltarFormInicial').addEventListener('click', cancelarInicial);
     }
 
     function campoTexto(id, label, valor, obrigatorio, textarea, invalido) {
@@ -3262,7 +3540,7 @@
       var base = state.reavaliacaoBase;
       var reavaliando = !!base;
       var html = '<div class="avp-checklist">';
-      html += '<button class="avp-voltar-link" id="avpVoltarLista">‹ Avaliações de Produto/Serviço</button>';
+      html += '<button class="avp-voltar-link" id="avpVoltarLista">← Voltar para avaliações</button>';
       html += '<div class="avp-form-card">';
       html += '<h3>' + esc(reavaliando ? 'Reavaliação — v' + a.versao : (a._key ? 'Editando avaliação' : 'Nova avaliação')) + '</h3>';
       if (reavaliando) {
@@ -3649,7 +3927,7 @@
       var badgeTexto = resultado === 'produto' ? 'É PRODUTO/SERVIÇO' :
         (resultado === 'a-validar' ? 'A VALIDAR' : 'NÃO É PRODUTO/SERVIÇO PRINCIPAL');
       var html = '<div class="avp-resultado">';
-      html += '<button class="avp-voltar-link" id="avpVoltarListaResultado">‹ Avaliações de Produto/Serviço</button>';
+      html += '<button class="avp-voltar-link" id="avpVoltarListaResultado">← Voltar para avaliações</button>';
 
       if (state.flashResultado) {
         html += '<div class="avp-flash-success" id="avpFlashResultado">' + esc(state.flashResultado) +
@@ -3661,21 +3939,36 @@
       html += '<h3 class="avp-result-nome">' + esc(a.nome) + (a.versao > 1 ? ' <span class="avp-tag-versao">v' + a.versao + '</span>' : '') + '</h3>';
       html += '<div class="avp-result-badge-grande">' + badgeTexto + '</div>';
       html += '<p class="avp-result-secundario">Critérios favoráveis a Produto/Serviço: ' + a.criteriosAtendidos + ' de ' + CRITERIOS.length + '</p>';
-      if (a.versaoAnteriorKey) {
+      if (a.versaoAnteriorKey && pode('avaliador')) {
         html += '<button type="button" class="avp-historico-link" id="avpVerHistoricoResultado">🕘 Ver histórico de versões</button>';
       }
       html += '</div>';
 
+      /* REAVALIAR fica à vista, logo abaixo do resultado: é a ação operacional
+         para quando a situação do item mudar (outras características, outra
+         forma de entrega, outra autonomia…). Nunca edita esta avaliação: abre
+         uma NOVA versão do mesmo item (v+1, com quem avaliou e quando) e esta
+         fica preservada, consultável no histórico. */
+      if (pode('avaliador')) {
+        html += '<div class="avp-form-card avp-reavaliar-card">';
+        html += '<div class="avp-reavaliar-texto"><strong>A situação deste item mudou?</strong>' +
+          '<span>Reavaliar abre uma nova avaliação do mesmo item (versão v' + ((a.versao || 1) + 1) + '). Esta avaliação continua guardada, sem alteração, no histórico — a mais recente passa a valer como a situação atual.</span></div>';
+        html += '<button class="btn btn--sm" id="avpReavaliarBtn">Reavaliar</button>';
+        html += '</div>';
+      }
+
       /* Aviso discreto — nunca bloqueia a leitura do resultado, só oferece a
          ação; ver reprocessarMotor/precisaReprocessar. Só para avaliação
          concluída (rascunho não tem recomendação automática nenhuma ainda). */
-      if (precisaReprocessar(a)) {
+      /* Reprocessar/reconciliar é governança da avaliação: só o gestor (o banco
+         também recusa a gravação de quem é só avaliador). */
+      if (pode('gestor') && precisaReprocessar(a)) {
         html += '<div class="avp-form-card avp-motor-aviso">';
         html += '<p class="avp-motor-aviso-texto">⚠ Esta avaliação foi processada por uma versão anterior do motor de classificação.</p>';
         html += '<button type="button" class="btn btn--sm" id="avpReprocessarBtn"' + (state.reprocessando ? ' disabled' : '') + '>' +
           (state.reprocessando ? 'Reprocessando…' : 'REPROCESSAR COM MOTOR ATUAL') + '</button>';
         html += '</div>';
-      } else if (podeReconciliar(a)) {
+      } else if (pode('gestor') && podeReconciliar(a)) {
         /* Situação B: nunca oferece "reprocessar" — não há mudança lógica
            a recalcular (ver RECONCILIAR COM VERSÃO EQUIVALENTE). */
         var eqAtual = equivalenciaDoItem(a);
@@ -3715,7 +4008,7 @@
       }
       html += '</div>';
 
-      if (CAMADAS_COM_ESPECIALIZACAO.indexOf(camada.id) !== -1) {
+      if (CAMADAS_COM_ESPECIALIZACAO.indexOf(camada.id) !== -1 && pode('gestor')) {
         html += renderEspecializacaoCadastradaCard(camada.id);
       }
 
@@ -3744,18 +4037,20 @@
       EXCLUSOES.forEach(function (e) { html += renderRaciocinio(e, a.respostas[e.id], a); });
       html += '</div></div>';
 
-      html += renderHistoricoMotorCard(a);
-      html += renderDecisaoCard(a);
+      if (pode('avaliador')) html += renderHistoricoMotorCard(a);
+      /* Decisão arquitetural e natureza complementar: o gestor edita; quem só
+         avalia ou consulta vê o registro, sem formulário. */
+      html += pode('gestor') ? renderDecisaoCard(a) : renderDecisaoSomenteLeitura(a);
 
       /* Ações organizadas num único grupo, sempre visível ao final da
          página: voltar para a lista, gerar PDF e reavaliar — em vez de um
          botão solto no topo sem relação clara com os demais. */
       html += '<div class="avp-actions-footer avp-result-actions-footer">';
-      html += '<button class="btn" id="avpVoltarListaRodape">VOLTAR PARA A LISTA</button>';
-      html += '<button class="btn btn--sm" id="avpGerarPdfBtn"' + (state.exportando ? ' disabled' : '') + '>' +
-        (state.exportando === 'pdf' ? 'Gerando arquivo…' : '📄 GERAR PDF') + '</button>';
-      html += '<button class="btn" id="avpReavaliarBtn">REAVALIAR</button>';
-      if (window.faAvaliacaoSquad) html += '<button class="btn btn--sm" id="avpAvaliarSquadBtn">🧭 AVALIAR ADEQUAÇÃO À SQUAD</button>';
+      html += '<button class="btn" id="avpVoltarListaRodape">← Voltar para avaliações</button>';
+      if (pode('gestor')) {
+        html += '<button class="btn btn--sm" id="avpGerarPdfBtn"' + (state.exportando ? ' disabled' : '') + '>' +
+          (state.exportando === 'pdf' ? 'Gerando arquivo…' : '📄 GERAR PDF') + '</button>';
+      }
       html += '</div>';
       if (state.flashExportacao) {
         html += '<p class="avp-export-status' + (state.flashExportacao.erro ? ' avp-export-status--erro' : '') + '">' +
@@ -3838,7 +4133,8 @@
       var flashEspecializacaoClose = document.getElementById('avpFlashEspecializacaoClose');
       if (flashEspecializacaoClose) flashEspecializacaoClose.addEventListener('click', function () { state.flashEspecializacao = null; render(); });
 
-      document.getElementById('avpGerarPdfBtn').addEventListener('click', function () {
+      var gerarPdfBtn = document.getElementById('avpGerarPdfBtn');
+      if (gerarPdfBtn) gerarPdfBtn.addEventListener('click', function () {
         if (state.exportando) return; /* clique repetido enquanto já está gerando: ignora */
         state.exportando = 'pdf';
         state.flashExportacao = null;
@@ -3853,20 +4149,8 @@
         });
       });
 
-      document.getElementById('avpReavaliarBtn').addEventListener('click', function () { abrirReavaliacao(a._key); });
-      var avaliarSquadBtn = document.getElementById('avpAvaliarSquadBtn');
-      if (avaliarSquadBtn) {
-        avaliarSquadBtn.addEventListener('click', function () {
-          /* Adequação à squad é um eixo TOTALMENTE independente da
-             classificação arquitetural (ver window.faAvaliacaoSquad) —
-             este botão só entrega contexto (qual item, qual avaliação
-             arquitetural estava aberta), nunca respostas nem classificação;
-             a.itemId agrupa todas as reavaliações do mesmo item, então uma
-             avaliação de squad iniciada aqui continua válida mesmo que o
-             item seja reavaliado depois. */
-          window.faAvaliacaoSquad.iniciarOuAbrirParaItem({ itemId: a.itemId || a._key, itemNome: a.nome, avaliacaoArquiteturalId: a._key });
-        });
-      }
+      var reavaliarBtn = document.getElementById('avpReavaliarBtn');
+      if (reavaliarBtn) reavaliarBtn.addEventListener('click', function () { abrirReavaliacao(a._key); });
 
       function voltarParaLista() {
         state.atual = null;
@@ -3954,7 +4238,10 @@
       html += '<h4>Especialização arquitetural (cadastro)</h4>';
       html += '<p class="avp-decisao-aviso">Metadado opcional, cadastrado à parte — nunca inferido das respostas do ' +
         'questionário. Preencha quando já se souber, por outra fonte, a natureza específica deste item (ex.: ' +
-        '"Instituto previdenciário", "Benefício").</p>';
+        '"Instituto previdenciário", "Benefício"). Não altera o resultado nem a classificação arquitetural: só os complementa.</p>';
+      html += '<p class="avp-natureza-ajuda" id="avpEspecializacaoAjuda">Este cadastro aparece para as classificações que admitem especialização (' +
+        CAMADAS_COM_ESPECIALIZACAO.map(function (id) { var c = camadaPorId(id); return c ? c.label : id; }).join(', ') + ')' +
+        (papelAplicavel ? '. O papel estrutural (essencial ou opcional) vale só para Componente.' : '. O papel estrutural vale só para Componente, e esta classificação não o usa.') + '</p>';
       html += '<div class="avp-field">';
       html += '<label for="avpEspecializacaoCadastrada">Especialização (opcional)</label>';
       html += '<input type="text" id="avpEspecializacaoCadastrada" value="' + esc(f.valor) + '" placeholder="Ex.: Instituto previdenciário">';
@@ -3996,12 +4283,31 @@
       return { label: jaSalvouAlgo ? '✓ SALVO' : 'SALVAR ESPECIALIZAÇÃO', desabilitado: true, salva: jaSalvouAlgo };
     }
 
+    /* Mesmo registro do card de decisão, sem formulário: para quem só avalia ou
+       consulta. Mostra a recomendação automática, a decisão e a natureza. */
+    function renderDecisaoSomenteLeitura(a) {
+      var nat = naturezaDoItem(a);
+      var html = '<div class="avp-form-card avp-decisao-card avp-decisao-card--leitura" id="avpDecisaoLeitura">';
+      html += '<h4>Decisão arquitetural</h4>';
+      html += '<dl class="avp-decisao-resumo" id="avpDecisaoResumo">';
+      html += '<dt>Recomendação automática</dt><dd>' + esc(rotuloResultado(a.resultadoAutomatico)) + '</dd>';
+      html += '<dt>Decisão arquitetural</dt><dd>' + esc(rotuloResultado(a.decisaoFinal || a.resultadoAutomatico)) + '</dd>';
+      html += '<dt>Natureza complementar</dt><dd>' + (nat ? esc(nat.nome) : '—') + '</dd>';
+      html += '</dl>';
+      if (a.decisaoManual) {
+        html += '<p class="avp-history-note">Alterado manualmente por <strong>' + esc(a.alteradoPor && a.alteradoPor.name || '—') +
+          '</strong> em ' + fmtData(a.alteradoEm) + '. Justificativa registrada: "' + esc(a.justificativaDecisao || '') + '"</p>';
+      }
+      html += '</div>';
+      return html;
+    }
+
     function renderDecisaoCard(a) {
       var f = state.decisaoForm;
       var html = '<div class="avp-form-card avp-decisao-card">';
       html += '<h4>Decisão arquitetural</h4>';
       html += '<p class="avp-decisao-aviso">Isto registra uma decisão sobre a CONCLUSÃO, sem alterar nenhuma resposta do questionário — ' +
-        'a recomendação automática permanece intacta no histórico. Para mudar respostas ou justificativas, use "Reavaliar" na lista.</p>';
+        'a recomendação automática permanece intacta no histórico. Para mudar respostas ou justificativas, use "Reavaliar" (no topo desta tela).</p>';
       if (a.decisaoManual) {
         /* Três informações SEPARADAS — a recomendação automática original
            nunca é escondida nem substituída pela decisão, e a natureza
@@ -4019,6 +4325,12 @@
       html += decisaoOpcao('produto', 'Classificar manualmente como Produto/Serviço', f.opcao);
       html += decisaoOpcao('nao-produto', 'Classificar manualmente como não Produto/Serviço Principal', f.opcao);
       html += '</div>';
+      /* Só descreve o que o código faz (ver salvarDecisao): a decisão manual
+         tem exatamente estas duas saídas e exige justificativa; grava só a
+         decisão final. */
+      html += '<p class="avp-natureza-ajuda" id="avpDecisaoAjuda">Use quando concordar ou discordar do resultado calculado. A decisão manual tem duas possibilidades — ' +
+        'Produto/Serviço ou não Produto/Serviço Principal — e exige justificativa. Aceitar a recomendação mantém o resultado calculado pelo sistema (inclusive "A validar"). ' +
+        'Em qualquer caso só a decisão final é registrada: respostas, classificação arquitetural e resultado automático não mudam.</p>';
       if (f.opcao !== 'auto') {
         html += '<div class="avp-field' + (f.erro && !justificativaPreenchida(f) ? ' avp-field--invalid' : '') + '">';
         html += '<label for="avpJustificativaDecisao">Justificativa da decisão arquitetural *</label>';
@@ -5091,8 +5403,15 @@
        dele (ver window.faMotorSquad.onMudanca em avaliacao-squad.js). */
     window.faMotorArquitetura.onMudanca(function () { render(); });
 
-    /* ===================== CARGA ===================== */
-    db().ref(NODE).on('value', function (snap) {
+    /* ===================== CARGA =====================
+       A leitura depende do PERFIL (as regras do banco também): quem avalia lê
+       tudo; quem só CONSULTA lê apenas as avaliações concluídas, por uma
+       consulta filtrada (status = concluido) — pedir a lista inteira seria
+       recusado, e uma leitura recusada é cancelada pelo Firebase para
+       sempre, então a consulta certa tem que ser escolhida ANTES de ligar o
+       ouvinte. Por isso espera o perfil chegar (nunca assume). */
+    var cargaIniciada = false;
+    function aoChegarItens(snap) {
       var arr = [];
       snap.forEach(function (c) { arr.push(Object.assign({ _key: c.key }, c.val())); });
       arr.sort(function (x, y) { return (y.atualizadoEm || '').localeCompare(x.atualizadoEm || ''); });
@@ -5100,20 +5419,38 @@
       state.itensCarregados = true;
       state.erroCarga = null;
       if (state.tela === 'lista') render();
-      sincronizarComHash(); /* resolve um #admin?avp=<key> pendente (F5, link direto) assim que os dados chegarem */
-    }, function (err) {
+      sincronizarComHash(); /* resolve um #avaliacoes?avp=<key> pendente (F5, link direto) assim que os dados chegarem */
+    }
+    function aoFalharCarga(err) {
       state.itensCarregados = true;
-      /* Todo o node avaliacoes-produto já exige admin de verdade nas regras
-         do Firebase (ver database.rules.json) — chegar aqui sem ser admin só
-         é alcançável na prática se a sessão mudar no meio da visita; ainda
-         assim, distinguir os dois casos evita confundir "sem acesso" com
-         "fora do ar" quando alguém abre um link direto de avaliação. */
+      /* As regras do banco exigem um perfil na Avaliação (ver
+         database.rules.json): chegar aqui sem permissão só acontece se o
+         perfil mudar no meio da visita; ainda assim, distinguir "sem
+         acesso" de "fora do ar" evita confundir quem abre um link direto. */
       state.erroCarga = (err && err.code === 'PERMISSION_DENIED') ? 'permissao' : 'geral';
       if (state.tela === 'lista' && !avpKeyDaHash()) {
         wrap.innerHTML = '<p class="admin-empty" style="color:var(--red)">Erro ao carregar avaliações. Recarregue a página.</p>';
       }
       sincronizarComHash();
-    });
+    }
+    function iniciarCarga() {
+      if (cargaIniciada) return;
+      if (window.faAuth.isAvaliacaoReady && !window.faAuth.isAvaliacaoReady()) return; /* o evento chama de novo */
+      if (!pode('consulta')) {
+        /* sem acesso (ou ainda sem login): mostra o aviso, mas NÃO desiste da
+           carga — se o perfil mudar (novo login, registro chegando), o evento
+           chama de novo */
+        state.itensCarregados = true;
+        state.erroCarga = 'permissao';
+        return;
+      }
+      cargaIniciada = true;
+      state.erroCarga = null;
+      var ref = pode('avaliador') ? db().ref(NODE) : db().ref(NODE).orderByChild('status').equalTo('concluido');
+      ref.on('value', aoChegarItens, aoFalharCarga);
+    }
+    window.addEventListener('fa-avaliacao-ready', function () { iniciarCarga(); render(); });
+    iniciarCarga();
 
     /* Na carga inicial (F5, link direto, nova aba), se a URL já pede uma
        avaliação específica, a PRIMEIRA renderização não pode cair no default
@@ -5122,7 +5459,7 @@
        mostrar um estado que nunca existiu de verdade. 'carregando' cobre
        exatamente essa janela; sincronizarComHash() (chamado tanto agora
        quanto de novo quando os dados chegarem) decide o destino final. */
-    if (avpKeyDaHash()) {
+    if (modo === 'operacional' && avpKeyDaHash()) {
       state.tela = 'carregando';
       /* Rede travada é condição normal (ver CLAUDE.md), não caso raro — sem
          este relógio, uma leitura que nunca responde deixava "Carregando
@@ -5136,6 +5473,12 @@
       }, 12000);
     }
     render();
-    sincronizarComHash(); /* ativa a aba Arquitetura e tenta resolver um link direto já na carga inicial */
+    sincronizarComHash(); /* tenta resolver um link direto já na carga inicial */
   };
+
+  /* A área AVALIAÇÃO (#avaliacoes) sobe a instância operacional ao ser aberta
+     pela primeira vez. O bloco do Admin sobe a sua em initAdmin (admin.js). */
+  if (window.faRouter && window.faRouter.onPageInit) {
+    window.faRouter.onPageInit('avaliacoes', function () { window.faInitAvaliacaoProduto({ modo: 'operacional' }); });
+  }
 })();

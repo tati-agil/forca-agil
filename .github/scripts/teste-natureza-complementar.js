@@ -120,10 +120,9 @@ async function abrirApp(browser, avaliacoes, viewport, extra) {
   await page.route('**/firebasejs/**', (r) => r.fulfill({ status: 200, contentType: 'text/javascript', body: FALSO }));
   await page.route('**fonts.googleapis.com**', (r) => r.fulfill({ status: 200, contentType: 'text/css', body: '' }));
   await page.route('**fonts.gstatic.com**', (r) => r.abort());
-  await page.goto(BASE + '/index.html#admin', { waitUntil: 'domcontentloaded' });
+  await page.goto(BASE + '/index.html#avaliacoes', { waitUntil: 'domcontentloaded' });
   await page.waitForFunction(() => !document.body.classList.contains('aguardando-auth'), { timeout: 16000 }).catch(() => {});
   await page.waitForTimeout(800);
-  await page.click('.admin-tab-btn[data-panel="adminPanelArquitetura"]');
   await page.waitForSelector('#avpNovoBtn', { timeout: 8000 });
   await page.waitForTimeout(300);
   return { ctx, page, erros };
@@ -174,6 +173,25 @@ async function lerExcel(page) {
   const linhas = XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]], { header: 1 });
   fs.unlinkSync(arq);
   return linhas;
+}
+
+/* A configuração (questionários, motores, naturezas) agora fica no ADMIN, fora da
+   área Avaliação. Estes dois passos levam até lá e de volta. */
+async function irAoAdmin(page) {
+  await page.evaluate(() => { location.hash = '#admin'; });
+  await page.waitForSelector('.admin-tab-btn[data-panel="adminPanelArquitetura"]', { timeout: 8000 });
+  await page.click('.admin-tab-btn[data-panel="adminPanelArquitetura"]');
+  /* o Admin lembra a subtela em que ficou: se não caiu no início, volta até ele */
+  await page.waitForSelector('#avpConfigQuestionariosBtn, #avpConfigVoltar, #avpNaturezasVoltar, #avpMotoresVoltarLista, #avpUsuariosVoltar', { timeout: 8000 });
+  if (!(await page.locator('#avpConfigQuestionariosBtn').count())) {
+    await page.locator('#avpConfigVoltar, #avpNaturezasVoltar, #avpMotoresVoltarLista, #avpUsuariosVoltar').first().click();
+  }
+  await page.waitForSelector('#avpConfigQuestionariosBtn', { timeout: 8000 });
+}
+async function voltarParaAvaliacoes(page) {
+  await page.evaluate(() => { location.hash = '#avaliacoes'; });
+  await page.waitForSelector('#avpNovoBtn', { timeout: 8000 });
+  await page.waitForTimeout(200);
 }
 
 (async () => {
@@ -352,6 +370,7 @@ async function lerExcel(page) {
     const snap = { naturezaComplementarCodigo: 'PROGRAMA_TRANSVERSAL', naturezaComplementarNomeNaEpoca: 'Programa transversal',
       naturezaComplementarDescricaoNaEpoca: 'descrição da época', naturezaComplementarDefinidaPor: { name: 'Teste', email: EMAIL }, naturezaComplementarDefinidaEm: '2026-09-29T12:00:00.000Z' };
     const { ctx, page, erros } = await abrirApp(browser, { maisprevi: itemMaisPrevi(snap), outro: itemBase('Item sem natureza', () => 'nao', { itemId: 'outro' }) });
+    await irAoAdmin(page);
     await page.click('#avpConfigNaturezasBtn');
     await page.waitForSelector('#avpNaturezaNova', { timeout: 5000 });
     let linhas = await page.locator('#adminAvaliacaoProduto tbody tr').allInnerTexts();
@@ -391,8 +410,7 @@ async function lerExcel(page) {
     cfg = (await banco(page))['naturezas-complementares-config'];
     afirma(cfg.PLATAFORMA_BENEFICIOS_PARCERIAS.ativo === false, 'desativada (nada é apagado: ativo = false)');
 
-    await page.click('#avpNaturezasVoltar');
-    await page.waitForSelector('#avpNovoBtn');
+    await voltarParaAvaliacoes(page);
     afirma(await linhaDe(page, 'maisprevi').locator('td.avp-col-natureza').innerText() === 'Programa transversal', 'lista: o item antigo segue com o NOME DA ÉPOCA, não com o renomeado');
 
     await abrirResultado(page, 'outro');
@@ -412,6 +430,7 @@ async function lerExcel(page) {
 
     /* desativada mas já registrada: continua aparecendo no item que a usa */
     await voltarLista(page);
+    await irAoAdmin(page);
     await page.click('#avpConfigNaturezasBtn');
     await page.waitForSelector('#avpNaturezaNova');
     await page.click('.avp-natureza-alternar[data-codigo="PLATAFORMA_BENEFICIOS_PARCERIAS"]');
@@ -495,8 +514,10 @@ async function lerExcel(page) {
     afirma(!/natureza/i.test(trecho('construirAtualizacaoReprocessamento')) && !/natureza/i.test(trecho('precisaReprocessar')), 'reprocessamento e "Motor desatualizado" não leem a natureza');
     const rules = JSON.parse(fs.readFileSync(path.join(RAIZ, '..', 'database.rules.json'), 'utf8')).rules;
     const admin = rules['questionarios-config']['.write'];
-    afirma(rules['naturezas-complementares-config']['.write'] === admin && rules['naturezas-complementares-config']['.read'] === admin, 'regras: catálogo legível/gravável por qualquer admin (mesma regra de questionarios-config) — quem abre a edição consegue gravar');
-    afirma(rules['naturezas-complementares-auditoria']['.write'] === admin && rules['naturezas-complementares-auditoria']['.read'] === admin, 'regras: auditoria legível/gravável por qualquer admin');
+    afirma(rules['naturezas-complementares-config']['.write'] === admin && rules['naturezas-complementares-config']['.read'] === rules['questionarios-config']['.read'], 'regras: catálogo gravável por qualquer admin e legível como questionarios-config (consulta+ e admin) — quem abre a edição consegue gravar');
+    /* a auditoria agora também aceita o GESTOR da avaliação criando entradas (o que a gravação da natureza de uma avaliação exige);
+       o comportamento exato — quem lê, quem cria, ninguém altera — é provado no emulador (teste-rules-avaliacoes.js) */
+    afirma(/fa-admins/.test(rules['naturezas-complementares-auditoria']['.write']) && /fa-admins/.test(rules['naturezas-complementares-auditoria']['.read']), 'regras: auditoria legível/gravável por admin (e, na gravação, pelo gestor da avaliação — ver teste de regras no emulador)');
     const html = fs.readFileSync(path.join(RAIZ, '..', 'index.html'), 'utf8');
     afirma(html.indexOf('naturezas-config.js') !== -1 && html.indexOf('naturezas-config.js') < html.indexOf('avaliacao-produto.js'), 'index.html carrega naturezas-config.js antes de avaliacao-produto.js');
   }
@@ -515,6 +536,7 @@ async function lerExcel(page) {
     afirma((await avaliacoes(page)).maisprevi.naturezaComplementarCodigo === 'PROGRAMA_TRANSVERSAL', 'salvou no celular');
     await voltarLista(page);
     afirma(/Programa transversal/.test(await page.locator('td.avp-col-natureza').first().innerText()), 'lista em cartões mostra a natureza salva');
+    await irAoAdmin(page);
     await page.click('#avpConfigNaturezasBtn');
     await page.waitForSelector('#avpNaturezaNova');
     afirma(await larguraOk(page), 'catálogo: sem rolagem horizontal da página');

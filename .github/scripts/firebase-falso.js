@@ -32,8 +32,18 @@
     }
     return node === undefined ? null : node;
   }
-  function snap(path) {
+  /* filtro = { campo, valor } (orderByChild(campo).equalTo(valor)): devolve só
+     os filhos cujo campo é igual ao valor — como o Firebase de verdade. */
+  function snap(path, filtro) {
     var v = lerComoBanco(get(path));
+    if (filtro && v && typeof v === 'object') {
+      var filtrado = {};
+      Object.keys(v).forEach(function (k) {
+        var filho = v[k];
+        if (filho && typeof filho === 'object' && filho[filtro.campo] === filtro.valor) filtrado[k] = filho;
+      });
+      v = Object.keys(filtrado).length ? filtrado : null;
+    }
     return {
       val: function () { return v; },
       exists: function () { return v !== null; },
@@ -56,20 +66,28 @@
     return (CFG.fail || []).some(function (p) { return String(path).indexOf(p) === 0; });
   }
 
+  /* Caminhos que só aceitam leitura FILTRADA (orderByChild + equalTo), como as
+     regras do banco fazem com quem só tem o perfil "consulta" em
+     avaliacoes-produto: pedir o nó inteiro é recusado. Serve para provar que a
+     tela pede a consulta certa ANTES de ligar o ouvinte. */
+  function exigeFiltro(self) {
+    var lista = CFG.somenteFiltrado || [];
+    return lista.indexOf(norm(self.path)) !== -1 && !self._temIgual;
+  }
   function Ref(path) { this.path = path; }
   Ref.prototype.child = function (p) { return new Ref(this.path + '/' + p); };
   Ref.prototype.once = function (evt, ok, err) {
     var self = this;
     var p = new Promise(function (resolve, reject) {
       setTimeout(function () {
-        if (failsFor(self.path)) {
+        if (failsFor(self.path) || exigeFiltro(self)) {
           var e = new Error('PERMISSION_DENIED (falso): ' + self.path);
           e.code = 'PERMISSION_DENIED';
           if (err) err(e);
           reject(e);
           return;
         }
-        var s = snap(self.path);
+        var s = snap(self.path, self._temIgual ? { campo: self._ordem, valor: self._igual } : null);
         if (ok) ok(s);
         resolve(s);
       }, delayFor(self.path));
@@ -78,7 +96,7 @@
     return p;
   };
   Ref.prototype.on = function (evt, ok, err) {
-    ouvintes.push({ path: this.path, cb: ok });
+    ouvintes.push({ path: this.path, cb: ok, filtro: this._temIgual ? { campo: this._ordem, valor: this._igual } : null });
     this.once(evt, ok, err);
     return ok;
   };
@@ -193,7 +211,7 @@
     ouvintes.slice().forEach(function (l) {
       if (!afetado(l.path, path)) return;
       if (failsFor(l.path)) return;
-      setTimeout(function () { l.cb(snap(l.path)); }, delayFor(l.path));
+      setTimeout(function () { l.cb(snap(l.path, l.filtro)); }, delayFor(l.path));
     });
   }
 
@@ -299,8 +317,8 @@
     if (v !== undefined) { r.set(v, cb); } else if (cb) { cb(null); }
     return r;
   };
-  Ref.prototype.orderByChild = function () { return this; };
-  Ref.prototype.equalTo      = function () { return this; };
+  Ref.prototype.orderByChild = function (campo) { var r = new Ref(this.path); r._ordem = campo; return r; };
+  Ref.prototype.equalTo      = function (valor) { var r = new Ref(this.path); r._ordem = this._ordem; r._igual = valor; r._temIgual = true; return r; };
   Ref.prototype.limitToLast  = function () { return this; };
 
   var authCbs = [];
