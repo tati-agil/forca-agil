@@ -96,7 +96,7 @@ async function abrirApp(browser, extra, viewport) {
     window.__pdfs = [];
     new MutationObserver(function (ms) {
       ms.forEach(function (m) { m.addedNodes.forEach(function (n) {
-        if (n.nodeType !== 1) return;
+        if (n.nodeType !== 1 || n.parentNode !== document.body) return; /* só blocos reais do PDF, não as medições */
         var doc = n.classList && n.classList.contains('pdf-doc') ? n : (n.querySelector && n.querySelector('.pdf-doc'));
         if (!doc) return;
         var decisao = doc.querySelector('.pdf-decisao-bloco');

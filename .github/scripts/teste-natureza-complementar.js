@@ -110,7 +110,7 @@ async function abrirApp(browser, avaliacoes, viewport, extra) {
     window.__pdfs = [];
     new MutationObserver(function (ms) {
       ms.forEach(function (m) { m.addedNodes.forEach(function (n) {
-        if (n.nodeType !== 1) return;
+        if (n.nodeType !== 1 || n.parentNode !== document.body) return; /* só blocos reais do PDF, não as medições */
         var doc = n.classList && n.classList.contains('pdf-doc') ? n : (n.querySelector && n.querySelector('.pdf-doc'));
         if (!doc) return;
         var decisao = doc.querySelector('.pdf-decisao-bloco');
@@ -160,9 +160,14 @@ async function salvarNatureza(page, codigo) {
 async function voltarLista(page) { await page.click('#avpVoltarListaResultado'); await page.waitForSelector('#avpNovoBtn'); await page.waitForTimeout(200); }
 async function gerarPdf(page) {
   await page.evaluate(() => { window.__pdfs = []; });
-  await page.click('#avpGerarPdfBtn');
-  await page.waitForFunction(() => window.__pdfs && window.__pdfs.length > 0, { timeout: 20000 }).catch(() => {});
-  const pdf = await page.evaluate(() => window.__pdfs[0] || null);
+  await Promise.all([page.waitForEvent('download', { timeout: 60000 }).catch(() => null), page.click('#avpGerarPdfBtn')]);
+  await page.waitForTimeout(400);
+  const pdf = await page.evaluate(() => {
+    /* o PDF sai em blocos (e o html2pdf clona cada um): junta os textos distintos, na ordem */
+    const textos = []; let decisao = '';
+    (window.__pdfs || []).forEach((b) => { if (textos.indexOf(b.tudo) === -1) textos.push(b.tudo); if (!decisao && b.decisao) decisao = b.decisao; });
+    return textos.length ? { tudo: textos.join('\n'), decisao: decisao } : null;
+  });
   await page.waitForTimeout(800);
   return pdf;
 }

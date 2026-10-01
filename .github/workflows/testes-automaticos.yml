@@ -74,6 +74,15 @@ jobs:
           FA_BASE_URL: http://127.0.0.1:8811
         run: node .github/scripts/teste-avaliacoes-ficha.js
 
+      # PDF consolidado das avaliações em BLOCOS de altura limitada (um canvas
+      # único e gigante estourava o limite do navegador e saía todo em branco).
+      # Decodifica as imagens do PDF gerado: nenhuma página em branco.
+      - name: "Avaliação: PDF consolidado em blocos, sem páginas em branco (1, 2, 3, 6 avaliações e celular)"
+        env:
+          NODE_PATH: /tmp/pw-deps/node_modules
+          FA_BASE_URL: http://127.0.0.1:8811
+        run: node .github/scripts/teste-pdf-lote-blocos.js
+
       # Mesma família da tela preta, agora no Repositório: a grade de cards
       # (#repoGrid) só é desenhada dentro de listeners assíncronos do
       # Firebase, e sem aviso de carregamento ficava vazia e indistinguível
