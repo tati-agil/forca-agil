@@ -192,6 +192,7 @@
       atual: null,
       contextoArquitetural: null, /* { label, resultadoAutomatico } | null | 'carregando' — só leitura, ver renderContextoArquitetural */
       erroForm: null,
+      modoInicio: null, /* null = ainda não escolheu | 'existente' | 'novo' (tela de início) */
       salvando: null,      /* null | 'rascunho' | 'concluido' */
       reprocessando: false,
       flashLista: null,
@@ -350,6 +351,7 @@
         respostas: {}, questionnaireContentVersion: window.faQuestionarios.versaoAtual(CODIGO_QUESTIONARIO)
       };
       state.erroForm = null;
+      state.modoInicio = null;
       state.contextoArquitetural = null;
       /* Item já identificado (ex.: veio do botão "AVALIAR ADEQUAÇÃO À SQUAD"
          de um item arquitetural aberto) — nunca pergunta o nome de novo
@@ -426,25 +428,36 @@
        a lista de resultados diretamente no DOM (nunca o render() inteiro do
        módulo a cada tecla) pra nunca perder o foco do campo — mesmo padrão
        já usado em admin.js (＋ Participante / Incluir pessoa). */
+    function semAcentoSq(t) { return String(t || '').normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase().replace(/\s+/g, ' ').trim(); }
     function renderFormInicial() {
+      var modo = state.modoInicio; /* null (escolha) | 'existente' | 'novo' */
       var html = sqLinkVoltar('sqVoltarListaInicial', 'Adequação à Squad');
       html += '<div class="avp-form-card">';
       html += '<h3>Avaliação de Adequação à Gestão por Squad</h3>';
       html += '<p class="avp-decisao-aviso">Esta avaliação não altera a classificação arquitetural do item. Seu objetivo é registrar evidências ' +
         'sobre demanda, evolução, autonomia, complexidade e ownership para apoiar a decisão organizacional sobre gestão por squad.</p>';
-      html += '<div class="avp-field' + (state.erroForm ? ' avp-field--invalid' : '') + '">';
-      html += '<label for="sqfBusca">Buscar item já cadastrado *</label>';
-      html += '<input type="text" id="sqfBusca" placeholder="Digite o nome do item…" autocomplete="off">';
-      html += '<ul class="sq-busca-resultados" id="sqfBuscaResultados" hidden></ul>';
-      if (state.erroForm) html += '<p class="avp-field-invalid-msg">' + esc(state.erroForm) + '</p>';
+      html += '<p class="sq-inicio-pergunta"><strong>O que você quer avaliar?</strong></p>';
+      html += '<div class="sq-inicio-escolha" role="group" aria-label="O que você quer avaliar?">';
+      html += '<button type="button" class="sq-inicio-opcao' + (modo === 'existente' ? ' sq-inicio-opcao--ativa' : '') + '" id="sqfEscolhaExistente" aria-pressed="' + (modo === 'existente') + '">' +
+        '<strong>Avaliar item já cadastrado</strong><span>O item já foi avaliado antes (arquitetura ou squad). Evita duplicar o mesmo item com outro nome.</span></button>';
+      html += '<button type="button" class="sq-inicio-opcao' + (modo === 'novo' ? ' sq-inicio-opcao--ativa' : '') + '" id="sqfEscolhaNovo" aria-pressed="' + (modo === 'novo') + '">' +
+        '<strong>Avaliar novo item</strong><span>Um item que nunca foi avaliado, nem por arquitetura nem por squad.</span></button>';
       html += '</div>';
-      html += '<p class="sq-busca-ajuda">Não encontrou o item na busca? ' +
-        '<button type="button" class="link-btn" id="sqfNovoItemBtn">+ Cadastrar como item novo</button></p>';
-      html += '<div class="avp-field" id="sqfNovoItemWrap" hidden>';
-      html += '<label for="sqfNovoItemNome">Nome do novo item *</label>';
-      html += '<input type="text" id="sqfNovoItemNome" autocomplete="off">';
-      html += '<button type="button" class="btn btn--sm" id="sqfNovoItemConfirmar">Usar este nome e continuar</button>';
-      html += '</div>';
+      if (modo === 'existente') {
+        html += '<div class="avp-field' + (state.erroForm ? ' avp-field--invalid' : '') + '">';
+        html += '<label for="sqfBusca">Buscar item já cadastrado *</label>';
+        html += '<input type="text" id="sqfBusca" placeholder="Digite o nome do item…" autocomplete="off">';
+        html += '<ul class="sq-busca-resultados" id="sqfBuscaResultados" hidden></ul>';
+        if (state.erroForm) html += '<p class="avp-field-invalid-msg">' + esc(state.erroForm) + '</p>';
+        html += '</div>';
+      } else if (modo === 'novo') {
+        html += '<div class="avp-field' + (state.erroForm ? ' avp-field--invalid' : '') + '" id="sqfNovoItemWrap">';
+        html += '<label for="sqfNovoItemNome">Nome do novo item *</label>';
+        html += '<input type="text" id="sqfNovoItemNome" autocomplete="off">';
+        if (state.erroForm) html += '<p class="avp-field-invalid-msg" id="sqfNovoItemErro">' + esc(state.erroForm) + '</p>';
+        html += '<button type="button" class="btn btn--sm" id="sqfNovoItemConfirmar">Usar este nome e continuar</button>';
+        html += '</div>';
+      }
       html += '</div>';
       html += '<div class="avp-actions-footer">';
       html += '<button class="btn" id="sqCancelarInicialBtn">CANCELAR</button>';
@@ -453,46 +466,57 @@
 
       document.getElementById('sqVoltarListaInicial').addEventListener('click', function () { state.tela = 'lista'; state.atual = null; render(); });
       document.getElementById('sqCancelarInicialBtn').addEventListener('click', function () { state.tela = 'lista'; state.atual = null; render(); });
+      document.getElementById('sqfEscolhaExistente').addEventListener('click', function () { state.modoInicio = 'existente'; state.erroForm = null; render(); document.getElementById('sqfBusca').focus(); });
+      document.getElementById('sqfEscolhaNovo').addEventListener('click', function () { state.modoInicio = 'novo'; state.erroForm = null; render(); document.getElementById('sqfNovoItemNome').focus(); });
 
       var itensDisponiveis = itensDisponiveisParaBusca();
       var buscaInput = document.getElementById('sqfBusca');
-      var resultsList = document.getElementById('sqfBuscaResultados');
-      function renderResultados(query) {
-        var q = query.trim().toLowerCase();
-        if (!q) { resultsList.hidden = true; resultsList.innerHTML = ''; return; }
-        var matches = itensDisponiveis.filter(function (it) {
-          return (it.itemNome || '').toLowerCase().indexOf(q) !== -1;
-        }).slice(0, 8);
-        resultsList.innerHTML = '';
-        if (!matches.length) {
-          var li0 = document.createElement('li');
-          li0.className = 'sq-busca-item sq-busca-item--vazio';
-          li0.textContent = 'Nenhum item cadastrado encontrado para esse termo.';
-          resultsList.appendChild(li0);
-        } else {
-          matches.forEach(function (it) {
-            var li = document.createElement('li');
-            li.className = 'sq-busca-item';
-            li.innerHTML = '<span class="sq-busca-item-nome">' + esc(it.itemNome) + '</span>' +
-              '<span class="sq-busca-item-classif">' + (it.classificacaoLabel ? esc(it.classificacaoLabel) : 'Sem avaliação arquitetural') + '</span>';
-            li.addEventListener('click', function () { selecionarItemParaAvaliacao(it); });
-            resultsList.appendChild(li);
-          });
-        }
-        resultsList.hidden = false;
+      if (buscaInput) {
+        var resultsList = document.getElementById('sqfBuscaResultados');
+        /* A busca manipula só a lista de resultados no DOM — nunca o render()
+           inteiro a cada tecla — para não perder o foco do campo. */
+        var renderResultados = function (query) {
+          var q = semAcentoSq(query);
+          var matches = itensDisponiveis.filter(function (it) { return !q || semAcentoSq(it.itemNome).indexOf(q) !== -1; })
+            .sort(function (x, y) { return semAcentoSq(x.itemNome) < semAcentoSq(y.itemNome) ? -1 : 1; }).slice(0, 8);
+          resultsList.innerHTML = '';
+          if (!matches.length) {
+            var li0 = document.createElement('li');
+            li0.className = 'sq-busca-item sq-busca-item--vazio';
+            li0.textContent = itensDisponiveis.length
+              ? 'Nenhum item cadastrado encontrado para esse termo. Se ele nunca foi avaliado, escolha "Avaliar novo item".'
+              : 'Ainda não há itens cadastrados. Escolha "Avaliar novo item".';
+            resultsList.appendChild(li0);
+          } else {
+            matches.forEach(function (it) {
+              var li = document.createElement('li');
+              li.className = 'sq-busca-item';
+              li.innerHTML = '<span class="sq-busca-item-nome">' + esc(it.itemNome) + '</span>' +
+                '<span class="sq-busca-item-classif">' + (it.classificacaoLabel ? esc(it.classificacaoLabel) : 'Sem avaliação arquitetural') + '</span>';
+              li.addEventListener('click', function () { selecionarItemParaAvaliacao(it); });
+              resultsList.appendChild(li);
+            });
+          }
+          resultsList.hidden = false;
+        };
+        buscaInput.addEventListener('input', function () { renderResultados(buscaInput.value); });
+        buscaInput.addEventListener('focus', function () { renderResultados(buscaInput.value); });
+        renderResultados('');
       }
-      buscaInput.addEventListener('input', function () { renderResultados(buscaInput.value); });
 
-      var novoItemBtn = document.getElementById('sqfNovoItemBtn');
-      var novoItemWrap = document.getElementById('sqfNovoItemWrap');
-      novoItemBtn.addEventListener('click', function () {
-        novoItemWrap.hidden = false;
-        novoItemBtn.parentNode.hidden = true;
-        document.getElementById('sqfNovoItemNome').focus();
-      });
-      document.getElementById('sqfNovoItemConfirmar').addEventListener('click', function () {
+      var confirmar = document.getElementById('sqfNovoItemConfirmar');
+      if (confirmar) confirmar.addEventListener('click', function () {
         var nome = document.getElementById('sqfNovoItemNome').value.trim();
         if (!nome) { state.erroForm = 'Informe o nome do novo item.'; render(); return; }
+        /* Nunca cria uma segunda ficha para um item que já existe só porque
+           o nome foi digitado de novo: o que é igual (sem acento, caixa ou
+           espaço a mais) manda a pessoa para "item já cadastrado". */
+        var igual = itensDisponiveis.filter(function (it) { return semAcentoSq(it.itemNome) === semAcentoSq(nome); })[0];
+        if (igual) {
+          state.erroForm = 'Já existe um item cadastrado com este nome ("' + igual.itemNome + '"). Use "Avaliar item já cadastrado" para não duplicar.';
+          render();
+          return;
+        }
         selecionarItemParaAvaliacao({ itemId: null, itemNome: nome, avaliacaoArquiteturalId: null });
       });
     }
@@ -1088,6 +1112,7 @@
       html += '<p>Última publicação: ' + (sit.ultimaAlteracaoEm ? esc(fmtData(sit.ultimaAlteracaoEm)) + (sit.ultimaAlteracaoPor ? ' · ' + esc(sit.ultimaAlteracaoPor) : '') : 'nunca alterado (regras de fábrica)') + '</p>';
       html += '</div>';
       if (c.flash) html += '<p class="avp-flash-success">' + esc(c.flash) + '</p>';
+      html += renderComoOMotorSquadDecide(false);
       html += '<div class="avp-actions-footer">';
       html += '<button class="btn btn--sm" id="sqMotorEditarRegrasBtn">Editar regras (Eixo A / Eixo B / Combinação)</button>';
       html += '<button class="btn btn--sm" id="sqMotorEditarTextosBtn">Editar textos dos vereditos</button>';
@@ -1128,32 +1153,70 @@
        por aqui nesta versão, só o valor esperado de cada condição. Nunca
        eval, nunca string executada: o <select> só grava 'SIM'/'NAO' de volta
        no MESMO objeto de condição (por referência, via leafRefs). */
+    /* Rótulos dos dois resultados de eixo que a COMBINAÇÃO lê (nunca S1–S8
+       diretamente). Só apresentação: o campo gravado na regra não muda. */
+    var ROTULO_EIXO = {
+      necessidadeCapacidadeDedicada: 'Eixo A — Necessidade de capacidade dedicada',
+      condicoesParaSquad: 'Eixo B — Condições para funcionar como squad'
+    };
+    function perguntaDoMotorSquad(codigo) {
+      var q = conteudoDe(codigo);
+      return { titulo: q && q.titulo && q.titulo !== codigo ? q.titulo : '', texto: q && q.texto && !/conteúdo não encontrado/.test(q.texto) ? q.texto : '' };
+    }
+    function renderComoOMotorSquadDecide(abertoPorPadrao) {
+      var h = '<details class="avp-form-card avp-motor-explica"' + (abertoPorPadrao ? ' open' : '') + '><summary><strong>Como este motor decide</strong></summary>';
+      h += '<ul class="avp-motor-explica-lista">';
+      h += '<li><strong>Dois eixos, depois a combinação:</strong> o <em>Eixo A</em> (necessidade de capacidade dedicada) e o <em>Eixo B</em> (condições para funcionar como squad) são calculados separadamente, cada um pelas respostas de S1–S8. A <em>Combinação</em> lê só os dois resultados dos eixos — nunca S1–S8 diretamente — e produz a indicação organizacional (Eixo A + Eixo B = indicação).</li>';
+      h += '<li><strong>Precedência:</strong> dentro de cada grupo, as regras são lidas de cima para baixo e a <em>primeira</em> cujas condições forem verdadeiras decide. Nunca é soma, pontuação ou percentual de respostas SIM. Por exemplo, S7 = NÃO tem uma regra própria no Eixo B, antes das demais.</li>';
+      h += '<li><strong>Independente do motor P1–P16:</strong> este motor não lê a classificação arquitetural e a classificação não lê este resultado.</li>';
+      h += '<li><strong>O que você pode mudar aqui:</strong> só a resposta esperada (SIM ou NÃO) de cada condição sobre S1–S8. As condições da Combinação, a ordem das regras e quais perguntas cada uma usa aparecem para leitura. A redação dos resultados é editada em "Editar textos dos vereditos".</li>';
+      h += '<li><strong>Simular impacto:</strong> recalcula, só na tela, as avaliações de squad já concluídas com as regras que você está editando e mostra quais mudariam. Não grava nada e não altera nenhuma avaliação.</li>';
+      h += '<li><strong>Rascunho × publicação:</strong> "Salvar rascunho" guarda a edição sem efeito para quem avalia. Só "Confirmar publicação" faz as regras valerem — para as próximas avaliações. As já concluídas só mudam se alguém pedir o reprocessamento.</li>';
+      h += '</ul></details>';
+      return h;
+    }
     function renderCondicaoEditavel(cond, leafRefs, prefixo) {
       if (Array.isArray(cond.all)) {
-        return '<div class="sq-cond-grupo"><p class="sq-cond-rotulo">' + prefixo + 'TODAS as condições:</p>' +
+        return '<div class="sq-cond-grupo"><p class="sq-cond-rotulo">' + prefixo + 'SE TODAS estas condições forem verdadeiras:</p>' +
           cond.all.map(function (c) { return renderCondicaoEditavel(c, leafRefs, prefixo + '　'); }).join('') + '</div>';
       }
       if (Array.isArray(cond.any)) {
-        return '<div class="sq-cond-grupo"><p class="sq-cond-rotulo">' + prefixo + 'QUALQUER uma destas condições:</p>' +
+        return '<div class="sq-cond-grupo"><p class="sq-cond-rotulo">' + prefixo + 'SE QUALQUER uma destas condições for verdadeira:</p>' +
           cond.any.map(function (c) { return renderCondicaoEditavel(c, leafRefs, prefixo + '　'); }).join('') + '</div>';
       }
       if (cond.not) {
-        return '<div class="sq-cond-grupo"><p class="sq-cond-rotulo">' + prefixo + 'NÃO:</p>' + renderCondicaoEditavel(cond.not, leafRefs, prefixo + '　') + '</div>';
+        return '<div class="sq-cond-grupo"><p class="sq-cond-rotulo">' + prefixo + 'SE NÃO for verdade que:</p>' + renderCondicaoEditavel(cond.not, leafRefs, prefixo + '　') + '</div>';
+      }
+      var campo = cond.campo || cond.pergunta;
+      /* Condição da COMBINAÇÃO: lê o resultado de um eixo (Demonstrada,
+         Presentes…), não SIM/NÃO. Um seletor SIM/NÃO aqui mostrava "SIM" para
+         um valor que não é SIM nem NÃO e, ao mexer, gravaria um valor inválido
+         — por isso aparece só para leitura, com o rótulo do resultado. */
+      if (ROTULO_EIXO[campo]) {
+        var rot = window.faMotorSquad.conteudoTexto(String(cond.valor || '')).rotulo;
+        return '<div class="sq-cond-folha sq-cond-folha--legivel sq-cond-folha--leitura">' +
+          '<p class="sq-cond-pergunta"><strong>' + esc(ROTULO_EIXO[campo]) + '</strong></p>' +
+          '<p class="sq-cond-resposta">resultado é <strong>' + esc(rot || cond.valor) + '</strong> <span class="sq-cond-somente-leitura">(somente leitura)</span></p></div>';
       }
       var id = leafRefs.length;
       leafRefs.push(cond);
-      var campo = cond.campo || cond.pergunta;
       var valorAtual = (cond.valor != null ? cond.valor : cond.resposta || 'SIM').toUpperCase();
-      return '<p class="sq-cond-folha">' + prefixo + esc(campo) + ' = ' +
-        '<select class="sq-cond-select" data-leaf-id="' + id + '">' +
+      var q = perguntaDoMotorSquad(campo);
+      return '<div class="sq-cond-folha sq-cond-folha--legivel">' +
+        '<p class="sq-cond-pergunta"><strong>' + esc(campo) + '</strong>' + (q.titulo ? ' — ' + esc(q.titulo) : '') + '</p>' +
+        '<label class="sq-cond-resposta">a resposta é ' +
+        '<select class="sq-cond-select" data-leaf-id="' + id + '" aria-label="Resposta esperada em ' + esc(campo) + (q.titulo ? ' — ' + esc(q.titulo) : '') + '">' +
         '<option value="SIM"' + (valorAtual === 'SIM' ? ' selected' : '') + '>SIM</option>' +
         '<option value="NAO"' + (valorAtual === 'NAO' ? ' selected' : '') + '>NÃO</option>' +
-        '</select></p>';
+        '</select></label>' +
+        (q.texto ? '<p class="sq-cond-texto">' + esc(q.texto) + '</p>' : '') +
+        '</div>';
     }
     function renderGrupoRegras(titulo, regras, leafRefs) {
       var html = '<div class="avp-form-card"><h4>' + esc(titulo) + '</h4>';
       regras.slice().sort(function (a, b) { return (a.ordem || 0) - (b.ordem || 0); }).forEach(function (regra) {
-        html += '<div class="sq-regra-card"><p class="sq-regra-codigo">' + esc(regra.codigo) + ' (ordem ' + esc(regra.ordem) + ') → <strong>' + esc(regra.resultado) + '</strong></p>';
+        var rotuloResultado = window.faMotorSquad.conteudoTexto(regra.resultado).rotulo;
+        html += '<div class="sq-regra-card"><p class="sq-regra-codigo">' + esc(regra.codigo) + ' (ordem ' + esc(regra.ordem) + ') → resultado <strong>' + esc(rotuloResultado || regra.resultado) + '</strong></p>';
         html += renderCondicaoEditavel(regra.condicoes, leafRefs, '');
         html += '</div>';
       });
@@ -1166,9 +1229,10 @@
       var html = '<div class="avp-form-card"><h3>Editar regras do motor de squad</h3>';
       html += '<p class="avp-decisao-aviso">Alterar o valor esperado (SIM/NÃO) de qualquer condição muda a LÓGICA do motor — ao publicar, isso cria uma motorSquadVersion nova ' +
         'e não afeta avaliações já concluídas. Antes de publicar, é preciso simular o impacto sobre as avaliações já concluídas.</p></div>';
+      html += renderComoOMotorSquadDecide(false);
       html += renderGrupoRegras('Eixo A — Necessidade de capacidade dedicada', c.regras.eixoA, c.leafRefs);
       html += renderGrupoRegras('Eixo B — Condições para funcionar como squad', c.regras.eixoB, c.leafRefs);
-      html += renderGrupoRegras('Combinação — Indicação organizacional', c.regras.combinacao, c.leafRefs);
+      html += renderGrupoRegras('Combinação — Eixo A + Eixo B = Indicação organizacional', c.regras.combinacao, c.leafRefs);
       if (c.erro) html += '<p class="avp-error-msg">' + esc(c.erro) + '</p>';
       html += '<div class="avp-actions-footer">';
       html += '<button class="btn" id="sqMotorSalvarRascunhoBtn"' + (c.salvando ? ' disabled' : '') + '>SALVAR RASCUNHO</button>';
@@ -1211,6 +1275,7 @@
       var s = c.simulacao;
       var html = '<div class="avp-form-card"><h3>Simulação de impacto</h3>';
       html += '<p class="avp-decisao-aviso">Nenhuma avaliação histórica foi alterada — isto é só uma simulação sobre as avaliações já concluídas, com a regra candidata.</p>';
+      html += '<p class="avp-motor-sim-explica">Estas regras ainda são um rascunho: nada do que está abaixo vale para ninguém. Se você publicar, as regras passam a valer para as próximas avaliações; as já concluídas só mudam se alguém pedir o reprocessamento.</p>';
       html += '<p>' + esc(s.totalAnalisadas) + ' avaliaç' + (s.totalAnalisadas === 1 ? 'ão analisada' : 'ões analisadas') + '</p>';
       html += '<p>' + esc(s.mantidas) + ' manteriam o mesmo resultado</p>';
       html += '<p>' + esc(s.mudariam.length) + ' mudariam de resultado</p>';
