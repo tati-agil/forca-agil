@@ -55,7 +55,7 @@ function item(nome, i, extra) {
 const AVALIACOES = () => ({
   k1: item('Item Concluído Um', 1),
   k2: item('Item Concluído Dois', 2),
-  k3: item('Item Em Andamento', 3, { status: 'em_andamento', resultadoAutomatico: null, decisaoFinal: null })
+  k3: item('Item Em Andamento', 3, { status: 'rascunho', resultadoAutomatico: null, decisaoFinal: null })
 });
 
 async function abrir(browser, o) {

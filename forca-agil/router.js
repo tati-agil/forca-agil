@@ -180,7 +180,11 @@
     const el = document.getElementById('page-' + page);
     if (el) {
       el.hidden = false;
-      window.scrollTo({ top: 0, behavior: 'auto' });
+      /* Mudar só a subtela dentro de #avaliacoes (abrir/fechar uma avaliação
+         troca o hash) não pode jogar a pessoa de volta ao topo: a lista
+         restaura a posição em que ela estava ao voltar. Trocar DE página
+         continua começando no topo. */
+      if (!(page === 'avaliacoes' && current === 'avaliacoes')) window.scrollTo({ top: 0, behavior: 'auto' });
       // Força elementos já revelados a aparecerem sem transição (evita re-trigger ao sair de display:none)
       el.querySelectorAll('.reveal').forEach(function (r) {
         r.style.transition = 'none';

@@ -1889,7 +1889,10 @@ select.aposta-campo-input { width: auto; min-width: 8.5em; }
 .avp-actions-bar { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 14px; flex-wrap: wrap; }
 .avp-total { font-family: var(--font-mono); font-size: .78rem; color: var(--ink-3); }
 
-.avp-filters { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 16px; }
+.avp-filters { display: flex; flex-wrap: wrap; gap: 10px 12px; margin-bottom: 8px; }
+.avp-filtro { display: flex; flex-direction: column; gap: 3px; min-width: 0; }
+.avp-filtro-rotulo { font-size: .68rem; letter-spacing: .04em; text-transform: uppercase; color: var(--ink-3); font-family: var(--font-mono); }
+.avp-filtros-ajuda { font-size: .76rem; color: var(--ink-3); margin: 0 0 16px; max-width: 760px; }
 .avp-select {
   background: var(--panel); border: 1px solid var(--line-strong); color: var(--ink-2);
   border-radius: 8px; padding: 7px 10px; font-size: .8rem;
@@ -2121,6 +2124,7 @@ select.aposta-campo-input { width: auto; min-width: 8.5em; }
   .avp-actions-bar { flex-direction: column; align-items: stretch; }
   .avp-actions-bar #avpNovoBtn { width: 100%; }
   .avp-filters { flex-direction: column; }
+  .avp-filtro { width: 100%; }
   .avp-select { width: 100%; }
   .avp-choice-group { flex-direction: column; }
   .avp-choice-btn { max-width: none; }
@@ -2325,3 +2329,12 @@ select.aposta-campo-input { width: auto; min-width: 8.5em; }
 .avp-usuario-email { font-size: .78rem; color: var(--ink-3); }
 .avp-usuario-aviso { font-size: .74rem; color: var(--ink-3); }
 .avp-usuario-aviso--erro { color: var(--red); }
+
+/* REAVALIAR à vista no topo do detalhe */
+.avp-reavaliar-card { display: flex; align-items: center; justify-content: space-between; gap: 14px; flex-wrap: wrap; }
+.avp-reavaliar-texto { display: flex; flex-direction: column; gap: 3px; font-size: .86rem; color: var(--ink-2); max-width: 640px; }
+.avp-reavaliar-texto span { font-size: .8rem; color: var(--ink-3); }
+@media (max-width: 640px) { .avp-reavaliar-card .btn { width: 100%; } }
+
+.avp-exportar-escopo { margin: 0 0 6px; font-size: .78rem; color: var(--ink-2); }
+.avp-exportar-nota { margin: 8px 0 0; font-size: .72rem; color: var(--ink-3); max-width: 300px; }

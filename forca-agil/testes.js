@@ -123,11 +123,13 @@
           return !!document.getElementById('adminPanelArquitetura') && !!document.getElementById('adminAvaliacaoProduto') &&
                  !!document.querySelector('.admin-tab-btn[data-panel="adminPanelArquitetura"]');
         } },
-        { id: 'adm-avaliacao-produto-lixeira', label: 'Avaliação de Produto/Serviço: botão de Lixeira presente na lista (exclusão lógica)', run: function () {
-          return !!document.getElementById('avpLixeiraBtn');
+        { id: 'adm-avaliacao-produto-lixeira', label: 'Área Avaliação (#avaliacoes): página e container da lista presentes (a lista, a lixeira e a exportação saíram do Admin)', run: function () {
+          return !!document.getElementById('page-avaliacoes') && !!document.getElementById('avaliacoesPainel');
         } },
-        { id: 'adm-avaliacao-produto-exportar', label: 'Avaliação de Produto/Serviço: botão "Exportar" presente na lista (Excel/PDF)', run: function () {
-          return !!document.getElementById('avpExportarBtn');
+        { id: 'adm-avaliacao-produto-exportar', label: 'Admin → Avaliação de Produto/Serviço: só parametrização (Usuários e permissões presente; sem lista nem exportação)', run: function () {
+          var admin = document.getElementById('adminAvaliacaoProduto');
+          if (!admin || !admin.querySelector('#avpConfigQuestionariosBtn')) return true; /* bloco ainda não renderizado, ou numa subtela */
+          return !!admin.querySelector('#avpUsuariosBtn') && !admin.querySelector('#avpExportarBtn') && !admin.querySelector('#avpLixeiraBtn');
         } },
         { id: 'adm-sorteios-panel', label: 'Painel Sorteios presente (aba + container)', run: function () {
           return !!document.getElementById('adminPanelSorteios') && !!document.getElementById('adminSorteios') &&

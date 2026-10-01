@@ -1399,7 +1399,28 @@
       return !!(state.camposInvalidos && state.camposInvalidos.indexOf(campo) !== -1);
     }
 
+    /* Sair da lista para uma tela de detalhe guarda onde a página estava; voltar
+       restaura (filtros e pesquisa já vivem em state.filtro e não se perdem). Ir
+       para o detalhe começa no topo, não no meio da rolagem da lista. */
     function render() {
+      if (modo === 'operacional') {
+        if (state.telaRenderizada === 'lista' && state.tela !== 'lista') {
+          state.rolagemLista = window.pageYOffset || 0;
+          state.restaurarRolagem = false;
+          window.scrollTo({ top: 0, left: 0, behavior: 'instant' });
+        } else if (state.telaRenderizada && state.telaRenderizada !== 'lista' && state.tela === 'lista') {
+          state.restaurarRolagem = true;
+        }
+        state.telaRenderizada = state.tela;
+      }
+      renderTela();
+      if (modo === 'operacional' && state.restaurarRolagem && state.tela === 'lista') {
+        state.restaurarRolagem = false;
+        var y = state.rolagemLista || 0;
+        window.requestAnimationFrame(function () { window.scrollTo({ top: y, left: 0, behavior: 'instant' }); });
+      }
+    }
+    function renderTela() {
       /* Enquanto o perfil da pessoa não voltou do banco não dá para decidir o
          que mostrar (e "ainda não sei" nunca vira "sem acesso"). */
       if (modo === 'operacional' && window.faAuth.isAvaliacaoReady && !window.faAuth.isAvaliacaoReady()) {
@@ -1558,6 +1579,11 @@
     }
 
     /* ===================== LISTA ===================== */
+    /* Algum filtro fora do valor "todos" (a pesquisa por texto é da Fase 2). */
+    function filtrosAtivos() {
+      var f = state.filtro;
+      return f.resultado !== 'todos' || f.status !== 'todos' || f.alterado !== 'todos' || f.alternativa !== 'todos' || f.motor !== 'todos';
+    }
     function itemPassaFiltro(it) {
       if (temVersaoMaisNova(it._key)) return false;
       if (state.lixeira) return !!it.excluido;
@@ -1636,11 +1662,20 @@
           (state.exportando ? 'Gerando arquivo…' : 'Exportar ▾') + '</button>';
         if (state.menuExportarAberto) {
           html += '<div class="avp-exportar-menu" id="avpExportarMenu">';
+          /* "Resultados filtrados" = o que a tela mostra agora (pesquisa e filtros aplicados). */
+          var concluidasFiltradas = filtrados.filter(function (it) { return it.status === 'concluido'; });
+          var concluidasSelecionadas = chavesSelecionadas.map(function (k) { return buscarItem(k); }).filter(function (it) { return it && it.status === 'concluido'; });
+          html += '<p class="avp-exportar-escopo">Consulta atual: <strong>' + filtrados.length + '</strong> avaliaç' + (filtrados.length === 1 ? 'ão' : 'ões') +
+            (filtrosAtivos() ? ' (com os filtros aplicados)' : ' (sem filtros)') + '</p>';
           html += '<button type="button" class="btn" id="avpExportarExcelFiltrados">📊 Excel — resultados filtrados (' + filtrados.length + ')</button>';
           html += '<button type="button" class="btn" id="avpExportarExcelTodas">📊 Excel — todas as avaliações (' + ativos.length + ')</button>';
-          if (chavesSelecionadas.length) {
-            html += '<button type="button" class="btn" id="avpExportarPdfSelecionadas">📄 PDF das selecionadas (' + chavesSelecionadas.length + ')</button>';
+          if (concluidasFiltradas.length) {
+            html += '<button type="button" class="btn" id="avpExportarPdfFiltrados">📄 PDFs — todas do resultado atual (' + concluidasFiltradas.length + ' concluída' + (concluidasFiltradas.length === 1 ? '' : 's') + ')</button>';
           }
+          if (concluidasSelecionadas.length) {
+            html += '<button type="button" class="btn" id="avpExportarPdfSelecionadas">📄 PDFs — só as selecionadas (' + concluidasSelecionadas.length + ')</button>';
+          }
+          html += '<p class="avp-exportar-nota">Os PDFs saem num único arquivo, uma avaliação após a outra, no mesmo formato do PDF individual. Rascunhos não entram (ainda não têm resultado).</p>';
           html += '</div>';
         }
         html += '</div>';
@@ -1676,23 +1711,30 @@
       if (state.lixeira) {
         html += '<p class="avp-lixeira-aviso">🗑 Mostrando avaliações excluídas. Elas não são apagadas do banco — use "↺ Restaurar" para trazer de volta.</p>';
       } else {
+        /* Cada filtro com o PRÓPRIO rótulo visível: "Resultado Produto/Serviço"
+           (se o item É ou não Produto/Serviço — decisão final) e "Classificação
+           arquitetural" (a camada identificada, ex.: Componente, Canal) são
+           conceitos diferentes e não podem parecer o mesmo filtro. Os valores
+           são só os que o sistema realmente grava. */
         html += '<div class="avp-filters">';
         html += filtroSelect('avpFiltroResultado', state.filtro.resultado, [
-          ['todos', 'Todos os resultados'], ['produto', 'É Produto/Serviço'], ['nao-produto', 'Não é Produto/Serviço Principal'], ['a-validar', 'A validar']
-        ]);
-        html += filtroSelect('avpFiltroStatus', state.filtro.status, [
-          ['todos', 'Todos os status'], ['rascunho', 'Rascunho'], ['concluido', 'Concluído']
-        ]);
-        html += filtroSelect('avpFiltroAlterado', state.filtro.alterado, [
-          ['todos', 'Decisão automática ou manual'], ['sim', 'Alterado manualmente']
-        ]);
-        html += filtroSelect('avpFiltroAlternativa', state.filtro.alternativa, [['todos', 'Todas as classificações arquiteturais']].concat(
+          ['todos', 'Todos'], ['produto', 'É Produto/Serviço'], ['nao-produto', 'Não é Produto/Serviço Principal'], ['a-validar', 'A validar']
+        ], 'Resultado Produto/Serviço');
+        html += filtroSelect('avpFiltroAlternativa', state.filtro.alternativa, [['todos', 'Todas']].concat(
           CAMADAS.map(function (c) { return [c.label, c.label]; })
-        ));
+        ), 'Classificação arquitetural');
+        html += filtroSelect('avpFiltroStatus', state.filtro.status, [
+          ['todos', 'Todos'], ['rascunho', 'Rascunho'], ['concluido', 'Concluído']
+        ], 'Status');
+        html += filtroSelect('avpFiltroAlterado', state.filtro.alterado, [
+          ['todos', 'Automática ou manual'], ['sim', 'Alterada manualmente']
+        ], 'Decisão final');
         html += filtroSelect('avpFiltroMotor', state.filtro.motor, [
-          ['todos', 'Motor: todas'], ['desatualizado', 'Motor desatualizado'], ['equivalente', 'Versão anterior equivalente'], ['atual', 'Motor atual']
-        ]);
+          ['todos', 'Todas'], ['desatualizado', 'Motor desatualizado'], ['equivalente', 'Versão anterior equivalente'], ['atual', 'Motor atual']
+        ], 'Versão do motor');
         html += '</div>';
+        html += '<p class="avp-filtros-ajuda">O <strong>resultado Produto/Serviço</strong> diz se o item é ou não Produto/Serviço principal; a ' +
+          '<strong>classificação arquitetural</strong> diz que camada ele ocupa (Componente, Canal, Processo…). São coisas diferentes e podem ser combinadas.</p>';
       }
 
       if (!filtrados.length) {
@@ -1848,9 +1890,16 @@
       });
       var exportarPdfSelecionadas = document.getElementById('avpExportarPdfSelecionadas');
       if (exportarPdfSelecionadas) exportarPdfSelecionadas.addEventListener('click', function () {
-        var itensSelecionados = chavesSelecionadas.map(function (k) { return buscarItem(k); }).filter(Boolean);
+        var itensSelecionados = chavesSelecionadas.map(function (k) { return buscarItem(k); })
+          .filter(function (it) { return it && it.status === 'concluido'; });
         if (!itensSelecionados.length) return;
-        executarExportacaoPdfLista(itensSelecionados);
+        executarExportacaoPdfLista(itensSelecionados, 'Selecionadas');
+      });
+      var exportarPdfFiltrados = document.getElementById('avpExportarPdfFiltrados');
+      if (exportarPdfFiltrados) exportarPdfFiltrados.addEventListener('click', function () {
+        var itensFiltrados = filtrados.filter(function (it) { return it.status === 'concluido'; });
+        if (!itensFiltrados.length) return;
+        executarExportacaoPdfLista(itensFiltrados, filtrosAtivos() ? 'Filtradas' : 'Todas');
       });
     }
 
@@ -1872,14 +1921,14 @@
         render();
       });
     }
-    function executarExportacaoPdfLista(itensSelecionados) {
+    function executarExportacaoPdfLista(itensSelecionados, escopo) {
       if (state.exportando) return;
       state.exportando = 'pdf';
       state.menuExportarAberto = false;
       state.flashExportacao = null;
       render();
       var nome = itensSelecionados.length === 1 ? nomeArquivoPdf(itensSelecionados[0])
-        : 'Avaliacoes_Produto_Servico_Selecionadas_' + dataParaNomeArquivo() + '.pdf';
+        : 'Avaliacoes_Produto_Servico_' + (escopo || 'Selecionadas') + '_' + dataParaNomeArquivo() + '.pdf';
       gerarPdf(itensSelecionados, nome, function (erro) {
         state.exportando = null;
         state.flashExportacao = erro
@@ -1890,12 +1939,13 @@
       });
     }
 
-    function filtroSelect(id, valorAtual, opcoes) {
-      var html = '<select class="avp-select" id="' + id + '">';
+    function filtroSelect(id, valorAtual, opcoes, rotulo) {
+      var html = '<div class="avp-filtro"><label class="avp-filtro-rotulo" for="' + id + '">' + esc(rotulo) + '</label>';
+      html += '<select class="avp-select" id="' + id + '">';
       opcoes.forEach(function (o) {
         html += '<option value="' + esc(o[0]) + '"' + (o[0] === valorAtual ? ' selected' : '') + '>' + esc(o[1]) + '</option>';
       });
-      html += '</select>';
+      html += '</select></div>';
       return html;
     }
     function resultadoBadge(v) {
@@ -3422,7 +3472,8 @@
     /* ===================== FORM INICIAL ===================== */
     function renderFormInicial() {
       var a = state.atual;
-      var html = '<div class="avp-form-card">';
+      var html = '<button class="avp-voltar-link" id="avpVoltarFormInicial">← Voltar para avaliações</button>';
+      html += '<div class="avp-form-card">';
       html += '<h3>Avaliar novo item</h3>';
       if (state.erroForm) html += '<p class="avp-error-msg">' + esc(state.erroForm) + '</p>';
       html += campoTexto('avpfNome', 'Nome do item', a.nome, true, false, temCampoInvalido('nome'));
@@ -3455,11 +3506,13 @@
         state.tela = 'checklist';
         render();
       });
-      document.getElementById('avpCancelarInicialBtn').addEventListener('click', function () {
+      function cancelarInicial() {
         state.atual = null;
         state.tela = 'lista';
         render();
-      });
+      }
+      document.getElementById('avpCancelarInicialBtn').addEventListener('click', cancelarInicial);
+      document.getElementById('avpVoltarFormInicial').addEventListener('click', cancelarInicial);
     }
 
     function campoTexto(id, label, valor, obrigatorio, textarea, invalido) {
@@ -3487,7 +3540,7 @@
       var base = state.reavaliacaoBase;
       var reavaliando = !!base;
       var html = '<div class="avp-checklist">';
-      html += '<button class="avp-voltar-link" id="avpVoltarLista">‹ Avaliações de Produto/Serviço</button>';
+      html += '<button class="avp-voltar-link" id="avpVoltarLista">← Voltar para avaliações</button>';
       html += '<div class="avp-form-card">';
       html += '<h3>' + esc(reavaliando ? 'Reavaliação — v' + a.versao : (a._key ? 'Editando avaliação' : 'Nova avaliação')) + '</h3>';
       if (reavaliando) {
@@ -3874,7 +3927,7 @@
       var badgeTexto = resultado === 'produto' ? 'É PRODUTO/SERVIÇO' :
         (resultado === 'a-validar' ? 'A VALIDAR' : 'NÃO É PRODUTO/SERVIÇO PRINCIPAL');
       var html = '<div class="avp-resultado">';
-      html += '<button class="avp-voltar-link" id="avpVoltarListaResultado">‹ Avaliações de Produto/Serviço</button>';
+      html += '<button class="avp-voltar-link" id="avpVoltarListaResultado">← Voltar para avaliações</button>';
 
       if (state.flashResultado) {
         html += '<div class="avp-flash-success" id="avpFlashResultado">' + esc(state.flashResultado) +
@@ -3890,6 +3943,19 @@
         html += '<button type="button" class="avp-historico-link" id="avpVerHistoricoResultado">🕘 Ver histórico de versões</button>';
       }
       html += '</div>';
+
+      /* REAVALIAR fica à vista, logo abaixo do resultado: é a ação operacional
+         para quando a situação do item mudar (outras características, outra
+         forma de entrega, outra autonomia…). Nunca edita esta avaliação: abre
+         uma NOVA versão do mesmo item (v+1, com quem avaliou e quando) e esta
+         fica preservada, consultável no histórico. */
+      if (pode('avaliador')) {
+        html += '<div class="avp-form-card avp-reavaliar-card">';
+        html += '<div class="avp-reavaliar-texto"><strong>A situação deste item mudou?</strong>' +
+          '<span>Reavaliar abre uma nova avaliação do mesmo item (versão v' + ((a.versao || 1) + 1) + '). Esta avaliação continua guardada, sem alteração, no histórico — a mais recente passa a valer como a situação atual.</span></div>';
+        html += '<button class="btn btn--sm" id="avpReavaliarBtn">Reavaliar</button>';
+        html += '</div>';
+      }
 
       /* Aviso discreto — nunca bloqueia a leitura do resultado, só oferece a
          ação; ver reprocessarMotor/precisaReprocessar. Só para avaliação
@@ -3980,12 +4046,11 @@
          página: voltar para a lista, gerar PDF e reavaliar — em vez de um
          botão solto no topo sem relação clara com os demais. */
       html += '<div class="avp-actions-footer avp-result-actions-footer">';
-      html += '<button class="btn" id="avpVoltarListaRodape">VOLTAR PARA A LISTA</button>';
+      html += '<button class="btn" id="avpVoltarListaRodape">← Voltar para avaliações</button>';
       if (pode('gestor')) {
         html += '<button class="btn btn--sm" id="avpGerarPdfBtn"' + (state.exportando ? ' disabled' : '') + '>' +
           (state.exportando === 'pdf' ? 'Gerando arquivo…' : '📄 GERAR PDF') + '</button>';
       }
-      if (pode('avaliador')) html += '<button class="btn" id="avpReavaliarBtn">REAVALIAR</button>';
       html += '</div>';
       if (state.flashExportacao) {
         html += '<p class="avp-export-status' + (state.flashExportacao.erro ? ' avp-export-status--erro' : '') + '">' +
@@ -4173,7 +4238,10 @@
       html += '<h4>Especialização arquitetural (cadastro)</h4>';
       html += '<p class="avp-decisao-aviso">Metadado opcional, cadastrado à parte — nunca inferido das respostas do ' +
         'questionário. Preencha quando já se souber, por outra fonte, a natureza específica deste item (ex.: ' +
-        '"Instituto previdenciário", "Benefício").</p>';
+        '"Instituto previdenciário", "Benefício"). Não altera o resultado nem a classificação arquitetural: só os complementa.</p>';
+      html += '<p class="avp-natureza-ajuda" id="avpEspecializacaoAjuda">Este cadastro aparece para as classificações que admitem especialização (' +
+        CAMADAS_COM_ESPECIALIZACAO.map(function (id) { var c = camadaPorId(id); return c ? c.label : id; }).join(', ') + ')' +
+        (papelAplicavel ? '. O papel estrutural (essencial ou opcional) vale só para Componente.' : '. O papel estrutural vale só para Componente, e esta classificação não o usa.') + '</p>';
       html += '<div class="avp-field">';
       html += '<label for="avpEspecializacaoCadastrada">Especialização (opcional)</label>';
       html += '<input type="text" id="avpEspecializacaoCadastrada" value="' + esc(f.valor) + '" placeholder="Ex.: Instituto previdenciário">';
@@ -4239,7 +4307,7 @@
       var html = '<div class="avp-form-card avp-decisao-card">';
       html += '<h4>Decisão arquitetural</h4>';
       html += '<p class="avp-decisao-aviso">Isto registra uma decisão sobre a CONCLUSÃO, sem alterar nenhuma resposta do questionário — ' +
-        'a recomendação automática permanece intacta no histórico. Para mudar respostas ou justificativas, use "Reavaliar" na lista.</p>';
+        'a recomendação automática permanece intacta no histórico. Para mudar respostas ou justificativas, use "Reavaliar" (no topo desta tela).</p>';
       if (a.decisaoManual) {
         /* Três informações SEPARADAS — a recomendação automática original
            nunca é escondida nem substituída pela decisão, e a natureza
@@ -4257,6 +4325,12 @@
       html += decisaoOpcao('produto', 'Classificar manualmente como Produto/Serviço', f.opcao);
       html += decisaoOpcao('nao-produto', 'Classificar manualmente como não Produto/Serviço Principal', f.opcao);
       html += '</div>';
+      /* Só descreve o que o código faz (ver salvarDecisao): a decisão manual
+         tem exatamente estas duas saídas e exige justificativa; grava só a
+         decisão final. */
+      html += '<p class="avp-natureza-ajuda" id="avpDecisaoAjuda">Use quando concordar ou discordar do resultado calculado. A decisão manual tem duas possibilidades — ' +
+        'Produto/Serviço ou não Produto/Serviço Principal — e exige justificativa. Aceitar a recomendação mantém o resultado calculado pelo sistema (inclusive "A validar"). ' +
+        'Em qualquer caso só a decisão final é registrada: respostas, classificação arquitetural e resultado automático não mudam.</p>';
       if (f.opcao !== 'auto') {
         html += '<div class="avp-field' + (f.erro && !justificativaPreenchida(f) ? ' avp-field--invalid' : '') + '">';
         html += '<label for="avpJustificativaDecisao">Justificativa da decisão arquitetural *</label>';
