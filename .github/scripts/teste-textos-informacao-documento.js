@@ -108,6 +108,13 @@ function parteA() {
     const atual = { respostas: respostasDe(m) };
     const c = av.computeResultado(atual);
     const { relacao, ...semTexto } = c.camadaSugerida;
+    /* Única diferença INTENCIONAL desde a impressão digital original: o motor
+       deixou de gravar os placeholders "não determinada pelo questionário" /
+       "não determinado" (agora null). Para provar que NADA MAIS mudou, os dois
+       valores são recolocados aqui antes de calcular — se o hash continua o de
+       antes, só os placeholders deixaram de existir. */
+    if (semTexto.especializacao === null && ['componente', 'unidade-valor-associada', 'funcionalidade-operacao', 'regra-condicao', 'documento-informacao', 'produto-principal'].indexOf(semTexto.id) !== -1) semTexto.especializacao = 'não determinada pelo questionário';
+    if (semTexto.papelEstrutural === null && semTexto.id === 'componente') semTexto.papelEstrutural = 'não determinado';
     h.update(JSON.stringify([m, c.resultadoAutomatico, c.essenciaisFalhos, c.criteriosAtendidos, c.exclusoesConflitantes, semTexto]) + '\n');
     contagemPorCamada[c.camadaSugerida.id] = (contagemPorCamada[c.camadaSugerida.id] || 0) + 1;
     const just = av.gerarJustificativaAutomatica(atual, c);
