@@ -149,8 +149,11 @@ async function irAoAdmin(page) {
   await page.click('.admin-tab-btn[data-panel="adminPanelArquitetura"]');
   /* o Admin lembra a subtela em que ficou: se não caiu no início, volta até ele */
   await page.waitForSelector('#avpConfigQuestionariosBtn, #avpConfigVoltar, #avpNaturezasVoltar, #avpMotoresVoltarLista, #avpUsuariosVoltar', { timeout: 8000 });
-  if (!(await page.locator('#avpConfigQuestionariosBtn').count())) {
+  for (var nivel = 0; nivel < 6 && !(await page.locator('#avpConfigQuestionariosBtn').count()); nivel++) {
+    /* o "← Voltar para …" sobe um nível por vez; aviso de alteração não salva é confirmado */
     await page.locator('#avpConfigVoltar, #avpNaturezasVoltar, #avpMotoresVoltarLista, #avpUsuariosVoltar').first().click();
+    var sair = page.locator('.avp-modal-confirm-btn');
+    if (await sair.count()) await sair.click();
   }
   await page.waitForSelector('#avpConfigQuestionariosBtn', { timeout: 8000 });
 }

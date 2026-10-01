@@ -1413,6 +1413,22 @@
     function pode(nivel) { return !!(window.faAuth && window.faAuth.podeAvaliacao && window.faAuth.podeAvaliacao(nivel)); }
     function telaInicial() { return modo === 'admin' ? 'admin-inicio' : 'lista'; }
 
+    /* Navegação hierárquica do Admin: toda subtela abre com um "← Voltar para
+       <tela pai>" explícito (nunca um rótulo genérico que pula níveis). Quem
+       sai de uma tela de EDIÇÃO com alteração ainda não salva é avisado antes
+       — c.sujo é ligado pelo próprio campo editado e desligado ao salvar. */
+    var ROTULO_ADMIN = 'Avaliação de Produto/Serviço (Admin)';
+    function linkVoltar(id, destino) {
+      return '<button type="button" class="avp-voltar-link" id="' + id + '">← Voltar para ' + esc(destino) + '</button>';
+    }
+    function sairComAviso(c, acao) {
+      if (c && c.sujo) {
+        avpConfirm('Há alterações que ainda não foram salvas. Se sair agora, elas não serão salvas como rascunho nem publicadas.\n\nSair mesmo assim?', acao);
+      } else {
+        acao();
+      }
+    }
+
     var state = {
       tela: telaInicial(), /* 'lista' | 'form-inicial' | 'checklist' | 'resultado' | 'nao-encontrada' | 'sem-permissao' | 'carregando'
                               (operacional) · 'admin-inicio' | 'config-*' | 'admin-usuarios' (admin) */
@@ -2276,14 +2292,17 @@
     function renderConfigQuestionarios() {
       var c = state.config;
       var html = '<div class="avp-config-questionarios">';
-      html += '<button class="avp-voltar-link" id="avpConfigVoltar">‹ Avaliação de Produto/Serviço (Admin)</button>';
+      html += linkVoltar('avpConfigVoltar', c.sub === 'lista' ? ROTULO_ADMIN : 'Configuração dos Questionários');
       if (c.sub === 'lista') html += renderConfigLista();
       else if (c.sub === 'editar') html += renderConfigEditar();
       else if (c.sub === 'auditoria') html += renderConfigAuditoria();
       html += '</div>';
       wrap.innerHTML = html;
 
-      document.getElementById('avpConfigVoltar').addEventListener('click', fecharConfigQuestionarios);
+      document.getElementById('avpConfigVoltar').addEventListener('click', function () {
+        if (c.sub === 'lista') fecharConfigQuestionarios();
+        else sairComAviso(c, function () { c.sub = 'lista'; c.sujo = false; render(); });
+      });
       if (c.sub === 'lista') bindConfigLista();
       else if (c.sub === 'editar') bindConfigEditar();
       else if (c.sub === 'auditoria') bindConfigAuditoria();
@@ -2435,7 +2454,7 @@
       html += '<div class="avp-actions-footer">';
       html += '<button class="btn btn--sm" id="avpCfgSalvarRascunhoBtn"' + (c.salvando ? ' disabled' : '') + '>' + (c.salvando ? 'SALVANDO…' : 'SALVAR RASCUNHO') + '</button>';
       html += '<button class="btn btn--primary btn--sm" id="avpCfgPublicarBtn">PUBLICAR NOVA VERSÃO</button>';
-      html += '<button class="btn btn--sm" id="avpCfgVoltarListaBtn">‹ Voltar</button>';
+      html += '<button class="btn btn--sm" id="avpCfgVoltarListaBtn">← Voltar para Configuração dos Questionários</button>';
       html += '</div>';
       if (c.confirmandoPublicacao) html += renderConfigConfirmarPublicacao();
       return html;
@@ -2465,6 +2484,7 @@
       var c = state.config;
       wrap.querySelectorAll('[data-campo]').forEach(function (el) {
         el.addEventListener('input', function () {
+          c.sujo = true;
           var p = c.rascunho.perguntas[Number(el.dataset.idx)];
           var campo = el.dataset.campo;
           if (campo.indexOf('.') !== -1) {
@@ -2476,12 +2496,15 @@
           }
         });
       });
-      document.getElementById('avpCfgVoltarListaBtn').addEventListener('click', function () { c.sub = 'lista'; render(); });
+      document.getElementById('avpCfgVoltarListaBtn').addEventListener('click', function () {
+        sairComAviso(c, function () { c.sub = 'lista'; c.sujo = false; render(); });
+      });
       document.getElementById('avpCfgSalvarRascunhoBtn').addEventListener('click', function () {
         c.salvando = true;
         render();
         window.faQuestionarios.salvarRascunho(c.codigo, c.rascunho.perguntas, sessaoAtual(), function (err) {
           c.salvando = false;
+          if (!err) c.sujo = false;
           c.flash = err ? null : '✓ Rascunho salvo. Ainda não está visível para quem responde o questionário.';
           if (err) avpAlert('Não foi possível salvar o rascunho. Tente novamente.');
           render();
@@ -2552,7 +2575,7 @@
         });
         html += '</tbody></table></div>';
       }
-      html += '<div class="avp-actions-footer"><button class="btn btn--sm" id="avpCfgAuditoriaVoltarBtn">‹ Voltar</button></div>';
+      html += '<div class="avp-actions-footer"><button class="btn btn--sm" id="avpCfgAuditoriaVoltarBtn">← Voltar para Configuração dos Questionários</button></div>';
       return html;
     }
     function bindConfigAuditoria() {
@@ -2825,20 +2848,30 @@
        Só parametrização e governança — nada de avaliar aqui. O trabalho do dia
        a dia (consultar, avaliar, reavaliar) fica na área AVALIAÇÃO do menu. */
     function renderAdminInicio() {
+      /* Três grupos, só de organização visual — cada cartão leva à mesma tela
+         de antes. Rótulos dos grupos descrevem o que o administrador faz ali. */
+      function grupo(titulo, descricao, cartoes) {
+        var h = '<section class="avp-form-card avp-admin-inicio avp-admin-grupo" aria-label="' + esc(titulo) + '">';
+        h += '<h4>' + esc(titulo) + '</h4>';
+        h += '<p class="avp-admin-grupo-desc">' + esc(descricao) + '</p>';
+        h += '<div class="avp-admin-cards">' + cartoes + '</div></section>';
+        return h;
+      }
+      function cartao(id, titulo, texto) {
+        return '<button type="button" class="avp-admin-card" id="' + id + '"><strong>' + esc(titulo) + '</strong><span>' + esc(texto) + '</span></button>';
+      }
       var html = '<div class="avp-form-card avp-admin-inicio">';
       html += '<h4>Avaliação de Produto/Serviço</h4>';
       html += '<p class="avp-decisao-aviso">Parametrização da funcionalidade. Consultar e realizar avaliações é feito na área <strong>Avaliação</strong> do menu principal.</p>';
-      html += '<div class="avp-admin-cards">';
-      html += '<button type="button" class="avp-admin-card" id="avpConfigQuestionariosBtn"><strong>Configuração dos Questionários</strong><span>Redação das perguntas e justificativas, com versões e auditoria.</span></button>';
-      html += '<button type="button" class="avp-admin-card" id="avpConfigMotoresBtn"><strong>Configuração dos Motores</strong><span>Regras que classificam os itens, com simulação e versões.</span></button>';
-      html += '<button type="button" class="avp-admin-card" id="avpConfigNaturezasBtn"><strong>Naturezas complementares</strong><span>Opções do campo opcional de descrição do item.</span></button>';
-      if (window.faAvaliacaoSquad) html += '<button type="button" class="avp-admin-card" id="avpAdequacaoSquadListaBtn"><strong>Adequação à Squad</strong><span>Avaliação de adequação à gestão por squad e o seu motor.</span></button>';
-      html += '</div></div>';
-      html += '<div class="avp-form-card avp-admin-inicio">';
-      html += '<h4>Acessos e permissões</h4>';
-      html += '<div class="avp-admin-cards">';
-      html += '<button type="button" class="avp-admin-card" id="avpUsuariosBtn"><strong>Usuários autorizados</strong><span>Quem pode consultar, avaliar ou gerir as avaliações — e quem é administrador.</span></button>';
-      html += '</div></div>';
+      html += '</div>';
+      html += grupo('Regras e conceitos', 'O que as perguntas dizem e como as respostas viram uma classificação.',
+        cartao('avpConfigQuestionariosBtn', 'Configuração dos Questionários', 'Redação das perguntas e justificativas, com versões e auditoria.') +
+        cartao('avpConfigMotoresBtn', 'Configuração dos Motores', 'Regras que classificam os itens, com simulação e versões.'));
+      html += grupo('Governança arquitetural', 'Opções de descrição dos itens e a análise de adequação à gestão por squad.',
+        cartao('avpConfigNaturezasBtn', 'Naturezas complementares', 'Opções do campo opcional de descrição do item.') +
+        (window.faAvaliacaoSquad ? cartao('avpAdequacaoSquadListaBtn', 'Adequação à Squad', 'Avaliação de adequação à gestão por squad e o seu motor.') : ''));
+      html += grupo('Acesso', 'Quem entra na área de avaliações e com qual perfil.',
+        cartao('avpUsuariosBtn', 'Usuários autorizados', 'Quem pode consultar, avaliar ou gerir as avaliações — e quem é administrador.'));
       wrap.innerHTML = html;
       document.getElementById('avpConfigQuestionariosBtn').addEventListener('click', abrirConfigQuestionarios);
       document.getElementById('avpConfigMotoresBtn').addEventListener('click', abrirConfigMotores);
@@ -2941,7 +2974,7 @@
     function renderAdminUsuarios() {
       var u = state.usuarios;
       var souSuper = !!(window.faAuth && window.faAuth.isSuperAdmin && window.faAuth.isSuperAdmin((window.faAuth.getSession() || {}).email));
-      var html = '<button class="avp-voltar-link" id="avpUsuariosVoltar">‹ Avaliação de Produto/Serviço</button>';
+      var html = linkVoltar('avpUsuariosVoltar', ROTULO_ADMIN);
       html += '<div class="avp-form-card"><h3>Usuários autorizados</h3>';
       html += '<p class="avp-decisao-aviso">Defina quem pode usar a Avaliação de Produto/Serviço. <strong>Consulta</strong> só consulta avaliações concluídas; ' +
         '<strong>Avaliador</strong> também cria, continua e reavalia; <strong>Gestor da Avaliação</strong> também decide, exclui, reprocessa e exporta. ' +
@@ -3058,7 +3091,7 @@
       var c = state.configNaturezas;
       var catalogo = window.faNaturezas.estado();
       var todas = window.faNaturezas.todas();
-      var html = '<button class="avp-voltar-link" id="avpNaturezasVoltar">‹ Avaliação de Produto/Serviço (Admin)</button>';
+      var html = linkVoltar('avpNaturezasVoltar', ROTULO_ADMIN);
       html += '<div class="avp-form-card"><h3>⚙ Naturezas complementares</h3>';
       html += '<p class="avp-decisao-aviso">Opções oferecidas no campo "Natureza complementar" de cada avaliação. É só uma descrição manual do item: não entra no motor, não muda respostas nem classificação e não exige reprocessamento. Renomear ou desativar uma opção não altera as avaliações que já a usam — elas guardam o nome da época.</p>';
       if (catalogo === 'carregando') html += '<p class="loading-msg">Carregando opções…</p>';
@@ -3100,11 +3133,14 @@
       }
       wrap.innerHTML = html;
 
-      document.getElementById('avpNaturezasVoltar').addEventListener('click', function () { state.tela = telaInicial(); state.configNaturezas = null; render(); });
+      document.getElementById('avpNaturezasVoltar').addEventListener('click', function () {
+        sairComAviso(c, function () { state.tela = telaInicial(); state.configNaturezas = null; render(); });
+      });
       wrap.querySelectorAll('.avp-natureza-editar').forEach(function (btn) {
         btn.addEventListener('click', function () {
           var o = window.faNaturezas.porCodigo(btn.dataset.codigo);
           if (!o) return;
+          c.sujo = false;
           c.editando = { novo: false, codigoEstavel: o.codigoEstavel, nome: o.nome, descricao: o.descricao, ordem: o.ordem, ativo: o.ativo };
           c.erro = null; c.flash = null;
           render();
@@ -3120,6 +3156,7 @@
       var nova = document.getElementById('avpNaturezaNova');
       if (nova) nova.addEventListener('click', function () {
         var maior = todas.reduce(function (m, o) { return Math.max(m, o.ordem); }, 0);
+        c.sujo = false;
         c.editando = { novo: true, codigoEstavel: '', nome: '', descricao: '', ordem: maior + 1, ativo: true };
         c.erro = null; c.flash = null;
         render();
@@ -3127,16 +3164,17 @@
       });
       var nome = document.getElementById('avpNaturezaNome');
       if (nome) nome.addEventListener('input', function () {
+        c.sujo = true;
         c.editando.nome = nome.value;
         var cod = document.getElementById('avpNaturezaCodigo');
         if (cod && c.editando.novo) cod.textContent = window.faNaturezas.codigoDeNome(nome.value) || '—';
       });
       var desc = document.getElementById('avpNaturezaDescricaoEd');
-      if (desc) desc.addEventListener('input', function () { c.editando.descricao = desc.value; });
+      if (desc) desc.addEventListener('input', function () { c.sujo = true; c.editando.descricao = desc.value; });
       var ordem = document.getElementById('avpNaturezaOrdem');
-      if (ordem) ordem.addEventListener('input', function () { c.editando.ordem = ordem.value; });
+      if (ordem) ordem.addEventListener('input', function () { c.sujo = true; c.editando.ordem = ordem.value; });
       var cancelar = document.getElementById('avpNaturezaCancelar');
-      if (cancelar) cancelar.addEventListener('click', function () { c.editando = null; c.erro = null; render(); });
+      if (cancelar) cancelar.addEventListener('click', function () { c.editando = null; c.sujo = false; c.erro = null; render(); });
       var salvar = document.getElementById('avpNaturezaSalvar');
       if (salvar) salvar.addEventListener('click', function () {
         var e = c.editando;
@@ -3175,6 +3213,7 @@
           c.erro = 'Não foi possível salvar a opção. Tente novamente.';
         } else {
           c.editando = null;
+          c.sujo = false;
           c.flash = '✓ ' + mensagemOk;
         }
         if (state.tela === 'config-naturezas') render();
@@ -3190,9 +3229,21 @@
       state.configMotores = { sub: 'painel', flash: state.configMotores && state.configMotores.flash };
       render();
     }
+    function voltarParaEditarRegras(c) {
+      state.configMotores = { sub: 'editar-regras', regras: c.regras, versaoBase: c.versaoBase, salvando: false, sujo: true };
+      render();
+    }
+    function voltarParaConflito(c) {
+      state.configMotores = { sub: 'conflito-publicacao', regras: c.regras, versaoBase: c.versaoBase, versaoAtual: c.versaoAtual, salvando: false };
+      render();
+    }
     function renderConfigMotores() {
       var c = state.configMotores;
-      var html = '<button class="avp-voltar-link" id="avpMotoresVoltarLista">‹ Avaliação de Produto/Serviço (Admin)</button>';
+      var destinoVoltar = c.sub === 'painel' ? ROTULO_ADMIN
+        : c.sub === 'simulacao' || c.sub === 'conflito-publicacao' ? 'Editar regras'
+        : c.sub === 'comparar-alteracoes' ? 'o conflito de publicação'
+        : 'Configuração dos Motores';
+      var html = linkVoltar('avpMotoresVoltarLista', destinoVoltar);
       html += '<div class="avp-config-motores">';
       if (c.sub === 'painel') html += renderMotoresPainel();
       else if (c.sub === 'editar-regras') html += renderMotorArqEditarRegras();
@@ -3204,7 +3255,12 @@
       else if (c.sub === 'versoes') html += renderMotorArqVersoes();
       html += '</div>';
       wrap.innerHTML = html;
-      document.getElementById('avpMotoresVoltarLista').addEventListener('click', function () { state.tela = telaInicial(); state.configMotores = null; render(); });
+      document.getElementById('avpMotoresVoltarLista').addEventListener('click', function () {
+        if (c.sub === 'painel') { state.tela = telaInicial(); state.configMotores = null; render(); }
+        else if (c.sub === 'simulacao' || c.sub === 'conflito-publicacao') voltarParaEditarRegras(c);
+        else if (c.sub === 'comparar-alteracoes') voltarParaConflito(c);
+        else sairComAviso(c, voltarPainelConfigMotores);
+      });
       if (c.sub === 'painel') bindMotoresPainel();
       else if (c.sub === 'editar-regras') bindMotorArqEditarRegras();
       else if (c.sub === 'simulacao') bindMotorArqSimulacao();
@@ -3327,16 +3383,16 @@
       html += '<div class="avp-actions-footer">';
       html += '<button class="btn" id="avpMotorArqSalvarRascunhoBtn"' + (c.salvando ? ' disabled' : '') + '>SALVAR RASCUNHO</button>';
       html += '<button class="btn btn--primary" id="avpMotorArqSimularBtn"' + (c.salvando ? ' disabled' : '') + '>SIMULAR IMPACTO</button>';
-      html += '<button class="btn" id="avpMotorArqCancelarBtn"' + (c.salvando ? ' disabled' : '') + '>‹ Voltar</button>';
+      html += '<button class="btn" id="avpMotorArqCancelarBtn"' + (c.salvando ? ' disabled' : '') + '>← Voltar para Configuração dos Motores</button>';
       html += '</div>';
       return html;
     }
     function bindMotorArqEditarRegras() {
       var c = state.configMotores;
       wrap.querySelectorAll('.sq-cond-select').forEach(function (sel) {
-        sel.addEventListener('change', function () { c.leafRefs[Number(sel.dataset.leafId)].valor = sel.value; });
+        sel.addEventListener('change', function () { c.sujo = true; c.leafRefs[Number(sel.dataset.leafId)].valor = sel.value; });
       });
-      document.getElementById('avpMotorArqCancelarBtn').addEventListener('click', voltarPainelConfigMotores);
+      document.getElementById('avpMotorArqCancelarBtn').addEventListener('click', function () { sairComAviso(c, voltarPainelConfigMotores); });
       document.getElementById('avpMotorArqSalvarRascunhoBtn').addEventListener('click', function () {
         if (c.salvando) return;
         c.salvando = true;
@@ -3388,17 +3444,14 @@
       }
       if (c.erro) html += '<div class="avp-form-card"><p class="avp-error-msg">' + esc(c.erro) + '</p></div>';
       html += '<div class="avp-actions-footer">';
-      html += '<button class="btn" id="avpMotorArqVoltarEdicaoBtn"' + (c.salvando ? ' disabled' : '') + '>‹ VOLTAR PARA EDIÇÃO</button>';
+      html += '<button class="btn" id="avpMotorArqVoltarEdicaoBtn"' + (c.salvando ? ' disabled' : '') + '>← Voltar para Editar regras</button>';
       html += '<button class="btn btn--primary" id="avpMotorArqConfirmarPublicarBtn"' + (c.salvando ? ' disabled' : '') + '>' + (c.salvando ? 'PUBLICANDO…' : 'PUBLICAR NOVA VERSÃO') + '</button>';
       html += '</div>';
       return html;
     }
     function bindMotorArqSimulacao() {
       var c = state.configMotores;
-      document.getElementById('avpMotorArqVoltarEdicaoBtn').addEventListener('click', function () {
-        state.configMotores = { sub: 'editar-regras', regras: c.regras, versaoBase: c.versaoBase, salvando: false };
-        render();
-      });
+      document.getElementById('avpMotorArqVoltarEdicaoBtn').addEventListener('click', function () { voltarParaEditarRegras(c); });
       document.getElementById('avpMotorArqConfirmarPublicarBtn').addEventListener('click', function () {
         if (c.salvando) return;
         c.salvando = true;
@@ -3489,16 +3542,13 @@
         });
       }
       html += '<div class="avp-actions-footer">';
-      html += '<button class="btn" id="avpMotorArqCompararVoltarBtn">‹ Voltar ao conflito</button>';
+      html += '<button class="btn" id="avpMotorArqCompararVoltarBtn">← Voltar para o conflito de publicação</button>';
       html += '</div>';
       return html;
     }
     function bindMotorArqCompararAlteracoes() {
       var c = state.configMotores;
-      document.getElementById('avpMotorArqCompararVoltarBtn').addEventListener('click', function () {
-        state.configMotores = { sub: 'conflito-publicacao', regras: c.regras, versaoBase: c.versaoBase, versaoAtual: c.versaoAtual, salvando: false };
-        render();
-      });
+      document.getElementById('avpMotorArqCompararVoltarBtn').addEventListener('click', function () { voltarParaConflito(c); });
     }
 
     /* ---- EDITAR TEXTOS (só rótulos de camada — publicação imediata, nunca versiona) ---- */
@@ -3515,7 +3565,7 @@
       if (c.erro) html += '<p class="avp-error-msg">' + esc(c.erro) + '</p>';
       html += '<div class="avp-actions-footer">';
       html += '<button class="btn btn--primary" id="avpMotorArqPublicarTextosBtn"' + (c.salvando ? ' disabled' : '') + '>' + (c.salvando ? 'PUBLICANDO…' : 'PUBLICAR TEXTOS') + '</button>';
-      html += '<button class="btn" id="avpMotorArqCancelarTextosBtn"' + (c.salvando ? ' disabled' : '') + '>‹ Voltar</button>';
+      html += '<button class="btn" id="avpMotorArqCancelarTextosBtn"' + (c.salvando ? ' disabled' : '') + '>← Voltar para Configuração dos Motores</button>';
       html += '</div>';
       return html;
     }
@@ -3523,11 +3573,12 @@
       var c = state.configMotores;
       wrap.querySelectorAll('.sq-texto-rotulo').forEach(function (input) {
         input.addEventListener('input', function () {
+          c.sujo = true;
           c.textos[input.dataset.codigo] = c.textos[input.dataset.codigo] || {};
           c.textos[input.dataset.codigo].rotulo = input.value;
         });
       });
-      document.getElementById('avpMotorArqCancelarTextosBtn').addEventListener('click', voltarPainelConfigMotores);
+      document.getElementById('avpMotorArqCancelarTextosBtn').addEventListener('click', function () { sairComAviso(c, voltarPainelConfigMotores); });
       document.getElementById('avpMotorArqPublicarTextosBtn').addEventListener('click', function () {
         if (c.salvando) return;
         c.salvando = true;
@@ -3545,8 +3596,9 @@
     function renderMotorArqAuditoria() {
       var c = state.configMotores;
       var html = '<div class="avp-form-card"><h3>Histórico de alterações do motor arquitetural</h3></div>';
-      if (!c.lista) { html += '<p class="loading-msg">Carregando…</p>'; return html; }
-      if (!c.lista.length) { html += '<p class="admin-empty">Nenhuma alteração registrada ainda.</p>'; return html; }
+      /* o "← Voltar" do rodapé existe também enquanto carrega e quando não há nada a mostrar */
+      if (!c.lista) { html += '<p class="loading-msg">Carregando…</p>' + '<div class="avp-actions-footer"><button class="btn" id="avpMotorArqVoltarAuditoriaBtn">← Voltar para Configuração dos Motores</button></div>'; return html; }
+      if (!c.lista.length) { html += '<p class="admin-empty">Nenhuma alteração registrada ainda.</p>' + '<div class="avp-actions-footer"><button class="btn" id="avpMotorArqVoltarAuditoriaBtn">← Voltar para Configuração dos Motores</button></div>'; return html; }
       html += '<div class="table-scroll-wrap"><table class="admin-table"><thead><tr><th>Tipo</th><th>Campo</th><th>Usuário</th><th>Data</th><th>Versão</th></tr></thead><tbody>';
       c.lista.forEach(function (a) {
         var tipoLabel = a.tipo === 'regra' ? 'Regra' : a.tipo === 'texto' ? 'Texto'
@@ -3567,7 +3619,7 @@
           '<td data-label="Versão">' + versaoCol + '</td></tr>';
       });
       html += '</tbody></table></div>';
-      html += '<div class="avp-actions-footer"><button class="btn" id="avpMotorArqVoltarAuditoriaBtn">‹ Voltar</button></div>';
+      html += '<div class="avp-actions-footer"><button class="btn" id="avpMotorArqVoltarAuditoriaBtn">← Voltar para Configuração dos Motores</button></div>';
       return html;
     }
     function bindMotorArqAuditoria() {
@@ -3587,7 +3639,7 @@
           '<td data-label="Ações">' + (v === atual ? '' : '<button class="btn btn--sm avp-motor-arq-restaurar-btn" data-versao="' + v + '">Restaurar como nova versão</button>') + '</td></tr>';
       });
       html += '</tbody></table></div>';
-      html += '<div class="avp-actions-footer"><button class="btn" id="avpMotorArqVoltarVersoesBtn">‹ Voltar</button></div>';
+      html += '<div class="avp-actions-footer"><button class="btn" id="avpMotorArqVoltarVersoesBtn">← Voltar para Configuração dos Motores</button></div>';
       return html;
     }
     function bindMotorArqVersoes() {
