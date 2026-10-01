@@ -25,3 +25,4 @@ jobs:
       - name: Resultado
         run: echo "::notice title=Visibilidade do cache::branch=${{ github.ref_name }} cache-hit=${{ steps.c.outputs.cache-hit || 'false (MISS)' }}"
 # rodada de visibilidade 2
+# outra branch
