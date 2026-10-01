@@ -103,6 +103,10 @@
   'use strict';
 
   var NODE = 'avaliacoes-produto';
+  /* Auditoria da Curadoria e da Decisão final: curadoria-auditoria/<avaliacaoId>/<pushKey>
+     (só acrescenta linhas). A natureza complementar mantém a auditoria própria que
+     já tinha (naturezas-complementares-auditoria). */
+  var NODE_CURADORIA_AUDITORIA = 'curadoria-auditoria';
 
   /* IDENTIDADE/REGRA das 16 perguntas — nunca texto exibido ao usuário.
      id: chave interna usada por todo o motor (identificarCamada, respostas
@@ -252,6 +256,19 @@
     return null;
   }
   /* Nome a exibir: o da época (snapshot), nunca o do catálogo de hoje. */
+  /* "Forma da decisão" é texto DERIVADO dos campos que já existem — não é campo:
+       decisão alterada à mão                        → "Decisão alterada manualmente";
+       recomendação aceita e há curadoria preenchida → "Recomendação aceita com complementações arquiteturais";
+       recomendação aceita, sem curadoria            → "Recomendação do sistema aceita".
+     "Curadoria preenchida" = existe especialização ou papel estrutural cadastrados,
+     ou natureza complementar. Mesmo texto na tela, no PDF e no Excel. */
+  function temCuradoria(it) {
+    return !!((it.especializacaoCadastrada || '').trim() || (it.papelEstruturalCadastrado || '').trim() || naturezaDoItem(it));
+  }
+  function formaDaDecisao(it) {
+    if (it.decisaoManual) return 'Decisão alterada manualmente';
+    return temCuradoria(it) ? 'Recomendação aceita com complementações arquiteturais' : 'Recomendação do sistema aceita';
+  }
   function rotuloNaturezaDoItem(it) {
     var n = naturezaDoItem(it);
     return n ? n.nome : '';
@@ -1071,7 +1088,7 @@
     if (rotuloNaturezaDoItem(it)) html += pdfLinhaTabela('Natureza complementar', rotuloNaturezaDoItem(it));
     var decisaoTxt = rotuloResultado(it.decisaoFinal);
     html += pdfLinhaTabela('Decisão final', decisaoTxt);
-    html += pdfLinhaTabela('Forma da decisão', it.decisaoManual ? 'Alterada manualmente' : 'Recomendação do sistema aceita');
+    html += pdfLinhaTabela('Forma da decisão', formaDaDecisao(it));
     if (it.decisaoManual) {
       html += pdfLinhaTabela('Justificativa da decisão manual', it.justificativaDecisao);
       html += pdfLinhaTabela('Responsável pela decisão', it.alteradoPor && it.alteradoPor.name);
@@ -1544,6 +1561,7 @@
       flashNatureza: null,     /* confirmação persistente mostrada após salvar a natureza complementar */
       salvandoEspecializacao: false, /* trava o botão SALVAR ESPECIALIZAÇÃO enquanto grava */
       especializacaoForm: null,
+      curadoriaHist: null,  /* { chave, carregando, erro, itens } — histórico da curadoria e da decisão final desta avaliação */
       flashLista: null,     /* confirmação persistente mostrada na lista após salvar rascunho */
       flashResultado: null, /* confirmação persistente mostrada no resultado após concluir */
       flashDecisao: null,   /* confirmação persistente mostrada após salvar a decisão arquitetural */
@@ -1708,6 +1726,7 @@
       state.naturezaForm = null;
       state.flashNatureza = null;
       state.especializacaoForm = especializacaoFormInicial(it);
+      state.curadoriaHist = null;
       state.flashLista = null;
       state.flashResultado = null;
       state.flashDecisao = null;
@@ -4492,9 +4511,6 @@
       }
       html += '</div>';
 
-      if (CAMADAS_COM_ESPECIALIZACAO.indexOf(camada.id) !== -1 && pode() && vigente) {
-        html += renderEspecializacaoCadastradaCard(camada.id);
-      }
 
       if (camada.relacao) {
         html += '<div class="avp-form-card avp-relacao-card">';
@@ -4512,6 +4528,13 @@
         html += '</div>';
       }
 
+      /* Sequência: Resultado → Classificação arquitetural (a camada, acima) →
+         Curadoria arquitetural → Decisão final. As respostas pergunta a pergunta
+         ficam depois, como evidência. */
+      var editavel = pode() && vigente;
+      html += renderCuradoriaCard(a, camada, editavel);
+      html += editavel ? renderDecisaoCard(a) : renderDecisaoSomenteLeitura(a);
+
       html += '<div class="avp-form-card">';
       html += '<h4>Avaliação, pergunta por pergunta</h4>';
       html += '<p class="avp-natureza-ajuda"><strong>Sua justificativa</strong> é o que a pessoa que avaliou escreveu em cada resposta; ' +
@@ -4524,9 +4547,6 @@
       html += '</div></div>';
 
       if (pode()) html += renderHistoricoMotorCard(a);
-      /* Decisão arquitetural e natureza complementar: quem tem acesso edita
-         (avaliação vigente); versões antigas ficam só para leitura. */
-      html += (pode() && vigente) ? renderDecisaoCard(a) : renderDecisaoSomenteLeitura(a);
 
       /* Ações organizadas num único grupo, sempre visível ao final da
          página: voltar para a lista, gerar PDF e reavaliar — em vez de um
@@ -4725,12 +4745,12 @@
     function renderEspecializacaoCadastradaCard(camadaId) {
       var f = state.especializacaoForm;
       var papelAplicavel = CAMADAS_COM_PAPEL_ESTRUTURAL.indexOf(camadaId) !== -1;
-      var html = '<div class="avp-form-card avp-especializacao-cadastro-card">';
-      html += '<h4>Especialização arquitetural (cadastro)</h4>';
-      html += '<p class="avp-decisao-aviso">Metadado opcional, cadastrado à parte — nunca inferido das respostas do ' +
-        'questionário. Preencha quando já se souber, por outra fonte, a natureza específica deste item (ex.: ' +
+      var html = '<div class="avp-curadoria-sub avp-especializacao-cadastro-card" id="avpEspecializacaoBloco">';
+      html += '<h5>Especialização' + (papelAplicavel ? ' e papel estrutural' : '') + '</h5>';
+      html += '<p class="avp-decisao-aviso">Informação opcional, cadastrada à parte — nunca inferida das respostas do ' +
+        'questionário. Preencha quando já se souber, por outra fonte, o tipo específico deste item (ex.: ' +
         '"Instituto previdenciário", "Benefício"). Não altera o resultado nem a classificação arquitetural: só os complementa.</p>';
-      html += '<p class="avp-natureza-ajuda" id="avpEspecializacaoAjuda">Este cadastro aparece para as classificações que admitem especialização (' +
+      html += '<p class="avp-natureza-ajuda" id="avpEspecializacaoAjuda">Aplica-se às classificações que admitem especialização (' +
         CAMADAS_COM_ESPECIALIZACAO.map(function (id) { var c = camadaPorId(id); return c ? c.label : id; }).join(', ') + ')' +
         (papelAplicavel ? '. O papel estrutural (essencial ou opcional) vale só para Componente.' : '. O papel estrutural vale só para Componente, e esta classificação não o usa.') + '</p>';
       html += '<div class="avp-field">';
@@ -4758,6 +4778,124 @@
       html += '</div>';
       return html;
     }
+
+    /* ===================== CURADORIA ARQUITETURAL =====================
+       Bloco único que REÚNE o que a avaliação já tinha em lugares separados —
+       Especialização, Papel estrutural (só Componente) e Natureza complementar —
+       sem criar campo nem conceito novo e sem mexer na Classificação
+       arquitetural (a camada, decidida pelo motor; só muda por reavaliação,
+       reprocessamento ou nova versão do motor). A recomendação do sistema
+       nunca é apagada nem substituída por nada daqui. Cada alteração grava
+       uma linha de auditoria (valor anterior, novo, quem, quando) NA MESMA
+       gravação: especialização/papel em curadoria-auditoria, natureza na
+       auditoria própria que ela já tinha. */
+    function renderCuradoriaCard(a, camada, editavel) {
+      var html = '<div class="avp-form-card avp-curadoria-card' + (editavel ? '' : ' avp-curadoria-card--leitura') + '" id="' + (editavel ? 'avpCuradoriaCard' : 'avpCuradoriaLeitura') + '">';
+      html += '<h4>Curadoria arquitetural</h4>';
+      if (editavel) {
+        html += '<p class="avp-decisao-aviso">Complementa a avaliação com informações opcionais do item. Não altera a recomendação do sistema nem a ' +
+          'classificação arquitetural (a camada vem do motor). Cada alteração fica registrada: valor anterior, novo valor, quem e quando.</p>';
+        if (CAMADAS_COM_ESPECIALIZACAO.indexOf(camada.id) !== -1) html += renderEspecializacaoCadastradaCard(camada.id);
+        html += renderNaturezaBloco(a);
+      } else {
+        var nat = naturezaDoItem(a);
+        var esp = valorEspecializacao(camada), papel = valorPapelEstrutural(camada);
+        if (!esp && !papel && !nat) {
+          html += '<p class="avp-natureza-ajuda">Nenhuma informação de curadoria registrada nesta versão.</p>';
+        } else {
+          html += '<dl class="avp-decisao-resumo" id="avpCuradoriaResumo">';
+          if (esp) html += '<dt>Especialização</dt><dd>' + esc(esp) + '</dd>';
+          if (papel) html += '<dt>Papel estrutural</dt><dd>' + esc(papel) + '</dd>';
+          if (nat) html += '<dt>Natureza complementar</dt><dd>' + esc(nat.nome) + '</dd>';
+          html += '</dl>';
+        }
+      }
+      html += renderCuradoriaHistorico(a);
+      html += '</div>';
+      return html;
+    }
+
+    /* Histórico da curadoria e da decisão: lê as duas auditorias desta avaliação
+       (curadoria-auditoria e a da natureza), junta e ordena. Só vale a partir
+       da introdução da auditoria — nada anterior é reconstruído. A leitura é
+       informativa e nunca trava a tela (rede lenta: "Carregando…"). */
+    function rotuloValorAuditoria(tipo, v) {
+      if (v === null || v === undefined || v === '') return '—';
+      if (tipo === 'alteracao_decisao_final') {
+        var t = rotuloResultado(v.decisaoFinal);
+        return t + (v.decisaoManual ? ' (manual)' : (v.confirmada ? ' (recomendação aceita)' : ''));
+      }
+      if (tipo === 'alteracao_natureza_complementar') return v.nome || '—';
+      if (tipo === 'alteracao_papel_estrutural') return v === 'essencial' ? 'Essencial' : (v === 'opcional' ? 'Opcional' : String(v));
+      return String(v);
+    }
+    var ROTULO_TIPO_AUDITORIA = {
+      alteracao_especializacao: 'Especialização',
+      alteracao_papel_estrutural: 'Papel estrutural',
+      alteracao_natureza_complementar: 'Natureza complementar',
+      alteracao_decisao_final: 'Decisão final'
+    };
+    function linhasHistoricoCuradoria() {
+      var h = state.curadoriaHist;
+      if (!h) return '';
+      if (h.erro) return '<p class="avp-natureza-ajuda">Não foi possível carregar o histórico agora.</p>';
+      if (h.carregando) return '<p class="loading-msg">Carregando histórico…</p>';
+      if (!h.itens.length) return '<p class="avp-natureza-ajuda">Nenhuma alteração registrada ainda. O histórico vale a partir desta funcionalidade; alterações anteriores não foram registradas.</p>';
+      return h.itens.map(function (e) {
+        var j = e.justificativa ? ' · Justificativa: "' + esc(e.justificativa) + '"' : '';
+        return '<div class="avp-aut-hist"><strong>' + esc(ROTULO_TIPO_AUDITORIA[e.tipo] || e.tipo) + '</strong>: ' +
+          esc(rotuloValorAuditoria(e.tipo, e.valorAnterior)) + ' → ' + esc(rotuloValorAuditoria(e.tipo, e.valorNovo)) +
+          '<br><span class="avp-usuario-aviso">por ' + esc(e.usuario && (e.usuario.name || e.usuario.email) || '—') + ' em ' + esc(fmtData(e.dataHora)) + j + '</span></div>';
+      }).join('');
+    }
+    function renderCuradoriaHistorico(a) {
+      if (!state.curadoriaHist || state.curadoriaHist.chave !== a._key) carregarHistoricoCuradoria(a);
+      return '<details class="avp-aut-historico" id="avpCuradoriaHistoricoDet"><summary>Histórico da curadoria e da decisão final</summary>' +
+        '<div id="avpCuradoriaHistorico">' + linhasHistoricoCuradoria() + '</div></details>';
+    }
+    function atualizarHistoricoCuradoria() {
+      var el = document.getElementById('avpCuradoriaHistorico');
+      if (el) el.innerHTML = linhasHistoricoCuradoria();
+    }
+    function carregarHistoricoCuradoria(a) {
+      var chave = a._key;
+      var h = state.curadoriaHist = { chave: chave, carregando: true, erro: false, itens: [] };
+      var pend = 2, lidos = [];
+      function fim() {
+        if (--pend > 0) return;
+        if (state.curadoriaHist !== h) return;
+        h.carregando = false;
+        h.itens = lidos.concat(h.itens).sort(function (x, y) { return String(y.dataHora || '').localeCompare(String(x.dataHora || '')); });
+        atualizarHistoricoCuradoria();
+      }
+      function ler(no) {
+        db().ref(no + '/' + chave).once('value', function (snap) {
+          var v = snap.val() || {};
+          Object.keys(v).forEach(function (k) { lidos.push(Object.assign({ _key: k }, v[k])); });
+          fim();
+        }, function (err) {
+          console.error('[avaliacao-produto] erro ao ler histórico da curadoria:', err);
+          h.erro = true;
+          fim();
+        });
+      }
+      ler(NODE_CURADORIA_AUDITORIA);
+      ler(window.faNaturezas.NODE_AUDITORIA);
+    }
+    /* Linha de auditoria nova, para gravar junto com a alteração (mesmo update). */
+    function linhaAuditoriaCuradoria(a, tipo, anterior, novo, extra) {
+      return Object.assign({
+        tipo: tipo, avaliacaoId: a._key, avaliacaoNome: a.nome || null,
+        valorAnterior: anterior === undefined ? null : anterior, valorNovo: novo === undefined ? null : novo,
+        usuario: sessaoAtual(), dataHora: new Date().toISOString()
+      }, extra || {});
+    }
+    function adicionarAoHistoricoLocal(linhas) {
+      var h = state.curadoriaHist;
+      if (!h || h.carregando) return;
+      h.itens = linhas.concat(h.itens);
+    }
+
     /* Mesmos três estados do botão de decisão, adaptados: nunca digitado/
        selecionado nada além do que já está salvo desabilita; mudar qualquer
        um dos dois campos aplicáveis habilita "SALVAR ESPECIALIZAÇÃO"; depois
@@ -4774,16 +4912,15 @@
       return { label: jaSalvouAlgo ? '✓ SALVO' : 'SALVAR ESPECIALIZAÇÃO', desabilitado: true, salva: jaSalvouAlgo };
     }
 
-    /* Mesmo registro do card de decisão, sem formulário: para quem só avalia ou
-       consulta. Mostra a recomendação automática, a decisão e a natureza. */
+    /* Mesmo registro do card de decisão, sem formulário (versões anteriores):
+       Recomendação do sistema, Decisão final e a forma da decisão. */
     function renderDecisaoSomenteLeitura(a) {
-      var nat = naturezaDoItem(a);
       var html = '<div class="avp-form-card avp-decisao-card avp-decisao-card--leitura" id="avpDecisaoLeitura">';
-      html += '<h4>Decisão arquitetural</h4>';
+      html += '<h4>Decisão final</h4>';
       html += '<dl class="avp-decisao-resumo" id="avpDecisaoResumo">';
-      html += '<dt>Recomendação automática</dt><dd>' + esc(rotuloResultado(a.resultadoAutomatico)) + '</dd>';
-      html += '<dt>Decisão arquitetural</dt><dd>' + esc(rotuloResultado(a.decisaoFinal || a.resultadoAutomatico)) + '</dd>';
-      html += '<dt>Natureza complementar</dt><dd>' + (nat ? esc(nat.nome) : '—') + '</dd>';
+      html += '<dt>Recomendação do sistema</dt><dd>' + esc(rotuloResultado(a.resultadoAutomatico)) + '</dd>';
+      html += '<dt>Decisão final</dt><dd>' + esc(rotuloResultado(a.decisaoFinal || a.resultadoAutomatico)) + '</dd>';
+      html += '<dt>Forma da decisão</dt><dd>' + esc(formaDaDecisao(a)) + '</dd>';
       html += '</dl>';
       if (a.decisaoManual) {
         html += '<p class="avp-history-note">Alterado manualmente por <strong>' + esc(a.alteradoPor && a.alteradoPor.name || '—') +
@@ -4796,18 +4933,19 @@
     function renderDecisaoCard(a) {
       var f = state.decisaoForm;
       var html = '<div class="avp-form-card avp-decisao-card">';
-      html += '<h4>Decisão arquitetural</h4>';
+      html += '<h4>Decisão final</h4>';
       html += '<p class="avp-decisao-aviso">Isto registra uma decisão sobre a CONCLUSÃO, sem alterar nenhuma resposta do questionário — ' +
-        'a recomendação automática permanece intacta no histórico. Para mudar respostas ou justificativas, use "Reavaliar" (no topo desta tela).</p>';
+        'a recomendação do sistema permanece intacta no histórico. Para mudar respostas ou justificativas, use "Reavaliar" (logo acima, junto ao resultado).</p>';
+      /* A recomendação do sistema, a decisão final e a forma da decisão ficam
+         SEPARADAS e sempre visíveis — a recomendação original nunca é escondida
+         nem substituída pela decisão, e a curadoria (bloco acima) nunca se
+         confunde com a classificação. */
+      html += '<dl class="avp-decisao-resumo" id="avpDecisaoResumo">';
+      html += '<dt>Recomendação do sistema</dt><dd>' + esc(rotuloResultado(a.resultadoAutomatico)) + '</dd>';
+      html += '<dt>Decisão final</dt><dd>' + esc(rotuloResultado(a.decisaoFinal || a.resultadoAutomatico)) + '</dd>';
+      html += '<dt>Forma da decisão</dt><dd>' + esc(formaDaDecisao(a)) + '</dd>';
+      html += '</dl>';
       if (a.decisaoManual) {
-        /* Três informações SEPARADAS — a recomendação automática original
-           nunca é escondida nem substituída pela decisão, e a natureza
-           complementar (manual, fora do motor) nunca se confunde com a
-           classificação. */
-        html += '<dl class="avp-decisao-resumo" id="avpDecisaoResumo">';
-        html += '<dt>Recomendação automática</dt><dd>' + esc(rotuloResultado(a.resultadoAutomatico)) + '</dd>';
-        html += '<dt>Decisão arquitetural</dt><dd>' + esc(rotuloResultado(a.decisaoFinal)) + '</dd>';
-        html += '</dl>';
         html += '<p class="avp-history-note">Alterado manualmente por <strong>' + esc(a.alteradoPor && a.alteradoPor.name || '—') +
           '</strong> em ' + fmtData(a.alteradoEm) + '. Justificativa registrada: "' + esc(a.justificativaDecisao || '') + '"</p>';
       }
@@ -4836,13 +4974,12 @@
       var estado = estadoBotaoDecisao(f);
       html += '<button class="btn btn--primary avp-btn-decisao' + (estado.salva ? ' avp-btn-decisao--salva' : '') + '" id="avpSalvarDecisaoBtn"' +
         (estado.desabilitado ? ' disabled' : '') + '>' + esc(estado.label) + '</button>';
-      html += renderNaturezaBloco(a);
       html += '</div>';
       return html;
     }
 
     /* ===================== NATUREZA COMPLEMENTAR =====================
-       Bloco à parte DENTRO da seção "Decisão arquitetural": tem o seu próprio
+       Bloco dentro da "Curadoria arquitetural": tem o seu próprio
        botão e o seu próprio salvamento, independente da decisão (existe com a
        recomendação aceita ou com decisão manual) e independente do motor —
        salvar aqui grava só os campos naturezaComplementar* da avaliação e uma
@@ -4875,7 +5012,8 @@
         opcoes = opcoes.concat([{ codigoEstavel: atual.codigo, nome: atual.nome, descricao: atual.descricao }]);
       }
       var escolhida = f.codigo ? opcoes.filter(function (o) { return o.codigoEstavel === f.codigo; })[0] : null;
-      var html = '<div class="avp-natureza-bloco" id="avpNaturezaBloco">';
+      var html = '<div class="avp-natureza-bloco avp-curadoria-sub" id="avpNaturezaBloco">';
+      html += '<h5>Natureza complementar</h5>';
       html += '<div class="avp-field">';
       html += '<label for="avpNaturezaComplementar">Natureza complementar <span class="avp-config-readonly-tag">(opcional)</span></label>';
       html += '<p class="avp-natureza-ajuda">Descrição adicional do item. Não altera respostas, classificação, camada, motor nem exige reprocessamento — pode ser mudada a qualquer momento.</p>';
@@ -4950,13 +5088,14 @@
       Object.keys(campos).forEach(function (k) { updates[NODE + '/' + a._key + '/' + k] = campos[k]; });
       updates[NODE + '/' + a._key + '/naturezaComplementar'] = null;
       var chaveAud = window.faNaturezas.NODE_AUDITORIA + '/' + a._key;
-      updates[chaveAud + '/' + db().ref(chaveAud).push().key] = {
+      var linhaNatureza = {
         tipo: 'alteracao_natureza_complementar',
         avaliacaoId: a._key, avaliacaoNome: a.nome || null,
         valorAnterior: anterior ? { codigo: anterior.codigo || null, nome: anterior.nome } : null,
         valorNovo: opcao ? { codigo: opcao.codigoEstavel, nome: opcao.nome } : null,
         usuario: sess, dataHora: agora
       };
+      updates[chaveAud + '/' + db().ref(chaveAud).push().key] = linhaNatureza;
       f.erro = null;
       state.salvandoNatureza = true;
       render();
@@ -4986,6 +5125,7 @@
           a.naturezaComplementar = null;
           state.itens = upsertItem(state.itens, clonarItem(a));
           f.ultimoSalvo = codigoNovo;
+          adicionarAoHistoricoLocal([linhaNatureza]);
           state.flashNatureza = codigoNovo ? '✓ Natureza complementar salva com sucesso.' : '✓ Natureza complementar removida.';
           render();
         });
@@ -5046,6 +5186,8 @@
         focarCampo('avpJustificativaDecisao');
         return;
       }
+      var decisaoAnterior = { decisaoFinal: a.decisaoFinal || a.resultadoAutomatico || null, decisaoManual: !!a.decisaoManual,
+        justificativa: a.justificativaDecisao || null, confirmada: !!a.decisaoConfirmada };
       var updates = { atualizadoEm: new Date().toISOString(), decisaoConfirmada: true };
       if (f.opcao === 'auto') {
         updates.decisaoFinal = a.resultadoAutomatico;
@@ -5074,7 +5216,19 @@
         render();
       }, 12000);
 
-      db().ref(NODE + '/' + a._key).update(updates, function (err) {
+      /* UMA gravação atômica: a decisão + a linha de histórico (decisão anterior,
+         nova, quem, quando). Nunca uma sem a outra. O histórico começa aqui:
+         decisões anteriores a esta funcionalidade nunca foram registradas e não
+         são reconstruídas. */
+      var decisaoNova = { decisaoFinal: updates.decisaoFinal, decisaoManual: !!updates.decisaoManual,
+        justificativa: updates.justificativaDecisao || null, confirmada: true };
+      var linhaDecisao = linhaAuditoriaCuradoria(a, 'alteracao_decisao_final', decisaoAnterior, decisaoNova,
+        updates.decisaoManual ? { justificativa: updates.justificativaDecisao } : null);
+      var chaveAudDec = NODE_CURADORIA_AUDITORIA + '/' + a._key;
+      var tudoDecisao = {};
+      Object.keys(updates).forEach(function (k) { tudoDecisao[NODE + '/' + a._key + '/' + k] = updates[k]; });
+      tudoDecisao[chaveAudDec + '/' + db().ref(chaveAudDec).push().key] = linhaDecisao;
+      db().ref().update(tudoDecisao, function (err) {
         if (respondido) return;
         respondido = true;
         clearTimeout(relogio);
@@ -5089,6 +5243,7 @@
         state.itens = upsertItem(state.itens, clonarItem(a));
         f.ultimoSalvo = { opcao: f.opcao, justificativa: f.justificativa };
         f.jaSalvouAntes = true;
+        adicionarAoHistoricoLocal([linhaDecisao]);
         state.flashDecisao = '✓ Decisão salva com sucesso.';
         render();
       });
@@ -5123,6 +5278,17 @@
         'camadaSugerida/papelEstrutural': papelRecalculado,
         atualizadoEm: new Date().toISOString()
       };
+      /* Auditoria: só do que MUDOU (cadastro anterior × novo), gravada na mesma
+         gravação atômica. Não reconstrói alterações antigas. */
+      var linhasCuradoria = [];
+      var espAnterior = (a.especializacaoCadastrada || '').trim() || null;
+      var papelAnterior = (a.papelEstruturalCadastrado || '').trim() || null;
+      if (espAnterior !== (valor || null)) linhasCuradoria.push(linhaAuditoriaCuradoria(a, 'alteracao_especializacao', espAnterior, valor || null));
+      if (papelAplicavel && papelAnterior !== (papel || null)) linhasCuradoria.push(linhaAuditoriaCuradoria(a, 'alteracao_papel_estrutural', papelAnterior, papel || null));
+      var tudoEsp = {};
+      Object.keys(updates).forEach(function (k) { tudoEsp[NODE + '/' + a._key + '/' + k] = updates[k]; });
+      var chaveAudEsp = NODE_CURADORIA_AUDITORIA + '/' + a._key;
+      linhasCuradoria.forEach(function (l) { tudoEsp[chaveAudEsp + '/' + db().ref(chaveAudEsp).push().key] = l; });
       state.salvandoEspecializacao = true;
       render();
 
@@ -5135,7 +5301,7 @@
         render();
       }, 12000);
 
-      db().ref(NODE + '/' + a._key).update(updates, function (err) {
+      db().ref().update(tudoEsp, function (err) {
         if (respondido) return;
         respondido = true;
         clearTimeout(relogio);
@@ -5154,6 +5320,7 @@
         state.itens = upsertItem(state.itens, clonarItem(a));
         f.ultimoSalvo = valor;
         f.papelUltimoSalvo = papel;
+        adicionarAoHistoricoLocal(linhasCuradoria);
         state.flashEspecializacao = '✓ Especialização salva com sucesso.';
         render();
       });

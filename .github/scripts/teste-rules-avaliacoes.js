@@ -231,6 +231,38 @@ async function main() {
     await assertFails(db(GESTOR_ANTIGO).ref('motor-squad-config').once('value'));
     anota('perfil antigo "gestor" não dá acesso à aba nem à Arquitetura', true);
 
+    console.log('\n== Auditoria da Curadoria e da Decisão final (curadoria-auditoria) ==');
+    await semearBase();
+    const linhaCur = (tipo) => ({ tipo, avaliacaoId: 'conc1', valorAnterior: null, valorNovo: 'x', usuario: { name: 'P', email: AVAL }, dataHora: '2026-10-01T12:00:00.000Z' });
+    for (const [rotulo, email] of [['admin geral', ADMIN], ['super-admin', SUPER], ['tipo "Avaliação"', AVAL], ['tipo "Avaliação + Arquitetura"', ARQ]]) {
+      await assertSucceeds(db(email).ref('curadoria-auditoria/conc1/' + emailKey(email)).set(linhaCur('alteracao_especializacao')));
+      const s1 = await assertSucceeds(db(email).ref('curadoria-auditoria/conc1').once('value'));
+      anota(rotulo + ': acrescenta e lê a auditoria da curadoria', !!(s1.val() && s1.val()[emailKey(email)]));
+    }
+    await assertSucceeds(db(AVAL).ref('curadoria-auditoria/conc1/dec1').set(linhaCur('alteracao_decisao_final')));
+    await assertSucceeds(db(AVAL).ref('curadoria-auditoria/conc1/pap1').set(linhaCur('alteracao_papel_estrutural')));
+    anota('as três ações da curadoria/decisão são aceitas', true);
+    await assertFails(db(AVAL).ref('curadoria-auditoria/conc1/dec1').set(linhaCur('alteracao_especializacao')));
+    await assertFails(db(ADMIN).ref('curadoria-auditoria/conc1/dec1').remove());
+    await assertFails(db(ARQ).ref('curadoria-auditoria/conc1').remove());
+    anota('só acrescenta: ninguém, nem admin geral, reescreve ou apaga uma linha (nem a lista)', true);
+    await assertFails(db(AVAL).ref('curadoria-auditoria/conc1/inv1').set(linhaCur('tipo_inventado')));
+    await assertFails(db(AVAL).ref('curadoria-auditoria/conc1/inv2').set({ tipo: 'alteracao_decisao_final', dataHora: 'x' }));
+    anota('linha com tipo desconhecido ou sem usuário/data é recusada', true);
+    for (const [rotulo, email] of [['perfil antigo GESTOR', GESTOR_ANTIGO], ['usuário comum', SEM_ACESSO]]) {
+      await assertFails(db(email).ref('curadoria-auditoria/conc1/x').set(linhaCur('alteracao_decisao_final')));
+      await assertFails(db(email).ref('curadoria-auditoria/conc1').once('value'));
+      anota(rotulo + ': não lê nem grava a auditoria', true);
+    }
+    await assertFails(db(null).ref('curadoria-auditoria/conc1').once('value'));
+    anota('sem login: nada', true);
+    /* gravação conjunta, como a tela faz: decisão + linha de histórico no mesmo update */
+    const conj = {};
+    conj[NODE + '/conc1/decisaoFinal'] = 'produto'; conj[NODE + '/conc1/decisaoManual'] = true; conj[NODE + '/conc1/justificativaDecisao'] = 'porque sim';
+    conj['curadoria-auditoria/conc1/conj1'] = linhaCur('alteracao_decisao_final');
+    await assertSucceeds(db(AVAL).ref().update(conj));
+    anota('decisão + histórico gravam juntos num único update (atômico)', true);
+
     console.log('\n' + total + ' verificações, ' + falhas + ' falha(s).');
   } finally {
     await testEnv.cleanup();
