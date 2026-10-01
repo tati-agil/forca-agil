@@ -423,14 +423,15 @@
      "tem autonomia estrutural", então a especialização aqui só pode vir de
      cadastro, nunca inferida). Sem pergunta nova para distinguir nenhuma
      delas (item explicitamente proibido: não alterar o questionário), todas
-     sempre mostram "não determinada pelo questionário" até serem cadastradas
+     só mostram a especialização depois de cadastrada (antes disso a linha nem aparece)
      — isso NUNCA vira A validar, é só uma informação a menos, não um
      conflito. Produto/Serviço principal entrou nesta lista só para permitir
      o CADASTRO (ex.: "Serviço", "Produto") a quem já sabe essa informação
      por outra fonte — identificarCamada continua decidindo QUAL camada o
      item é sem olhar para isso, e nenhuma avaliação já concluída precisa ser
-     reprocessada por causa desta mudança (ver rotuloEspecializacaoApresentacao). */
+     reprocessada por causa desta mudança (ver valorEspecializacao). */
   var CAMADAS_COM_ESPECIALIZACAO = ['componente', 'unidade-valor-associada', 'funcionalidade-operacao', 'regra-condicao', 'documento-informacao', 'produto-principal'];
+  /* Texto ANTIGO: só reconhecido para NÃO ser exibido (ver valorEspecializacao). */
   var ESPECIALIZACAO_NAO_DETERMINADA = 'não determinada pelo questionário';
 
   /* Terceira dimensão, independente de classificação e especialização —
@@ -443,29 +444,27 @@
      do nome do item (ex.: o fato de o participante poder escolher/alterar
      não basta para inferir "Opcional" sozinho). Continua só para Componente
      — nenhuma camada nova ganhou a possibilidade de CADASTRAR um papel
-     estrutural neste ajuste; a linha "Papel estrutural" passou só a
-     aparecer SEMPRE na apresentação (tela/PDF), com "não determinado" como
-     texto para qualquer camada fora desta lista (ver
-     rotuloPapelEstruturalApresentacao). */
+     estrutural neste ajuste. A linha "Papel estrutural" só aparece quando
+     há valor (ver valorPapelEstrutural). */
   var CAMADAS_COM_PAPEL_ESTRUTURAL = ['componente'];
+  /* Texto ANTIGO: só reconhecido para NÃO ser exibido (ver valorPapelEstrutural). */
   var PAPEL_ESTRUTURAL_NAO_DETERMINADO = 'não determinado';
 
-  /* Normalização de APRESENTAÇÃO (tela, PDF — nunca calcula, nunca persiste):
-     a linha de Especialização/Papel estrutural aparece SEMPRE, para
-     qualquer classificação arquitetural, nunca escondida por causa da
-     camada (ajuste de consistência: antes, o `if (camada.especializacao)`/
-     `if (camada.papelEstrutural)` em cada ponto de renderização escondia a
-     linha inteira sempre que o valor vinha null — exatamente o caso de toda
-     camada fora de CAMADAS_COM_ESPECIALIZACAO/CAMADAS_COM_PAPEL_ESTRUTURAL,
-     inclusive Produto/Serviço principal antes desta mudança). O fallback é
-     só de exibição — nunca grava nada em camadaSugerida nem exige
-     reprocessamento para as avaliações já concluídas mostrarem o texto
-     padrão no lugar de uma linha ausente. */
-  function rotuloEspecializacaoApresentacao(camada) {
-    return (camada && camada.especializacao) || ESPECIALIZACAO_NAO_DETERMINADA;
+  /* Especialização e Papel estrutural só existem quando têm VALOR REAL (um
+     cadastro, ou o sinal automático de Componente com P13 = SIM). "Não
+     determinada pelo questionário" / "não determinado" NÃO são valores: eram
+     placeholders gravados em camadaSugerida e pareciam erro ou lacuna no
+     resultado. Hoje o cálculo devolve null (nada é gravado) e a apresentação
+     (tela, PDF, Excel, histórico) trata os textos antigos, já gravados em
+     avaliações existentes, como AUSÊNCIA de valor — só não os exibe; nenhum
+     dado é migrado nem apagado. */
+  function valorEspecializacao(camada) {
+    var v = camada && camada.especializacao;
+    return (v && v !== ESPECIALIZACAO_NAO_DETERMINADA) ? v : '';
   }
-  function rotuloPapelEstruturalApresentacao(camada) {
-    return (camada && camada.papelEstrutural) || PAPEL_ESTRUTURAL_NAO_DETERMINADO;
+  function valorPapelEstrutural(camada) {
+    var v = camada && camada.papelEstrutural;
+    return (v && v !== PAPEL_ESTRUTURAL_NAO_DETERMINADO) ? v : '';
   }
 
   /* ---- motor de decisão -------------------------------------------------
@@ -535,14 +534,14 @@
       var cadastrada = (atual.especializacaoCadastrada || '').trim();
       if (cadastrada) return cadastrada;
       if (camadaId === 'componente' && modalidade) return 'Opção/configuração de personalização';
-      return ESPECIALIZACAO_NAO_DETERMINADA;
+      return null;
     }
     function papelEstruturalPara(camadaId) {
       if (CAMADAS_COM_PAPEL_ESTRUTURAL.indexOf(camadaId) === -1) return null;
       var cadastrado = (atual.papelEstruturalCadastrado || '').trim().toLowerCase();
       if (cadastrado === 'essencial') return 'Essencial';
       if (cadastrado === 'opcional') return 'Opcional';
-      return PAPEL_ESTRUTURAL_NAO_DETERMINADO;
+      return null;
     }
 
     /* Contexto P1-P16 para o motor declarativo — nunca o inverso (o motor
@@ -785,14 +784,14 @@
        ("não determinada pelo questionário") já tem seu próprio campo separado
        na tela (ver renderResultado) e não deve soar como ressalva ou dúvida
        dentro da justificativa da classificação principal. */
-    var especializacaoReal = camada.especializacao && camada.especializacao !== ESPECIALIZACAO_NAO_DETERMINADA;
+    var especializacaoReal = !!valorEspecializacao(camada);
     var especializacaoFrase = especializacaoReal ? ' Especialização: ' + camada.especializacao + '.' : '';
     /* Mesmo princípio da especialização: só entra na frase corrida quando é
        uma determinação real (cadastrada, nunca inferida das respostas) —
        "não determinado" já tem campo próprio na tela e não deve soar como
        ressalva dentro da justificativa. Só existe para Componente hoje (ver
        CAMADAS_COM_PAPEL_ESTRUTURAL), então só compõe a frase nessa camada. */
-    var papelEstruturalReal = camada.papelEstrutural && camada.papelEstrutural !== PAPEL_ESTRUTURAL_NAO_DETERMINADO;
+    var papelEstruturalReal = !!valorPapelEstrutural(camada);
     var papelEstruturalFrase = papelEstruturalReal ? ' Papel estrutural: ' + camada.papelEstrutural + '.' : '';
 
     /* Componente tem um texto próprio (3 frases, em vez do template genérico
@@ -1029,11 +1028,6 @@
     var camada = it.camadaSugerida;
     html += '<h2 class="pdf-secao-titulo">Classificação arquitetural sugerida</h2>';
     html += '<p>' + esc(camada && camada.label || '—') + '</p>';
-    /* Especialização/Papel estrutural aparecem SEMPRE, para qualquer
-       classificação — nunca escondidas por causa da camada (ver
-       rotuloEspecializacaoApresentacao/rotuloPapelEstruturalApresentacao). */
-    if (camada && camada.especializacao) html += '<p><strong>Especialização:</strong> ' + esc(camada.especializacao) + '</p>';
-    if (camada && camada.papelEstrutural) html += '<p><strong>Papel estrutural:</strong> ' + esc(camada.papelEstrutural) + '</p>';
     if (camada && camada.conflito && camada.conflito.length) {
       html += '<p class="pdf-aviso">Categorias em conflito nas respostas: ' + esc(camada.conflito.join(', ')) + '.</p>';
     }
@@ -1069,8 +1063,8 @@
     html += '<table class="pdf-tabela-id">';
     html += pdfLinhaTabela('Recomendação do sistema', rotuloResultadoTxt);
     html += pdfLinhaTabela('Classificação sugerida', camada && camada.label);
-    if (camada && camada.especializacao) html += pdfLinhaTabela('Especialização', camada.especializacao);
-    if (camada && camada.papelEstrutural) html += pdfLinhaTabela('Papel estrutural', camada.papelEstrutural);
+    if (valorEspecializacao(camada)) html += pdfLinhaTabela('Especialização', valorEspecializacao(camada));
+    if (valorPapelEstrutural(camada)) html += pdfLinhaTabela('Papel estrutural', valorPapelEstrutural(camada));
     /* Informação MANUAL, dentro da área de decisão — nunca no bloco do
        resultado automático do questionário; vale com a recomendação aceita
        ou com decisão manual. Só aparece quando existe. */
@@ -1333,7 +1327,7 @@
       (it.responsavel && it.responsavel.name) || '', it.criadoEm ? new Date(it.criadoEm) : '',
       it.status === 'concluido' ? 'Concluído' : 'Rascunho', it.versao || 1,
       it.status === 'concluido' ? rotuloResultado(it.resultadoAutomatico) : '',
-      (camada && camada.label) || '', (camada && camada.especializacao) || '', (camada && camada.papelEstrutural) || '',
+      (camada && camada.label) || '', valorEspecializacao(camada), valorPapelEstrutural(camada),
       (camada && camada.relacao) || '',
       it.status === 'concluido' ? rotuloResultado(it.decisaoFinal) : '',
       it.status === 'concluido' ? (it.decisaoManual ? 'Manual' : 'Automática') : '',
@@ -4486,12 +4480,10 @@
       html += '<div class="avp-form-card avp-alt-card">';
       html += '<h4>Classificação arquitetural sugerida</h4>';
       html += '<p class="avp-alt-label">Camada identificada: <strong>' + esc(camada.label) + '</strong></p>';
-      /* Especialização/Papel estrutural aparecem SEMPRE, para qualquer
-         classificação — nunca escondidas por causa da camada (mesma regra
-         do PDF, ver rotuloEspecializacaoApresentacao/
-         rotuloPapelEstruturalApresentacao). */
-      if (camada.especializacao) html += '<p class="avp-alt-label">Especialização: <strong>' + esc(camada.especializacao) + '</strong></p>';
-      if (camada.papelEstrutural) html += '<p class="avp-alt-label">Papel estrutural: <strong>' + esc(camada.papelEstrutural) + '</strong></p>';
+      /* Especialização/Papel estrutural só aparecem com valor real (placeholders
+         antigos "não determinad…" são tratados como ausência). */
+      if (valorEspecializacao(camada)) html += '<p class="avp-alt-label">Especialização: <strong>' + esc(valorEspecializacao(camada)) + '</strong></p>';
+      if (valorPapelEstrutural(camada)) html += '<p class="avp-alt-label">Papel estrutural: <strong>' + esc(valorPapelEstrutural(camada)) + '</strong></p>';
       if (camada.conflito && camada.conflito.length) {
         html += '<p class="avp-alt-outras">Categorias em conflito nas respostas: ' + esc(camada.conflito.join(', ')) + '.</p>';
       }
@@ -4709,7 +4701,7 @@
           (h.motorVersion ? ' · motor ' + esc(h.motorVersion) : ' · motor sem versão registrada') + '</p>';
         html += '<p>' + esc(rotuloResultado(h.resultadoAutomatico)) +
           (camadaAntiga && camadaAntiga.label ? ' — ' + esc(camadaAntiga.label) : '') +
-          (camadaAntiga && camadaAntiga.especializacao ? ' (' + esc(camadaAntiga.especializacao) + ')' : '') + '</p>';
+          (valorEspecializacao(camadaAntiga) ? ' (' + esc(valorEspecializacao(camadaAntiga)) + ')' : '') + '</p>';
         if (h.justificativaAutomatica) {
           html += '<p class="avp-historico-motor-justificativa">' + esc(h.justificativaAutomatica) + '</p>';
         }
@@ -4749,7 +4741,7 @@
         html += '<div class="avp-field">';
         html += '<label for="avpPapelEstruturalCadastrado">Papel estrutural (opcional)</label>';
         html += '<select id="avpPapelEstruturalCadastrado">';
-        html += '<option value=""' + (f.papel ? '' : ' selected') + '>Não determinado</option>';
+        html += '<option value=""' + (f.papel ? '' : ' selected') + '>Não informado</option>';
         html += '<option value="essencial"' + (f.papel === 'essencial' ? ' selected' : '') + '>Essencial</option>';
         html += '<option value="opcional"' + (f.papel === 'opcional' ? ' selected' : '') + '>Opcional</option>';
         html += '</select>';
