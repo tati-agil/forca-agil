@@ -573,6 +573,15 @@ jobs:
           FA_BASE_URL: http://127.0.0.1:8811
         run: node .github/scripts/teste-corrigir-email.js
 
+      # Menu superior: o "Sair" e todos os itens sempre alcançáveis, de celular a
+      # monitor grande (o smoke com login real apontou o "Sair" fora da tela em
+      # 1280 px com todos os itens do menu).
+      - name: "Menu superior — o Sair e os itens cabem em todas as larguras (celular a monitor)"
+        env:
+          NODE_PATH: /tmp/pw-deps/node_modules
+          FA_BASE_URL: http://127.0.0.1:8811
+        run: node .github/scripts/teste-menu-notebook.js
+
   smoke-site-publicado:
     name: Smoke test — login real no site publicado (depende de rede)
     runs-on: ubuntu-latest
