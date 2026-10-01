@@ -110,6 +110,7 @@ async function abrirApp(browser, cenario, viewport) {
   await page.waitForTimeout(300);
   return { ctx, page, erros };
 }
+async function abrirFiltros(page) { if (!(await page.locator('#avpFiltrosPainel').count())) await page.click('#avpFiltrosBtn'); await page.waitForSelector('#avpFiltrosPainel'); }
 const banco = (page) => page.evaluate(() => JSON.parse(JSON.stringify(window.__CFG.__dbReal)));
 const contar = (page, sel) => page.locator(sel).count();
 function semCampos(obj, campos) { const c = JSON.parse(JSON.stringify(obj)); campos.forEach((k) => delete c[k]); return c; }
@@ -151,7 +152,7 @@ async function voltarParaAvaliacoes(page) {
     const repBtn = page.locator('#avpReprocessarTudoBtn');
     afirma(await repBtn.isDisabled() && /Nenhuma avaliação precisa ser reprocessada/i.test(await repBtn.textContent()), 'REPROCESSAR TUDO desabilitado: nenhuma precisa ser reprocessada');
 
-    await page.selectOption('#avpFiltroMotor', 'equivalente');
+    await abrirFiltros(page); await page.selectOption('#avpFiltroMotor', 'equivalente');
     await page.waitForTimeout(200);
     afirma(await contar(page, '.avp-act-ver') === 8, 'filtro "Versão anterior equivalente" mostra as 8');
     await page.selectOption('#avpFiltroMotor', 'desatualizado');

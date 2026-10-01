@@ -73,6 +73,7 @@ async function abrir(browser, viewport) {
   await page.waitForTimeout(300);
   return { ctx, page, erros };
 }
+async function abrirFiltros(page) { if (!(await page.locator('#avpFiltrosPainel').count())) await page.click('#avpFiltrosBtn'); await page.waitForSelector('#avpFiltrosPainel'); }
 const contar = (page, sel) => page.locator(sel).count();
 const banco = (page) => page.evaluate(() => JSON.parse(JSON.stringify(window.__CFG.__dbReal)));
 const larguraOk = (page) => page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth + 1);
@@ -87,6 +88,7 @@ const opcoes = (page, sel) => page.locator(sel + ' option').allInnerTexts();
     const { ctx, page, erros } = await abrir(browser, viewport);
 
     console.log('\n== 1. Filtros: Resultado Produto/Serviço ≠ Classificação arquitetural ==');
+    await abrirFiltros(page);
     const rotulos = await page.locator('.avp-filtro-rotulo').allInnerTexts();
     const rotulosTxt = await page.locator('.avp-filtro-rotulo').allTextContents();
     afirma(rotulosTxt.indexOf('Resultado Produto/Serviço') !== -1 && rotulosTxt.indexOf('Classificação arquitetural') !== -1, 'cada filtro tem rótulo visível: ' + rotulosTxt.join(' | '));
@@ -102,6 +104,24 @@ const opcoes = (page, sel) => page.locator(sel + ' option').allInnerTexts();
     await page.selectOption('#avpFiltroAlternativa', 'Componente');
     afirma(await linhas(page) === 1, 'combinado com Classificação = Componente: 1');
     afirma(await larguraOk(page), 'sem rolagem horizontal da página');
+
+    console.log('\n== 2. Pesquisa, contador, "Filtros (n)", Limpar filtros e estados vazios ==');
+    afirma(/^1 de 4 avaliações$/.test((await page.locator("#avpContador").innerText()).trim()), 'contador com filtros aplicados: "1 de 4 avaliações"');
+    afirma(/^Filtros \(2\)$/i.test((await page.locator('#avpFiltrosBtn').innerText()).trim()), 'botão "Filtros (2)" conta os filtros ativos');
+    await page.click('#avpLimparFiltros');
+    afirma(/^4 avaliações$/.test((await page.locator('#avpContador').innerText()).trim()) && /^Filtros$/i.test((await page.locator('#avpFiltrosBtn').innerText()).trim()), '"Limpar filtros": volta a "4 avaliações" e "Filtros"');
+    afirma(await page.locator('#avpBusca').getAttribute('placeholder') === 'Pesquisar por nome ou item...', 'campo "Pesquisar por nome ou item..."');
+    await page.fill('#avpBusca', 'canal');
+    afirma(await linhas(page) === 1 && /^1 de 4 avaliações$/.test((await page.locator('#avpContador').innerText()).trim()), 'pesquisar "canal": 1 linha e "1 de 4 avaliações"');
+    await page.fill('#avpBusca', 'ITEM COMPONENTE');
+    afirma(await linhas(page) === 1, 'a pesquisa ignora maiúsculas');
+    afirma(await page.evaluate(() => document.activeElement && document.activeElement.id === 'avpBusca'), 'o campo de pesquisa mantém o foco enquanto se digita');
+    await page.fill('#avpBusca', 'zzz');
+    afirma(await contar(page, '#avpVazioBusca') === 1 && /Nenhuma avaliação encontrada/.test(await page.locator('#avpVazioBusca').innerText()), 'sem resultado: "Nenhuma avaliação encontrada…" com botão de limpar');
+    await page.click('#avpLimparFiltrosVazio');
+    afirma(await linhas(page) === 4 && await page.locator('#avpBusca').inputValue() === '', 'limpar pela mensagem vazia devolve as 4 e esvazia a pesquisa');
+    await page.selectOption('#avpFiltroResultado', 'nao-produto');
+    await page.selectOption('#avpFiltroAlternativa', 'Componente');
 
     console.log('\n== 3. PDFs em lote (escopo claro) ==');
     await page.click('#avpExportarBtn');

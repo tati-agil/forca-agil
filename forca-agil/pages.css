@@ -2336,3 +2336,20 @@ select.aposta-campo-input { width: auto; min-width: 8.5em; }
 
 .avp-exportar-escopo { margin: 0 0 6px; font-size: .78rem; color: var(--ink-2); }
 .avp-exportar-nota { margin: 8px 0 0; font-size: .72rem; color: var(--ink-3); max-width: 300px; }
+
+/* Pesquisa + botão Filtros (n) + Limpar filtros */
+.avp-busca-barra { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; margin-bottom: 10px; }
+.avp-busca {
+  flex: 1 1 260px; min-width: 0; max-width: 460px;
+  background: var(--panel); border: 1px solid var(--line-strong); color: var(--ink);
+  border-radius: 8px; padding: 8px 12px; font-size: .86rem;
+}
+.avp-busca:focus-visible { outline: none; border-color: var(--gold); }
+.avp-filtros-btn--ativo { border-color: var(--gold); color: var(--ink); }
+.avp-limpar-link { background: none; border: none; padding: 4px 2px; font: inherit; font-size: .8rem; color: var(--ink-3); text-decoration: underline; cursor: pointer; }
+.avp-limpar-link:hover, .avp-limpar-link:focus-visible { color: var(--ink); outline: none; }
+.avp-filtros-painel { background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: 12px 14px; margin-bottom: 14px; }
+.avp-filtros-painel .avp-filtros-ajuda { margin: 8px 0 0; }
+.avp-vazio { border: 1px dashed var(--line-strong); border-radius: 10px; padding: 22px 16px; text-align: center; color: var(--ink-2); display: flex; flex-direction: column; align-items: center; gap: 12px; }
+.avp-vazio p { margin: 0; font-size: .9rem; }
+@media (max-width: 640px) { .avp-busca { max-width: none; flex-basis: 100%; } .avp-filtros-btn { flex: 1 1 auto; } }
