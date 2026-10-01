@@ -2335,6 +2335,8 @@ select.aposta-campo-input { width: auto; min-width: 8.5em; }
 .avp-aut-barra { margin: 14px 0; }
 .avp-aut-adicionar { border: 1px solid var(--line-strong); border-radius: 10px; padding: 14px; margin-bottom: 16px; background: var(--panel-2); }
 .avp-aut-subtitulo { margin: 18px 0 8px; }
+.avp-aut-eu { border: 1px dashed var(--gold); border-radius: 10px; padding: 12px 14px; margin: 14px 0 0; display: flex; flex-direction: column; gap: 8px; align-items: flex-start; }
+@media (max-width: 640px) { .avp-aut-eu .btn { width: 100%; } }
 .avp-aut-lista { display: flex; flex-direction: column; gap: 10px; margin-bottom: 16px; }
 .avp-aut-item { display: grid; grid-template-columns: minmax(0, 1.4fr) minmax(0, 1fr) auto; gap: 14px; align-items: center; border: 1px solid var(--line-strong); border-radius: 10px; padding: 12px 14px; background: var(--panel-2); }
 .avp-aut-adicionar .avp-aut-item { background: var(--panel); }

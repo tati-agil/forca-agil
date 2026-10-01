@@ -322,14 +322,30 @@ async function abrirMais(page, key) {
     await ctx.close();
   }
 
-  console.log('\n== Lista vazia (estado inicial) ==');
-  {
-    const { ctx, page } = await abrir(browser, { email: SUPER, admin: true, hash: '#admin', db: { 'fa-users': {} } });
+  for (const [nomeTela, viewport] of [['desktop', DESKTOP], ['celular 375px', CELULAR]]) {
+    console.log('\n== Lista vazia (estado inicial) e "Adicionar a mim" — ' + nomeTela + ' ==');
+    const users = {}; users[chave(SUPER)] = { email: SUPER, name: 'Tatiane' };
+    const { ctx, page, erros } = await abrir(browser, { email: SUPER, admin: true, hash: '#admin', viewport, db: { 'fa-users': users } });
     await page.click('.admin-tab-btn[data-panel="adminPanelArquitetura"]');
     await page.waitForSelector('#avpUsuariosBtn', { timeout: 8000 });
     await page.click('#avpUsuariosBtn');
     await page.waitForSelector('#avpAutVazio', { timeout: 8000 });
     afirma(/Ninguém está autorizado ainda/.test(await page.locator('#avpAutVazio').innerText()), 'sem autorizados: mensagem orienta a usar "+ ADICIONAR USUÁRIO"');
+    afirma(await contar(page, '#avpAutEu') === 1 && /não está\s+registrado nesta lista/.test(await page.locator('#avpAutEu').innerText()), 'admin geral fora da lista vê o aviso de que o próprio acesso não está registrado');
+    afirma(!(await banco(page))['fa-avaliacao-autorizados'] || Object.keys((await banco(page))['fa-avaliacao-autorizados']).length === 0, 'nada foi gravado sozinho: a lista continua vazia até o clique');
+    afirma(await larguraOk(page), 'sem rolagem horizontal');
+    await page.click('#avpAutAdicionarEuBtn');
+    await page.waitForFunction((k) => { const r = window.__CFG.__dbReal['fa-avaliacao-autorizados']; return r && r[k]; }, chave(SUPER), { timeout: 5000 }).catch(() => {});
+    const b = await banco(page);
+    const reg = (b['fa-avaliacao-autorizados'] || {})[chave(SUPER)];
+    afirma(reg && reg.tipo === 'avaliacao-arquitetura' && reg.email === SUPER && reg.concedidoPor === SUPER && !!reg.concedidoEm, 'o clique registra o PRÓPRIO usuário como "Avaliação + Arquitetura" (tipo, e-mail, quem e quando)');
+    const hist = Object.keys(b['fa-avaliacao-autorizados-auditoria'] || {}).map((k) => b['fa-avaliacao-autorizados-auditoria'][k]);
+    afirma(hist.length === 1 && hist[0].acao === 'concedido' && hist[0].email === SUPER && hist[0].tipoNovo === 'avaliacao-arquitetura', 'e grava o histórico "concedido" na mesma gravação');
+    await page.waitForSelector('#avpAutLista .avp-aut-item', { timeout: 5000 }).catch(() => {});
+    afirma(await contar(page, '#avpAutLista .avp-aut-item') === 1 && await contar(page, '#avpAutEu') === 0, 'ela aparece na lista e o aviso some (não pede de novo)');
+    afirma(await page.locator('.avp-aut-tipo-sel[data-key="' + chave(SUPER) + '"]').inputValue() === 'avaliacao-arquitetura', 'tipo exibido: Avaliação + Arquitetura');
+    afirma(Object.keys(b['fa-admins'] || {}).length === 1, 'o acesso de admin geral não foi tocado (continua só o que já era)');
+    afirma(erros.length === 0, 'nenhum erro de JS (' + erros.length + ')');
     await ctx.close();
   }
 
@@ -349,6 +365,23 @@ async function abrirMais(page, key) {
     const b = await banco(page);
     afirma(!(b['fa-avaliacao-autorizados'] || {})[chave('ana@previ.com.br')] && Object.keys(b['fa-avaliacao-autorizados-auditoria'] || {}).length === 0, 'nada foi gravado — nem o registro, nem o histórico');
     afirma(await contar(page, '#avpAutLista .avp-aut-item') === 0, 'Ana NÃO entrou na lista');
+    afirma(erros.length === 0, 'nenhum erro de JS (' + erros.length + ')');
+    await ctx.close();
+  }
+
+  console.log('\n== "Adicionar a mim": se o banco recusar, nada parece salvo ==');
+  {
+    const { ctx, page, erros } = await abrir(browser, { email: SUPER, admin: true, hash: '#admin', db: { 'fa-users': {} }, fail: ['fa-avaliacao-autorizados/' + chave(SUPER)] });
+    await page.click('.admin-tab-btn[data-panel="adminPanelArquitetura"]');
+    await page.waitForSelector('#avpUsuariosBtn', { timeout: 8000 });
+    await page.click('#avpUsuariosBtn');
+    await page.waitForSelector('#avpAutAdicionarEuBtn', { timeout: 8000 });
+    await page.click('#avpAutAdicionarEuBtn');
+    await page.waitForFunction(() => /Não foi possível salvar/.test((document.getElementById('avpAutEuAviso') || {}).textContent || ''), { timeout: 5000 }).catch(() => {});
+    afirma(/Não foi possível salvar/.test(await page.locator('#avpAutEuAviso').textContent()), 'erro visível junto ao botão');
+    const b = await banco(page);
+    afirma(!(b['fa-avaliacao-autorizados'] || {})[chave(SUPER)] && Object.keys(b['fa-avaliacao-autorizados-auditoria'] || {}).length === 0, 'nada gravado — nem o registro, nem o histórico');
+    afirma(await page.locator('#avpAutAdicionarEuBtn').isEnabled(), 'o botão volta a ficar disponível para tentar de novo');
     afirma(erros.length === 0, 'nenhum erro de JS (' + erros.length + ')');
     await ctx.close();
   }
