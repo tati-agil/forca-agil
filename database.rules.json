@@ -448,7 +448,7 @@
       "$avaliacaoId": {
         "$pushKey": {
           ".write": "auth != null && (((auth.token.email === 'tatianefdirene@previ.com.br' || auth.token.email === 'danielfrazao@previ.com.br') || root.child('fa-admins').child(auth.token.email.replace('@','_').replace('.','_')).exists()) || (root.child('fa-avaliacao-autorizados').child(auth.token.email.replace('@','_').replace('.','_')).child('tipo').val() === 'avaliacao' || root.child('fa-avaliacao-autorizados').child(auth.token.email.replace('@','_').replace('.','_')).child('tipo').val() === 'avaliacao-arquitetura')) && !data.exists()",
-          ".validate": "newData.hasChildren(['tipo','usuario','dataHora']) && (newData.child('tipo').val() === 'alteracao_especializacao' || newData.child('tipo').val() === 'alteracao_papel_estrutural' || newData.child('tipo').val() === 'alteracao_decisao_final')"
+          ".validate": "newData.hasChildren(['tipo','usuario','dataHora']) && (newData.child('tipo').val() === 'alteracao_especializacao' || newData.child('tipo').val() === 'alteracao_papel_estrutural' || newData.child('tipo').val() === 'alteracao_decisao_final') && (!newData.child('origem').exists() || newData.child('origem').val() === 'usuario' || newData.child('origem').val() === 'reprocessamento-automatico') && (newData.child('origem').val() !== 'reprocessamento-automatico' || newData.child('motorVersion').exists())"
         }
       }
     },

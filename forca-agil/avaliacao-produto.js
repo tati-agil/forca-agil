@@ -4888,9 +4888,16 @@
       if (!h.itens.length) return '<p class="avp-natureza-ajuda">Nenhuma alteração registrada ainda. O histórico vale a partir desta funcionalidade; alterações anteriores não foram registradas.</p>';
       return h.itens.map(function (e) {
         var j = e.justificativa ? ' · Justificativa: "' + esc(e.justificativa) + '"' : '';
+        var quem = esc(e.usuario && (e.usuario.name || e.usuario.email) || '—');
+        /* Reprocessamento automático NÃO é decisão de uma pessoa: a origem, o motor que
+           provocou a mudança e quem DISPAROU o reprocessamento aparecem explícitos. */
+        var origem = e.origem === 'reprocessamento-automatico'
+          ? 'Reprocessamento automático' + (e.reprocessamento === 'lote' ? ' em lote' : '') + ' — motor ' + esc(e.motorVersion || '—') +
+            (e.motorVersionArquitetura ? ' (regras v' + esc(e.motorVersionArquitetura) + ')' : '') + ' · disparado por ' + quem
+          : 'por ' + quem;
         return '<div class="avp-aut-hist"><strong>' + esc(ROTULO_TIPO_AUDITORIA[e.tipo] || e.tipo) + '</strong>: ' +
           esc(rotuloValorAuditoria(e.tipo, e.valorAnterior)) + ' → ' + esc(rotuloValorAuditoria(e.tipo, e.valorNovo)) +
-          '<br><span class="avp-usuario-aviso">por ' + esc(e.usuario && (e.usuario.name || e.usuario.email) || '—') + ' em ' + esc(fmtData(e.dataHora)) + j + '</span></div>';
+          '<br><span class="avp-usuario-aviso">' + origem + ' em ' + esc(fmtData(e.dataHora)) + j + '</span></div>';
       }).join('');
     }
     function renderCuradoriaHistorico(a) {
@@ -5268,7 +5275,7 @@
       var decisaoNova = { decisaoFinal: updates.decisaoFinal, decisaoManual: !!updates.decisaoManual,
         justificativa: updates.justificativaDecisao || null, confirmada: true };
       var linhaDecisao = linhaAuditoriaCuradoria(a, 'alteracao_decisao_final', decisaoAnterior, decisaoNova,
-        updates.decisaoManual ? { justificativa: updates.justificativaDecisao } : null);
+        Object.assign({ origem: 'usuario' }, updates.decisaoManual ? { justificativa: updates.justificativaDecisao } : null));
       var chaveAudDec = NODE_CURADORIA_AUDITORIA + '/' + a._key;
       var tudoDecisao = {};
       Object.keys(updates).forEach(function (k) { tudoDecisao[NODE + '/' + a._key + '/' + k] = updates[k]; });
@@ -5527,6 +5534,37 @@
       }
       return valor;
     }
+    /* Trilha da Decisão final quando o REPROCESSAMENTO (individual ou em lote) muda uma
+       decisão que era automática: a decisão acompanha a nova recomendação do motor.
+       Não é decisão de ninguém — a linha registra origem "Reprocessamento automático",
+       a versão do motor que provocou a mudança e quem DISPAROU o reprocessamento.
+       Só existe quando a decisão final realmente muda; decisão manual nunca é tocada
+       (portanto nunca gera linha). Gravada junto com a avaliação, na mesma gravação. */
+    function linhaAuditoriaReprocessamento(a, updates, modo, usuario) {
+      if (a.decisaoManual || updates.decisaoFinal === undefined) return null;
+      var anterior = a.decisaoFinal || a.resultadoAutomatico || null;
+      if (updates.decisaoFinal === anterior) return null;
+      return {
+        tipo: 'alteracao_decisao_final', avaliacaoId: a._key, avaliacaoNome: a.nome || null,
+        valorAnterior: { decisaoFinal: anterior, decisaoManual: false, justificativa: null, confirmada: !!a.decisaoConfirmada },
+        valorNovo: { decisaoFinal: updates.decisaoFinal, decisaoManual: false, justificativa: null, confirmada: !!a.decisaoConfirmada },
+        origem: 'reprocessamento-automatico', reprocessamento: modo,
+        motorVersion: updates.motorVersion || MOTOR_VERSION, motorVersionArquitetura: updates.motorVersionArquitetura || null,
+        motorVersionAnterior: a.motorVersion || null, motorVersionArquiteturaAnterior: a.motorVersionArquitetura || null,
+        usuario: usuario || null, dataHora: updates.reprocessedAt || new Date().toISOString()
+      };
+    }
+    /* Grava a avaliação reprocessada e, se a decisão mudou, a linha de auditoria — UMA gravação. */
+    function gravarReprocessamento(a, updates, modo, usuario, aoTerminar) {
+      var tudo = {};
+      Object.keys(updates).forEach(function (k) { tudo[NODE + '/' + a._key + '/' + k] = updates[k]; });
+      var linha = linhaAuditoriaReprocessamento(a, updates, modo, usuario);
+      if (linha) {
+        var chaveAud = NODE_CURADORIA_AUDITORIA + '/' + a._key;
+        tudo[chaveAud + '/' + db().ref(chaveAud).push().key] = semUndefined(linha);
+      }
+      db().ref().update(tudo, function (err) { aoTerminar(err, linha); });
+    }
     function construirAtualizacaoReprocessamento(a) {
       var calc = computeResultado(a);
       var novaJustificativa = gerarJustificativaAutomatica(a, calc);
@@ -5599,14 +5637,14 @@
         avpAlert('Não foi possível reprocessar esta avaliação. Tente novamente.');
       }
       try {
-        db().ref(NODE + '/' + a._key).update(updates, aoGravar);
+        gravarReprocessamento(a, updates, 'individual', sessaoAtual(), aoGravar);
       } catch (e) {
         if (respondido) return;
         respondido = true;
         clearTimeout(relogio);
         falhouAoGravar(e);
       }
-      function aoGravar(err) {
+      function aoGravar(err, linhaAuditoria) {
         if (respondido) return;
         respondido = true;
         clearTimeout(relogio);
@@ -5619,6 +5657,7 @@
         }
         Object.assign(a, updates);
         state.itens = upsertItem(state.itens, clonarItem(a));
+        if (linhaAuditoria) adicionarAoHistoricoLocal([linhaAuditoria]);
         state.flashResultado = '✓ Avaliação reprocessada com a versão atual do motor de classificação.';
         render();
       }
@@ -6021,6 +6060,7 @@
       var bloqueadas = concluidasAgora.filter(function (it) { return precisaReprocessar(it) && it.bloqueadaParaReprocessamentoAutomatico; }).length;
 
       var fila = itens.slice();
+      var usuarioLote = sessaoAtual(); /* quem disparou o reprocessamento em lote */
       var CONCORRENCIA = 3;
       var TEMPO_MAXIMO_POR_ITEM = 20000;
       state.reprocessamentoLote = {
@@ -6078,7 +6118,7 @@
           encerrar('Sem confirmação do servidor a tempo (rede lenta) — confira esta avaliação e, se ainda aparecer desatualizada, reprocesse de novo.');
         }, TEMPO_MAXIMO_POR_ITEM);
         try {
-          db().ref(NODE + '/' + it._key).update(updates, function (err) {
+          gravarReprocessamento(it, updates, 'lote', usuarioLote, function (err) {
             encerrar(err ? 'Não foi possível gravar.' : null, err);
           });
         } catch (e) {
