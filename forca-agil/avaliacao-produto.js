@@ -3192,6 +3192,15 @@
         return;
       }
       if (u.flash) html += '<p class="avp-flash-success avp-flash-success--inline" id="avpUsuariosFlash">' + esc(u.flash) + '</p>';
+      var euSess = sessaoAtual();
+      if (euSess && euSess.email && !u.autorizados[chaveEmailAut(euSess.email)]) {
+        var chaveEu = chaveEmailAut(euSess.email);
+        var avisoEu = u.avisos[chaveEu];
+        html += '<div class="avp-aut-eu" id="avpAutEu"><p class="avp-decisao-aviso">Você entra em tudo por ser administradora geral, mas o seu acesso ainda não está <strong>registrado nesta lista</strong>. ' +
+          'A lista mostra quem foi autorizado explicitamente para a Avaliação e a Arquitetura.</p>' +
+          '<button type="button" class="btn" id="avpAutAdicionarEuBtn"' + (u.salvando[chaveEu] ? ' disabled' : '') + '>Adicionar a mim como Avaliação + Arquitetura</button>' +
+          '<span class="avp-usuario-aviso' + (avisoEu && avisoEu.erro ? ' avp-usuario-aviso--erro' : '') + '" id="avpAutEuAviso">' + (avisoEu ? esc(avisoEu.texto) : '') + '</span></div>';
+      }
       html += '<div class="avp-aut-barra"><button type="button" class="btn btn--primary" id="avpAutAdicionarBtn" aria-expanded="' + (u.adicionando ? 'true' : 'false') + '">+ ADICIONAR USUÁRIO</button></div>';
       if (u.adicionando) {
         html += '<div class="avp-aut-adicionar" id="avpAutAdicionar"><div class="avp-field"><label for="avpAutBuscaAdd">Procurar usuário cadastrado</label>' +
@@ -3206,6 +3215,8 @@
       html += '</div>';
       wrap.innerHTML = html;
       document.getElementById('avpUsuariosVoltar').addEventListener('click', function () { state.tela = 'admin-inicio'; state.usuarios = null; render(); });
+      var euBtn = document.getElementById('avpAutAdicionarEuBtn');
+      if (euBtn) euBtn.addEventListener('click', autorizarEu);
       document.getElementById('avpAutAdicionarBtn').addEventListener('click', function () { u.adicionando = !u.adicionando; u.buscaAdd = ''; renderAdminUsuarios(); });
       var buscaAdd = document.getElementById('avpAutBuscaAdd');
       if (buscaAdd) {
@@ -3219,6 +3230,14 @@
     function atualizarListasUsuarios() {
       var l = document.getElementById('avpAutLista'); if (l) l.innerHTML = linhasAutorizados();
       var r = document.getElementById('avpAutResultados'); if (r) r.innerHTML = resultadosAdicionar();
+      var euSess2 = sessaoAtual();
+      if (euSess2 && euSess2.email) {
+        var k2 = chaveEmailAut(euSess2.email), av2 = state.usuarios.avisos[k2];
+        var euAv = document.getElementById('avpAutEuAviso');
+        if (euAv) { euAv.textContent = av2 ? av2.texto : ''; euAv.classList.toggle('avp-usuario-aviso--erro', !!(av2 && av2.erro)); }
+        var euB = document.getElementById('avpAutAdicionarEuBtn');
+        if (euB) euB.disabled = !!state.usuarios.salvando[k2];
+      }
       ligarLinhasUsuarios();
     }
     function ligarLinhasUsuarios() {
@@ -3272,20 +3291,32 @@
         db().ref().update(updates, concluir);
       } catch (e) { concluir(e); }
     }
-    function autorizarUsuario(key, email) {
+    function concederAcesso(key, email, nomePessoa, tipo) {
       var u = state.usuarios;
-      var x = u.usuarios.filter(function (p) { return p.email === email; })[0];
-      if (!x || u.autorizados[key]) return;
-      var tipo = u.tiposAdd[key] || 'avaliacao';
+      if (!email || u.autorizados[key]) return;
       var eu = sessaoAtual() || {};
       var agora = new Date().toISOString();
-      var nome = x.nome || x.email;
-      var registro = { email: x.email, nome: nome, tipo: tipo, concedidoPor: eu.email || '', concedidoPorNome: eu.name || '', concedidoEm: agora };
-      var linha = { acao: 'concedido', email: x.email, nome: nome, tipoNovo: tipo, por: eu.email || '', porNome: eu.name || '', em: agora };
+      var nome = nomePessoa || email;
+      var registro = { email: email, nome: nome, tipo: tipo, concedidoPor: eu.email || '', concedidoPorNome: eu.name || '', concedidoEm: agora };
+      var linha = { acao: 'concedido', email: email, nome: nome, tipoNovo: tipo, por: eu.email || '', porNome: eu.name || '', em: agora };
       gravarAcesso(key, registro, linha, function () {
         u.autorizados[key] = registro;
         u.flash = '✓ ' + nome + ' agora tem acesso: ' + rotuloTipo(tipo) + '.';
       });
+    }
+    function autorizarUsuario(key, email) {
+      var u = state.usuarios;
+      var x = u.usuarios.filter(function (p) { return p.email === email; })[0];
+      if (!x) return;
+      concederAcesso(key, x.email, x.nome, u.tiposAdd[key] || 'avaliacao');
+    }
+    /* Admin geral entra em tudo por ser admin, mas esta lista mostra quem foi AUTORIZADO
+       explicitamente. Registrar a si mesma é uma ação explícita (um clique), nunca uma
+       gravação automática: o tipo é "Avaliação + Arquitetura". */
+    function autorizarEu() {
+      var eu = sessaoAtual();
+      if (!eu || !eu.email) return;
+      concederAcesso(chaveEmailAut(eu.email), eu.email, eu.name, 'avaliacao-arquitetura');
     }
     function alterarTipoAutorizado(key, tipo) {
       var u = state.usuarios;
