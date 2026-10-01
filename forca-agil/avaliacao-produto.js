@@ -1086,10 +1086,57 @@
     html += '</table></div></section>';
     return html;
   }
-  function montarDocumentoPdf(itens) {
-    var corpo = montarCabecalhoPdf();
-    itens.forEach(function (it, i) { corpo += montarSecaoAvaliacaoPdf(it, i === 0); });
-    return '<div class="pdf-doc"><style>' + CSS_PDF + '</style>' + corpo + '</div>';
+  /* Documento PDF de UM bloco: o <style> + (opcionalmente) o cabeçalho do
+     relatório + o conteúdo já pronto. Cada bloco vira o seu próprio canvas. */
+  function envolverBlocoPdf(conteudo, comCabecalho) {
+    return '<div class="pdf-doc"><style>' + CSS_PDF + '</style>' + (comCabecalho ? montarCabecalhoPdf() : '') + conteudo + '</div>';
+  }
+  /* "Átomos" de uma avaliação: os filhos diretos da <section>, com cada título
+     (h2/h3) colado ao elemento que vem depois dele — nunca separar um título do
+     seu conteúdo na fronteira entre dois blocos. */
+  function atomosDaAvaliacao(it) {
+    var tmp = document.createElement('div');
+    tmp.innerHTML = montarSecaoAvaliacaoPdf(it, true);
+    var secao = tmp.firstElementChild;
+    var atomos = [];
+    var titulos = '';
+    Array.prototype.forEach.call(secao.children, function (el) {
+      if (el.tagName === 'H2' || el.tagName === 'H3') { titulos += el.outerHTML; return; }
+      atomos.push(titulos + el.outerHTML);
+      titulos = '';
+    });
+    if (titulos) atomos.push(titulos);
+    return atomos;
+  }
+  /* Altura (px CSS) máxima de um bloco. O navegador limita o tamanho de um
+     canvas — no Chrome ~65 mil px de altura, no Safari do iPhone ~16,7 milhões
+     de px de ÁREA — e acima disso devolve um canvas todo em branco, sem erro.
+     Com a escala 2 usada na captura e 186 mm (~703 px) de largura, 4400 px CSS
+     dão uma imagem de ~1406 x 8800 = 12,4 milhões de px: cabe no pior caso
+     conhecido, e a qualidade (escala 2) não muda. O que cresce com o volume é o
+     NÚMERO de blocos, nunca o tamanho de cada canvas. */
+  var ALTURA_MAX_BLOCO_PDF = 4400;
+  /* Divide as avaliações em blocos: cada avaliação começa um bloco novo (e,
+     portanto, uma página nova), e uma avaliação longa continua em novos blocos
+     quando passar da altura máxima. `medidor` é um contêiner já no DOM, com a
+     largura real do documento. */
+  function planejarBlocosPdf(itens, medidor) {
+    var blocos = [];
+    function altura(html) { medidor.innerHTML = envolverBlocoPdf('<section class="pdf-av">' + html + '</section>', false); return medidor.scrollHeight; }
+    itens.forEach(function (it, i) {
+      var atomos = atomosDaAvaliacao(it);
+      var atual = [];
+      atomos.forEach(function (atomo) {
+        if (atual.length && altura(atual.join('') + atomo) > ALTURA_MAX_BLOCO_PDF) {
+          blocos.push(atual.join(''));
+          atual = [];
+        }
+        atual.push(atomo);
+      });
+      if (atual.length) blocos.push(atual.join(''));
+    });
+    medidor.innerHTML = '';
+    return blocos;
   }
   /* Espera determinística por: fontes carregadas (document.fonts.ready, quando
      existir) e layout assentado (dois requestAnimationFrame seguidos — o primeiro
@@ -1126,85 +1173,102 @@
   function gerarPdf(itens, nomeArquivo, cbFim) {
     carregarScript('forca-agil/html2pdf.bundle.min.js', function () { return typeof window.html2pdf === 'function'; }, function (erroCarga) {
       if (erroCarga) { cbFim(erroCarga); return; }
-      var container = document.createElement('div');
       /* 186mm = largura A4 (210mm) menos as margens esquerda+direita definidas
          abaixo (12mm cada). Precisa bater exatamente com pageSize.inner.width
          do jsPDF — um container mais largo que a área imprimível fica cortado
-         na borda direita (ficava mascarado pelo bug do PDF em branco, mas é um
-         problema separado de largura, não de conteúdo ausente). */
-      container.style.cssText = 'width:186mm;background:#fff;';
-      container.innerHTML = montarDocumentoPdf(itens);
-      document.body.appendChild(container);
-      function limpar() { if (container.parentNode) document.body.removeChild(container); }
+         na borda direita. */
+      var ESTILO_CONTAINER = 'width:186mm;background:#fff;';
+      var medidor = document.createElement('div');
+      medidor.style.cssText = ESTILO_CONTAINER;
+      document.body.appendChild(medidor);
+      var container = null;
+      function limpar() {
+        if (container && container.parentNode) document.body.removeChild(container);
+        if (medidor.parentNode) document.body.removeChild(medidor);
+      }
+      var compartilhado = { pdf: null, ultimo: null };
+      function concluir(erro) { limpar(); cbFim(erro || null); }
+
+      /* Um bloco = um canvas pequeno, desenhado no MESMO jsPDF (compartilhado):
+         o PDF cresce página a página e nenhum canvas depende do total. */
+      function renderizarBloco(htmlBloco, indice, fim) {
+        container = document.createElement('div');
+        container.style.cssText = ESTILO_CONTAINER;
+        container.innerHTML = envolverBlocoPdf('<section class="pdf-av">' + htmlBloco + '</section>', indice === 0);
+        document.body.appendChild(container);
+        aguardarRenderizacaoCompleta(function () {
+          /* A altura real (scrollHeight, já com o layout assentado) é passada
+             explicitamente, em vez de deixar a biblioteca adivinhar. */
+          if (!container.scrollHeight) { fim(new Error('Container de exportação sem conteúdo renderizado.')); return; }
+          try {
+            var trabalho = window.html2pdf().set({
+              margin: [14, 12, 16, 12],
+              filename: nomeArquivo,
+              image: { type: 'jpeg', quality: 0.95 },
+              /* CAUSA RAIZ do PDF em branco (item individual, telas altas): o
+                 html2pdf.js clona o container num overlay próprio e o html2canvas
+                 calculava sozinho o deslocamento do elemento em relação à janela,
+                 errando quando o container real estava bem abaixo no documento —
+                 o canvas saía com o tamanho certo, mas todo em branco. Passar
+                 scrollX/scrollY/x/y = 0 elimina esse cálculo: nunca depende de
+                 rolagem nem de posição na página. width/height/windowWidth/
+                 windowHeight só são fixados DEPOIS de toContainer() (abaixo). */
+              html2canvas: { scale: 2, backgroundColor: '#ffffff', useCORS: false, x: 0, y: 0, scrollX: 0, scrollY: 0 },
+              jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' },
+              pagebreak: { mode: ['css', 'avoid-all'] }
+            });
+            trabalho.from(container).toContainer().then(function () {
+              /* CAUSA RAIZ do corte no fim do bloco: o plugin de pagebreak
+                 (avoid-all/css) roda DENTRO de toContainer(), inserindo
+                 espaçadores no CLONE interno, que pode ficar mais alto que o
+                 original. Medir width/height só agora, sobre o clone já
+                 processado, evita fixar uma janela de captura menor que o
+                 conteúdo empurrado para a página seguinte. */
+              var alturaClonada = this.prop.container.scrollHeight;
+              var larguraClonada = this.prop.container.scrollWidth;
+              this.opt.html2canvas.width = larguraClonada;
+              this.opt.html2canvas.windowWidth = larguraClonada;
+              this.opt.html2canvas.height = alturaClonada;
+              this.opt.html2canvas.windowHeight = alturaClonada;
+            }).toCanvas().then(function () {
+              /* Continua o MESMO PDF: o jsPDF criado pelo primeiro bloco é
+                 reaproveitado, e cada bloco seguinte começa em página nova. */
+              if (compartilhado.pdf) { this.prop.pdf = compartilhado.pdf; this.prop.pdf.addPage(); }
+            }).toPdf().then(function () {
+              compartilhado.pdf = this.prop.pdf;
+              compartilhado.ultimo = trabalho;
+              if (container.parentNode) document.body.removeChild(container);
+              container = null;
+              fim(null);
+            }, function (erroBloco) { fim(erroBloco); });
+          } catch (erroGeral) { fim(erroGeral); }
+        });
+      }
+
       aguardarRenderizacaoCompleta(function () {
-        /* html2canvas às vezes falha em medir a altura de um container recém-
-           inserido (mede 0 e produz um PDF em branco) quando ele não fica em
-           fluxo normal visível — por isso mora no fim do <body> em fluxo
-           normal (não fixed/absolute) enquanto gera, e a altura real
-           (scrollHeight, já com o layout assentado) é passada explicitamente,
-           em vez de deixar a biblioteca tentar adivinhar. */
-        var alturaReal = container.scrollHeight;
-        var larguraReal = container.scrollWidth;
-        if (!alturaReal) { limpar(); cbFim(new Error('Container de exportação sem conteúdo renderizado.')); return; }
-        try {
-          window.html2pdf().set({
-            margin: [14, 12, 16, 12],
-            filename: nomeArquivo,
-            image: { type: 'jpeg', quality: 0.95 },
-            html2canvas: {
-              scale: 2, backgroundColor: '#ffffff', useCORS: false,
-              /* Ver comentário de causa raiz acima: zera o cálculo automático
-                 de deslocamento do html2canvas, que é o que produzia o PDF em
-                 branco em telas de resultado altas — nunca depende de scroll
-                 nem de posição na página. width/height/windowWidth/
-                 windowHeight NÃO entram aqui: são fixados só depois de
-                 toContainer() (ver abaixo), porque medir antes cortava o fim
-                 do documento sempre que o plugin de quebra de página
-                 (pagebreak: avoid-all/css) precisava empurrar um bloco
-                 protegido (ex.: a seção "Decisão arquitetural") para a
-                 página seguinte. */
-              x: 0, y: 0, scrollX: 0, scrollY: 0
-            },
-            jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' },
-            pagebreak: { mode: ['css', 'avoid-all'] }
-          }).from(container).toContainer().then(function () {
-            /* CAUSA RAIZ do corte no fim do documento (ex.: a tabela "Decisão
-               arquitetural" aparecendo cortada/em branco): o plugin de
-               pagebreak do próprio html2pdf.js (mode: avoid-all/css) roda
-               DENTRO de toContainer(), inserindo divs espaçadoras no CLONE
-               interno (this.prop.container) para empurrar qualquer bloco que
-               cairia dividido entre duas páginas — o que pode deixar o clone
-               MAIS ALTO do que o container original. Se width/height/
-               windowWidth/windowHeight do html2canvas já tivessem sido
-               fixados ANTES dessa etapa (medidos no container original, sem
-               os espaçadores), a janela de captura ficava presa no tamanho
-               antigo, e qualquer conteúdo empurrado para além dele nunca era
-               desenhado — sumia, mesmo estando corretamente no HTML/DOM (só
-               não estava sendo fotografado). Por isso a medição de
-               width/height só acontece agora, sobre o clone JÁ processado
-               pelo pagebreak, exatamente como windowWidth/scrollX/scrollY já
-               precisavam ser explícitos por um motivo parecido (ver acima). */
-            var alturaClonada = this.prop.container.scrollHeight;
-            var larguraClonada = this.prop.container.scrollWidth;
-            this.opt.html2canvas.width = larguraClonada;
-            this.opt.html2canvas.windowWidth = larguraClonada;
-            this.opt.html2canvas.height = alturaClonada;
-            this.opt.html2canvas.windowHeight = alturaClonada;
-          }).toCanvas().toPdf().get('pdf').then(function (pdf) {
-            var total = pdf.internal.getNumberOfPages();
-            var largura = pdf.internal.pageSize.getWidth();
-            var altura = pdf.internal.pageSize.getHeight();
-            for (var i = 1; i <= total; i++) {
-              pdf.setPage(i);
-              pdf.setFontSize(8);
-              pdf.setTextColor(120);
-              pdf.text('Página ' + i + ' de ' + total, largura / 2, altura - 6, { align: 'center' });
-            }
-          }).save().then(function () { limpar(); cbFim(null); }, function (erroSave) { limpar(); cbFim(erroSave); });
-        } catch (erroGeral) {
-          limpar();
-          cbFim(erroGeral);
-        }
+        var blocos;
+        try { blocos = planejarBlocosPdf(itens, medidor); } catch (erroPlano) { concluir(erroPlano); return; }
+        if (!blocos.length) { concluir(new Error('Nenhuma avaliação para exportar.')); return; }
+        var i = 0;
+        (function proximo(erro) {
+          if (erro) { concluir(erro); return; }
+          if (i >= blocos.length) {
+            /* "Página X de N" no rodapé, só depois que o total é conhecido. */
+            compartilhado.ultimo.get('pdf').then(function (pdf) {
+              var total = pdf.internal.getNumberOfPages();
+              var largura = pdf.internal.pageSize.getWidth();
+              var altura = pdf.internal.pageSize.getHeight();
+              for (var p = 1; p <= total; p++) {
+                pdf.setPage(p);
+                pdf.setFontSize(8);
+                pdf.setTextColor(120);
+                pdf.text('Página ' + p + ' de ' + total, largura / 2, altura - 6, { align: 'center' });
+              }
+            }).save().then(function () { concluir(null); }, function (erroSave) { concluir(erroSave); });
+            return;
+          }
+          renderizarBloco(blocos[i], i, function (e) { i++; proximo(e); });
+        })();
       });
     });
   }

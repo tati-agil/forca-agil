@@ -198,7 +198,7 @@ async function abrirApp(browser, viewport) {
     window.__pdfs = [];
     new MutationObserver(function (ms) {
       ms.forEach(function (m) { m.addedNodes.forEach(function (n) {
-        if (n.nodeType !== 1) return;
+        if (n.nodeType !== 1 || n.parentNode !== document.body) return; /* só blocos reais do PDF, não as medições */
         var doc = n.classList && n.classList.contains('pdf-doc') ? n : (n.querySelector && n.querySelector('.pdf-doc'));
         if (doc) window.__pdfs.push({ tudo: doc.innerText });
       }); });
@@ -291,9 +291,14 @@ async function parteB(browser) {
 
   console.log('\n-- PDF da Trilha nova --');
   await page.evaluate(() => { window.__pdfs = []; });
-  await page.click('#avpGerarPdfBtn');
-  await page.waitForFunction(() => window.__pdfs && window.__pdfs.length > 0, { timeout: 20000 }).catch(() => {});
-  const pdf = await page.evaluate(() => window.__pdfs[0] || null);
+  await Promise.all([page.waitForEvent('download', { timeout: 60000 }).catch(() => null), page.click('#avpGerarPdfBtn')]);
+  await page.waitForTimeout(400);
+  const pdf = await page.evaluate(() => {
+    /* o PDF sai em blocos (e o html2pdf clona cada um): junta os textos distintos, na ordem */
+    const textos = [];
+    (window.__pdfs || []).forEach((b) => { if (textos.indexOf(b.tudo) === -1) textos.push(b.tudo); });
+    return textos.length ? { tudo: textos.join('\n') } : null;
+  });
   afirma(!!pdf && pdf.tudo.replace(/\s+/g, ' ').includes(RELACAO_NOVA) && pdf.tudo.replace(/\s+/g, ' ').includes(JUSTIFICATIVA_NOVA) && !/entregue a partir de outro/.test(pdf.tudo), 'o PDF traz a relação e a justificativa novas');
   await page.waitForTimeout(800);
 
