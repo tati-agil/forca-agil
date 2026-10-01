@@ -50,7 +50,7 @@ jobs:
       # independentes de ser admin. Hermético (Firebase falso com a mesma
       # restrição de leitura filtrada das regras); a proteção de verdade, no
       # banco, é provada à parte por teste-rules-avaliacoes.js no emulador.
-      - name: "Avaliação: perfis, área operacional × Admin, Usuários e permissões (desktop e celular)"
+      - name: "Avaliação: perfis, área operacional × Admin, Usuários autorizados (desktop e celular)"
         env:
           NODE_PATH: /tmp/pw-deps/node_modules
           FA_BASE_URL: http://127.0.0.1:8811
