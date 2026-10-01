@@ -142,3 +142,53 @@ jobs:
           fail-on-cache-miss: true
       - name: Medir o apt (5 .deb estragados no cache)
         run: bash .github/scripts/experimento-apt-cache/medir-apt-cache.sh invalido
+
+  invalido-validado:
+    name: .deb estragado COM validação de hash antes do apt
+    needs: semear
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - name: Playwright (pacote npm, fora da medição)
+        run: |
+          mkdir -p /tmp/pw-deps && cd /tmp/pw-deps
+          npm init -y >/dev/null && npm install playwright@1.56.1 >/dev/null
+      - name: Restaurar cache dos .deb
+        uses: actions/cache/restore@v4
+        with:
+          path: /tmp/apt-debs
+          key: ${{ env.CHAVE }}
+          fail-on-cache-miss: true
+      - name: Medir o apt (5 .deb estragados, com validação)
+        run: bash .github/scripts/experimento-apt-cache/medir-apt-cache.sh invalido-validado
+
+  cheio-validado:
+    name: cheio COM validação · #${{ matrix.rep }}
+    needs: semear
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    strategy:
+      fail-fast: false
+      matrix:
+        rep: [1, 2]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - name: Playwright (pacote npm, fora da medição)
+        run: |
+          mkdir -p /tmp/pw-deps && cd /tmp/pw-deps
+          npm init -y >/dev/null && npm install playwright@1.56.1 >/dev/null
+      - name: Restaurar cache dos .deb
+        uses: actions/cache/restore@v4
+        with:
+          path: /tmp/apt-debs
+          key: ${{ env.CHAVE }}
+          fail-on-cache-miss: true
+      - name: Medir o apt (cache cheio, com validação)
+        run: bash .github/scripts/experimento-apt-cache/medir-apt-cache.sh cheio-validado

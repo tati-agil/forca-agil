@@ -11,6 +11,8 @@
 #     invalido     — cache restaurado, mas 2 .deb apagados, 1 truncado, 1 vazio, 1 corrompido (mesmo tamanho)
 set -u
 modo=${1:?modo}
+validar=0; base=$modo
+case "$modo" in *-validado) validar=1; base=${modo%-validado} ;; esac
 ARQ=/var/cache/apt/archives
 POOL=/tmp/apt-debs
 mkdir -p "$POOL"
@@ -24,7 +26,7 @@ n_pool=$(ls "$POOL"/*.deb 2>/dev/null | wc -l)
 echo "pool restaurado: $n_pool .deb, $(du -sh "$POOL" | cut -f1)"
 extra=""
 
-case "$modo" in
+case "$base" in
   versao-nova)
     sudo apt-get update -qq >/dev/null 2>&1
     trocados=""
@@ -53,6 +55,24 @@ case "$modo" in
     ;;
 esac
 
+# Guarda opcional (modos *-validado): só deixa no cache o .deb cujo SHA256 consta no índice assinado do
+# espelho para aquela mesma versão. O resto é descartado e o apt baixa normalmente.
+t_val=0
+if [ "$validar" = 1 ]; then
+  tv=$(date +%s)
+  sudo apt-get update -qq >/dev/null 2>&1
+  descartados=0
+  for f in "$ARQ"/*.deb; do
+    [ -e "$f" ] || continue
+    p=$(dpkg-deb -f "$f" Package 2>/dev/null); v=$(dpkg-deb -f "$f" Version 2>/dev/null)
+    real=$(sha256sum "$f" | cut -d' ' -f1)
+    if [ -z "$p" ] || [ -z "$v" ] || ! apt-cache show "$p=$v" 2>/dev/null | grep -q "^SHA256: $real\$"; then
+      echo "descartado (hash/versão não confere com o índice): $(basename "$f")"; sudo rm -f "$f"; descartados=$((descartados+1))
+    fi
+  done
+  t_val=$(( $(date +%s) - tv ))
+  extra="$extra | validação ${t_val}s, descartados=$descartados"
+fi
 cd /tmp/pw-deps
 pacotes=$(npx playwright install-deps --dry-run chromium 2>&1 | grep -o 'apt-get install -y --no-install-recommends .*' | sed 's/apt-get install -y --no-install-recommends //; s/"$//')
 n_antes=$(ls "$ARQ"/*.deb 2>/dev/null | wc -l)
@@ -71,7 +91,7 @@ sort -o /tmp/versoes.txt /tmp/versoes.txt
 hash=$(sha256sum /tmp/versoes.txt | cut -c1-12)
 
 # versao-nova: o instalado é o do espelho (o mais novo) e não o antigo do cache?
-if [ "$modo" = versao-nova ]; then
+if [ "$base" = versao-nova ]; then
   for p in libgbm1 libglx-mesa0; do
     cand=$(apt-cache policy "$p" | sed -n 's/^ *Candidate: //p'); inst=$(dpkg-query -W -f='${Version}' "$p")
     extra="$extra | $p instalado=$inst candidato=$cand $([ "$inst" = "$cand" ] && echo IGUAL-ao-espelho || echo DIFERENTE)"
