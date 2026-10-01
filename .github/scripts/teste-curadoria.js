@@ -100,7 +100,7 @@ async function abrir(browser, o) {
   const admins = {}; admins[KEY] = { email: EMAIL };
   const db = { turmas: {}, 'turmas-interesse': {}, 'fa-users': {}, 'fa-admins': admins, 'turmas-config': {},
     'turmas-checkin': {}, 'turmas-espera': {}, 'turmas-equipe': {}, 'fa-facilitadores': {}, 'fa-diretores': {},
-    eventos: {}, 'turmas-publico': {}, 'eventos-publico': {}, 'avaliacoes-produto': comPlaceholders(AVALIACOES()), 'avaliacoes-squad': {},
+    eventos: {}, 'turmas-publico': {}, 'eventos-publico': {}, 'avaliacoes-produto': o.avaliacoes || comPlaceholders(AVALIACOES()), 'avaliacoes-squad': {},
     'motor-squad-config': {}, 'motor-squad-auditoria': {}, 'motor-arquitetura-auditoria': {} };
   const cfg = { db: db, user: { email: EMAIL, emailVerified: true, uid: 'u1' }, delayDefault: 10, persistenciaReal: true, fail: o.fail, delays: o.delays };
   const ctx = await browser.newContext({ viewport: o.viewport || DESKTOP, acceptDownloads: true });
@@ -288,6 +288,61 @@ const auditoriaCur = async (page, key) => Object.values(((await banco(page))['cu
     await page.click('.avp-modal-ok-btn');
     b = await banco(page);
     afirma(b['avaliacoes-produto'].comp.decisaoManual === false && !b['curadoria-auditoria'], 'decisão: nada gravado — a avaliação continua como estava');
+    afirma(erros.length === 0, 'nenhum erro de JS (' + erros.length + ')');
+    await ctx.close();
+  }
+
+  /* ---------- Reprocessamento: a decisão AUTOMÁTICA que muda entra na trilha, com origem clara ---------- */
+  const A_VALIDAR = { id: 'a-validar', label: 'A validar', motivos: [], conflito: null, incoerencia: false, especializacao: null, papelEstrutural: null, relacao: null };
+  const velhoMotor = (nome, extra) => itemDe(nome, 'canal', Object.assign({ motorVersion: '2026.08.01-1', resultadoAutomatico: 'a-validar', decisaoFinal: 'a-validar', camadaSugerida: JSON.parse(JSON.stringify(A_VALIDAR)) }, extra || {}));
+  const REPROC = () => ({
+    rp1: velhoMotor('Lote Automatico'),
+    rp2: velhoMotor('Lote Manual', { decisaoManual: true, decisaoFinal: 'produto', justificativaDecisao: 'decidido por pessoa', alteradoPor: { name: 'Fulana', email: 'f@previ.com.br' }, alteradoEm: '2026-09-30T10:00:00.000Z', decisaoConfirmada: true }),
+    rp3: itemDe('Lote Sem Mudanca', 'canal', { motorVersion: '2026.08.01-1' }),
+    rp4: velhoMotor('Individual Automatico'),
+  });
+  const linhasDecisao = async (page, key) => (await auditoriaCur(page, key)).filter((x) => x.tipo === 'alteracao_decisao_final');
+  for (const [nomeTela, viewport] of [['desktop', DESKTOP], ['celular 375px', CELULAR]]) {
+    console.log('\n== Reprocessamento: trilha da decisão final (origem automática) — ' + nomeTela + ' ==');
+    const { ctx, page, erros } = await abrir(browser, { viewport, avaliacoes: REPROC() });
+    /* individual */
+    await abrirResultado(page, 'rp4');
+    await page.click('#avpReprocessarBtn');
+    await page.click('.avp-modal-confirm-btn');
+    await page.waitForFunction(() => window.__CFG.__dbReal['avaliacoes-produto'].rp4.reprocessedAt, { timeout: 8000 }).catch(() => {});
+    let l4 = await linhasDecisao(page, 'rp4');
+    afirma(l4.length === 1 && l4[0].origem === 'reprocessamento-automatico' && l4[0].reprocessamento === 'individual', 'individual: uma linha na trilha, origem "reprocessamento-automatico"');
+    afirma(l4[0].valorAnterior.decisaoFinal === 'a-validar' && l4[0].valorNovo.decisaoFinal === 'nao-produto' && l4[0].valorNovo.decisaoManual === false, 'individual: valor anterior (A validar) → novo (Não é Produto/Serviço), não manual');
+    afirma(l4[0].motorVersion === MOTOR_VERSION && l4[0].motorVersionAnterior === '2026.08.01-1' && !!l4[0].motorVersionArquitetura && l4[0].usuario.email === EMAIL && !isNaN(Date.parse(l4[0].dataHora)), 'individual: versão do motor (nova e anterior), usuário que disparou e data/hora');
+    await page.locator('#avpCuradoriaHistoricoDet summary').click();
+    const th = await page.locator('#avpCuradoriaHistorico').innerText();
+    afirma(/Reprocessamento automático/.test(th) && /motor/.test(th) && /disparado por/.test(th) && /A validar → Não é Produto\/Serviço principal/.test(th), 'a tela mostra "Reprocessamento automático — motor … · disparado por …" (não parece decisão humana)');
+    afirma(await larguraOk(page), 'sem rolagem horizontal');
+    await voltar(page);
+    /* lote */
+    await page.click('#avpReprocessarTudoBtn');
+    await page.waitForSelector('#avpLoteConfirmar', { timeout: 5000 });
+    await page.click('#avpLoteConfirmar');
+    await page.waitForSelector('#avpLoteFechar', { timeout: 15000 });
+    let b = await banco(page);
+    const l1 = await linhasDecisao(page, 'rp1'), l2 = await linhasDecisao(page, 'rp2'), l3 = await linhasDecisao(page, 'rp3');
+    afirma(b['avaliacoes-produto'].rp1.decisaoFinal === 'nao-produto' && b['avaliacoes-produto'].rp1.reprocessedAt, 'lote: a decisão automática acompanhou a nova recomendação');
+    afirma(l1.length === 1 && l1[0].origem === 'reprocessamento-automatico' && l1[0].reprocessamento === 'lote' && l1[0].valorAnterior.decisaoFinal === 'a-validar' && l1[0].valorNovo.decisaoFinal === 'nao-produto' && l1[0].motorVersion === MOTOR_VERSION && l1[0].usuario.email === EMAIL && !isNaN(Date.parse(l1[0].dataHora)),
+      'lote: linha com anterior, novo, origem, versão do motor, usuário que disparou e data/hora');
+    afirma(b['avaliacoes-produto'].rp2.decisaoManual === true && b['avaliacoes-produto'].rp2.decisaoFinal === 'produto' && l2.length === 0, 'decisão MANUAL: intocada e sem linha (o motor nunca a muda)');
+    afirma(l3.length === 0, 'decisão que não mudou: sem linha');
+    await ctx.close();
+  }
+  console.log('\n== Reprocessamento em lote: se o banco recusar a auditoria, a avaliação também não grava ==');
+  {
+    const { ctx, page, erros } = await abrir(browser, { avaliacoes: REPROC(), fail: ['curadoria-auditoria'] });
+    await page.click('#avpReprocessarTudoBtn');
+    await page.waitForSelector('#avpLoteConfirmar', { timeout: 5000 });
+    await page.click('#avpLoteConfirmar');
+    await page.waitForSelector('#avpLoteFechar', { timeout: 15000 });
+    const b = await banco(page);
+    afirma(b['avaliacoes-produto'].rp1.decisaoFinal === 'a-validar' && !b['avaliacoes-produto'].rp1.reprocessedAt && !b['curadoria-auditoria'], 'a avaliação que ia mudar de decisão NÃO foi gravada (sem trilha, sem mudança)');
+    afirma(/com erro|erro/i.test(await page.locator('.avp-lote-resumo-final, #avpLoteResumo, .avp-lote-progresso-card').first().innerText()), 'o resumo do lote mostra o erro');
     afirma(erros.length === 0, 'nenhum erro de JS (' + erros.length + ')');
     await ctx.close();
   }

@@ -256,6 +256,12 @@ async function main() {
     }
     await assertFails(db(null).ref('curadoria-auditoria/conc1').once('value'));
     anota('sem login: nada', true);
+    /* origem: decisão de pessoa x reprocessamento automático (precisa dizer o motor) */
+    await assertSucceeds(db(AVAL).ref('curadoria-auditoria/conc1/orig1').set(Object.assign(linhaCur('alteracao_decisao_final'), { origem: 'usuario' })));
+    await assertSucceeds(db(AVAL).ref('curadoria-auditoria/conc1/orig2').set(Object.assign(linhaCur('alteracao_decisao_final'), { origem: 'reprocessamento-automatico', motorVersion: '2026.10.01-1', reprocessamento: 'lote' })));
+    await assertFails(db(AVAL).ref('curadoria-auditoria/conc1/orig3').set(Object.assign(linhaCur('alteracao_decisao_final'), { origem: 'reprocessamento-automatico' })));
+    await assertFails(db(AVAL).ref('curadoria-auditoria/conc1/orig4').set(Object.assign(linhaCur('alteracao_decisao_final'), { origem: 'sistema-misterioso', motorVersion: 'x' })));
+    anota('origem "reprocessamento-automatico" exige a versão do motor; origem desconhecida é recusada', true);
     /* gravação conjunta, como a tela faz: decisão + linha de histórico no mesmo update */
     const conj = {};
     conj[NODE + '/conc1/decisaoFinal'] = 'produto'; conj[NODE + '/conc1/decisaoManual'] = true; conj[NODE + '/conc1/justificativaDecisao'] = 'porque sim';

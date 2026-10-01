@@ -134,7 +134,9 @@ function temUndefinedOuNull(v) { return JSON.stringify(v).indexOf('undefined') !
       const proto = Object.getPrototypeOf(firebase.database().ref('x'));
       const updateOriginal = proto.update;
       proto.update = function (v, cb) {
-        if (/avaliacoes-produto\/leg2$/.test(this.path)) throw new Error('Reference.update failed: erro simulado');
+        /* o reprocessamento grava a avaliação (e, se a decisão mudou, a linha da trilha) num único
+           update na RAIZ — a exceção simulada vale para o update que toca a leg2 */
+        if (/avaliacoes-produto\/leg2$/.test(this.path) || (v && Object.keys(v).some(function (k) { return k.indexOf('avaliacoes-produto/leg2/') === 0; }))) throw new Error('Reference.update failed: erro simulado');
         return updateOriginal.call(this, v, cb);
       };
     });
