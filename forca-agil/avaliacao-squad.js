@@ -192,6 +192,8 @@
       atual: null,
       contextoArquitetural: null, /* { label, resultadoAutomatico } | null | 'carregando' — só leitura, ver renderContextoArquitetural */
       erroForm: null,
+      selecionados: {}, /* _key → true: linhas marcadas na lista, para exportar só elas */
+      menuExportarAberto: false,
       modoInicio: null, /* null = ainda não escolheu | 'existente' | 'novo' (tela de início) */
       salvando: null,      /* null | 'rascunho' | 'concluido' */
       reprocessando: false,
@@ -295,6 +297,10 @@
       var filtro = (state.filtroTexto || '').trim().toLowerCase();
       var filtrados = filtro ? ativos.filter(function (it) { return (it.itemNome || '').toLowerCase().indexOf(filtro) !== -1; }) : ativos;
 
+      /* Mesma ordem da tela (mais recente primeiro) — é a ordem em que os
+         arquivos exportados trazem as avaliações. */
+      var ordenados = filtrados.slice().sort(function (a, b) { return (b.atualizadoEm || '').localeCompare(a.atualizadoEm || ''); });
+      var chavesSel = Object.keys(state.selecionados).filter(function (k) { return state.selecionados[k] && buscarItem(k) && !buscarItem(k).excluido; });
       var html = sqLinkVoltar('sqVoltarArquitetura', 'Avaliação de Produto/Serviço (Admin)');
       html += '<div class="avp-intro"><p><strong>Adequação à gestão por Squad:</strong> registra evidências (S1 a S8) sobre demanda, evolução, ' +
         'autonomia, complexidade e ownership de um item — completamente independente da classificação arquitetural (P1-P16) do mesmo item. ' +
@@ -307,16 +313,36 @@
       html += '<span class="avp-total">' + ativos.length + ' avaliaç' + (ativos.length === 1 ? 'ão' : 'ões') + ' de squad registrada' + (ativos.length === 1 ? '' : 's') + '</span>';
       html += '<button class="btn btn--primary" id="sqNovaBtn">+ Nova avaliação de squad</button>';
       html += '<button class="btn btn--sm" id="sqMotorConfigBtn">⚙ Configuração do Motor de Squad</button>';
+      html += '<div class="avp-exportar-wrap">';
+      html += '<button class="btn btn--sm" id="sqExportarBtn"' + (state.exportando ? ' disabled' : '') + '>' + (state.exportando ? 'Gerando arquivo…' : 'Exportar ▾') + '</button>';
+      if (state.menuExportarAberto) {
+        var concluidasFiltradas = ordenados.filter(function (it) { return it.status === 'concluido'; });
+        var concluidasSel = chavesSel.map(buscarItem).filter(function (it) { return it.status === 'concluido'; });
+        html += '<div class="avp-exportar-menu" id="sqExportarMenu">';
+        html += '<p class="avp-exportar-escopo">Consulta atual: <strong>' + ordenados.length + '</strong> avaliaç' + (ordenados.length === 1 ? 'ão' : 'ões') + (filtro ? ' (com o filtro aplicado)' : ' (sem filtro)') + '</p>';
+        html += '<button type="button" class="btn" id="sqExportarExcelFiltradas">📊 Excel — resultados filtrados (' + ordenados.length + ')</button>';
+        html += '<button type="button" class="btn" id="sqExportarExcelTodas">📊 Excel — todas as avaliações (' + ativos.length + ')</button>';
+        if (chavesSel.length) html += '<button type="button" class="btn" id="sqExportarExcelSelecionadas">📊 Excel — só as selecionadas (' + chavesSel.length + ')</button>';
+        if (concluidasFiltradas.length) html += '<button type="button" class="btn" id="sqExportarPdfFiltradas">📄 PDF — resultados filtrados (' + concluidasFiltradas.length + ' concluída' + (concluidasFiltradas.length === 1 ? '' : 's') + ')</button>';
+        if (concluidasSel.length) html += '<button type="button" class="btn" id="sqExportarPdfSelecionadas">📄 PDF — só as selecionadas (' + concluidasSel.length + ')</button>';
+        html += '<p class="avp-exportar-nota">O PDF sai num único arquivo, uma avaliação após a outra, no formato do PDF individual. Rascunhos não entram no PDF (ainda não têm resultado).</p>';
+        html += '</div>';
+      }
       html += '</div>';
+      html += '</div>';
+      if (state.flashExportacao) {
+        html += '<p class="avp-export-status' + (state.flashExportacao.erro ? ' avp-export-status--erro' : '') + '" id="sqExportStatus">' + esc(state.flashExportacao.texto) + '</p>';
+      }
       html += '<div class="avp-filters"><input type="text" id="sqFiltroTexto" placeholder="Filtrar por nome do item…" value="' + esc(state.filtroTexto) + '"></div>';
 
       if (!filtrados.length) {
         html += '<p class="admin-empty">' + (ativos.length ? 'Nenhuma avaliação de squad para esse filtro.' : 'Nenhuma avaliação de squad registrada ainda.') + '</p>';
       } else {
         html += '<div class="table-scroll-wrap"><table class="admin-table avp-table"><thead><tr>' +
-          '<th>Item</th><th>Status</th><th>Versão do questionário</th><th>Responsável</th><th>Data</th><th>Ações</th></tr></thead><tbody>';
-        filtrados.slice().sort(function (a, b) { return (b.atualizadoEm || '').localeCompare(a.atualizadoEm || ''); }).forEach(function (it) {
+          '<th class="sq-col-sel"><span class="sr-only">Selecionar</span></th><th>Item</th><th>Status</th><th>Versão do questionário</th><th>Responsável</th><th>Data</th><th>Ações</th></tr></thead><tbody>';
+        ordenados.forEach(function (it) {
           html += '<tr>';
+          html += '<td data-label="Selecionar" class="sq-col-sel"><input type="checkbox" class="sq-sel" data-key="' + it._key + '"' + (state.selecionados[it._key] ? ' checked' : '') + ' aria-label="Selecionar ' + esc(it.itemNome) + '"></td>';
           html += '<td data-label="Item">' + esc(it.itemNome) + '</td>';
           html += '<td data-label="Status">' + (it.status === 'concluido' ? 'Concluída' : 'Rascunho') + '</td>';
           html += '<td data-label="Versão do questionário">' + esc(it.questionnaireContentVersion || 1) + '</td>';
@@ -340,6 +366,34 @@
       document.getElementById('sqMotorConfigBtn').addEventListener('click', abrirMotorConfig);
       wrap.querySelectorAll('.sq-act-abrir').forEach(function (btn) {
         btn.addEventListener('click', function () { abrirExistente(btn.dataset.key); });
+      });
+      wrap.querySelectorAll('.sq-sel').forEach(function (cb) {
+        cb.addEventListener('change', function () { state.selecionados[cb.dataset.key] = cb.checked; render(); });
+      });
+      document.getElementById('sqExportarBtn').addEventListener('click', function () { state.menuExportarAberto = !state.menuExportarAberto; render(); });
+      function ligar(id, itens, tipo, escopo) {
+        var el = document.getElementById(id);
+        if (el) el.addEventListener('click', function () { executarExportacaoSquad(itens, tipo, escopo); });
+      }
+      var todasConcl = function (lista) { return lista.filter(function (it) { return it.status === 'concluido'; }); };
+      ligar('sqExportarExcelFiltradas', ordenados, 'excel', 'Filtradas');
+      ligar('sqExportarExcelTodas', ativos.slice().sort(function (a, b) { return (b.atualizadoEm || '').localeCompare(a.atualizadoEm || ''); }), 'excel', 'Todas');
+      ligar('sqExportarExcelSelecionadas', ordenados.filter(function (it) { return state.selecionados[it._key]; }), 'excel', 'Selecionadas');
+      ligar('sqExportarPdfFiltradas', todasConcl(ordenados), 'pdf', 'Filtradas');
+      ligar('sqExportarPdfSelecionadas', todasConcl(ordenados.filter(function (it) { return state.selecionados[it._key]; })), 'pdf', 'Selecionadas');
+    }
+    function executarExportacaoSquad(itens, tipo, escopo) {
+      if (state.exportando || !itens.length) return;
+      state.exportando = tipo;
+      state.menuExportarAberto = false;
+      state.flashExportacao = null;
+      render();
+      var nome = 'Avaliacoes_Adequacao_Squad_' + escopo + '_' + nomeDataArquivo() + (tipo === 'excel' ? '.xlsx' : '.pdf');
+      (tipo === 'excel' ? gerarExcelSquad : gerarPdfSquadLote)(itens, nome, function (erro) {
+        state.exportando = null;
+        state.flashExportacao = erro ? { erro: true, texto: 'Não foi possível gerar o arquivo. Tente novamente.' } : { erro: false, texto: 'Arquivo gerado com sucesso.' };
+        if (erro) console.error('[avaliacao-squad] erro ao exportar:', erro);
+        if (state.tela === 'lista') render();
       });
     }
 
@@ -932,14 +986,21 @@
     function pdfLinhaTabela(rotulo, valor) {
       return '<tr><th>' + esc(rotulo) + '</th><td>' + esc(valor || '—') + '</td></tr>';
     }
+    function cabecalhoPdfSquad(titulo) {
+      return '<div class="pdf-header">' +
+        '<p class="pdf-header-marca">PREVI · Força Ágil</p>' +
+        '<h1 class="pdf-header-titulo">' + esc(titulo || 'Avaliação de Adequação à Gestão por Squad') + '</h1>' +
+        '<p class="pdf-header-data">Documento gerado em ' + esc(fmtData(new Date().toISOString())) + '</p>' +
+        '</div>';
+    }
     function montarDocumentoPdfSquad(it) {
+      return '<div class="pdf-doc"><style>' + CSS_PDF_SQUAD + '</style>' + cabecalhoPdfSquad() + montarCorpoPdfSquad(it) + '</div>';
+    }
+    /* Corpo de UMA avaliação (da Identificação ao aviso final) — o mesmo
+       conteúdo do PDF individual, reaproveitado no PDF consolidado. */
+    function montarCorpoPdfSquad(it) {
       var perguntas = perguntasOrdenadas(it.questionnaireContentVersion);
-      var html = '<div class="pdf-doc"><style>' + CSS_PDF_SQUAD + '</style>';
-      html += '<div class="pdf-header">';
-      html += '<p class="pdf-header-marca">PREVI · Força Ágil</p>';
-      html += '<h1 class="pdf-header-titulo">Avaliação de Adequação à Gestão por Squad</h1>';
-      html += '<p class="pdf-header-data">Documento gerado em ' + esc(fmtData(new Date().toISOString())) + '</p>';
-      html += '</div>';
+      var html = '';
       html += '<h2 class="pdf-secao-titulo">Identificação</h2>';
       html += '<table class="pdf-tabela-id">';
       html += pdfLinhaTabela('Nome do item', it.itemNome);
@@ -976,7 +1037,6 @@
         html += '<h2 class="pdf-secao-titulo">Resultado</h2>';
         html += '<p class="pdf-aviso">Avaliação registrada. Regra de interpretação de adequação à squad ainda não configurada.</p>';
       }
-      html += '</div>';
       return html;
     }
     function nomeArquivoPdfSquad(it) {
@@ -1032,6 +1092,136 @@
           });
         });
       });
+    }
+
+    /* ===================== EXPORTAÇÕES (Excel e PDF) =====================
+       Só leitura. O PDF consolidado usa o MESMO motor de blocos do PDF das
+       avaliações arquiteturais (window.faPdfEmBlocos): cada bloco é um canvas
+       de altura limitada, num único PDF — nunca um canvas gigante que sai em
+       branco. O PDF individual (gerarPdf) continua exatamente como era. */
+    function nomeDataArquivo() { return new Date().toISOString().slice(0, 10); }
+    function semAcentoNome(t) { return String(t || '').normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/[^A-Za-z0-9]+/g, '_').replace(/^_|_$/g, ''); }
+    function planilhaSq(X, cabecalho, linhas, larguras) {
+      var ws = X.utils.aoa_to_sheet([cabecalho].concat(linhas));
+      ws['!cols'] = larguras.map(function (w) { return { wch: w }; });
+      ws['!autofilter'] = { ref: X.utils.encode_range({ s: { r: 0, c: 0 }, e: { r: linhas.length, c: cabecalho.length - 1 } }) };
+      return ws;
+    }
+    function rotuloVeredito(codigo) { return codigo ? window.faMotorSquad.conteudoTexto(codigo).rotulo : ''; }
+    var EXCEL_SQ_RESUMO = ['ID da avaliação', 'Nome do item', 'ID do item', 'Status', 'Responsável', 'Criada em', 'Concluída em',
+      'Versão do questionário', 'Versão do motor de squad', 'Eixo A — Necessidade de capacidade dedicada',
+      'Eixo B — Condições para funcionar como squad', 'Indicação organizacional', 'Evidências favoráveis', 'Pontos a desenvolver',
+      'Avaliação arquitetural vinculada'];
+    var LARG_SQ_RESUMO = [26, 30, 26, 12, 22, 18, 18, 12, 12, 34, 34, 44, 22, 22, 26];
+    function linhaResumoSq(it) {
+      return [it._key, it.itemNome || '', it.itemId || '', it.status === 'concluido' ? 'Concluída' : 'Rascunho',
+        (it.criadoPor && it.criadoPor.name) || '', it.criadoEm ? new Date(it.criadoEm) : '', it.dataConclusao ? new Date(it.dataConclusao) : '',
+        it.questionnaireContentVersion || 1, it.motorSquadVersion || '',
+        rotuloVeredito(it.necessidadeCapacidadeDedicada), rotuloVeredito(it.condicoesParaSquad), rotuloVeredito(it.indicacaoOrganizacional),
+        (it.evidenciasFavoraveis || []).join(', '), (it.pontosADesenvolver || []).join(', '), it.avaliacaoArquiteturalId || ''];
+    }
+    var EXCEL_SQ_RESPOSTAS = ['ID da avaliação', 'Nome do item', 'Código', 'Pergunta (redação da época)', 'Resposta', 'Justificativa do usuário'];
+    var LARG_SQ_RESPOSTAS = [26, 30, 9, 60, 10, 50];
+    function linhasRespostasSq(itens) {
+      var linhas = [];
+      itens.forEach(function (it) {
+        perguntasOrdenadas(it.questionnaireContentVersion).forEach(function (p) {
+          var r = (it.respostas || {})[p.codigoEstavel];
+          if (!r || !r.resposta) return;
+          linhas.push([it._key, it.itemNome || '', p.codigoEstavel, r.textoPerguntaNaEpoca || p.texto || '',
+            r.resposta === 'sim' ? 'SIM' : 'NÃO', r.justificativaUsuario || '']);
+        });
+      });
+      return linhas;
+    }
+    function gerarExcelSquad(itens, nomeArquivo, cbFim) {
+      carregarScript('forca-agil/xlsx.mini.min.js', function () { return !!window.XLSX; }, function (erroCarga) {
+        if (erroCarga) { cbFim(erroCarga); return; }
+        try {
+          var X = window.XLSX;
+          var wb = X.utils.book_new();
+          X.utils.book_append_sheet(wb, planilhaSq(X, EXCEL_SQ_RESUMO, itens.map(linhaResumoSq), LARG_SQ_RESUMO), 'Resumo');
+          X.utils.book_append_sheet(wb, planilhaSq(X, EXCEL_SQ_RESPOSTAS, linhasRespostasSq(itens), LARG_SQ_RESPOSTAS), 'Respostas');
+          X.writeFile(wb, nomeArquivo, { cellDates: true });
+          cbFim(null);
+        } catch (e) { cbFim(e); }
+      });
+    }
+    /* Átomos de uma avaliação: filhos diretos do corpo, com cada título (h2)
+       colado ao elemento seguinte — nunca separar título do conteúdo na
+       fronteira entre dois blocos. */
+    function atomosSquad(it) {
+      var tmp = document.createElement('div');
+      tmp.innerHTML = '<div id="sqCorpo">' + montarCorpoPdfSquad(it) + '</div>';
+      var atomos = [], titulos = '';
+      Array.prototype.forEach.call(tmp.firstElementChild.children, function (el) {
+        if (el.tagName === 'H2') { titulos += el.outerHTML; return; }
+        atomos.push(titulos + el.outerHTML);
+        titulos = '';
+      });
+      if (titulos) atomos.push(titulos);
+      return atomos;
+    }
+    function envolverBlocoSquad(conteudo, comCabecalho, tituloCabecalho) {
+      return '<div class="pdf-doc"><style>' + CSS_PDF_SQUAD + '</style>' + (comCabecalho ? cabecalhoPdfSquad(tituloCabecalho) : '') + conteudo + '</div>';
+    }
+    function gerarPdfSquadLote(itens, nomeArquivo, cbFim) {
+      if (!window.faPdfEmBlocos) { cbFim(new Error('Motor de PDF indisponível.')); return; }
+      window.faPdfEmBlocos.gerar({
+        nomeArquivo: nomeArquivo,
+        planejar: function (medidor) {
+          return window.faPdfEmBlocos.planejar(itens.map(atomosSquad), medidor, function (html) { return envolverBlocoSquad(html, false); });
+        },
+        envolver: function (htmlBloco, indice) { return envolverBlocoSquad(htmlBloco, indice === 0, 'Avaliações de Adequação à Gestão por Squad'); }
+      }, cbFim);
+    }
+
+    /* Textos dos vereditos (rótulo e interpretação de cada resultado dos
+       eixos e da combinação) — exportação só leitura do que está publicado. */
+    var GRUPO_TEXTO_MOTOR = function (cod) {
+      var i = CODIGOS_TEXTO_MOTOR.indexOf(cod);
+      return i < 3 ? 'Eixo A — Necessidade de capacidade dedicada' : i < 6 ? 'Eixo B — Condições para funcionar como squad' : 'Combinação — Indicação organizacional';
+    };
+    function linhasTextosVereditos() {
+      var sit = window.faMotorSquad.situacao();
+      return CODIGOS_TEXTO_MOTOR.map(function (cod) {
+        var t = window.faMotorSquad.conteudoTexto(cod);
+        return [GRUPO_TEXTO_MOTOR(cod), cod, t.rotulo || '', t.interpretacao || '', sit.versaoPublicada];
+      });
+    }
+    function gerarExcelVereditos(cbFim) {
+      carregarScript('forca-agil/xlsx.mini.min.js', function () { return !!window.XLSX; }, function (erroCarga) {
+        if (erroCarga) { cbFim(erroCarga); return; }
+        try {
+          var X = window.XLSX;
+          var wb = X.utils.book_new();
+          X.utils.book_append_sheet(wb, planilhaSq(X, ['Grupo', 'Código', 'Rótulo', 'Interpretação', 'Versão das regras publicada'], linhasTextosVereditos(), [44, 52, 56, 90, 14]), 'Textos dos vereditos');
+          X.writeFile(wb, 'Textos_Vereditos_Adequacao_Squad_' + nomeDataArquivo() + '.xlsx');
+          cbFim(null);
+        } catch (e) { cbFim(e); }
+      });
+    }
+    function gerarPdfVereditos(cbFim) {
+      if (!window.faPdfEmBlocos) { cbFim(new Error('Motor de PDF indisponível.')); return; }
+      var grupos = [];
+      linhasTextosVereditos().forEach(function (l) {
+        var g = grupos.filter(function (x) { return x.titulo === l[0]; })[0];
+        if (!g) { g = { titulo: l[0], itens: [] }; grupos.push(g); }
+        g.itens.push(l);
+      });
+      var atomos = [];
+      grupos.forEach(function (g) {
+        var h = '<h2 class="pdf-secao-titulo">' + esc(g.titulo) + '</h2>';
+        g.itens.forEach(function (l, i) {
+          atomos.push((i === 0 ? h : '') + '<div class="pdf-pergunta"><p class="pdf-pergunta-texto"><strong>' + esc(l[2]) + '</strong></p>' +
+            '<p class="pdf-pergunta-campo">' + esc(l[3]) + '</p></div>');
+        });
+      });
+      window.faPdfEmBlocos.gerar({
+        nomeArquivo: 'Textos_Vereditos_Adequacao_Squad_' + nomeDataArquivo() + '.pdf',
+        planejar: function (medidor) { return window.faPdfEmBlocos.planejar([atomos], medidor, function (html) { return envolverBlocoSquad(html, false); }); },
+        envolver: function (htmlBloco, indice) { return envolverBlocoSquad(htmlBloco, indice === 0, 'Textos dos vereditos — Adequação à Gestão por Squad'); }
+      }, cbFim);
     }
 
     /* ===================== CONFIGURAÇÃO DO MOTOR DE SQUAD =====================
@@ -1119,9 +1309,30 @@
       html += '<button class="btn btn--sm" id="sqMotorVersoesBtn">Versões publicadas</button>';
       html += '<button class="btn btn--sm" id="sqMotorAuditoriaBtn">Ver histórico de alterações</button>';
       html += '</div>';
+      html += '<div class="avp-form-card"><h4>Exportar textos dos vereditos</h4>';
+      html += '<p class="avp-decisao-aviso">Rótulo e interpretação de cada resultado dos eixos e da combinação, como estão publicados agora. Só leitura.</p>';
+      html += '<div class="avp-actions-footer">';
+      html += '<button class="btn btn--sm" id="sqMotorVereditosExcelBtn"' + (c.exportando ? ' disabled' : '') + '>📊 Excel</button>';
+      html += '<button class="btn btn--sm" id="sqMotorVereditosPdfBtn"' + (c.exportando ? ' disabled' : '') + '>📄 PDF</button>';
+      html += '</div>';
+      if (c.flashExportacao) html += '<p class="avp-export-status' + (c.flashExportacao.erro ? ' avp-export-status--erro' : '') + '" id="sqMotorExportStatus">' + esc(c.flashExportacao.texto) + '</p>';
+      html += '</div>';
       return html;
     }
+    function exportarVereditos(gerar) {
+      var c = state.motorConfig;
+      if (!c || c.exportando) return;
+      c.exportando = true; c.flashExportacao = null; render();
+      gerar(function (erro) {
+        c.exportando = false;
+        c.flashExportacao = erro ? { erro: true, texto: 'Não foi possível gerar o arquivo. Tente novamente.' } : { erro: false, texto: 'Arquivo gerado com sucesso.' };
+        if (erro) console.error('[avaliacao-squad] erro ao exportar vereditos:', erro);
+        if (state.motorConfig === c && c.sub === 'painel') render();
+      });
+    }
     function bindMotorPainel() {
+      document.getElementById('sqMotorVereditosExcelBtn').addEventListener('click', function () { exportarVereditos(gerarExcelVereditos); });
+      document.getElementById('sqMotorVereditosPdfBtn').addEventListener('click', function () { exportarVereditos(gerarPdfVereditos); });
       document.getElementById('sqMotorEditarRegrasBtn').addEventListener('click', function () {
         state.motorConfig = {
           sub: 'editar-regras', regras: window.faMotorSquad.iniciarOuObterRascunhoRegras(),
