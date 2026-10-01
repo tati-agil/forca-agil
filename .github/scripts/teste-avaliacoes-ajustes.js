@@ -93,14 +93,14 @@ const opcoes = (page, sel) => page.locator(sel + ' option').allInnerTexts();
     const rotulosTxt = await page.locator('.avp-filtro-rotulo').allTextContents();
     afirma(rotulosTxt.indexOf('Resultado Produto/Serviço') !== -1 && rotulosTxt.indexOf('Classificação arquitetural') !== -1, 'cada filtro tem rótulo visível: ' + rotulosTxt.join(' | '));
     afirma(!/Todos os resultados/.test(await page.locator('#avaliacoesPainel').innerText()), '"Todos os resultados" não aparece mais');
-    afirma(JSON.stringify(await opcoes(page, '#avpFiltroResultado')) === JSON.stringify(['Todos', 'É Produto/Serviço', 'Não é Produto/Serviço Principal', 'A validar']),
+    afirma(JSON.stringify(await opcoes(page, '#avpFiltroResultado')) === JSON.stringify(['Todos', 'É Produto/Serviço principal', 'Não é Produto/Serviço principal', 'A validar']),
       'Resultado Produto/Serviço: só os 3 resultados que o sistema grava (produto, nao-produto, a-validar) — ' + (await opcoes(page, '#avpFiltroResultado')).join(' / '));
     const cl = await opcoes(page, '#avpFiltroAlternativa');
     afirma(cl.length === 12 && cl[0] === 'Todas' && cl.indexOf('Componente') !== -1 && cl.indexOf('Canal') !== -1 && cl.indexOf('A validar') !== -1, 'Classificação arquitetural: "Todas" + as 11 camadas reais (' + cl.length + ')');
     afirma(/resultado Produto\/Serviço[\s\S]*classificação arquitetural[\s\S]*coisas diferentes/i.test(await page.locator('.avp-filtros-ajuda').innerText()), 'texto de ajuda explica a diferença');
     afirma(await linhas(page) === 4, 'sem filtro: as 4 avaliações');
     await page.selectOption('#avpFiltroResultado', 'nao-produto');
-    afirma(await linhas(page) === 2, 'Resultado = Não é Produto/Serviço Principal: 2 (Componente e Canal)');
+    afirma(await linhas(page) === 2, 'Resultado = Não é Produto/Serviço principal: 2 (Componente e Canal)');
     await page.selectOption('#avpFiltroAlternativa', 'Componente');
     afirma(await linhas(page) === 1, 'combinado com Classificação = Componente: 1');
     afirma(await larguraOk(page), 'sem rolagem horizontal da página');

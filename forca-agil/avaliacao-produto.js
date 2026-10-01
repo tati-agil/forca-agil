@@ -619,9 +619,9 @@
      avaliando autonomia/independência, não impedindo que o item seja, por
      exemplo, um Componente ou uma Funcionalidade/Operação legítimos. */
   function rotuloResultado(v) {
-    if (v === 'produto') return 'É Produto/Serviço';
+    if (v === 'produto') return 'É Produto/Serviço principal';
     if (v === 'a-validar') return 'A validar';
-    return 'Não é Produto/Serviço Principal';
+    return 'Não é Produto/Serviço principal';
   }
 
   /* Cláusula "porque ..." da justificativa consolidada (gerarJustificativaAutomatica),
@@ -1032,8 +1032,8 @@
     /* Especialização/Papel estrutural aparecem SEMPRE, para qualquer
        classificação — nunca escondidas por causa da camada (ver
        rotuloEspecializacaoApresentacao/rotuloPapelEstruturalApresentacao). */
-    html += '<p><strong>Especialização:</strong> ' + esc(rotuloEspecializacaoApresentacao(camada)) + '</p>';
-    html += '<p><strong>Papel estrutural:</strong> ' + esc(rotuloPapelEstruturalApresentacao(camada)) + '</p>';
+    if (camada && camada.especializacao) html += '<p><strong>Especialização:</strong> ' + esc(camada.especializacao) + '</p>';
+    if (camada && camada.papelEstrutural) html += '<p><strong>Papel estrutural:</strong> ' + esc(camada.papelEstrutural) + '</p>';
     if (camada && camada.conflito && camada.conflito.length) {
       html += '<p class="pdf-aviso">Categorias em conflito nas respostas: ' + esc(camada.conflito.join(', ')) + '.</p>';
     }
@@ -1069,8 +1069,8 @@
     html += '<table class="pdf-tabela-id">';
     html += pdfLinhaTabela('Recomendação do sistema', rotuloResultadoTxt);
     html += pdfLinhaTabela('Classificação sugerida', camada && camada.label);
-    html += pdfLinhaTabela('Especialização', rotuloEspecializacaoApresentacao(camada));
-    html += pdfLinhaTabela('Papel estrutural', rotuloPapelEstruturalApresentacao(camada));
+    if (camada && camada.especializacao) html += pdfLinhaTabela('Especialização', camada.especializacao);
+    if (camada && camada.papelEstrutural) html += pdfLinhaTabela('Papel estrutural', camada.papelEstrutural);
     /* Informação MANUAL, dentro da área de decisão — nunca no bloco do
        resultado automático do questionário; vale com a recomendação aceita
        ou com decisão manual. Só aparece quando existe. */
@@ -1456,7 +1456,7 @@
       reconciliando: false, /* trava o botão individual RECONCILIAR COM VERSÃO EQUIVALENTE enquanto grava */
       config: null, /* null fora da tela de configuração; ver abrirConfigQuestionarios — nunca persistido aqui,
                        só o rascunho gravado explicitamente em window.faQuestionarios */
-      usuarios: null, /* null fora da tela "Usuários e permissões" (admin); ver abrirAdminUsuarios */
+      usuarios: null, /* null fora da tela "Usuários autorizados" (admin); ver abrirAdminUsuarios */
       configNaturezas: null, /* null fora da tela "⚙ Naturezas complementares"; ver abrirConfigNaturezas */
       configMotores: null /* null fora da tela "⚙ Configuração dos Motores"; ver abrirConfigMotores */
     };
@@ -1801,7 +1801,7 @@
            são só os que o sistema realmente grava. */
         html += '<div class="avp-filtros-painel" id="avpFiltrosPainel"><div class="avp-filters">';
         html += filtroSelect('avpFiltroResultado', state.filtro.resultado, [
-          ['todos', 'Todos'], ['produto', 'É Produto/Serviço'], ['nao-produto', 'Não é Produto/Serviço Principal'], ['a-validar', 'A validar']
+          ['todos', 'Todos'], ['produto', 'É Produto/Serviço principal'], ['nao-produto', 'Não é Produto/Serviço principal'], ['a-validar', 'A validar']
         ], 'Resultado Produto/Serviço');
         html += filtroSelect('avpFiltroAlternativa', state.filtro.alternativa, [['todos', 'Todas']].concat(
           CAMADAS.map(function (c) { return [c.label, c.label]; })
@@ -1855,7 +1855,7 @@
         var podeMais = pode('avaliador');
         html += '<div class="avp-tabela-wrap"><table class="admin-table avp-table"><thead><tr>' +
           (podeSelecionar ? '<th class="avp-check-col"><input type="checkbox" id="avpSelecionarTodos"' + (todosFiltradosSelecionados ? ' checked' : '') + ' aria-label="Selecionar todas as avaliações filtradas"></th>' : '') +
-          '<th class="avp-col-item">Item</th><th class="avp-col-dec">Resultado final</th><th class="avp-col-camada">Classificação</th><th class="avp-col-status">Status</th>' +
+          '<th class="avp-col-item">Item</th><th class="avp-col-camada">Classificação</th><th class="avp-col-status">Status</th>' +
           '<th class="avp-col-data">Atualizado em</th><th class="avp-col-resp">Responsável</th><th class="avp-col-acoes">Ações</th></tr></thead><tbody>';
         filtrados.forEach(function (it) {
           var decisao = it.decisaoFinal || it.resultadoAutomatico;
@@ -1872,8 +1872,10 @@
           html += '<td class="avp-col-item" data-label="Item"><span class="avp-item-nome">' + esc(it.nome) + '</span>' +
             (it.versao > 1 ? ' <span class="avp-tag-versao">v' + it.versao + '</span>' : '') +
             (natureza ? '<span class="avp-item-natureza" title="Natureza complementar"><span class="avp-tag-natureza">' + esc(natureza) + '</span></span>' : '') + '</td>';
-          html += '<td class="avp-col-dec" data-label="Resultado final">' + resultadoBadge(decisao) + (it.decisaoManual ? ' <span class="avp-tag-alterado">alterada</span>' : '') + '</td>';
-          html += '<td class="avp-col-camada" data-label="Classificação">' + esc(camadaLabel) + '</td>';
+          /* "Resultado final" não tem coluna na lista (era redundante com a Classificação);
+             resultado automático e decisão final ficam na ficha. Só a marca de decisão
+             alterada à mão continua visível, junto da classificação. */
+          html += '<td class="avp-col-camada" data-label="Classificação">' + esc(camadaLabel) + (it.decisaoManual ? ' <span class="avp-tag-alterado">decisão alterada</span>' : '') + '</td>';
           html += '<td class="avp-col-status" data-label="Status">' + statusBadge(it.status) + badgeMotor(it) + '</td>';
           html += '<td class="avp-col-data" data-label="Atualizado em">' + fmtData(it.atualizadoEm) + '</td>';
           html += '<td class="avp-col-resp" data-label="Responsável">' + esc(it.responsavel && it.responsavel.name || '—') + '</td>';
@@ -2060,8 +2062,8 @@
       return html;
     }
     function resultadoBadge(v) {
-      if (v === 'produto') return '<span class="avp-badge avp-badge--produto">É Produto/Serviço</span>';
-      if (v === 'nao-produto') return '<span class="avp-badge avp-badge--nao-produto">Não é Produto/Serviço Principal</span>';
+      if (v === 'produto') return '<span class="avp-badge avp-badge--produto">É Produto/Serviço principal</span>';
+      if (v === 'nao-produto') return '<span class="avp-badge avp-badge--nao-produto">Não é Produto/Serviço principal</span>';
       if (v === 'a-validar') return '<span class="avp-badge avp-badge--a-validar">A validar</span>';
       return '<span class="avp-badge">—</span>';
     }
@@ -2835,7 +2837,7 @@
       html += '<div class="avp-form-card avp-admin-inicio">';
       html += '<h4>Acessos e permissões</h4>';
       html += '<div class="avp-admin-cards">';
-      html += '<button type="button" class="avp-admin-card" id="avpUsuariosBtn"><strong>Usuários e permissões</strong><span>Quem pode consultar, avaliar ou gerir as avaliações — e quem é administrador.</span></button>';
+      html += '<button type="button" class="avp-admin-card" id="avpUsuariosBtn"><strong>Usuários autorizados</strong><span>Quem pode consultar, avaliar ou gerir as avaliações — e quem é administrador.</span></button>';
       html += '</div></div>';
       wrap.innerHTML = html;
       document.getElementById('avpConfigQuestionariosBtn').addEventListener('click', abrirConfigQuestionarios);
@@ -2926,6 +2928,7 @@
         h += '<td data-label="Usuário"><strong>' + esc(x.nome || x.email) + '</strong><br><span class="avp-usuario-email">' + esc(x.email) + '</span></td>';
         h += '<td data-label="Perfil de avaliação"><select class="avp-select avp-usuario-perfil" data-key="' + esc(x.key) + '"' + (ocupado ? ' disabled' : '') + ' aria-label="Perfil de avaliação de ' + esc(x.nome || x.email) + '">' + opcoes + '</select>';
         if (!x.registro && x.admin) h += '<br><span class="avp-usuario-aviso">padrão do administrador (ainda sem perfil definido)</span>';
+        if (x.registro === 'nenhum' && x.admin) h += '<br><span class="avp-usuario-aviso">administrador: vê a área Avaliação no mínimo como Consulta (não vira avaliador)</span>';
         if (u.avisos[x.key]) h += '<br><span class="avp-usuario-aviso' + (u.avisos[x.key].erro ? ' avp-usuario-aviso--erro' : '') + '">' + esc(u.avisos[x.key].texto) + '</span>';
         h += '</td>';
         h += '<td data-label="Administrador">' + (x.admin ? 'Sim' : 'Não');
@@ -2939,7 +2942,7 @@
       var u = state.usuarios;
       var souSuper = !!(window.faAuth && window.faAuth.isSuperAdmin && window.faAuth.isSuperAdmin((window.faAuth.getSession() || {}).email));
       var html = '<button class="avp-voltar-link" id="avpUsuariosVoltar">‹ Avaliação de Produto/Serviço</button>';
-      html += '<div class="avp-form-card"><h3>Usuários e permissões</h3>';
+      html += '<div class="avp-form-card"><h3>Usuários autorizados</h3>';
       html += '<p class="avp-decisao-aviso">Defina quem pode usar a Avaliação de Produto/Serviço. <strong>Consulta</strong> só consulta avaliações concluídas; ' +
         '<strong>Avaliador</strong> também cria, continua e reavalia; <strong>Gestor da Avaliação</strong> também decide, exclui, reprocessa e exporta. ' +
         'Ser administrador e ter um perfil de avaliação são permissões independentes.</p>';
@@ -4107,7 +4110,7 @@
       var resultado = a.resultadoAutomatico;
       var cardClasse = resultado === 'produto' ? 'avp-result-card--produto' :
         (resultado === 'a-validar' ? 'avp-result-card--a-validar' : 'avp-result-card--nao-produto');
-      var badgeTexto = resultado === 'produto' ? 'É PRODUTO/SERVIÇO' :
+      var badgeTexto = resultado === 'produto' ? 'É PRODUTO/SERVIÇO PRINCIPAL' :
         (resultado === 'a-validar' ? 'A VALIDAR' : 'NÃO É PRODUTO/SERVIÇO PRINCIPAL');
       var html = '<div class="avp-resultado">';
       html += '<button class="avp-voltar-link" id="avpVoltarListaResultado">← Voltar para avaliações</button>';
@@ -4188,8 +4191,8 @@
          classificação — nunca escondidas por causa da camada (mesma regra
          do PDF, ver rotuloEspecializacaoApresentacao/
          rotuloPapelEstruturalApresentacao). */
-      html += '<p class="avp-alt-label">Especialização: <strong>' + esc(rotuloEspecializacaoApresentacao(camada)) + '</strong></p>';
-      html += '<p class="avp-alt-label">Papel estrutural: <strong>' + esc(rotuloPapelEstruturalApresentacao(camada)) + '</strong></p>';
+      if (camada.especializacao) html += '<p class="avp-alt-label">Especialização: <strong>' + esc(camada.especializacao) + '</strong></p>';
+      if (camada.papelEstrutural) html += '<p class="avp-alt-label">Papel estrutural: <strong>' + esc(camada.papelEstrutural) + '</strong></p>';
       if (camada.conflito && camada.conflito.length) {
         html += '<p class="avp-alt-outras">Categorias em conflito nas respostas: ' + esc(camada.conflito.join(', ')) + '.</p>';
       }
@@ -4519,14 +4522,14 @@
       }
       html += '<div class="avp-decisao-options">';
       html += decisaoOpcao('auto', 'Aceitar recomendação do sistema (' + rotuloResultado(a.resultadoAutomatico) + ')', f.opcao);
-      html += decisaoOpcao('produto', 'Classificar manualmente como Produto/Serviço', f.opcao);
-      html += decisaoOpcao('nao-produto', 'Classificar manualmente como não Produto/Serviço Principal', f.opcao);
+      html += decisaoOpcao('produto', 'Classificar manualmente como Produto/Serviço principal', f.opcao);
+      html += decisaoOpcao('nao-produto', 'Classificar manualmente como não Produto/Serviço principal', f.opcao);
       html += '</div>';
       /* Só descreve o que o código faz (ver salvarDecisao): a decisão manual
          tem exatamente estas duas saídas e exige justificativa; grava só a
          decisão final. */
       html += '<p class="avp-natureza-ajuda" id="avpDecisaoAjuda">Use quando concordar ou discordar do resultado calculado. A decisão manual tem duas possibilidades — ' +
-        'Produto/Serviço ou não Produto/Serviço Principal — e exige justificativa. Aceitar a recomendação mantém o resultado calculado pelo sistema (inclusive "A validar"). ' +
+        'Produto/Serviço principal ou não Produto/Serviço principal — e exige justificativa. Aceitar a recomendação mantém o resultado calculado pelo sistema (inclusive "A validar"). ' +
         'Em qualquer caso só a decisão final é registrada: respostas, classificação arquitetural e resultado automático não mudam.</p>';
       if (f.opcao !== 'auto') {
         html += '<div class="avp-field' + (f.erro && !justificativaPreenchida(f) ? ' avp-field--invalid' : '') + '">';
