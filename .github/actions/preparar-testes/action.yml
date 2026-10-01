@@ -5,12 +5,19 @@ description: >
   testes-automaticos.yml (Avaliação, demais herméticos e smoke test), para que
   nenhum deles se desencontre dos outros.
 
-  O download do Chromium é CACHEADO (só o navegador baixado, em
-  ~/.cache/ms-playwright), com chave por sistema do runner + versão do
-  Playwright: mudou a versão (ou a imagem do runner), a chave muda e o
-  navegador é baixado de novo. Cache vazio, expirado ou com falha = o CI
-  instala normalmente, como sempre. Os pacotes do sistema (apt) NÃO são
-  cacheados — não há jeito seguro de fazer isso — e rodam sempre.
+  Dois caches, os dois só otimização (vazio, expirado, inválido ou com falha = o CI
+  instala normalmente, como sempre):
+
+  1. O download do CHROMIUM (~/.cache/ms-playwright), com chave por sistema do runner +
+     versão do Playwright.
+  2. Os pacotes .deb do APT (/tmp/apt-debs), com chave por sistema + versão da imagem +
+     arquitetura + versão do Playwright. Antes de o apt rodar, cada .deb restaurado é
+     conferido contra o índice assinado do espelho (validar-debs.sh); o que não conferir é
+     descartado e o apt baixa de novo. A lista de pacotes é a do próprio Playwright
+     (`install-deps chromium`), sem nenhuma alteração.
+
+  Um cache criado dentro de um PR só vale para aquele PR; só o da `main` é compartilhado.
+  Quem aquece a `main` é aquecer-cache-playwright.yml.
 
 inputs:
   playwright-version:
@@ -38,6 +45,8 @@ runs:
         # Chromium depende deles; o contexto env não enxerga variáveis do runner).
         . /etc/os-release
         echo "so=${ID}-${VERSION_ID}-$(uname -m)" >> "$GITHUB_OUTPUT"
+        # Versão da imagem do runner (a lista de pacotes que o apt precisa baixar muda com ela).
+        echo "imagem=${ImageVersion:-semimagem}" >> "$GITHUB_OUTPUT"
 
     # Só o navegador baixado. Chave = SO + versão da imagem + arquitetura +
     # versão do Playwright (o binário depende dos quatro). Sem restore-keys de propósito:
@@ -50,6 +59,18 @@ runs:
         path: ~/.cache/ms-playwright
         key: playwright-chromium-${{ steps.versao.outputs.so }}-${{ steps.versao.outputs.playwright }}
 
+    # Pacotes .deb do apt. Chave = SO + versão da imagem + arquitetura + versão do Playwright, sem
+    # restore-keys (uma imagem ou Ubuntu diferente NUNCA reaproveita o cache de outra). O
+    # `-v1` serve para invalidar tudo à mão. O cache só é SALVO quando a chave não existia
+    # (o passo "Guardar os .deb" abaixo cria /tmp/apt-debs só depois de uma instalação bem-sucedida).
+    - name: Cache dos pacotes do apt (.deb)
+      id: debcache
+      uses: actions/cache@v4
+      continue-on-error: true
+      with:
+        path: /tmp/apt-debs
+        key: apt-debs-${{ steps.versao.outputs.so }}-${{ steps.versao.outputs.imagem }}-${{ steps.versao.outputs.playwright }}-v1
+
     - name: Instalar Playwright (pacote npm)
       id: npm
       shell: bash
@@ -61,16 +82,44 @@ runs:
         npm install playwright@${{ steps.versao.outputs.playwright }}
         echo "seg=$(( $(date +%s) - t0 ))" >> "$GITHUB_OUTPUT"
 
+    # Entrega ao apt só os .deb do cache que conferem com o índice do espelho (ver validar-debs.sh).
+    # Nunca falha: na dúvida, descarta e o apt baixa.
+    - name: Conferir os .deb do cache contra o índice do apt
+      id: validar
+      shell: bash
+      continue-on-error: true
+      run: |
+        r=$(bash "${{ github.action_path }}/validar-debs.sh" | tee /dev/stderr | tail -n 1)
+        echo "resumo=${r}" >> "$GITHUB_OUTPUT"
+
     # "playwright install --with-deps chromium" = estes dois passos juntos; separados
     # para medir cada um e para o download do navegador poder usar o cache.
+    # O comando é o do Playwright, inalterado; só a saída é copiada para um log, para o resumo.
     - name: Instalar dependências do sistema do Chromium (apt)
       id: deps
       shell: bash
       run: |
         t0=$(date +%s)
         cd /tmp/pw-deps
-        npx playwright install-deps chromium
+        npx playwright install-deps chromium 2>&1 | tee /tmp/apt-deps.log
         echo "seg=$(( $(date +%s) - t0 ))" >> "$GITHUB_OUTPUT"
+
+    # Só depois de o apt ter instalado tudo: copia os .deb usados para /tmp/apt-debs, que o
+    # cache salva ao fim do job (só se a chave ainda não existia). Sem .deb, não cria a pasta
+    # (assim nunca se salva um cache vazio).
+    - name: Guardar os .deb para o cache
+      if: steps.debcache.outputs.cache-hit != 'true'
+      shell: bash
+      continue-on-error: true
+      run: |
+        if ls /var/cache/apt/archives/*.deb >/dev/null 2>&1; then
+          mkdir -p /tmp/apt-debs
+          sudo cp /var/cache/apt/archives/*.deb /tmp/apt-debs/
+          sudo chown -R "$(id -u):$(id -g)" /tmp/apt-debs
+          echo "guardados $(ls /tmp/apt-debs/*.deb | wc -l) .deb ($(du -sh /tmp/apt-debs | cut -f1)) para o cache"
+        else
+          echo "nenhum .deb para guardar"
+        fi
 
     # Com o cache restaurado o Playwright reconhece o navegador já presente e
     # não baixa nada; sem cache, baixa normalmente.
@@ -90,13 +139,25 @@ runs:
         [ "$hit" = "true" ] && estado="HIT (reaproveitado)" || estado="MISS (baixado do zero)"
         npm_s='${{ steps.npm.outputs.seg }}'; deps_s='${{ steps.deps.outputs.seg }}'; nav_s='${{ steps.browser.outputs.seg }}'
         total=$(( npm_s + deps_s + nav_s ))
-        msg="Playwright ${{ steps.versao.outputs.playwright }} · cache do Chromium: ${estado} · npm ${npm_s}s + apt ${deps_s}s + navegador ${nav_s}s = ${total}s"
+        debhit='${{ steps.debcache.outputs.cache-hit }}'
+        [ "$debhit" = "true" ] && debestado="HIT (reaproveitado)" || debestado="MISS (baixado do zero)"
+        # MB de .deb que o apt REALMENTE baixou (linha "Need to get A/B of archives": A = a baixar) e
+        # hash das versões instaladas, para conferir que HIT e MISS instalam exatamente o mesmo.
+        baixar=$(grep -o 'Need to get [0-9.,]* \?[kMG]\?B\(/[0-9.,]* \?[kMG]\?B\)\? of archives' /tmp/apt-deps.log 2>/dev/null | head -1 | sed 's/Need to get //; s/ of archives//; s#/.*##')
+        [ -z "$baixar" ] && baixar="0 B"
+        pk=$(cd /tmp/pw-deps && npx playwright install-deps --dry-run chromium 2>&1 | grep -o 'apt-get install -y --no-install-recommends .*' | sed 's/apt-get install -y --no-install-recommends //; s/"$//')
+        vsha=$(for p in $pk; do dpkg-query -W -f='${Package}=${Version}\n' "$p" 2>/dev/null; done | sort | sha256sum | cut -c1-12)
+        deb="${{ steps.validar.outputs.resumo }}"; [ -z "$deb" ] && deb="restaurados=0 validos=0 descartados=0 validacao=0s"
+        msg="Playwright ${{ steps.versao.outputs.playwright }} · Chromium: ${estado} · .deb: ${debestado} (${deb}) · .deb baixados pelo apt: ${baixar} · versões sha=${vsha} · npm ${npm_s}s + apt ${deps_s}s + navegador ${nav_s}s = ${total}s"
         echo "::notice title=Preparo dos testes::${msg}"
         {
           echo "### Preparo dos testes"
           echo "- Playwright: \`${{ steps.versao.outputs.playwright }}\`"
-          echo "- Chave do cache: \`playwright-chromium-${{ steps.versao.outputs.so }}-${{ steps.versao.outputs.playwright }}\`"
+          echo "- Chave do cache do Chromium: \`playwright-chromium-${{ steps.versao.outputs.so }}-${{ steps.versao.outputs.playwright }}\`"
+          echo "- Chave do cache dos .deb: \`apt-debs-${{ steps.versao.outputs.so }}-${{ steps.versao.outputs.imagem }}-${{ steps.versao.outputs.playwright }}-v1\`"
           echo "- Cache do Chromium: **${estado}**"
+          echo "- Cache dos .deb: **${debestado}** — ${deb}"
+          echo "- .deb baixados pela internet pelo apt: **${baixar}** · hash das versões instaladas: \`${vsha}\`"
           echo "- Tempos: npm ${npm_s}s · apt ${deps_s}s · navegador ${nav_s}s · **total ${total}s**"
         } >> "$GITHUB_STEP_SUMMARY"
 
