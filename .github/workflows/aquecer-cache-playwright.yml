@@ -1,0 +1,43 @@
+name: Aquecer cache do Playwright (main)
+
+# O GitHub guarda o cache POR BRANCH: um cache criado dentro de um PR não aparece
+# para outros PRs — só o da `main` é compartilhado. Como testes-automaticos.yml roda
+# só em pull_request, este workflow existe para que a `main` tenha o cache do Chromium
+# pronto, e todo PR novo o reaproveite em vez de baixar o navegador do zero.
+#
+# Usa EXATAMENTE o mesmo preparo dos testes (.github/actions/preparar-testes), então a
+# chave do cache é a mesma. Não roda nenhum teste. Se o cache sumir (expira após 7 dias
+# sem uso) ou falhar, os PRs simplesmente instalam o navegador normalmente.
+#
+# - push na main que mexa no preparo: aquece sozinho depois do merge;
+# - toda segunda-feira: mantém o cache vivo e renova se a imagem do runner mudou;
+# - manual (workflow_dispatch): permite testar outra versão do Playwright, para provar
+#   que mudar a versão invalida o cache (chave diferente = download de novo).
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - .github/actions/preparar-testes/**
+      - .github/workflows/aquecer-cache-playwright.yml
+  schedule:
+    - cron: '17 6 * * 1'
+  workflow_dispatch:
+    inputs:
+      playwright_version:
+        description: 'Versão do Playwright (vazio = a padrão do preparo). Use outra só para testar a invalidação do cache.'
+        required: false
+        default: ''
+
+jobs:
+  aquecer:
+    name: Aquecer cache do Chromium
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: ./.github/actions/preparar-testes
+        with:
+          playwright-version: ${{ inputs.playwright_version }}
