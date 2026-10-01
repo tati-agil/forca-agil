@@ -1609,31 +1609,17 @@
       return true;
     }
 
-    /* Altura do quadro da tabela = o que sobra da janela a partir de onde ele
-       começa (ou, se já rolou a página, a partir da barra fixa do site), nunca
-       um número fixo: acima dele há introdução, barras de ação e filtros que
-       mudam de altura (reconciliação, reprocessamento, aviso de exportação…).
-       Assim o rodapé do quadro — onde mora a barra de rolagem horizontal —
-       fica sempre dentro da janela. Piso de 320 px para a tabela nunca virar
-       uma fresta quando o que vem antes já ocupa a tela toda. No celular
-       (≤ 640 px) a tabela vira cartões e o CSS ignora esta variável. */
-    function ajustarAlturaTabela() {
-      var el = document.querySelector('#avaliacoesPainel .avp-tabela-scroll');
-      if (!el || !el.offsetParent) return;
+    /* A página inteira rola (a tabela NÃO tem rolagem própria). O cabeçalho das
+       colunas fica fixo logo abaixo do menu do site, que é fixo e tem altura
+       variável (celular, menu aberto…) — por isso a medida vem do próprio menu
+       e vai para o CSS como --avp-sticky-top. */
+    function ajustarTopoCabecalho() {
+      var painel = document.getElementById('avaliacoesPainel');
+      if (!painel) return;
       var nav = document.querySelector('.nav');
-      var barraFixa = (nav ? nav.offsetHeight : 64) + 8;
-      var topo = Math.max(el.getBoundingClientRect().top, barraFixa);
-      var altura = Math.max(320, Math.floor(window.innerHeight - topo - 16));
-      el.style.setProperty('--avp-tabela-altura', altura + 'px');
+      painel.style.setProperty('--avp-sticky-top', (nav ? nav.offsetHeight : 64) + 'px');
     }
-    var alturaAgendada = false;
-    function agendarAlturaTabela() {
-      if (alturaAgendada) return;
-      alturaAgendada = true;
-      window.requestAnimationFrame(function () { alturaAgendada = false; ajustarAlturaTabela(); });
-    }
-    window.addEventListener('resize', agendarAlturaTabela);
-    window.addEventListener('scroll', agendarAlturaTabela, { passive: true });
+    window.addEventListener('resize', ajustarTopoCabecalho);
 
     function renderLista() {
       var filtrados = state.itens.filter(itemPassaFiltro);
@@ -1740,7 +1726,7 @@
       if (!filtrados.length) {
         html += '<p class="admin-empty">' + (state.lixeira ? 'Nenhuma avaliação excluída.' : 'Nenhuma avaliação nessa combinação de filtros.') + '</p>';
       } else if (state.lixeira) {
-        html += '<div class="table-scroll-wrap avp-tabela-scroll avp-tabela-scroll--lixeira"><table class="admin-table avp-table"><thead><tr>' +
+        html += '<div class="avp-tabela-wrap avp-tabela-wrap--lixeira"><table class="admin-table avp-table"><thead><tr>' +
           '<th class="avp-col-item">Item</th><th>Excluído por</th><th>Quando</th><th class="avp-col-justificativa">Justificativa</th><th class="avp-col-acoes">Ações</th></tr></thead><tbody>';
         filtrados.forEach(function (it) {
           html += '<tr>';
@@ -1758,27 +1744,30 @@
            quem avalia ou gere — consulta só abre. */
         var podeSelecionar = pode('gestor');
         var podeMais = pode('avaliador');
-        html += '<div class="table-scroll-wrap avp-tabela-scroll"><table class="admin-table avp-table"><thead><tr>' +
+        html += '<div class="avp-tabela-wrap"><table class="admin-table avp-table"><thead><tr>' +
           (podeSelecionar ? '<th class="avp-check-col"><input type="checkbox" id="avpSelecionarTodos"' + (todosFiltradosSelecionados ? ' checked' : '') + ' aria-label="Selecionar todas as avaliações filtradas"></th>' : '') +
-          '<th class="avp-col-item">Item</th><th class="avp-col-res">Resultado automático</th><th class="avp-col-dec">Decisão final</th><th class="avp-col-camada">Classificação arquitetural</th><th class="avp-col-natureza">Natureza</th>' +
-          '<th class="avp-col-resp">Responsável</th><th class="avp-col-data">Data</th><th class="avp-col-status">Status</th><th class="avp-col-acoes">Ações</th></tr></thead><tbody>';
+          '<th class="avp-col-item">Item</th><th class="avp-col-dec">Resultado final</th><th class="avp-col-camada">Classificação</th><th class="avp-col-status">Status</th>' +
+          '<th class="avp-col-data">Atualizado em</th><th class="avp-col-resp">Responsável</th><th class="avp-col-acoes">Ações</th></tr></thead><tbody>';
         filtrados.forEach(function (it) {
           var decisao = it.decisaoFinal || it.resultadoAutomatico;
           var camadaLabel = (it.camadaSugerida && it.camadaSugerida.label) || '—';
+          var natureza = rotuloNaturezaDoItem(it);
           html += '<tr>';
           if (podeSelecionar) {
             html += '<td class="avp-check-col"><input type="checkbox" class="avp-check-item" data-key="' + it._key + '"' +
               (state.selecionados[it._key] ? ' checked' : '') + ' aria-label="Selecionar ' + esc(it.nome) + '"></td>';
           }
-          html += '<td class="avp-col-item" data-label="Item">' + esc(it.nome) + (it.versao > 1 ? ' <span class="avp-tag-versao">v' + it.versao + '</span>' : '') + '</td>';
-          html += '<td class="avp-col-res" data-label="Resultado automático">' + resultadoBadge(it.resultadoAutomatico) + '</td>';
-          html += '<td class="avp-col-dec" data-label="Decisão final">' + resultadoBadge(decisao) + (it.decisaoManual ? ' <span class="avp-tag-alterado">alterada</span>' : '') + '</td>';
-          html += '<td class="avp-col-camada" data-label="Classificação arquitetural" title="' + esc(camadaLabel) + '">' + esc(camadaLabel) + '</td>';
-          html += '<td class="avp-col-natureza" data-label="Natureza" title="' + esc(rotuloNaturezaDoItem(it)) + '">' +
-            (rotuloNaturezaDoItem(it) ? '<span class="avp-tag-natureza">' + esc(rotuloNaturezaDoItem(it)) + '</span>' : '—') + '</td>';
-          html += '<td class="avp-col-resp" data-label="Responsável" title="' + esc(it.responsavel && it.responsavel.name || '') + '">' + esc(it.responsavel && it.responsavel.name || '—') + '</td>';
-          html += '<td class="avp-col-data" data-label="Data">' + fmtData(it.atualizadoEm) + '</td>';
+          /* Natureza complementar não ganha coluna própria (a lista ficaria larga
+             demais): aparece como etiqueta sob o nome do item; o resto do detalhe
+             (resultado automático, justificativas) fica na tela da avaliação. */
+          html += '<td class="avp-col-item" data-label="Item"><span class="avp-item-nome">' + esc(it.nome) + '</span>' +
+            (it.versao > 1 ? ' <span class="avp-tag-versao">v' + it.versao + '</span>' : '') +
+            (natureza ? '<span class="avp-item-natureza" title="Natureza complementar"><span class="avp-tag-natureza">' + esc(natureza) + '</span></span>' : '') + '</td>';
+          html += '<td class="avp-col-dec" data-label="Resultado final">' + resultadoBadge(decisao) + (it.decisaoManual ? ' <span class="avp-tag-alterado">alterada</span>' : '') + '</td>';
+          html += '<td class="avp-col-camada" data-label="Classificação">' + esc(camadaLabel) + '</td>';
           html += '<td class="avp-col-status" data-label="Status">' + statusBadge(it.status) + badgeMotor(it) + '</td>';
+          html += '<td class="avp-col-data" data-label="Atualizado em">' + fmtData(it.atualizadoEm) + '</td>';
+          html += '<td class="avp-col-resp" data-label="Responsável">' + esc(it.responsavel && it.responsavel.name || '—') + '</td>';
           html += '<td class="avp-col-acoes" data-label="Ações"><div class="avp-row-actions">';
           if (it.status === 'concluido') {
             html += '<button class="btn btn--sm btn--primary avp-act-ver" data-key="' + it._key + '">Visualizar</button>';
@@ -1792,20 +1781,8 @@
         html += '</tbody></table></div>';
       }
 
-      /* A tabela tem rolagem PRÓPRIA (vertical e horizontal). render() refaz o
-         HTML inteiro a cada clique (marcar uma linha, filtrar…), o que jogaria
-         a tabela de volta ao topo/à esquerda — com 30 linhas, marcar a de baixo
-         faria a pessoa perder o lugar. Guarda a posição antes e devolve depois. */
-      var rolagemAntes = wrap.querySelector('.avp-tabela-scroll');
-      var rolagemTopo = rolagemAntes ? rolagemAntes.scrollTop : 0;
-      var rolagemEsquerda = rolagemAntes ? rolagemAntes.scrollLeft : 0;
       wrap.innerHTML = html;
-      var rolagemDepois = wrap.querySelector('.avp-tabela-scroll');
-      if (rolagemDepois) {
-        rolagemDepois.scrollTop = rolagemTopo;
-        rolagemDepois.scrollLeft = rolagemEsquerda;
-        ajustarAlturaTabela();
-      }
+      ajustarTopoCabecalho();
 
       var flashListaClose = document.getElementById('avpFlashListaClose');
       if (flashListaClose) flashListaClose.addEventListener('click', function () { state.flashLista = null; render(); });

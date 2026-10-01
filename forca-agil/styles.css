@@ -167,6 +167,10 @@ body {
   color: var(--ink);
   line-height: 1.55;
   overflow-x: hidden;
+  /* clip (e não só hidden): hidden transforma o body num contêiner de rolagem e
+     quebra position: sticky em toda a página (ex.: cabeçalho da lista de
+     avaliações). O html já esconde a rolagem horizontal. */
+  overflow-x: clip;
   max-width: 100%;
   -webkit-font-smoothing: antialiased;
   text-rendering: optimizeLegibility;

@@ -2157,6 +2157,38 @@ select.aposta-campo-input { width: auto; min-width: 8.5em; }
   :is(#adminAvaliacaoProduto, #avaliacoesPainel) .avp-row-actions { flex-wrap: wrap; justify-content: flex-end; width: 100%; }
 }
 
+/* A lista da área Avaliação vira cartões até 1200 px (a de 7 colunas não cabe em
+   tablet nem em notebook pequeno sem espremer as células — o resultado eram
+   linhas de centenas de px). Acima de 1200 px é tabela, com a página inteira
+   rolando. */
+@media (min-width: 641px) and (max-width: 1200px) {
+  .avp-filters { flex-direction: row; }
+  #avaliacoesPainel .admin-table,
+  #avaliacoesPainel .admin-table tbody,
+  #avaliacoesPainel .admin-table tr,
+  #avaliacoesPainel .admin-table td { display: block; width: 100%; }
+  #avaliacoesPainel .admin-table thead { display: none; }
+  #avaliacoesPainel .admin-table { background: transparent; }
+  #avaliacoesPainel .admin-table tr {
+    background: var(--panel); border: 1px solid var(--line); border-radius: 10px; margin-bottom: 10px; padding: 8px 0;
+  }
+  #avaliacoesPainel .admin-table td {
+    display: flex; align-items: baseline; justify-content: space-between; gap: 12px;
+    padding: 5px 14px; border-bottom: none; text-align: right; white-space: normal;
+  }
+  #avaliacoesPainel .admin-table td::before {
+    content: attr(data-label); flex: 0 0 auto; text-align: left;
+    font-family: var(--font-mono); font-size: .66rem; letter-spacing: .04em;
+    text-transform: uppercase; color: var(--ink-3);
+  }
+  #avaliacoesPainel .admin-table td[data-label="Item"] {
+    display: block; text-align: left; color: var(--ink); font-size: .95rem; padding-bottom: 8px;
+  }
+  #avaliacoesPainel .admin-table td[data-label="Item"]::before { content: none; }
+  #avaliacoesPainel .admin-table td[data-label="Ações"] { padding-top: 8px; }
+  #avaliacoesPainel .avp-row-actions { flex-wrap: wrap; justify-content: flex-end; width: 100%; }
+}
+
 /* Destaque de campo/pergunta pendente (botão Salvar recusou e precisa
    apontar exatamente o que falta, não só dizer isso em texto solto) */
 .avp-field--invalid input, .avp-field--invalid textarea {
@@ -2243,77 +2275,43 @@ select.aposta-campo-input { width: auto; min-width: 8.5em; }
 .avp-exportar-menu button { width: 100%; text-align: left; padding: 8px 10px; }
 .avp-check-col { width: 32px; text-align: center; }
 
-/* Lista de avaliações (Admin → Arquitetura): a tabela tem muitas colunas e
- * muitas linhas, então o QUADRO dela rola sozinho (vertical e horizontal) em
- * vez de a página inteira rolar. Três referências ficam sempre à vista:
- *   - o cabeçalho das colunas (sticky top: 0 no <th>);
- *   - o Item (e a caixa de seleção) à esquerda (sticky left);
- *   - as Ações à direita (sticky right).
- * A barra de rolagem horizontal é a do próprio quadro, que termina dentro da
- * janela (altura calculada em avaliacao-produto.js → ajustarAlturaTabela).
- * Não comprime colunas para caber: a tabela pode ser mais larga que a tela.
- * Só ≥ 641 px — no celular a tabela já vira cartões (regra própria acima). */
-@media (min-width: 641px) {
-  .avp-tabela-scroll {
-    --avp-check-w: 44px;
-    overflow: auto; max-width: 100%;
-    max-height: var(--avp-tabela-altura, 70vh);
-    border: 1px solid var(--line); border-radius: 10px; background: var(--panel);
-    scrollbar-width: auto; scrollbar-color: rgba(245,197,66,.45) var(--space-1);
-  }
-  .avp-tabela-scroll.table-scroll-wrap::-webkit-scrollbar { width: 12px; height: 12px; }
-  .avp-tabela-scroll.table-scroll-wrap::-webkit-scrollbar-track { background: var(--space-1); }
-  .avp-tabela-scroll.table-scroll-wrap::-webkit-scrollbar-thumb { background: rgba(245,197,66,.45); border-radius: 6px; border: 2px solid var(--space-1); }
-  .avp-tabela-scroll.table-scroll-wrap::-webkit-scrollbar-thumb:hover { background: rgba(245,197,66,.7); }
-  .avp-tabela-scroll--lixeira { --avp-check-w: 0px; }
-
-  /* separate + spacing 0: com border-collapse: collapse as bordas não
-     acompanham a célula sticky e "escorrem" por baixo dela */
-  .avp-tabela-scroll .avp-table {
-    width: max-content; min-width: 100%;
+/* Lista de avaliações (área Avaliação): a PÁGINA inteira rola — a tabela não
+ * tem rolagem própria. Poucas colunas (Item, Resultado final, Classificação,
+ * Status, Atualizado em, Responsável, Ações), com quebra de linha em vez de
+ * largura fixa, então cabem sem barra horizontal; o resto do detalhe fica na
+ * tela da avaliação. O cabeçalho das colunas fica fixo logo abaixo do menu do
+ * site (position: sticky, sem nenhum ancestral com overflow — por isso o
+ * wrapper NÃO usa overflow). --avp-sticky-top vem da altura real do menu
+ * (avaliacao-produto.js → ajustarTopoCabecalho). Só ≥ 1201 px — abaixo disso a
+ * tabela vira cartões (regras próprias). */
+@media (min-width: 1201px) {
+  .avp-tabela-wrap { border: 1px solid var(--line); border-radius: 10px; background: var(--panel); }
+  .avp-tabela-wrap .avp-table {
+    width: 100%; table-layout: auto;
     border-collapse: separate; border-spacing: 0;
-    border-radius: 0; overflow: visible; background: var(--panel);
+    border-radius: 10px; overflow: visible; background: var(--panel);
   }
-  .avp-tabela-scroll .avp-table th,
-  .avp-tabela-scroll .avp-table td { white-space: nowrap; }
-
-  /* cabeçalho: opaco (o padrão é translúcido e deixaria as linhas aparecerem por baixo) */
-  .avp-tabela-scroll .avp-table thead th {
-    position: sticky; top: 0; z-index: 3;
+  .avp-tabela-wrap .avp-table th,
+  .avp-tabela-wrap .avp-table td { white-space: normal; overflow-wrap: break-word; vertical-align: middle; }
+  .avp-tabela-wrap .avp-table thead th {
+    position: sticky; top: var(--avp-sticky-top, 72px); z-index: 3;
     background: var(--space-1); border-bottom: 1px solid var(--line-strong);
   }
-
-  /* larguras: nomes reais das colunas sem reticências quando há espaço */
-  .avp-tabela-scroll .avp-col-item { min-width: 340px; max-width: 420px; white-space: normal; }
-  .avp-tabela-scroll .avp-table td.avp-col-item { white-space: normal; overflow-wrap: anywhere; }
-  .avp-tabela-scroll .avp-col-res { min-width: 200px; }
-  .avp-tabela-scroll .avp-col-dec { min-width: 260px; }
-  .avp-tabela-scroll .avp-col-camada { min-width: 280px; }
-  .avp-tabela-scroll .avp-col-natureza { min-width: 280px; }
-  .avp-tabela-scroll .avp-col-resp { min-width: 180px; }
-  .avp-tabela-scroll .avp-col-data { min-width: 150px; }
-  .avp-tabela-scroll .avp-col-status { min-width: 220px; }
-  .avp-tabela-scroll .avp-col-justificativa { min-width: 260px; max-width: 420px; white-space: normal; }
-  .avp-tabela-scroll .avp-col-acoes { min-width: 170px; }
-  .avp-tabela-scroll .avp-row-actions { flex-wrap: nowrap; }
-
-  /* colunas fixas: opacas, com divisor, acima das demais células */
-  .avp-tabela-scroll .avp-table .avp-check-col,
-  .avp-tabela-scroll .avp-table .avp-col-item,
-  .avp-tabela-scroll .avp-table .avp-col-acoes {
-    position: sticky; z-index: 2; background: var(--panel);
-  }
-  .avp-tabela-scroll .avp-table .avp-check-col {
-    left: 0; width: var(--avp-check-w); min-width: var(--avp-check-w); max-width: var(--avp-check-w);
-    padding-left: 0; padding-right: 0; box-sizing: border-box; text-align: center;
-  }
-  .avp-tabela-scroll .avp-table .avp-col-item { left: var(--avp-check-w); border-right: 1px solid var(--line-strong); }
-  .avp-tabela-scroll .avp-table .avp-col-acoes { right: 0; border-left: 1px solid var(--line-strong); }
-  /* cantos (cabeçalho + coluna fixa): por cima de tudo */
-  .avp-tabela-scroll .avp-table thead th.avp-check-col,
-  .avp-tabela-scroll .avp-table thead th.avp-col-item,
-  .avp-tabela-scroll .avp-table thead th.avp-col-acoes { z-index: 5; background: var(--space-1); }
+  .avp-tabela-wrap .avp-table thead th:first-child { border-top-left-radius: 10px; }
+  .avp-tabela-wrap .avp-table thead th:last-child { border-top-right-radius: 10px; }
+  .avp-tabela-wrap .avp-col-item { min-width: 200px; }
+  .avp-tabela-wrap .avp-col-dec { min-width: 130px; }
+  .avp-tabela-wrap .avp-col-camada { min-width: 120px; }
+  .avp-tabela-wrap .avp-col-status { min-width: 120px; }
+  .avp-tabela-wrap .avp-col-resp { min-width: 110px; }
+  .avp-tabela-wrap .avp-col-data { white-space: nowrap; }
+  .avp-tabela-wrap .avp-col-acoes { white-space: nowrap; width: 1%; }
+  .avp-tabela-wrap .avp-row-actions { flex-wrap: nowrap; }
+  .avp-tabela-wrap .avp-check-col { width: 44px; padding-left: 0; padding-right: 0; text-align: center; }
 }
+.avp-tabela-wrap--lixeira .avp-col-justificativa { max-width: 420px; }
+.avp-item-nome { font-weight: 600; color: var(--ink); }
+.avp-item-natureza { display: block; margin-top: 4px; }
 
 /* Admin → bloco "Avaliação de Produto/Serviço" (só parametrização) e tela
    "Usuários e permissões". Botões neutros: aqui nada compete com o amarelo
