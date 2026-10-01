@@ -1,0 +1,74 @@
+name: EXPERIMENTO apt (timeout e retentativas) — não é parte do CI
+
+# Roda SÓ na branch experimento/apt-retentativas. Nunca vai para a main.
+# Mede o mesmo comando do CI (`npx playwright install-deps chromium`) sob quatro
+# configurações do apt. Não remove pacote, não troca a lista, não roda teste.
+#
+#   normal          — como o CI é hoje (sem Retries; Timeout padrão do apt = 120 s)
+#   retries         — Acquire::Retries=3
+#   timeout         — Acquire::http::Timeout=15 (sem retentativa)
+#   retries-timeout — os dois juntos
+#
+# job "real":      espelho de verdade, 4 repetições por variante (o pico é aleatório).
+# job "simulado":  espelho com defeito produzido de propósito (proxy local), para provar o
+#                  mecanismo sem depender de o espelho real ficar lento no dia.
+
+on:
+  push:
+    branches:
+      - experimento/apt-retentativas
+    paths:
+      - .github/workflows/experimento-apt.yml
+      - .github/scripts/experimento-apt/**
+  workflow_dispatch:
+
+jobs:
+  real:
+    name: real · ${{ matrix.variante }} · #${{ matrix.rep }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    strategy:
+      fail-fast: false
+      matrix:
+        variante: [normal, retries, timeout, retries-timeout]
+        rep: [1, 2, 3, 4]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - name: Playwright (pacote npm, fora da medição)
+        run: |
+          mkdir -p /tmp/pw-deps && cd /tmp/pw-deps
+          npm init -y >/dev/null && npm install playwright@1.56.1 >/dev/null
+      - name: Medir o apt
+        run: bash .github/scripts/experimento-apt/medir-apt.sh "${{ matrix.variante }}" real
+
+  simulado:
+    name: simulado · ${{ matrix.cenario }} · ${{ matrix.variante }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { cenario: trava, variante: normal }
+          - { cenario: trava, variante: retries }
+          - { cenario: trava, variante: timeout }
+          - { cenario: trava, variante: retries-timeout }
+          - { cenario: gotejar, variante: normal }
+          - { cenario: gotejar, variante: retries-timeout }
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - name: Playwright (pacote npm, fora da medição)
+        run: |
+          mkdir -p /tmp/pw-deps && cd /tmp/pw-deps
+          npm init -y >/dev/null && npm install playwright@1.56.1 >/dev/null
+      - name: Medir o apt (espelho simulado)
+        run: bash .github/scripts/experimento-apt/medir-apt.sh "${{ matrix.variante }}" "${{ matrix.cenario }}"
+      - name: Registro do proxy simulado
+        if: always()
+        run: cat /tmp/proxy-espelho.log || true
