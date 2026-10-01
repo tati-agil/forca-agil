@@ -1628,9 +1628,18 @@
       var painel = document.getElementById('avaliacoesPainel');
       if (!painel) return;
       var nav = document.querySelector('.nav');
-      painel.style.setProperty('--avp-sticky-top', (nav ? nav.offsetHeight : 64) + 'px');
+      var h = nav ? nav.offsetHeight : 0;
+      /* O menu pode estar escondido (altura 0) quando a lista renderiza — por
+         exemplo enquanto a página ainda espera o login. Nesse caso NÃO grava 0
+         (o cabeçalho ficaria por baixo do menu quando ele aparecer): sem a
+         variável vale o padrão do CSS, e o observador abaixo atualiza assim que
+         o menu ganhar altura. */
+      if (h > 0) painel.style.setProperty('--avp-sticky-top', h + 'px');
+      else painel.style.removeProperty('--avp-sticky-top');
     }
     window.addEventListener('resize', ajustarTopoCabecalho);
+    var navParaObservar = document.querySelector('.nav');
+    if (navParaObservar && typeof ResizeObserver === 'function') new ResizeObserver(ajustarTopoCabecalho).observe(navParaObservar);
 
     function renderLista() {
       var filtrados = state.itens.filter(itemPassaFiltro);
