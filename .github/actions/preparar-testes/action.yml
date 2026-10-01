@@ -1,0 +1,27 @@
+name: Preparar ambiente de testes
+description: >
+  Instala Node, Playwright + Chromium e serve o site localmente em
+  http://127.0.0.1:8811. Um só lugar para o preparo, usado pelos três jobs de
+  testes-automaticos.yml (Avaliação, demais herméticos e smoke test), para que
+  nenhum deles se desencontre dos outros.
+runs:
+  using: composite
+  steps:
+    - uses: actions/setup-node@v4
+      with:
+        node-version: '20'
+
+    - name: Instalar Playwright + Chromium
+      shell: bash
+      run: |
+        mkdir -p /tmp/pw-deps
+        cd /tmp/pw-deps
+        npm init -y
+        npm install playwright@1.56.1
+        npx playwright install --with-deps chromium
+
+    - name: Servir o site localmente
+      shell: bash
+      run: |
+        python3 -m http.server 8811 --bind 127.0.0.1 &
+        sleep 2
