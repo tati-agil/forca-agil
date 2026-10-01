@@ -65,6 +65,15 @@ jobs:
           FA_BASE_URL: http://127.0.0.1:8811
         run: node .github/scripts/teste-avaliacoes-ajustes.js
 
+      # Ficha da avaliação: Identificação, histórico de versões v1/v2/v3 (a mais
+      # recente é a vigente; as anteriores só para consulta), "Sua justificativa"
+      # × "Interpretação do sistema" e os status "Em andamento"/"Concluída".
+      - name: "Avaliação: ficha, histórico de versões e status (desktop e celular)"
+        env:
+          NODE_PATH: /tmp/pw-deps/node_modules
+          FA_BASE_URL: http://127.0.0.1:8811
+        run: node .github/scripts/teste-avaliacoes-ficha.js
+
       # Mesma família da tela preta, agora no Repositório: a grade de cards
       # (#repoGrid) só é desenhada dentro de listeners assíncronos do
       # Firebase, e sem aviso de carregamento ficava vazia e indistinguível
