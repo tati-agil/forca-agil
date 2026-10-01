@@ -78,7 +78,7 @@ if os.path.exists('/tmp/proxy-espelho.log'):
         if e[1] == 'TRAVOU':
             t1 = float(e[0].rstrip('s')); nome = e[3]
             for f in ev[i + 1:]:
-                if f[3] == nome and f[2] == '#2':
+                if f[3].split()[-1] == nome and f[2] == '#2':
                     gaps.append(float(f[0].rstrip('s')) - t1); break
 gap_txt = (' · travada→nova tentativa: ' + '/'.join('%.0fs' % g for g in gaps)) if gaps else ''
 msg = ('[' + os.environ.get('EFETIVO', '?') + '] apt %ss · rc=%s · pacotes instalados %s/%d (faltando %s) · "Setting up" %d · retentativas de .deb %d · '
