@@ -93,8 +93,8 @@ async function proporcaoDeTinta(page, b64) {
 }
 
 async function exportar(browser, n, tams, viewport, so1) {
-  const acessos = {}; acessos[chave(EMAIL)] = { email: EMAIL, perfil: 'gestor' };
-  const db = { turmas: {}, 'turmas-interesse': {}, 'fa-users': {}, 'fa-admins': {}, 'turmas-config': {}, 'turmas-checkin': {}, 'turmas-espera': {}, 'turmas-equipe': {}, 'fa-facilitadores': {}, 'fa-diretores': {}, eventos: {}, 'turmas-publico': {}, 'eventos-publico': {}, 'avaliacoes-produto': AV(n, tams), 'avaliacoes-squad': {}, 'motor-squad-config': {}, 'motor-squad-auditoria': {}, 'motor-arquitetura-config': {}, 'motor-arquitetura-auditoria': {}, 'fa-avaliacao-acessos': acessos };
+  const acessos = {}; acessos[chave(EMAIL)] = { email: EMAIL, tipo: 'avaliacao' };
+  const db = { turmas: {}, 'turmas-interesse': {}, 'fa-users': {}, 'fa-admins': {}, 'turmas-config': {}, 'turmas-checkin': {}, 'turmas-espera': {}, 'turmas-equipe': {}, 'fa-facilitadores': {}, 'fa-diretores': {}, eventos: {}, 'turmas-publico': {}, 'eventos-publico': {}, 'avaliacoes-produto': AV(n, tams), 'avaliacoes-squad': {}, 'motor-squad-config': {}, 'motor-squad-auditoria': {}, 'motor-arquitetura-config': {}, 'motor-arquitetura-auditoria': {}, 'fa-avaliacao-autorizados': acessos };
   const ctx = await browser.newContext({ viewport: viewport || DESKTOP, acceptDownloads: true });
   const page = await ctx.newPage();
   const erros = []; page.on('pageerror', (e) => erros.push(String(e)));

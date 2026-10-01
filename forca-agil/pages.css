@@ -2314,7 +2314,7 @@ select.aposta-campo-input { width: auto; min-width: 8.5em; }
 .avp-item-natureza { display: block; margin-top: 4px; }
 
 /* Admin → bloco "Avaliação de Produto/Serviço" (só parametrização) e tela
-   "Usuários e permissões". Botões neutros: aqui nada compete com o amarelo
+   "Usuários autorizados". Botões neutros: aqui nada compete com o amarelo
    das ações primárias. */
 .avp-admin-cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 12px; margin-top: 12px; }
 .avp-admin-card {
@@ -2327,6 +2327,23 @@ select.aposta-campo-input { width: auto; min-width: 8.5em; }
 .avp-usuario-email { font-size: .78rem; color: var(--ink-3); }
 .avp-usuario-aviso { font-size: .74rem; color: var(--ink-3); }
 .avp-usuario-aviso--erro { color: var(--red); }
+.avp-aut-barra { margin: 14px 0; }
+.avp-aut-adicionar { border: 1px solid var(--line-strong); border-radius: 10px; padding: 14px; margin-bottom: 16px; background: var(--panel-2); }
+.avp-aut-subtitulo { margin: 18px 0 8px; }
+.avp-aut-lista { display: flex; flex-direction: column; gap: 10px; margin-bottom: 16px; }
+.avp-aut-item { display: grid; grid-template-columns: minmax(0, 1.4fr) minmax(0, 1fr) auto; gap: 14px; align-items: center; border: 1px solid var(--line-strong); border-radius: 10px; padding: 12px 14px; background: var(--panel-2); }
+.avp-aut-adicionar .avp-aut-item { background: var(--panel); }
+.avp-aut-quem { display: flex; flex-direction: column; gap: 2px; min-width: 0; overflow-wrap: anywhere; }
+.avp-aut-tipo { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
+.avp-aut-rotulo { font-size: .72rem; color: var(--ink-3); }
+.avp-aut-matriz th, .avp-aut-matriz td { white-space: normal; }
+.avp-aut-historico { margin-top: 8px; }
+.avp-aut-historico summary { cursor: pointer; font-size: .86rem; color: var(--ink-2); padding: 6px 0; }
+.avp-aut-hist { padding: 8px 0; border-top: 1px solid var(--line-strong); font-size: .84rem; overflow-wrap: anywhere; }
+@media (max-width: 640px) {
+  .avp-aut-item { grid-template-columns: 1fr; gap: 10px; }
+  .avp-aut-acoes .btn, .avp-aut-barra .btn { width: 100%; }
+}
 
 /* REAVALIAR à vista no topo do detalhe */
 .avp-reavaliar-card { display: flex; align-items: center; justify-content: space-between; gap: 14px; flex-wrap: wrap; }

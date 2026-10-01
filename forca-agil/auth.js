@@ -209,7 +209,7 @@
     if (!window.faRouter) return;
     /* Avaliação de Produto/Serviço: só quem se SABE sem acesso sai da rota.
        Esta checagem não depende de inscrição em turma nem de nível. */
-    if (_session && isAvaliacaoReady() && window.faRouter.current() === 'avaliacoes' && !podeAvaliacao('consulta')) {
+    if (_session && isAvaliacaoReady() && window.faRouter.current() === 'avaliacoes' && !podeAvaliacao()) {
       location.hash = '#home';
       if (window.faRouter.showAccessMsg) window.faRouter.showAccessMsg('Você não tem acesso à Avaliação de Produto/Serviço.');
       return;
@@ -320,74 +320,78 @@
      facilitador" de "ainda não sei se é". */
   function isFacilitadorReady() { return _facilitadoresResolvidos; }
 
-  /* ---- PERFIL NA AVALIAÇÃO DE PRODUTO/SERVIÇO (fa-avaliacao-acessos) ----
-     Independente de ser admin: consulta < avaliador < gestor. Quem manda de
-     verdade são as regras do banco (database.rules.json); isto só decide o que
-     mostrar — menu, botões — e nunca é a barreira.
-
-     TRANSIÇÃO: admin SEM registro continua como gestor (quem já trabalhava
-     nas avaliações não perde o acesso no dia em que isto entra). Registro
-     explícito — inclusive 'nenhum' — sempre vence, então "admin" e "avaliador"
-     seguem sendo permissões independentes. É a mesma regra que o banco aplica.
+  /* ---- ACESSO À AVALIAÇÃO (fa-avaliacao-autorizados) ----
+     Lista própria de quem usa a aba AVALIAÇÃO e, opcionalmente, o ADMIN >
+     ARQUITETURA. Dois tipos, independentes de qualquer outro acesso do site:
+       'avaliacao'             — aba AVALIAÇÃO, nada de ADMIN;
+       'avaliacao-arquitetura' — aba AVALIAÇÃO + SOMENTE ADMIN > ARQUITETURA.
+     Quem não está na lista não ganha nada daqui. Admin geral entra em tudo por
+     ser admin — não precisa estar na lista. O perfil antigo
+     (fa-avaliacao-acessos: consulta/avaliador/gestor) não vale mais para nada
+     e nem é lido. Quem manda de verdade são as regras do banco
+     (database.rules.json); isto só decide o que mostrar e a rota.
 
      Mesmo cuidado do isAdmin(): enquanto a leitura do próprio registro não
-     volta, getAvaliacaoPerfil() responde 'nenhum' por NÃO SABER, e isso nunca
-     pode virar expulsão da rota — por isso existe isAvaliacaoReady(). */
-  let _dbAvaliacaoPerfil = null;
-  let _dbAvaliacaoEntrada = false;
+     volta, podeAvaliacao() responde false por NÃO SABER, e isso nunca pode
+     virar expulsão da rota — por isso existe isAvaliacaoReady(). */
+  const TIPOS_AVALIACAO = ['avaliacao', 'avaliacao-arquitetura'];
+  let _dbAvaliacaoTipo = null;
   let _avaliacaoResolvida = false;
   /* E-mail do LOGIN (Firebase Auth), não de _session: a sessão só é montada
-     depois da leitura de fa-users e pode chegar DEPOIS do registro do perfil —
-     usar _session aqui fazia o perfil valer "nenhum" nesse intervalo, e a lista
+     depois da leitura de fa-users e pode chegar DEPOIS do registro de acesso —
+     usar _session aqui fazia o acesso valer "nenhum" nesse intervalo, e a lista
      desistia de carregar para sempre. */
   let _avaliacaoEmail = null;
   /* "Pronto" depende de DUAS leituras (o próprio registro e a lista de admins,
-     por causa da transição) que voltam em ordem qualquer — em rede lenta, a
-     segunda chega segundos depois da primeira. Por isso o aviso sai de quem
-     terminar por último (aqui e em fa-admin-ready); avisar só numa das duas
-     deixava a lista vazia para sempre quando a outra demorava mais. */
+     porque admin geral entra por ser admin) que voltam em ordem qualquer — em
+     rede lenta, a segunda chega segundos depois da primeira. Por isso o aviso
+     sai de quem terminar por último (aqui e em fa-admin-ready); avisar só numa
+     das duas deixava a lista vazia para sempre quando a outra demorava mais. */
   function avisarAvaliacaoPronta() {
     if (_avaliacaoResolvida && _adminsResolvidos) window.dispatchEvent(new CustomEvent('fa-avaliacao-ready'));
   }
-  const ORDEM_PERFIL_AVALIACAO = { nenhum: 0, consulta: 1, avaliador: 2, gestor: 3 };
   firebase.auth().onAuthStateChanged(function (user) {
     if (_criandoConta) return;
     if (!user) {
       _avaliacaoEmail = null;
-      _dbAvaliacaoPerfil = null; _dbAvaliacaoEntrada = false; _avaliacaoResolvida = true;
+      _dbAvaliacaoTipo = null; _avaliacaoResolvida = true;
       updateNavState();
       avisarAvaliacaoPronta();
       return;
     }
     _avaliacaoResolvida = false;
     _avaliacaoEmail = user.email;
-    firebase.database().ref('fa-avaliacao-acessos/' + emailKey(user.email)).once('value', function (snap) {
+    firebase.database().ref('fa-avaliacao-autorizados/' + emailKey(user.email)).once('value', function (snap) {
       const data = snap.val();
-      _dbAvaliacaoEntrada = snap.exists();
-      _dbAvaliacaoPerfil = data && ORDEM_PERFIL_AVALIACAO[data.perfil] !== undefined ? data.perfil : null;
+      _dbAvaliacaoTipo = data && TIPOS_AVALIACAO.indexOf(data.tipo) !== -1 ? data.tipo : null;
       _avaliacaoResolvida = true;
       avisarAvaliacaoPronta();
       updateNavState();
       enforceCurrentRouteAccess();
+    }, function () {
+      /* Sem resposta do banco, "não sei" continua sendo "não sei": não marca
+         como resolvido, para nunca expulsar quem pode ter acesso. */
     });
   });
-  function getAvaliacaoPerfil() {
-    const email = _avaliacaoEmail;
-    if (!email) return 'nenhum';
-    if (_dbAvaliacaoEntrada) {
-      var explicito = _dbAvaliacaoPerfil || 'nenhum';
-      /* ADMIN sempre vê a área, no MÍNIMO como consulta — mesmo com registro 'nenhum'.
-         Isso não lhe dá avaliador nem gestor (só o registro, ou a transição, dá). */
-      return (explicito === 'nenhum' && isAdmin(email)) ? 'consulta' : explicito;
-    }
-    return isAdmin(email) ? 'gestor' : 'nenhum';
+  /* Tipo registrado na lista nova ('avaliacao' | 'avaliacao-arquitetura') ou null.
+     Não inclui o admin geral — ele entra por ser admin (ver podeAvaliacao). */
+  function getAvaliacaoTipo() { return _avaliacaoEmail ? _dbAvaliacaoTipo : null; }
+  /* Aba AVALIAÇÃO: admin geral ou qualquer autorizado. */
+  function podeAvaliacao() {
+    if (!_avaliacaoEmail) return false;
+    return isAdmin(_avaliacaoEmail) || getAvaliacaoTipo() !== null;
   }
-  /* "Tem pelo menos este nível?" — nivel: 'consulta' | 'avaliador' | 'gestor'. */
-  function podeAvaliacao(nivel) {
-    return ORDEM_PERFIL_AVALIACAO[getAvaliacaoPerfil()] >= ORDEM_PERFIL_AVALIACAO[nivel || 'consulta'];
+  /* ADMIN > ARQUITETURA: admin geral ou 'avaliacao-arquitetura'. */
+  function podeArquitetura() {
+    if (!_avaliacaoEmail) return false;
+    return isAdmin(_avaliacaoEmail) || getAvaliacaoTipo() === 'avaliacao-arquitetura';
   }
-  /* "Já dá pra confiar no 'nenhum'?" — precisa do próprio registro E da lista
-     de admins (a transição depende dela). */
+  /* Entra no #admin SÓ para a Arquitetura: tem o tipo, mas não é admin geral. */
+  function isAdminRestrito() {
+    return !!_avaliacaoEmail && !isAdmin(_avaliacaoEmail) && getAvaliacaoTipo() === 'avaliacao-arquitetura';
+  }
+  /* "Já dá pra confiar no 'não'?" — precisa do próprio registro E da lista de
+     admins (admin geral entra por ser admin). */
   function isAvaliacaoReady() { return _avaliacaoResolvida && _adminsResolvidos; }
 
   /* ---- Firebase Auth — fonte de verdade de sessão ---- */
@@ -709,7 +713,7 @@
         if (avatarEl) avatarEl.textContent = sess.name.charAt(0).toUpperCase();
       }
     }
-    if (adminLink) adminLink.hidden = !sess || !isAdmin((sess || {}).email);
+    if (adminLink) adminLink.hidden = !sess || !(isAdmin((sess || {}).email) || podeArquitetura());
 
     /* Nav links visibility by access level */
     document.querySelectorAll('.nav-link-member').forEach(function (el) {
@@ -721,11 +725,11 @@
     document.querySelectorAll('.nav-link-facilitador').forEach(function (el) {
       el.hidden = !sess || !(isAdmin(sess.email) || isFacilitador(sess.email));
     });
-    /* Menu "Avaliação" (Produto/Serviço): só para quem tem pelo menos o perfil
-       Consulta. Enquanto não se sabe, fica escondido — aparece assim que a
-       leitura do perfil volta. */
+    /* Menu "Avaliação" (Produto/Serviço): só para admin geral ou quem está na
+       lista de autorizados. Enquanto não se sabe, fica escondido — aparece
+       assim que a leitura do acesso volta. */
     document.querySelectorAll('.nav-link-avaliacoes').forEach(function (el) {
-      el.hidden = !sess || !podeAvaliacao('consulta');
+      el.hidden = !sess || !podeAvaliacao();
     });
   }
 
@@ -1035,8 +1039,10 @@
     resendVerification: resendVerification,
     isAuthReady: function () { return _authReady; },
     isAdminReady: isAdminReady,
-    getAvaliacaoPerfil: getAvaliacaoPerfil,
+    getAvaliacaoTipo: getAvaliacaoTipo,
     podeAvaliacao: podeAvaliacao,
+    podeArquitetura: podeArquitetura,
+    isAdminRestrito: isAdminRestrito,
     isAvaliacaoReady: isAvaliacaoReady,
     isEnrolledReady: isEnrolledReady,
     isFacilitadorReady: isFacilitadorReady,

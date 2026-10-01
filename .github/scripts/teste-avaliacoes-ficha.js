@@ -43,14 +43,13 @@ const AVALIACOES = () => ({
   k4: item('Item Em Andamento', 4, { itemId: 'k4', status: 'rascunho', resultadoAutomatico: null, decisaoFinal: null, camadaSugerida: null })
 });
 
-async function abrir(browser, perfil, viewport) {
-  const acessos = {}; acessos[chave(EMAIL)] = { email: EMAIL, perfil: perfil };
+async function abrir(browser, tipo, viewport) {
+  const acessos = {}; acessos[chave(EMAIL)] = { email: EMAIL, tipo: tipo };
   const db = { turmas: {}, 'turmas-interesse': {}, 'fa-users': {}, 'fa-admins': {}, 'turmas-config': {}, 'turmas-checkin': {}, 'turmas-espera': {},
     'turmas-equipe': {}, 'fa-facilitadores': {}, 'fa-diretores': {}, eventos: {}, 'turmas-publico': {}, 'eventos-publico': {},
     'avaliacoes-produto': AVALIACOES(), 'avaliacoes-squad': {}, 'motor-squad-config': {}, 'motor-squad-auditoria': {},
-    'motor-arquitetura-config': {}, 'motor-arquitetura-auditoria': {}, 'fa-avaliacao-acessos': acessos };
-  const cfg = { db: db, user: { email: EMAIL, emailVerified: true, uid: 'u1' }, delayDefault: 10, persistenciaReal: true,
-    somenteFiltrado: perfil === 'consulta' ? ['avaliacoes-produto'] : [] };
+    'motor-arquitetura-config': {}, 'motor-arquitetura-auditoria': {}, 'fa-avaliacao-autorizados': acessos };
+  const cfg = { db: db, user: { email: EMAIL, emailVerified: true, uid: 'u1' }, delayDefault: 10, persistenciaReal: true };
   const ctx = await browser.newContext({ viewport: viewport || DESKTOP });
   const page = await ctx.newPage();
   const erros = [];
@@ -78,7 +77,7 @@ const larguraOk = (page) => page.evaluate(() => document.documentElement.scrollW
 
   for (const [nomeTela, viewport] of [['desktop', DESKTOP], ['celular 375px', CELULAR]]) {
     console.log('\n######## ' + nomeTela + ' ########');
-    const { ctx, page, erros } = await abrir(browser, 'gestor', viewport);
+    const { ctx, page, erros } = await abrir(browser, 'avaliacao', viewport);
 
     console.log('\n== Status: "Em andamento" / "Concluída" ==');
     const badges = await page.locator('.avp-table .avp-badge--concluido, .avp-table .avp-badge--rascunho').allTextContents();
@@ -93,7 +92,7 @@ const larguraOk = (page) => page.evaluate(() => document.documentElement.scrollW
     const ident = await page.locator('#avpIdentificacao').innerText();
     afirma(/Plano Exemplo/.test(ident) && /v3/.test(ident) && /descrição do Plano Exemplo/.test(ident) && /participantes/.test(ident) && /entender o plano/.test(ident) && /obs gerais/.test(ident) && /Avaliadora 3/i.test(ident), 'Identificação: nome, versão, descrição, público, necessidade, observações e quem avaliou');
     afirma(!/versão anterior/i.test(ident) && await contar(page, '#avpAvisoVersaoAnterior') === 0, 'a vigente não tem aviso de versão anterior');
-    afirma(await contar(page, '#avpReavaliarBtn') === 1 && await contar(page, '#avpSalvarDecisaoBtn') === 1, 'vigente: Reavaliar e decisão editável (gestor)');
+    afirma(await contar(page, '#avpReavaliarBtn') === 1 && await contar(page, '#avpSalvarDecisaoBtn') === 1, 'vigente: Reavaliar e decisão editável (quem tem acesso)');
     const hist = await page.locator('.avp-hist-item').evaluateAll((els) => els.map((e) => e.dataset.key));
     afirma(JSON.stringify(hist) === JSON.stringify(['k3', 'k2', 'k1']), 'histórico de versões: v3, v2, v1 (mais recente primeiro): ' + hist.join(','));
     afirma(/vigente/.test(await page.locator('.avp-hist-item[data-key="k3"]').innerText()) && /você está vendo/i.test(await page.locator('.avp-hist-item[data-key="k3"]').innerText()), 'v3 marcada como vigente e como a aberta');
@@ -120,12 +119,12 @@ const larguraOk = (page) => page.evaluate(() => document.documentElement.scrollW
     await ctx.close();
   }
 
-  console.log('\n== Consulta: vê o histórico, só leitura ==');
+  console.log('\n== Histórico: versões antigas só para leitura ==');
   {
-    const { ctx, page, erros } = await abrir(browser, 'consulta');
+    const { ctx, page, erros } = await abrir(browser, 'avaliacao');
     await page.click('.avp-act-ver[data-key="k3"]');
     await page.waitForSelector('#avpIdentificacao');
-    afirma(await contar(page, '.avp-hist-item') === 3, 'consulta vê as 3 versões no histórico');
+    afirma(await contar(page, '.avp-hist-item') === 3, 'vê as 3 versões no histórico');
     await page.click('.avp-hist-abrir[data-key="k2"]');
     await page.waitForSelector('#avpAvisoVersaoAnterior');
     afirma(await contar(page, '#avpReavaliarBtn') === 0 && await contar(page, '#avpSalvarDecisaoBtn') === 0, 'sem Reavaliar nem edição');

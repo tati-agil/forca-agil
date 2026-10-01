@@ -1491,11 +1491,12 @@
   /* DUAS INSTÂNCIAS do mesmo módulo, cada uma no seu contêiner e com o seu
      estado:
        modo 'operacional' — a área AVALIAÇÃO (#avaliacoesPainel): consultar,
-         avaliar, reavaliar. Quem entra é decidido pelo PERFIL em
-         fa-avaliacao-acessos, não por ser admin;
+         avaliar, reavaliar. Quem entra: admin geral ou quem está
+         em fa-avaliacao-autorizados (qualquer dos dois tipos);
        modo 'admin' — o bloco de parametrização dentro do ADMIN
          (#adminAvaliacaoProduto): configuração de questionários, de motores,
-         das naturezas e dos usuários. Só admin chega aqui.
+         das naturezas e dos usuários autorizados. Admin geral chega aqui
+         inteiro; "Avaliação + Arquitetura" só sem o cartão de usuários.
      Nenhuma configuração aparece na tela operacional e vice-versa. */
   window.faInitAvaliacaoProduto = function (opcoes) {
     var modo = opcoes && opcoes.modo === 'admin' ? 'admin' : 'operacional';
@@ -1505,8 +1506,8 @@
 
     /* O que a pessoa pode fazer aqui. Só decide o que MOSTRAR — quem barra de
        verdade são as regras do banco (database.rules.json, provadas em
-       teste-rules-avaliacoes.js). consulta < avaliador < gestor. */
-    function pode(nivel) { return !!(window.faAuth && window.faAuth.podeAvaliacao && window.faAuth.podeAvaliacao(nivel)); }
+       teste-rules-avaliacoes.js). */
+    function pode() { return !!(window.faAuth && window.faAuth.podeAvaliacao && window.faAuth.podeAvaliacao()); }
     function telaInicial() { return modo === 'admin' ? 'admin-inicio' : 'lista'; }
 
     /* Navegação hierárquica do Admin: toda subtela abre com um "← Voltar para
@@ -1605,7 +1606,7 @@
         wrap.innerHTML = '<p class="loading-msg">Carregando…</p>';
         return;
       }
-      if (modo === 'operacional' && !pode('consulta')) { renderSemAcessoArea(); return; }
+      if (modo === 'operacional' && !pode()) { renderSemAcessoArea(); return; }
       if (state.tela === 'admin-inicio') renderAdminInicio();
       else if (state.tela === 'admin-usuarios') renderAdminUsuarios();
       else if (state.tela === 'lista') renderLista();
@@ -1840,8 +1841,8 @@
       var recortado = filtrosAtivos() || buscaAtiva();
       html += '<span class="avp-total" id="avpContador">' + (recortado ? filtrados.length + ' de ' + baseContagem.length : baseContagem.length) +
         ' avaliaç' + (baseContagem.length === 1 ? 'ão' : 'ões') + (state.lixeira ? ' na lixeira' : '') + '</span>';
-      if (!state.lixeira && pode('avaliador')) html += '<button class="btn btn--primary" id="avpNovoBtn">+ Avaliar novo item</button>';
-      if (!state.lixeira && pode('gestor')) {
+      if (!state.lixeira && pode()) html += '<button class="btn btn--primary" id="avpNovoBtn">+ Avaliar novo item</button>';
+      if (!state.lixeira && pode()) {
         html += '<div class="avp-exportar-wrap">';
         html += '<button class="btn btn--sm" id="avpExportarBtn"' + (state.exportando ? ' disabled' : '') + '>' +
           (state.exportando ? 'Gerando arquivo…' : 'Exportar ▾') + '</button>';
@@ -1868,7 +1869,7 @@
       /* Lixeira: só o gestor exclui/restaura. As configurações (questionários,
          motores, naturezas, adequação à squad) NÃO aparecem mais aqui — ficam
          exclusivamente no Admin. */
-      if (pode('gestor')) {
+      if (pode()) {
         html += '<button class="btn btn--sm avp-lixeira-btn' + (state.lixeira ? ' active' : '') + '" id="avpLixeiraBtn">' +
           (state.lixeira ? '‹ Voltar' : '🗑 Lixeira (' + excluidos.length + ')') + '</button>';
       }
@@ -1882,7 +1883,7 @@
          item / Exportar / Lixeira) e dos filtros — pedido explícito de não
          competir visualmente com nenhum dos dois. Só existe fora da lixeira,
          igual ao resto das ações de lote. */
-      if (!state.lixeira && pode('gestor')) {
+      if (!state.lixeira && pode()) {
         var concluidas = ativos.filter(function (it) { return it.status === 'concluido'; });
         var elegiveisLote = concluidas.filter(elegivelParaReprocessamentoEmLote);
         var elegiveisReconciliacao = concluidas.filter(elegivelParaReconciliacaoEmLote);
@@ -1924,7 +1925,7 @@
         html += filtroSelect('avpFiltroAlterado', state.filtro.alterado, [
           ['todos', 'Automática ou manual'], ['sim', 'Alterada manualmente']
         ], 'Decisão final');
-        if (pode('gestor')) {
+        if (pode()) {
           html += filtroSelect('avpFiltroMotor', state.filtro.motor, [
             ['todos', 'Todas'], ['desatualizado', 'Motor desatualizado'], ['equivalente', 'Versão anterior equivalente'], ['atual', 'Motor atual']
           ], 'Versão do motor');
@@ -1942,9 +1943,7 @@
           html += '<div class="avp-vazio" id="avpVazioBusca"><p>Nenhuma avaliação encontrada para ' + (buscaAtiva() && filtrosAtivos() ? 'essa pesquisa com esses filtros' : (buscaAtiva() ? 'essa pesquisa' : 'esses filtros')) + '.</p>' +
             '<button type="button" class="btn btn--sm" id="avpLimparFiltrosVazio">Limpar filtros</button></div>';
         } else {
-          html += '<div class="avp-vazio" id="avpVazioLista"><p>' + (pode('avaliador')
-            ? 'Ainda não há avaliações. Comece avaliando o primeiro item.'
-            : 'Ainda não há avaliações concluídas para consultar.') + '</p></div>';
+          html += '<div class="avp-vazio" id="avpVazioLista"><p>Ainda não há avaliações. Comece avaliando o primeiro item.</p></div>';
         }
       } else if (state.lixeira) {
         html += '<div class="avp-tabela-wrap avp-tabela-wrap--lixeira"><table class="admin-table avp-table"><thead><tr>' +
@@ -1963,8 +1962,8 @@
         var todosFiltradosSelecionados = filtrados.length > 0 && filtrados.every(function (it) { return !!state.selecionados[it._key]; });
         /* Seleção em lote serve à exportação (gestor); "⋯" só tem ações de
            quem avalia ou gere — consulta só abre. */
-        var podeSelecionar = pode('gestor');
-        var podeMais = pode('avaliador');
+        var podeSelecionar = pode();
+        var podeMais = pode();
         html += '<div class="avp-tabela-wrap"><table class="admin-table avp-table"><thead><tr>' +
           (podeSelecionar ? '<th class="avp-check-col"><input type="checkbox" id="avpSelecionarTodos"' + (todosFiltradosSelecionados ? ' checked' : '') + ' aria-label="Selecionar todas as avaliações filtradas"></th>' : '') +
           '<th class="avp-col-item">Item</th><th class="avp-col-camada">Classificação</th><th class="avp-col-status">Status</th>' +
@@ -2738,7 +2737,7 @@
       /* Só as ações que o PERFIL permite (o banco também recusa o resto):
          avaliador reavalia/edita/duplica e vê o histórico; o gestor também
          bloqueia reprocessamento e exclui. */
-      if (pode('avaliador')) {
+      if (pode()) {
         if (it.status === 'concluido') {
           html += '<button class="btn avp-menu-item" data-acao="reavaliar">Reavaliar</button>';
         } else {
@@ -2749,12 +2748,12 @@
           html += '<button class="btn avp-menu-item" data-acao="historico">🕘 Ver histórico</button>';
         }
       }
-      if (it.status === 'concluido' && pode('gestor')) {
+      if (it.status === 'concluido' && pode()) {
         html += it.bloqueadaParaReprocessamentoAutomatico
           ? '<button class="btn avp-menu-item" data-acao="desbloquear">🔓 Desbloquear reprocessamento automático</button>'
           : '<button class="btn avp-menu-item" data-acao="bloquear">🔒 Bloquear reprocessamento automático</button>';
       }
-      if (pode('gestor')) html += '<button class="btn avp-menu-item avp-menu-item--perigo" data-acao="excluir">🗑 Excluir</button>';
+      if (pode()) html += '<button class="btn avp-menu-item avp-menu-item--perigo" data-acao="excluir">🗑 Excluir</button>';
       html += '</div>';
       html += '<button class="btn" id="avpMenuAcoesFechar">Cancelar</button>';
       box.innerHTML = html;
@@ -2996,64 +2995,65 @@
       html += grupo('Governança arquitetural', 'Opções de descrição dos itens e a análise de adequação à gestão por squad.',
         cartao('avpConfigNaturezasBtn', 'Naturezas complementares', 'Opções do campo opcional de descrição do item.') +
         (window.faAvaliacaoSquad ? cartao('avpAdequacaoSquadListaBtn', 'Adequação à Squad', 'Avaliação de adequação à gestão por squad e o seu motor.') : ''));
-      html += grupo('Acesso', 'Quem entra na área de avaliações e com qual perfil.',
-        cartao('avpUsuariosBtn', 'Usuários autorizados', 'Quem pode consultar, avaliar ou gerir as avaliações — e quem é administrador.'));
+      if (souAdminGeral()) {
+        html += grupo('Acesso', 'Quem entra na aba Avaliação e, se for o caso, na Arquitetura.',
+          cartao('avpUsuariosBtn', 'Usuários autorizados', 'Quem usa a Avaliação (e quem também acessa a Arquitetura), com histórico.'));
+      }
       wrap.innerHTML = html;
       document.getElementById('avpConfigQuestionariosBtn').addEventListener('click', abrirConfigQuestionarios);
       document.getElementById('avpConfigMotoresBtn').addEventListener('click', abrirConfigMotores);
       document.getElementById('avpConfigNaturezasBtn').addEventListener('click', abrirConfigNaturezas);
       var squadBtn = document.getElementById('avpAdequacaoSquadListaBtn');
       if (squadBtn) squadBtn.addEventListener('click', function () { window.faAvaliacaoSquad.abrirLista(); });
-      document.getElementById('avpUsuariosBtn').addEventListener('click', abrirAdminUsuarios);
+      var usuariosBtn = document.getElementById('avpUsuariosBtn');
+      if (usuariosBtn) usuariosBtn.addEventListener('click', abrirAdminUsuarios);
     }
 
-    /* ===================== ADMIN: USUÁRIOS E PERMISSÕES =====================
-       Perfil na Avaliação de Produto/Serviço (fa-avaliacao-acessos) e acesso
-       administrativo são permissões INDEPENDENTES: ser admin não torna ninguém
-       avaliador e ser avaliador não torna ninguém admin. Transição: um admin
-       que ainda não tem registro aparece como "Gestor da Avaliação (padrão)" —
-       é o acesso que já tinha; escolher um perfil aqui grava o registro
-       explícito (que passa a valer no lugar do padrão).
-       Quem abre esta tela é admin e as regras do banco deixam qualquer admin
-       gravar perfis. Já o acesso administrativo (fa-admins) só os dois
-       super-admins gravam — para os demais esta coluna é só consulta. */
-    var PERFIS_AVALIACAO = [
-      { id: 'nenhum', rotulo: 'Sem acesso' },
-      { id: 'consulta', rotulo: 'Consulta' },
-      { id: 'avaliador', rotulo: 'Avaliador' },
-      { id: 'gestor', rotulo: 'Gestor da Avaliação' }
+    /* ===================== ADMIN: USUÁRIOS AUTORIZADOS =====================
+       Lista própria (fa-avaliacao-autorizados) de quem usa a aba AVALIAÇÃO e,
+       opcionalmente, o ADMIN > ARQUITETURA. Só os autorizados aparecem aqui —
+       nunca todos os usuários do site. Quem entra na lista vem de fa-users
+       (as pessoas que já existem; nenhuma base paralela de pessoas).
+       Dois tipos, sem relação com o perfil antigo (Consulta/Avaliador/Gestor):
+         avaliacao             — aba AVALIAÇÃO;
+         avaliacao-arquitetura — aba AVALIAÇÃO + somente ADMIN > ARQUITETURA.
+       Remover só retira a autorização; não apaga a pessoa nem outros acessos.
+       Toda mudança grava o registro e uma linha de histórico NA MESMA
+       gravação (update multi-caminho, atômico) e só é dada como feita depois
+       da resposta do banco. Só admin geral grava (regras do banco). */
+    var TIPOS_AUTORIZADO = [
+      { id: 'avaliacao', rotulo: 'Avaliação', desc: 'Usa a aba AVALIAÇÃO. Não entra em ADMIN > ARQUITETURA.' },
+      { id: 'avaliacao-arquitetura', rotulo: 'Avaliação + Arquitetura', desc: 'Usa a aba AVALIAÇÃO e acessa somente ADMIN > ARQUITETURA — não é administrador geral.' }
     ];
+    function rotuloTipo(id) { var t = TIPOS_AUTORIZADO.filter(function (x) { return x.id === id; })[0]; return t ? t.rotulo : '—'; }
     function semAcento(t) { return String(t || '').normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase(); }
+    function chaveEmailAut(e) { return String(e || '').toLowerCase().replace(/[@.]/g, '_').replace(/[^a-z0-9_]/g, '').slice(0, 64); }
+    function souAdminGeral() {
+      var sess = window.faAuth && window.faAuth.getSession();
+      return !!(sess && window.faAuth.isAdmin && window.faAuth.isAdmin(sess.email));
+    }
     function abrirAdminUsuarios() {
-      state.usuarios = { carregando: true, erro: null, lento: false, lista: [], busca: '', salvando: {}, avisos: {}, flash: null };
+      state.usuarios = { carregando: true, erro: null, lento: false, usuarios: [], autorizados: {}, historico: [], busca: '', buscaAdd: '', adicionando: false, tiposAdd: {}, salvando: {}, avisos: {}, flash: null };
       state.tela = 'admin-usuarios';
       render();
       carregarUsuarios();
     }
     function carregarUsuarios() {
       var u = state.usuarios;
-      var dados = { users: null, acessos: null, admins: null };
+      var dados = { users: null, aut: null, hist: null };
       var falhou = false;
       var relogio = setTimeout(function () { if (u.carregando) { u.lento = true; if (state.tela === 'admin-usuarios') render(); } }, 10000);
       function fim() {
-        if (falhou || dados.users === null || dados.acessos === null || dados.admins === null) return;
+        if (falhou || dados.users === null || dados.aut === null || dados.hist === null) return;
         clearTimeout(relogio);
-        var porChave = {};
-        function entrada(key, email, nome) {
-          if (!porChave[key]) porChave[key] = { key: key, email: email || '', nome: nome || '', registro: null, admin: false, superAdmin: false };
-          if (email && !porChave[key].email) porChave[key].email = email;
-          if (nome && !porChave[key].nome) porChave[key].nome = nome;
-          return porChave[key];
-        }
-        Object.keys(dados.users).forEach(function (k) { var v = dados.users[k] || {}; entrada(k, v.email, v.name); });
-        Object.keys(dados.acessos).forEach(function (k) { var v = dados.acessos[k] || {}; entrada(k, v.email, v.nome).registro = v.perfil || null; });
-        Object.keys(dados.admins).forEach(function (k) { var v = dados.admins[k] || {}; entrada(k, v.email, v.name).admin = true; });
-        ['tatianefdirene@previ.com.br', 'danielfrazao@previ.com.br'].forEach(function (em) {
-          var e = entrada(em.replace(/[@.]/g, '_'), em, ''); e.admin = true; e.superAdmin = true;
-        });
-        u.lista = Object.keys(porChave).map(function (k) { return porChave[k]; })
-          .filter(function (x) { return x.email; })
+        u.usuarios = Object.keys(dados.users).map(function (k) {
+          var v = dados.users[k] || {};
+          return { email: v.email || '', nome: v.name || '' };
+        }).filter(function (x) { return x.email; })
           .sort(function (a, b) { return (a.nome || a.email).localeCompare(b.nome || b.email, 'pt'); });
+        u.autorizados = dados.aut;
+        u.historico = Object.keys(dados.hist).map(function (k) { return Object.assign({ _key: k }, dados.hist[k]); })
+          .sort(function (a, b) { return String(b.em || '').localeCompare(String(a.em || '')); });
         u.carregando = false;
         if (state.tela === 'admin-usuarios') render();
       }
@@ -3061,141 +3061,232 @@
         if (falhou) return;
         falhou = true;
         clearTimeout(relogio);
-        console.error('[avaliacao-produto] erro ao carregar usuários e permissões:', err);
+        console.error('[avaliacao-produto] erro ao carregar usuários autorizados:', err);
         u.carregando = false;
-        u.erro = 'Não foi possível carregar os usuários. Recarregue a página.';
+        u.erro = 'Não foi possível carregar os usuários autorizados. Recarregue a página.';
         if (state.tela === 'admin-usuarios') render();
       }
       db().ref('fa-users').once('value', function (snap) { dados.users = snap.val() || {}; fim(); }, falha);
-      db().ref('fa-avaliacao-acessos').once('value', function (snap) { dados.acessos = snap.val() || {}; fim(); }, falha);
-      db().ref('fa-admins').once('value', function (snap) { dados.admins = snap.val() || {}; fim(); }, falha);
+      db().ref('fa-avaliacao-autorizados').once('value', function (snap) { dados.aut = snap.val() || {}; fim(); }, falha);
+      db().ref('fa-avaliacao-autorizados-auditoria').limitToLast(100).once('value', function (snap) { dados.hist = snap.val() || {}; fim(); }, falha);
     }
-    function perfilExibido(x) { return x.registro || (x.admin ? 'gestor' : 'nenhum'); }
-    function linhasUsuarios() {
+    function listaAutorizados() {
+      var u = state.usuarios;
+      return Object.keys(u.autorizados).map(function (k) { return Object.assign({ key: k }, u.autorizados[k]); })
+        .sort(function (a, b) { return (a.nome || a.email || '').localeCompare(b.nome || b.email || '', 'pt'); });
+    }
+    function seletorTipo(valor, extra) {
+      return '<select class="avp-select ' + extra.classe + '" ' + extra.attrs + '>' + TIPOS_AUTORIZADO.map(function (t) {
+        return '<option value="' + t.id + '"' + (t.id === valor ? ' selected' : '') + '>' + esc(t.rotulo) + '</option>';
+      }).join('') + '</select>';
+    }
+    function linhasAutorizados() {
       var u = state.usuarios;
       var q = semAcento(u.busca).trim();
-      var souSuper = !!(window.faAuth && window.faAuth.isSuperAdmin && window.faAuth.isSuperAdmin((window.faAuth.getSession() || {}).email));
-      var lista = u.lista.filter(function (x) { return !q || semAcento(x.nome).indexOf(q) !== -1 || semAcento(x.email).indexOf(q) !== -1; });
-      if (!lista.length) return '<tr><td colspan="3" class="admin-empty">Nenhum usuário encontrado.</td></tr>';
+      var total = listaAutorizados();
+      var lista = total.filter(function (x) { return !q || semAcento(x.nome).indexOf(q) !== -1 || semAcento(x.email).indexOf(q) !== -1; });
+      if (!total.length) return '<p class="admin-empty" id="avpAutVazio">Ninguém está autorizado ainda. Use <strong>+ ADICIONAR USUÁRIO</strong> para liberar o primeiro acesso.</p>';
+      if (!lista.length) return '<p class="admin-empty">Nenhum usuário autorizado encontrado para essa busca.</p>';
       return lista.map(function (x) {
-        var atual = perfilExibido(x);
         var ocupado = !!u.salvando[x.key];
-        var opcoes = PERFIS_AVALIACAO.map(function (p) {
-          return '<option value="' + p.id + '"' + (p.id === atual ? ' selected' : '') + '>' + esc(p.rotulo) + '</option>';
-        }).join('');
-        var h = '<tr data-key="' + esc(x.key) + '">';
-        h += '<td data-label="Usuário"><strong>' + esc(x.nome || x.email) + '</strong><br><span class="avp-usuario-email">' + esc(x.email) + '</span></td>';
-        h += '<td data-label="Perfil de avaliação"><select class="avp-select avp-usuario-perfil" data-key="' + esc(x.key) + '"' + (ocupado ? ' disabled' : '') + ' aria-label="Perfil de avaliação de ' + esc(x.nome || x.email) + '">' + opcoes + '</select>';
-        if (!x.registro && x.admin) h += '<br><span class="avp-usuario-aviso">padrão do administrador (ainda sem perfil definido)</span>';
-        if (x.registro === 'nenhum' && x.admin) h += '<br><span class="avp-usuario-aviso">administrador: vê a área Avaliação no mínimo como Consulta (não vira avaliador)</span>';
-        if (u.avisos[x.key]) h += '<br><span class="avp-usuario-aviso' + (u.avisos[x.key].erro ? ' avp-usuario-aviso--erro' : '') + '">' + esc(u.avisos[x.key].texto) + '</span>';
-        h += '</td>';
-        h += '<td data-label="Administrador">' + (x.admin ? 'Sim' : 'Não');
-        if (x.superAdmin) h += ' <span class="avp-usuario-aviso">(fixo)</span>';
-        else if (souSuper) h += ' <button type="button" class="btn btn--sm avp-usuario-admin" data-key="' + esc(x.key) + '"' + (ocupado ? ' disabled' : '') + '>' + (x.admin ? 'Remover' : 'Tornar administrador') + '</button>';
-        h += '</td></tr>';
-        return h;
+        var aviso = u.avisos[x.key];
+        var h = '<div class="avp-aut-item" data-key="' + esc(x.key) + '">';
+        h += '<div class="avp-aut-quem"><strong>' + esc(x.nome || x.email) + '</strong><span class="avp-usuario-email">' + esc(x.email) + '</span>';
+        h += '<span class="avp-usuario-aviso">Concedido por ' + esc(x.concedidoPorNome || x.concedidoPor || '—') + ' em ' + esc(fmtData(x.concedidoEm)) + '</span>';
+        if (x.alteradoEm) h += '<span class="avp-usuario-aviso">Alterado por ' + esc(x.alteradoPorNome || x.alteradoPor || '—') + ' em ' + esc(fmtData(x.alteradoEm)) + '</span>';
+        h += '</div>';
+        h += '<div class="avp-aut-tipo"><label class="avp-aut-rotulo" for="avpAutTipo-' + esc(x.key) + '">Tipo de acesso</label>' +
+          seletorTipo(x.tipo, { classe: 'avp-aut-tipo-sel', attrs: 'id="avpAutTipo-' + esc(x.key) + '" data-key="' + esc(x.key) + '"' + (ocupado ? ' disabled' : '') + ' aria-label="Tipo de acesso de ' + esc(x.nome || x.email) + '"' });
+        if (aviso) h += '<span class="avp-usuario-aviso' + (aviso.erro ? ' avp-usuario-aviso--erro' : '') + '">' + esc(aviso.texto) + '</span>';
+        h += '</div>';
+        h += '<div class="avp-aut-acoes"><button type="button" class="btn btn--sm avp-aut-remover" data-key="' + esc(x.key) + '"' + (ocupado ? ' disabled' : '') + '>Remover acesso</button></div>';
+        return h + '</div>';
+      }).join('');
+    }
+    function resultadosAdicionar() {
+      var u = state.usuarios;
+      var q = semAcento(u.buscaAdd).trim();
+      if (q.length < 2) return '<p class="avp-natureza-ajuda">Digite pelo menos 2 letras do nome ou do e-mail.</p>';
+      var achados = u.usuarios.filter(function (x) {
+        return !u.autorizados[chaveEmailAut(x.email)] && (semAcento(x.nome).indexOf(q) !== -1 || semAcento(x.email).indexOf(q) !== -1);
+      });
+      if (!achados.length) return '<p class="admin-empty">Nenhum usuário encontrado (quem já está autorizado não aparece aqui).</p>';
+      return achados.slice(0, 20).map(function (x) {
+        var key = chaveEmailAut(x.email);
+        var ocupado = !!u.salvando[key];
+        var aviso = u.avisos[key];
+        var h = '<div class="avp-aut-item avp-aut-item--add" data-key="' + esc(key) + '">';
+        h += '<div class="avp-aut-quem"><strong>' + esc(x.nome || x.email) + '</strong><span class="avp-usuario-email">' + esc(x.email) + '</span></div>';
+        h += '<div class="avp-aut-tipo"><label class="avp-aut-rotulo" for="avpAutNovoTipo-' + esc(key) + '">Tipo de acesso</label>' +
+          seletorTipo(u.tiposAdd[key] || 'avaliacao', { classe: 'avp-aut-novo-tipo', attrs: 'id="avpAutNovoTipo-' + esc(key) + '" data-key="' + esc(key) + '"' + (ocupado ? ' disabled' : '') });
+        if (aviso) h += '<span class="avp-usuario-aviso' + (aviso.erro ? ' avp-usuario-aviso--erro' : '') + '">' + esc(aviso.texto) + '</span>';
+        h += '</div>';
+        h += '<div class="avp-aut-acoes"><button type="button" class="btn btn--sm btn--primary avp-aut-autorizar" data-key="' + esc(key) + '" data-email="' + esc(x.email) + '"' + (ocupado ? ' disabled' : '') + '>Autorizar</button></div>';
+        return h + '</div>';
+      }).join('');
+    }
+    function linhasHistorico() {
+      var u = state.usuarios;
+      if (!u.historico.length) return '<p class="admin-empty">Nenhuma alteração registrada ainda.</p>';
+      var ROTULO_ACAO = { concedido: 'Concedido', alterado: 'Alterado', removido: 'Removido' };
+      return u.historico.map(function (h) {
+        var tipo = h.acao === 'alterado' ? rotuloTipo(h.tipoAnterior) + ' → ' + rotuloTipo(h.tipoNovo)
+          : h.acao === 'removido' ? rotuloTipo(h.tipoAnterior) : rotuloTipo(h.tipoNovo);
+        return '<div class="avp-aut-hist"><strong>' + esc(ROTULO_ACAO[h.acao] || h.acao) + '</strong> · ' + esc(h.nome || h.email) +
+          ' <span class="avp-usuario-email">' + esc(h.email) + '</span><br><span class="avp-usuario-aviso">' + esc(tipo) +
+          ' · por ' + esc(h.porNome || h.por || '—') + ' em ' + esc(fmtData(h.em)) + '</span></div>';
       }).join('');
     }
     function renderAdminUsuarios() {
       var u = state.usuarios;
-      var souSuper = !!(window.faAuth && window.faAuth.isSuperAdmin && window.faAuth.isSuperAdmin((window.faAuth.getSession() || {}).email));
       var html = linkVoltar('avpUsuariosVoltar', ROTULO_ADMIN);
       html += '<div class="avp-form-card"><h3>Usuários autorizados</h3>';
-      html += '<p class="avp-decisao-aviso">Defina quem pode usar a Avaliação de Produto/Serviço. <strong>Consulta</strong> só consulta avaliações concluídas; ' +
-        '<strong>Avaliador</strong> também cria, continua e reavalia; <strong>Gestor da Avaliação</strong> também decide, exclui, reprocessa e exporta. ' +
-        'Ser administrador e ter um perfil de avaliação são permissões independentes.</p>';
-      if (u.carregando) {
-        html += '<p class="loading-msg">' + (u.lento ? 'A conexão está demorando… aguardando os usuários.' : 'Carregando usuários…') + '</p>';
-      } else if (u.erro) {
-        html += '<p class="avp-error-msg">' + esc(u.erro) + '</p>';
-      } else {
-        if (u.flash) html += '<p class="avp-flash-success avp-flash-success--inline" id="avpUsuariosFlash">' + esc(u.flash) + '</p>';
-        html += '<div class="avp-field"><label for="avpUsuariosBusca">Pesquisar usuário</label>' +
-          '<input type="search" id="avpUsuariosBusca" placeholder="Nome ou e-mail" value="' + esc(u.busca) + '" autocomplete="off"></div>';
-        html += '<div class="table-scroll-wrap"><table class="admin-table avp-table avp-usuarios-tabela"><thead><tr>' +
-          '<th>Usuário</th><th>Perfil de avaliação</th><th>Administrador</th></tr></thead><tbody id="avpUsuariosCorpo">' + linhasUsuarios() + '</tbody></table></div>';
-        if (!souSuper) html += '<p class="avp-natureza-ajuda">Só os super-admins adicionam ou removem administradores; o perfil de avaliação qualquer administrador altera.</p>';
+      if (!souAdminGeral()) {
+        html += '<p class="admin-empty">Só administradores gerais gerenciam os usuários autorizados.</p></div>';
+        wrap.innerHTML = html;
+        document.getElementById('avpUsuariosVoltar').addEventListener('click', function () { state.tela = 'admin-inicio'; state.usuarios = null; render(); });
+        return;
       }
+      html += '<p class="avp-decisao-aviso">Quem não está nesta lista não tem acesso à Avaliação nem à Arquitetura. Administradores gerais continuam com acesso total por serem administradores. ' +
+        'Os perfis antigos (Consulta, Avaliador e Gestor) não valem mais para nada.</p>';
+      html += '<div class="table-scroll-wrap"><table class="admin-table avp-table avp-aut-matriz"><thead><tr><th>O que a pessoa acessa</th>' +
+        TIPOS_AUTORIZADO.map(function (t) { return '<th>' + esc(t.rotulo) + '</th>'; }).join('') + '</tr></thead><tbody>' +
+        '<tr><td data-label="Acesso">Aba AVALIAÇÃO (avaliar, reavaliar, exportar)</td><td>Sim</td><td>Sim</td></tr>' +
+        '<tr><td data-label="Acesso">ADMIN › Arquitetura (questionários, motores, naturezas, Squad)</td><td>Não</td><td>Sim</td></tr>' +
+        '<tr><td data-label="Acesso">Demais áreas do ADMIN</td><td>Não</td><td>Não</td></tr>' +
+        '<tr><td data-label="Acesso">Gerenciar esta lista</td><td>Não</td><td>Não</td></tr></tbody></table></div>';
+      if (u.carregando) {
+        html += '<p class="loading-msg">' + (u.lento ? 'A conexão está demorando… aguardando os usuários.' : 'Carregando usuários…') + '</p></div>';
+        wrap.innerHTML = html;
+        document.getElementById('avpUsuariosVoltar').addEventListener('click', function () { state.tela = 'admin-inicio'; state.usuarios = null; render(); });
+        return;
+      }
+      if (u.erro) {
+        html += '<p class="avp-error-msg">' + esc(u.erro) + '</p></div>';
+        wrap.innerHTML = html;
+        document.getElementById('avpUsuariosVoltar').addEventListener('click', function () { state.tela = 'admin-inicio'; state.usuarios = null; render(); });
+        return;
+      }
+      if (u.flash) html += '<p class="avp-flash-success avp-flash-success--inline" id="avpUsuariosFlash">' + esc(u.flash) + '</p>';
+      html += '<div class="avp-aut-barra"><button type="button" class="btn btn--primary" id="avpAutAdicionarBtn" aria-expanded="' + (u.adicionando ? 'true' : 'false') + '">+ ADICIONAR USUÁRIO</button></div>';
+      if (u.adicionando) {
+        html += '<div class="avp-aut-adicionar" id="avpAutAdicionar"><div class="avp-field"><label for="avpAutBuscaAdd">Procurar usuário cadastrado</label>' +
+          '<input type="search" id="avpAutBuscaAdd" placeholder="Nome ou e-mail" value="' + esc(u.buscaAdd) + '" autocomplete="off"></div>' +
+          '<div id="avpAutResultados">' + resultadosAdicionar() + '</div></div>';
+      }
+      html += '<h4 class="avp-aut-subtitulo">Autorizados (' + listaAutorizados().length + ')</h4>';
+      html += '<div class="avp-field"><label for="avpUsuariosBusca">Pesquisar entre os autorizados</label>' +
+        '<input type="search" id="avpUsuariosBusca" placeholder="Nome ou e-mail" value="' + esc(u.busca) + '" autocomplete="off"></div>';
+      html += '<div id="avpAutLista" class="avp-aut-lista">' + linhasAutorizados() + '</div>';
+      html += '<details class="avp-aut-historico"><summary>Histórico de concessões, alterações e remoções (' + u.historico.length + ')</summary><div id="avpAutHistorico">' + linhasHistorico() + '</div></details>';
       html += '</div>';
       wrap.innerHTML = html;
       document.getElementById('avpUsuariosVoltar').addEventListener('click', function () { state.tela = 'admin-inicio'; state.usuarios = null; render(); });
+      document.getElementById('avpAutAdicionarBtn').addEventListener('click', function () { u.adicionando = !u.adicionando; u.buscaAdd = ''; renderAdminUsuarios(); });
+      var buscaAdd = document.getElementById('avpAutBuscaAdd');
+      if (buscaAdd) {
+        buscaAdd.focus();
+        buscaAdd.addEventListener('input', function () { u.buscaAdd = buscaAdd.value; document.getElementById('avpAutResultados').innerHTML = resultadosAdicionar(); ligarLinhasUsuarios(); });
+      }
       var busca = document.getElementById('avpUsuariosBusca');
-      if (busca) busca.addEventListener('input', function () {
-        u.busca = busca.value;
-        document.getElementById('avpUsuariosCorpo').innerHTML = linhasUsuarios();
-        ligarLinhasUsuarios();
-      });
+      busca.addEventListener('input', function () { u.busca = busca.value; document.getElementById('avpAutLista').innerHTML = linhasAutorizados(); ligarLinhasUsuarios(); });
+      ligarLinhasUsuarios();
+    }
+    function atualizarListasUsuarios() {
+      var l = document.getElementById('avpAutLista'); if (l) l.innerHTML = linhasAutorizados();
+      var r = document.getElementById('avpAutResultados'); if (r) r.innerHTML = resultadosAdicionar();
       ligarLinhasUsuarios();
     }
     function ligarLinhasUsuarios() {
-      wrap.querySelectorAll('.avp-usuario-perfil').forEach(function (sel) {
-        sel.addEventListener('change', function () { salvarPerfilUsuario(sel.dataset.key, sel.value); });
+      var u = state.usuarios;
+      wrap.querySelectorAll('.avp-aut-tipo-sel').forEach(function (sel) {
+        sel.addEventListener('change', function () { alterarTipoAutorizado(sel.dataset.key, sel.value); });
       });
-      wrap.querySelectorAll('.avp-usuario-admin').forEach(function (btn) {
-        btn.addEventListener('click', function () { alternarAdminUsuario(btn.dataset.key); });
+      wrap.querySelectorAll('.avp-aut-novo-tipo').forEach(function (sel) {
+        sel.addEventListener('change', function () { u.tiposAdd[sel.dataset.key] = sel.value; });
+      });
+      wrap.querySelectorAll('.avp-aut-autorizar').forEach(function (btn) {
+        btn.addEventListener('click', function () { autorizarUsuario(btn.dataset.key, btn.dataset.email); });
+      });
+      wrap.querySelectorAll('.avp-aut-remover').forEach(function (btn) {
+        btn.addEventListener('click', function () { removerAutorizado(btn.dataset.key); });
       });
     }
-    function usuarioPorChave(key) { return (state.usuarios && state.usuarios.lista || []).filter(function (x) { return x.key === key; })[0]; }
-    /* Grava o registro explícito do perfil (o que vale no lugar do padrão do
-       administrador). Confirma só depois da resposta do banco — e volta o
-       seletor ao valor de antes se falhar, em vez de parecer salvo. */
-    function salvarPerfilUsuario(key, perfil) {
+    /* Grava registro + histórico numa única gravação. Só confirma depois da
+       resposta do banco; sem resposta em 12 s, ou com erro, nada é dado como
+       feito (e o seletor volta ao valor de antes). */
+    function gravarAcesso(key, registro, linhaHistorico, aoSalvar) {
       var u = state.usuarios;
-      var x = usuarioPorChave(key);
-      if (!x || u.salvando[key]) return;
-      var registro = { email: x.email, nome: x.nome || x.email, perfil: perfil, atribuidoPor: sessaoAtual(), atribuidoEm: new Date().toISOString() };
+      if (u.salvando[key]) return;
       u.salvando[key] = true;
       u.avisos[key] = { texto: 'Salvando…' };
-      document.getElementById('avpUsuariosCorpo').innerHTML = linhasUsuarios(); ligarLinhasUsuarios();
+      atualizarListasUsuarios();
       var respondido = false;
+      var relogio = setTimeout(function () { concluir(new Error('sem confirmação do servidor')); }, 12000);
       function concluir(err) {
         if (respondido) return;
         respondido = true;
         clearTimeout(relogio);
         delete u.salvando[key];
         if (err) {
-          console.error('[avaliacao-produto] erro ao salvar perfil de avaliação:', err);
+          console.error('[avaliacao-produto] erro ao gravar acesso à Avaliação:', err);
           u.avisos[key] = { erro: true, texto: 'Não foi possível salvar. Tente novamente.' };
         } else {
-          x.registro = perfil;
-          u.avisos[key] = { texto: '✓ Salvo' };
+          delete u.avisos[key];
+          aoSalvar();
+          u.historico.unshift(Object.assign({ _key: 'novo-' + Date.now() }, linhaHistorico));
+          var h = document.getElementById('avpAutHistorico'); if (h) h.innerHTML = linhasHistorico();
         }
-        if (state.tela === 'admin-usuarios') { document.getElementById('avpUsuariosCorpo').innerHTML = linhasUsuarios(); ligarLinhasUsuarios(); }
+        if (state.tela === 'admin-usuarios') {
+          if (!err) renderAdminUsuarios(); else atualizarListasUsuarios();
+        }
       }
-      var relogio = setTimeout(function () { concluir(new Error('sem confirmação do servidor')); }, 12000);
-      try { db().ref('fa-avaliacao-acessos/' + key).set(registro, concluir); } catch (e) { concluir(e); }
+      try {
+        var updates = {};
+        updates['fa-avaliacao-autorizados/' + key] = registro;
+        updates['fa-avaliacao-autorizados-auditoria/' + db().ref('fa-avaliacao-autorizados-auditoria').push().key] = linhaHistorico;
+        db().ref().update(updates, concluir);
+      } catch (e) { concluir(e); }
     }
-    function alternarAdminUsuario(key) {
+    function autorizarUsuario(key, email) {
       var u = state.usuarios;
-      var x = usuarioPorChave(key);
-      if (!x || x.superAdmin || u.salvando[key]) return;
-      var tornar = !x.admin;
-      avpConfirm((tornar ? 'Tornar ' : 'Remover ') + (x.nome || x.email) + (tornar ? ' administrador(a)?' : ' dos administradores?'), function () {
-        u.salvando[key] = true;
-        u.avisos[key] = { texto: 'Salvando…' };
-        document.getElementById('avpUsuariosCorpo').innerHTML = linhasUsuarios(); ligarLinhasUsuarios();
-        var respondido = false;
-        function concluir(err) {
-          if (respondido) return;
-          respondido = true;
-          clearTimeout(relogio);
-          delete u.salvando[key];
-          if (err) {
-            console.error('[avaliacao-produto] erro ao alterar acesso administrativo:', err);
-            u.avisos[key] = { erro: true, texto: 'Não foi possível salvar. Tente novamente.' };
-          } else {
-            x.admin = tornar;
-            u.avisos[key] = { texto: '✓ Salvo' };
-          }
-          if (state.tela === 'admin-usuarios') { document.getElementById('avpUsuariosCorpo').innerHTML = linhasUsuarios(); ligarLinhasUsuarios(); }
-        }
-        var relogio = setTimeout(function () { concluir(new Error('sem confirmação do servidor')); }, 12000);
-        try {
-          var ref = db().ref('fa-admins/' + key);
-          if (tornar) ref.set({ email: x.email, name: (x.nome || x.email).toUpperCase(), addedAt: new Date().toISOString() }, concluir);
-          else ref.remove(concluir);
-        } catch (e) { concluir(e); }
+      var x = u.usuarios.filter(function (p) { return p.email === email; })[0];
+      if (!x || u.autorizados[key]) return;
+      var tipo = u.tiposAdd[key] || 'avaliacao';
+      var eu = sessaoAtual() || {};
+      var agora = new Date().toISOString();
+      var nome = x.nome || x.email;
+      var registro = { email: x.email, nome: nome, tipo: tipo, concedidoPor: eu.email || '', concedidoPorNome: eu.name || '', concedidoEm: agora };
+      var linha = { acao: 'concedido', email: x.email, nome: nome, tipoNovo: tipo, por: eu.email || '', porNome: eu.name || '', em: agora };
+      gravarAcesso(key, registro, linha, function () {
+        u.autorizados[key] = registro;
+        u.flash = '✓ ' + nome + ' agora tem acesso: ' + rotuloTipo(tipo) + '.';
+      });
+    }
+    function alterarTipoAutorizado(key, tipo) {
+      var u = state.usuarios;
+      var atual = u.autorizados[key];
+      if (!atual || atual.tipo === tipo) return;
+      var eu = sessaoAtual() || {};
+      var agora = new Date().toISOString();
+      var registro = Object.assign({}, atual, { tipo: tipo, alteradoPor: eu.email || '', alteradoPorNome: eu.name || '', alteradoEm: agora });
+      var linha = { acao: 'alterado', email: atual.email, nome: atual.nome || atual.email, tipoAnterior: atual.tipo, tipoNovo: tipo, por: eu.email || '', porNome: eu.name || '', em: agora };
+      gravarAcesso(key, registro, linha, function () {
+        u.autorizados[key] = registro;
+        u.flash = '✓ Tipo de acesso de ' + (atual.nome || atual.email) + ' alterado para ' + rotuloTipo(tipo) + '.';
+      });
+    }
+    function removerAutorizado(key) {
+      var u = state.usuarios;
+      var atual = u.autorizados[key];
+      if (!atual || u.salvando[key]) return;
+      avpConfirm('Remover o acesso de ' + (atual.nome || atual.email) + '?\n\nIsso só retira a autorização desta lista: a pessoa continua cadastrada no site e com os outros acessos que já tinha.', function () {
+        var eu = sessaoAtual() || {};
+        var linha = { acao: 'removido', email: atual.email, nome: atual.nome || atual.email, tipoAnterior: atual.tipo, por: eu.email || '', porNome: eu.name || '', em: new Date().toISOString() };
+        gravarAcesso(key, null, linha, function () {
+          delete u.autorizados[key];
+          u.flash = '✓ Acesso de ' + (atual.nome || atual.email) + ' removido.';
+        });
       });
     }
 
@@ -4348,7 +4439,7 @@
          forma de entrega, outra autonomia…). Nunca edita esta avaliação: abre
          uma NOVA versão do mesmo item (v+1, com quem avaliou e quando) e esta
          fica preservada, consultável no histórico. */
-      if (pode('avaliador') && vigente) {
+      if (pode() && vigente) {
         html += '<div class="avp-form-card avp-reavaliar-card">';
         html += '<div class="avp-reavaliar-texto"><strong>A situação deste item mudou?</strong>' +
           '<span>Reavaliar abre uma nova avaliação do mesmo item (versão v' + ((a.versao || 1) + 1) + '). Esta avaliação continua guardada, sem alteração, no histórico — a mais recente passa a valer como a situação atual.</span></div>';
@@ -4363,13 +4454,13 @@
          concluída (rascunho não tem recomendação automática nenhuma ainda). */
       /* Reprocessar/reconciliar é governança da avaliação: só o gestor (o banco
          também recusa a gravação de quem é só avaliador). */
-      if (pode('gestor') && vigente && precisaReprocessar(a)) {
+      if (pode() && vigente && precisaReprocessar(a)) {
         html += '<div class="avp-form-card avp-motor-aviso">';
         html += '<p class="avp-motor-aviso-texto">⚠ Esta avaliação foi processada por uma versão anterior do motor de classificação.</p>';
         html += '<button type="button" class="btn btn--sm" id="avpReprocessarBtn"' + (state.reprocessando ? ' disabled' : '') + '>' +
           (state.reprocessando ? 'Reprocessando…' : 'REPROCESSAR COM MOTOR ATUAL') + '</button>';
         html += '</div>';
-      } else if (pode('gestor') && vigente && podeReconciliar(a)) {
+      } else if (pode() && vigente && podeReconciliar(a)) {
         /* Situação B: nunca oferece "reprocessar" — não há mudança lógica
            a recalcular (ver RECONCILIAR COM VERSÃO EQUIVALENTE). */
         var eqAtual = equivalenciaDoItem(a);
@@ -4409,7 +4500,7 @@
       }
       html += '</div>';
 
-      if (CAMADAS_COM_ESPECIALIZACAO.indexOf(camada.id) !== -1 && pode('gestor') && vigente) {
+      if (CAMADAS_COM_ESPECIALIZACAO.indexOf(camada.id) !== -1 && pode() && vigente) {
         html += renderEspecializacaoCadastradaCard(camada.id);
       }
 
@@ -4440,17 +4531,17 @@
       EXCLUSOES.forEach(function (e) { html += renderRaciocinio(e, a.respostas[e.id], a); });
       html += '</div></div>';
 
-      if (pode('avaliador')) html += renderHistoricoMotorCard(a);
-      /* Decisão arquitetural e natureza complementar: o gestor edita; quem só
-         avalia ou consulta vê o registro, sem formulário. */
-      html += (pode('gestor') && vigente) ? renderDecisaoCard(a) : renderDecisaoSomenteLeitura(a);
+      if (pode()) html += renderHistoricoMotorCard(a);
+      /* Decisão arquitetural e natureza complementar: quem tem acesso edita
+         (avaliação vigente); versões antigas ficam só para leitura. */
+      html += (pode() && vigente) ? renderDecisaoCard(a) : renderDecisaoSomenteLeitura(a);
 
       /* Ações organizadas num único grupo, sempre visível ao final da
          página: voltar para a lista, gerar PDF e reavaliar — em vez de um
          botão solto no topo sem relação clara com os demais. */
       html += '<div class="avp-actions-footer avp-result-actions-footer">';
       html += '<button class="btn" id="avpVoltarListaRodape">← Voltar para avaliações</button>';
-      if (pode('gestor')) {
+      if (pode()) {
         html += '<button class="btn btn--sm" id="avpGerarPdfBtn"' + (state.exportando ? ' disabled' : '') + '>' +
           (state.exportando === 'pdf' ? 'Gerando arquivo…' : '📄 GERAR PDF') + '</button>';
       }
@@ -5812,12 +5903,9 @@
     window.faMotorArquitetura.onMudanca(function () { render(); });
 
     /* ===================== CARGA =====================
-       A leitura depende do PERFIL (as regras do banco também): quem avalia lê
-       tudo; quem só CONSULTA lê apenas as avaliações concluídas, por uma
-       consulta filtrada (status = concluido) — pedir a lista inteira seria
-       recusado, e uma leitura recusada é cancelada pelo Firebase para
-       sempre, então a consulta certa tem que ser escolhida ANTES de ligar o
-       ouvinte. Por isso espera o perfil chegar (nunca assume). */
+       A leitura depende do ACESSO (as regras do banco também): uma leitura
+       recusada é cancelada pelo Firebase para sempre, então o ouvinte só é
+       ligado depois de o acesso chegar — e nunca se assume nada antes. */
     var cargaIniciada = false;
     function aoChegarItens(snap) {
       var arr = [];
@@ -5831,7 +5919,7 @@
     }
     function aoFalharCarga(err) {
       state.itensCarregados = true;
-      /* As regras do banco exigem um perfil na Avaliação (ver
+      /* As regras do banco exigem acesso à Avaliação (ver
          database.rules.json): chegar aqui sem permissão só acontece se o
          perfil mudar no meio da visita; ainda assim, distinguir "sem
          acesso" de "fora do ar" evita confundir quem abre um link direto. */
@@ -5844,9 +5932,9 @@
     function iniciarCarga() {
       if (cargaIniciada) return;
       if (window.faAuth.isAvaliacaoReady && !window.faAuth.isAvaliacaoReady()) return; /* o evento chama de novo */
-      if (!pode('consulta')) {
+      if (!pode()) {
         /* sem acesso (ou ainda sem login): mostra o aviso, mas NÃO desiste da
-           carga — se o perfil mudar (novo login, registro chegando), o evento
+           carga — se o acesso mudar (novo login, registro chegando), o evento
            chama de novo */
         state.itensCarregados = true;
         state.erroCarga = 'permissao';
@@ -5854,7 +5942,7 @@
       }
       cargaIniciada = true;
       state.erroCarga = null;
-      var ref = pode('avaliador') ? db().ref(NODE) : db().ref(NODE).orderByChild('status').equalTo('concluido');
+      var ref = db().ref(NODE);
       ref.on('value', aoChegarItens, aoFalharCarga);
     }
     window.addEventListener('fa-avaliacao-ready', function () { iniciarCarga(); render(); });

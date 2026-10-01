@@ -126,7 +126,7 @@
         { id: 'adm-avaliacao-produto-lixeira', label: 'Área Avaliação (#avaliacoes): página e container da lista presentes (a lista, a lixeira e a exportação saíram do Admin)', run: function () {
           return !!document.getElementById('page-avaliacoes') && !!document.getElementById('avaliacoesPainel');
         } },
-        { id: 'adm-avaliacao-produto-exportar', label: 'Admin → Avaliação de Produto/Serviço: só parametrização (Usuários e permissões presente; sem lista nem exportação)', run: function () {
+        { id: 'adm-avaliacao-produto-exportar', label: 'Admin → Avaliação de Produto/Serviço: só parametrização (Usuários autorizados presente; sem lista nem exportação)', run: function () {
           var admin = document.getElementById('adminAvaliacaoProduto');
           if (!admin || !admin.querySelector('#avpConfigQuestionariosBtn')) return true; /* bloco ainda não renderizado, ou numa subtela */
           return !!admin.querySelector('#avpUsuariosBtn') && !admin.querySelector('#avpExportarBtn') && !admin.querySelector('#avpLixeiraBtn');

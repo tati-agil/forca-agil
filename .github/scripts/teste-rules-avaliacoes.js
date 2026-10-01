@@ -1,5 +1,5 @@
 /* ══════════════════════════════════════════════════════════════════
-   Regras do banco da AVALIAÇÃO DE PRODUTO/SERVIÇO por perfil.
+   Regras do banco dos ACESSOS da Avaliação de Produto/Serviço.
 
    Roda contra o EMULADOR real do Realtime Database (firebase
    emulators:exec), nunca contra uma reimplementação das regras —
@@ -7,14 +7,14 @@
    autorização de verdade mora AQUI (não nos botões escondidos da tela):
    quem chama o banco direto, sem passar pela interface, cai nestas regras.
 
-   Perfis (fa-avaliacao-acessos/<emailKey>.perfil), independentes de ser admin:
-     consulta  — lê SOMENTE avaliações concluídas (consulta filtrada por status)
-     avaliador — consulta + cria, continua e reavalia
-     gestor    — avaliador + decisão manual, excluir/restaurar, natureza,
-                 especialização, reprocessar e auditoria
-     nenhum    — sem acesso (registro explícito)
-   Transição: admin SEM registro continua como gestor (não tira o acesso de
-   quem já trabalhava); registro explícito, inclusive "nenhum", sempre vence.
+   Modelo (fa-avaliacao-autorizados/<emailKey>.tipo), independente de
+   qualquer outro acesso do site:
+     avaliacao             — usa a aba AVALIAÇÃO; NÃO entra em ADMIN > ARQUITETURA
+     avaliacao-arquitetura — aba AVALIAÇÃO + SOMENTE ADMIN > ARQUITETURA
+     (fora da lista)       — nenhum acesso novo
+   Admin geral continua com acesso total por ser admin. O perfil antigo
+   (fa-avaliacao-acessos: consulta/avaliador/gestor) não concede NADA daqui
+   e fica congelado (ninguém grava), com os dados preservados.
    ══════════════════════════════════════════════════════════════════ */
 const fs = require('fs');
 const path = require('path');
@@ -32,14 +32,14 @@ function emailKey(email) {
 }
 
 const SUPER = 'tatianefdirene@previ.com.br';
-const ADMIN_LEGADO = 'admin.legado@previ.com.br';   /* fa-admins, SEM registro de acesso → gestor (transição) */
-const ADMIN_NENHUM = 'admin.nenhum@previ.com.br';   /* fa-admins + perfil 'nenhum' → sem acesso operacional */
-const ADMIN_CONSULTA = 'admin.consulta@previ.com.br'; /* fa-admins + perfil 'consulta' */
+const ADMIN = 'admin.geral@previ.com.br';              /* fa-admins */
+const AVAL = 'avaliacao@previ.com.br';                  /* tipo 'avaliacao' */
+const ARQ = 'arquitetura@previ.com.br';                 /* tipo 'avaliacao-arquitetura' */
+const GESTOR_ANTIGO = 'gestor.antigo@previ.com.br';     /* perfil antigo 'gestor', fora da lista nova */
+const AVALIADOR_ANTIGO = 'avaliador.antigo@previ.com.br';
+const CONSULTA_ANTIGO = 'consulta.antigo@previ.com.br';
 const SEM_ACESSO = 'sem.acesso@previ.com.br';
-const CONSULTA = 'consulta@previ.com.br';
-const AVALIADOR = 'avaliador@previ.com.br';
-const GESTOR = 'gestor@previ.com.br';
-const PERFIL_NENHUM = 'perfil.nenhum@previ.com.br';  /* registro explícito 'nenhum', não admin */
+const OUTRO = 'outro@previ.com.br';
 
 const NODE = 'avaliacoes-produto';
 
@@ -56,227 +56,180 @@ async function main() {
     motorVersion: 'v1', itemId: 'conc1', versao: 1, atualizadoEm: '2026-09-01T10:00:00.000Z'
   }, extra || {});
   const rascunho = (extra) => Object.assign({ nome: 'Item rascunho', status: 'rascunho', respostas: {}, itemId: 'rasc1', versao: 1, atualizadoEm: '2026-09-02T10:00:00.000Z' }, extra || {});
+  const registro = (email, tipo) => ({ email, nome: email, tipo, concedidoPor: SUPER, concedidoEm: '2026-10-01T10:00:00.000Z' });
 
   async function semearBase() {
     await testEnv.clearDatabase();
     await semear(async (a) => {
-      for (const e of [ADMIN_LEGADO, ADMIN_NENHUM, ADMIN_CONSULTA]) await a.ref('fa-admins/' + emailKey(e)).set({ email: e, name: e });
-      const acesso = (email, perfil) => a.ref('fa-avaliacao-acessos/' + emailKey(email)).set({ email, nome: email, perfil, atribuidoEm: '2026-09-30T10:00:00.000Z' });
-      await acesso(ADMIN_NENHUM, 'nenhum');
-      await acesso(ADMIN_CONSULTA, 'consulta');
-      await acesso(PERFIL_NENHUM, 'nenhum');
-      await acesso(CONSULTA, 'consulta');
-      await acesso(AVALIADOR, 'avaliador');
-      await acesso(GESTOR, 'gestor');
+      await a.ref('fa-admins/' + emailKey(ADMIN)).set({ email: ADMIN, name: ADMIN });
+      await a.ref('fa-avaliacao-autorizados/' + emailKey(AVAL)).set(registro(AVAL, 'avaliacao'));
+      await a.ref('fa-avaliacao-autorizados/' + emailKey(ARQ)).set(registro(ARQ, 'avaliacao-arquitetura'));
+      /* perfis ANTIGOS: preservados, mas não concedem nada do modelo novo */
+      const antigo = (email, perfil) => a.ref('fa-avaliacao-acessos/' + emailKey(email)).set({ email, nome: email, perfil, atribuidoEm: '2026-09-30T10:00:00.000Z' });
+      await antigo(GESTOR_ANTIGO, 'gestor');
+      await antigo(AVALIADOR_ANTIGO, 'avaliador');
+      await antigo(CONSULTA_ANTIGO, 'consulta');
       await a.ref(NODE + '/conc1').set(concluida());
-      await a.ref(NODE + '/conc2').set(concluida({ nome: 'Outra concluída', itemId: 'conc2' }));
       await a.ref(NODE + '/rasc1').set(rascunho());
-      await a.ref(NODE + '/excl1').set(concluida({ nome: 'Excluída', itemId: 'excl1', excluido: true, excluidoEm: '2026-09-05T10:00:00.000Z' }));
-      await a.ref(NODE + '/nat1').set(concluida({
-        nome: 'Com natureza', itemId: 'nat1', naturezaComplementarCodigo: 'PROGRAMA_TRANSVERSAL', naturezaComplementarNomeNaEpoca: 'Programa transversal',
-        naturezaComplementarDefinidaEm: '2026-09-06T10:00:00.000Z'
-      }));
       await a.ref('questionarios-config/CLASSIFICACAO_ARQUITETURAL').set({ versaoPublicada: 1 });
+      await a.ref('questionarios-auditoria/a1').set({ acao: 'publicado' });
       await a.ref('motor-arquitetura-config').set({ versaoPublicada: 1 });
+      await a.ref('motor-arquitetura-auditoria/a1').set({ tipo: 'regra' });
+      await a.ref('motor-squad-config').set({ versaoPublicada: 1 });
+      await a.ref('motor-squad-auditoria/a1').set({ tipo: 'regra' });
+      await a.ref('avaliacoes-squad/s1').set({ nome: 'Squad 1', status: 'concluido' });
       await a.ref('naturezas-complementares-config/PROGRAMA_TRANSVERSAL').set({ nome: 'Programa transversal', ativo: true, ordem: 1 });
+      await a.ref('naturezas-complementares-auditoria/conc1/p1').set({ acao: 'definida' });
+      await a.ref('fa-users/' + emailKey(OUTRO)).set({ email: OUTRO, name: 'Outro' });
     });
   }
-  const consultaConcluidas = (email) => db(email).ref(NODE).orderByChild('status').equalTo('concluido').once('value');
+
+  /* quem pode o quê: [rótulo, e-mail, aba AVALIAÇÃO?, ADMIN > ARQUITETURA?] */
+  const MATRIZ = [
+    ['super-admin', SUPER, true, true],
+    ['admin geral (fa-admins)', ADMIN, true, true],
+    ['tipo "Avaliação"', AVAL, true, false],
+    ['tipo "Avaliação + Arquitetura"', ARQ, true, true],
+    ['perfil antigo GESTOR (fora da lista nova)', GESTOR_ANTIGO, false, false],
+    ['perfil antigo AVALIADOR (fora da lista nova)', AVALIADOR_ANTIGO, false, false],
+    ['perfil antigo CONSULTA (fora da lista nova)', CONSULTA_ANTIGO, false, false],
+    ['usuário comum, sem nada', SEM_ACESSO, false, false],
+  ];
 
   try {
-    console.log('== LEITURA das avaliações ==');
+    console.log('== ABA AVALIAÇÃO: leitura e escrita das avaliações ==');
     await semearBase();
     await assertFails(db(null).ref(NODE).once('value'));
     anota('sem login: não lê nada', true);
-
-    await assertFails(db(SEM_ACESSO).ref(NODE).once('value'));
-    await assertFails(consultaConcluidas(SEM_ACESSO));
-    await assertFails(db(SEM_ACESSO).ref(NODE + '/conc1').once('value'));
-    anota('usuário sem perfil: não lê a lista, nem só as concluídas, nem uma avaliação por chave', true);
-
-    await assertFails(db(PERFIL_NENHUM).ref(NODE).once('value'));
-    await assertFails(consultaConcluidas(PERFIL_NENHUM));
-    anota('perfil explícito "nenhum": sem acesso', true);
-
-    const snapC = await assertSucceeds(consultaConcluidas(CONSULTA));
-    const chavesC = Object.keys(snapC.val() || {}).sort();
-    anota('CONSULTA: consulta filtrada por status = concluido funciona e devolve só concluídas (nunca o rascunho)',
-      chavesC.indexOf('rasc1') === -1 && chavesC.indexOf('conc1') !== -1 && chavesC.indexOf('conc2') !== -1, chavesC.join(','));
-    await assertFails(db(CONSULTA).ref(NODE).once('value'));
-    anota('CONSULTA: NÃO consegue ler a lista inteira (que traria os rascunhos)', true);
-    await assertFails(db(CONSULTA).ref(NODE).orderByChild('status').equalTo('rascunho').once('value'));
-    anota('CONSULTA: NÃO consegue pedir os rascunhos por consulta filtrada', true);
-    await assertSucceeds(db(CONSULTA).ref(NODE + '/conc1').once('value'));
-    await assertFails(db(CONSULTA).ref(NODE + '/rasc1').once('value'));
-    anota('CONSULTA: lê uma concluída por chave, mas não um rascunho', true);
-
-    for (const [rotulo, email] of [['AVALIADOR', AVALIADOR], ['GESTOR', GESTOR], ['admin legado (sem registro = gestor)', ADMIN_LEGADO], ['super-admin (sem registro = gestor)', SUPER]]) {
-      const s = await assertSucceeds(db(email).ref(NODE).once('value'));
-      anota(rotulo + ': lê a lista inteira, inclusive rascunhos', !!(s.val() && s.val().rasc1));
-    }
-    /* ADMIN sempre vê a área, no mínimo como CONSULTA — mas isso não o torna avaliador */
-    await assertFails(db(ADMIN_NENHUM).ref(NODE).once('value'));
-    const sAdmN = await assertSucceeds(consultaConcluidas(ADMIN_NENHUM));
-    anota('ADMIN com perfil explícito "nenhum": lê só as concluídas (no mínimo Consulta), mas NÃO os rascunhos — admin não vira avaliador', !!(sAdmN.val() && !sAdmN.val().rasc1));
-    await assertFails(db(PERFIL_NENHUM).ref(NODE + '/conc1').once('value'));
-    anota('quem NÃO é admin e tem perfil "nenhum" segue sem ler nada', true);
-    const sAdmC = await assertSucceeds(consultaConcluidas(ADMIN_CONSULTA));
-    await assertFails(db(ADMIN_CONSULTA).ref(NODE).once('value'));
-    anota('ADMIN com perfil "consulta": só as concluídas, como qualquer consulta', !!(sAdmC.val() && !sAdmC.val().rasc1));
-
-    console.log('\n== GRAVAÇÃO: quem cria, continua e reavalia ==');
-    await semearBase();
-    for (const [rotulo, email] of [['sem perfil', SEM_ACESSO], ['perfil "nenhum"', PERFIL_NENHUM], ['CONSULTA', CONSULTA], ['admin com perfil "nenhum"', ADMIN_NENHUM], ['admin com perfil "consulta"', ADMIN_CONSULTA]]) {
-      await assertFails(db(email).ref(NODE + '/novaX').set(rascunho({ itemId: 'novaX' })));
-      await assertFails(db(email).ref(NODE + '/rasc1/nome').set('alterado'));
-      await assertFails(db(email).ref().update({ [NODE + '/novaY']: rascunho({ itemId: 'novaY' }) }));
-      anota(rotulo + ': NÃO cria nem altera avaliação (nem por set, nem por update na raiz)', true);
-    }
-
-    await assertSucceeds(db(AVALIADOR).ref(NODE + '/nova1').set(rascunho({ itemId: 'nova1', nome: 'Nova pelo avaliador' })));
-    anota('AVALIADOR: cria uma avaliação (rascunho)', true);
-    await assertSucceeds(db(AVALIADOR).ref(NODE + '/nova1').update({ nome: 'Nome ajustado', atualizadoEm: '2026-09-30T11:00:00.000Z' }));
-    anota('AVALIADOR: continua (altera) um rascunho', true);
-    await assertSucceeds(db(AVALIADOR).ref(NODE + '/nova1').update({ status: 'concluido', resultadoAutomatico: 'produto', decisaoFinal: 'produto', decisaoManual: false, camadaSugerida: { id: 'produto-principal' } }));
-    anota('AVALIADOR: conclui (a decisão final acompanha o resultado automático)', true);
-    await assertSucceeds(db(AVALIADOR).ref(NODE + '/reav1').set(concluida({
-      itemId: 'nat1', versao: 2, versaoAnteriorKey: 'nat1', naturezaComplementarCodigo: 'PROGRAMA_TRANSVERSAL',
-      naturezaComplementarNomeNaEpoca: 'Programa transversal', naturezaComplementarDefinidaEm: '2026-09-06T10:00:00.000Z'
-    })));
-    anota('AVALIADOR: reavalia (registro NOVO, herdando a natureza da versão anterior)', true);
-    await assertSucceeds(db(AVALIADOR).ref().update({ [NODE + '/viaRaiz']: rascunho({ itemId: 'viaRaiz' }) }));
-    anota('AVALIADOR: também cria pelo update() multi-caminho na raiz (o que a tela usa)', true);
-
-    console.log('\n== O que o AVALIADOR NÃO pode fazer (só o gestor) ==');
-    await assertFails(db(AVALIADOR).ref(NODE + '/conc1/excluido').set(true));
-    anota('AVALIADOR: não exclui uma avaliação', true);
-    await assertFails(db(AVALIADOR).ref(NODE + '/excl1/excluido').set(false));
-    anota('AVALIADOR: não restaura uma avaliação excluída', true);
-    await assertFails(db(AVALIADOR).ref(NODE + '/criaExcluida').set(rascunho({ itemId: 'criaExcluida', excluido: true })));
-    anota('AVALIADOR: não cria já "excluída" (burlar a regra pelo create)', true);
-    await assertFails(db(AVALIADOR).ref(NODE + '/conc1').update({ decisaoManual: true, decisaoFinal: 'produto', justificativaDecisao: 'x' }));
-    anota('AVALIADOR: não registra decisão manual', true);
-    await assertFails(db(AVALIADOR).ref(NODE + '/conc1/decisaoFinal').set('produto'));
-    anota('AVALIADOR: não muda a decisão final para divergir do resultado automático (sem marcar manual)', true);
-    await assertFails(db(AVALIADOR).ref(NODE + '/criaDivergente').set(concluida({ itemId: 'criaDivergente', decisaoFinal: 'produto' })));
-    anota('AVALIADOR: não cria concluída com decisão final divergente do resultado automático', true);
-    await assertFails(db(AVALIADOR).ref(NODE + '/conc1/resultadoAutomatico').set('produto'));
-    anota('AVALIADOR: não altera o resultado de uma avaliação JÁ concluída (reavaliar cria outra)', true);
-    await assertFails(db(AVALIADOR).ref(NODE + '/conc1/status').set('rascunho'));
-    anota('AVALIADOR: não "reabre" uma concluída para reescrevê-la', true);
-    await assertFails(db(AVALIADOR).ref(NODE + '/nat1/naturezaComplementarCodigo').set('OUTRA'));
-    await assertFails(db(AVALIADOR).ref(NODE + '/conc1').update({ naturezaComplementarCodigo: 'PROGRAMA_TRANSVERSAL', naturezaComplementarNomeNaEpoca: 'Programa transversal', naturezaComplementarDefinidaEm: '2026-09-30T12:00:00.000Z' }));
-    anota('AVALIADOR: não define nem altera a natureza complementar de uma avaliação existente', true);
-    await assertFails(db(AVALIADOR).ref(NODE + '/conc1/especializacaoCadastrada').set('Qualquer'));
-    await assertFails(db(AVALIADOR).ref(NODE + '/conc1/papelEstruturalCadastrado').set('x'));
-    anota('AVALIADOR: não altera especialização/papel estrutural cadastrados', true);
-    await assertFails(db(AVALIADOR).ref(NODE + '/conc1/bloqueadaParaReprocessamentoAutomatico').set(true));
-    anota('AVALIADOR: não bloqueia reprocessamento', true);
-    await assertFails(db(AVALIADOR).ref(NODE + '/conc1').set(null));
-    anota('AVALIADOR: não apaga uma avaliação do banco', true);
-
-    console.log('\n== O que o GESTOR pode fazer ==');
-    await semearBase();
-    await assertSucceeds(db(GESTOR).ref(NODE + '/conc1').update({ excluido: true, excluidoEm: '2026-09-30T12:00:00.000Z', justificativaExclusao: 'duplicada' }));
-    await assertSucceeds(db(GESTOR).ref(NODE + '/conc1').update({ excluido: false }));
-    anota('GESTOR: exclui e restaura', true);
-    await assertSucceeds(db(GESTOR).ref(NODE + '/conc2').update({ decisaoManual: true, decisaoFinal: 'produto', justificativaDecisao: 'justificativa', decisaoConfirmada: true }));
-    anota('GESTOR: registra decisão manual (divergindo do resultado automático)', true);
-    await assertSucceeds(db(GESTOR).ref(NODE + '/conc2').update({ decisaoManual: false, decisaoFinal: 'nao-produto', justificativaDecisao: null }));
-    anota('GESTOR: volta a aceitar a recomendação do sistema', true);
-    await assertSucceeds(db(GESTOR).ref(NODE + '/nat1').update({ naturezaComplementarCodigo: 'PLATAFORMA_BENEFICIOS_PARCERIAS', naturezaComplementarNomeNaEpoca: 'Plataforma', naturezaComplementarDefinidaEm: '2026-09-30T12:00:00.000Z' }));
-    anota('GESTOR: altera a natureza complementar', true);
-    await assertSucceeds(db(GESTOR).ref(NODE + '/conc1').update({ especializacaoCadastrada: 'Material educativo', bloqueadaParaReprocessamentoAutomatico: true }));
-    anota('GESTOR: cadastra especialização e bloqueia reprocessamento', true);
-    await assertSucceeds(db(GESTOR).ref(NODE + '/conc1').update({ resultadoAutomatico: 'produto', decisaoFinal: 'produto', motorVersion: 'v2' }));
-    anota('GESTOR: reprocessa (recalcula o resultado automático de uma concluída)', true);
-
-    console.log('\n== Natureza complementar: gravação atômica com auditoria ==');
-    await semearBase();
-    const audKey = 'pushKey1';
-    const multi = {};
-    multi[NODE + '/conc1/naturezaComplementarCodigo'] = 'PROGRAMA_TRANSVERSAL';
-    multi[NODE + '/conc1/naturezaComplementarNomeNaEpoca'] = 'Programa transversal';
-    multi[NODE + '/conc1/naturezaComplementarDefinidaEm'] = '2026-09-30T12:00:00.000Z';
-    multi['naturezas-complementares-auditoria/conc1/' + audKey] = { tipo: 'alteracao_natureza_complementar', avaliacaoId: 'conc1', dataHora: '2026-09-30T12:00:00.000Z' };
-    await assertFails(db(AVALIADOR).ref().update(multi));
-    anota('AVALIADOR: a gravação de natureza + auditoria é recusada por inteiro', true);
-    await assertSucceeds(db(GESTOR).ref().update(multi));
-    anota('GESTOR: grava natureza + linha de auditoria na mesma operação', true);
-    const nat = (await db(GESTOR).ref(NODE + '/conc1/naturezaComplementarCodigo').once('value')).val();
-    anota('  a natureza ficou gravada', nat === 'PROGRAMA_TRANSVERSAL', nat);
-    await assertFails(db(GESTOR).ref('naturezas-complementares-auditoria/conc1/' + audKey + '/tipo').set('adulterado'));
-    await assertFails(db(GESTOR).ref('naturezas-complementares-auditoria/conc1/' + audKey).set(null));
-    anota('GESTOR: não altera nem apaga uma linha de auditoria já gravada (nada é sobrescrito em silêncio)', true);
-    await assertFails(db(GESTOR).ref('naturezas-complementares-auditoria/catalogo/x1').set({ tipo: 'alteracao_catalogo_natureza' }));
-    await assertSucceeds(db(ADMIN_LEGADO).ref('naturezas-complementares-auditoria/catalogo/x1').set({ tipo: 'alteracao_catalogo_natureza' }));
-    anota('auditoria do CATÁLOGO: só admin grava', true);
-    await assertFails(db(AVALIADOR).ref('naturezas-complementares-auditoria/conc1/outra').set({ tipo: 'alteracao_natureza_complementar' }));
-    await assertFails(db(CONSULTA).ref('naturezas-complementares-auditoria/conc1').once('value'));
-    anota('AVALIADOR não grava auditoria; CONSULTA não a lê', true);
-    await assertSucceeds(db(GESTOR).ref('naturezas-complementares-auditoria/conc1').once('value'));
-    anota('GESTOR lê o histórico de auditoria', true);
-
-    console.log('\n== Configurações: lê quem avalia; grava só o admin ==');
-    for (const cfg of ['questionarios-config/CLASSIFICACAO_ARQUITETURAL', 'motor-arquitetura-config', 'naturezas-complementares-config']) {
-      for (const [rotulo, email] of [['CONSULTA', CONSULTA], ['AVALIADOR', AVALIADOR], ['GESTOR', GESTOR]]) {
-        await assertSucceeds(db(email).ref(cfg).once('value'));
-        await assertFails(db(email).ref(cfg + '/x').set('x'));
+    for (const [rotulo, email, aval] of MATRIZ) {
+      if (aval) {
+        const s = await assertSucceeds(db(email).ref(NODE).once('value'));
+        anota(rotulo + ': lê a lista, inclusive rascunhos', !!(s.val() && s.val().rasc1));
+        await assertSucceeds(db(email).ref(NODE + '/novo-' + emailKey(email)).set(rascunho({ itemId: 'n' })));
+        await assertSucceeds(db(email).ref(NODE + '/conc1/excluido').set(true));
+        await assertSucceeds(db(email).ref(NODE + '/conc1/excluido').set(null));
+        anota(rotulo + ': cria, exclui e restaura (funcionalidades operacionais da aba)', true);
+        await assertSucceeds(db(email).ref('naturezas-complementares-auditoria/conc1/' + emailKey(email)).set({ acao: 'definida' }));
+        anota(rotulo + ': registra a auditoria da natureza ao editar a avaliação', true);
+        await assertSucceeds(db(email).ref('questionarios-config').once('value'));
+        await assertSucceeds(db(email).ref('motor-arquitetura-config').once('value'));
+        await assertSucceeds(db(email).ref('naturezas-complementares-config').once('value'));
+        anota(rotulo + ': lê questionários, motor e naturezas (a ficha precisa deles)', true);
+      } else {
+        await assertFails(db(email).ref(NODE).once('value'));
+        await assertFails(db(email).ref(NODE).orderByChild('status').equalTo('concluido').once('value'));
+        await assertFails(db(email).ref(NODE + '/conc1').once('value'));
+        await assertFails(db(email).ref(NODE + '/novo').set(rascunho({ itemId: 'n' })));
+        await assertFails(db(email).ref(NODE + '/conc1/excluido').set(true));
+        await assertFails(db(email).ref('questionarios-config').once('value'));
+        await assertFails(db(email).ref('motor-arquitetura-config').once('value'));
+        anota(rotulo + ': NÃO lê nem grava a aba AVALIAÇÃO (nem consulta filtrada, nem por chave)', true);
       }
-      await assertFails(db(SEM_ACESSO).ref(cfg).once('value'));
-      await assertSucceeds(db(ADMIN_NENHUM).ref(cfg).once('value'));
-      await assertSucceeds(db(ADMIN_LEGADO).ref(cfg + '/teste').set('ok'));
-      anota(cfg + ': consulta/avaliador/gestor leem e NÃO gravam; sem perfil não lê; admin lê e grava (mesmo com perfil "nenhum")', true);
     }
-    await assertFails(db(GESTOR).ref('questionarios-auditoria/CLASSIFICACAO_ARQUITETURAL').once('value'));
-    await assertFails(db(GESTOR).ref('motor-squad-config').once('value'));
-    await assertFails(db(GESTOR).ref('avaliacoes-squad').once('value'));
-    anota('o gestor NÃO ganha acesso às áreas administrativas (auditoria de questionários, motor e avaliações de squad)', true);
+    await assertFails(db(AVAL).ref(NODE + '/conc1/decisaoFinal').set('produto'));
+    anota('invariante mantida para todos: decisão final diferente do resultado automático exige decisão manual', true);
+    await assertSucceeds(db(AVAL).ref(NODE + '/conc1').update({ decisaoFinal: 'produto', decisaoManual: true }));
+    anota('…e com decisão manual a gravação passa', true);
 
-    console.log('\n== Auditoria do motor: o gestor só ACRESCENTA reconciliações ==');
+    console.log('\n== ADMIN > ARQUITETURA: configurações e adequação à Squad ==');
     await semearBase();
-    await assertSucceeds(db(GESTOR).ref('motor-arquitetura-auditoria/a1').set({ tipo: 'reconciliacao_versao_equivalente', avaliacaoId: 'conc1' }));
-    anota('GESTOR: acrescenta uma linha de reconciliação (precisa, ao reconciliar em lote)', true);
-    await assertFails(db(GESTOR).ref('motor-arquitetura-auditoria/a2').set({ tipo: 'publicacao', campo: 'x' }));
-    await assertFails(db(GESTOR).ref('motor-arquitetura-auditoria/a1/tipo').set('outro'));
-    await assertFails(db(GESTOR).ref('motor-arquitetura-auditoria/a1').set(null));
-    anota('GESTOR: não grava outro tipo de linha, não altera nem apaga as existentes', true);
-    await assertFails(db(AVALIADOR).ref('motor-arquitetura-auditoria/a3').set({ tipo: 'reconciliacao_versao_equivalente' }));
-    await assertFails(db(GESTOR).ref('motor-arquitetura-auditoria').once('value'));
-    await assertSucceeds(db(ADMIN_LEGADO).ref('motor-arquitetura-auditoria').once('value'));
-    anota('AVALIADOR não grava; só admin lê a auditoria do motor', true);
+    const NOS_ARQ = ['questionarios-config/CLASSIFICACAO_ARQUITETURAL', 'questionarios-auditoria', 'motor-arquitetura-config', 'motor-arquitetura-auditoria',
+      'motor-squad-config', 'motor-squad-auditoria', 'avaliacoes-squad', 'naturezas-complementares-config'];
+    for (const [rotulo, email, , arq] of MATRIZ) {
+      let leu = 0, gravou = 0;
+      for (const no of NOS_ARQ) {
+        try { await assertSucceeds(db(email).ref(no).once('value')); leu++; } catch (e) { /* esperado para quem não tem */ }
+        try { await assertSucceeds(db(email).ref(no + '/__teste').set({ x: 1 })); gravou++; } catch (e) { /* idem */ }
+      }
+      if (arq) anota(rotulo + ': lê e grava TODOS os nós da Arquitetura (' + NOS_ARQ.length + ')', leu === NOS_ARQ.length && gravou === NOS_ARQ.length, 'leu ' + leu + ', gravou ' + gravou);
+      else {
+        /* o tipo "Avaliação" lê (não grava) questionários/motor/naturezas, que a ficha usa; nunca a Squad nem a auditoria */
+        const gravaConfig = gravou;
+        anota(rotulo + ': NÃO grava nenhum nó da Arquitetura', gravaConfig === 0, 'gravou ' + gravou);
+      }
+    }
+    await assertFails(db(AVAL).ref('avaliacoes-squad').once('value'));
+    await assertFails(db(AVAL).ref('motor-squad-config').once('value'));
+    await assertFails(db(AVAL).ref('questionarios-auditoria').once('value'));
+    await assertFails(db(AVAL).ref('motor-arquitetura-auditoria').once('value'));
+    anota('tipo "Avaliação": não lê a Squad nem as auditorias de configuração', true);
+    await assertSucceeds(db(AVAL).ref('motor-arquitetura-auditoria/rec1').set({ tipo: 'reconciliacao_versao_equivalente' }));
+    await assertFails(db(AVAL).ref('motor-arquitetura-auditoria/rec2').set({ tipo: 'regra' }));
+    anota('tipo "Avaliação": só acrescenta a linha de reconciliação (nunca outra auditoria)', true);
 
-    console.log('\n== fa-avaliacao-acessos (quem tem qual perfil) ==');
+    console.log('\n== "Avaliação + Arquitetura" NÃO é admin geral: nada do resto do ADMIN ==');
     await semearBase();
-    await assertSucceeds(db(ADMIN_LEGADO).ref('fa-avaliacao-acessos').once('value'));
-    await assertFails(db(GESTOR).ref('fa-avaliacao-acessos').once('value'));
-    await assertFails(db(CONSULTA).ref('fa-avaliacao-acessos').once('value'));
-    anota('só admin lista os perfis', true);
-    await assertSucceeds(db(CONSULTA).ref('fa-avaliacao-acessos/' + emailKey(CONSULTA)).once('value'));
-    await assertFails(db(CONSULTA).ref('fa-avaliacao-acessos/' + emailKey(GESTOR)).once('value'));
-    anota('cada pessoa lê o PRÓPRIO perfil, e só o próprio', true);
-    await assertFails(db(CONSULTA).ref('fa-avaliacao-acessos/' + emailKey(CONSULTA) + '/perfil').set('gestor'));
-    await assertFails(db(GESTOR).ref('fa-avaliacao-acessos/' + emailKey(AVALIADOR) + '/perfil').set('gestor'));
-    anota('ninguém se promove nem promove outra pessoa sem ser admin (nem o próprio gestor)', true);
-    await assertSucceeds(db(ADMIN_LEGADO).ref('fa-avaliacao-acessos/' + emailKey(SEM_ACESSO)).set({ email: SEM_ACESSO, nome: 'Fulana', perfil: 'avaliador' }));
-    await assertSucceeds(db(SUPER).ref('fa-avaliacao-acessos/' + emailKey(SEM_ACESSO) + '/perfil').set('consulta'));
-    anota('qualquer admin atribui/altera o perfil (quem abre a tela consegue gravar)', true);
-    await assertFails(db(ADMIN_LEGADO).ref('fa-avaliacao-acessos/' + emailKey(SEM_ACESSO) + '/perfil').set('superusuario'));
-    anota('perfil fora da lista é recusado', true);
-    await assertSucceeds(db(ADMIN_LEGADO).ref('fa-avaliacao-acessos/' + emailKey(SEM_ACESSO)).set(null));
-    anota('admin remove o acesso', true);
+    await semear(async (a) => {
+      await a.ref('fa-admins/' + emailKey(OUTRO)).remove();
+      await a.ref('fa-diretores/x').set({ email: 'x@previ.com.br' });
+    });
+    const OUTROS_NOS_ADMIN = ['fa-admins', 'fa-facilitadores', 'fa-diretores'];
+    for (const no of OUTROS_NOS_ADMIN) {
+      await assertFails(db(ARQ).ref(no + '/__teste').set({ email: 'x@previ.com.br', name: 'X' }));
+    }
+    anota('não grava os nós restritos do ADMIN (administradores, facilitadores, diretores)', true);
+    await assertFails(db(ARQ).ref('fa-admins/' + emailKey(ARQ)).set({ email: ARQ, name: ARQ }));
+    anota('não consegue se tornar admin geral', true);
+    await assertFails(db(ARQ).ref('fa-avaliacao-autorizados').once('value'));
+    await assertFails(db(ARQ).ref('fa-avaliacao-autorizados/' + emailKey(SEM_ACESSO)).set(registro(SEM_ACESSO, 'avaliacao')));
+    await assertFails(db(ARQ).ref('fa-avaliacao-autorizados/' + emailKey(ARQ) + '/tipo').set('avaliacao'));
+    anota('não lê a lista de autorizados nem concede/rebaixa acesso (nem o próprio)', true);
 
-    console.log('\n== Transição: admin sem registro = gestor; registro explícito vence ==');
+    console.log('\n== Lista de autorizados (fa-avaliacao-autorizados) ==');
     await semearBase();
-    await assertSucceeds(db(ADMIN_LEGADO).ref(NODE + '/adminCria').set(rascunho({ itemId: 'adminCria' })));
-    await assertSucceeds(db(ADMIN_LEGADO).ref(NODE + '/conc1/excluido').set(true));
-    anota('admin legado (sem registro): continua criando e excluindo, como hoje', true);
-    await assertFails(db(ADMIN_NENHUM).ref(NODE + '/adminCria2').set(rascunho({ itemId: 'adminCria2' })));
-    anota('o mesmo admin, depois de receber perfil "nenhum", perde a escrita (fica só com a Consulta mínima de admin)', true);
-    await semear((a) => a.ref('fa-avaliacao-acessos/' + emailKey(ADMIN_LEGADO)).set({ email: ADMIN_LEGADO, perfil: 'avaliador' }));
-    await assertSucceeds(db(ADMIN_LEGADO).ref(NODE + '/adminCria3').set(rascunho({ itemId: 'adminCria3' })));
-    await assertFails(db(ADMIN_LEGADO).ref(NODE + '/conc2/excluido').set(true));
-    anota('admin com perfil "avaliador": cria, mas não exclui (perfil explícito substitui a transição)', true);
+    for (const email of [AVAL, ARQ, GESTOR_ANTIGO, SEM_ACESSO]) {
+      await assertFails(db(email).ref('fa-avaliacao-autorizados').once('value'));
+    }
+    anota('só admin geral lê a lista inteira', true);
+    const sLista = await assertSucceeds(db(ADMIN).ref('fa-avaliacao-autorizados').once('value'));
+    anota('admin geral lê a lista', Object.keys(sLista.val() || {}).length === 2);
+    await assertSucceeds(db(AVAL).ref('fa-avaliacao-autorizados/' + emailKey(AVAL)).once('value'));
+    await assertSucceeds(db(SEM_ACESSO).ref('fa-avaliacao-autorizados/' + emailKey(SEM_ACESSO)).once('value'));
+    await assertFails(db(AVAL).ref('fa-avaliacao-autorizados/' + emailKey(ARQ)).once('value'));
+    anota('cada pessoa lê o PRÓPRIO registro (a tela precisa), e só o próprio', true);
+    await assertFails(db(AVAL).ref('fa-avaliacao-autorizados/' + emailKey(AVAL) + '/tipo').set('avaliacao-arquitetura'));
+    await assertFails(db(SEM_ACESSO).ref('fa-avaliacao-autorizados/' + emailKey(SEM_ACESSO)).set(registro(SEM_ACESSO, 'avaliacao')));
+    anota('ninguém se promove nem se concede acesso sem ser admin geral', true);
+    await assertSucceeds(db(ADMIN).ref('fa-avaliacao-autorizados/' + emailKey(SEM_ACESSO)).set(registro(SEM_ACESSO, 'avaliacao')));
+    await assertSucceeds(db(SUPER).ref('fa-avaliacao-autorizados/' + emailKey(SEM_ACESSO) + '/tipo').set('avaliacao-arquitetura'));
+    anota('admin geral concede e altera o tipo (quem abre a tela consegue gravar)', true);
+    await assertFails(db(ADMIN).ref('fa-avaliacao-autorizados/' + emailKey(OUTRO)).set(registro(OUTRO, 'gestor')));
+    await assertFails(db(ADMIN).ref('fa-avaliacao-autorizados/' + emailKey(OUTRO)).set(registro(OUTRO, 'consulta')));
+    anota('tipo fora dos dois é recusado (os perfis antigos não existem no modelo novo)', true);
+    await assertSucceeds(db(ADMIN).ref('fa-avaliacao-autorizados/' + emailKey(SEM_ACESSO)).set(null));
+    await assertFails(db(SEM_ACESSO).ref(NODE).once('value'));
+    anota('remover só retira a autorização — o acesso some na hora', true);
+
+    console.log('\n== Histórico (fa-avaliacao-autorizados-auditoria) ==');
+    const aud = { acao: 'concedido', email: SEM_ACESSO, nome: 'Fulana', tipoNovo: 'avaliacao', por: SUPER, em: '2026-10-01T10:00:00.000Z' };
+    await assertSucceeds(db(ADMIN).ref('fa-avaliacao-autorizados-auditoria/h1').set(aud));
+    await assertFails(db(ADMIN).ref('fa-avaliacao-autorizados-auditoria/h1').set(Object.assign({}, aud, { acao: 'removido' })));
+    await assertFails(db(ADMIN).ref('fa-avaliacao-autorizados-auditoria/h1').remove());
+    anota('admin geral só ACRESCENTA linhas ao histórico (não reescreve nem apaga)', true);
+    await assertFails(db(ADMIN).ref('fa-avaliacao-autorizados-auditoria/h2').set(Object.assign({}, aud, { acao: 'inventado' })));
+    anota('ação fora de concedido/alterado/removido é recusada', true);
+    for (const email of [AVAL, ARQ, SEM_ACESSO]) {
+      await assertFails(db(email).ref('fa-avaliacao-autorizados-auditoria').once('value'));
+      await assertFails(db(email).ref('fa-avaliacao-autorizados-auditoria/h3').set(aud));
+    }
+    anota('autorizados e usuários comuns não leem nem escrevem o histórico', true);
+    /* gravação conjunta (como a tela faz): registro + histórico no mesmo update */
+    const up = {};
+    up['fa-avaliacao-autorizados/' + emailKey(OUTRO)] = registro(OUTRO, 'avaliacao');
+    up['fa-avaliacao-autorizados-auditoria/h4'] = Object.assign({}, aud, { email: OUTRO });
+    await assertSucceeds(db(ADMIN).ref().update(up));
+    anota('registro + histórico gravam juntos num único update (atômico)', true);
+
+    console.log('\n== Perfil ANTIGO (fa-avaliacao-acessos): preservado, congelado, sem efeito ==');
+    await semearBase();
+    await assertFails(db(ADMIN).ref('fa-avaliacao-acessos/' + emailKey(OUTRO)).set({ email: OUTRO, perfil: 'gestor' }));
+    await assertFails(db(ADMIN).ref('fa-avaliacao-acessos/' + emailKey(GESTOR_ANTIGO)).remove());
+    anota('ninguém grava nem apaga o perfil antigo (os registros ficam intactos)', true);
+    const sAntigo = await assertSucceeds(db(ADMIN).ref('fa-avaliacao-acessos').once('value'));
+    anota('admin ainda consegue ler os registros antigos', Object.keys(sAntigo.val() || {}).length === 3);
+    await assertFails(db(GESTOR_ANTIGO).ref(NODE).once('value'));
+    await assertFails(db(GESTOR_ANTIGO).ref('motor-squad-config').once('value'));
+    anota('perfil antigo "gestor" não dá acesso à aba nem à Arquitetura', true);
 
     console.log('\n' + total + ' verificações, ' + falhas + ' falha(s).');
   } finally {

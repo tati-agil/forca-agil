@@ -35,15 +35,16 @@ jobs:
 
       - uses: ./.github/actions/preparar-testes
 
-      # Avaliação de Produto/Serviço: perfis Consulta < Avaliador < Gestor,
-      # independentes de ser admin. Hermético (Firebase falso com a mesma
-      # restrição de leitura filtrada das regras); a proteção de verdade, no
+      # Avaliação de Produto/Serviço: acessos "Avaliação" e "Avaliação +
+      # Arquitetura" (lista própria, sem relação com os perfis antigos), admin
+      # geral por ser admin, #admin restrito à Arquitetura e a tela Usuários
+      # autorizados. Hermético (Firebase falso); a proteção de verdade, no
       # banco, é provada à parte por teste-rules-avaliacoes.js no emulador.
-      - name: "Avaliação: perfis, área operacional × Admin, Usuários autorizados (desktop e celular)"
+      - name: "Avaliação: acessos, Arquitetura restrita, Usuários autorizados (desktop e celular)"
         env:
           NODE_PATH: /tmp/pw-deps/node_modules
           FA_BASE_URL: http://127.0.0.1:8811
-        run: node .github/scripts/teste-avaliacoes-perfis.js
+        run: node .github/scripts/teste-avaliacoes-acessos.js
 
       # Ajustes de usabilidade da lista/detalhe: filtros com rótulo (Resultado
       # Produto/Serviço × Classificação arquitetural), PDFs em lote, voltar com
@@ -55,7 +56,7 @@ jobs:
         run: node .github/scripts/teste-avaliacoes-ajustes.js
 
       # Ficha da avaliação: Identificação, histórico de versões v1/v2/v3 (a mais
-      # recente é a vigente; as anteriores só para consulta), "Sua justificativa"
+      # recente é a vigente; as anteriores só para leitura), "Sua justificativa"
       # × "Interpretação do sistema" e os status "Em andamento"/"Concluída".
       - name: "Avaliação: ficha, histórico de versões e status (desktop e celular)"
         env:

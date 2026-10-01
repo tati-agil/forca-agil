@@ -104,7 +104,22 @@
       });
       return;
     }
-    if (!window.faAuth.isAdmin(sess.email)) return;
+    if (!window.faAuth.isAdmin(sess.email)) {
+      /* Não é admin geral. Quem tem o tipo "Avaliação + Arquitetura" entra
+         aqui SÓ para a aba Arquitetura — nenhum outro carregador roda (nem as
+         migrações, que gravam dados), e as regras do banco barram o resto
+         mesmo que alguém chame direto. O tipo vem de OUTRA leitura: "ainda não
+         sei" espera, só "sei que não" desiste. */
+      if (window.faAuth.isAvaliacaoReady && !window.faAuth.isAvaliacaoReady()) {
+        window.addEventListener('fa-avaliacao-ready', function onAv() {
+          window.removeEventListener('fa-avaliacao-ready', onAv);
+          initAdmin();
+        });
+        return;
+      }
+      if (window.faAuth.isAdminRestrito && window.faAuth.isAdminRestrito()) initAdminArquitetura();
+      return;
+    }
     migrateNameCase();
     migrarEsperaPorOrigem();
     migrarEsperaEventoKey();
@@ -125,9 +140,36 @@
     if (window.faInitTestes) window.faInitTestes();
     if (window.faInitPedidos) window.faInitPedidos();
     if (window.faInitDashboard) window.faInitDashboard();
-    if (window.faInitAvaliacaoProduto) window.faInitAvaliacaoProduto({ modo: 'admin' });
+    /* Squad primeiro: o cartão "Adequação à Squad" só é desenhado se window.faAvaliacaoSquad
+       já existir na primeira renderização do bloco de Avaliação. */
     if (window.faInitAvaliacaoSquad) window.faInitAvaliacaoSquad();
+    if (window.faInitAvaliacaoProduto) window.faInitAvaliacaoProduto({ modo: 'admin' });
     initCertificados();
+  }
+
+  /* Admin restrito ("Avaliação + Arquitetura"): só o painel Arquitetura.
+     Esconde as demais abas e painéis (não só o menu) e inicia apenas os dois
+     módulos dele. O cartão "Usuários autorizados" não aparece (avaliacao-produto.js
+     só o mostra para admin geral) e as regras do banco negam o resto. */
+  function initAdminArquitetura() {
+    document.querySelectorAll('.admin-tab-btn').forEach(function (b) {
+      var arq = b.dataset.panel === 'adminPanelArquitetura';
+      b.hidden = !arq;
+      b.classList.toggle('active', arq);
+    });
+    document.querySelectorAll('.admin-tab-panel').forEach(function (p) {
+      var arq = p.id === 'adminPanelArquitetura';
+      p.hidden = !arq;
+      p.classList.toggle('active', arq);
+    });
+    var bar = document.querySelector('.admin-tabs-bar');
+    if (bar) bar.hidden = true;
+    var exp = document.getElementById('adminExpandBar');
+    if (exp) exp.hidden = true;
+    /* Squad primeiro: o cartão "Adequação à Squad" só é desenhado se window.faAvaliacaoSquad
+       já existir na primeira renderização do bloco de Avaliação. */
+    if (window.faInitAvaliacaoSquad) window.faInitAvaliacaoSquad();
+    if (window.faInitAvaliacaoProduto) window.faInitAvaliacaoProduto({ modo: 'admin' });
   }
 
   /* fa-espera guardava UMA entrada por pessoa. Agora guarda uma por pessoa e

@@ -52,11 +52,11 @@ const AVALIACOES = () => ({
 });
 
 async function abrir(browser, viewport) {
-  const acessos = {}; acessos[chave(EMAIL)] = { email: EMAIL, perfil: 'gestor' };
+  const acessos = {}; acessos[chave(EMAIL)] = { email: EMAIL, tipo: 'avaliacao' };
   const db = { turmas: {}, 'turmas-interesse': {}, 'fa-users': {}, 'fa-admins': {}, 'turmas-config': {}, 'turmas-checkin': {}, 'turmas-espera': {},
     'turmas-equipe': {}, 'fa-facilitadores': {}, 'fa-diretores': {}, eventos: {}, 'turmas-publico': {}, 'eventos-publico': {},
     'avaliacoes-produto': AVALIACOES(), 'avaliacoes-squad': {}, 'motor-squad-config': {}, 'motor-squad-auditoria': {},
-    'motor-arquitetura-config': {}, 'motor-arquitetura-auditoria': {}, 'fa-avaliacao-acessos': acessos };
+    'motor-arquitetura-config': {}, 'motor-arquitetura-auditoria': {}, 'fa-avaliacao-autorizados': acessos };
   const cfg = { db: db, user: { email: EMAIL, emailVerified: true, uid: 'u1' }, delayDefault: 10, persistenciaReal: true };
   const ctx = await browser.newContext({ viewport: viewport || DESKTOP, acceptDownloads: true });
   const page = await ctx.newPage();

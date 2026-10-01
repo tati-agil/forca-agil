@@ -7,7 +7,8 @@ document.addEventListener('DOMContentLoaded', function () {
 
   function updateAdminPage() {
     var sess    = window.faAuth && window.faAuth.getSession();
-    var isAdmin = sess && window.faAuth.isAdmin && window.faAuth.isAdmin(sess.email);
+    /* admin geral OU "Avaliação + Arquitetura" (este só vê a aba Arquitetura — ver admin.js) */
+    var isAdmin = sess && ((window.faAuth.isAdmin && window.faAuth.isAdmin(sess.email)) || (window.faAuth.podeArquitetura && window.faAuth.podeArquitetura()));
     var guard   = document.getElementById('adminGuard');
     var content = document.getElementById('adminContent');
     if (content) content.hidden = !isAdmin;
@@ -21,7 +22,10 @@ document.addEventListener('DOMContentLoaded', function () {
      só que causado pelo outro dado. Por isso o guarda só aparece quando as
      DUAS coisas terminaram. */
   function listaAdminsPronta() {
-    return !(window.faAuth && window.faAuth.isAdminReady) || window.faAuth.isAdminReady();
+    var admins = !(window.faAuth && window.faAuth.isAdminReady) || window.faAuth.isAdminReady();
+    /* quem entra só pela Arquitetura depende também do registro de acesso */
+    var acesso = !(window.faAuth && window.faAuth.isAvaliacaoReady) || window.faAuth.isAvaliacaoReady();
+    return admins && acesso;
   }
 
   function resolver() {
@@ -34,4 +38,5 @@ document.addEventListener('DOMContentLoaded', function () {
   window.addEventListener('fa-auth-ready',  resolver);
   window.addEventListener('fa-auth-change', resolver);
   window.addEventListener('fa-admin-ready', resolver);
+  window.addEventListener('fa-avaliacao-ready', resolver);
 });
