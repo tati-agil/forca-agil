@@ -123,6 +123,15 @@ const opcoes = (page, sel) => page.locator(sel + ' option').allInnerTexts();
     await page.selectOption('#avpFiltroResultado', 'nao-produto');
     await page.selectOption('#avpFiltroAlternativa', 'Componente');
 
+    console.log('\n== Hierarquia visual: amarelo só na ação principal ==');
+    const cores = await page.evaluate(() => {
+      const bg = (el) => getComputedStyle(el).backgroundColor;
+      return { novo: bg(document.querySelector('#avpNovoBtn')), abrir: bg(document.querySelector('.avp-act-ver')), mais: bg(document.querySelector('.avp-act-mais')),
+               lixeira: bg(document.querySelector('#avpLixeiraBtn')), textoAbrir: document.querySelector('.avp-act-ver').textContent.trim() };
+    });
+    afirma(cores.textoAbrir === 'Abrir', 'ação da linha concluída chama-se "Abrir"');
+    afirma(cores.abrir !== cores.novo && cores.mais !== cores.novo && cores.lixeira !== cores.novo, 'só "+ Avaliar novo item" tem o fundo de ação principal; Abrir, ⋯ e Lixeira são neutros');
+
     console.log('\n== 3. PDFs em lote (escopo claro) ==');
     await page.click('#avpExportarBtn');
     let escopo = await page.locator('.avp-exportar-escopo').innerText();

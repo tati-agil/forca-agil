@@ -84,7 +84,7 @@ async function cenariosDesktop(browser, w, h) {
   const { ctx, page, erros } = await abrirApp(browser, base(30, 3), { width: w, height: h });
   afirma(await page.locator('.avp-tabela-wrap tbody tr').count() === 30, 'as 30 avaliações continuam na lista');
   afirma(await page.locator('.avp-act-ver').count() + await page.locator('.avp-act-editar').count() === 30 && await page.locator('.avp-act-mais').count() === 30,
-    'os botões de ação de cada linha continuam (Visualizar/Continuar + ⋯)');
+    'os botões de ação de cada linha continuam (Abrir/Continuar + ⋯)');
 
   const ths = (await page.locator('.avp-tabela-wrap thead th').allTextContents()).map((t) => t.trim()).filter(Boolean);
   afirma(JSON.stringify(ths) === JSON.stringify(COLUNAS), 'colunas: ' + ths.join(' | '));

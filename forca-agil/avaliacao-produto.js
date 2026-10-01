@@ -1806,9 +1806,9 @@
           html += '<td class="avp-col-resp" data-label="Responsável">' + esc(it.responsavel && it.responsavel.name || '—') + '</td>';
           html += '<td class="avp-col-acoes" data-label="Ações"><div class="avp-row-actions">';
           if (it.status === 'concluido') {
-            html += '<button class="btn btn--sm btn--primary avp-act-ver" data-key="' + it._key + '">Visualizar</button>';
+            html += '<button class="btn btn--sm avp-act-principal avp-act-ver" data-key="' + it._key + '">Abrir</button>';
           } else if (podeMais) {
-            html += '<button class="btn btn--sm btn--primary avp-act-editar" data-key="' + it._key + '">Continuar</button>';
+            html += '<button class="btn btn--sm avp-act-principal avp-act-editar" data-key="' + it._key + '">Continuar</button>';
           }
           if (podeMais) html += '<button class="btn btn--sm avp-act-mais" data-key="' + it._key + '" aria-label="Mais ações">⋯</button>';
           html += '</div></td>';

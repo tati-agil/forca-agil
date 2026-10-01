@@ -2353,3 +2353,11 @@ select.aposta-campo-input { width: auto; min-width: 8.5em; }
 .avp-vazio { border: 1px dashed var(--line-strong); border-radius: 10px; padding: 22px 16px; text-align: center; color: var(--ink-2); display: flex; flex-direction: column; align-items: center; gap: 12px; }
 .avp-vazio p { margin: 0; font-size: .9rem; }
 @media (max-width: 640px) { .avp-busca { max-width: none; flex-basis: 100%; } .avp-filtros-btn { flex: 1 1 auto; } }
+
+/* Hierarquia visual da lista: o amarelo cheio é só da ação principal da tela
+   ("+ Avaliar novo item"). A ação de cada linha (Abrir/Continuar) é neutra, com
+   um realce discreto; exportar, lixeira e o ⋯ são secundários. */
+.avp-act-principal { border-color: var(--line-strong); color: var(--ink); font-weight: 600; }
+.avp-act-principal:hover, .avp-act-principal:focus-visible { border-color: var(--gold); outline: none; }
+.avp-lixeira-btn { color: var(--ink-3); border-color: var(--line); background: transparent; }
+.avp-lixeira-btn:hover, .avp-lixeira-btn:focus-visible { color: var(--ink); }
