@@ -154,6 +154,20 @@
     box.querySelector('.sq-modal-confirm-btn').addEventListener('click', function () { fechar(); callbackSim(); });
   }
 
+  /* Navegação hierárquica: toda subtela abre com "← Voltar para <tela pai>"
+     explícito. Sair de uma tela de EDIÇÃO com alteração não salva avisa antes
+     (c.sujo é ligado pelo campo editado e desligado ao salvar). */
+  function sqLinkVoltar(id, destino) {
+    return '<button type="button" class="avp-voltar-link" id="' + id + '">← Voltar para ' + esc(destino) + '</button>';
+  }
+  function sqSairComAviso(c, acao) {
+    if (c && c.sujo) {
+      sqConfirm('Há alterações que ainda não foram salvas. Se sair agora, elas não serão salvas como rascunho nem publicadas.\n\nSair mesmo assim?', acao);
+    } else {
+      acao();
+    }
+  }
+
   function carregarScript(src, jaDisponivel, cb) {
     if (jaDisponivel()) { cb(null); return; }
     var el = document.querySelector('script[data-sq-lib="' + src + '"]');
@@ -269,7 +283,7 @@
       else if (state.tela === 'carregando') { wrap.innerHTML = '<p class="loading-msg">Carregando…</p>'; }
       else if (state.tela === 'nao-encontrada') {
         wrap.innerHTML = '<p class="admin-empty">Avaliação de squad não encontrada.</p>' +
-          '<button class="btn" id="sqVoltarNaoEncontrada">‹ Adequação à Squad</button>';
+          '<button class="btn" id="sqVoltarNaoEncontrada">← Voltar para Adequação à Squad</button>';
         document.getElementById('sqVoltarNaoEncontrada').addEventListener('click', function () { state.tela = 'lista'; render(); });
       }
     }
@@ -280,7 +294,7 @@
       var filtro = (state.filtroTexto || '').trim().toLowerCase();
       var filtrados = filtro ? ativos.filter(function (it) { return (it.itemNome || '').toLowerCase().indexOf(filtro) !== -1; }) : ativos;
 
-      var html = '<button class="avp-voltar-link" id="sqVoltarArquitetura">‹ Avaliações de Produto/Serviço</button>';
+      var html = sqLinkVoltar('sqVoltarArquitetura', 'Avaliação de Produto/Serviço (Admin)');
       html += '<div class="avp-intro"><p><strong>Adequação à gestão por Squad:</strong> registra evidências (S1 a S8) sobre demanda, evolução, ' +
         'autonomia, complexidade e ownership de um item — completamente independente da classificação arquitetural (P1-P16) do mesmo item. ' +
         'Nenhuma das duas decide a outra.</p></div>';
@@ -413,7 +427,7 @@
        módulo a cada tecla) pra nunca perder o foco do campo — mesmo padrão
        já usado em admin.js (＋ Participante / Incluir pessoa). */
     function renderFormInicial() {
-      var html = '<button class="avp-voltar-link" id="sqVoltarListaInicial">‹ Adequação à Squad</button>';
+      var html = sqLinkVoltar('sqVoltarListaInicial', 'Adequação à Squad');
       html += '<div class="avp-form-card">';
       html += '<h3>Avaliação de Adequação à Gestão por Squad</h3>';
       html += '<p class="avp-decisao-aviso">Esta avaliação não altera a classificação arquitetural do item. Seu objetivo é registrar evidências ' +
@@ -487,7 +501,7 @@
     function renderChecklist() {
       var a = state.atual;
       var perguntas = perguntasOrdenadas(a.questionnaireContentVersion);
-      var html = '<button class="avp-voltar-link" id="sqVoltarListaChecklist">‹ Adequação à Squad</button>';
+      var html = sqLinkVoltar('sqVoltarListaChecklist', 'Adequação à Squad');
       html += '<div class="avp-form-card"><h3>' + esc(a.itemNome) + '</h3>';
       html += '<p class="avp-decisao-aviso">Esta avaliação não altera a classificação arquitetural do item. Seu objetivo é registrar evidências ' +
         'sobre demanda, evolução, autonomia, complexidade e ownership para apoiar a decisão organizacional sobre gestão por squad.</p>';
@@ -809,7 +823,7 @@
     function renderResultadoSquad() {
       var a = state.atual;
       var perguntas = perguntasOrdenadas(a.questionnaireContentVersion);
-      var html = '<button class="avp-voltar-link" id="sqVoltarListaResultado">‹ Adequação à Squad</button>';
+      var html = sqLinkVoltar('sqVoltarListaResultado', 'Adequação à Squad');
       if (state.flashResultado) {
         html += '<div class="avp-flash-success" id="sqFlashResultado">' + esc(state.flashResultado) +
           ' <button type="button" class="avp-flash-close" id="sqFlashResultadoClose" aria-label="Fechar">×</button></div>';
@@ -842,7 +856,7 @@
       html += '</tbody></table></div></div>';
 
       html += '<div class="avp-actions-footer avp-result-actions-footer">';
-      html += '<button class="btn" id="sqVoltarListaRodape">VOLTAR PARA A LISTA</button>';
+      html += '<button class="btn" id="sqVoltarListaRodape">← Voltar para Adequação à Squad</button>';
       html += '<button class="btn btn--sm" id="sqGerarPdfBtn"' + (state.exportando ? ' disabled' : '') + '>' +
         (state.exportando ? 'Gerando arquivo…' : '📄 GERAR PDF') + '</button>';
       html += '</div>';
@@ -1020,9 +1034,21 @@
       state.motorConfig = { sub: 'painel', flash: state.motorConfig && state.motorConfig.flash };
       render();
     }
+    function voltarParaEditarRegrasSquad(c) {
+      state.motorConfig = { sub: 'editar-regras', regras: c.regras, versaoBase: c.versaoBase, salvando: false, sujo: true };
+      render();
+    }
+    function voltarParaConflitoSquad(c) {
+      state.motorConfig = { sub: 'conflito-publicacao', regras: c.regras, versaoBase: c.versaoBase, versaoAtual: c.versaoAtual, salvando: false };
+      render();
+    }
     function renderMotorConfig() {
       var c = state.motorConfig;
-      var html = '<button class="avp-voltar-link" id="sqMotorVoltarLista">‹ Adequação à Squad</button>';
+      var destinoVoltar = c.sub === 'painel' ? 'Adequação à Squad'
+        : c.sub === 'simulacao' || c.sub === 'conflito-publicacao' ? 'Editar regras'
+        : c.sub === 'comparar-alteracoes' ? 'o conflito de publicação'
+        : 'Configuração do Motor de Squad';
+      var html = sqLinkVoltar('sqMotorVoltarLista', destinoVoltar);
       html += '<div class="sq-motor-config">';
       if (c.sub === 'painel') html += renderMotorPainel();
       else if (c.sub === 'editar-regras') html += renderMotorEditarRegras();
@@ -1034,7 +1060,12 @@
       else if (c.sub === 'versoes') html += renderMotorVersoes();
       html += '</div>';
       wrap.innerHTML = html;
-      document.getElementById('sqMotorVoltarLista').addEventListener('click', function () { state.tela = 'lista'; state.motorConfig = null; render(); });
+      document.getElementById('sqMotorVoltarLista').addEventListener('click', function () {
+        if (c.sub === 'painel') { state.tela = 'lista'; state.motorConfig = null; render(); }
+        else if (c.sub === 'simulacao' || c.sub === 'conflito-publicacao') voltarParaEditarRegrasSquad(c);
+        else if (c.sub === 'comparar-alteracoes') voltarParaConflitoSquad(c);
+        else sqSairComAviso(c, voltarPainelMotorConfig);
+      });
       if (c.sub === 'painel') bindMotorPainel();
       else if (c.sub === 'editar-regras') bindMotorEditarRegras();
       else if (c.sub === 'simulacao') bindMotorSimulacao();
@@ -1142,7 +1173,7 @@
       html += '<div class="avp-actions-footer">';
       html += '<button class="btn" id="sqMotorSalvarRascunhoBtn"' + (c.salvando ? ' disabled' : '') + '>SALVAR RASCUNHO</button>';
       html += '<button class="btn btn--primary" id="sqMotorSimularBtn"' + (c.salvando ? ' disabled' : '') + '>SIMULAR IMPACTO</button>';
-      html += '<button class="btn" id="sqMotorCancelarEdicaoBtn"' + (c.salvando ? ' disabled' : '') + '>‹ Voltar</button>';
+      html += '<button class="btn" id="sqMotorCancelarEdicaoBtn"' + (c.salvando ? ' disabled' : '') + '>← Voltar para Configuração do Motor de Squad</button>';
       html += '</div>';
       return html;
     }
@@ -1150,10 +1181,11 @@
       var c = state.motorConfig;
       wrap.querySelectorAll('.sq-cond-select').forEach(function (sel) {
         sel.addEventListener('change', function () {
+          c.sujo = true;
           c.leafRefs[Number(sel.dataset.leafId)].valor = sel.value;
         });
       });
-      document.getElementById('sqMotorCancelarEdicaoBtn').addEventListener('click', voltarPainelMotorConfig);
+      document.getElementById('sqMotorCancelarEdicaoBtn').addEventListener('click', function () { sqSairComAviso(c, voltarPainelMotorConfig); });
       document.getElementById('sqMotorSalvarRascunhoBtn').addEventListener('click', function () {
         if (c.salvando) return;
         c.salvando = true;
@@ -1195,7 +1227,7 @@
       }
       if (c.erro) html += '<p class="avp-error-msg">' + esc(c.erro) + '</p>';
       html += '<div class="avp-actions-footer">';
-      html += '<button class="btn" id="sqMotorVoltarEdicaoBtn"' + (c.salvando ? ' disabled' : '') + '>‹ VOLTAR PARA EDIÇÃO</button>';
+      html += '<button class="btn" id="sqMotorVoltarEdicaoBtn"' + (c.salvando ? ' disabled' : '') + '>← Voltar para Editar regras</button>';
       html += '<button class="btn btn--primary" id="sqMotorConfirmarPublicarBtn"' + (c.salvando ? ' disabled' : '') + '>' +
         (c.salvando ? 'PUBLICANDO…' : 'CONFIRMAR PUBLICAÇÃO') + '</button>';
       html += '</div>';
@@ -1203,10 +1235,7 @@
     }
     function bindMotorSimulacao() {
       var c = state.motorConfig;
-      document.getElementById('sqMotorVoltarEdicaoBtn').addEventListener('click', function () {
-        state.motorConfig = { sub: 'editar-regras', regras: c.regras, versaoBase: c.versaoBase, salvando: false };
-        render();
-      });
+      document.getElementById('sqMotorVoltarEdicaoBtn').addEventListener('click', function () { voltarParaEditarRegrasSquad(c); });
       document.getElementById('sqMotorConfirmarPublicarBtn').addEventListener('click', function () {
         if (c.salvando) return;
         c.salvando = true;
@@ -1291,16 +1320,13 @@
         });
       }
       html += '<div class="avp-actions-footer">';
-      html += '<button class="btn" id="sqMotorCompararVoltarBtn">‹ Voltar ao conflito</button>';
+      html += '<button class="btn" id="sqMotorCompararVoltarBtn">← Voltar para o conflito de publicação</button>';
       html += '</div>';
       return html;
     }
     function bindMotorCompararAlteracoes() {
       var c = state.motorConfig;
-      document.getElementById('sqMotorCompararVoltarBtn').addEventListener('click', function () {
-        state.motorConfig = { sub: 'conflito-publicacao', regras: c.regras, versaoBase: c.versaoBase, versaoAtual: c.versaoAtual, salvando: false };
-        render();
-      });
+      document.getElementById('sqMotorCompararVoltarBtn').addEventListener('click', function () { voltarParaConflitoSquad(c); });
     }
 
     /* ---- EDITAR TEXTOS (publicação imediata, nunca versiona o motor) ---- */
@@ -1320,7 +1346,7 @@
       html += '<div class="avp-actions-footer">';
       html += '<button class="btn btn--primary" id="sqMotorPublicarTextosBtn"' + (c.salvando ? ' disabled' : '') + '>' +
         (c.salvando ? 'PUBLICANDO…' : 'PUBLICAR TEXTOS') + '</button>';
-      html += '<button class="btn" id="sqMotorCancelarTextosBtn"' + (c.salvando ? ' disabled' : '') + '>‹ Voltar</button>';
+      html += '<button class="btn" id="sqMotorCancelarTextosBtn"' + (c.salvando ? ' disabled' : '') + '>← Voltar para Configuração do Motor de Squad</button>';
       html += '</div>';
       return html;
     }
@@ -1328,17 +1354,19 @@
       var c = state.motorConfig;
       wrap.querySelectorAll('.sq-texto-rotulo').forEach(function (input) {
         input.addEventListener('input', function () {
+          c.sujo = true;
           c.textos[input.dataset.codigo] = c.textos[input.dataset.codigo] || {};
           c.textos[input.dataset.codigo].rotulo = input.value;
         });
       });
       wrap.querySelectorAll('.sq-texto-interpretacao').forEach(function (ta) {
         ta.addEventListener('input', function () {
+          c.sujo = true;
           c.textos[ta.dataset.codigo] = c.textos[ta.dataset.codigo] || {};
           c.textos[ta.dataset.codigo].interpretacao = ta.value;
         });
       });
-      document.getElementById('sqMotorCancelarTextosBtn').addEventListener('click', voltarPainelMotorConfig);
+      document.getElementById('sqMotorCancelarTextosBtn').addEventListener('click', function () { sqSairComAviso(c, voltarPainelMotorConfig); });
       document.getElementById('sqMotorPublicarTextosBtn').addEventListener('click', function () {
         if (c.salvando) return;
         c.salvando = true;
@@ -1356,8 +1384,9 @@
     function renderMotorAuditoria() {
       var c = state.motorConfig;
       var html = '<div class="avp-form-card"><h3>Histórico de alterações do motor de squad</h3></div>';
-      if (!c.lista) { html += '<p class="loading-msg">Carregando…</p>'; return html; }
-      if (!c.lista.length) { html += '<p class="admin-empty">Nenhuma alteração registrada ainda.</p>'; return html; }
+      /* o "← Voltar" do rodapé existe também enquanto carrega e quando não há nada a mostrar */
+      if (!c.lista) { html += '<p class="loading-msg">Carregando…</p>' + '<div class="avp-actions-footer"><button class="btn" id="sqMotorVoltarAuditoriaBtn">← Voltar para Configuração do Motor de Squad</button></div>'; return html; }
+      if (!c.lista.length) { html += '<p class="admin-empty">Nenhuma alteração registrada ainda.</p>' + '<div class="avp-actions-footer"><button class="btn" id="sqMotorVoltarAuditoriaBtn">← Voltar para Configuração do Motor de Squad</button></div>'; return html; }
       html += '<div class="table-scroll-wrap"><table class="admin-table"><thead><tr><th>Tipo</th><th>Campo</th><th>Usuário</th><th>Data</th><th>Versão</th></tr></thead><tbody>';
       c.lista.forEach(function (a) {
         var tipoLabel = a.tipo === 'regra' ? 'Regra' : a.tipo === 'texto' ? 'Texto'
@@ -1373,7 +1402,7 @@
           '<td data-label="Versão">' + versaoCol + '</td></tr>';
       });
       html += '</tbody></table></div>';
-      html += '<div class="avp-actions-footer"><button class="btn" id="sqMotorVoltarAuditoriaBtn">‹ Voltar</button></div>';
+      html += '<div class="avp-actions-footer"><button class="btn" id="sqMotorVoltarAuditoriaBtn">← Voltar para Configuração do Motor de Squad</button></div>';
       return html;
     }
     function bindMotorAuditoria() {
@@ -1393,7 +1422,7 @@
           '<td data-label="Ações">' + (v === atual ? '' : '<button class="btn btn--sm sq-motor-restaurar-btn" data-versao="' + v + '">Restaurar como nova versão</button>') + '</td></tr>';
       });
       html += '</tbody></table></div>';
-      html += '<div class="avp-actions-footer"><button class="btn" id="sqMotorVoltarVersoesBtn">‹ Voltar</button></div>';
+      html += '<div class="avp-actions-footer"><button class="btn" id="sqMotorVoltarVersoesBtn">← Voltar para Configuração do Motor de Squad</button></div>';
       return html;
     }
     function bindMotorVersoes() {

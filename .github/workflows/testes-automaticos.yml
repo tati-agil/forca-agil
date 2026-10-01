@@ -83,6 +83,16 @@ jobs:
           FA_BASE_URL: http://127.0.0.1:8811
         run: node .github/scripts/teste-pdf-lote-blocos.js
 
+      # Admin da Avaliação: tela inicial em três grupos e "← Voltar para <tela
+      # pai>" explícito em TODA subtela (sobe um nível); sair de edição com
+      # alteração não salva pede confirmação. Desktop e celular, motor
+      # arquitetural e motor de squad.
+      - name: "Avaliação: navegação do Admin, botões Voltar e aviso de alteração não salva (desktop e celular)"
+        env:
+          NODE_PATH: /tmp/pw-deps/node_modules
+          FA_BASE_URL: http://127.0.0.1:8811
+        run: node .github/scripts/teste-admin-navegacao.js
+
       # Mesma família da tela preta, agora no Repositório: a grade de cards
       # (#repoGrid) só é desenhada dentro de listeners assíncronos do
       # Firebase, e sem aviso de carregamento ficava vazia e indistinguível

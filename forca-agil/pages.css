@@ -2384,3 +2384,7 @@ select.aposta-campo-input { width: auto; min-width: 8.5em; }
   .avp-hist-item { grid-template-columns: 1fr; }
   .avp-hist-item .avp-hist-abrir { grid-column: 1; grid-row: auto; justify-self: start; }
 }
+
+/* Admin da Avaliação: grupos da tela inicial (só organização visual) */
+.avp-admin-grupo-desc { margin: 2px 0 0; font-size: .82rem; color: var(--ink-3); }
+.avp-admin-grupo + .avp-admin-grupo { margin-top: 14px; }
