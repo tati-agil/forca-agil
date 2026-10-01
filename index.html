@@ -246,7 +246,8 @@ body.aguardando-auth>#bootStatus{z-index:900}
     <a href="#conteudos"   data-nav-page="conteudos" class="nav-link-enrolled" hidden>Conteúdos</a>
     <a href="#repositorio" data-nav-page="repositorio" class="nav-link-member" hidden>Repositório</a>
     <a href="#treinamento" data-nav-page="treinamento" class="nav-link-trein" hidden>Treinamento</a>
-    <a href="#avaliacao"  data-nav-page="avaliacao"  class="nav-link-aval" hidden>Avaliação</a>
+    <a href="#avaliacao"  data-nav-page="avaliacao"  class="nav-link-aval" hidden>Avaliar oficina</a>
+    <a href="#avaliacoes" data-nav-page="avaliacoes" class="nav-link-avaliacoes" hidden>Avaliação</a>
     <a href="#minha-area" data-nav-page="minha-area" class="nav-link-member" hidden>Minha Área</a>
     <a href="#facilitador" data-nav-page="facilitador" class="nav-link-facilitador" hidden>Facilitador</a>
     <a href="#ajuda"  data-nav-page="ajuda">Ajuda</a>
@@ -1673,6 +1674,25 @@ body.aguardando-auth>#bootStatus{z-index:900}
     </div>
   </div>
 </div>
+
+<!-- ======================================================
+     PAGE: AVALIAÇÕES — Avaliação de Produto/Serviço (área OPERACIONAL:
+     consultar, avaliar, reavaliar). As configurações ficam no ADMIN.
+     Quem entra aqui é decidido pelo perfil em fa-avaliacao-acessos
+     (consulta < avaliador < gestor), e não por ser admin.
+     ====================================================== -->
+<div class="page-section" id="page-avaliacoes" hidden>
+  <div class="wrap">
+    <div class="page-hero">
+      <span class="eyebrow">Produto/Serviço</span>
+      <h1>Avaliações de Produto/Serviço</h1>
+      <p>Consulte avaliações existentes ou realize uma nova avaliação.</p>
+    </div>
+    <section class="section">
+      <div id="avaliacoesPainel"><p class="loading-msg">Carregando avaliações…</p></div>
+    </section>
+  </div>
+</div><!-- /page-avaliacoes -->
 
 <!-- ======================================================
      PAGE: MINHA ÁREA (área do participante)

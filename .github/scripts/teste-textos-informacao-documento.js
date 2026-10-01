@@ -206,10 +206,9 @@ async function abrirApp(browser, viewport) {
   await page.route('**/firebasejs/**', (r) => r.fulfill({ status: 200, contentType: 'text/javascript', body: FALSO }));
   await page.route('**fonts.googleapis.com**', (r) => r.fulfill({ status: 200, contentType: 'text/css', body: '' }));
   await page.route('**fonts.gstatic.com**', (r) => r.abort());
-  await page.goto(BASE + '/index.html#admin', { waitUntil: 'domcontentloaded' });
+  await page.goto(BASE + '/index.html#avaliacoes', { waitUntil: 'domcontentloaded' });
   await page.waitForFunction(() => !document.body.classList.contains('aguardando-auth'), { timeout: 16000 }).catch(() => {});
   await page.waitForTimeout(800);
-  await page.click('.admin-tab-btn[data-panel="adminPanelArquitetura"]');
   await page.waitForSelector('#avpNovoBtn', { timeout: 8000 });
   await page.waitForTimeout(300);
   return { ctx, page, erros };
@@ -217,7 +216,7 @@ async function abrirApp(browser, viewport) {
 const banco = (page) => page.evaluate(() => JSON.parse(JSON.stringify(window.__CFG.__dbReal)));
 const contar = (page, sel) => page.locator(sel).count();
 const larguraOk = (page) => page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth + 1);
-const textoTela = (page) => page.locator('#adminAvaliacaoProduto').innerText().then((t) => t.replace(/\s+/g, ' '));
+const textoTela = (page) => page.locator('#avaliacoesPainel').innerText().then((t) => t.replace(/\s+/g, ' '));
 async function interpretacao(page, codigo) {
   const n = codigo.slice(1);
   return page.locator('.avp-reasoning-item', { has: page.locator('.avp-reasoning-q', { hasText: new RegExp('^' + n + '\\.') }) }).locator('.avp-reasoning-auto').innerText();
@@ -233,6 +232,7 @@ async function novaTrilha(page, nome) {
   await page.waitForTimeout(200);
 }
 async function aplicarCorrecao(page) {
+  await irAoAdmin(page);
   await page.click('#avpConfigQuestionariosBtn');
   await page.waitForSelector('#avpCorrecao-interpretacoes-p5-p15', { timeout: 5000 });
   await page.click('.avp-correcao-aplicar-btn');
@@ -241,9 +241,7 @@ async function aplicarCorrecao(page) {
   await page.waitForFunction(() => /Correção aplicada/.test(document.body.innerText), { timeout: 8000 }).catch(() => {});
   await page.click('.avp-modal-ok-btn').catch(() => {});
   await page.waitForTimeout(300);
-  await page.click('#avpConfigVoltar');
-  await page.waitForSelector('#avpNovoBtn');
-  await page.waitForTimeout(200);
+  await voltarParaAvaliacoes(page);
 }
 
 async function parteB(browser) {
@@ -318,6 +316,25 @@ async function parteB(browser) {
   afirma(await larguraOk(m.page) && (await textoTela(m.page)).includes(RELACAO_ANTIGA), 'resultado da Trilha legível e sem rolagem horizontal a 375 px');
   afirma(m.erros.length === 0, 'nenhum erro de JS');
   await m.ctx.close();
+}
+
+/* A configuração (questionários, motores, naturezas) agora fica no ADMIN, fora da
+   área Avaliação. Estes dois passos levam até lá e de volta. */
+async function irAoAdmin(page) {
+  await page.evaluate(() => { location.hash = '#admin'; });
+  await page.waitForSelector('.admin-tab-btn[data-panel="adminPanelArquitetura"]', { timeout: 8000 });
+  await page.click('.admin-tab-btn[data-panel="adminPanelArquitetura"]');
+  /* o Admin lembra a subtela em que ficou: se não caiu no início, volta até ele */
+  await page.waitForSelector('#avpConfigQuestionariosBtn, #avpConfigVoltar, #avpNaturezasVoltar, #avpMotoresVoltarLista, #avpUsuariosVoltar', { timeout: 8000 });
+  if (!(await page.locator('#avpConfigQuestionariosBtn').count())) {
+    await page.locator('#avpConfigVoltar, #avpNaturezasVoltar, #avpMotoresVoltarLista, #avpUsuariosVoltar').first().click();
+  }
+  await page.waitForSelector('#avpConfigQuestionariosBtn', { timeout: 8000 });
+}
+async function voltarParaAvaliacoes(page) {
+  await page.evaluate(() => { location.hash = '#avaliacoes'; });
+  await page.waitForSelector('#avpNovoBtn', { timeout: 8000 });
+  await page.waitForTimeout(200);
 }
 
 (async () => {

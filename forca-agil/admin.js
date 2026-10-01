@@ -125,7 +125,7 @@
     if (window.faInitTestes) window.faInitTestes();
     if (window.faInitPedidos) window.faInitPedidos();
     if (window.faInitDashboard) window.faInitDashboard();
-    if (window.faInitAvaliacaoProduto) window.faInitAvaliacaoProduto();
+    if (window.faInitAvaliacaoProduto) window.faInitAvaliacaoProduto({ modo: 'admin' });
     if (window.faInitAvaliacaoSquad) window.faInitAvaliacaoSquad();
     initCertificados();
   }

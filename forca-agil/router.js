@@ -4,7 +4,7 @@
 (function () {
   'use strict';
 
-  const PAGES   = ['home','turmas','conteudos','treinamento','repositorio','avaliacao','minha-area','ajuda','admin','facilitador','checkin'];
+  const PAGES   = ['home','turmas','conteudos','treinamento','repositorio','avaliacao','avaliacoes','minha-area','ajuda','admin','facilitador','checkin'];
 
   /* "Já dá pra confiar no false do isAdmin()?" — enquanto a lista de admins
      não terminou de carregar, ele responde false por não saber ainda, e isso
@@ -26,6 +26,17 @@
     return !(window.faAuth && window.faAuth.isEnrolledReady) || window.faAuth.isEnrolledReady();
   }
 
+  /* #avaliacoes (Avaliação de Produto/Serviço) não depende de ser admin: vale o
+     PERFIL em fa-avaliacao-acessos (consulta, avaliador ou gestor), com a
+     transição "admin sem registro = gestor" — tudo dentro de faAuth. Mesma
+     regra de "não sei" das demais: só expulsa quem se SABE sem acesso. */
+  function avaliacoesPronta() {
+    return !(window.faAuth && window.faAuth.isAvaliacaoReady) || window.faAuth.isAvaliacaoReady();
+  }
+  function semAcessoAvaliacoes() {
+    return !!(window.faAuth && window.faAuth.podeAvaliacao && !window.faAuth.podeAvaliacao('consulta') && avaliacoesPronta());
+  }
+
   /* #facilitador é como #admin — admin OU facilitador, nunca mais ninguém. */
   function podeVerFacilitador(s) {
     return !!(s && window.faAuth && (window.faAuth.isAdmin(s.email) || (window.faAuth.isFacilitador && window.faAuth.isFacilitador(s.email))));
@@ -34,7 +45,15 @@
   let current = null;
 
   function route() {
-    let h = (location.hash || '').replace(/^#\/?/, '').split('?')[0] || 'home';
+    const bruto = (location.hash || '').replace(/^#\/?/, '');
+    let h = bruto.split('?')[0] || 'home';
+    /* Link antigo de uma avaliação (#admin?avp=<chave>, de quando a tela só
+       existia dentro do Admin) continua abrindo a mesma avaliação, agora na
+       área Avaliação. */
+    if (h === 'admin' && /(^|[?&])avp=/.test(bruto)) {
+      history.replaceState(null, '', '#avaliacoes?' + bruto.split('?').slice(1).join('?'));
+      h = 'avaliacoes';
+    }
     return PAGES.indexOf(h) !== -1 ? h : 'home';
   }
 
@@ -48,6 +67,12 @@
 
     if (page === 'facilitador' && !podeVerFacilitador(window.faAuth && window.faAuth.getSession())) {
       location.hash = '#home';
+      return;
+    }
+
+    if (page === 'avaliacoes' && window.faAuth && window.faAuth.getSession() && semAcessoAvaliacoes()) {
+      location.hash = '#home';
+      showAccessMsg('Você não tem acesso à Avaliação de Produto/Serviço.');
       return;
     }
 
@@ -108,6 +133,13 @@
     if (page === 'admin' && window.faAuth && window.faAuth.isAuthReady && window.faAuth.isAuthReady()) {
       const s = window.faAuth.getSession();
       if (s && !window.faAuth.isAdmin(s.email) && listaAdminsPronta()) {
+        page = 'home';
+        history.replaceState(null, '', '#home');
+      }
+    }
+
+    if (page === 'avaliacoes' && window.faAuth && window.faAuth.isAuthReady && window.faAuth.isAuthReady()) {
+      if (window.faAuth.getSession() && semAcessoAvaliacoes()) {
         page = 'home';
         history.replaceState(null, '', '#home');
       }
@@ -624,6 +656,11 @@
   });
   window.addEventListener('fa-facilitador-ready', function () {
     if (route() === 'facilitador') show('facilitador');
+  });
+  /* O perfil na Avaliação de Produto/Serviço chegou: quem abriu #avaliacoes
+     (F5, link salvo) antes disso só agora sabe se fica ou sai. */
+  window.addEventListener('fa-avaliacao-ready', function () {
+    if (route() === 'avaliacoes') show('avaliacoes');
   });
   /* A inscrição em turma terminou de ser lida: refaz a decisão de rota,
      que até agora estava propositalmente sem expulsar ninguém. */

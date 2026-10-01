@@ -76,6 +76,9 @@
   function isFacilitador(e) {
     return _dbFacilitadores.indexOf((e || '').toLowerCase()) !== -1;
   }
+  /* Super-admin = os dois fixos no código: os únicos que as regras do banco
+     deixam mexer em fa-admins (adicionar/remover administradores). */
+  function isSuperAdmin(e) { return ADMIN.indexOf((e || '').toLowerCase()) !== -1; }
   function getSession() { return _session; }
   /* Admin tem acesso a tudo, mesmo sem estar pessoalmente inscrito numa turma —
      _accessLevel continua rastreando a inscrição real da pessoa por baixo */
@@ -204,6 +207,13 @@
      antes da sessão terminar de carregar. */
   function enforceCurrentRouteAccess() {
     if (!window.faRouter) return;
+    /* Avaliação de Produto/Serviço: só quem se SABE sem acesso sai da rota.
+       Esta checagem não depende de inscrição em turma nem de nível. */
+    if (_session && isAvaliacaoReady() && window.faRouter.current() === 'avaliacoes' && !podeAvaliacao('consulta')) {
+      location.hash = '#home';
+      if (window.faRouter.showAccessMsg) window.faRouter.showAccessMsg('Você não tem acesso à Avaliação de Produto/Serviço.');
+      return;
+    }
     /* getAccessLevel() devolve 'enrolled' pra admin — mas isAdmin() só
        responde a verdade depois que a leitura de fa-admins volta. Antes
        disso, um admin que não está inscrito em turma nenhuma parece
@@ -258,6 +268,7 @@
       _dbAdmins = data ? [(data.email || user.email).toLowerCase()] : [];
       _adminsResolvidos = true;
       window.dispatchEvent(new CustomEvent('fa-admin-ready'));
+      avisarAvaliacaoPronta();
       updateNavState();
       /* Agora que dá pra confiar no isAdmin(), refaz a checagem de rota
          que foi adiada acima: quem é admin fica onde estava, quem não é
@@ -308,6 +319,71 @@
   /* Mesmo motivo do isAdminReady: o router precisa distinguir "não é
      facilitador" de "ainda não sei se é". */
   function isFacilitadorReady() { return _facilitadoresResolvidos; }
+
+  /* ---- PERFIL NA AVALIAÇÃO DE PRODUTO/SERVIÇO (fa-avaliacao-acessos) ----
+     Independente de ser admin: consulta < avaliador < gestor. Quem manda de
+     verdade são as regras do banco (database.rules.json); isto só decide o que
+     mostrar — menu, botões — e nunca é a barreira.
+
+     TRANSIÇÃO: admin SEM registro continua como gestor (quem já trabalhava
+     nas avaliações não perde o acesso no dia em que isto entra). Registro
+     explícito — inclusive 'nenhum' — sempre vence, então "admin" e "avaliador"
+     seguem sendo permissões independentes. É a mesma regra que o banco aplica.
+
+     Mesmo cuidado do isAdmin(): enquanto a leitura do próprio registro não
+     volta, getAvaliacaoPerfil() responde 'nenhum' por NÃO SABER, e isso nunca
+     pode virar expulsão da rota — por isso existe isAvaliacaoReady(). */
+  let _dbAvaliacaoPerfil = null;
+  let _dbAvaliacaoEntrada = false;
+  let _avaliacaoResolvida = false;
+  /* E-mail do LOGIN (Firebase Auth), não de _session: a sessão só é montada
+     depois da leitura de fa-users e pode chegar DEPOIS do registro do perfil —
+     usar _session aqui fazia o perfil valer "nenhum" nesse intervalo, e a lista
+     desistia de carregar para sempre. */
+  let _avaliacaoEmail = null;
+  /* "Pronto" depende de DUAS leituras (o próprio registro e a lista de admins,
+     por causa da transição) que voltam em ordem qualquer — em rede lenta, a
+     segunda chega segundos depois da primeira. Por isso o aviso sai de quem
+     terminar por último (aqui e em fa-admin-ready); avisar só numa das duas
+     deixava a lista vazia para sempre quando a outra demorava mais. */
+  function avisarAvaliacaoPronta() {
+    if (_avaliacaoResolvida && _adminsResolvidos) window.dispatchEvent(new CustomEvent('fa-avaliacao-ready'));
+  }
+  const ORDEM_PERFIL_AVALIACAO = { nenhum: 0, consulta: 1, avaliador: 2, gestor: 3 };
+  firebase.auth().onAuthStateChanged(function (user) {
+    if (_criandoConta) return;
+    if (!user) {
+      _avaliacaoEmail = null;
+      _dbAvaliacaoPerfil = null; _dbAvaliacaoEntrada = false; _avaliacaoResolvida = true;
+      updateNavState();
+      avisarAvaliacaoPronta();
+      return;
+    }
+    _avaliacaoResolvida = false;
+    _avaliacaoEmail = user.email;
+    firebase.database().ref('fa-avaliacao-acessos/' + emailKey(user.email)).once('value', function (snap) {
+      const data = snap.val();
+      _dbAvaliacaoEntrada = snap.exists();
+      _dbAvaliacaoPerfil = data && ORDEM_PERFIL_AVALIACAO[data.perfil] !== undefined ? data.perfil : null;
+      _avaliacaoResolvida = true;
+      avisarAvaliacaoPronta();
+      updateNavState();
+      enforceCurrentRouteAccess();
+    });
+  });
+  function getAvaliacaoPerfil() {
+    const email = _avaliacaoEmail;
+    if (!email) return 'nenhum';
+    if (_dbAvaliacaoEntrada) return _dbAvaliacaoPerfil || 'nenhum';
+    return isAdmin(email) ? 'gestor' : 'nenhum';
+  }
+  /* "Tem pelo menos este nível?" — nivel: 'consulta' | 'avaliador' | 'gestor'. */
+  function podeAvaliacao(nivel) {
+    return ORDEM_PERFIL_AVALIACAO[getAvaliacaoPerfil()] >= ORDEM_PERFIL_AVALIACAO[nivel || 'consulta'];
+  }
+  /* "Já dá pra confiar no 'nenhum'?" — precisa do próprio registro E da lista
+     de admins (a transição depende dela). */
+  function isAvaliacaoReady() { return _avaliacaoResolvida && _adminsResolvidos; }
 
   /* ---- Firebase Auth — fonte de verdade de sessão ---- */
   firebase.auth().onAuthStateChanged(function (user) {
@@ -640,6 +716,12 @@
     document.querySelectorAll('.nav-link-facilitador').forEach(function (el) {
       el.hidden = !sess || !(isAdmin(sess.email) || isFacilitador(sess.email));
     });
+    /* Menu "Avaliação" (Produto/Serviço): só para quem tem pelo menos o perfil
+       Consulta. Enquanto não se sabe, fica escondido — aparece assim que a
+       leitura do perfil volta. */
+    document.querySelectorAll('.nav-link-avaliacoes').forEach(function (el) {
+      el.hidden = !sess || !podeAvaliacao('consulta');
+    });
   }
 
   if (document.readyState !== 'loading') updateNavState();
@@ -940,7 +1022,7 @@
 
   window.faAuth = {
     corrigirEmailPorAdmin: corrigirEmailPorAdmin,
-    getSession: getSession, isAdmin: isAdmin, isDiretor: isDiretor, isFacilitador: isFacilitador, isPrevi: isPrevi,
+    getSession: getSession, isAdmin: isAdmin, isSuperAdmin: isSuperAdmin, isDiretor: isDiretor, isFacilitador: isFacilitador, isPrevi: isPrevi,
     register: register, login: login,
     logout: logout, sendPasswordReset: sendPasswordReset,
     getAccessLevel: getAccessLevel,
@@ -948,6 +1030,9 @@
     resendVerification: resendVerification,
     isAuthReady: function () { return _authReady; },
     isAdminReady: isAdminReady,
+    getAvaliacaoPerfil: getAvaliacaoPerfil,
+    podeAvaliacao: podeAvaliacao,
+    isAvaliacaoReady: isAvaliacaoReady,
     isEnrolledReady: isEnrolledReady,
     isFacilitadorReady: isFacilitadorReady,
     autoPreviDominio: autoPreviDominio

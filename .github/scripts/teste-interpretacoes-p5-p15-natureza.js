@@ -106,10 +106,9 @@ async function abrirApp(browser, extra, viewport) {
   await page.route('**/firebasejs/**', (r) => r.fulfill({ status: 200, contentType: 'text/javascript', body: FALSO }));
   await page.route('**fonts.googleapis.com**', (r) => r.fulfill({ status: 200, contentType: 'text/css', body: '' }));
   await page.route('**fonts.gstatic.com**', (r) => r.abort());
-  await page.goto(BASE + '/index.html#admin', { waitUntil: 'domcontentloaded' });
+  await page.goto(BASE + '/index.html#avaliacoes', { waitUntil: 'domcontentloaded' });
   await page.waitForFunction(() => !document.body.classList.contains('aguardando-auth'), { timeout: 16000 }).catch(() => {});
   await page.waitForTimeout(800);
-  await page.click('.admin-tab-btn[data-panel="adminPanelArquitetura"]');
   await page.waitForTimeout(500);
   return { ctx, page, erros };
 }
@@ -133,6 +132,7 @@ async function interpretacao(page, codigo) {
   return page.locator('.avp-reasoning-item', { has: page.locator('.avp-reasoning-q', { hasText: new RegExp('^' + n + '\\.') }) }).locator('.avp-reasoning-auto').innerText();
 }
 async function abrirConfig(page) {
+  await irAoAdmin(page);
   await page.click('#avpConfigQuestionariosBtn');
   await page.waitForSelector('#avpCorrecao-interpretacoes-p5-p15', { timeout: 5000 }).catch(() => {});
   await page.waitForTimeout(150);
@@ -140,6 +140,25 @@ async function abrirConfig(page) {
 /* "independente" contém "depende": só palavras inteiras de dependência */
 const DEPENDENCIA = /\b(depende|dependa|dependem|dependência|dependente|dependendo)\b/i;
 const semPrefixo = (t) => t.replace(/^(SIM|NÃO)\s*—\s*/, '');
+
+/* A configuração (questionários, motores, naturezas) agora fica no ADMIN, fora da
+   área Avaliação. Estes dois passos levam até lá e de volta. */
+async function irAoAdmin(page) {
+  await page.evaluate(() => { location.hash = '#admin'; });
+  await page.waitForSelector('.admin-tab-btn[data-panel="adminPanelArquitetura"]', { timeout: 8000 });
+  await page.click('.admin-tab-btn[data-panel="adminPanelArquitetura"]');
+  /* o Admin lembra a subtela em que ficou: se não caiu no início, volta até ele */
+  await page.waitForSelector('#avpConfigQuestionariosBtn, #avpConfigVoltar, #avpNaturezasVoltar, #avpMotoresVoltarLista, #avpUsuariosVoltar', { timeout: 8000 });
+  if (!(await page.locator('#avpConfigQuestionariosBtn').count())) {
+    await page.locator('#avpConfigVoltar, #avpNaturezasVoltar, #avpMotoresVoltarLista, #avpUsuariosVoltar').first().click();
+  }
+  await page.waitForSelector('#avpConfigQuestionariosBtn', { timeout: 8000 });
+}
+async function voltarParaAvaliacoes(page) {
+  await page.evaluate(() => { location.hash = '#avaliacoes'; });
+  await page.waitForSelector('#avpNovoBtn', { timeout: 8000 });
+  await page.waitForTimeout(200);
+}
 
 (async () => {
   const browser = await chromium.launch();
@@ -219,7 +238,7 @@ const semPrefixo = (t) => t.replace(/^(SIM|NÃO)\s*—\s*/, '');
     afirma((await banco(page))['questionarios-config'].CLASSIFICACAO_ARQUITETURAL.versaoPublicada === 2, 'e não cria versão 3');
 
     console.log('\n== T6 (+T1/T2) — avaliação NOVA (P5 NÃO, P15 NÃO) usa a redação nova e continua A VALIDAR ==');
-    await page.click('#avpConfigVoltar');
+    await voltarParaAvaliacoes(page);
     await page.waitForTimeout(200);
     await novaAvaliacao(page, 'Novo — P5 NÃO / P15 NÃO', valorMaisPrevi);
     const p5Novo = await interpretacao(page, 'P5');
@@ -362,7 +381,7 @@ const semPrefixo = (t) => t.replace(/^(SIM|NÃO)\s*—\s*/, '');
     const caixa = await page.locator('body > .modal-overlay').last().locator('.modal-box').boundingBox();
     afirma(caixa && caixa.x >= 0 && caixa.x + caixa.width <= 375, 'confirmação cabe na tela do celular');
     await page.click('.avp-modal-cancel-btn');
-    await page.click('#avpConfigVoltar');
+    await voltarParaAvaliacoes(page);
     await page.waitForTimeout(200);
     await page.click('.avp-act-ver[data-key="maisprevi"]');
     await page.waitForSelector('#avpSalvarDecisaoBtn');

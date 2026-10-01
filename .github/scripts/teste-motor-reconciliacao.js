@@ -100,17 +100,38 @@ async function abrirApp(browser, cenario, viewport) {
   await page.route('**/firebasejs/**', (r) => r.fulfill({ status: 200, contentType: 'text/javascript', body: FALSO }));
   await page.route('**fonts.googleapis.com**', (r) => r.fulfill({ status: 200, contentType: 'text/css', body: '' }));
   await page.route('**fonts.gstatic.com**', (r) => r.abort());
-  await page.goto(BASE + '/index.html#admin', { waitUntil: 'domcontentloaded' });
+  await page.goto(BASE + '/index.html#avaliacoes', { waitUntil: 'domcontentloaded' });
   await page.waitForFunction(() => !document.body.classList.contains('aguardando-auth'), { timeout: 16000 }).catch(() => {});
   await page.waitForTimeout(800);
-  await page.click('.admin-tab-btn[data-panel="adminPanelArquitetura"]');
   await page.waitForFunction(() => document.querySelectorAll('.avp-tag-motor').length > 0, { timeout: 8000 }).catch(() => {});
+  /* a lista agora sobe já na abertura da página, então os selos podem aparecer
+     "Verificando motor…" antes da prova de equivalência terminar */
+  await page.waitForFunction(() => !document.querySelector('.avp-tag-motor--verificando'), { timeout: 8000 }).catch(() => {});
   await page.waitForTimeout(300);
   return { ctx, page, erros };
 }
 const banco = (page) => page.evaluate(() => JSON.parse(JSON.stringify(window.__CFG.__dbReal)));
 const contar = (page, sel) => page.locator(sel).count();
 function semCampos(obj, campos) { const c = JSON.parse(JSON.stringify(obj)); campos.forEach((k) => delete c[k]); return c; }
+
+/* A configuração (questionários, motores, naturezas) agora fica no ADMIN, fora da
+   área Avaliação. Estes dois passos levam até lá e de volta. */
+async function irAoAdmin(page) {
+  await page.evaluate(() => { location.hash = '#admin'; });
+  await page.waitForSelector('.admin-tab-btn[data-panel="adminPanelArquitetura"]', { timeout: 8000 });
+  await page.click('.admin-tab-btn[data-panel="adminPanelArquitetura"]');
+  /* o Admin lembra a subtela em que ficou: se não caiu no início, volta até ele */
+  await page.waitForSelector('#avpConfigQuestionariosBtn, #avpConfigVoltar, #avpNaturezasVoltar, #avpMotoresVoltarLista, #avpUsuariosVoltar', { timeout: 8000 });
+  if (!(await page.locator('#avpConfigQuestionariosBtn').count())) {
+    await page.locator('#avpConfigVoltar, #avpNaturezasVoltar, #avpMotoresVoltarLista, #avpUsuariosVoltar').first().click();
+  }
+  await page.waitForSelector('#avpConfigQuestionariosBtn', { timeout: 8000 });
+}
+async function voltarParaAvaliacoes(page) {
+  await page.evaluate(() => { location.hash = '#avaliacoes'; });
+  await page.waitForSelector('#avpNovoBtn', { timeout: 8000 });
+  await page.waitForTimeout(200);
+}
 
 (async () => {
   const browser = await chromium.launch();
@@ -157,9 +178,8 @@ function semCampos(obj, campos) { const c = JSON.parse(JSON.stringify(obj)); cam
       JSON.stringify(semCampos(antes['avaliacoes-produto'].k3, ['motorVersionArquitetura', 'reconciliacoesVersao'])),
       'individual: NENHUM outro campo de k3 mudou (respostas, justificativas, classificação, atualizadoEm, historicoMotor…)');
     afirma(await contar(page, '#avpAvisoEquivalente') === 0, 'individual: aviso de versão equivalente some depois de reconciliar');
-    await page.goto(BASE + '/index.html#admin');
+    await page.goto(BASE + '/index.html#avaliacoes');
     await page.waitForTimeout(600);
-    await page.click('.admin-tab-btn[data-panel="adminPanelArquitetura"]').catch(() => {});
     await page.waitForTimeout(400);
 
     console.log('\n== 3. Lote: prova no modal, confirmação explícita, gravação concorrente é respeitada ==');
@@ -208,6 +228,7 @@ function semCampos(obj, campos) { const c = JSON.parse(JSON.stringify(obj)); cam
     await page.waitForTimeout(200);
     afirma(await contar(page, '.avp-tag-motor--atual') === 9 && await contar(page, '#avpReconciliarBar') === 0, 'lista: as 9 em "Motor atual", barra de reconciliação some');
 
+    await irAoAdmin(page);
     await page.click('#avpConfigMotoresBtn');
     await page.waitForTimeout(200);
     await page.click('#avpMotorArqAuditoriaBtn');
@@ -220,6 +241,7 @@ function semCampos(obj, campos) { const c = JSON.parse(JSON.stringify(obj)); cam
   console.log('\n== 4. Editor volta a funcionar sobre a versão gravada (fallback legado no banco) ==');
   {
     const { ctx, page, erros } = await abrirApp(browser, cenarioProducao());
+    await irAoAdmin(page);
     await page.click('#avpConfigMotoresBtn');
     await page.waitForTimeout(200);
     await page.click('#avpMotorArqEditarBtn');
