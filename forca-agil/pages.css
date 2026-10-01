@@ -2314,7 +2314,7 @@ select.aposta-campo-input { width: auto; min-width: 8.5em; }
 .avp-item-natureza { display: block; margin-top: 4px; }
 
 /* Admin → bloco "Avaliação de Produto/Serviço" (só parametrização) e tela
-   "Usuários e permissões". Botões neutros: aqui nada compete com o amarelo
+   "Usuários autorizados". Botões neutros: aqui nada compete com o amarelo
    das ações primárias. */
 .avp-admin-cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 12px; margin-top: 12px; }
 .avp-admin-card {

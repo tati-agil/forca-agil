@@ -149,6 +149,7 @@ async function abrirMais(page, key) {
       const { ctx, page, erros } = await abrir(browser, { email: EM, tipo: 'avaliacao-arquitetura', viewport });
       await aguardaLista(page);
       afirma(await contar(page, '#avpNovoBtn') === 1, 'a aba AVALIAÇÃO opera normalmente');
+      afirma(await page.evaluate(() => { const a = document.querySelector('a[data-nav-page="admin"]'); return !!a && !a.hidden; }), 'o menu passa a mostrar "Admin" (leva só à Arquitetura)');
       await page.evaluate(() => { location.hash = '#admin'; });
       await page.waitForSelector('#avpConfigQuestionariosBtn', { timeout: 8000 }).catch(() => {});
       afirma(await hash(page) === '#admin', '#admin abre');
