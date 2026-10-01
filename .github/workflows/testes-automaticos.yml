@@ -43,7 +43,7 @@ jobs:
         env:
           NODE_PATH: /tmp/pw-deps/node_modules
           FA_BASE_URL: http://127.0.0.1:8811
-        run: node .github/scripts/teste-avaliacoes-perfis.js
+        run: node .github/scripts/teste-avaliacoes-acessos.js
 
       # Ajustes de usabilidade da lista/detalhe: filtros com rótulo (Resultado
       # Produto/Serviço × Classificação arquitetural), PDFs em lote, voltar com

@@ -140,8 +140,10 @@
     if (window.faInitTestes) window.faInitTestes();
     if (window.faInitPedidos) window.faInitPedidos();
     if (window.faInitDashboard) window.faInitDashboard();
-    if (window.faInitAvaliacaoProduto) window.faInitAvaliacaoProduto({ modo: 'admin' });
+    /* Squad primeiro: o cartão "Adequação à Squad" só é desenhado se window.faAvaliacaoSquad
+       já existir na primeira renderização do bloco de Avaliação. */
     if (window.faInitAvaliacaoSquad) window.faInitAvaliacaoSquad();
+    if (window.faInitAvaliacaoProduto) window.faInitAvaliacaoProduto({ modo: 'admin' });
     initCertificados();
   }
 
@@ -164,8 +166,10 @@
     if (bar) bar.hidden = true;
     var exp = document.getElementById('adminExpandBar');
     if (exp) exp.hidden = true;
-    if (window.faInitAvaliacaoProduto) window.faInitAvaliacaoProduto({ modo: 'admin' });
+    /* Squad primeiro: o cartão "Adequação à Squad" só é desenhado se window.faAvaliacaoSquad
+       já existir na primeira renderização do bloco de Avaliação. */
     if (window.faInitAvaliacaoSquad) window.faInitAvaliacaoSquad();
+    if (window.faInitAvaliacaoProduto) window.faInitAvaliacaoProduto({ modo: 'admin' });
   }
 
   /* fa-espera guardava UMA entrada por pessoa. Agora guarda uma por pessoa e
