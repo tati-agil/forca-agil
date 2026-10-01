@@ -6,8 +6,9 @@
 #   cenario : real (espelho de verdade) | trava | gotejar (espelho simulado, via proxy local)
 set -u
 variante=${1:?variante}; cenario=${2:-real}
-RETRIES=3; TIMEOUT=15
-conf=/etc/apt/apt.conf.d/99experimento-apt
+RETRIES=5; TIMEOUT=5   # o runner já traz Retries=1 e Timeout=15 (/etc/apt/apt.conf.d/zz-retries)
+# 'zzz-' para ser lido DEPOIS do zz-retries do runner (o último arquivo ganha); com '99-' o runner sobrescrevia a variante.
+conf=/etc/apt/apt.conf.d/zzz-experimento-apt
 efetivo() { apt-config dump | grep -iE '(^|::)(Retries|Timeout) ' | sort; }
 echo "== configuração do apt JÁ PRESENTE no runner (antes do experimento) =="
 efetivo; ls /etc/apt/apt.conf.d; grep -rHiE 'retries|timeout' /etc/apt/apt.conf.d 2>/dev/null
@@ -32,6 +33,13 @@ if [ "$cenario" = trava ] || [ "$cenario" = gotejar ]; then
   sleep 2
 fi
 
+ef_ret=$(apt-config dump | sed -n 's/^Acquire::Retries "\(.*\)";/\1/p'); ef_to=$(apt-config dump | sed -n 's/^Acquire::http::Timeout "\(.*\)";/\1/p')
+esp_ret=1; esp_to=15
+case "$variante" in retries|retries-timeout) esp_ret=$RETRIES ;; esac
+case "$variante" in timeout|retries-timeout) esp_to=$TIMEOUT ;; esac
+aplicou=ok; { [ "$ef_ret" = "$esp_ret" ] && [ "$ef_to" = "$esp_to" ]; } || aplicou="NAO-APLICOU(esperado ret=$esp_ret to=$esp_to)"
+echo "efetivo: Retries=$ef_ret Timeout=$ef_to -> $aplicou"
+export EFETIVO="Retries=$ef_ret Timeout=${ef_to}s [$aplicou]"
 cd /tmp/pw-deps
 # lista de pacotes que o Playwright manda instalar (para conferir depois que TODOS ficaram instalados)
 pacotes=$(npx playwright install-deps --dry-run chromium 2>&1 | grep -o 'apt-get install -y --no-install-recommends .*' | sed 's/apt-get install -y --no-install-recommends //; s/"$//')
@@ -63,10 +71,20 @@ prox = ''
 if os.path.exists('/tmp/proxy-espelho.log'):
     pl = open('/tmp/proxy-espelho.log').read().splitlines()
     prox = ' | proxy: ' + ', '.join('%s=%d' % (k, sum(1 for l in pl if len(l.split()) > 1 and l.split()[1].startswith(k))) for k in ('TRAVOU', 'GOTEJANDO', 'CORTADO', 'serviu', 'tunel', 'ERRO'))
-msg = ('apt %ss · rc=%s · pacotes instalados %s/%d (faltando %s) · "Setting up" %d · retentativas de .deb %d · '
-       'falhas %d (transitórias %d) · Fetched %s%s') % (
+gaps = []
+if os.path.exists('/tmp/proxy-espelho.log'):
+    ev = [l.split(None, 3) for l in open('/tmp/proxy-espelho.log').read().splitlines() if len(l.split()) > 3]
+    for i, e in enumerate(ev):
+        if e[1] == 'TRAVOU':
+            t1 = float(e[0].rstrip('s')); nome = e[3]
+            for f in ev[i + 1:]:
+                if f[3] == nome and f[2] == '#2':
+                    gaps.append(float(f[0].rstrip('s')) - t1); break
+gap_txt = (' · travada→nova tentativa: ' + '/'.join('%.0fs' % g for g in gaps)) if gaps else ''
+msg = ('[' + os.environ.get('EFETIVO', '?') + '] apt %ss · rc=%s · pacotes instalados %s/%d (faltando %s) · "Setting up" %d · retentativas de .deb %d · '
+       'falhas %d (transitórias %d) · Fetched %s%s%s') % (
        seg, rc, ok, int(ok) + int(falta), falta, setting_up, retentativas, falhas, transit,
-       ('; '.join(' '.join(f) for f in fetched) or '-'), prox)
+       ('; '.join(' '.join(f) for f in fetched) or '-'), gap_txt, prox)
 print('::notice title=Experimento apt %s/%s::%s' % (variante, cenario, msg))
 open(os.environ.get('GITHUB_STEP_SUMMARY', '/dev/null'), 'a').write('### %s / %s\n- %s\n' % (variante, cenario, msg) + ''.join('- `%s`\n' % e for e in erros))
 PY
