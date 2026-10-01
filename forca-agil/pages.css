@@ -2067,6 +2067,11 @@ select.aposta-campo-input { width: auto; min-width: 8.5em; }
 .avp-decisao-resumo { display: grid; grid-template-columns: max-content 1fr; gap: 4px 14px; margin: 0 0 12px; font-size: .9rem; }
 .avp-decisao-resumo dt { color: var(--ink-3); }
 .avp-decisao-resumo dd { margin: 0; overflow-wrap: anywhere; }
+/* Celular: o rótulo ("Recomendação do sistema") não pode espremer o valor em uma coluna de 4 letras */
+@media (max-width: 640px) {
+  .avp-decisao-resumo { grid-template-columns: 1fr; gap: 0; }
+  .avp-decisao-resumo dd { margin: 0 0 8px; font-weight: 600; }
+}
 .avp-correcao-lista { margin: 8px 0 12px; padding-left: 18px; font-size: .86rem; line-height: 1.5; }
 .avp-correcao-lista li { margin-bottom: 8px; overflow-wrap: anywhere; }
 .avp-correcao-antes { color: var(--ink-3); }
@@ -2337,6 +2342,11 @@ select.aposta-campo-input { width: auto; min-width: 8.5em; }
 .avp-aut-tipo { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
 .avp-aut-rotulo { font-size: .72rem; color: var(--ink-3); }
 .avp-aut-matriz th, .avp-aut-matriz td { white-space: normal; }
+/* Curadoria arquitetural: sub-blocos (Especialização/Papel e Natureza) dentro de um único cartão */
+.avp-curadoria-sub { border-top: 1px solid var(--line-strong); margin-top: 14px; padding-top: 12px; }
+.avp-curadoria-sub h5 { margin: 0 0 6px; font-size: .9rem; color: var(--ink); }
+.avp-curadoria-card .avp-curadoria-sub .btn { max-width: 100%; }
+@media (max-width: 640px) { .avp-curadoria-card .avp-curadoria-sub .btn { width: 100%; } }
 .avp-aut-historico { margin-top: 8px; }
 .avp-aut-historico summary { cursor: pointer; font-size: .86rem; color: var(--ink-2); padding: 6px 0; }
 .avp-aut-hist { padding: 8px 0; border-top: 1px solid var(--line-strong); font-size: .84rem; overflow-wrap: anywhere; }

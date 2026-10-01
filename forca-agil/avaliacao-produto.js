@@ -1007,7 +1007,7 @@
      resultado/camada/decisão nem reformula uma justificativa. */
   function montarSecaoAvaliacaoPdf(it, primeira) {
     var html = '<section class="pdf-av' + (primeira ? '' : ' pdf-quebra') + '">';
-    var rotuloVersao = it.versao > 1 ? ('Reavaliação — versão ' + it.versao) : 'Avaliação original — versão 1';
+    var rotuloVersao = it.versao > 1 ? ('Reavaliação — versão ' + it.versao + ' (versões anteriores preservadas)') : 'Avaliação original preservada — versão 1';
     html += '<p class="pdf-versao">' + esc(rotuloVersao) + ' · ' + esc(fmtData(it.criadoEm)) + ' · ' +
       esc(it.responsavel && it.responsavel.name || '—') + '</p>';
 
@@ -1043,7 +1043,7 @@
       esc(rotuloResultadoTxt) + '</p>';
 
     var camada = it.camadaSugerida;
-    html += '<h2 class="pdf-secao-titulo">Classificação arquitetural sugerida</h2>';
+    html += '<h2 class="pdf-secao-titulo">Classificação arquitetural</h2>';
     html += '<p>' + esc(camada && camada.label || '—') + '</p>';
     if (camada && camada.conflito && camada.conflito.length) {
       html += '<p class="pdf-aviso">Categorias em conflito nas respostas: ' + esc(camada.conflito.join(', ')) + '.</p>';
@@ -1075,17 +1075,24 @@
        confirmado renderizando o PDF de verdade (pixels, via pdf.js), não só
        inspecionando o HTML fonte antes de virar canvas/imagem, que sempre
        parecia completo mesmo quando o resultado final saía cortado. */
+    /* Sequência (igual à da tela): Recomendação do sistema → Classificação
+       arquitetural (seção acima) → Curadoria arquitetural → Decisão final.
+       Só aparece o que tem valor real — nunca placeholder. */
+    var curEsp = valorEspecializacao(camada), curPapel = valorPapelEstrutural(camada), curNat = rotuloNaturezaDoItem(it);
+    if (curEsp || curPapel || curNat) {
+      html += '<div class="pdf-decisao-bloco">';
+      html += '<h2 class="pdf-secao-titulo">Curadoria arquitetural</h2>';
+      html += '<table class="pdf-tabela-id">';
+      if (curEsp) html += pdfLinhaTabela('Especialização', curEsp);
+      if (curPapel) html += pdfLinhaTabela('Papel estrutural', curPapel);
+      if (curNat) html += pdfLinhaTabela('Natureza complementar', curNat);
+      html += '</table></div>';
+    }
     html += '<div class="pdf-decisao-bloco">';
-    html += '<h2 class="pdf-secao-titulo">Decisão arquitetural</h2>';
+    html += '<h2 class="pdf-secao-titulo">Decisão final</h2>';
     html += '<table class="pdf-tabela-id">';
     html += pdfLinhaTabela('Recomendação do sistema', rotuloResultadoTxt);
-    html += pdfLinhaTabela('Classificação sugerida', camada && camada.label);
-    if (valorEspecializacao(camada)) html += pdfLinhaTabela('Especialização', valorEspecializacao(camada));
-    if (valorPapelEstrutural(camada)) html += pdfLinhaTabela('Papel estrutural', valorPapelEstrutural(camada));
-    /* Informação MANUAL, dentro da área de decisão — nunca no bloco do
-       resultado automático do questionário; vale com a recomendação aceita
-       ou com decisão manual. Só aparece quando existe. */
-    if (rotuloNaturezaDoItem(it)) html += pdfLinhaTabela('Natureza complementar', rotuloNaturezaDoItem(it));
+    html += pdfLinhaTabela('Classificação arquitetural', camada && camada.label);
     var decisaoTxt = rotuloResultado(it.decisaoFinal);
     html += pdfLinhaTabela('Decisão final', decisaoTxt);
     html += pdfLinhaTabela('Forma da decisão', formaDaDecisao(it));
@@ -1325,33 +1332,37 @@
      Squad (avaliacao-squad.js) — um só lugar para o limite de altura do canvas. */
   window.faPdfEmBlocos = { gerar: gerarPdfPorBlocos, planejar: planejarBlocosDeAtomos, ALTURA_MAX: ALTURA_MAX_BLOCO_PDF };
 
+  /* Ordem das colunas = a sequência da tela e do PDF: Recomendação do sistema →
+     Classificação arquitetural (a camada) → Curadoria arquitetural (Especialização,
+     Papel estrutural, Natureza complementar) → Decisão final. */
   var EXCEL_COLS_RESUMO = [
     { largura: 26, rotulo: 'ID da avaliação' }, { largura: 30, rotulo: 'Nome do item' },
     { largura: 34, rotulo: 'Descrição' }, { largura: 22, rotulo: 'Público/cliente' },
     { largura: 30, rotulo: 'Necessidade' }, { largura: 20, rotulo: 'Responsável' },
     { largura: 16, rotulo: 'Data' }, { largura: 12, rotulo: 'Status' }, { largura: 8, rotulo: 'Versão' },
-    { largura: 20, rotulo: 'Resultado automático' }, { largura: 28, rotulo: 'Classificação arquitetural sugerida' },
+    { largura: 22, rotulo: 'Recomendação do sistema' }, { largura: 28, rotulo: 'Classificação arquitetural' },
+    { largura: 40, rotulo: 'Relação arquitetural' },
     { largura: 26, rotulo: 'Especialização' }, { largura: 16, rotulo: 'Papel estrutural' },
-    { largura: 40, rotulo: 'Relação arquitetural' }, { largura: 20, rotulo: 'Decisão arquitetural final' },
-    { largura: 14, rotulo: 'Tipo da decisão' }, { largura: 20, rotulo: 'Responsável pela decisão' },
-    { largura: 16, rotulo: 'Data da decisão' }, { largura: 40, rotulo: 'Justificativa da decisão manual' },
-    { largura: 30, rotulo: 'Natureza complementar' }
+    { largura: 30, rotulo: 'Natureza complementar' },
+    { largura: 20, rotulo: 'Decisão final' }, { largura: 34, rotulo: 'Forma da decisão' },
+    { largura: 20, rotulo: 'Responsável pela decisão' }, { largura: 16, rotulo: 'Data da decisão' },
+    { largura: 40, rotulo: 'Justificativa da decisão manual' }
   ];
   function linhaResumoExcel(it) {
     var camada = it.camadaSugerida;
+    var concluido = it.status === 'concluido';
     return [
       it._key, it.nome || '', it.descricao || '', it.publico || '', it.necessidade || '',
       (it.responsavel && it.responsavel.name) || '', it.criadoEm ? new Date(it.criadoEm) : '',
-      it.status === 'concluido' ? 'Concluído' : 'Rascunho', it.versao || 1,
-      it.status === 'concluido' ? rotuloResultado(it.resultadoAutomatico) : '',
-      (camada && camada.label) || '', valorEspecializacao(camada), valorPapelEstrutural(camada),
-      (camada && camada.relacao) || '',
-      it.status === 'concluido' ? rotuloResultado(it.decisaoFinal) : '',
-      it.status === 'concluido' ? (it.decisaoManual ? 'Manual' : 'Automática') : '',
+      concluido ? 'Concluído' : 'Rascunho', it.versao || 1,
+      concluido ? rotuloResultado(it.resultadoAutomatico) : '',
+      (camada && camada.label) || '', (camada && camada.relacao) || '',
+      valorEspecializacao(camada), valorPapelEstrutural(camada), rotuloNaturezaDoItem(it),
+      concluido ? rotuloResultado(it.decisaoFinal) : '',
+      concluido ? formaDaDecisao(it) : '',
       it.decisaoManual ? ((it.alteradoPor && it.alteradoPor.name) || '') : '',
       it.decisaoManual && it.alteradoEm ? new Date(it.alteradoEm) : '',
-      it.decisaoManual ? (it.justificativaDecisao || '') : '',
-      rotuloNaturezaDoItem(it)
+      it.decisaoManual ? (it.justificativaDecisao || '') : ''
     ];
   }
   var EXCEL_COLS_RESPOSTAS = [
@@ -1382,7 +1393,7 @@
     { largura: 20 }, { largura: 28 }, { largura: 20 }, { largura: 40 }
   ];
   var EXCEL_HEAD_HISTORICO = ['ID do item', 'ID da avaliação', 'Versão', 'Data', 'Responsável',
-    'Resultado automático', 'Classificação sugerida', 'Decisão final', 'Justificativa de divergência'];
+    'Recomendação do sistema', 'Classificação arquitetural', 'Decisão final', 'Justificativa de divergência'];
   /* Uma linha por versão de cada item incluído no export, mesmo quando essa
      versão já foi superada por uma reavaliação — é exatamente disso que o
      histórico trata. Nunca inventa uma versão anterior que não existe: se o
@@ -4497,12 +4508,10 @@
          insuficiente/contraditória). */
       var camada = a.camadaSugerida || camadaPorId('a-validar');
       html += '<div class="avp-form-card avp-alt-card">';
-      html += '<h4>Classificação arquitetural sugerida</h4>';
+      html += '<h4>Classificação arquitetural</h4>';
       html += '<p class="avp-alt-label">Camada identificada: <strong>' + esc(camada.label) + '</strong></p>';
-      /* Especialização/Papel estrutural só aparecem com valor real (placeholders
-         antigos "não determinad…" são tratados como ausência). */
-      if (valorEspecializacao(camada)) html += '<p class="avp-alt-label">Especialização: <strong>' + esc(valorEspecializacao(camada)) + '</strong></p>';
-      if (valorPapelEstrutural(camada)) html += '<p class="avp-alt-label">Papel estrutural: <strong>' + esc(valorPapelEstrutural(camada)) + '</strong></p>';
+      /* Especialização e Papel estrutural não ficam aqui: pertencem à Curadoria
+         arquitetural (bloco logo abaixo). A Classificação é só a camada. */
       if (camada.conflito && camada.conflito.length) {
         html += '<p class="avp-alt-outras">Categorias em conflito nas respostas: ' + esc(camada.conflito.join(', ')) + '.</p>';
       }
@@ -4753,6 +4762,11 @@
       html += '<p class="avp-natureza-ajuda" id="avpEspecializacaoAjuda">Aplica-se às classificações que admitem especialização (' +
         CAMADAS_COM_ESPECIALIZACAO.map(function (id) { var c = camadaPorId(id); return c ? c.label : id; }).join(', ') + ')' +
         (papelAplicavel ? '. O papel estrutural (essencial ou opcional) vale só para Componente.' : '. O papel estrutural vale só para Componente, e esta classificação não o usa.') + '</p>';
+      /* Valor que o questionário já sinaliza (ex.: Componente com P13 = SIM) e ainda não foi cadastrado:
+         só é informado aqui, nunca gravado como cadastro. */
+      if (valorEspecializacao(state.atual && state.atual.camadaSugerida) && !(f.ultimoSalvo || '').trim()) {
+        html += '<p class="avp-natureza-ajuda" id="avpEspecializacaoIdentificada">Identificada pelo questionário: <strong>' + esc(valorEspecializacao(state.atual.camadaSugerida)) + '</strong></p>';
+      }
       html += '<div class="avp-field">';
       html += '<label for="avpEspecializacaoCadastrada">Especialização (opcional)</label>';
       html += '<input type="text" id="avpEspecializacaoCadastrada" value="' + esc(f.valor) + '" placeholder="Ex.: Instituto previdenciário">';

@@ -99,8 +99,8 @@ async function abrirApp(browser, extra, viewport) {
         if (n.nodeType !== 1 || n.parentNode !== document.body) return; /* só blocos reais do PDF, não as medições */
         var doc = n.classList && n.classList.contains('pdf-doc') ? n : (n.querySelector && n.querySelector('.pdf-doc'));
         if (!doc) return;
-        var decisao = doc.querySelector('.pdf-decisao-bloco');
-        window.__pdfs.push({ tudo: doc.innerText, decisao: decisao ? decisao.innerText : '' });
+        var decisao = Array.prototype.map.call(doc.querySelectorAll('.pdf-decisao-bloco'), function (b) { return b.innerText; }).join('\\n');
+        window.__pdfs.push({ tudo: doc.innerText, decisao: decisao });
       }); });
     }).observe(document, { childList: true, subtree: true });`);
   await page.route('**/firebasejs/**', (r) => r.fulfill({ status: 200, contentType: 'text/javascript', body: FALSO }));
@@ -292,8 +292,8 @@ async function voltarParaAvaliacoes(page) {
 
     console.log('\n== Tela: recomendação automática e decisão SEPARADAS ==');
     const resumo = await page.locator('#avpDecisaoResumo').innerText();
-    afirma(/Recomendação automática\s+A validar/.test(resumo), 'Recomendação automática: A validar');
-    afirma(/Decisão arquitetural\s+Não é Produto\/Serviço principal/.test(resumo), 'Decisão arquitetural: Não é Produto/Serviço principal');
+    afirma(/Recomendação do sistema\s+A validar/.test(resumo), 'Recomendação do sistema: A validar');
+    afirma(/Decisão final\s+Não é Produto\/Serviço principal/.test(resumo), 'Decisão final: Não é Produto/Serviço principal');
     afirma(/Camada identificada:\s*A validar/.test(await page.locator('.avp-alt-card').innerText()), 'a camada identificada continua "A validar"');
 
     console.log('\n== Voltar para "Aceitar recomendação" desfaz a decisão manual ==');

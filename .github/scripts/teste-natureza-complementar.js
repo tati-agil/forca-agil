@@ -22,7 +22,7 @@
  *   - as opções vêm do catálogo configurável (naturezas-complementares-config),
  *     editável pela tela; renomear/desativar nunca reescreve o que foi
  *     registrado (nome/descrição da época);
- *   - PDF (seção "Decisão arquitetural"), lista (coluna "Natureza", "—" se
+ *   - PDF (blocos "Curadoria arquitetural" e "Decisão final"), lista (coluna "Natureza", "—" se
  *     vazio) e Excel mostram a natureza;
  *   - reavaliar herda a natureza; o formato antigo ({id, rotulo}) continua
  *     sendo lido e é migrado; reprocessar em lote não a toca;
@@ -113,8 +113,8 @@ async function abrirApp(browser, avaliacoes, viewport, extra) {
         if (n.nodeType !== 1 || n.parentNode !== document.body) return; /* só blocos reais do PDF, não as medições */
         var doc = n.classList && n.classList.contains('pdf-doc') ? n : (n.querySelector && n.querySelector('.pdf-doc'));
         if (!doc) return;
-        var decisao = doc.querySelector('.pdf-decisao-bloco');
-        window.__pdfs.push({ tudo: doc.innerText, decisao: decisao ? decisao.innerText : '' });
+        var decisao = Array.prototype.map.call(doc.querySelectorAll('.pdf-decisao-bloco'), function (b) { return b.innerText; }).join('\\n');
+        window.__pdfs.push({ tudo: doc.innerText, decisao: decisao });
       }); });
     }).observe(document, { childList: true, subtree: true });`);
   await page.route('**/firebasejs/**', (r) => r.fulfill({ status: 200, contentType: 'text/javascript', body: FALSO }));
@@ -223,7 +223,7 @@ async function voltarParaAvaliacoes(page) {
     const opcoes = await page.locator('#avpNaturezaComplementar option').allInnerTexts();
     afirma(opcoes.join('|') === 'Nenhuma|Programa transversal|' + PLATAFORMA, 'opções (catálogo, não hardcoded no componente): ' + opcoes.join(' | '));
     afirma(/Natureza complementar\s*\(opcional\)/.test(await page.locator('#avpNaturezaBloco label').first().innerText()), 'rótulo: "Natureza complementar (opcional)"');
-    afirma(await page.locator('#avpNaturezaBloco').evaluate((el) => !!el.closest('.avp-decisao-card')), 'o campo está dentro da seção "Decisão arquitetural"');
+    afirma(await page.locator('#avpNaturezaBloco').evaluate((el) => !!el.closest('.avp-curadoria-card')), 'o campo está dentro do bloco "Curadoria arquitetural"');
     afirma(await page.locator('#avpSalvarNaturezaBtn').isDisabled(), 'SALVAR NATUREZA desabilitado enquanto nada mudou');
     afirma(await page.locator('input[name="avpDecisao"][value="auto"]').isChecked(), 'a recomendação do sistema continua selecionada (a natureza não exige decisão manual)');
 
@@ -243,16 +243,16 @@ async function voltarParaAvaliacoes(page) {
     afirma(/Natureza complementar salva/.test(await page.locator('#avpFlashNatureza').innerText()) && /✓ NATUREZA SALVA/.test(await page.locator('#avpSalvarNaturezaBtn').innerText()) && await page.locator('#avpSalvarNaturezaBtn').isDisabled(),
       'tela: confirmação "salva" e botão "✓ NATUREZA SALVA" desabilitado');
 
-    console.log('\n-- PDF: seção "Decisão arquitetural" (Classificação sugerida → Natureza → Decisão final) --');
+    console.log('\n-- PDF: Classificação arquitetural → Curadoria arquitetural (Natureza) → Decisão final --');
     const pdf = await gerarPdf(page);
     afirma(!!pdf, 'HTML do PDF capturado');
     if (pdf) {
       const d = pdf.decisao.replace(/\s+/g, ' ');
-      afirma(/Classificação sugerida Canal/.test(d) && new RegExp('Natureza complementar ' + PLATAFORMA.replace(/[/]/g, '\\/')).test(d) && /Decisão final Não é Produto\/Serviço principal/.test(d), 'PDF: Classificação sugerida = Canal · Natureza = plataforma · Decisão final = Não é Produto/Serviço principal');
-      afirma(d.indexOf('Classificação sugerida') < d.indexOf('Natureza complementar') && d.indexOf('Natureza complementar') < d.indexOf('Decisão final'), 'PDF: ordem Classificação sugerida → Natureza complementar → Decisão final');
-      afirma(/Forma da decisão Recomendação do sistema aceita/.test(d), 'PDF: a forma da decisão continua "Recomendação do sistema aceita"');
+      afirma(/Classificação arquitetural Canal/.test(d) && new RegExp('Natureza complementar ' + PLATAFORMA.replace(/[/]/g, '\\/')).test(d) && /Decisão final Não é Produto\/Serviço principal/.test(d), 'PDF: Classificação arquitetural = Canal · Natureza = plataforma · Decisão final = Não é Produto/Serviço principal');
+      afirma(d.indexOf('Curadoria arquitetural') !== -1 && d.indexOf('Curadoria arquitetural') < d.indexOf('Natureza complementar') && d.indexOf('Natureza complementar') < d.indexOf('Decisão final'), 'PDF: ordem Curadoria arquitetural (Natureza complementar) → Decisão final');
+      afirma(/Forma da decisão Recomendação aceita com complementações arquiteturais/.test(d), 'PDF: com natureza registrada e recomendação aceita, a forma da decisão é "Recomendação aceita com complementações arquiteturais"');
       afirma((pdf.tudo.match(/Natureza complementar/g) || []).length === 1, 'PDF: a natureza aparece uma única vez');
-      afirma(!/Natureza complementar|benefícios e parcerias/.test(pdf.tudo.slice(0, pdf.tudo.indexOf('Decisão arquitetural'))), 'PDF: nada de natureza no resultado automático nem em "Como chegamos a essa conclusão"');
+      afirma(!/Natureza complementar|benefícios e parcerias/.test(pdf.tudo.slice(0, pdf.tudo.indexOf('Curadoria arquitetural'))), 'PDF: nada de natureza no resultado automático nem em "Como chegamos a essa conclusão"');
     }
 
     console.log('\n-- lista: natureza como etiqueta sob o item --');
@@ -341,7 +341,7 @@ async function voltarParaAvaliacoes(page) {
     afirma(JSON.stringify(salvo.respostas) === JSON.stringify(antes.respostas), 'respostas P1–P16 intactas');
     afirma(salvo.motorVersion === antes.motorVersion && salvo.motorVersionArquitetura === antes.motorVersionArquitetura, 'motorVersion e motorVersionArquitetura intactos');
     const resumo = await page.locator('#avpDecisaoResumo').innerText();
-    afirma(/Recomendação automática\s+A validar/.test(resumo) && /Decisão arquitetural\s+Não é Produto\/Serviço principal/.test(resumo), 'tela: a recomendação "A validar" segue visível ao lado da decisão manual');
+    afirma(/Recomendação do sistema\s+A validar/.test(resumo) && /Decisão final\s+Não é Produto\/Serviço principal/.test(resumo), 'tela: a recomendação "A validar" segue visível ao lado da decisão manual');
 
     console.log('\n-- a decisão e a natureza são independentes --');
     await page.check('input[name="avpDecisao"][value="auto"]');
