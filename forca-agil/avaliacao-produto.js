@@ -1121,10 +1121,17 @@
      quando passar da altura máxima. `medidor` é um contêiner já no DOM, com a
      largura real do documento. */
   function planejarBlocosPdf(itens, medidor) {
+    return planejarBlocosDeAtomos(itens.map(atomosDaAvaliacao), medidor, function (html) {
+      return envolverBlocoPdf('<section class="pdf-av">' + html + '</section>', false);
+    });
+  }
+  /* Núcleo genérico (compartilhado com a Adequação à Squad): recebe, para cada
+     item, a lista de "átomos" já prontos e uma função que monta o documento de
+     MEDIÇÃO de um conjunto de átomos. */
+  function planejarBlocosDeAtomos(atomosPorItem, medidor, documentoParaMedir) {
     var blocos = [];
-    function altura(html) { medidor.innerHTML = envolverBlocoPdf('<section class="pdf-av">' + html + '</section>', false); return medidor.scrollHeight; }
-    itens.forEach(function (it, i) {
-      var atomos = atomosDaAvaliacao(it);
+    function altura(html) { medidor.innerHTML = documentoParaMedir(html); return medidor.scrollHeight; }
+    atomosPorItem.forEach(function (atomos) {
       var atual = [];
       atomos.forEach(function (atomo) {
         if (atual.length && altura(atual.join('') + atomo) > ALTURA_MAX_BLOCO_PDF) {
@@ -1171,6 +1178,17 @@
      geração de PDF não pode depender de posição de rolagem da tela — e, com
      esses valores fixos, não depende mesmo. */
   function gerarPdf(itens, nomeArquivo, cbFim) {
+    gerarPdfPorBlocos({
+      nomeArquivo: nomeArquivo,
+      planejar: function (medidor) { return planejarBlocosPdf(itens, medidor); },
+      envolver: function (htmlBloco, indice) { return envolverBlocoPdf('<section class="pdf-av">' + htmlBloco + '</section>', indice === 0); }
+    }, cbFim);
+  }
+  /* cfg = { nomeArquivo, planejar(medidor) → [htmlDeCadaBloco], envolver(htmlBloco, indice) → documento }.
+     É o MESMO motor de blocos do PDF consolidado (altura limitada por canvas,
+     jsPDF compartilhado, "Página X de N" no fim); quem muda é só o conteúdo. */
+  function gerarPdfPorBlocos(cfg, cbFim) {
+    var nomeArquivo = cfg.nomeArquivo;
     carregarScript('forca-agil/html2pdf.bundle.min.js', function () { return typeof window.html2pdf === 'function'; }, function (erroCarga) {
       if (erroCarga) { cbFim(erroCarga); return; }
       /* 186mm = largura A4 (210mm) menos as margens esquerda+direita definidas
@@ -1194,7 +1212,7 @@
       function renderizarBloco(htmlBloco, indice, fim) {
         container = document.createElement('div');
         container.style.cssText = ESTILO_CONTAINER;
-        container.innerHTML = envolverBlocoPdf('<section class="pdf-av">' + htmlBloco + '</section>', indice === 0);
+        container.innerHTML = cfg.envolver(htmlBloco, indice);
         document.body.appendChild(container);
         aguardarRenderizacaoCompleta(function () {
           /* A altura real (scrollHeight, já com o layout assentado) é passada
@@ -1235,6 +1253,25 @@
                  reaproveitado, e cada bloco seguinte começa em página nova. */
               if (compartilhado.pdf) { this.prop.pdf = compartilhado.pdf; this.prop.pdf.addPage(); }
             }).toPdf().then(function () {
+              /* Página-sobra em branco: quando o conteúdo do bloco passa da
+                 altura útil de uma página por uma fração de pixel (acontece
+                 com blocos curtos que quase enchem a página), a biblioteca
+                 fatia o canvas em n+1 páginas e a última é só a sobra, toda
+                 branca. Se a fatia final não tem nenhum pixel de conteúdo,
+                 essa página é descartada — nunca sobra página em branco no
+                 fim de um bloco. Só atua com mais de uma página no bloco. */
+              try {
+                var cv = this.prop.canvas, doc = this.prop.pdf;
+                var mm = doc.internal.pageSize;
+                var pxPagina = Math.floor(cv.width * (mm.getHeight() - 14 - 16) / (mm.getWidth() - 12 - 12));
+                var nPag = Math.ceil(cv.height / pxPagina);
+                var restoY = (nPag - 1) * pxPagina;
+                if (nPag > 1 && cv.height - restoY > 0) {
+                  var px = cv.getContext('2d').getImageData(0, restoY, cv.width, cv.height - restoY).data, branco = true;
+                  for (var k = 0; k < px.length; k += 4) { if (px[k] < 250 || px[k + 1] < 250 || px[k + 2] < 250) { branco = false; break; } }
+                  if (branco) doc.deletePage(doc.internal.getNumberOfPages());
+                }
+              } catch (erroSobra) { /* só higiene: na dúvida, mantém a página */ }
               compartilhado.pdf = this.prop.pdf;
               compartilhado.ultimo = trabalho;
               if (container.parentNode) document.body.removeChild(container);
@@ -1247,7 +1284,7 @@
 
       aguardarRenderizacaoCompleta(function () {
         var blocos;
-        try { blocos = planejarBlocosPdf(itens, medidor); } catch (erroPlano) { concluir(erroPlano); return; }
+        try { blocos = cfg.planejar(medidor); } catch (erroPlano) { concluir(erroPlano); return; }
         if (!blocos.length) { concluir(new Error('Nenhuma avaliação para exportar.')); return; }
         var i = 0;
         (function proximo(erro) {
@@ -1272,6 +1309,10 @@
       });
     });
   }
+
+  /* Motor de PDF em blocos, também usado pelas exportações da Adequação à
+     Squad (avaliacao-squad.js) — um só lugar para o limite de altura do canvas. */
+  window.faPdfEmBlocos = { gerar: gerarPdfPorBlocos, planejar: planejarBlocosDeAtomos, ALTURA_MAX: ALTURA_MAX_BLOCO_PDF };
 
   var EXCEL_COLS_RESUMO = [
     { largura: 26, rotulo: 'ID da avaliação' }, { largura: 30, rotulo: 'Nome do item' },

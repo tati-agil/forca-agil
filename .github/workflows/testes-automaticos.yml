@@ -119,6 +119,15 @@ jobs:
           FA_BASE_URL: http://127.0.0.1:8811
         run: node .github/scripts/teste-squad-inicio-motor.js
 
+      # Adequação à Squad: exportações Excel (todas/filtradas/selecionadas) e
+      # PDF consolidado em blocos (sem página em branco, também com muitas
+      # avaliações longas e no celular); textos dos vereditos; PDF individual igual.
+      - name: "Avaliação: Adequação à Squad — exportações Excel e PDF (desktop e celular)"
+        env:
+          NODE_PATH: /tmp/pw-deps/node_modules
+          FA_BASE_URL: http://127.0.0.1:8811
+        run: node .github/scripts/teste-squad-exportacoes.js
+
       # Mesma família da tela preta, agora no Repositório: a grade de cards
       # (#repoGrid) só é desenhada dentro de listeners assíncronos do
       # Firebase, e sem aviso de carregamento ficava vazia e indistinguível
