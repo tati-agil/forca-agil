@@ -4,6 +4,23 @@ description: >
   http://127.0.0.1:8811. Um só lugar para o preparo, usado pelos três jobs de
   testes-automaticos.yml (Avaliação, demais herméticos e smoke test), para que
   nenhum deles se desencontre dos outros.
+
+  O download do Chromium é CACHEADO (só o navegador baixado, em
+  ~/.cache/ms-playwright), com chave por sistema do runner + versão do
+  Playwright: mudou a versão (ou a imagem do runner), a chave muda e o
+  navegador é baixado de novo. Cache vazio, expirado ou com falha = o CI
+  instala normalmente, como sempre. Os pacotes do sistema (apt) NÃO são
+  cacheados — não há jeito seguro de fazer isso — e rodam sempre.
+
+inputs:
+  playwright-version:
+    description: >
+      Versão do Playwright. Vazio = a versão padrão abaixo (ÚNICO lugar onde
+      ela é escrita). Só o workflow de aquecimento usa isto, para testar a
+      invalidação do cache com outra versão.
+    required: false
+    default: ''
+
 runs:
   using: composite
   steps:
@@ -11,14 +28,77 @@ runs:
       with:
         node-version: '20'
 
-    - name: Instalar Playwright + Chromium
+    - name: Definir versão do Playwright
+      id: versao
       shell: bash
       run: |
+        v='${{ inputs.playwright-version }}'
+        echo "playwright=${v:-1.56.1}" >> "$GITHUB_OUTPUT"
+        # SO + versão da imagem + arquitetura, lidos do próprio sistema (o binário do
+        # Chromium depende deles; o contexto env não enxerga variáveis do runner).
+        . /etc/os-release
+        echo "so=${ID}-${VERSION_ID}-$(uname -m)" >> "$GITHUB_OUTPUT"
+
+    # Só o navegador baixado. Chave = SO + versão da imagem + arquitetura +
+    # versão do Playwright (o binário depende dos quatro). Sem restore-keys de propósito:
+    # uma versão diferente NUNCA reaproveita o cache de outra.
+    - name: Cache do Chromium (Playwright)
+      id: pwcache
+      uses: actions/cache@v4
+      continue-on-error: true
+      with:
+        path: ~/.cache/ms-playwright
+        key: playwright-chromium-${{ steps.versao.outputs.so }}-${{ steps.versao.outputs.playwright }}
+
+    - name: Instalar Playwright (pacote npm)
+      id: npm
+      shell: bash
+      run: |
+        t0=$(date +%s)
         mkdir -p /tmp/pw-deps
         cd /tmp/pw-deps
         npm init -y
-        npm install playwright@1.56.1
-        npx playwright install --with-deps chromium
+        npm install playwright@${{ steps.versao.outputs.playwright }}
+        echo "seg=$(( $(date +%s) - t0 ))" >> "$GITHUB_OUTPUT"
+
+    # "playwright install --with-deps chromium" = estes dois passos juntos; separados
+    # para medir cada um e para o download do navegador poder usar o cache.
+    - name: Instalar dependências do sistema do Chromium (apt)
+      id: deps
+      shell: bash
+      run: |
+        t0=$(date +%s)
+        cd /tmp/pw-deps
+        npx playwright install-deps chromium
+        echo "seg=$(( $(date +%s) - t0 ))" >> "$GITHUB_OUTPUT"
+
+    # Com o cache restaurado o Playwright reconhece o navegador já presente e
+    # não baixa nada; sem cache, baixa normalmente.
+    - name: Baixar o Chromium (ou reaproveitar o cache)
+      id: browser
+      shell: bash
+      run: |
+        t0=$(date +%s)
+        cd /tmp/pw-deps
+        npx playwright install chromium
+        echo "seg=$(( $(date +%s) - t0 ))" >> "$GITHUB_OUTPUT"
+
+    - name: Resumo do preparo (tempos e cache)
+      shell: bash
+      run: |
+        hit='${{ steps.pwcache.outputs.cache-hit }}'
+        [ "$hit" = "true" ] && estado="HIT (reaproveitado)" || estado="MISS (baixado do zero)"
+        npm_s='${{ steps.npm.outputs.seg }}'; deps_s='${{ steps.deps.outputs.seg }}'; nav_s='${{ steps.browser.outputs.seg }}'
+        total=$(( npm_s + deps_s + nav_s ))
+        msg="Playwright ${{ steps.versao.outputs.playwright }} · cache do Chromium: ${estado} · npm ${npm_s}s + apt ${deps_s}s + navegador ${nav_s}s = ${total}s"
+        echo "::notice title=Preparo dos testes::${msg}"
+        {
+          echo "### Preparo dos testes"
+          echo "- Playwright: \`${{ steps.versao.outputs.playwright }}\`"
+          echo "- Chave do cache: \`playwright-chromium-${{ steps.versao.outputs.so }}-${{ steps.versao.outputs.playwright }}\`"
+          echo "- Cache do Chromium: **${estado}**"
+          echo "- Tempos: npm ${npm_s}s · apt ${deps_s}s · navegador ${nav_s}s · **total ${total}s**"
+        } >> "$GITHUB_STEP_SUMMARY"
 
     - name: Servir o site localmente
       shell: bash
