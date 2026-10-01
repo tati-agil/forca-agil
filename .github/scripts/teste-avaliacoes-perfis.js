@@ -127,7 +127,7 @@ async function abrirMais(page, key) {
       afirma(await contar(page, '.avp-act-editar') === 0, 'sem "Continuar"');
       afirma(await contar(page, '#avpExportarBtn') === 0 && await contar(page, '#avpReprocessarTudoBtn') === 0 && await contar(page, '#avpLixeiraBtn') === 0, 'sem exportar, reprocessar em lote nem lixeira');
       afirma(await contar(page, '.avp-check-item') === 0, 'sem seleção em lote');
-      afirma(await contar(page, '.avp-act-ver') === 2, '"Visualizar" nas 2 concluídas');
+      afirma(await contar(page, '.avp-act-ver') === 2, '"Abrir" nas 2 concluídas');
       afirma(await larguraOk(page), 'sem rolagem horizontal na página');
       await page.click('.avp-act-ver[data-key="k1"]');
       await page.waitForSelector('#avpVoltarListaResultado', { timeout: 5000 });

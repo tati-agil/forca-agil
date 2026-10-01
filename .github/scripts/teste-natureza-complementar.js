@@ -132,6 +132,8 @@ const avaliacoes = async (page) => (await banco(page))['avaliacoes-produto'] || 
 const auditoria = async (page, key) => Object.values(((await banco(page))['naturezas-complementares-auditoria'] || {})[key] || {});
 const auditoriaCatalogo = async (page) => Object.values(((await banco(page))['naturezas-complementares-auditoria'] || {}).catalogo || {});
 const larguraOk = (page) => page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth + 1);
+/* A natureza aparece como etiqueta sob o nome do item (não tem mais coluna própria): '' quando não há */
+const naturezaNaLista = async (page, key) => { const l = linhaDe(page, key).locator('.avp-item-natureza'); return (await l.count()) ? (await l.innerText()).trim() : '—'; };
 const linhaDe = (page, key) => page.locator('tr', { has: page.locator('[data-key="' + key + '"]') });
 
 async function novaAvaliacao(page, nome, valorDe) {
@@ -245,13 +247,13 @@ async function voltarParaAvaliacoes(page) {
       afirma(!/Natureza complementar|benefícios e parcerias/.test(pdf.tudo.slice(0, pdf.tudo.indexOf('Decisão arquitetural'))), 'PDF: nada de natureza no resultado automático nem em "Como chegamos a essa conclusão"');
     }
 
-    console.log('\n-- lista: coluna "Natureza" --');
+    console.log('\n-- lista: natureza como etiqueta sob o item --');
     await voltarLista(page);
-    const ths = await page.locator('.avp-tabela-scroll thead th').allInnerTexts();
-    afirma(ths.map((t) => t.trim().toLowerCase()).includes('natureza'), 'coluna "Natureza" na lista');
+    const ths = await page.locator('.avp-tabela-wrap thead th').allInnerTexts();
+    afirma(!ths.map((t) => t.trim().toLowerCase()).includes('natureza'), 'a natureza não ocupa coluna própria (lista enxuta): ' + ths.map((t) => t.trim()).filter(Boolean).join(' | '));
     const linhaClube = await linhaDe(page, key).innerText();
-    afirma(/Canal/.test(linhaClube) && await linhaDe(page, key).locator('td.avp-col-natureza').innerText() === PLATAFORMA, 'lista: Clube → Canal + natureza "' + PLATAFORMA + '"');
-    afirma(await linhaDe(page, 'maisprevi').locator('td.avp-col-natureza').innerText() === '—', 'lista: item sem natureza mostra "—"');
+    afirma(/Canal/.test(linhaClube) && await naturezaNaLista(page, key) === PLATAFORMA, 'lista: Clube → Canal + natureza "' + PLATAFORMA + '"');
+    afirma(await naturezaNaLista(page, 'maisprevi') === '—', 'lista: item sem natureza mostra "—"');
     afirma(await page.locator('.avp-tag-motor--desatualizado').count() === 0 && await page.locator('.avp-tag-motor--atual').count() === 2, 'nenhuma avaliação ficou "Motor desatualizado" — as duas seguem em "Motor atual"');
     afirma(await page.locator('#avpReprocessarTudoBtn').isDisabled(), 'nada a reprocessar (REPROCESSAR TUDO desabilitado)');
 
@@ -287,7 +289,7 @@ async function voltarParaAvaliacoes(page) {
     afirma(aud.length === 3 && remocao && !remocao.valorNovo, 'auditoria: a remoção também é registrada (valorAnterior = programa, valorNovo vazio)');
     afirma(/Natureza complementar removida/.test(await page.locator('#avpFlashNatureza').innerText()), 'tela: "Natureza complementar removida"');
     await voltarLista(page);
-    afirma(await linhaDe(page, key).locator('td.avp-col-natureza').innerText() === '—', 'lista: voltou a "—"');
+    afirma(await naturezaNaLista(page, key) === '—', 'lista: voltou a "—"');
 
     console.log('\n-- reavaliar herda a natureza (ela descreve o item, não uma rodada de respostas) --');
     await abrirResultado(page, key);
@@ -358,7 +360,7 @@ async function voltarParaAvaliacoes(page) {
     console.log('\n-- lista: A validar + natureza --');
     await voltarLista(page);
     const cels = await linhaDe(page, 'maisprevi').innerText();
-    afirma(/A validar/.test(cels) && await linhaDe(page, 'maisprevi').locator('td.avp-col-natureza').innerText() === 'Programa transversal', 'lista: Mais Previ → A validar + Programa transversal');
+    afirma(/A validar/.test(cels) && await naturezaNaLista(page, 'maisprevi') === 'Programa transversal', 'lista: Mais Previ → A validar + Programa transversal');
     afirma(await page.locator('.avp-tag-motor--desatualizado').count() === 0, 'não ficou "Motor desatualizado"');
     afirma(erros.length === 0, 'nenhum erro de JS (' + erros.length + ')');
     await ctx.close();
@@ -411,7 +413,7 @@ async function voltarParaAvaliacoes(page) {
     afirma(cfg.PLATAFORMA_BENEFICIOS_PARCERIAS.ativo === false, 'desativada (nada é apagado: ativo = false)');
 
     await voltarParaAvaliacoes(page);
-    afirma(await linhaDe(page, 'maisprevi').locator('td.avp-col-natureza').innerText() === 'Programa transversal', 'lista: o item antigo segue com o NOME DA ÉPOCA, não com o renomeado');
+    afirma(await naturezaNaLista(page, 'maisprevi') === 'Programa transversal', 'lista: o item antigo segue com o NOME DA ÉPOCA, não com o renomeado');
 
     await abrirResultado(page, 'outro');
     let ops = (await page.locator('#avpNaturezaComplementar option').allInnerTexts()).join('|');
@@ -448,7 +450,7 @@ async function voltarParaAvaliacoes(page) {
     const legadoComNatureza = itemLegado('Legada com natureza', { itemId: 'legada', naturezaComplementarCodigo: 'PLATAFORMA_BENEFICIOS_PARCERIAS', naturezaComplementarNomeNaEpoca: PLATAFORMA,
       naturezaComplementarDescricaoNaEpoca: 'd', naturezaComplementarDefinidaPor: { name: 'Teste', email: EMAIL }, naturezaComplementarDefinidaEm: '2026-09-29T12:00:00.000Z' });
     const { ctx, page, erros } = await abrirApp(browser, { antigo: antigo, legada: legadoComNatureza });
-    afirma(await linhaDe(page, 'antigo').locator('td.avp-col-natureza').innerText() === 'Programa', 'lista: o formato antigo continua aparecendo ("Programa")');
+    afirma(await naturezaNaLista(page, 'antigo') === 'Programa', 'lista: o formato antigo continua aparecendo ("Programa")');
     await abrirResultado(page, 'antigo');
     afirma(await page.locator('#avpNaturezaComplementar').inputValue() === 'programa', 'tela: o seletor mostra a natureza antiga (mesmo fora do catálogo atual)');
     await salvarNatureza(page, 'PROGRAMA_TRANSVERSAL');
@@ -526,8 +528,7 @@ async function voltarParaAvaliacoes(page) {
   console.log('\n== CELULAR (375 px) ==');
   {
     const { ctx, page, erros } = await abrirApp(browser, { maisprevi: itemMaisPrevi() }, { width: 375, height: 740 });
-    const rotuloCartao = await page.locator('td.avp-col-natureza').first().evaluate((td) => getComputedStyle(td, '::before').content);
-    afirma(await page.locator('td.avp-col-natureza').first().isVisible() && /Natureza/.test(rotuloCartao), 'lista em cartões: a linha "Natureza" aparece, com o rótulo (' + rotuloCartao + ')');
+    afirma((await page.locator('.avp-item-natureza').count()) === 0, 'lista em cartões: item sem natureza não mostra etiqueta');
     await abrirResultado(page, 'maisprevi');
     afirma(await page.locator('#avpNaturezaComplementar').isVisible() && await larguraOk(page), 'resultado: campo visível e sem rolagem horizontal');
     await salvarNatureza(page, 'PROGRAMA_TRANSVERSAL');
@@ -535,7 +536,7 @@ async function voltarParaAvaliacoes(page) {
     afirma(box && box.x >= 0 && box.x + box.width <= 375, 'bloco da natureza cabe na tela (x ' + Math.round(box.x) + ' + ' + Math.round(box.width) + ' ≤ 375)');
     afirma((await avaliacoes(page)).maisprevi.naturezaComplementarCodigo === 'PROGRAMA_TRANSVERSAL', 'salvou no celular');
     await voltarLista(page);
-    afirma(/Programa transversal/.test(await page.locator('td.avp-col-natureza').first().innerText()), 'lista em cartões mostra a natureza salva');
+    afirma(/Programa transversal/.test(await page.locator('.avp-item-natureza').first().innerText()), 'lista em cartões mostra a natureza salva');
     await irAoAdmin(page);
     await page.click('#avpConfigNaturezasBtn');
     await page.waitForSelector('#avpNaturezaNova');

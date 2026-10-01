@@ -1357,6 +1357,8 @@
                                   mostrar "não encontrada" antes dos dados terem sequer chegado (ex.: F5) */
       erroCarga: null,        /* null | 'permissao' | 'geral' — motivo de itensCarregados nunca ter dados */
       filtro: { resultado: 'todos', status: 'todos', alterado: 'todos', alternativa: 'todos', motor: 'todos' },
+      busca: '',              /* pesquisa por nome/descrição do item */
+      filtrosAbertos: false,  /* painel "Filtros (n)" */
       lixeira: false,        /* alterna a lista entre ativos e excluídos — "excluído" é outra dimensão, não um status irmão de rascunho/concluído */
       atual: null,
       erroForm: null,
@@ -1579,15 +1581,24 @@
     }
 
     /* ===================== LISTA ===================== */
-    /* Algum filtro fora do valor "todos" (a pesquisa por texto é da Fase 2). */
-    function filtrosAtivos() {
+    /* Quantos filtros do painel estão fora de "todos" (a pesquisa é à parte). */
+    function numFiltrosAtivos() {
       var f = state.filtro;
-      return f.resultado !== 'todos' || f.status !== 'todos' || f.alterado !== 'todos' || f.alternativa !== 'todos' || f.motor !== 'todos';
+      return ['resultado', 'status', 'alterado', 'alternativa', 'motor'].filter(function (k) { return f[k] !== 'todos'; }).length;
+    }
+    function filtrosAtivos() { return numFiltrosAtivos() > 0; }
+    function buscaAtiva() { return !!(state.busca || '').trim(); }
+    /* Pesquisa sem acento e sem diferenciar maiúsculas, no nome e na descrição do item. */
+    function passaBusca(it) {
+      var q = semAcento(state.busca).trim();
+      if (!q) return true;
+      return semAcento(it.nome).indexOf(q) !== -1 || semAcento(it.descricao).indexOf(q) !== -1;
     }
     function itemPassaFiltro(it) {
       if (temVersaoMaisNova(it._key)) return false;
-      if (state.lixeira) return !!it.excluido;
+      if (state.lixeira) return !!it.excluido && passaBusca(it);
       if (it.excluido) return false;
+      if (!passaBusca(it)) return false;
       if (state.filtro.resultado !== 'todos') {
         var decisao = it.decisaoFinal || it.resultadoAutomatico;
         if (decisao !== state.filtro.resultado) return false;
@@ -1609,31 +1620,17 @@
       return true;
     }
 
-    /* Altura do quadro da tabela = o que sobra da janela a partir de onde ele
-       começa (ou, se já rolou a página, a partir da barra fixa do site), nunca
-       um número fixo: acima dele há introdução, barras de ação e filtros que
-       mudam de altura (reconciliação, reprocessamento, aviso de exportação…).
-       Assim o rodapé do quadro — onde mora a barra de rolagem horizontal —
-       fica sempre dentro da janela. Piso de 320 px para a tabela nunca virar
-       uma fresta quando o que vem antes já ocupa a tela toda. No celular
-       (≤ 640 px) a tabela vira cartões e o CSS ignora esta variável. */
-    function ajustarAlturaTabela() {
-      var el = document.querySelector('#avaliacoesPainel .avp-tabela-scroll');
-      if (!el || !el.offsetParent) return;
+    /* A página inteira rola (a tabela NÃO tem rolagem própria). O cabeçalho das
+       colunas fica fixo logo abaixo do menu do site, que é fixo e tem altura
+       variável (celular, menu aberto…) — por isso a medida vem do próprio menu
+       e vai para o CSS como --avp-sticky-top. */
+    function ajustarTopoCabecalho() {
+      var painel = document.getElementById('avaliacoesPainel');
+      if (!painel) return;
       var nav = document.querySelector('.nav');
-      var barraFixa = (nav ? nav.offsetHeight : 64) + 8;
-      var topo = Math.max(el.getBoundingClientRect().top, barraFixa);
-      var altura = Math.max(320, Math.floor(window.innerHeight - topo - 16));
-      el.style.setProperty('--avp-tabela-altura', altura + 'px');
+      painel.style.setProperty('--avp-sticky-top', (nav ? nav.offsetHeight : 64) + 'px');
     }
-    var alturaAgendada = false;
-    function agendarAlturaTabela() {
-      if (alturaAgendada) return;
-      alturaAgendada = true;
-      window.requestAnimationFrame(function () { alturaAgendada = false; ajustarAlturaTabela(); });
-    }
-    window.addEventListener('resize', agendarAlturaTabela);
-    window.addEventListener('scroll', agendarAlturaTabela, { passive: true });
+    window.addEventListener('resize', ajustarTopoCabecalho);
 
     function renderLista() {
       var filtrados = state.itens.filter(itemPassaFiltro);
@@ -1654,7 +1651,10 @@
       var chavesSelecionadas = Object.keys(state.selecionados).filter(function (k) { return state.selecionados[k]; });
 
       html += '<div class="avp-actions-bar">';
-      html += '<span class="avp-total">' + ativos.length + ' avaliaç' + (ativos.length === 1 ? 'ão' : 'ões') + ' registrada' + (ativos.length === 1 ? '' : 's') + '</span>';
+      var baseContagem = state.lixeira ? excluidos : ativos;
+      var recortado = filtrosAtivos() || buscaAtiva();
+      html += '<span class="avp-total" id="avpContador">' + (recortado ? filtrados.length + ' de ' + baseContagem.length : baseContagem.length) +
+        ' avaliaç' + (baseContagem.length === 1 ? 'ão' : 'ões') + (state.lixeira ? ' na lixeira' : '') + '</span>';
       if (!state.lixeira && pode('avaliador')) html += '<button class="btn btn--primary" id="avpNovoBtn">+ Avaliar novo item</button>';
       if (!state.lixeira && pode('gestor')) {
         html += '<div class="avp-exportar-wrap">';
@@ -1708,15 +1708,25 @@
         if (state.reprocessamentoLote) html += renderReprocessamentoLoteCard();
       }
 
+      /* Pesquisa + painel "Filtros (n)": a pesquisa vale dentro da lixeira também. */
+      var nFiltros = numFiltrosAtivos();
+      html += '<div class="avp-busca-barra">';
+      html += '<input type="search" id="avpBusca" class="avp-busca" placeholder="Pesquisar por nome ou item..." aria-label="Pesquisar por nome ou item" value="' + esc(state.busca) + '" autocomplete="off">';
+      if (!state.lixeira) {
+        html += '<button type="button" class="btn btn--sm avp-filtros-btn' + (nFiltros ? ' avp-filtros-btn--ativo' : '') + '" id="avpFiltrosBtn" aria-expanded="' + (state.filtrosAbertos ? 'true' : 'false') + '">Filtros' + (nFiltros ? ' (' + nFiltros + ')' : '') + '</button>';
+      }
+      if (recortado) html += '<button type="button" class="avp-limpar-link" id="avpLimparFiltros">Limpar filtros</button>';
+      html += '</div>';
+
       if (state.lixeira) {
         html += '<p class="avp-lixeira-aviso">🗑 Mostrando avaliações excluídas. Elas não são apagadas do banco — use "↺ Restaurar" para trazer de volta.</p>';
-      } else {
+      } else if (state.filtrosAbertos) {
         /* Cada filtro com o PRÓPRIO rótulo visível: "Resultado Produto/Serviço"
            (se o item É ou não Produto/Serviço — decisão final) e "Classificação
            arquitetural" (a camada identificada, ex.: Componente, Canal) são
            conceitos diferentes e não podem parecer o mesmo filtro. Os valores
            são só os que o sistema realmente grava. */
-        html += '<div class="avp-filters">';
+        html += '<div class="avp-filtros-painel" id="avpFiltrosPainel"><div class="avp-filters">';
         html += filtroSelect('avpFiltroResultado', state.filtro.resultado, [
           ['todos', 'Todos'], ['produto', 'É Produto/Serviço'], ['nao-produto', 'Não é Produto/Serviço Principal'], ['a-validar', 'A validar']
         ], 'Resultado Produto/Serviço');
@@ -1729,18 +1739,30 @@
         html += filtroSelect('avpFiltroAlterado', state.filtro.alterado, [
           ['todos', 'Automática ou manual'], ['sim', 'Alterada manualmente']
         ], 'Decisão final');
-        html += filtroSelect('avpFiltroMotor', state.filtro.motor, [
-          ['todos', 'Todas'], ['desatualizado', 'Motor desatualizado'], ['equivalente', 'Versão anterior equivalente'], ['atual', 'Motor atual']
-        ], 'Versão do motor');
+        if (pode('gestor')) {
+          html += filtroSelect('avpFiltroMotor', state.filtro.motor, [
+            ['todos', 'Todas'], ['desatualizado', 'Motor desatualizado'], ['equivalente', 'Versão anterior equivalente'], ['atual', 'Motor atual']
+          ], 'Versão do motor');
+        }
         html += '</div>';
         html += '<p class="avp-filtros-ajuda">O <strong>resultado Produto/Serviço</strong> diz se o item é ou não Produto/Serviço principal; a ' +
           '<strong>classificação arquitetural</strong> diz que camada ele ocupa (Componente, Canal, Processo…). São coisas diferentes e podem ser combinadas.</p>';
+        html += '</div>';
       }
 
       if (!filtrados.length) {
-        html += '<p class="admin-empty">' + (state.lixeira ? 'Nenhuma avaliação excluída.' : 'Nenhuma avaliação nessa combinação de filtros.') + '</p>';
+        if (state.lixeira) {
+          html += '<p class="admin-empty">' + (buscaAtiva() ? 'Nenhuma avaliação excluída encontrada para essa pesquisa.' : 'Nenhuma avaliação excluída.') + '</p>';
+        } else if (recortado) {
+          html += '<div class="avp-vazio" id="avpVazioBusca"><p>Nenhuma avaliação encontrada para ' + (buscaAtiva() && filtrosAtivos() ? 'essa pesquisa com esses filtros' : (buscaAtiva() ? 'essa pesquisa' : 'esses filtros')) + '.</p>' +
+            '<button type="button" class="btn btn--sm" id="avpLimparFiltrosVazio">Limpar filtros</button></div>';
+        } else {
+          html += '<div class="avp-vazio" id="avpVazioLista"><p>' + (pode('avaliador')
+            ? 'Ainda não há avaliações. Comece avaliando o primeiro item.'
+            : 'Ainda não há avaliações concluídas para consultar.') + '</p></div>';
+        }
       } else if (state.lixeira) {
-        html += '<div class="table-scroll-wrap avp-tabela-scroll avp-tabela-scroll--lixeira"><table class="admin-table avp-table"><thead><tr>' +
+        html += '<div class="avp-tabela-wrap avp-tabela-wrap--lixeira"><table class="admin-table avp-table"><thead><tr>' +
           '<th class="avp-col-item">Item</th><th>Excluído por</th><th>Quando</th><th class="avp-col-justificativa">Justificativa</th><th class="avp-col-acoes">Ações</th></tr></thead><tbody>';
         filtrados.forEach(function (it) {
           html += '<tr>';
@@ -1758,32 +1780,35 @@
            quem avalia ou gere — consulta só abre. */
         var podeSelecionar = pode('gestor');
         var podeMais = pode('avaliador');
-        html += '<div class="table-scroll-wrap avp-tabela-scroll"><table class="admin-table avp-table"><thead><tr>' +
+        html += '<div class="avp-tabela-wrap"><table class="admin-table avp-table"><thead><tr>' +
           (podeSelecionar ? '<th class="avp-check-col"><input type="checkbox" id="avpSelecionarTodos"' + (todosFiltradosSelecionados ? ' checked' : '') + ' aria-label="Selecionar todas as avaliações filtradas"></th>' : '') +
-          '<th class="avp-col-item">Item</th><th class="avp-col-res">Resultado automático</th><th class="avp-col-dec">Decisão final</th><th class="avp-col-camada">Classificação arquitetural</th><th class="avp-col-natureza">Natureza</th>' +
-          '<th class="avp-col-resp">Responsável</th><th class="avp-col-data">Data</th><th class="avp-col-status">Status</th><th class="avp-col-acoes">Ações</th></tr></thead><tbody>';
+          '<th class="avp-col-item">Item</th><th class="avp-col-dec">Resultado final</th><th class="avp-col-camada">Classificação</th><th class="avp-col-status">Status</th>' +
+          '<th class="avp-col-data">Atualizado em</th><th class="avp-col-resp">Responsável</th><th class="avp-col-acoes">Ações</th></tr></thead><tbody>';
         filtrados.forEach(function (it) {
           var decisao = it.decisaoFinal || it.resultadoAutomatico;
           var camadaLabel = (it.camadaSugerida && it.camadaSugerida.label) || '—';
+          var natureza = rotuloNaturezaDoItem(it);
           html += '<tr>';
           if (podeSelecionar) {
             html += '<td class="avp-check-col"><input type="checkbox" class="avp-check-item" data-key="' + it._key + '"' +
               (state.selecionados[it._key] ? ' checked' : '') + ' aria-label="Selecionar ' + esc(it.nome) + '"></td>';
           }
-          html += '<td class="avp-col-item" data-label="Item">' + esc(it.nome) + (it.versao > 1 ? ' <span class="avp-tag-versao">v' + it.versao + '</span>' : '') + '</td>';
-          html += '<td class="avp-col-res" data-label="Resultado automático">' + resultadoBadge(it.resultadoAutomatico) + '</td>';
-          html += '<td class="avp-col-dec" data-label="Decisão final">' + resultadoBadge(decisao) + (it.decisaoManual ? ' <span class="avp-tag-alterado">alterada</span>' : '') + '</td>';
-          html += '<td class="avp-col-camada" data-label="Classificação arquitetural" title="' + esc(camadaLabel) + '">' + esc(camadaLabel) + '</td>';
-          html += '<td class="avp-col-natureza" data-label="Natureza" title="' + esc(rotuloNaturezaDoItem(it)) + '">' +
-            (rotuloNaturezaDoItem(it) ? '<span class="avp-tag-natureza">' + esc(rotuloNaturezaDoItem(it)) + '</span>' : '—') + '</td>';
-          html += '<td class="avp-col-resp" data-label="Responsável" title="' + esc(it.responsavel && it.responsavel.name || '') + '">' + esc(it.responsavel && it.responsavel.name || '—') + '</td>';
-          html += '<td class="avp-col-data" data-label="Data">' + fmtData(it.atualizadoEm) + '</td>';
+          /* Natureza complementar não ganha coluna própria (a lista ficaria larga
+             demais): aparece como etiqueta sob o nome do item; o resto do detalhe
+             (resultado automático, justificativas) fica na tela da avaliação. */
+          html += '<td class="avp-col-item" data-label="Item"><span class="avp-item-nome">' + esc(it.nome) + '</span>' +
+            (it.versao > 1 ? ' <span class="avp-tag-versao">v' + it.versao + '</span>' : '') +
+            (natureza ? '<span class="avp-item-natureza" title="Natureza complementar"><span class="avp-tag-natureza">' + esc(natureza) + '</span></span>' : '') + '</td>';
+          html += '<td class="avp-col-dec" data-label="Resultado final">' + resultadoBadge(decisao) + (it.decisaoManual ? ' <span class="avp-tag-alterado">alterada</span>' : '') + '</td>';
+          html += '<td class="avp-col-camada" data-label="Classificação">' + esc(camadaLabel) + '</td>';
           html += '<td class="avp-col-status" data-label="Status">' + statusBadge(it.status) + badgeMotor(it) + '</td>';
+          html += '<td class="avp-col-data" data-label="Atualizado em">' + fmtData(it.atualizadoEm) + '</td>';
+          html += '<td class="avp-col-resp" data-label="Responsável">' + esc(it.responsavel && it.responsavel.name || '—') + '</td>';
           html += '<td class="avp-col-acoes" data-label="Ações"><div class="avp-row-actions">';
           if (it.status === 'concluido') {
-            html += '<button class="btn btn--sm btn--primary avp-act-ver" data-key="' + it._key + '">Visualizar</button>';
+            html += '<button class="btn btn--sm avp-act-principal avp-act-ver" data-key="' + it._key + '">Abrir</button>';
           } else if (podeMais) {
-            html += '<button class="btn btn--sm btn--primary avp-act-editar" data-key="' + it._key + '">Continuar</button>';
+            html += '<button class="btn btn--sm avp-act-principal avp-act-editar" data-key="' + it._key + '">Continuar</button>';
           }
           if (podeMais) html += '<button class="btn btn--sm avp-act-mais" data-key="' + it._key + '" aria-label="Mais ações">⋯</button>';
           html += '</div></td>';
@@ -1792,20 +1817,8 @@
         html += '</tbody></table></div>';
       }
 
-      /* A tabela tem rolagem PRÓPRIA (vertical e horizontal). render() refaz o
-         HTML inteiro a cada clique (marcar uma linha, filtrar…), o que jogaria
-         a tabela de volta ao topo/à esquerda — com 30 linhas, marcar a de baixo
-         faria a pessoa perder o lugar. Guarda a posição antes e devolve depois. */
-      var rolagemAntes = wrap.querySelector('.avp-tabela-scroll');
-      var rolagemTopo = rolagemAntes ? rolagemAntes.scrollTop : 0;
-      var rolagemEsquerda = rolagemAntes ? rolagemAntes.scrollLeft : 0;
       wrap.innerHTML = html;
-      var rolagemDepois = wrap.querySelector('.avp-tabela-scroll');
-      if (rolagemDepois) {
-        rolagemDepois.scrollTop = rolagemTopo;
-        rolagemDepois.scrollLeft = rolagemEsquerda;
-        ajustarAlturaTabela();
-      }
+      ajustarTopoCabecalho();
 
       var flashListaClose = document.getElementById('avpFlashListaClose');
       if (flashListaClose) flashListaClose.addEventListener('click', function () { state.flashLista = null; render(); });
@@ -1838,6 +1851,31 @@
         state.flashLista = null;
         state.tela = 'form-inicial';
         render();
+      });
+      var buscaEl = document.getElementById('avpBusca');
+      if (buscaEl) {
+        var compondo = false;
+        function aplicarBusca() {
+          var pos = buscaEl.selectionStart;
+          state.busca = buscaEl.value;
+          render();
+          var novo = document.getElementById('avpBusca');
+          if (novo) { novo.focus(); try { novo.setSelectionRange(pos, pos); } catch (e) {} }
+        }
+        buscaEl.addEventListener('compositionstart', function () { compondo = true; });
+        buscaEl.addEventListener('compositionend', function () { compondo = false; aplicarBusca(); });
+        buscaEl.addEventListener('input', function () { if (!compondo) aplicarBusca(); });
+      }
+      var filtrosBtn = document.getElementById('avpFiltrosBtn');
+      if (filtrosBtn) filtrosBtn.addEventListener('click', function () { state.filtrosAbertos = !state.filtrosAbertos; render(); });
+      function limparFiltros() {
+        state.busca = '';
+        state.filtro = { resultado: 'todos', status: 'todos', alterado: 'todos', alternativa: 'todos', motor: 'todos' };
+        render();
+      }
+      ['avpLimparFiltros', 'avpLimparFiltrosVazio'].forEach(function (id) {
+        var b = document.getElementById(id);
+        if (b) b.addEventListener('click', limparFiltros);
       });
       ['Resultado', 'Status', 'Alterado', 'Alternativa', 'Motor'].forEach(function (campo) {
         var sel = document.getElementById('avpFiltro' + campo);

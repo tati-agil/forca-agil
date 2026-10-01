@@ -91,6 +91,7 @@ async function abrirApp(browser, avaliacoes, config, viewport, delays) {
   await page.waitForTimeout(300);
   return { ctx, page, erros };
 }
+async function abrirFiltros(page) { if (!(await page.locator('#avpFiltrosPainel').count())) await page.click('#avpFiltrosBtn'); await page.waitForSelector('#avpFiltrosPainel'); }
 const banco = (page) => page.evaluate(() => JSON.parse(JSON.stringify(window.__CFG.__dbReal)));
 const contar = (page, sel) => page.locator(sel).count();
 const larguraOk = (page) => page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth + 1);
@@ -183,7 +184,7 @@ const textoModal = (page) => page.locator('body > .modal-overlay').last().innerT
       'o selo "Motor desatualizado" explica o porquê (tooltip): ' + await page.locator('.avp-tag-motor--desatualizado').first().getAttribute('title'));
     afirma(/REPROCESSAR TUDO COM MOTOR ATUAL \(7\)/.test(await page.locator('#avpReprocessarTudoBtn').innerText()), 'REPROCESSAR TUDO (7) — só as realmente desatualizadas');
     afirma(/RECONCILIAR 8 AVALIAÇÕES/.test(await page.locator('#avpReconciliarBar').innerText()), 'RECONCILIAR 8 — só as equivalentes');
-    await page.selectOption('#avpFiltroMotor', 'desatualizado'); await page.waitForTimeout(150);
+    await abrirFiltros(page); await page.selectOption('#avpFiltroMotor', 'desatualizado'); await page.waitForTimeout(150);
     afirma(await contar(page, '.avp-act-ver') === 7, 'filtro "Motor desatualizado": 7');
     await page.selectOption('#avpFiltroMotor', 'equivalente'); await page.waitForTimeout(150);
     afirma(await contar(page, '.avp-act-ver') === 8, 'filtro "Versão anterior equivalente": 8');
