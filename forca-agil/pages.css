@@ -2361,3 +2361,26 @@ select.aposta-campo-input { width: auto; min-width: 8.5em; }
 .avp-act-principal:hover, .avp-act-principal:focus-visible { border-color: var(--gold); outline: none; }
 .avp-lixeira-btn { color: var(--ink-3); border-color: var(--line); background: transparent; }
 .avp-lixeira-btn:hover, .avp-lixeira-btn:focus-visible { color: var(--ink); }
+
+/* Ficha da avaliação: Identificação, aviso de versão anterior e histórico de versões */
+.avp-identificacao-item { margin: 0 0 8px; font-size: .95rem; color: var(--ink); display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+.avp-identificacao-lista { display: grid; grid-template-columns: max-content 1fr; gap: 6px 16px; margin: 0; font-size: .86rem; }
+.avp-identificacao-lista dt { color: var(--ink-3); font-family: var(--font-mono); font-size: .68rem; letter-spacing: .04em; text-transform: uppercase; align-self: baseline; padding-top: 2px; }
+.avp-identificacao-lista dd { margin: 0; color: var(--ink-2); overflow-wrap: break-word; }
+.avp-tag-anterior, .avp-tag-vigente, .avp-tag-aberta { font-size: .68rem; font-family: var(--font-mono); padding: 2px 8px; border-radius: 100px; border: 1px solid var(--line-strong); color: var(--ink-2); }
+.avp-tag-vigente { border-color: rgba(24,194,186,.5); color: var(--cyan-soft); }
+.avp-aviso-anterior { display: flex; align-items: center; justify-content: space-between; gap: 14px; flex-wrap: wrap; border-color: var(--gold); }
+.avp-aviso-anterior p { margin: 0; font-size: .86rem; color: var(--ink-2); max-width: 640px; }
+.avp-hist-lista { list-style: none; margin: 10px 0 0; padding: 0; display: flex; flex-direction: column; gap: 8px; }
+.avp-hist-item { display: grid; grid-template-columns: 1fr auto; gap: 4px 12px; align-items: center; border: 1px solid var(--line); border-radius: 10px; padding: 10px 12px; }
+.avp-hist-item--aberta { border-color: var(--gold); }
+.avp-hist-cab { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; font-size: .88rem; }
+.avp-hist-data { color: var(--ink-3); font-size: .78rem; }
+.avp-hist-corpo { grid-column: 1; font-size: .82rem; color: var(--ink-2); overflow-wrap: break-word; }
+.avp-hist-item .avp-hist-abrir { grid-column: 2; grid-row: 1 / span 2; }
+@media (max-width: 640px) {
+  .avp-identificacao-lista { grid-template-columns: 1fr; gap: 2px; }
+  .avp-identificacao-lista dd { margin-bottom: 8px; }
+  .avp-hist-item { grid-template-columns: 1fr; }
+  .avp-hist-item .avp-hist-abrir { grid-column: 1; grid-row: auto; justify-self: start; }
+}

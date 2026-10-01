@@ -1628,9 +1628,18 @@
       var painel = document.getElementById('avaliacoesPainel');
       if (!painel) return;
       var nav = document.querySelector('.nav');
-      painel.style.setProperty('--avp-sticky-top', (nav ? nav.offsetHeight : 64) + 'px');
+      var h = nav ? nav.offsetHeight : 0;
+      /* O menu pode estar escondido (altura 0) quando a lista renderiza — por
+         exemplo enquanto a página ainda espera o login. Nesse caso NÃO grava 0
+         (o cabeçalho ficaria por baixo do menu quando ele aparecer): sem a
+         variável vale o padrão do CSS, e o observador abaixo atualiza assim que
+         o menu ganhar altura. */
+      if (h > 0) painel.style.setProperty('--avp-sticky-top', h + 'px');
+      else painel.style.removeProperty('--avp-sticky-top');
     }
     window.addEventListener('resize', ajustarTopoCabecalho);
+    var navParaObservar = document.querySelector('.nav');
+    if (navParaObservar && typeof ResizeObserver === 'function') new ResizeObserver(ajustarTopoCabecalho).observe(navParaObservar);
 
     function renderLista() {
       var filtrados = state.itens.filter(itemPassaFiltro);
@@ -1734,7 +1743,7 @@
           CAMADAS.map(function (c) { return [c.label, c.label]; })
         ), 'Classificação arquitetural');
         html += filtroSelect('avpFiltroStatus', state.filtro.status, [
-          ['todos', 'Todos'], ['rascunho', 'Rascunho'], ['concluido', 'Concluído']
+          ['todos', 'Todos'], ['rascunho', 'Em andamento'], ['concluido', 'Concluída']
         ], 'Status');
         html += filtroSelect('avpFiltroAlterado', state.filtro.alterado, [
           ['todos', 'Automática ou manual'], ['sim', 'Alterada manualmente']
@@ -1994,8 +2003,8 @@
     }
     function statusBadge(v) {
       return v === 'concluido'
-        ? '<span class="avp-badge avp-badge--concluido">Concluído</span>'
-        : '<span class="avp-badge avp-badge--rascunho">Rascunho</span>';
+        ? '<span class="avp-badge avp-badge--concluido">Concluída</span>'
+        : '<span class="avp-badge avp-badge--rascunho">Em andamento</span>';
     }
     /* Indicador visual de auditoria — só existe para concluídas (rascunho não
        tem motorVersion nenhuma, então não entra nem como "atual" nem como
@@ -2016,6 +2025,28 @@
        ela via versaoAnteriorKey) nunca aparece como linha própria na lista —
        nem ativa nem na Lixeira — só é alcançável pelo "Ver histórico" da
        versão atual. Isso é outra dimensão, à parte de excluído. */
+    /* Todas as versões do MESMO item, da mais antiga para a mais nova: anda para
+       trás por versaoAnteriorKey e para a frente pelas reavaliações que apontam
+       para a versão atual da cadeia. Nunca agrupa por nome. */
+    function cadeiaDeVersoes(a) {
+      var cadeia = [];
+      var visto = {};
+      var atras = buscarItem(a._key) || a;
+      while (atras && !visto[atras._key] && cadeia.length < 60) {
+        visto[atras._key] = true;
+        cadeia.unshift(atras);
+        atras = atras.versaoAnteriorKey ? buscarItem(atras.versaoAnteriorKey) : null;
+      }
+      var frente = cadeia[cadeia.length - 1];
+      for (var guarda = 0; frente && guarda < 60; guarda++) {
+        var proxima = state.itens.filter(function (o) { return o.versaoAnteriorKey === frente._key && !visto[o._key]; })[0];
+        if (!proxima) break;
+        visto[proxima._key] = true;
+        cadeia.push(proxima);
+        frente = proxima;
+      }
+      return cadeia;
+    }
     function temVersaoMaisNova(key) {
       return state.itens.some(function (o) { return o.versaoAnteriorKey === key; });
     }
@@ -3957,8 +3988,58 @@
     }
 
     /* ===================== RESULTADO ===================== */
+    /* "Identificação": o que é o item e quem avaliou — dados do cadastro da
+       avaliação, nada calculado. Campos vazios não ocupam linha. */
+    function renderIdentificacao(a, vigente) {
+      var linhas = [];
+      function linha(rotulo, valor) { if (valor) linhas.push('<dt>' + esc(rotulo) + '</dt><dd>' + esc(valor) + '</dd>'); }
+      linha('Descrição', (a.descricao || '').trim());
+      linha('Público/cliente relacionado', (a.publico || '').trim());
+      linha('Necessidade que pretende atender', (a.necessidade || '').trim());
+      linha('Observações', (a.observacoesGerais || '').trim());
+      linha('Avaliado por', a.responsavel && (a.responsavel.name || a.responsavel.email) || '');
+      linha('Avaliação iniciada em', a.criadoEm ? fmtData(a.criadoEm) : '');
+      linha('Última atualização', a.atualizadoEm ? fmtData(a.atualizadoEm) : '');
+      var html = '<div class="avp-form-card avp-identificacao-card" id="avpIdentificacao">';
+      html += '<h4>Identificação</h4>';
+      html += '<p class="avp-identificacao-item"><strong>' + esc(a.nome) + '</strong> <span class="avp-tag-versao">v' + (a.versao || 1) + '</span> ' +
+        statusBadge(a.status) + (vigente ? '' : ' <span class="avp-tag-anterior">versão anterior</span>') + '</p>';
+      html += linhas.length ? '<dl class="avp-identificacao-lista">' + linhas.join('') + '</dl>' : '<p class="avp-natureza-ajuda">Nenhum dado de cadastro adicional foi informado.</p>';
+      html += '</div>';
+      return html;
+    }
+    /* "Histórico de versões": v1, v2, v3… do mesmo item. A mais recente é a
+       situação VIGENTE; as anteriores continuam guardadas, sem alteração, e se
+       abrem aqui. */
+    function renderHistoricoVersoes(a, cadeia) {
+      if (cadeia.length < 2) return '';
+      var vigenteKey = cadeia[cadeia.length - 1]._key;
+      var html = '<div class="avp-form-card avp-hist-versoes" id="avpHistoricoVersoes">';
+      html += '<h4>Histórico de versões</h4>';
+      html += '<p class="avp-natureza-ajuda">A mais recente é a situação vigente do item. As anteriores ficam guardadas sem alteração.</p>';
+      html += '<ul class="avp-hist-lista">';
+      cadeia.slice().reverse().forEach(function (v) {
+        var camada = v.camadaSugerida && v.camadaSugerida.label;
+        var ehVigente = v._key === vigenteKey;
+        var estaAberta = v._key === a._key;
+        html += '<li class="avp-hist-item' + (estaAberta ? ' avp-hist-item--aberta' : '') + '" data-key="' + esc(v._key) + '">';
+        html += '<div class="avp-hist-cab"><strong>v' + (v.versao || 1) + '</strong>' +
+          (ehVigente ? ' <span class="avp-tag-vigente">vigente</span>' : '') + (estaAberta ? ' <span class="avp-tag-aberta">você está vendo</span>' : '') +
+          ' <span class="avp-hist-data">' + fmtData(v.criadoEm || v.atualizadoEm) + '</span></div>';
+        html += '<div class="avp-hist-corpo">' + esc(v.status === 'concluido' ? rotuloResultado(v.decisaoFinal || v.resultadoAutomatico) : 'Em andamento') +
+          (camada && v.status === 'concluido' ? ' — ' + esc(camada) : '') +
+          ' · por ' + esc(v.responsavel && (v.responsavel.name || v.responsavel.email) || '—') + '</div>';
+        if (!estaAberta) html += '<button type="button" class="btn btn--sm avp-hist-abrir" data-key="' + esc(v._key) + '">Abrir</button>';
+        html += '</li>';
+      });
+      html += '</ul></div>';
+      return html;
+    }
+
     function renderResultado() {
       var a = state.atual;
+      var cadeia = cadeiaDeVersoes(a);
+      var vigente = cadeia[cadeia.length - 1]._key === a._key;
       var resultado = a.resultadoAutomatico;
       var cardClasse = resultado === 'produto' ? 'avp-result-card--produto' :
         (resultado === 'a-validar' ? 'avp-result-card--a-validar' : 'avp-result-card--nao-produto');
@@ -3972,14 +4053,19 @@
           ' <button type="button" class="avp-flash-close" id="avpFlashResultadoClose" aria-label="Fechar">×</button></div>';
       }
 
+      if (!vigente) {
+        var cabecaVigente = cadeia[cadeia.length - 1];
+        html += '<div class="avp-form-card avp-aviso-anterior" id="avpAvisoVersaoAnterior"><p><strong>Você está vendo a versão v' + (a.versao || 1) + ', uma avaliação anterior deste item.</strong> ' +
+          'Ela está guardada sem alteração, só para consulta. A situação vigente é a v' + (cabecaVigente.versao || 1) + '.</p>' +
+          '<button type="button" class="btn btn--sm" id="avpAbrirVigente" data-key="' + esc(cabecaVigente._key) + '">Abrir a versão vigente (v' + (cabecaVigente.versao || 1) + ')</button></div>';
+      }
+      html += renderIdentificacao(a, vigente);
+
       html += '<div class="avp-result-card ' + cardClasse + '">';
       html += '<span class="avp-result-label">RESULTADO SOBRE PRODUTO/SERVIÇO</span>';
       html += '<h3 class="avp-result-nome">' + esc(a.nome) + (a.versao > 1 ? ' <span class="avp-tag-versao">v' + a.versao + '</span>' : '') + '</h3>';
       html += '<div class="avp-result-badge-grande">' + badgeTexto + '</div>';
       html += '<p class="avp-result-secundario">Critérios favoráveis a Produto/Serviço: ' + a.criteriosAtendidos + ' de ' + CRITERIOS.length + '</p>';
-      if (a.versaoAnteriorKey && pode('avaliador')) {
-        html += '<button type="button" class="avp-historico-link" id="avpVerHistoricoResultado">🕘 Ver histórico de versões</button>';
-      }
       html += '</div>';
 
       /* REAVALIAR fica à vista, logo abaixo do resultado: é a ação operacional
@@ -3987,7 +4073,7 @@
          forma de entrega, outra autonomia…). Nunca edita esta avaliação: abre
          uma NOVA versão do mesmo item (v+1, com quem avaliou e quando) e esta
          fica preservada, consultável no histórico. */
-      if (pode('avaliador')) {
+      if (pode('avaliador') && vigente) {
         html += '<div class="avp-form-card avp-reavaliar-card">';
         html += '<div class="avp-reavaliar-texto"><strong>A situação deste item mudou?</strong>' +
           '<span>Reavaliar abre uma nova avaliação do mesmo item (versão v' + ((a.versao || 1) + 1) + '). Esta avaliação continua guardada, sem alteração, no histórico — a mais recente passa a valer como a situação atual.</span></div>';
@@ -3995,18 +4081,20 @@
         html += '</div>';
       }
 
+      html += renderHistoricoVersoes(a, cadeia);
+
       /* Aviso discreto — nunca bloqueia a leitura do resultado, só oferece a
          ação; ver reprocessarMotor/precisaReprocessar. Só para avaliação
          concluída (rascunho não tem recomendação automática nenhuma ainda). */
       /* Reprocessar/reconciliar é governança da avaliação: só o gestor (o banco
          também recusa a gravação de quem é só avaliador). */
-      if (pode('gestor') && precisaReprocessar(a)) {
+      if (pode('gestor') && vigente && precisaReprocessar(a)) {
         html += '<div class="avp-form-card avp-motor-aviso">';
         html += '<p class="avp-motor-aviso-texto">⚠ Esta avaliação foi processada por uma versão anterior do motor de classificação.</p>';
         html += '<button type="button" class="btn btn--sm" id="avpReprocessarBtn"' + (state.reprocessando ? ' disabled' : '') + '>' +
           (state.reprocessando ? 'Reprocessando…' : 'REPROCESSAR COM MOTOR ATUAL') + '</button>';
         html += '</div>';
-      } else if (pode('gestor') && podeReconciliar(a)) {
+      } else if (pode('gestor') && vigente && podeReconciliar(a)) {
         /* Situação B: nunca oferece "reprocessar" — não há mudança lógica
            a recalcular (ver RECONCILIAR COM VERSÃO EQUIVALENTE). */
         var eqAtual = equivalenciaDoItem(a);
@@ -4046,7 +4134,7 @@
       }
       html += '</div>';
 
-      if (CAMADAS_COM_ESPECIALIZACAO.indexOf(camada.id) !== -1 && pode('gestor')) {
+      if (CAMADAS_COM_ESPECIALIZACAO.indexOf(camada.id) !== -1 && pode('gestor') && vigente) {
         html += renderEspecializacaoCadastradaCard(camada.id);
       }
 
@@ -4067,7 +4155,9 @@
       }
 
       html += '<div class="avp-form-card">';
-      html += '<h4>Como chegamos a essa conclusão?</h4>';
+      html += '<h4>Avaliação, pergunta por pergunta</h4>';
+      html += '<p class="avp-natureza-ajuda"><strong>Sua justificativa</strong> é o que a pessoa que avaliou escreveu em cada resposta; ' +
+        '<strong>Interpretação do sistema</strong> é o texto que o sistema gera a partir do SIM/NÃO marcado.</p>';
       html += '<div class="avp-reasoning-list">';
       html += '<p class="avp-reasoning-sep avp-reasoning-sep--primeiro">Critérios principais — perguntas 1 a ' + CRITERIOS.length + '</p>';
       CRITERIOS.forEach(function (c) { html += renderRaciocinio(c, a.respostas[c.id], a); });
@@ -4078,7 +4168,7 @@
       if (pode('avaliador')) html += renderHistoricoMotorCard(a);
       /* Decisão arquitetural e natureza complementar: o gestor edita; quem só
          avalia ou consulta vê o registro, sem formulário. */
-      html += pode('gestor') ? renderDecisaoCard(a) : renderDecisaoSomenteLeitura(a);
+      html += (pode('gestor') && vigente) ? renderDecisaoCard(a) : renderDecisaoSomenteLeitura(a);
 
       /* Ações organizadas num único grupo, sempre visível ao final da
          página: voltar para a lista, gerar PDF e reavaliar — em vez de um
@@ -4101,6 +4191,11 @@
       var flashResultadoClose = document.getElementById('avpFlashResultadoClose');
       if (flashResultadoClose) flashResultadoClose.addEventListener('click', function () { state.flashResultado = null; render(); });
 
+      wrap.querySelectorAll('.avp-hist-abrir').forEach(function (btn) {
+        btn.addEventListener('click', function () { abrirVisualizacao(btn.dataset.key); });
+      });
+      var abrirVigente = document.getElementById('avpAbrirVigente');
+      if (abrirVigente) abrirVigente.addEventListener('click', function () { abrirVisualizacao(abrirVigente.dataset.key); });
       var verHistoricoResultado = document.getElementById('avpVerHistoricoResultado');
       if (verHistoricoResultado) verHistoricoResultado.addEventListener('click', function () { abrirHistorico(a._key); });
 

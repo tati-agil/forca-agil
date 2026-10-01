@@ -118,6 +118,19 @@ async function cenariosDesktop(browser, w, h) {
   const opaco = await page.evaluate(() => { const m = /rgba?\(([^)]+)\)/.exec(getComputedStyle(document.querySelector('.avp-table thead th')).backgroundColor); const p = m[1].split(',').map(parseFloat); return p.length === 3 || p[3] === 1; });
   afirma(opaco, 'cabeçalho com fundo opaco');
 
+  /* corrida real vista no CI: a lista renderiza com o menu ainda escondido (altura 0).
+     O cabeçalho não pode ficar por baixo do menu quando ele aparecer. */
+  await page.evaluate(() => { document.querySelector('.nav').style.display = 'none'; });
+  await page.click('#avpFiltrosBtn');
+  await page.evaluate(() => { document.querySelector('.nav').style.display = ''; });
+  await page.waitForTimeout(300);
+  await page.evaluate(() => window.scrollTo({ top: document.querySelector('.avp-table').getBoundingClientRect().top + window.scrollY + 600, behavior: 'instant' }));
+  await page.waitForTimeout(250);
+  const th2 = await page.evaluate(() => document.querySelector('.avp-table thead th.avp-col-dec').getBoundingClientRect().top);
+  const navH2 = await page.evaluate(() => document.querySelector('.nav').offsetHeight);
+  afirma(Math.abs(th2 - navH2) <= 3, 'renderizada com o menu escondido, o cabeçalho ainda gruda abaixo do menu quando ele aparece (topo ' + Math.round(th2) + ', menu ' + navH2 + ')');
+  await page.click('#avpFiltrosBtn');
+
   /* última linha alcançável pela página */
   await page.evaluate(() => window.scrollTo({ top: document.documentElement.scrollHeight, behavior: 'instant' }));
   await page.waitForTimeout(250);
