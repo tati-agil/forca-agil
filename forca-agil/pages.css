@@ -2388,3 +2388,7 @@ select.aposta-campo-input { width: auto; min-width: 8.5em; }
 /* Admin da Avaliação: grupos da tela inicial (só organização visual) */
 .avp-admin-grupo-desc { margin: 2px 0 0; font-size: .82rem; color: var(--ink-3); }
 .avp-admin-grupo + .avp-admin-grupo { margin-top: 14px; }
+
+/* Questionários e versões: texto explicativo e marca da manutenção pontual */
+.avp-intro-questionarios { margin: 6px 0 10px; font-size: .92rem; color: var(--ink-2, var(--ink)); line-height: 1.5; }
+.avp-correcao-tag { margin: 0 0 4px; font-size: .72rem; letter-spacing: .04em; text-transform: uppercase; color: var(--ink-3); }

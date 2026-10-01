@@ -1392,6 +1392,61 @@
     });
   }
 
+  /* ---------- Exportação dos questionários para Excel ----------
+     Uma linha por pergunta, da versão PUBLICADA no momento (rascunho nunca
+     entra: não vale para ninguém ainda). Só leitura — não existe importação:
+     a edição continua sendo feita nesta tela, com versão e auditoria. A build
+     "mini" do SheetJS não grava estilo de célula nem congela painéis; largura
+     das colunas e autofiltro funcionam, e os textos saem inteiros (com
+     acentos) em células de largura fixa. */
+  var EXCEL_QUESTIONARIO_COLS = [
+    { rotulo: 'Questionário', largura: 28 }, { rotulo: 'Versão publicada', largura: 10 }, { rotulo: 'Código', largura: 9 },
+    { rotulo: 'Título', largura: 30 }, { rotulo: 'Pergunta', largura: 60 }, { rotulo: 'O que significa', largura: 60 },
+    { rotulo: 'Quando responder SIM', largura: 50 }, { rotulo: 'Quando responder NÃO', largura: 50 },
+    { rotulo: 'Exemplo', largura: 50 }, { rotulo: 'Palavras-exemplo', largura: 36 }, { rotulo: 'Orientação extra', largura: 50 },
+    { rotulo: 'Interpretação quando SIM', largura: 56 }, { rotulo: 'Interpretação quando NÃO', largura: 56 },
+    { rotulo: 'Observação administrativa', largura: 40 }
+  ];
+  var ABA_QUESTIONARIO = { CLASSIFICACAO_ARQUITETURAL: 'Classificação arquitetural', ADEQUACAO_SQUAD: 'Adequação à Squad' };
+  function linhasQuestionarioExcel(codigo) {
+    var fq = window.faQuestionarios;
+    var sit = fq.situacao(codigo);
+    return fq.perguntasDaVersao(codigo).map(function (q) {
+      var ajuda = q.textoAjuda && typeof q.textoAjuda === 'object' ? q.textoAjuda : { significado: q.textoAjuda || '' };
+      return [
+        sit.nome, sit.versaoPublicada, q.codigoEstavel || '', q.titulo || '', q.texto || '',
+        ajuda.significado || '', ajuda.quandoSim || '', ajuda.quandoNao || '',
+        q.exemplo || '', Array.isArray(q.exemplos) ? q.exemplos.join(', ') : (q.exemplos || ''), q.ajudaExtra || '',
+        q.justSim || '', q.justNao || '', q.observacaoAdministrativa || ''
+      ];
+    });
+  }
+  function nomeArquivoQuestionarios(codigos) {
+    var fq = window.faQuestionarios;
+    var base = codigos.length === 1
+      ? sanitizarNomeArquivo(fq.situacao(codigos[0]).nome) + '_v' + fq.situacao(codigos[0]).versaoPublicada
+      : 'Todos';
+    return 'Questionarios_' + base + '_' + dataParaNomeArquivo() + '.xlsx';
+  }
+  function gerarExcelQuestionarios(codigos, cbFim) {
+    carregarScript('forca-agil/xlsx.mini.min.js', function () { return !!window.XLSX; }, function (erroCarga) {
+      if (erroCarga) { cbFim(erroCarga); return; }
+      try {
+        var XLSXLib = window.XLSX;
+        var wb = XLSXLib.utils.book_new();
+        codigos.forEach(function (codigo) {
+          var ws = planilhaComColunas(XLSXLib, EXCEL_QUESTIONARIO_COLS.map(function (c) { return c.rotulo; }),
+            linhasQuestionarioExcel(codigo), EXCEL_QUESTIONARIO_COLS);
+          XLSXLib.utils.book_append_sheet(wb, ws, ABA_QUESTIONARIO[codigo] || codigo);
+        });
+        XLSXLib.writeFile(wb, nomeArquivoQuestionarios(codigos));
+        cbFim(null);
+      } catch (erroGeral) {
+        cbFim(erroGeral);
+      }
+    });
+  }
+
   /* DUAS INSTÂNCIAS do mesmo módulo, cada uma no seu contêiner e com o seu
      estado:
        modo 'operacional' — a área AVALIAÇÃO (#avaliacoesPainel): consultar,
@@ -2292,7 +2347,7 @@
     function renderConfigQuestionarios() {
       var c = state.config;
       var html = '<div class="avp-config-questionarios">';
-      html += linkVoltar('avpConfigVoltar', c.sub === 'lista' ? ROTULO_ADMIN : 'Configuração dos Questionários');
+      html += linkVoltar('avpConfigVoltar', c.sub === 'lista' ? ROTULO_ADMIN : 'Questionários e versões');
       if (c.sub === 'lista') html += renderConfigLista();
       else if (c.sub === 'editar') html += renderConfigEditar();
       else if (c.sub === 'auditoria') html += renderConfigAuditoria();
@@ -2309,9 +2364,16 @@
     }
 
     function renderConfigLista() {
-      var html = '<div class="avp-form-card"><h3>Configuração dos Questionários</h3>';
+      var c = state.config;
+      var html = '<div class="avp-form-card"><h3>Questionários e versões</h3>';
+      html += '<p class="avp-intro-questionarios" id="avpIntroQuestionarios">Aqui são mantidas as perguntas e os textos usados nas avaliações. ' +
+        'Alterações publicadas geram nova versão e não modificam avaliações já concluídas.</p>';
       html += '<p class="avp-decisao-aviso">Altere título, texto, ajuda e exemplo das perguntas sem precisar de código, PR ou deploy. ' +
-        'O identificador de cada pergunta (ex.: "P5") e a regra que ele representa para o motor de classificação nunca mudam por aqui.</p></div>';
+        'O identificador de cada pergunta (ex.: "P5") e a regra que ele representa para o motor de classificação nunca mudam por aqui.</p>';
+      html += '<div class="avp-actions-footer"><button type="button" class="btn btn--sm" id="avpCfgExportarTodosBtn"' + (c.exportando ? ' disabled' : '') + '>' +
+        (c.exportando ? 'Gerando…' : '📊 Exportar todos os questionários (Excel)') + '</button></div>';
+      if (c.flashExportacao) html += '<p class="avp-export-status' + (c.flashExportacao.erro ? ' avp-export-status--erro' : '') + '" id="avpCfgExportStatus">' + esc(c.flashExportacao.texto) + '</p>';
+      html += '</div>';
       Object.keys(window.faQuestionarios.CODIGOS).forEach(function (chave) {
         var codigo = window.faQuestionarios.CODIGOS[chave];
         var sit = window.faQuestionarios.situacao(codigo);
@@ -2323,6 +2385,7 @@
         html += '<div class="avp-actions-footer">';
         html += '<button class="btn btn--sm avp-config-editar-btn" data-codigo="' + codigo + '">Editar perguntas</button>';
         html += '<button class="btn btn--sm avp-config-auditoria-btn" data-codigo="' + codigo + '">Ver histórico de alterações</button>';
+        html += '<button class="btn btn--sm avp-config-exportar-btn" data-codigo="' + codigo + '"' + (c.exportando ? ' disabled' : '') + '>📊 Exportar Excel</button>';
         html += '</div></div>';
         window.faQuestionarios.listarCorrecoesEditoriais(codigo).forEach(function (corr) { html += renderCorrecaoEditorial(corr.id); });
       });
@@ -2340,6 +2403,7 @@
       var sit = window.faQuestionarios.situacaoCorrecaoEditorial(id);
       if (!sit) return '';
       var html = '<div class="avp-form-card avp-correcao-card" id="avpCorrecao-' + esc(id) + '">';
+      html += '<p class="avp-correcao-tag">Manutenção pontual — não faz parte do uso diário desta tela</p>';
       html += '<h4>' + (sit.aplicada ? '✓ Correção editorial aplicada' : 'Correção editorial disponível') + ' — ' + esc(sit.titulo) + '</h4>';
       html += '<p>' + esc(sit.descricao) + '</p>';
       html += '<ul class="avp-correcao-lista">';
@@ -2411,6 +2475,27 @@
       wrap.querySelectorAll('.avp-config-auditoria-btn').forEach(function (btn) {
         btn.addEventListener('click', function () { abrirAuditoriaQuestionario(btn.dataset.codigo); });
       });
+      wrap.querySelectorAll('.avp-config-exportar-btn').forEach(function (btn) {
+        btn.addEventListener('click', function () { exportarQuestionarios([btn.dataset.codigo]); });
+      });
+      document.getElementById('avpCfgExportarTodosBtn').addEventListener('click', function () {
+        exportarQuestionarios(Object.keys(window.faQuestionarios.CODIGOS).map(function (k) { return window.faQuestionarios.CODIGOS[k]; }));
+      });
+    }
+    function exportarQuestionarios(codigos) {
+      var c = state.config;
+      if (!c || c.exportando) return;
+      c.exportando = true;
+      c.flashExportacao = null;
+      render();
+      gerarExcelQuestionarios(codigos, function (erro) {
+        c.exportando = false;
+        c.flashExportacao = erro
+          ? { erro: true, texto: 'Não foi possível gerar o arquivo. Tente novamente.' }
+          : { erro: false, texto: 'Arquivo gerado com sucesso (versão publicada de cada questionário).' };
+        if (erro) console.error('[avaliacao-produto] erro ao gerar Excel dos questionários:', erro);
+        if (state.config === c && state.tela === 'config-questionario') render();
+      });
     }
 
     function renderConfigEditar() {
@@ -2454,7 +2539,7 @@
       html += '<div class="avp-actions-footer">';
       html += '<button class="btn btn--sm" id="avpCfgSalvarRascunhoBtn"' + (c.salvando ? ' disabled' : '') + '>' + (c.salvando ? 'SALVANDO…' : 'SALVAR RASCUNHO') + '</button>';
       html += '<button class="btn btn--primary btn--sm" id="avpCfgPublicarBtn">PUBLICAR NOVA VERSÃO</button>';
-      html += '<button class="btn btn--sm" id="avpCfgVoltarListaBtn">← Voltar para Configuração dos Questionários</button>';
+      html += '<button class="btn btn--sm" id="avpCfgVoltarListaBtn">← Voltar para Questionários e versões</button>';
       html += '</div>';
       if (c.confirmandoPublicacao) html += renderConfigConfirmarPublicacao();
       return html;
@@ -2575,7 +2660,7 @@
         });
         html += '</tbody></table></div>';
       }
-      html += '<div class="avp-actions-footer"><button class="btn btn--sm" id="avpCfgAuditoriaVoltarBtn">← Voltar para Configuração dos Questionários</button></div>';
+      html += '<div class="avp-actions-footer"><button class="btn btn--sm" id="avpCfgAuditoriaVoltarBtn">← Voltar para Questionários e versões</button></div>';
       return html;
     }
     function bindConfigAuditoria() {
@@ -2827,7 +2912,7 @@
 
     /* ===================== CONFIGURAÇÃO DOS MOTORES =====================
        Entrada ÚNICA e consolidada para os dois motores (item 16 do pedido)
-       — NUNCA a mesma tela de "⚙ Configuração dos Questionários" acima
+       — NUNCA a mesma tela de "⚙ Questionários e versões" acima
        (aquela edita REDAÇÃO das perguntas P1-P16/S1-S8; esta edita a
        LÓGICA de decisão de cada motor: condições e precedência). O motor
        arquitetural (P1-P16) é administrado aqui mesmo, com o mesmo padrão
@@ -2865,7 +2950,7 @@
       html += '<p class="avp-decisao-aviso">Parametrização da funcionalidade. Consultar e realizar avaliações é feito na área <strong>Avaliação</strong> do menu principal.</p>';
       html += '</div>';
       html += grupo('Regras e conceitos', 'O que as perguntas dizem e como as respostas viram uma classificação.',
-        cartao('avpConfigQuestionariosBtn', 'Configuração dos Questionários', 'Redação das perguntas e justificativas, com versões e auditoria.') +
+        cartao('avpConfigQuestionariosBtn', 'Questionários e versões', 'Redação das perguntas e justificativas, com versões e auditoria.') +
         cartao('avpConfigMotoresBtn', 'Configuração dos Motores', 'Regras que classificam os itens, com simulação e versões.'));
       html += grupo('Governança arquitetural', 'Opções de descrição dos itens e a análise de adequação à gestão por squad.',
         cartao('avpConfigNaturezasBtn', 'Naturezas complementares', 'Opções do campo opcional de descrição do item.') +
