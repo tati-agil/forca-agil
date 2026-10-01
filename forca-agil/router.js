@@ -26,15 +26,25 @@
     return !(window.faAuth && window.faAuth.isEnrolledReady) || window.faAuth.isEnrolledReady();
   }
 
-  /* #avaliacoes (Avaliação de Produto/Serviço) não depende de ser admin: vale o
-     PERFIL em fa-avaliacao-acessos (consulta, avaliador ou gestor), com a
-     transição "admin sem registro = gestor" — tudo dentro de faAuth. Mesma
-     regra de "não sei" das demais: só expulsa quem se SABE sem acesso. */
+  /* #avaliacoes (Avaliação de Produto/Serviço): admin geral ou quem está na
+     lista de autorizados (fa-avaliacao-autorizados) — tudo dentro de faAuth.
+     Mesma regra de "não sei" das demais: só expulsa quem se SABE sem acesso. */
   function avaliacoesPronta() {
     return !(window.faAuth && window.faAuth.isAvaliacaoReady) || window.faAuth.isAvaliacaoReady();
   }
   function semAcessoAvaliacoes() {
-    return !!(window.faAuth && window.faAuth.podeAvaliacao && !window.faAuth.podeAvaliacao('consulta') && avaliacoesPronta());
+    return !!(window.faAuth && window.faAuth.podeAvaliacao && !window.faAuth.podeAvaliacao() && avaliacoesPronta());
+  }
+
+  /* #admin: admin geral entra em tudo; quem tem o tipo "Avaliação +
+     Arquitetura" entra também, mas só vê a aba Arquitetura (admin.js). Os dois
+     dados chegam em leituras separadas, então "não sei" = qualquer uma das duas
+     ainda não voltou — e isso nunca expulsa. */
+  function podeVerAdmin(s) {
+    return !!(s && window.faAuth && (window.faAuth.isAdmin(s.email) || (window.faAuth.podeArquitetura && window.faAuth.podeArquitetura())));
+  }
+  function adminDecidido() {
+    return listaAdminsPronta() && avaliacoesPronta();
   }
 
   /* #facilitador é como #admin — admin OU facilitador, nunca mais ninguém. */
@@ -62,7 +72,7 @@
 
     if (page === 'admin') {
       const s = window.faAuth && window.faAuth.getSession();
-      if (!s || (!window.faAuth.isAdmin(s.email) && listaAdminsPronta())) { location.hash = '#home'; return; }
+      if (!s || (!podeVerAdmin(s) && adminDecidido())) { location.hash = '#home'; return; }
     }
 
     if (page === 'facilitador' && !podeVerFacilitador(window.faAuth && window.faAuth.getSession())) {
@@ -132,7 +142,7 @@
        de fa-admin-ready/fa-facilitador-ready mandam decidir de novo. */
     if (page === 'admin' && window.faAuth && window.faAuth.isAuthReady && window.faAuth.isAuthReady()) {
       const s = window.faAuth.getSession();
-      if (s && !window.faAuth.isAdmin(s.email) && listaAdminsPronta()) {
+      if (s && !podeVerAdmin(s) && adminDecidido()) {
         page = 'home';
         history.replaceState(null, '', '#home');
       }
@@ -664,7 +674,8 @@
   /* O perfil na Avaliação de Produto/Serviço chegou: quem abriu #avaliacoes
      (F5, link salvo) antes disso só agora sabe se fica ou sai. */
   window.addEventListener('fa-avaliacao-ready', function () {
-    if (route() === 'avaliacoes') show('avaliacoes');
+    var r = route();
+    if (r === 'avaliacoes' || r === 'admin') show(r);
   });
   /* A inscrição em turma terminou de ser lida: refaz a decisão de rota,
      que até agora estava propositalmente sem expulsar ninguém. */
