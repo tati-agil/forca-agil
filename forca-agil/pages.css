@@ -2392,3 +2392,13 @@ select.aposta-campo-input { width: auto; min-width: 8.5em; }
 /* Questionários e versões: texto explicativo e marca da manutenção pontual */
 .avp-intro-questionarios { margin: 6px 0 10px; font-size: .92rem; color: var(--ink-2, var(--ink)); line-height: 1.5; }
 .avp-correcao-tag { margin: 0 0 4px; font-size: .72rem; letter-spacing: .04em; text-transform: uppercase; color: var(--ink-3); }
+
+/* Motor arquitetural legível: condição com título da pergunta e explicação do motor */
+.sq-cond-folha--legivel { display: block; margin: 8px 0 8px 14px; padding: 8px 10px; border-left: 3px solid var(--line); }
+.sq-cond-pergunta { margin: 0 0 4px; font-size: .88rem; color: var(--ink); }
+.sq-cond-resposta { display: inline-flex; align-items: center; gap: 8px; font-size: .86rem; color: var(--ink); }
+.sq-cond-texto { margin: 4px 0 0; font-size: .78rem; color: var(--ink-3); line-height: 1.4; }
+.avp-motor-explica summary { cursor: pointer; }
+.avp-motor-explica-lista { margin: 10px 0 0; padding-left: 18px; font-size: .86rem; line-height: 1.55; color: var(--ink-2, var(--ink)); }
+.avp-motor-explica-lista li + li { margin-top: 6px; }
+.avp-motor-sim-explica { margin: 6px 0 10px; font-size: .86rem; line-height: 1.5; }
