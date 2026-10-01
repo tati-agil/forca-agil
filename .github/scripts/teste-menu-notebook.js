@@ -3,7 +3,7 @@
  * O smoke test com login real mostrou o defeito: com todos os itens do menu
  * (administradora — Início … Admin, 11 itens + nome + Sair), em 1280 px o "Sair"
  * ficava com a borda direita em 1408 px, FORA da tela, e o menu tinha 1421 px.
- * Agora: 1181–1499 px usa o menu compacto, até 1180 px vira hamburguer.
+ * Agora: 1241–1499 px usa o menu compacto, até 1240 px vira hamburguer.
  *
  * Prova, em larguras de celular a monitor grande, com um nome LONGO no menu:
  *   - o "Sair" está inteiro dentro da tela e nada o cobre;
@@ -49,7 +49,7 @@ async function abrir(browser, viewport) {
   return { ctx, page, erros };
 }
 
-const LARGURAS = [375, 600, 768, 920, 921, 1024, 1180, 1181, 1280, 1366, 1440, 1499, 1500, 1920];
+const LARGURAS = [375, 600, 601, 768, 920, 921, 1024, 1180, 1240, 1241, 1280, 1366, 1440, 1499, 1500, 1920];
 
 (async () => {
   const browser = await chromium.launch();
@@ -81,7 +81,17 @@ const LARGURAS = [375, 600, 768, 920, 921, 1024, 1180, 1181, 1280, 1366, 1440, 1
     afirma(r.navScroll <= r.larg && r.pagScroll <= r.larg + 1, rot + ': o menu e a página não passam da largura (menu ' + r.navScroll + ', página ' + r.pagScroll + ')');
     afirma(r.nItens >= 11, rot + ': todos os itens do menu existem (' + r.nItens + ')');
     afirma(!r.sobrepoeMarca, rot + ': os itens não encostam na marca');
-    afirma(r.hamb === (w <= 1180), rot + ': ' + (w <= 1180 ? 'hamburguer' : 'menu completo') + ' na faixa certa');
+    afirma(r.hamb === (w <= 1240), rot + ': ' + (w <= 1240 ? 'hamburguer' : 'menu completo') + ' na faixa certa');
+    if (w > 600) {
+      /* o nome ao lado do "Sair" continua visível e clicável (o smoke real, em 1280 px, clica nele) */
+      const nome = await page.evaluate(() => { const n = document.querySelector('#navProfile .nav-profile-name'); if (!n) return null; const b = n.getBoundingClientRect(); return { vis: n.offsetParent !== null, esq: Math.round(b.left), dir: Math.round(b.right), larg: window.innerWidth }; });
+      afirma(!!nome && nome.vis && nome.esq >= 0 && nome.dir <= nome.larg, rot + ': o nome ao lado do "Sair" aparece inteiro na tela');
+      await page.click('#navProfile .nav-profile-name', { timeout: 4000 });
+      await page.waitForFunction(() => location.hash === '#treinamento', null, { timeout: 4000 }).catch(() => {});
+      afirma(await page.evaluate(() => location.hash) === '#treinamento', rot + ': clicar no nome leva para o Treinamento');
+      await page.evaluate(() => { location.hash = '#turmas'; });
+      await page.waitForTimeout(300);
+    }
     if (r.hamb) {
       await page.click('.nav-toggle');
       await page.waitForSelector('.nav-links.open', { timeout: 3000 });
