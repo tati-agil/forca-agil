@@ -3363,6 +3363,7 @@
       var html = '<div class="avp-form-card"><h3>⚙ Configuração dos Motores</h3>';
       html += '<p class="avp-decisao-aviso">Os dois motores decidem por condições lógicas e precedência — nunca peso, pontuação ou contagem de respostas SIM. Alterar a lógica cria uma versão nova; alterar só a redação nunca versiona o motor.</p></div>';
       if (c.flash) html += '<p class="avp-flash-success">' + esc(c.flash) + '</p>';
+      html += renderComoOMotorDecide(false);
 
       html += '<div class="avp-form-card"><h4>Motor de Classificação Arquitetural (P1-P16)</h4>';
       html += '<p>Versão publicada: <strong>' + esc(sitArq.versaoPublicada) + '</strong> · Status: ' + (sitArq.temRascunho ? '<strong>há um rascunho não publicado</strong>' : 'Publicada') + ' · Regras: ' + esc(sitArq.qtdRegras) + '</p>';
@@ -3425,34 +3426,62 @@
       if (!cond || typeof cond !== 'object') return '<p class="avp-error-msg">' + prefixo + '(regra sem condições — configuração inválida)</p>';
       if (Array.isArray(cond.all)) {
         if (!cond.all.length) return '<p class="sq-cond-rotulo">' + prefixo + '(sempre — regra de encerramento/fallback)</p>';
-        return '<div class="sq-cond-grupo"><p class="sq-cond-rotulo">' + prefixo + 'TODAS as condições:</p>' +
+        return '<div class="sq-cond-grupo"><p class="sq-cond-rotulo">' + prefixo + 'SE TODAS estas condições forem verdadeiras:</p>' +
           cond.all.map(function (c) { return renderCondicaoArqEditavel(c, leafRefs, prefixo + '　'); }).join('') + '</div>';
       }
       if (Array.isArray(cond.any)) {
-        return '<div class="sq-cond-grupo"><p class="sq-cond-rotulo">' + prefixo + 'QUALQUER uma destas condições:</p>' +
+        return '<div class="sq-cond-grupo"><p class="sq-cond-rotulo">' + prefixo + 'SE QUALQUER uma destas condições for verdadeira:</p>' +
           cond.any.map(function (c) { return renderCondicaoArqEditavel(c, leafRefs, prefixo + '　'); }).join('') + '</div>';
       }
       if (cond.not) {
-        return '<div class="sq-cond-grupo"><p class="sq-cond-rotulo">' + prefixo + 'NENHUMA destas condições:</p>' + renderCondicaoArqEditavel(cond.not, leafRefs, prefixo + '　') + '</div>';
+        return '<div class="sq-cond-grupo"><p class="sq-cond-rotulo">' + prefixo + 'SE NENHUMA destas condições for verdadeira:</p>' + renderCondicaoArqEditavel(cond.not, leafRefs, prefixo + '　') + '</div>';
       }
       var id = leafRefs.length;
       leafRefs.push(cond);
       var campo = cond.campo || cond.pergunta;
       var valorAtual = (cond.valor != null ? cond.valor : cond.resposta || 'SIM').toUpperCase();
-      return '<p class="sq-cond-folha">' + prefixo + esc(campo) + ' | igual a | ' +
-        '<select class="sq-cond-select" data-leaf-id="' + id + '">' +
+      var q = perguntaDoMotor(campo);
+      /* "P14 — Regra/condição: a resposta é [SIM]" — o código sozinho não diz
+         nada a quem edita; o título e o texto vêm do questionário publicado,
+         nunca de uma lista escrita aqui. A lógica (campo/valor) é a mesma. */
+      return '<div class="sq-cond-folha sq-cond-folha--legivel">' +
+        '<p class="sq-cond-pergunta"><strong>' + esc(campo) + '</strong>' + (q.titulo ? ' — ' + esc(q.titulo) : '') + '</p>' +
+        '<label class="sq-cond-resposta">a resposta é ' +
+        '<select class="sq-cond-select" data-leaf-id="' + id + '" aria-label="Resposta esperada em ' + esc(campo) + (q.titulo ? ' — ' + esc(q.titulo) : '') + '">' +
         '<option value="SIM"' + (valorAtual === 'SIM' ? ' selected' : '') + '>SIM</option>' +
         '<option value="NAO"' + (valorAtual === 'NAO' ? ' selected' : '') + '>NÃO</option>' +
-        '</select></p>';
+        '</select></label>' +
+        (q.texto ? '<p class="sq-cond-texto">' + esc(q.texto) + '</p>' : '') +
+        '</div>';
+    }
+    function perguntaDoMotor(codigo) {
+      var q = window.faQuestionarios && window.faQuestionarios.conteudoPergunta
+        ? window.faQuestionarios.conteudoPergunta('CLASSIFICACAO_ARQUITETURAL', codigo) : null;
+      return { titulo: q && q.titulo && q.titulo !== codigo ? q.titulo : '', texto: q && q.texto && !/conteúdo não encontrado/.test(q.texto) ? q.texto : '' };
+    }
+    /* Explicação fixa, em linguagem de quem administra — descreve o que o
+       motor JÁ faz (precedência, fallback, simulação, rascunho × publicação),
+       não define regra nenhuma. */
+    function renderComoOMotorDecide(abertoPorPadrao) {
+      var h = '<details class="avp-form-card avp-motor-explica"' + (abertoPorPadrao ? ' open' : '') + '><summary><strong>Como este motor decide</strong></summary>';
+      h += '<ul class="avp-motor-explica-lista">';
+      h += '<li><strong>Precedência:</strong> as regras são lidas de cima para baixo. A <em>primeira</em> cujas condições forem todas verdadeiras define a classificação — nunca uma votação nem uma soma de respostas.</li>';
+      h += '<li><strong>Fallback ("A validar"):</strong> se nenhuma regra anterior bater, o item fica como "A validar" para análise humana. É a última regra e sempre existe.</li>';
+      h += '<li><strong>O que você pode mudar aqui:</strong> só a resposta esperada (SIM ou NÃO) de cada condição. Quais perguntas cada regra usa e a ordem de precedência não são editadas nesta tela.</li>';
+      h += '<li><strong>Simular impacto:</strong> recalcula, só na tela, as avaliações já concluídas com as regras que você está editando e mostra quais mudariam de classificação. Não grava nada e não altera nenhuma avaliação.</li>';
+      h += '<li><strong>Rascunho × publicação:</strong> "Salvar rascunho" guarda a edição sem efeito nenhum para quem avalia. Só "Publicar nova versão" faz as regras valerem — para as próximas avaliações. As já concluídas continuam como estão até alguém pedir o reprocessamento.</li>';
+      h += '</ul></details>';
+      return h;
     }
     function renderMotorArqEditarRegras() {
       var c = state.configMotores;
       c.leafRefs = [];
       var html = '<div class="avp-form-card"><h3>Editar regras do motor arquitetural</h3>';
       html += '<p class="avp-decisao-aviso">A ordem abaixo é a PRECEDÊNCIA: a primeira regra cujas condições baterem decide a camada — nunca uma votação. Mudar o valor esperado (SIM/NÃO) de uma condição muda a lógica do motor; ao publicar, isso cria uma versão nova e nunca recalcula avaliações já concluídas sozinho. É preciso simular o impacto antes de publicar.</p></div>';
+      html += renderComoOMotorDecide(false);
       c.regras.slice().sort(function (a, b) { return (a.ordem || 0) - (b.ordem || 0); }).forEach(function (regra) {
         html += '<div class="avp-form-card sq-regra-card"><p class="sq-regra-codigo">Precedência ' + esc(regra.ordem) + ' — ' + esc(regra.codigo) +
-          ' → <strong>' + esc(CAMADAS_LABEL_POR_ID[regra.resultado] || regra.resultado) + '</strong>' +
+          ' → classifica como <strong>' + esc(CAMADAS_LABEL_POR_ID[regra.resultado] || regra.resultado) + '</strong>' +
           (regra.incoerencia ? ' <em>(incoerência)</em>' : '') +
           (regra.conflito ? ' <em>(conflito: ' + regra.conflito.map(function (id) { return CAMADAS_LABEL_POR_ID[id] || id; }).join(' × ') + ')</em>' : '') + '</p>';
         /* Fallback (tipo FALLBACK, ou o legado sem condicoes que o Firebase
@@ -3460,7 +3489,7 @@
            editor numa versão publicada quebrava aqui (regra.condicoes
            undefined). */
         html += window.faMotorArquitetura.ehFallback(regra)
-          ? '<p class="sq-cond-rotulo">(sempre que nenhuma regra anterior bater — regra de fallback)</p>'
+          ? '<p class="sq-cond-rotulo">Esta é a regra de fallback: vale sempre que nenhuma regra anterior bater — o item fica como "A validar" para análise humana.</p>'
           : renderCondicaoArqEditavel(regra.condicoes, c.leafRefs, '');
         html += '</div>';
       });
@@ -3514,6 +3543,7 @@
       var s = c.simulacao;
       var html = '<div class="avp-form-card"><h3>Simulação de impacto</h3>';
       html += '<p class="avp-decisao-aviso">Nenhuma avaliação foi alterada — isto só simula a regra candidata sobre as avaliações já concluídas.</p>';
+      html += '<p class="avp-motor-sim-explica">Estas regras ainda são um rascunho: nada do que está abaixo vale para ninguém. Se você publicar, as regras passam a valer para as próximas avaliações; as já concluídas só mudam se alguém pedir o reprocessamento.</p>';
       html += '<p>' + esc(s.totalAnalisadas) + ' avaliaç' + (s.totalAnalisadas === 1 ? 'ão analisada' : 'ões analisadas') + '</p>';
       html += '<p>' + esc(s.mantidas) + ' manteriam a classificação</p>';
       html += '<p>' + esc(s.mudariam.length) + ' mudariam</p></div>';
