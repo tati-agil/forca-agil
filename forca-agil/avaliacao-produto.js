@@ -263,7 +263,31 @@
      "Curadoria preenchida" = existe especialização ou papel estrutural cadastrados,
      ou natureza complementar. Mesmo texto na tela, no PDF e no Excel. */
   function temCuradoria(it) {
-    return !!((it.especializacaoCadastrada || '').trim() || (it.papelEstruturalCadastrado || '').trim() || naturezaDoItem(it));
+    var c = curadoriaRegistrada(it);
+    return !!(c.especializacao || c.papelEstrutural || c.natureza);
+  }
+  /* CURADORIA = só o que alguém REGISTROU (cadastro de especialização/papel,
+     natureza). O que o questionário/motor deriva (ex.: "Opção/configuração de
+     personalização" num Componente) é saída do motor, NÃO curadoria: nunca
+     entra no bloco Curadoria, nunca conta como "complementação" e é mostrado à
+     parte (especializacaoDerivada). Valor cadastrado que a camada ATUAL não
+     admite (a camada mudou depois do cadastro) não conta nem aparece, mas
+     continua gravado — nada é apagado. Única fonte para tela, PDF, Excel e para
+     a "Forma da decisão". */
+  function curadoriaRegistrada(it) {
+    var camadaId = it && it.camadaSugerida && it.camadaSugerida.id;
+    var esp = CAMADAS_COM_ESPECIALIZACAO.indexOf(camadaId) !== -1 ? String(it.especializacaoCadastrada || '').trim() : '';
+    var papelNorm = CAMADAS_COM_PAPEL_ESTRUTURAL.indexOf(camadaId) !== -1 ? normalizarPapelEstrutural(it.papelEstruturalCadastrado) : null;
+    return {
+      especializacao: esp,
+      papelEstrutural: papelNorm === 'essencial' ? 'Essencial' : (papelNorm === 'opcional' ? 'Opcional' : ''),
+      natureza: naturezaDoItem(it)
+    };
+  }
+  /* Especialização que o motor deriva das respostas, quando NÃO há cadastro. */
+  function especializacaoDerivada(it) {
+    if (curadoriaRegistrada(it).especializacao) return '';
+    return valorEspecializacao(it && it.camadaSugerida);
   }
   function formaDaDecisao(it) {
     if (it.decisaoManual) return 'Decisão alterada manualmente';
@@ -634,11 +658,27 @@
      item foi descartado; o "PRINCIPAL" deixa explícito que o sistema está
      avaliando autonomia/independência, não impedindo que o item seja, por
      exemplo, um Componente ou uma Funcionalidade/Operação legítimos. */
+  /* Rótulo de um resultado conhecido; ausente ou desconhecido devolve '' (quem
+     exibe põe "—") — NUNCA vira "Não é Produto/Serviço principal" por omissão. */
   function rotuloResultado(v) {
     if (v === 'produto') return 'É Produto/Serviço principal';
+    if (v === 'nao-produto') return 'Não é Produto/Serviço principal';
     if (v === 'a-validar') return 'A validar';
-    return 'Não é Produto/Serviço principal';
+    return '';
   }
+  /* DECISÃO FINAL — única regra, usada por tela, lista, PDF, Excel, histórico e
+     auditoria: vale decisaoFinal; registro legado SEM decisaoFinal usa o
+     resultadoAutomatico; qualquer outra coisa (ausente nos dois, ou um valor
+     desconhecido gravado em decisaoFinal) é null, nunca um palpite. */
+  function decisaoFinalDe(it) {
+    if (!it) return null;
+    var d = it.decisaoFinal;
+    if (d === 'produto' || d === 'nao-produto' || d === 'a-validar') return d;
+    if (d !== undefined && d !== null && d !== '') return null;
+    var r = it.resultadoAutomatico;
+    return (r === 'produto' || r === 'nao-produto' || r === 'a-validar') ? r : null;
+  }
+  function rotuloDecisaoFinal(it) { return rotuloResultado(decisaoFinalDe(it)); }
 
   /* Cláusula "porque ..." da justificativa consolidada (gerarJustificativaAutomatica),
      uma por camada — nunca a partir do nome do item, sempre da camada já
@@ -1037,7 +1077,7 @@
     html += '<p class="pdf-meta-versoes">Versão do questionário: ' + esc(it.questionnaireContentVersion || 1) +
       ' · Versão do motor: ' + esc(it.motorVersion || '—') + '</p>';
 
-    var rotuloResultadoTxt = rotuloResultado(it.resultadoAutomatico);
+    var rotuloResultadoTxt = rotuloResultado(it.resultadoAutomatico) || '—';
     html += '<h2 class="pdf-secao-titulo">Resultado sobre Produto/Serviço</h2>';
     html += '<p class="pdf-resultado pdf-resultado--' + esc(it.resultadoAutomatico || 'a-validar') + '">' +
       esc(rotuloResultadoTxt) + '</p>';
@@ -1045,6 +1085,9 @@
     var camada = it.camadaSugerida;
     html += '<h2 class="pdf-secao-titulo">Classificação arquitetural</h2>';
     html += '<p>' + esc(camada && camada.label || '—') + '</p>';
+    /* Derivada do questionário/motor: fica na Classificação, à parte — não é curadoria. */
+    var espDerivada = especializacaoDerivada(it);
+    if (espDerivada) html += '<p>Especialização identificada pelo questionário: ' + esc(espDerivada) + '</p>';
     if (camada && camada.conflito && camada.conflito.length) {
       html += '<p class="pdf-aviso">Categorias em conflito nas respostas: ' + esc(camada.conflito.join(', ')) + '.</p>';
     }
@@ -1078,7 +1121,8 @@
     /* Sequência (igual à da tela): Recomendação do sistema → Classificação
        arquitetural (seção acima) → Curadoria arquitetural → Decisão final.
        Só aparece o que tem valor real — nunca placeholder. */
-    var curEsp = valorEspecializacao(camada), curPapel = valorPapelEstrutural(camada), curNat = rotuloNaturezaDoItem(it);
+    var curReg = curadoriaRegistrada(it);
+    var curEsp = curReg.especializacao, curPapel = curReg.papelEstrutural, curNat = rotuloNaturezaDoItem(it);
     if (curEsp || curPapel || curNat) {
       html += '<div class="pdf-decisao-bloco">';
       html += '<h2 class="pdf-secao-titulo">Curadoria arquitetural</h2>';
@@ -1093,8 +1137,7 @@
     html += '<table class="pdf-tabela-id">';
     html += pdfLinhaTabela('Recomendação do sistema', rotuloResultadoTxt);
     html += pdfLinhaTabela('Classificação arquitetural', camada && camada.label);
-    var decisaoTxt = rotuloResultado(it.decisaoFinal);
-    html += pdfLinhaTabela('Decisão final', decisaoTxt);
+    html += pdfLinhaTabela('Decisão final', rotuloDecisaoFinal(it));
     html += pdfLinhaTabela('Forma da decisão', formaDaDecisao(it));
     if (it.decisaoManual) {
       html += pdfLinhaTabela('Justificativa da decisão manual', it.justificativaDecisao);
@@ -1333,7 +1376,8 @@
   window.faPdfEmBlocos = { gerar: gerarPdfPorBlocos, planejar: planejarBlocosDeAtomos, ALTURA_MAX: ALTURA_MAX_BLOCO_PDF };
 
   /* Ordem das colunas = a sequência da tela e do PDF: Recomendação do sistema →
-     Classificação arquitetural (a camada) → Curadoria arquitetural (Especialização,
+     Classificação arquitetural (a camada; a especialização só derivada do
+     questionário fica aqui, em coluna própria) → Curadoria arquitetural (Especialização,
      Papel estrutural, Natureza complementar) → Decisão final. */
   var EXCEL_COLS_RESUMO = [
     { largura: 26, rotulo: 'ID da avaliação' }, { largura: 30, rotulo: 'Nome do item' },
@@ -1341,7 +1385,7 @@
     { largura: 30, rotulo: 'Necessidade' }, { largura: 20, rotulo: 'Responsável' },
     { largura: 16, rotulo: 'Data' }, { largura: 12, rotulo: 'Status' }, { largura: 8, rotulo: 'Versão' },
     { largura: 22, rotulo: 'Recomendação do sistema' }, { largura: 28, rotulo: 'Classificação arquitetural' },
-    { largura: 40, rotulo: 'Relação arquitetural' },
+    { largura: 40, rotulo: 'Relação arquitetural' }, { largura: 30, rotulo: 'Especialização identificada pelo questionário' },
     { largura: 26, rotulo: 'Especialização' }, { largura: 16, rotulo: 'Papel estrutural' },
     { largura: 30, rotulo: 'Natureza complementar' },
     { largura: 20, rotulo: 'Decisão final' }, { largura: 34, rotulo: 'Forma da decisão' },
@@ -1357,8 +1401,8 @@
       concluido ? 'Concluído' : 'Rascunho', it.versao || 1,
       concluido ? rotuloResultado(it.resultadoAutomatico) : '',
       (camada && camada.label) || '', (camada && camada.relacao) || '',
-      valorEspecializacao(camada), valorPapelEstrutural(camada), rotuloNaturezaDoItem(it),
-      concluido ? rotuloResultado(it.decisaoFinal) : '',
+      especializacaoDerivada(it), curadoriaRegistrada(it).especializacao, curadoriaRegistrada(it).papelEstrutural, rotuloNaturezaDoItem(it),
+      concluido ? rotuloDecisaoFinal(it) : '',
       concluido ? formaDaDecisao(it) : '',
       it.decisaoManual ? ((it.alteradoPor && it.alteradoPor.name) || '') : '',
       it.decisaoManual && it.alteradoEm ? new Date(it.alteradoEm) : '',
@@ -1413,7 +1457,7 @@
           (it.responsavel && it.responsavel.name) || '',
           it.status === 'concluido' ? rotuloResultado(it.resultadoAutomatico) : '',
           (it.camadaSugerida && it.camadaSugerida.label) || '',
-          it.status === 'concluido' ? rotuloResultado(it.decisaoFinal) : '',
+          it.status === 'concluido' ? rotuloDecisaoFinal(it) : '',
           it.decisaoManual ? (it.justificativaDecisao || '') : ''
         ];
       });
@@ -1580,6 +1624,7 @@
       flashResultado: null, /* confirmação persistente mostrada no resultado após concluir */
       flashDecisao: null,   /* confirmação persistente mostrada após salvar a decisão arquitetural */
       flashEspecializacao: null, /* confirmação persistente mostrada após salvar a especialização cadastrada */
+      reavAuditadas: {},    /* chaves de reavaliações cuja linha de auditoria "criada por reavaliação" já foi gravada */
       reavaliacaoBase: null, /* fotografia da avaliação anterior, só durante uma reavaliação — usada para
                                 mostrar "resposta alterada" e o resumo de alterações; nunca gravada */
       selecionados: {},      /* chaves marcadas na lista, para "PDF das selecionadas" — nunca persistido */
@@ -1822,7 +1867,7 @@
       if (it.excluido) return false;
       if (!passaBusca(it)) return false;
       if (state.filtro.resultado !== 'todos') {
-        var decisao = it.decisaoFinal || it.resultadoAutomatico;
+        var decisao = decisaoFinalDe(it);
         if (decisao !== state.filtro.resultado) return false;
       }
       if (state.filtro.status !== 'todos' && it.status !== state.filtro.status) return false;
@@ -2014,7 +2059,6 @@
           '<th class="avp-col-item">Item</th><th class="avp-col-camada">Classificação</th><th class="avp-col-status">Status</th>' +
           '<th class="avp-col-data">Atualizado em</th><th class="avp-col-resp">Responsável</th><th class="avp-col-acoes">Ações</th></tr></thead><tbody>';
         filtrados.forEach(function (it) {
-          var decisao = it.decisaoFinal || it.resultadoAutomatico;
           var camadaLabel = (it.camadaSugerida && it.camadaSugerida.label) || '—';
           var natureza = rotuloNaturezaDoItem(it);
           html += '<tr>';
@@ -2339,11 +2383,32 @@
        sobrescrita: a reavaliação vira um registro NOVO (chave nova,
        encadeado por itemId/versaoAnteriorKey em salvarRegistro), e o
        histórico completo continua acessível pelo "Ver histórico". */
+    /* Ponto de entrada ÚNICO da reavaliação (botão da ficha e menu da lista).
+       Se a versão atual tem DECISÃO MANUAL, avisa antes — ela não vai para a
+       nova versão (fica preservada, intacta, na versão em que foi tomada). Sem
+       decisão manual não há o que descartar: abre direto. */
+    function pedirReavaliacao(key) {
+      var it = buscarItem(key);
+      if (!it) return;
+      if (!it.decisaoManual) { abrirReavaliacao(key); return; }
+      var v = it.versao || 1;
+      avpConfirm('Reavaliar cria uma nova versão deste item (v' + (v + 1) + ').\n\n' +
+        'A decisão manual da v' + v + ' continua preservada na v' + v + ', sem alteração.\n\n' +
+        'A nova versão não herda essa decisão: começa com a recomendação do sistema e exigirá uma nova decisão arquitetural.',
+        function () { abrirReavaliacao(key); });
+    }
     function abrirReavaliacao(key) {
       var it = buscarItem(key);
       if (!it) return;
       state.atual = clonarItem(it);
       delete state.atual._key;
+      /* A decisão manual NÃO é herdada: a nova versão parte da recomendação do sistema. */
+      state.atual.decisaoFinal = null;
+      state.atual.decisaoManual = false;
+      state.atual.decisaoConfirmada = false;
+      state.atual.justificativaDecisao = null;
+      state.atual.alteradoPor = null;
+      state.atual.alteradoEm = null;
       if (!state.atual.respostas) state.atual.respostas = {};
       state.atual.itemId = it.itemId || it._key;
       state.atual.versaoAnteriorKey = it._key;
@@ -2812,7 +2877,7 @@
           var acao = btn.dataset.acao;
           fechar();
           if (acao === 'editar') abrirEdicao(key);
-          else if (acao === 'reavaliar') abrirReavaliacao(key);
+          else if (acao === 'reavaliar') pedirReavaliacao(key);
           else if (acao === 'duplicar') duplicar(key);
           else if (acao === 'historico') abrirHistorico(key);
           else if (acao === 'excluir') abrirModalExcluir(key);
@@ -2868,7 +2933,7 @@
       var html = '<p class="avp-menu-acoes-titulo">Histórico de "' + esc(it.nome) + '"</p>';
       html += '<div class="avp-historico-lista">';
       cadeia.forEach(function (versao) {
-        var decisao = versao.decisaoFinal || versao.resultadoAutomatico;
+        var decisao = decisaoFinalDe(versao);
         html += '<div class="avp-historico-item">';
         html += '<p class="avp-historico-cabecalho">' +
           '<strong>' + (versao.versao > 1 ? 'Reavaliação ' + versao.versao : 'Avaliação 1') + '</strong> — ' + fmtData(versao.criadoEm) + '</p>';
@@ -4335,6 +4400,7 @@
          não só depois do sucesso. Assim, se a escrita nunca responder (rede
          travada) e a pessoa tocar em SALVAR de novo, o retry grava na MESMA
          chave em vez de criar um registro duplicado. */
+      var jaTinhaChave = !!a._key;
       var key = a._key || db().ref(NODE).push().key;
       if (!a._key) a._key = key;
       var payload = {
@@ -4424,7 +4490,8 @@
         respondido = true;
         if (onErro) onErro('timeout');
       }, 12000);
-      ref.set(payload, function (err) {
+      var reavAuditadas = state.reavAuditadas || (state.reavAuditadas = {});
+      function terminou(err, gravouAuditoria) {
         if (respondido) return;
         respondido = true;
         clearTimeout(relogio);
@@ -4433,9 +4500,59 @@
           if (onErro) onErro('erro', err);
           return;
         }
+        if (gravouAuditoria) reavAuditadas[key] = true;
         state.atual = Object.assign({ _key: key }, payload);
         if (cb) cb(payload, key);
+      }
+      /* Reavaliação: a nova versão nasce COM a linha de auditoria "criada por
+         reavaliação da vN", na MESMA gravação (nunca uma sem a outra). */
+      function gravar(linhaReavaliacao) {
+        if (respondido) return;
+        if (!linhaReavaliacao) { ref.set(payload, function (err) { terminou(err, false); }); return; }
+        var tudo = {};
+        var chaveAud = NODE_CURADORIA_AUDITORIA + '/' + key;
+        tudo[NODE + '/' + key] = payload;
+        tudo[chaveAud + '/' + db().ref(chaveAud).push().key] = linhaReavaliacao;
+        db().ref().update(tudo, function (err) { terminou(err, true); });
+      }
+      if (!a.versaoAnteriorKey || reavAuditadas[key]) {
+        gravar(null);
+      } else if (!jaTinhaChave) {
+        gravar(linhaAuditoriaReavaliacao(a, key, agora));
+      } else {
+        /* A chave já existia (rascunho salvo antes, ou nova tentativa depois de uma
+           gravação sem resposta): a auditoria só é gravada UMA vez — o banco recusa
+           reescrever uma linha, então olha antes se ela já está lá. */
+        db().ref(NODE_CURADORIA_AUDITORIA + '/' + key).once('value', function (snap) {
+          var v = snap.val() || {};
+          var existe = Object.keys(v).some(function (k) { return v[k] && v[k].reavaliacao; });
+          if (existe) { reavAuditadas[key] = true; gravar(null); } else gravar(linhaAuditoriaReavaliacao(a, key, agora));
+        }, function (err) { terminou(err, false); });
+      }
+    }
+    function linhaAuditoriaReavaliacao(a, key, agora) {
+      var base = state.reavaliacaoBase || buscarItem(a.versaoAnteriorKey) || {};
+      var vAnterior = base.versao || ((a.versao || 2) - 1);
+      return semUndefined({
+        tipo: 'alteracao_decisao_final', avaliacaoId: key, avaliacaoNome: a.nome || null,
+        valorAnterior: { decisaoFinal: decisaoFinalDe(base), decisaoManual: !!base.decisaoManual,
+          justificativa: base.justificativaDecisao || null, confirmada: !!base.decisaoConfirmada },
+        valorNovo: { decisaoFinal: null, decisaoManual: false, justificativa: null, confirmada: false, pendente: true },
+        origem: 'usuario',
+        reavaliacao: { deKey: a.versaoAnteriorKey, deVersao: vAnterior, paraVersao: a.versao || (vAnterior + 1) },
+        usuario: sessaoAtual(), dataHora: agora
       });
+    }
+    /* Versão criada por reavaliação que ainda não teve decisão registrada: diz o que vale
+       (a recomendação do sistema) e onde ficou a decisão manual anterior. */
+    function avisoDecisaoPendenteReavaliacao(a) {
+      if (!a.versaoAnteriorKey || a.decisaoConfirmada || a.decisaoManual) return '';
+      var ant = buscarItem(a.versaoAnteriorKey);
+      var vAnt = (ant && ant.versao) || ((a.versao || 2) - 1);
+      var txt = 'Esta versão (v' + (a.versao || vAnt + 1) + ') foi criada por reavaliação e ainda não tem decisão arquitetural registrada: ' +
+        'vale a recomendação do sistema até alguém decidir.';
+      if (ant && ant.decisaoManual) txt += ' A decisão manual da v' + vAnt + ' continua preservada na v' + vAnt + ' e não foi herdada.';
+      return '<p class="avp-decisao-aviso" id="avpDecisaoPendenteReav">' + esc(txt) + '</p>';
     }
 
     /* ===================== RESULTADO ===================== */
@@ -4477,7 +4594,7 @@
         html += '<div class="avp-hist-cab"><strong>v' + (v.versao || 1) + '</strong>' +
           (ehVigente ? ' <span class="avp-tag-vigente">vigente</span>' : '') + (estaAberta ? ' <span class="avp-tag-aberta">você está vendo</span>' : '') +
           ' <span class="avp-hist-data">' + fmtData(v.criadoEm || v.atualizadoEm) + '</span></div>';
-        html += '<div class="avp-hist-corpo">' + esc(v.status === 'concluido' ? rotuloResultado(v.decisaoFinal || v.resultadoAutomatico) : 'Em andamento') +
+        html += '<div class="avp-hist-corpo">' + esc(v.status === 'concluido' ? (rotuloDecisaoFinal(v) || '—') : 'Em andamento') +
           (camada && v.status === 'concluido' ? ' — ' + esc(camada) : '') +
           ' · por ' + esc(v.responsavel && (v.responsavel.name || v.responsavel.email) || '—') + '</div>';
         if (!estaAberta) html += '<button type="button" class="btn btn--sm avp-hist-abrir" data-key="' + esc(v._key) + '">Abrir</button>';
@@ -4571,6 +4688,9 @@
       html += '<div class="avp-form-card avp-alt-card">';
       html += '<h4>Classificação arquitetural</h4>';
       html += '<p class="avp-alt-label">Camada identificada: <strong>' + esc(camada.label) + '</strong></p>';
+      /* Valor derivado do questionário/motor — não é curadoria registrada: fica aqui, à parte. */
+      var espDerivadaTela = especializacaoDerivada(a);
+      if (espDerivadaTela) html += '<p class="avp-alt-outras" id="avpEspecializacaoDerivada">Especialização identificada pelo questionário: <strong>' + esc(espDerivadaTela) + '</strong></p>';
       /* Especialização e Papel estrutural não ficam aqui: pertencem à Curadoria
          arquitetural (bloco logo abaixo). A Classificação é só a camada. */
       if (camada.conflito && camada.conflito.length) {
@@ -4731,7 +4851,7 @@
       });
 
       var reavaliarBtn = document.getElementById('avpReavaliarBtn');
-      if (reavaliarBtn) reavaliarBtn.addEventListener('click', function () { abrirReavaliacao(a._key); });
+      if (reavaliarBtn) reavaliarBtn.addEventListener('click', function () { pedirReavaliacao(a._key); });
 
       function voltarParaLista() {
         state.atual = null;
@@ -4789,7 +4909,7 @@
         html += '<div class="avp-historico-motor-item">';
         html += '<p class="avp-historico-motor-data">Calculada em ' + fmtData(h.processadoEm) +
           (h.motorVersion ? ' · motor ' + esc(h.motorVersion) : ' · motor sem versão registrada') + '</p>';
-        html += '<p>' + esc(rotuloResultado(h.resultadoAutomatico)) +
+        html += '<p>' + esc(rotuloResultado(h.resultadoAutomatico) || '—') +
           (camadaAntiga && camadaAntiga.label ? ' — ' + esc(camadaAntiga.label) : '') +
           (valorEspecializacao(camadaAntiga) ? ' (' + esc(valorEspecializacao(camadaAntiga)) + ')' : '') + '</p>';
         if (h.justificativaAutomatica) {
@@ -4825,8 +4945,8 @@
         (papelAplicavel ? '. O papel estrutural (essencial ou opcional) vale só para Componente.' : '. O papel estrutural vale só para Componente, e esta classificação não o usa.') + '</p>';
       /* Valor que o questionário já sinaliza (ex.: Componente com P13 = SIM) e ainda não foi cadastrado:
          só é informado aqui, nunca gravado como cadastro. */
-      if (valorEspecializacao(state.atual && state.atual.camadaSugerida) && !(f.ultimoSalvo || '').trim()) {
-        html += '<p class="avp-natureza-ajuda" id="avpEspecializacaoIdentificada">Identificada pelo questionário: <strong>' + esc(valorEspecializacao(state.atual.camadaSugerida)) + '</strong></p>';
+      if (especializacaoDerivada(state.atual) && !(f.ultimoSalvo || '').trim()) {
+        html += '<p class="avp-natureza-ajuda" id="avpEspecializacaoIdentificada">Identificada pelo questionário: <strong>' + esc(especializacaoDerivada(state.atual)) + '</strong></p>';
       }
       html += '<div class="avp-field">';
       html += '<label for="avpEspecializacaoCadastrada">Especialização (opcional)</label>';
@@ -4874,7 +4994,8 @@
         html += renderNaturezaBloco(a);
       } else {
         var nat = naturezaDoItem(a);
-        var esp = valorEspecializacao(camada), papel = valorPapelEstrutural(camada);
+        var reg = curadoriaRegistrada(a);
+        var esp = reg.especializacao, papel = reg.papelEstrutural;
         if (!esp && !papel && !nat) {
           html += '<p class="avp-natureza-ajuda">Nenhuma informação de curadoria registrada nesta versão.</p>';
         } else {
@@ -4897,7 +5018,8 @@
     function rotuloValorAuditoria(tipo, v) {
       if (v === null || v === undefined || v === '') return '—';
       if (tipo === 'alteracao_decisao_final') {
-        var t = rotuloResultado(v.decisaoFinal);
+        if (v.pendente) return 'ainda sem decisão — a versão começa pela recomendação do sistema';
+        var t = rotuloResultado(v.decisaoFinal) || '—';
         return t + (v.decisaoManual ? ' (manual)' : (v.confirmada ? ' (recomendação aceita)' : ''));
       }
       if (tipo === 'alteracao_natureza_complementar') return v.nome || '—';
@@ -4921,7 +5043,9 @@
         var quem = esc(e.usuario && (e.usuario.name || e.usuario.email) || '—');
         /* Reprocessamento automático NÃO é decisão de uma pessoa: a origem, o motor que
            provocou a mudança e quem DISPAROU o reprocessamento aparecem explícitos. */
-        var origem = e.origem === 'reprocessamento-automatico'
+        var origem = e.reavaliacao
+          ? 'Nova versão criada por reavaliação da v' + esc(e.reavaliacao.deVersao || '—') + ' (v' + esc(e.reavaliacao.paraVersao || '—') + ') por ' + quem
+          : e.origem === 'reprocessamento-automatico'
           ? 'Reprocessamento automático' + (e.reprocessamento === 'lote' ? ' em lote' : '') + ' — motor ' + esc(e.motorVersion || '—') +
             (e.motorVersionArquitetura ? ' (regras v' + esc(e.motorVersionArquitetura) + ')' : '') + ' · disparado por ' + quem
           : 'por ' + quem;
@@ -5000,10 +5124,11 @@
       var html = '<div class="avp-form-card avp-decisao-card avp-decisao-card--leitura" id="avpDecisaoLeitura">';
       html += '<h4>Decisão final</h4>';
       html += '<dl class="avp-decisao-resumo" id="avpDecisaoResumo">';
-      html += '<dt>Recomendação do sistema</dt><dd>' + esc(rotuloResultado(a.resultadoAutomatico)) + '</dd>';
-      html += '<dt>Decisão final</dt><dd>' + esc(rotuloResultado(a.decisaoFinal || a.resultadoAutomatico)) + '</dd>';
+      html += '<dt>Recomendação do sistema</dt><dd>' + esc(rotuloResultado(a.resultadoAutomatico) || '—') + '</dd>';
+      html += '<dt>Decisão final</dt><dd>' + esc(rotuloDecisaoFinal(a) || '—') + '</dd>';
       html += '<dt>Forma da decisão</dt><dd>' + esc(formaDaDecisao(a)) + '</dd>';
       html += '</dl>';
+      html += avisoDecisaoPendenteReavaliacao(a);
       if (a.decisaoManual) {
         html += '<p class="avp-history-note">Alterado manualmente por <strong>' + esc(a.alteradoPor && a.alteradoPor.name || '—') +
           '</strong> em ' + fmtData(a.alteradoEm) + '. Justificativa registrada: "' + esc(a.justificativaDecisao || '') + '"</p>';
@@ -5023,16 +5148,17 @@
          nem substituída pela decisão, e a curadoria (bloco acima) nunca se
          confunde com a classificação. */
       html += '<dl class="avp-decisao-resumo" id="avpDecisaoResumo">';
-      html += '<dt>Recomendação do sistema</dt><dd>' + esc(rotuloResultado(a.resultadoAutomatico)) + '</dd>';
-      html += '<dt>Decisão final</dt><dd>' + esc(rotuloResultado(a.decisaoFinal || a.resultadoAutomatico)) + '</dd>';
+      html += '<dt>Recomendação do sistema</dt><dd>' + esc(rotuloResultado(a.resultadoAutomatico) || '—') + '</dd>';
+      html += '<dt>Decisão final</dt><dd>' + esc(rotuloDecisaoFinal(a) || '—') + '</dd>';
       html += '<dt>Forma da decisão</dt><dd>' + esc(formaDaDecisao(a)) + '</dd>';
       html += '</dl>';
+      html += avisoDecisaoPendenteReavaliacao(a);
       if (a.decisaoManual) {
         html += '<p class="avp-history-note">Alterado manualmente por <strong>' + esc(a.alteradoPor && a.alteradoPor.name || '—') +
           '</strong> em ' + fmtData(a.alteradoEm) + '. Justificativa registrada: "' + esc(a.justificativaDecisao || '') + '"</p>';
       }
       html += '<div class="avp-decisao-options">';
-      html += decisaoOpcao('auto', 'Aceitar recomendação do sistema (' + rotuloResultado(a.resultadoAutomatico) + ')', f.opcao);
+      html += decisaoOpcao('auto', 'Aceitar recomendação do sistema (' + (rotuloResultado(a.resultadoAutomatico) || '—') + ')', f.opcao);
       html += decisaoOpcao('produto', 'Classificar manualmente como Produto/Serviço principal', f.opcao);
       html += decisaoOpcao('nao-produto', 'Classificar manualmente como não Produto/Serviço principal', f.opcao);
       html += '</div>';
@@ -5268,7 +5394,7 @@
         focarCampo('avpJustificativaDecisao');
         return;
       }
-      var decisaoAnterior = { decisaoFinal: a.decisaoFinal || a.resultadoAutomatico || null, decisaoManual: !!a.decisaoManual,
+      var decisaoAnterior = { decisaoFinal: decisaoFinalDe(a), decisaoManual: !!a.decisaoManual,
         justificativa: a.justificativaDecisao || null, confirmada: !!a.decisaoConfirmada };
       var updates = { atualizadoEm: new Date().toISOString(), decisaoConfirmada: true };
       if (f.opcao === 'auto') {
@@ -5572,7 +5698,7 @@
        (portanto nunca gera linha). Gravada junto com a avaliação, na mesma gravação. */
     function linhaAuditoriaReprocessamento(a, updates, modo, usuario) {
       if (a.decisaoManual || updates.decisaoFinal === undefined) return null;
-      var anterior = a.decisaoFinal || a.resultadoAutomatico || null;
+      var anterior = decisaoFinalDe(a);
       if (updates.decisaoFinal === anterior) return null;
       return {
         tipo: 'alteracao_decisao_final', avaliacaoId: a._key, avaliacaoNome: a.nome || null,
