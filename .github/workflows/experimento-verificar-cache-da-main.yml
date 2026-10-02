@@ -1,0 +1,19 @@
+name: EXPERIMENTO verificar cache vindo da main — não é parte do CI
+
+# Roda SÓ na branch experimento/apt-cache-b (que NÃO tem cache próprio). Usa o MESMO preparo de
+# produção; se os caches aparecem como HIT aqui, eles vieram da `main` (mesma regra de escopo que
+# vale para um PR contra a main). Não roda teste, não toca na aplicação.
+on:
+  push:
+    branches:
+      - experimento/apt-cache-b
+    paths:
+      - .github/workflows/experimento-verificar-cache-da-main.yml
+
+jobs:
+  verificar:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ./.github/actions/preparar-testes
