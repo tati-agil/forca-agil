@@ -65,6 +65,16 @@ jobs:
           FA_BASE_URL: http://127.0.0.1:8811
         run: node .github/scripts/teste-curadoria.js
 
+      # Coerência da Curadoria e da Decisão final: reavaliar item com decisão manual avisa
+      # antes e não herda a decisão (a v2 nasce com auditoria própria); uma regra só para
+      # a Decisão final (legado sem decisaoFinal) e só o que foi REGISTRADO conta como
+      # curadoria (derivado do questionário e cadastro inaplicável não contam) — tela, PDF e Excel.
+      - name: "Avaliação: coerência da Curadoria × Decisão final × Reavaliação (desktop e celular)"
+        env:
+          NODE_PATH: /tmp/pw-deps/node_modules
+          FA_BASE_URL: http://127.0.0.1:8811
+        run: node .github/scripts/teste-curadoria-decisao-coerencia.js
+
       # Ajustes de usabilidade da lista/detalhe: filtros com rótulo (Resultado
       # Produto/Serviço × Classificação arquitetural), PDFs em lote, voltar com
       # filtros e posição preservados e REAVALIAR (nova versão, anterior intacta).
