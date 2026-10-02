@@ -46,6 +46,15 @@ jobs:
           FA_BASE_URL: http://127.0.0.1:8811
         run: node .github/scripts/teste-avaliacoes-acessos.js
 
+      # Troca de usuário SEM recarregar a página: a tela do ADMIN > Arquitetura (e a lista
+      # de AVALIAÇÃO) não herda nada de quem estava antes, e o admin geral que entra depois
+      # vê Usuários autorizados e o cabeçalho completo do ADMIN sem F5. Hermético.
+      - name: "Avaliação: trocar de usuário sem recarregar — Arquitetura e Usuários autorizados (desktop e celular)"
+        env:
+          NODE_PATH: /tmp/pw-deps/node_modules
+          FA_BASE_URL: http://127.0.0.1:8811
+        run: node .github/scripts/teste-avaliacoes-troca-usuario.js
+
       # Curadoria arquitetural: Especialização, Papel estrutural (só Componente) e
       # Natureza reunidos num bloco; placeholders "não determinad…" nunca exibidos;
       # auditoria de especialização/papel e histórico da Decisão final na mesma
