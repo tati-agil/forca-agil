@@ -120,6 +120,9 @@
       if (window.faAuth.isAdminRestrito && window.faAuth.isAdminRestrito()) initAdminArquitetura();
       return;
     }
+    /* Quem entra aqui como admin geral na MESMA página em que antes esteve o admin restrito
+       (sem recarregar) encontraria o cabeçalho do ADMIN ainda escondido por ele. */
+    restaurarAdminCompleto();
     migrateNameCase();
     migrarEsperaPorOrigem();
     migrarEsperaEventoKey();
@@ -151,7 +154,30 @@
      Esconde as demais abas e painéis (não só o menu) e inicia apenas os dois
      módulos dele. O cartão "Usuários autorizados" não aparece (avaliacao-produto.js
      só o mostra para admin geral) e as regras do banco negam o resto. */
+  var PAINEL_INICIAL_ADMIN = 'adminPanelInteresses'; /* o que o HTML abre ativo */
+  var _adminRestritoAplicado = false;
+  /* Desfaz initAdminArquitetura: abas, barra e painéis de volta ao que o HTML entrega. Só age se o
+     restrito de fato rodou antes nesta página — não mexe na aba que o admin geral estava vendo. */
+  function restaurarAdminCompleto() {
+    if (!_adminRestritoAplicado) return;
+    _adminRestritoAplicado = false;
+    document.querySelectorAll('.admin-tab-btn').forEach(function (b) {
+      b.hidden = false;
+      b.classList.toggle('active', b.dataset.panel === PAINEL_INICIAL_ADMIN);
+    });
+    document.querySelectorAll('.admin-tab-panel').forEach(function (p) {
+      p.hidden = false;
+      p.classList.toggle('active', p.id === PAINEL_INICIAL_ADMIN);
+    });
+    var bar = document.querySelector('.admin-tabs-bar');
+    if (bar) bar.hidden = false;
+    var exp = document.getElementById('adminExpandBar');
+    if (exp) exp.hidden = false;
+    updateExpandBar(PAINEL_INICIAL_ADMIN);
+  }
+
   function initAdminArquitetura() {
+    _adminRestritoAplicado = true;
     document.querySelectorAll('.admin-tab-btn').forEach(function (b) {
       var arq = b.dataset.panel === 'adminPanelArquitetura';
       b.hidden = !arq;

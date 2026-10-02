@@ -1548,7 +1548,10 @@
       }
     }
 
-    var state = {
+    /* O estado é uma FÁBRICA: a tela mora na página inteira e a pessoa pode sair e outra
+       entrar sem recarregar. Trocar de sessão recria o estado do zero (resetarPorSessao),
+       em vez de herdar a tela, os dados e os rascunhos de quem estava antes. */
+    function novoEstado() { return {
       tela: telaInicial(), /* 'lista' | 'form-inicial' | 'checklist' | 'resultado' | 'nao-encontrada' | 'sem-permissao' | 'carregando'
                               (operacional) · 'admin-inicio' | 'config-*' | 'admin-usuarios' (admin) */
       itens: [],
@@ -1595,7 +1598,8 @@
       usuarios: null, /* null fora da tela "Usuários autorizados" (admin); ver abrirAdminUsuarios */
       configNaturezas: null, /* null fora da tela "⚙ Naturezas complementares"; ver abrirConfigNaturezas */
       configMotores: null /* null fora da tela "⚙ Configuração dos Motores"; ver abrirConfigMotores */
-    };
+    }; }
+    var state = novoEstado();
 
     function temCampoInvalido(campo) {
       return !!(state.camposInvalidos && state.camposInvalidos.indexOf(campo) !== -1);
@@ -1628,6 +1632,20 @@
       if (modo === 'operacional' && window.faAuth.isAvaliacaoReady && !window.faAuth.isAvaliacaoReady()) {
         wrap.innerHTML = '<p class="loading-msg">Carregando…</p>';
         return;
+      }
+      /* Mesma regra no bloco do Admin: o cartão "Usuários autorizados" depende de a sessão e da
+         lista de admins já terem chegado. Sem elas a decisão é "ainda não sei" — nunca vira "não"
+         (era isto que escondia o cartão do admin geral até um F5 forçado). Quando chegam,
+         aoMudarSessao redesenha. */
+      if (modo === 'admin' && acessoAdminIndefinido()) {
+        wrap.innerHTML = '<p class="loading-msg">Carregando…</p>';
+        return;
+      }
+      /* "Usuários autorizados" é só do admin geral. Quem não é (ou deixou de ser) não vê o cartão
+         nem uma tela de aviso: volta ao início da Arquitetura. */
+      if (modo === 'admin' && state.tela === 'admin-usuarios' && (!souAdminGeral() || !state.usuarios)) {
+        state.tela = 'admin-inicio';
+        state.usuarios = null;
       }
       if (modo === 'operacional' && !pode()) { renderSemAcessoArea(); return; }
       if (state.tela === 'admin-inicio') renderAdminInicio();
@@ -1719,8 +1737,11 @@
       if (state.tela === 'form-inicial' || state.tela === 'checklist') return;
       var key = avpKeyDaHash();
       if (!key) {
-        if (state.tela === 'resultado' || state.tela === 'nao-encontrada' || state.tela === 'sem-permissao') {
+        /* 'carregando' também sai daqui: ele só existe enquanto a URL pede uma avaliação; se a URL
+           deixou de pedir (a pessoa saiu e o endereço voltou ao início), esperar não leva a nada. */
+        if (state.tela === 'resultado' || state.tela === 'nao-encontrada' || state.tela === 'sem-permissao' || state.tela === 'carregando') {
           state.atual = null;
+          state.carregandoTravado = false;
           state.tela = 'lista';
           render();
         }
@@ -3056,7 +3077,16 @@
       var sess = window.faAuth && window.faAuth.getSession();
       return !!(sess && window.faAuth.isAdmin && window.faAuth.isAdmin(sess.email));
     }
+    /* "Ainda não sei se sou admin geral": sem sessão, ou com a lista de admins ainda por chegar.
+       souAdminGeral() responde false nesses dois casos por NÃO SABER; quem desenha a decisão
+       (renderTela) não pode tratar isso como "não sou". */
+    function acessoAdminIndefinido() {
+      var sess = window.faAuth && window.faAuth.getSession();
+      if (!sess) return true;
+      return !!(window.faAuth.isAdminReady && !window.faAuth.isAdminReady());
+    }
     function abrirAdminUsuarios() {
+      if (!souAdminGeral()) return; /* o cartão nem existe para quem não é admin geral */
       state.usuarios = { carregando: true, erro: null, lento: false, usuarios: [], autorizados: {}, historico: [], busca: '', buscaAdd: '', adicionando: false, tiposAdd: {}, salvando: {}, avisos: {}, flash: null };
       state.tela = 'admin-usuarios';
       render();
@@ -3165,10 +3195,10 @@
       var u = state.usuarios;
       var html = linkVoltar('avpUsuariosVoltar', ROTULO_ADMIN);
       html += '<div class="avp-form-card"><h3>Usuários autorizados</h3>';
-      if (!souAdminGeral()) {
-        html += '<p class="admin-empty">Só administradores gerais gerenciam os usuários autorizados.</p></div>';
-        wrap.innerHTML = html;
-        document.getElementById('avpUsuariosVoltar').addEventListener('click', function () { state.tela = 'admin-inicio'; state.usuarios = null; render(); });
+      if (!souAdminGeral()) { /* rede de segurança: renderTela já tira quem não é admin geral daqui */
+        state.tela = 'admin-inicio';
+        state.usuarios = null;
+        renderAdminInicio();
         return;
       }
       html += '<p class="avp-decisao-aviso">Quem não está nesta lista não tem acesso à Avaliação nem à Arquitetura. Administradores gerais continuam com acesso total por serem administradores. ' +
@@ -6151,6 +6181,7 @@
        recusada é cancelada pelo Firebase para sempre, então o ouvinte só é
        ligado depois de o acesso chegar — e nunca se assume nada antes. */
     var cargaIniciada = false;
+    var refItens = null; /* a leitura ao vivo de avaliacoes-produto, para poder desligá-la na troca de sessão */
     function aoChegarItens(snap) {
       var arr = [];
       snap.forEach(function (c) { arr.push(Object.assign({ _key: c.key }, c.val())); });
@@ -6186,10 +6217,55 @@
       }
       cargaIniciada = true;
       state.erroCarga = null;
-      var ref = db().ref(NODE);
-      ref.on('value', aoChegarItens, aoFalharCarga);
+      refItens = db().ref(NODE);
+      refItens.on('value', aoChegarItens, aoFalharCarga);
     }
-    window.addEventListener('fa-avaliacao-ready', function () { iniciarCarga(); render(); });
+
+    /* ===================== SESSÃO =====================
+       Esta tela vive na página inteira, mas a pessoa pode sair e OUTRA entrar sem recarregar.
+       Duas coisas têm de acompanhar isso, e antes não acompanhavam:
+         1) o ESTADO é de quem estava (tela aberta, usuários carregados, rascunhos, avaliações já
+            lidas): na troca de pessoa volta tudo ao início, sem herdar nada;
+         2) as DECISÕES de permissão dependem da sessão e da lista de admins, que chegam depois
+            do registro de acesso: quando chegam, a tela se redesenha (antes só o registro de
+            acesso redesenhava, e a decisão ficava presa no "ainda não sei"). */
+    function emailDaSessao() {
+      var s = window.faAuth && window.faAuth.getSession && window.faAuth.getSession();
+      return s && s.email ? String(s.email).toLowerCase() : null;
+    }
+    var pessoaDaTela = emailDaSessao();
+    /* O que decide o que mostrar. Só redesenha por evento de sessão quando isto muda — um evento
+       repetido (o progresso do jogo também avisa) não pode apagar um formulário em preenchimento. */
+    function assinaturaDeAcesso() {
+      var a = window.faAuth || {};
+      var em = emailDaSessao();
+      return [em, a.isAdminReady ? a.isAdminReady() : '', em && a.isAdmin ? a.isAdmin(em) : '',
+        a.isAvaliacaoReady ? a.isAvaliacaoReady() : '', a.getAvaliacaoTipo ? a.getAvaliacaoTipo() : ''].join('|');
+    }
+    var ultimaAssinatura = assinaturaDeAcesso();
+    function resetarPorSessao() {
+      if (refItens) { try { refItens.off('value', aoChegarItens); } catch (e) { /* já cancelada pelo banco */ } refItens = null; }
+      cargaIniciada = false; /* a leitura do banco depende de quem é a pessoa: liga de novo no acesso dela */
+      var novo = novoEstado();
+      Object.keys(state).forEach(function (k) { delete state[k]; });
+      Object.assign(state, novo);
+      if (modo === 'operacional') prepararTelaPelaHash();
+    }
+    function aoMudarSessao(forcar) {
+      var pessoa = emailDaSessao();
+      var trocouPessoa = !!pessoaDaTela && pessoaDaTela !== pessoa;
+      var assinatura = assinaturaDeAcesso();
+      pessoaDaTela = pessoa;
+      if (!trocouPessoa && !forcar && assinatura === ultimaAssinatura) return;
+      ultimaAssinatura = assinatura;
+      if (trocouPessoa) resetarPorSessao();
+      iniciarCarga();
+      render();
+    }
+    window.addEventListener('fa-avaliacao-ready', function () { aoMudarSessao(true); });
+    ['fa-auth-ready', 'fa-auth-change', 'fa-admin-ready'].forEach(function (ev) {
+      window.addEventListener(ev, function () { aoMudarSessao(false); });
+    });
     iniciarCarga();
 
     /* Na carga inicial (F5, link direto, nova aba), se a URL já pede uma
@@ -6199,7 +6275,8 @@
        mostrar um estado que nunca existiu de verdade. 'carregando' cobre
        exatamente essa janela; sincronizarComHash() (chamado tanto agora
        quanto de novo quando os dados chegarem) decide o destino final. */
-    if (modo === 'operacional' && avpKeyDaHash()) {
+    function prepararTelaPelaHash() {
+      if (!(modo === 'operacional' && avpKeyDaHash())) return;
       state.tela = 'carregando';
       /* Rede travada é condição normal (ver CLAUDE.md), não caso raro — sem
          este relógio, uma leitura que nunca responde deixava "Carregando
@@ -6212,6 +6289,7 @@
         }
       }, 12000);
     }
+    prepararTelaPelaHash();
     render();
     sincronizarComHash(); /* tenta resolver um link direto já na carga inicial */
   };

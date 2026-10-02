@@ -185,7 +185,10 @@
     if (!wrap || wrap._sqBound) return;
     wrap._sqBound = true;
 
-    var state = {
+    /* Fábrica de estado: a tela mora na página inteira e outra pessoa pode entrar sem recarregar.
+       Na troca de pessoa o estado volta ao zero (resetarPorSessao), sem herdar tela, avaliações
+       já lidas nem rascunho de quem estava antes. */
+    function novoEstado() { return {
       tela: 'lista', /* 'lista' | 'form-inicial' | 'checklist' | 'resultado' | 'carregando' | 'nao-encontrada' */
       itens: [],
       itensCarregados: false,
@@ -205,7 +208,8 @@
       motorConfig: null, /* null fora da tela de configuração do motor; ver abrirMotorConfig */
       itensArquitetura: [],
       itensArquiteturaCarregados: false
-    };
+    }; }
+    var state = novoEstado();
 
     function buscarItem(key) { return state.itens.filter(function (it) { return it._key === key; })[0]; }
     function clonarItem(it) { return JSON.parse(JSON.stringify(it)); }
@@ -1732,30 +1736,77 @@
     window.faMotorSquad.onMudanca(function () { if (!wrap.hidden) render(); });
 
     /* ===================== CARGA ===================== */
-    db().ref(NODE).on('value', function (snap) {
+    var refItens = null, refArquitetura = null, cargaLigada = false;
+    function aoChegarItens(snap) {
       var arr = [];
       snap.forEach(function (c) { arr.push(Object.assign({ _key: c.key }, c.val())); });
       state.itens = arr;
       state.itensCarregados = true;
       if (state.tela === 'lista' && !wrap.hidden) render();
-    }, function (err) {
+    }
+    function aoFalharItens(err) {
       state.itensCarregados = true;
       console.error('[avaliacao-squad] erro ao carregar avaliacoes-squad:', err);
-    });
+    }
     /* Leitura ao vivo de avaliacoes-produto só pra alimentar a busca de item
        já cadastrado (Parte A) — nunca usada pra decidir nada de squad, só
        pra listar itens existentes e mostrar a classificação atual como
        contexto. Reagir só na tela form-inicial (mesmo guard de !wrap.hidden
        das outras leituras), pra não custar render fora dela. */
-    db().ref(NODE_ARQUITETURA).on('value', function (snap) {
+    function aoChegarArquitetura(snap) {
       var arr = [];
       snap.forEach(function (c) { arr.push(Object.assign({ _key: c.key }, c.val())); });
       state.itensArquitetura = arr;
       state.itensArquiteturaCarregados = true;
       if (state.tela === 'form-inicial' && !wrap.hidden) render();
-    }, function (err) {
+    }
+    function aoFalharArquitetura(err) {
       state.itensArquiteturaCarregados = true;
       console.error('[avaliacao-squad] erro ao carregar avaliacoes-produto (busca de item):', err);
+    }
+    function ligarCarga() {
+      if (cargaLigada) return;
+      cargaLigada = true;
+      refItens = db().ref(NODE);
+      refItens.on('value', aoChegarItens, aoFalharItens);
+      refArquitetura = db().ref(NODE_ARQUITETURA);
+      refArquitetura.on('value', aoChegarArquitetura, aoFalharArquitetura);
+    }
+    function desligarCarga() {
+      try { if (refItens) refItens.off('value', aoChegarItens); } catch (e) { /* já cancelada pelo banco */ }
+      try { if (refArquitetura) refArquitetura.off('value', aoChegarArquitetura); } catch (e) { /* idem */ }
+      refItens = null; refArquitetura = null; cargaLigada = false;
+    }
+    ligarCarga();
+
+    /* ===================== SESSÃO =====================
+       Quem sai leva junto o que era dele: a tela aberta, as avaliações já lidas e o rascunho.
+       O painel volta oculto e a Arquitetura volta ao início; as leituras do banco dependem de
+       quem é a pessoa, então são desligadas e só religadas quando há sessão. */
+    function emailDaSessao() {
+      var s = window.faAuth && window.faAuth.getSession && window.faAuth.getSession();
+      return s && s.email ? String(s.email).toLowerCase() : null;
+    }
+    var pessoaDaTela = emailDaSessao();
+    function resetarPorSessao() {
+      desligarCarga();
+      var novo = novoEstado();
+      Object.keys(state).forEach(function (k) { delete state[k]; });
+      Object.assign(state, novo);
+      wrap.hidden = true;
+      wrap.innerHTML = '';
+      var arqWrap = document.getElementById('adminAvaliacaoProduto');
+      if (arqWrap) arqWrap.hidden = false;
+    }
+    function aoMudarSessao() {
+      var pessoa = emailDaSessao();
+      var trocouPessoa = !!pessoaDaTela && pessoaDaTela !== pessoa;
+      pessoaDaTela = pessoa;
+      if (trocouPessoa) resetarPorSessao();
+      if (pessoa) ligarCarga();
+    }
+    ['fa-auth-ready', 'fa-auth-change', 'fa-avaliacao-ready'].forEach(function (ev) {
+      window.addEventListener(ev, aoMudarSessao);
     });
   };
 })();
