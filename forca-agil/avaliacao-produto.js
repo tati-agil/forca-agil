@@ -354,7 +354,14 @@
      Curadoria e Decisão são dimensões independentes: a existência de curadoria NUNCA entra aqui (ela é
      exibida no bloco próprio). Mesmo texto na tela, no PDF e no Excel. */
   function formaDaDecisao(it) {
+    if (semDecisaoRegistrada(it)) return 'Sem decisão registrada';
     return it.decisaoManual ? 'Decisão manual' : 'Recomendação do sistema aceita';
+  }
+  /* Versão criada por reavaliação que ainda não recebeu decisão (nem manual, nem "aceitar a recomendação"):
+     vale a recomendação do sistema, mas NINGUÉM a aceitou — por isso não pode parecer "recomendação aceita".
+     Mesma condição do aviso da ficha (textoDecisaoPendenteReavaliacao). */
+  function semDecisaoRegistrada(it) {
+    return !!(it && it.versaoAnteriorKey && !it.decisaoConfirmada && !it.decisaoManual);
   }
   function rotuloNaturezaDoItem(it) {
     var n = naturezaDoItem(it);
@@ -1110,8 +1117,9 @@
   };
   /* Uma linha de auditoria em TEXTO PURO (quem escreve em HTML faz o esc):
      { titulo, anterior, novo, valores, quem, origem, detalhe }. */
-  function descreverLinhaAuditoria(e) {
-    var quem = (e.usuario && (e.usuario.name || e.usuario.email)) || '—';
+  function descreverLinhaAuditoria(e, paraExportacao) {
+    /* Exportações nunca levam e-mail: sem nome, "—". A ficha (tela interna) mantém o e-mail como último recurso. */
+    var quem = (e.usuario && (e.usuario.name || (paraExportacao ? '' : e.usuario.email))) || '—';
     /* Reprocessamento automático NÃO é decisão de uma pessoa: a origem, o motor que
        provocou a mudança e quem DISPAROU o reprocessamento aparecem explícitos. */
     var origem = e.reavaliacao
@@ -1132,8 +1140,12 @@
       : (ROTULO_TIPO_AUDITORIA[e.tipo] || e.tipo);
     var anterior = e.confirmacao ? '' : rotuloValorAuditoria(e.tipo, e.valorAnterior);
     var novo = rotuloValorAuditoria(e.tipo, e.valorNovo);
-    return { titulo: titulo, anterior: anterior, novo: novo, valores: e.confirmacao ? novo : anterior + ' → ' + novo,
-      quem: quem, origem: origem, detalhe: detalhe.join(' · ') };
+    /* Evento = o que aconteceu; Campo = sobre o quê (o mesmo rótulo de campo, sem "confirmada"). */
+    var evento = e.reavaliacao ? 'Criação por reavaliação'
+      : e.origem === 'reprocessamento-automatico' ? 'Reprocessamento automático'
+      : e.confirmacao ? 'Confirmação' : 'Alteração';
+    return { titulo: titulo, campo: ROTULO_TIPO_AUDITORIA[e.tipo] || e.tipo, evento: evento, anterior: anterior, novo: novo,
+      valores: e.confirmacao ? novo : anterior + ' → ' + novo, quem: quem, origem: origem, detalhe: detalhe.join(' · ') };
   }
   /* Todas as versões do MESMO item, da mais antiga para a mais nova: anda para trás por
      versaoAnteriorKey e para a frente pelas reavaliações que apontam para a versão atual da
@@ -1161,7 +1173,7 @@
   /* Versão criada por reavaliação que ainda não teve decisão registrada: diz o que vale
      (a recomendação do sistema) e onde ficou a decisão manual anterior. '' quando não se aplica. */
   function textoDecisaoPendenteReavaliacao(a, todos) {
-    if (!a.versaoAnteriorKey || a.decisaoConfirmada || a.decisaoManual) return '';
+    if (!semDecisaoRegistrada(a)) return '';
     var ant = todos.filter(function (o) { return o._key === a.versaoAnteriorKey; })[0];
     var vAnt = (ant && ant.versao) || ((a.versao || 2) - 1);
     var txt = 'Esta versão (v' + (a.versao || vAnt + 1) + ') foi criada por reavaliação e ainda não tem decisão arquitetural registrada: ' +
@@ -1330,10 +1342,14 @@
     html += '<h3 class="pdf-subsecao">Resultado sobre Produto/Serviço</h3>';
     html += '<p class="pdf-resultado pdf-resultado--' + esc(it.resultadoAutomatico || 'a-validar') + '">' +
       esc(rotuloResultadoTxt) + '</p>';
+    html += '<h3 class="pdf-subsecao">Justificativa da classificação</h3>';
+    html += '<p>' + esc(it.justificativaAutomatica || '—') + '</p>';
 
-    html += '<h3 class="pdf-subsecao">Classificação arquitetural</h3>';
+    /* Classificação arquitetural: bloco PRÓPRIO e indivisível (título + conteúdo na mesma página). A
+       especialização identificada pelo questionário é saída do motor e fica aqui, nunca na Curadoria. */
+    html += '<h2 class="pdf-secao-titulo">Classificação arquitetural</h2>';
+    html += '<div class="pdf-decisao-bloco">';
     html += '<p>' + esc(camada && camada.label || '—') + '</p>';
-    /* Derivada do questionário/motor: fica na Classificação, à parte — não é curadoria. */
     var espDerivada = especializacaoDerivada(it);
     if (espDerivada) html += '<p>Especialização identificada pelo questionário: ' + esc(espDerivada) + '</p>';
     if (camada && camada.conflito && camada.conflito.length) {
@@ -1342,14 +1358,8 @@
     if (camada && camada.incoerencia) {
       html += '<p class="pdf-aviso">Há respostas que indicam autonomia e outras que indicam dependência. Revise os critérios destacados.</p>';
     }
-
-    if (camada && camada.relacao) {
-      html += '<h3 class="pdf-subsecao">Relação arquitetural</h3>';
-      html += '<p>' + esc(camada.relacao) + '</p>';
-    }
-
-    html += '<h3 class="pdf-subsecao">Justificativa da classificação</h3>';
-    html += '<p>' + esc(it.justificativaAutomatica || '—') + '</p>';
+    if (camada && camada.relacao) html += '<p><strong>Relação arquitetural:</strong> ' + esc(camada.relacao) + '</p>';
+    html += '</div>';
 
     /* pdf-decisao-bloco (page-break-inside:avoid) — mesma proteção já usada
        em pdf-pergunta-bloco: sem envolver a tabela num único bloco
@@ -1390,12 +1400,13 @@
     var cadeia = cadeiaDe(it, todos);
     if (cadeia.length >= 2) {
       html += '<h3 class="pdf-subsecao">Histórico de versões</h3>';
-      html += '<table class="pdf-tabela-versoes"><thead><tr><th>Versão</th><th>Data</th><th>Responsável</th><th>Decisão final</th><th>Classificação</th><th>O que mudou</th></tr></thead><tbody>';
+      html += '<table class="pdf-tabela-versoes"><thead><tr><th>Versão</th><th>Data</th><th>Responsável</th><th>Resultado</th><th>Classificação</th><th>Decisão final</th><th>Forma da decisão</th><th>O que mudou</th></tr></thead><tbody>';
       cadeia.forEach(function (v, i) {
         var r = retratoDaVersao(v);
         html += '<tr><td>v' + esc(v.versao || 1) + (v._key === it._key ? ' (esta)' : '') + '</td><td>' + esc(fmtData(v.criadoEm)) + '</td><td>' +
-          esc(v.responsavel && (v.responsavel.name || v.responsavel.email) || '—') + '</td><td>' + esc(r.decisao || (v.status === 'concluido' ? '—' : 'Em andamento')) +
-          '</td><td>' + esc(r.classificacao || '—') + '</td><td>' + esc(descreverMudanca(cadeia[i - 1], v)) + '</td></tr>';
+          esc(v.responsavel && v.responsavel.name || '—') + '</td><td>' + esc(r.resultado || (v.status === 'concluido' ? '—' : 'Em andamento')) +
+          '</td><td>' + esc(r.classificacao || '—') + '</td><td>' + esc(r.decisao || '—') + '</td><td>' + esc(r.forma || '—') +
+          '</td><td>' + esc(descreverMudanca(cadeia[i - 1], v)) + '</td></tr>';
       });
       html += '</tbody></table>';
     }
@@ -1408,7 +1419,7 @@
       html += '<p>Nenhuma alteração registrada para esta versão. O registro vale a partir da introdução da auditoria; alterações anteriores não foram registradas.</p>';
     } else {
       trilha.linhas.slice().reverse().forEach(function (e) {
-        var d = descreverLinhaAuditoria(e);
+        var d = descreverLinhaAuditoria(e, true);
         html += '<div class="pdf-trilha-item"><strong>' + esc(d.titulo) + '</strong>: ' + esc(d.valores) +
           '<br><span>' + esc(d.origem) + ' em ' + esc(fmtData(e.dataHora)) + (d.detalhe ? esc(' · ' + d.detalhe) : '') + '</span></div>';
       });
@@ -1716,12 +1727,14 @@
   }
   var EXCEL_COLS_HISTORICO = [
     { largura: 26 }, { largura: 26 }, { largura: 8 }, { largura: 18 }, { largura: 24 },
+    { largura: 30 }, { largura: 26 }, { largura: 16 }, { largura: 30 }, { largura: 30 },
     { largura: 22 }, { largura: 22 }, { largura: 28 }, { largura: 28 }, { largura: 22 }, { largura: 22 },
-    { largura: 30 }, { largura: 30 }, { largura: 60 }, { largura: 40 }
+    { largura: 30 }, { largura: 30 }, { largura: 22 }, { largura: 18 }, { largura: 60 }, { largura: 40 }
   ];
   var EXCEL_HEAD_HISTORICO = ['ID do item', 'ID da avaliação', 'Versão', 'Data da avaliação', 'Responsável pela avaliação',
+    'Especialização identificada pelo questionário', 'Especialização', 'Papel estrutural', 'Natureza complementar', 'Situação da curadoria',
     'Resultado anterior', 'Resultado atual', 'Classificação anterior', 'Classificação atual', 'Decisão anterior', 'Decisão atual',
-    'Forma anterior', 'Forma atual', 'Resumo da mudança', 'Justificativa de divergência'];
+    'Forma anterior', 'Forma atual', 'Responsável pela decisão', 'Data da decisão', 'Resumo da mudança', 'Justificativa de divergência'];
   /* Uma linha por versão de cada item incluído no export, mesmo quando essa
      versão já foi superada por uma reavaliação — é exatamente disso que o
      histórico trata. Nunca inventa uma versão anterior que não existe: se o
@@ -1741,21 +1754,25 @@
       var ant = it.versaoAnteriorKey ? todosOsItens.filter(function (o) { return o._key === it.versaoAnteriorKey; })[0] : null;
       var a = ant ? retratoDaVersao(ant) : { resultado: '', classificacao: '', decisao: '', forma: '' };
       var b = retratoDaVersao(it);
+      var cur = curadoriaRegistrada(it);
       return [
         it.itemId || it._key, it._key, it.versao || 1, it.criadoEm ? new Date(it.criadoEm) : '',
         (it.responsavel && it.responsavel.name) || '',
+        especializacaoDerivada(it), cur.especializacao, cur.papelEstrutural, rotuloNaturezaDoItem(it), situacaoCuradoria(it),
         a.resultado, b.resultado, a.classificacao, b.classificacao, a.decisao, b.decisao, a.forma, b.forma,
+        it.decisaoManual ? ((it.alteradoPor && it.alteradoPor.name) || '') : '',
+        it.decisaoManual && it.alteradoEm ? new Date(it.alteradoEm) : '',
         descreverMudanca(ant, it),
         it.decisaoManual ? (it.justificativaDecisao || '') : ''
       ];
     });
   }
   var EXCEL_COLS_TRILHA = [
-    { largura: 26 }, { largura: 26 }, { largura: 8 }, { largura: 18 }, { largura: 28 },
-    { largura: 36 }, { largura: 36 }, { largura: 22 }, { largura: 56 }, { largura: 50 }
+    { largura: 26 }, { largura: 26 }, { largura: 8 }, { largura: 18 }, { largura: 26 }, { largura: 24 },
+    { largura: 36 }, { largura: 36 }, { largura: 26 }, { largura: 56 }, { largura: 50 }
   ];
-  var EXCEL_HEAD_TRILHA = ['ID do item', 'ID da avaliação', 'Versão', 'Data e hora', 'Alteração',
-    'Valor anterior', 'Valor novo', 'Quem', 'Origem', 'Detalhe'];
+  var EXCEL_HEAD_TRILHA = ['ID do item', 'ID da avaliação', 'Versão', 'Data e hora', 'Evento', 'Campo',
+    'Valor anterior', 'Valor novo', 'Responsável pela alteração', 'Origem', 'Observação'];
   /* Uma linha por alteração registrada nas duas auditorias. Versão cuja leitura falhou ou demorou
      ganha UMA linha "Trilha indisponível" — nunca some como se não tivesse alteração. */
   function linhasTrilhaExcel(itensExportados, todosOsItens, trilhas) {
@@ -1764,13 +1781,13 @@
       var id = it.itemId || it._key, v = it.versao || 1;
       var t = trilhas && trilhas[it._key];
       if (!t || !t.ok) {
-        linhas.push([id, it._key, v, '', 'Trilha indisponível', '', '', '', '',
+        linhas.push([id, it._key, v, '', 'Trilha indisponível', '', '', '', '', '',
           'Não foi possível ler o registro de alterações desta versão. O histórico de versões segue completo.']);
         return;
       }
       t.linhas.forEach(function (e) {
-        var d = descreverLinhaAuditoria(e);
-        linhas.push([id, it._key, v, e.dataHora ? new Date(e.dataHora) : '', d.titulo, d.anterior, d.novo, d.quem, d.origem, d.detalhe]);
+        var d = descreverLinhaAuditoria(e, true);
+        linhas.push([id, it._key, v, e.dataHora ? new Date(e.dataHora) : '', d.evento, d.campo, d.anterior, d.novo, d.quem, d.origem, d.detalhe]);
       });
     });
     return linhas;
