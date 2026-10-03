@@ -1396,8 +1396,27 @@
     var pendente = textoDecisaoPendenteReavaliacao(it, todos);
     if (pendente) html += '<p class="pdf-nota">' + esc(pendente) + '</p>';
 
-    html += '<h2 class="pdf-secao-titulo">Como chegamos até aqui</h2>';
+    /* Quebra de página: o html2pdf trata page-break-after:avoid em h2/h3 como regra fraca — o título
+       podia ficar sozinho no fim da página e o conteúdo começar na seguinte. O que segura título e
+       conteúdo juntos é o bloco indivisível (pdf-decisao-bloco), o mesmo da Curadoria e da Decisão:
+       cada título/subtítulo vai junto do seu PRIMEIRO conteúdo. Só a estrutura muda; texto e ordem não. */
     var cadeia = cadeiaDe(it, todos);
+    var trilhaConteudo = [];
+    var trilha = ctx && ctx.trilhas && ctx.trilhas[it._key];
+    if (!trilha || !trilha.ok) {
+      trilhaConteudo.push('<p class="pdf-aviso">Trilha indisponível: não foi possível ler o registro de alterações desta versão agora. ' +
+        'O histórico de versões acima vem dos dados gravados e está completo.</p>');
+    } else if (!trilha.linhas.length) {
+      trilhaConteudo.push('<p>Nenhuma alteração registrada para esta versão. O registro vale a partir da introdução da auditoria; alterações anteriores não foram registradas.</p>');
+    } else {
+      trilha.linhas.slice().reverse().forEach(function (e) {
+        var d = descreverLinhaAuditoria(e, true);
+        trilhaConteudo.push('<div class="pdf-trilha-item"><strong>' + esc(d.titulo) + '</strong>: ' + esc(d.valores) +
+          '<br><span>' + esc(d.origem) + ' em ' + esc(fmtData(e.dataHora)) + (d.detalhe ? esc(' · ' + d.detalhe) : '') + '</span></div>');
+      });
+    }
+    var tituloTrilha = '<h3 class="pdf-subsecao">Trilha da curadoria e da decisão</h3>';
+    html += '<div class="pdf-decisao-bloco"><h2 class="pdf-secao-titulo">Como chegamos até aqui</h2>';
     if (cadeia.length >= 2) {
       html += '<h3 class="pdf-subsecao">Histórico de versões</h3>';
       html += '<table class="pdf-tabela-versoes"><thead><tr><th>Versão</th><th>Data</th><th>Responsável</th><th>Resultado</th><th>Classificação</th><th>Decisão final</th><th>Forma da decisão</th><th>O que mudou</th></tr></thead><tbody>';
@@ -1408,22 +1427,13 @@
           '</td><td>' + esc(r.classificacao || '—') + '</td><td>' + esc(r.decisao || '—') + '</td><td>' + esc(r.forma || '—') +
           '</td><td>' + esc(descreverMudanca(cadeia[i - 1], v)) + '</td></tr>';
       });
-      html += '</tbody></table>';
-    }
-    html += '<h3 class="pdf-subsecao">Trilha da curadoria e da decisão</h3>';
-    var trilha = ctx && ctx.trilhas && ctx.trilhas[it._key];
-    if (!trilha || !trilha.ok) {
-      html += '<p class="pdf-aviso">Trilha indisponível: não foi possível ler o registro de alterações desta versão agora. ' +
-        'O histórico de versões acima vem dos dados gravados e está completo.</p>';
-    } else if (!trilha.linhas.length) {
-      html += '<p>Nenhuma alteração registrada para esta versão. O registro vale a partir da introdução da auditoria; alterações anteriores não foram registradas.</p>';
+      html += '</tbody></table></div>';
+      html += '<div class="pdf-decisao-bloco">' + tituloTrilha + trilhaConteudo[0] + '</div>';
     } else {
-      trilha.linhas.slice().reverse().forEach(function (e) {
-        var d = descreverLinhaAuditoria(e, true);
-        html += '<div class="pdf-trilha-item"><strong>' + esc(d.titulo) + '</strong>: ' + esc(d.valores) +
-          '<br><span>' + esc(d.origem) + ' em ' + esc(fmtData(e.dataHora)) + (d.detalhe ? esc(' · ' + d.detalhe) : '') + '</span></div>';
-      });
+      /* versão única: o título da seção, o subtítulo da trilha e o 1º conteúdo ficam juntos */
+      html += tituloTrilha + trilhaConteudo[0] + '</div>';
     }
+    trilhaConteudo.slice(1).forEach(function (el) { html += el; });
 
     html += '<h2 class="pdf-secao-titulo">Respostas e evidências</h2>';
     html += '<h3 class="pdf-subsecao">Critérios principais — perguntas 1 a ' + CRITERIOS.length + '</h3>';
