@@ -243,16 +243,18 @@ async function voltarParaAvaliacoes(page) {
     afirma(/Natureza complementar salva/.test(await page.locator('#avpFlashNatureza').innerText()) && /✓ NATUREZA SALVA/.test(await page.locator('#avpSalvarNaturezaBtn').innerText()) && await page.locator('#avpSalvarNaturezaBtn').isDisabled(),
       'tela: confirmação "salva" e botão "✓ NATUREZA SALVA" desabilitado');
 
-    console.log('\n-- PDF: Classificação arquitetural → Curadoria arquitetural (Natureza) → Decisão final --');
+    console.log('\n-- PDF: O que o sistema concluiu (Classificação) → O que uma pessoa complementou (Natureza) → O que uma pessoa decidiu (Decisão final) --');
     const pdf = await gerarPdf(page);
     afirma(!!pdf, 'HTML do PDF capturado');
     if (pdf) {
       const d = pdf.decisao.replace(/\s+/g, ' ');
-      afirma(/Classificação arquitetural Canal/.test(d) && new RegExp('Natureza complementar ' + PLATAFORMA.replace(/[/]/g, '\\/')).test(d) && /Decisão final Não é Produto\/Serviço principal/.test(d), 'PDF: Classificação arquitetural = Canal · Natureza = plataforma · Decisão final = Não é Produto/Serviço principal');
-      afirma(d.indexOf('Curadoria arquitetural') !== -1 && d.indexOf('Curadoria arquitetural') < d.indexOf('Natureza complementar') && d.indexOf('Natureza complementar') < d.indexOf('Decisão final'), 'PDF: ordem Curadoria arquitetural (Natureza complementar) → Decisão final');
+      const t = pdf.tudo.replace(/\s+/g, ' ');
+      const ini = t.indexOf('O que uma pessoa complementou'), meio = t.indexOf('O que uma pessoa decidiu'), fim = t.indexOf('Como chegamos até aqui');
+      afirma(/Classificação arquitetural Canal/.test(t.slice(0, ini)) && new RegExp('Natureza complementar ' + PLATAFORMA.replace(/[/]/g, '\\/')).test(t.slice(ini, meio)) && /Decisão final Não é Produto\/Serviço principal/.test(t.slice(meio, fim)), 'PDF: Classificação arquitetural = Canal (O que o sistema concluiu) · Natureza = plataforma (O que uma pessoa complementou) · Decisão final = Não é Produto/Serviço principal (O que uma pessoa decidiu)');
+      afirma(ini !== -1 && ini < meio && meio < fim && !/Classificação arquitetural/.test(t.slice(meio, fim)), 'PDF: ordem sistema → Curadoria (Natureza) → Decisão final; a Classificação não está na tabela da Decisão final');
       afirma(/Forma da decisão Recomendação do sistema aceita(?! com)/.test(d), 'PDF: com natureza registrada e recomendação aceita, a forma da decisão é só "Recomendação do sistema aceita" (a Curadoria aparece no bloco próprio)');
-      afirma((pdf.tudo.match(/Natureza complementar/g) || []).length === 1, 'PDF: a natureza aparece uma única vez');
-      afirma(!/Natureza complementar|benefícios e parcerias/.test(pdf.tudo.slice(0, pdf.tudo.indexOf('Curadoria arquitetural'))), 'PDF: nada de natureza no resultado automático nem em "Como chegamos a essa conclusão"');
+      afirma((t.slice(ini, meio).match(/Natureza complementar/g) || []).length === 1, 'PDF: na seção da Curadoria a natureza aparece uma única vez (a trilha, em "Como chegamos até aqui", a cita como histórico)');
+      afirma(!/Natureza complementar|benefícios e parcerias/.test(t.slice(0, ini)) && !/Natureza complementar|benefícios e parcerias/.test(t.slice(t.indexOf('Respostas e evidências'))), 'PDF: nada de natureza no resultado automático nem em "Respostas e evidências"');
     }
 
     console.log('\n-- lista: natureza como etiqueta sob o item --');

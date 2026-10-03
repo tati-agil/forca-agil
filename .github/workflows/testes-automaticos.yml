@@ -84,6 +84,15 @@ jobs:
           FA_BASE_URL: http://127.0.0.1:8811
         run: node .github/scripts/teste-avaliacoes-navegacao.js
 
+      # Exportações: o PDF espelha a ficha (sistema → pessoa complementou → decidiu → como chegamos →
+      # evidências) e o Excel ganha Histórico anterior/atual e a aba Trilha; a trilha vem da auditoria
+      # e, se ela falhar ou demorar, o documento diz "Trilha indisponível" em vez de fingir vazio.
+      - name: "Avaliação: PDF e Excel com a trilha da curadoria e da decisão (desktop e celular)"
+        env:
+          NODE_PATH: /tmp/pw-deps/node_modules
+          FA_BASE_URL: http://127.0.0.1:8811
+        run: node .github/scripts/teste-exportacoes-trilha.js
+
       # Estrutura da ficha: o sistema concluiu → uma pessoa complementou (Curadoria) → uma pessoa
       # decidiu (Decisão final) → como chegamos até aqui (históricos, questionário). Reavaliar e
       # GERAR PDF no cabeçalho, faixa-resumo, Forma da decisão sem Curadoria, justificativa

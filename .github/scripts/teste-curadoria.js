@@ -198,7 +198,7 @@ const auditoriaCur = async (page, key) => Object.values(((await banco(page))['cu
     afirma(await page.locator('#avpEspecializacaoCadastrada').inputValue() === '', 'o campo de especialização aparece vazio');
     const pdf = await gerarPdf(page);
     afirma(!!pdf && !/não determinad/i.test(pdf), 'o PDF não mostra placeholders');
-    afirma(!/Curadoria arquitetural/.test(pdf), 'sem curadoria preenchida o PDF não mostra o bloco vazio');
+    afirma(/O que uma pessoa complementou Nenhuma informação de curadoria registrada nesta versão\./.test(pdf), 'sem curadoria preenchida o PDF diz, em frase, que não há curadoria (o bloco não some nem vira tabela vazia)');
     await voltar(page);
     const ex = await lerExcel(page);
     const iEsp = ex.linhas[0].indexOf('Especialização'), iPapel = ex.linhas[0].indexOf('Papel estrutural');
@@ -261,9 +261,9 @@ const auditoriaCur = async (page, key) => Object.values(((await banco(page))['cu
 
     console.log('\n== PDF: mesma sequência e mesmos rótulos ==');
     const pdf2 = await gerarPdf(page);
-    const i1 = pdf2.indexOf('Classificação arquitetural'), i2 = pdf2.indexOf('Curadoria arquitetural'), i3 = pdf2.indexOf('Decisão final');
-    afirma(i1 !== -1 && i1 < i2 && i2 < i3, 'PDF: Classificação arquitetural → Curadoria arquitetural → Decisão final');
-    afirma(/Curadoria arquitetural Especialização Instituto previdenciário Papel estrutural Opcional/.test(pdf2), 'PDF: a Curadoria traz Especialização e Papel estrutural reais');
+    const i1 = pdf2.indexOf('O que o sistema concluiu'), i2 = pdf2.indexOf('O que uma pessoa complementou'), i3 = pdf2.indexOf('O que uma pessoa decidiu');
+    afirma(i1 !== -1 && i1 < i2 && i2 < i3, 'PDF: O que o sistema concluiu (Classificação) → O que uma pessoa complementou (Curadoria) → O que uma pessoa decidiu (Decisão final)');
+    afirma(/O que uma pessoa complementou Especialização Instituto previdenciário Papel estrutural Opcional/.test(pdf2), 'PDF: a Curadoria traz Especialização e Papel estrutural reais');
     afirma(/Recomendação do sistema/.test(pdf2) && /Forma da decisão Recomendação do sistema aceita(?! com)/.test(pdf2), 'PDF: Recomendação do sistema e Forma da decisão (sem citar Curadoria)');
     afirma(/Avaliação original preservada — versão 1/.test(pdf2) && !/Documento revisado/.test(pdf2), 'PDF: cabeçalho "Avaliação original preservada — versão 1" (sem "Documento revisado")');
     afirma(!/Classificação arquitetural sugerida|Classificação sugerida|Decisão arquitetural\b/.test(pdf2), 'PDF: nomes antigos não existem mais');

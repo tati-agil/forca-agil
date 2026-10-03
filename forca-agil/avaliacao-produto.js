@@ -1079,7 +1079,186 @@
     '.pdf-pergunta-campo{margin:0 0 2px;font-size:10px}' +
     '.pdf-quebra{page-break-before:always}' +
     '.pdf-tabela-id tr{page-break-inside:avoid;break-inside:avoid}' +
-    '.pdf-decisao-bloco{page-break-inside:avoid;break-inside:avoid}';
+    '.pdf-decisao-bloco{page-break-inside:avoid;break-inside:avoid}' +
+    '.pdf-nota{color:#555;font-size:10px;font-style:italic;margin:4px 0}' +
+    '.pdf-tabela-versoes{width:100%;border-collapse:collapse;margin-bottom:10px;font-size:9px}' +
+    '.pdf-tabela-versoes th{text-align:left;padding:3px 5px;background:#f2f4f8;border:1px solid #ddd;font-weight:bold}' +
+    '.pdf-tabela-versoes td{padding:3px 5px;border:1px solid #ddd;vertical-align:top}' +
+    '.pdf-tabela-versoes tr{page-break-inside:avoid;break-inside:avoid}' +
+    '.pdf-trilha-item{border-left:3px solid #c8d2e8;padding:2px 0 2px 8px;margin:0 0 6px;font-size:10px;page-break-inside:avoid;break-inside:avoid}' +
+    '.pdf-trilha-item span{color:#666}';
+
+  /* ---------- Trilha da curadoria e da decisão ----------
+     UM só lugar para os textos: a ficha, o PDF e o Excel descrevem cada linha de auditoria e cada
+     mudança entre versões com as mesmas funções — nenhuma segunda interpretação. */
+  function rotuloValorAuditoria(tipo, v) {
+    if (v === null || v === undefined || v === '') return '—';
+    if (tipo === 'alteracao_decisao_final') {
+      if (v.pendente) return 'ainda sem decisão — a versão começa pela recomendação do sistema';
+      var t = rotuloResultado(v.decisaoFinal) || '—';
+      return t + (v.decisaoManual ? ' (manual)' : (v.confirmada ? ' (recomendação aceita)' : ''));
+    }
+    if (tipo === 'alteracao_natureza_complementar') return v.nome || '—';
+    if (tipo === 'alteracao_papel_estrutural') return v === 'essencial' ? 'Essencial' : (v === 'opcional' ? 'Opcional' : String(v));
+    return String(v);
+  }
+  var ROTULO_TIPO_AUDITORIA = {
+    alteracao_especializacao: 'Especialização',
+    alteracao_papel_estrutural: 'Papel estrutural',
+    alteracao_natureza_complementar: 'Natureza complementar',
+    alteracao_decisao_final: 'Decisão final'
+  };
+  /* Uma linha de auditoria em TEXTO PURO (quem escreve em HTML faz o esc):
+     { titulo, anterior, novo, valores, quem, origem, detalhe }. */
+  function descreverLinhaAuditoria(e) {
+    var quem = (e.usuario && (e.usuario.name || e.usuario.email)) || '—';
+    /* Reprocessamento automático NÃO é decisão de uma pessoa: a origem, o motor que
+       provocou a mudança e quem DISPAROU o reprocessamento aparecem explícitos. */
+    var origem = e.reavaliacao
+      ? 'Nova versão criada por reavaliação da v' + (e.reavaliacao.deVersao || '—') + ' (v' + (e.reavaliacao.paraVersao || '—') + ') por ' + quem
+      : e.origem === 'reprocessamento-automatico'
+      ? 'Reprocessamento automático' + (e.reprocessamento === 'lote' ? ' em lote' : '') + ' — motor ' + (e.motorVersion || '—') +
+        (e.motorVersionArquitetura ? ' (regras v' + e.motorVersionArquitetura + ')' : '') + ' · disparado por ' + quem
+      : 'por ' + quem;
+    var camadaTxt = e.camada && e.camada.label ? e.camada.label : '';
+    var detalhe = [];
+    if (e.justificativa) detalhe.push('Justificativa: "' + e.justificativa + '"');
+    if (e.confirmacao) detalhe.push('confirmada para a classificação “' + camadaTxt + '”');
+    else if (e.valorSemEfeitoSubstituido) detalhe.push('substituiu o valor anterior sem efeito “' + e.valorSemEfeitoSubstituido + '”');
+    /* Confirmação NÃO é alteração de texto: o valor é o mesmo, só passou a valer para a classificação
+       atual. O histórico diz "confirmada", sem a seta anterior → novo (que sugeriria uma mudança). */
+    var titulo = e.confirmacao && e.tipo === 'alteracao_especializacao' ? 'Especialização confirmada'
+      : e.confirmacao && e.tipo === 'alteracao_papel_estrutural' ? 'Papel estrutural confirmado'
+      : (ROTULO_TIPO_AUDITORIA[e.tipo] || e.tipo);
+    var anterior = e.confirmacao ? '' : rotuloValorAuditoria(e.tipo, e.valorAnterior);
+    var novo = rotuloValorAuditoria(e.tipo, e.valorNovo);
+    return { titulo: titulo, anterior: anterior, novo: novo, valores: e.confirmacao ? novo : anterior + ' → ' + novo,
+      quem: quem, origem: origem, detalhe: detalhe.join(' · ') };
+  }
+  /* Todas as versões do MESMO item, da mais antiga para a mais nova: anda para trás por
+     versaoAnteriorKey e para a frente pelas reavaliações que apontam para a versão atual da
+     cadeia. Nunca agrupa por nome. `todos` = a lista completa de avaliações carregadas. */
+  function cadeiaDe(a, todos) {
+    function buscar(key) { return todos.filter(function (it) { return it._key === key; })[0]; }
+    var cadeia = [];
+    var visto = {};
+    var atras = buscar(a._key) || a;
+    while (atras && !visto[atras._key] && cadeia.length < 60) {
+      visto[atras._key] = true;
+      cadeia.unshift(atras);
+      atras = atras.versaoAnteriorKey ? buscar(atras.versaoAnteriorKey) : null;
+    }
+    var frente = cadeia[cadeia.length - 1];
+    for (var guarda = 0; frente && guarda < 60; guarda++) {
+      var proxima = todos.filter(function (o) { return o.versaoAnteriorKey === frente._key && !visto[o._key]; })[0];
+      if (!proxima) break;
+      visto[proxima._key] = true;
+      cadeia.push(proxima);
+      frente = proxima;
+    }
+    return cadeia;
+  }
+  /* Versão criada por reavaliação que ainda não teve decisão registrada: diz o que vale
+     (a recomendação do sistema) e onde ficou a decisão manual anterior. '' quando não se aplica. */
+  function textoDecisaoPendenteReavaliacao(a, todos) {
+    if (!a.versaoAnteriorKey || a.decisaoConfirmada || a.decisaoManual) return '';
+    var ant = todos.filter(function (o) { return o._key === a.versaoAnteriorKey; })[0];
+    var vAnt = (ant && ant.versao) || ((a.versao || 2) - 1);
+    var txt = 'Esta versão (v' + (a.versao || vAnt + 1) + ') foi criada por reavaliação e ainda não tem decisão arquitetural registrada: ' +
+      'vale a recomendação do sistema até alguém decidir.';
+    if (ant && ant.decisaoManual) txt += ' A decisão manual da v' + vAnt + ' continua preservada na v' + vAnt + ' e não foi herdada.';
+    return txt;
+  }
+  /* Curadoria de uma versão em texto: o que vale (vigente) e o que existe só como nota
+     (a revisar / sem efeito) — nunca o valor antigo. */
+  function contagemCuradoria(it) {
+    var cur = curadoriaRegistrada(it), ant = curadoriaAnterior(it);
+    function n(campo, situacao) { return ant[campo] && ant[campo].situacao === situacao ? 1 : 0; }
+    return {
+      nCur: (cur.especializacao ? 1 : 0) + (cur.papelEstrutural ? 1 : 0) + (cur.natureza ? 1 : 0),
+      nRev: n('especializacao', 'a-revisar') + n('papelEstrutural', 'a-revisar'),
+      nSem: n('especializacao', 'sem-efeito') + n('papelEstrutural', 'sem-efeito')
+    };
+  }
+  /* Texto da faixa-resumo da ficha ("2 campos registrados · 1 para revisar"). */
+  function resumoCuradoria(it) {
+    var c = contagemCuradoria(it);
+    var txt = c.nCur ? c.nCur + (c.nCur === 1 ? ' campo registrado' : ' campos registrados') : 'nenhuma registrada';
+    if (c.nRev) txt += ' · ' + c.nRev + ' para revisar';
+    return txt;
+  }
+  /* Coluna "Situação da curadoria" do Excel: o mesmo resumo (com inicial maiúscula) + os sem efeito. */
+  function situacaoCuradoria(it) {
+    var c = contagemCuradoria(it);
+    var txt = resumoCuradoria(it) + (c.nSem ? ' · ' + c.nSem + ' sem efeito' : '');
+    return txt.charAt(0).toUpperCase() + txt.slice(1);
+  }
+  /* Notas secundárias do PDF: dizem que EXISTE informação anterior, sem repetir o conteúdo dela. */
+  function notasCuradoriaAnterior(it) {
+    var c = contagemCuradoria(it), notas = [];
+    if (c.nRev) notas.push('Há informações anteriores disponíveis para revisão.');
+    if (c.nSem) notas.push('Há informação de curadoria anterior sem efeito nesta versão.');
+    return notas;
+  }
+  /* O QUE FOI GRAVADO em uma versão, em texto — a base de "o que mudou" (PDF e Excel). */
+  function retratoDaVersao(it) {
+    var concluido = it.status === 'concluido';
+    return {
+      resultado: concluido ? rotuloResultado(it.resultadoAutomatico) : '',
+      classificacao: (it.camadaSugerida && it.camadaSugerida.label) || '',
+      decisao: concluido ? rotuloDecisaoFinal(it) : '',
+      forma: concluido ? formaDaDecisao(it) : ''
+    };
+  }
+  function descreverMudanca(anterior, atual) {
+    if (!atual) return '';
+    if (!anterior) return atual.versao > 1 ? 'Versão anterior indisponível' : 'Versão inicial';
+    var a = retratoDaVersao(anterior), b = retratoDaVersao(atual), partes = [];
+    [['Resultado', 'resultado'], ['Classificação', 'classificacao'], ['Decisão final', 'decisao'], ['Forma da decisão', 'forma']].forEach(function (c) {
+      if (a[c[1]] !== b[c[1]]) partes.push(c[0] + ': ' + (a[c[1]] || '—') + ' → ' + (b[c[1]] || '—'));
+    });
+    return partes.length ? partes.join('; ') : 'Sem mudança no resultado, na classificação nem na decisão';
+  }
+  /* Leitura da auditoria de uma versão (curadoria-auditoria + a da natureza complementar), em ordem
+     cronológica. Rede lenta é condição normal: a espera tem limite, e falha OU demora viram
+     { ok: false } — o documento diz "Trilha indisponível", nunca finge uma trilha vazia. */
+  var TEMPO_TRILHA_MS = 6000;
+  function lerTrilhaDe(chave, cb) {
+    var encerrada = false, pend = 2, linhas = [], falhou = false, timer = null;
+    function encerrar(erro) {
+      if (encerrada) return;
+      encerrada = true;
+      clearTimeout(timer);
+      linhas.sort(function (x, y) { return String(x.dataHora || '').localeCompare(String(y.dataHora || '')); });
+      cb({ ok: !erro, linhas: erro ? [] : linhas });
+    }
+    timer = setTimeout(function () { encerrar(true); }, TEMPO_TRILHA_MS);
+    function ler(no) {
+      function fim(erro) { if (erro) falhou = true; if (--pend === 0) encerrar(falhou); }
+      try {
+        db().ref(no + '/' + chave).once('value', function (snap) {
+          var v = snap.val() || {};
+          Object.keys(v).forEach(function (k) { if (v[k]) linhas.push(Object.assign({ _key: k }, v[k])); });
+          fim(false);
+        }, function (err) {
+          console.error('[avaliacao-produto] erro ao ler a trilha da exportação:', err);
+          fim(true);
+        });
+      } catch (e) { console.error('[avaliacao-produto] erro ao ler a trilha da exportação:', e); fim(true); }
+    }
+    ler(NODE_CURADORIA_AUDITORIA);
+    ler(window.faNaturezas.NODE_AUDITORIA);
+  }
+  /* cb({ <chave>: { ok, linhas } }) — todas em paralelo. */
+  function lerTrilhas(chaves, cb) {
+    var unicas = [], vistas = {};
+    chaves.forEach(function (k) { if (k && !vistas[k]) { vistas[k] = true; unicas.push(k); } });
+    var mapa = {}, pend = unicas.length;
+    if (!pend) { cb(mapa); return; }
+    unicas.forEach(function (k) {
+      lerTrilhaDe(k, function (r) { mapa[k] = r; if (--pend === 0) cb(mapa); });
+    });
+  }
 
   function pdfLinhaTabela(rotulo, valor) {
     return '<tr><th>' + esc(rotulo) + '</th><td>' + esc(valor || '—') + '</td></tr>';
@@ -1110,7 +1289,7 @@
   }
   /* Reflete só o que já está gravado no registro — nunca recalcula
      resultado/camada/decisão nem reformula uma justificativa. */
-  function montarSecaoAvaliacaoPdf(it, primeira) {
+  function montarSecaoAvaliacaoPdf(it, primeira, ctx) {
     var html = '<section class="pdf-av' + (primeira ? '' : ' pdf-quebra') + '">';
     var rotuloVersao = it.versao > 1 ? ('Reavaliação — versão ' + it.versao + ' (versões anteriores preservadas)') : 'Avaliação original preservada — versão 1';
     html += '<p class="pdf-versao">' + esc(rotuloVersao) + ' · ' + esc(fmtData(it.criadoEm)) + ' · ' +
@@ -1142,13 +1321,17 @@
     html += '<p class="pdf-meta-versoes">Versão do questionário: ' + esc(it.questionnaireContentVersion || 1) +
       ' · Versão do motor: ' + esc(it.motorVersion || '—') + '</p>';
 
+    /* A ordem é a da ficha (tela): Identificação → O que o sistema concluiu → O que uma pessoa
+       complementou → O que uma pessoa decidiu → Como chegamos até aqui → Respostas e evidências.
+       Resultado automático, curadoria, decisão e histórico nunca se misturam. */
     var rotuloResultadoTxt = rotuloResultado(it.resultadoAutomatico) || '—';
-    html += '<h2 class="pdf-secao-titulo">Resultado sobre Produto/Serviço</h2>';
+    var camada = it.camadaSugerida;
+    html += '<h2 class="pdf-secao-titulo">O que o sistema concluiu</h2>';
+    html += '<h3 class="pdf-subsecao">Resultado sobre Produto/Serviço</h3>';
     html += '<p class="pdf-resultado pdf-resultado--' + esc(it.resultadoAutomatico || 'a-validar') + '">' +
       esc(rotuloResultadoTxt) + '</p>';
 
-    var camada = it.camadaSugerida;
-    html += '<h2 class="pdf-secao-titulo">Classificação arquitetural</h2>';
+    html += '<h3 class="pdf-subsecao">Classificação arquitetural</h3>';
     html += '<p>' + esc(camada && camada.label || '—') + '</p>';
     /* Derivada do questionário/motor: fica na Classificação, à parte — não é curadoria. */
     var espDerivada = especializacaoDerivada(it);
@@ -1161,47 +1344,36 @@
     }
 
     if (camada && camada.relacao) {
-      html += '<h2 class="pdf-secao-titulo">Relação arquitetural</h2>';
+      html += '<h3 class="pdf-subsecao">Relação arquitetural</h3>';
       html += '<p>' + esc(camada.relacao) + '</p>';
     }
 
-    html += '<h2 class="pdf-secao-titulo">Justificativa da classificação</h2>';
+    html += '<h3 class="pdf-subsecao">Justificativa da classificação</h3>';
     html += '<p>' + esc(it.justificativaAutomatica || '—') + '</p>';
 
-    html += '<h2 class="pdf-secao-titulo">Como chegamos a essa conclusão</h2>';
-    html += '<h3 class="pdf-subsecao">Critérios principais — perguntas 1 a ' + CRITERIOS.length + '</h3>';
-    CRITERIOS.forEach(function (c) { html += pdfPergunta(c, it.respostas[c.id], it); });
-    html += '<h3 class="pdf-subsecao">Testes de classificação — perguntas ' + (CRITERIOS.length + 1) + ' a ' + TODAS_PERGUNTAS.length + '</h3>';
-    EXCLUSOES.forEach(function (e) { html += pdfPergunta(e, it.respostas[e.id], it); });
-
     /* pdf-decisao-bloco (page-break-inside:avoid) — mesma proteção já usada
-       em pdf-pergunta-bloco: sem envolver título+tabela num único bloco
-       indivisível, html2pdf.js podia "prender" só o título à primeira linha
-       (page-break-after:avoid no h2 é uma regra fraca, glue de dois
-       elementos, não do bloco inteiro) e cortar as linhas seguintes da
-       tabela na borda da página sem empurrar o resto pra uma página nova —
-       confirmado renderizando o PDF de verdade (pixels, via pdf.js), não só
-       inspecionando o HTML fonte antes de virar canvas/imagem, que sempre
-       parecia completo mesmo quando o resultado final saía cortado. */
-    /* Sequência (igual à da tela): Recomendação do sistema → Classificação
-       arquitetural (seção acima) → Curadoria arquitetural → Decisão final.
-       Só aparece o que tem valor real — nunca placeholder. */
+       em pdf-pergunta-bloco: sem envolver a tabela num único bloco
+       indivisível, html2pdf.js podia cortar as linhas da tabela na borda da
+       página sem empurrar o resto pra uma página nova — confirmado
+       renderizando o PDF de verdade (pixels, via pdf.js), não só inspecionando
+       o HTML fonte antes de virar canvas/imagem. */
+    html += '<h2 class="pdf-secao-titulo">O que uma pessoa complementou</h2>';
     var curReg = curadoriaRegistrada(it);
     var curEsp = curReg.especializacao, curPapel = curReg.papelEstrutural, curNat = rotuloNaturezaDoItem(it);
     if (curEsp || curPapel || curNat) {
-      html += '<div class="pdf-decisao-bloco">';
-      html += '<h2 class="pdf-secao-titulo">Curadoria arquitetural</h2>';
-      html += '<table class="pdf-tabela-id">';
+      html += '<div class="pdf-decisao-bloco"><table class="pdf-tabela-id">';
       if (curEsp) html += pdfLinhaTabela('Especialização', curEsp);
       if (curPapel) html += pdfLinhaTabela('Papel estrutural', curPapel);
       if (curNat) html += pdfLinhaTabela('Natureza complementar', curNat);
       html += '</table></div>';
+    } else {
+      html += '<p>Nenhuma informação de curadoria registrada nesta versão.</p>';
     }
-    html += '<div class="pdf-decisao-bloco">';
-    html += '<h2 class="pdf-secao-titulo">Decisão final</h2>';
-    html += '<table class="pdf-tabela-id">';
+    notasCuradoriaAnterior(it).forEach(function (n) { html += '<p class="pdf-nota">' + esc(n) + '</p>'; });
+
+    html += '<h2 class="pdf-secao-titulo">O que uma pessoa decidiu</h2>';
+    html += '<div class="pdf-decisao-bloco"><table class="pdf-tabela-id">';
     html += pdfLinhaTabela('Recomendação do sistema', rotuloResultadoTxt);
-    html += pdfLinhaTabela('Classificação arquitetural', camada && camada.label);
     html += pdfLinhaTabela('Decisão final', rotuloDecisaoFinal(it));
     html += pdfLinhaTabela('Forma da decisão', formaDaDecisao(it));
     if (it.decisaoManual) {
@@ -1209,7 +1381,45 @@
       html += pdfLinhaTabela('Responsável pela decisão', it.alteradoPor && it.alteradoPor.name);
       html += pdfLinhaTabela('Data e hora da decisão', fmtData(it.alteradoEm));
     }
-    html += '</table></div></section>';
+    html += '</table></div>';
+    var todos = (ctx && ctx.todos) || [];
+    var pendente = textoDecisaoPendenteReavaliacao(it, todos);
+    if (pendente) html += '<p class="pdf-nota">' + esc(pendente) + '</p>';
+
+    html += '<h2 class="pdf-secao-titulo">Como chegamos até aqui</h2>';
+    var cadeia = cadeiaDe(it, todos);
+    if (cadeia.length >= 2) {
+      html += '<h3 class="pdf-subsecao">Histórico de versões</h3>';
+      html += '<table class="pdf-tabela-versoes"><thead><tr><th>Versão</th><th>Data</th><th>Responsável</th><th>Decisão final</th><th>Classificação</th><th>O que mudou</th></tr></thead><tbody>';
+      cadeia.forEach(function (v, i) {
+        var r = retratoDaVersao(v);
+        html += '<tr><td>v' + esc(v.versao || 1) + (v._key === it._key ? ' (esta)' : '') + '</td><td>' + esc(fmtData(v.criadoEm)) + '</td><td>' +
+          esc(v.responsavel && (v.responsavel.name || v.responsavel.email) || '—') + '</td><td>' + esc(r.decisao || (v.status === 'concluido' ? '—' : 'Em andamento')) +
+          '</td><td>' + esc(r.classificacao || '—') + '</td><td>' + esc(descreverMudanca(cadeia[i - 1], v)) + '</td></tr>';
+      });
+      html += '</tbody></table>';
+    }
+    html += '<h3 class="pdf-subsecao">Trilha da curadoria e da decisão</h3>';
+    var trilha = ctx && ctx.trilhas && ctx.trilhas[it._key];
+    if (!trilha || !trilha.ok) {
+      html += '<p class="pdf-aviso">Trilha indisponível: não foi possível ler o registro de alterações desta versão agora. ' +
+        'O histórico de versões acima vem dos dados gravados e está completo.</p>';
+    } else if (!trilha.linhas.length) {
+      html += '<p>Nenhuma alteração registrada para esta versão. O registro vale a partir da introdução da auditoria; alterações anteriores não foram registradas.</p>';
+    } else {
+      trilha.linhas.slice().reverse().forEach(function (e) {
+        var d = descreverLinhaAuditoria(e);
+        html += '<div class="pdf-trilha-item"><strong>' + esc(d.titulo) + '</strong>: ' + esc(d.valores) +
+          '<br><span>' + esc(d.origem) + ' em ' + esc(fmtData(e.dataHora)) + (d.detalhe ? esc(' · ' + d.detalhe) : '') + '</span></div>';
+      });
+    }
+
+    html += '<h2 class="pdf-secao-titulo">Respostas e evidências</h2>';
+    html += '<h3 class="pdf-subsecao">Critérios principais — perguntas 1 a ' + CRITERIOS.length + '</h3>';
+    CRITERIOS.forEach(function (c) { html += pdfPergunta(c, it.respostas[c.id], it); });
+    html += '<h3 class="pdf-subsecao">Testes de classificação — perguntas ' + (CRITERIOS.length + 1) + ' a ' + TODAS_PERGUNTAS.length + '</h3>';
+    EXCLUSOES.forEach(function (e) { html += pdfPergunta(e, it.respostas[e.id], it); });
+    html += '</section>';
     return html;
   }
   /* Documento PDF de UM bloco: o <style> + (opcionalmente) o cabeçalho do
@@ -1220,9 +1430,9 @@
   /* "Átomos" de uma avaliação: os filhos diretos da <section>, com cada título
      (h2/h3) colado ao elemento que vem depois dele — nunca separar um título do
      seu conteúdo na fronteira entre dois blocos. */
-  function atomosDaAvaliacao(it) {
+  function atomosDaAvaliacao(it, ctx) {
     var tmp = document.createElement('div');
-    tmp.innerHTML = montarSecaoAvaliacaoPdf(it, true);
+    tmp.innerHTML = montarSecaoAvaliacaoPdf(it, true, ctx);
     var secao = tmp.firstElementChild;
     var atomos = [];
     var titulos = '';
@@ -1246,8 +1456,8 @@
      portanto, uma página nova), e uma avaliação longa continua em novos blocos
      quando passar da altura máxima. `medidor` é um contêiner já no DOM, com a
      largura real do documento. */
-  function planejarBlocosPdf(itens, medidor) {
-    return planejarBlocosDeAtomos(itens.map(atomosDaAvaliacao), medidor, function (html) {
+  function planejarBlocosPdf(itens, medidor, ctx) {
+    return planejarBlocosDeAtomos(itens.map(function (it) { return atomosDaAvaliacao(it, ctx); }), medidor, function (html) {
       return envolverBlocoPdf('<section class="pdf-av">' + html + '</section>', false);
     });
   }
@@ -1303,12 +1513,17 @@
      recortar exatamente a partir da origem do próprio container. Por isso a
      geração de PDF não pode depender de posição de rolagem da tela — e, com
      esses valores fixos, não depende mesmo. */
-  function gerarPdf(itens, nomeArquivo, cbFim) {
-    gerarPdfPorBlocos({
-      nomeArquivo: nomeArquivo,
-      planejar: function (medidor) { return planejarBlocosPdf(itens, medidor); },
-      envolver: function (htmlBloco, indice) { return envolverBlocoPdf('<section class="pdf-av">' + htmlBloco + '</section>', indice === 0); }
-    }, cbFim);
+  function gerarPdf(itens, nomeArquivo, cbFim, todosOsItens) {
+    /* A trilha (quem/quando/anterior → novo) vem da auditoria: uma leitura extra, com limite de espera;
+       se falhar ou demorar, o PDF sai igual e marca "Trilha indisponível". */
+    lerTrilhas(itens.map(function (it) { return it._key; }), function (trilhas) {
+      var ctx = { todos: todosOsItens || itens, trilhas: trilhas };
+      gerarPdfPorBlocos({
+        nomeArquivo: nomeArquivo,
+        planejar: function (medidor) { return planejarBlocosPdf(itens, medidor, ctx); },
+        envolver: function (htmlBloco, indice) { return envolverBlocoPdf('<section class="pdf-av">' + htmlBloco + '</section>', indice === 0); }
+      }, cbFim);
+    });
   }
   /* cfg = { nomeArquivo, planejar(medidor) → [htmlDeCadaBloco], envolver(htmlBloco, indice) → documento }.
      É o MESMO motor de blocos do PDF consolidado (altura limitada por canvas,
@@ -1447,12 +1662,13 @@
   var EXCEL_COLS_RESUMO = [
     { largura: 26, rotulo: 'ID da avaliação' }, { largura: 30, rotulo: 'Nome do item' },
     { largura: 34, rotulo: 'Descrição' }, { largura: 22, rotulo: 'Público/cliente' },
-    { largura: 30, rotulo: 'Necessidade' }, { largura: 20, rotulo: 'Responsável' },
-    { largura: 16, rotulo: 'Data' }, { largura: 12, rotulo: 'Status' }, { largura: 8, rotulo: 'Versão' },
+    { largura: 30, rotulo: 'Necessidade' }, { largura: 24, rotulo: 'Responsável pela avaliação' },
+    { largura: 18, rotulo: 'Data da avaliação' }, { largura: 12, rotulo: 'Status' }, { largura: 8, rotulo: 'Versão' },
+    { largura: 18, rotulo: 'Versão do motor' },
     { largura: 22, rotulo: 'Recomendação do sistema' }, { largura: 28, rotulo: 'Classificação arquitetural' },
     { largura: 40, rotulo: 'Relação arquitetural' }, { largura: 30, rotulo: 'Especialização identificada pelo questionário' },
     { largura: 26, rotulo: 'Especialização' }, { largura: 16, rotulo: 'Papel estrutural' },
-    { largura: 30, rotulo: 'Natureza complementar' },
+    { largura: 30, rotulo: 'Natureza complementar' }, { largura: 30, rotulo: 'Situação da curadoria' },
     { largura: 20, rotulo: 'Decisão final' }, { largura: 34, rotulo: 'Forma da decisão' },
     { largura: 20, rotulo: 'Responsável pela decisão' }, { largura: 16, rotulo: 'Data da decisão' },
     { largura: 40, rotulo: 'Justificativa da decisão manual' }
@@ -1463,10 +1679,11 @@
     return [
       it._key, it.nome || '', it.descricao || '', it.publico || '', it.necessidade || '',
       (it.responsavel && it.responsavel.name) || '', it.criadoEm ? new Date(it.criadoEm) : '',
-      concluido ? 'Concluído' : 'Rascunho', it.versao || 1,
+      concluido ? 'Concluído' : 'Rascunho', it.versao || 1, concluido ? (it.motorVersion || '') : '',
       concluido ? rotuloResultado(it.resultadoAutomatico) : '',
       (camada && camada.label) || '', (camada && camada.relacao) || '',
       especializacaoDerivada(it), curadoriaRegistrada(it).especializacao, curadoriaRegistrada(it).papelEstrutural, rotuloNaturezaDoItem(it),
+      situacaoCuradoria(it),
       concluido ? rotuloDecisaoFinal(it) : '',
       concluido ? formaDaDecisao(it) : '',
       it.decisaoManual ? ((it.alteradoPor && it.alteradoPor.name) || '') : '',
@@ -1498,16 +1715,18 @@
     return linhas;
   }
   var EXCEL_COLS_HISTORICO = [
-    { largura: 26 }, { largura: 26 }, { largura: 8 }, { largura: 16 }, { largura: 20 },
-    { largura: 20 }, { largura: 28 }, { largura: 20 }, { largura: 40 }
+    { largura: 26 }, { largura: 26 }, { largura: 8 }, { largura: 18 }, { largura: 24 },
+    { largura: 22 }, { largura: 22 }, { largura: 28 }, { largura: 28 }, { largura: 22 }, { largura: 22 },
+    { largura: 30 }, { largura: 30 }, { largura: 60 }, { largura: 40 }
   ];
-  var EXCEL_HEAD_HISTORICO = ['ID do item', 'ID da avaliação', 'Versão', 'Data', 'Responsável',
-    'Recomendação do sistema', 'Classificação arquitetural', 'Decisão final', 'Justificativa de divergência'];
+  var EXCEL_HEAD_HISTORICO = ['ID do item', 'ID da avaliação', 'Versão', 'Data da avaliação', 'Responsável pela avaliação',
+    'Resultado anterior', 'Resultado atual', 'Classificação anterior', 'Classificação atual', 'Decisão anterior', 'Decisão atual',
+    'Forma anterior', 'Forma atual', 'Resumo da mudança', 'Justificativa de divergência'];
   /* Uma linha por versão de cada item incluído no export, mesmo quando essa
      versão já foi superada por uma reavaliação — é exatamente disso que o
      histórico trata. Nunca inventa uma versão anterior que não existe: se o
      item nunca foi reavaliado, aparece só a linha da própria versão 1. */
-  function linhasHistoricoExcel(itensExportados, todosOsItens) {
+  function versoesDoHistorico(itensExportados, todosOsItens) {
     var idsIncluidos = {};
     itensExportados.forEach(function (it) { idsIncluidos[it.itemId || it._key] = true; });
     return todosOsItens.filter(function (it) { return !it.excluido && idsIncluidos[it.itemId || it._key]; })
@@ -1515,17 +1734,46 @@
         var idA = x.itemId || x._key, idB = y.itemId || y._key;
         if (idA !== idB) return idA < idB ? -1 : 1;
         return (x.versao || 1) - (y.versao || 1);
-      })
-      .map(function (it) {
-        return [
-          it.itemId || it._key, it._key, it.versao || 1, it.criadoEm ? new Date(it.criadoEm) : '',
-          (it.responsavel && it.responsavel.name) || '',
-          it.status === 'concluido' ? rotuloResultado(it.resultadoAutomatico) : '',
-          (it.camadaSugerida && it.camadaSugerida.label) || '',
-          it.status === 'concluido' ? rotuloDecisaoFinal(it) : '',
-          it.decisaoManual ? (it.justificativaDecisao || '') : ''
-        ];
       });
+  }
+  function linhasHistoricoExcel(itensExportados, todosOsItens) {
+    return versoesDoHistorico(itensExportados, todosOsItens).map(function (it) {
+      var ant = it.versaoAnteriorKey ? todosOsItens.filter(function (o) { return o._key === it.versaoAnteriorKey; })[0] : null;
+      var a = ant ? retratoDaVersao(ant) : { resultado: '', classificacao: '', decisao: '', forma: '' };
+      var b = retratoDaVersao(it);
+      return [
+        it.itemId || it._key, it._key, it.versao || 1, it.criadoEm ? new Date(it.criadoEm) : '',
+        (it.responsavel && it.responsavel.name) || '',
+        a.resultado, b.resultado, a.classificacao, b.classificacao, a.decisao, b.decisao, a.forma, b.forma,
+        descreverMudanca(ant, it),
+        it.decisaoManual ? (it.justificativaDecisao || '') : ''
+      ];
+    });
+  }
+  var EXCEL_COLS_TRILHA = [
+    { largura: 26 }, { largura: 26 }, { largura: 8 }, { largura: 18 }, { largura: 28 },
+    { largura: 36 }, { largura: 36 }, { largura: 22 }, { largura: 56 }, { largura: 50 }
+  ];
+  var EXCEL_HEAD_TRILHA = ['ID do item', 'ID da avaliação', 'Versão', 'Data e hora', 'Alteração',
+    'Valor anterior', 'Valor novo', 'Quem', 'Origem', 'Detalhe'];
+  /* Uma linha por alteração registrada nas duas auditorias. Versão cuja leitura falhou ou demorou
+     ganha UMA linha "Trilha indisponível" — nunca some como se não tivesse alteração. */
+  function linhasTrilhaExcel(itensExportados, todosOsItens, trilhas) {
+    var linhas = [];
+    versoesDoHistorico(itensExportados, todosOsItens).forEach(function (it) {
+      var id = it.itemId || it._key, v = it.versao || 1;
+      var t = trilhas && trilhas[it._key];
+      if (!t || !t.ok) {
+        linhas.push([id, it._key, v, '', 'Trilha indisponível', '', '', '', '',
+          'Não foi possível ler o registro de alterações desta versão. O histórico de versões segue completo.']);
+        return;
+      }
+      t.linhas.forEach(function (e) {
+        var d = descreverLinhaAuditoria(e);
+        linhas.push([id, it._key, v, e.dataHora ? new Date(e.dataHora) : '', d.titulo, d.anterior, d.novo, d.quem, d.origem, d.detalhe]);
+      });
+    });
+    return linhas;
   }
   function planilhaComColunas(XLSXLib, cabecalho, linhas, colunas) {
     var ws = XLSXLib.utils.aoa_to_sheet([cabecalho].concat(linhas));
@@ -1537,7 +1785,7 @@
   /* cbFim(erro|null). itensExportados é o conjunto respeitando o filtro/
      seleção escolhida na tela; todosOsItens é state.itens completo, usado
      só para montar o histórico de versões desses mesmos itens. */
-  function gerarExcel(itensExportados, todosOsItens, nomeArquivo, cbFim) {
+  function gerarExcel(itensExportados, todosOsItens, nomeArquivo, cbFim, trilhas) {
     carregarScript('forca-agil/xlsx.mini.min.js', function () { return !!window.XLSX; }, function (erroCarga) {
       if (erroCarga) { cbFim(erroCarga); return; }
       try {
@@ -1555,6 +1803,10 @@
         var wsHistorico = planilhaComColunas(XLSXLib, EXCEL_HEAD_HISTORICO,
           linhasHistoricoExcel(itensExportados, todosOsItens), EXCEL_COLS_HISTORICO);
         XLSXLib.utils.book_append_sheet(wb, wsHistorico, 'Histórico');
+
+        var wsTrilha = planilhaComColunas(XLSXLib, EXCEL_HEAD_TRILHA,
+          linhasTrilhaExcel(itensExportados, todosOsItens, trilhas), EXCEL_COLS_TRILHA);
+        XLSXLib.utils.book_append_sheet(wb, wsTrilha, 'Trilha');
 
         XLSXLib.writeFile(wb, nomeArquivo, { cellDates: true });
         cbFim(null);
@@ -2464,13 +2716,16 @@
       state.menuExportarAberto = false;
       state.flashExportacao = null;
       render();
-      gerarExcel(itensParaExportar, state.itens, nomeArquivoExcel(sufixo), function (erro) {
-        state.exportando = null;
-        state.flashExportacao = erro
-          ? { erro: true, texto: 'Não foi possível gerar o arquivo. Tente novamente.' }
-          : { erro: false, texto: 'Arquivo gerado com sucesso.' };
-        if (erro) console.error('[avaliacao-produto] erro ao gerar Excel:', erro);
-        render();
+      var todos = state.itens;
+      lerTrilhas(versoesDoHistorico(itensParaExportar, todos).map(function (it) { return it._key; }), function (trilhas) {
+        gerarExcel(itensParaExportar, todos, nomeArquivoExcel(sufixo), function (erro) {
+          state.exportando = null;
+          state.flashExportacao = erro
+            ? { erro: true, texto: 'Não foi possível gerar o arquivo. Tente novamente.' }
+            : { erro: false, texto: 'Arquivo gerado com sucesso.' };
+          if (erro) console.error('[avaliacao-produto] erro ao gerar Excel:', erro);
+          render();
+        }, trilhas);
       });
     }
     function executarExportacaoPdfLista(itensSelecionados, escopo) {
@@ -2488,7 +2743,7 @@
           : { erro: false, texto: 'Arquivo gerado com sucesso.' };
         if (erro) console.error('[avaliacao-produto] erro ao gerar PDF da lista:', erro);
         render();
-      });
+      }, state.itens);
     }
 
     function filtroSelect(id, valorAtual, opcoes, rotulo) {
@@ -2533,25 +2788,7 @@
     /* Todas as versões do MESMO item, da mais antiga para a mais nova: anda para
        trás por versaoAnteriorKey e para a frente pelas reavaliações que apontam
        para a versão atual da cadeia. Nunca agrupa por nome. */
-    function cadeiaDeVersoes(a) {
-      var cadeia = [];
-      var visto = {};
-      var atras = buscarItem(a._key) || a;
-      while (atras && !visto[atras._key] && cadeia.length < 60) {
-        visto[atras._key] = true;
-        cadeia.unshift(atras);
-        atras = atras.versaoAnteriorKey ? buscarItem(atras.versaoAnteriorKey) : null;
-      }
-      var frente = cadeia[cadeia.length - 1];
-      for (var guarda = 0; frente && guarda < 60; guarda++) {
-        var proxima = state.itens.filter(function (o) { return o.versaoAnteriorKey === frente._key && !visto[o._key]; })[0];
-        if (!proxima) break;
-        visto[proxima._key] = true;
-        cadeia.push(proxima);
-        frente = proxima;
-      }
-      return cadeia;
-    }
+    function cadeiaDeVersoes(a) { return cadeiaDe(a, state.itens); }
     function temVersaoMaisNova(key) {
       return state.itens.some(function (o) { return o.versaoAnteriorKey === key; });
     }
@@ -4785,13 +5022,8 @@
     /* Versão criada por reavaliação que ainda não teve decisão registrada: diz o que vale
        (a recomendação do sistema) e onde ficou a decisão manual anterior. */
     function avisoDecisaoPendenteReavaliacao(a) {
-      if (!a.versaoAnteriorKey || a.decisaoConfirmada || a.decisaoManual) return '';
-      var ant = buscarItem(a.versaoAnteriorKey);
-      var vAnt = (ant && ant.versao) || ((a.versao || 2) - 1);
-      var txt = 'Esta versão (v' + (a.versao || vAnt + 1) + ') foi criada por reavaliação e ainda não tem decisão arquitetural registrada: ' +
-        'vale a recomendação do sistema até alguém decidir.';
-      if (ant && ant.decisaoManual) txt += ' A decisão manual da v' + vAnt + ' continua preservada na v' + vAnt + ' e não foi herdada.';
-      return '<p class="avp-decisao-aviso" id="avpDecisaoPendenteReav">' + esc(txt) + '</p>';
+      var txt = textoDecisaoPendenteReavaliacao(a, state.itens);
+      return txt ? '<p class="avp-decisao-aviso" id="avpDecisaoPendenteReav">' + esc(txt) + '</p>' : '';
     }
 
     /* ===================== RESULTADO ===================== */
@@ -4840,11 +5072,7 @@
         html += '<p class="avp-export-status' + (state.flashExportacao.erro ? ' avp-export-status--erro' : '') + '">' + esc(state.flashExportacao.texto) + '</p>';
       }
       /* faixa-resumo: estado VIGENTE, só leitura */
-      var cur = curadoriaRegistrada(a), anterior = curadoriaAnterior(a);
-      var nCur = (cur.especializacao ? 1 : 0) + (cur.papelEstrutural ? 1 : 0) + (cur.natureza ? 1 : 0);
-      var nRev = (anterior.especializacao && anterior.especializacao.situacao === 'a-revisar' ? 1 : 0) + (anterior.papelEstrutural && anterior.papelEstrutural.situacao === 'a-revisar' ? 1 : 0);
-      var txtCur = nCur ? nCur + (nCur === 1 ? ' campo registrado' : ' campos registrados') : 'nenhuma registrada';
-      if (nRev) txtCur += ' · ' + nRev + ' para revisar';
+      var txtCur = resumoCuradoria(a);
       html += '<dl class="avp-resumo-ficha" id="avpResumoFicha" aria-label="Resumo do estado vigente">';
       html += '<div><dt>Resultado</dt><dd>' + esc(rotuloResultado(a.resultadoAutomatico) || '—') + '</dd></div>';
       html += '<div><dt>Classificação</dt><dd>' + esc((a.camadaSugerida && a.camadaSugerida.label) || '—') + '</dd></div>';
@@ -5111,7 +5339,7 @@
             : { erro: false, texto: 'Arquivo gerado com sucesso.' };
           if (erro) console.error('[avaliacao-produto] erro ao gerar PDF:', erro);
           render();
-        });
+        }, state.itens);
       });
 
       var reavaliarBtn = document.getElementById('avpReavaliarBtn');
@@ -5307,23 +5535,6 @@
        (curadoria-auditoria e a da natureza), junta e ordena. Só vale a partir
        da introdução da auditoria — nada anterior é reconstruído. A leitura é
        informativa e nunca trava a tela (rede lenta: "Carregando…"). */
-    function rotuloValorAuditoria(tipo, v) {
-      if (v === null || v === undefined || v === '') return '—';
-      if (tipo === 'alteracao_decisao_final') {
-        if (v.pendente) return 'ainda sem decisão — a versão começa pela recomendação do sistema';
-        var t = rotuloResultado(v.decisaoFinal) || '—';
-        return t + (v.decisaoManual ? ' (manual)' : (v.confirmada ? ' (recomendação aceita)' : ''));
-      }
-      if (tipo === 'alteracao_natureza_complementar') return v.nome || '—';
-      if (tipo === 'alteracao_papel_estrutural') return v === 'essencial' ? 'Essencial' : (v === 'opcional' ? 'Opcional' : String(v));
-      return String(v);
-    }
-    var ROTULO_TIPO_AUDITORIA = {
-      alteracao_especializacao: 'Especialização',
-      alteracao_papel_estrutural: 'Papel estrutural',
-      alteracao_natureza_complementar: 'Natureza complementar',
-      alteracao_decisao_final: 'Decisão final'
-    };
     /* `daDecisao` true → só as linhas da Decisão final; false → só as da Curadoria (especialização, papel, natureza). */
     function linhasHistoricoCuradoria(daDecisao) {
       var h = state.curadoriaHist;
@@ -5333,28 +5544,9 @@
       var itens = h.itens.filter(function (e) { return (e.tipo === 'alteracao_decisao_final') === !!daDecisao; });
       if (!itens.length) return '<p class="avp-natureza-ajuda">Nenhuma alteração registrada ainda. O histórico vale a partir desta funcionalidade; alterações anteriores não foram registradas.</p>';
       return itens.map(function (e) {
-        var j = e.justificativa ? ' · Justificativa: "' + esc(e.justificativa) + '"' : '';
-        var quem = esc(e.usuario && (e.usuario.name || e.usuario.email) || '—');
-        /* Reprocessamento automático NÃO é decisão de uma pessoa: a origem, o motor que
-           provocou a mudança e quem DISPAROU o reprocessamento aparecem explícitos. */
-        var origem = e.reavaliacao
-          ? 'Nova versão criada por reavaliação da v' + esc(e.reavaliacao.deVersao || '—') + ' (v' + esc(e.reavaliacao.paraVersao || '—') + ') por ' + quem
-          : e.origem === 'reprocessamento-automatico'
-          ? 'Reprocessamento automático' + (e.reprocessamento === 'lote' ? ' em lote' : '') + ' — motor ' + esc(e.motorVersion || '—') +
-            (e.motorVersionArquitetura ? ' (regras v' + esc(e.motorVersionArquitetura) + ')' : '') + ' · disparado por ' + quem
-          : 'por ' + quem;
-        var camadaTxt = e.camada && e.camada.label ? esc(e.camada.label) : '';
-        if (e.confirmacao) j += ' · confirmada para a classificação “' + camadaTxt + '”';
-        else if (e.valorSemEfeitoSubstituido) j += ' · substituiu o valor anterior sem efeito “' + esc(e.valorSemEfeitoSubstituido) + '”';
-        /* Confirmação NÃO é alteração de texto: o valor é o mesmo, só passou a valer para a classificação
-           atual. O histórico diz "confirmada", sem a seta anterior → novo (que sugeriria uma mudança). */
-        var titulo = e.confirmacao && e.tipo === 'alteracao_especializacao' ? 'Especialização confirmada'
-          : e.confirmacao && e.tipo === 'alteracao_papel_estrutural' ? 'Papel estrutural confirmado'
-          : (ROTULO_TIPO_AUDITORIA[e.tipo] || e.tipo);
-        var valores = e.confirmacao ? esc(rotuloValorAuditoria(e.tipo, e.valorNovo))
-          : esc(rotuloValorAuditoria(e.tipo, e.valorAnterior)) + ' → ' + esc(rotuloValorAuditoria(e.tipo, e.valorNovo));
-        return '<div class="avp-aut-hist"><strong>' + esc(titulo) + '</strong>: ' + valores +
-          '<br><span class="avp-usuario-aviso">' + origem + ' em ' + esc(fmtData(e.dataHora)) + j + '</span></div>';
+        var d = descreverLinhaAuditoria(e);
+        return '<div class="avp-aut-hist"><strong>' + esc(d.titulo) + '</strong>: ' + esc(d.valores) +
+          '<br><span class="avp-usuario-aviso">' + esc(d.origem) + ' em ' + esc(fmtData(e.dataHora)) + (d.detalhe ? esc(' · ' + d.detalhe) : '') + '</span></div>';
       }).join('');
     }
     /* Históricos da seção "Como chegamos até aqui": o da CURADORIA (especialização, papel, natureza) e o da
