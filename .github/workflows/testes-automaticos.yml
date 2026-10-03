@@ -75,6 +75,16 @@ jobs:
           FA_BASE_URL: http://127.0.0.1:8811
         run: node .github/scripts/teste-curadoria-decisao-coerencia.js
 
+      # Estrutura da ficha: o sistema concluiu → uma pessoa complementou (Curadoria) → uma pessoa
+      # decidiu (Decisão final) → como chegamos até aqui (históricos, questionário). Reavaliar e
+      # GERAR PDF no cabeçalho, faixa-resumo, Forma da decisão sem Curadoria, justificativa
+      # automática sem valor cadastrado, rótulos dos Salvar, históricos fora da Curadoria.
+      - name: "Avaliação: estrutura da ficha — seções, ações do item e rótulos (desktop e celular)"
+        env:
+          NODE_PATH: /tmp/pw-deps/node_modules
+          FA_BASE_URL: http://127.0.0.1:8811
+        run: node .github/scripts/teste-ficha-estrutura.js
+
       # Curadoria anterior sem efeito / disponível para revisão: cadastro de Especialização e
       # Papel que a camada atual não admite fica preservado e fora da curadoria vigente; se a
       # camada voltar a admitir, só volta a valer depois de confirmação humana (com auditoria);

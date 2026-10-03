@@ -251,20 +251,20 @@ const auditoriaCur = async (page, key) => Object.values(((await banco(page))['cu
     aud = (await auditoriaCur(page, 'comp')).filter((x) => x.tipo === 'alteracao_decisao_final');
     afirma(aud.length === 1 && aud[0].valorAnterior.decisaoFinal === rc.resultadoAutomatico && aud[0].valorAnterior.decisaoManual === false && aud[0].valorNovo.decisaoFinal === 'produto' && aud[0].valorNovo.decisaoManual === true && aud[0].justificativa === 'Concordo que é produto.' && aud[0].usuario.email === EMAIL,
       'histórico: decisão anterior, nova, justificativa, usuário');
-    afirma(/Decisão alterada manualmente/.test(await page.locator('#avpDecisaoResumo').innerText()), 'Forma da decisão: "Decisão alterada manualmente"');
+    afirma(/Forma da decisão\s*Decisão manual/.test(await page.locator('#avpDecisaoResumo').innerText()), 'Forma da decisão: "Decisão manual"');
     await page.locator('input[name="avpDecisao"][value="auto"]').check();
     await page.click('#avpSalvarDecisaoBtn');
     await page.waitForFunction(() => { const r = window.__CFG.__dbReal['avaliacoes-produto'].comp; return r.decisaoManual === false; }, { timeout: 8000 }).catch(() => {});
     aud = (await auditoriaCur(page, 'comp')).filter((x) => x.tipo === 'alteracao_decisao_final');
     afirma(aud.length === 2 && aud[1].valorAnterior.decisaoManual === true && aud[1].valorAnterior.decisaoFinal === 'produto' && aud[1].valorNovo.decisaoManual === false, 'voltar a aceitar a recomendação grava outra linha (anterior = manual, novo = aceita)');
-    afirma(/Recomendação aceita com complementações arquiteturais/.test(await page.locator('#avpDecisaoResumo').innerText()), 'Forma da decisão: com curadoria preenchida e recomendação aceita → "Recomendação aceita com complementações arquiteturais"');
+    afirma(/Forma da decisão\s*Recomendação do sistema aceita\s*$/.test((await page.locator('#avpDecisaoResumo').innerText()).trim()), 'Forma da decisão: com curadoria preenchida e recomendação aceita → só "Recomendação do sistema aceita" (a Curadoria não entra na Forma)');
 
     console.log('\n== PDF: mesma sequência e mesmos rótulos ==');
     const pdf2 = await gerarPdf(page);
     const i1 = pdf2.indexOf('Classificação arquitetural'), i2 = pdf2.indexOf('Curadoria arquitetural'), i3 = pdf2.indexOf('Decisão final');
     afirma(i1 !== -1 && i1 < i2 && i2 < i3, 'PDF: Classificação arquitetural → Curadoria arquitetural → Decisão final');
     afirma(/Curadoria arquitetural Especialização Instituto previdenciário Papel estrutural Opcional/.test(pdf2), 'PDF: a Curadoria traz Especialização e Papel estrutural reais');
-    afirma(/Recomendação do sistema/.test(pdf2) && /Forma da decisão Recomendação aceita com complementações arquiteturais/.test(pdf2), 'PDF: Recomendação do sistema e Forma da decisão derivada');
+    afirma(/Recomendação do sistema/.test(pdf2) && /Forma da decisão Recomendação do sistema aceita(?! com)/.test(pdf2), 'PDF: Recomendação do sistema e Forma da decisão (sem citar Curadoria)');
     afirma(/Avaliação original preservada — versão 1/.test(pdf2) && !/Documento revisado/.test(pdf2), 'PDF: cabeçalho "Avaliação original preservada — versão 1" (sem "Documento revisado")');
     afirma(!/Classificação arquitetural sugerida|Classificação sugerida|Decisão arquitetural\b/.test(pdf2), 'PDF: nomes antigos não existem mais');
     afirma(erros.length === 0, 'nenhum erro de JS (' + erros.length + ')');
@@ -314,8 +314,8 @@ const auditoriaCur = async (page, key) => Object.values(((await banco(page))['cu
     afirma(l4.length === 1 && l4[0].origem === 'reprocessamento-automatico' && l4[0].reprocessamento === 'individual', 'individual: uma linha na trilha, origem "reprocessamento-automatico"');
     afirma(l4[0].valorAnterior.decisaoFinal === 'a-validar' && l4[0].valorNovo.decisaoFinal === 'nao-produto' && l4[0].valorNovo.decisaoManual === false, 'individual: valor anterior (A validar) → novo (Não é Produto/Serviço), não manual');
     afirma(l4[0].motorVersion === MOTOR_VERSION && l4[0].motorVersionAnterior === '2026.08.01-1' && !!l4[0].motorVersionArquitetura && l4[0].usuario.email === EMAIL && !isNaN(Date.parse(l4[0].dataHora)), 'individual: versão do motor (nova e anterior), usuário que disparou e data/hora');
-    await page.locator('#avpCuradoriaHistoricoDet summary').click();
-    const th = await page.locator('#avpCuradoriaHistorico').innerText();
+    await page.locator('#avpDecisaoHistoricoDet summary').click();
+    const th = await page.locator('#avpDecisaoHistorico').innerText();
     afirma(/Reprocessamento automático/.test(th) && /motor/.test(th) && /disparado por/.test(th) && /A validar → Não é Produto\/Serviço principal/.test(th), 'a tela mostra "Reprocessamento automático — motor … · disparado por …" (não parece decisão humana)');
     afirma(await larguraOk(page), 'sem rolagem horizontal');
     await voltar(page);

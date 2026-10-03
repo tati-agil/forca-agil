@@ -5,9 +5,11 @@
    ser classificado como Produto/Serviço. Node do Firebase:
    avaliacoes-produto/<key> = {
      nome, descricao, publico, necessidade, observacoesGerais,
-     especializacaoCadastrada: texto livre opcional | null — metadado
-       arquitetural CADASTRADO à parte (nunca inferido das 16 respostas nem
-       de uma pergunta nova, ambas proibidas); quando presente, tem
+     especializacaoCadastrada: texto livre opcional | null — CURADORIA: metadado
+       arquitetural REGISTRADO por uma pessoa à parte (não confundir com a
+       "especialização identificada pelo questionário", que o motor DERIVA
+       sozinho — ex.: Componente com P13 = SIM — e NÃO é curadoria; nenhuma
+       pergunta nova distingue tipos); quando presente e vigente, tem
        precedência sobre a especialização calculada pelo questionário para
        qualquer camada do eixo (ver CAMADAS_COM_ESPECIALIZACAO,
        especializacaoPara) — é assim que "Instituto previdenciário" aparece
@@ -256,16 +258,6 @@
     return null;
   }
   /* Nome a exibir: o da época (snapshot), nunca o do catálogo de hoje. */
-  /* "Forma da decisão" é texto DERIVADO dos campos que já existem — não é campo:
-       decisão alterada à mão                        → "Decisão alterada manualmente";
-       recomendação aceita e há curadoria preenchida → "Recomendação aceita com complementações arquiteturais";
-       recomendação aceita, sem curadoria            → "Recomendação do sistema aceita".
-     "Curadoria preenchida" = existe especialização ou papel estrutural cadastrados,
-     ou natureza complementar. Mesmo texto na tela, no PDF e no Excel. */
-  function temCuradoria(it) {
-    var c = curadoriaRegistrada(it);
-    return !!(c.especializacao || c.papelEstrutural || c.natureza);
-  }
   /* CURADORIA = só o que alguém REGISTROU e que VALE para a classificação atual.
      O que o questionário/motor deriva (ex.: "Opção/configuração de
      personalização" num Componente) é saída do motor, NÃO curadoria: nunca
@@ -356,9 +348,13 @@
     if (curadoriaRegistrada(it).especializacao) return '';
     return valorEspecializacao(it && it.camadaSugerida);
   }
+  /* "Forma da decisão" é texto DERIVADO dos campos que já existem — não é campo — e fala SÓ da decisão:
+       decisão alterada à mão   → "Decisão manual";
+       recomendação aceita      → "Recomendação do sistema aceita".
+     Curadoria e Decisão são dimensões independentes: a existência de curadoria NUNCA entra aqui (ela é
+     exibida no bloco próprio). Mesmo texto na tela, no PDF e no Excel. */
   function formaDaDecisao(it) {
-    if (it.decisaoManual) return 'Decisão alterada manualmente';
-    return temCuradoria(it) ? 'Recomendação aceita com complementações arquiteturais' : 'Recomendação do sistema aceita';
+    return it.decisaoManual ? 'Decisão manual' : 'Recomendação do sistema aceita';
   }
   function rotuloNaturezaDoItem(it) {
     var n = naturezaDoItem(it);
@@ -905,20 +901,16 @@
       return 'O item foi classificado como Produto/Serviço principal porque as respostas confirmam ' + listaComE(camada.motivos) +
         ', sem nenhum sinal de que exerça predominantemente outro papel arquitetural.';
     }
-    /* A especialização só entra na frase corrida quando é uma determinação real
-       (ex.: "Opção/configuração de personalização") — o texto de fallback
-       ("não determinada pelo questionário") já tem seu próprio campo separado
-       na tela (ver renderResultado) e não deve soar como ressalva ou dúvida
-       dentro da justificativa da classificação principal. */
-    var especializacaoReal = !!valorEspecializacao(camada);
-    var especializacaoFrase = especializacaoReal ? ' Especialização: ' + camada.especializacao + '.' : '';
-    /* Mesmo princípio da especialização: só entra na frase corrida quando é
-       uma determinação real (cadastrada, nunca inferida das respostas) —
-       "não determinado" já tem campo próprio na tela e não deve soar como
-       ressalva dentro da justificativa. Só existe para Componente hoje (ver
-       CAMADAS_COM_PAPEL_ESTRUTURAL), então só compõe a frase nessa camada. */
-    var papelEstruturalReal = !!valorPapelEstrutural(camada);
-    var papelEstruturalFrase = papelEstruturalReal ? ' Papel estrutural: ' + camada.papelEstrutural + '.' : '';
+    /* A justificativa AUTOMÁTICA só leva o que o questionário/motor produziu. Especialização e Papel
+       estrutural CADASTRADOS por uma pessoa são curadoria: aparecem só na Curadoria (senão uma explicação
+       do motor passaria a conter dado humano e ficaria desatualizada quando a curadoria mudasse).
+       A especialização que o questionário DERIVA sozinho (ex.: "Opção/configuração de personalização")
+       entra, dita explicitamente como identificada pelo questionário. O texto de fallback
+       ("não determinada pelo questionário") continua fora da frase. */
+    var especializacaoDoQuestionario = valorEspecializacao({ especializacao: identificarCamada(Object.assign({}, atual, {
+      especializacaoCadastrada: null, papelEstruturalCadastrado: null, especializacaoCamadaConfirmada: null, papelEstruturalCamadaConfirmada: null })).especializacao });
+    var especializacaoFrase = especializacaoDoQuestionario ? ' Especialização identificada pelo questionário: ' + especializacaoDoQuestionario + '.' : '';
+    var papelEstruturalFrase = ''; /* o Papel estrutural só vem de cadastro: nunca entra na justificativa automática */
 
     /* Componente tem um texto próprio (3 frases, em vez do template genérico
        "foi classificado como X, e não como Produto/Serviço principal, porque
@@ -1693,6 +1685,7 @@
       flashResultado: null, /* confirmação persistente mostrada no resultado após concluir */
       flashDecisao: null,   /* confirmação persistente mostrada após salvar a decisão arquitetural */
       flashEspecializacao: null, /* confirmação persistente mostrada após salvar a especialização cadastrada */
+      detAbertos: {},       /* <details> recolhíveis da ficha que a pessoa abriu (sobrevivem aos redesenhos) */
       reavAuditadas: {},    /* chaves de reavaliações cuja linha de auditoria "criada por reavaliação" já foi gravada */
       reavaliacaoBase: null, /* fotografia da avaliação anterior, só durante uma reavaliação — usada para
                                 mostrar "resposta alterada" e o resumo de alterações; nunca gravada */
@@ -4641,22 +4634,61 @@
     /* ===================== RESULTADO ===================== */
     /* "Identificação": o que é o item e quem avaliou — dados do cadastro da
        avaliação, nada calculado. Campos vazios não ocupam linha. */
-    function renderIdentificacao(a, vigente) {
+    /* <details> recolhíveis lembram se estavam abertos entre um render e outro (a tela se redesenha a cada clique). */
+    function detAberto(id) { return state.detAbertos && state.detAbertos[id] ? ' open' : ''; }
+    /* CABEÇALHO DO ITEM: qual item (nome), qual versão, quem/quando, as AÇÕES DO ITEM INTEIRO (Reavaliar e
+       GERAR PDF) e uma faixa-resumo curta e só de leitura do estado vigente. A descrição, o público, a
+       necessidade e as observações continuam na ficha, recolhidos em "Dados do item" — para não empurrar o
+       Resultado para baixo. Os blocos abaixo são a fonte detalhada; a faixa não repete justificativa,
+       formulário nem histórico. */
+    function renderCabecalhoFicha(a, vigente) {
       var linhas = [];
       function linha(rotulo, valor) { if (valor) linhas.push('<dt>' + esc(rotulo) + '</dt><dd>' + esc(valor) + '</dd>'); }
       linha('Descrição', (a.descricao || '').trim());
       linha('Público/cliente relacionado', (a.publico || '').trim());
       linha('Necessidade que pretende atender', (a.necessidade || '').trim());
       linha('Observações', (a.observacoesGerais || '').trim());
-      linha('Avaliado por', a.responsavel && (a.responsavel.name || a.responsavel.email) || '');
-      linha('Avaliação iniciada em', a.criadoEm ? fmtData(a.criadoEm) : '');
-      linha('Última atualização', a.atualizadoEm ? fmtData(a.atualizadoEm) : '');
-      var html = '<div class="avp-form-card avp-identificacao-card" id="avpIdentificacao">';
-      html += '<h4>Identificação</h4>';
-      html += '<p class="avp-identificacao-item"><strong>' + esc(a.nome) + '</strong> <span class="avp-tag-versao">v' + (a.versao || 1) + '</span> ' +
-        statusBadge(a.status) + (vigente ? '' : ' <span class="avp-tag-anterior">versão anterior</span>') + '</p>';
-      html += linhas.length ? '<dl class="avp-identificacao-lista">' + linhas.join('') + '</dl>' : '<p class="avp-natureza-ajuda">Nenhum dado de cadastro adicional foi informado.</p>';
+      var meta = [];
+      var quem = a.responsavel && (a.responsavel.name || a.responsavel.email);
+      if (quem) meta.push('Avaliado por ' + quem);
+      if (a.criadoEm) meta.push('iniciada em ' + fmtData(a.criadoEm));
+      if (a.atualizadoEm) meta.push('última atualização ' + fmtData(a.atualizadoEm));
+      var html = '<section class="avp-form-card avp-ficha-cabecalho" id="avpCabecalhoFicha">';
+      html += '<div class="avp-identificacao-card avp-ficha-identificacao" id="avpIdentificacao">';
+      html += '<h3 class="avp-ficha-nome">' + esc(a.nome) + ' <span class="avp-tag-versao">v' + (a.versao || 1) + '</span> ' +
+        statusBadge(a.status) + (vigente ? '' : ' <span class="avp-tag-anterior">versão anterior</span>') + '</h3>';
+      if (meta.length) html += '<p class="avp-ficha-meta">' + esc(meta.join(' · ')) + '</p>';
+      if (linhas.length) {
+        html += '<details class="avp-dados-item" data-det="dados"' + detAberto('dados') + '><summary>Dados do item</summary>' +
+          '<dl class="avp-identificacao-lista">' + linhas.join('') + '</dl></details>';
+      }
       html += '</div>';
+      html += '<div class="avp-ficha-acoes" id="avpAcoesFicha">';
+      if (pode() && vigente) html += '<button class="btn btn--sm" id="avpReavaliarBtn">Reavaliar</button>';
+      if (pode()) {
+        html += '<button class="btn btn--sm" id="avpGerarPdfBtn"' + (state.exportando ? ' disabled' : '') + '>' +
+          (state.exportando === 'pdf' ? 'Gerando arquivo…' : '📄 GERAR PDF') + '</button>';
+      }
+      if (pode() && vigente) {
+        html += '<p class="avp-reavaliar-texto">Reavaliar cria a versão v' + ((a.versao || 1) + 1) + '; esta avaliação continua guardada, sem alteração.</p>';
+      }
+      html += '</div>';
+      if (state.flashExportacao) {
+        html += '<p class="avp-export-status' + (state.flashExportacao.erro ? ' avp-export-status--erro' : '') + '">' + esc(state.flashExportacao.texto) + '</p>';
+      }
+      /* faixa-resumo: estado VIGENTE, só leitura */
+      var cur = curadoriaRegistrada(a), anterior = curadoriaAnterior(a);
+      var nCur = (cur.especializacao ? 1 : 0) + (cur.papelEstrutural ? 1 : 0) + (cur.natureza ? 1 : 0);
+      var nRev = (anterior.especializacao && anterior.especializacao.situacao === 'a-revisar' ? 1 : 0) + (anterior.papelEstrutural && anterior.papelEstrutural.situacao === 'a-revisar' ? 1 : 0);
+      var txtCur = nCur ? nCur + (nCur === 1 ? ' campo registrado' : ' campos registrados') : 'nenhuma registrada';
+      if (nRev) txtCur += ' · ' + nRev + ' para revisar';
+      html += '<dl class="avp-resumo-ficha" id="avpResumoFicha" aria-label="Resumo do estado vigente">';
+      html += '<div><dt>Resultado</dt><dd>' + esc(rotuloResultado(a.resultadoAutomatico) || '—') + '</dd></div>';
+      html += '<div><dt>Classificação</dt><dd>' + esc((a.camadaSugerida && a.camadaSugerida.label) || '—') + '</dd></div>';
+      html += '<div><dt>Decisão final</dt><dd>' + esc(rotuloDecisaoFinal(a) || '—') + (a.decisaoManual ? ' (manual)' : '') + '</dd></div>';
+      html += '<div><dt>Curadoria</dt><dd>' + esc(txtCur) + '</dd></div>';
+      html += '</dl>';
+      html += '</section>';
       return html;
     }
     /* "Histórico de versões": v1, v2, v3… do mesmo item. A mais recente é a
@@ -4710,29 +4742,20 @@
           'Ela está guardada sem alteração, só para consulta. A situação vigente é a v' + (cabecaVigente.versao || 1) + '.</p>' +
           '<button type="button" class="btn btn--sm" id="avpAbrirVigente" data-key="' + esc(cabecaVigente._key) + '">Abrir a versão vigente (v' + (cabecaVigente.versao || 1) + ')</button></div>';
       }
-      html += renderIdentificacao(a, vigente);
+      html += renderCabecalhoFicha(a, vigente);
 
+      var camada = a.camadaSugerida || camadaPorId('a-validar');
+      var editavel = pode() && vigente;
+
+      /* 1 — O QUE O SISTEMA CONCLUIU: Resultado (a conclusão Produto/Serviço) e Classificação arquitetural
+         (a camada) — dois conceitos, dois cartões, uma seção. Só o que o questionário/motor produziu. */
+      html += '<section class="avp-secao" id="avpSecaoSistema">';
+      html += '<h3 class="avp-secao-titulo">O que o sistema concluiu</h3>';
       html += '<div class="avp-result-card ' + cardClasse + '">';
       html += '<span class="avp-result-label">RESULTADO SOBRE PRODUTO/SERVIÇO</span>';
-      html += '<h3 class="avp-result-nome">' + esc(a.nome) + (a.versao > 1 ? ' <span class="avp-tag-versao">v' + a.versao + '</span>' : '') + '</h3>';
       html += '<div class="avp-result-badge-grande">' + badgeTexto + '</div>';
       html += '<p class="avp-result-secundario">Critérios favoráveis a Produto/Serviço: ' + a.criteriosAtendidos + ' de ' + CRITERIOS.length + '</p>';
       html += '</div>';
-
-      /* REAVALIAR fica à vista, logo abaixo do resultado: é a ação operacional
-         para quando a situação do item mudar (outras características, outra
-         forma de entrega, outra autonomia…). Nunca edita esta avaliação: abre
-         uma NOVA versão do mesmo item (v+1, com quem avaliou e quando) e esta
-         fica preservada, consultável no histórico. */
-      if (pode() && vigente) {
-        html += '<div class="avp-form-card avp-reavaliar-card">';
-        html += '<div class="avp-reavaliar-texto"><strong>A situação deste item mudou?</strong>' +
-          '<span>Reavaliar abre uma nova avaliação do mesmo item (versão v' + ((a.versao || 1) + 1) + '). Esta avaliação continua guardada, sem alteração, no histórico — a mais recente passa a valer como a situação atual.</span></div>';
-        html += '<button class="btn btn--sm" id="avpReavaliarBtn">Reavaliar</button>';
-        html += '</div>';
-      }
-
-      html += renderHistoricoVersoes(a, cadeia);
 
       /* Aviso discreto — nunca bloqueia a leitura do resultado, só oferece a
          ação; ver reprocessarMotor/precisaReprocessar. Só para avaliação
@@ -4758,57 +4781,56 @@
         html += '</div>';
       }
 
-      html += '<div class="avp-form-card">';
-      html += '<h4>Justificativa da classificação</h4>';
-      html += '<p>' + esc(a.justificativaAutomatica) + '</p>';
-      html += '</div>';
-
-      /* Classificação arquitetural sugerida — sempre mostrada, não só quando
-         o resultado é "não é produto" (a camada é útil mesmo quando o item
-         É o Produto/Serviço principal, e obrigatória quando a evidência é
-         insuficiente/contraditória). */
-      var camada = a.camadaSugerida || camadaPorId('a-validar');
+      /* Classificação arquitetural — sempre mostrada, não só quando o resultado é "não é produto" (a camada
+         é útil mesmo quando o item É o Produto/Serviço principal, e obrigatória quando a evidência é
+         insuficiente/contraditória). Contém a Relação arquitetural, a Especialização IDENTIFICADA PELO
+         QUESTIONÁRIO (derivada — não é curadoria) e, recolhido, o "por quê" do sistema. */
       html += '<div class="avp-form-card avp-alt-card">';
       html += '<h4>Classificação arquitetural</h4>';
       html += '<p class="avp-alt-label">Camada identificada: <strong>' + esc(camada.label) + '</strong></p>';
-      /* Valor derivado do questionário/motor — não é curadoria registrada: fica aqui, à parte. */
       var espDerivadaTela = especializacaoDerivada(a);
       if (espDerivadaTela) html += '<p class="avp-alt-outras" id="avpEspecializacaoDerivada">Especialização identificada pelo questionário: <strong>' + esc(espDerivadaTela) + '</strong></p>';
-      /* Especialização e Papel estrutural não ficam aqui: pertencem à Curadoria
-         arquitetural (bloco logo abaixo). A Classificação é só a camada. */
       if (camada.conflito && camada.conflito.length) {
         html += '<p class="avp-alt-outras">Categorias em conflito nas respostas: ' + esc(camada.conflito.join(', ')) + '.</p>';
       }
       if (camada.incoerencia) {
         html += '<p class="avp-alt-outras avp-incoerencia-msg">⚠ Há respostas que indicam autonomia e outras que indicam dependência. Revise os critérios destacados.</p>';
       }
-      html += '</div>';
-
-
       if (camada.relacao) {
-        html += '<div class="avp-form-card avp-relacao-card">';
-        html += '<h4>Relação arquitetural</h4>';
-        html += '<p>' + esc(camada.relacao) + '</p>';
-        html += '</div>';
+        html += '<div class="avp-relacao-card avp-alt-relacao"><h5>Relação arquitetural</h5><p>' + esc(camada.relacao) + '</p></div>';
       }
-
+      html += '<details class="avp-por-que" id="avpPorQueDet" data-det="porque"' + detAberto('porque') + '><summary>Por que o sistema chegou a essa conclusão</summary>';
+      html += '<h5>Justificativa da classificação</h5>';
+      html += '<p>' + esc(a.justificativaAutomatica) + '</p>';
       if (camada.motivos && camada.motivos.length) {
-        html += '<div class="avp-form-card">';
-        html += '<h4>Por que o sistema chegou a essa conclusão</h4>';
-        html += '<ul class="avp-motivos-list">';
+        html += '<h5>Motivos</h5><ul class="avp-motivos-list">';
         camada.motivos.forEach(function (m) { html += '<li>' + esc(m) + '</li>'; });
         html += '</ul>';
-        html += '</div>';
       }
+      html += '</details>';
+      html += '</div>';
+      html += '</section>';
 
-      /* Sequência: Resultado → Classificação arquitetural (a camada, acima) →
-         Curadoria arquitetural → Decisão final. As respostas pergunta a pergunta
-         ficam depois, como evidência. */
-      var editavel = pode() && vigente;
+      /* 2 — O QUE UMA PESSOA COMPLEMENTOU: Curadoria (só informação humana). */
+      html += '<section class="avp-secao" id="avpSecaoCuradoria">';
+      html += '<h3 class="avp-secao-titulo">O que uma pessoa complementou</h3>';
       html += renderCuradoriaCard(a, camada, editavel);
-      html += editavel ? renderDecisaoCard(a) : renderDecisaoSomenteLeitura(a);
+      html += '</section>';
 
-      html += '<div class="avp-form-card">';
+      /* 3 — O QUE UMA PESSOA DECIDIU: Decisão final (age só sobre a conclusão Produto/Serviço). */
+      html += '<section class="avp-secao" id="avpSecaoDecisao">';
+      html += '<h3 class="avp-secao-titulo">O que uma pessoa decidiu</h3>';
+      html += editavel ? renderDecisaoCard(a) : renderDecisaoSomenteLeitura(a);
+      html += '</section>';
+
+      /* 4 — COMO CHEGAMOS ATÉ AQUI: históricos e, por último, o questionário (a evidência). */
+      html += '<section class="avp-secao" id="avpSecaoHistorico">';
+      html += '<h3 class="avp-secao-titulo">Como chegamos até aqui</h3>';
+      html += renderHistoricoVersoes(a, cadeia);
+      html += renderHistoricosCuradoriaDecisao(a);
+      if (pode()) html += renderHistoricoMotorCard(a);
+
+      html += '<div class="avp-form-card" id="avpQuestionarioCard">';
       html += '<h4>Avaliação, pergunta por pergunta</h4>';
       html += '<p class="avp-natureza-ajuda"><strong>Sua justificativa</strong> é o que a pessoa que avaliou escreveu em cada resposta; ' +
         '<strong>Interpretação do sistema</strong> é o texto que o sistema gera a partir do SIM/NÃO marcado.</p>';
@@ -4818,27 +4840,19 @@
       html += '<p class="avp-reasoning-sep">Testes de classificação — perguntas ' + (CRITERIOS.length + 1) + ' a ' + TODAS_PERGUNTAS.length + '</p>';
       EXCLUSOES.forEach(function (e) { html += renderRaciocinio(e, a.respostas[e.id], a); });
       html += '</div></div>';
+      html += '</section>';
 
-      if (pode()) html += renderHistoricoMotorCard(a);
-
-      /* Ações organizadas num único grupo, sempre visível ao final da
-         página: voltar para a lista, gerar PDF e reavaliar — em vez de um
-         botão solto no topo sem relação clara com os demais. */
+      /* Rodapé: só a navegação. Reavaliar e GERAR PDF são ações do item e ficam no cabeçalho. */
       html += '<div class="avp-actions-footer avp-result-actions-footer">';
       html += '<button class="btn" id="avpVoltarListaRodape">← Voltar para avaliações</button>';
-      if (pode()) {
-        html += '<button class="btn btn--sm" id="avpGerarPdfBtn"' + (state.exportando ? ' disabled' : '') + '>' +
-          (state.exportando === 'pdf' ? 'Gerando arquivo…' : '📄 GERAR PDF') + '</button>';
-      }
       html += '</div>';
-      if (state.flashExportacao) {
-        html += '<p class="avp-export-status' + (state.flashExportacao.erro ? ' avp-export-status--erro' : '') + '">' +
-          esc(state.flashExportacao.texto) + '</p>';
-      }
 
       html += '</div>';
       wrap.innerHTML = html;
 
+      wrap.querySelectorAll('details[data-det]').forEach(function (d) {
+        d.addEventListener('toggle', function () { state.detAbertos[d.getAttribute('data-det')] = d.open; });
+      });
       var flashResultadoClose = document.getElementById('avpFlashResultadoClose');
       if (flashResultadoClose) flashResultadoClose.addEventListener('click', function () { state.flashResultado = null; render(); });
 
@@ -5008,8 +5022,9 @@
       return html;
     }
 
-    /* Especialização CADASTRADA (metadado arquitetural, nunca inferido das
-       respostas) — só faz sentido para camadas com eixo de especialização
+    /* Especialização CADASTRADA (curadoria: metadado registrado por uma pessoa;
+       diferente da "identificada pelo questionário", derivada pelo motor e
+       mostrada na Classificação arquitetural) — só faz sentido para camadas com eixo de especialização
        (ver especializacaoPara). Para Componente, o mesmo cartão também
        cadastra o Papel estrutural (Essencial/Opcional) — terceira dimensão
        independente, só relevante para essa camada (ver
@@ -5024,17 +5039,13 @@
       var papelAplicavel = CAMADAS_COM_PAPEL_ESTRUTURAL.indexOf(camadaId) !== -1;
       var html = '<div class="avp-curadoria-sub avp-especializacao-cadastro-card" id="avpEspecializacaoBloco">';
       html += '<h5>Especialização' + (papelAplicavel ? ' e papel estrutural' : '') + '</h5>';
-      html += '<p class="avp-decisao-aviso">Informação opcional, cadastrada à parte — nunca inferida das respostas do ' +
-        'questionário. Preencha quando já se souber, por outra fonte, o tipo específico deste item (ex.: ' +
-        '"Instituto previdenciário", "Benefício"). Não altera o resultado nem a classificação arquitetural: só os complementa.</p>';
+      html += '<p class="avp-decisao-aviso">Informação opcional, registrada por uma pessoa (curadoria): o tipo específico deste item, ' +
+        'quando já se souber por outra fonte (ex.: "Instituto previdenciário", "Benefício"). Não altera o resultado nem a classificação ' +
+        'arquitetural: só os complementa. Não é a "Especialização identificada pelo questionário", que o sistema deriva sozinho e aparece em ' +
+        'Classificação arquitetural — essa não é curadoria; ao registrar um valor aqui, ele passa a ser o exibido no lugar dela.</p>';
       html += '<p class="avp-natureza-ajuda" id="avpEspecializacaoAjuda">Aplica-se às classificações que admitem especialização (' +
         CAMADAS_COM_ESPECIALIZACAO.map(function (id) { var c = camadaPorId(id); return c ? c.label : id; }).join(', ') + ')' +
         (papelAplicavel ? '. O papel estrutural (essencial ou opcional) vale só para Componente.' : '. O papel estrutural vale só para Componente, e esta classificação não o usa.') + '</p>';
-      /* Valor que o questionário já sinaliza (ex.: Componente com P13 = SIM) e ainda não foi cadastrado:
-         só é informado aqui, nunca gravado como cadastro. */
-      if (especializacaoDerivada(state.atual) && !(f.ultimoSalvo || '').trim()) {
-        html += '<p class="avp-natureza-ajuda" id="avpEspecializacaoIdentificada">Identificada pelo questionário: <strong>' + esc(especializacaoDerivada(state.atual)) + '</strong></p>';
-      }
       html += '<div class="avp-field">';
       html += '<label for="avpEspecializacaoCadastrada">Especialização (opcional)</label>';
       html += '<input type="text" id="avpEspecializacaoCadastrada" value="' + esc(f.valor) + '" placeholder="Ex.: Instituto previdenciário">';
@@ -5055,7 +5066,7 @@
           ' <button type="button" class="avp-flash-close" id="avpFlashEspecializacaoClose" aria-label="Fechar">×</button></p>';
       }
       var estado = estadoBotaoEspecializacao(f, papelAplicavel);
-      html += '<button class="btn btn--sm' + (estado.salva ? ' avp-btn-decisao--salva' : '') + '" id="avpSalvarEspecializacaoBtn"' +
+      html += '<button class="btn btn--primary avp-btn-decisao' + (estado.salva ? ' avp-btn-decisao--salva' : '') + '" id="avpSalvarEspecializacaoBtn"' +
         (estado.desabilitado ? ' disabled' : '') + '>' + esc(estado.label) + '</button>';
       html += '</div>';
       return html;
@@ -5097,7 +5108,6 @@
         html += renderCuradoriaRevisao(a, false);
         html += renderCuradoriaSemEfeito(a);
       }
-      html += renderCuradoriaHistorico(a);
       html += '</div>';
       return html;
     }
@@ -5163,13 +5173,15 @@
       alteracao_natureza_complementar: 'Natureza complementar',
       alteracao_decisao_final: 'Decisão final'
     };
-    function linhasHistoricoCuradoria() {
+    /* `daDecisao` true → só as linhas da Decisão final; false → só as da Curadoria (especialização, papel, natureza). */
+    function linhasHistoricoCuradoria(daDecisao) {
       var h = state.curadoriaHist;
       if (!h) return '';
       if (h.erro) return '<p class="avp-natureza-ajuda">Não foi possível carregar o histórico agora.</p>';
       if (h.carregando) return '<p class="loading-msg">Carregando histórico…</p>';
-      if (!h.itens.length) return '<p class="avp-natureza-ajuda">Nenhuma alteração registrada ainda. O histórico vale a partir desta funcionalidade; alterações anteriores não foram registradas.</p>';
-      return h.itens.map(function (e) {
+      var itens = h.itens.filter(function (e) { return (e.tipo === 'alteracao_decisao_final') === !!daDecisao; });
+      if (!itens.length) return '<p class="avp-natureza-ajuda">Nenhuma alteração registrada ainda. O histórico vale a partir desta funcionalidade; alterações anteriores não foram registradas.</p>';
+      return itens.map(function (e) {
         var j = e.justificativa ? ' · Justificativa: "' + esc(e.justificativa) + '"' : '';
         var quem = esc(e.usuario && (e.usuario.name || e.usuario.email) || '—');
         /* Reprocessamento automático NÃO é decisão de uma pessoa: a origem, o motor que
@@ -5183,19 +5195,31 @@
         var camadaTxt = e.camada && e.camada.label ? esc(e.camada.label) : '';
         if (e.confirmacao) j += ' · confirmada para a classificação “' + camadaTxt + '”';
         else if (e.valorSemEfeitoSubstituido) j += ' · substituiu o valor anterior sem efeito “' + esc(e.valorSemEfeitoSubstituido) + '”';
-        return '<div class="avp-aut-hist"><strong>' + esc(ROTULO_TIPO_AUDITORIA[e.tipo] || e.tipo) + '</strong>: ' +
-          esc(rotuloValorAuditoria(e.tipo, e.valorAnterior)) + ' → ' + esc(rotuloValorAuditoria(e.tipo, e.valorNovo)) +
+        /* Confirmação NÃO é alteração de texto: o valor é o mesmo, só passou a valer para a classificação
+           atual. O histórico diz "confirmada", sem a seta anterior → novo (que sugeriria uma mudança). */
+        var titulo = e.confirmacao && e.tipo === 'alteracao_especializacao' ? 'Especialização confirmada'
+          : e.confirmacao && e.tipo === 'alteracao_papel_estrutural' ? 'Papel estrutural confirmado'
+          : (ROTULO_TIPO_AUDITORIA[e.tipo] || e.tipo);
+        var valores = e.confirmacao ? esc(rotuloValorAuditoria(e.tipo, e.valorNovo))
+          : esc(rotuloValorAuditoria(e.tipo, e.valorAnterior)) + ' → ' + esc(rotuloValorAuditoria(e.tipo, e.valorNovo));
+        return '<div class="avp-aut-hist"><strong>' + esc(titulo) + '</strong>: ' + valores +
           '<br><span class="avp-usuario-aviso">' + origem + ' em ' + esc(fmtData(e.dataHora)) + j + '</span></div>';
       }).join('');
     }
-    function renderCuradoriaHistorico(a) {
+    /* Históricos da seção "Como chegamos até aqui": o da CURADORIA (especialização, papel, natureza) e o da
+       DECISÃO FINAL são listas separadas — o histórico não pertence à Curadoria atual nem à Decisão atual. */
+    function renderHistoricosCuradoriaDecisao(a) {
       if (!state.curadoriaHist || state.curadoriaHist.chave !== a._key) carregarHistoricoCuradoria(a);
-      return '<details class="avp-aut-historico" id="avpCuradoriaHistoricoDet"><summary>Histórico da curadoria e da decisão final</summary>' +
-        '<div id="avpCuradoriaHistorico">' + linhasHistoricoCuradoria() + '</div></details>';
+      return '<details class="avp-form-card avp-aut-historico" id="avpCuradoriaHistoricoDet" data-det="histCuradoria"' + detAberto('histCuradoria') + '><summary>Histórico da Curadoria</summary>' +
+        '<div id="avpCuradoriaHistorico">' + linhasHistoricoCuradoria(false) + '</div></details>' +
+        '<details class="avp-form-card avp-aut-historico" id="avpDecisaoHistoricoDet" data-det="histDecisao"' + detAberto('histDecisao') + '><summary>Histórico da Decisão final</summary>' +
+        '<div id="avpDecisaoHistorico">' + linhasHistoricoCuradoria(true) + '</div></details>';
     }
     function atualizarHistoricoCuradoria() {
       var el = document.getElementById('avpCuradoriaHistorico');
-      if (el) el.innerHTML = linhasHistoricoCuradoria();
+      if (el) el.innerHTML = linhasHistoricoCuradoria(false);
+      var ed = document.getElementById('avpDecisaoHistorico');
+      if (ed) ed.innerHTML = linhasHistoricoCuradoria(true);
     }
     function carregarHistoricoCuradoria(a) {
       var chave = a._key;
@@ -5247,9 +5271,11 @@
       var dirtyEspec = (f.valor || '').trim() !== (f.ultimoSalvo || '').trim();
       var dirtyPapel = papelAplicavel && (f.papel || '') !== (f.papelUltimoSalvo || '');
       var dirty = dirtyEspec || dirtyPapel;
-      if (dirty) return { label: 'SALVAR ESPECIALIZAÇÃO', desabilitado: false, salva: false };
+      /* O rótulo diz o que o botão REALMENTE salva: Especialização, e também o Papel quando a camada o admite. */
+      var escopo = papelAplicavel ? 'ESPECIALIZAÇÃO E PAPEL' : 'ESPECIALIZAÇÃO';
+      if (dirty) return { label: 'SALVAR ' + escopo, desabilitado: false, salva: false };
       var jaSalvouAlgo = !!f.ultimoSalvo || (papelAplicavel && !!f.papelUltimoSalvo);
-      return { label: jaSalvouAlgo ? '✓ SALVO' : 'SALVAR ESPECIALIZAÇÃO', desabilitado: true, salva: jaSalvouAlgo };
+      return { label: jaSalvouAlgo ? (papelAplicavel ? '✓ ESPECIALIZAÇÃO E PAPEL SALVOS' : '✓ ESPECIALIZAÇÃO SALVA') : 'SALVAR ' + escopo, desabilitado: true, salva: jaSalvouAlgo };
     }
 
     /* Mesmo registro do card de decisão, sem formulário (versões anteriores):
@@ -5275,8 +5301,8 @@
       var f = state.decisaoForm;
       var html = '<div class="avp-form-card avp-decisao-card">';
       html += '<h4>Decisão final</h4>';
-      html += '<p class="avp-decisao-aviso">Isto registra uma decisão sobre a CONCLUSÃO, sem alterar nenhuma resposta do questionário — ' +
-        'a recomendação do sistema permanece intacta no histórico. Para mudar respostas ou justificativas, use "Reavaliar" (logo acima, junto ao resultado).</p>';
+      html += '<p class="avp-decisao-aviso">Decisão sobre a CONCLUSÃO Produto/Serviço. Não altera respostas, resultado automático, classificação arquitetural nem Curadoria. ' +
+        'Para mudar respostas, use "Reavaliar" (nas ações do item, no topo).</p>';
       /* A recomendação do sistema, a decisão final e a forma da decisão ficam
          SEPARADAS e sempre visíveis — a recomendação original nunca é escondida
          nem substituída pela decisão, e a curadoria (bloco acima) nunca se
@@ -5296,12 +5322,6 @@
       html += decisaoOpcao('produto', 'Classificar manualmente como Produto/Serviço principal', f.opcao);
       html += decisaoOpcao('nao-produto', 'Classificar manualmente como não Produto/Serviço principal', f.opcao);
       html += '</div>';
-      /* Só descreve o que o código faz (ver salvarDecisao): a decisão manual
-         tem exatamente estas duas saídas e exige justificativa; grava só a
-         decisão final. */
-      html += '<p class="avp-natureza-ajuda" id="avpDecisaoAjuda">Use quando concordar ou discordar do resultado calculado. A decisão manual tem duas possibilidades — ' +
-        'Produto/Serviço principal ou não Produto/Serviço principal — e exige justificativa. Aceitar a recomendação mantém o resultado calculado pelo sistema (inclusive "A validar"). ' +
-        'Em qualquer caso só a decisão final é registrada: respostas, classificação arquitetural e resultado automático não mudam.</p>';
       if (f.opcao !== 'auto') {
         html += '<div class="avp-field' + (f.erro && !justificativaPreenchida(f) ? ' avp-field--invalid' : '') + '">';
         html += '<label for="avpJustificativaDecisao">Justificativa da decisão arquitetural *</label>';
@@ -5316,6 +5336,13 @@
       var estado = estadoBotaoDecisao(f);
       html += '<button class="btn btn--primary avp-btn-decisao' + (estado.salva ? ' avp-btn-decisao--salva' : '') + '" id="avpSalvarDecisaoBtn"' +
         (estado.desabilitado ? ' disabled' : '') + '>' + esc(estado.label) + '</button>';
+      /* Só descreve o que o código faz (ver salvarDecisao): a decisão manual tem exatamente estas duas
+         saídas e exige justificativa; grava só a decisão final. Recolhida e DEPOIS do botão, para o
+         botão ficar junto do formulário que controla. */
+      html += '<details class="avp-ajuda-det" id="avpDecisaoAjuda" data-det="ajudaDecisao"' + detAberto('ajudaDecisao') + '><summary>Como funciona a decisão</summary>' +
+        '<p class="avp-natureza-ajuda">Use quando concordar ou discordar do resultado calculado. A decisão manual tem duas possibilidades — ' +
+        'Produto/Serviço principal ou não Produto/Serviço principal — e exige justificativa. Aceitar a recomendação mantém o resultado calculado pelo sistema (inclusive "A validar"). ' +
+        'Em qualquer caso só a decisão final é registrada: respostas, classificação arquitetural, resultado automático e Curadoria não mudam.</p></details>';
       html += '</div>';
       return html;
     }
@@ -5490,7 +5517,7 @@
       if (state.salvandoDecisao) return { label: 'SALVANDO…', desabilitado: true, salva: false };
       var dirty = !decisaoIguais({ opcao: f.opcao, justificativa: f.justificativa }, f.ultimoSalvo);
       if (!f.jaSalvouAntes) return { label: 'SALVAR DECISÃO', desabilitado: false, salva: false };
-      if (dirty) return { label: 'SALVAR ALTERAÇÃO', desabilitado: false, salva: false };
+      if (dirty) return { label: 'SALVAR DECISÃO', desabilitado: false, salva: false };
       return { label: '✓ DECISÃO SALVA', desabilitado: true, salva: true };
     }
     function justificativaPreenchida(f) { return !!(f.justificativa || '').trim(); }

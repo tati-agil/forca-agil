@@ -250,7 +250,7 @@ async function voltarParaAvaliacoes(page) {
       const d = pdf.decisao.replace(/\s+/g, ' ');
       afirma(/Classificação arquitetural Canal/.test(d) && new RegExp('Natureza complementar ' + PLATAFORMA.replace(/[/]/g, '\\/')).test(d) && /Decisão final Não é Produto\/Serviço principal/.test(d), 'PDF: Classificação arquitetural = Canal · Natureza = plataforma · Decisão final = Não é Produto/Serviço principal');
       afirma(d.indexOf('Curadoria arquitetural') !== -1 && d.indexOf('Curadoria arquitetural') < d.indexOf('Natureza complementar') && d.indexOf('Natureza complementar') < d.indexOf('Decisão final'), 'PDF: ordem Curadoria arquitetural (Natureza complementar) → Decisão final');
-      afirma(/Forma da decisão Recomendação aceita com complementações arquiteturais/.test(d), 'PDF: com natureza registrada e recomendação aceita, a forma da decisão é "Recomendação aceita com complementações arquiteturais"');
+      afirma(/Forma da decisão Recomendação do sistema aceita(?! com)/.test(d), 'PDF: com natureza registrada e recomendação aceita, a forma da decisão é só "Recomendação do sistema aceita" (a Curadoria aparece no bloco próprio)');
       afirma((pdf.tudo.match(/Natureza complementar/g) || []).length === 1, 'PDF: a natureza aparece uma única vez');
       afirma(!/Natureza complementar|benefícios e parcerias/.test(pdf.tudo.slice(0, pdf.tudo.indexOf('Curadoria arquitetural'))), 'PDF: nada de natureza no resultado automático nem em "Como chegamos a essa conclusão"');
     }

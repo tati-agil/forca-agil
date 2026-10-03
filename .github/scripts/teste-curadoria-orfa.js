@@ -212,7 +212,7 @@ async function marcarRespostas(page, mascara) {
       afirma(!/órf/i.test(await page.locator('#avaliacoesPainel').innerText()), 'a interface não usa o termo "órfã"');
       afirma(await page.locator('#avpCuradoriaSemEfeito button, #avpCuradoriaSemEfeito input, #avpCuradoriaSemEfeito select').count() === 0, 'o bloco é só informativo (sem botão nem campo)');
       afirma(await page.locator('#avpCuradoriaRevisao').count() === 0, 'não aparece como "disponível para revisão"');
-      afirma(!/complementações/.test(await textoDecisao(page)), 'Forma da decisão não conta o cadastro sem efeito');
+      afirma(/nenhuma registrada/i.test(await txt(page, '#avpResumoFicha')) && !/complementações/.test(await textoDecisao(page)), 'o resumo do topo não conta o cadastro sem efeito ("nenhuma registrada")');
       afirma(await larguraOk(page), 'sem rolagem horizontal');
       afirma(JSON.stringify(await banco(page)) === JSON.stringify(antes), 'abrir a ficha NÃO grava nada (nenhuma leitura altera dado)');
       await voltar(page);
@@ -244,7 +244,7 @@ async function marcarRespostas(page, mascara) {
       afirma(new RegExp(TIT_REVISAO).test(bloco) && /voltou a ser compatível com a classificação atual/.test(bloco) && /Confirme se ele continua válido para esta classificação/.test(bloco), 'bloco "' + TIT_REVISAO + '" com o texto combinado');
       afirma(/Especialização anterior:\s*Instituto previdenciário/.test(bloco) && /Papel estrutural anterior:\s*Essencial/.test(bloco), 'mostra Especialização anterior e Papel anterior');
       afirma(await page.locator('#avpEspecializacaoCadastrada').inputValue() === '' && await page.locator('#avpPapelEstruturalCadastrado').inputValue() === '', 'os campos de curadoria vigente estão vazios (o antigo não é o vigente)');
-      afirma(!/complementações/.test(await textoDecisao(page)), 'Forma da decisão NÃO conta o valor a revisar');
+      afirma(/nenhuma registrada · 2 para revisar/i.test(await txt(page, '#avpResumoFicha')), 'o resumo do topo NÃO conta o valor a revisar ("nenhuma registrada · 2 para revisar")');
       afirma(await page.locator('#avpCuradoriaSemEfeito').count() === 0, 'não aparece como "sem efeito" (a camada admite o campo)');
       afirma(await larguraOk(page), 'sem rolagem horizontal');
       afirma(JSON.stringify(await banco(page)) === JSON.stringify(antes), 'abrir a ficha NÃO grava nada');
@@ -260,7 +260,7 @@ async function marcarRespostas(page, mascara) {
       afirma(aud.length === 1 && aud[0].tipo === 'alteracao_especializacao' && aud[0].confirmacao === true && aud[0].camada && aud[0].camada.id === 'componente', 'auditoria: UMA linha de Especialização marcada como confirmação, com a camada');
       afirma(!aud[0].valorAnterior && aud[0].valorNovo === ESP && aud[0].usuario.email === EMAIL && !isNaN(Date.parse(aud[0].dataHora)), 'a linha traz: vigente antes (nenhum), vigente depois, usuário e data/hora');
       afirma(await page.locator('#avpEspecializacaoCadastrada').inputValue() === ESP, 'a Especialização passa a ser a vigente (campo preenchido)');
-      afirma(/Recomendação aceita com complementações arquiteturais/.test(await textoDecisao(page)), 'agora conta: Forma da decisão com complementações');
+      afirma(/1 campo registrado · 1 para revisar/i.test(await txt(page, '#avpResumoFicha')), 'agora conta: o resumo do topo mostra "1 campo registrado · 1 para revisar"');
       let b2 = await txt(page, '#avpCuradoriaRevisao');
       afirma(!/Especialização anterior/.test(b2) && /Papel estrutural anterior/.test(b2), 'o bloco passa a mostrar só o Papel pendente');
       /* confirma o Papel */
@@ -271,7 +271,9 @@ async function marcarRespostas(page, mascara) {
       afirma(r.papelEstruturalCamadaConfirmada === 'componente' && aud.length === 2 && aud[1].tipo === 'alteracao_papel_estrutural' && aud[1].confirmacao === true, 'confirmar o Papel grava o marcador e a segunda linha de auditoria');
       afirma(await page.locator('#avpCuradoriaRevisao').count() === 0 && await page.locator('#avpPapelEstruturalCadastrado').inputValue() === 'essencial', 'o bloco some e o Papel passa a ser o vigente');
       await page.locator('#avpCuradoriaHistoricoDet summary').click();
-      afirma(/confirmada para a classificação/i.test(await txt(page, '#avpCuradoriaHistorico')), 'o histórico da ficha mostra a confirmação');
+      const histConf = await txt(page, '#avpCuradoriaHistorico');
+      afirma(/Especialização confirmada: Instituto previdenciário/.test(histConf) && /Papel estrutural confirmado: Essencial/.test(histConf), 'o histórico mostra "Especialização confirmada" e "Papel estrutural confirmado" (não "alterada", sem seta)');
+      afirma(/confirmada para a classificação/i.test(histConf) && !/—\s*→\s*Instituto/.test(histConf), 'e diz para qual classificação foi confirmada');
       afirma(await larguraOk(page), 'sem rolagem horizontal');
       await voltar(page);
     });
@@ -288,7 +290,7 @@ async function marcarRespostas(page, mascara) {
       const aud = await auditoriaDe(page, 'rev2');
       const e = aud.find((x) => x.tipo === 'alteracao_especializacao');
       afirma(aud.length === 2 && e && e.valorNovo === 'Valor novo' && !e.valorAnterior && e.valorSemEfeitoSubstituido === ESP && !e.confirmacao, 'auditoria: a alteração registra o valor novo e guarda o valor anterior sem efeito que foi substituído');
-      afirma(await page.locator('#avpCuradoriaRevisao').count() === 0 && /complementações/.test(await textoDecisao(page)), 'o bloco some e a curadoria passa a contar');
+      afirma(await page.locator('#avpCuradoriaRevisao').count() === 0 && /2 campos registrados/i.test(await txt(page, '#avpResumoFicha')), 'o bloco some e a curadoria passa a contar ("2 campos registrados")');
       await voltar(page);
     });
 
@@ -363,7 +365,7 @@ async function marcarRespostas(page, mascara) {
     afirma(r.camadaSugerida.id === 'componente' && r.camadaSugerida.especializacao !== ESP && !r.camadaSugerida.papelEstrutural, 'Componente de novo, e a camada calculada NÃO traz o cadastro antigo (só a derivada do questionário, se houver: esp=' + JSON.stringify(r.camadaSugerida.especializacao) + ' papel=' + JSON.stringify(r.camadaSugerida.papelEstrutural) + ')');
     afirma(r.especializacaoCadastrada === ESP && r.especializacaoCamadaConfirmada === SV, 'cadastro e marcador preservados');
     afirma(await page.locator('#avpCuradoriaRevisao').count() === 1 && await page.locator('#avpEspecializacaoCadastrada').inputValue() === '', 'a ficha oferece revisão; nada vigente');
-    afirma(!/complementações/.test(await textoDecisao(page)), 'Forma da decisão não conta');
+    afirma(/nenhuma registrada/i.test(await txt(page, '#avpResumoFicha')), 'o resumo do topo não conta');
     await page.click('#avpConfirmarEspecializacaoBtn');
     await esperaDb(page, () => window.__CFG.__dbReal['avaliacoes-produto'].rp.especializacaoCamadaConfirmada === 'componente');
     const r2 = await reg(page, 'rp');
