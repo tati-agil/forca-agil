@@ -385,11 +385,18 @@ async function main() {
     const el = { addEventListener() {}, innerHTML: '', contains() { return true; }, querySelector() { return null; } };
     const c = { console, JSON, Object, Array, String, Math, Number, Date, RegExp, Error, Promise, setTimeout, clearTimeout, setInterval, clearInterval, parseFloat, parseInt, isNaN, innerWidth: 1280 };
     c.window = c;
+    c.fetch = fetch; c.URL = URL; /* a conferência do estado real usa REST (fora do SDK) */
     c.document = { getElementById: (id) => (id === 'adminTaxonomia' ? el : null), querySelector: () => null, addEventListener() {} };
-    c.firebase = { database: () => dbEmu, auth: () => ({ currentUser: { email } }) };
+    const b64 = (o) => Buffer.from(JSON.stringify(o)).toString('base64url');
+    const tokenSemAssinatura = () => { const uid = emailKey(email), t = Math.floor(Date.now() / 1000);
+      return b64({ alg: 'none', typ: 'JWT' }) + '.' + b64({ iss: 'https://securetoken.google.com/demo-kyber-agil-rules-taxonomia', aud: 'demo-kyber-agil-rules-taxonomia', sub: uid, user_id: uid, email, iat: t, auth_time: t, exp: t + 3600, firebase: { identities: {}, sign_in_provider: 'custom' } }) + '.'; };
+    const hostEmu = process.env.FIREBASE_DATABASE_EMULATOR_HOST || '127.0.0.1:9000';
+    c.firebase = { database: () => dbEmu, auth: () => ({ currentUser: { email, getIdToken: () => Promise.resolve(tokenSemAssinatura()) } }),
+      app: () => ({ options: { databaseURL: 'http://' + hostEmu + '?ns=demo-kyber-agil-rules-taxonomia-default-rtdb' } }) };
     c.window.faAuth = { getSession: () => ({ email, name: 'Admin Teste' }), isAdmin: () => true, isAdminReady: () => true };
     vm.createContext(c);
     vm.runInContext(SRC_TAX, c, { filename: 'taxonomia.js' });
+    c.window.faTaxonomia._dbTeste = dbEmu;
     return c.window.faTaxonomia;
   }
   const ate = async (cond, ms) => { const t0 = Date.now(); while (Date.now() - t0 < (ms || 6000)) { if (cond()) return true; await new Promise((r) => setTimeout(r, 25)); } return false; };
@@ -477,6 +484,42 @@ async function main() {
   intruso.st.flash = null; intruso.tornarVigente('organizacional', 'BETA', 'b1');
   await ate(() => !intruso.st.salvando && intruso.st.flash !== null);
   anota('mesmo chamando o código direto, a GRAVAÇÃO de quem não é admin é recusada pelo banco', intruso.st.flash && intruso.st.flash.erro === true && !(await ler(ORG + '/conceitos/BETA/definicaoVigenteFonteId')));
+
+  console.log('\n== 10. Gravação SEM confirmação do servidor (SDK real, cliente sem conexão) ==');
+  await testEnv.clearDatabase();
+  await semear(async (a) => {
+    await a.ref('fa-admins/' + emailKey(ADMIN)).set({ email: ADMIN, name: ADMIN });
+    await a.ref(ORG + '/conceitos/SQ2').set({ nome: 'Squad fictício', camada: 'A', ordem: 1, ativo: true, situacaoDefinicao: 'registrada', definicaoVigenteFonteId: 'f1' });
+    await a.ref(ORG + '/fontes/SQ2/f1').set(fonte('vigente', { rotulo: 'Conceito', criadoEm: '2026-10-03T10:00:00.000Z', criadoPor: ADMIN }));
+    await a.ref(ORG + '/fontes/SQ2/f2').set(fonte('histórica/contextual', { contexto: 'BB', tipoRedacao: 'Significado v1', criadoEm: '2026-10-03T10:00:01.000Z', criadoPor: ADMIN }));
+  });
+  const appOff = carregarApp(ADMIN), Io = appOff._interno, dbOff = appOff._dbTeste, DO = Io.st.d.organizacional;
+  Io.espera.gravacao = 600; Io.espera.leitura = 1500; Io.espera.reverificar = 300;
+  Io.carregarDominio('organizacional'); await ate(() => DO.estado === 'ok');
+  DO.selecionado = 'SQ2'; Io.carregarDetalhe('organizacional', 'SQ2'); await ate(() => DO.detalhe && !DO.detalhe.carregando);
+  const eventos = async () => Object.values((await ler(ORG + '/auditoria/SQ2')) || {}).filter((a) => a.tipo === 'definicao_vigente').length;
+  anota('partida: SQ2 tem a definição vigente f1', (await ler(ORG + '/conceitos/SQ2/definicaoVigenteFonteId')) === 'f1' && DO.conceitos.SQ2.definicaoVigenteFonteId === 'f1');
+  dbOff.goOffline();
+  Io.st.flash = null; Io.removerVigencia('organizacional', 'SQ2');
+  const semResp = await ate(() => Io.st.pendente && Io.st.pendente.semResposta, 4000);
+  anota('sem conexão: passado o prazo, a gravação vira "sem resposta" (a tela não finge sucesso nem erro)', semResp);
+  await ate(() => Io.st.pendente && Io.st.pendente.estado !== '', 4000);
+  const est = Io.st.pendente && Io.st.pendente.estado;
+  anota('a conferência (REST, fora do SDK) diz a verdade: "' + est + '" — nunca "foi aplicada" só por causa da gravação otimista local', est === 'nao-consta');
+  const marcador = Io.st.pendente && Io.st.pendente.marcador;
+  const viaSdk = await dbOff.ref(marcador).get().then((sn) => (sn.val() ? 'EXISTE (gravação otimista local)' : 'inexistente'), () => 'rejeitou');
+  const viaRest = await new Promise((r) => Io.leitores.servidor(marcador, r));
+  anota('achado que motivou o REST: com a gravação pendente, o get() do SDK responde "' + viaSdk + '", enquanto o servidor, lido por REST, não tem o evento', viaRest.ok === true && viaRest.valor === null);
+  anota('o servidor realmente ainda NÃO tem a alteração', (await ler(ORG + '/conceitos/SQ2/definicaoVigenteFonteId')) === 'f1' && (await eventos()) === 0);
+  Io.st.flash = null; Io.removerVigencia('organizacional', 'SQ2');
+  anota('repetir a operação enquanto isso é BLOQUEADO (aviso, nenhuma segunda gravação enfileirada)', !!Io.st.flash && /Aguarde/.test(Io.st.flash.texto));
+  dbOff.goOnline();
+  const resolveu = await ate(() => !Io.st.pendente && Io.st.flash && /FOI aplicada/.test(Io.st.flash.texto), 8000);
+  anota('ao reconectar, a confirmação chega e a tela informa que a alteração FOI aplicada', resolveu, Io.st.flash ? Io.st.flash.texto : 'sem mensagem');
+  await ate(() => DO.estado === 'ok' && DO.conceitos.SQ2 && !DO.conceitos.SQ2.definicaoVigenteFonteId, 5000);
+  anota('a tela foi reconciliada: o conceito aparece sem definição vigente', !!DO.conceitos.SQ2 && !DO.conceitos.SQ2.definicaoVigenteFonteId);
+  anota('banco: sem ponteiro, fonte rebaixada, situação "em revisão" (equivalência mantida)', !(await ler(ORG + '/conceitos/SQ2/definicaoVigenteFonteId')) && (await ler(ORG + '/fontes/SQ2/f1/situacao')) === 'histórica/contextual' && (await ler(ORG + '/conceitos/SQ2/situacaoDefinicao')) === 'em revisão');
+  anota('UM só evento de auditoria (nenhuma repetição)', (await eventos()) === 1);
 
   console.log('\n' + total + ' verificações, ' + falhas + ' falha(s).');
   await testEnv.cleanup();

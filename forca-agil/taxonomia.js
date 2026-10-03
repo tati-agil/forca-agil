@@ -38,8 +38,8 @@
    é uma importação única de um arquivo (importador genérico). */
 (function () {
   var RAIZ = 'taxonomia';
-  var ESPERA_LEITURA_MS = 12000;
-  var ESPERA_GRAVACAO_MS = 20000;
+  /* Tempos (ms). Em produção ficam como estão; só o teste os encurta (via _interno.espera). */
+  var ESPERA = { leitura: 12000, gravacao: 20000, reverificar: 5000, tentativas: 24 };
 
   var DOMINIOS = {
     arquitetural: { rotulo: 'Arquitetural', titulo: 'Taxonomia Arquitetural', pergunta: 'O que é o item?' },
@@ -122,7 +122,7 @@
   /* ---------- leitura (com limite de espera) ---------- */
   function lerNo(caminho, cb) {
     var feito = false;
-    var t = setTimeout(function () { fim({ ok: false, erro: 'tempo esgotado' }); }, ESPERA_LEITURA_MS);
+    var t = setTimeout(function () { fim({ ok: false, erro: 'tempo esgotado' }); }, ESPERA.leitura);
     function fim(r) { if (feito) return; feito = true; clearTimeout(t); cb(r); }
     try {
       var prom = db().ref(caminho).once('value', function (snap) { fim({ ok: true, valor: snap.val() }); }, function (err) {
@@ -215,28 +215,86 @@
       usuario: usuarioAtual(), dataHora: agora()
     }, extra || {});
   }
-  function gravar(caminhos, depois) {
-    if (st.salvando) return;
-    st.salvando = true; st.flash = null;
-    render();
-    var respondido = false;
-    var timer = setTimeout(function () {
-      if (respondido) return;
-      respondido = true; st.salvando = false;
-      st.flash = { erro: true, texto: 'Sem resposta do banco. Verifique a conexão: a alteração pode ou não ter sido gravada — recarregue a Taxonomia para conferir antes de repetir.' };
+  /* ---------- gravação com resposta, SEM resposta e confirmação tardia ----------
+     Uma gravação tem três desfechos: confirmada, recusada ou SEM RESPOSTA no prazo. Sem resposta NÃO é
+     "falhou": a alteração pode já ter sido aplicada, ou ainda estar na fila do cliente e ser aplicada
+     quando a conexão voltar. Por isso, passado o prazo a tela (1) confere o estado REAL no servidor,
+     (2) bloqueia novas gravações — nunca incentiva repetir às cegas — e (3) reconcilia quando a
+     confirmação chega, mesmo atrasada. Só uma gravação pode estar em andamento por vez. */
+  var seqGravacao = 0;
+  var TEXTO_BLOQUEIO = 'Aguarde: há uma gravação anterior ainda sem confirmação do servidor. Não repita a operação antes de a tela confirmar o que foi gravado.';
+  function caminhoMarcador(caminhos) {
+    /* o evento de auditoria vai na MESMA gravação atômica: se ele existe no servidor, a alteração foi aplicada */
+    var k = chaves(caminhos).filter(function (c) { return /\/auditoria\/[^/]+\/[^/]+$/.test(c); })[0];
+    return k || null;
+  }
+  function lerServidorRest(caminho, cb) {
+    /* Leitura REST direta ao servidor, com o token do próprio usuário (as regras valem do mesmo jeito).
+       NÃO usa o SDK: o SDK (inclusive get()) pode responder com a própria gravação otimista ainda
+       pendente — "conferi" e "foi aplicada" falsos. Sem como consultar, admite (nunca afirma). */
+    var feito = false;
+    var t = setTimeout(function () { fim({ ok: false, erro: 'tempo esgotado' }); }, ESPERA.leitura);
+    function fim(r) { if (feito) return; feito = true; clearTimeout(t); cb(r); }
+    try {
+      var user = firebase.auth().currentUser;
+      var base = firebase.app().options.databaseURL;
+      if (!user || !base || typeof fetch !== 'function') { fim({ ok: false, erro: 'sem como consultar' }); return; }
+      user.getIdToken().then(function (tok) {
+        var url = new URL(base);
+        url.pathname = '/' + caminho + '.json';
+        url.searchParams.set('auth', tok);
+        return fetch(url.toString(), { cache: 'no-store' });
+      }).then(function (resp) {
+        if (!resp.ok) throw new Error('HTTP ' + resp.status);
+        return resp.json();
+      }).then(function (valor) { fim({ ok: true, valor: valor }); }, function (e) { fim({ ok: false, erro: e }); });
+    } catch (e) { fim({ ok: false, erro: e }); }
+  }
+  /* o teste troca o leitor (o hermético lê o banco falso; o do emulador usa o REST de verdade) */
+  var LEITORES = { servidor: lerServidorRest };
+  function lerServidor(caminho, cb) { LEITORES.servidor(caminho, cb); }
+  function resolverGravacao(p, r) {
+    if (p.resolvido) return;
+    p.resolvido = true; clearTimeout(p.timerEspera); clearTimeout(p.timerVerif);
+    var tardia = p.semResposta;
+    if (st.pendente === p) st.pendente = null;
+    st.salvando = false;
+    if (r.erro) {
+      console.error('[taxonomia] erro ao gravar:', r.erro);
+      var recusa = r.erro.code === 'PERMISSION_DENIED';
+      st.flash = { erro: true, texto: (tardia ? 'A gravação foi recusada pelo servidor: NADA foi aplicado. ' : '') + 'Não foi possível salvar: ' + (recusa ? 'o banco recusou a gravação (sem permissão ou dado fora das regras).' : 'falha na gravação.') + ' Nada foi alterado. O que você digitou continua na tela.' };
       render();
-    }, ESPERA_GRAVACAO_MS);
-    function fim(err) {
-      if (respondido) return;
-      respondido = true; clearTimeout(timer); st.salvando = false;
-      if (err) {
-        console.error('[taxonomia] erro ao gravar:', err);
-        st.flash = { erro: true, texto: 'Não foi possível salvar: ' + (err.code === 'PERMISSION_DENIED' ? 'o banco recusou a gravação (sem permissão ou dado fora das regras).' : 'falha na gravação.') + ' Nada foi alterado. O que você digitou continua na tela.' };
-        render();
-        return;
-      }
-      depois();
+      return;
     }
+    p.depois();
+    if (tardia && st.flash && !st.flash.erro) st.flash.texto = 'A alteração FOI aplicada' + (r.verificada ? ' (conferido no servidor)' : ' (a confirmação do servidor demorou)') + '. ' + st.flash.texto;
+  }
+  function verificarGravacao(p) {
+    if (p.resolvido) return;
+    p.verificando = true; render();
+    p.tentativas++;
+    if (!p.marcador) { p.verificando = false; p.estado = 'sem-leitura'; render(); return; }
+    lerServidor(p.marcador, function (r) {
+      if (p.resolvido) return;
+      p.verificando = false;
+      if (r.ok && r.valor) { resolverGravacao(p, { aplicada: true, verificada: true }); return; }
+      p.estado = r.ok ? 'nao-consta' : 'sem-leitura';
+      render();
+      if (p.tentativas < ESPERA.tentativas) p.timerVerif = setTimeout(function () { verificarGravacao(p); }, ESPERA.reverificar);
+    });
+  }
+  function gravar(caminhos, depois) {
+    if (st.pendente && st.pendente.semResposta) { st.flash = { erro: true, texto: TEXTO_BLOQUEIO }; render(); return; }
+    if (st.salvando) return;
+    var p = { id: ++seqGravacao, marcador: caminhoMarcador(caminhos), depois: depois, resolvido: false, semResposta: false, verificando: false, estado: '', tentativas: 0, timerEspera: null, timerVerif: null };
+    st.pendente = p; st.salvando = true; st.flash = null;
+    render();
+    p.timerEspera = setTimeout(function () {
+      if (p.resolvido) return;
+      p.semResposta = true; st.salvando = false;
+      verificarGravacao(p);
+    }, ESPERA.gravacao);
+    function fim(err) { resolverGravacao(p, err ? { erro: err } : { aplicada: true }); }
     try {
       var prom = db().ref().update(semUndefined(caminhos), fim);
       if (prom && prom.catch) prom.catch(function () {});
@@ -635,6 +693,15 @@
       '<button type="button" class="btn btn--sm" data-tax="cancelar-edicao"' + (st.salvando ? ' disabled' : '') + '>Cancelar</button></div></div>';
     return html;
   }
+  function htmlPendencia(p) {
+    var texto;
+    if (p.estado === 'nao-consta') texto = 'Conferi no servidor: a alteração ainda <strong>NÃO consta no banco</strong>. Ela pode ser aplicada se a conexão voltar; por isso novas gravações ficam bloqueadas até haver confirmação. Para descartá-la, recarregue a página.';
+    else if (p.estado === 'sem-leitura') texto = '<strong>Não consegui consultar o servidor agora</strong> (conexão). <strong>Não sei se a alteração foi aplicada.</strong> Novas gravações ficam bloqueadas; recarregue a página para ver o estado real.';
+    else texto = 'O servidor não respondeu a tempo. Estou conferindo o que foi gravado de verdade.';
+    return '<div class="tax-pendente" id="taxPendente" role="alert"><p><strong>Gravação sem confirmação do servidor.</strong></p><p>' + texto + '</p>' +
+      '<p><strong>Não repita a operação</strong> antes de a tela confirmar o estado real.</p>' +
+      '<button type="button" class="btn btn--sm" data-tax="verificar-pendente"' + (p.verificando ? ' disabled' : '') + '>' + (p.verificando ? 'VERIFICANDO…' : 'VERIFICAR NO SERVIDOR') + '</button></div>';
+  }
   function renderFontes(dom, codigo, det) {
     var D = st.d[dom], c = D.conceitos[codigo], ed = podeEditar(), e = D.edicao;
     var html = '<section class="tax-sec" id="taxSecFontes"><h4>Textos-fonte</h4>';
@@ -863,6 +930,7 @@
     var dom = st.dominio, D = st.d[dom];
     var html = '<div class="tax-raiz"><h3 class="avp-panel-titulo">Taxonomia</h3>';
     html += '<p class="tax-aviso">A Taxonomia <strong>define</strong> os conceitos. A Avaliação <strong>aplica</strong> esses conceitos aos itens avaliados. Os dois domínios abaixo são independentes.</p>';
+    if (st.pendente && st.pendente.semResposta) html += htmlPendencia(st.pendente);
     if (st.flash) html += '<p class="tax-flash' + (st.flash.erro ? ' tax-flash--erro' : '') + '" role="status" id="taxFlash">' + esc(st.flash.texto) + ' <button type="button" class="tax-flash-fechar" data-tax="fechar-flash" aria-label="Fechar">×</button></p>';
     if (!adminPronto()) { el.innerHTML = html + '<p class="loading-msg">Verificando o acesso…</p></div>'; return; }
     if (!ehAdmin()) { el.innerHTML = html + '<p class="tax-aviso-erro">Esta área é só para administradoras.</p></div>'; return; }
@@ -913,6 +981,7 @@
       var det = raiz().querySelector('.tax-detalhe'); if (det && det.scrollIntoView && window.innerWidth <= 720) det.scrollIntoView();
     } else if (acao === 'voltar-lista') { st.vista = 'lista'; render(); }
     else if (acao === 'fechar-flash') { st.flash = null; render(); }
+    else if (acao === 'verificar-pendente') { var pp = st.pendente; if (pp && !pp.resolvido && !pp.verificando) { clearTimeout(pp.timerVerif); pp.tentativas = 0; verificarGravacao(pp); } }
     else if (!podeEditar() && acao !== 'cancelar-importacao') return;
     else if (acao === 'editar-conceito') iniciaEdicao('conceito', D.selecionado);
     else if (acao === 'nova-fonte') iniciaEdicao('novaFonte', null);
@@ -990,7 +1059,7 @@
     /* Só para teste: permite rodar as MESMAS operações da tela contra o emulador com as regras reais
        (teste-rules-taxonomia.js) e provar que o que a aplicação grava, o banco aceita. */
     _interno: {
-      st: st, carregarDominio: carregarDominio, carregarDetalhe: carregarDetalhe, tornarVigente: tornarVigente,
+      st: st, espera: ESPERA, leitores: LEITORES, carregarDominio: carregarDominio, carregarDetalhe: carregarDetalhe, tornarVigente: tornarVigente,
       removerVigencia: removerVigencia, salvarConceito: salvarConceito, salvarFonte: salvarFonte, salvarPerfil: salvarPerfil
     }
   };

@@ -95,7 +95,7 @@ function bancoBase(extra) {
 
 async function abrir(browser, o) {
   o = o || {};
-  const cfg = { db: bancoBase(o.db), user: { email: o.email || EMAIL, emailVerified: true, uid: 'u1' }, delayDefault: 10, persistenciaReal: true, fail: o.fail, delays: o.delays };
+  const cfg = { db: bancoBase(o.db), user: { email: o.email || EMAIL, emailVerified: true, uid: 'u1' }, delayDefault: 10, persistenciaReal: true, fail: o.fail, delays: o.delays, semConfirmacao: o.semConfirmacao, getFalha: o.getFalha };
   const ctx = await browser.newContext({ viewport: o.viewport || DESKTOP });
   const page = await ctx.newPage();
   const erros = [];
@@ -402,6 +402,7 @@ const TOTAL = 'taxonomia';
     afirma(audV.length === 2 && audV.every((l) => l.usuario.email === EMAIL), 'cada troca de definição vigente tem a sua linha de auditoria');
     const evTroca = audV.find((l) => l.fonteNovaId === novaId);
     afirma(!!evTroca && evTroca.fonteAnteriorId === 'b1' && /Significado v1 \(BB\)/.test(evTroca.valorAnterior) && /Nova redação/.test(evTroca.valorNovo) && !!evTroca.dataHora && evTroca.usuario.email === EMAIL, 'auditoria da troca: identifica a fonte ANTERIOR (b1) e a NOVA, quem fez e quando');
+    await page.waitForFunction(() => /Significado v1 \(BB\) → Nova redação/.test((document.querySelector('#taxSecHistorico') || {}).innerText || ''), null, { timeout: 6000 }).catch(() => {});
     afirma(/Significado v1 \(BB\) → Nova redação/.test(await page.locator('#taxSecHistorico').innerText()), 'o histórico na tela mostra "anterior → nova"');
     /* recusa do banco na troca: nada muda */
     await aparece(page, '[data-fonte="b1"] [data-tax="tornar-vigente"]');
@@ -550,6 +551,127 @@ const TOTAL = 'taxonomia';
     afirma(botoes === 0, 'modo somente leitura: nenhum botão de edição (consulta de verdade)');
     afirma(/Texto fictício VIGENTE de Alfa\./.test(await page.locator('#taxSecDefinicao').innerText()), 'e a consulta continua completa');
     await ctx.close();
+  }
+
+  /* ---------- A GRAVAÇÃO QUE NÃO RECEBE CONFIRMAÇÃO DO SERVIDOR (bug de produção: Remover vigência) ---------- */
+  const SEM = 'taxonomia/organizacional/fontes/SQ/f1'; /* só a ESCRITA do Squad bate aqui; as leituras não */
+  const semente = () => ({ taxonomia: { meta: { cargaInicial: { feitaEm: '2026-10-03T10:00:00.000Z', feitaPor: EMAIL, resumo: {} } },
+    organizacional: { conceitos: { SQ: { nome: 'Conceito Fictício Sq', camada: 'A', ordem: 1, ativo: true, situacaoDefinicao: 'registrada', definicaoVigenteFonteId: 'f1' } },
+      fontes: { SQ: { f1: { texto: 'Texto fictício vigente.', contexto: 'PREVI', situacao: 'vigente', tipoRedacao: 'Conceito', rotulo: 'Conceito', criadoEm: '2026-10-03T10:00:00.000Z', criadoPor: EMAIL },
+                      f2: { texto: 'Texto fictício histórico.', contexto: 'BB', situacao: 'histórica/contextual', tipoRedacao: 'Significado v1', criadoEm: '2026-10-03T10:00:01.000Z', criadoPor: EMAIL } } },
+      auditoria: {} }, arquitetural: {} } });
+  const banco2 = async (page) => (await banco(page)).taxonomia.organizacional;
+  const nEventos = async (page) => Object.values(((await banco2(page)).auditoria || {}).SQ || {}).filter((a) => a.tipo === 'definicao_vigente').length;
+  async function abrirSq(browser, viewport, extra) {
+    const r = await abrir(browser, Object.assign({ viewport, db: semente() }, extra || {}));
+    await irParaTaxonomia(r.page);
+    await aparece(r.page, '.tax-item[data-codigo="SQ"]');
+    await abrirConceito(r.page, 'SQ');
+    /* tempos curtos só no teste (em produção: 20 s de espera e conferência a cada 5 s) */
+    await r.page.evaluate(() => {
+      const I = window.faTaxonomia._interno;
+      I.espera.gravacao = 700; I.espera.reverificar = 400;
+      /* o leitor de servidor de verdade é REST (ver teste-rules-taxonomia.js, seção 10); aqui lê o banco falso,
+         que só guarda o estado do SERVIDOR, e obedece a getFalha ("sem conexão") */
+      I.leitores.servidor = (caminho, cb) => {
+        if (window.__CFG.getFalha) { setTimeout(() => cb({ ok: false, erro: 'sem conexão (falso)' }), 50); return; }
+        const v = caminho.split('/').reduce((o, k) => (o == null ? o : o[k]), window.__CFG.__dbReal);
+        setTimeout(() => cb({ ok: true, valor: v === undefined ? null : v }), 20);
+      };
+    });
+    return r;
+  }
+  const removerSq = async (page) => { await page.click('[data-tax="remover-vigencia"]'); await page.click('[data-tax="confirmar-remocao"]'); };
+
+  for (const [nomeTela, viewport] of [['desktop', DESKTOP], ['celular 375px', CELULAR]]) {
+    const movel = viewport.width <= 720;
+    console.log('\n######## Gravação sem confirmação do servidor — ' + nomeTela + ' ########');
+
+    console.log('\n== G1. Sucesso normal: nada muda no comportamento ==');
+    {
+      const { ctx, page, erros } = await abrirSq(browser, viewport);
+      await removerSq(page);
+      await aparece(page, '#taxFlash:not(.tax-flash--erro)');
+      const o = await banco2(page);
+      afirma(!o.conceitos.SQ.definicaoVigenteFonteId && o.fontes.SQ.f1.situacao === 'histórica/contextual' && o.conceitos.SQ.situacaoDefinicao === 'em revisão' && await nEventos(page) === 1, 'remover vigência com confirmação normal: gravado, auditado (1 evento)');
+      afirma(await page.locator('#taxPendente').count() === 0 && /Nenhuma definição vigente/.test(await page.locator('#taxVigenteBloco').innerText()), 'sem aviso de pendência e a tela já mostra "Nenhuma definição vigente"');
+      afirma(erros.length === 0, 'sem erros de JavaScript');
+      await ctx.close();
+    }
+
+    console.log('\n== G2. PERMISSION_DENIED: continua recusado, sem bloqueio nem aviso de pendência ==');
+    {
+      const { ctx, page } = await abrirSq(browser, viewport, { fail: [SEM] });
+      await removerSq(page);
+      await aparece(page, '#taxFlash.tax-flash--erro');
+      afirma(/o banco recusou a gravação/.test(await page.locator('#taxFlash').innerText()) && await page.locator('#taxPendente').count() === 0, 'recusa de regra: mensagem de recusa, sem "pendência"');
+      afirma((await banco2(page)).conceitos.SQ.definicaoVigenteFonteId === 'f1' && await nEventos(page) === 0, 'nada gravado, nenhum evento');
+      await page.evaluate(() => { window.__CFG.fail = []; });
+      await page.click('[data-tax="fechar-flash"]');
+      await page.click('[data-tax="cancelar-confirmacao"]').catch(() => {});
+      await removerSq(page);
+      await aparece(page, '#taxFlash:not(.tax-flash--erro)');
+      afirma(!(await banco2(page)).conceitos.SQ.definicaoVigenteFonteId && await nEventos(page) === 1, 'sem estado preso: repetir depois de corrigida a causa funciona (1 evento)');
+      await ctx.close();
+    }
+
+    console.log('\n== G3. Confirmação ATRASADA: a tela confere, bloqueia repetição e reconcilia quando chega ==');
+    {
+      const { ctx, page, erros } = await abrirSq(browser, viewport);
+      await page.evaluate((k) => { window.__CFG.delays = { [k]: 3200 }; }, SEM);
+      await removerSq(page);
+      afirma(await aparece(page, '#taxPendente', 3000), 'passado o limite: aparece o aviso "Gravação sem confirmação do servidor"');
+      await page.waitForFunction(() => /NÃO consta/.test((document.querySelector('#taxPendente') || {}).innerText || ''), null, { timeout: 2500 }).catch(() => {});
+      const aviso = await page.locator('#taxPendente').innerText();
+      afirma(/NÃO consta no banco/.test(aviso) && /Não repita/i.test(aviso), 'conferiu o servidor: "a alteração ainda NÃO consta no banco" e pede para NÃO repetir');
+      afirma(await larguraOk(page), 'aviso aberto: sem rolagem horizontal');
+      if (movel) afirma(await page.evaluate(() => { const b = document.querySelector('#taxPendente .btn'); return !b || b.getBoundingClientRect().right <= window.innerWidth + 1; }), '375 px: o botão do aviso cabe na tela');
+      const escritasAntes = await page.evaluate(() => (window.__ESCRITAS || []).length);
+      await page.click('[data-tax="remover-vigencia"]').catch(() => {});
+      await page.click('[data-tax="confirmar-remocao"]').catch(() => {});
+      await page.waitForTimeout(250);
+      afirma(/Aguarde|ainda sem confirmação/i.test(await page.locator('#taxFlash').innerText().catch(() => '')) && await page.evaluate(() => (window.__ESCRITAS || []).length) === escritasAntes, 'nova tentativa da mesma ação: BLOQUEADA com aviso, e nenhuma escrita nova foi enviada');
+      afirma((await banco2(page)).conceitos.SQ.definicaoVigenteFonteId === 'f1', 'enquanto não confirma, o banco continua como estava');
+      await page.waitForSelector('#taxPendente', { state: 'detached', timeout: 6000 }).catch(() => {});
+      await page.waitForFunction(() => /Nenhuma definição vigente/.test((document.querySelector('#taxVigenteBloco') || {}).innerText || ''), null, { timeout: 5000 }).catch(() => {});
+      afirma(await page.locator('#taxPendente').count() === 0, 'a confirmação chegou: o aviso some');
+      afirma(/FOI aplicada/.test(await page.locator('#taxFlash').innerText()), 'a tela informa que a alteração FOI aplicada (confirmação atrasada)');
+      afirma(/Nenhuma definição vigente/.test(await page.locator('#taxVigenteBloco').innerText()) && !(await banco2(page)).conceitos.SQ.definicaoVigenteFonteId && await nEventos(page) === 1, 'a tela foi reconciliada com o banco, e há UM só evento de auditoria (nenhuma repetição)');
+      afirma(erros.length === 0, 'sem erros de JavaScript');
+      await ctx.close();
+    }
+
+    console.log('\n== G4. Gravada, mas a confirmação se perdeu: a conferência no servidor reconcilia ==');
+    {
+      const { ctx, page } = await abrirSq(browser, viewport, { semConfirmacao: [SEM] });
+      await removerSq(page);
+      await page.waitForFunction(() => /FOI aplicada/.test((document.querySelector('#taxFlash') || {}).innerText || ''), null, { timeout: 5000 }).catch(() => {});
+      afirma(/FOI aplicada/.test(await page.locator('#taxFlash').innerText().catch(() => '')) && await page.locator('#taxPendente').count() === 0, 'sem resposta, mas o servidor TEM o evento: a tela informa que foi aplicada e não deixa pendência');
+      afirma(/Nenhuma definição vigente/.test(await page.locator('#taxVigenteBloco').innerText()) && await nEventos(page) === 1, 'tela atualizada; um único evento (não repetiu)');
+      await ctx.close();
+    }
+
+    console.log('\n== G5. Sem resposta E sem conseguir consultar o servidor: não afirma nada e bloqueia ==');
+    {
+      const { ctx, page } = await abrirSq(browser, viewport, { getFalha: true });
+      await page.evaluate((k) => { window.__CFG.delays = { [k]: 600000 }; }, SEM);
+      await removerSq(page);
+      await page.waitForFunction(() => /Não consegui consultar/.test((document.querySelector('#taxPendente') || {}).innerText || ''), null, { timeout: 4000 }).catch(() => {});
+      const aviso = await page.locator('#taxPendente').innerText().catch(() => '');
+      afirma(/Não consegui consultar o servidor/.test(aviso) && /Não sei se a alteração foi aplicada/.test(aviso), 'sem poder conferir: diz que NÃO sabe se foi aplicada (nunca afirma "gravou" nem "não gravou")');
+      afirma(/recarregue a página/i.test(aviso), 'orienta recarregar a página para ver o estado real');
+      afirma(await larguraOk(page), 'sem rolagem horizontal');
+      const antes = await page.evaluate(() => (window.__ESCRITAS || []).length);
+      await page.click('[data-tax="remover-vigencia"]').catch(() => {}); await page.click('[data-tax="confirmar-remocao"]').catch(() => {});
+      await page.waitForTimeout(250);
+      afirma(await page.evaluate(() => (window.__ESCRITAS || []).length) === antes, 'não há repetição cega: nenhuma escrita nova enquanto não houver confirmação');
+      await page.evaluate(() => { window.__CFG.getFalha = false; });
+      await page.click('[data-tax="verificar-pendente"]');
+      await page.waitForFunction(() => /NÃO consta/.test((document.querySelector('#taxPendente') || {}).innerText || ''), null, { timeout: 4000 }).catch(() => {});
+      afirma(/NÃO consta no banco/.test(await page.locator('#taxPendente').innerText().catch(() => '')), '"VERIFICAR NO SERVIDOR": consultou de novo (agora com conexão) e informa que NÃO consta');
+      afirma((await banco2(page)).conceitos.SQ.definicaoVigenteFonteId === 'f1' && await nEventos(page) === 0, 'o banco segue intacto (nada aplicado)');
+      await ctx.close();
+    }
   }
 
   await browser.close();

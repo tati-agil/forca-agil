@@ -266,7 +266,9 @@
          (como era antes) escondia essa classe inteira de corrida atrás
          de um comportamento que o Firebase de verdade nunca teve. */
       notificar(self.path);
-      if (cb) cb(null);
+      /* CFG.semConfirmacao (prefixos): o servidor APLICOU, mas a confirmação nunca chega ao cliente. */
+      var semAck = (CFG.semConfirmacao || []).some(function (pfx) { return todosCaminhos.some(function (c) { return String(c).indexOf(pfx) === 0; }); });
+      if (cb && !semAck) cb(null);
     }, atraso);
     return Promise.resolve();
   };
