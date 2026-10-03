@@ -305,6 +305,111 @@ async function main() {
     await nega(rotulo + ' NÃO escreve no domínio arquitetural', R(db(email), ARQT + '/conceitos/componente/nome').set('invasão'));
   }
 
+  /* ───────────────────────── 9. O QUE A APLICAÇÃO GRAVA, O BANCO ACEITA ─────────────────────────
+     Roda o código REAL de forca-agil/taxonomia.js (as mesmas operações da tela) contra o emulador, com as
+     regras de verdade e um admin autenticado. Se o payload de qualquer operação violar a regra, a operação
+     dá erro (st.flash.erro) — "quem abre a edição consegue gravar" é provado aqui, não suposto. */
+  console.log('\n== 9. As operações REAIS da aplicação passam nas regras reais ==');
+  const vm = require('vm');
+  const SRC_TAX = fs.readFileSync(path.join(__dirname, '..', '..', 'forca-agil', 'taxonomia.js'), 'utf8');
+  function carregarApp(email) {
+    const dbEmu = db(email);
+    const el = { addEventListener() {}, innerHTML: '', contains() { return true; }, querySelector() { return null; } };
+    const c = { console, JSON, Object, Array, String, Math, Number, Date, RegExp, Error, Promise, setTimeout, clearTimeout, setInterval, clearInterval, parseFloat, parseInt, isNaN, innerWidth: 1280 };
+    c.window = c;
+    c.document = { getElementById: (id) => (id === 'adminTaxonomia' ? el : null), querySelector: () => null, addEventListener() {} };
+    c.firebase = { database: () => dbEmu, auth: () => ({ currentUser: { email } }) };
+    c.window.faAuth = { getSession: () => ({ email, name: 'Admin Teste' }), isAdmin: () => true, isAdminReady: () => true };
+    vm.createContext(c);
+    vm.runInContext(SRC_TAX, c, { filename: 'taxonomia.js' });
+    return c.window.faTaxonomia;
+  }
+  const ate = async (cond, ms) => { const t0 = Date.now(); while (Date.now() - t0 < (ms || 6000)) { if (cond()) return true; await new Promise((r) => setTimeout(r, 25)); } return false; };
+  const arquivo = {
+    dominios: {
+      organizacional: {
+        conceitos: { ALFA: { nome: 'Alfa', camada: 'A', ordem: 1 }, BETA: { nome: 'Beta', camada: 'B', pai: 'ALFA', ordem: 2, perguntaDiscriminadora: 'P?', notaDeAplicacao: 'N.', criterios: ['c1', 'c2'] }, DISC: { nome: 'Disc', camada: 'auxiliar', ordem: 3 } },
+        fontes: {
+          ALFA: [{ id: 'a1', texto: 'T vigente', contexto: 'PREVI', situacao: 'vigente', tipoRedacao: 'Conceito' }, { id: 'a2', texto: 'T hist', contexto: 'BB', situacao: 'histórica/contextual', tipoRedacao: 'Significado v1' }],
+          BETA: [{ id: 'b1', texto: 'T b1', contexto: 'BB', situacao: 'histórica/contextual', tipoRedacao: 'Significado v1' }, { id: 'b2', texto: 'T b2', contexto: 'indefinido', situacao: 'placeholder', tipoRedacao: 'Significado v2' }, { id: 'b3', texto: 'Proposta', contexto: 'PREVI', situacao: 'em validação', tipoRedacao: 'proposta' }]
+        },
+        atributos: { ALCANCE: { nome: 'Alcance de atuação', grupo: 'alcance', tipoValor: 'lista', ordem: 1, valoresPermitidos: ['específica', 'transversal'] }, BENEF: { nome: 'Beneficiário indireto', grupo: 'quem-recebe', tipoValor: 'texto', ordem: 2 } },
+        perfis: { ALFA: { ALCANCE: { estado: 'registrado', valor: 'transversal', papel: 'observado', origem: 'decisão' }, BENEF: { estado: 'não consta na fonte' } } },
+        relacoes: [{ de: 'BETA', tipo: 'compoe', para: 'ALFA' }, { de: 'ALFA', tipo: 'desenvolve-disciplina', para: 'DISC' }]
+      },
+      arquitetural: { conceitos: { componente: { nome: 'Componente', ordem: 1 } }, fontes: { componente: [{ id: 'c1', texto: 'Texto', contexto: 'PREVI', situacao: 'em validação', tipoRedacao: 'proposta' }] } }
+    }
+  };
+  await testEnv.clearDatabase();
+  await semear(async (a) => { await a.ref('fa-admins/' + emailKey(ADMIN)).set({ email: ADMIN, name: ADMIN }); });
+  const app = carregarApp(ADMIN), I = app._interno;
+  const prep = app.prepararImportacao(arquivo, { organizacional: {}, arquitetural: {} });
+  anota('importador: o arquivo fictício é válido (sem erros)', prep.erros.length === 0, prep.erros.join(' | '));
+  await pode('IMPORTAÇÃO: o payload atômico gerado pela aplicação (conceitos, fontes, atributos, perfis, relações, meta e auditoria) é ACEITO pelas regras', admin().ref().update(JSON.parse(JSON.stringify(prep.caminhos))));
+  anota('importação: a marca da carga inicial entrou', !!(await ler('taxonomia/meta/cargaInicial')));
+  anota('importação: ALFA nasceu com ponteiro = a1 e a1 vigente (equivalência)', (await ler(ORG + '/conceitos/ALFA/definicaoVigenteFonteId')) === 'a1' && (await ler(ORG + '/fontes/ALFA/a1/situacao')) === 'vigente');
+  const prep2 = app.prepararImportacao({ dominios: { organizacional: { conceitos: { OUTRO: { nome: 'Outro', camada: 'A' } } } } }, { organizacional: {}, arquitetural: {} });
+  await nega('NOVA carga inicial é recusada pelo banco (marca já existe)', admin().ref().update(JSON.parse(JSON.stringify(prep2.caminhos))));
+
+  async function opera(rotulo, fn, cond) {
+    I.st.flash = null; I.st.salvando = false;
+    fn();
+    const fim = await ate(() => !I.st.salvando && (I.st.flash !== null));
+    anota(rotulo + ' — aceito pelo banco', fim && I.st.flash && I.st.flash.erro === false, I.st.flash ? I.st.flash.texto : 'sem resposta');
+    if (cond) anota(rotulo + ' — estado gravado coerente', await cond());
+  }
+  I.carregarDominio('organizacional');
+  await ate(() => I.st.d.organizacional.estado === 'ok');
+  anota('a aplicação LÊ a Taxonomia com as regras reais (admin)', I.st.d.organizacional.estado === 'ok' && Object.keys(I.st.d.organizacional.conceitos).length === 3);
+  const D = I.st.d.organizacional;
+  D.selecionado = 'BETA'; I.carregarDetalhe('organizacional', 'BETA');
+  await ate(() => D.detalhe && !D.detalhe.carregando);
+  anota('a aplicação lê fontes, perfis, relações e AUDITORIA (admin)', D.detalhe && !Object.keys(D.detalhe.erros).length, JSON.stringify(D.detalhe && D.detalhe.erros));
+  const vigentes = async (cod) => Object.values((await ler(ORG + '/fontes/' + cod)) || {}).filter((f) => f.situacao === 'vigente').length;
+  await opera('TORNAR VIGENTE (b1) — fonte promovida + ponteiro + situação do conceito + auditoria numa gravação', () => I.tornarVigente('organizacional', 'BETA', 'b1'),
+    async () => (await ler(ORG + '/conceitos/BETA/definicaoVigenteFonteId')) === 'b1' && (await vigentes('BETA')) === 1);
+  I.carregarDetalhe('organizacional', 'BETA'); await ate(() => D.detalhe && !D.detalhe.carregando); I.carregarDominio('organizacional'); await ate(() => D.estado === 'ok');
+  await opera('TROCAR a vigente (b1 → b3): rebaixa a anterior e promove a nova', () => I.tornarVigente('organizacional', 'BETA', 'b3'),
+    async () => (await ler(ORG + '/conceitos/BETA/definicaoVigenteFonteId')) === 'b3' && (await ler(ORG + '/fontes/BETA/b1/situacao')) === 'histórica/contextual' && (await vigentes('BETA')) === 1);
+  I.carregarDetalhe('organizacional', 'BETA'); await ate(() => D.detalhe && !D.detalhe.carregando); I.carregarDominio('organizacional'); await ate(() => D.estado === 'ok');
+  await opera('REMOVER a vigência: limpa o ponteiro e rebaixa a fonte', () => I.removerVigencia('organizacional', 'BETA'),
+    async () => !(await ler(ORG + '/conceitos/BETA/definicaoVigenteFonteId')) && (await vigentes('BETA')) === 0 && (await ler(ORG + '/conceitos/BETA/situacaoDefinicao')) === 'em revisão');
+  I.carregarDetalhe('organizacional', 'BETA'); await ate(() => D.detalhe && !D.detalhe.carregando); I.carregarDominio('organizacional'); await ate(() => D.estado === 'ok');
+  D.edicao = { tipo: 'novaFonte', chave: 'BETA', valores: { rotulo: 'Nova', texto: 'Texto novo.', contexto: 'PREVI', tipoRedacao: 'Significado v1', situacao: 'em validação' }, erro: null };
+  await opera('NOVA FONTE (em validação)', () => I.salvarFonte('organizacional', 'BETA'), async () => Object.keys((await ler(ORG + '/fontes/BETA')) || {}).length === 4);
+  I.carregarDetalhe('organizacional', 'BETA'); await ate(() => D.detalhe && !D.detalhe.carregando); I.carregarDominio('organizacional'); await ate(() => D.estado === 'ok');
+  D.edicao = { tipo: 'fonte', chave: 'b2', valores: { rotulo: '', texto: 'Placeholder revisado.', contexto: 'indefinido', tipoRedacao: 'Significado v2', situacao: 'não localizado' }, erro: null };
+  await opera('EDITAR FONTE (texto e situação)', () => I.salvarFonte('organizacional', 'BETA'), async () => (await ler(ORG + '/fontes/BETA/b2/situacao')) === 'não localizado');
+  I.carregarDetalhe('organizacional', 'BETA'); await ate(() => D.detalhe && !D.detalhe.carregando); I.carregarDominio('organizacional'); await ate(() => D.estado === 'ok');
+  D.edicao = { tipo: 'conceito', chave: 'BETA', valores: { nome: 'Beta Revisado', observacoes: 'Obs.', perguntaDiscriminadora: 'P2?', notaDeAplicacao: 'N2.', criterios: 'x1\nx2\nx3', ativo: true }, erro: null };
+  await opera('EDITAR CONCEITO (nome, pergunta, nota, critérios, observações)', () => I.salvarConceito('organizacional', 'BETA'),
+    async () => (await ler(ORG + '/conceitos/BETA/nome')) === 'Beta Revisado' && Object.keys((await ler(ORG + '/conceitos/BETA/criterios')) || {}).length === 3);
+  I.carregarDetalhe('organizacional', 'BETA'); await ate(() => D.detalhe && !D.detalhe.carregando); I.carregarDominio('organizacional'); await ate(() => D.estado === 'ok');
+  D.edicao = { tipo: 'conceito', chave: 'BETA', valores: { nome: 'Beta Revisado', observacoes: 'Obs.', perguntaDiscriminadora: 'P2?', notaDeAplicacao: 'N2.', criterios: 'x1\nx2\nx3', ativo: false }, erro: null };
+  await opera('DESATIVAR o conceito (desativação lógica)', () => I.salvarConceito('organizacional', 'BETA'), async () => (await ler(ORG + '/conceitos/BETA/ativo')) === false);
+  I.carregarDetalhe('organizacional', 'BETA'); await ate(() => D.detalhe && !D.detalhe.carregando); I.carregarDominio('organizacional'); await ate(() => D.estado === 'ok');
+  D.edicao = { tipo: 'perfil', chave: 'ALCANCE', valores: { estado: 'registrado', valor: 'específica', papel: 'definidor', origem: 'inferência' }, erro: null };
+  await opera('PERFIL registrado (valor + papel + origem)', () => I.salvarPerfil('organizacional', 'BETA'), async () => (await ler(ORG + '/perfis/BETA/ALCANCE/estado')) === 'registrado');
+  I.carregarDetalhe('organizacional', 'BETA'); await ate(() => D.detalhe && !D.detalhe.carregando);
+  D.edicao = { tipo: 'perfil', chave: 'ALCANCE', valores: { estado: 'não aplicável', valor: '', papel: 'definidor', origem: 'inferência' }, erro: null };
+  await opera('PERFIL com ausência explícita (só o estado; sem valor/papel/origem)', () => I.salvarPerfil('organizacional', 'BETA'),
+    async () => { const p = await ler(ORG + '/perfis/BETA/ALCANCE'); return p.estado === 'não aplicável' && p.valor === undefined && p.papel === undefined && p.origem === undefined; });
+  /* domínio arquitetural: a mesma aplicação, o mesmo banco */
+  I.carregarDominio('arquitetural'); await ate(() => I.st.d.arquitetural.estado === 'ok');
+  I.st.dominio = 'arquitetural'; const DA = I.st.d.arquitetural; DA.selecionado = 'componente'; I.carregarDetalhe('arquitetural', 'componente'); await ate(() => DA.detalhe && !DA.detalhe.carregando);
+  await opera('ARQUITETURAL: TORNAR VIGENTE a proposta (promovível: "em validação")', () => I.tornarVigente('arquitetural', 'componente', 'c1'),
+    async () => (await ler(ARQT + '/conceitos/componente/definicaoVigenteFonteId')) === 'c1' && (await ler(ARQT + '/fontes/componente/c1/situacao')) === 'vigente');
+  I.st.dominio = 'organizacional';
+  /* não admin: as mesmas operações são recusadas pelo banco, mesmo chamando o código direto */
+  const intruso = carregarApp(ARQ)._interno;
+  intruso.carregarDominio('organizacional'); await ate(() => intruso.st.d.organizacional.estado !== 'carregando');
+  anota('"Avaliação + Arquitetura" (não admin) NÃO consegue LER a Taxonomia pela aplicação (sem acesso)', intruso.st.d.organizacional.estado === 'sem-acesso');
+  intruso.st.d.organizacional.conceitos = { BETA: { nome: 'x' } }; intruso.st.d.organizacional.selecionado = 'BETA';
+  intruso.st.d.organizacional.detalhe = { codigo: 'BETA', carregando: false, fontes: { b1: { situacao: 'histórica/contextual', texto: 't', contexto: 'BB', tipoRedacao: 'Conceito' } }, perfis: {}, relacoes: {}, auditoria: {}, erros: {} };
+  intruso.st.flash = null; intruso.tornarVigente('organizacional', 'BETA', 'b1');
+  await ate(() => !intruso.st.salvando && intruso.st.flash !== null);
+  anota('mesmo chamando o código direto, a GRAVAÇÃO de quem não é admin é recusada pelo banco', intruso.st.flash && intruso.st.flash.erro === true && !(await ler(ORG + '/conceitos/BETA/definicaoVigenteFonteId')));
+
   console.log('\n' + total + ' verificações, ' + falhas + ' falha(s).');
   await testEnv.cleanup();
   process.exit(falhas ? 1 : 0);
