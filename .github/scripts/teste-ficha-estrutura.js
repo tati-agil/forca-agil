@@ -349,7 +349,7 @@ async function passo(nome, fn) { try { await fn(); } catch (e) { afirma(false, n
       console.log('\n== 10. GERAR PDF pelo cabeçalho ==');
       await abrirResultado(page, 'cadx');
       const pdf = await gerarPdf(page);
-      afirma(/Decisão final/.test(pdf) && /Curadoria arquitetural/.test(pdf), 'o botão do cabeçalho gera o PDF');
+      afirma(/Decisão final/.test(pdf) && /O que uma pessoa complementou/.test(pdf), 'o botão do cabeçalho gera o PDF');
       await voltar(page);
     });
 
