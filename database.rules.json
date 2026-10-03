@@ -546,7 +546,7 @@
                 ".validate": "(newData.val() === 'PREVI' || newData.val() === 'BB' || newData.val() === 'indefinido')"
               },
               "situacao": {
-                ".validate": "(newData.val() === 'vigente' || newData.val() === 'em validação' || newData.val() === 'histórica/contextual' || newData.val() === 'placeholder' || newData.val() === 'não localizado')"
+                ".validate": "(newData.val() === 'vigente' || newData.val() === 'em validação' || newData.val() === 'histórica/contextual' || newData.val() === 'placeholder' || newData.val() === 'não localizado') && (newData.val() !== 'vigente' || (data.val() !== 'placeholder' && data.val() !== 'não localizado'))"
               },
               "tipoRedacao": {
                 ".validate": "(newData.val() === 'Conceito' || newData.val() === 'Significado v1' || newData.val() === 'Significado v2' || newData.val() === 'proposta')"
@@ -655,7 +655,7 @@
                 ".validate": "(newData.val() === 'PREVI' || newData.val() === 'BB' || newData.val() === 'indefinido')"
               },
               "situacao": {
-                ".validate": "(newData.val() === 'vigente' || newData.val() === 'em validação' || newData.val() === 'histórica/contextual' || newData.val() === 'placeholder' || newData.val() === 'não localizado')"
+                ".validate": "(newData.val() === 'vigente' || newData.val() === 'em validação' || newData.val() === 'histórica/contextual' || newData.val() === 'placeholder' || newData.val() === 'não localizado') && (newData.val() !== 'vigente' || (data.val() !== 'placeholder' && data.val() !== 'não localizado'))"
               },
               "tipoRedacao": {
                 ".validate": "(newData.val() === 'Conceito' || newData.val() === 'Significado v1' || newData.val() === 'Significado v2' || newData.val() === 'proposta')"
