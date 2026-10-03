@@ -266,25 +266,92 @@
     var c = curadoriaRegistrada(it);
     return !!(c.especializacao || c.papelEstrutural || c.natureza);
   }
-  /* CURADORIA = só o que alguém REGISTROU (cadastro de especialização/papel,
-     natureza). O que o questionário/motor deriva (ex.: "Opção/configuração de
+  /* CURADORIA = só o que alguém REGISTROU e que VALE para a classificação atual.
+     O que o questionário/motor deriva (ex.: "Opção/configuração de
      personalização" num Componente) é saída do motor, NÃO curadoria: nunca
      entra no bloco Curadoria, nunca conta como "complementação" e é mostrado à
-     parte (especializacaoDerivada). Valor cadastrado que a camada ATUAL não
-     admite (a camada mudou depois do cadastro) não conta nem aparece, mas
-     continua gravado — nada é apagado. Única fonte para tela, PDF, Excel e para
-     a "Forma da decisão". */
+     parte (especializacaoDerivada). Única fonte para tela, PDF, Excel e para a
+     "Forma da decisão".
+
+     Um cadastro (especializacaoCadastrada / papelEstruturalCadastrado) tem TRÊS
+     situações, calculadas na hora de exibir — nenhuma leitura grava nada:
+       vigente   a camada atual admite o campo E o cadastro vale para ela:
+                 não há marcador (registro LEGADO) ou o marcador é a camada atual;
+       sem efeito  a camada atual NÃO admite o campo (a camada mudou): o valor
+                 continua gravado, não conta e aparece só em bloco informativo;
+       a revisar   a camada admite o campo de novo, mas o cadastro foi
+                 confirmado para OUTRA classificação (ou perdeu o vínculo ao
+                 ficar sem efeito): não volta sozinho a valer — só depois de uma
+                 confirmação humana (ou de um valor novo) na ficha.
+     O registro não guardava para qual camada o cadastro foi feito, então o
+     marcador (especializacaoCamadaConfirmada / papelEstruturalCamadaConfirmada)
+     diz em qual camada ele foi confirmado: o id da camada, ou 'sem-vinculo'
+     (a camada mudou para uma que não admite o campo). Ausente = registro legado:
+     vale enquanto a camada admite, exatamente como antes. Nunca se inventa a
+     camada de um registro legado: o marcador nasce quando a camada MUDA
+     (reprocessar/reavaliar, ver vinculosAoMudarCamada) ou numa confirmação/
+     alteração humana. */
+  var VINCULO_PERDIDO = 'sem-vinculo';
+  function admiteEspecializacao(camadaId) { return CAMADAS_COM_ESPECIALIZACAO.indexOf(camadaId) !== -1; }
+  function admitePapelEstrutural(camadaId) { return CAMADAS_COM_PAPEL_ESTRUTURAL.indexOf(camadaId) !== -1; }
+  /* O cadastro vale para esta camada? (não olha se a camada admite o campo) */
+  function vinculoVale(marcador, camadaId) { return !marcador || marcador === camadaId; }
+  function camadaDoItem(it) { return (it && it.camadaSugerida && it.camadaSugerida.id) || null; }
+  /* Estado de um campo de curadoria cadastrado: 'vigente' | 'sem-efeito' | 'a-revisar' | null (nada cadastrado). */
+  function situacaoCadastro(valor, marcador, camadaId, admite) {
+    if (!valor || !camadaId) return null;
+    if (!admite) return 'sem-efeito';
+    return vinculoVale(marcador, camadaId) ? 'vigente' : 'a-revisar';
+  }
+  function papelCadastrado(it) { return normalizarPapelEstrutural(it && it.papelEstruturalCadastrado); }
+  function rotuloPapel(v) { return v === 'essencial' ? 'Essencial' : (v === 'opcional' ? 'Opcional' : ''); }
+  function especializacaoCadastradaDe(it) { return String((it && it.especializacaoCadastrada) || '').trim(); }
+  function temCuradoria(it) {
+    var c = curadoriaRegistrada(it);
+    return !!(c.especializacao || c.papelEstrutural || c.natureza);
+  }
+  /* Só o VIGENTE (é o que conta, aparece na Curadoria, no PDF e no Excel). */
   function curadoriaRegistrada(it) {
-    var camadaId = it && it.camadaSugerida && it.camadaSugerida.id;
-    var esp = CAMADAS_COM_ESPECIALIZACAO.indexOf(camadaId) !== -1 ? String(it.especializacaoCadastrada || '').trim() : '';
-    var papelNorm = CAMADAS_COM_PAPEL_ESTRUTURAL.indexOf(camadaId) !== -1 ? normalizarPapelEstrutural(it.papelEstruturalCadastrado) : null;
+    var camadaId = camadaDoItem(it);
+    var esp = especializacaoCadastradaDe(it), papel = papelCadastrado(it);
+    var espVigente = situacaoCadastro(esp, it && it.especializacaoCamadaConfirmada, camadaId, admiteEspecializacao(camadaId)) === 'vigente';
+    var papelVigente = situacaoCadastro(papel, it && it.papelEstruturalCamadaConfirmada, camadaId, admitePapelEstrutural(camadaId)) === 'vigente';
     return {
-      especializacao: esp,
-      papelEstrutural: papelNorm === 'essencial' ? 'Essencial' : (papelNorm === 'opcional' ? 'Opcional' : ''),
+      especializacao: espVigente ? esp : '',
+      papelEstruturalValor: papelVigente ? papel : '',
+      papelEstrutural: papelVigente ? rotuloPapel(papel) : '',
       natureza: naturezaDoItem(it)
     };
   }
-  /* Especialização que o motor deriva das respostas, quando NÃO há cadastro. */
+  /* O que está cadastrado e NÃO é vigente, por campo: { valor, rotulo, situacao }.
+     Natureza nunca entra (não depende da camada); rascunho (sem camada) também não. */
+  function curadoriaAnterior(it) {
+    var camadaId = camadaDoItem(it);
+    var out = { camada: camadaId ? (it.camadaSugerida.label || camadaId) : '', especializacao: null, papelEstrutural: null };
+    var esp = especializacaoCadastradaDe(it), papel = papelCadastrado(it);
+    var sEsp = situacaoCadastro(esp, it && it.especializacaoCamadaConfirmada, camadaId, admiteEspecializacao(camadaId));
+    var sPapel = situacaoCadastro(papel, it && it.papelEstruturalCamadaConfirmada, camadaId, admitePapelEstrutural(camadaId));
+    if (sEsp && sEsp !== 'vigente') out.especializacao = { valor: esp, rotulo: esp, situacao: sEsp };
+    if (sPapel && sPapel !== 'vigente') out.papelEstrutural = { valor: papel, rotulo: rotuloPapel(papel), situacao: sPapel };
+    return out;
+  }
+  /* Quando a camada MUDA numa gravação (reprocessar, reavaliar/concluir), fixa o
+     vínculo do cadastro: perdeu o vínculo se a camada nova não admite o campo;
+     senão (registro legado, sem marcador) guarda a camada ANTERIOR — não vale
+     para a nova sem confirmação. Devolve só os marcadores a gravar. */
+  function vinculosAoMudarCamada(it, camadaAntigaId, camadaNovaId) {
+    var out = {};
+    if (!camadaAntigaId || !camadaNovaId || camadaAntigaId === camadaNovaId) return out;
+    function campo(valor, marcador, admiteNova, chave) {
+      if (!valor) return;
+      if (!admiteNova) out[chave] = VINCULO_PERDIDO;
+      else if (!marcador) out[chave] = camadaAntigaId;
+    }
+    campo(especializacaoCadastradaDe(it), it.especializacaoCamadaConfirmada, admiteEspecializacao(camadaNovaId), 'especializacaoCamadaConfirmada');
+    campo(papelCadastrado(it), it.papelEstruturalCamadaConfirmada, admitePapelEstrutural(camadaNovaId), 'papelEstruturalCamadaConfirmada');
+    return out;
+  }
+  /* Especialização que o motor deriva das respostas, quando NÃO há cadastro vigente. */
   function especializacaoDerivada(it) {
     if (curadoriaRegistrada(it).especializacao) return '';
     return valorEspecializacao(it && it.camadaSugerida);
@@ -572,14 +639,16 @@
 
     function especializacaoPara(camadaId) {
       if (CAMADAS_COM_ESPECIALIZACAO.indexOf(camadaId) === -1) return null;
-      var cadastrada = (atual.especializacaoCadastrada || '').trim();
+      /* Só o cadastro VIGENTE para esta camada entra (ver curadoriaRegistrada): um cadastro
+         que perdeu o vínculo ou foi confirmado para outra camada não volta sozinho. */
+      var cadastrada = vinculoVale(atual.especializacaoCamadaConfirmada, camadaId) ? (atual.especializacaoCadastrada || '').trim() : '';
       if (cadastrada) return cadastrada;
       if (camadaId === 'componente' && modalidade) return 'Opção/configuração de personalização';
       return null;
     }
     function papelEstruturalPara(camadaId) {
       if (CAMADAS_COM_PAPEL_ESTRUTURAL.indexOf(camadaId) === -1) return null;
-      var cadastrado = (atual.papelEstruturalCadastrado || '').trim().toLowerCase();
+      var cadastrado = vinculoVale(atual.papelEstruturalCamadaConfirmada, camadaId) ? (atual.papelEstruturalCadastrado || '').trim().toLowerCase() : '';
       if (cadastrado === 'essencial') return 'Essencial';
       if (cadastrado === 'opcional') return 'Opcional';
       return null;
@@ -2342,8 +2411,11 @@
        "nada digitado ainda" de "já salvo, sem mudança" de "mudou depois de
        salvo" só comparando o campo atual contra ela. */
     function especializacaoFormInicial(it) {
-      var salvo = it.especializacaoCadastrada || '';
-      var papelSalvo = it.papelEstruturalCadastrado || '';
+      /* O formulário parte do cadastro VIGENTE: o que está sem efeito ou a revisar fica
+         nos blocos próprios da ficha e não pode ser apagado por um salvamento. */
+      var vigente = curadoriaRegistrada(it);
+      var salvo = vigente.especializacao || '';
+      var papelSalvo = vigente.papelEstruturalValor || '';
       return { valor: salvo, ultimoSalvo: salvo, papel: papelSalvo, papelUltimoSalvo: papelSalvo, erro: null };
     }
 
@@ -4411,6 +4483,8 @@
         observacoesGerais: a.observacoesGerais || '',
         especializacaoCadastrada: (a.especializacaoCadastrada || '').trim() || null,
         papelEstruturalCadastrado: normalizarPapelEstrutural(a.papelEstruturalCadastrado),
+        especializacaoCamadaConfirmada: a.especializacaoCamadaConfirmada || null,
+        papelEstruturalCamadaConfirmada: a.papelEstruturalCamadaConfirmada || null,
         respostas: a.respostas || {},
         /* Versão do CONTEÚDO do questionário (título/texto/ajuda/
            justificativas de P1-P16) vigente quando esta avaliação foi
@@ -4470,6 +4544,15 @@
       Object.assign(payload, camposNaturezaDoItem(a));
       if (status === 'concluido') {
         var calc = computeResultado(a);
+        /* A camada mudou (reavaliação ou edição)? Fixa o vínculo do cadastro de curadoria na hora
+           e recalcula com ele — o cadastro não passa a valer sozinho na camada nova. A camada
+           anterior é a gravada na avaliação, ou, num rascunho de reavaliação, a da versão anterior. */
+        var versaoAnterior = a.versaoAnteriorKey ? buscarItem(a.versaoAnteriorKey) : null;
+        var vinculos = vinculosAoMudarCamada(a, camadaDoItem(a) || camadaDoItem(state.reavaliacaoBase) || camadaDoItem(versaoAnterior), calc.camadaSugerida && calc.camadaSugerida.id);
+        if (Object.keys(vinculos).length) {
+          Object.assign(payload, vinculos);
+          calc = computeResultado(Object.assign({}, a, vinculos));
+        }
         payload.resultadoAutomatico = calc.resultadoAutomatico;
         payload.criteriosEssenciaisFalhos = calc.essenciaisFalhos;
         payload.exclusoesConflitantes = calc.exclusoesConflitantes;
@@ -4831,6 +4914,10 @@
       }
       var salvarEspecializacaoBtn = document.getElementById('avpSalvarEspecializacaoBtn');
       if (salvarEspecializacaoBtn) salvarEspecializacaoBtn.addEventListener('click', salvarEspecializacaoCadastrada);
+      var confirmarEspBtn = document.getElementById('avpConfirmarEspecializacaoBtn');
+      if (confirmarEspBtn) confirmarEspBtn.addEventListener('click', function () { confirmarCuradoriaAnterior('especializacao'); });
+      var confirmarPapelBtn = document.getElementById('avpConfirmarPapelBtn');
+      if (confirmarPapelBtn) confirmarPapelBtn.addEventListener('click', function () { confirmarCuradoriaAnterior('papelEstrutural'); });
       var flashEspecializacaoClose = document.getElementById('avpFlashEspecializacaoClose');
       if (flashEspecializacaoClose) flashEspecializacaoClose.addEventListener('click', function () { state.flashEspecializacao = null; render(); });
 
@@ -4990,8 +5077,10 @@
       if (editavel) {
         html += '<p class="avp-decisao-aviso">Complementa a avaliação com informações opcionais do item. Não altera a recomendação do sistema nem a ' +
           'classificação arquitetural (a camada vem do motor). Cada alteração fica registrada: valor anterior, novo valor, quem e quando.</p>';
+        html += renderCuradoriaRevisao(a, true);
         if (CAMADAS_COM_ESPECIALIZACAO.indexOf(camada.id) !== -1) html += renderEspecializacaoCadastradaCard(camada.id);
         html += renderNaturezaBloco(a);
+        html += renderCuradoriaSemEfeito(a);
       } else {
         var nat = naturezaDoItem(a);
         var reg = curadoriaRegistrada(a);
@@ -5005,8 +5094,50 @@
           if (nat) html += '<dt>Natureza complementar</dt><dd>' + esc(nat.nome) + '</dd>';
           html += '</dl>';
         }
+        html += renderCuradoriaRevisao(a, false);
+        html += renderCuradoriaSemEfeito(a);
       }
       html += renderCuradoriaHistorico(a);
+      html += '</div>';
+      return html;
+    }
+
+    /* Cadastro de curadoria que voltou a ser compatível com a classificação atual, mas foi
+       confirmado para OUTRA (ou perdeu o vínculo): NÃO conta como vigente até alguém confirmar
+       ou digitar um valor novo. Só informa; a confirmação é por campo e só em modo editável. */
+    function renderCuradoriaRevisao(a, editavel) {
+      var ant = curadoriaAnterior(a);
+      var itens = [];
+      if (ant.especializacao && ant.especializacao.situacao === 'a-revisar') itens.push({ rotulo: 'Especialização anterior', valor: ant.especializacao.rotulo, id: 'avpConfirmarEspecializacaoBtn', botao: 'Confirmar especialização' });
+      if (ant.papelEstrutural && ant.papelEstrutural.situacao === 'a-revisar') itens.push({ rotulo: 'Papel estrutural anterior', valor: ant.papelEstrutural.rotulo, id: 'avpConfirmarPapelBtn', botao: 'Confirmar papel estrutural' });
+      if (!itens.length) return '';
+      var html = '<div class="avp-curadoria-aviso avp-curadoria-revisao" id="avpCuradoriaRevisao">';
+      html += '<h5>Curadoria anterior disponível para revisão</h5>';
+      html += '<p class="avp-natureza-ajuda">Este valor foi cadastrado anteriormente e voltou a ser compatível com a classificação atual. Confirme se ele continua válido para esta classificação.</p>';
+      itens.forEach(function (i) {
+        html += '<div class="avp-curadoria-aviso-linha"><p>' + esc(i.rotulo) + ': <strong>' + esc(i.valor) + '</strong></p>';
+        if (editavel) html += '<button type="button" class="btn btn--sm" id="' + i.id + '"' + (state.salvandoEspecializacao ? ' disabled' : '') + '>' + esc(i.botao) + '</button>';
+        html += '</div>';
+      });
+      if (editavel) html += '<p class="avp-natureza-ajuda">Para usar outro valor em vez deste, preencha o campo correspondente abaixo e salve.</p>';
+      html += '</div>';
+      return html;
+    }
+    /* Cadastro de curadoria que a classificação atual NÃO admite: continua gravado, nunca conta
+       como curadoria vigente, e aparece só aqui — informativo, sem ação, visualmente secundário. */
+    function renderCuradoriaSemEfeito(a) {
+      var ant = curadoriaAnterior(a);
+      var itens = [];
+      if (ant.especializacao && ant.especializacao.situacao === 'sem-efeito') itens.push({ rotulo: 'Especialização anteriormente cadastrada', valor: ant.especializacao.rotulo });
+      if (ant.papelEstrutural && ant.papelEstrutural.situacao === 'sem-efeito') itens.push({ rotulo: 'Papel estrutural anteriormente cadastrado', valor: ant.papelEstrutural.rotulo });
+      if (!itens.length) return '';
+      var html = '<div class="avp-curadoria-aviso avp-curadoria-sem-efeito" id="avpCuradoriaSemEfeito">';
+      html += '<h5>Curadoria anterior sem efeito nesta classificação</h5>';
+      html += '<p class="avp-natureza-ajuda">Existe informação de curadoria registrada anteriormente que não se aplica à classificação arquitetural atual. O valor permanece preservado no histórico, mas não conta como curadoria vigente.</p>';
+      itens.forEach(function (i) {
+        html += '<p class="avp-curadoria-aviso-item">' + esc(i.rotulo) + ': <strong>' + esc(i.valor) + '</strong><br>' +
+          '<span class="avp-natureza-ajuda">A classificação atual “' + esc(ant.camada) + '” não admite este campo.</span></p>';
+      });
       html += '</div>';
       return html;
     }
@@ -5049,6 +5180,9 @@
           ? 'Reprocessamento automático' + (e.reprocessamento === 'lote' ? ' em lote' : '') + ' — motor ' + esc(e.motorVersion || '—') +
             (e.motorVersionArquitetura ? ' (regras v' + esc(e.motorVersionArquitetura) + ')' : '') + ' · disparado por ' + quem
           : 'por ' + quem;
+        var camadaTxt = e.camada && e.camada.label ? esc(e.camada.label) : '';
+        if (e.confirmacao) j += ' · confirmada para a classificação “' + camadaTxt + '”';
+        else if (e.valorSemEfeitoSubstituido) j += ' · substituiu o valor anterior sem efeito “' + esc(e.valorSemEfeitoSubstituido) + '”';
         return '<div class="avp-aut-hist"><strong>' + esc(ROTULO_TIPO_AUDITORIA[e.tipo] || e.tipo) + '</strong>: ' +
           esc(rotuloValorAuditoria(e.tipo, e.valorAnterior)) + ' → ' + esc(rotuloValorAuditoria(e.tipo, e.valorNovo)) +
           '<br><span class="avp-usuario-aviso">' + origem + ' em ' + esc(fmtData(e.dataHora)) + j + '</span></div>';
@@ -5471,32 +5605,79 @@
       if (state.salvandoEspecializacao) return;
       var a = state.atual;
       var f = state.especializacaoForm;
-      var papelAplicavel = !!(a.camadaSugerida && CAMADAS_COM_PAPEL_ESTRUTURAL.indexOf(a.camadaSugerida.id) !== -1);
+      var camadaId = camadaDoItem(a);
+      var papelAplicavel = admitePapelEstrutural(camadaId);
       if (estadoBotaoEspecializacao(f, papelAplicavel).desabilitado) return;
       var valor = (f.valor || '').trim();
       var papel = papelAplicavel ? (f.papel || '') : '';
-      var itemRecalculo = Object.assign({}, a, { especializacaoCadastrada: valor, papelEstruturalCadastrado: papel || null });
-      var identCalc = identificarCamada(itemRecalculo);
-      var especializacaoRecalculada = identCalc.especializacao;
-      var papelRecalculado = identCalc.papelEstrutural;
-      var updates = {
-        especializacaoCadastrada: valor || null,
-        papelEstruturalCadastrado: papel || null,
-        'camadaSugerida/especializacao': especializacaoRecalculada,
-        'camadaSugerida/papelEstrutural': papelRecalculado,
+      var dirtyEsp = valor !== (f.ultimoSalvo || '').trim();
+      var dirtyPapel = papelAplicavel && papel !== (f.papelUltimoSalvo || '');
+      var vigente = curadoriaRegistrada(a);
+      var camadaInfo = { id: camadaId, label: (a.camadaSugerida && a.camadaSugerida.label) || camadaId };
+      /* SÓ o que foi editado é gravado: salvar a Especialização nunca toca no Papel (nem o
+         contrário), mesmo que o outro tenha um cadastro sem efeito ou a revisar — antes, numa
+         camada sem Papel, isso apagava o papel antigo em silêncio. Cada valor gravado já nasce
+         vinculado à camada atual (é uma decisão humana para esta classificação). */
+      var campos = {};
+      var linhas = [];
+      if (dirtyEsp) {
+        var espAnterior = vigente.especializacao || null;
+        var espSemEfeito = especializacaoCadastradaDe(a);
+        campos.especializacaoCadastrada = valor || null;
+        campos.especializacaoCamadaConfirmada = valor ? camadaId : null;
+        if (espAnterior !== (valor || null)) {
+          linhas.push(linhaAuditoriaCuradoria(a, 'alteracao_especializacao', espAnterior, valor || null,
+            Object.assign({ camada: camadaInfo }, !espAnterior && espSemEfeito && espSemEfeito !== valor ? { valorSemEfeitoSubstituido: espSemEfeito } : null)));
+        }
+      }
+      if (dirtyPapel) {
+        var papelAnterior = vigente.papelEstruturalValor || null;
+        var papelSemEfeito = papelCadastrado(a);
+        campos.papelEstruturalCadastrado = papel || null;
+        campos.papelEstruturalCamadaConfirmada = papel ? camadaId : null;
+        if (papelAnterior !== (papel || null)) {
+          linhas.push(linhaAuditoriaCuradoria(a, 'alteracao_papel_estrutural', papelAnterior, papel || null,
+            Object.assign({ camada: camadaInfo }, !papelAnterior && papelSemEfeito && papelSemEfeito !== papel ? { valorSemEfeitoSubstituido: papelSemEfeito } : null)));
+        }
+      }
+      gravarCuradoriaCadastro(campos, linhas, '✓ Especialização salva com sucesso.', 'Não foi possível salvar a especialização. Tente novamente.');
+    }
+
+    /* Confirmação HUMANA de um cadastro anterior que voltou a ser compatível com a classificação
+       atual ('especializacao' | 'papelEstrutural'): o valor não muda — só passa a estar vinculado
+       à camada vigente, e por isso volta a contar. Usa a trilha da curadoria (mesmo tipo do
+       campo: o valor VIGENTE passa de "nenhum" para o valor), marcada como confirmação. */
+    function confirmarCuradoriaAnterior(campo) {
+      if (state.salvandoEspecializacao) return;
+      var a = state.atual;
+      var ant = curadoriaAnterior(a)[campo];
+      var camadaId = camadaDoItem(a);
+      if (!ant || ant.situacao !== 'a-revisar' || !camadaId) return;
+      var ehEsp = campo === 'especializacao';
+      var campos = {};
+      campos[ehEsp ? 'especializacaoCamadaConfirmada' : 'papelEstruturalCamadaConfirmada'] = camadaId;
+      var linha = linhaAuditoriaCuradoria(a, ehEsp ? 'alteracao_especializacao' : 'alteracao_papel_estrutural', null, ant.valor,
+        { camada: { id: camadaId, label: (a.camadaSugerida && a.camadaSugerida.label) || camadaId }, confirmacao: true });
+      gravarCuradoriaCadastro(campos, [linha],
+        ehEsp ? '✓ Especialização confirmada para esta classificação.' : '✓ Papel estrutural confirmado para esta classificação.',
+        'Não foi possível confirmar. Tente novamente.');
+    }
+
+    /* UMA gravação atômica: campos de curadoria + camadaSugerida recalculada + linhas de auditoria.
+       Nunca resultadoAutomatico, motivos, justificativaAutomatica ou decisão. */
+    function gravarCuradoriaCadastro(campos, linhas, mensagemOk, mensagemErro) {
+      var a = state.atual;
+      var f = state.especializacaoForm;
+      var ident = identificarCamada(Object.assign({}, a, campos));
+      var updates = Object.assign({}, campos, {
+        'camadaSugerida/especializacao': ident.especializacao,
+        'camadaSugerida/papelEstrutural': ident.papelEstrutural,
         atualizadoEm: new Date().toISOString()
-      };
-      /* Auditoria: só do que MUDOU (cadastro anterior × novo), gravada na mesma
-         gravação atômica. Não reconstrói alterações antigas. */
-      var linhasCuradoria = [];
-      var espAnterior = (a.especializacaoCadastrada || '').trim() || null;
-      var papelAnterior = (a.papelEstruturalCadastrado || '').trim() || null;
-      if (espAnterior !== (valor || null)) linhasCuradoria.push(linhaAuditoriaCuradoria(a, 'alteracao_especializacao', espAnterior, valor || null));
-      if (papelAplicavel && papelAnterior !== (papel || null)) linhasCuradoria.push(linhaAuditoriaCuradoria(a, 'alteracao_papel_estrutural', papelAnterior, papel || null));
+      });
       var tudoEsp = {};
       Object.keys(updates).forEach(function (k) { tudoEsp[NODE + '/' + a._key + '/' + k] = updates[k]; });
       var chaveAudEsp = NODE_CURADORIA_AUDITORIA + '/' + a._key;
-      linhasCuradoria.forEach(function (l) { tudoEsp[chaveAudEsp + '/' + db().ref(chaveAudEsp).push().key] = l; });
+      linhas.forEach(function (l) { tudoEsp[chaveAudEsp + '/' + db().ref(chaveAudEsp).push().key] = l; });
       state.salvandoEspecializacao = true;
       render();
 
@@ -5505,7 +5686,7 @@
         if (respondido) return;
         respondido = true;
         state.salvandoEspecializacao = false;
-        f.erro = 'A conexão está demorando e não deu para confirmar o salvamento. Toque em "SALVAR ESPECIALIZAÇÃO" de novo.';
+        f.erro = 'A conexão está demorando e não deu para confirmar o salvamento. Toque no botão de novo.';
         render();
       }, 12000);
 
@@ -5515,21 +5696,18 @@
         clearTimeout(relogio);
         state.salvandoEspecializacao = false;
         if (err) {
-          console.error('[avaliacao-produto] erro ao salvar especialização arquitetural cadastrada:', err);
+          console.error('[avaliacao-produto] erro ao salvar a curadoria cadastrada:', err);
           render();
-          avpAlert('Não foi possível salvar a especialização. Tente novamente.');
+          avpAlert(mensagemErro);
           return;
         }
-        f.erro = null;
-        a.especializacaoCadastrada = updates.especializacaoCadastrada;
-        a.papelEstruturalCadastrado = updates.papelEstruturalCadastrado;
+        Object.keys(campos).forEach(function (k) { a[k] = campos[k]; });
         a.atualizadoEm = updates.atualizadoEm;
-        a.camadaSugerida = Object.assign({}, a.camadaSugerida, { especializacao: especializacaoRecalculada, papelEstrutural: papelRecalculado });
+        a.camadaSugerida = Object.assign({}, a.camadaSugerida, { especializacao: ident.especializacao, papelEstrutural: ident.papelEstrutural });
         state.itens = upsertItem(state.itens, clonarItem(a));
-        f.ultimoSalvo = valor;
-        f.papelUltimoSalvo = papel;
-        adicionarAoHistoricoLocal(linhasCuradoria);
-        state.flashEspecializacao = '✓ Especialização salva com sucesso.';
+        state.especializacaoForm = especializacaoFormInicial(a);
+        adicionarAoHistoricoLocal(linhas);
+        state.flashEspecializacao = mensagemOk;
         render();
       });
     }
@@ -5723,6 +5901,9 @@
     }
     function construirAtualizacaoReprocessamento(a) {
       var calc = computeResultado(a);
+      /* Se a camada mudou, o cadastro de curadoria perde/fixa o vínculo AGORA (ver vinculosAoMudarCamada). */
+      var vinculos = vinculosAoMudarCamada(a, camadaDoItem(a), calc.camadaSugerida && calc.camadaSugerida.id);
+      if (Object.keys(vinculos).length) calc = computeResultado(Object.assign({}, a, vinculos));
       var novaJustificativa = gerarJustificativaAutomatica(a, calc);
       var entradaHistorico = {
         motorVersion: a.motorVersion || null,
@@ -5766,6 +5947,7 @@
          automático x Decisão final na tela/PDF/Excel), mas nunca a muda
          sozinho. */
       if (!a.decisaoManual) updates.decisaoFinal = calc.resultadoAutomatico;
+      Object.assign(updates, vinculos);
       return semUndefined(updates);
     }
     function reprocessarMotor() {
