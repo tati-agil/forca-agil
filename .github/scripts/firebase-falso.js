@@ -95,6 +95,14 @@
     p.catch(function () {});  /* o site precisa tratar; aqui só evita ruído do harness */
     return p;
   };
+  /* get(): como o ref.get() do SDK (v10): busca o valor no SERVIDOR (o falso só tem o estado do servidor,
+     nunca uma gravação otimista ainda não confirmada). CFG.getFalha simula o cliente sem conexão
+     ("Client is offline"): a promessa rejeita. Desligado por padrão. */
+  Ref.prototype.get = function () {
+    var self = this;
+    if (CFG.getFalha) return new Promise(function (resolve, reject) { setTimeout(function () { reject(new Error('Client is offline (falso)')); }, 50); });
+    return this.once('value');
+  };
   Ref.prototype.on = function (evt, ok, err) {
     ouvintes.push({ path: this.path, cb: ok, filtro: this._temIgual ? { campo: this._ordem, valor: this._igual } : null });
     this.once(evt, ok, err);
@@ -266,7 +274,9 @@
          (como era antes) escondia essa classe inteira de corrida atrás
          de um comportamento que o Firebase de verdade nunca teve. */
       notificar(self.path);
-      if (cb) cb(null);
+      /* CFG.semConfirmacao (prefixos): o servidor APLICOU, mas a confirmação nunca chega ao cliente. */
+      var semAck = (CFG.semConfirmacao || []).some(function (pfx) { return todosCaminhos.some(function (c) { return String(c).indexOf(pfx) === 0; }); });
+      if (cb && !semAck) cb(null);
     }, atraso);
     return Promise.resolve();
   };
