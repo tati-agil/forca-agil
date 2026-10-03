@@ -450,10 +450,12 @@ const TOTAL = 'taxonomia';
   }
   {
     console.log('\n== Banco recusa a leitura: "sem acesso" (≠ erro de rede) ==');
-    const { ctx, page } = await abrir(browser, { fail: ['taxonomia'] });
+    const { ctx, page, erros } = await abrir(browser, { fail: ['taxonomia'] });
     await irParaTaxonomia(page);
     await aparece(page, '#taxSemAcesso', 6000);
     afirma(await page.locator('#taxSemAcesso').count() === 1 && !(await page.locator('#taxErro').count()), 'PERMISSION_DENIED → "Você não tem acesso a esta área."');
+    await page.waitForTimeout(500);
+    afirma(erros.length === 0, 'PERMISSION_DENIED NÃO gera erro nem rejeição de promessa não tratada na página (' + erros.length + ')');
     await ctx.close();
   }
 
