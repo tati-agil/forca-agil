@@ -93,6 +93,15 @@ jobs:
           FA_BASE_URL: http://127.0.0.1:8811
         run: node .github/scripts/teste-exportacoes-trilha.js
 
+      # Quebra de página do PDF: título/subtítulo de "Como chegamos até aqui" nunca fica órfão no fim da
+      # página — o título, o histórico de versões e a tabela (e a trilha com o 1º conteúdo) vão no mesmo
+      # bloco indivisível (pdf-decisao-bloco), sem mudar texto nem ordem.
+      - name: "Avaliação: quebra de página do PDF sem título órfão (desktop e celular)"
+        env:
+          NODE_PATH: /tmp/pw-deps/node_modules
+          FA_BASE_URL: http://127.0.0.1:8811
+        run: node .github/scripts/teste-pdf-quebra-titulos.js
+
       # Estrutura da ficha: o sistema concluiu → uma pessoa complementou (Curadoria) → uma pessoa
       # decidiu (Decisão final) → como chegamos até aqui (históricos, questionário). Reavaliar e
       # GERAR PDF no cabeçalho, faixa-resumo, Forma da decisão sem Curadoria, justificativa
