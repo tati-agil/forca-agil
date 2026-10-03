@@ -472,6 +472,315 @@
       "$id": {
         ".write": "auth != null && (((auth.token.email === 'tatianefdirene@previ.com.br' || auth.token.email === 'danielfrazao@previ.com.br') || root.child('fa-admins').child(auth.token.email.replace('@','_').replace('.','_')).exists()) || (root.child('fa-avaliacao-autorizados').child(auth.token.email.replace('@','_').replace('.','_')).child('tipo').val() === 'avaliacao' || root.child('fa-avaliacao-autorizados').child(auth.token.email.replace('@','_').replace('.','_')).child('tipo').val() === 'avaliacao-arquitetura')) && !data.exists() && newData.child('tipo').val() === 'reconciliacao_versao_equivalente'"
       }
+    },
+    "taxonomia": {
+      "arquitetural": {
+        "conceitos": {
+          ".read": "auth != null && ((auth.token.email === 'tatianefdirene@previ.com.br' || auth.token.email === 'danielfrazao@previ.com.br') || root.child('fa-admins').child(auth.token.email.replace('@','_').replace('.','_')).exists())",
+          "$codigo": {
+            ".write": "(auth != null && ((auth.token.email === 'tatianefdirene@previ.com.br' || auth.token.email === 'danielfrazao@previ.com.br') || root.child('fa-admins').child(auth.token.email.replace('@','_').replace('.','_')).exists())) && newData.exists()",
+            ".validate": "$codigo.matches(/^[A-Za-z][A-Za-z0-9_-]{1,59}$/) && newData.hasChildren(['nome','ordem','ativo','situacaoDefinicao']) && (!data.child('definicaoVigenteFonteId').exists() || newData.child('definicaoVigenteFonteId').val() === data.child('definicaoVigenteFonteId').val() || newData.parent().parent().child('fontes').child($codigo).child(data.child('definicaoVigenteFonteId').val()).child('situacao').val() !== 'vigente')",
+            "nome": {
+              ".validate": "newData.isString() && newData.val().length > 0 && newData.val().length <= 120"
+            },
+            "ordem": {
+              ".validate": "newData.isNumber()"
+            },
+            "ativo": {
+              ".validate": "newData.isBoolean()"
+            },
+            "situacaoDefinicao": {
+              ".validate": "(newData.val() === 'registrada' || newData.val() === 'em revisão' || newData.val() === 'ainda não registrada')"
+            },
+            "definicaoVigenteFonteId": {
+              ".validate": "newData.isString() && newData.val().length > 0 && newData.val().length <= 60 && newData.val().matches(/^[A-Za-z0-9_-]+$/) && newData.parent().parent().parent().child('fontes').child($codigo).child(newData.val()).child('situacao').val() === 'vigente'"
+            },
+            "observacoes": {
+              ".validate": "newData.isString() && newData.val().length <= 4000"
+            },
+            "perguntaDiscriminadora": {
+              ".validate": "newData.isString() && newData.val().length <= 2000"
+            },
+            "notaDeAplicacao": {
+              ".validate": "newData.isString() && newData.val().length <= 4000"
+            },
+            "ordemDaPergunta": {
+              ".validate": "newData.isNumber()"
+            },
+            "criterios": {
+              "$criterioId": {
+                ".validate": "newData.hasChildren(['texto','ordem'])",
+                "texto": {
+                  ".validate": "newData.isString() && newData.val().length > 0 && newData.val().length <= 2000"
+                },
+                "ordem": {
+                  ".validate": "newData.isNumber()"
+                },
+                "$outro": {
+                  ".validate": false
+                }
+              }
+            },
+            "atualizadoEm": {
+              ".validate": "newData.isString()"
+            },
+            "atualizadoPor": {
+              ".validate": "newData.isString() && newData.val() === auth.token.email"
+            },
+            "$outro": {
+              ".validate": false
+            }
+          }
+        },
+        "fontes": {
+          ".read": "auth != null && ((auth.token.email === 'tatianefdirene@previ.com.br' || auth.token.email === 'danielfrazao@previ.com.br') || root.child('fa-admins').child(auth.token.email.replace('@','_').replace('.','_')).exists())",
+          "$codigo": {
+            ".validate": "$codigo.matches(/^[A-Za-z][A-Za-z0-9_-]{1,59}$/)",
+            "$fonteId": {
+              ".write": "(auth != null && ((auth.token.email === 'tatianefdirene@previ.com.br' || auth.token.email === 'danielfrazao@previ.com.br') || root.child('fa-admins').child(auth.token.email.replace('@','_').replace('.','_')).exists())) && (newData.exists() || newData.parent().parent().parent().child('conceitos').child($codigo).child('definicaoVigenteFonteId').val() !== $fonteId)",
+              ".validate": "$fonteId.matches(/^[A-Za-z0-9_-]{1,60}$/) && newData.hasChildren(['texto','contexto','situacao','tipoRedacao']) && newData.parent().parent().parent().child('conceitos').child($codigo).exists() && ((newData.child('situacao').val() === 'vigente') === (newData.parent().parent().parent().child('conceitos').child($codigo).child('definicaoVigenteFonteId').val() === $fonteId))",
+              "texto": {
+                ".validate": "newData.isString() && newData.val().length > 0 && newData.val().length <= 8000"
+              },
+              "contexto": {
+                ".validate": "(newData.val() === 'PREVI' || newData.val() === 'BB' || newData.val() === 'indefinido')"
+              },
+              "situacao": {
+                ".validate": "(newData.val() === 'vigente' || newData.val() === 'em validação' || newData.val() === 'histórica/contextual' || newData.val() === 'placeholder' || newData.val() === 'não localizado')"
+              },
+              "tipoRedacao": {
+                ".validate": "(newData.val() === 'Conceito' || newData.val() === 'Significado v1' || newData.val() === 'Significado v2' || newData.val() === 'proposta')"
+              },
+              "rotulo": {
+                ".validate": "newData.isString() && newData.val().length <= 120"
+              },
+              "criadoEm": {
+                ".validate": "newData.isString()"
+              },
+              "criadoPor": {
+                ".validate": "newData.isString() && newData.val() === auth.token.email"
+              },
+              "$outro": {
+                ".validate": false
+              }
+            }
+          }
+        },
+        "auditoria": {
+          ".read": "auth != null && ((auth.token.email === 'tatianefdirene@previ.com.br' || auth.token.email === 'danielfrazao@previ.com.br') || root.child('fa-admins').child(auth.token.email.replace('@','_').replace('.','_')).exists())",
+          "$codigo": {
+            ".validate": "$codigo === '_catalogo' || $codigo.matches(/^[A-Za-z][A-Za-z0-9_-]{1,59}$/)",
+            "$pushKey": {
+              ".write": "(auth != null && ((auth.token.email === 'tatianefdirene@previ.com.br' || auth.token.email === 'danielfrazao@previ.com.br') || root.child('fa-admins').child(auth.token.email.replace('@','_').replace('.','_')).exists())) && !data.exists() && newData.exists()",
+              ".validate": "newData.hasChildren(['tipo','usuario','dataHora']) && (newData.child('tipo').val() === 'alteracao_conceito' || newData.child('tipo').val() === 'alteracao_fonte' || newData.child('tipo').val() === 'definicao_vigente' || newData.child('tipo').val() === 'alteracao_perfil' || newData.child('tipo').val() === 'alteracao_atributo' || newData.child('tipo').val() === 'alteracao_relacao' || newData.child('tipo').val() === 'carga_inicial') && newData.child('usuario').hasChildren(['email']) && newData.child('usuario').child('email').val() === auth.token.email && newData.child('dataHora').isString()"
+            }
+          }
+        }
+      },
+      "organizacional": {
+        "conceitos": {
+          ".read": "auth != null && ((auth.token.email === 'tatianefdirene@previ.com.br' || auth.token.email === 'danielfrazao@previ.com.br') || root.child('fa-admins').child(auth.token.email.replace('@','_').replace('.','_')).exists())",
+          "$codigo": {
+            ".write": "(auth != null && ((auth.token.email === 'tatianefdirene@previ.com.br' || auth.token.email === 'danielfrazao@previ.com.br') || root.child('fa-admins').child(auth.token.email.replace('@','_').replace('.','_')).exists())) && newData.exists()",
+            ".validate": "$codigo.matches(/^[A-Za-z][A-Za-z0-9_-]{1,59}$/) && newData.hasChildren(['nome','ordem','ativo','situacaoDefinicao','camada']) && (!data.child('definicaoVigenteFonteId').exists() || newData.child('definicaoVigenteFonteId').val() === data.child('definicaoVigenteFonteId').val() || newData.parent().parent().child('fontes').child($codigo).child(data.child('definicaoVigenteFonteId').val()).child('situacao').val() !== 'vigente')",
+            "nome": {
+              ".validate": "newData.isString() && newData.val().length > 0 && newData.val().length <= 120"
+            },
+            "ordem": {
+              ".validate": "newData.isNumber()"
+            },
+            "ativo": {
+              ".validate": "newData.isBoolean()"
+            },
+            "situacaoDefinicao": {
+              ".validate": "(newData.val() === 'registrada' || newData.val() === 'em revisão' || newData.val() === 'ainda não registrada')"
+            },
+            "definicaoVigenteFonteId": {
+              ".validate": "newData.isString() && newData.val().length > 0 && newData.val().length <= 60 && newData.val().matches(/^[A-Za-z0-9_-]+$/) && newData.parent().parent().parent().child('fontes').child($codigo).child(newData.val()).child('situacao').val() === 'vigente'"
+            },
+            "observacoes": {
+              ".validate": "newData.isString() && newData.val().length <= 4000"
+            },
+            "perguntaDiscriminadora": {
+              ".validate": "newData.isString() && newData.val().length <= 2000"
+            },
+            "notaDeAplicacao": {
+              ".validate": "newData.isString() && newData.val().length <= 4000"
+            },
+            "ordemDaPergunta": {
+              ".validate": "newData.isNumber()"
+            },
+            "criterios": {
+              "$criterioId": {
+                ".validate": "newData.hasChildren(['texto','ordem'])",
+                "texto": {
+                  ".validate": "newData.isString() && newData.val().length > 0 && newData.val().length <= 2000"
+                },
+                "ordem": {
+                  ".validate": "newData.isNumber()"
+                },
+                "$outro": {
+                  ".validate": false
+                }
+              }
+            },
+            "atualizadoEm": {
+              ".validate": "newData.isString()"
+            },
+            "atualizadoPor": {
+              ".validate": "newData.isString() && newData.val() === auth.token.email"
+            },
+            "camada": {
+              ".validate": "(newData.val() === 'A' || newData.val() === 'B' || newData.val() === 'C' || newData.val() === 'auxiliar')"
+            },
+            "pai": {
+              ".validate": "newData.isString() && newData.val().matches(/^[A-Za-z][A-Za-z0-9_-]{1,59}$/) && newData.parent().parent().child(newData.val()).exists()"
+            },
+            "$outro": {
+              ".validate": false
+            }
+          }
+        },
+        "fontes": {
+          ".read": "auth != null && ((auth.token.email === 'tatianefdirene@previ.com.br' || auth.token.email === 'danielfrazao@previ.com.br') || root.child('fa-admins').child(auth.token.email.replace('@','_').replace('.','_')).exists())",
+          "$codigo": {
+            ".validate": "$codigo.matches(/^[A-Za-z][A-Za-z0-9_-]{1,59}$/)",
+            "$fonteId": {
+              ".write": "(auth != null && ((auth.token.email === 'tatianefdirene@previ.com.br' || auth.token.email === 'danielfrazao@previ.com.br') || root.child('fa-admins').child(auth.token.email.replace('@','_').replace('.','_')).exists())) && (newData.exists() || newData.parent().parent().parent().child('conceitos').child($codigo).child('definicaoVigenteFonteId').val() !== $fonteId)",
+              ".validate": "$fonteId.matches(/^[A-Za-z0-9_-]{1,60}$/) && newData.hasChildren(['texto','contexto','situacao','tipoRedacao']) && newData.parent().parent().parent().child('conceitos').child($codigo).exists() && ((newData.child('situacao').val() === 'vigente') === (newData.parent().parent().parent().child('conceitos').child($codigo).child('definicaoVigenteFonteId').val() === $fonteId))",
+              "texto": {
+                ".validate": "newData.isString() && newData.val().length > 0 && newData.val().length <= 8000"
+              },
+              "contexto": {
+                ".validate": "(newData.val() === 'PREVI' || newData.val() === 'BB' || newData.val() === 'indefinido')"
+              },
+              "situacao": {
+                ".validate": "(newData.val() === 'vigente' || newData.val() === 'em validação' || newData.val() === 'histórica/contextual' || newData.val() === 'placeholder' || newData.val() === 'não localizado')"
+              },
+              "tipoRedacao": {
+                ".validate": "(newData.val() === 'Conceito' || newData.val() === 'Significado v1' || newData.val() === 'Significado v2' || newData.val() === 'proposta')"
+              },
+              "rotulo": {
+                ".validate": "newData.isString() && newData.val().length <= 120"
+              },
+              "criadoEm": {
+                ".validate": "newData.isString()"
+              },
+              "criadoPor": {
+                ".validate": "newData.isString() && newData.val() === auth.token.email"
+              },
+              "$outro": {
+                ".validate": false
+              }
+            }
+          }
+        },
+        "auditoria": {
+          ".read": "auth != null && ((auth.token.email === 'tatianefdirene@previ.com.br' || auth.token.email === 'danielfrazao@previ.com.br') || root.child('fa-admins').child(auth.token.email.replace('@','_').replace('.','_')).exists())",
+          "$codigo": {
+            ".validate": "$codigo === '_catalogo' || $codigo.matches(/^[A-Za-z][A-Za-z0-9_-]{1,59}$/)",
+            "$pushKey": {
+              ".write": "(auth != null && ((auth.token.email === 'tatianefdirene@previ.com.br' || auth.token.email === 'danielfrazao@previ.com.br') || root.child('fa-admins').child(auth.token.email.replace('@','_').replace('.','_')).exists())) && !data.exists() && newData.exists()",
+              ".validate": "newData.hasChildren(['tipo','usuario','dataHora']) && (newData.child('tipo').val() === 'alteracao_conceito' || newData.child('tipo').val() === 'alteracao_fonte' || newData.child('tipo').val() === 'definicao_vigente' || newData.child('tipo').val() === 'alteracao_perfil' || newData.child('tipo').val() === 'alteracao_atributo' || newData.child('tipo').val() === 'alteracao_relacao' || newData.child('tipo').val() === 'carga_inicial') && newData.child('usuario').hasChildren(['email']) && newData.child('usuario').child('email').val() === auth.token.email && newData.child('dataHora').isString()"
+            }
+          }
+        },
+        "atributos": {
+          ".read": "auth != null && ((auth.token.email === 'tatianefdirene@previ.com.br' || auth.token.email === 'danielfrazao@previ.com.br') || root.child('fa-admins').child(auth.token.email.replace('@','_').replace('.','_')).exists())",
+          "$codigoAtributo": {
+            ".write": "(auth != null && ((auth.token.email === 'tatianefdirene@previ.com.br' || auth.token.email === 'danielfrazao@previ.com.br') || root.child('fa-admins').child(auth.token.email.replace('@','_').replace('.','_')).exists())) && newData.exists()",
+            ".validate": "$codigoAtributo.matches(/^[A-Za-z][A-Za-z0-9_-]{1,59}$/) && newData.hasChildren(['nome','grupo','tipoValor','ordem','ativo'])",
+            "nome": {
+              ".validate": "newData.isString() && newData.val().length > 0 && newData.val().length <= 120"
+            },
+            "grupo": {
+              ".validate": "(newData.val() === 'quem-recebe' || newData.val() === 'alcance' || newData.val() === 'entrega' || newData.val() === 'governanca' || newData.val() === 'outros')"
+            },
+            "tipoValor": {
+              ".validate": "(newData.val() === 'lista' || newData.val() === 'texto')"
+            },
+            "valoresPermitidos": {
+              "$v": {
+                ".validate": "newData.hasChildren(['texto','ordem'])",
+                "texto": {
+                  ".validate": "newData.isString() && newData.val().length > 0 && newData.val().length <= 200"
+                },
+                "ordem": {
+                  ".validate": "newData.isNumber()"
+                },
+                "$outro": {
+                  ".validate": false
+                }
+              }
+            },
+            "ordem": {
+              ".validate": "newData.isNumber()"
+            },
+            "ativo": {
+              ".validate": "newData.isBoolean()"
+            },
+            "$outro": {
+              ".validate": false
+            }
+          }
+        },
+        "perfis": {
+          ".read": "auth != null && ((auth.token.email === 'tatianefdirene@previ.com.br' || auth.token.email === 'danielfrazao@previ.com.br') || root.child('fa-admins').child(auth.token.email.replace('@','_').replace('.','_')).exists())",
+          "$codigo": {
+            "$atributo": {
+              ".write": "(auth != null && ((auth.token.email === 'tatianefdirene@previ.com.br' || auth.token.email === 'danielfrazao@previ.com.br') || root.child('fa-admins').child(auth.token.email.replace('@','_').replace('.','_')).exists())) && newData.exists()",
+              ".validate": "$codigo.matches(/^[A-Za-z][A-Za-z0-9_-]{1,59}$/) && newData.hasChild('estado') && newData.parent().parent().parent().child('conceitos').child($codigo).exists() && newData.parent().parent().parent().child('atributos').child($atributo).exists() && (newData.child('estado').val() === 'registrado' ? newData.hasChildren(['valor','papel','origem']) : (!newData.hasChild('valor') && !newData.hasChild('papel') && !newData.hasChild('origem')))",
+              "estado": {
+                ".validate": "(newData.val() === 'registrado' || newData.val() === 'não consta na fonte' || newData.val() === 'não aplicável' || newData.val() === 'ainda não definido' || newData.val() === 'fonte não localizada')"
+              },
+              "valor": {
+                ".validate": "newData.isString() && newData.val().length > 0 && newData.val().length <= 1000"
+              },
+              "papel": {
+                ".validate": "(newData.val() === 'definidor' || newData.val() === 'típico' || newData.val() === 'observado')"
+              },
+              "origem": {
+                ".validate": "(newData.val() === 'fonte' || newData.val() === 'inferência' || newData.val() === 'decisão')"
+              },
+              "atualizadoEm": {
+                ".validate": "newData.isString()"
+              },
+              "$outro": {
+                ".validate": false
+              }
+            }
+          }
+        },
+        "relacoes": {
+          ".read": "auth != null && ((auth.token.email === 'tatianefdirene@previ.com.br' || auth.token.email === 'danielfrazao@previ.com.br') || root.child('fa-admins').child(auth.token.email.replace('@','_').replace('.','_')).exists())",
+          "$chave": {
+            ".write": "(auth != null && ((auth.token.email === 'tatianefdirene@previ.com.br' || auth.token.email === 'danielfrazao@previ.com.br') || root.child('fa-admins').child(auth.token.email.replace('@','_').replace('.','_')).exists())) && newData.exists()",
+            ".validate": "newData.hasChildren(['de','tipo','para']) && (newData.child('tipo').val() === 'compoe' || newData.child('tipo').val() === 'aloca-em' || newData.child('tipo').val() === 'atende' || newData.child('tipo').val() === 'desenvolve-disciplina' || newData.child('tipo').val() === 'pertence-a-disciplina') && $chave === newData.child('de').val() + '__' + newData.child('tipo').val() + '__' + newData.child('para').val() && newData.parent().parent().child('conceitos').child(newData.child('de').val()).exists() && newData.parent().parent().child('conceitos').child(newData.child('para').val()).exists()",
+            "de": {
+              ".validate": "newData.isString()"
+            },
+            "para": {
+              ".validate": "newData.isString()"
+            },
+            "tipo": {
+              ".validate": "newData.isString()"
+            },
+            "nota": {
+              ".validate": "newData.isString() && newData.val().length <= 2000"
+            },
+            "$outro": {
+              ".validate": false
+            }
+          }
+        }
+      },
+      "meta": {
+        ".read": "auth != null && ((auth.token.email === 'tatianefdirene@previ.com.br' || auth.token.email === 'danielfrazao@previ.com.br') || root.child('fa-admins').child(auth.token.email.replace('@','_').replace('.','_')).exists())",
+        "cargaInicial": {
+          ".write": "(auth != null && ((auth.token.email === 'tatianefdirene@previ.com.br' || auth.token.email === 'danielfrazao@previ.com.br') || root.child('fa-admins').child(auth.token.email.replace('@','_').replace('.','_')).exists())) && !data.exists() && newData.exists()",
+          ".validate": "newData.hasChildren(['feitaEm','feitaPor']) && newData.child('feitaPor').val() === auth.token.email"
+        }
+      }
     }
   }
 }
