@@ -2554,6 +2554,12 @@ details.avp-form-card.avp-aut-historico { margin-top: 0; padding: 10px 16px; mar
 .tax-form-linha { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 10px; }
 .tax-check { display: flex; align-items: center; gap: 8px; }
 .tax-confirma { border: 1px solid var(--gold); background: rgba(245,197,24,.08); border-radius: 10px; padding: 10px 12px; margin: 8px 0; font-size: .86rem; }
+.tax-confirma-aviso { margin: 6px 0; }
+.tax-confirma-dados { display: grid; grid-template-columns: max-content 1fr; gap: 2px 12px; margin: 8px 0; }
+.tax-confirma-dados dt { color: var(--ink-3); }
+.tax-confirma-dados dd { margin: 0; overflow-wrap: anywhere; }
+.tax-confirma-rotulo { margin: 8px 0 2px; color: var(--ink-3); }
+.tax-confirma-texto { margin: 0 0 8px; padding: 8px 10px; border-left: 3px solid var(--gold); background: rgba(0,0,0,.18); white-space: pre-wrap; overflow-wrap: anywhere; }
 .tax-importador { background: var(--panel); border: 1px dashed var(--line-strong); border-radius: 12px; padding: 14px 16px; margin: 0 0 16px; }
 .tax-importador h4 { margin: 0 0 6px; }
 .tax-arquivo { position: absolute; width: 1px; height: 1px; opacity: 0; overflow: hidden; }

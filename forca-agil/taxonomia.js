@@ -285,7 +285,7 @@
     caminhos[base + '/conceitos/' + codigo + '/definicaoVigenteFonteId'] = fonteId;
     caminhos[base + '/conceitos/' + codigo + '/situacaoDefinicao'] = 'registrada';
     marcaConceito(caminhos, dom, codigo);
-    addAud(caminhos, dom, codigo, 'definicao_vigente', 'definição vigente', anterior ? rotuloFonte(fontes[anterior], anterior) : null, rotuloFonte(fonte, fonteId));
+    addAud(caminhos, dom, codigo, 'definicao_vigente', 'definição vigente', anterior ? rotuloFonte(fontes[anterior], anterior) : null, rotuloFonte(fonte, fonteId), { fonteAnteriorId: anterior, fonteNovaId: fonteId });
     gravar(caminhos, function () { aposSalvar(dom, codigo, 'Definição vigente atualizada.'); });
   }
   function removerVigencia(dom, codigo) {
@@ -299,7 +299,7 @@
     caminhos[base + '/conceitos/' + codigo + '/definicaoVigenteFonteId'] = null;
     caminhos[base + '/conceitos/' + codigo + '/situacaoDefinicao'] = situacaoSemVigente(pos);
     marcaConceito(caminhos, dom, codigo);
-    addAud(caminhos, dom, codigo, 'definicao_vigente', 'definição vigente', rotuloFonte(fontes[anterior], anterior), null);
+    addAud(caminhos, dom, codigo, 'definicao_vigente', 'definição vigente', rotuloFonte(fontes[anterior], anterior), null, { fonteAnteriorId: anterior, fonteNovaId: null });
     gravar(caminhos, function () { aposSalvar(dom, codigo, 'O conceito ficou sem definição vigente.'); });
   }
   function rotuloFonte(f, id) { return f ? ((f.rotulo || f.tipoRedacao || id) + ' (' + f.contexto + ')') : id; }
@@ -660,8 +660,20 @@
           var conf = D.confirmacao;
           if (conf && conf.fonte === f._id) {
             var atualV = c.definicaoVigenteFonteId && det.fontes[c.definicaoVigenteFonteId];
-            html += '<div class="tax-confirma" role="alertdialog" aria-label="Confirmar definição vigente"><p><strong>Tornar este texto a definição vigente?</strong>' + (atualV ? ' O texto vigente atual passa a "histórico/contextual".' : '') + ' É uma decisão registrada na auditoria.</p>' +
-              '<div class="tax-acoes"><button type="button" class="btn btn--primary btn--sm" data-tax="confirmar-vigente" data-fonte="' + esc(f._id) + '"' + (st.salvando ? ' disabled' : '') + '>' + (st.salvando ? 'SALVANDO…' : 'Confirmar') + '</button><button type="button" class="btn btn--sm" data-tax="cancelar-confirmacao">Cancelar</button></div></div>';
+            html += '<div class="tax-confirma" role="alertdialog" aria-label="Confirmar definição vigente">' +
+              '<p><strong>Tornar este texto a definição vigente?</strong></p>' +
+              '<p class="tax-confirma-aviso" role="note">Esta ação <strong>altera a definição oficial</strong> do conceito “' + esc(c.nome) + '”.' +
+              (atualV ? ' O texto vigente atual (' + esc(rotuloFonte(atualV, c.definicaoVigenteFonteId)) + ') passa a "histórico/contextual".' : '') +
+              ' O texto-fonte em si não é alterado. A decisão fica registrada na auditoria.</p>' +
+              '<dl class="tax-confirma-dados">' +
+              '<dt>Conceito</dt><dd>' + esc(c.nome) + '</dd>' +
+              '<dt>Texto-fonte</dt><dd>' + esc(f.rotulo || f.tipoRedacao || f._id) + '</dd>' +
+              '<dt>Contexto</dt><dd>' + esc(f.contexto) + '</dd>' +
+              '<dt>Tipo de redação</dt><dd>' + esc(f.tipoRedacao) + '</dd>' +
+              '<dt>Situação atual</dt><dd>' + esc(f.situacao) + '</dd>' +
+              '</dl>' +
+              '<p class="tax-confirma-rotulo">Texto integral</p><p class="tax-confirma-texto">' + esc(f.texto) + '</p>' +
+              '<div class="tax-acoes"><button type="button" class="btn btn--primary btn--sm" data-tax="confirmar-vigente" data-fonte="' + esc(f._id) + '"' + (st.salvando ? ' disabled' : '') + '>' + (st.salvando ? 'SALVANDO…' : 'Confirmar e tornar vigente') + '</button><button type="button" class="btn btn--sm" data-tax="cancelar-confirmacao">Cancelar</button></div></div>';
           }
         }
       }

@@ -253,6 +253,74 @@ async function main() {
   await nega('fonte com campo desconhecido', R(admin(), ORG + '/fontes/C1/V2').set(fonte('placeholder', { extra: 1 })));
 
   /* ───────────────────────── 7. CONCEITO, ATRIBUTO, RELAÇÃO, META ───────────────────────── */
+  console.log('\n== 6b. promoção a vigente: só de fonte promovível (A0 — segurança da curadoria) ==');
+  const promove = (dom, cod, id, extra) => Object.assign({ [dom + '/fontes/' + cod + '/' + id + '/situacao']: 'vigente', [dom + '/conceitos/' + cod + '/definicaoVigenteFonteId']: id }, extra || {});
+  await semearBase();
+  await nega('(A0-1) MULTIPATH promover PLACEHOLDER a vigente (+ ponteiro) → NEGADO pelo banco', admin().ref().update(promove(ORG, 'C1', 'F_PLACEHOLDER')));
+  await semearBase();
+  await nega('(A0-2) MULTIPATH promover "não localizado" a vigente (+ ponteiro) → NEGADO pelo banco', admin().ref().update(promove(ORG, 'C1', 'F_NAOLOC')));
+  anota('(A0-2) nada mudou: sem ponteiro e a fonte continua "não localizado"',
+    !(await ler(ORG + '/conceitos/C1/definicaoVigenteFonteId')) && (await ler(ORG + '/fontes/C1/F_NAOLOC/situacao')) === 'não localizado');
+  await semearBase();
+  await nega('(A0-3) gravação DIRETA do nó inteiro da fonte placeholder já como vigente (+ ponteiro)',
+    admin().ref().update({ [ORG + '/fontes/C1/F_PLACEHOLDER']: fonte('vigente', { contexto: 'indefinido', tipoRedacao: 'Significado v2' }), [ORG + '/conceitos/C1/definicaoVigenteFonteId']: 'F_PLACEHOLDER' }));
+  await semearBase();
+  await nega('(A0-4) promover placeholder acompanhado de auditoria bem formada continua NEGADO (a auditoria não "abona")',
+    admin().ref().update(promove(ORG, 'C1', 'F_PLACEHOLDER', { [ORG + '/auditoria/C1/-Kx0']: auditoria(ADMIN, { tipo: 'definicao_vigente', fonteNovaId: 'F_PLACEHOLDER', fonteAnteriorId: null }) })));
+  await semearBase();
+  await nega('(A0-5) a SUPER-admin (e-mail fixo) também é barrada: não é questão de perfil', db(SUPER).ref().update(promove(ORG, 'C1', 'F_PLACEHOLDER')));
+  /* domínio arquitetural: a mesma proteção */
+  const semearArq = () => semear(async (a) => {
+    await a.ref(ARQT + '/fontes/componente/A_PH').set(fonte('placeholder', { contexto: 'indefinido', tipoRedacao: 'Significado v2' }));
+    await a.ref(ARQT + '/fontes/componente/A_NL').set(fonte('não localizado', { contexto: 'indefinido', tipoRedacao: 'Significado v2' }));
+    await a.ref(ARQT + '/fontes/componente/A_VAL').set(fonte('em validação', { tipoRedacao: 'proposta' }));
+  });
+  await semearBase(); await semearArq();
+  await nega('(A0-6) ARQUITETURAL: promover placeholder → NEGADO', admin().ref().update(promove(ARQT, 'componente', 'A_PH')));
+  await semearBase(); await semearArq();
+  await nega('(A0-7) ARQUITETURAL: promover "não localizado" → NEGADO', admin().ref().update(promove(ARQT, 'componente', 'A_NL')));
+  await semearBase(); await semearArq();
+  await pode('(A0-8) ARQUITETURAL: promover "em validação" continua PERMITIDO', admin().ref().update(promove(ARQT, 'componente', 'A_VAL')));
+
+  console.log('\n== 6c. o que continua funcionando ==');
+  await semearBase();
+  await pode('(A0-9) promover "histórica/contextual" (+ ponteiro) → PERMITIDO', admin().ref().update(promove(ORG, 'C1', 'F_HIST')));
+  anota('(A0-9) ficou coerente: fonte vigente e ponteiro iguais', (await ler(ORG + '/fontes/C1/F_HIST/situacao')) === 'vigente' && (await ler(ORG + '/conceitos/C1/definicaoVigenteFonteId')) === 'F_HIST');
+  await semearBase();
+  await pode('(A0-10) promover "em validação" (+ ponteiro) → PERMITIDO', admin().ref().update(promove(ORG, 'C1', 'F_VALIDACAO')));
+  await semearBase();
+  await pode('(A0-11) placeholder reclassificado por decisão humana ("em validação") continua possível…', R(admin(), ORG + '/fontes/C1/F_PLACEHOLDER/situacao').set('em validação'));
+  await pode('(A0-11) …e SÓ ENTÃO pode ser promovido (dois passos explícitos, ambos auditáveis)', admin().ref().update(promove(ORG, 'C1', 'F_PLACEHOLDER')));
+  await semearBase();
+  await pode('(A0-12) criar uma fonte JÁ vigente com o ponteiro (caso da importação, sem estado anterior) segue permitido',
+    admin().ref().update({ [ORG + '/fontes/C1/F_NOVA']: fonte('vigente'), [ORG + '/conceitos/C1/definicaoVigenteFonteId']: 'F_NOVA' }));
+
+  console.log('\n== 6d. troca e remoção da definição vigente: atômicas e auditadas ==');
+  await semearBase({ ponteiro: true });
+  const troca = {
+    [ORG + '/fontes/C1/F_VIG/situacao']: 'histórica/contextual', [ORG + '/fontes/C1/F_HIST/situacao']: 'vigente',
+    [ORG + '/conceitos/C1/definicaoVigenteFonteId']: 'F_HIST', [ORG + '/conceitos/C1/situacaoDefinicao']: 'registrada',
+    [ORG + '/auditoria/C1/-Kx1']: auditoria(ADMIN, { tipo: 'definicao_vigente', campo: 'definição vigente', valorAnterior: 'Conceito (PREVI)', valorNovo: 'Significado v1 (BB)', fonteAnteriorId: 'F_VIG', fonteNovaId: 'F_HIST' })
+  };
+  await pode('(A0-13) TROCA: rebaixa a anterior + promove a nova + ponteiro + auditoria, numa gravação só', admin().ref().update(troca));
+  const ev = await ler(ORG + '/auditoria/C1/-Kx1');
+  anota('(A0-13) estado final: nova vigente, anterior histórica, ponteiro na nova, só UMA vigente',
+    (await ler(ORG + '/fontes/C1/F_HIST/situacao')) === 'vigente' && (await ler(ORG + '/fontes/C1/F_VIG/situacao')) === 'histórica/contextual' && (await ler(ORG + '/conceitos/C1/definicaoVigenteFonteId')) === 'F_HIST');
+  anota('(A0-13) o evento identifica claramente a fonte ANTERIOR e a NOVA (id e rótulo) e quem fez', !!ev && ev.fonteAnteriorId === 'F_VIG' && ev.fonteNovaId === 'F_HIST' && ev.valorAnterior === 'Conceito (PREVI)' && ev.valorNovo === 'Significado v1 (BB)' && ev.usuario.email === ADMIN);
+  await semearBase({ ponteiro: true });
+  await nega('(A0-14) TROCA para um PLACEHOLDER recusada POR INTEIRO: nada muda (a anterior continua vigente)', admin().ref().update(Object.assign({}, troca, {
+    [ORG + '/fontes/C1/F_HIST/situacao']: 'histórica/contextual', [ORG + '/fontes/C1/F_PLACEHOLDER/situacao']: 'vigente', [ORG + '/conceitos/C1/definicaoVigenteFonteId']: 'F_PLACEHOLDER' })));
+  anota('(A0-14) a vigente anterior segue intacta', (await ler(ORG + '/fontes/C1/F_VIG/situacao')) === 'vigente' && (await ler(ORG + '/conceitos/C1/definicaoVigenteFonteId')) === 'F_VIG' && !(await ler(ORG + '/auditoria/C1/-Kx1')));
+  await semearBase({ ponteiro: true });
+  await pode('(A0-15) REMOVER a vigência: fonte volta a histórica + ponteiro limpo + auditoria com a fonte anterior', admin().ref().update({
+    [ORG + '/fontes/C1/F_VIG/situacao']: 'histórica/contextual', [ORG + '/conceitos/C1/definicaoVigenteFonteId']: null, [ORG + '/conceitos/C1/situacaoDefinicao']: 'em revisão',
+    [ORG + '/auditoria/C1/-Kx2']: auditoria(ADMIN, { tipo: 'definicao_vigente', campo: 'definição vigente', valorAnterior: 'Conceito (PREVI)', valorNovo: null, fonteAnteriorId: 'F_VIG', fonteNovaId: null }) }));
+  anota('(A0-15) sem ponteiro e sem nenhuma fonte vigente', !(await ler(ORG + '/conceitos/C1/definicaoVigenteFonteId')) && (await ler(ORG + '/fontes/C1/F_VIG/situacao')) === 'histórica/contextual');
+  await semearBase({ ponteiro: true });
+  await nega('(A0-16) remover só o ponteiro deixando a fonte vigente continua NEGADO', R(admin(), ORG + '/conceitos/C1/definicaoVigenteFonteId').remove());
+  await pode('(A0-17) a troca é gravada…', admin().ref().update(troca));
+  await nega('(A0-17) …e o evento dela não pode ser reescrito depois (auditoria só de acréscimo)', admin().ref(ORG + '/auditoria/C1/-Kx1/fonteNovaId').set('OUTRA'));
+
   console.log('\n== 7. conceito, atributo, relação e carga inicial ==');
   await semearBase();
   await pode('conceito organizacional válido', R(admin(), ORG + '/conceitos/NOVO').set(conceito({ nome: 'Novo', pai: 'LINHA' })));

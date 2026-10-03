@@ -351,6 +351,17 @@ const TOTAL = 'taxonomia';
     /* torna vigente com confirmação */
     await page.click('[data-fonte="b1"] [data-tax="tornar-vigente"]');
     afirma(await page.locator('.tax-confirma').count() === 1 && /Tornar este texto a definição vigente\?/.test(await page.locator('.tax-confirma').innerText()), 'tornar vigente pede confirmação');
+    /* A0: a confirmação traz tudo o que a decisão oficial precisa */
+    const conf1 = await page.locator('.tax-confirma').innerText();
+    const dados1 = await page.locator('.tax-confirma-dados').innerText();
+    afirma(/Conceito\s+Especialização Beta/.test(dados1) && /Texto-fonte\s+Significado v1/.test(dados1), 'confirmação: mostra o conceito e a fonte escolhida');
+    afirma(/Contexto\s+BB/.test(dados1) && /Tipo de redação\s+Significado v1/.test(dados1) && /Situação atual\s+histórica\/contextual/.test(dados1), 'confirmação: mostra contexto, tipo de redação e situação atual');
+    afirma(/Texto integral/i.test(conf1) && (await page.locator('.tax-confirma-texto').innerText()) === 'Texto fictício histórico de Beta.', 'confirmação: mostra o texto INTEGRAL da fonte');
+    afirma(/altera a definição oficial do conceito “Especialização Beta”/.test(conf1) && /não é alterado/.test(conf1) && /auditoria/.test(conf1), 'confirmação: avisa que ALTERA a definição oficial, que o texto-fonte não muda e que fica auditado');
+    afirma(!/passa a "histórico\/contextual"/.test(conf1), 'confirmação (sem vigente anterior): não fala em rebaixar ninguém');
+    afirma(await larguraOk(page), 'confirmação aberta: sem rolagem horizontal');
+    afirma(await page.evaluate(() => { const r = document.querySelector('.tax-confirma').getBoundingClientRect(); return r.left >= 0 && r.right <= window.innerWidth + 1; }), 'confirmação aberta: cabe na largura da tela');
+    afirma(await page.locator('[data-fonte="b2"] [data-tax="tornar-vigente"], [data-fonte="b3"] [data-tax="tornar-vigente"]').count() === 0, 'placeholder e "não localizado" não têm botão "Tornar vigente"');
     await page.click('[data-tax="cancelar-confirmacao"]');
     afirma(!(await banco(page)).taxonomia.organizacional.conceitos.BETA.definicaoVigenteFonteId, 'cancelar não grava');
     await page.click('[data-fonte="b1"] [data-tax="tornar-vigente"]');
@@ -364,6 +375,9 @@ const TOTAL = 'taxonomia';
     afirma(/Texto fictício histórico de Beta\./.test(t) && /Definição registrada/.test(t), 'a definição vigente aparece na seção Definição');
     /* troca: a anterior é rebaixada e a nova promovida na mesma gravação */
     await page.click('[data-fonte="' + novaId + '"] [data-tax="tornar-vigente"]');
+    const conf2 = await page.locator('.tax-confirma').innerText();
+    afirma(/Texto-fonte\s+Nova redação/.test(await page.locator('.tax-confirma-dados').innerText()) && /Situação atual\s+em validação/.test(conf2) && /Nova redação fictícia de Beta\./.test(conf2), 'confirmação da troca: mostra a nova fonte, a situação atual (em validação) e o texto');
+    afirma(/O texto vigente atual \(Significado v1 \(BB\)\) passa a "histórico\/contextual"/.test(conf2), 'confirmação da troca: diz QUAL texto vigente atual será rebaixado');
     await page.click('[data-tax="confirmar-vigente"]');
     await esperaDb(page, (id) => window.__CFG.__dbReal.taxonomia.organizacional.conceitos.BETA.definicaoVigenteFonteId === id, novaId);
     b = (await banco(page)).taxonomia;
@@ -371,6 +385,9 @@ const TOTAL = 'taxonomia';
     afirma(Object.values(b.organizacional.fontes.BETA).filter((f) => f.situacao === 'vigente').length === 1, 'continua UMA só vigente');
     const audV = Object.values(b.organizacional.auditoria.BETA).filter((l) => l.tipo === 'definicao_vigente');
     afirma(audV.length === 2 && audV.every((l) => l.usuario.email === EMAIL), 'cada troca de definição vigente tem a sua linha de auditoria');
+    const evTroca = audV.find((l) => l.fonteNovaId === novaId);
+    afirma(!!evTroca && evTroca.fonteAnteriorId === 'b1' && /Significado v1 \(BB\)/.test(evTroca.valorAnterior) && /Nova redação/.test(evTroca.valorNovo) && !!evTroca.dataHora && evTroca.usuario.email === EMAIL, 'auditoria da troca: identifica a fonte ANTERIOR (b1) e a NOVA, quem fez e quando');
+    afirma(/Significado v1 \(BB\) → Nova redação/.test(await page.locator('#taxSecHistorico').innerText()), 'o histórico na tela mostra "anterior → nova"');
     /* recusa do banco na troca: nada muda */
     await aparece(page, '[data-fonte="b1"] [data-tax="tornar-vigente"]');
     await page.evaluate(() => { window.__CFG.fail = ['taxonomia/organizacional/auditoria']; });
@@ -388,6 +405,8 @@ const TOTAL = 'taxonomia';
     b = (await banco(page)).taxonomia;
     afirma(!b.organizacional.conceitos.BETA.definicaoVigenteFonteId && b.organizacional.fontes.BETA[novaId].situacao === 'histórica/contextual' && b.organizacional.conceitos.BETA.situacaoDefinicao === 'em revisão', 'remover vigência: ponteiro limpo E fonte rebaixada juntos; conceito volta a "em revisão"');
     afirma(Object.values(b.organizacional.fontes.BETA).filter((f) => f.situacao === 'vigente').length === 0, 'nenhuma fonte vigente sobrou');
+    const audR = Object.values(b.organizacional.auditoria.BETA).filter((l) => l.tipo === 'definicao_vigente');
+    afirma(audR.length === 3 && audR.some((l) => l.fonteAnteriorId === novaId && !l.fonteNovaId && !l.valorNovo), 'auditoria da remoção da vigência: identifica a fonte que deixou de ser vigente e que não há nova');
     /* editar fonte */
     await aparece(page, '[data-fonte="b1"] [data-tax="editar-fonte"]');
     await page.click('[data-fonte="b1"] [data-tax="editar-fonte"]');
