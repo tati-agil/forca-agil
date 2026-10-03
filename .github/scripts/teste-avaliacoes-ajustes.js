@@ -188,7 +188,7 @@ const opcoes = (page, sel) => page.locator(sel + ' option').allInnerTexts();
     await page.waitForSelector('#avpReavaliarBtn');
     await page.click('#avpReavaliarBtn');
     await page.waitForSelector('#avpConcluirBtn');
-    afirma(/← Voltar para avaliações/i.test(await page.locator('#avpVoltarLista').innerText()), 'checklist da reavaliação também tem "← Voltar para avaliações"');
+    afirma(/← Voltar para a avaliação \(v1\)/i.test(await page.locator('#avpVoltarLista').innerText()), 'checklist da reavaliação tem o Voltar com o destino: "← Voltar para a avaliação (v1)" (de onde a reavaliação começou)');
     afirma(await page.locator('#avpQuestion-solucao .avp-choice-btn--sim.active').count() === 1, 'a reavaliação parte das respostas anteriores (todas as perguntas podem ser mudadas)');
     await page.locator('#avpQuestion-solucao .avp-choice-btn--nao').click();
     await page.locator('#avpQuestion-autonomia .avp-choice-btn--nao').click();
@@ -206,6 +206,10 @@ const opcoes = (page, sel) => page.locator(sel + ' option').allInnerTexts();
     afirma(!!v2.criadoEm && v2.criadoEm > antes['avaliacoes-produto'].k1.criadoEm, 'registra a data/hora da nova avaliação');
     afirma(v2.status === 'concluido' && v2.resultadoAutomatico && v2.resultadoAutomatico !== 'produto', 'recalculou pelo motor a partir das NOVAS respostas: ' + v2.resultadoAutomatico + ' (a v1 era "produto")');
     afirma(v2.camadaSugerida && v2.camadaSugerida.id !== 'produto-principal', 'e a classificação pode mudar: ' + (v2.camadaSugerida && v2.camadaSugerida.label) + ' (a v1 era Produto/Serviço principal)');
+    /* concluir SUBSTITUI a entrada do checklist: o Voltar leva à avaliação de onde a reavaliação começou (v1, agora
+       "versão anterior") e, dali, à lista */
+    await page.click('#avpVoltarListaResultado');
+    await page.waitForSelector('#avpAvisoVersaoAnterior', { timeout: 8000 });
     await page.click('#avpVoltarListaResultado');
     await page.waitForSelector('#avpFiltroResultado');
     afirma(await contar(page, '.avp-act-ver[data-key="k1"]') === 0 && await contar(page, '.avp-act-ver[data-key="' + novas[0] + '"]') === 1, 'a lista mostra só a mais recente (situação vigente); a v1 sai da lista, não do banco');

@@ -75,6 +75,15 @@ jobs:
           FA_BASE_URL: http://127.0.0.1:8811
         run: node .github/scripts/teste-curadoria-decisao-coerencia.js
 
+      # Navegação: a URL é a fonte de verdade (lista, ?avp=, ?nova=1, ?editar=, ?reavaliar=); Voltar sem
+      # laço e com o destino no texto; saída com alteração pergunta (Descartar alterações / Continuar
+      # editando), também no Voltar do navegador; F5 restaura/avisa; concluir substitui a entrada.
+      - name: "Avaliação: navegação, URL e Voltar/Reavaliar/F5 (desktop e celular)"
+        env:
+          NODE_PATH: /tmp/pw-deps/node_modules
+          FA_BASE_URL: http://127.0.0.1:8811
+        run: node .github/scripts/teste-avaliacoes-navegacao.js
+
       # Estrutura da ficha: o sistema concluiu → uma pessoa complementou (Curadoria) → uma pessoa
       # decidiu (Decisão final) → como chegamos até aqui (históricos, questionário). Reavaliar e
       # GERAR PDF no cabeçalho, faixa-resumo, Forma da decisão sem Curadoria, justificativa
