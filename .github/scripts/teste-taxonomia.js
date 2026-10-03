@@ -66,9 +66,10 @@ const ARQUIVO = () => ({
       atributos: {
         ALCANCE: { nome: 'Alcance de atuação', grupo: 'alcance', tipoValor: 'lista', ordem: 1, valoresPermitidos: ['específica', 'atende algumas estruturas', 'transversal'] },
         CONSUMIDOR: { nome: 'Consumidor direto principal', grupo: 'quem-recebe', tipoValor: 'texto', ordem: 2 },
-        BENEFICIARIO: { nome: 'Beneficiário indireto', grupo: 'quem-recebe', tipoValor: 'texto', ordem: 3 }
+        BENEFICIARIO: { nome: 'Beneficiário indireto', grupo: 'quem-recebe', tipoValor: 'texto', ordem: 3 },
+        FORMA: { nome: 'Forma de entrega/consumo', grupo: 'entrega', tipoValor: 'texto', ordem: 4 }
       },
-      perfis: { ALFA: { ALCANCE: { estado: 'registrado', valor: 'transversal', papel: 'observado', origem: 'decisão' }, CONSUMIDOR: { estado: 'não consta na fonte' } } },
+      perfis: { ALFA: { ALCANCE: { estado: 'registrado', valor: 'transversal', papel: 'observado', origem: 'decisão' }, CONSUMIDOR: { estado: 'não consta na fonte' }, FORMA: { estado: 'registrado', valor: 'Forma inferida fictícia', papel: 'observado', origem: 'inferência' } } },
       relacoes: [{ de: 'BETA', tipo: 'compoe', para: 'ALFA', nota: 'Relação fictícia.' }, { de: 'DELTA', tipo: 'desenvolve-disciplina', para: 'DISC' }]
     },
     arquitetural: {
@@ -174,7 +175,7 @@ const TOTAL = 'taxonomia';
     await importar(page, ARQUIVO());
     afirma(await page.locator('#taxPrevia').count() === 1, 'arquivo válido → prévia antes de gravar');
     t = await page.locator('#taxPrevia').innerText();
-    afirma(/7 conceitos/.test(t) && /6 textos-fonte \(1 com definição vigente\)/.test(t) && /3 atributos/.test(t) && /2 valores de perfil/.test(t) && /2 relações/.test(t), 'prévia: 7 conceitos (5 org + 2 arq), 6 fontes, 1 vigente, 3 atributos, 2 relações', t.replace(/\s+/g, ' '));
+    afirma(/7 conceitos/.test(t) && /6 textos-fonte \(1 com definição vigente\)/.test(t) && /4 atributos/.test(t) && /3 valores de perfil/.test(t) && /2 relações/.test(t), 'prévia: 7 conceitos (5 org + 2 arq), 6 fontes, 1 vigente, 4 atributos, 2 relações', t.replace(/\s+/g, ' '));
     afirma(!(await banco(page)).taxonomia, 'a prévia NÃO gravou nada');
     await page.evaluate(() => { window.__CFG.fail = ['taxonomia/organizacional/auditoria']; });
     await page.click('[data-tax="confirmar-importacao"]');
@@ -237,7 +238,13 @@ const TOTAL = 'taxonomia';
     t = await page.locator('#taxSecPergunta').innerText();
     afirma(/Pergunta fictícia sobre Alfa\?/.test(t) && /Critério fictício A1/.test(t) && /Observação fictícia de Alfa\./.test(t), 'pergunta discriminadora, critérios e observações');
     t = await page.locator('#taxSecAtributos').innerText();
-    afirma(/Alcance de atuação/.test(t) && /transversal/.test(t) && /observado/.test(t) && /origem: decisão/.test(t), 'perfil: "Alcance de atuação" com valor, papel e origem');
+    afirma(/Alcance de atuação/.test(t) && /transversal/.test(t) && /Papel: observado/.test(t) && /Origem: decisão/.test(t), 'perfil: "Alcance de atuação" com valor, "Papel: observado" e "Origem: decisão"');
+    afirma(/observado: valor presente na fonte ou registrado no perfil, mas ainda não curado como característica definidora ou típica do conceito/.test(await page.locator('#taxLegenda').innerText()), 'a tela DEFINE "observado": valor presente na fonte ou registrado no perfil, mas ainda não curado como definidor ou típico');
+    afirma(/definidor: ajuda a distinguir\/classificar o conceito/.test(await page.locator('#taxLegenda').innerText()) && /típico: característica frequente ou esperada/.test(await page.locator('#taxLegenda').innerText()), 'e define "definidor" e "típico"');
+    const linhaInf = page.locator('.tax-atributo[data-atributo="FORMA"]');
+    afirma(/Origem: inferência/.test(await linhaInf.innerText()) && await linhaInf.locator('.tax-selo--origem-inferencia').count() === 1, 'valor com origem "inferência": exibe claramente "Origem: inferência", em destaque próprio');
+    afirma(/não é dado de fonte nem decisão aprovada/.test(await linhaInf.innerText()), 'e avisa que NÃO é dado de fonte nem decisão aprovada');
+    afirma(await page.locator('.tax-atributo[data-atributo="ALCANCE"] .tax-inferencia-aviso').count() === 0 && await page.locator('.tax-atributo[data-atributo="ALCANCE"] .tax-selo--origem-decisao').count() === 1, 'a origem "decisão" não leva o aviso de inferência e tem selo próprio');
     afirma(/Consumidor direto principal[\s\S]*Não consta na fonte/i.test(t), 'estado "não consta na fonte" aparece como estado (não como vazio)');
     afirma(/Beneficiário indireto[\s\S]*Ainda não definido/i.test(t), 'atributo sem registro: "Ainda não definido"');
     afirma(!/Abrangência/i.test(await page.locator('.tax-detalhe').innerText()), 'nenhuma "Abrangência"');
@@ -289,6 +296,18 @@ const TOTAL = 'taxonomia';
     afirma(/Tipo Alfa → Tipo Alfa Revisado/.test(t), 'o histórico na tela mostra a alteração');
     afirma(/Tipo Alfa Revisado/.test(await page.locator('.tax-item[data-codigo="ALFA"]').innerText().catch(() => '')) || movel, 'a lista reflete o novo nome');
 
+    console.log('\n== 5b. Inferência pode ser alterada sem mexer no texto-fonte ==');
+    const fontesAntes = JSON.stringify((await banco(page)).taxonomia.organizacional.fontes.ALFA);
+    await page.click('[data-tax="editar-perfil"][data-atributo="FORMA"]');
+    afirma(await page.inputValue('#taxF_origem') === 'inferência' && await page.inputValue('#taxF_papel') === 'observado', 'o formulário abre com a origem "inferência" e o papel "observado" atuais');
+    await page.fill('#taxF_valor', 'Forma inferida fictícia, revisada');
+    await page.click('[data-tax="salvar-edicao"]');
+    await esperaDb(page, () => /revisada/.test(window.__CFG.__dbReal.taxonomia.organizacional.perfis.ALFA.FORMA.valor));
+    b = (await banco(page)).taxonomia;
+    afirma(/revisada/.test(b.organizacional.perfis.ALFA.FORMA.valor) && b.organizacional.perfis.ALFA.FORMA.origem === 'inferência', 'valor inferido alterado; a origem continua "inferência"');
+    afirma(JSON.stringify(b.organizacional.fontes.ALFA) === fontesAntes, 'os textos-fonte NÃO foram tocados');
+    afirma(Object.values(b.organizacional.auditoria.ALFA).some((l) => l.tipo === 'alteracao_perfil' && l.campo === 'Forma de entrega/consumo'), 'a alteração do valor inferido foi auditada');
+
     console.log('\n== 6. Edição de perfil: ausência é estado ==');
     await page.click('[data-tax="editar-perfil"][data-atributo="BENEFICIARIO"]');
     await page.selectOption('#taxF_estado', 'ainda não definido');
@@ -303,6 +322,9 @@ const TOTAL = 'taxonomia';
     await page.click('[data-tax="salvar-edicao"]');
     afirma(/exige o valor/.test(await page.locator('#taxFormPerfil').innerText()), '"registrado" sem valor → recusado na tela');
     await page.fill('#taxF_valor', 'Times fictícios');
+    afirma(await page.inputValue('#taxF_origem') === '' && await page.inputValue('#taxF_papel') === 'observado', 'ao registrar um valor, a origem NÃO vem pré-marcada (nunca "fonte" por padrão) e o papel nasce neutro ("observado")');
+    await page.click('[data-tax="salvar-edicao"]');
+    afirma(/exige papel e origem/.test(await page.locator('#taxFormPerfil').innerText()), 'sem escolher a origem, não salva');
     await page.selectOption('#taxF_papel', 'definidor');
     await page.selectOption('#taxF_origem', 'inferência');
     await page.click('[data-tax="salvar-edicao"]');

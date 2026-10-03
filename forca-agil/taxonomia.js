@@ -61,6 +61,14 @@
   var GRUPO_ROTULO = { 'quem-recebe': 'Quem recebe', alcance: 'Alcance', entrega: 'O que entrega', governanca: 'Governança', outros: 'Outros' };
   var TIPOS_RELACAO = ['compoe', 'aloca-em', 'atende', 'desenvolve-disciplina', 'pertence-a-disciplina'];
   var RELACAO_ROTULO = { compoe: 'compõe', 'aloca-em': 'aloca em', atende: 'atende', 'desenvolve-disciplina': 'desenvolve a disciplina', 'pertence-a-disciplina': 'pertence à disciplina' };
+  /* Significado de cada PAPEL (mostrado na tela e na documentação). "Observado" é o estado neutro inicial:
+     registra o valor SEM julgamento classificatório — não representa uma inferência de força conceitual. */
+  var PAPEL_SIGNIFICADO = {
+    'definidor': 'ajuda a distinguir/classificar o conceito',
+    'típico': 'característica frequente ou esperada',
+    'observado': 'valor presente na fonte ou registrado no perfil, mas ainda não curado como característica definidora ou típica do conceito (registrado sem julgamento classificatório)'
+  };
+  var ORIGEM_CLASSE = { 'fonte': 'fonte', 'inferência': 'inferencia', 'decisão': 'decisao' };
   var RE_CODIGO = /^[A-Za-z][A-Za-z0-9_-]{1,59}$/;
   var RE_ID = /^[A-Za-z0-9_-]{1,60}$/;
   var FONTE_REBAIXADA = 'histórica/contextual';
@@ -610,8 +618,8 @@
     return html + '</section>';
   }
 
-  function campoSelect(id, valor, opcoes, rotulos) {
-    return '<select id="' + id + '" data-campo="' + id.replace(/^taxF_/, '') + '">' + opcoes.map(function (o) { return '<option value="' + esc(o) + '"' + (o === valor ? ' selected' : '') + '>' + esc((rotulos && rotulos[o]) || o) + '</option>'; }).join('') + '</select>';
+  function campoSelect(id, valor, opcoes, rotulos, vazio) {
+    return '<select id="' + id + '" data-campo="' + id.replace(/^taxF_/, '') + '">' + (vazio ? '<option value="">' + esc(vazio) + '</option>' : '') + opcoes.map(function (o) { return '<option value="' + esc(o) + '"' + (o === valor ? ' selected' : '') + '>' + esc((rotulos && rotulos[o]) || o) + '</option>'; }).join('') + '</select>';
   }
   function formFonte(dom, codigo, e) {
     var v = e.valores, nova = e.tipo === 'novaFonte', atual = nova ? null : fontesAtuais(dom)[e.chave];
@@ -701,6 +709,8 @@
     var D = st.d[dom], e = D.edicao, ed = podeEditar();
     var html = '<section class="tax-sec" id="taxSecAtributos"><h4>Atributos</h4>';
     html += '<p class="tax-ajuda">Descrevem e confirmam. Nenhum atributo, sozinho, define o tipo.</p>';
+    html += '<div class="tax-legenda" id="taxLegenda"><p class="tax-ajuda"><strong>Papel</strong> — <strong>definidor</strong>: ' + PAPEL_SIGNIFICADO['definidor'] + ' · <strong>típico</strong>: ' + PAPEL_SIGNIFICADO['típico'] + ' · <strong>observado</strong>: ' + PAPEL_SIGNIFICADO['observado'] + '.</p>' +
+      '<p class="tax-ajuda"><strong>Origem</strong> — <strong>fonte</strong>: está nos textos-fonte · <strong>inferência</strong>: leitura nossa, nunca dado de fonte nem decisão aprovada · <strong>decisão</strong>: escolha aprovada.</p></div>';
     var atrs = ordenaPor(chaves(D.atributos).map(function (k) { return Object.assign({ _cod: k }, D.atributos[k]); }), 'ordem');
     if (det.erros.perfis) html += '<p class="tax-aviso-erro">Não foi possível carregar os atributos agora.</p>';
     else if (!atrs.length) html += '<p class="tax-ausencia">O catálogo de atributos está vazio.</p>';
@@ -715,13 +725,17 @@
           html += '<label for="taxF_valor">Valor *</label>';
           if (perm && perm.length) html += '<select id="taxF_valor" data-campo="valor"><option value="">— escolha —</option>' + perm.map(function (t) { return '<option value="' + esc(t) + '"' + (t === v.valor ? ' selected' : '') + '>' + esc(t) + '</option>'; }).join('') + (v.valor && perm.indexOf(v.valor) === -1 ? '<option value="' + esc(v.valor) + '" selected>' + esc(v.valor) + '</option>' : '') + '</select>';
           else html += '<input type="text" id="taxF_valor" data-campo="valor" value="' + esc(v.valor) + '" maxlength="1000">';
-          html += '<div class="tax-form-linha"><div><label for="taxF_papel">Papel</label>' + campoSelect('taxF_papel', v.papel, PAPEIS) + '</div><div><label for="taxF_origem">Origem</label>' + campoSelect('taxF_origem', v.origem, ORIGENS) + '</div></div>';
+          html += '<div class="tax-form-linha"><div><label for="taxF_papel">Papel</label>' + campoSelect('taxF_papel', v.papel, PAPEIS, { observado: 'observado (neutro: sem julgamento classificatório)' }) + '</div><div><label for="taxF_origem">Origem</label>' + campoSelect('taxF_origem', v.origem, ORIGENS, null, '— escolha a origem —') + '</div></div>';
         } else html += '<p class="tax-ajuda">Neste estado não há valor, papel nem origem: a ausência é registrada pelo estado.</p>';
         if (e.erro) html += '<p class="tax-aviso-erro" role="alert">' + esc(e.erro) + '</p>';
         html += '<div class="tax-acoes"><button type="button" class="btn btn--primary btn--sm" data-tax="salvar-edicao"' + (st.salvando ? ' disabled' : '') + '>' + (st.salvando ? 'SALVANDO…' : 'SALVAR') + '</button><button type="button" class="btn btn--sm" data-tax="cancelar-edicao"' + (st.salvando ? ' disabled' : '') + '>Cancelar</button></div></div>';
       } else {
         if (!p) html += '<p class="tax-valor tax-valor--ausente">Ainda não definido <span class="tax-ajuda">(sem registro)</span></p>';
-        else if (p.estado === 'registrado') html += '<p class="tax-valor">' + esc(p.valor) + ' ' + selo(p.papel) + selo('origem: ' + p.origem) + '</p>';
+        else if (p.estado === 'registrado') {
+          html += '<p class="tax-valor">' + esc(p.valor) + ' ' + selo('Papel: ' + p.papel, 'tax-selo--papel-' + String(p.papel).replace(/[^a-z]/gi, '')) +
+            selo('Origem: ' + p.origem, 'tax-selo--origem tax-selo--origem-' + (ORIGEM_CLASSE[p.origem] || 'fonte')) + '</p>';
+          if (p.origem === 'inferência') html += '<p class="tax-inferencia-aviso">Inferência — leitura nossa; não é dado de fonte nem decisão aprovada. Pode ser alterada sem mexer no texto-fonte.</p>';
+        }
         else html += '<p class="tax-valor tax-valor--ausente">' + esc(p.estado.charAt(0).toUpperCase() + p.estado.slice(1)) + '</p>';
         if (ed) html += '<button type="button" class="btn btn--sm" data-tax="editar-perfil" data-atributo="' + esc(a._cod) + '">Editar</button>';
       }
@@ -826,7 +840,7 @@
     if (tipo === 'fonte') { var f = (det.fontes || {})[chave] || {}; return { rotulo: f.rotulo || '', texto: f.texto || '', contexto: f.contexto || 'PREVI', tipoRedacao: f.tipoRedacao || 'Conceito', situacao: f.situacao === 'vigente' ? 'vigente' : (f.situacao || 'histórica/contextual') }; }
     if (tipo === 'novaFonte') return { rotulo: '', texto: '', contexto: 'PREVI', tipoRedacao: 'Conceito', situacao: 'em validação' };
     var p = (det.perfis || {})[chave] || {};
-    return { estado: p.estado || 'registrado', valor: p.valor || '', papel: p.papel || 'observado', origem: p.origem || 'fonte' };
+    return { estado: p.estado || 'registrado', valor: p.valor || '', papel: p.papel || 'observado', origem: p.origem || '' };
   }
   function iniciaEdicao(tipo, chave) {
     var D = st.d[st.dominio];

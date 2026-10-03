@@ -2538,6 +2538,11 @@ details.avp-form-card.avp-aut-historico { margin-top: 0; padding: 10px 16px; mar
 .tax-criterios { margin: 4px 0 8px 18px; padding: 0; font-size: .86rem; }
 .tax-atributo { border: 1px solid var(--line); border-radius: 10px; padding: 8px 12px; margin: 6px 0; }
 .tax-atributo-nome { font-size: .82rem; color: var(--ink-2); }
+.tax-selo--origem-fonte { border-color: rgba(24,194,186,.5); color: var(--cyan-soft); }
+.tax-selo--origem-decisao { border-color: rgba(120,160,255,.55); color: var(--ink); background: rgba(120,160,255,.1); }
+.tax-selo--origem-inferencia { border: 1px dashed var(--gold); color: var(--gold-soft); background: rgba(245,197,24,.12); font-weight: 600; }
+.tax-inferencia-aviso { color: var(--gold-soft); font-size: .76rem; margin: 2px 0 6px; font-style: italic; }
+.tax-legenda { margin: 4px 0 8px; }
 .tax-valor { margin: 4px 0; font-size: .88rem; overflow-wrap: anywhere; }
 .tax-valor--ausente { color: var(--ink-3); font-style: italic; }
 .tax-relacoes { margin: 4px 0 0 18px; padding: 0; font-size: .86rem; }
