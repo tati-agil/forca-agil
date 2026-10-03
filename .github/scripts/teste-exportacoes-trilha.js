@@ -82,6 +82,7 @@ function itemDe(nome, camadaId, extra, cad, serve) {
 const CAD = { especializacaoCadastrada: 'Instituto previdenciário', papelEstruturalCadastrado: 'essencial' };
 const SV = 'sem-vinculo';
 const ESP = CAD.especializacaoCadastrada;
+const ESP_DERIVADA = 'Opção/configuração de personalização';
 
 const U = (name, email) => ({ name: name, email: email });
 const AUDITORIA_CAD2 = {
@@ -94,7 +95,10 @@ const AUDITORIA_CAD2 = {
     valorNovo: { decisaoFinal: 'produto', decisaoManual: true, justificativa: 'Decidido por pessoa.', confirmada: true }, justificativa: 'Decidido por pessoa.', origem: 'usuario',
     usuario: U('Fulana', 'f@previ.com.br'), dataHora: '2026-09-30T10:00:00.000Z' },
   a4: { tipo: 'alteracao_especializacao', avaliacaoId: 'cad2', valorAnterior: ESP, valorNovo: ESP, confirmacao: true, camada: { id: 'componente', label: 'Componente' },
-    origem: 'reprocessamento-automatico', reprocessamento: 'lote', motorVersion: 'motor-xyz', usuario: U('Dedé', 'd@previ.com.br'), dataHora: '2026-09-30T11:00:00.000Z' }
+    origem: 'reprocessamento-automatico', reprocessamento: 'lote', motorVersion: 'motor-xyz', usuario: U('Dedé', 'd@previ.com.br'), dataHora: '2026-09-30T11:00:00.000Z' },
+  /* autor sem nome (só e-mail): a exportação NUNCA mostra e-mail */
+  a5: { tipo: 'alteracao_papel_estrutural', avaliacaoId: 'cad2', valorAnterior: null, valorNovo: 'essencial', origem: 'usuario',
+    usuario: { email: 'sem-nome@previ.com.br' }, dataHora: '2026-09-30T12:00:00.000Z' }
 };
 const AUDITORIA_NAT_CAD2 = {
   n1: { tipo: 'alteracao_natureza_complementar', avaliacaoId: 'cad2', valorAnterior: null, valorNovo: { codigo: 'PROGRAMA', nome: 'Programa transversal' },
@@ -102,19 +106,28 @@ const AUDITORIA_NAT_CAD2 = {
 };
 const AVALIACOES = () => ({
   /* cadeia v1 → v2: mudou classificação, decisão e forma; v2 tem curadoria vigente + decisão manual */
-  cad1: itemDe('Item Cadeia', 'canal', { itemId: 'cad' }),
+  cad1: itemDe('Item Cadeia', 'canal', { itemId: 'cad', responsavel: { email: 'so-email@previ.com.br' } }),
   cad2: itemDe('Item Cadeia', 'componente', { itemId: 'cad', versao: 2, versaoAnteriorKey: 'cad1', decisaoManual: true, decisaoFinal: 'produto', decisaoConfirmada: true,
     justificativaDecisao: 'Decidido por pessoa.', alteradoPor: U('Fulana', 'f@previ.com.br'), alteradoEm: '2026-09-30T10:00:00.000Z',
     criadoEm: '2026-09-30T09:00:00.000Z', atualizadoEm: '2026-09-30T10:00:00.000Z' }, CAD),
   sc: itemDe('Item Sem Curadoria', 'canal'),
   rv: itemDe('Item A Revisar', 'componente', null, Object.assign({}, CAD, { especializacaoCamadaConfirmada: SV, papelEstruturalCamadaConfirmada: SV })),
-  se: itemDe('Item Sem Efeito', 'canal', null, CAD)
+  se: itemDe('Item Sem Efeito', 'canal', null, CAD),
+  /* Componente cuja especialização só vem do questionário (nada cadastrado) */
+  der: itemDe('Item Derivado', 'componente', null, null, (c) => c.camadaSugerida.especializacao === ESP_DERIVADA),
+  /* reavaliação v1 (decisão manual) → v2 AINDA SEM decisão registrada */
+  pend1: itemDe('Item Pendente', 'componente', { itemId: 'pend', decisaoManual: true, decisaoFinal: 'produto', decisaoConfirmada: true,
+    justificativaDecisao: 'Decidido na v1.', alteradoPor: U('Fulana', 'f@previ.com.br'), alteradoEm: '2026-09-29T11:00:00.000Z' }),
+  pend2: itemDe('Item Pendente', 'componente', { itemId: 'pend', versao: 2, versaoAnteriorKey: 'pend1', decisaoManual: false, decisaoConfirmada: false,
+    criadoEm: '2026-09-30T09:00:00.000Z', atualizadoEm: '2026-09-30T09:00:00.000Z' })
 });
 const AUDITORIA = () => ({ 'curadoria-auditoria': { cad2: AUDITORIA_CAD2 }, 'naturezas-complementares-auditoria': { cad2: AUDITORIA_NAT_CAD2 } });
 (function () {
   const a = AVALIACOES();
   if (a.cad1.camadaSugerida.id === a.cad2.camadaSugerida.id) throw new Error('fixture: v1 e v2 deveriam ter classificações diferentes');
   if (a.cad2.resultadoAutomatico === 'produto') throw new Error('fixture: a v2 precisa divergir da decisão (manual = produto)');
+  if (a.der.camadaSugerida.especializacao !== ESP_DERIVADA) throw new Error('fixture: "der" sem especialização derivada');
+  if (a.pend2.resultadoAutomatico === 'produto') throw new Error('fixture: pend2 precisa divergir da decisão manual da v1');
 })();
 
 async function abrir(browser, o) {
@@ -165,6 +178,7 @@ async function gerarPdf(page) {
   await page.waitForTimeout(500);
   return page.evaluate(() => { const t = []; (window.__pdfs || []).forEach((b) => { if (t.indexOf(b.tudo) === -1) t.push(b.tudo); }); return t.join('\n').replace(/\s+/g, ' '); });
 }
+const htmlPdf = (page) => page.evaluate(() => (window.__pdfs || []).map((b) => b.html).join('\n'));
 async function lerExcel(page) {
   await page.click('#avpExportarBtn');
   const [dl] = await Promise.all([page.waitForEvent('download', { timeout: 60000 }), page.click('#avpExportarExcelTodas')]);
@@ -221,6 +235,16 @@ const rot = (r) => ({ produto: 'É Produto/Serviço principal', 'nao-produto': '
     afirma(/Especialização confirmada/.test(blocoHist) && /Reprocessamento automático em lote — motor motor-xyz/.test(blocoHist), 'PDF: trilha — confirmação por reprocessamento automático em lote, com o motor');
     afirma(!/Trilha indisponível/.test(p), 'PDF: com a auditoria lida, não há "Trilha indisponível"');
     afirma(!/Abrangência/i.test(p), 'PDF: "Abrangência" não voltou');
+    const h = await htmlPdf(page);
+    afirma(h.indexOf('<h2 class="pdf-secao-titulo">Classificação arquitetural</h2>') !== -1 && h.indexOf('<h3 class="pdf-subsecao">Classificação arquitetural</h3>') === -1, 'PDF: "Classificação arquitetural" é um BLOCO PRÓPRIO (título de seção, não subtítulo do resultado)');
+    afirma(/<h2 class="pdf-secao-titulo">Classificação arquitetural<\/h2><div class="pdf-decisao-bloco">/.test(h), 'PDF: o bloco da Classificação é indivisível (pdf-decisao-bloco: título e conteúdo não se separam na quebra de página)');
+    const iRes = pos(p, 'O que o sistema concluiu'), iCla = p.indexOf('Classificação arquitetural ' + L2), iCom = pos(p, 'O que uma pessoa complementou');
+    afirma(iRes !== -1 && iRes < iCla && iCla < iCom, 'PDF: ordem Resultado → Classificação arquitetural (bloco próprio) → Curadoria');
+    const blocoRes = entre(p, 'O que o sistema concluiu', 'Classificação arquitetural');
+    afirma(/Resultado sobre Produto\/Serviço/.test(blocoRes) && /Justificativa da classificação/.test(blocoRes) && blocoRes.indexOf(L2) === -1, 'PDF: o bloco do Resultado traz o resultado e a justificativa, sem a classificação');
+    afirma(!/@/.test(p), 'PDF: nenhum e-mail (autor sem nome aparece como "—")');
+    afirma(/<th>Versão<\/th><th>Data<\/th><th>Responsável<\/th><th>Resultado<\/th><th>Classificação<\/th><th>Decisão final<\/th><th>Forma da decisão<\/th><th>O que mudou<\/th>/.test(h), 'PDF: tabela de versões com Resultado e Forma da decisão (além de Decisão final e classificação)');
+    afirma(/Recomendação do sistema aceita/.test(blocoHist) && /Decisão manual/.test(blocoHist), 'PDF: a tabela de versões mostra a Forma de cada versão (v1 aceita; v2 manual)');
 
     console.log('\n== PDF da v1: histórico de versões também aparece (item com cadeia) e sem trilha gravada ==');
     await page.click('.avp-hist-abrir[data-key="cad1"]');
@@ -230,6 +254,28 @@ const rot = (r) => ({ produto: 'É Produto/Serviço principal', 'nao-produto': '
     const h1 = entre(p1, 'Como chegamos até aqui', 'Respostas e evidências');
     afirma(/Histórico de versões/.test(h1), 'PDF v1: mostra o histórico de versões do item');
     afirma(/Nenhuma alteração registrada/.test(h1) && !/Trilha indisponível/.test(h1), 'PDF v1: sem auditoria gravada → "Nenhuma alteração registrada" (lido com sucesso, vazio de verdade)');
+    await voltar(page);
+
+    await voltar(page);
+    console.log('\n== PDF: Classificação com especialização identificada e relação ==');
+    await abrirFicha(page, 'der');
+    const pd = await gerarPdf(page);
+    const bd = entre(pd, 'Classificação arquitetural', 'O que uma pessoa complementou');
+    afirma(new RegExp('Componente.*Especialização identificada pelo questionário: ' + ESP_DERIVADA.replace(/[/]/g, '\\/')).test(bd) && /Relação arquitetural:/.test(bd), 'PDF: o bloco da Classificação traz a classificação, a especialização identificada e a relação');
+    afirma(!/Especialização identificada/.test(entre(pd, 'O que uma pessoa complementou', 'O que uma pessoa decidiu')), 'PDF: a especialização identificada NÃO entra na Curadoria');
+    await voltar(page);
+
+    console.log('\n== PDF e ficha: versão AINDA SEM decisão registrada ==');
+    await abrirFicha(page, 'pend2');
+    const tela = await page.locator('#avpSecaoDecisao').innerText();
+    afirma(/Forma da decisão\s*Sem decisão registrada/i.test(tela) && /ainda não tem decisão arquitetural registrada: vale a recomendação do sistema até alguém decidir/.test(tela), 'ficha: Forma = "Sem decisão registrada" + o aviso já consolidado (mesma redação)');
+    afirma(!/Forma da decisão\s*Recomendação do sistema aceita/i.test(tela), 'ficha: não parece que a recomendação foi aceita');
+    const pp = await gerarPdf(page);
+    const dp = entre(pp, 'O que uma pessoa decidiu', 'Como chegamos até aqui');
+    afirma(/Decisão final .* Forma da decisão Sem decisão registrada/.test(dp), 'PDF: Forma da decisão = "Sem decisão registrada"');
+    afirma(!/Recomendação do sistema aceita/.test(dp), 'PDF: não parece que a recomendação foi aceita');
+    afirma(/ainda não tem decisão arquitetural registrada: vale a recomendação do sistema até alguém decidir/.test(dp) && /A decisão manual da v1 continua preservada na v1 e não foi herdada/.test(dp), 'PDF: a mesma frase da ficha, no bloco da decisão');
+    afirma(/Forma da decisão: Decisão manual → Sem decisão registrada/.test(entre(pp, 'Como chegamos até aqui', 'Respostas e evidências')), 'PDF: o histórico de versões mostra a mudança "Decisão manual → Sem decisão registrada"');
     await voltar(page);
 
     console.log('\n== PDF sem curadoria / a revisar / sem efeito ==');
@@ -265,8 +311,10 @@ const rot = (r) => ({ produto: 'É Produto/Serviço principal', 'nao-produto': '
     afirma(String(ex.celResumo('Item Cadeia', 'Situação da curadoria')).startsWith('2 campos registrados'), 'Excel Resumo: curadoria vigente → "2 campos registrados" (era: ' + ex.celResumo('Item Cadeia', 'Situação da curadoria') + ')');
     afirma(ex.celResumo('Item Sem Curadoria', 'Versão do motor') === MOTOR_VERSION, 'Excel Resumo: "Versão do motor" = ' + MOTOR_VERSION);
     const hc = ex.hist[0];
-    const esperadoHist = ['ID do item', 'ID da avaliação', 'Versão', 'Data da avaliação', 'Responsável pela avaliação', 'Resultado anterior', 'Resultado atual',
-      'Classificação anterior', 'Classificação atual', 'Decisão anterior', 'Decisão atual', 'Forma anterior', 'Forma atual', 'Resumo da mudança', 'Justificativa de divergência'];
+    const esperadoHist = ['ID do item', 'ID da avaliação', 'Versão', 'Data da avaliação', 'Responsável pela avaliação',
+      'Especialização identificada pelo questionário', 'Especialização', 'Papel estrutural', 'Natureza complementar', 'Situação da curadoria',
+      'Resultado anterior', 'Resultado atual', 'Classificação anterior', 'Classificação atual', 'Decisão anterior', 'Decisão atual', 'Forma anterior', 'Forma atual',
+      'Responsável pela decisão', 'Data da decisão', 'Resumo da mudança', 'Justificativa de divergência'];
     afirma(JSON.stringify(hc) === JSON.stringify(esperadoHist), 'Excel Histórico: colunas anterior/atual separadas + Resumo da mudança (' + hc.join(' | ') + ')');
     afirma(ex.celHist('cad1', 'Resultado anterior') === '' && ex.celHist('cad1', 'Classificação anterior') === '' && ex.celHist('cad1', 'Resumo da mudança') === 'Versão inicial', 'Excel Histórico v1: anteriores vazios, "Versão inicial"');
     afirma(ex.celHist('cad1', 'Classificação atual') === L1 && ex.celHist('cad1', 'Decisão atual') === rot(A.cad1.resultadoAutomatico) && ex.celHist('cad1', 'Forma atual') === 'Recomendação do sistema aceita', 'Excel Histórico v1: atuais preenchidos');
@@ -275,16 +323,26 @@ const rot = (r) => ({ produto: 'É Produto/Serviço principal', 'nao-produto': '
     afirma(ex.celHist('cad2', 'Forma anterior') === 'Recomendação do sistema aceita' && ex.celHist('cad2', 'Forma atual') === 'Decisão manual', 'Excel Histórico v2: Forma anterior/atual');
     afirma(ex.celHist('cad2', 'Resumo da mudança') === MUDOU, 'Excel Histórico v2: Resumo da mudança = mesmo texto do PDF');
     afirma(ex.celHist('cad2', 'Justificativa de divergência') === 'Decidido por pessoa.', 'Excel Histórico v2: justificativa de divergência preservada');
+    afirma(ex.celHist('cad2', 'Especialização') === ESP && ex.celHist('cad2', 'Papel estrutural') === 'Essencial' && String(ex.celHist('cad2', 'Situação da curadoria')).startsWith('2 campos registrados'), 'Excel Histórico v2: Curadoria vigente (Especialização, Papel) e situação da curadoria');
+    afirma(ex.celHist('cad1', 'Especialização') === '' && ex.celHist('cad1', 'Situação da curadoria') === 'Nenhuma registrada', 'Excel Histórico v1: sem curadoria → "Nenhuma registrada"');
+    afirma(ex.celHist('der', 'Especialização identificada pelo questionário') === ESP_DERIVADA && ex.celHist('der', 'Especialização') === '', 'Excel Histórico: especialização identificada pelo questionário fica na coluna própria (não é curadoria)');
+    afirma(ex.celHist('rv', 'Situação da curadoria') === 'Nenhuma registrada · 2 para revisar', 'Excel Histórico: curadoria a revisar aparece como situação (sem despejar o valor antigo)');
+    afirma(ex.celHist('cad2', 'Responsável pela decisão') === 'Fulana' && ex.celHist('cad2', 'Data da decisão') !== '' && ex.celHist('cad1', 'Responsável pela decisão') === '', 'Excel Histórico: responsável e data da decisão (só quando manual)');
+    afirma(ex.celResumo('Item Pendente', 'Forma da decisão') === 'Sem decisão registrada' && ex.celHist('pend2', 'Forma atual') === 'Sem decisão registrada' && ex.celHist('pend2', 'Forma anterior') === 'Decisão manual', 'Excel: versão sem decisão registrada → "Sem decisão registrada" (Resumo e Histórico), nunca "Recomendação do sistema aceita"');
+    afirma(/Forma da decisão: Decisão manual → Sem decisão registrada/.test(ex.celHist('pend2', 'Resumo da mudança')), 'Excel Histórico: Resumo da mudança cita Decisão manual → Sem decisão registrada');
+    afirma(!/@/.test(JSON.stringify([ex.resumo, ex.hist, ex.trilha])), 'Excel: nenhum e-mail em nenhuma aba');
     const th = ex.trilha && ex.trilha[0];
-    afirma(JSON.stringify(th) === JSON.stringify(['ID do item', 'ID da avaliação', 'Versão', 'Data e hora', 'Alteração', 'Valor anterior', 'Valor novo', 'Quem', 'Origem', 'Detalhe']), 'Excel Trilha: colunas (' + (th || []).join(' | ') + ')');
+    afirma(JSON.stringify(th) === JSON.stringify(['ID do item', 'ID da avaliação', 'Versão', 'Data e hora', 'Evento', 'Campo', 'Valor anterior', 'Valor novo', 'Responsável pela alteração', 'Origem', 'Observação']), 'Excel Trilha: colunas (' + (th || []).join(' | ') + ')');
     const lt = ex.linhasTrilha('cad2');
-    afirma(lt.length === 5, 'Excel Trilha: uma linha por alteração da v2 (5; veio ' + lt.length + ')');
-    const lEsp = lt.find((l) => l[4] === 'Especialização' && l[6] === ESP && l[5] === '—');
-    afirma(!!lEsp && lEsp[7] === 'Cicrana', 'Excel Trilha: Especialização — anterior "—", novo, quem');
-    const lDec = lt.find((l) => l[4] === 'Decisão final' && /manual/.test(l[6]));
-    afirma(!!lDec && lDec[5] === 'Não é Produto/Serviço principal (recomendação aceita)' && lDec[6] === 'É Produto/Serviço principal (manual)' && /Decidido por pessoa\./.test(lDec[9]) && lDec[7] === 'Fulana', 'Excel Trilha: Decisão final — anterior, novo, justificativa e quem');
-    afirma(lt.some((l) => /reavaliação da v1/.test(l[8])) && lt.some((l) => /Reprocessamento automático em lote/.test(l[8]) && l[4] === 'Especialização confirmada'), 'Excel Trilha: origem (reavaliação; reprocessamento automático em lote)');
-    afirma(lt.some((l) => l[4] === 'Natureza complementar' && l[6] === 'Programa transversal'), 'Excel Trilha: Natureza complementar (outra auditoria)');
+    afirma(lt.length === 6, 'Excel Trilha: uma linha por alteração da v2 (6; veio ' + lt.length + ')');
+    const lEsp = lt.find((l) => l[5] === 'Especialização' && l[7] === ESP && l[6] === '—');
+    afirma(!!lEsp && lEsp[8] === 'Cicrana' && lEsp[4] === 'Alteração', 'Excel Trilha: Evento "Alteração" · Campo "Especialização" — anterior "—", novo, responsável');
+    const lDec = lt.find((l) => l[5] === 'Decisão final' && /manual/.test(l[7]));
+    afirma(!!lDec && lDec[6] === 'Não é Produto/Serviço principal (recomendação aceita)' && lDec[7] === 'É Produto/Serviço principal (manual)' && /Decidido por pessoa\./.test(lDec[10]) && lDec[8] === 'Fulana' && lDec[4] === 'Alteração', 'Excel Trilha: Decisão final — anterior, novo, justificativa e quem');
+    afirma(lt.some((l) => /reavaliação da v1/.test(l[9]) && l[4] === 'Criação por reavaliação' && l[5] === 'Decisão final'), 'Excel Trilha: Evento "Criação por reavaliação" (Campo Decisão final, origem citando a v1)');
+    afirma(lt.some((l) => /Reprocessamento automático em lote/.test(l[9]) && l[4] === 'Reprocessamento automático' && l[5] === 'Especialização'), 'Excel Trilha: Evento "Reprocessamento automático" (Campo Especialização, origem em lote com o motor)');
+    afirma(lt.some((l) => l[5] === 'Natureza complementar' && l[7] === 'Programa transversal'), 'Excel Trilha: Natureza complementar (outra auditoria)');
+    afirma(lt.some((l) => l[5] === 'Papel estrutural' && l[8] === '—'), 'Excel Trilha: autor sem nome → "—" (nunca o e-mail)');
     afirma(ex.linhasTrilha('cad1').length === 0 && !ex.linhasTrilha('cad1').some((l) => /indispon/i.test(l[4])), 'Excel Trilha: versão sem auditoria → nenhuma linha (lida com sucesso)');
     afirma(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth + 1), 'tela sem rolagem horizontal');
     afirma(erros.length === 0, 'sem erros de página'); totalErros += erros.length;
