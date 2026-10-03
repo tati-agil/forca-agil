@@ -402,6 +402,7 @@ const TOTAL = 'taxonomia';
     afirma(audV.length === 2 && audV.every((l) => l.usuario.email === EMAIL), 'cada troca de definição vigente tem a sua linha de auditoria');
     const evTroca = audV.find((l) => l.fonteNovaId === novaId);
     afirma(!!evTroca && evTroca.fonteAnteriorId === 'b1' && /Significado v1 \(BB\)/.test(evTroca.valorAnterior) && /Nova redação/.test(evTroca.valorNovo) && !!evTroca.dataHora && evTroca.usuario.email === EMAIL, 'auditoria da troca: identifica a fonte ANTERIOR (b1) e a NOVA, quem fez e quando');
+    await page.waitForFunction(() => /Significado v1 \(BB\) → Nova redação/.test((document.querySelector('#taxSecHistorico') || {}).innerText || ''), null, { timeout: 6000 }).catch(() => {});
     afirma(/Significado v1 \(BB\) → Nova redação/.test(await page.locator('#taxSecHistorico').innerText()), 'o histórico na tela mostra "anterior → nova"');
     /* recusa do banco na troca: nada muda */
     await aparece(page, '[data-fonte="b1"] [data-tax="tornar-vigente"]');
