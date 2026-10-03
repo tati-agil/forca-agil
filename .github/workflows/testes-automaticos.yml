@@ -102,6 +102,15 @@ jobs:
           FA_BASE_URL: http://127.0.0.1:8811
         run: node .github/scripts/teste-pdf-quebra-titulos.js
 
+      # Taxonomia (Admin → Taxonomia): estados de leitura (carregando ≠ erro ≠ sem acesso ≠ vazio), importação
+      # única atômica, dois domínios separados, definição vigente (equivalência com o ponteiro + segunda barreira
+      # na aplicação), edição que salva com auditoria, só admin; desktop e celular. Conteúdo 100% fictício.
+      - name: "Taxonomia: interface, importador, edição, auditoria e vigência (desktop e celular)"
+        env:
+          NODE_PATH: /tmp/pw-deps/node_modules
+          FA_BASE_URL: http://127.0.0.1:8811
+        run: node .github/scripts/teste-taxonomia.js
+
       # Estrutura da ficha: o sistema concluiu → uma pessoa complementou (Curadoria) → uma pessoa
       # decidiu (Decisão final) → como chegamos até aqui (históricos, questionário). Reavaliar e
       # GERAR PDF no cabeçalho, faixa-resumo, Forma da decisão sem Curadoria, justificativa
