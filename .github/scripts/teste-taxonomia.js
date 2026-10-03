@@ -567,7 +567,17 @@ const TOTAL = 'taxonomia';
     await aparece(r.page, '.tax-item[data-codigo="SQ"]');
     await abrirConceito(r.page, 'SQ');
     /* tempos curtos só no teste (em produção: 20 s de espera e conferência a cada 5 s) */
-    await r.page.evaluate(() => { const e = window.faTaxonomia._interno.espera; e.gravacao = 700; e.reverificar = 400; });
+    await r.page.evaluate(() => {
+      const I = window.faTaxonomia._interno;
+      I.espera.gravacao = 700; I.espera.reverificar = 400;
+      /* o leitor de servidor de verdade é REST (ver teste-rules-taxonomia.js, seção 10); aqui lê o banco falso,
+         que só guarda o estado do SERVIDOR, e obedece a getFalha ("sem conexão") */
+      I.leitores.servidor = (caminho, cb) => {
+        if (window.__CFG.getFalha) { setTimeout(() => cb({ ok: false, erro: 'sem conexão (falso)' }), 50); return; }
+        const v = caminho.split('/').reduce((o, k) => (o == null ? o : o[k]), window.__CFG.__dbReal);
+        setTimeout(() => cb({ ok: true, valor: v === undefined ? null : v }), 20);
+      };
+    });
     return r;
   }
   const removerSq = async (page) => { await page.click('[data-tax="remover-vigencia"]'); await page.click('[data-tax="confirmar-remocao"]'); };

@@ -228,18 +228,31 @@
     var k = chaves(caminhos).filter(function (c) { return /\/auditoria\/[^/]+\/[^/]+$/.test(c); })[0];
     return k || null;
   }
-  function lerServidor(caminho, cb) {
-    /* get() consulta o SERVIDOR; once() poderia devolver a própria gravação otimista ainda pendente
-       (falso "foi aplicada"). Sem get(), não dá para confirmar — melhor admitir do que afirmar. */
+  function lerServidorRest(caminho, cb) {
+    /* Leitura REST direta ao servidor, com o token do próprio usuário (as regras valem do mesmo jeito).
+       NÃO usa o SDK: o SDK (inclusive get()) pode responder com a própria gravação otimista ainda
+       pendente — "conferi" e "foi aplicada" falsos. Sem como consultar, admite (nunca afirma). */
     var feito = false;
     var t = setTimeout(function () { fim({ ok: false, erro: 'tempo esgotado' }); }, ESPERA.leitura);
     function fim(r) { if (feito) return; feito = true; clearTimeout(t); cb(r); }
     try {
-      var ref = db().ref(caminho);
-      if (!ref || typeof ref.get !== 'function') { fim({ ok: false, erro: 'sem get()' }); return; }
-      ref.get().then(function (snap) { fim({ ok: true, valor: snap.val() }); }, function (err) { fim({ ok: false, erro: err }); });
+      var user = firebase.auth().currentUser;
+      var base = firebase.app().options.databaseURL;
+      if (!user || !base || typeof fetch !== 'function') { fim({ ok: false, erro: 'sem como consultar' }); return; }
+      user.getIdToken().then(function (tok) {
+        var url = new URL(base);
+        url.pathname = '/' + caminho + '.json';
+        url.searchParams.set('auth', tok);
+        return fetch(url.toString(), { cache: 'no-store' });
+      }).then(function (resp) {
+        if (!resp.ok) throw new Error('HTTP ' + resp.status);
+        return resp.json();
+      }).then(function (valor) { fim({ ok: true, valor: valor }); }, function (e) { fim({ ok: false, erro: e }); });
     } catch (e) { fim({ ok: false, erro: e }); }
   }
+  /* o teste troca o leitor (o hermético lê o banco falso; o do emulador usa o REST de verdade) */
+  var LEITORES = { servidor: lerServidorRest };
+  function lerServidor(caminho, cb) { LEITORES.servidor(caminho, cb); }
   function resolverGravacao(p, r) {
     if (p.resolvido) return;
     p.resolvido = true; clearTimeout(p.timerEspera); clearTimeout(p.timerVerif);
@@ -1046,7 +1059,7 @@
     /* Só para teste: permite rodar as MESMAS operações da tela contra o emulador com as regras reais
        (teste-rules-taxonomia.js) e provar que o que a aplicação grava, o banco aceita. */
     _interno: {
-      st: st, espera: ESPERA, carregarDominio: carregarDominio, carregarDetalhe: carregarDetalhe, tornarVigente: tornarVigente,
+      st: st, espera: ESPERA, leitores: LEITORES, carregarDominio: carregarDominio, carregarDetalhe: carregarDetalhe, tornarVigente: tornarVigente,
       removerVigencia: removerVigencia, salvarConceito: salvarConceito, salvarFonte: salvarFonte, salvarPerfil: salvarPerfil
     }
   };
