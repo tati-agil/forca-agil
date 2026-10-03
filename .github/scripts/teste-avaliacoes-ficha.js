@@ -89,7 +89,7 @@ const larguraOk = (page) => page.evaluate(() => document.documentElement.scrollW
     console.log('\n== Ficha da versão vigente (v3) ==');
     await page.click('.avp-act-ver[data-key="k3"]');
     await page.waitForSelector('#avpIdentificacao');
-    const ident = await page.locator('#avpIdentificacao').innerText();
+    const ident = await page.locator('#avpIdentificacao').textContent(); /* descrição, público, necessidade e observações ficam recolhidos em "Dados do item" */
     afirma(/Plano Exemplo/.test(ident) && /v3/.test(ident) && /descrição do Plano Exemplo/.test(ident) && /participantes/.test(ident) && /entender o plano/.test(ident) && /obs gerais/.test(ident) && /Avaliadora 3/i.test(ident), 'Identificação: nome, versão, descrição, público, necessidade, observações e quem avaliou');
     afirma(!/versão anterior/i.test(ident) && await contar(page, '#avpAvisoVersaoAnterior') === 0, 'a vigente não tem aviso de versão anterior');
     afirma(await contar(page, '#avpReavaliarBtn') === 1 && await contar(page, '#avpSalvarDecisaoBtn') === 1, 'vigente: Reavaliar e decisão editável (quem tem acesso)');

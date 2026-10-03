@@ -151,7 +151,7 @@ function parteA() {
   afirma(just.startsWith(JUSTIFICATIVA_NOVA), 'T2: justificativa = "' + just.slice(0, 95) + '…"');
   afirma(!NEGA_RESULTADO_PROPRIO.test(just), 'T2: a justificativa não afirma "não possui resultado próprio" (P2 = SIM, P10 = SIM)');
   const comEspec = av.gerarJustificativaAutomatica(atual, { camadaSugerida: Object.assign({}, c.camadaSugerida, { especializacao: 'Material educativo' }) });
-  afirma(comEspec === JUSTIFICATIVA_NOVA + ' Especialização: Material educativo.', 'a especialização cadastrada continua entrando no fim da frase');
+  afirma(comEspec === JUSTIFICATIVA_NOVA, 'a especialização cadastrada NÃO entra mais na justificativa automática (só a identificada pelo questionário entra; aqui não há)');
   const p2Nao = respostasTrilha(); p2Nao.resultado.valor = 'nao';
   const cNao = av.computeResultado({ respostas: p2Nao });
   afirma(cNao.camadaSugerida.id === 'documento-informacao' && av.gerarJustificativaAutomatica({ respostas: p2Nao }, cNao).startsWith(JUSTIFICATIVA_NOVA), 'com P2 = NÃO o texto continua neutro (não afirma nada que as respostas não sustentem)');
@@ -223,7 +223,7 @@ async function abrirApp(browser, viewport) {
 const banco = (page) => page.evaluate(() => JSON.parse(JSON.stringify(window.__CFG.__dbReal)));
 const contar = (page, sel) => page.locator(sel).count();
 const larguraOk = (page) => page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth + 1);
-const textoTela = (page) => page.locator('#avaliacoesPainel').innerText().then((t) => t.replace(/\s+/g, ' '));
+const textoTela = (page) => page.locator('#avaliacoesPainel').textContent().then((t) => t.replace(/\s+/g, ' '));
 async function interpretacao(page, codigo) {
   const n = codigo.slice(1);
   return page.locator('.avp-reasoning-item', { has: page.locator('.avp-reasoning-q', { hasText: new RegExp('^' + n + '\\.') }) }).locator('.avp-reasoning-auto').innerText();
