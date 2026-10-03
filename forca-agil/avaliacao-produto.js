@@ -493,23 +493,27 @@
     box.querySelector('.avp-modal-ok-btn').addEventListener('click', close);
     overlay.addEventListener('keydown', function (e) { if (e.key === 'Escape') { e.preventDefault(); close(); } });
   }
-  function avpConfirm(mensagem, callbackSim) {
+  /* opcoes (todas opcionais): sim/nao = rótulos dos botões (padrão Confirmar/Cancelar), aoNao = o que fazer ao recusar,
+     classe = marca o modal (evita abrir o mesmo aviso duas vezes). */
+  function avpConfirm(mensagem, callbackSim, opcoes) {
+    opcoes = opcoes || {};
     var overlay = document.createElement('div');
-    overlay.className = 'modal-overlay';
+    overlay.className = 'modal-overlay' + (opcoes.classe ? ' ' + opcoes.classe : '');
     overlay.style.cssText = 'display:flex;align-items:center;justify-content:center;z-index:9999';
     var box = document.createElement('div');
     box.className = 'modal-box';
     box.style.cssText = 'max-width:420px;width:90%;padding:28px;display:flex;flex-direction:column;gap:18px';
     box.innerHTML =
       '<p style="font-size:.95rem;line-height:1.6;color:var(--ink);white-space:pre-line">' + esc(mensagem) + '</p>' +
-      '<div style="display:flex;justify-content:flex-end;gap:8px">' +
-        '<button class="btn avp-modal-cancel-btn">Cancelar</button>' +
-        '<button class="btn btn--primary avp-modal-confirm-btn">Confirmar</button></div>';
+      '<div style="display:flex;justify-content:flex-end;flex-wrap:wrap;gap:8px">' +
+        '<button class="btn avp-modal-cancel-btn">' + esc(opcoes.nao || 'Cancelar') + '</button>' +
+        '<button class="btn btn--primary avp-modal-confirm-btn">' + esc(opcoes.sim || 'Confirmar') + '</button></div>';
     overlay.appendChild(box);
     document.body.appendChild(overlay);
     function close() { document.body.removeChild(overlay); }
-    box.querySelector('.avp-modal-cancel-btn').addEventListener('click', close);
-    overlay.addEventListener('keydown', function (e) { if (e.key === 'Escape') { e.preventDefault(); close(); } });
+    function recusar() { close(); if (opcoes.aoNao) opcoes.aoNao(); }
+    box.querySelector('.avp-modal-cancel-btn').addEventListener('click', recusar);
+    overlay.addEventListener('keydown', function (e) { if (e.key === 'Escape') { e.preventDefault(); recusar(); } });
     box.querySelector('.avp-modal-confirm-btn').addEventListener('click', function () { close(); if (callbackSim) callbackSim(); });
   }
 
@@ -1668,6 +1672,7 @@
       filtrosAbertos: false,  /* painel "Filtros (n)" */
       lixeira: false,        /* alterna a lista entre ativos e excluídos — "excluído" é outra dimensão, não um status irmão de rascunho/concluído */
       atual: null,
+      snapshotEdicao: null,   /* assinatura dos campos editáveis ao abrir o formulário/checklist — detecta alteração não salva */
       erroForm: null,
       camposInvalidos: [],
       pendenteId: null,
@@ -1790,14 +1795,12 @@
         '<p class="admin-empty">A conexão está demorando e não foi possível carregar esta avaliação. Verifique sua internet.</p>' +
         '<div class="avp-actions-footer">' +
         '<button class="btn btn--primary" id="avpRecarregarTravado">TENTAR NOVAMENTE</button>' +
-        '<button class="btn" id="avpVoltarCarregandoTravado">VOLTAR PARA A LISTA</button>' +
+        '<button class="btn" id="avpVoltarCarregandoTravado">← Voltar para avaliações</button>' +
         '</div></div>';
       document.getElementById('avpRecarregarTravado').addEventListener('click', function () { location.reload(); });
       document.getElementById('avpVoltarCarregandoTravado').addEventListener('click', function () {
         state.carregandoTravado = false;
-        state.tela = 'lista';
-        irParaListaNaHash();
-        render();
+        irPara(hashLista(), { replace: true });
       });
     }
 
@@ -1826,46 +1829,169 @@
       return params;
     }
     function avpKeyDaHash() { return paramsDaHash().avp || null; }
-    function irParaAvaliacaoNaHash(key) {
-      var novo = '#avaliacoes?avp=' + encodeURIComponent(key);
-      if (location.hash !== novo) location.hash = novo; /* empilha uma entrada nova no histórico — permite "voltar" do navegador */
+
+    /* ===================== NAVEGAÇÃO: A URL É A FONTE DE VERDADE =====================
+       A tela exibida SEMPRE decorre da URL (sincronizarComHash); o histórico do navegador guarda só o CONTEXTO
+       DE ORIGEM (history.state) para o "Voltar" saber para onde ir. Endereços:
+         #avaliacoes                      lista
+         #avaliacoes?avp=<chave>          avaliação (vigente ou versão anterior — a chave identifica a versão)
+         #avaliacoes?nova=1               nova avaliação (formulário inicial / checklist)
+         #avaliacoes?editar=<chave>       continuar um rascunho
+         #avaliacoes?reavaliar=<chave>    reavaliação da versão <chave>
+       Nova/editar/reavaliar não persistem a edição: o F5 recomeça do estado salvo (sem autosave) e o navegador
+       avisa antes de recarregar se houver alteração não salva (beforeunload).
+       Cada entrada criada por esta tela carrega { avp:1, seq, origem } — origem = { t:'lista' } ou
+       { t:'avaliacao', key, v } (de onde a pessoa veio). "Voltar" usa history.back() quando a entrada tem origem
+       (nunca empilha entrada nova: sem laço) e, sem contexto (link direto, F5 sem marcador), vai a um destino
+       seguro e determinístico, SUBSTITUINDO a entrada. */
+    var navSeq = 0;
+    var urlAplicada = null;        /* a URL que a tela desenhada representa */
+    var navRevertendo = false;     /* true enquanto desfazemos uma saída interrompida (Voltar do navegador com alteração) */
+    var navSeqDaEdicao = null;     /* seq da entrada do histórico em que a edição está aberta */
+    function proximoSeq() { navSeq = Math.max(navSeq + 1, Date.now()); return navSeq; }
+    function estadoDaEntrada() { var e = history.state; return (e && e.avp === 1) ? e : null; }
+    function marcarEntradaAtual() {
+      if (!estadoDaEntrada()) history.replaceState({ avp: 1, seq: proximoSeq(), origem: null }, '', location.href);
     }
-    function irParaListaNaHash() {
+    function hashLista() { return '#avaliacoes'; }
+    function hashAvaliacao(key) { return '#avaliacoes?avp=' + encodeURIComponent(key); }
+    function hashNova() { return '#avaliacoes?nova=1'; }
+    function hashEditar(key) { return '#avaliacoes?editar=' + encodeURIComponent(key); }
+    function hashReavaliar(key) { return '#avaliacoes?reavaliar=' + encodeURIComponent(key); }
+    function destinoDaUrl() {
+      var h = location.hash || '';
+      if (h.split('?')[0] !== '#avaliacoes') return { t: 'fora' };
+      var p = paramsDaHash();
+      if (p.avp) return { t: 'avaliacao', key: p.avp };
+      if (p.reavaliar) return { t: 'reavaliar', key: p.reavaliar };
+      if (p.editar) return { t: 'editar', key: p.editar };
+      if (p.nova) return { t: 'nova' };
+      return { t: 'lista' };
+    }
+    /* O que a tela de AGORA é, para virar a origem da próxima entrada. */
+    function origemAtual() {
+      if (state.tela === 'lista') return { t: 'lista' };
+      if (state.tela === 'resultado' && state.atual && state.atual._key) return { t: 'avaliacao', key: state.atual._key, v: state.atual.versao || 1 };
+      return null;
+    }
+    /* Navega para uma URL: empilha uma entrada (padrão) ou SUBSTITUI a atual ({replace:true}) e redesenha a tela
+       a partir da URL. opts.origem fixa a origem da entrada (capturada ANTES de a tela mudar). */
+    function irPara(hash, opts) {
       if (modo !== 'operacional') return;
-      if (location.hash !== '#avaliacoes') location.hash = '#avaliacoes';
+      opts = opts || {};
+      var atualEntrada = estadoDaEntrada();
+      if (opts.replace) {
+        history.replaceState({ avp: 1, seq: atualEntrada ? atualEntrada.seq : proximoSeq(),
+          origem: opts.origem !== undefined ? opts.origem : (atualEntrada ? atualEntrada.origem : null) }, '', hash);
+      } else if (location.hash !== hash) {
+        history.pushState({ avp: 1, seq: proximoSeq(), origem: opts.origem !== undefined ? opts.origem : origemAtual() }, '', hash);
+      }
+      sincronizarComHash();
     }
-    /* Reage tanto à carga inicial quanto a QUALQUER mudança de hash (botão
-       voltar/avançar do navegador, link colado). Deliberadamente não mexe
-       em nada enquanto há um formulário em andamento (form-inicial/
-       checklist) sem gravação: perder um rascunho por causa de uma mudança
-       de hash que a própria pessoa não pediu seria pior do que ignorá-la. */
-    function sincronizarComHash() {
-      if (modo !== 'operacional') return; /* o bloco do Admin não tem rota própria */
-      if (state.tela === 'form-inicial' || state.tela === 'checklist') return;
-      var key = avpKeyDaHash();
-      if (!key) {
-        /* 'carregando' também sai daqui: ele só existe enquanto a URL pede uma avaliação; se a URL
-           deixou de pedir (a pessoa saiu e o endereço voltou ao início), esperar não leva a nada. */
-        if (state.tela === 'resultado' || state.tela === 'nao-encontrada' || state.tela === 'sem-permissao' || state.tela === 'carregando') {
-          state.atual = null;
-          state.carregandoTravado = false;
-          state.tela = 'lista';
-          render();
-        }
+    /* Para onde o "Voltar" desta tela vai, e como. Com origem registrada nesta entrada, é o histórico real;
+       sem ela, um destino seguro (reavaliação → a avaliação de origem; o resto → a lista). */
+    function destinoDeVoltar() {
+      var e = estadoDaEntrada();
+      var o = e && e.origem;
+      if (o && o.t === 'lista') return { historico: true, hash: hashLista(), rotulo: 'avaliações' };
+      if (o && o.t === 'avaliacao') return { historico: true, hash: hashAvaliacao(o.key), rotulo: 'a avaliação (v' + (o.v || 1) + ')' };
+      var d = destinoDaUrl();
+      if (d.t === 'reavaliar') {
+        var it = buscarItem(d.key);
+        return { historico: false, hash: hashAvaliacao(d.key), rotulo: 'a avaliação (v' + ((it && it.versao) || 1) + ')' };
+      }
+      return { historico: false, hash: hashLista(), rotulo: 'avaliações' };
+    }
+    function rotuloVoltar() { return '← Voltar para ' + destinoDeVoltar().rotulo; }
+    function voltar() {
+      var d = destinoDeVoltar();
+      if (d.historico) history.back();
+      else irPara(d.hash, { replace: true });
+    }
+    /* Abrir uma avaliação: se ela é justamente a ORIGEM desta entrada ("Abrir a versão vigente" de uma versão anterior
+       aberta a partir dela), volta no histórico em vez de empilhar — a pilha não cresce a cada vai-e-volta. */
+    function abrirAvaliacaoNaUrl(key) {
+      var e = estadoDaEntrada();
+      if (e && e.origem && e.origem.t === 'avaliacao' && e.origem.key === key && history.length > 1) { history.back(); return; }
+      irPara(hashAvaliacao(key));
+    }
+
+    /* ---- alterações não salvas ---- */
+    function assinaturaEdicao(a) {
+      if (!a) return '';
+      var r = {};
+      Object.keys(a.respostas || {}).forEach(function (k) { var x = a.respostas[k] || {}; r[k] = [x.valor || '', x.observacao || '']; });
+      return JSON.stringify([a.nome || '', a.descricao || '', a.publico || '', a.necessidade || '', a.observacoesGerais || '', r]);
+    }
+    function marcarPontoDeEdicao() { state.snapshotEdicao = assinaturaEdicao(state.atual); navSeqDaEdicao = (estadoDaEntrada() || {}).seq || null; }
+    function emEdicao() { return modo === 'operacional' && (state.tela === 'form-inicial' || state.tela === 'checklist'); }
+    function edicaoSuja() {
+      return emEdicao() && state.snapshotEdicao != null && state.snapshotEdicao !== assinaturaEdicao(state.atual);
+    }
+    function perguntarDescarte(aoDescartar, aoContinuar) {
+      if (document.querySelector('.avp-modal-descarte')) return;
+      avpConfirm('Há alterações que ainda não foram salvas. Se sair agora, elas serão perdidas.', aoDescartar,
+        { sim: 'Descartar alterações', nao: 'Continuar editando', aoNao: aoContinuar, classe: 'avp-modal-descarte' });
+    }
+    /* Botões de sair de uma edição (Voltar, CANCELAR): sem alteração sai direto; com alteração pergunta. */
+    function sairDaEdicao() {
+      if (state.salvando) return; /* não deixa sair no meio de um salvamento em andamento */
+      if (edicaoSuja()) perguntarDescarte(function () { state.snapshotEdicao = null; voltar(); });
+      else { state.snapshotEdicao = null; voltar(); }
+    }
+    /* Depois de SALVAR RASCUNHO: volta à lista sem criar entrada nova (se veio da lista, usa o histórico). */
+    function irParaListaDepoisDeSalvar() {
+      state.snapshotEdicao = null;
+      var e = estadoDaEntrada();
+      if (e && e.origem && e.origem.t === 'lista') history.back();
+      else irPara(hashLista(), { replace: true });
+    }
+    /* Voltar/Avançar do navegador, link colado, F5. Saída de uma edição com alteração é INTERROMPIDA: desfaz a
+       navegação (mantém a URL da edição) e pergunta. Eventos repetidos (popstate + hashchange) são inofensivos. */
+    function aoTrocarHistorico() {
+      if (modo !== 'operacional') return;
+      var h = location.hash || '';
+      if (navRevertendo) { if (h === urlAplicada) navRevertendo = false; return; }
+      if (h === urlAplicada) return;
+      if (edicaoSuja()) {
+        var e = estadoDaEntrada();
+        var delta = (e && navSeqDaEdicao != null) ? (e.seq - navSeqDaEdicao) : null;
+        var origem = (e && e.origem) || null;
+        navRevertendo = true;
+        setTimeout(function () { navRevertendo = false; }, 1500);
+        if (delta) history.go(delta < 0 ? 1 : -1);
+        else history.pushState({ avp: 1, seq: proximoSeq(), origem: origem }, '', urlAplicada);
+        perguntarDescarte(function () {
+          state.snapshotEdicao = null;
+          if (delta) history.go(delta < 0 ? -1 : 1); else location.hash = h;
+        });
         return;
       }
-      if (state.tela === 'resultado' && state.atual && state.atual._key === key) return; /* já é esta mesma avaliação — nada a fazer */
-      if (!state.itensCarregados) return; /* os dados ainda não chegaram — a própria carga chama isto de novo ao terminar */
-      if (state.erroCarga === 'permissao') { state.tela = 'sem-permissao'; render(); return; }
-      if (state.erroCarga === 'geral') { state.tela = 'nao-encontrada'; state.atual = null; render(); return; }
-      var it = buscarItem(key);
-      if (!it || it.excluido) { state.tela = 'nao-encontrada'; state.atual = null; render(); return; }
+      sincronizarComHash();
+    }
+    function novaAvaliacaoVazia() {
+      return { nome: '', descricao: '', publico: '', necessidade: '', observacoesGerais: '', respostas: {},
+        questionnaireContentVersion: window.faQuestionarios.versaoAtual(CODIGO_QUESTIONARIO) };
+    }
+    function construirNova() {
+      state.atual = novaAvaliacaoVazia();
+      state.reavaliacaoBase = null;
+      state.erroForm = null;
+      state.camposInvalidos = [];
+      state.flashLista = null;
+      state.tela = 'form-inicial';
+      marcarPontoDeEdicao();
+      render();
+    }
+    function construirVisualizacao(it) {
       state.atual = clonarItem(it);
       state.decisaoForm = decisaoFormInicial(it);
       state.naturezaForm = null;
       state.flashNatureza = null;
       state.especializacaoForm = especializacaoFormInicial(it);
       state.curadoriaHist = null;
+      state.reavaliacaoBase = null;
+      state.snapshotEdicao = null;
       state.flashLista = null;
       state.flashResultado = null;
       state.flashDecisao = null;
@@ -1874,7 +2000,71 @@
       state.tela = 'resultado';
       render();
     }
-    if (modo === 'operacional') window.addEventListener('hashchange', sincronizarComHash);
+    /* Deriva a tela da URL (carga inicial, F5, link, Voltar/Avançar, ou depois de irPara). Idempotente: se a tela
+       já é a da URL, não mexe — nunca apaga uma edição em andamento por causa de um evento repetido. */
+    function sincronizarComHash() {
+      if (modo !== 'operacional') return; /* o bloco do Admin não tem rota própria */
+      var d = destinoDaUrl();
+      if (d.t === 'fora') return;         /* outra página do site: esta tela não mexe */
+      marcarEntradaAtual();
+      function fim() { urlAplicada = location.hash || ''; }
+      if (d.t === 'lista') {
+        /* 'carregando' também sai daqui: ele só existe enquanto a URL pede uma avaliação; se a URL
+           deixou de pedir (a pessoa saiu e o endereço voltou ao início), esperar não leva a nada. */
+        if (state.tela !== 'lista' && state.tela.indexOf('config') !== 0 && state.tela.indexOf('admin') !== 0) {
+          state.atual = null;
+          state.reavaliacaoBase = null;
+          state.snapshotEdicao = null;
+          state.carregandoTravado = false;
+          state.tela = 'lista';
+          render();
+        }
+        fim();
+        return;
+      }
+      if (d.t === 'nova') {
+        var jaNaNova = state.tela === 'form-inicial' || (state.tela === 'checklist' && state.atual && !state.atual._key && !state.reavaliacaoBase);
+        if (!jaNaNova) construirNova();
+        fim();
+        return;
+      }
+      var key = d.key;
+      if (state.tela === 'resultado' && d.t === 'avaliacao' && state.atual && state.atual._key === key) { fim(); return; } /* já é esta mesma avaliação */
+      if (state.tela === 'checklist' && d.t === 'editar' && state.atual && state.atual._key === key && !state.reavaliacaoBase) { fim(); return; }
+      if (state.tela === 'checklist' && d.t === 'reavaliar' && state.reavaliacaoBase && state.reavaliacaoBase._key === key) { fim(); return; }
+      if (!state.itensCarregados) return; /* os dados ainda não chegaram — a própria carga chama isto de novo ao terminar */
+      if (state.erroCarga === 'permissao') { state.tela = 'sem-permissao'; render(); fim(); return; }
+      if (state.erroCarga === 'geral') { state.tela = 'nao-encontrada'; state.atual = null; render(); fim(); return; }
+      var it = buscarItem(key);
+      if (!it || it.excluido) { state.tela = 'nao-encontrada'; state.atual = null; state.snapshotEdicao = null; render(); fim(); return; }
+      if (d.t === 'editar') {
+        /* só rascunho se edita; uma avaliação concluída abre como avaliação */
+        if (it.status !== 'rascunho' || !pode()) { irPara(hashAvaliacao(key), { replace: true }); return; }
+        construirEdicao(it);
+        fim();
+        return;
+      }
+      if (d.t === 'reavaliar') {
+        /* só a versão vigente de uma avaliação concluída se reavalia */
+        if (it.status !== 'concluido' || temVersaoMaisNova(key) || !pode()) { irPara(hashAvaliacao(key), { replace: true }); return; }
+        construirReavaliacao(it);
+        fim();
+        return;
+      }
+      construirVisualizacao(it);
+      fim();
+    }
+    if (modo === 'operacional') {
+      window.addEventListener('popstate', aoTrocarHistorico);
+      window.addEventListener('hashchange', aoTrocarHistorico);
+      /* F5/fechar a aba com alteração não salva: o navegador avisa (nunca sem alteração). */
+      window.addEventListener('beforeunload', function (ev) {
+        if (!edicaoSuja()) return;
+        ev.preventDefault();
+        ev.returnValue = '';
+        return '';
+      });
+    }
 
     /* O catálogo de naturezas complementares chega (ou muda) depois do
        primeiro render: quem está olhando um resultado precisa ver o seletor
@@ -1888,24 +2078,20 @@
       wrap.innerHTML =
         '<div class="avp-form-card">' +
         '<p class="admin-empty">' + esc(msg) + '</p>' +
-        '<div class="avp-actions-footer"><button class="btn btn--primary" id="avpVoltarNaoEncontrada">VOLTAR PARA A LISTA</button></div>' +
+        '<div class="avp-actions-footer"><button class="btn btn--primary" id="avpVoltarNaoEncontrada">← Voltar para avaliações</button></div>' +
         '</div>';
       document.getElementById('avpVoltarNaoEncontrada').addEventListener('click', function () {
-        state.tela = 'lista';
-        irParaListaNaHash();
-        render();
+        irPara(hashLista(), { replace: true });
       });
     }
     function renderSemPermissao() {
       wrap.innerHTML =
         '<div class="avp-form-card">' +
         '<p class="admin-empty">Você não possui permissão para visualizar esta avaliação.</p>' +
-        '<div class="avp-actions-footer"><button class="btn btn--primary" id="avpVoltarSemPermissao">VOLTAR PARA A LISTA</button></div>' +
+        '<div class="avp-actions-footer"><button class="btn btn--primary" id="avpVoltarSemPermissao">← Voltar para avaliações</button></div>' +
         '</div>';
       document.getElementById('avpVoltarSemPermissao').addEventListener('click', function () {
-        state.tela = 'lista';
-        irParaListaNaHash();
-        render();
+        irPara(hashLista(), { replace: true });
       });
     }
 
@@ -2023,7 +2209,7 @@
          exclusivamente no Admin. */
       if (pode()) {
         html += '<button class="btn btn--sm avp-lixeira-btn' + (state.lixeira ? ' active' : '') + '" id="avpLixeiraBtn">' +
-          (state.lixeira ? '‹ Voltar' : '🗑 Lixeira (' + excluidos.length + ')') + '</button>';
+          (state.lixeira ? '‹ Voltar às avaliações' : '🗑 Lixeira (' + excluidos.length + ')') + '</button>';
       }
       html += '</div>';
       if (state.flashExportacao) {
@@ -2179,16 +2365,7 @@
       if (reconciliacaoFecharBtn) reconciliacaoFecharBtn.addEventListener('click', function () { state.reconciliacaoLote = null; render(); });
 
       var novoBtn = document.getElementById('avpNovoBtn');
-      if (novoBtn) novoBtn.addEventListener('click', function () {
-        state.atual = { nome: '', descricao: '', publico: '', necessidade: '', observacoesGerais: '', respostas: {},
-          questionnaireContentVersion: window.faQuestionarios.versaoAtual(CODIGO_QUESTIONARIO) };
-        state.reavaliacaoBase = null;
-        state.erroForm = null;
-        state.camposInvalidos = [];
-        state.flashLista = null;
-        state.tela = 'form-inicial';
-        render();
-      });
+      if (novoBtn) novoBtn.addEventListener('click', function () { irPara(hashNova()); }); /* a URL faz a tela (construirNova) */
       var buscaEl = document.getElementById('avpBusca');
       if (buscaEl) {
         var compondo = false;
@@ -2413,24 +2590,14 @@
     }
 
     function abrirVisualizacao(key) {
-      var it = buscarItem(key);
-      if (!it) return;
-      state.atual = clonarItem(it);
-      state.decisaoForm = decisaoFormInicial(it);
-      state.naturezaForm = null;
-      state.flashNatureza = null;
-      state.especializacaoForm = especializacaoFormInicial(it);
-      state.flashLista = null;
-      state.flashResultado = null;
-      state.flashDecisao = null;
-      state.flashEspecializacao = null;
-      state.tela = 'resultado';
-      render();
-      irParaAvaliacaoNaHash(key);
+      if (!buscarItem(key)) return;
+      abrirAvaliacaoNaUrl(key);
     }
     function abrirEdicao(key) {
-      var it = buscarItem(key);
-      if (!it) return;
+      if (!buscarItem(key)) return;
+      irPara(hashEditar(key));
+    }
+    function construirEdicao(it) {
       state.atual = clonarItem(it);
       if (!state.atual.respostas) state.atual.respostas = {};
       state.reavaliacaoBase = null;
@@ -2439,6 +2606,7 @@
       state.pendenteId = null;
       state.flashLista = null;
       state.tela = 'checklist';
+      marcarPontoDeEdicao();
       render();
     }
     /* Reavaliar NÃO é duplicar nem começar do zero: reabre o MESMO item com
@@ -2463,8 +2631,10 @@
         function () { abrirReavaliacao(key); });
     }
     function abrirReavaliacao(key) {
-      var it = buscarItem(key);
-      if (!it) return;
+      if (!buscarItem(key)) return;
+      irPara(hashReavaliar(key)); /* a URL faz a tela (construirReavaliacao); a origem (avaliação ou lista) fica na entrada */
+    }
+    function construirReavaliacao(it) {
       state.atual = clonarItem(it);
       delete state.atual._key;
       /* A decisão manual NÃO é herdada: a nova versão parte da recomendação do sistema. */
@@ -2500,8 +2670,8 @@
       state.pendenteId = null;
       state.flashLista = null;
       state.tela = 'checklist';
+      marcarPontoDeEdicao();
       render();
-      irParaListaNaHash(); /* sai da rota da avaliação anterior — o rascunho da reavaliação não é persistente até ser concluído */
     }
     function duplicar(key) {
       var it = buscarItem(key);
@@ -2518,6 +2688,10 @@
       state.pendenteId = null;
       state.flashLista = null;
       state.tela = 'checklist';
+      /* A cópia entra como "nova avaliação" (?nova=1): o F5 recomeça do formulário vazio. O que já vem preenchido
+         não conta como alteração — só o que a pessoa mudar depois. */
+      irPara(hashNova(), { origem: { t: 'lista' } });
+      marcarPontoDeEdicao();
       render();
     }
 
@@ -4122,7 +4296,7 @@
     /* ===================== FORM INICIAL ===================== */
     function renderFormInicial() {
       var a = state.atual;
-      var html = '<button class="avp-voltar-link" id="avpVoltarFormInicial">← Voltar para avaliações</button>';
+      var html = '<button class="avp-voltar-link" id="avpVoltarFormInicial">' + esc(rotuloVoltar()) + '</button>';
       html += '<div class="avp-form-card">';
       html += '<h3>Avaliar novo item</h3>';
       if (state.erroForm) html += '<p class="avp-error-msg">' + esc(state.erroForm) + '</p>';
@@ -4156,13 +4330,8 @@
         state.tela = 'checklist';
         render();
       });
-      function cancelarInicial() {
-        state.atual = null;
-        state.tela = 'lista';
-        render();
-      }
-      document.getElementById('avpCancelarInicialBtn').addEventListener('click', cancelarInicial);
-      document.getElementById('avpVoltarFormInicial').addEventListener('click', cancelarInicial);
+      document.getElementById('avpCancelarInicialBtn').addEventListener('click', sairDaEdicao);
+      document.getElementById('avpVoltarFormInicial').addEventListener('click', sairDaEdicao);
     }
 
     function campoTexto(id, label, valor, obrigatorio, textarea, invalido) {
@@ -4190,7 +4359,7 @@
       var base = state.reavaliacaoBase;
       var reavaliando = !!base;
       var html = '<div class="avp-checklist">';
-      html += '<button class="avp-voltar-link" id="avpVoltarLista">← Voltar para avaliações</button>';
+      html += '<button class="avp-voltar-link" id="avpVoltarLista">' + esc(rotuloVoltar()) + '</button>';
       html += '<div class="avp-form-card">';
       html += '<h3>' + esc(reavaliando ? 'Reavaliação — v' + a.versao : (a._key ? 'Editando avaliação' : 'Nova avaliação')) + '</h3>';
       if (reavaliando) {
@@ -4264,7 +4433,7 @@
       html += '</div>';
       wrap.innerHTML = html;
 
-      document.getElementById('avpVoltarLista').addEventListener('click', function () { cancelarChecklist(); });
+      document.getElementById('avpVoltarLista').addEventListener('click', sairDaEdicao);
       bindCampoTexto('avpcNome', 'nome');
       bindCampoTexto('avpcDescricao', 'descricao');
       bindCampoTexto('avpcPublico', 'publico');
@@ -4333,6 +4502,7 @@
           state.reavaliacaoBase = null;
           state.flashLista = '✓ Rascunho salvo com sucesso.';
           state.tela = 'lista';
+          irParaListaDepoisDeSalvar();
           render();
         }, function (tipo) {
           state.salvando = null;
@@ -4376,9 +4546,12 @@
           state.especializacaoForm = especializacaoFormInicial(payload);
           state.reavaliacaoBase = null;
           state.flashResultado = '✓ Avaliação salva com sucesso.';
+          state.snapshotEdicao = null;
           state.tela = 'resultado';
+          /* SUBSTITUI a entrada do checklist pela da avaliação criada: o Voltar do navegador nunca reabre um
+             checklist já encerrado. */
+          irPara(hashAvaliacao(key), { replace: true });
           render();
-          irParaAvaliacaoNaHash(key);
         }, function (tipo) {
           state.salvando = null;
           if (tipo === 'timeout') {
@@ -4390,17 +4563,7 @@
           }
         });
       });
-      document.getElementById('avpCancelarChecklistBtn').addEventListener('click', function () { cancelarChecklist(); });
-    }
-
-    function cancelarChecklist() {
-      if (state.salvando) return; /* não deixa sair no meio de um salvamento em andamento */
-      avpConfirm('Descartar esta avaliação sem salvar?', function () {
-        state.atual = null;
-        state.reavaliacaoBase = null;
-        state.tela = 'lista';
-        render();
-      });
+      document.getElementById('avpCancelarChecklistBtn').addEventListener('click', sairDaEdicao);
     }
 
     function renderPergunta(def, resposta, respostaBase, incoerente) {
@@ -4729,7 +4892,7 @@
       var badgeTexto = resultado === 'produto' ? 'É PRODUTO/SERVIÇO PRINCIPAL' :
         (resultado === 'a-validar' ? 'A VALIDAR' : 'NÃO É PRODUTO/SERVIÇO PRINCIPAL');
       var html = '<div class="avp-resultado">';
-      html += '<button class="avp-voltar-link" id="avpVoltarListaResultado">← Voltar para avaliações</button>';
+      html += '<button class="avp-voltar-link" id="avpVoltarListaResultado">' + esc(rotuloVoltar()) + '</button>';
 
       if (state.flashResultado) {
         html += '<div class="avp-flash-success" id="avpFlashResultado">' + esc(state.flashResultado) +
@@ -4844,7 +5007,7 @@
 
       /* Rodapé: só a navegação. Reavaliar e GERAR PDF são ações do item e ficam no cabeçalho. */
       html += '<div class="avp-actions-footer avp-result-actions-footer">';
-      html += '<button class="btn" id="avpVoltarListaRodape">← Voltar para avaliações</button>';
+      html += '<button class="btn" id="avpVoltarListaRodape">' + esc(rotuloVoltar()) + '</button>';
       html += '</div>';
 
       html += '</div>';
@@ -4954,20 +5117,8 @@
       var reavaliarBtn = document.getElementById('avpReavaliarBtn');
       if (reavaliarBtn) reavaliarBtn.addEventListener('click', function () { pedirReavaliacao(a._key); });
 
-      function voltarParaLista() {
-        state.atual = null;
-        state.naturezaForm = null;
-        state.flashNatureza = null;
-        state.flashResultado = null;
-        state.flashDecisao = null;
-        state.flashEspecializacao = null;
-        state.flashExportacao = null;
-        state.tela = 'lista';
-        irParaListaNaHash();
-        render();
-      }
-      document.getElementById('avpVoltarListaResultado').addEventListener('click', voltarParaLista);
-      document.getElementById('avpVoltarListaRodape').addEventListener('click', voltarParaLista);
+      document.getElementById('avpVoltarListaResultado').addEventListener('click', voltar);
+      document.getElementById('avpVoltarListaRodape').addEventListener('click', voltar);
       bindDecisaoCard();
     }
 
@@ -6534,7 +6685,7 @@
          perfil mudar no meio da visita; ainda assim, distinguir "sem
          acesso" de "fora do ar" evita confundir quem abre um link direto. */
       state.erroCarga = (err && err.code === 'PERMISSION_DENIED') ? 'permissao' : 'geral';
-      if (state.tela === 'lista' && !avpKeyDaHash()) {
+      if (state.tela === 'lista' && destinoDaUrl().t === 'lista') {
         wrap.innerHTML = '<p class="admin-empty" style="color:var(--red)">Erro ao carregar avaliações. Recarregue a página.</p>';
       }
       sincronizarComHash();
@@ -6611,7 +6762,8 @@
        exatamente essa janela; sincronizarComHash() (chamado tanto agora
        quanto de novo quando os dados chegarem) decide o destino final. */
     function prepararTelaPelaHash() {
-      if (!(modo === 'operacional' && avpKeyDaHash())) return;
+      var destUrl = destinoDaUrl();
+      if (!(modo === 'operacional' && (destUrl.t === 'avaliacao' || destUrl.t === 'editar' || destUrl.t === 'reavaliar'))) return;
       state.tela = 'carregando';
       /* Rede travada é condição normal (ver CLAUDE.md), não caso raro — sem
          este relógio, uma leitura que nunca responde deixava "Carregando
