@@ -1281,6 +1281,7 @@ body.aguardando-auth>#bootStatus{z-index:900}
         <button class="admin-tab-btn" data-panel="adminPanelPedidos">Pedidos</button>
         <button class="admin-tab-btn" data-panel="adminPanelSorteios">Sorteios</button>
         <button class="admin-tab-btn" data-panel="adminPanelArquitetura">Arquitetura</button>
+        <button class="admin-tab-btn" data-panel="adminPanelTaxonomia">Taxonomia</button>
       </div>
       <div class="admin-expand-bar" id="adminExpandBar">
         <span class="admin-expand-label">Expansíveis:</span>
@@ -1372,6 +1373,12 @@ body.aguardando-auth>#bootStatus{z-index:900}
         </div>
         <div id="adminAvaliacaoSquad" hidden>
           <p class="loading-msg">Carregando avaliações de squad…</p>
+        </div>
+      </div>
+
+      <div class="admin-tab-panel" id="adminPanelTaxonomia">
+        <div id="adminTaxonomia">
+          <p class="loading-msg">Carregando a Taxonomia…</p>
         </div>
       </div>
 
@@ -1790,6 +1797,8 @@ body.aguardando-auth>#bootStatus{z-index:900}
 <script src="forca-agil/naturezas-config.js"></script>
 <script src="forca-agil/motor-arquitetura.js"></script>
 <script src="forca-agil/avaliacao-produto.js"></script>
+<!-- Taxonomia (conceitos arquiteturais e organizacionais): só admin; carrega dados ao abrir a aba -->
+<script src="forca-agil/taxonomia.js"></script>
 <script src="forca-agil/motor-squad.js"></script>
 <script src="forca-agil/avaliacao-squad.js"></script>
 <script src="forca-agil/aluno.js"></script>
