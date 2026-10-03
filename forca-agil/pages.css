@@ -2555,6 +2555,17 @@ details.avp-form-card.avp-aut-historico { margin-top: 0; padding: 10px 16px; mar
 .tax-check { display: flex; align-items: center; gap: 8px; }
 .tax-confirma { border: 1px solid var(--gold); background: rgba(245,197,24,.08); border-radius: 10px; padding: 10px 12px; margin: 8px 0; font-size: .86rem; }
 .tax-confirma-aviso { margin: 6px 0; }
+.tax-sub { margin: 12px 0 4px; }
+.tax-sub h5 { margin: 0 0 6px; font-size: .86rem; letter-spacing: .04em; text-transform: uppercase; color: var(--ink-2); }
+.tax-resumo-fontes { margin: 0 0 4px; font-size: .84rem; color: var(--ink-2); font-family: var(--font-mono); }
+.tax-identico { margin: 4px 0; font-size: .78rem; color: var(--ink-3); overflow-wrap: anywhere; }
+.tax-selo--curadoria { border-style: dashed; }
+.tax-selo--vigente { border-color: var(--gold); color: var(--gold); }
+.tax-btn-perigo { border-color: #c0605a; }
+@media (max-width: 720px) {
+  .tax-fonte .tax-acoes, .tax-confirma .tax-acoes { flex-direction: column; align-items: stretch; }
+  .tax-fonte .tax-acoes .btn, .tax-confirma .tax-acoes .btn { width: 100%; }
+}
 .tax-confirma-dados { display: grid; grid-template-columns: max-content 1fr; gap: 2px 12px; margin: 8px 0; }
 .tax-confirma-dados dt { color: var(--ink-3); }
 .tax-confirma-dados dd { margin: 0; overflow-wrap: anywhere; }

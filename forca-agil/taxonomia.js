@@ -638,47 +638,82 @@
   function renderFontes(dom, codigo, det) {
     var D = st.d[dom], c = D.conceitos[codigo], ed = podeEditar(), e = D.edicao;
     var html = '<section class="tax-sec" id="taxSecFontes"><h4>Textos-fonte</h4>';
-    html += '<p class="tax-ajuda">Cada redação recebida fica preservada, com contexto e situação. Só uma é a definição vigente.</p>';
     if (det.erros.fontes) html += '<p class="tax-aviso-erro">' + (det.erros.fontes === 'sem-acesso' ? 'Sem acesso aos textos-fonte.' : 'Não foi possível carregar os textos-fonte agora.') + '</p>';
     else if (det.carregando && !chaves(det.fontes).length) html += '<p class="loading-msg">Carregando textos-fonte…</p>';
     var v = validarVigencia(det.fontes, c.definicaoVigenteFonteId || null);
     if (!det.carregando && !det.erros.fontes && !v.ok) html += '<p class="tax-aviso-erro" role="alert" id="taxAvisoVigencia">Estado inconsistente: ' + esc(v.erro) + ' Salvar alterações das fontes fica bloqueado até corrigir.</p>';
-    var ids = ordenaPor(chaves(det.fontes).map(function (k) { return Object.assign({ _id: k }, det.fontes[k]); }), 'criadoEm');
-    if (!ids.length && !det.carregando && !det.erros.fontes) html += '<p class="tax-ausencia">Nenhum texto-fonte registrado.</p>';
-    ids.forEach(function (f) {
+    var todas = ordenaPor(chaves(det.fontes).map(function (k) { return Object.assign({ _id: k }, det.fontes[k]); }), 'criadoEm');
+    var vigentes = todas.filter(function (f) { return f.situacao === 'vigente'; });
+    var candidatas = todas.filter(function (f) { return f.situacao !== 'vigente'; });
+    /* Texto idêntico = igualdade EXATA (só espaços das pontas ignorados). Nada é fundido nem escondido. */
+    var chaveTexto = function (f) { return String(f.texto || '').trim(); };
+    var porTexto = {};
+    todas.forEach(function (f) { (porTexto[chaveTexto(f)] = porTexto[chaveTexto(f)] || []).push(f); });
+    var nUnicos = chaves(porTexto).length;
+    var conf = D.confirmacao;
+    var nomeFonte = function (f) { return f.rotulo || f.tipoRedacao || f._id; };
+
+    function cartao(f, vigente) {
       var editandoEste = e && e.tipo === 'fonte' && e.chave === f._id;
-      html += '<article class="tax-fonte' + (f.situacao === 'vigente' ? ' tax-fonte--vigente' : '') + '" data-fonte="' + esc(f._id) + '">';
-      html += '<header>' + (f.rotulo ? '<strong>' + esc(f.rotulo) + '</strong> ' : '') + selo(f.contexto, 'tax-selo--ctx') + seloSituacaoFonte(f.situacao) + selo(f.tipoRedacao) + '</header>';
-      if (editandoEste) html += formFonte(dom, codigo, e);
-      else {
-        html += '<p class="tax-fonte-texto">' + esc(f.texto) + '</p>';
-        if (ed) {
-          html += '<div class="tax-acoes">';
-          if (SIT_FONTE_PROMOVIVEL.indexOf(f.situacao) !== -1) html += '<button type="button" class="btn btn--sm" data-tax="tornar-vigente" data-fonte="' + esc(f._id) + '">Tornar vigente</button>';
-          if (f.situacao === 'vigente') html += '<button type="button" class="btn btn--sm" data-tax="remover-vigencia">Remover vigência</button>';
-          html += '<button type="button" class="btn btn--sm" data-tax="editar-fonte" data-fonte="' + esc(f._id) + '">Editar</button></div>';
-          var conf = D.confirmacao;
-          if (conf && conf.fonte === f._id) {
-            var atualV = c.definicaoVigenteFonteId && det.fontes[c.definicaoVigenteFonteId];
-            html += '<div class="tax-confirma" role="alertdialog" aria-label="Confirmar definição vigente">' +
-              '<p><strong>Tornar este texto a definição vigente?</strong></p>' +
-              '<p class="tax-confirma-aviso" role="note">Esta ação <strong>altera a definição oficial</strong> do conceito “' + esc(c.nome) + '”.' +
-              (atualV ? ' O texto vigente atual (' + esc(rotuloFonte(atualV, c.definicaoVigenteFonteId)) + ') passa a "histórico/contextual".' : '') +
-              ' O texto-fonte em si não é alterado. A decisão fica registrada na auditoria.</p>' +
-              '<dl class="tax-confirma-dados">' +
-              '<dt>Conceito</dt><dd>' + esc(c.nome) + '</dd>' +
-              '<dt>Texto-fonte</dt><dd>' + esc(f.rotulo || f.tipoRedacao || f._id) + '</dd>' +
-              '<dt>Contexto</dt><dd>' + esc(f.contexto) + '</dd>' +
-              '<dt>Tipo de redação</dt><dd>' + esc(f.tipoRedacao) + '</dd>' +
-              '<dt>Situação atual</dt><dd>' + esc(f.situacao) + '</dd>' +
-              '</dl>' +
-              '<p class="tax-confirma-rotulo">Texto integral</p><p class="tax-confirma-texto">' + esc(f.texto) + '</p>' +
-              '<div class="tax-acoes"><button type="button" class="btn btn--primary btn--sm" data-tax="confirmar-vigente" data-fonte="' + esc(f._id) + '"' + (st.salvando ? ' disabled' : '') + '>' + (st.salvando ? 'SALVANDO…' : 'Confirmar e tornar vigente') + '</button><button type="button" class="btn btn--sm" data-tax="cancelar-confirmacao">Cancelar</button></div></div>';
-          }
-        }
+      var h = '<article class="tax-fonte' + (vigente ? ' tax-fonte--vigente' : ' tax-fonte--candidata') + '" data-fonte="' + esc(f._id) + '">';
+      h += '<header>' + (vigente ? selo('DEFINIÇÃO VIGENTE', 'tax-selo--vigente') : selo('FONTE PARA CURADORIA', 'tax-selo--curadoria')) + ' ' +
+        (f.rotulo ? '<strong>' + esc(f.rotulo) + '</strong> ' : '') + selo(f.contexto, 'tax-selo--ctx') + seloSituacaoFonte(f.situacao) + selo(f.tipoRedacao) + '</header>';
+      if (editandoEste) return h + formFonte(dom, codigo, e) + '</article>';
+      h += '<p class="tax-fonte-texto">' + esc(f.texto) + '</p>';
+      var iguais = porTexto[chaveTexto(f)].filter(function (o) { return o._id !== f._id; });
+      if (iguais.length) h += '<p class="tax-identico">Texto idêntico a: ' + iguais.map(function (o) { return esc(rotuloFonte(o, o._id)) + (o.situacao === 'vigente' ? ' (definição vigente)' : ''); }).join('; ') + '</p>';
+      if (!vigente && SIT_FONTE_PROMOVIVEL.indexOf(f.situacao) === -1) h += '<p class="tax-ajuda">Não pode ser definição (' + esc(f.situacao) + ').</p>';
+      if (ed) {
+        h += '<div class="tax-acoes">';
+        if (!vigente && SIT_FONTE_PROMOVIVEL.indexOf(f.situacao) !== -1) h += '<button type="button" class="btn btn--sm" data-tax="tornar-vigente" data-fonte="' + esc(f._id) + '">Analisar para curadoria</button>';
+        if (vigente) h += '<button type="button" class="btn btn--sm" data-tax="remover-vigencia" data-fonte="' + esc(f._id) + '">Remover vigência</button>';
+        h += '<button type="button" class="btn btn--sm" data-tax="editar-fonte" data-fonte="' + esc(f._id) + '">Editar</button></div>';
+        if (conf && conf.fonte === f._id && conf.acao === 'remover' && vigente) h += painelRemocao(f);
+        if (conf && conf.fonte === f._id && conf.acao === 'tornar' && !vigente) h += painelAnalise(f);
       }
-      html += '</article>';
-    });
+      return h + '</article>';
+    }
+    function dados(f) {
+      return '<dl class="tax-confirma-dados">' +
+        '<dt>Conceito</dt><dd>' + esc(c.nome) + '</dd>' +
+        '<dt>Texto-fonte</dt><dd>' + esc(nomeFonte(f)) + '</dd>' +
+        '<dt>Contexto</dt><dd>' + esc(f.contexto) + '</dd>' +
+        '<dt>Tipo de redação</dt><dd>' + esc(f.tipoRedacao) + '</dd>' +
+        '<dt>Situação atual</dt><dd>' + esc(f.situacao) + '</dd></dl>';
+    }
+    function painelAnalise(f) {
+      var atualV = c.definicaoVigenteFonteId && det.fontes[c.definicaoVigenteFonteId];
+      return '<div class="tax-confirma" role="alertdialog" aria-label="Análise para curadoria">' +
+        '<p><strong>Análise para curadoria</strong></p>' +
+        '<p class="tax-confirma-aviso" role="note"><strong>Esta ação altera a definição oficial deste conceito.</strong>' +
+        (atualV ? ' O texto vigente atual (' + esc(rotuloFonte(atualV, c.definicaoVigenteFonteId)) + ') passa a "histórico/contextual".' : '') +
+        ' O texto-fonte em si não é alterado. A decisão fica registrada na auditoria.</p>' +
+        dados(f) +
+        '<p class="tax-confirma-rotulo">Texto integral</p><p class="tax-confirma-texto">' + esc(f.texto) + '</p>' +
+        '<div class="tax-acoes"><button type="button" class="btn btn--primary btn--sm" data-tax="confirmar-vigente" data-fonte="' + esc(f._id) + '"' + (st.salvando ? ' disabled' : '') + '>' + (st.salvando ? 'SALVANDO…' : 'Tornar esta fonte vigente') + '</button>' +
+        '<button type="button" class="btn btn--sm" data-tax="cancelar-confirmacao">Cancelar / manter em revisão</button></div></div>';
+    }
+    function painelRemocao(f) {
+      return '<div class="tax-confirma" role="alertdialog" aria-label="Remover definição vigente">' +
+        '<p><strong>Remover a definição vigente?</strong></p>' +
+        '<p class="tax-confirma-aviso" role="note"><strong>Esta ação remove a definição oficial vigente deste conceito e o deixará novamente em revisão.</strong> O texto-fonte em si não é alterado e passa a "histórico/contextual". A decisão fica registrada na auditoria.</p>' +
+        '<dl class="tax-confirma-dados"><dt>Conceito</dt><dd>' + esc(c.nome) + '</dd><dt>Fonte vigente atual</dt><dd>' + esc(rotuloFonte(f, f._id)) + '</dd></dl>' +
+        '<div class="tax-acoes"><button type="button" class="btn btn--sm tax-btn-perigo" data-tax="confirmar-remocao" data-fonte="' + esc(f._id) + '"' + (st.salvando ? ' disabled' : '') + '>' + (st.salvando ? 'SALVANDO…' : 'Remover a definição vigente') + '</button>' +
+        '<button type="button" class="btn btn--sm" data-tax="cancelar-confirmacao">Cancelar / manter a definição vigente</button></div></div>';
+    }
+
+    var pronto = !det.carregando && !det.erros.fontes;
+    html += '<div class="tax-sub" id="taxVigenteBloco"><h5>Definição vigente</h5>';
+    if (vigentes.length) html += vigentes.map(function (f) { return cartao(f, true); }).join('');
+    else if (pronto) html += '<p class="tax-ausencia tax-sem-vigente">Nenhuma definição vigente. Nenhum dos textos abaixo vale como definição enquanto não for aprovado.</p>';
+    html += '</div>';
+    html += '<div class="tax-sub" id="taxFontesCuradoria"><h5>Fontes para curadoria</h5>';
+    if (todas.length) html += '<p class="tax-resumo-fontes" id="taxResumoFontes">' + todas.length + (todas.length === 1 ? ' fonte cadastrada' : ' fontes cadastradas') + ' · ' + nUnicos + (nUnicos === 1 ? ' texto único' : ' textos únicos') + '</p>';
+    html += '<p class="tax-ajuda">Estes textos são redações recebidas, candidatas à curadoria. “Conceito”, “Significado v1”, “Significado v2” e “proposta” são tipos de redação, não graus de autoridade. Só um texto pode ser a definição vigente.</p>';
+    if (!todas.length && pronto) html += '<p class="tax-ausencia">Nenhum texto-fonte registrado.</p>';
+    else if (pronto && !candidatas.length) html += '<p class="tax-ausencia">Não há outros textos-fonte além da definição vigente.</p>';
+    candidatas.forEach(function (f) { html += cartao(f, false); });
+    html += '</div>';
     if (ed) {
       if (e && e.tipo === 'novaFonte') html += '<article class="tax-fonte">' + formFonte(dom, codigo, e) + '</article>';
       else html += '<div class="tax-acoes"><button type="button" class="btn btn--sm" data-tax="nova-fonte">+ Adicionar texto-fonte</button></div>';
@@ -889,10 +924,11 @@
       if (e.tipo === 'conceito') salvarConceito(dom, D.selecionado);
       else if (e.tipo === 'fonte' || e.tipo === 'novaFonte') salvarFonte(dom, D.selecionado);
       else salvarPerfil(dom, D.selecionado);
-    } else if (acao === 'tornar-vigente') { D.confirmacao = { fonte: alvo.getAttribute('data-fonte') }; render(); }
+    } else if (acao === 'tornar-vigente') { D.confirmacao = { fonte: alvo.getAttribute('data-fonte'), acao: 'tornar' }; render(); }
     else if (acao === 'cancelar-confirmacao') { D.confirmacao = null; render(); }
     else if (acao === 'confirmar-vigente') { if (!st.salvando) tornarVigente(dom, D.selecionado, alvo.getAttribute('data-fonte')); }
-    else if (acao === 'remover-vigencia') { if (!st.salvando) removerVigencia(dom, D.selecionado); }
+    else if (acao === 'remover-vigencia') { D.confirmacao = { fonte: alvo.getAttribute('data-fonte'), acao: 'remover' }; render(); }
+    else if (acao === 'confirmar-remocao') { if (!st.salvando) removerVigencia(dom, D.selecionado); }
     else if (acao === 'confirmar-importacao') confirmarImportacao();
     else if (acao === 'cancelar-importacao') { st.importacao = null; render(); }
   }
