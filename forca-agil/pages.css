@@ -2349,6 +2349,14 @@ select.aposta-campo-input { width: auto; min-width: 8.5em; }
 .avp-curadoria-sub h5 { margin: 0 0 6px; font-size: .9rem; color: var(--ink); }
 .avp-curadoria-card .avp-curadoria-sub .btn { max-width: 100%; }
 @media (max-width: 640px) { .avp-curadoria-card .avp-curadoria-sub .btn { width: 100%; } }
+/* Curadoria anterior sem efeito / disponível para revisão: informativo e secundário (não é erro). */
+.avp-curadoria-aviso { border-top: 1px dashed var(--line-strong); margin-top: 14px; padding-top: 10px; color: var(--ink-2); min-width: 0; overflow-wrap: anywhere; }
+.avp-curadoria-aviso h5 { margin: 0 0 4px; font-size: .85rem; color: var(--ink-2); font-weight: 600; }
+.avp-curadoria-aviso p { margin: 0 0 6px; font-size: .85rem; }
+.avp-curadoria-aviso-linha { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 12px; margin-bottom: 6px; }
+.avp-curadoria-aviso-linha p { margin: 0; flex: 1 1 200px; min-width: 0; }
+.avp-curadoria-aviso-item .avp-natureza-ajuda { display: inline-block; margin-top: 2px; }
+@media (max-width: 640px) { .avp-curadoria-aviso-linha .btn { width: 100%; } }
 .avp-aut-historico { margin-top: 8px; }
 .avp-aut-historico summary { cursor: pointer; font-size: .86rem; color: var(--ink-2); padding: 6px 0; }
 .avp-aut-hist { padding: 8px 0; border-top: 1px solid var(--line-strong); font-size: .84rem; overflow-wrap: anywhere; }

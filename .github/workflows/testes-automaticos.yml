@@ -75,6 +75,16 @@ jobs:
           FA_BASE_URL: http://127.0.0.1:8811
         run: node .github/scripts/teste-curadoria-decisao-coerencia.js
 
+      # Curadoria anterior sem efeito / disponível para revisão: cadastro de Especialização e
+      # Papel que a camada atual não admite fica preservado e fora da curadoria vigente; se a
+      # camada voltar a admitir, só volta a valer depois de confirmação humana (com auditoria);
+      # salvar um campo nunca apaga o outro; registro legado e abrir a ficha nunca gravam nada.
+      - name: "Avaliação: curadoria anterior sem efeito e reconfirmação (desktop e celular)"
+        env:
+          NODE_PATH: /tmp/pw-deps/node_modules
+          FA_BASE_URL: http://127.0.0.1:8811
+        run: node .github/scripts/teste-curadoria-orfa.js
+
       # Ajustes de usabilidade da lista/detalhe: filtros com rótulo (Resultado
       # Produto/Serviço × Classificação arquitetural), PDFs em lote, voltar com
       # filtros e posição preservados e REAVALIAR (nova versão, anterior intacta).
