@@ -271,7 +271,9 @@ async function marcarRespostas(page, mascara) {
       afirma(r.papelEstruturalCamadaConfirmada === 'componente' && aud.length === 2 && aud[1].tipo === 'alteracao_papel_estrutural' && aud[1].confirmacao === true, 'confirmar o Papel grava o marcador e a segunda linha de auditoria');
       afirma(await page.locator('#avpCuradoriaRevisao').count() === 0 && await page.locator('#avpPapelEstruturalCadastrado').inputValue() === 'essencial', 'o bloco some e o Papel passa a ser o vigente');
       await page.locator('#avpCuradoriaHistoricoDet summary').click();
-      afirma(/confirmada para a classificação/i.test(await txt(page, '#avpCuradoriaHistorico')), 'o histórico da ficha mostra a confirmação');
+      const histConf = await txt(page, '#avpCuradoriaHistorico');
+      afirma(/Especialização confirmada: Instituto previdenciário/.test(histConf) && /Papel estrutural confirmado: Essencial/.test(histConf), 'o histórico mostra "Especialização confirmada" e "Papel estrutural confirmado" (não "alterada", sem seta)');
+      afirma(/confirmada para a classificação/i.test(histConf) && !/—\s*→\s*Instituto/.test(histConf), 'e diz para qual classificação foi confirmada');
       afirma(await larguraOk(page), 'sem rolagem horizontal');
       await voltar(page);
     });

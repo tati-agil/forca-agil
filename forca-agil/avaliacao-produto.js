@@ -5183,8 +5183,14 @@
         var camadaTxt = e.camada && e.camada.label ? esc(e.camada.label) : '';
         if (e.confirmacao) j += ' · confirmada para a classificação “' + camadaTxt + '”';
         else if (e.valorSemEfeitoSubstituido) j += ' · substituiu o valor anterior sem efeito “' + esc(e.valorSemEfeitoSubstituido) + '”';
-        return '<div class="avp-aut-hist"><strong>' + esc(ROTULO_TIPO_AUDITORIA[e.tipo] || e.tipo) + '</strong>: ' +
-          esc(rotuloValorAuditoria(e.tipo, e.valorAnterior)) + ' → ' + esc(rotuloValorAuditoria(e.tipo, e.valorNovo)) +
+        /* Confirmação NÃO é alteração de texto: o valor é o mesmo, só passou a valer para a classificação
+           atual. O histórico diz "confirmada", sem a seta anterior → novo (que sugeriria uma mudança). */
+        var titulo = e.confirmacao && e.tipo === 'alteracao_especializacao' ? 'Especialização confirmada'
+          : e.confirmacao && e.tipo === 'alteracao_papel_estrutural' ? 'Papel estrutural confirmado'
+          : (ROTULO_TIPO_AUDITORIA[e.tipo] || e.tipo);
+        var valores = e.confirmacao ? esc(rotuloValorAuditoria(e.tipo, e.valorNovo))
+          : esc(rotuloValorAuditoria(e.tipo, e.valorAnterior)) + ' → ' + esc(rotuloValorAuditoria(e.tipo, e.valorNovo));
+        return '<div class="avp-aut-hist"><strong>' + esc(titulo) + '</strong>: ' + valores +
           '<br><span class="avp-usuario-aviso">' + origem + ' em ' + esc(fmtData(e.dataHora)) + j + '</span></div>';
       }).join('');
     }
