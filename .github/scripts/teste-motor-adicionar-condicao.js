@@ -69,9 +69,11 @@ const AVALIACOES = {
   av3: item('Produto fictício', ['P1', 'P2', 'P3', 'P4', 'P5'], 'produto-principal')
 };
 
-async function abrir(browser, viewport, configMotor) {
+async function abrir(browser, viewport, configMotor, bancoCompleto) {
   const admins = {}; admins[chave(EMAIL)] = { email: EMAIL };
-  const db = { turmas: {}, 'turmas-interesse': {}, 'fa-users': {}, 'fa-admins': admins, 'turmas-config': {}, 'turmas-checkin': {}, 'turmas-espera': {},
+  /* bancoCompleto: o estado INTEIRO lido de outra página (prova de recarga) — usado tal como
+     foi persistido, sem montar nada à mão. */
+  const db = bancoCompleto ? JSON.parse(JSON.stringify(bancoCompleto)) : { turmas: {}, 'turmas-interesse': {}, 'fa-users': {}, 'fa-admins': admins, 'turmas-config': {}, 'turmas-checkin': {}, 'turmas-espera': {},
     'turmas-equipe': {}, 'fa-facilitadores': {}, 'fa-diretores': {}, eventos: {}, 'turmas-publico': {}, 'eventos-publico': {},
     'avaliacoes-produto': JSON.parse(JSON.stringify(AVALIACOES)), 'avaliacoes-squad': {}, 'motor-squad-config': {}, 'motor-squad-auditoria': {},
     'motor-arquitetura-config': configMotor || {}, 'motor-arquitetura-auditoria': {}, 'fa-avaliacao-acessos': {} };
@@ -216,16 +218,27 @@ const novasDe = (page, codigo) => card(page, codigo).locator('.sq-cond-folha--no
 
     console.log('\n== Recarregar: página nova, a partir só do que ficou gravado no banco ==');
     {
-      /* O banco falso não sobrevive a um reload; o equivalente é abrir uma página do zero
-         lendo exatamente o motor-arquitetura-config gravado pelo "Salvar rascunho" acima. */
-      const { ctx: c1, page: p1, erros: e1 } = await abrir(browser, viewport, depois['motor-arquitetura-config']);
+      /* O banco falso não sobrevive a um reload. O equivalente: a 1ª página fez Adicionar →
+         Salvar rascunho pela interface (acima); "depois" é o banco INTEIRO efetivamente gravado
+         por ela (já com a forma do Firebase real: sem null, listas como o RTDB devolve). A 2ª
+         página nasce do zero com exatamente esse estado — nenhuma condição é injetada à mão.
+         A versão-base do rascunho é a 1 (nunca houve publicação): as regras de fábrica, que a
+         2ª página carrega do próprio código, como em produção. */
+      const persistido = JSON.parse(JSON.stringify(depois));
+      const r1 = ((persistido['motor-arquitetura-config'] || {}).rascunho || {});
+      afirma(r1.versaoBase === 1 && !(persistido['motor-arquitetura-config'] || {}).versaoPublicada, 'o estado persistido tem o rascunho sobre a versão-base 1 e nenhuma versão publicada nova');
+      const { ctx: c1, page: p1, erros: e1 } = await abrir(browser, viewport, null, persistido);
       await p1.waitForTimeout(500);
       afirma(/há um rascunho não publicado/.test(await p1.locator('.avp-config-motores').innerText()), 'depois de recarregar, o painel diz "há um rascunho não publicado"');
+      afirma(await p1.evaluate(() => window.faMotorArquitetura.versaoAtual() === 1 && Array.isArray(window.faMotorArquitetura.regrasDaVersaoBase(1))), 'a versão publicada correspondente à versão-base (1) está carregada');
       await p1.click('#avpMotorArqEditarBtn');
       await p1.waitForSelector('.sq-cond-select');
-      afirma(JSON.stringify(await novasDe(p1, 'UNIDADE_VALOR_ASSOCIADA')) === '["P13","P15"]' && await p1.locator('.sq-cond-remover').count() === 2, 'depois de recarregar, P13 e P15 continuam NOVA e só elas têm "Remover"');
-      afirma(await p1.evaluate(() => window.faMotorArquitetura.versaoAtual()) === 1, 'e a versão publicada continua a 1');
+      afirma(JSON.stringify(await novasDe(p1, 'UNIDADE_VALOR_ASSOCIADA')) === '["P13","P15"]', 'depois de recarregar, P13 e P15 reaparecem com o selo NOVA na UVA');
+      const todasNovas = await p1.locator('.sq-cond-folha--nova').evaluateAll((els) => els.map((e) => e.getAttribute('data-nova')));
+      afirma(JSON.stringify(todasNovas) === '["P13","P15"]' && await p1.locator('.sq-cond-remover').count() === 2, 'nenhuma condição publicada aparece como NOVA (só as 2 acrescentadas, em toda a tela) e só elas têm "Remover"', JSON.stringify(todasNovas));
       await p1.click('#avpMotorArqCancelarBtn');
+      const depoisDaRecarga = await banco(p1);
+      afirma(canon(depoisDaRecarga['avaliacoes-produto']) === canon(inicio['avaliacoes-produto']), 'depois de recarregar e abrir o editor, nenhuma avaliação mudou');
       await c1.close();
       afirma(e1.length === 0, 'nenhum erro de JS (' + e1.length + ')');
     }
