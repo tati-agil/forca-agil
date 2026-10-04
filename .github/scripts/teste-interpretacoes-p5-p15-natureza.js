@@ -34,6 +34,12 @@ const XLSX = require(path.join(RAIZ, 'xlsx.mini.min.js'));
 const EMAIL = 'teste@previ.com.br';
 const KEY = EMAIL.toLowerCase().replace(/[@.]/g, '_').replace(/[^a-z0-9_]/g, '').slice(0, 64);
 
+/* Superfície da NATUREZA COMPLEMENTAR (curadoria humana, window.faNaturezas): o motor e a
+   classificação nunca podem lê-la. A checagem era pela palavra "natureza" solta, mas a política
+   geral de conflitos introduziu o conceito (diferente) de NATUREZA PREDOMINANTE — a regra
+   aprovada se chama CONFLITO_NATUREZAS — no próprio motor; o que se proíbe continua sendo
+   qualquer referência à natureza complementar. */
+const NATUREZA_COMPLEMENTAR = /faNaturezas|naturezaComplementar|naturezaDoItem|NaturezaDoItem|naturezaForm|configNaturezas|NaturezaBloco|natureza complementar|alteracao_natureza_complementar/i;
 let falhas = 0;
 function afirma(cond, msg) { console.log((cond ? '  ok    ' : '  FALHA ') + msg); if (!cond) falhas++; }
 
@@ -284,10 +290,10 @@ async function voltarParaAvaliacoes(page) {
     const semDecisao = (it) => { const c = JSON.parse(JSON.stringify(it)); ['decisaoFinal', 'decisaoManual', 'decisaoConfirmada', 'justificativaDecisao', 'alteradoPor', 'alteradoEm', 'naturezaComplementar', 'atualizadoEm'].forEach((k) => delete c[k]); return JSON.stringify(c); };
     afirma(semDecisao(salvo) === semDecisao(itemAntes), 'tudo fora da decisão (respostas, snapshots, resultado automático, camada, motorVersion…) idêntico ao de antes');
     afirma(salvo.resultadoAutomatico === 'a-validar' && salvo.camadaSugerida.id === 'a-validar', 'recomendação automática continua "A validar"; camada continua A validar (nunca "Programa transversal")');
-    afirma(!/natureza/i.test(SRC_MOTOR), 'motor-arquitetura.js não menciona natureza');
+    afirma(!NATUREZA_COMPLEMENTAR.test(SRC_MOTOR), 'motor-arquitetura.js não menciona a natureza complementar');
     const trechoMotor = (nome) => { const i = SRC_AVP.indexOf('function ' + nome + '('); return SRC_AVP.slice(i, SRC_AVP.indexOf('\n  }\n', i)); };
-    afirma(!/natureza/i.test(trechoMotor('identificarCamada')) && !/natureza/i.test(trechoMotor('computeResultado')) && !/natureza/i.test(trechoMotor('construirAtualizacaoReprocessamento') || ''),
-      'identificarCamada/computeResultado/reprocessamento não leem a natureza');
+    afirma(!NATUREZA_COMPLEMENTAR.test(trechoMotor('identificarCamada')) && !NATUREZA_COMPLEMENTAR.test(trechoMotor('computeResultado')) && !NATUREZA_COMPLEMENTAR.test(trechoMotor('construirAtualizacaoReprocessamento') || ''),
+      'identificarCamada/computeResultado/reprocessamento não leem a natureza complementar');
     afirma(!CAMADA_TEM_NATUREZA(await page.evaluate(() => window.faMotorArquitetura.CAMADAS_VALIDAS)), 'a natureza não é uma camada válida do motor');
 
     console.log('\n== Tela: recomendação automática e decisão SEPARADAS ==');

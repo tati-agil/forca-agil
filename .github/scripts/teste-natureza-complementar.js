@@ -44,6 +44,12 @@ const XLSX = require(path.join(RAIZ, 'xlsx.mini.min.js'));
 const EMAIL = 'teste@previ.com.br';
 const KEY = EMAIL.toLowerCase().replace(/[@.]/g, '_').replace(/[^a-z0-9_]/g, '').slice(0, 64);
 
+/* Superfície da NATUREZA COMPLEMENTAR (curadoria humana, window.faNaturezas): o motor e a
+   classificação nunca podem lê-la. A checagem era pela palavra "natureza" solta, mas a política
+   geral de conflitos introduziu o conceito (diferente) de NATUREZA PREDOMINANTE — a regra
+   aprovada se chama CONFLITO_NATUREZAS — no próprio motor; o que se proíbe continua sendo
+   qualquer referência à natureza complementar. */
+const NATUREZA_COMPLEMENTAR = /faNaturezas|naturezaComplementar|naturezaDoItem|NaturezaDoItem|naturezaForm|configNaturezas|NaturezaBloco|natureza complementar|alteracao_natureza_complementar/i;
 let falhas = 0;
 function afirma(cond, msg) { console.log((cond ? '  ok    ' : '  FALHA ') + msg); if (!cond) falhas++; }
 
@@ -521,8 +527,8 @@ async function voltarParaAvaliacoes(page) {
   console.log('\n== NÃO ALTERA O MOTOR e "se admin pode mexer, pode gravar" (checagens estáticas) ==');
   {
     const trecho = (nome) => { const i = SRC_AVP.indexOf('function ' + nome + '('); return SRC_AVP.slice(i, SRC_AVP.indexOf('\n  }\n', i)); };
-    afirma(!/natureza/i.test(SRC_MOTOR), 'motor-arquitetura.js não menciona natureza');
-    afirma(!/natureza/i.test(trecho('identificarCamada')) && !/natureza/i.test(trecho('computeResultado')), 'identificarCamada / computeResultado não leem a natureza');
+    afirma(!NATUREZA_COMPLEMENTAR.test(SRC_MOTOR), 'motor-arquitetura.js não menciona a natureza complementar');
+    afirma(!NATUREZA_COMPLEMENTAR.test(trecho('identificarCamada')) && !NATUREZA_COMPLEMENTAR.test(trecho('computeResultado')), 'identificarCamada / computeResultado não leem a natureza complementar');
     afirma(!/natureza/i.test(trecho('construirAtualizacaoReprocessamento')) && !/natureza/i.test(trecho('precisaReprocessar')), 'reprocessamento e "Motor desatualizado" não leem a natureza');
     const rules = JSON.parse(fs.readFileSync(path.join(RAIZ, '..', 'database.rules.json'), 'utf8')).rules;
     const admin = rules['questionarios-config']['.write'];
