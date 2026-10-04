@@ -116,7 +116,19 @@ function configs(M) {
     publicadaV3: { versaoPublicada: 3, versoes: { 2: { regras: v2 }, 3: { regras: v3 } } },
     publicadaV3Divergente: { versaoPublicada: 3, versoes: { 2: { regras: v2 }, 3: { regras: v3Divergente } } },
     publicadaV2: { versaoPublicada: 2, versoes: { 2: { regras: v2 } } },
-    publicadaV4: { versaoPublicada: 4, versoes: { 2: { regras: v2 }, 3: { regras: v3 }, 4: { regras: v4 } } }
+    publicadaV4: { versaoPublicada: 4, versoes: { 2: { regras: v2 }, 3: { regras: v3 }, 4: { regras: v4 } } },
+    /* versão 4 publicada com conteúdo IGUAL ao da 3 (ex.: republicação) — a versão mudou, então bloqueia */
+    publicadaV4IgualV3: { versaoPublicada: 4, versoes: { 2: { regras: v2 }, 3: { regras: v3 }, 4: { regras: clone(v3) } } },
+    /* versão 3 publicada + rascunho JÁ SALVO com uma mudança real (CANAL + P2 = NÃO) */
+    publicadaV3ComRascunhoDiferente: (() => {
+      const r = clone(v3); r.find((x) => x.codigo === 'CANAL').condicoes.all.push({ campo: 'P2', valor: 'NAO' });
+      return { versaoPublicada: 3, versoes: { 2: { regras: v2 }, 3: { regras: v3 } }, rascunho: { regras: r, versaoBase: 3, atualizadoEm: '2026-10-04T10:00:00.000Z', atualizadoPor: null } };
+    })(),
+    /* versão 3 publicada + rascunho salvo SEMANTICAMENTE igual à 3 (outra ordem de condições e de propriedades) */
+    publicadaV3ComRascunhoIgual: (() => {
+      const r = clone(v3).reverse().map((x) => { const o = {}; Object.keys(x).reverse().forEach((k) => { o[k] = x[k]; }); if (o.condicoes && Array.isArray(o.condicoes.all)) o.condicoes.all = o.condicoes.all.slice().reverse(); return o; });
+      return { versaoPublicada: 3, versoes: { 2: { regras: v2 }, 3: { regras: v3 } }, rascunho: { regras: r, versaoBase: 3, atualizadoEm: '2026-10-04T10:00:00.000Z', atualizadoPor: null } };
+    })()
   };
 }
 
@@ -316,6 +328,10 @@ function parteA() {
     afirma(k4.estado === 'aplicada', 'versão 4 = a proposta: "aplicada" (o cartão deixa de aparecer)');
     const v4Outra = clone(cfg.publicadaV4); v4Outra.versoes[4].regras.find((r) => r.codigo === 'CANAL').condicoes.all.push({ campo: 'P2', valor: 'NAO' });
     afirma(carregar(ORIG, v4Outra, escritas).M.situacaoPropostaRegras().estado === 'bloqueada', 'versão 4 diferente da proposta: bloqueada');
+    const k4igual = carregar(ORIG, cfg.publicadaV4IgualV3, escritas).M;
+    const s4igual = k4igual.situacaoPropostaRegras();
+    afirma(s4igual.estado === 'bloqueada' && /versão publicada agora é a 4/.test(s4igual.motivo) && k4igual.regrasDaPropostaRegras() === null,
+      'versão 4 publicada com conteúdo IGUAL ao da 3: continua bloqueada (a versão publicada mudou — não basta o conteúdo parecer igual)', s4igual.motivo);
     afirma(escritas.length === 0, 'nenhuma das consultas acima gravou nada no banco (' + escritas.length + ')', escritas.join(', '));
   }
 }
@@ -478,6 +494,12 @@ async function parteB(browser) {
       await page.click('.avp-modal-confirm-btn');
       await page.waitForSelector('#avpCarregarPropostaBtn');
       afirma(await card(page, 'CONFLITO_PROCESSO_CAPACIDADE').count() === 1 && await card(page, 'CONFLITO_NATUREZAS').count() === 0, '"Voltar às regras da versão 3" tira a proposta do editor');
+      afirma(await page.locator('#avpPropostaRegras').getAttribute('data-estado') === 'disponivel', 'depois de voltar, as regras do editor são de novo as da versão 3 → a proposta volta a ficar disponível (não bloqueia só porque existe rascunho salvo)');
+      await page.click('#avpCarregarPropostaBtn');
+      await page.waitForSelector('.avp-modal-confirm-btn');
+      await page.click('.avp-modal-confirm-btn');
+      await page.waitForSelector('#avpPropostaNoEditor');
+      afirma(await card(page, 'CONFLITO_NATUREZAS').count() === 1 && await card(page, 'CONFLITO_PROCESSO_CAPACIDADE').count() === 0, '"Voltar às regras da versão 3" → "Carregar proposta" de novo: a proposta volta ao editor');
       afirma((await banco(page))['motor-arquitetura-config'].versaoPublicada === 3, 'e nada foi publicado em momento algum');
       afirma(erros.length === 0, 'nenhum erro de JS (' + erros.length + ')');
       await ctx.close();
@@ -509,6 +531,26 @@ async function parteB(browser) {
       await page.click('.sq-cond-add-confirmar');
       const t = await page.locator('#avpPropostaBloqueada').innerText().catch(() => '');
       afirma(/alterações não salvas/.test(t) && await page.locator('#avpCarregarPropostaBtn').count() === 0, 'com uma edição em andamento: bloqueada (a proposta nunca se mistura com outra edição)', t);
+      await ctx.close();
+    }
+    {
+      const { ctx, page } = await abrir(browser, viewport, clone(cfg.publicadaV4IgualV3), AVALIACOES_SIM());
+      await abrirConfigMotores(page); await abrirEditor(page);
+      const t = await page.locator('#avpPropostaBloqueada').innerText().catch(() => '');
+      afirma(/versão publicada agora é a 4/.test(t) && await page.locator('#avpCarregarPropostaBtn').count() === 0, 'versão 4 publicada com conteúdo igual ao da 3: bloqueada (versão publicada diferente de 3), sem botão', t);
+      await ctx.close();
+    }
+    {
+      const { ctx, page } = await abrir(browser, viewport, clone(cfg.publicadaV3ComRascunhoDiferente), AVALIACOES_SIM());
+      await abrirConfigMotores(page); await abrirEditor(page);
+      const t = await page.locator('#avpPropostaBloqueada').innerText().catch(() => '');
+      afirma(/Já existe um rascunho com alterações em relação à versão 3/.test(t) && /CANAL/.test(t) && await page.locator('#avpCarregarPropostaBtn').count() === 0, 'rascunho salvo com uma mudança REAL em relação à 3: bloqueada, dizendo qual regra difere', t);
+      await ctx.close();
+    }
+    {
+      const { ctx, page } = await abrir(browser, viewport, clone(cfg.publicadaV3ComRascunhoIgual), AVALIACOES_SIM());
+      await abrirConfigMotores(page); await abrirEditor(page);
+      afirma(await page.locator('#avpPropostaRegras').getAttribute('data-estado') === 'disponivel' && await page.locator('#avpCarregarPropostaBtn').count() === 1, 'rascunho salvo só com outra ordem de regras/condições/propriedades (semanticamente igual à 3): disponível — a comparação é semântica, não pela existência do rascunho');
       await ctx.close();
     }
     {
