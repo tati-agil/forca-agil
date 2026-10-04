@@ -185,6 +185,15 @@ jobs:
           FA_BASE_URL: http://127.0.0.1:8811
         run: node .github/scripts/teste-motor-legivel.js
 
+      # Editor do motor arquitetural: acrescentar condição (P1–P16, SIM/NÃO) ao grupo
+      # "SE TODAS" de uma regra, sem duplicata; só a condição NOVA (vs. versão-base do
+      # rascunho) é removível; regra inalcançável bloqueia; nada é publicado sozinho.
+      - name: "Avaliação: editor do motor — acrescentar condição sem publicar (desktop e celular)"
+        env:
+          NODE_PATH: /tmp/pw-deps/node_modules
+          FA_BASE_URL: http://127.0.0.1:8811
+        run: node .github/scripts/teste-motor-adicionar-condicao.js
+
       # Adequação à Squad: início "item já cadastrado × novo item" (sem ficha
       # duplicada) e motor de squad legível (Sn — título, combinação Eixo A +
       # Eixo B em leitura), com a lógica intacta.

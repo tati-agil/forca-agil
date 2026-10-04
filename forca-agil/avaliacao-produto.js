@@ -4207,12 +4207,15 @@
        as FOLHAS (campo/valor) são editáveis — mesma restrição de squad
        (item 18 do pedido: P1-P16 nunca em texto livre, só listas
        controladas). */
-    function renderCondicaoArqEditavel(cond, leafRefs, prefixo) {
+    /* opts (só no grupo principal SE TODAS de uma regra): { codigo, novas: { P13: true } } — as
+       condições NOVAS (acrescentadas neste rascunho, ausentes da versão-base) ganham o selo e o
+       único botão "Remover" da tela; as que vieram da versão-base nunca são removíveis aqui. */
+    function renderCondicaoArqEditavel(cond, leafRefs, prefixo, opts) {
       if (!cond || typeof cond !== 'object') return '<p class="avp-error-msg">' + prefixo + '(regra sem condições — configuração inválida)</p>';
       if (Array.isArray(cond.all)) {
         if (!cond.all.length) return '<p class="sq-cond-rotulo">' + prefixo + '(sempre — regra de encerramento/fallback)</p>';
         return '<div class="sq-cond-grupo"><p class="sq-cond-rotulo">' + prefixo + 'SE TODAS estas condições forem verdadeiras:</p>' +
-          cond.all.map(function (c) { return renderCondicaoArqEditavel(c, leafRefs, prefixo + '　'); }).join('') + '</div>';
+          cond.all.map(function (c) { return renderCondicaoArqEditavel(c, leafRefs, prefixo + '　', opts ? { codigo: opts.codigo, novas: opts.novas, folhaDoTopo: true } : null); }).join('') + '</div>';
       }
       if (Array.isArray(cond.any)) {
         return '<div class="sq-cond-grupo"><p class="sq-cond-rotulo">' + prefixo + 'SE QUALQUER uma destas condições for verdadeira:</p>' +
@@ -4226,10 +4229,12 @@
       var campo = cond.campo || cond.pergunta;
       var valorAtual = (cond.valor != null ? cond.valor : cond.resposta || 'SIM').toUpperCase();
       var q = perguntaDoMotor(campo);
+      var nova = !!(opts && opts.folhaDoTopo && opts.novas && opts.novas[campo]);
       /* "P14 — Regra/condição: a resposta é [SIM]" — o código sozinho não diz
          nada a quem edita; o título e o texto vêm do questionário publicado,
          nunca de uma lista escrita aqui. A lógica (campo/valor) é a mesma. */
-      return '<div class="sq-cond-folha sq-cond-folha--legivel">' +
+      return '<div class="sq-cond-folha sq-cond-folha--legivel' + (nova ? ' sq-cond-folha--nova' : '') + '"' + (nova ? ' data-nova="' + esc(campo) + '"' : '') + '>' +
+        (nova ? '<p class="sq-cond-selo-nova">NOVA — ainda não publicada</p>' : '') +
         '<p class="sq-cond-pergunta"><strong>' + esc(campo) + '</strong>' + (q.titulo ? ' — ' + esc(q.titulo) : '') + '</p>' +
         '<label class="sq-cond-resposta">a resposta é ' +
         '<select class="sq-cond-select" data-leaf-id="' + id + '" aria-label="Resposta esperada em ' + esc(campo) + (q.titulo ? ' — ' + esc(q.titulo) : '') + '">' +
@@ -4237,6 +4242,7 @@
         '<option value="NAO"' + (valorAtual === 'NAO' ? ' selected' : '') + '>NÃO</option>' +
         '</select></label>' +
         (q.texto ? '<p class="sq-cond-texto">' + esc(q.texto) + '</p>' : '') +
+        (nova ? '<button type="button" class="btn btn--sm sq-cond-remover" data-regra="' + esc(opts.codigo) + '" data-campo="' + esc(campo) + '">Remover</button>' : '') +
         '</div>';
     }
     function perguntaDoMotor(codigo) {
@@ -4252,16 +4258,77 @@
       h += '<ul class="avp-motor-explica-lista">';
       h += '<li><strong>Precedência:</strong> as regras são lidas de cima para baixo. A <em>primeira</em> cujas condições forem todas verdadeiras define a classificação — nunca uma votação nem uma soma de respostas.</li>';
       h += '<li><strong>Fallback ("A validar"):</strong> se nenhuma regra anterior bater, o item fica como "A validar" para análise humana. É a última regra e sempre existe.</li>';
-      h += '<li><strong>O que você pode mudar aqui:</strong> só a resposta esperada (SIM ou NÃO) de cada condição. Quais perguntas cada regra usa e a ordem de precedência não são editadas nesta tela.</li>';
+      h += '<li><strong>O que você pode mudar aqui:</strong> a resposta esperada (SIM ou NÃO) de cada condição e, com "+ Adicionar condição", acrescentar uma pergunta P1–P16 ao grupo "SE TODAS" de uma regra (nunca uma pergunta que a regra já usa). A ordem de precedência não é editada nesta tela.</li>';
+      h += '<li><strong>Limite desta versão do editor:</strong> só dá para remover uma condição acrescentada no rascunho, antes de publicar. Depois de publicada, ela passa a fazer parte da regra e esta tela não a remove — o editor não edita a estrutura inteira das regras.</li>';
       h += '<li><strong>Simular impacto:</strong> recalcula, só na tela, as avaliações já concluídas com as regras que você está editando e mostra quais mudariam de classificação. Não grava nada e não altera nenhuma avaliação.</li>';
       h += '<li><strong>Rascunho × publicação:</strong> "Salvar rascunho" guarda a edição sem efeito nenhum para quem avalia. Só "Publicar nova versão" faz as regras valerem — para as próximas avaliações. As já concluídas continuam como estão até alguém pedir o reprocessamento.</li>';
       h += '</ul></details>';
       return h;
     }
+    /* ---- ACRESCENTAR CONDIÇÃO (só no grupo principal SE TODAS de uma regra comum) ----
+       O que é NOVO é sempre calculado contra a versão-BASE do rascunho (c.versaoBase),
+       nunca contra a versão publicada agora: se alguém publicou nesse meio-tempo, a
+       tela não reinterpreta o rascunho — o conflito continua sendo tratado na
+       publicação, como sempre (nada é sobrescrito nem reconciliado em silêncio).
+       Nada novo é gravado além das próprias condições, no MESMO formato das existentes
+       ({ campo, valor }): motor, validação, diff, simulação e auditoria não mudam. */
+    function regrasBaseDoEditor(c) {
+      var base = window.faMotorArquitetura.regrasDaVersaoBase(c.versaoBase);
+      return Array.isArray(base) ? base : null;
+    }
+    function regraBasePorCodigo(base, codigo) {
+      return base ? (base.filter(function (r) { return r.codigo === codigo; })[0] || null) : null;
+    }
+    /* { P13: true } — perguntas do grupo principal que a regra-base não usa em lugar nenhum. */
+    function condicoesNovasDaRegra(regra, regraBase, base) {
+      var novas = {};
+      if (!base || !regra || !regra.condicoes || !Array.isArray(regra.condicoes.all)) return novas;
+      var usadasBase = regraBase ? window.faMotorArquitetura.perguntasDaRegra(regraBase) : [];
+      regra.condicoes.all.forEach(function (cond) {
+        var campo = cond && (cond.campo || cond.pergunta);
+        if (campo && usadasBase.indexOf(campo) === -1) novas[campo] = true;
+      });
+      return novas;
+    }
+    function aceitaNovaCondicao(regra) {
+      return !!regra && !window.faMotorArquitetura.ehFallback(regra) && !!regra.condicoes && Array.isArray(regra.condicoes.all);
+    }
+    function regraDiferenteDaBase(regra, regraBase) {
+      if (!regraBase) return false;
+      return window.faMotorArquitetura.diffRegras([regraBase], [regra]).length > 0;
+    }
+    function renderAdicionarCondicao(c, regra) {
+      if (c.adicionando !== regra.codigo) {
+        return '<button type="button" class="btn btn--sm sq-cond-add-btn" data-regra="' + esc(regra.codigo) + '">+ Adicionar condição</button>';
+      }
+      var usadas = window.faMotorArquitetura.perguntasDaRegra(regra);
+      var n = c.novaCond || { campo: '', valor: '' };
+      var h = '<div class="sq-cond-add" data-regra="' + esc(regra.codigo) + '">';
+      h += '<p class="sq-cond-add-titulo">Nova condição em ' + esc(regra.codigo) + ' (grupo "SE TODAS")</p>';
+      h += '<label class="sq-cond-add-campo">Pergunta<select class="sq-cond-add-pergunta" aria-label="Pergunta da nova condição">' +
+        '<option value="">— escolha a pergunta —</option>' +
+        window.faMotorArquitetura.CAMPOS_VALIDOS.map(function (cod) {
+          var q = perguntaDoMotor(cod), ja = usadas.indexOf(cod) !== -1;
+          return '<option value="' + esc(cod) + '"' + (ja ? ' disabled' : '') + (n.campo === cod ? ' selected' : '') + '>' +
+            esc(cod + (q.titulo ? ' — ' + q.titulo : '') + (ja ? ' (já usada nesta regra)' : '')) + '</option>';
+        }).join('') + '</select></label>';
+      h += '<label class="sq-cond-add-campo">A resposta é<select class="sq-cond-add-valor" aria-label="Resposta esperada da nova condição">' +
+        '<option value="">— escolha —</option>' +
+        '<option value="SIM"' + (n.valor === 'SIM' ? ' selected' : '') + '>SIM</option>' +
+        '<option value="NAO"' + (n.valor === 'NAO' ? ' selected' : '') + '>NÃO</option></select></label>';
+      if (c.erroAdicionar) h += '<p class="avp-error-msg" role="alert">' + esc(c.erroAdicionar) + '</p>';
+      h += '<div class="sq-cond-add-acoes"><button type="button" class="btn btn--sm btn--primary sq-cond-add-confirmar"' + (n.campo && n.valor ? '' : ' disabled') + '>Adicionar</button>' +
+        '<button type="button" class="btn btn--sm sq-cond-add-cancelar">Cancelar</button></div>';
+      return h + '</div>';
+    }
     function renderMotorArqEditarRegras() {
       var c = state.configMotores;
       c.leafRefs = [];
+      var base = regrasBaseDoEditor(c);
+      var versaoAgora = window.faMotorArquitetura.versaoAtual();
       var html = '<div class="avp-form-card"><h3>Editar regras do motor arquitetural</h3>';
+      if (!base) html += '<p class="avp-error-msg" id="avpMotorArqSemBase">Não consegui carregar a versão-base ' + esc(c.versaoBase) + ' deste rascunho. Por segurança, nenhuma condição é marcada como NOVA e nenhuma pode ser removida por aqui.</p>';
+      else if (c.versaoBase != null && Number(c.versaoBase) !== Number(versaoAgora)) html += '<p class="avp-decisao-aviso" id="avpMotorArqBaseAntiga">Este rascunho foi iniciado sobre a versão ' + esc(c.versaoBase) + '; a versão publicada agora é a ' + esc(versaoAgora) + '. O que aparece como NOVA é comparado com a versão ' + esc(c.versaoBase) + '. Ao publicar, o conflito entre versões é tratado como sempre — nada é sobrescrito em silêncio.</p>';
       html += '<p class="avp-decisao-aviso">A ordem abaixo é a PRECEDÊNCIA: a primeira regra cujas condições baterem decide a camada — nunca uma votação. Mudar o valor esperado (SIM/NÃO) de uma condição muda a lógica do motor; ao publicar, isso cria uma versão nova e nunca recalcula avaliações já concluídas sozinho. É preciso simular o impacto antes de publicar.</p></div>';
       html += renderComoOMotorDecide(false);
       c.regras.slice().sort(function (a, b) { return (a.ordem || 0) - (b.ordem || 0); }).forEach(function (regra) {
@@ -4273,9 +4340,18 @@
            devolve) não tem condição nenhuma para desenhar — antes, abrir o
            editor numa versão publicada quebrava aqui (regra.condicoes
            undefined). */
+        var regraBase = regraBasePorCodigo(base, regra.codigo);
+        var novas = condicoesNovasDaRegra(regra, regraBase, base);
+        var qtdNovas = Object.keys(novas).length;
+        if (qtdNovas) html += '<p class="sq-regra-novas">' + qtdNovas + (qtdNovas === 1 ? ' condição acrescentada' : ' condições acrescentadas') + ' neste rascunho — ainda não publicada' + (qtdNovas === 1 ? '' : 's') + '</p>';
         html += window.faMotorArquitetura.ehFallback(regra)
           ? '<p class="sq-cond-rotulo">Esta é a regra de fallback: vale sempre que nenhuma regra anterior bater — o item fica como "A validar" para análise humana.</p>'
-          : renderCondicaoArqEditavel(regra.condicoes, c.leafRefs, '');
+          : renderCondicaoArqEditavel(regra.condicoes, c.leafRefs, '', { codigo: regra.codigo, novas: novas });
+        if (aceitaNovaCondicao(regra)) {
+          html += '<div class="sq-regra-acoes">' + renderAdicionarCondicao(c, regra);
+          if (regraDiferenteDaBase(regra, regraBase)) html += '<button type="button" class="btn btn--sm sq-regra-desfazer" data-regra="' + esc(regra.codigo) + '">Desfazer alterações desta regra</button>';
+          html += '</div>';
+        }
         html += '</div>';
       });
       if (c.erro) html += '<div class="avp-form-card"><p class="avp-error-msg">' + esc(Array.isArray(c.erro) ? c.erro.join(' ') : c.erro) + '</p></div>';
@@ -4290,6 +4366,56 @@
       var c = state.configMotores;
       wrap.querySelectorAll('.sq-cond-select').forEach(function (sel) {
         sel.addEventListener('change', function () { c.sujo = true; c.leafRefs[Number(sel.dataset.leafId)].valor = sel.value; });
+      });
+      function regraPorCodigo(codigo) { return c.regras.filter(function (r) { return r.codigo === codigo; })[0] || null; }
+      wrap.querySelectorAll('.sq-cond-add-btn').forEach(function (b) {
+        b.addEventListener('click', function () {
+          c.adicionando = b.dataset.regra; c.novaCond = { campo: '', valor: '' }; c.erroAdicionar = null; render();
+          var sel = wrap.querySelector('.sq-cond-add-pergunta'); if (sel && sel.focus) sel.focus();
+        });
+      });
+      var addBox = wrap.querySelector('.sq-cond-add');
+      if (addBox) {
+        var selP = addBox.querySelector('.sq-cond-add-pergunta'), selV = addBox.querySelector('.sq-cond-add-valor'), ok = addBox.querySelector('.sq-cond-add-confirmar');
+        var atualizaOk = function () { c.novaCond = { campo: selP.value, valor: selV.value }; c.erroAdicionar = null; ok.disabled = !(selP.value && selV.value); };
+        selP.addEventListener('change', atualizaOk); selV.addEventListener('change', atualizaOk);
+        addBox.querySelector('.sq-cond-add-cancelar').addEventListener('click', function () { c.adicionando = null; c.novaCond = null; c.erroAdicionar = null; render(); });
+        ok.addEventListener('click', function () {
+          var regra = regraPorCodigo(addBox.dataset.regra), n = c.novaCond || {};
+          /* Mesmas regras do formulário, conferidas de novo no clique: pergunta P1-P16,
+             que a regra ainda não usa, resposta SIM/NÃO, regra comum com grupo SE TODAS. */
+          var erro = !aceitaNovaCondicao(regra) ? 'Esta regra não aceita novas condições.'
+            : window.faMotorArquitetura.CAMPOS_VALIDOS.indexOf(n.campo) === -1 ? 'Escolha uma pergunta de P1 a P16.'
+            : window.faMotorArquitetura.perguntasDaRegra(regra).indexOf(n.campo) !== -1 ? 'A pergunta ' + n.campo + ' já é usada nesta regra.'
+            : (n.valor !== 'SIM' && n.valor !== 'NAO') ? 'Escolha a resposta esperada: SIM ou NÃO.' : null;
+          if (erro) { c.erroAdicionar = erro; render(); return; }
+          regra.condicoes.all.push({ campo: n.campo, valor: n.valor });
+          c.sujo = true; c.adicionando = null; c.novaCond = null; c.erroAdicionar = null;
+          render();
+        });
+      }
+      wrap.querySelectorAll('.sq-cond-remover').forEach(function (b) {
+        b.addEventListener('click', function () {
+          var regra = regraPorCodigo(b.dataset.regra), base = regrasBaseDoEditor(c);
+          if (!regra || !base) return;
+          /* Só remove o que é NOVO em relação à versão-base — uma condição original nunca sai por aqui. */
+          if (!condicoesNovasDaRegra(regra, regraBasePorCodigo(base, regra.codigo), base)[b.dataset.campo]) return;
+          regra.condicoes.all = regra.condicoes.all.filter(function (cond) { return (cond.campo || cond.pergunta) !== b.dataset.campo; });
+          c.sujo = true; render();
+        });
+      });
+      wrap.querySelectorAll('.sq-regra-desfazer').forEach(function (b) {
+        b.addEventListener('click', function () {
+          avpConfirm('Desfazer todas as alterações da regra ' + b.dataset.regra + ' neste rascunho? Ela volta a ficar exatamente como na versão ' + c.versaoBase + '.', function () {
+            var base = regrasBaseDoEditor(c), original = regraBasePorCodigo(base, b.dataset.regra);
+            if (!original) return;
+            var i = c.regras.map(function (r) { return r.codigo; }).indexOf(b.dataset.regra);
+            if (i === -1) return;
+            c.regras[i] = JSON.parse(JSON.stringify(original));
+            c.sujo = true; if (c.adicionando === b.dataset.regra) { c.adicionando = null; c.novaCond = null; }
+            render();
+          });
+        });
       });
       document.getElementById('avpMotorArqCancelarBtn').addEventListener('click', function () { sairComAviso(c, voltarPainelConfigMotores); });
       document.getElementById('avpMotorArqSalvarRascunhoBtn').addEventListener('click', function () {
