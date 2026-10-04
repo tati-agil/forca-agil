@@ -194,6 +194,16 @@ jobs:
           FA_BASE_URL: http://127.0.0.1:8811
         run: node .github/scripts/teste-motor-adicionar-condicao.js
 
+      # Política geral de conflitos de natureza predominante (P11–P15): operador "pelo
+      # menos N de", conflito dinâmico (só as naturezas marcadas) e a proposta da
+      # versão 4 carregável no editor — versão 3 intacta byte a byte, simulação aprovada
+      # reproduzida nas 65.536 combinações, prova inversa; nada é publicado.
+      - name: "Avaliação: política geral de conflitos de natureza (proposta da versão 4, desktop e celular)"
+        env:
+          NODE_PATH: /tmp/pw-deps/node_modules
+          FA_BASE_URL: http://127.0.0.1:8811
+        run: node .github/scripts/teste-conflito-naturezas.js
+
       # Adequação à Squad: início "item já cadastrado × novo item" (sem ficha
       # duplicada) e motor de squad legível (Sn — título, combinação Eixo A +
       # Eixo B em leitura), com a lógica intacta.

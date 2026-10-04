@@ -44,6 +44,27 @@ const XLSX = require(path.join(RAIZ, 'xlsx.mini.min.js'));
 const EMAIL = 'teste@previ.com.br';
 const KEY = EMAIL.toLowerCase().replace(/[@.]/g, '_').replace(/[^a-z0-9_]/g, '').slice(0, 64);
 
+/* PROTEÇÃO: o motor automático (motor-arquitetura.js e identificarCamada/computeResultado)
+   nunca lê a NATUREZA COMPLEMENTAR — curadoria humana (window.faNaturezas, naturezas-config.js).
+   Antes era "a palavra natureza não aparece"; a política geral de conflitos trouxe para o motor
+   um conceito DIFERENTE e legítimo, a natureza PREDOMINANTE (P11–P15, regra CONFLITO_NATUREZAS),
+   e a checagem por palavra passou a acusar falso positivo. Ela continua tão ampla quanto antes,
+   com DUAS camadas:
+   1) qualquer menção a "natureza" no CÓDIGO (comentários fora) continua proibida, exceto o
+      vocabulário do conflito de naturezas predominantes, listado nome a nome em PERMITIDO;
+   2) além disso, nenhuma referência à superfície da natureza complementar, levantada no código:
+      módulo window.faNaturezas e nós naturezas-complementares-config/-auditoria
+      (naturezas-config.js); campos naturezaComplementar, naturezaComplementarCodigo/NomeNaEpoca/
+      DescricaoNaEpoca/DefinidaPor/DefinidaEm; funções naturezaDoItem, rotuloNaturezaDoItem,
+      camposNaturezaDoItem; tela naturezaForm/naturezaFormDe, render/bindNaturezaBloco,
+      salvarNatureza, estadoBotaoNatureza, gravarOpcaoNatureza, linhaNatureza, flashNatureza,
+      salvandoNatureza, configNaturezas/abrir/renderConfigNaturezas; auditoria
+      alteracao_natureza_complementar. */
+const NATUREZA_COMPLEMENTAR = /faNaturezas|naturezas-complementares|naturezaComplementar|naturezaDoItem|naturezaForm|NaturezaBloco|salvarNatureza|salvandoNatureza|estadoBotaoNatureza|gravarOpcaoNatureza|linhaNatureza|flashNatureza|configNaturezas|alteracao_natureza_complementar|natureza complementar/i;
+const PERMITIDO_NATUREZA_PREDOMINANTE = /PROPOSTA_CONFLITO_NATUREZAS|SUFIXO_CONFLITO_NATUREZAS|CONFLITO_NATUREZAS|politica-conflito-naturezas|conflitoNaturezas|ConflitoNaturezas|CAMADA_POR_NATUREZA|folhasDeNatureza|naturezasMarcadas|textoNaturezasIndicadas|naturezas? predominantes?|naturezas P11–P15|naturezas marcadas/gi;
+const semComentarios = (src) => src.replace(/\/\*[\s\S]*?\*\//g, '').replace(/(^|[^:'"\\])\/\/.*$/gm, '$1');
+/* true = o trecho não depende da natureza complementar (as duas camadas acima). */
+const naoLeNaturezaComplementar = (src) => !NATUREZA_COMPLEMENTAR.test(src) && !/natureza/i.test(semComentarios(src).replace(PERMITIDO_NATUREZA_PREDOMINANTE, ''));
 let falhas = 0;
 function afirma(cond, msg) { console.log((cond ? '  ok    ' : '  FALHA ') + msg); if (!cond) falhas++; }
 
@@ -521,8 +542,8 @@ async function voltarParaAvaliacoes(page) {
   console.log('\n== NÃO ALTERA O MOTOR e "se admin pode mexer, pode gravar" (checagens estáticas) ==');
   {
     const trecho = (nome) => { const i = SRC_AVP.indexOf('function ' + nome + '('); return SRC_AVP.slice(i, SRC_AVP.indexOf('\n  }\n', i)); };
-    afirma(!/natureza/i.test(SRC_MOTOR), 'motor-arquitetura.js não menciona natureza');
-    afirma(!/natureza/i.test(trecho('identificarCamada')) && !/natureza/i.test(trecho('computeResultado')), 'identificarCamada / computeResultado não leem a natureza');
+    afirma(naoLeNaturezaComplementar(SRC_MOTOR), 'motor-arquitetura.js não menciona a natureza complementar');
+    afirma(naoLeNaturezaComplementar(trecho('identificarCamada')) && naoLeNaturezaComplementar(trecho('computeResultado')), 'identificarCamada / computeResultado não leem a natureza complementar');
     afirma(!/natureza/i.test(trecho('construirAtualizacaoReprocessamento')) && !/natureza/i.test(trecho('precisaReprocessar')), 'reprocessamento e "Motor desatualizado" não leem a natureza');
     const rules = JSON.parse(fs.readFileSync(path.join(RAIZ, '..', 'database.rules.json'), 'utf8')).rules;
     const admin = rules['questionarios-config']['.write'];

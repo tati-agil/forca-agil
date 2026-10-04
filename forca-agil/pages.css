@@ -2148,9 +2148,12 @@ select.aposta-campo-input { width: auto; min-width: 8.5em; }
   :is(#adminAvaliacaoProduto, #avaliacoesPainel) .admin-table td {
     display: flex; align-items: baseline; justify-content: space-between; gap: 12px;
     padding: 5px 14px; border-bottom: none; text-align: right; white-space: normal;
+    overflow-wrap: break-word; /* último recurso: nada sai do cartão em 375 px */
   }
   :is(#adminAvaliacaoProduto, #avaliacoesPainel) .admin-table td::before {
-    content: attr(data-label); flex: 0 0 auto; text-align: left;
+    /* o rótulo pode quebrar em duas linhas ("Resultado / proposto") para o valor
+       ("Modalidade/Subproduto") caber inteiro ao lado dele em 375 px */
+    content: attr(data-label); flex: 0 1 auto; text-align: left; overflow-wrap: normal;
     font-family: var(--font-mono); font-size: .66rem; letter-spacing: .04em;
     text-transform: uppercase; color: var(--ink-3);
   }
@@ -2445,7 +2448,12 @@ select.aposta-campo-input { width: auto; min-width: 8.5em; }
 .sq-cond-add-campo { display: flex; flex-direction: column; gap: 4px; font-size: .8rem; color: var(--ink-3); min-width: 0; }
 .sq-cond-add-campo select { max-width: 100%; font-size: .84rem; }
 .sq-cond-add-acoes { display: flex; gap: 8px; }
+/* Grupo "PELO MENOS N DE" (política geral de conflitos): perguntas só para leitura. */
+.sq-cond-folha--fixa .sq-cond-resposta { flex-wrap: wrap; }
+.avp-proposta-mudancas { margin: 8px 0 12px; padding-left: 20px; font-size: .86rem; line-height: 1.55; color: var(--ink-2, var(--ink)); overflow-wrap: anywhere; }
+.avp-proposta-mudancas li + li { margin-top: 4px; }
 @media (max-width: 720px) {
+  .avp-proposta-regras > .btn { width: 100%; }
   .sq-regra-acoes { margin-left: 0; flex-direction: column; align-items: stretch; }
   .sq-regra-acoes > .btn, .sq-cond-add-acoes .btn { width: 100%; }
   .sq-cond-add, .sq-cond-add-acoes { flex-direction: column; align-items: stretch; }
