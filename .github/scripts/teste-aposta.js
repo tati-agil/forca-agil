@@ -3591,11 +3591,16 @@ const clicarSemRolagem = (page, seletor) => page.$eval(seletor, (el) => el.click
            corrida que um duplo-clique físico ou dois cliques nervosos
            provocam) cria só UM grupo. */
         await pgGrupo.fill('#apostaNovoGrupo', 'Grupo Duplo');
-        await pgGrupo.evaluate(() => {
-          document.getElementById('apostaCriarGrupo').click();
-          document.getElementById('apostaCriarGrupo').click();
+        /* Os cliques e a leitura de `disabled` acontecem no MESMO evaluate(): o callback da
+           gravação (que redesenha o painel com um botão novo, habilitado) não executa no meio
+           de um evaluate(), então a leitura vê o estado "pendente" sem depender da velocidade
+           da máquina. Uma 2ª ida e volta ao navegador, sob carga, podia ler o botão já refeito. */
+        const desabilitouNaHora = await pgGrupo.evaluate(() => {
+          const botao = document.getElementById('apostaCriarGrupo');
+          botao.click();
+          botao.click();
+          return botao.disabled;
         });
-        const desabilitouNaHora = await pgGrupo.evaluate(() => (document.getElementById('apostaCriarGrupo') || {}).disabled);
         anota('clicar em "Criar grupo" desabilita o botão na hora, antes da gravação terminar',
           desabilitouNaHora === true, String(desabilitouNaHora));
         await pgGrupo.waitForTimeout(500);
