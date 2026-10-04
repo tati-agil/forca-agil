@@ -273,7 +273,15 @@ const clicarSemRolagem = (page, seletor) => page.$eval(seletor, (el) => el.click
         /* Escolhendo a não liberada, o aviso diz que só a facilitação vê. */
         if (visaoAdmin.opcoes > 1) {
           await page.selectOption('#apostaTurmaSel', TURMA_NAO);
-          await page.waitForTimeout(200);
+          /* Espera a CONDIÇÃO (o aviso redesenhado para a turma não liberada), não um tempo fixo:
+             o `change` troca o innerHTML do aviso, e em máquina lenta isso pode levar mais que 200 ms.
+             O limite de 5 s é só proteção; se estourar, a falha diz o que se esperava e o que havia. */
+          await page.waitForFunction(() => /ainda não foi liberada/i.test(
+            (document.getElementById('apostaConviteAviso') || {}).textContent || ''), null, { timeout: 5000 })
+            .catch(async () => {
+              const atual = await page.evaluate(() => ((document.getElementById('apostaConviteAviso') || {}).textContent || '(sem #apostaConviteAviso)')).catch(() => '(página indisponível)');
+              throw new Error('Condição não ocorreu em 5 s: #apostaConviteAviso deveria conter "ainda não foi liberada" após escolher a turma não liberada. Conteúdo atual: "' + String(atual).slice(0, 120) + '"');
+            });
           const aviso = await page.evaluate(() =>
             (document.getElementById('apostaConviteAviso').textContent || ''));
           anota('o convite avisa que a turma não liberada é só ensaio',
