@@ -2575,7 +2575,27 @@ details.avp-form-card.avp-aut-historico { margin-top: 0; padding: 10px 16px; mar
 @media (max-width: 720px) {
   .tax-fonte .tax-acoes, .tax-confirma .tax-acoes { flex-direction: column; align-items: stretch; }
   .tax-fonte .tax-acoes .btn, .tax-confirma .tax-acoes .btn { width: 100%; }
+  /* a fileira Ver / Usar como vigente / Arquivar quebra em linhas, em vez de empilhar tudo */
+  .tax-fonte > .tax-acoes--fonte { flex-direction: row; flex-wrap: wrap; align-items: stretch; }
+  .tax-fonte > .tax-acoes--fonte .btn { width: auto; flex: 1 1 40%; }
 }
+/* Textos-fonte: três blocos claramente separados (vigente / disponíveis / arquivadas) */
+.tax-bloco { border-radius: 12px; padding: 10px 12px; margin: 14px 0; border: 1px solid var(--line); }
+.tax-bloco--vigente { border-color: rgba(24,194,186,.6); border-width: 2px; background: rgba(24,194,186,.05); }
+.tax-bloco--disponiveis { background: var(--space-1); }
+.tax-bloco--arquivadas { border-style: dashed; background: transparent; opacity: .92; }
+.tax-bloco > h5 { margin: 0 0 8px; }
+.tax-bloco:focus { outline: 2px solid var(--gold); outline-offset: 2px; }
+.tax-fonte--arquivada { border-style: dashed; background: transparent; }
+.tax-fonte--aberta { border-color: var(--line-strong); }
+.tax-fonte-cab { display: flex; flex-wrap: wrap; align-items: center; gap: 2px 4px; }
+.tax-fonte-nome { overflow-wrap: anywhere; }
+.tax-selo--arquivada { border-style: dashed; color: var(--ink-3); }
+.tax-recolher { background: none; border: 0; padding: 4px 0; color: inherit; font: inherit; letter-spacing: inherit; text-transform: inherit; cursor: pointer; text-align: left; }
+.tax-arq-info { margin: 4px 0; font-size: .84rem; overflow-wrap: anywhere; }
+.tax-dica { margin: 0 0 8px; padding: 8px 10px; border-left: 3px solid var(--gold); background: rgba(245,197,24,.08); font-size: .84rem; }
+.tax-detalhes { margin-top: 6px; padding-top: 6px; border-top: 1px dashed var(--line); }
+.tax-arquivar select, .tax-arquivar textarea { width: 100%; box-sizing: border-box; }
 .tax-confirma-dados { display: grid; grid-template-columns: max-content 1fr; gap: 2px 12px; margin: 8px 0; }
 .tax-confirma-dados dt { color: var(--ink-3); }
 .tax-confirma-dados dd { margin: 0; overflow-wrap: anywhere; }

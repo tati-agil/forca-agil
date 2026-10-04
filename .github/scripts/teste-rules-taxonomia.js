@@ -130,11 +130,11 @@ async function main() {
   await pode('(9g) deixar o conceito SEM definição vigente: limpa o ponteiro + rebaixa a fonte (multipath)',
     admin().ref().update({ [ORG + '/fontes/C1/F_VIG/situacao']: 'histórica/contextual', [ORG + '/conceitos/C1/definicaoVigenteFonteId']: null }));
   await semearBase({ ponteiro: true });
-  await pode('(9h) apagar a fonte referenciada JUNTO com a limpeza do ponteiro (multipath)',
+  await nega('(9h) apagar a fonte referenciada JUNTO com a limpeza do ponteiro (multipath) — NENHUMA fonte se apaga; descarte é arquivamento lógico',
     admin().ref().update({ [ORG + '/fontes/C1/F_VIG']: null, [ORG + '/conceitos/C1/definicaoVigenteFonteId']: null }));
   await semearBase({ ponteiro: true });
   await pode('editar o TEXTO da fonte vigente (sem mudar a situação) continua permitido', R(admin(), ORG + '/fontes/C1/F_VIG/texto').set('Texto revisado.'));
-  await pode('apagar uma fonte NÃO referenciada (cadastro errado)', R(admin(), ORG + '/fontes/C1/F_OUTRA').remove());
+  await nega('apagar uma fonte NÃO referenciada: também negado (descarte = arquivamento lógico)', R(admin(), ORG + '/fontes/C1/F_OUTRA').remove());
   await nega('apagar o CONCEITO', R(admin(), ORG + '/conceitos/C1').remove());
 
   /* ───────────────────────── 2. UMA ÚNICA FONTE VIGENTE ───────────────────────── */
@@ -547,6 +547,92 @@ async function main() {
   await pode('o admin consegue a consulta paginada direto no banco (sem índice, sem mudar regra)', admDb.ref(ORG + '/auditoria/_catalogo').orderByKey().endAt(keyH(40)).limitToLast(26).once('value'));
   await nega('"Avaliação + Arquitetura" (consulta) NÃO lê o histórico global', arqDb.ref(ORG + '/auditoria/_catalogo').orderByKey().limitToLast(26).once('value'));
   await nega('sem login NÃO lê o histórico global', anonDb.ref(ARQT + '/auditoria/_catalogo').orderByKey().limitToLast(26).once('value'));
+
+  /* ───────────────────────── 12. ARQUIVAMENTO LÓGICO DE FONTES ───────────────────────── */
+  console.log('\n== 12. Arquivamento lógico de fontes: arquivar, restaurar, imutabilidade e nenhuma exclusão física ==');
+  const arq = (extra) => Object.assign({ motivo: 'duplicidade', em: '2026-10-04T10:00:00.000Z', por: ADMIN }, extra || {});
+  const F = (dom, id) => dom + '/fontes/C1/' + id;
+  const audArq = (tipo, id) => auditoria(ADMIN, { tipo, campo: 'fonte', fonteId: id, motivo: 'duplicidade' });
+  async function semearDom(dom) {
+    await semearBase({ ponteiro: true });
+    if (dom !== ARQT) return;
+    await semear(async (a) => { await a.ref(ARQT + '/conceitos/C1').set({ nome: 'C1', ordem: 9, ativo: true, situacaoDefinicao: 'registrada' });
+      for (const [id, sit] of [['F_HIST', 'histórica/contextual'], ['F_VALIDACAO', 'em validação'], ['F_PLACEHOLDER', 'placeholder'], ['F_NAOLOC', 'não localizado'], ['F_OUTRA', 'histórica/contextual'], ['F_VIG', 'vigente']]) await a.ref(ARQT + '/fontes/C1/' + id).set(fonte(sit));
+      await a.ref(ARQT + '/conceitos/C1/definicaoVigenteFonteId').set('F_VIG'); });
+  }
+  for (const [dom, rot] of [[ORG, 'organizacional'], [ARQT, 'arquitetural']]) {
+    await semearDom(dom);
+    console.log('  — domínio ' + rot);
+    for (const id of ['F_HIST', 'F_VALIDACAO', 'F_PLACEHOLDER', 'F_NAOLOC']) {
+      await pode('(12-' + rot + ') ARQUIVAR ' + id + ' (qualquer fonte NÃO vigente, inclusive placeholder/não localizado) + auditoria, atômico',
+        admin().ref().update({ [F(dom, id) + '/arquivada']: true, [F(dom, id) + '/arquivamento']: arq(), [dom + '/auditoria/C1/-Ka' + id]: audArq('fonte_arquivada', id) }));
+    }
+    anota('(12-' + rot + ') ficou arquivada, com motivo, data e quem', (await ler(F(dom, 'F_HIST') + '/arquivada')) === true && (await ler(F(dom, 'F_HIST') + '/arquivamento/por')) === ADMIN && (await ler(F(dom, 'F_HIST') + '/situacao')) === 'histórica/contextual');
+    await nega('(12-' + rot + ') a fonte VIGENTE não pode ser arquivada (nem direto)', admin().ref().update({ [F(dom, 'F_VIG') + '/arquivada']: true, [F(dom, 'F_VIG') + '/arquivamento']: arq() }));
+    await nega('(12-' + rot + ') nem rebaixando e arquivando na mesma gravação (arquivar não edita)', admin().ref().update({ [F(dom, 'F_VIG') + '/arquivada']: true, [F(dom, 'F_VIG') + '/arquivamento']: arq(), [F(dom, 'F_VIG') + '/situacao']: 'histórica/contextual', [dom + '/conceitos/C1/definicaoVigenteFonteId']: null }));
+    await nega('(12-' + rot + ') PROMOVER fonte arquivada (situação → vigente + ponteiro)', admin().ref().update({ [F(dom, 'F_HIST') + '/situacao']: 'vigente', [dom + '/conceitos/C1/definicaoVigenteFonteId']: 'F_HIST' }));
+    await nega('(12-' + rot + ') apontar o conceito para fonte arquivada', R(admin(), dom + '/conceitos/C1/definicaoVigenteFonteId').set('F_HIST'));
+    await nega('(12-' + rot + ') EDITAR texto de fonte arquivada', R(admin(), F(dom, 'F_HIST') + '/texto').set('Alterado em silêncio.'));
+    await nega('(12-' + rot + ') EDITAR contexto de fonte arquivada', R(admin(), F(dom, 'F_HIST') + '/contexto').set('indefinido'));
+    await nega('(12-' + rot + ') EDITAR rótulo de fonte arquivada', R(admin(), F(dom, 'F_HIST') + '/rotulo').set('Novo'));
+    await nega('(12-' + rot + ') mudar o motivo de uma fonte já arquivada sem restaurar', R(admin(), F(dom, 'F_HIST') + '/arquivamento/motivo').set('outro'));
+    await nega('(12-' + rot + ') RESTAURAR e editar o texto na mesma gravação', admin().ref().update({ [F(dom, 'F_HIST') + '/arquivada']: null, [F(dom, 'F_HIST') + '/arquivamento']: null, [F(dom, 'F_HIST') + '/texto']: 'Outro.' }));
+    await nega('(12-' + rot + ') RESTAURAR e promover na mesma gravação', admin().ref().update({ [F(dom, 'F_HIST') + '/arquivada']: null, [F(dom, 'F_HIST') + '/arquivamento']: null, [F(dom, 'F_HIST') + '/situacao']: 'vigente', [dom + '/conceitos/C1/definicaoVigenteFonteId']: 'F_HIST' }));
+    await nega('(12-' + rot + ') tirar só a marca `arquivada` deixando o registro (incoerente)', R(admin(), F(dom, 'F_HIST') + '/arquivada').remove());
+    await nega('(12-' + rot + ') apagar FISICAMENTE fonte arquivada', R(admin(), F(dom, 'F_HIST')).remove());
+    await nega('(12-' + rot + ') apagar FISICAMENTE fonte não arquivada e não referenciada', R(admin(), F(dom, 'F_OUTRA')).remove());
+    await nega('(12-' + rot + ') apagar FISICAMENTE a vigente + limpar ponteiro (multipath)', admin().ref().update({ [F(dom, 'F_VIG')]: null, [dom + '/conceitos/C1/definicaoVigenteFonteId']: null }));
+    await pode('(12-' + rot + ') RESTAURAR (remove marca e registro) + auditoria', admin().ref().update({ [F(dom, 'F_HIST') + '/arquivada']: null, [F(dom, 'F_HIST') + '/arquivamento']: null, [dom + '/auditoria/C1/-Kr1']: audArq('fonte_restaurada', 'F_HIST') }));
+    anota('(12-' + rot + ') restaurada: sem marca, mesma situação e texto de antes', (await ler(F(dom, 'F_HIST') + '/arquivada')) === null && (await ler(F(dom, 'F_HIST') + '/arquivamento')) === null && (await ler(F(dom, 'F_HIST') + '/texto')) === 'Texto da fonte.');
+    await pode('(12-' + rot + ') depois de restaurada, volta a ser editável', R(admin(), F(dom, 'F_HIST') + '/texto').set('Editada após restaurar.'));
+    await pode('(12-' + rot + ') …e promovível', admin().ref().update(promove(dom, 'C1', 'F_HIST', { [F(dom, 'F_VIG') + '/situacao']: 'histórica/contextual' })));
+    await semearDom(dom);
+    await nega('(12-' + rot + ') motivo fora da lista fechada', admin().ref().update({ [F(dom, 'F_HIST') + '/arquivada']: true, [F(dom, 'F_HIST') + '/arquivamento']: arq({ motivo: 'porque sim' }) }));
+    await nega('(12-' + rot + ') motivo "outro" SEM justificativa', admin().ref().update({ [F(dom, 'F_HIST') + '/arquivada']: true, [F(dom, 'F_HIST') + '/arquivamento']: arq({ motivo: 'outro' }) }));
+    await nega('(12-' + rot + ') motivo "outro" com justificativa vazia', admin().ref().update({ [F(dom, 'F_HIST') + '/arquivada']: true, [F(dom, 'F_HIST') + '/arquivamento']: arq({ motivo: 'outro', justificativa: '' }) }));
+    await pode('(12-' + rot + ') motivo "outro" com justificativa', admin().ref().update({ [F(dom, 'F_OUTRA') + '/arquivada']: true, [F(dom, 'F_OUTRA') + '/arquivamento']: arq({ motivo: 'outro', justificativa: 'Texto explicando.' }) }));
+    await nega('(12-' + rot + ') justificativa com mais de 500 caracteres', admin().ref().update({ [F(dom, 'F_HIST') + '/arquivada']: true, [F(dom, 'F_HIST') + '/arquivamento']: arq({ motivo: 'outro', justificativa: 'x'.repeat(501) }) }));
+    await nega('(12-' + rot + ') `por` de OUTRO e-mail', admin().ref().update({ [F(dom, 'F_HIST') + '/arquivada']: true, [F(dom, 'F_HIST') + '/arquivamento']: arq({ por: SUPER }) }));
+    await nega('(12-' + rot + ') arquivada sem o registro do arquivamento', R(admin(), F(dom, 'F_HIST') + '/arquivada').set(true));
+    await nega('(12-' + rot + ') registro de arquivamento sem a marca `arquivada`', R(admin(), F(dom, 'F_HIST') + '/arquivamento').set(arq()));
+    await nega('(12-' + rot + ') `arquivada` diferente de true', admin().ref().update({ [F(dom, 'F_HIST') + '/arquivada']: 'sim', [F(dom, 'F_HIST') + '/arquivamento']: arq() }));
+    await nega('(12-' + rot + ') arquivar E editar o texto na mesma gravação', admin().ref().update({ [F(dom, 'F_HIST') + '/arquivada']: true, [F(dom, 'F_HIST') + '/arquivamento']: arq(), [F(dom, 'F_HIST') + '/texto']: 'Outro.' }));
+    await nega('(12-' + rot + ') campo estranho no registro de arquivamento', admin().ref().update({ [F(dom, 'F_HIST') + '/arquivada']: true, [F(dom, 'F_HIST') + '/arquivamento']: arq({ extra: 1 }) }));
+    await pode('(12-' + rot + ') CRIAR fonte nova continua permitido', R(admin(), F(dom, 'F_NOVA')).set(fonte('em validação')));
+    await nega('(12-' + rot + ') criar fonte JÁ arquivada', R(admin(), F(dom, 'F_NOVA2')).set(fonte('em validação', { arquivada: true, arquivamento: arq() })));
+    await nega('(12-' + rot + ') quem não é admin não arquiva', db(ARQ).ref().update({ [F(dom, 'F_HIST') + '/arquivada']: true, [F(dom, 'F_HIST') + '/arquivamento']: arq({ por: ARQ }) }));
+  }
+  await semearBase();
+  await pode('(12) evento `fonte_arquivada` aceito na auditoria', R(admin(), ORG + '/auditoria/C1/-Kz1').set(audArq('fonte_arquivada', 'F_HIST')));
+  await pode('(12) evento `fonte_restaurada` aceito na auditoria', R(admin(), ORG + '/auditoria/C1/-Kz2').set(audArq('fonte_restaurada', 'F_HIST')));
+  await nega('(12) tipo de evento desconhecido continua recusado', R(admin(), ORG + '/auditoria/C1/-Kz3').set(audArq('fonte_apagada', 'F_HIST')));
+
+  console.log('\n== 12b. As operações REAIS arquivarFonte / restaurarFonte passam nas regras reais ==');
+  await semearBase({ ponteiro: true });
+  const appX = carregarApp(ADMIN), IX = appX._interno;
+  IX.carregarDominio('organizacional'); await ate(() => IX.st.d.organizacional.estado === 'ok');
+  const DX = IX.st.d.organizacional; DX.selecionado = 'C1'; IX.carregarDetalhe('organizacional', 'C1'); await ate(() => DX.detalhe && !DX.detalhe.carregando);
+  async function operaX(rotulo, fn, cond) {
+    IX.st.flash = null; IX.st.salvando = false; fn();
+    const fim = await ate(() => !IX.st.salvando && IX.st.flash !== null);
+    anota(rotulo + ' — aceito pelo banco', fim && IX.st.flash && IX.st.flash.erro === false, IX.st.flash ? IX.st.flash.texto : 'sem resposta');
+    if (cond) anota(rotulo + ' — estado gravado coerente', await cond());
+    IX.carregarDominio('organizacional'); await ate(() => DX.estado === 'ok'); IX.carregarDetalhe('organizacional', 'C1'); await ate(() => DX.detalhe && !DX.detalhe.carregando);
+  }
+  DX.arquivando = { fonte: 'F_HIST', motivo: 'redação superada', justificativa: '', erro: null };
+  await operaX('módulo: arquivarFonte(F_HIST)', () => IX.arquivarFonte('organizacional', 'C1', 'F_HIST'), async () => (await ler(F(ORG, 'F_HIST') + '/arquivada')) === true && (await ler(F(ORG, 'F_HIST') + '/arquivamento/motivo')) === 'redação superada' && (await ler(F(ORG, 'F_HIST') + '/arquivamento/por')) === ADMIN);
+  const evs = Object.values((await ler(ORG + '/auditoria/C1')) || {});
+  anota('módulo: o evento fonte_arquivada identifica a fonte, o motivo e quem', evs.some((e) => e.tipo === 'fonte_arquivada' && e.fonteId === 'F_HIST' && e.motivo === 'redação superada' && e.usuario.email === ADMIN));
+  IX.st.flash = null; DX.arquivando = { fonte: 'F_VIG', motivo: 'duplicidade', justificativa: '', erro: null };
+  IX.arquivarFonte('organizacional', 'C1', 'F_VIG'); await new Promise((r) => setTimeout(r, 300));
+  anota('módulo: recusa arquivar a vigente SEM nem tentar gravar', (await ler(F(ORG, 'F_VIG') + '/arquivada')) === null && !!DX.arquivando.erro);
+  DX.edicao = { tipo: 'fonte', chave: 'F_HIST', valores: { texto: 'x', contexto: 'PREVI', situacao: 'histórica/contextual', tipoRedacao: 'Conceito', rotulo: '' }, erro: null };
+  IX.salvarFonte('organizacional', 'C1'); await new Promise((r) => setTimeout(r, 300));
+  anota('módulo: salvarFonte recusa fonte arquivada (não grava)', (await ler(F(ORG, 'F_HIST') + '/texto')) === 'Texto da fonte.');
+  IX.tornarVigente('organizacional', 'C1', 'F_HIST'); await new Promise((r) => setTimeout(r, 300));
+  anota('módulo: tornarVigente recusa fonte arquivada (não grava)', (await ler(ORG + '/conceitos/C1/definicaoVigenteFonteId')) === 'F_VIG');
+  await operaX('módulo: restaurarFonte(F_HIST)', () => IX.restaurarFonte('organizacional', 'C1', 'F_HIST'), async () => (await ler(F(ORG, 'F_HIST') + '/arquivada')) === null && (await ler(F(ORG, 'F_HIST') + '/arquivamento')) === null);
+  anota('módulo: o evento fonte_restaurada foi gravado', Object.values((await ler(ORG + '/auditoria/C1')) || {}).some((e) => e.tipo === 'fonte_restaurada' && e.fonteId === 'F_HIST'));
 
   console.log('\n' + total + ' verificações, ' + falhas + ' falha(s).');
   await testEnv.cleanup();
