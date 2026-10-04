@@ -521,6 +521,33 @@ async function main() {
   anota('banco: sem ponteiro, fonte rebaixada, situação "em revisão" (equivalência mantida)', !(await ler(ORG + '/conceitos/SQ2/definicaoVigenteFonteId')) && (await ler(ORG + '/fontes/SQ2/f1/situacao')) === 'histórica/contextual' && (await ler(ORG + '/conceitos/SQ2/situacaoDefinicao')) === 'em revisão');
   anota('UM só evento de auditoria (nenhuma repetição)', (await eventos()) === 1);
 
+  console.log('\n== 11. Histórico global: a consulta real (orderByKey + endAt + limitToLast) e as regras ==');
+  await testEnv.clearDatabase();
+  const keyH = (i) => '-P3B' + String(100000 + i);
+  await semear(async (a) => {
+    await a.ref('fa-admins/' + emailKey(ADMIN)).set({ email: ADMIN, name: ADMIN });
+    await a.ref('fa-avaliacao-autorizados/' + emailKey(ARQ)).set({ email: ARQ, tipo: 'avaliacao-arquitetura' });
+    const lote = {};
+    for (let i = 0; i < 60; i++) lote[ORG + '/auditoria/_catalogo/' + keyH(i)] = { tipo: i === 0 ? 'carga_inicial' : 'alteracao_atributo', campo: 'a' + i, dataHora: '2026-10-03T10:' + String(i).padStart(2, '0') + ':00.000Z', usuario: { email: ADMIN } };
+    lote[ARQT + '/auditoria/_catalogo/' + keyH(0)] = { tipo: 'carga_inicial', campo: 'carga inicial', dataHora: '2026-10-03T10:00:00.002Z', usuario: { email: ADMIN } };
+    await a.ref().update(lote);
+  });
+  const appHG = carregarApp(ADMIN), IH = appHG._interno;
+  const hgPronto = () => ate(() => !IH.st.hg.carregando, 6000);
+  IH.carregarHG(() => true); await hgPronto();
+  anota('admin: 1ª página = 25 do Organizacional + 1 do Arquitetural', IH.st.hg.itens.length === 26 && IH.st.hg.doms.organizacional.temMais === true && IH.st.hg.doms.arquitetural.temMais === false, IH.st.hg.itens.length + ' itens');
+  anota('a página traz os MAIS RECENTES (a15 … a59), não os mais antigos', IH.st.hg.itens.some((e) => e.campo === 'a59') && !IH.st.hg.itens.some((e) => e.campo === 'a34'));
+  IH.carregarHG((x) => x.estado === 'ok' && x.temMais); await hgPronto();
+  anota('"carregar mais": +25 (51 no total), sem repetir ninguém', IH.st.hg.itens.length === 51 && new Set(IH.st.hg.itens.map((e) => e._dom + '/' + e._chave)).size === 51, IH.st.hg.itens.length + ' itens');
+  IH.carregarHG((x) => x.estado === 'ok' && x.temMais); await hgPronto();
+  anota('última página: 61 eventos no total e sem mais páginas', IH.st.hg.itens.length === 61 && IH.st.hg.doms.organizacional.temMais === false, IH.st.hg.itens.length + ' itens');
+  const dts = IH.st.hg.itens.map((e) => e.dataHora);
+  anota('ordenado do mais recente para o mais antigo', dts.every((d, i) => i === 0 || d <= dts[i - 1]));
+  const admDb = db(ADMIN), arqDb = db(ARQ), anonDb = ctx(null).database();
+  await pode('o admin consegue a consulta paginada direto no banco (sem índice, sem mudar regra)', admDb.ref(ORG + '/auditoria/_catalogo').orderByKey().endAt(keyH(40)).limitToLast(26).once('value'));
+  await nega('"Avaliação + Arquitetura" (consulta) NÃO lê o histórico global', arqDb.ref(ORG + '/auditoria/_catalogo').orderByKey().limitToLast(26).once('value'));
+  await nega('sem login NÃO lê o histórico global', anonDb.ref(ARQT + '/auditoria/_catalogo').orderByKey().limitToLast(26).once('value'));
+
   console.log('\n' + total + ' verificações, ' + falhas + ' falha(s).');
   await testEnv.cleanup();
   process.exit(falhas ? 1 : 0);
