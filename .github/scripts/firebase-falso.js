@@ -34,8 +34,18 @@
   }
   /* filtro = { campo, valor } (orderByChild(campo).equalTo(valor)): devolve só
      os filhos cujo campo é igual ao valor — como o Firebase de verdade. */
-  function snap(path, filtro) {
+  function snap(path, filtro, porChave) {
     var v = lerComoBanco(get(path));
+    /* porChave = { fim, limite } (orderByKey().endAt(fim).limitToLast(limite)): filhos em ordem de chave
+       (as chaves de push crescem com o tempo), só até `fim` (inclusive) e só os `limite` últimos. */
+    if (porChave && v && typeof v === 'object') {
+      var ks = Object.keys(v).sort();
+      if (porChave.fim !== undefined && porChave.fim !== null) ks = ks.filter(function (k) { return k <= porChave.fim; });
+      if (typeof porChave.limite === 'number') ks = ks.slice(Math.max(0, ks.length - porChave.limite));
+      var ord = {};
+      ks.forEach(function (k) { ord[k] = v[k]; });
+      v = ks.length ? ord : null;
+    }
     if (filtro && v && typeof v === 'object') {
       var filtrado = {};
       Object.keys(v).forEach(function (k) {
@@ -87,7 +97,7 @@
           reject(e);
           return;
         }
-        var s = snap(self.path, self._temIgual ? { campo: self._ordem, valor: self._igual } : null);
+        var s = snap(self.path, self._temIgual ? { campo: self._ordem, valor: self._igual } : null, self._porChave ? { fim: self._fim, limite: self._limite } : null);
         if (ok) ok(s);
         resolve(s);
       }, delayFor(self.path));
@@ -321,7 +331,12 @@
   };
   Ref.prototype.orderByChild = function (campo) { var r = new Ref(this.path); r._ordem = campo; return r; };
   Ref.prototype.equalTo      = function (valor) { var r = new Ref(this.path); r._ordem = this._ordem; r._igual = valor; r._temIgual = true; return r; };
-  Ref.prototype.limitToLast  = function () { return this; };
+  /* consulta por chave: orderByKey() / endAt(chave) / limitToLast(n). Fora do orderByKey, limitToLast
+     continua não filtrando nada (outros testes dependem disso). */
+  function clonar(self) { var r = new Ref(self.path); ['_ordem', '_igual', '_temIgual', '_porChave', '_fim', '_limite'].forEach(function (k) { r[k] = self[k]; }); return r; }
+  Ref.prototype.orderByKey   = function () { var r = clonar(this); r._porChave = true; return r; };
+  Ref.prototype.endAt        = function (valor) { var r = clonar(this); r._fim = valor; return r; };
+  Ref.prototype.limitToLast  = function (n) { if (!this._porChave) return this; var r = clonar(this); r._limite = n; return r; };
 
   var authCbs = [];
 

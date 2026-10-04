@@ -111,21 +111,26 @@
   function ehAdmin() { var s = sessao(); return !!(s && window.faAuth && window.faAuth.isAdmin(s.email)); }
 
   /* ---------- estado ---------- */
+  function novoHGDom() { return { estado: 'ocioso', cursor: null, temMais: false, erro: null }; }
+  function novoHG() { return { carregou: false, carregando: false, itens: [], doms: { organizacional: novoHGDom(), arquitetural: novoHGDom() } }; }
   function novoDominio() { return { estado: 'ocioso', conceitos: {}, atributos: {}, selecionado: null, detalhe: null, edicao: null, confirmacao: null }; }
   var st = {
     dominio: 'organizacional', email: null, raiz: null, opcoes: { somenteLeitura: false },
     meta: { estado: 'ocioso', cargaFeita: false }, importacao: null, flash: null, salvando: false,
-    vista: 'lista',
+    vista: 'lista', aba: 'dominio', /* aba: 'dominio' (lista + detalhe) ou 'historico' (histórico global) */
+    hg: novoHG(),
     d: { arquitetural: novoDominio(), organizacional: novoDominio() }
   };
 
   /* ---------- leitura (com limite de espera) ---------- */
-  function lerNo(caminho, cb) {
+  function lerNo(caminho, cb, montar) {
     var feito = false;
     var t = setTimeout(function () { fim({ ok: false, erro: 'tempo esgotado' }); }, ESPERA.leitura);
     function fim(r) { if (feito) return; feito = true; clearTimeout(t); cb(r); }
     try {
-      var prom = db().ref(caminho).once('value', function (snap) { fim({ ok: true, valor: snap.val() }); }, function (err) {
+      var consulta = db().ref(caminho);
+      if (montar) consulta = montar(consulta);
+      var prom = consulta.once('value', function (snap) { fim({ ok: true, valor: snap.val() }); }, function (err) {
         console.error('[taxonomia] erro ao ler ' + caminho + ':', err);
         fim({ ok: false, negado: !!(err && err.code === 'PERMISSION_DENIED'), erro: err });
       });
@@ -924,6 +929,84 @@
     return html + '</section>';
   }
 
+  /* ---------- histórico global (auditoria/_catalogo dos dois domínios) ----------
+     Só leitura. As chaves de push crescem com o tempo, então orderByKey().limitToLast(n) pega os mais
+     recentes sem índice nem mudança de regra. "Carregar mais" usa endAt(cursor): pede 1 a mais para saber se
+     ainda existe página anterior, sem contador total. Nada é copiado para o histórico dos conceitos. */
+  var HG_PAGINA = 25;
+  var HG_TIPOS = { carga_inicial: 'Carga inicial', alteracao_atributo: 'Alteração de atributo', alteracao_relacao: 'Alteração de relação',
+    alteracao_conceito: 'Alteração de conceito', alteracao_fonte: 'Alteração de fonte', definicao_vigente: 'Definição vigente', alteracao_perfil: 'Alteração de perfil' };
+  function podeVerHG() { return ehAdmin() && adminPronto() && !st.opcoes.somenteLeitura; }
+  function carregarHG(quais) {
+    var H = st.hg;
+    if (H.carregando || !podeVerHG()) return;
+    var doms = ORDEM_DOMINIOS.filter(function (d) { return quais(H.doms[d]); });
+    if (!doms.length) return;
+    H.carregando = true; H.carregou = true;
+    var faltam = doms.length;
+    doms.forEach(function (d) {
+      var x = H.doms[d], cursor = x.cursor, limite = HG_PAGINA + 1 + (cursor ? 1 : 0);
+      x.estado = 'carregando'; x.erro = null;
+      lerNo(RAIZ + '/' + d + '/auditoria/_catalogo', function (r) {
+        if (!r.ok) { x.estado = 'erro'; x.erro = r.negado ? 'sem-acesso' : 'rede'; }
+        else {
+          var obj = r.valor || {};
+          var ks = chaves(obj).sort();
+          if (cursor) ks = ks.filter(function (k) { return k < cursor; });
+          x.temMais = ks.length > HG_PAGINA;
+          if (x.temMais) ks = ks.slice(ks.length - HG_PAGINA);
+          if (ks.length) x.cursor = ks[0];
+          x.estado = 'ok'; x.erro = null;
+          var tem = {}; H.itens.forEach(function (i) { tem[i._dom + '/' + i._chave] = true; });
+          ks.forEach(function (k) { if (!tem[d + '/' + k]) H.itens.push(Object.assign({ _dom: d, _chave: k }, obj[k])); });
+          H.itens.sort(function (a, b) {
+            var da = String(a.dataHora || ''), db_ = String(b.dataHora || '');
+            return da === db_ ? (a._chave < b._chave ? 1 : -1) : (da < db_ ? 1 : -1);
+          });
+        }
+        if (--faltam === 0) { H.carregando = false; }
+        render();
+      }, function (ref) {
+        var q = ref.orderByKey();
+        if (cursor) q = q.endAt(cursor);
+        return q.limitToLast(limite);
+      });
+    });
+    render();
+  }
+  function htmlHistoricoGlobal() {
+    var H = st.hg;
+    var h = '<section class="tax-hg" id="taxHistoricoGlobal"><h4>Histórico global</h4>' +
+      '<p class="tax-ajuda">Eventos que valem para o domínio inteiro (por exemplo, a carga inicial), do mais recente para o mais antigo. O histórico de cada conceito fica no próprio conceito.</p>';
+    ORDEM_DOMINIOS.forEach(function (d) {
+      var x = H.doms[d];
+      if (x.estado !== 'erro') return;
+      h += '<div class="tax-aviso-erro tax-hg-erro" data-dominio="' + d + '" role="alert"><p>' +
+        (x.erro === 'sem-acesso' ? 'Taxonomia ' + esc(DOMINIOS[d].rotulo) + ': sem acesso ao histórico global.' : 'Não foi possível ler o histórico global do domínio ' + esc(DOMINIOS[d].rotulo) + '. Confira a conexão.') +
+        '</p><button type="button" class="btn btn--sm" data-tax="hg-recarregar">TENTAR NOVAMENTE</button></div>';
+    });
+    if (H.carregando) h += '<p class="loading-msg" id="taxHgCarregando">Carregando o histórico global…</p>';
+    var todosOk = ORDEM_DOMINIOS.every(function (d) { return H.doms[d].estado === 'ok'; });
+    if (!H.itens.length) {
+      if (todosOk && !H.carregando) h += '<p class="tax-ausencia" id="taxHgVazio">Nenhum evento global registrado.</p>';
+      return h + '</section>';
+    }
+    h += '<ul class="tax-hg-lista">' + H.itens.map(function (e) {
+      var rotDom = DOMINIOS[e._dom] ? DOMINIOS[e._dom].rotulo : e._dom;
+      var tipo = HG_TIPOS[e.tipo] || e.tipo || '—';
+      var resumo = e.tipo === 'carga_inicial' ? (e.valorNovo || e.campo || '')
+        : (e.campo || '') + (e.valorAnterior ? ': ' + e.valorAnterior + ' → ' + (e.valorNovo || '—') : (e.valorNovo ? ': ' + e.valorNovo : ''));
+      var quem = (e.usuario && e.usuario.nome ? e.usuario.nome + ' ' : '') + (e.usuario && e.usuario.email ? '(' + e.usuario.email + ')' : '');
+      return '<li class="tax-hg-item" data-dominio="' + esc(e._dom) + '" data-chave="' + esc(e._chave) + '" data-datahora="' + esc(e.dataHora || '') + '">' +
+        '<div class="tax-hg-topo"><span class="tax-hg-quando">' + esc(fmtData(e.dataHora)) + '</span> ' + selo(rotDom) + ' <strong class="tax-hg-tipo">' + esc(tipo) + '</strong></div>' +
+        '<div class="tax-hg-resumo">' + esc(resumo || '—') + '</div>' +
+        '<div class="tax-hg-meta">por ' + esc(quem.trim() || '—') + ' · escopo: ' + (e.conceito ? 'conceito ' + esc(e.conceito) : 'domínio ' + esc(rotDom) + ' (inteiro)') + '</div></li>';
+    }).join('') + '</ul>';
+    var maisHa = ORDEM_DOMINIOS.some(function (d) { return H.doms[d].estado === 'ok' && H.doms[d].temMais; });
+    if (maisHa) h += '<div class="tax-acoes"><button type="button" class="btn btn--sm" data-tax="hg-mais"' + (H.carregando ? ' disabled' : '') + '>CARREGAR MAIS</button></div>';
+    return h + '</section>';
+  }
+
   function render() {
     var el = raiz();
     if (!el) return;
@@ -936,8 +1019,10 @@
     if (!ehAdmin()) { el.innerHTML = html + '<p class="tax-aviso-erro">Esta área é só para administradoras.</p></div>'; return; }
     html += renderImportador();
     html += '<div class="tax-dominios" role="tablist" aria-label="Domínio da Taxonomia">' + ORDEM_DOMINIOS.map(function (d) {
-      return '<button type="button" role="tab" class="tax-dominio' + (d === dom ? ' tax-dominio--ativo' : '') + '" aria-selected="' + (d === dom) + '" data-tax="dominio" data-dominio="' + d + '">' + esc(DOMINIOS[d].rotulo) + '</button>';
-    }).join('') + '</div>';
+      var ativo = d === dom && st.aba === 'dominio';
+      return '<button type="button" role="tab" class="tax-dominio' + (ativo ? ' tax-dominio--ativo' : '') + '" aria-selected="' + ativo + '" data-tax="dominio" data-dominio="' + d + '">' + esc(DOMINIOS[d].rotulo) + '</button>';
+    }).join('') + (podeVerHG() ? '<button type="button" role="tab" class="tax-dominio' + (st.aba === 'historico' ? ' tax-dominio--ativo' : '') + '" aria-selected="' + (st.aba === 'historico') + '" data-tax="aba-historico">Histórico global</button>' : '') + '</div>';
+    if (st.aba === 'historico' && podeVerHG()) { el.innerHTML = html + htmlHistoricoGlobal() + '</div>'; return; }
     html += '<p class="tax-pergunta" id="taxPergunta"><strong>' + esc(DOMINIOS[dom].titulo) + '</strong> · ' + esc(DOMINIOS[dom].pergunta) + '</p>';
     if (D.estado === 'carregando' || D.estado === 'ocioso') html += '<p class="loading-msg" id="taxCarregando">Carregando a Taxonomia…</p>';
     else if (D.estado === 'erro') html += '<div class="tax-aviso-erro" id="taxErro" role="alert"><p>Não foi possível carregar a Taxonomia agora. Confira a conexão.</p><button type="button" class="btn btn--sm" data-tax="recarregar">TENTAR NOVAMENTE</button></div>';
@@ -970,10 +1055,16 @@
     var acao = alvo.getAttribute('data-tax'), dom = st.dominio, D = st.d[dom];
     if (acao === 'dominio') {
       var novo = alvo.getAttribute('data-dominio');
-      if (novo === dom) return;
-      st.dominio = novo; st.vista = 'lista'; st.flash = null;
+      if (novo === dom && st.aba === 'dominio') return;
+      st.dominio = novo; st.aba = 'dominio'; st.vista = 'lista'; st.flash = null;
       if (st.d[novo].estado === 'ocioso') carregarDominio(novo); else render();
-    } else if (acao === 'recarregar') { carregarMeta(); carregarDominio(dom); }
+    } else if (acao === 'aba-historico') {
+      if (!podeVerHG()) return;
+      st.aba = 'historico'; st.flash = null;
+      if (!st.hg.carregou) carregarHG(function () { return true; }); else render();
+    } else if (acao === 'hg-mais') { carregarHG(function (x) { return x.estado === 'ok' && x.temMais; }); }
+    else if (acao === 'hg-recarregar') { carregarHG(function (x) { return x.estado === 'erro'; }); }
+    else if (acao === 'recarregar') { carregarMeta(); carregarDominio(dom); }
     else if (acao === 'selecionar') {
       var cod = alvo.getAttribute('data-codigo');
       D.selecionado = cod; D.edicao = null; D.confirmacao = null; st.vista = 'detalhe'; st.flash = null;
@@ -1026,13 +1117,14 @@
   /* Abre a área (ao entrar na aba). Reavalia o acesso; troca de usuário reinicia o estado. */
   function abrir(opcoes) {
     if (opcoes) st.opcoes = Object.assign({ somenteLeitura: false }, opcoes);
+    if (st.opcoes.somenteLeitura) st.aba = 'dominio';
     var el = raiz();
     if (!el) return;
     ligar();
     var s = sessao();
     var email = s ? s.email : null;
     if (st.email !== email) {
-      st.email = email; st.meta = { estado: 'ocioso', cargaFeita: false }; st.importacao = null; st.flash = null; st.vista = 'lista';
+      st.email = email; st.meta = { estado: 'ocioso', cargaFeita: false }; st.importacao = null; st.flash = null; st.vista = 'lista'; st.aba = 'dominio'; st.hg = novoHG();
       ORDEM_DOMINIOS.forEach(function (d) { st.d[d] = novoDominio(); });
     }
     if (!adminPronto()) {
@@ -1059,7 +1151,7 @@
     /* Só para teste: permite rodar as MESMAS operações da tela contra o emulador com as regras reais
        (teste-rules-taxonomia.js) e provar que o que a aplicação grava, o banco aceita. */
     _interno: {
-      st: st, espera: ESPERA, leitores: LEITORES, carregarDominio: carregarDominio, carregarDetalhe: carregarDetalhe, tornarVigente: tornarVigente,
+      st: st, espera: ESPERA, leitores: LEITORES, carregarHG: carregarHG, carregarDominio: carregarDominio, carregarDetalhe: carregarDetalhe, tornarVigente: tornarVigente,
       removerVigencia: removerVigencia, salvarConceito: salvarConceito, salvarFonte: salvarFonte, salvarPerfil: salvarPerfil
     }
   };

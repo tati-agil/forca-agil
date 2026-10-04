@@ -674,6 +674,121 @@ const TOTAL = 'taxonomia';
     }
   }
 
+  /* ---------- HISTÓRICO GLOBAL (auditoria/_catalogo dos dois domínios) ---------- */
+  const chaveEv = (i) => '-P3A' + String(100000 + i); /* crescem com o tempo, como as chaves de push */
+  const evOrg = (i) => i === 0
+    ? { tipo: 'carga_inicial', campo: 'carga inicial', valorNovo: 'Importação única: 5 conceitos, 6 fontes', dataHora: '2026-10-03T10:00:00.000Z', usuario: { nome: 'Admin Fictício', email: EMAIL } }
+    : { tipo: 'alteracao_atributo', campo: 'Atributo fictício ' + i, valorAnterior: 'antes ' + i, valorNovo: 'depois ' + i, dataHora: '2026-10-03T10:' + String(i).padStart(2, '0') + ':00.000Z', usuario: { nome: 'Admin Fictício', email: EMAIL } };
+  const semenHG = (nOrg, comArq) => {
+    const org = {}; for (let i = 0; i < nOrg; i++) org[chaveEv(i)] = evOrg(i);
+    const arq = comArq ? {
+      [chaveEv(0)]: { tipo: 'carga_inicial', campo: 'carga inicial', valorNovo: 'Importação única: 2 conceitos, 1 fontes', dataHora: '2026-10-03T10:00:00.002Z', usuario: { nome: 'Admin Fictício', email: EMAIL } },
+      [chaveEv(20)]: { tipo: 'alteracao_relacao', campo: 'Squad → Linha', valorNovo: 'compõe', dataHora: '2026-10-03T10:20:00.500Z', usuario: { nome: 'Admin Fictício', email: EMAIL } },
+      [chaveEv(40)]: { tipo: 'tipo_futuro_desconhecido', campo: 'algo', valorNovo: 'novo', dataHora: '2026-10-03T10:40:00.000Z', usuario: { email: EMAIL } }
+    } : {};
+    return { taxonomia: { meta: { cargaInicial: { feitaEm: '2026-10-03T10:00:00.000Z', feitaPor: EMAIL, resumo: {} } },
+      organizacional: { conceitos: { SQ: { nome: 'Conceito Fictício', camada: 'A', ordem: 1, ativo: true, situacaoDefinicao: 'ainda não registrada' } }, auditoria: { _catalogo: org } },
+      arquitetural: { conceitos: {}, auditoria: { _catalogo: arq } } } };
+  };
+  async function abrirHG(browser, viewport, nOrg, comArq, extra) {
+    const r = await abrir(browser, Object.assign({ viewport, db: semenHG(nOrg, comArq) }, extra || {}));
+    await irParaTaxonomia(r.page);
+    await aparece(r.page, '.tax-item[data-codigo="SQ"]');
+    await r.page.evaluate(() => { const e = window.faTaxonomia._interno.espera; e.leitura = 1200; });
+    return r;
+  }
+  const abaHG = (page) => page.click('[data-tax="aba-historico"]');
+  const linhasHG = (page) => page.locator('#taxHistoricoGlobal .tax-hg-item');
+
+  for (const [nomeTela, viewport] of [['desktop', DESKTOP], ['celular 375px', CELULAR]]) {
+    const movel = viewport.width <= 720;
+    console.log('\n######## Histórico global — ' + nomeTela + ' ########');
+
+    console.log('\n== H1. Acesso, ordem, conteúdo e "Carregar mais" ==');
+    {
+      const { ctx, page, erros } = await abrirHG(browser, viewport, 30, true);
+      const abas = await page.locator('.tax-dominios [role="tab"]').allInnerTexts();
+      afirma(abas.length === 3 && /Histórico global/i.test(abas[2]), 'terceira aba "Histórico global" na linha dos domínios');
+      const escritas0 = await page.evaluate(() => (window.__ESCRITAS || []).length);
+      await abaHG(page);
+      await aparece(page, '#taxHistoricoGlobal .tax-hg-item');
+      afirma(await page.locator('.tax-wrap').count() === 0 && await page.locator('[data-tax="aba-historico"][aria-selected="true"]').count() === 1, 'a aba troca a área de lista/detalhe pelo histórico e fica marcada');
+      afirma(await linhasHG(page).count() === 28, 'primeira carga: 25 eventos mais recentes do Organizacional + 3 do Arquitetural = 28');
+      const datas = await linhasHG(page).evaluateAll((els) => els.map((e) => e.getAttribute('data-datahora')));
+      afirma(datas.every((d, i) => i === 0 || d <= datas[i - 1]), 'ordenado do mais recente para o mais antigo (mescla dos dois domínios)');
+      const t = await page.locator('#taxHistoricoGlobal').innerText();
+      afirma(/Arquitetural/.test(await linhasHG(page).first().innerText()) && /tipo_futuro_desconhecido/.test(t), 'o evento mais recente é do Arquitetural e um tipo desconhecido aparece com o nome técnico (não some)');
+      afirma(/Alteração de atributo/.test(t) && /Alteração de relação/.test(t) && /Admin Fictício/.test(t) && new RegExp(EMAIL.replace('.', '\\.')).test(t), 'tipos legíveis, domínio e quem fez (nome e e-mail)');
+      afirma(/Atributo fictício 29/.test(t) && !/Atributo fictício 4\b/.test(t), 'só os 25 mais recentes do Organizacional na primeira página');
+      afirma(await larguraOk(page), 'sem rolagem horizontal');
+      if (movel) afirma(await linhasHG(page).first().evaluate((e) => e.getBoundingClientRect().right <= window.innerWidth + 1), '375 px: os cartões cabem na tela');
+      afirma(await page.locator('[data-tax="hg-mais"]').count() === 1, 'há mais eventos: aparece "CARREGAR MAIS"');
+      await page.click('[data-tax="hg-mais"]');
+      await page.waitForFunction(() => document.querySelectorAll('#taxHistoricoGlobal .tax-hg-item').length === 33, null, { timeout: 5000 }).catch(() => {});
+      afirma(await linhasHG(page).count() === 33, '"Carregar mais" traz os 5 restantes do Organizacional (33 no total)');
+      const chaves2 = await linhasHG(page).evaluateAll((els) => els.map((e) => e.getAttribute('data-dominio') + '/' + e.getAttribute('data-chave')));
+      afirma(new Set(chaves2).size === chaves2.length, 'nenhum evento repetido entre as páginas');
+      const datas2 = await linhasHG(page).evaluateAll((els) => els.map((e) => e.getAttribute('data-datahora')));
+      afirma(datas2.every((d, i) => i === 0 || d <= datas2[i - 1]) && await page.locator('[data-tax="hg-mais"]').count() === 0, 'continua ordenado e o botão some quando acabou');
+      afirma(await page.evaluate(() => (window.__ESCRITAS || []).length) === escritas0, 'só leitura: nenhuma escrita (nada copiado para os conceitos, nenhuma auditoria nova)');
+      await page.click('.tax-dominio[data-dominio="organizacional"]');
+      await aparece(page, '.tax-wrap');
+      afirma(await page.locator('#taxHistoricoGlobal').count() === 0 && await page.locator('.tax-item[data-codigo="SQ"]').count() === 1, 'voltar para um domínio restaura a lista de conceitos');
+      afirma(erros.length === 0, 'sem erros de JavaScript');
+      await ctx.close();
+    }
+
+    console.log('\n== H2. Estados: carregando ≠ vazio ≠ erro ≠ sem acesso ==');
+    {
+      const { ctx, page } = await abrirHG(browser, viewport, 30, true);
+      await page.evaluate(() => { window.__CFG.delays = { 'taxonomia/organizacional/auditoria/_catalogo': 700 }; });
+      await abaHG(page);
+      afirma(await aparece(page, '#taxHgCarregando', 1000) && await page.locator('#taxHgVazio').count() === 0, 'enquanto lê: "Carregando…", nunca "vazio"');
+      await page.waitForSelector('#taxHgCarregando', { state: 'detached', timeout: 4000 }).catch(() => {});
+      afirma(await linhasHG(page).count() === 28 && await page.locator('#taxHgCarregando').count() === 0, 'ao chegar tudo, mostra os 28 eventos e o "Carregando…" some');
+      await ctx.close();
+    }
+    {
+      const { ctx, page } = await abrirHG(browser, viewport, 0, false);
+      await abaHG(page);
+      await aparece(page, '#taxHgVazio', 3000);
+      afirma(/Nenhum evento global registrado/.test(await page.locator('#taxHgVazio').innerText()) && await page.locator('.tax-hg-erro').count() === 0, 'sem eventos: vazio de verdade ("Nenhum evento global registrado")');
+      await ctx.close();
+    }
+    {
+      const { ctx, page } = await abrirHG(browser, viewport, 30, true);
+      await page.evaluate(() => { window.__CFG.delays = { 'taxonomia/arquitetural/auditoria/_catalogo': 600000 }; });
+      await abaHG(page);
+      await aparece(page, '.tax-hg-erro[data-dominio="arquitetural"]', 4000);
+      afirma(await linhasHG(page).count() === 25 && await page.locator('#taxHgVazio').count() === 0, 'um domínio não respondeu: mostra os eventos do outro, sem fingir que o Arquitetural está vazio');
+      afirma(/Arquitetural/.test(await page.locator('.tax-hg-erro[data-dominio="arquitetural"]').innerText()) && /TENTAR NOVAMENTE/i.test(await page.locator('.tax-hg-erro[data-dominio="arquitetural"]').innerText()), 'aviso do domínio que falhou, com "TENTAR NOVAMENTE"');
+      await page.evaluate(() => { window.__CFG.delays = {}; });
+      await page.click('[data-tax="hg-recarregar"]');
+      await page.waitForFunction(() => document.querySelectorAll('#taxHistoricoGlobal .tax-hg-item').length === 28, null, { timeout: 5000 }).catch(() => {});
+      afirma(await linhasHG(page).count() === 28 && await page.locator('.tax-hg-erro').count() === 0, '"TENTAR NOVAMENTE" lê de novo: os 28 eventos aparecem e o aviso some');
+      await ctx.close();
+    }
+    {
+      const { ctx, page, erros } = await abrirHG(browser, viewport, 30, true);
+      await page.evaluate(() => { window.__CFG.fail = ['taxonomia/organizacional/auditoria/_catalogo']; });
+      await abaHG(page);
+      await aparece(page, '.tax-hg-erro[data-dominio="organizacional"]', 4000);
+      afirma(/sem acesso/i.test(await page.locator('.tax-hg-erro[data-dominio="organizacional"]').innerText()), 'PERMISSION_DENIED num domínio: diz "sem acesso" (≠ erro de rede)');
+      await page.waitForTimeout(300);
+      afirma(erros.length === 0, 'PERMISSION_DENIED não gera erro nem rejeição não tratada na página');
+      await ctx.close();
+    }
+
+    console.log('\n== H3. Modo somente leitura: sem histórico global (auditoria é só de admin) ==');
+    {
+      const { ctx, page } = await abrirHG(browser, viewport, 3, true);
+      await page.evaluate(() => window.faTaxonomia.abrir({ somenteLeitura: true }));
+      await aparece(page, '.tax-dominios');
+      afirma(await page.locator('[data-tax="aba-historico"]').count() === 0 && await page.locator('.tax-dominios [role="tab"]').count() === 2, 'somente leitura: a aba "Histórico global" não aparece');
+      await ctx.close();
+    }
+  }
+
   await browser.close();
   console.log('\n' + (falhas ? falhas + ' FALHA(S)' : 'TUDO OK'));
   process.exit(falhas ? 1 : 0);
