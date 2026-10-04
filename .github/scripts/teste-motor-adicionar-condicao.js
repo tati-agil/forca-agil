@@ -214,6 +214,22 @@ const novasDe = (page, codigo) => card(page, codigo).locator('.sq-cond-folha--no
     await ctx.close();
     afirma(erros.length === 0, 'nenhum erro de JS (' + erros.length + ')');
 
+    console.log('\n== Recarregar: página nova, a partir só do que ficou gravado no banco ==');
+    {
+      /* O banco falso não sobrevive a um reload; o equivalente é abrir uma página do zero
+         lendo exatamente o motor-arquitetura-config gravado pelo "Salvar rascunho" acima. */
+      const { ctx: c1, page: p1, erros: e1 } = await abrir(browser, viewport, depois['motor-arquitetura-config']);
+      await p1.waitForTimeout(500);
+      afirma(/há um rascunho não publicado/.test(await p1.locator('.avp-config-motores').innerText()), 'depois de recarregar, o painel diz "há um rascunho não publicado"');
+      await p1.click('#avpMotorArqEditarBtn');
+      await p1.waitForSelector('.sq-cond-select');
+      afirma(JSON.stringify(await novasDe(p1, 'UNIDADE_VALOR_ASSOCIADA')) === '["P13","P15"]' && await p1.locator('.sq-cond-remover').count() === 2, 'depois de recarregar, P13 e P15 continuam NOVA e só elas têm "Remover"');
+      afirma(await p1.evaluate(() => window.faMotorArquitetura.versaoAtual()) === 1, 'e a versão publicada continua a 1');
+      await p1.click('#avpMotorArqCancelarBtn');
+      await c1.close();
+      afirma(e1.length === 0, 'nenhum erro de JS (' + e1.length + ')');
+    }
+
     console.log('\n== Rascunho antigo: versão-base ≠ versão publicada ==');
     {
       const fab = JSON.parse(JSON.stringify(fabrica));
