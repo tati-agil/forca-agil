@@ -537,8 +537,8 @@
           "$codigo": {
             ".validate": "$codigo.matches(/^[A-Za-z][A-Za-z0-9_-]{1,59}$/)",
             "$fonteId": {
-              ".write": "(auth != null && ((auth.token.email === 'tatianefdirene@previ.com.br' || auth.token.email === 'danielfrazao@previ.com.br') || root.child('fa-admins').child(auth.token.email.replace('@','_').replace('.','_')).exists())) && (newData.exists() || newData.parent().parent().parent().child('conceitos').child($codigo).child('definicaoVigenteFonteId').val() !== $fonteId)",
-              ".validate": "$fonteId.matches(/^[A-Za-z0-9_-]{1,60}$/) && newData.hasChildren(['texto','contexto','situacao','tipoRedacao']) && newData.parent().parent().parent().child('conceitos').child($codigo).exists() && ((newData.child('situacao').val() === 'vigente') === (newData.parent().parent().parent().child('conceitos').child($codigo).child('definicaoVigenteFonteId').val() === $fonteId))",
+              ".write": "(auth != null && ((auth.token.email === 'tatianefdirene@previ.com.br' || auth.token.email === 'danielfrazao@previ.com.br') || root.child('fa-admins').child(auth.token.email.replace('@','_').replace('.','_')).exists())) && newData.exists()",
+              ".validate": "$fonteId.matches(/^[A-Za-z0-9_-]{1,60}$/) && newData.hasChildren(['texto','contexto','situacao','tipoRedacao']) && newData.parent().parent().parent().child('conceitos').child($codigo).exists() && ((newData.child('situacao').val() === 'vigente') === (newData.parent().parent().parent().child('conceitos').child($codigo).child('definicaoVigenteFonteId').val() === $fonteId)) && (newData.child('arquivada').exists() === newData.child('arquivamento').exists()) && !(newData.child('situacao').val() === 'vigente' && newData.child('arquivada').exists()) && (!newData.child('arquivada').exists() || (data.exists() && newData.child('texto').val() === data.child('texto').val() && newData.child('contexto').val() === data.child('contexto').val() && newData.child('situacao').val() === data.child('situacao').val() && newData.child('tipoRedacao').val() === data.child('tipoRedacao').val() && newData.child('rotulo').val() === data.child('rotulo').val() && newData.child('criadoEm').val() === data.child('criadoEm').val() && newData.child('criadoPor').val() === data.child('criadoPor').val())) && (!data.child('arquivada').exists() || ((newData.child('texto').val() === data.child('texto').val() && newData.child('contexto').val() === data.child('contexto').val() && newData.child('situacao').val() === data.child('situacao').val() && newData.child('tipoRedacao').val() === data.child('tipoRedacao').val() && newData.child('rotulo').val() === data.child('rotulo').val() && newData.child('criadoEm').val() === data.child('criadoEm').val() && newData.child('criadoPor').val() === data.child('criadoPor').val()) && (!newData.child('arquivada').exists() || (newData.child('arquivamento').child('motivo').val() === data.child('arquivamento').child('motivo').val() && newData.child('arquivamento').child('justificativa').val() === data.child('arquivamento').child('justificativa').val() && newData.child('arquivamento').child('em').val() === data.child('arquivamento').child('em').val() && newData.child('arquivamento').child('por').val() === data.child('arquivamento').child('por').val()))))",
               "texto": {
                 ".validate": "newData.isString() && newData.val().length > 0 && newData.val().length <= 8000"
               },
@@ -560,6 +560,27 @@
               "criadoPor": {
                 ".validate": "newData.isString() && newData.val() === auth.token.email"
               },
+              "arquivada": {
+                ".validate": "newData.val() === true"
+              },
+              "arquivamento": {
+                ".validate": "newData.hasChildren(['motivo','em','por']) && (newData.child('motivo').val() !== 'outro' || (newData.child('justificativa').isString() && newData.child('justificativa').val().length > 0))",
+                "motivo": {
+                  ".validate": "(newData.val() === 'duplicidade' || newData.val() === 'redação superada' || newData.val() === 'não representa o conceito' || newData.val() === 'fonte inadequada' || newData.val() === 'criada por engano' || newData.val() === 'outro')"
+                },
+                "justificativa": {
+                  ".validate": "newData.isString() && newData.val().length <= 500"
+                },
+                "em": {
+                  ".validate": "newData.isString()"
+                },
+                "por": {
+                  ".validate": "newData.isString() && newData.val() === auth.token.email"
+                },
+                "$outro": {
+                  ".validate": false
+                }
+              },
               "$outro": {
                 ".validate": false
               }
@@ -572,7 +593,7 @@
             ".validate": "$codigo === '_catalogo' || $codigo.matches(/^[A-Za-z][A-Za-z0-9_-]{1,59}$/)",
             "$pushKey": {
               ".write": "(auth != null && ((auth.token.email === 'tatianefdirene@previ.com.br' || auth.token.email === 'danielfrazao@previ.com.br') || root.child('fa-admins').child(auth.token.email.replace('@','_').replace('.','_')).exists())) && !data.exists() && newData.exists()",
-              ".validate": "newData.hasChildren(['tipo','usuario','dataHora']) && (newData.child('tipo').val() === 'alteracao_conceito' || newData.child('tipo').val() === 'alteracao_fonte' || newData.child('tipo').val() === 'definicao_vigente' || newData.child('tipo').val() === 'alteracao_perfil' || newData.child('tipo').val() === 'alteracao_atributo' || newData.child('tipo').val() === 'alteracao_relacao' || newData.child('tipo').val() === 'carga_inicial') && newData.child('usuario').hasChildren(['email']) && newData.child('usuario').child('email').val() === auth.token.email && newData.child('dataHora').isString()"
+              ".validate": "newData.hasChildren(['tipo','usuario','dataHora']) && (newData.child('tipo').val() === 'alteracao_conceito' || newData.child('tipo').val() === 'alteracao_fonte' || newData.child('tipo').val() === 'definicao_vigente' || newData.child('tipo').val() === 'alteracao_perfil' || newData.child('tipo').val() === 'alteracao_atributo' || newData.child('tipo').val() === 'alteracao_relacao' || newData.child('tipo').val() === 'carga_inicial' || newData.child('tipo').val() === 'fonte_arquivada' || newData.child('tipo').val() === 'fonte_restaurada') && newData.child('usuario').hasChildren(['email']) && newData.child('usuario').child('email').val() === auth.token.email && newData.child('dataHora').isString()"
             }
           }
         }
@@ -646,8 +667,8 @@
           "$codigo": {
             ".validate": "$codigo.matches(/^[A-Za-z][A-Za-z0-9_-]{1,59}$/)",
             "$fonteId": {
-              ".write": "(auth != null && ((auth.token.email === 'tatianefdirene@previ.com.br' || auth.token.email === 'danielfrazao@previ.com.br') || root.child('fa-admins').child(auth.token.email.replace('@','_').replace('.','_')).exists())) && (newData.exists() || newData.parent().parent().parent().child('conceitos').child($codigo).child('definicaoVigenteFonteId').val() !== $fonteId)",
-              ".validate": "$fonteId.matches(/^[A-Za-z0-9_-]{1,60}$/) && newData.hasChildren(['texto','contexto','situacao','tipoRedacao']) && newData.parent().parent().parent().child('conceitos').child($codigo).exists() && ((newData.child('situacao').val() === 'vigente') === (newData.parent().parent().parent().child('conceitos').child($codigo).child('definicaoVigenteFonteId').val() === $fonteId))",
+              ".write": "(auth != null && ((auth.token.email === 'tatianefdirene@previ.com.br' || auth.token.email === 'danielfrazao@previ.com.br') || root.child('fa-admins').child(auth.token.email.replace('@','_').replace('.','_')).exists())) && newData.exists()",
+              ".validate": "$fonteId.matches(/^[A-Za-z0-9_-]{1,60}$/) && newData.hasChildren(['texto','contexto','situacao','tipoRedacao']) && newData.parent().parent().parent().child('conceitos').child($codigo).exists() && ((newData.child('situacao').val() === 'vigente') === (newData.parent().parent().parent().child('conceitos').child($codigo).child('definicaoVigenteFonteId').val() === $fonteId)) && (newData.child('arquivada').exists() === newData.child('arquivamento').exists()) && !(newData.child('situacao').val() === 'vigente' && newData.child('arquivada').exists()) && (!newData.child('arquivada').exists() || (data.exists() && newData.child('texto').val() === data.child('texto').val() && newData.child('contexto').val() === data.child('contexto').val() && newData.child('situacao').val() === data.child('situacao').val() && newData.child('tipoRedacao').val() === data.child('tipoRedacao').val() && newData.child('rotulo').val() === data.child('rotulo').val() && newData.child('criadoEm').val() === data.child('criadoEm').val() && newData.child('criadoPor').val() === data.child('criadoPor').val())) && (!data.child('arquivada').exists() || ((newData.child('texto').val() === data.child('texto').val() && newData.child('contexto').val() === data.child('contexto').val() && newData.child('situacao').val() === data.child('situacao').val() && newData.child('tipoRedacao').val() === data.child('tipoRedacao').val() && newData.child('rotulo').val() === data.child('rotulo').val() && newData.child('criadoEm').val() === data.child('criadoEm').val() && newData.child('criadoPor').val() === data.child('criadoPor').val()) && (!newData.child('arquivada').exists() || (newData.child('arquivamento').child('motivo').val() === data.child('arquivamento').child('motivo').val() && newData.child('arquivamento').child('justificativa').val() === data.child('arquivamento').child('justificativa').val() && newData.child('arquivamento').child('em').val() === data.child('arquivamento').child('em').val() && newData.child('arquivamento').child('por').val() === data.child('arquivamento').child('por').val()))))",
               "texto": {
                 ".validate": "newData.isString() && newData.val().length > 0 && newData.val().length <= 8000"
               },
@@ -669,6 +690,27 @@
               "criadoPor": {
                 ".validate": "newData.isString() && newData.val() === auth.token.email"
               },
+              "arquivada": {
+                ".validate": "newData.val() === true"
+              },
+              "arquivamento": {
+                ".validate": "newData.hasChildren(['motivo','em','por']) && (newData.child('motivo').val() !== 'outro' || (newData.child('justificativa').isString() && newData.child('justificativa').val().length > 0))",
+                "motivo": {
+                  ".validate": "(newData.val() === 'duplicidade' || newData.val() === 'redação superada' || newData.val() === 'não representa o conceito' || newData.val() === 'fonte inadequada' || newData.val() === 'criada por engano' || newData.val() === 'outro')"
+                },
+                "justificativa": {
+                  ".validate": "newData.isString() && newData.val().length <= 500"
+                },
+                "em": {
+                  ".validate": "newData.isString()"
+                },
+                "por": {
+                  ".validate": "newData.isString() && newData.val() === auth.token.email"
+                },
+                "$outro": {
+                  ".validate": false
+                }
+              },
               "$outro": {
                 ".validate": false
               }
@@ -681,7 +723,7 @@
             ".validate": "$codigo === '_catalogo' || $codigo.matches(/^[A-Za-z][A-Za-z0-9_-]{1,59}$/)",
             "$pushKey": {
               ".write": "(auth != null && ((auth.token.email === 'tatianefdirene@previ.com.br' || auth.token.email === 'danielfrazao@previ.com.br') || root.child('fa-admins').child(auth.token.email.replace('@','_').replace('.','_')).exists())) && !data.exists() && newData.exists()",
-              ".validate": "newData.hasChildren(['tipo','usuario','dataHora']) && (newData.child('tipo').val() === 'alteracao_conceito' || newData.child('tipo').val() === 'alteracao_fonte' || newData.child('tipo').val() === 'definicao_vigente' || newData.child('tipo').val() === 'alteracao_perfil' || newData.child('tipo').val() === 'alteracao_atributo' || newData.child('tipo').val() === 'alteracao_relacao' || newData.child('tipo').val() === 'carga_inicial') && newData.child('usuario').hasChildren(['email']) && newData.child('usuario').child('email').val() === auth.token.email && newData.child('dataHora').isString()"
+              ".validate": "newData.hasChildren(['tipo','usuario','dataHora']) && (newData.child('tipo').val() === 'alteracao_conceito' || newData.child('tipo').val() === 'alteracao_fonte' || newData.child('tipo').val() === 'definicao_vigente' || newData.child('tipo').val() === 'alteracao_perfil' || newData.child('tipo').val() === 'alteracao_atributo' || newData.child('tipo').val() === 'alteracao_relacao' || newData.child('tipo').val() === 'carga_inicial' || newData.child('tipo').val() === 'fonte_arquivada' || newData.child('tipo').val() === 'fonte_restaurada') && newData.child('usuario').hasChildren(['email']) && newData.child('usuario').child('email').val() === auth.token.email && newData.child('dataHora').isString()"
             }
           }
         },

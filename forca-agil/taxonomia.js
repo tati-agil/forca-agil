@@ -72,6 +72,8 @@
   var RE_CODIGO = /^[A-Za-z][A-Za-z0-9_-]{1,59}$/;
   var RE_ID = /^[A-Za-z0-9_-]{1,60}$/;
   var FONTE_REBAIXADA = 'histórica/contextual';
+  /* Motivos do arquivamento lógico (lista FECHADA — a mesma das regras do banco). */
+  var MOTIVOS_ARQ = ['duplicidade', 'redação superada', 'não representa o conceito', 'fonte inadequada', 'criada por engano', 'outro'];
 
   function db() { return firebase.database(); }
   function esc(s) {
@@ -113,7 +115,7 @@
   /* ---------- estado ---------- */
   function novoHGDom() { return { estado: 'ocioso', cursor: null, temMais: false, erro: null }; }
   function novoHG() { return { carregou: false, carregando: false, itens: [], doms: { organizacional: novoHGDom(), arquitetural: novoHGDom() } }; }
-  function novoDominio() { return { estado: 'ocioso', conceitos: {}, atributos: {}, selecionado: null, detalhe: null, edicao: null, confirmacao: null }; }
+  function novoDominio() { return { estado: 'ocioso', conceitos: {}, atributos: {}, selecionado: null, detalhe: null, edicao: null, confirmacao: null, expandida: null, arquivando: null, arquivadasAbertas: false, dica: false }; }
   var st = {
     dominio: 'organizacional', email: null, raiz: null, opcoes: { somenteLeitura: false },
     meta: { estado: 'ocioso', cargaFeita: false }, importacao: null, flash: null, salvando: false,
@@ -307,7 +309,7 @@
   }
   function aposSalvar(dom, codigo, mensagem) {
     var D = st.d[dom];
-    D.edicao = null; D.confirmacao = null;
+    D.edicao = null; D.confirmacao = null; D.arquivando = null; D.expandida = null; D.dica = false;
     st.flash = { erro: false, texto: mensagem };
     carregarDominio(dom);
     if (codigo) { D.selecionado = codigo; carregarDetalhe(dom, codigo); }
@@ -323,7 +325,7 @@
   function fontesAtuais(dom) { var det = st.d[dom].detalhe; return (det && det.fontes) || {}; }
   /* "em revisão" quando há ao menos um texto utilizável; "ainda não registrada" quando não há nenhum. */
   function situacaoSemVigente(fontes) {
-    var util = chaves(fontes).some(function (id) { return SIT_FONTE_PROMOVIVEL.indexOf(fontes[id].situacao) !== -1; });
+    var util = chaves(fontes).some(function (id) { return !fontes[id].arquivada && SIT_FONTE_PROMOVIVEL.indexOf(fontes[id].situacao) !== -1; });
     return util ? 'em revisão' : 'ainda não registrada';
   }
   function checaVigencia(fontesPos, ponteiro) {
@@ -334,6 +336,9 @@
 
   function tornarVigente(dom, codigo, fonteId) {
     var c = conceitoAtual(dom, codigo), fontes = fontesAtuais(dom), fonte = fontes[fonteId];
+    if (fonte && fonte.arquivada) {
+      st.flash = { erro: true, texto: 'Esta fonte está arquivada. Restaure-a antes de usá-la como definição.' }; render(); return;
+    }
     if (!fonte || SIT_FONTE_PROMOVIVEL.indexOf(fonte.situacao) === -1) {
       st.flash = { erro: true, texto: 'Só um texto "em validação" ou "histórico/contextual" pode ser tornado vigente. Placeholder e "não localizado" nunca viram definição.' }; render(); return;
     }
@@ -364,6 +369,47 @@
     marcaConceito(caminhos, dom, codigo);
     addAud(caminhos, dom, codigo, 'definicao_vigente', 'definição vigente', rotuloFonte(fontes[anterior], anterior), null, { fonteAnteriorId: anterior, fonteNovaId: null });
     gravar(caminhos, function () { aposSalvar(dom, codigo, 'O conceito ficou sem definição vigente.'); });
+  }
+  /* ---------- arquivamento lógico: nenhuma fonte é apagada; descarte é sempre arquivar (e dá para restaurar) ---------- */
+  function arquivarFonte(dom, codigo, id) {
+    var D = st.d[dom], a = D.arquivando, fontes = fontesAtuais(dom), f = fontes[id], c = conceitoAtual(dom, codigo);
+    if (!a || a.fonte !== id) return;
+    function recusa(msg) { a.erro = msg; render(); }
+    if (!f) return recusa('Não encontrei esta fonte. Recarregue a página.');
+    if (f.arquivada) return recusa('Esta fonte já está arquivada.');
+    if (f.situacao === 'vigente' || c.definicaoVigenteFonteId === id) return recusa('A definição vigente não pode ser arquivada. Remova a vigência ou escolha outra definição antes.');
+    if (MOTIVOS_ARQ.indexOf(a.motivo) === -1) return recusa('Escolha o motivo do arquivamento.');
+    var just = String(a.justificativa || '').trim();
+    if (a.motivo === 'outro' && !just) return recusa('Explique o motivo em "Justificativa": ela é obrigatória quando o motivo é "outro".');
+    if (just.length > 500) return recusa('A justificativa tem no máximo 500 caracteres.');
+    var base = RAIZ + '/' + dom, caminhos = {}, reg = { motivo: a.motivo, em: agora(), por: emailAutor() };
+    if (just) reg.justificativa = just;
+    caminhos[base + '/fontes/' + codigo + '/' + id + '/arquivada'] = true;
+    caminhos[base + '/fontes/' + codigo + '/' + id + '/arquivamento'] = reg;
+    /* sem vigente, arquivar a última fonte utilizável tira o conceito de "em revisão" */
+    if (!c.definicaoVigenteFonteId && SIT_DEFINICAO.indexOf(c.situacaoDefinicao) !== -1) {
+      var pos = JSON.parse(JSON.stringify(fontes)); pos[id].arquivada = true;
+      var sit = situacaoSemVigente(pos);
+      if (sit !== c.situacaoDefinicao) caminhos[base + '/conceitos/' + codigo + '/situacaoDefinicao'] = sit;
+    }
+    marcaConceito(caminhos, dom, codigo);
+    addAud(caminhos, dom, codigo, 'fonte_arquivada', 'fonte', rotuloFonte(f, id), 'arquivada: ' + a.motivo, { fonteId: id, motivo: a.motivo, justificativa: just || null });
+    gravar(caminhos, function () { aposSalvar(dom, codigo, 'Texto-fonte arquivado. Ele continua consultável em "Fontes arquivadas".'); });
+  }
+  function restaurarFonte(dom, codigo, id) {
+    var fontes = fontesAtuais(dom), f = fontes[id], c = conceitoAtual(dom, codigo);
+    if (!f || !f.arquivada) return;
+    var base = RAIZ + '/' + dom, caminhos = {};
+    caminhos[base + '/fontes/' + codigo + '/' + id + '/arquivada'] = null;
+    caminhos[base + '/fontes/' + codigo + '/' + id + '/arquivamento'] = null;
+    if (!c.definicaoVigenteFonteId && SIT_DEFINICAO.indexOf(c.situacaoDefinicao) !== -1) {
+      var pos = JSON.parse(JSON.stringify(fontes)); delete pos[id].arquivada;
+      var sit = situacaoSemVigente(pos);
+      if (sit !== c.situacaoDefinicao) caminhos[base + '/conceitos/' + codigo + '/situacaoDefinicao'] = sit;
+    }
+    marcaConceito(caminhos, dom, codigo);
+    addAud(caminhos, dom, codigo, 'fonte_restaurada', 'fonte', 'arquivada: ' + ((f.arquivamento && f.arquivamento.motivo) || '—'), rotuloFonte(f, id), { fonteId: id });
+    gravar(caminhos, function () { aposSalvar(dom, codigo, 'Texto-fonte restaurado: voltou para "Fontes disponíveis".'); });
   }
   function rotuloFonte(f, id) { return f ? ((f.rotulo || f.tipoRedacao || id) + ' (' + f.contexto + ')') : id; }
 
@@ -408,6 +454,7 @@
     var nova = e.tipo === 'novaFonte';
     var id = nova ? db().ref(RAIZ + '/' + dom + '/fontes/' + codigo).push().key : e.chave;
     var atual = nova ? null : fontes[id];
+    if (atual && atual.arquivada) { e.erro = 'Esta fonte está arquivada e não pode ser editada. Restaure-a primeiro.'; render(); return; }
     var ehVigente = !!(atual && atual.situacao === 'vigente');
     var situacao = ehVigente ? 'vigente' : v.situacao;
     if (!ehVigente && SIT_FONTE_EDITAVEL.indexOf(situacao) === -1) { e.erro = 'Escolha uma situação válida. Para tornar vigente use "Tornar vigente".'; render(); return; }
@@ -715,33 +762,75 @@
     var v = validarVigencia(det.fontes, c.definicaoVigenteFonteId || null);
     if (!det.carregando && !det.erros.fontes && !v.ok) html += '<p class="tax-aviso-erro" role="alert" id="taxAvisoVigencia">Estado inconsistente: ' + esc(v.erro) + ' Salvar alterações das fontes fica bloqueado até corrigir.</p>';
     var todas = ordenaPor(chaves(det.fontes).map(function (k) { return Object.assign({ _id: k }, det.fontes[k]); }), 'criadoEm');
-    var vigentes = todas.filter(function (f) { return f.situacao === 'vigente'; });
-    var candidatas = todas.filter(function (f) { return f.situacao !== 'vigente'; });
-    /* Texto idêntico = igualdade EXATA (só espaços das pontas ignorados). Nada é fundido nem escondido. */
+    var vigentes = todas.filter(function (f) { return f.situacao === 'vigente' && !f.arquivada; });
+    var arquivadas = todas.filter(function (f) { return f.arquivada; });
+    var disponiveis = todas.filter(function (f) { return f.situacao !== 'vigente' && !f.arquivada; });
+    /* Texto idêntico = igualdade EXATA (só espaços das pontas ignorados), entre fontes NÃO arquivadas.
+       Nada é fundido nem escondido; é só um sinal para a curadoria humana. */
     var chaveTexto = function (f) { return String(f.texto || '').trim(); };
     var porTexto = {};
-    todas.forEach(function (f) { (porTexto[chaveTexto(f)] = porTexto[chaveTexto(f)] || []).push(f); });
-    var nUnicos = chaves(porTexto).length;
-    var conf = D.confirmacao;
+    todas.filter(function (f) { return !f.arquivada; }).forEach(function (f) { (porTexto[chaveTexto(f)] = porTexto[chaveTexto(f)] || []).push(f); });
+    var conf = D.confirmacao, arqForm = D.arquivando;
     var nomeFonte = function (f) { return f.rotulo || f.tipoRedacao || f._id; };
+    var iguaisA = function (f) { return f.arquivada ? [] : (porTexto[chaveTexto(f)] || []).filter(function (o) { return o._id !== f._id; }); };
+    var plural = function (n, um, varios) { return n + ' ' + (n === 1 ? um : varios); };
 
-    function cartao(f, vigente) {
-      var editandoEste = e && e.tipo === 'fonte' && e.chave === f._id;
-      var h = '<article class="tax-fonte' + (vigente ? ' tax-fonte--vigente' : ' tax-fonte--candidata') + '" data-fonte="' + esc(f._id) + '">';
-      h += '<header>' + (vigente ? selo('DEFINIÇÃO VIGENTE', 'tax-selo--vigente') : selo('FONTE PARA CURADORIA', 'tax-selo--curadoria')) + ' ' +
-        (f.rotulo ? '<strong>' + esc(f.rotulo) + '</strong> ' : '') + selo(f.contexto, 'tax-selo--ctx') + seloSituacaoFonte(f.situacao) + selo(f.tipoRedacao) + '</header>';
-      if (editandoEste) return h + formFonte(dom, codigo, e) + '</article>';
+    function detalhes(f) {
+      var h = '<div class="tax-detalhes">';
       h += '<p class="tax-fonte-texto">' + esc(f.texto) + '</p>';
-      var iguais = porTexto[chaveTexto(f)].filter(function (o) { return o._id !== f._id; });
+      h += '<dl class="tax-confirma-dados tax-meta"><dt>Tipo de redação</dt><dd>' + esc(f.tipoRedacao) + '</dd>' +
+        '<dt>Situação</dt><dd>' + esc(f.situacao) + '</dd>' +
+        '<dt>Criada por</dt><dd>' + esc(f.criadoPor || '—') + (f.criadoEm ? ' em ' + esc(fmtData(f.criadoEm)) : '') + '</dd>' +
+        '<dt>Identificador</dt><dd><code>' + esc(f._id) + '</code></dd>';
+      if (f.arquivada && f.arquivamento) h += '<dt>Arquivada por</dt><dd>' + esc(f.arquivamento.por || '—') + ' em ' + esc(fmtData(f.arquivamento.em)) + '</dd>';
+      h += '</dl>';
+      var iguais = iguaisA(f);
       if (iguais.length) h += '<p class="tax-identico">Texto idêntico a: ' + iguais.map(function (o) { return esc(rotuloFonte(o, o._id)) + (o.situacao === 'vigente' ? ' (definição vigente)' : ''); }).join('; ') + '</p>';
-      if (!vigente && SIT_FONTE_PROMOVIVEL.indexOf(f.situacao) === -1) h += '<p class="tax-ajuda">Não pode ser definição (' + esc(f.situacao) + ').</p>';
+      if (ed && !f.arquivada) h += '<div class="tax-acoes"><button type="button" class="btn btn--sm" data-tax="editar-fonte" data-fonte="' + esc(f._id) + '">Editar</button></div>';
+      return h + '</div>';
+    }
+    function cabecalho(f, vigente) {
+      var h = '<header class="tax-fonte-cab">';
+      if (vigente) h += selo('DEFINIÇÃO OFICIAL', 'tax-selo--vigente') + ' ';
+      else if (f.arquivada) h += selo('ARQUIVADA', 'tax-selo--arquivada') + ' ';
+      h += '<strong class="tax-fonte-nome">' + esc(nomeFonte(f)) + '</strong> ' + selo(f.contexto, 'tax-selo--ctx');
+      if (!vigente) h += seloSituacaoFonte(f.situacao);
+      return h + '</header>';
+    }
+    function cartao(f, tipo) { /* tipo: 'vigente' | 'disponivel' | 'arquivada' */
+      var vigente = tipo === 'vigente', aberta = D.expandida === f._id;
+      var editandoEste = e && e.tipo === 'fonte' && e.chave === f._id;
+      var h = '<article class="tax-fonte tax-fonte--' + tipo + (aberta || editandoEste ? ' tax-fonte--aberta' : '') + '" data-fonte="' + esc(f._id) + '">';
+      h += cabecalho(f, vigente);
+      if (editandoEste) return h + formFonte(dom, codigo, e) + '</article>';
+      if (vigente) {
+        h += '<p class="tax-fonte-texto">' + esc(f.texto) + '</p>';
+      } else if (f.arquivada) {
+        var a = f.arquivamento || {};
+        h += '<p class="tax-arq-info">Motivo: <strong>' + esc(a.motivo || '—') + '</strong>' + (a.justificativa ? ' — ' + esc(a.justificativa) : '') + '<br><span class="tax-ajuda">Arquivada em ' + esc(fmtData(a.em)) + ' por ' + esc(a.por || '—') + '</span></p>';
+      } else {
+        if (iguaisA(f).length) h += '<p class="tax-identico tax-identico--resumo">Texto idêntico ao de outra fonte</p>';
+        if (SIT_FONTE_PROMOVIVEL.indexOf(f.situacao) === -1) h += '<p class="tax-ajuda">Não pode ser definição (' + esc(f.situacao) + ').</p>';
+      }
+      if (aberta) h += detalhes(f);
+      h += '<div class="tax-acoes tax-acoes--fonte">';
+      if (vigente) {
+        if (ed) h += '<button type="button" class="btn btn--sm" data-tax="alterar-definicao">Alterar definição</button>' +
+          '<button type="button" class="btn btn--sm" data-tax="remover-vigencia" data-fonte="' + esc(f._id) + '">Remover vigência</button>';
+        h += '<button type="button" class="btn btn--sm" data-tax="ver" data-fonte="' + esc(f._id) + '" aria-expanded="' + (aberta ? 'true' : 'false') + '">' + (aberta ? 'Ocultar detalhes' : 'Ver detalhes') + '</button>';
+      } else {
+        h += '<button type="button" class="btn btn--sm" data-tax="ver" data-fonte="' + esc(f._id) + '" aria-expanded="' + (aberta ? 'true' : 'false') + '">' + (aberta ? 'Ocultar' : 'Ver') + '</button>';
+        if (ed && f.arquivada) h += '<button type="button" class="btn btn--sm" data-tax="restaurar" data-fonte="' + esc(f._id) + '"' + (st.salvando ? ' disabled' : '') + '>Restaurar</button>';
+        else if (ed) {
+          if (SIT_FONTE_PROMOVIVEL.indexOf(f.situacao) !== -1) h += '<button type="button" class="btn btn--sm" data-tax="tornar-vigente" data-fonte="' + esc(f._id) + '">Usar como vigente</button>';
+          h += '<button type="button" class="btn btn--sm" data-tax="arquivar" data-fonte="' + esc(f._id) + '">Arquivar</button>';
+        }
+      }
+      h += '</div>';
       if (ed) {
-        h += '<div class="tax-acoes">';
-        if (!vigente && SIT_FONTE_PROMOVIVEL.indexOf(f.situacao) !== -1) h += '<button type="button" class="btn btn--sm" data-tax="tornar-vigente" data-fonte="' + esc(f._id) + '">Analisar para curadoria</button>';
-        if (vigente) h += '<button type="button" class="btn btn--sm" data-tax="remover-vigencia" data-fonte="' + esc(f._id) + '">Remover vigência</button>';
-        h += '<button type="button" class="btn btn--sm" data-tax="editar-fonte" data-fonte="' + esc(f._id) + '">Editar</button></div>';
         if (conf && conf.fonte === f._id && conf.acao === 'remover' && vigente) h += painelRemocao(f);
-        if (conf && conf.fonte === f._id && conf.acao === 'tornar' && !vigente) h += painelAnalise(f);
+        if (conf && conf.fonte === f._id && conf.acao === 'tornar' && tipo === 'disponivel') h += painelAnalise(f);
+        if (arqForm && arqForm.fonte === f._id && tipo === 'disponivel') h += painelArquivar(f);
       }
       return h + '</article>';
     }
@@ -756,7 +845,7 @@
     function painelAnalise(f) {
       var atualV = c.definicaoVigenteFonteId && det.fontes[c.definicaoVigenteFonteId];
       return '<div class="tax-confirma" role="alertdialog" aria-label="Análise para curadoria">' +
-        '<p><strong>Análise para curadoria</strong></p>' +
+        '<p><strong>Usar como definição vigente</strong></p>' +
         '<p class="tax-confirma-aviso" role="note"><strong>Esta ação altera a definição oficial deste conceito.</strong>' +
         (atualV ? ' O texto vigente atual (' + esc(rotuloFonte(atualV, c.definicaoVigenteFonteId)) + ') passa a "histórico/contextual".' : '') +
         ' O texto-fonte em si não é alterado. A decisão fica registrada na auditoria.</p>' +
@@ -773,22 +862,39 @@
         '<div class="tax-acoes"><button type="button" class="btn btn--sm tax-btn-perigo" data-tax="confirmar-remocao" data-fonte="' + esc(f._id) + '"' + (st.salvando ? ' disabled' : '') + '>' + (st.salvando ? 'SALVANDO…' : 'Remover a definição vigente') + '</button>' +
         '<button type="button" class="btn btn--sm" data-tax="cancelar-confirmacao">Cancelar / manter a definição vigente</button></div></div>';
     }
+    function painelArquivar(f) {
+      return '<div class="tax-confirma tax-arquivar" id="taxFormArquivar" role="group" aria-label="Arquivar texto-fonte">' +
+        '<p><strong>Arquivar este texto-fonte?</strong></p>' +
+        '<p class="tax-ajuda">O texto não é apagado: sai da lista de fontes disponíveis, fica consultável em “Fontes arquivadas” e pode ser restaurado. A decisão fica registrada na auditoria.</p>' +
+        '<label for="taxA_motivo">Motivo *</label><select id="taxA_motivo" data-arq="motivo"><option value="">— escolha —</option>' +
+        MOTIVOS_ARQ.map(function (m) { return '<option value="' + esc(m) + '"' + (arqForm.motivo === m ? ' selected' : '') + '>' + esc(m) + '</option>'; }).join('') + '</select>' +
+        '<label for="taxA_justificativa">Justificativa (obrigatória se o motivo for “outro”)</label><textarea id="taxA_justificativa" data-arq="justificativa" rows="3" maxlength="500">' + esc(arqForm.justificativa) + '</textarea>' +
+        (arqForm.erro ? '<p class="tax-aviso-erro" role="alert">' + esc(arqForm.erro) + '</p>' : '') +
+        '<div class="tax-acoes"><button type="button" class="btn btn--sm tax-btn-perigo" data-tax="confirmar-arquivar" data-fonte="' + esc(f._id) + '"' + (st.salvando ? ' disabled' : '') + '>' + (st.salvando ? 'SALVANDO…' : 'Arquivar texto-fonte') + '</button>' +
+        '<button type="button" class="btn btn--sm" data-tax="cancelar-arquivar"' + (st.salvando ? ' disabled' : '') + '>Cancelar</button></div></div>';
+    }
 
     var pronto = !det.carregando && !det.erros.fontes;
-    html += '<div class="tax-sub" id="taxVigenteBloco"><h5>Definição vigente</h5>';
-    if (vigentes.length) html += vigentes.map(function (f) { return cartao(f, true); }).join('');
+    if (pronto && todas.length) html += '<p class="tax-resumo-fontes" id="taxResumoFontes">' + plural(disponiveis.length, 'fonte disponível', 'fontes disponíveis') + (arquivadas.length ? ' · ' + plural(arquivadas.length, 'fonte arquivada', 'fontes arquivadas') : '') + '</p>';
+    html += '<div class="tax-sub tax-bloco tax-bloco--vigente" id="taxVigenteBloco"><h5>Definição vigente</h5>';
+    if (vigentes.length) html += vigentes.map(function (f) { return cartao(f, 'vigente'); }).join('');
     else if (pronto) html += '<p class="tax-ausencia tax-sem-vigente">Nenhuma definição vigente. Nenhum dos textos abaixo vale como definição enquanto não for aprovado.</p>';
     html += '</div>';
-    html += '<div class="tax-sub" id="taxFontesCuradoria"><h5>Fontes para curadoria</h5>';
-    if (todas.length) html += '<p class="tax-resumo-fontes" id="taxResumoFontes">' + todas.length + (todas.length === 1 ? ' fonte cadastrada' : ' fontes cadastradas') + ' · ' + nUnicos + (nUnicos === 1 ? ' texto único' : ' textos únicos') + '</p>';
-    html += '<p class="tax-ajuda">Estes textos são redações recebidas, candidatas à curadoria. “Conceito”, “Significado v1”, “Significado v2” e “proposta” são tipos de redação, não graus de autoridade. Só um texto pode ser a definição vigente.</p>';
+    html += '<div class="tax-sub tax-bloco tax-bloco--disponiveis" id="taxFontesDisponiveis" tabindex="-1"><h5>Fontes disponíveis' + (pronto ? ' (' + disponiveis.length + ')' : '') + '</h5>';
+    if (D.dica && ed) html += '<p class="tax-dica" id="taxDicaAlterar" role="note">Escolha uma das fontes abaixo e use “Usar como vigente”. Nenhuma delas é recomendada: a escolha é sua.</p>';
     if (!todas.length && pronto) html += '<p class="tax-ausencia">Nenhum texto-fonte registrado.</p>';
-    else if (pronto && !candidatas.length) html += '<p class="tax-ausencia">Não há outros textos-fonte além da definição vigente.</p>';
-    candidatas.forEach(function (f) { html += cartao(f, false); });
-    html += '</div>';
+    else if (pronto && !disponiveis.length) html += '<p class="tax-ausencia">Não há fontes disponíveis além da definição vigente.</p>';
+    disponiveis.forEach(function (f) { html += cartao(f, 'disponivel'); });
     if (ed) {
       if (e && e.tipo === 'novaFonte') html += '<article class="tax-fonte">' + formFonte(dom, codigo, e) + '</article>';
       else html += '<div class="tax-acoes"><button type="button" class="btn btn--sm" data-tax="nova-fonte">+ Adicionar texto-fonte</button></div>';
+    }
+    html += '</div>';
+    if (pronto && arquivadas.length) {
+      html += '<div class="tax-sub tax-bloco tax-bloco--arquivadas" id="taxFontesArquivadas"><h5><button type="button" class="tax-recolher" data-tax="alternar-arquivadas" aria-expanded="' + (D.arquivadasAbertas ? 'true' : 'false') + '">' +
+        (D.arquivadasAbertas ? '▾' : '▸') + ' Fontes arquivadas (' + arquivadas.length + ')</button></h5>';
+      if (D.arquivadasAbertas) arquivadas.forEach(function (f) { html += cartao(f, 'arquivada'); });
+      html += '</div>';
     }
     return html + '</section>';
   }
@@ -935,7 +1041,7 @@
      ainda existe página anterior, sem contador total. Nada é copiado para o histórico dos conceitos. */
   var HG_PAGINA = 25;
   var HG_TIPOS = { carga_inicial: 'Carga inicial', alteracao_atributo: 'Alteração de atributo', alteracao_relacao: 'Alteração de relação',
-    alteracao_conceito: 'Alteração de conceito', alteracao_fonte: 'Alteração de fonte', definicao_vigente: 'Definição vigente', alteracao_perfil: 'Alteração de perfil' };
+    alteracao_conceito: 'Alteração de conceito', alteracao_fonte: 'Alteração de fonte', definicao_vigente: 'Definição vigente', alteracao_perfil: 'Alteração de perfil', fonte_arquivada: 'Fonte arquivada', fonte_restaurada: 'Fonte restaurada' };
   function podeVerHG() { return ehAdmin() && adminPronto() && !st.opcoes.somenteLeitura; }
   function carregarHG(quais) {
     var H = st.hg;
@@ -1046,7 +1152,7 @@
     var D = st.d[st.dominio];
     if (D.detalhe && D.detalhe.carregando && tipo !== 'conceito') { /* ainda carregando: espera */ }
     D.edicao = { tipo: tipo, chave: chave || D.selecionado, valores: valoresDe(st.dominio, tipo, chave), erro: null };
-    D.confirmacao = null;
+    D.confirmacao = null; D.arquivando = null; if (tipo === 'fonte') D.expandida = chave;
     render();
   }
   function aoClicar(ev) {
@@ -1067,13 +1173,25 @@
     else if (acao === 'recarregar') { carregarMeta(); carregarDominio(dom); }
     else if (acao === 'selecionar') {
       var cod = alvo.getAttribute('data-codigo');
-      D.selecionado = cod; D.edicao = null; D.confirmacao = null; st.vista = 'detalhe'; st.flash = null;
+      D.selecionado = cod; D.edicao = null; D.confirmacao = null; D.arquivando = null; D.expandida = null; D.dica = false; D.arquivadasAbertas = false; st.vista = 'detalhe'; st.flash = null;
       carregarDetalhe(dom, cod);
       var det = raiz().querySelector('.tax-detalhe'); if (det && det.scrollIntoView && window.innerWidth <= 720) det.scrollIntoView();
     } else if (acao === 'voltar-lista') { st.vista = 'lista'; render(); }
     else if (acao === 'fechar-flash') { st.flash = null; render(); }
     else if (acao === 'verificar-pendente') { var pp = st.pendente; if (pp && !pp.resolvido && !pp.verificando) { clearTimeout(pp.timerVerif); pp.tentativas = 0; verificarGravacao(pp); } }
+    else if (acao === 'ver') { var idv = alvo.getAttribute('data-fonte'); D.expandida = D.expandida === idv ? null : idv; render(); }
+    else if (acao === 'alternar-arquivadas') { D.arquivadasAbertas = !D.arquivadasAbertas; render(); }
     else if (!podeEditar() && acao !== 'cancelar-importacao') return;
+    else if (acao === 'alterar-definicao') {
+      /* Só leva o olhar até as fontes disponíveis. Não ordena, não sugere, não escolhe nada. */
+      D.dica = true; render();
+      var disp = document.getElementById('taxFontesDisponiveis');
+      if (disp) { if (disp.scrollIntoView) disp.scrollIntoView({ block: 'start' }); if (disp.focus) disp.focus({ preventScroll: true }); }
+    }
+    else if (acao === 'arquivar') { D.arquivando = { fonte: alvo.getAttribute('data-fonte'), motivo: '', justificativa: '', erro: null }; D.confirmacao = null; D.edicao = null; render(); }
+    else if (acao === 'cancelar-arquivar') { D.arquivando = null; render(); }
+    else if (acao === 'confirmar-arquivar') { if (!st.salvando) arquivarFonte(dom, D.selecionado, alvo.getAttribute('data-fonte')); }
+    else if (acao === 'restaurar') { if (!st.salvando) restaurarFonte(dom, D.selecionado, alvo.getAttribute('data-fonte')); }
     else if (acao === 'editar-conceito') iniciaEdicao('conceito', D.selecionado);
     else if (acao === 'nova-fonte') iniciaEdicao('novaFonte', null);
     else if (acao === 'editar-fonte') iniciaEdicao('fonte', alvo.getAttribute('data-fonte'));
@@ -1084,7 +1202,7 @@
       if (e.tipo === 'conceito') salvarConceito(dom, D.selecionado);
       else if (e.tipo === 'fonte' || e.tipo === 'novaFonte') salvarFonte(dom, D.selecionado);
       else salvarPerfil(dom, D.selecionado);
-    } else if (acao === 'tornar-vigente') { D.confirmacao = { fonte: alvo.getAttribute('data-fonte'), acao: 'tornar' }; render(); }
+    } else if (acao === 'tornar-vigente') { D.confirmacao = { fonte: alvo.getAttribute('data-fonte'), acao: 'tornar' }; D.arquivando = null; render(); }
     else if (acao === 'cancelar-confirmacao') { D.confirmacao = null; render(); }
     else if (acao === 'confirmar-vigente') { if (!st.salvando) tornarVigente(dom, D.selecionado, alvo.getAttribute('data-fonte')); }
     else if (acao === 'remover-vigencia') { D.confirmacao = { fonte: alvo.getAttribute('data-fonte'), acao: 'remover' }; render(); }
@@ -1097,6 +1215,8 @@
     if (el.id === 'taxArquivo') { if (ev.type === 'change' && el.files && el.files[0]) escolherArquivo(el.files[0]); return; }
     var campo = el.getAttribute && el.getAttribute('data-campo');
     var D = st.d[st.dominio];
+    var campoArq = el.getAttribute && el.getAttribute('data-arq');
+    if (campoArq && D.arquivando) { D.arquivando[campoArq] = el.value; D.arquivando.erro = null; return; }
     if (!campo || !D.edicao) return;
     D.edicao.valores[campo] = el.type === 'checkbox' ? el.checked : el.value;
     D.edicao.erro = null;
@@ -1151,7 +1271,7 @@
     /* Só para teste: permite rodar as MESMAS operações da tela contra o emulador com as regras reais
        (teste-rules-taxonomia.js) e provar que o que a aplicação grava, o banco aceita. */
     _interno: {
-      st: st, espera: ESPERA, leitores: LEITORES, carregarHG: carregarHG, carregarDominio: carregarDominio, carregarDetalhe: carregarDetalhe, tornarVigente: tornarVigente,
+      st: st, espera: ESPERA, leitores: LEITORES, carregarHG: carregarHG, carregarDominio: carregarDominio, carregarDetalhe: carregarDetalhe, tornarVigente: tornarVigente, arquivarFonte: arquivarFonte, restaurarFonte: restaurarFonte,
       removerVigencia: removerVigencia, salvarConceito: salvarConceito, salvarFonte: salvarFonte, salvarPerfil: salvarPerfil
     }
   };
