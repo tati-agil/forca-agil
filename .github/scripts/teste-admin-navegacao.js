@@ -124,7 +124,9 @@ async function conferirVoltar(page, sel, rotuloEsperado, descricao) {
     afirma(await page.locator('.avp-modal-confirm-btn').count() === 0 && await page.locator('#avpMotorArqEditarBtn').count() === 1, 'editar regras sem alteração: sai sem perguntar, para o painel dos motores');
     await page.click('#avpMotorArqEditarBtn');
     await page.waitForSelector('.sq-cond-select');
-    const sel = page.locator('.sq-cond-select').first();
+    /* Condição de PRODUTO_SERVICO_PRINCIPAL (folha 2): inverter a 1ª folha (P16 da INCOERENCIA)
+       deixaria Produto/Serviço principal inalcançável, e o editor agora bloqueia regra inalcançável. */
+    const sel = page.locator('.sq-cond-select[data-leaf-id="2"]');
     const atual = await sel.inputValue();
     await sel.selectOption(atual === 'SIM' ? 'NAO' : 'SIM');
     await page.click('#avpMotoresVoltarLista');

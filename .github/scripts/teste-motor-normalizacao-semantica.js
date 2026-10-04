@@ -165,8 +165,11 @@ function publicarSquad(page, regras) {
     var v = window.faMotorArquitetura.versaoAtual();
     var regras = JSON.parse(JSON.stringify(window.faMotorArquitetura.regrasDaVersao(v).regras));
     var modalidade = regras.filter((r) => r.codigo === 'MODALIDADE_SUBPRODUTO')[0];
-    var leafP16 = modalidade.condicoes.all.filter((c) => c.campo === 'P16')[0];
-    leafP16.valor = 'SIM'; // era NAO
+    /* P15 (era NAO): mudança lógica real que mantém a regra alcançável. Inverter P16 tornaria
+       MODALIDADE inalcançável (FUNCIONALIDADE_OPERACAO já pega P16=SIM+P5=NAO), e regra
+       inalcançável agora é bloqueada pela validação — não é isso que este passo testa. */
+    var leafP15 = modalidade.condicoes.all.filter((c) => c.campo === 'P15')[0];
+    leafP15.valor = 'SIM'; // era NAO
     return regras;
   }));
   afirma(!t7.err, 'publicação da mudança de condição não gerou erro');

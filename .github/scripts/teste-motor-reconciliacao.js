@@ -265,7 +265,9 @@ async function voltarParaAvaliacoes(page) {
     await page.waitForTimeout(500);
     await page.click('#avpMotorArqEditarBtn');
     await page.waitForTimeout(300);
-    await page.selectOption('.sq-cond-select[data-leaf-id="0"]', 'NAO');
+    /* Folha 2 (P1 de PRODUTO_SERVICO_PRINCIPAL): inverter a folha 0 (P16 da INCOERENCIA) deixaria
+       Produto/Serviço principal inalcançável, e regra inalcançável agora bloqueia simulação/publicação. */
+    await page.selectOption('.sq-cond-select[data-leaf-id="2"]', 'NAO');
     await page.click('#avpMotorArqSimularBtn');
     await page.waitForTimeout(400);
     await page.click('#avpMotorArqConfirmarPublicarBtn');

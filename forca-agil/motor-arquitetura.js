@@ -530,8 +530,53 @@
       if (!executarRegras(regras, contexto)) semFallback = true;
     }
     if (semFallback) erros.push('Configuração não cobre todas as combinações possíveis de respostas (falta um fallback) — testado exaustivamente sobre as 65536 combinações.');
+    /* Regra INALCANÇÁVEL: com o editor podendo ACRESCENTAR condições, dá para
+       tornar uma regra impossível de ser a primeira a valer sem perceber
+       (ex.: uma condição que contradiz outra, ou uma regra anterior que já
+       cobre todos os casos dela). Uma regra assim nunca classifica nada —
+       quase certamente um engano — e por isso bloqueia simulação e
+       publicação. Só roda numa configuração estruturalmente válida. */
+    if (!erros.length) {
+      regrasInalcancaveis(regras).forEach(function (codigo) {
+        erros.push('A regra ' + codigo + ' nunca seria aplicada: em nenhuma das 65536 combinações de respostas ela é a primeira a valer. Revise as condições acrescentadas.');
+      });
+    }
     return erros;
   }
+  /* Códigos das regras comuns (não fallback) que nunca são a primeira a
+     valer em nenhuma das 65536 combinações. */
+  function regrasInalcancaveis(regras) {
+    var ordenadas = ordenarPorPrecedencia(regras || []);
+    var alcancada = {};
+    for (var n = 0; n < 65536; n++) {
+      var contexto = {};
+      for (var b = 0; b < 16; b++) contexto[CAMPOS_VALIDOS[b]] = (n & (1 << b)) ? 'SIM' : 'NAO';
+      var r = executarRegrasOrdenadas(ordenadas, contexto);
+      if (r) alcancada[r.codigo] = true;
+    }
+    return ordenadas.filter(function (r) { return !ehFallback(r) && !alcancada[r.codigo]; }).map(function (r) { return r.codigo; });
+  }
+  /* Todas as perguntas (P1-P16) usadas em qualquer ponto das condições de
+     uma regra — inclusive dentro de grupos QUALQUER/NENHUMA. É o que o
+     editor usa para não oferecer uma pergunta que a regra já usa. */
+  function perguntasDaRegra(regra) {
+    var usadas = {};
+    (function percorre(cond) {
+      if (!cond || typeof cond !== 'object') return;
+      if (Array.isArray(cond.all)) { cond.all.forEach(percorre); return; }
+      if (Array.isArray(cond.any)) { cond.any.forEach(percorre); return; }
+      if (cond.not) { percorre(cond.not); return; }
+      if (cond.equals) { percorre(cond.equals); return; }
+      var campo = cond.campo || cond.pergunta;
+      if (campo) usadas[campo] = true;
+    })(regra && regra.condicoes);
+    return Object.keys(usadas);
+  }
+  /* Regras da versão-base EXATA de um rascunho, ou null se ela não está
+     disponível (config ainda não carregada / versão inexistente) — nunca
+     cai silenciosamente em outra versão: quem pergunta "o que é novo neste
+     rascunho" precisa comparar com a base dele, não com a versão vigente. */
+  function regrasDaVersaoBase(versao) { return regrasDaVersaoEstrita(Number(versao)); }
 
   /* ===================== GOVERNANÇA (RASCUNHO → SIMULAÇÃO → PUBLICAÇÃO) =====================
      Mesmo padrão de motor-squad.js — um único listener, cache local,
@@ -875,6 +920,9 @@
     configCarregada: configCarregada,
     simular: simular,
     validarRegras: validarRegras,
+    regrasInalcancaveis: regrasInalcancaveis,
+    perguntasDaRegra: perguntasDaRegra,
+    regrasDaVersaoBase: regrasDaVersaoBase,
     onMudanca: onMudanca,
     versaoAtual: versaoAtual,
     regrasDaVersao: regrasDaVersao,
