@@ -176,10 +176,26 @@
      compartilhados" só para ~15 linhas — mesmo padrão já usado por
      avaliacao-produto.js/avaliacao-squad.js para esc()/fmtData()/modais). */
   function normalizarValor(v) { return String(v == null ? '' : v).trim().toUpperCase(); }
+  /* "PELO MENOS N DE" — { atLeast: 2, of: [condições] }: verdadeiro quando
+     pelo menos N das condições listadas são verdadeiras. Existe para a
+     política geral de conflitos de natureza predominante ("pelo menos 2
+     entre P11–P15 = SIM"): escrita com all/any, a mesma ideia viraria um
+     QUALQUER de 10 pares (20 folhas soltas no editor). Continua sendo só um
+     operador lógico sobre condições SIM/NÃO — não é peso, pontuação nem
+     soma de respostas para escolher camada: só diz se há conflito. */
+  function ehPeloMenos(cond) {
+    return !!cond && typeof cond === 'object' && (cond.atLeast != null || cond.of != null);
+  }
   function avaliarCondicao(cond, contexto) {
     if (!cond || typeof cond !== 'object') return false;
     if (Array.isArray(cond.all)) return cond.all.every(function (c) { return avaliarCondicao(c, contexto); });
     if (Array.isArray(cond.any)) return cond.any.some(function (c) { return avaliarCondicao(c, contexto); });
+    if (ehPeloMenos(cond)) {
+      if (!Array.isArray(cond.of) || typeof cond.atLeast !== 'number') return false;
+      var verdadeiras = 0;
+      for (var i = 0; i < cond.of.length; i++) if (avaliarCondicao(cond.of[i], contexto)) verdadeiras++;
+      return verdadeiras >= cond.atLeast;
+    }
     if (cond.not) return !avaliarCondicao(cond.not, contexto);
     if (cond.equals) return avaliarCondicao(cond.equals, contexto);
     var campo = cond.campo || cond.pergunta;
@@ -294,6 +310,14 @@
       });
       return { any: filhosAny };
     }
+    if (ehPeloMenos(cond)) {
+      var filhosDe = (Array.isArray(cond.of) ? cond.of : []).map(normalizarCondicaoParaComparacao);
+      filhosDe.sort(function (a, b) {
+        var sa = JSON.stringify(a), sb = JSON.stringify(b);
+        return sa < sb ? -1 : (sa > sb ? 1 : 0);
+      });
+      return { atLeast: cond.atLeast, of: filhosDe };
+    }
     if (cond.not) return { not: normalizarCondicaoParaComparacao(cond.not) };
     if (cond.equals) return normalizarCondicaoParaComparacao(cond.equals);
     var campo = cond.campo || cond.pergunta;
@@ -318,14 +342,19 @@
         conflito: regra.conflito || null
       });
     }
-    return ordenarChavesProfundo({
+    var canonica = {
       codigo: regra.codigo || null,
       ordem: regra.ordem != null ? regra.ordem : null,
       resultado: regra.resultado || null,
       incoerencia: !!regra.incoerencia,
       conflito: regra.conflito || null,
       condicoes: normalizarCondicaoParaComparacao(regra.condicoes)
-    });
+    };
+    /* Só entra quando ligado: assim a forma canônica de toda regra que não
+       usa conflito dinâmico (todas as versões já publicadas) continua
+       exatamente a de antes — nenhuma versão antiga "muda" no diff. */
+    if (regra.conflitoDinamico) canonica.conflitoDinamico = true;
+    return ordenarChavesProfundo(canonica);
   }
 
   /* ===================== MOTOR PURO (sem Firebase, sem DOM) =====================
@@ -340,12 +369,60 @@
      único lugar monta este objeto, tanto para identificarCamada quanto para
      a prova exaustiva de equivalência entre versões (compararRegrasExaustivamente),
      para as duas nunca divergirem sobre "o que o motor devolve". */
-  function retornoDoMotor(regra) {
+  function retornoDoMotor(regra, contexto) {
     if (!regra) return { camada: 'a-validar', regraAplicada: null, motivosCodigos: [], conflito: null, incoerencia: false };
+    if (regra.conflitoDinamico) {
+      /* Conflito DINÂMICO: as categorias em conflito são só as naturezas
+         efetivamente marcadas SIM nesta combinação (nunca uma lista fixa que
+         cite o que ninguém marcou) — e os motivos são as mesmas perguntas. */
+      var marcadas = naturezasMarcadas(regra, contexto || {});
+      return {
+        camada: regra.resultado, regraAplicada: regra.codigo || null,
+        motivosCodigos: marcadas.map(function (m) { return m.campo; }),
+        conflito: marcadas.map(function (m) { return m.camada; }),
+        incoerencia: !!regra.incoerencia, conflitoNaturezas: true
+      };
+    }
     return {
       camada: regra.resultado, regraAplicada: regra.codigo || null, motivosCodigos: regra.motivos || [],
       conflito: regra.conflito || null, incoerencia: !!regra.incoerencia
     };
+  }
+  /* ===================== CONFLITO DE NATUREZAS PREDOMINANTES =====================
+     P11–P15 perguntam, cada uma, se o item é PRINCIPALMENTE uma natureza
+     arquitetural; as definições curadas não estabelecem hierarquia entre
+     elas, então duas ou mais SIM são um conflito (A validar), nunca uma
+     escolha pela ordem das regras. A correspondência pergunta → camada é
+     IDENTIDADE (fixa em código, como CAMADAS_VALIDAS), nunca texto. */
+  var CAMADA_POR_NATUREZA = {
+    P11: 'capacidade-organizacional', P12: 'processo-etapa', P13: 'modalidade-subproduto',
+    P14: 'regra-condicao', P15: 'componente'
+  };
+  /* Folhas de natureza (P11–P15 = SIM) dentro dos grupos "pelo menos N de"
+     de uma regra — é delas, e só delas, que sai a lista dinâmica. */
+  function folhasDeNatureza(regra) {
+    var folhas = [];
+    (function percorre(cond, dentroDePeloMenos) {
+      if (!cond || typeof cond !== 'object') return;
+      if (Array.isArray(cond.all)) { cond.all.forEach(function (c) { percorre(c, dentroDePeloMenos); }); return; }
+      if (Array.isArray(cond.any)) { cond.any.forEach(function (c) { percorre(c, dentroDePeloMenos); }); return; }
+      if (ehPeloMenos(cond)) { (Array.isArray(cond.of) ? cond.of : []).forEach(function (c) { percorre(c, true); }); return; }
+      if (cond.not || cond.equals) return;
+      var campo = cond.campo || cond.pergunta;
+      var valor = cond.valor != null ? cond.valor : cond.resposta;
+      if (dentroDePeloMenos && CAMADA_POR_NATUREZA[campo] && normalizarValor(valor) === 'SIM') folhas.push(campo);
+    })(regra && regra.condicoes, false);
+    return folhas;
+  }
+  /* Naturezas marcadas SIM nesta combinação, na ordem das perguntas (P11 →
+     P15), sem repetição: [{ campo: 'P11', camada: 'capacidade-organizacional' }, ...]. */
+  function naturezasMarcadas(regra, contexto) {
+    var vistas = {};
+    folhasDeNatureza(regra).forEach(function (campo) {
+      if (normalizarValor(contexto[campo]) === 'SIM') vistas[campo] = true;
+    });
+    return Object.keys(CAMADA_POR_NATUREZA).filter(function (campo) { return vistas[campo]; })
+      .map(function (campo) { return { campo: campo, camada: CAMADA_POR_NATUREZA[campo] }; });
   }
   function contextoNormalizado(respostasPorCodigo) {
     var contexto = {};
@@ -357,7 +434,7 @@
     var contexto = contextoNormalizado(respostasPorCodigo);
     var regra = executarRegras(regras, contexto);
     if (!regra) console.error('[motor-arquitetura] nenhuma regra aplicável (nem o fallback) para o contexto:', contexto);
-    return retornoDoMotor(regra);
+    return retornoDoMotor(regra, contexto);
   }
 
   /* ===================== PROVA DE EQUIVALÊNCIA ENTRE CONJUNTOS DE REGRAS =====================
@@ -386,6 +463,15 @@
       var filhosAny = cond.any.map(compilarCondicao);
       return function (ctx) { for (var i = 0; i < filhosAny.length; i++) if (filhosAny[i](ctx)) return true; return false; };
     }
+    if (ehPeloMenos(cond)) {
+      if (!Array.isArray(cond.of) || typeof cond.atLeast !== 'number') return function () { return false; };
+      var filhosDe = cond.of.map(compilarCondicao), minimo = cond.atLeast;
+      return function (ctx) {
+        var verdadeiras = 0;
+        for (var i = 0; i < filhosDe.length; i++) if (filhosDe[i](ctx)) verdadeiras++;
+        return verdadeiras >= minimo;
+      };
+    }
     if (cond.not) { var negado = compilarCondicao(cond.not); return function (ctx) { return !negado(ctx); }; }
     if (cond.equals) return compilarCondicao(cond.equals);
     var campo = cond.campo || cond.pergunta;
@@ -405,11 +491,16 @@
     var idxFallback = -1;
     for (var i = 0; i < ordenadas.length; i++) if (predicados[i] === null) { idxFallback = i; break; }
     var assinaturas = {};
-    ordenadas.forEach(function (r, i) { assinaturas[i] = JSON.stringify(retornoDoMotor(r)); });
+    ordenadas.forEach(function (r, i) { assinaturas[i] = r.conflitoDinamico ? null : JSON.stringify(retornoDoMotor(r)); });
     assinaturas[-1] = JSON.stringify(retornoDoMotor(null));
     return {
       regras: ordenadas,
-      assinaturas: assinaturas,
+      /* Uma regra de conflito dinâmico devolve uma lista que depende da
+         combinação — a assinatura dela é calculada a cada combinação; a das
+         outras regras continua serializada uma vez só. */
+      assinatura: function (i, ctx) {
+        return assinaturas[i] !== null ? assinaturas[i] : JSON.stringify(retornoDoMotor(ordenadas[i], ctx));
+      },
       executar: function (ctx) {
         for (var j = 0; j < predicados.length; j++) if (predicados[j] !== null && predicados[j](ctx)) return j;
         return idxFallback;
@@ -429,10 +520,11 @@
     for (var n = 0; n < TOTAL_COMBINACOES; n++) {
       for (var b = 0; b < 16; b++) contexto[CAMPOS_VALIDOS[b]] = (n & (1 << b)) ? 'SIM' : 'NAO';
       var ia = execA.executar(contexto), ib = execB.executar(contexto);
-      if (execA.assinaturas[ia] !== execB.assinaturas[ib]) {
+      if (execA.assinatura(ia, contexto) !== execB.assinatura(ib, contexto)) {
         diferencas++;
         if (exemplos.length < limite) {
-          exemplos.push({ respostas: contextoDaCombinacao(n), antes: retornoDoMotor(execA.regras[ia] || null), depois: retornoDoMotor(execB.regras[ib] || null) });
+          var respostas = contextoDaCombinacao(n);
+          exemplos.push({ respostas: respostas, antes: retornoDoMotor(execA.regras[ia] || null, respostas), depois: retornoDoMotor(execB.regras[ib] || null, respostas) });
         }
       }
     }
@@ -484,6 +576,15 @@
     if (Array.isArray(cond.any) && !cond.any.length) { erros.push('Grupo "QUALQUER condição" vazio em ' + caminho + '.'); return; }
     if (Array.isArray(cond.all)) { cond.all.forEach(function (c, i) { validarCondicao(c, erros, caminho + '.all[' + i + ']'); }); return; }
     if (Array.isArray(cond.any)) { cond.any.forEach(function (c, i) { validarCondicao(c, erros, caminho + '.any[' + i + ']'); }); return; }
+    if (ehPeloMenos(cond)) {
+      if (!Array.isArray(cond.of) || !cond.of.length) { erros.push('Grupo "PELO MENOS" sem condições em ' + caminho + '.'); return; }
+      var n = cond.atLeast;
+      if (typeof n !== 'number' || Math.floor(n) !== n || n < 1 || n > cond.of.length) {
+        erros.push('Grupo "PELO MENOS" com quantidade inválida (' + n + ') em ' + caminho + ' — precisa ser um número inteiro de 1 a ' + cond.of.length + '.');
+      }
+      cond.of.forEach(function (c, i) { validarCondicao(c, erros, caminho + '.of[' + i + ']'); });
+      return;
+    }
     if (cond.not) { validarCondicao(cond.not, erros, caminho + '.not'); return; }
     if (cond.equals) { validarCondicao(cond.equals, erros, caminho + '.equals'); return; }
     var campo = cond.campo || cond.pergunta;
@@ -513,6 +614,14 @@
       comuns.push(r);
       if (r.condicoes == null) { erros.push('Regra ' + nome + ' sem condições — só a regra de fallback (tipo FALLBACK) pode não ter condições.'); return; }
       validarCondicao(r.condicoes, erros, 'regra ' + nome);
+      /* Conflito dinâmico: a lista sai das naturezas (P11–P15 = SIM) de um
+         grupo "PELO MENOS" — sem nenhuma, a regra citaria uma lista vazia; e
+         só faz sentido levando a "A validar", nunca a uma camada. */
+      if (r.conflitoDinamico) {
+        if (r.resultado !== 'a-validar') erros.push('Regra ' + nome + ' de conflito dinâmico precisa classificar como "A validar".');
+        if (r.conflito) erros.push('Regra ' + nome + ' de conflito dinâmico não pode ter também uma lista fixa de conflito.');
+        if (!folhasDeNatureza(r).length) erros.push('Regra ' + nome + ' de conflito dinâmico precisa de um grupo "PELO MENOS" com naturezas P11–P15 = SIM.');
+      }
     });
     if (!fallbacks.length) erros.push('Nenhuma regra de fallback (tipo FALLBACK) configurada — é ela que decide quando nenhuma outra regra bate.');
     else if (fallbacks.length > 1) erros.push('Mais de uma regra de fallback: ' + fallbacks.map(function (f) { return f.codigo; }).join(', ') + ' — deve existir exatamente uma.');
@@ -565,6 +674,7 @@
       if (!cond || typeof cond !== 'object') return;
       if (Array.isArray(cond.all)) { cond.all.forEach(percorre); return; }
       if (Array.isArray(cond.any)) { cond.any.forEach(percorre); return; }
+      if (ehPeloMenos(cond)) { (Array.isArray(cond.of) ? cond.of : []).forEach(percorre); return; }
       if (cond.not) { percorre(cond.not); return; }
       if (cond.equals) { percorre(cond.equals); return; }
       var campo = cond.campo || cond.pergunta;
@@ -712,6 +822,103 @@
       }
     });
     return alteradas;
+  }
+
+  /* ===================== PROPOSTA DE REGRAS ENTREGUE PELO CÓDIGO =====================
+     Política geral de conflitos de natureza predominante (versão 4). O
+     editor só acrescenta condições — não tira uma condição publicada nem
+     troca uma regra —, então a mudança aprovada vem pronta daqui, MAS entra
+     pelo mesmo caminho de qualquer edição: a administradora carrega a
+     proposta no editor (ação explícita), salva o rascunho, simula e só então
+     decide publicar. Nada aqui grava, publica ou recalcula coisa alguma.
+
+     Só fica disponível sobre a versão 3 EXATA que motivou a proposta
+     (comparação semântica, a mesma de diffRegras): se a versão publicada não
+     for a 3, ou se a 3 publicada não tiver a estrutura esperada, a proposta
+     fica bloqueada e diz por quê — nunca é "adaptada" a outra base. */
+  var PROPOSTA_CONFLITO_NATUREZAS = {
+    id: 'politica-conflito-naturezas',
+    versaoBase: 3,
+    titulo: 'Política geral de conflitos de natureza predominante',
+    mudancas: [
+      'Nova regra CONFLITO_NATUREZAS (precedência 6): se pelo menos 2 entre P11, P12, P13, P14 e P15 forem SIM, o item vai para "A validar — conflito de naturezas predominantes", citando só as naturezas marcadas. Vale com P5 = SIM ou NÃO.',
+      'A regra CONFLITO_PROCESSO_CAPACIDADE deixa de existir: o caso dela (P11 e P12 = SIM) passa a ser tratado pela política geral.',
+      'COMPONENTE passa a ser identificado por P15 = SIM — P13 deixa de ser alternativa.',
+      'MODALIDADE_SUBPRODUTO deixa de exigir P2 = SIM.',
+      'Nenhuma outra regra muda; condições que ficaram redundantes continuam como estão.'
+    ]
+  };
+  /* A versão 3 que motivou a proposta: fábrica + as condições acrescentadas
+     à Unidade de valor associada nas versões 2 (P13, P15 = NÃO) e 3 (P3 =
+     SIM; P11, P12, P14 = NÃO). */
+  function regrasVersao3Esperadas() {
+    var regras = migrarFallbackLegado(PADRAO_REGRAS.regras);
+    regras.forEach(function (r) {
+      if (r.codigo === 'UNIDADE_VALOR_ASSOCIADA') {
+        r.condicoes.all.push(
+          { campo: 'P13', valor: 'NAO' }, { campo: 'P15', valor: 'NAO' },
+          { campo: 'P3', valor: 'SIM' }, { campo: 'P11', valor: 'NAO' }, { campo: 'P12', valor: 'NAO' }, { campo: 'P14', valor: 'NAO' });
+      }
+    });
+    return regras;
+  }
+  function regraConflitoNaturezas(ordem) {
+    return {
+      codigo: 'CONFLITO_NATUREZAS', ordem: ordem, resultado: 'a-validar', incoerencia: false, conflito: null,
+      conflitoDinamico: true, motivos: Object.keys(CAMADA_POR_NATUREZA),
+      condicoes: { all: [{ atLeast: 2, of: Object.keys(CAMADA_POR_NATUREZA).map(function (campo) { return { campo: campo, valor: 'SIM' }; }) }] }
+    };
+  }
+  function ehFolha(cond, campo) { return !!cond && (cond.campo || cond.pergunta) === campo; }
+  /* Aplica as mudanças aprovadas sobre uma CÓPIA das regras da versão 3 —
+     preserva tudo o que não muda (motivos, ordem, demais condições). */
+  function construirPropostaConflitoNaturezas(regrasV3) {
+    var ordemConflito = 6;
+    var regras = migrarFallbackLegado(regrasV3).filter(function (r) {
+      if (r.codigo !== 'CONFLITO_PROCESSO_CAPACIDADE') return true;
+      ordemConflito = r.ordem;
+      return false;
+    });
+    regras.forEach(function (r) {
+      if (r.codigo === 'COMPONENTE') {
+        r.condicoes.all = r.condicoes.all.map(function (c) {
+          return (c && Array.isArray(c.any) && c.any.some(function (f) { return ehFolha(f, 'P13'); })) ? { campo: 'P15', valor: 'SIM' } : c;
+        });
+        r.motivos = (r.motivos || []).filter(function (m) { return m !== 'P13'; });
+      }
+      if (r.codigo === 'MODALIDADE_SUBPRODUTO') {
+        r.condicoes.all = r.condicoes.all.filter(function (c) { return !ehFolha(c, 'P2'); });
+        r.motivos = (r.motivos || []).filter(function (m) { return m !== 'P2'; });
+      }
+    });
+    regras.push(regraConflitoNaturezas(ordemConflito));
+    return ordenarPorPrecedencia(regras);
+  }
+  /* { id, titulo, mudancas, versaoBase, estado: 'disponivel'|'aplicada'|'bloqueada', motivo } */
+  function situacaoPropostaRegras() {
+    var p = PROPOSTA_CONFLITO_NATUREZAS;
+    var base = { id: p.id, titulo: p.titulo, mudancas: p.mudancas.slice(), versaoBase: p.versaoBase };
+    if (!configRecebida) return Object.assign(base, { estado: 'bloqueada', motivo: 'As regras publicadas ainda não foram carregadas. Aguarde e abra o editor de novo.' });
+    var vigente = versaoAtual();
+    var proposta = construirPropostaConflitoNaturezas(regrasVersao3Esperadas());
+    var regrasVigentes = regrasDaVersaoEstrita(vigente);
+    if (vigente !== p.versaoBase) {
+      if (regrasVigentes && !diffRegras(proposta, regrasVigentes).length) return Object.assign(base, { estado: 'aplicada', motivo: 'Esta proposta já está publicada (versão ' + vigente + ').' });
+      return Object.assign(base, { estado: 'bloqueada', motivo: 'A proposta foi preparada sobre a versão ' + p.versaoBase + ', mas a versão publicada agora é a ' + vigente + '. Nada foi carregado.' });
+    }
+    if (!regrasVigentes) return Object.assign(base, { estado: 'bloqueada', motivo: 'Não consegui ler as regras da versão ' + p.versaoBase + '. Nada foi carregado.' });
+    var diferentes = diffRegras(regrasVersao3Esperadas(), regrasVigentes);
+    if (diferentes.length) {
+      return Object.assign(base, { estado: 'bloqueada', motivo: 'A versão ' + p.versaoBase + ' publicada não tem a estrutura esperada pela proposta (regras diferentes: ' +
+        diferentes.map(function (d) { return d.codigo; }).join(', ') + '). Nada foi carregado.' });
+    }
+    return Object.assign(base, { estado: 'disponivel', motivo: null });
+  }
+  /* Regras da proposta, montadas sobre a versão 3 publicada — só quando a
+     proposta está disponível; senão null. Uma cópia nova a cada chamada. */
+  function regrasDaPropostaRegras() {
+    if (situacaoPropostaRegras().estado !== 'disponivel') return null;
+    return construirPropostaConflitoNaturezas(regrasDaVersaoEstrita(PROPOSTA_CONFLITO_NATUREZAS.versaoBase));
   }
 
   /* Registrada quando uma publicação é rejeitada por concorrência (ver
@@ -923,6 +1130,12 @@
     regrasInalcancaveis: regrasInalcancaveis,
     perguntasDaRegra: perguntasDaRegra,
     regrasDaVersaoBase: regrasDaVersaoBase,
+    CAMADA_POR_NATUREZA: CAMADA_POR_NATUREZA,
+    situacaoPropostaRegras: situacaoPropostaRegras,
+    regrasDaPropostaRegras: regrasDaPropostaRegras,
+    /* Puras (sem Firebase): usadas pelos testes para provar a proposta sem banco. */
+    regrasVersao3Esperadas: regrasVersao3Esperadas,
+    construirPropostaConflitoNaturezas: construirPropostaConflitoNaturezas,
     onMudanca: onMudanca,
     versaoAtual: versaoAtual,
     regrasDaVersao: regrasDaVersao,

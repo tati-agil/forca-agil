@@ -670,12 +670,29 @@
 
     var motivos = decisao.motivosCodigos.map(function (codigo) { return motivo(ID_POR_CODIGO[codigo]); });
     var conflito = decisao.conflito ? decisao.conflito.map(function (camId) { return camadaPorId(camId).label; }) : null;
+    /* Conflito de naturezas predominantes (política geral P11–P15): o motor
+       já devolve SÓ as naturezas marcadas SIM; o motivo é uma frase só,
+       com essas mesmas naturezas — nunca "Componente: NÃO" de uma que ninguém
+       marcou. */
+    if (decisao.conflitoNaturezas) motivos = [textoNaturezasIndicadas(conflito)];
 
-    return {
+    var ident = {
       camada: decisao.camada, motivos: motivos, conflito: conflito, incoerencia: decisao.incoerencia,
       especializacao: especializacaoPara(decisao.camada), papelEstrutural: papelEstruturalPara(decisao.camada),
       exclusoesSim: exclusoesSim
     };
+    if (decisao.conflitoNaturezas) ident.conflitoNaturezas = true;
+    return ident;
+  }
+  /* Os três textos do conflito de naturezas predominantes — o mesmo em tela,
+     justificativa e PDF, sempre a partir da lista dinâmica (rótulos das
+     camadas marcadas, na ordem P11 → P15). */
+  var SUFIXO_CONFLITO_NATUREZAS = ' — conflito de naturezas predominantes';
+  function textoNaturezasIndicadas(rotulos) { return 'Naturezas predominantes indicadas: ' + listaComE(rotulos || []); }
+  function justificativaConflitoNaturezas(rotulos) {
+    return 'As respostas indicam mais de uma natureza arquitetural como predominante: ' + listaComE(rotulos || []) + '. ' +
+      'Como essas classificações representam naturezas distintas do item, não é possível determinar uma classificação arquitetural única com segurança. ' +
+      'O caso requer análise antes da classificação definitiva.';
   }
 
   /* Descreve, numa frase própria, COMO o item se relaciona com o
@@ -880,17 +897,28 @@
       criteriosAtendidos: criteriosAtendidos,
       exclusoesConflitantes: ident.exclusoesSim,
       resultadoAutomatico: resultadoDaCamada(ident.camada),
-      camadaSugerida: {
-        id: ident.camada,
-        label: camadaPorId(ident.camada).label,
-        motivos: ident.motivos,
-        conflito: ident.conflito,
-        incoerencia: ident.incoerencia,
-        especializacao: ident.especializacao,
-        papelEstrutural: ident.papelEstrutural,
-        relacao: relacaoArquitetural(ident.camada, atual)
-      }
+      camadaSugerida: camadaSugeridaDe(ident, atual)
     };
+  }
+  function camadaSugeridaDe(ident, atual) {
+    var camadaSugerida = {
+      id: ident.camada,
+      label: camadaPorId(ident.camada).label,
+      motivos: ident.motivos,
+      conflito: ident.conflito,
+      incoerencia: ident.incoerencia,
+      especializacao: ident.especializacao,
+      papelEstrutural: ident.papelEstrutural,
+      relacao: relacaoArquitetural(ident.camada, atual)
+    };
+    /* Só existe neste caso (nas demais classificações o objeto gravado fica
+       exatamente como antes). O rótulo diz o tipo de "A validar" em todo
+       lugar que mostra a classificação — tela, PDF, lista e Excel. */
+    if (ident.conflitoNaturezas) {
+      camadaSugerida.conflitoNaturezas = true;
+      camadaSugerida.label = camadaPorId(ident.camada).label + SUFIXO_CONFLITO_NATUREZAS;
+    }
+    return camadaSugerida;
   }
 
   /* Nunca um texto fixo: a frase muda com a camada encontrada e com os
@@ -901,6 +929,7 @@
       return 'Há respostas que indicam autonomia e outras que indicam dependência. Revise os critérios destacados.';
     }
     if (camada.id === 'a-validar') {
+      if (camada.conflitoNaturezas) return justificativaConflitoNaturezas(camada.conflito);
       if (camada.conflito && camada.conflito.length > 1) {
         return 'As respostas indicam características de mais de uma categoria arquitetural (' + listaComE(camada.conflito) +
           ') e não há evidência suficiente para recomendar uma classificação única.';
@@ -1352,7 +1381,9 @@
     html += '<p>' + esc(camada && camada.label || '—') + '</p>';
     var espDerivada = especializacaoDerivada(it);
     if (espDerivada) html += '<p>Especialização identificada pelo questionário: ' + esc(espDerivada) + '</p>';
-    if (camada && camada.conflito && camada.conflito.length) {
+    if (camada && camada.conflitoNaturezas) {
+      html += '<p class="pdf-aviso">' + esc(textoNaturezasIndicadas(camada.conflito)) + '.</p>';
+    } else if (camada && camada.conflito && camada.conflito.length) {
       html += '<p class="pdf-aviso">Categorias em conflito nas respostas: ' + esc(camada.conflito.join(', ')) + '.</p>';
     }
     if (camada && camada.incoerencia) {
@@ -4224,6 +4255,23 @@
       if (cond.not) {
         return '<div class="sq-cond-grupo"><p class="sq-cond-rotulo">' + prefixo + 'SE NENHUMA destas condições for verdadeira:</p>' + renderCondicaoArqEditavel(cond.not, leafRefs, prefixo + '　') + '</div>';
       }
+      /* "PELO MENOS N DE" (política geral de conflitos): as perguntas do grupo
+         aparecem só para leitura — trocar uma delas para NÃO desmontaria a
+         política sem que a tela deixasse isso claro; a estrutura da política
+         não é editada aqui (mesmo limite do editor para regras inteiras). */
+      if (cond.atLeast != null || cond.of != null) {
+        var filhos = Array.isArray(cond.of) ? cond.of : [];
+        return '<div class="sq-cond-grupo sq-cond-grupo--pelo-menos"><p class="sq-cond-rotulo">' + prefixo + 'SE PELO MENOS ' + esc(cond.atLeast) + ' destas condições forem verdadeiras:</p>' +
+          filhos.map(function (f) {
+            var campoF = f && (f.campo || f.pergunta);
+            var qF = perguntaDoMotor(campoF);
+            var valorF = String((f && (f.valor != null ? f.valor : f.resposta)) || '').toUpperCase() === 'NAO' ? 'NÃO' : 'SIM';
+            return '<div class="sq-cond-folha sq-cond-folha--legivel sq-cond-folha--fixa">' +
+              '<p class="sq-cond-pergunta"><strong>' + esc(campoF) + '</strong>' + (qF.titulo ? ' — ' + esc(qF.titulo) : '') + '</p>' +
+              '<p class="sq-cond-resposta">a resposta é <strong>' + valorF + '</strong> <span class="avp-config-readonly-tag">(fixa nesta política)</span></p>' +
+              '</div>';
+          }).join('') + '</div>';
+      }
       var id = leafRefs.length;
       leafRefs.push(cond);
       var campo = cond.campo || cond.pergunta;
@@ -4260,6 +4308,8 @@
       h += '<li><strong>Fallback ("A validar"):</strong> se nenhuma regra anterior bater, o item fica como "A validar" para análise humana. É a última regra e sempre existe.</li>';
       h += '<li><strong>O que você pode mudar aqui:</strong> a resposta esperada (SIM ou NÃO) de cada condição e, com "+ Adicionar condição", acrescentar uma pergunta P1–P16 ao grupo "SE TODAS" de uma regra (nunca uma pergunta que a regra já usa). A ordem de precedência não é editada nesta tela.</li>';
       h += '<li><strong>Limite desta versão do editor:</strong> só dá para remover uma condição acrescentada no rascunho, antes de publicar. Depois de publicada, ela passa a fazer parte da regra e esta tela não a remove — o editor não edita a estrutura inteira das regras.</li>';
+      h += '<li><strong>Proposta de regras:</strong> uma mudança de estrutura já aprovada (como a política geral de conflitos de natureza predominante) chega pronta e aparece no topo de "Editar regras". "Carregar proposta no editor" só troca as regras da tela — depois é o mesmo caminho: salvar o rascunho, simular e decidir se publica.</li>';
+      h += '<li><strong>Conflito de naturezas predominantes:</strong> P11 a P15 perguntam se o item é <em>principalmente</em> Capacidade, Processo, Modalidade, Regra ou Componente. Quando a regra de conflito existe, duas ou mais SIM levam a "A validar", citando só as naturezas marcadas — nunca uma escolha pela ordem das regras.</li>';
       h += '<li><strong>Simular impacto:</strong> recalcula, só na tela, as avaliações já concluídas com as regras que você está editando e mostra quais mudariam de classificação. Não grava nada e não altera nenhuma avaliação.</li>';
       h += '<li><strong>Rascunho × publicação:</strong> "Salvar rascunho" guarda a edição sem efeito nenhum para quem avalia. Só "Publicar nova versão" faz as regras valerem — para as próximas avaliações. As já concluídas continuam como estão até alguém pedir o reprocessamento.</li>';
       h += '</ul></details>';
@@ -4321,6 +4371,68 @@
         '<button type="button" class="btn btn--sm sq-cond-add-cancelar">Cancelar</button></div>';
       return h + '</div>';
     }
+    /* ---- PROPOSTA DE REGRAS entregue pelo código (política geral de conflitos) ----
+       Só aparece enquanto não está publicada. Carregar é uma ação explícita e
+       só troca as regras DESTE editor — nada é gravado: o caminho continua o
+       de sempre (SALVAR RASCUNHO → SIMULAR IMPACTO → PUBLICAR). Nunca se
+       mistura com outra edição: com alterações em andamento, fica bloqueada. */
+    function estadoPropostaNoEditor(c) {
+      var m = window.faMotorArquitetura;
+      var sit = m.situacaoPropostaRegras();
+      if (sit.estado !== 'disponivel') return { sit: sit, estado: sit.estado, motivo: sit.motivo };
+      var proposta = m.regrasDaPropostaRegras();
+      if (proposta && !m.diffRegras(proposta, c.regras).length) return { sit: sit, estado: 'no-editor' };
+      if (Number(c.versaoBase) !== sit.versaoBase) return { sit: sit, estado: 'bloqueada', motivo: 'Este rascunho foi iniciado sobre a versão ' + c.versaoBase + ', e a proposta só vale sobre a versão ' + sit.versaoBase + '. Nada foi carregado.' };
+      /* Bloqueia só quando as regras DESTE editor diferem da versão publicada
+         (edição em andamento, salva ou não) — nunca por um clique que, no fim,
+         deixou tudo igual à versão publicada. */
+      var publicadas = m.regrasDaVersaoBase(sit.versaoBase);
+      var pendentes = publicadas ? m.diffRegras(publicadas, c.regras) : [];
+      if (pendentes.length) {
+        var quais = ' (regras: ' + pendentes.map(function (d) { return d.codigo; }).join(', ') + ')';
+        return { sit: sit, estado: 'bloqueada', motivo: c.sujo
+          ? 'Há alterações não salvas neste editor' + quais + '. Volte sem salvar (ou desfaça-as) antes de carregar a proposta — ela nunca é misturada com outra edição.'
+          : 'Já existe um rascunho com alterações em relação à versão ' + sit.versaoBase + ' publicada' + quais + '. Desfaça essas alterações antes de carregar a proposta — ela nunca é misturada com outra edição.' };
+      }
+      return { sit: sit, estado: 'disponivel' };
+    }
+    function renderPropostaRegras(c) {
+      var e = estadoPropostaNoEditor(c);
+      if (e.estado === 'aplicada') return '';
+      var html = '<div class="avp-form-card avp-proposta-regras" id="avpPropostaRegras" data-estado="' + esc(e.estado) + '">';
+      html += '<h4>Proposta de regras: ' + esc(e.sit.titulo) + '</h4>';
+      if (e.estado === 'no-editor') {
+        html += '<p class="avp-flash-success" id="avpPropostaNoEditor">As regras deste editor são as da proposta — ainda não publicadas. Salve o rascunho e simule o impacto antes de decidir.</p>';
+      } else {
+        html += '<p>Proposta sobre a versão ' + esc(e.sit.versaoBase) + ' publicada. Carregar só troca as regras deste editor: nada é gravado, nada é publicado e nenhuma avaliação muda.</p>';
+      }
+      html += '<ul class="avp-proposta-mudancas">' + e.sit.mudancas.map(function (t) { return '<li>' + esc(t) + '</li>'; }).join('') + '</ul>';
+      if (e.estado === 'disponivel') html += '<button type="button" class="btn btn--sm btn--primary" id="avpCarregarPropostaBtn">Carregar proposta no editor</button>';
+      else if (e.estado === 'no-editor') html += '<button type="button" class="btn btn--sm" id="avpDescartarPropostaBtn">Voltar às regras da versão ' + esc(e.sit.versaoBase) + ' publicada</button>';
+      else html += '<p class="avp-decisao-aviso" id="avpPropostaBloqueada">' + esc(e.motivo) + '</p>';
+      return html + '</div>';
+    }
+    function bindPropostaRegras(c) {
+      var carregar = document.getElementById('avpCarregarPropostaBtn');
+      if (carregar) carregar.addEventListener('click', function () {
+        avpConfirm('Carregar a proposta no editor? As regras exibidas passam a ser as da proposta. Nada é gravado: para guardar, use SALVAR RASCUNHO; para ver o efeito, SIMULAR IMPACTO.', function () {
+          var e = estadoPropostaNoEditor(c);
+          var regras = e.estado === 'disponivel' ? window.faMotorArquitetura.regrasDaPropostaRegras() : null;
+          if (!regras) { c.erro = e.motivo || 'A proposta não está disponível agora. Nada foi carregado.'; render(); return; }
+          c.regras = regras; c.sujo = true; c.erro = null; c.adicionando = null; c.novaCond = null;
+          render();
+        });
+      });
+      var descartar = document.getElementById('avpDescartarPropostaBtn');
+      if (descartar) descartar.addEventListener('click', function () {
+        avpConfirm('Voltar às regras da versão publicada? A proposta sai deste editor (um rascunho já salvo só muda quando você salvar de novo).', function () {
+          var base = window.faMotorArquitetura.regrasDaVersaoBase(window.faMotorArquitetura.situacaoPropostaRegras().versaoBase);
+          if (!base) return;
+          c.regras = window.faMotorArquitetura.migrarFallbackLegado(base); c.sujo = true; c.erro = null;
+          render();
+        });
+      });
+    }
     function renderMotorArqEditarRegras() {
       var c = state.configMotores;
       c.leafRefs = [];
@@ -4330,12 +4442,14 @@
       if (!base) html += '<p class="avp-error-msg" id="avpMotorArqSemBase">Não consegui carregar a versão-base ' + esc(c.versaoBase) + ' deste rascunho. Por segurança, nenhuma condição é marcada como NOVA e nenhuma pode ser removida por aqui.</p>';
       else if (c.versaoBase != null && Number(c.versaoBase) !== Number(versaoAgora)) html += '<p class="avp-decisao-aviso" id="avpMotorArqBaseAntiga">Este rascunho foi iniciado sobre a versão ' + esc(c.versaoBase) + '; a versão publicada agora é a ' + esc(versaoAgora) + '. O que aparece como NOVA é comparado com a versão ' + esc(c.versaoBase) + '. Ao publicar, o conflito entre versões é tratado como sempre — nada é sobrescrito em silêncio.</p>';
       html += '<p class="avp-decisao-aviso">A ordem abaixo é a PRECEDÊNCIA: a primeira regra cujas condições baterem decide a camada — nunca uma votação. Mudar o valor esperado (SIM/NÃO) de uma condição muda a lógica do motor; ao publicar, isso cria uma versão nova e nunca recalcula avaliações já concluídas sozinho. É preciso simular o impacto antes de publicar.</p></div>';
+      html += renderPropostaRegras(c);
       html += renderComoOMotorDecide(false);
       c.regras.slice().sort(function (a, b) { return (a.ordem || 0) - (b.ordem || 0); }).forEach(function (regra) {
         html += '<div class="avp-form-card sq-regra-card"><p class="sq-regra-codigo">Precedência ' + esc(regra.ordem) + ' — ' + esc(regra.codigo) +
           ' → classifica como <strong>' + esc(CAMADAS_LABEL_POR_ID[regra.resultado] || regra.resultado) + '</strong>' +
           (regra.incoerencia ? ' <em>(incoerência)</em>' : '') +
-          (regra.conflito ? ' <em>(conflito: ' + regra.conflito.map(function (id) { return CAMADAS_LABEL_POR_ID[id] || id; }).join(' × ') + ')</em>' : '') + '</p>';
+          (regra.conflito ? ' <em>(conflito: ' + regra.conflito.map(function (id) { return CAMADAS_LABEL_POR_ID[id] || id; }).join(' × ') + ')</em>' : '') +
+          (regra.conflitoDinamico ? ' <em>(conflito de naturezas predominantes: cita só as naturezas marcadas SIM)</em>' : '') + '</p>';
         /* Fallback (tipo FALLBACK, ou o legado sem condicoes que o Firebase
            devolve) não tem condição nenhuma para desenhar — antes, abrir o
            editor numa versão publicada quebrava aqui (regra.condicoes
@@ -4364,6 +4478,7 @@
     }
     function bindMotorArqEditarRegras() {
       var c = state.configMotores;
+      bindPropostaRegras(c);
       wrap.querySelectorAll('.sq-cond-select').forEach(function (sel) {
         sel.addEventListener('change', function () { c.sujo = true; c.leafRefs[Number(sel.dataset.leafId)].valor = sel.value; });
       });
@@ -5334,7 +5449,9 @@
       html += '<p class="avp-alt-label">Camada identificada: <strong>' + esc(camada.label) + '</strong></p>';
       var espDerivadaTela = especializacaoDerivada(a);
       if (espDerivadaTela) html += '<p class="avp-alt-outras" id="avpEspecializacaoDerivada">Especialização identificada pelo questionário: <strong>' + esc(espDerivadaTela) + '</strong></p>';
-      if (camada.conflito && camada.conflito.length) {
+      if (camada.conflitoNaturezas) {
+        html += '<p class="avp-alt-outras" id="avpNaturezasIndicadas">' + esc(textoNaturezasIndicadas(camada.conflito)) + '.</p>';
+      } else if (camada.conflito && camada.conflito.length) {
         html += '<p class="avp-alt-outras">Categorias em conflito nas respostas: ' + esc(camada.conflito.join(', ')) + '.</p>';
       }
       if (camada.incoerencia) {
