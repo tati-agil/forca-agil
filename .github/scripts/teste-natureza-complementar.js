@@ -61,7 +61,10 @@ const KEY = EMAIL.toLowerCase().replace(/[@.]/g, '_').replace(/[^a-z0-9_]/g, '')
       salvandoNatureza, configNaturezas/abrir/renderConfigNaturezas; auditoria
       alteracao_natureza_complementar. */
 const NATUREZA_COMPLEMENTAR = /faNaturezas|naturezas-complementares|naturezaComplementar|naturezaDoItem|naturezaForm|NaturezaBloco|salvarNatureza|salvandoNatureza|estadoBotaoNatureza|gravarOpcaoNatureza|linhaNatureza|flashNatureza|configNaturezas|alteracao_natureza_complementar|natureza complementar/i;
-const PERMITIDO_NATUREZA_PREDOMINANTE = /PROPOSTA_CONFLITO_NATUREZAS|SUFIXO_CONFLITO_NATUREZAS|CONFLITO_NATUREZAS|politica-conflito-naturezas|conflitoNaturezas|ConflitoNaturezas|CAMADA_POR_NATUREZA|folhasDeNatureza|naturezasMarcadas|textoNaturezasIndicadas|naturezas? predominantes?|naturezas P11–P15|naturezas marcadas/gi;
+/* Explicação do "A validar" por autonomia × uma natureza predominante (P5, teste-a-validar-natureza.js): só
+   estes três nomes EXATOS — a marca bloqueioNatureza, a função bloqueioPorNatureza e a etiqueta
+   'conflito-naturezas' da assinatura semântica do motor —, nunca um padrão genérico. */
+const PERMITIDO_NATUREZA_PREDOMINANTE = /\bbloqueioPorNatureza\b|\bbloqueioNatureza\b|'conflito-naturezas'|PROPOSTA_CONFLITO_NATUREZAS|SUFIXO_CONFLITO_NATUREZAS|CONFLITO_NATUREZAS|politica-conflito-naturezas|conflitoNaturezas|ConflitoNaturezas|CAMADA_POR_NATUREZA|folhasDeNatureza|naturezasMarcadas|textoNaturezasIndicadas|naturezas? predominantes?|naturezas P11–P15|naturezas marcadas/gi;
 const semComentarios = (src) => src.replace(/\/\*[\s\S]*?\*\//g, '').replace(/(^|[^:'"\\])\/\/.*$/gm, '$1');
 /* true = o trecho não depende da natureza complementar (as duas camadas acima). */
 const naoLeNaturezaComplementar = (src) => !NATUREZA_COMPLEMENTAR.test(src) && !/natureza/i.test(semComentarios(src).replace(PERMITIDO_NATUREZA_PREDOMINANTE, ''));

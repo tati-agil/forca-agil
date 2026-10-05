@@ -433,7 +433,12 @@
      associada: justificativa, motivo e interpretação de P8 específicos, com a
      marca camadaSugerida.impedidaPorGestao gravada só em avaliações novas ou
      reprocessadas (metadado explicativo — nunca lido pelo motor) — ver
-     teste-a-validar-gestao.js. */
+     teste-a-validar-gestao.js. Idem (05/10/2026) para o "A validar" com
+     autonomia estrutural (P5 = SIM) e uma única natureza predominante em que
+     uma troca isolada de resposta resolveria a classificação: justificativa e
+     interpretação específicas, com a marca camadaSugerida.bloqueioNatureza
+     (metadado explicativo — nunca lido pelo motor) — ver
+     teste-a-validar-natureza.js. */
   var MOTOR_VERSION = '2026.09.29-2';
 
   /* Mapa fixo e simples: só decide se a camada JÁ IDENTIFICADA conta como
@@ -692,6 +697,7 @@
        "A validar" que já foi decidido. */
     var impedidaPorGestao = camadaImpedidaPorGestao(contexto, regras, decisao);
     if (impedidaPorGestao) motivos = [MOTIVO_GESTAO_NAO];
+    var bloqueioNatureza = impedidaPorGestao ? null : bloqueioPorNatureza(contexto, regras, decisao);
 
     var ident = {
       camada: decisao.camada, motivos: motivos, conflito: conflito, incoerencia: decisao.incoerencia,
@@ -700,6 +706,7 @@
     };
     if (decisao.conflitoNaturezas) ident.conflitoNaturezas = true;
     if (impedidaPorGestao) ident.impedidaPorGestao = impedidaPorGestao;
+    if (bloqueioNatureza) ident.bloqueioNatureza = bloqueioNatureza;
     return ident;
   }
   /* "A validar" por gestão ponta a ponta (P8): o fallback valeu, P8 = NÃO e,
@@ -723,6 +730,144 @@
     var rotulo = camadaPorId(camadaId).label;
     return 'As respostas atendem às demais condições exigidas para ' + rotulo + ', mas indicam que o item não poderia ser gerido de ponta a ponta como uma solução. ' +
       'Como esse é um requisito obrigatório para essa classificação, o item permanece como A validar para análise.';
+  }
+  /* "A validar" por autonomia estrutural (P5 = SIM) × UMA natureza
+     predominante (P11–P15): o fallback valeu, P5 = SIM e exatamente uma
+     natureza está marcada. Com as MESMAS regras, troca-se uma resposta por vez:
+       - só P5 para NÃO → o motor classificaria como aquela natureza: a
+         autonomia é a única condição que impede a natureza ('autonomia');
+       - só a natureza para NÃO → o motor classificaria como Produto/Serviço
+         principal: a natureza é a única que o impede ('natureza');
+       - as duas trocas resolvem → os sinais apontam para critérios
+         incompatíveis, e nenhuma das duas é forçada ('ambiguo').
+     Se nenhuma troca isolada resolve, falta mais de uma condição: nada é
+     marcado e fica o texto genérico. Calculado DEPOIS da decisão, nunca lido
+     pelo motor. Devolve { tipo, natureza (camada), pergunta (P11–P15) } ou null. */
+  var TIPOS_BLOQUEIO_NATUREZA = ['autonomia', 'natureza', 'ambiguo'];
+  function bloqueioPorNatureza(contexto, regras, decisao) {
+    if (decisao.camada !== 'a-validar' || contexto.P5 !== 'SIM') return null;
+    var M = window.faMotorArquitetura;
+    var aplicada = ((regras && regras.regras) || []).filter(function (r) { return r.codigo === decisao.regraAplicada; })[0];
+    if (!aplicada || !M.ehFallback(aplicada)) return null;
+    var marcadas = Object.keys(M.CAMADA_POR_NATUREZA).filter(function (campo) { return contexto[campo] === 'SIM'; });
+    if (marcadas.length !== 1) return null;
+    /* Só para a lógica revisada (ver logicaDaVersao5Aprovada): versões
+       antigas restauradas e a fábrica mantêm o texto da época. */
+    if (!logicaDaVersao5Aprovada(regras)) return null;
+    var pergunta = marcadas[0], natureza = M.CAMADA_POR_NATUREZA[pergunta];
+    var trocada = {}; trocada[pergunta] = 'NAO';
+    var semAutonomia = M.identificarCamada(Object.assign({}, contexto, { P5: 'NAO' }), regras).camada === natureza;
+    var semNatureza = M.identificarCamada(Object.assign({}, contexto, trocada), regras).camada === 'produto-principal';
+    if (!semAutonomia && !semNatureza) return null;
+    return { tipo: semAutonomia && semNatureza ? 'ambiguo' : (semAutonomia ? 'autonomia' : 'natureza'), natureza: natureza, pergunta: pergunta };
+  }
+  /* LÓGICA DA VERSÃO 5 APROVADA — por comportamento, nunca pelo número da
+     versão (uma restauração ou republicação idêntica ganha outro número) e
+     nunca por texto (uma versão que só melhore redação continua valendo).
+     A comparação usa a assinatura semântica do motor
+     (faMotorArquitetura.criarVarreduraSemantica): o SHA-256 do que o motor
+     DECIDE nas 65.536 combinações (camada, tipo de decisão e camadas em
+     conflito — sem motivos, rótulos, códigos ou forma de escrita). Este arquivo não avalia condição nenhuma: só compara a
+     assinatura das regras ativas com a da versão 5 aprovada. Qualquer
+     diferença lógica desliga o tratamento (texto genérico, comportamento
+     histórico).
+     ASSINATURA_LOGICA_VERSAO5 é a assinatura da versão 5 aprovada (versão 3
+     esperada + proposta de conflito de naturezas + P8 = SIM em
+     Produto/Serviço principal e em Unidade de valor associada);
+     teste-a-validar-natureza.js reconstrói essa versão e confere o valor —
+     se a lógica dela mudar, o teste falha.
+     Custo: a varredura roda em segundo plano, em pedaços curtos, assim que
+     as regras carregam (prepararCompatibilidade), uma vez por conjunto de
+     regras (cache pela referência do array, que o motor só troca quando a
+     configuração muda). NUNCA há varredura síncrona num caminho de uso:
+     Concluir, Reprocessar e Reprocessar em lote esperam por ela
+     (quandoCompatibilidadePronta), então o resultado nunca depende da pressa
+     de quem respondeu. Compatibilidade ainda desconhecida (só fora desses
+     caminhos — ex.: cálculo de teste) = tratamento desligado; sem Web Crypto,
+     idem (texto genérico, nunca uma explicação não verificada). */
+  var ASSINATURA_LOGICA_VERSAO5 = '340b872a940376d927685b2e7537cbbcbd21416038d0642c0ce6db35b6c9bfd5';
+  var equivalenciaPorRegras = typeof WeakMap === 'function' ? new WeakMap() : null;
+  function guardarEquivalencia(lista, assinatura) {
+    var equivalente = assinatura === ASSINATURA_LOGICA_VERSAO5;
+    if (equivalenciaPorRegras) equivalenciaPorRegras.set(lista, equivalente);
+    return equivalente;
+  }
+  function equivalenciaConhecida(lista) { return !!(equivalenciaPorRegras && equivalenciaPorRegras.has(lista)); }
+  function logicaDaVersao5Aprovada(regrasCfg) {
+    var lista = regrasCfg && regrasCfg.regras;
+    if (!Array.isArray(lista)) return false;
+    return equivalenciaConhecida(lista) ? equivalenciaPorRegras.get(lista) : false;
+  }
+  var varreduraEmCurso = null;
+  var FATIA_MS = 8, COMBINACOES_POR_PASSO = 512;
+  function agoraMs() { return (typeof performance !== 'undefined' && performance.now) ? performance.now() : Date.now(); }
+  function regrasAtivas() {
+    var M = window.faMotorArquitetura;
+    return M.regrasDaVersao(M.versaoAtual()).regras;
+  }
+  /* Chama cb quando a compatibilidade das regras ATIVAS já estiver
+     conhecida: na hora, se já estiver; senão, ao fim da varredura em
+     pedaços (que começa aqui, se ainda não começou). */
+  function quandoCompatibilidadePronta(cb) {
+    var lista = regrasAtivas();
+    if (!Array.isArray(lista) || !equivalenciaPorRegras || equivalenciaConhecida(lista)) { cb(); return; }
+    iniciarVarredura(lista).esperando.push(cb);
+  }
+  function prepararCompatibilidade() { quandoCompatibilidadePronta(function () {}); }
+  function iniciarVarredura(lista) {
+    if (varreduraEmCurso && varreduraEmCurso.lista === lista) return varreduraEmCurso;
+    var anterior = varreduraEmCurso;
+    var atual = varreduraEmCurso = {
+      lista: lista, varredura: window.faMotorArquitetura.criarVarreduraSemantica(lista),
+      esperando: anterior ? anterior.esperando : []
+    };
+    if (anterior) anterior.esperando = [];
+    function passo() {
+      if (varreduraEmCurso !== atual) return; /* as regras mudaram: outra varredura assumiu */
+      var inicio = agoraMs(), terminou = false, falhou = false;
+      try {
+        do { terminou = atual.varredura.avancar(COMBINACOES_POR_PASSO); } while (!terminou && agoraMs() - inicio < FATIA_MS);
+      } catch (e) {
+        console.error('[avaliacao-produto] não foi possível comparar as regras com a versão 5 aprovada:', e);
+        falhou = true;
+      }
+      if (!terminou && !falhou) { setTimeout(passo, 0); return; }
+      function encerrar(assinatura) {
+        if (varreduraEmCurso !== atual) return;
+        guardarEquivalencia(lista, assinatura);
+        varreduraEmCurso = null;
+        var fila = atual.esperando;
+        atual.esperando = [];
+        /* de novo pelas regras ATIVAS: se mudaram durante a varredura, espera a delas */
+        fila.forEach(function (cb) { quandoCompatibilidadePronta(cb); });
+      }
+      if (falhou) { encerrar(null); return; }
+      atual.varredura.assinatura().then(encerrar, function (e) {
+        console.error('[avaliacao-produto] não foi possível calcular a assinatura das regras (SHA-256):', e);
+        encerrar(null);
+      });
+    }
+    setTimeout(passo, 0);
+    return atual;
+  }
+  /* Marca gravada e reconhecível (registro antigo sem ela, ou com valor
+     desconhecido, segue o comportamento histórico). */
+  function bloqueioNaturezaValido(b) {
+    return !!(b && TIPOS_BLOQUEIO_NATUREZA.indexOf(b.tipo) !== -1 && camadaPorId(b.natureza) &&
+      window.faMotorArquitetura.CAMADA_POR_NATUREZA[b.pergunta] === b.natureza);
+  }
+  function justificativaBloqueioNatureza(b) {
+    var rotulo = camadaPorId(b.natureza).label;
+    if (b.tipo === 'autonomia') {
+      return 'As respostas indicam ' + rotulo + ' como natureza predominante, mas também indicam autonomia estrutural. ' +
+        'Como a classificação como ' + rotulo + ' exige que o item não tenha autonomia estrutural, o item permanece como A validar para análise.';
+    }
+    if (b.tipo === 'natureza') {
+      return 'As respostas atendem às demais condições exigidas para Produto/Serviço principal, mas indicam ' + rotulo + ' como natureza predominante. ' +
+        'Como Produto/Serviço principal não pode ter outra natureza arquitetural predominante, o item permanece como A validar para análise.';
+    }
+    return 'As respostas indicam simultaneamente autonomia estrutural e ' + rotulo + '. ' +
+      'Esses sinais conduzem a critérios incompatíveis entre Produto/Serviço principal e ' + rotulo + '. Por isso, o item permanece como A validar para análise.';
   }
   /* Os três textos do conflito de naturezas predominantes — o mesmo em tela,
      justificativa e PDF, sempre a partir da lista dinâmica (rótulos das
@@ -905,6 +1050,17 @@
     if (def.id === 'fronteira' && resposta.valor === 'sim') {
       return 'Existe uma fronteira coerente e identificável para ' + termoCamada(camada.id) + '.';
     }
+    /* Também só com a marca gravada: a resposta que, sozinha, impediu a classificação. */
+    var bloqueio = bloqueioNaturezaValido(camada.bloqueioNatureza) ? camada.bloqueioNatureza : null;
+    if (bloqueio && resposta.valor === 'sim') {
+      if (bloqueio.tipo === 'autonomia' && def.id === 'autonomia') {
+        return 'Esta resposta impediu a classificação como ' + camadaPorId(bloqueio.natureza).label +
+          ', porque essa classificação exige ausência de autonomia estrutural e as demais condições foram atendidas.';
+      }
+      if (bloqueio.tipo === 'natureza' && def.codigoEstavel === bloqueio.pergunta) {
+        return 'Esta resposta impediu a classificação como Produto/Serviço principal, porque as demais condições foram atendidas e esta natureza foi indicada como predominante.';
+      }
+    }
     if (def.id === 'gestao' && resposta.valor === 'nao') {
       /* Só com a marca gravada no cálculo — nunca deduzida de novo ao exibir
          (uma avaliação antiga mostraria uma explicação que não era a dela). */
@@ -973,6 +1129,7 @@
        escolhe a explicação (justificativa e interpretação de P8). Avaliações
        gravadas antes não a têm e continuam como eram. */
     if (ident.impedidaPorGestao) camadaSugerida.impedidaPorGestao = ident.impedidaPorGestao;
+    if (ident.bloqueioNatureza) camadaSugerida.bloqueioNatureza = ident.bloqueioNatureza;
     return camadaSugerida;
   }
 
@@ -986,6 +1143,7 @@
     if (camada.id === 'a-validar') {
       if (camada.conflitoNaturezas) return justificativaConflitoNaturezas(camada.conflito);
       if (camada.impedidaPorGestao) return justificativaImpedidaPorGestao(camada.impedidaPorGestao);
+      if (bloqueioNaturezaValido(camada.bloqueioNatureza)) return justificativaBloqueioNatureza(camada.bloqueioNatureza);
       if (camada.conflito && camada.conflito.length > 1) {
         return 'As respostas indicam características de mais de uma categoria arquitetural (' + listaComE(camada.conflito) +
           ') e não há evidência suficiente para recomendar uma classificação única.';
@@ -5101,7 +5259,9 @@
         state.pendenteId = null;
         state.salvando = 'concluido';
         render();
-        salvarRegistro('concluido', function (payload, key) {
+        /* Espera a checagem de compatibilidade das regras (em segundo plano,
+           normalmente já pronta) — o texto gravado não pode depender da pressa. */
+        quandoCompatibilidadePronta(function () { salvarRegistro('concluido', function (payload, key) {
           state.salvando = null;
           state.itens = upsertItem(state.itens, Object.assign({ _key: key }, payload));
           state.decisaoForm = decisaoFormInicial(payload);
@@ -5125,7 +5285,7 @@
             render();
             avpAlert('Não foi possível salvar a avaliação. Tente novamente.');
           }
-        });
+        }); });
       });
       document.getElementById('avpCancelarChecklistBtn').addEventListener('click', sairDaEdicao);
     }
@@ -6653,11 +6813,23 @@
       if (state.reprocessando) return;
       var a = state.atual;
       if (!precisaReprocessar(a)) return; /* já está na versão atual: nada a fazer */
-      var updates = construirAtualizacaoReprocessamento(a);
-
       state.reprocessando = true;
       render();
-
+      quandoCompatibilidadePronta(function () {
+        var updates;
+        try {
+          updates = construirAtualizacaoReprocessamento(a);
+        } catch (e) {
+          console.error('[avaliacao-produto] erro ao calcular o reprocessamento:', e);
+          state.reprocessando = false;
+          render();
+          avpAlert('Não foi possível reprocessar esta avaliação. Tente novamente.');
+          return;
+        }
+        gravarReprocessamentoIndividual(a, updates);
+      });
+    }
+    function gravarReprocessamentoIndividual(a, updates) {
       var respondido = false;
       var relogio = setTimeout(function () {
         if (respondido) return;
@@ -7162,9 +7334,11 @@
           encerrar('Não foi possível gravar (' + (e && e.message ? e.message : 'erro inesperado') + ').', e);
         }
       }
-      var n = Math.min(CONCORRENCIA, fila.length);
-      workersAtivos = n;
-      for (var i = 0; i < n; i++) worker();
+      quandoCompatibilidadePronta(function () {
+        var n = Math.min(CONCORRENCIA, fila.length);
+        workersAtivos = n;
+        for (var i = 0; i < n; i++) worker();
+      });
     }
 
     /* Config de conteúdo dos questionários (window.faQuestionarios) —
@@ -7181,7 +7355,13 @@
        nunca refletiam uma publicação (cache sempre null → sempre a versão 1
        de fábrica), exatamente como já valia para o motor de squad antes
        dele (ver window.faMotorSquad.onMudanca em avaliacao-squad.js). */
-    window.faMotorArquitetura.onMudanca(function () { render(); });
+    /* Assim que as regras chegam (e a cada troca), a checagem de
+       compatibilidade começa em segundo plano — ver quandoCompatibilidadePronta. */
+    window.faMotorArquitetura.onMudanca(function () {
+      if (window.faMotorArquitetura.configCarregada()) prepararCompatibilidade();
+      render();
+    });
+    if (window.faMotorArquitetura.configCarregada()) prepararCompatibilidade();
 
     /* ===================== CARGA =====================
        A leitura depende do ACESSO (as regras do banco também): uma leitura

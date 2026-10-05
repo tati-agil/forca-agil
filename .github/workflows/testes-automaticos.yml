@@ -232,6 +232,17 @@ jobs:
           FA_BASE_URL: http://127.0.0.1:8811
         run: node .github/scripts/teste-a-validar-gestao.js
 
+      # "A validar" por autonomia (P5 = SIM) × uma única natureza: explicação
+      # específica quando uma troca isolada resolveria (316 + 16 + 4 ambíguos),
+      # só para regras semanticamente equivalentes à versão 5 aprovada; versões
+      # 3/4 e fábrica intactas; identificarCamada idêntico; cache e espera da
+      # checagem em segundo plano; tela, PDF e Excel; prova inversa.
+      - name: "Avaliação: A validar por autonomia × natureza — explicação específica (desktop e celular)"
+        env:
+          NODE_PATH: /tmp/pw-deps/node_modules
+          FA_BASE_URL: http://127.0.0.1:8811
+        run: node .github/scripts/teste-a-validar-natureza.js
+
       # Adequação à Squad: início "item já cadastrado × novo item" (sem ficha
       # duplicada) e motor de squad legível (Sn — título, combinação Eixo A +
       # Eixo B em leitura), com a lógica intacta.
