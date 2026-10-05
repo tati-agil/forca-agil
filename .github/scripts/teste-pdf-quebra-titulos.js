@@ -16,6 +16,7 @@
 const { chromium } = require('playwright');
 const fs = require('fs');
 const path = require('path');
+const { arquivoTemporario } = require('./arquivo-temporario');
 const vm = require('vm');
 
 const BASE = process.env.FA_BASE_URL || 'http://127.0.0.1:8811';
@@ -183,7 +184,7 @@ const htmlPdf = (page) => page.evaluate(() => (window.__pdfs || []).map((b) => b
 async function lerExcel(page) {
   await page.click('#avpExportarBtn');
   const [dl] = await Promise.all([page.waitForEvent('download', { timeout: 60000 }), page.click('#avpExportarExcelTodas')]);
-  const arq = path.join(require('os').tmpdir(), 'avp-trilha-' + Date.now() + '.xlsx');
+  const arq = arquivoTemporario('avp-trilha-', '.xlsx');
   await dl.saveAs(arq);
   const wb = XLSX.read(fs.readFileSync(arq), { type: 'buffer' });
   fs.unlinkSync(arq);

@@ -8,7 +8,9 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Commands
 
-There is no `package.json` and no local dev/build/lint/test tooling in this repo. The only commands that exist are the deploy commands run by CI (see Deploy below) via `npx firebase-tools@13`. To preview locally, serve the repo root over HTTP (e.g. `npx firebase-tools@13 serve` or any static file server) — opening `index.html` via `file://` will break Firebase Auth/CSP.
+There is no `package.json` and no local dev/build/lint tooling in this repo (tests: see the hermetic suite below). The only commands that exist are the deploy commands run by CI (see Deploy below) via `npx firebase-tools@13`. To preview locally, serve the repo root over HTTP (e.g. `npx firebase-tools@13 serve` or any static file server) — opening `index.html` via `file://` will break Firebase Auth/CSP.
+
+The hermetic test suite (fake Firebase, no secrets, no network — `.github/scripts/suite-hermetica.json`) runs locally with `node .github/scripts/rodar-suite.js` while the repo root is served on `http://127.0.0.1:8811` (`python3 -m http.server 8811`). It runs every test even after a failure, in parallel by default (cores − 1, max 3; `--processos 1` for sequential), and refuses to run if a `teste-*.js` is neither listed in the suite nor in its `foraDaSuite` with a reason. CI runs the same suite in 4 duration-balanced groups (`testes-automaticos.yml`).
 
 ## Architecture
 

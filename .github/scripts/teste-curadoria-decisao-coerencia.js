@@ -24,6 +24,7 @@
 const { chromium } = require('playwright');
 const fs = require('fs');
 const path = require('path');
+const { arquivoTemporario } = require('./arquivo-temporario');
 const vm = require('vm');
 
 const BASE = process.env.FA_BASE_URL || 'http://127.0.0.1:8811';
@@ -175,7 +176,7 @@ async function gerarPdf(page) {
 async function lerExcel(page) {
   await page.click('#avpExportarBtn');
   const [dl] = await Promise.all([page.waitForEvent('download', { timeout: 20000 }), page.click('#avpExportarExcelTodas')]);
-  const arq = path.join(require('os').tmpdir(), 'avp-coerencia-' + Date.now() + '.xlsx');
+  const arq = arquivoTemporario('avp-coerencia-', '.xlsx');
   await dl.saveAs(arq);
   const wb = XLSX.read(fs.readFileSync(arq), { type: 'buffer' });
   const linhas = XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]], { header: 1 });
