@@ -26,6 +26,7 @@
  * tela que já são cobertos por outros testes deste repositório.
  */
 const { chromium } = require('playwright');
+const { esperarSessaoAssentada } = require('./esperas');
 const fs = require('fs');
 const path = require('path');
 
@@ -53,8 +54,7 @@ async function abrirApp(browser) {
   await page.route('**fonts.googleapis.com**', (r) => r.fulfill({ status: 200, contentType: 'text/css', body: '' }));
   await page.route('**fonts.gstatic.com**', (r) => r.abort());
   await page.goto(BASE + '/index.html#admin', { waitUntil: 'domcontentloaded' });
-  await page.waitForFunction(() => !document.body.classList.contains('aguardando-auth'), { timeout: 16000 }).catch(() => {});
-  await page.waitForTimeout(800);
+  await esperarSessaoAssentada(page); /* login decidido e acessos resolvidos (antes: opções no lugar do argumento, engolida + 800 ms fixos) */
   await page.evaluate(() => { window.faMotorArquitetura.onMudanca(function () {}); window.faMotorSquad.onMudanca(function () {}); });
   await page.waitForTimeout(300);
   return { ctx, page, erros };

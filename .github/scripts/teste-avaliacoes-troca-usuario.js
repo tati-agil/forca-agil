@@ -18,6 +18,7 @@
  *   herda a avaliação aberta pela pessoa anterior.
  * Hermético: sem rede, sem segredo. */
 const { chromium } = require('playwright');
+const { esperarSessaoAssentada } = require('./esperas');
 const fs = require('fs');
 const path = require('path');
 
@@ -73,8 +74,7 @@ async function abrir(browser, o) {
   await page.route('**fonts.googleapis.com**', (r) => r.fulfill({ status: 200, contentType: 'text/css', body: '' }));
   await page.route('**fonts.gstatic.com**', (r) => r.abort());
   await page.goto(BASE + '/index.html' + (o.hash || '#home'), { waitUntil: 'domcontentloaded' });
-  await page.waitForFunction(() => !document.body.classList.contains('aguardando-auth'), { timeout: 16000 }).catch(() => {});
-  await page.waitForTimeout(600);
+  await esperarSessaoAssentada(page); /* login decidido e acessos resolvidos (antes: opções no lugar do argumento, engolida + 600 ms fixos) */
   /* marca desta carga da página: se sumir, houve recarga — e este teste existe para NÃO recarregar */
   await page.evaluate(() => { window.__marcaDaPagina = 'mesma-pagina'; });
   return { ctx, page, erros };

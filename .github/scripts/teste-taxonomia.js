@@ -26,7 +26,7 @@
 const { chromium } = require('playwright');
 const fs = require('fs');
 const path = require('path');
-const { esperarCondicao } = require('./esperas');
+const { esperarCondicao, esperarSessaoAssentada } = require('./esperas');
 
 const BASE = process.env.FA_BASE_URL || 'http://127.0.0.1:8811';
 const FALSO = fs.readFileSync(path.join(__dirname, 'persistencia-firebase-real.js'), 'utf8') + '\n' +
@@ -106,7 +106,7 @@ async function abrir(browser, o) {
   await page.route('**fonts.googleapis.com**', (r) => r.fulfill({ status: 200, contentType: 'text/css', body: '' }));
   await page.route('**fonts.gstatic.com**', (r) => r.abort());
   await page.goto(BASE + '/index.html#admin', { waitUntil: 'domcontentloaded' });
-  await page.waitForFunction(() => !document.body.classList.contains('aguardando-auth'), { timeout: 16000 }).catch(() => {});
+  await esperarSessaoAssentada(page); /* login decidido e acessos resolvidos (antes: opções no lugar do argumento, engolida) */
   return { ctx, page, erros };
 }
 async function irParaTaxonomia(page) {

@@ -5,16 +5,6 @@
   ],
   "ocorrencias": {
     "teste-a-validar-gestao.js": {
-      "3da18501363e334c": {
-        "n": 1,
-        "padrao": "opcoes-como-argumento",
-        "trecho": ".waitForFunction(() => !document.body.classList.contains('aguardando-auth'), { timeout: 16000 })"
-      },
-      "0cbdc2c2057de36b": {
-        "n": 1,
-        "padrao": "catch",
-        "trecho": ".waitForFunction(() => !document.body.classList.contains('aguardando-auth'), { timeout: 16000 }).catch(() => {})"
-      },
       "36550d61e94780b9": {
         "n": 1,
         "padrao": "catch",
@@ -27,16 +17,6 @@
       }
     },
     "teste-a-validar-natureza.js": {
-      "3da18501363e334c": {
-        "n": 1,
-        "padrao": "opcoes-como-argumento",
-        "trecho": ".waitForFunction(() => !document.body.classList.contains('aguardando-auth'), { timeout: 16000 })"
-      },
-      "0cbdc2c2057de36b": {
-        "n": 1,
-        "padrao": "catch",
-        "trecho": ".waitForFunction(() => !document.body.classList.contains('aguardando-auth'), { timeout: 16000 }).catch(() => {})"
-      },
       "36550d61e94780b9": {
         "n": 1,
         "padrao": "catch",
@@ -93,18 +73,6 @@
         "n": 1,
         "padrao": "opcoes-como-argumento",
         "trecho": ".waitForFunction(() => /DEBORA/i.test(document.querySelector('#addPartResults').textContent || ''), { timeout: 15000 })"
-      }
-    },
-    "teste-admin-navegacao.js": {
-      "3da18501363e334c": {
-        "n": 1,
-        "padrao": "opcoes-como-argumento",
-        "trecho": ".waitForFunction(() => !document.body.classList.contains('aguardando-auth'), { timeout: 16000 })"
-      },
-      "0cbdc2c2057de36b": {
-        "n": 1,
-        "padrao": "catch",
-        "trecho": ".waitForFunction(() => !document.body.classList.contains('aguardando-auth'), { timeout: 16000 }).catch(() => {})"
       }
     },
     "teste-admin-nome-evento-completo.js": {
@@ -207,16 +175,6 @@
       }
     },
     "teste-avaliacoes-acessos.js": {
-      "3da18501363e334c": {
-        "n": 1,
-        "padrao": "opcoes-como-argumento",
-        "trecho": ".waitForFunction(() => !document.body.classList.contains('aguardando-auth'), { timeout: 16000 })"
-      },
-      "0cbdc2c2057de36b": {
-        "n": 1,
-        "padrao": "catch",
-        "trecho": ".waitForFunction(() => !document.body.classList.contains('aguardando-auth'), { timeout: 16000 }).catch(() => {})"
-      },
       "bf0d54ef8f98645d": {
         "n": 1,
         "padrao": "catch",
@@ -299,26 +257,6 @@
       }
     },
     "teste-avaliacoes-ajustes.js": {
-      "3da18501363e334c": {
-        "n": 1,
-        "padrao": "opcoes-como-argumento",
-        "trecho": ".waitForFunction(() => !document.body.classList.contains('aguardando-auth'), { timeout: 16000 })"
-      },
-      "0cbdc2c2057de36b": {
-        "n": 1,
-        "padrao": "catch",
-        "trecho": ".waitForFunction(() => !document.body.classList.contains('aguardando-auth'), { timeout: 16000 }).catch(() => {})"
-      },
-      "d9dcafdcd76ea84c": {
-        "n": 1,
-        "padrao": "opcoes-como-argumento",
-        "trecho": ".waitForFunction(() => !document.querySelector('.avp-tag-motor--verificando'), { timeout: 8000 })"
-      },
-      "76d1973ac9e8bb9b": {
-        "n": 1,
-        "padrao": "catch",
-        "trecho": ".waitForFunction(() => !document.querySelector('.avp-tag-motor--verificando'), { timeout: 8000 }).catch(() => {})"
-      },
       "46c089292c40df5f": {
         "n": 2,
         "padrao": "catch",
@@ -335,28 +273,6 @@
         "trecho": ".waitForFunction(() => !/Gerando arquivo/.test(document.body.innerText), { timeout: 20000 }).catch(() => {})"
       }
     },
-    "teste-avaliacoes-ficha.js": {
-      "3da18501363e334c": {
-        "n": 1,
-        "padrao": "opcoes-como-argumento",
-        "trecho": ".waitForFunction(() => !document.body.classList.contains('aguardando-auth'), { timeout: 16000 })"
-      },
-      "0cbdc2c2057de36b": {
-        "n": 1,
-        "padrao": "catch",
-        "trecho": ".waitForFunction(() => !document.body.classList.contains('aguardando-auth'), { timeout: 16000 }).catch(() => {})"
-      },
-      "d9dcafdcd76ea84c": {
-        "n": 1,
-        "padrao": "opcoes-como-argumento",
-        "trecho": ".waitForFunction(() => !document.querySelector('.avp-tag-motor--verificando'), { timeout: 8000 })"
-      },
-      "76d1973ac9e8bb9b": {
-        "n": 1,
-        "padrao": "catch",
-        "trecho": ".waitForFunction(() => !document.querySelector('.avp-tag-motor--verificando'), { timeout: 8000 }).catch(() => {})"
-      }
-    },
     "teste-avaliacoes-navegacao.js": {
       "3c16ec62a147c1c2": {
         "n": 2,
@@ -365,16 +281,6 @@
       }
     },
     "teste-avaliacoes-troca-usuario.js": {
-      "3da18501363e334c": {
-        "n": 1,
-        "padrao": "opcoes-como-argumento",
-        "trecho": ".waitForFunction(() => !document.body.classList.contains('aguardando-auth'), { timeout: 16000 })"
-      },
-      "0cbdc2c2057de36b": {
-        "n": 1,
-        "padrao": "catch",
-        "trecho": ".waitForFunction(() => !document.body.classList.contains('aguardando-auth'), { timeout: 16000 }).catch(() => {})"
-      },
       "080f3a4525238f90": {
         "n": 1,
         "padrao": "opcoes-como-argumento",
@@ -417,16 +323,6 @@
       }
     },
     "teste-conflito-naturezas.js": {
-      "3da18501363e334c": {
-        "n": 1,
-        "padrao": "opcoes-como-argumento",
-        "trecho": ".waitForFunction(() => !document.body.classList.contains('aguardando-auth'), { timeout: 16000 })"
-      },
-      "0cbdc2c2057de36b": {
-        "n": 1,
-        "padrao": "catch",
-        "trecho": ".waitForFunction(() => !document.body.classList.contains('aguardando-auth'), { timeout: 16000 }).catch(() => {})"
-      },
       "36550d61e94780b9": {
         "n": 1,
         "padrao": "catch",
@@ -451,16 +347,6 @@
       }
     },
     "teste-curadoria-orfa.js": {
-      "3da18501363e334c": {
-        "n": 1,
-        "padrao": "opcoes-como-argumento",
-        "trecho": ".waitForFunction(() => !document.body.classList.contains('aguardando-auth'), { timeout: 16000 })"
-      },
-      "0cbdc2c2057de36b": {
-        "n": 1,
-        "padrao": "catch",
-        "trecho": ".waitForFunction(() => !document.body.classList.contains('aguardando-auth'), { timeout: 16000 }).catch(() => {})"
-      },
       "98d860c40ed3f0f6": {
         "n": 1,
         "padrao": "catch",
@@ -488,16 +374,6 @@
       }
     },
     "teste-curadoria.js": {
-      "3da18501363e334c": {
-        "n": 1,
-        "padrao": "opcoes-como-argumento",
-        "trecho": ".waitForFunction(() => !document.body.classList.contains('aguardando-auth'), { timeout: 16000 })"
-      },
-      "0cbdc2c2057de36b": {
-        "n": 1,
-        "padrao": "catch",
-        "trecho": ".waitForFunction(() => !document.body.classList.contains('aguardando-auth'), { timeout: 16000 }).catch(() => {})"
-      },
       "009657c53b7badbb": {
         "n": 1,
         "padrao": "opcoes-como-argumento",
@@ -572,16 +448,6 @@
       }
     },
     "teste-exportacoes-trilha.js": {
-      "3da18501363e334c": {
-        "n": 1,
-        "padrao": "opcoes-como-argumento",
-        "trecho": ".waitForFunction(() => !document.body.classList.contains('aguardando-auth'), { timeout: 16000 })"
-      },
-      "0cbdc2c2057de36b": {
-        "n": 1,
-        "padrao": "catch",
-        "trecho": ".waitForFunction(() => !document.body.classList.contains('aguardando-auth'), { timeout: 16000 }).catch(() => {})"
-      },
       "28ce95812d6db36a": {
         "n": 1,
         "padrao": "catch",
@@ -589,16 +455,6 @@
       }
     },
     "teste-ficha-estrutura.js": {
-      "3da18501363e334c": {
-        "n": 1,
-        "padrao": "opcoes-como-argumento",
-        "trecho": ".waitForFunction(() => !document.body.classList.contains('aguardando-auth'), { timeout: 16000 })"
-      },
-      "0cbdc2c2057de36b": {
-        "n": 1,
-        "padrao": "catch",
-        "trecho": ".waitForFunction(() => !document.body.classList.contains('aguardando-auth'), { timeout: 16000 }).catch(() => {})"
-      },
       "98d860c40ed3f0f6": {
         "n": 1,
         "padrao": "catch",
@@ -651,16 +507,6 @@
       }
     },
     "teste-interpretacoes-p5-p15-natureza.js": {
-      "3da18501363e334c": {
-        "n": 1,
-        "padrao": "opcoes-como-argumento",
-        "trecho": ".waitForFunction(() => !document.body.classList.contains('aguardando-auth'), { timeout: 16000 })"
-      },
-      "0cbdc2c2057de36b": {
-        "n": 1,
-        "padrao": "catch",
-        "trecho": ".waitForFunction(() => !document.body.classList.contains('aguardando-auth'), { timeout: 16000 }).catch(() => {})"
-      },
       "ab62db5319e475be": {
         "n": 1,
         "padrao": "catch",
@@ -698,81 +544,13 @@
       }
     },
     "teste-menu-notebook.js": {
-      "3da18501363e334c": {
-        "n": 1,
-        "padrao": "opcoes-como-argumento",
-        "trecho": ".waitForFunction(() => !document.body.classList.contains('aguardando-auth'), { timeout: 16000 })"
-      },
-      "0cbdc2c2057de36b": {
-        "n": 1,
-        "padrao": "catch",
-        "trecho": ".waitForFunction(() => !document.body.classList.contains('aguardando-auth'), { timeout: 16000 }).catch(() => {})"
-      },
       "3ba47285331023a9": {
         "n": 1,
         "padrao": "catch",
         "trecho": ".waitForFunction(() => location.hash === '#treinamento', null, { timeout: 4000 }).catch(() => {})"
       }
     },
-    "teste-motor-adicionar-condicao.js": {
-      "3da18501363e334c": {
-        "n": 1,
-        "padrao": "opcoes-como-argumento",
-        "trecho": ".waitForFunction(() => !document.body.classList.contains('aguardando-auth'), { timeout: 16000 })"
-      },
-      "0cbdc2c2057de36b": {
-        "n": 1,
-        "padrao": "catch",
-        "trecho": ".waitForFunction(() => !document.body.classList.contains('aguardando-auth'), { timeout: 16000 }).catch(() => {})"
-      }
-    },
-    "teste-motor-concorrencia-publicacao.js": {
-      "3da18501363e334c": {
-        "n": 1,
-        "padrao": "opcoes-como-argumento",
-        "trecho": ".waitForFunction(() => !document.body.classList.contains('aguardando-auth'), { timeout: 16000 })"
-      },
-      "0cbdc2c2057de36b": {
-        "n": 1,
-        "padrao": "catch",
-        "trecho": ".waitForFunction(() => !document.body.classList.contains('aguardando-auth'), { timeout: 16000 }).catch(() => {})"
-      }
-    },
-    "teste-motor-diffregras-semantica.js": {
-      "3da18501363e334c": {
-        "n": 1,
-        "padrao": "opcoes-como-argumento",
-        "trecho": ".waitForFunction(() => !document.body.classList.contains('aguardando-auth'), { timeout: 16000 })"
-      },
-      "0cbdc2c2057de36b": {
-        "n": 1,
-        "padrao": "catch",
-        "trecho": ".waitForFunction(() => !document.body.classList.contains('aguardando-auth'), { timeout: 16000 }).catch(() => {})"
-      }
-    },
-    "teste-motor-legivel.js": {
-      "3da18501363e334c": {
-        "n": 1,
-        "padrao": "opcoes-como-argumento",
-        "trecho": ".waitForFunction(() => !document.body.classList.contains('aguardando-auth'), { timeout: 16000 })"
-      },
-      "0cbdc2c2057de36b": {
-        "n": 1,
-        "padrao": "catch",
-        "trecho": ".waitForFunction(() => !document.body.classList.contains('aguardando-auth'), { timeout: 16000 }).catch(() => {})"
-      }
-    },
     "teste-motor-modal-atualizacao.js": {
-      "3da18501363e334c": {
-        "n": 1,
-        "padrao": "opcoes-como-argumento",
-        "trecho": ".waitForFunction(() => !document.body.classList.contains('aguardando-auth'), { timeout: 16000 })"
-      },
-      "0cbdc2c2057de36b": {
-        "n": 1,
-        "padrao": "catch",
-        "trecho": ".waitForFunction(() => !document.body.classList.contains('aguardando-auth'), { timeout: 16000 }).catch(() => {})"
-      },
       "3df6e0ae9de57729": {
         "n": 1,
         "padrao": "opcoes-como-argumento",
@@ -814,41 +592,7 @@
         "trecho": ".waitForFunction(() => window.faMotorArquitetura.configCarregada(), { timeout: 10000 })"
       }
     },
-    "teste-motor-noop-atomico.js": {
-      "3da18501363e334c": {
-        "n": 1,
-        "padrao": "opcoes-como-argumento",
-        "trecho": ".waitForFunction(() => !document.body.classList.contains('aguardando-auth'), { timeout: 16000 })"
-      },
-      "0cbdc2c2057de36b": {
-        "n": 1,
-        "padrao": "catch",
-        "trecho": ".waitForFunction(() => !document.body.classList.contains('aguardando-auth'), { timeout: 16000 }).catch(() => {})"
-      }
-    },
-    "teste-motor-normalizacao-semantica.js": {
-      "3da18501363e334c": {
-        "n": 1,
-        "padrao": "opcoes-como-argumento",
-        "trecho": ".waitForFunction(() => !document.body.classList.contains('aguardando-auth'), { timeout: 16000 })"
-      },
-      "0cbdc2c2057de36b": {
-        "n": 1,
-        "padrao": "catch",
-        "trecho": ".waitForFunction(() => !document.body.classList.contains('aguardando-auth'), { timeout: 16000 }).catch(() => {})"
-      }
-    },
     "teste-motor-reconciliacao.js": {
-      "3da18501363e334c": {
-        "n": 1,
-        "padrao": "opcoes-como-argumento",
-        "trecho": ".waitForFunction(() => !document.body.classList.contains('aguardando-auth'), { timeout: 16000 })"
-      },
-      "0cbdc2c2057de36b": {
-        "n": 1,
-        "padrao": "catch",
-        "trecho": ".waitForFunction(() => !document.body.classList.contains('aguardando-auth'), { timeout: 16000 }).catch(() => {})"
-      },
       "3df6e0ae9de57729": {
         "n": 1,
         "padrao": "opcoes-como-argumento",
@@ -900,29 +644,7 @@
         "trecho": ".waitForSelector('#avpReconciliarConfirmar', { timeout: 3000 }).catch(() => {})"
       }
     },
-    "teste-motor-reprocessamento-badge.js": {
-      "3da18501363e334c": {
-        "n": 1,
-        "padrao": "opcoes-como-argumento",
-        "trecho": ".waitForFunction(() => !document.body.classList.contains('aguardando-auth'), { timeout: 16000 })"
-      },
-      "0cbdc2c2057de36b": {
-        "n": 1,
-        "padrao": "catch",
-        "trecho": ".waitForFunction(() => !document.body.classList.contains('aguardando-auth'), { timeout: 16000 }).catch(() => {})"
-      }
-    },
     "teste-motor-reprocessar-lote-robusto.js": {
-      "3da18501363e334c": {
-        "n": 1,
-        "padrao": "opcoes-como-argumento",
-        "trecho": ".waitForFunction(() => !document.body.classList.contains('aguardando-auth'), { timeout: 16000 })"
-      },
-      "0cbdc2c2057de36b": {
-        "n": 1,
-        "padrao": "catch",
-        "trecho": ".waitForFunction(() => !document.body.classList.contains('aguardando-auth'), { timeout: 16000 }).catch(() => {})"
-      },
       "64d6f72779b9242b": {
         "n": 1,
         "padrao": "opcoes-como-argumento",
@@ -950,16 +672,6 @@
       }
     },
     "teste-natureza-complementar.js": {
-      "3da18501363e334c": {
-        "n": 1,
-        "padrao": "opcoes-como-argumento",
-        "trecho": ".waitForFunction(() => !document.body.classList.contains('aguardando-auth'), { timeout: 16000 })"
-      },
-      "0cbdc2c2057de36b": {
-        "n": 1,
-        "padrao": "catch",
-        "trecho": ".waitForFunction(() => !document.body.classList.contains('aguardando-auth'), { timeout: 16000 }).catch(() => {})"
-      },
       "3e73a0667742b91f": {
         "n": 1,
         "padrao": "opcoes-como-argumento",
@@ -1047,16 +759,6 @@
       }
     },
     "teste-pdf-quebra-titulos.js": {
-      "3da18501363e334c": {
-        "n": 1,
-        "padrao": "opcoes-como-argumento",
-        "trecho": ".waitForFunction(() => !document.body.classList.contains('aguardando-auth'), { timeout: 16000 })"
-      },
-      "0cbdc2c2057de36b": {
-        "n": 1,
-        "padrao": "catch",
-        "trecho": ".waitForFunction(() => !document.body.classList.contains('aguardando-auth'), { timeout: 16000 }).catch(() => {})"
-      },
       "28ce95812d6db36a": {
         "n": 1,
         "padrao": "catch",
@@ -1082,18 +784,6 @@
         "trecho": ".waitForFunction(() => { return document.querySelectorAll('#turma-card-tA .turma-aviso-publico').length === 0; }, { timeout: 10000 })"
       }
     },
-    "teste-questionarios-excel.js": {
-      "3da18501363e334c": {
-        "n": 1,
-        "padrao": "opcoes-como-argumento",
-        "trecho": ".waitForFunction(() => !document.body.classList.contains('aguardando-auth'), { timeout: 16000 })"
-      },
-      "0cbdc2c2057de36b": {
-        "n": 1,
-        "padrao": "catch",
-        "trecho": ".waitForFunction(() => !document.body.classList.contains('aguardando-auth'), { timeout: 16000 }).catch(() => {})"
-      }
-    },
     "teste-repositorio-carregando.js": {
       "b8c630635f23077d": {
         "n": 1,
@@ -1101,53 +791,7 @@
         "trecho": ".waitForFunction(() => { const grid = document.getElementById('repoGrid'); return grid.querySelectorAll('.repo-card').length > 0; }, { timeo"
       }
     },
-    "teste-squad-exportacoes.js": {
-      "3da18501363e334c": {
-        "n": 1,
-        "padrao": "opcoes-como-argumento",
-        "trecho": ".waitForFunction(() => !document.body.classList.contains('aguardando-auth'), { timeout: 16000 })"
-      },
-      "0cbdc2c2057de36b": {
-        "n": 1,
-        "padrao": "catch",
-        "trecho": ".waitForFunction(() => !document.body.classList.contains('aguardando-auth'), { timeout: 16000 }).catch(() => {})"
-      }
-    },
-    "teste-squad-inicio-motor.js": {
-      "3da18501363e334c": {
-        "n": 1,
-        "padrao": "opcoes-como-argumento",
-        "trecho": ".waitForFunction(() => !document.body.classList.contains('aguardando-auth'), { timeout: 16000 })"
-      },
-      "0cbdc2c2057de36b": {
-        "n": 1,
-        "padrao": "catch",
-        "trecho": ".waitForFunction(() => !document.body.classList.contains('aguardando-auth'), { timeout: 16000 }).catch(() => {})"
-      }
-    },
-    "teste-tabela-avaliacoes-rolagem.js": {
-      "3da18501363e334c": {
-        "n": 1,
-        "padrao": "opcoes-como-argumento",
-        "trecho": ".waitForFunction(() => !document.body.classList.contains('aguardando-auth'), { timeout: 16000 })"
-      },
-      "0cbdc2c2057de36b": {
-        "n": 1,
-        "padrao": "catch",
-        "trecho": ".waitForFunction(() => !document.body.classList.contains('aguardando-auth'), { timeout: 16000 }).catch(() => {})"
-      }
-    },
     "teste-taxonomia.js": {
-      "3da18501363e334c": {
-        "n": 1,
-        "padrao": "opcoes-como-argumento",
-        "trecho": ".waitForFunction(() => !document.body.classList.contains('aguardando-auth'), { timeout: 16000 })"
-      },
-      "0cbdc2c2057de36b": {
-        "n": 1,
-        "padrao": "catch",
-        "trecho": ".waitForFunction(() => !document.body.classList.contains('aguardando-auth'), { timeout: 16000 }).catch(() => {})"
-      },
       "b9948393b3c8006d": {
         "n": 1,
         "padrao": "catch",
@@ -1265,16 +909,6 @@
       }
     },
     "teste-texto-componente.js": {
-      "3da18501363e334c": {
-        "n": 1,
-        "padrao": "opcoes-como-argumento",
-        "trecho": ".waitForFunction(() => !document.body.classList.contains('aguardando-auth'), { timeout: 16000 })"
-      },
-      "0cbdc2c2057de36b": {
-        "n": 1,
-        "padrao": "catch",
-        "trecho": ".waitForFunction(() => !document.body.classList.contains('aguardando-auth'), { timeout: 16000 }).catch(() => {})"
-      },
       "36550d61e94780b9": {
         "n": 1,
         "padrao": "catch",
@@ -1287,16 +921,6 @@
       }
     },
     "teste-texto-unidade-valor.js": {
-      "3da18501363e334c": {
-        "n": 1,
-        "padrao": "opcoes-como-argumento",
-        "trecho": ".waitForFunction(() => !document.body.classList.contains('aguardando-auth'), { timeout: 16000 })"
-      },
-      "0cbdc2c2057de36b": {
-        "n": 1,
-        "padrao": "catch",
-        "trecho": ".waitForFunction(() => !document.body.classList.contains('aguardando-auth'), { timeout: 16000 }).catch(() => {})"
-      },
       "36550d61e94780b9": {
         "n": 1,
         "padrao": "catch",
@@ -1309,16 +933,6 @@
       }
     },
     "teste-textos-informacao-documento.js": {
-      "3da18501363e334c": {
-        "n": 1,
-        "padrao": "opcoes-como-argumento",
-        "trecho": ".waitForFunction(() => !document.body.classList.contains('aguardando-auth'), { timeout: 16000 })"
-      },
-      "0cbdc2c2057de36b": {
-        "n": 1,
-        "padrao": "catch",
-        "trecho": ".waitForFunction(() => !document.body.classList.contains('aguardando-auth'), { timeout: 16000 }).catch(() => {})"
-      },
       "e8f95b62eac22dd4": {
         "n": 1,
         "padrao": "opcoes-como-argumento",

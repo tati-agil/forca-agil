@@ -28,6 +28,7 @@
  *      justificativa e motivo — só as naturezas marcadas.
  * Hermético: sem rede, sem segredo. */
 const { chromium } = require('playwright');
+const { esperarSessaoAssentada } = require('./esperas');
 const fs = require('fs');
 const path = require('path');
 const vm = require('vm');
@@ -406,7 +407,7 @@ async function abrir(browser, viewport, configMotor, avaliacoes, rota) {
   await page.route('**fonts.googleapis.com**', (r) => r.fulfill({ status: 200, contentType: 'text/css', body: '' }));
   await page.route('**fonts.gstatic.com**', (r) => r.abort());
   await page.goto(BASE + '/index.html#' + (rota || 'admin'), { waitUntil: 'domcontentloaded' });
-  await page.waitForFunction(() => !document.body.classList.contains('aguardando-auth'), { timeout: 16000 }).catch(() => {});
+  await esperarSessaoAssentada(page); /* login decidido e acessos resolvidos (antes: opções no lugar do argumento, engolida) */
   return { ctx, page, erros };
 }
 async function abrirConfigMotores(page) {

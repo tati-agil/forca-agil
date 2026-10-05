@@ -13,6 +13,7 @@
  *   - nada de dados/ações mudou: mesmas 30 linhas, mesmos botões, nenhuma gravação.
  * Hermético: sem rede, sem segredo. */
 const { chromium } = require('playwright');
+const { esperarSessaoAssentada } = require('./esperas');
 const fs = require('fs');
 const path = require('path');
 
@@ -67,10 +68,8 @@ async function abrirApp(browser, avaliacoes, viewport) {
   await page.route('**fonts.googleapis.com**', (r) => r.fulfill({ status: 200, contentType: 'text/css', body: '' }));
   await page.route('**fonts.gstatic.com**', (r) => r.abort());
   await page.goto(BASE + '/index.html#avaliacoes', { waitUntil: 'domcontentloaded' });
-  await page.waitForFunction(() => !document.body.classList.contains('aguardando-auth'), { timeout: 16000 }).catch(() => {});
-  await page.waitForTimeout(800);
+  await esperarSessaoAssentada(page); /* login decidido e acessos resolvidos (antes: opções no lugar do argumento, engolida + 800 ms + 400 ms fixos) */
   await page.waitForSelector('.avp-tabela-wrap', { timeout: 8000 });
-  await page.waitForTimeout(400);
   return { ctx, page, erros };
 }
 

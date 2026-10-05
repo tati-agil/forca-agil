@@ -15,6 +15,7 @@
  * Banco falso em persistenciaReal (grava/lê como o Firebase de verdade).
  * Hermético: sem rede, sem segredo. */
 const { chromium } = require('playwright');
+const { esperarSessaoAssentada } = require('./esperas');
 const fs = require('fs');
 const path = require('path');
 const vm = require('vm');
@@ -82,8 +83,7 @@ async function abrirApp(browser, avaliacoes, config, viewport, delays) {
   await page.route('**fonts.googleapis.com**', (r) => r.fulfill({ status: 200, contentType: 'text/css', body: '' }));
   await page.route('**fonts.gstatic.com**', (r) => r.abort());
   await page.goto(BASE + '/index.html#avaliacoes', { waitUntil: 'domcontentloaded' });
-  await page.waitForFunction(() => !document.body.classList.contains('aguardando-auth'), { timeout: 16000 }).catch(() => {});
-  await page.waitForTimeout(800);
+  await esperarSessaoAssentada(page); /* login decidido e acessos resolvidos (antes: opções no lugar do argumento, engolida + 800 ms fixos) */
   await page.waitForFunction(() => document.querySelectorAll('.avp-tag-motor').length > 0, { timeout: 8000 }).catch(() => {});
   /* sem atraso proposital, espera a prova de equivalência assentar os selos
      (com atraso, o cenário 3 quer justamente ver "Verificando motor…") */

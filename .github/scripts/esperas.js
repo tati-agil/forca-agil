@@ -11,6 +11,8 @@
  *   esperarCondicaoAte(page, fn, arg, { limite })
  *       para quando chegar ao limite é um resultado legítimo (ex.: "a rede nunca responde"):
  *       devolve true/false — só o estouro do limite vira false; qualquer outro erro sobe.
+ *   esperarSessaoAssentada(page)
+ *       login decidido e acessos resolvidos (o que as folgas fixas depois do login tentavam cobrir).
  *   esperarAusencia(page, seletor, { janela, motivo })
  *       a ÚNICA forma de afirmar que algo NÃO aparece: observa a janela inteira (documentada no
  *       motivo) e devolve true se o seletor não apareceu nela.
@@ -43,6 +45,22 @@ async function esperarCondicaoAte(page, fn, arg, opcoes) {
   }
 }
 
+/* Sessão assentada: o login decidiu (a tela preta de espera saiu) e, havendo sessão, admin, Avaliação,
+   facilitador e inscrição já foram resolvidos — depois disso nenhum desses avisos redesenha a tela sozinho.
+   É a condição que as folgas fixas depois do login (300–800 ms) tentavam cobrir por tempo.
+   opcoes.semAvaliacao: o teste derruba de propósito a leitura do acesso à Avaliação — por desenho o site
+   fica em "ainda não sei" para sempre (nunca expulsa quem pode ter acesso), então esse sinal não vem. */
+async function esperarSessaoAssentada(page, opcoes) {
+  const o = opcoes || {};
+  await esperarCondicao(page, (semAvaliacao) => {
+    if (document.body.classList.contains('aguardando-auth')) return false;
+    const a = window.faAuth;
+    if (!a || !a.isAuthReady || !a.isAuthReady()) return false;
+    if (!a.getSession()) return true;
+    return a.isAdminReady() && (semAvaliacao || a.isAvaliacaoReady()) && a.isFacilitadorReady() && a.isEnrolledReady();
+  }, !!o.semAvaliacao, { limite: o.limite || 16000, descricao: o.descricao || 'login decidido e acessos resolvidos' });
+}
+
 async function esperarAusencia(page, seletor, opcoes) {
   const o = opcoes || {};
   if (!o.motivo) throw new Error('esperarAusencia precisa de um motivo (por que a janela de ' + (o.janela || '?') + ' ms basta)');
@@ -55,4 +73,4 @@ async function esperarAusencia(page, seletor, opcoes) {
   }
 }
 
-module.exports = { esperarCondicao, esperarCondicaoAte, esperarAusencia, erroDeLimite };
+module.exports = { esperarCondicao, esperarCondicaoAte, esperarSessaoAssentada, esperarAusencia, erroDeLimite };
