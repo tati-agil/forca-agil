@@ -17,7 +17,8 @@
  *
  * O QUE ELE EXIGE, em cada cenário × cada formato de tela:
  *   1. algo visível aos 2 segundos — nunca preto absoluto;
- *   2. algo visível no fim — a espera sempre termina em site ou em login;
+ *   2. a espera termina no estado declarado do cenário (site, login, ou login com o aviso de sem
+ *      conexão) e há algo visível nele;
  *   3. nenhum erro de JavaScript não tratado (menos onde o cenário é
  *      justamente derrubar o SDK).
  */
@@ -48,13 +49,18 @@ function bancoBase() {
   };
 }
 
-/* 999000ms = "nunca responde" dentro do tempo do teste. */
+/* 999000ms = "nunca responde" dentro do tempo do teste.
+   fim: o estado em que a espera TERMINA (padrão 'site': a tela preta sai e o site aparece). 'login': o
+   site cai na tela de login. 'aviso-sem-conexao': a rede de segurança do router (10 s) mostra o login
+   com o aviso "Não conseguimos retomar sua sessão". O teste espera exatamente esse estado e falha se
+   ele não vier — antes esperava até 16 s pela saída da tela preta e, sem ela, aceitava o que houvesse. */
 const CENARIOS = [
   { nome: 'rede normal',              cfg: { delayDefault: 20 } },
   { nome: 'rede lenta (2s/leitura)',  cfg: { delayDefault: 2000 } },
   { nome: 'turmas-interesse travado', cfg: { delayDefault: 20, delays: { 'turmas-interesse': 999000 } } },
   { nome: 'turmas-interesse com erro',cfg: { delayDefault: 20, fail: ['turmas-interesse'] } },
-  { nome: 'fa-users com erro',        cfg: { delayDefault: 20, fail: ['fa-users'] } },
+  /* comportamento atual registrado (cai no login); se isso é o desejado continua em aberto como ponto de produto */
+  { nome: 'fa-users com erro',        cfg: { delayDefault: 20, fail: ['fa-users'] }, fim: 'login' },
   { nome: 'fa-admins travado',        cfg: { delayDefault: 20, delays: { 'fa-admins': 999000 } } },
   /* turmas-publico entrou na corrente de leituras da página Turmas e da aba
      Eventos quando nasceu a turma de público restrito. Leitura nova é risco
@@ -66,8 +72,8 @@ const CENARIOS = [
      inteira — o mesmo risco, um nó novo. */
   { nome: 'eventos-publico travado',  cfg: { delayDefault: 20, delays: { 'eventos-publico': 999000 } } },
   { nome: 'eventos-publico com erro', cfg: { delayDefault: 20, fail: ['eventos-publico'] } },
-  { nome: 'auth nunca responde',      cfg: { delayDefault: 20, authDelay: 999000 } },
-  { nome: 'SDK do Firebase fora',     cfg: { delayDefault: 20 }, semSdk: true },
+  { nome: 'auth nunca responde',      cfg: { delayDefault: 20, authDelay: 999000 }, fim: 'aviso-sem-conexao' },
+  { nome: 'SDK do Firebase fora',     cfg: { delayDefault: 20 }, semSdk: true, fim: 'aviso-sem-conexao' },
 ];
 
 const FORMATOS = [
@@ -126,11 +132,17 @@ function contarVisiveis(page) {
       await page.waitForTimeout(2000);
       const aos2s = await contarVisiveis(page);
 
-      /* Chegar ao limite é um resultado legítimo aqui (auth que nunca responde termina no login):
-         o estado "no fim" decide. Antes o limite ia como ARGUMENTO da função (assinatura errada do
-         waitForFunction) e valia o padrão de 30 s, não ESPERA; esperarCondicaoAte usa a assinatura
-         certa e só engole o estouro do limite — qualquer outro erro sobe. */
-      await esperarCondicaoAte(page, function () { return !document.body.classList.contains('aguardando-auth'); }, null, { limite: ESPERA });
+      /* Espera o FIM declarado do cenário (ver CENARIOS). Medido: os cenários "site" terminam entre 2 e
+         8 s; o aviso de sem conexão aparece aos ~10,1 s; o login do "fa-users com erro" já está na tela
+         aos 2 s. Antes os três últimos esgotavam os 16 s esperando a tela preta sair. */
+      const fim = c.fim || 'site';
+      const chegou = await esperarCondicaoAte(page, function (alvo) {
+        var m = document.getElementById('authModal');
+        var login = !!(m && getComputedStyle(m).display !== 'none' && m.getBoundingClientRect().height > 0);
+        if (alvo === 'site') return !document.body.classList.contains('aguardando-auth');
+        if (alvo === 'login') return login;
+        return login && !!document.getElementById('authSemConexao');
+      }, fim, { limite: ESPERA });
       const noFim = await contarVisiveis(page);
 
       /* O cenário "SDK fora" derruba o firebase de propósito; o ReferenceError
@@ -141,6 +153,7 @@ function contarVisiveis(page) {
 
       const problemas = [];
       if (aos2s === 0) problemas.push('TELA PRETA aos 2s');
+      if (!chegou) problemas.push('não chegou ao fim esperado ("' + fim + '") em ' + ESPERA / 1000 + ' s');
       if (noFim === 0) problemas.push('TELA PRETA no fim');
       if (errosReais.length) problemas.push('erro JS: ' + errosReais[0]);
 
