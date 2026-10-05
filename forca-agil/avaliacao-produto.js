@@ -425,7 +425,9 @@
      responsável: a Relação arquitetural de Unidade de valor associada
      deixou de afirmar "jornada e mensuração identificáveis" (P6/P7 são
      auxiliares, não exigidas pela regra) — ver teste-texto-unidade-valor.js,
-     que fixa todo o resto das 65.536 combinações. */
+     que fixa todo o resto das 65.536 combinações. Idem (05/10/2026) para a
+     justificativa de Componente, que deixou de negar "jornada própria" (a
+     regra não verifica P6) — ver teste-texto-componente.js. */
   var MOTOR_VERSION = '2026.09.29-2';
 
   /* Mapa fixo e simples: só decide se a camada JÁ IDENTIFICADA conta como
@@ -979,7 +981,10 @@
       var respostasComponente = atual.respostas || {};
       var configuravel = !!(respostasComponente.modalidade && respostasComponente.modalidade.valor === 'sim');
       var papelComponente = configuravel ? 'funciona como elemento configurável dela' : 'exerce um papel estrutural dentro dela';
-      return 'O item não possui autonomia estrutural, jornada própria nem resultado autônomo suficiente para caracterizar Produto/Serviço principal. ' +
+      /* Só o que a regra de Componente exige: autonomia (P5 NÃO) e resultado
+         autônomo (P2 NÃO). Jornada (P6) não é verificada — a frase anterior
+         negava "jornada própria" mesmo quando a resposta era SIM. */
+      return 'O item não possui autonomia estrutural nem resultado autônomo suficiente para caracterizar Produto/Serviço principal. ' +
         'As respostas indicam que ele pertence estruturalmente a outra solução e ' + papelComponente + '. ' +
         'Por isso, sua classificação predominante é Componente.' + especializacaoFrase + papelEstruturalFrase;
     }
