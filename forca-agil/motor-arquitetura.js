@@ -531,6 +531,99 @@
     return { combinacoesAnalisadas: TOTAL_COMBINACOES, diferencas: diferencas, exemplos: exemplos, equivalentes: diferencas === 0 };
   }
 
+  /* ===================== ASSINATURA SEMÂNTICA (só leitura) =====================
+     Resume O QUE o motor decide nas 65.536 combinações — e só isso: para
+     cada combinação, a camada resultante, o tipo de decisão (normal,
+     fallback, incoerência, conflito de naturezas, conflito fixo ou nenhuma
+     regra) e, nos conflitos, as camadas em conflito. Ficam de fora motivos,
+     rótulos, códigos, textos e a forma como as condições estão escritas:
+     duas versões com a mesma lógica e redação diferente têm a mesma
+     sequência. A assinatura é o SHA-256 de uma codificação CANÔNICA e sem
+     perda dessa sequência: as etiquetas distintas em ordem alfabética,
+     separadas por "\n" (UTF-8), um byte 0, e então, para cada combinação na
+     ordem 0..65535, o índice da sua etiqueta nessa lista em 2 bytes (big
+     endian). Mesma informação que a sequência por extenso, ~130 KB em vez
+     de ~1,8 MB — o fechamento não pesa na tela.
+     Usa a mesma avaliação compilada da prova exaustiva (compilarRegras) e o
+     mesmo retornoDoMotor de identificarCamada — não decide nada por conta
+     própria, não altera nenhuma regra e não toca no motor em uso.
+     criarVarreduraSemantica percorre em pedaços (avancar(n)) para quem
+     precisa sem travar a tela; assinatura() devolve uma Promise com o
+     SHA-256 (Web Crypto). assinaturaSemantica faz tudo de uma vez — só para
+     testes e diagnóstico, nunca num caminho interativo. */
+  function sha256Hex(bytes) {
+    var c = (typeof window !== 'undefined' && window.crypto) || (typeof crypto !== 'undefined' ? crypto : null);
+    if (!c || !c.subtle || typeof TextEncoder === 'undefined') return Promise.reject(new Error('SHA-256 (Web Crypto) indisponível'));
+    return c.subtle.digest('SHA-256', bytes).then(function (buf) {
+      var bytes = new Uint8Array(buf), hex = '';
+      for (var i = 0; i < bytes.length; i++) hex += ('0' + bytes[i].toString(16)).slice(-2);
+      return hex;
+    });
+  }
+  function criarVarreduraSemantica(regrasOuConfig) {
+    var lista = Array.isArray(regrasOuConfig) ? regrasOuConfig : ((regrasOuConfig && regrasOuConfig.regras) || []);
+    var exec = compilarRegras(lista);
+    function rotuloDecisao(i, ctx) {
+      var regra = exec.regras[i] || null;
+      var r = retornoDoMotor(regra, ctx);
+      var tipo = !regra ? 'sem-regra' : r.incoerencia ? 'incoerencia' : r.conflitoNaturezas ? 'conflito-naturezas' :
+        ehFallback(regra) ? 'fallback' : (r.conflito ? 'conflito' : 'normal');
+      return r.camada + '|' + tipo + (r.conflito ? '|' + r.conflito.join(',') : '');
+    }
+    var fixos = {};
+    exec.regras.forEach(function (r, i) { if (!r.conflitoDinamico) fixos[i] = rotuloDecisao(i); });
+    fixos[-1] = rotuloDecisao(-1);
+    var indices = new Uint16Array(TOTAL_COMBINACOES), dicionario = [], posicaoNoDicionario = {}, n = 0, contexto = {};
+    /* por extenso — só para testes/diagnóstico (monta ~1,8 MB) */
+    function sequencia() {
+      if (n < TOTAL_COMBINACOES) return null;
+      var linhas = new Array(TOTAL_COMBINACOES);
+      for (var k = 0; k < TOTAL_COMBINACOES; k++) linhas[k] = dicionario[indices[k]];
+      return linhas.join('\n');
+    }
+    function bytesCanonicos() {
+      if (n < TOTAL_COMBINACOES) return null;
+      var ordenadas = dicionario.slice().sort(), novaPosicao = {};
+      ordenadas.forEach(function (rotulo, i) { novaPosicao[rotulo] = i; });
+      var deAntigaParaNova = dicionario.map(function (rotulo) { return novaPosicao[rotulo]; });
+      var cabecalho = new TextEncoder().encode(ordenadas.join('\n'));
+      var bytes = new Uint8Array(cabecalho.length + 1 + TOTAL_COMBINACOES * 2);
+      bytes.set(cabecalho, 0);
+      bytes[cabecalho.length] = 0;
+      for (var k = 0, o = cabecalho.length + 1; k < TOTAL_COMBINACOES; k++, o += 2) {
+        var v = deAntigaParaNova[indices[k]];
+        bytes[o] = v >>> 8; bytes[o + 1] = v & 255;
+      }
+      return bytes;
+    }
+    return {
+      avancar: function (quantas) {
+        var fim = Math.min(TOTAL_COMBINACOES, n + Math.max(1, quantas || TOTAL_COMBINACOES));
+        for (; n < fim; n++) {
+          for (var b = 0; b < 16; b++) contexto[CAMPOS_VALIDOS[b]] = (n & (1 << b)) ? 'SIM' : 'NAO';
+          var i = exec.executar(contexto);
+          var rotulo = fixos[i] !== undefined ? fixos[i] : rotuloDecisao(i, contexto);
+          var p = posicaoNoDicionario[rotulo];
+          if (p === undefined) { p = posicaoNoDicionario[rotulo] = dicionario.length; dicionario.push(rotulo); }
+          indices[n] = p;
+        }
+        return n >= TOTAL_COMBINACOES;
+      },
+      concluida: function () { return n >= TOTAL_COMBINACOES; },
+      sequencia: sequencia,
+      bytesCanonicos: bytesCanonicos,
+      assinatura: function () {
+        if (n < TOTAL_COMBINACOES) return Promise.reject(new Error('varredura incompleta'));
+        return sha256Hex(bytesCanonicos());
+      }
+    };
+  }
+  function assinaturaSemantica(regrasOuConfig) {
+    var v = criarVarreduraSemantica(regrasOuConfig);
+    v.avancar(TOTAL_COMBINACOES);
+    return v.assinatura();
+  }
+
   /* ===================== SIMULAÇÃO (item 20 do pedido) =====================
      Pura, só leitura — recebe as avaliações CONCLUÍDAS já carregadas por
      quem chama (avaliacao-produto.js já tem esse array em memória; este
@@ -1123,6 +1216,8 @@
     migrarFallbackLegado: migrarFallbackLegado,
     identificarCamada: identificarCamada,
     compararRegrasExaustivamente: compararRegrasExaustivamente,
+    criarVarreduraSemantica: criarVarreduraSemantica,
+    assinaturaSemantica: assinaturaSemantica,
     equivalenciaEntreVersoes: equivalenciaEntreVersoes,
     configCarregada: configCarregada,
     simular: simular,
