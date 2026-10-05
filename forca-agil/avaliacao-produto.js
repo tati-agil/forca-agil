@@ -239,6 +239,18 @@
      desativar uma opção depois nunca reescreve o que já foi registrado. */
   /* { codigo, nome, descricao, definidaPor, definidaEm } | null. Lê o formato
      novo e o antigo ({id, rotulo}, só existia numa decisão manual). */
+  /* Aviso do catálogo de naturezas quando ele não chegou: demora (rede lenta, depois de
+     ~12 s) ou erro — os dois com "Tentar novamente" (faNaturezas.recarregar descarta a leitura
+     anterior; nunca há duas disputando a tela). Mesmo aviso no seletor da avaliação e no
+     catálogo do Admin. */
+  function avisoCatalogoNaturezas(idBotao) {
+    var N = window.faNaturezas, est = N.estado();
+    var texto = est === 'erro' ? 'Não foi possível carregar as opções de natureza complementar.' :
+      (est === 'carregando' && N.demorando && N.demorando()) ? 'As opções de natureza complementar estão demorando para carregar (conexão lenta).' : '';
+    if (!texto) return '';
+    return '<div class="avp-natureza-aviso" role="alert"><p class="avp-error-msg">' + esc(texto) + '</p>' +
+      '<button type="button" class="btn btn--sm" id="' + idBotao + '">Tentar novamente</button></div>';
+  }
   function naturezaDoItem(it) {
     if (!it) return null;
     if (it.naturezaComplementarCodigo) {
@@ -1259,10 +1271,20 @@
     copia.sort(function (x, y) { return (y.atualizadoEm || '').localeCompare(x.atualizadoEm || ''); });
     return copia;
   }
+  /* Foco inicial de um campo recém-desenhado. Era um setTimeout de 30 ms: se nesse meio-tempo a
+     pessoa já tivesse escolhido outro campo (ex.: Descrição logo depois de "+ Nova opção"), o foco
+     atrasado a puxava de volta e o texto caía no campo errado. Todos os chamadores desenham antes
+     (render síncrono), então o campo já existe: foca na hora. Se ainda não existir, tenta uma única
+     vez depois — e só se ninguém mexeu no foco nesse meio-tempo. */
   function focarCampo(id) {
+    function aplicar(el) { el.focus(); if (el.scrollIntoView) el.scrollIntoView({ block: 'center', behavior: 'smooth' }); }
+    var el = document.getElementById(id);
+    if (el && el.focus) { aplicar(el); return; }
+    var focoAntes = document.activeElement;
     setTimeout(function () {
-      var el = document.getElementById(id);
-      if (el && el.focus) { el.focus(); if (el.scrollIntoView) el.scrollIntoView({ block: 'center', behavior: 'smooth' }); }
+      if (document.activeElement !== focoAntes) return;
+      var tarde = document.getElementById(id);
+      if (tarde && tarde.focus) aplicar(tarde);
     }, 30);
   }
 
@@ -4213,7 +4235,7 @@
       html += '<div class="avp-form-card"><h3>⚙ Naturezas complementares</h3>';
       html += '<p class="avp-decisao-aviso">Opções oferecidas no campo "Natureza complementar" de cada avaliação. É só uma descrição manual do item: não entra no motor, não muda respostas nem classificação e não exige reprocessamento. Renomear ou desativar uma opção não altera as avaliações que já a usam — elas guardam o nome da época.</p>';
       if (catalogo === 'carregando') html += '<p class="loading-msg">Carregando opções…</p>';
-      if (catalogo === 'erro') html += '<p class="avp-error-msg">Não foi possível carregar o catálogo. Recarregue a página.</p>';
+      html += avisoCatalogoNaturezas('avpNaturezasTentarNovamente');
       if (c.flash) html += '<p class="avp-flash-success avp-flash-success--inline" id="avpNaturezasFlash">' + esc(c.flash) + '</p>';
       if (c.erro) html += '<p class="avp-error-msg" id="avpNaturezasErro">' + esc(c.erro) + '</p>';
       if (catalogo === 'ok') {
@@ -4254,6 +4276,8 @@
       document.getElementById('avpNaturezasVoltar').addEventListener('click', function () {
         sairComAviso(c, function () { state.tela = telaInicial(); state.configNaturezas = null; render(); });
       });
+      var tentarCatalogo = document.getElementById('avpNaturezasTentarNovamente');
+      if (tentarCatalogo) tentarCatalogo.addEventListener('click', function () { window.faNaturezas.recarregar(); });
       wrap.querySelectorAll('.avp-natureza-editar').forEach(function (btn) {
         btn.addEventListener('click', function () {
           var o = window.faNaturezas.porCodigo(btn.dataset.codigo);
@@ -4308,31 +4332,34 @@
         gravarOpcaoNatureza({ codigoEstavel: codigo, nome: nomeLimpo, descricao: e.descricao, ordem: e.ordem, ativo: e.ativo }, e.novo ? 'Opção criada.' : 'Opção salva.');
       });
     }
+    /* Mesmo cuidado do salvamento da natureza: só o envio mais recente mexe na tela, e uma
+       confirmação que chega depois do relógio não é descartada. A lista em si vem do ouvinte do
+       catálogo (faNaturezas), nunca daqui. */
+    var envioCatalogoNaturezas = 0;
     function gravarOpcaoNatureza(opcao, mensagemOk) {
       var c = state.configNaturezas;
       if (!c || c.salvando) return;
+      var meu = ++envioCatalogoNaturezas, atrasou = false;
       c.salvando = true; c.erro = null; c.flash = null;
       render();
-      var respondido = false;
       var relogio = setTimeout(function () {
-        if (respondido) return;
-        respondido = true;
+        if (meu !== envioCatalogoNaturezas || state.configNaturezas !== c) return;
+        atrasou = true;
         c.salvando = false;
-        c.erro = 'A conexão está demorando e não deu para confirmar o salvamento. Confira a lista e tente de novo se a mudança não aparecer.';
+        c.erro = 'A conexão está demorando e ainda não deu para confirmar o salvamento. Ele continua pendente: a tela avisa quando a confirmação chegar.';
         render();
       }, 12000);
       window.faNaturezas.salvarOpcao(opcao, sessaoAtual(), function (err) {
-        if (respondido) return;
-        respondido = true;
         clearTimeout(relogio);
+        if (meu !== envioCatalogoNaturezas || state.configNaturezas !== c) return; /* resposta antiga, ou outra tela */
         c.salvando = false;
         if (err) {
           console.error('[avaliacao-produto] erro ao salvar opção de natureza complementar:', err);
           c.erro = 'Não foi possível salvar a opção. Tente novamente.';
         } else {
-          c.editando = null;
-          c.sujo = false;
-          c.flash = '✓ ' + mensagemOk;
+          c.erro = null;
+          if (!atrasou) { c.editando = null; c.sujo = false; }
+          c.flash = '✓ ' + mensagemOk + (atrasou ? ' (A confirmação chegou com atraso.)' : '');
         }
         if (state.tela === 'config-naturezas') render();
       });
@@ -6226,7 +6253,7 @@
       html += '</select>';
       if (escolhida && escolhida.descricao) html += '<p class="avp-natureza-descricao" id="avpNaturezaDescricao">' + esc(escolhida.descricao) + '</p>';
       html += '</div>';
-      if (catalogo === 'erro') html += '<p class="avp-error-msg">Não foi possível carregar as opções de natureza complementar. Recarregue a página.</p>';
+      html += avisoCatalogoNaturezas('avpNaturezaTentarNovamente');
       if (atual) {
         html += '<p class="avp-history-note" id="avpNaturezaRegistro">Registrada: <strong>' + esc(atual.nome) + '</strong>' +
           (atual.definidaPor ? ' por ' + esc(atual.definidaPor.name || atual.definidaPor.email || '—') : '') +
@@ -6256,19 +6283,42 @@
       if (btn) btn.addEventListener('click', salvarNatureza);
       var fechar = document.getElementById('avpFlashNaturezaClose');
       if (fechar) fechar.addEventListener('click', function () { state.flashNatureza = null; render(); });
+      var tentar = document.getElementById('avpNaturezaTentarNovamente');
+      if (tentar) tentar.addEventListener('click', function () { window.faNaturezas.recarregar(); });
     }
+    /* Salvamentos da natureza, por avaliação. Cada envio ganha um número (ultima); `pendente` é o
+       envio mais recente que ainda não teve resposta. Regras:
+       - resposta antiga nunca vence a nova: só o envio mais recente mexe na tela (valor, "salvo",
+         aviso); a resposta de um envio anterior, mesmo chegando depois, só registra a linha de
+         auditoria dela no histórico local;
+       - confirmação atrasada (depois do relógio de 12 s) não é descartada: se ainda for o envio
+         mais recente, a tela passa a mostrar o valor como salvo;
+       - o "valor anterior" da auditoria segue a ordem em que o Firebase aplica as gravações de um
+         mesmo cliente: com um envio ainda sem resposta, o anterior real é o valor desse envio;
+       - o MESMO valor de um envio ainda sem resposta não é enviado de novo (seria uma segunda linha
+         de auditoria para uma mudança só). */
+    var operacoesNatureza = {};
+    var epocaSessao = 0;
     function salvarNatureza() {
       if (state.salvandoNatureza) return; /* clique repetido enquanto já está salvando: ignora */
       var a = state.atual;
       var f = state.naturezaForm;
       if (!a || !f || !a._key) return;
       if (estadoBotaoNatureza(f, window.faNaturezas.estado()).desabilitado) return;
-      var anterior = naturezaDoItem(a);
+      var chave = a._key;
+      var ops = operacoesNatureza[chave] = operacoesNatureza[chave] || { ultima: 0, pendente: null };
+      var registrado = naturezaDoItem(a);
+      var anterior = ops.pendente ? ops.pendente.valor : (registrado ? { codigo: registrado.codigo || null, nome: registrado.nome } : null);
       var codigoNovo = f.codigo || '';
+      if (ops.pendente && ((ops.pendente.valor && ops.pendente.valor.codigo) || '') === codigoNovo) {
+        f.erro = 'Este mesmo valor ainda aguarda a confirmação do salvamento anterior. A tela avisa quando ela chegar.';
+        render();
+        return;
+      }
       var opcao = null;
       if (codigoNovo) {
         opcao = window.faNaturezas.porCodigo(codigoNovo);
-        if (!opcao && anterior && anterior.codigo === codigoNovo) opcao = { codigoEstavel: anterior.codigo, nome: anterior.nome, descricao: anterior.descricao };
+        if (!opcao && registrado && registrado.codigo === codigoNovo) opcao = { codigoEstavel: registrado.codigo, nome: registrado.nome, descricao: registrado.descricao };
         if (!opcao) { f.erro = 'Essa opção não existe mais no catálogo. Escolha outra.'; render(); return; }
       }
       var sess = sessaoAtual();
@@ -6286,57 +6336,63 @@
          valores. A avaliação e a auditoria nunca divergem: ou gravam as duas
          coisas, ou nenhuma. */
       var updates = {};
-      Object.keys(campos).forEach(function (k) { updates[NODE + '/' + a._key + '/' + k] = campos[k]; });
-      updates[NODE + '/' + a._key + '/naturezaComplementar'] = null;
-      var chaveAud = window.faNaturezas.NODE_AUDITORIA + '/' + a._key;
+      Object.keys(campos).forEach(function (k) { updates[NODE + '/' + chave + '/' + k] = campos[k]; });
+      updates[NODE + '/' + chave + '/naturezaComplementar'] = null;
+      var chaveAud = window.faNaturezas.NODE_AUDITORIA + '/' + chave;
+      var valorNovo = opcao ? { codigo: opcao.codigoEstavel, nome: opcao.nome } : null;
       var linhaNatureza = {
         tipo: 'alteracao_natureza_complementar',
-        avaliacaoId: a._key, avaliacaoNome: a.nome || null,
-        valorAnterior: anterior ? { codigo: anterior.codigo || null, nome: anterior.nome } : null,
-        valorNovo: opcao ? { codigo: opcao.codigoEstavel, nome: opcao.nome } : null,
+        avaliacaoId: chave, avaliacaoNome: a.nome || null,
+        valorAnterior: anterior,
+        valorNovo: valorNovo,
         usuario: sess, dataHora: agora
       };
       updates[chaveAud + '/' + db().ref(chaveAud).push().key] = linhaNatureza;
+      var meu = ++ops.ultima, epoca = epocaSessao;
+      ops.pendente = { seq: meu, valor: valorNovo };
       f.erro = null;
       state.salvandoNatureza = true;
       render();
 
-      var respondido = false;
+      var atrasou = false;
       var relogio = setTimeout(function () {
-        if (respondido) return;
-        respondido = true;
+        if (epoca !== epocaSessao || meu !== ops.ultima || !ops.pendente || ops.pendente.seq !== meu) return;
+        atrasou = true;
         state.salvandoNatureza = false;
-        f.erro = 'A conexão está demorando e não deu para confirmar o salvamento. Toque em "Salvar natureza" de novo.';
+        if (state.naturezaForm === f) f.erro = 'A conexão está demorando e ainda não deu para confirmar o salvamento. Ele continua pendente: a tela avisa quando a confirmação chegar.';
         render();
       }, 12000);
-
-      try {
-        db().ref().update(updates, function (err) {
-          if (respondido) return;
-          respondido = true;
-          clearTimeout(relogio);
-          state.salvandoNatureza = false;
-          if (err) {
-            console.error('[avaliacao-produto] erro ao salvar natureza complementar:', err);
-            f.erro = 'Não foi possível salvar a natureza complementar. Tente novamente.';
-            render();
-            return;
-          }
-          Object.assign(a, campos);
-          a.naturezaComplementar = null;
-          state.itens = upsertItem(state.itens, clonarItem(a));
-          f.ultimoSalvo = codigoNovo;
-          adicionarAoHistoricoLocal([linhaNatureza]);
-          state.flashNatureza = codigoNovo ? '✓ Natureza complementar salva com sucesso.' : '✓ Natureza complementar removida.';
-          render();
-        });
-      } catch (e) {
+      function aoResponder(err) {
         clearTimeout(relogio);
-        respondido = true;
+        if (epoca !== epocaSessao) return; /* outra pessoa entrou depois do envio */
+        if (ops.pendente && ops.pendente.seq === meu) ops.pendente = null;
+        var maisRecente = meu === ops.ultima;
+        if (err) {
+          console.error('[avaliacao-produto] erro ao salvar natureza complementar:', err);
+          if (!maisRecente) return; /* um envio mais novo já cuida da tela */
+          state.salvandoNatureza = false;
+          if (state.naturezaForm === f) f.erro = 'Não foi possível salvar a natureza complementar. Tente novamente.';
+          render();
+          return;
+        }
+        adicionarAoHistoricoLocal([linhaNatureza]); /* a linha existe no banco, seja qual for o envio */
+        if (!maisRecente) { render(); return; }    /* resposta antiga: nunca restaura o valor anterior */
         state.salvandoNatureza = false;
-        console.error('[avaliacao-produto] erro ao salvar natureza complementar:', e);
-        f.erro = 'Não foi possível salvar a natureza complementar. Tente novamente.';
+        Object.assign(a, campos);
+        a.naturezaComplementar = null;
+        state.itens = upsertItem(state.itens, clonarItem(a));
+        if (state.naturezaForm === f) {
+          f.ultimoSalvo = codigoNovo;
+          f.erro = null;
+          state.flashNatureza = (codigoNovo ? '✓ Natureza complementar salva com sucesso.' : '✓ Natureza complementar removida.') +
+            (atrasou ? ' (A confirmação chegou com atraso.)' : '');
+        }
         render();
+      }
+      try {
+        db().ref().update(updates, aoResponder);
+      } catch (e) {
+        aoResponder(e);
       }
     }
     /* Os três estados que a seção pede: nunca salvo (ativo, "SALVAR
@@ -7431,6 +7487,8 @@
     }
     var ultimaAssinatura = assinaturaDeAcesso();
     function resetarPorSessao() {
+      epocaSessao++; /* respostas de salvamentos da pessoa anterior não mexem mais na tela */
+      operacoesNatureza = {};
       if (refItens) { try { refItens.off('value', aoChegarItens); } catch (e) { /* já cancelada pelo banco */ } refItens = null; }
       cargaIniciada = false; /* a leitura do banco depende de quem é a pessoa: liga de novo no acesso dela */
       var novo = novoEstado();
