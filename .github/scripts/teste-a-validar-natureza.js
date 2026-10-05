@@ -420,7 +420,7 @@ async function parteA() {
     const resp = {}; ORDEM.forEach((id, i) => { resp[id] = { valor: (16400 >> i) & 1 ? 'sim' : 'nao' }; });
     const limpo = av.computeResultado({ respostas: resp });
     const forjado = av.computeResultado({ respostas: resp, camadaSugerida: { id: 'a-validar', bloqueioNatureza: { tipo: 'natureza', natureza: 'componente', pergunta: 'P15' } }, bloqueioNatureza: { tipo: 'ambiguo' } });
-    afirma(JSON.stringify(limpo) === JSON.stringify(forjado) && limpo.camadaSugerida.bloqueioNatureza.tipo === 'autonomia', 'a marca nunca é lida como entrada: uma marca forjada no item não muda nada');
+    afirma(JSON.stringify(limpo) === JSON.stringify(forjado) && (limpo.camadaSugerida.bloqueioNatureza || {}).tipo === 'autonomia', 'a marca nunca é lida como entrada: uma marca forjada no item não muda nada');
   }
   const espiao = () => {
     const conta = { deUmaVez: 0, pedacos: 0 };
@@ -443,7 +443,7 @@ async function parteA() {
     afirma(e.conta.pedacos === 1 && e.conta.deUmaVez === 0, 'a espera usou só a varredura em pedaços, nunca a de uma vez (' + JSON.stringify(e.conta) + ')');
     const e2 = espiao(); const { av: av2 } = carregar(SRC, C.v5, e2.espiar); await pronto(av2);
     const xDepois = av2.computeResultado({ respostas: RESP_4112 });
-    afirma(JSON.stringify(xImediato) === JSON.stringify(xDepois) && xImediato.camadaSugerida.bloqueioNatureza.tipo === 'autonomia',
+    afirma(JSON.stringify(xImediato) === JSON.stringify(xDepois) && (xImediato.camadaSugerida.bloqueioNatureza || {}).tipo === 'autonomia',
       'conclusão imediata grava EXATAMENTE o mesmo resultado que uma conclusão com o cache já pronto (texto específico, nunca o genérico por pressa)');
     for (let m = 0; m < 4096; m++) { const resp = {}; ORDEM.forEach((id, i) => { resp[id] = { valor: ((m | 16) >> i) & 1 ? 'sim' : 'nao' }; }); av.computeResultado({ respostas: resp }); }
     let ja = false; av.quandoCompatibilidadePronta(() => { ja = true; });
