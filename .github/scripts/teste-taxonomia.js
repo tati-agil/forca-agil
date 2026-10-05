@@ -26,6 +26,7 @@
 const { chromium } = require('playwright');
 const fs = require('fs');
 const path = require('path');
+const { esperarCondicao } = require('./esperas');
 
 const BASE = process.env.FA_BASE_URL || 'http://127.0.0.1:8811';
 const FALSO = fs.readFileSync(path.join(__dirname, 'persistencia-firebase-real.js'), 'utf8') + '\n' +
@@ -106,7 +107,6 @@ async function abrir(browser, o) {
   await page.route('**fonts.gstatic.com**', (r) => r.abort());
   await page.goto(BASE + '/index.html#admin', { waitUntil: 'domcontentloaded' });
   await page.waitForFunction(() => !document.body.classList.contains('aguardando-auth'), { timeout: 16000 }).catch(() => {});
-  await page.waitForTimeout(600);
   return { ctx, page, erros };
 }
 async function irParaTaxonomia(page) {
@@ -496,9 +496,14 @@ const TOTAL = 'taxonomia';
     afirma(/Não foi salvo: Há mais de uma fonte vigente/i.test(await page.locator('#taxFlash').innerText()), 'salvar fica BLOQUEADO pela aplicação (não depende só do banco)');
     afirma(JSON.stringify((await banco(page)).taxonomia.organizacional.fontes.DELTA) === antesLegado, 'nada foi gravado');
     await page.click('[data-tax="cancelar-edicao"]');
-    await page.click('[data-fonte="d2"] [data-tax="editar-fonte"]').catch(() => {});
-    if (await page.locator('[data-fonte="d2"] [data-tax="tornar-vigente"]').count()) afirma(false, 'não deveria oferecer promover uma fonte já vigente');
-    else afirma(true, 'fonte já vigente não oferece "Tornar vigente"');
+    /* A ausência só prova algo se o cartão da fonte vigente d2 está na tela — e também expandido.
+       Antes: clique em "Editar" (que só existe com o cartão aberto) falhava calado em 30 s e a
+       ausência passava por vazio. */
+    afirma(await page.locator('article[data-fonte="d2"]').count() === 1, 'o cartão da fonte vigente d2 está na tela');
+    afirma(await page.locator('article[data-fonte="d2"] [data-tax="tornar-vigente"]').count() === 0, 'fonte já vigente não oferece "Usar como vigente" (cartão fechado)');
+    await page.click('article[data-fonte="d2"] [data-tax="ver"]');
+    await esperarCondicao(page, () => { const b = document.querySelector('article[data-fonte="d2"] [data-tax="ver"]'); return !!b && b.getAttribute('aria-expanded') === 'true'; }, null, { limite: 4000, descricao: 'cartão d2 expandido' });
+    afirma(await page.locator('article[data-fonte="d2"] [data-tax="tornar-vigente"]').count() === 0, 'fonte já vigente não oferece "Usar como vigente" (cartão aberto)');
     afirma(await larguraOk(page), 'sem rolagem horizontal');
     afirma(erros.length === 0, 'sem erros de JavaScript (' + erros.length + ')');
     await ctx.close();
@@ -545,6 +550,7 @@ const TOTAL = 'taxonomia';
   console.log('\n######## Só admin / somente leitura ########');
   {
     const { ctx, page } = await abrir(browser, { email: OUTRO, db: { taxonomia: { meta: {}, organizacional: { conceitos: { ALFA: { nome: 'Tipo Alfa', camada: 'A', ordem: 1, ativo: true, situacaoDefinicao: 'ainda não registrada' } } } } } });
+    await esperarCondicao(page, () => !!(window.faAuth && window.faAuth.isAdminReady && window.faAuth.isAdminReady()), null, { limite: 8000, descricao: 'acesso de admin resolvido' });
     await page.waitForTimeout(800);
     afirma(await page.locator('.admin-tab-btn[data-panel="adminPanelTaxonomia"]').isHidden().catch(() => true), 'quem não é admin não vê a aba Taxonomia');
     await page.evaluate(() => window.faTaxonomia.abrir());
@@ -926,7 +932,13 @@ const TOTAL = 'taxonomia';
     {
       const { ctx, page } = await abrirSq(browser, viewport, { db: semeArq() });
       await page.evaluate(() => window.faTaxonomia.abrir({ somenteLeitura: true }));
-      await abrirConceito(page, 'SQ').catch(() => {});
+      /* abrir({somenteLeitura}) mantém aberto o detalhe que já estava (SQ). Antes o teste clicava no
+         SQ da lista — escondida no celular —, o clique falhava calado em 30 s e a checagem abaixo
+         ("sem ações de edição") podia passar por vazio. Agora ela só vale com o detalhe do SQ na
+         tela, em modo leitura, com cartões de fonte. */
+      const nomeSq = (await banco(page)).taxonomia.organizacional.conceitos.SQ.nome;
+      await esperarCondicao(page, (nome) => { const t = document.querySelector('.tax-detalhe .tax-titulo'); return !!t && t.textContent.trim() === nome && !!document.querySelector('#taxSecFontes article.tax-fonte') && !document.querySelector('#taxSecFontes .loading-msg'); }, nomeSq, { limite: 6000, descricao: 'detalhe do SQ em leitura, com cartões de fonte' });
+      afirma(await page.locator('#taxSecFontes article.tax-fonte').count() > 0, 'somente leitura: o detalhe do SQ está na tela, com cartões de fonte');
       await page.click('[data-tax="alternar-arquivadas"]');
       afirma(await page.locator('#taxSecFontes [data-tax="arquivar"], #taxSecFontes [data-tax="restaurar"], #taxSecFontes [data-tax="tornar-vigente"], #taxSecFontes [data-tax="alterar-definicao"], #taxSecFontes [data-tax="remover-vigencia"]').count() === 0 && await page.locator('#taxSecFontes [data-tax="ver"]').count() > 0, 'sem botões de edição; "Ver" continua disponível');
       await ctx.close();

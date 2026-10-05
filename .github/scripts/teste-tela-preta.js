@@ -25,6 +25,7 @@
 const { chromium, devices } = require('playwright');
 const fs = require('fs');
 const path = require('path');
+const { esperarCondicaoAte } = require('./esperas');
 
 const BASE   = process.env.FA_BASE_URL || 'http://127.0.0.1:8811';
 const ESPERA = Number(process.env.FA_ESPERA || 16000);
@@ -125,12 +126,11 @@ function contarVisiveis(page) {
       await page.waitForTimeout(2000);
       const aos2s = await contarVisiveis(page);
 
-      try {
-        await page.waitForFunction(
-          function () { return !document.body.classList.contains('aguardando-auth'); },
-          { timeout: ESPERA }
-        );
-      } catch (e) { /* pode terminar em login em vez de site — o final decide */ }
+      /* Chegar ao limite é um resultado legítimo aqui (auth que nunca responde termina no login):
+         o estado "no fim" decide. Antes o limite ia como ARGUMENTO da função (assinatura errada do
+         waitForFunction) e valia o padrão de 30 s, não ESPERA; esperarCondicaoAte usa a assinatura
+         certa e só engole o estouro do limite — qualquer outro erro sobe. */
+      await esperarCondicaoAte(page, function () { return !document.body.classList.contains('aguardando-auth'); }, null, { limite: ESPERA });
       const noFim = await contarVisiveis(page);
 
       /* O cenário "SDK fora" derruba o firebase de propósito; o ReferenceError

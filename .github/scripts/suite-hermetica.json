@@ -405,6 +405,12 @@
       "arquivo": ".github/scripts/teste-arquivos-temporarios.js",
       "nome": "Arquivos temporários únicos entre processos (pré-requisito da suíte em paralelo)",
       "duracao": 4
+    },
+    {
+      "arquivo": ".github/scripts/teste-guarda-esperas.js",
+      "nome": "Guarda das esperas: nenhuma espera nova calada nem com a assinatura errada do waitForFunction",
+      "duracao": 1,
+      "sobre": "Sem navegador. Conta, por arquivo, waitForFunction com as opções no lugar do argumento (o limite escrito é ignorado e vale 30 s) e esperas seguidas de .catch (estouro engolido). A contagem tem de bater com o legado registrado: subiu = espera nova com o padrão (use esperas.js); desceu = foi corrigido (baixe o número). Ver esperas.js."
     }
   ]
 }

@@ -24,6 +24,7 @@
 const { chromium } = require('playwright');
 const fs = require('fs');
 const path = require('path');
+const { esperarCondicao } = require('./esperas');
 const { arquivoTemporario } = require('./arquivo-temporario');
 const vm = require('vm');
 
@@ -280,8 +281,12 @@ const NAO_PRODUTO = /Não é Produto\/Serviço principal/;
     const leit = await page.locator('#avpCuradoriaResumo').innerText().catch(() => '');
     afirma(/Especialização\s*Instituto previdenciário/.test(leit) && /Papel estrutural\s*Essencial/.test(leit), 'leitura: Curadoria mostra o que foi registrado');
     afirma(/Forma da decisão\s*Recomendação do sistema aceita/.test(await textoDecisao(page)) && !/complementações/.test(await textoDecisao(page)), 'leitura: Forma da decisão sem citar Curadoria');
-    await page.click('#avpVoltarListaResultado').catch(() => {});
-    await page.waitForSelector('#avpNovoBtn', { timeout: 6000 }).catch(() => {});
+    /* O Voltar de uma versão anterior aberta a partir de outra avaliação leva de volta à ORIGEM
+       (a avaliação par2), não à lista — é o desenho da navegação ("Voltar sem laço, com o destino
+       no texto"). Antes o teste esperava a lista, a espera estourava calada em 6 s e seguia. */
+    await page.click('#avpVoltarListaResultado');
+    await esperarCondicao(page, () => location.hash === '#avaliacoes?avp=par2' && !!document.querySelector('#avpCabecalhoFicha') && !document.querySelector('#avpAvisoVersaoAnterior'), null, { limite: 6000, descricao: 'Voltar da versão anterior leva de volta à avaliação de origem (par2)' });
+    afirma(true, 'Voltar da versão anterior volta à avaliação de origem (par2), não à lista');
     afirma(await larguraOk(page), 'sem rolagem horizontal');
     afirma(erros.length === 0, 'nenhum erro de JS (' + erros.length + ')');
     await ctx.close();
