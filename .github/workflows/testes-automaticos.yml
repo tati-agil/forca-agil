@@ -204,6 +204,15 @@ jobs:
           FA_BASE_URL: http://127.0.0.1:8811
         run: node .github/scripts/teste-conflito-naturezas.js
 
+      # Correção editorial da Relação arquitetural de Unidade de valor associada:
+      # não afirma mais "jornada e mensuração" (P6/P7 são auxiliares); todo o resto
+      # das 65.536 combinações fica idêntico; histórico preservado; prova inversa.
+      - name: "Avaliação: texto da Unidade de valor sem jornada/mensuração obrigatórias (desktop e celular)"
+        env:
+          NODE_PATH: /tmp/pw-deps/node_modules
+          FA_BASE_URL: http://127.0.0.1:8811
+        run: node .github/scripts/teste-texto-unidade-valor.js
+
       # Adequação à Squad: início "item já cadastrado × novo item" (sem ficha
       # duplicada) e motor de squad legível (Sn — título, combinação Eixo A +
       # Eixo B em leitura), com a lógica intacta.

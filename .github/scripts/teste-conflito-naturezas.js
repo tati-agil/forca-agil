@@ -58,6 +58,8 @@ function afirma(cond, msg, detalhe) { console.log((cond ? '  ok    ' : '  FALHA 
    podem mudar se a lógica da versão 3 mudar — o que este PR não pode fazer. */
 const DIGITAL_V3_MOTOR = '85ee307243a19c286954794b34626524d331fa387c256382dc38748b341b91aa';
 const DIGITAL_V3_AVALIACAO = '3a069f009f49622a760c8679a5943f7e1a6450ca6c64d85ff51738176fe74d3b';
+const RELACAO_UVA_DA_DIGITAL = 'Pertence estruturalmente a um Produto/Serviço maior, mas constitui uma Unidade de Valor com resultado próprio, fronteira, jornada e mensuração identificáveis para o cliente.';
+const RELACAO_UVA_ATUAL = 'Depende estruturalmente de um Produto/Serviço principal, mas constitui uma unidade reconhecível e gerenciável, com resultado próprio para o cliente.';
 
 const ORDEM = ['necessidade', 'resultado', 'solucao', 'fronteira', 'autonomia', 'jornada', 'medicao', 'gestao',
   'canal', 'artefato', 'capacidade', 'processo', 'modalidade', 'regra', 'componente', 'funcionalidade'];
@@ -185,6 +187,11 @@ function parteA() {
       hm.update(JSON.stringify(r) + '\n');
       const atual = { respostas: respostasDe(m) };
       const x = av.computeResultado(atual);
+      /* Única diferença INTENCIONAL desde esta impressão digital: a correção
+         editorial de 05/10/2026 na Relação arquitetural de Unidade de valor
+         (ver teste-texto-unidade-valor.js). O texto da época é recolocado
+         antes do hash — se ele continua o de antes, nada mais mudou. */
+      if (x.camadaSugerida.id === 'unidade-valor-associada' && x.camadaSugerida.relacao === RELACAO_UVA_ATUAL) x.camadaSugerida.relacao = RELACAO_UVA_DA_DIGITAL;
       ha.update(JSON.stringify([x, av.gerarJustificativaAutomatica(atual, x)]) + '\n');
     }
     afirma(hm.digest('hex') === DIGITAL_V3_MOTOR, 'motor: retorno completo (camada, regra, motivos, conflito, incoerência) idêntico ao de antes nas 65.536');
