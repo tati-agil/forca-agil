@@ -427,7 +427,13 @@
      auxiliares, não exigidas pela regra) — ver teste-texto-unidade-valor.js,
      que fixa todo o resto das 65.536 combinações. Idem (05/10/2026) para a
      justificativa de Componente, que deixou de negar "jornada própria" (a
-     regra não verifica P6) — ver teste-texto-componente.js. */
+     regra não verifica P6) — ver teste-texto-componente.js. Idem
+     (05/10/2026) para o "A validar" em que P8 = NÃO é comprovadamente a
+     única condição que impede Produto/Serviço principal ou Unidade de valor
+     associada: justificativa, motivo e interpretação de P8 específicos, com a
+     marca camadaSugerida.impedidaPorGestao gravada só em avaliações novas ou
+     reprocessadas (metadado explicativo — nunca lido pelo motor) — ver
+     teste-a-validar-gestao.js. */
   var MOTOR_VERSION = '2026.09.29-2';
 
   /* Mapa fixo e simples: só decide se a camada JÁ IDENTIFICADA conta como
@@ -682,6 +688,10 @@
        com essas mesmas naturezas — nunca "Componente: NÃO" de uma que ninguém
        marcou. */
     if (decisao.conflitoNaturezas) motivos = [textoNaturezasIndicadas(conflito)];
+    /* Calculada DEPOIS da decisão e nunca devolvida ao motor: só explica um
+       "A validar" que já foi decidido. */
+    var impedidaPorGestao = camadaImpedidaPorGestao(contexto, regras, decisao);
+    if (impedidaPorGestao) motivos = [MOTIVO_GESTAO_NAO];
 
     var ident = {
       camada: decisao.camada, motivos: motivos, conflito: conflito, incoerencia: decisao.incoerencia,
@@ -689,7 +699,30 @@
       exclusoesSim: exclusoesSim
     };
     if (decisao.conflitoNaturezas) ident.conflitoNaturezas = true;
+    if (impedidaPorGestao) ident.impedidaPorGestao = impedidaPorGestao;
     return ident;
+  }
+  /* "A validar" por gestão ponta a ponta (P8): o fallback valeu, P8 = NÃO e,
+     com as MESMAS regras e só P8 trocada para SIM, o motor classificaria como
+     Produto/Serviço principal ou Unidade de valor associada — ou seja, P8 era
+     a única condição que faltava. Não depende de como as regras estão
+     escritas: numa versão em que P8 não é requisito (fábrica, 3, 4), trocar
+     P8 nunca muda o resultado e nada é marcado. Devolve a camada impedida ou
+     null. */
+  var CAMADAS_COM_REQUISITO_GESTAO = ['produto-principal', 'unidade-valor-associada'];
+  var MOTIVO_GESTAO_NAO = 'Gestão ponta a ponta como solução: NÃO';
+  function camadaImpedidaPorGestao(contexto, regras, decisao) {
+    if (decisao.camada !== 'a-validar' || contexto.P8 !== 'NAO') return null;
+    var M = window.faMotorArquitetura;
+    var aplicada = ((regras && regras.regras) || []).filter(function (r) { return r.codigo === decisao.regraAplicada; })[0];
+    if (!aplicada || !M.ehFallback(aplicada)) return null;
+    var comGestao = M.identificarCamada(Object.assign({}, contexto, { P8: 'SIM' }), regras);
+    return CAMADAS_COM_REQUISITO_GESTAO.indexOf(comGestao.camada) !== -1 ? comGestao.camada : null;
+  }
+  function justificativaImpedidaPorGestao(camadaId) {
+    var rotulo = camadaPorId(camadaId).label;
+    return 'As respostas atendem às demais condições exigidas para ' + rotulo + ', mas indicam que o item não poderia ser gerido de ponta a ponta como uma solução. ' +
+      'Como esse é um requisito obrigatório para essa classificação, o item permanece como A validar para análise.';
   }
   /* Os três textos do conflito de naturezas predominantes — o mesmo em tela,
      justificativa e PDF, sempre a partir da lista dinâmica (rótulos das
@@ -873,6 +906,12 @@
       return 'Existe uma fronteira coerente e identificável para ' + termoCamada(camada.id) + '.';
     }
     if (def.id === 'gestao' && resposta.valor === 'nao') {
+      /* Só com a marca gravada no cálculo — nunca deduzida de novo ao exibir
+         (uma avaliação antiga mostraria uma explicação que não era a dela). */
+      if (camada.impedidaPorGestao && CAMADAS_COM_REQUISITO_GESTAO.indexOf(camada.impedidaPorGestao) !== -1) {
+        return 'Esta resposta impediu a classificação como ' + camadaPorId(camada.impedidaPorGestao).label +
+          ', porque a gestão ponta a ponta é um requisito obrigatório para essa classificação e as demais condições foram atendidas.';
+      }
       var termoGestao = TERMO_GESTAO_POR_CAMADA[camada.id];
       if (termoGestao) {
         return 'O item pode ser administrado como ' + termoGestao + ', mas não como uma solução autônoma independente do Produto/Serviço ao qual pertence.';
@@ -930,6 +969,10 @@
       camadaSugerida.conflitoNaturezas = true;
       camadaSugerida.label = camadaPorId(ident.camada).label + SUFIXO_CONFLITO_NATUREZAS;
     }
+    /* Também só neste caso, e o rótulo continua "A validar": a marca só
+       escolhe a explicação (justificativa e interpretação de P8). Avaliações
+       gravadas antes não a têm e continuam como eram. */
+    if (ident.impedidaPorGestao) camadaSugerida.impedidaPorGestao = ident.impedidaPorGestao;
     return camadaSugerida;
   }
 
@@ -942,6 +985,7 @@
     }
     if (camada.id === 'a-validar') {
       if (camada.conflitoNaturezas) return justificativaConflitoNaturezas(camada.conflito);
+      if (camada.impedidaPorGestao) return justificativaImpedidaPorGestao(camada.impedidaPorGestao);
       if (camada.conflito && camada.conflito.length > 1) {
         return 'As respostas indicam características de mais de uma categoria arquitetural (' + listaComE(camada.conflito) +
           ') e não há evidência suficiente para recomendar uma classificação única.';

@@ -222,6 +222,16 @@ jobs:
           FA_BASE_URL: http://127.0.0.1:8811
         run: node .github/scripts/teste-texto-componente.js
 
+      # "A validar" por gestão ponta a ponta (P8): explicação específica só nos 8
+      # casos em que P8 = NÃO é a única condição que falta para Produto/Serviço
+      # principal ou Unidade de valor associada; classificação intacta nas 65.536
+      # combinações; histórico preservado; tela, PDF e Excel; prova inversa.
+      - name: "Avaliação: A validar por gestão ponta a ponta — explicação específica (desktop e celular)"
+        env:
+          NODE_PATH: /tmp/pw-deps/node_modules
+          FA_BASE_URL: http://127.0.0.1:8811
+        run: node .github/scripts/teste-a-validar-gestao.js
+
       # Adequação à Squad: início "item já cadastrado × novo item" (sem ficha
       # duplicada) e motor de squad legível (Sn — título, combinação Eixo A +
       # Eixo B em leitura), com a lógica intacta.

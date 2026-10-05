@@ -62,6 +62,24 @@ const DIGITAL_V5 = '84c8a5fbb2c78b62ec023bc60f57424cf3327a0e9810d5526cc7ad4563b5
 const FRASE_COMPONENTE_DA_DIGITAL = 'O item não possui autonomia estrutural, jornada própria nem resultado autônomo suficiente para caracterizar Produto/Serviço principal. ';
 const FRASE_COMPONENTE_ATUAL = 'O item não possui autonomia estrutural nem resultado autônomo suficiente para caracterizar Produto/Serviço principal. ';
 const justificativaDaEpoca = (camadaId, j) => (camadaId === 'componente' && j.indexOf(FRASE_COMPONENTE_ATUAL) === 0 ? FRASE_COMPONENTE_DA_DIGITAL + j.slice(FRASE_COMPONENTE_ATUAL.length) : j);
+
+/* Correção editorial de 05/10/2026 (teste-a-validar-gestao.js): o "A validar" em que P8 = NÃO é a única
+   condição que impede Produto/Serviço principal ou Unidade de valor associada ganhou marca, motivo e
+   justificativa específicos. Para as impressões digitais fixadas ANTES dela, o estado da época é
+   recolocado SÓ nesses itens (marca impedidaPorGestao presente e justificativa nova exata). */
+const JUSTIFICATIVA_FALLBACK_DA_DIGITAL = 'As respostas não reúnem evidência suficiente para indicar com segurança nenhuma das categorias arquiteturais previstas. ' +
+  'Revise as respostas do questionário ou registre uma decisão manual com a justificativa correspondente.';
+const ROTULO_GESTAO = { 'produto-principal': 'Produto/Serviço principal', 'unidade-valor-associada': 'Unidade de valor associada' };
+function explicacaoDaEpocaGestao(x, just) {
+  const c = x.camadaSugerida, alvo = c.impedidaPorGestao;
+  if (c.id !== 'a-validar' || !ROTULO_GESTAO[alvo]) return just;
+  const nova = 'As respostas atendem às demais condições exigidas para ' + ROTULO_GESTAO[alvo] + ', mas indicam que o item não poderia ser gerido de ponta a ponta como uma solução. ' +
+    'Como esse é um requisito obrigatório para essa classificação, o item permanece como A validar para análise.';
+  if (just !== nova || JSON.stringify(c.motivos) !== JSON.stringify(['Gestão ponta a ponta como solução: NÃO'])) return just;
+  delete c.impedidaPorGestao;
+  c.motivos = [];
+  return JUSTIFICATIVA_FALLBACK_DA_DIGITAL;
+}
 const ORDEM = ['necessidade', 'resultado', 'solucao', 'fronteira', 'autonomia', 'jornada', 'medicao', 'gestao',
   'canal', 'artefato', 'capacidade', 'processo', 'modalidade', 'regra', 'componente', 'funcionalidade'];
 const clone = (x) => JSON.parse(JSON.stringify(x));
@@ -108,7 +126,7 @@ function varrer(src, config) {
   for (let m = 0; m < 65536; m++) {
     const atual = { respostas: respostasDe(m) };
     const x = av.computeResultado(atual);
-    const just = justificativaDaEpoca(x.camadaSugerida.id, av.gerarJustificativaAutomatica(atual, x));
+    const just = explicacaoDaEpocaGestao(x, justificativaDaEpoca(x.camadaSugerida.id, av.gerarJustificativaAutomatica(atual, x)));
     if (x.camadaSugerida.id === 'unidade-valor-associada') {
       const r = atual.respostas;
       uva.push({ m, p6: r.jornada.valor, p7: r.medicao.valor });
