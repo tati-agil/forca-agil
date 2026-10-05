@@ -213,6 +213,15 @@ jobs:
           FA_BASE_URL: http://127.0.0.1:8811
         run: node .github/scripts/teste-texto-unidade-valor.js
 
+      # Correção editorial da justificativa de Componente: não nega mais "jornada
+      # própria" (a regra não verifica P6); "elemento configurável" intacto; todo o
+      # resto das 65.536 combinações idêntico; histórico preservado; prova inversa.
+      - name: "Avaliação: justificativa de Componente sem negar jornada (desktop e celular)"
+        env:
+          NODE_PATH: /tmp/pw-deps/node_modules
+          FA_BASE_URL: http://127.0.0.1:8811
+        run: node .github/scripts/teste-texto-componente.js
+
       # Adequação à Squad: início "item já cadastrado × novo item" (sem ficha
       # duplicada) e motor de squad legível (Sn — título, combinação Eixo A +
       # Eixo B em leitura), com a lógica intacta.

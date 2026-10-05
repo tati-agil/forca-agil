@@ -61,6 +61,12 @@ const DIGITAL_V3_AVALIACAO = '3a069f009f49622a760c8679a5943f7e1a6450ca6c64d85ff5
 const RELACAO_UVA_DA_DIGITAL = 'Pertence estruturalmente a um Produto/Serviço maior, mas constitui uma Unidade de Valor com resultado próprio, fronteira, jornada e mensuração identificáveis para o cliente.';
 const RELACAO_UVA_ATUAL = 'Depende estruturalmente de um Produto/Serviço principal, mas constitui uma unidade reconhecível e gerenciável, com resultado próprio para o cliente.';
 
+/* Correção editorial de 05/10/2026 (teste-texto-componente.js): a justificativa de Componente deixou de
+   negar "jornada própria". Para as impressões digitais fixadas ANTES dela, a frase da época é recolocada
+   SÓ na justificativa de itens classificados como Componente, e só se a frase atual estiver lá. */
+const FRASE_COMPONENTE_DA_DIGITAL = 'O item não possui autonomia estrutural, jornada própria nem resultado autônomo suficiente para caracterizar Produto/Serviço principal. ';
+const FRASE_COMPONENTE_ATUAL = 'O item não possui autonomia estrutural nem resultado autônomo suficiente para caracterizar Produto/Serviço principal. ';
+const justificativaDaEpoca = (camadaId, j) => (camadaId === 'componente' && j.indexOf(FRASE_COMPONENTE_ATUAL) === 0 ? FRASE_COMPONENTE_DA_DIGITAL + j.slice(FRASE_COMPONENTE_ATUAL.length) : j);
 const ORDEM = ['necessidade', 'resultado', 'solucao', 'fronteira', 'autonomia', 'jornada', 'medicao', 'gestao',
   'canal', 'artefato', 'capacidade', 'processo', 'modalidade', 'regra', 'componente', 'funcionalidade'];
 const NATUREZAS = ['P11', 'P12', 'P13', 'P14', 'P15'];
@@ -192,7 +198,7 @@ function parteA() {
          (ver teste-texto-unidade-valor.js). O texto da época é recolocado
          antes do hash — se ele continua o de antes, nada mais mudou. */
       if (x.camadaSugerida.id === 'unidade-valor-associada' && x.camadaSugerida.relacao === RELACAO_UVA_ATUAL) x.camadaSugerida.relacao = RELACAO_UVA_DA_DIGITAL;
-      ha.update(JSON.stringify([x, av.gerarJustificativaAutomatica(atual, x)]) + '\n');
+      ha.update(JSON.stringify([x, justificativaDaEpoca(x.camadaSugerida.id, av.gerarJustificativaAutomatica(atual, x))]) + '\n');
     }
     afirma(hm.digest('hex') === DIGITAL_V3_MOTOR, 'motor: retorno completo (camada, regra, motivos, conflito, incoerência) idêntico ao de antes nas 65.536');
     afirma(ha.digest('hex') === DIGITAL_V3_AVALIACAO, 'avaliação: classificação, rótulo, motivos, conflito, relação e justificativa idênticos aos de antes nas 65.536');

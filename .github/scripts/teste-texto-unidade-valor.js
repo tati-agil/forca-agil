@@ -56,6 +56,12 @@ const MOTOR_VERSION_ESPERADA = '2026.09.29-2';
 const DIGITAL_FABRICA = '731750c349f3280d4495e7186219f854b29a2468141684c214300ec231f4a6bb';
 const DIGITAL_V5 = '84c8a5fbb2c78b62ec023bc60f57424cf3327a0e9810d5526cc7ad4563b55c55';
 
+/* Correção editorial de 05/10/2026 (teste-texto-componente.js): a justificativa de Componente deixou de
+   negar "jornada própria". Para as impressões digitais fixadas ANTES dela, a frase da época é recolocada
+   SÓ na justificativa de itens classificados como Componente, e só se a frase atual estiver lá. */
+const FRASE_COMPONENTE_DA_DIGITAL = 'O item não possui autonomia estrutural, jornada própria nem resultado autônomo suficiente para caracterizar Produto/Serviço principal. ';
+const FRASE_COMPONENTE_ATUAL = 'O item não possui autonomia estrutural nem resultado autônomo suficiente para caracterizar Produto/Serviço principal. ';
+const justificativaDaEpoca = (camadaId, j) => (camadaId === 'componente' && j.indexOf(FRASE_COMPONENTE_ATUAL) === 0 ? FRASE_COMPONENTE_DA_DIGITAL + j.slice(FRASE_COMPONENTE_ATUAL.length) : j);
 const ORDEM = ['necessidade', 'resultado', 'solucao', 'fronteira', 'autonomia', 'jornada', 'medicao', 'gestao',
   'canal', 'artefato', 'capacidade', 'processo', 'modalidade', 'regra', 'componente', 'funcionalidade'];
 const clone = (x) => JSON.parse(JSON.stringify(x));
@@ -102,7 +108,7 @@ function varrer(src, config) {
   for (let m = 0; m < 65536; m++) {
     const atual = { respostas: respostasDe(m) };
     const x = av.computeResultado(atual);
-    const just = av.gerarJustificativaAutomatica(atual, x);
+    const just = justificativaDaEpoca(x.camadaSugerida.id, av.gerarJustificativaAutomatica(atual, x));
     if (x.camadaSugerida.id === 'unidade-valor-associada') {
       const r = atual.respostas;
       uva.push({ m, p6: r.jornada.valor, p7: r.medicao.valor });
