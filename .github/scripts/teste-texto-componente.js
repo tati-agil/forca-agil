@@ -61,6 +61,24 @@ const MOTOR_VERSION_ESPERADA = '2026.09.29-2';
 const DIGITAL_FABRICA = '208ce060b165ce993a52c343e87323800551635d8ddb4c642036e532e03c6c6b';
 const DIGITAL_V5 = '05e2745f648d355abf80019771ec471c022ac989ca479d58b2d5b8332e8fd102';
 
+/* Correção editorial de 05/10/2026 (teste-a-validar-gestao.js): o "A validar" em que P8 = NÃO é a única
+   condição que impede Produto/Serviço principal ou Unidade de valor associada ganhou marca, motivo e
+   justificativa específicos. Para as impressões digitais fixadas ANTES dela, o estado da época é
+   recolocado SÓ nesses itens (marca impedidaPorGestao presente e justificativa nova exata). */
+const JUSTIFICATIVA_FALLBACK_DA_DIGITAL = 'As respostas não reúnem evidência suficiente para indicar com segurança nenhuma das categorias arquiteturais previstas. ' +
+  'Revise as respostas do questionário ou registre uma decisão manual com a justificativa correspondente.';
+const ROTULO_GESTAO = { 'produto-principal': 'Produto/Serviço principal', 'unidade-valor-associada': 'Unidade de valor associada' };
+function explicacaoDaEpocaGestao(x, just) {
+  const c = x.camadaSugerida, alvo = c.impedidaPorGestao;
+  if (c.id !== 'a-validar' || !ROTULO_GESTAO[alvo]) return just;
+  const nova = 'As respostas atendem às demais condições exigidas para ' + ROTULO_GESTAO[alvo] + ', mas indicam que o item não poderia ser gerido de ponta a ponta como uma solução. ' +
+    'Como esse é um requisito obrigatório para essa classificação, o item permanece como A validar para análise.';
+  if (just !== nova || JSON.stringify(c.motivos) !== JSON.stringify(['Gestão ponta a ponta como solução: NÃO'])) return just;
+  delete c.impedidaPorGestao;
+  c.motivos = [];
+  return JUSTIFICATIVA_FALLBACK_DA_DIGITAL;
+}
+
 const ORDEM = ['necessidade', 'resultado', 'solucao', 'fronteira', 'autonomia', 'jornada', 'medicao', 'gestao',
   'canal', 'artefato', 'capacidade', 'processo', 'modalidade', 'regra', 'componente', 'funcionalidade'];
 const clone = (x) => JSON.parse(JSON.stringify(x));
@@ -104,7 +122,7 @@ function varrer(src, config) {
   for (let m = 0; m < 65536; m++) {
     const atual = { respostas: respostasDe(m) };
     const x = av.computeResultado(atual);
-    let just = av.gerarJustificativaAutomatica(atual, x);
+    let just = explicacaoDaEpocaGestao(x, av.gerarJustificativaAutomatica(atual, x));
     if (x.camadaSugerida.id === 'componente') {
       comp.push({ m, p6: atual.respostas.jornada.valor, p13: atual.respostas.modalidade.valor, just });
       just = 'JUSTIFICATIVA_COMPONENTE';
