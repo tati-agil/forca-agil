@@ -276,6 +276,12 @@
       "sobre": "Hermético. A Construção da Aposta tem duas exigências que só quebram em sala e não dá para ver lendo dez telas de texto: o final da dinâmica (OKR / Objective / Key Result) não pode vazar em NENHUMA etapa antes de a facilitadora revelar, e as etapas seguintes não podem abrir sozinhas — com o formulário inteiro à mostra, o grupo pula direto para a solução, que é o hábito que a oficina existe para interromper."
     },
     {
+      "arquivo": ".github/scripts/teste-aposta-selecao-turma.js",
+      "nome": "Construção da Aposta — a turma escolhida não se perde num redesenho tardio (desktop e celular)",
+      "duracao": 20,
+      "sobre": "Prova determinística (portão nas leituras de turmas, sem depender de tempo) de que montarEntrada() preserva a turma escolhida quando uma leitura tardia redesenha o convite, cai na 1ª turma se a escolhida saiu da lista e descarta resposta antiga que chega depois de uma nova. A turma conferida é a que a dinâmica realmente carrega ao abrir."
+    },
+    {
       "arquivo": ".github/scripts/teste-publico-restrito-evento.js",
       "nome": "Público restrito do evento (desktop e celular)",
       "duracao": 3,

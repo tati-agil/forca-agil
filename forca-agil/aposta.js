@@ -1788,14 +1788,31 @@
   /* ══════════════════════════════════════════════════════════════
      ENTRADA NO TREINAMENTO
      ══════════════════════════════════════════════════════════════ */
+  /* montarEntrada() roda várias vezes num mesmo carregamento (onPageInit,
+     fa-auth-ready, fa-auth-change — este só depois de ler fa-progress —,
+     fa-admin-ready…), e cada vez espera uma leitura do banco. No celular,
+     a última pode chegar segundos depois de a pessoa já ter escolhido a
+     turma. Duas regras, porque são dois problemas diferentes:
+       - só a chamada MAIS RECENTE desenha: uma resposta antiga que chega
+         depois de uma nova é descartada (_geracaoEntrada);
+       - redesenhar não desfaz a escolha: a turma que estava selecionada
+         continua selecionada se ainda for elegível; se saiu da lista, cai
+         na primeira. Antes, o seletor voltava para a primeira turma e
+         "Abrir dinâmica" abria a turma errada. */
+  var _geracaoEntrada = 0;
   function montarEntrada() {
     var host = document.getElementById('apostaEntrada');
     if (!host) return;
+    var geracao = ++_geracaoEntrada;
     if (!sessao()) { host.hidden = true; return; }
 
     turmasElegiveis(function (turmas) {
+      if (geracao !== _geracaoEntrada) return;
       if (!turmas.length) { host.hidden = true; return; }
       host.hidden = false;
+
+      var selAnterior = document.getElementById('apostaTurmaSel');
+      var inicial = (selAnterior && turmas.filter(function (t) { return t.key === selAnterior.value; })[0]) || turmas[0];
 
       /* O aviso de ensaio muda com a turma escolhida, então é redesenhado
          a cada troca do select: dizer "só você está vendo" sobre uma turma
@@ -1812,13 +1829,13 @@
             '<span class="eyebrow">Dinâmica</span>' +
             '<h2>Construção da Aposta</h2>' +
             '<p>Da missão até uma decisão baseada em evidência, uma etapa por vez.</p>' +
-            '<div id="apostaConviteAviso">' + avisoDe(turmas[0]) + '</div>' +
+            '<div id="apostaConviteAviso">' + avisoDe(inicial) + '</div>' +
           '</div>' +
           '<div class="aposta-convite-acao">' +
             (turmas.length > 1
               ? '<select id="apostaTurmaSel" class="aposta-select">' +
                   turmas.map(function (t) {
-                    return '<option value="' + esc(t.key) + '">' + esc(t.label) +
+                    return '<option value="' + esc(t.key) + '"' + (t === inicial ? ' selected' : '') + '>' + esc(t.label) +
                       (t.habilitada ? '' : ' · ensaio') + '</option>';
                   }).join('') +
                 '</select>'
