@@ -438,6 +438,14 @@ async function voltarParaAvaliacoes(page) {
     let cfg = (await banco(page))['naturezas-complementares-config'] || {};
     afirma(cfg.INICIATIVA_ESTRATEGICA && cfg.INICIATIVA_ESTRATEGICA.nome === 'Iniciativa estratégica' && cfg.INICIATIVA_ESTRATEGICA.ativo === true && cfg.INICIATIVA_ESTRATEGICA.ordem === 3 && cfg.INICIATIVA_ESTRATEGICA.codigoEstavel === 'INICIATIVA_ESTRATEGICA',
       'gravou a opção nova: codigoEstavel, nome, descricao, ativo, ordem');
+    /* DÍVIDA TÉCNICA (banco falso, fora deste PR): o update() do firebase-falso.js confirma a
+       gravação (onComplete) na hora e só AGENDA o aviso aos ouvintes (setTimeout de delayFor) —
+       a ordem inversa da do Firebase real, em que o evento local 'value' dispara no próprio
+       update(), antes da confirmação do servidor. Por isso "Opção criada" (na confirmação) pode
+       aparecer ~10 ms antes de a lista (vinda do ouvinte do catálogo) ter a opção nova. Aqui se
+       espera o estado real — a lista com 3 linhas — em vez de supor a ordem; se ele não chegar,
+       falha. Reproduzido com o ouvinte do catálogo atrasado: sem esta espera, 2 linhas. */
+    await page.waitForFunction(() => document.querySelectorAll('#adminAvaliacaoProduto tbody tr').length === 3, null, { timeout: 6000 });
     afirma(await page.locator('#adminAvaliacaoProduto tbody tr').count() === 3, 'a tela já mostra a nova opção (3 linhas)');
 
     await page.click('#avpNaturezaNova');
