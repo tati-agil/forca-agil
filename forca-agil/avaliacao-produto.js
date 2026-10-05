@@ -420,7 +420,12 @@
      combinações). Consequência assumida: avaliações já concluídas guardam a
      relação e a justificativa da época (item.camadaSugerida.relacao e
      item.justificativaAutomatica, nunca recalculadas ao exibir) e seguem
-     "Motor atual"; só avaliações NOVAS ou reavaliadas usam o texto novo. */
+     "Motor atual"; só avaliações NOVAS ou reavaliadas usam o texto novo.
+     MESMO TRATAMENTO (05/10/2026), também por decisão explícita da
+     responsável: a Relação arquitetural de Unidade de valor associada
+     deixou de afirmar "jornada e mensuração identificáveis" (P6/P7 são
+     auxiliares, não exigidas pela regra) — ver teste-texto-unidade-valor.js,
+     que fixa todo o resto das 65.536 combinações. */
   var MOTOR_VERSION = '2026.09.29-2';
 
   /* Mapa fixo e simples: só decide se a camada JÁ IDENTIFICADA conta como
@@ -707,7 +712,12 @@
     function sim(id) { return !!(r[id] && r[id].valor === 'sim'); }
     switch (camadaId) {
       case 'unidade-valor-associada':
-        return 'Pertence estruturalmente a um Produto/Serviço maior, mas constitui uma Unidade de Valor com resultado próprio, fronteira, jornada e mensuração identificáveis para o cliente.';
+        /* Só o que a regra EXIGE (versão 5 do motor): "reconhecível" = P3/P4,
+           "gerenciável" = P8, "resultado próprio" = P1/P2, "depende
+           estruturalmente" = P5 NÃO — os termos da definição curada. Jornada
+           (P6) e mensuração (P7) são evidências auxiliares e ficam de fora:
+           a redação anterior as afirmava mesmo quando a resposta era NÃO. */
+        return 'Depende estruturalmente de um Produto/Serviço principal, mas constitui uma unidade reconhecível e gerenciável, com resultado próprio para o cliente.';
       case 'funcionalidade-operacao':
         var alvo = sim('modalidade') ? 'uma modalidade/opção/configuração' :
           sim('regra') ? 'uma regra/condição' :
