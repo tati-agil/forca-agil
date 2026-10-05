@@ -414,6 +414,19 @@ jobs:
           FA_BASE_URL: http://127.0.0.1:8811
         run: node .github/scripts/teste-natureza-complementar.js
 
+      # Hermético. Catálogo de naturezas complementares resiliente: nenhuma
+      # leitura sem acesso nem antes de o acesso estar resolvido; login sem F5;
+      # sair desliga; troca de conta descarta a resposta da conta anterior;
+      # leitura sem resposta → aviso de demora (12 s) com "Tentar novamente"
+      # (avaliação e Admin) sem acumular ouvintes; salvamento A/B com a
+      # confirmação antiga chegando por último termina em B, sem auditoria
+      # duplicada. Desktop e 375 px.
+      - name: "Natureza complementar: catálogo resiliente (sessão, demora, Tentar novamente) e salvamento A/B"
+        env:
+          NODE_PATH: /tmp/pw-deps/node_modules
+          FA_BASE_URL: http://127.0.0.1:8811
+        run: node .github/scripts/teste-natureza-catalogo-resiliente.js
+
       # Hermético. Textos automáticos de P5 e de Informação/Documento (caso da
       # Trilha de Educação Previdenciária: P2 = SIM, P5 = NÃO, P10 = SIM): a
       # relação arquitetural e a justificativa não negam resultado próprio

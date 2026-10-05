@@ -278,7 +278,14 @@
       notificar(self.path);
       /* CFG.semConfirmacao (prefixos): o servidor APLICOU, mas a confirmação nunca chega ao cliente. */
       var semAck = (CFG.semConfirmacao || []).some(function (pfx) { return todosCaminhos.some(function (c) { return String(c).indexOf(pfx) === 0; }); });
-      if (cb && !semAck) cb(null);
+      /* CFG.atrasoConfirmacao ({prefixo: ms}): o servidor APLICA na hora (na ordem de envio, como o
+         Firebase real faz com as gravações de um mesmo cliente), mas a confirmação chega só depois de
+         ms — o caso "a resposta do envio antigo chega por último". Lido no momento da aplicação. */
+      var atrasoAck = 0;
+      Object.keys(CFG.atrasoConfirmacao || {}).forEach(function (pfx) {
+        if (todosCaminhos.some(function (c) { return String(c).indexOf(pfx) === 0; })) atrasoAck = Math.max(atrasoAck, CFG.atrasoConfirmacao[pfx]);
+      });
+      if (cb && !semAck) { if (atrasoAck) setTimeout(function () { cb(null); }, atrasoAck); else cb(null); }
     }, atraso);
     return Promise.resolve();
   };

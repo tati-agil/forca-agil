@@ -412,21 +412,47 @@ async function voltarParaAvaliacoes(page) {
     let linhas = await page.locator('#adminAvaliacaoProduto tbody tr').allInnerTexts();
     afirma(linhas.length === 2 && /PROGRAMA_TRANSVERSAL/.test(linhas[0]) && /PLATAFORMA_BENEFICIOS_PARCERIAS/.test(linhas[1]), 'tela do catálogo: as 2 opções de fábrica, com código estável');
 
+    /* FOCO: "+ Nova opção" põe o cursor em Nome NA HORA (antes era um setTimeout de 30 ms que, se a
+       pessoa já tivesse ido para a Descrição, puxava o foco de volta para Nome e o texto da
+       Descrição caía em Nome). Prova determinística: clicar e focar a Descrição na MESMA tarefa
+       do navegador e depois deixar passar a janela em que o foco antigo dispararia (30 ms). */
+    const focoAgora = () => page.evaluate(() => document.activeElement && document.activeElement.id);
+    const esgotarJanelaDoFocoAntigo = () => page.evaluate(() => new Promise((r) => setTimeout(r, 120)));
+    await page.click('#avpNaturezaNova');
+    afirma(await focoAgora() === 'avpNaturezaNome', '+ Nova opção: o cursor começa em Nome');
+    await page.click('#avpNaturezaCancelar');
+    await page.evaluate(() => { document.getElementById('avpNaturezaNova').click(); document.getElementById('avpNaturezaDescricaoEd').focus(); });
+    await esgotarJanelaDoFocoAntigo();
+    afirma(await focoAgora() === 'avpNaturezaDescricaoEd', 'foco posto na Descrição logo depois de "+ Nova opção" não volta para Nome');
+    await page.click('#avpNaturezaCancelar');
+
     await page.click('#avpNaturezaNova');
     await page.fill('#avpNaturezaNome', 'Iniciativa estratégica');
     afirma(await page.locator('#avpNaturezaCodigo').innerText() === 'INICIATIVA_ESTRATEGICA', 'código gerado do nome (sem acento, maiúsculas)');
     await page.fill('#avpNaturezaDescricaoEd', 'Conjunto de ações com um objetivo comum.');
+    await esgotarJanelaDoFocoAntigo();
+    afirma(await page.inputValue('#avpNaturezaNome') === 'Iniciativa estratégica' && await page.inputValue('#avpNaturezaDescricaoEd') === 'Conjunto de ações com um objetivo comum.',
+      'preenchimento rápido Nome → Descrição: cada texto no seu campo antes de salvar');
     await page.click('#avpNaturezaSalvar');
-    await page.waitForFunction(() => /Opção criada/.test(document.body.innerText), { timeout: 6000 }).catch(() => {});
+    await page.waitForFunction(() => /Opção criada/.test(document.body.innerText), { timeout: 6000 });
     let cfg = (await banco(page))['naturezas-complementares-config'] || {};
     afirma(cfg.INICIATIVA_ESTRATEGICA && cfg.INICIATIVA_ESTRATEGICA.nome === 'Iniciativa estratégica' && cfg.INICIATIVA_ESTRATEGICA.ativo === true && cfg.INICIATIVA_ESTRATEGICA.ordem === 3 && cfg.INICIATIVA_ESTRATEGICA.codigoEstavel === 'INICIATIVA_ESTRATEGICA',
       'gravou a opção nova: codigoEstavel, nome, descricao, ativo, ordem');
+    /* DÍVIDA TÉCNICA (banco falso, fora deste PR): o update() do firebase-falso.js confirma a
+       gravação (onComplete) na hora e só AGENDA o aviso aos ouvintes (setTimeout de delayFor) —
+       a ordem inversa da do Firebase real, em que o evento local 'value' dispara no próprio
+       update(), antes da confirmação do servidor. Por isso "Opção criada" (na confirmação) pode
+       aparecer ~10 ms antes de a lista (vinda do ouvinte do catálogo) ter a opção nova. Aqui se
+       espera o estado real — a lista com 3 linhas — em vez de supor a ordem; se ele não chegar,
+       falha. Reproduzido com o ouvinte do catálogo atrasado: sem esta espera, 2 linhas. */
+    await page.waitForFunction(() => document.querySelectorAll('#adminAvaliacaoProduto tbody tr').length === 3, null, { timeout: 6000 });
     afirma(await page.locator('#adminAvaliacaoProduto tbody tr').count() === 3, 'a tela já mostra a nova opção (3 linhas)');
 
     await page.click('#avpNaturezaNova');
     await page.fill('#avpNaturezaNome', 'iniciativa ESTRATÉGICA');
     await page.click('#avpNaturezaSalvar');
     afirma(/Já existe uma opção com esse nome/.test(await page.locator('#avpNaturezasErro').innerText()), 'nome repetido (ignorando caixa/acento) é recusado com aviso');
+    afirma(await focoAgora() === 'avpNaturezaNome', 'nome repetido: o cursor volta para Nome, para corrigir');
     await page.click('#avpNaturezaCancelar');
 
     /* renomear: o código é imutável e o que já foi registrado guarda o nome da época */
@@ -547,7 +573,28 @@ async function voltarParaAvaliacoes(page) {
     const trecho = (nome) => { const i = SRC_AVP.indexOf('function ' + nome + '('); return SRC_AVP.slice(i, SRC_AVP.indexOf('\n  }\n', i)); };
     afirma(naoLeNaturezaComplementar(SRC_MOTOR), 'motor-arquitetura.js não menciona a natureza complementar');
     afirma(naoLeNaturezaComplementar(trecho('identificarCamada')) && naoLeNaturezaComplementar(trecho('computeResultado')), 'identificarCamada / computeResultado não leem a natureza complementar');
-    afirma(!/natureza/i.test(trecho('construirAtualizacaoReprocessamento')) && !/natureza/i.test(trecho('precisaReprocessar')), 'reprocessamento e "Motor desatualizado" não leem a natureza');
+    /* As funções do reprocessamento ficam aninhadas (4 espaços): o corte por "\n  }\n" do trecho()
+       passava do fim delas e abrangia ~730 linhas de outras funções. Aqui o corte é EXATO — do
+       "function nome(" até a chave que fecha o corpo (chaves em strings e comentários não contam) —
+       e cobre também o que "Motor desatualizado" de fato lê (situacaoMotor → diagnosticoMotor). */
+    const corpoDaFuncao = (nome) => {
+      const i = SRC_AVP.indexOf('function ' + nome + '(');
+      if (i < 0) return null;
+      let k = SRC_AVP.indexOf('{', SRC_AVP.indexOf(')', i)), prof = 0, aspas = null;
+      for (; k < SRC_AVP.length; k++) {
+        const c = SRC_AVP[k], d = SRC_AVP[k + 1];
+        if (aspas) { if (c === '\\') k++; else if (c === aspas) aspas = null; continue; }
+        if (c === '/' && d === '*') { k = SRC_AVP.indexOf('*/', k) + 1; continue; }
+        if (c === '/' && d === '/') { k = SRC_AVP.indexOf('\n', k); continue; }
+        if (c === "'" || c === '"' || c === '`') { aspas = c; continue; }
+        if (c === '{') prof++;
+        if (c === '}' && --prof === 0) return SRC_AVP.slice(i, k + 1);
+      }
+      return null;
+    };
+    const REPROCESSAMENTO = ['construirAtualizacaoReprocessamento', 'precisaReprocessar', 'situacaoMotor', 'diagnosticoMotor'];
+    const corposReproc = REPROCESSAMENTO.map(corpoDaFuncao);
+    afirma(corposReproc.every((t) => t && !/natureza/i.test(t)), 'reprocessamento e "Motor desatualizado" não leem a natureza (' + REPROCESSAMENTO.join(', ') + ' — corpo exato de cada uma)');
     const rules = JSON.parse(fs.readFileSync(path.join(RAIZ, '..', 'database.rules.json'), 'utf8')).rules;
     const admin = rules['questionarios-config']['.write'];
     afirma(rules['naturezas-complementares-config']['.write'] === admin && rules['naturezas-complementares-config']['.read'] === rules['questionarios-config']['.read'], 'regras: catálogo gravável por qualquer admin e legível como questionarios-config (consulta+ e admin) — quem abre a edição consegue gravar');

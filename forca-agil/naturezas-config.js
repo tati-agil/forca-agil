@@ -55,32 +55,111 @@
 
   var cache = null;      /* o que veio do Firebase (objeto) — null enquanto não chegou */
   var estado = 'carregando'; /* 'carregando' | 'ok' | 'erro' */
-  var iniciado = false;
+  var demorando = false;     /* 'carregando' há mais de TEMPO_DEMORA_MS (rede lenta) */
+  var ativo = false;         /* alguém pediu o catálogo (iniciar/aoMudar) */
   var ouvintes = [];
+  var TEMPO_DEMORA_MS = 12000;
+
+  /* UMA leitura ao vivo por vez, sempre da "geração" atual. Cada nova leitura (troca de pessoa ou
+     de acesso, "Tentar novamente") desliga a anterior (off) e incrementa a geração; qualquer
+     resposta de uma geração antiga — inclusive uma que chegue depois da nova — é descartada.
+     Assim nunca há dois ouvintes nem duas respostas disputando o estado da tela. */
+  var geracao = 0;
+  var refAtual = null, aoValorAtual = null, relogioDemora = null;
+  var acessoAtual;           /* undefined = ainda não sincronizado */
 
   function notificar() { ouvintes.slice().forEach(function (cb) { try { cb(); } catch (e) { console.error('[naturezas]', e); } }); }
 
-  /* Liga uma única leitura ao vivo do catálogo. Idempotente. Enquanto a
-     primeira leitura não chega, estado() devolve 'carregando' — quem mostra
-     o seletor NÃO pode tratar "ainda não sei" como "lista de fábrica" (uma
-     opção desativada ou renomeada no banco poderia ser escolhida por engano). */
-  function iniciar() {
-    if (iniciado) return;
-    iniciado = true;
+  /* A leitura só pode começar com sessão AUTORIZADA (as regras do banco exigem login e acesso à
+     Avaliação ou admin). Ligar antes — p.ex. a tela aberta atrás do modal de login — fazia a
+     leitura ser recusada e o catálogo ficar em "erro" até o F5. null = ainda não pode (sem login,
+     acesso ainda não resolvido ou sem acesso): não lê e não mostra nada de outra pessoa. Fora do
+     site completo (sem faAuth, ex.: testes de lógica) lê direto, como antes. */
+  function acessoParaLeitura() {
+    var a = window.faAuth;
+    if (!a || !a.podeAvaliacao) return 'sem-autenticacao';
+    if (a.isAvaliacaoReady && !a.isAvaliacaoReady()) return null;
+    if (!a.podeAvaliacao()) return null;
+    /* mesma identidade que decide o acesso (o login do Firebase), não a sessão do site, que
+       chega depois — senão a leitura recomeçaria à toa quando ela completasse */
+    var u = null;
+    try { u = firebase.auth().currentUser; } catch (e) { /* sem Auth */ }
+    return u && u.email ? String(u.email).toLowerCase() : 'autorizado';
+  }
+  function desligar() {
+    geracao++;
+    if (refAtual && aoValorAtual) { try { refAtual.off('value', aoValorAtual); } catch (e) { /* já cancelada pelo banco */ } }
+    refAtual = null; aoValorAtual = null;
+    clearTimeout(relogioDemora); relogioDemora = null;
+  }
+  function ligar() {
+    desligar();
+    var minha = geracao;
+    estado = 'carregando'; demorando = false;
+    relogioDemora = setTimeout(function () {
+      if (minha !== geracao || estado !== 'carregando') return;
+      demorando = true;
+      notificar();
+    }, TEMPO_DEMORA_MS);
     try {
-      db().ref(NODE_CONFIG).on('value', function (snap) {
+      var ref = db().ref(NODE_CONFIG);
+      var aoValor = function (snap) {
+        if (minha !== geracao) return; /* resposta de uma leitura antiga */
         cache = snap.val() || {};
-        estado = 'ok';
+        estado = 'ok'; demorando = false;
+        clearTimeout(relogioDemora); relogioDemora = null;
         notificar();
-      }, function (err) {
+      };
+      var aoErro = function (err) {
+        if (minha !== geracao) return;
         console.error('[naturezas] não foi possível ler o catálogo:', err);
-        estado = 'erro';
+        try { ref.off('value', aoValor); } catch (e) { /* já cancelada pelo banco */ }
+        refAtual = null; aoValorAtual = null;
+        estado = 'erro'; demorando = false;
+        clearTimeout(relogioDemora); relogioDemora = null;
         notificar();
-      });
+      };
+      refAtual = ref; aoValorAtual = aoValor;
+      ref.on('value', aoValor, aoErro);
     } catch (e) {
+      if (minha !== geracao) return;
       console.error('[naturezas] erro ao iniciar a leitura do catálogo:', e);
-      estado = 'erro';
+      refAtual = null; aoValorAtual = null;
+      estado = 'erro'; demorando = false;
+      clearTimeout(relogioDemora); relogioDemora = null;
+      notificar();
     }
+  }
+  /* Acompanha a sessão: pessoa ou acesso mudou → a leitura anterior é desligada e, se a nova
+     pessoa pode ler, outra começa. Um evento repetido com o mesmo acesso não faz nada. */
+  function sincronizar() {
+    if (!ativo) return;
+    var acesso = acessoParaLeitura();
+    if (acesso === acessoAtual) return;
+    acessoAtual = acesso;
+    cache = null;
+    if (acesso === null) { desligar(); estado = 'carregando'; demorando = false; notificar(); return; }
+    ligar();
+    notificar();
+  }
+  /* "Tentar novamente": descarta a leitura atual (mesmo pendente) e começa outra. */
+  function recarregar() {
+    if (!ativo) return;
+    acessoAtual = acessoParaLeitura();
+    if (acessoAtual === null) { desligar(); estado = 'carregando'; demorando = false; notificar(); return; }
+    ligar();
+    notificar();
+  }
+  /* Liga o acompanhamento do catálogo. Idempotente. Enquanto a primeira leitura não chega,
+     estado() devolve 'carregando' — quem mostra o seletor NÃO pode tratar "ainda não sei" como
+     "lista de fábrica" (uma opção desativada ou renomeada no banco poderia ser escolhida por engano). */
+  function iniciar() {
+    if (ativo) return;
+    ativo = true;
+    ['fa-auth-ready', 'fa-auth-change', 'fa-admin-ready', 'fa-avaliacao-ready'].forEach(function (ev) {
+      window.addEventListener(ev, sincronizar);
+    });
+    sincronizar();
   }
   function aoMudar(cb) { iniciar(); ouvintes.push(cb); }
 
@@ -160,7 +239,8 @@
 
   window.faNaturezas = {
     NODE_CONFIG: NODE_CONFIG, NODE_AUDITORIA: NODE_AUDITORIA, PADRAO: PADRAO,
-    iniciar: iniciar, aoMudar: aoMudar, estado: function () { return estado; },
+    iniciar: iniciar, aoMudar: aoMudar, recarregar: recarregar, estado: function () { return estado; },
+    demorando: function () { return demorando; }, TEMPO_DEMORA_MS: TEMPO_DEMORA_MS,
     todas: todas, opcoesParaSelecao: opcoesParaSelecao, porCodigo: porCodigo,
     codigoDeNome: codigoDeNome, codigoValido: codigoValido, salvarOpcao: salvarOpcao
   };

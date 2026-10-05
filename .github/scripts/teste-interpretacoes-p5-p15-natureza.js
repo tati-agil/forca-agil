@@ -310,8 +310,28 @@ async function voltarParaAvaliacoes(page) {
     afirma(salvo.resultadoAutomatico === 'a-validar' && salvo.camadaSugerida.id === 'a-validar', 'recomendação automática continua "A validar"; camada continua A validar (nunca "Programa transversal")');
     afirma(naoLeNaturezaComplementar(SRC_MOTOR), 'motor-arquitetura.js não menciona a natureza complementar');
     const trechoMotor = (nome) => { const i = SRC_AVP.indexOf('function ' + nome + '('); return SRC_AVP.slice(i, SRC_AVP.indexOf('\n  }\n', i)); };
-    afirma(naoLeNaturezaComplementar(trechoMotor('identificarCamada')) && naoLeNaturezaComplementar(trechoMotor('computeResultado')) && naoLeNaturezaComplementar(trechoMotor('construirAtualizacaoReprocessamento') || ''),
-      'identificarCamada/computeResultado/reprocessamento não leem a natureza complementar');
+    /* As funções do reprocessamento ficam aninhadas (4 espaços): o corte por "\n  }\n" do trechoMotor()
+       passava do fim delas e abrangia ~730 linhas de outras funções. Aqui o corte é EXATO — do
+       "function nome(" até a chave que fecha o corpo (chaves em strings e comentários não contam) —
+       e cobre também o que "Motor desatualizado" de fato lê (situacaoMotor → diagnosticoMotor). */
+    const corpoDaFuncao = (nome) => {
+      const i = SRC_AVP.indexOf('function ' + nome + '(');
+      if (i < 0) return null;
+      let k = SRC_AVP.indexOf('{', SRC_AVP.indexOf(')', i)), prof = 0, aspas = null;
+      for (; k < SRC_AVP.length; k++) {
+        const c = SRC_AVP[k], d = SRC_AVP[k + 1];
+        if (aspas) { if (c === '\\') k++; else if (c === aspas) aspas = null; continue; }
+        if (c === '/' && d === '*') { k = SRC_AVP.indexOf('*/', k) + 1; continue; }
+        if (c === '/' && d === '/') { k = SRC_AVP.indexOf('\n', k); continue; }
+        if (c === "'" || c === '"' || c === '`') { aspas = c; continue; }
+        if (c === '{') prof++;
+        if (c === '}' && --prof === 0) return SRC_AVP.slice(i, k + 1);
+      }
+      return null;
+    };
+    const corposReproc = ['construirAtualizacaoReprocessamento', 'precisaReprocessar', 'situacaoMotor', 'diagnosticoMotor'].map(corpoDaFuncao);
+    afirma(naoLeNaturezaComplementar(trechoMotor('identificarCamada')) && naoLeNaturezaComplementar(trechoMotor('computeResultado')) && corposReproc.every((t) => t && naoLeNaturezaComplementar(t)),
+      'identificarCamada/computeResultado/reprocessamento (construirAtualizacaoReprocessamento, precisaReprocessar, situacaoMotor, diagnosticoMotor — corpo exato) não leem a natureza complementar');
     afirma(!CAMADA_TEM_NATUREZA(await page.evaluate(() => window.faMotorArquitetura.CAMADAS_VALIDAS)), 'a natureza não é uma camada válida do motor');
 
     console.log('\n== Tela: recomendação automática e decisão SEPARADAS ==');
