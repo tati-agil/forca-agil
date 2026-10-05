@@ -24,7 +24,7 @@
 const { chromium } = require('playwright');
 const fs = require('fs');
 const path = require('path');
-const { esperarCondicao } = require('./esperas');
+const { esperarCondicao, esperarCondicaoAte } = require('./esperas');
 const { arquivoTemporario } = require('./arquivo-temporario');
 const vm = require('vm');
 
@@ -152,26 +152,33 @@ async function abrir(browser, o) {
   await page.route('**fonts.googleapis.com**', (r) => r.fulfill({ status: 200, contentType: 'text/css', body: '' }));
   await page.route('**fonts.gstatic.com**', (r) => r.abort());
   await page.goto(BASE + '/index.html#avaliacoes', { waitUntil: 'domcontentloaded' });
-  await page.waitForFunction(() => !document.body.classList.contains('aguardando-auth'), { timeout: 16000 }).catch(() => {});
-  await page.waitForTimeout(800);
-  await page.waitForSelector('#avpNovoBtn', { timeout: 8000 });
-  await page.waitForTimeout(300);
+  /* Pronta = login decidido, admin e acesso à Avaliação resolvidos e a lista desenhada (antes: espera do
+     login com as opções no lugar do argumento, engolida, + 800 + 300 ms fixos — medido, já pronta). */
+  await esperarCondicao(page, () => !document.body.classList.contains('aguardando-auth') && !!document.getElementById('avpNovoBtn') &&
+    !!(window.faAuth && faAuth.isAdminReady() && faAuth.isAvaliacaoReady()), null, { limite: 16000, descricao: 'login decidido e lista da Avaliação desenhada' });
   return { ctx, page, erros };
 }
 const banco = (page) => page.evaluate(() => JSON.parse(JSON.stringify(window.__CFG.__dbReal)));
 const larguraOk = (page) => page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth + 1);
-const aparece = (page, sel, ms) => page.waitForSelector(sel, { timeout: ms || 2500 }).then(() => true).catch(() => false);
+/* "aparece em até N ms?" — o resultado é uma resposta (afirmada por quem chama), não um erro engolido */
+const aparece = (page, sel, ms) => esperarCondicaoAte(page, (q) => { const e = document.querySelector(q); return !!e && e.getClientRects().length > 0; }, sel, { limite: ms || 2500 });
 async function abrirResultado(page, key) {
   await page.click('.avp-act-ver[data-key="' + key + '"]');
   await page.waitForSelector('#avpCuradoriaCard, #avpCuradoriaLeitura', { timeout: 6000 });
-  await page.waitForFunction(() => { const s = document.getElementById('avpNaturezaComplementar'); return !s || !s.disabled; }, { timeout: 6000 }).catch(() => {});
-  await page.waitForTimeout(200);
+  /* o seletor de natureza fica desabilitado enquanto o catálogo carrega (antes: opções no lugar do
+     argumento, engolida, + 200 ms) */
+  await esperarCondicao(page, () => { const s = document.getElementById('avpNaturezaComplementar'); return !s || !s.disabled; }, null, { limite: 6000, descricao: 'o resultado de ' + key + ' pronto (catálogo de naturezas carregado)' });
 }
-async function voltar(page) { await page.click('#avpVoltarListaResultado'); await page.waitForSelector('#avpNovoBtn'); await page.waitForTimeout(200); }
+async function voltar(page) {
+  await page.click('#avpVoltarListaResultado');
+  await esperarCondicao(page, () => location.hash === '#avaliacoes' && !!document.getElementById('avpNovoBtn') && !document.querySelector('#avpCabecalhoFicha'), null, { descricao: 'a lista de volta (URL e tela)' });
+}
 async function gerarPdf(page) {
   await page.evaluate(() => { window.__pdfs = []; });
-  await Promise.all([page.waitForEvent('download', { timeout: 60000 }).catch(() => null), page.click('#avpGerarPdfBtn')]);
-  await page.waitForTimeout(500);
+  /* o PDF tem de sair: antes, sem download, seguia calado (e mais 500 ms fixos — medido, o conteúdo já
+     estava capturado quando o download chegava) */
+  await Promise.all([page.waitForEvent('download', { timeout: 60000 }), page.click('#avpGerarPdfBtn')]);
+  await esperarCondicao(page, () => (window.__pdfs || []).length > 0, null, { descricao: 'o conteúdo do PDF capturado' });
   return page.evaluate(() => { const t = []; (window.__pdfs || []).forEach((b) => { if (t.indexOf(b.tudo) === -1) t.push(b.tudo); }); return t.join('\n').replace(/\s+/g, ' '); });
 }
 async function lerExcel(page) {
@@ -187,6 +194,13 @@ async function lerExcel(page) {
   const celulaHist = (chave, coluna) => { const l = hist.find((x) => x[1] === chave); const i = hist[0].indexOf(coluna); return (l && i !== -1) ? (l[i] || '') : null; };
   return { linhas, hist, celula, celulaHist };
 }
+/* a reavaliação concluída: a v2 e a sua auditoria gravadas no banco, e a tela na avaliação nova (antes:
+   espera da tela engolida + 400 ms fixos). Não lança: afirma, e as verificações seguintes dizem o que faltou. */
+const esperarV2 = async (page, antes) => afirma(await esperarCondicaoAte(page, (n) => {
+  const b = window.__CFG.__dbReal || {};
+  return Object.keys(b['avaliacoes-produto'] || {}).length === n + 1 && Object.keys(b['curadoria-auditoria'] || {}).length > 0 &&
+    /^#avaliacoes\?avp=/.test(location.hash) && !!document.getElementById('avpVoltarListaResultado');
+}, Object.keys(antes['avaliacoes-produto']).length, { limite: 8000 }), 'concluir grava a v2 e a sua auditoria e abre a avaliação nova');
 const textoDecisao = (page) => page.locator('#avpDecisaoResumo, #avpDecisaoLeitura').first().innerText();
 const auditoriaDe = async (page, key) => Object.values(((await banco(page))['curadoria-auditoria'] || {})[key] || {}).sort((a, b) => String(a.dataHora).localeCompare(String(b.dataHora)));
 const NAO_PRODUTO = /Não é Produto\/Serviço principal/;
@@ -219,14 +233,14 @@ const NAO_PRODUTO = /Não é Produto\/Serviço principal/;
     console.log('\n== 2. Lista, Excel (Resumo e Histórico) usam a mesma regra ==');
     if (!(await page.locator('#avpFiltrosPainel').count())) await page.click('#avpFiltrosBtn');
     await page.waitForSelector('#avpFiltrosPainel');
-    await page.selectOption('#avpFiltroResultado', 'produto');
-    await page.waitForTimeout(200);
+    const linhasSemFiltro = await page.locator('.avp-act-ver').count();
+    /* filtrar redesenha a lista: espera o efeito do filtro (até 2 s) e afirma (antes: 200 ms fixos) */
+    const lista = (filtro, fn, arg) => page.selectOption('#avpFiltroResultado', filtro).then(() => esperarCondicaoAte(page, fn, arg, { limite: 2000 }));
+    await lista('produto', () => document.querySelectorAll('.avp-act-ver[data-key="leg"]').length === 1);
     afirma(await page.locator('.avp-act-ver[data-key="leg"]').count() === 1, 'lista: o filtro "É Produto/Serviço" inclui o legado (decisão resolvida = produto)');
-    await page.selectOption('#avpFiltroResultado', 'nao-produto');
-    await page.waitForTimeout(200);
+    await lista('nao-produto', () => document.querySelectorAll('.avp-act-ver[data-key="leg"]').length === 0 && document.querySelectorAll('.avp-act-ver').length > 0);
     afirma(await page.locator('.avp-act-ver[data-key="leg"]').count() === 0, 'lista: o filtro "Não é Produto/Serviço" NÃO inclui o legado');
-    await page.selectOption('#avpFiltroResultado', 'todos');
-    await page.waitForTimeout(200);
+    afirma(await lista('todos', (n) => document.querySelectorAll('.avp-act-ver').length === n, linhasSemFiltro), 'lista: sem filtro, voltam todas as ' + linhasSemFiltro + ' avaliações');
     const ex = await lerExcel(page);
     afirma(ex.celula('Item Legado', 'Decisão final') === 'É Produto/Serviço principal', 'Excel (Resumo): legado → "É Produto/Serviço principal" (era: ' + ex.celula('Item Legado', 'Decisão final') + ')');
     afirma(ex.celulaHist('leg', 'Decisão atual') === 'É Produto/Serviço principal', 'Excel (Histórico): legado → "É Produto/Serviço principal" em "Decisão atual" (era: ' + ex.celulaHist('leg', 'Decisão atual') + ')');
@@ -278,7 +292,7 @@ const NAO_PRODUTO = /Não é Produto\/Serviço principal/;
     await abrirResultado(page, 'par2');
     await page.click('.avp-hist-abrir[data-key="cad"]');
     await page.waitForSelector('#avpCuradoriaLeitura', { timeout: 6000 });
-    const leit = await page.locator('#avpCuradoriaResumo').innerText().catch(() => '');
+    const leit = await page.locator('#avpCuradoriaResumo').innerText();
     afirma(/Especialização\s*Instituto previdenciário/.test(leit) && /Papel estrutural\s*Essencial/.test(leit), 'leitura: Curadoria mostra o que foi registrado');
     afirma(/Forma da decisão\s*Recomendação do sistema aceita/.test(await textoDecisao(page)) && !/complementações/.test(await textoDecisao(page)), 'leitura: Forma da decisão sem citar Curadoria');
     /* O Voltar de uma versão anterior aberta a partir de outra avaliação leva de volta à ORIGEM
@@ -309,19 +323,21 @@ const NAO_PRODUTO = /Não é Produto\/Serviço principal/;
       const caixa = await page.locator('.modal-box').last().boundingBox();
       afirma(caixa && caixa.x >= 0 && caixa.x + caixa.width <= viewport.width + 1, 'o aviso cabe na tela (' + viewport.width + 'px)');
       await page.click('.avp-modal-cancel-btn');
-      await page.waitForTimeout(300);
+      await esperarCondicao(page, () => !document.querySelector('.modal-box .avp-modal-confirm-btn'), null, { descricao: 'o aviso fechar depois de cancelar' });
     }
     let b = await banco(page);
     afirma(JSON.stringify(b['avaliacoes-produto']) === JSON.stringify(antes['avaliacoes-produto']) && !b['curadoria-auditoria'] && await page.locator('#avpConcluirBtn').count() === 0, 'cancelar não cria nada: nem avaliação, nem auditoria, nem checklist');
 
-    await page.click('#avpReavaliarBtn', { timeout: 3000 }).catch(() => {}); /* no código antigo o 1º clique já abriu o checklist */
-    if (await aparece(page, '.avp-modal-confirm-btn', 800)) await page.click('.avp-modal-confirm-btn');
+    /* reavaliar de novo: o aviso volta (decisão manual) e, confirmando, abre o checklist. Antes o clique
+       e o aviso eram opcionais (compatibilidade com um código antigo em que o 1º clique já abria o checklist). */
+    await page.click('#avpReavaliarBtn');
+    await page.waitForSelector('.avp-modal-confirm-btn', { timeout: 4000 });
+    await page.click('.avp-modal-confirm-btn');
     const checklist = await aparece(page, '#avpConcluirBtn', 4000);
     afirma(checklist, 'confirmando, abre a reavaliação (checklist)');
     if (checklist) {
       await page.click('#avpConcluirBtn');
-      await page.waitForSelector('#avpVoltarListaResultado', { timeout: 8000 }).catch(() => {});
-      await page.waitForTimeout(400);
+      await esperarV2(page, antes);
     }
     b = await banco(page);
     const novas = Object.keys(b['avaliacoes-produto']).filter((k) => !antes['avaliacoes-produto'][k]);
@@ -354,7 +370,7 @@ const NAO_PRODUTO = /Não é Produto\/Serviço principal/;
     await page.click('.avp-act-mais[data-key="man"]');
     await page.click('.avp-menu-item[data-acao="reavaliar"]');
     afirma(await aparece(page, '.avp-modal-confirm-btn'), 'pelo menu da lista também pede confirmação para item com decisão manual');
-    await page.click('.avp-modal-cancel-btn').catch(() => {});
+    await page.click('.avp-modal-cancel-btn');
     afirma(erros.length === 0, 'nenhum erro de JS (' + erros.length + ')');
     await ctx.close();
   }
@@ -365,12 +381,12 @@ const NAO_PRODUTO = /Não é Produto\/Serviço principal/;
     const antes = await banco(page);
     await abrirResultado(page, 'auto');
     await page.click('#avpReavaliarBtn');
-    const modal = await aparece(page, '.avp-modal-confirm-btn', 800);
-    afirma(!modal, 'sem decisão manual não há o que descartar: abre direto, sem pergunta extra');
-    await page.waitForSelector('#avpConcluirBtn', { timeout: 4000 }).catch(() => {});
+    /* a prova de "sem pergunta" é o checklist abrir direto (antes: janela de 800 ms esperando o aviso NÃO
+       aparecer, e o checklist podia faltar calado) */
+    await page.waitForSelector('#avpConcluirBtn', { timeout: 4000 });
+    afirma(await page.locator('.avp-modal-confirm-btn').count() === 0, 'sem decisão manual não há o que descartar: abre direto, sem pergunta extra');
     await page.click('#avpConcluirBtn');
-    await page.waitForSelector('#avpVoltarListaResultado', { timeout: 8000 }).catch(() => {});
-    await page.waitForTimeout(400);
+    await esperarV2(page, antes);
     const b = await banco(page);
     const novas = Object.keys(b['avaliacoes-produto']).filter((k) => !antes['avaliacoes-produto'][k]);
     const aud = novas.length ? await auditoriaDe(page, novas[0]) : [];
@@ -385,10 +401,13 @@ const NAO_PRODUTO = /Não é Produto\/Serviço principal/;
     const antes = await banco(page);
     await abrirResultado(page, 'man');
     await page.click('#avpReavaliarBtn');
-    if (await aparece(page, '.avp-modal-confirm-btn', 800)) await page.click('.avp-modal-confirm-btn');
-    await page.waitForSelector('#avpConcluirBtn', { timeout: 4000 }).catch(() => {});
-    await page.click('#avpConcluirBtn', { timeout: 3000 }).catch(() => {});
-    await page.waitForTimeout(1500);
+    await page.waitForSelector('.avp-modal-confirm-btn', { timeout: 4000 });
+    await page.click('.avp-modal-confirm-btn');
+    await page.waitForSelector('#avpConcluirBtn', { timeout: 4000 });
+    await page.click('#avpConcluirBtn');
+    /* o fim da tentativa é o aviso de erro na tela (antes: 1,5 s fixos, sem olhar se a pessoa era avisada) */
+    const avisou = await esperarCondicaoAte(page, () => Array.from(document.querySelectorAll('.modal-box')).some((m) => /Não foi possível salvar a avaliação/.test(m.textContent)), null, { limite: 8000 });
+    afirma(avisou, 'a recusa do banco aparece na tela ("Não foi possível salvar a avaliação")');
     const b = await banco(page);
     afirma(Object.keys(b['avaliacoes-produto']).length === Object.keys(antes['avaliacoes-produto']).length && !b['curadoria-auditoria'], 'nada gravado: nem a v2, nem a auditoria');
     afirma(JSON.stringify(b['avaliacoes-produto'].man) === JSON.stringify(antes['avaliacoes-produto'].man), 'a v1 continua idêntica');

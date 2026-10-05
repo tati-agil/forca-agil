@@ -450,63 +450,6 @@
         "trecho": ".waitForFunction(() => { const err = document.querySelector('#cadEditErr'); const erroVisivel = err && getComputedStyle(err).display !== 'no"
       }
     },
-    "teste-curadoria-decisao-coerencia.js": {
-      "3da18501363e334c": {
-        "n": 1,
-        "padrao": "opcoes-como-argumento",
-        "trecho": ".waitForFunction(() => !document.body.classList.contains('aguardando-auth'), { timeout: 16000 })"
-      },
-      "0cbdc2c2057de36b": {
-        "n": 1,
-        "padrao": "catch",
-        "trecho": ".waitForFunction(() => !document.body.classList.contains('aguardando-auth'), { timeout: 16000 }).catch(() => {})"
-      },
-      "98d860c40ed3f0f6": {
-        "n": 1,
-        "padrao": "catch",
-        "trecho": ".waitForSelector(sel, { timeout: ms || 2500 }).then(() => true).catch(() => false)"
-      },
-      "009657c53b7badbb": {
-        "n": 1,
-        "padrao": "opcoes-como-argumento",
-        "trecho": ".waitForFunction(() => { const s = document.getElementById('avpNaturezaComplementar'); return !s || !s.disabled; }, { timeout: 6000 })"
-      },
-      "ae1215ef6739501f": {
-        "n": 1,
-        "padrao": "catch",
-        "trecho": ".waitForFunction(() => { const s = document.getElementById('avpNaturezaComplementar'); return !s || !s.disabled; }, { timeout: 6000 }).catch"
-      },
-      "36550d61e94780b9": {
-        "n": 1,
-        "padrao": "catch",
-        "trecho": ".waitForEvent('download', { timeout: 60000 }).catch(() => null)"
-      },
-      "2adfbe9887d084b2": {
-        "n": 1,
-        "padrao": "catch",
-        "trecho": ".click('#avpReavaliarBtn', { timeout: 3000 }).catch(() => {})"
-      },
-      "9b10a43f410f6392": {
-        "n": 2,
-        "padrao": "catch",
-        "trecho": ".waitForSelector('#avpVoltarListaResultado', { timeout: 8000 }).catch(() => {})"
-      },
-      "5a1e8d679cf4cf82": {
-        "n": 1,
-        "padrao": "catch",
-        "trecho": ".click('.avp-modal-cancel-btn').catch(() => {})"
-      },
-      "443daa2effce5ce4": {
-        "n": 2,
-        "padrao": "catch",
-        "trecho": ".waitForSelector('#avpConcluirBtn', { timeout: 4000 }).catch(() => {})"
-      },
-      "61a07a250e3d9ab6": {
-        "n": 1,
-        "padrao": "catch",
-        "trecho": ".click('#avpConcluirBtn', { timeout: 3000 }).catch(() => {})"
-      }
-    },
     "teste-curadoria-orfa.js": {
       "3da18501363e334c": {
         "n": 1,
