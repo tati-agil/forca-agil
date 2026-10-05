@@ -358,46 +358,6 @@
       }
     },
     "teste-avaliacoes-navegacao.js": {
-      "3da18501363e334c": {
-        "n": 1,
-        "padrao": "opcoes-como-argumento",
-        "trecho": ".waitForFunction(() => !document.body.classList.contains('aguardando-auth'), { timeout: 16000 })"
-      },
-      "0cbdc2c2057de36b": {
-        "n": 1,
-        "padrao": "catch",
-        "trecho": ".waitForFunction(() => !document.body.classList.contains('aguardando-auth'), { timeout: 16000 }).catch(() => {})"
-      },
-      "98d860c40ed3f0f6": {
-        "n": 1,
-        "padrao": "catch",
-        "trecho": ".waitForSelector(sel, { timeout: ms || 2500 }).then(() => true).catch(() => false)"
-      },
-      "009657c53b7badbb": {
-        "n": 1,
-        "padrao": "opcoes-como-argumento",
-        "trecho": ".waitForFunction(() => { const s = document.getElementById('avpNaturezaComplementar'); return !s || !s.disabled; }, { timeout: 6000 })"
-      },
-      "ae1215ef6739501f": {
-        "n": 1,
-        "padrao": "catch",
-        "trecho": ".waitForFunction(() => { const s = document.getElementById('avpNaturezaComplementar'); return !s || !s.disabled; }, { timeout: 6000 }).catch"
-      },
-      "36550d61e94780b9": {
-        "n": 1,
-        "padrao": "catch",
-        "trecho": ".waitForEvent('download', { timeout: 60000 }).catch(() => null)"
-      },
-      "29b9f149b6b2cae0": {
-        "n": 1,
-        "padrao": "catch",
-        "trecho": ".waitForFunction((alvo) => { const q = (s) => !!document.querySelector(s); const atual = q('#avpCabecalhoFicha') ? (q('#avpAvisoVersaoAnteri"
-      },
-      "efe438448a5e0b96": {
-        "n": 6,
-        "padrao": "catch",
-        "trecho": ".click().catch(() => {})"
-      },
       "3c16ec62a147c1c2": {
         "n": 2,
         "padrao": "catch",
