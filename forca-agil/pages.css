@@ -2011,7 +2011,9 @@ select.aposta-campo-input { width: auto; min-width: 8.5em; }
 .avp-result-card--a-validar { background: rgba(90,160,238,.08); border-color: rgba(90,160,238,.4); }
 .avp-result-label { font-family: var(--font-mono); font-size: .72rem; letter-spacing: .1em; color: var(--ink-3); }
 .avp-result-nome { margin: 6px 0 14px; }
-.avp-result-badge-grande { font-family: var(--font-head); font-size: 1.5rem; letter-spacing: .03em; text-transform: uppercase; }
+.avp-result-badge-grande { font-family: var(--font-head); font-size: 1.5rem; letter-spacing: .03em; }
+/* título do resultado Produto/Serviço: o nome vem da Taxonomia em caixa normal; o caixa-alta é só visual (não afeta o veredito da Squad, que usa a mesma classe) */
+.avp-result-badge-grande--resultado { text-transform: uppercase; }
 .avp-result-card--produto .avp-result-badge-grande { color: var(--cyan-soft); }
 .avp-result-card--nao-produto .avp-result-badge-grande { color: var(--gold-soft); }
 .avp-result-card--a-validar .avp-result-badge-grande { color: var(--blue-glow); }

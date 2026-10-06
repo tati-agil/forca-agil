@@ -6264,7 +6264,7 @@
       html += '<h3 class="avp-secao-titulo">O que o sistema concluiu</h3>';
       html += '<div class="avp-result-card ' + cardClasse + '">';
       html += '<span class="avp-result-label">RESULTADO SOBRE PRODUTO/SERVIÇO</span>';
-      html += '<div class="avp-result-badge-grande">' + badgeTexto + '</div>';
+      html += '<div class="avp-result-badge-grande avp-result-badge-grande--resultado">' + badgeTexto + '</div>';
       html += '<p class="avp-result-secundario">Critérios favoráveis a Produto/Serviço: ' + a.criteriosAtendidos + ' de ' + CRITERIOS.length + '</p>';
       html += '</div>';
 
