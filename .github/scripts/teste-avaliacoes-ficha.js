@@ -92,9 +92,11 @@ const larguraOk = (page) => page.evaluate(() => document.documentElement.scrollW
     const ident = await page.locator('#avpIdentificacao').textContent(); /* descrição, público, necessidade e observações ficam recolhidos em "Dados do item" */
     afirma(/Plano Exemplo/.test(ident) && /v3/.test(ident) && /descrição do Plano Exemplo/.test(ident) && /participantes/.test(ident) && /entender o plano/.test(ident) && /obs gerais/.test(ident) && /Avaliadora 3/i.test(ident), 'Identificação: nome, versão, descrição, público, necessidade, observações e quem avaliou');
     afirma(!/versão anterior/i.test(ident) && await contar(page, '#avpAvisoVersaoAnterior') === 0, 'a vigente não tem aviso de versão anterior');
-    afirma(await contar(page, '#avpReavaliarBtn') === 1 && await contar(page, '#avpSalvarDecisaoBtn') === 1, 'vigente: Reavaliar e decisão editável (quem tem acesso)');
+    /* avaliar ≠ decidir: o tipo "Avaliação" reavalia, mas a decisão arquitetural é de "Avaliação + Arquitetura" (teste-avaliacoes-acessos.js) */
+    afirma(await contar(page, '#avpReavaliarBtn') === 1 && await contar(page, '#avpSalvarDecisaoBtn') === 0, 'vigente: Reavaliar à vista; a decisão fica só para leitura (o tipo "Avaliação" não decide)');
     const hist = await page.locator('.avp-hist-item').evaluateAll((els) => els.map((e) => e.dataset.key));
     afirma(JSON.stringify(hist) === JSON.stringify(['k3', 'k2', 'k1']), 'histórico de versões: v3, v2, v1 (mais recente primeiro): ' + hist.join(','));
+    await page.evaluate(() => { const d = document.getElementById('avpHistoricoVersoesLista'); if (d) d.open = true; }); /* recolhido: abre para ler */
     afirma(/vigente/.test(await page.locator('.avp-hist-item[data-key="k3"]').innerText()) && /você está vendo/i.test(await page.locator('.avp-hist-item[data-key="k3"]').innerText()), 'v3 marcada como vigente e como a aberta');
     const nUser = await contar(page, '.avp-reasoning-user'), nAuto = await contar(page, '.avp-reasoning-auto');
     afirma(nUser === 16 && nAuto === 16, 'as 16 perguntas mostram "Sua justificativa" e "Interpretação do sistema" (' + nUser + '/' + nAuto + ')');

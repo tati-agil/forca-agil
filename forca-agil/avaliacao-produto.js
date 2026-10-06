@@ -2351,6 +2351,11 @@
     function sincronizarEnderecoAdmin() {
       if (modo !== 'admin' || aplicandoEnderecoAdmin) return;
       if ((location.hash || '').split('?')[0] !== '#admin' || !painelArquiteturaAtivo()) return;
+      /* Só com alguém logado e o ADMIN de fato na tela: redesenhar por troca de sessão (sair,
+         trocar de pessoa) não pode mexer no histórico — um recuo atrasado devolvia o navegador
+         ao #admin depois do redirecionamento e o router não reiniciava o ADMIN da pessoa nova. */
+      var paginaAdmin = document.getElementById('page-admin');
+      if (!sessaoAtual() || !paginaAdmin || paginaAdmin.hidden) return;
       var area = areaAtualAdmin();
       var desejado = '#admin?arq=' + area;
       if (location.hash === desejado) return;

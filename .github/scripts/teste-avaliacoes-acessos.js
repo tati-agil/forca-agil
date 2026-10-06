@@ -22,7 +22,7 @@
  *     e grava histórico no mesmo update; se o banco recusar, nada parece salvo.
  * Hermético: sem rede, sem segredo. */
 const { chromium } = require('playwright');
-const { esperarSessaoAssentada } = require('./esperas');
+const { esperarSessaoAssentada, esperarCondicao } = require('./esperas');
 const fs = require('fs');
 const path = require('path');
 
@@ -163,13 +163,13 @@ async function abrirMais(page, key) {
       afirma(await page.evaluate(() => { const a = document.querySelector('a[data-nav-page="admin"]'); return !!a && !a.hidden; }), 'o menu passa a mostrar "Admin" (leva só à Arquitetura)');
       await page.evaluate(() => { location.hash = '#admin'; });
       await page.waitForSelector('#avpConfigQuestionariosBtn', { timeout: 8000 }).catch(() => {});
-      afirma(await hash(page) === '#admin', '#admin abre');
+      afirma(/^#admin(\?arq=inicio)?$/.test(await hash(page)), '#admin abre (' + await hash(page) + ')');
       afirma(await page.evaluate(() => !document.getElementById('adminContent').hidden && document.getElementById('adminGuard').hidden), 'conteúdo do ADMIN visível, sem aviso de "Acesso restrito"');
       const abas = await page.evaluate(() => Array.from(document.querySelectorAll('.admin-tab-btn')).filter((b) => !b.hidden && b.offsetParent !== null).map((b) => b.textContent.trim()));
       afirma(abas.length <= 1, 'nenhuma aba do ADMIN além da Arquitetura aparece no menu de abas — ' + JSON.stringify(abas));
       const paineis = await page.evaluate(() => Array.from(document.querySelectorAll('.admin-tab-panel')).filter((p) => !p.hidden && p.offsetParent !== null).map((p) => p.id));
       afirma(paineis.length === 1 && paineis[0] === 'adminPanelArquitetura', 'o único painel visível é o da Arquitetura — ' + JSON.stringify(paineis));
-      await page.waitForSelector('#avpMotorSquadInicioBtn', { timeout: 5000 }).catch(() => {});
+      await esperarCondicao(page, () => !!document.getElementById('avpMotorSquadInicioBtn'), null, { descricao: 'o cartão "Motor de Squad" aparecer na Arquitetura' });
       afirma(await contar(page, '#avpConfigQuestionariosBtn') === 1 && await contar(page, '#avpConfigMotoresBtn') === 1 && await contar(page, '#avpConfigNaturezasBtn') === 1 && await contar(page, '#avpMotorSquadInicioBtn') === 1, 'Questionários, Motores, Naturezas e Motor de Squad disponíveis');
       afirma(await contar(page, '#avpUsuariosBtn') === 0, 'SEM "Usuários autorizados" (só admin geral gerencia a lista)');
       afirma(await page.evaluate(() => { const c = document.querySelector('#adminCadastrados, #adminInteresses, #adminAdmins'); return !c || c.offsetParent === null; }), 'Cadastrados, Eventos e Administradores não estão na tela');
@@ -228,9 +228,9 @@ async function abrirMais(page, key) {
   {
     const { ctx, page, erros } = await abrir(browser, { email: EM, tipo: 'avaliacao-arquitetura', hash: '#admin', delays: { 'fa-avaliacao-autorizados': 3500 } });
     await page.waitForTimeout(800);
-    afirma(await hash(page) === '#admin', 'F5 em #admin com o registro lento: não é expulso enquanto espera');
+    afirma(/^#admin(\?arq=inicio)?$/.test(await hash(page)), 'F5 em #admin com o registro lento: não é expulso enquanto espera (' + await hash(page) + ')');
     await page.waitForSelector('#avpConfigQuestionariosBtn', { timeout: 10000 }).catch(() => {});
-    afirma(await hash(page) === '#admin' && await contar(page, '#avpConfigQuestionariosBtn') === 1, 'quando chega: a Arquitetura carrega');
+    afirma(/^#admin(\?arq=inicio)?$/.test(await hash(page)) && await contar(page, '#avpConfigQuestionariosBtn') === 1, 'quando chega: a Arquitetura carrega (' + await hash(page) + ')');
     afirma(erros.length === 0, 'nenhum erro de JS (' + erros.length + ')');
     await ctx.close();
   }

@@ -53,7 +53,7 @@ const AVALIACOES = () => ({
 });
 
 async function abrir(browser, viewport) {
-  const acessos = {}; acessos[chave(EMAIL)] = { email: EMAIL, tipo: 'avaliacao' };
+  const acessos = {}; acessos[chave(EMAIL)] = { email: EMAIL, tipo: 'avaliacao-arquitetura' }; /* a ajuda da decisão manual só aparece para quem decide (Avaliação + Arquitetura) */
   const db = { turmas: {}, 'turmas-interesse': {}, 'fa-users': {}, 'fa-admins': {}, 'turmas-config': {}, 'turmas-checkin': {}, 'turmas-espera': {},
     'turmas-equipe': {}, 'fa-facilitadores': {}, 'fa-diretores': {}, eventos: {}, 'turmas-publico': {}, 'eventos-publico': {},
     'avaliacoes-produto': AVALIACOES(), 'avaliacoes-squad': {}, 'motor-squad-config': {}, 'motor-squad-auditoria': {},
