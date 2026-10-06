@@ -229,12 +229,12 @@
      mesmo com uma configuração mal formada (regras vindas de edição
      administrativa) — sem nenhuma regra aplicável, devolve INDETERMINADO e
      registra no console, em vez de travar a avaliação. */
-  function executarRegras(regras, contexto) {
-    var ordenadas = (regras || []).slice().sort(function (a, b) { return (a.ordem || 0) - (b.ordem || 0); });
+  function executarRegras(regras, contexto, silencioso) {
+    var ordenadas = (Array.isArray(regras) ? regras : []).slice().sort(function (a, b) { return (a.ordem || 0) - (b.ordem || 0); });
     for (var i = 0; i < ordenadas.length; i++) {
       if (avaliarCondicao(ordenadas[i].condicoes, contexto)) return ordenadas[i].resultado;
     }
-    console.error('[motor-squad] nenhuma regra aplicável para o contexto:', contexto);
+    if (!silencioso) console.error('[motor-squad] nenhuma regra aplicável para o contexto:', contexto);
     return 'INDETERMINADO';
   }
 
@@ -315,18 +315,18 @@
      decide qual), devolve os dois eixos, a indicação organizacional e as
      evidências/pontos a desenvolver — SEMPRE derivados das respostas reais,
      nunca de texto livre ou heurística fora das regras. */
-  function identificarAdequacaoSquad(respostas, regras) {
+  function identificarAdequacaoSquad(respostas, regras, silencioso) {
     var r = regras || PADRAO_REGRAS;
     var contextoPerguntas = construirContextoPerguntas(respostas);
 
-    var necessidadeCapacidadeDedicada = executarRegras(r.eixoA, contextoPerguntas);
-    var condicoesParaSquad = executarRegras(r.eixoB, contextoPerguntas);
+    var necessidadeCapacidadeDedicada = executarRegras(r.eixoA, contextoPerguntas, silencioso);
+    var condicoesParaSquad = executarRegras(r.eixoB, contextoPerguntas, silencioso);
 
     var contextoCombinacao = {
       necessidadeCapacidadeDedicada: necessidadeCapacidadeDedicada,
       condicoesParaSquad: condicoesParaSquad
     };
-    var indicacaoOrganizacional = executarRegras(r.combinacao, contextoCombinacao);
+    var indicacaoOrganizacional = executarRegras(r.combinacao, contextoCombinacao, silencioso);
 
     var evidenciasFavoraveis = [];
     var pontosADesenvolver = [];
@@ -342,6 +342,78 @@
       evidenciasFavoraveis: evidenciasFavoraveis,
       pontosADesenvolver: pontosADesenvolver
     };
+  }
+
+  /* ===================== VALIDAÇÃO EXAUSTIVA (trava de publicação) =====================
+     O editor deixa trocar o SIM/NÃO esperado de cada condição sobre S1-S8 —
+     e QUALQUER uma dessas trocas, sozinha, pode deixar combinações completas
+     de respostas sem regra aplicável (INDETERMINADO). A simulação só olha as
+     avaliações já concluídas, então não pegava isso. Aqui o conjunto de
+     regras candidato é rodado sobre as 256 combinações possíveis de S1-S8
+     (2^8, todas respondidas) e cada uma precisa chegar a um código CONHECIDO
+     em cada etapa: Eixo A, Eixo B e indicação organizacional. Pura, sem
+     Firebase: publicarRegras recusa publicar se ela não passar, e a tela de
+     simulação mostra as combinações que falharam antes do botão. Os códigos
+     válidos são os resultados das regras de fábrica — o editor muda QUAIS
+     respostas levam a cada resultado, nunca cria um resultado novo. */
+  var PERGUNTAS = ['S1', 'S2', 'S3', 'S4', 'S5', 'S6', 'S7', 'S8'];
+  function resultadosDe(grupo) {
+    var lista = PADRAO_REGRAS[grupo].map(function (r) { return r.resultado; });
+    return lista;
+  }
+  var RESULTADOS_VALIDOS = {
+    eixoA: resultadosDe('eixoA'),
+    eixoB: resultadosDe('eixoB'),
+    combinacao: resultadosDe('combinacao')
+  };
+  function combinacaoNumero(n) {
+    var respostas = {};
+    PERGUNTAS.forEach(function (cod, i) {
+      respostas[cod] = { resposta: ((n >> (7 - i)) & 1) ? 'sim' : 'nao' };
+    });
+    return respostas;
+  }
+  function descreverCombinacao(respostas) {
+    return PERGUNTAS.map(function (cod) { return cod + ' ' + (respostas[cod].resposta === 'sim' ? 'SIM' : 'NÃO'); }).join(' · ');
+  }
+  function validarRegrasCompletas(regras) {
+    var estrutura = [];
+    if (!regras || typeof regras !== 'object') {
+      estrutura.push('Não há conjunto de regras.');
+    } else {
+      ['eixoA', 'eixoB', 'combinacao'].forEach(function (grupo) {
+        var lista = regras[grupo];
+        if (!Array.isArray(lista) || !lista.length) { estrutura.push('O grupo ' + grupo + ' não tem regras.'); return; }
+        lista.forEach(function (r) {
+          if (!r || RESULTADOS_VALIDOS[grupo].indexOf(r.resultado) === -1) {
+            estrutura.push('A regra ' + ((r && r.codigo) || '?') + ' (' + grupo + ') tem um resultado desconhecido: ' + (r && r.resultado));
+          }
+          if (!r || !r.condicoes || typeof r.condicoes !== 'object') {
+            estrutura.push('A regra ' + ((r && r.codigo) || '?') + ' (' + grupo + ') não tem condições.');
+          }
+        });
+      });
+    }
+    var invalidas = [];
+    if (!estrutura.length) {
+      for (var n = 0; n < 256; n++) {
+        var respostas = combinacaoNumero(n);
+        var r = identificarAdequacaoSquad(respostas, regras, true);
+        var falhou = [];
+        if (RESULTADOS_VALIDOS.eixoA.indexOf(r.necessidadeCapacidadeDedicada) === -1) falhou.push('Eixo A');
+        if (RESULTADOS_VALIDOS.eixoB.indexOf(r.condicoesParaSquad) === -1) falhou.push('Eixo B');
+        if (RESULTADOS_VALIDOS.combinacao.indexOf(r.indicacaoOrganizacional) === -1) falhou.push('Indicação organizacional');
+        if (falhou.length) {
+          invalidas.push({
+            respostas: descreverCombinacao(respostas), semResultadoEm: falhou,
+            necessidadeCapacidadeDedicada: r.necessidadeCapacidadeDedicada,
+            condicoesParaSquad: r.condicoesParaSquad,
+            indicacaoOrganizacional: r.indicacaoOrganizacional
+          });
+        }
+      }
+    }
+    return { valida: !estrutura.length && !invalidas.length, totalCombinacoes: 256, estrutura: estrutura, invalidas: invalidas };
   }
 
   /* ===================== SIMULAÇÃO (item 15 do pedido) =====================
@@ -375,15 +447,53 @@
   var cache = null;
   var carregado = false;
   var listeners = [];
+  /* Estado da LEITURA de motor-squad-config — "ainda não sei" nunca é "não
+     há nada publicado": enquanto a primeira resposta não chega, versaoAtual()
+     cairia na versão 1 de fábrica, e uma avaliação concluída nesse intervalo
+     (rede lenta, celular na sala) seria interpretada com regras que podem já
+     não valer e carimbada com a versão errada, sem aviso. Por isso quem
+     INTERPRETA (avaliacao-squad.js) pergunta antes estadoCarga():
+       'carregando' — pedido feito, nenhuma resposta ainda;
+       'carregado'  — resposta recebida (com ou sem versão publicada; só
+                      AGORA "nada publicado" significa de fato a versão 1);
+       'erro'       — a leitura foi recusada/falhou; recarregar() tenta de novo.
+     carregandoDesde: quando o pedido atual começou — a tela usa para avisar
+     que está demorando e oferecer "Tentar novamente". */
+  var estado = 'carregando';
+  var carregandoDesde = Date.now();
+  var refOuvinte = null, cbOuvinte = null;
 
+  function avisar() { listeners.slice().forEach(function (cb) { cb(); }); }
+  function ligarOuvinte() {
+    estado = 'carregando';
+    carregandoDesde = Date.now();
+    refOuvinte = db().ref(NODE_CONFIG);
+    cbOuvinte = refOuvinte.on('value', function (snap) {
+      cache = snap.val();
+      estado = 'carregado';
+      avisar();
+    }, function (err) {
+      console.error('[motor-squad] não foi possível ler as regras do motor de squad:', err);
+      estado = 'erro';
+      avisar();
+    });
+  }
   function garantirSync() {
     if (carregado) return;
     carregado = true;
-    db().ref(NODE_CONFIG).on('value', function (snap) {
-      cache = snap.val();
-      listeners.slice().forEach(function (cb) { cb(); });
-    });
+    ligarOuvinte();
   }
+  /* Tentar de novo depois de um erro (ou de uma leitura que não volta):
+     desliga o ouvinte anterior e pede de novo. O cache já recebido, se
+     houver, continua valendo até a nova resposta. */
+  function recarregar() {
+    if (!carregado) { garantirSync(); return; }
+    if (refOuvinte) refOuvinte.off('value', cbOuvinte);
+    ligarOuvinte();
+    avisar();
+  }
+  function estadoCarga() { return estado; }
+  function msCarregando() { return estado === 'carregando' ? Date.now() - carregandoDesde : 0; }
   function onMudanca(cb) {
     garantirSync();
     listeners.push(cb);
@@ -522,6 +632,11 @@
          cb('conflito', {versaoBase, versaoAtual}) e uma auditoria tipo
          'conflito_publicacao'. */
   function publicarRegras(regras, usuario, cb, versaoBase) {
+    /* Trava antes de qualquer gravação: um conjunto de regras que deixe
+       alguma das 256 combinações completas sem resultado nunca vira versão
+       publicada (nem nova versão, nem auditoria, nem rascunho apagado). */
+    var validacao = validarRegrasCompletas(regras);
+    if (!validacao.valida) { if (cb) cb('regras-invalidas', validacao); return; }
     var baseEsperada = versaoBase != null ? versaoBase : versaoAtual();
     var pareciaNoOpLocalmente = diffRegras(regrasDaVersao(versaoAtual()), regras).length === 0;
     var agora = new Date().toISOString();
@@ -657,7 +772,11 @@
     avaliarCondicao: avaliarCondicao,
     identificarAdequacaoSquad: identificarAdequacaoSquad,
     simular: simular,
+    validarRegrasCompletas: validarRegrasCompletas,
     onMudanca: onMudanca,
+    estadoCarga: estadoCarga,
+    msCarregando: msCarregando,
+    recarregar: recarregar,
     versaoAtual: versaoAtual,
     regrasDaVersao: regrasDaVersao,
     textosAtuais: textosAtuais,

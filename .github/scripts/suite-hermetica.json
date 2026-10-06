@@ -417,6 +417,18 @@
       "nome": "Guarda das esperas: nenhuma espera nova calada nem com a assinatura errada do waitForFunction",
       "duracao": 1,
       "sobre": "Sem navegador. Conta, por arquivo, waitForFunction com as opções no lugar do argumento (o limite escrito é ignorado e vale 30 s) e esperas seguidas de .catch (estouro engolido). A contagem tem de bater com o legado registrado: subiu = espera nova com o padrão (use esperas.js); desceu = foi corrigido (baixe o número). Ver esperas.js."
+    },
+    {
+      "arquivo": ".github/scripts/teste-motor-squad-256.js",
+      "nome": "Motor de Squad: as 256 combinações de S1–S8 e a trava de publicação",
+      "duracao": 1,
+      "sobre": "Carrega o motor-squad.js real (sem navegador) e compara Eixo A, Eixo B e indicação das 256 combinações completas de S1–S8 com a regra aprovada escrita à parte; nenhum INDETERMINADO, todas as regras A1–A3/B1–B3/C1–C5 alcançadas; validarRegrasCompletas recusa cada troca de SIM/NÃO que abre combinações sem resultado e publicarRegras recusa sem tocar no banco; prova inversa com C2/C3 trocados aponta a combinação exata."
+    },
+    {
+      "arquivo": ".github/scripts/teste-squad-conclusao-motor.js",
+      "nome": "Adequação à Squad: concluir pela tela usa a versão certa das regras (C1–C5, versão 2, regras atrasadas, trava no ADMIN)",
+      "duracao": 11,
+      "sobre": "Conclui pela tela uma combinação de cada resultado C1–C5 e confere o gravado e o exibido; com versão publicada 2 conclui pela 2; com a leitura das regras parada (celular 375 px) \"Concluir\" fica bloqueado e nada é gravado até as regras chegarem; leitura recusada mostra erro e Tentar novamente; no ADMIN, regras com combinações sem resultado não podem ser publicadas. Hermético."
     }
   ]
 }
