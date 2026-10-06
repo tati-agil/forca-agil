@@ -995,9 +995,10 @@
   /* Rótulo de um resultado conhecido; ausente ou desconhecido devolve '' (quem
      exibe põe "—") — NUNCA vira "Não é Produto/Serviço principal" por omissão. */
   function rotuloResultado(v) {
-    if (v === 'produto') return 'É Produto/Serviço principal';
-    if (v === 'nao-produto') return 'Não é Produto/Serviço principal';
-    if (v === 'a-validar') return 'A validar';
+    /* o nome da classificação vem da Taxonomia (faClassificacoes); só o molde "É / Não é" fica aqui */
+    if (v === 'produto') return 'É ' + nomeClassificacao('produto-principal');
+    if (v === 'nao-produto') return 'Não é ' + nomeClassificacao('produto-principal');
+    if (v === 'a-validar') return nomeClassificacao('a-validar');
     return '';
   }
   /* DECISÃO FINAL — única regra, usada por tela, lista, PDF, Excel, histórico e
@@ -3018,7 +3019,7 @@
            são só os que o sistema realmente grava. */
         html += '<div class="avp-filtros-painel" id="avpFiltrosPainel"><div class="avp-filters">';
         html += filtroSelect('avpFiltroResultado', state.filtro.resultado, [
-          ['todos', 'Todos'], ['produto', 'É Produto/Serviço principal'], ['nao-produto', 'Não é Produto/Serviço principal'], ['a-validar', 'A validar']
+          ['todos', 'Todos'], ['produto', rotuloResultado('produto')], ['nao-produto', rotuloResultado('nao-produto')], ['a-validar', rotuloResultado('a-validar')]
         ], 'Resultado Produto/Serviço');
         html += filtroSelect('avpFiltroAlternativa', state.filtro.alternativa, [['todos', 'Todas']].concat(
           CAMADAS.map(function (c) { return [c.id, nomeClassificacao(c.id), c.id]; })
@@ -3035,7 +3036,7 @@
           ], 'Versão do motor');
         }
         html += '</div>';
-        html += '<p class="avp-filtros-ajuda">O <strong>resultado Produto/Serviço</strong> diz se o item é ou não Produto/Serviço principal; a ' +
+        html += '<p class="avp-filtros-ajuda">O <strong>resultado Produto/Serviço</strong> diz se o item é ou não ' + esc(nomeClassificacao('produto-principal')) + '; a ' +
           '<strong>classificação arquitetural</strong> diz que camada ele ocupa (' + esc(nomeClassificacao('componente')) + ', ' + esc(nomeClassificacao('canal')) + ', ' + esc(nomeClassificacao('processo-etapa')) + '…). São coisas diferentes e podem ser combinadas.</p>';
         html += '</div>';
       }
@@ -3284,9 +3285,9 @@
       return html;
     }
     function resultadoBadge(v) {
-      if (v === 'produto') return '<span class="avp-badge avp-badge--produto">É Produto/Serviço principal</span>';
-      if (v === 'nao-produto') return '<span class="avp-badge avp-badge--nao-produto">Não é Produto/Serviço principal</span>';
-      if (v === 'a-validar') return '<span class="avp-badge avp-badge--a-validar">A validar</span>';
+      if (v === 'produto') return '<span class="avp-badge avp-badge--produto">É ' + htmlNomeCamada({ id: 'produto-principal' }) + '</span>';
+      if (v === 'nao-produto') return '<span class="avp-badge avp-badge--nao-produto">Não é ' + htmlNomeCamada({ id: 'produto-principal' }) + '</span>';
+      if (v === 'a-validar') return '<span class="avp-badge avp-badge--a-validar">' + htmlNomeCamada({ id: 'a-validar' }) + '</span>';
       return '<span class="avp-badge">—</span>';
     }
     function statusBadge(v) {
@@ -6235,8 +6236,9 @@
       var resultado = a.resultadoAutomatico;
       var cardClasse = resultado === 'produto' ? 'avp-result-card--produto' :
         (resultado === 'a-validar' ? 'avp-result-card--a-validar' : 'avp-result-card--nao-produto');
-      var badgeTexto = resultado === 'produto' ? 'É PRODUTO/SERVIÇO PRINCIPAL' :
-        (resultado === 'a-validar' ? 'A VALIDAR' : 'NÃO É PRODUTO/SERVIÇO PRINCIPAL');
+      /* nome atual da Taxonomia, que se atualiza sozinho (o caixa-alta é do CSS) */
+      var badgeTexto = resultado === 'produto' ? 'É ' + htmlNomeCamada({ id: 'produto-principal' }) :
+        (resultado === 'a-validar' ? htmlNomeCamada({ id: 'a-validar' }) : 'Não é ' + htmlNomeCamada({ id: 'produto-principal' }));
       var html = '<div class="avp-resultado">';
       html += '<button class="avp-voltar-link" id="avpVoltarListaResultado">' + esc(rotuloVoltar()) + '</button>';
 
@@ -6800,8 +6802,8 @@
       }
       html += '<div class="avp-decisao-options">';
       html += decisaoOpcao('auto', 'Aceitar recomendação do sistema (' + (rotuloResultado(a.resultadoAutomatico) || '—') + ')', f.opcao);
-      html += decisaoOpcao('produto', 'Classificar manualmente como Produto/Serviço principal', f.opcao);
-      html += decisaoOpcao('nao-produto', 'Classificar manualmente como não Produto/Serviço principal', f.opcao);
+      html += decisaoOpcao('produto', 'Classificar manualmente como ' + nomeClassificacao('produto-principal'), f.opcao);
+      html += decisaoOpcao('nao-produto', 'Classificar manualmente como não ' + nomeClassificacao('produto-principal'), f.opcao);
       html += '</div>';
       if (f.opcao !== 'auto') {
         html += '<div class="avp-field' + (f.erro && !justificativaPreenchida(f) ? ' avp-field--invalid' : '') + '">';
@@ -6822,7 +6824,7 @@
          botão ficar junto do formulário que controla. */
       html += '<details class="avp-ajuda-det" id="avpDecisaoAjuda" data-det="ajudaDecisao"' + detAberto('ajudaDecisao') + '><summary>Como funciona a decisão</summary>' +
         '<p class="avp-natureza-ajuda">Use quando concordar ou discordar do resultado calculado. A decisão manual tem duas possibilidades — ' +
-        'Produto/Serviço principal ou não Produto/Serviço principal — e exige justificativa. Aceitar a recomendação mantém o resultado calculado pelo sistema (inclusive "A validar"). ' +
+        esc(nomeClassificacao('produto-principal')) + ' ou não ' + esc(nomeClassificacao('produto-principal')) + ' — e exige justificativa. Aceitar a recomendação mantém o resultado calculado pelo sistema (inclusive "A validar"). ' +
         'Em qualquer caso só a decisão final é registrada: respostas, classificação arquitetural, resultado automático e Curadoria não mudam.</p></details>';
       html += '</div>';
       return html;

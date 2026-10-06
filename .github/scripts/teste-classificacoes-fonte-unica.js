@@ -267,6 +267,9 @@ async function rodada(browser, viewport, nomeTela, sufixo) {
     await abrirItem(page, 'velha2');
     const sis = await texto(page, '#avpSecaoSistema');
     afirma(sis.indexOf('Camada identificada: ' + NOVO_PP + ' na conclusão: ' + ANTIGO_PP) !== -1, 'resultado: nome atual + "na conclusão: ' + ANTIGO_PP + '"', sis.slice(0, 300));
+    /* o título do resultado também usa o nome da Taxonomia ("É <nome>"), não o literal antigo */
+    const tituloResultado = espaco(await page.locator('#avpSecaoSistema .avp-result-badge-grande').textContent());
+    afirma(tituloResultado === 'É ' + NOVO_PP, 'título do resultado: "É ' + NOVO_PP + '" (' + tituloResultado + ')');
     afirma(sis.indexOf(DEF_A) !== -1, 'definição = a fonte APONTADA por definicaoVigenteFonteId (A)');
     afirma(sis.indexOf(DEF_B) === -1, 'a outra fonte também "vigente" (B, gravada antes) NÃO aparece');
     afirma(await page.locator('#avpClassifContingencia').isHidden(), 'resultado: sem aviso de contingência');
