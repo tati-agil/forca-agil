@@ -596,10 +596,14 @@ async function voltarParaAvaliacoes(page) {
     afirma(corposReproc.every((t) => t && !/natureza/i.test(t)), 'reprocessamento e "Motor desatualizado" não leem a natureza (' + REPROCESSAMENTO.join(', ') + ' — corpo exato de cada uma)');
     const rules = JSON.parse(fs.readFileSync(path.join(RAIZ, '..', 'database.rules.json'), 'utf8')).rules;
     const admin = rules['questionarios-config']['.write'];
-    afirma(rules['naturezas-complementares-config']['.write'] === admin && rules['naturezas-complementares-config']['.read'] === rules['questionarios-config']['.read'], 'regras: catálogo gravável por qualquer admin e legível como questionarios-config (consulta+ e admin) — quem abre a edição consegue gravar');
+    /* gravação por OPÇÃO (nunca o nó inteiro — nenhuma opção pode ser apagada de uma vez), para o mesmo público de questionarios-config;
+       código, campos obrigatórios e codigoEstavel imutável são provados no emulador (teste-rules-avaliacoes.js) */
+    const regraOpcao = rules['naturezas-complementares-config']['$codigo'] || {};
+    afirma(rules['naturezas-complementares-config']['.write'] === undefined && String(regraOpcao['.write'] || '').indexOf(admin) === 0 && rules['naturezas-complementares-config']['.read'] === rules['questionarios-config']['.read'], 'regras: catálogo gravável (por opção) por qualquer admin e legível como questionarios-config (consulta+ e admin) — quem abre a edição consegue gravar');
     /* a auditoria agora também aceita o GESTOR da avaliação criando entradas (o que a gravação da natureza de uma avaliação exige);
        o comportamento exato — quem lê, quem cria, ninguém altera — é provado no emulador (teste-rules-avaliacoes.js) */
-    afirma(/fa-admins/.test(rules['naturezas-complementares-auditoria']['.write']) && /fa-admins/.test(rules['naturezas-complementares-auditoria']['.read']), 'regras: auditoria legível/gravável por admin (e, na gravação, pelo gestor da avaliação — ver teste de regras no emulador)');
+    const audNat = rules['naturezas-complementares-auditoria'];
+    afirma(audNat['.write'] === undefined && /fa-admins/.test(((audNat.catalogo || {})['$pushKey'] || {})['.write']) && /fa-admins/.test(((audNat['$avaliacaoId'] || {})['$pushKey'] || {})['.write']) && /fa-admins/.test(audNat['.read']), 'regras: auditoria legível/gravável por admin, só por acréscimo de linha (e, na gravação, pelo gestor da avaliação — ver teste de regras no emulador)');
     const html = fs.readFileSync(path.join(RAIZ, '..', 'index.html'), 'utf8');
     afirma(html.indexOf('naturezas-config.js') !== -1 && html.indexOf('naturezas-config.js') < html.indexOf('avaliacao-produto.js'), 'index.html carrega naturezas-config.js antes de avaliacao-produto.js');
   }
