@@ -2771,3 +2771,6 @@ details.avp-form-card.avp-aut-historico { margin-top: 0; padding: 10px 16px; mar
   .tax-globais { padding: 10px 12px; }
 }
 /* ===== fim do bloco Taxonomia ===== */
+/* Conceito-base da lista da Avaliação: a definição vem da Taxonomia (fonte única), dentro da frase. */
+.avp-intro .fa-classif-def { font-size: inherit; color: inherit; margin: 0; }
+.fa-classif-def--sem { font-style: italic; opacity: .85; }

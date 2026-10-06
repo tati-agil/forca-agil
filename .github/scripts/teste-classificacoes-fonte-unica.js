@@ -81,6 +81,8 @@ const SEM_CONCEITO = 'documento-informacao';
 const NOVO_PP = 'Produto ou Serviço (novo)';
 const NOVO_CANAL = 'Canal de relacionamento (Taxonomia)';
 const ANTIGO_PP = 'Produto/Serviço principal';
+/* trecho do texto FIXO que o quadro "Conceito-base" da lista tinha antes (segunda definição no código) */
+const DEF_FIXA_ANTIGA = 'gera valor perceptível para o cliente ao atender';
 const DEF_A = 'Definição A: solução com identidade, fronteira e resultado próprios (fonte apontada).';
 const DEF_B = 'Definição B: outra fonte também marcada vigente, mas NÃO apontada.';
 function taxonomiaSemeada() {
@@ -256,6 +258,24 @@ async function rodada(browser, viewport, nomeTela, sufixo) {
     afirma(await celulaClassif(page, 'velha2') === NOVO_PP, 'lista: a avaliação antiga mostra o nome ATUAL da Taxonomia (' + await celulaClassif(page, 'velha2') + ')');
     afirma(await celulaClassif(page, 'canal1') === NOVO_CANAL, 'lista: Canal com o nome da Taxonomia');
     afirma(await page.locator('#avpListaClassifContingencia').isHidden(), 'lista: sem aviso de contingência (todos os códigos da lista têm conceito)');
+    /* quadro "Conceito-base" do topo da lista: nome + definição vigente da Taxonomia, nada fixo no código */
+    await esperarCondicao(page, (a) => ((document.getElementById('avpConceitoBaseDef') || {}).textContent || '') === a, DEF_A, { descricao: 'Conceito-base com a definição apontada (A)' });
+    const cb = await texto(page, '#avpConceitoBase');
+    afirma(cb.indexOf('Conceito-base — ' + NOVO_PP + ':') === 0 && cb.indexOf(DEF_A) !== -1, 'Conceito-base: nome e definição vigente da Taxonomia (' + cb.slice(0, 90) + '…)');
+    afirma(cb.indexOf(DEF_B) === -1 && (await texto(page, '#avaliacoesPainel')).indexOf(DEF_FIXA_ANTIGA) === -1, 'Conceito-base: nem a outra fonte "vigente" (B) nem o texto fixo antigo');
+    afirma((await texto(page, '.avp-intro-principio')).indexOf('precisa ser ' + NOVO_PP + '.') !== -1, 'Conceito-base: a frase de princípio usa o nome da Taxonomia');
+    afirma(await page.locator('#avpConceitoBaseContingencia').isHidden(), 'Conceito-base: sem aviso de contingência com a Taxonomia disponível');
+    await page.evaluate(() => window.firebase.database().ref('taxonomia/arquitetural/conceitos/produto-principal/nome').set('Produto renomeado no quadro'));
+    await esperarCondicao(page, () => (document.getElementById('avpConceitoBase') || {}).textContent.indexOf('Conceito-base — Produto renomeado no quadro:') === 0, null, { descricao: 'o título do Conceito-base seguir o nome novo' });
+    afirma(true, 'Conceito-base: renomear produto-principal na Taxonomia troca o título do quadro, sem recarregar');
+    await page.evaluate((n) => window.firebase.database().ref('taxonomia/arquitetural/conceitos/produto-principal/nome').set(n), NOVO_PP);
+    await esperarCondicao(page, (n) => (document.getElementById('avpConceitoBase') || {}).textContent.indexOf('Conceito-base — ' + n + ':') === 0, NOVO_PP, { descricao: 'Conceito-base voltar ao nome do teste' });
+    await page.evaluate(() => window.firebase.database().ref('taxonomia/arquitetural/conceitos/produto-principal/definicaoVigenteFonteId').set('fB'));
+    await esperarCondicao(page, (b) => ((document.getElementById('avpConceitoBaseDef') || {}).textContent || '') === b, DEF_B, { descricao: 'Conceito-base seguir o ponteiro novo (B)' });
+    afirma(true, 'Conceito-base: trocar definicaoVigenteFonteId troca a definição do quadro, sem recarregar');
+    await page.evaluate(() => window.firebase.database().ref('taxonomia/arquitetural/conceitos/produto-principal/definicaoVigenteFonteId').set('fA'));
+    await esperarCondicao(page, (a) => ((document.getElementById('avpConceitoBaseDef') || {}).textContent || '') === a, DEF_A, { descricao: 'Conceito-base voltar para a A' });
+    await foto(page, 'conceito-base-lista-' + sufixo, '.avp-intro');
     await page.click('#avpFiltrosBtn');
     const opcoes = await page.locator('#avpFiltroAlternativa option').evaluateAll((os) => os.map((o) => [o.value, o.textContent]));
     afirma(opcoes.length === 12 && opcoes.some((o) => o[0] === 'produto-principal' && o[1] === NOVO_PP), 'filtro: valor = código, rótulo = nome da Taxonomia (' + JSON.stringify(opcoes.slice(0, 2)) + ')');
@@ -347,6 +367,11 @@ async function rodada(browser, viewport, nomeTela, sufixo) {
     await esperarCondicao(page, () => { const e = document.getElementById('avpListaClassifContingencia'); return !!e && !e.hidden; }, null, { descricao: caso + ': aviso de contingência na lista' });
     afirma(/Rótulo de contingência/.test(await texto(page, '#avpListaClassifContingencia')), caso + ': lista com o aviso discreto "Rótulo de contingência"');
     afirma(await celulaClassif(page, 'velha2') === ANTIGO_PP, caso + ': lista com o rótulo de contingência (' + await celulaClassif(page, 'velha2') + ')');
+    await esperarCondicao(page, () => { const e = document.getElementById('avpConceitoBaseDef'); return !!e && e.getAttribute('data-fa-def-estado') === 'indisponivel'; }, null, { descricao: caso + ': Conceito-base sem definição' });
+    const cbc = await texto(page, '#avpConceitoBase');
+    afirma(cbc.indexOf('Conceito-base — ' + ANTIGO_PP + ':') === 0 && /Definição vigente indisponível no momento\./.test(cbc) && (await texto(page, '#avaliacoesPainel')).indexOf(DEF_FIXA_ANTIGA) === -1,
+      caso + ': Conceito-base diz "indisponível" — nenhuma definição de fábrica (' + cbc + ')');
+    afirma(await page.locator('#avpConceitoBaseContingencia').isVisible() && /Rótulo de contingência/.test(await texto(page, '#avpConceitoBaseContingencia')), caso + ': Conceito-base com o nome de fábrica e o mesmo aviso "Rótulo de contingência"');
     await abrirItem(page, 'velha2');
     afirma(await page.locator('#avpClassifContingencia').isVisible() && (await texto(page, '#avpSecaoSistema')).indexOf('Camada identificada: ' + ANTIGO_PP) !== -1, caso + ': resultado com o rótulo de contingência e o aviso');
     afirma(await page.locator('#avpCamadaNaConclusao').isHidden(), caso + ': sem "na conclusão" (o nome de contingência é igual ao registrado)');
@@ -364,12 +389,17 @@ async function rodada(browser, viewport, nomeTela, sufixo) {
   {
     /* lenta: passa do limite (contingência + aviso) e depois responde — os nomes chegam sem recarregar */
     const { ctx, page, erros } = await abrir(browser, viewport, { delays: { taxonomia: 9000 } });
+    await page.waitForSelector('#avpConceitoBaseDef');
+    const estadoInicial = await page.evaluate(() => [document.getElementById('avpConceitoBaseDef').getAttribute('data-fa-def-estado'), document.getElementById('avpConceitoBaseDef').textContent]);
+    afirma(estadoInicial[0] === 'carregando' && /Carregando a definição vigente/.test(estadoInicial[1]), 'lenta: antes da resposta, o Conceito-base diz "Carregando…" — "ainda não sei" não vira "não tem" (' + estadoInicial.join(' / ') + ')');
     await page.waitForSelector('#avpNovoBtn');
     await esperarClassif(page, 'contingencia', 12000);
     await esperarCondicao(page, () => { const e = document.getElementById('avpListaClassifContingencia'); return !!e && !e.hidden; }, null, { descricao: 'lenta: aviso de contingência enquanto não chega' });
     afirma(await celulaClassif(page, 'velha2') === ANTIGO_PP, 'lenta: enquanto não chega, rótulo de contingência + aviso');
     await esperarCondicao(page, (n) => !!Array.from(document.querySelectorAll('#avaliacoesPainel .avp-camada-nome')).find((e) => e.textContent === n), NOVO_PP, { limite: 15000, descricao: 'lenta: o nome da Taxonomia chegar' });
     afirma(await page.locator('#avpListaClassifContingencia').isHidden(), 'lenta: quando a Taxonomia responde, o nome atual aparece e o aviso some — sem recarregar');
+    await esperarCondicao(page, (a) => ((document.getElementById('avpConceitoBaseDef') || {}).textContent || '') === a, DEF_A, { limite: 15000, descricao: 'lenta: a definição chegar ao Conceito-base (2ª leitura, só depois do ponteiro: 9 s + 9 s)' });
+    afirma(await page.locator('#avpConceitoBaseContingencia').isHidden(), 'lenta: quando responde, o Conceito-base passa a mostrar nome e definição vigente e o aviso some — sem recarregar');
     afirma(erros.length === 0, 'lenta: nenhum erro de JS (' + erros.length + ')');
     await ctx.close();
   }

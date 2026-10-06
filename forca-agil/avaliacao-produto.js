@@ -2929,9 +2929,12 @@
           ' <button type="button" class="avp-flash-close" id="avpFlashListaClose" aria-label="Fechar">×</button></div>';
       }
       html += '<div class="avp-intro">';
-      html += '<p><strong>Conceito-base:</strong> Produto ou Serviço é uma solução que gera valor perceptível para o cliente ao atender a uma necessidade identificável. ' +
-        'Uma solução deve possuir uma fronteira coerente: seus elementos pertencem ao mesmo propósito e contribuem para um resultado de cliente identificável.</p>';
-      html += '<p class="avp-intro-principio">Nem tudo que gera valor precisa ser um Produto/Serviço. Um componente, processo, capacidade, canal ou documento pode ser essencial ' +
+      /* Conceito-base: nome e definição vigente do conceito produto-principal da Taxonomia Arquitetural
+         (fonte única — nenhum texto conceitual aqui; sem definição, "Carregando…" ou "indisponível"). */
+      html += '<p id="avpConceitoBase"><strong>Conceito-base — ' + htmlNomeCamada({ id: 'produto-principal' }) + ':</strong> ' +
+        (window.faClassificacoes ? window.faClassificacoes.definicaoHtml('produto-principal', 'avpConceitoBaseDef', { comEstado: true, tag: 'span' }) : '') + '</p>' +
+        htmlAvisoContingencia(['produto-principal'], 'avpConceitoBaseContingencia');
+      html += '<p class="avp-intro-principio">Nem tudo que gera valor precisa ser ' + htmlNomeCamada({ id: 'produto-principal' }) + '. Um componente, processo, capacidade, canal ou documento pode ser essencial ' +
         'para a entrega sem constituir uma solução independente para o cliente.</p>';
       html += '</div>';
 

@@ -29,10 +29,11 @@
    Mesmo padrão de sessão de naturezas-config.js: só lê com sessão autorizada para a Avaliação;
    troca de pessoa/acesso desliga tudo (geração) e religa; resposta de leitura antiga é descartada.
 
-   API: registrarCatalogo(lista, {sufixoConflito}), codigos(), nome(id), definicao(id), ativo(id),
+   API: registrarCatalogo(lista, {sufixoConflito}), codigos(), nome(id), definicao(id), estadoDefinicao(id), ativo(id),
    estado() ('carregando'|'ok'|'contingencia'), usandoContingencia(id), onMudanca(cb), iniciar(),
    recarregar(), rotulo(camadaSugerida), rotuloNaConclusao(camadaSugerida), precisaAviso(ids),
-   avisoHtml(ids, idElemento), atualizarDom(raiz), TEXTO_AVISO, TEMPO_DEMORA_MS. */
+   avisoHtml(ids, idElemento), definicaoHtml(id, idElemento, {comEstado, tag}), atualizarDom(raiz),
+   TEXTO_AVISO, TEMPO_DEMORA_MS. */
 (function () {
   var RAIZ = 'taxonomia/arquitetural';
   var TEMPO_DEMORA_MS = 6000;
@@ -85,6 +86,17 @@
     if (!l || l.erro || typeof l.fonteId !== 'string' || l.textoDe !== l.fonteId) return null;
     return typeof l.texto === 'string' && l.texto.trim() ? l.texto : null;
   }
+  /* Estado da definição: 'ok' (texto da fonte apontada), 'carregando' (ainda sem resposta, dentro do
+     prazo) ou 'indisponivel' (sem definição vigente, leitura recusada/falhou ou já demorou demais).
+     "Ainda não sei" nunca vira "não tem": só é 'indisponivel' quando a resposta chegou ou o prazo passou. */
+  function estadoDefinicao(id) {
+    if (definicao(id)) return 'ok';
+    var l = lido[id];
+    if (!l || l.erro || l.fonteId === null || demorando) return 'indisponivel';
+    if (l.fonteId === undefined) return 'carregando';
+    return (l.textoDe === l.fonteId || l.texto === null) ? 'indisponivel' : 'carregando';
+  }
+  var TEXTO_DEF = { carregando: 'Carregando a definição vigente da Taxonomia…', indisponivel: 'Definição vigente indisponível no momento.' };
   function ativo(id) { var l = lido[id]; return l && typeof l.ativo === 'boolean' ? l.ativo : null; }
   /* Respondeu de vez (com nome, sem conceito, ou com erro)? */
   function resolvido(id) { var l = lido[id]; return !!l && (l.erro || l.nome !== undefined); }
@@ -140,12 +152,17 @@
       ' data-fa-epoca="' + escAttr(camada.label) + '" data-fa-epoca-formato="' + escAttr(fmt) + '"' + (idElemento ? ' id="' + idElemento + '"' : '') +
       (rotuloNaConclusao(camada) ? '' : ' hidden') + '>' + escAttr(fmt.replace('{}', camada.label)) + '</span>';
   }
-  /* Definição vigente; some quando não há. */
-  function definicaoHtml(id, idElemento) {
+  /* Definição vigente; some quando não há. Com opcoes.comEstado, nunca some: sem definição mostra
+     "Carregando…" ou "indisponível" (sem texto de fábrica — não há definição de contingência).
+     opcoes.tag: 'span' para usar dentro de uma frase. */
+  function definicaoHtml(id, idElemento, opcoes) {
     if (!conhecido(id)) return '';
-    var d = definicao(id);
-    return '<p class="fa-classif-def" data-fa-classif-def="' + escAttr(id) + '"' + (idElemento ? ' id="' + idElemento + '"' : '') +
-      (d ? '' : ' hidden') + '>' + escAttr(d || '') + '</p>';
+    var o = opcoes || {}, tag = o.tag === 'span' ? 'span' : 'p';
+    var d = definicao(id), est = estadoDefinicao(id);
+    var texto = d || (o.comEstado ? TEXTO_DEF[est] : '');
+    return '<' + tag + ' class="fa-classif-def' + (o.comEstado && !d ? ' fa-classif-def--sem' : '') + '" data-fa-classif-def="' + escAttr(id) + '"' +
+      (o.comEstado ? ' data-fa-def-estado="' + est + '"' : '') + (idElemento ? ' id="' + idElemento + '"' : '') +
+      (d || o.comEstado ? '' : ' hidden') + '>' + escAttr(texto) + '</' + tag + '>';
   }
 
   /* Atualização no lugar (sem redesenhar formulário nenhum). */
@@ -160,9 +177,12 @@
       el.hidden = !rotuloNaConclusao(camada);
     });
     raiz.querySelectorAll('[data-fa-classif-def]').forEach(function (el) {
-      var d = definicao(el.getAttribute('data-fa-classif-def'));
-      if (el.textContent !== (d || '')) el.textContent = d || '';
-      el.hidden = !d;
+      var id = el.getAttribute('data-fa-classif-def'), d = definicao(id);
+      var comEstado = el.hasAttribute('data-fa-def-estado'), est = estadoDefinicao(id);
+      var t = d || (comEstado ? TEXTO_DEF[est] : '');
+      if (el.textContent !== t) el.textContent = t;
+      if (comEstado) { el.setAttribute('data-fa-def-estado', est); el.classList.toggle('fa-classif-def--sem', !d); }
+      el.hidden = !d && !comEstado;
     });
     raiz.querySelectorAll('[data-fa-classif-aviso]').forEach(function (el) {
       var ids = String(el.getAttribute('data-fa-classif-aviso') || '').split(',').filter(Boolean);
@@ -172,7 +192,7 @@
 
   function assinatura() {
     return JSON.stringify([estado(), demorando, codigos().map(function (id) {
-      return [nome(id), usandoContingencia(id), resolvido(id), definicao(id), ativo(id)];
+      return [nome(id), usandoContingencia(id), resolvido(id), definicao(id), estadoDefinicao(id), ativo(id)];
     })]);
   }
   /* As respostas chegam quase juntas: agrupa num aviso só, e só avisa se algo visível mudou. */
@@ -302,7 +322,7 @@
   window.faClassificacoes = {
     TEXTO_AVISO: TEXTO_AVISO, TEMPO_DEMORA_MS: TEMPO_DEMORA_MS,
     registrarCatalogo: registrarCatalogo, codigos: codigos,
-    nome: nome, definicao: definicao, ativo: ativo, estado: estado, usandoContingencia: usandoContingencia,
+    nome: nome, definicao: definicao, estadoDefinicao: estadoDefinicao, ativo: ativo, estado: estado, usandoContingencia: usandoContingencia,
     rotulo: rotulo, rotuloNaConclusao: rotuloNaConclusao,
     onMudanca: onMudanca, iniciar: iniciar, recarregar: recarregar,
     precisaAviso: precisaAviso, avisoHtml: avisoHtml, spanNome: spanNome, spanNaConclusao: spanNaConclusao,
