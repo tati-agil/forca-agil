@@ -442,6 +442,18 @@
       "nome": "ADMIN › Arquitetura › Documentação e mapas de Arquitetura (desktop e 375 px)",
       "duracao": 8,
       "sobre": "Cartão no grupo \"Referências\"; adicionar grava título, descrição, link https, autor e data com uma linha de histórico na mesma gravação; link sem https recusado na tela; editar/arquivar/restaurar nunca apagam; histórico recolhido com \"Ver detalhes\"; gravação recusada pelo banco mostra o erro e mantém o formulário. Hermético."
+    },
+    {
+      "arquivo": ".github/scripts/teste-taxonomia-nova-versao.js",
+      "nome": "Taxonomia: texto-fonte imutável e \"Nova versão da definição\" (desktop e celular)",
+      "duracao": 11,
+      "sobre": "Detalhe mostra o código do conceito; a vigente não tem \"Editar\", e sim \"Nova versão da definição\", que abre o formulário de nova fonte pré-preenchido; salvar cria fonte NOVA \"em validação\" (criadoEm/criadoPor próprios), a anterior fica intacta e a definição não muda; \"Usar como vigente\" troca a definição e a anterior vira histórica com o mesmo texto. Hermético; a imutabilidade no banco é provada por teste-rules-taxonomia.js no emulador."
+    },
+    {
+      "arquivo": ".github/scripts/teste-taxonomia-exportacao.js",
+      "nome": "Taxonomia: exportação Excel (revisão) e JSON (diagnóstico), só leitura (desktop e celular)",
+      "duracao": 9,
+      "sobre": "Exportação da Taxonomia: JSON com cabeçalho e o nó taxonomia idêntico ao banco; Excel com abas Conceitos, Fontes (inclusive histórica e arquivada), Atributos, Perfis, Relações e Histórico, cabeçalhos em português; nenhuma escrita durante a exportação; leitura que não responde ou é recusada mostra erro visível com o ramo e não baixa nada; some no modo somente leitura. Hermético."
     }
   ]
 }

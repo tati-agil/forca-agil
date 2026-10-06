@@ -2666,3 +2666,19 @@ details.avp-form-card.avp-aut-historico { margin-top: 0; padding: 10px 16px; mar
 .avp-historico-valores pre { white-space: pre-wrap; word-break: break-word; margin: 4px 0 0; font-size: .75rem; max-height: 320px; overflow: auto; }
 @media (max-width: 600px) { .avp-historico-valores { grid-template-columns: minmax(0, 1fr); } }
 .avp-voltar-rodape { margin-top: 18px; }
+
+/* ===== Taxonomia: código do conceito, nova versão da definição e exportação (bloco tax-*) ===== */
+.tax-codigo { margin: 0 0 6px; font-size: .78rem; color: var(--ink-3); font-family: var(--font-mono); overflow-wrap: anywhere; }
+.tax-codigo code { color: var(--ink-2); font-size: .82rem; }
+.tax-form-titulo { margin: 0; font-size: .9rem; }
+.tax-somente-leitura { background: var(--panel); border: 1px dashed var(--line-strong); border-radius: 8px; padding: 8px 10px; }
+.tax-exportar { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 12px; margin: 0 0 12px; padding: 8px 12px; border: 1px solid var(--line); border-radius: 10px; background: var(--panel); }
+.tax-exportar-titulo { margin: 0; font-size: .84rem; }
+.tax-exportar-titulo .tax-ajuda { margin: 0; }
+.tax-exportar .tax-acoes { margin: 0; }
+.tax-exportar > .loading-msg, .tax-exportar > .tax-ajuda, .tax-exportar > .tax-aviso-erro { flex-basis: 100%; margin: 4px 0 0; overflow-wrap: anywhere; }
+@media (max-width: 720px) {
+  .tax-exportar .tax-acoes { width: 100%; }
+  .tax-exportar .tax-acoes .btn { flex: 1 1 140px; }
+}
+/* ===== fim do bloco Taxonomia ===== */

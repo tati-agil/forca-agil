@@ -21,6 +21,10 @@
       estados não têm valor, papel nem origem.
    6. FONTE: situação ∈ {vigente, em validação, histórica/contextual, placeholder, não localizado};
       tipoRedacao ∈ {Conceito, Significado v1, Significado v2, proposta} — campos separados.
+   6b. TEXTO-FONTE IMUTÁVEL (T5): depois de criada, nenhuma fonte (vigente, histórica, em validação,
+      placeholder; nos dois domínios) muda texto, contexto nem tipo de redação; rótulo, situação pelos fluxos
+      legítimos, arquivar/restaurar e criar fonte nova continuam valendo. "Nova versão da definição" = fonte nova
+      + "Usar como vigente" (as operações reais da aplicação, seção 9).
    7. AUTORIZAÇÃO: nesta 1ª versão leitura, escrita e auditoria só para admin (o mesmo conceito de admin
       do sistema: e-mails fixos + fa-admins). Perfis da Avaliação (inclusive "Avaliação + Arquitetura")
       NÃO entram.
@@ -107,7 +111,7 @@ async function main() {
 
   await semearBase();
   await nega('(3b) multipath que aponta o conceito para uma fonte que NÃO foi tornada vigente → negado',
-    admin().ref().update({ [ORG + '/conceitos/C1/definicaoVigenteFonteId']: 'F_OUTRA', [ORG + '/fontes/C1/F_OUTRA/texto']: 'Outro texto.' }));
+    admin().ref().update({ [ORG + '/conceitos/C1/definicaoVigenteFonteId']: 'F_OUTRA', [ORG + '/fontes/C1/F_OUTRA/rotulo']: 'Outro rótulo' }));
   await nega('(4) apontar para fonte INEXISTENTE', R(admin(), ORG + '/conceitos/C1/definicaoVigenteFonteId').set('NAO_EXISTE'));
   await nega('(5) apontar para fonte histórica/contextual', R(admin(), ORG + '/conceitos/C1/definicaoVigenteFonteId').set('F_HIST'));
   await nega('(6) apontar para fonte em validação', R(admin(), ORG + '/conceitos/C1/definicaoVigenteFonteId').set('F_VALIDACAO'));
@@ -133,7 +137,30 @@ async function main() {
   await nega('(9h) apagar a fonte referenciada JUNTO com a limpeza do ponteiro (multipath) — NENHUMA fonte se apaga; descarte é arquivamento lógico',
     admin().ref().update({ [ORG + '/fontes/C1/F_VIG']: null, [ORG + '/conceitos/C1/definicaoVigenteFonteId']: null }));
   await semearBase({ ponteiro: true });
-  await pode('editar o TEXTO da fonte vigente (sem mudar a situação) continua permitido', R(admin(), ORG + '/fontes/C1/F_VIG/texto').set('Texto revisado.'));
+  /* TEXTO-FONTE IMUTÁVEL: depois de criada, nenhuma fonte (vigente, histórica, em validação, placeholder…) muda
+     de texto, contexto nem tipo de redação. Corrigir = fonte NOVA + arquivar a antiga ("redação superada"). */
+  for (const [dom, rot] of [[ORG, 'organizacional'], [ARQT, 'arquitetural']]) {
+    await semearBase({ ponteiro: true });
+    if (dom === ARQT) await semear(async (a) => { await a.ref(ARQT + '/conceitos/C1').set({ nome: 'C1', ordem: 9, ativo: true, situacaoDefinicao: 'registrada' });
+      for (const [id, sit] of [['F_HIST', 'histórica/contextual'], ['F_VALIDACAO', 'em validação'], ['F_PLACEHOLDER', 'placeholder'], ['F_VIG', 'vigente']]) await a.ref(ARQT + '/fontes/C1/' + id).set(fonte(sit, { criadoEm: '2026-10-03T10:00:00.000Z', criadoPor: ADMIN }));
+      await a.ref(ARQT + '/conceitos/C1/definicaoVigenteFonteId').set('F_VIG'); });
+    for (const [id, sit] of [['F_VIG', 'vigente'], ['F_HIST', 'histórica'], ['F_VALIDACAO', 'em validação'], ['F_PLACEHOLDER', 'placeholder']]) {
+      await nega('(T5-' + rot + ') editar o TEXTO de fonte ' + sit + ' é RECUSADO (texto-fonte é imutável)', R(admin(), dom + '/fontes/C1/' + id + '/texto').set('Texto revisado.'));
+    }
+    await nega('(T5-' + rot + ') editar o CONTEXTO de fonte existente é recusado', R(admin(), dom + '/fontes/C1/F_HIST/contexto').set('indefinido'));
+    await nega('(T5-' + rot + ') editar o TIPO DE REDAÇÃO de fonte existente é recusado', R(admin(), dom + '/fontes/C1/F_VALIDACAO/tipoRedacao').set('Significado v2'));
+    await nega('(T5-' + rot + ') REESCREVER a fonte inteira (set) com outro texto é recusado', R(admin(), dom + '/fontes/C1/F_HIST').set(fonte('histórica/contextual', { texto: 'Outro texto inteiro.', contexto: dom === ORG ? 'BB' : 'PREVI', tipoRedacao: dom === ORG ? 'Significado v1' : 'Conceito' })));
+    await nega('(T5-' + rot + ') trocar a vigente E editar o texto da nova na MESMA gravação é recusado', admin().ref().update({ [dom + '/fontes/C1/F_VIG/situacao']: 'histórica/contextual', [dom + '/fontes/C1/F_HIST/situacao']: 'vigente', [dom + '/fontes/C1/F_HIST/texto']: 'Editado na troca.', [dom + '/conceitos/C1/definicaoVigenteFonteId']: 'F_HIST' }));
+    anota('(T5-' + rot + ') nenhum texto mudou', (await ler(dom + '/fontes/C1/F_VIG/texto')) === 'Texto da fonte.' && (await ler(dom + '/fontes/C1/F_HIST/texto')) === 'Texto da fonte.' && (await ler(dom + '/fontes/C1/F_VALIDACAO/texto')) === 'Texto da fonte.');
+    await pode('(T5-' + rot + ') reescrever a fonte com os MESMOS texto/contexto/tipo (só o rótulo muda) é aceito', R(admin(), dom + '/fontes/C1/F_HIST').set(Object.assign({}, await ler(dom + '/fontes/C1/F_HIST'), { rotulo: 'Rótulo novo' })));
+    await pode('(T5-' + rot + ') mudar o RÓTULO de fonte existente continua permitido', R(admin(), dom + '/fontes/C1/F_VALIDACAO/rotulo').set('Outro rótulo'));
+    await pode('(T5-' + rot + ') reclassificar a SITUAÇÃO de fonte não vigente continua permitido (placeholder → em validação)', R(admin(), dom + '/fontes/C1/F_PLACEHOLDER/situacao').set('em validação'));
+    await pode('(T5-' + rot + ') CRIAR uma fonte nova (nova versão, com outro texto) continua permitido', R(admin(), dom + '/fontes/C1/F_V2').set(fonte('em validação', { texto: 'Texto revisado (nova versão).', criadoEm: '2026-10-05T10:00:00.000Z', criadoPor: ADMIN })));
+    await pode('(T5-' + rot + ') e TROCAR a vigente para a nova versão (fluxo "Usar como vigente") continua permitido', admin().ref().update({ [dom + '/fontes/C1/F_VIG/situacao']: 'histórica/contextual', [dom + '/fontes/C1/F_V2/situacao']: 'vigente', [dom + '/conceitos/C1/definicaoVigenteFonteId']: 'F_V2' }));
+    anota('(T5-' + rot + ') a anterior virou histórica com o MESMO texto; a nova é a vigente', (await ler(dom + '/fontes/C1/F_VIG/situacao')) === 'histórica/contextual' && (await ler(dom + '/fontes/C1/F_VIG/texto')) === 'Texto da fonte.' && (await ler(dom + '/conceitos/C1/definicaoVigenteFonteId')) === 'F_V2');
+    await nega('(T5-' + rot + ') e o texto da nova vigente também fica imutável', R(admin(), dom + '/fontes/C1/F_V2/texto').set('Mexido depois.'));
+  }
+  await semearBase({ ponteiro: true });
   await nega('apagar uma fonte NÃO referenciada: também negado (descarte = arquivamento lógico)', R(admin(), ORG + '/fontes/C1/F_OUTRA').remove());
   await nega('apagar o CONCEITO', R(admin(), ORG + '/conceitos/C1').remove());
 
@@ -156,7 +183,7 @@ async function main() {
   const antes = JSON.stringify(await ler('taxonomia'));
   await nega('conceito + fonte + auditoria com e-mail FALSIFICADO: rejeitado por inteiro',
     admin().ref().update({
-      [ORG + '/conceitos/C1/nome']: 'Nome novo', [ORG + '/fontes/C1/F_VIG/texto']: 'Texto novo.',
+      [ORG + '/conceitos/C1/nome']: 'Nome novo', [ORG + '/fontes/C1/F_VIG/rotulo']: 'Rótulo novo',
       [ORG + '/auditoria/C1/a1']: auditoria('outra.pessoa@previ.com.br')
     }));
   anota('nada foi gravado (nenhum estado parcial)', JSON.stringify(await ler('taxonomia')) === antes);
@@ -168,17 +195,17 @@ async function main() {
   anota('nada foi gravado', JSON.stringify(await ler('taxonomia')) === antes);
   await nega('a parte inválida é o CONCEITO (campo desconhecido): fonte e auditoria também não entram',
     admin().ref().update({
-      [ORG + '/conceitos/C1/campoInventado']: 'x', [ORG + '/fontes/C1/F_VIG/texto']: 'Texto novo.',
+      [ORG + '/conceitos/C1/campoInventado']: 'x', [ORG + '/fontes/C1/F_VIG/rotulo']: 'Rótulo novo',
       [ORG + '/auditoria/C1/a3']: auditoria(ADMIN)
     }));
   anota('nada foi gravado', JSON.stringify(await ler('taxonomia')) === antes);
   await pode('as três partes válidas entram TODAS juntas',
     admin().ref().update({
-      [ORG + '/conceitos/C1/nome']: 'Nome novo', [ORG + '/fontes/C1/F_VIG/texto']: 'Texto novo.',
+      [ORG + '/conceitos/C1/nome']: 'Nome novo', [ORG + '/fontes/C1/F_VIG/rotulo']: 'Rótulo novo',
       [ORG + '/auditoria/C1/a4']: auditoria(ADMIN)
     }));
   anota('conceito, fonte e auditoria gravados',
-    (await ler(ORG + '/conceitos/C1/nome')) === 'Nome novo' && (await ler(ORG + '/fontes/C1/F_VIG/texto')) === 'Texto novo.' && !!(await ler(ORG + '/auditoria/C1/a4')));
+    (await ler(ORG + '/conceitos/C1/nome')) === 'Nome novo' && (await ler(ORG + '/fontes/C1/F_VIG/rotulo')) === 'Rótulo novo' && !!(await ler(ORG + '/auditoria/C1/a4')));
 
   /* ───────────────────────── 4. AUDITORIA ───────────────────────── */
   console.log('\n== 4. auditoria ==');
@@ -239,8 +266,10 @@ async function main() {
   }
   await nega('situação desconhecida', R(admin(), ORG + '/fontes/C1/N_X').set(fonte('quase-vigente')));
   await nega('"proposta" NÃO é situação (é tipo de redação)', R(admin(), ORG + '/fontes/C1/N_Y').set(fonte('proposta')));
-  for (const tipo of ['Conceito', 'Significado v1', 'Significado v2', 'proposta']) {
-    await pode('tipoRedacao "' + tipo + '" aceito (campo separado da situação)', R(admin(), ORG + '/fontes/C1/T_' + emailKey(tipo).slice(0, 12)).set(fonte('histórica/contextual', { tipoRedacao: tipo })));
+  /* uma fonte NOVA por tipo (antes a chave era emailKey(tipo).slice(0, 12): "Significado v1" e "v2" davam a
+     MESMA chave e o 2º set reescrevia a 1ª fonte — com o texto-fonte imutável isso passou a ser, corretamente, recusado) */
+  for (const [i, tipo] of ['Conceito', 'Significado v1', 'Significado v2', 'proposta'].entries()) {
+    await pode('tipoRedacao "' + tipo + '" aceito (campo separado da situação)', R(admin(), ORG + '/fontes/C1/T_' + i + '_' + emailKey(tipo).slice(0, 12)).set(fonte('histórica/contextual', { tipoRedacao: tipo })));
   }
   await pode('proposta em validação (o caso do conceito-pai Plataforma): situação "em validação" + tipoRedacao "proposta"', R(admin(), ORG + '/fontes/C1/PROP').set(fonte('em validação', { tipoRedacao: 'proposta' })));
   await nega('tipoRedacao desconhecido', R(admin(), ORG + '/fontes/C1/T_X').set(fonte('histórica/contextual', { tipoRedacao: 'Significado v3' })));
@@ -454,7 +483,21 @@ async function main() {
   await opera('NOVA FONTE (em validação)', () => I.salvarFonte('organizacional', 'BETA'), async () => Object.keys((await ler(ORG + '/fontes/BETA')) || {}).length === 4);
   I.carregarDetalhe('organizacional', 'BETA'); await ate(() => D.detalhe && !D.detalhe.carregando); I.carregarDominio('organizacional'); await ate(() => D.estado === 'ok');
   D.edicao = { tipo: 'fonte', chave: 'b2', valores: { rotulo: '', texto: 'Placeholder revisado.', contexto: 'indefinido', tipoRedacao: 'Significado v2', situacao: 'não localizado' }, erro: null };
-  await opera('EDITAR FONTE (texto e situação)', () => I.salvarFonte('organizacional', 'BETA'), async () => (await ler(ORG + '/fontes/BETA/b2/situacao')) === 'não localizado');
+  I.st.flash = null; I.salvarFonte('organizacional', 'BETA'); await new Promise((r) => setTimeout(r, 300));
+  anota('módulo: salvarFonte RECUSA mudar o texto de fonte existente (mensagem visível, nada gravado)', I.st.flash && I.st.flash.erro === true && /não podem ser alterados/.test(I.st.flash.texto) && !!D.edicao.erro && (await ler(ORG + '/fontes/BETA/b2/texto')) === 'T b2' && (await ler(ORG + '/fontes/BETA/b2/situacao')) === 'placeholder');
+  D.edicao = { tipo: 'fonte', chave: 'b2', valores: { rotulo: 'Rótulo revisado', texto: 'T b2', contexto: 'indefinido', tipoRedacao: 'Significado v2', situacao: 'não localizado' }, erro: null };
+  await opera('EDITAR FONTE (rótulo e situação; texto/contexto/tipo intactos)', () => I.salvarFonte('organizacional', 'BETA'), async () => (await ler(ORG + '/fontes/BETA/b2/situacao')) === 'não localizado' && (await ler(ORG + '/fontes/BETA/b2/rotulo')) === 'Rótulo revisado' && (await ler(ORG + '/fontes/BETA/b2/texto')) === 'T b2');
+  /* NOVA VERSÃO DA DEFINIÇÃO: fonte nova pré-preenchida (salvarFonte) + "Usar como vigente" (tornarVigente) */
+  I.carregarDetalhe('organizacional', 'ALFA'); D.selecionado = 'ALFA'; await ate(() => D.detalhe && D.detalhe.codigo === 'ALFA' && !D.detalhe.carregando);
+  const a1Antes = await ler(ORG + '/fontes/ALFA/a1');
+  D.edicao = { tipo: 'novaFonte', chave: 'ALFA', baseFonteId: 'a1', valores: { rotulo: 'Conceito', texto: 'T vigente, revisado.', contexto: 'PREVI', tipoRedacao: 'Conceito', situacao: 'em validação' }, erro: null };
+  await opera('NOVA VERSÃO DA DEFINIÇÃO (fonte nova "em validação"; a vigente intacta)', () => I.salvarFonte('organizacional', 'ALFA'),
+    async () => { const fs_ = (await ler(ORG + '/fontes/ALFA')) || {}; return Object.keys(fs_).length === 3 && JSON.stringify(fs_.a1) === JSON.stringify(a1Antes) && (await ler(ORG + '/conceitos/ALFA/definicaoVigenteFonteId')) === 'a1'; });
+  const idV2 = Object.keys((await ler(ORG + '/fontes/ALFA')) || {}).find((k) => k !== 'a1' && k !== 'a2');
+  I.carregarDominio('organizacional'); await ate(() => D.estado === 'ok'); I.carregarDetalhe('organizacional', 'ALFA'); await ate(() => D.detalhe && D.detalhe.codigo === 'ALFA' && !D.detalhe.carregando);
+  await opera('…e "Usar como vigente" na nova versão: a anterior vira histórica com o MESMO texto', () => I.tornarVigente('organizacional', 'ALFA', idV2),
+    async () => (await ler(ORG + '/conceitos/ALFA/definicaoVigenteFonteId')) === idV2 && (await ler(ORG + '/fontes/ALFA/a1/situacao')) === 'histórica/contextual' && (await ler(ORG + '/fontes/ALFA/a1/texto')) === a1Antes.texto && (await ler(ORG + '/fontes/ALFA/' + idV2 + '/texto')) === 'T vigente, revisado.');
+  D.selecionado = 'BETA';
   I.carregarDetalhe('organizacional', 'BETA'); await ate(() => D.detalhe && !D.detalhe.carregando); I.carregarDominio('organizacional'); await ate(() => D.estado === 'ok');
   D.edicao = { tipo: 'conceito', chave: 'BETA', valores: { nome: 'Beta Revisado', observacoes: 'Obs.', perguntaDiscriminadora: 'P2?', notaDeAplicacao: 'N2.', criterios: 'x1\nx2\nx3', ativo: true }, erro: null };
   await opera('EDITAR CONCEITO (nome, pergunta, nota, critérios, observações)', () => I.salvarConceito('organizacional', 'BETA'),
@@ -484,6 +527,16 @@ async function main() {
   intruso.st.flash = null; intruso.tornarVigente('organizacional', 'BETA', 'b1');
   await ate(() => !intruso.st.salvando && intruso.st.flash !== null);
   anota('mesmo chamando o código direto, a GRAVAÇÃO de quem não é admin é recusada pelo banco', intruso.st.flash && intruso.st.flash.erro === true && !(await ler(ORG + '/conceitos/BETA/definicaoVigenteFonteId')));
+  /* EXPORTAÇÃO: a leitura ramo a ramo que a aplicação faz passa nas regras reais para admin (a raiz inteira
+     não é legível em bloco) e é recusada para quem não é admin; e não grava nada. */
+  const antesExp = JSON.stringify(await ler('taxonomia'));
+  const exp = await new Promise((r) => I.lerTudoParaExportar(r));
+  anota('EXPORTAÇÃO (admin): todos os ramos lidos com as regras reais', exp.ok === true, exp.falhas && exp.falhas.join('; '));
+  anota('EXPORTAÇÃO (admin): traz conceitos, fontes, atributos, perfis, relações, auditoria e meta', exp.ok && !!exp.bruto.organizacional.conceitos.ALFA && !!exp.bruto.organizacional.fontes.ALFA && !!exp.bruto.organizacional.atributos && !!exp.bruto.organizacional.perfis && !!exp.bruto.organizacional.relacoes && !!exp.bruto.organizacional.auditoria && !!exp.bruto.arquitetural.conceitos && !!(exp.bruto.meta && exp.bruto.meta.cargaInicial));
+  anota('EXPORTAÇÃO: o que a aplicação leu é exatamente o que está no banco (por ramo)', exp.ok && JSON.stringify(exp.bruto.organizacional.fontes) === JSON.stringify(await ler(ORG + '/fontes')) && JSON.stringify(exp.bruto.meta) === JSON.stringify(await ler('taxonomia/meta')));
+  anota('EXPORTAÇÃO: nada foi gravado', JSON.stringify(await ler('taxonomia')) === antesExp);
+  const expIntruso = await new Promise((r) => intruso.lerTudoParaExportar(r));
+  anota('EXPORTAÇÃO: "Avaliação + Arquitetura" (não admin) é recusada pelo banco (sem acesso, nada lido)', expIntruso.ok === false && expIntruso.falhas.length === 10 && expIntruso.falhas.every((f) => /sem acesso/.test(f)), JSON.stringify(expIntruso.falhas));
 
   console.log('\n== 10. Gravação SEM confirmação do servidor (SDK real, cliente sem conexão) ==');
   await testEnv.clearDatabase();
@@ -584,7 +637,8 @@ async function main() {
     await nega('(12-' + rot + ') apagar FISICAMENTE a vigente + limpar ponteiro (multipath)', admin().ref().update({ [F(dom, 'F_VIG')]: null, [dom + '/conceitos/C1/definicaoVigenteFonteId']: null }));
     await pode('(12-' + rot + ') RESTAURAR (remove marca e registro) + auditoria', admin().ref().update({ [F(dom, 'F_HIST') + '/arquivada']: null, [F(dom, 'F_HIST') + '/arquivamento']: null, [dom + '/auditoria/C1/-Kr1']: audArq('fonte_restaurada', 'F_HIST') }));
     anota('(12-' + rot + ') restaurada: sem marca, mesma situação e texto de antes', (await ler(F(dom, 'F_HIST') + '/arquivada')) === null && (await ler(F(dom, 'F_HIST') + '/arquivamento')) === null && (await ler(F(dom, 'F_HIST') + '/texto')) === 'Texto da fonte.');
-    await pode('(12-' + rot + ') depois de restaurada, volta a ser editável', R(admin(), F(dom, 'F_HIST') + '/texto').set('Editada após restaurar.'));
+    await pode('(12-' + rot + ') depois de restaurada, volta a ser editável (rótulo)', R(admin(), F(dom, 'F_HIST') + '/rotulo').set('Editada após restaurar.'));
+    await nega('(12-' + rot + ') …mas o TEXTO continua imutável, como o de qualquer fonte', R(admin(), F(dom, 'F_HIST') + '/texto').set('Editada após restaurar.'));
     await pode('(12-' + rot + ') …e promovível', admin().ref().update(promove(dom, 'C1', 'F_HIST', { [F(dom, 'F_VIG') + '/situacao']: 'histórica/contextual' })));
     await semearDom(dom);
     await nega('(12-' + rot + ') motivo fora da lista fechada', admin().ref().update({ [F(dom, 'F_HIST') + '/arquivada']: true, [F(dom, 'F_HIST') + '/arquivamento']: arq({ motivo: 'porque sim' }) }));
