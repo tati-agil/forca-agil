@@ -742,6 +742,34 @@
     return html + '</nav>';
   }
 
+  /* CONCEITOS-BASE DA AVALIAÇÃO (só no domínio arquitetural): os códigos que o motor da Avaliação produz
+     (window.faClassificacoes.codigos() — o catálogo do motor, sem lista nova nem campo novo no banco). A
+     Avaliação mostra, para cada código, o NOME e a DEFINIÇÃO VIGENTE do conceito de MESMO código desta
+     Taxonomia; código sem conceito aqui faz a Avaliação usar o rótulo de contingência. Clicar abre o conceito. */
+  function renderConceitosBase(dom) {
+    var C = window.faClassificacoes;
+    if (dom !== 'arquitetural' || !C || !C.codigos().length) return '';
+    var D = st.d[dom], cods = C.codigos();
+    var faltando = cods.filter(function (c) { return !D.conceitos[c]; }).length;
+    var idB = 'base:' + dom;
+    var h = '<section class="tax-base" id="taxConceitosBase" data-vista="' + esc(st.vista) + '"><details class="tax-recolhivel" data-det="' + idB + '"' + detAberto(idB, faltando > 0) + '>' +
+      '<summary class="tax-recolhivel-cab">Conceitos-base da Avaliação — ' + plural(cods.length, 'código', 'códigos') +
+      (faltando ? ' · ' + plural(faltando, 'sem conceito', 'sem conceito') : '') + '</summary>' +
+      '<p class="tax-ajuda">A Avaliação de Produto/Serviço mostra, para cada classificação do motor, o nome e a definição vigente do conceito de mesmo código desta Taxonomia. Renomear ou trocar a definição aqui muda a Avaliação; o código e o motor não mudam.</p><ul class="tax-base-lista">';
+    cods.forEach(function (cod) {
+      var c = D.conceitos[cod];
+      if (c) {
+        h += '<li class="tax-base-item" data-base="' + esc(cod) + '"><button type="button" class="tax-base-abrir" data-tax="selecionar" data-codigo="' + esc(cod) + '">' +
+          '<span class="tax-base-nome">' + esc(c.nome) + '</span> <code class="tax-base-codigo">' + esc(cod) + '</code>' +
+          (c.ativo === false ? ' ' + selo('desativado') : '') + '</button></li>';
+      } else {
+        h += '<li class="tax-base-item tax-base-item--sem" data-base="' + esc(cod) + '"><code class="tax-base-codigo">' + esc(cod) + '</code> ' +
+          '<span class="tax-base-falta">sem conceito — a Avaliação usa o rótulo de contingência</span></li>';
+      }
+    });
+    return h + '</ul></details></section>';
+  }
+
   function caminhoDo(dom, codigo) {
     var D = st.d[dom], partes = [], c = D.conceitos[codigo], guarda = 0;
     while (c && guarda++ < 6) { partes.unshift(c.nome); c = c.pai ? D.conceitos[c.pai] : null; }
@@ -1647,7 +1675,7 @@
     else if (D.estado === 'sem-acesso') html += '<p class="tax-aviso-erro" id="taxSemAcesso" role="alert">Você não tem acesso a esta área.</p>';
     else if (!chaves(D.conceitos).length) {
       html += '<p class="tax-ausencia" id="taxVazio">' + (st.meta.estado === 'ok' && !st.meta.cargaFeita ? 'Nenhum conceito cadastrado: a carga inicial ainda não foi feita.' : 'Este domínio não tem conceitos cadastrados.') + '</p>';
-    } else html += '<div class="tax-wrap" data-vista="' + st.vista + '">' + renderLista(dom) + renderDetalhe(dom) + '</div>';
+    } else html += renderConceitosBase(dom) + '<div class="tax-wrap" data-vista="' + st.vista + '">' + renderLista(dom) + renderDetalhe(dom) + '</div>';
     el.innerHTML = html + '</div>';
   }
 

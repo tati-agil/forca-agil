@@ -165,8 +165,9 @@ function parteA() {
     afirma(x.camadaSugerida.id === 'componente' && av.gerarJustificativaAutomatica(atual, x) === TEXTO_APROVADO, 'exemplo P1, P3, P4, P6 e P15 = SIM (P6 = SIM): Componente, com o texto aprovado');
   }
 
+  /* o nome da classificação é interpolado da Taxonomia (classificacoes.js): a mutação troca só o trecho fixo da frase */
   console.log('\n   prova inversa — com a frase antiga, a conferência falha:');
-  const antigo = Object.assign({}, SRC, { avp: SRC.avp.replace("return '" + FRASE_APROVADA + "' +", "return '" + FRASE_ANTIGA + "' +") });
+  const antigo = Object.assign({}, SRC, { avp: SRC.avp.replace("return 'O item não possui autonomia estrutural nem resultado autônomo", "return 'O item não possui autonomia estrutural, jornada própria nem resultado autônomo") });
   afirma(antigo.avp !== SRC.avp, '(frase antiga recolocada em memória)');
   const ra = varrer(antigo, v5);
   afirma(ra.comp.some((c) => c.just !== TEXTO_APROVADO) && ra.comp.some((c) => c.p6 === 'sim' && JORNADA.test(c.just)), 'frase antiga → a conferência FALHA (Componente com P6 = SIM volta a negar a jornada)');

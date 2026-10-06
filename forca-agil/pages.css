@@ -2012,6 +2012,8 @@ select.aposta-campo-input { width: auto; min-width: 8.5em; }
 .avp-result-label { font-family: var(--font-mono); font-size: .72rem; letter-spacing: .1em; color: var(--ink-3); }
 .avp-result-nome { margin: 6px 0 14px; }
 .avp-result-badge-grande { font-family: var(--font-head); font-size: 1.5rem; letter-spacing: .03em; }
+/* título do resultado Produto/Serviço: o nome vem da Taxonomia em caixa normal; o caixa-alta é só visual (não afeta o veredito da Squad, que usa a mesma classe) */
+.avp-result-badge-grande--resultado { text-transform: uppercase; }
 .avp-result-card--produto .avp-result-badge-grande { color: var(--cyan-soft); }
 .avp-result-card--nao-produto .avp-result-badge-grande { color: var(--gold-soft); }
 .avp-result-card--a-validar .avp-result-badge-grande { color: var(--blue-glow); }
@@ -2728,6 +2730,21 @@ details.avp-form-card.avp-aut-historico { margin-top: 0; padding: 10px 16px; mar
 .tax-recolhivel > summary { cursor: pointer; }
 .tax-recolhivel-cab { font-weight: 600; font-size: .92rem; padding: 6px 0; overflow-wrap: anywhere; }
 .tax-recolhivel-cab--fixo { margin: 0 0 6px; }
+/* Conceitos-base da Avaliação (Taxonomia › Arquitetural) */
+.tax-base { background: var(--panel); border: 1px solid var(--line); border-radius: 12px; padding: 8px 14px; margin: 0 0 12px; }
+.tax-base-lista { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: 6px; }
+.tax-base-item { min-width: 0; font-size: .86rem; overflow-wrap: anywhere; }
+.tax-base-abrir { width: 100%; text-align: left; background: none; border: 1px solid var(--line); border-radius: 8px; padding: 6px 10px; color: inherit; font: inherit; cursor: pointer; }
+.tax-base-abrir:hover, .tax-base-abrir:focus-visible { border-color: var(--gold); }
+.tax-base-codigo { font-family: var(--font-mono); font-size: .72rem; color: var(--ink-3); }
+.tax-base-item--sem { border: 1px dashed var(--line-strong); border-radius: 8px; padding: 6px 10px; }
+.tax-base-falta { color: var(--gold); }
+@media (max-width: 720px) { .tax-base[data-vista="detalhe"] { display: none; } }
+/* Avaliação: nome da classificação vindo da Taxonomia, nota da época e aviso de contingência */
+.fa-classif-epoca { font-size: .78rem; font-weight: normal; color: var(--ink-3); }
+.fa-classif-def { font-size: .84rem; color: var(--ink-2); margin: 4px 0 8px; overflow-wrap: anywhere; }
+.fa-classif-aviso { font-size: .76rem; color: var(--ink-3); border-left: 3px solid var(--gold); padding: 2px 8px; margin: 4px 0 8px; overflow-wrap: anywhere; }
+.fa-classif-aviso[hidden], .fa-classif-epoca[hidden], .fa-classif-def[hidden] { display: none; }
 .tax-hist-lista { list-style: none; margin: 8px 0 0; padding: 0; display: grid; gap: 8px; }
 .tax-hist-item { border: 1px solid var(--line); border-radius: 10px; padding: 8px 12px; background: var(--space-1); margin: 0; }
 .tax-hist-meta { display: flex; flex-wrap: wrap; align-items: baseline; gap: 2px 10px; font-size: .76rem; color: var(--ink-3); }
