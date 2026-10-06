@@ -458,6 +458,49 @@
       }
     },
 
+    "arquitetura-definicoes": {
+      ".read": "auth != null && (((auth.token.email === 'tatianefdirene@previ.com.br' || auth.token.email === 'danielfrazao@previ.com.br') || root.child('fa-admins').child(auth.token.email.replace('@','_').replace('.','_')).exists()) || root.child('fa-avaliacao-autorizados').child(auth.token.email.replace('@','_').replace('.','_')).child('tipo').val() === 'avaliacao-arquitetura')",
+      "$id": {
+        ".write": "(auth != null && (((auth.token.email === 'tatianefdirene@previ.com.br' || auth.token.email === 'danielfrazao@previ.com.br') || root.child('fa-admins').child(auth.token.email.replace('@','_').replace('.','_')).exists()) || root.child('fa-avaliacao-autorizados').child(auth.token.email.replace('@','_').replace('.','_')).child('tipo').val() === 'avaliacao-arquitetura')) && newData.exists()",
+        ".validate": "$id.matches(/^[A-Z][A-Z0-9_]{1,40}$/) && newData.hasChildren(['titulo','definicao','criadoEm','criadoPor','atualizadoEm','atualizadoPor']) && (!data.exists() || (newData.child('criadoEm').val() === data.child('criadoEm').val() && newData.child('criadoPor').child('email').val() === data.child('criadoPor').child('email').val()))",
+        "titulo": {
+          ".validate": "newData.isString() && newData.val().length >= 1 && newData.val().length <= 120"
+        },
+        "definicao": {
+          ".validate": "newData.isString() && newData.val().length >= 1 && newData.val().length <= 4000"
+        },
+        "nota": {
+          ".validate": "newData.isString() && newData.val().length <= 1000"
+        },
+        "link": {
+          ".validate": "newData.isString() && newData.val().length <= 1000 && newData.val().matches(/^https:\\/\\/[^ ]+$/)"
+        },
+        "criadoEm": {
+          ".validate": "newData.isString()"
+        },
+        "criadoPor": {
+          ".validate": "newData.hasChildren(['email'])"
+        },
+        "atualizadoEm": {
+          ".validate": "newData.isString()"
+        },
+        "atualizadoPor": {
+          ".validate": "newData.hasChildren(['email'])"
+        },
+        "$outro": {
+          ".validate": false
+        }
+      }
+    },
+
+    "arquitetura-definicoes-auditoria": {
+      ".read": "auth != null && (((auth.token.email === 'tatianefdirene@previ.com.br' || auth.token.email === 'danielfrazao@previ.com.br') || root.child('fa-admins').child(auth.token.email.replace('@','_').replace('.','_')).exists()) || root.child('fa-avaliacao-autorizados').child(auth.token.email.replace('@','_').replace('.','_')).child('tipo').val() === 'avaliacao-arquitetura')",
+      "$id": {
+        ".write": "(auth != null && (((auth.token.email === 'tatianefdirene@previ.com.br' || auth.token.email === 'danielfrazao@previ.com.br') || root.child('fa-admins').child(auth.token.email.replace('@','_').replace('.','_')).exists()) || root.child('fa-avaliacao-autorizados').child(auth.token.email.replace('@','_').replace('.','_')).child('tipo').val() === 'avaliacao-arquitetura')) && !data.exists() && newData.exists()",
+        ".validate": "newData.hasChildren(['tipo','definicaoId','dataHora','usuario']) && newData.child('definicaoId').isString() && (newData.child('tipo').val() === 'criada' || newData.child('tipo').val() === 'alterada') && newData.parent().parent().child('arquitetura-definicoes').child(newData.child('definicaoId').val()).exists()"
+      }
+    },
+
     "avaliacoes-squad": {
       ".read": "auth != null && (((auth.token.email === 'tatianefdirene@previ.com.br' || auth.token.email === 'danielfrazao@previ.com.br') || root.child('fa-admins').child(auth.token.email.replace('@','_').replace('.','_')).exists()) || (root.child('fa-avaliacao-autorizados').child(auth.token.email.replace('@','_').replace('.','_')).child('tipo').val() === 'avaliacao' || root.child('fa-avaliacao-autorizados').child(auth.token.email.replace('@','_').replace('.','_')).child('tipo').val() === 'avaliacao-arquitetura'))",
       ".write": "auth != null && (((auth.token.email === 'tatianefdirene@previ.com.br' || auth.token.email === 'danielfrazao@previ.com.br') || root.child('fa-admins').child(auth.token.email.replace('@','_').replace('.','_')).exists()) || (root.child('fa-avaliacao-autorizados').child(auth.token.email.replace('@','_').replace('.','_')).child('tipo').val() === 'avaliacao' || root.child('fa-avaliacao-autorizados').child(auth.token.email.replace('@','_').replace('.','_')).child('tipo').val() === 'avaliacao-arquitetura'))"

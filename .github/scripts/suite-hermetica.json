@@ -460,6 +460,12 @@
       "nome": "Adequação à Squad: título próprio, endereço #avaliacoes?sq=…, F5 e Voltar/Avançar do navegador (desktop e 375 px)",
       "duracao": 14,
       "sobre": "Na área Avaliação a Squad troca o título da página para \"Adequação à Squad\" e restaura o original ao sair; #avaliacoes?sq=lista e ?sq=<chave> sobrevivem a F5 e link direto (leitura lenta mostra Carregando, nunca \"não encontrada\"); Voltar/Avançar do navegador andam entre avaliações, lista de squad e avaliação; \"← Voltar para Avaliações\" é botão no topo e no rodapé e não empilha histórico. Hermético."
+    },
+    {
+      "arquivo": ".github/scripts/teste-mapa-floresta.js",
+      "nome": "Mapa da Floresta configurável: valor de fábrica, leitura do banco, alteração auditada, leitura lenta/falha (desktop e 375 px)",
+      "duracao": 16,
+      "sobre": "arquitetura-definicoes/MAPA_FLORESTA: sem o nó, o cartão mostra o valor inicial de fábrica marcado como não salvo; com o nó, o texto do banco; editar pela tela grava o estado vigente e a linha de auditoria (anterior → novo) juntos, histórico recolhido; leitura pendente ou que falha nunca mostra o valor de fábrica nem cartão vazio nem oferece edição; gravação recusada mostra o erro e mantém o formulário. Hermético; as regras ficam em teste-rules-perfis-avaliacao.js."
     }
   ]
 }

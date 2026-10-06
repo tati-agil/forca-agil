@@ -2657,6 +2657,11 @@ details.avp-form-card.avp-aut-historico { margin-top: 0; padding: 10px 16px; mar
 .avp-docs-definicao h4 { margin: 0 0 8px; font-size: 1.05rem; color: var(--ink); }
 .avp-docs-definicao-texto { margin: 0 0 10px; font-size: 1rem; line-height: 1.6; color: var(--ink); }
 .avp-docs-definicao-nota { margin: 0; font-size: .86rem; color: var(--ink-2); }
+.avp-docs-definicao-nota + .avp-doc-link, .avp-docs-definicao-texto + .avp-doc-link { margin-top: 10px; }
+.avp-docs-definicao .avp-doc-meta { margin-top: 10px; }
+.avp-docs-definicao-vazia { margin: 0 0 10px; color: var(--ink); font-size: .95rem; line-height: 1.5; }
+.avp-docs-definicao-id { font-family: var(--font-mono); font-size: .72rem; color: var(--ink-3); letter-spacing: .06em; margin-left: 6px; }
+.avp-docs-definicao .avp-historico-recolhido { margin-top: 12px; }
 .avp-docs-lista { display: flex; flex-direction: column; gap: 12px; margin: 14px 0; }
 .avp-doc-item { border: 1px solid var(--line-strong); border-radius: 10px; padding: 12px 14px; background: var(--panel-2); overflow-wrap: anywhere; }
 .avp-doc-item--arquivado { opacity: .75; }

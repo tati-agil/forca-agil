@@ -4120,15 +4120,33 @@
        "Avaliação + Arquitetura"). */
     var NODE_DOCS = 'arquitetura-documentos';
     var NODE_DOCS_AUD = 'arquitetura-documentos-auditoria';
+    /* Definições de artefatos da Arquitetura (não são conceitos da Taxonomia): cada uma tem uma chave
+       estável e o conteúdo — título, definição, nota, link — é DADO, editável aqui e auditado em
+       arquitetura-definicoes-auditoria (só acréscimo). O card mostra SEMPRE o que está no banco; o valor
+       de fábrica abaixo só aparece enquanto o nó ainda não existe (deploy novo, antes da primeira
+       gravação), marcado como tal — nunca por cima de uma configuração gravada, e nunca no lugar de
+       uma leitura que falhou ou ainda não voltou (aí a tela diz que não carregou). */
+    var NODE_DEF = 'arquitetura-definicoes';
+    var NODE_DEF_AUD = 'arquitetura-definicoes-auditoria';
+    var ID_MAPA_FLORESTA = 'MAPA_FLORESTA';
+    var ROTULO_ACAO_DEF = { criada: 'Definição registrada', alterada: 'Definição alterada' };
+    var PADRAO_MAPA_FLORESTA = {
+      titulo: 'Mapa da Floresta',
+      definicao: 'É uma representação visual organizada pela lógica de geração de valor. Mostra como a PREVI se organiza em Linhas, ' +
+        'Centros de Excelência (CoE) e Áreas Especializadas e como essas estruturas contribuem para a entrega de produtos e serviços aos clientes.',
+      nota: 'Não é um conceito da Taxonomia e não tem relação com o Mapa da Aposta.',
+      link: null
+    };
     function abrirDocumentacao() {
-      state.documentacao = { carregando: true, erro: null, itens: {}, historico: [], editando: null, salvando: false, erroForm: null, flash: null, sujo: false, verArquivados: false };
+      state.documentacao = { carregando: true, erro: null, itens: {}, historico: [], editando: null, salvando: false, erroForm: null, flash: null, sujo: false, verArquivados: false,
+        mapa: null, mapaHistorico: [], editandoMapa: null, salvandoMapa: false, erroMapa: null, flashMapa: null };
       state.tela = 'admin-documentacao';
       render();
       carregarDocumentacao();
     }
     function carregarDocumentacao() {
       var d = state.documentacao;
-      var pend = 2, falhou = false;
+      var pend = 4, falhou = false;
       var relogio = setTimeout(function () {
         if (state.documentacao !== d || !d.carregando) return;
         d.carregando = false; d.erro = 'A leitura está demorando mais que o normal.';
@@ -4148,6 +4166,13 @@
         if (state.tela === 'admin-documentacao') render();
       }
       db().ref(NODE_DOCS).once('value', function (snap) { d.itens = snap.val() || {}; fim(); }, erro);
+      db().ref(NODE_DEF + '/' + ID_MAPA_FLORESTA).once('value', function (snap) { d.mapa = snap.val() || null; fim(); }, erro);
+      db().ref(NODE_DEF_AUD).once('value', function (snap) {
+        var v = snap.val() || {};
+        d.mapaHistorico = Object.keys(v).map(function (k) { return v[k]; }).filter(function (l) { return l && l.definicaoId === ID_MAPA_FLORESTA; })
+          .sort(function (a, b) { return (b.dataHora || '').localeCompare(a.dataHora || ''); });
+        fim();
+      }, erro);
       db().ref(NODE_DOCS_AUD).once('value', function (snap) {
         var v = snap.val() || {};
         d.historico = Object.keys(v).map(function (k) { return v[k]; }).sort(function (a, b) { return (b.dataHora || '').localeCompare(a.dataHora || ''); });
@@ -4161,12 +4186,8 @@
       var html = linkVoltar('avpDocsVoltar', ROTULO_ADMIN);
       html += '<div class="avp-form-card avp-docs"><h3>Documentação e mapas de Arquitetura</h3>';
       html += '<p class="avp-docs-intro">Artefatos de referência da Arquitetura, guardados como link para o arquivo (SharePoint, Drive ou outro).</p>';
-      /* Definição aprovada pela dona, texto exato — em destaque, não escondida em nota pequena */
-      html += '<section class="avp-docs-definicao" id="avpDocsMapaFloresta" aria-labelledby="avpDocsMapaFlorestaTitulo">' +
-        '<h4 id="avpDocsMapaFlorestaTitulo">Mapa da Floresta</h4>' +
-        '<p class="avp-docs-definicao-texto">É uma representação visual organizada pela lógica de geração de valor. Mostra como a PREVI se organiza em Linhas, ' +
-        'Centros de Excelência (CoE) e Áreas Especializadas e como essas estruturas contribuem para a entrega de produtos e serviços aos clientes.</p>' +
-        '<p class="avp-docs-definicao-nota">Não é um conceito da Taxonomia e não tem relação com o Mapa da Aposta.</p></section>';
+      /* Definição do Mapa da Floresta: lida do banco (arquitetura-definicoes/MAPA_FLORESTA), em destaque */
+      if (!d.carregando && !d.erro) html += renderDefinicaoMapa(d);
       if (d.flash) html += '<p class="avp-flash-success avp-flash-success--inline" id="avpDocsFlash">' + esc(d.flash) + '</p>';
       if (d.carregando) html += '<p class="loading-msg">Carregando documentação…</p>';
       if (d.erro) html += '<p class="avp-error-msg" id="avpDocsErro">' + esc(d.erro) + ' <button type="button" class="btn btn--sm" id="avpDocsTentar">Tentar novamente</button></p>';
@@ -4219,8 +4240,113 @@
         });
       });
       if (d.editando) bindFormDocumento(d);
+      bindDefinicaoMapa(d);
       wrap.querySelectorAll('details[data-det]').forEach(function (det) {
         det.addEventListener('toggle', function () { state.detAbertos = state.detAbertos || {}; state.detAbertos[det.dataset.det] = det.open; });
+      });
+    }
+    function renderDefinicaoMapa(d) {
+      var m = d.mapa, e = d.editandoMapa;
+      var h = '<section class="avp-docs-definicao" id="avpDocsMapaFloresta" aria-labelledby="avpDocsMapaFlorestaTitulo">';
+      if (d.flashMapa) h += '<p class="avp-flash-success avp-flash-success--inline" id="avpMapaFlash">' + esc(d.flashMapa) + '</p>';
+      if (e) {
+        h += '<h4 id="avpDocsMapaFlorestaTitulo">' + (m ? 'Editar definição' : 'Registrar definição') + ' <span class="avp-docs-definicao-id">' + esc(ID_MAPA_FLORESTA) + '</span></h4>';
+        h += '<div class="avp-field"><label for="avpMapaTitulo">Título *</label><input type="text" id="avpMapaTitulo" maxlength="120" value="' + esc(e.titulo) + '"></div>';
+        h += '<div class="avp-field"><label for="avpMapaDefinicao">Definição *</label><textarea id="avpMapaDefinicao" rows="5" maxlength="4000">' + esc(e.definicao) + '</textarea></div>';
+        h += '<div class="avp-field"><label for="avpMapaNota">Nota auxiliar</label><textarea id="avpMapaNota" rows="2" maxlength="1000">' + esc(e.nota) + '</textarea></div>';
+        h += '<div class="avp-field"><label for="avpMapaLink">Link do mapa (opcional, começa com https://)</label><input type="url" id="avpMapaLink" maxlength="1000" placeholder="https://" value="' + esc(e.link) + '"></div>';
+        if (d.erroMapa) h += '<p class="avp-error-msg" id="avpMapaErro">' + esc(d.erroMapa) + '</p>';
+        h += '<div class="avp-actions-footer"><button type="button" class="btn btn--primary" id="avpMapaSalvar"' + (d.salvandoMapa ? ' disabled' : '') + '>' + (d.salvandoMapa ? 'SALVANDO…' : 'SALVAR') + '</button>' +
+          '<button type="button" class="btn" id="avpMapaCancelar"' + (d.salvandoMapa ? ' disabled' : '') + '>Cancelar</button></div>';
+      } else if (m) {
+        h += '<h4 id="avpDocsMapaFlorestaTitulo">' + esc(m.titulo) + '</h4>';
+        h += '<p class="avp-docs-definicao-texto">' + esc(m.definicao) + '</p>';
+        if (m.nota) h += '<p class="avp-docs-definicao-nota">' + esc(m.nota) + '</p>';
+        if (m.link) h += '<p class="avp-doc-link"><a href="' + esc(m.link) + '" target="_blank" rel="noopener noreferrer">Abrir o mapa ↗</a></p>';
+        h += '<p class="avp-doc-meta">Registrada por ' + esc(autorDe(m.criadoPor) || '—') + ' em ' + esc(fmtData(m.criadoEm)) +
+          (m.atualizadoEm && m.atualizadoEm !== m.criadoEm ? ' · Atualizada em ' + esc(fmtData(m.atualizadoEm)) + ' por ' + esc(autorDe(m.atualizadoPor) || '—') : '') + '</p>';
+        h += '<div class="avp-doc-acoes"><button type="button" class="btn btn--sm" id="avpMapaEditarBtn">Editar definição</button></div>';
+      } else {
+        /* nó ainda não existe: valor inicial de fábrica, dito como tal */
+        var f = PADRAO_MAPA_FLORESTA;
+        h += '<h4 id="avpDocsMapaFlorestaTitulo">' + esc(f.titulo) + '</h4>';
+        h += '<p class="avp-docs-definicao-texto">' + esc(f.definicao) + '</p>';
+        h += '<p class="avp-docs-definicao-nota">' + esc(f.nota) + '</p>';
+        h += '<p class="avp-doc-meta" id="avpMapaFabrica">Valor inicial — ainda não salvo no banco. Ao editar e salvar, passa a valer a versão gravada, com histórico.</p>';
+        h += '<div class="avp-doc-acoes"><button type="button" class="btn btn--sm" id="avpMapaEditarBtn">Editar definição</button></div>';
+      }
+      h += renderHistoricoRecolhido('avpMapaHistorico', d.mapaHistorico.map(function (l) {
+        return { data: l.dataHora, autor: autorDe(l.usuario), tipo: ROTULO_ACAO_DEF[l.tipo] || l.tipo, resumo: l.titulo || '',
+          anterior: l.valorAnterior === undefined ? undefined : l.valorAnterior, novo: l.valorNovo === undefined ? undefined : l.valorNovo };
+      }));
+      return h + '</section>';
+    }
+    function bindDefinicaoMapa(d) {
+      var editar = document.getElementById('avpMapaEditarBtn');
+      if (editar) editar.addEventListener('click', function () {
+        var m = d.mapa || PADRAO_MAPA_FLORESTA;
+        d.editandoMapa = { titulo: m.titulo || '', definicao: m.definicao || '', nota: m.nota || '', link: m.link || '' };
+        d.erroMapa = null; d.flashMapa = null; render();
+      });
+      var e = d.editandoMapa;
+      if (!e) return;
+      [['avpMapaTitulo', 'titulo'], ['avpMapaDefinicao', 'definicao'], ['avpMapaNota', 'nota'], ['avpMapaLink', 'link']].forEach(function (par) {
+        document.getElementById(par[0]).addEventListener('input', function (ev) { e[par[1]] = ev.target.value; d.sujo = true; });
+      });
+      document.getElementById('avpMapaCancelar').addEventListener('click', function () {
+        sairComAviso(d, function () { d.editandoMapa = null; d.sujo = false; d.erroMapa = null; render(); });
+      });
+      document.getElementById('avpMapaSalvar').addEventListener('click', function () {
+        if (d.salvandoMapa) return;
+        var titulo = String(e.titulo || '').trim(), definicao = String(e.definicao || '').trim(), nota = String(e.nota || '').trim(), link = String(e.link || '').trim();
+        if (!titulo) { d.erroMapa = 'Informe o título.'; render(); return; }
+        if (!definicao) { d.erroMapa = 'Informe a definição.'; render(); return; }
+        if (link && !linkValido(link)) { d.erroMapa = 'O link precisa ser completo, começando com https:// (ou deixe em branco).'; render(); return; }
+        gravarDefinicaoMapa(d, { titulo: titulo, definicao: definicao, nota: nota || null, link: link || null });
+      });
+    }
+    function gravarDefinicaoMapa(d, novo) {
+      var agora = new Date().toISOString();
+      var eu = sessaoAtual();
+      var anterior = d.mapa;
+      var reg = {
+        titulo: novo.titulo, definicao: novo.definicao, nota: novo.nota, link: novo.link,
+        criadoEm: (anterior && anterior.criadoEm) || agora, criadoPor: (anterior && anterior.criadoPor) || eu,
+        atualizadoEm: agora, atualizadoPor: eu
+      };
+      var antes = anterior ? {} : null, depois = {};
+      ['titulo', 'definicao', 'nota', 'link'].forEach(function (c) {
+        var a = anterior && anterior[c] != null ? anterior[c] : null;
+        if (!anterior || a !== reg[c]) { if (antes) antes[c] = a; depois[c] = reg[c]; }
+      });
+      if (anterior && !Object.keys(depois).length) { d.editandoMapa = null; d.sujo = false; d.flashMapa = 'Nada mudou — a definição continua a mesma.'; render(); return; }
+      var linha = { tipo: anterior ? 'alterada' : 'criada', definicaoId: ID_MAPA_FLORESTA, titulo: reg.titulo,
+        valorAnterior: antes ? JSON.stringify(antes) : null, valorNovo: JSON.stringify(depois), usuario: eu, dataHora: agora };
+      var updates = {};
+      updates[NODE_DEF + '/' + ID_MAPA_FLORESTA] = reg;
+      updates[NODE_DEF_AUD + '/' + db().ref(NODE_DEF_AUD).push().key] = linha;
+      d.salvandoMapa = true; d.erroMapa = null; render();
+      var respondido = false;
+      var relogio = setTimeout(function () {
+        if (respondido) return; respondido = true;
+        d.salvandoMapa = false;
+        d.erroMapa = 'A conexão está demorando e não deu para confirmar o salvamento. Tente de novo.';
+        if (state.tela === 'admin-documentacao') render();
+      }, 12000);
+      db().ref().update(updates, function (err) {
+        if (respondido) return; respondido = true; clearTimeout(relogio);
+        d.salvandoMapa = false;
+        if (err) {
+          console.error('[definição do Mapa da Floresta] erro ao gravar:', err);
+          d.erroMapa = 'Não foi possível salvar. Tente novamente.';
+          if (state.tela === 'admin-documentacao') render();
+          return;
+        }
+        d.mapa = reg;
+        d.mapaHistorico.unshift(linha);
+        d.editandoMapa = null; d.sujo = false;
+        d.flashMapa = '✓ ' + ROTULO_ACAO_DEF[linha.tipo] + '.';
+        if (state.tela === 'admin-documentacao') render();
       });
     }
     function cartaoDocumento(k, it, arquivado) {
@@ -8021,7 +8147,12 @@
       }, 12000);
     }
     prepararTelaPelaHash();
-    render();
+    /* Admin: a área pedida no endereço (#admin?arq=…) é lida ANTES do primeiro desenho — senão esse
+       desenho (tela inicial) gravava ?arq=inicio por cima e o F5 de quem só tem a Arquitetura (aba já
+       ativa) caía no início em vez da área pedida. */
+    var areaInicial = modo === 'admin' ? areaDoEndereco() : null;
+    if (areaInicial) aplicandoEnderecoAdmin = true;
+    try { render(); } finally { aplicandoEnderecoAdmin = false; }
     sincronizarComHash(); /* tenta resolver um link direto já na carga inicial */
     if (modo === 'admin') {
       /* Endereço próprio por área da Arquitetura (ver sincronizarEnderecoAdmin): Voltar/Avançar do
@@ -8030,7 +8161,6 @@
       window.addEventListener('hashchange', aplicarEnderecoAdmin);
       window.addEventListener('fa-admin-aba-arquitetura', function () { sincronizarEnderecoAdmin(); });
       /* F5 / link direto em #admin?arq=<área>: abre a aba e a área de uma vez. */
-      var areaInicial = areaDoEndereco();
       if (areaInicial) {
         if (window.faAdminAbrirAba) window.faAdminAbrirAba('adminPanelArquitetura');
         if (areaInicial !== 'inicio') { aplicandoEnderecoAdmin = true; try { abrirAreaAdmin(areaInicial); } finally { aplicandoEnderecoAdmin = false; } }
