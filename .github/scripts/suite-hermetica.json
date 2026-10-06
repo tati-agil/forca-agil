@@ -503,6 +503,12 @@
       "nome": "Smoke: checagens batem com o site, sem a aba Testes, e reprovam dizendo o motivo",
       "duracao": 35,
       "sobre": "Roda as MESMAS checagens do Smoke (smokeComoAdmin de smoke-site-real.js) contra o Firebase falso: com o banco respondendo todas passam; com o Repositório travado, só aquela reprova e diz o que não chegou. Existe porque o Smoke real não bloqueia o merge — sem isto, um seletor mudado o deixaria vermelho sem ninguém notar."
+    },
+    {
+      "arquivo": ".github/scripts/teste-manual.js",
+      "nome": "ADMIN › Manual: carga sob demanda, quatro dimensões, áreas, estados de turma (desktop e celular)",
+      "duracao": 12,
+      "sobre": "O Manual refeito na Etapa 6.2: só baixado quando a aba abre (rede lenta e falha com \"Tentar novamente\"), quatro dimensões de acesso e nove áreas, índice que leva até cada uma, sem nada do modelo antigo (filtro de Persona, contagem, exportação), \"Avaliar oficina\" × \"Avaliação de Produto/Serviço\", estados de turma coerentes com os botões do site, fontes oficiais e provas existentes, sem rolagem lateral; ADMIN sem Mapa/Testes e \"Avaliação + Arquitetura\" só com a Arquitetura."
     }
   ]
 }

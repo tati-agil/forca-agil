@@ -52,6 +52,41 @@
     document.querySelectorAll('.admin-tab-btn').forEach(function (b) { b.classList.toggle('active', b.dataset.panel === target); });
     document.querySelectorAll('.admin-tab-panel').forEach(function (p) { p.classList.toggle('active', p.id === target); });
     updateExpandBar(target);
+    if (target === 'adminPanelManual') abrirManual();
+  }
+
+  /* O Manual (manual.js) é documentação para a administradora: só é baixado na primeira vez que
+     a aba abre — quem nunca abre (toda participante no celular) não paga por ele. Rede lenta mostra
+     "Carregando o Manual…"; se o arquivo não chegar em 15 s, ou falhar, a aba diz isso e oferece
+     tentar de novo, em vez de ficar em branco. */
+  var _manualPedido = null;
+  function abrirManual() {
+    var alvo = document.getElementById('adminManual');
+    if (window.faInitManual) { if (alvo && !alvo.querySelector('.man-wrap')) window.faInitManual(); return; }
+    if (_manualPedido) return;
+    if (alvo) alvo.innerHTML = '<p class="loading-msg" id="manualCarregando">Carregando o Manual…</p>';
+    var script = document.createElement('script');
+    var encerrado = false;
+    function falhou() {
+      if (encerrado) return;
+      encerrado = true; _manualPedido = null;
+      if (script.parentNode) script.parentNode.removeChild(script);
+      if (!alvo) return;
+      alvo.innerHTML = '<p class="loading-msg" id="manualErro">Não foi possível carregar o Manual agora. ' +
+        '<button type="button" class="btn btn--sm" id="manualTentarDeNovo">Tentar novamente</button></p>';
+      var b = document.getElementById('manualTentarDeNovo');
+      if (b) b.addEventListener('click', abrirManual);
+    }
+    var limite = setTimeout(falhou, 15000);
+    script.src = 'forca-agil/manual.js';
+    script.onload = function () {
+      if (encerrado) return;
+      encerrado = true; clearTimeout(limite); _manualPedido = null;
+      if (window.faInitManual) window.faInitManual(); else falhou();
+    };
+    script.onerror = function () { clearTimeout(limite); falhou(); };
+    _manualPedido = script;
+    document.head.appendChild(script);
   }
   /* A Arquitetura tem endereço próprio por área (#admin?arq=…, ver avaliacao-produto.js):
      quem chega por ele (F5, Voltar do navegador) cai direto na aba; trocar para outra aba
@@ -153,7 +188,6 @@
     loadDiretores();
     loadFacilitadores();
     loadSorteios();
-    if (window.faInitManual) window.faInitManual();
     if (window.faInitMapa) window.faInitMapa();
     if (window.faInitTestes) window.faInitTestes();
     if (window.faInitPedidos) window.faInitPedidos();
