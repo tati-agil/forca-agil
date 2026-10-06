@@ -61,6 +61,16 @@ const larguraOk = (page) => page.evaluate(() => document.documentElement.scrollW
     afirma(/Mapa da Floresta/.test(intro) && /Linhas, Centros de Excelência \(CoE\) e Áreas Especializadas/.test(intro) && /Mapa da Aposta/.test(intro),
       'a tela explica o Mapa da Floresta e o separa do Mapa da Aposta');
     afirma(await page.evaluate(() => location.hash) === '#admin?arq=documentacao', 'endereço próprio: #admin?arq=documentacao');
+    const DEFINICAO = 'É uma representação visual organizada pela lógica de geração de valor. Mostra como a PREVI se organiza em Linhas, ' +
+      'Centros de Excelência (CoE) e Áreas Especializadas e como essas estruturas contribuem para a entrega de produtos e serviços aos clientes.';
+    afirma((await page.locator('#avpDocsMapaFloresta .avp-docs-definicao-texto').textContent()).trim() === DEFINICAO, 'card "Mapa da Floresta" com a definição aprovada, texto exato');
+    afirma((await page.locator('#avpDocsMapaFloresta .avp-docs-definicao-nota').textContent()).trim() === 'Não é um conceito da Taxonomia e não tem relação com o Mapa da Aposta.', '…e a nota auxiliar logo abaixo');
+    const est = await page.evaluate(() => { const t = document.querySelector('#avpDocsMapaFloresta .avp-docs-definicao-texto'); const cs = getComputedStyle(t);
+      const card = document.getElementById('avpDocsMapaFloresta').getBoundingClientRect(), btn = document.getElementById('avpDocsNovoBtn').getBoundingClientRect();
+      return { italico: cs.fontStyle === 'italic', px: parseFloat(cs.fontSize), antes: card.bottom <= btn.top + 1 }; });
+    afirma(!est.italico && est.px >= 15 && est.antes, 'definição legível (sem itálico, ' + est.px + ' px) e ANTES da ação de adicionar');
+    const det0 = page.locator('#avpDocsHistorico');
+    afirma(await det0.count() === 1 && !(await det0.evaluate((d) => d.open)) && /Histórico — 0 alterações/.test(await det0.locator('summary').first().innerText()), 'sem nenhuma alteração ainda: "Histórico — 0 alterações", recolhido');
 
     console.log('\n== Adicionar ==');
     await page.click('#avpDocsNovoBtn');
@@ -78,9 +88,9 @@ const larguraOk = (page) => page.evaluate(() => document.documentElement.scrollW
     afirma(Object.keys(docs).length === 1 && docs[k].titulo === 'Mapa da Floresta' && docs[k].link === 'https://exemplo.sharepoint.com/mapa-da-floresta.pdf' &&
       docs[k].autor && docs[k].autor.email === ARQ && !!docs[k].criadoEm && docs[k].arquivado === false, 'gravou título, descrição, link, autor e data');
     afirma(Object.keys(await banco(page, 'arquitetura-documentos-auditoria')).length === 1, 'e uma linha no histórico, na mesma gravação');
-    const link = page.locator('.avp-doc-link a').first();
+    const link = page.locator('#avpDocsLista .avp-doc-link a').first();
     afirma(await link.getAttribute('target') === '_blank' && /noopener/.test(await link.getAttribute('rel')), 'o link abre o arquivo em nova aba (noopener)');
-    const meta = await page.locator('.avp-doc-meta').first().innerText();
+    const meta = await page.locator('#avpDocsLista .avp-doc-meta').first().innerText();
     afirma(/arquitetura@previ\.com\.br/.test(meta) && /\d{2}\/\d{2}\/\d{4}/.test(meta), 'o cartão mostra o autor e a data (' + meta.replace(/\s+/g, ' ') + ')');
 
     console.log('\n== Editar, arquivar e restaurar (nunca apagam) ==');

@@ -4,10 +4,15 @@
  * O que se prova:
  *   1. Os dois botões aparecem para admin, cabem na tela (375 px também) e somem no modo somente leitura.
  *   2. JSON: cabeçalho (formato, versão, exportadoEm, exportadoPor) + o nó `taxonomia` EXATAMENTE como está no
- *      banco (lido ramo a ramo — a raiz não é legível em bloco nas regras).
- *   3. Excel: uma aba por entidade (Conceitos, Fontes, Atributos, Perfis, Relações, Histórico) + "Exportação",
- *      com cabeçalhos em português e as linhas esperadas — inclusive uma fonte HISTÓRICA, uma ARQUIVADA, uma
- *      relação (de/tipo/para/nota) e o histórico de conceito e de domínio.
+ *      banco (lido ramo a ramo — a raiz não é legível em bloco nas regras) + `conceitosConsolidados` (lista plana,
+ *      um item por conceito, com `dominio`): dados básicos, definição e fonte vigentes, fontes históricas,
+ *      perfis, relações de saída e de entrada e o resumo da auditoria.
+ *   3. Excel: a 1ª aba é "Visão consolidada por conceito" (uma linha por conceito, colunas da revisão), com
+ *      cabeçalho congelado (+ 3 colunas fixas), autofiltro, larguras e quebra de linha — conferidos no XML do
+ *      arquivo; depois, as abas de sempre (Conceitos, Fontes, Atributos, Perfis, Relações, Histórico) +
+ *      "Exportação", com cabeçalhos em português e as linhas esperadas — inclusive uma fonte HISTÓRICA, uma
+ *      ARQUIVADA, uma relação (de/tipo/para/nota) e o histórico de conceito e de domínio.
+ *   Conceitos sempre localizados pelo CÓDIGO (nunca pelo nome).
  *   4. Só leitura: nenhuma escrita durante as exportações (window.__ESCRITAS) e o banco fica idêntico.
  *   5. Leitura que não responde (12 s em produção, encurtado aqui) ou que é recusada: erro VISÍVEL dizendo qual
  *      ramo falhou e que nada foi baixado — nenhum download, nunca silêncio. */
@@ -120,6 +125,17 @@ const taxDb = (page) => page.evaluate(() => JSON.parse(JSON.stringify(window.__C
       const doc = JSON.parse(j.buf.toString('utf8'));
       afirma(doc.formato === 'forca-agil/taxonomia-exportacao' && doc.versaoFormato === 1 && doc.exportadoPor && doc.exportadoPor.email === EMAIL && !isNaN(Date.parse(doc.exportadoEm)), 'cabeçalho: formato, versão 1, exportadoEm e exportadoPor');
       afirma(igual(doc.taxonomia, antes), 'o nó "taxonomia" exportado é EXATAMENTE o que está no banco (todos os ramos)');
+      const CC = doc.conceitosConsolidados || [];
+      const cc = (dom, cod) => CC.find((k) => k.dominio === dom && k.codigo === cod) || {};
+      afirma(Array.isArray(CC) && CC.length === 3 && CC.every((k) => ['organizacional', 'arquitetural'].includes(k.dominio) && typeof k.codigo === 'string'), 'conceitosConsolidados: lista plana, UM item por conceito (3), cada um com dominio e codigo', JSON.stringify(CC.map((k) => k.dominio + '/' + k.codigo)));
+      const ksq = cc('organizacional', 'SQ');
+      afirma(ksq.nome === 'Squad Fictício' && ksq.ativo === true && ksq.camada === 'B' && ksq.pai && ksq.pai.codigo === 'LINHA' && ksq.situacaoDefinicao === 'registrada' && ksq.criterios.join('|') === 'Critério fictício 1|Critério fictício 2' && ksq.perguntaDiscriminadora === 'Pergunta fictícia?' && ksq.notaDeAplicacao === 'Nota fictícia.', 'consolidado SQ: dados básicos (nome, ativo, camada, pai, situação, critérios, pergunta, nota)');
+      afirma(ksq.definicaoVigente && ksq.definicaoVigente.fonteId === 'f1' && ksq.definicaoVigente.texto === 'Definição fictícia vigente do Squad.' && ksq.fonteVigente && ksq.fonteVigente.id === 'f1' && ksq.fonteVigente.rotulo === 'Conceito PREVI' && ksq.fonteVigente.contexto === 'PREVI' && ksq.fonteVigente.tipoRedacao === 'Conceito', 'consolidado SQ: definição vigente e fonte vigente (id, rótulo, contexto, tipo)');
+      afirma(ksq.fontesHistoricas.map((f) => f.id).join(',') === 'f2,f3' && ksq.fontesHistoricas.find((f) => f.id === 'f3').arquivada === true, 'consolidado SQ: fontes históricas = as não vigentes, inclusive a arquivada (f2, f3)');
+      afirma(ksq.perfis.length === 1 && ksq.perfis[0].atributo === 'ALCANCE' && ksq.perfis[0].atributoNome === 'Alcance de atuação' && ksq.perfis[0].valor === 'transversal' && ksq.perfis[0].papel === 'típico' && ksq.perfis[0].origem === 'decisão', 'consolidado SQ: perfil (atributo, valor, papel, origem)');
+      afirma(ksq.relacoesSaida.length === 1 && ksq.relacoesSaida[0].para === 'LINHA' && ksq.relacoesSaida[0].tipo === 'compoe' && ksq.relacoesEntrada.length === 0 && cc('organizacional', 'LINHA').relacoesEntrada.length === 1 && cc('organizacional', 'LINHA').relacoesEntrada[0].de === 'SQ', 'consolidado: relação SQ → LINHA é de SAÍDA no SQ e de ENTRADA na LINHA');
+      afirma(ksq.auditoria.total === 2 && ksq.auditoria.porTipo.definicao_vigente === 1 && ksq.auditoria.porTipo.fonte_arquivada === 1 && ksq.auditoria.ultimaAlteracaoEm === '2026-10-02T11:00:00.000Z' && ksq.auditoria.ultimaAlteracaoPor === EMAIL, 'consolidado SQ: resumo da auditoria (total, por tipo, última alteração e autor)');
+      afirma(cc('arquitetural', 'componente').definicaoVigente.fonteId === 'c1' && cc('arquitetural', 'componente').perfis.length === 0, 'consolidado: o conceito arquitetural está, com a sua definição');
       await page.waitForSelector('#taxExportarStatus', { timeout: 4000 });
       afirma(/JSON baixado/.test(await page.locator('#taxExportarStatus').innerText()), 'a tela confirma o download do JSON');
 
@@ -130,6 +146,35 @@ const taxDb = (page) => page.evaluate(() => JSON.parse(JSON.stringify(window.__C
       const aba = (n) => (wb.Sheets[n] ? XLSX.utils.sheet_to_json(wb.Sheets[n], { header: 1, defval: '' }) : null);
       afirma(['Exportação', 'Conceitos', 'Fontes', 'Atributos', 'Perfis', 'Relações', 'Histórico'].every((n) => wb.SheetNames.includes(n)), 'abas: Exportação, Conceitos, Fontes, Atributos, Perfis, Relações, Histórico', wb.SheetNames.join(', '));
       const linhaDe = (rows, col, val) => { const h = rows[0], i = h.indexOf(col); return rows.slice(1).map((r) => Object.fromEntries(h.map((k, n) => [k, r[n]]))).filter((r) => i >= 0 && r[col] === val); };
+      /* ---- 1ª aba: visão consolidada por conceito ---- */
+      const NOME_CONS = 'Visão consolidada por conceito';
+      afirma(wb.SheetNames[0] === NOME_CONS && NOME_CONS.length <= 31, 'a PRIMEIRA aba é "' + NOME_CONS + '" (' + NOME_CONS.length + ' caracteres, limite do Excel: 31)', wb.SheetNames.join(', '));
+      const V = aba(NOME_CONS);
+      const COLS = ['Domínio', 'Código', 'Nome', 'Ativo', 'Situação da definição', 'Camada / especialização', 'Conceito pai', 'Definição vigente', 'ID da fonte vigente', 'Rótulo da fonte', 'Contexto', 'Tipo de redação', 'Critérios', 'Pergunta discriminadora', 'Observações', 'Nota de aplicação', 'Atributos / perfil', 'Relações de saída', 'Relações de entrada', 'Fontes históricas (qtd.)', 'Alterações (qtd.)', 'Atualizado em', 'Atualizado por'];
+      afirma(JSON.stringify(V[0]) === JSON.stringify(COLS), 'consolidada: as 23 colunas, nesta ordem', V[0].join(' | '));
+      afirma(V.length === 4 && new Set(V.slice(1).map((r) => r[0] + '/' + r[1])).size === 3, 'consolidada: UMA linha por conceito (3) + cabeçalho', String(V.length));
+      const vsq = linhaDe(V, 'Código', 'SQ')[0] || {};
+      afirma(vsq['Domínio'] === 'Organizacional' && vsq['Nome'] === 'Squad Fictício' && vsq['Ativo'] === 'Sim' && vsq['Situação da definição'] === 'Definição registrada' && vsq['Camada / especialização'] === 'Especialização' && vsq['Conceito pai'] === 'LINHA — Linha Fictícia', 'consolidada SQ: domínio, nome, ativo, situação, camada e pai');
+      afirma(vsq['Definição vigente'] === 'Definição fictícia vigente do Squad.' && vsq['ID da fonte vigente'] === 'f1' && vsq['Rótulo da fonte'] === 'Conceito PREVI' && vsq['Contexto'] === 'PREVI' && vsq['Tipo de redação'] === 'Conceito', 'consolidada SQ: definição vigente, id, rótulo, contexto e tipo de redação da fonte');
+      afirma(vsq['Critérios'] === 'Critério fictício 1\nCritério fictício 2' && vsq['Pergunta discriminadora'] === 'Pergunta fictícia?' && vsq['Observações'] === 'Observação fictícia.' && vsq['Nota de aplicação'] === 'Nota fictícia.', 'consolidada SQ: critérios (um por linha), pergunta, observações e nota de aplicação');
+      afirma(vsq['Atributos / perfil'] === 'Alcance de atuação: transversal (típico · origem: decisão)' && vsq['Relações de saída'] === 'compõe → LINHA — Linha Fictícia (Relação fictícia de composição.)' && vsq['Relações de entrada'] === '', 'consolidada SQ: perfil e relações de saída (entrada vazia)', JSON.stringify([vsq['Atributos / perfil'], vsq['Relações de saída'], vsq['Relações de entrada']]));
+      afirma(vsq['Fontes históricas (qtd.)'] === 2 && vsq['Alterações (qtd.)'] === 2 && vsq['Atualizado em'] === '2026-10-02T10:00:00.000Z' && vsq['Atualizado por'] === EMAIL, 'consolidada SQ: 2 fontes históricas, 2 alterações (números), atualizado em/por');
+      afirma((linhaDe(V, 'Código', 'LINHA')[0] || {})['Relações de entrada'] === 'SQ — Squad Fictício compõe → este conceito (Relação fictícia de composição.)', 'consolidada LINHA: a relação aparece como de ENTRADA');
+      const vco = linhaDe(V, 'Código', 'componente')[0] || {};
+      afirma(vco['Domínio'] === 'Arquitetural' && vco['Camada / especialização'] === '' && vco['Definição vigente'] === 'Definição fictícia de componente.', 'consolidada: conceito arquitetural (sem camada) com a sua definição');
+      /* usabilidade, conferida no XML gravado (a SheetJS sozinha não grava congelamento nem quebra de linha) */
+      const zip = XLSX.CFB.read(x.buf, { type: 'buffer' });
+      const xml = (cam) => { const f = XLSX.CFB.find(zip, cam); return f ? Buffer.from(f.content).toString('utf8') : ''; };
+      const s1 = xml('/xl/worksheets/sheet1.xml'), est = xml('/xl/styles.xml');
+      afirma(/<pane xSplit="3" ySplit="1" topLeftCell="D2" activePane="bottomRight" state="frozen"\/>/.test(s1), 'consolidada: cabeçalho congelado + 3 colunas fixas (Domínio, Código, Nome)');
+      afirma(/<autoFilter ref="A1:W4"\/>/.test(s1), 'consolidada: autofiltro em todo o cabeçalho (A1:W4)');
+      afirma(/<col min="8" max="8" width="[\d.]+" customWidth="1"\/>/.test(s1) && /<cols>/.test(s1), 'consolidada: larguras de coluna definidas');
+      const xfs = (/<cellXfs count="(\d+)">([\s\S]*?)<\/cellXfs>/.exec(est) || [])[2] || '';
+      const xfLista = xfs.match(/<xf [\s\S]*?(?:\/>|<\/xf>)/g) || [];
+      const sCorpo = (/<c r="H2" s="(\d+)"/.exec(s1) || [])[1], sCab = (/<c r="A1" s="(\d+)"/.exec(s1) || [])[1];
+      afirma(sCorpo !== undefined && /wrapText="1"/.test(xfLista[+sCorpo] || ''), 'consolidada: células com quebra de linha (wrapText no estilo aplicado)');
+      afirma(sCab !== undefined && /wrapText="1"/.test(xfLista[+sCab] || '') && /applyFont="1"/.test(xfLista[+sCab] || ''), 'cabeçalho com estilo próprio (negrito, quebra de linha)');
+      afirma(wb.SheetNames.slice(1).every((n, i) => /<pane ySplit="1" topLeftCell="A2" activePane="bottomLeft" state="frozen"\/>/.test(xml('/xl/worksheets/sheet' + (i + 2) + '.xml'))), 'as demais abas também com o cabeçalho congelado');
       const C = aba('Conceitos');
       afirma(['Domínio', 'Código', 'Nome', 'Camada / especialização', 'Pai (código)', 'Pai (nome)', 'Ativo', 'Situação da definição', 'Definição vigente (texto)', 'Fonte vigente (id)', 'Fonte vigente (rótulo)', 'Fonte vigente (contexto)', 'Fonte vigente (tipo de redação)', 'Critérios', 'Observações', 'Pergunta discriminadora', 'Nota de aplicação', 'Criado em', 'Criado por', 'Atualizado em', 'Atualizado por'].every((h) => C[0].includes(h)), 'Conceitos: cabeçalhos em português', C[0].join(' | '));
       afirma(C.length === 4, 'Conceitos: 3 linhas (2 organizacionais + 1 arquitetural) + cabeçalho', String(C.length));
@@ -159,6 +204,7 @@ const taxDb = (page) => page.evaluate(() => JSON.parse(JSON.stringify(window.__C
       const S = aba('Exportação');
       afirma(S.some((r) => r[0] === 'Exportado por' && new RegExp(EMAIL.replace('.', '\\.')).test(r[1])) && S.some((r) => r[0] === 'Carga inicial feita em' && r[1] === '2026-10-01T09:00:00.000Z'), 'aba Exportação: quem exportou e a meta da carga inicial');
       await esperarCondicao(page, () => /Excel baixado/.test((document.querySelector('#taxExportarStatus') || {}).innerText || ''), null, { limite: 6000, descricao: 'confirmação do Excel' });
+      afirma(!/Atenção/.test(await page.locator('#taxExportarStatus').innerText()), 'o ajuste da planilha (congelar/quebrar) não falhou: sem aviso de "Atenção"');
 
       console.log('\n== 4. Só leitura ==');
       afirma(await escritas(page) === e0, 'nenhuma escrita durante as exportações (' + ((await escritas(page)) - e0) + ')');

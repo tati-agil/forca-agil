@@ -165,6 +165,36 @@ async function main() {
   await naoPode('histórico: tipo desconhecido é recusado', db(ARQ).ref('arquitetura-documentos-auditoria/x1').set(audDoc('d1', 'apagado')));
   await naoPode('histórico: linha de documento que não existe é recusada', db(ARQ).ref('arquitetura-documentos-auditoria/x2').set(audDoc('naoExiste')));
 
+
+  console.log('\n== Mapa da Floresta configurável (arquitetura-definicoes/MAPA_FLORESTA) ==');
+  await base();
+  const def = (extra) => Object.assign({ titulo: 'Mapa da Floresta', definicao: 'Definição vigente.', nota: 'Nota auxiliar.',
+    criadoEm: '2026-10-06T10:00:00.000Z', criadoPor: { name: 'Arq', email: ARQ }, atualizadoEm: '2026-10-06T10:00:00.000Z', atualizadoPor: { name: 'Arq', email: ARQ } }, extra || {});
+  const audDef = (id, tipo, extra) => Object.assign({ tipo: tipo || 'criada', definicaoId: id, titulo: 'Mapa da Floresta', valorAnterior: null, valorNovo: '{}', usuario: { name: 'Arq', email: ARQ }, dataHora: '2026-10-06T10:00:00.000Z' }, extra || {});
+  const gravarDef = (email, id, extraDef, chaveAud, tipo) => { const u = {}; u['arquitetura-definicoes/' + id] = def(extraDef); u['arquitetura-definicoes-auditoria/' + (chaveAud || id + 'a')] = audDef(id, tipo); return db(email).ref().update(u); };
+  await naoPode('"Avaliação" não registra a definição', gravarDef(AVAL, 'MAPA_FLORESTA'));
+  await pode('"Avaliação + Arquitetura" registra a definição (estado vigente + linha do histórico, juntos)', gravarDef(ARQ, 'MAPA_FLORESTA'));
+  await pode('admin geral altera a definição (com uma linha "alterada")', gravarDef(ADMIN, 'MAPA_FLORESTA', { definicao: 'Outra redação.', atualizadoPor: { name: 'Adm', email: ADMIN } }, 'b2', 'alterada'));
+  await pode('"Avaliação + Arquitetura" lê a definição', db(ARQ).ref('arquitetura-definicoes/MAPA_FLORESTA').once('value'));
+  await pode('…e o histórico dela', db(ARQ).ref('arquitetura-definicoes-auditoria').once('value'));
+  await naoPode('"Avaliação" não lê a definição', db(AVAL).ref('arquitetura-definicoes').once('value'));
+  await naoPode('quem não está na lista não lê', db(SEM).ref('arquitetura-definicoes').once('value'));
+  await naoPode('não apaga MAPA_FLORESTA', db(ADMIN).ref('arquitetura-definicoes/MAPA_FLORESTA').remove());
+  await naoPode('não apaga o nó inteiro', db(ADMIN).ref('arquitetura-definicoes').remove());
+  await naoPode('não troca a data de criação', db(ARQ).ref('arquitetura-definicoes/MAPA_FLORESTA/criadoEm').set('2020-01-01T00:00:00.000Z'));
+  await naoPode('não troca quem criou', db(ARQ).ref('arquitetura-definicoes/MAPA_FLORESTA/criadoPor/email').set('outro@previ.com.br'));
+  await naoPode('definição vazia é recusada', db(ARQ).ref('arquitetura-definicoes/MAPA_FLORESTA/definicao').set(''));
+  await naoPode('título vazio é recusado', db(ARQ).ref('arquitetura-definicoes/MAPA_FLORESTA/titulo').set(''));
+  await naoPode('link sem https é recusado', db(ARQ).ref('arquitetura-definicoes/MAPA_FLORESTA/link').set('http://exemplo.com/mapa.pdf'));
+  await pode('link https é aceito', db(ARQ).ref('arquitetura-definicoes/MAPA_FLORESTA/link').set('https://exemplo.sharepoint.com/mapa.pdf'));
+  await naoPode('campo desconhecido é recusado', db(ARQ).ref('arquitetura-definicoes/MAPA_FLORESTA/versaoInterna').set(2));
+  await naoPode('chave fora do padrão (minúsculas) é recusada', gravarDef(ARQ, 'mapa_floresta'));
+  await naoPode('histórico: não reescreve uma linha', db(ARQ).ref('arquitetura-definicoes-auditoria/MAPA_FLORESTAa').set(audDef('MAPA_FLORESTA', 'alterada')));
+  await naoPode('histórico: não apaga uma linha', db(ADMIN).ref('arquitetura-definicoes-auditoria/MAPA_FLORESTAa').remove());
+  await naoPode('histórico: não apaga o histórico inteiro', db(ADMIN).ref('arquitetura-definicoes-auditoria').remove());
+  await naoPode('histórico: tipo desconhecido é recusado', db(ARQ).ref('arquitetura-definicoes-auditoria/x1').set(audDef('MAPA_FLORESTA', 'apagada')));
+  await naoPode('histórico: linha de definição que não existe é recusada', db(ARQ).ref('arquitetura-definicoes-auditoria/x2').set(audDef('OUTRA_DEF')));
+  await naoPode('histórico: "Avaliação" não acrescenta linha', db(AVAL).ref('arquitetura-definicoes-auditoria/x3').set(audDef('MAPA_FLORESTA', 'alterada')));
   await testEnv.cleanup();
   console.log('\n' + total + ' verificações, ' + falhas + ' falha(s).');
   process.exit(falhas ? 1 : 0);

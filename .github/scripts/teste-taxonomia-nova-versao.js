@@ -3,9 +3,11 @@
  *
  * O que se prova:
  *   1. O detalhe do conceito mostra o código ("Código: SQ").
- *   2. A definição vigente não tem "Editar": o botão (em "Ver detalhes") é "Nova versão da definição".
+ *   2. A definição vigente não tem "Editar": o botão é "Nova versão da definição", à vista NO PRÓPRIO cartão da
+ *      definição vigente (sem precisar abrir "Ver detalhes"), o primeiro das ações do cartão.
  *   3. "Nova versão da definição" abre o MESMO formulário de "+ Adicionar texto-fonte", PRÉ-PREENCHIDO com o texto,
- *      o contexto, o tipo de redação e o rótulo da vigente; o formulário fica à vista e cabe na tela.
+ *      o contexto, o tipo de redação e o rótulo da vigente, junto da definição (seção "Definição vigente"); o
+ *      formulário fica à vista e cabe na tela.
  *   4. Salvar cria uma fonte NOVA "em validação", com criadoEm/criadoPor próprios; a fonte anterior fica
  *      intacta (texto, criadoPor, criadoEm, situação) e a definição vigente NÃO muda; auditado como nova versão.
  *   5. A tela guia o próximo passo (aviso na nova fonte) e "Usar como vigente" (o fluxo de sempre) troca a
@@ -76,10 +78,14 @@ const escritas = (page) => page.evaluate(() => (window.__ESCRITAS || []).length)
 
     console.log('\n== 1. Código do conceito e botão da vigente ==');
     afirma((await page.locator('#taxCodigo').innerText()).trim() === 'Código: SQ' && await page.locator('#taxCodigo').isVisible(), 'o detalhe mostra "Código: SQ"');
+    /* sem abrir "Ver detalhes": a ação de redação está à vista no cartão da definição vigente */
+    afirma(await page.locator('#taxSecDefinicao #taxVigenteBloco article[data-fonte="f1"] .tax-acoes--fonte [data-tax="nova-versao"]').isVisible(), '"Nova versão da definição" à vista no cartão da definição vigente, sem abrir "Ver detalhes"');
+    afirma((await page.locator('article[data-fonte="f1"] .tax-acoes--fonte .btn').first().textContent()).trim() === 'Nova versão da definição', 'e é a primeira ação do cartão');
     await page.click('article[data-fonte="f1"] [data-tax="ver"]');
-    await page.waitForSelector('article[data-fonte="f1"] [data-tax="nova-versao"]', { timeout: 4000 });
-    afirma(await page.locator('article[data-fonte="f1"] [data-tax="editar-fonte"]').count() === 0, 'a definição vigente NÃO tem "Editar"');
-    afirma((await page.locator('article[data-fonte="f1"] [data-tax="nova-versao"]').textContent()).trim() === 'Nova versão da definição', 'no lugar dele: "Nova versão da definição"');
+    await esperarCondicao(page, () => { const b = document.querySelector('article[data-fonte="f1"] [data-tax="ver"]'); return !!b && b.getAttribute('aria-expanded') === 'true'; }, null, { limite: 4000, descricao: 'detalhes da vigente abertos' });
+    afirma(await page.locator('article[data-fonte="f1"] [data-tax="editar-fonte"]').count() === 0, 'a definição vigente NÃO tem "Editar" (nem com os detalhes abertos)');
+    afirma(await page.locator('article[data-fonte="f1"] [data-tax="nova-versao"]').count() === 1 && (await page.locator('article[data-fonte="f1"] [data-tax="nova-versao"]').textContent()).trim() === 'Nova versão da definição', 'no lugar dele: um único "Nova versão da definição"');
+    await page.click('article[data-fonte="f1"] [data-tax="ver"]');
     afirma(await page.evaluate(() => { const r = document.querySelector('article[data-fonte="f1"] [data-tax="nova-versao"]').getBoundingClientRect(); return r.width > 0 && r.left >= 0 && r.right <= window.innerWidth + 1; }), 'o botão cabe na largura da tela');
 
     console.log('\n== 2. Cancelar a nova versão não grava nada ==');
@@ -90,15 +96,17 @@ const escritas = (page) => page.evaluate(() => (window.__ESCRITAS || []).length)
     afirma(await escritas(page) === e0 && Object.keys((await org(page)).fontes.SQ).length === 2, 'cancelar: nenhuma escrita, nenhuma fonte nova');
 
     console.log('\n== 3. Formulário pré-preenchido com a vigente ==');
-    await page.click('article[data-fonte="f1"] [data-tax="ver"]');
-    await page.waitForSelector('article[data-fonte="f1"] [data-tax="nova-versao"]', { timeout: 4000 });
     await page.click('article[data-fonte="f1"] [data-tax="nova-versao"]');
     await page.waitForSelector('#taxFormFonte[data-nova-versao="f1"]', { timeout: 4000 });
     afirma(await page.inputValue('#taxF_texto') === F1.texto && await page.inputValue('#taxF_contexto') === F1.contexto && await page.inputValue('#taxF_tipoRedacao') === F1.tipoRedacao && await page.inputValue('#taxF_rotulo') === F1.rotulo,
       'texto, contexto, tipo de redação e rótulo vêm da definição vigente');
     afirma(await page.inputValue('#taxF_situacao') === 'em validação', 'a nova versão entra "em validação" (como toda fonte nova)');
     afirma(/Nova versão da definição/.test(await page.locator('#taxNovaVersaoTitulo').innerText()) && /o texto atual não muda/.test(await page.locator('#taxNovaVersaoAjuda').innerText()), 'o formulário diz que é uma nova versão e que o texto atual não muda');
-    afirma(await page.locator('#taxFontesDisponiveis #taxFormFonte').count() === 1 && await page.locator('[data-tax="nova-fonte"]').count() === 0, 'é o mesmo formulário de "+ Adicionar texto-fonte" (no bloco de fontes disponíveis)');
+    afirma(await page.locator('#taxSecDefinicao #taxFormFonte').count() === 1 && await page.locator('#taxFormFonte').count() === 1 && await page.locator('#taxFormFonte #taxF_texto, #taxFormFonte #taxF_contexto, #taxFormFonte #taxF_tipoRedacao, #taxFormFonte #taxF_rotulo, #taxFormFonte #taxF_situacao').count() === 5 && await page.locator('[data-tax="nova-fonte"]').count() === 0,
+      'é o mesmo formulário de "+ Adicionar texto-fonte" (mesmos campos), aberto junto da definição vigente; "+ Adicionar texto-fonte" some enquanto isso');
+    /* a tela rola até o formulário com a rolagem suave do site: medir só depois que ela assenta
+       (no CI, mais lento, a medida no meio da animação pegava o formulário ainda fora da tela) */
+    await esperarCondicao(page, () => { const r = document.querySelector('#taxFormFonte').getBoundingClientRect(); return r.top < window.innerHeight && r.bottom > 0; }, null, { descricao: 'o formulário da nova versão entrar na tela' });
     afirma(await page.evaluate(() => { const r = document.querySelector('#taxFormFonte').getBoundingClientRect(); return r.top < window.innerHeight && r.bottom > 0 && r.left >= 0 && r.right <= window.innerWidth + 1; }), 'o formulário fica à vista e cabe na largura da tela');
     afirma(await larguraOk(page), 'sem rolagem horizontal');
 

@@ -89,6 +89,13 @@ const larguraOk = (page) => page.evaluate(() => document.documentElement.scrollW
     console.log('\n== Ficha da versão vigente (v3) ==');
     await page.click('.avp-act-ver[data-key="k3"]');
     await page.waitForSelector('#avpIdentificacao');
+    /* todo histórico começa recolhido (versões, curadoria, decisão final) */
+    const historicosAbertos = () => page.evaluate(() => Array.from(document.querySelectorAll('#avaliacoesPainel details.avp-historico-recolhido, #avaliacoesPainel details.avp-aut-historico')).filter((d) => d.open).map((d) => d.id));
+    afirma(await contar(page, '#avaliacoesPainel details.avp-historico-recolhido, #avaliacoesPainel details.avp-aut-historico') >= 3 && (await historicosAbertos()).length === 0,
+      'ficha: os históricos (versões, curadoria, decisão final) começam recolhidos — abertos: ' + JSON.stringify(await historicosAbertos()));
+    await esperarCondicao(page, () => /— \d+ alteraç/.test((document.querySelector('#avpCuradoriaHistoricoDet summary') || {}).textContent || ''), null, { descricao: 'o cabeçalho do histórico da curadoria trazer a contagem' });
+    afirma(/^Histórico da Curadoria — \d+ alteraç(ão|ões)$/.test((await page.locator('#avpCuradoriaHistoricoDet summary').textContent()).trim()) &&
+      /^Histórico da Decisão final — \d+ alteraç(ão|ões)$/.test((await page.locator('#avpDecisaoHistoricoDet summary').textContent()).trim()), 'cabeçalhos "Histórico … — N alterações"');
     const ident = await page.locator('#avpIdentificacao').textContent(); /* descrição, público, necessidade e observações ficam recolhidos em "Dados do item" */
     afirma(/Plano Exemplo/.test(ident) && /v3/.test(ident) && /descrição do Plano Exemplo/.test(ident) && /participantes/.test(ident) && /entender o plano/.test(ident) && /obs gerais/.test(ident) && /Avaliadora 3/i.test(ident), 'Identificação: nome, versão, descrição, público, necessidade, observações e quem avaliou');
     afirma(!/versão anterior/i.test(ident) && await contar(page, '#avpAvisoVersaoAnterior') === 0, 'a vigente não tem aviso de versão anterior');
@@ -107,6 +114,7 @@ const larguraOk = (page) => page.evaluate(() => document.documentElement.scrollW
     console.log('\n== Versão anterior (v1): só consulta ==');
     await page.evaluate(() => { const d = document.getElementById('avpHistoricoVersoesLista'); if (d) d.open = true; }); /* o Histórico de versões fica recolhido: a pessoa abre antes de escolher a versão */ await page.click('.avp-hist-abrir[data-key="k1"]');
     await page.waitForSelector('#avpAvisoVersaoAnterior');
+    afirma((await historicosAbertos()).length === 0, 'abrir outra versão começa de novo com os históricos recolhidos (o Histórico de versões tinha sido aberto na v3)');
     afirma(/versão v1/.test(await page.locator('#avpAvisoVersaoAnterior').innerText()) && /vigente é a v3/.test(await page.locator('#avpAvisoVersaoAnterior').innerText()), 'aviso: "Você está vendo a versão v1… a situação vigente é a v3"');
     afirma(await contar(page, '#avpReavaliarBtn') === 0, 'versão anterior: sem Reavaliar (reavaliar parte sempre da vigente)');
     afirma(await contar(page, '#avpSalvarDecisaoBtn') === 0 && await contar(page, '#avpDecisaoLeitura') === 1 && await contar(page, '.avp-especializacao-cadastro-card') === 0, 'versão anterior: decisão e especialização só em leitura');
