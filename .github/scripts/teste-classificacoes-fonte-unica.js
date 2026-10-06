@@ -423,7 +423,24 @@ async function rodada(browser, viewport, nomeTela, sufixo) {
     const histMotor = await texto(page, '#avpMotorArqHistorico');
     afirma(/Texto/.test(histMotor) && /canal/.test(histMotor), 'histórico do motor: a linha antiga de "Texto" continua listada (' + histMotor.slice(0, 120) + ')');
     afirma(await larguraOk(page), 'motor sem rolagem horizontal');
+    /* Etapa 6.1: textos auxiliares do motor também usam o nome vigente de "a-validar" (aqui "Tx a-validar") */
+    const msgs = await page.evaluate(() => window.faMotorArquitetura.validarRegras({ regras: [
+      { codigo: 'DINAMICA', ordem: 1, resultado: 'canal', conflitoDinamico: true, condicoes: { all: [{ campo: 'P9', valor: 'SIM' }] } },
+      { codigo: 'FB', ordem: 2, resultado: 'a-validar', tipo: 'FALLBACK' }] }));
+    afirma(msgs.some((m) => m.indexOf('precisa classificar como "Tx a-validar" (a-validar)') !== -1) && !msgs.some((m) => m.indexOf('"A validar"') !== -1),
+      'mensagem de validação do conflito dinâmico usa o nome vigente + código', JSON.stringify(msgs));
     afirma(erros.length === 0, 'nenhum erro de JS (' + erros.length + ')');
+    await ctx.close();
+  }
+  {
+    /* Etapa 6.1: no editor de regras, a ajuda da regra de fallback usa o nome vigente de "a-validar" */
+    const { ctx, page, erros } = await abrir(browser, viewport, { rota: 'admin?arq=motores' });
+    await page.waitForSelector('#avpMotorArqEditarBtn', { timeout: 15000 });
+    await page.click('#avpMotorArqEditarBtn');
+    await esperarCondicao(page, () => Array.from(document.querySelectorAll('.sq-cond-rotulo')).some((e) => /regra de fallback/.test(e.textContent)), null, { descricao: 'editor de regras com a regra de fallback' });
+    const ajudaFallback = await page.evaluate(() => Array.from(document.querySelectorAll('.sq-cond-rotulo')).filter((e) => /regra de fallback/.test(e.textContent)).map((e) => e.textContent).join(' | '));
+    afirma(ajudaFallback.indexOf('o item fica como "Tx a-validar" para análise humana') !== -1 && ajudaFallback.indexOf('"A validar"') === -1, 'editor de regras: a ajuda do fallback usa o nome vigente (' + ajudaFallback.slice(0, 140) + ')');
+    afirma(erros.length === 0, 'editor: nenhum erro de JS (' + erros.length + ')');
     await ctx.close();
   }
 
