@@ -192,6 +192,16 @@ const contextosAbertos = [];
 async function novaPagina(browser, formato, email, erros, apostas, cfgExtra, dbOverrides) {
   const ctx = await browser.newContext(formato.opts);
   contextosAbertos.push(ctx);
+  /* __ESCRITAS (do falso) guarda o valor POR REFERÊNCIA, e o falso entrega aos ouvintes o próprio objeto
+     guardado — a tela pode alterá-lo no lugar depois (o Firebase de verdade entrega cópias). Para provar o
+     que FOI gravado, o teste cria o __ESCRITAS antes do falso (ele reaproveita o array) e congela o JSON de
+     cada escrita no instante do pedido, no mesmo índice. O falso não muda. */
+  await ctx.addInitScript(() => {
+    const esc = []; window.__ESCRITAS_JSON = [];
+    const push = esc.push;
+    esc.push = function () { for (const x of arguments) window.__ESCRITAS_JSON.push(JSON.stringify(x && x.valor !== undefined ? x.valor : null)); return push.apply(this, arguments); };
+    window.__ESCRITAS = esc;
+  });
   const page = await ctx.newPage();
   page.on('pageerror', (e) => erros.push(String(e).split('\n')[0]));
   /* Sem isso, o Playwright descarta (Cancelar) qualquer confirm()/alert()
@@ -221,6 +231,72 @@ const textoDaTela = (page) => page.evaluate(() => {
    mensuráveis virando "corrija a inconsistência" bem antes do clique em
    CONTINUAR). Clique nativo via DOM não depende de rolagem nenhuma. */
 const clicarSemRolagem = (page, seletor) => page.$eval(seletor, (el) => el.click());
+/* G4 — GRAVAÇÕES. marcarBanco() tira uma foto do que importa no banco falso ANTES da ação; esperarGravacao()
+   espera a gravação que AQUELA ação provoca, nunca um tempo fixo, e se ela não chega o cenário falha dizendo
+   qual gravação faltou. Tipos:
+     'escrita'         uma escrita nova (depois da marca) cujo caminho casa com extra.caminho (e, com
+                       extra.nulo, que grava null — a liberação de um lock). Vale no instante do PEDIDO;
+     'aplicada'        a escrita que ESTA ação pediu (depois da marca, caminho casando com extra.caminho), com
+                       extra.contem no valor CONGELADO no instante do pedido, e já APLICADA: o nó do banco
+                       naquele caminho é o próprio objeto gravado. Para quando a tela só muda depois da
+                       confirmação. Mira o nó exato da ação — outro nó parecido, ou outro valor, não conta;
+     'grupo-salvo'     o ciclo de salvamento de um grupo terminou (atualizadoEm mudou);
+     'etapa-avancou'   a etapa de um grupo mudou no banco (CONTINUAR gravou e avançou);
+     'novo-grupo'      nasceu um grupo; 'nova-execucao': apostas/<turma>/atual mudou;
+     'aviso-ou-avanco' depois de CONTINUAR: ou o aviso didático apareceu, ou a etapa avançou (ou chegou ao mapa).
+   Medido (sonda do Bloco 3): as gravações por clique chegam em 30–150 ms; o salvamento automático, em ~600 ms —
+   e, por vir do mesmo toque que agenda a regra de coerência de 500 ms, a chegada dele prova que a pausa passou. */
+const marcarBanco = (pg) => pg.evaluate(() => {
+  const db = (window.__CFG || {}).__dbReal || (window.__CFG || {}).db || {};
+  const grupos = {}; const atual = {};
+  Object.keys(db.apostas || {}).forEach((t) => {
+    const a = db.apostas[t] || {}; atual[t] = a.atual || null;
+    Object.keys(a.execucoes || {}).forEach((e) => Object.keys((a.execucoes[e] || {}).grupos || {}).forEach((g) => {
+      const gr = a.execucoes[e].grupos[g] || {}; grupos[t + '/' + e + '/' + g] = { em: gr.atualizadoEm || null, etapa: gr.etapa || null };
+    }));
+  });
+  return { esc: (window.__ESCRITAS || []).length, grupos, atual };
+});
+async function esperarGravacao(pg, marca, tipo, extra, descricao) {
+  try {
+    await pg.waitForFunction(([m, tipo, extra]) => {
+      if (tipo === 'escrita') {
+        return (window.__ESCRITAS || []).slice(m.esc).some((x) => new RegExp(extra.caminho).test(x.path) && (!extra.nulo || x.valor === null));
+      }
+      if (tipo === 'aviso-ou-avanco') {
+        const av = document.querySelector('#apostaAvisos');
+        const t = document.querySelector('.aposta-etapa-titulo');
+        return (!!av && !!av.textContent.trim()) || !!document.querySelector('.aposta-mapa') || (!!t && t.textContent !== extra.tituloAntes);
+      }
+      const db = (window.__CFG || {}).__dbReal || (window.__CFG || {}).db || {};
+      if (tipo === 'aplicada') {
+        const re = new RegExp(extra.caminho);
+        const noCaminho = (cam) => String(cam).split('/').filter(Boolean).reduce((no, k) => (no && typeof no === 'object' ? no[k] : undefined), db);
+        const esc = window.__ESCRITAS || []; const json = window.__ESCRITAS_JSON || [];
+        for (let i = m.esc; i < esc.length; i++) {
+          const x = esc[i];
+          if (re.test(x.path) && String(json[i]).indexOf(extra.contem) !== -1 && noCaminho(x.path) === x.valor) return true;
+        }
+        return false;
+      }
+      const grupos = {}; const atual = {};
+      Object.keys(db.apostas || {}).forEach((t) => {
+        const a = db.apostas[t] || {}; atual[t] = a.atual || null;
+        Object.keys(a.execucoes || {}).forEach((e) => Object.keys((a.execucoes[e] || {}).grupos || {}).forEach((g) => {
+          const gr = a.execucoes[e].grupos[g] || {}; grupos[t + '/' + e + '/' + g] = { em: gr.atualizadoEm || null, etapa: gr.etapa || null };
+        }));
+      });
+      if (tipo === 'grupo-salvo') return Object.keys(grupos).some((k) => !m.grupos[k] || grupos[k].em !== m.grupos[k].em);
+      if (tipo === 'etapa-avancou') return Object.keys(grupos).some((k) => !!m.grupos[k] && grupos[k].etapa !== m.grupos[k].etapa);
+      if (tipo === 'novo-grupo') return Object.keys(grupos).length > Object.keys(m.grupos).length;
+      if (tipo === 'nova-execucao') return Object.keys(atual).some((t) => atual[t] !== m.atual[t]);
+      throw new Error('tipo de gravação desconhecido: ' + tipo);
+    }, [marca, tipo, extra || {}], { timeout: 8000 });
+  } catch (e) {
+    if (e && (e.name === 'TimeoutError' || /Timeout \d+ms exceeded/.test(String(e.message)))) throw new Error('A gravação esperada não chegou em 8 s: ' + descricao);
+    throw e;
+  }
+}
 
 (async () => {
   const browser = await chromium.launch();
@@ -372,8 +448,9 @@ const clicarSemRolagem = (page, seletor) => page.$eval(seletor, (el) => el.click
         anota('o painel mostra o rótulo "Prazo", igual à etapa 1',
           /^prazo$/i.test(rotuloPrazoFac), 'rótulo: "' + rotuloPrazoFac + '"');
         await novo.fill('[data-mis="verbo"]', 'Reduzir');
+        const _g364 = await marcarBanco(novo);
         await novo.click('#apostaSalvarMissao');
-        await novo.waitForTimeout(400);
+        await esperarGravacao(novo, _g364, 'aplicada', { caminho: '/execucoes/[^/]+/missao$', contem: '"verbo":"Reduzir"' }, 'a missão-base que este clique salvou, aplicada no banco com o verbo "Reduzir"');
         const gravouMissao = await novo.evaluate(() => (window.__ESCRITAS || [])
           .filter((x) => /\/missao$/.test(x.path)).slice(-1)[0] || null);
         const salvo = gravouMissao && (gravouMissao.valor !== undefined ? gravouMissao.valor : gravouMissao.value);
@@ -437,8 +514,9 @@ const clicarSemRolagem = (page, seletor) => page.$eval(seletor, (el) => el.click
         await novo.fill('[data-mis="verbo"]', 'Melhorar');
         await novo.fill('[data-mis="oQue"]', 'a experiência do participante');
         await novo.fill('#apostaNovoGrupo', 'Grupo 2');
+        const _g430 = await marcarBanco(novo);
         await novo.click('#apostaCriarGrupo');
-        await novo.waitForTimeout(500);
+        await esperarGravacao(novo, _g430, 'novo-grupo', {}, 'o grupo novo gravado no banco');
         const rascunhoSobreviveu = await novo.evaluate(() => ({
           verbo: (document.querySelector('[data-mis="verbo"]') || {}).value || '',
           oQue: (document.querySelector('[data-mis="oQue"]') || {}).value || '',
@@ -1640,8 +1718,9 @@ const clicarSemRolagem = (page, seletor) => page.$eval(seletor, (el) => el.click
             const modalTxt = await page.evaluate(() => (document.querySelector('.aposta-confirmar-overlay .modal-box') || {}).textContent || '');
             anota('o clique com o plano completo abre o modal próprio perguntando se o experimento já foi executado',
               /experimento já foi executado/i.test(modalTxt), modalTxt);
+            const _g1661 = await marcarBanco(page);
             await clicarSemRolagem(page, '.aposta-modal-sim-btn');
-            await page.waitForTimeout(300);
+            await esperarGravacao(page, _g1661, 'grupo-salvo', {}, 'o grupo salvo depois de "Registrar resultados"');
             const modoRegistro = await page.evaluate(() => ({
               banner: (document.querySelector('.aposta-campos .aposta-herdada') || {}).textContent || '',
               pergunta: (document.querySelector('.aposta-pergunta') || {}).textContent || '',
@@ -1697,8 +1776,9 @@ const clicarSemRolagem = (page, seletor) => page.$eval(seletor, (el) => el.click
                do laço em '#apostaSeguir' desabilitado não levaria a
                etapa nenhuma adiante). */
             await page.waitForSelector('#apostaClassificacaoHipotese', { timeout: 5000 });
+            const _g1719 = await marcarBanco(page);
             await page.locator('#apostaClassificacaoHipotese .aposta-opcao', { hasText: 'Parcialmente sustentada' }).click();
-            await page.waitForTimeout(200);
+            await esperarGravacao(page, _g1719, 'grupo-salvo', {}, 'o grupo salvo depois de escolher a classificação');
 
             /* Mapa/resumo antes da execução: por resultado selecionado no
                Experimento, "aguardando execução" em vez de ficar em
@@ -1785,19 +1865,22 @@ const clicarSemRolagem = (page, seletor) => page.$eval(seletor, (el) => el.click
                 return el ? { hidden: el.hidden, open: el.open, resumo: (el.querySelector('summary') || {}).textContent || '' } : null;
               });
             }
+            const _g1808 = await marcarBanco(page);
             await page.locator('.aposta-opcao', { hasText: 'Ampliar' }).click();
-            await page.waitForTimeout(200);
+            await esperarGravacao(page, _g1808, 'grupo-salvo', {}, 'o grupo salvo depois de escolher "Ampliar"');
             let estado = await estadoNovaHipotese();
             anota('decisão "Ampliar" não mostra a Nova hipótese', !!estado && estado.hidden, JSON.stringify(estado));
 
+            const _g1813 = await marcarBanco(page);
             await page.locator('.aposta-opcao', { hasText: 'Ajustar e testar novamente' }).click();
-            await page.waitForTimeout(200);
+            await esperarGravacao(page, _g1813, 'grupo-salvo', {}, 'o grupo salvo depois de escolher "Ajustar e testar novamente"');
             estado = await estadoNovaHipotese();
             anota('decisão "Ajustar e testar novamente" mostra a Nova hipótese recolhida, com o convite "Reformular hipótese também"',
               !!estado && !estado.hidden && !estado.open && /Reformular hip[óo]tese também/i.test(estado.resumo), JSON.stringify(estado));
 
+            const _g1819 = await marcarBanco(page);
             await page.locator('.aposta-opcao', { hasText: 'Reformular a hipótese' }).click();
-            await page.waitForTimeout(200);
+            await esperarGravacao(page, _g1819, 'grupo-salvo', {}, 'o grupo salvo depois de escolher "Reformular a hipótese"');
             estado = await estadoNovaHipotese();
             anota('decisão "Reformular a hipótese" abre a Nova hipótese sozinha',
               !!estado && !estado.hidden && estado.open, JSON.stringify(estado));
@@ -1997,11 +2080,12 @@ const clicarSemRolagem = (page, seletor) => page.$eval(seletor, (el) => el.click
         !SEGREDO.test(antesDeRevelar), (antesDeRevelar.match(SEGREDO) || [''])[0]);
 
       /* Vai ao mapa pela trilha e revela dali. */
+      const _g2024 = await marcarBanco(adm);
       await adm.evaluate(() => {
         const itens = Array.from(document.querySelectorAll('.aposta-trilha-item')).filter((i) => !i.disabled);
         itens[itens.length - 1].click();
       });
-      await adm.waitForTimeout(400);
+      await esperarGravacao(adm, _g2024, 'grupo-salvo', {}, 'o grupo salvo depois do clique na trilha');
       await adm.evaluate(() => {
         const b = document.querySelector('#apostaSeguir');
         if (b) b.click();
@@ -2173,8 +2257,9 @@ const clicarSemRolagem = (page, seletor) => page.$eval(seletor, (el) => el.click
         /* Item 4 do ajuste de fluxo: modal próprio (não window.confirm)
            perguntando se o experimento já foi executado. */
         await pgEv.waitForSelector('.aposta-modal-sim-btn', { timeout: 5000 });
+        const _g2194 = await marcarBanco(pgEv);
         await pgEv.$eval('.aposta-modal-sim-btn', (el) => el.click());
-        await pgEv.waitForTimeout(300);
+        await esperarGravacao(pgEv, _g2194, 'grupo-salvo', {}, 'o grupo salvo depois de "Registrar resultados"');
         const fonteEfetivaRot = await pgEv.evaluate(() =>
           Array.from(document.querySelectorAll('.aposta-campo-rot')).some((r) => /Fonte utilizada/i.test(r.textContent)));
         anota('depois de "Registrar resultados do experimento", a fonte pós-execução aparece como "Fonte utilizada"', fonteEfetivaRot);
@@ -2291,8 +2376,9 @@ const clicarSemRolagem = (page, seletor) => page.$eval(seletor, (el) => el.click
           !/Aprendizado/i.test(soFaltaClassificacao.pendencias),
           JSON.stringify(soFaltaClassificacao));
 
+        const _g2315 = await marcarBanco(pgEv);
         await pgEv.locator('#apostaClassificacaoHipotese .aposta-opcao', { hasText: /^Sustentada$/ }).click();
-        await pgEv.waitForTimeout(200);
+        await esperarGravacao(pgEv, _g2315, 'grupo-salvo', {}, 'o grupo salvo depois de escolher "Sustentada"');
         const comClassificacao = await pgEv.evaluate(() => ({
           desabilitado: (document.getElementById('apostaSeguir') || {}).disabled,
           pendencias: (document.querySelector('[data-evidencia-pendencias]') || {}).textContent || '',
@@ -2713,8 +2799,9 @@ const clicarSemRolagem = (page, seletor) => page.$eval(seletor, (el) => el.click
 
         /* "Ampliar" com uma meta que não foi batida: alerta não-bloqueante,
            com os dois botões — nunca muda a decisão sozinho. */
+        const _g2744 = await marcarBanco(pgDec);
         await pgDec.locator('.aposta-opcao', { hasText: 'Ampliar' }).click();
-        await pgDec.waitForTimeout(200);
+        await esperarGravacao(pgDec, _g2744, 'grupo-salvo', {}, 'o grupo salvo depois de escolher "Ampliar"');
         /* Item 3 do ajuste de Decisão: microexplicação sempre visível
            embaixo dos botões, com o texto exato pedido — não é a mesma
            coisa que a dica em title (hover). */
@@ -2741,10 +2828,12 @@ const clicarSemRolagem = (page, seletor) => page.$eval(seletor, (el) => el.click
         anota('"MANTER AMPLIAR" só dispensa o alerta — não muda a decisão escolhida',
           decisaoContinuaAmpliar.valor === 'Ampliar' && decisaoContinuaAmpliar.alertaVazio, JSON.stringify(decisaoContinuaAmpliar));
 
+        const _g2772 = await marcarBanco(pgDec);
         await pgDec.locator('.aposta-opcao', { hasText: 'Ampliar' }).click();
-        await pgDec.waitForTimeout(200);
+        await esperarGravacao(pgDec, _g2772, 'grupo-salvo', {}, 'o grupo salvo depois de escolher "Ampliar"');
+        const _g2774 = await marcarBanco(pgDec);
         await pgDec.locator('#apostaDecisaoAlerta button', { hasText: 'REVER DECISÃO' }).click();
-        await pgDec.waitForTimeout(150);
+        await esperarGravacao(pgDec, _g2774, 'grupo-salvo', {}, 'o grupo salvo depois de "REVER DECISÃO"');
         const depoisDeRever = await pgDec.evaluate(() => ({
           ativa: !!document.querySelector('.aposta-opcao.is-ativa'),
           frase: ((document.getElementById('apostaFrase') || {}).textContent || '').replace(/\s+/g, ' '),
@@ -2798,8 +2887,9 @@ const clicarSemRolagem = (page, seletor) => page.$eval(seletor, (el) => el.click
         await pgDec.fill('[data-campo="proximaAcao"]', 'revisar a comunicação e repetir o teste');
         /* Fase 4: "Ajustar e testar novamente" só libera CONTINUAR com um
            ponto de reinício escolhido. */
+        const _g2830 = await marcarBanco(pgDec);
         await pgDec.locator('.aposta-opcao', { hasText: 'Experimento' }).click();
-        await pgDec.waitForTimeout(250);
+        await esperarGravacao(pgDec, _g2830, 'grupo-salvo', {}, 'o grupo salvo depois de escolher o ponto de reinício');
         await pgDec.$eval('#apostaSeguir', (el) => el.click());
         await pgDec.waitForTimeout(400);
         const dataDecisaoGravada = await pgDec.evaluate(() => {
@@ -2878,8 +2968,9 @@ const clicarSemRolagem = (page, seletor) => page.$eval(seletor, (el) => el.click
            preenchida) tem de reavaliar CONTINUAR na hora do clique — não
            só a Nova Hipótese recolher visualmente. Antes deste ajuste, o
            clique só atualizava a frase/os grupos, nunca o disabled. */
+        const _g2912 = await marcarBanco(pgRef);
         await pgRef.locator('.aposta-opcao', { hasText: 'Ampliar' }).click();
-        await pgRef.waitForTimeout(200);
+        await esperarGravacao(pgRef, _g2912, 'grupo-salvo', {}, 'o grupo salvo depois de escolher "Ampliar"');
         const trocouParaAmpliar = await pgRef.evaluate(() => ({
           desabilitado: (document.getElementById('apostaSeguir') || {}).disabled,
           novaHipVisivel: !(document.getElementById('apostaGrupoNovaHipotese') || {}).hidden,
@@ -2889,8 +2980,9 @@ const clicarSemRolagem = (page, seletor) => page.$eval(seletor, (el) => el.click
           trocouParaAmpliar.desabilitado === false, JSON.stringify(trocouParaAmpliar));
         anota('trocar para "Ampliar" esconde de novo o bloco da Nova Hipótese', !trocouParaAmpliar.novaHipVisivel);
 
+        const _g2923 = await marcarBanco(pgRef);
         await pgRef.locator('.aposta-opcao', { hasText: 'Reformular a hipótese' }).click();
-        await pgRef.waitForTimeout(200);
+        await esperarGravacao(pgRef, _g2923, 'grupo-salvo', {}, 'o grupo salvo depois da troca de decisão');
         const voltouPraReformular = await pgRef.evaluate(() => ({
           causaPreservada: (document.getElementById('ap-proxHipCausa') || {}).value || '',
           desabilitado: (document.getElementById('apostaSeguir') || {}).disabled,
@@ -3763,8 +3855,9 @@ const clicarSemRolagem = (page, seletor) => page.$eval(seletor, (el) => el.click
         const desabilitadoSemPonto = await pg13c.evaluate(() => (document.getElementById('apostaSeguir') || {}).disabled);
         anota('"Investigar mais" sem ponto de reinício escolhido mantém CONTINUAR desabilitado',
           desabilitadoSemPonto === true, String(desabilitadoSemPonto));
+        const _g3798 = await marcarBanco(pg13c);
         await pg13c.locator('.aposta-opcao[data-escolha="pontoDeReinicioEscolhido"]', { hasText: 'Mudanças Mensuráveis' }).click();
-        await pg13c.waitForTimeout(200);
+        await esperarGravacao(pg13c, _g3798, 'grupo-salvo', {}, 'o grupo salvo depois de escolher o ponto de reinício');
         const habilitadoComPonto = await pg13c.evaluate(() => (document.getElementById('apostaSeguir') || {}).disabled);
         anota('escolher o ponto de reinício libera CONTINUAR', habilitadoComPonto === false, String(habilitadoComPonto));
         await pg13c.click('#apostaSeguir');
@@ -3881,8 +3974,9 @@ const clicarSemRolagem = (page, seletor) => page.$eval(seletor, (el) => el.click
         anota('item 1 — "Concluir a aposta" aparece como opção de Decisão, ao lado das demais',
           opcoesDecisao.includes('Concluir a aposta'), JSON.stringify(opcoesDecisao));
 
+        const _g3916 = await marcarBanco(pg13dter);
         await pg13dter.locator('.aposta-opcao', { hasText: 'Concluir a aposta' }).click();
-        await pg13dter.waitForTimeout(200);
+        await esperarGravacao(pg13dter, _g3916, 'grupo-salvo', {}, 'o grupo salvo depois de escolher "Concluir a aposta"');
         const explicacaoConcluir = await pg13dter.evaluate(() => (document.querySelector('[data-escolha-explicacao="decisao"]') || {}).textContent || '');
         anota('item 1 — a microexplicação de "Concluir a aposta" nunca soa como "Ampliar" nem como "Interromper" (aprendizado suficiente, não abandono nem escala)',
           /aprendemos o suficiente/i.test(explicacaoConcluir), explicacaoConcluir);
@@ -3999,8 +4093,9 @@ const clicarSemRolagem = (page, seletor) => page.$eval(seletor, (el) => el.click
         /* Primeiro escolhe "Ampliar" — decisão comum, com a exigência de
            sempre — para confirmar que ela continua intacta antes de
            testar a troca. */
+        const _g4034 = await marcarBanco(pg13dquater);
         await pg13dquater.locator('.aposta-opcao', { hasText: 'Ampliar' }).click();
-        await pg13dquater.waitForTimeout(200);
+        await esperarGravacao(pg13dquater, _g4034, 'grupo-salvo', {}, 'o grupo salvo depois de escolher "Ampliar"');
         const bloqueadoAmpliar = await pg13dquater.evaluate(() => (document.getElementById('apostaSeguir') || {}).disabled);
         anota('item 2 — "Ampliar" continua exigindo Próxima ação normalmente (CONTINUAR desabilitado sem ela)',
           bloqueadoAmpliar === true, 'disabled=' + bloqueadoAmpliar);
