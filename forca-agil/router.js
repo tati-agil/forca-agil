@@ -119,7 +119,11 @@
     setTimeout(function () { if (el.parentNode) el.remove(); }, 3500);
   }
 
-  function show(page) {
+  /* redecisao = true quando a chamada só REFAZ a decisão de rota porque uma informação de acesso chegou
+     depois (login pronto, lista de admins, perfil da Avaliação, inscrição, facilitador). Se a pessoa
+     continua na MESMA página, nada de voltar ao topo: com rede lenta isso chega segundos depois e
+     jogava para cima quem já estava rolando a tela. Mudança real de página continua começando no topo. */
+  function show(page, redecisao) {
 
     /* Só verifica acesso admin depois que o Firebase terminou de resolver a sessão —
        sem isso, F5 em #admin redireciona para home porque _session ainda é null. */
@@ -194,7 +198,7 @@
          troca o hash) não pode jogar a pessoa de volta ao topo: a lista
          restaura a posição em que ela estava ao voltar. Trocar DE página
          continua começando no topo. */
-      if (!(page === 'avaliacoes' && current === 'avaliacoes')) window.scrollTo({ top: 0, behavior: 'auto' });
+      if (!(page === 'avaliacoes' && current === 'avaliacoes') && !(redecisao && current === page)) window.scrollTo({ top: 0, behavior: 'auto' });
       // Força elementos já revelados a aparecerem sem transição (evita re-trigger ao sair de display:none)
       el.querySelectorAll('.reveal').forEach(function (r) {
         r.style.transition = 'none';
@@ -286,7 +290,7 @@
     if (modal) { modal.hidden = true; modal.classList.remove('modal-overlay--forced'); }
     var closeBtn = document.getElementById('authClose');
     if (closeBtn) closeBtn.style.display = '';
-    show(route());
+    show(route(), true);
   }
 
   function mostrarMsgBloqueio() {
@@ -666,21 +670,21 @@
      acesso (Conteúdos, Treinamento, Avaliação), que dependem do mesmo
      isAdmin() pra saber que admin entra sem turma própria. */
   window.addEventListener('fa-admin-ready', function () {
-    show(route());
+    show(route(), true);
   });
   window.addEventListener('fa-facilitador-ready', function () {
-    if (route() === 'facilitador') show('facilitador');
+    if (route() === 'facilitador') show('facilitador', true);
   });
   /* O perfil na Avaliação de Produto/Serviço chegou: quem abriu #avaliacoes
      (F5, link salvo) antes disso só agora sabe se fica ou sai. */
   window.addEventListener('fa-avaliacao-ready', function () {
     var r = route();
-    if (r === 'avaliacoes' || r === 'admin') show(r);
+    if (r === 'avaliacoes' || r === 'admin') show(r, true);
   });
   /* A inscrição em turma terminou de ser lida: refaz a decisão de rota,
      que até agora estava propositalmente sem expulsar ninguém. */
   window.addEventListener('fa-enrolled-ready', function () {
-    show(route());
+    show(route(), true);
   });
 
   window.faRouter = {
