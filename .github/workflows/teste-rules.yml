@@ -39,4 +39,4 @@ jobs:
           /tmp/rules-deps/node_modules/.bin/firebase emulators:exec \
             --only database \
             --project demo-kyber-agil-rules-test \
-            "node .github/scripts/teste-rules.js && node .github/scripts/teste-rules-avaliacoes.js && node .github/scripts/teste-rules-taxonomia.js && node .github/scripts/teste-rules-perfis-avaliacao.js"
+            "node .github/scripts/teste-rules.js && node .github/scripts/teste-rules-avaliacoes.js && node .github/scripts/teste-rules-taxonomia.js && node .github/scripts/teste-rules-taxonomia-governanca.js && node .github/scripts/teste-rules-perfis-avaliacao.js"

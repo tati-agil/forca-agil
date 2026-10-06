@@ -16,6 +16,21 @@
      taxonomia/organizacional/{atributos,perfis,relacoes}
      taxonomia/<dominio>/auditoria/<codigo|_catalogo>/<pushKey>   (só acréscimo)
      taxonomia/meta/cargaInicial                   gravada UMA vez (importação única)
+     avaliacao-classificacoes/<codigo>             ligação canônica "esta classificação do motor da Avaliação
+                                                    usa o conceito arquitetural de MESMO código" — só governança
+                                                    (registradoEm/Por, auditoriaId); nome e definição continuam
+                                                    só aqui na Taxonomia, códigos do motor só em CAMADAS.
+                                                    Criada uma vez, nunca alterada nem apagada (nesta etapa não há
+                                                    "encerrar ligação"); só admin geral.
+     avaliacao-classificacoes-auditoria/<codigo>/<id>   histórico da ligação (só acréscimo)
+
+   GOVERNANÇA (Etapa 5) — tudo garantido pelas REGRAS do banco, não só pela tela:
+     - conceito arquitetural com ligação em avaliacao-classificacoes NÃO pode ser inativado;
+     - inativar exige motivo (conceito.inativacao) e reativar fica registrado (conceito.reativacao); os dois
+       apontam (auditoriaId) para a linha de auditoria NOVA gravada na mesma operação — sem histórico, o banco recusa;
+     - relação (organizacional): criada com histórico nas DUAS pontas (mesma chave/operacaoId) e depois só pode
+       ser ENCERRADA (motivo, data, autor) — nunca alterada nem apagada; "Alterar" = encerrar a antiga + criar a
+       nova na mesma gravação; relação idêntica a uma encerrada não pode ser criada de novo (reabrir: backlog).
 
    INTEGRIDADE DA DEFINIÇÃO VIGENTE — equivalência garantida pelo BANCO (regras, provadas no
    emulador em teste-rules-taxonomia.js):  fonte.situacao = "vigente"  ⇔  é a fonte apontada por
@@ -115,13 +130,16 @@
   /* ---------- estado ---------- */
   function novoHGDom() { return { estado: 'ocioso', cursor: null, temMais: false, erro: null }; }
   function novoHG() { return { carregou: false, carregando: false, itens: [], doms: { organizacional: novoHGDom(), arquitetural: novoHGDom() }, contagem: {} }; }
-  function novoDominio() { return { estado: 'ocioso', conceitos: {}, atributos: {}, selecionado: null, detalhe: null, edicao: null, confirmacao: null, expandida: null, arquivando: null, arquivadasAbertas: false, dica: false, novaVersao: null }; }
+  function novoDominio() { return { estado: 'ocioso', conceitos: {}, atributos: {}, selecionado: null, detalhe: null, edicao: null, confirmacao: null, expandida: null, arquivando: null, arquivadasAbertas: false, dica: false, novaVersao: null, inativando: null, relForm: null, encerrando: null }; }
   var st = {
     exp: null, /* exportação em andamento/resultado: { estado: lendo|gerando|ok|erro, formato, texto } */
     dominio: 'organizacional', email: null, raiz: null, opcoes: { somenteLeitura: false },
     meta: { estado: 'ocioso', cargaFeita: false }, importacao: null, flash: null, salvando: false,
     vista: 'lista', aba: 'dominio', /* aba: 'dominio' (lista + detalhe) ou 'historico' (histórico global) */
     hg: novoHG(),
+    /* ligações da Avaliação (avaliacao-classificacoes): 'ocioso'|'carregando'|'ok'|'erro'|'sem-acesso'.
+       "Ainda não sei" NUNCA vira "não está ligado": sem 'ok', nada que dependa da ligação é gravado. */
+    lig: { estado: 'ocioso', mapa: {} }, cargaLig: null,
     /* recolhíveis (<details data-det>): aberto/fechado por id, para sobreviver aos re-renders da tela */
     detAbertos: {},
     rolagemLista: null, /* celular: posição da lista ao abrir um conceito, devolvida pelo "← VOLTAR PARA A LISTA" */
@@ -218,13 +236,17 @@
 
   /* ---------- auditoria e gravação atômica ---------- */
   function caminhoAud(dom, codigo) { return RAIZ + '/' + dom + '/auditoria/' + codigo; }
+  function novaChave(caminho) { return db().ref(caminho).push().key; }
   function addAud(caminhos, dom, codigo, tipo, campo, anterior, novo, extra) {
-    var chave = db().ref(caminhoAud(dom, codigo)).push().key;
+    return addAudEm(caminhos, dom, codigo, novaChave(caminhoAud(dom, codigo)), tipo, campo, anterior, novo, extra);
+  }
+  function addAudEm(caminhos, dom, codigo, chave, tipo, campo, anterior, novo, extra) {
     caminhos[caminhoAud(dom, codigo) + '/' + chave] = Object.assign({
       tipo: tipo, conceito: codigo === '_catalogo' ? null : codigo, campo: campo || null,
       valorAnterior: anterior === undefined ? null : anterior, valorNovo: novo === undefined ? null : novo,
       usuario: usuarioAtual(), dataHora: agora()
     }, extra || {});
+    return chave;
   }
   /* ---------- gravação com resposta, SEM resposta e confirmação tardia ----------
      Uma gravação tem três desfechos: confirmada, recusada ou SEM RESPOSTA no prazo. Sem resposta NÃO é
@@ -236,7 +258,7 @@
   var TEXTO_BLOQUEIO = 'Aguarde: há uma gravação anterior ainda sem confirmação do servidor. Não repita a operação antes de a tela confirmar o que foi gravado.';
   function caminhoMarcador(caminhos) {
     /* o evento de auditoria vai na MESMA gravação atômica: se ele existe no servidor, a alteração foi aplicada */
-    var k = chaves(caminhos).filter(function (c) { return /\/auditoria\/[^/]+\/[^/]+$/.test(c); })[0];
+    var k = chaves(caminhos).filter(function (c) { return /\/auditoria\/[^/]+\/[^/]+$/.test(c) || /^avaliacao-classificacoes-auditoria\/[^/]+\/[^/]+$/.test(c); })[0];
     return k || null;
   }
   function lerServidorRest(caminho, cb) {
@@ -313,7 +335,7 @@
   }
   function aposSalvar(dom, codigo, mensagem) {
     var D = st.d[dom];
-    D.edicao = null; D.confirmacao = null; D.arquivando = null; D.expandida = null; D.dica = false; D.novaVersao = null;
+    D.edicao = null; D.confirmacao = null; D.arquivando = null; D.expandida = null; D.dica = false; D.novaVersao = null; D.inativando = null; D.relForm = null; D.encerrando = null;
     st.flash = { erro: false, texto: mensagem };
     carregarDominio(dom);
     if (codigo) { D.selecionado = codigo; carregarDetalhe(dom, codigo); }
@@ -443,8 +465,6 @@
       caminhos[base + '/criterios'] = crit.length ? mapa : null;
       antes.criterios = critAtual; depois.criterios = crit;
     }
-    var ativo = !!v.ativo;
-    if (ativo !== (c.ativo !== false)) { caminhos[base + '/ativo'] = ativo; antes.ativo = c.ativo !== false; depois.ativo = ativo; }
     if (!chaves(caminhos).length) { D.edicao.erro = 'Nada foi alterado.'; render(); return; }
     marcaConceito(caminhos, dom, codigo);
     chaves(depois).forEach(function (k) { addAud(caminhos, dom, codigo, 'alteracao_conceito', k, antes[k], depois[k]); });
@@ -520,6 +540,185 @@
     marcaConceito(caminhos, dom, codigo);
     addAud(caminhos, dom, codigo, 'alteracao_perfil', (D.atributos[atr] && D.atributos[atr].nome) || atr, atual ? textoPerfil(atual) : null, textoPerfil(dado));
     gravar(caminhos, function () { aposSalvar(dom, codigo, 'Atributo salvo.'); });
+  }
+  /* ---------- GOVERNANÇA (Etapa 5): ligações da Avaliação, inativação, relações ----------
+     Cada operação = UM update multipath com o dado + a(s) linha(s) de auditoria. As regras do banco exigem
+     que o dado aponte (auditoriaId) para a auditoria NOVA da mesma operação: a tela não é a única barreira. */
+  var NO_LIG = 'avaliacao-classificacoes', NO_LIG_AUD = 'avaliacao-classificacoes-auditoria';
+  var MAX_MOTIVO = 500;
+  function carregarLigacoes() {
+    var marca = st.lig.leitura = {};
+    st.lig.estado = 'carregando';
+    lerNo(NO_LIG, function (r) {
+      if (st.lig.leitura !== marca) return;
+      if (!r.ok) st.lig = { estado: r.negado ? 'sem-acesso' : 'erro', mapa: {} };
+      else st.lig = { estado: 'ok', mapa: r.valor || {} };
+      render();
+    });
+  }
+  function codigosMotor() { var C = window.faClassificacoes; return C && C.codigos ? C.codigos() : []; }
+  function estaLigado(codigo) { return !!(st.lig.estado === 'ok' && st.lig.mapa[codigo]); }
+  function mensagemLigado(c) {
+    return 'Este conceito está ligado à classificação "' + ((c && c.nome) || '') + '" da Avaliação e não pode ser inativado enquanto essa ligação estiver ativa.';
+  }
+  /* Filhos ativos (hierarquia "pai", só organizacional) e relações abertas que tocam o conceito. */
+  function afetadosPor(dom, codigo) {
+    var D = st.d[dom], det = D.detalhe && D.detalhe.codigo === codigo ? D.detalhe : null;
+    var filhos = dom !== 'organizacional' ? [] : chaves(D.conceitos).filter(function (k) { var x = D.conceitos[k]; return x && x.pai === codigo && x.ativo !== false; }).sort();
+    var rels = !det ? [] : chaves(det.relacoes).filter(function (k) { return det.relacoes[k] && !det.relacoes[k].encerrada; }).sort();
+    return { filhos: filhos, relacoes: rels, pronto: dom !== 'organizacional' || !!(det && !det.carregando && !det.erros.relacoes), erroRelacoes: !!(det && det.erros.relacoes) };
+  }
+  function textoRelacao(dom, r) {
+    var D = st.d[dom];
+    function n(cod) { return ((D.conceitos[cod] && D.conceitos[cod].nome) || cod) + ' (' + cod + ')'; }
+    return n(r.de) + ' ' + (RELACAO_ROTULO[r.tipo] || r.tipo) + ' ' + n(r.para);
+  }
+  function inativarConceito(dom, codigo) {
+    var D = st.d[dom], c = conceitoAtual(dom, codigo), f = D.inativando;
+    if (!f || f.codigo !== codigo) return;
+    function recusa(msg) { f.erro = msg; render(); }
+    if (c.ativo === false) return recusa('Este conceito já está inativo.');
+    if (dom === 'arquitetural') {
+      if (st.lig.estado !== 'ok') return recusa('Não foi possível confirmar se este conceito está ligado à Avaliação. Nada foi gravado. Tente novamente.');
+      if (estaLigado(codigo)) return recusa(mensagemLigado(c));
+    }
+    var motivo = String(f.motivo || '').trim();
+    if (!motivo) return recusa('Informe o motivo da inativação.');
+    if (motivo.length > MAX_MOTIVO) return recusa('O motivo pode ter até ' + MAX_MOTIVO + ' caracteres.');
+    var af = afetadosPor(dom, codigo);
+    if (!af.pronto) return recusa(af.erroRelacoes ? 'Não foi possível conferir as relações afetadas. Nada foi gravado. Tente novamente.' : 'Aguarde: as relações deste conceito ainda estão carregando.');
+    var base = RAIZ + '/' + dom + '/conceitos/' + codigo, caminhos = {};
+    var k = novaChave(caminhoAud(dom, codigo));
+    caminhos[base + '/ativo'] = false;
+    caminhos[base + '/inativacao'] = { motivo: motivo, em: agora(), por: emailAutor(), auditoriaId: k };
+    caminhos[base + '/reativacao'] = null;
+    marcaConceito(caminhos, dom, codigo);
+    addAudEm(caminhos, dom, codigo, k, 'inativacao', 'ativo', true, false, {
+      motivo: motivo,
+      filhosAtivos: af.filhos.length ? af.filhos.join(', ') : null,
+      relacoesAbertas: af.relacoes.length ? af.relacoes.map(function (rk) { return textoRelacao(dom, D.detalhe.relacoes[rk]); }).join(' | ') : null
+    });
+    gravar(caminhos, function () { aposSalvar(dom, codigo, 'Conceito inativado. Nada foi apagado: fontes, histórico e relações continuam registrados.'); });
+  }
+  function reativarConceito(dom, codigo) {
+    var c = conceitoAtual(dom, codigo);
+    if (c.ativo !== false) return;
+    var base = RAIZ + '/' + dom + '/conceitos/' + codigo, caminhos = {};
+    var k = novaChave(caminhoAud(dom, codigo));
+    caminhos[base + '/ativo'] = true;
+    caminhos[base + '/inativacao'] = null;
+    caminhos[base + '/reativacao'] = { em: agora(), por: emailAutor(), auditoriaId: k };
+    marcaConceito(caminhos, dom, codigo);
+    addAudEm(caminhos, dom, codigo, k, 'reativacao', 'ativo', false, true, { motivoAnterior: (c.inativacao && c.inativacao.motivo) || null });
+    gravar(caminhos, function () { aposSalvar(dom, codigo, 'Conceito reativado.'); });
+  }
+
+  /* Relações: a chave é de__tipo__para. Uma vez criada, só pode ser ENCERRADA. */
+  function chaveRelacao(de, tipo, para) { return de + '__' + tipo + '__' + para; }
+  function relacoesConhecidas(dom) { var det = st.d[dom].detalhe; return (det && det.relacoes) || {}; }
+  /* histórico nas DUAS pontas, mesma chave (a regra exige) e mesmo operacaoId (a mesma ação vista de cada lado) */
+  function audRelacao(caminhos, chaveAud, operacaoId, tipo, r, chave, extra) {
+    var texto = textoRelacao('organizacional', r);
+    [['de', 'origem'], ['para', 'destino']].forEach(function (p) {
+      addAudEm(caminhos, 'organizacional', r[p[0]], chaveAud, tipo, 'relação',
+        tipo === 'relacao_criada' ? null : texto, tipo === 'relacao_criada' ? texto : 'encerrada',
+        Object.assign({ relacao: chave, operacaoId: operacaoId, ponta: p[1] }, extra || {}));
+    });
+  }
+  function validarNovaRelacao(r) {
+    var D = st.d.organizacional, rels = relacoesConhecidas('organizacional');
+    if (TIPOS_RELACAO.indexOf(r.tipo) === -1) return 'Escolha o tipo da relação.';
+    if (!r.de || !r.para) return 'Escolha o outro conceito.';
+    if (r.de === r.para) return 'Um conceito não pode se relacionar com ele mesmo.';
+    if (!D.conceitos[r.de] || !D.conceitos[r.para]) return 'Conceito não encontrado.';
+    if (D.conceitos[r.de].ativo === false || D.conceitos[r.para].ativo === false) return 'Só é possível relacionar conceitos ativos.';
+    var ex = rels[chaveRelacao(r.de, r.tipo, r.para)];
+    if (ex && ex.encerrada) return 'Esta relação já existiu e foi encerrada. Reabrir uma relação encerrada não está disponível.';
+    if (ex) return 'Esta relação já existe.';
+    return null;
+  }
+  function relacaoDoForm(codigo, f) {
+    var outro = String(f.outro || '');
+    var r = f.direcao === 'entrada' ? { de: outro, tipo: f.tipo, para: codigo } : { de: codigo, tipo: f.tipo, para: outro };
+    var nota = String(f.nota || '').trim();
+    if (nota) r.nota = nota;
+    return r;
+  }
+  /* "+ Nova relação" e "Alterar" (= encerrar a antiga + criar a nova, numa gravação só) */
+  function salvarRelacao(codigo) {
+    var D = st.d.organizacional, f = D.relForm;
+    if (!f) return;
+    function recusa(msg) { f.erro = msg; render(); }
+    var det = D.detalhe;
+    if (!det || det.codigo !== codigo || det.carregando || det.erros.relacoes) return recusa('Aguarde: as relações deste conceito ainda não foram carregadas.');
+    var r = relacaoDoForm(codigo, f);
+    if (r.nota && r.nota.length > 2000) return recusa('A nota pode ter até 2000 caracteres.');
+    var caminhos = {}, base = RAIZ + '/organizacional/relacoes/', antiga = null, motivo = '';
+    if (f.modo === 'alterar') {
+      antiga = det.relacoes[f.base];
+      if (!antiga || antiga.encerrada) return recusa('A relação original não está mais ativa.');
+      motivo = String(f.motivo || '').trim();
+      if (!motivo) return recusa('Informe o motivo da alteração (a relação antiga é encerrada com ele).');
+      if (motivo.length > MAX_MOTIVO) return recusa('O motivo pode ter até ' + MAX_MOTIVO + ' caracteres.');
+      if (chaveRelacao(r.de, r.tipo, r.para) === f.base) return recusa(String(antiga.nota || '') === String(r.nota || '') ? 'Nada foi alterado.' : 'Só a nota mudou: a mesma relação não pode ser encerrada e criada de novo (reabrir não está disponível). Para corrigir só a nota, não há alteração possível nesta versão.');
+    }
+    var erro = validarNovaRelacao(r);
+    if (erro) return recusa(erro);
+    var chave = chaveRelacao(r.de, r.tipo, r.para);
+    var kNova = novaChave(caminhoAud('organizacional', r.de)), operacao = kNova;
+    if (antiga) {
+      var kAnt = novaChave(caminhoAud('organizacional', antiga.de));
+      operacao = kAnt;
+      caminhos[base + f.base + '/encerrada'] = { motivo: motivo, em: agora(), por: emailAutor(), auditoriaId: kAnt };
+      audRelacao(caminhos, kAnt, operacao, 'relacao_encerrada', antiga, f.base, { motivo: motivo, substituidaPor: chave });
+    }
+    caminhos[base + chave] = Object.assign({}, r, { criadaEm: agora(), criadaPor: emailAutor(), auditoriaId: kNova });
+    audRelacao(caminhos, kNova, operacao, 'relacao_criada', r, chave, antiga ? { substitui: f.base, motivo: motivo } : null);
+    gravar(caminhos, function () { D.relForm = null; aposSalvar('organizacional', codigo, antiga ? 'Relação alterada: a anterior foi encerrada e a nova, criada.' : 'Relação criada.'); });
+  }
+  function encerrarRelacao(codigo) {
+    var D = st.d.organizacional, f = D.encerrando, det = D.detalhe;
+    if (!f) return;
+    function recusa(msg) { f.erro = msg; render(); }
+    var r = det && det.relacoes[f.chave];
+    if (!r || r.encerrada) return recusa('Esta relação não está mais ativa.');
+    var motivo = String(f.motivo || '').trim();
+    if (!motivo) return recusa('Informe o motivo do encerramento.');
+    if (motivo.length > MAX_MOTIVO) return recusa('O motivo pode ter até ' + MAX_MOTIVO + ' caracteres.');
+    var caminhos = {}, k = novaChave(caminhoAud('organizacional', r.de));
+    caminhos[RAIZ + '/organizacional/relacoes/' + f.chave + '/encerrada'] = { motivo: motivo, em: agora(), por: emailAutor(), auditoriaId: k };
+    audRelacao(caminhos, k, k, 'relacao_encerrada', r, f.chave, { motivo: motivo });
+    gravar(caminhos, function () { D.encerrando = null; aposSalvar('organizacional', codigo, 'Relação encerrada. Ela continua registrada, como encerrada.'); });
+  }
+
+  /* Ligações da Avaliação — carga inicial controlada e idempotente: a prévia lê o banco; só entra o que falta. */
+  function previaLigacoes() {
+    var A = st.d.arquitetural, itens = codigosMotor().map(function (cod) {
+      var c = A.conceitos[cod];
+      if (st.lig.mapa[cod]) return { codigo: cod, situacao: 'ligado' };
+      if (!c) return { codigo: cod, situacao: 'sem-conceito' };
+      if (c.ativo === false) return { codigo: cod, situacao: 'inativo' };
+      return { codigo: cod, situacao: 'ligar' };
+    });
+    return itens;
+  }
+  function registrarLigacoes() {
+    var P = st.cargaLig;
+    if (!P) return;
+    if (st.lig.estado !== 'ok' || st.d.arquitetural.estado !== 'ok') { P.erro = 'Não foi possível conferir o estado atual das ligações. Nada foi gravado.'; render(); return; }
+    var aLigar = previaLigacoes().filter(function (i) { return i.situacao === 'ligar'; });
+    if (!aLigar.length) { P.erro = 'Não há ligação a registrar: nada foi gravado.'; render(); return; }
+    var caminhos = {}, email = emailAutor(), quando = agora();
+    aLigar.forEach(function (i) {
+      var k = novaChave(NO_LIG_AUD + '/' + i.codigo);
+      caminhos[NO_LIG + '/' + i.codigo] = { registradoEm: quando, registradoPor: email, auditoriaId: k };
+      caminhos[NO_LIG_AUD + '/' + i.codigo + '/' + k] = { tipo: 'ligacao_registrada', codigo: i.codigo, conceitoNome: st.d.arquitetural.conceitos[i.codigo].nome, usuario: usuarioAtual(), dataHora: quando };
+    });
+    gravar(caminhos, function () {
+      st.cargaLig = null;
+      st.flash = { erro: false, texto: aLigar.length + (aLigar.length === 1 ? ' ligação registrada.' : ' ligações registradas.') };
+      carregarLigacoes();
+    });
   }
   function rotuloPerfilCompleto(p) { return { estado: p.estado, valor: p.valor || null, papel: p.papel || null, origem: p.origem || null }; }
   function textoPerfil(p) {
@@ -746,30 +945,63 @@
      (window.faClassificacoes.codigos() — o catálogo do motor, sem lista nova nem campo novo no banco). A
      Avaliação mostra, para cada código, o NOME e a DEFINIÇÃO VIGENTE do conceito de MESMO código desta
      Taxonomia; código sem conceito aqui faz a Avaliação usar o rótulo de contingência. Clicar abre o conceito. */
-  function renderConceitosBase(dom) {
-    var C = window.faClassificacoes;
-    if (dom !== 'arquitetural' || !C || !C.codigos().length) return '';
-    var D = st.d[dom], cods = C.codigos();
-    var faltando = cods.filter(function (c) { return !D.conceitos[c]; }).length;
-    var idB = 'base:' + dom;
-    var h = '<section class="tax-base" id="taxConceitosBase" data-vista="' + esc(st.vista) + '"><details class="tax-recolhivel" data-det="' + idB + '"' + detAberto(idB, faltando > 0) + '>' +
-      '<summary class="tax-recolhivel-cab">Conceitos-base da Avaliação — ' + plural(cods.length, 'código', 'códigos') +
-      (faltando ? ' · ' + plural(faltando, 'sem conceito', 'sem conceito') : '') + '</summary>' +
-      '<p class="tax-ajuda">A Avaliação de Produto/Serviço mostra, para cada classificação do motor, o nome e a definição vigente do conceito de mesmo código desta Taxonomia. Renomear ou trocar a definição aqui muda a Avaliação; o código e o motor não mudam.</p><ul class="tax-base-lista">';
-    cods.forEach(function (cod) {
-      var c = D.conceitos[cod];
-      if (c) {
-        h += '<li class="tax-base-item" data-base="' + esc(cod) + '"><button type="button" class="tax-base-abrir" data-tax="selecionar" data-codigo="' + esc(cod) + '">' +
-          '<span class="tax-base-nome">' + esc(c.nome) + '</span> <code class="tax-base-codigo">' + esc(cod) + '</code>' +
-          (c.ativo === false ? ' ' + selo('desativado') : '') + '</button></li>';
-      } else {
-        h += '<li class="tax-base-item tax-base-item--sem" data-base="' + esc(cod) + '"><code class="tax-base-codigo">' + esc(cod) + '</code> ' +
-          '<span class="tax-base-falta">sem conceito — a Avaliação usa o rótulo de contingência</span></li>';
-      }
-    });
-    return h + '</ul></details></section>';
+  /* Conceitos-base da Avaliação: para cada código do catálogo do MOTOR (CAMADAS, via faClassificacoes),
+     a situação da ligação canônica em avaliacao-classificacoes. Nenhuma lista própria aqui. */
+  function resumoLigacoes() {
+    var cods = codigosMotor();
+    if (!cods.length || st.lig.estado !== 'ok') return null;
+    var n = cods.filter(function (c) { return !!st.lig.mapa[c]; }).length;
+    return { total: cods.length, ligadas: n };
   }
-
+  function avisoProtecao() {
+    var r = resumoLigacoes();
+    if (!r || r.ligadas === r.total) return '';
+    return '<p class="tax-aviso-erro" id="taxProtecaoIncompleta" role="status"><strong>Proteção da Avaliação incompleta:</strong> ' + r.ligadas + ' de ' + r.total + ' classificações ligadas. ' +
+      'Enquanto a ligação não for registrada, o conceito correspondente pode ser inativado. Registre em Taxonomia › Arquitetural › “Conceitos-base da Avaliação”.</p>';
+  }
+  function renderConceitosBase(dom) {
+    var cods = codigosMotor();
+    if (dom !== 'arquitetural' || !cods.length) return '';
+    var D = st.d[dom], L = st.lig, ok = L.estado === 'ok', r = resumoLigacoes();
+    var idB = 'base:' + dom, P = st.cargaLig;
+    var aberto = !!P || !r || r.ligadas < r.total;
+    var h = '<section class="tax-base" id="taxConceitosBase" data-vista="' + esc(st.vista) + '"><details class="tax-recolhivel" data-det="' + idB + '"' + detAberto(idB, aberto) + '>' +
+      '<summary class="tax-recolhivel-cab">Conceitos-base da Avaliação — ' + plural(cods.length, 'código', 'códigos') +
+      (r ? ' · ' + r.ligadas + ' de ' + r.total + ' ligadas' : (L.estado === 'erro' || L.estado === 'sem-acesso' ? ' · ligações indisponíveis' : ' · conferindo ligações…')) + '</summary>' +
+      '<p class="tax-ajuda">A Avaliação mostra, para cada classificação do motor, o nome e a definição vigente do conceito de mesmo código desta Taxonomia. ' +
+      'A <strong>ligação</strong> (registrada uma vez, nunca apagada) protege o conceito: enquanto ela existir, ele não pode ser inativado.</p>';
+    if (L.estado === 'erro' || L.estado === 'sem-acesso') h += '<p class="tax-aviso-erro" id="taxLigacoesErro">' + (L.estado === 'sem-acesso' ? 'Sem acesso às ligações da Avaliação.' : 'Não foi possível ler as ligações da Avaliação agora.') + ' <button type="button" class="btn btn--sm" data-tax="ligacoes-recarregar">Tentar novamente</button></p>';
+    h += '<ul class="tax-base-lista">';
+    cods.forEach(function (cod) {
+      var c = D.conceitos[cod], l = ok ? L.mapa[cod] : null;
+      var sit = !ok ? '<span class="tax-ajuda">conferindo…</span>' : l ? selo('ligado à Avaliação', 'tax-selo--ligado') + ' <span class="tax-ajuda">desde ' + esc(fmtData(l.registradoEm)) + '</span>'
+        : !c ? '<span class="tax-base-falta">sem conceito — a Avaliação usa o rótulo de contingência; não pode ser ligado</span>'
+        : c.ativo === false ? '<span class="tax-base-falta">conceito inativo — não pode ser ligado</span>'
+        : '<span class="tax-base-falta">sem ligação</span>';
+      if (c) h += '<li class="tax-base-item" data-base="' + esc(cod) + '" data-ligado="' + (l ? '1' : '0') + '"><button type="button" class="tax-base-abrir" data-tax="selecionar" data-codigo="' + esc(cod) + '">' +
+        '<span class="tax-base-nome">' + esc(c.nome) + '</span> <code class="tax-base-codigo">' + esc(cod) + '</code>' + (c.ativo === false ? ' ' + selo('desativado') : '') + '</button> ' + sit + '</li>';
+      else h += '<li class="tax-base-item tax-base-item--sem" data-base="' + esc(cod) + '" data-ligado="' + (l ? '1' : '0') + '"><code class="tax-base-codigo">' + esc(cod) + '</code> ' + sit + '</li>';
+    });
+    h += '</ul>';
+    if (ok) {
+      var orfas = chaves(L.mapa).filter(function (k) { return cods.indexOf(k) === -1; });
+      if (orfas.length) h += '<p class="tax-aviso-erro" id="taxLigacoesOrfas">Ligações sem classificação correspondente no motor: ' + orfas.map(function (k) { return '<code>' + esc(k) + '</code>'; }).join(', ') + '.</p>';
+    }
+    if (ok && podeEditar() && D.estado === 'ok') {
+      var prev = previaLigacoes(), aLigar = prev.filter(function (i) { return i.situacao === 'ligar'; });
+      if (P) {
+        h += '<div class="tax-previa" id="taxPreviaLigacoes"><strong>Prévia — nada foi gravado ainda</strong><ul>' + prev.map(function (i) {
+          var rot = { ligado: 'já ligado (não muda)', ligar: 'será ligado', 'sem-conceito': 'não pode ser ligado — conceito ausente', inativo: 'não pode ser ligado — conceito inativo' }[i.situacao];
+          return '<li data-previa="' + esc(i.codigo) + '" data-situacao="' + i.situacao + '"><code>' + esc(i.codigo) + '</code> — ' + rot + '</li>';
+        }).join('') + '</ul>' + (P.erro ? '<p class="tax-aviso-erro" role="alert">' + esc(P.erro) + '</p>' : '') +
+          '<div class="tax-acoes">' + (aLigar.length ? '<button type="button" class="btn btn--primary btn--sm" data-tax="confirmar-ligacoes" id="taxConfirmarLigacoes"' + (st.salvando ? ' disabled' : '') + '>' + (st.salvando ? 'SALVANDO…' : 'Registrar ' + plural(aLigar.length, 'ligação', 'ligações')) + '</button>' : '') +
+          '<button type="button" class="btn btn--sm" data-tax="cancelar-ligacoes"' + (st.salvando ? ' disabled' : '') + '>' + (aLigar.length ? 'Cancelar' : 'Fechar') + '</button></div></div>';
+      } else if (aLigar.length) {
+        h += '<div class="tax-acoes"><button type="button" class="btn btn--sm" data-tax="previa-ligacoes" id="taxRegistrarLigacoesBtn">Registrar ligações da Avaliação…</button></div>';
+      }
+    }
+    return h + '</details></section>';
+  }
   function caminhoDo(dom, codigo) {
     var D = st.d[dom], partes = [], c = D.conceitos[codigo], guarda = 0;
     while (c && guarda++ < 6) { partes.unshift(c.nome); c = c.pai ? D.conceitos[c.pai] : null; }
@@ -883,6 +1115,8 @@
         (pai ? '' : ' <span class="tax-aviso-erro">(não encontrado)</span>') + '</p>';
       html += '<p class="tax-caminho">' + caminhoDo(dom, codigo).map(esc).join(' › ') + '</p>';
     }
+    if (c.ativo === false && c.inativacao) html += '<p class="tax-ident-linha" id="taxIdentInativacao"><span class="tax-ident-k">Inativado:</span> ' + esc(fmtData(c.inativacao.em)) + ' por ' + esc(c.inativacao.por || '—') + ' — motivo: ' + esc(c.inativacao.motivo || '—') + '</p>';
+    if (dom === 'arquitetural' && estaLigado(codigo)) html += '<p class="tax-ident-linha" id="taxIdentLigado"><span class="tax-ident-k">Avaliação:</span> ' + selo('ligado à Avaliação', 'tax-selo--ligado') + ' <span class="tax-ajuda">classificação de mesmo código do motor; não pode ser inativado.</span></p>';
     if (c.atualizadoEm || c.atualizadoPor) html += '<p class="tax-ident-linha tax-ident-atualizado"><span class="tax-ident-k">Última atualização:</span> ' + esc(fmtData(c.atualizadoEm)) + (c.atualizadoPor ? ' por ' + esc(c.atualizadoPor) : '') + '</p>';
     html += '</div>';
     if (e && e.tipo === 'conceito' && e.chave === codigo) {
@@ -894,15 +1128,47 @@
       }
       html += '<label for="taxF_criterios">Critérios (um por linha)</label><textarea id="taxF_criterios" data-campo="criterios" rows="4">' + esc(v.criterios) + '</textarea>';
       html += '<label for="taxF_observacoes">Observações</label><textarea id="taxF_observacoes" data-campo="observacoes" rows="3">' + esc(v.observacoes) + '</textarea>';
-      html += '<label class="tax-check"><input type="checkbox" id="taxF_ativo" data-campo="ativo"' + (v.ativo ? ' checked' : '') + '> Conceito ativo (desmarcar desativa; nada é apagado)</label>';
       if (e.erro) html += '<p class="tax-aviso-erro" role="alert">' + esc(e.erro) + '</p>';
       html += '<div class="tax-acoes"><button type="button" class="btn btn--primary btn--sm" data-tax="salvar-edicao"' + (st.salvando ? ' disabled' : '') + '>' + (st.salvando ? 'SALVANDO…' : 'SALVAR') + '</button><button type="button" class="btn btn--sm" data-tax="cancelar-edicao"' + (st.salvando ? ' disabled' : '') + '>Cancelar</button></div></div>';
     } else if (ed) {
-      html += '<div class="tax-acoes tax-acoes--conceito" id="taxAcoesConceito"><button type="button" class="btn btn--sm" data-tax="editar-conceito">Editar dados do conceito</button></div>' +
+      html += '<div class="tax-acoes tax-acoes--conceito" id="taxAcoesConceito"><button type="button" class="btn btn--sm" data-tax="editar-conceito">Editar dados do conceito</button>' +
+        (c.ativo === false ? '<button type="button" class="btn btn--sm" data-tax="reativar" id="taxReativarBtn"' + (st.salvando ? ' disabled' : '') + '>Reativar conceito</button>'
+          : '<button type="button" class="btn btn--sm tax-btn-perigo" data-tax="inativar" id="taxInativarBtn">Inativar conceito</button>') + '</div>' +
         '<p class="tax-ajuda">A definição muda pelo cartão “Definição vigente”, logo abaixo.</p>';
+      if (D.inativando && D.inativando.codigo === codigo && c.ativo !== false) html += painelInativar(dom, codigo, c);
     }
     return html + '</section>';
   }
+
+  /* Inativar: motivo obrigatório; mostra antes o que é afetado. Conceito ligado à Avaliação: só a explicação. */
+  function painelInativar(dom, codigo, c) {
+    var f = D_(dom).inativando;
+    var h = '<div class="tax-confirma tax-inativar" id="taxPainelInativar" role="group" aria-label="Inativar conceito">';
+    if (dom === 'arquitetural' && st.lig.estado !== 'ok') {
+      return h + '<p class="' + (st.lig.estado === 'carregando' ? 'loading-msg' : 'tax-aviso-erro') + '" id="taxInativarLigacao">' +
+        (st.lig.estado === 'carregando' || st.lig.estado === 'ocioso' ? 'Conferindo se este conceito está ligado à Avaliação…' : 'Não foi possível conferir se este conceito está ligado à Avaliação. Nada pode ser inativado até essa conferência.') + '</p>' +
+        '<div class="tax-acoes">' + (st.lig.estado === 'erro' ? '<button type="button" class="btn btn--sm" data-tax="ligacoes-recarregar">Tentar novamente</button>' : '') + '<button type="button" class="btn btn--sm" data-tax="cancelar-inativar">Fechar</button></div></div>';
+    }
+    if (dom === 'arquitetural' && estaLigado(codigo)) {
+      return h + '<p class="tax-aviso-erro" role="alert" id="taxInativarBloqueado">' + esc(mensagemLigado(c)) + '</p>' +
+        '<div class="tax-acoes"><button type="button" class="btn btn--sm" data-tax="cancelar-inativar">Fechar</button></div></div>';
+    }
+    var af = afetadosPor(dom, codigo), D = D_(dom);
+    h += '<p><strong>Inativar este conceito?</strong></p><p class="tax-ajuda">Nada é apagado: o conceito, as fontes, o histórico e as relações continuam registrados. A inativação fica no histórico com o motivo.</p>';
+    if (dom === 'organizacional') {
+      h += '<div id="taxInativarAfetados"><p class="tax-rotulo">Filhos ativos (' + af.filhos.length + ')</p>' + (af.filhos.length ? '<ul>' + af.filhos.map(function (k) { return '<li>' + esc(D.conceitos[k].nome) + ' <code>' + esc(k) + '</code></li>'; }).join('') + '</ul>' : '<p class="tax-ausencia">Nenhum.</p>');
+      if (!af.pronto) h += '<p class="' + (af.erroRelacoes ? 'tax-aviso-erro' : 'loading-msg') + '">' + (af.erroRelacoes ? 'Não foi possível carregar as relações afetadas.' : 'Carregando relações afetadas…') + '</p>';
+      else h += '<p class="tax-rotulo">Relações ativas (' + af.relacoes.length + ')</p>' + (af.relacoes.length ? '<ul>' + af.relacoes.map(function (k) { return '<li>' + esc(textoRelacao(dom, D.detalhe.relacoes[k])) + '</li>'; }).join('') + '</ul>' : '<p class="tax-ausencia">Nenhuma.</p>');
+      if (af.filhos.length || af.relacoes.length) h += '<p class="tax-ajuda">Os filhos e as relações não são alterados: continuam como estão, apontando para um conceito inativo.</p>';
+      h += '</div>';
+    }
+    h += '<label for="taxI_motivo">Motivo *</label><textarea id="taxI_motivo" data-inat="motivo" rows="3" maxlength="' + MAX_MOTIVO + '">' + esc(f.motivo || '') + '</textarea>' +
+      (f.erro ? '<p class="tax-aviso-erro" role="alert">' + esc(f.erro) + '</p>' : '') +
+      '<div class="tax-acoes"><button type="button" class="btn btn--sm tax-btn-perigo" data-tax="confirmar-inativar"' + (st.salvando || !af.pronto ? ' disabled' : '') + '>' + (st.salvando ? 'SALVANDO…' : 'Inativar conceito') + '</button>' +
+      '<button type="button" class="btn btn--sm" data-tax="cancelar-inativar"' + (st.salvando ? ' disabled' : '') + '>Cancelar</button></div></div>';
+    return h;
+  }
+  function D_(dom) { return st.d[dom]; }
 
   /* b) Definição vigente (cartão em destaque) + as outras fontes (em validação, históricas, arquivadas).
      Devolve { definicao, outras } — os dois blocos usam os mesmos cartões e painéis de confirmação. */
@@ -1146,23 +1412,78 @@
   /* e) Relações: SAÍDA (este conceito → outro) e ENTRADA (outro → este conceito), separadas e rotuladas.
      O outro conceito aparece pelo nome ATUAL e pelo código (a chave). */
   function renderRelacoes(dom, codigo, det) {
-    var D = st.d[dom], html = '<section class="tax-sec" id="taxSecRelacoes"><h4>Relações</h4>';
+    var D = st.d[dom], ed = podeEditar(), html = '<section class="tax-sec" id="taxSecRelacoes"><h4>Relações</h4>';
     function nome(cod) { return (D.conceitos[cod] && D.conceitos[cod].nome) || cod; }
-    function outro(cod) { return esc(nome(cod)) + ' <code>' + esc(cod) + '</code>'; }
+    function outro(cod) { return esc(nome(cod)) + ' <code>' + esc(cod) + '</code>' + (D.conceitos[cod] && D.conceitos[cod].ativo === false ? ' ' + selo('desativado') : ''); }
     function nota(r) { return r.nota ? ' <span class="tax-ajuda">— ' + esc(r.nota) + '</span>' : ''; }
     var este = '<strong>' + esc(nome(codigo)) + '</strong> <span class="tax-ajuda">(este conceito)</span>';
     if (det.erros.relacoes) return html + '<p class="tax-aviso-erro">Não foi possível carregar as relações agora.</p></section>';
     if (det.carregando && !chaves(det.relacoes).length) return html + '<p class="loading-msg">Carregando relações…</p></section>';
     var ids = chaves(det.relacoes).sort();
-    var saida = ids.filter(function (k) { return det.relacoes[k].de === codigo; });
-    var entrada = ids.filter(function (k) { return det.relacoes[k].para === codigo; });
+    var abertas = ids.filter(function (k) { return !det.relacoes[k].encerrada; });
+    var encerradas = ids.filter(function (k) { return !!det.relacoes[k].encerrada; });
+    var saida = abertas.filter(function (k) { return det.relacoes[k].de === codigo; });
+    var entrada = abertas.filter(function (k) { return det.relacoes[k].para === codigo; });
+    var ocupado = !!(D.relForm || D.encerrando);
+    function acoes(k) {
+      if (!ed || ocupado || D.conceitos[codigo].ativo === false) return '';
+      return ' <span class="tax-rel-acoes"><button type="button" class="btn btn--sm" data-tax="alterar-relacao" data-relacao="' + esc(k) + '">Alterar</button>' +
+        '<button type="button" class="btn btn--sm" data-tax="encerrar-relacao" data-relacao="' + esc(k) + '">Encerrar</button></span>';
+    }
+    function item(k, lado) {
+      var r = det.relacoes[k];
+      var txt = lado === 'saida' ? este + ' <em>' + esc(RELACAO_ROTULO[r.tipo] || r.tipo) + '</em> → ' + outro(r.para) : outro(r.de) + ' <em>' + esc(RELACAO_ROTULO[r.tipo] || r.tipo) + '</em> → ' + este;
+      var h = '<li data-relacao="' + esc(k) + '">' + txt + nota(r) + acoes(k);
+      if (D.encerrando && D.encerrando.chave === k) h += painelEncerrar(k);
+      if (D.relForm && D.relForm.modo === 'alterar' && D.relForm.base === k) h += formRelacao(dom, codigo);
+      return h + '</li>';
+    }
     html += '<div class="tax-rel-grupo" id="taxRelSaida"><h5>Relações de saída (' + saida.length + ') <span class="tax-ajuda">este conceito → outro</span></h5>';
     if (!saida.length) html += '<p class="tax-ausencia">Nenhuma relação de saída.</p>';
-    else html += '<ul class="tax-relacoes">' + saida.map(function (k) { var r = det.relacoes[k]; return '<li data-relacao="' + esc(k) + '">' + este + ' <em>' + esc(RELACAO_ROTULO[r.tipo] || r.tipo) + '</em> → ' + outro(r.para) + nota(r) + '</li>'; }).join('') + '</ul>';
+    else html += '<ul class="tax-relacoes">' + saida.map(function (k) { return item(k, 'saida'); }).join('') + '</ul>';
     html += '</div><div class="tax-rel-grupo" id="taxRelEntrada"><h5>Relações de entrada (' + entrada.length + ') <span class="tax-ajuda">outro → este conceito</span></h5>';
     if (!entrada.length) html += '<p class="tax-ausencia">Nenhuma relação de entrada.</p>';
-    else html += '<ul class="tax-relacoes">' + entrada.map(function (k) { var r = det.relacoes[k]; return '<li data-relacao="' + esc(k) + '">' + outro(r.de) + ' <em>' + esc(RELACAO_ROTULO[r.tipo] || r.tipo) + '</em> → ' + este + nota(r) + '</li>'; }).join('') + '</ul>';
-    return html + '</div></section>';
+    else html += '<ul class="tax-relacoes">' + entrada.map(function (k) { return item(k, 'entrada'); }).join('') + '</ul>';
+    html += '</div>';
+    if (ed && D.conceitos[codigo].ativo !== false) {
+      if (D.relForm && D.relForm.modo === 'nova') html += formRelacao(dom, codigo);
+      else if (!ocupado) html += '<div class="tax-acoes"><button type="button" class="btn btn--sm" data-tax="nova-relacao" id="taxNovaRelacaoBtn">+ Nova relação</button></div>';
+    }
+    if (encerradas.length) {
+      var idE = idDet('relenc', dom, codigo);
+      html += '<details class="tax-recolhivel" id="taxRelEncerradas" data-det="' + esc(idE) + '"' + detAberto(idE, false) + '><summary class="tax-recolhivel-cab">Relações encerradas (' + encerradas.length + ')</summary><ul class="tax-relacoes tax-relacoes--encerradas">' +
+        encerradas.map(function (k) {
+          var r = det.relacoes[k], e = r.encerrada;
+          return '<li data-relacao="' + esc(k) + '">' + outro(r.de) + ' <em>' + esc(RELACAO_ROTULO[r.tipo] || r.tipo) + '</em> → ' + outro(r.para) + nota(r) +
+            '<br><span class="tax-ajuda">Encerrada em ' + esc(fmtData(e.em)) + ' por ' + esc(e.por || '—') + ' — motivo: ' + esc(e.motivo || '—') + '</span></li>';
+        }).join('') + '</ul></details>';
+    }
+    return html + '</section>';
+  }
+  function painelEncerrar(k) {
+    var f = st.d.organizacional.encerrando;
+    return '<div class="tax-confirma" id="taxPainelEncerrar" role="group" aria-label="Encerrar relação"><p><strong>Encerrar esta relação?</strong></p>' +
+      '<p class="tax-ajuda">Ela não é apagada: continua registrada como encerrada, com o motivo. Uma relação idêntica não poderá ser criada de novo.</p>' +
+      '<label for="taxE_motivo">Motivo *</label><textarea id="taxE_motivo" data-enc="motivo" rows="3" maxlength="' + MAX_MOTIVO + '">' + esc(f.motivo || '') + '</textarea>' +
+      (f.erro ? '<p class="tax-aviso-erro" role="alert">' + esc(f.erro) + '</p>' : '') +
+      '<div class="tax-acoes"><button type="button" class="btn btn--sm tax-btn-perigo" data-tax="confirmar-encerrar"' + (st.salvando ? ' disabled' : '') + '>' + (st.salvando ? 'SALVANDO…' : 'Encerrar relação') + '</button>' +
+      '<button type="button" class="btn btn--sm" data-tax="cancelar-relacao"' + (st.salvando ? ' disabled' : '') + '>Cancelar</button></div></div>';
+  }
+  function formRelacao(dom, codigo) {
+    var D = st.d[dom], f = D.relForm, alterar = f.modo === 'alterar';
+    var outros = ordenaPor(chaves(D.conceitos).filter(function (k) { return k !== codigo && D.conceitos[k].ativo !== false; }).map(function (k) { return { k: k, nome: D.conceitos[k].nome || k }; }), 'nome');
+    var h = '<div class="tax-form tax-form-relacao" id="taxFormRelacao" role="group" aria-label="' + (alterar ? 'Alterar relação' : 'Nova relação') + '">' +
+      '<p class="tax-form-titulo"><strong>' + (alterar ? 'Alterar relação' : 'Nova relação') + '</strong></p>' +
+      (alterar ? '<p class="tax-ajuda">Alterar = encerrar a relação atual (com o motivo) e criar a nova, numa gravação só. A atual continua registrada como encerrada.</p>' : '') +
+      '<label for="taxR_direcao">Direção *</label><select id="taxR_direcao" data-rel="direcao"><option value="saida"' + (f.direcao !== 'entrada' ? ' selected' : '') + '>este conceito → outro</option><option value="entrada"' + (f.direcao === 'entrada' ? ' selected' : '') + '>outro → este conceito</option></select>' +
+      '<label for="taxR_tipo">Tipo *</label><select id="taxR_tipo" data-rel="tipo"><option value="">— escolha —</option>' + TIPOS_RELACAO.map(function (t) { return '<option value="' + esc(t) + '"' + (f.tipo === t ? ' selected' : '') + '>' + esc(RELACAO_ROTULO[t]) + '</option>'; }).join('') + '</select>' +
+      '<label for="taxR_outro">Outro conceito * <span class="tax-ajuda">(só conceitos ativos)</span></label><select id="taxR_outro" data-rel="outro"><option value="">— escolha —</option>' + outros.map(function (o) { return '<option value="' + esc(o.k) + '"' + (f.outro === o.k ? ' selected' : '') + '>' + esc(o.nome) + ' (' + esc(o.k) + ')</option>'; }).join('') + '</select>' +
+      '<label for="taxR_nota">Nota</label><textarea id="taxR_nota" data-rel="nota" rows="2" maxlength="2000">' + esc(f.nota || '') + '</textarea>' +
+      (alterar ? '<label for="taxR_motivo">Motivo da alteração *</label><textarea id="taxR_motivo" data-rel="motivo" rows="2" maxlength="' + MAX_MOTIVO + '">' + esc(f.motivo || '') + '</textarea>' : '') +
+      (f.erro ? '<p class="tax-aviso-erro" role="alert">' + esc(f.erro) + '</p>' : '') +
+      '<div class="tax-acoes"><button type="button" class="btn btn--primary btn--sm" data-tax="salvar-relacao"' + (st.salvando ? ' disabled' : '') + '>' + (st.salvando ? 'SALVANDO…' : (alterar ? 'Encerrar a atual e criar a nova' : 'Criar relação')) + '</button>' +
+      '<button type="button" class="btn btn--sm" data-tax="cancelar-relacao"' + (st.salvando ? ' disabled' : '') + '>Cancelar</button></div></div>';
+    return h;
   }
 
   /* f) Histórico do conceito — recolhido por padrão, inclusive com 0 alterações */
@@ -1225,7 +1546,8 @@
      ainda existe página anterior, sem contador total. Nada é copiado para o histórico dos conceitos. */
   var HG_PAGINA = 25;
   var HG_TIPOS = { carga_inicial: 'Carga inicial', alteracao_atributo: 'Alteração de atributo', alteracao_relacao: 'Alteração de relação',
-    alteracao_conceito: 'Alteração de conceito', alteracao_fonte: 'Alteração de fonte', definicao_vigente: 'Definição vigente', alteracao_perfil: 'Alteração de perfil', fonte_arquivada: 'Fonte arquivada', fonte_restaurada: 'Fonte restaurada' };
+    alteracao_conceito: 'Alteração de conceito', alteracao_fonte: 'Alteração de fonte', definicao_vigente: 'Definição vigente', alteracao_perfil: 'Alteração de perfil', fonte_arquivada: 'Fonte arquivada', fonte_restaurada: 'Fonte restaurada',
+    inativacao: 'Conceito inativado', reativacao: 'Conceito reativado', relacao_criada: 'Relação criada', relacao_encerrada: 'Relação encerrada' };
   function podeVerHG() { return ehAdmin() && adminPronto() && !st.opcoes.somenteLeitura; }
   function carregarHG(quais) {
     var H = st.hg;
@@ -1433,7 +1755,9 @@
         var rel = B.relacoes || {};
         chaves(rel).sort().forEach(function (k) {
           var r = rel[k] || {};
-          L['Relações'].push([DOMINIOS[dom].rotulo, k, r.de || '', nome(r.de), r.tipo || '', RELACAO_ROTULO[r.tipo] || '', r.para || '', nome(r.para), r.nota || '']);
+          var en = r.encerrada || null;
+          L['Relações'].push([DOMINIOS[dom].rotulo, k, r.de || '', nome(r.de), r.tipo || '', RELACAO_ROTULO[r.tipo] || '', r.para || '', nome(r.para), r.nota || '',
+            en ? 'encerrada' : 'ativa', en ? en.em || '' : '', en ? en.por || '' : '', en ? en.motivo || '' : '']);
         });
       }
       var aud = B.auditoria || {}, evs = [];
@@ -1470,8 +1794,8 @@
         var saida = [], entrada = [];
         chaves(rel).sort().forEach(function (k) {
           var r = rel[k] || {};
-          if (r.de === cod) saida.push({ id: k, tipo: r.tipo || null, tipoRotulo: RELACAO_ROTULO[r.tipo] || null, para: r.para || null, paraNome: nome(r.para), nota: r.nota || null });
-          if (r.para === cod) entrada.push({ id: k, de: r.de || null, deNome: nome(r.de), tipo: r.tipo || null, tipoRotulo: RELACAO_ROTULO[r.tipo] || null, nota: r.nota || null });
+          if (r.de === cod) saida.push({ id: k, tipo: r.tipo || null, tipoRotulo: RELACAO_ROTULO[r.tipo] || null, para: r.para || null, paraNome: nome(r.para), nota: r.nota || null, encerrada: r.encerrada || null });
+          if (r.para === cod) entrada.push({ id: k, de: r.de || null, deNome: nome(r.de), tipo: r.tipo || null, tipoRotulo: RELACAO_ROTULO[r.tipo] || null, nota: r.nota || null, encerrada: r.encerrada || null });
         });
         var evs = chaves(aud[cod] || {}).map(function (k) { return aud[cod][k] || {}; });
         var porTipo = {}, ultima = null;
@@ -1509,6 +1833,8 @@
     'Atributos / perfil', 'Relações de saída', 'Relações de entrada', 'Fontes históricas (qtd.)', 'Alterações (qtd.)', 'Atualizado em', 'Atualizado por'];
   var LARG_CONSOLIDADA = [14, 16, 28, 8, 22, 20, 28, 70, 16, 22, 11, 16, 50, 44, 44, 44, 50, 44, 44, 12, 12, 20, 28];
   /* uma linha por conceito; vários valores na mesma célula vão um por linha (a aba tem quebra de linha) */
+  /* relação encerrada nunca aparece como se estivesse ativa nas exportações */
+  function encerradaTxt(r) { return r.encerrada ? ' [ENCERRADA em ' + String(r.encerrada.em || '').slice(0, 10) + ' — ' + (r.encerrada.motivo || '') + ']' : ''; }
   function linhasConsolidadas(lista) {
     return lista.map(function (k) {
       var fv = k.fonteVigente;
@@ -1516,8 +1842,8 @@
         k.pai ? k.pai.codigo + (k.pai.nome ? ' — ' + k.pai.nome : '') : '', fv ? fv.texto || '' : '', fv ? fv.id : '', fv ? fv.rotulo || '' : '', fv ? fv.contexto || '' : '', fv ? fv.tipoRedacao || '' : '',
         k.criterios.join('\n'), k.perguntaDiscriminadora || '', k.observacoes || '', k.notaDeAplicacao || '',
         k.perfis.map(function (p) { return (p.atributoNome || p.atributo) + ': ' + (p.estado === 'registrado' ? p.valor + ' (' + p.papel + ' · origem: ' + p.origem + ')' : p.estado); }).join('\n'),
-        k.relacoesSaida.map(function (r) { return (r.tipoRotulo || r.tipo) + ' → ' + r.para + (r.paraNome ? ' — ' + r.paraNome : '') + (r.nota ? ' (' + r.nota + ')' : ''); }).join('\n'),
-        k.relacoesEntrada.map(function (r) { return r.de + (r.deNome ? ' — ' + r.deNome : '') + ' ' + (r.tipoRotulo || r.tipo) + ' → este conceito' + (r.nota ? ' (' + r.nota + ')' : ''); }).join('\n'),
+        k.relacoesSaida.map(function (r) { return (r.tipoRotulo || r.tipo) + ' → ' + r.para + (r.paraNome ? ' — ' + r.paraNome : '') + (r.nota ? ' (' + r.nota + ')' : '') + encerradaTxt(r); }).join('\n'),
+        k.relacoesEntrada.map(function (r) { return r.de + (r.deNome ? ' — ' + r.deNome : '') + ' ' + (r.tipoRotulo || r.tipo) + ' → este conceito' + (r.nota ? ' (' + r.nota + ')' : '') + encerradaTxt(r); }).join('\n'),
         k.fontesHistoricas.length, k.auditoria.total, k.atualizadoEm || '', k.atualizadoPor || ''];
     });
   }
@@ -1566,7 +1892,7 @@
     Fontes: ['Domínio', 'Conceito (código)', 'Conceito (nome)', 'Fonte (id)', 'Situação', 'É a definição vigente', 'Arquivada', 'Rótulo', 'Contexto', 'Tipo de redação', 'Texto', 'Criada em', 'Criada por', 'Motivo do arquivamento', 'Justificativa do arquivamento', 'Arquivada em', 'Arquivada por'],
     Atributos: ['Domínio', 'Código', 'Nome', 'Grupo', 'Tipo de valor', 'Valores permitidos', 'Ordem', 'Ativo'],
     Perfis: ['Domínio', 'Conceito (código)', 'Conceito (nome)', 'Atributo (código)', 'Atributo (nome)', 'Estado', 'Valor', 'Papel', 'Origem', 'Atualizado em'],
-    'Relações': ['Domínio', 'Relação (id)', 'De (código)', 'De (nome)', 'Tipo', 'Tipo (por extenso)', 'Para (código)', 'Para (nome)', 'Nota'],
+    'Relações': ['Domínio', 'Relação (id)', 'De (código)', 'De (nome)', 'Tipo', 'Tipo (por extenso)', 'Para (código)', 'Para (nome)', 'Nota', 'Situação', 'Encerrada em', 'Encerrada por', 'Motivo do encerramento'],
     'Histórico': ['Domínio', 'Escopo (conceito)', 'Conceito (nome)', 'Data/hora', 'Autor (nome)', 'Autor (e-mail)', 'Tipo', 'Tipo (por extenso)', 'Campo', 'Valor anterior', 'Valor novo', 'Detalhes', 'Chave do evento']
   };
   function cabecalhoExport() {
@@ -1661,6 +1987,7 @@
     if (!ehAdmin()) { el.innerHTML = html + '<p class="tax-aviso-erro">Esta área é só para administradoras.</p></div>'; return; }
     /* AÇÕES GERAIS (a Taxonomia inteira: carga inicial, exportação, histórico global) ficam numa área própria,
        separada das ações do conceito selecionado (que ficam dentro do detalhe, em "Identificação" e nos cartões) */
+    html += avisoProtecao();
     var globais = renderImportador() + htmlExportar();
     if (globais) html += '<section class="tax-globais" id="taxAcoesGerais" aria-label="Ações gerais da Taxonomia"><h4 class="tax-globais-titulo">Ações gerais da Taxonomia</h4>' +
       '<p class="tax-ajuda">Valem para a Taxonomia inteira (os dois domínios), não para um conceito.' + (podeVerHG() ? ' O histórico global fica na aba “Histórico global”, ao lado dos domínios.' : '') + '</p>' + globais + '</section>';
@@ -1682,7 +2009,7 @@
   /* ---------- eventos (delegados) ---------- */
   function valoresDe(dom, tipo, chave) {
     var D = st.d[dom], c = D.conceitos[D.selecionado] || {}, det = D.detalhe || {};
-    if (tipo === 'conceito') return { nome: c.nome || '', observacoes: c.observacoes || '', perguntaDiscriminadora: c.perguntaDiscriminadora || '', notaDeAplicacao: c.notaDeAplicacao || '', criterios: listaCriterios(c).join('\n'), ativo: c.ativo !== false };
+    if (tipo === 'conceito') return { nome: c.nome || '', observacoes: c.observacoes || '', perguntaDiscriminadora: c.perguntaDiscriminadora || '', notaDeAplicacao: c.notaDeAplicacao || '', criterios: listaCriterios(c).join('\n') };
     if (tipo === 'fonte') { var f = (det.fontes || {})[chave] || {}; return { rotulo: f.rotulo || '', texto: f.texto || '', contexto: f.contexto || 'PREVI', tipoRedacao: f.tipoRedacao || 'Conceito', situacao: f.situacao === 'vigente' ? 'vigente' : (f.situacao || 'histórica/contextual') }; }
     if (tipo === 'novaFonte') return { rotulo: '', texto: '', contexto: 'PREVI', tipoRedacao: 'Conceito', situacao: 'em validação' };
     var p = (det.perfis || {})[chave] || {};
@@ -1737,7 +2064,7 @@
       var cod = alvo.getAttribute('data-codigo');
       if (window.innerWidth <= 720) st.rolagemLista = window.pageYOffset || document.documentElement.scrollTop || 0;
       zerarDetConceito(); /* abrir um conceito (mesmo o mesmo, de novo) começa com os históricos fechados */
-      D.selecionado = cod; D.edicao = null; D.confirmacao = null; D.arquivando = null; D.expandida = null; D.dica = false; D.arquivadasAbertas = false; D.novaVersao = null; st.vista = 'detalhe'; st.flash = null;
+      D.selecionado = cod; D.edicao = null; D.confirmacao = null; D.arquivando = null; D.expandida = null; D.dica = false; D.arquivadasAbertas = false; D.novaVersao = null; D.inativando = null; D.relForm = null; D.encerrando = null; st.vista = 'detalhe'; st.flash = null;
       carregarDetalhe(dom, cod);
       var det = raiz().querySelector('.tax-detalhe'); if (det && det.scrollIntoView && window.innerWidth <= 720) det.scrollIntoView();
     } else if (acao === 'voltar-lista') {
@@ -1778,6 +2105,25 @@
     else if (acao === 'confirmar-vigente') { if (!st.salvando) tornarVigente(dom, D.selecionado, alvo.getAttribute('data-fonte')); }
     else if (acao === 'remover-vigencia') { D.confirmacao = { fonte: alvo.getAttribute('data-fonte'), acao: 'remover' }; render(); }
     else if (acao === 'confirmar-remocao') { if (!st.salvando) removerVigencia(dom, D.selecionado); }
+    else if (acao === 'inativar') { D.inativando = { codigo: D.selecionado, motivo: '', erro: null }; D.edicao = null; D.confirmacao = null; D.arquivando = null; render(); }
+    else if (acao === 'cancelar-inativar') { D.inativando = null; render(); }
+    else if (acao === 'confirmar-inativar') { if (!st.salvando) inativarConceito(dom, D.selecionado); }
+    else if (acao === 'reativar') { if (!st.salvando) reativarConceito(dom, D.selecionado); }
+    else if (acao === 'ligacoes-recarregar') carregarLigacoes();
+    else if (acao === 'nova-relacao') { D.relForm = { modo: 'nova', direcao: 'saida', tipo: '', outro: '', nota: '', erro: null }; D.encerrando = null; render(); }
+    else if (acao === 'alterar-relacao') {
+      var kr = alvo.getAttribute('data-relacao'), rr = D.detalhe && D.detalhe.relacoes[kr];
+      if (!rr) return;
+      var saidaR = rr.de === D.selecionado;
+      D.relForm = { modo: 'alterar', base: kr, direcao: saidaR ? 'saida' : 'entrada', tipo: rr.tipo, outro: saidaR ? rr.para : rr.de, nota: rr.nota || '', motivo: '', erro: null }; D.encerrando = null; render();
+    }
+    else if (acao === 'encerrar-relacao') { D.encerrando = { chave: alvo.getAttribute('data-relacao'), motivo: '', erro: null }; D.relForm = null; render(); }
+    else if (acao === 'cancelar-relacao') { D.relForm = null; D.encerrando = null; render(); }
+    else if (acao === 'salvar-relacao') { if (!st.salvando) salvarRelacao(D.selecionado); }
+    else if (acao === 'confirmar-encerrar') { if (!st.salvando) encerrarRelacao(D.selecionado); }
+    else if (acao === 'previa-ligacoes') { st.cargaLig = { erro: null }; render(); }
+    else if (acao === 'cancelar-ligacoes') { st.cargaLig = null; render(); }
+    else if (acao === 'confirmar-ligacoes') { if (!st.salvando) registrarLigacoes(); }
     else if (acao === 'confirmar-importacao') confirmarImportacao();
     else if (acao === 'cancelar-importacao') { st.importacao = null; render(); }
   }
@@ -1788,6 +2134,12 @@
     var D = st.d[st.dominio];
     var campoArq = el.getAttribute && el.getAttribute('data-arq');
     if (campoArq && D.arquivando) { D.arquivando[campoArq] = el.value; D.arquivando.erro = null; return; }
+    var campoInat = el.getAttribute && el.getAttribute('data-inat');
+    if (campoInat && D.inativando) { D.inativando[campoInat] = el.value; D.inativando.erro = null; return; }
+    var campoEnc = el.getAttribute && el.getAttribute('data-enc');
+    if (campoEnc && D.encerrando) { D.encerrando[campoEnc] = el.value; D.encerrando.erro = null; return; }
+    var campoRel = el.getAttribute && el.getAttribute('data-rel');
+    if (campoRel && D.relForm) { D.relForm[campoRel] = el.value; D.relForm.erro = null; return; }
     if (!campo || !D.edicao) return;
     D.edicao.valores[campo] = el.type === 'checkbox' ? el.checked : el.value;
     D.edicao.erro = null;
@@ -1820,7 +2172,7 @@
     var s = sessao();
     var email = s ? s.email : null;
     if (st.email !== email) {
-      st.email = email; st.meta = { estado: 'ocioso', cargaFeita: false }; st.importacao = null; st.flash = null; st.vista = 'lista'; st.aba = 'dominio'; st.hg = novoHG(); st.exp = null; st.detAbertos = {}; st.rolagemLista = null;
+      st.email = email; st.meta = { estado: 'ocioso', cargaFeita: false }; st.importacao = null; st.flash = null; st.vista = 'lista'; st.aba = 'dominio'; st.hg = novoHG(); st.exp = null; st.detAbertos = {}; st.rolagemLista = null; st.lig = { estado: 'ocioso', mapa: {} }; st.cargaLig = null;
       ORDEM_DOMINIOS.forEach(function (d) { st.d[d] = novoDominio(); });
     }
     if (!adminPronto()) {
@@ -1830,6 +2182,7 @@
     }
     if (!ehAdmin()) { render(); return; }
     if (st.meta.estado === 'ocioso' || st.meta.estado === 'erro') carregarMeta();
+    if (st.lig.estado === 'ocioso' || st.lig.estado === 'erro') carregarLigacoes();
     var D = st.d[st.dominio];
     if (D.estado === 'ocioso' || D.estado === 'erro') carregarDominio(st.dominio); else render();
   }
@@ -1848,7 +2201,9 @@
        (teste-rules-taxonomia.js) e provar que o que a aplicação grava, o banco aceita. */
     _interno: {
       st: st, espera: ESPERA, leitores: LEITORES, carregarHG: carregarHG, lerTudoParaExportar: lerTudoParaExportar, linhasExportacao: linhasExportacao, consolidarConceitos: consolidarConceitos, carregarDominio: carregarDominio, carregarDetalhe: carregarDetalhe, tornarVigente: tornarVigente, arquivarFonte: arquivarFonte, restaurarFonte: restaurarFonte,
-      removerVigencia: removerVigencia, salvarConceito: salvarConceito, salvarFonte: salvarFonte, salvarPerfil: salvarPerfil
+      removerVigencia: removerVigencia, salvarConceito: salvarConceito, salvarFonte: salvarFonte, salvarPerfil: salvarPerfil,
+      carregarLigacoes: carregarLigacoes, previaLigacoes: previaLigacoes, registrarLigacoes: registrarLigacoes, inativarConceito: inativarConceito, reativarConceito: reativarConceito,
+      salvarRelacao: salvarRelacao, encerrarRelacao: encerrarRelacao
     }
   };
 })();

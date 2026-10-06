@@ -9,6 +9,7 @@
     ".github/scripts/teste-rules-avaliacoes.js": "regras do banco: roda no emulador real (teste-rules.yml)",
     ".github/scripts/teste-rules-taxonomia.js": "regras do banco: roda no emulador real (teste-rules.yml)",
     ".github/scripts/teste-rules-perfis-avaliacao.js": "regras do banco: roda no emulador real (teste-rules.yml)",
+    ".github/scripts/teste-rules-taxonomia-governanca.js": "regras do banco: roda no emulador real (teste-rules.yml)",
     ".github/scripts/teste-rotulos-doc.js": "ferramenta de auditoria, ainda não portão de CI: sempre sai com 0 até a triagem dos candidatos (ver cabeçalho do arquivo)"
   },
   "testes": [
@@ -448,6 +449,12 @@
       "nome": "Taxonomia: texto-fonte imutável e \"Nova versão da definição\" (desktop e celular)",
       "duracao": 11,
       "sobre": "Detalhe mostra o código do conceito; a vigente não tem \"Editar\", e sim \"Nova versão da definição\", à vista no próprio cartão da definição vigente, que abre — junto da definição — o formulário de nova fonte pré-preenchido; salvar cria fonte NOVA \"em validação\" (criadoEm/criadoPor próprios), a anterior fica intacta e a definição não muda; \"Usar como vigente\" troca a definição e a anterior vira histórica com o mesmo texto. Hermético; a imutabilidade no banco é provada por teste-rules-taxonomia.js no emulador."
+    },
+    {
+      "arquivo": ".github/scripts/teste-taxonomia-governanca.js",
+      "nome": "Taxonomia: ligações da Avaliação, inativação e relações (desktop e celular)",
+      "duracao": 30,
+      "sobre": "Aviso \"Proteção da Avaliação incompleta: X de 11\"; Conceitos-base com a situação de cada código do motor e registro das ligações com prévia (já ligado / será ligado / não pode ser ligado), idempotente, com recusa do banco visível; conceito ligado: \"Inativar\" só explica, nada é gravado; ligações sem resposta: \"Conferindo…\", nunca \"pode inativar\"; inativar com motivo, mostrando filhos e relações afetados, e reativar, tudo no histórico; relações: criar com histórico nas duas pontas (mesmo operacaoId), idêntica a uma encerrada bloqueada, encerrar com motivo (fica em \"Relações encerradas\"), alterar = encerrar + criar. Hermético; as travas de verdade, no banco, são provadas por teste-rules-taxonomia-governanca.js no emulador."
     },
     {
       "arquivo": ".github/scripts/teste-taxonomia-exportacao.js",
