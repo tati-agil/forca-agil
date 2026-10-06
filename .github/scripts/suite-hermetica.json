@@ -444,6 +444,12 @@
       "sobre": "Cartão no grupo \"Referências\"; adicionar grava título, descrição, link https, autor e data com uma linha de histórico na mesma gravação; link sem https recusado na tela; editar/arquivar/restaurar nunca apagam; histórico recolhido com \"Ver detalhes\"; gravação recusada pelo banco mostra o erro e mantém o formulário. Hermético."
     },
     {
+      "arquivo": ".github/scripts/teste-rolagem-decisao-tardia.js",
+      "nome": "Roteador: decisão de rota tardia não joga a pessoa para o topo (desktop e celular)",
+      "duracao": 30,
+      "sobre": "Com rede lenta, o perfil da Avaliação ou a lista de admins chega depois de a página aparecer e a pessoa já está rolando; o roteador refaz a decisão de rota (show(rota, true)) e, se ela continua na MESMA página, a posição é preservada (antes voltava ao topo — o \"tela inicial rolada (50 px)\" de teste-admin-navegacao.js no CI). Mudança real de página continua começando no topo. Confere que a informação tardia chegou DEPOIS da rolagem. Hermético."
+    },
+    {
       "arquivo": ".github/scripts/teste-taxonomia-nova-versao.js",
       "nome": "Taxonomia: texto-fonte imutável e \"Nova versão da definição\" (desktop e celular)",
       "duracao": 11,
