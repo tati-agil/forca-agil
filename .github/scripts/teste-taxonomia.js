@@ -134,6 +134,14 @@ async function abrirConceito(page, codigo) {
   await page.waitForFunction(() => !document.querySelector('#taxSecFontes .loading-msg') && !document.querySelector('#taxSecHistorico .loading-msg'), { timeout: 6000 }).catch(() => {});
 }
 const TOTAL = 'taxonomia';
+/* histórico do conceito: recolhido por padrão — abre (clicando no cabeçalho) só se ainda estiver fechado */
+async function abrirHistorico(page) {
+  await page.waitForSelector('#taxHistoricoConceito > summary', { timeout: 6000 });
+  if (!(await page.locator('#taxHistoricoConceito').evaluate((d) => d.open))) await page.click('#taxHistoricoConceito > summary');
+  await esperarCondicao(page, () => { const d = document.querySelector('#taxHistoricoConceito'); return !!d && d.open; }, null, { limite: 4000, descricao: 'histórico do conceito aberto' });
+}
+/* ordem vertical das seções do detalhe (a de cima primeiro) */
+const ordemSecoes = (page, ids) => page.evaluate((lista) => lista.map((id) => { const el = document.getElementById(id); return el ? el.getBoundingClientRect().top + window.pageYOffset : null; }), ids);
 
 (async () => {
   const browser = await chromium.launch();
@@ -241,7 +249,25 @@ const TOTAL = 'taxonomia';
     if (movel) afirma(await page.locator('.tax-lista').isHidden() && await page.locator('.tax-voltar').isVisible(), '375 px: o detalhe ocupa a tela e há "← Voltar para a lista"');
     else afirma(await page.locator('.tax-lista').isVisible() && await page.locator('.tax-detalhe').isVisible(), 'desktop: lista e detalhe lado a lado');
     t = await page.locator('#taxSecDefinicao').innerText();
-    afirma(/Definição registrada/.test(t) && /Texto fictício VIGENTE de Alfa\./.test(t) && /Fonte: Conceito \(PREVI\)/.test(t), 'Alfa: definição vigente exibida com a fonte');
+    afirma(/Definição registrada/.test(t) && /Texto fictício VIGENTE de Alfa\./.test(t), 'Alfa: definição vigente exibida');
+    t = await page.locator('#taxVigenteMeta').innerText();
+    afirma(/Rótulo da fonte\s+Conceito/.test(t) && /Contexto\s+PREVI/.test(t) && /Tipo de redação\s+Conceito/.test(t) && /Registrada por\s+/.test(t) && /Fonte \(id\)\s+a1/.test(t), 'cartão da definição vigente: rótulo, contexto, tipo de redação, autoria e id da fonte', t.replace(/\s+/g, ' '));
+    /* ORDEM do detalhe: Identificação → Definição vigente → outras fontes → Critérios e pergunta → Atributos → Relações → Histórico (por último) */
+    const tops = await ordemSecoes(page, ['taxSecIdent', 'taxSecDefinicao', 'taxSecFontes', 'taxSecPergunta', 'taxSecAtributos', 'taxSecRelacoes', 'taxSecHistorico']);
+    afirma(tops.every((y) => y !== null) && tops.every((y, i) => i === 0 || y > tops[i - 1]), 'ordem do detalhe: Identificação, Definição vigente, outras fontes, Critérios e pergunta, Atributos, Relações, Histórico', JSON.stringify(tops));
+    afirma(await page.evaluate(() => { const secs = document.querySelectorAll('.tax-detalhe > .tax-sec'); return secs.length > 0 && secs[secs.length - 1].id === 'taxSecHistorico'; }), 'o Histórico é a última seção do detalhe');
+    t = await page.locator('#taxSecIdent').innerText();
+    afirma(/Código:\s*ALFA/.test(t) && /Nome:\s*Tipo Alfa/.test(t) && /Situação:[\s\S]*ativo[\s\S]*Definição registrada/.test(t) && /Camada:\s*Tipo organizacional/.test(t), 'Identificação: código, nome, situação (ativo + definição) e camada', t.replace(/\s+/g, ' '));
+    afirma(/^Definição vigente/.test((await page.locator('#taxSecDefinicao h4').innerText()).trim()) && await page.locator('#taxSecDefinicao.tax-sec--definicao').count() === 1, 'b) "Definição vigente" é uma seção própria, em destaque');
+    afirma(await page.locator('#taxVigenteBloco article[data-fonte="a1"] .tax-acoes--fonte [data-tax="nova-versao"]').isVisible(), '"Nova versão da definição" fica DENTRO do cartão da definição vigente, à vista');
+    afirma(/^Outras fontes da definição — 2$/.test((await page.locator('#taxOutrasFontes > summary').innerText()).trim()) && await page.locator('#taxOutrasFontes').evaluate((d) => d.open), '"Outras fontes da definição — 2" logo depois do cartão (aberto, recolhível)');
+    /* HISTÓRICO recolhido por padrão — aqui com N = 0 (a carga inicial não grava no histórico do conceito) */
+    afirma(await page.locator('#taxHistoricoConceito').count() === 1 && !(await page.locator('#taxHistoricoConceito').evaluate((d) => d.open)) && (await page.locator('#taxHistoricoConceito > summary').innerText()).trim() === 'Histórico — 0 alterações', 'histórico do conceito: fechado por padrão, cabeçalho "Histórico — 0 alterações"');
+    await abrirHistorico(page);
+    afirma(/Nenhuma alteração registrada/.test(await page.locator('#taxSecHistorico').innerText()), 'aberto (N = 0): "Nenhuma alteração registrada."');
+    /* ações GERAIS separadas das ações do conceito */
+    afirma(await page.locator('#taxAcoesGerais #taxExportar').count() === 1 && await page.locator('.tax-detalhe #taxExportar, .tax-detalhe [data-tax="exportar-excel"]').count() === 0, 'exportar fica em "Ações gerais da Taxonomia", fora do detalhe do conceito');
+    afirma(await page.locator('#taxAcoesGerais [data-tax="editar-conceito"], #taxAcoesGerais [data-tax="nova-versao"]').count() === 0 && await page.locator('#taxSecIdent [data-tax="editar-conceito"]').count() === 1, 'as ações do conceito ficam no detalhe ("Editar dados do conceito" em Identificação), não nas gerais');
     afirma((await page.locator('#taxCodigo').innerText()).trim() === 'Código: ALFA' && await page.locator('#taxCodigo').isVisible(), 'o detalhe mostra o código do conceito ("Código: ALFA")');
     /* Textos-fonte: TRÊS blocos separados — Definição vigente / Fontes disponíveis / Fontes arquivadas */
     afirma(await page.locator('.tax-fonte--vigente').count() === 1, 'exatamente uma fonte marcada como vigente');
@@ -254,7 +280,7 @@ const TOTAL = 'taxonomia';
     afirma(/Versão antiga/.test(t) && /BB/.test(t) && /histórica\/contextual/i.test(t), 'cartão recolhido mostra rótulo, contexto e situação resumida');
     afirma(await page.locator('#taxFontesDisponiveis .tax-identico--resumo').count() === 2 && await page.locator('article[data-fonte="a1"] .tax-identico').count() === 0, 'sinal de "texto idêntico" nas duas fontes envolvidas (a2 e a3), e só nelas');
     afirma((await page.locator('article[data-fonte="a2"] .tax-acoes--fonte .btn').allTextContents()).join('|') === 'Ver|Usar como vigente|Arquivar', 'ações do cartão recolhido: Ver, Usar como vigente, Arquivar (nesta ordem)');
-    afirma((await page.locator('article[data-fonte="a1"] .tax-acoes--fonte .btn').allTextContents()).join('|') === 'Alterar definição|Remover vigência|Ver detalhes' && await page.locator('article[data-fonte="a1"] [data-tax="arquivar"]').count() === 0, 'a vigente: Alterar definição, Remover vigência, Ver detalhes — e NUNCA "Arquivar"');
+    afirma((await page.locator('article[data-fonte="a1"] .tax-acoes--fonte .btn').allTextContents()).join('|') === 'Nova versão da definição|Alterar definição|Remover vigência|Ver detalhes' && await page.locator('article[data-fonte="a1"] [data-tax="arquivar"]').count() === 0, 'a vigente: Nova versão da definição, Alterar definição, Remover vigência, Ver detalhes — e NUNCA "Arquivar"');
     afirma(await page.locator('#taxFontesDisponiveis [data-tax="editar-fonte"], #taxVigenteBloco [data-tax="editar-fonte"]').count() === 0, '"Editar" não aparece enquanto o cartão está recolhido');
     await page.click('article[data-fonte="a2"] [data-tax="ver"]');
     t = await page.locator('article[data-fonte="a2"]').innerText();
@@ -286,10 +312,24 @@ const TOTAL = 'taxonomia';
     afirma(!/Abrangência/i.test(await page.locator('.tax-detalhe').innerText()), 'nenhuma "Abrangência"');
     t = await page.locator('#taxSecRelacoes').innerText();
     afirma(/Tipo Alfa|Alfa/.test(t) && /compõe/.test(t), 'relações exibidas ("compõe")');
-    if (movel) { await page.click('[data-tax="voltar-lista"]'); afirma(await page.locator('.tax-lista').isVisible() && await page.locator('.tax-detalhe').isHidden(), '375 px: "← Voltar para a lista" volta à lista'); }
+    afirma(/Relações de saída \(0\)/.test(await page.locator('#taxRelSaida h5').innerText()) && /Relações de entrada \(1\)/.test(await page.locator('#taxRelEntrada h5').innerText()), 'relações separadas e rotuladas: "Relações de saída (0)" e "Relações de entrada (1)"');
+    afirma(await page.locator('#taxRelEntrada li[data-relacao="BETA__compoe__ALFA"]').count() === 1 && /BETA/.test(await page.locator('#taxRelEntrada li[data-relacao="BETA__compoe__ALFA"]').innerText()) && /este conceito/.test(await page.locator('#taxRelEntrada li').first().innerText()), 'entrada: BETA compõe → este conceito (o outro conceito aparece com o código)');
+    if (movel) {
+      afirma(await page.locator('.tax-voltar').isVisible() && /VOLTAR PARA A LISTA/.test(await page.locator('.tax-voltar').innerText()), '375 px: "← VOLTAR PARA A LISTA" é um botão visível no topo do detalhe');
+      afirma(await page.locator('.tax-voltar-rodape [data-tax="voltar-lista"]').isVisible(), '375 px: o mesmo "VOLTAR" também no fim do detalhe (tela longa)');
+      afirma(await page.evaluate(() => [...document.querySelectorAll('.tax-detalhe button, .tax-detalhe summary')].filter((b) => b.offsetParent).every((b) => { const r = b.getBoundingClientRect(); return r.left >= 0 && r.right <= window.innerWidth + 1; })), '375 px: todos os botões do detalhe cabem na largura da tela');
+      await page.click('.tax-voltar-rodape [data-tax="voltar-lista"]');
+      afirma(await page.locator('.tax-lista').isVisible() && await page.locator('.tax-detalhe').isHidden(), '375 px: o "VOLTAR" do rodapé volta à lista');
+      afirma(await page.evaluate(() => { const it = document.querySelector('.tax-item--ativo[data-codigo="ALFA"]'); if (!it) return false; const r = it.getBoundingClientRect(); return r.bottom > 0 && r.top < window.innerHeight; }), '375 px: de volta à lista, o conceito escolhido continua marcado e à vista');
+      await abrirConceito(page, 'ALFA');
+      afirma(!(await page.locator('#taxHistoricoConceito').evaluate((d) => d.open)), 'voltar ao conceito: o histórico recomeça fechado');
+      await page.click('[data-tax="voltar-lista"]'); afirma(await page.locator('.tax-lista').isVisible() && await page.locator('.tax-detalhe').isHidden(), '375 px: "← Voltar para a lista" volta à lista');
+    }
     await abrirConceito(page, 'BETA');
     t = await page.locator('#taxSecDefinicao').innerText();
     afirma(/Definição em revisão/.test(t) && /nenhum foi aprovado como definição vigente/.test(t) && !/Texto fictício histórico de Beta\./.test(t), 'Beta: "Definição em revisão" — o texto histórico NÃO é apresentado como definição');
+    afirma(/Conceito pai:\s*Tipo Alfa\s*ALFA/.test(await page.locator('#taxIdentPai').innerText()), 'Identificação de Beta: o conceito pai (nome e código)');
+    afirma(/Relações de saída \(1\)/.test(await page.locator('#taxRelSaida h5').innerText()) && await page.locator('#taxRelSaida li[data-relacao="BETA__compoe__ALFA"]').count() === 1 && /ALFA/.test(await page.locator('#taxRelSaida li').first().innerText()), 'a mesma relação, vista de Beta, é de SAÍDA (→ ALFA)');
     t = await page.locator('#taxSecPergunta').innerText();
     afirma(/Pergunta fictícia sobre Beta\?/.test(t) && await page.locator('#taxNotaAplicacao').innerText().then((x) => /Nota de aplicação fictícia: Beta e Gama não se confundem\./.test(x)), 'a NOTA DE APLICAÇÃO aparece junto da pergunta discriminadora');
     afirma(await page.locator('[data-fonte="b2"] [data-tax="tornar-vigente"], [data-fonte="b3"] [data-tax="tornar-vigente"]').count() === 0, 'placeholder e "não localizado" NÃO oferecem "Tornar vigente"');
@@ -310,6 +350,7 @@ const TOTAL = 'taxonomia';
     /* ---------- edição que SALVA ---------- */
     console.log('\n== 5. Edição de conceito: salva de verdade, com auditoria ==');
     await abrirConceito(page, 'ALFA');
+    await abrirHistorico(page); /* aberto ANTES de salvar: tem de continuar aberto depois do re-render */
     await page.click('[data-tax="editar-conceito"]');
     await page.fill('#taxF_nome', 'Tipo Alfa Revisado');
     await page.fill('#taxF_criterios', 'Critério fictício A1\nCritério fictício A2\nCritério fictício A3');
@@ -330,8 +371,13 @@ const TOTAL = 'taxonomia';
     const audA = Object.values(b.organizacional.auditoria.ALFA || {});
     afirma(audA.length === 3 && audA.every((l) => l.usuario.email === EMAIL && l.tipo === 'alteracao_conceito') && audA.some((l) => l.campo === 'nome' && l.valorAnterior === 'Tipo Alfa' && l.valorNovo === 'Tipo Alfa Revisado'), 'auditoria: uma linha por campo alterado, com anterior → novo e o autor');
     await aparece(page, '#taxFlash:not(.tax-flash--erro)');
+    await esperarCondicao(page, () => /Histórico — 3 alterações/.test((document.querySelector('#taxHistoricoConceito > summary') || {}).textContent || ''), null, { limite: 6000, descricao: 'histórico recarregado com as 3 alterações' });
+    afirma(await page.locator('#taxHistoricoConceito').evaluate((d) => d.open), 'o histórico que estava aberto continua aberto depois de salvar (estado guardado no re-render)');
     t = await page.locator('#taxSecHistorico').innerText();
     afirma(/Tipo Alfa → Tipo Alfa Revisado/.test(t), 'o histórico na tela mostra a alteração');
+    const linhaNome = page.locator('#taxHistoricoConceito .tax-hist-item').filter({ hasText: 'Tipo Alfa → Tipo Alfa Revisado' });
+    t = await linhaNome.innerText();
+    afirma(/\d{2}\/\d{2}\/\d{4}/.test(t) && new RegExp(EMAIL.replace('.', '\\.')).test(t) && /Alteração de conceito/.test(t), 'cada linha do histórico: data, autor e tipo da alteração', t.replace(/\s+/g, ' '));
     afirma(/Tipo Alfa Revisado/.test(await page.locator('.tax-item[data-codigo="ALFA"]').innerText().catch(() => '')) || movel, 'a lista reflete o novo nome');
 
     console.log('\n== 5b. Inferência pode ser alterada sem mexer no texto-fonte ==');
@@ -426,6 +472,7 @@ const TOTAL = 'taxonomia';
     afirma(audV.length === 2 && audV.every((l) => l.usuario.email === EMAIL), 'cada troca de definição vigente tem a sua linha de auditoria');
     const evTroca = audV.find((l) => l.fonteNovaId === novaId);
     afirma(!!evTroca && evTroca.fonteAnteriorId === 'b1' && /Significado v1 \(BB\)/.test(evTroca.valorAnterior) && /Nova redação/.test(evTroca.valorNovo) && !!evTroca.dataHora && evTroca.usuario.email === EMAIL, 'auditoria da troca: identifica a fonte ANTERIOR (b1) e a NOVA, quem fez e quando');
+    await abrirHistorico(page);
     await page.waitForFunction(() => /Significado v1 \(BB\) → Nova redação/.test((document.querySelector('#taxSecHistorico') || {}).innerText || ''), null, { timeout: 6000 }).catch(() => {});
     afirma(/Significado v1 \(BB\) → Nova redação/.test(await page.locator('#taxSecHistorico').innerText()), 'o histórico na tela mostra "anterior → nova"');
     /* recusa do banco na troca: nada muda */
@@ -598,7 +645,7 @@ const TOTAL = 'taxonomia';
     await page.evaluate(() => window.faTaxonomia.abrir({ somenteLeitura: true }));
     await aparece(page, '.tax-item[data-codigo="ALFA"]');
     await abrirConceito(page, 'ALFA');
-    const botoes = await page.locator('#adminTaxonomia [data-tax="editar-conceito"], #adminTaxonomia [data-tax="nova-fonte"], #adminTaxonomia [data-tax="tornar-vigente"], #adminTaxonomia [data-tax="editar-perfil"], #adminTaxonomia [data-tax="editar-fonte"]').count();
+    const botoes = await page.locator('#adminTaxonomia [data-tax="editar-conceito"], #adminTaxonomia [data-tax="nova-fonte"], #adminTaxonomia [data-tax="tornar-vigente"], #adminTaxonomia [data-tax="editar-perfil"], #adminTaxonomia [data-tax="editar-fonte"], #adminTaxonomia [data-tax="nova-versao"]').count();
     afirma(botoes === 0, 'modo somente leitura: nenhum botão de edição (consulta de verdade)');
     afirma(/Texto fictício VIGENTE de Alfa\./.test(await page.locator('#taxSecDefinicao').innerText()), 'e a consulta continua completa');
     await ctx.close();
@@ -751,7 +798,13 @@ const TOTAL = 'taxonomia';
     await r.page.evaluate(() => { const e = window.faTaxonomia._interno.espera; e.leitura = 1200; });
     return r;
   }
-  const abaHG = (page) => page.click('[data-tax="aba-historico"]');
+  /* o histórico global também começa RECOLHIDO: a aba abre a área, e o cabeçalho "Histórico — N alterações" abre a lista */
+  const abrirListaHG = async (page) => {
+    await page.waitForSelector('#taxHgDetalhes > summary', { timeout: 4000 });
+    if (!(await page.locator('#taxHgDetalhes').evaluate((d) => d.open))) await page.click('#taxHgDetalhes > summary');
+    await esperarCondicao(page, () => { const d = document.querySelector('#taxHgDetalhes'); return !!d && d.open; }, null, { limite: 4000, descricao: 'lista do histórico global aberta' });
+  };
+  const abaHG = async (page) => { await page.click('[data-tax="aba-historico"]'); await abrirListaHG(page); };
   const linhasHG = (page) => page.locator('#taxHistoricoGlobal .tax-hg-item');
 
   for (const [nomeTela, viewport] of [['desktop', DESKTOP], ['celular 375px', CELULAR]]) {
@@ -764,7 +817,11 @@ const TOTAL = 'taxonomia';
       const abas = await page.locator('.tax-dominios [role="tab"]').allInnerTexts();
       afirma(abas.length === 3 && /Histórico global/i.test(abas[2]), 'terceira aba "Histórico global" na linha dos domínios');
       const escritas0 = await page.evaluate(() => (window.__ESCRITAS || []).length);
-      await abaHG(page);
+      await page.click('[data-tax="aba-historico"]');
+      await esperarCondicao(page, () => /^Histórico — 28 alterações/.test(((document.querySelector('#taxHgDetalhes > summary') || {}).textContent || '').trim()), null, { limite: 4000, descricao: 'cabeçalho do histórico global com a contagem' });
+      afirma(!(await page.locator('#taxHgDetalhes').evaluate((d) => d.open)) && (await page.locator('#taxHgDetalhes > summary').innerText()).trim() === 'Histórico — 28 alterações carregadas (há mais antigas)', 'histórico global: começa RECOLHIDO, com "Histórico — 28 alterações carregadas (há mais antigas)"');
+      afirma(!(await linhasHG(page).first().isVisible()), 'recolhido: nenhuma linha à vista antes do clique');
+      await abrirListaHG(page);
       await aparece(page, '#taxHistoricoGlobal .tax-hg-item');
       afirma(await page.locator('.tax-wrap').count() === 0 && await page.locator('[data-tax="aba-historico"][aria-selected="true"]').count() === 1, 'a aba troca a área de lista/detalhe pelo histórico e fica marcada');
       afirma(await linhasHG(page).count() === 28, 'primeira carga: 25 eventos mais recentes do Organizacional + 3 do Arquitetural = 28');
@@ -794,6 +851,13 @@ const TOTAL = 'taxonomia';
       const tCargaOrg = await page.locator('.tax-hg-item[data-dominio="organizacional"][data-chave="' + chaveEv(0) + '"]').innerText();
       afirma(/Carga inicial — Organizacional/.test(tCargaOrg) && /Hoje o domínio tem 1 conceito e 0 textos-fonte/.test(tCargaOrg), 'a outra linha: "Carga inicial — Organizacional", com a contagem do PRÓPRIO domínio (as duas linhas não são mais idênticas)', tCargaOrg.replace(/\s+/g, ' '));
       afirma(await page.evaluate(() => (window.__ESCRITAS || []).length) === escritas0, 'só leitura: nenhuma escrita (nada copiado para os conceitos, nenhuma auditoria nova)');
+      if (movel) {
+        afirma(await page.locator('.tax-voltar-hg--topo [data-tax="voltar-dominio"]').isVisible() && await page.locator('.tax-voltar-hg--rodape [data-tax="voltar-dominio"]').isVisible() && /VOLTAR PARA OS CONCEITOS/.test(await page.locator('.tax-voltar-hg--topo').innerText()), '375 px: "← VOLTAR PARA OS CONCEITOS" visível no topo e no fim do histórico global');
+        await page.click('.tax-voltar-hg--rodape [data-tax="voltar-dominio"]');
+        afirma(await page.locator('#taxHistoricoGlobal').count() === 0 && await page.locator('.tax-item[data-codigo="SQ"]').isVisible(), '375 px: o VOLTAR do rodapé leva de volta à lista de conceitos');
+        await abaHG(page);
+        afirma(await page.locator('#taxHgDetalhes').evaluate((d) => d.open), 'reabrir a aba: a lista continua como estava (aberta)');
+      }
       await page.click('.tax-dominio[data-dominio="organizacional"]');
       await aparece(page, '.tax-wrap');
       afirma(await page.locator('#taxHistoricoGlobal').count() === 0 && await page.locator('.tax-item[data-codigo="SQ"]').count() === 1, 'voltar para um domínio restaura a lista de conceitos');
@@ -999,7 +1063,7 @@ const TOTAL = 'taxonomia';
       await esperarCondicao(page, (nome) => { const t = document.querySelector('.tax-detalhe .tax-titulo'); return !!t && t.textContent.trim() === nome && !!document.querySelector('#taxSecFontes article.tax-fonte') && !document.querySelector('#taxSecFontes .loading-msg'); }, nomeSq, { limite: 6000, descricao: 'detalhe do SQ em leitura, com cartões de fonte' });
       afirma(await page.locator('#taxSecFontes article.tax-fonte').count() > 0, 'somente leitura: o detalhe do SQ está na tela, com cartões de fonte');
       await page.click('[data-tax="alternar-arquivadas"]');
-      afirma(await page.locator('#taxSecFontes [data-tax="arquivar"], #taxSecFontes [data-tax="restaurar"], #taxSecFontes [data-tax="tornar-vigente"], #taxSecFontes [data-tax="alterar-definicao"], #taxSecFontes [data-tax="remover-vigencia"]').count() === 0 && await page.locator('#taxSecFontes [data-tax="ver"]').count() > 0, 'sem botões de edição; "Ver" continua disponível');
+      afirma(await page.locator('.tax-detalhe [data-tax="arquivar"], .tax-detalhe [data-tax="restaurar"], .tax-detalhe [data-tax="tornar-vigente"], .tax-detalhe [data-tax="alterar-definicao"], .tax-detalhe [data-tax="remover-vigencia"], .tax-detalhe [data-tax="nova-versao"]').count() === 0 && await page.locator('#taxSecFontes [data-tax="ver"]').count() > 0, 'sem botões de edição; "Ver" continua disponível');
       await ctx.close();
     }
   }

@@ -58,7 +58,7 @@
       "arquivo": ".github/scripts/teste-taxonomia.js",
       "nome": "Taxonomia: interface, importador, edição, auditoria e vigência (desktop e celular)",
       "duracao": 104,
-      "sobre": "Taxonomia (Admin → Taxonomia): estados de leitura (carregando ≠ erro ≠ sem acesso ≠ vazio), importação única atômica, dois domínios separados, definição vigente (equivalência com o ponteiro + segunda barreira na aplicação), edição que salva com auditoria, só admin; desktop e celular. Conteúdo 100% fictício."
+      "sobre": "Taxonomia (Admin → Taxonomia): estados de leitura (carregando ≠ erro ≠ sem acesso ≠ vazio), importação única atômica, dois domínios separados, definição vigente (equivalência com o ponteiro + segunda barreira na aplicação), edição que salva com auditoria, só admin; detalhe na ordem Identificação → Definição vigente (cartão em destaque, com \"Nova versão da definição\") → outras fontes → Critérios e pergunta → Atributos → Relações (saída e entrada separadas) → Histórico; históricos do conceito e global recolhidos por padrão (\"Histórico — N alterações\", inclusive N = 0) e abertos guardam o estado no re-render; ações gerais separadas das do conceito; \"← VOLTAR\" visível no topo e no fim (375 px) devolvendo a lista com o conceito marcado; desktop e celular. Conteúdo 100% fictício, conceitos sempre pelo código."
     },
     {
       "arquivo": ".github/scripts/teste-ficha-estrutura.js",
@@ -447,13 +447,13 @@
       "arquivo": ".github/scripts/teste-taxonomia-nova-versao.js",
       "nome": "Taxonomia: texto-fonte imutável e \"Nova versão da definição\" (desktop e celular)",
       "duracao": 11,
-      "sobre": "Detalhe mostra o código do conceito; a vigente não tem \"Editar\", e sim \"Nova versão da definição\", que abre o formulário de nova fonte pré-preenchido; salvar cria fonte NOVA \"em validação\" (criadoEm/criadoPor próprios), a anterior fica intacta e a definição não muda; \"Usar como vigente\" troca a definição e a anterior vira histórica com o mesmo texto. Hermético; a imutabilidade no banco é provada por teste-rules-taxonomia.js no emulador."
+      "sobre": "Detalhe mostra o código do conceito; a vigente não tem \"Editar\", e sim \"Nova versão da definição\", à vista no próprio cartão da definição vigente, que abre — junto da definição — o formulário de nova fonte pré-preenchido; salvar cria fonte NOVA \"em validação\" (criadoEm/criadoPor próprios), a anterior fica intacta e a definição não muda; \"Usar como vigente\" troca a definição e a anterior vira histórica com o mesmo texto. Hermético; a imutabilidade no banco é provada por teste-rules-taxonomia.js no emulador."
     },
     {
       "arquivo": ".github/scripts/teste-taxonomia-exportacao.js",
       "nome": "Taxonomia: exportação Excel (revisão) e JSON (diagnóstico), só leitura (desktop e celular)",
       "duracao": 9,
-      "sobre": "Exportação da Taxonomia: JSON com cabeçalho e o nó taxonomia idêntico ao banco; Excel com abas Conceitos, Fontes (inclusive histórica e arquivada), Atributos, Perfis, Relações e Histórico, cabeçalhos em português; nenhuma escrita durante a exportação; leitura que não responde ou é recusada mostra erro visível com o ramo e não baixa nada; some no modo somente leitura. Hermético."
+      "sobre": "Exportação da Taxonomia: JSON com cabeçalho, o nó taxonomia idêntico ao banco e conceitosConsolidados (um item por conceito, com domínio: definição e fonte vigentes, fontes históricas, perfis, relações de saída e de entrada, resumo da auditoria); Excel com a 1ª aba \"Visão consolidada por conceito\" (uma linha por conceito; cabeçalho congelado, 3 colunas fixas, autofiltro, larguras e quebra de linha conferidos no XML) e as abas Conceitos, Fontes (inclusive histórica e arquivada), Atributos, Perfis, Relações e Histórico, cabeçalhos em português; nenhuma escrita durante a exportação; leitura que não responde ou é recusada mostra erro visível com o ramo e não baixa nada; some no modo somente leitura. Hermético."
     },
     {
       "arquivo": ".github/scripts/teste-squad-endereco.js",
