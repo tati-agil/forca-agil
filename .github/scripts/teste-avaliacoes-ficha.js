@@ -4,6 +4,7 @@
  * consulta, sem Reavaliar nem edição. Status: "Em andamento" / "Concluída".
  * Desktop e celular (375 px). Hermético: sem rede, sem segredo. */
 const { chromium } = require('playwright');
+const { esperarSessaoAssentada, esperarCondicao } = require('./esperas');
 const fs = require('fs');
 const path = require('path');
 
@@ -59,10 +60,9 @@ async function abrir(browser, tipo, viewport) {
   await page.route('**fonts.googleapis.com**', (r) => r.fulfill({ status: 200, contentType: 'text/css', body: '' }));
   await page.route('**fonts.gstatic.com**', (r) => r.abort());
   await page.goto(BASE + '/index.html#avaliacoes', { waitUntil: 'domcontentloaded' });
-  await page.waitForFunction(() => !document.body.classList.contains('aguardando-auth'), { timeout: 16000 }).catch(() => {});
+  await esperarSessaoAssentada(page); /* login decidido e acessos resolvidos (antes: opções no lugar do argumento, engolida + 300 ms fixos) */
   await page.waitForSelector('#avaliacoesPainel .avp-table tbody tr', { timeout: 8000 });
-  await page.waitForFunction(() => !document.querySelector('.avp-tag-motor--verificando'), { timeout: 8000 }).catch(() => {});
-  await page.waitForTimeout(300);
+  await esperarCondicao(page, () => !document.querySelector('.avp-tag-motor--verificando'), null, { descricao: 'os selos de motor verificados' });
   return { ctx, page, erros };
 }
 /* compara o conteúdo sem depender da ordem das chaves (o banco falso, como o real, não guarda null) */

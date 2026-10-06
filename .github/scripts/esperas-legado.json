@@ -1,0 +1,985 @@
+{
+  "_comentario": [
+    "Esperas LEGADAS permitidas por teste-guarda-esperas.js: waitForFunction com as opções no lugar do argumento (o limite escrito é ignorado; vale 30 s) e esperas seguidas de .catch (estouro engolido).",
+    "Cada uma por arquivo + impressão (padrão + texto da chamada, espaços normalizados), n = quantas vezes o mesmo trecho aparece. Esta lista só DIMINUI: ocorrência nova é proibida (use esperas.js); a que for corrigida sai com --podar, que nunca acrescenta."
+  ],
+  "ocorrencias": {
+    "teste-a-validar-gestao.js": {
+      "36550d61e94780b9": {
+        "n": 1,
+        "padrao": "catch",
+        "trecho": ".waitForEvent('download', { timeout: 60000 }).catch(() => null)"
+      },
+      "2fdb26c18305e5a9": {
+        "n": 1,
+        "padrao": "catch",
+        "trecho": ".waitForFunction((k) => { const it = window.__CFG.__dbReal['avaliacoes-produto'][k]; return it && it.motorVersionArquitetura === 5; }, c.key"
+      }
+    },
+    "teste-a-validar-natureza.js": {
+      "36550d61e94780b9": {
+        "n": 1,
+        "padrao": "catch",
+        "trecho": ".waitForEvent('download', { timeout: 60000 }).catch(() => null)"
+      },
+      "2fdb26c18305e5a9": {
+        "n": 1,
+        "padrao": "catch",
+        "trecho": ".waitForFunction((k) => { const it = window.__CFG.__dbReal['avaliacoes-produto'][k]; return it && it.motorVersionArquitetura === 5; }, c.key"
+      }
+    },
+    "teste-admin-abrir-lista-restrita.js": {
+      "ffa62fe884de3650": {
+        "n": 1,
+        "padrao": "opcoes-como-argumento",
+        "trecho": ".waitForFunction(() => !!window.__boxVis(), { timeout: 10000 })"
+      },
+      "01ed11429db1b012": {
+        "n": 1,
+        "padrao": "opcoes-como-argumento",
+        "trecho": ".waitForFunction(() => !window.__boxVis(), { timeout: 10000 })"
+      },
+      "62ab79f2af078213": {
+        "n": 1,
+        "padrao": "opcoes-como-argumento",
+        "trecho": ".waitForFunction(() => { const el = document.querySelector('#addPartResults'); return el && getComputedStyle(el).display !== 'none' && !/Car"
+      },
+      "2d13124e75142700": {
+        "n": 1,
+        "padrao": "opcoes-como-argumento",
+        "trecho": ".waitForFunction(() => { const box = window.__boxVis(); return box && /Público restrito da turma/i.test(box.textContent || ''); }, { timeout"
+      },
+      "f6f8139d543a06e3": {
+        "n": 1,
+        "padrao": "opcoes-como-argumento",
+        "trecho": ".waitForFunction(() => { const box = window.__boxVis(); const tabela = box && box.querySelector('.admin-table'); return !!tabela && /NATALIA"
+      },
+      "ef00763b4dad8936": {
+        "n": 1,
+        "padrao": "opcoes-como-argumento",
+        "trecho": ".waitForFunction(() => { const box = window.__boxVis(); return !!(box && box.querySelector('.admin-table')); }, { timeout: 10000 })"
+      },
+      "bd8f0c36c5c2bbcb": {
+        "n": 1,
+        "padrao": "opcoes-como-argumento",
+        "trecho": ".waitForFunction(() => { const box = window.__boxVis(); return box && /INSCRITAS\\?/i.test(box.textContent || ''); }, { timeout: 10000 })"
+      },
+      "17c8b7596dfcec19": {
+        "n": 1,
+        "padrao": "opcoes-como-argumento",
+        "trecho": ".waitForFunction(() => { const box = window.__boxVis(); const tabela = box && box.querySelector('.admin-table'); return !!tabela && (tabela."
+      },
+      "ce35779004c1ccba": {
+        "n": 1,
+        "padrao": "opcoes-como-argumento",
+        "trecho": ".waitForFunction(() => /DEBORA/i.test(document.querySelector('#addPartResults').textContent || ''), { timeout: 15000 })"
+      }
+    },
+    "teste-admin-nome-evento-completo.js": {
+      "06c8b2b3e4224adf": {
+        "n": 1,
+        "padrao": "opcoes-como-argumento",
+        "trecho": ".waitForFunction(() => { const el = document.querySelector('[data-ev-key=\"evLongo\"]'); return el && /público restrito do evento/i.test(el.te"
+      }
+    },
+    "teste-aposta.js": {
+      "6e7c7f2940011bb6": {
+        "n": 1,
+        "padrao": "catch",
+        "trecho": ".waitForFunction( () => /Grupo 1/.test(document.body.textContent || ''), null, { timeout: 8000 } ).then(() => true).catch(() => false)"
+      },
+      "4c10fdd97b82a0e9": {
+        "n": 2,
+        "padrao": "opcoes-como-argumento",
+        "trecho": ".waitForFunction(() => /MUDAN/i.test((document.querySelector('.aposta-etapa-titulo') || {}).textContent || ''), { timeout: 15000 })"
+      },
+      "23528b036357ee2a": {
+        "n": 2,
+        "padrao": "opcoes-como-argumento",
+        "trecho": ".waitForFunction(() => /SINTOMA/.test((document.querySelector('.aposta-etapa-titulo') || {}).textContent || ''), { timeout: 15000 })"
+      },
+      "4db81eff2122926c": {
+        "n": 1,
+        "padrao": "opcoes-como-argumento",
+        "trecho": ".waitForFunction(() => /^MISS[ÃA]O$/.test((document.querySelector('.aposta-etapa-titulo') || {}).textContent || ''), { timeout: 15000 })"
+      },
+      "bd3c4b8b2daa2954": {
+        "n": 3,
+        "padrao": "opcoes-como-argumento",
+        "trecho": ".waitForFunction(() => /PROBLEMA/.test((document.querySelector('.aposta-etapa-titulo') || {}).textContent || ''), { timeout: 15000 })"
+      },
+      "7b1641c02f7efe9e": {
+        "n": 1,
+        "padrao": "opcoes-como-argumento",
+        "trecho": ".waitForFunction(() => /IDEIA DE SOLU/i.test((document.querySelector('.aposta-etapa-titulo') || {}).textContent || ''), { timeout: 15000 })"
+      },
+      "108aa026ed97b49f": {
+        "n": 1,
+        "padrao": "opcoes-como-argumento",
+        "trecho": ".waitForFunction(() => !!document.querySelector('.aposta-revelacao'), { timeout: 15000 })"
+      },
+      "5e7600a78b079ae1": {
+        "n": 7,
+        "padrao": "opcoes-como-argumento",
+        "trecho": ".waitForFunction(() => /EVID[ÊE]NCIA/.test((document.querySelector('.aposta-etapa-titulo') || {}).textContent || ''), { timeout: 15000 })"
+      },
+      "875a44b628b80b43": {
+        "n": 1,
+        "padrao": "opcoes-como-argumento",
+        "trecho": ".waitForFunction(() => /EXPERIMENTO/.test((document.querySelector('.aposta-etapa-titulo') || {}).textContent || ''), { timeout: 15000 })"
+      },
+      "b9ed2532940b5c0e": {
+        "n": 1,
+        "padrao": "opcoes-como-argumento",
+        "trecho": ".waitForFunction(() => /MUDAN[ÇC]AS MENSUR[ÁA]VEIS/i.test((document.querySelector('.aposta-etapa-titulo') || {}).textContent || ''), { timeo"
+      },
+      "1e33c6f27e2fa0d0": {
+        "n": 2,
+        "padrao": "opcoes-como-argumento",
+        "trecho": ".waitForFunction(() => /DECIS[ÃA]O/.test((document.querySelector('.aposta-etapa-titulo') || {}).textContent || ''), { timeout: 15000 })"
+      },
+      "875d2ec533fbad8c": {
+        "n": 1,
+        "padrao": "opcoes-como-argumento",
+        "trecho": ".waitForFunction(() => !!(window.faAposta && window.faAposta._resumo), { timeout: 15000 })"
+      },
+      "72b325641e2ee99e": {
+        "n": 1,
+        "padrao": "opcoes-como-argumento",
+        "trecho": ".waitForFunction(() => /^H\\s*—\\s*HIP[ÓO]TESE/i.test((document.querySelector('.aposta-etapa-titulo') || {}).textContent || ''), { timeout: 80"
+      },
+      "c38c92c177ed7d14": {
+        "n": 1,
+        "padrao": "opcoes-como-argumento",
+        "trecho": ".waitForFunction(() => /MUDAN[ÇC]AS MENSUR[ÁA]VEIS/i.test((document.querySelector('.aposta-etapa-titulo') || {}).textContent || ''), { timeo"
+      },
+      "0034e7a391dd87d8": {
+        "n": 1,
+        "padrao": "opcoes-como-argumento",
+        "trecho": ".waitForFunction(() => /^P\\s*—\\s*PROBLEMA/i.test((document.querySelector('.aposta-etapa-titulo') || {}).textContent || ''), { timeout: 8000 "
+      },
+      "f1a2b0ae93741d97": {
+        "n": 1,
+        "padrao": "opcoes-como-argumento",
+        "trecho": ".waitForFunction(() => /^SINTOMA$/.test((document.querySelector('.aposta-etapa-titulo') || {}).textContent || ''), { timeout: 15000 })"
+      },
+      "0bd0b18a9b210ffd": {
+        "n": 1,
+        "padrao": "opcoes-como-argumento",
+        "trecho": ".waitForFunction(() => /IDEIA/.test((document.querySelector('.aposta-etapa-titulo') || {}).textContent || ''), { timeout: 15000 })"
+      },
+      "1d6f87c96ef0d638": {
+        "n": 1,
+        "padrao": "opcoes-como-argumento",
+        "trecho": ".waitForFunction(() => /^E — EXPERIMENTO$/.test((document.querySelector('.aposta-etapa-titulo') || {}).textContent || ''), { timeout: 15000 "
+      }
+    },
+    "teste-avaliacoes-acessos.js": {
+      "bf0d54ef8f98645d": {
+        "n": 1,
+        "padrao": "catch",
+        "trecho": ".waitForSelector('#avaliacoesPainel .avp-table tbody tr', { timeout: 8000 }).catch(() => {})"
+      },
+      "1bc12bc894eb77a0": {
+        "n": 1,
+        "padrao": "catch",
+        "trecho": ".waitForSelector('#avpConfigQuestionariosBtn', { timeout: 8000 }).catch(() => {})"
+      },
+      "9c32190e59c3bc46": {
+        "n": 1,
+        "padrao": "catch",
+        "trecho": ".waitForSelector('#avpAdequacaoSquadListaBtn', { timeout: 5000 }).catch(() => {})"
+      },
+      "acf5d2952e5868d0": {
+        "n": 1,
+        "padrao": "catch",
+        "trecho": ".waitForSelector('#avpConfigQuestionariosBtn', { timeout: 10000 }).catch(() => {})"
+      },
+      "e360eb588ee1aa84": {
+        "n": 1,
+        "padrao": "catch",
+        "trecho": ".waitForSelector('#avpNovoBtn', { timeout: 10000 }).catch(() => {})"
+      },
+      "9b10a43f410f6392": {
+        "n": 1,
+        "padrao": "catch",
+        "trecho": ".waitForSelector('#avpVoltarListaResultado', { timeout: 8000 }).catch(() => {})"
+      },
+      "45c8dd8aca89c67e": {
+        "n": 1,
+        "padrao": "opcoes-como-argumento",
+        "trecho": ".waitForFunction(() => /agora tem acesso/.test((document.getElementById('avpUsuariosFlash') || {}).innerText || ''), { timeout: 5000 })"
+      },
+      "bda6bb63cbed715c": {
+        "n": 1,
+        "padrao": "catch",
+        "trecho": ".waitForFunction(() => /agora tem acesso/.test((document.getElementById('avpUsuariosFlash') || {}).innerText || ''), { timeout: 5000 }).catc"
+      },
+      "b5d6b8c2c7420ff2": {
+        "n": 1,
+        "padrao": "catch",
+        "trecho": ".waitForFunction((k) => { const r = window.__CFG.__dbReal['fa-avaliacao-autorizados']; return r && r[k] && r[k].tipo === 'avaliacao-arquitet"
+      },
+      "97296830fa63bdb8": {
+        "n": 1,
+        "padrao": "catch",
+        "trecho": ".waitForFunction((k) => !window.__CFG.__dbReal['fa-avaliacao-autorizados'][k], chave('bruno@previ.com.br'), { timeout: 5000 }).catch(() => {"
+      },
+      "71666d82830d0aab": {
+        "n": 1,
+        "padrao": "catch",
+        "trecho": ".waitForFunction((k) => { const r = window.__CFG.__dbReal['fa-avaliacao-autorizados']; return r && r[k]; }, chave(SUPER), { timeout: 5000 })"
+      },
+      "f99e1ddea316d641": {
+        "n": 1,
+        "padrao": "catch",
+        "trecho": ".waitForSelector('#avpAutLista .avp-aut-item', { timeout: 5000 }).catch(() => {})"
+      },
+      "5bea602db68e096a": {
+        "n": 1,
+        "padrao": "opcoes-como-argumento",
+        "trecho": ".waitForFunction(() => /Não foi possível salvar/.test(document.getElementById('avpAutResultados').innerText), { timeout: 5000 })"
+      },
+      "ae03649ffa47286b": {
+        "n": 1,
+        "padrao": "catch",
+        "trecho": ".waitForFunction(() => /Não foi possível salvar/.test(document.getElementById('avpAutResultados').innerText), { timeout: 5000 }).catch(() =>"
+      },
+      "b1de16fc19be9647": {
+        "n": 1,
+        "padrao": "opcoes-como-argumento",
+        "trecho": ".waitForFunction(() => /Não foi possível salvar/.test((document.getElementById('avpAutEuAviso') || {}).textContent || ''), { timeout: 5000 }"
+      },
+      "769c99296441d520": {
+        "n": 1,
+        "padrao": "catch",
+        "trecho": ".waitForFunction(() => /Não foi possível salvar/.test((document.getElementById('avpAutEuAviso') || {}).textContent || ''), { timeout: 5000 }"
+      }
+    },
+    "teste-avaliacoes-ajustes.js": {
+      "46c089292c40df5f": {
+        "n": 2,
+        "padrao": "catch",
+        "trecho": ".waitForEvent('download', { timeout: 40000 }).catch(() => null)"
+      },
+      "b8d09b28ce433f17": {
+        "n": 2,
+        "padrao": "opcoes-como-argumento",
+        "trecho": ".waitForFunction(() => !/Gerando arquivo/.test(document.body.innerText), { timeout: 20000 })"
+      },
+      "2e53762de7f91e00": {
+        "n": 2,
+        "padrao": "catch",
+        "trecho": ".waitForFunction(() => !/Gerando arquivo/.test(document.body.innerText), { timeout: 20000 }).catch(() => {})"
+      }
+    },
+    "teste-avaliacoes-navegacao.js": {
+      "3c16ec62a147c1c2": {
+        "n": 2,
+        "padrao": "catch",
+        "trecho": ".reload().catch(() => { /* navegação cancelada pelo próprio teste ao recusar o diálogo */ })"
+      }
+    },
+    "teste-avaliacoes-troca-usuario.js": {
+      "080f3a4525238f90": {
+        "n": 1,
+        "padrao": "opcoes-como-argumento",
+        "trecho": ".waitForFunction(() => !window.faAuth.getSession(), { timeout: 8000 })"
+      },
+      "629e51bd6f9c1acd": {
+        "n": 2,
+        "padrao": "catch",
+        "trecho": ".waitForSelector('#avpUsuariosBtn', { timeout: 10000 }).catch(() => {})"
+      },
+      "dc0674725cb64ffb": {
+        "n": 3,
+        "padrao": "catch",
+        "trecho": ".waitForSelector('#avpAutAdicionarBtn', { timeout: 8000 }).catch(() => {})"
+      },
+      "acf5d2952e5868d0": {
+        "n": 2,
+        "padrao": "catch",
+        "trecho": ".waitForSelector('#avpConfigQuestionariosBtn', { timeout: 10000 }).catch(() => {})"
+      },
+      "1c97fde8b3e8817f": {
+        "n": 1,
+        "padrao": "catch",
+        "trecho": ".waitForSelector('#avpUsuariosBtn', { timeout: 12000 }).catch(() => {})"
+      },
+      "bbd761884d6dba1c": {
+        "n": 1,
+        "padrao": "catch",
+        "trecho": ".waitForSelector('#avaliacoesPainel .avp-table tbody tr', { timeout: 10000 }).catch(() => {})"
+      },
+      "ad143644b22d703e": {
+        "n": 1,
+        "padrao": "catch",
+        "trecho": ".waitForSelector('#avpVoltarListaResultado', { timeout: 6000 }).catch(() => {})"
+      },
+      "e360eb588ee1aa84": {
+        "n": 1,
+        "padrao": "catch",
+        "trecho": ".waitForSelector('#avpNovoBtn', { timeout: 10000 }).catch(() => {})"
+      }
+    },
+    "teste-conflito-naturezas.js": {
+      "36550d61e94780b9": {
+        "n": 1,
+        "padrao": "catch",
+        "trecho": ".waitForEvent('download', { timeout: 60000 }).catch(() => null)"
+      },
+      "1e89824ab6069ab4": {
+        "n": 1,
+        "padrao": "catch",
+        "trecho": ".waitForFunction((k) => { const it = window.__CFG.__dbReal['avaliacoes-produto'][k]; return it && it.motorVersionArquitetura === 4; }, key, "
+      }
+    },
+    "teste-corrigir-email.js": {
+      "94ea60ad0c022168": {
+        "n": 1,
+        "padrao": "opcoes-como-argumento",
+        "trecho": ".waitForFunction(() => { const b = document.querySelector('.modal-box .admin-modal-save-btn'); return b && !b.disabled; }, { timeout: 10000 "
+      },
+      "7cca6a4bd4aafd18": {
+        "n": 1,
+        "padrao": "opcoes-como-argumento",
+        "trecho": ".waitForFunction(() => { const err = document.querySelector('#cadEditErr'); const erroVisivel = err && getComputedStyle(err).display !== 'no"
+      }
+    },
+    "teste-curadoria-orfa.js": {
+      "98d860c40ed3f0f6": {
+        "n": 1,
+        "padrao": "catch",
+        "trecho": ".waitForSelector(sel, { timeout: ms || 2500 }).then(() => true).catch(() => false)"
+      },
+      "009657c53b7badbb": {
+        "n": 1,
+        "padrao": "opcoes-como-argumento",
+        "trecho": ".waitForFunction(() => { const s = document.getElementById('avpNaturezaComplementar'); return !s || !s.disabled; }, { timeout: 6000 })"
+      },
+      "ae1215ef6739501f": {
+        "n": 1,
+        "padrao": "catch",
+        "trecho": ".waitForFunction(() => { const s = document.getElementById('avpNaturezaComplementar'); return !s || !s.disabled; }, { timeout: 6000 }).catch"
+      },
+      "36550d61e94780b9": {
+        "n": 1,
+        "padrao": "catch",
+        "trecho": ".waitForEvent('download', { timeout: 60000 }).catch(() => null)"
+      },
+      "b7d8bd17e3301b22": {
+        "n": 1,
+        "padrao": "catch",
+        "trecho": ".waitForFunction(fn, arg, { timeout: 8000 }).catch(() => {})"
+      }
+    },
+    "teste-curadoria.js": {
+      "009657c53b7badbb": {
+        "n": 1,
+        "padrao": "opcoes-como-argumento",
+        "trecho": ".waitForFunction(() => { const s = document.getElementById('avpNaturezaComplementar'); return !s || !s.disabled; }, { timeout: 6000 })"
+      },
+      "ae1215ef6739501f": {
+        "n": 1,
+        "padrao": "catch",
+        "trecho": ".waitForFunction(() => { const s = document.getElementById('avpNaturezaComplementar'); return !s || !s.disabled; }, { timeout: 6000 }).catch"
+      },
+      "36550d61e94780b9": {
+        "n": 1,
+        "padrao": "catch",
+        "trecho": ".waitForEvent('download', { timeout: 60000 }).catch(() => null)"
+      },
+      "269bfe5952f5b8c2": {
+        "n": 1,
+        "padrao": "opcoes-como-argumento",
+        "trecho": ".waitForFunction(() => /Especialização salva/.test(document.body.innerText), { timeout: 8000 })"
+      },
+      "18c77010b8efc746": {
+        "n": 1,
+        "padrao": "catch",
+        "trecho": ".waitForFunction(() => /Especialização salva/.test(document.body.innerText), { timeout: 8000 }).catch(() => {})"
+      },
+      "83cdcff2290fcbaa": {
+        "n": 1,
+        "padrao": "opcoes-como-argumento",
+        "trecho": ".waitForFunction(() => { const r = window.__CFG.__dbReal['avaliacoes-produto'].comp; return r.papelEstruturalCadastrado === 'opcional'; }, {"
+      },
+      "6ecdd2ce32f0eaac": {
+        "n": 1,
+        "padrao": "catch",
+        "trecho": ".waitForFunction(() => { const r = window.__CFG.__dbReal['avaliacoes-produto'].comp; return r.papelEstruturalCadastrado === 'opcional'; }, {"
+      },
+      "60e32dd5d31a23da": {
+        "n": 1,
+        "padrao": "opcoes-como-argumento",
+        "trecho": ".waitForFunction(() => /Decisão salva/.test(document.body.innerText), { timeout: 8000 })"
+      },
+      "c1f7fa30a5ec2c8e": {
+        "n": 1,
+        "padrao": "catch",
+        "trecho": ".waitForFunction(() => /Decisão salva/.test(document.body.innerText), { timeout: 8000 }).catch(() => {})"
+      },
+      "30d340d804dfed51": {
+        "n": 1,
+        "padrao": "opcoes-como-argumento",
+        "trecho": ".waitForFunction(() => { const r = window.__CFG.__dbReal['avaliacoes-produto'].comp; return r.decisaoManual === false; }, { timeout: 8000 })"
+      },
+      "d3f05736264b0be5": {
+        "n": 1,
+        "padrao": "catch",
+        "trecho": ".waitForFunction(() => { const r = window.__CFG.__dbReal['avaliacoes-produto'].comp; return r.decisaoManual === false; }, { timeout: 8000 })"
+      },
+      "d169547e354be23b": {
+        "n": 1,
+        "padrao": "opcoes-como-argumento",
+        "trecho": ".waitForFunction(() => window.__CFG.__dbReal['avaliacoes-produto'].rp4.reprocessedAt, { timeout: 8000 })"
+      },
+      "1054a7830c3a9a5d": {
+        "n": 1,
+        "padrao": "catch",
+        "trecho": ".waitForFunction(() => window.__CFG.__dbReal['avaliacoes-produto'].rp4.reprocessedAt, { timeout: 8000 }).catch(() => {})"
+      }
+    },
+    "teste-editar-cadastro.js": {
+      "94ea60ad0c022168": {
+        "n": 1,
+        "padrao": "opcoes-como-argumento",
+        "trecho": ".waitForFunction(() => { const b = document.querySelector('.modal-box .admin-modal-save-btn'); return b && !b.disabled; }, { timeout: 10000 "
+      }
+    },
+    "teste-exportacoes-trilha.js": {
+      "28ce95812d6db36a": {
+        "n": 1,
+        "padrao": "catch",
+        "trecho": ".waitForEvent('download', { timeout: 90000 }).catch(() => null)"
+      }
+    },
+    "teste-ficha-estrutura.js": {
+      "98d860c40ed3f0f6": {
+        "n": 1,
+        "padrao": "catch",
+        "trecho": ".waitForSelector(sel, { timeout: ms || 2500 }).then(() => true).catch(() => false)"
+      },
+      "009657c53b7badbb": {
+        "n": 1,
+        "padrao": "opcoes-como-argumento",
+        "trecho": ".waitForFunction(() => { const s = document.getElementById('avpNaturezaComplementar'); return !s || !s.disabled; }, { timeout: 6000 })"
+      },
+      "ae1215ef6739501f": {
+        "n": 1,
+        "padrao": "catch",
+        "trecho": ".waitForFunction(() => { const s = document.getElementById('avpNaturezaComplementar'); return !s || !s.disabled; }, { timeout: 6000 }).catch"
+      },
+      "36550d61e94780b9": {
+        "n": 1,
+        "padrao": "catch",
+        "trecho": ".waitForEvent('download', { timeout: 60000 }).catch(() => null)"
+      },
+      "59fd83c1c60189b4": {
+        "n": 1,
+        "padrao": "opcoes-como-argumento",
+        "trecho": ".waitForFunction(() => /✓ ESPECIALIZAÇÃO E PAPEL SALVOS/.test((document.getElementById('avpSalvarEspecializacaoBtn') || {}).textContent || '"
+      },
+      "a77d28d570df7e20": {
+        "n": 1,
+        "padrao": "catch",
+        "trecho": ".waitForFunction(() => /✓ ESPECIALIZAÇÃO E PAPEL SALVOS/.test((document.getElementById('avpSalvarEspecializacaoBtn') || {}).textContent || '"
+      },
+      "644d8cf73a07b385": {
+        "n": 1,
+        "padrao": "opcoes-como-argumento",
+        "trecho": ".waitForFunction(() => /✓ DECISÃO SALVA/.test((document.getElementById('avpSalvarDecisaoBtn') || {}).textContent || ''), { timeout: 8000 })"
+      },
+      "64c7456a2df44b9b": {
+        "n": 1,
+        "padrao": "catch",
+        "trecho": ".waitForFunction(() => /✓ DECISÃO SALVA/.test((document.getElementById('avpSalvarDecisaoBtn') || {}).textContent || ''), { timeout: 8000 })."
+      },
+      "7a372d5d9553d292": {
+        "n": 1,
+        "padrao": "opcoes-como-argumento",
+        "trecho": ".waitForFunction(() => !document.getElementById('avpAvisoVersaoAnterior'), { timeout: 5000 })"
+      },
+      "7fc162a5f61c00a4": {
+        "n": 1,
+        "padrao": "catch",
+        "trecho": ".waitForFunction(() => !document.getElementById('avpAvisoVersaoAnterior'), { timeout: 5000 }).catch(() => {})"
+      }
+    },
+    "teste-interpretacoes-p5-p15-natureza.js": {
+      "ab62db5319e475be": {
+        "n": 1,
+        "padrao": "catch",
+        "trecho": ".waitForSelector('#avpCorrecao-interpretacoes-p5-p15', { timeout: 5000 }).catch(() => {})"
+      },
+      "893a004fab766a9f": {
+        "n": 1,
+        "padrao": "catch",
+        "trecho": ".click('#avpVoltarListaResultado').catch(() => {})"
+      },
+      "e8f95b62eac22dd4": {
+        "n": 2,
+        "padrao": "opcoes-como-argumento",
+        "trecho": ".waitForFunction(() => /Correção aplicada/.test(document.body.innerText), { timeout: 8000 })"
+      },
+      "ab27ed5fbde95e00": {
+        "n": 2,
+        "padrao": "catch",
+        "trecho": ".waitForFunction(() => /Correção aplicada/.test(document.body.innerText), { timeout: 8000 }).catch(() => {})"
+      },
+      "dbf69eca093f2238": {
+        "n": 2,
+        "padrao": "catch",
+        "trecho": ".click('.avp-modal-ok-btn').catch(() => {})"
+      },
+      "60e32dd5d31a23da": {
+        "n": 3,
+        "padrao": "opcoes-como-argumento",
+        "trecho": ".waitForFunction(() => /Decisão salva/.test(document.body.innerText), { timeout: 8000 })"
+      },
+      "c1f7fa30a5ec2c8e": {
+        "n": 3,
+        "padrao": "catch",
+        "trecho": ".waitForFunction(() => /Decisão salva/.test(document.body.innerText), { timeout: 8000 }).catch(() => {})"
+      }
+    },
+    "teste-menu-notebook.js": {
+      "3ba47285331023a9": {
+        "n": 1,
+        "padrao": "catch",
+        "trecho": ".waitForFunction(() => location.hash === '#treinamento', null, { timeout: 4000 }).catch(() => {})"
+      }
+    },
+    "teste-motor-modal-atualizacao.js": {
+      "3df6e0ae9de57729": {
+        "n": 1,
+        "padrao": "opcoes-como-argumento",
+        "trecho": ".waitForFunction(() => document.querySelectorAll('.avp-tag-motor').length > 0, { timeout: 8000 })"
+      },
+      "270b91dca57fa5e1": {
+        "n": 1,
+        "padrao": "catch",
+        "trecho": ".waitForFunction(() => document.querySelectorAll('.avp-tag-motor').length > 0, { timeout: 8000 }).catch(() => {})"
+      },
+      "d9dcafdcd76ea84c": {
+        "n": 1,
+        "padrao": "opcoes-como-argumento",
+        "trecho": ".waitForFunction(() => !document.querySelector('.avp-tag-motor--verificando'), { timeout: 8000 })"
+      },
+      "76d1973ac9e8bb9b": {
+        "n": 1,
+        "padrao": "catch",
+        "trecho": ".waitForFunction(() => !document.querySelector('.avp-tag-motor--verificando'), { timeout: 8000 }).catch(() => {})"
+      },
+      "706932d5cee586af": {
+        "n": 1,
+        "padrao": "catch",
+        "trecho": ".click('#avpLoteCancelar').catch(() => {})"
+      },
+      "559236e2c2c85226": {
+        "n": 3,
+        "padrao": "catch",
+        "trecho": ".waitForSelector('#avpReconciliacaoResumo', { timeout: 10000 }).catch(() => {})"
+      },
+      "bcf2849ef7553d7d": {
+        "n": 1,
+        "padrao": "catch",
+        "trecho": ".waitForSelector('#avpLoteResumoFinal', { timeout: 15000 }).catch(() => {})"
+      },
+      "f3a37bce83307261": {
+        "n": 1,
+        "padrao": "opcoes-como-argumento",
+        "trecho": ".waitForFunction(() => window.faMotorArquitetura.configCarregada(), { timeout: 10000 })"
+      }
+    },
+    "teste-motor-reconciliacao.js": {
+      "3df6e0ae9de57729": {
+        "n": 1,
+        "padrao": "opcoes-como-argumento",
+        "trecho": ".waitForFunction(() => document.querySelectorAll('.avp-tag-motor').length > 0, { timeout: 8000 })"
+      },
+      "270b91dca57fa5e1": {
+        "n": 1,
+        "padrao": "catch",
+        "trecho": ".waitForFunction(() => document.querySelectorAll('.avp-tag-motor').length > 0, { timeout: 8000 }).catch(() => {})"
+      },
+      "d9dcafdcd76ea84c": {
+        "n": 1,
+        "padrao": "opcoes-como-argumento",
+        "trecho": ".waitForFunction(() => !document.querySelector('.avp-tag-motor--verificando'), { timeout: 8000 })"
+      },
+      "76d1973ac9e8bb9b": {
+        "n": 1,
+        "padrao": "catch",
+        "trecho": ".waitForFunction(() => !document.querySelector('.avp-tag-motor--verificando'), { timeout: 8000 }).catch(() => {})"
+      },
+      "71f2dc827d992fa6": {
+        "n": 1,
+        "padrao": "catch",
+        "trecho": ".waitForSelector('#avpAvisoEquivalente', { timeout: 5000 }).catch(() => {})"
+      },
+      "cde1db11deb918a7": {
+        "n": 1,
+        "padrao": "opcoes-como-argumento",
+        "trecho": ".waitForFunction(() => /reconciliada/.test((document.querySelector('#avpFlashResultado') || {}).textContent || ''), { timeout: 8000 })"
+      },
+      "c12f8e1d4bacad0b": {
+        "n": 1,
+        "padrao": "catch",
+        "trecho": ".waitForFunction(() => /reconciliada/.test((document.querySelector('#avpFlashResultado') || {}).textContent || ''), { timeout: 8000 }).catch"
+      },
+      "727efae138328a03": {
+        "n": 1,
+        "padrao": "catch",
+        "trecho": ".waitForSelector('#avpReconciliarProvas', { timeout: 3000 }).catch(() => {})"
+      },
+      "559236e2c2c85226": {
+        "n": 3,
+        "padrao": "catch",
+        "trecho": ".waitForSelector('#avpReconciliacaoResumo', { timeout: 10000 }).catch(() => {})"
+      },
+      "349fd1bfd393e27b": {
+        "n": 2,
+        "padrao": "catch",
+        "trecho": ".waitForSelector('#avpReconciliarConfirmar', { timeout: 3000 }).catch(() => {})"
+      }
+    },
+    "teste-motor-reprocessar-lote-robusto.js": {
+      "64d6f72779b9242b": {
+        "n": 1,
+        "padrao": "opcoes-como-argumento",
+        "trecho": ".waitForFunction(() => document.querySelectorAll('.avp-tag-motor--desatualizado').length > 0, { timeout: 8000 })"
+      },
+      "de2884ab373fdeb6": {
+        "n": 1,
+        "padrao": "catch",
+        "trecho": ".waitForFunction(() => document.querySelectorAll('.avp-tag-motor--desatualizado').length > 0, { timeout: 8000 }).catch(() => {})"
+      },
+      "07af2f72ed1d8770": {
+        "n": 1,
+        "padrao": "catch",
+        "trecho": ".waitForSelector('#avpLoteResumoFinal', { timeout: ms || 15000 }).then(() => true).catch(() => false)"
+      },
+      "442dc12d194f69ff": {
+        "n": 1,
+        "padrao": "opcoes-como-argumento",
+        "trecho": ".waitForFunction(() => /reprocessada/.test((document.querySelector('#avpFlashResultado') || {}).textContent || ''), { timeout: 8000 })"
+      },
+      "a8d16d5cf96a25dd": {
+        "n": 1,
+        "padrao": "catch",
+        "trecho": ".waitForFunction(() => /reprocessada/.test((document.querySelector('#avpFlashResultado') || {}).textContent || ''), { timeout: 8000 }).then("
+      }
+    },
+    "teste-natureza-complementar.js": {
+      "3e73a0667742b91f": {
+        "n": 1,
+        "padrao": "opcoes-como-argumento",
+        "trecho": ".waitForFunction(() => !document.querySelector('#avpNaturezaComplementar').disabled, { timeout: 6000 })"
+      },
+      "1e7d22f868fce94e": {
+        "n": 1,
+        "padrao": "catch",
+        "trecho": ".waitForFunction(() => !document.querySelector('#avpNaturezaComplementar').disabled, { timeout: 6000 }).catch(() => {})"
+      },
+      "f819bb7577ba75a5": {
+        "n": 1,
+        "padrao": "opcoes-como-argumento",
+        "trecho": ".waitForFunction(() => /Natureza complementar (salva|removida)/.test(document.body.innerText), { timeout: 8000 })"
+      },
+      "b9a3de4f46b1d7e9": {
+        "n": 1,
+        "padrao": "catch",
+        "trecho": ".waitForFunction(() => /Natureza complementar (salva|removida)/.test(document.body.innerText), { timeout: 8000 }).catch(() => {})"
+      },
+      "36550d61e94780b9": {
+        "n": 1,
+        "padrao": "catch",
+        "trecho": ".waitForEvent('download', { timeout: 60000 }).catch(() => null)"
+      },
+      "60e32dd5d31a23da": {
+        "n": 3,
+        "padrao": "opcoes-como-argumento",
+        "trecho": ".waitForFunction(() => /Decisão salva/.test(document.body.innerText), { timeout: 8000 })"
+      },
+      "c1f7fa30a5ec2c8e": {
+        "n": 3,
+        "padrao": "catch",
+        "trecho": ".waitForFunction(() => /Decisão salva/.test(document.body.innerText), { timeout: 8000 }).catch(() => {})"
+      },
+      "598777e12f4c9553": {
+        "n": 1,
+        "padrao": "opcoes-como-argumento",
+        "trecho": ".waitForFunction(() => /Opção criada/.test(document.body.innerText), { timeout: 6000 })"
+      },
+      "959306d4bb3b9040": {
+        "n": 1,
+        "padrao": "opcoes-como-argumento",
+        "trecho": ".waitForFunction(() => /Opção salva/.test(document.body.innerText), { timeout: 6000 })"
+      },
+      "7ec7776ee3cec553": {
+        "n": 1,
+        "padrao": "catch",
+        "trecho": ".waitForFunction(() => /Opção salva/.test(document.body.innerText), { timeout: 6000 }).catch(() => {})"
+      },
+      "34e8a8235f722e04": {
+        "n": 1,
+        "padrao": "opcoes-como-argumento",
+        "trecho": ".waitForFunction(() => /Opção desativada/.test(document.body.innerText), { timeout: 6000 })"
+      },
+      "31bd7df81e128092": {
+        "n": 1,
+        "padrao": "catch",
+        "trecho": ".waitForFunction(() => /Opção desativada/.test(document.body.innerText), { timeout: 6000 }).catch(() => {})"
+      },
+      "197b18060ad668c0": {
+        "n": 1,
+        "padrao": "opcoes-como-argumento",
+        "trecho": ".waitForFunction(() => /Opção ativada/.test(document.body.innerText), { timeout: 6000 })"
+      },
+      "8136d137a1879f5b": {
+        "n": 1,
+        "padrao": "catch",
+        "trecho": ".waitForFunction(() => /Opção ativada/.test(document.body.innerText), { timeout: 6000 }).catch(() => {})"
+      },
+      "d9b772480320d3e1": {
+        "n": 1,
+        "padrao": "opcoes-como-argumento",
+        "trecho": ".waitForFunction(() => !document.querySelector('#avpNaturezaComplementar').disabled, { timeout: 9000 })"
+      },
+      "d5ecfe24e63c62e6": {
+        "n": 1,
+        "padrao": "opcoes-como-argumento",
+        "trecho": ".waitForFunction(() => /Não foi possível salvar a natureza/.test(document.body.innerText), { timeout: 6000 })"
+      },
+      "0303c8573ccb4c3d": {
+        "n": 1,
+        "padrao": "catch",
+        "trecho": ".waitForFunction(() => /Não foi possível salvar a natureza/.test(document.body.innerText), { timeout: 6000 }).catch(() => {})"
+      }
+    },
+    "teste-pdf-quebra-titulos.js": {
+      "28ce95812d6db36a": {
+        "n": 1,
+        "padrao": "catch",
+        "trecho": ".waitForEvent('download', { timeout: 90000 }).catch(() => null)"
+      }
+    },
+    "teste-pedido-envio.js": {
+      "684fe8b280a60c61": {
+        "n": 1,
+        "padrao": "opcoes-como-argumento",
+        "trecho": ".waitForFunction(() => { const b = document.querySelector('#pedEnviar'); const m = document.querySelector('#pedMsg'); return b && !b.disable"
+      }
+    },
+    "teste-publico-restrito-incluir-todos.js": {
+      "212d1b4d9383bb81": {
+        "n": 1,
+        "padrao": "opcoes-como-argumento",
+        "trecho": ".waitForFunction(() => { const avisos = document.querySelectorAll('#turma-card-tA .turma-aviso-publico'); return avisos.length === 1; }, { t"
+      },
+      "e02344728de48ec6": {
+        "n": 1,
+        "padrao": "opcoes-como-argumento",
+        "trecho": ".waitForFunction(() => { return document.querySelectorAll('#turma-card-tA .turma-aviso-publico').length === 0; }, { timeout: 10000 })"
+      }
+    },
+    "teste-repositorio-carregando.js": {
+      "b8c630635f23077d": {
+        "n": 1,
+        "padrao": "opcoes-como-argumento",
+        "trecho": ".waitForFunction(() => { const grid = document.getElementById('repoGrid'); return grid.querySelectorAll('.repo-card').length > 0; }, { timeo"
+      }
+    },
+    "teste-taxonomia.js": {
+      "b9948393b3c8006d": {
+        "n": 1,
+        "padrao": "catch",
+        "trecho": ".waitForSelector(sel, { timeout: ms || 4000 }).then(() => true).catch(() => false)"
+      },
+      "ff3e3065eedcfe58": {
+        "n": 1,
+        "padrao": "catch",
+        "trecho": ".waitForFunction(fn, arg, { timeout: 6000 }).catch(() => {})"
+      },
+      "182693e18f5416bc": {
+        "n": 1,
+        "padrao": "opcoes-como-argumento",
+        "trecho": ".waitForFunction(() => document.querySelector('#taxPrevia') || document.querySelector('#taxImportErros'), { timeout: 8000 })"
+      },
+      "455800cabbbd134d": {
+        "n": 1,
+        "padrao": "catch",
+        "trecho": ".waitForFunction(() => document.querySelector('#taxPrevia') || document.querySelector('#taxImportErros'), { timeout: 8000 }).catch(() => {})"
+      },
+      "abd8087d236cdb59": {
+        "n": 1,
+        "padrao": "opcoes-como-argumento",
+        "trecho": ".waitForFunction(() => !document.querySelector('#taxSecFontes .loading-msg') && !document.querySelector('#taxSecHistorico .loading-msg'), { "
+      },
+      "04dc43f5816322b7": {
+        "n": 1,
+        "padrao": "catch",
+        "trecho": ".waitForFunction(() => !document.querySelector('#taxSecFontes .loading-msg') && !document.querySelector('#taxSecHistorico .loading-msg'), { "
+      },
+      "4a7ec4c6b4d0736e": {
+        "n": 3,
+        "padrao": "catch",
+        "trecho": ".waitForSelector('#taxFlash.tax-flash--erro', { timeout: 6000 }).catch(() => {})"
+      },
+      "f7741b104e8adb81": {
+        "n": 1,
+        "padrao": "opcoes-como-argumento",
+        "trecho": ".waitForFunction(() => document.querySelector('.tax-item[data-codigo=\"componente\"]'), { timeout: 6000 })"
+      },
+      "9672b1dbef7679c9": {
+        "n": 1,
+        "padrao": "catch",
+        "trecho": ".waitForFunction(() => document.querySelector('.tax-item[data-codigo=\"componente\"]'), { timeout: 6000 }).catch(() => {})"
+      },
+      "7829ce802328351f": {
+        "n": 1,
+        "padrao": "catch",
+        "trecho": ".waitForFunction(() => /Significado v1 \\(BB\\) → Nova redação/.test((document.querySelector('#taxSecHistorico') || {}).innerText || ''), null"
+      },
+      "978bbf69895d062b": {
+        "n": 2,
+        "padrao": "catch",
+        "trecho": ".click('[data-tax=\"cancelar-confirmacao\"]').catch(() => {})"
+      },
+      "be91e39b1dd2f5bb": {
+        "n": 1,
+        "padrao": "catch",
+        "trecho": ".waitForSelector('#taxFlash.tax-flash--erro', { timeout: 4000 }).catch(() => {})"
+      },
+      "5878a197a88c8430": {
+        "n": 1,
+        "padrao": "catch",
+        "trecho": ".waitForFunction(() => /NÃO consta/.test((document.querySelector('#taxPendente') || {}).innerText || ''), null, { timeout: 2500 }).catch(() "
+      },
+      "47c17d2d4a5f0540": {
+        "n": 2,
+        "padrao": "catch",
+        "trecho": ".click('[data-tax=\"remover-vigencia\"]').catch(() => {})"
+      },
+      "3d3b7b5dc8b0a312": {
+        "n": 2,
+        "padrao": "catch",
+        "trecho": ".click('[data-tax=\"confirmar-remocao\"]').catch(() => {})"
+      },
+      "da821122019c4376": {
+        "n": 1,
+        "padrao": "catch",
+        "trecho": ".waitForSelector('#taxPendente', { state: 'detached', timeout: 6000 }).catch(() => {})"
+      },
+      "f18282f1dbc62dc2": {
+        "n": 1,
+        "padrao": "catch",
+        "trecho": ".waitForFunction(() => /Nenhuma definição vigente/.test((document.querySelector('#taxVigenteBloco') || {}).innerText || ''), null, { timeout"
+      },
+      "1c6312872310f0c5": {
+        "n": 1,
+        "padrao": "catch",
+        "trecho": ".waitForFunction(() => /FOI aplicada/.test((document.querySelector('#taxFlash') || {}).innerText || ''), null, { timeout: 5000 }).catch(() ="
+      },
+      "1ee944f6081ef359": {
+        "n": 1,
+        "padrao": "catch",
+        "trecho": ".waitForFunction(() => /Não consegui consultar/.test((document.querySelector('#taxPendente') || {}).innerText || ''), null, { timeout: 4000 "
+      },
+      "8b9b972bc270a668": {
+        "n": 1,
+        "padrao": "catch",
+        "trecho": ".waitForFunction(() => /NÃO consta/.test((document.querySelector('#taxPendente') || {}).innerText || ''), null, { timeout: 4000 }).catch(() "
+      },
+      "49467ed11d2c99d3": {
+        "n": 1,
+        "padrao": "catch",
+        "trecho": ".waitForFunction(() => document.querySelectorAll('#taxHistoricoGlobal .tax-hg-item').length === 33, null, { timeout: 5000 }).catch(() => {})"
+      },
+      "23462cfba7a39513": {
+        "n": 1,
+        "padrao": "catch",
+        "trecho": ".waitForSelector('#taxHgCarregando', { state: 'detached', timeout: 4000 }).catch(() => {})"
+      },
+      "d21e72f531c6a7cc": {
+        "n": 1,
+        "padrao": "catch",
+        "trecho": ".waitForFunction(() => document.querySelectorAll('#taxHistoricoGlobal .tax-hg-item').length === 28, null, { timeout: 5000 }).catch(() => {})"
+      }
+    },
+    "teste-texto-componente.js": {
+      "36550d61e94780b9": {
+        "n": 1,
+        "padrao": "catch",
+        "trecho": ".waitForEvent('download', { timeout: 60000 }).catch(() => null)"
+      },
+      "2221fce835c28040": {
+        "n": 1,
+        "padrao": "catch",
+        "trecho": ".waitForFunction(() => { const it = window.__CFG.__dbReal['avaliacoes-produto'].comp1; return it && it.motorVersionArquitetura === 5; }, nul"
+      }
+    },
+    "teste-texto-unidade-valor.js": {
+      "36550d61e94780b9": {
+        "n": 1,
+        "padrao": "catch",
+        "trecho": ".waitForEvent('download', { timeout: 60000 }).catch(() => null)"
+      },
+      "5a6531fba1fd5b88": {
+        "n": 1,
+        "padrao": "catch",
+        "trecho": ".waitForFunction(() => { const it = window.__CFG.__dbReal['avaliacoes-produto'].uva1; return it && it.motorVersionArquitetura === 5; }, null"
+      }
+    },
+    "teste-textos-informacao-documento.js": {
+      "e8f95b62eac22dd4": {
+        "n": 1,
+        "padrao": "opcoes-como-argumento",
+        "trecho": ".waitForFunction(() => /Correção aplicada/.test(document.body.innerText), { timeout: 8000 })"
+      },
+      "ab27ed5fbde95e00": {
+        "n": 1,
+        "padrao": "catch",
+        "trecho": ".waitForFunction(() => /Correção aplicada/.test(document.body.innerText), { timeout: 8000 }).catch(() => {})"
+      },
+      "dbf69eca093f2238": {
+        "n": 1,
+        "padrao": "catch",
+        "trecho": ".click('.avp-modal-ok-btn').catch(() => {})"
+      },
+      "36550d61e94780b9": {
+        "n": 1,
+        "padrao": "catch",
+        "trecho": ".waitForEvent('download', { timeout: 60000 }).catch(() => null)"
+      }
+    },
+    "teste-ver-como-turmas.js": {
+      "d6baa1cd1aeced7b": {
+        "n": 1,
+        "padrao": "opcoes-como-argumento",
+        "trecho": ".waitForFunction(() => { var sel = document.querySelector('.turmas-vercomo .aluno-vercomo-sel'); return !!sel && sel.options.length >= 3; },"
+      },
+      "7d7be9f63aecc483": {
+        "n": 1,
+        "padrao": "catch",
+        "trecho": ".waitForFunction((k) => !document.querySelector( '.turmas-evento-grupo[data-evento-key=\"' + k + '\"]'), EV_RESTRITO, { timeout: 10000 }).catc"
+      },
+      "adf5eb1b475e4140": {
+        "n": 1,
+        "padrao": "catch",
+        "trecho": ".waitForFunction((k) => !!document.querySelector( '.turmas-evento-grupo[data-evento-key=\"' + k + '\"]'), EV_RESTRITO, { timeout: 10000 }).cat"
+      },
+      "edbbf52c0f2990d2": {
+        "n": 1,
+        "padrao": "opcoes-como-argumento",
+        "trecho": ".waitForFunction(() => { const el = document.querySelector('.aluno-vercomo-aviso'); return !el || getComputedStyle(el).display === 'none'; }"
+      },
+      "3b7f09b9e35a1598": {
+        "n": 1,
+        "padrao": "catch",
+        "trecho": ".waitForFunction(() => { const el = document.querySelector('.aluno-vercomo-aviso'); return !el || getComputedStyle(el).display === 'none'; }"
+      }
+    }
+  }
+}

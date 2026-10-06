@@ -46,6 +46,7 @@
  */
 
 const { chromium } = require('playwright');
+const { esperarCondicao } = require('./esperas');
 const fs = require('fs');
 const path = require('path');
 
@@ -187,8 +188,21 @@ const FORMATOS = [
   { nome: 'celular', opts: { viewport: { width: 375, height: 812 }, isMobile: true, hasTouch: true } },
 ];
 
+/* contextos abertos pelo cenário em andamento (emCenario fecha os que sobrarem, inclusive depois de exceção) */
+const contextosAbertos = [];
 async function novaPagina(browser, formato, email, erros, apostas, cfgExtra, dbOverrides) {
   const ctx = await browser.newContext(formato.opts);
+  contextosAbertos.push(ctx);
+  /* __ESCRITAS (do falso) guarda o valor POR REFERÊNCIA, e o falso entrega aos ouvintes o próprio objeto
+     guardado — a tela pode alterá-lo no lugar depois (o Firebase de verdade entrega cópias). Para provar o
+     que FOI gravado, o teste cria o __ESCRITAS antes do falso (ele reaproveita o array) e congela o JSON de
+     cada escrita no instante do pedido, no mesmo índice. O falso não muda. */
+  await ctx.addInitScript(() => {
+    const esc = []; window.__ESCRITAS_JSON = [];
+    const push = esc.push;
+    esc.push = function () { for (const x of arguments) window.__ESCRITAS_JSON.push(JSON.stringify(x && x.valor !== undefined ? x.valor : null)); return push.apply(this, arguments); };
+    window.__ESCRITAS = esc;
+  });
   const page = await ctx.newPage();
   page.on('pageerror', (e) => erros.push(String(e).split('\n')[0]));
   /* Sem isso, o Playwright descarta (Cancelar) qualquer confirm()/alert()
@@ -218,6 +232,80 @@ const textoDaTela = (page) => page.evaluate(() => {
    mensuráveis virando "corrija a inconsistência" bem antes do clique em
    CONTINUAR). Clique nativo via DOM não depende de rolagem nenhuma. */
 const clicarSemRolagem = (page, seletor) => page.$eval(seletor, (el) => el.click());
+/* G4 — GRAVAÇÕES. marcarBanco() tira uma foto do que importa no banco falso ANTES da ação; esperarGravacao()
+   espera a gravação que AQUELA ação provoca, nunca um tempo fixo, e se ela não chega o cenário falha dizendo
+   qual gravação faltou. Tipos:
+     'escrita'         uma escrita nova (depois da marca) cujo caminho casa com extra.caminho — com extra.contem,
+                       o valor congelado no pedido tem de conter esse trecho; com extra.nulo, grava null (a
+                       liberação de um lock). Vale no instante do PEDIDO;
+     'aplicada'        a escrita que ESTA ação pediu (depois da marca, caminho casando com extra.caminho), com
+                       extra.contem no valor CONGELADO no instante do pedido, e já APLICADA: o nó do banco
+                       naquele caminho é o próprio objeto gravado. Para quando a tela só muda depois da
+                       confirmação. Mira o nó exato da ação — outro nó parecido, ou outro valor, não conta;
+     'grupo-salvo'     o ciclo de salvamento de um grupo terminou (atualizadoEm mudou);
+     'etapa-avancou'   a etapa de um grupo mudou no banco (CONTINUAR gravou e avançou);
+     'novo-grupo'      nasceu um grupo; 'nova-execucao': apostas/<turma>/atual mudou;
+     'aviso-ou-avanco' depois de CONTINUAR: ou o aviso didático apareceu, ou a etapa avançou (ou chegou ao mapa).
+   Medido (sonda do Bloco 3): as gravações por clique chegam em 30–150 ms; o salvamento automático, em ~600 ms —
+   e, por vir do mesmo toque que agenda a regra de coerência de 500 ms, a chegada dele prova que a pausa passou. */
+const marcarBanco = (pg) => pg.evaluate(() => {
+  const db = (window.__CFG || {}).__dbReal || (window.__CFG || {}).db || {};
+  const grupos = {}; const atual = {};
+  Object.keys(db.apostas || {}).forEach((t) => {
+    const a = db.apostas[t] || {}; atual[t] = a.atual || null;
+    Object.keys(a.execucoes || {}).forEach((e) => Object.keys((a.execucoes[e] || {}).grupos || {}).forEach((g) => {
+      const gr = a.execucoes[e].grupos[g] || {}; grupos[t + '/' + e + '/' + g] = { em: gr.atualizadoEm || null, etapa: gr.etapa || null };
+    }));
+  });
+  return { esc: (window.__ESCRITAS || []).length, grupos, atual };
+});
+async function esperarGravacao(pg, marca, tipo, extra, descricao) {
+  try {
+    await pg.waitForFunction(([m, tipo, extra]) => {
+      if (tipo === 'escrita') {
+        const esc = window.__ESCRITAS || []; const json = window.__ESCRITAS_JSON || [];
+        for (let i = m.esc; i < esc.length; i++) {
+          if (!new RegExp(extra.caminho).test(esc[i].path)) continue;
+          if (extra.nulo && esc[i].valor !== null) continue;
+          if (extra.contem && String(json[i]).indexOf(extra.contem) === -1) continue;
+          return true;
+        }
+        return false;
+      }
+      if (tipo === 'aviso-ou-avanco') {
+        const av = document.querySelector('#apostaAvisos');
+        const t = document.querySelector('.aposta-etapa-titulo');
+        return (!!av && !!av.textContent.trim()) || !!document.querySelector('.aposta-mapa') || (!!t && t.textContent !== extra.tituloAntes);
+      }
+      const db = (window.__CFG || {}).__dbReal || (window.__CFG || {}).db || {};
+      if (tipo === 'aplicada') {
+        const re = new RegExp(extra.caminho);
+        const noCaminho = (cam) => String(cam).split('/').filter(Boolean).reduce((no, k) => (no && typeof no === 'object' ? no[k] : undefined), db);
+        const esc = window.__ESCRITAS || []; const json = window.__ESCRITAS_JSON || [];
+        for (let i = m.esc; i < esc.length; i++) {
+          const x = esc[i];
+          if (re.test(x.path) && String(json[i]).indexOf(extra.contem) !== -1 && noCaminho(x.path) === x.valor) return true;
+        }
+        return false;
+      }
+      const grupos = {}; const atual = {};
+      Object.keys(db.apostas || {}).forEach((t) => {
+        const a = db.apostas[t] || {}; atual[t] = a.atual || null;
+        Object.keys(a.execucoes || {}).forEach((e) => Object.keys((a.execucoes[e] || {}).grupos || {}).forEach((g) => {
+          const gr = a.execucoes[e].grupos[g] || {}; grupos[t + '/' + e + '/' + g] = { em: gr.atualizadoEm || null, etapa: gr.etapa || null };
+        }));
+      });
+      if (tipo === 'grupo-salvo') return Object.keys(grupos).some((k) => !m.grupos[k] || grupos[k].em !== m.grupos[k].em);
+      if (tipo === 'etapa-avancou') return Object.keys(grupos).some((k) => !!m.grupos[k] && grupos[k].etapa !== m.grupos[k].etapa);
+      if (tipo === 'novo-grupo') return Object.keys(grupos).length > Object.keys(m.grupos).length;
+      if (tipo === 'nova-execucao') return Object.keys(atual).some((t) => atual[t] !== m.atual[t]);
+      throw new Error('tipo de gravação desconhecido: ' + tipo);
+    }, [marca, tipo, extra || {}], { timeout: 8000 });
+  } catch (e) {
+    if (e && (e.name === 'TimeoutError' || /Timeout \d+ms exceeded/.test(String(e.message)))) throw new Error('A gravação esperada não chegou em 8 s: ' + descricao);
+    throw e;
+  }
+}
 
 (async () => {
   const browser = await chromium.launch();
@@ -226,6 +314,15 @@ const clicarSemRolagem = (page, seletor) => page.$eval(seletor, (el) => el.click
     if (ok) console.log('  ok    ' + linha);
     else { falhas++; console.error('  FALHA ' + linha + (detalhe ? ' → ' + detalhe : '')); }
   };
+  /* Cada cenário roda isolado: uma exceção vira UMA falha com o nome do cenário, as páginas que ele abriu
+     são fechadas e os cenários seguintes continuam. Antes, qualquer exceção caía no try/catch do formato
+     inteiro e pulava todos os cenários seguintes contando uma falha só. */
+  const emCenario = async (nome, fn) => {
+    const marca = contextosAbertos.length;
+    try { await fn(); }
+    catch (e) { anota('cenário "' + nome + '" interrompido por exceção: ' + String((e && e.message) || e).split('\n')[0], false); }
+    finally { for (const c of contextosAbertos.splice(marca)) await c.close(); }
+  };
 
   for (const formato of FORMATOS) {
     console.log('\n===== ' + formato.nome.toUpperCase() + ' =====');
@@ -233,7 +330,7 @@ const clicarSemRolagem = (page, seletor) => page.$eval(seletor, (el) => el.click
 
     try {
       /* ── 1: quem não está confirmada em turma liberada não vê nada ── */
-      {
+      await emCenario('1: quem não está confirmada em turma liberada não vê nada', async () => {
         const { ctx, page } = await novaPagina(browser, formato, DE_FORA, erros);
         await page.goto(BASE + '/index.html#treinamento', { waitUntil: 'domcontentloaded' });
         await page.waitForSelector('#apostaEntrada', { state: 'attached', timeout: 15000 });
@@ -244,13 +341,13 @@ const clicarSemRolagem = (page, seletor) => page.$eval(seletor, (el) => el.click
         });
         anota('quem não está confirmada em turma liberada não vê o convite', !visivel);
         await ctx.close();
-      }
+      });
 
       /* ── 1b: quem conduz consegue ENSAIAR antes de liberar ──
          Liberar é um ato público: a dinâmica passa a aparecer para toda a
          turma. Se a única forma de ver a tela fosse liberando, o ensaio da
          facilitadora estrearia na frente do grupo. */
-      {
+      await emCenario('1b: quem conduz consegue ENSAIAR antes de liberar', async () => {
         const { ctx, page } = await novaPagina(browser, formato, ADM, erros);
         await page.goto(BASE + '/index.html#treinamento', { waitUntil: 'domcontentloaded' });
         await page.waitForSelector('#apostaAbrirBtn', { timeout: 15000 });
@@ -289,10 +386,10 @@ const clicarSemRolagem = (page, seletor) => page.$eval(seletor, (el) => el.click
             aviso.slice(0, 90));
         }
         await ctx.close();
-      }
+      });
 
       /* ── 2: a facilitadora abre a dinâmica do zero e cria um grupo ── */
-      {
+      await emCenario('2: a facilitadora abre a dinâmica do zero e cria um grupo', async () => {
         const { ctx: ctxNovo, page: novo } = await novaPagina(browser, formato, ADM, erros);
         await novo.goto(BASE + '/index.html#treinamento', { waitUntil: 'domcontentloaded' });
         await novo.waitForSelector('#apostaAbrirBtn', { timeout: 15000 });
@@ -360,8 +457,9 @@ const clicarSemRolagem = (page, seletor) => page.$eval(seletor, (el) => el.click
         anota('o painel mostra o rótulo "Prazo", igual à etapa 1',
           /^prazo$/i.test(rotuloPrazoFac), 'rótulo: "' + rotuloPrazoFac + '"');
         await novo.fill('[data-mis="verbo"]', 'Reduzir');
+        const _g364 = await marcarBanco(novo);
         await novo.click('#apostaSalvarMissao');
-        await novo.waitForTimeout(400);
+        await esperarGravacao(novo, _g364, 'aplicada', { caminho: '/execucoes/[^/]+/missao$', contem: '"verbo":"Reduzir"' }, 'a missão-base que este clique salvou, aplicada no banco com o verbo "Reduzir"');
         const gravouMissao = await novo.evaluate(() => (window.__ESCRITAS || [])
           .filter((x) => /\/missao$/.test(x.path)).slice(-1)[0] || null);
         const salvo = gravouMissao && (gravouMissao.valor !== undefined ? gravouMissao.valor : gravouMissao.value);
@@ -398,7 +496,6 @@ const clicarSemRolagem = (page, seletor) => page.$eval(seletor, (el) => el.click
         /* Prévia compacta ao vivo — a mesma frase que a etapa 1 vai montar,
            reagindo ao que está sendo digitado, antes de salvar. */
         await novo.fill('[data-mis="oQue"]', 'os contatos sobre andamento');
-        await novo.waitForTimeout(200);
         const previaMissaoBase = await novo.evaluate(() =>
           ((document.getElementById('apostaPreviaMissaoFac') || {}).textContent || '').replace(/\s+/g, ' '));
         anota('a prévia "Missão-base" reage ao que está sendo digitado, antes de salvar',
@@ -426,8 +523,9 @@ const clicarSemRolagem = (page, seletor) => page.$eval(seletor, (el) => el.click
         await novo.fill('[data-mis="verbo"]', 'Melhorar');
         await novo.fill('[data-mis="oQue"]', 'a experiência do participante');
         await novo.fill('#apostaNovoGrupo', 'Grupo 2');
+        const _g430 = await marcarBanco(novo);
         await novo.click('#apostaCriarGrupo');
-        await novo.waitForTimeout(500);
+        await esperarGravacao(novo, _g430, 'novo-grupo', {}, 'o grupo novo gravado no banco');
         const rascunhoSobreviveu = await novo.evaluate(() => ({
           verbo: (document.querySelector('[data-mis="verbo"]') || {}).value || '',
           oQue: (document.querySelector('[data-mis="oQue"]') || {}).value || '',
@@ -437,7 +535,7 @@ const clicarSemRolagem = (page, seletor) => page.$eval(seletor, (el) => el.click
           JSON.stringify(rascunhoSobreviveu));
 
         await ctxNovo.close();
-      }
+      });
 
       /* ── 2b: a trilha revelada NÃO pode ter buracos ──
          Relatado no uso real: "apareceu até Hipótese, depois só 6, 7 e 8
@@ -445,7 +543,7 @@ const clicarSemRolagem = (page, seletor) => page.$eval(seletor, (el) => el.click
          retomado — as etapas do fim tinham conteúdo de uma passagem
          anterior e o nome vinha junto, sem explicação possível para quem
          olha. O que vale é até onde o grupo chegou, sem pular. */
-      {
+      await emCenario('2b: a trilha revelada NÃO pode ter buracos', async () => {
         const semeado = apostasSemeadas();
         const g = semeado[TURMA_LIB].execucoes[EXEC].grupos[GRUPO];
         g.etapa = 'sintoma';
@@ -468,7 +566,7 @@ const clicarSemRolagem = (page, seletor) => page.$eval(seletor, (el) => el.click
         anota('a trilha revelada não tem buracos (nome depois de etapa escondida)',
           !buraco, nomeados.map((n, i) => (i + 1) + (n ? ':nome' : ':—')).join(' '));
         await ctxT.close();
-      }
+      });
 
       /* ── 2c: texto fixo colado na lacuna, e valor antigo fora de formato ──
          Dois defeitos vistos na tela: um texto fixo sozinho numa linha
@@ -476,7 +574,7 @@ const clicarSemRolagem = (page, seletor) => page.$eval(seletor, (el) => el.click
          (o caso original era "e medir", removido do molde nesta etapa);
          e o custo "10.0000", gravado antes da máscara existir,
          aparecendo cru como se máscara nenhuma houvesse. */
-      {
+      await emCenario('2c: texto fixo colado na lacuna, e valor antigo fora de formato', async () => {
         const semeado = apostasSemeadas();
         const g = semeado[TURMA_LIB].execucoes[EXEC].grupos[GRUPO];
         g.etapa = 'experimento';
@@ -516,14 +614,14 @@ const clicarSemRolagem = (page, seletor) => page.$eval(seletor, (el) => el.click
         anota('valor antigo fora do formato não aparece cru no campo de moeda',
           custo.valor === '' && /10\.0000/.test(custo.nota), JSON.stringify(custo));
         await ctxE.close();
-      }
+      });
 
       /* ── 2c2: Direção da mudança — Manter e Atingir, além de Aumentar/
             Reduzir. "Manter" pede Tipo de limite (Pelo menos/No máximo/
             Entre); "Entre" troca Meta desejada por dois campos (Limite
             mínimo/máximo). Nada disso redesenha a tela: só o 4º campo
             da linha muda, o resto do card fica como estava. ── */
-      {
+      await emCenario('2c2: Direção da mudança — Manter e Atingir, além de Aumentar', async () => {
         const semeadoDir = apostasSemeadas();
         semeadoDir[TURMA_LIB].execucoes[EXEC].grupos[GRUPO].etapa = 'mudancas';
         const { ctx: ctxDir, page: pgDir } = await novaPagina(browser, formato, DIRETORA, erros, semeadoDir);
@@ -542,15 +640,11 @@ const clicarSemRolagem = (page, seletor) => page.$eval(seletor, (el) => el.click
         await pgDir.fill('[data-m="indicador"]', 'tempo de resposta');
         await pgDir.fill('[data-m="atual"]', '3');
         await pgDir.selectOption('[data-m="formaMedicao"]', 'Tempo');
-        await pgDir.waitForTimeout(200);
         await pgDir.locator('.aposta-variante:has([data-m="unidade"]) .aposta-variante-chip', { hasText: 'dias' }).click();
-        await pgDir.waitForTimeout(200);
 
         /* Manter + Entre: some o campo Meta, aparecem os dois limites. */
         await pgDir.locator('.aposta-variante:has([data-m="direcao"]) .aposta-variante-chip', { hasText: 'Manter' }).click();
-        await pgDir.waitForTimeout(250);
         await pgDir.locator('.aposta-variante:has([data-m="tipoLimite"]) .aposta-variante-chip', { hasText: 'Entre' }).click();
-        await pgDir.waitForTimeout(250);
         const camposEntre = await pgDir.evaluate(() => ({
           temMeta: !!document.querySelector('[data-m="meta"]'),
           temLimites: !!document.querySelector('[data-m="limiteMinimo"]') && !!document.querySelector('[data-m="limiteMaximo"]'),
@@ -559,7 +653,6 @@ const clicarSemRolagem = (page, seletor) => page.$eval(seletor, (el) => el.click
         await pgDir.fill('[data-m="limiteMinimo"]', '2');
         await pgDir.fill('[data-m="limiteMaximo"]', '5');
         await pgDir.fill('[data-m="prazo"]', '90');
-        await pgDir.waitForTimeout(300);
         const fraseManter = await pgDir.evaluate(() => (document.querySelector('.aposta-mudanca-frase') || {}).textContent || '');
         anota('a frase de "Manter" + "Entre" usa os dois limites, com "durante" no lugar de "em"',
           /Manter tempo de resposta entre 2 e 5 dias durante 90 dias/.test(fraseManter), fraseManter);
@@ -569,8 +662,9 @@ const clicarSemRolagem = (page, seletor) => page.$eval(seletor, (el) => el.click
            fora do intervalo [2, 5]: esconde a frase e sugere DUAS
            direções (Aumentar/Atingir ou Reduzir/Atingir, conforme o
            lado), sem trocar nada sozinho. */
+        const _g573 = await marcarBanco(pgDir);
         await pgDir.fill('[data-m="atual"]', '9');
-        await pgDir.waitForTimeout(600);
+        await esperarGravacao(pgDir, _g573, 'escrita', { caminho: '/dados/mudancas$', contem: '"atual":"9"' }, 'o salvamento automático de Mudanças com atual:9 (depois da pausa de coerência)');
         const manterAcima = await pgDir.evaluate(() => ({
           frase: (document.querySelector('.aposta-mudanca-frase') || {}).textContent || '',
           alerta: (document.querySelector('.aposta-mudanca-alerta') || {}).textContent || '',
@@ -601,12 +695,12 @@ const clicarSemRolagem = (page, seletor) => page.$eval(seletor, (el) => el.click
            direção nenhuma (o problema é a ordem dos limites, não a
            direção escolhida). */
         await pgDir.locator('.aposta-variante:has([data-m="direcao"]) .aposta-variante-chip', { hasText: 'Manter' }).click();
-        await pgDir.waitForTimeout(200);
         await pgDir.locator('.aposta-variante:has([data-m="tipoLimite"]) .aposta-variante-chip', { hasText: 'Entre' }).click();
         await pgDir.waitForTimeout(200);
         await pgDir.fill('[data-m="limiteMinimo"]', '10');
+        const _g609 = await marcarBanco(pgDir);
         await pgDir.fill('[data-m="limiteMaximo"]', '4');
-        await pgDir.waitForTimeout(600);
+        await esperarGravacao(pgDir, _g609, 'escrita', { caminho: '/dados/mudancas$', contem: '"limiteMaximo":"4"' }, 'o salvamento automático de Mudanças com limiteMaximo:4 (depois da pausa de coerência)');
         const limitesInvertidos = await pgDir.evaluate(() => ({
           frase: (document.querySelector('.aposta-mudanca-frase') || {}).textContent || '',
           alerta: (document.querySelector('.aposta-mudanca-alerta') || {}).textContent || '',
@@ -620,7 +714,6 @@ const clicarSemRolagem = (page, seletor) => page.$eval(seletor, (el) => el.click
         await pgDir.fill('[data-m="limiteMinimo"]', '2');
         await pgDir.fill('[data-m="limiteMaximo"]', '5');
         await pgDir.fill('[data-m="atual"]', '3');
-        await pgDir.waitForTimeout(300);
 
         /* Atingir: mesmos campos de Aumentar/Reduzir (Meta desejada
            volta), mas a frase não fala em "situação atual" nem "para". */
@@ -678,12 +771,11 @@ const clicarSemRolagem = (page, seletor) => page.$eval(seletor, (el) => el.click
         /* Trocar Forma de medição para outra coisa destrava o Período de
            novo — a trava é só enquanto Índice + NPS estiver selecionado. */
         await pgDir.selectOption('[data-m="formaMedicao"]', 'Quantidade');
-        await pgDir.waitForTimeout(200);
         const periodoDepois = await pgDir.evaluate(() => (document.querySelector('[data-m="periodo"]') || {}).disabled);
         anota('trocar a Forma de medição para outra coisa destrava o Período', periodoDepois === false);
 
         await ctxDir.close();
-      }
+      });
 
       /* ── 2c3: "Atingir" — validação de coerência (bugfix pós-PR#210,
             achado em teste manual em produção). Antes deste bugfix,
@@ -698,7 +790,7 @@ const clicarSemRolagem = (page, seletor) => page.$eval(seletor, (el) => el.click
             nem corrige a meta sozinho, só nomeia o problema e (só
             quando existe) convida a trocar para "Reduzir" com um
             clique. ── */
-      {
+      await emCenario('2c3: "Atingir" — validação de coerência (bugfix pós-PR#210,', async () => {
         const semeadoAtingir = apostasSemeadas();
         semeadoAtingir[TURMA_LIB].execucoes[EXEC].grupos[GRUPO].etapa = 'mudancas';
         const { ctx: ctxAtingir, page: pgAtingir } = await novaPagina(browser, formato, DIRETORA, erros, semeadoAtingir);
@@ -710,11 +802,8 @@ const clicarSemRolagem = (page, seletor) => page.$eval(seletor, (el) => el.click
 
         await pgAtingir.fill('[data-m="indicador"]', 'DAD');
         await pgAtingir.selectOption('[data-m="formaMedicao"]', 'Percentual');
-        await pgAtingir.waitForTimeout(200);
         await pgAtingir.locator('.aposta-variante:has([data-m="direcao"]) .aposta-variante-chip', { hasText: 'Atingir' }).click();
-        await pgAtingir.waitForTimeout(200);
         await pgAtingir.fill('[data-m="prazo"]', '78');
-        await pgAtingir.waitForTimeout(200);
 
         async function estadoAtingir() {
           return pgAtingir.evaluate(() => ({
@@ -725,22 +814,25 @@ const clicarSemRolagem = (page, seletor) => page.$eval(seletor, (el) => el.click
         }
 
         await pgAtingir.fill('[data-m="atual"]', '0');
+        const _g729 = await marcarBanco(pgAtingir);
         await pgAtingir.fill('[data-m="meta"]', '50');
-        await pgAtingir.waitForTimeout(600);
+        await esperarGravacao(pgAtingir, _g729, 'escrita', { caminho: '/dados/mudancas$', contem: '"meta":"50"' }, 'o salvamento automático de Mudanças com meta:50 (depois da pausa de coerência)');
         const atingirValido1 = await estadoAtingir();
         anota('Atingir: situação atual 0, meta 50 — válido, sem alerta',
           !atingirValido1.alerta && /Atingir/.test(atingirValido1.frase) && /50/.test(atingirValido1.frase) && !/Corrija a inconsistência/.test(atingirValido1.frase),
           JSON.stringify(atingirValido1));
 
+        const _g736 = await marcarBanco(pgAtingir);
         await pgAtingir.fill('[data-m="atual"]', '40');
-        await pgAtingir.waitForTimeout(600);
+        await esperarGravacao(pgAtingir, _g736, 'escrita', { caminho: '/dados/mudancas$', contem: '"atual":"40"' }, 'o salvamento automático de Mudanças com atual:40 (depois da pausa de coerência)');
         const atingirValido2 = await estadoAtingir();
         anota('Atingir: situação atual 40, meta 50 — válido, sem alerta',
           !atingirValido2.alerta && /Atingir/.test(atingirValido2.frase) && /50/.test(atingirValido2.frase) && !/Corrija a inconsistência/.test(atingirValido2.frase),
           JSON.stringify(atingirValido2));
 
+        const _g743 = await marcarBanco(pgAtingir);
         await pgAtingir.fill('[data-m="atual"]', '50');
-        await pgAtingir.waitForTimeout(600);
+        await esperarGravacao(pgAtingir, _g743, 'escrita', { caminho: '/dados/mudancas$', contem: '"atual":"50"' }, 'o salvamento automático de Mudanças com atual:50 (depois da pausa de coerência)');
         const atingirIgual = await estadoAtingir();
         anota('Atingir: situação atual 50, meta 50 — inválido (meta já corresponde à situação atual), sem sugestão de direção',
           /Corrija a inconsistência acima/.test(atingirIgual.frase) &&
@@ -757,8 +849,9 @@ const clicarSemRolagem = (page, seletor) => page.$eval(seletor, (el) => el.click
         /* O caso relatado no teste manual em produção: atual 67, meta
            50 — a mesma inconsistência de "Reduzir" só que escondida
            atrás de "Atingir". */
+        const _g761 = await marcarBanco(pgAtingir);
         await pgAtingir.fill('[data-m="atual"]', '67');
-        await pgAtingir.waitForTimeout(600);
+        await esperarGravacao(pgAtingir, _g761, 'escrita', { caminho: '/dados/mudancas$', contem: '"atual":"67"' }, 'o salvamento automático de Mudanças com atual:67 (depois da pausa de coerência)');
         const atingirMenor = await estadoAtingir();
         anota('Atingir: situação atual 67, meta 50 — inválido (redução disfarçada de meta), sugere só "Reduzir"',
           /Corrija a inconsistência acima/.test(atingirMenor.frase) &&
@@ -780,20 +873,21 @@ const clicarSemRolagem = (page, seletor) => page.$eval(seletor, (el) => el.click
           JSON.stringify(corrigidoAtingir));
 
         const tituloAntesCorrecao = await pgAtingir.evaluate(() => (document.querySelector('.aposta-etapa-titulo') || {}).textContent || '');
+        const _g784 = await marcarBanco(pgAtingir);
         await clicarSemRolagem(pgAtingir, '#apostaSeguir');
-        await pgAtingir.waitForTimeout(400);
+        await esperarGravacao(pgAtingir, _g784, 'etapa-avancou', {}, 'a etapa nova gravada (CONTINUAR)');
         const tituloAposCorrecao = await pgAtingir.evaluate(() => (document.querySelector('.aposta-etapa-titulo') || {}).textContent || '');
         anota('depois de corrigir para "Reduzir" (67→50, coerente), CONTINUAR volta a funcionar e a etapa avança',
           tituloAposCorrecao !== tituloAntesCorrecao, tituloAposCorrecao);
 
         await ctxAtingir.close();
-      }
+      });
 
       /* ── 2d: a missão cadastrada no painel chega na etapa 1 ──
          Ela era gravada e não chegava a lugar nenhum: o grupo abria a
          etapa 1 pedindo a missão do zero, e quem tinha acabado de
          cadastrar uma via a pergunta de novo. */
-      {
+      await emCenario('2d: a missão cadastrada no painel chega na etapa 1', async () => {
         const semeado = apostasSemeadas();
         semeado[TURMA_LIB].execucoes[EXEC].missao = {
           verbo: 'Melhorar', oQue: 'a experiência do participante',
@@ -839,13 +933,13 @@ const clicarSemRolagem = (page, seletor) => page.$eval(seletor, (el) => el.click
         anota('depois de confirmar, a Missão conta como etapa concluída na trilha do grupo', trilhaDepois);
 
         await ctxM.close();
-      }
+      });
 
       /* ── 2e: missão-base não sobrescreve o grupo que já escreveu a própria ──
          Mesmo que a facilitação cadastre ou troque a missão-base depois, um
          grupo que já tem conteúdo próprio na Etapa 1 continua vendo o que
          ele escreveu — nunca a missão-base por cima. */
-      {
+      await emCenario('2e: missão-base não sobrescreve o grupo que já escreveu a própria', async () => {
         const semeado = apostasSemeadas();
         semeado[TURMA_LIB].execucoes[EXEC].missao = {
           verbo: 'Reduzir', oQue: 'os contatos sobre status', contexto: 'na concessão', prazo: '60', prazoUnidade: 'dias',
@@ -878,9 +972,12 @@ const clicarSemRolagem = (page, seletor) => page.$eval(seletor, (el) => el.click
           etapa1Grupo.verbo === 'Aumentar' && /satisfação/.test(etapa1Grupo.oQue) && etapa1Grupo.prazo === '120' && !etapa1Grupo.temHerdada,
           JSON.stringify(etapa1Grupo));
         await ctxP.close();
-      }
+      });
 
       /* ── 3: a diretora entra, escolhe o grupo e percorre as etapas ── */
+      /* 3 a 7 são uma jornada só (a mesma página da diretora percorre as etapas, chega ao mapa, e quem
+         conduz revela): um cenário, porque cada passo depende do anterior. */
+      await emCenario('3–7: a diretora percorre as etapas, o mapa e a revelação', async () => {
       const { ctx, page } = await novaPagina(browser, formato, DIRETORA, erros, apostasSemeadas());
       await page.goto(BASE + '/index.html#treinamento', { waitUntil: 'domcontentloaded' });
       await page.waitForSelector('#apostaAbrirBtn', { timeout: 15000 });
@@ -953,7 +1050,6 @@ const clicarSemRolagem = (page, seletor) => page.$eval(seletor, (el) => el.click
           .find((e) => /verbo/i.test(e.textContent));
         if (l) l.click();
       });
-      await page.waitForTimeout(250);
       const focou = await page.evaluate(() => (document.activeElement || {}).id || '');
       anota('clicar na lacuna leva ao campo que falta', focou === 'ap-verbo', 'foco em "' + focou + '"');
 
@@ -965,7 +1061,6 @@ const clicarSemRolagem = (page, seletor) => page.$eval(seletor, (el) => el.click
          "90 dias" no campo do número não pode virar dado — o mapa saía
          com "90 dias dias", e cada grupo escrevia a unidade de um jeito. */
       await page.fill('#ap-prazo', '90 dias');
-      await page.waitForTimeout(250);
       const soNumero = await page.evaluate(() => (document.getElementById('ap-prazo') || {}).value || '');
       anota('no prazo, o campo do número aceita só número', soNumero === '90', 'ficou "' + soNumero + '"');
       const temUnidades = await page.evaluate(() => {
@@ -977,14 +1072,12 @@ const clicarSemRolagem = (page, seletor) => page.$eval(seletor, (el) => el.click
         temUnidades);
       await page.selectOption('[data-campo="prazoUnidade"]', 'meses');
       await page.fill('#ap-prazo', '1');
-      await page.waitForTimeout(300);
       const singular = await page.evaluate(() =>
         ((document.getElementById('apostaFrase') || {}).textContent || '').replace(/\s+/g, ' '));
       anota('a unidade concorda com o número (1 vira singular)',
         /em 1 mês/.test(singular) && !/1 meses/.test(singular), singular.slice(0, 140));
       await page.fill('#ap-prazo', '90');
       await page.selectOption('[data-campo="prazoUnidade"]', 'dias');
-      await page.waitForTimeout(300);
       const completa = await page.evaluate(() =>
         ((document.querySelector('.aposta-frase') || {}).textContent || '').replace(/\s+/g, ' '));
       anota('com tudo preenchido, a prévia mostra a frase inteira e diz que está completa',
@@ -1023,7 +1116,6 @@ const clicarSemRolagem = (page, seletor) => page.$eval(seletor, (el) => el.click
              e que ainda assim dá para seguir. */
           await page.locator('.aposta-campo-input').first().fill('muita gente liga porque não sabe o status');
           await page.click('#apostaSeguir');
-          await page.waitForTimeout(400);
           const avisou = await page.evaluate(() =>
             /apenas o que é observado/i.test((document.querySelector('#apostaAvisos') || {}).textContent || ''));
           anota('o sintoma com explicação de causa recebe aviso didático', avisou);
@@ -1054,7 +1146,6 @@ const clicarSemRolagem = (page, seletor) => page.$eval(seletor, (el) => el.click
              verbo à parte, porque o texto livre já inclui o verbo. */
           await page.locator('[data-campo="quem"]').fill('O participante');
           await page.locator('[data-campo="situacaoIndesejada"]').fill('não consegue acompanhar com clareza o andamento');
-          await page.waitForTimeout(300);
           const previa = await page.evaluate(() => {
             const el = document.getElementById('apostaFrase');
             return el && !el.hidden ? (el.textContent || '').replace(/\s+/g, ' ') : '';
@@ -1122,16 +1213,13 @@ const clicarSemRolagem = (page, seletor) => page.$eval(seletor, (el) => el.click
           /* Forma de medição decide as sugestões de Unidade — Quantidade
              sugere substantivos de contagem, não os "por X" de Período. */
           await page.selectOption('[data-m="formaMedicao"]', 'Quantidade');
-          await page.waitForTimeout(200);
           await page.locator('.aposta-variante:has([data-m="unidade"]) .aposta-variante-chip', { hasText: 'contatos' }).click();
-          await page.waitForTimeout(200);
           const unidadeChip = await page.evaluate(() => (document.querySelector('[data-m="unidade"]') || {}).value || '');
           anota('um clique no chip preenche a Unidade com a sugestão de Quantidade', unidadeChip === 'contatos', 'ficou "' + unidadeChip + '"');
 
           /* Período é campo separado — "por mês" não mora mais dentro de
              Unidade (relatado no uso real: os dois se confundiam). */
           await page.locator('.aposta-variante:has([data-m="periodo"]) .aposta-variante-chip', { hasText: 'por mês' }).click();
-          await page.waitForTimeout(200);
           const periodoChip = await page.evaluate(() => (document.querySelector('[data-m="periodo"]') || {}).value || '');
           anota('um clique no chip preenche o Período, separado da Unidade', periodoChip === 'por mês', 'ficou "' + periodoChip + '"');
 
@@ -1143,8 +1231,8 @@ const clicarSemRolagem = (page, seletor) => page.$eval(seletor, (el) => el.click
           /* Alerta de consistência: Reduzir pede meta MENOR que a situação
              atual — 1500 > 1000 é o caso contrário, e o alerta aparece
              perto do campo, com um jeito de corrigir num clique só. */
+          const _g1160 = await marcarBanco(page);
           await page.fill('[data-m="meta"]', '1500');
-          await page.waitForTimeout(300);
           const comInconsistencia = await page.evaluate(() => ({
             visivel: !!document.querySelector('.aposta-mudanca-alerta'),
             texto: (document.querySelector('.aposta-mudanca-alerta') || {}).textContent || '',
@@ -1157,7 +1245,7 @@ const clicarSemRolagem = (page, seletor) => page.$eval(seletor, (el) => el.click
              (não trava a experimentação), mas depois de uma pausa sem
              digitar (>500ms) troca pela mensagem de "corrija" — nunca
              mostra uma frase com direção e números se contradizendo. */
-          await page.waitForTimeout(600);
+          await esperarGravacao(page, _g1160, 'escrita', { caminho: '/dados/mudancas$', contem: '"meta":"1500"' }, 'o salvamento automático de Mudanças com meta:1500 (depois da pausa de coerência)');
           const fraseInconsistente = await page.evaluate(() => (document.querySelector('.aposta-mudanca-frase') || {}).textContent || '');
           anota('depois de uma pausa, a inconsistência esconde a frase e mostra o convite a corrigir, em vez de "Reduzir... de 1000 para 1500"',
             /Corrija a inconsistência acima para visualizar a mudança mensurável/.test(fraseInconsistente), fraseInconsistente);
@@ -1185,7 +1273,6 @@ const clicarSemRolagem = (page, seletor) => page.$eval(seletor, (el) => el.click
             aindaBloqueado.titulo === tituloAntesBloqueio && aindaBloqueado.desabilitado === true, JSON.stringify(aindaBloqueado));
 
           await page.click('.aposta-mudanca-alerta [data-corrigir]');
-          await page.waitForTimeout(300);
           const corrigido = await page.evaluate(() => ({
             direcao: (document.querySelector('[data-m="direcao"]') || {}).value || '',
             alertaSumiu: !document.querySelector('.aposta-mudanca-alerta'),
@@ -1198,7 +1285,6 @@ const clicarSemRolagem = (page, seletor) => page.$eval(seletor, (el) => el.click
           /* Devolve ao estado consistente para o resto do teste. */
           await page.locator('.aposta-variante:has([data-m="direcao"]) .aposta-variante-chip', { hasText: 'Reduzir' }).click();
           await page.fill('[data-m="meta"]', '700');
-          await page.waitForTimeout(300);
 
           /* Refinamento pós-teste manual (itens 2/3): meta IGUAL à
              situação atual era aceita silenciosamente ("Reduzir de
@@ -1206,8 +1292,9 @@ const clicarSemRolagem = (page, seletor) => page.$eval(seletor, (el) => el.click
              encontrou isso de verdade. Agora é tratada como incoerência,
              nos dois sentidos, nunca corrigindo direção nem meta
              sozinha — só nomeia o problema e convida a rever. */
+          const _g1210 = await marcarBanco(page);
           await page.fill('[data-m="meta"]', '1000');
-          await page.waitForTimeout(600);
+          await esperarGravacao(page, _g1210, 'escrita', { caminho: '/dados/mudancas$', contem: '"meta":"1000"' }, 'o salvamento automático de Mudanças com meta:1000 (depois da pausa de coerência)');
           const igualReduzir = await page.evaluate(() => ({
             visivel: !!document.querySelector('.aposta-mudanca-alerta'),
             texto: (document.querySelector('.aposta-mudanca-alerta') || {}).textContent || '',
@@ -1222,8 +1309,9 @@ const clicarSemRolagem = (page, seletor) => page.$eval(seletor, (el) => el.click
           anota('Reduzir 1000→1000 esconde a frase e bloqueia CONTINUAR, mesmo tratamento da inconsistência de direção',
             /Corrija a inconsistência/.test(igualReduzir.frase) && igualReduzir.desabilitado === true, JSON.stringify(igualReduzir));
 
+          const _g1226 = await marcarBanco(page);
           await page.locator('.aposta-variante:has([data-m="direcao"]) .aposta-variante-chip', { hasText: 'Aumentar' }).click();
-          await page.waitForTimeout(600);
+          await esperarGravacao(page, _g1226, 'escrita', { caminho: '/dados/mudancas$', contem: '"direcao":"Aumentar"' }, 'o salvamento automático de Mudanças com direcao:Aumentar (depois da pausa de coerência)');
           const igualAumentar = await page.evaluate(() => ({
             visivel: !!document.querySelector('.aposta-mudanca-alerta'),
             texto: (document.querySelector('.aposta-mudanca-alerta') || {}).textContent || '',
@@ -1244,7 +1332,6 @@ const clicarSemRolagem = (page, seletor) => page.$eval(seletor, (el) => el.click
           /* Devolve, de novo, ao estado que o resto do teste espera. */
           await page.locator('.aposta-variante:has([data-m="direcao"]) .aposta-variante-chip', { hasText: 'Reduzir' }).click();
           await page.fill('[data-m="meta"]', '700');
-          await page.waitForTimeout(300);
 
           /* Percentual não pede escolha de unidade: preenche "%" sozinho,
              e ele gruda nos dois números da frase ("de 1000% para 700%"),
@@ -1328,7 +1415,6 @@ const clicarSemRolagem = (page, seletor) => page.$eval(seletor, (el) => el.click
               /Preencha a causa percebida e o que foi observado/i.test(hipoteseParcial), hipoteseParcial.slice(0, 160));
 
             await page.fill('[data-campo="indicio"]', 'muitos participantes entram em contato para saber do andamento do processo de concessão do benefício');
-            await page.waitForTimeout(250);
             const hipoteseCompleta = await page.evaluate(() =>
               ((document.getElementById('apostaFrase') || {}).textContent || '').replace(/\s+/g, ' '));
             anota('com os dois campos preenchidos, mostra a frase completa e "está completa"',
@@ -1382,7 +1468,6 @@ const clicarSemRolagem = (page, seletor) => page.$eval(seletor, (el) => el.click
 
             await page.fill('[data-campo="acao"]', 'dar ao participante visibilidade sobre o andamento do processo de concessão do benefício');
             await page.fill('[data-campo="mudanca"]', 'o participante consiga ter autonomia');
-            await page.waitForTimeout(250);
             const ideiaCompleta = await page.evaluate(() =>
               ((document.getElementById('apostaFrase') || {}).textContent || '').replace(/\s+/g, ' '));
             anota('com os dois campos preenchidos, mostra a frase completa e "está completa"',
@@ -1402,7 +1487,6 @@ const clicarSemRolagem = (page, seletor) => page.$eval(seletor, (el) => el.click
               semParaPara.slice(0, 260));
 
             await page.fill('[data-campo="mudanca"]', 'o participante consiga ter autonomia');
-            await page.waitForTimeout(250);
 
             /* ── digitar e seguir DENTRO dos 600ms não pode apagar a etapa ──
                O salvamento automático espera 600ms. Enquanto ele relia a tela
@@ -1439,7 +1523,6 @@ const clicarSemRolagem = (page, seletor) => page.$eval(seletor, (el) => el.click
                não pode herdar "texto que não pode sumir" no lugar da ação
                de verdade. */
             await page.fill('[data-campo="acao"]', 'dar ao participante visibilidade sobre o andamento do processo de concessão do benefício');
-            await page.waitForTimeout(250);
           }
           if (i === 6) {
             /* EXPERIMENTO: sem duração, quantidade, com quem e o que
@@ -1492,7 +1575,6 @@ const clicarSemRolagem = (page, seletor) => page.$eval(seletor, (el) => el.click
             await page.fill('[data-campo="quantidade"]', '50');
             await page.fill('[data-campo="comQuem"]', 'participantes em concessão');
             await page.fill('[data-campo="oQue"]', 'enviar manualmente mensagens de status');
-            await page.waitForTimeout(300);
             const experimentoCompleto = await page.evaluate(() =>
               ((document.getElementById('apostaFrase') || {}).textContent || '').replace(/\s+/g, ' '));
             anota('com os campos obrigatórios preenchidos, mostra a frase completa e "está completa"',
@@ -1512,7 +1594,6 @@ const clicarSemRolagem = (page, seletor) => page.$eval(seletor, (el) => el.click
 
             /* EXPERIMENTO: custo com máscara de moeda. */
             await page.fill('[data-campo="custo"]', '250000');
-            await page.waitForTimeout(250);
             const custo = await page.evaluate(() => (document.querySelector('[data-campo="custo"]') || {}).value || '');
             anota('o custo estimado sai formatado como moeda', /^R\$\s?2\.500,00$/.test(custo), 'ficou "' + custo + '"');
 
@@ -1620,7 +1701,6 @@ const clicarSemRolagem = (page, seletor) => page.$eval(seletor, (el) => el.click
               tituloDepoisEvVazia === tituloAntesEvVazia);
 
             await page.selectOption('[data-e="fontePrevista"]', 'Dados do sistema');
-            await page.waitForTimeout(300);
             const botaoPronto = await page.evaluate(() => ({
               texto: (document.getElementById('apostaSeguir') || {}).textContent || '',
               desabilitado: (document.getElementById('apostaSeguir') || {}).disabled,
@@ -1657,8 +1737,9 @@ const clicarSemRolagem = (page, seletor) => page.$eval(seletor, (el) => el.click
             const modalTxt = await page.evaluate(() => (document.querySelector('.aposta-confirmar-overlay .modal-box') || {}).textContent || '');
             anota('o clique com o plano completo abre o modal próprio perguntando se o experimento já foi executado',
               /experimento já foi executado/i.test(modalTxt), modalTxt);
+            const _g1661 = await marcarBanco(page);
             await clicarSemRolagem(page, '.aposta-modal-sim-btn');
-            await page.waitForTimeout(300);
+            await esperarGravacao(page, _g1661, 'grupo-salvo', {}, 'o grupo salvo depois de "Registrar resultados"');
             const modoRegistro = await page.evaluate(() => ({
               banner: (document.querySelector('.aposta-campos .aposta-herdada') || {}).textContent || '',
               pergunta: (document.querySelector('.aposta-pergunta') || {}).textContent || '',
@@ -1677,7 +1758,6 @@ const clicarSemRolagem = (page, seletor) => page.$eval(seletor, (el) => el.click
 
             await page.fill('[data-e="observado"]', '850');
             await page.selectOption('[data-e="fonte"]', 'Registros de atendimento');
-            await page.waitForTimeout(300);
 
             /* Aprendizado é por card, com tooltip próprio — não é a mesma
                coisa que classificar a hipótese inteira. */
@@ -1715,8 +1795,9 @@ const clicarSemRolagem = (page, seletor) => page.$eval(seletor, (el) => el.click
                do laço em '#apostaSeguir' desabilitado não levaria a
                etapa nenhuma adiante). */
             await page.waitForSelector('#apostaClassificacaoHipotese', { timeout: 5000 });
+            const _g1719 = await marcarBanco(page);
             await page.locator('#apostaClassificacaoHipotese .aposta-opcao', { hasText: 'Parcialmente sustentada' }).click();
-            await page.waitForTimeout(200);
+            await esperarGravacao(page, _g1719, 'grupo-salvo', {}, 'o grupo salvo depois de escolher a classificação');
 
             /* Mapa/resumo antes da execução: por resultado selecionado no
                Experimento, "aguardando execução" em vez de ficar em
@@ -1751,7 +1832,6 @@ const clicarSemRolagem = (page, seletor) => page.$eval(seletor, (el) => el.click
                data — as execuções antigas guardavam "10 dias", não uma data
                absoluta. */
             await page.fill('[data-campo="reavaliacao"]', '31122026');
-            await page.waitForTimeout(250);
             const data = await page.evaluate(() => (document.querySelector('[data-campo="reavaliacao"]') || {}).value || '');
             anota('a data de reavaliação sai com dia, mês e ano', data === '31/12/2026', 'ficou "' + data + '"');
 
@@ -1804,19 +1884,22 @@ const clicarSemRolagem = (page, seletor) => page.$eval(seletor, (el) => el.click
                 return el ? { hidden: el.hidden, open: el.open, resumo: (el.querySelector('summary') || {}).textContent || '' } : null;
               });
             }
+            const _g1808 = await marcarBanco(page);
             await page.locator('.aposta-opcao', { hasText: 'Ampliar' }).click();
-            await page.waitForTimeout(200);
+            await esperarGravacao(page, _g1808, 'grupo-salvo', {}, 'o grupo salvo depois de escolher "Ampliar"');
             let estado = await estadoNovaHipotese();
             anota('decisão "Ampliar" não mostra a Nova hipótese', !!estado && estado.hidden, JSON.stringify(estado));
 
+            const _g1813 = await marcarBanco(page);
             await page.locator('.aposta-opcao', { hasText: 'Ajustar e testar novamente' }).click();
-            await page.waitForTimeout(200);
+            await esperarGravacao(page, _g1813, 'grupo-salvo', {}, 'o grupo salvo depois de escolher "Ajustar e testar novamente"');
             estado = await estadoNovaHipotese();
             anota('decisão "Ajustar e testar novamente" mostra a Nova hipótese recolhida, com o convite "Reformular hipótese também"',
               !!estado && !estado.hidden && !estado.open && /Reformular hip[óo]tese também/i.test(estado.resumo), JSON.stringify(estado));
 
+            const _g1819 = await marcarBanco(page);
             await page.locator('.aposta-opcao', { hasText: 'Reformular a hipótese' }).click();
-            await page.waitForTimeout(200);
+            await esperarGravacao(page, _g1819, 'grupo-salvo', {}, 'o grupo salvo depois de escolher "Reformular a hipótese"');
             estado = await estadoNovaHipotese();
             anota('decisão "Reformular a hipótese" abre a Nova hipótese sozinha',
               !!estado && !estado.hidden && estado.open, JSON.stringify(estado));
@@ -1849,7 +1932,6 @@ const clicarSemRolagem = (page, seletor) => page.$eval(seletor, (el) => el.click
 
             await page.fill('[data-campo="proxHipCausa"]', 'a mensagem não chega a quem está em análise');
             await page.fill('[data-campo="proxHipIndicio"]', 'os contatos caíram só no grupo que recebeu a mensagem');
-            await page.waitForTimeout(300);
             const habilitadoComNovaHip = await page.evaluate(() => (document.getElementById('apostaSeguir') || {}).disabled);
             anota('completar a Nova Hipótese libera CONTINUAR de verdade', habilitadoComNovaHip === false, String(habilitadoComNovaHip));
             const fraseDec = await page.evaluate(() =>
@@ -1878,11 +1960,12 @@ const clicarSemRolagem = (page, seletor) => page.$eval(seletor, (el) => el.click
 
         const tituloAntes = await page.evaluate(() =>
           (document.querySelector('.aposta-etapa-titulo') || {}).textContent || '');
+        const _g1885 = await marcarBanco(page);
         await page.click('#apostaSeguir');
         /* Um aviso didático segura o primeiro clique de propósito (é um
            convite a reler, não um bloqueio): quando ele aparece, o
            segundo clique segue. */
-        await page.waitForTimeout(400);
+        await esperarGravacao(page, _g1885, 'aviso-ou-avanco', { tituloAntes }, 'o aviso didático ou o avanço de etapa depois de CONTINUAR');
         const segurou = await page.evaluate(() => {
           const el = document.querySelector('#apostaAvisos');
           return !!el && !!el.textContent.trim();
@@ -2017,11 +2100,12 @@ const clicarSemRolagem = (page, seletor) => page.$eval(seletor, (el) => el.click
         !SEGREDO.test(antesDeRevelar), (antesDeRevelar.match(SEGREDO) || [''])[0]);
 
       /* Vai ao mapa pela trilha e revela dali. */
+      const _g2024 = await marcarBanco(adm);
       await adm.evaluate(() => {
         const itens = Array.from(document.querySelectorAll('.aposta-trilha-item')).filter((i) => !i.disabled);
         itens[itens.length - 1].click();
       });
-      await adm.waitForTimeout(400);
+      await esperarGravacao(adm, _g2024, 'grupo-salvo', {}, 'o grupo salvo depois do clique na trilha');
       await adm.evaluate(() => {
         const b = document.querySelector('#apostaSeguir');
         if (b) b.click();
@@ -2076,6 +2160,10 @@ const clicarSemRolagem = (page, seletor) => page.$eval(seletor, (el) => el.click
       anota('o salvamento automático grava no caminho da execução e do grupo',
         gravou.temDados, gravou.total + ' escritas em apostas/');
 
+      await ctx.close();
+      await ctxAdm.close();
+      });
+
       /* ── 8: a gravação da Missão é recusada pelo banco — relatado no uso
             real: a pessoa digitava a Missão, clicava Continuar, seguia a
             dinâmica normalmente por várias etapas, e só ao voltar na
@@ -2086,7 +2174,7 @@ const clicarSemRolagem = (page, seletor) => page.$eval(seletor, (el) => el.click
             a demora é o suficiente para o grupo já ter clicado e saído.
             Se a escrita falhava de vez, o aviso de erro (quando aparecia)
             já estava na etapa ERRADA, e ninguém relacionava um ao outro. */
-      {
+      await emCenario('8: a gravação da Missão é recusada pelo banco — relatado no uso', async () => {
         const caminhoMissao = 'apostas/' + TURMA_LIB + '/execucoes/' + EXEC + '/grupos/' + GRUPO + '/dados/missao';
         const { ctx: ctxF, page: pgF } = await novaPagina(
           browser, formato, DIRETORA, erros, apostasSemeadas(), { fail: [caminhoMissao] });
@@ -2135,14 +2223,14 @@ const clicarSemRolagem = (page, seletor) => page.$eval(seletor, (el) => el.click
           !!noBanco && noBanco.verbo === 'Melhorar', JSON.stringify(noBanco));
 
         await ctxF.close();
-      }
+      });
 
       /* ── 9: o card de Evidência herda indicador, situação inicial, meta
             e unidade de Mudanças mensuráveis — nada disso é redigitado.
             Só o resultado observado e a fonte são novos, e a frase e o
             "% do caminho até a meta" se montam sozinhos a partir do que
             já existia mais o que a pessoa acabou de preencher. ── */
-      {
+      await emCenario('9: o card de Evidência herda indicador, situação inicial, meta', async () => {
         const semeadoEv = apostasSemeadas();
         semeadoEv[TURMA_LIB].execucoes[EXEC].grupos[GRUPO].etapa = 'evidencia';
         semeadoEv[TURMA_LIB].execucoes[EXEC].grupos[GRUPO].dados = {
@@ -2185,13 +2273,13 @@ const clicarSemRolagem = (page, seletor) => page.$eval(seletor, (el) => el.click
            Evidência está incompleto e o botão não libera o modo de
            registro. */
         await pgEv.selectOption('[data-e="fontePrevista"]', 'Dados do sistema');
-        await pgEv.waitForTimeout(300);
         await pgEv.$eval('#apostaSeguir', (el) => el.click());
         /* Item 4 do ajuste de fluxo: modal próprio (não window.confirm)
            perguntando se o experimento já foi executado. */
         await pgEv.waitForSelector('.aposta-modal-sim-btn', { timeout: 5000 });
+        const _g2194 = await marcarBanco(pgEv);
         await pgEv.$eval('.aposta-modal-sim-btn', (el) => el.click());
-        await pgEv.waitForTimeout(300);
+        await esperarGravacao(pgEv, _g2194, 'grupo-salvo', {}, 'o grupo salvo depois de "Registrar resultados"');
         const fonteEfetivaRot = await pgEv.evaluate(() =>
           Array.from(document.querySelectorAll('.aposta-campo-rot')).some((r) => /Fonte utilizada/i.test(r.textContent)));
         anota('depois de "Registrar resultados do experimento", a fonte pós-execução aparece como "Fonte utilizada"', fonteEfetivaRot);
@@ -2249,14 +2337,12 @@ const clicarSemRolagem = (page, seletor) => page.$eval(seletor, (el) => el.click
 
         /* Devolve ao estado consistente para o resto do teste. */
         await pgEv.fill('[data-e="observado"]', '650');
-        await pgEv.waitForTimeout(300);
 
         /* CONTINUAR: sem fonte, mesmo com observado preenchido, fica
            bloqueado de verdade — sem escape por segundo clique. (Volta a
            fonte para vazio: já tinha sido escolhida lá em cima, para os
            testes de frase.) */
         await pgEv.selectOption('[data-e="fonte"]', '');
-        await pgEv.waitForTimeout(200);
         const tituloAntesEv = await pgEv.evaluate(() => (document.querySelector('.aposta-etapa-titulo') || {}).textContent || '');
         /* Ajuste de usabilidade (item 6/7): o botão fica genuinely
            disabled — clicar nele (mesmo via $eval) não dispara nada, e a
@@ -2300,7 +2386,6 @@ const clicarSemRolagem = (page, seletor) => page.$eval(seletor, (el) => el.click
           auxiliarHipotese === 'O que as evidências nos dizem sobre a hipótese que testamos?', auxiliarHipotese);
 
         await pgEv.fill('[data-e="aprendizado"]', 'Os contatos caíram, mas ainda não bateram a meta.');
-        await pgEv.waitForTimeout(300);
         const soFaltaClassificacao = await pgEv.evaluate(() => ({
           desabilitado: (document.getElementById('apostaSeguir') || {}).disabled,
           pendencias: (document.querySelector('[data-evidencia-pendencias]') || {}).textContent || '',
@@ -2311,8 +2396,9 @@ const clicarSemRolagem = (page, seletor) => page.$eval(seletor, (el) => el.click
           !/Aprendizado/i.test(soFaltaClassificacao.pendencias),
           JSON.stringify(soFaltaClassificacao));
 
+        const _g2315 = await marcarBanco(pgEv);
         await pgEv.locator('#apostaClassificacaoHipotese .aposta-opcao', { hasText: /^Sustentada$/ }).click();
-        await pgEv.waitForTimeout(200);
+        await esperarGravacao(pgEv, _g2315, 'grupo-salvo', {}, 'o grupo salvo depois de escolher "Sustentada"');
         const comClassificacao = await pgEv.evaluate(() => ({
           desabilitado: (document.getElementById('apostaSeguir') || {}).disabled,
           pendencias: (document.querySelector('[data-evidencia-pendencias]') || {}).textContent || '',
@@ -2335,13 +2421,11 @@ const clicarSemRolagem = (page, seletor) => page.$eval(seletor, (el) => el.click
            que vem a seguir (naoMedido) parte de observado preenchido,
            fonte indiferente. */
         await pgEv.fill('[data-e="aprendizado"]', '');
-        await pgEv.waitForTimeout(200);
 
         /* "Não foi possível medir" desliga Resultado observado/Fonte e
            passa a exigir Motivo em vez deles — nunca os dois ao mesmo
            tempo. */
         await pgEv.click('[data-e="naoMedido"]');
-        await pgEv.waitForTimeout(200);
         const motivoRot = await pgEv.evaluate(() => {
           const input = document.querySelector('[data-e="motivo"]');
           const label = input ? input.closest('.aposta-campo').querySelector('.aposta-campo-rot') : null;
@@ -2368,19 +2452,20 @@ const clicarSemRolagem = (page, seletor) => page.$eval(seletor, (el) => el.click
           jaTemClassificacao === false, String(jaTemClassificacao));
         await pgEv.locator('#apostaClassificacaoHipotese .aposta-opcao', { hasText: 'Parcialmente sustentada' }).click();
         await pgEv.waitForTimeout(200);
+        const _g2372 = await marcarBanco(pgEv);
         await pgEv.$eval('#apostaSeguir', (el) => el.click());
-        await pgEv.waitForTimeout(300);
+        await esperarGravacao(pgEv, _g2372, 'etapa-avancou', {}, 'a etapa nova gravada (CONTINUAR)');
         const tituloDepoisCompleto = await pgEv.evaluate(() => (document.querySelector('.aposta-etapa-titulo') || {}).textContent || '');
         anota('"Não foi possível medir" + Motivo + "Nossa hipótese foi": CONTINUAR libera (não precisa de número)',
           tituloDepoisCompleto !== tituloAntesEv, tituloDepoisCompleto);
 
         await ctxEv.close();
-      }
+      });
 
       /* ── 9a-bis: item 4 do ajuste de fluxo — "AINDA NÃO" no modal
             próprio (não mais window.confirm) mantém a etapa em modo de
             planejamento, sem trocar de estado. ── */
-      {
+      await emCenario('9a-bis: item 4 do ajuste de fluxo — "AINDA NÃO" no modal', async () => {
         const semeadoConfirma = apostasSemeadas();
         semeadoConfirma[TURMA_LIB].execucoes[EXEC].grupos[GRUPO].etapa = 'evidencia';
         semeadoConfirma[TURMA_LIB].execucoes[EXEC].grupos[GRUPO].dados = {
@@ -2411,13 +2496,13 @@ const clicarSemRolagem = (page, seletor) => page.$eval(seletor, (el) => el.click
         anota('"AINDA NÃO" no modal fecha o modal e mantém a etapa em planejamento, sem mudar de modo',
           aindaNao.modalFechado && !aindaNao.temCampoObservado && /PLANEJAMENTO DA EVID[ÊE]NCIA/.test(aindaNao.banner), JSON.stringify(aindaNao));
         await ctxConf.close();
-      }
+      });
 
       /* ── 9a-ter: item 2 do ajuste de fluxo — "Encerrar por agora"
             fecha a tela cheia da dinâmica e o aviso de sucesso sobrevive
             ao fechamento, aparecendo já na página de Treinamento por
             trás (não é mais preso a _tela, que é removida). ── */
-      {
+      await emCenario('9a-ter: item 2 do ajuste de fluxo — "Encerrar por agora"', async () => {
         const semeadoSair = apostasSemeadas();
         semeadoSair[TURMA_LIB].execucoes[EXEC].grupos[GRUPO].etapa = 'evidencia';
         semeadoSair[TURMA_LIB].execucoes[EXEC].grupos[GRUPO].dados = {
@@ -2449,11 +2534,10 @@ const clicarSemRolagem = (page, seletor) => page.$eval(seletor, (el) => el.click
         anota('"Encerrar por agora" fecha a dinâmica e mostra o aviso de sucesso já na página de trás (Treinamento)',
           posSaida.telaFechada && /Planejamento salvo/i.test(posSaida.toastTxt) && posSaida.toastForaDaTela, JSON.stringify(posSaida));
         await pgSair.click('.aposta-toast-fechar');
-        await pgSair.waitForTimeout(100);
         const toastFechado = await pgSair.evaluate(() => !document.querySelector('.aposta-toast--persistente'));
         anota('o aviso persistente pode ser fechado pelo botão ✕', toastFechado);
         await ctxSair.close();
-      }
+      });
 
       /* ── 9c: "Manter" na Evidência usa mensagem própria por tipo de
             limite — nunca percentual de progresso. ── */
@@ -2485,13 +2569,11 @@ const clicarSemRolagem = (page, seletor) => page.$eval(seletor, (el) => el.click
           /EVID[ÊE]NCIA/.test((document.querySelector('.aposta-etapa-titulo') || {}).textContent || ''),
           { timeout: 15000 });
         await pgM.selectOption('[data-e="fontePrevista"]', 'Dados do sistema');
-        await pgM.waitForTimeout(200);
         await pgM.$eval('#apostaSeguir', (el) => el.click());
         await pgM.waitForSelector('.aposta-modal-sim-btn', { timeout: 5000 });
         await pgM.$eval('.aposta-modal-sim-btn', (el) => el.click());
         await pgM.waitForTimeout(300);
         await pgM.fill('[data-e="observado"]', cenario.observado);
-        await pgM.waitForTimeout(300);
         const msgManter = await pgM.evaluate(() =>
           ((document.querySelector('.aposta-frase-pronta, .aposta-frase-falta') || {}).textContent || ''));
         anota('"Manter" (' + cenario.tipoLimite + ', observado ' + cenario.observado + ') mostra a mensagem certa, sem percentual',
@@ -2502,7 +2584,7 @@ const clicarSemRolagem = (page, seletor) => page.$eval(seletor, (el) => el.click
       /* ── 9b: o Experimento pode observar vários resultados esperados de
             uma vez — cada um vira o seu próprio card na Evidência, com
             dados independentes. ── */
-      {
+      await emCenario('9b: o Experimento pode observar vários resultados esperados de', async () => {
         const semeadoVarios = apostasSemeadas();
         semeadoVarios[TURMA_LIB].execucoes[EXEC].grupos[GRUPO].etapa = 'evidencia';
         semeadoVarios[TURMA_LIB].execucoes[EXEC].grupos[GRUPO].dados = {
@@ -2537,13 +2619,13 @@ const clicarSemRolagem = (page, seletor) => page.$eval(seletor, (el) => el.click
         const r1Intacto = await pgV.evaluate(() => (document.querySelector('[data-resultado="r1"] [data-e="observado"]') || {}).value || '');
         anota('preencher o segundo card não mexe no primeiro — cada card guarda o seu', r1Intacto === '650', 'ficou "' + r1Intacto + '"');
         await ctxV.close();
-      }
+      });
 
       /* ── 9b2: NPS (Forma de medição "Índice", Unidade "NPS") não leva
             sufixo nenhum em "O que vamos observar?" nem na Evidência —
             nem unidade, nem período — porque o indicador já aparece
             como título em todo lugar que mostraria esse sufixo. ── */
-      {
+      await emCenario('9b2: NPS (Forma de medição "Índice", Unidade "NPS") não leva', async () => {
         const semeadoNps = apostasSemeadas();
         semeadoNps[TURMA_LIB].execucoes[EXEC].grupos[GRUPO].etapa = 'experimento';
         semeadoNps[TURMA_LIB].execucoes[EXEC].grupos[GRUPO].dados = {
@@ -2596,13 +2678,13 @@ const clicarSemRolagem = (page, seletor) => page.$eval(seletor, (el) => el.click
             !/6 NPS/.test(cardNps.frase),
           cardNps ? cardNps.frase : '');
         await ctxNpsEv.close();
-      }
+      });
 
       /* ── 9c: "Não foi possível medir" desliga os campos que ele torna
             irrelevantes (observado, fonte, detalhe) e a frase passa a
             dizer isso, sem exigir um número que não existe — ausência de
             evidência também é uma informação. ── */
-      {
+      await emCenario('9c: "Não foi possível medir" desliga os campos que ele torna', async () => {
         const semeadoNM = apostasSemeadas();
         semeadoNM[TURMA_LIB].execucoes[EXEC].grupos[GRUPO].etapa = 'evidencia';
         semeadoNM[TURMA_LIB].execucoes[EXEC].grupos[GRUPO].dados = {
@@ -2618,14 +2700,12 @@ const clicarSemRolagem = (page, seletor) => page.$eval(seletor, (el) => el.click
           /EVID[ÊE]NCIA/.test((document.querySelector('.aposta-etapa-titulo') || {}).textContent || ''),
           { timeout: 15000 });
         await pgNM.selectOption('[data-e="fontePrevista"]', 'Dados do sistema');
-        await pgNM.waitForTimeout(200);
         await pgNM.$eval('#apostaSeguir', (el) => el.click());
         await pgNM.waitForSelector('.aposta-modal-sim-btn', { timeout: 5000 });
         await pgNM.$eval('.aposta-modal-sim-btn', (el) => el.click());
         await pgNM.waitForTimeout(300);
         await pgNM.fill('[data-e="motivo"]', 'Pesquisa de satisfação não foi concluída dentro do período.');
         await pgNM.click('[data-e="naoMedido"]');
-        await pgNM.waitForTimeout(300);
         const desligado = await pgNM.evaluate(() => ({
           observado: (document.querySelector('[data-e="observado"]') || {}).disabled,
           fonte: (document.querySelector('[data-e="fonte"]') || {}).disabled,
@@ -2638,20 +2718,21 @@ const clicarSemRolagem = (page, seletor) => page.$eval(seletor, (el) => el.click
         await pgNM.locator('#apostaClassificacaoHipotese .aposta-opcao', { hasText: 'Não sustentada' }).click();
         await pgNM.waitForTimeout(200);
         const tituloAntesNM = await pgNM.evaluate(() => (document.querySelector('.aposta-etapa-titulo') || {}).textContent || '');
+        const _g2642 = await marcarBanco(pgNM);
         await pgNM.$eval('#apostaSeguir', (el) => el.click());
-        await pgNM.waitForTimeout(300);
+        await esperarGravacao(pgNM, _g2642, 'etapa-avancou', {}, 'a etapa nova gravada (CONTINUAR)');
         const tituloDepoisNM = await pgNM.evaluate(() => (document.querySelector('.aposta-etapa-titulo') || {}).textContent || '');
         anota('"não foi possível medir" + motivo + "Nossa hipótese foi" também libera Continuar (é a outra forma válida de completar)',
           tituloDepoisNM !== tituloAntesNM, tituloDepoisNM);
         await ctxNM.close();
-      }
+      });
 
       /* ── 9e: uma mudança gravada antes de existir o campo Período — a
             cadência ("por mês") morava dentro de Unidade (PR #165/#171).
             Reabrir essa mudança precisa mostrar "por mês" no campo
             Período, não em Unidade, senão os dois campos saem trocados
             para quem só está reabrindo o que já tinha escrito. ── */
-      {
+      await emCenario('9e: uma mudança gravada antes de existir o campo Período — a', async () => {
         const semeadoLegado = apostasSemeadas();
         semeadoLegado[TURMA_LIB].execucoes[EXEC].grupos[GRUPO].etapa = 'mudancas';
         semeadoLegado[TURMA_LIB].execucoes[EXEC].grupos[GRUPO].dados = {
@@ -2672,7 +2753,7 @@ const clicarSemRolagem = (page, seletor) => page.$eval(seletor, (el) => el.click
         anota('mudança antiga com "por mês" em Unidade reabre com isso em Período, não em Unidade',
           legado.unidade === '' && legado.periodo === 'por mês', JSON.stringify(legado));
         await ctxL.close();
-      }
+      });
 
       /* ── 9f: DECISÃO — frase estrita, bloqueio, placeholder dinâmico,
             contexto da Evidência (fonte + aprendizado por resultado, e a
@@ -2682,7 +2763,7 @@ const clicarSemRolagem = (page, seletor) => page.$eval(seletor, (el) => el.click
             resultado que NÃO bateu a meta (Reduzir 1000→500, observado
             800 = 40%), para exercitar exatamente a contradição que o
             alerta cobre. ── */
-      {
+      await emCenario('9f: DECISÃO — frase estrita, bloqueio, placeholder dinâmico,', async () => {
         const semeadoDec = apostasSemeadas();
         semeadoDec[TURMA_LIB].execucoes[EXEC].grupos[GRUPO].etapa = 'decisao';
         semeadoDec[TURMA_LIB].execucoes[EXEC].grupos[GRUPO].dados = {
@@ -2740,8 +2821,9 @@ const clicarSemRolagem = (page, seletor) => page.$eval(seletor, (el) => el.click
 
         /* "Ampliar" com uma meta que não foi batida: alerta não-bloqueante,
            com os dois botões — nunca muda a decisão sozinho. */
+        const _g2744 = await marcarBanco(pgDec);
         await pgDec.locator('.aposta-opcao', { hasText: 'Ampliar' }).click();
-        await pgDec.waitForTimeout(200);
+        await esperarGravacao(pgDec, _g2744, 'grupo-salvo', {}, 'o grupo salvo depois de escolher "Ampliar"');
         /* Item 3 do ajuste de Decisão: microexplicação sempre visível
            embaixo dos botões, com o texto exato pedido — não é a mesma
            coisa que a dica em title (hover). */
@@ -2768,10 +2850,12 @@ const clicarSemRolagem = (page, seletor) => page.$eval(seletor, (el) => el.click
         anota('"MANTER AMPLIAR" só dispensa o alerta — não muda a decisão escolhida',
           decisaoContinuaAmpliar.valor === 'Ampliar' && decisaoContinuaAmpliar.alertaVazio, JSON.stringify(decisaoContinuaAmpliar));
 
+        const _g2772 = await marcarBanco(pgDec);
         await pgDec.locator('.aposta-opcao', { hasText: 'Ampliar' }).click();
-        await pgDec.waitForTimeout(200);
+        await esperarGravacao(pgDec, _g2772, 'grupo-salvo', {}, 'o grupo salvo depois de escolher "Ampliar"');
+        const _g2774 = await marcarBanco(pgDec);
         await pgDec.locator('#apostaDecisaoAlerta button', { hasText: 'REVER DECISÃO' }).click();
-        await pgDec.waitForTimeout(150);
+        await esperarGravacao(pgDec, _g2774, 'grupo-salvo', {}, 'o grupo salvo depois de "REVER DECISÃO"');
         const depoisDeRever = await pgDec.evaluate(() => ({
           ativa: !!document.querySelector('.aposta-opcao.is-ativa'),
           frase: ((document.getElementById('apostaFrase') || {}).textContent || '').replace(/\s+/g, ' '),
@@ -2797,7 +2881,6 @@ const clicarSemRolagem = (page, seletor) => page.$eval(seletor, (el) => el.click
           JSON.stringify(sugestaoPrazo));
 
         await pgDec.$eval('#apostaPrazoAlerta [data-prazo-usar]', (el) => el.click());
-        await pgDec.waitForTimeout(250);
         const depoisDeUsar = await pgDec.evaluate(() => ({
           reavaliacao: (document.getElementById('ap-reavaliacao') || {}).value || '',
           alertaVazio: !(document.getElementById('apostaPrazoAlerta') || {}).textContent.trim(),
@@ -2826,10 +2909,12 @@ const clicarSemRolagem = (page, seletor) => page.$eval(seletor, (el) => el.click
         await pgDec.fill('[data-campo="proximaAcao"]', 'revisar a comunicação e repetir o teste');
         /* Fase 4: "Ajustar e testar novamente" só libera CONTINUAR com um
            ponto de reinício escolhido. */
+        const _g2830 = await marcarBanco(pgDec);
         await pgDec.locator('.aposta-opcao', { hasText: 'Experimento' }).click();
-        await pgDec.waitForTimeout(250);
+        await esperarGravacao(pgDec, _g2830, 'grupo-salvo', {}, 'o grupo salvo depois de escolher o ponto de reinício');
+        const _g2832 = await marcarBanco(pgDec);
         await pgDec.$eval('#apostaSeguir', (el) => el.click());
-        await pgDec.waitForTimeout(400);
+        await esperarGravacao(pgDec, _g2832, 'escrita', { caminho: '/dados/decisao$', contem: '"dataDecisao":"' }, 'a Decisão gravada (escrita em …/dados/decisao)');
         const dataDecisaoGravada = await pgDec.evaluate(() => {
           var escritas = (window.__ESCRITAS || []).filter((x) => /\/dados\/decisao$/.test(x.path));
           var ultima = escritas[escritas.length - 1];
@@ -2839,13 +2924,13 @@ const clicarSemRolagem = (page, seletor) => page.$eval(seletor, (el) => el.click
           !!dataDecisaoGravada && !isNaN(Date.parse(dataDecisaoGravada)), JSON.stringify(dataDecisaoGravada));
 
         await ctxDec.close();
-      }
+      });
 
       /* ── 9g: DECISÃO — "Reformular a hipótese" (item 5 do ajuste):
             bloco auto-aberto, pendências combinadas (nova hipótese +
             próxima ação), botão reage a cada tecla e a cada troca de
             decisão — nunca só ao clicar em CONTINUAR. ── */
-      {
+      await emCenario('9g: DECISÃO — "Reformular a hipótese" (item 5 do ajuste):', async () => {
         const semeadoRef = apostasSemeadas();
         semeadoRef[TURMA_LIB].execucoes[EXEC].grupos[GRUPO].etapa = 'decisao';
         semeadoRef[TURMA_LIB].execucoes[EXEC].grupos[GRUPO].dados = {
@@ -2898,18 +2983,17 @@ const clicarSemRolagem = (page, seletor) => page.$eval(seletor, (el) => el.click
            cobrada da Evidência (item 9 do ajuste de fluxo anterior),
            agora também na Decisão. */
         await pgRef.fill('[data-campo="proxHipCausa"]', '');
-        await pgRef.waitForTimeout(250);
         const apagouCausa = await pgRef.evaluate(() => (document.getElementById('apostaSeguir') || {}).disabled);
         anota('apagar a nova hipótese depois de preenchida volta a desabilitar CONTINUAR imediatamente', apagouCausa === true);
         await pgRef.fill('[data-campo="proxHipCausa"]', 'a mensagem não chega a quem está em análise');
-        await pgRef.waitForTimeout(250);
 
         /* Item 6/9: trocar para outra decisão (com a próxima ação já
            preenchida) tem de reavaliar CONTINUAR na hora do clique — não
            só a Nova Hipótese recolher visualmente. Antes deste ajuste, o
            clique só atualizava a frase/os grupos, nunca o disabled. */
+        const _g2912 = await marcarBanco(pgRef);
         await pgRef.locator('.aposta-opcao', { hasText: 'Ampliar' }).click();
-        await pgRef.waitForTimeout(200);
+        await esperarGravacao(pgRef, _g2912, 'grupo-salvo', {}, 'o grupo salvo depois de escolher "Ampliar"');
         const trocouParaAmpliar = await pgRef.evaluate(() => ({
           desabilitado: (document.getElementById('apostaSeguir') || {}).disabled,
           novaHipVisivel: !(document.getElementById('apostaGrupoNovaHipotese') || {}).hidden,
@@ -2919,8 +3003,9 @@ const clicarSemRolagem = (page, seletor) => page.$eval(seletor, (el) => el.click
           trocouParaAmpliar.desabilitado === false, JSON.stringify(trocouParaAmpliar));
         anota('trocar para "Ampliar" esconde de novo o bloco da Nova Hipótese', !trocouParaAmpliar.novaHipVisivel);
 
+        const _g2923 = await marcarBanco(pgRef);
         await pgRef.locator('.aposta-opcao', { hasText: 'Reformular a hipótese' }).click();
-        await pgRef.waitForTimeout(200);
+        await esperarGravacao(pgRef, _g2923, 'grupo-salvo', {}, 'o grupo salvo depois da troca de decisão');
         const voltouPraReformular = await pgRef.evaluate(() => ({
           causaPreservada: (document.getElementById('ap-proxHipCausa') || {}).value || '',
           desabilitado: (document.getElementById('apostaSeguir') || {}).disabled,
@@ -2930,12 +3015,12 @@ const clicarSemRolagem = (page, seletor) => page.$eval(seletor, (el) => el.click
           JSON.stringify(voltouPraReformular));
 
         await ctxRef.close();
-      }
+      });
 
       /* ── 9h: concordância singular/plural nas frases automáticas
             (item 1 do ajuste) — via window.faAposta._resumo, sem precisar
             de UI: "1 contato" e "2 contatos", nunca "1 contatos". ── */
-      {
+      await emCenario('9h: concordância singular/plural nas frases automáticas', async () => {
         const semeadoSingular = apostasSemeadas();
         const { ctx: ctxSing, page: pgSing } = await novaPagina(browser, formato, DIRETORA, erros, semeadoSingular);
         await pgSing.goto(BASE + '/index.html#treinamento', { waitUntil: 'domcontentloaded' });
@@ -2970,7 +3055,7 @@ const clicarSemRolagem = (page, seletor) => page.$eval(seletor, (el) => el.click
         anota('concordância na situação inicial da frase "Esperávamos...": "de 1 contato por dia para 2 contatos por dia" (cada número concorda com o próprio valor)',
           /de 1 contato por dia para 2 contatos por dia\b/.test(situacaoSingular), situacaoSingular);
         await ctxSing.close();
-      }
+      });
 
       /* ── 9i: FASE 1 da evolução de execuções — "Reiniciar dinâmica"
             virou "Iniciar nova execução", com confirmação em modal
@@ -2978,7 +3063,7 @@ const clicarSemRolagem = (page, seletor) => page.$eval(seletor, (el) => el.click
             encerra formalmente a execução anterior (status/encerradaEm/
             encerradaPor) e cria a nova já com status "ativa" e número —
             tudo preservado, nada apagado. ── */
-      {
+      await emCenario('9i: FASE 1 da evolução de execuções — "Reiniciar dinâmica"', async () => {
         const semeadoExec = apostasSemeadas();
         semeadoExec[TURMA_LIB].execucoes[EXEC].grupos[GRUPO].etapa = 'sintoma';
         semeadoExec[TURMA_LIB].execucoes[EXEC].grupos[GRUPO].dados = {
@@ -3017,8 +3102,9 @@ const clicarSemRolagem = (page, seletor) => page.$eval(seletor, (el) => el.click
 
         await pgExec.click('#apostaReiniciar');
         await pgExec.waitForSelector('.aposta-confirmar-overlay .modal-box', { timeout: 5000 });
+        const _g3021 = await marcarBanco(pgExec);
         await pgExec.$eval('.aposta-confirmar-overlay .aposta-modal-sim-btn', (el) => el.click());
-        await pgExec.waitForTimeout(600);
+        await esperarGravacao(pgExec, _g3021, 'nova-execucao', {}, 'a execução nova gravada (apostas/<turma>/atual)');
 
         const estadoDepois = await pgExec.evaluate(({ turmaKey, execAntigo }) => new Promise((res) => {
           firebase.database().ref('apostas/' + turmaKey).once('value', (s) => {
@@ -3047,7 +3133,7 @@ const clicarSemRolagem = (page, seletor) => page.$eval(seletor, (el) => el.click
           JSON.stringify(estadoDepois));
 
         await ctxExec.close();
-      }
+      });
 
       /* ── 9i-bis: BUGFIX — depois de "Iniciar nova execução", a tela não
             pode continuar presa no grupo/etapa da execução ANTERIOR.
@@ -3067,7 +3153,7 @@ const clicarSemRolagem = (page, seletor) => page.$eval(seletor, (el) => el.click
             execução NOVA sequer existir — e esse listener novo, ao
             chegar, via _grupoId preenchido e suprimia o redesenho (a
             mesma supressão que protege quem está digitando). ── */
-      {
+      await emCenario('9i-bis: BUGFIX — depois de "Iniciar nova execução", a tela não', async () => {
         const semeadoUi = apostasSemeadas();
         const grupoUi = semeadoUi[TURMA_LIB].execucoes[EXEC].grupos[GRUPO];
         grupoUi.etapa = 'decisao';
@@ -3088,8 +3174,12 @@ const clicarSemRolagem = (page, seletor) => page.$eval(seletor, (el) => el.click
         await pgUi.waitForSelector('#apostaReiniciar', { timeout: 15000 });
         await pgUi.click('#apostaReiniciar');
         await pgUi.waitForSelector('.aposta-confirmar-overlay .modal-box', { timeout: 5000 });
+        const _g3092 = await marcarBanco(pgUi);
         await pgUi.$eval('.aposta-confirmar-overlay .aposta-modal-sim-btn', (el) => el.click());
-        await pgUi.waitForTimeout(600);
+        await esperarGravacao(pgUi, _g3092, 'nova-execucao', {}, 'a execução nova gravada (apostas/<turma>/atual)');
+        /* a tela troca para a execução nova só depois de carregá-la: espera o estado vazio dela (o que as
+           verificações abaixo leem). Com o defeito antigo, a Decisão continuaria na tela e isto estouraria. */
+        await esperarCondicao(pgUi, () => /Nenhum grupo criado ainda/.test(document.body.textContent || ''), null, { descricao: 'a tela da execução nova (estado vazio, "Nenhum grupo criado ainda")' });
 
         const telaDepois = await pgUi.evaluate(() => ({
           temEtapaTitulo: !!document.querySelector('.aposta-etapa-titulo'),
@@ -3136,7 +3226,7 @@ const clicarSemRolagem = (page, seletor) => page.$eval(seletor, (el) => el.click
           JSON.stringify(telaAposHistorico));
 
         await ctxUi.close();
-      }
+      });
 
       /* ── 9j: FASE 1 — proteção de concorrência real: duas chamadas de
             "iniciar nova execução" quase simultâneas, partindo da MESMA
@@ -3147,13 +3237,14 @@ const clicarSemRolagem = (page, seletor) => page.$eval(seletor, (el) => el.click
             vencer a disputa pelo LOCK; a outra é abortada sem criar
             execução nenhuma, e avisa a pessoa em vez de travar ou
             quebrar a tela. ── */
-      {
+      await emCenario('9j: FASE 1 — proteção de concorrência real: duas chamadas de', async () => {
         const semeadoConc = apostasSemeadas();
         const { ctx: ctxConc, page: pgConc } = await novaPagina(browser, formato, ADM, erros, semeadoConc);
         await pgConc.goto(BASE + '/index.html#treinamento', { waitUntil: 'domcontentloaded' });
         await pgConc.click('#apostaAbrirBtn');
         await pgConc.waitForSelector('.aposta-grupo-btn', { timeout: 15000 });
 
+        const _g3164 = await marcarBanco(pgConc);
         await pgConc.evaluate(() => {
           /* Disparadas de propósito sem esperar a primeira terminar —
              é exatamente a corrida que o teste quer provocar: as duas
@@ -3161,7 +3252,7 @@ const clicarSemRolagem = (page, seletor) => page.$eval(seletor, (el) => el.click
           window.faAposta._criarExecucao();
           window.faAposta._criarExecucao();
         });
-        await pgConc.waitForTimeout(600);
+        await esperarGravacao(pgConc, _g3164, 'nova-execucao', {}, 'a execução nova gravada (apostas/<turma>/atual)');
 
         const resultadoConc = await pgConc.evaluate(({ turmaKey, execOriginal }) => new Promise((res) => {
           firebase.database().ref('apostas/' + turmaKey).once('value', (s) => {
@@ -3200,7 +3291,7 @@ const clicarSemRolagem = (page, seletor) => page.$eval(seletor, (el) => el.click
           /outra execu[çc][ãa]o est[áa] sendo iniciada/i.test(avisoPerdedora), avisoPerdedora);
 
         await ctxConc.close();
-      }
+      });
 
       /* ── 9k: FASE 1 — falha logo depois de adquirir o direito de
             criação (o lock), mas antes de conseguir reler "atual": a
@@ -3211,7 +3302,7 @@ const clicarSemRolagem = (page, seletor) => page.$eval(seletor, (el) => el.click
             erro, o lock é liberado na hora, sem precisar esperar
             expirar — e o mesmo clique de novo, sem a falha, tem de
             completar a transição normalmente. ── */
-      {
+      await emCenario('9k: FASE 1 — falha logo depois de adquirir o direito de', async () => {
         const semeadoFalha1 = apostasSemeadas();
         const { ctx: ctxFalha1, page: pgFalha1 } = await novaPagina(browser, formato, ADM, erros, semeadoFalha1);
         await pgFalha1.goto(BASE + '/index.html#treinamento', { waitUntil: 'domcontentloaded' });
@@ -3221,8 +3312,9 @@ const clicarSemRolagem = (page, seletor) => page.$eval(seletor, (el) => el.click
         await pgFalha1.evaluate((turmaKey) => {
           window.__CFG.fail = ['apostas/' + turmaKey + '/atual'];
         }, TURMA_LIB);
+        const _g3225 = await marcarBanco(pgFalha1);
         await pgFalha1.evaluate(() => { window.faAposta._criarExecucao(); });
-        await pgFalha1.waitForTimeout(400);
+        await esperarGravacao(pgFalha1, _g3225, 'escrita', { caminho: '/criacaoExecucaoEmAndamento$', nulo: true }, 'o lock de criação de execução liberado depois da falha');
 
         const estadoAposFalha1 = await pgFalha1.evaluate(({ turmaKey, execOriginal }) => new Promise((res) => {
           firebase.database().ref('apostas/' + turmaKey).once('value', (s) => {
@@ -3247,8 +3339,9 @@ const clicarSemRolagem = (page, seletor) => page.$eval(seletor, (el) => el.click
           !estadoAposFalha1.temLock, JSON.stringify(estadoAposFalha1));
 
         await pgFalha1.evaluate(() => { window.__CFG.fail = []; });
+        const _g3251 = await marcarBanco(pgFalha1);
         await pgFalha1.evaluate(() => { window.faAposta._criarExecucao(); });
-        await pgFalha1.waitForTimeout(600);
+        await esperarGravacao(pgFalha1, _g3251, 'nova-execucao', {}, 'a execução nova gravada (apostas/<turma>/atual)');
 
         const estadoAposRetry1 = await pgFalha1.evaluate(({ turmaKey, execOriginal }) => new Promise((res) => {
           firebase.database().ref('apostas/' + turmaKey).once('value', (s) => {
@@ -3268,7 +3361,7 @@ const clicarSemRolagem = (page, seletor) => page.$eval(seletor, (el) => el.click
           JSON.stringify(estadoAposRetry1));
 
         await ctxFalha1.close();
-      }
+      });
 
       /* ── 9l: FASE 1 — falha depois de obter o número da execução, mas
             antes do update() atômico final: o update() inteiro falha
@@ -3278,7 +3371,7 @@ const clicarSemRolagem = (page, seletor) => page.$eval(seletor, (el) => el.click
             (aceito de propósito: número perdido é melhor que ponteiro
             quebrado), mas "atual" continua íntegro. O lock, de novo,
             é liberado na hora — e o retry completa normalmente. ── */
-      {
+      await emCenario('9l: FASE 1 — falha depois de obter o número da execução, mas', async () => {
         const semeadoFalha2 = apostasSemeadas();
         const { ctx: ctxFalha2, page: pgFalha2 } = await novaPagina(browser, formato, ADM, erros, semeadoFalha2);
         await pgFalha2.goto(BASE + '/index.html#treinamento', { waitUntil: 'domcontentloaded' });
@@ -3288,8 +3381,9 @@ const clicarSemRolagem = (page, seletor) => page.$eval(seletor, (el) => el.click
         await pgFalha2.evaluate((turmaKey) => {
           window.__CFG.fail = ['apostas/' + turmaKey + '/execucoes'];
         }, TURMA_LIB);
+        const _g3292 = await marcarBanco(pgFalha2);
         await pgFalha2.evaluate(() => { window.faAposta._criarExecucao(); });
-        await pgFalha2.waitForTimeout(400);
+        await esperarGravacao(pgFalha2, _g3292, 'escrita', { caminho: '/criacaoExecucaoEmAndamento$', nulo: true }, 'o lock de criação de execução liberado depois da falha');
 
         const estadoAposFalha2 = await pgFalha2.evaluate(({ turmaKey, execOriginal }) => new Promise((res) => {
           firebase.database().ref('apostas/' + turmaKey).once('value', (s) => {
@@ -3316,8 +3410,9 @@ const clicarSemRolagem = (page, seletor) => page.$eval(seletor, (el) => el.click
           !estadoAposFalha2.temLock && estadoAposFalha2.temContador === 1, JSON.stringify(estadoAposFalha2));
 
         await pgFalha2.evaluate(() => { window.__CFG.fail = []; });
+        const _g3320 = await marcarBanco(pgFalha2);
         await pgFalha2.evaluate(() => { window.faAposta._criarExecucao(); });
-        await pgFalha2.waitForTimeout(600);
+        await esperarGravacao(pgFalha2, _g3320, 'nova-execucao', {}, 'a execução nova gravada (apostas/<turma>/atual)');
 
         const estadoAposRetry2 = await pgFalha2.evaluate(({ turmaKey, execOriginal }) => new Promise((res) => {
           firebase.database().ref('apostas/' + turmaKey).once('value', (s) => {
@@ -3341,7 +3436,7 @@ const clicarSemRolagem = (page, seletor) => page.$eval(seletor, (el) => el.click
           estadoAposRetry2.numeroDaNova === 2, JSON.stringify(estadoAposRetry2));
 
         await ctxFalha2.close();
-      }
+      });
 
       /* ── 9m: FASE 1 — um lock já preso, deixado por uma queda
             anterior (simulada aqui semeando o nó direto no banco, com
@@ -3350,7 +3445,7 @@ const clicarSemRolagem = (page, seletor) => page.$eval(seletor, (el) => el.click
             deixaria o banco), precisa destravar sozinho quando
             expira, sem exigir conserto manual: a próxima tentativa
             consegue prosseguir normalmente. ── */
-      {
+      await emCenario('9m: FASE 1 — um lock já preso, deixado por uma queda', async () => {
         const semeadoFalha3 = apostasSemeadas();
         semeadoFalha3[TURMA_LIB].criacaoExecucaoEmAndamento = { em: '2020-01-01T00:00:00.000Z', por: 'alguem@previ.com.br' };
         const { ctx: ctxFalha3, page: pgFalha3 } = await novaPagina(browser, formato, ADM, erros, semeadoFalha3);
@@ -3358,8 +3453,9 @@ const clicarSemRolagem = (page, seletor) => page.$eval(seletor, (el) => el.click
         await pgFalha3.click('#apostaAbrirBtn');
         await pgFalha3.waitForSelector('.aposta-grupo-btn', { timeout: 15000 });
 
+        const _g3362 = await marcarBanco(pgFalha3);
         await pgFalha3.evaluate(() => { window.faAposta._criarExecucao(); });
-        await pgFalha3.waitForTimeout(600);
+        await esperarGravacao(pgFalha3, _g3362, 'nova-execucao', {}, 'a execução nova gravada (apostas/<turma>/atual)');
 
         const estadoAposExpirar = await pgFalha3.evaluate(({ turmaKey, execOriginal }) => new Promise((res) => {
           firebase.database().ref('apostas/' + turmaKey).once('value', (s) => {
@@ -3379,7 +3475,7 @@ const clicarSemRolagem = (page, seletor) => page.$eval(seletor, (el) => el.click
           JSON.stringify(estadoAposExpirar));
 
         await ctxFalha3.close();
-      }
+      });
 
       /* ── 9n: FASE 1 — o lock tem identidade própria por tentativa
             (token): uma tentativa antiga que só descobre que falhou
@@ -3388,7 +3484,7 @@ const clicarSemRolagem = (page, seletor) => page.$eval(seletor, (el) => el.click
             nova. Sem isso, uma terceira chamada poderia entrar bem no
             meio da tentativa mais nova, recriando a corrida que o
             lock existe para impedir. ── */
-      {
+      await emCenario('9n: FASE 1 — o lock tem identidade própria por tentativa', async () => {
         const semeadoFalha4 = apostasSemeadas();
         semeadoFalha4[TURMA_LIB].criacaoExecucaoEmAndamento = { em: new Date().toISOString(), por: ADM, token: 'token-da-tentativa-nova' };
         const { ctx: ctxFalha4, page: pgFalha4 } = await novaPagina(browser, formato, ADM, erros, semeadoFalha4);
@@ -3408,10 +3504,11 @@ const clicarSemRolagem = (page, seletor) => page.$eval(seletor, (el) => el.click
           lockAposTentativaAntiga && lockAposTentativaAntiga.token === 'token-da-tentativa-nova',
           JSON.stringify(lockAposTentativaAntiga));
 
+        const _g3414 = await marcarBanco(pgFalha4);
         await pgFalha4.evaluate((turmaKey) => {
           window.faAposta._liberarLock('token-da-tentativa-nova');
         }, TURMA_LIB);
-        await pgFalha4.waitForTimeout(300);
+        await esperarGravacao(pgFalha4, _g3414, 'escrita', { caminho: '/criacaoExecucaoEmAndamento$', nulo: true }, 'o lock de criação de execução liberado (token certo)');
 
         const lockAposTentativaCerta = await pgFalha4.evaluate((turmaKey) => new Promise((res) => {
           firebase.database().ref('apostas/' + turmaKey + '/criacaoExecucaoEmAndamento').once('value', (s) => res(s.val()));
@@ -3420,7 +3517,7 @@ const clicarSemRolagem = (page, seletor) => page.$eval(seletor, (el) => el.click
           lockAposTentativaCerta === null, JSON.stringify(lockAposTentativaCerta));
 
         await ctxFalha4.close();
-      }
+      });
 
       /* ── 10a-10f: FASE 2 — Histórico de Execuções (somente leitura).
             Turma com histórico real: uma execução LEGADA (sem status
@@ -3430,7 +3527,7 @@ const clicarSemRolagem = (page, seletor) => page.$eval(seletor, (el) => el.click
             também não tem status/numero, provando que a compatibilidade
             por leitura vale para os dois lados: "ativa" não depende de
             `status` existir, depende só de ser apontada por "atual"). ── */
-      {
+      await emCenario('10a-10f: FASE 2 — Histórico de Execuções (somente leitura).', async () => {
         const semeadoHist = apostasSemeadasComHistorico();
         const { ctx: ctxHist, page: pgHist } = await novaPagina(browser, formato, ADM, erros, semeadoHist);
         await pgHist.goto(BASE + '/index.html#treinamento', { waitUntil: 'domcontentloaded' });
@@ -3561,7 +3658,7 @@ const clicarSemRolagem = (page, seletor) => page.$eval(seletor, (el) => el.click
         anota('a exportação da execução ATUAL continua funcionando normalmente (CSV com o Grupo 1)', /Grupo 1/.test(csvAtual), csvAtual.slice(0, 200));
 
         await ctxHist.close();
-      }
+      });
 
       /* ── 12a-12c: FASE 3 — proteção contra clique duplo em "Criar
             grupo", a única ação estrutural sem proteção encontrada no
@@ -3570,7 +3667,7 @@ const clicarSemRolagem = (page, seletor) => page.$eval(seletor, (el) => el.click
             revelar e salvar/remover missão-base são todos gravações
             idempotentes de um caminho fixo, não criações de registro
             novo — nenhuma delas precisou de proteção nova). ── */
-      {
+      await emCenario('12a-12c: FASE 3 — proteção contra clique duplo em "Criar', async () => {
         const semeadoGrupo = apostasSemeadas();
         const { ctx: ctxGrupo, page: pgGrupo } = await novaPagina(browser, formato, ADM, erros, semeadoGrupo);
         await pgGrupo.goto(BASE + '/index.html#treinamento', { waitUntil: 'domcontentloaded' });
@@ -3640,12 +3737,12 @@ const clicarSemRolagem = (page, seletor) => page.$eval(seletor, (el) => el.click
           qtdCardsGrupoTriplo === 1, 'cards na tela: ' + qtdCardsGrupoTriplo);
 
         await ctxGrupo.close();
-      }
+      });
 
       /* ── 12c: falha ao criar o grupo mostra o erro, reabilita o
             botão (nunca fica preso) e permite uma nova tentativa
             controlada — que cria o grupo normalmente. ── */
-      {
+      await emCenario('12c: falha ao criar o grupo mostra o erro, reabilita o', async () => {
         const semeadoFalhaGrupo = apostasSemeadas();
         const { ctx: ctxFalhaGrupo, page: pgFalhaGrupo } = await novaPagina(browser, formato, ADM, erros, semeadoFalhaGrupo);
         await pgFalhaGrupo.goto(BASE + '/index.html#treinamento', { waitUntil: 'domcontentloaded' });
@@ -3684,7 +3781,7 @@ const clicarSemRolagem = (page, seletor) => page.$eval(seletor, (el) => el.click
         anota('depois do erro, a nova tentativa cria o grupo normalmente', qtdAposRetry === 2, String(qtdAposRetry));
 
         await ctxFalhaGrupo.close();
-      }
+      });
 
       /* ══════════════════════════════════════════════════════════════
          FASE 4 — CICLOS DE APRENDIZAGEM
@@ -3693,7 +3790,7 @@ const clicarSemRolagem = (page, seletor) => page.$eval(seletor, (el) => el.click
       /* ── 13a: compatibilidade — grupo antigo (sem ciclos/) continua
             funcionando como Ciclo 1 implícito, sem nenhuma escrita
             automática só por ser aberto. ── */
-      {
+      await emCenario('13a: compatibilidade — grupo antigo (sem ciclos/) continua', async () => {
         const semeado13a = apostasSemeadas();
         const { ctx: ctx13a, page: pg13a } = await novaPagina(browser, formato, ADM, erros, semeado13a);
         await pg13a.goto(BASE + '/index.html#treinamento', { waitUntil: 'domcontentloaded' });
@@ -3708,12 +3805,12 @@ const clicarSemRolagem = (page, seletor) => page.$eval(seletor, (el) => el.click
         anota('grupo antigo sem ciclos/ não ganha a estrutura só por ser aberto (Ciclo 1 implícito)',
           ciclosAposAbrir === null, JSON.stringify(ciclosAposAbrir));
         await ctx13a.close();
-      }
+      });
 
       /* ── 13b: "Reformular a hipótese" — materializa Ciclo 1, cria
             Ciclo 2 na Hipótese, com herança/cascata e a Hipótese
             ORIGINAL preservada (Invariantes 1, 4, 5, 6). ── */
-      {
+      await emCenario('13b: "Reformular a hipótese" — materializa Ciclo 1, cria', async () => {
         const semeado13b = apostasProntaParaDecisao();
         const { ctx: ctx13b, page: pg13b } = await novaPagina(browser, formato, ADM, erros, semeado13b);
         await pg13b.goto(BASE + '/index.html#treinamento', { waitUntil: 'domcontentloaded' });
@@ -3725,7 +3822,6 @@ const clicarSemRolagem = (page, seletor) => page.$eval(seletor, (el) => el.click
         await pg13b.fill('[data-campo="proximaAcao"]', 'testar uma nova hipótese sobre o atendimento');
         await pg13b.fill('[data-campo="proxHipCausa"]', 'o sistema de senhas está desorganizando a fila');
         await pg13b.fill('[data-campo="proxHipIndicio"]', 'muitas senhas fora de ordem no horário de pico');
-        await pg13b.waitForTimeout(250);
         await pg13b.click('#apostaSeguir');
         await pg13b.waitForFunction(() =>
           /^H\s*—\s*HIP[ÓO]TESE/i.test((document.querySelector('.aposta-etapa-titulo') || {}).textContent || ''),
@@ -3775,12 +3871,12 @@ const clicarSemRolagem = (page, seletor) => page.$eval(seletor, (el) => el.click
           JSON.stringify({ ideia: c2.dados.ideia, experimento: c2.dados.experimento }));
 
         await ctx13b.close();
-      }
+      });
 
       /* ── 13c: "Investigar mais" — pede um ponto de reinício ESCOLHIDO;
             sem escolher, bloqueia; escolhendo, o ciclo novo nasce
             exatamente nesse ponto (não num fixo). ── */
-      {
+      await emCenario('13c: "Investigar mais" — pede um ponto de reinício ESCOLHIDO;', async () => {
         const semeado13c = apostasProntaParaDecisao();
         const { ctx: ctx13c, page: pg13c } = await novaPagina(browser, formato, ADM, erros, semeado13c);
         await pg13c.goto(BASE + '/index.html#treinamento', { waitUntil: 'domcontentloaded' });
@@ -3794,8 +3890,9 @@ const clicarSemRolagem = (page, seletor) => page.$eval(seletor, (el) => el.click
         const desabilitadoSemPonto = await pg13c.evaluate(() => (document.getElementById('apostaSeguir') || {}).disabled);
         anota('"Investigar mais" sem ponto de reinício escolhido mantém CONTINUAR desabilitado',
           desabilitadoSemPonto === true, String(desabilitadoSemPonto));
+        const _g3798 = await marcarBanco(pg13c);
         await pg13c.locator('.aposta-opcao[data-escolha="pontoDeReinicioEscolhido"]', { hasText: 'Mudanças Mensuráveis' }).click();
-        await pg13c.waitForTimeout(200);
+        await esperarGravacao(pg13c, _g3798, 'grupo-salvo', {}, 'o grupo salvo depois de escolher o ponto de reinício');
         const habilitadoComPonto = await pg13c.evaluate(() => (document.getElementById('apostaSeguir') || {}).disabled);
         anota('escolher o ponto de reinício libera CONTINUAR', habilitadoComPonto === false, String(habilitadoComPonto));
         await pg13c.click('#apostaSeguir');
@@ -3813,11 +3910,11 @@ const clicarSemRolagem = (page, seletor) => page.$eval(seletor, (el) => el.click
           c2Ponto.pontoDeReinicio === 'mudancas' && c2Ponto.decisaoOrigem === 'Investigar mais' && c2Ponto.mudancasVazias,
           JSON.stringify(c2Ponto));
         await ctx13c.close();
-      }
+      });
 
       /* ── 13d: "Ampliar" e "Interromper esta ideia" só finalizam — nunca
             criam ciclo sozinhas (itens 12/13). ── */
-      {
+      await emCenario('13d: "Ampliar" e "Interromper esta ideia" só finalizam — nunca', async () => {
         const semeado13d = apostasProntaParaDecisao();
         const { ctx: ctx13d, page: pg13d } = await novaPagina(browser, formato, ADM, erros, semeado13d);
         await pg13d.goto(BASE + '/index.html#treinamento', { waitUntil: 'domcontentloaded' });
@@ -3836,13 +3933,13 @@ const clicarSemRolagem = (page, seletor) => page.$eval(seletor, (el) => el.click
         anota('"Interromper esta ideia" finaliza sem criar ciclo nenhum — vai direto ao Mapa',
           semCiclos === null, JSON.stringify(semCiclos));
         await ctx13d.close();
-      }
+      });
 
       /* ── 13d-bis: "Ampliar" também só finaliza — nunca cria sucessor
             (item 12) — seeded já num Ciclo 2 EXPLÍCITO (não o implícito)
             para que "cicloAtual não aponta pra ciclo inexistente" seja
             uma prova de verdade, não trivial por ausência de `ciclos`. ── */
-      {
+      await emCenario('13d-bis: "Ampliar" também só finaliza — nunca cria sucessor', async () => {
         const semeado13dbis = apostasProntaParaDecisao();
         semeado13dbis[TURMA_LIB].execucoes[EXEC].grupos[GRUPO].dados.decisao = { decisao: 'Reformular a hipótese', proximaAcao: 'testar de novo', dataDecisao: '2026-09-19T09:00:00.000Z', proxHipCausa: 'causa', proxHipIndicio: 'indicio' };
         semeado13dbis[TURMA_LIB].execucoes[EXEC].grupos[GRUPO].ciclos = {
@@ -3877,7 +3974,7 @@ const clicarSemRolagem = (page, seletor) => page.$eval(seletor, (el) => el.click
         anota('cicloAtual continua apontando para um ciclo que existe de verdade (o mesmo Ciclo 2, agora finalizado) — nunca para um ciclo inexistente',
           estadoAposAmpliar.atual === 'c2' && estadoAposAmpliar.atualAponta, JSON.stringify(estadoAposAmpliar));
         await ctx13dbis.close();
-      }
+      });
 
       /* ── 13d-ter: REFINAMENTO PÓS-TESTE MANUAL (item 1) — "Concluir a
             aposta": mesmo tratamento estrutural de Ampliar/Interromper
@@ -3891,7 +3988,7 @@ const clicarSemRolagem = (page, seletor) => page.$eval(seletor, (el) => el.click
             esta ideia" nem com "Encerrar por agora" (botão da
             Evidência — ver blocoPlanoProntoHtml — que é uma pausa
             operacional, testado à parte). ── */
-      {
+      await emCenario('13d-ter: REFINAMENTO PÓS-TESTE MANUAL (item 1) — "Concluir a', async () => {
         const semeado13dter = apostasProntaParaDecisao();
         semeado13dter[TURMA_LIB].execucoes[EXEC].grupos[GRUPO].dados.decisao = { decisao: 'Reformular a hipótese', proximaAcao: 'testar de novo', dataDecisao: '2026-09-19T09:00:00.000Z', proxHipCausa: 'causa', proxHipIndicio: 'indicio' };
         semeado13dter[TURMA_LIB].execucoes[EXEC].grupos[GRUPO].ciclos = {
@@ -3912,8 +4009,9 @@ const clicarSemRolagem = (page, seletor) => page.$eval(seletor, (el) => el.click
         anota('item 1 — "Concluir a aposta" aparece como opção de Decisão, ao lado das demais',
           opcoesDecisao.includes('Concluir a aposta'), JSON.stringify(opcoesDecisao));
 
+        const _g3916 = await marcarBanco(pg13dter);
         await pg13dter.locator('.aposta-opcao', { hasText: 'Concluir a aposta' }).click();
-        await pg13dter.waitForTimeout(200);
+        await esperarGravacao(pg13dter, _g3916, 'grupo-salvo', {}, 'o grupo salvo depois de escolher "Concluir a aposta"');
         const explicacaoConcluir = await pg13dter.evaluate(() => (document.querySelector('[data-escolha-explicacao="decisao"]') || {}).textContent || '');
         anota('item 1 — a microexplicação de "Concluir a aposta" nunca soa como "Ampliar" nem como "Interromper" (aprendizado suficiente, não abandono nem escala)',
           /aprendemos o suficiente/i.test(explicacaoConcluir), explicacaoConcluir);
@@ -4011,14 +4109,14 @@ const clicarSemRolagem = (page, seletor) => page.$eval(seletor, (el) => el.click
         }
 
         await ctx13dter.close();
-      }
+      });
 
       /* ── 13d-quater: bugfix pós-PR#210 — "Concluir a aposta": trocar de
             decisão restaura/relaxa a exigência de Próxima ação na hora
             (sem recarregar a etapa), e escrever um encaminhamento
             voluntário mostra os Complementos de volta — sempre opcionais,
             nunca migram nem exigem nada. ── */
-      {
+      await emCenario('13d-quater: bugfix pós-PR#210 — "Concluir a aposta": trocar de', async () => {
         const semeado13dquater = apostasProntaParaDecisao();
         const { ctx: ctx13dquater, page: pg13dquater } = await novaPagina(browser, formato, ADM, erros, semeado13dquater);
         await pg13dquater.goto(BASE + '/index.html#treinamento', { waitUntil: 'domcontentloaded' });
@@ -4030,8 +4128,9 @@ const clicarSemRolagem = (page, seletor) => page.$eval(seletor, (el) => el.click
         /* Primeiro escolhe "Ampliar" — decisão comum, com a exigência de
            sempre — para confirmar que ela continua intacta antes de
            testar a troca. */
+        const _g4034 = await marcarBanco(pg13dquater);
         await pg13dquater.locator('.aposta-opcao', { hasText: 'Ampliar' }).click();
-        await pg13dquater.waitForTimeout(200);
+        await esperarGravacao(pg13dquater, _g4034, 'grupo-salvo', {}, 'o grupo salvo depois de escolher "Ampliar"');
         const bloqueadoAmpliar = await pg13dquater.evaluate(() => (document.getElementById('apostaSeguir') || {}).disabled);
         anota('item 2 — "Ampliar" continua exigindo Próxima ação normalmente (CONTINUAR desabilitado sem ela)',
           bloqueadoAmpliar === true, 'disabled=' + bloqueadoAmpliar);
@@ -4059,7 +4158,6 @@ const clicarSemRolagem = (page, seletor) => page.$eval(seletor, (el) => el.click
            sempre opcionais, nunca exigidos, só deixam de fazer sentido
            escondidos quando existe alguma próxima ação combinada. */
         await pg13dquater.fill('[data-campo="proximaAcao"]', 'registrar o aprendizado e comunicar o resultado');
-        await pg13dquater.waitForTimeout(300);
         const complementosAposEscrever = await pg13dquater.evaluate(() => {
           var comp = document.getElementById('apostaComplementos');
           return !!comp && !comp.hidden && getComputedStyle(comp).display !== 'none';
@@ -4068,7 +4166,6 @@ const clicarSemRolagem = (page, seletor) => page.$eval(seletor, (el) => el.click
           complementosAposEscrever === true);
 
         await pg13dquater.fill('[data-campo="proximaAcao"]', '');
-        await pg13dquater.waitForTimeout(300);
         const complementosAposApagar = await pg13dquater.evaluate(() => {
           var comp = document.getElementById('apostaComplementos');
           return !!comp && !comp.hidden && getComputedStyle(comp).display !== 'none';
@@ -4091,7 +4188,7 @@ const clicarSemRolagem = (page, seletor) => page.$eval(seletor, (el) => el.click
           voltaAmpliar.rotulo === 'Próxima ação:', JSON.stringify(voltaAmpliar));
 
         await ctx13dquater.close();
-      }
+      });
 
       /* ── 13d-quinquies: bugfix pós-PR#210 — compatibilidade retroativa:
             uma decisão "Concluir a aposta" já gravada ANTES deste bugfix,
@@ -4100,7 +4197,7 @@ const clicarSemRolagem = (page, seletor) => page.$eval(seletor, (el) => el.click
             normalmente — nada migra, nada é apagado. Entra pelo Painel
             do facilitador ("Projetar"), nunca clicando Continuar na
             Decisão (que executaria a consequência de novo). ── */
-      {
+      await emCenario('13d-quinquies: bugfix pós-PR#210 — compatibilidade retroativa:', async () => {
         const semeado13dquinquies = apostasProntaParaDecisao();
         semeado13dquinquies[TURMA_LIB].execucoes[EXEC].grupos[GRUPO].dados.decisao =
           { decisao: 'Concluir a aposta', proximaAcao: 'DASD', dataDecisao: '2026-09-19T09:00:00.000Z' };
@@ -4116,13 +4213,13 @@ const clicarSemRolagem = (page, seletor) => page.$eval(seletor, (el) => el.click
         anota('item 2 — decisão "Concluir a aposta" gravada ANTES do bugfix, com Próxima ação já preenchida, continua aparecendo normalmente no Mapa',
           /vamos concluir a aposta\. Pr[óo]xima a[çc][ãa]o: DASD\./i.test(mapaCompat), mapaCompat.slice(0, 300));
         await ctx13dquinquies.close();
-      }
+      });
 
       /* ── 13e: editar uma etapa de um ciclo já concluído — confirmar
             cria um ciclo novo a partir EXATAMENTE da etapa clicada
             (edição manual, decisaoOrigem='edicao-manual'), nunca
             sobrescreve o histórico (item 9). ── */
-      {
+      await emCenario('13e: editar uma etapa de um ciclo já concluído — confirmar', async () => {
         const semeado13e = apostasProntaParaDecisao();
         semeado13e[TURMA_LIB].execucoes[EXEC].grupos[GRUPO].dados.decisao = { decisao: 'Ampliar', proximaAcao: 'ampliar para outros horários', dataDecisao: '2026-09-19T10:00:00.000Z' };
         const { ctx: ctx13e, page: pg13e } = await novaPagina(browser, formato, ADM, erros, semeado13e);
@@ -4156,11 +4253,11 @@ const clicarSemRolagem = (page, seletor) => page.$eval(seletor, (el) => el.click
         anota('o ciclo criado por edição manual também herda o que vem antes do ponto clicado',
           c2Manual.missaoHerdada === DADOS_ATE_EVIDENCIA.missao.oQue, JSON.stringify(c2Manual));
         await ctx13e.close();
-      }
+      });
 
       /* ── 13f: clique duplo/repetido na criação de ciclo nunca cria
             dois ciclos sucessores para a mesma decisão (item 33). ── */
-      {
+      await emCenario('13f: clique duplo/repetido na criação de ciclo nunca cria', async () => {
         const semeado13f = apostasProntaParaDecisao();
         const { ctx: ctx13f, page: pg13f } = await novaPagina(browser, formato, ADM, erros, semeado13f);
         await pg13f.goto(BASE + '/index.html#treinamento', { waitUntil: 'domcontentloaded' });
@@ -4189,12 +4286,12 @@ const clicarSemRolagem = (page, seletor) => page.$eval(seletor, (el) => el.click
         anota('nasce exatamente UM ciclo sucessor no banco, nunca dois',
           totalCiclos === 2 /* Ciclo 1 materializado + o único Ciclo 2 */, String(totalCiclos));
         await ctx13f.close();
-      }
+      });
 
       /* ── 13g: liberarLockCiclo com um token velho não remove o lock de
             uma tentativa mais nova (mesma prova da Fase 1, agora para o
             lock de ciclo). ── */
-      {
+      await emCenario('13g: liberarLockCiclo com um token velho não remove o lock de', async () => {
         const semeado13g = apostasProntaParaDecisao();
         const { ctx: ctx13g, page: pg13g } = await novaPagina(browser, formato, ADM, erros, semeado13g);
         await pg13g.goto(BASE + '/index.html#treinamento', { waitUntil: 'domcontentloaded' });
@@ -4214,7 +4311,7 @@ const clicarSemRolagem = (page, seletor) => page.$eval(seletor, (el) => el.click
         anota('liberarLockCiclo() com token velho não remove o lock de uma tentativa mais nova',
           !!provaToken && provaToken.token === 'token-novo', JSON.stringify(provaToken));
         await ctx13g.close();
-      }
+      });
 
       /* ── 13h: Mapa multiciclo — Ciclo 1 continua legível depois do
             Ciclo 2 nascer; só o atual é clicável; CSV distingue os
@@ -4222,7 +4319,7 @@ const clicarSemRolagem = (page, seletor) => page.$eval(seletor, (el) => el.click
             direto com os dois ciclos já prontos — a mecânica de
             CRIAR um ciclo pela UI já foi provada passo a passo em
             13b/13c; aqui o que se examina é a LEITURA multiciclo. ── */
-      {
+      await emCenario('13h: Mapa multiciclo — Ciclo 1 continua legível depois do', async () => {
         const semeado13h = apostasProntaParaDecisao();
         semeado13h[TURMA_LIB].execucoes[EXEC].grupos[GRUPO].dados.decisao = { decisao: 'Reformular a hipótese', proximaAcao: 'testar de novo', dataDecisao: '2026-09-19T10:00:00.000Z', proxHipCausa: 'a fila não tem sinalização clara', proxHipIndicio: 'gente perguntando onde é o fim da fila' };
         semeado13h[TURMA_LIB].execucoes[EXEC].grupos[GRUPO].ciclos = {
@@ -4312,7 +4409,7 @@ const clicarSemRolagem = (page, seletor) => page.$eval(seletor, (el) => el.click
           conteudoCsv.slice(0, 200));
 
         await ctx13h.close();
-      }
+      });
 
       /* ── 13h-bis: REFINAMENTO PÓS-TESTE MANUAL — itens 4 e 6.
             (4) Com múltiplos ciclos, a Conexão com OKR precisa dizer
@@ -4324,7 +4421,7 @@ const clicarSemRolagem = (page, seletor) => page.$eval(seletor, (el) => el.click
             hierarquia visual própria (CICLO N maior, ponto de
             reinício numa linha, status como selo) — mesmos dados de
             sempre, só apresentação diferente. ── */
-      {
+      await emCenario('13h-bis: REFINAMENTO PÓS-TESTE MANUAL — itens 4 e 6.', async () => {
         const missaoComum = { verbo: 'reduzir', oQue: 'o tempo de espera', contexto: 'na fila do atendimento', prazo: '60', prazoUnidade: 'dias' };
         const semeadoOkr = apostasProntaParaDecisao();
         semeadoOkr[TURMA_LIB].execucoes[EXEC].revelado = true;
@@ -4405,7 +4502,7 @@ const clicarSemRolagem = (page, seletor) => page.$eval(seletor, (el) => el.click
           JSON.stringify(mapaOkrInfo.map((t) => t.statusClasse)));
 
         await ctxOkr.close();
-      }
+      });
 
       /* ── 14a: NOVA FUNCIONALIDADE — "Analisar com IA": uma aposta,
             três lentes (Defende/Desafia/Investiga). Não são três
@@ -4418,7 +4515,7 @@ const clicarSemRolagem = (page, seletor) => page.$eval(seletor, (el) => el.click
             (fontePrevista/comoSeraMedido), nunca "observada" — por
             isso o seed limpa observado/fonte/aprendizado do fixture
             base e preenche só os campos de planejamento. ── */
-      {
+      await emCenario('14a: NOVA FUNCIONALIDADE — "Analisar com IA": uma aposta,', async () => {
         const semeado14a = apostasProntaParaDecisao();
         semeado14a[TURMA_LIB].execucoes[EXEC].grupos[GRUPO].dados = Object.assign({}, DADOS_ATE_EVIDENCIA, {
           evidencia: { itens: [{ resultadoId: 'r1', fontePrevista: 'Registros de atendimento', comoSeraMedido: 'contagem de atendimentos registrados no sistema' }] }
@@ -4551,13 +4648,13 @@ const clicarSemRolagem = (page, seletor) => page.$eval(seletor, (el) => el.click
           JSON.stringify({ toast: feedbackCopia.toast, modalTemTexto: !!feedbackCopia.modalTexto }));
 
         await ctx14a.close();
-      }
+      });
 
       /* ── 14b: "Analisar com IA" com estado incompleto — não inventa
             conteúdo nem gera prompt aparentemente completo; lista
             objetivamente o que falta, sem travar o resto do site
             (item 17 do pedido). ── */
-      {
+      await emCenario('14b: "Analisar com IA" com estado incompleto — não inventa', async () => {
         const semeado14b = apostasProntaParaDecisao();
         semeado14b[TURMA_LIB].execucoes[EXEC].grupos[GRUPO].dados = {
           missao: DADOS_ATE_EVIDENCIA.missao,
@@ -4613,14 +4710,14 @@ const clicarSemRolagem = (page, seletor) => page.$eval(seletor, (el) => el.click
           mapaContinuaAtivo.temMapa && mapaContinuaAtivo.overlaysVisiveis === 0, JSON.stringify(mapaContinuaAtivo));
 
         await ctx14b.close();
-      }
+      });
 
       /* ── 14c: "Analisar com IA" no multiciclo — usa o CICLO ATUAL,
             nunca mistura Problema/Hipótese/Experimento/Evidência do
             Ciclo 1 com os do Ciclo 2 (item 16 do pedido). Mesmo padrão
             de seed do 13h/13h-bis: os dois ciclos já prontos no banco,
             leitura examinada via Projetar. ── */
-      {
+      await emCenario('14c: "Analisar com IA" no multiciclo — usa o CICLO ATUAL,', async () => {
         const semeado14c = apostasProntaParaDecisao();
         const dadosCiclo1_14c = Object.assign({}, DADOS_ATE_EVIDENCIA, {
           decisao: { decisao: 'Rever o problema', proximaAcao: 'redefinir o problema', dataDecisao: '2026-09-19T09:00:00.000Z' }
@@ -4666,11 +4763,11 @@ const clicarSemRolagem = (page, seletor) => page.$eval(seletor, (el) => el.click
           /Observa[çc][ãa]o do experimento/.test(promptCiclo2) && !/Registros de atendimento/.test(promptCiclo2));
 
         await ctx14c.close();
-      }
+      });
 
       /* ── 13i: retomada — fechar e reabrir no meio do Ciclo 2 volta
             para o ciclo/etapa corretos, nunca de volta ao Ciclo 1. ── */
-      {
+      await emCenario('13i: retomada — fechar e reabrir no meio do Ciclo 2 volta', async () => {
         const semeado13i = apostasProntaParaDecisao();
         semeado13i[TURMA_LIB].execucoes[EXEC].grupos[GRUPO].ciclos = {
           atual: 'c2',
@@ -4698,7 +4795,7 @@ const clicarSemRolagem = (page, seletor) => page.$eval(seletor, (el) => el.click
         anota('os dados mostrados são os do Ciclo 2 (Experimento ainda vazio), não os do Ciclo 1',
           acaoNaTela === '', 'campo veio com "' + acaoNaTela + '"');
         await ctx13i.close();
-      }
+      });
 
       /* ── 13j: FASE 4 — atomicidade da materialização do Ciclo 1
             implícito → Ciclo 1 explícito + Ciclo 2. O update() final de
@@ -4715,7 +4812,7 @@ const clicarSemRolagem = (page, seletor) => page.$eval(seletor, (el) => el.click
             dedicada à numeração). Mesmo padrão dos testes de falha da
             Fase 1 (9k/9l), agora no ponto exato do pedido do usuário:
             "confirme exatamente como ocorre a transformação". ── */
-      {
+      await emCenario('13j: FASE 4 — atomicidade da materialização do Ciclo 1', async () => {
         const semeado13j = apostasProntaParaDecisao();
         semeado13j[TURMA_LIB].execucoes[EXEC].grupos[GRUPO].dados.decisao = { decisao: 'Rever o problema', proximaAcao: 'reunir o grupo para redefinir o problema', dataDecisao: '2026-09-19T10:00:00.000Z' };
         const { ctx: ctx13j, page: pg13j } = await novaPagina(browser, formato, ADM, erros, semeado13j);
@@ -4785,7 +4882,7 @@ const clicarSemRolagem = (page, seletor) => page.$eval(seletor, (el) => el.click
           JSON.stringify({ retrySucesso, estadoAposRetry }));
 
         await ctx13j.close();
-      }
+      });
 
       /* ── 13k: FASE 4 — dataDecisao sobrevive a um re-salvamento da
             Decisão. Bug pré-existente (invisível antes da Fase 4, que
@@ -4798,7 +4895,7 @@ const clicarSemRolagem = (page, seletor) => page.$eval(seletor, (el) => el.click
             salvarEtapa que qualquer clique repetido em CONTINUAR
             dispara) que a data continua a MESMA, não vira uma nova nem
             some. ── */
-      {
+      await emCenario('13k: FASE 4 — dataDecisao sobrevive a um re-salvamento da', async () => {
         const semeado13k = apostasProntaParaDecisao();
         semeado13k[TURMA_LIB].execucoes[EXEC].grupos[GRUPO].dados.decisao = { decisao: 'Ampliar', proximaAcao: 'ampliar para outros horários', dataDecisao: '2026-09-19T10:00:00.000Z' };
         const { ctx: ctx13k, page: pg13k } = await novaPagina(browser, formato, ADM, erros, semeado13k);
@@ -4821,7 +4918,7 @@ const clicarSemRolagem = (page, seletor) => page.$eval(seletor, (el) => el.click
           decisaoAposResave && decisaoAposResave.proximaAcao === 'ampliar para mais horários ainda', JSON.stringify(decisaoAposResave));
 
         await ctx13k.close();
-      }
+      });
 
       /* ── 13l: FASE 4 — cascata ao editar um campo HERDADO (exemplo
             exato do pedido: Ciclo 2 nasce na Hipótese, com Problema e
@@ -4833,7 +4930,7 @@ const clicarSemRolagem = (page, seletor) => page.$eval(seletor, (el) => el.click
             reinício efetivo do ciclo passa a ser o Problema. O Ciclo 1
             (congelado) nunca é tocado — só existe update() no caminho
             do ciclo ATUAL. ── */
-      {
+      await emCenario('13l: FASE 4 — cascata ao editar um campo HERDADO (exemplo', async () => {
         const semeado13l = apostasProntaParaDecisao();
         semeado13l[TURMA_LIB].execucoes[EXEC].grupos[GRUPO].dados.decisao = { decisao: 'Reformular a hipótese', proximaAcao: 'testar de novo', dataDecisao: '2026-09-19T10:00:00.000Z', proxHipCausa: 'a fila não tem sinalização clara', proxHipIndicio: 'gente perguntando onde é o fim da fila' };
         semeado13l[TURMA_LIB].execucoes[EXEC].grupos[GRUPO].ciclos = {
@@ -4912,7 +5009,7 @@ const clicarSemRolagem = (page, seletor) => page.$eval(seletor, (el) => el.click
           JSON.stringify(cicloAposEdicao.c1.dados) === c1DadosAntesJson, 'diff detectado no Ciclo 1');
 
         await ctx13l.close();
-      }
+      });
 
       /* ── 13m: FASE 4 — INVARIANTE 8: numeração sequencial de ciclos,
             sem lacunas. Sem contador global, o número do novo ciclo
@@ -4926,7 +5023,7 @@ const clicarSemRolagem = (page, seletor) => page.$eval(seletor, (el) => el.click
             listener .on('value') da execução sincronizar `_grupo` (é
             dele que cicloAtualId() lê o ciclo atual) antes da PRÓXIMA
             chamada precisar saber qual ciclo está fechando. ── */
-      {
+      await emCenario('13m: FASE 4 — INVARIANTE 8: numeração sequencial de ciclos,', async () => {
         const semeado13m = apostasProntaParaDecisao();
         const { ctx: ctx13m, page: pg13m } = await novaPagina(browser, formato, ADM, erros, semeado13m);
         await pg13m.goto(BASE + '/index.html#treinamento', { waitUntil: 'domcontentloaded' });
@@ -4965,10 +5062,11 @@ const clicarSemRolagem = (page, seletor) => page.$eval(seletor, (el) => el.click
           !!falhaC4, String(falhaC4));
         await pg13m.evaluate(() => { window.__CFG.fail = []; });
         await pg13m.waitForTimeout(200);
+        const _g4971 = await marcarBanco(pg13m);
         const r3 = await pg13m.evaluate(() => new Promise((res) => {
           window.faAposta._criarCiclo('hipotese', 'Reformular a hipótese', (err, id, ciclo) => res({ err: err || null, numero: ciclo && ciclo.numero }));
         }));
-        await pg13m.waitForTimeout(300);
+        await esperarGravacao(pg13m, _g4971, 'escrita', { caminho: '/criacaoCicloEmAndamento$', nulo: true }, 'o lock de criação de ciclo liberado');
         anota('(3)/(4) falha ao criar o sucessor do Ciclo 3 e retry: nasce o Ciclo 4 (número 4) — nunca um número 5 pulando o Ciclo 4 que a falha não criou',
           !!falhaC4 && !r3.err && r3.numero === 4, JSON.stringify({ falhaC4, r3 }));
 
@@ -4999,7 +5097,7 @@ const clicarSemRolagem = (page, seletor) => page.$eval(seletor, (el) => el.click
           JSON.stringify(numerosFinais) === JSON.stringify([1, 2, 3, 4, 5]), JSON.stringify(numerosFinais));
 
         await ctx13m.close();
-      }
+      });
 
       /* ── 13n: FASE 5 — souFacilitadoraDaTurma() FALHA FECHADA.
             Uma facilitadora GLOBAL (fa-facilitadores) com vínculo REAL
@@ -5008,7 +5106,7 @@ const clicarSemRolagem = (page, seletor) => page.$eval(seletor, (el) => el.click
             a fornece não existir, o resultado tem de ser "não
             autorizado" — nunca cair de volta para "a flag global já
             basta" (era exatamente essa brecha que a Fase 5 fechou). ── */
-      {
+      await emCenario('13n: FASE 5 — souFacilitadoraDaTurma() FALHA FECHADA.', async () => {
         const dbComVinculo = {
           'fa-facilitadores': { [chave(FACILITADORA_TURMA)]: { email: FACILITADORA_TURMA, name: 'FACILITADORA TURMA' } },
           'turmas-equipe': { [TURMA_LIB]: { [chave(FACILITADORA_TURMA)]: { email: FACILITADORA_TURMA, name: 'FACILITADORA TURMA', papel: 'facilitador' } } },
@@ -5035,9 +5133,9 @@ const clicarSemRolagem = (page, seletor) => page.$eval(seletor, (el) => el.click
         anota('(a) facilitadora global COM vínculo real em turmas-equipe vê o painel do facilitador',
           temPainelFeliz, String(temPainelFeliz));
         await ctx13n.close();
-      }
+      });
 
-      {
+      await emCenario('13n (b): leitura de turmas-equipe falhando nunca concede convite', async () => {
         const dbComVinculo = {
           'fa-facilitadores': { [chave(FACILITADORA_TURMA)]: { email: FACILITADORA_TURMA, name: 'FACILITADORA TURMA' } },
           'turmas-equipe': { [TURMA_LIB]: { [chave(FACILITADORA_TURMA)]: { email: FACILITADORA_TURMA, name: 'FACILITADORA TURMA', papel: 'facilitador' } } },
@@ -5072,9 +5170,9 @@ const clicarSemRolagem = (page, seletor) => page.$eval(seletor, (el) => el.click
         anota('(b) FALHA FECHADA: leitura de turmas-equipe falhando nunca concede convite algum, mesmo com vínculo real gravado no banco',
           conviteComFalha.escondido && !conviteComFalha.temBotao, JSON.stringify(conviteComFalha));
         await ctx13nb.close();
-      }
+      });
 
-      {
+      await emCenario('13n (c): turmas-equipe lento — convite começa ausente e aparece sozinho', async () => {
         const dbComVinculo = {
           'fa-facilitadores': { [chave(FACILITADORA_TURMA)]: { email: FACILITADORA_TURMA, name: 'FACILITADORA TURMA' } },
           'turmas-equipe': { [TURMA_LIB]: { [chave(FACILITADORA_TURMA)]: { email: FACILITADORA_TURMA, name: 'FACILITADORA TURMA', papel: 'facilitador' } } },
@@ -5114,7 +5212,7 @@ const clicarSemRolagem = (page, seletor) => page.$eval(seletor, (el) => el.click
         anota('(c) assim que a leitura lenta responde, o convite aparece sozinho e o painel também, sem precisar recarregar',
           temPainelDepois, String(temPainelDepois));
         await ctx13nc.close();
-      }
+      });
 
       /* ── 15a: BUGFIX PÓS-TESTES DE PRODUÇÃO — MISSÃO, PRAZO OPCIONAL.
             Relatado em produção: prazo visivelmente preenchido (90/dias)
@@ -5131,7 +5229,7 @@ const clicarSemRolagem = (page, seletor) => page.$eval(seletor, (el) => el.click
             apresentava (senão sobrava um "em" solto no fim da frase) —
             tanto quando o prazo está genuinamente vazio quanto quando
             está pela metade (ver missaoPrazoParcial). ── */
-      {
+      await emCenario('15a: BUGFIX PÓS-TESTES DE PRODUÇÃO — MISSÃO, PRAZO OPCIONAL.', async () => {
         const semeado15 = apostasSemeadas();
         const { ctx: ctx15, page: pg15 } = await novaPagina(browser, formato, DIRETORA, erros, semeado15);
         await pg15.goto(BASE + '/index.html#treinamento', { waitUntil: 'domcontentloaded' });
@@ -5143,7 +5241,6 @@ const clicarSemRolagem = (page, seletor) => page.$eval(seletor, (el) => el.click
         await pg15.fill('#ap-verbo', 'Apoiar');
         await pg15.fill('#ap-oQue', 'a Rebelião Ágil a vencer a luta contra o Império');
         await pg15.fill('#ap-contexto', 'promovendo uma sociedade guiada por propósito, confiança e colaboração entre todos os seus cidadãos');
-        await pg15.waitForTimeout(300);
 
         /* A — sem prazo: obrigatórios preenchidos, prazo vazio → válida,
            CONTINUAR habilitado, nunca "Ainda falta: o prazo", frase
@@ -5168,7 +5265,6 @@ const clicarSemRolagem = (page, seletor) => page.$eval(seletor, (el) => el.click
            branco sozinho). Isso não pode voltar a mostrar "Ainda falta"/
            "em o prazo", nem deixar CONTINUAR desabilitado. */
         await pg15.fill('#ap-prazo', '90');
-        await pg15.waitForTimeout(300);
         const digitado90 = await pg15.evaluate(() => ({
           unidade: (document.querySelector('[data-campo="prazoUnidade"]') || {}).value || '',
           frase: ((document.getElementById('apostaFrase') || {}).textContent || '').replace(/\s+/g, ' '),
@@ -5236,7 +5332,7 @@ const clicarSemRolagem = (page, seletor) => page.$eval(seletor, (el) => el.click
           /SINTOMA/i.test(tituloDepois15), tituloDepois15);
 
         await ctx15.close();
-      }
+      });
 
       /* ── 15b: item 10 — "Analisar com IA" nunca inventa prazo. Se a
             Missão registrada não tem prazo, o prompt exportado traz a
@@ -5244,7 +5340,7 @@ const clicarSemRolagem = (page, seletor) => page.$eval(seletor, (el) => el.click
             a duração do experimento nem usar o prazo de uma Mudança
             Mensurável (que aqui continua com o seu próprio, 60 dias —
             prova de que ele não "vaza" pra Missão). ── */
-      {
+      await emCenario('15b: item 10 — "Analisar com IA" nunca inventa prazo. Se a', async () => {
         const semeado15b = apostasProntaParaDecisao();
         const dadosSemPrazo15b = Object.assign({}, DADOS_ATE_EVIDENCIA, {
           missao: { verbo: 'reduzir', oQue: 'o tempo de espera', contexto: 'na fila do atendimento' },
@@ -5274,14 +5370,14 @@ const clicarSemRolagem = (page, seletor) => page.$eval(seletor, (el) => el.click
           missaoBloco15b);
 
         await ctx15b.close();
-      }
+      });
 
       /* ── 16a: REFINAMENTO — ETAPAS OPCIONAIS — SINTOMA.
             "Pular esta etapa" é uma decisão explícita, distinta de
             "ainda não visitada" e de "preenchida" — nunca bloqueia,
             nunca some sozinha, nunca aparece como "não informado" em
             lugar nenhum (Mapa, IA, trilha). ── */
-      {
+      await emCenario('16a: REFINAMENTO — ETAPAS OPCIONAIS — SINTOMA.', async () => {
         const semeado16a = apostasSemeadas();
         const { ctx: ctx16a, page: pg16a } = await novaPagina(browser, formato, DIRETORA, erros, semeado16a);
         await pg16a.goto(BASE + '/index.html#treinamento', { waitUntil: 'domcontentloaded' });
@@ -5319,12 +5415,12 @@ const clicarSemRolagem = (page, seletor) => page.$eval(seletor, (el) => el.click
           resumoSintoma16a === '', JSON.stringify(resumoSintoma16a));
 
         await ctx16a.close();
-      }
+      });
 
       /* ── 16b: ETAPAS OPCIONAIS — SINTOMA: voltar e preencher depois,
             e conteúdo digitado + Pular pede confirmação (nunca some
             silenciosamente). ── */
-      {
+      await emCenario('16b: ETAPAS OPCIONAIS — SINTOMA: voltar e preencher depois,', async () => {
         const semeado16b = apostasSemeadas();
         semeado16b[TURMA_LIB].execucoes[EXEC].grupos[GRUPO].dados = {
           missao: { verbo: 'Apoiar', oQue: 'a Rebelião', contexto: 'contra o Império' },
@@ -5353,14 +5449,12 @@ const clicarSemRolagem = (page, seletor) => page.$eval(seletor, (el) => el.click
           semBannerAposPreencher);
 
         await pg16b.fill('[data-campo="texto"]', 'muita gente reclama do domínio do Império');
-        await pg16b.waitForTimeout(300);
         const resumoAposPreencher = await pg16b.evaluate(() => window.faAposta._resumo('sintoma', { sintoma: { texto: 'muita gente reclama do domínio do Império' } }));
         anota('F — o conteúdo digitado depois de "Preencher agora" é salvo e aparece no formatador central',
           /muita gente reclama do dom[íi]nio do Imp[ée]rio/.test(resumoAposPreencher), resumoAposPreencher);
 
         // G — texto digitado + Pular pede confirmação (nunca descarta sozinho).
         await pg16b.click('#apostaPularEtapa');
-        await pg16b.waitForTimeout(300);
         const modalAbriu16b = await pg16b.evaluate(() => !!document.querySelector('.aposta-confirmar-overlay'));
         anota('G — pular com conteúdo já digitado abre confirmação antes de descartar', modalAbriu16b);
         const textoModal16b = await pg16b.evaluate(() => (document.querySelector('.aposta-confirmar-overlay p') || {}).textContent || '');
@@ -5381,12 +5475,12 @@ const clicarSemRolagem = (page, seletor) => page.$eval(seletor, (el) => el.click
           /PROBLEMA/.test(tituloAposConfirmarPular), tituloAposConfirmarPular);
 
         await ctx16b.close();
-      }
+      });
 
       /* ── 16c: ETAPAS OPCIONAIS — IDEIA DE SOLUÇÃO: pular avança direto
             para o Experimento; sem pular, CONTINUAR segue bloqueado de
             verdade como sempre (frase estrita). ── */
-      {
+      await emCenario('16c: ETAPAS OPCIONAIS — IDEIA DE SOLUÇÃO: pular avança direto', async () => {
         const semeado16c = apostasSemeadas();
         semeado16c[TURMA_LIB].execucoes[EXEC].grupos[GRUPO].dados = {
           missao: { verbo: 'Apoiar', oQue: 'a Rebelião', contexto: 'contra o Império' },
@@ -5422,14 +5516,14 @@ const clicarSemRolagem = (page, seletor) => page.$eval(seletor, (el) => el.click
         anota('D — a trilha marca Ideia de solução como "Pulada"', trilhaIdeia16c);
 
         await ctx16c.close();
-      }
+      });
 
       /* ── 16d: ETAPAS OPCIONAIS — DUAS PULADAS JUNTAS: aposta continua
             válida, Mapa fica Missão→Problema→Mudanças→Hipótese→
             Experimento→Evidência→Decisão, e os 3 prompts da IA são
             gerados sem revelar em nenhum deles que alguma etapa foi
             pulada. ── */
-      {
+      await emCenario('16d: ETAPAS OPCIONAIS — DUAS PULADAS JUNTAS: aposta continua', async () => {
         const semeado16d = apostasProntaParaDecisao();
         const dados16d = Object.assign({}, DADOS_ATE_EVIDENCIA, {
           sintoma: { pulada: true },
@@ -5480,12 +5574,12 @@ const clicarSemRolagem = (page, seletor) => page.$eval(seletor, (el) => el.click
         anota('E — o modal "Analisar com IA" gera os 3 cards normalmente com as duas etapas puladas', cards16d === 3, String(cards16d));
 
         await ctx16d.close();
-      }
+      });
 
       /* ── 16e: MULTICICLO — Ideia é dado do CICLO: o Ciclo 1 pode ter
             Ideia preenchida e o Ciclo 2, pulada, sem que o Mapa/IA do
             Ciclo 2 usem a Ideia do Ciclo 1 (item 10/28 do pedido). ── */
-      {
+      await emCenario('16e: MULTICICLO — Ideia é dado do CICLO: o Ciclo 1 pode ter', async () => {
         const semeado16e = apostasProntaParaDecisao();
         semeado16e[TURMA_LIB].execucoes[EXEC].grupos[GRUPO].dados.decisao = {
           decisao: 'Reformular a hipótese', proximaAcao: 'testar de novo', dataDecisao: '2026-09-19T10:00:00.000Z',
@@ -5544,12 +5638,9 @@ const clicarSemRolagem = (page, seletor) => page.$eval(seletor, (el) => el.click
           !rotsAposCiclo2.some((t) => /IDEIA DE SOLU[ÇC][ÃA]O/.test(t)), JSON.stringify(rotsAposCiclo2));
 
         await ctx16e.close();
-      }
+      });
 
       anota('nenhum erro de JavaScript', erros.length === 0, erros[0]);
-
-      await ctx.close();
-      await ctxAdm.close();
     } catch (e) {
       falhas++;
       console.error('  FALHA inesperada (' + formato.nome + '): ' + e.message);

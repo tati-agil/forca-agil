@@ -2,7 +2,7 @@
   "_comentario": [
     "Suíte hermética (Firebase falso, sem segredo, sem rede) rodada por rodar-suite.js — localmente e nos 4 grupos do CI (testes-automaticos.yml).",
     "Todo teste-*.js de .github/scripts precisa estar AQUI ou em foraDaSuite (com o motivo): rodar-suite.js recusa rodar se encontrar um que não está em nenhum dos dois — nenhum teste fica de fora por esquecimento.",
-    "duracao = segundos medidos rodando sozinho (regressão sequencial de 05/10/2026, commit 7cdc74b). Só serve para equilibrar os grupos e ordenar a fila (mais lentos primeiro); errar o número não muda o que roda."
+    "duracao = segundos medidos (regressão sequencial de 05/10/2026, commit 7cdc74b; os testes que mudaram depois — teste-aposta, tela-preta, navegação, taxonomia, acessos, coerência, seleção de turma, rolagem — foram atualizados em 06/10/2026 com as rodadas recentes da suíte). Só serve para equilibrar os grupos e ordenar a fila (mais lentos primeiro); errar o número não muda o que roda."
   ],
   "foraDaSuite": {
     ".github/scripts/teste-rules.js": "regras do banco: roda no emulador real (teste-rules.yml)",
@@ -14,7 +14,7 @@
     {
       "arquivo": ".github/scripts/teste-avaliacoes-acessos.js",
       "nome": "Avaliação: acessos, Arquitetura restrita, Usuários autorizados (desktop e celular)",
-      "duracao": 66,
+      "duracao": 50,
       "sobre": "Avaliação de Produto/Serviço: acessos \"Avaliação\" e \"Avaliação + Arquitetura\" (lista própria, sem relação com os perfis antigos), admin geral por ser admin, #admin restrito à Arquitetura e a tela Usuários autorizados. Hermético (Firebase falso); a proteção de verdade, no banco, é provada à parte por teste-rules-avaliacoes.js no emulador."
     },
     {
@@ -32,13 +32,13 @@
     {
       "arquivo": ".github/scripts/teste-curadoria-decisao-coerencia.js",
       "nome": "Avaliação: coerência da Curadoria × Decisão final × Reavaliação (desktop e celular)",
-      "duracao": 58,
+      "duracao": 27,
       "sobre": "Coerência da Curadoria e da Decisão final: reavaliar item com decisão manual avisa antes e não herda a decisão (a v2 nasce com auditoria própria); uma regra só para a Decisão final (legado sem decisaoFinal) e só o que foi REGISTRADO conta como curadoria (derivado do questionário e cadastro inaplicável não contam) — tela, PDF e Excel."
     },
     {
       "arquivo": ".github/scripts/teste-avaliacoes-navegacao.js",
       "nome": "Avaliação: navegação, URL e Voltar/Reavaliar/F5 (desktop e celular)",
-      "duracao": 242,
+      "duracao": 56,
       "sobre": "Navegação: a URL é a fonte de verdade (lista, ?avp=, ?nova=1, ?editar=, ?reavaliar=); Voltar sem laço e com o destino no texto; saída com alteração pergunta (Descartar alterações / Continuar editando), também no Voltar do navegador; F5 restaura/avisa; concluir substitui a entrada."
     },
     {
@@ -56,7 +56,7 @@
     {
       "arquivo": ".github/scripts/teste-taxonomia.js",
       "nome": "Taxonomia: interface, importador, edição, auditoria e vigência (desktop e celular)",
-      "duracao": 213,
+      "duracao": 104,
       "sobre": "Taxonomia (Admin → Taxonomia): estados de leitura (carregando ≠ erro ≠ sem acesso ≠ vazio), importação única atômica, dois domínios separados, definição vigente (equivalência com o ponteiro + segunda barreira na aplicação), edição que salva com auditoria, só admin; desktop e celular. Conteúdo 100% fictício."
     },
     {
@@ -212,7 +212,7 @@
     {
       "arquivo": ".github/scripts/teste-tabela-avaliacoes-rolagem.js",
       "nome": "Tabela de avaliações: rolagem própria, cabeçalho/Item/Ações fixos",
-      "duracao": 17,
+      "duracao": 11,
       "sobre": "Hermético. Lista de avaliações (Admin → Arquitetura): o quadro da tabela rola sozinho, com cabeçalho sticky, Item (+ caixa) fixo à esquerda e Ações fixas à direita, fundos opacos, barra horizontal dentro da janela, sem rolagem horizontal da página e sem perder o lugar ao marcar uma linha. Cenários A-D em 1920x1080, 1600x900 e 1366x768; 768 px mantém; 375 px continua em cartões."
     },
     {
@@ -248,7 +248,7 @@
     {
       "arquivo": ".github/scripts/teste-tela-preta.js",
       "nome": "Tela preta na espera do login (desktop e celular)",
-      "duracao": 253,
+      "duracao": 110,
       "sobre": "Roda ANTES da suíte do painel: é hermético (Firebase falso, sem segredo e sem rede) e cobre justamente o que a outra suíte não alcança — a espera antes do login resolver. Se a tela fica preta, não adianta testar o painel que vem depois dela."
     },
     {
@@ -272,13 +272,13 @@
     {
       "arquivo": ".github/scripts/teste-aposta.js",
       "nome": "Construção da Aposta — o final não vaza e as etapas abrem uma por vez (desktop e celular)",
-      "duracao": 256,
+      "duracao": 181,
       "sobre": "Hermético. A Construção da Aposta tem duas exigências que só quebram em sala e não dá para ver lendo dez telas de texto: o final da dinâmica (OKR / Objective / Key Result) não pode vazar em NENHUMA etapa antes de a facilitadora revelar, e as etapas seguintes não podem abrir sozinhas — com o formulário inteiro à mostra, o grupo pula direto para a solução, que é o hábito que a oficina existe para interromper."
     },
     {
       "arquivo": ".github/scripts/teste-aposta-selecao-turma.js",
       "nome": "Construção da Aposta — a turma escolhida não se perde num redesenho tardio (desktop e celular)",
-      "duracao": 20,
+      "duracao": 7,
       "sobre": "Prova determinística (portão nas leituras de turmas, sem depender de tempo) de que montarEntrada() preserva a turma escolhida quando uma leitura tardia redesenha o convite, cai na 1ª turma se a escolhida saiu da lista e descarta resposta antiga que chega depois de uma nova. A turma conferida é a que a dinâmica realmente carrega ao abrir."
     },
     {
@@ -411,6 +411,12 @@
       "arquivo": ".github/scripts/teste-arquivos-temporarios.js",
       "nome": "Arquivos temporários únicos entre processos (pré-requisito da suíte em paralelo)",
       "duracao": 4
+    },
+    {
+      "arquivo": ".github/scripts/teste-guarda-esperas.js",
+      "nome": "Guarda das esperas: nenhuma espera nova calada nem com a assinatura errada do waitForFunction",
+      "duracao": 1,
+      "sobre": "Sem navegador. Conta, por arquivo, waitForFunction com as opções no lugar do argumento (o limite escrito é ignorado e vale 30 s) e esperas seguidas de .catch (estouro engolido). A contagem tem de bater com o legado registrado: subiu = espera nova com o padrão (use esperas.js); desceu = foi corrigido (baixe o número). Ver esperas.js."
     }
   ]
 }

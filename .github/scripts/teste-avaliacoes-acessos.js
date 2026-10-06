@@ -22,6 +22,7 @@
  *     e grava histórico no mesmo update; se o banco recusar, nada parece salvo.
  * Hermético: sem rede, sem segredo. */
 const { chromium } = require('playwright');
+const { esperarSessaoAssentada } = require('./esperas');
 const fs = require('fs');
 const path = require('path');
 
@@ -81,8 +82,9 @@ async function abrir(browser, o) {
   await page.route('**fonts.googleapis.com**', (r) => r.fulfill({ status: 200, contentType: 'text/css', body: '' }));
   await page.route('**fonts.gstatic.com**', (r) => r.abort());
   await page.goto(BASE + '/index.html' + (o.hash || '#avaliacoes'), { waitUntil: 'domcontentloaded' });
-  await page.waitForFunction(() => !document.body.classList.contains('aguardando-auth'), { timeout: 16000 }).catch(() => {});
-  await page.waitForTimeout(800);
+  /* login decidido e acessos resolvidos (antes: opções no lugar do argumento, engolida + 800 ms fixos); quando o
+     cenário derruba a leitura de fa-avaliacao-autorizados, o acesso à Avaliação fica "não sei" por desenho */
+  await esperarSessaoAssentada(page, { semAvaliacao: (o.fail || []).some((c) => /^fa-avaliacao-autorizados/.test(c)) });
   return { ctx, page, erros };
 }
 const contar = (page, sel) => page.locator(sel).count();

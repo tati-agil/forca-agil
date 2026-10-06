@@ -13,6 +13,7 @@
  *          anterior/atual separadas + "Resumo da mudança") e Trilha (uma linha por alteração).
  * Mesmas funções da ficha — nenhuma segunda interpretação. Hermético: sem rede, sem segredo. */
 const { chromium } = require('playwright');
+const { esperarSessaoAssentada } = require('./esperas');
 const fs = require('fs');
 const path = require('path');
 const { arquivoTemporario } = require('./arquivo-temporario');
@@ -158,10 +159,8 @@ async function abrir(browser, o) {
   await page.route('**fonts.googleapis.com**', (r) => r.fulfill({ status: 200, contentType: 'text/css', body: '' }));
   await page.route('**fonts.gstatic.com**', (r) => r.abort());
   await page.goto(BASE + '/index.html#avaliacoes', { waitUntil: 'domcontentloaded' });
-  await page.waitForFunction(() => !document.body.classList.contains('aguardando-auth'), { timeout: 16000 }).catch(() => {});
-  await page.waitForTimeout(800);
+  await esperarSessaoAssentada(page); /* login decidido e acessos resolvidos (antes: opções no lugar do argumento, engolida + 800 ms + 300 ms fixos) */
   await page.waitForSelector('#avpNovoBtn', { timeout: 8000 });
-  await page.waitForTimeout(300);
   return { ctx, page, erros };
 }
 async function abrirFicha(page, key) {
