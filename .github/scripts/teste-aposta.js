@@ -187,8 +187,11 @@ const FORMATOS = [
   { nome: 'celular', opts: { viewport: { width: 375, height: 812 }, isMobile: true, hasTouch: true } },
 ];
 
+/* contextos abertos pelo cenário em andamento (emCenario fecha os que sobrarem, inclusive depois de exceção) */
+const contextosAbertos = [];
 async function novaPagina(browser, formato, email, erros, apostas, cfgExtra, dbOverrides) {
   const ctx = await browser.newContext(formato.opts);
+  contextosAbertos.push(ctx);
   const page = await ctx.newPage();
   page.on('pageerror', (e) => erros.push(String(e).split('\n')[0]));
   /* Sem isso, o Playwright descarta (Cancelar) qualquer confirm()/alert()
@@ -226,6 +229,15 @@ const clicarSemRolagem = (page, seletor) => page.$eval(seletor, (el) => el.click
     if (ok) console.log('  ok    ' + linha);
     else { falhas++; console.error('  FALHA ' + linha + (detalhe ? ' → ' + detalhe : '')); }
   };
+  /* Cada cenário roda isolado: uma exceção vira UMA falha com o nome do cenário, as páginas que ele abriu
+     são fechadas e os cenários seguintes continuam. Antes, qualquer exceção caía no try/catch do formato
+     inteiro e pulava todos os cenários seguintes contando uma falha só. */
+  const emCenario = async (nome, fn) => {
+    const marca = contextosAbertos.length;
+    try { await fn(); }
+    catch (e) { anota('cenário "' + nome + '" interrompido por exceção: ' + String((e && e.message) || e).split('\n')[0], false); }
+    finally { for (const c of contextosAbertos.splice(marca)) await c.close(); }
+  };
 
   for (const formato of FORMATOS) {
     console.log('\n===== ' + formato.nome.toUpperCase() + ' =====');
@@ -233,7 +245,7 @@ const clicarSemRolagem = (page, seletor) => page.$eval(seletor, (el) => el.click
 
     try {
       /* ── 1: quem não está confirmada em turma liberada não vê nada ── */
-      {
+      await emCenario('1: quem não está confirmada em turma liberada não vê nada', async () => {
         const { ctx, page } = await novaPagina(browser, formato, DE_FORA, erros);
         await page.goto(BASE + '/index.html#treinamento', { waitUntil: 'domcontentloaded' });
         await page.waitForSelector('#apostaEntrada', { state: 'attached', timeout: 15000 });
@@ -244,13 +256,13 @@ const clicarSemRolagem = (page, seletor) => page.$eval(seletor, (el) => el.click
         });
         anota('quem não está confirmada em turma liberada não vê o convite', !visivel);
         await ctx.close();
-      }
+      });
 
       /* ── 1b: quem conduz consegue ENSAIAR antes de liberar ──
          Liberar é um ato público: a dinâmica passa a aparecer para toda a
          turma. Se a única forma de ver a tela fosse liberando, o ensaio da
          facilitadora estrearia na frente do grupo. */
-      {
+      await emCenario('1b: quem conduz consegue ENSAIAR antes de liberar', async () => {
         const { ctx, page } = await novaPagina(browser, formato, ADM, erros);
         await page.goto(BASE + '/index.html#treinamento', { waitUntil: 'domcontentloaded' });
         await page.waitForSelector('#apostaAbrirBtn', { timeout: 15000 });
@@ -289,10 +301,10 @@ const clicarSemRolagem = (page, seletor) => page.$eval(seletor, (el) => el.click
             aviso.slice(0, 90));
         }
         await ctx.close();
-      }
+      });
 
       /* ── 2: a facilitadora abre a dinâmica do zero e cria um grupo ── */
-      {
+      await emCenario('2: a facilitadora abre a dinâmica do zero e cria um grupo', async () => {
         const { ctx: ctxNovo, page: novo } = await novaPagina(browser, formato, ADM, erros);
         await novo.goto(BASE + '/index.html#treinamento', { waitUntil: 'domcontentloaded' });
         await novo.waitForSelector('#apostaAbrirBtn', { timeout: 15000 });
@@ -437,7 +449,7 @@ const clicarSemRolagem = (page, seletor) => page.$eval(seletor, (el) => el.click
           JSON.stringify(rascunhoSobreviveu));
 
         await ctxNovo.close();
-      }
+      });
 
       /* ── 2b: a trilha revelada NÃO pode ter buracos ──
          Relatado no uso real: "apareceu até Hipótese, depois só 6, 7 e 8
@@ -445,7 +457,7 @@ const clicarSemRolagem = (page, seletor) => page.$eval(seletor, (el) => el.click
          retomado — as etapas do fim tinham conteúdo de uma passagem
          anterior e o nome vinha junto, sem explicação possível para quem
          olha. O que vale é até onde o grupo chegou, sem pular. */
-      {
+      await emCenario('2b: a trilha revelada NÃO pode ter buracos', async () => {
         const semeado = apostasSemeadas();
         const g = semeado[TURMA_LIB].execucoes[EXEC].grupos[GRUPO];
         g.etapa = 'sintoma';
@@ -468,7 +480,7 @@ const clicarSemRolagem = (page, seletor) => page.$eval(seletor, (el) => el.click
         anota('a trilha revelada não tem buracos (nome depois de etapa escondida)',
           !buraco, nomeados.map((n, i) => (i + 1) + (n ? ':nome' : ':—')).join(' '));
         await ctxT.close();
-      }
+      });
 
       /* ── 2c: texto fixo colado na lacuna, e valor antigo fora de formato ──
          Dois defeitos vistos na tela: um texto fixo sozinho numa linha
@@ -476,7 +488,7 @@ const clicarSemRolagem = (page, seletor) => page.$eval(seletor, (el) => el.click
          (o caso original era "e medir", removido do molde nesta etapa);
          e o custo "10.0000", gravado antes da máscara existir,
          aparecendo cru como se máscara nenhuma houvesse. */
-      {
+      await emCenario('2c: texto fixo colado na lacuna, e valor antigo fora de formato', async () => {
         const semeado = apostasSemeadas();
         const g = semeado[TURMA_LIB].execucoes[EXEC].grupos[GRUPO];
         g.etapa = 'experimento';
@@ -516,14 +528,14 @@ const clicarSemRolagem = (page, seletor) => page.$eval(seletor, (el) => el.click
         anota('valor antigo fora do formato não aparece cru no campo de moeda',
           custo.valor === '' && /10\.0000/.test(custo.nota), JSON.stringify(custo));
         await ctxE.close();
-      }
+      });
 
       /* ── 2c2: Direção da mudança — Manter e Atingir, além de Aumentar/
             Reduzir. "Manter" pede Tipo de limite (Pelo menos/No máximo/
             Entre); "Entre" troca Meta desejada por dois campos (Limite
             mínimo/máximo). Nada disso redesenha a tela: só o 4º campo
             da linha muda, o resto do card fica como estava. ── */
-      {
+      await emCenario('2c2: Direção da mudança — Manter e Atingir, além de Aumentar', async () => {
         const semeadoDir = apostasSemeadas();
         semeadoDir[TURMA_LIB].execucoes[EXEC].grupos[GRUPO].etapa = 'mudancas';
         const { ctx: ctxDir, page: pgDir } = await novaPagina(browser, formato, DIRETORA, erros, semeadoDir);
@@ -683,7 +695,7 @@ const clicarSemRolagem = (page, seletor) => page.$eval(seletor, (el) => el.click
         anota('trocar a Forma de medição para outra coisa destrava o Período', periodoDepois === false);
 
         await ctxDir.close();
-      }
+      });
 
       /* ── 2c3: "Atingir" — validação de coerência (bugfix pós-PR#210,
             achado em teste manual em produção). Antes deste bugfix,
@@ -698,7 +710,7 @@ const clicarSemRolagem = (page, seletor) => page.$eval(seletor, (el) => el.click
             nem corrige a meta sozinho, só nomeia o problema e (só
             quando existe) convida a trocar para "Reduzir" com um
             clique. ── */
-      {
+      await emCenario('2c3: "Atingir" — validação de coerência (bugfix pós-PR#210,', async () => {
         const semeadoAtingir = apostasSemeadas();
         semeadoAtingir[TURMA_LIB].execucoes[EXEC].grupos[GRUPO].etapa = 'mudancas';
         const { ctx: ctxAtingir, page: pgAtingir } = await novaPagina(browser, formato, DIRETORA, erros, semeadoAtingir);
@@ -787,13 +799,13 @@ const clicarSemRolagem = (page, seletor) => page.$eval(seletor, (el) => el.click
           tituloAposCorrecao !== tituloAntesCorrecao, tituloAposCorrecao);
 
         await ctxAtingir.close();
-      }
+      });
 
       /* ── 2d: a missão cadastrada no painel chega na etapa 1 ──
          Ela era gravada e não chegava a lugar nenhum: o grupo abria a
          etapa 1 pedindo a missão do zero, e quem tinha acabado de
          cadastrar uma via a pergunta de novo. */
-      {
+      await emCenario('2d: a missão cadastrada no painel chega na etapa 1', async () => {
         const semeado = apostasSemeadas();
         semeado[TURMA_LIB].execucoes[EXEC].missao = {
           verbo: 'Melhorar', oQue: 'a experiência do participante',
@@ -839,13 +851,13 @@ const clicarSemRolagem = (page, seletor) => page.$eval(seletor, (el) => el.click
         anota('depois de confirmar, a Missão conta como etapa concluída na trilha do grupo', trilhaDepois);
 
         await ctxM.close();
-      }
+      });
 
       /* ── 2e: missão-base não sobrescreve o grupo que já escreveu a própria ──
          Mesmo que a facilitação cadastre ou troque a missão-base depois, um
          grupo que já tem conteúdo próprio na Etapa 1 continua vendo o que
          ele escreveu — nunca a missão-base por cima. */
-      {
+      await emCenario('2e: missão-base não sobrescreve o grupo que já escreveu a própria', async () => {
         const semeado = apostasSemeadas();
         semeado[TURMA_LIB].execucoes[EXEC].missao = {
           verbo: 'Reduzir', oQue: 'os contatos sobre status', contexto: 'na concessão', prazo: '60', prazoUnidade: 'dias',
@@ -878,9 +890,12 @@ const clicarSemRolagem = (page, seletor) => page.$eval(seletor, (el) => el.click
           etapa1Grupo.verbo === 'Aumentar' && /satisfação/.test(etapa1Grupo.oQue) && etapa1Grupo.prazo === '120' && !etapa1Grupo.temHerdada,
           JSON.stringify(etapa1Grupo));
         await ctxP.close();
-      }
+      });
 
       /* ── 3: a diretora entra, escolhe o grupo e percorre as etapas ── */
+      /* 3 a 7 são uma jornada só (a mesma página da diretora percorre as etapas, chega ao mapa, e quem
+         conduz revela): um cenário, porque cada passo depende do anterior. */
+      await emCenario('3–7: a diretora percorre as etapas, o mapa e a revelação', async () => {
       const { ctx, page } = await novaPagina(browser, formato, DIRETORA, erros, apostasSemeadas());
       await page.goto(BASE + '/index.html#treinamento', { waitUntil: 'domcontentloaded' });
       await page.waitForSelector('#apostaAbrirBtn', { timeout: 15000 });
@@ -2076,6 +2091,10 @@ const clicarSemRolagem = (page, seletor) => page.$eval(seletor, (el) => el.click
       anota('o salvamento automático grava no caminho da execução e do grupo',
         gravou.temDados, gravou.total + ' escritas em apostas/');
 
+      await ctx.close();
+      await ctxAdm.close();
+      });
+
       /* ── 8: a gravação da Missão é recusada pelo banco — relatado no uso
             real: a pessoa digitava a Missão, clicava Continuar, seguia a
             dinâmica normalmente por várias etapas, e só ao voltar na
@@ -2086,7 +2105,7 @@ const clicarSemRolagem = (page, seletor) => page.$eval(seletor, (el) => el.click
             a demora é o suficiente para o grupo já ter clicado e saído.
             Se a escrita falhava de vez, o aviso de erro (quando aparecia)
             já estava na etapa ERRADA, e ninguém relacionava um ao outro. */
-      {
+      await emCenario('8: a gravação da Missão é recusada pelo banco — relatado no uso', async () => {
         const caminhoMissao = 'apostas/' + TURMA_LIB + '/execucoes/' + EXEC + '/grupos/' + GRUPO + '/dados/missao';
         const { ctx: ctxF, page: pgF } = await novaPagina(
           browser, formato, DIRETORA, erros, apostasSemeadas(), { fail: [caminhoMissao] });
@@ -2135,14 +2154,14 @@ const clicarSemRolagem = (page, seletor) => page.$eval(seletor, (el) => el.click
           !!noBanco && noBanco.verbo === 'Melhorar', JSON.stringify(noBanco));
 
         await ctxF.close();
-      }
+      });
 
       /* ── 9: o card de Evidência herda indicador, situação inicial, meta
             e unidade de Mudanças mensuráveis — nada disso é redigitado.
             Só o resultado observado e a fonte são novos, e a frase e o
             "% do caminho até a meta" se montam sozinhos a partir do que
             já existia mais o que a pessoa acabou de preencher. ── */
-      {
+      await emCenario('9: o card de Evidência herda indicador, situação inicial, meta', async () => {
         const semeadoEv = apostasSemeadas();
         semeadoEv[TURMA_LIB].execucoes[EXEC].grupos[GRUPO].etapa = 'evidencia';
         semeadoEv[TURMA_LIB].execucoes[EXEC].grupos[GRUPO].dados = {
@@ -2375,12 +2394,12 @@ const clicarSemRolagem = (page, seletor) => page.$eval(seletor, (el) => el.click
           tituloDepoisCompleto !== tituloAntesEv, tituloDepoisCompleto);
 
         await ctxEv.close();
-      }
+      });
 
       /* ── 9a-bis: item 4 do ajuste de fluxo — "AINDA NÃO" no modal
             próprio (não mais window.confirm) mantém a etapa em modo de
             planejamento, sem trocar de estado. ── */
-      {
+      await emCenario('9a-bis: item 4 do ajuste de fluxo — "AINDA NÃO" no modal', async () => {
         const semeadoConfirma = apostasSemeadas();
         semeadoConfirma[TURMA_LIB].execucoes[EXEC].grupos[GRUPO].etapa = 'evidencia';
         semeadoConfirma[TURMA_LIB].execucoes[EXEC].grupos[GRUPO].dados = {
@@ -2411,13 +2430,13 @@ const clicarSemRolagem = (page, seletor) => page.$eval(seletor, (el) => el.click
         anota('"AINDA NÃO" no modal fecha o modal e mantém a etapa em planejamento, sem mudar de modo',
           aindaNao.modalFechado && !aindaNao.temCampoObservado && /PLANEJAMENTO DA EVID[ÊE]NCIA/.test(aindaNao.banner), JSON.stringify(aindaNao));
         await ctxConf.close();
-      }
+      });
 
       /* ── 9a-ter: item 2 do ajuste de fluxo — "Encerrar por agora"
             fecha a tela cheia da dinâmica e o aviso de sucesso sobrevive
             ao fechamento, aparecendo já na página de Treinamento por
             trás (não é mais preso a _tela, que é removida). ── */
-      {
+      await emCenario('9a-ter: item 2 do ajuste de fluxo — "Encerrar por agora"', async () => {
         const semeadoSair = apostasSemeadas();
         semeadoSair[TURMA_LIB].execucoes[EXEC].grupos[GRUPO].etapa = 'evidencia';
         semeadoSair[TURMA_LIB].execucoes[EXEC].grupos[GRUPO].dados = {
@@ -2453,7 +2472,7 @@ const clicarSemRolagem = (page, seletor) => page.$eval(seletor, (el) => el.click
         const toastFechado = await pgSair.evaluate(() => !document.querySelector('.aposta-toast--persistente'));
         anota('o aviso persistente pode ser fechado pelo botão ✕', toastFechado);
         await ctxSair.close();
-      }
+      });
 
       /* ── 9c: "Manter" na Evidência usa mensagem própria por tipo de
             limite — nunca percentual de progresso. ── */
@@ -2502,7 +2521,7 @@ const clicarSemRolagem = (page, seletor) => page.$eval(seletor, (el) => el.click
       /* ── 9b: o Experimento pode observar vários resultados esperados de
             uma vez — cada um vira o seu próprio card na Evidência, com
             dados independentes. ── */
-      {
+      await emCenario('9b: o Experimento pode observar vários resultados esperados de', async () => {
         const semeadoVarios = apostasSemeadas();
         semeadoVarios[TURMA_LIB].execucoes[EXEC].grupos[GRUPO].etapa = 'evidencia';
         semeadoVarios[TURMA_LIB].execucoes[EXEC].grupos[GRUPO].dados = {
@@ -2537,13 +2556,13 @@ const clicarSemRolagem = (page, seletor) => page.$eval(seletor, (el) => el.click
         const r1Intacto = await pgV.evaluate(() => (document.querySelector('[data-resultado="r1"] [data-e="observado"]') || {}).value || '');
         anota('preencher o segundo card não mexe no primeiro — cada card guarda o seu', r1Intacto === '650', 'ficou "' + r1Intacto + '"');
         await ctxV.close();
-      }
+      });
 
       /* ── 9b2: NPS (Forma de medição "Índice", Unidade "NPS") não leva
             sufixo nenhum em "O que vamos observar?" nem na Evidência —
             nem unidade, nem período — porque o indicador já aparece
             como título em todo lugar que mostraria esse sufixo. ── */
-      {
+      await emCenario('9b2: NPS (Forma de medição "Índice", Unidade "NPS") não leva', async () => {
         const semeadoNps = apostasSemeadas();
         semeadoNps[TURMA_LIB].execucoes[EXEC].grupos[GRUPO].etapa = 'experimento';
         semeadoNps[TURMA_LIB].execucoes[EXEC].grupos[GRUPO].dados = {
@@ -2596,13 +2615,13 @@ const clicarSemRolagem = (page, seletor) => page.$eval(seletor, (el) => el.click
             !/6 NPS/.test(cardNps.frase),
           cardNps ? cardNps.frase : '');
         await ctxNpsEv.close();
-      }
+      });
 
       /* ── 9c: "Não foi possível medir" desliga os campos que ele torna
             irrelevantes (observado, fonte, detalhe) e a frase passa a
             dizer isso, sem exigir um número que não existe — ausência de
             evidência também é uma informação. ── */
-      {
+      await emCenario('9c: "Não foi possível medir" desliga os campos que ele torna', async () => {
         const semeadoNM = apostasSemeadas();
         semeadoNM[TURMA_LIB].execucoes[EXEC].grupos[GRUPO].etapa = 'evidencia';
         semeadoNM[TURMA_LIB].execucoes[EXEC].grupos[GRUPO].dados = {
@@ -2644,14 +2663,14 @@ const clicarSemRolagem = (page, seletor) => page.$eval(seletor, (el) => el.click
         anota('"não foi possível medir" + motivo + "Nossa hipótese foi" também libera Continuar (é a outra forma válida de completar)',
           tituloDepoisNM !== tituloAntesNM, tituloDepoisNM);
         await ctxNM.close();
-      }
+      });
 
       /* ── 9e: uma mudança gravada antes de existir o campo Período — a
             cadência ("por mês") morava dentro de Unidade (PR #165/#171).
             Reabrir essa mudança precisa mostrar "por mês" no campo
             Período, não em Unidade, senão os dois campos saem trocados
             para quem só está reabrindo o que já tinha escrito. ── */
-      {
+      await emCenario('9e: uma mudança gravada antes de existir o campo Período — a', async () => {
         const semeadoLegado = apostasSemeadas();
         semeadoLegado[TURMA_LIB].execucoes[EXEC].grupos[GRUPO].etapa = 'mudancas';
         semeadoLegado[TURMA_LIB].execucoes[EXEC].grupos[GRUPO].dados = {
@@ -2672,7 +2691,7 @@ const clicarSemRolagem = (page, seletor) => page.$eval(seletor, (el) => el.click
         anota('mudança antiga com "por mês" em Unidade reabre com isso em Período, não em Unidade',
           legado.unidade === '' && legado.periodo === 'por mês', JSON.stringify(legado));
         await ctxL.close();
-      }
+      });
 
       /* ── 9f: DECISÃO — frase estrita, bloqueio, placeholder dinâmico,
             contexto da Evidência (fonte + aprendizado por resultado, e a
@@ -2682,7 +2701,7 @@ const clicarSemRolagem = (page, seletor) => page.$eval(seletor, (el) => el.click
             resultado que NÃO bateu a meta (Reduzir 1000→500, observado
             800 = 40%), para exercitar exatamente a contradição que o
             alerta cobre. ── */
-      {
+      await emCenario('9f: DECISÃO — frase estrita, bloqueio, placeholder dinâmico,', async () => {
         const semeadoDec = apostasSemeadas();
         semeadoDec[TURMA_LIB].execucoes[EXEC].grupos[GRUPO].etapa = 'decisao';
         semeadoDec[TURMA_LIB].execucoes[EXEC].grupos[GRUPO].dados = {
@@ -2839,13 +2858,13 @@ const clicarSemRolagem = (page, seletor) => page.$eval(seletor, (el) => el.click
           !!dataDecisaoGravada && !isNaN(Date.parse(dataDecisaoGravada)), JSON.stringify(dataDecisaoGravada));
 
         await ctxDec.close();
-      }
+      });
 
       /* ── 9g: DECISÃO — "Reformular a hipótese" (item 5 do ajuste):
             bloco auto-aberto, pendências combinadas (nova hipótese +
             próxima ação), botão reage a cada tecla e a cada troca de
             decisão — nunca só ao clicar em CONTINUAR. ── */
-      {
+      await emCenario('9g: DECISÃO — "Reformular a hipótese" (item 5 do ajuste):', async () => {
         const semeadoRef = apostasSemeadas();
         semeadoRef[TURMA_LIB].execucoes[EXEC].grupos[GRUPO].etapa = 'decisao';
         semeadoRef[TURMA_LIB].execucoes[EXEC].grupos[GRUPO].dados = {
@@ -2930,12 +2949,12 @@ const clicarSemRolagem = (page, seletor) => page.$eval(seletor, (el) => el.click
           JSON.stringify(voltouPraReformular));
 
         await ctxRef.close();
-      }
+      });
 
       /* ── 9h: concordância singular/plural nas frases automáticas
             (item 1 do ajuste) — via window.faAposta._resumo, sem precisar
             de UI: "1 contato" e "2 contatos", nunca "1 contatos". ── */
-      {
+      await emCenario('9h: concordância singular/plural nas frases automáticas', async () => {
         const semeadoSingular = apostasSemeadas();
         const { ctx: ctxSing, page: pgSing } = await novaPagina(browser, formato, DIRETORA, erros, semeadoSingular);
         await pgSing.goto(BASE + '/index.html#treinamento', { waitUntil: 'domcontentloaded' });
@@ -2970,7 +2989,7 @@ const clicarSemRolagem = (page, seletor) => page.$eval(seletor, (el) => el.click
         anota('concordância na situação inicial da frase "Esperávamos...": "de 1 contato por dia para 2 contatos por dia" (cada número concorda com o próprio valor)',
           /de 1 contato por dia para 2 contatos por dia\b/.test(situacaoSingular), situacaoSingular);
         await ctxSing.close();
-      }
+      });
 
       /* ── 9i: FASE 1 da evolução de execuções — "Reiniciar dinâmica"
             virou "Iniciar nova execução", com confirmação em modal
@@ -2978,7 +2997,7 @@ const clicarSemRolagem = (page, seletor) => page.$eval(seletor, (el) => el.click
             encerra formalmente a execução anterior (status/encerradaEm/
             encerradaPor) e cria a nova já com status "ativa" e número —
             tudo preservado, nada apagado. ── */
-      {
+      await emCenario('9i: FASE 1 da evolução de execuções — "Reiniciar dinâmica"', async () => {
         const semeadoExec = apostasSemeadas();
         semeadoExec[TURMA_LIB].execucoes[EXEC].grupos[GRUPO].etapa = 'sintoma';
         semeadoExec[TURMA_LIB].execucoes[EXEC].grupos[GRUPO].dados = {
@@ -3047,7 +3066,7 @@ const clicarSemRolagem = (page, seletor) => page.$eval(seletor, (el) => el.click
           JSON.stringify(estadoDepois));
 
         await ctxExec.close();
-      }
+      });
 
       /* ── 9i-bis: BUGFIX — depois de "Iniciar nova execução", a tela não
             pode continuar presa no grupo/etapa da execução ANTERIOR.
@@ -3067,7 +3086,7 @@ const clicarSemRolagem = (page, seletor) => page.$eval(seletor, (el) => el.click
             execução NOVA sequer existir — e esse listener novo, ao
             chegar, via _grupoId preenchido e suprimia o redesenho (a
             mesma supressão que protege quem está digitando). ── */
-      {
+      await emCenario('9i-bis: BUGFIX — depois de "Iniciar nova execução", a tela não', async () => {
         const semeadoUi = apostasSemeadas();
         const grupoUi = semeadoUi[TURMA_LIB].execucoes[EXEC].grupos[GRUPO];
         grupoUi.etapa = 'decisao';
@@ -3136,7 +3155,7 @@ const clicarSemRolagem = (page, seletor) => page.$eval(seletor, (el) => el.click
           JSON.stringify(telaAposHistorico));
 
         await ctxUi.close();
-      }
+      });
 
       /* ── 9j: FASE 1 — proteção de concorrência real: duas chamadas de
             "iniciar nova execução" quase simultâneas, partindo da MESMA
@@ -3147,7 +3166,7 @@ const clicarSemRolagem = (page, seletor) => page.$eval(seletor, (el) => el.click
             vencer a disputa pelo LOCK; a outra é abortada sem criar
             execução nenhuma, e avisa a pessoa em vez de travar ou
             quebrar a tela. ── */
-      {
+      await emCenario('9j: FASE 1 — proteção de concorrência real: duas chamadas de', async () => {
         const semeadoConc = apostasSemeadas();
         const { ctx: ctxConc, page: pgConc } = await novaPagina(browser, formato, ADM, erros, semeadoConc);
         await pgConc.goto(BASE + '/index.html#treinamento', { waitUntil: 'domcontentloaded' });
@@ -3200,7 +3219,7 @@ const clicarSemRolagem = (page, seletor) => page.$eval(seletor, (el) => el.click
           /outra execu[çc][ãa]o est[áa] sendo iniciada/i.test(avisoPerdedora), avisoPerdedora);
 
         await ctxConc.close();
-      }
+      });
 
       /* ── 9k: FASE 1 — falha logo depois de adquirir o direito de
             criação (o lock), mas antes de conseguir reler "atual": a
@@ -3211,7 +3230,7 @@ const clicarSemRolagem = (page, seletor) => page.$eval(seletor, (el) => el.click
             erro, o lock é liberado na hora, sem precisar esperar
             expirar — e o mesmo clique de novo, sem a falha, tem de
             completar a transição normalmente. ── */
-      {
+      await emCenario('9k: FASE 1 — falha logo depois de adquirir o direito de', async () => {
         const semeadoFalha1 = apostasSemeadas();
         const { ctx: ctxFalha1, page: pgFalha1 } = await novaPagina(browser, formato, ADM, erros, semeadoFalha1);
         await pgFalha1.goto(BASE + '/index.html#treinamento', { waitUntil: 'domcontentloaded' });
@@ -3268,7 +3287,7 @@ const clicarSemRolagem = (page, seletor) => page.$eval(seletor, (el) => el.click
           JSON.stringify(estadoAposRetry1));
 
         await ctxFalha1.close();
-      }
+      });
 
       /* ── 9l: FASE 1 — falha depois de obter o número da execução, mas
             antes do update() atômico final: o update() inteiro falha
@@ -3278,7 +3297,7 @@ const clicarSemRolagem = (page, seletor) => page.$eval(seletor, (el) => el.click
             (aceito de propósito: número perdido é melhor que ponteiro
             quebrado), mas "atual" continua íntegro. O lock, de novo,
             é liberado na hora — e o retry completa normalmente. ── */
-      {
+      await emCenario('9l: FASE 1 — falha depois de obter o número da execução, mas', async () => {
         const semeadoFalha2 = apostasSemeadas();
         const { ctx: ctxFalha2, page: pgFalha2 } = await novaPagina(browser, formato, ADM, erros, semeadoFalha2);
         await pgFalha2.goto(BASE + '/index.html#treinamento', { waitUntil: 'domcontentloaded' });
@@ -3341,7 +3360,7 @@ const clicarSemRolagem = (page, seletor) => page.$eval(seletor, (el) => el.click
           estadoAposRetry2.numeroDaNova === 2, JSON.stringify(estadoAposRetry2));
 
         await ctxFalha2.close();
-      }
+      });
 
       /* ── 9m: FASE 1 — um lock já preso, deixado por uma queda
             anterior (simulada aqui semeando o nó direto no banco, com
@@ -3350,7 +3369,7 @@ const clicarSemRolagem = (page, seletor) => page.$eval(seletor, (el) => el.click
             deixaria o banco), precisa destravar sozinho quando
             expira, sem exigir conserto manual: a próxima tentativa
             consegue prosseguir normalmente. ── */
-      {
+      await emCenario('9m: FASE 1 — um lock já preso, deixado por uma queda', async () => {
         const semeadoFalha3 = apostasSemeadas();
         semeadoFalha3[TURMA_LIB].criacaoExecucaoEmAndamento = { em: '2020-01-01T00:00:00.000Z', por: 'alguem@previ.com.br' };
         const { ctx: ctxFalha3, page: pgFalha3 } = await novaPagina(browser, formato, ADM, erros, semeadoFalha3);
@@ -3379,7 +3398,7 @@ const clicarSemRolagem = (page, seletor) => page.$eval(seletor, (el) => el.click
           JSON.stringify(estadoAposExpirar));
 
         await ctxFalha3.close();
-      }
+      });
 
       /* ── 9n: FASE 1 — o lock tem identidade própria por tentativa
             (token): uma tentativa antiga que só descobre que falhou
@@ -3388,7 +3407,7 @@ const clicarSemRolagem = (page, seletor) => page.$eval(seletor, (el) => el.click
             nova. Sem isso, uma terceira chamada poderia entrar bem no
             meio da tentativa mais nova, recriando a corrida que o
             lock existe para impedir. ── */
-      {
+      await emCenario('9n: FASE 1 — o lock tem identidade própria por tentativa', async () => {
         const semeadoFalha4 = apostasSemeadas();
         semeadoFalha4[TURMA_LIB].criacaoExecucaoEmAndamento = { em: new Date().toISOString(), por: ADM, token: 'token-da-tentativa-nova' };
         const { ctx: ctxFalha4, page: pgFalha4 } = await novaPagina(browser, formato, ADM, erros, semeadoFalha4);
@@ -3420,7 +3439,7 @@ const clicarSemRolagem = (page, seletor) => page.$eval(seletor, (el) => el.click
           lockAposTentativaCerta === null, JSON.stringify(lockAposTentativaCerta));
 
         await ctxFalha4.close();
-      }
+      });
 
       /* ── 10a-10f: FASE 2 — Histórico de Execuções (somente leitura).
             Turma com histórico real: uma execução LEGADA (sem status
@@ -3430,7 +3449,7 @@ const clicarSemRolagem = (page, seletor) => page.$eval(seletor, (el) => el.click
             também não tem status/numero, provando que a compatibilidade
             por leitura vale para os dois lados: "ativa" não depende de
             `status` existir, depende só de ser apontada por "atual"). ── */
-      {
+      await emCenario('10a-10f: FASE 2 — Histórico de Execuções (somente leitura).', async () => {
         const semeadoHist = apostasSemeadasComHistorico();
         const { ctx: ctxHist, page: pgHist } = await novaPagina(browser, formato, ADM, erros, semeadoHist);
         await pgHist.goto(BASE + '/index.html#treinamento', { waitUntil: 'domcontentloaded' });
@@ -3561,7 +3580,7 @@ const clicarSemRolagem = (page, seletor) => page.$eval(seletor, (el) => el.click
         anota('a exportação da execução ATUAL continua funcionando normalmente (CSV com o Grupo 1)', /Grupo 1/.test(csvAtual), csvAtual.slice(0, 200));
 
         await ctxHist.close();
-      }
+      });
 
       /* ── 12a-12c: FASE 3 — proteção contra clique duplo em "Criar
             grupo", a única ação estrutural sem proteção encontrada no
@@ -3570,7 +3589,7 @@ const clicarSemRolagem = (page, seletor) => page.$eval(seletor, (el) => el.click
             revelar e salvar/remover missão-base são todos gravações
             idempotentes de um caminho fixo, não criações de registro
             novo — nenhuma delas precisou de proteção nova). ── */
-      {
+      await emCenario('12a-12c: FASE 3 — proteção contra clique duplo em "Criar', async () => {
         const semeadoGrupo = apostasSemeadas();
         const { ctx: ctxGrupo, page: pgGrupo } = await novaPagina(browser, formato, ADM, erros, semeadoGrupo);
         await pgGrupo.goto(BASE + '/index.html#treinamento', { waitUntil: 'domcontentloaded' });
@@ -3640,12 +3659,12 @@ const clicarSemRolagem = (page, seletor) => page.$eval(seletor, (el) => el.click
           qtdCardsGrupoTriplo === 1, 'cards na tela: ' + qtdCardsGrupoTriplo);
 
         await ctxGrupo.close();
-      }
+      });
 
       /* ── 12c: falha ao criar o grupo mostra o erro, reabilita o
             botão (nunca fica preso) e permite uma nova tentativa
             controlada — que cria o grupo normalmente. ── */
-      {
+      await emCenario('12c: falha ao criar o grupo mostra o erro, reabilita o', async () => {
         const semeadoFalhaGrupo = apostasSemeadas();
         const { ctx: ctxFalhaGrupo, page: pgFalhaGrupo } = await novaPagina(browser, formato, ADM, erros, semeadoFalhaGrupo);
         await pgFalhaGrupo.goto(BASE + '/index.html#treinamento', { waitUntil: 'domcontentloaded' });
@@ -3684,7 +3703,7 @@ const clicarSemRolagem = (page, seletor) => page.$eval(seletor, (el) => el.click
         anota('depois do erro, a nova tentativa cria o grupo normalmente', qtdAposRetry === 2, String(qtdAposRetry));
 
         await ctxFalhaGrupo.close();
-      }
+      });
 
       /* ══════════════════════════════════════════════════════════════
          FASE 4 — CICLOS DE APRENDIZAGEM
@@ -3693,7 +3712,7 @@ const clicarSemRolagem = (page, seletor) => page.$eval(seletor, (el) => el.click
       /* ── 13a: compatibilidade — grupo antigo (sem ciclos/) continua
             funcionando como Ciclo 1 implícito, sem nenhuma escrita
             automática só por ser aberto. ── */
-      {
+      await emCenario('13a: compatibilidade — grupo antigo (sem ciclos/) continua', async () => {
         const semeado13a = apostasSemeadas();
         const { ctx: ctx13a, page: pg13a } = await novaPagina(browser, formato, ADM, erros, semeado13a);
         await pg13a.goto(BASE + '/index.html#treinamento', { waitUntil: 'domcontentloaded' });
@@ -3708,12 +3727,12 @@ const clicarSemRolagem = (page, seletor) => page.$eval(seletor, (el) => el.click
         anota('grupo antigo sem ciclos/ não ganha a estrutura só por ser aberto (Ciclo 1 implícito)',
           ciclosAposAbrir === null, JSON.stringify(ciclosAposAbrir));
         await ctx13a.close();
-      }
+      });
 
       /* ── 13b: "Reformular a hipótese" — materializa Ciclo 1, cria
             Ciclo 2 na Hipótese, com herança/cascata e a Hipótese
             ORIGINAL preservada (Invariantes 1, 4, 5, 6). ── */
-      {
+      await emCenario('13b: "Reformular a hipótese" — materializa Ciclo 1, cria', async () => {
         const semeado13b = apostasProntaParaDecisao();
         const { ctx: ctx13b, page: pg13b } = await novaPagina(browser, formato, ADM, erros, semeado13b);
         await pg13b.goto(BASE + '/index.html#treinamento', { waitUntil: 'domcontentloaded' });
@@ -3775,12 +3794,12 @@ const clicarSemRolagem = (page, seletor) => page.$eval(seletor, (el) => el.click
           JSON.stringify({ ideia: c2.dados.ideia, experimento: c2.dados.experimento }));
 
         await ctx13b.close();
-      }
+      });
 
       /* ── 13c: "Investigar mais" — pede um ponto de reinício ESCOLHIDO;
             sem escolher, bloqueia; escolhendo, o ciclo novo nasce
             exatamente nesse ponto (não num fixo). ── */
-      {
+      await emCenario('13c: "Investigar mais" — pede um ponto de reinício ESCOLHIDO;', async () => {
         const semeado13c = apostasProntaParaDecisao();
         const { ctx: ctx13c, page: pg13c } = await novaPagina(browser, formato, ADM, erros, semeado13c);
         await pg13c.goto(BASE + '/index.html#treinamento', { waitUntil: 'domcontentloaded' });
@@ -3813,11 +3832,11 @@ const clicarSemRolagem = (page, seletor) => page.$eval(seletor, (el) => el.click
           c2Ponto.pontoDeReinicio === 'mudancas' && c2Ponto.decisaoOrigem === 'Investigar mais' && c2Ponto.mudancasVazias,
           JSON.stringify(c2Ponto));
         await ctx13c.close();
-      }
+      });
 
       /* ── 13d: "Ampliar" e "Interromper esta ideia" só finalizam — nunca
             criam ciclo sozinhas (itens 12/13). ── */
-      {
+      await emCenario('13d: "Ampliar" e "Interromper esta ideia" só finalizam — nunca', async () => {
         const semeado13d = apostasProntaParaDecisao();
         const { ctx: ctx13d, page: pg13d } = await novaPagina(browser, formato, ADM, erros, semeado13d);
         await pg13d.goto(BASE + '/index.html#treinamento', { waitUntil: 'domcontentloaded' });
@@ -3836,13 +3855,13 @@ const clicarSemRolagem = (page, seletor) => page.$eval(seletor, (el) => el.click
         anota('"Interromper esta ideia" finaliza sem criar ciclo nenhum — vai direto ao Mapa',
           semCiclos === null, JSON.stringify(semCiclos));
         await ctx13d.close();
-      }
+      });
 
       /* ── 13d-bis: "Ampliar" também só finaliza — nunca cria sucessor
             (item 12) — seeded já num Ciclo 2 EXPLÍCITO (não o implícito)
             para que "cicloAtual não aponta pra ciclo inexistente" seja
             uma prova de verdade, não trivial por ausência de `ciclos`. ── */
-      {
+      await emCenario('13d-bis: "Ampliar" também só finaliza — nunca cria sucessor', async () => {
         const semeado13dbis = apostasProntaParaDecisao();
         semeado13dbis[TURMA_LIB].execucoes[EXEC].grupos[GRUPO].dados.decisao = { decisao: 'Reformular a hipótese', proximaAcao: 'testar de novo', dataDecisao: '2026-09-19T09:00:00.000Z', proxHipCausa: 'causa', proxHipIndicio: 'indicio' };
         semeado13dbis[TURMA_LIB].execucoes[EXEC].grupos[GRUPO].ciclos = {
@@ -3877,7 +3896,7 @@ const clicarSemRolagem = (page, seletor) => page.$eval(seletor, (el) => el.click
         anota('cicloAtual continua apontando para um ciclo que existe de verdade (o mesmo Ciclo 2, agora finalizado) — nunca para um ciclo inexistente',
           estadoAposAmpliar.atual === 'c2' && estadoAposAmpliar.atualAponta, JSON.stringify(estadoAposAmpliar));
         await ctx13dbis.close();
-      }
+      });
 
       /* ── 13d-ter: REFINAMENTO PÓS-TESTE MANUAL (item 1) — "Concluir a
             aposta": mesmo tratamento estrutural de Ampliar/Interromper
@@ -3891,7 +3910,7 @@ const clicarSemRolagem = (page, seletor) => page.$eval(seletor, (el) => el.click
             esta ideia" nem com "Encerrar por agora" (botão da
             Evidência — ver blocoPlanoProntoHtml — que é uma pausa
             operacional, testado à parte). ── */
-      {
+      await emCenario('13d-ter: REFINAMENTO PÓS-TESTE MANUAL (item 1) — "Concluir a', async () => {
         const semeado13dter = apostasProntaParaDecisao();
         semeado13dter[TURMA_LIB].execucoes[EXEC].grupos[GRUPO].dados.decisao = { decisao: 'Reformular a hipótese', proximaAcao: 'testar de novo', dataDecisao: '2026-09-19T09:00:00.000Z', proxHipCausa: 'causa', proxHipIndicio: 'indicio' };
         semeado13dter[TURMA_LIB].execucoes[EXEC].grupos[GRUPO].ciclos = {
@@ -4011,14 +4030,14 @@ const clicarSemRolagem = (page, seletor) => page.$eval(seletor, (el) => el.click
         }
 
         await ctx13dter.close();
-      }
+      });
 
       /* ── 13d-quater: bugfix pós-PR#210 — "Concluir a aposta": trocar de
             decisão restaura/relaxa a exigência de Próxima ação na hora
             (sem recarregar a etapa), e escrever um encaminhamento
             voluntário mostra os Complementos de volta — sempre opcionais,
             nunca migram nem exigem nada. ── */
-      {
+      await emCenario('13d-quater: bugfix pós-PR#210 — "Concluir a aposta": trocar de', async () => {
         const semeado13dquater = apostasProntaParaDecisao();
         const { ctx: ctx13dquater, page: pg13dquater } = await novaPagina(browser, formato, ADM, erros, semeado13dquater);
         await pg13dquater.goto(BASE + '/index.html#treinamento', { waitUntil: 'domcontentloaded' });
@@ -4091,7 +4110,7 @@ const clicarSemRolagem = (page, seletor) => page.$eval(seletor, (el) => el.click
           voltaAmpliar.rotulo === 'Próxima ação:', JSON.stringify(voltaAmpliar));
 
         await ctx13dquater.close();
-      }
+      });
 
       /* ── 13d-quinquies: bugfix pós-PR#210 — compatibilidade retroativa:
             uma decisão "Concluir a aposta" já gravada ANTES deste bugfix,
@@ -4100,7 +4119,7 @@ const clicarSemRolagem = (page, seletor) => page.$eval(seletor, (el) => el.click
             normalmente — nada migra, nada é apagado. Entra pelo Painel
             do facilitador ("Projetar"), nunca clicando Continuar na
             Decisão (que executaria a consequência de novo). ── */
-      {
+      await emCenario('13d-quinquies: bugfix pós-PR#210 — compatibilidade retroativa:', async () => {
         const semeado13dquinquies = apostasProntaParaDecisao();
         semeado13dquinquies[TURMA_LIB].execucoes[EXEC].grupos[GRUPO].dados.decisao =
           { decisao: 'Concluir a aposta', proximaAcao: 'DASD', dataDecisao: '2026-09-19T09:00:00.000Z' };
@@ -4116,13 +4135,13 @@ const clicarSemRolagem = (page, seletor) => page.$eval(seletor, (el) => el.click
         anota('item 2 — decisão "Concluir a aposta" gravada ANTES do bugfix, com Próxima ação já preenchida, continua aparecendo normalmente no Mapa',
           /vamos concluir a aposta\. Pr[óo]xima a[çc][ãa]o: DASD\./i.test(mapaCompat), mapaCompat.slice(0, 300));
         await ctx13dquinquies.close();
-      }
+      });
 
       /* ── 13e: editar uma etapa de um ciclo já concluído — confirmar
             cria um ciclo novo a partir EXATAMENTE da etapa clicada
             (edição manual, decisaoOrigem='edicao-manual'), nunca
             sobrescreve o histórico (item 9). ── */
-      {
+      await emCenario('13e: editar uma etapa de um ciclo já concluído — confirmar', async () => {
         const semeado13e = apostasProntaParaDecisao();
         semeado13e[TURMA_LIB].execucoes[EXEC].grupos[GRUPO].dados.decisao = { decisao: 'Ampliar', proximaAcao: 'ampliar para outros horários', dataDecisao: '2026-09-19T10:00:00.000Z' };
         const { ctx: ctx13e, page: pg13e } = await novaPagina(browser, formato, ADM, erros, semeado13e);
@@ -4156,11 +4175,11 @@ const clicarSemRolagem = (page, seletor) => page.$eval(seletor, (el) => el.click
         anota('o ciclo criado por edição manual também herda o que vem antes do ponto clicado',
           c2Manual.missaoHerdada === DADOS_ATE_EVIDENCIA.missao.oQue, JSON.stringify(c2Manual));
         await ctx13e.close();
-      }
+      });
 
       /* ── 13f: clique duplo/repetido na criação de ciclo nunca cria
             dois ciclos sucessores para a mesma decisão (item 33). ── */
-      {
+      await emCenario('13f: clique duplo/repetido na criação de ciclo nunca cria', async () => {
         const semeado13f = apostasProntaParaDecisao();
         const { ctx: ctx13f, page: pg13f } = await novaPagina(browser, formato, ADM, erros, semeado13f);
         await pg13f.goto(BASE + '/index.html#treinamento', { waitUntil: 'domcontentloaded' });
@@ -4189,12 +4208,12 @@ const clicarSemRolagem = (page, seletor) => page.$eval(seletor, (el) => el.click
         anota('nasce exatamente UM ciclo sucessor no banco, nunca dois',
           totalCiclos === 2 /* Ciclo 1 materializado + o único Ciclo 2 */, String(totalCiclos));
         await ctx13f.close();
-      }
+      });
 
       /* ── 13g: liberarLockCiclo com um token velho não remove o lock de
             uma tentativa mais nova (mesma prova da Fase 1, agora para o
             lock de ciclo). ── */
-      {
+      await emCenario('13g: liberarLockCiclo com um token velho não remove o lock de', async () => {
         const semeado13g = apostasProntaParaDecisao();
         const { ctx: ctx13g, page: pg13g } = await novaPagina(browser, formato, ADM, erros, semeado13g);
         await pg13g.goto(BASE + '/index.html#treinamento', { waitUntil: 'domcontentloaded' });
@@ -4214,7 +4233,7 @@ const clicarSemRolagem = (page, seletor) => page.$eval(seletor, (el) => el.click
         anota('liberarLockCiclo() com token velho não remove o lock de uma tentativa mais nova',
           !!provaToken && provaToken.token === 'token-novo', JSON.stringify(provaToken));
         await ctx13g.close();
-      }
+      });
 
       /* ── 13h: Mapa multiciclo — Ciclo 1 continua legível depois do
             Ciclo 2 nascer; só o atual é clicável; CSV distingue os
@@ -4222,7 +4241,7 @@ const clicarSemRolagem = (page, seletor) => page.$eval(seletor, (el) => el.click
             direto com os dois ciclos já prontos — a mecânica de
             CRIAR um ciclo pela UI já foi provada passo a passo em
             13b/13c; aqui o que se examina é a LEITURA multiciclo. ── */
-      {
+      await emCenario('13h: Mapa multiciclo — Ciclo 1 continua legível depois do', async () => {
         const semeado13h = apostasProntaParaDecisao();
         semeado13h[TURMA_LIB].execucoes[EXEC].grupos[GRUPO].dados.decisao = { decisao: 'Reformular a hipótese', proximaAcao: 'testar de novo', dataDecisao: '2026-09-19T10:00:00.000Z', proxHipCausa: 'a fila não tem sinalização clara', proxHipIndicio: 'gente perguntando onde é o fim da fila' };
         semeado13h[TURMA_LIB].execucoes[EXEC].grupos[GRUPO].ciclos = {
@@ -4312,7 +4331,7 @@ const clicarSemRolagem = (page, seletor) => page.$eval(seletor, (el) => el.click
           conteudoCsv.slice(0, 200));
 
         await ctx13h.close();
-      }
+      });
 
       /* ── 13h-bis: REFINAMENTO PÓS-TESTE MANUAL — itens 4 e 6.
             (4) Com múltiplos ciclos, a Conexão com OKR precisa dizer
@@ -4324,7 +4343,7 @@ const clicarSemRolagem = (page, seletor) => page.$eval(seletor, (el) => el.click
             hierarquia visual própria (CICLO N maior, ponto de
             reinício numa linha, status como selo) — mesmos dados de
             sempre, só apresentação diferente. ── */
-      {
+      await emCenario('13h-bis: REFINAMENTO PÓS-TESTE MANUAL — itens 4 e 6.', async () => {
         const missaoComum = { verbo: 'reduzir', oQue: 'o tempo de espera', contexto: 'na fila do atendimento', prazo: '60', prazoUnidade: 'dias' };
         const semeadoOkr = apostasProntaParaDecisao();
         semeadoOkr[TURMA_LIB].execucoes[EXEC].revelado = true;
@@ -4405,7 +4424,7 @@ const clicarSemRolagem = (page, seletor) => page.$eval(seletor, (el) => el.click
           JSON.stringify(mapaOkrInfo.map((t) => t.statusClasse)));
 
         await ctxOkr.close();
-      }
+      });
 
       /* ── 14a: NOVA FUNCIONALIDADE — "Analisar com IA": uma aposta,
             três lentes (Defende/Desafia/Investiga). Não são três
@@ -4418,7 +4437,7 @@ const clicarSemRolagem = (page, seletor) => page.$eval(seletor, (el) => el.click
             (fontePrevista/comoSeraMedido), nunca "observada" — por
             isso o seed limpa observado/fonte/aprendizado do fixture
             base e preenche só os campos de planejamento. ── */
-      {
+      await emCenario('14a: NOVA FUNCIONALIDADE — "Analisar com IA": uma aposta,', async () => {
         const semeado14a = apostasProntaParaDecisao();
         semeado14a[TURMA_LIB].execucoes[EXEC].grupos[GRUPO].dados = Object.assign({}, DADOS_ATE_EVIDENCIA, {
           evidencia: { itens: [{ resultadoId: 'r1', fontePrevista: 'Registros de atendimento', comoSeraMedido: 'contagem de atendimentos registrados no sistema' }] }
@@ -4551,13 +4570,13 @@ const clicarSemRolagem = (page, seletor) => page.$eval(seletor, (el) => el.click
           JSON.stringify({ toast: feedbackCopia.toast, modalTemTexto: !!feedbackCopia.modalTexto }));
 
         await ctx14a.close();
-      }
+      });
 
       /* ── 14b: "Analisar com IA" com estado incompleto — não inventa
             conteúdo nem gera prompt aparentemente completo; lista
             objetivamente o que falta, sem travar o resto do site
             (item 17 do pedido). ── */
-      {
+      await emCenario('14b: "Analisar com IA" com estado incompleto — não inventa', async () => {
         const semeado14b = apostasProntaParaDecisao();
         semeado14b[TURMA_LIB].execucoes[EXEC].grupos[GRUPO].dados = {
           missao: DADOS_ATE_EVIDENCIA.missao,
@@ -4613,14 +4632,14 @@ const clicarSemRolagem = (page, seletor) => page.$eval(seletor, (el) => el.click
           mapaContinuaAtivo.temMapa && mapaContinuaAtivo.overlaysVisiveis === 0, JSON.stringify(mapaContinuaAtivo));
 
         await ctx14b.close();
-      }
+      });
 
       /* ── 14c: "Analisar com IA" no multiciclo — usa o CICLO ATUAL,
             nunca mistura Problema/Hipótese/Experimento/Evidência do
             Ciclo 1 com os do Ciclo 2 (item 16 do pedido). Mesmo padrão
             de seed do 13h/13h-bis: os dois ciclos já prontos no banco,
             leitura examinada via Projetar. ── */
-      {
+      await emCenario('14c: "Analisar com IA" no multiciclo — usa o CICLO ATUAL,', async () => {
         const semeado14c = apostasProntaParaDecisao();
         const dadosCiclo1_14c = Object.assign({}, DADOS_ATE_EVIDENCIA, {
           decisao: { decisao: 'Rever o problema', proximaAcao: 'redefinir o problema', dataDecisao: '2026-09-19T09:00:00.000Z' }
@@ -4666,11 +4685,11 @@ const clicarSemRolagem = (page, seletor) => page.$eval(seletor, (el) => el.click
           /Observa[çc][ãa]o do experimento/.test(promptCiclo2) && !/Registros de atendimento/.test(promptCiclo2));
 
         await ctx14c.close();
-      }
+      });
 
       /* ── 13i: retomada — fechar e reabrir no meio do Ciclo 2 volta
             para o ciclo/etapa corretos, nunca de volta ao Ciclo 1. ── */
-      {
+      await emCenario('13i: retomada — fechar e reabrir no meio do Ciclo 2 volta', async () => {
         const semeado13i = apostasProntaParaDecisao();
         semeado13i[TURMA_LIB].execucoes[EXEC].grupos[GRUPO].ciclos = {
           atual: 'c2',
@@ -4698,7 +4717,7 @@ const clicarSemRolagem = (page, seletor) => page.$eval(seletor, (el) => el.click
         anota('os dados mostrados são os do Ciclo 2 (Experimento ainda vazio), não os do Ciclo 1',
           acaoNaTela === '', 'campo veio com "' + acaoNaTela + '"');
         await ctx13i.close();
-      }
+      });
 
       /* ── 13j: FASE 4 — atomicidade da materialização do Ciclo 1
             implícito → Ciclo 1 explícito + Ciclo 2. O update() final de
@@ -4715,7 +4734,7 @@ const clicarSemRolagem = (page, seletor) => page.$eval(seletor, (el) => el.click
             dedicada à numeração). Mesmo padrão dos testes de falha da
             Fase 1 (9k/9l), agora no ponto exato do pedido do usuário:
             "confirme exatamente como ocorre a transformação". ── */
-      {
+      await emCenario('13j: FASE 4 — atomicidade da materialização do Ciclo 1', async () => {
         const semeado13j = apostasProntaParaDecisao();
         semeado13j[TURMA_LIB].execucoes[EXEC].grupos[GRUPO].dados.decisao = { decisao: 'Rever o problema', proximaAcao: 'reunir o grupo para redefinir o problema', dataDecisao: '2026-09-19T10:00:00.000Z' };
         const { ctx: ctx13j, page: pg13j } = await novaPagina(browser, formato, ADM, erros, semeado13j);
@@ -4785,7 +4804,7 @@ const clicarSemRolagem = (page, seletor) => page.$eval(seletor, (el) => el.click
           JSON.stringify({ retrySucesso, estadoAposRetry }));
 
         await ctx13j.close();
-      }
+      });
 
       /* ── 13k: FASE 4 — dataDecisao sobrevive a um re-salvamento da
             Decisão. Bug pré-existente (invisível antes da Fase 4, que
@@ -4798,7 +4817,7 @@ const clicarSemRolagem = (page, seletor) => page.$eval(seletor, (el) => el.click
             salvarEtapa que qualquer clique repetido em CONTINUAR
             dispara) que a data continua a MESMA, não vira uma nova nem
             some. ── */
-      {
+      await emCenario('13k: FASE 4 — dataDecisao sobrevive a um re-salvamento da', async () => {
         const semeado13k = apostasProntaParaDecisao();
         semeado13k[TURMA_LIB].execucoes[EXEC].grupos[GRUPO].dados.decisao = { decisao: 'Ampliar', proximaAcao: 'ampliar para outros horários', dataDecisao: '2026-09-19T10:00:00.000Z' };
         const { ctx: ctx13k, page: pg13k } = await novaPagina(browser, formato, ADM, erros, semeado13k);
@@ -4821,7 +4840,7 @@ const clicarSemRolagem = (page, seletor) => page.$eval(seletor, (el) => el.click
           decisaoAposResave && decisaoAposResave.proximaAcao === 'ampliar para mais horários ainda', JSON.stringify(decisaoAposResave));
 
         await ctx13k.close();
-      }
+      });
 
       /* ── 13l: FASE 4 — cascata ao editar um campo HERDADO (exemplo
             exato do pedido: Ciclo 2 nasce na Hipótese, com Problema e
@@ -4833,7 +4852,7 @@ const clicarSemRolagem = (page, seletor) => page.$eval(seletor, (el) => el.click
             reinício efetivo do ciclo passa a ser o Problema. O Ciclo 1
             (congelado) nunca é tocado — só existe update() no caminho
             do ciclo ATUAL. ── */
-      {
+      await emCenario('13l: FASE 4 — cascata ao editar um campo HERDADO (exemplo', async () => {
         const semeado13l = apostasProntaParaDecisao();
         semeado13l[TURMA_LIB].execucoes[EXEC].grupos[GRUPO].dados.decisao = { decisao: 'Reformular a hipótese', proximaAcao: 'testar de novo', dataDecisao: '2026-09-19T10:00:00.000Z', proxHipCausa: 'a fila não tem sinalização clara', proxHipIndicio: 'gente perguntando onde é o fim da fila' };
         semeado13l[TURMA_LIB].execucoes[EXEC].grupos[GRUPO].ciclos = {
@@ -4912,7 +4931,7 @@ const clicarSemRolagem = (page, seletor) => page.$eval(seletor, (el) => el.click
           JSON.stringify(cicloAposEdicao.c1.dados) === c1DadosAntesJson, 'diff detectado no Ciclo 1');
 
         await ctx13l.close();
-      }
+      });
 
       /* ── 13m: FASE 4 — INVARIANTE 8: numeração sequencial de ciclos,
             sem lacunas. Sem contador global, o número do novo ciclo
@@ -4926,7 +4945,7 @@ const clicarSemRolagem = (page, seletor) => page.$eval(seletor, (el) => el.click
             listener .on('value') da execução sincronizar `_grupo` (é
             dele que cicloAtualId() lê o ciclo atual) antes da PRÓXIMA
             chamada precisar saber qual ciclo está fechando. ── */
-      {
+      await emCenario('13m: FASE 4 — INVARIANTE 8: numeração sequencial de ciclos,', async () => {
         const semeado13m = apostasProntaParaDecisao();
         const { ctx: ctx13m, page: pg13m } = await novaPagina(browser, formato, ADM, erros, semeado13m);
         await pg13m.goto(BASE + '/index.html#treinamento', { waitUntil: 'domcontentloaded' });
@@ -4999,7 +5018,7 @@ const clicarSemRolagem = (page, seletor) => page.$eval(seletor, (el) => el.click
           JSON.stringify(numerosFinais) === JSON.stringify([1, 2, 3, 4, 5]), JSON.stringify(numerosFinais));
 
         await ctx13m.close();
-      }
+      });
 
       /* ── 13n: FASE 5 — souFacilitadoraDaTurma() FALHA FECHADA.
             Uma facilitadora GLOBAL (fa-facilitadores) com vínculo REAL
@@ -5008,7 +5027,7 @@ const clicarSemRolagem = (page, seletor) => page.$eval(seletor, (el) => el.click
             a fornece não existir, o resultado tem de ser "não
             autorizado" — nunca cair de volta para "a flag global já
             basta" (era exatamente essa brecha que a Fase 5 fechou). ── */
-      {
+      await emCenario('13n: FASE 5 — souFacilitadoraDaTurma() FALHA FECHADA.', async () => {
         const dbComVinculo = {
           'fa-facilitadores': { [chave(FACILITADORA_TURMA)]: { email: FACILITADORA_TURMA, name: 'FACILITADORA TURMA' } },
           'turmas-equipe': { [TURMA_LIB]: { [chave(FACILITADORA_TURMA)]: { email: FACILITADORA_TURMA, name: 'FACILITADORA TURMA', papel: 'facilitador' } } },
@@ -5035,9 +5054,9 @@ const clicarSemRolagem = (page, seletor) => page.$eval(seletor, (el) => el.click
         anota('(a) facilitadora global COM vínculo real em turmas-equipe vê o painel do facilitador',
           temPainelFeliz, String(temPainelFeliz));
         await ctx13n.close();
-      }
+      });
 
-      {
+      await emCenario('13n (b): leitura de turmas-equipe falhando nunca concede convite', async () => {
         const dbComVinculo = {
           'fa-facilitadores': { [chave(FACILITADORA_TURMA)]: { email: FACILITADORA_TURMA, name: 'FACILITADORA TURMA' } },
           'turmas-equipe': { [TURMA_LIB]: { [chave(FACILITADORA_TURMA)]: { email: FACILITADORA_TURMA, name: 'FACILITADORA TURMA', papel: 'facilitador' } } },
@@ -5072,9 +5091,9 @@ const clicarSemRolagem = (page, seletor) => page.$eval(seletor, (el) => el.click
         anota('(b) FALHA FECHADA: leitura de turmas-equipe falhando nunca concede convite algum, mesmo com vínculo real gravado no banco',
           conviteComFalha.escondido && !conviteComFalha.temBotao, JSON.stringify(conviteComFalha));
         await ctx13nb.close();
-      }
+      });
 
-      {
+      await emCenario('13n (c): turmas-equipe lento — convite começa ausente e aparece sozinho', async () => {
         const dbComVinculo = {
           'fa-facilitadores': { [chave(FACILITADORA_TURMA)]: { email: FACILITADORA_TURMA, name: 'FACILITADORA TURMA' } },
           'turmas-equipe': { [TURMA_LIB]: { [chave(FACILITADORA_TURMA)]: { email: FACILITADORA_TURMA, name: 'FACILITADORA TURMA', papel: 'facilitador' } } },
@@ -5114,7 +5133,7 @@ const clicarSemRolagem = (page, seletor) => page.$eval(seletor, (el) => el.click
         anota('(c) assim que a leitura lenta responde, o convite aparece sozinho e o painel também, sem precisar recarregar',
           temPainelDepois, String(temPainelDepois));
         await ctx13nc.close();
-      }
+      });
 
       /* ── 15a: BUGFIX PÓS-TESTES DE PRODUÇÃO — MISSÃO, PRAZO OPCIONAL.
             Relatado em produção: prazo visivelmente preenchido (90/dias)
@@ -5131,7 +5150,7 @@ const clicarSemRolagem = (page, seletor) => page.$eval(seletor, (el) => el.click
             apresentava (senão sobrava um "em" solto no fim da frase) —
             tanto quando o prazo está genuinamente vazio quanto quando
             está pela metade (ver missaoPrazoParcial). ── */
-      {
+      await emCenario('15a: BUGFIX PÓS-TESTES DE PRODUÇÃO — MISSÃO, PRAZO OPCIONAL.', async () => {
         const semeado15 = apostasSemeadas();
         const { ctx: ctx15, page: pg15 } = await novaPagina(browser, formato, DIRETORA, erros, semeado15);
         await pg15.goto(BASE + '/index.html#treinamento', { waitUntil: 'domcontentloaded' });
@@ -5236,7 +5255,7 @@ const clicarSemRolagem = (page, seletor) => page.$eval(seletor, (el) => el.click
           /SINTOMA/i.test(tituloDepois15), tituloDepois15);
 
         await ctx15.close();
-      }
+      });
 
       /* ── 15b: item 10 — "Analisar com IA" nunca inventa prazo. Se a
             Missão registrada não tem prazo, o prompt exportado traz a
@@ -5244,7 +5263,7 @@ const clicarSemRolagem = (page, seletor) => page.$eval(seletor, (el) => el.click
             a duração do experimento nem usar o prazo de uma Mudança
             Mensurável (que aqui continua com o seu próprio, 60 dias —
             prova de que ele não "vaza" pra Missão). ── */
-      {
+      await emCenario('15b: item 10 — "Analisar com IA" nunca inventa prazo. Se a', async () => {
         const semeado15b = apostasProntaParaDecisao();
         const dadosSemPrazo15b = Object.assign({}, DADOS_ATE_EVIDENCIA, {
           missao: { verbo: 'reduzir', oQue: 'o tempo de espera', contexto: 'na fila do atendimento' },
@@ -5274,14 +5293,14 @@ const clicarSemRolagem = (page, seletor) => page.$eval(seletor, (el) => el.click
           missaoBloco15b);
 
         await ctx15b.close();
-      }
+      });
 
       /* ── 16a: REFINAMENTO — ETAPAS OPCIONAIS — SINTOMA.
             "Pular esta etapa" é uma decisão explícita, distinta de
             "ainda não visitada" e de "preenchida" — nunca bloqueia,
             nunca some sozinha, nunca aparece como "não informado" em
             lugar nenhum (Mapa, IA, trilha). ── */
-      {
+      await emCenario('16a: REFINAMENTO — ETAPAS OPCIONAIS — SINTOMA.', async () => {
         const semeado16a = apostasSemeadas();
         const { ctx: ctx16a, page: pg16a } = await novaPagina(browser, formato, DIRETORA, erros, semeado16a);
         await pg16a.goto(BASE + '/index.html#treinamento', { waitUntil: 'domcontentloaded' });
@@ -5319,12 +5338,12 @@ const clicarSemRolagem = (page, seletor) => page.$eval(seletor, (el) => el.click
           resumoSintoma16a === '', JSON.stringify(resumoSintoma16a));
 
         await ctx16a.close();
-      }
+      });
 
       /* ── 16b: ETAPAS OPCIONAIS — SINTOMA: voltar e preencher depois,
             e conteúdo digitado + Pular pede confirmação (nunca some
             silenciosamente). ── */
-      {
+      await emCenario('16b: ETAPAS OPCIONAIS — SINTOMA: voltar e preencher depois,', async () => {
         const semeado16b = apostasSemeadas();
         semeado16b[TURMA_LIB].execucoes[EXEC].grupos[GRUPO].dados = {
           missao: { verbo: 'Apoiar', oQue: 'a Rebelião', contexto: 'contra o Império' },
@@ -5381,12 +5400,12 @@ const clicarSemRolagem = (page, seletor) => page.$eval(seletor, (el) => el.click
           /PROBLEMA/.test(tituloAposConfirmarPular), tituloAposConfirmarPular);
 
         await ctx16b.close();
-      }
+      });
 
       /* ── 16c: ETAPAS OPCIONAIS — IDEIA DE SOLUÇÃO: pular avança direto
             para o Experimento; sem pular, CONTINUAR segue bloqueado de
             verdade como sempre (frase estrita). ── */
-      {
+      await emCenario('16c: ETAPAS OPCIONAIS — IDEIA DE SOLUÇÃO: pular avança direto', async () => {
         const semeado16c = apostasSemeadas();
         semeado16c[TURMA_LIB].execucoes[EXEC].grupos[GRUPO].dados = {
           missao: { verbo: 'Apoiar', oQue: 'a Rebelião', contexto: 'contra o Império' },
@@ -5422,14 +5441,14 @@ const clicarSemRolagem = (page, seletor) => page.$eval(seletor, (el) => el.click
         anota('D — a trilha marca Ideia de solução como "Pulada"', trilhaIdeia16c);
 
         await ctx16c.close();
-      }
+      });
 
       /* ── 16d: ETAPAS OPCIONAIS — DUAS PULADAS JUNTAS: aposta continua
             válida, Mapa fica Missão→Problema→Mudanças→Hipótese→
             Experimento→Evidência→Decisão, e os 3 prompts da IA são
             gerados sem revelar em nenhum deles que alguma etapa foi
             pulada. ── */
-      {
+      await emCenario('16d: ETAPAS OPCIONAIS — DUAS PULADAS JUNTAS: aposta continua', async () => {
         const semeado16d = apostasProntaParaDecisao();
         const dados16d = Object.assign({}, DADOS_ATE_EVIDENCIA, {
           sintoma: { pulada: true },
@@ -5480,12 +5499,12 @@ const clicarSemRolagem = (page, seletor) => page.$eval(seletor, (el) => el.click
         anota('E — o modal "Analisar com IA" gera os 3 cards normalmente com as duas etapas puladas', cards16d === 3, String(cards16d));
 
         await ctx16d.close();
-      }
+      });
 
       /* ── 16e: MULTICICLO — Ideia é dado do CICLO: o Ciclo 1 pode ter
             Ideia preenchida e o Ciclo 2, pulada, sem que o Mapa/IA do
             Ciclo 2 usem a Ideia do Ciclo 1 (item 10/28 do pedido). ── */
-      {
+      await emCenario('16e: MULTICICLO — Ideia é dado do CICLO: o Ciclo 1 pode ter', async () => {
         const semeado16e = apostasProntaParaDecisao();
         semeado16e[TURMA_LIB].execucoes[EXEC].grupos[GRUPO].dados.decisao = {
           decisao: 'Reformular a hipótese', proximaAcao: 'testar de novo', dataDecisao: '2026-09-19T10:00:00.000Z',
@@ -5544,12 +5563,9 @@ const clicarSemRolagem = (page, seletor) => page.$eval(seletor, (el) => el.click
           !rotsAposCiclo2.some((t) => /IDEIA DE SOLU[ÇC][ÃA]O/.test(t)), JSON.stringify(rotsAposCiclo2));
 
         await ctx16e.close();
-      }
+      });
 
       anota('nenhum erro de JavaScript', erros.length === 0, erros[0]);
-
-      await ctx.close();
-      await ctxAdm.close();
     } catch (e) {
       falhas++;
       console.error('  FALHA inesperada (' + formato.nome + '): ' + e.message);
