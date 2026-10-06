@@ -1,12 +1,20 @@
-/* Roda a suíte "▶ Automáticos" da aba Testes do painel Admin (forca-agil/testes.js)
-   dentro de um Chromium headless, logado como uma conta admin de teste, e
-   complementa com checagens extras que cobrem regras que estavam na lista
-   de "validação manual" de testes.js mas não escrevem dado real no
-   Firebase — por isso dá pra automatizar aqui sem sujar o banco.
-   Usado pelo workflow .github/workflows/testes-automaticos.yml — o site
-   precisa estar servido em FA_BASE_URL (ex: http://127.0.0.1:8811) e o
-   Realtime Database/Auth reais do projeto kyber-agil precisam estar
-   acessíveis (não há emulador neste repo). */
+/* Smoke do site com o Firebase REAL — "o site está vivo e os fluxos essenciais carregam?"
+ *
+ * O site do PR é servido localmente (FA_BASE_URL, ex.: http://127.0.0.1:8811), mas fala com
+ * o Firebase de produção do projeto kyber-agil (Auth e Realtime Database de verdade), logado
+ * com uma conta admin de teste. É a única prova que roda contra o banco e a autenticação
+ * reais; a cobertura de comportamento fica na suíte hermética (Firebase falso), que bloqueia o
+ * merge. Este job NÃO bloqueia o merge: depende de rede, segredo e do banco no ar.
+ *
+ * COMO ERA (até a Etapa 6.2): o script abria ADMIN › Testes e clicava no botão "▶ Automáticos",
+ * que rodava 149 checagens escritas dentro de forca-agil/testes.js — mais da metade só
+ * conferia que uma função ou elemento existia, e uma dúzia testava as próprias páginas de
+ * documentação. A aba saiu do site; as checagens que provavam comportamento de verdade
+ * foram para a suíte hermética (teste-checagens-interface.js) e as que só fazem sentido com
+ * dados reais estão aqui, em código próprio, sem tela e sem botão.
+ *
+ * NÃO grava nada no banco real: só lê, navega e confere. As checagens que precisam estar
+ * deslogado ou com outra conta rodam cada uma no seu contexto, mais abaixo. */
 
 let playwright;
 try {
@@ -25,7 +33,10 @@ const PASSWORD = process.env.FA_TEST_ADMIN_PASSWORD;
 const MEMBER_EMAIL = process.env.FA_TEST_MEMBER_EMAIL;
 const MEMBER_PASSWORD = process.env.FA_TEST_MEMBER_PASSWORD;
 
-if (!EMAIL || !PASSWORD) {
+/* Usado como módulo (require), só exporta smokeComoAdmin — é assim que a suíte hermética
+   confere que as checagens do Smoke continuam batendo com os seletores do site, sem rede. */
+const COMO_MODULO = require.main !== module;
+if (!COMO_MODULO && (!EMAIL || !PASSWORD)) {
   console.error('Defina FA_TEST_ADMIN_EMAIL e FA_TEST_ADMIN_PASSWORD no ambiente (segredos do repositório no CI).');
   process.exit(2);
 }
@@ -72,7 +83,187 @@ async function submitLogin(page, email, password) {
   return { ok: true, errorText: null };
 }
 
-(async () => {
+/* ───────────── Smoke com a sessão admin já aberta ─────────────
+   Cada checagem navega até uma área, ESPERA o dado real chegar (nunca lê na hora) e confere o
+   mínimo que prova que a área funciona com o banco de produção. Nenhuma checagem grava. Erro de
+   JavaScript durante uma checagem a reprova, com a mensagem do erro. Devolve a lista de falhas. */
+async function smokeComoAdmin(page) {
+  const errosJs = [];
+  page.on('pageerror', (e) => errosJs.push(e.message));
+  const resultados = [];
+
+  async function checar(nome, fn) {
+    const antes = errosJs.length;
+    try {
+      const detalhe = await fn();
+      const novos = errosJs.slice(antes);
+      if (novos.length) throw new Error('erro de JavaScript na página: ' + novos[0]);
+      resultados.push({ nome, ok: true, detalhe: detalhe || '' });
+    } catch (e) {
+      resultados.push({ nome, ok: false, detalhe: e.message.split('\n')[0] });
+    }
+  }
+  /* Espera uma condição no navegador; se não acontecer, a mensagem diz O QUE não aconteceu. */
+  async function esperar(fn, arg, descricao, limite) {
+    const ms = limite || 20000;
+    await page.waitForFunction(fn, arg, { timeout: ms }).catch(() => {
+      throw new Error(descricao + ' não aconteceu em ' + Math.round(ms / 1000) + ' s');
+    });
+  }
+  async function irPara(rota) {
+    await page.evaluate((r) => { location.hash = '#' + r; }, rota);
+    await esperar((r) => { const s = document.getElementById('page-' + r); return !!s && !s.hidden; }, rota, 'a página #' + rota + ' aparecer');
+  }
+  /* A seção terminou de carregar: nenhum "Carregando…" (.loading-msg) visível dentro dela. */
+  const semCarregando = (id) => {
+    const s = document.getElementById(id);
+    return !!s && !Array.prototype.some.call(s.querySelectorAll('.loading-msg'), (el) => el.offsetParent !== null && /Carregando/i.test(el.textContent));
+  };
+  async function abrirAba(painel) {
+    await irPara('admin');
+    await page.click('.admin-tab-btn[data-panel="' + painel + '"]');
+    await esperar((p) => { const el = document.getElementById(p); return !!el && el.offsetParent !== null; }, painel, 'a aba ' + painel + ' abrir');
+  }
+
+  await checar('Firebase de produção responde a uma leitura', async () => {
+    const r = await page.evaluate(() => new Promise((resolve) => {
+      if (typeof firebase === 'undefined' || !firebase.apps || !firebase.apps.length) return resolve('Firebase não inicializado');
+      const t = setTimeout(() => resolve('a leitura não respondeu em 10 s'), 10000);
+      firebase.database().ref('fa-users').limitToFirst(1).once('value')
+        .then((snap) => { clearTimeout(t); resolve(snap.exists() ? 'ok' : 'fa-users veio vazio'); })
+        .catch((e) => { clearTimeout(t); resolve('leitura recusada: ' + e.message); });
+    }));
+    if (r !== 'ok') throw new Error(r);
+  });
+
+  await checar('Sessão de admin assentada: site revelado, menu de quem está logado, aviso de acesso restrito oculto', async () => {
+    const r = await page.evaluate(() => {
+      const s = window.faAuth && window.faAuth.getSession();
+      const vis = (id) => { const el = document.getElementById(id); return !!el && !el.hidden; };
+      return {
+        email: s ? s.email : null,
+        admin: !!(s && window.faAuth.isAdmin(s.email)),
+        revelado: !document.body.classList.contains('aguardando-auth'),
+        perfil: vis('navProfile'), visitanteOculto: !vis('navGuest'), sair: !!document.getElementById('navLogout'),
+        guardaOculta: !vis('adminGuard'),
+      };
+    });
+    const falta = Object.keys(r).filter((k) => k !== 'email' && !r[k]);
+    if (!r.email || !/@previ\.com\.br$/i.test(r.email)) falta.unshift('e-mail @previ.com.br na sessão');
+    if (falta.length) throw new Error('falhou: ' + falta.join(', '));
+    return r.email;
+  });
+
+  await checar('Menu de admin: Conteúdos, Treinamento e Avaliação de Produto/Serviço visíveis', async () => {
+    await esperar(() => {
+      const vis = (sel) => { const el = document.querySelector(sel); return !!el && !el.hidden; };
+      return vis('[data-nav-page="conteudos"]') && vis('[data-nav-page="treinamento"]') && vis('[data-nav-page="avaliacoes"]');
+    }, null, 'os links Conteúdos, Treinamento e Avaliação aparecerem no menu');
+  });
+
+  await checar('Turmas carrega a vitrine real e cada cartão está num estado conhecido', async () => {
+    await irPara('turmas');
+    await esperar(() => document.querySelectorAll('.turma-card-new').length > 0 || /nenhuma turma|em breve/i.test((document.getElementById('page-turmas') || {}).textContent || ''), null, 'algum cartão de turma (ou o aviso de vitrine vazia)');
+    const r = await page.evaluate(() => {
+      const n = (sel) => document.querySelectorAll(sel).length;
+      return { cards: n('.turma-card-new:not(.turma-card-espera)'), estados: n('.btn--interest') + n('.turma-lotada-msg') + n('.turma-andamento-msg') + n('.turma-realizada-msg') };
+    });
+    if (r.cards !== r.estados) throw new Error(r.cards + ' cartões, mas ' + r.estados + ' com estado (aberto/encerrado/andamento/realizada)');
+    return r.cards + ' cartões';
+  });
+
+  await checar('Conteúdos abre com as 7 seções', async () => {
+    await irPara('conteudos');
+    const faltam = await page.evaluate(() => ['content-galaxia', 'content-forca', 'content-principios', 'content-yoda', 'content-arquetipos', 'content-sombrio', 'content-trilogia'].filter((id) => !document.getElementById(id)));
+    if (faltam.length) throw new Error('faltam: ' + faltam.join(', '));
+  });
+
+  await checar('Treinamento mostra a escada de patentes do treinamento ativo (lida do banco)', async () => {
+    await irPara('treinamento');
+    await esperar(() => document.querySelectorAll('#charLadder .char-card .cc-name').length > 0, null, 'a escada de patentes ser desenhada');
+    const r = await page.evaluate(() => {
+      const nomes = Array.prototype.map.call(document.querySelectorAll('#charLadder .char-card .cc-name'), (n) => n.textContent.trim());
+      const esperado = window.faGamePatentes ? window.faGamePatentes().map((x) => x.name) : nomes;
+      return { nomes, esperado };
+    });
+    if (JSON.stringify(r.nomes) !== JSON.stringify(r.esperado)) throw new Error('escada ' + r.nomes.join('/') + ' ≠ treinamento ativo ' + r.esperado.join('/'));
+    return r.nomes.length + ' patentes';
+  });
+
+  await checar('Repositório termina de carregar e mostra conteúdos', async () => {
+    await irPara('repositorio');
+    await esperar(semCarregando, 'page-repositorio', 'o "Carregando conteúdos…" sumir');
+    const n = await page.evaluate(() => document.querySelectorAll('#repoGrid .repo-card').length);
+    if (!n) throw new Error('nenhum conteúdo no Repositório');
+    return n + ' cartões';
+  });
+
+  await checar('Minha Área termina de carregar com algum estado e sem QR de check-in', async () => {
+    await irPara('minha-area');
+    await esperar(() => { const w = document.getElementById('minhaAreaContent'); return !!w && !/Carregando/.test(w.textContent) && !!w.querySelector('.aluno-sec-title, .aluno-card'); }, null, 'a Minha Área mostrar algum estado');
+    const qr = await page.evaluate(() => { const s = document.getElementById('page-minha-area'); return !!s.querySelector('canvas') || !!s.querySelector('a[href*="checkin"]'); });
+    if (qr) throw new Error('a Minha Área expõe QR/link de check-in');
+  });
+
+  await checar('Ajuda abre com as perguntas frequentes', async () => {
+    await irPara('ajuda');
+    const n = await page.evaluate(() => document.querySelectorAll('#page-ajuda .faq-item').length);
+    if (!n) throw new Error('nenhuma pergunta frequente');
+    return n + ' perguntas';
+  });
+
+  await checar('Avaliação de Produto/Serviço (#avaliacoes) carrega a lista real', async () => {
+    await irPara('avaliacoes');
+    await esperar(() => !!document.querySelector('#avaliacoesPainel .avp-table tbody tr, #avpVazioLista'), null, 'a lista de avaliações (ou o aviso de lista vazia)');
+    return await page.evaluate(() => document.querySelectorAll('#avaliacoesPainel .avp-table tbody tr').length + ' avaliações na lista');
+  });
+
+  await checar('ADMIN › Eventos carrega e toda turma fica dentro de um evento (ou em "sem evento")', async () => {
+    await abrirAba('adminPanelInteresses');
+    await esperar(() => document.querySelectorAll('#adminInterests .turma-admin-card').length > 0, null, 'os cartões de turma do ADMIN');
+    const soltas = await page.evaluate(() => Array.prototype.filter.call(document.querySelectorAll('#adminInterests .turma-admin-card'), (c) => !c.closest('[data-ev-key]') && !c.closest('[data-sem-evento]')).length);
+    if (soltas) throw new Error(soltas + ' turma(s) fora de qualquer evento');
+  });
+
+  await checar('ADMIN › Cadastrados: a contagem do selo bate com as linhas da tabela', async () => {
+    await abrirAba('adminPanelCadastrados');
+    await esperar(() => document.querySelectorAll('#adminCadastrados tbody tr').length > 0, null, 'a tabela de cadastrados');
+    const r = await page.evaluate(() => ({ selo: parseInt((document.querySelector('#adminCadastrados .admin-badge') || {}).textContent, 10), linhas: document.querySelectorAll('#adminCadastrados tbody tr').length }));
+    if (r.selo !== r.linhas) throw new Error('selo diz ' + r.selo + ', tabela tem ' + r.linhas);
+    return r.linhas + ' cadastros';
+  });
+
+  await checar('ADMIN › Certificados: escolher um evento real destrava a escolha de turma', async () => {
+    await abrirAba('adminPanelCert');
+    await esperar(() => { const s = document.getElementById('certEventoSelect'); return !!s && Array.prototype.some.call(s.options, (o) => o.value); }, null, 'a lista de eventos do certificado');
+    await page.evaluate(() => { const s = document.getElementById('certEventoSelect'); s.value = Array.prototype.find.call(s.options, (o) => o.value).value; s.dispatchEvent(new Event('change')); });
+    await esperar(() => { const t = document.getElementById('certTurmaSelect'); return !!t && (!t.disabled || /nenhuma turma neste evento/.test((t.options[0] || {}).textContent || '')); }, null, 'a escolha de turma destravar (ou avisar que o evento não tem turma)');
+  });
+
+  await checar('ADMIN › Arquitetura abre a tela inicial', async () => {
+    await abrirAba('adminPanelArquitetura');
+    await esperar(() => !!document.getElementById('avpConfigQuestionariosBtn'), null, 'os cartões da Arquitetura');
+  });
+
+  await checar('ADMIN › Taxonomia carrega os conceitos do banco real', async () => {
+    await abrirAba('adminPanelTaxonomia');
+    await esperar(() => !!document.getElementById('taxPergunta') || !!document.getElementById('taxErro'), null, 'a Taxonomia terminar de carregar');
+    const erro = await page.evaluate(() => { const e = document.getElementById('taxErro'); return e ? e.textContent.trim() : ''; });
+    if (erro) throw new Error('a Taxonomia mostrou erro: ' + erro.slice(0, 120));
+  });
+
+  await checar('Classificações da Avaliação: os 11 códigos do motor resolvem um nome', async () => {
+    await esperar(() => !!window.faClassificacoes && window.faClassificacoes.codigos().length === 11 && window.faClassificacoes.codigos().every((c) => (window.faClassificacoes.nome(c) || '').length > 0), null, 'os 11 nomes de classificação', 15000);
+  });
+
+  console.log('\n=== SMOKE COM DADOS REAIS (sessão admin) ===');
+  resultados.forEach((r) => console.log((r.ok ? '✅ ' : '❌ ') + r.nome + (r.detalhe ? ' :: ' + r.detalhe : '')));
+  return resultados.filter((r) => !r.ok).map((r) => ({ label: r.nome, err: r.detalhe }));
+}
+
+module.exports = { smokeComoAdmin };
+
+if (!COMO_MODULO) (async () => {
   const browser = await chromium.launch();
   const extraResults = [];
   let suiteFailures = [];
@@ -105,34 +296,12 @@ async function submitLogin(page, email, password) {
       );
     }
 
-    console.log('Login OK, indo para #admin');
-    await page.click('#navAdmin');
+    console.log('Login OK — conferindo o site com dados reais');
+    const falhasSmoke = await smokeComoAdmin(page);
+    suiteFailures = falhasSmoke;
 
-    await page.waitForSelector('.admin-tab-btn[data-panel="adminPanelTestes"]', { timeout: 15000 });
-    await page.click('.admin-tab-btn[data-panel="adminPanelTestes"]');
-
-    await page.waitForSelector('.testes-run-btn[data-suite="todos"]', { timeout: 15000 });
-    await page.click('.testes-run-btn[data-suite="todos"]');
-
-    await page.waitForSelector(
-      '#testesResultados .testes-summary.ok, #testesResultados .testes-summary.fail',
-      { timeout: 30000 }
-    );
-
-    const summaryText = (await page.textContent('#testesResultados .testes-summary')).trim();
-    suiteFailures = await page.$$eval('#testesResultados .testes-row.fail', (rows) =>
-      rows.map((r) => ({
-        label: (r.querySelector('.testes-label') || {}).textContent || '',
-        err: (r.querySelector('.testes-err') || {}).textContent || '',
-      }))
-    );
-
-    console.log('\n=== RESULTADO (suíte "▶ Automáticos" do painel) ===');
-    console.log(summaryText);
-    if (suiteFailures.length) {
-      console.log('\nFalhas:');
-      suiteFailures.forEach((f) => console.log(' - ' + f.label + (f.err ? ' :: ' + f.err : '')));
-    }
+    await page.goto(BASE_URL + '#admin', { waitUntil: 'domcontentloaded' });
+    await page.waitForSelector('.admin-tab-btn', { state: 'visible', timeout: 15000 });
 
     /* Checagem extra que reaproveita a MESMA sessão admin já aberta —
        mais barato que abrir outro contexto só pra isso. Cobre a regra
@@ -156,8 +325,8 @@ async function submitLogin(page, email, password) {
     });
   } catch (e) {
     mainError = e;
-    console.error('Erro executando a suíte principal:', e.message);
-    try { await page.screenshot({ path: 'testes-automaticos-erro.png' }); } catch (_) {}
+    console.error('O smoke não conseguiu nem começar (site fora do ar, login recusado ou conta sem admin):', e.message);
+    try { await page.screenshot({ path: 'smoke-erro.png' }); } catch (_) {}
   }
 
   /* Checagens que exigem estar deslogado ou usar outra conta — cada uma
@@ -792,7 +961,7 @@ async function submitLogin(page, email, password) {
 
   await browser.close();
 
-  console.log('\n=== CHECAGENS EXTRAS (fora do botão "Automáticos") ===');
+  console.log('\n=== CHECAGENS EM CONTEXTO PRÓPRIO (deslogado, outra conta, celular) ===');
   let extraFail = 0;
   extraResults.forEach((r) => {
     console.log((r.passed ? '✅ ' : '❌ ') + r.name + (r.detail ? ' :: ' + r.detail : ''));

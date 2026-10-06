@@ -5,7 +5,7 @@
    "admin OU (facilitador global + vínculo na turma)" passaria a recusar.
 
    Usa as mesmas credenciais (FA_TEST_ADMIN_EMAIL/PASSWORD) já usadas por
-   run-testes-automaticos.js — nenhum segredo novo. Autentica via REST do
+   smoke-site-real.js — nenhum segredo novo. Autentica via REST do
    Firebase Auth e lê via REST do Realtime Database (só GET, nunca
    PUT/PATCH/DELETE). Zero dependências de npm: só https/crypto do Node.
 

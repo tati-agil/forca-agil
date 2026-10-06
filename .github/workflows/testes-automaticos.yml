@@ -62,18 +62,18 @@ jobs:
 
       - uses: ./.github/actions/preparar-testes
 
-      - name: Rodar suíte "Automáticos" de testes.js
+      - name: Smoke com o Firebase real (rotas principais com dados reais, sem gravar nada)
         env:
           NODE_PATH: /tmp/pw-deps/node_modules
           FA_BASE_URL: http://127.0.0.1:8811
           FA_TEST_ADMIN_EMAIL: ${{ secrets.FA_TEST_ADMIN_EMAIL }}
           FA_TEST_ADMIN_PASSWORD: ${{ secrets.FA_TEST_ADMIN_PASSWORD }}
-        run: node .github/scripts/run-testes-automaticos.js
+        run: node .github/scripts/smoke-site-real.js
 
       - name: Guardar screenshot de erro (se houver)
         if: failure()
         uses: actions/upload-artifact@v4
         with:
-          name: testes-automaticos-erro
-          path: testes-automaticos-erro.png
+          name: smoke-erro
+          path: smoke-erro.png
           if-no-files-found: ignore

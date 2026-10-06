@@ -491,6 +491,18 @@
       "nome": "Classificações da Avaliação: nome e definição vindos da Taxonomia Arquitetural, contingência e nome da época (desktop e 375 px)",
       "duracao": 150,
       "sobre": "O nome de cada classificação vem do conceito de MESMO código da Taxonomia Arquitetural (lista, filtro pelo código, ficha/resultado, histórico de versões, PDF, Excel, frase explicativa, contexto da Squad), ao vivo e sem recarregar; a definição é a da fonte apontada por definicaoVigenteFonteId (outra fonte também marcada vigente não aparece; trocar o ponteiro troca o texto); avaliação antiga mostra o nome atual e \"na conclusão: …\" (Excel com a coluna \"Rótulo registrado na conclusão\"), sem reescrever nada; Taxonomia lenta, que nunca responde ou recusada → rótulo de contingência com aviso discreto, e concluir grava resultado, camadaSugerida.id, decisão e respostas iguais aos de uma conclusão com a Taxonomia; o motor arquitetural não tem mais \"Editar textos\" (histórico antigo legível); Taxonomia › Arquitetural lista os conceitos-base da Avaliação e acusa o código sem conceito. Hermético; as regras ficam em teste-rules-perfis-avaliacao.js."
+    },
+    {
+      "arquivo": ".github/scripts/teste-checagens-interface.js",
+      "nome": "Checagens de interface vindas da antiga aba Testes (desktop e celular)",
+      "duracao": 8,
+      "sobre": "As 95 checagens de comportamento que viviam no botão \"▶ Automáticos\" da aba ADMIN › Testes (certificado, abertura animada, Conteúdos, Repositório, Treinamento, Turmas, cadastro/login, tabelas e filtros do ADMIN), com o mesmo código, agora em toda PR e também em 375 px. As que só conferiam existência de função/elemento, testavam a própria documentação ou passavam sempre foram descartadas; as que precisam do banco real estão no Smoke (smoke-site-real.js)."
+    },
+    {
+      "arquivo": ".github/scripts/teste-smoke-seletores.js",
+      "nome": "Smoke: checagens batem com o site, sem a aba Testes, e reprovam dizendo o motivo",
+      "duracao": 35,
+      "sobre": "Roda as MESMAS checagens do Smoke (smokeComoAdmin de smoke-site-real.js) contra o Firebase falso: com o banco respondendo todas passam; com o Repositório travado, só aquela reprova e diz o que não chegou. Existe porque o Smoke real não bloqueia o merge — sem isto, um seletor mudado o deixaria vermelho sem ninguém notar."
     }
   ]
 }
