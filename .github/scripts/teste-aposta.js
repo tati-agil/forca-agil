@@ -554,13 +554,10 @@ const clicarSemRolagem = (page, seletor) => page.$eval(seletor, (el) => el.click
         await pgDir.fill('[data-m="atual"]', '3');
         await pgDir.selectOption('[data-m="formaMedicao"]', 'Tempo');
         await pgDir.locator('.aposta-variante:has([data-m="unidade"]) .aposta-variante-chip', { hasText: 'dias' }).click();
-        await pgDir.waitForTimeout(200);
 
         /* Manter + Entre: some o campo Meta, aparecem os dois limites. */
         await pgDir.locator('.aposta-variante:has([data-m="direcao"]) .aposta-variante-chip', { hasText: 'Manter' }).click();
-        await pgDir.waitForTimeout(250);
         await pgDir.locator('.aposta-variante:has([data-m="tipoLimite"]) .aposta-variante-chip', { hasText: 'Entre' }).click();
-        await pgDir.waitForTimeout(250);
         const camposEntre = await pgDir.evaluate(() => ({
           temMeta: !!document.querySelector('[data-m="meta"]'),
           temLimites: !!document.querySelector('[data-m="limiteMinimo"]') && !!document.querySelector('[data-m="limiteMaximo"]'),
@@ -610,7 +607,6 @@ const clicarSemRolagem = (page, seletor) => page.$eval(seletor, (el) => el.click
            direção nenhuma (o problema é a ordem dos limites, não a
            direção escolhida). */
         await pgDir.locator('.aposta-variante:has([data-m="direcao"]) .aposta-variante-chip', { hasText: 'Manter' }).click();
-        await pgDir.waitForTimeout(200);
         await pgDir.locator('.aposta-variante:has([data-m="tipoLimite"]) .aposta-variante-chip', { hasText: 'Entre' }).click();
         await pgDir.waitForTimeout(200);
         await pgDir.fill('[data-m="limiteMinimo"]', '10');
@@ -718,7 +714,6 @@ const clicarSemRolagem = (page, seletor) => page.$eval(seletor, (el) => el.click
         await pgAtingir.fill('[data-m="indicador"]', 'DAD');
         await pgAtingir.selectOption('[data-m="formaMedicao"]', 'Percentual');
         await pgAtingir.locator('.aposta-variante:has([data-m="direcao"]) .aposta-variante-chip', { hasText: 'Atingir' }).click();
-        await pgAtingir.waitForTimeout(200);
         await pgAtingir.fill('[data-m="prazo"]', '78');
 
         async function estadoAtingir() {
@@ -1127,14 +1122,12 @@ const clicarSemRolagem = (page, seletor) => page.$eval(seletor, (el) => el.click
              sugere substantivos de contagem, não os "por X" de Período. */
           await page.selectOption('[data-m="formaMedicao"]', 'Quantidade');
           await page.locator('.aposta-variante:has([data-m="unidade"]) .aposta-variante-chip', { hasText: 'contatos' }).click();
-          await page.waitForTimeout(200);
           const unidadeChip = await page.evaluate(() => (document.querySelector('[data-m="unidade"]') || {}).value || '');
           anota('um clique no chip preenche a Unidade com a sugestão de Quantidade', unidadeChip === 'contatos', 'ficou "' + unidadeChip + '"');
 
           /* Período é campo separado — "por mês" não mora mais dentro de
              Unidade (relatado no uso real: os dois se confundiam). */
           await page.locator('.aposta-variante:has([data-m="periodo"]) .aposta-variante-chip', { hasText: 'por mês' }).click();
-          await page.waitForTimeout(200);
           const periodoChip = await page.evaluate(() => (document.querySelector('[data-m="periodo"]') || {}).value || '');
           anota('um clique no chip preenche o Período, separado da Unidade', periodoChip === 'por mês', 'ficou "' + periodoChip + '"');
 
