@@ -872,8 +872,9 @@ async function esperarGravacao(pg, marca, tipo, extra, descricao) {
           JSON.stringify(corrigidoAtingir));
 
         const tituloAntesCorrecao = await pgAtingir.evaluate(() => (document.querySelector('.aposta-etapa-titulo') || {}).textContent || '');
+        const _g784 = await marcarBanco(pgAtingir);
         await clicarSemRolagem(pgAtingir, '#apostaSeguir');
-        await pgAtingir.waitForTimeout(400);
+        await esperarGravacao(pgAtingir, _g784, 'etapa-avancou', {}, 'a etapa nova gravada (CONTINUAR)');
         const tituloAposCorrecao = await pgAtingir.evaluate(() => (document.querySelector('.aposta-etapa-titulo') || {}).textContent || '');
         anota('depois de corrigir para "Reduzir" (67→50, coerente), CONTINUAR volta a funcionar e a etapa avança',
           tituloAposCorrecao !== tituloAntesCorrecao, tituloAposCorrecao);
@@ -1958,11 +1959,12 @@ async function esperarGravacao(pg, marca, tipo, extra, descricao) {
 
         const tituloAntes = await page.evaluate(() =>
           (document.querySelector('.aposta-etapa-titulo') || {}).textContent || '');
+        const _g1885 = await marcarBanco(page);
         await page.click('#apostaSeguir');
         /* Um aviso didático segura o primeiro clique de propósito (é um
            convite a reler, não um bloqueio): quando ele aparece, o
            segundo clique segue. */
-        await page.waitForTimeout(400);
+        await esperarGravacao(page, _g1885, 'aviso-ou-avanco', { tituloAntes }, 'o aviso didático ou o avanço de etapa depois de CONTINUAR');
         const segurou = await page.evaluate(() => {
           const el = document.querySelector('#apostaAvisos');
           return !!el && !!el.textContent.trim();
@@ -2449,8 +2451,9 @@ async function esperarGravacao(pg, marca, tipo, extra, descricao) {
           jaTemClassificacao === false, String(jaTemClassificacao));
         await pgEv.locator('#apostaClassificacaoHipotese .aposta-opcao', { hasText: 'Parcialmente sustentada' }).click();
         await pgEv.waitForTimeout(200);
+        const _g2372 = await marcarBanco(pgEv);
         await pgEv.$eval('#apostaSeguir', (el) => el.click());
-        await pgEv.waitForTimeout(300);
+        await esperarGravacao(pgEv, _g2372, 'etapa-avancou', {}, 'a etapa nova gravada (CONTINUAR)');
         const tituloDepoisCompleto = await pgEv.evaluate(() => (document.querySelector('.aposta-etapa-titulo') || {}).textContent || '');
         anota('"Não foi possível medir" + Motivo + "Nossa hipótese foi": CONTINUAR libera (não precisa de número)',
           tituloDepoisCompleto !== tituloAntesEv, tituloDepoisCompleto);
@@ -2714,8 +2717,9 @@ async function esperarGravacao(pg, marca, tipo, extra, descricao) {
         await pgNM.locator('#apostaClassificacaoHipotese .aposta-opcao', { hasText: 'Não sustentada' }).click();
         await pgNM.waitForTimeout(200);
         const tituloAntesNM = await pgNM.evaluate(() => (document.querySelector('.aposta-etapa-titulo') || {}).textContent || '');
+        const _g2642 = await marcarBanco(pgNM);
         await pgNM.$eval('#apostaSeguir', (el) => el.click());
-        await pgNM.waitForTimeout(300);
+        await esperarGravacao(pgNM, _g2642, 'etapa-avancou', {}, 'a etapa nova gravada (CONTINUAR)');
         const tituloDepoisNM = await pgNM.evaluate(() => (document.querySelector('.aposta-etapa-titulo') || {}).textContent || '');
         anota('"não foi possível medir" + motivo + "Nossa hipótese foi" também libera Continuar (é a outra forma válida de completar)',
           tituloDepoisNM !== tituloAntesNM, tituloDepoisNM);
@@ -2907,8 +2911,9 @@ async function esperarGravacao(pg, marca, tipo, extra, descricao) {
         const _g2830 = await marcarBanco(pgDec);
         await pgDec.locator('.aposta-opcao', { hasText: 'Experimento' }).click();
         await esperarGravacao(pgDec, _g2830, 'grupo-salvo', {}, 'o grupo salvo depois de escolher o ponto de reinício');
+        const _g2832 = await marcarBanco(pgDec);
         await pgDec.$eval('#apostaSeguir', (el) => el.click());
-        await pgDec.waitForTimeout(400);
+        await esperarGravacao(pgDec, _g2832, 'escrita', { caminho: '/dados/decisao$', contem: '"dataDecisao":"' }, 'a Decisão gravada (escrita em …/dados/decisao)');
         const dataDecisaoGravada = await pgDec.evaluate(() => {
           var escritas = (window.__ESCRITAS || []).filter((x) => /\/dados\/decisao$/.test(x.path));
           var ultima = escritas[escritas.length - 1];
