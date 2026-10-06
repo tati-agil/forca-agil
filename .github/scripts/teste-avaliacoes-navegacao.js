@@ -353,7 +353,7 @@ const abrirDaLista = async (page, key) => { await page.click('.avp-act-ver[data-
       console.log('\n== 8. Avaliação → versão anterior → Voltar (contexto de origem) ==');
       const r = await novaPagina(browser, viewport); const page = r.page;
       await abrirDaLista(page, 'v2');
-      await page.click('.avp-hist-abrir[data-key="v1"]'); await esperaTela(page, 'avaliação-anterior');
+      await page.evaluate(() => { const d = document.getElementById('avpHistoricoVersoesLista'); if (d) d.open = true; }); /* o Histórico de versões fica recolhido: a pessoa abre antes de escolher a versão */ await page.click('.avp-hist-abrir[data-key="v1"]'); await esperaTela(page, 'avaliação-anterior');
       let c = await coerente(page, 'versão anterior'); afirma(c.h === '#avaliacoes?avp=v1', 'a URL identifica a versão anterior');
       afirma(/^← Voltar para a avaliação \(v2\)$/i.test((await textoDe(page, '#avpVoltarListaResultado')).trim()) && /^← Voltar para a avaliação \(v2\)$/i.test((await textoDe(page, '#avpVoltarListaRodape')).trim()), 'o Voltar (topo e rodapé) diz "← Voltar para a avaliação (v2)"');
       const len = await comprimento(page);
@@ -361,12 +361,12 @@ const abrirDaLista = async (page, key) => { await page.click('.avp-act-ver[data-
       c = await coerente(page, 'Voltar da versão anterior'); afirma(c.h === '#avaliacoes?avp=v2' && c.t === 'avaliação', 'volta à avaliação de onde foi aberta (v2)');
       afirma(await comprimento(page) <= len, 'sem empilhar histórico');
       /* abrir a vigente a partir da anterior não cresce a pilha */
-      await page.click('.avp-hist-abrir[data-key="v1"]'); await esperaTela(page, 'avaliação-anterior');
+      await page.evaluate(() => { const d = document.getElementById('avpHistoricoVersoesLista'); if (d) d.open = true; }); /* o Histórico de versões fica recolhido: a pessoa abre antes de escolher a versão */ await page.click('.avp-hist-abrir[data-key="v1"]'); await esperaTela(page, 'avaliação-anterior');
       const len2 = await comprimento(page);
       await page.click('#avpAbrirVigente'); await esperaTela(page, 'avaliação');
       c = await coerente(page, 'Abrir a versão vigente'); afirma(c.h === '#avaliacoes?avp=v2' && await comprimento(page) <= len2, 'abrir a vigente volta à v2 sem criar laço');
       /* F5 na anterior mantém a anterior */
-      await page.click('.avp-hist-abrir[data-key="v1"]'); await esperaTela(page, 'avaliação-anterior');
+      await page.evaluate(() => { const d = document.getElementById('avpHistoricoVersoesLista'); if (d) d.open = true; }); /* o Histórico de versões fica recolhido: a pessoa abre antes de escolher a versão */ await page.click('.avp-hist-abrir[data-key="v1"]'); await esperaTela(page, 'avaliação-anterior');
       await page.reload(); await esperaTela(page, 'avaliação-anterior', 8000); c = await coerente(page, 'F5 na versão anterior'); afirma(c.t === 'avaliação-anterior' && c.h === '#avaliacoes?avp=v1', 'F5 restaura a versão anterior');
       await r.ctx.close();
     });

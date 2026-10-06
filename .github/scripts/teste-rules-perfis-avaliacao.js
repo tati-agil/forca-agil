@@ -137,6 +137,34 @@ async function main() {
   await naoPode('quem não está na lista não grava avaliação de squad', db(SEM).ref('avaliacoes-squad/s3').set({ itemNome: 'x' }));
   await naoPode('quem não está na lista não lê o motor de squad', db(SEM).ref('motor-squad-config').once('value'));
 
+  console.log('\n== Documentação e mapas de Arquitetura (Mapa da Floresta) ==');
+  await base();
+  const doc = (extra) => Object.assign({ titulo: 'Mapa da Floresta', descricao: 'Mapa', link: 'https://exemplo.sharepoint.com/mapa.pdf',
+    autor: { name: 'Arq', email: ARQ }, criadoEm: '2026-10-06T10:00:00.000Z', atualizadoEm: '2026-10-06T10:00:00.000Z',
+    atualizadoPor: { name: 'Arq', email: ARQ }, arquivado: false }, extra || {});
+  const audDoc = (id, tipo) => ({ tipo: tipo || 'criado', documentoId: id, titulo: 'Mapa da Floresta', valorAnterior: null, valorNovo: '{}', usuario: { name: 'Arq', email: ARQ }, dataHora: '2026-10-06T10:00:00.000Z' });
+  const criarDoc = (email, id, extra) => { const u = {}; u['arquitetura-documentos/' + id] = doc(extra); u['arquitetura-documentos-auditoria/' + id + 'a'] = audDoc(id); return db(email).ref().update(u); };
+  await pode('"Avaliação + Arquitetura" registra um documento (com a linha do histórico, juntos)', criarDoc(ARQ, 'd1'));
+  await pode('admin geral registra um documento', criarDoc(ADMIN, 'd2'));
+  await naoPode('"Avaliação" não registra documento', criarDoc(AVAL, 'd3'));
+  await naoPode('"Avaliação" não lê a documentação da Arquitetura', db(AVAL).ref('arquitetura-documentos').once('value'));
+  await naoPode('quem não está na lista não lê', db(SEM).ref('arquitetura-documentos').once('value'));
+  await pode('"Avaliação + Arquitetura" lê a documentação', db(ARQ).ref('arquitetura-documentos').once('value'));
+  await pode('edita título, descrição e link', db(ARQ).ref('arquitetura-documentos/d1').update({ titulo: 'Mapa da Floresta v2', link: 'https://exemplo.sharepoint.com/v2.pdf', atualizadoEm: '2026-10-06T11:00:00.000Z' }));
+  await pode('arquiva (sem apagar)', db(ARQ).ref('arquitetura-documentos/d1').update({ arquivado: true }));
+  await naoPode('não apaga um documento', db(ARQ).ref('arquitetura-documentos/d1').remove());
+  await naoPode('não apaga a lista inteira', db(ADMIN).ref('arquitetura-documentos').remove());
+  await naoPode('não troca o autor', db(ARQ).ref('arquitetura-documentos/d1/autor/email').set('outro@previ.com.br'));
+  await naoPode('não troca a data de criação', db(ARQ).ref('arquitetura-documentos/d1/criadoEm').set('2020-01-01T00:00:00.000Z'));
+  await naoPode('link sem https é recusado', criarDoc(ARQ, 'd4', { link: 'http://exemplo.com/x' }));
+  await naoPode('link que não é endereço é recusado', criarDoc(ARQ, 'd5', { link: 'javascript:alert(1)' }));
+  await naoPode('título vazio é recusado', criarDoc(ARQ, 'd6', { titulo: '' }));
+  await naoPode('campo desconhecido é recusado', criarDoc(ARQ, 'd7', { tamanhoArquivo: 10 }));
+  await naoPode('histórico: não reescreve uma linha', db(ARQ).ref('arquitetura-documentos-auditoria/d1a').set(audDoc('d1', 'alterado')));
+  await naoPode('histórico: não apaga uma linha', db(ADMIN).ref('arquitetura-documentos-auditoria/d1a').remove());
+  await naoPode('histórico: tipo desconhecido é recusado', db(ARQ).ref('arquitetura-documentos-auditoria/x1').set(audDoc('d1', 'apagado')));
+  await naoPode('histórico: linha de documento que não existe é recusada', db(ARQ).ref('arquitetura-documentos-auditoria/x2').set(audDoc('naoExiste')));
+
   await testEnv.cleanup();
   console.log('\n' + total + ' verificações, ' + falhas + ' falha(s).');
   process.exit(falhas ? 1 : 0);

@@ -436,6 +436,12 @@
       "nome": "Avaliação: acesso concedido/trocado/removido sem recarregar e Adequação à Squad na área Avaliação (375 px)",
       "duracao": 8,
       "sobre": "O próprio registro em fa-avaliacao-autorizados é ouvido ao vivo: conceder, trocar ou remover o acesso muda menu e rota na hora, sem recarregar. Quem tem o tipo \"Avaliação\" faz a Adequação à Squad dentro da área AVALIAÇÃO (lista, nova avaliação, voltar), sem ver a configuração do motor, no celular. Hermético."
+    },
+    {
+      "arquivo": ".github/scripts/teste-arquitetura-documentacao.js",
+      "nome": "ADMIN › Arquitetura › Documentação e mapas de Arquitetura (desktop e 375 px)",
+      "duracao": 8,
+      "sobre": "Cartão no grupo \"Referências\"; adicionar grava título, descrição, link https, autor e data com uma linha de histórico na mesma gravação; link sem https recusado na tela; editar/arquivar/restaurar nunca apagam; histórico recolhido com \"Ver detalhes\"; gravação recusada pelo banco mostra o erro e mantém o formulário. Hermético."
     }
   ]
 }

@@ -450,7 +450,9 @@
     var api = modo === 'admin' ? {
       /* origem: { rotulo: 'Arquitetura' | 'Configuração dos Motores', voltar: fn } — o "← Voltar"
          do painel do motor leva de volta para quem abriu, nunca para uma lista que nem existe aqui. */
-      abrirMotorConfig: function (origem) { origemMotor = origem || null; mostrarPainel(); abrirMotorConfig(); }
+      abrirMotorConfig: function (origem) { origemMotor = origem || null; mostrarPainel(); abrirMotorConfig(); },
+      fechar: function () { if (!wrap.hidden) { state.motorConfig = null; voltarParaArquitetura(); } },
+      temAlteracaoNaoSalva: function () { return !wrap.hidden && !!(state.motorConfig && state.motorConfig.sujo); }
     } : {
       abrirLista: function () { mostrarPainel(); state.tela = 'lista'; render(); },
       iniciarOuAbrirParaItem: function (opts) {
@@ -1757,22 +1759,10 @@
       var html = '<div class="avp-form-card"><h3>Histórico de alterações do motor de squad</h3></div>';
       /* o "← Voltar" do rodapé existe também enquanto carrega e quando não há nada a mostrar */
       if (!c.lista) { html += '<p class="loading-msg">Carregando…</p>' + '<div class="avp-actions-footer"><button class="btn" id="sqMotorVoltarAuditoriaBtn">← Voltar para Configuração do Motor de Squad</button></div>'; return html; }
-      if (!c.lista.length) { html += '<p class="admin-empty">Nenhuma alteração registrada ainda.</p>' + '<div class="avp-actions-footer"><button class="btn" id="sqMotorVoltarAuditoriaBtn">← Voltar para Configuração do Motor de Squad</button></div>'; return html; }
-      html += '<div class="table-scroll-wrap"><table class="admin-table"><thead><tr><th>Tipo</th><th>Campo</th><th>Usuário</th><th>Data</th><th>Versão</th></tr></thead><tbody>';
-      c.lista.forEach(function (a) {
-        var tipoLabel = a.tipo === 'regra' ? 'Regra' : a.tipo === 'texto' ? 'Texto'
-          : a.tipo === 'conflito_publicacao' ? 'Conflito de publicação (bloqueado)' : 'Publicação sem alteração';
-        var versaoCol = a.tipo === 'conflito_publicacao'
-          ? 'tentativa com base ' + esc(a.versaoBase) + ' — vigente ' + esc(a.versaoAtual)
-          : (a.versaoAnterior === a.novaVersao ? 'sem versão nova (' + esc(a.versaoAnterior) + ')' : esc(a.versaoAnterior) + ' → ' + esc(a.novaVersao));
-        var campoCol = a.campo ? esc(a.campo) : (a.tipo === 'conflito_publicacao' && a.origem ? esc(a.origem) : '—');
-        html += '<tr><td data-label="Tipo">' + tipoLabel + '</td>' +
-          '<td data-label="Campo">' + campoCol + '</td>' +
-          '<td data-label="Usuário">' + esc((a.usuario && (a.usuario.name || a.usuario.email)) || '—') + '</td>' +
-          '<td data-label="Data">' + fmtData(a.dataHora) + '</td>' +
-          '<td data-label="Versão">' + versaoCol + '</td></tr>';
-      });
-      html += '</tbody></table></div>';
+      /* mesmo histórico recolhido da Arquitetura (renderHistoricoRecolhido em avaliacao-produto.js) */
+      var H = window.faHistoricoArquitetura;
+      if (H) html += H.render('sqMotorHistorico', H.linhasMotor(c.lista), { titulo: 'Histórico de alterações' });
+      else html += '<p class="admin-empty">' + c.lista.length + ' alterações registradas.</p>';
       html += '<div class="avp-actions-footer"><button class="btn" id="sqMotorVoltarAuditoriaBtn">← Voltar para Configuração do Motor de Squad</button></div>';
       return html;
     }
