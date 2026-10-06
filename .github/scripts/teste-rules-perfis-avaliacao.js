@@ -16,6 +16,9 @@
      - "Avaliação + Arquitetura" e o admin geral curam e decidem.
      - em curadoria-auditoria, "Avaliação" só grava a linha da reavaliação e
        a do reprocessamento automático — nunca uma de curadoria/decisão.
+     - Taxonomia Arquitetural: a audiência da Avaliação lê só nome, ativo,
+       ponteiro da definição vigente e o texto da fonte apontada — de
+       qualquer conceito arquitetural, sem lista de códigos; nunca grava.
      - A avaliação de Squad mora na área AVALIAÇÃO: "Avaliação" lê e grava
        avaliacoes-squad e lê o motor de squad (para concluir); a
        configuração do motor continua só da Arquitetura.
@@ -195,6 +198,84 @@ async function main() {
   await naoPode('histórico: tipo desconhecido é recusado', db(ARQ).ref('arquitetura-definicoes-auditoria/x1').set(audDef('MAPA_FLORESTA', 'apagada')));
   await naoPode('histórico: linha de definição que não existe é recusada', db(ARQ).ref('arquitetura-definicoes-auditoria/x2').set(audDef('OUTRA_DEF')));
   await naoPode('histórico: "Avaliação" não acrescenta linha', db(AVAL).ref('arquitetura-definicoes-auditoria/x3').set(audDef('MAPA_FLORESTA', 'alterada')));
+
+  /* Fonte única dos nomes das classificações: a audiência da Avaliação (admin geral, "Avaliação",
+     "Avaliação + Arquitetura") lê da Taxonomia ARQUITETURAL, de QUALQUER conceito (não há lista de
+     códigos nas regras), SÓ nome, ativo e o ponteiro da definição vigente — e, das fontes, só o TEXTO
+     da fonte apontada por definicaoVigenteFonteId. Nada mais (nem outra fonte, nem outro campo da
+     vigente, nem critérios/observações, nem o conceito ou o nó inteiro, nem a auditoria, nem o domínio
+     organizacional) e não grava nada. Admin geral continua lendo e gravando tudo. */
+  console.log('\n== Taxonomia Arquitetural: nome e definição vigente para a Avaliação ==');
+  await base();
+  const TX = 'taxonomia/arquitetural';
+  await semear(async (a) => {
+    const u = {};
+    ['produto-principal', 'canal', 'componente', 'conceito-qualquer'].forEach((c, i) => {
+      u[TX + '/conceitos/' + c] = { nome: 'Nome ' + c, ordem: i + 1, ativo: true, situacaoDefinicao: 'registrada', definicaoVigenteFonteId: 'fA', observacoes: 'obs', criterios: { k1: { texto: 'crit', ordem: 1 } } };
+      u[TX + '/fontes/' + c + '/fA'] = { texto: 'Definição A de ' + c, contexto: 'PREVI', situacao: 'vigente', tipoRedacao: 'Conceito', rotulo: 'r' };
+      /* B também marcada 'vigente' (estado inconsistente semeado à força): só o PONTEIRO decide */
+      u[TX + '/fontes/' + c + '/fB'] = { texto: 'Definição B de ' + c, contexto: 'PREVI', situacao: 'vigente', tipoRedacao: 'Conceito' };
+      u[TX + '/fontes/' + c + '/f0'] = { texto: 'Redação antiga de ' + c, contexto: 'PREVI', situacao: 'histórica/contextual', tipoRedacao: 'Conceito' };
+    });
+    u[TX + '/conceitos/sem-vigente'] = { nome: 'Sem vigente', ordem: 9, ativo: false, situacaoDefinicao: 'ainda não registrada' };
+    u[TX + '/fontes/sem-vigente/fX'] = { texto: 'Em validação', contexto: 'PREVI', situacao: 'em validação', tipoRedacao: 'proposta' };
+    u[TX + '/auditoria/canal/a1'] = { tipo: 'alteracao_conceito', campo: 'nome', dataHora: '2026-10-06T10:00:00.000Z' };
+    u['taxonomia/organizacional/conceitos/SQUAD'] = { nome: 'Squad', ordem: 1, ativo: true, situacaoDefinicao: 'registrada', camada: 'A', definicaoVigenteFonteId: 'f1' };
+    u['taxonomia/organizacional/fontes/SQUAD/f1'] = { texto: 'Squad é…', contexto: 'PREVI', situacao: 'vigente', tipoRedacao: 'Conceito' };
+    await a.ref().update(u);
+  });
+  for (const [quem, email] of [['"Avaliação"', AVAL], ['"Avaliação + Arquitetura"', ARQ], ['admin geral', ADMIN]]) {
+    await pode(quem + ': lê o nome de um conceito', db(email).ref(TX + '/conceitos/produto-principal/nome').once('value'));
+    await pode(quem + ': lê o nome de QUALQUER conceito arquitetural (sem lista de códigos nas regras)', db(email).ref(TX + '/conceitos/conceito-qualquer/nome').once('value'));
+    await pode(quem + ': lê "ativo"', db(email).ref(TX + '/conceitos/canal/ativo').once('value'));
+    await pode(quem + ': lê o ponteiro da definição vigente', db(email).ref(TX + '/conceitos/canal/definicaoVigenteFonteId').once('value'));
+    await pode(quem + ': lê o texto da fonte APONTADA (fA)', db(email).ref(TX + '/fontes/canal/fA/texto').once('value'));
+    const lido = (await db(email).ref(TX + '/fontes/canal/fA/texto').once('value')).val();
+    anota(quem + ': o texto lido é o da fonte apontada ("' + lido + '")', lido === 'Definição A de canal');
+    await pode(quem + ': lê o nome de um conceito sem definição vigente', db(email).ref(TX + '/conceitos/sem-vigente/nome').once('value'));
+  }
+  for (const [quem, email] of [['"Avaliação"', AVAL], ['"Avaliação + Arquitetura"', ARQ]]) {
+    await naoPode(quem + ': NÃO lê outra fonte do mesmo conceito, mesmo marcada vigente (fB)', db(email).ref(TX + '/fontes/canal/fB/texto').once('value'));
+    await naoPode(quem + ': NÃO lê fonte histórica (f0)', db(email).ref(TX + '/fontes/canal/f0/texto').once('value'));
+    await naoPode(quem + ': NÃO lê fonte de conceito sem ponteiro', db(email).ref(TX + '/fontes/sem-vigente/fX/texto').once('value'));
+    await naoPode(quem + ': NÃO lê a fonte apontada inteira', db(email).ref(TX + '/fontes/canal/fA').once('value'));
+    await naoPode(quem + ': NÃO lê outro campo da fonte apontada (situacao)', db(email).ref(TX + '/fontes/canal/fA/situacao').once('value'));
+    await naoPode(quem + ': NÃO lê outro campo da fonte apontada (contexto)', db(email).ref(TX + '/fontes/canal/fA/contexto').once('value'));
+    await naoPode(quem + ': NÃO lê as fontes de um conceito', db(email).ref(TX + '/fontes/canal').once('value'));
+    await naoPode(quem + ': NÃO lê o nó de fontes inteiro', db(email).ref(TX + '/fontes').once('value'));
+    await naoPode(quem + ': NÃO lê o nó de conceitos inteiro', db(email).ref(TX + '/conceitos').once('value'));
+    await naoPode(quem + ': NÃO lê um conceito inteiro', db(email).ref(TX + '/conceitos/canal').once('value'));
+    await naoPode(quem + ': NÃO lê os critérios', db(email).ref(TX + '/conceitos/canal/criterios').once('value'));
+    await naoPode(quem + ': NÃO lê as observações', db(email).ref(TX + '/conceitos/canal/observacoes').once('value'));
+    await naoPode(quem + ': NÃO lê a situação da definição', db(email).ref(TX + '/conceitos/canal/situacaoDefinicao').once('value'));
+    await naoPode(quem + ': NÃO lê a auditoria/histórico da Taxonomia', db(email).ref(TX + '/auditoria/canal').once('value'));
+    await naoPode(quem + ': NÃO lê o domínio organizacional (nome)', db(email).ref('taxonomia/organizacional/conceitos/SQUAD/nome').once('value'));
+    await naoPode(quem + ': NÃO lê o domínio organizacional (texto da vigente)', db(email).ref('taxonomia/organizacional/fontes/SQUAD/f1/texto').once('value'));
+    await naoPode(quem + ': NÃO lê a Taxonomia arquitetural inteira', db(email).ref(TX).once('value'));
+    await naoPode(quem + ': NÃO lê a Taxonomia inteira', db(email).ref('taxonomia').once('value'));
+    await naoPode(quem + ': NÃO renomeia um conceito', db(email).ref(TX + '/conceitos/canal/nome').set('Outro nome'));
+    await naoPode(quem + ': NÃO desativa um conceito', db(email).ref(TX + '/conceitos/canal/ativo').set(false));
+    await naoPode(quem + ': NÃO troca o ponteiro da definição vigente', db(email).ref(TX + '/conceitos/canal/definicaoVigenteFonteId').set('fB'));
+    await naoPode(quem + ': NÃO altera o texto da fonte apontada', db(email).ref(TX + '/fontes/canal/fA/texto').set('Outra definição'));
+    await naoPode(quem + ': NÃO grava na auditoria da Taxonomia', db(email).ref(TX + '/auditoria/canal/a9').set({ tipo: 'alteracao_conceito', usuario: email, dataHora: '2026-10-06T10:00:00.000Z' }));
+  }
+  /* trocar o ponteiro (gravação do admin) muda qual texto a Avaliação pode ler */
+  const troca = {};
+  troca[TX + '/conceitos/componente/definicaoVigenteFonteId'] = 'f2';
+  troca[TX + '/fontes/componente/fA/situacao'] = 'histórica/contextual';
+  troca[TX + '/fontes/componente/fB/situacao'] = 'histórica/contextual';
+  troca[TX + '/fontes/componente/f2'] = { texto: 'Nova definição de componente', contexto: 'PREVI', situacao: 'vigente', tipoRedacao: 'Conceito' };
+  await semear((a) => a.ref().update(troca));
+  await pode('"Avaliação" lê o texto da NOVA vigente', db(AVAL).ref(TX + '/fontes/componente/f2/texto').once('value'));
+  await naoPode('"Avaliação" deixa de ler o texto da antiga', db(AVAL).ref(TX + '/fontes/componente/fA/texto').once('value'));
+  await naoPode('quem não está na lista não lê o nome', db(SEM).ref(TX + '/conceitos/canal/nome').once('value'));
+  await naoPode('quem não está na lista não lê o ponteiro', db(SEM).ref(TX + '/conceitos/canal/definicaoVigenteFonteId').once('value'));
+  await naoPode('quem não está na lista não lê o texto da vigente', db(SEM).ref(TX + '/fontes/canal/fA/texto').once('value'));
+  await pode('admin geral continua lendo o nó de conceitos inteiro', db(ADMIN).ref(TX + '/conceitos').once('value'));
+  await pode('admin geral continua lendo as fontes inteiras', db(ADMIN).ref(TX + '/fontes/canal').once('value'));
+  await pode('admin geral continua lendo a auditoria', db(ADMIN).ref(TX + '/auditoria/canal').once('value'));
+  await pode('admin geral continua lendo o domínio organizacional', db(ADMIN).ref('taxonomia/organizacional/conceitos').once('value'));
+  await pode('admin geral continua renomeando um conceito', db(ADMIN).ref(TX + '/conceitos/canal/nome').set('Canal renomeado'));
   await testEnv.cleanup();
   console.log('\n' + total + ' verificações, ' + falhas + ' falha(s).');
   process.exit(falhas ? 1 : 0);

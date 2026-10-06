@@ -204,7 +204,7 @@
       itens: [],
       itensCarregados: false,
       atual: null,
-      contextoArquitetural: null, /* { label, resultadoAutomatico } | null | 'carregando' — só leitura, ver renderContextoArquitetural */
+      contextoArquitetural: null, /* { camada (camadaSugerida gravada), resultado } | null | 'carregando' — só leitura, ver renderContextoArquitetural */
       erroForm: null,
       selecionados: {}, /* _key → true: linhas marcadas na lista, para exportar só elas */
       menuExportarAberto: false,
@@ -249,14 +249,15 @@
           itemId: id,
           itemNome: it.nome,
           avaliacaoArquiteturalId: it._key,
-          classificacaoLabel: (it.status === 'concluido' && it.camadaSugerida && it.camadaSugerida.label) || null
+          /* a classificação GRAVADA (código + nome da conclusão); o nome exibido é o atual da Taxonomia */
+          classificacao: (it.status === 'concluido' && it.camadaSugerida) || null
         };
       });
       state.itens.forEach(function (it) {
         if (it.excluido || it.avaliacaoArquiteturalId) return;
         var id = it.itemId || it._key;
         if (porItemId[id]) return;
-        porItemId[id] = { itemId: id, itemNome: it.itemNome, avaliacaoArquiteturalId: null, classificacaoLabel: null };
+        porItemId[id] = { itemId: id, itemNome: it.itemNome, avaliacaoArquiteturalId: null, classificacao: null };
       });
       return Object.keys(porItemId).map(function (id) { return porItemId[id]; });
     }
@@ -559,7 +560,7 @@
       db().ref(NODE_ARQUITETURA + '/' + id).once('value', function (snap) {
         var v = snap.val();
         state.contextoArquitetural = v ? {
-          label: (v.camadaSugerida && v.camadaSugerida.label) || '—',
+          camada: v.camadaSugerida || null,
           resultado: v.resultadoAutomatico
         } : null;
         render();
@@ -568,8 +569,13 @@
     function renderContextoArquitetural() {
       var c = state.contextoArquitetural;
       if (!c || c === 'carregando') return '';
+      /* Nome ATUAL da Taxonomia Arquitetural pelo código (se atualiza sozinho, sem redesenhar o
+         checklist); aviso discreto quando é o rótulo de contingência. */
+      var C = window.faClassificacoes;
+      var nomeHtml = !c.camada ? '—' : C ? C.spanNome(c.camada, 'fa-classif', 'sqContextoClassificacao') : esc(c.camada.label || '—');
       return '<div class="avp-form-card sq-contexto-arquitetural">' +
-        '<p>Classificação arquitetural: <strong>' + esc(c.label) + '</strong></p>' +
+        '<p>Classificação arquitetural: <strong>' + nomeHtml + '</strong></p>' +
+        (C && c.camada && c.camada.id ? C.avisoHtml([c.camada.id], 'sqContextoContingencia') : '') +
         '<p class="avp-decisao-aviso">A classificação arquitetural e a avaliação de adequação à gestão por Squad são análises independentes. ' +
         'Esta informação é só contexto de leitura e nunca entra no cálculo desta avaliação.</p></div>';
     }
@@ -651,7 +657,7 @@
               var li = document.createElement('li');
               li.className = 'sq-busca-item';
               li.innerHTML = '<span class="sq-busca-item-nome">' + esc(it.itemNome) + '</span>' +
-                '<span class="sq-busca-item-classif">' + (it.classificacaoLabel ? esc(it.classificacaoLabel) : 'Sem avaliação arquitetural') + '</span>';
+                '<span class="sq-busca-item-classif">' + (it.classificacao ? (window.faClassificacoes ? window.faClassificacoes.spanNome(it.classificacao) : esc(it.classificacao.label || '—')) : 'Sem avaliação arquitetural') + '</span>';
               li.addEventListener('click', function () { selecionarItemParaAvaliacao(it); });
               resultsList.appendChild(li);
             });

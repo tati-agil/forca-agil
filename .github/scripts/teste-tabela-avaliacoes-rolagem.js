@@ -28,6 +28,7 @@ function afirma(cond, msg) { console.log((cond ? '  ok    ' : '  FALHA ') + msg)
 
 const NOMES = ['Previ Futuro', 'Perfil de Investimento — Previ Futuro', 'Portabilidade (entrada)', 'Portabilidade (saída)',
   'Escolha e Alteração de Perfil de Investimento — plano de contribuição definida com aporte adicional e complementar'];
+const NOME_LONGO = 'Unidade de valor associada ao produto/serviço principal';
 function item(i, extra) {
   const respostas = {};
   ['necessidade', 'resultado', 'solucao', 'fronteira', 'autonomia'].forEach((id) => { respostas[id] = { valor: 'sim', justificativaAuto: 'SIM ' + id, observacao: '' }; });
@@ -37,7 +38,8 @@ function item(i, extra) {
     nome: (i <= NOMES.length ? NOMES[i - 1] : 'Item de teste ' + i), descricao: '', publico: '', necessidade: '', observacoesGerais: '',
     status: 'concluido', respostas: respostas,
     resultadoAutomatico: 'produto', decisaoFinal: 'produto', decisaoManual: false,
-    camadaSugerida: { id: 'produto-principal', label: i % 3 === 0 ? 'Unidade de valor associada ao produto/serviço principal' : 'Produto/Serviço principal', motivos: ['m'] },
+    /* a lista mostra o nome ATUAL pelo código (Taxonomia Arquitetural): o nome longo vem do conceito semeado em abrirApp */
+    camadaSugerida: i % 3 === 0 ? { id: 'unidade-valor-associada', label: NOME_LONGO, motivos: ['m'] } : { id: 'produto-principal', label: 'Produto/Serviço principal', motivos: ['m'] },
     justificativaAutomatica: 'texto ' + i, criteriosAtendidos: 5, motorVersion: '2026.08.01-1',
     criadoEm: '2026-08-01T10:00:' + n + '.000Z', atualizadoEm: '2026-08-01T10:00:' + n + '.000Z',
     responsavel: { name: 'Responsável de Teste ' + i, email: EMAIL }, versao: 1, excluido: false
@@ -57,7 +59,8 @@ async function abrirApp(browser, avaliacoes, viewport) {
   const db = { turmas: {}, 'turmas-interesse': {}, 'fa-users': {}, 'fa-admins': admins, 'turmas-config': {},
     'turmas-checkin': {}, 'turmas-espera': {}, 'turmas-equipe': {}, 'fa-facilitadores': {}, 'fa-diretores': {},
     eventos: {}, 'turmas-publico': {}, 'eventos-publico': {}, 'avaliacoes-produto': avaliacoes, 'avaliacoes-squad': {},
-    'motor-squad-config': {}, 'motor-squad-auditoria': {}, 'motor-arquitetura-config': {}, 'motor-arquitetura-auditoria': {} };
+    'motor-squad-config': {}, 'motor-squad-auditoria': {}, 'motor-arquitetura-config': {}, 'motor-arquitetura-auditoria': {},
+    taxonomia: { arquitetural: { conceitos: { 'unidade-valor-associada': { nome: NOME_LONGO, ordem: 2, ativo: true, situacaoDefinicao: 'registrada' } } } } };
   const cfg = { db: db, user: { email: EMAIL, emailVerified: true, uid: 'u1' }, delayDefault: 10, persistenciaReal: true };
   const ctx = await browser.newContext({ viewport: viewport });
   const page = await ctx.newPage();

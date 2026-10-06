@@ -26,7 +26,10 @@
      resultadoAutomatico: 'produto' | 'nao-produto' | 'a-validar' | null (null em rascunho),
      criteriosEssenciaisFalhos: [id...], exclusoesConflitantes: [id...],
      criteriosAtendidos: número de critérios (não exclusões) respondidos SIM,
-     camadaSugerida: { id, label, motivos: [texto...], conflito: [label...]|null } | null,
+     camadaSugerida: { id, label, motivos: [texto...], conflito: [label...]|null } | null —
+       id é o CÓDIGO (decide tudo); label é o nome resolvido da Taxonomia Arquitetural NA CONCLUSÃO
+       (window.faClassificacoes; rótulo de contingência se ela não respondeu) — nunca reescrito; a tela
+       mostra o nome ATUAL pelo código e "na conclusão: <label>" quando difere,
      justificativaAutomatica: texto,
      decisaoFinal: 'produto' | 'nao-produto' | 'a-validar' (igual à automática até o admin discordar),
      decisaoManual, justificativaDecisao, alteradoPor: {name,email}, alteradoEm,
@@ -222,6 +225,42 @@
     { id: 'a-validar', label: 'A validar' }
   ];
   function camadaPorId(id) { return CAMADAS.filter(function (c) { return c.id === id; })[0]; }
+  /* NOME de uma classificação: vem SEMPRE da Taxonomia Arquitetural (window.faClassificacoes, conceito de
+     mesmo código). O label de CAMADAS acima é só o código de fábrica para CONTINGÊNCIA (Taxonomia lenta,
+     recusada ou sem o conceito) — nunca mais uma segunda lista editável de nomes. O motor
+     (identificarCamada, resultadoDaCamada…) só usa o id; o nome nunca decide nada. Sem o módulo
+     (cálculo isolado, fora do site) vale o rótulo de fábrica. */
+  var SUFIXO_CONFLITO_NATUREZAS = ' — conflito de naturezas predominantes';
+  if (window.faClassificacoes) {
+    window.faClassificacoes.registrarCatalogo(CAMADAS, { sufixoConflito: SUFIXO_CONFLITO_NATUREZAS });
+    window.faClassificacoes.iniciar();
+  }
+  function nomeClassificacao(id) {
+    if (window.faClassificacoes) return window.faClassificacoes.nome(id);
+    var c = camadaPorId(id);
+    return c ? c.label : (id || '');
+  }
+  /* Nome ATUAL de uma classificação gravada (camadaSugerida), com o sufixo do conflito de naturezas. */
+  function rotuloCamadaAtual(camada) {
+    if (!camada) return '';
+    if (window.faClassificacoes) return window.faClassificacoes.rotulo(camada);
+    return camada.label || camada.id || '';
+  }
+  /* Nome REGISTRADO na conclusão (camadaSugerida.label, nunca reescrito) quando difere do atual; senão ''. */
+  function rotuloCamadaNaConclusao(camada) {
+    return window.faClassificacoes ? window.faClassificacoes.rotuloNaConclusao(camada) : '';
+  }
+  /* HTML do nome atual (se atualiza sozinho quando a Taxonomia muda) e da nota "na conclusão: X". */
+  function htmlNomeCamada(camada, classe, idElemento) {
+    if (window.faClassificacoes) return window.faClassificacoes.spanNome(camada, classe, idElemento);
+    return esc(rotuloCamadaAtual(camada));
+  }
+  function htmlNaConclusao(camada, formato, idElemento) {
+    return window.faClassificacoes ? window.faClassificacoes.spanNaConclusao(camada, formato, idElemento) : '';
+  }
+  function htmlAvisoContingencia(ids, idElemento) {
+    return window.faClassificacoes ? window.faClassificacoes.avisoHtml(ids, idElemento) : '';
+  }
 
   /* NATUREZA COMPLEMENTAR — descrição MANUAL e OPCIONAL de que tipo de item é
      uma avaliação (ex.: "Programa transversal" para um item que o motor deixa
@@ -331,7 +370,7 @@
      Natureza nunca entra (não depende da camada); rascunho (sem camada) também não. */
   function curadoriaAnterior(it) {
     var camadaId = camadaDoItem(it);
-    var out = { camada: camadaId ? (it.camadaSugerida.label || camadaId) : '', especializacao: null, papelEstrutural: null };
+    var out = { camada: camadaId ? rotuloCamadaAtual(it.camadaSugerida) : '', especializacao: null, papelEstrutural: null };
     var esp = especializacaoCadastradaDe(it), papel = papelCadastrado(it);
     var sEsp = situacaoCadastro(esp, it && it.especializacaoCamadaConfirmada, camadaId, admiteEspecializacao(camadaId));
     var sPapel = situacaoCadastro(papel, it && it.papelEstruturalCamadaConfirmada, camadaId, admitePapelEstrutural(camadaId));
@@ -699,7 +738,7 @@
     var decisao = window.faMotorArquitetura.identificarCamada(contexto, regras);
 
     var motivos = decisao.motivosCodigos.map(function (codigo) { return motivo(ID_POR_CODIGO[codigo]); });
-    var conflito = decisao.conflito ? decisao.conflito.map(function (camId) { return camadaPorId(camId).label; }) : null;
+    var conflito = decisao.conflito ? decisao.conflito.map(function (camId) { return nomeClassificacao(camId); }) : null;
     /* Conflito de naturezas predominantes (política geral P11–P15): o motor
        já devolve SÓ as naturezas marcadas SIM; o motivo é uma frase só,
        com essas mesmas naturezas — nunca "Componente: NÃO" de uma que ninguém
@@ -739,9 +778,9 @@
     return CAMADAS_COM_REQUISITO_GESTAO.indexOf(comGestao.camada) !== -1 ? comGestao.camada : null;
   }
   function justificativaImpedidaPorGestao(camadaId) {
-    var rotulo = camadaPorId(camadaId).label;
+    var rotulo = nomeClassificacao(camadaId);
     return 'As respostas atendem às demais condições exigidas para ' + rotulo + ', mas indicam que o item não poderia ser gerido de ponta a ponta como uma solução. ' +
-      'Como esse é um requisito obrigatório para essa classificação, o item permanece como A validar para análise.';
+      'Como esse é um requisito obrigatório para essa classificação, o item permanece como ' + nomeClassificacao('a-validar') + ' para análise.';
   }
   /* "A validar" por autonomia estrutural (P5 = SIM) × UMA natureza
      predominante (P11–P15): o fallback valeu, P5 = SIM e exatamente uma
@@ -869,22 +908,22 @@
       window.faMotorArquitetura.CAMADA_POR_NATUREZA[b.pergunta] === b.natureza);
   }
   function justificativaBloqueioNatureza(b) {
-    var rotulo = camadaPorId(b.natureza).label;
+    var rotulo = nomeClassificacao(b.natureza);
+    var principal = nomeClassificacao('produto-principal'), aValidar = nomeClassificacao('a-validar');
     if (b.tipo === 'autonomia') {
       return 'As respostas indicam ' + rotulo + ' como natureza predominante, mas também indicam autonomia estrutural. ' +
-        'Como a classificação como ' + rotulo + ' exige que o item não tenha autonomia estrutural, o item permanece como A validar para análise.';
+        'Como a classificação como ' + rotulo + ' exige que o item não tenha autonomia estrutural, o item permanece como ' + aValidar + ' para análise.';
     }
     if (b.tipo === 'natureza') {
-      return 'As respostas atendem às demais condições exigidas para Produto/Serviço principal, mas indicam ' + rotulo + ' como natureza predominante. ' +
-        'Como Produto/Serviço principal não pode ter outra natureza arquitetural predominante, o item permanece como A validar para análise.';
+      return 'As respostas atendem às demais condições exigidas para ' + principal + ', mas indicam ' + rotulo + ' como natureza predominante. ' +
+        'Como ' + principal + ' não pode ter outra natureza arquitetural predominante, o item permanece como ' + aValidar + ' para análise.';
     }
     return 'As respostas indicam simultaneamente autonomia estrutural e ' + rotulo + '. ' +
-      'Esses sinais conduzem a critérios incompatíveis entre Produto/Serviço principal e ' + rotulo + '. Por isso, o item permanece como A validar para análise.';
+      'Esses sinais conduzem a critérios incompatíveis entre ' + principal + ' e ' + rotulo + '. Por isso, o item permanece como ' + aValidar + ' para análise.';
   }
   /* Os três textos do conflito de naturezas predominantes — o mesmo em tela,
      justificativa e PDF, sempre a partir da lista dinâmica (rótulos das
      camadas marcadas, na ordem P11 → P15). */
-  var SUFIXO_CONFLITO_NATUREZAS = ' — conflito de naturezas predominantes';
   function textoNaturezasIndicadas(rotulos) { return 'Naturezas predominantes indicadas: ' + listaComE(rotulos || []); }
   function justificativaConflitoNaturezas(rotulos) {
     return 'As respostas indicam mais de uma natureza arquitetural como predominante: ' + listaComE(rotulos || []) + '. ' +
@@ -909,7 +948,7 @@
            estruturalmente" = P5 NÃO — os termos da definição curada. Jornada
            (P6) e mensuração (P7) são evidências auxiliares e ficam de fora:
            a redação anterior as afirmava mesmo quando a resposta era NÃO. */
-        return 'Depende estruturalmente de um Produto/Serviço principal, mas constitui uma unidade reconhecível e gerenciável, com resultado próprio para o cliente.';
+        return 'Depende estruturalmente de um ' + nomeClassificacao('produto-principal') + ', mas constitui uma unidade reconhecível e gerenciável, com resultado próprio para o cliente.';
       case 'funcionalidade-operacao':
         var alvo = sim('modalidade') ? 'uma modalidade/opção/configuração' :
           sim('regra') ? 'uma regra/condição' :
@@ -1066,18 +1105,18 @@
     var bloqueio = bloqueioNaturezaValido(camada.bloqueioNatureza) ? camada.bloqueioNatureza : null;
     if (bloqueio && resposta.valor === 'sim') {
       if (bloqueio.tipo === 'autonomia' && def.id === 'autonomia') {
-        return 'Esta resposta impediu a classificação como ' + camadaPorId(bloqueio.natureza).label +
+        return 'Esta resposta impediu a classificação como ' + nomeClassificacao(bloqueio.natureza) +
           ', porque essa classificação exige ausência de autonomia estrutural e as demais condições foram atendidas.';
       }
       if (bloqueio.tipo === 'natureza' && def.codigoEstavel === bloqueio.pergunta) {
-        return 'Esta resposta impediu a classificação como Produto/Serviço principal, porque as demais condições foram atendidas e esta natureza foi indicada como predominante.';
+        return 'Esta resposta impediu a classificação como ' + nomeClassificacao('produto-principal') + ', porque as demais condições foram atendidas e esta natureza foi indicada como predominante.';
       }
     }
     if (def.id === 'gestao' && resposta.valor === 'nao') {
       /* Só com a marca gravada no cálculo — nunca deduzida de novo ao exibir
          (uma avaliação antiga mostraria uma explicação que não era a dela). */
       if (camada.impedidaPorGestao && CAMADAS_COM_REQUISITO_GESTAO.indexOf(camada.impedidaPorGestao) !== -1) {
-        return 'Esta resposta impediu a classificação como ' + camadaPorId(camada.impedidaPorGestao).label +
+        return 'Esta resposta impediu a classificação como ' + nomeClassificacao(camada.impedidaPorGestao) +
           ', porque a gestão ponta a ponta é um requisito obrigatório para essa classificação e as demais condições foram atendidas.';
       }
       var termoGestao = TERMO_GESTAO_POR_CAMADA[camada.id];
@@ -1122,7 +1161,7 @@
   function camadaSugeridaDe(ident, atual) {
     var camadaSugerida = {
       id: ident.camada,
-      label: camadaPorId(ident.camada).label,
+      label: nomeClassificacao(ident.camada),
       motivos: ident.motivos,
       conflito: ident.conflito,
       incoerencia: ident.incoerencia,
@@ -1135,7 +1174,7 @@
        lugar que mostra a classificação — tela, PDF, lista e Excel. */
     if (ident.conflitoNaturezas) {
       camadaSugerida.conflitoNaturezas = true;
-      camadaSugerida.label = camadaPorId(ident.camada).label + SUFIXO_CONFLITO_NATUREZAS;
+      camadaSugerida.label = nomeClassificacao(ident.camada) + SUFIXO_CONFLITO_NATUREZAS;
     }
     /* Também só neste caso, e o rótulo continua "A validar": a marca só
        escolhe a explicação (justificativa e interpretação de P8). Avaliações
@@ -1163,8 +1202,9 @@
       return 'As respostas não reúnem evidência suficiente para indicar com segurança nenhuma das categorias arquiteturais previstas. ' +
         'Revise as respostas do questionário ou registre uma decisão manual com a justificativa correspondente.';
     }
+    var principal = nomeClassificacao('produto-principal');
     if (camada.id === 'produto-principal') {
-      return 'O item foi classificado como Produto/Serviço principal porque as respostas confirmam ' + listaComE(camada.motivos) +
+      return 'O item foi classificado como ' + principal + ' porque as respostas confirmam ' + listaComE(camada.motivos) +
         ', sem nenhum sinal de que exerça predominantemente outro papel arquitetural.';
     }
     /* A justificativa AUTOMÁTICA só leva o que o questionário/motor produziu. Especialização e Papel
@@ -1198,9 +1238,9 @@
       /* Só o que a regra de Componente exige: autonomia (P5 NÃO) e resultado
          autônomo (P2 NÃO). Jornada (P6) não é verificada — a frase anterior
          negava "jornada própria" mesmo quando a resposta era SIM. */
-      return 'O item não possui autonomia estrutural nem resultado autônomo suficiente para caracterizar Produto/Serviço principal. ' +
+      return 'O item não possui autonomia estrutural nem resultado autônomo suficiente para caracterizar ' + principal + '. ' +
         'As respostas indicam que ele pertence estruturalmente a outra solução e ' + papelComponente + '. ' +
-        'Por isso, sua classificação predominante é Componente.' + especializacaoFrase + papelEstruturalFrase;
+        'Por isso, sua classificação predominante é ' + nomeClassificacao('componente') + '.' + especializacaoFrase + papelEstruturalFrase;
     }
 
     /* Informação/Documento — e Canal quando P2 = SIM — ganham um molde próprio,
@@ -1216,7 +1256,7 @@
     var p2Sim = !!(atual.respostas && atual.respostas.resultado && atual.respostas.resultado.valor === 'sim');
     if (naturezaPredominante && (camada.id === 'documento-informacao' || p2Sim)) {
       return 'Embora o item possa possuir identidade e produzir resultado percebido pelo usuário, ' + naturezaPredominante + '. ' +
-        'Por isso, foi classificado como ' + camada.label + ', e não como Produto/Serviço principal.' + especializacaoFrase;
+        'Por isso, foi classificado como ' + nomeClassificacao(camada.id) + ', e não como ' + principal + '.' + especializacaoFrase;
     }
 
     /* Funcionalidade/Operação ganha uma segunda frase fixa descrevendo o
@@ -1228,7 +1268,7 @@
       ? ' Sua função predominante é permitir que o cliente consulte, escolha, solicite, altere, execute ou administre um elemento pertencente à solução principal.'
       : '';
 
-    return 'O item foi classificado como ' + camada.label + ', e não como Produto/Serviço principal, porque ' +
+    return 'O item foi classificado como ' + nomeClassificacao(camada.id) + ', e não como ' + principal + ', porque ' +
       motivoJustificativa(camada.id) + '.' + complemento + especializacaoFrase;
   }
 
@@ -1396,7 +1436,10 @@
       ? 'Reprocessamento automático' + (e.reprocessamento === 'lote' ? ' em lote' : '') + ' — motor ' + (e.motorVersion || '—') +
         (e.motorVersionArquitetura ? ' (regras v' + e.motorVersionArquitetura + ')' : '') + ' · disparado por ' + quem
       : 'por ' + quem;
-    var camadaTxt = e.camada && e.camada.label ? e.camada.label : '';
+    /* Nome ATUAL da classificação (pelo código); o gravado na época vem junto quando difere. */
+    var camadaTxt = e.camada && (e.camada.id || e.camada.label) ? rotuloCamadaAtual(e.camada) : '';
+    var camadaEpoca = e.camada ? rotuloCamadaNaConclusao(e.camada) : '';
+    if (camadaTxt && camadaEpoca) camadaTxt += ' (na época: ' + camadaEpoca + ')';
     var detalhe = [];
     if (e.justificativa) detalhe.push('Justificativa: "' + e.justificativa + '"');
     if (e.confirmacao) detalhe.push('confirmada para a classificação “' + camadaTxt + '”');
@@ -1485,7 +1528,7 @@
     var concluido = it.status === 'concluido';
     return {
       resultado: concluido ? rotuloResultado(it.resultadoAutomatico) : '',
-      classificacao: (it.camadaSugerida && it.camadaSugerida.label) || '',
+      classificacao: rotuloCamadaAtual(it.camadaSugerida),
       decisao: concluido ? rotuloDecisaoFinal(it) : '',
       forma: concluido ? formaDaDecisao(it) : ''
     };
@@ -1617,7 +1660,10 @@
        especialização identificada pelo questionário é saída do motor e fica aqui, nunca na Curadoria. */
     html += '<h2 class="pdf-secao-titulo">Classificação arquitetural</h2>';
     html += '<div class="pdf-decisao-bloco">';
-    html += '<p>' + esc(camada && camada.label || '—') + '</p>';
+    html += '<p>' + esc(rotuloCamadaAtual(camada) || '—') + '</p>';
+    /* Nome atual (Taxonomia) e, quando difere, o nome registrado na conclusão — que nunca é reescrito. */
+    var camadaNaConclusaoPdf = rotuloCamadaNaConclusao(camada);
+    if (camadaNaConclusaoPdf) html += '<p class="pdf-meta-versoes">Nome registrado na conclusão: ' + esc(camadaNaConclusaoPdf) + '</p>';
     var espDerivada = especializacaoDerivada(it);
     if (espDerivada) html += '<p>Especialização identificada pelo questionário: ' + esc(espDerivada) + '</p>';
     if (camada && camada.conflitoNaturezas) {
@@ -1957,6 +2003,7 @@
     { largura: 18, rotulo: 'Data da avaliação' }, { largura: 12, rotulo: 'Status' }, { largura: 8, rotulo: 'Versão' },
     { largura: 18, rotulo: 'Versão do motor' },
     { largura: 22, rotulo: 'Recomendação do sistema' }, { largura: 28, rotulo: 'Classificação arquitetural' },
+    { largura: 28, rotulo: 'Rótulo registrado na conclusão' },
     { largura: 40, rotulo: 'Relação arquitetural' }, { largura: 30, rotulo: 'Especialização identificada pelo questionário' },
     { largura: 26, rotulo: 'Especialização' }, { largura: 16, rotulo: 'Papel estrutural' },
     { largura: 30, rotulo: 'Natureza complementar' }, { largura: 30, rotulo: 'Situação da curadoria' },
@@ -1972,7 +2019,7 @@
       (it.responsavel && it.responsavel.name) || '', it.criadoEm ? new Date(it.criadoEm) : '',
       concluido ? 'Concluído' : 'Rascunho', it.versao || 1, concluido ? (it.motorVersion || '') : '',
       concluido ? rotuloResultado(it.resultadoAutomatico) : '',
-      (camada && camada.label) || '', (camada && camada.relacao) || '',
+      rotuloCamadaAtual(camada), (camada && camada.label) || '', (camada && camada.relacao) || '',
       especializacaoDerivada(it), curadoriaRegistrada(it).especializacao, curadoriaRegistrada(it).papelEstrutural, rotuloNaturezaDoItem(it),
       situacaoCuradoria(it),
       concluido ? rotuloDecisaoFinal(it) : '',
@@ -2838,8 +2885,8 @@
       if (state.filtro.status !== 'todos' && it.status !== state.filtro.status) return false;
       if (state.filtro.alterado === 'sim' && !it.decisaoManual) return false;
       if (state.filtro.alternativa !== 'todos') {
-        var camadaLabel = it.camadaSugerida && it.camadaSugerida.label;
-        if (camadaLabel !== state.filtro.alternativa) return false;
+        /* pelo CÓDIGO — o nome muda na Taxonomia, o código não */
+        if (camadaDoItem(it) !== state.filtro.alternativa) return false;
       }
       /* Motor só diz respeito a avaliações concluídas (rascunho não tem
          recomendação automática calculada) — "desatualizado" nunca inclui
@@ -2974,7 +3021,7 @@
           ['todos', 'Todos'], ['produto', 'É Produto/Serviço principal'], ['nao-produto', 'Não é Produto/Serviço principal'], ['a-validar', 'A validar']
         ], 'Resultado Produto/Serviço');
         html += filtroSelect('avpFiltroAlternativa', state.filtro.alternativa, [['todos', 'Todas']].concat(
-          CAMADAS.map(function (c) { return [c.label, c.label]; })
+          CAMADAS.map(function (c) { return [c.id, nomeClassificacao(c.id), c.id]; })
         ), 'Classificação arquitetural');
         html += filtroSelect('avpFiltroStatus', state.filtro.status, [
           ['todos', 'Todos'], ['rascunho', 'Em andamento'], ['concluido', 'Concluída']
@@ -2989,7 +3036,7 @@
         }
         html += '</div>';
         html += '<p class="avp-filtros-ajuda">O <strong>resultado Produto/Serviço</strong> diz se o item é ou não Produto/Serviço principal; a ' +
-          '<strong>classificação arquitetural</strong> diz que camada ele ocupa (Componente, Canal, Processo…). São coisas diferentes e podem ser combinadas.</p>';
+          '<strong>classificação arquitetural</strong> diz que camada ele ocupa (' + esc(nomeClassificacao('componente')) + ', ' + esc(nomeClassificacao('canal')) + ', ' + esc(nomeClassificacao('processo-etapa')) + '…). São coisas diferentes e podem ser combinadas.</p>';
         html += '</div>';
       }
 
@@ -3021,12 +3068,16 @@
            quem avalia ou gere — consulta só abre. */
         var podeSelecionar = pode();
         var podeMais = pode();
+        /* Aviso discreto (só aparece se algum nome da lista caiu no rótulo de contingência). */
+        var idsNaLista = [];
+        filtrados.forEach(function (it) { var cid = camadaDoItem(it); if (cid && idsNaLista.indexOf(cid) === -1) idsNaLista.push(cid); });
+        if (idsNaLista.length) html += htmlAvisoContingencia(idsNaLista, 'avpListaClassifContingencia');
         html += '<div class="avp-tabela-wrap"><table class="admin-table avp-table"><thead><tr>' +
           (podeSelecionar ? '<th class="avp-check-col"><input type="checkbox" id="avpSelecionarTodos"' + (todosFiltradosSelecionados ? ' checked' : '') + ' aria-label="Selecionar todas as avaliações filtradas"></th>' : '') +
           '<th class="avp-col-item">Item</th><th class="avp-col-camada">Classificação</th><th class="avp-col-status">Status</th>' +
           '<th class="avp-col-data">Atualizado em</th><th class="avp-col-resp">Responsável</th><th class="avp-col-acoes">Ações</th></tr></thead><tbody>';
         filtrados.forEach(function (it) {
-          var camadaLabel = (it.camadaSugerida && it.camadaSugerida.label) || '—';
+          var camadaHtml = it.camadaSugerida ? htmlNomeCamada(it.camadaSugerida, 'avp-camada-nome') : '—';
           var natureza = rotuloNaturezaDoItem(it);
           html += '<tr>';
           if (podeSelecionar) {
@@ -3042,7 +3093,7 @@
           /* "Resultado final" não tem coluna na lista (era redundante com a Classificação);
              resultado automático e decisão final ficam na ficha. Só a marca de decisão
              alterada à mão continua visível, junto da classificação. */
-          html += '<td class="avp-col-camada" data-label="Classificação">' + esc(camadaLabel) + (it.decisaoManual ? ' <span class="avp-tag-alterado">decisão alterada</span>' : '') + '</td>';
+          html += '<td class="avp-col-camada" data-label="Classificação">' + camadaHtml + (it.decisaoManual ? ' <span class="avp-tag-alterado">decisão alterada</span>' : '') + '</td>';
           html += '<td class="avp-col-status" data-label="Status">' + statusBadge(it.status) + badgeMotor(it) + '</td>';
           html += '<td class="avp-col-data" data-label="Atualizado em">' + fmtData(it.atualizadoEm) + '</td>';
           html += '<td class="avp-col-resp" data-label="Responsável">' + esc(it.responsavel && it.responsavel.name || '—') + '</td>';
@@ -3225,7 +3276,9 @@
       var html = '<div class="avp-filtro"><label class="avp-filtro-rotulo" for="' + id + '">' + esc(rotulo) + '</label>';
       html += '<select class="avp-select" id="' + id + '">';
       opcoes.forEach(function (o) {
-        html += '<option value="' + esc(o[0]) + '"' + (o[0] === valorAtual ? ' selected' : '') + '>' + esc(o[1]) + '</option>';
+        /* o[2] = código de classificação: o rótulo da opção acompanha a Taxonomia sem redesenhar */
+        html += '<option value="' + esc(o[0]) + '"' + (o[0] === valorAtual ? ' selected' : '') +
+          (o[2] ? ' data-fa-classif="' + esc(o[2]) + '"' : '') + '>' + esc(o[1]) + '</option>';
       });
       html += '</select></div>';
       return html;
@@ -4017,8 +4070,8 @@
        motor de squad continua com a tela já criada pela PR #240
        (avaliacao-squad.js) — não duplicada aqui, só alcançável por um
        botão que chama window.faAvaliacaoSquadAdmin.abrirMotorConfig(origem). */
-    var CAMADAS_LABEL_POR_ID = {};
-    CAMADAS.forEach(function (c) { CAMADAS_LABEL_POR_ID[c.id] = c.label; });
+    /* Nome de uma classificação nas telas do motor: o atual da Taxonomia (código desconhecido: o próprio código). */
+    function nomeCamadaMotor(id) { return camadaPorId(id) ? nomeClassificacao(id) : id; }
     /* ===================== ÁREA OPERACIONAL: SEM ACESSO ===================== */
     function renderSemAcessoArea() {
       wrap.innerHTML = '<div class="avp-form-card"><p class="admin-empty">Você não tem acesso à Avaliação de Produto/Serviço. ' +
@@ -4978,7 +5031,6 @@
       else if (c.sub === 'simulacao') html += renderMotorArqSimulacao();
       else if (c.sub === 'conflito-publicacao') html += renderMotorArqConflitoPublicacao();
       else if (c.sub === 'comparar-alteracoes') html += renderMotorArqCompararAlteracoes();
-      else if (c.sub === 'editar-textos') html += renderMotorArqEditarTextos();
       else if (c.sub === 'auditoria') html += renderMotorArqAuditoria();
       else if (c.sub === 'versoes') html += renderMotorArqVersoes();
       html += '</div>';
@@ -4997,7 +5049,6 @@
       else if (c.sub === 'simulacao') bindMotorArqSimulacao();
       else if (c.sub === 'conflito-publicacao') bindMotorArqConflitoPublicacao();
       else if (c.sub === 'comparar-alteracoes') bindMotorArqCompararAlteracoes();
-      else if (c.sub === 'editar-textos') bindMotorArqEditarTextos();
       else if (c.sub === 'auditoria') bindMotorArqAuditoria();
       else if (c.sub === 'versoes') bindMotorArqVersoes();
     }
@@ -5016,10 +5067,14 @@
       html += '<p>Última publicação: ' + (sitArq.ultimaAlteracaoEm ? esc(fmtData(sitArq.ultimaAlteracaoEm)) + (sitArq.ultimaAlteracaoPor ? ' · ' + esc(sitArq.ultimaAlteracaoPor) : '') : 'nunca alterado (regras de fábrica, migradas de identificarCamada)') + '</p>';
       html += '<div class="avp-actions-footer">';
       html += '<button class="btn btn--sm" id="avpMotorArqEditarBtn">Editar regras</button>';
-      html += '<button class="btn btn--sm" id="avpMotorArqTextosBtn">Editar textos</button>';
       html += '<button class="btn btn--sm" id="avpMotorArqVersoesBtn">Versões publicadas</button>';
       html += '<button class="btn btn--sm" id="avpMotorArqAuditoriaBtn">Histórico de alterações</button>';
-      html += '</div></div>';
+      html += '</div>';
+      /* O antigo "Editar textos" deste motor gravava um rótulo de classificação que nada exibia (cópia
+         morta). O NOME e a DEFINIÇÃO das classificações vêm só da Taxonomia Arquitetural; o que já foi
+         gravado em motor-arquitetura-config/textos e o histórico dessas edições continuam guardados. */
+      html += '<p class="avp-natureza-ajuda" id="avpMotorArqNomesTaxonomia">Os nomes e as definições das classificações vêm da Taxonomia Arquitetural (ADMIN › Taxonomia), pelo código de cada classificação — não são editados aqui.</p>';
+      html += '</div>';
 
       html += '<div class="avp-form-card"><h4>Motor de Adequação à Gestão por Squad (S1-S8)</h4>';
       if (window.faAvaliacaoSquadAdmin && window.faMotorSquad) {
@@ -5038,10 +5093,6 @@
           sub: 'editar-regras', regras: window.faMotorArquitetura.iniciarOuObterRascunhoRegras(),
           versaoBase: window.faMotorArquitetura.versaoBaseDoRascunho(), erro: null, salvando: false
         };
-        render();
-      });
-      document.getElementById('avpMotorArqTextosBtn').addEventListener('click', function () {
-        state.configMotores = { sub: 'editar-textos', textos: JSON.parse(JSON.stringify(window.faMotorArquitetura.textosAtuais())), salvando: false };
         render();
       });
       document.getElementById('avpMotorArqVersoesBtn').addEventListener('click', function () {
@@ -5278,9 +5329,9 @@
       html += renderComoOMotorDecide(false);
       c.regras.slice().sort(function (a, b) { return (a.ordem || 0) - (b.ordem || 0); }).forEach(function (regra) {
         html += '<div class="avp-form-card sq-regra-card"><p class="sq-regra-codigo">Precedência ' + esc(regra.ordem) + ' — ' + esc(regra.codigo) +
-          ' → classifica como <strong>' + esc(CAMADAS_LABEL_POR_ID[regra.resultado] || regra.resultado) + '</strong>' +
+          ' → classifica como <strong>' + esc(nomeCamadaMotor(regra.resultado)) + '</strong>' +
           (regra.incoerencia ? ' <em>(incoerência)</em>' : '') +
-          (regra.conflito ? ' <em>(conflito: ' + regra.conflito.map(function (id) { return CAMADAS_LABEL_POR_ID[id] || id; }).join(' × ') + ')</em>' : '') +
+          (regra.conflito ? ' <em>(conflito: ' + regra.conflito.map(function (id) { return nomeCamadaMotor(id); }).join(' × ') + ')</em>' : '') +
           (regra.conflitoDinamico ? ' <em>(conflito de naturezas predominantes: cita só as naturezas marcadas SIM)</em>' : '') + '</p>';
         /* Fallback (tipo FALLBACK, ou o legado sem condicoes que o Firebase
            devolve) não tem condição nenhuma para desenhar — antes, abrir o
@@ -5410,8 +5461,8 @@
         html += '<div class="table-scroll-wrap"><table class="admin-table"><thead><tr><th>Item</th><th>Resultado atual</th><th>Resultado proposto</th></tr></thead><tbody>';
         s.mudariam.forEach(function (m) {
           html += '<tr><td data-label="Item">' + esc(m.itemNome) + '</td>' +
-            '<td data-label="Resultado atual">' + esc(CAMADAS_LABEL_POR_ID[m.atual] || m.atual) + '</td>' +
-            '<td data-label="Resultado proposto">' + esc(CAMADAS_LABEL_POR_ID[m.nova] || m.nova) + '</td></tr>';
+            '<td data-label="Resultado atual">' + esc(nomeCamadaMotor(m.atual)) + '</td>' +
+            '<td data-label="Resultado proposto">' + esc(nomeCamadaMotor(m.nova)) + '</td></tr>';
         });
         html += '</tbody></table></div></div>';
       }
@@ -5522,47 +5573,6 @@
     function bindMotorArqCompararAlteracoes() {
       var c = state.configMotores;
       document.getElementById('avpMotorArqCompararVoltarBtn').addEventListener('click', function () { voltarParaConflito(c); });
-    }
-
-    /* ---- EDITAR TEXTOS (só rótulos de camada — publicação imediata, nunca versiona) ---- */
-    function renderMotorArqEditarTextos() {
-      var c = state.configMotores;
-      var html = '<div class="avp-form-card"><h3>Editar textos das classificações</h3>';
-      html += '<p class="avp-decisao-aviso">Altera só o rótulo exibido para cada classificação — nunca muda a lógica do motor nem a versão publicada.</p></div>';
-      CAMADAS.forEach(function (camada) {
-        var t = c.textos[camada.id] || { rotulo: camada.label };
-        html += '<div class="avp-form-card"><p class="avp-alt-label">Código: <strong>' + esc(camada.id) + '</strong> <span class="avp-config-readonly-tag">(somente leitura)</span></p>';
-        html += '<div class="avp-field"><label>Rótulo</label><input type="text" class="sq-texto-rotulo" data-codigo="' + camada.id + '" value="' + esc(t.rotulo) + '"></div></div>';
-      });
-      if (c.flash) html += '<p class="avp-flash-success">' + esc(c.flash) + '</p>';
-      if (c.erro) html += '<p class="avp-error-msg">' + esc(c.erro) + '</p>';
-      html += '<div class="avp-actions-footer">';
-      html += '<button class="btn btn--primary" id="avpMotorArqPublicarTextosBtn"' + (c.salvando ? ' disabled' : '') + '>' + (c.salvando ? 'PUBLICANDO…' : 'PUBLICAR TEXTOS') + '</button>';
-      html += '<button class="btn" id="avpMotorArqCancelarTextosBtn"' + (c.salvando ? ' disabled' : '') + '>← Voltar para Configuração dos Motores</button>';
-      html += '</div>';
-      return html;
-    }
-    function bindMotorArqEditarTextos() {
-      var c = state.configMotores;
-      wrap.querySelectorAll('.sq-texto-rotulo').forEach(function (input) {
-        input.addEventListener('input', function () {
-          c.sujo = true;
-          c.textos[input.dataset.codigo] = c.textos[input.dataset.codigo] || {};
-          c.textos[input.dataset.codigo].rotulo = input.value;
-        });
-      });
-      document.getElementById('avpMotorArqCancelarTextosBtn').addEventListener('click', function () { sairComAviso(c, voltarPainelConfigMotores); });
-      document.getElementById('avpMotorArqPublicarTextosBtn').addEventListener('click', function () {
-        if (c.salvando) return;
-        c.salvando = true;
-        render();
-        window.faMotorArquitetura.salvarTextos(c.textos, sessaoAtual(), function (err) {
-          c.salvando = false;
-          if (err) { c.erro = 'Não foi possível publicar os textos. Tente novamente.'; render(); return; }
-          state.configMotores = { sub: 'painel', flash: '✓ Textos publicados com sucesso.' };
-          render();
-        });
-      });
     }
 
     /* ---- AUDITORIA ---- */
@@ -6181,7 +6191,7 @@
       var txtCur = resumoCuradoria(a);
       html += '<dl class="avp-resumo-ficha" id="avpResumoFicha" aria-label="Resumo do estado vigente">';
       html += '<div><dt>Resultado</dt><dd>' + esc(rotuloResultado(a.resultadoAutomatico) || '—') + '</dd></div>';
-      html += '<div><dt>Classificação</dt><dd>' + esc((a.camadaSugerida && a.camadaSugerida.label) || '—') + '</dd></div>';
+      html += '<div><dt>Classificação</dt><dd>' + (a.camadaSugerida ? htmlNomeCamada(a.camadaSugerida) : '—') + '</dd></div>';
       html += '<div><dt>Decisão final</dt><dd>' + esc(rotuloDecisaoFinal(a) || '—') + (a.decisaoManual ? ' (manual)' : '') + '</dd></div>';
       html += '<div><dt>Curadoria</dt><dd>' + esc(txtCur) + '</dd></div>';
       html += '</dl>';
@@ -6201,7 +6211,7 @@
       html += '<p class="avp-natureza-ajuda">A mais recente é a situação vigente do item. As anteriores ficam guardadas sem alteração.</p>';
       html += '<ul class="avp-hist-lista">';
       cadeia.slice().reverse().forEach(function (v) {
-        var camada = v.camadaSugerida && v.camadaSugerida.label;
+        var camada = v.camadaSugerida && (v.camadaSugerida.id || v.camadaSugerida.label) ? v.camadaSugerida : null;
         var ehVigente = v._key === vigenteKey;
         var estaAberta = v._key === a._key;
         html += '<li class="avp-hist-item' + (estaAberta ? ' avp-hist-item--aberta' : '') + '" data-key="' + esc(v._key) + '">';
@@ -6209,7 +6219,7 @@
           (ehVigente ? ' <span class="avp-tag-vigente">vigente</span>' : '') + (estaAberta ? ' <span class="avp-tag-aberta">você está vendo</span>' : '') +
           ' <span class="avp-hist-data">' + fmtData(v.criadoEm || v.atualizadoEm) + '</span></div>';
         html += '<div class="avp-hist-corpo">' + esc(v.status === 'concluido' ? (rotuloDecisaoFinal(v) || '—') : 'Em andamento') +
-          (camada && v.status === 'concluido' ? ' — ' + esc(camada) : '') +
+          (camada && v.status === 'concluido' ? ' — ' + htmlNomeCamada(camada) + ' ' + htmlNaConclusao(camada, '(na conclusão: {})') : '') +
           ' · por ' + esc(v.responsavel && (v.responsavel.name || v.responsavel.email) || '—') + '</div>';
         if (!estaAberta) html += '<button type="button" class="btn btn--sm avp-hist-abrir" data-key="' + esc(v._key) + '">Abrir</button>';
         html += '</li>';
@@ -6286,7 +6296,12 @@
          QUESTIONÁRIO (derivada — não é curadoria) e, recolhido, o "por quê" do sistema. */
       html += '<div class="avp-form-card avp-alt-card">';
       html += '<h4>Classificação arquitetural</h4>';
-      html += '<p class="avp-alt-label">Camada identificada: <strong>' + esc(camada.label) + '</strong></p>';
+      /* Nome ATUAL (Taxonomia Arquitetural, pelo código) — se atualiza sozinho; o nome registrado na
+         conclusão aparece ao lado só quando difere; a definição é a vigente da Taxonomia. */
+      html += '<p class="avp-alt-label">Camada identificada: <strong>' + htmlNomeCamada(camada, 'fa-classif', 'avpCamadaNome') + '</strong>' +
+        (a.camadaSugerida ? ' ' + htmlNaConclusao(camada, 'na conclusão: {}', 'avpCamadaNaConclusao') : '') + '</p>';
+      if (window.faClassificacoes && camada.id) html += window.faClassificacoes.definicaoHtml(camada.id, 'avpCamadaDefinicao');
+      if (camada.id) html += htmlAvisoContingencia([camada.id], 'avpClassifContingencia');
       var espDerivadaTela = especializacaoDerivada(a);
       if (espDerivadaTela) html += '<p class="avp-alt-outras" id="avpEspecializacaoDerivada">Especialização identificada pelo questionário: <strong>' + esc(espDerivadaTela) + '</strong></p>';
       if (camada.conflitoNaturezas) {
@@ -6501,7 +6516,7 @@
         html += '<p class="avp-historico-motor-data">Calculada em ' + fmtData(h.processadoEm) +
           (h.motorVersion ? ' · motor ' + esc(h.motorVersion) : ' · motor sem versão registrada') + '</p>';
         html += '<p>' + esc(rotuloResultado(h.resultadoAutomatico) || '—') +
-          (camadaAntiga && camadaAntiga.label ? ' — ' + esc(camadaAntiga.label) : '') +
+          (camadaAntiga && (camadaAntiga.id || camadaAntiga.label) ? ' — ' + htmlNomeCamada(camadaAntiga) + ' ' + htmlNaConclusao(camadaAntiga, '(na conclusão: {})') : '') +
           (valorEspecializacao(camadaAntiga) ? ' (' + esc(valorEspecializacao(camadaAntiga)) + ')' : '') + '</p>';
         if (h.justificativaAutomatica) {
           html += '<p class="avp-historico-motor-justificativa">' + esc(h.justificativaAutomatica) + '</p>';
@@ -6534,8 +6549,8 @@
         'arquitetural: só os complementa. Não é a "Especialização identificada pelo questionário", que o sistema deriva sozinho e aparece em ' +
         'Classificação arquitetural — essa não é curadoria; ao registrar um valor aqui, ele passa a ser o exibido no lugar dela.</p>';
       html += '<p class="avp-natureza-ajuda" id="avpEspecializacaoAjuda">Aplica-se às classificações que admitem especialização (' +
-        CAMADAS_COM_ESPECIALIZACAO.map(function (id) { var c = camadaPorId(id); return c ? c.label : id; }).join(', ') + ')' +
-        (papelAplicavel ? '. O papel estrutural (essencial ou opcional) vale só para Componente.' : '. O papel estrutural vale só para Componente, e esta classificação não o usa.') + '</p>';
+        CAMADAS_COM_ESPECIALIZACAO.map(function (id) { return nomeClassificacao(id); }).join(', ') + ')' +
+        (papelAplicavel ? '. O papel estrutural (essencial ou opcional) vale só para ' + nomeClassificacao('componente') + '.' : '. O papel estrutural vale só para ' + nomeClassificacao('componente') + ', e esta classificação não o usa.') + '</p>';
       html += '<div class="avp-field">';
       html += '<label for="avpEspecializacaoCadastrada">Especialização (opcional)</label>';
       html += '<input type="text" id="avpEspecializacaoCadastrada" value="' + esc(f.valor) + '" placeholder="Ex.: Instituto previdenciário">';
@@ -7138,7 +7153,7 @@
       var dirtyEsp = valor !== (f.ultimoSalvo || '').trim();
       var dirtyPapel = papelAplicavel && papel !== (f.papelUltimoSalvo || '');
       var vigente = curadoriaRegistrada(a);
-      var camadaInfo = { id: camadaId, label: (a.camadaSugerida && a.camadaSugerida.label) || camadaId };
+      var camadaInfo = { id: camadaId, label: rotuloCamadaAtual(a.camadaSugerida) || camadaId };
       /* SÓ o que foi editado é gravado: salvar a Especialização nunca toca no Papel (nem o
          contrário), mesmo que o outro tenha um cadastro sem efeito ou a revisar — antes, numa
          camada sem Papel, isso apagava o papel antigo em silêncio. Cada valor gravado já nasce
@@ -7183,7 +7198,7 @@
       var campos = {};
       campos[ehEsp ? 'especializacaoCamadaConfirmada' : 'papelEstruturalCamadaConfirmada'] = camadaId;
       var linha = linhaAuditoriaCuradoria(a, ehEsp ? 'alteracao_especializacao' : 'alteracao_papel_estrutural', null, ant.valor,
-        { camada: { id: camadaId, label: (a.camadaSugerida && a.camadaSugerida.label) || camadaId }, confirmacao: true });
+        { camada: { id: camadaId, label: rotuloCamadaAtual(a.camadaSugerida) || camadaId }, confirmacao: true });
       gravarCuradoriaCadastro(campos, [linha],
         ehEsp ? '✓ Especialização confirmada para esta classificação.' : '✓ Papel estrutural confirmado para esta classificação.',
         'Não foi possível confirmar. Tente novamente.');

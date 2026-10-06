@@ -168,8 +168,9 @@ function parteA() {
     afirma(!AUXILIARES.test(just), 'a justificativa da Unidade de valor também não menciona jornada nem mensuração (já não mencionava)');
   }
 
+  /* o nome da classificação é interpolado da Taxonomia (classificacoes.js): a mutação troca a frase inteira pela antiga */
   console.log('\n   prova inversa — com o texto antigo, a conferência falha:');
-  const antigo = Object.assign({}, SRC, { avp: SRC.avp.replace("return '" + RELACAO_APROVADA + "';", "return '" + RELACAO_ANTIGA + "';") });
+  const antigo = Object.assign({}, SRC, { avp: SRC.avp.replace("return 'Depende estruturalmente de um ' + nomeClassificacao('produto-principal') + ', mas constitui uma unidade reconhecível e gerenciável, com resultado próprio para o cliente.';", "return '" + RELACAO_ANTIGA + "';") });
   afirma(antigo.avp !== SRC.avp, '(texto antigo recolocado em memória)');
   const ra = varrer(antigo, v5);
   afirma(ra.problemas.length > 0 && ra.problemas.some((p) => /jornada\/mensuração/.test(p)), 'texto antigo → a conferência FALHA (' + ra.problemas.length + ' problemas; ex.: ' + (ra.problemas[0] || '').slice(0, 70) + '…)');

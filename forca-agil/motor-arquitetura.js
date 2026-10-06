@@ -32,9 +32,10 @@
    motorVersionArquitetura), nunca uma alteração textual.
 
    IDENTIDADE x APRESENTAÇÃO — o código de cada camada (ex.:
-   'produto-principal') é imutável, definido junto com a regra; o RÓTULO
-   exibido (PADRAO_TEXTOS) é parametrizável e resolvido ao vivo, nunca um
-   snapshot por resposta — mesmo princípio de motor-squad.js. A prosa mais
+   'produto-principal') é imutável, definido junto com a regra; o NOME
+   exibido vem da Taxonomia Arquitetural pelo mesmo código
+   (window.faClassificacoes), resolvido ao vivo — PADRAO_TEXTOS abaixo é
+   legado e não é exibido. A prosa mais
    elaborada (motivoJustificativa, relacaoArquitetural, interpretacaoSistema
    em avaliacao-produto.js) permanece hardcoded nesta PR: o pedido desta
    migração é sobre a LÓGICA de decisão (condições e precedência), não
@@ -49,8 +50,9 @@
        avaliacao-produto.js — e de questionnaireContentVersion),
      versoes: { "<n>": { regras: [...], publicadoEm, publicadoPor } },
      rascunho: { regras: [...], atualizadoEm, atualizadoPor } | null,
-     textos: { <camadaId>: { rotulo } } — só o RÓTULO de cada camada é
-       parametrizável por aqui (a lista de 11 camadas em si — identidade —
+     textos: { <camadaId>: { rotulo } } — LEGADO, não exibido (ver
+       PADRAO_TEXTOS); o nome das classificações vem da Taxonomia
+       Arquitetural. Era o RÓTULO de cada camada, parametrizável por aqui (a lista de 11 camadas em si — identidade —
        continua fixa em código, CAMADAS em avaliacao-produto.js); publicado
        imediatamente, nunca versiona motorVersionArquitetura.
    }
@@ -151,9 +153,14 @@
     ]
   };
 
-  /* Só o RÓTULO de cada camada — identidade (CAMADAS, em
-     avaliacao-produto.js) continua fixa em código; isto é só a redação
-     exibida, parametrizável sem versionar motorVersionArquitetura. */
+  /* LEGADO — NÃO É EXIBIDO EM LUGAR NENHUM. Era o "rótulo" de cada camada,
+     editável em "Configuração dos Motores → Editar textos"; nada lia esse
+     valor (cópia morta do nome). O NOME e a DEFINIÇÃO das classificações vêm
+     só da Taxonomia Arquitetural (window.faClassificacoes, classificacoes.js).
+     A tela de edição foi removida; o dado já gravado em
+     motor-arquitetura-config/textos, o histórico dessas edições
+     (motor-arquitetura-auditoria, tipo 'texto') e esta API (textosAtuais/
+     salvarTextos) ficam como estão — nada é apagado. */
   var PADRAO_TEXTOS = {
     'produto-principal': { rotulo: 'Produto/Serviço principal' },
     'unidade-valor-associada': { rotulo: 'Unidade de valor associada' },

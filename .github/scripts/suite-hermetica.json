@@ -466,6 +466,12 @@
       "nome": "Mapa da Floresta configurável: valor de fábrica, leitura do banco, alteração auditada, leitura lenta/falha (desktop e 375 px)",
       "duracao": 16,
       "sobre": "arquitetura-definicoes/MAPA_FLORESTA: sem o nó, o cartão mostra o valor inicial de fábrica marcado como não salvo; com o nó, o texto do banco; editar pela tela grava o estado vigente e a linha de auditoria (anterior → novo) juntos, histórico recolhido; leitura pendente ou que falha nunca mostra o valor de fábrica nem cartão vazio nem oferece edição; gravação recusada mostra o erro e mantém o formulário. Hermético; as regras ficam em teste-rules-perfis-avaliacao.js."
+    },
+    {
+      "arquivo": ".github/scripts/teste-classificacoes-fonte-unica.js",
+      "nome": "Classificações da Avaliação: nome e definição vindos da Taxonomia Arquitetural, contingência e nome da época (desktop e 375 px)",
+      "duracao": 150,
+      "sobre": "O nome de cada classificação vem do conceito de MESMO código da Taxonomia Arquitetural (lista, filtro pelo código, ficha/resultado, histórico de versões, PDF, Excel, frase explicativa, contexto da Squad), ao vivo e sem recarregar; a definição é a da fonte apontada por definicaoVigenteFonteId (outra fonte também marcada vigente não aparece; trocar o ponteiro troca o texto); avaliação antiga mostra o nome atual e \"na conclusão: …\" (Excel com a coluna \"Rótulo registrado na conclusão\"), sem reescrever nada; Taxonomia lenta, que nunca responde ou recusada → rótulo de contingência com aviso discreto, e concluir grava resultado, camadaSugerida.id, decisão e respostas iguais aos de uma conclusão com a Taxonomia; o motor arquitetural não tem mais \"Editar textos\" (histórico antigo legível); Taxonomia › Arquitetural lista os conceitos-base da Avaliação e acusa o código sem conceito. Hermético; as regras ficam em teste-rules-perfis-avaliacao.js."
     }
   ]
 }

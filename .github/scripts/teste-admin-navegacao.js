@@ -148,16 +148,9 @@ async function conferirVoltar(page, sel, rotuloEsperado, descricao) {
     afirma(await page.locator('.avp-modal-confirm-btn').count() === 1, 'depois da simulação a alteração continua pendente: avisa ao sair');
     await page.click('.avp-modal-confirm-btn');
     await page.waitForSelector('#avpMotorArqEditarBtn');
-    /* editar textos */
-    await page.click('#avpMotorArqTextosBtn');
-    await page.waitForSelector('#avpMotorArqPublicarTextosBtn');
-    await conferirVoltar(page, '#avpMotoresVoltarLista', 'Configuração dos Motores', 'editar textos (topo)');
-    await conferirVoltar(page, '#avpMotorArqCancelarTextosBtn', 'Configuração dos Motores', 'editar textos (rodapé)');
-    await page.locator('.sq-texto-rotulo').first().fill('rótulo alterado');
-    await page.click('#avpMotorArqCancelarTextosBtn');
-    afirma(await page.locator('.avp-modal-confirm-btn').count() === 1, 'editar textos com alteração: pede confirmação');
-    await page.click('.avp-modal-confirm-btn');
-    await page.waitForSelector('#avpMotorArqEditarBtn');
+    /* "Editar textos" do motor arquitetural foi removido: gravava um rótulo de classificação que nada
+       exibia — o nome das classificações vem só da Taxonomia Arquitetural (teste-classificacoes-fonte-unica.js) */
+    afirma(await page.locator('#avpMotorArqTextosBtn').count() === 0, 'motor arquitetural: não há mais "Editar textos" (o nome vem da Taxonomia)');
     await page.click('#avpMotoresVoltarLista');
     await page.waitForSelector('#avpConfigQuestionariosBtn');
 
