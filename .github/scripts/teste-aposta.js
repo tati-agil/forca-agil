@@ -956,7 +956,6 @@ const clicarSemRolagem = (page, seletor) => page.$eval(seletor, (el) => el.click
           .find((e) => /verbo/i.test(e.textContent));
         if (l) l.click();
       });
-      await page.waitForTimeout(250);
       const focou = await page.evaluate(() => (document.activeElement || {}).id || '');
       anota('clicar na lacuna leva ao campo que falta', focou === 'ap-verbo', 'foco em "' + focou + '"');
 
@@ -1180,7 +1179,6 @@ const clicarSemRolagem = (page, seletor) => page.$eval(seletor, (el) => el.click
             aindaBloqueado.titulo === tituloAntesBloqueio && aindaBloqueado.desabilitado === true, JSON.stringify(aindaBloqueado));
 
           await page.click('.aposta-mudanca-alerta [data-corrigir]');
-          await page.waitForTimeout(300);
           const corrigido = await page.evaluate(() => ({
             direcao: (document.querySelector('[data-m="direcao"]') || {}).value || '',
             alertaSumiu: !document.querySelector('.aposta-mudanca-alerta'),
@@ -2323,7 +2321,6 @@ const clicarSemRolagem = (page, seletor) => page.$eval(seletor, (el) => el.click
            passa a exigir Motivo em vez deles — nunca os dois ao mesmo
            tempo. */
         await pgEv.click('[data-e="naoMedido"]');
-        await pgEv.waitForTimeout(200);
         const motivoRot = await pgEv.evaluate(() => {
           const input = document.querySelector('[data-e="motivo"]');
           const label = input ? input.closest('.aposta-campo').querySelector('.aposta-campo-rot') : null;
@@ -2431,7 +2428,6 @@ const clicarSemRolagem = (page, seletor) => page.$eval(seletor, (el) => el.click
         anota('"Encerrar por agora" fecha a dinâmica e mostra o aviso de sucesso já na página de trás (Treinamento)',
           posSaida.telaFechada && /Planejamento salvo/i.test(posSaida.toastTxt) && posSaida.toastForaDaTela, JSON.stringify(posSaida));
         await pgSair.click('.aposta-toast-fechar');
-        await pgSair.waitForTimeout(100);
         const toastFechado = await pgSair.evaluate(() => !document.querySelector('.aposta-toast--persistente'));
         anota('o aviso persistente pode ser fechado pelo botão ✕', toastFechado);
         await ctxSair.close();
@@ -2604,7 +2600,6 @@ const clicarSemRolagem = (page, seletor) => page.$eval(seletor, (el) => el.click
         await pgNM.waitForTimeout(300);
         await pgNM.fill('[data-e="motivo"]', 'Pesquisa de satisfação não foi concluída dentro do período.');
         await pgNM.click('[data-e="naoMedido"]');
-        await pgNM.waitForTimeout(300);
         const desligado = await pgNM.evaluate(() => ({
           observado: (document.querySelector('[data-e="observado"]') || {}).disabled,
           fonte: (document.querySelector('[data-e="fonte"]') || {}).disabled,
@@ -2776,7 +2771,6 @@ const clicarSemRolagem = (page, seletor) => page.$eval(seletor, (el) => el.click
           JSON.stringify(sugestaoPrazo));
 
         await pgDec.$eval('#apostaPrazoAlerta [data-prazo-usar]', (el) => el.click());
-        await pgDec.waitForTimeout(250);
         const depoisDeUsar = await pgDec.evaluate(() => ({
           reavaliacao: (document.getElementById('ap-reavaliacao') || {}).value || '',
           alertaVazio: !(document.getElementById('apostaPrazoAlerta') || {}).textContent.trim(),
