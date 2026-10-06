@@ -454,6 +454,12 @@
       "nome": "Taxonomia: exportação Excel (revisão) e JSON (diagnóstico), só leitura (desktop e celular)",
       "duracao": 9,
       "sobre": "Exportação da Taxonomia: JSON com cabeçalho e o nó taxonomia idêntico ao banco; Excel com abas Conceitos, Fontes (inclusive histórica e arquivada), Atributos, Perfis, Relações e Histórico, cabeçalhos em português; nenhuma escrita durante a exportação; leitura que não responde ou é recusada mostra erro visível com o ramo e não baixa nada; some no modo somente leitura. Hermético."
+    },
+    {
+      "arquivo": ".github/scripts/teste-squad-endereco.js",
+      "nome": "Adequação à Squad: título próprio, endereço #avaliacoes?sq=…, F5 e Voltar/Avançar do navegador (desktop e 375 px)",
+      "duracao": 14,
+      "sobre": "Na área Avaliação a Squad troca o título da página para \"Adequação à Squad\" e restaura o original ao sair; #avaliacoes?sq=lista e ?sq=<chave> sobrevivem a F5 e link direto (leitura lenta mostra Carregando, nunca \"não encontrada\"); Voltar/Avançar do navegador andam entre avaliações, lista de squad e avaliação; \"← Voltar para Avaliações\" é botão no topo e no rodapé e não empilha histórico. Hermético."
     }
   ]
 }

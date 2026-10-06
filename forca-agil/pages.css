@@ -1916,11 +1916,15 @@ select.aposta-campo-input { width: auto; min-width: 8.5em; }
 .avp-badge--essencial { background: rgba(245,197,24,.12); border-color: rgba(245,197,24,.5); color: var(--gold-soft); white-space: nowrap; }
 .avp-tag-alterado { font-size: .68rem; color: var(--ink-3); font-style: italic; }
 
+/* "← VOLTAR PARA <DESTINO>": navegação, não um link discreto — tem de ser visto de
+   primeira, inclusive no celular (mesma família visual do .btn, contorno ciano). */
 .avp-voltar-link {
-  background: none; border: none; color: var(--cyan); cursor: pointer; font-size: .82rem;
-  padding: 0; margin-bottom: 14px; display: inline-block;
+  display: inline-flex; align-items: center; gap: 8px; margin-bottom: 14px;
+  font-family: var(--font-mono); font-size: .74rem; letter-spacing: .12em; text-transform: uppercase;
+  color: var(--cyan); background: rgba(24,194,186,.08); border: 1px solid rgba(24,194,186,.55);
+  border-radius: 9px; padding: 10px 16px; cursor: pointer; max-width: 100%; text-align: left;
 }
-.avp-voltar-link:hover { text-decoration: underline; }
+.avp-voltar-link:hover, .avp-voltar-link:focus-visible { background: rgba(24,194,186,.16); border-color: var(--cyan); }
 
 .avp-form-card {
   background: var(--panel); border: 1px solid var(--line-strong); border-radius: 12px;
@@ -2647,6 +2651,12 @@ details.avp-form-card.avp-aut-historico { margin-top: 0; padding: 10px 16px; mar
 }
 
 /* ===== ADMIN › Arquitetura: Documentação e mapas + histórico recolhido (padrão único) ===== */
+.avp-docs-intro { margin: 0 0 14px; color: var(--ink-2); font-size: .92rem; line-height: 1.5; }
+.avp-docs-definicao { margin: 0 0 18px; padding: 16px 18px; border: 1px solid rgba(24,194,186,.45); border-left: 4px solid var(--cyan);
+  border-radius: 10px; background: rgba(24,194,186,.07); }
+.avp-docs-definicao h4 { margin: 0 0 8px; font-size: 1.05rem; color: var(--ink); }
+.avp-docs-definicao-texto { margin: 0 0 10px; font-size: 1rem; line-height: 1.6; color: var(--ink); }
+.avp-docs-definicao-nota { margin: 0; font-size: .86rem; color: var(--ink-2); }
 .avp-docs-lista { display: flex; flex-direction: column; gap: 12px; margin: 14px 0; }
 .avp-doc-item { border: 1px solid var(--line-strong); border-radius: 10px; padding: 12px 14px; background: var(--panel-2); overflow-wrap: anywhere; }
 .avp-doc-item--arquivado { opacity: .75; }

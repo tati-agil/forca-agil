@@ -2303,6 +2303,10 @@
         }
         state.assinaturaAdmin = assinatura;
       }
+      /* Todo histórico começa recolhido: o que a pessoa abriu vale só enquanto ela continua na mesma
+         tela e no mesmo item — outra tela, outra avaliação ou outra versão começam com tudo fechado. */
+      var assinaturaDet = state.tela + '|' + (modo === 'admin' ? subtelaAdmin() : ((state.atual && state.atual._key) || ''));
+      if (state.assinaturaDet !== assinaturaDet) { state.detAbertos = {}; state.assinaturaDet = assinaturaDet; }
       renderTela();
       if (modo === 'admin' && state.rolarPara != null) {
         var alvoRolagem = state.rolarPara;
@@ -2563,6 +2567,7 @@
       var h = location.hash || '';
       if (h.split('?')[0] !== '#avaliacoes') return { t: 'fora' };
       var p = paramsDaHash();
+      if (p.sq) return { t: 'squad', sq: p.sq }; /* Adequação à Squad: o endereço é dela (avaliacao-squad.js) */
       if (p.avp) return { t: 'avaliacao', key: p.avp };
       if (p.reavaliar) return { t: 'reavaliar', key: p.reavaliar };
       if (p.editar) return { t: 'editar', key: p.editar };
@@ -2720,6 +2725,17 @@
           state.tela = 'lista';
           render();
         }
+        fim();
+        return;
+      }
+      if (d.t === 'squad') {
+        /* por baixo fica a lista (é para onde o "← Voltar para Avaliações" leva) */
+        if (state.tela !== 'lista' && state.tela.indexOf('config') !== 0 && state.tela.indexOf('admin') !== 0) {
+          state.atual = null; state.reavaliacaoBase = null; state.snapshotEdicao = null; state.carregandoTravado = false;
+          state.tela = 'lista'; render();
+        }
+        if (!window.faAvaliacaoSquad && window.faInitAvaliacaoSquad) window.faInitAvaliacaoSquad({ modo: 'operacional' });
+        if (window.faAvaliacaoSquad) window.faAvaliacaoSquad.aplicarEndereco(d.sq);
         fim();
         return;
       }
@@ -4144,10 +4160,13 @@
       var d = state.documentacao;
       var html = linkVoltar('avpDocsVoltar', ROTULO_ADMIN);
       html += '<div class="avp-form-card avp-docs"><h3>Documentação e mapas de Arquitetura</h3>';
-      html += '<p class="avp-decisao-aviso">Artefatos de referência da Arquitetura, guardados como link para o arquivo (SharePoint, Drive ou outro). ' +
-        '<strong>Mapa da Floresta</strong>: é uma representação visual da organização estruturada pela lógica de geração de valor. Mostra como a PREVI se organiza em Linhas, ' +
-        'Centros de Excelência (CoE) e Áreas Especializadas e como essas estruturas contribuem para a entrega de produtos e serviços aos clientes. ' +
-        'Não é um conceito da Taxonomia nem tem relação com o Mapa da Aposta da dinâmica de turma.</p>';
+      html += '<p class="avp-docs-intro">Artefatos de referência da Arquitetura, guardados como link para o arquivo (SharePoint, Drive ou outro).</p>';
+      /* Definição aprovada pela dona, texto exato — em destaque, não escondida em nota pequena */
+      html += '<section class="avp-docs-definicao" id="avpDocsMapaFloresta" aria-labelledby="avpDocsMapaFlorestaTitulo">' +
+        '<h4 id="avpDocsMapaFlorestaTitulo">Mapa da Floresta</h4>' +
+        '<p class="avp-docs-definicao-texto">É uma representação visual organizada pela lógica de geração de valor. Mostra como a PREVI se organiza em Linhas, ' +
+        'Centros de Excelência (CoE) e Áreas Especializadas e como essas estruturas contribuem para a entrega de produtos e serviços aos clientes.</p>' +
+        '<p class="avp-docs-definicao-nota">Não é um conceito da Taxonomia e não tem relação com o Mapa da Aposta.</p></section>';
       if (d.flash) html += '<p class="avp-flash-success avp-flash-success--inline" id="avpDocsFlash">' + esc(d.flash) + '</p>';
       if (d.carregando) html += '<p class="loading-msg">Carregando documentação…</p>';
       if (d.erro) html += '<p class="avp-error-msg" id="avpDocsErro">' + esc(d.erro) + ' <button type="button" class="btn btn--sm" id="avpDocsTentar">Tentar novamente</button></p>';
@@ -6520,7 +6539,8 @@
     /* "— N alterações" no cabeçalho (padrão único dos históricos); vazio enquanto carrega. */
     function contagemHistoricoCuradoria(daDecisao) {
       var h = state.curadoriaHist;
-      if (!h || h.carregando || h.erro) return '';
+      if (!h || h.carregando) return ' — carregando…';
+      if (h.erro) return ' — não foi possível carregar';
       var n = h.itens.filter(function (e) { return (e.tipo === 'alteracao_decisao_final') === !!daDecisao; }).length;
       return ' — ' + n + (n === 1 ? ' alteração' : ' alterações');
     }

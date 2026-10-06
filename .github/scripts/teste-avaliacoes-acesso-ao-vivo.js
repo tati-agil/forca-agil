@@ -89,7 +89,7 @@ const larguraOk = (page) => page.evaluate(() => document.documentElement.scrollW
     await page.waitForSelector('#avaliacoesSquad #sqNovaBtn', { timeout: 8000 });
     afirma(await page.locator('#avaliacoesPainel').isHidden(), 'a lista de squad toma o lugar da lista de avaliações');
     afirma(await page.locator('#sqMotorConfigBtn, #sqMotorEditarRegrasBtn').count() === 0, 'a configuração do motor de squad NÃO aparece aqui (é do ADMIN › Arquitetura)');
-    afirma(/Voltar para Avaliações/.test(await page.locator('#sqVoltarArquitetura').innerText()), 'o Voltar diz "← Voltar para Avaliações"');
+    afirma(/Voltar para Avaliações/i.test(await page.locator('#sqVoltarArquitetura').innerText()), 'o Voltar diz "← Voltar para Avaliações"');
     await page.click('#sqNovaBtn');
     await page.waitForSelector('#sqfEscolhaNovo');
     await page.click('#sqfEscolhaNovo');

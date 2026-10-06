@@ -285,11 +285,91 @@
       var arqWrap = vizinho();
       if (arqWrap) arqWrap.hidden = true;
       wrap.hidden = false;
+      trocarIdentidade(true);
     }
     function voltarParaArquitetura() {
       wrap.hidden = true;
       var arqWrap = vizinho();
       if (arqWrap) arqWrap.hidden = false;
+      trocarIdentidade(false);
+    }
+    /* Operacional: a Squad mora dentro de #avaliacoes, mas não é Produto/Serviço — enquanto
+       ela está na tela, o cabeçalho da página diz "Adequação à Squad"; ao sair, volta o original. */
+    var identidadeOriginal = null;
+    function trocarIdentidade(squad) {
+      if (modo !== 'operacional') return;
+      var secao = wrap.closest('.page-section');
+      var hero = secao && secao.querySelector('.page-hero');
+      if (!hero) return;
+      var eyebrow = hero.querySelector('.eyebrow'), h1 = hero.querySelector('h1'), p = hero.querySelector('p');
+      if (!identidadeOriginal) identidadeOriginal = { eyebrow: eyebrow ? eyebrow.textContent : '', h1: h1 ? h1.textContent : '', p: p ? p.textContent : '' };
+      var t = squad ? { eyebrow: 'Squad', h1: 'Adequação à Squad', p: 'Evidências S1 a S8 de adequação à gestão por squad de cada item.' } : identidadeOriginal;
+      if (eyebrow) eyebrow.textContent = t.eyebrow;
+      if (h1) h1.textContent = t.h1;
+      if (p) p.textContent = t.p;
+      hero.classList.toggle('page-hero--squad', !!squad);
+    }
+
+    /* ===================== ENDEREÇO (só operacional) =====================
+       #avaliacoes?sq=lista   lista de squad
+       #avaliacoes?sq=<chave> uma avaliação de squad (resultado ou rascunho salvo)
+       F5 e link direto reabrem a mesma tela; o Voltar/Avançar do navegador anda entre elas. Uma
+       avaliação nova ainda não salva não tem endereço próprio (fica em ?sq=lista: o F5 recomeça
+       da lista, como na avaliação de Produto/Serviço). Cada entrada guarda de onde veio
+       (sqAnterior): o "← Voltar" para esse destino é o Voltar do navegador — nunca empilha. */
+    function sqDoEndereco() {
+      var h = location.hash || '';
+      if (h.split('?')[0] !== '#avaliacoes') return null;
+      var m = /[?&]sq=([^&]*)/.exec(h);
+      return m ? decodeURIComponent(m[1]) : null;
+    }
+    function enderecoDesejado() {
+      if (wrap.hidden || state.tela === 'nao-encontrada') return null; /* não encontrada: o endereço continua o pedido */
+      if ((state.tela === 'resultado' || state.tela === 'checklist') && state.atual && state.atual._key) return '#avaliacoes?sq=' + encodeURIComponent(state.atual._key);
+      if (state.tela === 'carregando' && state.pendente) return '#avaliacoes?sq=' + encodeURIComponent(state.pendente);
+      return '#avaliacoes?sq=lista';
+    }
+    var aplicandoEndereco = false;
+    function sincronizarEndereco() {
+      if (modo !== 'operacional' || aplicandoEndereco) return;
+      var desejado = enderecoDesejado();
+      if (!desejado || location.hash === desejado) return;
+      if ((location.hash || '').split('?')[0] !== '#avaliacoes') return;
+      var st = history.state;
+      if (st && st.sqAnterior === desejado) { history.back(); return; }
+      /* avp:1 — a entrada é reconhecida por avaliacao-produto.js (que não a reescreve) */
+      history.pushState({ avp: 1, seq: Date.now(), origem: null, sqAnterior: location.hash || '#avaliacoes' }, '', desejado);
+    }
+    /* "← Voltar para Avaliações": com a lista de avaliações logo atrás no histórico, é o Voltar do
+       navegador; sem ela (F5, link direto), substitui a entrada por #avaliacoes e fecha a Squad. */
+    function sairParaAvaliacoes() {
+      var st = history.state;
+      if (st && st.sqAnterior && st.sqAnterior.split('?')[0] === '#avaliacoes' && !/[?&]sq=/.test(st.sqAnterior)) { history.back(); return; }
+      history.replaceState({ avp: 1, seq: Date.now(), origem: null }, '', '#avaliacoes');
+      voltarParaArquitetura();
+    }
+    function aplicarEndereco(sq) {
+      if (modo !== 'operacional' || !sq) return;
+      aplicandoEndereco = true;
+      try {
+        mostrarPainel();
+        if (sq === 'lista') {
+          if (state.tela !== 'lista') { state.atual = null; state.pendente = null; state.flashResultado = null; state.tela = 'lista'; }
+          render();
+        } else if (state.atual && state.atual._key === sq && (state.tela === 'resultado' || state.tela === 'checklist')) {
+          /* já é esta */
+        } else if (!state.itensCarregados) {
+          state.pendente = sq; state.tela = 'carregando'; render();
+        } else {
+          state.pendente = null; abrirExistente(sq);
+        }
+      } finally { aplicandoEndereco = false; }
+    }
+    function resolverPendente() {
+      if (!state.pendente || state.tela !== 'carregando') return;
+      var k = state.pendente; state.pendente = null;
+      aplicandoEndereco = true;
+      try { abrirExistente(k); } finally { aplicandoEndereco = false; }
     }
 
     function render() {
@@ -306,6 +386,7 @@
           '<button class="btn" id="sqVoltarNaoEncontrada">← Voltar para Adequação à Squad</button>';
         byId('sqVoltarNaoEncontrada').addEventListener('click', function () { state.tela = 'lista'; render(); });
       }
+      sincronizarEndereco();
     }
 
     /* ===================== LISTA ===================== */
@@ -370,9 +451,11 @@
         });
         html += '</tbody></table></div>';
       }
+      html += '<div class="avp-actions-footer avp-voltar-rodape"><button type="button" class="btn" id="sqVoltarArquiteturaRodape">← Voltar para Avaliações</button></div>';
       wrap.innerHTML = html;
 
-      byId('sqVoltarArquitetura').addEventListener('click', voltarParaArquitetura);
+      byId('sqVoltarArquitetura').addEventListener('click', sairParaAvaliacoes);
+      byId('sqVoltarArquiteturaRodape').addEventListener('click', sairParaAvaliacoes);
       var flashClose = byId('sqFlashListaClose');
       if (flashClose) flashClose.addEventListener('click', function () { state.flashLista = null; render(); });
       byId('sqFiltroTexto').addEventListener('input', function (e) { state.filtroTexto = e.target.value; render(); });
@@ -461,7 +544,8 @@
         if (emAndamento) { abrirExistente(emAndamento._key); return; }
         iniciarNovaAvaliacao(opts);
       },
-      fechar: function () { if (!wrap.hidden) voltarParaArquitetura(); }
+      fechar: function () { if (!wrap.hidden) voltarParaArquitetura(); },
+      aplicarEndereco: aplicarEndereco
     };
 
     /* Contexto arquitetural (item 11) — SOMENTE LEITURA, nunca usado para
@@ -1828,10 +1912,12 @@
       snap.forEach(function (c) { arr.push(Object.assign({ _key: c.key }, c.val())); });
       state.itens = arr;
       state.itensCarregados = true;
-      if (state.tela === 'lista' && !wrap.hidden) render();
+      if (state.tela === 'carregando') resolverPendente();
+      else if (state.tela === 'lista' && !wrap.hidden) render();
     }
     function aoFalharItens(err) {
       state.itensCarregados = true;
+      if (state.tela === 'carregando') resolverPendente(); /* sem as avaliações: "não encontrada", nunca "Carregando…" para sempre */
       console.error('[avaliacao-squad] erro ao carregar avaliacoes-squad:', err);
     }
     /* Leitura ao vivo de avaliacoes-produto só pra alimentar a busca de item
@@ -1883,6 +1969,7 @@
       wrap.innerHTML = '';
       var arqWrap = vizinho();
       if (arqWrap) arqWrap.hidden = false;
+      trocarIdentidade(false);
     }
     function aoMudarSessao() {
       var pessoa = emailDaSessao();
@@ -1898,7 +1985,13 @@
        interna; qualquer troca de endereço (Voltar do navegador, menu, link) é a pessoa saindo
        do Squad — devolve a área das avaliações em vez de deixar as duas telas abertas. */
     if (modo === 'operacional') {
-      window.addEventListener('hashchange', function () { if (!wrap.hidden) voltarParaArquitetura(); });
+      window.addEventListener('hashchange', function () {
+        var sq = sqDoEndereco();
+        if (sq === null) { if (!wrap.hidden) voltarParaArquitetura(); return; }
+        aplicarEndereco(sq);
+      });
+      /* F5 / link direto em #avaliacoes?sq=…: este módulo pode montar depois de a lista ler o endereço */
+      if (sqDoEndereco()) aplicarEndereco(sqDoEndereco());
     }
     return api;
   }
