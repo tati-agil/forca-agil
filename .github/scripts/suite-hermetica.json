@@ -451,6 +451,12 @@
       "sobre": "Com rede lenta, o perfil da Avaliação ou a lista de admins chega depois de a página aparecer e a pessoa já está rolando; o roteador refaz a decisão de rota (show(rota, true)) e, se ela continua na MESMA página, a posição é preservada (antes voltava ao topo — o \"tela inicial rolada (50 px)\" de teste-admin-navegacao.js no CI). Mudança real de página continua começando no topo. Confere que a informação tardia chegou DEPOIS da rolagem. Hermético."
     },
     {
+      "arquivo": ".github/scripts/teste-taxonomia-atributos.js",
+      "nome": "Taxonomia: \"Atributos / perfil\" recolhível (desktop e celular)",
+      "duracao": 25,
+      "sobre": "Na ficha do conceito, \"Atributos / perfil\" começa recolhido com \"X definidos de N\" (definido = estado decidido; \"ainda não definido\" e sem registro não contam); expande e recolhe pelo cabeçalho sem gravar nada; editar um atributo continua gravando, a seção fica aberta e a contagem acompanha; trocar de conceito recolhe; perfis lentos mostram \"carregando…\" e recusados \"indisponível agora\", nunca \"0 definidos\". Hermético."
+    },
+    {
       "arquivo": ".github/scripts/teste-taxonomia-nova-versao.js",
       "nome": "Taxonomia: texto-fonte imutável e \"Nova versão da definição\" (desktop e celular)",
       "duracao": 11,

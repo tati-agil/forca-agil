@@ -1058,7 +1058,7 @@
   function idDet(tipo, dom, codigo) { return tipo + ':' + dom + ':' + codigo; }
   /* trocar de conceito volta os históricos (e as fontes) ao padrão: históricos sempre começam fechados */
   function zerarDetConceito() {
-    chaves(st.detAbertos).forEach(function (k) { if (/^(hist|audd|outras):/.test(k)) delete st.detAbertos[k]; });
+    chaves(st.detAbertos).forEach(function (k) { if (/^(hist|audd|outras|atr):/.test(k)) delete st.detAbertos[k]; });
   }
 
   /* ---------- histórico: o MESMO formato no conceito e no histórico global ----------
@@ -1372,11 +1372,17 @@
 
   function renderAtributos(dom, codigo, det) {
     var D = st.d[dom], e = D.edicao, ed = podeEditar();
-    var html = '<section class="tax-sec" id="taxSecAtributos"><h4>Atributos / perfil</h4>';
+    var atrs = ordenaPor(chaves(D.atributos).map(function (k) { return Object.assign({ _cod: k }, D.atributos[k]); }), 'ordem');
+    /* RECOLHÍVEL (começa fechado; trocar de conceito fecha de novo). "Definidos" = atributos com estado já decidido —
+       tudo que não é "ainda não definido" nem está sem registro. Só apresentação: nenhum dado muda. */
+    var definidos = atrs.filter(function (a) { var p = det.perfis[a._cod]; return p && p.estado && p.estado !== 'ainda não definido'; }).length;
+    var resumo = det.erros.perfis ? ' — indisponível agora' : (det.carregando && !chaves(det.perfis).length ? ' — carregando…' : ' — ' + plural(definidos, 'definido', 'definidos') + (atrs.length ? ' de ' + atrs.length : ''));
+    var idA = idDet('atr', dom, codigo), editandoPerfil = !!(e && e.tipo === 'perfil');
+    var html = '<section class="tax-sec tax-sec--atributos" id="taxSecAtributos"><details class="tax-recolhivel tax-atributos" id="taxAtributosRecolhivel" data-det="' + esc(idA) + '"' + detAberto(idA, editandoPerfil) + '>' +
+      '<summary class="tax-recolhivel-cab tax-atributos-cab" id="taxAtributosResumo"><span class="tax-atributos-titulo">Atributos / perfil</span><span class="tax-atributos-contagem">' + esc(resumo) + '</span></summary>';
     html += '<p class="tax-ajuda">Descrevem e confirmam. Nenhum atributo, sozinho, define o tipo.</p>';
     html += '<div class="tax-legenda" id="taxLegenda"><p class="tax-ajuda"><strong>Papel</strong> — <strong>definidor</strong>: ' + PAPEL_SIGNIFICADO['definidor'] + ' · <strong>típico</strong>: ' + PAPEL_SIGNIFICADO['típico'] + ' · <strong>observado</strong>: ' + PAPEL_SIGNIFICADO['observado'] + '.</p>' +
       '<p class="tax-ajuda"><strong>Origem</strong> — <strong>fonte</strong>: está nos textos-fonte · <strong>inferência</strong>: leitura nossa, nunca dado de fonte nem decisão aprovada · <strong>decisão</strong>: escolha aprovada.</p></div>';
-    var atrs = ordenaPor(chaves(D.atributos).map(function (k) { return Object.assign({ _cod: k }, D.atributos[k]); }), 'ordem');
     if (det.erros.perfis) html += '<p class="tax-aviso-erro">Não foi possível carregar os atributos agora.</p>';
     else if (!atrs.length) html += '<p class="tax-ausencia">O catálogo de atributos está vazio.</p>';
     atrs.forEach(function (a) {
@@ -1406,7 +1412,7 @@
       }
       html += '</div>';
     });
-    return html + '</section>';
+    return html + '</details></section>';
   }
 
   /* e) Relações: SAÍDA (este conceito → outro) e ENTRADA (outro → este conceito), separadas e rotuladas.

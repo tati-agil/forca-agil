@@ -5348,7 +5348,7 @@
         var qtdNovas = Object.keys(novas).length;
         if (qtdNovas) html += '<p class="sq-regra-novas">' + qtdNovas + (qtdNovas === 1 ? ' condição acrescentada' : ' condições acrescentadas') + ' neste rascunho — ainda não publicada' + (qtdNovas === 1 ? '' : 's') + '</p>';
         html += window.faMotorArquitetura.ehFallback(regra)
-          ? '<p class="sq-cond-rotulo">Esta é a regra de fallback: vale sempre que nenhuma regra anterior bater — o item fica como "A validar" para análise humana.</p>'
+          ? '<p class="sq-cond-rotulo">Esta é a regra de fallback: vale sempre que nenhuma regra anterior bater — o item fica como "' + esc(nomeCamadaMotor('a-validar')) + '" para análise humana.</p>'
           : renderCondicaoArqEditavel(regra.condicoes, c.leafRefs, '', { codigo: regra.codigo, novas: novas });
         if (aceitaNovaCondicao(regra)) {
           html += '<div class="sq-regra-acoes">' + renderAdicionarCondicao(c, regra);

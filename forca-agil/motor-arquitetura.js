@@ -77,6 +77,9 @@
   ];
 
   function db() { return firebase.database(); }
+  /* Só para TEXTO de mensagem: o nome vigente vem da Taxonomia (window.faClassificacoes, que já cai no
+     rótulo de fábrica quando ela não responde). O motor nunca decide nada pelo nome. */
+  function nomeAValidar() { return window.faClassificacoes && window.faClassificacoes.nome ? window.faClassificacoes.nome('a-validar') : 'A validar'; }
 
   /* ===================== REGRAS DE FÁBRICA (tradução literal do identificarCamada
      original — ver cabeçalho) ===================== */
@@ -718,7 +721,7 @@
          grupo "PELO MENOS" — sem nenhuma, a regra citaria uma lista vazia; e
          só faz sentido levando a "A validar", nunca a uma camada. */
       if (r.conflitoDinamico) {
-        if (r.resultado !== 'a-validar') erros.push('Regra ' + nome + ' de conflito dinâmico precisa classificar como "A validar".');
+        if (r.resultado !== 'a-validar') erros.push('Regra ' + nome + ' de conflito dinâmico precisa classificar como "' + nomeAValidar() + '" (a-validar).');
         if (r.conflito) erros.push('Regra ' + nome + ' de conflito dinâmico não pode ter também uma lista fixa de conflito.');
         if (!folhasDeNatureza(r).length) erros.push('Regra ' + nome + ' de conflito dinâmico precisa de um grupo "PELO MENOS" com naturezas P11–P15 = SIM.');
       }

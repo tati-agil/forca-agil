@@ -2786,3 +2786,12 @@ details.avp-form-card.avp-aut-historico { margin-top: 0; padding: 10px 16px; mar
   .tax-rel-acoes { display: flex; margin: 6px 0 0; }
   .tax-base-item { display: block; }
 }
+/* Ficha do conceito — "Atributos / perfil" recolhível (Etapa 6.1): o cabeçalho faz o papel do título da seção */
+.tax-atributos > .tax-atributos-cab { display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 6px; font-size: 1rem; }
+.tax-atributos-titulo { font-weight: 700; }
+.tax-atributos-contagem { font-weight: 400; font-size: .86rem; color: var(--ink-3); }
+.tax-atributos > .tax-atributos-cab { list-style: none; cursor: pointer; }
+.tax-atributos > .tax-atributos-cab::-webkit-details-marker { display: none; }
+.tax-atributos > .tax-atributos-cab::before { content: '▸'; color: var(--gold); display: inline-block; width: 1em; transition: transform .15s ease; }
+.tax-atributos[open] > .tax-atributos-cab::before { transform: rotate(90deg); }
+.tax-atributos[open] > .tax-atributos-cab { margin-bottom: 6px; }

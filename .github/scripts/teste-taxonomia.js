@@ -31,6 +31,14 @@ const { chromium } = require('playwright');
 const fs = require('fs');
 const path = require('path');
 const { esperarCondicao, esperarSessaoAssentada } = require('./esperas');
+/* Etapa 6.1: "Atributos / perfil" começa RECOLHIDO — abrir (clicando no cabeçalho, como a pessoa) antes de ler ou editar */
+async function abrirAtributos(page) {
+  /* decide só com a ficha ASSENTADA: logo depois de salvar ela recarrega, e um clique nesse meio fecharia o que já estava aberto */
+  await esperarCondicao(page, () => !!document.getElementById('taxAtributosRecolhivel') && !document.querySelector('.tax-detalhe .loading-msg') && !/carregando/.test((document.getElementById('taxAtributosResumo') || {}).textContent || '') && !document.querySelector('#taxFlash ~ * .tax-salvando'), null, { descricao: 'ficha do conceito assentada' });
+  if (await page.evaluate(() => { const d = document.getElementById('taxAtributosRecolhivel'); return !!d && d.open; })) return;
+  await page.click('#taxAtributosRecolhivel > summary');
+  await page.waitForFunction(() => { const d = document.getElementById('taxAtributosRecolhivel'); return !!d && d.open; }, null, { timeout: 4000 });
+}
 
 const BASE = process.env.FA_BASE_URL || 'http://127.0.0.1:8811';
 const FALSO = fs.readFileSync(path.join(__dirname, 'persistencia-firebase-real.js'), 'utf8') + '\n' +
@@ -299,6 +307,7 @@ const ordemSecoes = (page, ids) => page.evaluate((lista) => lista.map((id) => { 
     afirma(await page.locator('#taxSecFontes .btn--primary').count() === 0, 'nenhum botão dourado na lista (o destaque só existe na confirmação)');
     t = await page.locator('#taxSecPergunta').innerText();
     afirma(/Pergunta fictícia sobre Alfa\?/.test(t) && /Critério fictício A1/.test(t) && /Observação fictícia de Alfa\./.test(t), 'pergunta discriminadora, critérios e observações');
+    await abrirAtributos(page);
     t = await page.locator('#taxSecAtributos').innerText();
     afirma(/Alcance de atuação/.test(t) && /transversal/.test(t) && /Papel: observado/.test(t) && /Origem: decisão/.test(t), 'perfil: "Alcance de atuação" com valor, "Papel: observado" e "Origem: decisão"');
     afirma(/observado: valor presente na fonte ou registrado no perfil, mas ainda não curado como característica definidora ou típica do conceito/.test(await page.locator('#taxLegenda').innerText()), 'a tela DEFINE "observado": valor presente na fonte ou registrado no perfil, mas ainda não curado como definidor ou típico');
@@ -382,6 +391,7 @@ const ordemSecoes = (page, ids) => page.evaluate((lista) => lista.map((id) => { 
 
     console.log('\n== 5b. Inferência pode ser alterada sem mexer no texto-fonte ==');
     const fontesAntes = JSON.stringify((await banco(page)).taxonomia.organizacional.fontes.ALFA);
+    await abrirAtributos(page);
     await page.click('[data-tax="editar-perfil"][data-atributo="FORMA"]');
     afirma(await page.inputValue('#taxF_origem') === 'inferência' && await page.inputValue('#taxF_papel') === 'observado', 'o formulário abre com a origem "inferência" e o papel "observado" atuais');
     await page.fill('#taxF_valor', 'Forma inferida fictícia, revisada');
@@ -393,6 +403,7 @@ const ordemSecoes = (page, ids) => page.evaluate((lista) => lista.map((id) => { 
     afirma(Object.values(b.organizacional.auditoria.ALFA).some((l) => l.tipo === 'alteracao_perfil' && l.campo === 'Forma de entrega/consumo'), 'a alteração do valor inferido foi auditada');
 
     console.log('\n== 6. Edição de perfil: ausência é estado ==');
+    await abrirAtributos(page);
     await page.click('[data-tax="editar-perfil"][data-atributo="BENEFICIARIO"]');
     await page.selectOption('#taxF_estado', 'ainda não definido');
     afirma(await page.locator('#taxF_valor').count() === 0, 'em estado de ausência não há campo de valor');
@@ -401,6 +412,7 @@ const ordemSecoes = (page, ids) => page.evaluate((lista) => lista.map((id) => { 
     b = (await banco(page)).taxonomia;
     afirma(JSON.stringify(Object.keys(b.organizacional.perfis.ALFA.BENEFICIARIO).sort()) === JSON.stringify(['atualizadoEm', 'estado']) && b.organizacional.perfis.ALFA.BENEFICIARIO.estado === 'ainda não definido', 'gravado só com o estado (sem valor, papel nem origem)');
     await aparece(page, '[data-atributo="BENEFICIARIO"] .tax-valor--ausente');
+    await abrirAtributos(page);
     await page.click('[data-tax="editar-perfil"][data-atributo="CONSUMIDOR"]');
     await page.selectOption('#taxF_estado', 'registrado');
     await page.click('[data-tax="salvar-edicao"]');
