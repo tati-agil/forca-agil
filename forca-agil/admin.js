@@ -45,6 +45,24 @@
     }
   }
 
+  /* Fora do DOMContentLoaded de propósito: com a página aberta já em #admin (F5), initAdmin roda
+     no instante do onPageInit abaixo — antes das linhas seguintes — e o bloco da Arquitetura já
+     precisa poder abrir a própria aba. */
+  function ativarAba(target) {
+    document.querySelectorAll('.admin-tab-btn').forEach(function (b) { b.classList.toggle('active', b.dataset.panel === target); });
+    document.querySelectorAll('.admin-tab-panel').forEach(function (p) { p.classList.toggle('active', p.id === target); });
+    updateExpandBar(target);
+  }
+  /* A Arquitetura tem endereço próprio por área (#admin?arq=…, ver avaliacao-produto.js):
+     quem chega por ele (F5, Voltar do navegador) cai direto na aba; trocar para outra aba
+     devolve o endereço a #admin, para um F5 lá não reabrir a Arquitetura. */
+  window.faAdminAbrirAba = function (target) {
+    var btn = document.querySelector('.admin-tab-btn[data-panel="' + target + '"]');
+    if (!btn || btn.hidden) return false;
+    ativarAba(target);
+    return true;
+  };
+
   document.addEventListener('DOMContentLoaded', function () {
     if (window.faRouter) window.faRouter.onPageInit('admin', initAdmin);
 
@@ -52,12 +70,9 @@
     document.querySelectorAll('.admin-tab-btn').forEach(function (btn) {
       btn.addEventListener('click', function () {
         const target = btn.dataset.panel;
-        document.querySelectorAll('.admin-tab-btn').forEach(function (b) { b.classList.remove('active'); });
-        document.querySelectorAll('.admin-tab-panel').forEach(function (p) { p.classList.remove('active'); });
-        btn.classList.add('active');
-        const panel = document.getElementById(target);
-        if (panel) panel.classList.add('active');
-        updateExpandBar(target);
+        ativarAba(target);
+        if (target !== 'adminPanelArquitetura' && /[?&]arq=/.test(location.hash)) history.replaceState(history.state, '', '#admin');
+        else if (target === 'adminPanelArquitetura') window.dispatchEvent(new CustomEvent('fa-admin-aba-arquitetura'));
       });
     });
 
@@ -143,7 +158,7 @@
     if (window.faInitTestes) window.faInitTestes();
     if (window.faInitPedidos) window.faInitPedidos();
     if (window.faInitDashboard) window.faInitDashboard();
-    /* Squad primeiro: o cartão "Adequação à Squad" só é desenhado se window.faAvaliacaoSquad
+    /* Squad primeiro: o cartão "Motor de Squad" só é desenhado se window.faAvaliacaoSquadAdmin
        já existir na primeira renderização do bloco de Avaliação. */
     if (window.faInitAvaliacaoSquad) window.faInitAvaliacaoSquad();
     if (window.faInitAvaliacaoProduto) window.faInitAvaliacaoProduto({ modo: 'admin' });
@@ -192,7 +207,7 @@
     if (bar) bar.hidden = true;
     var exp = document.getElementById('adminExpandBar');
     if (exp) exp.hidden = true;
-    /* Squad primeiro: o cartão "Adequação à Squad" só é desenhado se window.faAvaliacaoSquad
+    /* Squad primeiro: o cartão "Motor de Squad" só é desenhado se window.faAvaliacaoSquadAdmin
        já existir na primeira renderização do bloco de Avaliação. */
     if (window.faInitAvaliacaoSquad) window.faInitAvaliacaoSquad();
     if (window.faInitAvaliacaoProduto) window.faInitAvaliacaoProduto({ modo: 'admin' });

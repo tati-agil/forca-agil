@@ -334,7 +334,7 @@ async function passo(nome, fn) { try { await fn(); } catch (e) { afirma(false, n
       const yH = await topo(page, '#avpSecaoHistorico'), yQ = await topo(page, '#avpQuestionarioCard');
       afirma(yH < yQ, 'o questionário (evidência) vem por último');
       /* navegação existente */
-      await page.click('.avp-hist-abrir[data-key="v1"]');
+      await page.evaluate(() => { const d = document.getElementById('avpHistoricoVersoesLista'); if (d) d.open = true; }); /* o Histórico de versões fica recolhido: a pessoa abre antes de escolher a versão */ await page.click('.avp-hist-abrir[data-key="v1"]');
       await page.waitForSelector('#avpAvisoVersaoAnterior', { timeout: 5000 });
       afirma(await page.locator('#avpReavaliarBtn').count() === 0 && await page.locator('#avpAbrirVigente').count() === 1, 'versão anterior: sem Reavaliar, com "Abrir a versão vigente"');
       afirma(await page.locator('#avpCabecalhoFicha #avpGerarPdfBtn').count() === 1, 'e o GERAR PDF continua disponível');

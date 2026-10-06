@@ -106,7 +106,7 @@ async function abrirAbaArquitetura(page) {
   await btn.click();
   return true;
 }
-const QUATRO = ['#avpConfigQuestionariosBtn', '#avpConfigMotoresBtn', '#avpConfigNaturezasBtn', '#avpAdequacaoSquadListaBtn'];
+const QUATRO = ['#avpConfigQuestionariosBtn', '#avpConfigMotoresBtn', '#avpConfigNaturezasBtn', '#avpMotorSquadInicioBtn'];
 async function quatroCartoes(page) {
   for (const sel of QUATRO) if (await contar(page, sel) !== 1) return false;
   return true;
@@ -132,11 +132,11 @@ async function quatroCartoes(page) {
       await entrar(page, ARQ);
       await irPara(page, '#admin');
       await page.waitForSelector('#avpConfigQuestionariosBtn', { timeout: 10000 }).catch(() => {});
-      afirma(await hash(page) === '#admin', '3-4) "Avaliação + Arquitetura" entra no ADMIN');
-      afirma(await quatroCartoes(page), '5) volta ao INÍCIO da Arquitetura com os 4 cartões (Questionários, Motores, Naturezas, Squad)');
+      afirma(/^#admin(\?arq=inicio)?$/.test(await hash(page)), '3-4) "Avaliação + Arquitetura" entra no ADMIN (' + await hash(page) + ')');
+      afirma(await quatroCartoes(page), '5) volta ao INÍCIO da Arquitetura com os 4 cartões (Questionários, Motores, Naturezas, Motor de Squad)');
       afirma(await contar(page, '#avpUsuariosBtn') === 0, '6) NÃO vê o cartão "Usuários autorizados"');
       afirma(await contar(page, '#avpAutAdicionarBtn') === 0 && !/Só administradores gerais/.test(await textoDoAdmin(page)), '6) nem a tela de "Usuários autorizados" nem a mensagem de "só administradores gerais"');
-      afirma(!(await barraDeAbasVisivel(page)) && await abasVisiveis(page) === 1, 'o ADMIN dele continua só com a Arquitetura (sem barra de abas)');
+      { const barra = await barraDeAbasVisivel(page), nAbas = await abasVisiveis(page); afirma(!barra && nAbas === 1, 'o ADMIN dele continua só com a Arquitetura (sem barra de abas) — barra ' + (barra ? 'visível' : 'escondida') + ', ' + nAbas + ' aba(s)'); }
       afirma(await larguraOk(page), 'sem rolagem horizontal');
 
       await sair(page);

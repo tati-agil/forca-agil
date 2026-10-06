@@ -92,9 +92,11 @@ const larguraOk = (page) => page.evaluate(() => document.documentElement.scrollW
     const ident = await page.locator('#avpIdentificacao').textContent(); /* descrição, público, necessidade e observações ficam recolhidos em "Dados do item" */
     afirma(/Plano Exemplo/.test(ident) && /v3/.test(ident) && /descrição do Plano Exemplo/.test(ident) && /participantes/.test(ident) && /entender o plano/.test(ident) && /obs gerais/.test(ident) && /Avaliadora 3/i.test(ident), 'Identificação: nome, versão, descrição, público, necessidade, observações e quem avaliou');
     afirma(!/versão anterior/i.test(ident) && await contar(page, '#avpAvisoVersaoAnterior') === 0, 'a vigente não tem aviso de versão anterior');
-    afirma(await contar(page, '#avpReavaliarBtn') === 1 && await contar(page, '#avpSalvarDecisaoBtn') === 1, 'vigente: Reavaliar e decisão editável (quem tem acesso)');
+    /* avaliar ≠ decidir: o tipo "Avaliação" reavalia, mas a decisão arquitetural é de "Avaliação + Arquitetura" (teste-avaliacoes-acessos.js) */
+    afirma(await contar(page, '#avpReavaliarBtn') === 1 && await contar(page, '#avpSalvarDecisaoBtn') === 0, 'vigente: Reavaliar à vista; a decisão fica só para leitura (o tipo "Avaliação" não decide)');
     const hist = await page.locator('.avp-hist-item').evaluateAll((els) => els.map((e) => e.dataset.key));
     afirma(JSON.stringify(hist) === JSON.stringify(['k3', 'k2', 'k1']), 'histórico de versões: v3, v2, v1 (mais recente primeiro): ' + hist.join(','));
+    await page.evaluate(() => { const d = document.getElementById('avpHistoricoVersoesLista'); if (d) d.open = true; }); /* recolhido: abre para ler */
     afirma(/vigente/.test(await page.locator('.avp-hist-item[data-key="k3"]').innerText()) && /você está vendo/i.test(await page.locator('.avp-hist-item[data-key="k3"]').innerText()), 'v3 marcada como vigente e como a aberta');
     const nUser = await contar(page, '.avp-reasoning-user'), nAuto = await contar(page, '.avp-reasoning-auto');
     afirma(nUser === 16 && nAuto === 16, 'as 16 perguntas mostram "Sua justificativa" e "Interpretação do sistema" (' + nUser + '/' + nAuto + ')');
@@ -103,7 +105,7 @@ const larguraOk = (page) => page.evaluate(() => document.documentElement.scrollW
     afirma(await larguraOk(page), 'sem rolagem horizontal');
 
     console.log('\n== Versão anterior (v1): só consulta ==');
-    await page.click('.avp-hist-abrir[data-key="k1"]');
+    await page.evaluate(() => { const d = document.getElementById('avpHistoricoVersoesLista'); if (d) d.open = true; }); /* o Histórico de versões fica recolhido: a pessoa abre antes de escolher a versão */ await page.click('.avp-hist-abrir[data-key="k1"]');
     await page.waitForSelector('#avpAvisoVersaoAnterior');
     afirma(/versão v1/.test(await page.locator('#avpAvisoVersaoAnterior').innerText()) && /vigente é a v3/.test(await page.locator('#avpAvisoVersaoAnterior').innerText()), 'aviso: "Você está vendo a versão v1… a situação vigente é a v3"');
     afirma(await contar(page, '#avpReavaliarBtn') === 0, 'versão anterior: sem Reavaliar (reavaliar parte sempre da vigente)');
@@ -125,7 +127,7 @@ const larguraOk = (page) => page.evaluate(() => document.documentElement.scrollW
     await page.click('.avp-act-ver[data-key="k3"]');
     await page.waitForSelector('#avpIdentificacao');
     afirma(await contar(page, '.avp-hist-item') === 3, 'vê as 3 versões no histórico');
-    await page.click('.avp-hist-abrir[data-key="k2"]');
+    await page.evaluate(() => { const d = document.getElementById('avpHistoricoVersoesLista'); if (d) d.open = true; }); /* o Histórico de versões fica recolhido: a pessoa abre antes de escolher a versão */ await page.click('.avp-hist-abrir[data-key="k2"]');
     await page.waitForSelector('#avpAvisoVersaoAnterior');
     afirma(await contar(page, '#avpReavaliarBtn') === 0 && await contar(page, '#avpSalvarDecisaoBtn') === 0, 'sem Reavaliar nem edição');
     afirma(erros.length === 0, 'nenhum erro de JS (' + erros.length + ')');

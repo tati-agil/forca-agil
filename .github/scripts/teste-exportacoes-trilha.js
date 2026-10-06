@@ -247,7 +247,7 @@ const rot = (r) => ({ produto: 'É Produto/Serviço principal', 'nao-produto': '
     afirma(/Recomendação do sistema aceita/.test(blocoHist) && /Decisão manual/.test(blocoHist), 'PDF: a tabela de versões mostra a Forma de cada versão (v1 aceita; v2 manual)');
 
     console.log('\n== PDF da v1: histórico de versões também aparece (item com cadeia) e sem trilha gravada ==');
-    await page.click('.avp-hist-abrir[data-key="cad1"]');
+    await page.evaluate(() => { const d = document.getElementById('avpHistoricoVersoesLista'); if (d) d.open = true; }); /* o Histórico de versões fica recolhido: a pessoa abre antes de escolher a versão */ await page.click('.avp-hist-abrir[data-key="cad1"]');
     await page.waitForSelector('#avpAvisoVersaoAnterior', { timeout: 6000 });
     await page.waitForTimeout(300);
     const p1 = await gerarPdf(page);

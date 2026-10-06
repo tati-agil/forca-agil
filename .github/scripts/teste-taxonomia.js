@@ -15,7 +15,11 @@
  *   5. Pergunta discriminadora com a NOTA DE APLICAÇÃO junto; "Alcance de atuação" (nunca "Abrangência").
  *   6. Perfil: ausência é ESTADO (não consta na fonte, ainda não definido…), nunca campo vazio.
  *   7. Edição que de fato SALVA (conceito, fonte, perfil), com auditoria na mesma gravação; recusa do banco
- *      mostra o erro, mantém o que foi digitado e não grava nada.
+ *      mostra o erro, mantém o que foi digitado e não grava nada. Texto-fonte IMUTÁVEL: fonte existente só
+ *      edita rótulo e situação (texto só para leitura); salvarFonte recusa, com mensagem, trocar o texto; a
+ *      vigente tem "Nova versão da definição" no lugar de "Editar" (fluxo completo: teste-taxonomia-nova-versao.js).
+ *      Código do conceito no detalhe; carga inicial com a contagem POR domínio (auditoria, meta e Histórico global,
+ *      inclusive a apresentação honesta das linhas antigas, que só tinham o total geral).
  *   8. Vigência: tornar vigente (rebaixa a anterior), remover vigência, tudo atômico e auditado.
  *   9. SEGUNDA BARREIRA na aplicação: validarVigencia (no máximo UMA vigente, e só a apontada) e bloqueio
  *      de gravação diante de um estado legado inválido — o banco não é a única proteção.
@@ -200,6 +204,11 @@ const TOTAL = 'taxonomia';
     afirma(b.organizacional.conceitos.GAMA.situacaoDefinicao === 'em revisão' && !b.organizacional.conceitos.GAMA.definicaoVigenteFonteId, 'proposta "em validação" NÃO é tornada vigente automaticamente');
     const audCat = Object.values((b.organizacional.auditoria || {})._catalogo || {});
     afirma(audCat.length === 1 && audCat[0].tipo === 'carga_inicial' && audCat[0].usuario.email === EMAIL, 'auditoria da carga gravada (_catalogo)');
+    /* carga POR DOMÍNIO: cada linha registra a contagem do próprio domínio (antes: o total geral, igual nas duas) */
+    const audCatArq = Object.values((b.arquitetural.auditoria || {})._catalogo || {});
+    afirma(audCat[0].valorNovo === 'Carga inicial — Organizacional: 5 conceitos, 7 textos-fonte (1 com definição vigente), 4 atributos, 3 valores de perfil, 2 relações' && audCat[0].resumoDominio.conceitos === 5 && audCat[0].resumoDominio.fontes === 7 && audCat[0].dominio === 'organizacional', 'linha da carga do Organizacional: contagem SÓ do Organizacional (5 conceitos, 7 textos-fonte)', audCat[0].valorNovo);
+    afirma(audCatArq.length === 1 && audCatArq[0].valorNovo === 'Carga inicial — Arquitetural: 2 conceitos, 0 textos-fonte (0 com definição vigente)' && audCatArq[0].resumoDominio.conceitos === 2, 'linha da carga do Arquitetural: contagem SÓ do Arquitetural (2 conceitos)', audCatArq[0] && audCatArq[0].valorNovo);
+    afirma(b.meta.cargaInicial.resumoPorDominio.organizacional.conceitos === 5 && b.meta.cargaInicial.resumoPorDominio.arquitetural.conceitos === 2 && b.meta.cargaInicial.resumo.conceitos === 7, 'meta da carga: total (7) e também por domínio (5 + 2)');
     afirma(b.organizacional.perfis.ALFA.CONSUMIDOR.estado === 'não consta na fonte' && !('valor' in b.organizacional.perfis.ALFA.CONSUMIDOR), 'ausência gravada como ESTADO, sem campo de valor');
     afirma(await page.locator('#taxImportador').count() === 0, 'depois da carga o importador some (uma nova carga é recusada)');
     await esperaDb(page, () => document.querySelector('.tax-item'));
@@ -233,6 +242,7 @@ const TOTAL = 'taxonomia';
     else afirma(await page.locator('.tax-lista').isVisible() && await page.locator('.tax-detalhe').isVisible(), 'desktop: lista e detalhe lado a lado');
     t = await page.locator('#taxSecDefinicao').innerText();
     afirma(/Definição registrada/.test(t) && /Texto fictício VIGENTE de Alfa\./.test(t) && /Fonte: Conceito \(PREVI\)/.test(t), 'Alfa: definição vigente exibida com a fonte');
+    afirma((await page.locator('#taxCodigo').innerText()).trim() === 'Código: ALFA' && await page.locator('#taxCodigo').isVisible(), 'o detalhe mostra o código do conceito ("Código: ALFA")');
     /* Textos-fonte: TRÊS blocos separados — Definição vigente / Fontes disponíveis / Fontes arquivadas */
     afirma(await page.locator('.tax-fonte--vigente').count() === 1, 'exatamente uma fonte marcada como vigente');
     afirma(await page.locator('#taxVigenteBloco article[data-fonte="a1"]').count() === 1 && /DEFINIÇÃO OFICIAL/.test(await page.locator('#taxVigenteBloco').innerText()) && /Texto fictício VIGENTE de Alfa\./.test(await page.locator('#taxVigenteBloco').innerText()), 'Definição vigente: aparece em cima, com o selo "DEFINIÇÃO OFICIAL" e o texto');
@@ -252,7 +262,8 @@ const TOTAL = 'taxonomia';
     await page.click('article[data-fonte="a3"] [data-tax="ver"]');
     afirma(await page.locator('.tax-fonte--aberta').count() === 1 && await page.locator('article[data-fonte="a3"].tax-fonte--aberta').count() === 1 && !/Texto fictício histórico de Alfa\./.test(await page.locator('article[data-fonte="a2"]').innerText()), 'só UM cartão expandido por vez (abrir a3 recolhe a2)');
     await page.click('article[data-fonte="a1"] [data-tax="ver"]');
-    afirma(await page.locator('.tax-fonte--aberta').count() === 1 && await page.locator('article[data-fonte="a1"].tax-fonte--aberta').count() === 1 && await page.locator('article[data-fonte="a1"] [data-tax="editar-fonte"]').count() === 1, 'detalhes da vigente também seguem a regra de um só aberto, e "Editar" fica dentro dela');
+    afirma(await page.locator('.tax-fonte--aberta').count() === 1 && await page.locator('article[data-fonte="a1"].tax-fonte--aberta').count() === 1 && await page.locator('article[data-fonte="a1"] [data-tax="nova-versao"]').count() === 1, 'detalhes da vigente também seguem a regra de um só aberto, e "Nova versão da definição" fica dentro dela');
+    afirma(await page.locator('article[data-fonte="a1"] [data-tax="editar-fonte"]').count() === 0 && /Nova versão da definição/.test(await page.locator('article[data-fonte="a1"] [data-tax="nova-versao"]').textContent()), 'a vigente NÃO tem "Editar" (texto-fonte imutável): o botão é "Nova versão da definição"');
     await page.click('article[data-fonte="a1"] [data-tax="ver"]');
     afirma(await page.locator('.tax-fonte--aberta').count() === 0, 'Ocultar detalhes recolhe de volta');
     t = await page.locator('#taxSecFontes').innerText();
@@ -450,12 +461,30 @@ const TOTAL = 'taxonomia';
     afirma(await page.locator('[data-fonte="b1"] [data-tax="editar-fonte"]').count() === 0, '"Editar" só aparece depois de expandir o cartão (Ver)');
     await page.click('[data-fonte="b1"] [data-tax="ver"]');
     await aparece(page, '[data-fonte="b1"] [data-tax="editar-fonte"]');
+    afirma(/redação superada/.test(await page.locator('article[data-fonte="b1"] .tax-ajuda-corrigir').innerText()), 'ao lado do "Editar", a dica: texto errado → nova fonte + arquivar com "redação superada"');
     await page.click('[data-fonte="b1"] [data-tax="editar-fonte"]');
-    await page.fill('#taxF_texto', 'Texto fictício histórico de Beta, revisado.');
+    /* TEXTO-FONTE IMUTÁVEL: o formulário de uma fonte existente não oferece texto, contexto nem tipo para editar */
+    afirma(await page.locator('#taxFormFonte #taxF_texto, #taxFormFonte #taxF_contexto, #taxFormFonte #taxF_tipoRedacao').count() === 0, 'fonte existente: sem campo de texto, contexto nem tipo de redação para editar');
+    afirma((await page.locator('#taxF_textoFixo').innerText()) === 'Texto fictício histórico de Beta.' && /redação superada/.test(await page.locator('#taxAjudaImutavel').innerText()), 'o texto aparece só para leitura, com a explicação de como corrigir (nova fonte + arquivar com "redação superada")');
+    afirma(await page.locator('#taxF_rotulo').count() === 1 && await page.locator('#taxF_situacao').count() === 1, 'o que continua editável — rótulo e situação — tem campo (e salva, abaixo)');
+    await page.fill('#taxF_rotulo', 'Rótulo revisado de Beta');
     await page.click('[data-tax="salvar-edicao"]');
-    await esperaDb(page, () => /revisado/.test(window.__CFG.__dbReal.taxonomia.organizacional.fontes.BETA.b1.texto));
+    await esperarCondicao(page, () => window.__CFG.__dbReal.taxonomia.organizacional.fontes.BETA.b1.rotulo === 'Rótulo revisado de Beta', null, { limite: 6000, descricao: 'rótulo de b1 gravado' });
     b = (await banco(page)).taxonomia;
-    afirma(/revisado/.test(b.organizacional.fontes.BETA.b1.texto) && Object.values(b.organizacional.auditoria.BETA).some((l) => l.tipo === 'alteracao_fonte' && l.fonteId === 'b1'), 'edição de fonte salva, com auditoria');
+    afirma(b.organizacional.fontes.BETA.b1.rotulo === 'Rótulo revisado de Beta' && b.organizacional.fontes.BETA.b1.texto === 'Texto fictício histórico de Beta.' && Object.values(b.organizacional.auditoria.BETA).some((l) => l.tipo === 'alteracao_fonte' && l.fonteId === 'b1'), 'edição de fonte (rótulo) salva, com auditoria; o texto ficou intacto');
+    /* DEFESA EM PROFUNDIDADE: mesmo chamando a gravação com o texto mudado, a aplicação recusa com mensagem visível */
+    await esperarCondicao(page, () => !!document.querySelector('[data-fonte="b1"] [data-tax="ver"]') && !document.querySelector('#taxSecFontes .loading-msg'), null, { limite: 6000, descricao: 'detalhe de Beta recarregado' });
+    const escritasAntesT5 = await page.evaluate(() => (window.__ESCRITAS || []).length);
+    await page.evaluate(() => {
+      const I = window.faTaxonomia._interno, D = I.st.d.organizacional;
+      D.edicao = { tipo: 'fonte', chave: 'b1', valores: { rotulo: 'Rótulo revisado de Beta', texto: 'Texto ADULTERADO por fora do formulário.', contexto: 'BB', tipoRedacao: 'Significado v1', situacao: 'histórica/contextual' }, erro: null };
+      I.salvarFonte('organizacional', 'BETA');
+    });
+    await esperarCondicao(page, () => /não podem ser alterados/.test((document.querySelector('#taxFlash.tax-flash--erro') || {}).innerText || ''), null, { limite: 4000, descricao: 'recusa visível da troca de texto' });
+    afirma(/não podem ser alterados/.test(await page.locator('#taxFlash').innerText()) && /redação superada/.test(await page.locator('#taxFlash').innerText()), 'salvarFonte RECUSA trocar o texto de fonte existente, com mensagem visível');
+    afirma(await page.evaluate(() => (window.__ESCRITAS || []).length) === escritasAntesT5 && (await banco(page)).taxonomia.organizacional.fontes.BETA.b1.texto === 'Texto fictício histórico de Beta.', 'nenhuma escrita foi enviada e o texto continua o mesmo');
+    await page.click('[data-tax="cancelar-edicao"]');
+    await page.click('[data-tax="fechar-flash"]');
     afirma(await larguraOk(page), 'sem rolagem horizontal');
     if (movel) await page.click('[data-tax="voltar-lista"]');
 
@@ -698,13 +727,16 @@ const TOTAL = 'taxonomia';
 
   /* ---------- HISTÓRICO GLOBAL (auditoria/_catalogo dos dois domínios) ---------- */
   const chaveEv = (i) => '-P3A' + String(100000 + i); /* crescem com o tempo, como as chaves de push */
+  /* As linhas de carga ANTIGAS como a aplicação as gravou até esta correção: o MESMO texto, com o total geral
+     dos dois domínios, nas duas linhas (por isso o Histórico global mostrava duas linhas idênticas). */
+  const CARGA_ANTIGA = 'Importação única: 7 conceitos, 7 fontes';
   const evOrg = (i) => i === 0
-    ? { tipo: 'carga_inicial', campo: 'carga inicial', valorNovo: 'Importação única: 5 conceitos, 6 fontes', dataHora: '2026-10-03T10:00:00.000Z', usuario: { nome: 'Admin Fictício', email: EMAIL } }
+    ? { tipo: 'carga_inicial', campo: 'carga inicial', valorNovo: CARGA_ANTIGA, dataHora: '2026-10-03T10:00:00.000Z', usuario: { nome: 'Admin Fictício', email: EMAIL } }
     : { tipo: 'alteracao_atributo', campo: 'Atributo fictício ' + i, valorAnterior: 'antes ' + i, valorNovo: 'depois ' + i, dataHora: '2026-10-03T10:' + String(i).padStart(2, '0') + ':00.000Z', usuario: { nome: 'Admin Fictício', email: EMAIL } };
   const semenHG = (nOrg, comArq) => {
     const org = {}; for (let i = 0; i < nOrg; i++) org[chaveEv(i)] = evOrg(i);
     const arq = comArq ? {
-      [chaveEv(0)]: { tipo: 'carga_inicial', campo: 'carga inicial', valorNovo: 'Importação única: 2 conceitos, 1 fontes', dataHora: '2026-10-03T10:00:00.002Z', usuario: { nome: 'Admin Fictício', email: EMAIL } },
+      [chaveEv(0)]: { tipo: 'carga_inicial', campo: 'carga inicial', valorNovo: CARGA_ANTIGA, dataHora: '2026-10-03T10:00:00.002Z', usuario: { nome: 'Admin Fictício', email: EMAIL } },
       [chaveEv(20)]: { tipo: 'alteracao_relacao', campo: 'Squad → Linha', valorNovo: 'compõe', dataHora: '2026-10-03T10:20:00.500Z', usuario: { nome: 'Admin Fictício', email: EMAIL } },
       [chaveEv(40)]: { tipo: 'tipo_futuro_desconhecido', campo: 'algo', valorNovo: 'novo', dataHora: '2026-10-03T10:40:00.000Z', usuario: { email: EMAIL } }
     } : {};
@@ -742,6 +774,12 @@ const TOTAL = 'taxonomia';
       afirma(/Arquitetural/.test(await linhasHG(page).first().innerText()) && /tipo_futuro_desconhecido/.test(t), 'o evento mais recente é do Arquitetural e um tipo desconhecido aparece com o nome técnico (não some)');
       afirma(/Alteração de atributo/.test(t) && /Alteração de relação/.test(t) && /Admin Fictício/.test(t) && new RegExp(EMAIL.replace('.', '\\.')).test(t), 'tipos legíveis, domínio e quem fez (nome e e-mail)');
       afirma(/Atributo fictício 29/.test(t) && !/Atributo fictício 4\b/.test(t), 'só os 25 mais recentes do Organizacional na primeira página');
+      /* carga ANTIGA (só o total geral): título por domínio e contagem ATUAL do domínio, rotulada como tal */
+      const cargaArq = page.locator('.tax-hg-item[data-dominio="arquitetural"][data-chave="' + chaveEv(0) + '"]');
+      await esperarCondicao(page, (k) => /Hoje o domínio tem/.test((document.querySelector('.tax-hg-item[data-dominio="arquitetural"][data-chave="' + k + '"]') || {}).innerText || ''), chaveEv(0), { limite: 4000, descricao: 'contagem atual do Arquitetural' });
+      const tCargaArq = await cargaArq.innerText();
+      afirma(/Carga inicial — Arquitetural/.test(tCargaArq) && /Hoje o domínio tem 0 conceitos e 0 textos-fonte \(contagem atual, não a da carga\)/.test(tCargaArq), 'carga antiga: "Carga inicial — Arquitetural" com a contagem ATUAL do domínio, dita como atual', tCargaArq.replace(/\s+/g, ' '));
+      afirma(/não registrada/.test(tCargaArq) && /total dos dois domínios juntos: "Importação única: 7 conceitos, 7 fontes"/.test(tCargaArq), 'o total antigo não é apresentado como do domínio: aparece marcado como "total dos dois domínios juntos"');
       afirma(await larguraOk(page), 'sem rolagem horizontal');
       if (movel) afirma(await linhasHG(page).first().evaluate((e) => e.getBoundingClientRect().right <= window.innerWidth + 1), '375 px: os cartões cabem na tela');
       afirma(await page.locator('[data-tax="hg-mais"]').count() === 1, 'há mais eventos: aparece "CARREGAR MAIS"');
@@ -752,6 +790,9 @@ const TOTAL = 'taxonomia';
       afirma(new Set(chaves2).size === chaves2.length, 'nenhum evento repetido entre as páginas');
       const datas2 = await linhasHG(page).evaluateAll((els) => els.map((e) => e.getAttribute('data-datahora')));
       afirma(datas2.every((d, i) => i === 0 || d <= datas2[i - 1]) && await page.locator('[data-tax="hg-mais"]').count() === 0, 'continua ordenado e o botão some quando acabou');
+      await esperarCondicao(page, (k) => /Hoje o domínio tem/.test((document.querySelector('.tax-hg-item[data-dominio="organizacional"][data-chave="' + k + '"]') || {}).innerText || ''), chaveEv(0), { limite: 4000, descricao: 'contagem atual do Organizacional' });
+      const tCargaOrg = await page.locator('.tax-hg-item[data-dominio="organizacional"][data-chave="' + chaveEv(0) + '"]').innerText();
+      afirma(/Carga inicial — Organizacional/.test(tCargaOrg) && /Hoje o domínio tem 1 conceito e 0 textos-fonte/.test(tCargaOrg), 'a outra linha: "Carga inicial — Organizacional", com a contagem do PRÓPRIO domínio (as duas linhas não são mais idênticas)', tCargaOrg.replace(/\s+/g, ' '));
       afirma(await page.evaluate(() => (window.__ESCRITAS || []).length) === escritas0, 'só leitura: nenhuma escrita (nada copiado para os conceitos, nenhuma auditoria nova)');
       await page.click('.tax-dominio[data-dominio="organizacional"]');
       await aparece(page, '.tax-wrap');
@@ -799,6 +840,24 @@ const TOTAL = 'taxonomia';
       await page.waitForTimeout(300);
       afirma(erros.length === 0, 'PERMISSION_DENIED não gera erro nem rejeição não tratada na página');
       await ctx.close();
+    }
+
+    console.log('\n== H2b. Carga gravada com a contagem por domínio (formato atual) ==');
+    {
+      const r = await abrir(browser, { viewport, db: (() => { const d = semenHG(0, false);
+        d.taxonomia.organizacional.auditoria._catalogo[chaveEv(0)] = { tipo: 'carga_inicial', campo: 'carga inicial', valorNovo: 'Carga inicial — Organizacional: 5 conceitos, 7 textos-fonte (1 com definição vigente)', dominio: 'organizacional', resumoDominio: { conceitos: 5, fontes: 7, vigentes: 1, atributos: 4, perfis: 3, relacoes: 2 }, dataHora: '2026-10-03T10:00:00.000Z', usuario: { nome: 'Admin Fictício', email: EMAIL } };
+        d.taxonomia.arquitetural.auditoria._catalogo[chaveEv(0)] = { tipo: 'carga_inicial', campo: 'carga inicial', valorNovo: 'Carga inicial — Arquitetural: 2 conceitos, 0 textos-fonte (0 com definição vigente)', dominio: 'arquitetural', resumoDominio: { conceitos: 2, fontes: 0, vigentes: 0, atributos: 0, perfis: 0, relacoes: 0 }, dataHora: '2026-10-03T10:00:00.001Z', usuario: { nome: 'Admin Fictício', email: EMAIL } };
+        return d; })() });
+      await irParaTaxonomia(r.page);
+      await abaHG(r.page);
+      await esperarCondicao(r.page, () => document.querySelectorAll('#taxHistoricoGlobal .tax-hg-item').length === 2, null, { limite: 4000, descricao: 'duas linhas de carga' });
+      const ts = await linhasHG(r.page).allInnerTexts();
+      const tOrg = ts.find((x) => /Organizacional/.test(x)) || '', tArq = ts.find((x) => /Arquitetural/.test(x)) || '';
+      afirma(/Carga inicial — Organizacional/.test(tOrg) && /5 conceitos, 7 textos-fonte \(1 com definição vigente\), 4 atributos, 3 valores de perfil, 2 relações/.test(tOrg), 'Organizacional: título por domínio e a contagem registrada do próprio domínio', tOrg.replace(/\s+/g, ' '));
+      afirma(/Carga inicial — Arquitetural/.test(tArq) && /2 conceitos, 0 textos-fonte \(0 com definição vigente\)/.test(tArq) && !/atributos/.test(tArq), 'Arquitetural: só a contagem do Arquitetural', tArq.replace(/\s+/g, ' '));
+      afirma(!/Hoje o domínio tem|não registrada/.test(ts.join(' ')), 'formato atual: nada de contagem "de hoje" nem aviso de registro antigo');
+      afirma(await larguraOk(r.page), 'sem rolagem horizontal');
+      await r.ctx.close();
     }
 
     console.log('\n== H3. Modo somente leitura: sem histórico global (auditoria é só de admin) ==');

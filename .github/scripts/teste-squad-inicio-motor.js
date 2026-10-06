@@ -36,11 +36,10 @@ async function abrir(browser, viewport) {
   await page.route('**/firebasejs/**', (r) => r.fulfill({ status: 200, contentType: 'text/javascript', body: FALSO }));
   await page.route('**fonts.googleapis.com**', (r) => r.fulfill({ status: 200, contentType: 'text/css', body: '' }));
   await page.route('**fonts.gstatic.com**', (r) => r.abort());
-  await page.goto(BASE + '/index.html#admin', { waitUntil: 'domcontentloaded' });
+  /* A avaliação de Squad fica na área AVALIAÇÃO (o motor, no ADMIN › Arquitetura — ver abrirMotor). */
+  await page.goto(BASE + '/index.html#avaliacoes', { waitUntil: 'domcontentloaded' });
   await esperarSessaoAssentada(page); /* login decidido e acessos resolvidos (antes: opções no lugar do argumento, engolida) */
-  await page.waitForSelector('.admin-tab-btn[data-panel="adminPanelArquitetura"]', { timeout: 8000 });
-  await page.click('.admin-tab-btn[data-panel="adminPanelArquitetura"]');
-  await page.waitForSelector('#avpConfigQuestionariosBtn', { timeout: 8000 });
+  await page.waitForSelector('#avpSquadBtn', { timeout: 8000 });
   return { ctx, page, erros };
 }
 const larguraOk = (page) => page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth + 1);
@@ -51,8 +50,8 @@ const regrasHoje = (page) => page.evaluate(() => JSON.stringify({ v: window.faMo
   for (const [nomeTela, viewport] of [['desktop', DESKTOP], ['celular 375px', CELULAR]]) {
     console.log('\n######## ' + nomeTela + ' ########');
     const { ctx, page, erros } = await abrir(browser, viewport);
-    await page.click('#avpAdequacaoSquadListaBtn');
-    await page.waitForSelector('#sqNovaBtn');
+    await page.click('#avpSquadBtn');
+    await page.waitForSelector('#avaliacoesSquad #sqNovaBtn');
 
     console.log('\n== Início: item já cadastrado × novo item ==');
     await page.click('#sqNovaBtn');
@@ -72,7 +71,7 @@ const regrasHoje = (page) => page.evaluate(() => JSON.stringify({ v: window.faMo
     await page.fill('#sqfBusca', 'canal');
     await page.click('.sq-busca-item');
     await page.waitForSelector('.sq-choice-btn, #sqSalvarSairBtn, .avp-question', { timeout: 8000 });
-    afirma(/Canal Digital/.test(await page.locator('#adminAvaliacaoSquad').innerText()), 'selecionar o item abre o checklist já com o nome dele');
+    afirma(/Canal Digital/.test(await page.locator('#avaliacoesSquad').innerText()), 'selecionar o item abre o checklist já com o nome dele');
     await page.click('#sqVoltarListaChecklist');
     const confirmaSair = page.locator('.sq-modal-confirm-btn');
     if (await confirmaSair.count()) await confirmaSair.click();
@@ -90,13 +89,17 @@ const regrasHoje = (page) => page.evaluate(() => JSON.stringify({ v: window.faMo
     await page.fill('#sqfNovoItemNome', 'Item Genuinamente Novo');
     await page.click('#sqfNovoItemConfirmar');
     await page.waitForSelector('.avp-question', { timeout: 8000 });
-    afirma(/Item Genuinamente Novo/.test(await page.locator('#adminAvaliacaoSquad').innerText()), 'um item realmente novo segue para o checklist');
+    afirma(/Item Genuinamente Novo/.test(await page.locator('#avaliacoesSquad').innerText()), 'um item realmente novo segue para o checklist');
     await page.click('#sqVoltarListaChecklist');
     if (await page.locator('.sq-modal-confirm-btn').count()) await page.locator('.sq-modal-confirm-btn').click();
-    await page.waitForSelector('#sqMotorConfigBtn');
+    await page.waitForSelector('#sqNovaBtn');
 
     console.log('\n== Motor de squad legível ==');
-    await page.click('#sqMotorConfigBtn');
+    await page.evaluate(() => { location.hash = '#admin'; });
+    await page.waitForSelector('.admin-tab-btn[data-panel="adminPanelArquitetura"]', { timeout: 8000 });
+    await page.click('.admin-tab-btn[data-panel="adminPanelArquitetura"]');
+    await page.waitForSelector('#avpMotorSquadInicioBtn', { timeout: 8000 });
+    await page.click('#avpMotorSquadInicioBtn');
     await page.waitForSelector('#sqMotorEditarRegrasBtn');
     const antes = await regrasHoje(page);
     afirma(await page.locator('.avp-motor-explica').count() === 1, 'painel traz "Como este motor decide"');

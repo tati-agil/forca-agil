@@ -2188,15 +2188,27 @@
        verdade são as regras do banco (database.rules.json, provadas em
        teste-rules-avaliacoes.js). */
     function pode() { return !!(window.faAuth && window.faAuth.podeAvaliacao && window.faAuth.podeAvaliacao()); }
+    /* Curadoria (especialização, papel estrutural, natureza complementar) e
+       decisão final são da Arquitetura: "Avaliação" avalia; "Avaliação +
+       Arquitetura" (e o admin geral) também cura e decide. O banco barra do
+       mesmo jeito: em avaliacoes-produto, quem não é da Arquitetura não muda
+       nenhum campo de curadoria/decisão (numa versão nova, só herda os da
+       anterior) e, em curadoria-auditoria, só grava a linha de reavaliação e
+       a do reprocessamento automático. */
+    function podeDecidir() { return !!(window.faAuth && window.faAuth.podeArquitetura && window.faAuth.podeArquitetura()); }
     function telaInicial() { return modo === 'admin' ? 'admin-inicio' : 'lista'; }
 
     /* Navegação hierárquica do Admin: toda subtela abre com um "← Voltar para
        <tela pai>" explícito (nunca um rótulo genérico que pula níveis). Quem
        sai de uma tela de EDIÇÃO com alteração ainda não salva é avisado antes
        — c.sujo é ligado pelo próprio campo editado e desligado ao salvar. */
-    var ROTULO_ADMIN = 'Avaliação de Produto/Serviço (Admin)';
+    var ROTULO_ADMIN = 'Arquitetura';
     function linkVoltar(id, destino) {
       return '<button type="button" class="avp-voltar-link" id="' + id + '">← Voltar para ' + esc(destino) + '</button>';
+    }
+    /* O mesmo "← Voltar", repetido no rodapé das telas longas (no celular o do topo fica longe). */
+    function rodapeVoltar(id, destino) {
+      return '<div class="avp-actions-footer avp-voltar-rodape"><button type="button" class="btn" id="' + id + '">← Voltar para ' + esc(destino) + '</button></div>';
     }
     function sairComAviso(c, acao) {
       if (c && c.sujo) {
@@ -2280,12 +2292,151 @@
         }
         state.telaRenderizada = state.tela;
       }
+      /* ADMIN › Arquitetura: entrar numa subtela (ou trocar de subtela) começa no topo dela — no
+         celular a tela anterior podia estar rolada até o meio, e o "← Voltar" do topo ficava fora
+         da tela; voltar ao início devolve a posição de onde a pessoa saiu. */
+      if (modo === 'admin') {
+        var assinatura = state.tela + '|' + subtelaAdmin();
+        if (state.assinaturaAdmin && assinatura !== state.assinaturaAdmin) {
+          if (state.assinaturaAdmin.split('|')[0] === 'admin-inicio') state.rolagemInicio = window.pageYOffset || 0;
+          state.rolarPara = state.tela === 'admin-inicio' ? (state.rolagemInicio || 0) : 'topo';
+        }
+        state.assinaturaAdmin = assinatura;
+      }
       renderTela();
+      if (modo === 'admin' && state.rolarPara != null) {
+        var alvoRolagem = state.rolarPara;
+        state.rolarPara = null;
+        rolarAdmin(alvoRolagem);
+      }
+      if (modo === 'admin') sincronizarEnderecoAdmin();
+      /* <details data-det> (históricos recolhidos etc.) lembram se estavam abertos entre um redesenho e outro */
+      wrap.querySelectorAll('details[data-det]').forEach(function (det) {
+        if (det._detLigado) return;
+        det._detLigado = true;
+        det.addEventListener('toggle', function () { state.detAbertos = state.detAbertos || {}; state.detAbertos[det.dataset.det] = det.open; });
+      });
       if (modo === 'operacional' && state.restaurarRolagem && state.tela === 'lista') {
         state.restaurarRolagem = false;
         var y = state.rolagemLista || 0;
         window.requestAnimationFrame(function () { window.scrollTo({ top: y, left: 0, behavior: 'instant' }); });
       }
+    }
+    /* ===================== ENDEREÇO DO ADMIN › ARQUITETURA =====================
+       Solução mínima, sem roteador novo: cada ÁREA da Arquitetura tem endereço próprio
+       (#admin?arq=<área>). F5 reabre a mesma área; o Voltar/Avançar do navegador anda entre as
+       áreas visitadas em vez de sair do ADMIN. As subtelas de dentro de uma área (histórico,
+       versões, editar…) continuam com o "← Voltar" da própria tela. Sair por endereço de uma
+       edição com alteração não salva pergunta antes (mesmo aviso do "← Voltar"). */
+    var AREAS_ADMIN = {
+      'admin-inicio': 'inicio', 'config-questionario': 'questionarios', 'config-motores': 'motores',
+      'config-naturezas': 'naturezas', 'admin-usuarios': 'usuarios', 'admin-documentacao': 'documentacao'
+    };
+    var aplicandoEnderecoAdmin = false;
+    function areaAtualAdmin() {
+      var sq = document.getElementById('adminAvaliacaoSquad');
+      if (sq && !sq.hidden) return 'motor-squad';
+      return AREAS_ADMIN[state.tela] || 'inicio';
+    }
+    function areaDoEndereco() {
+      var h = location.hash || '';
+      if (h.split('?')[0] !== '#admin') return null;
+      var m = /[?&]arq=([a-z-]+)/.exec(h);
+      return m ? m[1] : null;
+    }
+    function painelArquiteturaAtivo() {
+      var p = document.getElementById('adminPanelArquitetura');
+      return !!p && !p.hidden && p.classList.contains('active');
+    }
+    function sincronizarEnderecoAdmin() {
+      if (modo !== 'admin' || aplicandoEnderecoAdmin) return;
+      if ((location.hash || '').split('?')[0] !== '#admin' || !painelArquiteturaAtivo()) return;
+      /* Só com alguém logado e o ADMIN de fato na tela: redesenhar por troca de sessão (sair,
+         trocar de pessoa) não pode mexer no histórico — um recuo atrasado devolvia o navegador
+         ao #admin depois do redirecionamento e o router não reiniciava o ADMIN da pessoa nova. */
+      var paginaAdmin = document.getElementById('page-admin');
+      if (!sessaoAtual() || !paginaAdmin || paginaAdmin.hidden) return;
+      var area = areaAtualAdmin();
+      var desejado = '#admin?arq=' + area;
+      if (location.hash === desejado) return;
+      /* chegar à Arquitetura (sem área no endereço) não cria uma entrada a mais no histórico */
+      if (!areaDoEndereco()) { history.replaceState({ arq: area, seqArq: seqArqAtual() }, '', desejado); return; }
+      /* "← Voltar" da tela para a área de onde a pessoa veio = o Voltar do navegador (não empilha
+         uma entrada nova; o Avançar continua funcionando). */
+      var anterior = history.state && history.state.anteriorArq;
+      if (anterior === area) {
+        /* o recuo do histórico faz o navegador restaurar a rolagem DELE — a posição certa é a
+           desta tela (ver rolarAdmin), reaplicada depois que o recuo termina */
+        var yVolta = state.tela === 'admin-inicio' ? (state.rolagemInicio || 0) : null;
+        var restauracao = history.scrollRestoration;
+        if ('scrollRestoration' in history) history.scrollRestoration = 'manual';
+        window.addEventListener('popstate', function aposRecuo() {
+          window.removeEventListener('popstate', aposRecuo);
+          if (yVolta != null) rolarAdmin(yVolta);
+          setTimeout(function () { if ('scrollRestoration' in history) history.scrollRestoration = restauracao || 'auto'; }, 0);
+        });
+        history.back();
+        return;
+      }
+      history.pushState({ arq: area, anteriorArq: areaDoEndereco() }, '', desejado);
+    }
+    function seqArqAtual() { return history.state && history.state.seqArq || 0; }
+    function edicaoSujaAdmin() {
+      return !!((state.config && state.config.sujo) || (state.configMotores && state.configMotores.sujo) ||
+        (state.configNaturezas && state.configNaturezas.sujo) || (state.documentacao && state.documentacao.sujo) ||
+        (window.faAvaliacaoSquadAdmin && window.faAvaliacaoSquadAdmin.temAlteracaoNaoSalva && window.faAvaliacaoSquadAdmin.temAlteracaoNaoSalva()));
+    }
+    function abrirAreaAdmin(area) {
+      if (window.faAdminAbrirAba) window.faAdminAbrirAba('adminPanelArquitetura');
+      if (window.faAvaliacaoSquadAdmin && area !== 'motor-squad') window.faAvaliacaoSquadAdmin.fechar();
+      state.config = null; state.configMotores = null; state.configNaturezas = null; state.documentacao = null;
+      if (area === 'questionarios') abrirConfigQuestionarios();
+      else if (area === 'motores') abrirConfigMotores();
+      else if (area === 'naturezas') abrirConfigNaturezas();
+      else if (area === 'usuarios' && souAdminGeral()) abrirAdminUsuarios();
+      else if (area === 'documentacao') abrirDocumentacao();
+      else if (area === 'motor-squad' && window.faAvaliacaoSquadAdmin) { state.tela = 'admin-inicio'; render(); abrirMotorSquadDoInicio(); }
+      else { state.tela = 'admin-inicio'; render(); }
+    }
+    /* Voltar/Avançar do navegador, link colado ou F5 com #admin?arq=<área>. */
+    function aplicarEnderecoAdmin() {
+      var area = areaDoEndereco();
+      if (!area || area === areaAtualAdmin()) return;
+      if (edicaoSujaAdmin()) {
+        var atual = areaAtualAdmin();
+        history.pushState({ arq: atual }, '', '#admin?arq=' + atual); /* desfaz até a pessoa decidir */
+        avpConfirm('Há alterações que ainda não foram salvas. Se sair agora, elas não serão salvas como rascunho nem publicadas.\n\nSair mesmo assim?', function () {
+          abrirAreaAdmin(area);
+        });
+        return;
+      }
+      aplicandoEnderecoAdmin = true;
+      try { abrirAreaAdmin(area); } finally { aplicandoEnderecoAdmin = false; }
+    }
+    function abrirMotorSquadDoInicio() {
+      state.rolagemInicio = window.pageYOffset || 0;
+      window.faAvaliacaoSquadAdmin.abrirMotorConfig({ rotulo: 'Arquitetura', voltar: function () {
+        state.tela = telaInicial(); render(); rolarAdmin(state.rolagemInicio || 0);
+      } });
+      sincronizarEnderecoAdmin();
+    }
+    function subtelaAdmin() {
+      if (state.tela === 'config-questionario' && state.config) return state.config.sub + (state.config.codigo ? ':' + state.config.codigo : '');
+      if (state.tela === 'config-motores' && state.configMotores) return state.configMotores.sub;
+      return '';
+    }
+    /* 'topo' = começo da área da Arquitetura (com o "← Voltar" à vista, sem esconder sob o
+       cabeçalho fixo); número = posição exata (volta ao início). Só sobe — nunca desce a página
+       para mostrar o topo de uma tela que já está à vista. */
+    function rolarAdmin(alvo) {
+      window.requestAnimationFrame(function () {
+        if (alvo === 'topo') {
+          var topo = Math.max(0, wrap.getBoundingClientRect().top + (window.pageYOffset || 0) - 90);
+          if ((window.pageYOffset || 0) > topo) window.scrollTo({ top: topo, left: 0, behavior: 'instant' });
+        } else {
+          window.scrollTo({ top: alvo, left: 0, behavior: 'instant' });
+        }
+      });
     }
     function renderTela() {
       /* Enquanto o perfil da pessoa não voltou do banco não dá para decidir o
@@ -2311,6 +2462,7 @@
       if (modo === 'operacional' && !pode()) { renderSemAcessoArea(); return; }
       if (state.tela === 'admin-inicio') renderAdminInicio();
       else if (state.tela === 'admin-usuarios') renderAdminUsuarios();
+      else if (state.tela === 'admin-documentacao') renderDocumentacao();
       else if (state.tela === 'lista') renderLista();
       else if (state.tela === 'form-inicial') renderFormInicial();
       else if (state.tela === 'checklist') renderChecklist();
@@ -2729,6 +2881,8 @@
       html += '<span class="avp-total" id="avpContador">' + (recortado ? filtrados.length + ' de ' + baseContagem.length : baseContagem.length) +
         ' avaliaç' + (baseContagem.length === 1 ? 'ão' : 'ões') + (state.lixeira ? ' na lixeira' : '') + '</span>';
       if (!state.lixeira && pode()) html += '<button class="btn btn--primary" id="avpNovoBtn">+ Avaliar novo item</button>';
+      /* Adequação à Squad: outra avaliação, independente desta (S1–S8), feita aqui mesmo na área Avaliação. */
+      if (!state.lixeira && pode() && modo === 'operacional') html += '<button class="btn btn--sm" id="avpSquadBtn">Adequação à Squad</button>';
       if (!state.lixeira && pode()) {
         html += '<div class="avp-exportar-wrap">';
         html += '<button class="btn btn--sm" id="avpExportarBtn"' + (state.exportando ? ' disabled' : '') + '>' +
@@ -2758,7 +2912,7 @@
          exclusivamente no Admin. */
       if (pode()) {
         html += '<button class="btn btn--sm avp-lixeira-btn' + (state.lixeira ? ' active' : '') + '" id="avpLixeiraBtn">' +
-          (state.lixeira ? '‹ Voltar às avaliações' : '🗑 Lixeira (' + excluidos.length + ')') + '</button>';
+          (state.lixeira ? '← Voltar para avaliações' : '🗑 Lixeira (' + excluidos.length + ')') + '</button>';
       }
       html += '</div>';
       if (state.flashExportacao) {
@@ -2915,6 +3069,14 @@
 
       var novoBtn = document.getElementById('avpNovoBtn');
       if (novoBtn) novoBtn.addEventListener('click', function () { irPara(hashNova()); }); /* a URL faz a tela (construirNova) */
+      var squadAbrirBtn = document.getElementById('avpSquadBtn');
+      /* O módulo do Squad é montado aqui se ainda não estiver: quando a página já abre em
+         #avaliacoes, esta lista nasce antes de avaliacao-squad.js terminar de carregar. */
+      if (squadAbrirBtn) squadAbrirBtn.addEventListener('click', function () {
+        if (!window.faAvaliacaoSquad && window.faInitAvaliacaoSquad) window.faInitAvaliacaoSquad({ modo: 'operacional' });
+        if (window.faAvaliacaoSquad) window.faAvaliacaoSquad.abrirLista();
+        else avpAlert('A Adequação à Squad não carregou. Recarregue a página e tente de novo.');
+      });
       var buscaEl = document.getElementById('avpBusca');
       if (buscaEl) {
         var compondo = false;
@@ -3571,17 +3733,12 @@
       } else if (!c.auditoria.length) {
         html += '<p class="admin-empty">Nenhuma alteração publicada ainda — o conteúdo em uso é o de fábrica.</p>';
       } else {
-        html += '<div class="table-scroll-wrap"><table class="admin-table"><thead><tr>' +
-          '<th>Pergunta</th><th>Campo</th><th>Versão anterior</th><th>Versão nova</th><th>Quando</th><th>Quem</th></tr></thead><tbody>';
-        c.auditoria.forEach(function (a) {
-          html += '<tr><td data-label="Pergunta">' + esc(a.pergunta) + '</td>' +
-            '<td data-label="Campo">' + esc(a.campo) + '</td>' +
-            '<td data-label="Versão anterior">' + esc(a.versaoAnterior) + '</td>' +
-            '<td data-label="Versão nova">' + esc(a.novaVersao) + '</td>' +
-            '<td data-label="Quando">' + fmtData(a.dataHora) + '</td>' +
-            '<td data-label="Quem">' + esc(a.usuario && (a.usuario.name || a.usuario.email) || '—') + '</td></tr>';
-        });
-        html += '</tbody></table></div>';
+        /* histórico recolhido (padrão único da Arquitetura): o valor anterior e o novo, que já
+           estavam gravados mas não apareciam, ficam em "Ver detalhes" */
+        html += renderHistoricoRecolhido('avpCfgHistorico', c.auditoria.map(function (a) {
+          return { data: a.dataHora, autor: autorDe(a.usuario), tipo: 'Pergunta ' + a.pergunta + ' · ' + a.campo,
+            resumo: 'Versão ' + a.versaoAnterior + ' → ' + a.novaVersao, anterior: a.valorAnterior, novo: a.valorNovo };
+        }), { titulo: 'Histórico de alterações' });
       }
       html += '<div class="avp-actions-footer"><button class="btn btn--sm" id="avpCfgAuditoriaVoltarBtn">← Voltar para Questionários e versões</button></div>';
       return html;
@@ -3843,7 +4000,7 @@
        versoes/<n> nunca sobrescritas, validação antes de publicar). O
        motor de squad continua com a tela já criada pela PR #240
        (avaliacao-squad.js) — não duplicada aqui, só alcançável por um
-       botão que chama window.faAvaliacaoSquad.abrirMotorConfig(). */
+       botão que chama window.faAvaliacaoSquadAdmin.abrirMotorConfig(origem). */
     var CAMADAS_LABEL_POR_ID = {};
     CAMADAS.forEach(function (c) { CAMADAS_LABEL_POR_ID[c.id] = c.label; });
     /* ===================== ÁREA OPERACIONAL: SEM ACESSO ===================== */
@@ -3869,15 +4026,18 @@
         return '<button type="button" class="avp-admin-card" id="' + id + '"><strong>' + esc(titulo) + '</strong><span>' + esc(texto) + '</span></button>';
       }
       var html = '<div class="avp-form-card avp-admin-inicio">';
-      html += '<h4>Avaliação de Produto/Serviço</h4>';
-      html += '<p class="avp-decisao-aviso">Parametrização da funcionalidade. Consultar e realizar avaliações é feito na área <strong>Avaliação</strong> do menu principal.</p>';
+      html += '<p class="avp-decisao-aviso">Parametrização e governança da Avaliação de Produto/Serviço e da Adequação à Squad. Consultar e realizar avaliações (inclusive as de Squad) é feito na área <strong>Avaliação</strong> do menu principal.</p>';
       html += '</div>';
       html += grupo('Regras e conceitos', 'O que as perguntas dizem e como as respostas viram uma classificação.',
         cartao('avpConfigQuestionariosBtn', 'Questionários e versões', 'Redação das perguntas e justificativas, com versões e auditoria.') +
         cartao('avpConfigMotoresBtn', 'Configuração dos Motores', 'Regras que classificam os itens, com simulação e versões.'));
-      html += grupo('Governança arquitetural', 'Opções de descrição dos itens e a análise de adequação à gestão por squad.',
+      /* A avaliação de Squad em si mora na área AVALIAÇÃO do menu (junto das demais avaliações);
+         aqui fica só a governança dela: o motor de squad. */
+      html += grupo('Governança arquitetural', 'Opções de descrição dos itens e as regras da adequação à gestão por squad.',
         cartao('avpConfigNaturezasBtn', 'Naturezas complementares', 'Opções do campo opcional de descrição do item.') +
-        (window.faAvaliacaoSquad ? cartao('avpAdequacaoSquadListaBtn', 'Adequação à Squad', 'Avaliação de adequação à gestão por squad e o seu motor.') : ''));
+        (window.faAvaliacaoSquadAdmin ? cartao('avpMotorSquadInicioBtn', 'Motor de Squad', 'Regras da adequação à gestão por squad (S1–S8), com simulação e versões. As avaliações de squad ficam na área Avaliação.') : ''));
+      html += grupo('Referências', 'Artefatos da Arquitetura, como o Mapa da Floresta.',
+        cartao('avpDocumentacaoBtn', 'Documentação e mapas de Arquitetura', 'Mapa da Floresta e outros artefatos: título, descrição, link, autor e data.'));
       if (souAdminGeral()) {
         html += grupo('Acesso', 'Quem entra na aba Avaliação e, se for o caso, na Arquitetura.',
           cartao('avpUsuariosBtn', 'Usuários autorizados', 'Quem usa a Avaliação (e quem também acessa a Arquitetura), com histórico.'));
@@ -3886,10 +4046,248 @@
       document.getElementById('avpConfigQuestionariosBtn').addEventListener('click', abrirConfigQuestionarios);
       document.getElementById('avpConfigMotoresBtn').addEventListener('click', abrirConfigMotores);
       document.getElementById('avpConfigNaturezasBtn').addEventListener('click', abrirConfigNaturezas);
-      var squadBtn = document.getElementById('avpAdequacaoSquadListaBtn');
-      if (squadBtn) squadBtn.addEventListener('click', function () { window.faAvaliacaoSquad.abrirLista(); });
+      var squadBtn = document.getElementById('avpMotorSquadInicioBtn');
+      if (squadBtn) squadBtn.addEventListener('click', abrirMotorSquadDoInicio);
       var usuariosBtn = document.getElementById('avpUsuariosBtn');
       if (usuariosBtn) usuariosBtn.addEventListener('click', abrirAdminUsuarios);
+      document.getElementById('avpDocumentacaoBtn').addEventListener('click', abrirDocumentacao);
+    }
+
+    /* ===================== HISTÓRICO RECOLHIDO (padrão único) =====================
+       Toda trilha de alterações do ADMIN › Arquitetura usa este formato: fechada por padrão,
+       com o tamanho no cabeçalho ("Histórico — N alterações"); aberta, uma linha por alteração
+       com data, autor e tipo, e o conteúdo longo (valor anterior/novo) atrás de "Ver detalhes".
+       Nada é apagado — é só a apresentação. linhas: [{ data, autor, tipo, resumo, anterior,
+       novo }] (anterior/novo opcionais, texto ou objeto). total: quando a lista mostrada é só
+       um recorte das mais recentes, o total real (o cabeçalho diz "últimas X de N"). */
+    function textoDetalhe(v) {
+      if (v == null || v === '') return '—';
+      if (typeof v === 'string') {
+        try { var j = JSON.parse(v); if (j && typeof j === 'object') return JSON.stringify(j, null, 2); } catch (e) { /* texto puro */ }
+        return v;
+      }
+      return JSON.stringify(v, null, 2);
+    }
+    function renderHistoricoRecolhido(id, linhas, opts) {
+      opts = opts || {};
+      var n = linhas.length;
+      var titulo = opts.titulo || 'Histórico';
+      var cab = titulo + ' — ' + (opts.total && opts.total > n ? 'últimas ' + n + ' de ' + opts.total + ' alterações' : n + (n === 1 ? ' alteração' : ' alterações'));
+      var h = '<details class="avp-historico-recolhido" id="' + id + '" data-det="' + id + '"' + detAberto(id) + '><summary>' + esc(cab) + '</summary>';
+      if (!n) h += '<p class="admin-empty">Nenhuma alteração registrada ainda.</p>';
+      else {
+        h += '<ul class="avp-historico-lista">';
+        linhas.forEach(function (l) {
+          h += '<li class="avp-historico-linha"><div class="avp-historico-meta"><span class="avp-historico-data">' + esc(l.data ? fmtData(l.data) : '—') + '</span>' +
+            '<span class="avp-historico-autor">' + esc(l.autor || '—') + '</span><span class="avp-historico-tipo">' + esc(l.tipo || '') + '</span></div>';
+          if (l.resumo) h += '<p class="avp-historico-resumo">' + esc(l.resumo) + '</p>';
+          if (l.anterior !== undefined || l.novo !== undefined) {
+            h += '<details class="avp-historico-detalhe"><summary>Ver detalhes</summary>' +
+              '<div class="avp-historico-valores"><div><strong>Antes</strong><pre>' + esc(textoDetalhe(l.anterior)) + '</pre></div>' +
+              '<div><strong>Depois</strong><pre>' + esc(textoDetalhe(l.novo)) + '</pre></div></div></details>';
+          }
+          h += '</li>';
+        });
+        h += '</ul>';
+      }
+      return h + '</details>';
+    }
+    function autorDe(u) { return u ? (u.name || u.email || (typeof u === 'string' ? u : '')) : ''; }
+
+    /* ===================== ADMIN: DOCUMENTAÇÃO E MAPAS DE ARQUITETURA =====================
+       Artefatos da Arquitetura (o primeiro é o Mapa da Floresta) — NÃO são conceitos da
+       Taxonomia e não têm nada a ver com o Mapa da Aposta (resultado da dinâmica de turma).
+       Formato inicial, sem upload, miniatura nem versionamento de arquivo: título, descrição,
+       link externo (https), autor e data. Editar e arquivar nunca apagam: o registro fica, e
+       cada mudança grava uma linha em arquitetura-documentos-auditoria (só acréscimo).
+       Mesmo público da Arquitetura na tela e nas regras do banco (admin geral e
+       "Avaliação + Arquitetura"). */
+    var NODE_DOCS = 'arquitetura-documentos';
+    var NODE_DOCS_AUD = 'arquitetura-documentos-auditoria';
+    function abrirDocumentacao() {
+      state.documentacao = { carregando: true, erro: null, itens: {}, historico: [], editando: null, salvando: false, erroForm: null, flash: null, sujo: false, verArquivados: false };
+      state.tela = 'admin-documentacao';
+      render();
+      carregarDocumentacao();
+    }
+    function carregarDocumentacao() {
+      var d = state.documentacao;
+      var pend = 2, falhou = false;
+      var relogio = setTimeout(function () {
+        if (state.documentacao !== d || !d.carregando) return;
+        d.carregando = false; d.erro = 'A leitura está demorando mais que o normal.';
+        if (state.tela === 'admin-documentacao') render();
+      }, 12000);
+      function fim() {
+        if (--pend > 0 || state.documentacao !== d) return;
+        clearTimeout(relogio);
+        d.carregando = false;
+        if (state.tela === 'admin-documentacao') render();
+      }
+      function erro(e) {
+        console.error('[documentação de arquitetura] erro ao ler:', e);
+        if (falhou || state.documentacao !== d) return;
+        falhou = true; clearTimeout(relogio);
+        d.carregando = false; d.erro = 'Não foi possível carregar a documentação.';
+        if (state.tela === 'admin-documentacao') render();
+      }
+      db().ref(NODE_DOCS).once('value', function (snap) { d.itens = snap.val() || {}; fim(); }, erro);
+      db().ref(NODE_DOCS_AUD).once('value', function (snap) {
+        var v = snap.val() || {};
+        d.historico = Object.keys(v).map(function (k) { return v[k]; }).sort(function (a, b) { return (b.dataHora || '').localeCompare(a.dataHora || ''); });
+        fim();
+      }, erro);
+    }
+    function linkValido(l) { return /^https:\/\/[^\s]{3,1000}$/.test(String(l || '').trim()); }
+    var ROTULO_ACAO_DOC = { criado: 'Documento adicionado', alterado: 'Documento alterado', arquivado: 'Documento arquivado', restaurado: 'Documento restaurado' };
+    function renderDocumentacao() {
+      var d = state.documentacao;
+      var html = linkVoltar('avpDocsVoltar', ROTULO_ADMIN);
+      html += '<div class="avp-form-card avp-docs"><h3>Documentação e mapas de Arquitetura</h3>';
+      html += '<p class="avp-decisao-aviso">Artefatos de referência da Arquitetura, guardados como link para o arquivo (SharePoint, Drive ou outro). ' +
+        '<strong>Mapa da Floresta</strong>: é uma representação visual da organização estruturada pela lógica de geração de valor. Mostra como a PREVI se organiza em Linhas, ' +
+        'Centros de Excelência (CoE) e Áreas Especializadas e como essas estruturas contribuem para a entrega de produtos e serviços aos clientes. ' +
+        'Não é um conceito da Taxonomia nem tem relação com o Mapa da Aposta da dinâmica de turma.</p>';
+      if (d.flash) html += '<p class="avp-flash-success avp-flash-success--inline" id="avpDocsFlash">' + esc(d.flash) + '</p>';
+      if (d.carregando) html += '<p class="loading-msg">Carregando documentação…</p>';
+      if (d.erro) html += '<p class="avp-error-msg" id="avpDocsErro">' + esc(d.erro) + ' <button type="button" class="btn btn--sm" id="avpDocsTentar">Tentar novamente</button></p>';
+      if (!d.carregando && !d.erro) {
+        var chaves = Object.keys(d.itens).sort(function (a, b) { return String(d.itens[a].titulo || '').localeCompare(String(d.itens[b].titulo || ''), 'pt-BR'); });
+        var ativos = chaves.filter(function (k) { return !d.itens[k].arquivado; });
+        var arquivados = chaves.filter(function (k) { return d.itens[k].arquivado; });
+        if (!d.editando) html += '<div class="avp-aut-barra"><button type="button" class="btn btn--primary" id="avpDocsNovoBtn">+ Adicionar documento ou mapa</button></div>';
+        if (d.editando) html += renderFormDocumento(d);
+        html += '<div class="avp-docs-lista" id="avpDocsLista">';
+        if (!ativos.length) html += '<p class="admin-empty">Nenhum documento registrado ainda.</p>';
+        ativos.forEach(function (k) { html += cartaoDocumento(k, d.itens[k], false); });
+        html += '</div>';
+        if (arquivados.length) {
+          html += '<details class="avp-docs-arquivados" id="avpDocsArquivados" data-det="docsArq"' + detAberto('docsArq') + '><summary>Arquivados (' + arquivados.length + ')</summary>';
+          arquivados.forEach(function (k) { html += cartaoDocumento(k, d.itens[k], true); });
+          html += '</details>';
+        }
+        html += renderHistoricoRecolhido('avpDocsHistorico', d.historico.map(function (l) {
+          return { data: l.dataHora, autor: autorDe(l.usuario), tipo: ROTULO_ACAO_DOC[l.tipo] || l.tipo, resumo: l.titulo || '',
+            anterior: l.valorAnterior === undefined ? undefined : l.valorAnterior, novo: l.valorNovo === undefined ? undefined : l.valorNovo };
+        }));
+      }
+      html += '</div>';
+      html += rodapeVoltar('avpDocsVoltarRodape', ROTULO_ADMIN);
+      wrap.innerHTML = html;
+      ['avpDocsVoltar', 'avpDocsVoltarRodape'].forEach(function (id) {
+        document.getElementById(id).addEventListener('click', function () {
+          sairComAviso(d, function () { state.tela = telaInicial(); state.documentacao = null; render(); });
+        });
+      });
+      var tentar = document.getElementById('avpDocsTentar');
+      if (tentar) tentar.addEventListener('click', abrirDocumentacao);
+      var novo = document.getElementById('avpDocsNovoBtn');
+      if (novo) novo.addEventListener('click', function () { d.editando = { key: null, titulo: '', descricao: '', link: '' }; d.erroForm = null; d.flash = null; render(); });
+      wrap.querySelectorAll('.avp-doc-editar').forEach(function (b) {
+        b.addEventListener('click', function () {
+          var it = d.itens[b.dataset.key];
+          d.editando = { key: b.dataset.key, titulo: it.titulo || '', descricao: it.descricao || '', link: it.link || '' };
+          d.erroForm = null; d.flash = null; render();
+        });
+      });
+      wrap.querySelectorAll('.avp-doc-arquivar').forEach(function (b) {
+        b.addEventListener('click', function () {
+          var it = d.itens[b.dataset.key];
+          var arquivar = b.dataset.acao === 'arquivar';
+          avpConfirm((arquivar ? 'Arquivar' : 'Restaurar') + ' "' + it.titulo + '"?' + (arquivar ? '\n\nO registro não é apagado: fica em "Arquivados", com o histórico.' : ''), function () {
+            gravarDocumento(b.dataset.key, Object.assign({}, it, { arquivado: arquivar }), arquivar ? 'arquivado' : 'restaurado', it);
+          });
+        });
+      });
+      if (d.editando) bindFormDocumento(d);
+      wrap.querySelectorAll('details[data-det]').forEach(function (det) {
+        det.addEventListener('toggle', function () { state.detAbertos = state.detAbertos || {}; state.detAbertos[det.dataset.det] = det.open; });
+      });
+    }
+    function cartaoDocumento(k, it, arquivado) {
+      var h = '<div class="avp-doc-item' + (arquivado ? ' avp-doc-item--arquivado' : '') + '" data-key="' + esc(k) + '">';
+      h += '<p class="avp-doc-titulo"><strong>' + esc(it.titulo) + '</strong></p>';
+      if (it.descricao) h += '<p class="avp-doc-descricao">' + esc(it.descricao) + '</p>';
+      h += '<p class="avp-doc-link"><a href="' + esc(it.link) + '" target="_blank" rel="noopener noreferrer">Abrir o arquivo ↗</a></p>';
+      h += '<p class="avp-doc-meta">Autor: ' + esc(autorDe(it.autor) || '—') + ' · ' + esc(fmtData(it.criadoEm)) +
+        (it.atualizadoEm && it.atualizadoEm !== it.criadoEm ? ' · Atualizado em ' + esc(fmtData(it.atualizadoEm)) + (it.atualizadoPor ? ' por ' + esc(autorDe(it.atualizadoPor)) : '') : '') + '</p>';
+      h += '<div class="avp-doc-acoes">' + (arquivado ? '' : '<button type="button" class="btn btn--sm avp-doc-editar" data-key="' + esc(k) + '">Editar</button>') +
+        '<button type="button" class="btn btn--sm avp-doc-arquivar" data-key="' + esc(k) + '" data-acao="' + (arquivado ? 'restaurar' : 'arquivar') + '">' + (arquivado ? 'Restaurar' : 'Arquivar') + '</button></div>';
+      return h + '</div>';
+    }
+    function renderFormDocumento(d) {
+      var e = d.editando;
+      var h = '<div class="avp-form-card avp-doc-form" id="avpDocForm"><h4>' + (e.key ? 'Editar documento' : 'Novo documento ou mapa') + '</h4>';
+      h += '<div class="avp-field"><label for="avpDocTitulo">Título *</label><input type="text" id="avpDocTitulo" maxlength="120" value="' + esc(e.titulo) + '"></div>';
+      h += '<div class="avp-field"><label for="avpDocDescricao">Descrição</label><textarea id="avpDocDescricao" rows="3" maxlength="2000">' + esc(e.descricao) + '</textarea></div>';
+      h += '<div class="avp-field"><label for="avpDocLink">Link do arquivo * (começa com https://)</label><input type="url" id="avpDocLink" maxlength="1000" placeholder="https://" value="' + esc(e.link) + '"></div>';
+      if (d.erroForm) h += '<p class="avp-error-msg" id="avpDocErro">' + esc(d.erroForm) + '</p>';
+      h += '<div class="avp-actions-footer"><button type="button" class="btn btn--primary" id="avpDocSalvar"' + (d.salvando ? ' disabled' : '') + '>' + (d.salvando ? 'SALVANDO…' : 'SALVAR') + '</button>' +
+        '<button type="button" class="btn" id="avpDocCancelar"' + (d.salvando ? ' disabled' : '') + '>Cancelar</button></div>';
+      return h + '</div>';
+    }
+    function bindFormDocumento(d) {
+      var e = d.editando;
+      [['avpDocTitulo', 'titulo'], ['avpDocDescricao', 'descricao'], ['avpDocLink', 'link']].forEach(function (par) {
+        document.getElementById(par[0]).addEventListener('input', function (ev) { e[par[1]] = ev.target.value; d.sujo = true; });
+      });
+      document.getElementById('avpDocCancelar').addEventListener('click', function () {
+        sairComAviso(d, function () { d.editando = null; d.sujo = false; d.erroForm = null; render(); });
+      });
+      document.getElementById('avpDocSalvar').addEventListener('click', function () {
+        if (d.salvando) return;
+        var titulo = String(e.titulo || '').trim(), link = String(e.link || '').trim(), descricao = String(e.descricao || '').trim();
+        if (!titulo) { d.erroForm = 'Informe o título.'; render(); return; }
+        if (!linkValido(link)) { d.erroForm = 'Informe o link completo do arquivo, começando com https://.'; render(); return; }
+        var anterior = e.key ? d.itens[e.key] : null;
+        var novo = Object.assign({}, anterior || {}, { titulo: titulo, descricao: descricao || null, link: link });
+        gravarDocumento(e.key, novo, e.key ? 'alterado' : 'criado', anterior);
+      });
+    }
+    function gravarDocumento(key, dado, acao, anterior) {
+      var d = state.documentacao;
+      var agora = new Date().toISOString();
+      var eu = sessaoAtual();
+      key = key || db().ref(NODE_DOCS).push().key;
+      var reg = {
+        titulo: dado.titulo, descricao: dado.descricao || null, link: dado.link,
+        autor: (anterior && anterior.autor) || eu, criadoEm: (anterior && anterior.criadoEm) || agora,
+        atualizadoEm: agora, atualizadoPor: eu, arquivado: !!dado.arquivado
+      };
+      var campos = ['titulo', 'descricao', 'link', 'arquivado'];
+      var antes = anterior ? {} : null, depois = {};
+      campos.forEach(function (c) { if (!anterior || anterior[c] !== reg[c]) { if (antes) antes[c] = anterior[c] == null ? null : anterior[c]; depois[c] = reg[c]; } });
+      var updates = {};
+      updates[NODE_DOCS + '/' + key] = reg;
+      updates[NODE_DOCS_AUD + '/' + db().ref(NODE_DOCS_AUD).push().key] = {
+        tipo: acao, documentoId: key, titulo: reg.titulo,
+        valorAnterior: antes ? JSON.stringify(antes) : null, valorNovo: JSON.stringify(depois),
+        usuario: eu, dataHora: agora
+      };
+      d.salvando = true; d.erroForm = null; render();
+      var respondido = false;
+      var relogio = setTimeout(function () {
+        if (respondido) return; respondido = true;
+        d.salvando = false;
+        d.erroForm = 'A conexão está demorando e não deu para confirmar o salvamento. Tente de novo.';
+        if (!d.editando) d.flash = null;
+        if (state.tela === 'admin-documentacao') { render(); if (!d.editando) avpAlert(d.erroForm); }
+      }, 12000);
+      db().ref().update(updates, function (err) {
+        if (respondido) return; respondido = true; clearTimeout(relogio);
+        d.salvando = false;
+        if (err) {
+          console.error('[documentação de arquitetura] erro ao gravar:', err);
+          d.erroForm = 'Não foi possível salvar. Tente novamente.';
+          if (state.tela === 'admin-documentacao') { render(); if (!d.editando) avpAlert(d.erroForm); }
+          return;
+        }
+        d.itens[key] = reg;
+        d.historico.unshift(updates[Object.keys(updates)[1]]);
+        d.editando = null; d.sujo = false;
+        d.flash = '✓ ' + (ROTULO_ACAO_DOC[acao] || 'Salvo') + '.';
+        if (state.tela === 'admin-documentacao') render();
+      });
     }
 
     /* ===================== ADMIN: USUÁRIOS AUTORIZADOS =====================
@@ -3923,9 +4321,14 @@
       if (!sess) return true;
       return !!(window.faAuth.isAdminReady && !window.faAuth.isAdminReady());
     }
+    /* Sair guarda a pesquisa entre os autorizados: voltar para a tela devolve a mesma busca. */
+    function sairDeUsuarios() {
+      state.buscaUsuarios = state.usuarios ? state.usuarios.busca : '';
+      state.tela = 'admin-inicio'; state.usuarios = null; render();
+    }
     function abrirAdminUsuarios() {
       if (!souAdminGeral()) return; /* o cartão nem existe para quem não é admin geral */
-      state.usuarios = { carregando: true, erro: null, lento: false, usuarios: [], autorizados: {}, historico: [], busca: '', buscaAdd: '', adicionando: false, tiposAdd: {}, salvando: {}, avisos: {}, flash: null };
+      state.usuarios = { carregando: true, erro: null, lento: false, usuarios: [], autorizados: {}, historico: [], busca: state.buscaUsuarios || '', buscaAdd: '', adicionando: false, tiposAdd: {}, salvando: {}, avisos: {}, flash: null };
       state.tela = 'admin-usuarios';
       render();
       carregarUsuarios();
@@ -3960,7 +4363,8 @@
       }
       db().ref('fa-users').once('value', function (snap) { dados.users = snap.val() || {}; fim(); }, falha);
       db().ref('fa-avaliacao-autorizados').once('value', function (snap) { dados.aut = snap.val() || {}; fim(); }, falha);
-      db().ref('fa-avaliacao-autorizados-auditoria').limitToLast(100).once('value', function (snap) { dados.hist = snap.val() || {}; fim(); }, falha);
+      /* histórico inteiro (antes limitToLast(100): o contador parava em 100 sem avisar) */
+      db().ref('fa-avaliacao-autorizados-auditoria').once('value', function (snap) { dados.hist = snap.val() || {}; fim(); }, falha);
     }
     function listaAutorizados() {
       var u = state.usuarios;
@@ -4043,20 +4447,21 @@
         'Os perfis antigos (Consulta, Avaliador e Gestor) não valem mais para nada.</p>';
       html += '<div class="table-scroll-wrap"><table class="admin-table avp-table avp-aut-matriz"><thead><tr><th>O que a pessoa acessa</th>' +
         TIPOS_AUTORIZADO.map(function (t) { return '<th>' + esc(t.rotulo) + '</th>'; }).join('') + '</tr></thead><tbody>' +
-        '<tr><td data-label="Acesso">Aba AVALIAÇÃO (avaliar, reavaliar, exportar)</td><td>Sim</td><td>Sim</td></tr>' +
-        '<tr><td data-label="Acesso">ADMIN › Arquitetura (questionários, motores, naturezas, Squad)</td><td>Não</td><td>Sim</td></tr>' +
+        '<tr><td data-label="Acesso">Aba AVALIAÇÃO (avaliar, reavaliar, exportar, Adequação à Squad)</td><td>Sim</td><td>Sim</td></tr>' +
+        '<tr><td data-label="Acesso">Curadoria e decisão arquitetural (especialização, papel estrutural, natureza complementar, decisão final)</td><td>Não</td><td>Sim</td></tr>' +
+        '<tr><td data-label="Acesso">ADMIN › Arquitetura (questionários, motores, naturezas, motor de Squad, documentação e mapas)</td><td>Não</td><td>Sim</td></tr>' +
         '<tr><td data-label="Acesso">Demais áreas do ADMIN</td><td>Não</td><td>Não</td></tr>' +
         '<tr><td data-label="Acesso">Gerenciar esta lista</td><td>Não</td><td>Não</td></tr></tbody></table></div>';
       if (u.carregando) {
         html += '<p class="loading-msg">' + (u.lento ? 'A conexão está demorando… aguardando os usuários.' : 'Carregando usuários…') + '</p></div>';
         wrap.innerHTML = html;
-        document.getElementById('avpUsuariosVoltar').addEventListener('click', function () { state.tela = 'admin-inicio'; state.usuarios = null; render(); });
+        document.getElementById('avpUsuariosVoltar').addEventListener('click', sairDeUsuarios);
         return;
       }
       if (u.erro) {
         html += '<p class="avp-error-msg">' + esc(u.erro) + '</p></div>';
         wrap.innerHTML = html;
-        document.getElementById('avpUsuariosVoltar').addEventListener('click', function () { state.tela = 'admin-inicio'; state.usuarios = null; render(); });
+        document.getElementById('avpUsuariosVoltar').addEventListener('click', sairDeUsuarios);
         return;
       }
       if (u.flash) html += '<p class="avp-flash-success avp-flash-success--inline" id="avpUsuariosFlash">' + esc(u.flash) + '</p>';
@@ -4079,10 +4484,14 @@
       html += '<div class="avp-field"><label for="avpUsuariosBusca">Pesquisar entre os autorizados</label>' +
         '<input type="search" id="avpUsuariosBusca" placeholder="Nome ou e-mail" value="' + esc(u.busca) + '" autocomplete="off"></div>';
       html += '<div id="avpAutLista" class="avp-aut-lista">' + linhasAutorizados() + '</div>';
-      html += '<details class="avp-aut-historico"><summary>Histórico de concessões, alterações e remoções (' + u.historico.length + ')</summary><div id="avpAutHistorico">' + linhasHistorico() + '</div></details>';
+      /* padrão único: recolhido, "Histórico — N alterações" (concessões, alterações e remoções) */
+      html += '<details class="avp-aut-historico avp-historico-recolhido" id="avpAutHistoricoDet" data-det="histAut"' + detAberto('histAut') + '><summary>Histórico — ' + u.historico.length + (u.historico.length === 1 ? ' alteração' : ' alterações') + ' (concessões, alterações e remoções)</summary><div id="avpAutHistorico">' + linhasHistorico() + '</div></details>';
       html += '</div>';
+      html += rodapeVoltar('avpUsuariosVoltarRodape', ROTULO_ADMIN);
       wrap.innerHTML = html;
-      document.getElementById('avpUsuariosVoltar').addEventListener('click', function () { state.tela = 'admin-inicio'; state.usuarios = null; render(); });
+      ['avpUsuariosVoltar', 'avpUsuariosVoltarRodape'].forEach(function (id) {
+        document.getElementById(id).addEventListener('click', sairDeUsuarios);
+      });
       var euBtn = document.getElementById('avpAutAdicionarEuBtn');
       if (euBtn) euBtn.addEventListener('click', autorizarEu);
       document.getElementById('avpAutAdicionarBtn').addEventListener('click', function () { u.adicionando = !u.adicionando; u.buscaAdd = ''; renderAdminUsuarios(); });
@@ -4223,10 +4632,28 @@
        registradas: elas guardam o nome/descrição DA ÉPOCA. Código da opção:
        gerado do nome na criação e imutável depois. */
     function abrirConfigNaturezas() {
-      state.configNaturezas = { editando: null, erro: null, flash: null, salvando: false };
+      state.configNaturezas = { editando: null, erro: null, flash: null, salvando: false, historico: null, erroHistorico: false };
       state.tela = 'config-naturezas';
       render();
+      carregarHistoricoNaturezas();
     }
+    /* Auditoria do catálogo (naturezas-complementares-auditoria/catalogo): gravada desde sempre, mas
+       não aparecia em lugar nenhum. Leitura avulsa ao abrir a tela e depois de cada gravação. */
+    function carregarHistoricoNaturezas() {
+      var c = state.configNaturezas;
+      db().ref('naturezas-complementares-auditoria/catalogo').once('value', function (snap) {
+        if (state.configNaturezas !== c) return;
+        var v = snap.val() || {};
+        c.historico = Object.keys(v).map(function (k) { return v[k]; }).sort(function (x, y) { return (y.dataHora || '').localeCompare(x.dataHora || ''); });
+        if (state.tela === 'config-naturezas') render();
+      }, function (err) {
+        console.error('[naturezas] erro ao ler o histórico do catálogo:', err);
+        if (state.configNaturezas !== c) return;
+        c.erroHistorico = true;
+        if (state.tela === 'config-naturezas') render();
+      });
+    }
+    var ROTULO_CAMPO_NATUREZA = { nome: 'Nome', descricao: 'Descrição', ativo: 'Ativa', ordem: 'Ordem' };
     function renderConfigNaturezas() {
       var c = state.configNaturezas;
       var catalogo = window.faNaturezas.estado();
@@ -4271,10 +4698,20 @@
           '<button class="btn" id="avpNaturezaCancelar"' + (c.salvando ? ' disabled' : '') + '>Cancelar</button></div>';
         html += '</div>';
       }
+      if (c.erroHistorico) html += '<p class="avp-natureza-ajuda" id="avpNaturezasHistoricoErro">Não foi possível carregar o histórico do catálogo agora.</p>';
+      else if (c.historico) {
+        html += renderHistoricoRecolhido('avpNaturezasHistorico', c.historico.map(function (l) {
+          return { data: l.dataHora, autor: autorDe(l.usuario), tipo: (ROTULO_CAMPO_NATUREZA[l.campo] || l.campo) + ' · ' + l.codigo,
+            resumo: l.valorAnterior == null ? 'opção criada' : '', anterior: l.valorAnterior, novo: l.valorNovo };
+        }), { titulo: 'Histórico do catálogo' });
+      }
+      html += rodapeVoltar('avpNaturezasVoltarRodape', ROTULO_ADMIN);
       wrap.innerHTML = html;
 
-      document.getElementById('avpNaturezasVoltar').addEventListener('click', function () {
-        sairComAviso(c, function () { state.tela = telaInicial(); state.configNaturezas = null; render(); });
+      ['avpNaturezasVoltar', 'avpNaturezasVoltarRodape'].forEach(function (id) {
+        document.getElementById(id).addEventListener('click', function () {
+          sairComAviso(c, function () { state.tela = telaInicial(); state.configNaturezas = null; render(); });
+        });
       });
       var tentarCatalogo = document.getElementById('avpNaturezasTentarNovamente');
       if (tentarCatalogo) tentarCatalogo.addEventListener('click', function () { window.faNaturezas.recarregar(); });
@@ -4360,6 +4797,7 @@
           c.erro = null;
           if (!atrasou) { c.editando = null; c.sujo = false; }
           c.flash = '✓ ' + mensagemOk + (atrasou ? ' (A confirmação chegou com atraso.)' : '');
+          carregarHistoricoNaturezas();
         }
         if (state.tela === 'config-naturezas') render();
       });
@@ -4399,7 +4837,10 @@
       else if (c.sub === 'auditoria') html += renderMotorArqAuditoria();
       else if (c.sub === 'versoes') html += renderMotorArqVersoes();
       html += '</div>';
+      if (c.sub === 'painel') html += rodapeVoltar('avpMotoresVoltarRodape', ROTULO_ADMIN);
       wrap.innerHTML = html;
+      var rodapeMotores = document.getElementById('avpMotoresVoltarRodape');
+      if (rodapeMotores) rodapeMotores.addEventListener('click', function () { state.tela = telaInicial(); state.configMotores = null; render(); });
       document.getElementById('avpMotoresVoltarLista').addEventListener('click', function () {
         if (c.sub === 'painel') { state.tela = telaInicial(); state.configMotores = null; render(); }
         else if (c.sub === 'simulacao' || c.sub === 'conflito-publicacao') voltarParaEditarRegras(c);
@@ -4436,7 +4877,7 @@
       html += '</div></div>';
 
       html += '<div class="avp-form-card"><h4>Motor de Adequação à Gestão por Squad (S1-S8)</h4>';
-      if (window.faAvaliacaoSquad && window.faMotorSquad) {
+      if (window.faAvaliacaoSquadAdmin && window.faMotorSquad) {
         var sitSquad = window.faMotorSquad.situacao();
         html += '<p>Versão publicada: <strong>' + esc(sitSquad.versaoPublicada) + '</strong> · Status: ' + (sitSquad.temRascunho ? '<strong>há um rascunho não publicado</strong>' : 'Publicada') + '</p>';
         html += '<div class="avp-actions-footer"><button class="btn btn--sm" id="avpMotorSquadAbrirBtn">Abrir configuração do motor de squad</button></div>';
@@ -4470,9 +4911,11 @@
         });
       });
       var squadBtn = document.getElementById('avpMotorSquadAbrirBtn');
+      /* Abre o motor de squad (instância admin de avaliacao-squad.js) por cima desta tela e,
+         no "← Voltar" do painel dele, volta exatamente para Configuração dos Motores. */
       if (squadBtn) squadBtn.addEventListener('click', function () {
-        state.tela = telaInicial(); state.configMotores = null;
-        window.faAvaliacaoSquad.abrirMotorConfig();
+        window.faAvaliacaoSquadAdmin.abrirMotorConfig({ rotulo: 'Configuração dos Motores', voltar: function () { render(); } });
+        sincronizarEnderecoAdmin();
       });
     }
 
@@ -4978,32 +5421,36 @@
     }
 
     /* ---- AUDITORIA ---- */
+    function rotuloAuditoriaMotor(a) {
+      return a.tipo === 'regra' ? 'Regra' : a.tipo === 'texto' ? 'Texto'
+        : a.tipo === 'conflito_publicacao' ? 'Conflito de publicação (bloqueado)'
+        : a.tipo === 'reconciliacao_versao_equivalente' ? 'Reconciliação com versão equivalente' : 'Publicação sem alteração';
+    }
+    function resumoAuditoriaMotor(a) {
+      var versao = a.tipo === 'conflito_publicacao'
+        ? 'tentativa com base ' + a.versaoBase + ' — vigente ' + a.versaoAtual
+        : a.tipo === 'reconciliacao_versao_equivalente'
+          ? a.versaoAnterior + ' → ' + (a.versaoNova != null ? a.versaoNova : a.versaoAtual) + ' (equivalentes: ' + a.diferencasSemanticas + ' diferenças em ' + fmtNumero(a.combinacoesAnalisadas) + ' combinações; motor não executado)'
+          : (a.versaoAnterior === a.novaVersao ? 'sem versão nova (' + a.versaoAnterior + ')' : 'versão ' + a.versaoAnterior + ' → ' + a.novaVersao);
+      var campo = a.campo ? a.campo
+        : a.tipo === 'reconciliacao_versao_equivalente' ? (a.avaliacaoNome ? a.avaliacaoNome : (a.quantidade != null ? a.quantidade + ' avaliaç' + (a.quantidade === 1 ? 'ão' : 'ões') : ''))
+        : (a.tipo === 'conflito_publicacao' && a.origem ? a.origem : '');
+      return (campo ? campo + ' · ' : '') + versao;
+    }
+    function linhasAuditoriaMotor(lista) {
+      return lista.map(function (a) {
+        return { data: a.dataHora, autor: autorDe(a.usuario), tipo: rotuloAuditoriaMotor(a), resumo: resumoAuditoriaMotor(a),
+          anterior: a.valorAnterior === undefined ? undefined : a.valorAnterior, novo: a.valorNovo === undefined ? undefined : a.valorNovo };
+      });
+    }
+    /* Exposto para o motor de squad (avaliacao-squad.js) mostrar o histórico no mesmo formato. */
+    window.faHistoricoArquitetura = { render: renderHistoricoRecolhido, linhasMotor: linhasAuditoriaMotor };
     function renderMotorArqAuditoria() {
       var c = state.configMotores;
       var html = '<div class="avp-form-card"><h3>Histórico de alterações do motor arquitetural</h3></div>';
       /* o "← Voltar" do rodapé existe também enquanto carrega e quando não há nada a mostrar */
       if (!c.lista) { html += '<p class="loading-msg">Carregando…</p>' + '<div class="avp-actions-footer"><button class="btn" id="avpMotorArqVoltarAuditoriaBtn">← Voltar para Configuração dos Motores</button></div>'; return html; }
-      if (!c.lista.length) { html += '<p class="admin-empty">Nenhuma alteração registrada ainda.</p>' + '<div class="avp-actions-footer"><button class="btn" id="avpMotorArqVoltarAuditoriaBtn">← Voltar para Configuração dos Motores</button></div>'; return html; }
-      html += '<div class="table-scroll-wrap"><table class="admin-table"><thead><tr><th>Tipo</th><th>Campo</th><th>Usuário</th><th>Data</th><th>Versão</th></tr></thead><tbody>';
-      c.lista.forEach(function (a) {
-        var tipoLabel = a.tipo === 'regra' ? 'Regra' : a.tipo === 'texto' ? 'Texto'
-          : a.tipo === 'conflito_publicacao' ? 'Conflito de publicação (bloqueado)'
-          : a.tipo === 'reconciliacao_versao_equivalente' ? 'Reconciliação com versão equivalente' : 'Publicação sem alteração';
-        var versaoCol = a.tipo === 'conflito_publicacao'
-          ? 'tentativa com base ' + esc(a.versaoBase) + ' — vigente ' + esc(a.versaoAtual)
-          : a.tipo === 'reconciliacao_versao_equivalente'
-            ? esc(a.versaoAnterior) + ' → ' + esc(a.versaoNova != null ? a.versaoNova : a.versaoAtual) + ' (equivalentes: ' + esc(a.diferencasSemanticas) + ' diferenças em ' + esc(fmtNumero(a.combinacoesAnalisadas)) + ' combinações; motor não executado)'
-            : (a.versaoAnterior === a.novaVersao ? 'sem versão nova (' + esc(a.versaoAnterior) + ')' : esc(a.versaoAnterior) + ' → ' + esc(a.novaVersao));
-        var campoCol = a.campo ? esc(a.campo)
-          : a.tipo === 'reconciliacao_versao_equivalente' ? (a.avaliacaoNome ? esc(a.avaliacaoNome) : (a.quantidade != null ? esc(a.quantidade) + ' avaliaç' + (a.quantidade === 1 ? 'ão' : 'ões') : '—'))
-          : (a.tipo === 'conflito_publicacao' && a.origem ? esc(a.origem) : '—');
-        html += '<tr><td data-label="Tipo">' + tipoLabel + '</td>' +
-          '<td data-label="Campo">' + campoCol + '</td>' +
-          '<td data-label="Usuário">' + esc((a.usuario && (a.usuario.name || a.usuario.email)) || '—') + '</td>' +
-          '<td data-label="Data">' + fmtData(a.dataHora) + '</td>' +
-          '<td data-label="Versão">' + versaoCol + '</td></tr>';
-      });
-      html += '</tbody></table></div>';
+      html += renderHistoricoRecolhido('avpMotorArqHistorico', linhasAuditoriaMotor(c.lista), { titulo: 'Histórico de alterações' });
       html += '<div class="avp-actions-footer"><button class="btn" id="avpMotorArqVoltarAuditoriaBtn">← Voltar para Configuração dos Motores</button></div>';
       return html;
     }
@@ -5603,7 +6050,9 @@
       if (cadeia.length < 2) return '';
       var vigenteKey = cadeia[cadeia.length - 1]._key;
       var html = '<div class="avp-form-card avp-hist-versoes" id="avpHistoricoVersoes">';
-      html += '<h4>Histórico de versões</h4>';
+      /* recolhido por padrão (padrão único dos históricos), com o tamanho no cabeçalho */
+      html += '<details class="avp-historico-recolhido avp-hist-versoes-det" id="avpHistoricoVersoesLista" data-det="histVersoes"' + detAberto('histVersoes') + '>' +
+        '<summary>Histórico de versões — ' + cadeia.length + ' versões</summary>';
       html += '<p class="avp-natureza-ajuda">A mais recente é a situação vigente do item. As anteriores ficam guardadas sem alteração.</p>';
       html += '<ul class="avp-hist-lista">';
       cadeia.slice().reverse().forEach(function (v) {
@@ -5620,7 +6069,7 @@
         if (!estaAberta) html += '<button type="button" class="btn btn--sm avp-hist-abrir" data-key="' + esc(v._key) + '">Abrir</button>';
         html += '</li>';
       });
-      html += '</ul></div>';
+      html += '</ul></details></div>';
       return html;
     }
 
@@ -5650,7 +6099,7 @@
       html += renderCabecalhoFicha(a, vigente);
 
       var camada = a.camadaSugerida || camadaPorId('a-validar');
-      var editavel = pode() && vigente;
+      var editavel = podeDecidir() && vigente;
 
       /* 1 — O QUE O SISTEMA CONCLUIU: Resultado (a conclusão Produto/Serviço) e Classificação arquitetural
          (a camada) — dois conceitos, dois cartões, uma seção. Só o que o questionário/motor produziu. */
@@ -5897,8 +6346,9 @@
        mas o dado fica preservado, nunca perdido, caso vire necessário. */
     function renderHistoricoMotorCard(a) {
       if (!a.historicoMotor || !a.historicoMotor.length) return '';
-      var html = '<div class="avp-form-card avp-historico-motor-card">';
-      html += '<h4>Recomendações automáticas anteriores (motor desatualizado)</h4>';
+      /* recolhido por padrão, com o tamanho no cabeçalho (padrão único dos históricos) */
+      var html = '<details class="avp-form-card avp-historico-motor-card avp-historico-recolhido" id="avpHistoricoMotorDet" data-det="histMotor"' + detAberto('histMotor') + '>';
+      html += '<summary>Recomendações automáticas anteriores (motor desatualizado) — ' + a.historicoMotor.length + '</summary>';
       html += '<p class="avp-decisao-aviso">Substituídas ao reprocessar esta avaliação com uma versão mais nova do motor — a resposta SIM/NÃO e a observação do avaliador em cada pergunta nunca mudam; só a interpretação automática do sistema pode ser atualizada.</p>';
       a.historicoMotor.slice().reverse().forEach(function (h) {
         var camadaAntiga = h.camadaSugerida;
@@ -5913,7 +6363,7 @@
         }
         html += '</div>';
       });
-      html += '</div>';
+      html += '</details>';
       return html;
     }
 
@@ -6067,11 +6517,18 @@
     }
     /* Históricos da seção "Como chegamos até aqui": o da CURADORIA (especialização, papel, natureza) e o da
        DECISÃO FINAL são listas separadas — o histórico não pertence à Curadoria atual nem à Decisão atual. */
+    /* "— N alterações" no cabeçalho (padrão único dos históricos); vazio enquanto carrega. */
+    function contagemHistoricoCuradoria(daDecisao) {
+      var h = state.curadoriaHist;
+      if (!h || h.carregando || h.erro) return '';
+      var n = h.itens.filter(function (e) { return (e.tipo === 'alteracao_decisao_final') === !!daDecisao; }).length;
+      return ' — ' + n + (n === 1 ? ' alteração' : ' alterações');
+    }
     function renderHistoricosCuradoriaDecisao(a) {
       if (!state.curadoriaHist || state.curadoriaHist.chave !== a._key) carregarHistoricoCuradoria(a);
-      return '<details class="avp-form-card avp-aut-historico" id="avpCuradoriaHistoricoDet" data-det="histCuradoria"' + detAberto('histCuradoria') + '><summary>Histórico da Curadoria</summary>' +
+      return '<details class="avp-form-card avp-aut-historico" id="avpCuradoriaHistoricoDet" data-det="histCuradoria"' + detAberto('histCuradoria') + '><summary>Histórico da Curadoria<span id="avpCuradoriaHistoricoN">' + contagemHistoricoCuradoria(false) + '</span></summary>' +
         '<div id="avpCuradoriaHistorico">' + linhasHistoricoCuradoria(false) + '</div></details>' +
-        '<details class="avp-form-card avp-aut-historico" id="avpDecisaoHistoricoDet" data-det="histDecisao"' + detAberto('histDecisao') + '><summary>Histórico da Decisão final</summary>' +
+        '<details class="avp-form-card avp-aut-historico" id="avpDecisaoHistoricoDet" data-det="histDecisao"' + detAberto('histDecisao') + '><summary>Histórico da Decisão final<span id="avpDecisaoHistoricoN">' + contagemHistoricoCuradoria(true) + '</span></summary>' +
         '<div id="avpDecisaoHistorico">' + linhasHistoricoCuradoria(true) + '</div></details>';
     }
     function atualizarHistoricoCuradoria() {
@@ -6079,6 +6536,10 @@
       if (el) el.innerHTML = linhasHistoricoCuradoria(false);
       var ed = document.getElementById('avpDecisaoHistorico');
       if (ed) ed.innerHTML = linhasHistoricoCuradoria(true);
+      var nc = document.getElementById('avpCuradoriaHistoricoN');
+      if (nc) nc.textContent = contagemHistoricoCuradoria(false);
+      var nd = document.getElementById('avpDecisaoHistoricoN');
+      if (nd) nd.textContent = contagemHistoricoCuradoria(true);
     }
     function carregarHistoricoCuradoria(a) {
       var chave = a._key;
@@ -6300,6 +6761,7 @@
     var operacoesNatureza = {};
     var epocaSessao = 0;
     function salvarNatureza() {
+      if (!podeDecidir()) return; /* curadoria/decisão: só Arquitetura (a tela nem mostra; o banco também recusa) */
       if (state.salvandoNatureza) return; /* clique repetido enquanto já está salvando: ignora */
       var a = state.atual;
       var f = state.naturezaForm;
@@ -6432,6 +6894,7 @@
       if (flashDecisaoClose) flashDecisaoClose.addEventListener('click', function () { state.flashDecisao = null; render(); });
     }
     function salvarDecisao() {
+      if (!podeDecidir()) return; /* curadoria/decisão: só Arquitetura (a tela nem mostra; o banco também recusa) */
       if (state.salvandoDecisao) return; /* clique repetido enquanto já está salvando: ignora */
       var a = state.atual;
       var f = state.decisaoForm;
@@ -6517,6 +6980,7 @@
        aqui). Nunca toca em resultadoAutomatico, justificativaAutomatica,
        decisão arquitetural ou histórico. */
     function salvarEspecializacaoCadastrada() {
+      if (!podeDecidir()) return; /* curadoria/decisão: só Arquitetura (a tela nem mostra; o banco também recusa) */
       if (state.salvandoEspecializacao) return;
       var a = state.atual;
       var f = state.especializacaoForm;
@@ -6563,6 +7027,7 @@
        à camada vigente, e por isso volta a contar. Usa a trilha da curadoria (mesmo tipo do
        campo: o valor VIGENTE passa de "nenhum" para o valor), marcada como confirmação. */
     function confirmarCuradoriaAnterior(campo) {
+      if (!podeDecidir()) return; /* curadoria/decisão: só Arquitetura (a tela nem mostra; o banco também recusa) */
       if (state.salvandoEspecializacao) return;
       var a = state.atual;
       var ant = curadoriaAnterior(a)[campo];
@@ -7538,11 +8003,29 @@
     prepararTelaPelaHash();
     render();
     sincronizarComHash(); /* tenta resolver um link direto já na carga inicial */
+    if (modo === 'admin') {
+      /* Endereço próprio por área da Arquitetura (ver sincronizarEnderecoAdmin): Voltar/Avançar do
+         navegador e link colado; a troca para a aba Arquitetura grava o endereço da área atual. */
+      window.addEventListener('popstate', aplicarEnderecoAdmin);
+      window.addEventListener('hashchange', aplicarEnderecoAdmin);
+      window.addEventListener('fa-admin-aba-arquitetura', function () { sincronizarEnderecoAdmin(); });
+      /* F5 / link direto em #admin?arq=<área>: abre a aba e a área de uma vez. */
+      var areaInicial = areaDoEndereco();
+      if (areaInicial) {
+        if (window.faAdminAbrirAba) window.faAdminAbrirAba('adminPanelArquitetura');
+        if (areaInicial !== 'inicio') { aplicandoEnderecoAdmin = true; try { abrirAreaAdmin(areaInicial); } finally { aplicandoEnderecoAdmin = false; } }
+      }
+    }
   };
 
   /* A área AVALIAÇÃO (#avaliacoes) sobe a instância operacional ao ser aberta
      pela primeira vez. O bloco do Admin sobe a sua em initAdmin (admin.js). */
   if (window.faRouter && window.faRouter.onPageInit) {
-    window.faRouter.onPageInit('avaliacoes', function () { window.faInitAvaliacaoProduto({ modo: 'operacional' }); });
+    window.faRouter.onPageInit('avaliacoes', function () {
+      window.faInitAvaliacaoProduto({ modo: 'operacional' });
+      /* Adequação à Squad: a avaliação em si fica aqui, na área AVALIAÇÃO (ver avaliacao-squad.js).
+         Se o script dele ainda não carregou, o botão da lista o monta no clique. */
+      if (window.faInitAvaliacaoSquad) window.faInitAvaliacaoSquad({ modo: 'operacional' });
+    });
   }
 })();

@@ -185,11 +185,6 @@
         "padrao": "catch",
         "trecho": ".waitForSelector('#avpConfigQuestionariosBtn', { timeout: 8000 }).catch(() => {})"
       },
-      "9c32190e59c3bc46": {
-        "n": 1,
-        "padrao": "catch",
-        "trecho": ".waitForSelector('#avpAdequacaoSquadListaBtn', { timeout: 5000 }).catch(() => {})"
-      },
       "acf5d2952e5868d0": {
         "n": 1,
         "padrao": "catch",

@@ -237,6 +237,7 @@ async function voltarParaAvaliacoes(page) {
     await page.waitForTimeout(200);
     await page.click('#avpMotorArqAuditoriaBtn');
     await page.waitForTimeout(400);
+    await page.evaluate(() => { const d = document.getElementById('avpMotorArqHistorico'); if (d) d.open = true; }); /* o histórico fica recolhido: abre para ler */
     afirma(/Reconciliação com versão equivalente/.test(await page.locator('#adminPanelArquitetura').innerText().catch(() => '')), 'tela de auditoria do motor mostra "Reconciliação com versão equivalente"');
     afirma(erros.length === 0, 'nenhum erro de JS (' + erros.length + ')');
     await ctx.close();

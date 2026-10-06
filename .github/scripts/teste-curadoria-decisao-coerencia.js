@@ -290,7 +290,7 @@ const NAO_PRODUTO = /Não é Produto\/Serviço principal/;
 
     console.log('\n== 3d. Versão anterior (SÓ LEITURA) mostra só o registrado ==');
     await abrirResultado(page, 'par2');
-    await page.click('.avp-hist-abrir[data-key="cad"]');
+    await page.evaluate(() => { const d = document.getElementById('avpHistoricoVersoesLista'); if (d) d.open = true; }); /* o Histórico de versões fica recolhido: a pessoa abre antes de escolher a versão */ await page.click('.avp-hist-abrir[data-key="cad"]');
     await page.waitForSelector('#avpCuradoriaLeitura', { timeout: 6000 });
     const leit = await page.locator('#avpCuradoriaResumo').innerText();
     afirma(/Especialização\s*Instituto previdenciário/.test(leit) && /Papel estrutural\s*Essencial/.test(leit), 'leitura: Curadoria mostra o que foi registrado');
