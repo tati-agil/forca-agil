@@ -89,6 +89,9 @@ async function dominio(page, dom) {
   await esperarCondicao(page, (d) => !!document.querySelector('.tax-dominio--ativo[data-dominio="' + d + '"]') && !!document.querySelector('.tax-item'), dom, { descricao: 'domínio ' + dom + ' carregado' });
 }
 async function abreConceito(page, cod) {
+  /* depois de salvar, a tela RECARREGA o domínio ("Carregando…" por um instante): decidir só com a lista já
+     montada — senão, no celular, olhava no meio da recarga, não voltava à lista e o item ficava escondido */
+  await esperarCondicao(page, (c) => !!document.querySelector('.tax-item[data-codigo="' + c + '"]') && !document.querySelector('.tax-lista .loading-msg, #taxCarregando'), cod, { descricao: 'lista do domínio montada' });
   /* no celular a lista some quando o detalhe está aberto: volta para a lista antes */
   if (await page.locator('.tax-detalhe [data-tax="voltar-lista"]').first().isVisible() && !(await page.locator('.tax-item[data-codigo="' + cod + '"]').isVisible())) await page.locator('.tax-detalhe [data-tax="voltar-lista"]').first().click();
   await page.click('.tax-item[data-codigo="' + cod + '"]');
