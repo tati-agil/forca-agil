@@ -1022,7 +1022,6 @@ const clicarSemRolagem = (page, seletor) => page.$eval(seletor, (el) => el.click
              e que ainda assim dá para seguir. */
           await page.locator('.aposta-campo-input').first().fill('muita gente liga porque não sabe o status');
           await page.click('#apostaSeguir');
-          await page.waitForTimeout(400);
           const avisou = await page.evaluate(() =>
             /apenas o que é observado/i.test((document.querySelector('#apostaAvisos') || {}).textContent || ''));
           anota('o sintoma com explicação de causa recebe aviso didático', avisou);
@@ -5319,14 +5318,12 @@ const clicarSemRolagem = (page, seletor) => page.$eval(seletor, (el) => el.click
           semBannerAposPreencher);
 
         await pg16b.fill('[data-campo="texto"]', 'muita gente reclama do domínio do Império');
-        await pg16b.waitForTimeout(300);
         const resumoAposPreencher = await pg16b.evaluate(() => window.faAposta._resumo('sintoma', { sintoma: { texto: 'muita gente reclama do domínio do Império' } }));
         anota('F — o conteúdo digitado depois de "Preencher agora" é salvo e aparece no formatador central',
           /muita gente reclama do dom[íi]nio do Imp[ée]rio/.test(resumoAposPreencher), resumoAposPreencher);
 
         // G — texto digitado + Pular pede confirmação (nunca descarta sozinho).
         await pg16b.click('#apostaPularEtapa');
-        await pg16b.waitForTimeout(300);
         const modalAbriu16b = await pg16b.evaluate(() => !!document.querySelector('.aposta-confirmar-overlay'));
         anota('G — pular com conteúdo já digitado abre confirmação antes de descartar', modalAbriu16b);
         const textoModal16b = await pg16b.evaluate(() => (document.querySelector('.aposta-confirmar-overlay p') || {}).textContent || '');
