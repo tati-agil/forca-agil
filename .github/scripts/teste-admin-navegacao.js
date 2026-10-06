@@ -1,6 +1,6 @@
 /* Navegação do Admin da Avaliação de Produto/Serviço (PR 3 do prompt consolidado):
- *   - tela inicial organizada em quatro grupos (com "Referências"): Regras e conceitos / Governança
- *     arquitetural / Acesso (só organização — os mesmos cartões de antes);
+ *   - tela inicial organizada em quatro grupos: Regras e conceitos / Governança
+ *     arquitetural / Referências / Acesso (só organização — os mesmos cartões de antes, mais a Documentação);
  *   - TODA subtela tem um "← Voltar para <tela pai>" explícito, que sobe UM nível;
  *   - sair de uma tela de edição com alteração não salva pede confirmação
  *     (e não pede quando nada foi alterado).
