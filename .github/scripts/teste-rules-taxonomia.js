@@ -371,7 +371,9 @@ async function main() {
   await nega('critério sem ordem', R(admin(), ORG + '/conceitos/C1/criterios/k2').set({ texto: 'Critério 2' }));
   await pode('pergunta discriminadora e nota de aplicação', R(admin(), ORG + '/conceitos/C1').update({ perguntaDiscriminadora: 'Pergunta?', notaDeAplicacao: 'Nota de aplicação.', ordemDaPergunta: 7 }));
   await nega('atributo com grupo desconhecido', R(admin(), ORG + '/atributos/G2').set({ nome: 'x', grupo: 'abrangencia', tipoValor: 'texto', ordem: 1, ativo: true }));
-  await pode('relação válida (chave = de__tipo__para)', R(admin(), ORG + '/relacoes/C1__compoe__LINHA').set({ de: 'C1', tipo: 'compoe', para: 'LINHA' }));
+  /* Etapa 5: relação nova exige histórico nas duas pontas na MESMA gravação (provado em teste-rules-taxonomia-governanca.js);
+     a forma antiga — só { de, tipo, para } — passa a ser recusada fora da carga inicial. */
+  await nega('relação SEM histórico (só de/tipo/para, fora da carga inicial) é recusada', R(admin(), ORG + '/relacoes/C1__compoe__LINHA').set({ de: 'C1', tipo: 'compoe', para: 'LINHA' }));
   await nega('relação com chave diferente da combinação', R(admin(), ORG + '/relacoes/qualquer').set({ de: 'C1', tipo: 'compoe', para: 'LINHA' }));
   await nega('relação com tipo desconhecido', R(admin(), ORG + '/relacoes/C1__herda__LINHA').set({ de: 'C1', tipo: 'herda', para: 'LINHA' }));
   await nega('relação para conceito inexistente', R(admin(), ORG + '/relacoes/C1__compoe__FANTASMA').set({ de: 'C1', tipo: 'compoe', para: 'FANTASMA' }));
@@ -503,8 +505,9 @@ async function main() {
   await opera('EDITAR CONCEITO (nome, pergunta, nota, critérios, observações)', () => I.salvarConceito('organizacional', 'BETA'),
     async () => (await ler(ORG + '/conceitos/BETA/nome')) === 'Beta Revisado' && Object.keys((await ler(ORG + '/conceitos/BETA/criterios')) || {}).length === 3);
   I.carregarDetalhe('organizacional', 'BETA'); await ate(() => D.detalhe && !D.detalhe.carregando); I.carregarDominio('organizacional'); await ate(() => D.estado === 'ok');
-  D.edicao = { tipo: 'conceito', chave: 'BETA', valores: { nome: 'Beta Revisado', observacoes: 'Obs.', perguntaDiscriminadora: 'P2?', notaDeAplicacao: 'N2.', criterios: 'x1\nx2\nx3', ativo: false }, erro: null };
-  await opera('DESATIVAR o conceito (desativação lógica)', () => I.salvarConceito('organizacional', 'BETA'), async () => (await ler(ORG + '/conceitos/BETA/ativo')) === false);
+  /* Etapa 5: desativar deixou de ser a caixa do formulário — é a operação própria, com motivo e histórico apontado */
+  D.inativando = { codigo: 'BETA', motivo: 'Conceito substituído (teste)', erro: null };
+  await opera('INATIVAR o conceito (desativação lógica, com motivo)', () => I.inativarConceito('organizacional', 'BETA'), async () => (await ler(ORG + '/conceitos/BETA/ativo')) === false && (await ler(ORG + '/conceitos/BETA/inativacao/motivo')) === 'Conceito substituído (teste)');
   I.carregarDetalhe('organizacional', 'BETA'); await ate(() => D.detalhe && !D.detalhe.carregando); I.carregarDominio('organizacional'); await ate(() => D.estado === 'ok');
   D.edicao = { tipo: 'perfil', chave: 'ALCANCE', valores: { estado: 'registrado', valor: 'específica', papel: 'definidor', origem: 'inferência' }, erro: null };
   await opera('PERFIL registrado (valor + papel + origem)', () => I.salvarPerfil('organizacional', 'BETA'), async () => (await ler(ORG + '/perfis/BETA/ALCANCE/estado')) === 'registrado');

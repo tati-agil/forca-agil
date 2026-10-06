@@ -607,7 +607,7 @@
           ".read": "auth != null && ((auth.token.email === 'tatianefdirene@previ.com.br' || auth.token.email === 'danielfrazao@previ.com.br') || root.child('fa-admins').child(auth.token.email.replace('@','_').replace('.','_')).exists())",
           "$codigo": {
             ".write": "(auth != null && ((auth.token.email === 'tatianefdirene@previ.com.br' || auth.token.email === 'danielfrazao@previ.com.br') || root.child('fa-admins').child(auth.token.email.replace('@','_').replace('.','_')).exists())) && newData.exists()",
-            ".validate": "$codigo.matches(/^[A-Za-z][A-Za-z0-9_-]{1,59}$/) && newData.hasChildren(['nome','ordem','ativo','situacaoDefinicao']) && (!data.child('definicaoVigenteFonteId').exists() || newData.child('definicaoVigenteFonteId').val() === data.child('definicaoVigenteFonteId').val() || newData.parent().parent().child('fontes').child($codigo).child(data.child('definicaoVigenteFonteId').val()).child('situacao').val() !== 'vigente')",
+            ".validate": "$codigo.matches(/^[A-Za-z][A-Za-z0-9_-]{1,59}$/) && newData.hasChildren(['nome','ordem','ativo','situacaoDefinicao']) && (!data.child('definicaoVigenteFonteId').exists() || newData.child('definicaoVigenteFonteId').val() === data.child('definicaoVigenteFonteId').val() || newData.parent().parent().child('fontes').child($codigo).child(data.child('definicaoVigenteFonteId').val()).child('situacao').val() !== 'vigente') && (!data.exists() ? (!newData.child('inativacao').exists() && !newData.child('reativacao').exists()) : ((newData.child('ativo').val() === false || !newData.child('inativacao').exists()) && (newData.child('ativo').val() === true || !newData.child('reativacao').exists()) && (data.child('ativo').val() === true && newData.child('ativo').val() === false ? (newData.child('inativacao').hasChildren(['motivo','em','por','auditoriaId']) && newData.parent().parent().child('auditoria').child($codigo).child(newData.child('inativacao').child('auditoriaId').val()).child('tipo').val() === 'inativacao' && !root.child('taxonomia').child('arquitetural').child('auditoria').child($codigo).child(newData.child('inativacao').child('auditoriaId').val()).exists() && !newData.parent().parent().parent().parent().child('avaliacao-classificacoes').child($codigo).exists()) : (data.child('ativo').val() === false && newData.child('ativo').val() === true ? (newData.child('reativacao').hasChildren(['em','por','auditoriaId']) && newData.parent().parent().child('auditoria').child($codigo).child(newData.child('reativacao').child('auditoriaId').val()).child('tipo').val() === 'reativacao' && !root.child('taxonomia').child('arquitetural').child('auditoria').child($codigo).child(newData.child('reativacao').child('auditoriaId').val()).exists()) : (newData.child('inativacao').child('motivo').val() === data.child('inativacao').child('motivo').val() && newData.child('inativacao').child('em').val() === data.child('inativacao').child('em').val() && newData.child('inativacao').child('por').val() === data.child('inativacao').child('por').val() && newData.child('inativacao').child('auditoriaId').val() === data.child('inativacao').child('auditoriaId').val() && newData.child('reativacao').child('em').val() === data.child('reativacao').child('em').val() && newData.child('reativacao').child('por').val() === data.child('reativacao').child('por').val() && newData.child('reativacao').child('auditoriaId').val() === data.child('reativacao').child('auditoriaId').val())))))",
             "nome": {
               ".read": "auth != null && (((auth.token.email === 'tatianefdirene@previ.com.br' || auth.token.email === 'danielfrazao@previ.com.br') || root.child('fa-admins').child(auth.token.email.replace('@','_').replace('.','_')).exists()) || (root.child('fa-avaliacao-autorizados').child(auth.token.email.replace('@','_').replace('.','_')).child('tipo').val() === 'avaliacao' || root.child('fa-avaliacao-autorizados').child(auth.token.email.replace('@','_').replace('.','_')).child('tipo').val() === 'avaliacao-arquitetura'))",
               ".validate": "newData.isString() && newData.val().length > 0 && newData.val().length <= 120"
@@ -657,6 +657,21 @@
             },
             "atualizadoPor": {
               ".validate": "newData.isString() && newData.val() === auth.token.email"
+            },
+            "inativacao": {
+              ".validate": "newData.hasChildren(['motivo','em','por','auditoriaId'])",
+              "motivo": { ".validate": "newData.isString() && newData.val().length > 0 && newData.val().length <= 500" },
+              "em": { ".validate": "newData.isString()" },
+              "por": { ".validate": "newData.isString() && newData.val() === auth.token.email" },
+              "auditoriaId": { ".validate": "newData.isString() && newData.val().matches(/^[A-Za-z0-9_-]{1,60}$/)" },
+              "$outro": { ".validate": false }
+            },
+            "reativacao": {
+              ".validate": "newData.hasChildren(['em','por','auditoriaId'])",
+              "em": { ".validate": "newData.isString()" },
+              "por": { ".validate": "newData.isString() && newData.val() === auth.token.email" },
+              "auditoriaId": { ".validate": "newData.isString() && newData.val().matches(/^[A-Za-z0-9_-]{1,60}$/)" },
+              "$outro": { ".validate": false }
             },
             "$outro": {
               ".validate": false
@@ -725,7 +740,7 @@
             ".validate": "$codigo === '_catalogo' || $codigo.matches(/^[A-Za-z][A-Za-z0-9_-]{1,59}$/)",
             "$pushKey": {
               ".write": "(auth != null && ((auth.token.email === 'tatianefdirene@previ.com.br' || auth.token.email === 'danielfrazao@previ.com.br') || root.child('fa-admins').child(auth.token.email.replace('@','_').replace('.','_')).exists())) && !data.exists() && newData.exists()",
-              ".validate": "newData.hasChildren(['tipo','usuario','dataHora']) && (newData.child('tipo').val() === 'alteracao_conceito' || newData.child('tipo').val() === 'alteracao_fonte' || newData.child('tipo').val() === 'definicao_vigente' || newData.child('tipo').val() === 'alteracao_perfil' || newData.child('tipo').val() === 'alteracao_atributo' || newData.child('tipo').val() === 'alteracao_relacao' || newData.child('tipo').val() === 'carga_inicial' || newData.child('tipo').val() === 'fonte_arquivada' || newData.child('tipo').val() === 'fonte_restaurada') && newData.child('usuario').hasChildren(['email']) && newData.child('usuario').child('email').val() === auth.token.email && newData.child('dataHora').isString()"
+              ".validate": "newData.hasChildren(['tipo','usuario','dataHora']) && (newData.child('tipo').val() === 'alteracao_conceito' || newData.child('tipo').val() === 'alteracao_fonte' || newData.child('tipo').val() === 'definicao_vigente' || newData.child('tipo').val() === 'alteracao_perfil' || newData.child('tipo').val() === 'alteracao_atributo' || newData.child('tipo').val() === 'alteracao_relacao' || newData.child('tipo').val() === 'carga_inicial' || newData.child('tipo').val() === 'fonte_arquivada' || newData.child('tipo').val() === 'fonte_restaurada' || newData.child('tipo').val() === 'inativacao' || newData.child('tipo').val() === 'reativacao' || newData.child('tipo').val() === 'relacao_criada' || newData.child('tipo').val() === 'relacao_encerrada') && newData.child('usuario').hasChildren(['email']) && newData.child('usuario').child('email').val() === auth.token.email && newData.child('dataHora').isString()"
             }
           }
         }
@@ -735,7 +750,7 @@
           ".read": "auth != null && ((auth.token.email === 'tatianefdirene@previ.com.br' || auth.token.email === 'danielfrazao@previ.com.br') || root.child('fa-admins').child(auth.token.email.replace('@','_').replace('.','_')).exists())",
           "$codigo": {
             ".write": "(auth != null && ((auth.token.email === 'tatianefdirene@previ.com.br' || auth.token.email === 'danielfrazao@previ.com.br') || root.child('fa-admins').child(auth.token.email.replace('@','_').replace('.','_')).exists())) && newData.exists()",
-            ".validate": "$codigo.matches(/^[A-Za-z][A-Za-z0-9_-]{1,59}$/) && newData.hasChildren(['nome','ordem','ativo','situacaoDefinicao','camada']) && (!data.child('definicaoVigenteFonteId').exists() || newData.child('definicaoVigenteFonteId').val() === data.child('definicaoVigenteFonteId').val() || newData.parent().parent().child('fontes').child($codigo).child(data.child('definicaoVigenteFonteId').val()).child('situacao').val() !== 'vigente')",
+            ".validate": "$codigo.matches(/^[A-Za-z][A-Za-z0-9_-]{1,59}$/) && newData.hasChildren(['nome','ordem','ativo','situacaoDefinicao','camada']) && (!data.child('definicaoVigenteFonteId').exists() || newData.child('definicaoVigenteFonteId').val() === data.child('definicaoVigenteFonteId').val() || newData.parent().parent().child('fontes').child($codigo).child(data.child('definicaoVigenteFonteId').val()).child('situacao').val() !== 'vigente') && (!data.exists() ? (!newData.child('inativacao').exists() && !newData.child('reativacao').exists()) : ((newData.child('ativo').val() === false || !newData.child('inativacao').exists()) && (newData.child('ativo').val() === true || !newData.child('reativacao').exists()) && (data.child('ativo').val() === true && newData.child('ativo').val() === false ? (newData.child('inativacao').hasChildren(['motivo','em','por','auditoriaId']) && newData.parent().parent().child('auditoria').child($codigo).child(newData.child('inativacao').child('auditoriaId').val()).child('tipo').val() === 'inativacao' && !root.child('taxonomia').child('organizacional').child('auditoria').child($codigo).child(newData.child('inativacao').child('auditoriaId').val()).exists()) : (data.child('ativo').val() === false && newData.child('ativo').val() === true ? (newData.child('reativacao').hasChildren(['em','por','auditoriaId']) && newData.parent().parent().child('auditoria').child($codigo).child(newData.child('reativacao').child('auditoriaId').val()).child('tipo').val() === 'reativacao' && !root.child('taxonomia').child('organizacional').child('auditoria').child($codigo).child(newData.child('reativacao').child('auditoriaId').val()).exists()) : (newData.child('inativacao').child('motivo').val() === data.child('inativacao').child('motivo').val() && newData.child('inativacao').child('em').val() === data.child('inativacao').child('em').val() && newData.child('inativacao').child('por').val() === data.child('inativacao').child('por').val() && newData.child('inativacao').child('auditoriaId').val() === data.child('inativacao').child('auditoriaId').val() && newData.child('reativacao').child('em').val() === data.child('reativacao').child('em').val() && newData.child('reativacao').child('por').val() === data.child('reativacao').child('por').val() && newData.child('reativacao').child('auditoriaId').val() === data.child('reativacao').child('auditoriaId').val())))))",
             "nome": {
               ".validate": "newData.isString() && newData.val().length > 0 && newData.val().length <= 120"
             },
@@ -782,6 +797,21 @@
             },
             "atualizadoPor": {
               ".validate": "newData.isString() && newData.val() === auth.token.email"
+            },
+            "inativacao": {
+              ".validate": "newData.hasChildren(['motivo','em','por','auditoriaId'])",
+              "motivo": { ".validate": "newData.isString() && newData.val().length > 0 && newData.val().length <= 500" },
+              "em": { ".validate": "newData.isString()" },
+              "por": { ".validate": "newData.isString() && newData.val() === auth.token.email" },
+              "auditoriaId": { ".validate": "newData.isString() && newData.val().matches(/^[A-Za-z0-9_-]{1,60}$/)" },
+              "$outro": { ".validate": false }
+            },
+            "reativacao": {
+              ".validate": "newData.hasChildren(['em','por','auditoriaId'])",
+              "em": { ".validate": "newData.isString()" },
+              "por": { ".validate": "newData.isString() && newData.val() === auth.token.email" },
+              "auditoriaId": { ".validate": "newData.isString() && newData.val().matches(/^[A-Za-z0-9_-]{1,60}$/)" },
+              "$outro": { ".validate": false }
             },
             "camada": {
               ".validate": "(newData.val() === 'A' || newData.val() === 'B' || newData.val() === 'C' || newData.val() === 'auxiliar')"
@@ -855,7 +885,7 @@
             ".validate": "$codigo === '_catalogo' || $codigo.matches(/^[A-Za-z][A-Za-z0-9_-]{1,59}$/)",
             "$pushKey": {
               ".write": "(auth != null && ((auth.token.email === 'tatianefdirene@previ.com.br' || auth.token.email === 'danielfrazao@previ.com.br') || root.child('fa-admins').child(auth.token.email.replace('@','_').replace('.','_')).exists())) && !data.exists() && newData.exists()",
-              ".validate": "newData.hasChildren(['tipo','usuario','dataHora']) && (newData.child('tipo').val() === 'alteracao_conceito' || newData.child('tipo').val() === 'alteracao_fonte' || newData.child('tipo').val() === 'definicao_vigente' || newData.child('tipo').val() === 'alteracao_perfil' || newData.child('tipo').val() === 'alteracao_atributo' || newData.child('tipo').val() === 'alteracao_relacao' || newData.child('tipo').val() === 'carga_inicial' || newData.child('tipo').val() === 'fonte_arquivada' || newData.child('tipo').val() === 'fonte_restaurada') && newData.child('usuario').hasChildren(['email']) && newData.child('usuario').child('email').val() === auth.token.email && newData.child('dataHora').isString()"
+              ".validate": "newData.hasChildren(['tipo','usuario','dataHora']) && (newData.child('tipo').val() === 'alteracao_conceito' || newData.child('tipo').val() === 'alteracao_fonte' || newData.child('tipo').val() === 'definicao_vigente' || newData.child('tipo').val() === 'alteracao_perfil' || newData.child('tipo').val() === 'alteracao_atributo' || newData.child('tipo').val() === 'alteracao_relacao' || newData.child('tipo').val() === 'carga_inicial' || newData.child('tipo').val() === 'fonte_arquivada' || newData.child('tipo').val() === 'fonte_restaurada' || newData.child('tipo').val() === 'inativacao' || newData.child('tipo').val() === 'reativacao' || newData.child('tipo').val() === 'relacao_criada' || newData.child('tipo').val() === 'relacao_encerrada') && newData.child('usuario').hasChildren(['email']) && newData.child('usuario').child('email').val() === auth.token.email && newData.child('dataHora').isString()"
             }
           }
         },
@@ -929,7 +959,7 @@
           ".read": "auth != null && ((auth.token.email === 'tatianefdirene@previ.com.br' || auth.token.email === 'danielfrazao@previ.com.br') || root.child('fa-admins').child(auth.token.email.replace('@','_').replace('.','_')).exists())",
           "$chave": {
             ".write": "(auth != null && ((auth.token.email === 'tatianefdirene@previ.com.br' || auth.token.email === 'danielfrazao@previ.com.br') || root.child('fa-admins').child(auth.token.email.replace('@','_').replace('.','_')).exists())) && newData.exists()",
-            ".validate": "newData.hasChildren(['de','tipo','para']) && (newData.child('tipo').val() === 'compoe' || newData.child('tipo').val() === 'aloca-em' || newData.child('tipo').val() === 'atende' || newData.child('tipo').val() === 'desenvolve-disciplina' || newData.child('tipo').val() === 'pertence-a-disciplina') && $chave === newData.child('de').val() + '__' + newData.child('tipo').val() + '__' + newData.child('para').val() && newData.parent().parent().child('conceitos').child(newData.child('de').val()).exists() && newData.parent().parent().child('conceitos').child(newData.child('para').val()).exists()",
+            ".validate": "newData.hasChildren(['de','tipo','para']) && (newData.child('tipo').val() === 'compoe' || newData.child('tipo').val() === 'aloca-em' || newData.child('tipo').val() === 'atende' || newData.child('tipo').val() === 'desenvolve-disciplina' || newData.child('tipo').val() === 'pertence-a-disciplina') && $chave === newData.child('de').val() + '__' + newData.child('tipo').val() + '__' + newData.child('para').val() && newData.parent().parent().child('conceitos').child(newData.child('de').val()).exists() && newData.parent().parent().child('conceitos').child(newData.child('para').val()).exists() && (!data.exists() ? (!newData.child('encerrada').exists() && ((!root.child('taxonomia').child('meta').child('cargaInicial').exists() && newData.parent().parent().parent().child('meta').child('cargaInicial').exists()) || (newData.child('de').val() !== newData.child('para').val() && newData.parent().parent().child('conceitos').child(newData.child('de').val()).child('ativo').val() === true && newData.parent().parent().child('conceitos').child(newData.child('para').val()).child('ativo').val() === true && newData.hasChildren(['criadaEm','criadaPor','auditoriaId']) && newData.parent().parent().child('auditoria').child(newData.child('de').val()).child(newData.child('auditoriaId').val()).child('tipo').val() === 'relacao_criada' && newData.parent().parent().child('auditoria').child(newData.child('de').val()).child(newData.child('auditoriaId').val()).child('relacao').val() === $chave && !root.child('taxonomia').child('organizacional').child('auditoria').child(newData.child('de').val()).child(newData.child('auditoriaId').val()).exists() && newData.parent().parent().child('auditoria').child(newData.child('para').val()).child(newData.child('auditoriaId').val()).child('tipo').val() === 'relacao_criada' && newData.parent().parent().child('auditoria').child(newData.child('para').val()).child(newData.child('auditoriaId').val()).child('relacao').val() === $chave && !root.child('taxonomia').child('organizacional').child('auditoria').child(newData.child('para').val()).child(newData.child('auditoriaId').val()).exists() && newData.parent().parent().child('auditoria').child(newData.child('de').val()).child(newData.child('auditoriaId').val()).child('operacaoId').isString() && newData.parent().parent().child('auditoria').child(newData.child('de').val()).child(newData.child('auditoriaId').val()).child('operacaoId').val() === newData.parent().parent().child('auditoria').child(newData.child('para').val()).child(newData.child('auditoriaId').val()).child('operacaoId').val()))) : (!data.child('encerrada').exists() && newData.child('nota').val() === data.child('nota').val() && newData.child('criadaEm').val() === data.child('criadaEm').val() && newData.child('criadaPor').val() === data.child('criadaPor').val() && newData.child('auditoriaId').val() === data.child('auditoriaId').val() && newData.child('encerrada').hasChildren(['motivo','em','por','auditoriaId']) && newData.parent().parent().child('auditoria').child(newData.child('de').val()).child(newData.child('encerrada').child('auditoriaId').val()).child('tipo').val() === 'relacao_encerrada' && newData.parent().parent().child('auditoria').child(newData.child('de').val()).child(newData.child('encerrada').child('auditoriaId').val()).child('relacao').val() === $chave && !root.child('taxonomia').child('organizacional').child('auditoria').child(newData.child('de').val()).child(newData.child('encerrada').child('auditoriaId').val()).exists() && newData.parent().parent().child('auditoria').child(newData.child('para').val()).child(newData.child('encerrada').child('auditoriaId').val()).child('tipo').val() === 'relacao_encerrada' && newData.parent().parent().child('auditoria').child(newData.child('para').val()).child(newData.child('encerrada').child('auditoriaId').val()).child('relacao').val() === $chave && !root.child('taxonomia').child('organizacional').child('auditoria').child(newData.child('para').val()).child(newData.child('encerrada').child('auditoriaId').val()).exists() && newData.parent().parent().child('auditoria').child(newData.child('de').val()).child(newData.child('encerrada').child('auditoriaId').val()).child('operacaoId').isString() && newData.parent().parent().child('auditoria').child(newData.child('de').val()).child(newData.child('encerrada').child('auditoriaId').val()).child('operacaoId').val() === newData.parent().parent().child('auditoria').child(newData.child('para').val()).child(newData.child('encerrada').child('auditoriaId').val()).child('operacaoId').val()))",
             "de": {
               ".validate": "newData.isString()"
             },
@@ -942,6 +972,16 @@
             "nota": {
               ".validate": "newData.isString() && newData.val().length <= 2000"
             },
+            "criadaEm": { ".validate": "newData.isString()" },
+            "criadaPor": { ".validate": "newData.isString() && newData.val() === auth.token.email" },
+            "auditoriaId": { ".validate": "newData.isString() && newData.val().matches(/^[A-Za-z0-9_-]{1,60}$/)" },
+            "encerrada": {
+              "motivo": { ".validate": "newData.isString() && newData.val().length > 0 && newData.val().length <= 500" },
+              "em": { ".validate": "newData.isString()" },
+              "por": { ".validate": "newData.isString() && newData.val() === auth.token.email" },
+              "auditoriaId": { ".validate": "newData.isString() && newData.val().matches(/^[A-Za-z0-9_-]{1,60}$/)" },
+              "$outro": { ".validate": false }
+            },
             "$outro": {
               ".validate": false
             }
@@ -953,6 +993,26 @@
         "cargaInicial": {
           ".write": "(auth != null && ((auth.token.email === 'tatianefdirene@previ.com.br' || auth.token.email === 'danielfrazao@previ.com.br') || root.child('fa-admins').child(auth.token.email.replace('@','_').replace('.','_')).exists())) && !data.exists() && newData.exists()",
           ".validate": "newData.hasChildren(['feitaEm','feitaPor']) && newData.child('feitaPor').val() === auth.token.email"
+        }
+      }
+    },
+    "avaliacao-classificacoes": {
+      ".read": "(auth != null && ((auth.token.email === 'tatianefdirene@previ.com.br' || auth.token.email === 'danielfrazao@previ.com.br') || root.child('fa-admins').child(auth.token.email.replace('@','_').replace('.','_')).exists()))",
+      "$codigo": {
+        ".write": "(auth != null && ((auth.token.email === 'tatianefdirene@previ.com.br' || auth.token.email === 'danielfrazao@previ.com.br') || root.child('fa-admins').child(auth.token.email.replace('@','_').replace('.','_')).exists())) && !data.exists() && newData.exists()",
+        ".validate": "$codigo.matches(/^[A-Za-z][A-Za-z0-9_-]{1,59}$/) && newData.hasChildren(['registradoEm','registradoPor','auditoriaId']) && newData.parent().parent().child('taxonomia').child('arquitetural').child('conceitos').child($codigo).child('ativo').val() === true && newData.parent().parent().child('avaliacao-classificacoes-auditoria').child($codigo).child(newData.child('auditoriaId').val()).child('tipo').val() === 'ligacao_registrada' && !root.child('avaliacao-classificacoes-auditoria').child($codigo).child(newData.child('auditoriaId').val()).exists()",
+        "registradoEm": { ".validate": "newData.isString()" },
+        "registradoPor": { ".validate": "newData.isString() && newData.val() === auth.token.email" },
+        "auditoriaId": { ".validate": "newData.isString() && newData.val().matches(/^[A-Za-z0-9_-]{1,60}$/)" },
+        "$outro": { ".validate": false }
+      }
+    },
+    "avaliacao-classificacoes-auditoria": {
+      ".read": "(auth != null && ((auth.token.email === 'tatianefdirene@previ.com.br' || auth.token.email === 'danielfrazao@previ.com.br') || root.child('fa-admins').child(auth.token.email.replace('@','_').replace('.','_')).exists()))",
+      "$codigo": {
+        "$id": {
+          ".write": "(auth != null && ((auth.token.email === 'tatianefdirene@previ.com.br' || auth.token.email === 'danielfrazao@previ.com.br') || root.child('fa-admins').child(auth.token.email.replace('@','_').replace('.','_')).exists())) && !data.exists() && newData.exists()",
+          ".validate": "newData.hasChildren(['tipo','usuario','dataHora']) && newData.child('tipo').val() === 'ligacao_registrada' && newData.child('usuario').hasChildren(['email']) && newData.child('usuario').child('email').val() === auth.token.email && newData.child('dataHora').isString() && newData.parent().parent().parent().child('avaliacao-classificacoes').child($codigo).child('auditoriaId').val() === $id"
         }
       }
     }

@@ -2774,3 +2774,15 @@ details.avp-form-card.avp-aut-historico { margin-top: 0; padding: 10px 16px; mar
 /* Conceito-base da lista da Avaliação: a definição vem da Taxonomia (fonte única), dentro da frase. */
 .avp-intro .fa-classif-def { font-size: inherit; color: inherit; margin: 0; }
 .fa-classif-def--sem { font-style: italic; opacity: .85; }
+/* Taxonomia — governança (Etapa 5): ligação com a Avaliação, inativação, relações */
+.tax-selo--ligado { border-color: rgba(24,194,186,.55); color: var(--ink-1, inherit); }
+.tax-rel-acoes { display: inline-flex; flex-wrap: wrap; gap: 6px; margin-left: 6px; vertical-align: middle; }
+.tax-rel-acoes .btn { padding: 4px 10px; }
+.tax-relacoes--encerradas li { opacity: .85; }
+.tax-confirma textarea, .tax-form-relacao textarea, .tax-form-relacao select { width: 100%; max-width: 100%; box-sizing: border-box; }
+.tax-confirma ul { margin: 4px 0 6px 18px; padding: 0; }
+#taxProtecaoIncompleta { margin: 8px 0; }
+@media (max-width: 480px) {
+  .tax-rel-acoes { display: flex; margin: 6px 0 0; }
+  .tax-base-item { display: block; }
+}
