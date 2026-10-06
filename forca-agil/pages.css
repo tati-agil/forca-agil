@@ -2684,4 +2684,58 @@ details.avp-form-card.avp-aut-historico { margin-top: 0; padding: 10px 16px; mar
   .tax-exportar .tax-acoes { width: 100%; }
   .tax-exportar .tax-acoes .btn { flex: 1 1 140px; }
 }
+/* ===== Taxonomia: detalhe reorganizado (Identificação → Definição vigente → … → Histórico), ações gerais
+   separadas das do conceito, históricos recolhidos e "← VOLTAR" visível no celular ===== */
+.tax-globais { border: 1px solid var(--line-strong); border-radius: 12px; padding: 12px 14px; margin: 0 0 14px; background: var(--space-1); }
+.tax-globais-titulo { margin: 0 0 2px; font-size: .78rem; font-family: var(--font-mono); letter-spacing: .06em; text-transform: uppercase; color: var(--ink-2); }
+.tax-globais > .tax-ajuda { margin: 0 0 10px; }
+.tax-globais .tax-importador, .tax-globais .tax-exportar { margin: 8px 0 0; }
+.tax-area-rotulo { margin: 0 0 2px; font-size: .72rem; font-family: var(--font-mono); letter-spacing: .06em; text-transform: uppercase; color: var(--accent); }
+.tax-ident { display: grid; gap: 4px; }
+.tax-ident-linha { margin: 0; font-size: .86rem; overflow-wrap: anywhere; }
+.tax-ident-k { color: var(--ink-3); font-size: .78rem; font-family: var(--font-mono); margin-right: 4px; }
+.tax-ident-linha code { color: var(--ink); font-size: .8rem; font-family: var(--font-mono); padding: 0 5px; border: 1px solid var(--line); border-radius: 4px; }
+.tax-relacoes code { font-family: var(--font-mono); font-size: .76rem; color: var(--ink-3); }
+.tax-ident .tax-caminho { margin: 0; }
+.tax-selo--ativo { border-color: rgba(24,194,186,.4); }
+/* b) a definição vigente é o centro do conceito: cartão maior e de alto contraste */
+.tax-sec--definicao { border: 2px solid rgba(24,194,186,.7); border-radius: 14px; padding: 14px 16px; background: rgba(24,194,186,.07); }
+.tax-sec--definicao > h4 { font-size: 1.05rem; color: var(--ink); margin-bottom: 4px; }
+.tax-sec--definicao .tax-bloco--vigente { border: 0; padding: 0; margin: 8px 0 0; background: transparent; }
+.tax-sec--definicao .tax-fonte--vigente { background: var(--space-1); border: 1px solid rgba(24,194,186,.55); padding: 14px; }
+.tax-sec--definicao .tax-definicao-texto { font-size: 1.04rem; line-height: 1.6; color: var(--ink); margin: 10px 0; }
+.tax-dl { display: grid; grid-template-columns: max-content minmax(0, 1fr); gap: 2px 12px; margin: 8px 0; }
+.tax-dl dt { color: var(--ink-3); }
+.tax-dl dd { margin: 0; overflow-wrap: anywhere; }
+.tax-vig-meta { font-size: .8rem; margin: 8px 0 4px; }
+.tax-btn-destaque { border-color: var(--cyan, #18c2ba); color: var(--cyan-soft); font-weight: 700; }
+.tax-sec--definicao .tax-fonte--nova-versao { border-color: var(--gold); }
+.tax-recolhivel > summary { cursor: pointer; }
+.tax-recolhivel-cab { font-weight: 600; font-size: .92rem; padding: 6px 0; overflow-wrap: anywhere; }
+.tax-recolhivel-cab--fixo { margin: 0 0 6px; }
+.tax-hist-lista { list-style: none; margin: 8px 0 0; padding: 0; display: grid; gap: 8px; }
+.tax-hist-item { border: 1px solid var(--line); border-radius: 10px; padding: 8px 12px; background: var(--space-1); margin: 0; }
+.tax-hist-meta { display: flex; flex-wrap: wrap; align-items: baseline; gap: 2px 10px; font-size: .76rem; color: var(--ink-3); }
+.tax-hist-quando { font-family: var(--font-mono); }
+.tax-hist-tipo { color: var(--ink-2); }
+.tax-hist-resumo { margin: 4px 0 0; font-size: .86rem; overflow-wrap: anywhere; }
+.tax-hist-detalhe > summary { cursor: pointer; font-size: .8rem; color: var(--cyan-soft); margin-top: 4px; }
+.tax-hist-valores { font-size: .8rem; }
+.tax-hist-integral { white-space: pre-wrap; overflow-wrap: anywhere; }
+.tax-rel-grupo { margin: 8px 0 10px; }
+.tax-rel-grupo h5 { margin: 0 0 4px; font-size: .84rem; color: var(--ink-2); }
+.tax-rel-grupo .tax-ajuda { font-weight: normal; }
+.tax-relacoes li { margin: 3px 0; overflow-wrap: anywhere; }
+.tax-voltar-rodape, .tax-voltar-hg { display: none; }
+@media (max-width: 720px) {
+  .tax-voltar, .tax-voltar-rodape .btn, .tax-voltar-hg .btn { display: block; width: 100%; border-width: 2px; border-color: var(--accent); font-weight: 700; }
+  .tax-voltar-rodape { display: block; margin-top: 18px; padding-top: 12px; border-top: 1px solid var(--line); }
+  .tax-voltar-hg { display: block; margin: 8px 0 12px; }
+  .tax-hist:not([open]) + .tax-voltar-hg--rodape { display: none; } /* recolhido, a tela é curta: basta o VOLTAR do topo */
+  .tax-sec--definicao { padding: 12px; }
+  .tax-sec--definicao .tax-fonte--vigente { padding: 12px 10px; }
+  /* a ação de redação ocupa a linha inteira, logo acima das demais */
+  .tax-fonte > .tax-acoes--fonte .tax-btn-destaque { flex-basis: 100%; }
+  .tax-globais { padding: 10px 12px; }
+}
 /* ===== fim do bloco Taxonomia ===== */
