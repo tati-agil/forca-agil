@@ -80,7 +80,9 @@ const c2 = V2.combinacao.find((r) => r.codigo === 'C2'), c3 = V2.combinacao.find
 if (!ctxMotor.window.faMotorSquad.validarRegrasCompletas(V2).valida) throw new Error('a versão 2 do teste precisa ser válida');
 const CONFIG_V2 = { versaoPublicada: 2, versoes: { 2: { regras: V2, publicadoEm: '2026-09-01T10:00:00.000Z', publicadoPor: { email: EMAIL } } } };
 
-async function abrir(browser, viewport, motorConfig, extraCfg) {
+/* onde: 'avaliacao' (padrão) — a avaliação de Squad, na área AVALIAÇÃO; 'motor' — ADMIN ›
+   Arquitetura › Motor de Squad (governança, onde ficou a configuração do motor). */
+async function abrir(browser, viewport, motorConfig, extraCfg, onde) {
   const admins = {}; admins[chave(EMAIL)] = { email: EMAIL };
   const db = { turmas: {}, 'turmas-interesse': {}, 'fa-users': {}, 'fa-admins': admins, 'turmas-config': {}, 'turmas-checkin': {}, 'turmas-espera': {},
     'turmas-equipe': {}, 'fa-facilitadores': {}, 'fa-diretores': {}, eventos: {}, 'turmas-publico': {}, 'eventos-publico': {},
@@ -95,13 +97,21 @@ async function abrir(browser, viewport, motorConfig, extraCfg) {
   await page.route('**/firebasejs/**', (r) => r.fulfill({ status: 200, contentType: 'text/javascript', body: FALSO + '\n' + PORTAO }));
   await page.route('**fonts.googleapis.com**', (r) => r.fulfill({ status: 200, contentType: 'text/css', body: '' }));
   await page.route('**fonts.gstatic.com**', (r) => r.abort());
-  await page.goto(BASE + '/index.html#admin', { waitUntil: 'domcontentloaded' });
+  if (onde === 'motor') {
+    await page.goto(BASE + '/index.html#admin', { waitUntil: 'domcontentloaded' });
+    await esperarSessaoAssentada(page);
+    await page.waitForSelector('.admin-tab-btn[data-panel="adminPanelArquitetura"]', { timeout: 8000 });
+    await page.click('.admin-tab-btn[data-panel="adminPanelArquitetura"]');
+    await page.waitForSelector('#avpMotorSquadInicioBtn', { timeout: 8000 });
+    await page.click('#avpMotorSquadInicioBtn');
+    await page.waitForSelector('#adminAvaliacaoSquad #sqMotorEditarRegrasBtn', { timeout: 8000 });
+    return { ctx, page, erros };
+  }
+  await page.goto(BASE + '/index.html#avaliacoes', { waitUntil: 'domcontentloaded' });
   await esperarSessaoAssentada(page);
-  await page.waitForSelector('.admin-tab-btn[data-panel="adminPanelArquitetura"]', { timeout: 8000 });
-  await page.click('.admin-tab-btn[data-panel="adminPanelArquitetura"]');
-  await page.waitForSelector('#avpAdequacaoSquadListaBtn', { timeout: 8000 });
-  await page.click('#avpAdequacaoSquadListaBtn');
-  await page.waitForSelector('#sqNovaBtn', { timeout: 8000 });
+  await page.waitForSelector('#avpSquadBtn', { timeout: 8000 });
+  await page.click('#avpSquadBtn');
+  await page.waitForSelector('#avaliacoesSquad #sqNovaBtn', { timeout: 8000 });
   return { ctx, page, erros };
 }
 
@@ -229,9 +239,7 @@ const CODIGOS_C = ['FORTE_ADERENCIA_SQUAD_DEDICADA', 'JUSTIFICA_CAPACIDADE_COM_C
 
   console.log('\n######## 5. ADMIN: publicação de regras com buraco é bloqueada ########');
   {
-    const { ctx, page, erros } = await abrir(browser, DESKTOP, {});
-    await page.click('#sqMotorConfigBtn');
-    await page.waitForSelector('#sqMotorEditarRegrasBtn');
+    const { ctx, page, erros } = await abrir(browser, DESKTOP, {}, null, 'motor');
     await page.click('#sqMotorEditarRegrasBtn');
     await page.waitForSelector('.sq-cond-select');
     /* B1 é a 11ª condição sobre S1–S8 (A1: 4, A2: 4, A3: 2) — S7 = NÃO vira SIM */

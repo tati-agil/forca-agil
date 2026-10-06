@@ -2188,6 +2188,14 @@
        verdade são as regras do banco (database.rules.json, provadas em
        teste-rules-avaliacoes.js). */
     function pode() { return !!(window.faAuth && window.faAuth.podeAvaliacao && window.faAuth.podeAvaliacao()); }
+    /* Curadoria (especialização, papel estrutural, natureza complementar) e
+       decisão final são da Arquitetura: "Avaliação" avalia; "Avaliação +
+       Arquitetura" (e o admin geral) também cura e decide. O banco barra do
+       mesmo jeito: em avaliacoes-produto, quem não é da Arquitetura não muda
+       nenhum campo de curadoria/decisão (numa versão nova, só herda os da
+       anterior) e, em curadoria-auditoria, só grava a linha de reavaliação e
+       a do reprocessamento automático. */
+    function podeDecidir() { return !!(window.faAuth && window.faAuth.podeArquitetura && window.faAuth.podeArquitetura()); }
     function telaInicial() { return modo === 'admin' ? 'admin-inicio' : 'lista'; }
 
     /* Navegação hierárquica do Admin: toda subtela abre com um "← Voltar para
@@ -2729,6 +2737,8 @@
       html += '<span class="avp-total" id="avpContador">' + (recortado ? filtrados.length + ' de ' + baseContagem.length : baseContagem.length) +
         ' avaliaç' + (baseContagem.length === 1 ? 'ão' : 'ões') + (state.lixeira ? ' na lixeira' : '') + '</span>';
       if (!state.lixeira && pode()) html += '<button class="btn btn--primary" id="avpNovoBtn">+ Avaliar novo item</button>';
+      /* Adequação à Squad: outra avaliação, independente desta (S1–S8), feita aqui mesmo na área Avaliação. */
+      if (!state.lixeira && pode() && modo === 'operacional') html += '<button class="btn btn--sm" id="avpSquadBtn">Adequação à Squad</button>';
       if (!state.lixeira && pode()) {
         html += '<div class="avp-exportar-wrap">';
         html += '<button class="btn btn--sm" id="avpExportarBtn"' + (state.exportando ? ' disabled' : '') + '>' +
@@ -2915,6 +2925,14 @@
 
       var novoBtn = document.getElementById('avpNovoBtn');
       if (novoBtn) novoBtn.addEventListener('click', function () { irPara(hashNova()); }); /* a URL faz a tela (construirNova) */
+      var squadAbrirBtn = document.getElementById('avpSquadBtn');
+      /* O módulo do Squad é montado aqui se ainda não estiver: quando a página já abre em
+         #avaliacoes, esta lista nasce antes de avaliacao-squad.js terminar de carregar. */
+      if (squadAbrirBtn) squadAbrirBtn.addEventListener('click', function () {
+        if (!window.faAvaliacaoSquad && window.faInitAvaliacaoSquad) window.faInitAvaliacaoSquad({ modo: 'operacional' });
+        if (window.faAvaliacaoSquad) window.faAvaliacaoSquad.abrirLista();
+        else avpAlert('A Adequação à Squad não carregou. Recarregue a página e tente de novo.');
+      });
       var buscaEl = document.getElementById('avpBusca');
       if (buscaEl) {
         var compondo = false;
@@ -3843,7 +3861,7 @@
        versoes/<n> nunca sobrescritas, validação antes de publicar). O
        motor de squad continua com a tela já criada pela PR #240
        (avaliacao-squad.js) — não duplicada aqui, só alcançável por um
-       botão que chama window.faAvaliacaoSquad.abrirMotorConfig(). */
+       botão que chama window.faAvaliacaoSquadAdmin.abrirMotorConfig(origem). */
     var CAMADAS_LABEL_POR_ID = {};
     CAMADAS.forEach(function (c) { CAMADAS_LABEL_POR_ID[c.id] = c.label; });
     /* ===================== ÁREA OPERACIONAL: SEM ACESSO ===================== */
@@ -3875,9 +3893,11 @@
       html += grupo('Regras e conceitos', 'O que as perguntas dizem e como as respostas viram uma classificação.',
         cartao('avpConfigQuestionariosBtn', 'Questionários e versões', 'Redação das perguntas e justificativas, com versões e auditoria.') +
         cartao('avpConfigMotoresBtn', 'Configuração dos Motores', 'Regras que classificam os itens, com simulação e versões.'));
-      html += grupo('Governança arquitetural', 'Opções de descrição dos itens e a análise de adequação à gestão por squad.',
+      /* A avaliação de Squad em si mora na área AVALIAÇÃO do menu (junto das demais avaliações);
+         aqui fica só a governança dela: o motor de squad. */
+      html += grupo('Governança arquitetural', 'Opções de descrição dos itens e as regras da adequação à gestão por squad.',
         cartao('avpConfigNaturezasBtn', 'Naturezas complementares', 'Opções do campo opcional de descrição do item.') +
-        (window.faAvaliacaoSquad ? cartao('avpAdequacaoSquadListaBtn', 'Adequação à Squad', 'Avaliação de adequação à gestão por squad e o seu motor.') : ''));
+        (window.faAvaliacaoSquadAdmin ? cartao('avpMotorSquadInicioBtn', 'Motor de Squad', 'Regras da adequação à gestão por squad (S1–S8), com simulação e versões. As avaliações de squad ficam na área Avaliação.') : ''));
       if (souAdminGeral()) {
         html += grupo('Acesso', 'Quem entra na aba Avaliação e, se for o caso, na Arquitetura.',
           cartao('avpUsuariosBtn', 'Usuários autorizados', 'Quem usa a Avaliação (e quem também acessa a Arquitetura), com histórico.'));
@@ -3886,8 +3906,10 @@
       document.getElementById('avpConfigQuestionariosBtn').addEventListener('click', abrirConfigQuestionarios);
       document.getElementById('avpConfigMotoresBtn').addEventListener('click', abrirConfigMotores);
       document.getElementById('avpConfigNaturezasBtn').addEventListener('click', abrirConfigNaturezas);
-      var squadBtn = document.getElementById('avpAdequacaoSquadListaBtn');
-      if (squadBtn) squadBtn.addEventListener('click', function () { window.faAvaliacaoSquad.abrirLista(); });
+      var squadBtn = document.getElementById('avpMotorSquadInicioBtn');
+      if (squadBtn) squadBtn.addEventListener('click', function () {
+        window.faAvaliacaoSquadAdmin.abrirMotorConfig({ rotulo: 'Arquitetura', voltar: function () { state.tela = telaInicial(); render(); } });
+      });
       var usuariosBtn = document.getElementById('avpUsuariosBtn');
       if (usuariosBtn) usuariosBtn.addEventListener('click', abrirAdminUsuarios);
     }
@@ -4043,8 +4065,9 @@
         'Os perfis antigos (Consulta, Avaliador e Gestor) não valem mais para nada.</p>';
       html += '<div class="table-scroll-wrap"><table class="admin-table avp-table avp-aut-matriz"><thead><tr><th>O que a pessoa acessa</th>' +
         TIPOS_AUTORIZADO.map(function (t) { return '<th>' + esc(t.rotulo) + '</th>'; }).join('') + '</tr></thead><tbody>' +
-        '<tr><td data-label="Acesso">Aba AVALIAÇÃO (avaliar, reavaliar, exportar)</td><td>Sim</td><td>Sim</td></tr>' +
-        '<tr><td data-label="Acesso">ADMIN › Arquitetura (questionários, motores, naturezas, Squad)</td><td>Não</td><td>Sim</td></tr>' +
+        '<tr><td data-label="Acesso">Aba AVALIAÇÃO (avaliar, reavaliar, exportar, Adequação à Squad)</td><td>Sim</td><td>Sim</td></tr>' +
+        '<tr><td data-label="Acesso">Curadoria e decisão arquitetural (especialização, papel estrutural, natureza complementar, decisão final)</td><td>Não</td><td>Sim</td></tr>' +
+        '<tr><td data-label="Acesso">ADMIN › Arquitetura (questionários, motores, naturezas, motor de Squad, documentação e mapas)</td><td>Não</td><td>Sim</td></tr>' +
         '<tr><td data-label="Acesso">Demais áreas do ADMIN</td><td>Não</td><td>Não</td></tr>' +
         '<tr><td data-label="Acesso">Gerenciar esta lista</td><td>Não</td><td>Não</td></tr></tbody></table></div>';
       if (u.carregando) {
@@ -4436,7 +4459,7 @@
       html += '</div></div>';
 
       html += '<div class="avp-form-card"><h4>Motor de Adequação à Gestão por Squad (S1-S8)</h4>';
-      if (window.faAvaliacaoSquad && window.faMotorSquad) {
+      if (window.faAvaliacaoSquadAdmin && window.faMotorSquad) {
         var sitSquad = window.faMotorSquad.situacao();
         html += '<p>Versão publicada: <strong>' + esc(sitSquad.versaoPublicada) + '</strong> · Status: ' + (sitSquad.temRascunho ? '<strong>há um rascunho não publicado</strong>' : 'Publicada') + '</p>';
         html += '<div class="avp-actions-footer"><button class="btn btn--sm" id="avpMotorSquadAbrirBtn">Abrir configuração do motor de squad</button></div>';
@@ -4470,9 +4493,10 @@
         });
       });
       var squadBtn = document.getElementById('avpMotorSquadAbrirBtn');
+      /* Abre o motor de squad (instância admin de avaliacao-squad.js) por cima desta tela e,
+         no "← Voltar" do painel dele, volta exatamente para Configuração dos Motores. */
       if (squadBtn) squadBtn.addEventListener('click', function () {
-        state.tela = telaInicial(); state.configMotores = null;
-        window.faAvaliacaoSquad.abrirMotorConfig();
+        window.faAvaliacaoSquadAdmin.abrirMotorConfig({ rotulo: 'Configuração dos Motores', voltar: function () { render(); } });
       });
     }
 
@@ -5650,7 +5674,7 @@
       html += renderCabecalhoFicha(a, vigente);
 
       var camada = a.camadaSugerida || camadaPorId('a-validar');
-      var editavel = pode() && vigente;
+      var editavel = podeDecidir() && vigente;
 
       /* 1 — O QUE O SISTEMA CONCLUIU: Resultado (a conclusão Produto/Serviço) e Classificação arquitetural
          (a camada) — dois conceitos, dois cartões, uma seção. Só o que o questionário/motor produziu. */
@@ -6300,6 +6324,7 @@
     var operacoesNatureza = {};
     var epocaSessao = 0;
     function salvarNatureza() {
+      if (!podeDecidir()) return; /* curadoria/decisão: só Arquitetura (a tela nem mostra; o banco também recusa) */
       if (state.salvandoNatureza) return; /* clique repetido enquanto já está salvando: ignora */
       var a = state.atual;
       var f = state.naturezaForm;
@@ -6432,6 +6457,7 @@
       if (flashDecisaoClose) flashDecisaoClose.addEventListener('click', function () { state.flashDecisao = null; render(); });
     }
     function salvarDecisao() {
+      if (!podeDecidir()) return; /* curadoria/decisão: só Arquitetura (a tela nem mostra; o banco também recusa) */
       if (state.salvandoDecisao) return; /* clique repetido enquanto já está salvando: ignora */
       var a = state.atual;
       var f = state.decisaoForm;
@@ -6517,6 +6543,7 @@
        aqui). Nunca toca em resultadoAutomatico, justificativaAutomatica,
        decisão arquitetural ou histórico. */
     function salvarEspecializacaoCadastrada() {
+      if (!podeDecidir()) return; /* curadoria/decisão: só Arquitetura (a tela nem mostra; o banco também recusa) */
       if (state.salvandoEspecializacao) return;
       var a = state.atual;
       var f = state.especializacaoForm;
@@ -6563,6 +6590,7 @@
        à camada vigente, e por isso volta a contar. Usa a trilha da curadoria (mesmo tipo do
        campo: o valor VIGENTE passa de "nenhum" para o valor), marcada como confirmação. */
     function confirmarCuradoriaAnterior(campo) {
+      if (!podeDecidir()) return; /* curadoria/decisão: só Arquitetura (a tela nem mostra; o banco também recusa) */
       if (state.salvandoEspecializacao) return;
       var a = state.atual;
       var ant = curadoriaAnterior(a)[campo];
@@ -7543,6 +7571,11 @@
   /* A área AVALIAÇÃO (#avaliacoes) sobe a instância operacional ao ser aberta
      pela primeira vez. O bloco do Admin sobe a sua em initAdmin (admin.js). */
   if (window.faRouter && window.faRouter.onPageInit) {
-    window.faRouter.onPageInit('avaliacoes', function () { window.faInitAvaliacaoProduto({ modo: 'operacional' }); });
+    window.faRouter.onPageInit('avaliacoes', function () {
+      window.faInitAvaliacaoProduto({ modo: 'operacional' });
+      /* Adequação à Squad: a avaliação em si fica aqui, na área AVALIAÇÃO (ver avaliacao-squad.js).
+         Se o script dele ainda não carregou, o botão da lista o monta no clique. */
+      if (window.faInitAvaliacaoSquad) window.faInitAvaliacaoSquad({ modo: 'operacional' });
+    });
   }
 })();

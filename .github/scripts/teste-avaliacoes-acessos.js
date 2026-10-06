@@ -136,7 +136,10 @@ async function abrirMais(page, key) {
       await page.click('.avp-act-ver[data-key="k1"]');
       await page.waitForSelector('#avpVoltarListaResultado', { timeout: 5000 });
       afirma(await contar(page, '#avpReavaliarBtn') === 1, 'resultado: REAVALIAR');
-      afirma(await contar(page, '#avpSalvarDecisaoBtn') === 1 && await contar(page, '#avpDecisaoLeitura') === 0, 'resultado: decisão final editável');
+      /* Avaliar ≠ decidir: curadoria e decisão final são da Arquitetura (o banco também recusa —
+         teste-rules-perfis-avaliacao.js). Aqui a pessoa vê as duas, só para consulta. */
+      afirma(await contar(page, '#avpSalvarDecisaoBtn') === 0 && await contar(page, '#avpDecisaoLeitura') === 1, 'resultado: decisão final SÓ PARA CONSULTA (decidir é da Arquitetura)');
+      afirma(await contar(page, '#avpCuradoriaCard') === 0 && await contar(page, '#avpCuradoriaLeitura') === 1, 'resultado: curadoria SÓ PARA CONSULTA (curadoria é da Arquitetura)');
       afirma(await contar(page, '#avpGerarPdfBtn') === 1, 'resultado: GERAR PDF');
       afirma(await larguraOk(page), 'resultado: sem rolagem horizontal');
       await page.evaluate(() => { location.hash = '#admin'; });
@@ -150,6 +153,12 @@ async function abrirMais(page, key) {
     {
       const { ctx, page, erros } = await abrir(browser, { email: EM, tipo: 'avaliacao-arquitetura', viewport });
       await aguardaLista(page);
+      await page.click('.avp-act-ver[data-key="k1"]');
+      await page.waitForSelector('#avpVoltarListaResultado', { timeout: 5000 });
+      afirma(await contar(page, '#avpSalvarDecisaoBtn') === 1 && await contar(page, '#avpDecisaoLeitura') === 0, 'resultado: decisão final editável (Arquitetura decide)');
+      afirma(await contar(page, '#avpCuradoriaCard') === 1, 'resultado: curadoria editável (Arquitetura faz a curadoria)');
+      await page.click('#avpVoltarListaResultado');
+      await aguardaLista(page);
       afirma(await contar(page, '#avpNovoBtn') === 1, 'a aba AVALIAÇÃO opera normalmente');
       afirma(await page.evaluate(() => { const a = document.querySelector('a[data-nav-page="admin"]'); return !!a && !a.hidden; }), 'o menu passa a mostrar "Admin" (leva só à Arquitetura)');
       await page.evaluate(() => { location.hash = '#admin'; });
@@ -160,8 +169,8 @@ async function abrirMais(page, key) {
       afirma(abas.length <= 1, 'nenhuma aba do ADMIN além da Arquitetura aparece no menu de abas — ' + JSON.stringify(abas));
       const paineis = await page.evaluate(() => Array.from(document.querySelectorAll('.admin-tab-panel')).filter((p) => !p.hidden && p.offsetParent !== null).map((p) => p.id));
       afirma(paineis.length === 1 && paineis[0] === 'adminPanelArquitetura', 'o único painel visível é o da Arquitetura — ' + JSON.stringify(paineis));
-      await page.waitForSelector('#avpAdequacaoSquadListaBtn', { timeout: 5000 }).catch(() => {});
-      afirma(await contar(page, '#avpConfigQuestionariosBtn') === 1 && await contar(page, '#avpConfigMotoresBtn') === 1 && await contar(page, '#avpConfigNaturezasBtn') === 1 && await contar(page, '#avpAdequacaoSquadListaBtn') === 1, 'Questionários, Motores, Naturezas e Adequação à Squad disponíveis');
+      await page.waitForSelector('#avpMotorSquadInicioBtn', { timeout: 5000 }).catch(() => {});
+      afirma(await contar(page, '#avpConfigQuestionariosBtn') === 1 && await contar(page, '#avpConfigMotoresBtn') === 1 && await contar(page, '#avpConfigNaturezasBtn') === 1 && await contar(page, '#avpMotorSquadInicioBtn') === 1, 'Questionários, Motores, Naturezas e Motor de Squad disponíveis');
       afirma(await contar(page, '#avpUsuariosBtn') === 0, 'SEM "Usuários autorizados" (só admin geral gerencia a lista)');
       afirma(await page.evaluate(() => { const c = document.querySelector('#adminCadastrados, #adminInteresses, #adminAdmins'); return !c || c.offsetParent === null; }), 'Cadastrados, Eventos e Administradores não estão na tela');
       afirma(await larguraOk(page), 'sem rolagem horizontal');
@@ -269,7 +278,7 @@ async function abrirMais(page, key) {
     afirma(/Bruno Lima/.test(await page.locator('#avpAutLista').innerText()) && !/Ana Souza|Carla Dias/.test(await page.locator('#avpAutLista').innerText()), 'só Bruno aparece (Carla, que tem perfil antigo "gestor", NÃO aparece)');
     afirma(await page.locator('.avp-aut-tipo-sel[data-key="' + chave('bruno@previ.com.br') + '"]').inputValue() === 'avaliacao-arquitetura', 'tipo de Bruno: Avaliação + Arquitetura');
     afirma(/Tatiane/.test(await page.locator('#avpAutLista').innerText()), 'mostra quem concedeu e quando');
-    afirma(await contar(page, '.avp-aut-matriz tbody tr') === 4, 'matriz de acessos por tipo exibida');
+    afirma(await contar(page, '.avp-aut-matriz tbody tr') === 5, 'matriz de acessos por tipo exibida (inclui "Curadoria e decisão arquitetural")');
     afirma(await larguraOk(page), 'sem rolagem horizontal');
 
     /* adicionar: procura entre os cadastrados, sem base paralela */

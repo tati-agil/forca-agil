@@ -180,10 +180,21 @@
     document.body.appendChild(script);
   }
 
-  window.faInitAvaliacaoSquad = function () {
-    var wrap = document.getElementById('adminAvaliacaoSquad');
-    if (!wrap || wrap._sqBound) return;
+  /* Duas instâncias, uma por lugar (mesmo princípio dos dois modos de avaliacao-produto.js):
+       'operacional' — #avaliacoes (aba AVALIAÇÃO): lista, nova avaliação, checklist, resultado e
+         exportações. É onde quem tem acesso à Avaliação avalia Squad, sem precisar do ADMIN.
+       'admin' — ADMIN › Arquitetura: SÓ a Configuração do Motor de Squad (governança), aberta
+         pela tela inicial da Arquitetura ou por Configuração dos Motores, voltando para a origem.
+     Cada instância tem o seu wrap, o seu estado e procura os próprios elementos SÓ dentro do
+     wrap (byId) — os ids das telas se repetem entre as duas e nunca podem se cruzar. */
+  function montarSquad(cfg) {
+    var wrap = document.getElementById(cfg.wrapId);
+    if (!wrap || wrap._sqBound) return null;
     wrap._sqBound = true;
+    var modo = cfg.modo;
+    function byId(id) { return wrap.querySelector('#' + id); }
+    function vizinho() { return document.getElementById(cfg.vizinhoId); }
+    var origemMotor = null; /* modo admin: { rotulo, voltar() } de quem abriu o motor */
 
     /* Fábrica de estado: a tela mora na página inteira e outra pessoa pode entrar sem recarregar.
        Na troca de pessoa o estado volta ao zero (resetarPorSessao), sem herdar tela, avaliações
@@ -271,17 +282,19 @@
     }
 
     function mostrarPainel() {
-      var arqWrap = document.getElementById('adminAvaliacaoProduto');
+      var arqWrap = vizinho();
       if (arqWrap) arqWrap.hidden = true;
       wrap.hidden = false;
     }
     function voltarParaArquitetura() {
       wrap.hidden = true;
-      var arqWrap = document.getElementById('adminAvaliacaoProduto');
+      var arqWrap = vizinho();
       if (arqWrap) arqWrap.hidden = false;
     }
 
     function render() {
+      if (modo === 'admin' && state.tela !== 'motor-config') { state.tela = 'motor-config'; if (!state.motorConfig) state.motorConfig = { sub: 'painel', flash: null }; }
+      if (modo !== 'admin' && state.tela === 'motor-config') state.tela = 'lista';
       if (state.tela === 'lista') renderLista();
       else if (state.tela === 'form-inicial') renderFormInicial();
       else if (state.tela === 'checklist') renderChecklist();
@@ -291,7 +304,7 @@
       else if (state.tela === 'nao-encontrada') {
         wrap.innerHTML = '<p class="admin-empty">Avaliação de squad não encontrada.</p>' +
           '<button class="btn" id="sqVoltarNaoEncontrada">← Voltar para Adequação à Squad</button>';
-        document.getElementById('sqVoltarNaoEncontrada').addEventListener('click', function () { state.tela = 'lista'; render(); });
+        byId('sqVoltarNaoEncontrada').addEventListener('click', function () { state.tela = 'lista'; render(); });
       }
     }
 
@@ -305,7 +318,7 @@
          arquivos exportados trazem as avaliações. */
       var ordenados = filtrados.slice().sort(function (a, b) { return (b.atualizadoEm || '').localeCompare(a.atualizadoEm || ''); });
       var chavesSel = Object.keys(state.selecionados).filter(function (k) { return state.selecionados[k] && buscarItem(k) && !buscarItem(k).excluido; });
-      var html = sqLinkVoltar('sqVoltarArquitetura', 'Avaliação de Produto/Serviço (Admin)');
+      var html = sqLinkVoltar('sqVoltarArquitetura', 'Avaliações');
       html += '<div class="avp-intro"><p><strong>Adequação à gestão por Squad:</strong> registra evidências (S1 a S8) sobre demanda, evolução, ' +
         'autonomia, complexidade e ownership de um item — completamente independente da classificação arquitetural (P1-P16) do mesmo item. ' +
         'Nenhuma das duas decide a outra.</p></div>';
@@ -316,7 +329,6 @@
       html += '<div class="avp-actions-bar">';
       html += '<span class="avp-total">' + ativos.length + ' avaliaç' + (ativos.length === 1 ? 'ão' : 'ões') + ' de squad registrada' + (ativos.length === 1 ? '' : 's') + '</span>';
       html += '<button class="btn btn--primary" id="sqNovaBtn">+ Nova avaliação de squad</button>';
-      html += '<button class="btn btn--sm" id="sqMotorConfigBtn">⚙ Configuração do Motor de Squad</button>';
       html += '<div class="avp-exportar-wrap">';
       html += '<button class="btn btn--sm" id="sqExportarBtn"' + (state.exportando ? ' disabled' : '') + '>' + (state.exportando ? 'Gerando arquivo…' : 'Exportar ▾') + '</button>';
       if (state.menuExportarAberto) {
@@ -360,23 +372,22 @@
       }
       wrap.innerHTML = html;
 
-      document.getElementById('sqVoltarArquitetura').addEventListener('click', voltarParaArquitetura);
-      var flashClose = document.getElementById('sqFlashListaClose');
+      byId('sqVoltarArquitetura').addEventListener('click', voltarParaArquitetura);
+      var flashClose = byId('sqFlashListaClose');
       if (flashClose) flashClose.addEventListener('click', function () { state.flashLista = null; render(); });
-      document.getElementById('sqFiltroTexto').addEventListener('input', function (e) { state.filtroTexto = e.target.value; render(); });
-      document.getElementById('sqNovaBtn').addEventListener('click', function () {
+      byId('sqFiltroTexto').addEventListener('input', function (e) { state.filtroTexto = e.target.value; render(); });
+      byId('sqNovaBtn').addEventListener('click', function () {
         iniciarNovaAvaliacao({ itemId: null, itemNome: '', avaliacaoArquiteturalId: null });
       });
-      document.getElementById('sqMotorConfigBtn').addEventListener('click', abrirMotorConfig);
       wrap.querySelectorAll('.sq-act-abrir').forEach(function (btn) {
         btn.addEventListener('click', function () { abrirExistente(btn.dataset.key); });
       });
       wrap.querySelectorAll('.sq-sel').forEach(function (cb) {
         cb.addEventListener('change', function () { state.selecionados[cb.dataset.key] = cb.checked; render(); });
       });
-      document.getElementById('sqExportarBtn').addEventListener('click', function () { state.menuExportarAberto = !state.menuExportarAberto; render(); });
+      byId('sqExportarBtn').addEventListener('click', function () { state.menuExportarAberto = !state.menuExportarAberto; render(); });
       function ligar(id, itens, tipo, escopo) {
-        var el = document.getElementById(id);
+        var el = byId(id);
         if (el) el.addEventListener('click', function () { executarExportacaoSquad(itens, tipo, escopo); });
       }
       var todasConcl = function (lista) { return lista.filter(function (it) { return it.status === 'concluido'; }); };
@@ -436,15 +447,19 @@
        ADEQUAÇÃO À SQUAD" no resultado de um item arquitetural) — nunca cria
        uma segunda avaliação de squad em andamento para o MESMO itemId
        (item 8/12 do pedido: retomar nunca duplica). */
-    window.faAvaliacaoSquad = {
-      abrirLista: function () { mostrarPainel(); state.tela = 'lista'; state.filtroTexto = ''; render(); },
+    var api = modo === 'admin' ? {
+      /* origem: { rotulo: 'Arquitetura' | 'Configuração dos Motores', voltar: fn } — o "← Voltar"
+         do painel do motor leva de volta para quem abriu, nunca para uma lista que nem existe aqui. */
+      abrirMotorConfig: function (origem) { origemMotor = origem || null; mostrarPainel(); abrirMotorConfig(); }
+    } : {
+      abrirLista: function () { mostrarPainel(); state.tela = 'lista'; render(); },
       iniciarOuAbrirParaItem: function (opts) {
         mostrarPainel();
         var emAndamento = buscarEmAndamentoPorItemId(opts.itemId);
         if (emAndamento) { abrirExistente(emAndamento._key); return; }
         iniciarNovaAvaliacao(opts);
       },
-      abrirMotorConfig: abrirMotorConfig
+      fechar: function () { if (!wrap.hidden) voltarParaArquitetura(); }
     };
 
     /* Contexto arquitetural (item 11) — SOMENTE LEITURA, nunca usado para
@@ -522,15 +537,15 @@
       html += '</div>';
       wrap.innerHTML = html;
 
-      document.getElementById('sqVoltarListaInicial').addEventListener('click', function () { state.tela = 'lista'; state.atual = null; render(); });
-      document.getElementById('sqCancelarInicialBtn').addEventListener('click', function () { state.tela = 'lista'; state.atual = null; render(); });
-      document.getElementById('sqfEscolhaExistente').addEventListener('click', function () { state.modoInicio = 'existente'; state.erroForm = null; render(); document.getElementById('sqfBusca').focus(); });
-      document.getElementById('sqfEscolhaNovo').addEventListener('click', function () { state.modoInicio = 'novo'; state.erroForm = null; render(); document.getElementById('sqfNovoItemNome').focus(); });
+      byId('sqVoltarListaInicial').addEventListener('click', function () { state.tela = 'lista'; state.atual = null; render(); });
+      byId('sqCancelarInicialBtn').addEventListener('click', function () { state.tela = 'lista'; state.atual = null; render(); });
+      byId('sqfEscolhaExistente').addEventListener('click', function () { state.modoInicio = 'existente'; state.erroForm = null; render(); byId('sqfBusca').focus(); });
+      byId('sqfEscolhaNovo').addEventListener('click', function () { state.modoInicio = 'novo'; state.erroForm = null; render(); byId('sqfNovoItemNome').focus(); });
 
       var itensDisponiveis = itensDisponiveisParaBusca();
-      var buscaInput = document.getElementById('sqfBusca');
+      var buscaInput = byId('sqfBusca');
       if (buscaInput) {
-        var resultsList = document.getElementById('sqfBuscaResultados');
+        var resultsList = byId('sqfBuscaResultados');
         /* A busca manipula só a lista de resultados no DOM — nunca o render()
            inteiro a cada tecla — para não perder o foco do campo. */
         var renderResultados = function (query) {
@@ -562,9 +577,9 @@
         renderResultados('');
       }
 
-      var confirmar = document.getElementById('sqfNovoItemConfirmar');
+      var confirmar = byId('sqfNovoItemConfirmar');
       if (confirmar) confirmar.addEventListener('click', function () {
-        var nome = document.getElementById('sqfNovoItemNome').value.trim();
+        var nome = byId('sqfNovoItemNome').value.trim();
         if (!nome) { state.erroForm = 'Informe o nome do novo item.'; render(); return; }
         /* Nunca cria uma segunda ficha para um item que já existe só porque
            o nome foi digitado de novo: o que é igual (sem acento, caixa ou
@@ -615,10 +630,10 @@
       html += '</div>';
       wrap.innerHTML = html;
 
-      document.getElementById('sqVoltarListaChecklist').addEventListener('click', function () { cancelarChecklist(); });
+      byId('sqVoltarListaChecklist').addEventListener('click', function () { cancelarChecklist(); });
       wrap.querySelectorAll('.sq-help-btn').forEach(function (btn) {
         btn.addEventListener('click', function () {
-          var box = document.getElementById('sqHelp-' + btn.dataset.id);
+          var box = byId('sqHelp-' + btn.dataset.id);
           if (box) box.hidden = !box.hidden;
         });
       });
@@ -651,7 +666,7 @@
         });
       });
 
-      document.getElementById('sqSalvarRascunhoBtn').addEventListener('click', function () {
+      byId('sqSalvarRascunhoBtn').addEventListener('click', function () {
         if (state.salvando) return;
         if (!a.itemNome || !a.itemNome.trim()) { state.erroForm = 'Informe o nome do item.'; render(); return; }
         state.salvando = 'rascunho';
@@ -669,10 +684,10 @@
             : 'Não foi possível salvar. Tente novamente.');
         });
       });
-      var recarregarBtn = document.getElementById('sqMotorRecarregarBtn');
+      var recarregarBtn = byId('sqMotorRecarregarBtn');
       if (recarregarBtn) recarregarBtn.addEventListener('click', function () { window.faMotorSquad.recarregar(); });
       if (cargaMotor === 'carregando') agendarAvisoDemora();
-      document.getElementById('sqConcluirBtn').addEventListener('click', function () {
+      byId('sqConcluirBtn').addEventListener('click', function () {
         if (state.salvando) return;
         if (window.faMotorSquad.estadoCarga() !== 'carregado') return;
         var faltando = ORDEM_CODIGOS.filter(function (c) { return !a.respostas[c] || !a.respostas[c].resposta; });
@@ -693,7 +708,7 @@
             : 'Não foi possível concluir. Tente novamente.');
         });
       });
-      document.getElementById('sqCancelarChecklistBtn').addEventListener('click', function () { cancelarChecklist(); });
+      byId('sqCancelarChecklistBtn').addEventListener('click', function () { cancelarChecklist(); });
     }
     function cancelarChecklist() {
       if (state.salvando) return;
@@ -990,13 +1005,13 @@
       wrap.innerHTML = html;
 
       function voltar() { state.tela = 'lista'; state.atual = null; state.flashResultado = null; render(); }
-      document.getElementById('sqVoltarListaResultado').addEventListener('click', voltar);
-      document.getElementById('sqVoltarListaRodape').addEventListener('click', voltar);
-      var flashClose = document.getElementById('sqFlashResultadoClose');
+      byId('sqVoltarListaResultado').addEventListener('click', voltar);
+      byId('sqVoltarListaRodape').addEventListener('click', voltar);
+      var flashClose = byId('sqFlashResultadoClose');
       if (flashClose) flashClose.addEventListener('click', function () { state.flashResultado = null; render(); });
-      var reprocessarBtn = document.getElementById('sqReprocessarBtn');
+      var reprocessarBtn = byId('sqReprocessarBtn');
       if (reprocessarBtn) reprocessarBtn.addEventListener('click', reprocessarMotorSquad);
-      document.getElementById('sqGerarPdfBtn').addEventListener('click', function () {
+      byId('sqGerarPdfBtn').addEventListener('click', function () {
         if (state.exportando) return;
         state.exportando = true;
         state.flashExportacao = null;
@@ -1304,7 +1319,7 @@
     }
     function renderMotorConfig() {
       var c = state.motorConfig;
-      var destinoVoltar = c.sub === 'painel' ? 'Adequação à Squad'
+      var destinoVoltar = c.sub === 'painel' ? ((origemMotor && origemMotor.rotulo) || 'Arquitetura')
         : c.sub === 'simulacao' || c.sub === 'conflito-publicacao' ? 'Editar regras'
         : c.sub === 'comparar-alteracoes' ? 'o conflito de publicação'
         : 'Configuração do Motor de Squad';
@@ -1320,8 +1335,8 @@
       else if (c.sub === 'versoes') html += renderMotorVersoes();
       html += '</div>';
       wrap.innerHTML = html;
-      document.getElementById('sqMotorVoltarLista').addEventListener('click', function () {
-        if (c.sub === 'painel') { state.tela = 'lista'; state.motorConfig = null; render(); }
+      byId('sqMotorVoltarLista').addEventListener('click', function () {
+        if (c.sub === 'painel') { state.motorConfig = null; voltarParaArquitetura(); if (origemMotor && origemMotor.voltar) origemMotor.voltar(); }
         else if (c.sub === 'simulacao' || c.sub === 'conflito-publicacao') voltarParaEditarRegrasSquad(c);
         else if (c.sub === 'comparar-alteracoes') voltarParaConflitoSquad(c);
         else sqSairComAviso(c, voltarPainelMotorConfig);
@@ -1377,24 +1392,24 @@
       });
     }
     function bindMotorPainel() {
-      document.getElementById('sqMotorVereditosExcelBtn').addEventListener('click', function () { exportarVereditos(gerarExcelVereditos); });
-      document.getElementById('sqMotorVereditosPdfBtn').addEventListener('click', function () { exportarVereditos(gerarPdfVereditos); });
-      document.getElementById('sqMotorEditarRegrasBtn').addEventListener('click', function () {
+      byId('sqMotorVereditosExcelBtn').addEventListener('click', function () { exportarVereditos(gerarExcelVereditos); });
+      byId('sqMotorVereditosPdfBtn').addEventListener('click', function () { exportarVereditos(gerarPdfVereditos); });
+      byId('sqMotorEditarRegrasBtn').addEventListener('click', function () {
         state.motorConfig = {
           sub: 'editar-regras', regras: window.faMotorSquad.iniciarOuObterRascunhoRegras(),
           versaoBase: window.faMotorSquad.versaoBaseDoRascunho(), salvando: false
         };
         render();
       });
-      document.getElementById('sqMotorEditarTextosBtn').addEventListener('click', function () {
+      byId('sqMotorEditarTextosBtn').addEventListener('click', function () {
         state.motorConfig = { sub: 'editar-textos', textos: JSON.parse(JSON.stringify(window.faMotorSquad.textosAtuais())), salvando: false };
         render();
       });
-      document.getElementById('sqMotorVersoesBtn').addEventListener('click', function () {
+      byId('sqMotorVersoesBtn').addEventListener('click', function () {
         state.motorConfig = { sub: 'versoes' };
         render();
       });
-      document.getElementById('sqMotorAuditoriaBtn').addEventListener('click', function () {
+      byId('sqMotorAuditoriaBtn').addEventListener('click', function () {
         state.motorConfig = { sub: 'auditoria', lista: null };
         render();
         window.faMotorSquad.auditoria(function (lista) {
@@ -1506,8 +1521,8 @@
           c.leafRefs[Number(sel.dataset.leafId)].valor = sel.value;
         });
       });
-      document.getElementById('sqMotorCancelarEdicaoBtn').addEventListener('click', function () { sqSairComAviso(c, voltarPainelMotorConfig); });
-      document.getElementById('sqMotorSalvarRascunhoBtn').addEventListener('click', function () {
+      byId('sqMotorCancelarEdicaoBtn').addEventListener('click', function () { sqSairComAviso(c, voltarPainelMotorConfig); });
+      byId('sqMotorSalvarRascunhoBtn').addEventListener('click', function () {
         if (c.salvando) return;
         c.salvando = true;
         render();
@@ -1518,7 +1533,7 @@
           voltarPainelMotorConfig();
         }, c.versaoBase);
       });
-      document.getElementById('sqMotorSimularBtn').addEventListener('click', function () {
+      byId('sqMotorSimularBtn').addEventListener('click', function () {
         var concluidas = state.itens.filter(function (it) { return !it.excluido && it.status === 'concluido'; });
         var simulacao = window.faMotorSquad.simular(c.regras, concluidas);
         var validacao = window.faMotorSquad.validarRegrasCompletas(c.regras);
@@ -1586,8 +1601,8 @@
     }
     function bindMotorSimulacao() {
       var c = state.motorConfig;
-      document.getElementById('sqMotorVoltarEdicaoBtn').addEventListener('click', function () { voltarParaEditarRegrasSquad(c); });
-      document.getElementById('sqMotorConfirmarPublicarBtn').addEventListener('click', function () {
+      byId('sqMotorVoltarEdicaoBtn').addEventListener('click', function () { voltarParaEditarRegrasSquad(c); });
+      byId('sqMotorConfirmarPublicarBtn').addEventListener('click', function () {
         if (c.salvando) return;
         c.salvando = true;
         render();
@@ -1634,7 +1649,7 @@
     }
     function bindMotorConflitoPublicacao() {
       var c = state.motorConfig;
-      document.getElementById('sqMotorConflitoRecarregarBtn').addEventListener('click', function () {
+      byId('sqMotorConflitoRecarregarBtn').addEventListener('click', function () {
         window.faMotorSquad.descartarRascunhoRegras(function () {
           state.motorConfig = {
             sub: 'editar-regras', regras: window.faMotorSquad.iniciarOuObterRascunhoRegras(),
@@ -1643,7 +1658,7 @@
           render();
         });
       });
-      document.getElementById('sqMotorConflitoCompararBtn').addEventListener('click', function () {
+      byId('sqMotorConflitoCompararBtn').addEventListener('click', function () {
         var atuais = window.faMotorSquad.regrasDaVersao(window.faMotorSquad.versaoAtual());
         var alteradas = window.faMotorSquad.diffRegras(atuais, c.regras);
         state.motorConfig = {
@@ -1652,7 +1667,7 @@
         };
         render();
       });
-      document.getElementById('sqMotorConflitoDescartarBtn').addEventListener('click', function () {
+      byId('sqMotorConflitoDescartarBtn').addEventListener('click', function () {
         window.faMotorSquad.descartarRascunhoRegras(function (err) {
           if (err) { sqAlert('Não foi possível descartar o rascunho. Tente novamente.'); return; }
           state.motorConfig = { sub: 'painel', flash: 'Rascunho descartado.' };
@@ -1682,7 +1697,7 @@
     }
     function bindMotorCompararAlteracoes() {
       var c = state.motorConfig;
-      document.getElementById('sqMotorCompararVoltarBtn').addEventListener('click', function () { voltarParaConflitoSquad(c); });
+      byId('sqMotorCompararVoltarBtn').addEventListener('click', function () { voltarParaConflitoSquad(c); });
     }
 
     /* ---- EDITAR TEXTOS (publicação imediata, nunca versiona o motor) ---- */
@@ -1722,8 +1737,8 @@
           c.textos[ta.dataset.codigo].interpretacao = ta.value;
         });
       });
-      document.getElementById('sqMotorCancelarTextosBtn').addEventListener('click', function () { sqSairComAviso(c, voltarPainelMotorConfig); });
-      document.getElementById('sqMotorPublicarTextosBtn').addEventListener('click', function () {
+      byId('sqMotorCancelarTextosBtn').addEventListener('click', function () { sqSairComAviso(c, voltarPainelMotorConfig); });
+      byId('sqMotorPublicarTextosBtn').addEventListener('click', function () {
         if (c.salvando) return;
         c.salvando = true;
         render();
@@ -1762,7 +1777,7 @@
       return html;
     }
     function bindMotorAuditoria() {
-      var btn = document.getElementById('sqMotorVoltarAuditoriaBtn');
+      var btn = byId('sqMotorVoltarAuditoriaBtn');
       if (btn) btn.addEventListener('click', voltarPainelMotorConfig);
     }
 
@@ -1782,7 +1797,7 @@
       return html;
     }
     function bindMotorVersoes() {
-      document.getElementById('sqMotorVoltarVersoesBtn').addEventListener('click', voltarPainelMotorConfig);
+      byId('sqMotorVoltarVersoesBtn').addEventListener('click', voltarPainelMotorConfig);
       wrap.querySelectorAll('.sq-motor-restaurar-btn').forEach(function (btn) {
         btn.addEventListener('click', function () {
           sqConfirm('Restaurar a versão ' + btn.dataset.versao + ' como uma versão nova das regras?', function () {
@@ -1876,7 +1891,7 @@
       Object.assign(state, novo);
       wrap.hidden = true;
       wrap.innerHTML = '';
-      var arqWrap = document.getElementById('adminAvaliacaoProduto');
+      var arqWrap = vizinho();
       if (arqWrap) arqWrap.hidden = false;
     }
     function aoMudarSessao() {
@@ -1889,5 +1904,22 @@
     ['fa-auth-ready', 'fa-auth-change', 'fa-avaliacao-ready'].forEach(function (ev) {
       window.addEventListener(ev, aoMudarSessao);
     });
+    /* Operacional: a navegação da aba AVALIAÇÃO é por endereço (#avaliacoes…) e a do Squad é
+       interna; qualquer troca de endereço (Voltar do navegador, menu, link) é a pessoa saindo
+       do Squad — devolve a área das avaliações em vez de deixar as duas telas abertas. */
+    if (modo === 'operacional') {
+      window.addEventListener('hashchange', function () { if (!wrap.hidden) voltarParaArquitetura(); });
+    }
+    return api;
+  }
+
+  window.faInitAvaliacaoSquad = function (opcoes) {
+    if (opcoes && opcoes.modo === 'operacional') {
+      var op = montarSquad({ wrapId: 'avaliacoesSquad', modo: 'operacional', vizinhoId: 'avaliacoesPainel' });
+      if (op) window.faAvaliacaoSquad = op;
+      return;
+    }
+    var adm = montarSquad({ wrapId: 'adminAvaliacaoSquad', modo: 'admin', vizinhoId: 'adminAvaliacaoProduto' });
+    if (adm) window.faAvaliacaoSquadAdmin = adm;
   };
 })();

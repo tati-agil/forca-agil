@@ -95,14 +95,20 @@ async function abrir(browser, viewport, squad) {
   await page.route('**/firebasejs/**', (r) => r.fulfill({ status: 200, contentType: 'text/javascript', body: FALSO }));
   await page.route('**fonts.googleapis.com**', (r) => r.fulfill({ status: 200, contentType: 'text/css', body: '' }));
   await page.route('**fonts.gstatic.com**', (r) => r.abort());
-  await page.goto(BASE + '/index.html#admin', { waitUntil: 'domcontentloaded' });
+  /* A avaliação de Squad fica na área AVALIAÇÃO; a configuração do motor, no ADMIN › Arquitetura. */
+  await page.goto(BASE + '/index.html#avaliacoes', { waitUntil: 'domcontentloaded' });
   await esperarSessaoAssentada(page); /* login decidido e acessos resolvidos (antes: opções no lugar do argumento, engolida) */
+  await page.waitForSelector('#avpSquadBtn', { timeout: 8000 });
+  await page.click('#avpSquadBtn');
+  await page.waitForSelector('#avaliacoesSquad #sqExportarBtn');
+  return { ctx, page, erros };
+}
+async function abrirMotorSquadNoAdmin(page) {
+  await page.evaluate(() => { location.hash = '#admin'; });
   await page.waitForSelector('.admin-tab-btn[data-panel="adminPanelArquitetura"]', { timeout: 8000 });
   await page.click('.admin-tab-btn[data-panel="adminPanelArquitetura"]');
-  await page.waitForSelector('#avpAdequacaoSquadListaBtn', { timeout: 8000 });
-  await page.click('#avpAdequacaoSquadListaBtn');
-  await page.waitForSelector('#sqExportarBtn');
-  return { ctx, page, erros };
+  await page.waitForSelector('#avpMotorSquadInicioBtn', { timeout: 8000 });
+  await page.click('#avpMotorSquadInicioBtn');
 }
 async function baixar(page, abrirMenu, seletor) {
   await page.evaluate(() => { window.__blocos = []; }); /* os blocos observados valem só para ESTE arquivo */
@@ -183,7 +189,7 @@ async function verificarPdf(page, r, esperados, titulo) {
     await page.waitForSelector('#sqExportarBtn');
 
     console.log('\n== Textos dos vereditos ==');
-    await page.click('#sqMotorConfigBtn');
+    await abrirMotorSquadNoAdmin(page);
     await page.waitForSelector('#sqMotorVereditosExcelBtn');
     r = await baixar(page, null, '#sqMotorVereditosExcelBtn');
     pl = planilha(r.buf, 'Textos dos vereditos');

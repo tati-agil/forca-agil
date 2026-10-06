@@ -350,8 +350,20 @@
   function avisarAvaliacaoPronta() {
     if (_avaliacaoResolvida && _adminsResolvidos) window.dispatchEvent(new CustomEvent('fa-avaliacao-ready'));
   }
+  /* Ouvinte AO VIVO do próprio registro (antes era uma leitura única): quando a
+     administradora concede, troca ou remove o acesso, a tela da pessoa muda na
+     hora — sem recarregar —, igual às regras do banco, que já valiam na hora.
+     Cada mudança refaz o menu, reconfere a rota atual e avisa de novo
+     'fa-avaliacao-ready' (quem escuta redesenha com o acesso novo). Na troca de
+     pessoa, o ouvinte da anterior é desligado antes de ligar o da nova. */
+  let _refAvaliacao = null, _cbAvaliacao = null;
+  function desligarOuvinteAvaliacao() {
+    if (_refAvaliacao && _cbAvaliacao) { try { _refAvaliacao.off('value', _cbAvaliacao); } catch (e) { /* já cancelado pelo banco */ } }
+    _refAvaliacao = null; _cbAvaliacao = null;
+  }
   firebase.auth().onAuthStateChanged(function (user) {
     if (_criandoConta) return;
+    desligarOuvinteAvaliacao();
     if (!user) {
       _avaliacaoEmail = null;
       _dbAvaliacaoTipo = null; _avaliacaoResolvida = true;
@@ -361,7 +373,11 @@
     }
     _avaliacaoResolvida = false;
     _avaliacaoEmail = user.email;
-    firebase.database().ref('fa-avaliacao-autorizados/' + emailKey(user.email)).once('value', function (snap) {
+    const ref = firebase.database().ref('fa-avaliacao-autorizados/' + emailKey(user.email));
+    const emailDoOuvinte = user.email;
+    _refAvaliacao = ref;
+    _cbAvaliacao = ref.on('value', function (snap) {
+      if (_avaliacaoEmail !== emailDoOuvinte) return; /* resposta atrasada de quem já saiu */
       const data = snap.val();
       _dbAvaliacaoTipo = data && TIPOS_AVALIACAO.indexOf(data.tipo) !== -1 ? data.tipo : null;
       _avaliacaoResolvida = true;

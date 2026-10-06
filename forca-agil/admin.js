@@ -143,7 +143,7 @@
     if (window.faInitTestes) window.faInitTestes();
     if (window.faInitPedidos) window.faInitPedidos();
     if (window.faInitDashboard) window.faInitDashboard();
-    /* Squad primeiro: o cartão "Adequação à Squad" só é desenhado se window.faAvaliacaoSquad
+    /* Squad primeiro: o cartão "Motor de Squad" só é desenhado se window.faAvaliacaoSquadAdmin
        já existir na primeira renderização do bloco de Avaliação. */
     if (window.faInitAvaliacaoSquad) window.faInitAvaliacaoSquad();
     if (window.faInitAvaliacaoProduto) window.faInitAvaliacaoProduto({ modo: 'admin' });
@@ -192,7 +192,7 @@
     if (bar) bar.hidden = true;
     var exp = document.getElementById('adminExpandBar');
     if (exp) exp.hidden = true;
-    /* Squad primeiro: o cartão "Adequação à Squad" só é desenhado se window.faAvaliacaoSquad
+    /* Squad primeiro: o cartão "Motor de Squad" só é desenhado se window.faAvaliacaoSquadAdmin
        já existir na primeira renderização do bloco de Avaliação. */
     if (window.faInitAvaliacaoSquad) window.faInitAvaliacaoSquad();
     if (window.faInitAvaliacaoProduto) window.faInitAvaliacaoProduto({ modo: 'admin' });

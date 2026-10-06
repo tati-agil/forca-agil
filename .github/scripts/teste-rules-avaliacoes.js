@@ -128,13 +128,16 @@ async function main() {
     }
     await assertFails(db(AVAL).ref(NODE + '/conc1/decisaoFinal').set('produto'));
     anota('invariante mantida para todos: decisão final diferente do resultado automático exige decisão manual', true);
-    await assertSucceeds(db(AVAL).ref(NODE + '/conc1').update({ decisaoFinal: 'produto', decisaoManual: true }));
-    anota('…e com decisão manual a gravação passa', true);
+    /* decidir é da Arquitetura (avaliar ≠ decidir — o perfil "Avaliação" recusado em teste-rules-perfis-avaliacao.js) */
+    await assertSucceeds(db(ARQ).ref(NODE + '/conc1').update({ decisaoFinal: 'produto', decisaoManual: true }));
+    anota('…e com decisão manual (de quem decide: Avaliação + Arquitetura) a gravação passa', true);
 
     console.log('\n== ADMIN > ARQUITETURA: configurações e adequação à Squad ==');
     await semearBase();
     const NOS_ARQ = ['questionarios-config/CLASSIFICACAO_ARQUITETURAL', 'questionarios-auditoria', 'motor-arquitetura-config', 'motor-arquitetura-auditoria',
-      'motor-squad-config', 'motor-squad-auditoria', 'avaliacoes-squad', 'naturezas-complementares-config'];
+      'motor-squad-config', 'motor-squad-auditoria', 'naturezas-complementares-config'];
+    /* avaliacoes-squad deixou de ser nó da Arquitetura: a avaliação de Squad mora na área AVALIAÇÃO
+       (provado em teste-rules-perfis-avaliacao.js); aqui fica só a configuração. */
     for (const [rotulo, email, , arq] of MATRIZ) {
       let leu = 0, gravou = 0;
       for (const no of NOS_ARQ) {
@@ -143,16 +146,15 @@ async function main() {
       }
       if (arq) anota(rotulo + ': lê e grava TODOS os nós da Arquitetura (' + NOS_ARQ.length + ')', leu === NOS_ARQ.length && gravou === NOS_ARQ.length, 'leu ' + leu + ', gravou ' + gravou);
       else {
-        /* o tipo "Avaliação" lê (não grava) questionários/motor/naturezas, que a ficha usa; nunca a Squad nem a auditoria */
+        /* o tipo "Avaliação" lê (não grava) questionários/motores/naturezas, que a ficha e a Squad usam; nunca a auditoria */
         const gravaConfig = gravou;
         anota(rotulo + ': NÃO grava nenhum nó da Arquitetura', gravaConfig === 0, 'gravou ' + gravou);
       }
     }
-    await assertFails(db(AVAL).ref('avaliacoes-squad').once('value'));
-    await assertFails(db(AVAL).ref('motor-squad-config').once('value'));
     await assertFails(db(AVAL).ref('questionarios-auditoria').once('value'));
     await assertFails(db(AVAL).ref('motor-arquitetura-auditoria').once('value'));
-    anota('tipo "Avaliação": não lê a Squad nem as auditorias de configuração', true);
+    await assertFails(db(AVAL).ref('motor-squad-auditoria').once('value'));
+    anota('tipo "Avaliação": não lê as auditorias de configuração', true);
     await assertSucceeds(db(AVAL).ref('motor-arquitetura-auditoria/rec1').set({ tipo: 'reconciliacao_versao_equivalente' }));
     await assertFails(db(AVAL).ref('motor-arquitetura-auditoria/rec2').set({ tipo: 'regra' }));
     anota('tipo "Avaliação": só acrescenta a linha de reconciliação (nunca outra auditoria)', true);
@@ -234,15 +236,19 @@ async function main() {
     console.log('\n== Auditoria da Curadoria e da Decisão final (curadoria-auditoria) ==');
     await semearBase();
     const linhaCur = (tipo) => ({ tipo, avaliacaoId: 'conc1', valorAnterior: null, valorNovo: 'x', usuario: { name: 'P', email: AVAL }, dataHora: '2026-10-01T12:00:00.000Z' });
-    for (const [rotulo, email] of [['admin geral', ADMIN], ['super-admin', SUPER], ['tipo "Avaliação"', AVAL], ['tipo "Avaliação + Arquitetura"', ARQ]]) {
+    for (const [rotulo, email] of [['admin geral', ADMIN], ['super-admin', SUPER], ['tipo "Avaliação + Arquitetura"', ARQ]]) {
       await assertSucceeds(db(email).ref('curadoria-auditoria/conc1/' + emailKey(email)).set(linhaCur('alteracao_especializacao')));
       const s1 = await assertSucceeds(db(email).ref('curadoria-auditoria/conc1').once('value'));
       anota(rotulo + ': acrescenta e lê a auditoria da curadoria', !!(s1.val() && s1.val()[emailKey(email)]));
     }
-    await assertSucceeds(db(AVAL).ref('curadoria-auditoria/conc1/dec1').set(linhaCur('alteracao_decisao_final')));
-    await assertSucceeds(db(AVAL).ref('curadoria-auditoria/conc1/pap1').set(linhaCur('alteracao_papel_estrutural')));
-    anota('as três ações da curadoria/decisão são aceitas', true);
-    await assertFails(db(AVAL).ref('curadoria-auditoria/conc1/dec1').set(linhaCur('alteracao_especializacao')));
+    /* curar/decidir é da Arquitetura: o perfil "Avaliação" lê o histórico, mas não acrescenta linha de curadoria */
+    await assertFails(db(AVAL).ref('curadoria-auditoria/conc1/' + emailKey(AVAL)).set(linhaCur('alteracao_especializacao')));
+    const sAval = await assertSucceeds(db(AVAL).ref('curadoria-auditoria/conc1').once('value'));
+    anota('tipo "Avaliação": lê a auditoria da curadoria, mas NÃO acrescenta linha de curadoria', !!sAval.val() && !sAval.val()[emailKey(AVAL)]);
+    await assertSucceeds(db(ARQ).ref('curadoria-auditoria/conc1/dec1').set(linhaCur('alteracao_decisao_final')));
+    await assertSucceeds(db(ARQ).ref('curadoria-auditoria/conc1/pap1').set(linhaCur('alteracao_papel_estrutural')));
+    anota('as três ações da curadoria/decisão são aceitas (de quem cura e decide)', true);
+    await assertFails(db(ARQ).ref('curadoria-auditoria/conc1/dec1').set(linhaCur('alteracao_especializacao')));
     await assertFails(db(ADMIN).ref('curadoria-auditoria/conc1/dec1').remove());
     await assertFails(db(ARQ).ref('curadoria-auditoria/conc1').remove());
     anota('só acrescenta: ninguém, nem admin geral, reescreve ou apaga uma linha (nem a lista)', true);
@@ -257,7 +263,7 @@ async function main() {
     await assertFails(db(null).ref('curadoria-auditoria/conc1').once('value'));
     anota('sem login: nada', true);
     /* origem: decisão de pessoa x reprocessamento automático (precisa dizer o motor) */
-    await assertSucceeds(db(AVAL).ref('curadoria-auditoria/conc1/orig1').set(Object.assign(linhaCur('alteracao_decisao_final'), { origem: 'usuario' })));
+    await assertSucceeds(db(ARQ).ref('curadoria-auditoria/conc1/orig1').set(Object.assign(linhaCur('alteracao_decisao_final'), { origem: 'usuario' })));
     await assertSucceeds(db(AVAL).ref('curadoria-auditoria/conc1/orig2').set(Object.assign(linhaCur('alteracao_decisao_final'), { origem: 'reprocessamento-automatico', motorVersion: '2026.10.01-1', reprocessamento: 'lote' })));
     await assertFails(db(AVAL).ref('curadoria-auditoria/conc1/orig3').set(Object.assign(linhaCur('alteracao_decisao_final'), { origem: 'reprocessamento-automatico' })));
     await assertFails(db(AVAL).ref('curadoria-auditoria/conc1/orig4').set(Object.assign(linhaCur('alteracao_decisao_final'), { origem: 'sistema-misterioso', motorVersion: 'x' })));
@@ -266,7 +272,7 @@ async function main() {
     const conj = {};
     conj[NODE + '/conc1/decisaoFinal'] = 'produto'; conj[NODE + '/conc1/decisaoManual'] = true; conj[NODE + '/conc1/justificativaDecisao'] = 'porque sim';
     conj['curadoria-auditoria/conc1/conj1'] = linhaCur('alteracao_decisao_final');
-    await assertSucceeds(db(AVAL).ref().update(conj));
+    await assertSucceeds(db(ARQ).ref().update(conj));
     anota('decisão + histórico gravam juntos num único update (atômico)', true);
 
     console.log('\n' + total + ' verificações, ' + falhas + ' falha(s).');
