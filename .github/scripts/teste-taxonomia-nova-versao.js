@@ -104,6 +104,9 @@ const escritas = (page) => page.evaluate(() => (window.__ESCRITAS || []).length)
     afirma(/Nova versão da definição/.test(await page.locator('#taxNovaVersaoTitulo').innerText()) && /o texto atual não muda/.test(await page.locator('#taxNovaVersaoAjuda').innerText()), 'o formulário diz que é uma nova versão e que o texto atual não muda');
     afirma(await page.locator('#taxSecDefinicao #taxFormFonte').count() === 1 && await page.locator('#taxFormFonte').count() === 1 && await page.locator('#taxFormFonte #taxF_texto, #taxFormFonte #taxF_contexto, #taxFormFonte #taxF_tipoRedacao, #taxFormFonte #taxF_rotulo, #taxFormFonte #taxF_situacao').count() === 5 && await page.locator('[data-tax="nova-fonte"]').count() === 0,
       'é o mesmo formulário de "+ Adicionar texto-fonte" (mesmos campos), aberto junto da definição vigente; "+ Adicionar texto-fonte" some enquanto isso');
+    /* a tela rola até o formulário com a rolagem suave do site: medir só depois que ela assenta
+       (no CI, mais lento, a medida no meio da animação pegava o formulário ainda fora da tela) */
+    await esperarCondicao(page, () => { const r = document.querySelector('#taxFormFonte').getBoundingClientRect(); return r.top < window.innerHeight && r.bottom > 0; }, null, { descricao: 'o formulário da nova versão entrar na tela' });
     afirma(await page.evaluate(() => { const r = document.querySelector('#taxFormFonte').getBoundingClientRect(); return r.top < window.innerHeight && r.bottom > 0 && r.left >= 0 && r.right <= window.innerWidth + 1; }), 'o formulário fica à vista e cabe na largura da tela');
     afirma(await larguraOk(page), 'sem rolagem horizontal');
 
