@@ -46,6 +46,7 @@
  */
 
 const { chromium } = require('playwright');
+const { esperarCondicao } = require('./esperas');
 const fs = require('fs');
 const path = require('path');
 
@@ -3101,8 +3102,9 @@ async function esperarGravacao(pg, marca, tipo, extra, descricao) {
 
         await pgExec.click('#apostaReiniciar');
         await pgExec.waitForSelector('.aposta-confirmar-overlay .modal-box', { timeout: 5000 });
+        const _g3021 = await marcarBanco(pgExec);
         await pgExec.$eval('.aposta-confirmar-overlay .aposta-modal-sim-btn', (el) => el.click());
-        await pgExec.waitForTimeout(600);
+        await esperarGravacao(pgExec, _g3021, 'nova-execucao', {}, 'a execução nova gravada (apostas/<turma>/atual)');
 
         const estadoDepois = await pgExec.evaluate(({ turmaKey, execAntigo }) => new Promise((res) => {
           firebase.database().ref('apostas/' + turmaKey).once('value', (s) => {
@@ -3172,8 +3174,12 @@ async function esperarGravacao(pg, marca, tipo, extra, descricao) {
         await pgUi.waitForSelector('#apostaReiniciar', { timeout: 15000 });
         await pgUi.click('#apostaReiniciar');
         await pgUi.waitForSelector('.aposta-confirmar-overlay .modal-box', { timeout: 5000 });
+        const _g3092 = await marcarBanco(pgUi);
         await pgUi.$eval('.aposta-confirmar-overlay .aposta-modal-sim-btn', (el) => el.click());
-        await pgUi.waitForTimeout(600);
+        await esperarGravacao(pgUi, _g3092, 'nova-execucao', {}, 'a execução nova gravada (apostas/<turma>/atual)');
+        /* a tela troca para a execução nova só depois de carregá-la: espera o estado vazio dela (o que as
+           verificações abaixo leem). Com o defeito antigo, a Decisão continuaria na tela e isto estouraria. */
+        await esperarCondicao(pgUi, () => /Nenhum grupo criado ainda/.test(document.body.textContent || ''), null, { descricao: 'a tela da execução nova (estado vazio, "Nenhum grupo criado ainda")' });
 
         const telaDepois = await pgUi.evaluate(() => ({
           temEtapaTitulo: !!document.querySelector('.aposta-etapa-titulo'),
@@ -3238,6 +3244,7 @@ async function esperarGravacao(pg, marca, tipo, extra, descricao) {
         await pgConc.click('#apostaAbrirBtn');
         await pgConc.waitForSelector('.aposta-grupo-btn', { timeout: 15000 });
 
+        const _g3164 = await marcarBanco(pgConc);
         await pgConc.evaluate(() => {
           /* Disparadas de propósito sem esperar a primeira terminar —
              é exatamente a corrida que o teste quer provocar: as duas
@@ -3245,7 +3252,7 @@ async function esperarGravacao(pg, marca, tipo, extra, descricao) {
           window.faAposta._criarExecucao();
           window.faAposta._criarExecucao();
         });
-        await pgConc.waitForTimeout(600);
+        await esperarGravacao(pgConc, _g3164, 'nova-execucao', {}, 'a execução nova gravada (apostas/<turma>/atual)');
 
         const resultadoConc = await pgConc.evaluate(({ turmaKey, execOriginal }) => new Promise((res) => {
           firebase.database().ref('apostas/' + turmaKey).once('value', (s) => {
@@ -3305,8 +3312,9 @@ async function esperarGravacao(pg, marca, tipo, extra, descricao) {
         await pgFalha1.evaluate((turmaKey) => {
           window.__CFG.fail = ['apostas/' + turmaKey + '/atual'];
         }, TURMA_LIB);
+        const _g3225 = await marcarBanco(pgFalha1);
         await pgFalha1.evaluate(() => { window.faAposta._criarExecucao(); });
-        await pgFalha1.waitForTimeout(400);
+        await esperarGravacao(pgFalha1, _g3225, 'escrita', { caminho: '/criacaoExecucaoEmAndamento$', nulo: true }, 'o lock de criação de execução liberado depois da falha');
 
         const estadoAposFalha1 = await pgFalha1.evaluate(({ turmaKey, execOriginal }) => new Promise((res) => {
           firebase.database().ref('apostas/' + turmaKey).once('value', (s) => {
@@ -3331,8 +3339,9 @@ async function esperarGravacao(pg, marca, tipo, extra, descricao) {
           !estadoAposFalha1.temLock, JSON.stringify(estadoAposFalha1));
 
         await pgFalha1.evaluate(() => { window.__CFG.fail = []; });
+        const _g3251 = await marcarBanco(pgFalha1);
         await pgFalha1.evaluate(() => { window.faAposta._criarExecucao(); });
-        await pgFalha1.waitForTimeout(600);
+        await esperarGravacao(pgFalha1, _g3251, 'nova-execucao', {}, 'a execução nova gravada (apostas/<turma>/atual)');
 
         const estadoAposRetry1 = await pgFalha1.evaluate(({ turmaKey, execOriginal }) => new Promise((res) => {
           firebase.database().ref('apostas/' + turmaKey).once('value', (s) => {
@@ -3372,8 +3381,9 @@ async function esperarGravacao(pg, marca, tipo, extra, descricao) {
         await pgFalha2.evaluate((turmaKey) => {
           window.__CFG.fail = ['apostas/' + turmaKey + '/execucoes'];
         }, TURMA_LIB);
+        const _g3292 = await marcarBanco(pgFalha2);
         await pgFalha2.evaluate(() => { window.faAposta._criarExecucao(); });
-        await pgFalha2.waitForTimeout(400);
+        await esperarGravacao(pgFalha2, _g3292, 'escrita', { caminho: '/criacaoExecucaoEmAndamento$', nulo: true }, 'o lock de criação de execução liberado depois da falha');
 
         const estadoAposFalha2 = await pgFalha2.evaluate(({ turmaKey, execOriginal }) => new Promise((res) => {
           firebase.database().ref('apostas/' + turmaKey).once('value', (s) => {
@@ -3400,8 +3410,9 @@ async function esperarGravacao(pg, marca, tipo, extra, descricao) {
           !estadoAposFalha2.temLock && estadoAposFalha2.temContador === 1, JSON.stringify(estadoAposFalha2));
 
         await pgFalha2.evaluate(() => { window.__CFG.fail = []; });
+        const _g3320 = await marcarBanco(pgFalha2);
         await pgFalha2.evaluate(() => { window.faAposta._criarExecucao(); });
-        await pgFalha2.waitForTimeout(600);
+        await esperarGravacao(pgFalha2, _g3320, 'nova-execucao', {}, 'a execução nova gravada (apostas/<turma>/atual)');
 
         const estadoAposRetry2 = await pgFalha2.evaluate(({ turmaKey, execOriginal }) => new Promise((res) => {
           firebase.database().ref('apostas/' + turmaKey).once('value', (s) => {
@@ -3442,8 +3453,9 @@ async function esperarGravacao(pg, marca, tipo, extra, descricao) {
         await pgFalha3.click('#apostaAbrirBtn');
         await pgFalha3.waitForSelector('.aposta-grupo-btn', { timeout: 15000 });
 
+        const _g3362 = await marcarBanco(pgFalha3);
         await pgFalha3.evaluate(() => { window.faAposta._criarExecucao(); });
-        await pgFalha3.waitForTimeout(600);
+        await esperarGravacao(pgFalha3, _g3362, 'nova-execucao', {}, 'a execução nova gravada (apostas/<turma>/atual)');
 
         const estadoAposExpirar = await pgFalha3.evaluate(({ turmaKey, execOriginal }) => new Promise((res) => {
           firebase.database().ref('apostas/' + turmaKey).once('value', (s) => {
@@ -3492,10 +3504,11 @@ async function esperarGravacao(pg, marca, tipo, extra, descricao) {
           lockAposTentativaAntiga && lockAposTentativaAntiga.token === 'token-da-tentativa-nova',
           JSON.stringify(lockAposTentativaAntiga));
 
+        const _g3414 = await marcarBanco(pgFalha4);
         await pgFalha4.evaluate((turmaKey) => {
           window.faAposta._liberarLock('token-da-tentativa-nova');
         }, TURMA_LIB);
-        await pgFalha4.waitForTimeout(300);
+        await esperarGravacao(pgFalha4, _g3414, 'escrita', { caminho: '/criacaoExecucaoEmAndamento$', nulo: true }, 'o lock de criação de execução liberado (token certo)');
 
         const lockAposTentativaCerta = await pgFalha4.evaluate((turmaKey) => new Promise((res) => {
           firebase.database().ref('apostas/' + turmaKey + '/criacaoExecucaoEmAndamento').once('value', (s) => res(s.val()));
@@ -5049,10 +5062,11 @@ async function esperarGravacao(pg, marca, tipo, extra, descricao) {
           !!falhaC4, String(falhaC4));
         await pg13m.evaluate(() => { window.__CFG.fail = []; });
         await pg13m.waitForTimeout(200);
+        const _g4971 = await marcarBanco(pg13m);
         const r3 = await pg13m.evaluate(() => new Promise((res) => {
           window.faAposta._criarCiclo('hipotese', 'Reformular a hipótese', (err, id, ciclo) => res({ err: err || null, numero: ciclo && ciclo.numero }));
         }));
-        await pg13m.waitForTimeout(300);
+        await esperarGravacao(pg13m, _g4971, 'escrita', { caminho: '/criacaoCicloEmAndamento$', nulo: true }, 'o lock de criação de ciclo liberado');
         anota('(3)/(4) falha ao criar o sucessor do Ciclo 3 e retry: nasce o Ciclo 4 (número 4) — nunca um número 5 pulando o Ciclo 4 que a falha não criou',
           !!falhaC4 && !r3.err && r3.numero === 4, JSON.stringify({ falhaC4, r3 }));
 
