@@ -382,6 +382,10 @@ async function rodada(browser, viewport, nomeTela, sufixo) {
       'Configuração dos Motores: "Editar textos" do motor arquitetural não existe mais');
     afirma(/vêm da Taxonomia Arquitetural/.test(await texto(page, '#avpMotorArqNomesTaxonomia')), 'o painel diz que nomes e definições vêm da Taxonomia Arquitetural');
     afirma(await page.locator('#avpMotorSquadAbrirBtn').count() === 1, 'o motor de squad continua acessível (os textos dos vereditos dele são consumidos)');
+    /* "Como este motor decide": nomes das classificações vêm da Taxonomia (aqui, "Tx <código>"), não literais */
+    const explica = espaco(await page.locator('.avp-motor-explica').first().textContent());
+    afirma(explica.indexOf('Fallback ("Tx a-validar")') !== -1 && explica.indexOf('Tx capacidade-organizacional, Tx processo-etapa, Tx modalidade-subproduto, Tx regra-condicao ou Tx componente') !== -1 &&
+      explica.indexOf('"A validar"') === -1, '"Como este motor decide" usa os nomes da Taxonomia (' + explica.slice(0, 160) + ')');
     await foto(page, 'motor-sem-editar-textos-' + sufixo, '#adminAvaliacaoProduto');
     await page.click('#avpMotorArqAuditoriaBtn');
     await page.waitForSelector('#avpMotorArqHistorico', { timeout: 8000 });
