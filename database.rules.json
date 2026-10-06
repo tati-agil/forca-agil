@@ -469,19 +469,58 @@
     },
     "questionarios-auditoria": {
       ".read": "auth != null && (((auth.token.email === 'tatianefdirene@previ.com.br' || auth.token.email === 'danielfrazao@previ.com.br') || root.child('fa-admins').child(auth.token.email.replace('@','_').replace('.','_')).exists()) || (root.child('fa-avaliacao-autorizados').child(auth.token.email.replace('@','_').replace('.','_')).child('tipo').val() === 'avaliacao-arquitetura'))",
-      ".write": "auth != null && (((auth.token.email === 'tatianefdirene@previ.com.br' || auth.token.email === 'danielfrazao@previ.com.br') || root.child('fa-admins').child(auth.token.email.replace('@','_').replace('.','_')).exists()) || (root.child('fa-avaliacao-autorizados').child(auth.token.email.replace('@','_').replace('.','_')).child('tipo').val() === 'avaliacao-arquitetura'))"
+      "$codigo": {
+        "$pushKey": {
+          ".write": "auth != null && (((auth.token.email === 'tatianefdirene@previ.com.br' || auth.token.email === 'danielfrazao@previ.com.br') || root.child('fa-admins').child(auth.token.email.replace('@','_').replace('.','_')).exists()) || (root.child('fa-avaliacao-autorizados').child(auth.token.email.replace('@','_').replace('.','_')).child('tipo').val() === 'avaliacao-arquitetura')) && !data.exists() && newData.exists() && $codigo.matches(/^[A-Z][A-Z0-9_]{0,59}$/)",
+          ".validate": "newData.hasChildren(['pergunta','campo','dataHora','versaoAnterior','novaVersao']) && newData.child('pergunta').isString() && newData.child('campo').isString() && newData.child('dataHora').isString() && newData.child('versaoAnterior').isNumber() && newData.child('novaVersao').isNumber()"
+        }
+      }
     },
 
     "naturezas-complementares-config": {
       ".read": "auth != null && (((auth.token.email === 'tatianefdirene@previ.com.br' || auth.token.email === 'danielfrazao@previ.com.br') || root.child('fa-admins').child(auth.token.email.replace('@','_').replace('.','_')).exists()) || (root.child('fa-avaliacao-autorizados').child(auth.token.email.replace('@','_').replace('.','_')).child('tipo').val() === 'avaliacao' || root.child('fa-avaliacao-autorizados').child(auth.token.email.replace('@','_').replace('.','_')).child('tipo').val() === 'avaliacao-arquitetura'))",
-      ".write": "auth != null && (((auth.token.email === 'tatianefdirene@previ.com.br' || auth.token.email === 'danielfrazao@previ.com.br') || root.child('fa-admins').child(auth.token.email.replace('@','_').replace('.','_')).exists()) || (root.child('fa-avaliacao-autorizados').child(auth.token.email.replace('@','_').replace('.','_')).child('tipo').val() === 'avaliacao-arquitetura'))"
+      "$codigo": {
+        ".write": "auth != null && (((auth.token.email === 'tatianefdirene@previ.com.br' || auth.token.email === 'danielfrazao@previ.com.br') || root.child('fa-admins').child(auth.token.email.replace('@','_').replace('.','_')).exists()) || (root.child('fa-avaliacao-autorizados').child(auth.token.email.replace('@','_').replace('.','_')).child('tipo').val() === 'avaliacao-arquitetura')) && newData.exists() && $codigo.matches(/^[A-Z][A-Z0-9_]{0,59}$/)",
+        ".validate": "newData.hasChildren(['codigoEstavel','nome','ativo','ordem']) && newData.child('codigoEstavel').val() === $codigo",
+        "codigoEstavel": {
+          ".validate": "newData.isString() && (!data.exists() || newData.val() === data.val())"
+        },
+        "nome": {
+          ".validate": "newData.isString() && newData.val().length >= 1 && newData.val().length <= 120"
+        },
+        "descricao": {
+          ".validate": "newData.isString()"
+        },
+        "ativo": {
+          ".validate": "newData.isBoolean()"
+        },
+        "ordem": {
+          ".validate": "newData.isNumber()"
+        },
+        "atualizadoEm": {
+          ".validate": "newData.isString()"
+        },
+        "atualizadoPor": {
+          ".validate": "newData.hasChildren(['email'])"
+        },
+        "$outro": {
+          ".validate": false
+        }
+      }
     },
     "naturezas-complementares-auditoria": {
-      ".read": "auth != null && (((auth.token.email === 'tatianefdirene@previ.com.br' || auth.token.email === 'danielfrazao@previ.com.br') || root.child('fa-admins').child(auth.token.email.replace('@','_').replace('.','_')).exists()) || (root.child('fa-avaliacao-autorizados').child(auth.token.email.replace('@','_').replace('.','_')).child('tipo').val() === 'avaliacao' || root.child('fa-avaliacao-autorizados').child(auth.token.email.replace('@','_').replace('.','_')).child('tipo').val() === 'avaliacao-arquitetura'))",
-      ".write": "auth != null && (((auth.token.email === 'tatianefdirene@previ.com.br' || auth.token.email === 'danielfrazao@previ.com.br') || root.child('fa-admins').child(auth.token.email.replace('@','_').replace('.','_')).exists()) || (root.child('fa-avaliacao-autorizados').child(auth.token.email.replace('@','_').replace('.','_')).child('tipo').val() === 'avaliacao-arquitetura'))",
-      "$avaliacaoId": {
+      ".read": "auth != null && (((auth.token.email === 'tatianefdirene@previ.com.br' || auth.token.email === 'danielfrazao@previ.com.br') || root.child('fa-admins').child(auth.token.email.replace('@','_').replace('.','_')).exists()) || (root.child('fa-avaliacao-autorizados').child(auth.token.email.replace('@','_').replace('.','_')).child('tipo').val() === 'avaliacao-arquitetura'))",
+      "catalogo": {
         "$pushKey": {
-          ".write": "auth != null && (((auth.token.email === 'tatianefdirene@previ.com.br' || auth.token.email === 'danielfrazao@previ.com.br') || root.child('fa-admins').child(auth.token.email.replace('@','_').replace('.','_')).exists()) || (root.child('fa-avaliacao-autorizados').child(auth.token.email.replace('@','_').replace('.','_')).child('tipo').val() === 'avaliacao' || root.child('fa-avaliacao-autorizados').child(auth.token.email.replace('@','_').replace('.','_')).child('tipo').val() === 'avaliacao-arquitetura')) && !data.exists() && $avaliacaoId !== 'catalogo'"
+          ".write": "auth != null && (((auth.token.email === 'tatianefdirene@previ.com.br' || auth.token.email === 'danielfrazao@previ.com.br') || root.child('fa-admins').child(auth.token.email.replace('@','_').replace('.','_')).exists()) || (root.child('fa-avaliacao-autorizados').child(auth.token.email.replace('@','_').replace('.','_')).child('tipo').val() === 'avaliacao-arquitetura')) && !data.exists() && newData.exists()",
+          ".validate": "newData.hasChildren(['tipo','codigo','campo','dataHora']) && newData.child('tipo').val() === 'alteracao_catalogo_natureza' && newData.child('codigo').isString() && newData.child('codigo').val().matches(/^[A-Z][A-Z0-9_]{0,59}$/) && (newData.child('campo').val() === 'nome' || newData.child('campo').val() === 'descricao' || newData.child('campo').val() === 'ativo' || newData.child('campo').val() === 'ordem') && newData.child('dataHora').isString()"
+        }
+      },
+      "$avaliacaoId": {
+        ".read": "auth != null && (((auth.token.email === 'tatianefdirene@previ.com.br' || auth.token.email === 'danielfrazao@previ.com.br') || root.child('fa-admins').child(auth.token.email.replace('@','_').replace('.','_')).exists()) || (root.child('fa-avaliacao-autorizados').child(auth.token.email.replace('@','_').replace('.','_')).child('tipo').val() === 'avaliacao' || root.child('fa-avaliacao-autorizados').child(auth.token.email.replace('@','_').replace('.','_')).child('tipo').val() === 'avaliacao-arquitetura')) && $avaliacaoId !== 'catalogo'",
+        "$pushKey": {
+          ".write": "auth != null && (((auth.token.email === 'tatianefdirene@previ.com.br' || auth.token.email === 'danielfrazao@previ.com.br') || root.child('fa-admins').child(auth.token.email.replace('@','_').replace('.','_')).exists()) || (root.child('fa-avaliacao-autorizados').child(auth.token.email.replace('@','_').replace('.','_')).child('tipo').val() === 'avaliacao' || root.child('fa-avaliacao-autorizados').child(auth.token.email.replace('@','_').replace('.','_')).child('tipo').val() === 'avaliacao-arquitetura')) && !data.exists() && newData.exists() && $avaliacaoId !== 'catalogo'",
+          ".validate": "newData.hasChildren(['tipo','avaliacaoId','dataHora']) && newData.child('tipo').val() === 'alteracao_natureza_complementar' && newData.child('avaliacaoId').val() === $avaliacaoId && newData.child('dataHora').isString()"
         }
       }
     },
@@ -502,7 +541,10 @@
     },
     "motor-squad-auditoria": {
       ".read": "auth != null && (((auth.token.email === 'tatianefdirene@previ.com.br' || auth.token.email === 'danielfrazao@previ.com.br') || root.child('fa-admins').child(auth.token.email.replace('@','_').replace('.','_')).exists()) || (root.child('fa-avaliacao-autorizados').child(auth.token.email.replace('@','_').replace('.','_')).child('tipo').val() === 'avaliacao-arquitetura'))",
-      ".write": "auth != null && (((auth.token.email === 'tatianefdirene@previ.com.br' || auth.token.email === 'danielfrazao@previ.com.br') || root.child('fa-admins').child(auth.token.email.replace('@','_').replace('.','_')).exists()) || (root.child('fa-avaliacao-autorizados').child(auth.token.email.replace('@','_').replace('.','_')).child('tipo').val() === 'avaliacao-arquitetura'))"
+      "$id": {
+        ".write": "auth != null && (((auth.token.email === 'tatianefdirene@previ.com.br' || auth.token.email === 'danielfrazao@previ.com.br') || root.child('fa-admins').child(auth.token.email.replace('@','_').replace('.','_')).exists()) || (root.child('fa-avaliacao-autorizados').child(auth.token.email.replace('@','_').replace('.','_')).child('tipo').val() === 'avaliacao-arquitetura')) && !data.exists() && newData.exists()",
+        ".validate": "newData.hasChildren(['tipo','dataHora']) && newData.child('dataHora').isString() && (((newData.child('tipo').val() === 'regra' || newData.child('tipo').val() === 'texto') && newData.hasChildren(['campo','valorAnterior','valorNovo','versaoAnterior','novaVersao']) && newData.child('campo').isString() && newData.child('valorAnterior').isString() && newData.child('valorNovo').isString() && newData.child('versaoAnterior').isNumber() && newData.child('novaVersao').isNumber()) || (newData.child('tipo').val() === 'sem_alteracao' && newData.hasChildren(['versaoAnterior','novaVersao']) && newData.child('versaoAnterior').isNumber() && newData.child('novaVersao').isNumber()) || (newData.child('tipo').val() === 'conflito_publicacao' && newData.hasChildren(['versaoBase','versaoAtual','origem']) && newData.child('versaoBase').isNumber() && newData.child('versaoAtual').isNumber() && (newData.child('origem').val() === 'tentativa_noop' || newData.child('origem').val() === 'tentativa_publicacao')))"
+      }
     },
 
     "motor-arquitetura-config": {
@@ -511,9 +553,9 @@
     },
     "motor-arquitetura-auditoria": {
       ".read": "auth != null && (((auth.token.email === 'tatianefdirene@previ.com.br' || auth.token.email === 'danielfrazao@previ.com.br') || root.child('fa-admins').child(auth.token.email.replace('@','_').replace('.','_')).exists()) || (root.child('fa-avaliacao-autorizados').child(auth.token.email.replace('@','_').replace('.','_')).child('tipo').val() === 'avaliacao-arquitetura'))",
-      ".write": "auth != null && (((auth.token.email === 'tatianefdirene@previ.com.br' || auth.token.email === 'danielfrazao@previ.com.br') || root.child('fa-admins').child(auth.token.email.replace('@','_').replace('.','_')).exists()) || (root.child('fa-avaliacao-autorizados').child(auth.token.email.replace('@','_').replace('.','_')).child('tipo').val() === 'avaliacao-arquitetura'))",
       "$id": {
-        ".write": "auth != null && (((auth.token.email === 'tatianefdirene@previ.com.br' || auth.token.email === 'danielfrazao@previ.com.br') || root.child('fa-admins').child(auth.token.email.replace('@','_').replace('.','_')).exists()) || (root.child('fa-avaliacao-autorizados').child(auth.token.email.replace('@','_').replace('.','_')).child('tipo').val() === 'avaliacao' || root.child('fa-avaliacao-autorizados').child(auth.token.email.replace('@','_').replace('.','_')).child('tipo').val() === 'avaliacao-arquitetura')) && !data.exists() && newData.child('tipo').val() === 'reconciliacao_versao_equivalente'"
+        ".write": "auth != null && !data.exists() && newData.exists() && ((((auth.token.email === 'tatianefdirene@previ.com.br' || auth.token.email === 'danielfrazao@previ.com.br') || root.child('fa-admins').child(auth.token.email.replace('@','_').replace('.','_')).exists()) || root.child('fa-avaliacao-autorizados').child(auth.token.email.replace('@','_').replace('.','_')).child('tipo').val() === 'avaliacao-arquitetura') || (root.child('fa-avaliacao-autorizados').child(auth.token.email.replace('@','_').replace('.','_')).child('tipo').val() === 'avaliacao' && newData.child('tipo').val() === 'reconciliacao_versao_equivalente'))",
+        ".validate": "newData.hasChildren(['tipo','dataHora']) && newData.child('dataHora').isString() && (((newData.child('tipo').val() === 'regra' || newData.child('tipo').val() === 'texto') && newData.hasChildren(['campo','valorAnterior','valorNovo','versaoAnterior','novaVersao']) && newData.child('campo').isString() && newData.child('valorAnterior').isString() && newData.child('valorNovo').isString() && newData.child('versaoAnterior').isNumber() && newData.child('novaVersao').isNumber()) || (newData.child('tipo').val() === 'sem_alteracao' && newData.hasChildren(['versaoAnterior','novaVersao']) && newData.child('versaoAnterior').isNumber() && newData.child('novaVersao').isNumber()) || (newData.child('tipo').val() === 'conflito_publicacao' && newData.hasChildren(['versaoBase','versaoAtual','origem']) && newData.child('versaoBase').isNumber() && newData.child('versaoAtual').isNumber() && (newData.child('origem').val() === 'tentativa_noop' || newData.child('origem').val() === 'tentativa_publicacao')) || (newData.child('tipo').val() === 'reconciliacao_versao_equivalente' && newData.hasChildren(['avaliacaoId','versaoAnterior','versaoNova']) && newData.child('avaliacaoId').isString() && newData.child('versaoAnterior').isNumber() && newData.child('versaoNova').isNumber() && newData.child('equivalenciaComprovada').val() === true))"
       }
     },
     "taxonomia": {
