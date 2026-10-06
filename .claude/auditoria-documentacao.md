@@ -1,5 +1,11 @@
 # Auditoria: documentação × implementação
 
+> **ENCERRADA na Etapa 6.2.** A base auditada aqui (as 227 regras do antigo `manual.js`, o
+> `mapa.js` e o catálogo manual de `testes.js`) saiu do site: Mapa e Testes foram removidos e o
+> Manual foi reescrito por área, apontando fontes oficiais e provas. O dicionário do banco e a
+> lista de módulos agora estão em `docs/referencia-tecnica.md`, conferidos pelo CI
+> (`teste-consistencia-docs.js`). Este registro fica só como histórico.
+
 Registro de qual afirmação da documentação já foi conferida contra o código.
 Existe porque uma auditoria sem registro não é retomável: sem isto, quem
 voltar ao assunto — inclusive eu, numa sessão nova, sem memória da anterior —

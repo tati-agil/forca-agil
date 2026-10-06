@@ -12,7 +12,7 @@
  * de um evento pro outro só aparecia depois de rolar um bloco inteiro.
  *
  * A solução (pedida como "expansível", igual accordion) usa <details>/
- * <summary> nativo — mesmo idioma já usado em .manual-card (Manual) — em
+ * <summary> nativo — em
  * vez de JS de toggle: o cabeçalho é sempre visível e É a fronteira entre
  * um item e outro; o resto abre/fecha ao clicar.
  *

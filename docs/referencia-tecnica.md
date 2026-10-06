@@ -73,7 +73,7 @@ alguém precisa).
 | `forca-agil/game.js` | index.html | Treinamento: autodiagnóstico, patente, histórico. |
 | `forca-agil/qrcode.min.js` | index.html | Biblioteca de QR Code (vendorizada). |
 | `forca-agil/certif.js` | index.html | Geração do certificado sobre `cert-template-v3.png`. |
-| `forca-agil/admin.js` | index.html | Painel ADMIN (eventos, turmas, participantes, cadastros, admins, diretores, facilitadores, sorteios, roteiro); `faToXls` (CSV). Carrega o Manual sob demanda. |
+| `forca-agil/admin.js` | index.html | Painel ADMIN (eventos, turmas, participantes, cadastros, admins, diretores, facilitadores, sorteios, roteiro); exportações CSV (`toXls`). Carrega o Manual sob demanda. |
 | `forca-agil/avaliacao.js` | index.html | "Avaliar oficina" (`#avaliacao`): formulário da oficina por turma. |
 | `forca-agil/checkin.js` | index.html | Check-in por QR Code (`#checkin`). |
 | `forca-agil/pedidos.js` | index.html | "Faça um pedido" (Ajuda) e aba Pedidos do ADMIN. |
@@ -263,7 +263,7 @@ Só o que o código atual segue de fato. Convenções de trabalho (como abrir PR
   nunca tela vazia.
 - **Bibliotecas pesadas sob demanda** (`carregarScript` em `avaliacao-produto.js`; o Manual em
   `admin.js`): só são baixadas por quem usa.
-- **CSV**: `window.faToXls` (em `admin.js`) gera CSV com `;` e UTF-8 com BOM, que o Excel abre
+- **CSV**: `toXls` (interna de `admin.js`) gera CSV com `;` e UTF-8 com BOM, que o Excel abre
   editável.
 - **Tabelas do ADMIN** ficam dentro de `.table-scroll-wrap` (rolagem horizontal própria).
 - **Atributo `hidden`** em itens de menu é controlado pelo JavaScript; CSS de layout não deve

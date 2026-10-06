@@ -5,7 +5,7 @@ description: Antes de dar git push num branch de trabalho e abrir PR neste proje
 
 # Checagens antes de publicar
 
-Este repositório não tem bundler, linter nem suíte de testes automatizada local (ver `CLAUDE.md`). O que dá para verificar sem subir o site é sintaxe. A cobertura funcional de verdade — a suíte "▶ Automáticos" da aba Testes do painel Admin (`forca-agil/testes.js`) — roda contra o Firebase real e por isso não pode ser executada por esta skill: veja "Suíte completa" abaixo.
+Este repositório não tem bundler nem linter (ver `CLAUDE.md`). O que esta skill verifica sem subir o site é sintaxe. A cobertura funcional está nos testes descritos em "Testes que rodam no CI", abaixo.
 
 ## O que rodar, sempre, antes do push que antecede o PR
 
@@ -32,10 +32,10 @@ Só depois de tudo passar, siga com o `git push` e a abertura do PR, como já é
 
 Corrija o problema você mesma (mesmo padrão da skill `docs-internas`: resolver direto, sem perguntar antes), rode a checagem de novo, e só publique quando estiver limpo. Nunca pule uma checagem que falhou "pra resolver depois".
 
-## Suíte completa (Playwright contra o Firebase real)
+## Testes que rodam no CI
 
-A suíte "▶ Automáticos" de `testes.js` (grupos Técnicos + Comportamento) precisa de um navegador de verdade, logado como admin, batendo no Firebase real (Auth + Realtime Database do projeto `kyber-agil` — não há emulador neste repo). Isso **não roda dentro desta sessão de coding**: o proxy de saída deste ambiente bloqueia `www.gstatic.com` (onde ficam os SDKs do Firebase) e não suporta upgrade de WebSocket (que o Realtime Database usa) — não é algo para contornar, é política de rede do ambiente.
-
-Por isso essa suíte roda como CI de verdade, no workflow `.github/workflows/testes-automaticos.yml`, disparado em toda PR contra `main`/`v2`/`v3-quiz`, usando os secrets do repositório `FA_TEST_ADMIN_EMAIL`/`FA_TEST_ADMIN_PASSWORD` (conta admin de teste — hoje `teste_admin@previ.com.br`) para logar e clicar em "▶ Automáticos". O script fica em `.github/scripts/run-testes-automaticos.js`.
+- **Suíte hermética** (`.github/scripts/suite-hermetica.json`): Firebase falso, sem rede nem segredo, desktop e 375 px. Roda aqui também: sirva a raiz em `http://127.0.0.1:8811` e rode `node .github/scripts/rodar-suite.js` (ou um teste só, `node .github/scripts/teste-<nome>.js`). Bloqueia o merge.
+- **Regras do banco** (`teste-rules*.js`) no emulador (`teste-rules.yml`). Bloqueia o merge.
+- **Smoke com o Firebase real** (`.github/scripts/smoke-site-real.js`): o site do PR com o Auth e o banco de produção, logado com a conta admin de teste dos secrets `FA_TEST_ADMIN_EMAIL`/`FA_TEST_ADMIN_PASSWORD`. Confere que as rotas principais carregam com dados reais, sem gravar nada. **Não roda dentro desta sessão**: o proxy de saída deste ambiente bloqueia `www.gstatic.com` (SDKs do Firebase) e não suporta o WebSocket do Realtime Database — é política de rede do ambiente, não algo para contornar. As checagens do Smoke são exercitadas aqui, contra o Firebase falso, por `teste-smoke-seletores.js`. Não bloqueia o merge.
 
 Depois de abrir o PR, esse CI é só mais um check a observar — segue as mesmas regras de "PRs você criou são suas" já em vigor: se ele falhar, é para investigar e corrigir antes de considerar a PR pronta, não para ignorar.

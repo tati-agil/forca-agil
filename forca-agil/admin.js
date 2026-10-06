@@ -5,53 +5,12 @@
 (function () {
   'use strict';
 
-  /* Painéis com conteúdo expansível */
-  const EXPANDABLE_PANELS = [];
-
-  function activePanel() {
-    return document.querySelector('.admin-tab-panel.active');
-  }
-
-  function expandAll(panel) {
-    /* details elements (Manual) */
-    panel.querySelectorAll('details').forEach(function (d) { d.open = true; });
-    /* class-based (Mapa: mapa-page / arch-section / mapa-level; Testes: testes-group--collapsible) */
-    panel.querySelectorAll('.mapa-page, .arch-section, .mapa-level, .testes-group--collapsible').forEach(function (el) {
-      el.classList.add('open');
-    });
-  }
-
-  function collapseAll(panel) {
-    panel.querySelectorAll('details').forEach(function (d) { d.open = false; });
-    panel.querySelectorAll('.mapa-page, .arch-section, .mapa-level, .testes-group--collapsible').forEach(function (el) {
-      el.classList.remove('open');
-    });
-  }
-
-  function buildSectionButtons(panel) {
-    const bar = document.getElementById('adminExpandBar');
-    if (!bar) return;
-    bar.querySelectorAll('.admin-expand-sec-btn, .admin-expand-sep').forEach(function (b) { b.remove(); });
-  }
-
-  function updateExpandBar(panelId) {
-    const bar = document.getElementById('adminExpandBar');
-    if (!bar) return;
-    const isExpandable = EXPANDABLE_PANELS.indexOf(panelId) !== -1;
-    bar.classList.toggle('visible', isExpandable);
-    if (isExpandable) {
-      var panel = document.getElementById(panelId);
-      if (panel) setTimeout(function () { buildSectionButtons(panel); }, 50);
-    }
-  }
-
   /* Fora do DOMContentLoaded de propósito: com a página aberta já em #admin (F5), initAdmin roda
      no instante do onPageInit abaixo — antes das linhas seguintes — e o bloco da Arquitetura já
      precisa poder abrir a própria aba. */
   function ativarAba(target) {
     document.querySelectorAll('.admin-tab-btn').forEach(function (b) { b.classList.toggle('active', b.dataset.panel === target); });
     document.querySelectorAll('.admin-tab-panel').forEach(function (p) { p.classList.toggle('active', p.id === target); });
-    updateExpandBar(target);
     if (target === 'adminPanelManual') abrirManual();
   }
 
@@ -110,12 +69,6 @@
         else if (target === 'adminPanelArquitetura') window.dispatchEvent(new CustomEvent('fa-admin-aba-arquitetura'));
       });
     });
-
-    /* Expandir / Recolher tudo */
-    const expandBtn   = document.getElementById('adminExpandAll');
-    const collapseBtn = document.getElementById('adminCollapseAll');
-    if (expandBtn)   expandBtn.addEventListener('click',   function () { const p = activePanel(); if (p) expandAll(p); });
-    if (collapseBtn) collapseBtn.addEventListener('click', function () { const p = activePanel(); if (p) collapseAll(p); });
   });
 
   function emailKey(e) {
@@ -188,8 +141,6 @@
     loadDiretores();
     loadFacilitadores();
     loadSorteios();
-    if (window.faInitMapa) window.faInitMapa();
-    if (window.faInitTestes) window.faInitTestes();
     if (window.faInitPedidos) window.faInitPedidos();
     if (window.faInitDashboard) window.faInitDashboard();
     /* Squad primeiro: o cartão "Motor de Squad" só é desenhado se window.faAvaliacaoSquadAdmin
@@ -220,9 +171,6 @@
     });
     var bar = document.querySelector('.admin-tabs-bar');
     if (bar) bar.hidden = false;
-    var exp = document.getElementById('adminExpandBar');
-    if (exp) exp.hidden = false;
-    updateExpandBar(PAINEL_INICIAL_ADMIN);
   }
 
   function initAdminArquitetura() {
@@ -239,8 +187,6 @@
     });
     var bar = document.querySelector('.admin-tabs-bar');
     if (bar) bar.hidden = true;
-    var exp = document.getElementById('adminExpandBar');
-    if (exp) exp.hidden = true;
     /* Squad primeiro: o cartão "Motor de Squad" só é desenhado se window.faAvaliacaoSquadAdmin
        já existir na primeira renderização do bloco de Avaliação. */
     if (window.faInitAvaliacaoSquad) window.faInitAvaliacaoSquad();
@@ -4220,7 +4166,6 @@
     document.body.removeChild(a);
     setTimeout(function() { URL.revokeObjectURL(url); }, 100);
   }
-  window.faToXls = toXls;
 
   const REPO_SEEDS = [
     { type: 'doc',   title: 'The Scrum Guide',                       url: 'https://scrumguides.org/',                                                                                                                                              desc: '' },

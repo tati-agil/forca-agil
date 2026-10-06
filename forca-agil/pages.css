@@ -296,7 +296,7 @@
 @media (max-width: 800px) {
   .turmas-evento-grupo + .turmas-evento-grupo { margin-top: 64px; padding-top: 40px; }
 }
-/* "A Missão" de cada evento: acordeão (mesmo idioma de .manual-card) em vez
+/* "A Missão" de cada evento: acordeão (<details>/<summary> nativo) em vez
    de bloco sempre aberto. Com um evento só ele nasce aberto (nada muda pra
    quem só vê um); com dois ou mais, o resumo recolhido já É o divisor entre
    um evento e outro — não precisa rolar Missão+Como funciona+Plano de voo
@@ -912,33 +912,6 @@
   display: flex; gap: 8px; align-items: center; width: 100%;
 }
 .admin-colab-row input { flex: 1; min-width: 0; }
-
-.admin-expand-bar {
-  display: none; align-items: center; gap: 8px;
-  padding: 8px 12px;
-  background: var(--space-1);
-  border: 1px solid var(--line);
-  border-radius: 10px;
-  margin-bottom: 20px;
-  position: sticky; top: 64px; z-index: 10;
-}
-.admin-expand-bar.visible { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; }
-.admin-expand-sep {
-  width: 1px; height: 20px; background: var(--line);
-  align-self: center; flex-shrink: 0; margin: 0 4px;
-}
-.admin-expand-sec-btn {
-  padding: 2px 10px; border-radius: 20px; cursor: pointer;
-  font-family: var(--font-mono); font-size: .65rem; letter-spacing: .06em; text-transform: uppercase;
-  border: 1px solid var(--sec-col, var(--ink)); color: var(--sec-col, var(--ink));
-  background: transparent; transition: opacity .15s;
-}
-.admin-expand-sec-btn:hover { opacity: .75; }
-.admin-expand-label {
-  font-family: var(--font-mono); font-size: .72rem;
-  text-transform: uppercase; letter-spacing: .08em;
-  color: var(--ink-3); margin-right: 4px;
-}
 
 .admin-status-btns { display: flex; gap: 4px; }
 .admin-status-btn {
