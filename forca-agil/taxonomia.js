@@ -114,9 +114,10 @@
 
   /* ---------- estado ---------- */
   function novoHGDom() { return { estado: 'ocioso', cursor: null, temMais: false, erro: null }; }
-  function novoHG() { return { carregou: false, carregando: false, itens: [], doms: { organizacional: novoHGDom(), arquitetural: novoHGDom() } }; }
-  function novoDominio() { return { estado: 'ocioso', conceitos: {}, atributos: {}, selecionado: null, detalhe: null, edicao: null, confirmacao: null, expandida: null, arquivando: null, arquivadasAbertas: false, dica: false }; }
+  function novoHG() { return { carregou: false, carregando: false, itens: [], doms: { organizacional: novoHGDom(), arquitetural: novoHGDom() }, contagem: {} }; }
+  function novoDominio() { return { estado: 'ocioso', conceitos: {}, atributos: {}, selecionado: null, detalhe: null, edicao: null, confirmacao: null, expandida: null, arquivando: null, arquivadasAbertas: false, dica: false, novaVersao: null }; }
   var st = {
+    exp: null, /* exportação em andamento/resultado: { estado: lendo|gerando|ok|erro, formato, texto } */
     dominio: 'organizacional', email: null, raiz: null, opcoes: { somenteLeitura: false },
     meta: { estado: 'ocioso', cargaFeita: false }, importacao: null, flash: null, salvando: false,
     vista: 'lista', aba: 'dominio', /* aba: 'dominio' (lista + detalhe) ou 'historico' (histórico global) */
@@ -309,7 +310,7 @@
   }
   function aposSalvar(dom, codigo, mensagem) {
     var D = st.d[dom];
-    D.edicao = null; D.confirmacao = null; D.arquivando = null; D.expandida = null; D.dica = false;
+    D.edicao = null; D.confirmacao = null; D.arquivando = null; D.expandida = null; D.dica = false; D.novaVersao = null;
     st.flash = { erro: false, texto: mensagem };
     carregarDominio(dom);
     if (codigo) { D.selecionado = codigo; carregarDetalhe(dom, codigo); }
@@ -447,18 +448,26 @@
     gravar(caminhos, function () { aposSalvar(dom, codigo, 'Conceito salvo.'); });
   }
 
+  var TEXTO_IMUTAVEL = 'O texto, o contexto e o tipo de redação de uma fonte já criada não podem ser alterados. Para corrigir o texto, crie um novo texto-fonte ("+ Adicionar texto-fonte" ou "Nova versão da definição") e arquive esta fonte com o motivo "redação superada".';
   function salvarFonte(dom, codigo) {
     var D = st.d[dom], e = D.edicao, v = e.valores, fontes = fontesAtuais(dom), c = conceitoAtual(dom, codigo);
-    var texto = String(v.texto || '').trim();
-    if (!texto) { e.erro = 'O texto da fonte é obrigatório.'; render(); return; }
     var nova = e.tipo === 'novaFonte';
-    var id = nova ? db().ref(RAIZ + '/' + dom + '/fontes/' + codigo).push().key : e.chave;
+    var id = nova ? null : e.chave;
     var atual = nova ? null : fontes[id];
+    if (!nova && !atual) { e.erro = 'Não encontrei esta fonte. Recarregue a página.'; render(); return; }
     if (atual && atual.arquivada) { e.erro = 'Esta fonte está arquivada e não pode ser editada. Restaure-a primeiro.'; render(); return; }
+    /* DEFESA EM PROFUNDIDADE (as regras do banco recusam o mesmo): fonte existente nunca muda de texto,
+       contexto nem tipo de redação. Comparação EXATA com o que está gravado (sem aparar espaços). */
+    if (atual && ['texto', 'contexto', 'tipoRedacao'].some(function (k) { return v[k] !== undefined && String(v[k]) !== String(atual[k]); })) {
+      e.erro = TEXTO_IMUTAVEL; st.flash = { erro: true, texto: 'Não foi salvo: ' + TEXTO_IMUTAVEL }; render(); return;
+    }
+    var texto = atual ? atual.texto : String(v.texto || '').trim();
+    if (!texto) { e.erro = 'O texto da fonte é obrigatório.'; render(); return; }
+    if (nova) id = db().ref(RAIZ + '/' + dom + '/fontes/' + codigo).push().key;
     var ehVigente = !!(atual && atual.situacao === 'vigente');
     var situacao = ehVigente ? 'vigente' : v.situacao;
     if (!ehVigente && SIT_FONTE_EDITAVEL.indexOf(situacao) === -1) { e.erro = 'Escolha uma situação válida. Para tornar vigente use "Tornar vigente".'; render(); return; }
-    var dado = { texto: texto, contexto: v.contexto, situacao: situacao, tipoRedacao: v.tipoRedacao };
+    var dado = atual ? { texto: atual.texto, contexto: atual.contexto, situacao: situacao, tipoRedacao: atual.tipoRedacao } : { texto: texto, contexto: v.contexto, situacao: situacao, tipoRedacao: v.tipoRedacao };
     var rotulo = String(v.rotulo || '').trim();
     if (rotulo) dado.rotulo = rotulo;
     var pos = JSON.parse(JSON.stringify(fontes));
@@ -467,7 +476,8 @@
     var base = RAIZ + '/' + dom, caminhos = {};
     if (nova) { dado.criadoEm = agora(); dado.criadoPor = emailAutor(); caminhos[base + '/fontes/' + codigo + '/' + id] = dado; }
     else {
-      ['texto', 'contexto', 'situacao', 'tipoRedacao'].forEach(function (k) { if (atual[k] !== dado[k]) caminhos[base + '/fontes/' + codigo + '/' + id + '/' + k] = dado[k]; });
+      /* só o que pode mudar numa fonte existente: situação e rótulo (texto/contexto/tipo nunca são enviados) */
+      if (atual.situacao !== dado.situacao) caminhos[base + '/fontes/' + codigo + '/' + id + '/situacao'] = dado.situacao;
       if ((atual.rotulo || null) !== (dado.rotulo || null)) caminhos[base + '/fontes/' + codigo + '/' + id + '/rotulo'] = dado.rotulo || null;
       if (!chaves(caminhos).length) { e.erro = 'Nada foi alterado.'; render(); return; }
     }
@@ -477,8 +487,15 @@
       if (sit !== c.situacaoDefinicao) caminhos[base + '/conceitos/' + codigo + '/situacaoDefinicao'] = sit;
     }
     marcaConceito(caminhos, dom, codigo);
-    addAud(caminhos, dom, codigo, 'alteracao_fonte', nova ? 'nova fonte' : 'fonte', nova ? null : rotuloFonte(atual, id), rotuloFonte(dado, id), { fonteId: id });
-    gravar(caminhos, function () { aposSalvar(dom, codigo, nova ? 'Texto-fonte adicionado.' : 'Fonte salva.'); });
+    var baseVersao = nova && e.baseFonteId ? e.baseFonteId : null;
+    addAud(caminhos, dom, codigo, 'alteracao_fonte', baseVersao ? 'nova versão da definição' : (nova ? 'nova fonte' : 'fonte'), nova ? null : rotuloFonte(atual, id), rotuloFonte(dado, id), baseVersao ? { fonteId: id, fonteBaseId: baseVersao } : { fonteId: id });
+    gravar(caminhos, function () {
+      aposSalvar(dom, codigo, baseVersao
+        ? 'Nova versão salva como texto-fonte "em validação". A definição vigente NÃO mudou: para adotar a nova versão, use "Usar como vigente" nela.'
+        : (nova ? 'Texto-fonte adicionado.' : 'Fonte salva.'));
+      /* guia o próximo passo: o cartão da nova versão fica marcado, com o convite a "Usar como vigente" */
+      if (baseVersao) { st.d[dom].novaVersao = id; render(); }
+    });
   }
 
   function salvarPerfil(dom, codigo) {
@@ -513,9 +530,22 @@
 
   /* ---------- importação única ---------- */
   var DOM_IMPORT = ['arquitetural', 'organizacional'];
+  function plural(n, um, varios) { return n + ' ' + (n === 1 ? um : varios); }
+  /* "5 conceitos, 7 textos-fonte (1 com definição vigente), 4 atributos, 3 valores de perfil, 2 relações" —
+     atributos/perfis/relações só aparecem quando existem (o domínio arquitetural não tem). */
+  function textoContagem(r) {
+    var t = plural(r.conceitos || 0, 'conceito', 'conceitos') + ', ' + plural(r.fontes || 0, 'texto-fonte', 'textos-fonte') + ' (' + (r.vigentes || 0) + ' com definição vigente)';
+    if (r.atributos) t += ', ' + plural(r.atributos, 'atributo', 'atributos');
+    if (r.perfis) t += ', ' + plural(r.perfis, 'valor de perfil', 'valores de perfil');
+    if (r.relacoes) t += ', ' + plural(r.relacoes, 'relação', 'relações');
+    return t;
+  }
   /* Valida o arquivo e monta o update atômico. Genérico: nenhum conteúdo conceitual vive aqui. */
   function prepararImportacao(arq, conceitosExistentes) {
     var erros = [], avisos = [], caminhos = {}, resumo = { conceitos: 0, fontes: 0, atributos: 0, perfis: 0, relacoes: 0, vigentes: 0 };
+    /* contagem POR DOMÍNIO: cada linha de auditoria da carga registra a do próprio domínio (não o total geral) */
+    var porDominio = {};
+    function conta(dom, campo) { resumo[campo]++; porDominio[dom] = porDominio[dom] || { conceitos: 0, fontes: 0, atributos: 0, perfis: 0, relacoes: 0, vigentes: 0 }; porDominio[dom][campo]++; }
     var agoraIso = agora(), email = emailAutor();
     if (!arq || typeof arq !== 'object' || !arq.dominios || typeof arq.dominios !== 'object') {
       return { erros: ['O arquivo não tem o formato esperado (objeto com "dominios").'], avisos: [], resumo: resumo, caminhos: {} };
@@ -554,12 +584,12 @@
           var dado = { texto: f.texto, contexto: f.contexto, situacao: f.situacao, tipoRedacao: f.tipoRedacao, criadoEm: agoraIso, criadoPor: email };
           if (f.rotulo) dado.rotulo = String(f.rotulo);
           caminhos[base + '/fontes/' + cod + '/' + id] = dado;
-          resumo.fontes++;
+          conta(dom, 'fontes');
         });
         /* A MESMA barreira da edição: no máximo uma vigente, e é a apontada */
         var v = validarVigencia(fontesPos, ponteiro);
         if (!v.ok) erros.push(onde + ': ' + v.erro);
-        if (ponteiro) resumo.vigentes++;
+        if (ponteiro) conta(dom, 'vigentes');
         var dadoC = { nome: c.nome.trim(), ordem: typeof c.ordem === 'number' ? c.ordem : (chaves(cs).indexOf(cod) + 1), ativo: c.ativo !== false,
           situacaoDefinicao: ponteiro ? 'registrada' : (c.situacaoDefinicao && c.situacaoDefinicao !== 'registrada' ? c.situacaoDefinicao : situacaoSemVigente(fontesPos)),
           atualizadoEm: agoraIso, atualizadoPor: email };
@@ -572,7 +602,7 @@
           c.criterios.forEach(function (t, i) { dadoC.criterios['k' + (i + 1)] = { texto: String(t), ordem: i + 1 }; });
         }
         caminhos[base + '/conceitos/' + cod] = dadoC;
-        resumo.conceitos++;
+        conta(dom, 'conceitos');
       });
       chaves(bloco.fontes || {}).forEach(function (cod) { if (!cs[cod]) erros.push(dom + ' › ' + cod + ': há fontes para um conceito que não está no arquivo.'); });
       if (!org) {
@@ -592,7 +622,7 @@
           a.valoresPermitidos.forEach(function (t, i) { dado.valoresPermitidos['v' + (i + 1)] = { texto: String(t), ordem: i + 1 }; });
         }
         caminhos[base + '/atributos/' + cod] = dado;
-        resumo.atributos++;
+        conta(dom, 'atributos');
       });
       var perfis = bloco.perfis || {};
       chaves(perfis).forEach(function (cod) {
@@ -607,7 +637,7 @@
             dado.valor = p.valor; dado.papel = p.papel; dado.origem = p.origem;
           } else if (p.valor !== undefined || p.papel !== undefined || p.origem !== undefined) { erros.push(onde + ': estado "' + p.estado + '" não tem valor, papel nem origem (ausência é estado, nunca campo vazio).'); return; }
           caminhos[base + '/perfis/' + cod + '/' + atr] = dado;
-          resumo.perfis++;
+          conta(dom, 'perfis');
         });
       });
       (bloco.relacoes || []).forEach(function (r, i) {
@@ -617,15 +647,16 @@
         var dado = { de: r.de, tipo: r.tipo, para: r.para };
         if (typeof r.nota === 'string' && r.nota.trim()) dado.nota = r.nota;
         caminhos[base + '/relacoes/' + r.de + '__' + r.tipo + '__' + r.para] = dado;
-        resumo.relacoes++;
+        conta(dom, 'relacoes');
       });
     });
     if (!resumo.conceitos && !erros.length) erros.push('O arquivo não traz nenhum conceito.');
     if (!erros.length) {
-      caminhos[RAIZ + '/meta/cargaInicial'] = { feitaEm: agoraIso, feitaPor: email, resumo: resumo };
+      caminhos[RAIZ + '/meta/cargaInicial'] = { feitaEm: agoraIso, feitaPor: email, resumo: resumo, resumoPorDominio: porDominio };
       DOM_IMPORT.forEach(function (dom) {
-        if (!arq.dominios[dom]) return;
-        addAud(caminhos, dom, '_catalogo', 'carga_inicial', 'carga inicial', null, 'Importação única: ' + resumo.conceitos + ' conceitos, ' + resumo.fontes + ' fontes');
+        if (!arq.dominios[dom] || !porDominio[dom]) return;
+        var pd = porDominio[dom];
+        addAud(caminhos, dom, '_catalogo', 'carga_inicial', 'carga inicial', null, 'Carga inicial — ' + DOMINIOS[dom].rotulo + ': ' + textoContagem(pd), { dominio: dom, resumoDominio: pd });
       });
     }
     return { erros: erros, avisos: avisos, resumo: resumo, caminhos: caminhos };
@@ -731,14 +762,31 @@
   function campoSelect(id, valor, opcoes, rotulos, vazio) {
     return '<select id="' + id + '" data-campo="' + id.replace(/^taxF_/, '') + '">' + (vazio ? '<option value="">' + esc(vazio) + '</option>' : '') + opcoes.map(function (o) { return '<option value="' + esc(o) + '"' + (o === valor ? ' selected' : '') + '>' + esc((rotulos && rotulos[o]) || o) + '</option>'; }).join('') + '</select>';
   }
+  /* Texto-fonte é IMUTÁVEL depois de criado (texto, contexto e tipo de redação — o banco também recusa):
+     - fonte NOVA (inclusive "Nova versão da definição", que nasce pré-preenchida com a anterior): todos os campos;
+     - fonte EXISTENTE: só rótulo e situação são editáveis; texto, contexto e tipo aparecem só para leitura.
+     Corrigir um texto = criar uma fonte nova e arquivar a antiga com o motivo "redação superada". */
   function formFonte(dom, codigo, e) {
     var v = e.valores, nova = e.tipo === 'novaFonte', atual = nova ? null : fontesAtuais(dom)[e.chave];
     var vigente = !!(atual && atual.situacao === 'vigente');
-    var html = '<div class="tax-form" id="taxFormFonte">';
+    var html = '<div class="tax-form" id="taxFormFonte"' + (e.baseFonteId ? ' data-nova-versao="' + esc(e.baseFonteId) + '"' : '') + '>';
+    if (nova && e.baseFonteId) {
+      var base = fontesAtuais(dom)[e.baseFonteId];
+      html += '<p class="tax-form-titulo" id="taxNovaVersaoTitulo"><strong>Nova versão da definição</strong></p>' +
+        '<p class="tax-ajuda" id="taxNovaVersaoAjuda">Começa com o texto da definição vigente atual' + (base ? ' (' + esc(rotuloFonte(base, e.baseFonteId)) + ')' : '') +
+        '. Salvar cria um NOVO texto-fonte "em validação"; o texto atual não muda e continua vigente até você usar "Usar como vigente" na nova versão.</p>';
+    }
     html += '<label for="taxF_rotulo">Rótulo (opcional)</label><input type="text" id="taxF_rotulo" data-campo="rotulo" value="' + esc(v.rotulo) + '" maxlength="120">';
-    html += '<label for="taxF_texto">Texto da fonte *</label><textarea id="taxF_texto" data-campo="texto" rows="6">' + esc(v.texto) + '</textarea>';
-    html += '<div class="tax-form-linha"><div><label for="taxF_contexto">Contexto</label>' + campoSelect('taxF_contexto', v.contexto, CONTEXTOS) + '</div>';
-    html += '<div><label for="taxF_tipoRedacao">Tipo de redação</label>' + campoSelect('taxF_tipoRedacao', v.tipoRedacao, TIPOS_REDACAO) + '</div>';
+    if (nova) {
+      html += '<label for="taxF_texto">Texto da fonte *</label><textarea id="taxF_texto" data-campo="texto" rows="6">' + esc(v.texto) + '</textarea>';
+      html += '<div class="tax-form-linha"><div><label for="taxF_contexto">Contexto</label>' + campoSelect('taxF_contexto', v.contexto, CONTEXTOS) + '</div>';
+      html += '<div><label for="taxF_tipoRedacao">Tipo de redação</label>' + campoSelect('taxF_tipoRedacao', v.tipoRedacao, TIPOS_REDACAO) + '</div>';
+    } else {
+      html += '<p class="tax-rotulo">Texto da fonte (não editável)</p><p class="tax-fonte-texto tax-somente-leitura" id="taxF_textoFixo">' + esc(atual ? atual.texto : v.texto) + '</p>';
+      html += '<dl class="tax-confirma-dados tax-meta"><dt>Contexto</dt><dd>' + esc(atual ? atual.contexto : v.contexto) + '</dd><dt>Tipo de redação</dt><dd>' + esc(atual ? atual.tipoRedacao : v.tipoRedacao) + '</dd></dl>';
+      html += '<p class="tax-ajuda" id="taxAjudaImutavel">O texto, o contexto e o tipo de redação de uma fonte não mudam depois de criada. Para corrigir o texto: use "+ Adicionar texto-fonte" com a redação certa e arquive esta fonte com o motivo "redação superada".</p>';
+      html += '<div class="tax-form-linha">';
+    }
     html += '<div><label for="taxF_situacao">Situação</label>' + (vigente ? '<p class="tax-ajuda">Vigente. Para mudar, use "Remover vigência" ou torne outro texto vigente.</p>' : campoSelect('taxF_situacao', v.situacao, SIT_FONTE_EDITAVEL)) + '</div></div>';
     if (e.erro) html += '<p class="tax-aviso-erro" role="alert">' + esc(e.erro) + '</p>';
     html += '<div class="tax-acoes"><button type="button" class="btn btn--primary btn--sm" data-tax="salvar-edicao"' + (st.salvando ? ' disabled' : '') + '>' + (st.salvando ? 'SALVANDO…' : 'SALVAR') + '</button>' +
@@ -786,7 +834,12 @@
       h += '</dl>';
       var iguais = iguaisA(f);
       if (iguais.length) h += '<p class="tax-identico">Texto idêntico a: ' + iguais.map(function (o) { return esc(rotuloFonte(o, o._id)) + (o.situacao === 'vigente' ? ' (definição vigente)' : ''); }).join('; ') + '</p>';
-      if (ed && !f.arquivada) h += '<div class="tax-acoes"><button type="button" class="btn btn--sm" data-tax="editar-fonte" data-fonte="' + esc(f._id) + '">Editar</button></div>';
+      /* Texto-fonte é imutável: a vigente não tem "Editar" — a mudança de redação é uma NOVA versão (fonte nova,
+         pré-preenchida), que só vira definição pelo "Usar como vigente". As demais editam só rótulo e situação. */
+      if (ed && !f.arquivada && f.situacao === 'vigente') h += '<div class="tax-acoes"><button type="button" class="btn btn--sm" data-tax="nova-versao" data-fonte="' + esc(f._id) + '">Nova versão da definição</button></div>' +
+        '<p class="tax-ajuda">O texto vigente não é editado: a nova versão nasce como outro texto-fonte "em validação", e a definição só muda quando você usar "Usar como vigente" nela.</p>';
+      else if (ed && !f.arquivada) h += '<div class="tax-acoes"><button type="button" class="btn btn--sm" data-tax="editar-fonte" data-fonte="' + esc(f._id) + '">Editar</button></div>' +
+        '<p class="tax-ajuda tax-ajuda-corrigir">Editar muda só o rótulo e a situação. Texto errado? Adicione um novo texto-fonte com a redação certa e arquive este com o motivo "redação superada".</p>';
       return h + '</div>';
     }
     function cabecalho(f, vigente) {
@@ -809,6 +862,7 @@
         var a = f.arquivamento || {};
         h += '<p class="tax-arq-info">Motivo: <strong>' + esc(a.motivo || '—') + '</strong>' + (a.justificativa ? ' — ' + esc(a.justificativa) : '') + '<br><span class="tax-ajuda">Arquivada em ' + esc(fmtData(a.em)) + ' por ' + esc(a.por || '—') + '</span></p>';
       } else {
+        if (D.novaVersao === f._id) h += '<p class="tax-dica" id="taxNovaVersaoCriada" role="note">Nova versão criada agora. A definição vigente ainda é a anterior: use “Usar como vigente” para adotar esta.</p>';
         if (iguaisA(f).length) h += '<p class="tax-identico tax-identico--resumo">Texto idêntico ao de outra fonte</p>';
         if (SIT_FONTE_PROMOVIVEL.indexOf(f.situacao) === -1) h += '<p class="tax-ajuda">Não pode ser definição (' + esc(f.situacao) + ').</p>';
       }
@@ -1004,6 +1058,7 @@
     if (!codigo || !D.conceitos[codigo]) return html + '<p class="tax-ausencia">Escolha um conceito na lista.</p></section>';
     var c = D.conceitos[codigo], det = D.detalhe && D.detalhe.codigo === codigo ? D.detalhe : { carregando: true, fontes: {}, perfis: {}, relacoes: {}, auditoria: {}, erros: {} };
     html += '<h3 class="tax-titulo">' + esc(c.nome) + '</h3>';
+    html += '<p class="tax-codigo" id="taxCodigo">Código: <code>' + esc(codigo) + '</code></p>';
     html += '<p class="tax-caminho">' + caminhoDo(dom, codigo).map(esc).join(' › ') + ' ' + (c.camada ? selo(CAMADA_ROTULO[c.camada] || c.camada) : '') + (c.ativo === false ? selo('desativado') : '') + '</p>';
     html += renderDefinicao(dom, codigo, det);
     html += renderPergunta(dom, codigo);
@@ -1070,7 +1125,7 @@
             return da === db_ ? (a._chave < b._chave ? 1 : -1) : (da < db_ ? 1 : -1);
           });
         }
-        if (--faltam === 0) { H.carregando = false; }
+        if (--faltam === 0) { H.carregando = false; contarCargasAntigas(); }
         render();
       }, function (ref) {
         var q = ref.orderByKey();
@@ -1079,6 +1134,39 @@
       });
     });
     render();
+  }
+  /* ---------- carga inicial: contagem POR DOMÍNIO ----------
+     Linhas novas trazem `resumoDominio` (a contagem do próprio domínio, gravada na importação). As linhas
+     ANTIGAS (antes desta correção) só têm o texto "Importação única: N conceitos, M fontes" com o TOTAL dos
+     dois domínios — repetido igual nas duas linhas, o que fazia parecer que cada domínio recebeu tudo. A
+     auditoria é só acréscimo (não se reescreve), e meta/cargaInicial.resumo dessas cargas também é só o total.
+     Não existe, portanto, nenhum registro da contagem de cada domínio NO MOMENTO da carga. Opção honesta: não
+     repetir o total como se fosse do domínio; mostrar a contagem ATUAL do domínio (lida agora, rotulada como
+     "hoje") e deixar o texto original explicitamente marcado como total dos dois domínios juntos. */
+  function ehCargaAntiga(e) { return e.tipo === 'carga_inicial' && !(e.resumoDominio && typeof e.resumoDominio === 'object'); }
+  function contarCargasAntigas() {
+    var H = st.hg;
+    ORDEM_DOMINIOS.forEach(function (d) {
+      if (H.contagem[d] && H.contagem[d].estado !== 'erro') return;
+      if (!H.itens.some(function (i) { return i._dom === d && ehCargaAntiga(i); })) return;
+      var C = H.contagem[d] = { estado: 'carregando', conceitos: 0, fontes: 0 }, pend = 2, falhou = false;
+      function fim() { if (--pend > 0) return; C.estado = falhou ? 'erro' : 'ok'; render(); }
+      lerNo(RAIZ + '/' + d + '/conceitos', function (r) { if (!r.ok) falhou = true; else C.conceitos = chaves(r.valor).length; fim(); });
+      lerNo(RAIZ + '/' + d + '/fontes', function (r) {
+        if (!r.ok) falhou = true;
+        else { var v = r.valor || {}; C.fontes = chaves(v).reduce(function (n, cod) { return n + chaves(v[cod]).length; }, 0); }
+        fim();
+      });
+    });
+  }
+  function resumoCarga(e) {
+    if (!ehCargaAntiga(e)) return textoContagem(e.resumoDominio);
+    var C = st.hg.contagem[e._dom], hoje;
+    if (!C || C.estado === 'carregando') hoje = 'Contando o que o domínio tem hoje…';
+    else if (C.estado === 'erro') hoje = 'Não foi possível contar agora o que o domínio tem hoje.';
+    else hoje = 'Hoje o domínio tem ' + plural(C.conceitos, 'conceito', 'conceitos') + ' e ' + plural(C.fontes, 'texto-fonte', 'textos-fonte') + ' (contagem atual, não a da carga).';
+    return 'Contagem deste domínio na carga: não registrada (linha anterior à separação por domínio). ' + hoje +
+      (e.valorNovo ? ' Registro original, com o total dos dois domínios juntos: "' + e.valorNovo + '".' : '');
   }
   function htmlHistoricoGlobal() {
     var H = st.hg;
@@ -1100,7 +1188,8 @@
     h += '<ul class="tax-hg-lista">' + H.itens.map(function (e) {
       var rotDom = DOMINIOS[e._dom] ? DOMINIOS[e._dom].rotulo : e._dom;
       var tipo = HG_TIPOS[e.tipo] || e.tipo || '—';
-      var resumo = e.tipo === 'carga_inicial' ? (e.valorNovo || e.campo || '')
+      if (e.tipo === 'carga_inicial') tipo += ' — ' + rotDom;
+      var resumo = e.tipo === 'carga_inicial' ? resumoCarga(e)
         : (e.campo || '') + (e.valorAnterior ? ': ' + e.valorAnterior + ' → ' + (e.valorNovo || '—') : (e.valorNovo ? ': ' + e.valorNovo : ''));
       var quem = (e.usuario && e.usuario.nome ? e.usuario.nome + ' ' : '') + (e.usuario && e.usuario.email ? '(' + e.usuario.email + ')' : '');
       return '<li class="tax-hg-item" data-dominio="' + esc(e._dom) + '" data-chave="' + esc(e._chave) + '" data-datahora="' + esc(e.dataHora || '') + '">' +
@@ -1110,6 +1199,186 @@
     }).join('') + '</ul>';
     var maisHa = ORDEM_DOMINIOS.some(function (d) { return H.doms[d].estado === 'ok' && H.doms[d].temMais; });
     if (maisHa) h += '<div class="tax-acoes"><button type="button" class="btn btn--sm" data-tax="hg-mais"' + (H.carregando ? ' disabled' : '') + '>CARREGAR MAIS</button></div>';
+    return h + '</section>';
+  }
+
+  /* ---------- EXPORTAÇÃO para revisão (Excel) e diagnóstico (JSON) ----------
+     SÓ LEITURA: nenhuma gravação no banco (nem auditoria). A raiz `taxonomia` não é legível em bloco (as
+     regras liberam leitura por ramo), então a exportação lê cada ramo que existe nas regras, com o mesmo
+     limite de espera do resto da tela; se QUALQUER ramo falhar ou não responder, nada é baixado e a tela diz
+     qual ramo falhou — nunca um arquivo incompleto que pareça completo. O Excel usa a mesma biblioteca
+     vendorizada (forca-agil/xlsx.mini.min.js, SheetJS) das exportações da Avaliação, carregada sob demanda. */
+  var EXPORT_FORMATO = 'forca-agil/taxonomia-exportacao', EXPORT_VERSAO = 1;
+  var RAMOS_EXPORT = [
+    ['organizacional', 'conceitos'], ['organizacional', 'fontes'], ['organizacional', 'atributos'], ['organizacional', 'perfis'], ['organizacional', 'relacoes'], ['organizacional', 'auditoria'],
+    ['arquitetural', 'conceitos'], ['arquitetural', 'fontes'], ['arquitetural', 'auditoria'],
+    ['meta']
+  ];
+  function lerTudoParaExportar(cb) {
+    var bruto = {}, falhas = [], pend = RAMOS_EXPORT.length;
+    RAMOS_EXPORT.forEach(function (ramo) {
+      lerNo(RAIZ + '/' + ramo.join('/'), function (r) {
+        if (!r.ok) falhas.push(ramo.join('/') + ' (' + (r.negado ? 'sem acesso' : (r.erro === 'tempo esgotado' ? 'não respondeu em ' + Math.round(ESPERA.leitura / 1000) + ' s' : 'erro de leitura')) + ')');
+        else if (r.valor !== null && r.valor !== undefined) {
+          if (ramo.length === 1) bruto[ramo[0]] = r.valor;
+          else { bruto[ramo[0]] = bruto[ramo[0]] || {}; bruto[ramo[0]][ramo[1]] = r.valor; }
+        }
+        if (--pend === 0) cb(falhas.length ? { ok: false, falhas: falhas } : { ok: true, bruto: bruto });
+      });
+    });
+  }
+  function dataArquivo() {
+    var d = new Date(); function p(n) { return n < 10 ? '0' + n : String(n); }
+    return d.getFullYear() + '-' + p(d.getMonth() + 1) + '-' + p(d.getDate());
+  }
+  function baixarBlob(blob, nome) {
+    var url = URL.createObjectURL(blob), a = document.createElement('a');
+    a.href = url; a.download = nome; a.style.display = 'none';
+    document.body.appendChild(a); a.click();
+    setTimeout(function () { URL.revokeObjectURL(url); if (a.parentNode) a.parentNode.removeChild(a); }, 1000);
+  }
+  function carregarXlsx(cb) {
+    if (window.XLSX) { cb(); return; }
+    var src = 'forca-agil/xlsx.mini.min.js';
+    var ex = document.querySelector('script[data-avp-lib="' + src + '"]');
+    if (ex) { ex.addEventListener('load', function () { cb(window.XLSX ? null : new Error('biblioteca indisponível')); }); ex.addEventListener('error', function () { cb(new Error('Falha ao carregar ' + src)); }); return; }
+    var s = document.createElement('script');
+    s.src = src; s.setAttribute('data-avp-lib', src);
+    s.onload = function () { cb(window.XLSX ? null : new Error('biblioteca indisponível')); };
+    s.onerror = function () { cb(new Error('Falha ao carregar ' + src)); };
+    document.head.appendChild(s);
+  }
+  function txt(v) {
+    if (v === null || v === undefined) return '';
+    if (Array.isArray(v)) return v.map(txt).join(' | ');
+    if (typeof v === 'object') return JSON.stringify(v);
+    return v;
+  }
+  function simNao(b) { return b ? 'Sim' : 'Não'; }
+  /* Linhas das abas (cabeçalhos em português). Pura: recebe o bruto lido, não lê nem grava nada. */
+  function linhasExportacao(bruto) {
+    var L = { Conceitos: [], Fontes: [], Atributos: [], Perfis: [], 'Relações': [], 'Histórico': [] };
+    ORDEM_DOMINIOS.forEach(function (dom) {
+      var B = bruto[dom] || {}, cs = B.conceitos || {}, fs = B.fontes || {};
+      var nome = function (cod) { return (cs[cod] && cs[cod].nome) || ''; };
+      ordenaPor(chaves(cs).map(function (k) { return Object.assign({ _cod: k }, cs[k]); }), 'ordem').forEach(function (c) {
+        var vig = c.definicaoVigenteFonteId || '', fv = vig && fs[c._cod] ? fs[c._cod][vig] : null;
+        var integ = '';
+        if (vig && !fv) integ = 'ponteiro aponta para fonte inexistente';
+        else if (fv && fv.situacao !== 'vigente') integ = 'fonte apontada não está vigente';
+        else { var vv = validarVigencia(fs[c._cod] || {}, vig || null); if (!vv.ok) integ = vv.erro; }
+        L.Conceitos.push([DOMINIOS[dom].rotulo, c._cod, c.nome || '', c.camada ? (CAMADA_ROTULO[c.camada] || c.camada) : '', c.pai || '', c.pai ? nome(c.pai) : '',
+          c.ativo === false ? 'Não' : 'Sim', SIT_DEFINICAO_ROTULO[c.situacaoDefinicao] || txt(c.situacaoDefinicao), fv ? fv.texto : '', vig, fv ? (fv.rotulo || '') : '', fv ? fv.contexto : '', fv ? fv.tipoRedacao : '',
+          txt(c.ordem), listaCriterios(c).join(' | '), c.observacoes || '', c.perguntaDiscriminadora || '', txt(c.ordemDaPergunta), c.notaDeAplicacao || '',
+          c.criadoEm || '', c.criadoPor || '', c.atualizadoEm || '', c.atualizadoPor || '', integ]);
+      });
+      chaves(fs).sort().forEach(function (cod) {
+        ordenaPor(chaves(fs[cod] || {}).map(function (k) { return Object.assign({ _id: k }, fs[cod][k]); }), 'criadoEm').forEach(function (f) {
+          var a = f.arquivamento || {};
+          L.Fontes.push([DOMINIOS[dom].rotulo, cod, nome(cod), f._id, f.situacao || '', simNao(cs[cod] && cs[cod].definicaoVigenteFonteId === f._id), simNao(!!f.arquivada), f.rotulo || '', f.contexto || '', f.tipoRedacao || '', f.texto || '',
+            f.criadoEm || '', f.criadoPor || '', a.motivo || '', a.justificativa || '', a.em || '', a.por || '']);
+        });
+      });
+      if (dom === 'organizacional') {
+        var atrs = B.atributos || {};
+        ordenaPor(chaves(atrs).map(function (k) { return Object.assign({ _cod: k }, atrs[k]); }), 'ordem').forEach(function (a) {
+          var perm = a.valoresPermitidos ? ordenaPor(chaves(a.valoresPermitidos).map(function (k) { return a.valoresPermitidos[k]; }), 'ordem').map(function (x) { return x.texto; }) : [];
+          L.Atributos.push([DOMINIOS[dom].rotulo, a._cod, a.nome || '', GRUPO_ROTULO[a.grupo] || txt(a.grupo), txt(a.tipoValor), perm.join(' | '), txt(a.ordem), a.ativo === false ? 'Não' : 'Sim']);
+        });
+        var perfis = B.perfis || {};
+        chaves(perfis).sort().forEach(function (cod) {
+          chaves(perfis[cod] || {}).sort().forEach(function (atr) {
+            var p = perfis[cod][atr] || {};
+            L.Perfis.push([DOMINIOS[dom].rotulo, cod, nome(cod), atr, (atrs[atr] && atrs[atr].nome) || '', p.estado || '', p.valor || '', p.papel || '', p.origem || '', p.atualizadoEm || '']);
+          });
+        });
+        var rel = B.relacoes || {};
+        chaves(rel).sort().forEach(function (k) {
+          var r = rel[k] || {};
+          L['Relações'].push([DOMINIOS[dom].rotulo, k, r.de || '', nome(r.de), r.tipo || '', RELACAO_ROTULO[r.tipo] || '', r.para || '', nome(r.para), r.nota || '']);
+        });
+      }
+      var aud = B.auditoria || {}, evs = [];
+      chaves(aud).forEach(function (esc_) {
+        chaves(aud[esc_] || {}).forEach(function (k) { evs.push(Object.assign({ _escopo: esc_, _chave: k }, aud[esc_][k])); });
+      });
+      evs.sort(function (a, b) { var x = String(a.dataHora || ''), y = String(b.dataHora || ''); return x === y ? (a._chave < b._chave ? -1 : 1) : (x < y ? -1 : 1); });
+      evs.forEach(function (e) {
+        var extra = {};
+        chaves(e).forEach(function (k) { if (['_escopo', '_chave', 'tipo', 'conceito', 'campo', 'valorAnterior', 'valorNovo', 'usuario', 'dataHora'].indexOf(k) === -1) extra[k] = e[k]; });
+        L['Histórico'].push([DOMINIOS[dom].rotulo, e._escopo === '_catalogo' ? '(domínio inteiro)' : e._escopo, e._escopo === '_catalogo' ? '' : nome(e._escopo), e.dataHora || '',
+          (e.usuario && e.usuario.nome) || '', (e.usuario && e.usuario.email) || '', e.tipo || '', HG_TIPOS[e.tipo] || '', txt(e.campo), txt(e.valorAnterior), txt(e.valorNovo), chaves(extra).length ? JSON.stringify(extra) : '', e._chave]);
+      });
+    });
+    return L;
+  }
+  var CABECALHOS_EXPORT = {
+    Conceitos: ['Domínio', 'Código', 'Nome', 'Camada / especialização', 'Pai (código)', 'Pai (nome)', 'Ativo', 'Situação da definição', 'Definição vigente (texto)', 'Fonte vigente (id)', 'Fonte vigente (rótulo)', 'Fonte vigente (contexto)', 'Fonte vigente (tipo de redação)',
+      'Ordem', 'Critérios', 'Observações', 'Pergunta discriminadora', 'Ordem da pergunta', 'Nota de aplicação', 'Criado em', 'Criado por', 'Atualizado em', 'Atualizado por', 'Integridade da vigência'],
+    Fontes: ['Domínio', 'Conceito (código)', 'Conceito (nome)', 'Fonte (id)', 'Situação', 'É a definição vigente', 'Arquivada', 'Rótulo', 'Contexto', 'Tipo de redação', 'Texto', 'Criada em', 'Criada por', 'Motivo do arquivamento', 'Justificativa do arquivamento', 'Arquivada em', 'Arquivada por'],
+    Atributos: ['Domínio', 'Código', 'Nome', 'Grupo', 'Tipo de valor', 'Valores permitidos', 'Ordem', 'Ativo'],
+    Perfis: ['Domínio', 'Conceito (código)', 'Conceito (nome)', 'Atributo (código)', 'Atributo (nome)', 'Estado', 'Valor', 'Papel', 'Origem', 'Atualizado em'],
+    'Relações': ['Domínio', 'Relação (id)', 'De (código)', 'De (nome)', 'Tipo', 'Tipo (por extenso)', 'Para (código)', 'Para (nome)', 'Nota'],
+    'Histórico': ['Domínio', 'Escopo (conceito)', 'Conceito (nome)', 'Data/hora', 'Autor (nome)', 'Autor (e-mail)', 'Tipo', 'Tipo (por extenso)', 'Campo', 'Valor anterior', 'Valor novo', 'Detalhes', 'Chave do evento']
+  };
+  function cabecalhoExport() {
+    var u = usuarioAtual();
+    return { formato: EXPORT_FORMATO, versaoFormato: EXPORT_VERSAO, exportadoEm: agora(), exportadoPor: { nome: u.nome, email: u.email } };
+  }
+  function exportar(formato) {
+    if (!podeVerHG() || st.exp && (st.exp.estado === 'lendo' || st.exp.estado === 'gerando')) return;
+    var exp = st.exp = { estado: 'lendo', formato: formato };
+    render();
+    lerTudoParaExportar(function (r) {
+      if (st.exp !== exp) return;
+      if (!r.ok) { exp.estado = 'erro'; exp.texto = 'Não foi possível ler a Taxonomia para exportar. Nada foi baixado. Ramo(s) com problema: ' + r.falhas.join('; ') + '. Confira a conexão e tente novamente.'; render(); return; }
+      var cab = cabecalhoExport(), nome = 'Taxonomia_exportacao_' + dataArquivo();
+      if (formato === 'json') {
+        try {
+          var doc = Object.assign({}, cab, { observacao: 'Nó "taxonomia" como foi lido (ramo a ramo, com as regras de leitura de admin). Nada foi gravado durante a exportação.', taxonomia: r.bruto });
+          baixarBlob(new Blob([JSON.stringify(doc, null, 2)], { type: 'application/json' }), nome + '.json');
+          exp.estado = 'ok'; exp.texto = 'JSON baixado (' + nome + '.json).';
+        } catch (e) { console.error('[taxonomia] exportação JSON:', e); exp.estado = 'erro'; exp.texto = 'Não foi possível gerar o JSON. Nada foi baixado.'; }
+        render(); return;
+      }
+      exp.estado = 'gerando'; render();
+      /* a biblioteca vem do próprio site; se não carregar no prazo de leitura, avisa (nunca fica "Gerando…" calado) */
+      var limiteXlsx = setTimeout(function () { if (st.exp !== exp || exp.estado !== 'gerando') return; exp.estado = 'erro'; exp.texto = 'O gerador de planilha não carregou em ' + Math.round(ESPERA.leitura / 1000) + ' s. Nada foi baixado. Confira a conexão e tente novamente.'; render(); }, ESPERA.leitura);
+      carregarXlsx(function (erroCarga) {
+        clearTimeout(limiteXlsx);
+        if (st.exp !== exp || exp.estado !== 'gerando') return;
+        if (erroCarga) { console.error('[taxonomia] exportação Excel:', erroCarga); exp.estado = 'erro'; exp.texto = 'Não foi possível carregar o gerador de planilha. Nada foi baixado. Confira a conexão e tente novamente.'; render(); return; }
+        try {
+          var X = window.XLSX, wb = X.utils.book_new(), L = linhasExportacao(r.bruto);
+          var carga = (r.bruto.meta && r.bruto.meta.cargaInicial) || null;
+          var sobre = [['Campo', 'Valor'], ['Formato', cab.formato], ['Versão do formato', cab.versaoFormato], ['Exportado em', cab.exportadoEm], ['Exportado por', cab.exportadoPor.nome + ' (' + cab.exportadoPor.email + ')'],
+            ['Carga inicial feita em', carga ? txt(carga.feitaEm) : '(sem carga)'], ['Carga inicial feita por', carga ? txt(carga.feitaPor) : ''], ['Carga inicial — resumo registrado', carga ? txt(carga.resumo) : ''],
+            ['Carga inicial — resumo por domínio', carga && carga.resumoPorDominio ? txt(carga.resumoPorDominio) : '(não registrado nesta carga)']];
+          var wsS = X.utils.aoa_to_sheet(sobre); wsS['!cols'] = [{ wch: 34 }, { wch: 90 }];
+          X.utils.book_append_sheet(wb, wsS, 'Exportação');
+          chaves(CABECALHOS_EXPORT).forEach(function (aba) {
+            var cabA = CABECALHOS_EXPORT[aba], ws = X.utils.aoa_to_sheet([cabA].concat(L[aba]));
+            ws['!cols'] = cabA.map(function (h) { return { wch: /Texto|Definição vigente \(texto\)|Valor|Nota|Critérios|Observações|Pergunta|Detalhes/.test(h) ? 60 : 22 }; });
+            ws['!autofilter'] = { ref: X.utils.encode_range({ s: { r: 0, c: 0 }, e: { r: L[aba].length, c: cabA.length - 1 } }) };
+            X.utils.book_append_sheet(wb, ws, aba);
+          });
+          X.writeFile(wb, nome + '.xlsx');
+          exp.estado = 'ok'; exp.texto = 'Excel baixado (' + nome + '.xlsx).';
+        } catch (e) { console.error('[taxonomia] exportação Excel:', e); exp.estado = 'erro'; exp.texto = 'Não foi possível gerar a planilha. Nada foi baixado.'; }
+        render();
+      });
+    });
+  }
+  function htmlExportar() {
+    if (!podeVerHG()) return '';
+    var x = st.exp, ocupado = !!(x && (x.estado === 'lendo' || x.estado === 'gerando'));
+    var h = '<section class="tax-exportar" id="taxExportar" aria-label="Exportar a Taxonomia"><p class="tax-exportar-titulo"><strong>Exportar para revisão</strong> <span class="tax-ajuda">(só leitura: nada é gravado)</span></p>' +
+      '<div class="tax-acoes tax-exportar-acoes"><button type="button" class="btn btn--sm" data-tax="exportar-excel" id="taxExportarExcel"' + (ocupado ? ' disabled' : '') + '>Baixar Excel (revisão)</button>' +
+      '<button type="button" class="btn btn--sm" data-tax="exportar-json" id="taxExportarJson"' + (ocupado ? ' disabled' : '') + '>Baixar JSON (diagnóstico)</button></div>';
+    if (x) {
+      if (ocupado) h += '<p class="loading-msg" id="taxExportarStatus">' + (x.estado === 'lendo' ? 'Lendo a Taxonomia inteira…' : 'Gerando a planilha…') + '</p>';
+      else h += '<p class="' + (x.estado === 'erro' ? 'tax-aviso-erro' : 'tax-ajuda') + '" id="taxExportarStatus" role="' + (x.estado === 'erro' ? 'alert' : 'status') + '">' + esc(x.texto) + '</p>';
+    }
     return h + '</section>';
   }
 
@@ -1128,6 +1397,7 @@
       var ativo = d === dom && st.aba === 'dominio';
       return '<button type="button" role="tab" class="tax-dominio' + (ativo ? ' tax-dominio--ativo' : '') + '" aria-selected="' + ativo + '" data-tax="dominio" data-dominio="' + d + '">' + esc(DOMINIOS[d].rotulo) + '</button>';
     }).join('') + (podeVerHG() ? '<button type="button" role="tab" class="tax-dominio' + (st.aba === 'historico' ? ' tax-dominio--ativo' : '') + '" aria-selected="' + (st.aba === 'historico') + '" data-tax="aba-historico">Histórico global</button>' : '') + '</div>';
+    html += htmlExportar();
     if (st.aba === 'historico' && podeVerHG()) { el.innerHTML = html + htmlHistoricoGlobal() + '</div>'; return; }
     html += '<p class="tax-pergunta" id="taxPergunta"><strong>' + esc(DOMINIOS[dom].titulo) + '</strong> · ' + esc(DOMINIOS[dom].pergunta) + '</p>';
     if (D.estado === 'carregando' || D.estado === 'ocioso') html += '<p class="loading-msg" id="taxCarregando">Carregando a Taxonomia…</p>';
@@ -1152,8 +1422,23 @@
     var D = st.d[st.dominio];
     if (D.detalhe && D.detalhe.carregando && tipo !== 'conceito') { /* ainda carregando: espera */ }
     D.edicao = { tipo: tipo, chave: chave || D.selecionado, valores: valoresDe(st.dominio, tipo, chave), erro: null };
-    D.confirmacao = null; D.arquivando = null; if (tipo === 'fonte') D.expandida = chave;
+    D.confirmacao = null; D.arquivando = null; D.novaVersao = null; if (tipo === 'fonte') D.expandida = chave;
     render();
+  }
+  /* "Nova versão da definição": abre o MESMO formulário de "+ Adicionar texto-fonte", pré-preenchido com o
+     texto, contexto, tipo de redação e rótulo da vigente. Salvar cria uma fonte NOVA (salvarFonte, caminho
+     de sempre); a anterior não é tocada. A troca da definição é o "Usar como vigente" (tornarVigente). */
+  function iniciaNovaVersao(fonteId) {
+    var D = st.d[st.dominio], f = fontesAtuais(st.dominio)[fonteId];
+    if (!f || f.situacao !== 'vigente' || f.arquivada) return;
+    D.edicao = { tipo: 'novaFonte', chave: D.selecionado, baseFonteId: fonteId, erro: null,
+      valores: { rotulo: f.rotulo || '', texto: f.texto || '', contexto: f.contexto || 'PREVI', tipoRedacao: f.tipoRedacao || 'Conceito', situacao: 'em validação' } };
+    D.confirmacao = null; D.arquivando = null; D.novaVersao = null; D.expandida = null;
+    render();
+    var form = document.getElementById('taxFormFonte');
+    if (form && form.scrollIntoView) form.scrollIntoView({ block: 'start' });
+    var campo = document.getElementById('taxF_texto');
+    if (campo && campo.focus) campo.focus({ preventScroll: true });
   }
   function aoClicar(ev) {
     var alvo = ev.target.closest('[data-tax]');
@@ -1170,10 +1455,12 @@
       if (!st.hg.carregou) carregarHG(function () { return true; }); else render();
     } else if (acao === 'hg-mais') { carregarHG(function (x) { return x.estado === 'ok' && x.temMais; }); }
     else if (acao === 'hg-recarregar') { carregarHG(function (x) { return x.estado === 'erro'; }); }
+    else if (acao === 'exportar-excel') exportar('excel');
+    else if (acao === 'exportar-json') exportar('json');
     else if (acao === 'recarregar') { carregarMeta(); carregarDominio(dom); }
     else if (acao === 'selecionar') {
       var cod = alvo.getAttribute('data-codigo');
-      D.selecionado = cod; D.edicao = null; D.confirmacao = null; D.arquivando = null; D.expandida = null; D.dica = false; D.arquivadasAbertas = false; st.vista = 'detalhe'; st.flash = null;
+      D.selecionado = cod; D.edicao = null; D.confirmacao = null; D.arquivando = null; D.expandida = null; D.dica = false; D.arquivadasAbertas = false; D.novaVersao = null; st.vista = 'detalhe'; st.flash = null;
       carregarDetalhe(dom, cod);
       var det = raiz().querySelector('.tax-detalhe'); if (det && det.scrollIntoView && window.innerWidth <= 720) det.scrollIntoView();
     } else if (acao === 'voltar-lista') { st.vista = 'lista'; render(); }
@@ -1194,6 +1481,7 @@
     else if (acao === 'restaurar') { if (!st.salvando) restaurarFonte(dom, D.selecionado, alvo.getAttribute('data-fonte')); }
     else if (acao === 'editar-conceito') iniciaEdicao('conceito', D.selecionado);
     else if (acao === 'nova-fonte') iniciaEdicao('novaFonte', null);
+    else if (acao === 'nova-versao') iniciaNovaVersao(alvo.getAttribute('data-fonte'));
     else if (acao === 'editar-fonte') iniciaEdicao('fonte', alvo.getAttribute('data-fonte'));
     else if (acao === 'editar-perfil') iniciaEdicao('perfil', alvo.getAttribute('data-atributo'));
     else if (acao === 'cancelar-edicao') { D.edicao = null; render(); }
@@ -1244,7 +1532,7 @@
     var s = sessao();
     var email = s ? s.email : null;
     if (st.email !== email) {
-      st.email = email; st.meta = { estado: 'ocioso', cargaFeita: false }; st.importacao = null; st.flash = null; st.vista = 'lista'; st.aba = 'dominio'; st.hg = novoHG();
+      st.email = email; st.meta = { estado: 'ocioso', cargaFeita: false }; st.importacao = null; st.flash = null; st.vista = 'lista'; st.aba = 'dominio'; st.hg = novoHG(); st.exp = null;
       ORDEM_DOMINIOS.forEach(function (d) { st.d[d] = novoDominio(); });
     }
     if (!adminPronto()) {
@@ -1271,7 +1559,7 @@
     /* Só para teste: permite rodar as MESMAS operações da tela contra o emulador com as regras reais
        (teste-rules-taxonomia.js) e provar que o que a aplicação grava, o banco aceita. */
     _interno: {
-      st: st, espera: ESPERA, leitores: LEITORES, carregarHG: carregarHG, carregarDominio: carregarDominio, carregarDetalhe: carregarDetalhe, tornarVigente: tornarVigente, arquivarFonte: arquivarFonte, restaurarFonte: restaurarFonte,
+      st: st, espera: ESPERA, leitores: LEITORES, carregarHG: carregarHG, lerTudoParaExportar: lerTudoParaExportar, linhasExportacao: linhasExportacao, carregarDominio: carregarDominio, carregarDetalhe: carregarDetalhe, tornarVigente: tornarVigente, arquivarFonte: arquivarFonte, restaurarFonte: restaurarFonte,
       removerVigencia: removerVigencia, salvarConceito: salvarConceito, salvarFonte: salvarFonte, salvarPerfil: salvarPerfil
     }
   };

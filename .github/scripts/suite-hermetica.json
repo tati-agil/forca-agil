@@ -429,6 +429,18 @@
       "nome": "Adequação à Squad: concluir pela tela usa a versão certa das regras (C1–C5, versão 2, regras atrasadas, trava no ADMIN)",
       "duracao": 11,
       "sobre": "Conclui pela tela uma combinação de cada resultado C1–C5 e confere o gravado e o exibido; com versão publicada 2 conclui pela 2; com a leitura das regras parada (celular 375 px) \"Concluir\" fica bloqueado e nada é gravado até as regras chegarem; leitura recusada mostra erro e Tentar novamente; no ADMIN, regras com combinações sem resultado não podem ser publicadas. Hermético."
+    },
+    {
+      "arquivo": ".github/scripts/teste-taxonomia-nova-versao.js",
+      "nome": "Taxonomia: texto-fonte imutável e \"Nova versão da definição\" (desktop e celular)",
+      "duracao": 11,
+      "sobre": "Detalhe mostra o código do conceito; a vigente não tem \"Editar\", e sim \"Nova versão da definição\", que abre o formulário de nova fonte pré-preenchido; salvar cria fonte NOVA \"em validação\" (criadoEm/criadoPor próprios), a anterior fica intacta e a definição não muda; \"Usar como vigente\" troca a definição e a anterior vira histórica com o mesmo texto. Hermético; a imutabilidade no banco é provada por teste-rules-taxonomia.js no emulador."
+    },
+    {
+      "arquivo": ".github/scripts/teste-taxonomia-exportacao.js",
+      "nome": "Taxonomia: exportação Excel (revisão) e JSON (diagnóstico), só leitura (desktop e celular)",
+      "duracao": 9,
+      "sobre": "Exportação da Taxonomia: JSON com cabeçalho e o nó taxonomia idêntico ao banco; Excel com abas Conceitos, Fontes (inclusive histórica e arquivada), Atributos, Perfis, Relações e Histórico, cabeçalhos em português; nenhuma escrita durante a exportação; leitura que não responde ou é recusada mostra erro visível com o ramo e não baixa nada; some no modo somente leitura. Hermético."
     }
   ]
 }
