@@ -234,8 +234,9 @@ const clicarSemRolagem = (page, seletor) => page.$eval(seletor, (el) => el.click
 /* G4 — GRAVAÇÕES. marcarBanco() tira uma foto do que importa no banco falso ANTES da ação; esperarGravacao()
    espera a gravação que AQUELA ação provoca, nunca um tempo fixo, e se ela não chega o cenário falha dizendo
    qual gravação faltou. Tipos:
-     'escrita'         uma escrita nova (depois da marca) cujo caminho casa com extra.caminho (e, com
-                       extra.nulo, que grava null — a liberação de um lock). Vale no instante do PEDIDO;
+     'escrita'         uma escrita nova (depois da marca) cujo caminho casa com extra.caminho — com extra.contem,
+                       o valor congelado no pedido tem de conter esse trecho; com extra.nulo, grava null (a
+                       liberação de um lock). Vale no instante do PEDIDO;
      'aplicada'        a escrita que ESTA ação pediu (depois da marca, caminho casando com extra.caminho), com
                        extra.contem no valor CONGELADO no instante do pedido, e já APLICADA: o nó do banco
                        naquele caminho é o próprio objeto gravado. Para quando a tela só muda depois da
@@ -261,7 +262,14 @@ async function esperarGravacao(pg, marca, tipo, extra, descricao) {
   try {
     await pg.waitForFunction(([m, tipo, extra]) => {
       if (tipo === 'escrita') {
-        return (window.__ESCRITAS || []).slice(m.esc).some((x) => new RegExp(extra.caminho).test(x.path) && (!extra.nulo || x.valor === null));
+        const esc = window.__ESCRITAS || []; const json = window.__ESCRITAS_JSON || [];
+        for (let i = m.esc; i < esc.length; i++) {
+          if (!new RegExp(extra.caminho).test(esc[i].path)) continue;
+          if (extra.nulo && esc[i].valor !== null) continue;
+          if (extra.contem && String(json[i]).indexOf(extra.contem) === -1) continue;
+          return true;
+        }
+        return false;
       }
       if (tipo === 'aviso-ou-avanco') {
         const av = document.querySelector('#apostaAvisos');
@@ -653,8 +661,9 @@ async function esperarGravacao(pg, marca, tipo, extra, descricao) {
            fora do intervalo [2, 5]: esconde a frase e sugere DUAS
            direções (Aumentar/Atingir ou Reduzir/Atingir, conforme o
            lado), sem trocar nada sozinho. */
+        const _g573 = await marcarBanco(pgDir);
         await pgDir.fill('[data-m="atual"]', '9');
-        await pgDir.waitForTimeout(600);
+        await esperarGravacao(pgDir, _g573, 'escrita', { caminho: '/dados/mudancas$', contem: '"atual":"9"' }, 'o salvamento automático de Mudanças com atual:9 (depois da pausa de coerência)');
         const manterAcima = await pgDir.evaluate(() => ({
           frase: (document.querySelector('.aposta-mudanca-frase') || {}).textContent || '',
           alerta: (document.querySelector('.aposta-mudanca-alerta') || {}).textContent || '',
@@ -688,8 +697,9 @@ async function esperarGravacao(pg, marca, tipo, extra, descricao) {
         await pgDir.locator('.aposta-variante:has([data-m="tipoLimite"]) .aposta-variante-chip', { hasText: 'Entre' }).click();
         await pgDir.waitForTimeout(200);
         await pgDir.fill('[data-m="limiteMinimo"]', '10');
+        const _g609 = await marcarBanco(pgDir);
         await pgDir.fill('[data-m="limiteMaximo"]', '4');
-        await pgDir.waitForTimeout(600);
+        await esperarGravacao(pgDir, _g609, 'escrita', { caminho: '/dados/mudancas$', contem: '"limiteMaximo":"4"' }, 'o salvamento automático de Mudanças com limiteMaximo:4 (depois da pausa de coerência)');
         const limitesInvertidos = await pgDir.evaluate(() => ({
           frase: (document.querySelector('.aposta-mudanca-frase') || {}).textContent || '',
           alerta: (document.querySelector('.aposta-mudanca-alerta') || {}).textContent || '',
@@ -803,22 +813,25 @@ async function esperarGravacao(pg, marca, tipo, extra, descricao) {
         }
 
         await pgAtingir.fill('[data-m="atual"]', '0');
+        const _g729 = await marcarBanco(pgAtingir);
         await pgAtingir.fill('[data-m="meta"]', '50');
-        await pgAtingir.waitForTimeout(600);
+        await esperarGravacao(pgAtingir, _g729, 'escrita', { caminho: '/dados/mudancas$', contem: '"meta":"50"' }, 'o salvamento automático de Mudanças com meta:50 (depois da pausa de coerência)');
         const atingirValido1 = await estadoAtingir();
         anota('Atingir: situação atual 0, meta 50 — válido, sem alerta',
           !atingirValido1.alerta && /Atingir/.test(atingirValido1.frase) && /50/.test(atingirValido1.frase) && !/Corrija a inconsistência/.test(atingirValido1.frase),
           JSON.stringify(atingirValido1));
 
+        const _g736 = await marcarBanco(pgAtingir);
         await pgAtingir.fill('[data-m="atual"]', '40');
-        await pgAtingir.waitForTimeout(600);
+        await esperarGravacao(pgAtingir, _g736, 'escrita', { caminho: '/dados/mudancas$', contem: '"atual":"40"' }, 'o salvamento automático de Mudanças com atual:40 (depois da pausa de coerência)');
         const atingirValido2 = await estadoAtingir();
         anota('Atingir: situação atual 40, meta 50 — válido, sem alerta',
           !atingirValido2.alerta && /Atingir/.test(atingirValido2.frase) && /50/.test(atingirValido2.frase) && !/Corrija a inconsistência/.test(atingirValido2.frase),
           JSON.stringify(atingirValido2));
 
+        const _g743 = await marcarBanco(pgAtingir);
         await pgAtingir.fill('[data-m="atual"]', '50');
-        await pgAtingir.waitForTimeout(600);
+        await esperarGravacao(pgAtingir, _g743, 'escrita', { caminho: '/dados/mudancas$', contem: '"atual":"50"' }, 'o salvamento automático de Mudanças com atual:50 (depois da pausa de coerência)');
         const atingirIgual = await estadoAtingir();
         anota('Atingir: situação atual 50, meta 50 — inválido (meta já corresponde à situação atual), sem sugestão de direção',
           /Corrija a inconsistência acima/.test(atingirIgual.frase) &&
@@ -835,8 +848,9 @@ async function esperarGravacao(pg, marca, tipo, extra, descricao) {
         /* O caso relatado no teste manual em produção: atual 67, meta
            50 — a mesma inconsistência de "Reduzir" só que escondida
            atrás de "Atingir". */
+        const _g761 = await marcarBanco(pgAtingir);
         await pgAtingir.fill('[data-m="atual"]', '67');
-        await pgAtingir.waitForTimeout(600);
+        await esperarGravacao(pgAtingir, _g761, 'escrita', { caminho: '/dados/mudancas$', contem: '"atual":"67"' }, 'o salvamento automático de Mudanças com atual:67 (depois da pausa de coerência)');
         const atingirMenor = await estadoAtingir();
         anota('Atingir: situação atual 67, meta 50 — inválido (redução disfarçada de meta), sugere só "Reduzir"',
           /Corrija a inconsistência acima/.test(atingirMenor.frase) &&
@@ -1215,6 +1229,7 @@ async function esperarGravacao(pg, marca, tipo, extra, descricao) {
           /* Alerta de consistência: Reduzir pede meta MENOR que a situação
              atual — 1500 > 1000 é o caso contrário, e o alerta aparece
              perto do campo, com um jeito de corrigir num clique só. */
+          const _g1160 = await marcarBanco(page);
           await page.fill('[data-m="meta"]', '1500');
           const comInconsistencia = await page.evaluate(() => ({
             visivel: !!document.querySelector('.aposta-mudanca-alerta'),
@@ -1228,7 +1243,7 @@ async function esperarGravacao(pg, marca, tipo, extra, descricao) {
              (não trava a experimentação), mas depois de uma pausa sem
              digitar (>500ms) troca pela mensagem de "corrija" — nunca
              mostra uma frase com direção e números se contradizendo. */
-          await page.waitForTimeout(600);
+          await esperarGravacao(page, _g1160, 'escrita', { caminho: '/dados/mudancas$', contem: '"meta":"1500"' }, 'o salvamento automático de Mudanças com meta:1500 (depois da pausa de coerência)');
           const fraseInconsistente = await page.evaluate(() => (document.querySelector('.aposta-mudanca-frase') || {}).textContent || '');
           anota('depois de uma pausa, a inconsistência esconde a frase e mostra o convite a corrigir, em vez de "Reduzir... de 1000 para 1500"',
             /Corrija a inconsistência acima para visualizar a mudança mensurável/.test(fraseInconsistente), fraseInconsistente);
@@ -1275,8 +1290,9 @@ async function esperarGravacao(pg, marca, tipo, extra, descricao) {
              encontrou isso de verdade. Agora é tratada como incoerência,
              nos dois sentidos, nunca corrigindo direção nem meta
              sozinha — só nomeia o problema e convida a rever. */
+          const _g1210 = await marcarBanco(page);
           await page.fill('[data-m="meta"]', '1000');
-          await page.waitForTimeout(600);
+          await esperarGravacao(page, _g1210, 'escrita', { caminho: '/dados/mudancas$', contem: '"meta":"1000"' }, 'o salvamento automático de Mudanças com meta:1000 (depois da pausa de coerência)');
           const igualReduzir = await page.evaluate(() => ({
             visivel: !!document.querySelector('.aposta-mudanca-alerta'),
             texto: (document.querySelector('.aposta-mudanca-alerta') || {}).textContent || '',
@@ -1291,8 +1307,9 @@ async function esperarGravacao(pg, marca, tipo, extra, descricao) {
           anota('Reduzir 1000→1000 esconde a frase e bloqueia CONTINUAR, mesmo tratamento da inconsistência de direção',
             /Corrija a inconsistência/.test(igualReduzir.frase) && igualReduzir.desabilitado === true, JSON.stringify(igualReduzir));
 
+          const _g1226 = await marcarBanco(page);
           await page.locator('.aposta-variante:has([data-m="direcao"]) .aposta-variante-chip', { hasText: 'Aumentar' }).click();
-          await page.waitForTimeout(600);
+          await esperarGravacao(page, _g1226, 'escrita', { caminho: '/dados/mudancas$', contem: '"direcao":"Aumentar"' }, 'o salvamento automático de Mudanças com direcao:Aumentar (depois da pausa de coerência)');
           const igualAumentar = await page.evaluate(() => ({
             visivel: !!document.querySelector('.aposta-mudanca-alerta'),
             texto: (document.querySelector('.aposta-mudanca-alerta') || {}).textContent || '',
