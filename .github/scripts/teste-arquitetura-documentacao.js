@@ -88,9 +88,9 @@ const larguraOk = (page) => page.evaluate(() => document.documentElement.scrollW
     afirma(Object.keys(docs).length === 1 && docs[k].titulo === 'Mapa da Floresta' && docs[k].link === 'https://exemplo.sharepoint.com/mapa-da-floresta.pdf' &&
       docs[k].autor && docs[k].autor.email === ARQ && !!docs[k].criadoEm && docs[k].arquivado === false, 'gravou título, descrição, link, autor e data');
     afirma(Object.keys(await banco(page, 'arquitetura-documentos-auditoria')).length === 1, 'e uma linha no histórico, na mesma gravação');
-    const link = page.locator('.avp-doc-link a').first();
+    const link = page.locator('#avpDocsLista .avp-doc-link a').first();
     afirma(await link.getAttribute('target') === '_blank' && /noopener/.test(await link.getAttribute('rel')), 'o link abre o arquivo em nova aba (noopener)');
-    const meta = await page.locator('.avp-doc-meta').first().innerText();
+    const meta = await page.locator('#avpDocsLista .avp-doc-meta').first().innerText();
     afirma(/arquitetura@previ\.com\.br/.test(meta) && /\d{2}\/\d{2}\/\d{4}/.test(meta), 'o cartão mostra o autor e a data (' + meta.replace(/\s+/g, ' ') + ')');
 
     console.log('\n== Editar, arquivar e restaurar (nunca apagam) ==');
