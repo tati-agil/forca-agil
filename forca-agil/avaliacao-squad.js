@@ -599,11 +599,18 @@
       perguntas.forEach(function (p) { html += renderPerguntaSquad(p, a.respostas[p.codigoEstavel]); });
       html += '</div>';
 
+      /* Concluir roda o motor — só com as regras já LIDAS do banco (ver
+         estadoCarga em motor-squad.js): "ainda não sei qual versão vale"
+         nunca vira "vale a versão 1". Salvar e sair continua livre. */
+      var cargaMotor = window.faMotorSquad.estadoCarga();
+      var motorPronto = cargaMotor === 'carregado';
+      if (!motorPronto) html += renderAvisoCargaMotor(cargaMotor);
+
       html += '<div class="avp-actions-footer">';
       html += '<button class="btn" id="sqSalvarRascunhoBtn"' + (state.salvando ? ' disabled' : '') + '>' +
         (state.salvando === 'rascunho' ? 'SALVANDO…' : 'SALVAR E SAIR') + '</button>';
-      html += '<button class="btn btn--primary" id="sqConcluirBtn"' + (state.salvando ? ' disabled' : '') + '>' +
-        (state.salvando === 'concluido' ? 'SALVANDO…' : 'CONCLUIR AVALIAÇÃO') + '</button>';
+      html += '<button class="btn btn--primary" id="sqConcluirBtn"' + (state.salvando || !motorPronto ? ' disabled' : '') + '>' +
+        (state.salvando === 'concluido' ? 'SALVANDO…' : (cargaMotor === 'carregando' ? 'CARREGANDO REGRAS…' : 'CONCLUIR AVALIAÇÃO')) + '</button>';
       html += '<button class="btn" id="sqCancelarChecklistBtn"' + (state.salvando ? ' disabled' : '') + '>CANCELAR</button>';
       html += '</div>';
       wrap.innerHTML = html;
@@ -662,8 +669,12 @@
             : 'Não foi possível salvar. Tente novamente.');
         });
       });
+      var recarregarBtn = document.getElementById('sqMotorRecarregarBtn');
+      if (recarregarBtn) recarregarBtn.addEventListener('click', function () { window.faMotorSquad.recarregar(); });
+      if (cargaMotor === 'carregando') agendarAvisoDemora();
       document.getElementById('sqConcluirBtn').addEventListener('click', function () {
         if (state.salvando) return;
+        if (window.faMotorSquad.estadoCarga() !== 'carregado') return;
         var faltando = ORDEM_CODIGOS.filter(function (c) { return !a.respostas[c] || !a.respostas[c].resposta; });
         if (faltando.length) { state.erroForm = 'Responda todas as 8 perguntas antes de concluir.'; render(); return; }
         state.salvando = 'concluido';
@@ -713,6 +724,34 @@
       }
       html += '</div>';
       return html;
+    }
+
+    /* Aviso no lugar de "Concluir" enquanto as regras do motor não chegaram
+       (ou a leitura falhou). Depois de 12 s carregando — o mesmo limite das
+       gravações desta tela — passa a dizer que está demorando e oferece
+       tentar de novo, em vez de esperar calado. */
+    var LIMITE_CARGA_MOTOR_MS = 12000;
+    var relogioCargaMotor = null;
+    function renderAvisoCargaMotor(carga) {
+      var html = '<div class="avp-form-card sq-motor-carga" id="sqMotorCarga" data-estado="' + carga + '">';
+      if (carga === 'erro') {
+        html += '<p class="avp-error-msg">Não foi possível carregar as regras do motor de squad. Sem elas não dá para concluir a avaliação — suas respostas continuam aqui.</p>';
+        html += '<button type="button" class="btn" id="sqMotorRecarregarBtn">TENTAR NOVAMENTE</button>';
+      } else if (window.faMotorSquad.msCarregando() >= LIMITE_CARGA_MOTOR_MS) {
+        html += '<p class="avp-error-msg">As regras do motor de squad estão demorando para carregar. A conclusão fica disponível assim que elas chegarem — suas respostas continuam aqui.</p>';
+        html += '<button type="button" class="btn" id="sqMotorRecarregarBtn">TENTAR NOVAMENTE</button>';
+      } else {
+        html += '<p class="avp-decisao-aviso">Carregando as regras do motor de squad… A conclusão fica disponível assim que elas chegarem.</p>';
+      }
+      html += '</div>';
+      return html;
+    }
+    function agendarAvisoDemora() {
+      if (relogioCargaMotor || window.faMotorSquad.msCarregando() >= LIMITE_CARGA_MOTOR_MS) return;
+      relogioCargaMotor = setTimeout(function () {
+        relogioCargaMotor = null;
+        if (!wrap.hidden && state.tela === 'checklist' && window.faMotorSquad.estadoCarga() === 'carregando') render();
+      }, LIMITE_CARGA_MOTOR_MS - window.faMotorSquad.msCarregando() + 50);
     }
 
     /* ===================== SALVAR ===================== */
@@ -792,7 +831,10 @@
        preserva respostas/justificativas/snapshot e migra o resultado
        ANTERIOR para historicoMotorSquad antes de gravar o novo. */
     function precisaReprocessarMotorSquad(it) {
-      return !!it && it.status === 'concluido' && it.motorSquadVersion !== window.faMotorSquad.versaoAtual();
+      /* Só depois de as regras carregarem: antes disso versaoAtual() ainda é o
+         palpite de fábrica e mandaria reprocessar (ou não) pela versão errada. */
+      return !!it && it.status === 'concluido' && window.faMotorSquad.estadoCarga() === 'carregado' &&
+        it.motorSquadVersion !== window.faMotorSquad.versaoAtual();
     }
     function construirAtualizacaoReprocessamentoSquad(a) {
       var nova = interpretarComMotorAtual(a.respostas);
@@ -1479,7 +1521,8 @@
       document.getElementById('sqMotorSimularBtn').addEventListener('click', function () {
         var concluidas = state.itens.filter(function (it) { return !it.excluido && it.status === 'concluido'; });
         var simulacao = window.faMotorSquad.simular(c.regras, concluidas);
-        state.motorConfig = { sub: 'simulacao', regras: c.regras, versaoBase: c.versaoBase, simulacao: simulacao, salvando: false };
+        var validacao = window.faMotorSquad.validarRegrasCompletas(c.regras);
+        state.motorConfig = { sub: 'simulacao', regras: c.regras, versaoBase: c.versaoBase, simulacao: simulacao, validacao: validacao, salvando: false };
         render();
       });
     }
@@ -1505,11 +1548,39 @@
         });
         html += '</tbody></table></div></div>';
       }
+      var invalida = c.validacao && !c.validacao.valida;
+      if (invalida) html += renderValidacaoInvalida(c.validacao);
       if (c.erro) html += '<p class="avp-error-msg">' + esc(c.erro) + '</p>';
       html += '<div class="avp-actions-footer">';
       html += '<button class="btn" id="sqMotorVoltarEdicaoBtn"' + (c.salvando ? ' disabled' : '') + '>← Voltar para Editar regras</button>';
-      html += '<button class="btn btn--primary" id="sqMotorConfirmarPublicarBtn"' + (c.salvando ? ' disabled' : '') + '>' +
+      html += '<button class="btn btn--primary" id="sqMotorConfirmarPublicarBtn"' + (c.salvando || invalida ? ' disabled' : '') + '>' +
         (c.salvando ? 'PUBLICANDO…' : 'CONFIRMAR PUBLICAÇÃO') + '</button>';
+      html += '</div>';
+      return html;
+    }
+    /* Trava de publicação (ver validarRegrasCompletas em motor-squad.js):
+       mostra quantas das 256 combinações completas de S1–S8 ficariam sem
+       resultado e as primeiras delas, para quem editou achar a condição que
+       abriu o buraco. O rascunho continua salvo; só não vira versão. */
+    var MAX_EXEMPLOS_INVALIDOS = 8;
+    function renderValidacaoInvalida(v) {
+      var html = '<div class="avp-form-card sq-motor-validacao" id="sqMotorValidacao">';
+      html += '<h4>Estas regras não podem ser publicadas</h4>';
+      if (v.estrutura.length) {
+        html += '<p class="avp-error-msg">O conjunto de regras está incompleto:</p><ul>';
+        v.estrutura.forEach(function (msg) { html += '<li>' + esc(msg) + '</li>'; });
+        html += '</ul>';
+      } else {
+        html += '<p class="avp-error-msg">' + esc(v.invalidas.length) + ' das ' + esc(v.totalCombinacoes) +
+          ' combinações possíveis de respostas S1–S8 ficariam sem resultado. Toda combinação completa precisa chegar a um resultado no Eixo A, no Eixo B e na indicação organizacional.</p>';
+        html += '<p>Exemplos de respostas sem resultado:</p><ul class="sq-motor-validacao-lista">';
+        v.invalidas.slice(0, MAX_EXEMPLOS_INVALIDOS).forEach(function (inv) {
+          html += '<li><strong>' + esc(inv.respostas) + '</strong> — sem resultado em: ' + esc(inv.semResultadoEm.join(', ')) + '</li>';
+        });
+        html += '</ul>';
+        if (v.invalidas.length > MAX_EXEMPLOS_INVALIDOS) html += '<p>…e mais ' + esc(v.invalidas.length - MAX_EXEMPLOS_INVALIDOS) + '.</p>';
+      }
+      html += '<p>Volte para "Editar regras" e ajuste as condições. O rascunho pode ser salvo assim mesmo; ele só não pode ser publicado.</p>';
       html += '</div>';
       return html;
     }
@@ -1522,6 +1593,11 @@
         render();
         window.faMotorSquad.publicarRegras(c.regras, sessaoAtual(), function (err, info) {
           c.salvando = false;
+          if (err === 'regras-invalidas') {
+            c.validacao = info;
+            render();
+            return;
+          }
           if (err === 'conflito') {
             state.motorConfig = {
               sub: 'conflito-publicacao', regras: c.regras,
@@ -1710,7 +1786,12 @@
       wrap.querySelectorAll('.sq-motor-restaurar-btn').forEach(function (btn) {
         btn.addEventListener('click', function () {
           sqConfirm('Restaurar a versão ' + btn.dataset.versao + ' como uma versão nova das regras?', function () {
-            window.faMotorSquad.publicarVersaoAnterior(Number(btn.dataset.versao), sessaoAtual(), function (err) {
+            window.faMotorSquad.publicarVersaoAnterior(Number(btn.dataset.versao), sessaoAtual(), function (err, info) {
+              if (err === 'regras-invalidas') {
+                sqAlert('A versão ' + btn.dataset.versao + ' não pode ser restaurada: ' + info.invalidas.length +
+                  ' das 256 combinações de respostas S1–S8 ficariam sem resultado.');
+                return;
+              }
               if (err) { sqAlert('Não foi possível restaurar. Tente novamente.'); return; }
               state.motorConfig = { sub: 'painel', flash: '✓ Versão restaurada como uma versão nova.' };
               render();

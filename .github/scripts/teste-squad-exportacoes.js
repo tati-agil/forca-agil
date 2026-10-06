@@ -24,14 +24,19 @@ function afirma(cond, msg) { console.log((cond ? '  ok    ' : '  FALHA ') + msg)
 const longo = 'Texto longo de justificativa para encher a página. '.repeat(40);
 const CODIGOS = ['S1', 'S2', 'S3', 'S4', 'S5', 'S6', 'S7', 'S8'];
 
-function av(i, nome, extra, longa) {
+/* combinacao = respostas S1..S8 ("S" = SIM, "N" = NÃO), coerentes com o
+   resultado gravado: o padrão "SSSSSSSS" é o que o motor de fábrica leva a
+   Demonstrada + Presentes → Forte aderência (C1). Antes as respostas eram
+   fixas (NSSNSSNS — S7 NÃO), que o motor nunca levaria a esse resultado. */
+function av(i, nome, extra, longa, combinacao) {
   const respostas = {};
-  CODIGOS.forEach((c, n) => { respostas[c] = { codigoPergunta: c, textoPerguntaNaEpoca: 'Pergunta ' + c + ' (época)', resposta: n % 3 ? 'sim' : 'nao', justificativaUsuario: longa ? longo : 'ok ' + c, questionnaireContentVersion: 1 }; });
+  const comb = combinacao || 'SSSSSSSS';
+  CODIGOS.forEach((c, n) => { respostas[c] = { codigoPergunta: c, textoPerguntaNaEpoca: 'Pergunta ' + c + ' (época)', resposta: comb[n] === 'S' ? 'sim' : 'nao', justificativaUsuario: longa ? longo : 'ok ' + c, questionnaireContentVersion: 1 }; });
   const n2 = String(i).padStart(2, '0');
   return Object.assign({
     itemNome: nome, itemId: 'i' + i, status: 'concluido', respostas, questionnaireContentVersion: 1, motorSquadVersion: 1,
     necessidadeCapacidadeDedicada: 'DEMONSTRADA', condicoesParaSquad: 'PRESENTES', indicacaoOrganizacional: 'FORTE_ADERENCIA_SQUAD_DEDICADA',
-    evidenciasFavoraveis: ['S2', 'S3'], pontosADesenvolver: ['S1'], criadoPor: { name: 'Avaliadora ' + i, email: 'a' + i + '@previ.com.br' },
+    evidenciasFavoraveis: CODIGOS.filter((c, n) => comb[n] === 'S'), pontosADesenvolver: CODIGOS.filter((c, n) => comb[n] !== 'S'), criadoPor: { name: 'Avaliadora ' + i, email: 'a' + i + '@previ.com.br' },
     criadoEm: '2026-04-' + n2 + 'T10:00:00.000Z', atualizadoEm: '2026-04-' + n2 + 'T10:00:00.000Z', dataConclusao: '2026-04-' + n2 + 'T11:00:00.000Z', excluido: false
   }, extra || {});
 }
@@ -111,7 +116,7 @@ async function baixar(page, abrirMenu, seletor) {
 const planilha = (buf, aba) => { const wb = XLSX.read(buf, { type: 'buffer', cellStyles: true }); return { wb, linhas: XLSX.utils.sheet_to_json(wb.Sheets[aba], { header: 1, defval: '' }) }; };
 const larguraOk = (page) => page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth + 1);
 const AV3 = () => ({
-  a1: av(1, 'Item Alfa', {}), a2: av(2, 'Item Beta', { indicacaoOrganizacional: 'NECESSIDADE_SQUAD_DEDICADA_NAO_DEMONSTRADA', necessidadeCapacidadeDedicada: 'NAO_DEMONSTRADA', condicoesParaSquad: 'PARCIAIS' }),
+  a1: av(1, 'Item Alfa', {}), a2: av(2, 'Item Beta', { indicacaoOrganizacional: 'NECESSIDADE_SQUAD_DEDICADA_NAO_DEMONSTRADA', necessidadeCapacidadeDedicada: 'NAO_DEMONSTRADA', condicoesParaSquad: 'PARCIAIS' }, false, 'NSNSSSSS'),
   a3: av(3, 'Item Gama Rascunho', { status: 'rascunho', necessidadeCapacidadeDedicada: null, condicoesParaSquad: null, indicacaoOrganizacional: null, dataConclusao: null })
 });
 async function verificarPdf(page, r, esperados, titulo) {

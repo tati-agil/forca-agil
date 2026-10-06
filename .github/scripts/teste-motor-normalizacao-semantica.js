@@ -221,15 +221,29 @@ function publicarSquad(page, regras) {
   afirma(s3.info && s3.info.alteradas.length === 2, 'diffRegras (squad) aponta as duas regras afetadas pela troca de precedência');
 
   console.log('\n-- 11. Remover uma regra por inteiro (squad) -> versiona --');
-  const s4 = await publicarSquad(page, await page.evaluate(() => {
+  /* Remover B3 sozinha deixa as combinações com S7 SIM e alguma de S3/S6/S8
+     NÃO sem resultado no Eixo B: a trava de publicação recusa (11a). Para
+     provar que a REMOÇÃO de um código é detectada e versiona, B3 sai e entra
+     no lugar uma regra com outro código e as mesmas condições (11b) — o
+     conjunto continua completo, e o diff tem de apontar B3 com novo:null. */
+  const s4a = await publicarSquad(page, await page.evaluate(() => {
     var v = window.faMotorSquad.versaoAtual();
     var regras = JSON.parse(JSON.stringify(window.faMotorSquad.regrasDaVersao(v)));
     regras.eixoB = regras.eixoB.filter((r) => r.codigo !== 'B3');
     return regras;
   }));
-  afirma(!s4.err, 'publicação (squad) com uma regra removida não gerou erro');
+  afirma(s4a.err === 'regras-invalidas' && s4a.versao === s4a.v, '11a. remover B3 sozinha (combinações sem resultado) é recusado e não versiona: err=' + s4a.err + ', ' + s4a.v + ' -> ' + s4a.versao);
+  const s4 = await publicarSquad(page, await page.evaluate(() => {
+    var v = window.faMotorSquad.versaoAtual();
+    var regras = JSON.parse(JSON.stringify(window.faMotorSquad.regrasDaVersao(v)));
+    var b3 = regras.eixoB.filter((r) => r.codigo === 'B3')[0];
+    regras.eixoB = regras.eixoB.filter((r) => r.codigo !== 'B3').concat([Object.assign({}, b3, { codigo: 'B3_SUBSTITUTA' })]);
+    return regras;
+  }));
+  afirma(!s4.err, '11b. publicação (squad) com B3 removida e substituída não gerou erro: err=' + s4.err);
   afirma(s4.versao === s4.v + 1, 'motorSquadVersion AVANÇOU por remover uma regra inteira: ' + s4.v + ' -> ' + s4.versao);
-  afirma(s4.info && s4.info.alteradas.length === 1 && s4.info.alteradas[0].novo === null && s4.info.alteradas[0].codigo === 'B3', 'diffRegras (squad) aponta a regra removida com novo:null');
+  const removida = s4.info && s4.info.alteradas.filter((a) => a.codigo === 'B3')[0];
+  afirma(s4.info && s4.info.alteradas.length === 2 && removida && removida.novo === null, 'diffRegras (squad) aponta a regra removida com novo:null (e a nova com antigo:null)');
 
   afirma(erros.length === 0, 'nenhum erro de JS durante todo o fluxo (encontrados: ' + erros.length + ')');
   await ctx.close();

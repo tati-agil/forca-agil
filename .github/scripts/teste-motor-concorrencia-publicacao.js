@@ -118,9 +118,13 @@ function auditoria(page, motorRef) {
     return { v: v, regras: JSON.parse(JSON.stringify(window.faMotorSquad.regrasDaVersao(v))) };
   });
   const regrasA3 = JSON.parse(JSON.stringify(base3.regras));
-  regrasA3.eixoA.filter((r) => r.codigo === 'A3')[0].condicoes.any[0].valor = 'SIM'; // mudança REAL de A
+  /* Mudanças reais e COMPLETAS (a trava de publicação recusa qualquer troca
+     isolada de SIM/NÃO, que deixa combinações sem resultado): A troca os
+     resultados de C2/C3, B os de C4/C5. */
+  const trocar = (lista, x, y) => { const a = lista.filter((r) => r.codigo === x)[0], b = lista.filter((r) => r.codigo === y)[0]; [a.resultado, b.resultado] = [b.resultado, a.resultado]; };
+  trocar(regrasA3.combinacao, 'C2', 'C3'); // mudança REAL de A
   const regrasB3 = JSON.parse(JSON.stringify(base3.regras));
-  regrasB3.eixoB.filter((r) => r.codigo === 'B1')[0].condicoes.all[0].valor = 'SIM'; // mudança REAL, DIFERENTE, de B
+  trocar(regrasB3.combinacao, 'C4', 'C5'); // mudança REAL, DIFERENTE, de B
 
   const pubA3 = await publicar(page, 'faMotorSquad', regrasA3, { name: 'Usuária A' }, base3.v);
   afirma(!pubA3.err, 'A publica com sucesso (squad)');

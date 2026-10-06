@@ -79,6 +79,18 @@ function toggleLeaf(regras, codigoRegra, filtroCondicao) {
   leaf.valor = leaf.valor === 'SIM' ? 'NAO' : 'SIM';
 }
 
+/* Squad: desde a trava de publicação (validarRegrasCompletas), trocar UM
+   SIM/NÃO sozinho deixa combinações de S1–S8 sem resultado e é recusado —
+   todas as 19 trocas isoladas. A mudança REAL usada aqui é trocar o
+   resultado de duas regras da combinação entre si: continua completa (toda
+   combinação tem resultado), é lógica de verdade (versiona) e, como alternar,
+   é sempre uma mudança relativa ao que estiver vigente. */
+function trocarResultados(regras, codigoA, codigoB) {
+  var a = regras.filter(function (r) { return r.codigo === codigoA; })[0];
+  var b = regras.filter(function (r) { return r.codigo === codigoB; })[0];
+  var tmp = a.resultado; a.resultado = b.resultado; b.resultado = tmp;
+}
+
 function publicar(page, motorRef, regras, usuario, versaoBase) {
   return page.evaluate(([mr, rs, u, vb]) => new Promise((resolve) => {
     window[mr].publicarRegras(rs, u, function (err, info) {
@@ -190,7 +202,7 @@ function auditoria(page, motorRef) {
   async function prepararCenarioSquad() {
     const vAntes = await page.evaluate(() => window.faMotorSquad.versaoAtual());
     const regrasVAtual = await page.evaluate(() => JSON.parse(JSON.stringify(window.faMotorSquad.regrasDaVersao(window.faMotorSquad.versaoAtual()))));
-    toggleLeaf(regrasVAtual.eixoA, 'A3', function (c) { return c.any[0]; });
+    trocarResultados(regrasVAtual.combinacao, 'C2', 'C3');
     const pubInicial = await publicar(page, 'faMotorSquad', regrasVAtual, { name: 'Setup' }, vAntes);
     return { vAtual: pubInicial.versao, regrasVAtual: regrasVAtual, baseAntigaDeB: vAntes };
   }
@@ -207,7 +219,7 @@ function auditoria(page, motorRef) {
   const sq2 = await prepararCenarioSquad();
   const rascunhoSqB2 = JSON.parse(JSON.stringify(sq2.regrasVAtual));
   const regrasSqA2 = JSON.parse(JSON.stringify(sq2.regrasVAtual));
-  toggleLeaf(regrasSqA2.eixoB, 'B1', function (c) { return c.all[0]; });
+  trocarResultados(regrasSqA2.combinacao, 'C4', 'C5');
   const pubSqA2 = await publicar(page, 'faMotorSquad', regrasSqA2, { name: 'Usuária A' }, sq2.vAtual);
   afirma(!pubSqA2.err, 'A (squad) publica a mudança real com sucesso');
   afirma(pubSqA2.versao === sq2.vAtual + 1, 'motorSquadVersion avançou para ' + (sq2.vAtual + 1) + ': ' + pubSqA2.versao);
@@ -222,7 +234,7 @@ function auditoria(page, motorRef) {
   console.log('\n-- 6. Squad: A publica mudança REAL (versiona); rascunho de B, desenhado à parte, coincide com o resultado -> no-op seguro --');
   const sq3 = await prepararCenarioSquad();
   const regrasSqFinal3 = JSON.parse(JSON.stringify(sq3.regrasVAtual));
-  toggleLeaf(regrasSqFinal3.eixoB, 'B2', function (c) { return c.all[1]; });
+  trocarResultados(regrasSqFinal3.combinacao, 'C1', 'C2');
   const pubSqA3 = await publicar(page, 'faMotorSquad', regrasSqFinal3, { name: 'Usuária A' }, sq3.vAtual);
   afirma(!pubSqA3.err, 'A (squad) publica a mudança real sem erro');
   afirma(pubSqA3.versao === sq3.vAtual + 1, 'a publicação de A (squad) É uma versão nova de verdade: ' + sq3.vAtual + ' -> ' + pubSqA3.versao);
