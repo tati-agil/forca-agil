@@ -410,7 +410,6 @@ const clicarSemRolagem = (page, seletor) => page.$eval(seletor, (el) => el.click
         /* Prévia compacta ao vivo — a mesma frase que a etapa 1 vai montar,
            reagindo ao que está sendo digitado, antes de salvar. */
         await novo.fill('[data-mis="oQue"]', 'os contatos sobre andamento');
-        await novo.waitForTimeout(200);
         const previaMissaoBase = await novo.evaluate(() =>
           ((document.getElementById('apostaPreviaMissaoFac') || {}).textContent || '').replace(/\s+/g, ' '));
         anota('a prévia "Missão-base" reage ao que está sendo digitado, antes de salvar',
@@ -554,7 +553,6 @@ const clicarSemRolagem = (page, seletor) => page.$eval(seletor, (el) => el.click
         await pgDir.fill('[data-m="indicador"]', 'tempo de resposta');
         await pgDir.fill('[data-m="atual"]', '3');
         await pgDir.selectOption('[data-m="formaMedicao"]', 'Tempo');
-        await pgDir.waitForTimeout(200);
         await pgDir.locator('.aposta-variante:has([data-m="unidade"]) .aposta-variante-chip', { hasText: 'dias' }).click();
         await pgDir.waitForTimeout(200);
 
@@ -571,7 +569,6 @@ const clicarSemRolagem = (page, seletor) => page.$eval(seletor, (el) => el.click
         await pgDir.fill('[data-m="limiteMinimo"]', '2');
         await pgDir.fill('[data-m="limiteMaximo"]', '5');
         await pgDir.fill('[data-m="prazo"]', '90');
-        await pgDir.waitForTimeout(300);
         const fraseManter = await pgDir.evaluate(() => (document.querySelector('.aposta-mudanca-frase') || {}).textContent || '');
         anota('a frase de "Manter" + "Entre" usa os dois limites, com "durante" no lugar de "em"',
           /Manter tempo de resposta entre 2 e 5 dias durante 90 dias/.test(fraseManter), fraseManter);
@@ -632,7 +629,6 @@ const clicarSemRolagem = (page, seletor) => page.$eval(seletor, (el) => el.click
         await pgDir.fill('[data-m="limiteMinimo"]', '2');
         await pgDir.fill('[data-m="limiteMaximo"]', '5');
         await pgDir.fill('[data-m="atual"]', '3');
-        await pgDir.waitForTimeout(300);
 
         /* Atingir: mesmos campos de Aumentar/Reduzir (Meta desejada
            volta), mas a frase não fala em "situação atual" nem "para". */
@@ -690,7 +686,6 @@ const clicarSemRolagem = (page, seletor) => page.$eval(seletor, (el) => el.click
         /* Trocar Forma de medição para outra coisa destrava o Período de
            novo — a trava é só enquanto Índice + NPS estiver selecionado. */
         await pgDir.selectOption('[data-m="formaMedicao"]', 'Quantidade');
-        await pgDir.waitForTimeout(200);
         const periodoDepois = await pgDir.evaluate(() => (document.querySelector('[data-m="periodo"]') || {}).disabled);
         anota('trocar a Forma de medição para outra coisa destrava o Período', periodoDepois === false);
 
@@ -722,11 +717,9 @@ const clicarSemRolagem = (page, seletor) => page.$eval(seletor, (el) => el.click
 
         await pgAtingir.fill('[data-m="indicador"]', 'DAD');
         await pgAtingir.selectOption('[data-m="formaMedicao"]', 'Percentual');
-        await pgAtingir.waitForTimeout(200);
         await pgAtingir.locator('.aposta-variante:has([data-m="direcao"]) .aposta-variante-chip', { hasText: 'Atingir' }).click();
         await pgAtingir.waitForTimeout(200);
         await pgAtingir.fill('[data-m="prazo"]', '78');
-        await pgAtingir.waitForTimeout(200);
 
         async function estadoAtingir() {
           return pgAtingir.evaluate(() => ({
@@ -980,7 +973,6 @@ const clicarSemRolagem = (page, seletor) => page.$eval(seletor, (el) => el.click
          "90 dias" no campo do número não pode virar dado — o mapa saía
          com "90 dias dias", e cada grupo escrevia a unidade de um jeito. */
       await page.fill('#ap-prazo', '90 dias');
-      await page.waitForTimeout(250);
       const soNumero = await page.evaluate(() => (document.getElementById('ap-prazo') || {}).value || '');
       anota('no prazo, o campo do número aceita só número', soNumero === '90', 'ficou "' + soNumero + '"');
       const temUnidades = await page.evaluate(() => {
@@ -992,14 +984,12 @@ const clicarSemRolagem = (page, seletor) => page.$eval(seletor, (el) => el.click
         temUnidades);
       await page.selectOption('[data-campo="prazoUnidade"]', 'meses');
       await page.fill('#ap-prazo', '1');
-      await page.waitForTimeout(300);
       const singular = await page.evaluate(() =>
         ((document.getElementById('apostaFrase') || {}).textContent || '').replace(/\s+/g, ' '));
       anota('a unidade concorda com o número (1 vira singular)',
         /em 1 mês/.test(singular) && !/1 meses/.test(singular), singular.slice(0, 140));
       await page.fill('#ap-prazo', '90');
       await page.selectOption('[data-campo="prazoUnidade"]', 'dias');
-      await page.waitForTimeout(300);
       const completa = await page.evaluate(() =>
         ((document.querySelector('.aposta-frase') || {}).textContent || '').replace(/\s+/g, ' '));
       anota('com tudo preenchido, a prévia mostra a frase inteira e diz que está completa',
@@ -1069,7 +1059,6 @@ const clicarSemRolagem = (page, seletor) => page.$eval(seletor, (el) => el.click
              verbo à parte, porque o texto livre já inclui o verbo. */
           await page.locator('[data-campo="quem"]').fill('O participante');
           await page.locator('[data-campo="situacaoIndesejada"]').fill('não consegue acompanhar com clareza o andamento');
-          await page.waitForTimeout(300);
           const previa = await page.evaluate(() => {
             const el = document.getElementById('apostaFrase');
             return el && !el.hidden ? (el.textContent || '').replace(/\s+/g, ' ') : '';
@@ -1137,7 +1126,6 @@ const clicarSemRolagem = (page, seletor) => page.$eval(seletor, (el) => el.click
           /* Forma de medição decide as sugestões de Unidade — Quantidade
              sugere substantivos de contagem, não os "por X" de Período. */
           await page.selectOption('[data-m="formaMedicao"]', 'Quantidade');
-          await page.waitForTimeout(200);
           await page.locator('.aposta-variante:has([data-m="unidade"]) .aposta-variante-chip', { hasText: 'contatos' }).click();
           await page.waitForTimeout(200);
           const unidadeChip = await page.evaluate(() => (document.querySelector('[data-m="unidade"]') || {}).value || '');
@@ -1159,7 +1147,6 @@ const clicarSemRolagem = (page, seletor) => page.$eval(seletor, (el) => el.click
              atual — 1500 > 1000 é o caso contrário, e o alerta aparece
              perto do campo, com um jeito de corrigir num clique só. */
           await page.fill('[data-m="meta"]', '1500');
-          await page.waitForTimeout(300);
           const comInconsistencia = await page.evaluate(() => ({
             visivel: !!document.querySelector('.aposta-mudanca-alerta'),
             texto: (document.querySelector('.aposta-mudanca-alerta') || {}).textContent || '',
@@ -1213,7 +1200,6 @@ const clicarSemRolagem = (page, seletor) => page.$eval(seletor, (el) => el.click
           /* Devolve ao estado consistente para o resto do teste. */
           await page.locator('.aposta-variante:has([data-m="direcao"]) .aposta-variante-chip', { hasText: 'Reduzir' }).click();
           await page.fill('[data-m="meta"]', '700');
-          await page.waitForTimeout(300);
 
           /* Refinamento pós-teste manual (itens 2/3): meta IGUAL à
              situação atual era aceita silenciosamente ("Reduzir de
@@ -1259,7 +1245,6 @@ const clicarSemRolagem = (page, seletor) => page.$eval(seletor, (el) => el.click
           /* Devolve, de novo, ao estado que o resto do teste espera. */
           await page.locator('.aposta-variante:has([data-m="direcao"]) .aposta-variante-chip', { hasText: 'Reduzir' }).click();
           await page.fill('[data-m="meta"]', '700');
-          await page.waitForTimeout(300);
 
           /* Percentual não pede escolha de unidade: preenche "%" sozinho,
              e ele gruda nos dois números da frase ("de 1000% para 700%"),
@@ -1343,7 +1328,6 @@ const clicarSemRolagem = (page, seletor) => page.$eval(seletor, (el) => el.click
               /Preencha a causa percebida e o que foi observado/i.test(hipoteseParcial), hipoteseParcial.slice(0, 160));
 
             await page.fill('[data-campo="indicio"]', 'muitos participantes entram em contato para saber do andamento do processo de concessão do benefício');
-            await page.waitForTimeout(250);
             const hipoteseCompleta = await page.evaluate(() =>
               ((document.getElementById('apostaFrase') || {}).textContent || '').replace(/\s+/g, ' '));
             anota('com os dois campos preenchidos, mostra a frase completa e "está completa"',
@@ -1397,7 +1381,6 @@ const clicarSemRolagem = (page, seletor) => page.$eval(seletor, (el) => el.click
 
             await page.fill('[data-campo="acao"]', 'dar ao participante visibilidade sobre o andamento do processo de concessão do benefício');
             await page.fill('[data-campo="mudanca"]', 'o participante consiga ter autonomia');
-            await page.waitForTimeout(250);
             const ideiaCompleta = await page.evaluate(() =>
               ((document.getElementById('apostaFrase') || {}).textContent || '').replace(/\s+/g, ' '));
             anota('com os dois campos preenchidos, mostra a frase completa e "está completa"',
@@ -1417,7 +1400,6 @@ const clicarSemRolagem = (page, seletor) => page.$eval(seletor, (el) => el.click
               semParaPara.slice(0, 260));
 
             await page.fill('[data-campo="mudanca"]', 'o participante consiga ter autonomia');
-            await page.waitForTimeout(250);
 
             /* ── digitar e seguir DENTRO dos 600ms não pode apagar a etapa ──
                O salvamento automático espera 600ms. Enquanto ele relia a tela
@@ -1454,7 +1436,6 @@ const clicarSemRolagem = (page, seletor) => page.$eval(seletor, (el) => el.click
                não pode herdar "texto que não pode sumir" no lugar da ação
                de verdade. */
             await page.fill('[data-campo="acao"]', 'dar ao participante visibilidade sobre o andamento do processo de concessão do benefício');
-            await page.waitForTimeout(250);
           }
           if (i === 6) {
             /* EXPERIMENTO: sem duração, quantidade, com quem e o que
@@ -1507,7 +1488,6 @@ const clicarSemRolagem = (page, seletor) => page.$eval(seletor, (el) => el.click
             await page.fill('[data-campo="quantidade"]', '50');
             await page.fill('[data-campo="comQuem"]', 'participantes em concessão');
             await page.fill('[data-campo="oQue"]', 'enviar manualmente mensagens de status');
-            await page.waitForTimeout(300);
             const experimentoCompleto = await page.evaluate(() =>
               ((document.getElementById('apostaFrase') || {}).textContent || '').replace(/\s+/g, ' '));
             anota('com os campos obrigatórios preenchidos, mostra a frase completa e "está completa"',
@@ -1527,7 +1507,6 @@ const clicarSemRolagem = (page, seletor) => page.$eval(seletor, (el) => el.click
 
             /* EXPERIMENTO: custo com máscara de moeda. */
             await page.fill('[data-campo="custo"]', '250000');
-            await page.waitForTimeout(250);
             const custo = await page.evaluate(() => (document.querySelector('[data-campo="custo"]') || {}).value || '');
             anota('o custo estimado sai formatado como moeda', /^R\$\s?2\.500,00$/.test(custo), 'ficou "' + custo + '"');
 
@@ -1635,7 +1614,6 @@ const clicarSemRolagem = (page, seletor) => page.$eval(seletor, (el) => el.click
               tituloDepoisEvVazia === tituloAntesEvVazia);
 
             await page.selectOption('[data-e="fontePrevista"]', 'Dados do sistema');
-            await page.waitForTimeout(300);
             const botaoPronto = await page.evaluate(() => ({
               texto: (document.getElementById('apostaSeguir') || {}).textContent || '',
               desabilitado: (document.getElementById('apostaSeguir') || {}).disabled,
@@ -1692,7 +1670,6 @@ const clicarSemRolagem = (page, seletor) => page.$eval(seletor, (el) => el.click
 
             await page.fill('[data-e="observado"]', '850');
             await page.selectOption('[data-e="fonte"]', 'Registros de atendimento');
-            await page.waitForTimeout(300);
 
             /* Aprendizado é por card, com tooltip próprio — não é a mesma
                coisa que classificar a hipótese inteira. */
@@ -1766,7 +1743,6 @@ const clicarSemRolagem = (page, seletor) => page.$eval(seletor, (el) => el.click
                data — as execuções antigas guardavam "10 dias", não uma data
                absoluta. */
             await page.fill('[data-campo="reavaliacao"]', '31122026');
-            await page.waitForTimeout(250);
             const data = await page.evaluate(() => (document.querySelector('[data-campo="reavaliacao"]') || {}).value || '');
             anota('a data de reavaliação sai com dia, mês e ano', data === '31/12/2026', 'ficou "' + data + '"');
 
@@ -1864,7 +1840,6 @@ const clicarSemRolagem = (page, seletor) => page.$eval(seletor, (el) => el.click
 
             await page.fill('[data-campo="proxHipCausa"]', 'a mensagem não chega a quem está em análise');
             await page.fill('[data-campo="proxHipIndicio"]', 'os contatos caíram só no grupo que recebeu a mensagem');
-            await page.waitForTimeout(300);
             const habilitadoComNovaHip = await page.evaluate(() => (document.getElementById('apostaSeguir') || {}).disabled);
             anota('completar a Nova Hipótese libera CONTINUAR de verdade', habilitadoComNovaHip === false, String(habilitadoComNovaHip));
             const fraseDec = await page.evaluate(() =>
@@ -2204,7 +2179,6 @@ const clicarSemRolagem = (page, seletor) => page.$eval(seletor, (el) => el.click
            Evidência está incompleto e o botão não libera o modo de
            registro. */
         await pgEv.selectOption('[data-e="fontePrevista"]', 'Dados do sistema');
-        await pgEv.waitForTimeout(300);
         await pgEv.$eval('#apostaSeguir', (el) => el.click());
         /* Item 4 do ajuste de fluxo: modal próprio (não window.confirm)
            perguntando se o experimento já foi executado. */
@@ -2268,14 +2242,12 @@ const clicarSemRolagem = (page, seletor) => page.$eval(seletor, (el) => el.click
 
         /* Devolve ao estado consistente para o resto do teste. */
         await pgEv.fill('[data-e="observado"]', '650');
-        await pgEv.waitForTimeout(300);
 
         /* CONTINUAR: sem fonte, mesmo com observado preenchido, fica
            bloqueado de verdade — sem escape por segundo clique. (Volta a
            fonte para vazio: já tinha sido escolhida lá em cima, para os
            testes de frase.) */
         await pgEv.selectOption('[data-e="fonte"]', '');
-        await pgEv.waitForTimeout(200);
         const tituloAntesEv = await pgEv.evaluate(() => (document.querySelector('.aposta-etapa-titulo') || {}).textContent || '');
         /* Ajuste de usabilidade (item 6/7): o botão fica genuinely
            disabled — clicar nele (mesmo via $eval) não dispara nada, e a
@@ -2319,7 +2291,6 @@ const clicarSemRolagem = (page, seletor) => page.$eval(seletor, (el) => el.click
           auxiliarHipotese === 'O que as evidências nos dizem sobre a hipótese que testamos?', auxiliarHipotese);
 
         await pgEv.fill('[data-e="aprendizado"]', 'Os contatos caíram, mas ainda não bateram a meta.');
-        await pgEv.waitForTimeout(300);
         const soFaltaClassificacao = await pgEv.evaluate(() => ({
           desabilitado: (document.getElementById('apostaSeguir') || {}).disabled,
           pendencias: (document.querySelector('[data-evidencia-pendencias]') || {}).textContent || '',
@@ -2354,7 +2325,6 @@ const clicarSemRolagem = (page, seletor) => page.$eval(seletor, (el) => el.click
            que vem a seguir (naoMedido) parte de observado preenchido,
            fonte indiferente. */
         await pgEv.fill('[data-e="aprendizado"]', '');
-        await pgEv.waitForTimeout(200);
 
         /* "Não foi possível medir" desliga Resultado observado/Fonte e
            passa a exigir Motivo em vez deles — nunca os dois ao mesmo
@@ -2504,13 +2474,11 @@ const clicarSemRolagem = (page, seletor) => page.$eval(seletor, (el) => el.click
           /EVID[ÊE]NCIA/.test((document.querySelector('.aposta-etapa-titulo') || {}).textContent || ''),
           { timeout: 15000 });
         await pgM.selectOption('[data-e="fontePrevista"]', 'Dados do sistema');
-        await pgM.waitForTimeout(200);
         await pgM.$eval('#apostaSeguir', (el) => el.click());
         await pgM.waitForSelector('.aposta-modal-sim-btn', { timeout: 5000 });
         await pgM.$eval('.aposta-modal-sim-btn', (el) => el.click());
         await pgM.waitForTimeout(300);
         await pgM.fill('[data-e="observado"]', cenario.observado);
-        await pgM.waitForTimeout(300);
         const msgManter = await pgM.evaluate(() =>
           ((document.querySelector('.aposta-frase-pronta, .aposta-frase-falta') || {}).textContent || ''));
         anota('"Manter" (' + cenario.tipoLimite + ', observado ' + cenario.observado + ') mostra a mensagem certa, sem percentual',
@@ -2637,7 +2605,6 @@ const clicarSemRolagem = (page, seletor) => page.$eval(seletor, (el) => el.click
           /EVID[ÊE]NCIA/.test((document.querySelector('.aposta-etapa-titulo') || {}).textContent || ''),
           { timeout: 15000 });
         await pgNM.selectOption('[data-e="fontePrevista"]', 'Dados do sistema');
-        await pgNM.waitForTimeout(200);
         await pgNM.$eval('#apostaSeguir', (el) => el.click());
         await pgNM.waitForSelector('.aposta-modal-sim-btn', { timeout: 5000 });
         await pgNM.$eval('.aposta-modal-sim-btn', (el) => el.click());
@@ -2917,11 +2884,9 @@ const clicarSemRolagem = (page, seletor) => page.$eval(seletor, (el) => el.click
            cobrada da Evidência (item 9 do ajuste de fluxo anterior),
            agora também na Decisão. */
         await pgRef.fill('[data-campo="proxHipCausa"]', '');
-        await pgRef.waitForTimeout(250);
         const apagouCausa = await pgRef.evaluate(() => (document.getElementById('apostaSeguir') || {}).disabled);
         anota('apagar a nova hipótese depois de preenchida volta a desabilitar CONTINUAR imediatamente', apagouCausa === true);
         await pgRef.fill('[data-campo="proxHipCausa"]', 'a mensagem não chega a quem está em análise');
-        await pgRef.waitForTimeout(250);
 
         /* Item 6/9: trocar para outra decisão (com a próxima ação já
            preenchida) tem de reavaliar CONTINUAR na hora do clique — não
@@ -3744,7 +3709,6 @@ const clicarSemRolagem = (page, seletor) => page.$eval(seletor, (el) => el.click
         await pg13b.fill('[data-campo="proximaAcao"]', 'testar uma nova hipótese sobre o atendimento');
         await pg13b.fill('[data-campo="proxHipCausa"]', 'o sistema de senhas está desorganizando a fila');
         await pg13b.fill('[data-campo="proxHipIndicio"]', 'muitas senhas fora de ordem no horário de pico');
-        await pg13b.waitForTimeout(250);
         await pg13b.click('#apostaSeguir');
         await pg13b.waitForFunction(() =>
           /^H\s*—\s*HIP[ÓO]TESE/i.test((document.querySelector('.aposta-etapa-titulo') || {}).textContent || ''),
@@ -4078,7 +4042,6 @@ const clicarSemRolagem = (page, seletor) => page.$eval(seletor, (el) => el.click
            sempre opcionais, nunca exigidos, só deixam de fazer sentido
            escondidos quando existe alguma próxima ação combinada. */
         await pg13dquater.fill('[data-campo="proximaAcao"]', 'registrar o aprendizado e comunicar o resultado');
-        await pg13dquater.waitForTimeout(300);
         const complementosAposEscrever = await pg13dquater.evaluate(() => {
           var comp = document.getElementById('apostaComplementos');
           return !!comp && !comp.hidden && getComputedStyle(comp).display !== 'none';
@@ -4087,7 +4050,6 @@ const clicarSemRolagem = (page, seletor) => page.$eval(seletor, (el) => el.click
           complementosAposEscrever === true);
 
         await pg13dquater.fill('[data-campo="proximaAcao"]', '');
-        await pg13dquater.waitForTimeout(300);
         const complementosAposApagar = await pg13dquater.evaluate(() => {
           var comp = document.getElementById('apostaComplementos');
           return !!comp && !comp.hidden && getComputedStyle(comp).display !== 'none';
@@ -5162,7 +5124,6 @@ const clicarSemRolagem = (page, seletor) => page.$eval(seletor, (el) => el.click
         await pg15.fill('#ap-verbo', 'Apoiar');
         await pg15.fill('#ap-oQue', 'a Rebelião Ágil a vencer a luta contra o Império');
         await pg15.fill('#ap-contexto', 'promovendo uma sociedade guiada por propósito, confiança e colaboração entre todos os seus cidadãos');
-        await pg15.waitForTimeout(300);
 
         /* A — sem prazo: obrigatórios preenchidos, prazo vazio → válida,
            CONTINUAR habilitado, nunca "Ainda falta: o prazo", frase
@@ -5187,7 +5148,6 @@ const clicarSemRolagem = (page, seletor) => page.$eval(seletor, (el) => el.click
            branco sozinho). Isso não pode voltar a mostrar "Ainda falta"/
            "em o prazo", nem deixar CONTINUAR desabilitado. */
         await pg15.fill('#ap-prazo', '90');
-        await pg15.waitForTimeout(300);
         const digitado90 = await pg15.evaluate(() => ({
           unidade: (document.querySelector('[data-campo="prazoUnidade"]') || {}).value || '',
           frase: ((document.getElementById('apostaFrase') || {}).textContent || '').replace(/\s+/g, ' '),
