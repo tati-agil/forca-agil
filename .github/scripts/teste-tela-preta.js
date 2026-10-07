@@ -8,8 +8,8 @@
  * seguinte. Medido na época: ZERO elemento visível aos 2 segundos em quatro
  * cenários diferentes, nos dois formatos de tela.
  *
- * A suíte "▶ Automáticos" de testes.js não pega isso: ela roda DEPOIS do
- * login resolver, então por definição nunca vê a espera. Este teste roda com
+ * Um teste que só roda depois do login resolver (como a antiga suíte
+ * "▶ Automáticos" da aba Testes, ou o Smoke) por definição nunca vê a espera. Este teste roda com
  * o Firebase SUBSTITUÍDO por um falso (.github/scripts/firebase-falso.js),
  * o que permite simular o que não dá para simular contra o banco real:
  * leitura que nunca responde, leitura que falha, autenticação muda, e o

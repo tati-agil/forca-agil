@@ -296,7 +296,7 @@
 @media (max-width: 800px) {
   .turmas-evento-grupo + .turmas-evento-grupo { margin-top: 64px; padding-top: 40px; }
 }
-/* "A Missão" de cada evento: acordeão (mesmo idioma de .manual-card) em vez
+/* "A Missão" de cada evento: acordeão (<details>/<summary> nativo) em vez
    de bloco sempre aberto. Com um evento só ele nasce aberto (nada muda pra
    quem só vê um); com dois ou mais, o resumo recolhido já É o divisor entre
    um evento e outro — não precisa rolar Missão+Como funciona+Plano de voo
@@ -912,33 +912,6 @@
   display: flex; gap: 8px; align-items: center; width: 100%;
 }
 .admin-colab-row input { flex: 1; min-width: 0; }
-
-.admin-expand-bar {
-  display: none; align-items: center; gap: 8px;
-  padding: 8px 12px;
-  background: var(--space-1);
-  border: 1px solid var(--line);
-  border-radius: 10px;
-  margin-bottom: 20px;
-  position: sticky; top: 64px; z-index: 10;
-}
-.admin-expand-bar.visible { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; }
-.admin-expand-sep {
-  width: 1px; height: 20px; background: var(--line);
-  align-self: center; flex-shrink: 0; margin: 0 4px;
-}
-.admin-expand-sec-btn {
-  padding: 2px 10px; border-radius: 20px; cursor: pointer;
-  font-family: var(--font-mono); font-size: .65rem; letter-spacing: .06em; text-transform: uppercase;
-  border: 1px solid var(--sec-col, var(--ink)); color: var(--sec-col, var(--ink));
-  background: transparent; transition: opacity .15s;
-}
-.admin-expand-sec-btn:hover { opacity: .75; }
-.admin-expand-label {
-  font-family: var(--font-mono); font-size: .72rem;
-  text-transform: uppercase; letter-spacing: .08em;
-  color: var(--ink-3); margin-right: 4px;
-}
 
 .admin-status-btns { display: flex; gap: 4px; }
 .admin-status-btn {
@@ -2795,3 +2768,59 @@ details.avp-form-card.avp-aut-historico { margin-top: 0; padding: 10px 16px; mar
 .tax-atributos > .tax-atributos-cab::before { content: '▸'; color: var(--gold); display: inline-block; width: 1em; transition: transform .15s ease; }
 .tax-atributos[open] > .tax-atributos-cab::before { transform: rotate(90deg); }
 .tax-atributos[open] > .tax-atributos-cab { margin-bottom: 6px; }
+
+/* ============================================================
+   ADMIN › Manual (manual.js) — documentação para pessoas, por área.
+   Celular primeiro: uma coluna; a grade das dimensões abre em duas colunas só onde cabe.
+   ============================================================ */
+.man-wrap { max-width: 900px; }
+.man-titulo { font-family: var(--font-head); font-size: 1.15rem; letter-spacing: .04em; margin: 0 0 6px; }
+.man-subtitulo { font-family: var(--font-head); font-size: 1rem; letter-spacing: .03em; margin: 0 0 4px; }
+.man-intro { color: var(--ink-2); font-size: .92rem; line-height: 1.55; margin: 0 0 14px; max-width: 70ch; }
+.man-rotulo { font-family: var(--font-mono); font-size: .72rem; letter-spacing: .08em; text-transform: uppercase; color: var(--gold); margin: 14px 0 6px; }
+.man-rotulo-inline { font-family: var(--font-mono); font-size: .72rem; letter-spacing: .08em; text-transform: uppercase; color: var(--gold); margin-right: 6px; }
+
+.man-dimensoes { border: 1px solid var(--line); border-radius: 10px; padding: 14px; margin: 0 0 16px; background: var(--panel); }
+.man-dim-grade { display: grid; grid-template-columns: 1fr; gap: 10px; }
+@media (min-width: 720px) { .man-dim-grade { grid-template-columns: 1fr 1fr; } }
+.man-dim { border-left: 3px solid var(--cyan); padding: 4px 0 4px 10px; min-width: 0; }
+.man-dim-nome { font-weight: 700; margin: 0; }
+.man-dim-valores { font-family: var(--font-mono); font-size: .75rem; color: var(--cyan); margin: 2px 0 4px; overflow-wrap: anywhere; }
+.man-dim-texto { font-size: .88rem; color: var(--ink-2); line-height: 1.5; margin: 0; }
+
+.man-indice { display: flex; flex-wrap: wrap; gap: 6px; margin: 0 0 14px; }
+.man-indice-item { font: inherit; font-size: .82rem; border: 1px solid var(--line); background: transparent; color: var(--ink); padding: 6px 10px; border-radius: 999px; cursor: pointer; }
+.man-indice-item:hover, .man-indice-item:focus-visible { border-color: var(--gold); color: var(--gold); outline: none; }
+
+.man-areas { display: grid; gap: 8px; }
+.man-area { border: 1px solid var(--line); border-radius: 10px; background: var(--panel); scroll-margin-top: 90px; }
+.man-area > .man-area-cab { list-style: none; cursor: pointer; padding: 12px 14px; display: flex; align-items: center; gap: 8px; }
+.man-area > .man-area-cab::-webkit-details-marker { display: none; }
+.man-area > .man-area-cab::before { content: '▸'; color: var(--gold); transition: transform .15s var(--ease); }
+.man-area[open] > .man-area-cab::before { transform: rotate(90deg); }
+.man-area-titulo { font-weight: 700; overflow-wrap: anywhere; }
+.man-area-corpo { padding: 0 14px 14px; border-top: 1px solid var(--line); }
+.man-oque { margin: 12px 0 6px; line-height: 1.55; }
+.man-quem { margin: 0; font-size: .9rem; color: var(--ink-2); line-height: 1.5; }
+.man-importante, .man-fonte, .man-prova { margin: 0; padding-left: 18px; font-size: .9rem; line-height: 1.55; }
+.man-importante li + li, .man-fonte li + li, .man-prova li + li { margin-top: 4px; }
+.man-fonte, .man-prova { font-size: .84rem; color: var(--ink-2); overflow-wrap: anywhere; }
+.man-ref { display: grid; grid-template-columns: 1fr; gap: 4px 18px; }
+@media (min-width: 720px) { .man-ref { grid-template-columns: 1fr 1fr; } }
+.man-ref > div { min-width: 0; }
+.man-links { display: flex; flex-wrap: wrap; gap: 8px; margin: 14px 0 0; }
+
+.man-estados { border: 1px dashed var(--line-strong); border-radius: 8px; padding: 4px 12px 12px; margin-top: 14px; }
+.man-estados-lista { list-style: none; margin: 0; padding: 0; display: grid; gap: 6px; }
+.man-estado { display: grid; gap: 2px; border-left: 3px solid var(--ink-3); padding-left: 10px; font-size: .88rem; }
+.man-estado span { color: var(--ink-2); line-height: 1.45; }
+.man-estado--interessada { border-left-color: var(--cyan); }
+.man-estado--inscrita { border-left-color: var(--teal); }
+.man-estado--removida { border-left-color: var(--red); }
+.man-transicoes { list-style: none; margin: 0; padding: 0; display: grid; gap: 6px; }
+.man-transicoes li { display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 8px; font-size: .86rem; padding: 6px 0; border-bottom: 1px solid var(--line); }
+.man-transicoes li:last-child { border-bottom: none; }
+.man-trans-de, .man-trans-para { font-weight: 700; }
+.man-trans-seta { color: var(--gold); }
+.man-trans-acao { flex-basis: 100%; color: var(--ink-2); }
+.man-rodape { font-size: .8rem; color: var(--ink-3); margin: 16px 0 0; }

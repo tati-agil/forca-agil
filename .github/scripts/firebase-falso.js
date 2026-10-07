@@ -359,6 +359,9 @@
   Ref.prototype.orderByKey   = function () { var r = clonar(this); r._porChave = true; return r; };
   Ref.prototype.endAt        = function (valor) { var r = clonar(this); r._fim = valor; return r; };
   Ref.prototype.limitToLast  = function (n) { if (!this._porChave) return this; var r = clonar(this); r._limite = n; return r; };
+  /* limitToFirst(n) sem orderByKey: não filtra (devolve o nó inteiro), igual ao limitToLast acima.
+     Basta para quem só quer saber se a leitura responde (o Smoke usa assim). */
+  Ref.prototype.limitToFirst = function () { return this; };
 
   var authCbs = [];
 

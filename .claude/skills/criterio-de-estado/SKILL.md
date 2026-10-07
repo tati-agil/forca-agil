@@ -45,12 +45,12 @@ Um critério novo não é uma linha alterada; é um inventário.
 3. **Liste os leitores** — todo lugar que pergunta por aquele estado:
    ```
    cd forca-agil && for f in *.js; do
-     case "$f" in manual.js|testes.js|mapa.js|qrcode.min.js) continue;; esac
+     case "$f" in manual.js|qrcode.min.js) continue;; esac
      grep -n "status *[!=]== *['\"]inscrito['\"]" "$f" | sed "s|^|$f:|"
    done
    ```
-   (`manual.js` e `testes.js` usam `'inscrito'` como chave de persona, não como
-   status — por isso saem da varredura.)
+   (`manual.js` é documentação para pessoas e só cita o estado em texto — por
+   isso sai da varredura.)
 4. **Monte a tabela** porta × leitor e confira se todos usam o MESMO critério.
    Cada divergência é ou um bug hoje, ou um bug esperando o dado certo.
 5. **Prefira um critério único** a repetir a condição. Em `admin.js` isso é
@@ -61,9 +61,11 @@ Um critério novo não é uma linha alterada; é um inventário.
    script de 30 linhas em Node resolve, e é o que revelou tanto o bug quanto o
    conserto. Registro que sai `SIM` em alguns leitores e `NAO` em outros é
    exatamente o estado impossível.
-7. **Documente** conforme a skill `docs-internas`, e inclua um teste em
-   `testes.js` que percorra todas as portas exigindo o mesmo resultado final
-   (existe um assim: "os três caminhos para Inscrita gravam o mesmo registro").
+7. **Documente** conforme a skill `docs-internas`, e inclua um teste hermético
+   (`.github/scripts/teste-*.js`, registrado em `suite-hermetica.json`) que
+   percorra todas as portas exigindo o mesmo resultado final. Hoje ainda não
+   existe um para "os quatro caminhos para Inscrita gravam o mesmo registro":
+   está em `docs/backlog-testes.md` (#120).
 
 ## Inventário atual: "estar inscrita numa turma"
 

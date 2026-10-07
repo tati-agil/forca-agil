@@ -1,7 +1,7 @@
 /* Rótulos citados na documentação existem na interface?
  *
  * POR QUE ESTE TESTE EXISTE
- * O Manual, o Mapa e a página Testes citam rótulos de botão e de selo entre
+ * O Manual (e, até a Etapa 6.2, o Mapa e a página Testes) cita rótulos de botão e de selo entre
  * aspas — "Abrir check-in", "🗑 Excluir turma", "CHECK-IN ABERTO". Quando
  * alguém renomeia um botão no código, essas aspas ficam mentindo, e a pessoa
  * que segue o Manual procura na tela um botão que não existe mais com aquele
@@ -43,7 +43,8 @@ const fs = require('fs');
 const path = require('path');
 
 const RAIZ  = path.join(__dirname, '..', '..');
-const DOCS  = ['manual.js', 'mapa.js', 'testes.js'];
+/* Desde a Etapa 6.2 só o Manual cita rótulos na interface (Mapa e Testes saíram do site). */
+const DOCS  = ['manual.js'];
 
 /* Entidades que o código usa nos rótulos, e o símbolo que o Manual escreve. */
 const NORMALIZACOES = [

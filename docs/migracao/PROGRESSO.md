@@ -7,6 +7,20 @@
 
 **Situação geral:** Fase atual: 0 · Última atualização: — · Responsável: —
 
+## Mudanças no sistema depois do plano
+
+- **Etapa 6.2 (simplificação de Mapa/Testes/Manual):** as abas ADMIN › Mapa e ADMIN › Testes
+  saíram do site, e `forca-agil/mapa.js` e `forca-agil/testes.js` não existem mais. Onde este
+  plano e seus anexos citam esses arquivos (ex.: tarefa 6.5 "`router.js` e `testes.js`", o
+  `limitToFirst(1)` de `testes.js`, a seção de tecnologias de `mapa.js`), a parte de `testes.js`/
+  `mapa.js` deixa de existir. `manual.js` passou a ser carregado sob demanda pelo `admin.js` e não
+  descreve tecnologia. O dicionário do banco e a lista de módulos estão em
+  [`docs/referencia-tecnica.md`](../referencia-tecnica.md) (conferidos por
+  `teste-consistencia-docs.js`). O antigo `run-testes-automaticos.js` virou
+  `.github/scripts/smoke-site-real.js`: não depende mais de tela nem de `window.fa*` da aba
+  Testes; as checagens de comportamento que ele disparava estão na suíte hermética
+  (`teste-checagens-interface.js`).
+
 ## Tarefas
 
 

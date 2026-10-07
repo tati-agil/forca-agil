@@ -1,0 +1,53 @@
+# Checklist pós-deploy
+
+O que **só uma pessoa** consegue conferir depois de publicar. Tudo o que um teste automático
+prova já roda em toda PR (suíte hermética, regras no emulador, Smoke com o Firebase real) e
+**não** está aqui.
+
+Não precisa percorrer a lista inteira a cada deploy: a coluna **Quando** diz que mudança
+pede cada conferência. Na dúvida, faça as linhas da área que o PR tocou.
+
+> Origem: a antiga lista "Regras que exigem validação manual" da aba ADMIN › Testes tinha 228
+> roteiros. Na Etapa 6.2 cada um foi comparado com as provas automáticas existentes. Ficaram
+> aqui só os 20 que exigem de fato uma pessoa e a parte humana de 19 dos 43 parcialmente
+> automatizados, agrupados em 18 linhas. Os automatizáveis que ainda não têm prova estão em
+> [`backlog-testes.md`](backlog-testes.md). Os números `#` são a posição do roteiro no catálogo
+> antigo (`forca-agil/testes.js` na `main` em `66ed565`).
+
+## Acesso, sessão e e-mail
+
+| # | Área | Verificação humana | Quando fazer | Evidência esperada | Já automatizado |
+|---|---|---|---|---|---|
+| C1 | Entrar | Na rede da Previ, abrir o site já logado quando a sessão travar (#1). | Mudança em `auth.js`, `router.js` ou `init.js`. | Em ~10 s a página recarrega uma vez e mostra o login com "Entre novamente"; sem laço; quem estava bem continua logado. | Tela nunca preta e aviso final (`teste-tela-preta.js`). |
+| C2 | Entrar | "Esqueci minha senha" e ADMIN › Cadastrados › "Redefinir senha" (#6, #88, #90). | Mudança no login, em Cadastrados ou no template de e-mail do Firebase. | O e-mail chega, o link abre a página do Firebase, a senha nova entra no site. | Abertura do painel e menu de ações (`teste-checagens-interface.js`, `teste-acoes-cadastrado.js`). |
+| C3 | Cadastrados | Conta real não verificada: selo "Pendente", "Confirmar cadastro" libera o login; corrigir o e-mail de um cadastro criado pelo painel (#87, #114, #115). | Mudança em Cadastrados ou em `auth.js`. | Selo muda para "Verificado"; a pessoa entra com a conta real; o e-mail novo funciona no Firebase Auth. | Fluxo com Auth falso (`teste-acoes-cadastrado.js`, `teste-corrigir-email.js`). |
+
+## Check-in, QR e celular
+
+| # | Área | Verificação humana | Quando fazer | Evidência esperada | Já automatizado |
+|---|---|---|---|---|---|
+| C4 | Check-in | Escanear o QR do dia com a câmera do celular, duas vezes; tentar num dia fechado (#66, #67, #105). | Mudança em `checkin.js` ou no check-in do ADMIN; antes de uma oficina. | "Presença confirmada com sucesso!" com nome, turma e dia; no 2º scan, "Presença já registrada"; dia fechado recusa. | Mensagem de QR inválido (Smoke). |
+| C5 | ADMIN › Eventos | Baixar o QR de acesso ao site e escanear (#79). | Mudança no QR de acesso. | Logo no centro da imagem; o celular abre `forca-agil.previ.com.br`. | — |
+| C6 | Celular | Abrir o site num celular real (375 px): logo compacto no menu (#191); "Avaliar oficina": tocar a nota nas seções 2 a 7 não fecha a seção sozinha (#171). | Mudança no menu ou em `avaliacao.js`. | Logo legível, sem corte; a seção continua aberta 3 s depois do toque. | Sobreposição do menu em 375 px (Smoke); seção 1 avança sozinha (Smoke). |
+| C7 | Roteiro | No celular: Início/Fim/Duração sem sugestões de autopreenchimento do teclado; colar um trecho do Word/tabela vira texto puro (#206, #208). | Mudança no editor do Roteiro. | Teclado sem sugestões; texto colado sem formatação e com as quebras. | — |
+
+## Impressão, PDF e arquivos
+
+| # | Área | Verificação humana | Quando fazer | Evidência esperada | Já automatizado |
+|---|---|---|---|---|---|
+| C8 | ADMIN › Turmas | Lista de presença: imprimir / salvar como PDF (#134). | Mudança na lista de presença. | Só inscritos, ✓ por dia, frequência e campo de assinatura no PDF. | — |
+| C9 | Roteiro | "Agenda resumida" e "Roteiro completo" no diálogo de impressão, com e sem "Gráficos de fundo" e com "Modo econômico" (#216, #217, #219, #222–#225). | Mudança na impressão do Roteiro. | Conteúdo longo continua na página seguinte, sem grandes vazios nem títulos órfãos; rodapé "Página X de Y"; tema escuro ou claro conforme a opção; divisória só entre atividades principais. | — |
+| C10 | Certificado | Comparar a arte (símbolo da Previ), a composição do cenário padrão e o PNG baixado com o certificado aprovado; ver a prévia escalar em 1920/1366/1024/768 px (#45, #185, #186, #188). | Mudança em `certif.js` ou no template. | Igual ao aprovado; PNG sem margens e idêntico à prévia; prévia escala como uma unidade. | Coordenadas, tamanhos e dimensões do canvas (`teste-checagens-interface.js`). |
+| C11 | Construção da Aposta | "🖨 Salvar em PDF" e dicas por toque longo no celular (#96). | Mudança em `aposta.js`. | PDF completo; dicas abrem com toque longo. | Lógica da dinâmica (`teste-aposta.js`). |
+| C12 | Exportações | Abrir no Excel real um CSV de Turmas e o Excel da Taxonomia (#189, parte de #169). | Mudança em exportações. | Acentos corretos; arquivo abre editável (sem Modo Protegido); Excel da Taxonomia abre na aba consolidada. | Conteúdo das exportações (`teste-taxonomia-exportacao.js`). |
+| C13 | ADMIN › Pedidos | "Responder por e-mail" abre o cliente de e-mail (#142). | Mudança em `pedidos.js`. | O cliente abre com destinatário e assunto preenchidos. | — |
+
+## Dados reais e decisões
+
+| # | Área | Verificação humana | Quando fazer | Evidência esperada | Já automatizado |
+|---|---|---|---|---|---|
+| C14 | ADMIN › Dashboard | Ler a memória de cálculo contra os números exibidos, com os dados reais (#144, #145). | Mudança em `dashboard.js`. | NPS, média, distribuição e comentários batem com a explicação e com as respostas reais. | Escopo e números com dados de exemplo (`teste-dashboard-escopo.js`). |
+| C15 | Avaliação de Produto/Serviço | Com contas reais "Avaliação" e "Avaliação + Arquitetura": os 6 passos de acesso ao vivo e a Documentação de Arquitetura (#164). | Deploy que muda regras do banco ou acessos da Avaliação. | Cada perfil vê e grava só o que deve; conceder/remover vale sem recarregar. | Regras no emulador (`teste-rules-perfis-avaliacao.js`) e telas (`teste-avaliacoes-acesso-ao-vivo.js`). |
+| C16 | Classificações e Taxonomia | No banco real: 11 classificações com nome vindo da Taxonomia, sem aviso de contingência para a conta "Avaliação"; ADMIN › Taxonomia só para admin; "11 de 11 ligadas" (#165, #167, #169). | Deploy que muda `taxonomia`, `classificacoes.js` ou regras. | Nomes vindos da Taxonomia; conta sem admin não lê a Taxonomia inteira; aviso de proteção incompleta ausente. | Emulador (`teste-rules-taxonomia*.js`) e telas (`teste-classificacoes-fonte-unica.js`, `teste-taxonomia*.js`). |
+| C17 | Motor arquitetural | Antes de publicar uma versão nova do motor: simular sobre as avaliações reais e decidir caso a caso (#161, #162). | Sempre que for publicar regra nova do motor. | Simulação revisada e a decisão registrada. | Editor e lógica (`teste-motor-adicionar-condicao.js`, `teste-conflito-naturezas.js`). |
+| C18 | Natureza complementar | Abrir o catálogo com a rede lenta de verdade (4G da sala) e salvar (#163). | Mudança em `naturezas-config.js`. | Mostra "Carregando…" e depois o catálogo; salvar confirma sem duplicar. | Rede lenta, troca de conta e salvamento repetido simulados (`teste-natureza-*.js`). |
