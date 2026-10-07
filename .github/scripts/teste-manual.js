@@ -113,7 +113,8 @@ const semRolagemLateral = (page) => page.evaluate(() => document.documentElement
 
       console.log('\n== 7. Fontes oficiais, provas e caminhos para Arquitetura/Taxonomia ==');
       const refs = await page.evaluate(() => {
-        const txt = (id) => (document.getElementById('manual-' + id) || {}).textContent || '';
+        /* Só a lista "Fonte oficial" conta: o botão ou o texto de apoio não substituem a fonte. */
+        const txt = (id) => ((document.getElementById('manual-' + id) || document).querySelector('.man-fonte') || {}).textContent || '';
         const provas = Array.from(document.querySelectorAll('.man-prova li')).map((li) => li.textContent.trim());
         const fontesVazias = Array.from(document.querySelectorAll('#manualAreas > .man-area')).filter((a) => !a.querySelector('.man-fonte li')).map((a) => a.id);
         return { taxNoProduto: /ADMIN › Taxonomia/.test(txt('avaliacao-produto')), taxNaTax: /ADMIN › Taxonomia/.test(txt('taxonomia')), arqNaArq: /ADMIN › Arquitetura/.test(txt('arquitetura')), provas, fontesVazias };
