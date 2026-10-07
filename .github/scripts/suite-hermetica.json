@@ -509,6 +509,12 @@
       "nome": "ADMIN › Manual: carga sob demanda, quatro dimensões, áreas, estados de turma (desktop e celular)",
       "duracao": 12,
       "sobre": "O Manual refeito na Etapa 6.2: só baixado quando a aba abre (rede lenta e falha com \"Tentar novamente\"), quatro dimensões de acesso e nove áreas, índice que leva até cada uma, sem nada do modelo antigo (filtro de Persona, contagem, exportação), \"Avaliar oficina\" × \"Avaliação de Produto/Serviço\", estados de turma coerentes com os botões do site, fontes oficiais e provas existentes, sem rolagem lateral; ADMIN sem Mapa/Testes e \"Avaliação + Arquitetura\" só com a Arquitetura."
+    },
+    {
+      "arquivo": ".github/scripts/teste-repositorio-login.js",
+      "nome": "Repositório: leituras esperam a sessão, login tardio, recusa e \"Tentar novamente\" (desktop e celular)",
+      "duracao": 48,
+      "sobre": "As três leituras do Repositório exigem login; antes eram abertas antes do login e, recusadas, deixavam a tela em \"Carregando conteúdos…\" para sempre (achado do Smoke com o Firebase real no PR #304). Prova: login pelo formulário com a página aberta carrega; sessão guardada carrega; recusa e espera longa viram aviso com \"Tentar novamente\", que refaz a leitura. O Firebase falso imita a recusa sem sessão e o cancelamento da escuta (__CFG.exigeLogin)."
     }
   ]
 }
