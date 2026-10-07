@@ -274,9 +274,24 @@ async function conferirVoltar(page, sel, rotuloEsperado, descricao) {
     await page.waitForSelector('#avpConfigQuestionariosBtn', { state: 'visible' });
     afirma(await hash() === '#admin?arq=inicio', 'o "← Voltar" da tela também acerta o endereço');
 
+    /* O "← Voltar" posiciona a tela inicial num requestAnimationFrame agendado no popstate
+       (rolarAdmin). Antes, o teste rolava logo depois do clique: com quadros atrasados (CI
+       headless) esse quadro rodava DEPOIS e levava a página de volta a 0, e o
+       scrollIntoViewIfNeeded abaixo trazia o cartão de volta à tela, em 50 px (borda inferior
+       do cartão − altura da janela). Era o "tela inicial rolada (50 px)" do CI: corrida do
+       teste, não da aplicação. Os quadros rodam na ordem em que foram pedidos, então dois
+       quadros pedidos agora só terminam depois do da aplicação. */
+    const quadros = (n) => page.evaluate((n) => new Promise((r) => { let i = 0; (function f() { if (++i >= n) r(); else requestAnimationFrame(f); })(); }), n + 1);
+    await quadros(2);
+    afirma(await page.evaluate(() => window.pageYOffset) === 0, 'depois do F5, o "← Voltar" leva a tela inicial ao topo');
+
     console.log('\n== Subtela abre no topo ==');
     /* sem animação: o site usa rolagem suave, e a posição lida no meio dela seria um ponto qualquer */
     await page.evaluate(() => window.scrollTo({ top: document.documentElement.scrollHeight, left: 0, behavior: 'instant' }));
+    await quadros(2);
+    /* medido antes de qualquer ação do Playwright que reposicione a página */
+    const fim = await page.evaluate(() => ({ y: Math.round(window.pageYOffset), max: document.documentElement.scrollHeight - window.innerHeight }));
+    afirma(fim.y === fim.max && fim.y > 100, 'a rolagem até o fim da tela inicial não é desfeita (' + fim.y + ' de ' + fim.max + ' px)');
     await page.locator('#avpConfigNaturezasBtn').scrollIntoViewIfNeeded();
     const yInicio = await page.evaluate(() => window.pageYOffset); /* onde a pessoa está ao tocar no cartão */
     afirma(yInicio > 100, 'tela inicial rolada (' + yInicio + ' px)');
