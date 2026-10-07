@@ -33,7 +33,7 @@ const PASSWORD = process.env.FA_TEST_ADMIN_PASSWORD;
 const MEMBER_EMAIL = process.env.FA_TEST_MEMBER_EMAIL;
 const MEMBER_PASSWORD = process.env.FA_TEST_MEMBER_PASSWORD;
 
-/* Usado como módulo (require), só exporta smokeComoAdmin — é assim que a suíte hermética
+/* Usado como módulo (require), só exporta smokeComoAdmin e verificarRepositorio — é assim que a suíte hermética
    confere que as checagens do Smoke continuam batendo com os seletores do site, sem rede. */
 const COMO_MODULO = require.main !== module;
 if (!COMO_MODULO && (!EMAIL || !PASSWORD)) {
@@ -81,6 +81,41 @@ async function submitLogin(page, email, password) {
     return { ok: false, errorText: (await page.textContent('#loginErr')).trim() };
   }
   return { ok: true, errorText: null };
+}
+
+/* ───────────── Repositório: o que conta como "terminou de carregar" ─────────────
+   A finalidade da checagem é provar que o Repositório REAL carregou. Desde o hotfix #305 o repo.js
+   não fica mais em espera infinita: uma leitura recusada, ou nenhuma resposta em 15 s, vira o aviso
+   "Não foi possível carregar os conteúdos agora" com "Tentar novamente". Esse aviso é a tela
+   funcionando como deve diante de um problema — não é o Repositório carregado. Por isso:
+     • cartões no #repoGrid                                       → passa;
+     • nada publicado (#repoEmpty visível, sem aviso de erro,
+       sem "Carregando…")                                         → passa, dizendo que estava vazio;
+     • aviso de erro (#repoErroCarregar)                          → REPROVA, dizendo que foi erro;
+     • "Carregando conteúdos…" até o limite                       → REPROVA por tempo esgotado.
+   Espera o PRIMEIRO estado final e o classifica; não espera o erro "passar". Exportada para
+   teste-smoke-seletores.js provar os quatro estados sem rede. */
+const MSG_ERRO_REPOSITORIO = 'Repositório mostrou estado de erro após a tentativa de carregamento';
+async function verificarRepositorio(page, limite) {
+  const ms = limite || 20000;
+  const h = await page.waitForFunction(() => {
+    const grade = document.getElementById('repoGrid');
+    if (!grade) return null;
+    const erro = document.getElementById('repoErroCarregar');
+    if (erro) return { estado: 'erro', texto: erro.textContent.replace(/\s+/g, ' ').trim() };
+    const n = grade.querySelectorAll('.repo-card').length;
+    if (n) return { estado: 'conteudo', n };
+    const carregando = Array.prototype.some.call(document.querySelectorAll('#page-repositorio .loading-msg'),
+      (el) => el.offsetParent !== null && /Carregando/i.test(el.textContent));
+    const vazio = document.getElementById('repoEmpty');
+    if (!carregando && vazio && !vazio.hidden && vazio.offsetParent !== null) return { estado: 'vazio', texto: vazio.textContent.trim() };
+    return null;
+  }, null, { timeout: ms }).catch(() => null);
+  if (!h) throw new Error('o Repositório não terminou de carregar em ' + Math.round(ms / 1000) + ' s (continuou em "Carregando conteúdos…")');
+  const r = await h.jsonValue();
+  if (r.estado === 'erro') throw new Error(MSG_ERRO_REPOSITORIO + ' — a tela mostrou: "' + r.texto + '"');
+  if (r.estado === 'vazio') return 'nenhum conteúdo publicado — estado vazio legítimo ("' + r.texto + '"), não erro';
+  return r.n + ' cartões';
 }
 
 /* ───────────── Smoke com a sessão admin já aberta ─────────────
@@ -192,10 +227,7 @@ async function smokeComoAdmin(page) {
 
   await checar('Repositório termina de carregar e mostra conteúdos', async () => {
     await irPara('repositorio');
-    await esperar(semCarregando, 'page-repositorio', 'o "Carregando conteúdos…" sumir');
-    const n = await page.evaluate(() => document.querySelectorAll('#repoGrid .repo-card').length);
-    if (!n) throw new Error('nenhum conteúdo no Repositório');
-    return n + ' cartões';
+    return verificarRepositorio(page);
   });
 
   await checar('Minha Área termina de carregar com algum estado e sem QR de check-in', async () => {
@@ -261,7 +293,7 @@ async function smokeComoAdmin(page) {
   return resultados.filter((r) => !r.ok).map((r) => ({ label: r.nome, err: r.detalhe }));
 }
 
-module.exports = { smokeComoAdmin };
+module.exports = { smokeComoAdmin, verificarRepositorio, MSG_ERRO_REPOSITORIO };
 
 if (!COMO_MODULO) (async () => {
   const browser = await chromium.launch();

@@ -501,7 +501,7 @@
     {
       "arquivo": ".github/scripts/teste-smoke-seletores.js",
       "nome": "Smoke: checagens batem com o site, sem a aba Testes, e reprovam dizendo o motivo",
-      "duracao": 35,
+      "duracao": 38,
       "sobre": "Roda as MESMAS checagens do Smoke (smokeComoAdmin de smoke-site-real.js) contra o Firebase falso: com o banco respondendo todas passam; com o Repositório travado, só aquela reprova e diz o que não chegou. Existe porque o Smoke real não bloqueia o merge — sem isto, um seletor mudado o deixaria vermelho sem ninguém notar."
     },
     {
