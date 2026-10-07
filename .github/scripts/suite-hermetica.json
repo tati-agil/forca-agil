@@ -427,6 +427,12 @@
       "sobre": "Carrega o motor-squad.js real (sem navegador) e compara Eixo A, Eixo B e indicação das 256 combinações completas de S1–S8 com a regra aprovada escrita à parte; nenhum INDETERMINADO, todas as regras A1–A3/B1–B3/C1–C5 alcançadas; validarRegrasCompletas recusa cada troca de SIM/NÃO que abre combinações sem resultado e publicarRegras recusa sem tocar no banco; prova inversa com C2/C3 trocados aponta a combinação exata."
     },
     {
+      "arquivo": ".github/scripts/teste-diagnostico-motor-v6.js",
+      "nome": "Motor P1–P16: diagnóstico da proposta de versão 6 (só simulação, nada publicado)",
+      "duracao": 20,
+      "sobre": "Hermético, só Node. A rotina diagnostico-motor-v6.js gera as 65.536 combinações, reconstrói a V5 igual ao identificarCamada real e compara V5 × variantes de V6 (conflitos P9–P16, Capacidade sem P1 = NÃO) com o mesmo executor do site; cada par conflitante da matriz vai para conflito e cada par compatível/subordinado/ambíguo fica como na V5; Capacidade A = B; incoerência continua primeira; P6/P7 sem efeito; P8 ainda exigido; nenhuma escrita no banco; prova inversa com o conflito novo depois de Canal. Não muda regra nenhuma do site."
+    },
+    {
       "arquivo": ".github/scripts/teste-squad-conclusao-motor.js",
       "nome": "Adequação à Squad: concluir pela tela usa a versão certa das regras (C1–C5, versão 2, regras atrasadas, trava no ADMIN)",
       "duracao": 11,
