@@ -427,6 +427,12 @@
       "sobre": "Carrega o motor-squad.js real (sem navegador) e compara Eixo A, Eixo B e indicação das 256 combinações completas de S1–S8 com a regra aprovada escrita à parte; nenhum INDETERMINADO, todas as regras A1–A3/B1–B3/C1–C5 alcançadas; validarRegrasCompletas recusa cada troca de SIM/NÃO que abre combinações sem resultado e publicarRegras recusa sem tocar no banco; prova inversa com C2/C3 trocados aponta a combinação exata."
     },
     {
+      "arquivo": ".github/scripts/teste-motor-squad-validador.js",
+      "nome": "Motor de Squad: o validador só aceita S1–S8 nos eixos e os resultados de eixo na combinação",
+      "duracao": 1,
+      "sobre": "Hermético, só Node, com o motor-squad.js real. As regras de fábrica continuam válidas e os 256 resultados iguais à regra aprovada; eixoA/eixoB recusam P1–P16, CLASSIFICACAO, LINHA, SQUAD, COE, AREA_ESPECIALIZADA e nomes inexistentes (direto, em \"não\" e em \"qualquer\") e valores fora de SIM/NÃO; a combinação só lê os resultados dos eixos, com valor que exista; mensagens dizem regra, nome e motivo; publicarRegras recusa sem tocar no banco."
+    },
+    {
       "arquivo": ".github/scripts/teste-squad-conclusao-motor.js",
       "nome": "Adequação à Squad: concluir pela tela usa a versão certa das regras (C1–C5, versão 2, regras atrasadas, trava no ADMIN)",
       "duracao": 11,

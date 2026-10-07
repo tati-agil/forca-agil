@@ -376,6 +376,47 @@
   function descreverCombinacao(respostas) {
     return PERGUNTAS.map(function (cod) { return cod + ' ' + (respostas[cod].resposta === 'sim' ? 'SIM' : 'NÃO'); }).join(' · ');
   }
+  /* Campos que cada grupo pode ler — validação ESTRUTURAL, não regra de
+     negócio. Os eixos leem só S1–S8; a combinação lê só os dois resultados
+     de eixo. Qualquer outro nome (P1–P16, classificação arquitetural, Linha,
+     Squad, CoE, Área Especializada, erro de digitação) é recusado: o
+     executor o leria como vazio e a condição nunca valeria, escondendo o
+     engano. Mesma proteção que o validador do motor arquitetural já tem
+     (CAMPOS_VALIDOS em motor-arquitetura.js). */
+  var CAMPOS_COMBINACAO = { necessidadeCapacidadeDedicada: 'eixoA', condicoesParaSquad: 'eixoB' };
+  var PERGUNTAS_ARQUITETURAIS = /^P([1-9]|1[0-6])$/;
+  var CAMPOS_DE_OUTRO_EIXO = ['CLASSIFICACAO', 'LINHA', 'SQUAD', 'COE', 'AREA_ESPECIALIZADA'];
+  function motivoCampoInvalido(campo) {
+    if (PERGUNTAS_ARQUITETURAIS.test(campo)) return '"' + campo + '" é pergunta do motor arquitetural (P1–P16), não do motor de squad';
+    if (CAMPOS_DE_OUTRO_EIXO.indexOf(String(campo).toUpperCase()) !== -1) return '"' + campo + '" é classificação arquitetural ou estrutura organizacional, e nunca entra no motor de squad';
+    return '"' + campo + '" não existe no motor de squad';
+  }
+  function validarCamposDaCondicao(cond, grupo, nomeRegra, erros) {
+    if (!cond || typeof cond !== 'object') { erros.push('A regra ' + nomeRegra + ' (' + grupo + ') tem uma condição vazia ou inválida.'); return; }
+    if (Array.isArray(cond.all) || Array.isArray(cond.any)) {
+      var lista = cond.all || cond.any;
+      if (!lista.length) erros.push('A regra ' + nomeRegra + ' (' + grupo + ') tem um grupo de condições vazio.');
+      lista.forEach(function (c) { validarCamposDaCondicao(c, grupo, nomeRegra, erros); });
+      return;
+    }
+    if (cond.not) { validarCamposDaCondicao(cond.not, grupo, nomeRegra, erros); return; }
+    if (cond.equals) { validarCamposDaCondicao(cond.equals, grupo, nomeRegra, erros); return; }
+    var campo = cond.campo || cond.pergunta;
+    var valor = normalizarValor(cond.valor != null ? cond.valor : cond.resposta);
+    if (!campo) { erros.push('A regra ' + nomeRegra + ' (' + grupo + ') tem uma condição sem pergunta.'); return; }
+    if (grupo === 'combinacao') {
+      var eixo = CAMPOS_COMBINACAO[campo];
+      if (!eixo) {
+        var porque = PERGUNTAS.indexOf(campo) !== -1 ? '"' + campo + '", que é pergunta (as perguntas só entram nos eixos A e B)' : motivoCampoInvalido(campo);
+        erros.push('A regra ' + nomeRegra + ' (combinacao) usa ' + porque + ' — a combinação só lê os resultados dos eixos A e B.');
+        return;
+      }
+      if (RESULTADOS_VALIDOS[eixo].indexOf(valor) === -1) erros.push('A regra ' + nomeRegra + ' (combinacao) compara ' + campo + ' com um resultado que não existe: ' + valor + '.');
+      return;
+    }
+    if (PERGUNTAS.indexOf(campo) === -1) { erros.push('A regra ' + nomeRegra + ' (' + grupo + ') usa ' + motivoCampoInvalido(campo) + ' — só S1 a S8 são aceitas.'); return; }
+    if (valor !== 'SIM' && valor !== 'NAO') erros.push('A regra ' + nomeRegra + ' (' + grupo + ') compara ' + campo + ' com "' + valor + '" — só SIM ou NÃO.');
+  }
   function validarRegrasCompletas(regras) {
     var estrutura = [];
     if (!regras || typeof regras !== 'object') {
@@ -390,6 +431,8 @@
           }
           if (!r || !r.condicoes || typeof r.condicoes !== 'object') {
             estrutura.push('A regra ' + ((r && r.codigo) || '?') + ' (' + grupo + ') não tem condições.');
+          } else {
+            validarCamposDaCondicao(r.condicoes, grupo, r.codigo || '?', estrutura);
           }
         });
       });
