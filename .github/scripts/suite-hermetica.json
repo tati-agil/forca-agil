@@ -491,6 +491,12 @@
       "nome": "Classificações da Avaliação: nome e definição vindos da Taxonomia Arquitetural, contingência e nome da época (desktop e 375 px)",
       "duracao": 150,
       "sobre": "O nome de cada classificação vem do conceito de MESMO código da Taxonomia Arquitetural (lista, filtro pelo código, ficha/resultado, histórico de versões, PDF, Excel, frase explicativa, contexto da Squad), ao vivo e sem recarregar; a definição é a da fonte apontada por definicaoVigenteFonteId (outra fonte também marcada vigente não aparece; trocar o ponteiro troca o texto); avaliação antiga mostra o nome atual e \"na conclusão: …\" (Excel com a coluna \"Rótulo registrado na conclusão\"), sem reescrever nada; Taxonomia lenta, que nunca responde ou recusada → rótulo de contingência com aviso discreto, e concluir grava resultado, camadaSugerida.id, decisão e respostas iguais aos de uma conclusão com a Taxonomia; o motor arquitetural não tem mais \"Editar textos\" (histórico antigo legível); Taxonomia › Arquitetural lista os conceitos-base da Avaliação e acusa o código sem conceito. Hermético; as regras ficam em teste-rules-perfis-avaliacao.js."
+    },
+    {
+      "arquivo": ".github/scripts/teste-repositorio-login.js",
+      "nome": "Repositório: leituras esperam a sessão, login tardio, recusa e \"Tentar novamente\" (desktop e celular)",
+      "duracao": 48,
+      "sobre": "As três leituras do Repositório exigem login; antes eram abertas antes do login e, recusadas, deixavam a tela em \"Carregando conteúdos…\" para sempre (achado do Smoke com o Firebase real no PR #304). Prova: login pelo formulário com a página aberta carrega; sessão guardada carrega; recusa e espera longa viram aviso com \"Tentar novamente\", que refaz a leitura. O Firebase falso imita a recusa sem sessão e o cancelamento da escuta (__CFG.exigeLogin)."
     }
   ]
 }

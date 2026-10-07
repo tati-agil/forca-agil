@@ -75,6 +75,14 @@
   function failsFor(path) {
     return (CFG.fail || []).some(function (p) { return String(path).indexOf(p) === 0; });
   }
+  /* __CFG.exigeLogin = [prefixos]: como as regras do banco real, leitura sem sessão nesses caminhos é
+     RECUSADA — e, como no Firebase de verdade, uma escuta (.on) recusada é CANCELADA e nunca volta
+     sozinha, nem depois do login. O estado de login vive em CFG.__logado porque o site carrega este
+     arquivo três vezes (app/database/auth) e as três cópias precisam concordar. */
+  if (!('__logado' in CFG)) CFG.__logado = CFG.user ? CFG.user.email : null;
+  function exigeLoginPara(path) {
+    return !CFG.__logado && (CFG.exigeLogin || []).some(function (p) { return String(path).indexOf(p) === 0; });
+  }
 
   /* Caminhos que só aceitam leitura FILTRADA (orderByChild + equalTo), como as
      regras do banco fazem com quem só tem o perfil "consulta" em
@@ -90,9 +98,11 @@
     var self = this;
     var p = new Promise(function (resolve, reject) {
       setTimeout(function () {
-        if (failsFor(self.path) || exigeFiltro(self)) {
+        var semLogin = exigeLoginPara(self.path);
+        if (semLogin || failsFor(self.path) || exigeFiltro(self)) {
           var e = new Error('PERMISSION_DENIED (falso): ' + self.path);
           e.code = 'PERMISSION_DENIED';
+          e.__semLogin = semLogin;
           if (err) err(e);
           reject(e);
           return;
@@ -106,8 +116,13 @@
     return p;
   };
   Ref.prototype.on = function (evt, ok, err) {
-    ouvintes.push({ path: this.path, cb: ok, filtro: this._temIgual ? { campo: this._ordem, valor: this._igual } : null });
-    this.once(evt, ok, err);
+    var ouvinte = { path: this.path, cb: ok, filtro: this._temIgual ? { campo: this._ordem, valor: this._igual } : null };
+    ouvintes.push(ouvinte);
+    this.once(evt, ok, function (e) {
+      /* recusa por falta de sessão cancela a escuta, como no Firebase real */
+      if (e && e.__semLogin) ouvintes = ouvintes.filter(function (l) { return l !== ouvinte; });
+      if (err) err(e);
+    });
     return ok;
   };
   Ref.prototype.off = function (evt, cb) {
@@ -400,11 +415,13 @@
             return Promise.reject(err2);
           }
           currentUser = novoUsuario(e);
+          CFG.__logado = e;
           authCbs.forEach(function (cb) { cb(currentUser); });
           return Promise.resolve({ user: currentUser });
         },
         signOut: function () {
           currentUser = null;
+          CFG.__logado = null;
           authCbs.forEach(function (cb) { cb(null); });
           return Promise.resolve();
         },

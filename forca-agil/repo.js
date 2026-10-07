@@ -219,25 +219,74 @@
   }
 
   // ---- Escuta Firebase em tempo real ----
-  function listenFirebase() {
-    try {
-      firebase.database().ref('holocron').orderByChild('createdAt')
-        .on('value', function(snapshot) {
-          const data = snapshot.val();
-          firebaseItems = [];
-          if (data) {
-            Object.keys(data).forEach(function(k) {
-              firebaseItems.push({ key: k, data: data[k] });
-            });
-            // mais recentes primeiro
-            firebaseItems.reverse();
-          }
-          render();
-        });
-    } catch(e) {
-      console.warn('Firebase holocron listen error:', e);
-      render();
+  /* As três leituras do Repositório (holocron, fa-seeds-hidden, fa-holocron-hidden) exigem login
+     nas regras do banco. Antes elas eram abertas no instante em que este script carregava — antes
+     do login. Para quem entrava pelo formulário com a página já aberta, o banco recusava as três, o
+     Firebase cancela uma escuta recusada e nunca a refaz, e os cartões (que só são desenhados
+     dentro dessas escutas) não apareciam nunca: a tela ficava em "Carregando conteúdos…" até
+     recarregar a página. Agora as escutas só abrem com sessão, são refeitas a cada login, e uma
+     recusa ou uma espera longa demais vira um aviso com "Tentar novamente" em vez de espera
+     infinita. Dado que chega depois do aviso ainda desenha os cartões normalmente. */
+  const LIMITE_ESPERA_MS = 15000;
+  let leituras = null;      // { refs: [...], limite: timeout } enquanto as escutas estão abertas
+  let respondeu = false;    // alguma das escutas já respondeu nesta abertura
+
+  function mostrarErroCarregamento() {
+    grid.innerHTML = '<p class="loading-msg" id="repoErroCarregar">Não foi possível carregar os conteúdos agora. ' +
+      '<button type="button" class="btn btn--sm" id="repoTentarDeNovo">Tentar novamente</button></p>';
+    if (emptyMsg) emptyMsg.hidden = true;
+    const b = document.getElementById('repoTentarDeNovo');
+    if (b) b.addEventListener('click', function () { pararLeituras(); iniciarLeituras(); });
+  }
+
+  function pararLeituras() {
+    if (!leituras) return;
+    clearTimeout(leituras.limite);
+    leituras.refs.forEach(function (r) { try { r.ref.off('value', r.cb); } catch (e) { /* já cancelada */ } });
+    leituras = null;
+  }
+
+  function iniciarLeituras() {
+    if (leituras) return;
+    respondeu = false;
+    grid.innerHTML = '<p class="loading-msg">Carregando conteúdos…</p>';
+    const aberta = { refs: [], limite: null };
+    leituras = aberta;
+    /* Recusa (permissão, sessão que caiu): encerra esta abertura e oferece tentar de novo. */
+    function recusada(erro) {
+      if (leituras !== aberta) return;
+      console.warn('[repo] leitura recusada:', erro && (erro.code || erro.message));
+      pararLeituras();
+      mostrarErroCarregamento();
     }
+    function ouvir(ref, aoChegar) {
+      const cb = function (snap) { if (leituras !== aberta) return; respondeu = true; aoChegar(snap); render(); };
+      aberta.refs.push({ ref: ref, cb: cb });
+      ref.on('value', cb, recusada);
+    }
+    try {
+      ouvir(firebase.database().ref('fa-seeds-hidden'), function (snap) { hiddenSeeds = snap.val() || {}; });
+      ouvir(firebase.database().ref('fa-holocron-hidden'), function (snap) { hiddenHolo = snap.val() || {}; });
+      ouvir(firebase.database().ref('holocron').orderByChild('createdAt'), function (snapshot) {
+        const data = snapshot.val();
+        firebaseItems = [];
+        if (data) {
+          Object.keys(data).forEach(function(k) {
+            firebaseItems.push({ key: k, data: data[k] });
+          });
+          // mais recentes primeiro
+          firebaseItems.reverse();
+        }
+      });
+    } catch (e) {
+      recusada(e);
+      return;
+    }
+    /* Nenhuma resposta a tempo (rede da sala): avisa, mas mantém as escutas — se o dado chegar
+       depois, render() troca o aviso pelos cartões. */
+    aberta.limite = setTimeout(function () {
+      if (leituras === aberta && !respondeu) mostrarErroCarregamento();
+    }, LIMITE_ESPERA_MS);
   }
 
   // ---- Filtros ----
@@ -376,16 +425,17 @@
   window.addEventListener('fa-auth-change', onAuthReady);
 
   // ---- Init ----
+  /* As leituras abrem quando há sessão (inclusive a que já vem guardada no navegador) e fecham ao
+     sair; trocar de conta fecha e reabre com a sessão nova. */
   try {
-    firebase.database().ref('fa-seeds-hidden').on('value', function(snap) {
-      hiddenSeeds = snap.val() || {};
-      render();
+    firebase.auth().onAuthStateChanged(function (user) {
+      pararLeituras();
+      if (user) iniciarLeituras();
+      else grid.innerHTML = '<p class="loading-msg">Carregando conteúdos…</p>';
     });
-    firebase.database().ref('fa-holocron-hidden').on('value', function(snap) {
-      hiddenHolo = snap.val() || {};
-      render();
-    });
-  } catch(e) {}
-  listenFirebase();
+  } catch (e) {
+    console.warn('[repo] autenticação indisponível:', e);
+    mostrarErroCarregamento();
+  }
 
 })();
