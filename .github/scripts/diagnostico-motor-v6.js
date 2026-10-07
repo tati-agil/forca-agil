@@ -219,6 +219,21 @@ const VARIANTES = {
       return renumerar(r);
     }
   },
+  'p15-relacao': {
+    titulo: 'P15 como relação (ilustrativa) — Componente deixa de ser natureza exclusiva',
+    descricao: 'Só para medir a alternativa B do diagnóstico de P15, sem as variantes de conflito/capacidade: o conflito da V5 passa a contar só P11–P14; Componente vira o caso residual (P15 = SIM e nenhuma outra natureza de P11–P14); Capacidade, Modalidade e Unidade de valor deixam de exigir P15 = NÃO. Produto/Serviço principal continua exigindo P15 = NÃO (P5 = SIM e "é componente de outro" se contradizem).',
+    montar(v5) {
+      const r = copia(v5);
+      const c = r.find((x) => x.codigo === 'CONFLITO_NATUREZAS');
+      c.condicoes = { all: [{ atLeast: 2, of: ['P11', 'P12', 'P13', 'P14'].map((campo) => ({ campo, valor: 'SIM' })) }] };
+      c.motivos = ['P11', 'P12', 'P13', 'P14'];
+      r.find((x) => x.codigo === 'COMPONENTE').condicoes.all.push({ campo: 'P11', valor: 'NAO' }, { campo: 'P13', valor: 'NAO' });
+      ['CAPACIDADE_ORGANIZACIONAL', 'MODALIDADE_SUBPRODUTO', 'UNIDADE_VALOR_ASSOCIADA'].forEach((cod) => {
+        const x = r.find((y) => y.codigo === cod); x.condicoes.all = x.condicoes.all.filter((f) => f.campo !== 'P15');
+      });
+      return renumerar(r);
+    }
+  },
   'cap-g': {
     titulo: 'Capacidade G — A com proteção do núcleo de Produto/Serviço',
     descricao: 'Como a A, mas o item que também cumpre TODO o núcleo de Produto/Serviço principal (P1, P2, P3, P4, P5 e P8 = SIM) continua em A validar: declarar "principalmente capacidade" e, ao mesmo tempo, atender tudo o que caracteriza um Produto/Serviço é contradição para análise humana.',
