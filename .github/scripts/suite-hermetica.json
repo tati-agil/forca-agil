@@ -451,6 +451,12 @@
       "sobre": "Com rede lenta, o perfil da Avaliação ou a lista de admins chega depois de a página aparecer e a pessoa já está rolando; o roteador refaz a decisão de rota (show(rota, true)) e, se ela continua na MESMA página, a posição é preservada (antes voltava ao topo — o \"tela inicial rolada (50 px)\" de teste-admin-navegacao.js no CI). Mudança real de página continua começando no topo. Confere que a informação tardia chegou DEPOIS da rolagem. Hermético."
     },
     {
+      "arquivo": ".github/scripts/teste-rolagem-voltar-carregamento.js",
+      "nome": "Arquitetura: rolagem tardia não desfaz a posição da tela ao voltar (F5 lento e máquina lenta; desktop e celular)",
+      "duracao": 17,
+      "sobre": "Duas causas, provadas em separado. 1) avaliacao-produto.js: a restauração de rolagem do navegador vale por entrada do histórico (a de chegada); as entradas #admin?arq= ficavam 'auto' e, com a página recarregada ainda carregando, o navegador rolava no fim do carregamento até a posição antiga (o \"tela inicial rolada (50 px)\" de teste-admin-navegacao.js no CI) — cenários 1 e 4, com o carregamento segurado. 2) router.js: ao voltar, o hashchange chega numa tarefa depois do popstate e a subida genérica ao topo desfazia a posição que a tela tinha devolvido — cenário 3, com a CPU 8x mais lenta. Também: a pessoa rolou antes do fim do carregamento → posição dela mantida; Voltar/Avançar do navegador; fora da Arquitetura continua 'auto'. Hermético."
+    },
+    {
       "arquivo": ".github/scripts/teste-taxonomia-atributos.js",
       "nome": "Taxonomia: \"Atributos / perfil\" recolhível (desktop e celular)",
       "duracao": 25,

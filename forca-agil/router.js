@@ -53,6 +53,7 @@
   }
   const inits   = {};
   let current = null;
+  let soAreaDaArquitetura = false; /* ver o hashchange, mais abaixo */
 
   function route() {
     const bruto = (location.hash || '').replace(/^#\/?/, '');
@@ -198,7 +199,7 @@
          troca o hash) não pode jogar a pessoa de volta ao topo: a lista
          restaura a posição em que ela estava ao voltar. Trocar DE página
          continua começando no topo. */
-      if (!(page === 'avaliacoes' && current === 'avaliacoes') && !(redecisao && current === page)) window.scrollTo({ top: 0, behavior: 'auto' });
+      if (!(page === 'avaliacoes' && current === 'avaliacoes') && !(redecisao && current === page) && !soAreaDaArquitetura) window.scrollTo({ top: 0, behavior: 'auto' });
       // Força elementos já revelados a aparecerem sem transição (evita re-trigger ao sair de display:none)
       el.querySelectorAll('.reveal').forEach(function (r) {
         r.style.transition = 'none';
@@ -230,7 +231,16 @@
     }
   }
 
-  window.addEventListener('hashchange', function () { show(route()); });
+  /* Andar entre áreas da Arquitetura (#admin?arq=… → #admin?arq=…, só pelo Voltar/Avançar) é como
+     trocar de subtela em #avaliacoes: quem posiciona é a própria tela (render/rolarAdmin em
+     avaliacao-produto.js, no popstate). O hashchange chega numa tarefa DEPOIS do popstate; em
+     máquina lenta, a subida genérica ao topo daqui rodava por último e desfazia a posição que a
+     tela tinha acabado de devolver. */
+  const ehAreaDaArquitetura = (url) => /#admin\?(?:[^#]*&)?arq=/.test(url || '');
+  window.addEventListener('hashchange', function (e) {
+    soAreaDaArquitetura = ehAreaDaArquitetura(e.oldURL) && ehAreaDaArquitetura(e.newURL);
+    try { show(route()); } finally { soAreaDaArquitetura = false; }
+  });
   document.addEventListener('DOMContentLoaded', function () { show(route()); });
 
   /* Backspace navegando pra trás no navegador — bug relatado num campo
