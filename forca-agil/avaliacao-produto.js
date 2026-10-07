@@ -2412,7 +2412,7 @@
       var desejado = '#admin?arq=' + area;
       if (location.hash === desejado) return;
       /* chegar à Arquitetura (sem área no endereço) não cria uma entrada a mais no histórico */
-      if (!areaDoEndereco()) { history.replaceState({ arq: area, seqArq: seqArqAtual() }, '', desejado); return; }
+      if (!areaDoEndereco()) { history.replaceState({ arq: area, seqArq: seqArqAtual() }, '', desejado); politicaRolagemAdmin(); return; }
       /* "← Voltar" da tela para a área de onde a pessoa veio = o Voltar do navegador (não empilha
          uma entrada nova; o Avançar continua funcionando). */
       var anterior = history.state && history.state.anteriorArq;
@@ -2420,17 +2420,28 @@
         /* o recuo do histórico faz o navegador restaurar a rolagem DELE — a posição certa é a
            desta tela (ver rolarAdmin), reaplicada depois que o recuo termina */
         var yVolta = state.tela === 'admin-inicio' ? (state.rolagemInicio || 0) : null;
-        var restauracao = history.scrollRestoration;
-        if ('scrollRestoration' in history) history.scrollRestoration = 'manual';
         window.addEventListener('popstate', function aposRecuo() {
           window.removeEventListener('popstate', aposRecuo);
           if (yVolta != null) rolarAdmin(yVolta);
-          setTimeout(function () { if ('scrollRestoration' in history) history.scrollRestoration = restauracao || 'auto'; }, 0);
         });
         history.back();
         return;
       }
       history.pushState({ arq: area, anteriorArq: areaDoEndereco() }, '', desejado);
+      politicaRolagemAdmin();
+    }
+    /* Quem posiciona a rolagem nas áreas da Arquitetura (#admin?arq=…) é esta tela (rolarAdmin, e o
+       router sobe ao topo a cada troca de endereço) — não o navegador. A restauração automática do
+       navegador é guardada POR ENTRADA do histórico: vale o modo da entrada para onde se volta, não
+       o da que se deixa. E, com a página recarregada ainda carregando (F5 em rede lenta), ela só é
+       aplicada no fim do carregamento: rolava a tela de volta para a posição antiga por cima da
+       escolhida aqui — e por cima de onde a pessoa já tinha rolado. Por isso toda entrada ?arq=
+       fica 'manual'; ao sair para outro endereço, a entrada nova volta a 'auto' (o modo é copiado
+       para a entrada seguinte, e as outras telas contam com a restauração do navegador). */
+    function politicaRolagemAdmin() {
+      if (modo !== 'admin' || !('scrollRestoration' in history)) return;
+      var desejada = areaDoEndereco() ? 'manual' : 'auto';
+      if (history.scrollRestoration !== desejada) history.scrollRestoration = desejada;
     }
     function seqArqAtual() { return history.state && history.state.seqArq || 0; }
     function edicaoSujaAdmin() {
@@ -2452,11 +2463,13 @@
     }
     /* Voltar/Avançar do navegador, link colado ou F5 com #admin?arq=<área>. */
     function aplicarEnderecoAdmin() {
+      politicaRolagemAdmin();
       var area = areaDoEndereco();
       if (!area || area === areaAtualAdmin()) return;
       if (edicaoSujaAdmin()) {
         var atual = areaAtualAdmin();
         history.pushState({ arq: atual }, '', '#admin?arq=' + atual); /* desfaz até a pessoa decidir */
+        politicaRolagemAdmin();
         avpConfirm('Há alterações que ainda não foram salvas. Se sair agora, elas não serão salvas como rascunho nem publicadas.\n\nSair mesmo assim?', function () {
           abrirAreaAdmin(area);
         });
@@ -8181,6 +8194,7 @@
          navegador e link colado; a troca para a aba Arquitetura grava o endereço da área atual. */
       window.addEventListener('popstate', aplicarEnderecoAdmin);
       window.addEventListener('hashchange', aplicarEnderecoAdmin);
+      politicaRolagemAdmin(); /* F5 / link direto numa área: a entrada atual já nasce 'manual' */
       window.addEventListener('fa-admin-aba-arquitetura', function () { sincronizarEnderecoAdmin(); });
       /* F5 / link direto em #admin?arq=<área>: abre a aba e a área de uma vez. */
       if (areaInicial) {
