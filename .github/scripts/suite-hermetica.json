@@ -427,6 +427,12 @@
       "sobre": "Carrega o motor-squad.js real (sem navegador) e compara Eixo A, Eixo B e indicação das 256 combinações completas de S1–S8 com a regra aprovada escrita à parte; nenhum INDETERMINADO, todas as regras A1–A3/B1–B3/C1–C5 alcançadas; validarRegrasCompletas recusa cada troca de SIM/NÃO que abre combinações sem resultado e publicarRegras recusa sem tocar no banco; prova inversa com C2/C3 trocados aponta a combinação exata."
     },
     {
+      "arquivo": ".github/scripts/teste-coerencia-motores.js",
+      "nome": "Motores P1–P16 e S1–S8: cada um responde só a sua pergunta (natureza × capacidade dedicada)",
+      "duracao": 11,
+      "sobre": "Hermético, só Node, com os motor-arquitetura.js e motor-squad.js reais. O P1–P16 ignora S1–S8, indicação de squad, Linha e CoE nas 65.536 combinações (e o editor recusa regra com S1–S8); o S1–S8 ignora P1–P16 e a classificação nas 256; nenhum vocabulário de saída invade o do outro motor ou o do Mapa da Floresta; os 10 casos do diagnóstico (Produto/Componente/Regra/Capacidade com e sem squad, domínio compartilhado, Linha, CoE, Área Especializada) rodados nos dois motores; A2 inclui S4 e S5 = NÃO; o eixo B só pesa com o eixo A demonstrado; nenhuma escrita. Não muda regra nenhuma do site."
+    },
+    {
       "arquivo": ".github/scripts/teste-diagnostico-motor-v6.js",
       "nome": "Motor P1–P16: diagnóstico da proposta de versão 6 (só simulação, nada publicado)",
       "duracao": 20,
