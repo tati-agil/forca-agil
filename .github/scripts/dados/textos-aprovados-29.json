@@ -1,0 +1,220 @@
+{
+  "origem": "Proposta revisada e aprovada literalmente pela responsável em 08/10/2026 (branch claude/product-service-classification-287q4j, commit 91167a6: seis ajustes 3, 5, 10, 11, 13 e 21 aplicados). Registro de referência: o teste confere que CORRECOES_EDITORIAIS traz exatamente estes 29 textos.",
+  "correcoes": [
+    {
+      "id": "semantica-p1-p16",
+      "codigo": "CLASSIFICACAO_ARQUITETURAL",
+      "ajustes": [
+        {
+          "pergunta": "P1",
+          "campo": "textoAjuda.significado",
+          "de": "Este critério verifica se existe alguém para quem a solução faz sentido e uma necessidade que justifica sua existência.",
+          "para": "Verifica se existe um cliente ou público identificável com uma necessidade concreta que o item atende. O destinatário pode ser externo (participantes, assistidos, patrocinadores) ou interno à PREVI (áreas, empregados). Ter um destinatário identificável não determina onde o item fica na organização nem qual estrutura cuida dele.",
+          "porque": "O texto atual pressupõe uma solução e não diz que o público pode ser interno; a justificativa passa a ser arquitetural (ter destinatário não define onde o item fica na organização), sem usar o Mapa da Floresta."
+        },
+        {
+          "pergunta": "P1",
+          "campo": "textoAjuda.quandoSim",
+          "de": "Existe um cliente/público identificável e uma necessidade concreta atendida pelo item.",
+          "para": "É possível dizer quem é o público, externo ou interno, e qual necessidade dele o item atende.",
+          "porque": "Explicita que o público pode ser externo ou interno."
+        },
+        {
+          "pergunta": "P1",
+          "campo": "textoAjuda.quandoNao",
+          "de": "O item existe principalmente por uma necessidade interna, administrativa, tecnológica ou operacional, sem uma necessidade de cliente claramente identificável.",
+          "para": "Não há cliente ou público identificável com uma necessidade concreta atendida pelo item; ele existe apenas por exigência técnica ou operacional. Se o item entrega resultado próprio a algum público, isso é avaliado em P2.",
+          "porque": "Hoje manda responder NÃO a toda necessidade interna, o que mistura natureza com destinatário. O novo texto remete o resultado a P2 sem absorvê-lo, para P1 não virar P2, e não fala em \"reconhecer\" o item, para P1 não se aproximar de P3."
+        },
+        {
+          "pergunta": "P5",
+          "campo": "textoAjuda.significado",
+          "de": "Resultado próprio, fronteira e mensuração não bastam: uma funcionalidade dentro de outro Produto/Serviço também pode ter tudo isso sem ser, ela mesma, uma solução independente. Este critério verifica a autonomia estrutural.",
+          "para": "Resultado próprio, fronteira e mensuração não bastam: uma funcionalidade dentro de outro Produto/Serviço também pode ter tudo isso sem ser, ela mesma, uma solução independente. Este critério verifica a autonomia estrutural. Avalie o objeto, não a equipe que cuida dele: se essa equipe depende de outras squads, isso é a Autonomia da equipe (S7), na Adequação à Squad.",
+          "porque": "Separa a autonomia do objeto (P5) da autonomia da equipe (S7)."
+        },
+        {
+          "pergunta": "P7",
+          "campo": "textoAjuda.significado",
+          "de": "O objetivo não é apenas medir quantidade de tarefas ou volume operacional. Deve ser possível medir se a solução está gerando seu resultado.",
+          "para": "O objetivo não é apenas medir quantidade de tarefas ou volume operacional. Deve ser possível medir se o item está produzindo o resultado que lhe é próprio. Não é necessário que o indicador exista atualmente nem que alguma equipe seja responsável por acompanhá-lo; isso é avaliado em Indicadores próprios (S3), na Adequação à Squad.",
+          "porque": "Separa P7 (o resultado pode ser medido) de S3 (indicadores existem e uma squad os move) e deixa de chamar o objeto de \"solução\" antes de classificá-lo."
+        },
+        {
+          "pergunta": "P8",
+          "campo": "textoAjuda.significado",
+          "de": "Avalie se seria possível atribuir responsabilidade sobre a evolução da solução, seu resultado, suas regras, sua experiência e seu desempenho.",
+          "para": "Avalie a coerência do objeto: se propósito, regras, experiência e resultado pertencem a um mesmo todo, a ponto de o item poder ser tratado como uma solução completa. Não avalie se existe hoje um responsável, uma equipe ou uma Squad; isso é tratado na Adequação à Squad.",
+          "porque": "Retira ownership (\"atribuir responsabilidade\"), que é S8. P8 passa a medir só a coerência do objeto como solução."
+        },
+        {
+          "pergunta": "P8",
+          "campo": "textoAjuda.quandoSim",
+          "de": "Existe uma unidade coerente passível de gestão ponta a ponta.",
+          "para": "Propósito, regras, experiência e resultado do item formam uma unidade coerente, que pode ser tratada como uma solução.",
+          "porque": "\"Passível de gestão\" sugeria gestão organizacional; o novo texto fala da unidade do objeto."
+        },
+        {
+          "pergunta": "P8",
+          "campo": "exemplo",
+          "de": "Um cartão consignado pode ter um dono responsável pela sua evolução; \"processamento de pagamentos\" em geral é transversal demais para isso.",
+          "para": "Um cartão consignado reúne contratação, regras, uso e resultado num mesmo todo; \"processamento de pagamentos\" atravessa várias soluções e não forma um todo próprio.",
+          "porque": "Retira \"um dono responsável pela sua evolução\"."
+        },
+        {
+          "pergunta": "P15",
+          "campo": "texto",
+          "de": "O item existe principalmente para que outro Produto/Serviço consiga entregar seu resultado?",
+          "para": "O item é principalmente um elemento estrutural que compõe outro Produto/Serviço?",
+          "porque": "A pergunta atual diz para que o item serve, e processos, regras e capacidades também servem a outros produtos. A nova diz o que o item é (\"elemento estrutural que compõe\", que aproxima da natureza Componente). Fica curta: a diferença para as outras naturezas vai para a ajuda."
+        },
+        {
+          "pergunta": "P15",
+          "campo": "textoAjuda.significado",
+          "de": null,
+          "para": "Responda SIM quando o item fizer sentido principalmente como um elemento que compõe outro Produto/Serviço, e não como uma oferta independente. Avalie o que o objeto é, e não apenas o fato de estar relacionado a outro Produto/Serviço. Componente é um elemento estrutural que integra ou sustenta a composição do Produto/Serviço ao qual está associado, sem constituir por si uma solução independente (P5). Não basta ser estrutural para a empresa: uma infraestrutura técnica geral, como servidores ou rede, só é Componente quando integra a composição daquele Produto/Serviço.",
+          "porque": "P15 não tinha ajuda. A nova diz o que é Componente e que o critério é integrar a composição do Produto/Serviço ao qual o item está associado, não ser estrutural para a empresa — para infraestrutura técnica geral não virar Componente automaticamente."
+        },
+        {
+          "pergunta": "P15",
+          "campo": "textoAjuda.quandoSim",
+          "de": null,
+          "para": "O item é um elemento estrutural que compõe ou sustenta uma ou mais soluções e não constitui, por si, uma solução independente. Exemplos: o motor de cálculo de um benefício; uma integração que leva dados do plano ao sistema de pagamento; uma base de dados específica que sustenta a entrega de um produto.",
+          "porque": "Dá a forma positiva de Componente, sem depender de o cliente perceber ou não o item, e sem excluir o componente reutilizado por vários Produtos/Serviços."
+        },
+        {
+          "pergunta": "P15",
+          "campo": "textoAjuda.quandoNao",
+          "de": null,
+          "para": "O item é uma solução por si (P5) ou se descreve melhor por outra natureza: um meio de interação é Canal (P9); um artefato informacional é Informação/Documento (P10); algo que a organização precisa saber ou fazer é Capacidade (P11); um encadeamento de atividades é Processo (P12); uma forma ou opção é Modalidade (P13); uma norma ou condição é Regra (P14); algo que se faz ou se opera dentro do produto é Funcionalidade (P16). Nesses casos responda NÃO aqui e SIM na pergunta correspondente.",
+          "porque": "Diz, uma por uma, o que é cada natureza vizinha e para onde vai cada caso que não é Componente. É aqui, e não na pergunta, que P15 se separa das outras sete."
+        },
+        {
+          "pergunta": "P15",
+          "campo": "exemplo",
+          "de": null,
+          "para": "É componente: o motor de cálculo do benefício do plano. Não são componentes: a concessão do benefício (Processo), o perfil de investimento (Modalidade), a carência (Regra), \"Simular benefício\" (Funcionalidade), a capacidade de análise atuarial (Capacidade), o aplicativo (Canal) e o extrato (Informação/Documento).",
+          "porque": "Um exemplo positivo e sete negativos, um para cada natureza vizinha, todos sem ambiguidade (por isso \"capacidade de análise atuarial\" e não \"gestão cadastral\", que pode ser lida como processo)."
+        },
+        {
+          "pergunta": "P15",
+          "campo": "ajudaExtra",
+          "de": "Pergunte: se o produto principal deixasse de existir, este item ainda faria sentido como uma solução independente para o cliente?",
+          "para": "",
+          "porque": "Repete o teste de P5 (o item faria sentido sozinho?), que é autonomia estrutural, não natureza Componente."
+        },
+        {
+          "pergunta": "P15",
+          "campo": "justSim",
+          "de": "SIM — O item existe de forma estruturalmente associada a outra solução e contribui para que essa solução entregue seu resultado.",
+          "para": "SIM — O item é principalmente um elemento estrutural que compõe outra solução, sem ser ele próprio uma solução independente nem outra das naturezas avaliadas.",
+          "porque": "A justificativa vigente (correção \"Interpretações de P5 e P15\") descreve uma relação; a nova acompanha a pergunta."
+        },
+        {
+          "pergunta": "P15",
+          "campo": "justNao",
+          "de": "NÃO — O item não existe principalmente como suporte estrutural para que outro Produto/Serviço entregue seu resultado.",
+          "para": "NÃO — O item não é principalmente um elemento estrutural que compõe outra solução: é uma solução por si ou se descreve melhor por outra natureza.",
+          "porque": "Acompanha a nova pergunta."
+        }
+      ]
+    },
+    {
+      "id": "semantica-s1-s8",
+      "codigo": "ADEQUACAO_SQUAD",
+      "ajustes": [
+        {
+          "pergunta": "S1",
+          "campo": "texto",
+          "de": "Existe demanda contínua e relevante para essa solução?",
+          "para": "Existe demanda contínua e relevante de trabalho sobre este item ou domínio?",
+          "porque": "Deixa claro que é demanda de trabalho e não chama o item de \"solução\"."
+        },
+        {
+          "pergunta": "S1",
+          "campo": "textoAjuda.significado",
+          "de": "Avalia se existe fluxo contínuo e relevante de demanda para a solução.",
+          "para": "Avalia se há fluxo contínuo e relevante de trabalho (mudanças, melhorias, solicitações) sobre o item ou domínio. Não é a necessidade do cliente, avaliada em P1.",
+          "porque": "Separa demanda de trabalho (S1) de necessidade do cliente (P1)."
+        },
+        {
+          "pergunta": "S1",
+          "campo": "justSim",
+          "de": "SIM — Existe demanda contínua e relevante para esta solução.",
+          "para": "SIM — Existe demanda contínua e relevante de trabalho sobre este item ou domínio.",
+          "porque": "Acompanha a nova pergunta."
+        },
+        {
+          "pergunta": "S3",
+          "campo": "textoAjuda.significado",
+          "de": "Avalia se a equipe conseguiria influenciar diretamente indicadores de resultado próprios.",
+          "para": "Avalia se a equipe conseguiria influenciar diretamente indicadores de resultado próprios. Este critério não define a natureza arquitetural do item: um resultado pode existir e ser mensurável (P2, P7) sem um indicador que uma squad consiga mover.",
+          "porque": "Diz que S3 não define a natureza do item e separa S3 de P2 e P7."
+        },
+        {
+          "pergunta": "S6",
+          "campo": "titulo",
+          "de": "Conhecimento/capacidades relativamente estáveis",
+          "para": "Conhecimentos e especialidades relativamente estáveis",
+          "porque": "\"Capacidades\" colidia com P11 (Capacidade organizacional). O título não fala em \"equipe\" porque a avaliação pode estar justamente decidindo se deve existir capacidade dedicada."
+        },
+        {
+          "pergunta": "S6",
+          "campo": "texto",
+          "de": "Existe um conjunto relativamente estável de conhecimentos e capacidades necessário para evoluir essa solução?",
+          "para": "Existe um conjunto relativamente estável de conhecimentos e especialidades necessário para evoluir este item ou domínio?",
+          "porque": "Troca \"capacidades\" por \"especialidades\" e \"essa solução\" por \"este item ou domínio\"."
+        },
+        {
+          "pergunta": "S6",
+          "campo": "justSim",
+          "de": "SIM — Existe um conjunto relativamente estável de conhecimentos e capacidades necessário.",
+          "para": "SIM — Existe um conjunto relativamente estável de conhecimentos e especialidades necessário.",
+          "porque": "Acompanha o novo título."
+        },
+        {
+          "pergunta": "S6",
+          "campo": "justNao",
+          "de": "NÃO — Não existe um conjunto relativamente estável de conhecimentos e capacidades necessário.",
+          "para": "NÃO — Não existe um conjunto relativamente estável de conhecimentos e especialidades necessário.",
+          "porque": "Acompanha o novo título."
+        },
+        {
+          "pergunta": "S7",
+          "campo": "textoAjuda.significado",
+          "de": "Avalia se uma squad conseguiria melhorar o resultado sem depender continuamente de outras squads para praticamente todas as decisões ou entregas.",
+          "para": "Avalia se uma squad conseguiria melhorar o resultado sem depender continuamente de outras squads para praticamente todas as decisões ou entregas. Avalie a equipe, não o objeto: um item sem autonomia estrutural (P5 = NÃO), como um Componente, pode ser cuidado por uma equipe autônoma, e um Produto/Serviço autônomo pode ser cuidado por uma equipe que depende de outras squads.",
+          "porque": "Frase de contraste com P5: avalia a equipe, não o objeto."
+        },
+        {
+          "pergunta": "S8",
+          "campo": "texto",
+          "de": "Existe um responsável claro pelo resultado dessa solução?",
+          "para": "Existe um responsável claro pelo resultado deste item ou domínio?",
+          "porque": "Não chama o item de \"solução\"; o motor de Squad avalia qualquer item ou domínio."
+        },
+        {
+          "pergunta": "S8",
+          "campo": "textoAjuda.significado",
+          "de": "Avalia se existe alguém ou uma estrutura de responsabilidade clara pelo resultado da solução.",
+          "para": "Avalia se existe hoje alguém ou uma estrutura de responsabilidade clara pelo resultado do item ou domínio. Não confunda com P8, que pergunta se o objeto forma uma solução coerente: um Produto/Serviço pode estar sem responsável claro.",
+          "porque": "Diz que é a situação de hoje (ownership) e separa de P8."
+        },
+        {
+          "pergunta": "S8",
+          "campo": "justSim",
+          "de": "SIM — Existe um responsável claro pelo resultado desta solução.",
+          "para": "SIM — Existe um responsável claro pelo resultado deste item ou domínio.",
+          "porque": "Acompanha a nova pergunta."
+        },
+        {
+          "pergunta": "S8",
+          "campo": "justNao",
+          "de": "NÃO — Não existe um responsável claro pelo resultado desta solução.",
+          "para": "NÃO — Não existe um responsável claro pelo resultado deste item ou domínio.",
+          "porque": "Acompanha a nova pergunta."
+        }
+      ]
+    }
+  ]
+}

@@ -308,11 +308,21 @@
      mudaria o histórico. Nada aqui toca em motorVersion,
      motorVersionArquitetura, regras do motor ou avaliações já feitas.
 
-     Cada ajuste só é aplicado se o texto VIGENTE ainda for exatamente o
-     texto anterior conhecido ("de"): se alguém já editou aquele campo por
-     conta própria, a edição dela é respeitada e o ajuste é ignorado
-     (situação 'divergente'); se já estiver igual ao novo ("para"), nada a
-     fazer ('aplicada'). Idempotente. */
+     Cada ajuste só é aplicado se o texto VIGENTE ainda for exatamente um
+     texto anterior CONHECIDO: o "de" do ajuste ou um texto que outra
+     correção desta lista, ANTERIOR a ela, deu ou tirou daquele mesmo campo
+     (ex.: P15 justSim — o de fábrica ou o de 'interpretacoes-p5-p15', valha
+     qual estiver em vigor). Se alguém já editou aquele campo por conta
+     própria, a edição dela é respeitada e o ajuste é ignorado (situação
+     'divergente', mostrada lado a lado no ADMIN); se já estiver igual ao
+     novo ("para"), nada a fazer ('aplicada'); se uma correção POSTERIOR já
+     levou o campo ao texto dela, o ajuste desta foi 'substituida'.
+     Idempotente.
+
+     campo com ponto ('textoAjuda.significado') = subcampo de um objeto.
+     de: null = o campo NÃO existe hoje (ajuste cria o campo);
+     para: ''  = o campo é RETIRADO (ajuste remove; um objeto de ajuda que
+     fica vazio também sai). */
   var CORRECOES_EDITORIAIS = [
     {
       id: 'interpretacoes-p5-p15',
@@ -331,42 +341,215 @@
           de: 'NÃO — O item demonstra maior independência em relação a outras soluções.',
           para: 'NÃO — O item não existe principalmente como suporte estrutural para que outro Produto/Serviço entregue seu resultado.' }
       ]
+    },
+    /* Os 29 textos aprovados pela responsável (P1–P16 e S1–S8), na redação
+       literal da proposta revisada — ver teste-correcao-editorial-29-textos.js,
+       que confere cada "de" contra o conteúdo de fábrica (PADRAO) ou contra
+       a correção anterior e cada "para" contra a lista aprovada. */
+    {
+      id: 'semantica-p1-p16',
+      codigo: 'CLASSIFICACAO_ARQUITETURAL',
+      titulo: 'Textos aprovados de P1–P16 (natureza do objeto)',
+      descricao: 'Redação aprovada para P1, P5, P7, P8 e P15: as perguntas falam só da natureza do objeto, e não da equipe, da demanda ou do responsável (isso é a Adequação à Squad). P15 passa a perguntar se o item é um elemento estrutural que compõe outro Produto/Serviço, ganha ajuda e exemplo próprios e perde a ajuda extra antiga, que repetia o teste de P5. Nenhuma regra do motor muda.',
+      ajustes: [
+        { pergunta: 'P1', campo: 'textoAjuda.significado',
+          de: 'Este critério verifica se existe alguém para quem a solução faz sentido e uma necessidade que justifica sua existência.',
+          para: 'Verifica se existe um cliente ou público identificável com uma necessidade concreta que o item atende. O destinatário pode ser externo (participantes, assistidos, patrocinadores) ou interno à PREVI (áreas, empregados). Ter um destinatário identificável não determina onde o item fica na organização nem qual estrutura cuida dele.' },
+        { pergunta: 'P1', campo: 'textoAjuda.quandoSim',
+          de: 'Existe um cliente/público identificável e uma necessidade concreta atendida pelo item.',
+          para: 'É possível dizer quem é o público, externo ou interno, e qual necessidade dele o item atende.' },
+        { pergunta: 'P1', campo: 'textoAjuda.quandoNao',
+          de: 'O item existe principalmente por uma necessidade interna, administrativa, tecnológica ou operacional, sem uma necessidade de cliente claramente identificável.',
+          para: 'Não há cliente ou público identificável com uma necessidade concreta atendida pelo item; ele existe apenas por exigência técnica ou operacional. Se o item entrega resultado próprio a algum público, isso é avaliado em P2.' },
+        { pergunta: 'P5', campo: 'textoAjuda.significado',
+          de: 'Resultado próprio, fronteira e mensuração não bastam: uma funcionalidade dentro de outro Produto/Serviço também pode ter tudo isso sem ser, ela mesma, uma solução independente. Este critério verifica a autonomia estrutural.',
+          para: 'Resultado próprio, fronteira e mensuração não bastam: uma funcionalidade dentro de outro Produto/Serviço também pode ter tudo isso sem ser, ela mesma, uma solução independente. Este critério verifica a autonomia estrutural. Avalie o objeto, não a equipe que cuida dele: se essa equipe depende de outras squads, isso é a Autonomia da equipe (S7), na Adequação à Squad.' },
+        { pergunta: 'P7', campo: 'textoAjuda.significado',
+          de: 'O objetivo não é apenas medir quantidade de tarefas ou volume operacional. Deve ser possível medir se a solução está gerando seu resultado.',
+          para: 'O objetivo não é apenas medir quantidade de tarefas ou volume operacional. Deve ser possível medir se o item está produzindo o resultado que lhe é próprio. Não é necessário que o indicador exista atualmente nem que alguma equipe seja responsável por acompanhá-lo; isso é avaliado em Indicadores próprios (S3), na Adequação à Squad.' },
+        { pergunta: 'P8', campo: 'textoAjuda.significado',
+          de: 'Avalie se seria possível atribuir responsabilidade sobre a evolução da solução, seu resultado, suas regras, sua experiência e seu desempenho.',
+          para: 'Avalie a coerência do objeto: se propósito, regras, experiência e resultado pertencem a um mesmo todo, a ponto de o item poder ser tratado como uma solução completa. Não avalie se existe hoje um responsável, uma equipe ou uma Squad; isso é tratado na Adequação à Squad.' },
+        { pergunta: 'P8', campo: 'textoAjuda.quandoSim',
+          de: 'Existe uma unidade coerente passível de gestão ponta a ponta.',
+          para: 'Propósito, regras, experiência e resultado do item formam uma unidade coerente, que pode ser tratada como uma solução.' },
+        { pergunta: 'P8', campo: 'exemplo',
+          de: 'Um cartão consignado pode ter um dono responsável pela sua evolução; "processamento de pagamentos" em geral é transversal demais para isso.',
+          para: 'Um cartão consignado reúne contratação, regras, uso e resultado num mesmo todo; "processamento de pagamentos" atravessa várias soluções e não forma um todo próprio.' },
+        { pergunta: 'P15', campo: 'texto',
+          de: 'O item existe principalmente para que outro Produto/Serviço consiga entregar seu resultado?',
+          para: 'O item é principalmente um elemento estrutural que compõe outro Produto/Serviço?' },
+        { pergunta: 'P15', campo: 'textoAjuda.significado',
+          de: null,
+          para: 'Responda SIM quando o item fizer sentido principalmente como um elemento que compõe outro Produto/Serviço, e não como uma oferta independente. Avalie o que o objeto é, e não apenas o fato de estar relacionado a outro Produto/Serviço. Componente é um elemento estrutural que integra ou sustenta a composição do Produto/Serviço ao qual está associado, sem constituir por si uma solução independente (P5). Não basta ser estrutural para a empresa: uma infraestrutura técnica geral, como servidores ou rede, só é Componente quando integra a composição daquele Produto/Serviço.' },
+        { pergunta: 'P15', campo: 'textoAjuda.quandoSim',
+          de: null,
+          para: 'O item é um elemento estrutural que compõe ou sustenta uma ou mais soluções e não constitui, por si, uma solução independente. Exemplos: o motor de cálculo de um benefício; uma integração que leva dados do plano ao sistema de pagamento; uma base de dados específica que sustenta a entrega de um produto.' },
+        { pergunta: 'P15', campo: 'textoAjuda.quandoNao',
+          de: null,
+          para: 'O item é uma solução por si (P5) ou se descreve melhor por outra natureza: um meio de interação é Canal (P9); um artefato informacional é Informação/Documento (P10); algo que a organização precisa saber ou fazer é Capacidade (P11); um encadeamento de atividades é Processo (P12); uma forma ou opção é Modalidade (P13); uma norma ou condição é Regra (P14); algo que se faz ou se opera dentro do produto é Funcionalidade (P16). Nesses casos responda NÃO aqui e SIM na pergunta correspondente.' },
+        { pergunta: 'P15', campo: 'exemplo',
+          de: null,
+          para: 'É componente: o motor de cálculo do benefício do plano. Não são componentes: a concessão do benefício (Processo), o perfil de investimento (Modalidade), a carência (Regra), "Simular benefício" (Funcionalidade), a capacidade de análise atuarial (Capacidade), o aplicativo (Canal) e o extrato (Informação/Documento).' },
+        { pergunta: 'P15', campo: 'ajudaExtra',
+          de: 'Pergunte: se o produto principal deixasse de existir, este item ainda faria sentido como uma solução independente para o cliente?',
+          para: '' },
+        { pergunta: 'P15', campo: 'justSim',
+          de: 'SIM — O item existe de forma estruturalmente associada a outra solução e contribui para que essa solução entregue seu resultado.',
+          para: 'SIM — O item é principalmente um elemento estrutural que compõe outra solução, sem ser ele próprio uma solução independente nem outra das naturezas avaliadas.' },
+        { pergunta: 'P15', campo: 'justNao',
+          de: 'NÃO — O item não existe principalmente como suporte estrutural para que outro Produto/Serviço entregue seu resultado.',
+          para: 'NÃO — O item não é principalmente um elemento estrutural que compõe outra solução: é uma solução por si ou se descreve melhor por outra natureza.' }
+      ]
+    },
+    {
+      id: 'semantica-s1-s8',
+      codigo: 'ADEQUACAO_SQUAD',
+      titulo: 'Textos aprovados de S1–S8 (trabalho e equipe)',
+      descricao: 'Redação aprovada para S1, S3, S6, S7 e S8: as perguntas falam do trabalho e da equipe que cuida do item, e não do que o item é (isso é a classificação P1–P16). Nenhuma regra do motor muda.',
+      ajustes: [
+        { pergunta: 'S1', campo: 'texto',
+          de: 'Existe demanda contínua e relevante para essa solução?',
+          para: 'Existe demanda contínua e relevante de trabalho sobre este item ou domínio?' },
+        { pergunta: 'S1', campo: 'textoAjuda.significado',
+          de: 'Avalia se existe fluxo contínuo e relevante de demanda para a solução.',
+          para: 'Avalia se há fluxo contínuo e relevante de trabalho (mudanças, melhorias, solicitações) sobre o item ou domínio. Não é a necessidade do cliente, avaliada em P1.' },
+        { pergunta: 'S1', campo: 'justSim',
+          de: 'SIM — Existe demanda contínua e relevante para esta solução.',
+          para: 'SIM — Existe demanda contínua e relevante de trabalho sobre este item ou domínio.' },
+        { pergunta: 'S3', campo: 'textoAjuda.significado',
+          de: 'Avalia se a equipe conseguiria influenciar diretamente indicadores de resultado próprios.',
+          para: 'Avalia se a equipe conseguiria influenciar diretamente indicadores de resultado próprios. Este critério não define a natureza arquitetural do item: um resultado pode existir e ser mensurável (P2, P7) sem um indicador que uma squad consiga mover.' },
+        { pergunta: 'S6', campo: 'titulo',
+          de: 'Conhecimento/capacidades relativamente estáveis',
+          para: 'Conhecimentos e especialidades relativamente estáveis' },
+        { pergunta: 'S6', campo: 'texto',
+          de: 'Existe um conjunto relativamente estável de conhecimentos e capacidades necessário para evoluir essa solução?',
+          para: 'Existe um conjunto relativamente estável de conhecimentos e especialidades necessário para evoluir este item ou domínio?' },
+        { pergunta: 'S6', campo: 'justSim',
+          de: 'SIM — Existe um conjunto relativamente estável de conhecimentos e capacidades necessário.',
+          para: 'SIM — Existe um conjunto relativamente estável de conhecimentos e especialidades necessário.' },
+        { pergunta: 'S6', campo: 'justNao',
+          de: 'NÃO — Não existe um conjunto relativamente estável de conhecimentos e capacidades necessário.',
+          para: 'NÃO — Não existe um conjunto relativamente estável de conhecimentos e especialidades necessário.' },
+        { pergunta: 'S7', campo: 'textoAjuda.significado',
+          de: 'Avalia se uma squad conseguiria melhorar o resultado sem depender continuamente de outras squads para praticamente todas as decisões ou entregas.',
+          para: 'Avalia se uma squad conseguiria melhorar o resultado sem depender continuamente de outras squads para praticamente todas as decisões ou entregas. Avalie a equipe, não o objeto: um item sem autonomia estrutural (P5 = NÃO), como um Componente, pode ser cuidado por uma equipe autônoma, e um Produto/Serviço autônomo pode ser cuidado por uma equipe que depende de outras squads.' },
+        { pergunta: 'S8', campo: 'texto',
+          de: 'Existe um responsável claro pelo resultado dessa solução?',
+          para: 'Existe um responsável claro pelo resultado deste item ou domínio?' },
+        { pergunta: 'S8', campo: 'textoAjuda.significado',
+          de: 'Avalia se existe alguém ou uma estrutura de responsabilidade clara pelo resultado da solução.',
+          para: 'Avalia se existe hoje alguém ou uma estrutura de responsabilidade clara pelo resultado do item ou domínio. Não confunda com P8, que pergunta se o objeto forma uma solução coerente: um Produto/Serviço pode estar sem responsável claro.' },
+        { pergunta: 'S8', campo: 'justSim',
+          de: 'SIM — Existe um responsável claro pelo resultado desta solução.',
+          para: 'SIM — Existe um responsável claro pelo resultado deste item ou domínio.' },
+        { pergunta: 'S8', campo: 'justNao',
+          de: 'NÃO — Não existe um responsável claro pelo resultado desta solução.',
+          para: 'NÃO — Não existe um responsável claro pelo resultado deste item ou domínio.' }
+      ]
     }
   ];
   function correcaoPorId(id) { return CORRECOES_EDITORIAIS.filter(function (c) { return c.id === id; })[0] || null; }
   function listarCorrecoesEditoriais(codigo) {
     return CORRECOES_EDITORIAIS.filter(function (c) { return !codigo || c.codigo === codigo; });
   }
-  function textoVigente(codigo, pergunta, campo) {
-    var p = perguntasDaVersao(codigo, versaoAtual(codigo)).filter(function (x) { return x.codigoEstavel === pergunta; })[0];
-    return p ? p[campo] : undefined;
+  /* Campo com ponto = subcampo (textoAjuda.significado). Ausente, null e ''
+     são a mesma coisa: "o campo não existe". */
+  function lerCampo(p, campo) {
+    var partes = campo.split('.');
+    var v = p;
+    for (var i = 0; i < partes.length; i++) {
+      if (v == null || typeof v !== 'object') return undefined;
+      v = v[partes[i]];
+    }
+    return v;
   }
+  function vazio(v) { return v == null || v === ''; }
+  /* Grava (ou, com valor vazio, retira) o campo na pergunta. Um objeto de
+     ajuda que fica sem nenhum subcampo também sai, para não publicar "{}". */
+  function gravarCampo(p, campo, valor) {
+    var partes = campo.split('.');
+    var alvo = p;
+    for (var i = 0; i < partes.length - 1; i++) {
+      if (alvo[partes[i]] == null || typeof alvo[partes[i]] !== 'object') {
+        if (vazio(valor)) return;
+        alvo[partes[i]] = {};
+      }
+      alvo = alvo[partes[i]];
+    }
+    var folha = partes[partes.length - 1];
+    if (vazio(valor)) delete alvo[folha]; else alvo[folha] = valor;
+    if (partes.length > 1 && !Object.keys(alvo).length) delete p[partes[0]];
+  }
+  function valorVigente(codigo, pergunta, campo) {
+    var p = perguntasDaVersao(codigo, versaoAtual(codigo)).filter(function (x) { return x.codigoEstavel === pergunta; })[0];
+    return p ? lerCampo(p, campo) : undefined;
+  }
+  /* Textos que o campo pode ter SEM que ninguém o tenha editado à mão: o "de"
+     do próprio ajuste e o que correções ANTERIORES da lista deram ou tiraram
+     daquele campo. Nunca o "para" de uma correção posterior (ver 'substituida'). */
+  function textosConhecidos(corr, aj) {
+    var conhecidos = [aj.de];
+    for (var i = 0; i < CORRECOES_EDITORIAIS.length && CORRECOES_EDITORIAIS[i] !== corr; i++) {
+      var outra = CORRECOES_EDITORIAIS[i];
+      if (outra.codigo !== corr.codigo) continue;
+      outra.ajustes.forEach(function (o) {
+        if (o.pergunta === aj.pergunta && o.campo === aj.campo) conhecidos.push(o.de, o.para);
+      });
+    }
+    return conhecidos;
+  }
+  function textosPosteriores(corr, aj) {
+    var depois = [], passou = false;
+    CORRECOES_EDITORIAIS.forEach(function (outra) {
+      if (outra === corr) { passou = true; return; }
+      if (!passou || outra.codigo !== corr.codigo) return;
+      outra.ajustes.forEach(function (o) {
+        if (o.pergunta === aj.pergunta && o.campo === aj.campo) depois.push(o.para);
+      });
+    });
+    return depois;
+  }
+  function mesmoTexto(a, b) { return vazio(a) ? vazio(b) : a === b; }
+  function contem(lista, v) { return lista.some(function (x) { return mesmoTexto(x, v); }); }
   /* Situação de cada ajuste contra o conteúdo VIGENTE agora:
-     'pendente' (texto ainda é o anterior conhecido), 'aplicada' (já é o
-     novo), 'divergente' (outro texto — edição própria, respeitada). */
+     'pendente' (o campo ainda tem um texto anterior conhecido — ou não
+     existe, quando o ajuste o cria), 'aplicada' (já é o novo),
+     'substituida' (uma correção posterior já o levou ao texto dela),
+     'divergente' (outro texto — edição própria, respeitada e nunca
+     sobrescrita). tipo: 'alterar' | 'criar' (de null) | 'remover' (para ''). */
   function situacaoCorrecaoEditorial(id) {
     var corr = correcaoPorId(id);
     if (!corr) return null;
     var ajustes = corr.ajustes.map(function (aj) {
-      var atual = textoVigente(corr.codigo, aj.pergunta, aj.campo);
-      var estado = atual === aj.para ? 'aplicada' : (atual === aj.de ? 'pendente' : 'divergente');
-      return { pergunta: aj.pergunta, campo: aj.campo, de: aj.de, para: aj.para, atual: atual, estado: estado };
+      var atual = valorVigente(corr.codigo, aj.pergunta, aj.campo);
+      var estado = mesmoTexto(atual, aj.para) ? 'aplicada'
+        : contem(textosConhecidos(corr, aj), atual) ? 'pendente'
+        : contem(textosPosteriores(corr, aj), atual) ? 'substituida' : 'divergente';
+      var tipo = aj.de === null ? 'criar' : vazio(aj.para) ? 'remover' : 'alterar';
+      return { pergunta: aj.pergunta, campo: aj.campo, de: aj.de, para: aj.para, atual: vazio(atual) ? null : atual, estado: estado, tipo: tipo };
     });
-    var pendentes = ajustes.filter(function (a) { return a.estado === 'pendente'; }).length;
-    var divergentes = ajustes.filter(function (a) { return a.estado === 'divergente'; }).length;
+    var conta = function (campo, valor) { return ajustes.filter(function (a) { return a[campo] === valor; }).length; };
+    var pendentes = conta('estado', 'pendente');
+    var divergentes = conta('estado', 'divergente');
+    var pendentesDo = function (tipo) { return ajustes.filter(function (a) { return a.estado === 'pendente' && a.tipo === tipo; }).length; };
     return {
       id: corr.id, codigo: corr.codigo, titulo: corr.titulo, descricao: corr.descricao, ajustes: ajustes,
       pendentes: pendentes, divergentes: divergentes,
+      aAlterar: pendentesDo('alterar'), aCriar: pendentesDo('criar'), aRemover: pendentesDo('remover'),
+      jaAplicados: conta('estado', 'aplicada'), substituidos: conta('estado', 'substituida'),
       aplicada: pendentes === 0 && divergentes === 0,
       haRascunho: !!rascunhoAtual(corr.codigo),
       carregada: configCarregada(corr.codigo),
       versaoAtual: versaoAtual(corr.codigo)
     };
   }
-  /* Publica a correção como uma versão NOVA. Nunca às cegas: exige a config
-     do servidor carregada e nenhum rascunho em andamento (publicar limpa o
-     rascunho — descartaria o trabalho de outra pessoa). cb(erro|null,
-     {novaVersao, aplicados, ignorados}). */
+  /* Publica a correção como uma versão NOVA (publicarConteudo). Nunca às
+     cegas: exige a config do servidor carregada e nenhum rascunho em
+     andamento (publicar limpa o rascunho — descartaria o trabalho de outra
+     pessoa). Só os ajustes 'pendente' entram; 'divergente' nunca é tocado.
+     cb(erro|null, {novaVersao, aplicados, ignorados}). */
   function aplicarCorrecaoEditorial(id, usuario, cb) {
     var corr = correcaoPorId(id);
     if (!corr) { cb('correcao-desconhecida'); return; }
@@ -379,7 +562,7 @@
     situacaoAntes.ajustes.forEach(function (aj) {
       if (aj.estado !== 'pendente') { if (aj.estado === 'divergente') ignorados.push(aj.pergunta + '.' + aj.campo); return; }
       var p = perguntas.filter(function (x) { return x.codigoEstavel === aj.pergunta; })[0];
-      p[aj.campo] = aj.para;
+      gravarCampo(p, aj.campo, aj.para);
       aplicados.push(aj.pergunta + '.' + aj.campo);
     });
     publicarConteudo(corr.codigo, perguntas, usuario, function (err, info) {

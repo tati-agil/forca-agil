@@ -112,10 +112,11 @@
         'Mudança de regra do motor só vale depois de simulada e publicada; cada publicação cria uma versão nova.',
         'O Mapa da Floresta e os documentos são mantidos na própria tela de Documentação e mapas; o Manual não copia o conteúdo.',
         'Tudo o que muda fica no histórico de auditoria; nada é apagado (documentos são arquivados).',
+        'Correção editorial de questionário vinda do código só vale quando alguém clica em Aplicar: cria uma versão nova e nunca sobrescreve um texto editado à mão (aparece como divergente, para conferir caso a caso).',
       ],
       links: [{ texto: 'Abrir ADMIN › Arquitetura', aba: 'adminPanelArquitetura' }],
       fonte: ['ADMIN › Arquitetura (a própria tela)', 'database.rules.json'],
-      prova: ['teste-mapa-floresta.js', 'teste-arquitetura-documentacao.js', 'teste-motor-adicionar-condicao.js', 'teste-rules-perfis-avaliacao.js'] },
+      prova: ['teste-mapa-floresta.js', 'teste-arquitetura-documentacao.js', 'teste-motor-adicionar-condicao.js', 'teste-rules-perfis-avaliacao.js', 'teste-correcao-editorial-29-textos.js'] },
 
     { id: 'taxonomia', titulo: 'Taxonomia',
       oque: 'O dicionário de conceitos em dois domínios: arquitetural ("o que é o item?") e organizacional ("que tipo de estrutura é esta?").',

@@ -433,6 +433,12 @@
       "sobre": "Hermético, banco falso em persistenciaReal, desktop e 375 px, com um questionário sintético v1 (fábrica) e v2 (texto de P15 e ajuda de P8 trocados). Avaliação com cópia mostra a P15 respondida na ficha, no PDF e no Excel; legada (sem versão nem cópia) mostra o texto da v1 só onde a equivalência está provada (dados/textos-pre-parametrizacao.json) e, sem prova, \"não pôde ser reconstruído\" — nunca o vigente; reavaliar: P15 herdada só como referência e exige novo SIM/NÃO, P8 (só ajuda) avisa sem bloquear, P1 sem ruído; a anterior fica intacta; a função real do Reprocessar não troca cópia nem versão de resposta e não cria cópia em legada."
     },
     {
+      "arquivo": ".github/scripts/teste-correcao-editorial-29-textos.js",
+      "nome": "Questionários: correção editorial dos 29 textos aprovados (preparada, nunca publicada sozinha)",
+      "duracao": 30,
+      "sobre": "Hermético, banco falso em persistenciaReal, desktop e 375 px. Os 29 textos de CORRECOES_EDITORIAIS são exatamente os aprovados (dados/textos-aprovados-29.json) e cada \"de\" é o de fábrica ou o da correção anterior; situação de campo simples, aninhado (textoAjuda.significado), novo, retirado, divergente e substituído; nada publicado antes do clique; Aplicar pela tela cria versão nova de cada questionário, com os textos literais e nenhum outro campo mudado, auditoria da retirada, anterior byte a byte igual e nenhum divergente sobrescrito; fora do questionário nada muda no banco; versões e decisões dos motores (65.536 P1–P16 e 256 S1–S8) iguais antes e depois; avaliação nova vê a P15 nova com ajuda e exemplo e sem a ajuda extra antiga."
+    },
+    {
       "arquivo": ".github/scripts/teste-motor-squad-validador.js",
       "nome": "Motor de Squad: o validador só aceita S1–S8 nos eixos e os resultados de eixo na combinação",
       "duracao": 1,
