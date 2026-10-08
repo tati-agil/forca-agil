@@ -78,7 +78,7 @@ const linhasDe = (wb, aba) => XLSX.utils.sheet_to_json(wb.Sheets[aba], { header:
     afirma(l[1][2] === 'P1' && l[16][2] === 'P16', 'ordem P1 … P16');
     afirma(/necessidade/i.test(l[1][4]) && /^SIM — /.test(l[1][11]) && /^NÃO — /.test(l[1][12]), 'P1 traz pergunta e as duas interpretações, com acento');
     afirma(l[1][5] !== '' && l[1][6] !== '' && l[1][7] !== '', 'ajuda (significado, quando SIM, quando NÃO) preenchida');
-    afirma(r.wb.Sheets['Classificação arquitetural']['!autofilter'] && r.wb.Sheets['Classificação arquitetural']['!cols'].length === 14, 'autofiltro e 14 larguras de coluna');
+    afirma(r.wb.Sheets['Classificação arquitetural']['!autofilter'] && r.wb.Sheets['Classificação arquitetural']['!cols'].length === 21, 'autofiltro e 21 larguras de coluna (as 14 de antes + 7 do tipo de pergunta, no fim)');
     afirma(await page.locator('#avpCfgExportStatus').count() === 1 && !/FALHA|Não foi possível/.test(await page.locator('#avpCfgExportStatus').innerText()), 'mensagem de sucesso na tela');
 
     console.log('\n== Exportar o de squad e todos ==');
@@ -87,8 +87,9 @@ const linhasDe = (wb, aba) => XLSX.utils.sheet_to_json(wb.Sheets[aba], { header:
     afirma(l.length === 9 && l[1][2] === 'S1' && l[8][2] === 'S8', 'squad: cabeçalho + S1…S8 (' + l.length + ' linhas)');
     r = await baixar(page, '#avpCfgExportarTodosBtn');
     afirma(/^Questionarios_Todos_\d{4}-\d{2}-\d{2}\.xlsx$/.test(r.nome), 'nome do arquivo de todos: ' + r.nome);
-    afirma(JSON.stringify(r.wb.SheetNames) === JSON.stringify(['Classificação arquitetural', 'Adequação à Squad']), 'uma aba por questionário: ' + r.wb.SheetNames.join(' | '));
-    afirma(linhasDe(r.wb, 'Classificação arquitetural').length === 17 && linhasDe(r.wb, 'Adequação à Squad').length === 9, 'as duas abas completas');
+    afirma(JSON.stringify(r.wb.SheetNames) === JSON.stringify(['Classificação arquitetural', 'Adequação à Squad', 'Posicionamento Organizacional']), 'uma aba por questionário: ' + r.wb.SheetNames.join(' | '));
+    afirma(linhasDe(r.wb, 'Classificação arquitetural').length === 17 && linhasDe(r.wb, 'Adequação à Squad').length === 9 &&
+      linhasDe(r.wb, 'Posicionamento Organizacional').length === 11, 'as três abas completas');
 
     console.log('\n== Só a versão publicada: rascunho não entra ==');
     await page.click('.avp-config-editar-btn[data-codigo="CLASSIFICACAO_ARQUITETURAL"]');

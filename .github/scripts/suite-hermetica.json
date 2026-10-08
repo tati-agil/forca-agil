@@ -104,6 +104,12 @@
       "sobre": "\"Questionários e versões\": novo nome, texto explicativo e exportação para Excel da versão publicada (um questionário / todos), sem rascunho."
     },
     {
+      "arquivo": ".github/scripts/teste-questionario-posicionamento.js",
+      "nome": "Questionário de Posicionamento Organizacional O1–O9 + diagnóstico, tipos de pergunta e regressão de P/S (desktop e celular)",
+      "duracao": 40,
+      "sobre": "Terceiro questionário de questionarios-config.js (POSICIONAMENTO_ORGANIZACIONAL): O1–O9 binárias com tipo explícito e o diagnóstico conflito × recorte (respostas estáveis mesma/distintas, as mesmas do motor; campos editoriais próprios, nunca justSim/justNao); tipo e códigos fora da edição e reconstruídos do código em toda gravação; editor por tipo; publicação do rótulo de \"mesma\" com versão nova e auditoria legível; rollback; Excel com as 7 colunas novas no fim. Regressão: P1–P16 e S1–S8 iguais, campo a campo e por sha256, à referência gravada do main antes da mudança (referencia-questionarios-p-s.json), com os mesmos campos no editor, a mesma auditoria e os mesmos valores nas 14 colunas antigas do Excel."
+    },
+    {
       "arquivo": ".github/scripts/teste-motor-legivel.js",
       "nome": "Avaliação: motor arquitetural legível, sem mudar a lógica (desktop e celular)",
       "duracao": 3,
