@@ -16,8 +16,12 @@
      Nível 2  (só com Linha)      O4 Estratégia de Clientes · O5 Negócios · (O4=NAO e O5=NAO → ramo Plataforma)
      Nível 3  (só com Plataforma) O6 Canais · O7 Habilitadora de Negócios · O8 Habilitadora de Tecnologia ·
                                   O9 Gestão Corporativa
-   Em cada nível alcançado:
-     - resposta ausente → A_VALIDAR / EVIDENCIA_INSUFICIENTE (nível incompleto — falta não vira NAO);
+   PRINCÍPIO DE COMPLETUDE DO NÍVEL (decisão de 08/10/2026): todo nível alcançado precisa estar COMPLETAMENTE
+   respondido antes de produzir classificação, conflito ou recorte. Qualquer pergunta ausente no nível alcançado →
+   A_VALIDAR / EVIDENCIA_INSUFICIENTE, motivo RESPOSTA_FALTANDO, MESMO quando as respostas presentes parecem tornar
+   a categoria inevitável (ex.: N3 com 3 SIM + 1 ausente continua insuficiente — ainda não se sabe se são 3 ou 4
+   papéis). Resposta ausente nunca é interpretada como NAO.
+   Em cada nível alcançado e completo:
      - 3 ou mais SIM → A_VALIDAR / RECORTE;
      - exatamente 2 SIM → diagnóstico DIAG_CONFLITO_RECORTE daquele nível: "mesma" → CONFLITO; "distintas" →
        RECORTE; sem resposta → EVIDENCIA_INSUFICIENTE com motivo DIAGNOSTICO_PENDENTE;

@@ -13,6 +13,8 @@
  *   - Área/CoE nunca liberam Squad; firme de Linha sempre libera; A_VALIDAR só com nível LINHA ou PLATAFORMA;
  *   - NAO fora do caminho nunca gera incoerência; SIM fora do caminho sempre gera;
  *   - diagnóstico gravado fora da sua condição de uso não muda o resultado;
+ *   - COMPLETUDE DO NÍVEL: nível alcançado com pergunta ausente é sempre evidência insuficiente (RESPOSTA_FALTANDO),
+ *     mesmo quando a categoria parece inevitável (N3 com 3 SIM + 1 ausente não é recorte);
  *   - só os 4 tipos de A validar; regra e motivo sempre códigos do catálogo; versão registrada.
  * Hermético: sem rede, sem navegador, sem segredo. */
 const fs = require('fs');
@@ -151,6 +153,9 @@ afirma(c3.tipoAValidar === 'CONFLITO' && c3.nivelConfirmado === 'PLATAFORMA' && 
 const s3 = M.avaliar({ ...plat, O6: 'NAO', O7: 'NAO', O8: 'NAO', O9: 'NAO' });
 afirma(s3.motivo === 'SEM_PAPEL' && s3.nivelConfirmado === 'LINHA' && s3.liberaSquad, 'ramo Plataforma sem nenhum SIM: evidência insuficiente com nível LINHA (Plataforma não confirmada)');
 afirma(M.avaliar({ O1: 'SIM', O2: 'NAO', O3: 'NAO', O4: 'SIM', O5: 'SIM' }, { N2: 'distintas' }).nivelConfirmado === 'LINHA', 'recorte no N2: nível LINHA preservado');
+const tresMaisAusente = ['O6', 'O7', 'O8', 'O9'].map((ausente) => { const e = { ...plat }; ['O6', 'O7', 'O8', 'O9'].forEach((q) => { if (q !== ausente) e[q] = 'SIM'; }); return M.avaliar(e); });
+afirma(tresMaisAusente.every((o) => o.tipoAValidar === 'EVIDENCIA_INSUFICIENTE' && o.motivo === 'RESPOSTA_FALTANDO' && o.nivelConfirmado === 'PLATAFORMA'), 'COMPLETUDE DO NÍVEL: N3 com 3 SIM + 1 ausente é evidência insuficiente (RESPOSTA_FALTANDO), não recorte — nos 4 padrões');
+afirma(M.avaliar({ ...plat, O6: 'SIM', O7: 'SIM', O8: 'SIM', O9: 'NAO' }).tipoAValidar === 'RECORTE' && M.avaliar({ ...plat, O6: 'SIM', O7: 'SIM', O8: 'SIM', O9: 'SIM' }).tipoAValidar === 'RECORTE', '…e só com O6–O9 todos respondidos, 3 ou 4 SIM viram recorte');
 afirma(M.avaliar({ O1: 'SIM', O2: 'NAO' }).motivo === 'RESPOSTA_FALTANDO' && M.avaliar({ O1: 'SIM', O2: 'NAO' }).nivelConfirmado === null, 'falta de resposta não vira NAO: N1 incompleto → evidência insuficiente');
 afirma(M.perguntasDoCaminho(base).join() === 'O1,O2,O3,O4,O5' && M.perguntasDoCaminho(area).join() === 'O1,O2,O3' && M.perguntasDoCaminho(plat).join() === 'O1,O2,O3,O4,O5,O6,O7,O8,O9', 'perguntasDoCaminho: só as do caminho alcançado');
 let erro = null; try { M.avaliar(base, {}, { versao: 99 }); } catch (e) { erro = e; }
