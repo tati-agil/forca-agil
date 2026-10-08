@@ -999,7 +999,7 @@
       });
     }
 
-    /* ===================== VEREDITO (Eixo A / Eixo B / Indicação) =====================
+    /* ===================== VEREDITO (Eixo A / Eixo B / Recomendação de gestão por Squad) =====================
        Só apresentação: nunca recalcula nada aqui, sempre lê os códigos JÁ
        gravados na avaliação (necessidadeCapacidadeDedicada/condicoesParaSquad/
        indicacaoOrganizacional) e resolve rótulo/interpretação AO VIVO pelo
@@ -1021,7 +1021,7 @@
       html += '<h4>Condições para funcionar como squad</h4>';
       html += '<p class="avp-result-badge-grande">' + esc(textoB.rotulo) + '</p>';
       html += '<p>' + esc(textoB.interpretacao) + '</p>';
-      html += '<h4>Indicação organizacional</h4>';
+      html += '<h4>Recomendação de gestão por Squad</h4>';
       html += '<p class="avp-result-badge-grande">' + esc(textoC.rotulo) + '</p>';
       html += '<p>' + esc(textoC.interpretacao) + '</p>';
       html += '</div>';
@@ -1178,7 +1178,7 @@
         html += '<p class="pdf-pergunta-texto"><strong>' + esc(textoA.rotulo) + '</strong></p><p class="pdf-pergunta-campo">' + esc(textoA.interpretacao) + '</p>';
         html += '<h2 class="pdf-secao-titulo">Condições para funcionar como squad</h2>';
         html += '<p class="pdf-pergunta-texto"><strong>' + esc(textoB.rotulo) + '</strong></p><p class="pdf-pergunta-campo">' + esc(textoB.interpretacao) + '</p>';
-        html += '<h2 class="pdf-secao-titulo">Indicação organizacional</h2>';
+        html += '<h2 class="pdf-secao-titulo">Recomendação de gestão por Squad</h2>';
         html += '<p class="pdf-pergunta-texto"><strong>' + esc(textoC.rotulo) + '</strong></p><p class="pdf-pergunta-campo">' + esc(textoC.interpretacao) + '</p>';
         var pontos = it.pontosADesenvolver || [];
         html += '<h2 class="pdf-secao-titulo">Pontos a desenvolver</h2>';
@@ -1263,7 +1263,7 @@
     function rotuloVeredito(codigo) { return codigo ? window.faMotorSquad.conteudoTexto(codigo).rotulo : ''; }
     var EXCEL_SQ_RESUMO = ['ID da avaliação', 'Nome do item', 'ID do item', 'Status', 'Responsável', 'Criada em', 'Concluída em',
       'Versão do questionário', 'Versão do motor de squad', 'Eixo A — Necessidade de capacidade dedicada',
-      'Eixo B — Condições para funcionar como squad', 'Indicação organizacional', 'Evidências favoráveis', 'Pontos a desenvolver',
+      'Eixo B — Condições para funcionar como squad', 'Recomendação de gestão por Squad', 'Evidências favoráveis', 'Pontos a desenvolver',
       'Avaliação arquitetural vinculada'];
     var LARG_SQ_RESUMO = [26, 30, 26, 12, 22, 18, 18, 12, 12, 34, 34, 44, 22, 22, 26];
     function linhaResumoSq(it) {
@@ -1333,7 +1333,7 @@
        eixos e da combinação) — exportação só leitura do que está publicado. */
     var GRUPO_TEXTO_MOTOR = function (cod) {
       var i = CODIGOS_TEXTO_MOTOR.indexOf(cod);
-      return i < 3 ? 'Eixo A — Necessidade de capacidade dedicada' : i < 6 ? 'Eixo B — Condições para funcionar como squad' : 'Combinação — Indicação organizacional';
+      return i < 3 ? 'Eixo A — Necessidade de capacidade dedicada' : i < 6 ? 'Eixo B — Condições para funcionar como squad' : 'Combinação — Recomendação de gestão por Squad';
     };
     function linhasTextosVereditos() {
       var sit = window.faMotorSquad.situacao();
@@ -1530,7 +1530,7 @@
     function renderComoOMotorSquadDecide(abertoPorPadrao) {
       var h = '<details class="avp-form-card avp-motor-explica"' + (abertoPorPadrao ? ' open' : '') + '><summary><strong>Como este motor decide</strong></summary>';
       h += '<ul class="avp-motor-explica-lista">';
-      h += '<li><strong>Dois eixos, depois a combinação:</strong> o <em>Eixo A</em> (necessidade de capacidade dedicada) e o <em>Eixo B</em> (condições para funcionar como squad) são calculados separadamente, cada um pelas respostas de S1–S8. A <em>Combinação</em> lê só os dois resultados dos eixos — nunca S1–S8 diretamente — e produz a indicação organizacional (Eixo A + Eixo B = indicação).</li>';
+      h += '<li><strong>Dois eixos, depois a combinação:</strong> o <em>Eixo A</em> (necessidade de capacidade dedicada) e o <em>Eixo B</em> (condições para funcionar como squad) são calculados separadamente, cada um pelas respostas de S1–S8. A <em>Combinação</em> lê só os dois resultados dos eixos — nunca S1–S8 diretamente — e produz a recomendação de gestão por Squad (Eixo A + Eixo B = recomendação).</li>';
       h += '<li><strong>Precedência:</strong> dentro de cada grupo, as regras são lidas de cima para baixo e a <em>primeira</em> cujas condições forem verdadeiras decide. Nunca é soma, pontuação ou percentual de respostas SIM. Por exemplo, S7 = NÃO tem uma regra própria no Eixo B, antes das demais.</li>';
       h += '<li><strong>Independente do motor P1–P16:</strong> este motor não lê a classificação arquitetural e a classificação não lê este resultado.</li>';
       h += '<li><strong>O que você pode mudar aqui:</strong> só a resposta esperada (SIM ou NÃO) de cada condição sobre S1–S8. As condições da Combinação, a ordem das regras e quais perguntas cada uma usa aparecem para leitura. A redação dos resultados é editada em "Editar textos dos vereditos".</li>';
@@ -1596,7 +1596,7 @@
       html += renderComoOMotorSquadDecide(false);
       html += renderGrupoRegras('Eixo A — Necessidade de capacidade dedicada', c.regras.eixoA, c.leafRefs);
       html += renderGrupoRegras('Eixo B — Condições para funcionar como squad', c.regras.eixoB, c.leafRefs);
-      html += renderGrupoRegras('Combinação — Eixo A + Eixo B = Indicação organizacional', c.regras.combinacao, c.leafRefs);
+      html += renderGrupoRegras('Combinação — Eixo A + Eixo B = Recomendação de gestão por Squad', c.regras.combinacao, c.leafRefs);
       if (c.erro) html += '<p class="avp-error-msg">' + esc(c.erro) + '</p>';
       html += '<div class="avp-actions-footer">';
       html += '<button class="btn" id="sqMotorSalvarRascunhoBtn"' + (c.salvando ? ' disabled' : '') + '>SALVAR RASCUNHO</button>';
@@ -1679,7 +1679,7 @@
         html += '</ul>';
       } else {
         html += '<p class="avp-error-msg">' + esc(v.invalidas.length) + ' das ' + esc(v.totalCombinacoes) +
-          ' combinações possíveis de respostas S1–S8 ficariam sem resultado. Toda combinação completa precisa chegar a um resultado no Eixo A, no Eixo B e na indicação organizacional.</p>';
+          ' combinações possíveis de respostas S1–S8 ficariam sem resultado. Toda combinação completa precisa chegar a um resultado no Eixo A, no Eixo B e na recomendação de gestão por Squad.</p>';
         html += '<p>Exemplos de respostas sem resultado:</p><ul class="sq-motor-validacao-lista">';
         v.invalidas.slice(0, MAX_EXEMPLOS_INVALIDOS).forEach(function (inv) {
           html += '<li><strong>' + esc(inv.respostas) + '</strong> — sem resultado em: ' + esc(inv.semResultadoEm.join(', ')) + '</li>';

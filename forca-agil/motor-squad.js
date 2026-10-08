@@ -312,7 +312,8 @@
   /* ===================== MOTOR PURO (sem Firebase, sem DOM) =====================
      Função central, testável isoladamente: dadas as respostas S1-S8 de UMA
      avaliação e um conjunto de regras (publicado ou candidato — quem chama
-     decide qual), devolve os dois eixos, a indicação organizacional e as
+     decide qual), devolve os dois eixos, a recomendação de gestão por Squad
+     (campo indicacaoOrganizacional) e as
      evidências/pontos a desenvolver — SEMPRE derivados das respostas reais,
      nunca de texto livre ou heurística fora das regras. */
   function identificarAdequacaoSquad(respostas, regras, silencioso) {
@@ -351,7 +352,7 @@
      avaliações já concluídas, então não pegava isso. Aqui o conjunto de
      regras candidato é rodado sobre as 256 combinações possíveis de S1-S8
      (2^8, todas respondidas) e cada uma precisa chegar a um código CONHECIDO
-     em cada etapa: Eixo A, Eixo B e indicação organizacional. Pura, sem
+     em cada etapa: Eixo A, Eixo B e recomendação de gestão por Squad. Pura, sem
      Firebase: publicarRegras recusa publicar se ela não passar, e a tela de
      simulação mostra as combinações que falharam antes do botão. Os códigos
      válidos são os resultados das regras de fábrica — o editor muda QUAIS
@@ -445,7 +446,7 @@
         var falhou = [];
         if (RESULTADOS_VALIDOS.eixoA.indexOf(r.necessidadeCapacidadeDedicada) === -1) falhou.push('Eixo A');
         if (RESULTADOS_VALIDOS.eixoB.indexOf(r.condicoesParaSquad) === -1) falhou.push('Eixo B');
-        if (RESULTADOS_VALIDOS.combinacao.indexOf(r.indicacaoOrganizacional) === -1) falhou.push('Indicação organizacional');
+        if (RESULTADOS_VALIDOS.combinacao.indexOf(r.indicacaoOrganizacional) === -1) falhou.push('Recomendação de gestão por Squad');
         if (falhou.length) {
           invalidas.push({
             respostas: descreverCombinacao(respostas), semResultadoEm: falhou,

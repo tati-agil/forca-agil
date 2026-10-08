@@ -118,7 +118,7 @@ const regrasHoje = (page) => page.evaluate(() => JSON.stringify({ v: window.faMo
     afirma(leitura.length >= 5 && leitura.every((x) => /Eixo [AB] — /.test(x) && /somente leitura/.test(x)), 'a combinação mostra os resultados dos eixos em leitura (' + leitura.length + ')');
     afirma(await page.locator('.sq-cond-select').count() === folhas.length, 'só as condições sobre S1–S8 têm seletor SIM/NÃO');
     afirma(await page.locator('.sq-regra-codigo').filter({ hasText: 'Forte aderência' }).count() === 1, 'a regra da combinação mostra o resultado por extenso (não o código)');
-    afirma(await page.locator('h4', { hasText: 'Eixo A + Eixo B = Indicação organizacional' }).count() === 1, 'o grupo da combinação diz Eixo A + Eixo B = Indicação');
+    afirma(await page.locator('h4', { hasText: 'Eixo A + Eixo B = Recomendação de gestão por Squad' }).count() === 1, 'o grupo da combinação diz Eixo A + Eixo B = Recomendação de gestão por Squad');
     afirma(await larguraOk(page), 'sem rolagem horizontal na edição');
     await page.click('#sqMotorSimularBtn');
     await page.waitForSelector('.avp-motor-sim-explica', { timeout: 8000 });
