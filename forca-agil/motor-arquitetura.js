@@ -364,6 +364,7 @@
        usa conflito dinâmico (todas as versões já publicadas) continua
        exatamente a de antes — nenhuma versão antiga "muda" no diff. */
     if (regra.conflitoDinamico) canonica.conflitoDinamico = true;
+    if (regra.tipoAValidar) canonica.tipoAValidar = regra.tipoAValidar;
     return ordenarChavesProfundo(canonica);
   }
 
@@ -386,12 +387,17 @@
          efetivamente marcadas SIM nesta combinação (nunca uma lista fixa que
          cite o que ninguém marcou) — e os motivos são as mesmas perguntas. */
       var marcadas = naturezasMarcadas(regra, contexto || {});
-      return {
+      var dinamico = {
         camada: regra.resultado, regraAplicada: regra.codigo || null,
         motivosCodigos: marcadas.map(function (m) { return m.campo; }),
         conflito: marcadas.map(function (m) { return m.camada; }),
         incoerencia: !!regra.incoerencia, conflitoNaturezas: true
       };
+      /* Versão 7: o TIPO de "A validar" (incoerência, conflito ou recorte) vem
+         da própria regra. Só existe nas regras que o declaram — o retorno das
+         versões já publicadas fica exatamente o de antes. */
+      if (regra.tipoAValidar) dinamico.tipoAValidar = regra.tipoAValidar;
+      return dinamico;
     }
     return {
       camada: regra.resultado, regraAplicada: regra.codigo || null, motivosCodigos: regra.motivos || [],
@@ -404,10 +410,59 @@
      elas, então duas ou mais SIM são um conflito (A validar), nunca uma
      escolha pela ordem das regras. A correspondência pergunta → camada é
      IDENTIDADE (fixa em código, como CAMADAS_VALIDAS), nunca texto. */
+  /* As oito naturezas P9–P16, na ordem das perguntas. A política de conflito
+     das versões 4–6 continua usando só P11–P15 (NATUREZAS_POLITICA_V4); as
+     outras três entram na citação da versão 7 (múltiplas naturezas). Uma
+     regra só cita as naturezas que ela própria lista num grupo "PELO MENOS",
+     então ampliar o mapa não muda nada nas versões já publicadas. */
   var CAMADA_POR_NATUREZA = {
+    P9: 'canal', P10: 'documento-informacao',
     P11: 'capacidade-organizacional', P12: 'processo-etapa', P13: 'modalidade-subproduto',
-    P14: 'regra-condicao', P15: 'componente'
+    P14: 'regra-condicao', P15: 'componente', P16: 'funcionalidade-operacao'
   };
+  var NATUREZAS_POLITICA_V4 = ['P11', 'P12', 'P13', 'P14', 'P15'];
+  var NATUREZAS = Object.keys(CAMADA_POR_NATUREZA);
+  /* MATRIZ DOS 28 PARES (versão 7) — a ÚNICA fonte: monta a regra de conflito
+     (os 13 pares 'conflito') e, na tela, agrupa as naturezas marcadas e dá a
+     pista de revisão. A pista é só orientação ao usuário: nunca entra na
+     decisão do motor. 'conflito' = um objeto só, com a natureza em dúvida;
+     'recorte' = dois objetos relacionados (um contém, produz, governa ou
+     aciona o outro). Nenhum par é compatível. */
+  var MATRIZ_NATUREZAS = [
+    ['P9', 'P10', 'recorte', 'O canal entrega o documento: avalie o canal ou o documento, separadamente.'],
+    ['P9', 'P11', 'recorte', 'O canal é operado por uma capacidade: avalie o canal ou a capacidade.'],
+    ['P9', 'P12', 'recorte', 'O canal e o processo realizado por meio dele são objetos diferentes: separe-os.'],
+    ['P9', 'P13', 'conflito', 'Escolher por qual meio acessar é escolha de canal, não modalidade do produto: qual predomina?'],
+    ['P9', 'P14', 'conflito', 'Um meio de interação não é uma norma: qual natureza descreve o objeto?'],
+    ['P9', 'P15', 'conflito', 'Se serve como meio de interação, é Canal; se compõe a estrutura de um produto, é Componente.'],
+    ['P9', 'P16', 'recorte', 'O canal contém funcionalidades: avalie o canal ou a operação dentro dele.'],
+    ['P10', 'P11', 'conflito', 'Um artefato informacional não é algo que a organização precisa saber ou fazer: qual predomina?'],
+    ['P10', 'P12', 'recorte', 'O processo produz o documento: avalie o documento ou a atividade que o produz.'],
+    ['P10', 'P13', 'conflito', 'Um documento não é uma opção do produto: qual natureza descreve o objeto?'],
+    ['P10', 'P14', 'recorte', 'O documento contém regras: avalie o texto entregue ou a regra que ele traz.'],
+    ['P10', 'P15', 'conflito', 'Se é conteúdo entregue, é Informação/Documento; se compõe a estrutura de um produto, é Componente.'],
+    ['P10', 'P16', 'recorte', 'A operação gera o documento: avalie o documento ou a operação de emiti-lo.'],
+    ['P11', 'P12', 'recorte', 'A capacidade se realiza por processos: avalie a capacidade ou o processo.'],
+    ['P11', 'P13', 'conflito', 'Algo que a organização precisa possuir não é uma opção do produto: qual predomina?'],
+    ['P11', 'P14', 'conflito', 'Uma capacidade não é uma norma do produto: qual natureza descreve o objeto?'],
+    ['P11', 'P15', 'conflito', 'Se a organização precisa possuí-lo, é Capacidade; se compõe a estrutura de um produto, é Componente.'],
+    ['P11', 'P16', 'recorte', 'A operação usa a capacidade: avalie a operação ou a capacidade por trás dela.'],
+    ['P12', 'P13', 'conflito', 'Um encadeamento de atividades não é uma opção do produto: qual predomina?'],
+    ['P12', 'P14', 'recorte', 'A regra governa o processo: avalie a regra ou o processo.'],
+    ['P12', 'P15', 'conflito', 'Se acontece em etapas no tempo, é Processo; se é um elemento estrutural do produto, é Componente.'],
+    ['P12', 'P16', 'recorte', 'A operação dispara o processo: avalie a operação ou o processo por trás dela.'],
+    ['P13', 'P14', 'conflito', 'Se o cliente escolhe, é Modalidade; se é imposta, é Regra.'],
+    ['P13', 'P15', 'conflito', 'Uma variante escolhida não é o elemento que compõe todas as variantes: qual predomina?'],
+    ['P13', 'P16', 'recorte', 'A operação escolhe a opção: avalie a operação ou a opção escolhida.'],
+    ['P14', 'P15', 'recorte', 'O componente aplica as regras: avalie o componente ou as regras que ele aplica.'],
+    ['P14', 'P16', 'recorte', 'A operação consulta ou aplica a regra: avalie a operação ou a regra.'],
+    ['P15', 'P16', 'recorte', 'O componente sustenta a operação: avalie a operação ou o elemento por trás dela.']
+  ].map(function (p) { return { a: p[0], b: p[1], tipo: p[2], pista: p[3] }; });
+  /* Pares da matriz com as duas naturezas marcadas, na ordem da matriz. */
+  function paresMarcados(contexto) {
+    return MATRIZ_NATUREZAS.filter(function (p) { return normalizarValor(contexto[p.a]) === 'SIM' && normalizarValor(contexto[p.b]) === 'SIM'; });
+  }
+  var TIPOS_A_VALIDAR = ['incoerencia', 'conflito', 'recorte'];
   /* Folhas de natureza (P11–P15 = SIM) dentro dos grupos "pelo menos N de"
      de uma regra — é delas, e só delas, que sai a lista dinâmica. */
   function folhasDeNatureza(regra) {
@@ -576,7 +631,7 @@
     function rotuloDecisao(i, ctx) {
       var regra = exec.regras[i] || null;
       var r = retornoDoMotor(regra, ctx);
-      var tipo = !regra ? 'sem-regra' : r.incoerencia ? 'incoerencia' : r.conflitoNaturezas ? 'conflito-naturezas' :
+      var tipo = !regra ? 'sem-regra' : r.incoerencia ? 'incoerencia' : r.tipoAValidar === 'recorte' ? 'recorte-objeto' : r.conflitoNaturezas ? 'conflito-naturezas' :
         ehFallback(regra) ? 'fallback' : (r.conflito ? 'conflito' : 'normal');
       return r.camada + '|' + tipo + (r.conflito ? '|' + r.conflito.join(',') : '');
     }
@@ -641,6 +696,17 @@
      função fornecida por quem chama que converte item.respostas (ids
      internos) para o mapa P1-P16 — mantém este módulo agnóstico da
      estrutura interna de avaliacoes-produto. */
+  /* Tipo de um "A validar", pelo que o motor devolveu (nunca pelo número da
+     versão): 'incoerencia' | 'recorte' | 'conflito' | 'sem-classificacao';
+     null para as demais classificações. Conflito fixo (versões antigas) e
+     conflito de naturezas são o mesmo tipo. */
+  function tipoDeAValidar(retorno) {
+    if (!retorno || retorno.camada !== 'a-validar') return null;
+    if (retorno.incoerencia) return 'incoerencia';
+    if (retorno.tipoAValidar === 'recorte') return 'recorte';
+    if (retorno.tipoAValidar === 'conflito' || retorno.conflitoNaturezas || (retorno.conflito && retorno.conflito.length)) return 'conflito';
+    return 'sem-classificacao';
+  }
   function simular(regrasCandidatas, avaliacoesConcluidas, respostasPorCodigoFn) {
     var regrasAtuais = regrasDaVersao(versaoAtual());
     /* regrasCandidatas chega como ARRAY puro (mesma convenção de
@@ -655,8 +721,12 @@
       var contexto = respostasPorCodigoFn(av);
       var atual = identificarCamada(contexto, regrasAtuais);
       var nova = identificarCamada(contexto, candidatoEmbrulhado);
-      if (atual.camada !== nova.camada) {
-        mudariam.push({ _key: av._key, itemNome: av.nome, atual: atual.camada, nova: nova.camada });
+      /* Muda a classificação OU o tipo de "A validar" (ex.: conflito → recorte):
+         as duas coisas mudam o que a pessoa lê e o que precisa revisar. */
+      var tipoAtual = tipoDeAValidar(atual), tipoNovo = tipoDeAValidar(nova);
+      if (atual.camada !== nova.camada || tipoAtual !== tipoNovo) {
+        mudariam.push({ _key: av._key, itemNome: av.nome, atual: atual.camada, nova: nova.camada, tipoAtual: tipoAtual, tipoNovo: tipoNovo,
+          naturezas: nova.conflitoNaturezas ? (nova.motivosCodigos || []).slice() : null });
       }
     });
     var total = (avaliacoesConcluidas || []).length;
@@ -723,7 +793,16 @@
       if (r.conflitoDinamico) {
         if (r.resultado !== 'a-validar') erros.push('Regra ' + nome + ' de conflito dinâmico precisa classificar como "' + nomeAValidar() + '" (a-validar).');
         if (r.conflito) erros.push('Regra ' + nome + ' de conflito dinâmico não pode ter também uma lista fixa de conflito.');
-        if (!folhasDeNatureza(r).length) erros.push('Regra ' + nome + ' de conflito dinâmico precisa de um grupo "PELO MENOS" com naturezas P11–P15 = SIM.');
+        if (!folhasDeNatureza(r).length) erros.push('Regra ' + nome + ' de conflito dinâmico precisa de um grupo "PELO MENOS" com naturezas P9–P16 = SIM.');
+      }
+      /* Tipo de "A validar" (versão 7): só incoerência, conflito ou recorte;
+         sempre levando a "A validar" e citando as naturezas marcadas. */
+      if (r.tipoAValidar != null) {
+        if (TIPOS_A_VALIDAR.indexOf(r.tipoAValidar) === -1) erros.push('Regra ' + nome + ' com tipo de "' + nomeAValidar() + '" desconhecido (' + r.tipoAValidar + ').');
+        if (r.resultado !== 'a-validar') erros.push('Regra ' + nome + ' com tipo de "' + nomeAValidar() + '" precisa classificar como "' + nomeAValidar() + '" (a-validar).');
+        if (!r.conflitoDinamico) erros.push('Regra ' + nome + ' com tipo de "' + nomeAValidar() + '" precisa citar as naturezas marcadas (conflito dinâmico).');
+        if (r.tipoAValidar === 'incoerencia' && !r.incoerencia) erros.push('Regra ' + nome + ' de incoerência precisa ser marcada como incoerência.');
+        if (r.tipoAValidar !== 'incoerencia' && r.incoerencia) erros.push('Regra ' + nome + ' de ' + r.tipoAValidar + ' não pode ser marcada como incoerência.');
       }
     });
     if (!fallbacks.length) erros.push('Nenhuma regra de fallback (tipo FALLBACK) configurada — é ela que decide quando nenhuma outra regra bate.');
@@ -968,8 +1047,8 @@
   function regraConflitoNaturezas(ordem) {
     return {
       codigo: 'CONFLITO_NATUREZAS', ordem: ordem, resultado: 'a-validar', incoerencia: false, conflito: null,
-      conflitoDinamico: true, motivos: Object.keys(CAMADA_POR_NATUREZA),
-      condicoes: { all: [{ atLeast: 2, of: Object.keys(CAMADA_POR_NATUREZA).map(function (campo) { return { campo: campo, valor: 'SIM' }; }) }] }
+      conflitoDinamico: true, motivos: NATUREZAS_POLITICA_V4.slice(),
+      condicoes: { all: [{ atLeast: 2, of: NATUREZAS_POLITICA_V4.map(function (campo) { return { campo: campo, valor: 'SIM' }; }) }] }
     };
   }
   function ehFolha(cond, campo) { return !!cond && (cond.campo || cond.pergunta) === campo; }
@@ -1039,12 +1118,62 @@
     });
     return ordenarPorPrecedencia(regras);
   }
+  /* VERSÃO 7 — incoerência, conflito de naturezas e recorte do objeto.
+     Muda só a forma de tratar várias naturezas e a autonomia contraditória;
+     as classificações firmes (Produto/Serviço, Unidade de valor, Capacidade G,
+     Componente, Modalidade, Regra, Processo, Canal, Documento, Funcionalidade)
+     ficam com as condições de hoje e só passam a ser avaliadas depois das
+     regras de múltiplas naturezas. P6, P7 e S1–S8 continuam fora. */
+  var PROPOSTA_V7 = {
+    id: 'v7-incoerencia-conflito-recorte',
+    versaoBase: 6,
+    titulo: 'Incoerência, conflito de naturezas e recorte do objeto (versão 7)',
+    mudancas: [
+      'INCOERENCIA (precedência 0) passa a valer para P5 = SIM com qualquer uma entre P13, P14, P15 ou P16 = SIM: o item não pode existir por si e, ao mesmo tempo, pertencer a outro Produto/Serviço. Cita só as naturezas marcadas.',
+      'CONFLITO_NATUREZAS (precedência 2) passa a considerar as oito naturezas P9–P16: "A validar — conflito de naturezas" quando algum destes 13 pares tem as duas respostas SIM — P9×P13, P9×P14, P9×P15, P10×P11, P10×P13, P10×P15, P11×P13, P11×P14, P11×P15, P12×P13, P12×P15, P13×P14 e P13×P15.',
+      'Nova regra RECORTE_OBJETO (precedência 3): duas ou mais naturezas entre P9–P16, sem nenhum par de conflito, levam a "A validar — recorte do objeto" — a avaliação provavelmente reuniu mais de um objeto. Não é uma classificação nova: é um tipo de "A validar".',
+      'Funcionalidade, Canal, Documento, Unidade de valor, Capacidade (G), Componente, Modalidade, Regra, Processo e o fallback ficam com as condições de hoje, avaliados depois dessas regras.',
+      'Nas 65.536 combinações: 44.416 mudam; Produto/Serviço, Unidade de valor, Capacidade, Componente, Modalidade, Regra e Processo não mudam nenhuma.'
+    ]
+  };
+  /* A versão 6 que motivou a proposta: a Capacidade G sobre a versão 5 esperada. */
+  function regrasVersao6Esperadas() { return construirPropostaCapacidadeG(regrasVersao5Esperadas()); }
+  function folhasSim(campos) { return campos.map(function (campo) { return { campo: campo, valor: 'SIM' }; }); }
+  var ORDEM_V7 = ['INCOERENCIA', 'PRODUTO_SERVICO_PRINCIPAL', 'CONFLITO_NATUREZAS', 'RECORTE_OBJETO', 'FUNCIONALIDADE_OPERACAO', 'CANAL',
+    'DOCUMENTO_INFORMACAO', 'UNIDADE_VALOR_ASSOCIADA', 'CAPACIDADE_ORGANIZACIONAL', 'COMPONENTE', 'MODALIDADE_SUBPRODUTO', 'REGRA_CONDICAO',
+    'PROCESSO_ETAPA', 'FALLBACK_A_VALIDAR'];
+  /* Aplica a versão 7 sobre uma CÓPIA das regras da versão 6. As três regras
+     de "A validar" usam o mecanismo de conflito dinâmico para citar só as
+     naturezas marcadas: o grupo "PELO MENOS" lista as naturezas que podem ser
+     citadas (no conflito, "pelo menos 2" é implicado pelos pares e só serve
+     para a citação). */
+  function construirPropostaV7(regrasV6) {
+    var conflitos = MATRIZ_NATUREZAS.filter(function (p) { return p.tipo === 'conflito'; });
+    var porCodigo = {};
+    migrarFallbackLegado(regrasV6).forEach(function (r) { porCodigo[r.codigo] = r; });
+    var inc = porCodigo.INCOERENCIA;
+    inc.condicoes = { all: [{ campo: 'P5', valor: 'SIM' }, { atLeast: 1, of: folhasSim(['P13', 'P14', 'P15', 'P16']) }] };
+    inc.motivos = ['P5', 'P13', 'P14', 'P15', 'P16'];
+    inc.incoerencia = true; inc.conflitoDinamico = true; inc.tipoAValidar = 'incoerencia'; inc.conflito = null;
+    porCodigo.CONFLITO_NATUREZAS = {
+      codigo: 'CONFLITO_NATUREZAS', resultado: 'a-validar', incoerencia: false, conflito: null, conflitoDinamico: true, tipoAValidar: 'conflito',
+      motivos: NATUREZAS.slice(),
+      condicoes: { all: [{ atLeast: 2, of: folhasSim(NATUREZAS) }, { any: conflitos.map(function (p) { return { all: folhasSim([p.a, p.b]) }; }) }] }
+    };
+    porCodigo.RECORTE_OBJETO = {
+      codigo: 'RECORTE_OBJETO', resultado: 'a-validar', incoerencia: false, conflito: null, conflitoDinamico: true, tipoAValidar: 'recorte',
+      motivos: NATUREZAS.slice(),
+      condicoes: { all: [{ atLeast: 2, of: folhasSim(NATUREZAS) }] }
+    };
+    return ORDEM_V7.map(function (codigo, i) { var r = porCodigo[codigo]; r.ordem = i; return r; });
+  }
   /* Cada proposta: a versão-base EXATA sobre a qual vale, como reconstruir essa
      base e como montar a proposta. Vale a última cuja base já foi alcançada —
      nunca duas ao mesmo tempo, nunca adaptada a outra base. */
   var PROPOSTAS_REGRAS = [
     { def: PROPOSTA_CONFLITO_NATUREZAS, esperadas: regrasVersao3Esperadas, construir: construirPropostaConflitoNaturezas },
-    { def: PROPOSTA_CAPACIDADE_G, esperadas: regrasVersao5Esperadas, construir: construirPropostaCapacidadeG }
+    { def: PROPOSTA_CAPACIDADE_G, esperadas: regrasVersao5Esperadas, construir: construirPropostaCapacidadeG },
+    { def: PROPOSTA_V7, esperadas: regrasVersao6Esperadas, construir: construirPropostaV7 }
   ];
   function propostaVigente() {
     var vigente = versaoAtual(), escolhida = PROPOSTAS_REGRAS[0];
@@ -1299,6 +1428,11 @@
     construirPropostaConflitoNaturezas: construirPropostaConflitoNaturezas,
     regrasVersao5Esperadas: regrasVersao5Esperadas,
     construirPropostaCapacidadeG: construirPropostaCapacidadeG,
+    regrasVersao6Esperadas: regrasVersao6Esperadas,
+    construirPropostaV7: construirPropostaV7,
+    MATRIZ_NATUREZAS: MATRIZ_NATUREZAS,
+    paresMarcados: paresMarcados,
+    tipoDeAValidar: tipoDeAValidar,
     onMudanca: onMudanca,
     versaoAtual: versaoAtual,
     regrasDaVersao: regrasDaVersao,

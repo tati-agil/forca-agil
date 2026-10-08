@@ -29,7 +29,7 @@
    Mesmo padrão de sessão de naturezas-config.js: só lê com sessão autorizada para a Avaliação;
    troca de pessoa/acesso desliga tudo (geração) e religa; resposta de leitura antiga é descartada.
 
-   API: registrarCatalogo(lista, {sufixoConflito}), codigos(), nome(id), definicao(id), estadoDefinicao(id), ativo(id),
+   API: registrarCatalogo(lista, {sufixoConflito, sufixosAValidar}), codigos(), nome(id), definicao(id), estadoDefinicao(id), ativo(id),
    estado() ('carregando'|'ok'|'contingencia'), usandoContingencia(id), onMudanca(cb), iniciar(),
    recarregar(), rotulo(camadaSugerida), rotuloNaConclusao(camadaSugerida), precisaAviso(ids),
    avisoHtml(ids, idElemento), definicaoHtml(id, idElemento, {comEstado, tag}), atualizarDom(raiz),
@@ -42,6 +42,7 @@
   var catalogo = [];          /* [{ id, label }] — registrado por avaliacao-produto.js (CAMADAS) */
   var fabrica = {};           /* id → rótulo de fábrica (contingência) */
   var sufixoConflito = '';
+  var sufixosAValidar = {};   /* versão 7: tipo de "A validar" no rótulo (incoerência, conflito, recorte) */
 
   /* Por código: undefined = ainda não respondeu; null = respondeu "não existe". */
   var lido = {};
@@ -64,6 +65,7 @@
     fabrica = {};
     catalogo.forEach(function (c) { fabrica[c.id] = c.label; });
     sufixoConflito = (opcoes && opcoes.sufixoConflito) || '';
+    sufixosAValidar = (opcoes && opcoes.sufixosAValidar) || {};
     limparLidos();
     if (ativoModulo && acessoAtual) ligar();
   }
@@ -115,6 +117,7 @@
   function rotulo(camada) {
     if (!camada) return '';
     if (!camada.id || !conhecido(camada.id)) return camada.label || camada.id || '';
+    if (camada.tipoAValidar && sufixosAValidar[camada.tipoAValidar]) return nome(camada.id) + sufixosAValidar[camada.tipoAValidar];
     return nome(camada.id) + (camada.conflitoNaturezas ? sufixoConflito : '');
   }
   /* Rótulo REGISTRADO na conclusão, só quando difere do atual ('' quando igual ou ausente). */

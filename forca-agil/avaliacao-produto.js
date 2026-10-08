@@ -338,8 +338,11 @@
      (identificarCamada, resultadoDaCamada…) só usa o id; o nome nunca decide nada. Sem o módulo
      (cálculo isolado, fora do site) vale o rótulo de fábrica. */
   var SUFIXO_CONFLITO_NATUREZAS = ' — conflito de naturezas predominantes';
+  /* Versão 7: o tipo de "A validar" vai no rótulo — nunca uma classificação nova
+     da Taxonomia (o código continua 'a-validar'). */
+  var SUFIXOS_A_VALIDAR = { incoerencia: ' — incoerência', conflito: ' — conflito de naturezas', recorte: ' — recorte do objeto' };
   if (window.faClassificacoes) {
-    window.faClassificacoes.registrarCatalogo(CAMADAS, { sufixoConflito: SUFIXO_CONFLITO_NATUREZAS });
+    window.faClassificacoes.registrarCatalogo(CAMADAS, { sufixoConflito: SUFIXO_CONFLITO_NATUREZAS, sufixosAValidar: SUFIXOS_A_VALIDAR });
     window.faClassificacoes.iniciar();
   }
   function nomeClassificacao(id) {
@@ -850,7 +853,16 @@
        já devolve SÓ as naturezas marcadas SIM; o motivo é uma frase só,
        com essas mesmas naturezas — nunca "Componente: NÃO" de uma que ninguém
        marcou. */
-    if (decisao.conflitoNaturezas) motivos = [textoNaturezasIndicadas(conflito)];
+    if (decisao.conflitoNaturezas && !decisao.tipoAValidar) motivos = [textoNaturezasIndicadas(conflito)];
+    /* Versão 7: o motivo cita só as naturezas e os pares efetivamente marcados. */
+    if (decisao.tipoAValidar) {
+      var av = detalheAValidarV7(decisao, contexto);
+      return {
+        camada: decisao.camada, motivos: av.motivos, conflito: conflito, incoerencia: decisao.incoerencia,
+        especializacao: null, papelEstrutural: null, exclusoesSim: exclusoesSim,
+        tipoAValidar: decisao.tipoAValidar, naturezasCodigos: av.naturezasCodigos, pares: av.pares
+      };
+    }
     /* Calculada DEPOIS da decisão e nunca devolvida ao motor: só explica um
        "A validar" que já foi decidido. */
     var impedidaPorGestao = camadaImpedidaPorGestao(contexto, regras, decisao);
@@ -866,6 +878,76 @@
     if (impedidaPorGestao) ident.impedidaPorGestao = impedidaPorGestao;
     if (bloqueioNatureza) ident.bloqueioNatureza = bloqueioNatureza;
     return ident;
+  }
+  /* ---- VERSÃO 7: incoerência, conflito de naturezas e recorte do objeto ----
+     O motor decide o tipo; aqui só se descreve o que foi marcado: as
+     naturezas (codigos P9–P16) e os pares da matriz com as duas SIM. A pista
+     de cada par (MATRIZ_NATUREZAS) é só orientação — nunca decide nada. */
+  function detalheAValidarV7(decisao, contexto) {
+    var M = window.faMotorArquitetura;
+    var naturezas = (decisao.motivosCodigos || []).slice();
+    if (decisao.tipoAValidar === 'incoerencia') {
+      return { naturezasCodigos: naturezas, pares: [], motivos: [motivoSim('autonomia')].concat(naturezas.map(function (c) { return motivoSim(ID_POR_CODIGO[c]); })) };
+    }
+    var pares = M.paresMarcados(contexto).map(function (p) { return { a: p.a, b: p.b, tipo: p.tipo }; });
+    var nome = function (c) { return nomeClassificacao(M.CAMADA_POR_NATUREZA[c]); };
+    var conflitos = pares.filter(function (p) { return p.tipo === 'conflito'; }), recortes = pares.filter(function (p) { return p.tipo === 'recorte'; });
+    var motivos = [];
+    if (conflitos.length) motivos.push('Naturezas que não podem ser escolhidas juntas: ' + conflitos.map(function (p) { return nome(p.a) + ' × ' + nome(p.b); }).join('; '));
+    if (recortes.length) motivos.push('Naturezas que costumam ser objetos diferentes: ' + recortes.map(function (p) { return nome(p.a) + ' × ' + nome(p.b); }).join('; '));
+    return { naturezasCodigos: naturezas, pares: pares, motivos: motivos };
+  }
+  function motivoSim(id) { return ROTULOS_SINAL[id] + ': SIM'; }
+  var FRASE_PERTENCIMENTO = { P13: 'modalidade, opção ou configuração', P14: 'regra ou condição', P15: 'elemento estrutural', P16: 'funcionalidade ou operação' };
+  function nomeNatureza(codigo) { return nomeClassificacao(window.faMotorArquitetura.CAMADA_POR_NATUREZA[codigo]); }
+  function pistaDoPar(par) {
+    var achado = window.faMotorArquitetura.MATRIZ_NATUREZAS.filter(function (p) { return p.a === par.a && p.b === par.b; })[0];
+    return achado ? achado.pista : '';
+  }
+  function naturezasDosPares(pares) {
+    var vistas = {};
+    pares.forEach(function (p) { vistas[p.a] = true; vistas[p.b] = true; });
+    return Object.keys(window.faMotorArquitetura.CAMADA_POR_NATUREZA).filter(function (c) { return vistas[c]; });
+  }
+  function justificativaAValidarV7(camada) {
+    var codigos = camada.naturezasCodigos || [], pares = camada.pares || [];
+    if (camada.tipoAValidar === 'incoerencia') {
+      var uma = codigos.length === 1;
+      return 'As respostas se contradizem: o item foi descrito como capaz de existir e entregar resultado sem depender estruturalmente de outro Produto/Serviço e, ao mesmo tempo, como ' +
+        listaComE(codigos.map(function (c) { return FRASE_PERTENCIMENTO[c] || nomeNatureza(c); })) + ' de outro Produto/Serviço. ' +
+        (uma ? 'As duas respostas não podem descrever o mesmo objeto. ' : 'Essas respostas não podem descrever o mesmo objeto. ') +
+        'Se o item pertence a outro Produto/Serviço, reveja P5; se existe por si, reveja ' + (uma ? 'a outra resposta' : 'as outras respostas') + '. ' +
+        'P5 avalia o objeto, não a autonomia da equipe.';
+    }
+    var conflitos = pares.filter(function (p) { return p.tipo === 'conflito'; }), recortes = pares.filter(function (p) { return p.tipo === 'recorte'; });
+    if (camada.tipoAValidar === 'conflito') {
+      var texto = 'O mesmo objeto recebeu naturezas predominantes que não podem ser escolhidas simultaneamente para o mesmo recorte: ' +
+        listaComE(naturezasDosPares(conflitos).map(nomeNatureza)) + '. Para esta avaliação, é necessário identificar qual natureza predomina no recorte analisado. ' +
+        'Reveja as respostas e mantenha como SIM a natureza que melhor descreve o que o objeto é.';
+      if (conflitos.length === 1 && !recortes.length) texto += ' Pista: ' + pistaDoPar(conflitos[0]);
+      if (recortes.length) {
+        texto += ' Há também sinais de que o item pode estar reunindo objetos diferentes (' +
+          recortes.map(function (p) { return nomeNatureza(p.a) + ' e ' + nomeNatureza(p.b); }).join('; ') +
+          '): se for o caso, separe os objetos indicados e avalie cada um separadamente.';
+      }
+      return texto;
+    }
+    var rec = 'As naturezas marcadas (' + listaComE(codigos.map(nomeNatureza)) + ') costumam pertencer a objetos diferentes e relacionados. ' +
+      'A avaliação provavelmente reuniu mais de um objeto no mesmo item. Defina exatamente o que está sendo avaliado e, se forem objetos distintos, avalie cada um separadamente.';
+    if (recortes.length === 1) rec += ' Pista: ' + pistaDoPar(recortes[0]);
+    return rec;
+  }
+  /* Detalhe curto (ficha e PDF): só os pares e naturezas envolvidos, nunca as oito perguntas. */
+  function linhasDetalheAValidarV7(camada) {
+    var pares = camada.pares || [], linhas = [];
+    if (camada.tipoAValidar === 'incoerencia') {
+      linhas.push('As respostas se contradizem: autonomia estrutural (P5) × ' + listaComE((camada.naturezasCodigos || []).map(nomeNatureza)) + '.');
+      return linhas;
+    }
+    var conflitos = pares.filter(function (p) { return p.tipo === 'conflito'; }), recortes = pares.filter(function (p) { return p.tipo === 'recorte'; });
+    if (conflitos.length) linhas.push('Naturezas que não podem ser escolhidas juntas: ' + conflitos.map(function (p) { return nomeNatureza(p.a) + ' × ' + nomeNatureza(p.b); }).join('; ') + '.');
+    if (recortes.length) linhas.push('Naturezas que costumam ser objetos diferentes: ' + recortes.map(function (p) { return nomeNatureza(p.a) + ' × ' + nomeNatureza(p.b); }).join('; ') + '.');
+    return linhas;
   }
   /* "A validar" por gestão ponta a ponta (P8): o fallback valeu, P8 = NÃO e,
      com as MESMAS regras e só P8 trocada para SIM, o motor classificaria como
@@ -1292,6 +1374,13 @@
        gravadas antes não a têm e continuam como eram. */
     if (ident.impedidaPorGestao) camadaSugerida.impedidaPorGestao = ident.impedidaPorGestao;
     if (ident.bloqueioNatureza) camadaSugerida.bloqueioNatureza = ident.bloqueioNatureza;
+    /* Versão 7: o tipo de "A validar" e o que foi marcado (só neste caso). */
+    if (ident.tipoAValidar) {
+      camadaSugerida.tipoAValidar = ident.tipoAValidar;
+      camadaSugerida.naturezasCodigos = ident.naturezasCodigos;
+      camadaSugerida.pares = ident.pares;
+      camadaSugerida.label = nomeClassificacao(ident.camada) + SUFIXOS_A_VALIDAR[ident.tipoAValidar];
+    }
     return camadaSugerida;
   }
 
@@ -1299,6 +1388,7 @@
      próprios motivos (pergunta + resposta real) que a sustentaram. */
   function gerarJustificativaAutomatica(atual, calc) {
     var camada = calc.camadaSugerida;
+    if (camada.tipoAValidar) return justificativaAValidarV7(camada);
     if (camada.incoerencia) {
       return 'Há respostas que indicam autonomia e outras que indicam dependência. Revise os critérios destacados.';
     }
@@ -1784,12 +1874,14 @@
     if (camadaNaConclusaoPdf) html += '<p class="pdf-meta-versoes">Nome registrado na conclusão: ' + esc(camadaNaConclusaoPdf) + '</p>';
     var espDerivada = especializacaoDerivada(it);
     if (espDerivada) html += '<p>Especialização identificada pelo questionário: ' + esc(espDerivada) + '</p>';
-    if (camada && camada.conflitoNaturezas) {
+    if (camada && camada.tipoAValidar) {
+      linhasDetalheAValidarV7(camada).forEach(function (l) { html += '<p class="pdf-aviso">' + esc(l) + '</p>'; });
+    } else if (camada && camada.conflitoNaturezas) {
       html += '<p class="pdf-aviso">' + esc(textoNaturezasIndicadas(camada.conflito)) + '.</p>';
     } else if (camada && camada.conflito && camada.conflito.length) {
       html += '<p class="pdf-aviso">Categorias em conflito nas respostas: ' + esc(camada.conflito.join(', ')) + '.</p>';
     }
-    if (camada && camada.incoerencia) {
+    if (camada && camada.incoerencia && !camada.tipoAValidar) {
       html += '<p class="pdf-aviso">Há respostas que indicam autonomia e outras que indicam dependência. Revise os critérios destacados.</p>';
     }
     if (camada && camada.relacao) html += '<p><strong>Relação arquitetural:</strong> ' + esc(camada.relacao) + '</p>';
@@ -5359,7 +5451,13 @@
       h += '<li><strong>Limite desta versão do editor:</strong> só dá para remover uma condição acrescentada no rascunho, antes de publicar. Depois de publicada, ela passa a fazer parte da regra e esta tela não a remove — o editor não edita a estrutura inteira das regras.</li>';
       h += '<li><strong>Proposta de regras:</strong> uma mudança de estrutura já aprovada (como a política geral de conflitos de natureza predominante) chega pronta e aparece no topo de "Editar regras". "Carregar proposta no editor" só troca as regras da tela — depois é o mesmo caminho: salvar o rascunho, simular e decidir se publica.</li>';
       h += '<li><strong>Conflito de naturezas predominantes:</strong> P11 a P15 perguntam se o item é <em>principalmente</em> ' + ['capacidade-organizacional', 'processo-etapa', 'modalidade-subproduto', 'regra-condicao'].map(function (id) { return esc(nomeCamadaMotor(id)); }).join(', ') + ' ou ' + esc(nomeCamadaMotor('componente')) + '. Quando a regra de conflito existe, duas ou mais SIM levam a "' + nAValidar + '", citando só as naturezas marcadas — nunca uma escolha pela ordem das regras.</li>';
-      h += '<li><strong>Simular impacto:</strong> recalcula, só na tela, as avaliações já concluídas com as regras que você está editando e mostra quais mudariam de classificação. Não grava nada e não altera nenhuma avaliação.</li>';
+      var regrasNaTela = (state.configMotores && state.configMotores.regras) || [];
+      if (regrasNaTela.some(function (r) { return r && r.tipoAValidar; })) {
+        h += '<li><strong>Tipos de "' + nAValidar + '" (versão 7):</strong> <em>incoerência</em> — duas respostas não podem descrever o mesmo objeto (P5 = SIM com P13, P14, P15 ou P16); ' +
+          '<em>conflito de naturezas</em> — o mesmo objeto recebeu naturezas que não podem ser escolhidas juntas (13 pares entre P9 e P16); ' +
+          '<em>recorte do objeto</em> — duas ou mais naturezas que costumam ser objetos diferentes, sem nenhum par de conflito. Não são classificações novas: o resultado continua sendo "' + nAValidar + '".</li>';
+      }
+      h += '<li><strong>Simular impacto:</strong> recalcula, só na tela, as avaliações já concluídas com as regras que você está editando e mostra quais mudariam de classificação ou de tipo de "' + nAValidar + '". Não grava nada e não altera nenhuma avaliação.</li>';
       h += '<li><strong>Rascunho × publicação:</strong> "Salvar rascunho" guarda a edição sem efeito nenhum para quem avalia. Só "Publicar nova versão" faz as regras valerem — para as próximas avaliações. As já concluídas continuam como estão até alguém pedir o reprocessamento.</li>';
       h += '</ul></details>';
       return h;
@@ -5498,7 +5596,8 @@
           ' → classifica como <strong>' + esc(nomeCamadaMotor(regra.resultado)) + '</strong>' +
           (regra.incoerencia ? ' <em>(incoerência)</em>' : '') +
           (regra.conflito ? ' <em>(conflito: ' + regra.conflito.map(function (id) { return nomeCamadaMotor(id); }).join(' × ') + ')</em>' : '') +
-          (regra.conflitoDinamico ? ' <em>(conflito de naturezas predominantes: cita só as naturezas marcadas SIM)</em>' : '') + '</p>';
+          (regra.tipoAValidar ? ' <em>(' + esc(nomeCamadaMotor('a-validar') + SUFIXOS_A_VALIDAR[regra.tipoAValidar]) + ': cita só as naturezas marcadas SIM)</em>'
+            : regra.conflitoDinamico ? ' <em>(conflito de naturezas predominantes: cita só as naturezas marcadas SIM)</em>' : '') + '</p>';
         /* Fallback (tipo FALLBACK, ou o legado sem condicoes que o Firebase
            devolve) não tem condição nenhuma para desenhar — antes, abrir o
            editor numa versão publicada quebrava aqui (regra.condicoes
@@ -5612,6 +5711,16 @@
       return contexto;
     }
 
+    /* Tipo de "A validar" na simulação: mudar de conflito para recorte também é mudança. */
+    var SUFIXO_TIPO_SIMULADO = { incoerencia: ' — incoerência', conflito: ' — conflito de naturezas', recorte: ' — recorte do objeto', 'sem-classificacao': ' — sem classificação' };
+    function rotuloSimulado(camada, tipo) { return nomeCamadaMotor(camada) + (camada === 'a-validar' && tipo ? SUFIXO_TIPO_SIMULADO[tipo] || '' : ''); }
+    function motivoSimulado(m) {
+      var nomes = (m.naturezas || []).map(function (c) { return nomeCamadaMotor(window.faMotorArquitetura.CAMADA_POR_NATUREZA[c]); });
+      if (m.tipoNovo === 'incoerencia') return 'Incoerência: autonomia (P5) × ' + (nomes.length ? listaComE(nomes) : 'pertencimento a outro Produto/Serviço');
+      if (m.tipoNovo === 'conflito') return 'Conflito de naturezas' + (nomes.length ? ': ' + listaComE(nomes) : '');
+      if (m.tipoNovo === 'recorte') return 'Recorte do objeto' + (nomes.length ? ': ' + listaComE(nomes) : '');
+      return '—';
+    }
     /* ---- SIMULAÇÃO (item 20 do pedido) ---- */
     function renderMotorArqSimulacao() {
       var c = state.configMotores;
@@ -5624,11 +5733,12 @@
       html += '<p>' + esc(s.mudariam.length) + ' mudariam</p></div>';
       if (s.mudariam.length) {
         html += '<div class="avp-form-card"><h4>Avaliações que mudariam</h4>';
-        html += '<div class="table-scroll-wrap"><table class="admin-table"><thead><tr><th>Item</th><th>Resultado atual</th><th>Resultado proposto</th></tr></thead><tbody>';
+        html += '<div class="table-scroll-wrap"><table class="admin-table"><thead><tr><th>Item</th><th>Resultado atual</th><th>Resultado proposto</th><th>Motivo</th></tr></thead><tbody>';
         s.mudariam.forEach(function (m) {
           html += '<tr><td data-label="Item">' + esc(m.itemNome) + '</td>' +
-            '<td data-label="Resultado atual">' + esc(nomeCamadaMotor(m.atual)) + '</td>' +
-            '<td data-label="Resultado proposto">' + esc(nomeCamadaMotor(m.nova)) + '</td></tr>';
+            '<td data-label="Resultado atual">' + esc(rotuloSimulado(m.atual, m.tipoAtual)) + '</td>' +
+            '<td data-label="Resultado proposto">' + esc(rotuloSimulado(m.nova, m.tipoNovo)) + '</td>' +
+            '<td data-label="Motivo">' + esc(motivoSimulado(m)) + '</td></tr>';
         });
         html += '</tbody></table></div></div>';
       }
@@ -6487,12 +6597,15 @@
       if (camada.id) html += htmlAvisoContingencia([camada.id], 'avpClassifContingencia');
       var espDerivadaTela = especializacaoDerivada(a);
       if (espDerivadaTela) html += '<p class="avp-alt-outras" id="avpEspecializacaoDerivada">Especialização identificada pelo questionário: <strong>' + esc(espDerivadaTela) + '</strong></p>';
-      if (camada.conflitoNaturezas) {
+      if (camada.tipoAValidar) {
+        html += '<div id="avpAValidarDetalhe" data-tipo="' + esc(camada.tipoAValidar) + '">' + linhasDetalheAValidarV7(camada).map(function (l) {
+          return '<p class="avp-alt-outras' + (camada.tipoAValidar === 'incoerencia' ? ' avp-incoerencia-msg' : '') + '">' + esc(l) + '</p>'; }).join('') + '</div>';
+      } else if (camada.conflitoNaturezas) {
         html += '<p class="avp-alt-outras" id="avpNaturezasIndicadas">' + esc(textoNaturezasIndicadas(camada.conflito)) + '.</p>';
       } else if (camada.conflito && camada.conflito.length) {
         html += '<p class="avp-alt-outras">Categorias em conflito nas respostas: ' + esc(camada.conflito.join(', ')) + '.</p>';
       }
-      if (camada.incoerencia) {
+      if (camada.incoerencia && !camada.tipoAValidar) {
         html += '<p class="avp-alt-outras avp-incoerencia-msg">⚠ Há respostas que indicam autonomia e outras que indicam dependência. Revise os critérios destacados.</p>';
       }
       if (camada.relacao) {
