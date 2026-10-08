@@ -619,7 +619,7 @@
     gestao: 'Pode ser gerido de ponta a ponta como solução própria',
     canal: 'Funciona predominantemente como canal de acesso',
     artefato: 'Funciona predominantemente como documento/informação entregue',
-    capacidade: 'Funciona predominantemente como capacidade organizacional',
+    capacidade: 'É principalmente uma capacidade que a organização precisa possuir',
     processo: 'Funciona predominantemente como processo/etapa de processo',
     modalidade: 'Funciona predominantemente como modalidade/opção/configuração',
     regra: 'Funciona predominantemente como regra/condição',
@@ -1080,7 +1080,9 @@
       case 'processo-etapa':
         return 'É um processo ou etapa de processo de outro Produto/Serviço.';
       case 'capacidade-organizacional':
-        return 'É uma capacidade organizacional interna, sem necessidade de cliente identificável associada.';
+        /* Nunca "interna" nem "sem cliente": com a Capacidade G, P1 = SIM é compatível com Capacidade. */
+        return 'Representa uma capacidade que a organização precisa possuir para realizar, sustentar ou evoluir suas entregas. ' +
+          'Pode atender públicos internos ou externos; a existência de um público identificável não determina, por si só, que o item seja Produto/Serviço.';
       case 'canal':
         return 'É um canal de acesso ou relacionamento a um ou mais Produto/Serviço.';
       case 'documento-informacao':
@@ -1141,7 +1143,8 @@
       case 'processo-etapa':
         return 'funciona predominantemente como um processo ou etapa de processo de outro Produto/Serviço';
       case 'capacidade-organizacional':
-        return 'funciona predominantemente como uma capacidade organizacional interna, sem necessidade de cliente identificável associada';
+        /* não usado: Capacidade tem molde próprio em gerarJustificativaAutomatica */
+        return 'funciona predominantemente como uma capacidade que a organização precisa possuir';
       case 'canal':
         return 'funciona predominantemente como um canal de acesso ou relacionamento, e não como uma solução com resultado próprio';
       case 'documento-informacao':
@@ -1339,6 +1342,15 @@
        "configurável" inventaria uma natureza que as respostas não sustentam;
        a redação genérica ("papel estrutural dentro dela") não afirma nada
        além do que o motor realmente verificou. */
+    /* Capacidade organizacional: não afirma ausência de cliente (P1 = SIM é
+       compatível com a Capacidade G), não diz "interna" e não nega autonomia —
+       há Capacidades legítimas com P5 = SIM. Só o que a regra garante: P11 = SIM
+       e o núcleo completo de Produto/Serviço NÃO reunido. */
+    if (camada.id === 'capacidade-organizacional') {
+      return 'As respostas indicam que o item é principalmente uma capacidade que a organização precisa possuir. ' +
+        'Embora possa atender um cliente ou público e apresentar alguns sinais associados a Produto/Serviço, não reúne simultaneamente todo o núcleo que caracteriza uma solução principal. ' +
+        'Por isso, sua classificação predominante é ' + nomeClassificacao('capacidade-organizacional') + '.';
+    }
     if (camada.id === 'componente') {
       var respostasComponente = atual.respostas || {};
       var configuravel = !!(respostasComponente.modalidade && respostasComponente.modalidade.valor === 'sim');

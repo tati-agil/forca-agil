@@ -80,7 +80,7 @@ alguém precisa).
 | `forca-agil/dashboard.js` | index.html | Aba Dashboard (agrega "Avaliar oficina"). |
 | `forca-agil/questionarios-config.js` | index.html | Conteúdo editorial publicado dos questionários (`window.faQuestionarios`), e as correções editoriais entregues pelo código (`CORRECOES_EDITORIAIS`: campo simples ou aninhado como `textoAjuda.significado`, campo novo, campo retirado), que só uma administradora aplica e viram versão nova. |
 | `forca-agil/naturezas-config.js` | index.html | Catálogo da Natureza complementar (`window.faNaturezas`). |
-| `forca-agil/motor-arquitetura.js` | index.html | Motor de classificação arquitetural (`window.faMotorArquitetura`). |
+| `forca-agil/motor-arquitetura.js` | index.html | Motor de classificação arquitetural (`window.faMotorArquitetura`). Mudança que o editor não consegue fazer (tirar condição, trocar estrutura) vem como proposta entregue pelo código (`PROPOSTAS_REGRAS`: conflito de naturezas sobre a versão 3; Capacidade G sobre a versão 5), que só vale sobre a versão-base exata e só entra em vigor quando alguém a carrega no editor, simula e publica. |
 | `forca-agil/classificacoes.js` | index.html | Nome e definição das classificações lidos da Taxonomia (`window.faClassificacoes`). |
 | `forca-agil/avaliacao-produto.js` | index.html | Avaliação de Produto/Serviço (`#avaliacoes`) e ADMIN › Arquitetura. |
 | `forca-agil/taxonomia.js` | index.html | ADMIN › Taxonomia (`window.faTaxonomia`). |

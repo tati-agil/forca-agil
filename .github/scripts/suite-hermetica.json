@@ -116,6 +116,12 @@
       "sobre": "Editor do motor arquitetural: acrescentar condição (P1–P16, SIM/NÃO) ao grupo \"SE TODAS\" de uma regra, sem duplicata; só a condição NOVA (vs. versão-base do rascunho) é removível; regra inalcançável bloqueia; nada é publicado sozinho."
     },
     {
+      "arquivo": ".github/scripts/teste-capacidade-g.js",
+      "nome": "Motor arquitetural: Capacidade G (proposta da versão 6) — delta exato, proposta só pela tela, textos novos",
+      "duracao": 25,
+      "sobre": "Motor real num vm: sobre a versão 5, Capacidade passa de 128 para 252 nas 65.536 — exatamente 124 de A validar para Capacidade, os 4 com o núcleo completo (P1–P5 e P8) + P11 continuam A validar, os 128 de antes continuam Capacidade (só os motivos perdem P1), nada fora de Capacidade muda; P11 + P15 nunca vira Capacidade; S1–S8 não participam; a proposta só existe sobre a versão 5 exata e consultar nunca grava. Navegador (banco falso, desktop e 375 px): cartão no editor, carregar e simular sem gravar; com a versão 6 publicada, avaliação nova com P1 e P11 = SIM é Capacidade com motivos, relação e justificativa novos, e a concluída antes fica intacta."
+    },
+    {
       "arquivo": ".github/scripts/teste-conflito-naturezas.js",
       "nome": "Avaliação: política geral de conflitos de natureza (proposta da versão 4, desktop e celular)",
       "duracao": 54,
