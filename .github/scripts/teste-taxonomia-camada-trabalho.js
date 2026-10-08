@@ -103,7 +103,8 @@ const lista = (page) => page.evaluate(() => Array.from(document.querySelectorAll
   const browser = await chromium.launch();
   for (const [nomeTela, viewport, suf] of [['desktop', DESKTOP, 'desktop'], ['celular 375px', CELULAR, '375']]) {
     console.log('\n######## ' + nomeTela + ' ########');
-    const { ctx, page, erros } = await abrir(browser, viewport);
+    /* leitura do índice lenta de propósito: reproduz a corrida do CI (painel em "Conferindo…" antes da prévia) */
+    const { ctx, page, erros } = await abrir(browser, viewport, { delays: { 'taxonomia/meta/indiceFilhos': 500 } });
     await dominio(page, 'organizacional');
 
     console.log('\n== 1. Antes: Squad e Capítulo aparecem como tipo organizacional ==');
@@ -114,7 +115,8 @@ const lista = (page) => page.evaluate(() => Array.from(document.querySelectorAll
     await abreConceito(page, 'SQUAD');
     afirma(await page.locator('#taxCamadaBtn').count() === 1, 'conceito da camada "Tipo organizacional" tem "Alterar camada"');
     await page.click('#taxCamadaBtn');
-    await page.waitForSelector('#taxPainelCamada', { timeout: 4000 });
+    /* o painel abre em "Conferindo o índice…" e só depois mostra a prévia: esperar a prévia, não o painel */
+    await page.waitForSelector('#taxCamadaPrevia', { timeout: 6000 });
     const painel = await texto(page, '#taxPainelCamada');
     afirma(/Mover de "Tipo organizacional" para "Organização do trabalho"\?/.test(painel) && /código SQUAD, o nome, a definição, as fontes, as relações e o histórico continuam como estão/.test(painel), 'prévia diz de → para e o que NÃO muda', painel);
     afirma(await larguraOk(page), 'painel sem rolagem horizontal');
@@ -171,6 +173,7 @@ const lista = (page) => page.evaluate(() => Array.from(document.querySelectorAll
     console.log('\n== 5. Desfazer pelo mesmo caminho ==');
     await abreConceito(page, 'SQUAD');
     await page.click('#taxCamadaBtn');
+    await page.waitForSelector('#taxCamadaPrevia', { timeout: 6000 });
     afirma(/Mover de "Organização do trabalho" para "Tipo organizacional"\?/.test(await texto(page, '#taxPainelCamada')), 'em Organização do trabalho, o caminho de volta é o mesmo botão');
     await page.click('[data-tax="cancelar-camada"]');
     afirma(await page.locator('#taxPainelCamada').count() === 0, 'cancelar fecha o painel sem gravar');
