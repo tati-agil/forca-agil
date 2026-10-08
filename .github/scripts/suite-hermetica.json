@@ -529,6 +529,12 @@
       "sobre": "\"Alterar camada\" troca só entre \"Tipo organizacional\" e \"Organização do trabalho\": prévia (de → para e o que não muda), motivo obrigatório, grava camada + camadaAlteracao + histórico alteracao_camada; código, nome e relação \"Squad compõe Linha\" intactos; a lista fica em três grupos (estruturas · Organização do trabalho · Conceito auxiliar); Especialização e Conceito auxiliar sem o botão; conceito com filho ativo só recebe a explicação, só com filho inativo a troca fica liberada; sem o índice de filhos, \"Conferindo…\" e depois só a explicação; caminho de volta pelo mesmo botão. Hermético; as travas do banco são provadas por teste-rules-taxonomia-governanca.js (seção E) no emulador."
     },
     {
+      "arquivo": ".github/scripts/teste-taxonomia-posicionamento-ligacoes.js",
+      "nome": "Taxonomia: Conceitos-base do Posicionamento Organizacional — ligações e proteção (desktop e celular)",
+      "duracao": 30,
+      "sobre": "No domínio organizacional, exatamente os 10 códigos do motor de Posicionamento com os estados ligado/sem ligação/sem conceito/inativo e o aviso \"Proteção do Posicionamento incompleta: X de 10\"; prévia sem gravar nada (nem ao cancelar), confirmação grava ligações + auditoria numa gravação só (sem nome nem definição), idempotente; conceito ligado não inativa nem troca de camada pela tela; o arquitetural continua com os Conceitos-base da Avaliação."
+    },
+    {
       "arquivo": ".github/scripts/teste-taxonomia-exportacao.js",
       "nome": "Taxonomia: exportação Excel (revisão) e JSON (diagnóstico), só leitura (desktop e celular)",
       "duracao": 9,
@@ -551,6 +557,12 @@
       "nome": "Classificações da Avaliação: nome e definição vindos da Taxonomia Arquitetural, contingência e nome da época (desktop e 375 px)",
       "duracao": 150,
       "sobre": "O nome de cada classificação vem do conceito de MESMO código da Taxonomia Arquitetural (lista, filtro pelo código, ficha/resultado, histórico de versões, PDF, Excel, frase explicativa, contexto da Squad), ao vivo e sem recarregar; a definição é a da fonte apontada por definicaoVigenteFonteId (outra fonte também marcada vigente não aparece; trocar o ponteiro troca o texto); avaliação antiga mostra o nome atual e \"na conclusão: …\" (Excel com a coluna \"Rótulo registrado na conclusão\"), sem reescrever nada; Taxonomia lenta, que nunca responde ou recusada → rótulo de contingência com aviso discreto, e concluir grava resultado, camadaSugerida.id, decisão e respostas iguais aos de uma conclusão com a Taxonomia; o motor arquitetural não tem mais \"Editar textos\" (histórico antigo legível); Taxonomia › Arquitetural lista os conceitos-base da Avaliação e acusa o código sem conceito. Hermético; as regras ficam em teste-rules-perfis-avaliacao.js."
+    },
+    {
+      "arquivo": ".github/scripts/teste-posicionamentos-fonte-unica.js",
+      "nome": "Posicionamentos: Taxonomia Organizacional como fonte única do nome e da definição (desktop e celular)",
+      "duracao": 60,
+      "sobre": "window.faPosicionamentos (posicionamentos.js): catálogo = os 10 códigos do motor de Posicionamento (CODIGOS_INTERMEDIARIOS + CODIGOS_FIRMES, sem A_VALIDAR nem Squad/Capítulo/Disciplina); nome da Taxonomia Organizacional; definição só da fonte apontada (outra marcada vigente não é escolhida); só lê nome/ativo/ponteiro dos 10 e o texto da fonte apontada; renomear e trocar o ponteiro ao vivo (a escuta da fonte antiga é desligada); lenta, sem resposta ou recusada → só rótulo de contingência + aviso, sem definição inventada; perder o acesso descarta respostas atrasadas; não grava nada; o motor devolve o mesmo com a Taxonomia renomeada."
     },
     {
       "arquivo": ".github/scripts/teste-checagens-interface.js",

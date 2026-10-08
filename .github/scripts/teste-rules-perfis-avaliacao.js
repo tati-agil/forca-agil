@@ -19,6 +19,8 @@
      - Taxonomia Arquitetural: a audiência da Avaliação lê só nome, ativo,
        ponteiro da definição vigente e o texto da fonte apontada — de
        qualquer conceito arquitetural, sem lista de códigos; nunca grava.
+     - Taxonomia Organizacional: o mesmo, mas SÓ para os 10 códigos do motor
+       de Posicionamento (nunca SQUAD/CAPITULO/DISCIPLINA nem outro); nunca grava.
      - A avaliação de Squad mora na área AVALIAÇÃO: "Avaliação" lê e grava
        avaliacoes-squad e lê o motor de squad (para concluir); a
        configuração do motor continua só da Arquitetura.
@@ -276,6 +278,101 @@ async function main() {
   await pode('admin geral continua lendo a auditoria', db(ADMIN).ref(TX + '/auditoria/canal').once('value'));
   await pode('admin geral continua lendo o domínio organizacional', db(ADMIN).ref('taxonomia/organizacional/conceitos').once('value'));
   await pode('admin geral continua renomeando um conceito', db(ADMIN).ref(TX + '/conceitos/canal/nome').set('Canal renomeado'));
+
+  /* Taxonomia ORGANIZACIONAL para o Posicionamento (PR D): a audiência da Avaliação lê, SÓ dos 10 códigos
+     do motor de Posicionamento (CODIGOS_INTERMEDIARIOS + CODIGOS_FIRMES), nome, ativo, o ponteiro da
+     definição vigente e o texto da fonte apontada. Nada mais — nem SQUAD/CAPITULO/DISCIPLINA, nem
+     camada/pai/ordem/critérios, nem atributos/perfis/relações/auditoria — e não grava nada. */
+  console.log('\n== Taxonomia Organizacional: os 10 códigos do Posicionamento para a Avaliação ==');
+  await base();
+  const motorPos = require(path.join(__dirname, '..', '..', 'forca-agil', 'motor-posicionamento.js'));
+  const POS = motorPos.CODIGOS_INTERMEDIARIOS.concat(motorPos.CODIGOS_FIRMES);
+  const ORG = 'taxonomia/organizacional';
+  const regrasJson = JSON.parse(rules).rules;
+  const listaNasRegras = (expr) => (expr.match(/\$codigo === '([A-Z_]+)'/g) || []).map((m) => m.slice(13, -1)).sort();
+  const exprNome = regrasJson.taxonomia.organizacional.conceitos.$codigo.nome['.read'];
+  anota('as regras liberam exatamente os 10 códigos do motor (' + POS.length + ')', POS.length === 10 &&
+    JSON.stringify(listaNasRegras(exprNome)) === JSON.stringify(POS.slice().sort()) &&
+    JSON.stringify(listaNasRegras(regrasJson['posicionamento-classificacoes'].$codigo['.validate'])) === JSON.stringify(POS.slice().sort()));
+  await semear(async (a) => {
+    const u = {};
+    POS.concat(['SQUAD', 'CAPITULO', 'DISCIPLINA']).forEach((c, i) => {
+      u[ORG + '/conceitos/' + c] = { nome: 'Nome ' + c, ordem: i + 1, ativo: true, situacaoDefinicao: 'registrada', camada: 'A', definicaoVigenteFonteId: 'fA',
+        observacoes: 'obs', criterios: { k1: { texto: 'crit', ordem: 1 } }, perguntaDiscriminadora: 'p?' };
+      u[ORG + '/fontes/' + c + '/fA'] = { texto: 'Definição A de ' + c, contexto: 'PREVI', situacao: 'vigente', tipoRedacao: 'Conceito', rotulo: 'r' };
+      u[ORG + '/fontes/' + c + '/fB'] = { texto: 'Definição B de ' + c, contexto: 'PREVI', situacao: 'vigente', tipoRedacao: 'Conceito' };
+      u[ORG + '/fontes/' + c + '/f0'] = { texto: 'Redação antiga de ' + c, contexto: 'PREVI', situacao: 'histórica/contextual', tipoRedacao: 'Conceito' };
+    });
+    u[ORG + '/conceitos/NEGOCIOS'].pai = 'LINHA';
+    u[ORG + '/filhos/LINHA/NEGOCIOS'] = true;
+    u[ORG + '/auditoria/LINHA/a1'] = { tipo: 'alteracao_conceito', campo: 'nome', dataHora: '2026-10-06T10:00:00.000Z' };
+    u[ORG + '/atributos/at1'] = { nome: 'Atributo', ordem: 1 };
+    u[ORG + '/perfis/LINHA/at1'] = { estado: 'ainda não definido' };
+    u[ORG + '/relacoes/LINHA__contem__NEGOCIOS'] = { de: 'LINHA', tipo: 'contem', para: 'NEGOCIOS' };
+    await a.ref().update(u);
+  });
+  for (const [quem, email] of [['"Avaliação"', AVAL], ['"Avaliação + Arquitetura"', ARQ], ['admin geral', ADMIN]]) {
+    let todos = true;
+    for (const c of POS) {
+      for (const campo of ['nome', 'ativo', 'definicaoVigenteFonteId']) {
+        try { await assertSucceeds(db(email).ref(ORG + '/conceitos/' + c + '/' + campo).once('value')); } catch (e) { todos = false; console.error('    não leu ' + c + '/' + campo); }
+      }
+      try { await assertSucceeds(db(email).ref(ORG + '/fontes/' + c + '/fA/texto').once('value')); } catch (e) { todos = false; console.error('    não leu a fonte apontada de ' + c); }
+    }
+    anota(quem + ': lê nome, ativo, ponteiro e o texto da fonte apontada dos 10 códigos', todos);
+    const lido = (await db(email).ref(ORG + '/fontes/COE/fA/texto').once('value')).val();
+    anota(quem + ': o texto lido é o da fonte apontada ("' + lido + '")', lido === 'Definição A de COE');
+  }
+  for (const [quem, email] of [['"Avaliação"', AVAL], ['"Avaliação + Arquitetura"', ARQ]]) {
+    await naoPode(quem + ': NÃO lê outra fonte do mesmo código, mesmo marcada vigente (fB)', db(email).ref(ORG + '/fontes/LINHA/fB/texto').once('value'));
+    await naoPode(quem + ': NÃO lê fonte histórica (f0)', db(email).ref(ORG + '/fontes/LINHA/f0/texto').once('value'));
+    await naoPode(quem + ': NÃO lê a fonte apontada inteira', db(email).ref(ORG + '/fontes/LINHA/fA').once('value'));
+    await naoPode(quem + ': NÃO lê outro campo da fonte apontada (situacao)', db(email).ref(ORG + '/fontes/LINHA/fA/situacao').once('value'));
+    await naoPode(quem + ': NÃO lê o rótulo da fonte apontada', db(email).ref(ORG + '/fontes/LINHA/fA/rotulo').once('value'));
+    await naoPode(quem + ': NÃO lê as fontes de um código', db(email).ref(ORG + '/fontes/LINHA').once('value'));
+    await naoPode(quem + ': NÃO lê o nó de fontes inteiro', db(email).ref(ORG + '/fontes').once('value'));
+    await naoPode(quem + ': NÃO lê o nó de conceitos inteiro', db(email).ref(ORG + '/conceitos').once('value'));
+    await naoPode(quem + ': NÃO lê um conceito inteiro', db(email).ref(ORG + '/conceitos/LINHA').once('value'));
+    for (const campo of ['ordem', 'camada', 'criterios', 'observacoes', 'perguntaDiscriminadora', 'situacaoDefinicao']) {
+      await naoPode(quem + ': NÃO lê "' + campo + '"', db(email).ref(ORG + '/conceitos/LINHA/' + campo).once('value'));
+    }
+    await naoPode(quem + ': NÃO lê "pai"', db(email).ref(ORG + '/conceitos/NEGOCIOS/pai').once('value'));
+    await naoPode(quem + ': NÃO lê atributos', db(email).ref(ORG + '/atributos').once('value'));
+    await naoPode(quem + ': NÃO lê perfis', db(email).ref(ORG + '/perfis/LINHA').once('value'));
+    await naoPode(quem + ': NÃO lê relações', db(email).ref(ORG + '/relacoes').once('value'));
+    await naoPode(quem + ': NÃO lê o índice de filhos', db(email).ref(ORG + '/filhos/LINHA').once('value'));
+    await naoPode(quem + ': NÃO lê a auditoria organizacional', db(email).ref(ORG + '/auditoria/LINHA').once('value'));
+    await naoPode(quem + ': NÃO lê o domínio organizacional inteiro', db(email).ref(ORG).once('value'));
+    for (const fora of ['SQUAD', 'CAPITULO', 'DISCIPLINA', 'A_VALIDAR']) {
+      await naoPode(quem + ': NÃO lê o nome de ' + fora, db(email).ref(ORG + '/conceitos/' + fora + '/nome').once('value'));
+      await naoPode(quem + ': NÃO lê o ponteiro de ' + fora, db(email).ref(ORG + '/conceitos/' + fora + '/definicaoVigenteFonteId').once('value'));
+      await naoPode(quem + ': NÃO lê a definição vigente de ' + fora, db(email).ref(ORG + '/fontes/' + fora + '/fA/texto').once('value'));
+    }
+    await naoPode(quem + ': NÃO renomeia um conceito', db(email).ref(ORG + '/conceitos/LINHA/nome').set('Outro'));
+    await naoPode(quem + ': NÃO desativa um conceito', db(email).ref(ORG + '/conceitos/LINHA/ativo').set(false));
+    await naoPode(quem + ': NÃO troca o ponteiro', db(email).ref(ORG + '/conceitos/LINHA/definicaoVigenteFonteId').set('fB'));
+    await naoPode(quem + ': NÃO altera o texto da fonte apontada', db(email).ref(ORG + '/fontes/LINHA/fA/texto').set('Outra'));
+    await naoPode(quem + ': NÃO lê as ligações do Posicionamento', db(email).ref('posicionamento-classificacoes').once('value'));
+    await naoPode(quem + ': NÃO registra ligação do Posicionamento', db(email).ref('posicionamento-classificacoes/LINHA').set({ registradoEm: 'x', registradoPor: email, auditoriaId: 'k1' }));
+  }
+  const trocaOrg = {};
+  trocaOrg[ORG + '/conceitos/COE/definicaoVigenteFonteId'] = 'f2';
+  trocaOrg[ORG + '/fontes/COE/fA/situacao'] = 'histórica/contextual';
+  trocaOrg[ORG + '/fontes/COE/fB/situacao'] = 'histórica/contextual';
+  trocaOrg[ORG + '/fontes/COE/f2'] = { texto: 'Nova definição de CoE', contexto: 'PREVI', situacao: 'vigente', tipoRedacao: 'Conceito' };
+  await semear((a) => a.ref().update(trocaOrg));
+  await pode('"Avaliação" lê o texto da NOVA vigente (organizacional)', db(AVAL).ref(ORG + '/fontes/COE/f2/texto').once('value'));
+  await naoPode('"Avaliação" deixa de ler o texto da antiga (organizacional)', db(AVAL).ref(ORG + '/fontes/COE/fA/texto').once('value'));
+  await naoPode('quem não está na lista não lê o nome (organizacional)', db(SEM).ref(ORG + '/conceitos/LINHA/nome').once('value'));
+  await naoPode('quem não está na lista não lê o ativo (organizacional)', db(SEM).ref(ORG + '/conceitos/LINHA/ativo').once('value'));
+  await naoPode('quem não está na lista não lê o ponteiro (organizacional)', db(SEM).ref(ORG + '/conceitos/LINHA/definicaoVigenteFonteId').once('value'));
+  await naoPode('quem não está na lista não lê o texto da vigente (organizacional)', db(SEM).ref(ORG + '/fontes/LINHA/fA/texto').once('value'));
+  await naoPode('sem login não lê o nome (organizacional)', testEnv.unauthenticatedContext().database().ref(ORG + '/conceitos/LINHA/nome').once('value'));
+  await pode('admin geral continua lendo o domínio organizacional inteiro (conceitos)', db(ADMIN).ref(ORG + '/conceitos').once('value'));
+  await pode('admin geral continua lendo as fontes inteiras (organizacional)', db(ADMIN).ref(ORG + '/fontes/LINHA').once('value'));
+  await pode('admin geral continua lendo SQUAD', db(ADMIN).ref(ORG + '/conceitos/SQUAD').once('value'));
+  await pode('admin geral continua lendo a auditoria organizacional', db(ADMIN).ref(ORG + '/auditoria/LINHA').once('value'));
+  await pode('admin geral continua lendo relações e atributos', db(ADMIN).ref(ORG + '/relacoes').once('value'));
   await testEnv.cleanup();
   console.log('\n' + total + ' verificações, ' + falhas + ' falha(s).');
   process.exit(falhas ? 1 : 0);

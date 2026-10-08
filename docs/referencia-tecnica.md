@@ -85,6 +85,7 @@ alguém precisa).
 | `forca-agil/avaliacao-produto.js` | index.html | Avaliação de Produto/Serviço (`#avaliacoes`) e ADMIN › Arquitetura. |
 | `forca-agil/taxonomia.js` | index.html | ADMIN › Taxonomia (`window.faTaxonomia`). |
 | `forca-agil/motor-posicionamento.js` | index.html | Motor puro de Posicionamento Organizacional O1–O9 (`window.faMotorPosicionamento`): só códigos estáveis, sem tela, sem Firebase e sem Taxonomia; versão 1 em código (`teste-motor-posicionamento.js`, os 531.441 estados). |
+| `forca-agil/posicionamentos.js` | index.html | Nome e definição dos 10 posicionamentos do motor (`CODIGOS_INTERMEDIARIOS` + `CODIGOS_FIRMES`, sem `A_VALIDAR`) lidos da Taxonomia Organizacional (`window.faPosicionamentos`): só `conceitos/<código>/{nome,ativo,definicaoVigenteFonteId}` e o texto da fonte apontada; rótulo de fábrica só como contingência, nunca definição de fábrica; não grava nada e só lê depois de `iniciar()`. Vem depois do motor e nunca é lido por ele. Ainda sem tela que responda O1–O9 (`teste-posicionamentos-fonte-unica.js`). |
 | `forca-agil/motor-squad.js` | index.html | Motor de Adequação à Squad (`window.faMotorSquad`). |
 | `forca-agil/avaliacao-squad.js` | index.html | Adequação à Squad (área Avaliação e ADMIN › Arquitetura). |
 | `forca-agil/aluno.js` | index.html | Minha Área (`#minha-area`). |
@@ -101,7 +102,7 @@ Imagens e templates ficam em `forca-agil/assets/` e `forca-agil/cert-template-*.
 
 ## 3. Dicionário do banco
 
-Firebase Realtime Database, projeto `kyber-agil`. **54 nós** na raiz de `database.rules.json`.
+Firebase Realtime Database, projeto `kyber-agil`. **56 nós** na raiz de `database.rules.json`.
 "Módulos" lista os arquivos que leem ou gravam o nó (conferido por busca no código).
 Para **quem pode ler e gravar**, a fonte é sempre `database.rules.json`.
 
@@ -183,9 +184,11 @@ Para **quem pode ler e gravar**, a fonte é sempre `database.rules.json`.
 
 | Nó | Finalidade | Módulos | Observação |
 |---|---|---|---|
-| `taxonomia` | Dicionário conceitual: domínios arquitetural e organizacional (conceitos, fontes, critérios, atributos, perfis, relações, auditoria, carga inicial). | classificacoes, taxonomia | Fonte única dos conceitos. A audiência da Avaliação lê só nome/ativo/definição vigente dos conceitos arquiteturais. Camadas organizacionais: A, B, C, `trabalho` ("Organização do trabalho": Squad, Capítulo) e `auxiliar`; A ⇄ `trabalho` só com motivo e auditoria (`camadaAlteracao`) e só para conceito sem pai e sem filho ativo — provado pelo índice reverso `taxonomia/organizacional/filhos/<pai>/<filho>` (só filho ativo, coerente com `conceito.pai`; inativar/reativar mantém o índice na mesma gravação) e pela marca `taxonomia/meta/indiceFilhos`, que nasce com a carga inicial ou, em produção, só pelo workflow `taxonomia-indice-filhos.yml` (nenhum cliente a cria); sem a marca a troca é recusada. |
+| `taxonomia` | Dicionário conceitual: domínios arquitetural e organizacional (conceitos, fontes, critérios, atributos, perfis, relações, auditoria, carga inicial). | classificacoes, posicionamentos, taxonomia | Fonte única dos conceitos. A audiência da Avaliação lê só nome/ativo/definição vigente dos conceitos arquiteturais e, no organizacional, só dos 10 códigos do motor de Posicionamento (nunca Squad, Capítulo, Disciplina nem outro conceito; nunca camada, pai, critérios, atributos, perfis, relações, auditoria ou fontes não apontadas). Camadas organizacionais: A, B, C, `trabalho` ("Organização do trabalho": Squad, Capítulo) e `auxiliar`; A ⇄ `trabalho` só com motivo e auditoria (`camadaAlteracao`) e só para conceito sem pai e sem filho ativo — provado pelo índice reverso `taxonomia/organizacional/filhos/<pai>/<filho>` (só filho ativo, coerente com `conceito.pai`; inativar/reativar mantém o índice na mesma gravação) e pela marca `taxonomia/meta/indiceFilhos`, que nasce com a carga inicial ou, em produção, só pelo workflow `taxonomia-indice-filhos.yml` (nenhum cliente a cria); sem a marca a troca é recusada. |
 | `avaliacao-classificacoes` | Ligação canônica classificação do motor ↔ conceito arquitetural de mesmo código. | taxonomia | Só admin geral; criada uma vez, nunca alterada nem apagada. |
 | `avaliacao-classificacoes-auditoria` | Histórico dessas ligações. | taxonomia | Só acréscimo. |
+| `posicionamento-classificacoes` | Ligação canônica código do motor de Posicionamento ↔ conceito organizacional de mesmo código (`registradoEm`, `registradoPor`, `auditoriaId`; nunca nome nem definição). | taxonomia | Só os 10 códigos do motor; só admin geral; conceito existente e ativo; auditoria nova na mesma gravação; criada uma vez, nunca alterada nem apagada. Conceito ligado não pode ser inativado nem trocar A ⇄ `trabalho`. Registrada em ADMIN › Taxonomia › Organizacional › "Conceitos-base do Posicionamento Organizacional". |
+| `posicionamento-classificacoes-auditoria` | Histórico dessas ligações (`ligacao_registrada`). | taxonomia | Só acréscimo. |
 
 ### Legado
 
