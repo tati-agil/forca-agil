@@ -84,6 +84,7 @@ alguém precisa).
 | `forca-agil/classificacoes.js` | index.html | Nome e definição das classificações lidos da Taxonomia (`window.faClassificacoes`). |
 | `forca-agil/avaliacao-produto.js` | index.html | Avaliação de Produto/Serviço (`#avaliacoes`) e ADMIN › Arquitetura. |
 | `forca-agil/taxonomia.js` | index.html | ADMIN › Taxonomia (`window.faTaxonomia`). |
+| `forca-agil/motor-posicionamento.js` | index.html | Motor puro de Posicionamento Organizacional O1–O9 (`window.faMotorPosicionamento`): só códigos estáveis, sem tela, sem Firebase e sem Taxonomia; versão 1 em código (`teste-motor-posicionamento.js`, os 531.441 estados). |
 | `forca-agil/motor-squad.js` | index.html | Motor de Adequação à Squad (`window.faMotorSquad`). |
 | `forca-agil/avaliacao-squad.js` | index.html | Adequação à Squad (área Avaliação e ADMIN › Arquitetura). |
 | `forca-agil/aluno.js` | index.html | Minha Área (`#minha-area`). |
