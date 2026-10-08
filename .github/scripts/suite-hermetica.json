@@ -499,6 +499,12 @@
       "sobre": "Detalhe mostra o código do conceito; a vigente não tem \"Editar\", e sim \"Nova versão da definição\", à vista no próprio cartão da definição vigente, que abre — junto da definição — o formulário de nova fonte pré-preenchido; salvar cria fonte NOVA \"em validação\" (criadoEm/criadoPor próprios), a anterior fica intacta e a definição não muda; \"Usar como vigente\" troca a definição e a anterior vira histórica com o mesmo texto. Hermético; a imutabilidade no banco é provada por teste-rules-taxonomia.js no emulador."
     },
     {
+      "arquivo": ".github/scripts/teste-taxonomia-rotulo-vigente.js",
+      "nome": "Taxonomia: \"Editar rótulo\" da fonte vigente (desktop e celular)",
+      "duracao": 12,
+      "sobre": "A fonte vigente tem \"Editar rótulo\": só o rótulo é editável (texto, contexto, tipo e vigência só para leitura, com o aviso de que o texto e a definição vigente permanecem iguais); cancelar e \"nada mudou\" não gravam; salvar grava só o rótulo — mesma fonte (mesmo id), texto/contexto/tipoRedacao/situação=vigente e definicaoVigenteFonteId iguais, nenhuma fonte nova — com histórico alteracao_fonte rótulo anterior → novo; fontes não vigentes seguem com Ver → Editar. Hermético; as regras (só o rótulo de fonte existente muda) são provadas no emulador por teste-rules-taxonomia.js."
+    },
+    {
       "arquivo": ".github/scripts/teste-taxonomia-governanca.js",
       "nome": "Taxonomia: ligações da Avaliação, inativação e relações (desktop e celular)",
       "duracao": 30,
