@@ -480,6 +480,22 @@
     gravar(caminhos, function () { aposSalvar(dom, codigo, 'Conceito salvo.'); });
   }
 
+  /* "Editar rótulo" da fonte VIGENTE: grava SÓ fontes/<conceito>/<id>/rotulo (+ atualizadoEm/Por do conceito e a
+     auditoria alteracao_fonte, rótulo anterior → novo). Texto, contexto, tipo de redação, situação e o ponteiro
+     definicaoVigenteFonteId não são enviados — as regras recusariam qualquer mudança neles de qualquer jeito. */
+  function salvarRotuloVigente(dom, codigo) {
+    var D = st.d[dom], e = D.edicao, fontes = fontesAtuais(dom), c = conceitoAtual(dom, codigo), id = e.chave, atual = fontes[id];
+    if (!atual || atual.arquivada || atual.situacao !== 'vigente' || c.definicaoVigenteFonteId !== id) { e.erro = 'Esta fonte não é mais a definição vigente. Recarregue a página.'; render(); return; }
+    var novo = String(e.valores.rotulo || '').trim(), antes = atual.rotulo || '';
+    if (novo.length > 120) { e.erro = 'O rótulo pode ter até 120 caracteres.'; render(); return; }
+    if (novo === antes) { e.erro = 'Nada foi alterado.'; render(); return; }
+    var caminhos = {};
+    caminhos[RAIZ + '/' + dom + '/fontes/' + codigo + '/' + id + '/rotulo'] = novo || null;
+    marcaConceito(caminhos, dom, codigo);
+    addAud(caminhos, dom, codigo, 'alteracao_fonte', 'rótulo da fonte vigente', antes || '(sem rótulo)', novo || '(sem rótulo)', { fonteId: id, rotuloAnterior: antes || null, rotuloNovo: novo || null });
+    gravar(caminhos, function () { aposSalvar(dom, codigo, 'Rótulo da fonte vigente salvo. O texto e a definição vigente continuam iguais.'); });
+  }
+
   var TEXTO_IMUTAVEL = 'O texto, o contexto e o tipo de redação de uma fonte já criada não podem ser alterados. Para corrigir o texto, crie um novo texto-fonte ("+ Adicionar texto-fonte" ou "Nova versão da definição") e arquive esta fonte com o motivo "redação superada".';
   function salvarFonte(dom, codigo) {
     var D = st.d[dom], e = D.edicao, v = e.valores, fontes = fontesAtuais(dom), c = conceitoAtual(dom, codigo);
@@ -1303,9 +1319,25 @@
       if (!vigente) h += seloSituacaoFonte(f.situacao);
       return h + '</header>';
     }
+    /* abertura do cartão da vigente com o formulário de "Editar rótulo" (mesma moldura do cartão normal) */
+    function h0(f) { return '<article class="tax-fonte tax-fonte--vigente tax-fonte--aberta" data-fonte="' + esc(f._id) + '">' + cabecalho(f, true); }
+    /* "Editar rótulo" da fonte VIGENTE: só o rótulo é editável; texto, contexto, tipo de redação e vigência ficam
+       só para leitura e não são enviados — a fonte continua a mesma (mesmo id) e continua vigente. */
+    function formRotulo(f, e) {
+      return '<div class="tax-form" id="taxFormRotulo"><p class="tax-form-titulo"><strong>Editar rótulo da fonte vigente</strong></p>' +
+        '<p class="tax-ajuda" id="taxRotuloAviso">Somente o rótulo será alterado. O texto e a definição vigente permanecem iguais.</p>' +
+        '<label for="taxR_rotulo">Rótulo</label><input type="text" id="taxR_rotulo" data-campo="rotulo" value="' + esc(e.valores.rotulo) + '" maxlength="120">' +
+        '<p class="tax-rotulo">Texto da definição (não editável)</p><p class="tax-fonte-texto tax-somente-leitura">' + esc(f.texto) + '</p>' +
+        '<dl class="tax-confirma-dados tax-meta"><dt>Contexto</dt><dd>' + esc(f.contexto || '—') + '</dd><dt>Tipo de redação</dt><dd>' + esc(f.tipoRedacao || '—') + '</dd>' +
+        '<dt>Situação</dt><dd>vigente</dd><dt>Fonte (id)</dt><dd><code>' + esc(f._id) + '</code></dd></dl>' +
+        (e.erro ? '<p class="tax-aviso-erro" role="alert">' + esc(e.erro) + '</p>' : '') +
+        '<div class="tax-acoes"><button type="button" class="btn btn--primary btn--sm" data-tax="salvar-edicao"' + (st.salvando ? ' disabled' : '') + '>' + (st.salvando ? 'SALVANDO…' : 'SALVAR RÓTULO') + '</button>' +
+        '<button type="button" class="btn btn--sm" data-tax="cancelar-edicao"' + (st.salvando ? ' disabled' : '') + '>Cancelar</button></div></div>';
+    }
     function cartao(f, tipo) { /* tipo: 'vigente' | 'disponivel' | 'arquivada' */
       var vigente = tipo === 'vigente', aberta = D.expandida === f._id;
       var editandoEste = e && e.tipo === 'fonte' && e.chave === f._id;
+      if (vigente && e && e.tipo === 'rotulo' && e.chave === f._id) return h0(f) + formRotulo(f, e) + '</article>';
       var h = '<article class="tax-fonte tax-fonte--' + tipo + (aberta || editandoEste ? ' tax-fonte--aberta' : '') + '" data-fonte="' + esc(f._id) + '">';
       h += cabecalho(f, vigente);
       if (editandoEste) return h + formFonte(dom, codigo, e) + '</article>';
@@ -1330,7 +1362,8 @@
         /* a ação de redação fica NO cartão da definição, em destaque (não escondida em "Ver detalhes") */
         if (ed) h += '<button type="button" class="btn btn--sm tax-btn-destaque" data-tax="nova-versao" data-fonte="' + esc(f._id) + '">Nova versão da definição</button>' +
           '<button type="button" class="btn btn--sm" data-tax="alterar-definicao">Alterar definição</button>' +
-          '<button type="button" class="btn btn--sm" data-tax="remover-vigencia" data-fonte="' + esc(f._id) + '">Remover vigência</button>';
+          '<button type="button" class="btn btn--sm" data-tax="remover-vigencia" data-fonte="' + esc(f._id) + '">Remover vigência</button>' +
+          '<button type="button" class="btn btn--sm" data-tax="editar-rotulo" data-fonte="' + esc(f._id) + '" id="taxEditarRotuloBtn">Editar rótulo</button>';
         h += '<button type="button" class="btn btn--sm" data-tax="ver" data-fonte="' + esc(f._id) + '" aria-expanded="' + (aberta ? 'true' : 'false') + '">' + (aberta ? 'Ocultar detalhes' : 'Ver detalhes') + '</button>';
       } else {
         h += '<button type="button" class="btn btn--sm" data-tax="ver" data-fonte="' + esc(f._id) + '" aria-expanded="' + (aberta ? 'true' : 'false') + '">' + (aberta ? 'Ocultar' : 'Ver') + '</button>';
@@ -2106,6 +2139,7 @@
     var D = st.d[dom], c = D.conceitos[D.selecionado] || {}, det = D.detalhe || {};
     if (tipo === 'conceito') return { nome: c.nome || '', observacoes: c.observacoes || '', perguntaDiscriminadora: c.perguntaDiscriminadora || '', notaDeAplicacao: c.notaDeAplicacao || '', criterios: listaCriterios(c).join('\n') };
     if (tipo === 'fonte') { var f = (det.fontes || {})[chave] || {}; return { rotulo: f.rotulo || '', texto: f.texto || '', contexto: f.contexto || 'PREVI', tipoRedacao: f.tipoRedacao || 'Conceito', situacao: f.situacao === 'vigente' ? 'vigente' : (f.situacao || 'histórica/contextual') }; }
+    if (tipo === 'rotulo') { var fr = (det.fontes || {})[chave] || {}; return { rotulo: fr.rotulo || '' }; }
     if (tipo === 'novaFonte') return { rotulo: '', texto: '', contexto: 'PREVI', tipoRedacao: 'Conceito', situacao: 'em validação' };
     var p = (det.perfis || {})[chave] || {};
     return { estado: p.estado || 'registrado', valor: p.valor || '', papel: p.papel || 'observado', origem: p.origem || '' };
@@ -2188,11 +2222,13 @@
     else if (acao === 'nova-fonte') iniciaEdicao('novaFonte', null);
     else if (acao === 'nova-versao') iniciaNovaVersao(alvo.getAttribute('data-fonte'));
     else if (acao === 'editar-fonte') iniciaEdicao('fonte', alvo.getAttribute('data-fonte'));
+    else if (acao === 'editar-rotulo') iniciaEdicao('rotulo', alvo.getAttribute('data-fonte'));
     else if (acao === 'editar-perfil') iniciaEdicao('perfil', alvo.getAttribute('data-atributo'));
     else if (acao === 'cancelar-edicao') { D.edicao = null; render(); }
     else if (acao === 'salvar-edicao') {
       var e = D.edicao; if (!e || st.salvando) return;
       if (e.tipo === 'conceito') salvarConceito(dom, D.selecionado);
+      else if (e.tipo === 'rotulo') salvarRotuloVigente(dom, D.selecionado);
       else if (e.tipo === 'fonte' || e.tipo === 'novaFonte') salvarFonte(dom, D.selecionado);
       else salvarPerfil(dom, D.selecionado);
     } else if (acao === 'tornar-vigente') { D.confirmacao = { fonte: alvo.getAttribute('data-fonte'), acao: 'tornar' }; D.arquivando = null; render(); }

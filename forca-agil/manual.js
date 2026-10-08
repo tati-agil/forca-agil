@@ -123,13 +123,13 @@
       quem: 'Só admin geral. A Avaliação de Produto/Serviço lê dali apenas o nome e a definição vigente das classificações.',
       importante: [
         'A Taxonomia define, a Avaliação aplica: é a fonte única dos conceitos.',
-        'Uma definição publicada não é editada: corrigir é criar uma nova versão.',
+        'Uma definição publicada não é editada: corrigir é criar uma nova versão. Só o rótulo da fonte vigente pode ser corrigido no lugar ("Editar rótulo"), sem mudar o texto nem a vigência.',
         'Nada se apaga: conceito é inativado com motivo, relação é encerrada, e conceito ligado a uma classificação da Avaliação não pode ser inativado.',
         'No domínio organizacional, Linha, Área Especializada e CoE são as estruturas de posicionamento; Squad e Capítulo ficam em "Organização do trabalho", e Disciplina é conceito auxiliar. Trocar entre "Tipo organizacional" e "Organização do trabalho" pede motivo, fica no histórico e só vale para conceito sem pai e sem filho ativo (o banco confere por um índice de filhos ativos, construído uma única vez); filho inativo não impede.',
       ],
       links: [{ texto: 'Abrir ADMIN › Taxonomia', aba: 'adminPanelTaxonomia' }],
       fonte: ['ADMIN › Taxonomia (a própria tela)', 'database.rules.json'],
-      prova: ['teste-rules-taxonomia.js', 'teste-rules-taxonomia-governanca.js', 'teste-taxonomia.js', 'teste-taxonomia-governanca.js', 'teste-taxonomia-camada-trabalho.js'] },
+      prova: ['teste-rules-taxonomia.js', 'teste-rules-taxonomia-governanca.js', 'teste-taxonomia.js', 'teste-taxonomia-governanca.js', 'teste-taxonomia-camada-trabalho.js', 'teste-taxonomia-rotulo-vigente.js'] },
 
     { id: 'papeis', titulo: 'Facilitação, diretores e Minha Área',
       oque: '"Minhas Facilitações" (#facilitador), eventos reservados a diretores e a Minha Área de cada pessoa.',
