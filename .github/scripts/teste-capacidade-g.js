@@ -132,7 +132,8 @@ function parteA() {
   const kd = carregar(v5Div, escritas).situacaoPropostaRegras();
   afirma(kd.estado === 'bloqueada' && /não tem a estrutura esperada/.test(kd.motivo) && /CANAL/.test(kd.motivo), 'versão 5 com outra estrutura: bloqueada, dizendo qual regra difere', kd.motivo);
   const k6 = carregar({ versaoPublicada: 6, versoes: { 5: { regras: v5 }, 6: { regras: g } } }, escritas).situacaoPropostaRegras();
-  afirma(k6.estado === 'aplicada', 'versão 6 = a proposta: "aplicada" (o cartão some)');
+  /* com a 6 publicada, a proposta que passa a valer é a seguinte (versão 7); a G deixa de ser oferecida */
+  afirma(k6.id !== 'capacidade-g', 'versão 6 = a proposta publicada: a Capacidade G deixa de ser oferecida (passa a valer a proposta seguinte, ' + k6.id + ')');
   const k4 = carregar({ versaoPublicada: 4, versoes: { 4: { regras: v4 } } }, escritas).situacaoPropostaRegras();
   afirma(k4.id === 'politica-conflito-naturezas', 'com a versão 4 publicada, continua valendo a proposta anterior (conflito de naturezas)');
   afirma(escritas.length === 0, 'nenhuma consulta gravou nada', escritas.join(', '));

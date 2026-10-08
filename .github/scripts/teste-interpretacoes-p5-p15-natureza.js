@@ -55,7 +55,7 @@ const NATUREZA_COMPLEMENTAR = /faNaturezas|naturezas-complementares|naturezaComp
 /* Explicação do "A validar" por autonomia × uma natureza predominante (P5, teste-a-validar-natureza.js): só
    estes três nomes EXATOS — a marca bloqueioNatureza, a função bloqueioPorNatureza e a etiqueta
    'conflito-naturezas' da assinatura semântica do motor —, nunca um padrão genérico. */
-const PERMITIDO_NATUREZA_PREDOMINANTE = /\bbloqueioPorNatureza\b|\bbloqueioNatureza\b|'conflito-naturezas'|PROPOSTA_CONFLITO_NATUREZAS|SUFIXO_CONFLITO_NATUREZAS|CONFLITO_NATUREZAS|politica-conflito-naturezas|conflitoNaturezas|ConflitoNaturezas|CAMADA_POR_NATUREZA|folhasDeNatureza|naturezasMarcadas|textoNaturezasIndicadas|naturezas? predominantes?|naturezas P11–P15|naturezas marcadas/gi;
+const PERMITIDO_NATUREZA_PREDOMINANTE = /\bbloqueioPorNatureza\b|\bbloqueioNatureza\b|'conflito-naturezas'|PROPOSTA_CONFLITO_NATUREZAS|SUFIXO_CONFLITO_NATUREZAS|CONFLITO_NATUREZAS|politica-conflito-naturezas|conflitoNaturezas|ConflitoNaturezas|CAMADA_POR_NATUREZA|folhasDeNatureza|naturezasMarcadas|textoNaturezasIndicadas|naturezas? predominantes?|naturezas P11–P15|naturezas marcadas|MATRIZ_NATUREZAS|NATUREZAS_POLITICA_V4|\bNATUREZAS\b|naturezasCodigos|naturezas P9–P16|oito naturezas|naturezas entre P9–P16|conflito de naturezas|qual natureza descreve o objeto|\bnaturezas: nova\b/gi;
 const semComentarios = (src) => src.replace(/\/\*[\s\S]*?\*\//g, '').replace(/(^|[^:'"\\])\/\/.*$/gm, '$1');
 /* true = o trecho não depende da natureza complementar (as duas camadas acima). */
 const naoLeNaturezaComplementar = (src) => !NATUREZA_COMPLEMENTAR.test(src) && !/natureza/i.test(semComentarios(src).replace(PERMITIDO_NATUREZA_PREDOMINANTE, ''));

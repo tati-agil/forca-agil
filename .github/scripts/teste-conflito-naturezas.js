@@ -287,7 +287,7 @@ function parteA() {
     afirma(mut1.motor !== ORIG.motor, '(mutação aplicada no motor: lista com TODAS as naturezas do grupo)');
     const r1 = (() => { const k = carregar(mut1, cfg.publicadaV4); return conferirListas(k.M, k.av, cfg); })();
     afirma(r1.problemas.length > 0, 'motor mutado → a conferência FALHA (' + r1.problemas.length + ' problemas; ex.: ' + (r1.problemas[0] || '').slice(0, 90) + ')');
-    const mut2 = Object.assign({}, ORIG, { avp: ORIG.avp.replace('if (decisao.conflitoNaturezas) motivos = [textoNaturezasIndicadas(conflito)];', "if (decisao.conflitoNaturezas) motivos = [textoNaturezasIndicadas(['Capacidade organizacional', 'Processo/Etapa de processo', 'Modalidade/Subproduto', 'Regra/Opção', 'Componente'])];") });
+    const mut2 = Object.assign({}, ORIG, { avp: ORIG.avp.replace('if (decisao.conflitoNaturezas && !decisao.tipoAValidar) motivos = [textoNaturezasIndicadas(conflito)];', "if (decisao.conflitoNaturezas && !decisao.tipoAValidar) motivos = [textoNaturezasIndicadas(['Capacidade organizacional', 'Processo/Etapa de processo', 'Modalidade/Subproduto', 'Regra/Opção', 'Componente'])];") });
     afirma(mut2.avp !== ORIG.avp, '(mutação aplicada na avaliação: motivo com rótulo fixo das cinco naturezas)');
     const r2 = (() => { const k = carregar(mut2, cfg.publicadaV4); return conferirListas(k.M, k.av, cfg); })();
     afirma(r2.problemas.some((p) => /motivos|cita natureza/.test(p)), 'motivo fixo → a conferência FALHA (' + r2.problemas.length + ' problemas)');

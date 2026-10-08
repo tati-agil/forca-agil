@@ -116,6 +116,12 @@
       "sobre": "Editor do motor arquitetural: acrescentar condição (P1–P16, SIM/NÃO) ao grupo \"SE TODAS\" de uma regra, sem duplicata; só a condição NOVA (vs. versão-base do rascunho) é removível; regra inalcançável bloqueia; nada é publicado sozinho."
     },
     {
+      "arquivo": ".github/scripts/teste-motor-v7.js",
+      "nome": "Motor arquitetural: proposta da versão 7 — incoerência, conflito de naturezas P9–P16 e recorte do objeto",
+      "duracao": 60,
+      "sobre": "Código real num vm: matriz dos 28 pares (13 conflitos, 15 recortes); V6 × V7 nas 65.536 com contagens exatas, 44.416 mudanças e delta origem → destino exato; as mesmas 252 Capacidades; Produto/Serviço, Unidade de valor, Componente, Modalidade, Regra e Processo intactos; com 0 ou 1 natureza só os 384 de P5 com uma P13/P14/P15; com 2 naturezas o tipo segue a matriz; P6, P7 e S1–S8 fora; firmes com as condições da V6; proposta só sobre a versão 6 exata, sem gravar; textos de incoerência, conflito, recorte e misto; V6 com os textos da época. Navegador (banco falso, desktop e 375 px): cartão, carregar, regras no editor, simulação com tipo e motivo sem gravar; com a V7 publicada, avaliações de recorte, incoerência e misto com rótulo, detalhe e justificativa, e a concluída antes intacta."
+    },
+    {
       "arquivo": ".github/scripts/teste-capacidade-g.js",
       "nome": "Motor arquitetural: Capacidade G (proposta da versão 6) — delta exato, proposta só pela tela, textos novos",
       "duracao": 25,
