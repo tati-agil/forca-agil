@@ -69,7 +69,6 @@ async function abrir(browser, viewport, opts) {
   await esperarSessaoAssentada(page);
   await page.waitForSelector('.admin-tab-btn[data-panel="adminPanelTaxonomia"]', { state: 'visible', timeout: 12000 });
   await page.click('.admin-tab-btn[data-panel="adminPanelTaxonomia"]');
-  await page.click('[data-tax="dominio"][data-dominio="organizacional"]').catch(() => null);
   await page.waitForSelector('.tax-item[data-codigo="SQUAD"]', { timeout: 8000 });
   return { ctx, page, erros };
 }
