@@ -1,0 +1,42 @@
+name: Taxonomia — índice de filhos (construção única)
+
+# SÓ disparo manual, nunca em push/PR: isto pode GRAVAR em produção (só o
+# índice taxonomia/organizacional/filhos, a marca taxonomia/meta/indiceFilhos e
+# uma linha no histórico geral — nunca conceitos, fontes ou relações). Por
+# padrão roda em simulação (lista o que faria, não grava nada); só grava
+# quando "Confirmar gravação" é marcado ao disparar. Recusa rodar de novo se
+# o índice já existe. Ver .github/scripts/construir-indice-filhos.js.
+on:
+  workflow_dispatch:
+    inputs:
+      confirmar:
+        description: 'Gravar de verdade (fora isso, roda em simulação)'
+        required: true
+        type: boolean
+        default: false
+
+jobs:
+  indice:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Instalar firebase-admin
+        run: |
+          mkdir -p /tmp/indice-deps
+          cd /tmp/indice-deps
+          npm init -y
+          npm install firebase-admin@12
+
+      - name: Construir o índice (simulação por padrão)
+        env:
+          NODE_PATH: /tmp/indice-deps/node_modules
+          BACKFILL_CONFIRMAR: ${{ inputs.confirmar && 'sim' || 'nao' }}
+        run: |
+          echo '${{ secrets.FIREBASE_SERVICE_ACCOUNT_KYBER_AGIL }}' > /tmp/sa.json
+          export GOOGLE_APPLICATION_CREDENTIALS=/tmp/sa.json
+          node .github/scripts/construir-indice-filhos.js

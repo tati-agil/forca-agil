@@ -4,7 +4,8 @@
    Dicionário conceitual, em DOIS domínios fisicamente separados no banco e na tela, sem nenhuma
    relação automática entre eles:
      arquitetural   — "O que é o item?"                               (as camadas da Avaliação)
-     organizacional — "Que tipo de estrutura organizacional é esta?"  (Linha, Squad, CoE…)
+     organizacional — "Que tipo de estrutura organizacional é esta?"  (Linha, Área Especializada, CoE…;
+                      Squad e Capítulo ficam na camada própria "Organização do trabalho")
    A Taxonomia DEFINE os conceitos; a Avaliação APLICA. Esta área não integra a Avaliação.
 
    Banco (database.rules.json, ramo `taxonomia`; só admin lê e escreve nesta 1ª versão):
@@ -30,7 +31,13 @@
        apontam (auditoriaId) para a linha de auditoria NOVA gravada na mesma operação — sem histórico, o banco recusa;
      - relação (organizacional): criada com histórico nas DUAS pontas (mesma chave/operacaoId) e depois só pode
        ser ENCERRADA (motivo, data, autor) — nunca alterada nem apagada; "Alterar" = encerrar a antiga + criar a
-       nova na mesma gravação; relação idêntica a uma encerrada não pode ser criada de novo (reabrir: backlog).
+       nova na mesma gravação; relação idêntica a uma encerrada não pode ser criada de novo (reabrir: backlog);
+     - camada (organizacional): "Tipo organizacional" (A) e "Organização do trabalho" (trabalho) só trocam entre si,
+       por "Alterar camada", com motivo (conceito.camadaAlteracao) apontando para a auditoria NOVA da mesma gravação
+       (tipo alteracao_camada); conceito com pai ou com FILHOS ATIVOS não troca — os filhos ativos são provados pelo banco
+       com o índice reverso organizacional/filhos/<pai>/<filho> (só filho ativo e coerente com conceito.pai; inativar
+       tira a entrada e reativar recoloca, na mesma gravação) e a marca meta/indiceFilhos;
+       sem a marca, a troca é recusada. Código, definição, fontes e relações não mudam.
 
    INTEGRIDADE DA DEFINIÇÃO VIGENTE — equivalência garantida pelo BANCO (regras, provadas no
    emulador em teste-rules-taxonomia.js):  fonte.situacao = "vigente"  ⇔  é a fonte apontada por
@@ -61,7 +68,9 @@
     organizacional: { rotulo: 'Organizacional', titulo: 'Taxonomia Organizacional', pergunta: 'Que tipo de estrutura organizacional é esta?' }
   };
   var ORDEM_DOMINIOS = ['organizacional', 'arquitetural'];
-  var CAMADA_ROTULO = { A: 'Tipo organizacional', B: 'Especialização', C: 'Subespecialização', auxiliar: 'Conceito auxiliar' };
+  var CAMADA_ROTULO = { A: 'Tipo organizacional', B: 'Especialização', C: 'Subespecialização', trabalho: 'Organização do trabalho', auxiliar: 'Conceito auxiliar' };
+  /* "Alterar camada" só troca entre estas duas: estruturas de posicionamento (A) × organização do trabalho. */
+  var CAMADAS_TROCAVEIS = { A: 'trabalho', trabalho: 'A' };
   var SIT_DEFINICAO = ['registrada', 'em revisão', 'ainda não registrada'];
   var SIT_DEFINICAO_ROTULO = { 'registrada': 'Definição registrada', 'em revisão': 'Definição em revisão', 'ainda não registrada': 'Definição ainda não registrada' };
   var SIT_FONTE = ['vigente', 'em validação', 'histórica/contextual', 'placeholder', 'não localizado'];
@@ -130,11 +139,11 @@
   /* ---------- estado ---------- */
   function novoHGDom() { return { estado: 'ocioso', cursor: null, temMais: false, erro: null }; }
   function novoHG() { return { carregou: false, carregando: false, itens: [], doms: { organizacional: novoHGDom(), arquitetural: novoHGDom() }, contagem: {} }; }
-  function novoDominio() { return { estado: 'ocioso', conceitos: {}, atributos: {}, selecionado: null, detalhe: null, edicao: null, confirmacao: null, expandida: null, arquivando: null, arquivadasAbertas: false, dica: false, novaVersao: null, inativando: null, relForm: null, encerrando: null }; }
+  function novoDominio() { return { estado: 'ocioso', conceitos: {}, atributos: {}, selecionado: null, detalhe: null, edicao: null, confirmacao: null, expandida: null, arquivando: null, arquivadasAbertas: false, dica: false, novaVersao: null, inativando: null, camadaMudando: null, relForm: null, encerrando: null }; }
   var st = {
     exp: null, /* exportação em andamento/resultado: { estado: lendo|gerando|ok|erro, formato, texto } */
     dominio: 'organizacional', email: null, raiz: null, opcoes: { somenteLeitura: false },
-    meta: { estado: 'ocioso', cargaFeita: false }, importacao: null, flash: null, salvando: false,
+    meta: { estado: 'ocioso', cargaFeita: false }, indiceFilhos: { estado: 'ocioso', existe: false }, importacao: null, flash: null, salvando: false,
     vista: 'lista', aba: 'dominio', /* aba: 'dominio' (lista + detalhe) ou 'historico' (histórico global) */
     hg: novoHG(),
     /* ligações da Avaliação (avaliacao-classificacoes): 'ocioso'|'carregando'|'ok'|'erro'|'sem-acesso'.
@@ -335,7 +344,7 @@
   }
   function aposSalvar(dom, codigo, mensagem) {
     var D = st.d[dom];
-    D.edicao = null; D.confirmacao = null; D.arquivando = null; D.expandida = null; D.dica = false; D.novaVersao = null; D.inativando = null; D.relForm = null; D.encerrando = null;
+    D.edicao = null; D.confirmacao = null; D.arquivando = null; D.expandida = null; D.dica = false; D.novaVersao = null; D.inativando = null; D.camadaMudando = null; D.relForm = null; D.encerrando = null;
     st.flash = { erro: false, texto: mensagem };
     carregarDominio(dom);
     if (codigo) { D.selecionado = codigo; carregarDetalhe(dom, codigo); }
@@ -592,6 +601,8 @@
     caminhos[base + '/ativo'] = false;
     caminhos[base + '/inativacao'] = { motivo: motivo, em: agora(), por: emailAutor(), auditoriaId: k };
     caminhos[base + '/reativacao'] = null;
+    /* filho inativo sai do índice de filhos (só filho ATIVO impede o pai de trocar de camada) — mesma gravação */
+    if (dom === 'organizacional' && c.pai) caminhos[RAIZ + '/' + dom + '/filhos/' + c.pai + '/' + codigo] = null;
     marcaConceito(caminhos, dom, codigo);
     addAudEm(caminhos, dom, codigo, k, 'inativacao', 'ativo', true, false, {
       motivo: motivo,
@@ -608,9 +619,60 @@
     caminhos[base + '/ativo'] = true;
     caminhos[base + '/inativacao'] = null;
     caminhos[base + '/reativacao'] = { em: agora(), por: emailAutor(), auditoriaId: k };
+    /* reativado, volta ao índice de filhos — mesma gravação */
+    if (dom === 'organizacional' && c.pai) caminhos[RAIZ + '/' + dom + '/filhos/' + c.pai + '/' + codigo] = true;
     marcaConceito(caminhos, dom, codigo);
     addAudEm(caminhos, dom, codigo, k, 'reativacao', 'ativo', false, true, { motivoAnterior: (c.inativacao && c.inativacao.motivo) || null });
     gravar(caminhos, function () { aposSalvar(dom, codigo, 'Conceito reativado.'); });
+  }
+
+  /* Camada: só "Tipo organizacional" (A) ⇄ "Organização do trabalho". Motivo obrigatório; o conceito guarda a
+     ÚLTIMA troca (camadaAlteracao) e o histórico guarda todas. Código, definição, fontes e relações não mudam. */
+  /* Filhos ATIVOS: é o que o índice reverso guarda e o que as regras do banco conferem (filho inativo não bloqueia) */
+  function filhosDe(dom, codigo) {
+    var cs = st.d[dom].conceitos;
+    return chaves(cs).filter(function (k) { return cs[k] && cs[k].pai === codigo && cs[k].ativo !== false; }).sort();
+  }
+  /* Índice reverso taxonomia/organizacional/filhos/<pai>/<filho> + marca taxonomia/meta/indiceFilhos: o banco não sabe
+     procurar "quem aponta para mim"; com o índice, as REGRAS provam que um conceito não tem filhos. A marca nasce com
+     a carga inicial (banco novo) ou pela construção única do workflow "Taxonomia — índice de filhos" (produção) —
+     nunca pela tela. Sem ela, a troca de camada fica recusada (falha fechada). */
+  function carregarIndiceFilhos() {
+    st.indiceFilhos = { estado: 'carregando', existe: false }; render();
+    lerNo(RAIZ + '/meta/indiceFilhos', function (r) {
+      st.indiceFilhos = r.ok ? { estado: 'ok', existe: !!r.valor } : { estado: 'erro', existe: false };
+      render();
+    });
+  }
+  function bloqueioCamada(dom, codigo) {
+    var c = conceitoAtual(dom, codigo);
+    if (dom !== 'organizacional' || !CAMADAS_TROCAVEIS[c.camada]) return 'Só conceitos da camada "' + CAMADA_ROTULO.A + '" ou "' + CAMADA_ROTULO.trabalho + '" trocam de camada.';
+    if (c.pai) return 'Este conceito tem conceito pai (' + c.pai + ') e por isso não troca de camada.';
+    var I = st.indiceFilhos;
+    if (I.estado !== 'ok') return null;  /* o painel mostra "Conferindo…"/erro à parte; alterarCamada recusa */
+    if (!I.existe) return 'O índice de conceitos filhos ainda não foi construído neste banco, e sem ele o banco não consegue provar que um conceito não tem filhos. A troca de camada fica bloqueada até essa etapa de implantação (workflow "Taxonomia — índice de filhos").';
+    var filhos = filhosDe(dom, codigo);
+    if (filhos.length) return 'Este conceito tem conceitos filhos ativos (' + filhos.join(', ') + ') e por isso não troca de camada.';
+    return null;
+  }
+  function alterarCamada(dom, codigo) {
+    var c = conceitoAtual(dom, codigo), f = st.d[dom].camadaMudando;
+    if (!f || f.codigo !== codigo) return;
+    function recusa(msg) { f.erro = msg; render(); }
+    if (st.indiceFilhos.estado !== 'ok') return recusa('Não foi possível conferir o índice de conceitos filhos. Nada foi gravado. Tente novamente.');
+    var bloq = bloqueioCamada(dom, codigo);
+    if (bloq) return recusa(bloq);
+    var motivo = String(f.motivo || '').trim();
+    if (!motivo) return recusa('Informe o motivo da troca de camada.');
+    if (motivo.length > MAX_MOTIVO) return recusa('O motivo pode ter até ' + MAX_MOTIVO + ' caracteres.');
+    var de = c.camada, para = CAMADAS_TROCAVEIS[de];
+    var base = RAIZ + '/' + dom + '/conceitos/' + codigo, caminhos = {};
+    var k = novaChave(caminhoAud(dom, codigo));
+    caminhos[base + '/camada'] = para;
+    caminhos[base + '/camadaAlteracao'] = { de: de, para: para, motivo: motivo, em: agora(), por: emailAutor(), auditoriaId: k };
+    marcaConceito(caminhos, dom, codigo);
+    addAudEm(caminhos, dom, codigo, k, 'alteracao_camada', 'camada', CAMADA_ROTULO[de], CAMADA_ROTULO[para], { motivo: motivo, camadaDe: de, camadaPara: para });
+    gravar(caminhos, function () { aposSalvar(dom, codigo, 'Camada alterada para "' + CAMADA_ROTULO[para] + '". Código, definição, fontes e relações continuam como estavam.'); });
   }
 
   /* Relações: a chave é de__tipo__para. Uma vez criada, só pode ser ENCERRADA. */
@@ -765,7 +827,7 @@
         if (!RE_CODIGO.test(cod)) { erros.push(onde + ': código inválido (letras, números, _ e -; começa por letra).'); return; }
         if (existentes[cod]) { erros.push(onde + ': o conceito já existe — a importação nunca sobrescreve.'); return; }
         if (!c || typeof c.nome !== 'string' || !c.nome.trim()) { erros.push(onde + ': falta o nome.'); return; }
-        if (org && CAMADA_ROTULO[c.camada] === undefined) erros.push(onde + ': camada inválida (A, B, C ou auxiliar).');
+        if (org && CAMADA_ROTULO[c.camada] === undefined) erros.push(onde + ': camada inválida (A, B, C, trabalho ou auxiliar).');
         if (!org && c.camada !== undefined) erros.push(onde + ': o domínio arquitetural não tem camada.');
         if (c.pai !== undefined && (!org || !cs[c.pai])) erros.push(onde + ': "pai" inexistente no arquivo.');
         if (c.situacaoDefinicao !== undefined && SIT_DEFINICAO.indexOf(c.situacaoDefinicao) === -1) erros.push(onde + ': situação da definição inválida.');
@@ -796,7 +858,8 @@
           situacaoDefinicao: ponteiro ? 'registrada' : (c.situacaoDefinicao && c.situacaoDefinicao !== 'registrada' ? c.situacaoDefinicao : situacaoSemVigente(fontesPos)),
           atualizadoEm: agoraIso, atualizadoPor: email };
         if (ponteiro) dadoC.definicaoVigenteFonteId = ponteiro;
-        if (org) { dadoC.camada = c.camada; if (c.pai) dadoC.pai = c.pai; }
+        /* conceito ATIVO com pai entra também no índice reverso filhos/<pai>/<filho> (as regras exigem, na mesma gravação) */
+        if (org) { dadoC.camada = c.camada; if (c.pai) { dadoC.pai = c.pai; if (dadoC.ativo) caminhos[base + '/filhos/' + c.pai + '/' + cod] = true; } }
         ['observacoes', 'perguntaDiscriminadora', 'notaDeAplicacao'].forEach(function (k) { if (typeof c[k] === 'string' && c[k].trim() && (org || k === 'observacoes')) dadoC[k] = c[k]; });
         if (typeof c.ordemDaPergunta === 'number' && org) dadoC.ordemDaPergunta = c.ordemDaPergunta;
         if (Array.isArray(c.criterios) && c.criterios.length) {
@@ -855,6 +918,8 @@
     if (!resumo.conceitos && !erros.length) erros.push('O arquivo não traz nenhum conceito.');
     if (!erros.length) {
       caminhos[RAIZ + '/meta/cargaInicial'] = { feitaEm: agoraIso, feitaPor: email, resumo: resumo, resumoPorDominio: porDominio };
+      /* a carga já nasce com o índice de filhos completo: marca que ele existe */
+      if (arq.dominios.organizacional) caminhos[RAIZ + '/meta/indiceFilhos'] = { criadoEm: agoraIso, criadoPor: email };
       DOM_IMPORT.forEach(function (dom) {
         if (!arq.dominios[dom] || !porDominio[dom]) return;
         var pd = porDominio[dom];
@@ -932,7 +997,9 @@
         html += item(c, nivel);
         (filhos[c._codigo] || []).forEach(function (f) { desce(f, Math.min(nivel + 1, 2)); });
       }
-      lista.filter(function (c) { return c.camada === 'A' || (!c.pai && c.camada !== 'auxiliar'); }).forEach(function (c) { if (!visto[c._codigo]) desce(c, 0); });
+      lista.filter(function (c) { return c.camada === 'A' || (!c.pai && c.camada !== 'auxiliar' && c.camada !== 'trabalho'); }).forEach(function (c) { if (!visto[c._codigo]) desce(c, 0); });
+      var trab = lista.filter(function (c) { return c.camada === 'trabalho' && !visto[c._codigo]; });
+      if (trab.length) { html += '<p class="tax-lista-grupo">' + esc(CAMADA_ROTULO.trabalho) + '</p>'; trab.forEach(function (c) { if (!visto[c._codigo]) desce(c, 0); }); }
       var aux = lista.filter(function (c) { return c.camada === 'auxiliar'; });
       if (aux.length) { html += '<p class="tax-lista-grupo">Conceito auxiliar</p>'; aux.forEach(function (c) { visto[c._codigo] = true; html += item(c, 0); }); }
       var resto = lista.filter(function (c) { return !visto[c._codigo]; });
@@ -1115,6 +1182,7 @@
         (pai ? '' : ' <span class="tax-aviso-erro">(não encontrado)</span>') + '</p>';
       html += '<p class="tax-caminho">' + caminhoDo(dom, codigo).map(esc).join(' › ') + '</p>';
     }
+    if (org && c.camadaAlteracao) html += '<p class="tax-ident-linha" id="taxIdentCamadaAlteracao"><span class="tax-ident-k">Camada alterada:</span> de ' + esc(CAMADA_ROTULO[c.camadaAlteracao.de] || c.camadaAlteracao.de) + ' para ' + esc(CAMADA_ROTULO[c.camadaAlteracao.para] || c.camadaAlteracao.para) + ' em ' + esc(fmtData(c.camadaAlteracao.em)) + ' por ' + esc(c.camadaAlteracao.por || '—') + ' — motivo: ' + esc(c.camadaAlteracao.motivo || '—') + '</p>';
     if (c.ativo === false && c.inativacao) html += '<p class="tax-ident-linha" id="taxIdentInativacao"><span class="tax-ident-k">Inativado:</span> ' + esc(fmtData(c.inativacao.em)) + ' por ' + esc(c.inativacao.por || '—') + ' — motivo: ' + esc(c.inativacao.motivo || '—') + '</p>';
     if (dom === 'arquitetural' && estaLigado(codigo)) html += '<p class="tax-ident-linha" id="taxIdentLigado"><span class="tax-ident-k">Avaliação:</span> ' + selo('ligado à Avaliação', 'tax-selo--ligado') + ' <span class="tax-ajuda">classificação de mesmo código do motor; não pode ser inativado.</span></p>';
     if (c.atualizadoEm || c.atualizadoPor) html += '<p class="tax-ident-linha tax-ident-atualizado"><span class="tax-ident-k">Última atualização:</span> ' + esc(fmtData(c.atualizadoEm)) + (c.atualizadoPor ? ' por ' + esc(c.atualizadoPor) : '') + '</p>';
@@ -1133,11 +1201,32 @@
     } else if (ed) {
       html += '<div class="tax-acoes tax-acoes--conceito" id="taxAcoesConceito"><button type="button" class="btn btn--sm" data-tax="editar-conceito">Editar dados do conceito</button>' +
         (c.ativo === false ? '<button type="button" class="btn btn--sm" data-tax="reativar" id="taxReativarBtn"' + (st.salvando ? ' disabled' : '') + '>Reativar conceito</button>'
-          : '<button type="button" class="btn btn--sm tax-btn-perigo" data-tax="inativar" id="taxInativarBtn">Inativar conceito</button>') + '</div>' +
+          : '<button type="button" class="btn btn--sm tax-btn-perigo" data-tax="inativar" id="taxInativarBtn">Inativar conceito</button>') +
+        (org && CAMADAS_TROCAVEIS[c.camada] ? '<button type="button" class="btn btn--sm" data-tax="alterar-camada" id="taxCamadaBtn">Alterar camada</button>' : '') + '</div>' +
         '<p class="tax-ajuda">A definição muda pelo cartão “Definição vigente”, logo abaixo.</p>';
       if (D.inativando && D.inativando.codigo === codigo && c.ativo !== false) html += painelInativar(dom, codigo, c);
+      if (D.camadaMudando && D.camadaMudando.codigo === codigo) html += painelCamada(dom, codigo, c);
     }
     return html + '</section>';
+  }
+
+  /* Alterar camada: prévia (de → para), o que NÃO muda, motivo obrigatório. Bloqueado (só a explicação) quando
+     o conceito tem pai ou filhos ativos. */
+  function painelCamada(dom, codigo, c) {
+    var f = D_(dom).camadaMudando, bloq = bloqueioCamada(dom, codigo), para = CAMADAS_TROCAVEIS[c.camada], I = st.indiceFilhos;
+    var h = '<div class="tax-confirma tax-camada" id="taxPainelCamada" role="group" aria-label="Alterar camada">';
+    if (I.estado !== 'ok') return h + '<p class="' + (I.estado === 'erro' ? 'tax-aviso-erro' : 'loading-msg') + '" id="taxCamadaIndice">' +
+      (I.estado === 'erro' ? 'Não foi possível conferir o índice de conceitos filhos. Nada pode ser trocado até essa conferência.' : 'Conferindo o índice de conceitos filhos…') + '</p>' +
+      '<div class="tax-acoes">' + (I.estado === 'erro' ? '<button type="button" class="btn btn--sm" data-tax="indice-recarregar">Tentar novamente</button>' : '') + '<button type="button" class="btn btn--sm" data-tax="cancelar-camada">Fechar</button></div></div>';
+    if (bloq) return h + '<p class="tax-aviso-erro" role="alert" id="taxCamadaBloqueada">' + esc(bloq) + '</p>' +
+      '<div class="tax-acoes"><button type="button" class="btn btn--sm" data-tax="cancelar-camada">Fechar</button></div></div>';
+    h += '<p><strong>Mover de "' + esc(CAMADA_ROTULO[c.camada]) + '" para "' + esc(CAMADA_ROTULO[para]) + '"?</strong></p>' +
+      '<p class="tax-ajuda" id="taxCamadaPrevia">Muda só a camada. O código <code>' + esc(codigo) + '</code>, o nome, a definição, as fontes, as relações e o histórico continuam como estão. A troca fica no histórico com o motivo e pode ser desfeita do mesmo jeito.</p>' +
+      '<label for="taxC_motivo">Motivo *</label><textarea id="taxC_motivo" data-cam="motivo" rows="3" maxlength="' + MAX_MOTIVO + '">' + esc(f.motivo || '') + '</textarea>' +
+      (f.erro ? '<p class="tax-aviso-erro" role="alert">' + esc(f.erro) + '</p>' : '') +
+      '<div class="tax-acoes"><button type="button" class="btn btn--sm btn--primary" data-tax="confirmar-camada"' + (st.salvando ? ' disabled' : '') + '>' + (st.salvando ? 'SALVANDO…' : 'Alterar camada') + '</button>' +
+      '<button type="button" class="btn btn--sm" data-tax="cancelar-camada"' + (st.salvando ? ' disabled' : '') + '>Cancelar</button></div></div>';
+    return h;
   }
 
   /* Inativar: motivo obrigatório; mostra antes o que é afetado. Conceito ligado à Avaliação: só a explicação. */
@@ -1553,7 +1642,7 @@
   var HG_PAGINA = 25;
   var HG_TIPOS = { carga_inicial: 'Carga inicial', alteracao_atributo: 'Alteração de atributo', alteracao_relacao: 'Alteração de relação',
     alteracao_conceito: 'Alteração de conceito', alteracao_fonte: 'Alteração de fonte', definicao_vigente: 'Definição vigente', alteracao_perfil: 'Alteração de perfil', fonte_arquivada: 'Fonte arquivada', fonte_restaurada: 'Fonte restaurada',
-    inativacao: 'Conceito inativado', reativacao: 'Conceito reativado', relacao_criada: 'Relação criada', relacao_encerrada: 'Relação encerrada' };
+    inativacao: 'Conceito inativado', reativacao: 'Conceito reativado', relacao_criada: 'Relação criada', relacao_encerrada: 'Relação encerrada', alteracao_camada: 'Camada alterada', indice_filhos: 'Índice de conceitos filhos' };
   function podeVerHG() { return ehAdmin() && adminPronto() && !st.opcoes.somenteLeitura; }
   function carregarHG(quais) {
     var H = st.hg;
@@ -2070,7 +2159,7 @@
       var cod = alvo.getAttribute('data-codigo');
       if (window.innerWidth <= 720) st.rolagemLista = window.pageYOffset || document.documentElement.scrollTop || 0;
       zerarDetConceito(); /* abrir um conceito (mesmo o mesmo, de novo) começa com os históricos fechados */
-      D.selecionado = cod; D.edicao = null; D.confirmacao = null; D.arquivando = null; D.expandida = null; D.dica = false; D.arquivadasAbertas = false; D.novaVersao = null; D.inativando = null; D.relForm = null; D.encerrando = null; st.vista = 'detalhe'; st.flash = null;
+      D.selecionado = cod; D.edicao = null; D.confirmacao = null; D.arquivando = null; D.expandida = null; D.dica = false; D.arquivadasAbertas = false; D.novaVersao = null; D.inativando = null; D.camadaMudando = null; D.relForm = null; D.encerrando = null; st.vista = 'detalhe'; st.flash = null;
       carregarDetalhe(dom, cod);
       var det = raiz().querySelector('.tax-detalhe'); if (det && det.scrollIntoView && window.innerWidth <= 720) det.scrollIntoView();
     } else if (acao === 'voltar-lista') {
@@ -2111,10 +2200,14 @@
     else if (acao === 'confirmar-vigente') { if (!st.salvando) tornarVigente(dom, D.selecionado, alvo.getAttribute('data-fonte')); }
     else if (acao === 'remover-vigencia') { D.confirmacao = { fonte: alvo.getAttribute('data-fonte'), acao: 'remover' }; render(); }
     else if (acao === 'confirmar-remocao') { if (!st.salvando) removerVigencia(dom, D.selecionado); }
-    else if (acao === 'inativar') { D.inativando = { codigo: D.selecionado, motivo: '', erro: null }; D.edicao = null; D.confirmacao = null; D.arquivando = null; render(); }
+    else if (acao === 'inativar') { D.inativando = { codigo: D.selecionado, motivo: '', erro: null }; D.camadaMudando = null; D.edicao = null; D.confirmacao = null; D.arquivando = null; render(); }
     else if (acao === 'cancelar-inativar') { D.inativando = null; render(); }
     else if (acao === 'confirmar-inativar') { if (!st.salvando) inativarConceito(dom, D.selecionado); }
     else if (acao === 'reativar') { if (!st.salvando) reativarConceito(dom, D.selecionado); }
+    else if (acao === 'alterar-camada') { D.camadaMudando = { codigo: D.selecionado, motivo: '', erro: null }; D.inativando = null; D.edicao = null; D.confirmacao = null; D.arquivando = null; if (st.indiceFilhos.estado !== 'ok') carregarIndiceFilhos(); else render(); }
+    else if (acao === 'indice-recarregar') carregarIndiceFilhos();
+    else if (acao === 'cancelar-camada') { D.camadaMudando = null; render(); }
+    else if (acao === 'confirmar-camada') { if (!st.salvando) alterarCamada(dom, D.selecionado); }
     else if (acao === 'ligacoes-recarregar') carregarLigacoes();
     else if (acao === 'nova-relacao') { D.relForm = { modo: 'nova', direcao: 'saida', tipo: '', outro: '', nota: '', erro: null }; D.encerrando = null; render(); }
     else if (acao === 'alterar-relacao') {
@@ -2142,6 +2235,8 @@
     if (campoArq && D.arquivando) { D.arquivando[campoArq] = el.value; D.arquivando.erro = null; return; }
     var campoInat = el.getAttribute && el.getAttribute('data-inat');
     if (campoInat && D.inativando) { D.inativando[campoInat] = el.value; D.inativando.erro = null; return; }
+    var campoCam = el.getAttribute && el.getAttribute('data-cam');
+    if (campoCam && D.camadaMudando) { D.camadaMudando[campoCam] = el.value; D.camadaMudando.erro = null; return; }
     var campoEnc = el.getAttribute && el.getAttribute('data-enc');
     if (campoEnc && D.encerrando) { D.encerrando[campoEnc] = el.value; D.encerrando.erro = null; return; }
     var campoRel = el.getAttribute && el.getAttribute('data-rel');
@@ -2178,7 +2273,7 @@
     var s = sessao();
     var email = s ? s.email : null;
     if (st.email !== email) {
-      st.email = email; st.meta = { estado: 'ocioso', cargaFeita: false }; st.importacao = null; st.flash = null; st.vista = 'lista'; st.aba = 'dominio'; st.hg = novoHG(); st.exp = null; st.detAbertos = {}; st.rolagemLista = null; st.lig = { estado: 'ocioso', mapa: {} }; st.cargaLig = null;
+      st.email = email; st.meta = { estado: 'ocioso', cargaFeita: false }; st.indiceFilhos = { estado: 'ocioso', existe: false }; st.importacao = null; st.flash = null; st.vista = 'lista'; st.aba = 'dominio'; st.hg = novoHG(); st.exp = null; st.detAbertos = {}; st.rolagemLista = null; st.lig = { estado: 'ocioso', mapa: {} }; st.cargaLig = null;
       ORDEM_DOMINIOS.forEach(function (d) { st.d[d] = novoDominio(); });
     }
     if (!adminPronto()) {
@@ -2208,7 +2303,7 @@
     _interno: {
       st: st, espera: ESPERA, leitores: LEITORES, carregarHG: carregarHG, lerTudoParaExportar: lerTudoParaExportar, linhasExportacao: linhasExportacao, consolidarConceitos: consolidarConceitos, carregarDominio: carregarDominio, carregarDetalhe: carregarDetalhe, tornarVigente: tornarVigente, arquivarFonte: arquivarFonte, restaurarFonte: restaurarFonte,
       removerVigencia: removerVigencia, salvarConceito: salvarConceito, salvarFonte: salvarFonte, salvarPerfil: salvarPerfil,
-      carregarLigacoes: carregarLigacoes, previaLigacoes: previaLigacoes, registrarLigacoes: registrarLigacoes, inativarConceito: inativarConceito, reativarConceito: reativarConceito,
+      carregarLigacoes: carregarLigacoes, previaLigacoes: previaLigacoes, registrarLigacoes: registrarLigacoes, inativarConceito: inativarConceito, reativarConceito: reativarConceito, alterarCamada: alterarCamada, carregarIndiceFilhos: carregarIndiceFilhos,
       salvarRelacao: salvarRelacao, encerrarRelacao: encerrarRelacao
     }
   };

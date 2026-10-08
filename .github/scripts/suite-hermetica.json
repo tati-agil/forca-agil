@@ -505,6 +505,12 @@
       "sobre": "Aviso \"Proteção da Avaliação incompleta: X de 11\"; Conceitos-base com a situação de cada código do motor e registro das ligações com prévia (já ligado / será ligado / não pode ser ligado), idempotente, com recusa do banco visível; conceito ligado: \"Inativar\" só explica, nada é gravado; ligações sem resposta: \"Conferindo…\", nunca \"pode inativar\"; inativar com motivo, mostrando filhos e relações afetados, e reativar, tudo no histórico; relações: criar com histórico nas duas pontas (mesmo operacaoId), idêntica a uma encerrada bloqueada, encerrar com motivo (fica em \"Relações encerradas\"), alterar = encerrar + criar. Hermético; as travas de verdade, no banco, são provadas por teste-rules-taxonomia-governanca.js no emulador."
     },
     {
+      "arquivo": ".github/scripts/teste-taxonomia-camada-trabalho.js",
+      "nome": "Taxonomia: camada \"Organização do trabalho\" (desktop e celular)",
+      "duracao": 20,
+      "sobre": "\"Alterar camada\" troca só entre \"Tipo organizacional\" e \"Organização do trabalho\": prévia (de → para e o que não muda), motivo obrigatório, grava camada + camadaAlteracao + histórico alteracao_camada; código, nome e relação \"Squad compõe Linha\" intactos; a lista fica em três grupos (estruturas · Organização do trabalho · Conceito auxiliar); Especialização e Conceito auxiliar sem o botão; conceito com filho ativo só recebe a explicação, só com filho inativo a troca fica liberada; sem o índice de filhos, \"Conferindo…\" e depois só a explicação; caminho de volta pelo mesmo botão. Hermético; as travas do banco são provadas por teste-rules-taxonomia-governanca.js (seção E) no emulador."
+    },
+    {
       "arquivo": ".github/scripts/teste-taxonomia-exportacao.js",
       "nome": "Taxonomia: exportação Excel (revisão) e JSON (diagnóstico), só leitura (desktop e celular)",
       "duracao": 9,
