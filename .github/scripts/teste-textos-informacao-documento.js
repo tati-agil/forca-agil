@@ -36,6 +36,13 @@ const fs = require('fs');
 const path = require('path');
 const vm = require('vm');
 const crypto = require('crypto');
+/* Única diferença INTENCIONAL de texto desde a impressão digital (ajuste pós-publicação da P15):
+   o motivo de Componente passou a ser "É principalmente um elemento estrutural que compõe outro
+   Produto/Serviço". O rótulo antigo é recolocado antes de calcular — se o hash continua o de
+   antes, NADA além desse rótulo mudou. */
+const MOTIVO_COMPONENTE_NOVO = 'É principalmente um elemento estrutural que compõe outro Produto/Serviço';
+const MOTIVO_COMPONENTE_ANTIGO = 'Existe para que outro Produto/Serviço entregue seu resultado';
+const comMotivoDaEpoca = (s) => s.split(MOTIVO_COMPONENTE_NOVO).join(MOTIVO_COMPONENTE_ANTIGO);
 
 const BASE = process.env.FA_BASE_URL || 'http://127.0.0.1:8811';
 const FALSO = fs.readFileSync(path.join(__dirname, 'persistencia-firebase-real.js'), 'utf8') + '\n' +
@@ -116,7 +123,7 @@ function parteA() {
        antes, só os placeholders deixaram de existir. */
     if (semTexto.especializacao === null && ['componente', 'unidade-valor-associada', 'funcionalidade-operacao', 'regra-condicao', 'documento-informacao', 'produto-principal'].indexOf(semTexto.id) !== -1) semTexto.especializacao = 'não determinada pelo questionário';
     if (semTexto.papelEstrutural === null && semTexto.id === 'componente') semTexto.papelEstrutural = 'não determinado';
-    h.update(JSON.stringify([m, c.resultadoAutomatico, c.essenciaisFalhos, c.criteriosAtendidos, c.exclusoesConflitantes, semTexto]) + '\n');
+    h.update(comMotivoDaEpoca(JSON.stringify([m, c.resultadoAutomatico, c.essenciaisFalhos, c.criteriosAtendidos, c.exclusoesConflitantes, semTexto])) + '\n');
     contagemPorCamada[c.camadaSugerida.id] = (contagemPorCamada[c.camadaSugerida.id] || 0) + 1;
     const just = av.gerarJustificativaAutomatica(atual, c);
     const textos = (relacao || '') + ' || ' + just;
