@@ -34,8 +34,9 @@
        nova na mesma gravação; relação idêntica a uma encerrada não pode ser criada de novo (reabrir: backlog);
      - camada (organizacional): "Tipo organizacional" (A) e "Organização do trabalho" (trabalho) só trocam entre si,
        por "Alterar camada", com motivo (conceito.camadaAlteracao) apontando para a auditoria NOVA da mesma gravação
-       (tipo alteracao_camada); conceito com pai ou com FILHOS não troca — os filhos são provados pelo banco com o
-       índice reverso organizacional/filhos/<pai>/<filho> (coerente com conceito.pai) e a marca meta/indiceFilhos;
+       (tipo alteracao_camada); conceito com pai ou com FILHOS ATIVOS não troca — os filhos ativos são provados pelo banco
+       com o índice reverso organizacional/filhos/<pai>/<filho> (só filho ativo e coerente com conceito.pai; inativar
+       tira a entrada e reativar recoloca, na mesma gravação) e a marca meta/indiceFilhos;
        sem a marca, a troca é recusada. Código, definição, fontes e relações não mudam.
 
    INTEGRIDADE DA DEFINIÇÃO VIGENTE — equivalência garantida pelo BANCO (regras, provadas no
@@ -600,6 +601,8 @@
     caminhos[base + '/ativo'] = false;
     caminhos[base + '/inativacao'] = { motivo: motivo, em: agora(), por: emailAutor(), auditoriaId: k };
     caminhos[base + '/reativacao'] = null;
+    /* filho inativo sai do índice de filhos (só filho ATIVO impede o pai de trocar de camada) — mesma gravação */
+    if (dom === 'organizacional' && c.pai) caminhos[RAIZ + '/' + dom + '/filhos/' + c.pai + '/' + codigo] = null;
     marcaConceito(caminhos, dom, codigo);
     addAudEm(caminhos, dom, codigo, k, 'inativacao', 'ativo', true, false, {
       motivo: motivo,
@@ -616,6 +619,8 @@
     caminhos[base + '/ativo'] = true;
     caminhos[base + '/inativacao'] = null;
     caminhos[base + '/reativacao'] = { em: agora(), por: emailAutor(), auditoriaId: k };
+    /* reativado, volta ao índice de filhos — mesma gravação */
+    if (dom === 'organizacional' && c.pai) caminhos[RAIZ + '/' + dom + '/filhos/' + c.pai + '/' + codigo] = true;
     marcaConceito(caminhos, dom, codigo);
     addAudEm(caminhos, dom, codigo, k, 'reativacao', 'ativo', false, true, { motivoAnterior: (c.inativacao && c.inativacao.motivo) || null });
     gravar(caminhos, function () { aposSalvar(dom, codigo, 'Conceito reativado.'); });
@@ -623,10 +628,10 @@
 
   /* Camada: só "Tipo organizacional" (A) ⇄ "Organização do trabalho". Motivo obrigatório; o conceito guarda a
      ÚLTIMA troca (camadaAlteracao) e o histórico guarda todas. Código, definição, fontes e relações não mudam. */
-  /* TODOS os filhos (ativos ou inativos): é o que o índice reverso guarda e o que as regras do banco conferem */
+  /* Filhos ATIVOS: é o que o índice reverso guarda e o que as regras do banco conferem (filho inativo não bloqueia) */
   function filhosDe(dom, codigo) {
     var cs = st.d[dom].conceitos;
-    return chaves(cs).filter(function (k) { return cs[k] && cs[k].pai === codigo; }).sort();
+    return chaves(cs).filter(function (k) { return cs[k] && cs[k].pai === codigo && cs[k].ativo !== false; }).sort();
   }
   /* Índice reverso taxonomia/organizacional/filhos/<pai>/<filho> + marca taxonomia/meta/indiceFilhos: o banco não sabe
      procurar "quem aponta para mim"; com o índice, as REGRAS provam que um conceito não tem filhos. A marca nasce com
@@ -647,7 +652,7 @@
     if (I.estado !== 'ok') return null;  /* o painel mostra "Conferindo…"/erro à parte; alterarCamada recusa */
     if (!I.existe) return 'O índice de conceitos filhos ainda não foi construído neste banco, e sem ele o banco não consegue provar que um conceito não tem filhos. A troca de camada fica bloqueada até essa etapa de implantação (workflow "Taxonomia — índice de filhos").';
     var filhos = filhosDe(dom, codigo);
-    if (filhos.length) return 'Este conceito tem conceitos filhos (' + filhos.join(', ') + ') e por isso não troca de camada.';
+    if (filhos.length) return 'Este conceito tem conceitos filhos ativos (' + filhos.join(', ') + ') e por isso não troca de camada.';
     return null;
   }
   function alterarCamada(dom, codigo) {
@@ -853,8 +858,8 @@
           situacaoDefinicao: ponteiro ? 'registrada' : (c.situacaoDefinicao && c.situacaoDefinicao !== 'registrada' ? c.situacaoDefinicao : situacaoSemVigente(fontesPos)),
           atualizadoEm: agoraIso, atualizadoPor: email };
         if (ponteiro) dadoC.definicaoVigenteFonteId = ponteiro;
-        /* conceito com pai entra também no índice reverso filhos/<pai>/<filho> (as regras exigem, na mesma gravação) */
-        if (org) { dadoC.camada = c.camada; if (c.pai) { dadoC.pai = c.pai; caminhos[base + '/filhos/' + c.pai + '/' + cod] = true; } }
+        /* conceito ATIVO com pai entra também no índice reverso filhos/<pai>/<filho> (as regras exigem, na mesma gravação) */
+        if (org) { dadoC.camada = c.camada; if (c.pai) { dadoC.pai = c.pai; if (dadoC.ativo) caminhos[base + '/filhos/' + c.pai + '/' + cod] = true; } }
         ['observacoes', 'perguntaDiscriminadora', 'notaDeAplicacao'].forEach(function (k) { if (typeof c[k] === 'string' && c[k].trim() && (org || k === 'observacoes')) dadoC[k] = c[k]; });
         if (typeof c.ordemDaPergunta === 'number' && org) dadoC.ordemDaPergunta = c.ordemDaPergunta;
         if (Array.isArray(c.criterios) && c.criterios.length) {

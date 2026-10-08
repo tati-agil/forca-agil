@@ -6,7 +6,8 @@
  *   2. "Alterar camada": prévia (de → para e o que NÃO muda), motivo obrigatório, grava camada + camadaAlteracao +
  *      linha de histórico alteracao_camada; código, nome e relação "Squad compõe Linha" intactos.
  *   3. A lista fica em três grupos: estruturas · Organização do trabalho · Conceito auxiliar.
- *   4. Especialização e Conceito auxiliar não têm o botão; conceito com filhos (ativos OU inativos) só recebe a explicação.
+ *   4. Especialização e Conceito auxiliar não têm o botão; conceito com filho ATIVO só recebe a explicação; só com filho
+ *      inativo, a troca fica liberada.
  *   6. Sem o índice de filhos (taxonomia/meta/indiceFilhos): "Conferindo…" e depois só a explicação, nada gravado.
  *   5. O caminho de volta é o mesmo botão. Sem rolagem horizontal; nenhum erro de JS. */
 const { chromium } = require('playwright');
@@ -49,7 +50,7 @@ const semente = () => {
           CAPITULO: org('Capítulo Fictício', { camada: 'A', ordem: 5 }), DISC: org('Disciplina Fictícia', { camada: 'auxiliar', ordem: 6 }),
           ESP_INATIVA: org('Especialização inativa', { pai: 'AREA', ordem: 7, ativo: false })
         },
-        filhos: { LINHA: { NEG: true }, AREA: { ESP_INATIVA: true } },
+        filhos: { LINHA: { NEG: true } },  /* só filhos ATIVOS: ESP_INATIVA não entra */
         relacoes: { SQUAD__compoe__LINHA: { de: 'SQUAD', tipo: 'compoe', para: 'LINHA' } },
         auditoria: {}
       }
@@ -161,12 +162,12 @@ const lista = (page) => page.evaluate(() => Array.from(document.querySelectorAll
     e0 = await escritas(page);
     await page.click('#taxCamadaBtn');
     await page.waitForSelector('#taxCamadaBloqueada', { timeout: 4000 });
-    afirma(/conceitos filhos \(NEG\)/.test(await texto(page, '#taxCamadaBloqueada')) && await page.locator('#taxPainelCamada textarea, #taxPainelCamada [data-tax="confirmar-camada"]').count() === 0, 'conceito com filhos: só a explicação, sem motivo nem confirmar');
+    afirma(/conceitos filhos ativos \(NEG\)/.test(await texto(page, '#taxCamadaBloqueada')) && await page.locator('#taxPainelCamada textarea, #taxPainelCamada [data-tax="confirmar-camada"]').count() === 0, 'conceito com filho ativo: só a explicação, sem motivo nem confirmar');
     await page.click('[data-tax="cancelar-camada"]');
     await abreConceito(page, 'AREA');
     await page.click('#taxCamadaBtn');
-    await page.waitForSelector('#taxCamadaBloqueada', { timeout: 4000 });
-    afirma(/conceitos filhos \(ESP_INATIVA\)/.test(await texto(page, '#taxCamadaBloqueada')), 'filho INATIVO também bloqueia (igual ao índice que o banco confere)', await texto(page, '#taxCamadaBloqueada'));
+    await page.waitForSelector('#taxCamadaPrevia', { timeout: 6000 });
+    afirma(await page.locator('#taxCamadaBloqueada').count() === 0 && await page.locator('#taxC_motivo').count() === 1, 'só com filho INATIVO não bloqueia: prévia e motivo (igual ao índice que o banco confere)');
     afirma(await escritas(page) === e0, 'nada gravado');
     await page.click('[data-tax="cancelar-camada"]');
 

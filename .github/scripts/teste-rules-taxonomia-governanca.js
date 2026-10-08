@@ -233,7 +233,7 @@ async function main() {
       await a.ref(ORG + '/conceitos/ESP_INATIVA').set(org('Especialização inativa', { pai: 'AREA', ativo: false }));
       await a.ref(ORG + '/relacoes/SQUAD__compoe__LINHA').set({ de: 'SQUAD', tipo: 'compoe', para: 'LINHA' });
       if (!semIndice) {
-        await a.ref(ORG + '/filhos').set({ LINHA: { C1: true, FILHO_A: true }, AREA: { ESP_INATIVA: true } });
+        await a.ref(ORG + '/filhos').set({ LINHA: { C1: true, FILHO_A: true } });  /* ESP_INATIVA (inativa) não entra */
         await a.ref(IDX).set({ criadoEm: QUANDO, criadoPor: ADMIN });
       }
     });
@@ -244,7 +244,8 @@ async function main() {
   await nega('sem o índice (meta/indiceFilhos), a troca é recusada mesmo sem filhos', admin().ref().update(trocaCamada('SQUAD', 'c1', 'A', 'trabalho')));
   await nega('…e LINHA (com filhos) também — "ainda não sei" não vira "pode"', admin().ref().update(trocaCamada('LINHA', 'c1', 'A', 'trabalho')));
   await nega('cliente NÃO cria a marca do índice depois da carga inicial (nem com o índice completo)', admin().ref().update(Object.assign(marca(),
-    { [ORG + '/filhos/LINHA/C1']: true, [ORG + '/filhos/LINHA/FILHO_A']: true, [ORG + '/filhos/AREA/ESP_INATIVA']: true })));
+    { [ORG + '/filhos/LINHA/C1']: true, [ORG + '/filhos/LINHA/FILHO_A']: true })));
+  await nega('entrada no índice para filho INATIVO é recusada (o índice só guarda filhos ativos)', R(admin(), ORG + '/filhos/AREA/ESP_INATIVA').set(true));
   await nega('cliente NÃO cria a marca omitindo filhos para trocar LINHA na mesma gravação', admin().ref().update(Object.assign(marca(), trocaCamada('LINHA', 'c1', 'A', 'trabalho'))));
   await nega('…nem o e-mail fixo de admin geral', db(SUPER).ref().update(marca(SUPER)));
   await pode('antes da marca, entradas do índice coerentes com conceito.pai podem ser gravadas (não provam nada sozinhas)', R(admin(), ORG + '/filhos/LINHA/FILHO_A').set(true));
@@ -254,14 +255,15 @@ async function main() {
   const IND = require('./construir-indice-filhos.js');
   let res;
   await semear(async (a) => { res = await IND.aplicar(a, { confirmar: false, agora: QUANDO }); });
-  anota('construção: a simulação lista as 2 entradas que faltam (a 3ª já existia) e NÃO grava', !res.gravou && res.plano.total === 3 && res.plano.faltam.join(',') === 'AREA/ESP_INATIVA,LINHA/C1' && !(await ler(IDX)), JSON.stringify(res && res.plano));
+  anota('construção: a simulação lista só filhos ATIVOS (C1 falta; FILHO_A já existia; ESP_INATIVA fica fora) e NÃO grava', !res.gravou && res.plano.total === 2 && res.plano.faltam.join(',') === 'LINHA/C1' && res.plano.sobrando.length === 0 && !(await ler(IDX)), JSON.stringify(res && res.plano));
   await semear(async (a) => { res = await IND.aplicar(a, { confirmar: true, agora: QUANDO }); });
   const histGeral = Object.values((await ler(ORG + '/auditoria/_catalogo')) || {}).filter((e) => e.tipo === 'indice_filhos');
-  anota('construção: grava entradas + marca + histórico geral, numa gravação', res.gravou && (await ler(ORG + '/filhos/LINHA/C1')) === true && (await ler(ORG + '/filhos/AREA/ESP_INATIVA')) === true && (await ler(IDX + '/criadoPor')) === IND.AUTOR && histGeral.length === 1 && histGeral[0].total === 3 && histGeral[0].gravadas === 2);
+  anota('construção: grava entradas + marca + histórico geral, numa gravação (sem o filho inativo)', res.gravou && (await ler(ORG + '/filhos/LINHA/C1')) === true && (await ler(ORG + '/filhos/AREA/ESP_INATIVA')) === null && (await ler(IDX + '/criadoPor')) === IND.AUTOR && histGeral.length === 1 && histGeral[0].total === 2 && histGeral[0].gravadas === 1);
   anota('construção: não toca em conceitos nem relações', (await ler(ORG + '/conceitos/LINHA/camada')) === 'A' && (await ler(ORG + '/relacoes/SQUAD__compoe__LINHA/de')) === 'SQUAD');
   await semear(async (a) => { res = await IND.aplicar(a, { confirmar: true, agora: QUANDO }); });
   anota('construção: rodar de novo não grava nada (a marca já existe)', !res.gravou && res.plano.jaConstruido && Object.values((await ler(ORG + '/auditoria/_catalogo')) || {}).filter((e) => e.tipo === 'indice_filhos').length === 1);
-  anota('construção: entrada que contradiz conceito.pai impede a construção', IND.planejar({ X: { pai: 'P' } }, { Q: { X: true } }, null).pode === false && IND.planejar({ X: { pai: 'P' } }, { Q: { X: true } }, null).estranhas.join() === 'Q/X');
+  const pl = IND.planejar({ X: { pai: 'P', ativo: true }, Y: { pai: 'P', ativo: false } }, { Q: { X: true }, P: { Y: true } }, null);
+  anota('construção: entradas que não são de filho ativo daquele pai saem na mesma gravação', pl.pode && pl.faltam.join() === 'P/X' && pl.sobrando.join() === 'P/Y,Q/X', JSON.stringify(pl));
   await nega('depois da construção: LINHA (com filhos) NÃO troca', admin().ref().update(trocaCamada('LINHA', 'c1', 'A', 'trabalho')));
   await pode('depois da construção: SQUAD (sem filhos) troca', admin().ref().update(trocaCamada('SQUAD', 'c1', 'A', 'trabalho')));
   await nega('a marca do índice NÃO é reescrita', R(admin(), IDX).set({ criadoEm: 'outro', criadoPor: ADMIN }));
@@ -282,7 +284,19 @@ async function main() {
   await semearCamadas();
   await nega('(bloqueio no BANCO) LINHA com filho ativo NÃO troca de camada (gravação direta)', admin().ref().update(trocaCamada('LINHA', 'c1', 'A', 'trabalho')));
   await nega('…nem pelo e-mail fixo de admin geral', db(SUPER).ref().update(trocaCamada('LINHA', 'c1', 'A', 'trabalho', { por: SUPER })));
-  await nega('AREA com filho INATIVO também não troca (o índice guarda todos os filhos)', admin().ref().update(trocaCamada('AREA', 'c1', 'A', 'trabalho')));
+  await pode('(filho inativo NÃO bloqueia) AREA, só com filho inativo, troca de camada', admin().ref().update(trocaCamada('AREA', 'c1', 'A', 'trabalho')));
+  await pode('…e volta (o filho inativo e o histórico continuam lá)', admin().ref().update(trocaCamada('AREA', 'c2', 'trabalho', 'A')));
+  anota('o filho inativo continua registrado, apontando para AREA', (await ler(ORG + '/conceitos/ESP_INATIVA/pai')) === 'AREA' && (await ler(ORG + '/conceitos/ESP_INATIVA/ativo')) === false);
+  /* inativar/reativar um filho mantém o índice — o banco obriga, na mesma gravação */
+  await nega('inativar FILHO_A SEM tirar a entrada do índice', admin().ref().update(inativar('organizacional', 'FILHO_A', 'i1')));
+  await pode('inativar FILHO_A tirando a entrada do índice na mesma gravação', admin().ref().update(Object.assign(inativar('organizacional', 'FILHO_A', 'i1'), { [ORG + '/filhos/LINHA/FILHO_A']: null })));
+  await nega('LINHA ainda tem C1 ativo: continua sem trocar', admin().ref().update(trocaCamada('LINHA', 'c1', 'A', 'trabalho')));
+  const reativar = (cod, k, comEntrada) => Object.assign({
+    [ORG + '/conceitos/' + cod + '/ativo']: true, [ORG + '/conceitos/' + cod + '/inativacao']: null,
+    [ORG + '/conceitos/' + cod + '/reativacao']: { em: QUANDO, por: ADMIN, auditoriaId: k }
+  }, audC('organizacional', cod, k, 'reativacao'), comEntrada ? { [ORG + '/filhos/LINHA/' + cod]: true } : {});
+  await nega('reativar FILHO_A SEM recolocar a entrada do índice', admin().ref().update(reativar('FILHO_A', 'r1', false)));
+  await pode('reativar FILHO_A recolocando a entrada do índice', admin().ref().update(reativar('FILHO_A', 'r1', true)));
   await nega('apagar a entrada do índice enquanto o filho ainda aponta para o pai', R(admin(), ORG + '/filhos/LINHA/FILHO_A').remove());
   await nega('apagar a entrada do índice e trocar a camada do pai na mesma gravação', admin().ref().update(Object.assign({ [ORG + '/filhos/LINHA/FILHO_A']: null, [ORG + '/filhos/LINHA/C1']: null }, trocaCamada('LINHA', 'c1', 'A', 'trabalho'))));
   await nega('apagar o índice inteiro de um pai', R(admin(), ORG + '/filhos/LINHA').remove());
@@ -430,6 +444,14 @@ async function main() {
     const ev = Object.values((await ler(ORG + '/auditoria/LINHA')) || {}).find((e) => e.tipo === 'inativacao');
     return (await ler(ORG + '/conceitos/LINHA/ativo')) === false && ev && ev.filhosAtivos === 'C1' && (await ler(ORG + '/conceitos/C1/ativo')) === true;
   });
+  /* com o índice construído, a tela tira/recoloca a entrada do filho ao inativar/reativar — e o banco aceita */
+  await abreConceito('organizacional', 'C1');
+  I.st.d.organizacional.inativando = { codigo: 'C1', motivo: 'Fora de uso', erro: null };
+  await opera('inativarConceito (filho com pai, índice construído)', () => I.inativarConceito('organizacional', 'C1'),
+    async () => (await ler(ORG + '/conceitos/C1/ativo')) === false && (await ler(ORG + '/filhos/LINHA/C1')) === null);
+  await abreConceito('organizacional', 'C1');
+  await opera('reativarConceito (filho com pai, índice construído)', () => I.reativarConceito('organizacional', 'C1'),
+    async () => (await ler(ORG + '/conceitos/C1/ativo')) === true && (await ler(ORG + '/filhos/LINHA/C1')) === true);
 
   /* camada pela tela: só A ⇄ trabalho, com motivo; sem o índice construído, ou com pai/filhos, recusa sem gravar */
   await semear(async (a) => { await a.ref(ORG + '/conceitos/SQUAD').set(org('Squad', { camada: 'A' })); });
@@ -457,7 +479,7 @@ async function main() {
   await abreConceito('organizacional', 'LINHA');
   I.st.d.organizacional.camadaMudando = { codigo: 'LINHA', motivo: 'x', erro: null };
   I.alterarCamada('organizacional', 'LINHA'); await new Promise((r) => setTimeout(r, 200));
-  anota('tela: conceito com filhos não troca de camada, sem gravar', /conceitos filhos \(C1\)/.test(I.st.d.organizacional.camadaMudando.erro || '') && (await ler(ORG + '/conceitos/LINHA/camada')) === 'A', I.st.d.organizacional.camadaMudando.erro);
+  anota('tela: conceito com filhos ativos não troca de camada, sem gravar', /conceitos filhos ativos \(C1\)/.test(I.st.d.organizacional.camadaMudando.erro || '') && (await ler(ORG + '/conceitos/LINHA/camada')) === 'A', I.st.d.organizacional.camadaMudando.erro);
   /* exportação: relação encerrada nunca sai como se estivesse ativa */
   const bruto = await ler('taxonomia');
   const linhas = I.linhasExportacao(bruto);

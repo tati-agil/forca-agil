@@ -125,7 +125,7 @@
         'A Taxonomia define, a Avaliação aplica: é a fonte única dos conceitos.',
         'Uma definição publicada não é editada: corrigir é criar uma nova versão.',
         'Nada se apaga: conceito é inativado com motivo, relação é encerrada, e conceito ligado a uma classificação da Avaliação não pode ser inativado.',
-        'No domínio organizacional, Linha, Área Especializada e CoE são as estruturas de posicionamento; Squad e Capítulo ficam em "Organização do trabalho", e Disciplina é conceito auxiliar. Trocar entre "Tipo organizacional" e "Organização do trabalho" pede motivo, fica no histórico e só vale para conceito sem pai e sem filhos (o banco confere por um índice de filhos, construído uma única vez).',
+        'No domínio organizacional, Linha, Área Especializada e CoE são as estruturas de posicionamento; Squad e Capítulo ficam em "Organização do trabalho", e Disciplina é conceito auxiliar. Trocar entre "Tipo organizacional" e "Organização do trabalho" pede motivo, fica no histórico e só vale para conceito sem pai e sem filho ativo (o banco confere por um índice de filhos ativos, construído uma única vez); filho inativo não impede.',
       ],
       links: [{ texto: 'Abrir ADMIN › Taxonomia', aba: 'adminPanelTaxonomia' }],
       fonte: ['ADMIN › Taxonomia (a própria tela)', 'database.rules.json'],
