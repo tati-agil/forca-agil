@@ -113,6 +113,14 @@ function parte1() {
   const O = Q.perguntas.slice(0, 9), D = Q.perguntas[9];
   afirma(O.every((p) => p.tipo === 'binaria' && fq.tipoPergunta(p) === 'binaria'), 'O1–O9 com tipo EXPLÍCITO "binaria"');
   afirma(O.every((p) => /^Considerando a responsabilidade organizacional associada a este objeto, /.test(p.texto)), 'O1–O9 começam por "Considerando a responsabilidade organizacional associada a este objeto…"');
+  afirma(O.every((p) => /^SIM — A resposta indica /.test(p.justSim) && /^NÃO — A (resposta não indica|responsabilidade não se caracteriza) /.test(p.justNao)),
+    'O1–O9 nascem com as duas interpretações (justSim/justNao) preenchidas');
+  afirma(O.every((p) => !/o objeto é|classifica/i.test(p.justSim + ' ' + p.justNao)), 'as interpretações falam de evidência ("a resposta indica"), nunca "o objeto é"/"classifica como"');
+  afirma(/^Identifica uma responsabilidade típica de Estratégia de Clientes: /.test(O[3].textoAjuda.significado), 'O4 com o significado de Estratégia de Clientes');
+  afirma(/^Identifica uma responsabilidade típica de Plataforma Habilitadora de Negócios: /.test(O[6].textoAjuda.significado) &&
+    /Não é necessário que o objeto seja previdenciário ou financeiro\.$/.test(O[6].textoAjuda.significado), 'O7: a ressalva "não precisa ser previdenciário ou financeiro" está na ajuda visível');
+  afirma(['O2', 'O3', 'O5', 'O6', 'O9'].every((c) => !!O.find((p) => p.codigoEstavel === c).ajudaExtra) &&
+    ['O1', 'O4', 'O7', 'O8'].every((c) => !O.find((p) => p.codigoEstavel === c).ajudaExtra), 'orientação adicional (ajudaExtra) em O2, O3, O5, O6 e O9');
   afirma(D.tipo === TIPO_DIAG && fq.tipoPergunta(D) === TIPO_DIAG, 'diagnóstico com tipo "' + TIPO_DIAG + '"');
   afirma(igual(fq.TIPOS_PERGUNTA, { BINARIA: 'binaria', DIAGNOSTICO_CONFLITO_RECORTE: TIPO_DIAG }) && Object.isFrozen(fq.TIPOS_PERGUNTA), 'catálogo de tipos estável e congelado');
   afirma(igual(fq.RESPOSTAS_DIAGNOSTICO, { MESMA: 'mesma', DISTINTAS: 'distintas' }) && Object.isFrozen(fq.RESPOSTAS_DIAGNOSTICO), 'respostas do diagnóstico: mesma / distintas (congeladas)');
@@ -346,6 +354,7 @@ async function parte2(browser, fq, nomeTela, viewport) {
   afirma(ls.length === 9 && igual(ls.slice(1).map((l) => l.slice(0, 14)), antigosS), 'S1–S8: idem');
   afirma(lp.slice(1).concat(ls.slice(1)).every((l) => l[14] === 'binaria' && l.slice(15).every((v) => v === '')), 'P/S: tipo "binaria" e as 6 colunas do diagnóstico vazias');
   afirma(lo.length === 11 && lo.slice(1, 10).every((l) => l[14] === 'binaria' && l.slice(15).every((v) => v === '')), 'O1–O9: binárias, colunas do diagnóstico vazias');
+  afirma(lo.slice(1, 10).every((l, i) => l[11] === fq.PADRAO[POS].perguntas[i].justSim && l[12] === fq.PADRAO[POS].perguntas[i].justNao), 'O1–O9: interpretações SIM/NÃO nas colunas de sempre');
   const ld = lo[10], dv = cfg && (await lerConfig(page, POS)).versoes[4].perguntas[9];
   afirma(ld[2] === DIAG && ld[14] === TIPO_DIAG && ld[6] === '' && ld[7] === '' && ld[11] === '' && ld[12] === '', 'diagnóstico: tipo próprio e as colunas de SIM/NÃO vazias');
   afirma(ld[15] === dv.textoAjuda.quandoMesma && ld[16] === dv.textoAjuda.quandoDistintas && ld[17] === dv.rotuloMesma && ld[18] === dv.interpretacaoMesma &&
