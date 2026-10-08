@@ -18,7 +18,7 @@
  * Hermético: banco falso em persistenciaReal, sem rede, sem segredo.
  * Desktop e celular (375 px). */
 const { chromium } = require('playwright');
-const { esperarSessaoAssentada } = require('./esperas');
+const { esperarSessaoAssentada, esperarCondicao } = require('./esperas');
 const fs = require('fs');
 const os = require('os');
 const path = require('path');
@@ -183,8 +183,9 @@ async function abrirFicha(page, key) {
 }
 async function gerarPdf(page) {
   await page.evaluate(() => { window.__pdfs = []; });
-  await Promise.all([page.waitForEvent('download', { timeout: 60000 }).catch(() => null), page.click('#avpGerarPdfBtn')]);
-  await page.waitForFunction(() => window.__pdfs.length > 0, null, { timeout: 30000 });
+  /* O efeito que importa é o texto do PDF (window.__pdfs), não o arquivo baixado. */
+  await page.click('#avpGerarPdfBtn');
+  await esperarCondicao(page, () => window.__pdfs.length > 0, null, { limite: 30000, descricao: 'PDF gerado' });
   return page.evaluate(() => Array.from(new Set(window.__pdfs)).join('\n'));
 }
 async function lerExcelRespostas(page) {
@@ -255,7 +256,7 @@ async function lerExcelRespostas(page) {
     afirma(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth + 1), 'avisos cabem na tela (sem rolagem lateral)');
 
     await page.click('#avpConcluirBtn');
-    await page.waitForSelector('#avpQuestion-componente.avp-question--pendente', { timeout: 5000 }).catch(() => {});
+    await esperarCondicao(page, () => !!document.querySelector('#avpQuestion-componente.avp-question--pendente'), null, { limite: 5000, descricao: 'P15 marcada como pendente' });
     let dep = await banco(page);
     afirma(!Object.values(dep['avaliacoes-produto']).some((i) => i.versaoAnteriorKey === 'itemv1'), '9. não conclui sem responder de novo a P15', Object.keys(dep['avaliacoes-produto']).join(','));
     afirma(await page.locator('#avpQuestion-componente.avp-question--pendente').count() === 1, 'e aponta a P15 como pendente');
