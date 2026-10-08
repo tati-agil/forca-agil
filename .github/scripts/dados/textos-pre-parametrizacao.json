@@ -1,0 +1,1658 @@
+{
+ "geradoPor": ".github/scripts/gerar-textos-pre-parametrizacao.js",
+ "intervalo": "ea1a051..c3a9de3^ (avaliacao-produto.js)",
+ "parametrizacao": {
+  "commit": "c3a9de3",
+  "data": "2026-09-29T19:29:32+00:00"
+ },
+ "commits": [
+  {
+   "commit": "ea1a051",
+   "data": "2026-09-28T01:00:55+00:00",
+   "perguntas": {
+    "necessidade": {
+     "titulo": "Necessidade do cliente",
+     "texto": "Este item atende a uma necessidade identificável de um cliente ou público específico?"
+    },
+    "resultado": {
+     "titulo": "Resultado próprio para o cliente",
+     "texto": "O item entrega um resultado próprio e perceptível para o cliente?"
+    },
+    "solucao": {
+     "titulo": "Solução identificável",
+     "texto": "O item pode ser entendido pelo cliente como uma solução ou oferta identificável?"
+    },
+    "fronteira": {
+     "titulo": "Fronteira coerente",
+     "texto": "É possível delimitar claramente onde essa solução começa e termina?"
+    },
+    "jornada": {
+     "titulo": "Jornada própria",
+     "texto": "Existe uma jornada ou ciclo de vida identificável para esse item na relação com o cliente?"
+    },
+    "medicao": {
+     "titulo": "Medição de resultado",
+     "texto": "É possível medir o resultado desse item de forma própria?"
+    },
+    "gestao": {
+     "titulo": "Gestão ponta a ponta",
+     "texto": "Este item poderia ser gerido de ponta a ponta como uma solução?"
+    },
+    "canal": {
+     "titulo": null,
+     "texto": "O item é principalmente um canal de acesso ou relacionamento?"
+    },
+    "artefato": {
+     "titulo": null,
+     "texto": "O item é principalmente um documento, relatório ou informação entregue ao cliente?"
+    },
+    "capacidade": {
+     "titulo": null,
+     "texto": "O item é principalmente uma capacidade que a organização precisa possuir?"
+    },
+    "processo": {
+     "titulo": null,
+     "texto": "O item é principalmente um processo ou uma etapa de processo?"
+    },
+    "modalidade": {
+     "titulo": null,
+     "texto": "O item é principalmente uma modalidade, opção ou configuração de outro produto?"
+    },
+    "regra": {
+     "titulo": null,
+     "texto": "O item é principalmente uma regra ou condição de outro produto?"
+    },
+    "componente": {
+     "titulo": null,
+     "texto": "O item existe principalmente para que outro Produto/Serviço consiga entregar seu resultado?"
+    }
+   }
+  },
+  {
+   "commit": "2dd95f6",
+   "data": "2026-09-28T02:09:12+00:00",
+   "perguntas": {
+    "necessidade": {
+     "titulo": "Necessidade do cliente",
+     "texto": "Este item atende a uma necessidade identificável de um cliente ou público específico?"
+    },
+    "resultado": {
+     "titulo": "Resultado próprio para o cliente",
+     "texto": "O item entrega um resultado próprio e perceptível para o cliente?"
+    },
+    "solucao": {
+     "titulo": "Solução identificável",
+     "texto": "O item pode ser entendido pelo cliente como uma solução ou oferta identificável?"
+    },
+    "fronteira": {
+     "titulo": "Fronteira coerente",
+     "texto": "É possível delimitar claramente onde essa solução começa e termina?"
+    },
+    "jornada": {
+     "titulo": "Jornada própria",
+     "texto": "Existe uma jornada ou ciclo de vida identificável para esse item na relação com o cliente?"
+    },
+    "medicao": {
+     "titulo": "Medição de resultado",
+     "texto": "É possível medir o resultado desse item de forma própria?"
+    },
+    "gestao": {
+     "titulo": "Gestão ponta a ponta",
+     "texto": "Este item poderia ser gerido de ponta a ponta como uma solução?"
+    },
+    "canal": {
+     "titulo": null,
+     "texto": "O item é principalmente um canal de acesso ou relacionamento?"
+    },
+    "artefato": {
+     "titulo": null,
+     "texto": "O item é principalmente um documento, relatório ou informação entregue ao cliente?"
+    },
+    "capacidade": {
+     "titulo": null,
+     "texto": "O item é principalmente uma capacidade que a organização precisa possuir?"
+    },
+    "processo": {
+     "titulo": null,
+     "texto": "O item é principalmente um processo ou uma etapa de processo?"
+    },
+    "modalidade": {
+     "titulo": null,
+     "texto": "O item é principalmente uma modalidade, opção ou configuração de outro produto?"
+    },
+    "regra": {
+     "titulo": null,
+     "texto": "O item é principalmente uma regra ou condição de outro produto?"
+    },
+    "componente": {
+     "titulo": null,
+     "texto": "O item existe principalmente para que outro Produto/Serviço consiga entregar seu resultado?"
+    }
+   }
+  },
+  {
+   "commit": "90edbad",
+   "data": "2026-09-28T03:02:16+00:00",
+   "perguntas": {
+    "necessidade": {
+     "titulo": "Necessidade do cliente",
+     "texto": "Este item atende a uma necessidade identificável de um cliente ou público específico?"
+    },
+    "resultado": {
+     "titulo": "Resultado próprio para o cliente",
+     "texto": "O item entrega um resultado próprio e perceptível para o cliente?"
+    },
+    "solucao": {
+     "titulo": "Solução identificável",
+     "texto": "O item pode ser entendido pelo cliente como uma solução ou oferta identificável?"
+    },
+    "fronteira": {
+     "titulo": "Fronteira coerente",
+     "texto": "É possível delimitar claramente onde essa solução começa e termina?"
+    },
+    "jornada": {
+     "titulo": "Jornada própria",
+     "texto": "Existe uma jornada ou ciclo de vida identificável para esse item na relação com o cliente?"
+    },
+    "medicao": {
+     "titulo": "Medição de resultado",
+     "texto": "É possível medir o resultado desse item de forma própria?"
+    },
+    "gestao": {
+     "titulo": "Gestão ponta a ponta",
+     "texto": "Este item poderia ser gerido de ponta a ponta como uma solução?"
+    },
+    "canal": {
+     "titulo": null,
+     "texto": "O item é principalmente um canal de acesso ou relacionamento?"
+    },
+    "artefato": {
+     "titulo": null,
+     "texto": "O item é principalmente um documento, relatório ou informação entregue ao cliente?"
+    },
+    "capacidade": {
+     "titulo": null,
+     "texto": "O item é principalmente uma capacidade que a organização precisa possuir?"
+    },
+    "processo": {
+     "titulo": null,
+     "texto": "O item é principalmente um processo ou uma etapa de processo?"
+    },
+    "modalidade": {
+     "titulo": null,
+     "texto": "O item é principalmente uma modalidade, opção ou configuração de outro produto?"
+    },
+    "regra": {
+     "titulo": null,
+     "texto": "O item é principalmente uma regra ou condição de outro produto?"
+    },
+    "componente": {
+     "titulo": null,
+     "texto": "O item existe principalmente para que outro Produto/Serviço consiga entregar seu resultado?"
+    }
+   }
+  },
+  {
+   "commit": "7684549",
+   "data": "2026-09-28T10:45:26+00:00",
+   "perguntas": {
+    "necessidade": {
+     "titulo": "Necessidade do cliente",
+     "texto": "Este item atende a uma necessidade identificável de um cliente ou público específico?"
+    },
+    "resultado": {
+     "titulo": "Resultado próprio para o cliente",
+     "texto": "O item entrega um resultado próprio e perceptível para o cliente?"
+    },
+    "solucao": {
+     "titulo": "Solução identificável",
+     "texto": "O item pode ser entendido pelo cliente como uma solução ou oferta identificável?"
+    },
+    "fronteira": {
+     "titulo": "Fronteira coerente",
+     "texto": "É possível delimitar claramente onde essa solução começa e termina?"
+    },
+    "jornada": {
+     "titulo": "Jornada própria",
+     "texto": "Existe uma jornada ou ciclo de vida identificável para esse item na relação com o cliente?"
+    },
+    "medicao": {
+     "titulo": "Medição de resultado",
+     "texto": "É possível medir o resultado desse item de forma própria?"
+    },
+    "gestao": {
+     "titulo": "Gestão ponta a ponta",
+     "texto": "Este item poderia ser gerido de ponta a ponta como uma solução?"
+    },
+    "canal": {
+     "titulo": null,
+     "texto": "O item é principalmente um canal de acesso ou relacionamento?"
+    },
+    "artefato": {
+     "titulo": null,
+     "texto": "O item é principalmente um documento, relatório ou informação entregue ao cliente?"
+    },
+    "capacidade": {
+     "titulo": null,
+     "texto": "O item é principalmente uma capacidade que a organização precisa possuir?"
+    },
+    "processo": {
+     "titulo": null,
+     "texto": "O item é principalmente um processo ou uma etapa de processo?"
+    },
+    "modalidade": {
+     "titulo": null,
+     "texto": "O item é principalmente uma modalidade, opção ou configuração de outro produto?"
+    },
+    "regra": {
+     "titulo": null,
+     "texto": "O item é principalmente uma regra ou condição de outro produto?"
+    },
+    "componente": {
+     "titulo": null,
+     "texto": "O item existe principalmente para que outro Produto/Serviço consiga entregar seu resultado?"
+    }
+   }
+  },
+  {
+   "commit": "12031bb",
+   "data": "2026-09-28T11:58:22+00:00",
+   "perguntas": {
+    "necessidade": {
+     "titulo": "Necessidade do cliente",
+     "texto": "Este item atende a uma necessidade identificável de um cliente ou público específico?"
+    },
+    "resultado": {
+     "titulo": "Resultado próprio para o cliente",
+     "texto": "O item entrega um resultado próprio e perceptível para o cliente?"
+    },
+    "solucao": {
+     "titulo": "Solução identificável",
+     "texto": "O item pode ser entendido pelo cliente como uma solução ou oferta identificável?"
+    },
+    "fronteira": {
+     "titulo": "Fronteira coerente",
+     "texto": "É possível delimitar claramente onde essa solução começa e termina?"
+    },
+    "autonomia": {
+     "titulo": "Autonomia estrutural",
+     "texto": "O item consegue existir e entregar seu resultado de forma independente, sem depender estruturalmente de outro Produto/Serviço?"
+    },
+    "jornada": {
+     "titulo": "Jornada própria",
+     "texto": "Existe uma jornada ou ciclo de vida identificável para esse item na relação com o cliente?"
+    },
+    "medicao": {
+     "titulo": "Medição de resultado",
+     "texto": "É possível medir o resultado desse item de forma própria?"
+    },
+    "gestao": {
+     "titulo": "Gestão ponta a ponta",
+     "texto": "Este item poderia ser gerido de ponta a ponta como uma solução?"
+    },
+    "canal": {
+     "titulo": null,
+     "texto": "O item é principalmente um canal de acesso ou relacionamento?"
+    },
+    "artefato": {
+     "titulo": null,
+     "texto": "O item é principalmente um documento, relatório ou informação entregue ao cliente?"
+    },
+    "capacidade": {
+     "titulo": null,
+     "texto": "O item é principalmente uma capacidade que a organização precisa possuir?"
+    },
+    "processo": {
+     "titulo": null,
+     "texto": "O item é principalmente um processo ou uma etapa de processo?"
+    },
+    "modalidade": {
+     "titulo": null,
+     "texto": "O item é principalmente uma modalidade, opção ou configuração de outro produto?"
+    },
+    "regra": {
+     "titulo": null,
+     "texto": "O item é principalmente uma regra ou condição de outro produto?"
+    },
+    "componente": {
+     "titulo": null,
+     "texto": "O item existe principalmente para que outro Produto/Serviço consiga entregar seu resultado?"
+    },
+    "funcionalidade": {
+     "titulo": null,
+     "texto": "O item é principalmente uma funcionalidade ou operação que permite consultar, escolher, solicitar, contratar, alterar, executar ou administrar algo dentro de outro Produto/Serviço?"
+    }
+   }
+  },
+  {
+   "commit": "96ba6ff",
+   "data": "2026-09-28T12:59:39+00:00",
+   "perguntas": {
+    "necessidade": {
+     "titulo": "Necessidade do cliente",
+     "texto": "Este item atende a uma necessidade identificável de um cliente ou público específico?"
+    },
+    "resultado": {
+     "titulo": "Resultado próprio para o cliente",
+     "texto": "O item entrega um resultado próprio e perceptível para o cliente?"
+    },
+    "solucao": {
+     "titulo": "Solução identificável",
+     "texto": "O item pode ser entendido pelo cliente como uma solução ou oferta identificável?"
+    },
+    "fronteira": {
+     "titulo": "Fronteira coerente",
+     "texto": "É possível delimitar claramente onde essa solução começa e termina?"
+    },
+    "autonomia": {
+     "titulo": "Autonomia estrutural",
+     "texto": "O item consegue existir e entregar seu resultado de forma independente, sem depender estruturalmente de outro Produto/Serviço?"
+    },
+    "jornada": {
+     "titulo": "Jornada própria",
+     "texto": "Existe uma jornada ou ciclo de vida identificável para esse item na relação com o cliente?"
+    },
+    "medicao": {
+     "titulo": "Medição de resultado",
+     "texto": "É possível medir o resultado desse item de forma própria?"
+    },
+    "gestao": {
+     "titulo": "Gestão ponta a ponta",
+     "texto": "Este item poderia ser gerido de ponta a ponta como uma solução?"
+    },
+    "canal": {
+     "titulo": null,
+     "texto": "O item é principalmente um canal de acesso ou relacionamento?"
+    },
+    "artefato": {
+     "titulo": null,
+     "texto": "O item é principalmente um documento, relatório ou informação entregue ao cliente?"
+    },
+    "capacidade": {
+     "titulo": null,
+     "texto": "O item é principalmente uma capacidade que a organização precisa possuir?"
+    },
+    "processo": {
+     "titulo": null,
+     "texto": "O item é principalmente um processo ou uma etapa de processo?"
+    },
+    "modalidade": {
+     "titulo": null,
+     "texto": "O item é principalmente uma modalidade, opção ou configuração de outro produto?"
+    },
+    "regra": {
+     "titulo": null,
+     "texto": "O item é principalmente uma regra ou condição de outro produto?"
+    },
+    "componente": {
+     "titulo": null,
+     "texto": "O item existe principalmente para que outro Produto/Serviço consiga entregar seu resultado?"
+    },
+    "funcionalidade": {
+     "titulo": null,
+     "texto": "O item é principalmente uma funcionalidade ou operação que permite consultar, escolher, solicitar, contratar, alterar, executar ou administrar algo dentro de outro Produto/Serviço?"
+    }
+   }
+  },
+  {
+   "commit": "7feb087",
+   "data": "2026-09-28T13:52:24+00:00",
+   "perguntas": {
+    "necessidade": {
+     "titulo": "Necessidade do cliente",
+     "texto": "Este item atende a uma necessidade identificável de um cliente ou público específico?"
+    },
+    "resultado": {
+     "titulo": "Resultado próprio para o cliente",
+     "texto": "O item entrega um resultado próprio e perceptível para o cliente?"
+    },
+    "solucao": {
+     "titulo": "Solução identificável",
+     "texto": "O item pode ser entendido pelo cliente como uma solução ou oferta identificável?"
+    },
+    "fronteira": {
+     "titulo": "Fronteira coerente",
+     "texto": "É possível delimitar claramente onde essa solução começa e termina?"
+    },
+    "autonomia": {
+     "titulo": "Autonomia estrutural",
+     "texto": "O item consegue existir e entregar seu resultado de forma independente, sem depender estruturalmente de outro Produto/Serviço?"
+    },
+    "jornada": {
+     "titulo": "Jornada própria",
+     "texto": "Existe uma jornada ou ciclo de vida identificável para esse item na relação com o cliente?"
+    },
+    "medicao": {
+     "titulo": "Medição de resultado",
+     "texto": "É possível medir o resultado desse item de forma própria?"
+    },
+    "gestao": {
+     "titulo": "Gestão ponta a ponta",
+     "texto": "Este item poderia ser gerido de ponta a ponta como uma solução?"
+    },
+    "canal": {
+     "titulo": null,
+     "texto": "O item é principalmente um canal de acesso ou relacionamento?"
+    },
+    "artefato": {
+     "titulo": null,
+     "texto": "O item é principalmente um documento, relatório ou informação entregue ao cliente?"
+    },
+    "capacidade": {
+     "titulo": null,
+     "texto": "O item é principalmente uma capacidade que a organização precisa possuir?"
+    },
+    "processo": {
+     "titulo": null,
+     "texto": "O item é principalmente um processo ou uma etapa de processo?"
+    },
+    "modalidade": {
+     "titulo": null,
+     "texto": "O item é principalmente uma modalidade, opção ou configuração de outro produto?"
+    },
+    "regra": {
+     "titulo": null,
+     "texto": "O item é principalmente uma regra ou condição de outro produto?"
+    },
+    "componente": {
+     "titulo": null,
+     "texto": "O item existe principalmente para que outro Produto/Serviço consiga entregar seu resultado?"
+    },
+    "funcionalidade": {
+     "titulo": null,
+     "texto": "O item é principalmente uma funcionalidade ou operação que permite consultar, escolher, solicitar, contratar, alterar, executar ou administrar algo dentro de outro Produto/Serviço?"
+    }
+   }
+  },
+  {
+   "commit": "2839839",
+   "data": "2026-09-28T15:54:57+00:00",
+   "perguntas": {
+    "necessidade": {
+     "titulo": "Necessidade do cliente",
+     "texto": "Este item atende a uma necessidade identificável de um cliente ou público específico?"
+    },
+    "resultado": {
+     "titulo": "Resultado próprio para o cliente",
+     "texto": "O item entrega um resultado próprio e perceptível para o cliente?"
+    },
+    "solucao": {
+     "titulo": "Solução identificável",
+     "texto": "O item pode ser entendido pelo cliente como uma solução ou oferta identificável?"
+    },
+    "fronteira": {
+     "titulo": "Fronteira coerente",
+     "texto": "É possível delimitar claramente onde essa solução começa e termina?"
+    },
+    "autonomia": {
+     "titulo": "Autonomia estrutural",
+     "texto": "O item consegue existir e entregar seu resultado de forma independente, sem depender estruturalmente de outro Produto/Serviço?"
+    },
+    "jornada": {
+     "titulo": "Jornada própria",
+     "texto": "Existe uma jornada ou ciclo de vida identificável para esse item na relação com o cliente?"
+    },
+    "medicao": {
+     "titulo": "Medição de resultado",
+     "texto": "É possível medir o resultado desse item de forma própria?"
+    },
+    "gestao": {
+     "titulo": "Gestão ponta a ponta",
+     "texto": "Este item poderia ser gerido de ponta a ponta como uma solução?"
+    },
+    "canal": {
+     "titulo": null,
+     "texto": "O item é principalmente um canal de acesso ou relacionamento?"
+    },
+    "artefato": {
+     "titulo": null,
+     "texto": "O item é principalmente um documento, relatório ou informação entregue ao cliente?"
+    },
+    "capacidade": {
+     "titulo": null,
+     "texto": "O item é principalmente uma capacidade que a organização precisa possuir?"
+    },
+    "processo": {
+     "titulo": null,
+     "texto": "O item é principalmente um processo ou uma etapa de processo?"
+    },
+    "modalidade": {
+     "titulo": null,
+     "texto": "O item é principalmente uma modalidade, opção ou configuração de outro produto?"
+    },
+    "regra": {
+     "titulo": null,
+     "texto": "O item é principalmente uma regra ou condição de outro produto?"
+    },
+    "componente": {
+     "titulo": null,
+     "texto": "O item existe principalmente para que outro Produto/Serviço consiga entregar seu resultado?"
+    },
+    "funcionalidade": {
+     "titulo": null,
+     "texto": "O item é principalmente uma funcionalidade ou operação que permite consultar, escolher, solicitar, contratar, alterar, executar ou administrar algo dentro de outro Produto/Serviço?"
+    }
+   }
+  },
+  {
+   "commit": "06c7730",
+   "data": "2026-09-28T18:03:14+00:00",
+   "perguntas": {
+    "necessidade": {
+     "titulo": "Necessidade do cliente",
+     "texto": "Este item atende a uma necessidade identificável de um cliente ou público específico?"
+    },
+    "resultado": {
+     "titulo": "Resultado próprio para o cliente",
+     "texto": "O item entrega um resultado próprio e perceptível para o cliente?"
+    },
+    "solucao": {
+     "titulo": "Solução identificável",
+     "texto": "O item pode ser entendido pelo cliente como uma solução ou oferta identificável?"
+    },
+    "fronteira": {
+     "titulo": "Fronteira coerente",
+     "texto": "É possível delimitar claramente onde essa solução começa e termina?"
+    },
+    "autonomia": {
+     "titulo": "Autonomia estrutural",
+     "texto": "O item consegue existir e entregar seu resultado de forma independente, sem depender estruturalmente de outro Produto/Serviço?"
+    },
+    "jornada": {
+     "titulo": "Jornada própria",
+     "texto": "Existe uma jornada ou ciclo de vida identificável para esse item na relação com o cliente?"
+    },
+    "medicao": {
+     "titulo": "Medição de resultado",
+     "texto": "É possível medir o resultado desse item de forma própria?"
+    },
+    "gestao": {
+     "titulo": "Gestão ponta a ponta",
+     "texto": "Este item poderia ser gerido de ponta a ponta como uma solução?"
+    },
+    "canal": {
+     "titulo": null,
+     "texto": "O item é principalmente um canal de acesso ou relacionamento?"
+    },
+    "artefato": {
+     "titulo": null,
+     "texto": "O item é principalmente um documento, relatório ou informação entregue ao cliente?"
+    },
+    "capacidade": {
+     "titulo": null,
+     "texto": "O item é principalmente uma capacidade que a organização precisa possuir?"
+    },
+    "processo": {
+     "titulo": null,
+     "texto": "O item é principalmente um processo ou uma etapa de processo?"
+    },
+    "modalidade": {
+     "titulo": null,
+     "texto": "O item é principalmente uma modalidade, opção ou configuração de outro produto?"
+    },
+    "regra": {
+     "titulo": null,
+     "texto": "O item é principalmente uma regra ou condição de outro produto?"
+    },
+    "componente": {
+     "titulo": null,
+     "texto": "O item existe principalmente para que outro Produto/Serviço consiga entregar seu resultado?"
+    },
+    "funcionalidade": {
+     "titulo": null,
+     "texto": "O item é principalmente uma funcionalidade ou operação que permite consultar, escolher, solicitar, contratar, alterar, executar ou administrar algo dentro de outro Produto/Serviço?"
+    }
+   }
+  },
+  {
+   "commit": "6da2920",
+   "data": "2026-09-28T18:57:04+00:00",
+   "perguntas": {
+    "necessidade": {
+     "titulo": "Necessidade do cliente",
+     "texto": "Este item atende a uma necessidade identificável de um cliente ou público específico?"
+    },
+    "resultado": {
+     "titulo": "Resultado próprio para o cliente",
+     "texto": "O item entrega um resultado próprio e perceptível para o cliente?"
+    },
+    "solucao": {
+     "titulo": "Solução identificável",
+     "texto": "O item pode ser entendido pelo cliente como uma solução ou oferta identificável?"
+    },
+    "fronteira": {
+     "titulo": "Fronteira coerente",
+     "texto": "É possível delimitar claramente onde essa solução começa e termina?"
+    },
+    "autonomia": {
+     "titulo": "Autonomia estrutural",
+     "texto": "O item consegue existir e entregar seu resultado de forma independente, sem depender estruturalmente de outro Produto/Serviço?"
+    },
+    "jornada": {
+     "titulo": "Jornada própria",
+     "texto": "Existe uma jornada ou ciclo de vida identificável para esse item na relação com o cliente?"
+    },
+    "medicao": {
+     "titulo": "Medição de resultado",
+     "texto": "É possível medir o resultado desse item de forma própria?"
+    },
+    "gestao": {
+     "titulo": "Gestão ponta a ponta",
+     "texto": "Este item poderia ser gerido de ponta a ponta como uma solução?"
+    },
+    "canal": {
+     "titulo": null,
+     "texto": "O item é principalmente um canal de acesso ou relacionamento?"
+    },
+    "artefato": {
+     "titulo": null,
+     "texto": "O item é principalmente um documento, relatório ou informação entregue ao cliente?"
+    },
+    "capacidade": {
+     "titulo": null,
+     "texto": "O item é principalmente uma capacidade que a organização precisa possuir?"
+    },
+    "processo": {
+     "titulo": null,
+     "texto": "O item é principalmente um processo ou uma etapa de processo?"
+    },
+    "modalidade": {
+     "titulo": null,
+     "texto": "O item é principalmente uma modalidade, opção ou configuração de outro produto?"
+    },
+    "regra": {
+     "titulo": null,
+     "texto": "O item é principalmente uma regra ou condição de outro produto?"
+    },
+    "componente": {
+     "titulo": null,
+     "texto": "O item existe principalmente para que outro Produto/Serviço consiga entregar seu resultado?"
+    },
+    "funcionalidade": {
+     "titulo": null,
+     "texto": "O item é principalmente uma funcionalidade ou operação que permite consultar, escolher, solicitar, contratar, alterar, executar ou administrar algo dentro de outro Produto/Serviço?"
+    }
+   }
+  },
+  {
+   "commit": "f510eae",
+   "data": "2026-09-28T20:52:19+00:00",
+   "perguntas": {
+    "necessidade": {
+     "titulo": "Necessidade do cliente",
+     "texto": "Este item atende a uma necessidade identificável de um cliente ou público específico?"
+    },
+    "resultado": {
+     "titulo": "Resultado próprio para o cliente",
+     "texto": "O item entrega um resultado próprio e perceptível para o cliente?"
+    },
+    "solucao": {
+     "titulo": "Solução identificável",
+     "texto": "O item pode ser entendido pelo cliente como uma solução ou oferta identificável?"
+    },
+    "fronteira": {
+     "titulo": "Fronteira coerente",
+     "texto": "É possível delimitar claramente onde essa solução começa e termina?"
+    },
+    "autonomia": {
+     "titulo": "Autonomia estrutural",
+     "texto": "O item consegue existir e entregar seu resultado de forma independente, sem depender estruturalmente de outro Produto/Serviço?"
+    },
+    "jornada": {
+     "titulo": "Jornada própria",
+     "texto": "Existe uma jornada ou ciclo de vida identificável para esse item na relação com o cliente?"
+    },
+    "medicao": {
+     "titulo": "Medição de resultado",
+     "texto": "É possível medir o resultado desse item de forma própria?"
+    },
+    "gestao": {
+     "titulo": "Gestão ponta a ponta",
+     "texto": "Este item poderia ser gerido de ponta a ponta como uma solução?"
+    },
+    "canal": {
+     "titulo": null,
+     "texto": "O item é principalmente um canal de acesso ou relacionamento?"
+    },
+    "artefato": {
+     "titulo": null,
+     "texto": "O item é principalmente um documento, relatório ou informação entregue ao cliente?"
+    },
+    "capacidade": {
+     "titulo": null,
+     "texto": "O item é principalmente uma capacidade que a organização precisa possuir?"
+    },
+    "processo": {
+     "titulo": null,
+     "texto": "O item é principalmente um processo ou uma etapa de processo?"
+    },
+    "modalidade": {
+     "titulo": null,
+     "texto": "O item é principalmente uma modalidade, opção ou configuração de outro produto?"
+    },
+    "regra": {
+     "titulo": null,
+     "texto": "O item é principalmente uma regra ou condição de outro produto?"
+    },
+    "componente": {
+     "titulo": null,
+     "texto": "O item existe principalmente para que outro Produto/Serviço consiga entregar seu resultado?"
+    },
+    "funcionalidade": {
+     "titulo": null,
+     "texto": "O item é principalmente uma funcionalidade ou operação que permite consultar, escolher, solicitar, contratar, alterar, executar ou administrar algo dentro de outro Produto/Serviço?"
+    }
+   }
+  },
+  {
+   "commit": "d2f3557",
+   "data": "2026-09-28T21:41:41+00:00",
+   "perguntas": {
+    "necessidade": {
+     "titulo": "Necessidade do cliente",
+     "texto": "Este item atende a uma necessidade identificável de um cliente ou público específico?"
+    },
+    "resultado": {
+     "titulo": "Resultado próprio para o cliente",
+     "texto": "O item entrega um resultado próprio e perceptível para o cliente?"
+    },
+    "solucao": {
+     "titulo": "Solução identificável",
+     "texto": "O item pode ser entendido pelo cliente como uma solução ou oferta identificável?"
+    },
+    "fronteira": {
+     "titulo": "Fronteira coerente",
+     "texto": "É possível delimitar claramente onde essa solução começa e termina?"
+    },
+    "autonomia": {
+     "titulo": "Autonomia estrutural",
+     "texto": "O item consegue existir e entregar seu resultado de forma independente, sem depender estruturalmente de outro Produto/Serviço?"
+    },
+    "jornada": {
+     "titulo": "Jornada própria",
+     "texto": "Existe uma jornada ou ciclo de vida identificável para esse item na relação com o cliente?"
+    },
+    "medicao": {
+     "titulo": "Medição de resultado",
+     "texto": "É possível medir o resultado desse item de forma própria?"
+    },
+    "gestao": {
+     "titulo": "Gestão ponta a ponta",
+     "texto": "Este item poderia ser gerido de ponta a ponta como uma solução?"
+    },
+    "canal": {
+     "titulo": null,
+     "texto": "O item é principalmente um canal de acesso ou relacionamento?"
+    },
+    "artefato": {
+     "titulo": null,
+     "texto": "O item é principalmente um documento, relatório ou informação entregue ao cliente?"
+    },
+    "capacidade": {
+     "titulo": null,
+     "texto": "O item é principalmente uma capacidade que a organização precisa possuir?"
+    },
+    "processo": {
+     "titulo": null,
+     "texto": "O item é principalmente um processo ou uma etapa de processo?"
+    },
+    "modalidade": {
+     "titulo": null,
+     "texto": "O item é principalmente uma modalidade, opção ou configuração de outro produto?"
+    },
+    "regra": {
+     "titulo": null,
+     "texto": "O item é principalmente uma regra ou condição de outro produto?"
+    },
+    "componente": {
+     "titulo": null,
+     "texto": "O item existe principalmente para que outro Produto/Serviço consiga entregar seu resultado?"
+    },
+    "funcionalidade": {
+     "titulo": null,
+     "texto": "O item é principalmente uma funcionalidade ou operação que permite consultar, escolher, solicitar, contratar, alterar, executar ou administrar algo dentro de outro Produto/Serviço?"
+    }
+   }
+  },
+  {
+   "commit": "612dd53",
+   "data": "2026-09-28T23:20:59+00:00",
+   "perguntas": {
+    "necessidade": {
+     "titulo": "Necessidade do cliente",
+     "texto": "Este item atende a uma necessidade identificável de um cliente ou público específico?"
+    },
+    "resultado": {
+     "titulo": "Resultado próprio para o cliente",
+     "texto": "O item entrega um resultado próprio e perceptível para o cliente?"
+    },
+    "solucao": {
+     "titulo": "Solução identificável",
+     "texto": "O item pode ser entendido pelo cliente como uma solução ou oferta identificável?"
+    },
+    "fronteira": {
+     "titulo": "Fronteira coerente",
+     "texto": "É possível delimitar claramente onde essa solução começa e termina?"
+    },
+    "autonomia": {
+     "titulo": "Autonomia estrutural",
+     "texto": "O item consegue existir e entregar seu resultado de forma independente, sem depender estruturalmente de outro Produto/Serviço?"
+    },
+    "jornada": {
+     "titulo": "Jornada própria",
+     "texto": "Existe uma jornada ou ciclo de vida identificável para esse item na relação com o cliente?"
+    },
+    "medicao": {
+     "titulo": "Medição de resultado",
+     "texto": "É possível medir o resultado desse item de forma própria?"
+    },
+    "gestao": {
+     "titulo": "Gestão ponta a ponta",
+     "texto": "Este item poderia ser gerido de ponta a ponta como uma solução?"
+    },
+    "canal": {
+     "titulo": null,
+     "texto": "O item é principalmente um canal de acesso ou relacionamento?"
+    },
+    "artefato": {
+     "titulo": null,
+     "texto": "O item é principalmente um documento, relatório ou informação entregue ao cliente?"
+    },
+    "capacidade": {
+     "titulo": null,
+     "texto": "O item é principalmente uma capacidade que a organização precisa possuir?"
+    },
+    "processo": {
+     "titulo": null,
+     "texto": "O item é principalmente um processo ou uma etapa de processo?"
+    },
+    "modalidade": {
+     "titulo": null,
+     "texto": "O item é principalmente uma modalidade, opção ou configuração de outro produto?"
+    },
+    "regra": {
+     "titulo": null,
+     "texto": "O item é principalmente uma regra ou condição de outro produto?"
+    },
+    "componente": {
+     "titulo": null,
+     "texto": "O item existe principalmente para que outro Produto/Serviço consiga entregar seu resultado?"
+    },
+    "funcionalidade": {
+     "titulo": null,
+     "texto": "O item é principalmente uma funcionalidade ou operação que permite consultar, escolher, solicitar, contratar, alterar, executar ou administrar algo dentro de outro Produto/Serviço?"
+    }
+   }
+  },
+  {
+   "commit": "22c2e36",
+   "data": "2026-09-28T23:46:59+00:00",
+   "perguntas": {
+    "necessidade": {
+     "titulo": "Necessidade do cliente",
+     "texto": "Este item atende a uma necessidade identificável de um cliente ou público específico?"
+    },
+    "resultado": {
+     "titulo": "Resultado próprio para o cliente",
+     "texto": "O item entrega um resultado próprio e perceptível para o cliente?"
+    },
+    "solucao": {
+     "titulo": "Solução identificável",
+     "texto": "O item pode ser entendido pelo cliente como uma solução ou oferta identificável?"
+    },
+    "fronteira": {
+     "titulo": "Fronteira coerente",
+     "texto": "É possível delimitar claramente onde essa solução começa e termina?"
+    },
+    "autonomia": {
+     "titulo": "Autonomia estrutural",
+     "texto": "O item consegue existir e entregar seu resultado de forma independente, sem depender estruturalmente de outro Produto/Serviço?"
+    },
+    "jornada": {
+     "titulo": "Jornada própria",
+     "texto": "Existe uma jornada ou ciclo de vida identificável para esse item na relação com o cliente?"
+    },
+    "medicao": {
+     "titulo": "Medição de resultado",
+     "texto": "É possível medir o resultado desse item de forma própria?"
+    },
+    "gestao": {
+     "titulo": "Gestão ponta a ponta",
+     "texto": "Este item poderia ser gerido de ponta a ponta como uma solução?"
+    },
+    "canal": {
+     "titulo": null,
+     "texto": "O item é principalmente um canal de acesso ou relacionamento?"
+    },
+    "artefato": {
+     "titulo": null,
+     "texto": "O item é principalmente um documento, relatório ou informação entregue ao cliente?"
+    },
+    "capacidade": {
+     "titulo": null,
+     "texto": "O item é principalmente uma capacidade que a organização precisa possuir?"
+    },
+    "processo": {
+     "titulo": null,
+     "texto": "O item é principalmente um processo ou uma etapa de processo?"
+    },
+    "modalidade": {
+     "titulo": null,
+     "texto": "O item é principalmente uma modalidade, opção ou configuração de outro produto?"
+    },
+    "regra": {
+     "titulo": null,
+     "texto": "O item é principalmente uma regra ou condição de outro produto?"
+    },
+    "componente": {
+     "titulo": null,
+     "texto": "O item existe principalmente para que outro Produto/Serviço consiga entregar seu resultado?"
+    },
+    "funcionalidade": {
+     "titulo": null,
+     "texto": "O item é principalmente uma funcionalidade ou operação que permite consultar, escolher, solicitar, contratar, alterar, executar ou administrar algo dentro de outro Produto/Serviço?"
+    }
+   }
+  },
+  {
+   "commit": "309ca5b",
+   "data": "2026-09-29T00:14:23+00:00",
+   "perguntas": {
+    "necessidade": {
+     "titulo": "Necessidade do cliente",
+     "texto": "Este item atende a uma necessidade identificável de um cliente ou público específico?"
+    },
+    "resultado": {
+     "titulo": "Resultado próprio para o cliente",
+     "texto": "O item entrega um resultado próprio e perceptível para o cliente?"
+    },
+    "solucao": {
+     "titulo": "Solução identificável",
+     "texto": "O item pode ser entendido pelo cliente como uma solução ou oferta identificável?"
+    },
+    "fronteira": {
+     "titulo": "Fronteira coerente",
+     "texto": "É possível delimitar claramente onde essa solução começa e termina?"
+    },
+    "autonomia": {
+     "titulo": "Autonomia estrutural",
+     "texto": "O item consegue existir e entregar seu resultado de forma independente, sem depender estruturalmente de outro Produto/Serviço?"
+    },
+    "jornada": {
+     "titulo": "Jornada própria",
+     "texto": "Existe uma jornada ou ciclo de vida identificável para esse item na relação com o cliente?"
+    },
+    "medicao": {
+     "titulo": "Medição de resultado",
+     "texto": "É possível medir o resultado desse item de forma própria?"
+    },
+    "gestao": {
+     "titulo": "Gestão ponta a ponta",
+     "texto": "Este item poderia ser gerido de ponta a ponta como uma solução?"
+    },
+    "canal": {
+     "titulo": null,
+     "texto": "O item é principalmente um canal de acesso ou relacionamento?"
+    },
+    "artefato": {
+     "titulo": null,
+     "texto": "O item é principalmente um documento, relatório ou informação entregue ao cliente?"
+    },
+    "capacidade": {
+     "titulo": null,
+     "texto": "O item é principalmente uma capacidade que a organização precisa possuir?"
+    },
+    "processo": {
+     "titulo": null,
+     "texto": "O item é principalmente um processo ou uma etapa de processo?"
+    },
+    "modalidade": {
+     "titulo": null,
+     "texto": "O item é principalmente uma modalidade, opção ou configuração de outro produto?"
+    },
+    "regra": {
+     "titulo": null,
+     "texto": "O item é principalmente uma regra ou condição de outro produto?"
+    },
+    "componente": {
+     "titulo": null,
+     "texto": "O item existe principalmente para que outro Produto/Serviço consiga entregar seu resultado?"
+    },
+    "funcionalidade": {
+     "titulo": null,
+     "texto": "O item é principalmente uma funcionalidade ou operação que permite consultar, escolher, solicitar, contratar, alterar, executar ou administrar algo dentro de outro Produto/Serviço?"
+    }
+   }
+  },
+  {
+   "commit": "82c57ee",
+   "data": "2026-09-29T00:23:30+00:00",
+   "perguntas": {
+    "necessidade": {
+     "titulo": "Necessidade do cliente",
+     "texto": "Este item atende a uma necessidade identificável de um cliente ou público específico?"
+    },
+    "resultado": {
+     "titulo": "Resultado próprio para o cliente",
+     "texto": "O item entrega um resultado próprio e perceptível para o cliente?"
+    },
+    "solucao": {
+     "titulo": "Solução identificável",
+     "texto": "O item pode ser entendido pelo cliente como uma solução ou oferta identificável?"
+    },
+    "fronteira": {
+     "titulo": "Fronteira coerente",
+     "texto": "É possível delimitar claramente onde essa solução começa e termina?"
+    },
+    "autonomia": {
+     "titulo": "Autonomia estrutural",
+     "texto": "O item consegue existir e entregar seu resultado de forma independente, sem depender estruturalmente de outro Produto/Serviço?"
+    },
+    "jornada": {
+     "titulo": "Jornada própria",
+     "texto": "Existe uma jornada ou ciclo de vida identificável para esse item na relação com o cliente?"
+    },
+    "medicao": {
+     "titulo": "Medição de resultado",
+     "texto": "É possível medir o resultado desse item de forma própria?"
+    },
+    "gestao": {
+     "titulo": "Gestão ponta a ponta",
+     "texto": "Este item poderia ser gerido de ponta a ponta como uma solução?"
+    },
+    "canal": {
+     "titulo": null,
+     "texto": "O item é principalmente um canal de acesso ou relacionamento?"
+    },
+    "artefato": {
+     "titulo": null,
+     "texto": "O item é principalmente um documento, relatório ou informação entregue ao cliente?"
+    },
+    "capacidade": {
+     "titulo": null,
+     "texto": "O item é principalmente uma capacidade que a organização precisa possuir?"
+    },
+    "processo": {
+     "titulo": null,
+     "texto": "O item é principalmente um processo ou uma etapa de processo?"
+    },
+    "modalidade": {
+     "titulo": null,
+     "texto": "O item é principalmente uma modalidade, opção ou configuração de outro produto?"
+    },
+    "regra": {
+     "titulo": null,
+     "texto": "O item é principalmente uma regra ou condição de outro produto?"
+    },
+    "componente": {
+     "titulo": null,
+     "texto": "O item existe principalmente para que outro Produto/Serviço consiga entregar seu resultado?"
+    },
+    "funcionalidade": {
+     "titulo": null,
+     "texto": "O item é principalmente uma funcionalidade ou operação que permite consultar, escolher, solicitar, contratar, alterar, executar ou administrar algo dentro de outro Produto/Serviço?"
+    }
+   }
+  },
+  {
+   "commit": "73a9306",
+   "data": "2026-09-29T02:27:08+00:00",
+   "perguntas": {
+    "necessidade": {
+     "titulo": "Necessidade do cliente",
+     "texto": "Este item atende a uma necessidade identificável de um cliente ou público específico?"
+    },
+    "resultado": {
+     "titulo": "Resultado próprio para o cliente",
+     "texto": "O item entrega um resultado próprio e perceptível para o cliente?"
+    },
+    "solucao": {
+     "titulo": "Solução identificável",
+     "texto": "O item pode ser entendido pelo cliente como uma solução ou oferta identificável?"
+    },
+    "fronteira": {
+     "titulo": "Fronteira coerente",
+     "texto": "É possível delimitar claramente onde essa solução começa e termina?"
+    },
+    "autonomia": {
+     "titulo": "Autonomia estrutural",
+     "texto": "O item consegue existir e entregar seu resultado de forma independente, sem depender estruturalmente de outro Produto/Serviço?"
+    },
+    "jornada": {
+     "titulo": "Jornada própria",
+     "texto": "Existe uma jornada ou ciclo de vida identificável para esse item na relação com o cliente?"
+    },
+    "medicao": {
+     "titulo": "Medição de resultado",
+     "texto": "É possível medir o resultado desse item de forma própria?"
+    },
+    "gestao": {
+     "titulo": "Gestão ponta a ponta",
+     "texto": "Este item poderia ser gerido de ponta a ponta como uma solução?"
+    },
+    "canal": {
+     "titulo": null,
+     "texto": "O item é principalmente um canal de acesso ou relacionamento?"
+    },
+    "artefato": {
+     "titulo": null,
+     "texto": "O item é principalmente um documento, relatório ou informação entregue ao cliente?"
+    },
+    "capacidade": {
+     "titulo": null,
+     "texto": "O item é principalmente uma capacidade que a organização precisa possuir?"
+    },
+    "processo": {
+     "titulo": null,
+     "texto": "O item é principalmente um processo ou uma etapa de processo?"
+    },
+    "modalidade": {
+     "titulo": null,
+     "texto": "O item é principalmente uma modalidade, opção ou configuração de outro produto?"
+    },
+    "regra": {
+     "titulo": null,
+     "texto": "O item é principalmente uma regra ou condição de outro produto?"
+    },
+    "componente": {
+     "titulo": null,
+     "texto": "O item existe principalmente para que outro Produto/Serviço consiga entregar seu resultado?"
+    },
+    "funcionalidade": {
+     "titulo": null,
+     "texto": "O item é principalmente uma funcionalidade ou operação que permite consultar, escolher, solicitar, contratar, alterar, executar ou administrar algo dentro de outro Produto/Serviço?"
+    }
+   }
+  },
+  {
+   "commit": "327ff35",
+   "data": "2026-09-29T02:53:28+00:00",
+   "perguntas": {
+    "necessidade": {
+     "titulo": "Necessidade do cliente",
+     "texto": "Este item atende a uma necessidade identificável de um cliente ou público específico?"
+    },
+    "resultado": {
+     "titulo": "Resultado próprio para o cliente",
+     "texto": "O item entrega um resultado próprio e perceptível para o cliente?"
+    },
+    "solucao": {
+     "titulo": "Solução identificável",
+     "texto": "O item pode ser entendido pelo cliente como uma solução ou oferta identificável?"
+    },
+    "fronteira": {
+     "titulo": "Fronteira coerente",
+     "texto": "É possível delimitar claramente onde essa solução começa e termina?"
+    },
+    "autonomia": {
+     "titulo": "Autonomia estrutural",
+     "texto": "O item consegue existir e entregar seu resultado de forma independente, sem depender estruturalmente de outro Produto/Serviço?"
+    },
+    "jornada": {
+     "titulo": "Jornada própria",
+     "texto": "Existe uma jornada ou ciclo de vida identificável para esse item na relação com o cliente?"
+    },
+    "medicao": {
+     "titulo": "Medição de resultado",
+     "texto": "É possível medir o resultado desse item de forma própria?"
+    },
+    "gestao": {
+     "titulo": "Gestão ponta a ponta",
+     "texto": "Este item poderia ser gerido de ponta a ponta como uma solução?"
+    },
+    "canal": {
+     "titulo": null,
+     "texto": "O item é principalmente um canal de acesso ou relacionamento?"
+    },
+    "artefato": {
+     "titulo": null,
+     "texto": "O item é principalmente um documento, relatório ou informação entregue ao cliente?"
+    },
+    "capacidade": {
+     "titulo": null,
+     "texto": "O item é principalmente uma capacidade que a organização precisa possuir?"
+    },
+    "processo": {
+     "titulo": null,
+     "texto": "O item é principalmente um processo ou uma etapa de processo?"
+    },
+    "modalidade": {
+     "titulo": null,
+     "texto": "O item é principalmente uma modalidade, opção ou configuração de outro produto?"
+    },
+    "regra": {
+     "titulo": null,
+     "texto": "O item é principalmente uma regra ou condição de outro produto?"
+    },
+    "componente": {
+     "titulo": null,
+     "texto": "O item existe principalmente para que outro Produto/Serviço consiga entregar seu resultado?"
+    },
+    "funcionalidade": {
+     "titulo": null,
+     "texto": "O item é principalmente uma funcionalidade ou operação que permite consultar, escolher, solicitar, contratar, alterar, executar ou administrar algo dentro de outro Produto/Serviço?"
+    }
+   }
+  },
+  {
+   "commit": "e817b6f",
+   "data": "2026-09-29T03:04:15+00:00",
+   "perguntas": {
+    "necessidade": {
+     "titulo": "Necessidade do cliente",
+     "texto": "Este item atende a uma necessidade identificável de um cliente ou público específico?"
+    },
+    "resultado": {
+     "titulo": "Resultado próprio para o cliente",
+     "texto": "O item entrega um resultado próprio e perceptível para o cliente?"
+    },
+    "solucao": {
+     "titulo": "Solução identificável",
+     "texto": "O item pode ser entendido pelo cliente como uma solução ou oferta identificável?"
+    },
+    "fronteira": {
+     "titulo": "Fronteira coerente",
+     "texto": "É possível delimitar claramente onde essa solução começa e termina?"
+    },
+    "autonomia": {
+     "titulo": "Autonomia estrutural",
+     "texto": "O item consegue existir e entregar seu resultado de forma independente, sem depender estruturalmente de outro Produto/Serviço?"
+    },
+    "jornada": {
+     "titulo": "Jornada própria",
+     "texto": "Existe uma jornada ou ciclo de vida identificável para esse item na relação com o cliente?"
+    },
+    "medicao": {
+     "titulo": "Medição de resultado",
+     "texto": "É possível medir o resultado desse item de forma própria?"
+    },
+    "gestao": {
+     "titulo": "Gestão ponta a ponta",
+     "texto": "Este item poderia ser gerido de ponta a ponta como uma solução?"
+    },
+    "canal": {
+     "titulo": null,
+     "texto": "O item é principalmente um canal de acesso ou relacionamento?"
+    },
+    "artefato": {
+     "titulo": null,
+     "texto": "O item é principalmente um documento, relatório ou informação entregue ao cliente?"
+    },
+    "capacidade": {
+     "titulo": null,
+     "texto": "O item é principalmente uma capacidade que a organização precisa possuir?"
+    },
+    "processo": {
+     "titulo": null,
+     "texto": "O item é principalmente um processo ou uma etapa de processo?"
+    },
+    "modalidade": {
+     "titulo": null,
+     "texto": "O item é principalmente uma modalidade, opção ou configuração de outro produto?"
+    },
+    "regra": {
+     "titulo": null,
+     "texto": "O item é principalmente uma regra ou condição de outro produto?"
+    },
+    "componente": {
+     "titulo": null,
+     "texto": "O item existe principalmente para que outro Produto/Serviço consiga entregar seu resultado?"
+    },
+    "funcionalidade": {
+     "titulo": null,
+     "texto": "O item é principalmente uma funcionalidade ou operação que permite consultar, escolher, solicitar, contratar, alterar, executar ou administrar algo dentro de outro Produto/Serviço?"
+    }
+   }
+  },
+  {
+   "commit": "06f4795",
+   "data": "2026-09-29T09:49:08+00:00",
+   "perguntas": {
+    "necessidade": {
+     "titulo": "Necessidade do cliente",
+     "texto": "Este item atende a uma necessidade identificável de um cliente ou público específico?"
+    },
+    "resultado": {
+     "titulo": "Resultado próprio para o cliente",
+     "texto": "O item entrega um resultado próprio e perceptível para o cliente?"
+    },
+    "solucao": {
+     "titulo": "Solução identificável",
+     "texto": "O item pode ser entendido pelo cliente como uma solução ou oferta identificável?"
+    },
+    "fronteira": {
+     "titulo": "Fronteira coerente",
+     "texto": "É possível delimitar claramente onde essa solução começa e termina?"
+    },
+    "autonomia": {
+     "titulo": "Autonomia estrutural",
+     "texto": "O item consegue existir e entregar seu resultado de forma independente, sem depender estruturalmente de outro Produto/Serviço?"
+    },
+    "jornada": {
+     "titulo": "Jornada própria",
+     "texto": "Existe uma jornada ou ciclo de vida identificável para esse item na relação com o cliente?"
+    },
+    "medicao": {
+     "titulo": "Medição de resultado",
+     "texto": "É possível medir o resultado desse item de forma própria?"
+    },
+    "gestao": {
+     "titulo": "Gestão ponta a ponta",
+     "texto": "Este item poderia ser gerido de ponta a ponta como uma solução?"
+    },
+    "canal": {
+     "titulo": null,
+     "texto": "O item é principalmente um canal de acesso ou relacionamento?"
+    },
+    "artefato": {
+     "titulo": null,
+     "texto": "O item é principalmente um documento, relatório ou informação entregue ao cliente?"
+    },
+    "capacidade": {
+     "titulo": null,
+     "texto": "O item é principalmente uma capacidade que a organização precisa possuir?"
+    },
+    "processo": {
+     "titulo": null,
+     "texto": "O item é principalmente um processo ou uma etapa de processo?"
+    },
+    "modalidade": {
+     "titulo": null,
+     "texto": "O item é principalmente uma modalidade, opção ou configuração de outro produto?"
+    },
+    "regra": {
+     "titulo": null,
+     "texto": "O item é principalmente uma regra ou condição de outro produto?"
+    },
+    "componente": {
+     "titulo": null,
+     "texto": "O item existe principalmente para que outro Produto/Serviço consiga entregar seu resultado?"
+    },
+    "funcionalidade": {
+     "titulo": null,
+     "texto": "O item é principalmente uma funcionalidade ou operação que permite consultar, escolher, solicitar, contratar, alterar, executar ou administrar algo dentro de outro Produto/Serviço?"
+    }
+   }
+  },
+  {
+   "commit": "5764fa0",
+   "data": "2026-09-29T10:20:49+00:00",
+   "perguntas": {
+    "necessidade": {
+     "titulo": "Necessidade do cliente",
+     "texto": "Este item atende a uma necessidade identificável de um cliente ou público específico?"
+    },
+    "resultado": {
+     "titulo": "Resultado próprio para o cliente",
+     "texto": "O item entrega um resultado próprio e perceptível para o cliente?"
+    },
+    "solucao": {
+     "titulo": "Solução identificável",
+     "texto": "O item pode ser entendido pelo cliente como uma solução ou oferta identificável?"
+    },
+    "fronteira": {
+     "titulo": "Fronteira coerente",
+     "texto": "É possível delimitar claramente onde essa solução começa e termina?"
+    },
+    "autonomia": {
+     "titulo": "Autonomia estrutural",
+     "texto": "O item consegue existir e entregar seu resultado de forma independente, sem depender estruturalmente de outro Produto/Serviço?"
+    },
+    "jornada": {
+     "titulo": "Jornada própria",
+     "texto": "Existe uma jornada ou ciclo de vida identificável para esse item na relação com o cliente?"
+    },
+    "medicao": {
+     "titulo": "Medição de resultado",
+     "texto": "É possível medir o resultado desse item de forma própria?"
+    },
+    "gestao": {
+     "titulo": "Gestão ponta a ponta",
+     "texto": "Este item poderia ser gerido de ponta a ponta como uma solução?"
+    },
+    "canal": {
+     "titulo": null,
+     "texto": "O item é principalmente um canal de acesso ou relacionamento?"
+    },
+    "artefato": {
+     "titulo": null,
+     "texto": "O item é principalmente um documento, relatório ou informação entregue ao cliente?"
+    },
+    "capacidade": {
+     "titulo": null,
+     "texto": "O item é principalmente uma capacidade que a organização precisa possuir?"
+    },
+    "processo": {
+     "titulo": null,
+     "texto": "O item é principalmente um processo ou uma etapa de processo?"
+    },
+    "modalidade": {
+     "titulo": null,
+     "texto": "O item é principalmente uma modalidade, opção ou configuração de outro produto?"
+    },
+    "regra": {
+     "titulo": null,
+     "texto": "O item é principalmente uma regra ou condição de outro produto?"
+    },
+    "componente": {
+     "titulo": null,
+     "texto": "O item existe principalmente para que outro Produto/Serviço consiga entregar seu resultado?"
+    },
+    "funcionalidade": {
+     "titulo": null,
+     "texto": "O item é principalmente uma funcionalidade ou operação que permite consultar, escolher, solicitar, contratar, alterar, executar ou administrar algo dentro de outro Produto/Serviço?"
+    }
+   }
+  },
+  {
+   "commit": "967a84f",
+   "data": "2026-09-29T10:59:22+00:00",
+   "perguntas": {
+    "necessidade": {
+     "titulo": "Necessidade do cliente",
+     "texto": "Este item atende a uma necessidade identificável de um cliente ou público específico?"
+    },
+    "resultado": {
+     "titulo": "Resultado próprio para o cliente",
+     "texto": "O item entrega um resultado próprio e perceptível para o cliente?"
+    },
+    "solucao": {
+     "titulo": "Solução identificável",
+     "texto": "O item pode ser entendido pelo cliente como uma solução ou oferta identificável?"
+    },
+    "fronteira": {
+     "titulo": "Fronteira coerente",
+     "texto": "É possível delimitar claramente onde essa solução começa e termina?"
+    },
+    "autonomia": {
+     "titulo": "Autonomia estrutural",
+     "texto": "O item consegue existir e entregar seu resultado de forma independente, sem depender estruturalmente de outro Produto/Serviço?"
+    },
+    "jornada": {
+     "titulo": "Jornada própria",
+     "texto": "Existe uma jornada ou ciclo de vida identificável para esse item na relação com o cliente?"
+    },
+    "medicao": {
+     "titulo": "Medição de resultado",
+     "texto": "É possível medir o resultado desse item de forma própria?"
+    },
+    "gestao": {
+     "titulo": "Gestão ponta a ponta",
+     "texto": "Este item poderia ser gerido de ponta a ponta como uma solução?"
+    },
+    "canal": {
+     "titulo": null,
+     "texto": "O item é principalmente um canal de acesso ou relacionamento?"
+    },
+    "artefato": {
+     "titulo": null,
+     "texto": "O item é principalmente um documento, relatório ou informação entregue ao cliente?"
+    },
+    "capacidade": {
+     "titulo": null,
+     "texto": "O item é principalmente uma capacidade que a organização precisa possuir?"
+    },
+    "processo": {
+     "titulo": null,
+     "texto": "O item é principalmente um processo ou uma etapa de processo?"
+    },
+    "modalidade": {
+     "titulo": null,
+     "texto": "O item é principalmente uma modalidade, opção ou configuração de outro produto?"
+    },
+    "regra": {
+     "titulo": null,
+     "texto": "O item é principalmente uma regra ou condição de outro produto?"
+    },
+    "componente": {
+     "titulo": null,
+     "texto": "O item existe principalmente para que outro Produto/Serviço consiga entregar seu resultado?"
+    },
+    "funcionalidade": {
+     "titulo": null,
+     "texto": "O item é principalmente uma funcionalidade ou operação que permite consultar, escolher, solicitar, contratar, alterar, executar ou administrar algo dentro de outro Produto/Serviço?"
+    }
+   }
+  },
+  {
+   "commit": "64c6a0f",
+   "data": "2026-09-29T12:11:14+00:00",
+   "perguntas": {
+    "necessidade": {
+     "titulo": "Necessidade do cliente",
+     "texto": "Este item atende a uma necessidade identificável de um cliente ou público específico?"
+    },
+    "resultado": {
+     "titulo": "Resultado próprio para o cliente",
+     "texto": "O item entrega um resultado próprio e perceptível para o cliente?"
+    },
+    "solucao": {
+     "titulo": "Solução identificável",
+     "texto": "O item pode ser entendido pelo cliente como uma solução ou oferta identificável?"
+    },
+    "fronteira": {
+     "titulo": "Fronteira coerente",
+     "texto": "É possível delimitar claramente onde essa solução começa e termina?"
+    },
+    "autonomia": {
+     "titulo": "Autonomia estrutural",
+     "texto": "O item consegue existir e entregar seu resultado de forma independente, sem depender estruturalmente de outro Produto/Serviço?"
+    },
+    "jornada": {
+     "titulo": "Jornada própria",
+     "texto": "Existe uma jornada ou ciclo de vida identificável para esse item na relação com o cliente?"
+    },
+    "medicao": {
+     "titulo": "Medição de resultado",
+     "texto": "É possível medir o resultado desse item de forma própria?"
+    },
+    "gestao": {
+     "titulo": "Gestão ponta a ponta",
+     "texto": "Este item poderia ser gerido de ponta a ponta como uma solução?"
+    },
+    "canal": {
+     "titulo": null,
+     "texto": "O item é principalmente um canal de acesso ou relacionamento?"
+    },
+    "artefato": {
+     "titulo": null,
+     "texto": "O item é principalmente um documento, relatório ou informação entregue ao cliente?"
+    },
+    "capacidade": {
+     "titulo": null,
+     "texto": "O item é principalmente uma capacidade que a organização precisa possuir?"
+    },
+    "processo": {
+     "titulo": null,
+     "texto": "O item é principalmente um processo ou uma etapa de processo?"
+    },
+    "modalidade": {
+     "titulo": null,
+     "texto": "O item é principalmente uma modalidade, opção ou configuração de outro produto?"
+    },
+    "regra": {
+     "titulo": null,
+     "texto": "O item é principalmente uma regra ou condição de outro produto?"
+    },
+    "componente": {
+     "titulo": null,
+     "texto": "O item existe principalmente para que outro Produto/Serviço consiga entregar seu resultado?"
+    },
+    "funcionalidade": {
+     "titulo": null,
+     "texto": "O item é principalmente uma funcionalidade ou operação que permite consultar, escolher, solicitar, contratar, alterar, executar ou administrar algo dentro de outro Produto/Serviço?"
+    }
+   }
+  },
+  {
+   "commit": "d24b8e8",
+   "data": "2026-09-29T14:01:56+00:00",
+   "perguntas": {
+    "necessidade": {
+     "titulo": "Necessidade do cliente",
+     "texto": "Este item atende a uma necessidade identificável de um cliente ou público específico?"
+    },
+    "resultado": {
+     "titulo": "Resultado próprio para o cliente",
+     "texto": "O item entrega um resultado próprio e perceptível para o cliente?"
+    },
+    "solucao": {
+     "titulo": "Solução identificável",
+     "texto": "O item pode ser entendido pelo cliente como uma solução ou oferta identificável?"
+    },
+    "fronteira": {
+     "titulo": "Fronteira coerente",
+     "texto": "É possível delimitar claramente onde essa solução começa e termina?"
+    },
+    "autonomia": {
+     "titulo": "Autonomia estrutural",
+     "texto": "O item consegue existir e entregar seu resultado de forma independente, sem depender estruturalmente de outro Produto/Serviço?"
+    },
+    "jornada": {
+     "titulo": "Jornada própria",
+     "texto": "Existe uma jornada ou ciclo de vida identificável para esse item na relação com o cliente?"
+    },
+    "medicao": {
+     "titulo": "Medição de resultado",
+     "texto": "É possível medir o resultado desse item de forma própria?"
+    },
+    "gestao": {
+     "titulo": "Gestão ponta a ponta",
+     "texto": "Este item poderia ser gerido de ponta a ponta como uma solução?"
+    },
+    "canal": {
+     "titulo": null,
+     "texto": "O item é principalmente um canal de acesso ou relacionamento?"
+    },
+    "artefato": {
+     "titulo": null,
+     "texto": "O item é principalmente um documento, relatório ou informação entregue ao cliente?"
+    },
+    "capacidade": {
+     "titulo": null,
+     "texto": "O item é principalmente uma capacidade que a organização precisa possuir?"
+    },
+    "processo": {
+     "titulo": null,
+     "texto": "O item é principalmente um processo ou uma etapa de processo?"
+    },
+    "modalidade": {
+     "titulo": null,
+     "texto": "O item é principalmente uma modalidade, opção ou configuração de outro produto?"
+    },
+    "regra": {
+     "titulo": null,
+     "texto": "O item é principalmente uma regra ou condição de outro produto?"
+    },
+    "componente": {
+     "titulo": null,
+     "texto": "O item existe principalmente para que outro Produto/Serviço consiga entregar seu resultado?"
+    },
+    "funcionalidade": {
+     "titulo": null,
+     "texto": "O item é principalmente uma funcionalidade ou operação que permite consultar, escolher, solicitar, contratar, alterar, executar ou administrar algo dentro de outro Produto/Serviço?"
+    }
+   }
+  }
+ ]
+}

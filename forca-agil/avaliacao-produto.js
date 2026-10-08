@@ -174,11 +174,90 @@
      AVALIAÇÃO, nunca a mais recente) quando não existe snapshot — avaliação
      legada, de antes deste snapshot existir (ver item 21: nunca inventa,
      só usa o fallback de apresentação). */
+  /* Texto HISTÓRICO de uma pergunta já respondida — única porta usada pela
+     ficha, pelo PDF e pelo Excel. Nunca devolve o texto vigente para uma
+     resposta antiga: a origem fica explícita em `origem`.
+       'registrado'  — cópia gravada na própria resposta, no clique de SIM/NÃO;
+       'versao'      — sem cópia, mas a versão do questionário está registrada
+                       (na resposta ou na avaliação): o texto dessa versão;
+       'reconstruido'— avaliação LEGADA (anterior a 29/09/2026, sem versão nem
+                       cópia): texto da versão 1, só para perguntas cuja
+                       equivalência histórica está comprovada (LEGADO_*);
+       'indisponivel'— legada sem prova: nada é inventado. */
   function conteudoSnapshotOuAtual(def, resposta, item) {
     if (resposta && resposta.textoPerguntaNaEpoca) {
-      return { titulo: resposta.tituloNaEpoca || null, texto: resposta.textoPerguntaNaEpoca };
+      return { titulo: resposta.tituloNaEpoca || null, texto: resposta.textoPerguntaNaEpoca, origem: 'registrado' };
     }
-    return conteudoDe(def, item && item.questionnaireContentVersion);
+    var versao = (resposta && resposta.questionnaireContentVersion) || (item && item.questionnaireContentVersion);
+    if (versao) {
+      var c = conteudoDe(def, versao);
+      return { titulo: c.titulo || null, texto: c.texto, origem: 'versao', versao: versao };
+    }
+    return conteudoLegado(def);
+  }
+
+  /* AVALIAÇÕES LEGADAS — concluídas antes de existir questionnaireContentVersion
+     e a cópia da pergunta em cada resposta (commit c3a9de3, 29/09/2026,
+     "Parametriza as 16 perguntas P1-P16"). Sem prova, mostrar o texto vigente
+     ao lado de uma resposta antiga seria falsificar o histórico; por isso a
+     reconstrução só vale para o que foi COMPROVADO no histórico do git, em
+     TODAS as versões do código anteriores à parametrização (ea1a051 a
+     c3a9de3^): ver .github/scripts/dados/textos-pre-parametrizacao.json e
+     teste-versionamento-historico.js, que confere estas listas contra ela.
+       - texto da pergunta: P1–P16, iguais à versão 1 (texto de fábrica);
+       - título: P1–P8 iguais à versão 1; P9–P16 não tinham título (ficam sem).
+     Pergunta fora da lista → 'indisponivel', com TEXTO_NAO_RECONSTRUIVEL. */
+  var VERSAO_LEGADA_COMPROVADA = 1;
+  var LEGADO_TEXTO_COMPROVADO = { P1: true, P2: true, P3: true, P4: true, P5: true, P6: true, P7: true, P8: true,
+    P9: true, P10: true, P11: true, P12: true, P13: true, P14: true, P15: true, P16: true };
+  var LEGADO_TITULO_COMPROVADO = { P1: true, P2: true, P3: true, P4: true, P5: true, P6: true, P7: true, P8: true };
+  var TEXTO_NAO_RECONSTRUIVEL = 'Texto histórico da pergunta não pôde ser reconstruído com segurança.';
+  var NOTA_TEXTO_RECONSTRUIDO = 'Texto das perguntas reconstruído a partir da primeira versão disponível do questionário: esta avaliação é anterior ao registro do texto em cada resposta.';
+  var NOTA_TEXTO_INDISPONIVEL = 'O texto de algumas perguntas não pôde ser reconstruído com segurança: esta avaliação é anterior ao registro do texto em cada resposta.';
+  function conteudoLegado(def) {
+    if (!LEGADO_TEXTO_COMPROVADO[def.codigoEstavel]) return { titulo: null, texto: TEXTO_NAO_RECONSTRUIVEL, origem: 'indisponivel' };
+    var c = conteudoDe(def, VERSAO_LEGADA_COMPROVADA);
+    return { titulo: LEGADO_TITULO_COMPROVADO[def.codigoEstavel] ? (c.titulo || null) : null, texto: c.texto, origem: 'reconstruido' };
+  }
+  /* Nota única (ficha e PDF) quando alguma pergunta respondida usou texto
+     reconstruído ou indisponível; '' quando tudo veio do registro da época. */
+  function notaTextoHistorico(item) {
+    var origens = {};
+    TODAS_PERGUNTAS.forEach(function (def) {
+      var r = item && item.respostas && item.respostas[def.id];
+      if (r && r.valor) origens[conteudoSnapshotOuAtual(def, r, item).origem] = true;
+    });
+    if (origens.indisponivel) return NOTA_TEXTO_INDISPONIVEL;
+    if (origens.reconstruido) return NOTA_TEXTO_RECONSTRUIDO;
+    return '';
+  }
+  var ROTULO_ORIGEM_TEXTO = {
+    registrado: 'Registrado na resposta', versao: 'Versão do questionário da avaliação',
+    reconstruido: 'Reconstruído da primeira versão', indisponivel: 'Não reconstruível'
+  };
+
+  /* REAVALIAÇÃO — resposta trazida de outra versão do questionário (herdada da
+     avaliação anterior e ainda não clicada de novo). Devolve:
+       'pergunta' — o TEXTO da pergunta mudou (ou não há como saber): a resposta
+                    antiga é só referência e não conta como resposta à pergunta
+                    nova — é preciso clicar SIM/NÃO de novo para concluir;
+       'ajuda'    — só ajuda/exemplo/título mudou: aviso discreto, sem bloquear;
+       null       — respondida nesta versão, ou nada mudou. */
+  var CAMPOS_AJUDA_COMPARADOS = ['titulo', 'textoAjuda', 'exemplo', 'exemplos', 'ajudaExtra'];
+  function situacaoRespostaHerdada(def, resposta, versaoAvaliacao) {
+    if (!resposta || !resposta.valor || !versaoAvaliacao) return null;
+    var versaoResposta = resposta.questionnaireContentVersion || null;
+    if (versaoResposta === versaoAvaliacao) return null;
+    var agora = conteudoDe(def, versaoAvaliacao);
+    var antes = versaoResposta ? conteudoDe(def, versaoResposta) : null;
+    var textoAntes = resposta.textoPerguntaNaEpoca || (antes && antes.texto) ||
+      (function () { var l = conteudoLegado(def); return l.origem === 'reconstruido' ? l.texto : null; })();
+    if (!textoAntes || textoAntes !== agora.texto) return 'pergunta';
+    if (!antes) return 'ajuda'; /* legada: a ajuda da época não está comprovada — avisa, sem bloquear */
+    var mudou = CAMPOS_AJUDA_COMPARADOS.some(function (campo) {
+      return JSON.stringify(antes[campo] == null ? null : antes[campo]) !== JSON.stringify(agora[campo] == null ? null : agora[campo]);
+    });
+    return mudou ? 'ajuda' : null;
   }
 
   /* Replica o comportamento visual que já existia antes deste módulo (nunca
@@ -1281,7 +1360,9 @@
   function primeiraPerguntaFaltando(atual) {
     var r = atual.respostas || {};
     var faltante = TODAS_PERGUNTAS.filter(function (p) {
-      return !(r[p.id] && (r[p.id].valor === 'sim' || r[p.id].valor === 'nao'));
+      if (!(r[p.id] && (r[p.id].valor === 'sim' || r[p.id].valor === 'nao'))) return true;
+      /* resposta herdada de uma pergunta cujo texto mudou não conta como resposta à pergunta nova */
+      return situacaoRespostaHerdada(p, r[p.id], atual.questionnaireContentVersion) === 'pergunta';
     });
     return faltante.length ? faltante[0].id : null;
   }
@@ -1753,6 +1834,8 @@
     trilhaConteudo.slice(1).forEach(function (el) { html += el; });
 
     html += '<h2 class="pdf-secao-titulo">Respostas e evidências</h2>';
+    var notaHistoricaPdf = notaTextoHistorico(it);
+    if (notaHistoricaPdf) html += '<p class="pdf-meta-versoes pdf-nota-texto-historico">' + esc(notaHistoricaPdf) + '</p>';
     html += '<h3 class="pdf-subsecao">Critérios principais — perguntas 1 a ' + CRITERIOS.length + '</h3>';
     CRITERIOS.forEach(function (c) { html += pdfPergunta(c, it.respostas[c.id], it); });
     html += '<h3 class="pdf-subsecao">Testes de classificação — perguntas ' + (CRITERIOS.length + 1) + ' a ' + TODAS_PERGUNTAS.length + '</h3>';
@@ -2032,10 +2115,10 @@
   }
   var EXCEL_COLS_RESPOSTAS = [
     { largura: 26 }, { largura: 30 }, { largura: 8 }, { largura: 18 }, { largura: 10 },
-    { largura: 46 }, { largura: 10 }, { largura: 46 }, { largura: 46 }
+    { largura: 46 }, { largura: 10 }, { largura: 46 }, { largura: 46 }, { largura: 30 }
   ];
   var EXCEL_HEAD_RESPOSTAS = ['ID da avaliação', 'Nome do item', 'Versão', 'Grupo da pergunta', 'Número da pergunta',
-    'Pergunta', 'Resposta', 'Justificativa do usuário', 'Interpretação do sistema'];
+    'Pergunta', 'Resposta', 'Justificativa do usuário', 'Interpretação do sistema', 'Origem do texto da pergunta'];
   function linhasRespostasExcel(itens) {
     var linhas = [];
     itens.forEach(function (it) {
@@ -2043,11 +2126,12 @@
       TODAS_PERGUNTAS.forEach(function (p, idx) {
         var r = it.respostas[p.id];
         if (!r || !r.valor) return;
+        var conteudoHistorico = conteudoSnapshotOuAtual(p, r, it);
         linhas.push([
           it._key, it.nome || '', it.versao || 1,
           criterioPorId(p.id) ? 'Critério principal' : 'Teste de classificação',
-          idx + 1, rotuloCompacto(p, conteudoSnapshotOuAtual(p, r, it)), r.valor === 'sim' ? 'SIM' : 'NÃO',
-          r.observacao || '', interpretacaoSistema(p, r, it)
+          idx + 1, rotuloCompacto(p, conteudoHistorico), r.valor === 'sim' ? 'SIM' : 'NÃO',
+          r.observacao || '', interpretacaoSistema(p, r, it), ROTULO_ORIGEM_TEXTO[conteudoHistorico.origem] || ''
         ]);
       });
     });
@@ -5940,6 +6024,11 @@
 
     function renderPergunta(def, resposta, respostaBase, incoerente) {
       var conteudo = conteudoDe(def, state.atual.questionnaireContentVersion);
+      /* Reavaliação: resposta trazida de outra versão do questionário (ver situacaoRespostaHerdada).
+         'pergunta' → a resposta antiga é só referência: nenhum botão marcado, e a conclusão exige um
+         novo SIM/NÃO; 'ajuda' → aviso discreto, sem bloquear. */
+      var herdada = situacaoRespostaHerdada(def, resposta, state.atual.questionnaireContentVersion);
+      var respostaMarcada = herdada === 'pergunta' ? null : resposta;
       var essencialClass = def.essencial ? ' avp-question--essencial' : '';
       var pendenteClass = state.pendenteId === def.id ? ' avp-question--pendente' : '';
       var incoerenteClass = incoerente ? ' avp-question--incoerente' : '';
@@ -5971,10 +6060,19 @@
       }
       html += '</div>';
       html += '<div class="avp-choice-group" data-id="' + def.id + '">';
-      html += '<button type="button" class="avp-choice-btn avp-choice-btn--sim' + (resposta && resposta.valor === 'sim' ? ' active' : '') + '" data-valor="sim">SIM</button>';
-      html += '<button type="button" class="avp-choice-btn avp-choice-btn--nao' + (resposta && resposta.valor === 'nao' ? ' active' : '') + '" data-valor="nao">NÃO</button>';
+      html += '<button type="button" class="avp-choice-btn avp-choice-btn--sim' + (respostaMarcada && respostaMarcada.valor === 'sim' ? ' active' : '') + '" data-valor="sim">SIM</button>';
+      html += '<button type="button" class="avp-choice-btn avp-choice-btn--nao' + (respostaMarcada && respostaMarcada.valor === 'nao' ? ' active' : '') + '" data-valor="nao">NÃO</button>';
       html += '</div>';
-      if (resposta && resposta.valor) {
+      if (herdada === 'pergunta') {
+        var versaoAntiga = resposta.questionnaireContentVersion;
+        html += '<p class="avp-reavaliacao-alerta avp-herdada avp-herdada--pergunta">↺ Resposta trazida da versão anterior: <strong>' +
+          (resposta.valor === 'sim' ? 'SIM' : 'NÃO') + '</strong>, dada à pergunta ' +
+          (versaoAntiga ? 'da versão ' + esc(versaoAntiga) + ' do questionário' : 'de uma versão anterior do questionário') +
+          (resposta.textoPerguntaNaEpoca ? ' ("' + esc(resposta.textoPerguntaNaEpoca) + '")' : '') +
+          '. A pergunta mudou — responda SIM ou NÃO de novo.</p>';
+        if (resposta.observacao) html += '<textarea class="avp-observacao" data-id="' + def.id + '" placeholder="Observação do avaliador (opcional)">' + esc(resposta.observacao) + '</textarea>';
+      } else if (resposta && resposta.valor) {
+        if (herdada === 'ajuda') html += '<p class="avp-reavaliacao-alerta avp-herdada avp-herdada--ajuda">↺ Resposta trazida da versão anterior — revise e confirme.</p>';
         html += '<p class="avp-justificativa avp-justificativa--' + resposta.valor + '">' + esc(resposta.justificativaAuto) + '</p>';
         /* Reavaliação: a justificativa anterior nunca é apagada só porque a
            resposta mudou — só sinaliza, discretamente, que vale a pena
@@ -6370,6 +6468,8 @@
       html += '<h4>Avaliação, pergunta por pergunta</h4>';
       html += '<p class="avp-natureza-ajuda"><strong>Sua justificativa</strong> é o que a pessoa que avaliou escreveu em cada resposta; ' +
         '<strong>Interpretação do sistema</strong> é o texto que o sistema gera a partir do SIM/NÃO marcado.</p>';
+      var notaHistorica = notaTextoHistorico(a);
+      if (notaHistorica) html += '<p class="avp-decisao-aviso avp-nota-texto-historico">' + esc(notaHistorica) + '</p>';
       html += '<div class="avp-reasoning-list">';
       html += '<p class="avp-reasoning-sep avp-reasoning-sep--primeiro">Critérios principais — perguntas 1 a ' + CRITERIOS.length + '</p>';
       CRITERIOS.forEach(function (c) { html += renderRaciocinio(c, a.respostas[c.id], a); });
@@ -7384,24 +7484,32 @@
       Object.keys(respostas || {}).forEach(function (id) {
         var r = respostas[id];
         var def = definicaoPorId(id);
-        /* Usa a versão de CONTEÚDO já fixada nesta avaliação — reprocessar o
-           MOTOR nunca migra uma avaliação pra uma redação de pergunta mais
-           nova sozinho (isso é um eixo independente, nunca ligado a
-           motorVersion — ver questionnaireContentVersion). */
-        var conteudo = def ? conteudoDe(def, questionnaireContentVersion) : null;
+        /* PRESERVAÇÃO HISTÓRICA: cada resposta pertence à versão do questionário em
+           que foi DADA (r.questionnaireContentVersion), não à da avaliação — numa
+           reavaliação, a resposta herdada e não clicada de novo continua sendo uma
+           resposta à pergunta antiga. Por isso:
+             - a cópia gravada (textoPerguntaNaEpoca/tituloNaEpoca) e a versão da
+               resposta NUNCA são trocadas pelo conteúdo de outra versão;
+             - a interpretação é refeita a partir da versão da própria resposta
+               (o mesmo texto da época — versões publicadas nunca mudam);
+             - resposta sem versão (avaliação LEGADA, anterior a 29/09/2026) fica
+               exatamente como está: nenhuma cópia é criada com um texto que a
+               pessoa nunca viu. O texto mostrado nesses casos vem de
+               conteudoSnapshotOuAtual ('reconstruido'/'indisponivel'), sem gravar.
+           questionnaireContentVersion (o da avaliação) só fica como parâmetro por
+           compatibilidade de chamada: a versão da avaliação não é a da resposta. */
+        var versaoDaResposta = r.questionnaireContentVersion || null;
+        var conteudo = def && versaoDaResposta ? conteudoDe(def, versaoDaResposta) : null;
         novo[id] = {
           valor: r.valor,
-          justificativaAuto: conteudo ? (r.valor === 'sim' ? conteudo.justSim : conteudo.justNao) : r.justificativaAuto,
+          justificativaAuto: conteudo ? (r.valor === 'sim' ? conteudo.justSim : conteudo.justNao) : (r.justificativaAuto != null ? r.justificativaAuto : null),
           observacao: r.observacao || '',
-          codigoPergunta: def ? def.codigoEstavel : r.codigoPergunta,
-          textoPerguntaNaEpoca: conteudo ? conteudo.texto : r.textoPerguntaNaEpoca,
-          tituloNaEpoca: conteudo ? (conteudo.titulo || null) : (r.tituloNaEpoca || null),
-          /* Avaliação LEGADA (anterior à parametrização) não tem versão de
-             conteúdo nenhuma — nem na avaliação nem na resposta. Sem o
-             "|| null", isto virava undefined, e o SDK do Firebase RECUSA
-             undefined de forma síncrona: era isso que travava o REPROCESSAR
-             TUDO em "0 de N concluídas" sem gravar nada (relato de 30/09). */
-          questionnaireContentVersion: questionnaireContentVersion || r.questionnaireContentVersion || null
+          codigoPergunta: def ? def.codigoEstavel : (r.codigoPergunta || null),
+          textoPerguntaNaEpoca: r.textoPerguntaNaEpoca || (conteudo ? conteudo.texto : null),
+          tituloNaEpoca: r.textoPerguntaNaEpoca ? (r.tituloNaEpoca || null) : (conteudo ? (conteudo.titulo || null) : null),
+          /* Sem o "|| null", ausência virava undefined, e o SDK do Firebase RECUSA
+             undefined de forma síncrona (relato de 30/09: REPROCESSAR TUDO travado). */
+          questionnaireContentVersion: versaoDaResposta
         };
       });
       return novo;
