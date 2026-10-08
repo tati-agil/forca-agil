@@ -119,6 +119,22 @@ console.log('\n-- impressão digital da proposta --');
   afirma(destinos.size === 2 && destinos.has('CONFLITO_NATUREZAS_AMPLIADO') && destinos.has('CAPACIDADE_ORGANIZACIONAL'), 'toda mudança vai para o conflito novo ou para Capacidade', Array.from(destinos).join(', '));
 }
 
+console.log('\n-- hipótese: incoerência generalizada (P5 × P13–P16), só simulação --');
+{
+  const dI = D.decisor(variantes['incoerencia-p5']);
+  let ja = 0, novas = 0, outras = 0; const origem = {};
+  for (let n = 0; n < D.TOTAL; n++) {
+    const a = dV5(n), b = dI(n);
+    if (a.codigo === 'INCOERENCIA') { if (b.codigo === 'INCOERENCIA') ja++; continue; }
+    if (b.codigo === 'INCOERENCIA') { novas++; origem[a.codigo] = (origem[a.codigo] || 0) + 1; } else if (a.codigo !== b.codigo) outras++;
+  }
+  afirma(ja === 16384, 'as 16.384 de P5 + P16 continuam incoerência', ja);
+  afirma(novas === 14336 && outras === 0, '14.336 combinações novas viram incoerência e nenhuma outra muda', novas + '/' + outras);
+  afirma(JSON.stringify(Object.keys(origem).sort()) === JSON.stringify(['CANAL', 'CONFLITO_NATUREZAS', 'DOCUMENTO_INFORMACAO', 'FALLBACK_A_VALIDAR']),
+    'só Canal, Informação/Documento, conflito de naturezas e "sem classificação" são ultrapassados', JSON.stringify(origem));
+  afirma(D.provarEquivalencia(M, variantes['incoerencia-p5']) === 0, 'o avaliador da simulação = identificarCamada do motor real');
+}
+
 console.log('\n-- nada é gravado --');
 afirma(escritas.length === 0, 'o Firebase falso não recebeu nenhuma escrita', JSON.stringify(escritas));
 

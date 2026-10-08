@@ -219,6 +219,16 @@ const VARIANTES = {
       return renumerar(r);
     }
   },
+  'incoerencia-p5': {
+    titulo: 'Incoerência generalizada (hipótese) — P5 = SIM com P13, P14, P15 ou P16 = SIM',
+    descricao: 'Só a hipótese do diagnóstico: a regra INCOERENCIA (precedência 0) passa de "P16 e P5 = SIM" para "P5 = SIM e qualquer uma entre P13, P14, P15 ou P16 = SIM". Nenhuma outra regra muda.',
+    montar(v5) {
+      const r = copia(v5);
+      r.find((x) => x.codigo === 'INCOERENCIA').condicoes = { all: [{ campo: 'P5', valor: 'SIM' }, { any: ['P13', 'P14', 'P15', 'P16'].map((campo) => ({ campo, valor: 'SIM' })) }] };
+      r.find((x) => x.codigo === 'INCOERENCIA').motivos = ['P5', 'P13', 'P14', 'P15', 'P16'];
+      return renumerar(r);
+    }
+  },
   'p15-relacao': {
     titulo: 'P15 como relação (ilustrativa) — Componente deixa de ser natureza exclusiva',
     descricao: 'Só para medir a alternativa B do diagnóstico de P15, sem as variantes de conflito/capacidade: o conflito da V5 passa a contar só P11–P14; Componente vira o caso residual (P15 = SIM e nenhuma outra natureza de P11–P14); Capacidade, Modalidade e Unidade de valor deixam de exigir P15 = NÃO. Produto/Serviço principal continua exigindo P15 = NÃO (P5 = SIM e "é componente de outro" se contradizem).',

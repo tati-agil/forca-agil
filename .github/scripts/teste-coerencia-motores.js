@@ -252,8 +252,12 @@ console.log('\n-- 9. textos propostos: conferidos e sem efeito nos resultados --
   afirma(!/mapa da floresta|linha de|plataforma|coe\b/i.test(textoNovo), 'nenhum texto novo usa o Mapa da Floresta como justificativa');
   const textoP15 = PROPOSTA[0].ajustes.filter((a) => a.pergunta === 'P15').map((a) => a.para).join(' ');
   afirma(!/não percebe|não usa|não escolhe/i.test(textoP15), 'P15 não se define por "o cliente não percebe / não usa / não escolhe"');
-  afirma(['canal', 'documento', 'capacidade', 'processo', 'modalidade', 'regra', 'funcionalidade'].every((n) => PROPOSTA[0].ajustes.find((a) => a.pergunta === 'P15' && a.campo === 'texto').para.includes(n)),
-    'a nova pergunta P15 separa Componente das outras sete naturezas de P9–P16');
+  const p15 = (campo) => PROPOSTA[0].ajustes.find((a) => a.pergunta === 'P15' && a.campo === campo).para;
+  afirma(p15('texto').length <= 90, 'a nova pergunta P15 é curta (a enumeração fica na ajuda)', p15('texto').length);
+  afirma(['P9', 'P10', 'P11', 'P12', 'P13', 'P14', 'P16'].every((c) => p15('textoAjuda.quandoNao').includes('(' + c + ')')),
+    'a ajuda de P15 (quando NÃO) separa Componente das outras sete naturezas, uma por uma');
+  afirma(['processo', 'modalidade', 'regra', 'funcionalidade', 'capacidade', 'canal', 'documento'].every((n) => p15('exemplo').includes('(' + n + ')')),
+    'o exemplo de P15 tem um caso negativo para cada natureza vizinha');
   const textoP8 = PROPOSTA[0].ajustes.filter((a) => a.pergunta === 'P8').map((a) => a.para).join(' ');
   afirma(!/\bdono\b|ownership|atribuir responsabilidade|responsável pela/i.test(textoP8), 'P8 não usa dono, ownership ou responsabilidade como critério (só a frase que manda não avaliar isso)');
 }
