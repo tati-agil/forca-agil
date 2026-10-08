@@ -6,7 +6,8 @@
  *   2. "Alterar camada": prévia (de → para e o que NÃO muda), motivo obrigatório, grava camada + camadaAlteracao +
  *      linha de histórico alteracao_camada; código, nome e relação "Squad compõe Linha" intactos.
  *   3. A lista fica em três grupos: estruturas · Organização do trabalho · Conceito auxiliar.
- *   4. Especialização e Conceito auxiliar não têm o botão; conceito com filhos ativos só recebe a explicação.
+ *   4. Especialização e Conceito auxiliar não têm o botão; conceito com filhos (ativos OU inativos) só recebe a explicação.
+ *   6. Sem o índice de filhos (taxonomia/meta/indiceFilhos): "Conferindo…" e depois só a explicação, nada gravado.
  *   5. O caminho de volta é o mesmo botão. Sem rolagem horizontal; nenhum erro de JS. */
 const { chromium } = require('playwright');
 const fs = require('fs');
@@ -34,7 +35,7 @@ const semente = () => {
   return {
     'fa-users': users, 'fa-admins': adm, 'fa-diretores': {}, 'fa-facilitadores': {}, eventos: {}, turmas: {}, 'turmas-interesse': {}, 'turmas-config': {}, 'turmas-publico': {}, 'eventos-publico': {}, 'turmas-equipe': {},
     taxonomia: {
-      meta: { cargaInicial: { feitaEm: QUANDO, feitaPor: EMAIL, resumo: {} } },
+      meta: { cargaInicial: { feitaEm: QUANDO, feitaPor: EMAIL, resumo: {} }, indiceFilhos: { criadoEm: QUANDO, criadoPor: 'workflow:taxonomia-indice-filhos' } },
       arquitetural: {
         conceitos: {
           'produto-principal': arq('Produto Fictício', true), canal: arq('Canal Fictício', true), componente: arq('Componente Fictício', true),
@@ -45,8 +46,10 @@ const semente = () => {
         conceitos: {
           LINHA: org('Linha Fictícia', { camada: 'A', ordem: 1 }), NEG: org('Negócios Fictícios', { pai: 'LINHA', ordem: 2 }),
           AREA: org('Área Fictícia', { camada: 'A', ordem: 3 }), SQUAD: org('Squad Fictícia', { camada: 'A', ordem: 4 }),
-          CAPITULO: org('Capítulo Fictício', { camada: 'A', ordem: 5 }), DISC: org('Disciplina Fictícia', { camada: 'auxiliar', ordem: 6 })
+          CAPITULO: org('Capítulo Fictício', { camada: 'A', ordem: 5 }), DISC: org('Disciplina Fictícia', { camada: 'auxiliar', ordem: 6 }),
+          ESP_INATIVA: org('Especialização inativa', { pai: 'AREA', ordem: 7, ativo: false })
         },
+        filhos: { LINHA: { NEG: true }, AREA: { ESP_INATIVA: true } },
         relacoes: { SQUAD__compoe__LINHA: { de: 'SQUAD', tipo: 'compoe', para: 'LINHA' } },
         auditoria: {}
       }
@@ -56,7 +59,8 @@ const semente = () => {
 
 async function abrir(browser, viewport, opts) {
   opts = opts || {};
-  const cfg = { db: semente(), user: { email: EMAIL, emailVerified: true, uid: 'u1' }, delayDefault: 10, persistenciaReal: true, delays: opts.delays || {}, fail: opts.fail || [] };
+  const dbIni = semente(); if (opts.semIndice) delete dbIni.taxonomia.meta.indiceFilhos;
+  const cfg = { db: dbIni, user: { email: EMAIL, emailVerified: true, uid: 'u1' }, delayDefault: 10, persistenciaReal: true, delays: opts.delays || {}, fail: opts.fail || [] };
   const ctx = await browser.newContext({ viewport });
   const page = await ctx.newPage();
   const erros = [];
@@ -155,8 +159,14 @@ const lista = (page) => page.evaluate(() => Array.from(document.querySelectorAll
     e0 = await escritas(page);
     await page.click('#taxCamadaBtn');
     await page.waitForSelector('#taxCamadaBloqueada', { timeout: 4000 });
-    afirma(/filhos ativos \(NEG\)/.test(await texto(page, '#taxCamadaBloqueada')) && await page.locator('#taxPainelCamada textarea, #taxPainelCamada [data-tax="confirmar-camada"]').count() === 0, 'conceito com filhos ativos: só a explicação, sem motivo nem confirmar');
+    afirma(/conceitos filhos \(NEG\)/.test(await texto(page, '#taxCamadaBloqueada')) && await page.locator('#taxPainelCamada textarea, #taxPainelCamada [data-tax="confirmar-camada"]').count() === 0, 'conceito com filhos: só a explicação, sem motivo nem confirmar');
+    await page.click('[data-tax="cancelar-camada"]');
+    await abreConceito(page, 'AREA');
+    await page.click('#taxCamadaBtn');
+    await page.waitForSelector('#taxCamadaBloqueada', { timeout: 4000 });
+    afirma(/conceitos filhos \(ESP_INATIVA\)/.test(await texto(page, '#taxCamadaBloqueada')), 'filho INATIVO também bloqueia (igual ao índice que o banco confere)', await texto(page, '#taxCamadaBloqueada'));
     afirma(await escritas(page) === e0, 'nada gravado');
+    await page.click('[data-tax="cancelar-camada"]');
 
     console.log('\n== 5. Desfazer pelo mesmo caminho ==');
     await abreConceito(page, 'SQUAD');
@@ -168,6 +178,21 @@ const lista = (page) => page.evaluate(() => Array.from(document.querySelectorAll
     afirma(await larguraOk(page), 'sem rolagem horizontal');
     afirma(erros.length === 0, 'nenhum erro de JS (' + erros.length + ')');
     await ctx.close();
+
+    console.log('\n== 6. Banco sem o índice de filhos: a troca fica bloqueada, explicada ==');
+    const sem = await abrir(browser, viewport, { semIndice: true, delays: { 'taxonomia/meta/indiceFilhos': 600 } });
+    await dominio(sem.page, 'organizacional');
+    await abreConceito(sem.page, 'SQUAD');
+    const e1 = await escritas(sem.page);
+    await sem.page.click('#taxCamadaBtn');
+    await sem.page.waitForSelector('#taxCamadaIndice', { timeout: 4000 });
+    afirma(/Conferindo o índice de conceitos filhos/.test(await texto(sem.page, '#taxCamadaIndice')) && await sem.page.locator('#taxPainelCamada textarea').count() === 0, 'enquanto confere o índice: "Conferindo…", sem campo de motivo — "ainda não sei" não vira "pode"');
+    await sem.page.waitForSelector('#taxCamadaBloqueada', { timeout: 6000 });
+    afirma(/índice de conceitos filhos ainda não foi construído/.test(await texto(sem.page, '#taxCamadaBloqueada')) && await sem.page.locator('#taxPainelCamada textarea, #taxPainelCamada [data-tax="confirmar-camada"]').count() === 0, 'sem o índice: só a explicação, sem motivo nem confirmar');
+    afirma(await escritas(sem.page) === e1, 'nada gravado');
+    afirma(await larguraOk(sem.page), 'sem rolagem horizontal');
+    afirma(sem.erros.length === 0, 'nenhum erro de JS (' + sem.erros.length + ')');
+    await sem.ctx.close();
   }
   await browser.close();
   console.log(falhas ? '\n' + falhas + ' FALHA(S)' : '\nOK — camada "Organização do trabalho": prévia, motivo obrigatório, histórico, três grupos na lista, bloqueios e caminho de volta; desktop e 375 px.');

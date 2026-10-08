@@ -182,7 +182,7 @@ Para **quem pode ler e gravar**, a fonte é sempre `database.rules.json`.
 
 | Nó | Finalidade | Módulos | Observação |
 |---|---|---|---|
-| `taxonomia` | Dicionário conceitual: domínios arquitetural e organizacional (conceitos, fontes, critérios, atributos, perfis, relações, auditoria, carga inicial). | classificacoes, taxonomia | Fonte única dos conceitos. A audiência da Avaliação lê só nome/ativo/definição vigente dos conceitos arquiteturais. Camadas organizacionais: A, B, C, `trabalho` ("Organização do trabalho": Squad, Capítulo) e `auxiliar`; A ⇄ `trabalho` só com motivo e auditoria (`camadaAlteracao`). |
+| `taxonomia` | Dicionário conceitual: domínios arquitetural e organizacional (conceitos, fontes, critérios, atributos, perfis, relações, auditoria, carga inicial). | classificacoes, taxonomia | Fonte única dos conceitos. A audiência da Avaliação lê só nome/ativo/definição vigente dos conceitos arquiteturais. Camadas organizacionais: A, B, C, `trabalho` ("Organização do trabalho": Squad, Capítulo) e `auxiliar`; A ⇄ `trabalho` só com motivo e auditoria (`camadaAlteracao`) e só para conceito sem pai e sem filhos — provado pelo índice reverso `taxonomia/organizacional/filhos/<pai>/<filho>` (coerente com `conceito.pai`) e pela marca `taxonomia/meta/indiceFilhos`, que nasce com a carga inicial ou, em produção, só pelo workflow `taxonomia-indice-filhos.yml` (nenhum cliente a cria); sem a marca a troca é recusada. |
 | `avaliacao-classificacoes` | Ligação canônica classificação do motor ↔ conceito arquitetural de mesmo código. | taxonomia | Só admin geral; criada uma vez, nunca alterada nem apagada. |
 | `avaliacao-classificacoes-auditoria` | Histórico dessas ligações. | taxonomia | Só acréscimo. |
 
@@ -229,6 +229,7 @@ manda `Cache-Control: no-cache` em JS, CSS, `/index.html` e `/` (com CSP nos doi
 | `teste-rules.yml` | PR para `main`, `v2`, `v3-quiz` | Testes das regras do banco no emulador (bloqueia o merge). |
 | `aquecer-cache-playwright.yml` | push em `main` que muda o preparo de testes, diariamente e manual | Aquece o cache do Playwright. |
 | `audit-facilitadores-turmas.yml`, `backfill-grupos-resumo.yml`, `diagnostico-execucao-vazamento-grupo.yml` | manual (e push no próprio script) | Ferramentas pontuais da Construção da Aposta. |
+| `taxonomia-indice-filhos.yml` | manual | Construção ÚNICA do índice de conceitos filhos da Taxonomia em produção (conta de serviço; simulação por padrão, grava só com "Confirmar gravação"; recusa rodar de novo). Pré-requisito da troca de camada. |
 
 Não há hook de pre-commit versionado no repositório nem passo de `node --check` no CI: erro de
 sintaxe é pego indiretamente pelos testes herméticos (erro de página).

@@ -352,7 +352,8 @@ async function main() {
 
   console.log('\n== 7. conceito, atributo, relação e carga inicial ==');
   await semearBase();
-  await pode('conceito organizacional válido', R(admin(), ORG + '/conceitos/NOVO').set(conceito({ nome: 'Novo', pai: 'LINHA' })));
+  await nega('conceito organizacional NOVO com pai, sem a entrada no índice de filhos', R(admin(), ORG + '/conceitos/NOVO').set(conceito({ nome: 'Novo', pai: 'LINHA' })));
+  await pode('conceito organizacional válido (com a entrada filhos/<pai>/<filho> na mesma gravação)', admin().ref().update({ [ORG + '/conceitos/NOVO']: conceito({ nome: 'Novo', pai: 'LINHA' }), [ORG + '/filhos/LINHA/NOVO']: true }));
   await nega('conceito sem situação da definição', R(admin(), ORG + '/conceitos/N2').set({ nome: 'x', ordem: 1, ativo: true, camada: 'A' }));
   await nega('situação da definição fora da lista', R(admin(), ORG + '/conceitos/N3').set(conceito({ situacaoDefinicao: 'publicada' })));
   await pode('situações da definição aceitas: registrada, em revisão, ainda não registrada', Promise.all(['registrada', 'em revisão', 'ainda não registrada'].map((s, i) => R(admin(), ORG + '/conceitos/S' + i + 'X').set(conceito({ situacaoDefinicao: s })))));
