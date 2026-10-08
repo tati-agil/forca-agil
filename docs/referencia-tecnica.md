@@ -182,7 +182,7 @@ Para **quem pode ler e gravar**, a fonte é sempre `database.rules.json`.
 
 | Nó | Finalidade | Módulos | Observação |
 |---|---|---|---|
-| `taxonomia` | Dicionário conceitual: domínios arquitetural e organizacional (conceitos, fontes, critérios, atributos, perfis, relações, auditoria, carga inicial). | classificacoes, taxonomia | Fonte única dos conceitos. A audiência da Avaliação lê só nome/ativo/definição vigente dos conceitos arquiteturais. |
+| `taxonomia` | Dicionário conceitual: domínios arquitetural e organizacional (conceitos, fontes, critérios, atributos, perfis, relações, auditoria, carga inicial). | classificacoes, taxonomia | Fonte única dos conceitos. A audiência da Avaliação lê só nome/ativo/definição vigente dos conceitos arquiteturais. Camadas organizacionais: A, B, C, `trabalho` ("Organização do trabalho": Squad, Capítulo) e `auxiliar`; A ⇄ `trabalho` só com motivo e auditoria (`camadaAlteracao`). |
 | `avaliacao-classificacoes` | Ligação canônica classificação do motor ↔ conceito arquitetural de mesmo código. | taxonomia | Só admin geral; criada uma vez, nunca alterada nem apagada. |
 | `avaliacao-classificacoes-auditoria` | Histórico dessas ligações. | taxonomia | Só acréscimo. |
 

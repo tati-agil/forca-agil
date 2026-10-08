@@ -125,10 +125,11 @@
         'A Taxonomia define, a Avaliação aplica: é a fonte única dos conceitos.',
         'Uma definição publicada não é editada: corrigir é criar uma nova versão.',
         'Nada se apaga: conceito é inativado com motivo, relação é encerrada, e conceito ligado a uma classificação da Avaliação não pode ser inativado.',
+        'No domínio organizacional, Linha, Área Especializada e CoE são as estruturas de posicionamento; Squad e Capítulo ficam em "Organização do trabalho", e Disciplina é conceito auxiliar. Trocar entre "Tipo organizacional" e "Organização do trabalho" pede motivo e fica no histórico.',
       ],
       links: [{ texto: 'Abrir ADMIN › Taxonomia', aba: 'adminPanelTaxonomia' }],
       fonte: ['ADMIN › Taxonomia (a própria tela)', 'database.rules.json'],
-      prova: ['teste-rules-taxonomia.js', 'teste-rules-taxonomia-governanca.js', 'teste-taxonomia.js', 'teste-taxonomia-governanca.js'] },
+      prova: ['teste-rules-taxonomia.js', 'teste-rules-taxonomia-governanca.js', 'teste-taxonomia.js', 'teste-taxonomia-governanca.js', 'teste-taxonomia-camada-trabalho.js'] },
 
     { id: 'papeis', titulo: 'Facilitação, diretores e Minha Área',
       oque: '"Minhas Facilitações" (#facilitador), eventos reservados a diretores e a Minha Área de cada pessoa.',

@@ -14,6 +14,8 @@
    C. Relações: criar exige histórico nas DUAS pontas (mesma chave, mesmo operacaoId); depois só ENCERRAR
       (motivo, data, autor, histórico); nunca alterar, apagar, duplicar nem recriar uma idêntica encerrada.
    D. As operações REAIS da aplicação (taxonomia.js) passam nessas regras — e as que a tela recusa não gravam.
+   E. Camada: "Tipo organizacional" (A) e "Organização do trabalho" só trocam entre si, com motivo e auditoria nova
+      da mesma gravação; conceito com pai não troca; a última troca não é reescrita nem apagada; relações intactas.
    ═════════════════════════════════════════════════════════════════ */
 const fs = require('fs');
 const path = require('path');
@@ -208,6 +210,52 @@ async function main() {
   const rLeg = { de: 'AA', tipo: 'compoe', para: 'BB' };
   await pode('relação da carga (sem criadaEm/auditoria) pode ser encerrada normalmente', admin().ref().update(encerrarRel(rLeg, 'e9')));
 
+  /* ───────────────────────── E. Camada "Organização do trabalho" ───────────────────────── */
+  console.log('\n== E. Camada: Tipo organizacional ⇄ Organização do trabalho ==');
+  const trocaCamada = (cod, k, de, para, extra) => Object.assign({
+    [ORG + '/conceitos/' + cod + '/camada']: para,
+    [ORG + '/conceitos/' + cod + '/camadaAlteracao']: Object.assign({ de, para, motivo: 'Organização do trabalho, não posicionamento', em: QUANDO, por: ADMIN, auditoriaId: k }, extra || {}),
+    [ORG + '/auditoria/' + cod + '/' + k]: { tipo: 'alteracao_camada', conceito: cod, campo: 'camada', usuario: { email: (extra && extra.por) || ADMIN }, dataHora: QUANDO }
+  });
+  async function semearCamadas() {
+    await semearBase();
+    await semear(async (a) => {
+      await a.ref(ORG + '/conceitos/SQUAD').set(org('Squad', { camada: 'A' }));
+      await a.ref(ORG + '/conceitos/CAPITULO').set(org('Capítulo', { camada: 'A' }));
+      await a.ref(ORG + '/conceitos/FILHO_A').set(org('Com pai', { camada: 'A', pai: 'LINHA' }));
+      await a.ref(ORG + '/relacoes/SQUAD__compoe__LINHA').set({ de: 'SQUAD', tipo: 'compoe', para: 'LINHA' });
+    });
+  }
+  await semearCamadas();
+  await nega('trocar camada SEM a auditoria da mesma gravação', admin().ref().update(sem(trocaCamada('SQUAD', 'c1', 'A', 'trabalho'), ORG + '/auditoria/SQUAD/c1')));
+  await nega('trocar camada SEM o registro camadaAlteracao', admin().ref().update(sem(trocaCamada('SQUAD', 'c1', 'A', 'trabalho'), ORG + '/conceitos/SQUAD/camadaAlteracao')));
+  await nega('trocar camada só gravando o campo camada', R(admin(), ORG + '/conceitos/SQUAD/camada').set('trabalho'));
+  await nega('trocar camada SEM motivo', admin().ref().update(trocaCamada('SQUAD', 'c1', 'A', 'trabalho', { motivo: '' })));
+  await nega('trocar camada apontando auditoria de OUTRO tipo', admin().ref().update(mexe(trocaCamada('SQUAD', 'c1', 'A', 'trabalho'), ORG + '/auditoria/SQUAD/c1', 'tipo', 'alteracao_conceito')));
+  await nega('trocar camada com "de" que não é a camada atual', admin().ref().update(trocaCamada('SQUAD', 'c1', 'trabalho', 'trabalho')));
+  await nega('trocar camada com "para" diferente da camada gravada', admin().ref().update(mexe(trocaCamada('SQUAD', 'c1', 'A', 'trabalho'), ORG + '/conceitos/SQUAD/camadaAlteracao', 'para', 'A')));
+  await nega('trocar camada com "por" de outra pessoa', admin().ref().update(mexe(trocaCamada('SQUAD', 'c1', 'A', 'trabalho'), ORG + '/conceitos/SQUAD/camadaAlteracao', 'por', SUPER)));
+  await nega('Especialização (B) NÃO vai para Organização do trabalho', admin().ref().update(trocaCamada('C2', 'c1', 'B', 'trabalho')));
+  await nega('Tipo organizacional (A) NÃO vai para Especialização (B) por esta via', admin().ref().update(trocaCamada('SQUAD', 'c1', 'A', 'B')));
+  await nega('conceito COM pai NÃO troca de camada', admin().ref().update(trocaCamada('FILHO_A', 'c1', 'A', 'trabalho')));
+  await nega('camada inexistente é recusada', R(admin(), ORG + '/conceitos/SQUAD/camada').set('Z'));
+  await nega('"Avaliação + Arquitetura" (não admin) NÃO troca camada', db(ARQ).ref().update(trocaCamada('SQUAD', 'c1', 'A', 'trabalho')));
+  await pode('admin: SQUAD de Tipo organizacional para Organização do trabalho, com motivo + auditoria', admin().ref().update(trocaCamada('SQUAD', 'c1', 'A', 'trabalho')));
+  anota('SQUAD: camada trabalho, nome e relação "SQUAD compõe LINHA" intactos',
+    (await ler(ORG + '/conceitos/SQUAD/camada')) === 'trabalho' && (await ler(ORG + '/conceitos/SQUAD/nome')) === 'Squad' && (await ler(ORG + '/relacoes/SQUAD__compoe__LINHA/de')) === 'SQUAD');
+  await pode('admin: CAPITULO também (e-mail fixo)', db(SUPER).ref().update(trocaCamada('CAPITULO', 'c2', 'A', 'trabalho', { por: SUPER })));
+  await nega('o motivo da última troca NÃO é reescrito', R(admin(), ORG + '/conceitos/SQUAD/camadaAlteracao/motivo').set('Outro motivo'));
+  await nega('o registro da última troca NÃO é apagado', R(admin(), ORG + '/conceitos/SQUAD/camadaAlteracao').remove());
+  await pode('conceito trocado continua editável (nome)', R(admin(), ORG + '/conceitos/SQUAD/nome').set('Squad (time)'));
+  await nega('trocar de novo REUSANDO uma auditoria existente', admin().ref().update(sem(trocaCamada('SQUAD', 'c1', 'trabalho', 'A'), ORG + '/auditoria/SQUAD/c1')));
+  await pode('desfazer: Organização do trabalho de volta para Tipo organizacional, com auditoria nova', admin().ref().update(trocaCamada('SQUAD', 'c3', 'trabalho', 'A')));
+  anota('o histórico do SQUAD guarda as duas trocas', Object.values((await ler(ORG + '/auditoria/SQUAD')) || {}).filter((e) => e.tipo === 'alteracao_camada').length === 2);
+  await nega('(10) histórico da troca NÃO é alterado', R(admin(), ORG + '/auditoria/SQUAD/c1/tipo').set('outro'));
+  await nega('(10) histórico da troca NÃO é apagado', R(admin(), ORG + '/auditoria/SQUAD/c1').remove());
+  await nega('conceito NOVO não nasce com camadaAlteracao', R(admin(), ORG + '/conceitos/NOVO').set(org('Novo', { camada: 'trabalho', camadaAlteracao: { de: 'A', para: 'trabalho', motivo: 'x', em: QUANDO, por: ADMIN, auditoriaId: 'c9' } })));
+  await pode('conceito NOVO pode nascer na camada trabalho (importação)', R(admin(), ORG + '/conceitos/NOVO').set(org('Novo', { camada: 'trabalho' })));
+  await nega('camadaAlteracao NÃO existe no domínio arquitetural', R(admin(), ARQT + '/conceitos/canal/camadaAlteracao').set({ de: 'A', para: 'trabalho', motivo: 'x', em: QUANDO, por: ADMIN, auditoriaId: 'c9' }));
+
   /* ───────────────────────── D. Operações REAIS da aplicação ───────────────────────── */
   console.log('\n== D. As operações reais de taxonomia.js nas regras reais ==');
   const SRC_TAX = fs.readFileSync(path.join(__dirname, '..', '..', 'forca-agil', 'taxonomia.js'), 'utf8');
@@ -313,6 +361,27 @@ async function main() {
     return (await ler(ORG + '/conceitos/LINHA/ativo')) === false && ev && ev.filhosAtivos === 'C1' && (await ler(ORG + '/conceitos/C1/ativo')) === true;
   });
 
+  /* camada pela tela: só A ⇄ trabalho, com motivo; com pai ou filhos ativos, recusa sem gravar */
+  await semear(async (a) => { await a.ref(ORG + '/conceitos/SQUAD').set(org('Squad', { camada: 'A' })); });
+  await abreConceito('organizacional', 'SQUAD');
+  I.st.d.organizacional.camadaMudando = { codigo: 'SQUAD', motivo: '  ', erro: null };
+  I.alterarCamada('organizacional', 'SQUAD'); await new Promise((r) => setTimeout(r, 200));
+  anota('tela: troca de camada sem motivo é recusada sem gravar', /motivo/.test(I.st.d.organizacional.camadaMudando.erro || '') && (await ler(ORG + '/conceitos/SQUAD/camada')) === 'A');
+  I.st.d.organizacional.camadaMudando = { codigo: 'SQUAD', motivo: 'Squad é organização do trabalho', erro: null };
+  await opera('alterarCamada (SQUAD → Organização do trabalho)', () => I.alterarCamada('organizacional', 'SQUAD'), async () => {
+    const ev = Object.values((await ler(ORG + '/auditoria/SQUAD')) || {}).find((e) => e.tipo === 'alteracao_camada');
+    const ca = await ler(ORG + '/conceitos/SQUAD/camadaAlteracao');
+    return (await ler(ORG + '/conceitos/SQUAD/camada')) === 'trabalho' && ca && ca.de === 'A' && ca.para === 'trabalho' && ca.auditoriaId && ev && ev.motivo === 'Squad é organização do trabalho' && ev.valorAnterior === 'Tipo organizacional' && ev.valorNovo === 'Organização do trabalho';
+  });
+  await abreConceito('organizacional', 'C1');
+  I.st.d.organizacional.camadaMudando = { codigo: 'C1', motivo: 'x', erro: null };
+  I.alterarCamada('organizacional', 'C1'); await new Promise((r) => setTimeout(r, 200));
+  anota('tela: Especialização (B) não troca de camada, sem gravar', /só conceitos da camada/i.test(I.st.d.organizacional.camadaMudando.erro || '') && (await ler(ORG + '/conceitos/C1/camada')) === 'B', I.st.d.organizacional.camadaMudando.erro);
+
+  await abreConceito('organizacional', 'LINHA');
+  I.st.d.organizacional.camadaMudando = { codigo: 'LINHA', motivo: 'x', erro: null };
+  I.alterarCamada('organizacional', 'LINHA'); await new Promise((r) => setTimeout(r, 200));
+  anota('tela: conceito com filhos ativos não troca de camada, sem gravar', /filhos ativos \(C1\)/.test(I.st.d.organizacional.camadaMudando.erro || '') && (await ler(ORG + '/conceitos/LINHA/camada')) === 'A', I.st.d.organizacional.camadaMudando.erro);
   /* exportação: relação encerrada nunca sai como se estivesse ativa */
   const bruto = await ler('taxonomia');
   const linhas = I.linhasExportacao(bruto);
