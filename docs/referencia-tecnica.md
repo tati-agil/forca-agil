@@ -164,7 +164,7 @@ Para **quem pode ler e gravar**, a fonte é sempre `database.rules.json`.
 |---|---|---|---|
 | `avaliacoes-produto` | Avaliações de Produto/Serviço: respostas, resultado do motor, classificação, curadoria e decisão; versões encadeadas. | avaliacao-produto, avaliacao-squad | Exclusão lógica; curadoria e decisão só para admin geral e Avaliação + Arquitetura. Cada resposta guarda a pergunta e a versão do questionário em que foi dada; publicar texto novo, reavaliar ou reprocessar nunca troca isso (`teste-versionamento-historico.js`). |
 | `curadoria-auditoria` | Auditoria de curadoria e da decisão final, por avaliação. | avaliacao-produto | Só acréscimo, gravada junto com a alteração. |
-| `avaliacoes-squad` | Avaliações de Adequação à Squad (S1–S8), independentes da arquitetural. | avaliacao-squad | |
+| `avaliacoes-squad` | Avaliações de Adequação à Squad (S1–S8), independentes da arquitetural. | avaliacao-squad | O resultado da combinação é exibido como "Recomendação de gestão por Squad"; o campo gravado continua `indicacaoOrganizacional`. |
 | `motor-arquitetura-config` | Regras publicadas, versões e rascunho do motor arquitetural. | motor-arquitetura | |
 | `motor-arquitetura-auditoria` | Auditoria do motor arquitetural. | avaliacao-produto, motor-arquitetura | Só acréscimo. |
 | `motor-squad-config` | Regras publicadas, versões, rascunho e textos do motor de Squad. | motor-squad | |

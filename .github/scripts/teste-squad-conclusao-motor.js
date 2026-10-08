@@ -172,6 +172,8 @@ const CODIGOS_C = ['FORTE_ADERENCIA_SQUAD_DEDICADA', 'JUSTIFICA_CAPACIDADE_COM_C
       const tela = await page.locator('.sq-veredito').innerText();
       afirma(tela.includes(TEXTOS[C].rotulo) && tela.includes(TEXTOS[caso.A].rotulo) && tela.includes(TEXTOS[caso.B].rotulo),
         caso.c + ': a tela mostra "' + TEXTOS[C].rotulo + '"');
+      if (caso.c === 'C1') afirma(/Recomendação de gestão por Squad/i.test(tela) && !/Indicação organizacional/i.test(tela),
+        'o título do resultado é "Recomendação de gestão por Squad" (o campo gravado continua indicacaoOrganizacional)');
       await voltarLista(page);
     }
     afirma(erros.length === 0, 'nenhum erro de JS (' + erros.length + ')');
