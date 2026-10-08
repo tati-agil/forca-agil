@@ -3650,10 +3650,14 @@
        mecanismo de qualquer outra edição (vira uma versão nova do
        questionário, com auditoria por campo) — ver CORRECOES_EDITORIAIS em
        questionarios-config.js. Nunca aplicada sozinha. */
-    function rotuloCampoEditorial(campo) {
-      return campo === 'justSim' ? 'Interpretação automática quando a resposta é SIM'
-        : campo === 'justNao' ? 'Interpretação automática quando a resposta é NÃO' : campo;
-    }
+    var ROTULO_CAMPO_EDITORIAL = {
+      titulo: 'Título', texto: 'Texto da pergunta', exemplo: 'Exemplo', exemplos: 'Exemplos', ajudaExtra: 'Ajuda extra',
+      'textoAjuda.significado': 'Ajuda — o que significa', 'textoAjuda.quandoSim': 'Ajuda — quando marcar SIM',
+      'textoAjuda.quandoNao': 'Ajuda — quando marcar NÃO',
+      justSim: 'Interpretação automática quando a resposta é SIM', justNao: 'Interpretação automática quando a resposta é NÃO'
+    };
+    function rotuloCampoEditorial(campo) { return ROTULO_CAMPO_EDITORIAL[campo] || campo; }
+    var ROTULO_TIPO_AJUSTE = { alterar: 'alterar texto', criar: 'campo novo', remover: 'retirar campo' };
     function renderCorrecaoEditorial(id) {
       var sit = window.faQuestionarios.situacaoCorrecaoEditorial(id);
       if (!sit) return '';
@@ -3661,13 +3665,35 @@
       html += '<p class="avp-correcao-tag">Manutenção pontual — não faz parte do uso diário desta tela</p>';
       html += '<h4>' + (sit.aplicada ? '✓ Correção editorial aplicada' : 'Correção editorial disponível') + ' — ' + esc(sit.titulo) + '</h4>';
       html += '<p>' + esc(sit.descricao) + '</p>';
+      if (!sit.aplicada) {
+        var partes = [];
+        if (sit.aAlterar) partes.push(sit.aAlterar + ' a alterar');
+        if (sit.aCriar) partes.push(sit.aCriar + ' campo' + (sit.aCriar === 1 ? '' : 's') + ' a criar');
+        if (sit.aRemover) partes.push(sit.aRemover + ' campo' + (sit.aRemover === 1 ? '' : 's') + ' a retirar');
+        if (sit.jaAplicados + sit.substituidos) partes.push((sit.jaAplicados + sit.substituidos) + ' já em vigor');
+        if (sit.divergentes) partes.push(sit.divergentes + (sit.divergentes === 1 ? ' divergente (não será alterado)' : ' divergentes (não serão alterados)'));
+        html += '<p class="avp-correcao-resumo"><strong>' + esc(sit.ajustes.length) + ' ajustes:</strong> ' + esc(partes.join(' · ')) + '.</p>';
+      }
+      if (sit.divergentes) {
+        html += '<p class="avp-error-msg avp-correcao-divergencia">⚠ ' + esc(sit.divergentes) + ' campo' + (sit.divergentes === 1 ? ' está' : 's estão') +
+          ' com um texto diferente do esperado — alguém editou por conta própria. Esse texto é mantido e não será sobrescrito: compare abaixo e decida caso a caso.</p>';
+      }
       html += '<ul class="avp-correcao-lista">';
       sit.ajustes.forEach(function (aj) {
-        var marca = aj.estado === 'aplicada' ? '✓ já aplicado' : aj.estado === 'pendente' ? 'pendente' : 'mantido — o texto atual foi editado por alguém e não será alterado';
-        html += '<li><strong>' + esc(aj.pergunta) + '</strong> · ' + esc(rotuloCampoEditorial(aj.campo)) + ' <em>(' + esc(marca) + ')</em>';
+        var marca = aj.estado === 'aplicada' ? '✓ já aplicado'
+          : aj.estado === 'substituida' ? '✓ substituído por uma correção posterior'
+          : aj.estado === 'pendente' ? 'pendente — ' + ROTULO_TIPO_AJUSTE[aj.tipo]
+          : 'divergente — mantido, não será alterado';
+        html += '<li class="avp-correcao-ajuste avp-correcao-ajuste--' + esc(aj.estado) + '" data-ajuste="' + esc(aj.pergunta + '.' + aj.campo) + '">' +
+          '<strong>' + esc(aj.pergunta) + '</strong> · ' + esc(rotuloCampoEditorial(aj.campo)) + ' <em>(' + esc(marca) + ')</em>';
         if (aj.estado === 'pendente') {
-          html += '<br><span class="avp-correcao-antes">Antes: ' + esc(semPrefixo(aj.de)) + '</span>' +
+          if (aj.tipo === 'criar') html += '<br><span class="avp-correcao-depois">Novo: ' + esc(semPrefixo(aj.para)) + '</span>';
+          else if (aj.tipo === 'remover') html += '<br><span class="avp-correcao-antes">Será retirado: ' + esc(semPrefixo(aj.atual)) + '</span>';
+          else html += '<br><span class="avp-correcao-antes">Antes: ' + esc(semPrefixo(aj.atual)) + '</span>' +
             '<br><span class="avp-correcao-depois">Depois: ' + esc(semPrefixo(aj.para)) + '</span>';
+        } else if (aj.estado === 'divergente') {
+          html += '<br><span class="avp-correcao-atual">Texto atual (mantido): ' + (aj.atual == null ? '<em>campo vazio</em>' : esc(semPrefixo(aj.atual))) + '</span>' +
+            '<br><span class="avp-correcao-proposto">Proposto: ' + (aj.tipo === 'remover' ? '<em>retirar o campo</em>' : esc(semPrefixo(aj.para))) + '</span>';
         }
         html += '</li>';
       });
@@ -3690,8 +3716,9 @@
       if (state.aplicandoCorrecao) return;
       var sit = window.faQuestionarios.situacaoCorrecaoEditorial(id);
       if (!sit) return;
-      avpConfirm('Aplicar a correção "' + sit.titulo + '"? Isso cria a versão ' + (sit.versaoAtual + 1) + ' do questionário, ' +
-        'sem alterar o motor e sem mudar avaliações já feitas.', function () {
+      avpConfirm('Aplicar a correção "' + sit.titulo + '"? Isso cria a versão ' + (sit.versaoAtual + 1) + ' do questionário com ' +
+        sit.pendentes + ' ajuste' + (sit.pendentes === 1 ? '' : 's') + ', sem alterar o motor e sem mudar avaliações já feitas.' +
+        (sit.divergentes ? ' ' + sit.divergentes + (sit.divergentes === 1 ? ' campo divergente fica como está.' : ' campos divergentes ficam como estão.') : ''), function () {
         state.aplicandoCorrecao = true;
         render();
         var respondido = false;

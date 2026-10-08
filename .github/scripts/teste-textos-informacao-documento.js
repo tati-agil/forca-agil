@@ -241,7 +241,7 @@ async function aplicarCorrecao(page) {
   await irAoAdmin(page);
   await page.click('#avpConfigQuestionariosBtn');
   await page.waitForSelector('#avpCorrecao-interpretacoes-p5-p15', { timeout: 5000 });
-  await page.click('.avp-correcao-aplicar-btn');
+  await page.click('#avpCorrecao-interpretacoes-p5-p15 .avp-correcao-aplicar-btn');
   await page.waitForTimeout(150);
   await page.click('.avp-modal-confirm-btn');
   await page.waitForFunction(() => /Correção aplicada/.test(document.body.innerText), { timeout: 8000 }).catch(() => {});

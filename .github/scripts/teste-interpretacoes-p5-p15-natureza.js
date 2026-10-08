@@ -216,12 +216,12 @@ async function voltarParaAvaliacoes(page) {
     await abrirConfig(page);
     const card = await page.locator('#avpCorrecao-interpretacoes-p5-p15').innerText().catch(() => '');
     afirma(/Correção editorial disponível/.test(card) && /P5/.test(card) && /P15/.test(card), 'card "Correção editorial disponível" lista P5 e P15');
-    afirma((card.match(/\(pendente\)/g) || []).length === 3, 'os 3 ajustes (P5 NÃO, P15 SIM, P15 NÃO) aparecem pendentes');
+    afirma((card.match(/\(pendente[^)]*\)/g) || []).length === 3, 'os 3 ajustes (P5 NÃO, P15 SIM, P15 NÃO) aparecem pendentes');
     afirma(/versão 2/.test(card) && /Não altera o motor/.test(card), 'o card avisa que cria a versão 2 e não altera o motor');
     afirma(await contar(page, '#avpCorrecao-interpretacoes-p5-p15 .avp-correcao-aplicar-btn:not([disabled])') === 1, 'botão APLICAR CORREÇÃO habilitado');
     afirma(JSON.stringify((await banco(page))['questionarios-config'] || null) === 'null', 'nada gravado antes de aplicar');
 
-    await page.click('.avp-correcao-aplicar-btn');
+    await page.click('#avpCorrecao-interpretacoes-p5-p15 .avp-correcao-aplicar-btn');
     await page.waitForTimeout(150);
     await page.click('.avp-modal-confirm-btn');
     await page.waitForFunction(() => /Correção aplicada/.test(document.body.innerText), { timeout: 8000 }).catch(() => {});
@@ -258,7 +258,7 @@ async function voltarParaAvaliacoes(page) {
     afirma(aud.length === 3 && aud.every((a) => a.versaoAnterior === 1 && a.novaVersao === 2 && a.usuario && a.usuario.email === EMAIL && a.dataHora),
       'auditoria: 3 entradas (P5.justNao, P15.justSim, P15.justNao), v1 → v2, com usuário e data');
     const cardDepois = await page.locator('#avpCorrecao-interpretacoes-p5-p15').innerText();
-    afirma(/Correção editorial aplicada/.test(cardDepois) && await contar(page, '.avp-correcao-aplicar-btn') === 0, 'card passa a "✓ Correção editorial aplicada", sem botão');
+    afirma(/Correção editorial aplicada/.test(cardDepois) && await contar(page, '#avpCorrecao-interpretacoes-p5-p15 .avp-correcao-aplicar-btn') === 0, 'card passa a "✓ Correção editorial aplicada", sem botão');
     const idem = await page.evaluate(() => new Promise((ok) => window.faQuestionarios.aplicarCorrecaoEditorial('interpretacoes-p5-p15', null, (err) => ok(err))));
     afirma(idem === 'nada-a-aplicar', 'aplicar de novo não faz nada (idempotente): ' + idem);
     afirma((await banco(page))['questionarios-config'].CLASSIFICACAO_ARQUITETURAL.versaoPublicada === 2, 'e não cria versão 3');
@@ -364,8 +364,8 @@ async function voltarParaAvaliacoes(page) {
     await page.waitForTimeout(300);
     await abrirConfig(page);
     const card = await page.locator('#avpCorrecao-interpretacoes-p5-p15').innerText();
-    afirma(/mantido/.test(card) && (card.match(/\(pendente\)/g) || []).length === 2, 'P5 aparece "mantido" (editado por alguém); P15 (2 ajustes) pendentes');
-    await page.click('.avp-correcao-aplicar-btn');
+    afirma(/mantido/.test(card) && (card.match(/\(pendente[^)]*\)/g) || []).length === 2, 'P5 aparece "mantido" (editado por alguém); P15 (2 ajustes) pendentes');
+    await page.click('#avpCorrecao-interpretacoes-p5-p15 .avp-correcao-aplicar-btn');
     await page.waitForTimeout(150);
     await page.click('.avp-modal-confirm-btn');
     await page.waitForFunction(() => /Correção aplicada/.test(document.body.innerText), { timeout: 8000 }).catch(() => {});
@@ -420,9 +420,9 @@ async function voltarParaAvaliacoes(page) {
   {
     const { ctx, page, erros } = await abrirApp(browser, {}, { width: 375, height: 740 });
     await abrirConfig(page);
-    afirma(await page.locator('.avp-correcao-aplicar-btn').isVisible(), 'botão APLICAR CORREÇÃO visível');
+    afirma(await page.locator('#avpCorrecao-interpretacoes-p5-p15 .avp-correcao-aplicar-btn').isVisible(), 'botão APLICAR CORREÇÃO visível');
     afirma(await larguraOk(page), 'configuração sem rolagem horizontal a 375 px');
-    await page.click('.avp-correcao-aplicar-btn');
+    await page.click('#avpCorrecao-interpretacoes-p5-p15 .avp-correcao-aplicar-btn');
     await page.waitForTimeout(150);
     const caixa = await page.locator('body > .modal-overlay').last().locator('.modal-box').boundingBox();
     afirma(caixa && caixa.x >= 0 && caixa.x + caixa.width <= 375, 'confirmação cabe na tela do celular');

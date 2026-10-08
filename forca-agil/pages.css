@@ -2057,6 +2057,9 @@ select.aposta-campo-input { width: auto; min-width: 8.5em; }
 .avp-correcao-lista { margin: 8px 0 12px; padding-left: 18px; font-size: .86rem; line-height: 1.5; }
 .avp-correcao-lista li { margin-bottom: 8px; overflow-wrap: anywhere; }
 .avp-correcao-antes { color: var(--ink-3); }
+.avp-correcao-resumo { font-size: .86rem; }
+.avp-correcao-ajuste--divergente { border-left: 3px solid var(--warn, #c9871f); padding-left: 8px; }
+.avp-correcao-atual { color: var(--ink-3); }
 .avp-correcao-card .btn { white-space: normal; }
 .avp-tag-motor--verificando { color: var(--ink-3); background: transparent; border: 1px dashed rgba(255,255,255,.25); }
 .avp-atualizar-secao { border-top: 1px solid rgba(255,255,255,.12); padding-top: 12px; display: flex; flex-direction: column; gap: 10px; }

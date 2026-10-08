@@ -78,7 +78,7 @@ alguém precisa).
 | `forca-agil/checkin.js` | index.html | Check-in por QR Code (`#checkin`). |
 | `forca-agil/pedidos.js` | index.html | "Faça um pedido" (Ajuda) e aba Pedidos do ADMIN. |
 | `forca-agil/dashboard.js` | index.html | Aba Dashboard (agrega "Avaliar oficina"). |
-| `forca-agil/questionarios-config.js` | index.html | Conteúdo editorial publicado dos questionários (`window.faQuestionarios`). |
+| `forca-agil/questionarios-config.js` | index.html | Conteúdo editorial publicado dos questionários (`window.faQuestionarios`), e as correções editoriais entregues pelo código (`CORRECOES_EDITORIAIS`: campo simples ou aninhado como `textoAjuda.significado`, campo novo, campo retirado), que só uma administradora aplica e viram versão nova. |
 | `forca-agil/naturezas-config.js` | index.html | Catálogo da Natureza complementar (`window.faNaturezas`). |
 | `forca-agil/motor-arquitetura.js` | index.html | Motor de classificação arquitetural (`window.faMotorArquitetura`). |
 | `forca-agil/classificacoes.js` | index.html | Nome e definição das classificações lidos da Taxonomia (`window.faClassificacoes`). |
