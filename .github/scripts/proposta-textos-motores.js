@@ -16,7 +16,9 @@
  * porque / regra = por que mudar e qual regra lê a resposta (nenhuma é alterada).
  *
  * P15 (decisão: Componente continua natureza arquitetural): a pergunta deixa
- * de dizer para que o item serve e passa a dizer o que ele é.
+ * de dizer para que o item serve e passa a dizer o que ele é — redação curta
+ * aprovada pela responsável ("elemento estrutural que compõe"); a separação
+ * das outras naturezas fica na ajuda.
  *
  * teste-coerencia-motores.js confere que todo "de" bate com o texto de
  * fábrica e que trocar todos os textos não muda nenhuma decisão dos motores. */
@@ -67,15 +69,15 @@ module.exports = [
         de: 'Um cartão consignado pode ter um dono responsável pela sua evolução; "processamento de pagamentos" em geral é transversal demais para isso.',
         para: 'Um cartão consignado reúne contratação, regras, uso e resultado num mesmo todo; "processamento de pagamentos" atravessa várias soluções e não forma um todo próprio.' },
       { pergunta: 'P15', campo: 'texto',
-        porque: 'A pergunta atual diz para que o item serve, e processos, regras e capacidades também servem a outros produtos. A nova diz o que o item é. Fica curta: a diferença para as outras naturezas vai para a ajuda.',
+        porque: 'A pergunta atual diz para que o item serve, e processos, regras e capacidades também servem a outros produtos. A nova diz o que o item é ("elemento estrutural que compõe", que aproxima da natureza Componente). Fica curta: a diferença para as outras naturezas vai para a ajuda.',
         regra: 'Nenhuma alterada. P15 é lida em Produto/Serviço principal (exclusão), conflito de naturezas, Componente, Capacidade, Modalidade e Unidade de valor.',
         de: 'O item existe principalmente para que outro Produto/Serviço consiga entregar seu resultado?',
-        para: 'O item é principalmente uma parte estruturante de outro Produto/Serviço?' },
+        para: 'O item é principalmente um elemento estrutural que compõe outro Produto/Serviço?' },
       { pergunta: 'P15', campo: 'textoAjuda.significado',
-        porque: 'P15 não tinha ajuda; a nova diz como separar Componente das outras naturezas.',
+        porque: 'P15 não tinha ajuda. A nova diz o que é Componente e por que "compõe" sozinho não basta: modalidades, regras e funcionalidades também compõem um produto, mas não são a estrutura dele.',
         regra: 'Nenhuma alterada.',
         de: null,
-        para: 'Responda SIM quando o item fizer sentido principalmente como uma parte que compõe outra solução, e não como uma oferta independente ao cliente. Avalie o que o objeto é, e não apenas o fato de ele estar relacionado a outro Produto/Serviço. Um componente compõe ou habilita a entrega de outro Produto/Serviço e não é, por si, uma solução independente (P5).' },
+        para: 'Responda SIM quando o item fizer sentido principalmente como um elemento que compõe outra solução, e não como uma oferta independente ao cliente. Avalie o que o objeto é, e não apenas o fato de ele estar relacionado a outro Produto/Serviço. Modalidades, regras e funcionalidades também fazem parte de um produto, mas são opção, norma ou operação; o componente é a estrutura — técnica, de dados ou de negócio — sobre a qual a entrega se apoia, e não é, por si, uma solução independente (P5).' },
       { pergunta: 'P15', campo: 'textoAjuda.quandoSim',
         porque: 'Dá a forma positiva de Componente, sem depender de o cliente perceber ou não o item.',
         regra: 'Nenhuma alterada.',
@@ -100,12 +102,12 @@ module.exports = [
         porque: 'A justificativa vigente (correção "Interpretações de P5 e P15") descreve uma relação; a nova acompanha a pergunta.',
         regra: 'Nenhuma alterada.',
         de: 'SIM — O item existe de forma estruturalmente associada a outra solução e contribui para que essa solução entregue seu resultado.',
-        para: 'SIM — O item é principalmente uma parte estruturante de outra solução, sem ser ele próprio uma solução independente nem outra das naturezas avaliadas.' },
+        para: 'SIM — O item é principalmente um elemento estrutural que compõe outra solução, sem ser ele próprio uma solução independente nem outra das naturezas avaliadas.' },
       { pergunta: 'P15', campo: 'justNao',
         porque: 'Acompanha a nova pergunta.',
         regra: 'Nenhuma alterada.',
         de: 'NÃO — O item não existe principalmente como suporte estrutural para que outro Produto/Serviço entregue seu resultado.',
-        para: 'NÃO — O item não é principalmente uma parte estruturante de outra solução: é uma solução por si ou se descreve melhor por outra natureza.' }
+        para: 'NÃO — O item não é principalmente um elemento estrutural que compõe outra solução: é uma solução por si ou se descreve melhor por outra natureza.' }
     ]
   },
   {
