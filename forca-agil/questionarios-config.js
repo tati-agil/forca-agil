@@ -12,8 +12,13 @@
      código (ver CODIGOS_ESTAVEIS em avaliacao-produto.js), nunca editável
      por aqui. É o único identificador que a lógica de negócio pode usar.
    - conteúdo editorial (titulo/texto/textoAjuda/exemplo/justSim/justNao/
-     observacaoAdministrativa): só isso é parametrizável, versionado e
-     auditável por este módulo. Nunca usado como chave de nada.
+     observacaoAdministrativa e, no diagnóstico conflito × recorte,
+     rotuloMesma/rotuloDistintas/interpretacaoMesma/interpretacaoDistintas):
+     só isso é parametrizável, versionado e auditável por este módulo. Nunca
+     usado como chave de nada.
+   - tipo da pergunta ('binaria' | 'diagnostico-conflito-recorte', ausente =
+     'binaria') e os códigos de resposta (SIM/NAO, mesma/distintas): estrutura,
+     definidos em código (ver TIPOS_PERGUNTA), nunca editáveis.
 
    Node no Firebase:
    questionarios-config/<codigo> = {
@@ -52,7 +57,37 @@
   /* Único conjunto de campos que PUBLICAR/rascunho tocam — tudo que não
      está aqui (codigoEstavel, ordem, grupo, obrigatoriedade, o próprio
      código do questionário) é identidade/regra, nunca editorial. */
-  var CAMPOS_EDITORIAVEIS = ['titulo', 'texto', 'textoAjuda', 'exemplo', 'exemplos', 'ajudaExtra', 'justSim', 'justNao', 'observacaoAdministrativa'];
+  var CAMPOS_EDITORIAVEIS = ['titulo', 'texto', 'textoAjuda', 'exemplo', 'exemplos', 'ajudaExtra', 'justSim', 'justNao', 'observacaoAdministrativa',
+    'rotuloMesma', 'interpretacaoMesma', 'rotuloDistintas', 'interpretacaoDistintas'];
+
+  /* TIPO DE PERGUNTA — estrutural, nunca editorial. Define quais respostas a
+     pergunta admite e quais campos editoriais ela tem; não está em
+     CAMPOS_EDITORIAVEIS, não aparece no formulário e não muda por publicação
+     (ver normalizarPerguntas: em toda gravação vem da definição em código).
+     - 'binaria': respostas SIM/NAO; interpretação em justSim/justNao. Tipo
+       AUSENTE = 'binaria' — P1–P16 e S1–S8 nunca tiveram o campo e não são
+       migrados (ver tipoPergunta).
+     - 'diagnostico-conflito-recorte': respostas 'mesma'/'distintas' (nunca
+       SIM/NAO); campos editoriais próprios — rotuloMesma/rotuloDistintas,
+       interpretacaoMesma/interpretacaoDistintas, textoAjuda.quandoMesma/
+       textoAjuda.quandoDistintas —, nunca justSim/justNao. */
+  var TIPOS_PERGUNTA = Object.freeze({ BINARIA: 'binaria', DIAGNOSTICO_CONFLITO_RECORTE: 'diagnostico-conflito-recorte' });
+  /* Códigos de resposta: regra/identidade (o motor de posicionamento lê
+     exatamente 'mesma'/'distintas' — ver RESPOSTAS_DIAGNOSTICO em
+     motor-posicionamento.js), nunca conteúdo editorial: vêm do TIPO, não
+     são gravados na pergunta e não são editáveis. */
+  var RESPOSTAS_DIAGNOSTICO = Object.freeze({ MESMA: 'mesma', DISTINTAS: 'distintas' });
+  var RESPOSTAS_POR_TIPO = Object.freeze({
+    binaria: Object.freeze(['SIM', 'NAO']),
+    'diagnostico-conflito-recorte': Object.freeze([RESPOSTAS_DIAGNOSTICO.MESMA, RESPOSTAS_DIAGNOSTICO.DISTINTAS])
+  });
+  /* Campos editoriais que só fazem sentido num tipo: numa gravação, os do
+     OUTRO tipo saem da pergunta (o diagnóstico nunca leva justSim/justNao;
+     uma binária nunca leva os rótulos de mesma/distintas). */
+  var CAMPOS_SO_DO_TIPO = {
+    binaria: { raiz: ['justSim', 'justNao'], ajuda: ['quandoSim', 'quandoNao'] },
+    'diagnostico-conflito-recorte': { raiz: ['rotuloMesma', 'interpretacaoMesma', 'rotuloDistintas', 'interpretacaoDistintas'], ajuda: ['quandoMesma', 'quandoDistintas'] }
+  };
 
   var PADRAO = {
     CLASSIFICACAO_ARQUITETURAL: {
@@ -226,8 +261,125 @@
           justSim: 'SIM — Existe um responsável claro pelo resultado desta solução.',
           justNao: 'NÃO — Não existe um responsável claro pelo resultado desta solução.' }
       ]
+    },
+    /* Posicionamento Organizacional: O1–O9 (binárias, tipo EXPLÍCITO) e o
+       diagnóstico conflito × recorte — uma pergunta só, usada pelo fluxo em
+       qualquer nível (N1, N2 ou N3) quando dois papéis aparecem juntos; não é
+       "O10". Só conteúdo: quem decide é window.faMotorPosicionamento, pelos
+       códigos (O1…O9, DIAG_CONFLITO_RECORTE) e pelas respostas SIM/NAO e
+       mesma/distintas — nunca por esta redação. Nenhuma tela responde este
+       questionário ainda. */
+    POSICIONAMENTO_ORGANIZACIONAL: {
+      nome: 'Posicionamento Organizacional',
+      descricao: 'Questionário hierárquico O1–O9 para recomendar o tipo de estrutura organizacional que deve sustentar permanentemente a responsabilidade associada ao objeto. O diagnóstico conflito × recorte é acionado posteriormente pelo fluxo quando dois papéis aparecem no mesmo nível.',
+      perguntas: [
+        { codigoEstavel: 'O1', tipo: 'binaria', titulo: 'Propósito e resultado',
+          texto: 'Considerando a responsabilidade organizacional associada a este objeto, ela corresponde a uma responsabilidade permanente organizada em torno de um propósito ou proposta de valor comum, com responsabilidade contínua por objetivos, entregas e resultados — e não predominantemente pela produção de respostas técnicas especializadas nem pela evolução de uma disciplina?',
+          textoAjuda: {
+            significado: 'Identifica se a responsabilidade tem característica de Linha: propósito contínuo, entregas e resultados.',
+            quandoSim: 'Há responsabilidade permanente por propósito/proposta de valor e por objetivos, entregas e resultados.',
+            quandoNao: 'A responsabilidade não se caracteriza predominantemente dessa forma.'
+          } },
+        { codigoEstavel: 'O2', tipo: 'binaria', titulo: 'Resposta técnica especializada',
+          texto: 'Considerando a responsabilidade organizacional associada a este objeto, ela é predominantemente responsável pela qualidade técnica de análises, pareceres, validações ou orientações especializadas, aplicando conhecimento técnico, normativo, regulatório ou metodológico — e não pela entrega contínua de uma solução, capacidade ou serviço compartilhado em escala, nem pela evolução de uma disciplina?',
+          textoAjuda: { significado: 'Identifica responsabilidade típica de Área Especializada.' },
+          ajudaExtra: 'Se a entrega principal é um julgamento/resposta técnica cuja qualidade essa estrutura assume, tende a ser SIM, mesmo quando ocorre com frequência.\n' +
+            'Se é uma etapa de um serviço entregue continuamente ou um serviço padronizado em escala, não classifique como Área apenas porque exige conhecimento especializado.' },
+        { codigoEstavel: 'O3', tipo: 'binaria', titulo: 'Evolução da disciplina',
+          texto: 'Considerando a responsabilidade organizacional associada a este objeto, ela é predominantemente responsável por desenvolver, manter e disseminar padrões, métodos, práticas, competências e maturidade de uma disciplina, promovendo sua evolução transversal — e não pela execução dos casos dessa disciplina nem pela entrega contínua de uma solução ou serviço?',
+          textoAjuda: { significado: 'Identifica responsabilidade típica de Centro de Excelência (CoE).' },
+          ajudaExtra: 'CoE evolui a disciplina. Não é simplesmente a estrutura que executa os casos que exigem aquela disciplina.' },
+        { codigoEstavel: 'O4', tipo: 'binaria', titulo: 'Estratégia de Clientes',
+          texto: 'Considerando a responsabilidade organizacional associada a este objeto, ela consiste predominantemente em compreender necessidades, comportamentos e experiência de públicos, organizá-los em segmentos e, a partir disso, orientar decisões, portfólio e atuação da organização — sem ser dedicada à entrega de uma solução específica nem disponibilizar capacidade compartilhada?' },
+        { codigoEstavel: 'O5', tipo: 'binaria', titulo: 'Entrega de negócio dedicada',
+          texto: 'Considerando a responsabilidade organizacional associada a este objeto, ela está predominantemente dedicada à entrega e evolução de um Produto/Serviço, ou conjunto coerente de Produtos/Serviços, ou resultado de negócio específico para o cliente, em vez de disponibilizar uma capacidade, serviço, solução ou meio compartilhado para diferentes Linhas?',
+          ajudaExtra: 'Uma função ou canal exclusivo de determinada solução pode responder SIM. Atender cliente externo, isoladamente, não basta.\n' +
+            'Utilizar plataformas compartilhadas também não transforma uma Linha de Negócios em Plataforma.' },
+        { codigoEstavel: 'O6', tipo: 'binaria', titulo: 'Canais',
+          texto: 'Considerando a responsabilidade organizacional associada a este objeto, ela consiste em disponibilizar meios e capacidades transversais de interação por canais, buscando experiência integrada, contínua e consistente para quem os usa — clientes ou funcionários —, e não em ser a solução ou o serviço acessado por eles?',
+          ajudaExtra: 'O Canal é o meio de interação, não necessariamente o serviço consumido naquele meio.\n' +
+            'Pode atender clientes externos ou empregados.' },
+        { codigoEstavel: 'O7', tipo: 'binaria', titulo: 'Habilitadora de Negócios',
+          texto: 'Considerando a responsabilidade organizacional associada a este objeto, ela consiste em desenvolver e fornecer capacidades, serviços ou soluções de negócio compartilhados, consumidos em escala por diferentes Linhas e times?',
+          textoAjuda: { significado: 'Identifica uma Plataforma Habilitadora de Negócios.' } },
+        { codigoEstavel: 'O8', tipo: 'binaria', titulo: 'Habilitadora de Tecnologia',
+          texto: 'Considerando a responsabilidade organizacional associada a este objeto, ela consiste em fornecer infraestrutura, serviços técnicos compartilhados, automação, ferramentas ou capacidades tecnológicas utilizadas em escala para sustentar o desenvolvimento e a operação de diferentes Linhas e times?',
+          textoAjuda: { significado: 'Identifica uma Plataforma Habilitadora de Tecnologia.' } },
+        { codigoEstavel: 'O9', tipo: 'binaria', titulo: 'Gestão Corporativa',
+          texto: 'Considerando a responsabilidade organizacional associada a este objeto, ela consiste em oferecer serviços corporativos ao cliente interno, preferencialmente por soluções digitais e autosserviço padronizados, buscando escala e previsibilidade?',
+          ajudaExtra: 'Para diferenciar de O7, observar onde termina a cadeia de valor e de quem são as regras:\n' +
+            '- capacidades/regras ligadas à entrega de valor previdenciário ou financeiro às Linhas tendem a O7;\n' +
+            '- serviços ligados à administração interna da organização tendem a O9.' },
+        { codigoEstavel: 'DIAG_CONFLITO_RECORTE', tipo: 'diagnostico-conflito-recorte', titulo: 'Conflito ou recorte do objeto',
+          texto: 'Esses dois papéis descrevem a mesma responsabilidade ou responsabilidades distintas agrupadas no mesmo objeto?',
+          textoAjuda: {
+            quandoMesma: 'Os dois papéis realmente descrevem a mesma responsabilidade organizacional.',
+            quandoDistintas: 'O objeto está agrupando duas responsabilidades que poderiam ser separadas.'
+          },
+          rotuloMesma: 'Mesma responsabilidade',
+          interpretacaoMesma: 'Os dois papéis recaem sobre a mesma responsabilidade. O caso indica um conflito de posicionamento que precisa ser validado.',
+          rotuloDistintas: 'Responsabilidades distintas',
+          interpretacaoDistintas: 'Os dois papéis representam responsabilidades diferentes agrupadas no mesmo objeto. O caso indica necessidade de recortar o objeto.' }
+      ]
     }
   };
+
+  /* Tipo estrutural de uma pergunta. Pergunta conhecida em código: o tipo da
+     definição CANÔNICA (PADRAO), nunca o gravado no banco — um "tipo" mexido
+     por fora (devtools) não transforma O1 em diagnóstico nem o diagnóstico em
+     binária. Sem tipo canônico (P1–P16, S1–S8, que nunca tiveram o campo):
+     'binaria'. Pergunta desconhecida: o que ela traz, ou 'binaria'. */
+  var CANONICA = {};
+  Object.keys(PADRAO).forEach(function (codigo) {
+    PADRAO[codigo].perguntas.forEach(function (p) { CANONICA[p.codigoEstavel] = { codigo: codigo, tipo: p.tipo || null }; });
+  });
+  function tipoPergunta(pergunta) {
+    if (!pergunta) return TIPOS_PERGUNTA.BINARIA;
+    var canon = CANONICA[pergunta.codigoEstavel];
+    if (canon) return canon.tipo || TIPOS_PERGUNTA.BINARIA;
+    return pergunta.tipo || TIPOS_PERGUNTA.BINARIA;
+  }
+  /* true só para perguntas cujo tipo vem EXPLÍCITO na definição em código
+     (O1–O9 e o diagnóstico). P/S não: o editor deles fica exatamente como era. */
+  function tipoExplicito(codigoEstavel) { return !!(CANONICA[codigoEstavel] && CANONICA[codigoEstavel].tipo); }
+  function respostasDoTipo(tipo) { return RESPOSTAS_POR_TIPO[tipo] || RESPOSTAS_POR_TIPO.binaria; }
+
+  /* Proteção estrutural em TODA gravação (rascunho e publicação, inclusive
+     rollback e correção editorial): o conjunto de perguntas precisa ser
+     exatamente o da definição em código (nenhum código desconhecido, repetido
+     ou faltando — senão a gravação é recusada com 'estrutura-divergente'), e
+     o "tipo" de cada uma é reposto a partir do código: o canônico quando há
+     (O1–O9, diagnóstico), nenhum quando não há (P/S continuam sem o campo —
+     ausência = binária). Campos editoriais do OUTRO tipo saem. Conteúdo
+     editorial nunca é tocado. Devolve { perguntas } ou { erro }. */
+  function normalizarPerguntas(codigo, perguntas) {
+    var padrao = PADRAO[codigo];
+    if (!padrao) return { perguntas: perguntas };
+    if (!Array.isArray(perguntas)) return { erro: 'estrutura-divergente' };
+    var esperados = padrao.perguntas.map(function (p) { return p.codigoEstavel; });
+    var vistos = {};
+    for (var i = 0; i < perguntas.length; i++) {
+      var cod = perguntas[i] && perguntas[i].codigoEstavel;
+      if (esperados.indexOf(cod) === -1 || vistos[cod]) return { erro: 'estrutura-divergente' };
+      vistos[cod] = true;
+    }
+    if (perguntas.length !== esperados.length) return { erro: 'estrutura-divergente' };
+    return { perguntas: perguntas.map(function (original) {
+      var p = JSON.parse(JSON.stringify(original));
+      var canon = CANONICA[p.codigoEstavel];
+      if (canon.tipo) p.tipo = canon.tipo; else delete p.tipo;
+      var tipo = canon.tipo || TIPOS_PERGUNTA.BINARIA;
+      Object.keys(CAMPOS_SO_DO_TIPO).forEach(function (outro) {
+        if (outro === tipo) return;
+        CAMPOS_SO_DO_TIPO[outro].raiz.forEach(function (campo) { delete p[campo]; });
+        if (p.textoAjuda && typeof p.textoAjuda === 'object') {
+          CAMPOS_SO_DO_TIPO[outro].ajuda.forEach(function (campo) { delete p.textoAjuda[campo]; });
+          if (!Object.keys(p.textoAjuda).length) delete p.textoAjuda;
+        }
+      });
+      return p;
+    }) };
+  }
 
   function perguntaPadrao(codigo, codigoEstavel) {
     var q = PADRAO[codigo];
@@ -581,6 +733,9 @@
   }
 
   function salvarRascunho(codigo, perguntas, usuario, cb) {
+    var norm = normalizarPerguntas(codigo, perguntas);
+    if (norm.erro) { if (cb) cb(norm.erro); return; }
+    perguntas = norm.perguntas;
     db().ref(NODE_CONFIG + '/' + codigo + '/rascunho').set(
       { perguntas: perguntas, atualizadoEm: new Date().toISOString(), atualizadoPor: usuario || null },
       function (err) { if (cb) cb(err || null); }
@@ -626,6 +781,9 @@
     /* Sem a config do servidor, versaoAtual() não é confiável (ver
        configCarregada) — nunca publica às cegas. */
     if (!configCarregada(codigo)) { cb('config-nao-carregada'); return; }
+    var norm = normalizarPerguntas(codigo, perguntas);
+    if (norm.erro) { cb(norm.erro); return; }
+    perguntas = norm.perguntas;
     var versaoAntiga = versaoAtual(codigo);
     var perguntasAntigas = perguntasDaVersao(codigo, versaoAntiga);
     var alteradas = diffPerguntas(perguntasAntigas, perguntas);
@@ -699,8 +857,15 @@
   }
 
   window.faQuestionarios = {
-    CODIGOS: { CLASSIFICACAO_ARQUITETURAL: 'CLASSIFICACAO_ARQUITETURAL', ADEQUACAO_SQUAD: 'ADEQUACAO_SQUAD' },
+    CODIGOS: { CLASSIFICACAO_ARQUITETURAL: 'CLASSIFICACAO_ARQUITETURAL', ADEQUACAO_SQUAD: 'ADEQUACAO_SQUAD',
+      POSICIONAMENTO_ORGANIZACIONAL: 'POSICIONAMENTO_ORGANIZACIONAL' },
     CAMPOS_EDITORIAVEIS: CAMPOS_EDITORIAVEIS,
+    TIPOS_PERGUNTA: TIPOS_PERGUNTA,
+    RESPOSTAS_DIAGNOSTICO: RESPOSTAS_DIAGNOSTICO,
+    tipoPergunta: tipoPergunta,
+    tipoExplicito: tipoExplicito,
+    respostasDoTipo: respostasDoTipo,
+    normalizarPerguntas: normalizarPerguntas,
     PADRAO: PADRAO,
     onMudanca: onMudanca,
     versaoAtual: versaoAtual,

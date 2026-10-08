@@ -2386,19 +2386,34 @@
     { rotulo: 'Quando responder SIM', largura: 50 }, { rotulo: 'Quando responder NÃO', largura: 50 },
     { rotulo: 'Exemplo', largura: 50 }, { rotulo: 'Palavras-exemplo', largura: 36 }, { rotulo: 'Orientação extra', largura: 50 },
     { rotulo: 'Interpretação quando SIM', largura: 56 }, { rotulo: 'Interpretação quando NÃO', largura: 56 },
-    { rotulo: 'Observação administrativa', largura: 40 }
+    { rotulo: 'Observação administrativa', largura: 40 },
+    /* acrescentadas no fim (as 14 de antes ficam onde estavam): só o
+       diagnóstico conflito × recorte as preenche; nele, as colunas de SIM/NÃO
+       ficam vazias */
+    { rotulo: 'Tipo de pergunta', largura: 26 },
+    { rotulo: 'Ajuda — quando Mesma responsabilidade', largura: 50 }, { rotulo: 'Ajuda — quando Responsabilidades distintas', largura: 50 },
+    { rotulo: 'Rótulo — Mesma responsabilidade', largura: 30 }, { rotulo: 'Interpretação — Mesma responsabilidade', largura: 56 },
+    { rotulo: 'Rótulo — Responsabilidades distintas', largura: 30 }, { rotulo: 'Interpretação — Responsabilidades distintas', largura: 56 }
   ];
-  var ABA_QUESTIONARIO = { CLASSIFICACAO_ARQUITETURAL: 'Classificação arquitetural', ADEQUACAO_SQUAD: 'Adequação à Squad' };
+  var ABA_QUESTIONARIO = { CLASSIFICACAO_ARQUITETURAL: 'Classificação arquitetural', ADEQUACAO_SQUAD: 'Adequação à Squad',
+    POSICIONAMENTO_ORGANIZACIONAL: 'Posicionamento Organizacional' };
   function linhasQuestionarioExcel(codigo) {
     var fq = window.faQuestionarios;
     var sit = fq.situacao(codigo);
     return fq.perguntasDaVersao(codigo).map(function (q) {
       var ajuda = q.textoAjuda && typeof q.textoAjuda === 'object' ? q.textoAjuda : { significado: q.textoAjuda || '' };
+      var tipo = fq.tipoPergunta(q);
+      var diag = tipo === fq.TIPOS_PERGUNTA.DIAGNOSTICO_CONFLITO_RECORTE;
+      /* binária: as colunas de SIM/NÃO; diagnóstico: só as de mesma/distintas */
+      var soBinaria = function (v) { return diag ? '' : (v || ''); };
+      var soDiag = function (v) { return diag ? (v || '') : ''; };
       return [
         sit.nome, sit.versaoPublicada, q.codigoEstavel || '', q.titulo || '', q.texto || '',
-        ajuda.significado || '', ajuda.quandoSim || '', ajuda.quandoNao || '',
+        ajuda.significado || '', soBinaria(ajuda.quandoSim), soBinaria(ajuda.quandoNao),
         q.exemplo || '', Array.isArray(q.exemplos) ? q.exemplos.join(', ') : (q.exemplos || ''), q.ajudaExtra || '',
-        q.justSim || '', q.justNao || '', q.observacaoAdministrativa || ''
+        soBinaria(q.justSim), soBinaria(q.justNao), q.observacaoAdministrativa || '',
+        tipo, soDiag(ajuda.quandoMesma), soDiag(ajuda.quandoDistintas),
+        soDiag(q.rotuloMesma), soDiag(q.interpretacaoMesma), soDiag(q.rotuloDistintas), soDiag(q.interpretacaoDistintas)
       ];
     });
   }
@@ -3782,9 +3797,16 @@
       titulo: 'Título', texto: 'Texto da pergunta', exemplo: 'Exemplo', exemplos: 'Exemplos', ajudaExtra: 'Ajuda extra',
       'textoAjuda.significado': 'Ajuda — o que significa', 'textoAjuda.quandoSim': 'Ajuda — quando marcar SIM',
       'textoAjuda.quandoNao': 'Ajuda — quando marcar NÃO',
-      justSim: 'Interpretação automática quando a resposta é SIM', justNao: 'Interpretação automática quando a resposta é NÃO'
+      justSim: 'Interpretação automática quando a resposta é SIM', justNao: 'Interpretação automática quando a resposta é NÃO',
+      /* diagnóstico conflito × recorte — rotulados pelo CÓDIGO da resposta,
+         que não muda, e não pelo rótulo editável */
+      'textoAjuda.quandoMesma': 'Ajuda — quando a resposta é "mesma"',
+      'textoAjuda.quandoDistintas': 'Ajuda — quando a resposta é "distintas"',
+      rotuloMesma: 'Rótulo da resposta "mesma"', interpretacaoMesma: 'Interpretação da resposta "mesma"',
+      rotuloDistintas: 'Rótulo da resposta "distintas"', interpretacaoDistintas: 'Interpretação da resposta "distintas"'
     };
     function rotuloCampoEditorial(campo) { return ROTULO_CAMPO_EDITORIAL[campo] || campo; }
+    var CAMPOS_DIAGNOSTICO_HISTORICO = { rotuloMesma: true, interpretacaoMesma: true, rotuloDistintas: true, interpretacaoDistintas: true };
     var ROTULO_TIPO_AJUSTE = { alterar: 'alterar texto', criar: 'campo novo', remover: 'retirar campo' };
     function renderCorrecaoEditorial(id) {
       var sit = window.faQuestionarios.situacaoCorrecaoEditorial(id);
@@ -3915,19 +3937,36 @@
       html += '<p class="avp-decisao-aviso">Atenção: altere a redação para melhorar clareza, sem modificar o significado do critério. ' +
         'Mudanças conceituais podem exigir alteração da regra do motor.</p></div>';
       c.rascunho.perguntas.forEach(function (p, idx) {
-        html += '<div class="avp-form-card avp-config-pergunta-card">';
+        /* O TIPO (estrutural, vem do código — ver tipoPergunta) decide os
+           campos do formulário; nunca é um campo dele. */
+        var tipo = window.faQuestionarios.tipoPergunta(p);
+        html += '<div class="avp-form-card avp-config-pergunta-card" data-codigo-pergunta="' + esc(p.codigoEstavel) + '" data-tipo-pergunta="' + esc(tipo) + '">';
         html += '<p class="avp-alt-label">Código: <strong>' + esc(p.codigoEstavel) + '</strong> <span class="avp-config-readonly-tag">(somente leitura)</span></p>';
+        if (tipo === window.faQuestionarios.TIPOS_PERGUNTA.DIAGNOSTICO_CONFLITO_RECORTE) {
+          html += renderConfigCamposDiagnostico(p, idx) + '</div>';
+          return;
+        }
+        /* Perguntas com tipo explícito em código (O1–O9) mostram sempre os
+           três campos de ajuda e a orientação adicional, mesmo vazios — é a
+           única forma de governar a redação delas aqui. P/S: exatamente como
+           sempre foi (só o que a pergunta já tem). */
+        var completo = window.faQuestionarios.tipoExplicito(p.codigoEstavel);
         html += '<div class="avp-field"><label for="avpCfgTitulo' + idx + '">Título</label>' +
           '<input type="text" id="avpCfgTitulo' + idx + '" data-idx="' + idx + '" data-campo="titulo" value="' + esc(p.titulo || '') + '"></div>';
         html += '<div class="avp-field"><label for="avpCfgTexto' + idx + '">Texto da pergunta</label>' +
           '<textarea id="avpCfgTexto' + idx + '" data-idx="' + idx + '" data-campo="texto" rows="2">' + esc(p.texto || '') + '</textarea></div>';
-        if (p.textoAjuda) {
+        if (p.textoAjuda || completo) {
+          var ajudaB = p.textoAjuda || {};
           html += '<div class="avp-field"><label for="avpCfgAjudaSig' + idx + '">Ajuda — o que significa</label>' +
-            '<textarea id="avpCfgAjudaSig' + idx + '" data-idx="' + idx + '" data-campo="textoAjuda.significado" rows="2">' + esc(p.textoAjuda.significado || '') + '</textarea></div>';
+            '<textarea id="avpCfgAjudaSig' + idx + '" data-idx="' + idx + '" data-campo="textoAjuda.significado" rows="2">' + esc(ajudaB.significado || '') + '</textarea></div>';
           html += '<div class="avp-field"><label for="avpCfgAjudaSim' + idx + '">Ajuda — quando marcar SIM</label>' +
-            '<textarea id="avpCfgAjudaSim' + idx + '" data-idx="' + idx + '" data-campo="textoAjuda.quandoSim" rows="2">' + esc(p.textoAjuda.quandoSim || '') + '</textarea></div>';
+            '<textarea id="avpCfgAjudaSim' + idx + '" data-idx="' + idx + '" data-campo="textoAjuda.quandoSim" rows="2">' + esc(ajudaB.quandoSim || '') + '</textarea></div>';
           html += '<div class="avp-field"><label for="avpCfgAjudaNao' + idx + '">Ajuda — quando marcar NÃO</label>' +
-            '<textarea id="avpCfgAjudaNao' + idx + '" data-idx="' + idx + '" data-campo="textoAjuda.quandoNao" rows="2">' + esc(p.textoAjuda.quandoNao || '') + '</textarea></div>';
+            '<textarea id="avpCfgAjudaNao' + idx + '" data-idx="' + idx + '" data-campo="textoAjuda.quandoNao" rows="2">' + esc(ajudaB.quandoNao || '') + '</textarea></div>';
+        }
+        if (completo) {
+          html += '<div class="avp-field"><label for="avpCfgAjudaExtra' + idx + '">Ajuda — orientação adicional</label>' +
+            '<textarea id="avpCfgAjudaExtra' + idx + '" data-idx="' + idx + '" data-campo="ajudaExtra" rows="3">' + esc(p.ajudaExtra || '') + '</textarea></div>';
         }
         if ('exemplo' in p) {
           html += '<div class="avp-field"><label for="avpCfgExemplo' + idx + '">Exemplo</label>' +
@@ -3954,6 +3993,35 @@
       if (c.confirmandoPublicacao) html += renderConfigConfirmarPublicacao();
       return html;
     }
+    /* Diagnóstico conflito × recorte: respostas estáveis 'mesma'/'distintas'
+       (do código, nunca editáveis) e campos editoriais PRÓPRIOS — nunca os
+       de SIM/NÃO (justSim/justNao, textoAjuda.quandoSim/quandoNao). */
+    function renderConfigCamposDiagnostico(p, idx) {
+      var fq = window.faQuestionarios;
+      var ajuda = p.textoAjuda || {};
+      var campo = function (id, rotulo, nome, valor, input) {
+        return '<div class="avp-field"><label for="' + id + idx + '">' + esc(rotulo) + '</label>' + (input
+          ? '<input type="text" id="' + id + idx + '" data-idx="' + idx + '" data-campo="' + nome + '" value="' + esc(valor || '') + '">'
+          : '<textarea id="' + id + idx + '" data-idx="' + idx + '" data-campo="' + nome + '" rows="2">' + esc(valor || '') + '</textarea>') + '</div>';
+      };
+      var html = '<p class="avp-alt-label avp-config-tipo">Tipo: <strong>' + esc(fq.tipoPergunta(p)) + '</strong> — diagnóstico conflito × recorte ' +
+        '<span class="avp-config-readonly-tag">(somente leitura)</span></p>';
+      html += '<p class="avp-alt-label avp-config-respostas">Respostas: <strong>' + esc(fq.respostasDoTipo(fq.tipoPergunta(p)).join(' · ')) + '</strong> ' +
+        '<span class="avp-config-readonly-tag">(códigos fixos, somente leitura)</span></p>';
+      html += campo('avpCfgTitulo', ROTULO_CAMPO_EDITORIAL.titulo, 'titulo', p.titulo, true);
+      html += campo('avpCfgTexto', 'Texto da pergunta', 'texto', p.texto);
+      html += campo('avpCfgAjudaSig', ROTULO_CAMPO_EDITORIAL['textoAjuda.significado'], 'textoAjuda.significado', ajuda.significado);
+      html += campo('avpCfgAjudaMesma', ROTULO_CAMPO_EDITORIAL['textoAjuda.quandoMesma'], 'textoAjuda.quandoMesma', ajuda.quandoMesma);
+      html += campo('avpCfgAjudaDistintas', ROTULO_CAMPO_EDITORIAL['textoAjuda.quandoDistintas'], 'textoAjuda.quandoDistintas', ajuda.quandoDistintas);
+      html += campo('avpCfgRotuloMesma', ROTULO_CAMPO_EDITORIAL.rotuloMesma, 'rotuloMesma', p.rotuloMesma, true);
+      html += campo('avpCfgInterpMesma', ROTULO_CAMPO_EDITORIAL.interpretacaoMesma, 'interpretacaoMesma', p.interpretacaoMesma);
+      html += campo('avpCfgRotuloDistintas', ROTULO_CAMPO_EDITORIAL.rotuloDistintas, 'rotuloDistintas', p.rotuloDistintas, true);
+      html += campo('avpCfgInterpDistintas', ROTULO_CAMPO_EDITORIAL.interpretacaoDistintas, 'interpretacaoDistintas', p.interpretacaoDistintas);
+      html += campo('avpCfgObs', 'Observação administrativa (opcional, não aparece pra quem responde)', 'observacaoAdministrativa', p.observacaoAdministrativa);
+      return html;
+    }
+    var MSG_ESTRUTURA_DIVERGENTE = 'Nada foi gravado: os códigos das perguntas não conferem com a definição oficial do questionário. ' +
+      'Código, tipo e respostas de cada pergunta são estrutura e não mudam por aqui.';
     function renderConfigConfirmarPublicacao() {
       var c = state.config;
       var atuais = window.faQuestionarios.perguntasDaVersao(c.codigo);
@@ -4001,7 +4069,7 @@
           c.salvando = false;
           if (!err) c.sujo = false;
           c.flash = err ? null : '✓ Rascunho salvo. Ainda não está visível para quem responde o questionário.';
-          if (err) avpAlert('Não foi possível salvar o rascunho. Tente novamente.');
+          if (err) avpAlert(err === 'estrutura-divergente' ? MSG_ESTRUTURA_DIVERGENTE : 'Não foi possível salvar o rascunho. Tente novamente.');
           render();
         });
       });
@@ -4026,7 +4094,7 @@
           c.publicando = false;
           c.confirmandoPublicacao = false;
           if (err) {
-            avpAlert('Não foi possível publicar. Tente novamente.');
+            avpAlert(err === 'estrutura-divergente' ? MSG_ESTRUTURA_DIVERGENTE : 'Não foi possível publicar. Tente novamente.');
             render();
             return;
           }
@@ -4061,6 +4129,13 @@
         /* histórico recolhido (padrão único da Arquitetura): o valor anterior e o novo, que já
            estavam gravados mas não apareciam, ficam em "Ver detalhes" */
         html += renderHistoricoRecolhido('avpCfgHistorico', c.auditoria.map(function (a) {
+          /* campos próprios do diagnóstico conflito × recorte: nome humano e
+             "antes → depois" na própria linha. P/S ficam como sempre foram. */
+          if (CAMPOS_DIAGNOSTICO_HISTORICO[a.campo]) {
+            return { data: a.dataHora, autor: autorDe(a.usuario), tipo: 'Pergunta ' + a.pergunta + ' · ' + rotuloCampoEditorial(a.campo),
+              resumo: rotuloCampoEditorial(a.campo) + ': ' + textoDetalhe(a.valorAnterior) + ' → ' + textoDetalhe(a.valorNovo) +
+                ' · Versão ' + a.versaoAnterior + ' → ' + a.novaVersao, anterior: a.valorAnterior, novo: a.valorNovo };
+          }
           return { data: a.dataHora, autor: autorDe(a.usuario), tipo: 'Pergunta ' + a.pergunta + ' · ' + a.campo,
             resumo: 'Versão ' + a.versaoAnterior + ' → ' + a.novaVersao, anterior: a.valorAnterior, novo: a.valorNovo };
         }), { titulo: 'Histórico de alterações' });
@@ -4075,7 +4150,7 @@
           var versaoAlvo = Number(btn.dataset.versao);
           avpConfirm('Isso publica o conteúdo da versão ' + versaoAlvo + ' como uma versão NOVA — não apaga nem reescreve nenhuma versão existente, e não altera nenhuma avaliação já respondida. Deseja continuar?', function () {
             window.faQuestionarios.publicarVersaoAnterior(state.config.codigo, versaoAlvo, sessaoAtual(), function (err) {
-              if (err) { avpAlert('Não foi possível restaurar esta versão. Tente novamente.'); return; }
+              if (err) { avpAlert(err === 'estrutura-divergente' ? MSG_ESTRUTURA_DIVERGENTE : 'Não foi possível restaurar esta versão. Tente novamente.'); return; }
               abrirAuditoriaQuestionario(state.config.codigo);
             });
           });
@@ -8336,6 +8411,10 @@
        reprocessar — é um eixo só de apresentação (ver questionnaireContentVersion). */
     window.faQuestionarios.onMudanca(CODIGO_QUESTIONARIO, function () { render(); });
     window.faQuestionarios.onMudanca(window.faQuestionarios.CODIGOS.ADEQUACAO_SQUAD, function () { render(); });
+    /* Posicionamento Organizacional: por enquanto só conteúdo governado no
+       ADMIN (nenhuma tela responde O1–O9 ainda) — a leitura liga a situação,
+       o editor e o "config carregada" que a publicação exige. */
+    window.faQuestionarios.onMudanca(window.faQuestionarios.CODIGOS.POSICIONAMENTO_ORGANIZACIONAL, function () { render(); });
     /* Motor de classificação arquitetural (window.faMotorArquitetura) —
        este onMudanca é o que efetivamente liga a sincronização com o
        Firebase (ver garantirSync em motor-arquitetura.js: só se conecta na

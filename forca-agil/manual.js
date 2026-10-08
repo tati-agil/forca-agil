@@ -113,10 +113,12 @@
         'O Mapa da Floresta e os documentos são mantidos na própria tela de Documentação e mapas; o Manual não copia o conteúdo.',
         'Tudo o que muda fica no histórico de auditoria; nada é apagado (documentos são arquivados).',
         'Correção editorial de questionário vinda do código só vale quando alguém clica em Aplicar: cria uma versão nova e nunca sobrescreve um texto editado à mão (aparece como divergente, para conferir caso a caso).',
+        'Questionários e versões tem três questionários: Classificação arquitetural (P1–P16), Adequação à Squad (S1–S8) e Posicionamento Organizacional (O1–O9 e o diagnóstico conflito × recorte). O Posicionamento por enquanto só tem o texto mantido aqui: nenhuma avaliação o responde ainda.',
+        'Código, tipo da pergunta (SIM/NÃO ou "mesma"/"distintas") e os códigos das respostas são estrutura, não texto: não aparecem para edição e nenhuma publicação os muda.',
       ],
       links: [{ texto: 'Abrir ADMIN › Arquitetura', aba: 'adminPanelArquitetura' }],
       fonte: ['ADMIN › Arquitetura (a própria tela)', 'database.rules.json'],
-      prova: ['teste-mapa-floresta.js', 'teste-arquitetura-documentacao.js', 'teste-motor-adicionar-condicao.js', 'teste-rules-perfis-avaliacao.js', 'teste-correcao-editorial-29-textos.js'] },
+      prova: ['teste-mapa-floresta.js', 'teste-arquitetura-documentacao.js', 'teste-motor-adicionar-condicao.js', 'teste-rules-perfis-avaliacao.js', 'teste-correcao-editorial-29-textos.js', 'teste-questionario-posicionamento.js'] },
 
     { id: 'taxonomia', titulo: 'Taxonomia',
       oque: 'O dicionário de conceitos em dois domínios: arquitetural ("o que é o item?") e organizacional ("que tipo de estrutura é esta?").',
