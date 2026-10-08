@@ -99,6 +99,7 @@
         'O acesso vem só da lista de Usuários autorizados (ADMIN › Arquitetura, gerida pelo admin geral) e vale na hora, sem recarregar.',
         'O nome e a definição de cada classificação vêm da Taxonomia Arquitetural; o Manual não repete esses conceitos.',
         'As regras do banco aplicam o perfil: esconder botão não é a barreira.',
+        'Texto novo de questionário não reescreve o passado: cada avaliação mostra a pergunta que foi respondida. Ao reavaliar, a pergunta cujo texto mudou pede SIM ou NÃO de novo.',
       ],
       links: [{ texto: 'Abrir a Avaliação de Produto/Serviço', href: '#avaliacoes' }, { texto: 'Ver os conceitos em ADMIN › Taxonomia', aba: 'adminPanelTaxonomia' }],
       fonte: ['auth.js (getAvaliacaoTipo) e nó fa-avaliacao-autorizados', 'database.rules.json', 'Conceitos: ADMIN › Taxonomia'],
