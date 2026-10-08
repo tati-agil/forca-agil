@@ -207,7 +207,7 @@ console.log('\n-- 9. textos propostos: conferidos e sem efeito nos resultados --
 {
   const PROPOSTA = require('./proposta-textos-motores.js');
   const ler = (perg, campo) => campo.split('.').reduce((o, k) => (o == null ? o : o[k]), perg);
-  const escrever = (perg, campo, valor) => { const ks = campo.split('.'); const ult = ks.pop(); ks.reduce((o, k) => o[k], perg)[ult] = valor; };
+  const escrever = (perg, campo, valor) => { const ks = campo.split('.'); const ult = ks.pop(); ks.reduce((o, k) => (o[k] = o[k] || {}), perg)[ult] = valor; };
   /* um contexto novo, com o questionarios-config.js real, os textos trocados e os dois motores */
   const ctxT = { console: { log() {}, warn() {}, error() {} }, Date };
   ctxT.window = ctxT;
@@ -219,12 +219,18 @@ console.log('\n-- 9. textos propostos: conferidos e sem efeito nos resultados --
   const Q = ctxT.window.faQuestionarios;
   const divergentes = [];
   let trocados = 0;
+  /* "de" = texto de fábrica, ou o "para" de uma correção editorial já existente (é o que está em vigor),
+     ou null quando o campo ainda não existe */
+  const corrigido = (perg, campo) => Q.listarCorrecoesEditoriais().flatMap((c) => c.ajustes).filter((x) => x.pergunta === perg && x.campo === campo).map((x) => x.para);
   PROPOSTA.forEach((corr) => corr.ajustes.forEach((aj) => {
     const perg = Q.PADRAO[corr.codigo].perguntas.find((p) => p.codigoEstavel === aj.pergunta);
-    if (ler(perg, aj.campo) !== aj.de) divergentes.push(aj.pergunta + '.' + aj.campo);
+    const atual = ler(perg, aj.campo);
+    const ok = aj.de === null ? atual === undefined : (atual === aj.de || corrigido(aj.pergunta, aj.campo).includes(aj.de));
+    if (!ok) divergentes.push(aj.pergunta + '.' + aj.campo);
     else { escrever(perg, aj.campo, aj.para); trocados++; }
   }));
-  afirma(divergentes.length === 0 && trocados === 21, 'todo "de" da proposta é o texto de fábrica atual (21 ajustes)', divergentes.join(', ') + ' / ' + trocados);
+  afirma(divergentes.length === 0 && trocados === 29, 'todo "de" da proposta é o texto em vigor no código (fábrica ou correção editorial já existente) — 29 ajustes', divergentes.join(', ') + ' / ' + trocados);
+  afirma(PROPOSTA.every((c) => c.ajustes.every((a) => a.porque && /^Nenhuma/.test(a.regra))), 'todo ajuste diz por que muda e que nenhuma regra é alterada');
   vm.runInContext(fs.readFileSync(path.join(RAIZ, 'motor-arquitetura.js'), 'utf8'), ctxT);
   vm.runInContext(fs.readFileSync(path.join(RAIZ, 'motor-squad.js'), 'utf8'), ctxT);
   const MT = ctxT.window.faMotorArquitetura, ST = ctxT.window.faMotorSquad;
@@ -244,6 +250,12 @@ console.log('\n-- 9. textos propostos: conferidos e sem efeito nos resultados --
   const textoS = PROPOSTA.find((c) => c.codigo === 'ADEQUACAO_SQUAD').ajustes.map((a) => a.para).join(' ');
   afirma(!/essa solução|desta solução|dessa solução/i.test(textoS), 'nenhum texto novo de S1–S8 chama o item de "essa solução"');
   afirma(!/mapa da floresta|linha de|plataforma|coe\b/i.test(textoNovo), 'nenhum texto novo usa o Mapa da Floresta como justificativa');
+  const textoP15 = PROPOSTA[0].ajustes.filter((a) => a.pergunta === 'P15').map((a) => a.para).join(' ');
+  afirma(!/não percebe|não usa|não escolhe/i.test(textoP15), 'P15 não se define por "o cliente não percebe / não usa / não escolhe"');
+  afirma(['canal', 'documento', 'capacidade', 'processo', 'modalidade', 'regra', 'funcionalidade'].every((n) => PROPOSTA[0].ajustes.find((a) => a.pergunta === 'P15' && a.campo === 'texto').para.includes(n)),
+    'a nova pergunta P15 separa Componente das outras sete naturezas de P9–P16');
+  const textoP8 = PROPOSTA[0].ajustes.filter((a) => a.pergunta === 'P8').map((a) => a.para).join(' ');
+  afirma(!/\bdono\b|ownership|atribuir responsabilidade|responsável pela/i.test(textoP8), 'P8 não usa dono, ownership ou responsabilidade como critério (só a frase que manda não avaliar isso)');
 }
 
 console.log('\n-- 10. nada é gravado --');
