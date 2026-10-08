@@ -249,6 +249,9 @@ console.log('\n-- 9. textos propostos: conferidos e sem efeito nos resultados --
   afirma(!/\bdono\b|atribuir responsabilidade/i.test(textoNovo), 'nenhum texto novo fala em dono ou em atribuir responsabilidade');
   const textoS = PROPOSTA.find((c) => c.codigo === 'ADEQUACAO_SQUAD').ajustes.map((a) => a.para).join(' ');
   afirma(!/essa solução|desta solução|dessa solução/i.test(textoS), 'nenhum texto novo de S1–S8 chama o item de "essa solução"');
+  afirma(!/equipe/i.test(PROPOSTA[1].ajustes.find((x) => x.pergunta === 'S6' && x.campo === 'titulo').para), 'o título de S6 não pressupõe uma equipe existente');
+  afirma(!/solução/i.test(PROPOSTA[0].ajustes.find((x) => x.pergunta === 'P7').para.replace(/^O objetivo não é apenas medir quantidade de tarefas ou volume operacional\. /, '')), 'P7 não chama o objeto de "solução"');
+  afirma(!/reconheça/i.test(PROPOSTA[0].ajustes.find((x) => x.pergunta === 'P1' && x.campo === 'textoAjuda.quandoNao').para), 'P1 "quando NÃO" não fala em reconhecer o item (isso é P3)');
   afirma(!/mapa da floresta|linha de|plataforma|coe\b/i.test(textoNovo), 'nenhum texto novo usa o Mapa da Floresta como justificativa');
   const textoP15 = PROPOSTA[0].ajustes.filter((a) => a.pergunta === 'P15').map((a) => a.para).join(' ');
   afirma(!/não percebe|não usa|não escolhe/i.test(textoP15), 'P15 não se define por "o cliente não percebe / não usa / não escolhe"');
@@ -256,7 +259,7 @@ console.log('\n-- 9. textos propostos: conferidos e sem efeito nos resultados --
   afirma(p15('texto').length <= 90, 'a nova pergunta P15 é curta (a enumeração fica na ajuda)', p15('texto').length);
   afirma(['P9', 'P10', 'P11', 'P12', 'P13', 'P14', 'P16'].every((c) => p15('textoAjuda.quandoNao').includes('(' + c + ')')),
     'a ajuda de P15 (quando NÃO) separa Componente das outras sete naturezas, uma por uma');
-  afirma(['processo', 'modalidade', 'regra', 'funcionalidade', 'capacidade', 'canal', 'documento'].every((n) => p15('exemplo').includes('(' + n + ')')),
+  afirma(['processo', 'modalidade', 'regra', 'funcionalidade', 'capacidade', 'canal', 'documento'].every((n) => new RegExp('\\([^)]*' + n + '[^)]*\\)', 'i').test(p15('exemplo'))),
     'o exemplo de P15 tem um caso negativo para cada natureza vizinha');
   const textoP8 = PROPOSTA[0].ajustes.filter((a) => a.pergunta === 'P8').map((a) => a.para).join(' ');
   afirma(!/\bdono\b|ownership|atribuir responsabilidade|responsável pela/i.test(textoP8), 'P8 não usa dono, ownership ou responsabilidade como critério (só a frase que manda não avaliar isso)');
