@@ -6,7 +6,8 @@
  * desde a criação da Avaliação de Produto/Serviço (ea1a051) até o commit
  * imediatamente anterior à parametrização (c3a9de3^ — "Parametriza as 16
  * perguntas P1-P16"), extrai de cada uma o título e o texto de cada pergunta
- * (CRITERIOS/EXCLUSOES, campos titulo e pergunta) e grava tudo, por commit.
+ * (CRITERIOS/EXCLUSOES, campos titulo e pergunta) e a ajuda (textoAjuda, exemplo,
+ * exemplos, ajudaExtra) e grava tudo, por commit.
  * O teste teste-versionamento-historico.js compara esse arquivo com a versão 1
  * do questionário (texto de fábrica em questionarios-config.js): só a pergunta
  * igual em TODOS os commits pode ter o texto legado reconstruído.
@@ -37,12 +38,22 @@ function extrairArray(src, nome) {
   return vm.runInNewContext('(' + src.slice(src.indexOf('[', ini), i + 1) + ')');
 }
 
+/* Ajuda da época, no formato do questionário parametrizado: o objeto antigo
+   "ajuda" {significado, quandoSim, quandoNao, exemplo} virou textoAjuda (as três
+   primeiras) + exemplo; exemplos e ajudaExtra continuaram com o mesmo nome. */
+function ajudaNormalizada(q) {
+  const a = q.ajuda || q.textoAjuda || null;
+  const textoAjuda = a ? {} : null;
+  if (a) ['significado', 'quandoSim', 'quandoNao'].forEach((k) => { if (a[k]) textoAjuda[k] = a[k]; });
+  return { textoAjuda: textoAjuda, exemplo: (a && a.exemplo) || q.exemplo || null, exemplos: q.exemplos || null, ajudaExtra: q.ajudaExtra || null };
+}
+
 const porCommit = commits.map((h) => {
   const src = git('show ' + h + ':forca-agil/avaliacao-produto.js');
   const data = git('log -1 --format=%cI ' + h).trim();
   const lista = (extrairArray(src, 'CRITERIOS') || []).concat(extrairArray(src, 'EXCLUSOES') || []);
   const perguntas = {};
-  lista.forEach((q) => { perguntas[q.id] = { titulo: q.titulo || null, texto: q.pergunta || q.texto || null }; });
+  lista.forEach((q) => { perguntas[q.id] = { titulo: q.titulo || null, texto: q.pergunta || q.texto || null, ajuda: ajudaNormalizada(q) }; });
   return { commit: h.slice(0, 7), data, perguntas };
 });
 const saida = {

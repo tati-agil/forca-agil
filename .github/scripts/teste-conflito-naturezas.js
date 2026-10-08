@@ -33,6 +33,13 @@ const fs = require('fs');
 const path = require('path');
 const vm = require('vm');
 const crypto = require('crypto');
+/* Única diferença INTENCIONAL de texto desde a impressão digital (ajuste pós-publicação da P15):
+   o motivo de Componente passou a ser "É principalmente um elemento estrutural que compõe outro
+   Produto/Serviço". O rótulo antigo é recolocado antes de calcular — se o hash continua o de
+   antes, NADA além desse rótulo mudou. */
+const MOTIVO_COMPONENTE_NOVO = 'É principalmente um elemento estrutural que compõe outro Produto/Serviço';
+const MOTIVO_COMPONENTE_ANTIGO = 'Existe para que outro Produto/Serviço entregue seu resultado';
+const comMotivoDaEpoca = (s) => s.split(MOTIVO_COMPONENTE_NOVO).join(MOTIVO_COMPONENTE_ANTIGO);
 
 const BASE = process.env.FA_BASE_URL || 'http://127.0.0.1:8811';
 const FALSO = fs.readFileSync(path.join(__dirname, 'persistencia-firebase-real.js'), 'utf8') + '\n' +
@@ -199,7 +206,7 @@ function parteA() {
          (ver teste-texto-unidade-valor.js). O texto da época é recolocado
          antes do hash — se ele continua o de antes, nada mais mudou. */
       if (x.camadaSugerida.id === 'unidade-valor-associada' && x.camadaSugerida.relacao === RELACAO_UVA_ATUAL) x.camadaSugerida.relacao = RELACAO_UVA_DA_DIGITAL;
-      ha.update(JSON.stringify([x, justificativaDaEpoca(x.camadaSugerida.id, av.gerarJustificativaAutomatica(atual, x))]) + '\n');
+      ha.update(comMotivoDaEpoca(JSON.stringify([x, justificativaDaEpoca(x.camadaSugerida.id, av.gerarJustificativaAutomatica(atual, x))])) + '\n');
     }
     afirma(hm.digest('hex') === DIGITAL_V3_MOTOR, 'motor: retorno completo (camada, regra, motivos, conflito, incoerência) idêntico ao de antes nas 65.536');
     afirma(ha.digest('hex') === DIGITAL_V3_AVALIACAO, 'avaliação: classificação, rótulo, motivos, conflito, relação e justificativa idênticos aos de antes nas 65.536');

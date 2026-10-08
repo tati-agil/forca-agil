@@ -205,12 +205,16 @@
      c3a9de3^): ver .github/scripts/dados/textos-pre-parametrizacao.json e
      teste-versionamento-historico.js, que confere estas listas contra ela.
        - texto da pergunta: P1–P16, iguais à versão 1 (texto de fábrica);
-       - título: P1–P8 iguais à versão 1; P9–P16 não tinham título (ficam sem).
+       - título: P1–P8 iguais à versão 1; P9–P16 não tinham título (ficam sem);
+       - ajuda (textoAjuda, exemplo, exemplos, ajudaExtra): P1–P16 iguais à
+         versão 1 — usada só para decidir o aviso da reavaliação.
      Pergunta fora da lista → 'indisponivel', com TEXTO_NAO_RECONSTRUIVEL. */
   var VERSAO_LEGADA_COMPROVADA = 1;
   var LEGADO_TEXTO_COMPROVADO = { P1: true, P2: true, P3: true, P4: true, P5: true, P6: true, P7: true, P8: true,
     P9: true, P10: true, P11: true, P12: true, P13: true, P14: true, P15: true, P16: true };
   var LEGADO_TITULO_COMPROVADO = { P1: true, P2: true, P3: true, P4: true, P5: true, P6: true, P7: true, P8: true };
+  var LEGADO_AJUDA_COMPROVADA = { P1: true, P2: true, P3: true, P4: true, P5: true, P6: true, P7: true, P8: true,
+    P9: true, P10: true, P11: true, P12: true, P13: true, P14: true, P15: true, P16: true };
   var TEXTO_NAO_RECONSTRUIVEL = 'Texto histórico da pergunta não pôde ser reconstruído com segurança.';
   var NOTA_TEXTO_RECONSTRUIDO = 'Texto das perguntas reconstruído a partir da primeira versão disponível do questionário: esta avaliação é anterior ao registro do texto em cada resposta.';
   var NOTA_TEXTO_INDISPONIVEL = 'O texto de algumas perguntas não pôde ser reconstruído com segurança: esta avaliação é anterior ao registro do texto em cada resposta.';
@@ -244,20 +248,44 @@
        'ajuda'    — só ajuda/exemplo/título mudou: aviso discreto, sem bloquear;
        null       — respondida nesta versão, ou nada mudou. */
   var CAMPOS_AJUDA_COMPARADOS = ['titulo', 'textoAjuda', 'exemplo', 'exemplos', 'ajudaExtra'];
+  /* Comparação pelo CONTEÚDO, nunca pela forma: o Firebase devolve as chaves
+     de um objeto em ordem alfabética (textoAjuda vinda do banco ≠ a mesma
+     textoAjuda de fábrica numa comparação de texto) e ausente, null e ''
+     são a mesma coisa — sem isso, pergunta que não mudou recebia aviso. */
+  function conteudoNormalizado(v) {
+    if (v == null || v === '') return null;
+    if (Array.isArray(v)) return v.map(conteudoNormalizado);
+    if (typeof v === 'object') {
+      var r = {};
+      Object.keys(v).sort().forEach(function (k) { var n = conteudoNormalizado(v[k]); if (n !== null) r[k] = n; });
+      return Object.keys(r).length ? r : null;
+    }
+    return v;
+  }
+  function mesmoConteudo(a, b) { return JSON.stringify(conteudoNormalizado(a)) === JSON.stringify(conteudoNormalizado(b)); }
   function situacaoRespostaHerdada(def, resposta, versaoAvaliacao) {
     if (!resposta || !resposta.valor || !versaoAvaliacao) return null;
     var versaoResposta = resposta.questionnaireContentVersion || null;
     if (versaoResposta === versaoAvaliacao) return null;
     var agora = conteudoDe(def, versaoAvaliacao);
-    var antes = versaoResposta ? conteudoDe(def, versaoResposta) : null;
-    var textoAntes = resposta.textoPerguntaNaEpoca || (antes && antes.texto) ||
+    /* Legada (sem versão na resposta): a ajuda da época só é comparada onde a
+       evidência prova que era a da versão 1 (LEGADO_AJUDA_COMPROVADA). */
+    var antes = versaoResposta ? conteudoDe(def, versaoResposta)
+      : (LEGADO_AJUDA_COMPROVADA[def.codigoEstavel] ? conteudoDe(def, VERSAO_LEGADA_COMPROVADA) : null);
+    var textoAntes = resposta.textoPerguntaNaEpoca || (versaoResposta && antes && antes.texto) ||
       (function () { var l = conteudoLegado(def); return l.origem === 'reconstruido' ? l.texto : null; })();
     if (!textoAntes || textoAntes !== agora.texto) return 'pergunta';
-    if (!antes) return 'ajuda'; /* legada: a ajuda da época não está comprovada — avisa, sem bloquear */
-    var mudou = CAMPOS_AJUDA_COMPARADOS.some(function (campo) {
-      return JSON.stringify(antes[campo] == null ? null : antes[campo]) !== JSON.stringify(agora[campo] == null ? null : agora[campo]);
-    });
+    if (!antes) return 'ajuda'; /* legada sem prova da ajuda da época — avisa, sem bloquear */
+    var mudou = CAMPOS_AJUDA_COMPARADOS.some(function (campo) { return !mesmoConteudo(antes[campo], agora[campo]); });
     return mudou ? 'ajuda' : null;
+  }
+  /* Resposta que vale para concluir — o MESMO critério do contador de
+     progresso e de primeiraPerguntaFaltando: SIM/NÃO dado à pergunta desta
+     versão (a herdada de pergunta cujo texto mudou ainda não vale). */
+  function respostaValida(def, atual) {
+    var r = (atual.respostas || {})[def.id];
+    if (!(r && (r.valor === 'sim' || r.valor === 'nao'))) return false;
+    return situacaoRespostaHerdada(def, r, atual.questionnaireContentVersion) !== 'pergunta';
   }
 
   /* Replica o comportamento visual que já existia antes deste módulo (nunca
@@ -595,7 +623,7 @@
     processo: 'Funciona predominantemente como processo/etapa de processo',
     modalidade: 'Funciona predominantemente como modalidade/opção/configuração',
     regra: 'Funciona predominantemente como regra/condição',
-    componente: 'Existe para que outro Produto/Serviço entregue seu resultado',
+    componente: 'É principalmente um elemento estrutural que compõe outro Produto/Serviço',
     funcionalidade: 'Funciona predominantemente como funcionalidade/operação dentro de outro Produto/Serviço'
   };
 
@@ -1358,12 +1386,8 @@
   /* Devolve o id da primeira pergunta sem resposta (para focar/destacar),
      ou null se todas as 14 já foram respondidas. */
   function primeiraPerguntaFaltando(atual) {
-    var r = atual.respostas || {};
-    var faltante = TODAS_PERGUNTAS.filter(function (p) {
-      if (!(r[p.id] && (r[p.id].valor === 'sim' || r[p.id].valor === 'nao'))) return true;
-      /* resposta herdada de uma pergunta cujo texto mudou não conta como resposta à pergunta nova */
-      return situacaoRespostaHerdada(p, r[p.id], atual.questionnaireContentVersion) === 'pergunta';
-    });
+    /* resposta herdada de uma pergunta cujo texto mudou não conta como resposta à pergunta nova */
+    var faltante = TODAS_PERGUNTAS.filter(function (p) { return !respostaValida(p, atual); });
     return faltante.length ? faltante[0].id : null;
   }
   /* Resumo de "o que mudou" numa reavaliação em andamento, comparando o
@@ -5857,8 +5881,10 @@
       if (state.erroForm) html += '<p class="avp-error-msg">' + esc(state.erroForm) + '</p>';
 
       /* Progresso discreto (não muda o fluxo, é só um auxílio visual): quantas
-         das 16 perguntas já têm resposta registrada nesta avaliação. */
-      var respondidas = TODAS_PERGUNTAS.filter(function (p) { return a.respostas[p.id] && a.respostas[p.id].valor; }).length;
+         das 16 perguntas já têm resposta VÁLIDA — o mesmo critério da conclusão
+         (respostaValida): na reavaliação, a herdada de pergunta cujo texto
+         mudou ainda não conta. */
+      var respondidas = TODAS_PERGUNTAS.filter(function (p) { return respostaValida(p, a); }).length;
       html += '<p class="avp-progresso-perguntas">' + respondidas + ' de ' + TODAS_PERGUNTAS.length + ' perguntas respondidas</p>';
 
       /* "Atua dentro de outro Produto/Serviço" (funcionalidade) e "existe de

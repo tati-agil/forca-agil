@@ -60,8 +60,12 @@ const P15_V2 = 'TEXTO NOVO DE TESTE: o item é principalmente um elemento estrut
 const P8_AJUDA_V2 = 'AJUDA NOVA DE TESTE para P8 (a pergunta não muda).';
 V2.find((p) => p.codigoEstavel === 'P15').texto = P15_V2;
 V2.find((p) => p.codigoEstavel === 'P8').textoAjuda.significado = P8_AJUDA_V2;
+/* O Firebase devolve as chaves de cada objeto em ordem alfabética: a v2 do banco falso vem assim,
+   como a de produção — textoAjuda {quandoNao, quandoSim, significado}, e não na ordem de fábrica. */
+const ordenarChaves = (v) => (Array.isArray(v) ? v.map(ordenarChaves) : v && typeof v === 'object'
+  ? Object.keys(v).sort().reduce((o, k) => { o[k] = ordenarChaves(v[k]); return o; }, {}) : v);
 const CONFIG_Q = { CLASSIFICACAO_ARQUITETURAL: { versaoPublicada: 2, versoes: {
-  2: { perguntas: V2, publicadoEm: '2026-10-08T00:00:00.000Z', publicadoPor: 'teste' } } } }; /* a v1 é o texto de fábrica, como no site */
+  2: { perguntas: ordenarChaves(V2), publicadoEm: '2026-10-08T00:00:00.000Z', publicadoPor: 'teste' } } } }; /* a v1 é o texto de fábrica, como no site */
 
 /* ---- avaliações: P1 e P15 SIM, o resto NÃO */
 const VALOR = (id) => (id === 'componente' || id === 'necessidade' ? 'sim' : 'nao');
@@ -115,6 +119,12 @@ console.log('\n-- 15. reconstrução das legadas só onde há prova --');
   afirma(EVIDENCIA.commits.length === 24 && EVIDENCIA.parametrizacao.commit === 'c3a9de3', 'a evidência cobre as 24 versões do código anteriores à parametrização (c3a9de3)', EVIDENCIA.commits.length);
   afirma(JSON.stringify(listaCodigo('LEGADO_TEXTO_COMPROVADO').sort()) === JSON.stringify(provadosTexto.sort()), 'a lista de textos legados reconstruíveis no código é exatamente a provada pela evidência', listaCodigo('LEGADO_TEXTO_COMPROVADO').join(',') + ' × ' + provadosTexto.join(','));
   afirma(JSON.stringify(listaCodigo('LEGADO_TITULO_COMPROVADO').sort()) === JSON.stringify(provadosTitulo.sort()), 'a lista de títulos legados reconstruíveis é exatamente a provada (P9–P16 não tinham título)', listaCodigo('LEGADO_TITULO_COMPROVADO').join(',') + ' × ' + provadosTitulo.join(','));
+  const norm = (o) => { if (o == null || o === '') return null; if (Array.isArray(o)) return o.map(norm);
+    if (typeof o === 'object') { const r = {}; Object.keys(o).sort().forEach((k) => { const v = norm(o[k]); if (v !== null) r[k] = v; }); return Object.keys(r).length ? r : null; } return o; };
+  const provadosAjuda = ORDEM.filter((id) => { const v1 = V1.find((p) => p.codigoEstavel === CODIGO[id]);
+    const alvo = JSON.stringify(norm({ textoAjuda: v1.textoAjuda, exemplo: v1.exemplo, exemplos: v1.exemplos, ajudaExtra: v1.ajudaExtra }));
+    const em = EVIDENCIA.commits.filter((c) => c.perguntas[id]); return em.length && em.every((c) => c.perguntas[id].ajuda && JSON.stringify(norm(c.perguntas[id].ajuda)) === alvo); }).map((id) => CODIGO[id]);
+  afirma(JSON.stringify(listaCodigo('LEGADO_AJUDA_COMPROVADA').sort()) === JSON.stringify(provadosAjuda.sort()), 'a lista de ajudas legadas comprovadas é exatamente a provada pela evidência (ajuda, exemplo, exemplos, ajuda extra)', listaCodigo('LEGADO_AJUDA_COMPROVADA').join(',') + ' × ' + provadosAjuda.join(','));
 }
 
 console.log('\n-- 12, 13, 14. Reprocessar não reescreve o que a pessoa respondeu --');
@@ -252,7 +262,12 @@ async function lerExcelRespostas(page) {
     afirma(q15.texto === P15_V2 && !q15.ativo && q15.pergunta && /SIM/.test(q15.tudo) && q15.tudo.includes(P15_V1),
       '9/10. P15 mudou: a pergunta nova aparece sem botão marcado e a resposta antiga só como referência (com o texto antigo)', JSON.stringify(q15));
     afirma(q8.ativo && q8.ajuda && !q8.pergunta, '11. P8 (só a ajuda mudou): resposta continua marcada, com aviso discreto', JSON.stringify(q8));
-    afirma(q1.ativo && !q1.ajuda && !q1.pergunta, '8. P1 (nada mudou): resposta herdada continua, sem aviso', JSON.stringify(q1));
+    afirma(q1.ativo && !q1.ajuda && !q1.pergunta, '8. P1 (nada mudou, e a ajuda vem do banco com as chaves em outra ordem): resposta herdada continua, sem aviso', JSON.stringify(q1));
+    const semAviso = [];
+    for (const id of ORDEM.filter((x) => x !== 'componente' && x !== 'gestao')) { const x = await q(id); if (x.ajuda || x.pergunta) semAviso.push(CODIGO[id]); }
+    afirma(!semAviso.length, 'nenhuma outra pergunta (P1–P7, P9–P14, P16) mostra aviso: nada mudou nelas', semAviso.join(','));
+    const progresso = () => page.locator('.avp-progresso-perguntas').innerText();
+    afirma(/^15 de 16 perguntas respondidas/.test(await progresso()), 'contador: 15 de 16 enquanto a P15 aguarda nova resposta (mesmo critério da conclusão)', await progresso());
     afirma(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth + 1), 'avisos cabem na tela (sem rolagem lateral)');
 
     await page.click('#avpConcluirBtn');
@@ -263,6 +278,7 @@ async function lerExcelRespostas(page) {
 
     await page.locator('#avpQuestion-componente .avp-choice-btn--sim').click();
     afirma(!(await q('componente')).pergunta, 'depois do clique o aviso some');
+    afirma(/^16 de 16 perguntas respondidas/.test(await progresso()), 'e o contador vai a 16 de 16', await progresso());
     await page.click('#avpConcluirBtn');
     await page.waitForFunction(() => Object.values(window.__CFG.__dbReal['avaliacoes-produto']).some((i) => i.versaoAnteriorKey === 'itemv1' && i.status === 'concluido'), null, { timeout: 15000 });
     dep = await banco(page);
@@ -278,6 +294,30 @@ async function lerExcelRespostas(page) {
     afirma(JSON.stringify(dep['avaliacoes-squad'] || {}) === '{}', '18. nada da Adequação à Squad foi tocado');
     /* 16/17: a classificação da v2 é a do motor vigente para as mesmas respostas (P1 e P15 SIM) */
     afirma(v2.camadaSugerida && v2.camadaSugerida.id === 'componente', '16/17. a classificação da v2 é a do motor atual para as mesmas respostas (Componente)', v2.camadaSugerida && v2.camadaSugerida.id);
+    const motivos = (v2.camadaSugerida.motivos || []).join(' | ');
+    afirma(motivos.includes('É principalmente um elemento estrutural que compõe outro Produto/Serviço: SIM') && !/Existe para que outro Produto\/Serviço entregue seu resultado/.test(motivos),
+      'o motivo de Componente na avaliação nova usa a redação nova da P15, não a antiga', motivos);
+    const fichaV2 = await page.locator('.avp-motivos-list').textContent().catch(() => '');
+    afirma(fichaV2.includes('É principalmente um elemento estrutural que compõe outro Produto/Serviço: SIM') && !/Existe para que outro/.test(fichaV2), 'e a ficha da avaliação nova mostra esse motivo', fichaV2);
+    afirma(erros.length === 0, 'sem erro de página', erros.join(' | '));
+    await ctx.close();
+  }
+
+  console.log('\n== Reavaliar uma legada (respostas sem versão): aviso só onde algo mudou ==');
+  {
+    const { ctx, page, erros } = await abrir(browser, { width: 375, height: 800 });
+    await abrirFicha(page, 'legado');
+    await page.click('#avpReavaliarBtn');
+    await page.waitForSelector('#avpQuestion-componente');
+    const aviso = (id) => page.evaluate((id) => { const el = document.getElementById('avpQuestion-' + id);
+      return el.querySelector('.avp-herdada--pergunta') ? 'pergunta' : el.querySelector('.avp-herdada--ajuda') ? 'ajuda' : (el.querySelector('.avp-choice-btn.active') ? 'marcada' : 'vazia'); }, id);
+    const estados = {}; for (const id of ORDEM) estados[CODIGO[id]] = await aviso(id);
+    afirma(estados.P15 === 'pergunta', 'P15 (pergunta mudou): resposta antiga só como referência, nova resposta obrigatória', estados.P15);
+    afirma(estados.P8 === 'ajuda', 'P8 (só a ajuda mudou): aviso discreto, resposta mantida', estados.P8);
+    const outras = Object.keys(estados).filter((k) => k !== 'P15' && k !== 'P8' && estados[k] !== 'marcada');
+    afirma(!outras.length, 'as outras 14 (inclusive P14 e P16) ficam marcadas e sem aviso — a ajuda legada é comprovadamente a da versão 1', outras.map((k) => k + '=' + estados[k]).join(','));
+    afirma(/^15 de 16 perguntas respondidas/.test(await page.locator('.avp-progresso-perguntas').innerText()), 'contador: 15 de 16');
+    afirma(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth + 1), 'cabe na tela do celular');
     afirma(erros.length === 0, 'sem erro de página', erros.join(' | '));
     await ctx.close();
   }

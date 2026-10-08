@@ -51,6 +51,13 @@ const FALSO = fs.readFileSync(path.join(__dirname, 'persistencia-firebase-real.j
   fs.readFileSync(path.join(__dirname, 'firebase-falso.js'), 'utf8');
 const RAIZ = path.join(__dirname, '..', '..', 'forca-agil');
 const XLSX = require(path.join(RAIZ, 'xlsx.mini.min.js'));
+/* Única diferença INTENCIONAL de texto desde a impressão digital (ajuste pós-publicação da P15):
+   o motivo de Componente passou a ser "É principalmente um elemento estrutural que compõe outro
+   Produto/Serviço". O rótulo antigo é recolocado antes de calcular — se o hash continua o de
+   antes, NADA além desse rótulo mudou. */
+const MOTIVO_COMPONENTE_NOVO = 'É principalmente um elemento estrutural que compõe outro Produto/Serviço';
+const MOTIVO_COMPONENTE_ANTIGO = 'Existe para que outro Produto/Serviço entregue seu resultado';
+const comMotivoDaEpoca = (s) => s.split(MOTIVO_COMPONENTE_NOVO).join(MOTIVO_COMPONENTE_ANTIGO);
 const SRC = {
   qc: fs.readFileSync(path.join(RAIZ, 'questionarios-config.js'), 'utf8'),
   motor: fs.readFileSync(path.join(RAIZ, 'motor-arquitetura.js'), 'utf8'),
@@ -185,7 +192,7 @@ function digitalDaEpoca(r) {
       if (b.tipo === 'autonomia') i[4] = semPrefixo(justSim[4]);
       if (b.tipo === 'natureza') { const k = Number(b.pergunta.slice(1)) - 1; i[k] = semPrefixo(justSim[k]); }
     }
-    h.update(JSON.stringify([m, xx, j, i]) + '\n');
+    h.update(comMotivoDaEpoca(JSON.stringify([m, xx, j, i])) + '\n');
   });
   return h.digest('hex');
 }
