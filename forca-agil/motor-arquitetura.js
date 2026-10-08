@@ -997,31 +997,87 @@
     regras.push(regraConflitoNaturezas(ordemConflito));
     return ordenarPorPrecedencia(regras);
   }
+  /* Capacidade organizacional "G" (versão 6 das regras). A exigência P1 = NÃO
+     confundia natureza com destinatário — depois da redação final de P1, ter
+     cliente ou público identificável (interno ou externo) não distingue
+     Produto/Serviço de Capacidade. Sai P1 = NÃO e entra só a proteção do
+     núcleo COMPLETO de Produto/Serviço (P1, P2, P3, P4, P5 e P8 = SIM): quem
+     cumpre tudo isso e ainda se declara "principalmente capacidade" fica em
+     A validar, para análise humana. P15 = NÃO continua explícita (hoje o
+     conflito de naturezas já pega P11 e P15 = SIM antes, mas a condição
+     protege Capacidade se as precedências mudarem). Precedência igual. */
+  var PROPOSTA_CAPACIDADE_G = {
+    id: 'capacidade-g',
+    versaoBase: 5,
+    titulo: 'Capacidade organizacional sem exigir P1 = NÃO (Capacidade G)',
+    mudancas: [
+      'CAPACIDADE_ORGANIZACIONAL deixa de exigir P1 = NÃO: ter cliente ou público identificável, interno ou externo, não determina por si só que o item seja Produto/Serviço.',
+      'Proteção do núcleo de Produto/Serviço: com P1, P2, P3, P4, P5 e P8 = SIM ao mesmo tempo, o item que se declara principalmente capacidade continua em "A validar".',
+      'P15 = NÃO continua na regra; a precedência não muda. Os motivos passam a ser P11 e P15 (P1 deixa de ser motivo de Capacidade).',
+      'Nas 65.536 combinações: Capacidade passa de 128 para 252 — 124 saem de "A validar"; nenhuma deixa de ser Capacidade e nenhuma outra classificação muda.'
+    ]
+  };
+  var NUCLEO_PRODUTO_SERVICO = ['P1', 'P2', 'P3', 'P4', 'P5', 'P8'];
+  /* A versão 5 que motivou a proposta: a proposta da versão 4 (sobre a 3
+     esperada) + P8 = SIM em Produto/Serviço principal e em Unidade de valor. */
+  function regrasVersao5Esperadas() {
+    var regras = construirPropostaConflitoNaturezas(regrasVersao3Esperadas());
+    regras.forEach(function (r) {
+      if (r.codigo === 'PRODUTO_SERVICO_PRINCIPAL' || r.codigo === 'UNIDADE_VALOR_ASSOCIADA') r.condicoes.all.push({ campo: 'P8', valor: 'SIM' });
+    });
+    return regras;
+  }
+  /* Aplica a Capacidade G sobre uma CÓPIA das regras da versão 5 — só a regra
+     de Capacidade muda; ordem, motivos e condições das demais ficam iguais. */
+  function construirPropostaCapacidadeG(regrasV5) {
+    var regras = migrarFallbackLegado(regrasV5);
+    regras.forEach(function (r) {
+      if (r.codigo !== 'CAPACIDADE_ORGANIZACIONAL') return;
+      r.condicoes.all = r.condicoes.all.filter(function (c) { return !ehFolha(c, 'P1'); });
+      r.condicoes.all.push({ not: { all: NUCLEO_PRODUTO_SERVICO.map(function (campo) { return { campo: campo, valor: 'SIM' }; }) } });
+      r.motivos = (r.motivos || []).filter(function (m) { return m !== 'P1'; });
+    });
+    return ordenarPorPrecedencia(regras);
+  }
+  /* Cada proposta: a versão-base EXATA sobre a qual vale, como reconstruir essa
+     base e como montar a proposta. Vale a última cuja base já foi alcançada —
+     nunca duas ao mesmo tempo, nunca adaptada a outra base. */
+  var PROPOSTAS_REGRAS = [
+    { def: PROPOSTA_CONFLITO_NATUREZAS, esperadas: regrasVersao3Esperadas, construir: construirPropostaConflitoNaturezas },
+    { def: PROPOSTA_CAPACIDADE_G, esperadas: regrasVersao5Esperadas, construir: construirPropostaCapacidadeG }
+  ];
+  function propostaVigente() {
+    var vigente = versaoAtual(), escolhida = PROPOSTAS_REGRAS[0];
+    PROPOSTAS_REGRAS.forEach(function (p) { if (vigente >= p.def.versaoBase) escolhida = p; });
+    return escolhida;
+  }
   /* { id, titulo, mudancas, versaoBase, estado: 'disponivel'|'aplicada'|'bloqueada', motivo } */
   function situacaoPropostaRegras() {
-    var p = PROPOSTA_CONFLITO_NATUREZAS;
+    var pr = configRecebida ? propostaVigente() : PROPOSTAS_REGRAS[0];
+    var p = pr.def;
     var base = { id: p.id, titulo: p.titulo, mudancas: p.mudancas.slice(), versaoBase: p.versaoBase };
     if (!configRecebida) return Object.assign(base, { estado: 'bloqueada', motivo: 'As regras publicadas ainda não foram carregadas. Aguarde e abra o editor de novo.' });
     var vigente = versaoAtual();
-    var proposta = construirPropostaConflitoNaturezas(regrasVersao3Esperadas());
+    var proposta = pr.construir(pr.esperadas());
     var regrasVigentes = regrasDaVersaoEstrita(vigente);
     if (vigente !== p.versaoBase) {
       if (regrasVigentes && !diffRegras(proposta, regrasVigentes).length) return Object.assign(base, { estado: 'aplicada', motivo: 'Esta proposta já está publicada (versão ' + vigente + ').' });
       return Object.assign(base, { estado: 'bloqueada', motivo: 'A proposta foi preparada sobre a versão ' + p.versaoBase + ', mas a versão publicada agora é a ' + vigente + '. Nada foi carregado.' });
     }
     if (!regrasVigentes) return Object.assign(base, { estado: 'bloqueada', motivo: 'Não consegui ler as regras da versão ' + p.versaoBase + '. Nada foi carregado.' });
-    var diferentes = diffRegras(regrasVersao3Esperadas(), regrasVigentes);
+    var diferentes = diffRegras(pr.esperadas(), regrasVigentes);
     if (diferentes.length) {
       return Object.assign(base, { estado: 'bloqueada', motivo: 'A versão ' + p.versaoBase + ' publicada não tem a estrutura esperada pela proposta (regras diferentes: ' +
         diferentes.map(function (d) { return d.codigo; }).join(', ') + '). Nada foi carregado.' });
     }
     return Object.assign(base, { estado: 'disponivel', motivo: null });
   }
-  /* Regras da proposta, montadas sobre a versão 3 publicada — só quando a
+  /* Regras da proposta, montadas sobre a versão-base publicada — só quando a
      proposta está disponível; senão null. Uma cópia nova a cada chamada. */
   function regrasDaPropostaRegras() {
     if (situacaoPropostaRegras().estado !== 'disponivel') return null;
-    return construirPropostaConflitoNaturezas(regrasDaVersaoEstrita(PROPOSTA_CONFLITO_NATUREZAS.versaoBase));
+    var pr = propostaVigente();
+    return pr.construir(regrasDaVersaoEstrita(pr.def.versaoBase));
   }
 
   /* Registrada quando uma publicação é rejeitada por concorrência (ver
@@ -1241,6 +1297,8 @@
     /* Puras (sem Firebase): usadas pelos testes para provar a proposta sem banco. */
     regrasVersao3Esperadas: regrasVersao3Esperadas,
     construirPropostaConflitoNaturezas: construirPropostaConflitoNaturezas,
+    regrasVersao5Esperadas: regrasVersao5Esperadas,
+    construirPropostaCapacidadeG: construirPropostaCapacidadeG,
     onMudanca: onMudanca,
     versaoAtual: versaoAtual,
     regrasDaVersao: regrasDaVersao,

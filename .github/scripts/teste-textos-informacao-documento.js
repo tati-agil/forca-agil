@@ -42,7 +42,16 @@ const crypto = require('crypto');
    antes, NADA além desse rótulo mudou. */
 const MOTIVO_COMPONENTE_NOVO = 'É principalmente um elemento estrutural que compõe outro Produto/Serviço';
 const MOTIVO_COMPONENTE_ANTIGO = 'Existe para que outro Produto/Serviço entregue seu resultado';
-const comMotivoDaEpoca = (s) => s.split(MOTIVO_COMPONENTE_NOVO).join(MOTIVO_COMPONENTE_ANTIGO);
+/* Capacidade G: o rótulo de P11, a relação e a justificativa de Capacidade deixaram de afirmar
+   "interna, sem necessidade de cliente identificável" (com a G, P1 = SIM é compatível com Capacidade).
+   Os textos antigos são recolocados da mesma forma — a justificativa antiga era o molde genérico. */
+const ROTULO_CAPACIDADE = ['É principalmente uma capacidade que a organização precisa possuir', 'Funciona predominantemente como capacidade organizacional'];
+const RELACAO_CAPACIDADE = ['Representa uma capacidade que a organização precisa possuir para realizar, sustentar ou evoluir suas entregas. Pode atender públicos internos ou externos; a existência de um público identificável não determina, por si só, que o item seja Produto/Serviço.',
+  'É uma capacidade organizacional interna, sem necessidade de cliente identificável associada.'];
+const JUSTIFICATIVA_CAPACIDADE = /As respostas indicam que o item é principalmente uma capacidade que a organização precisa possuir\. Embora possa atender um cliente ou público e apresentar alguns sinais associados a Produto\/Serviço, não reúne simultaneamente todo o núcleo que caracteriza uma solução principal\. Por isso, sua classificação predominante é ([^."]+)\./g;
+const comMotivoDaEpoca = (s) => s.split(MOTIVO_COMPONENTE_NOVO).join(MOTIVO_COMPONENTE_ANTIGO)
+  .split(ROTULO_CAPACIDADE[0]).join(ROTULO_CAPACIDADE[1]).split(RELACAO_CAPACIDADE[0]).join(RELACAO_CAPACIDADE[1])
+  .replace(JUSTIFICATIVA_CAPACIDADE, (m, nome) => 'O item foi classificado como ' + nome + ', e não como Produto/Serviço principal, porque funciona predominantemente como uma capacidade organizacional interna, sem necessidade de cliente identificável associada.');
 
 const BASE = process.env.FA_BASE_URL || 'http://127.0.0.1:8811';
 const FALSO = fs.readFileSync(path.join(__dirname, 'persistencia-firebase-real.js'), 'utf8') + '\n' +
