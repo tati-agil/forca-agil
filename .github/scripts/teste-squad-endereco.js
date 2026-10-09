@@ -11,7 +11,7 @@
  *     por não ter esperado);
  *   - link direto / F5 quando avaliacao-squad.js chega ~3 s DEPOIS do roteador e de avaliacao-produto.js
  *     (máquina lenta): o módulo se monta sozinho ao carregar e abre a tela do endereço; montar de novo
- *     (faInitAvaliacaoSquad) devolve a mesma instância, sem listener nem navegação duplicados.
+ *     (faInitAvaliacaoSquad) mantém a mesma instância, sem listener nem navegação duplicados.
  * Hermético (Firebase falso). */
 const { chromium } = require('playwright');
 const { esperarSessaoAssentada, esperarCondicao, esperarCondicaoAte } = require('./esperas');
@@ -165,7 +165,7 @@ const esperarHash = (page, h, descricao) => esperarCondicao(page, (x) => locatio
       afirma(await titulo(page) === 'Adequação à Squad', 'o título é "Adequação à Squad" (' + await titulo(page) + ')');
       /* idempotência: montar de novo não cria outra instância nem duplica a navegação */
       const mesma = await page.evaluate(() => { const a = window.faAvaliacaoSquad; window.faInitAvaliacaoSquad({ modo: 'operacional' }); window.faInitAvaliacaoSquad({ modo: 'operacional' }); return !!a && window.faAvaliacaoSquad === a; });
-      afirma(mesma, 'faInitAvaliacaoSquad({modo:"operacional"}) chamado de novo devolve a MESMA instância');
+      afirma(mesma, 'faInitAvaliacaoSquad({modo:"operacional"}) chamado de novo mantém a MESMA instância');
       const antes = await page.evaluate(() => history.length);
       await page.click('#avaliacoesSquad #sqVoltarListaResultado');
       await esperarHash(page, '#avaliacoes?sq=lista');
