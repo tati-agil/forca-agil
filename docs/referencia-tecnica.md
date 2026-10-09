@@ -27,6 +27,7 @@ O resto (finalidade, observações) é prosa e depende de quem muda o código at
 | Quem acessa cada rota e o que aparece no menu | `forca-agil/router.js` (decisão de rota) e `forca-agil/auth.js` (sessão, níveis, perfis, menu) | testes herméticos de rota/acesso (ex.: `teste-avaliacoes-acessos.js`, `teste-tela-preta.js`, `teste-rolagem-decisao-tardia.js`) |
 | Quem lê e grava cada dado | `database.rules.json` | `teste-rules*.js` no emulador (job `testes-rules`) |
 | Conceitos arquiteturais e organizacionais (nome, definição) | ADMIN › Taxonomia (nó `taxonomia`) | `teste-rules-taxonomia*.js`, `teste-taxonomia*.js` |
+| Posicionamento Organizacional O1–O9: resultado, caminho, unicidade | `forca-agil/motor-posicionamento.js` (resultado); `database.rules.json` confere que o resultado gravado é EXATAMENTE o do motor v1, gerado de `.github/scripts/regras-posicionamento-tabela.js` | `teste-regras-posicionamento-tabela.js` (531.441 estados; trecho gerado = trecho publicado), `teste-rules-posicionamento.js` (emulador), `teste-avaliacao-posicionamento.js` (tela) |
 | Mapa da Floresta e documentos de Arquitetura | ADMIN › Arquitetura › Documentação e mapas (nós `arquitetura-definicoes`, `arquitetura-documentos`) | `teste-mapa-floresta.js`, `teste-rules-perfis-avaliacao.js` |
 | Comportamento das telas | o próprio código + testes herméticos (`.github/scripts/suite-hermetica.json`) | os 80+ testes da suíte |
 | Deploy e CI | `.github/workflows/*.yml`, `firebase.json`, `.firebaserc` | — |
@@ -85,9 +86,10 @@ alguém precisa).
 | `forca-agil/avaliacao-produto.js` | index.html | Avaliação de Produto/Serviço (`#avaliacoes`) e ADMIN › Arquitetura. |
 | `forca-agil/taxonomia.js` | index.html | ADMIN › Taxonomia (`window.faTaxonomia`). |
 | `forca-agil/motor-posicionamento.js` | index.html | Motor puro de Posicionamento Organizacional O1–O9 (`window.faMotorPosicionamento`): só códigos estáveis, sem tela, sem Firebase e sem Taxonomia; versão 1 em código (`teste-motor-posicionamento.js`, os 531.441 estados). |
-| `forca-agil/posicionamentos.js` | index.html | Nome e definição dos 10 posicionamentos do motor (`CODIGOS_INTERMEDIARIOS` + `CODIGOS_FIRMES`, sem `A_VALIDAR`) lidos da Taxonomia Organizacional (`window.faPosicionamentos`): só `conceitos/<código>/{nome,ativo,definicaoVigenteFonteId}` e o texto da fonte apontada; rótulo de fábrica só como contingência, nunca definição de fábrica; não grava nada e só lê depois de `iniciar()`. Vem depois do motor e nunca é lido por ele. Ainda sem tela que responda O1–O9 (`teste-posicionamentos-fonte-unica.js`). |
+| `forca-agil/posicionamentos.js` | index.html | Nome e definição dos 10 posicionamentos do motor (`CODIGOS_INTERMEDIARIOS` + `CODIGOS_FIRMES`, sem `A_VALIDAR`) lidos da Taxonomia Organizacional (`window.faPosicionamentos`): só `conceitos/<código>/{nome,ativo,definicaoVigenteFonteId}` e o texto da fonte apontada; rótulo de fábrica só como contingência, nunca definição de fábrica; não grava nada e só lê depois de `iniciar()`. Vem depois do motor e nunca é lido por ele (`teste-posicionamentos-fonte-unica.js`). |
 | `forca-agil/motor-squad.js` | index.html | Motor de Adequação à Squad (`window.faMotorSquad`). |
 | `forca-agil/avaliacao-squad.js` | index.html | Adequação à Squad (área Avaliação e ADMIN › Arquitetura). |
+| `forca-agil/avaliacao-posicionamento.js` | index.html | Avaliação de Posicionamento Organizacional O1–O9 na área Avaliação (`window.faAvaliacaoPosicionamento`; núcleo sem DOM em `window.faAvaliacaoPosicionamentoNucleo`, o mesmo que o emulador usa): endereços `#avaliacoes?po=lista`, `?po=escolher[&item=<id>]`, `?po=<avaliação>`; só itens com Avaliação de Produto/Serviço concluída e não excluída; só as perguntas do caminho; mudança de ramo avisa e descarta o que saiu (nada vira NAO); conclui só completo; "Posicionamento organizacional recomendado", nome atual na Taxonomia × nome registrado na conclusão; liberaSquad só diz que a Adequação à Squad pode ser realizada. Gravar: só Avaliação + Arquitetura e admin geral. |
 | `forca-agil/aluno.js` | index.html | Minha Área (`#minha-area`). |
 | `forca-agil/facilitador.js` | index.html | Minhas Facilitações (`#facilitador`). |
 | `forca-agil/aposta.js` | index.html | Construção da Aposta (convite dentro do Treinamento, tela cheia). |
@@ -102,7 +104,7 @@ Imagens e templates ficam em `forca-agil/assets/` e `forca-agil/cert-template-*.
 
 ## 3. Dicionário do banco
 
-Firebase Realtime Database, projeto `kyber-agil`. **56 nós** na raiz de `database.rules.json`.
+Firebase Realtime Database, projeto `kyber-agil`. **60 nós** na raiz de `database.rules.json`.
 "Módulos" lista os arquivos que leem ou gravam o nó (conferido por busca no código).
 Para **quem pode ler e gravar**, a fonte é sempre `database.rules.json`.
 
@@ -190,6 +192,15 @@ Para **quem pode ler e gravar**, a fonte é sempre `database.rules.json`.
 | `posicionamento-classificacoes` | Ligação canônica código do motor de Posicionamento ↔ conceito organizacional de mesmo código (`registradoEm`, `registradoPor`, `auditoriaId`; nunca nome nem definição). | taxonomia | Só os 10 códigos do motor; só admin geral; conceito existente e ativo; auditoria nova na mesma gravação; criada uma vez, nunca alterada nem apagada. Conceito ligado não pode ser inativado nem trocar A ⇄ `trabalho`. Registrada em ADMIN › Taxonomia › Organizacional › "Conceitos-base do Posicionamento Organizacional". |
 | `posicionamento-classificacoes-auditoria` | Histórico dessas ligações (`ligacao_registrada`). | taxonomia | Só acréscimo. |
 
+### Posicionamento Organizacional
+
+| Nó | Finalidade | Módulos | Observação |
+|---|---|---|---|
+| `avaliacoes-posicionamento` | Avaliações O1–O9 por item (respostas e diagnóstico com o texto da época, observação opcional por resposta, `resultadoAutomatico` completo do motor, `nomesNaConclusao` — nome e contingência de cada código no momento da conclusão, nunca reescrito). | avaliacao-posicionamento | Leitura: admin geral, Avaliação, Avaliação + Arquitetura. Gravação: só admin geral e Avaliação + Arquitetura. Pré-condição: Avaliação de Produto/Serviço concluída e não excluída do mesmo item (qualquer classificação). `revisao` começa em 1 e cada gravação é a anterior + 1. Só o caminho (resposta, observação e diagnóstico fora dele são recusados). Conclusão só com dados completos e com o resultado EXATO do motor v1 (25 regras geradas de `regras-posicionamento-tabela.js`; versão desconhecida recusada). `rascunho` → `concluido` ou `descartado` (motivo obrigatório, até 500); os dois são finais; nada se apaga. |
+| `posicionamento-rascunho-por-item` | `<itemId>` → avaliação em rascunho do item (um rascunho aberto por item). | avaliacao-posicionamento | Criado junto com a avaliação (duas criações simultâneas: só uma entra, sem órfã); sai só na mesma gravação que conclui ou descarta. |
+| `posicionamento-vigente-por-item` | `<itemId>` → avaliação concluída do item (um Posicionamento concluído por item). | avaliacao-posicionamento | Criado na mesma gravação da conclusão; ninguém reescreve nem apaga (nem admin). Uma segunda conclusão para o item é recusada. |
+| `posicionamento-auditoria` | `criacao`, `conclusao` (código, regra, versão do motor, liberaSquad) e `descarte` (motivo), por avaliação. | avaliacao-posicionamento | Só acréscimo; cada entrada é a apontada pela avaliação na mesma gravação. |
+
 ### Legado
 
 | Nó | Finalidade | Módulos | Observação |
@@ -213,7 +224,13 @@ A fonte é `database.rules.json`; aqui só os princípios, para orientar quem l�
 - `apostas` restringe leitura e escrita por grupo e por equipe da turma.
 
 Provas: `teste-rules.js`, `teste-rules-avaliacoes.js`, `teste-rules-perfis-avaliacao.js`,
-`teste-rules-taxonomia.js`, `teste-rules-taxonomia-governanca.js` (emulador, job `testes-rules`).
+`teste-rules-taxonomia.js`, `teste-rules-taxonomia-governanca.js`, `teste-rules-posicionamento.js` (emulador, job `testes-rules`).
+
+O trecho das regras de `avaliacoes-posicionamento` que confere o caminho e o resultado é gerado da tabela
+`.github/scripts/regras-posicionamento-tabela.js` (as 25 regras do motor v1). Ela não é um segundo motor:
+`teste-regras-posicionamento-tabela.js` prova, nos 531.441 estados, que vale exatamente uma regra e que a saída
+é idêntica à de `faMotorPosicionamento.avaliar()`, e que o trecho gerado está, idêntico, em `database.rules.json`.
+Mudar o motor (versão 2) exige gerar o trecho de novo; sem isso a suíte falha.
 
 ---
 

@@ -2855,6 +2855,7 @@
       var h = location.hash || '';
       if (h.split('?')[0] !== '#avaliacoes') return { t: 'fora' };
       var p = paramsDaHash();
+      if (p.po) return { t: 'posicionamento', po: p.po, item: p.item || null }; /* Posicionamento Organizacional: o endereço é dele (avaliacao-posicionamento.js) */
       if (p.sq) return { t: 'squad', sq: p.sq }; /* Adequação à Squad: o endereço é dela (avaliacao-squad.js) */
       if (p.avp) return { t: 'avaliacao', key: p.avp };
       if (p.reavaliar) return { t: 'reavaliar', key: p.reavaliar };
@@ -3002,6 +3003,19 @@
       if (d.t === 'fora') return;         /* outra página do site: esta tela não mexe */
       marcarEntradaAtual();
       function fim() { urlAplicada = location.hash || ''; }
+      /* o painel do Posicionamento só fica aberto enquanto o endereço for dele */
+      if (d.t !== 'posicionamento' && window.faAvaliacaoPosicionamento) window.faAvaliacaoPosicionamento.fechar();
+      if (d.t === 'posicionamento') {
+        if (state.tela !== 'lista' && state.tela.indexOf('config') !== 0 && state.tela.indexOf('admin') !== 0) {
+          state.atual = null; state.reavaliacaoBase = null; state.snapshotEdicao = null; state.carregandoTravado = false;
+          state.tela = 'lista'; render();
+        }
+        if (window.faAvaliacaoSquad && window.faAvaliacaoSquad.fechar) window.faAvaliacaoSquad.fechar();
+        if (!window.faAvaliacaoPosicionamento && window.faInitAvaliacaoPosicionamento) window.faInitAvaliacaoPosicionamento();
+        if (window.faAvaliacaoPosicionamento) window.faAvaliacaoPosicionamento.aplicarEndereco(d.po, d.item);
+        fim();
+        return;
+      }
       if (d.t === 'lista') {
         /* 'carregando' também sai daqui: ele só existe enquanto a URL pede uma avaliação; se a URL
            deixou de pedir (a pessoa saiu e o endereço voltou ao início), esperar não leva a nada. */
@@ -3190,6 +3204,8 @@
       if (!state.lixeira && pode()) html += '<button class="btn btn--primary" id="avpNovoBtn">+ Avaliar novo item</button>';
       /* Adequação à Squad: outra avaliação, independente desta (S1–S8), feita aqui mesmo na área Avaliação. */
       if (!state.lixeira && pode() && modo === 'operacional') html += '<button class="btn btn--sm" id="avpSquadBtn">Adequação à Squad</button>';
+      /* Posicionamento Organizacional (O1–O9): outra avaliação, consultada pelos três perfis; só Avaliação + Arquitetura grava. */
+      if (!state.lixeira && pode() && modo === 'operacional') html += '<button class="btn btn--sm" id="avpPosicionamentoBtn">Posicionamento Organizacional</button>';
       if (!state.lixeira && pode()) {
         html += '<div class="avp-exportar-wrap">';
         html += '<button class="btn btn--sm" id="avpExportarBtn"' + (state.exportando ? ' disabled' : '') + '>' +
@@ -3387,6 +3403,12 @@
         if (!window.faAvaliacaoSquad && window.faInitAvaliacaoSquad) window.faInitAvaliacaoSquad({ modo: 'operacional' });
         if (window.faAvaliacaoSquad) window.faAvaliacaoSquad.abrirLista();
         else avpAlert('A Adequação à Squad não carregou. Recarregue a página e tente de novo.');
+      });
+      var posBtn = document.getElementById('avpPosicionamentoBtn');
+      if (posBtn) posBtn.addEventListener('click', function () {
+        if (!window.faAvaliacaoPosicionamento && window.faInitAvaliacaoPosicionamento) window.faInitAvaliacaoPosicionamento();
+        if (window.faAvaliacaoPosicionamento) window.faAvaliacaoPosicionamento.abrirLista();
+        else avpAlert('O Posicionamento Organizacional não carregou. Recarregue a página e tente de novo.');
       });
       var buscaEl = document.getElementById('avpBusca');
       if (buscaEl) {
@@ -6543,6 +6565,10 @@
       html += '</div>';
       html += '<div class="avp-ficha-acoes" id="avpAcoesFicha">';
       if (pode() && vigente) html += '<button class="btn btn--sm" id="avpReavaliarBtn">Reavaliar</button>';
+      /* Posicionamento Organizacional deste item: só quem grava O1–O9 (Avaliação + Arquitetura, admin geral) */
+      if (modo === 'operacional' && podeDecidir() && vigente && a.status === 'concluido' && a.excluido !== true) {
+        html += '<button class="btn btn--sm" id="avpPosicionarBtn">Posicionamento Organizacional</button>';
+      }
       if (pode()) {
         html += '<button class="btn btn--sm" id="avpGerarPdfBtn"' + (state.exportando ? ' disabled' : '') + '>' +
           (state.exportando === 'pdf' ? 'Gerando arquivo…' : '📄 GERAR PDF') + '</button>';
@@ -6842,6 +6868,8 @@
 
       var reavaliarBtn = document.getElementById('avpReavaliarBtn');
       if (reavaliarBtn) reavaliarBtn.addEventListener('click', function () { pedirReavaliacao(a._key); });
+      var posicionarBtn = document.getElementById('avpPosicionarBtn');
+      if (posicionarBtn) posicionarBtn.addEventListener('click', function () { irPara('#avaliacoes?po=escolher&item=' + encodeURIComponent(a.itemId || a._key)); });
 
       document.getElementById('avpVoltarListaResultado').addEventListener('click', voltar);
       document.getElementById('avpVoltarListaRodape').addEventListener('click', voltar);
@@ -8577,6 +8605,8 @@
       /* Adequação à Squad: a avaliação em si fica aqui, na área AVALIAÇÃO (ver avaliacao-squad.js).
          Se o script dele ainda não carregou, o botão da lista o monta no clique. */
       if (window.faInitAvaliacaoSquad) window.faInitAvaliacaoSquad({ modo: 'operacional' });
+      /* Posicionamento Organizacional (O1–O9): idem (ver avaliacao-posicionamento.js). */
+      if (window.faInitAvaliacaoPosicionamento) window.faInitAvaliacaoPosicionamento();
     });
   }
 })();
