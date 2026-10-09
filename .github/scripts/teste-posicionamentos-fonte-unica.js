@@ -256,6 +256,8 @@ async function contingencias(browser) {
     r = await abrir(browser, viewport, { fail: ['taxonomia/organizacional'] });
     await P(r.page, () => window.faPosicionamentos.iniciar());
     await esperarCondicao(r.page, () => window.faPosicionamentos.estado() === 'contingencia', null, { limite: 3000, descricao: 'contingência por recusa (antes do limite)' });
+    /* "contingência" liga com a PRIMEIRA recusa; as dos outros códigos podem ainda estar a caminho: espera todas (mesmo prazo, antes do limite) */
+    await esperarCondicao(r.page, () => window.faPosicionamentos.codigos().every((c) => window.faPosicionamentos.estadoDefinicao(c) === 'indisponivel'), null, { limite: 3000, descricao: 'as recusas de todos os códigos chegarem (antes do limite)' });
     afirma(await P(r.page, () => window.faPosicionamentos.nome('AREA_ESPECIALIZADA') === 'Área Especializada' && window.faPosicionamentos.precisaAviso() &&
       window.faPosicionamentos.codigos().every((c) => window.faPosicionamentos.definicao(c) === null && window.faPosicionamentos.estadoDefinicao(c) === 'indisponivel')),
       'recusada: rótulo de fábrica + aviso já, sem esperar o limite; definições "indisponível"');
