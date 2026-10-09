@@ -143,6 +143,8 @@ async function fluxoPrincipal(browser, nomeTela, viewport) {
   afirma(await hash(page) === '#avaliacoes?po=lista', 'lista em #avaliacoes?po=lista');
   afirma((await texto(page, '#page-avaliacoes .page-hero h1')) === 'Posicionamento Organizacional', 'cabeçalho: "Posicionamento Organizacional"');
   afirma(!(await visivel(page, '#avaliacoesPainel')) && !(await visivel(page, '#avaliacoesSquad')), 'a lista de Produto/Serviço e a Squad ficam ocultas');
+  /* a lista só tem linhas quando a leitura das avaliações chega (rede lenta: antes disso, "Carregando…") */
+  await esperarCondicao(page, () => document.querySelectorAll('#avaliacoesPosicionamento #poLista .po-linha').length >= 2, null, { descricao: 'as avaliações de Posicionamento chegarem à lista' });
   const lista = await texto(page, '#poLista');
   afirma(/Item Gama/.test(lista) && /Item Delta/.test(lista), 'lista mostra o concluído (Gama) e o rascunho (Delta)');
   await page.click('#poNovoBtn');
@@ -151,6 +153,8 @@ async function fluxoPrincipal(browser, nomeTela, viewport) {
   await f5(page);
   await tela(page, 'poEscolher');
   afirma(await hash(page) === '#avaliacoes?po=escolher', 'F5 em "Escolher item" restaura a mesma tela');
+  /* idem: as opções só aparecem quando produtos, reservas e vigentes chegam */
+  await esperarCondicao(page, () => document.querySelectorAll('#avaliacoesPosicionamento .po-item-opcao').length >= 4, null, { descricao: 'as opções de item chegarem em Escolher item' });
   const opcoes = await page.evaluate(() => Array.from(document.querySelectorAll('#avaliacoesPosicionamento .po-item-opcao')).map((e) => e.dataset.item));
   afirma(igual(opcoes.slice().sort(), ['p1', 'p2', 'p3', 'p4']), 'só itens com Produto concluído e não excluído (' + opcoes.join(', ') + ')');
   afirma(/Abrir/i.test(await texto(page, '.po-item-opcao[data-item="p3"]')) && !/Iniciar/i.test(await texto(page, '.po-item-opcao[data-item="p3"]')), 'Gama (já concluído): "Abrir", nunca outro');
