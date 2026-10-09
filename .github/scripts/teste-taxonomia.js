@@ -702,6 +702,8 @@ const ordemSecoes = (page, ids) => page.evaluate((lista) => lista.map((id) => { 
       const { ctx, page, erros } = await abrirSq(browser, viewport);
       await removerSq(page);
       await aparece(page, '#taxFlash:not(.tax-flash--erro)');
+      /* o flash sai antes das releituras (aposSalvar) que redesenham o bloco da vigente: espera o estado que a asserção exige */
+      await esperarCondicao(page, () => { const b = document.getElementById('taxVigenteBloco'); return !!b && /Nenhuma definição vigente/.test(b.innerText); }, null, { descricao: 'o bloco da vigente ser redesenhado com "Nenhuma definição vigente"' });
       const o = await banco2(page);
       afirma(!o.conceitos.SQ.definicaoVigenteFonteId && o.fontes.SQ.f1.situacao === 'histórica/contextual' && o.conceitos.SQ.situacaoDefinicao === 'em revisão' && await nEventos(page) === 1, 'remover vigência com confirmação normal: gravado, auditado (1 evento)');
       afirma(await page.locator('#taxPendente').count() === 0 && /Nenhuma definição vigente/.test(await page.locator('#taxVigenteBloco').innerText()), 'sem aviso de pendência e a tela já mostra "Nenhuma definição vigente"');
