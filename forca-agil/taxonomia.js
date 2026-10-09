@@ -24,9 +24,16 @@
                                                     Criada uma vez, nunca alterada nem apagada (nesta etapa não há
                                                     "encerrar ligação"); só admin geral.
      avaliacao-classificacoes-auditoria/<codigo>/<id>   histórico da ligação (só acréscimo)
+     posicionamento-classificacoes/<codigo>        a mesma ligação canônica para o motor de Posicionamento
+                                                    Organizacional ↔ conceito ORGANIZACIONAL de mesmo código — só os
+                                                    10 códigos do motor (faPosicionamentos.codigos()), só admin geral,
+                                                    criada uma vez, nunca alterada nem apagada.
+     posicionamento-classificacoes-auditoria/<codigo>/<id>   histórico dessa ligação (só acréscimo)
 
    GOVERNANÇA (Etapa 5) — tudo garantido pelas REGRAS do banco, não só pela tela:
      - conceito arquitetural com ligação em avaliacao-classificacoes NÃO pode ser inativado;
+     - conceito organizacional com ligação em posicionamento-classificacoes NÃO pode ser inativado nem trocar
+       A ⇄ trabalho (deixaria de ser um conceito de posicionamento com a ligação ativa);
      - inativar exige motivo (conceito.inativacao) e reativar fica registrado (conceito.reativacao); os dois
        apontam (auditoriaId) para a linha de auditoria NOVA gravada na mesma operação — sem histórico, o banco recusa;
      - relação (organizacional): criada com histórico nas DUAS pontas (mesma chave/operacaoId) e depois só pode
@@ -149,6 +156,8 @@
     /* ligações da Avaliação (avaliacao-classificacoes): 'ocioso'|'carregando'|'ok'|'erro'|'sem-acesso'.
        "Ainda não sei" NUNCA vira "não está ligado": sem 'ok', nada que dependa da ligação é gravado. */
     lig: { estado: 'ocioso', mapa: {} }, cargaLig: null,
+    /* ligações do Posicionamento Organizacional (posicionamento-classificacoes): mesmos estados, domínio organizacional */
+    ligPos: { estado: 'ocioso', mapa: {} }, cargaLigPos: null,
     /* recolhíveis (<details data-det>): aberto/fechado por id, para sobreviver aos re-renders da tela */
     detAbertos: {},
     rolagemLista: null, /* celular: posição da lista ao abrir um conceito, devolvida pelo "← VOLTAR PARA A LISTA" */
@@ -267,7 +276,7 @@
   var TEXTO_BLOQUEIO = 'Aguarde: há uma gravação anterior ainda sem confirmação do servidor. Não repita a operação antes de a tela confirmar o que foi gravado.';
   function caminhoMarcador(caminhos) {
     /* o evento de auditoria vai na MESMA gravação atômica: se ele existe no servidor, a alteração foi aplicada */
-    var k = chaves(caminhos).filter(function (c) { return /\/auditoria\/[^/]+\/[^/]+$/.test(c) || /^avaliacao-classificacoes-auditoria\/[^/]+\/[^/]+$/.test(c); })[0];
+    var k = chaves(caminhos).filter(function (c) { return /\/auditoria\/[^/]+\/[^/]+$/.test(c) || /^(avaliacao|posicionamento)-classificacoes-auditoria\/[^/]+\/[^/]+$/.test(c); })[0];
     return k || null;
   }
   function lerServidorRest(caminho, cb) {
@@ -569,21 +578,36 @@
   /* ---------- GOVERNANÇA (Etapa 5): ligações da Avaliação, inativação, relações ----------
      Cada operação = UM update multipath com o dado + a(s) linha(s) de auditoria. As regras do banco exigem
      que o dado aponte (auditoriaId) para a auditoria NOVA da mesma operação: a tela não é a única barreira. */
-  var NO_LIG = 'avaliacao-classificacoes', NO_LIG_AUD = 'avaliacao-classificacoes-auditoria';
+  /* Ligação canônica por domínio: arquitetural ↔ motor da Avaliação (avaliacao-classificacoes, catálogo
+     CAMADAS via faClassificacoes); organizacional ↔ motor de Posicionamento (posicionamento-classificacoes,
+     catálogo do motor via faPosicionamentos). Nenhuma lista de códigos aqui: vem sempre do catálogo do motor. */
+  var LIG_CFG = {
+    arquitetural: { estado: 'lig', carga: 'cargaLig', no: 'avaliacao-classificacoes', aud: 'avaliacao-classificacoes-auditoria',
+      catalogo: function () { var C = window.faClassificacoes; return C && C.codigos ? C.codigos() : []; } },
+    organizacional: { estado: 'ligPos', carga: 'cargaLigPos', no: 'posicionamento-classificacoes', aud: 'posicionamento-classificacoes-auditoria',
+      catalogo: function () { var P = window.faPosicionamentos; return P && P.codigos ? P.codigos() : []; } }
+  };
+  var NO_LIG = LIG_CFG.arquitetural.no, NO_LIG_AUD = LIG_CFG.arquitetural.aud;
   var MAX_MOTIVO = 500;
-  function carregarLigacoes() {
-    var marca = st.lig.leitura = {};
-    st.lig.estado = 'carregando';
-    lerNo(NO_LIG, function (r) {
-      if (st.lig.leitura !== marca) return;
-      if (!r.ok) st.lig = { estado: r.negado ? 'sem-acesso' : 'erro', mapa: {} };
-      else st.lig = { estado: 'ok', mapa: r.valor || {} };
+  function domLig(dom) { return dom === 'organizacional' ? 'organizacional' : 'arquitetural'; }
+  function L_(dom) { return st[LIG_CFG[domLig(dom)].estado]; }
+  function carregarLigacoes(dom) {
+    var cfg = LIG_CFG[domLig(dom)];
+    var marca = st[cfg.estado].leitura = {};
+    st[cfg.estado].estado = 'carregando';
+    lerNo(cfg.no, function (r) {
+      if (st[cfg.estado].leitura !== marca) return;
+      if (!r.ok) st[cfg.estado] = { estado: r.negado ? 'sem-acesso' : 'erro', mapa: {} };
+      else st[cfg.estado] = { estado: 'ok', mapa: r.valor || {} };
       render();
     });
   }
-  function codigosMotor() { var C = window.faClassificacoes; return C && C.codigos ? C.codigos() : []; }
-  function estaLigado(codigo) { return !!(st.lig.estado === 'ok' && st.lig.mapa[codigo]); }
-  function mensagemLigado(c) {
+  function codigosMotor(dom) { return LIG_CFG[domLig(dom)].catalogo(); }
+  /* Código que pode ter ligação neste domínio (no organizacional, só os 10 do motor de Posicionamento). */
+  function codigoLigavel(dom, codigo) { return dom === 'arquitetural' || codigosMotor(dom).indexOf(codigo) !== -1; }
+  function estaLigado(codigo, dom) { var L = L_(dom); return !!(L.estado === 'ok' && L.mapa[codigo]); }
+  function mensagemLigado(c, dom) {
+    if (domLig(dom) === 'organizacional') return 'Este conceito está ligado ao posicionamento "' + ((c && c.nome) || '') + '" do motor de Posicionamento Organizacional e não pode ser inativado enquanto essa ligação estiver ativa.';
     return 'Este conceito está ligado à classificação "' + ((c && c.nome) || '') + '" da Avaliação e não pode ser inativado enquanto essa ligação estiver ativa.';
   }
   /* Filhos ativos (hierarquia "pai", só organizacional) e relações abertas que tocam o conceito. */
@@ -606,6 +630,9 @@
     if (dom === 'arquitetural') {
       if (st.lig.estado !== 'ok') return recusa('Não foi possível confirmar se este conceito está ligado à Avaliação. Nada foi gravado. Tente novamente.');
       if (estaLigado(codigo)) return recusa(mensagemLigado(c));
+    } else if (codigoLigavel(dom, codigo)) {
+      if (st.ligPos.estado !== 'ok') return recusa('Não foi possível confirmar se este conceito está ligado ao Posicionamento Organizacional. Nada foi gravado. Tente novamente.');
+      if (estaLigado(codigo, dom)) return recusa(mensagemLigado(c, dom));
     }
     var motivo = String(f.motivo || '').trim();
     if (!motivo) return recusa('Informe o motivo da inativação.');
@@ -664,6 +691,7 @@
     var c = conceitoAtual(dom, codigo);
     if (dom !== 'organizacional' || !CAMADAS_TROCAVEIS[c.camada]) return 'Só conceitos da camada "' + CAMADA_ROTULO.A + '" ou "' + CAMADA_ROTULO.trabalho + '" trocam de camada.';
     if (c.pai) return 'Este conceito tem conceito pai (' + c.pai + ') e por isso não troca de camada.';
+    if (codigoLigavel(dom, codigo) && estaLigado(codigo, dom)) return 'Este conceito está ligado ao motor de Posicionamento Organizacional e por isso não troca de camada: deixaria de ser um conceito de posicionamento com a ligação ativa.';
     var I = st.indiceFilhos;
     if (I.estado !== 'ok') return null;  /* o painel mostra "Conferindo…"/erro à parte; alterarCamada recusa */
     if (!I.existe) return 'O índice de conceitos filhos ainda não foi construído neste banco, e sem ele o banco não consegue provar que um conceito não tem filhos. A troca de camada fica bloqueada até essa etapa de implantação (workflow "Taxonomia — índice de filhos").';
@@ -676,6 +704,7 @@
     if (!f || f.codigo !== codigo) return;
     function recusa(msg) { f.erro = msg; render(); }
     if (st.indiceFilhos.estado !== 'ok') return recusa('Não foi possível conferir o índice de conceitos filhos. Nada foi gravado. Tente novamente.');
+    if (codigoLigavel(dom, codigo) && st.ligPos.estado !== 'ok') return recusa('Não foi possível confirmar se este conceito está ligado ao Posicionamento Organizacional. Nada foi gravado. Tente novamente.');
     var bloq = bloqueioCamada(dom, codigo);
     if (bloq) return recusa(bloq);
     var motivo = String(f.motivo || '').trim();
@@ -770,32 +799,32 @@
   }
 
   /* Ligações da Avaliação — carga inicial controlada e idempotente: a prévia lê o banco; só entra o que falta. */
-  function previaLigacoes() {
-    var A = st.d.arquitetural, itens = codigosMotor().map(function (cod) {
+  function previaLigacoes(dom) {
+    var A = st.d[domLig(dom)], L = L_(dom), itens = codigosMotor(dom).map(function (cod) {
       var c = A.conceitos[cod];
-      if (st.lig.mapa[cod]) return { codigo: cod, situacao: 'ligado' };
+      if (L.mapa[cod]) return { codigo: cod, situacao: 'ligado' };
       if (!c) return { codigo: cod, situacao: 'sem-conceito' };
       if (c.ativo === false) return { codigo: cod, situacao: 'inativo' };
       return { codigo: cod, situacao: 'ligar' };
     });
     return itens;
   }
-  function registrarLigacoes() {
-    var P = st.cargaLig;
+  function registrarLigacoes(dom) {
+    var d = domLig(dom), cfg = LIG_CFG[d], P = st[cfg.carga];
     if (!P) return;
-    if (st.lig.estado !== 'ok' || st.d.arquitetural.estado !== 'ok') { P.erro = 'Não foi possível conferir o estado atual das ligações. Nada foi gravado.'; render(); return; }
-    var aLigar = previaLigacoes().filter(function (i) { return i.situacao === 'ligar'; });
+    if (st[cfg.estado].estado !== 'ok' || st.d[d].estado !== 'ok') { P.erro = 'Não foi possível conferir o estado atual das ligações. Nada foi gravado.'; render(); return; }
+    var aLigar = previaLigacoes(d).filter(function (i) { return i.situacao === 'ligar'; });
     if (!aLigar.length) { P.erro = 'Não há ligação a registrar: nada foi gravado.'; render(); return; }
     var caminhos = {}, email = emailAutor(), quando = agora();
     aLigar.forEach(function (i) {
-      var k = novaChave(NO_LIG_AUD + '/' + i.codigo);
-      caminhos[NO_LIG + '/' + i.codigo] = { registradoEm: quando, registradoPor: email, auditoriaId: k };
-      caminhos[NO_LIG_AUD + '/' + i.codigo + '/' + k] = { tipo: 'ligacao_registrada', codigo: i.codigo, conceitoNome: st.d.arquitetural.conceitos[i.codigo].nome, usuario: usuarioAtual(), dataHora: quando };
+      var k = novaChave(cfg.aud + '/' + i.codigo);
+      caminhos[cfg.no + '/' + i.codigo] = { registradoEm: quando, registradoPor: email, auditoriaId: k };
+      caminhos[cfg.aud + '/' + i.codigo + '/' + k] = { tipo: 'ligacao_registrada', codigo: i.codigo, conceitoNome: st.d[d].conceitos[i.codigo].nome, usuario: usuarioAtual(), dataHora: quando };
     });
     gravar(caminhos, function () {
-      st.cargaLig = null;
+      st[cfg.carga] = null;
       st.flash = { erro: false, texto: aLigar.length + (aLigar.length === 1 ? ' ligação registrada.' : ' ligações registradas.') };
-      carregarLigacoes();
+      carregarLigacoes(d);
     });
   }
   function rotuloPerfilCompleto(p) { return { estado: p.estado, valor: p.valor || null, papel: p.papel || null, origem: p.origem || null }; }
@@ -1030,35 +1059,50 @@
      Taxonomia; código sem conceito aqui faz a Avaliação usar o rótulo de contingência. Clicar abre o conceito. */
   /* Conceitos-base da Avaliação: para cada código do catálogo do MOTOR (CAMADAS, via faClassificacoes),
      a situação da ligação canônica em avaliacao-classificacoes. Nenhuma lista própria aqui. */
-  function resumoLigacoes() {
-    var cods = codigosMotor();
-    if (!cods.length || st.lig.estado !== 'ok') return null;
-    var n = cods.filter(function (c) { return !!st.lig.mapa[c]; }).length;
+  function resumoLigacoes(dom) {
+    var cods = codigosMotor(dom), L = L_(dom);
+    if (!cods.length || L.estado !== 'ok') return null;
+    var n = cods.filter(function (c) { return !!L.mapa[c]; }).length;
     return { total: cods.length, ligadas: n };
   }
   function avisoProtecao() {
-    var r = resumoLigacoes();
-    if (!r || r.ligadas === r.total) return '';
-    return '<p class="tax-aviso-erro" id="taxProtecaoIncompleta" role="status"><strong>Proteção da Avaliação incompleta:</strong> ' + r.ligadas + ' de ' + r.total + ' classificações ligadas. ' +
+    var r = resumoLigacoes('arquitetural'), rp = resumoLigacoes('organizacional'), h = '';
+    if (r && r.ligadas < r.total) h += '<p class="tax-aviso-erro" id="taxProtecaoIncompleta" role="status"><strong>Proteção da Avaliação incompleta:</strong> ' + r.ligadas + ' de ' + r.total + ' classificações ligadas. ' +
       'Enquanto a ligação não for registrada, o conceito correspondente pode ser inativado. Registre em Taxonomia › Arquitetural › “Conceitos-base da Avaliação”.</p>';
+    if (rp && rp.ligadas < rp.total) h += '<p class="tax-aviso-erro" id="taxProtecaoIncompletaPos" role="status"><strong>Proteção do Posicionamento incompleta:</strong> ' + rp.ligadas + ' de ' + rp.total + ' conceitos ligados. ' +
+      'Enquanto a ligação não for registrada, o conceito correspondente pode ser inativado ou trocar de camada. Registre em Taxonomia › Organizacional › “Conceitos-base do Posicionamento Organizacional”.</p>';
+    return h;
   }
+  /* Textos e ids da área de Conceitos-base por domínio (os do arquitetural são os de sempre). */
+  var BASE_TXT = {
+    arquitetural: { id: '', titulo: 'Conceitos-base da Avaliação', ligadas: ' ligadas', selo: 'ligado à Avaliação', alvo: 'da Avaliação',
+      ajuda: 'A Avaliação mostra, para cada classificação do motor, o nome e a definição vigente do conceito de mesmo código desta Taxonomia. ' +
+        'A <strong>ligação</strong> (registrada uma vez, nunca apagada) protege o conceito: enquanto ela existir, ele não pode ser inativado.',
+      semConceito: 'sem conceito — a Avaliação usa o rótulo de contingência; não pode ser ligado', orfas: 'Ligações sem classificação correspondente no motor: ',
+      botao: 'Registrar ligações da Avaliação…' },
+    organizacional: { id: 'Pos', titulo: 'Conceitos-base do Posicionamento Organizacional', ligadas: ' ligados', selo: 'ligado ao Posicionamento', alvo: 'do Posicionamento',
+      ajuda: 'O Posicionamento Organizacional mostra, para cada código do motor de Posicionamento, o nome e a definição vigente do conceito organizacional de mesmo código desta Taxonomia. ' +
+        'A <strong>ligação</strong> (registrada uma vez, nunca apagada) protege o conceito: enquanto ela existir, ele não pode ser inativado nem trocar entre "' + CAMADA_ROTULO.A + '" e "' + CAMADA_ROTULO.trabalho + '".',
+      semConceito: 'sem conceito — o Posicionamento usa o rótulo de contingência; não pode ser ligado', orfas: 'Ligações sem código correspondente no motor de Posicionamento: ',
+      botao: 'Registrar ligações do Posicionamento…' }
+  };
   function renderConceitosBase(dom) {
-    var cods = codigosMotor();
-    if (dom !== 'arquitetural' || !cods.length) return '';
-    var D = st.d[dom], L = st.lig, ok = L.estado === 'ok', r = resumoLigacoes();
-    var idB = 'base:' + dom, P = st.cargaLig;
+    var cods = codigosMotor(dom);
+    if (!LIG_CFG[dom] || !cods.length) return '';
+    var T = BASE_TXT[dom], cfg = LIG_CFG[dom];
+    var D = st.d[dom], L = L_(dom), ok = L.estado === 'ok', r = resumoLigacoes(dom);
+    var idB = 'base:' + dom, P = st[cfg.carga];
     var aberto = !!P || !r || r.ligadas < r.total;
-    var h = '<section class="tax-base" id="taxConceitosBase" data-vista="' + esc(st.vista) + '"><details class="tax-recolhivel" data-det="' + idB + '"' + detAberto(idB, aberto) + '>' +
-      '<summary class="tax-recolhivel-cab">Conceitos-base da Avaliação — ' + plural(cods.length, 'código', 'códigos') +
-      (r ? ' · ' + r.ligadas + ' de ' + r.total + ' ligadas' : (L.estado === 'erro' || L.estado === 'sem-acesso' ? ' · ligações indisponíveis' : ' · conferindo ligações…')) + '</summary>' +
-      '<p class="tax-ajuda">A Avaliação mostra, para cada classificação do motor, o nome e a definição vigente do conceito de mesmo código desta Taxonomia. ' +
-      'A <strong>ligação</strong> (registrada uma vez, nunca apagada) protege o conceito: enquanto ela existir, ele não pode ser inativado.</p>';
-    if (L.estado === 'erro' || L.estado === 'sem-acesso') h += '<p class="tax-aviso-erro" id="taxLigacoesErro">' + (L.estado === 'sem-acesso' ? 'Sem acesso às ligações da Avaliação.' : 'Não foi possível ler as ligações da Avaliação agora.') + ' <button type="button" class="btn btn--sm" data-tax="ligacoes-recarregar">Tentar novamente</button></p>';
+    var h = '<section class="tax-base" id="taxConceitosBase' + T.id + '" data-dominio-base="' + dom + '" data-vista="' + esc(st.vista) + '"><details class="tax-recolhivel" data-det="' + idB + '"' + detAberto(idB, aberto) + '>' +
+      '<summary class="tax-recolhivel-cab">' + T.titulo + ' — ' + plural(cods.length, 'código', 'códigos') +
+      (r ? ' · ' + r.ligadas + ' de ' + r.total + T.ligadas : (L.estado === 'erro' || L.estado === 'sem-acesso' ? ' · ligações indisponíveis' : ' · conferindo ligações…')) + '</summary>' +
+      '<p class="tax-ajuda">' + T.ajuda + '</p>';
+    if (L.estado === 'erro' || L.estado === 'sem-acesso') h += '<p class="tax-aviso-erro" id="taxLigacoesErro' + T.id + '">' + (L.estado === 'sem-acesso' ? 'Sem acesso às ligações ' + T.alvo + '.' : 'Não foi possível ler as ligações ' + T.alvo + ' agora.') + ' <button type="button" class="btn btn--sm" data-tax="ligacoes-recarregar">Tentar novamente</button></p>';
     h += '<ul class="tax-base-lista">';
     cods.forEach(function (cod) {
       var c = D.conceitos[cod], l = ok ? L.mapa[cod] : null;
-      var sit = !ok ? '<span class="tax-ajuda">conferindo…</span>' : l ? selo('ligado à Avaliação', 'tax-selo--ligado') + ' <span class="tax-ajuda">desde ' + esc(fmtData(l.registradoEm)) + '</span>'
-        : !c ? '<span class="tax-base-falta">sem conceito — a Avaliação usa o rótulo de contingência; não pode ser ligado</span>'
+      var sit = !ok ? '<span class="tax-ajuda">conferindo…</span>' : l ? selo(T.selo, 'tax-selo--ligado') + ' <span class="tax-ajuda">desde ' + esc(fmtData(l.registradoEm)) + '</span>'
+        : !c ? '<span class="tax-base-falta">' + T.semConceito + '</span>'
         : c.ativo === false ? '<span class="tax-base-falta">conceito inativo — não pode ser ligado</span>'
         : '<span class="tax-base-falta">sem ligação</span>';
       if (c) h += '<li class="tax-base-item" data-base="' + esc(cod) + '" data-ligado="' + (l ? '1' : '0') + '"><button type="button" class="tax-base-abrir" data-tax="selecionar" data-codigo="' + esc(cod) + '">' +
@@ -1068,19 +1112,19 @@
     h += '</ul>';
     if (ok) {
       var orfas = chaves(L.mapa).filter(function (k) { return cods.indexOf(k) === -1; });
-      if (orfas.length) h += '<p class="tax-aviso-erro" id="taxLigacoesOrfas">Ligações sem classificação correspondente no motor: ' + orfas.map(function (k) { return '<code>' + esc(k) + '</code>'; }).join(', ') + '.</p>';
+      if (orfas.length) h += '<p class="tax-aviso-erro" id="taxLigacoesOrfas' + T.id + '">' + T.orfas + orfas.map(function (k) { return '<code>' + esc(k) + '</code>'; }).join(', ') + '.</p>';
     }
     if (ok && podeEditar() && D.estado === 'ok') {
-      var prev = previaLigacoes(), aLigar = prev.filter(function (i) { return i.situacao === 'ligar'; });
+      var prev = previaLigacoes(dom), aLigar = prev.filter(function (i) { return i.situacao === 'ligar'; });
       if (P) {
-        h += '<div class="tax-previa" id="taxPreviaLigacoes"><strong>Prévia — nada foi gravado ainda</strong><ul>' + prev.map(function (i) {
+        h += '<div class="tax-previa" id="taxPreviaLigacoes' + T.id + '"><strong>Prévia — nada foi gravado ainda</strong><ul>' + prev.map(function (i) {
           var rot = { ligado: 'já ligado (não muda)', ligar: 'será ligado', 'sem-conceito': 'não pode ser ligado — conceito ausente', inativo: 'não pode ser ligado — conceito inativo' }[i.situacao];
           return '<li data-previa="' + esc(i.codigo) + '" data-situacao="' + i.situacao + '"><code>' + esc(i.codigo) + '</code> — ' + rot + '</li>';
         }).join('') + '</ul>' + (P.erro ? '<p class="tax-aviso-erro" role="alert">' + esc(P.erro) + '</p>' : '') +
-          '<div class="tax-acoes">' + (aLigar.length ? '<button type="button" class="btn btn--primary btn--sm" data-tax="confirmar-ligacoes" id="taxConfirmarLigacoes"' + (st.salvando ? ' disabled' : '') + '>' + (st.salvando ? 'SALVANDO…' : 'Registrar ' + plural(aLigar.length, 'ligação', 'ligações')) + '</button>' : '') +
+          '<div class="tax-acoes">' + (aLigar.length ? '<button type="button" class="btn btn--primary btn--sm" data-tax="confirmar-ligacoes" id="taxConfirmarLigacoes' + T.id + '"' + (st.salvando ? ' disabled' : '') + '>' + (st.salvando ? 'SALVANDO…' : 'Registrar ' + plural(aLigar.length, 'ligação', 'ligações')) + '</button>' : '') +
           '<button type="button" class="btn btn--sm" data-tax="cancelar-ligacoes"' + (st.salvando ? ' disabled' : '') + '>' + (aLigar.length ? 'Cancelar' : 'Fechar') + '</button></div></div>';
       } else if (aLigar.length) {
-        h += '<div class="tax-acoes"><button type="button" class="btn btn--sm" data-tax="previa-ligacoes" id="taxRegistrarLigacoesBtn">Registrar ligações da Avaliação…</button></div>';
+        h += '<div class="tax-acoes"><button type="button" class="btn btn--sm" data-tax="previa-ligacoes" id="taxRegistrarLigacoesBtn' + T.id + '">' + T.botao + '</button></div>';
       }
     }
     return h + '</details></section>';
@@ -1200,6 +1244,7 @@
     }
     if (org && c.camadaAlteracao) html += '<p class="tax-ident-linha" id="taxIdentCamadaAlteracao"><span class="tax-ident-k">Camada alterada:</span> de ' + esc(CAMADA_ROTULO[c.camadaAlteracao.de] || c.camadaAlteracao.de) + ' para ' + esc(CAMADA_ROTULO[c.camadaAlteracao.para] || c.camadaAlteracao.para) + ' em ' + esc(fmtData(c.camadaAlteracao.em)) + ' por ' + esc(c.camadaAlteracao.por || '—') + ' — motivo: ' + esc(c.camadaAlteracao.motivo || '—') + '</p>';
     if (c.ativo === false && c.inativacao) html += '<p class="tax-ident-linha" id="taxIdentInativacao"><span class="tax-ident-k">Inativado:</span> ' + esc(fmtData(c.inativacao.em)) + ' por ' + esc(c.inativacao.por || '—') + ' — motivo: ' + esc(c.inativacao.motivo || '—') + '</p>';
+    if (dom === 'organizacional' && codigoLigavel(dom, codigo) && estaLigado(codigo, dom)) html += '<p class="tax-ident-linha" id="taxIdentLigadoPos"><span class="tax-ident-k">Posicionamento:</span> ' + selo('ligado ao Posicionamento', 'tax-selo--ligado') + ' <span class="tax-ajuda">código de mesmo nome do motor de Posicionamento Organizacional; não pode ser inativado nem trocar de camada.</span></p>';
     if (dom === 'arquitetural' && estaLigado(codigo)) html += '<p class="tax-ident-linha" id="taxIdentLigado"><span class="tax-ident-k">Avaliação:</span> ' + selo('ligado à Avaliação', 'tax-selo--ligado') + ' <span class="tax-ajuda">classificação de mesmo código do motor; não pode ser inativado.</span></p>';
     if (c.atualizadoEm || c.atualizadoPor) html += '<p class="tax-ident-linha tax-ident-atualizado"><span class="tax-ident-k">Última atualização:</span> ' + esc(fmtData(c.atualizadoEm)) + (c.atualizadoPor ? ' por ' + esc(c.atualizadoPor) : '') + '</p>';
     html += '</div>';
@@ -1234,6 +1279,9 @@
     if (I.estado !== 'ok') return h + '<p class="' + (I.estado === 'erro' ? 'tax-aviso-erro' : 'loading-msg') + '" id="taxCamadaIndice">' +
       (I.estado === 'erro' ? 'Não foi possível conferir o índice de conceitos filhos. Nada pode ser trocado até essa conferência.' : 'Conferindo o índice de conceitos filhos…') + '</p>' +
       '<div class="tax-acoes">' + (I.estado === 'erro' ? '<button type="button" class="btn btn--sm" data-tax="indice-recarregar">Tentar novamente</button>' : '') + '<button type="button" class="btn btn--sm" data-tax="cancelar-camada">Fechar</button></div></div>';
+    if (!bloq && codigoLigavel(dom, codigo) && st.ligPos.estado !== 'ok') return h + '<p class="' + (st.ligPos.estado === 'erro' || st.ligPos.estado === 'sem-acesso' ? 'tax-aviso-erro' : 'loading-msg') + '" id="taxCamadaLigacao">' +
+      (st.ligPos.estado === 'erro' || st.ligPos.estado === 'sem-acesso' ? 'Não foi possível conferir se este conceito está ligado ao Posicionamento Organizacional. Nada pode ser trocado até essa conferência.' : 'Conferindo se este conceito está ligado ao Posicionamento Organizacional…') + '</p>' +
+      '<div class="tax-acoes">' + (st.ligPos.estado === 'erro' ? '<button type="button" class="btn btn--sm" data-tax="ligacoes-recarregar">Tentar novamente</button>' : '') + '<button type="button" class="btn btn--sm" data-tax="cancelar-camada">Fechar</button></div></div>';
     if (bloq) return h + '<p class="tax-aviso-erro" role="alert" id="taxCamadaBloqueada">' + esc(bloq) + '</p>' +
       '<div class="tax-acoes"><button type="button" class="btn btn--sm" data-tax="cancelar-camada">Fechar</button></div></div>';
     h += '<p><strong>Mover de "' + esc(CAMADA_ROTULO[c.camada]) + '" para "' + esc(CAMADA_ROTULO[para]) + '"?</strong></p>' +
@@ -1256,6 +1304,14 @@
     }
     if (dom === 'arquitetural' && estaLigado(codigo)) {
       return h + '<p class="tax-aviso-erro" role="alert" id="taxInativarBloqueado">' + esc(mensagemLigado(c)) + '</p>' +
+        '<div class="tax-acoes"><button type="button" class="btn btn--sm" data-tax="cancelar-inativar">Fechar</button></div></div>';
+    }
+    if (dom === 'organizacional' && codigoLigavel(dom, codigo)) {
+      var LP = st.ligPos;
+      if (LP.estado !== 'ok') return h + '<p class="' + (LP.estado === 'carregando' || LP.estado === 'ocioso' ? 'loading-msg' : 'tax-aviso-erro') + '" id="taxInativarLigacao">' +
+        (LP.estado === 'carregando' || LP.estado === 'ocioso' ? 'Conferindo se este conceito está ligado ao Posicionamento Organizacional…' : 'Não foi possível conferir se este conceito está ligado ao Posicionamento Organizacional. Nada pode ser inativado até essa conferência.') + '</p>' +
+        '<div class="tax-acoes">' + (LP.estado === 'erro' ? '<button type="button" class="btn btn--sm" data-tax="ligacoes-recarregar">Tentar novamente</button>' : '') + '<button type="button" class="btn btn--sm" data-tax="cancelar-inativar">Fechar</button></div></div>';
+      if (estaLigado(codigo, dom)) return h + '<p class="tax-aviso-erro" role="alert" id="taxInativarBloqueado">' + esc(mensagemLigado(c, dom)) + '</p>' +
         '<div class="tax-acoes"><button type="button" class="btn btn--sm" data-tax="cancelar-inativar">Fechar</button></div></div>';
     }
     var af = afetadosPor(dom, codigo), D = D_(dom);
@@ -2244,7 +2300,7 @@
     else if (acao === 'indice-recarregar') carregarIndiceFilhos();
     else if (acao === 'cancelar-camada') { D.camadaMudando = null; render(); }
     else if (acao === 'confirmar-camada') { if (!st.salvando) alterarCamada(dom, D.selecionado); }
-    else if (acao === 'ligacoes-recarregar') carregarLigacoes();
+    else if (acao === 'ligacoes-recarregar') carregarLigacoes(st.dominio);
     else if (acao === 'nova-relacao') { D.relForm = { modo: 'nova', direcao: 'saida', tipo: '', outro: '', nota: '', erro: null }; D.encerrando = null; render(); }
     else if (acao === 'alterar-relacao') {
       var kr = alvo.getAttribute('data-relacao'), rr = D.detalhe && D.detalhe.relacoes[kr];
@@ -2256,9 +2312,9 @@
     else if (acao === 'cancelar-relacao') { D.relForm = null; D.encerrando = null; render(); }
     else if (acao === 'salvar-relacao') { if (!st.salvando) salvarRelacao(D.selecionado); }
     else if (acao === 'confirmar-encerrar') { if (!st.salvando) encerrarRelacao(D.selecionado); }
-    else if (acao === 'previa-ligacoes') { st.cargaLig = { erro: null }; render(); }
-    else if (acao === 'cancelar-ligacoes') { st.cargaLig = null; render(); }
-    else if (acao === 'confirmar-ligacoes') { if (!st.salvando) registrarLigacoes(); }
+    else if (acao === 'previa-ligacoes') { st[LIG_CFG[domLig(st.dominio)].carga] = { erro: null }; render(); }
+    else if (acao === 'cancelar-ligacoes') { st[LIG_CFG[domLig(st.dominio)].carga] = null; render(); }
+    else if (acao === 'confirmar-ligacoes') { if (!st.salvando) registrarLigacoes(st.dominio); }
     else if (acao === 'confirmar-importacao') confirmarImportacao();
     else if (acao === 'cancelar-importacao') { st.importacao = null; render(); }
   }
@@ -2309,7 +2365,7 @@
     var s = sessao();
     var email = s ? s.email : null;
     if (st.email !== email) {
-      st.email = email; st.meta = { estado: 'ocioso', cargaFeita: false }; st.indiceFilhos = { estado: 'ocioso', existe: false }; st.importacao = null; st.flash = null; st.vista = 'lista'; st.aba = 'dominio'; st.hg = novoHG(); st.exp = null; st.detAbertos = {}; st.rolagemLista = null; st.lig = { estado: 'ocioso', mapa: {} }; st.cargaLig = null;
+      st.email = email; st.meta = { estado: 'ocioso', cargaFeita: false }; st.indiceFilhos = { estado: 'ocioso', existe: false }; st.importacao = null; st.flash = null; st.vista = 'lista'; st.aba = 'dominio'; st.hg = novoHG(); st.exp = null; st.detAbertos = {}; st.rolagemLista = null; st.lig = { estado: 'ocioso', mapa: {} }; st.cargaLig = null; st.ligPos = { estado: 'ocioso', mapa: {} }; st.cargaLigPos = null;
       ORDEM_DOMINIOS.forEach(function (d) { st.d[d] = novoDominio(); });
     }
     if (!adminPronto()) {
@@ -2319,7 +2375,8 @@
     }
     if (!ehAdmin()) { render(); return; }
     if (st.meta.estado === 'ocioso' || st.meta.estado === 'erro') carregarMeta();
-    if (st.lig.estado === 'ocioso' || st.lig.estado === 'erro') carregarLigacoes();
+    if (st.lig.estado === 'ocioso' || st.lig.estado === 'erro') carregarLigacoes('arquitetural');
+    if (st.ligPos.estado === 'ocioso' || st.ligPos.estado === 'erro') carregarLigacoes('organizacional');
     var D = st.d[st.dominio];
     if (D.estado === 'ocioso' || D.estado === 'erro') carregarDominio(st.dominio); else render();
   }

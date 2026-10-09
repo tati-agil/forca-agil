@@ -122,16 +122,17 @@
 
     { id: 'taxonomia', titulo: 'Taxonomia',
       oque: 'O dicionário de conceitos em dois domínios: arquitetural ("o que é o item?") e organizacional ("que tipo de estrutura é esta?").',
-      quem: 'Só admin geral. A Avaliação de Produto/Serviço lê dali apenas o nome e a definição vigente das classificações.',
+      quem: 'Só admin geral. A Avaliação de Produto/Serviço lê dali apenas o nome e a definição vigente das classificações e, no organizacional, só dos 10 posicionamentos do motor de Posicionamento.',
       importante: [
         'A Taxonomia define, a Avaliação aplica: é a fonte única dos conceitos.',
         'Uma definição publicada não é editada: corrigir é criar uma nova versão. Só o rótulo da fonte vigente pode ser corrigido no lugar ("Editar rótulo"), sem mudar o texto nem a vigência.',
         'Nada se apaga: conceito é inativado com motivo, relação é encerrada, e conceito ligado a uma classificação da Avaliação não pode ser inativado.',
+        'No organizacional, "Conceitos-base do Posicionamento Organizacional" lista os 10 códigos do motor de Posicionamento. Registrar a ligação (prévia, depois confirmação; uma vez só) protege o conceito: ligado, ele não pode ser inativado nem trocar entre "Tipo organizacional" e "Organização do trabalho". Enquanto faltar ligação aparece "Proteção do Posicionamento incompleta". Ainda não existe avaliação de Posicionamento para responder.',
         'No domínio organizacional, Linha, Área Especializada e CoE são as estruturas de posicionamento; Squad e Capítulo ficam em "Organização do trabalho", e Disciplina é conceito auxiliar. Trocar entre "Tipo organizacional" e "Organização do trabalho" pede motivo, fica no histórico e só vale para conceito sem pai e sem filho ativo (o banco confere por um índice de filhos ativos, construído uma única vez); filho inativo não impede.',
       ],
       links: [{ texto: 'Abrir ADMIN › Taxonomia', aba: 'adminPanelTaxonomia' }],
       fonte: ['ADMIN › Taxonomia (a própria tela)', 'database.rules.json'],
-      prova: ['teste-rules-taxonomia.js', 'teste-rules-taxonomia-governanca.js', 'teste-taxonomia.js', 'teste-taxonomia-governanca.js', 'teste-taxonomia-camada-trabalho.js', 'teste-taxonomia-rotulo-vigente.js'] },
+      prova: ['teste-rules-taxonomia.js', 'teste-rules-taxonomia-governanca.js', 'teste-taxonomia.js', 'teste-taxonomia-governanca.js', 'teste-taxonomia-camada-trabalho.js', 'teste-taxonomia-rotulo-vigente.js', 'teste-taxonomia-posicionamento-ligacoes.js', 'teste-posicionamentos-fonte-unica.js'] },
 
     { id: 'papeis', titulo: 'Facilitação, diretores e Minha Área',
       oque: '"Minhas Facilitações" (#facilitador), eventos reservados a diretores e a Minha Área de cada pessoa.',

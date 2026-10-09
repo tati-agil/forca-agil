@@ -14,6 +14,10 @@
    C. Relações: criar exige histórico nas DUAS pontas (mesma chave, mesmo operacaoId); depois só ENCERRAR
       (motivo, data, autor, histórico); nunca alterar, apagar, duplicar nem recriar uma idêntica encerrada.
    D. As operações REAIS da aplicação (taxonomia.js) passam nessas regras — e as que a tela recusa não gravam.
+   F. posicionamento-classificacoes/<codigo> — ligação canônica "código do motor de Posicionamento ↔ conceito
+      organizacional de mesmo código": só os 10 códigos do motor, só admin geral, conceito existente e ativo, auditoria
+      nova na mesma gravação, nunca alterada nem apagada; conceito ligado não é inativado nem troca A ⇄ trabalho;
+      conceito não ligado segue as regras anteriores.
    E. Camada: "Tipo organizacional" (A) e "Organização do trabalho" só trocam entre si, com motivo e auditoria nova
       da mesma gravação; conceito com pai não troca; a última troca não é reescrita nem apagada; relações intactas.
       Conceito com FILHOS (ativos ou inativos) não troca — provado pelo BANCO via índice reverso
@@ -340,10 +344,83 @@ async function main() {
   await pode('conceito NOVO pode nascer na camada trabalho (importação)', R(admin(), ORG + '/conceitos/NOVO').set(org('Novo', { camada: 'trabalho' })));
   await nega('camadaAlteracao NÃO existe no domínio arquitetural', R(admin(), ARQT + '/conceitos/canal/camadaAlteracao').set({ de: 'A', para: 'trabalho', motivo: 'x', em: QUANDO, por: ADMIN, auditoriaId: 'c9' }));
 
+  /* ───────────────────────── F. posicionamento-classificacoes ───────────────────────── */
+  console.log('\n== F. Ligação canônica posicionamento-classificacoes (Posicionamento Organizacional) ==');
+  const LIGP = 'posicionamento-classificacoes', LIGPA = 'posicionamento-classificacoes-auditoria';
+  const ligarP = (cod, k, email) => ({
+    [LIGP + '/' + cod]: { registradoEm: QUANDO, registradoPor: email || ADMIN, auditoriaId: k },
+    [LIGPA + '/' + cod + '/' + k]: { tipo: 'ligacao_registrada', codigo: cod, usuario: { email: email || ADMIN }, dataHora: QUANDO }
+  });
+  await semearCamadas();
+  await semear(async (a) => {
+    await a.ref(ORG + '/conceitos/AREA_ESPECIALIZADA').set(org('Área Especializada', { camada: 'A' }));
+    await a.ref(ORG + '/conceitos/COE').set(org('Centro de Excelência', { camada: 'A' }));
+    await a.ref(ORG + '/conceitos/PLATAFORMA').set(org('Linha de Plataforma', { camada: 'A' }));
+    await a.ref(ORG + '/conceitos/ESTRATEGIA_CLIENTES').set(org('Estratégia de Clientes'));
+    await a.ref(ORG + '/conceitos/NEGOCIOS').set(org('Negócios', { ativo: false }));
+    await a.ref(ORG + '/conceitos/DISCIPLINA').set(org('Disciplina'));
+    await a.ref(ORG + '/conceitos/A_VALIDAR').set(org('A validar'));
+  });
+  await nega('ligação SEM a auditoria da mesma gravação', R(admin(), LIGP + '/COE').set({ registradoEm: QUANDO, registradoPor: ADMIN, auditoriaId: 'p1' }));
+  await nega('ligação apontando para auditoria de outro tipo', admin().ref().update(mexe(ligarP('COE', 'p1'), LIGPA + '/COE/p1', 'tipo', 'outro')));
+  await nega('ligação para conceito que NÃO existe na Taxonomia Organizacional (PLATAFORMA_CANAIS)', admin().ref().update(ligarP('PLATAFORMA_CANAIS', 'p1')));
+  await nega('ligação para conceito INATIVO (NEGOCIOS)', admin().ref().update(ligarP('NEGOCIOS', 'p1')));
+  for (const fora of ['SQUAD', 'CAPITULO', 'DISCIPLINA', 'A_VALIDAR', 'C2']) {
+    await nega('ligação para código fora dos 10 (' + fora + ', conceito ativo existente)', admin().ref().update(ligarP(fora, 'p1')));
+  }
+  await nega('auditoria "solta" de código fora dos 10', R(admin(), LIGPA + '/SQUAD/p9').set({ tipo: 'ligacao_registrada', codigo: 'SQUAD', usuario: { email: ADMIN }, dataHora: QUANDO }));
+  await nega('ligação com registradoPor de outra pessoa', admin().ref().update(ligarP('COE', 'p1', SUPER)));
+  await nega('ligação com campo extra (nome do conceito)', admin().ref().update(mexe(ligarP('COE', 'p1'), LIGP + '/COE', 'nome', 'Centro de Excelência')));
+  await nega('auditoria "solta", sem a ligação que a aponta', R(admin(), LIGPA + '/COE/p9').set({ tipo: 'ligacao_registrada', codigo: 'COE', usuario: { email: ADMIN }, dataHora: QUANDO }));
+  for (const [quem, email] of [['"Avaliação"', AVAL], ['"Avaliação + Arquitetura"', ARQ], ['sem acesso', SEM_ACESSO]]) {
+    await nega(quem + ' NÃO cria ligação do Posicionamento (só admin geral)', db(email).ref().update(ligarP('COE', 'p2', email)));
+    await nega(quem + ' NÃO lê as ligações do Posicionamento', R(db(email), LIGP).once('value'));
+    await nega(quem + ' NÃO lê o histórico das ligações do Posicionamento', R(db(email), LIGPA).once('value'));
+  }
+  await nega('sem login NÃO cria ligação do Posicionamento', db(null).ref().update(ligarP('COE', 'p2')));
+  await pode('admin geral (fa-admins) liga AREA_ESPECIALIZADA + auditoria numa gravação só', admin().ref().update(ligarP('AREA_ESPECIALIZADA', 'p1')));
+  await pode('admin geral (e-mail fixo) liga COE', db(SUPER).ref().update(ligarP('COE', 'p3', SUPER)));
+  await pode('várias ligações numa gravação só (LINHA + ESTRATEGIA_CLIENTES)', admin().ref().update(Object.assign(ligarP('LINHA', 'p4'), ligarP('ESTRATEGIA_CLIENTES', 'p5'))));
+  await pode('admin geral lê as ligações e o histórico do Posicionamento', Promise.all([R(admin(), LIGP).once('value'), R(admin(), LIGPA).once('value')]));
+  await nega('ligação existente NÃO é recriada (mesmo com auditoria nova)', admin().ref().update(ligarP('COE', 'p6')));
+  await nega('ligação existente NÃO é alterada (campo)', R(admin(), LIGP + '/COE/registradoEm').set('2026-10-07T00:00:00.000Z'));
+  await nega('ligação existente NÃO ganha campo novo', R(admin(), LIGP + '/COE/encerrada').set({ motivo: 'x' }));
+  await nega('ligação NÃO é apagada', R(admin(), LIGP + '/COE').remove());
+  await nega('o nó inteiro de ligações do Posicionamento NÃO é apagado', R(db(SUPER), LIGP).remove());
+  await nega('histórico da ligação NÃO é alterado', R(admin(), LIGPA + '/COE/p3/tipo').set('outro'));
+  await nega('histórico da ligação NÃO é apagado', R(admin(), LIGPA + '/COE/p3').remove());
+  anota('estado: 4 ligações do Posicionamento, cada uma com 1 linha de histórico; a da Avaliação intocada', (await conta(LIGP)) === 4 &&
+    (await conta(LIGPA + '/COE')) === 1 && (await conta(LIGPA + '/AREA_ESPECIALIZADA')) === 1 && !(await ler(LIG)));
+  console.log('-- F2. Conceito ligado: nem inativar nem trocar A ⇄ trabalho --');
+  const audInatAntes = await conta(ORG + '/auditoria/COE');
+  await nega('conceito ligado (COE) NÃO é inativado, mesmo com motivo + auditoria', admin().ref().update(inativar('organizacional', 'COE', 'i1')));
+  const inatSuper = mexe(inativar('organizacional', 'AREA_ESPECIALIZADA', 'i1'), ORG + '/conceitos/AREA_ESPECIALIZADA/inativacao', 'por', SUPER);
+  inatSuper[ORG + '/auditoria/AREA_ESPECIALIZADA/i1'].usuario = { email: SUPER };
+  await nega('…nem pelo e-mail fixo de admin geral', db(SUPER).ref().update(inatSuper));
+  await pode('(controle) o mesmo payload do e-mail fixo inativa um conceito NÃO ligado', db(SUPER).ref().update((() => {
+    const p = mexe(inativar('organizacional', 'C2', 'i1'), ORG + '/conceitos/C2/inativacao', 'por', SUPER); p[ORG + '/auditoria/C2/i1'].usuario = { email: SUPER }; return p; })()));
+  anota('a tentativa não deixou histórico nem mudou o conceito', (await conta(ORG + '/auditoria/COE')) === audInatAntes && (await ler(ORG + '/conceitos/COE/ativo')) === true);
+  await nega('conceito ligado (AREA_ESPECIALIZADA, sem pai nem filhos) NÃO troca A → trabalho', admin().ref().update(trocaCamada('AREA_ESPECIALIZADA', 'c1', 'A', 'trabalho')));
+  await nega('conceito ligado (COE) NÃO troca A → trabalho', admin().ref().update(trocaCamada('COE', 'c1', 'A', 'trabalho')));
+  await nega('ligar e trocar a camada NA MESMA gravação', admin().ref().update(Object.assign(ligarP('PLATAFORMA', 'p7'), trocaCamada('PLATAFORMA', 'c1', 'A', 'trabalho'))));
+  await nega('ligar e inativar NA MESMA gravação', admin().ref().update(Object.assign(ligarP('PLATAFORMA', 'p7'), inativar('organizacional', 'PLATAFORMA', 'i7'))));
+  await pode('conceito ligado continua editável (nome)', R(admin(), ORG + '/conceitos/COE/nome').set('Centro de Excelência (CoE)'));
+  await pode('não ligado, de fora dos 10 (SQUAD): troca de camada como antes', admin().ref().update(trocaCamada('SQUAD', 'c1', 'A', 'trabalho')));
+  await pode('código do Posicionamento AINDA NÃO ligado (PLATAFORMA): troca de camada como antes', admin().ref().update(trocaCamada('PLATAFORMA', 'c1', 'A', 'trabalho')));
+  await pode('…e volta', admin().ref().update(trocaCamada('PLATAFORMA', 'c2', 'trabalho', 'A')));
+  await pode('não ligado (DISCIPLINA): inativa com motivo + auditoria como antes', admin().ref().update(inativar('organizacional', 'DISCIPLINA', 'i2')));
+  await nega('não ligado: inativar SEM auditoria continua recusado', admin().ref().update(sem(inativar('organizacional', 'PLATAFORMA', 'i3'), ORG + '/auditoria/PLATAFORMA/i3')));
+  await nega('a proteção da Avaliação continua: conceito arquitetural ligado não é inativado', (async () => {
+    await semear(async (a) => { await a.ref().update(ligar('canal', 'kA')); });
+    return admin().ref().update(inativar('arquitetural', 'canal', 'iA'));
+  })());
+
   /* ───────────────────────── D. Operações REAIS da aplicação ───────────────────────── */
   console.log('\n== D. As operações reais de taxonomia.js nas regras reais ==');
   const SRC_TAX = fs.readFileSync(path.join(__dirname, '..', '..', 'forca-agil', 'taxonomia.js'), 'utf8');
   const MOTOR = ['produto-principal', 'canal', 'componente', 'documento-informacao', 'modalidade-subproduto'];
+  const MP = require(path.join(__dirname, '..', '..', 'forca-agil', 'motor-posicionamento.js'));
+  const POS_DEZ = MP.CODIGOS_INTERMEDIARIOS.concat(MP.CODIGOS_FIRMES);
   function carregarApp(email) {
     const dbEmu = db(email);
     const el = { addEventListener() {}, innerHTML: '', contains() { return true; }, querySelector() { return null; } };
@@ -359,6 +436,8 @@ async function main() {
       app: () => ({ options: { databaseURL: 'http://' + hostEmu + '?ns=' + PROJ + '-default-rtdb' } }) };
     c.window.faAuth = { getSession: () => ({ email, name: 'Admin Teste' }), isAdmin: () => true, isAdminReady: () => true };
     c.window.faClassificacoes = { codigos: () => MOTOR.slice() };
+    /* catálogo do motor de Posicionamento, como faPosicionamentos.codigos() o entrega na página */
+    c.window.faPosicionamentos = { codigos: () => POS_DEZ.slice() };
     vm.createContext(c);
     vm.runInContext(SRC_TAX, c, { filename: 'taxonomia.js' });
     return c.window.faTaxonomia._interno;
@@ -378,6 +457,7 @@ async function main() {
     I.st.d[dom].selecionado = cod; I.carregarDetalhe(dom, cod); await ate(() => I.st.d[dom].detalhe && !I.st.d[dom].detalhe.carregando);
   }
   I.carregarLigacoes(); await ate(() => I.st.lig.estado === 'ok');
+  I.carregarLigacoes('organizacional'); await ate(() => I.st.ligPos.estado === 'ok');
   I.carregarDominio('arquitetural'); await ate(() => I.st.d.arquitetural.estado === 'ok');
   const prev = I.previaLigacoes();
   const sit = (cod) => (prev.find((x) => x.codigo === cod) || {}).situacao;
@@ -488,6 +568,44 @@ async function main() {
   anota('exportação (aba Relações): situação de cada relação', !!rowAtv && rowAtv[9] === 'encerrada' && (linhas['Relações'] || []).every((l) => l[9] === 'ativa' || l[9] === 'encerrada'));
   const cons = I.consolidarConceitos(bruto).find((k) => k.dominio === 'organizacional' && k.codigo === 'C1');
   anota('exportação (consolidado/JSON): relacoesSaida traz o encerramento', !!cons && cons.relacoesSaida.some((r) => r.id === 'C1__compoe__C2' && r.encerrada && r.encerrada.motivo === 'Tipo errado'));
+
+  /* Posicionamento pela tela (taxonomia.js real, regras reais): prévia + registro idempotente; conceito ligado
+     não é inativado nem troca de camada pela tela — e nada é gravado. */
+  console.log('-- D-F. Conceitos-base do Posicionamento pela tela --');
+  await semear(async (a) => {
+    await a.ref(ORG + '/conceitos/AREA_ESPECIALIZADA').set(org('Área Especializada', { camada: 'A' }));
+    await a.ref(ORG + '/conceitos/COE').set(org('Centro de Excelência', { camada: 'A' }));
+    await a.ref(ORG + '/conceitos/NEGOCIOS').set(org('Negócios', { ativo: false }));
+  });
+  I.carregarLigacoes('organizacional'); await ate(() => I.st.ligPos.estado === 'ok');
+  I.carregarDominio('organizacional'); await ate(() => I.st.d.organizacional.estado === 'ok' && !!I.st.d.organizacional.conceitos.COE);
+  const prevP = I.previaLigacoes('organizacional');
+  const sitP = (cod) => (prevP.find((x) => x.codigo === cod) || {}).situacao;
+  anota('prévia do Posicionamento: os 10 códigos do motor; ativos "ligar", inativo e ausente "não podem"', prevP.length === 10 && sitP('AREA_ESPECIALIZADA') === 'ligar' && sitP('COE') === 'ligar' &&
+    sitP('NEGOCIOS') === 'inativo' && sitP('PLATAFORMA_CANAIS') === 'sem-conceito' && !prevP.some((x) => x.codigo === 'SQUAD'), JSON.stringify(prevP));
+  const aLigarP = prevP.filter((x) => x.situacao === 'ligar').map((x) => x.codigo);
+  I.st.cargaLigPos = { erro: null };
+  await opera('registrarLigacoes do Posicionamento (carga controlada)', () => I.registrarLigacoes('organizacional'), async () => (await conta(LIGP)) === aLigarP.length && (await conta(LIGPA + '/COE')) === 1);
+  await ate(() => I.st.ligPos.estado === 'ok' && Object.keys(I.st.ligPos.mapa).length === aLigarP.length);
+  anota('idempotente: depois da carga, a prévia do Posicionamento não propõe nada', I.previaLigacoes('organizacional').filter((x) => x.situacao === 'ligar').length === 0);
+  I.st.cargaLigPos = { erro: null }; I.registrarLigacoes('organizacional'); await new Promise((r) => setTimeout(r, 300));
+  anota('idempotente: rodar de novo NÃO grava nada', (await conta(LIGP)) === aLigarP.length && (await conta(LIGPA + '/COE')) === 1 && /nada foi gravado/.test(I.st.cargaLigPos.erro || ''));
+  anota('a gravação da tela não leva nome nem definição na ligação', JSON.stringify(Object.keys((await ler(LIGP + '/COE')) || {}).sort()) === JSON.stringify(['auditoriaId', 'registradoEm', 'registradoPor']));
+  await abreConceito('organizacional', 'AREA_ESPECIALIZADA');
+  const audArea = await conta(ORG + '/auditoria/AREA_ESPECIALIZADA');
+  I.st.d.organizacional.inativando = { codigo: 'AREA_ESPECIALIZADA', motivo: 'Tentativa', erro: null };
+  I.inativarConceito('organizacional', 'AREA_ESPECIALIZADA'); await new Promise((r) => setTimeout(r, 300));
+  anota('tela: conceito ligado ao Posicionamento — mensagem e NADA gravado', /ligado ao posicionamento "Área Especializada"/.test(I.st.d.organizacional.inativando.erro || '') &&
+    (await ler(ORG + '/conceitos/AREA_ESPECIALIZADA/ativo')) === true && (await conta(ORG + '/auditoria/AREA_ESPECIALIZADA')) === audArea, I.st.d.organizacional.inativando.erro);
+  I.st.ligPos.estado = 'erro';
+  I.inativarConceito('organizacional', 'AREA_ESPECIALIZADA'); await new Promise((r) => setTimeout(r, 200));
+  anota('tela: sem saber se está ligado ao Posicionamento, NÃO grava', /Não foi possível confirmar se este conceito está ligado ao Posicionamento/.test(I.st.d.organizacional.inativando.erro || '') && (await ler(ORG + '/conceitos/AREA_ESPECIALIZADA/ativo')) === true);
+  I.carregarLigacoes('organizacional'); await ate(() => I.st.ligPos.estado === 'ok');
+  I.carregarIndiceFilhos(); await ate(() => I.st.indiceFilhos.estado === 'ok');
+  I.st.d.organizacional.camadaMudando = { codigo: 'AREA_ESPECIALIZADA', motivo: 'Tentativa', erro: null };
+  I.alterarCamada('organizacional', 'AREA_ESPECIALIZADA'); await new Promise((r) => setTimeout(r, 300));
+  anota('tela: conceito ligado ao Posicionamento não troca de camada, sem gravar', /ligado ao motor de Posicionamento Organizacional/.test(I.st.d.organizacional.camadaMudando.erro || '') &&
+    (await ler(ORG + '/conceitos/AREA_ESPECIALIZADA/camada')) === 'A' && (await conta(ORG + '/auditoria/AREA_ESPECIALIZADA')) === audArea, I.st.d.organizacional.camadaMudando.erro);
 
   console.log('\n' + total + ' verificações, ' + falhas + ' falha(s).');
   await testEnv.cleanup();
