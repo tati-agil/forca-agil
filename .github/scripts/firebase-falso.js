@@ -342,8 +342,11 @@
   /* Uma chave nova por chamada — não "/fake" sempre igual, senão duas
      pushes no mesmo caminho (comum quando um teste revela/refaz mais de
      uma vez, ou cria mais de um grupo) se sobrescreveriam em vez de
-     virarem duas entradas, o que o Firebase de verdade nunca faria. */
-  var _pushSeq = 0;
+     virarem duas entradas, o que o Firebase de verdade nunca faria.
+     CFG.pushSeqInicial: um teste que recarrega a página mantendo o banco
+     começa a contagem depois das chaves já criadas (senão "fake0" de novo
+     sobrescreveria um registro da carga anterior). */
+  var _pushSeq = CFG.pushSeqInicial || 0;
   Ref.prototype.push   = function (v, cb) {
     var key = 'fake' + (_pushSeq++);
     var r = new Ref(this.path + '/' + key);

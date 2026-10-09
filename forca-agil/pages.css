@@ -2827,3 +2827,27 @@ details.avp-form-card.avp-aut-historico { margin-top: 0; padding: 10px 16px; mar
 .man-trans-seta { color: var(--gold); }
 .man-trans-acao { flex-basis: 100%; color: var(--ink-2); }
 .man-rodape { font-size: .8rem; color: var(--ink-3); margin: 16px 0 0; }
+
+/* ── Posicionamento Organizacional O1–O9 (avaliacao-posicionamento.js) ── */
+.po-modal-acoes { display: flex; justify-content: flex-end; gap: 8px; flex-wrap: wrap; }
+.po-modal p { font-size: .95rem; line-height: 1.6; color: var(--ink); margin: 0; }
+.po-modal h4 { margin: 0; color: var(--ink); }
+.po-modal label { font-size: .82rem; color: var(--ink-2); }
+.po-modal textarea { width: 100%; box-sizing: border-box; background: var(--space-1); border: 1px solid var(--line-strong); color: var(--ink); padding: 10px 12px; border-radius: 6px; font: inherit; }
+.po-nivel { border-top: 1px solid var(--line); padding-top: 12px; margin-top: 16px; }
+.po-nivel-titulo { font-family: var(--font-head); font-size: .95rem; color: var(--accent-2); margin: 0 0 8px; text-transform: uppercase; letter-spacing: .04em; }
+.po-interpretacao { font-size: .85rem; color: var(--ink-2); margin: 8px 0 4px; }
+.po-obs-rotulo { display: block; font-size: .78rem; color: var(--ink-3); margin-top: 8px; }
+.po-diag-papeis { font-size: .88rem; color: var(--ink-2); margin: 6px 0; }
+.po-itens { list-style: none; padding: 0; margin: 12px 0 0; }
+.po-item-opcao { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; padding: 10px 0; border-bottom: 1px solid var(--line); }
+.po-item-opcao .po-item-nome { flex: 1 1 180px; min-width: 0; overflow-wrap: anywhere; }
+.po-item-situacao { font-size: .78rem; color: var(--ink-3); }
+.po-item-escolhido { padding: 12px 0; }
+.po-item-escolhido .po-item-nome { font-size: 1.05rem; font-weight: 600; color: var(--ink); margin: 0 0 4px; }
+.po-recomendado { font-size: 1.1rem; font-weight: 600; color: var(--ink); margin: 12px 0 8px; overflow-wrap: anywhere; }
+.po-nome-atual, .po-nome-conclusao { font-size: .85rem; color: var(--ink-2); margin: 4px 0; }
+.po-libera { border-left: 3px solid var(--accent-2); padding: 6px 10px; color: var(--ink); margin: 12px 0; }
+.po-respostas-lista { padding-left: 18px; }
+.po-respostas-lista li { margin: 6px 0; overflow-wrap: anywhere; }
+.po-badge--descartado { opacity: .75; }
