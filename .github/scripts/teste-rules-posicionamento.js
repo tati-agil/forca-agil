@@ -383,13 +383,23 @@ async function main() {
   anota('o vigente continua o primeiro', (await ler(VIG + '/' + I2)) === 'g2');
 
   console.log('\n== H. Descarte ==');
-  await base();
+  await base(8);
   await up(ARQ, criar('h1', 'p1', 'p1', ARQ));
   const h1 = preencher(await ler(AV + '/h1'), { O1: 'SIM' });
   await up(ARQ, { [AV + '/h1']: Object.assign(clone(h1), { revisao: 2, atualizadoPor: { name: 'P', email: ARQ } }) });
   const h2 = await ler(AV + '/h1');
   await nega('descartar sem motivo', up(ARQ, descartar('h1', h2, ARQ, '')));
-  await nega('descartar com motivo só de espaços', up(ARQ, descartar('h1', h2, ARQ, '   ')));
+  /* motivo só de espaço em branco: cada caso num rascunho PRÓPRIO, para uma aceitação indevida não mascarar os seguintes */
+  const BRANCOS = [['só de espaços', '   '], ['só de tabulações', '\t\t'], ['só de quebras de linha', '\n\n'], ['só de retorno de carro + quebra', '\r\n'],
+    ['misturando espaço, tabulação e quebra de linha', ' \t\n \r ']];
+  for (let k = 0; k < BRANCOS.length; k++) {
+    const idW = 'hw' + k, itW = 'p' + (k + 2);
+    await up(ARQ, criar(idW, itW, itW, ARQ));
+    await nega('descartar com motivo ' + BRANCOS[k][0], up(ARQ, descartar(idW, await ler(AV + '/' + idW), ARQ, BRANCOS[k][1])));
+    anota('…e o rascunho continua rascunho, com a reserva (' + BRANCOS[k][0] + ')', (await ler(AV + '/' + idW + '/status')) === 'rascunho' && (await ler(RES + '/' + itW)) === idW);
+  }
+  await up(ARQ, criar('hw9', 'p8', 'p8', ARQ));
+  await pode('controle: motivo com texto, mesmo cercado de espaço e quebra de linha, é aceito', up(ARQ, descartar('hw9', await ler(AV + '/hw9'), ARQ, ' Item errado\n')));
   await nega('descartar com motivo de mais de 500', up(ARQ, descartar('h1', h2, ARQ, 'm'.repeat(501))));
   await nega('descartar SEM liberar a reserva', up(ARQ, (() => { const p = descartar('h1', h2, ARQ, 'Item errado'); delete p[RES + '/p1']; return p; })()));
   await nega('descartar SEM a auditoria "descarte"', up(ARQ, (() => { const p = descartar('h1', h2, ARQ, 'Item errado'); delete p[AUD + '/h1/kd-p1']; return p; })()));

@@ -284,6 +284,9 @@ async function fluxoPrincipal(browser, nomeTela, viewport) {
   await page.fill('#poMotivoDescarte', '   ');
   await page.click('.po-modal .po-modal-sim');
   afirma(/Informe o motivo/.test(await modalTexto(page)), 'motivo em branco: recusado, nada gravado');
+  await page.fill('#poMotivoDescarte', '\t\n  \n');
+  await page.click('.po-modal .po-modal-sim');
+  afirma(/Informe o motivo/.test(await modalTexto(page)) && (await banco(page))['avaliacoes-posicionamento'].d1.status === 'rascunho', 'motivo só de tabulação e quebra de linha: recusado, nada gravado');
   await page.fill('#poMotivoDescarte', 'Item avaliado por engano');
   await page.click('.po-modal .po-modal-sim');
   await tela(page, 'poDescartado');

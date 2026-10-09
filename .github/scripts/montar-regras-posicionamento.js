@@ -51,7 +51,10 @@ const concluido = and([
 ]);
 const descartado = and([
   "newData.hasChildren(['" + DESC.join("','") + "'])", v('descartadoPor/email') + ' === auth.token.email', semCampos(CONCL),
-  v('motivoDescarte') + ".replace(' ', '').length > 0",
+  /* motivo não pode ser só espaço em branco (espaço, tabulação, quebra de linha, retorno). O regex das regras não
+     conhece \s nem \S e não aceita esses caracteres na classe; replace troca TODAS as ocorrências (provado no
+     emulador, seção H de teste-rules-posicionamento.js). */
+  v('motivoDescarte') + ".replace(' ', '').replace('\\t', '').replace('\\n', '').replace('\\r', '').length > 0",
   '!' + NOVO(RES) + '.child(' + v('itemId') + ').exists()',
   AUDNOVA('auditoriaDescarteId') + ".child('tipo').val() === 'descarte'", '!' + AUDANT('auditoriaDescarteId') + '.exists()'
 ]);
