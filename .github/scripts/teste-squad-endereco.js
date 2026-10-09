@@ -14,7 +14,7 @@
  *     (faInitAvaliacaoSquad) devolve a mesma instância, sem listener nem navegação duplicados.
  * Hermético (Firebase falso). */
 const { chromium } = require('playwright');
-const { esperarSessaoAssentada, esperarCondicao } = require('./esperas');
+const { esperarSessaoAssentada, esperarCondicao, esperarCondicaoAte } = require('./esperas');
 const fs = require('fs');
 const path = require('path');
 
@@ -158,8 +158,8 @@ const esperarHash = (page, h, descricao) => esperarCondicao(page, (x) => locatio
       await page.waitForFunction(() => typeof window.faInitAvaliacaoSquad === 'function', null, { timeout: 12000 });
       const corrida = await page.evaluate(() => window.__corridaSquad === true);
       afirma(corrida, 'reproduz a corrida: #avaliacoes aberta e avaliacao-produto.js carregado ANTES de avaliacao-squad.js');
-      await page.waitForSelector('#avaliacoesSquad #sqVoltarListaResultado', { timeout: 12000 }).catch(() => {});
-      afirma(await squadVisivel(page) && /Plataforma de Benefícios/.test(await page.locator('#avaliacoesSquad').innerText()) && (await page.locator('#avaliacoesSquad #sqVoltarListaResultado').count()) === 1,
+      const abriu = await esperarCondicaoAte(page, () => !!document.querySelector('#avaliacoesSquad #sqVoltarListaResultado'), null, { limite: 12000 });
+      afirma(abriu && await squadVisivel(page) && /Plataforma de Benefícios/.test(await page.locator('#avaliacoesSquad').innerText()) && (await page.locator('#avaliacoesSquad #sqVoltarListaResultado').count()) === 1,
         'quando o arquivo chega, a avaliação pedida (sqA) abre sozinha e o painel de Produto/Serviço fica oculto');
       afirma(await hash(page) === '#avaliacoes?sq=sqA', 'o endereço continua #avaliacoes?sq=sqA (' + await hash(page) + ')');
       afirma(await titulo(page) === 'Adequação à Squad', 'o título é "Adequação à Squad" (' + await titulo(page) + ')');
@@ -182,8 +182,8 @@ const esperarHash = (page, h, descricao) => esperarCondicao(page, (x) => locatio
     {
       console.log('\n== Lista da Squad com avaliacao-squad.js chegando ~3 s depois ==');
       const { ctx, page, erros } = await abrir(browser, viewport, '#avaliacoes?sq=lista', { atrasarSquad: 3000 });
-      await page.waitForSelector('#avaliacoesSquad .sq-act-abrir', { timeout: 12000 }).catch(() => {});
-      afirma(await squadVisivel(page) && (await page.locator('#avaliacoesSquad .sq-act-abrir').count()) === 2 && await hash(page) === '#avaliacoes?sq=lista' && await titulo(page) === 'Adequação à Squad',
+      const abriuLista = await esperarCondicaoAte(page, () => !!document.querySelector('#avaliacoesSquad .sq-act-abrir'), null, { limite: 12000 });
+      afirma(abriuLista && await squadVisivel(page) && (await page.locator('#avaliacoesSquad .sq-act-abrir').count()) === 2 && await hash(page) === '#avaliacoes?sq=lista' && await titulo(page) === 'Adequação à Squad',
         'a lista da Squad abre sozinha, no endereço #avaliacoes?sq=lista, com o título "Adequação à Squad"');
       afirma(await larguraOk(page), 'sem rolagem horizontal');
       afirma(erros.length === 0, 'nenhum erro de JS (' + erros.length + ')');
