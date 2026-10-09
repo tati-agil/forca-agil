@@ -544,8 +544,8 @@
     {
       "arquivo": ".github/scripts/teste-squad-endereco.js",
       "nome": "Adequação à Squad: título próprio, endereço #avaliacoes?sq=…, F5 e Voltar/Avançar do navegador (desktop e 375 px)",
-      "duracao": 14,
-      "sobre": "Na área Avaliação a Squad troca o título da página para \"Adequação à Squad\" e restaura o original ao sair; #avaliacoes?sq=lista e ?sq=<chave> sobrevivem a F5 e link direto (leitura lenta mostra Carregando, nunca \"não encontrada\"); Voltar/Avançar do navegador andam entre avaliações, lista de squad e avaliação; \"← Voltar para Avaliações\" é botão no topo e no rodapé e não empilha histórico. Hermético."
+      "duracao": 30,
+      "sobre": "Na área Avaliação a Squad troca o título da página para \"Adequação à Squad\" e restaura o original ao sair; #avaliacoes?sq=lista e ?sq=<chave> sobrevivem a F5 e link direto (leitura lenta mostra Carregando, nunca \"não encontrada\"); Voltar/Avançar do navegador andam entre avaliações, lista de squad e avaliação; \"← Voltar para Avaliações\" é botão no topo e no rodapé e não empilha histórico; com avaliacao-squad.js chegando ~3 s depois do roteador e de avaliacao-produto.js (máquina lenta), link direto para ?sq=sqA e ?sq=lista abre a tela certa sozinho, e montar de novo devolve a mesma instância, sem navegação duplicada. Hermético."
     },
     {
       "arquivo": ".github/scripts/teste-mapa-floresta.js",

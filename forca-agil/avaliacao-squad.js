@@ -2002,13 +2002,20 @@
     return api;
   }
 
+  /* Idempotente: cada instância monta uma vez só (já montada → nada; montarSquad também recusa o mesmo wrap). */
   window.faInitAvaliacaoSquad = function (opcoes) {
     if (opcoes && opcoes.modo === 'operacional') {
+      if (window.faAvaliacaoSquad) return;
       var op = montarSquad({ wrapId: 'avaliacoesSquad', modo: 'operacional', vizinhoId: 'avaliacoesPainel' });
       if (op) window.faAvaliacaoSquad = op;
       return;
     }
+    if (window.faAvaliacaoSquadAdmin) return;
     var adm = montarSquad({ wrapId: 'adminAvaliacaoSquad', modo: 'admin', vizinhoId: 'adminAvaliacaoProduto' });
     if (adm) window.faAvaliacaoSquadAdmin = adm;
   };
+  /* Carga direta em #avaliacoes?sq=… (F5, link): em máquina lenta o roteador e avaliacao-produto.js abrem a página
+     antes de este arquivo carregar, e aí ninguém monta a instância operacional — monta-se sozinha; quem abre a
+     tela do endereço continua sendo aplicarEndereco(). */
+  if (/^#avaliacoes\?(.*&)?sq=/.test(location.hash || '')) window.faInitAvaliacaoSquad({ modo: 'operacional' });
 })();

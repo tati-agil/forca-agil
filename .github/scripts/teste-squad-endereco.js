@@ -8,7 +8,10 @@
  *   - o Voltar/Avançar do navegador anda entre avaliações → lista de squad → avaliação de squad;
  *   - "← Voltar para Avaliações" é um botão visível no topo e repetido no rodapé;
  *   - link direto com a leitura lenta mostra "Carregando…" e depois a avaliação (nunca "não encontrada"
- *     por não ter esperado).
+ *     por não ter esperado);
+ *   - link direto / F5 quando avaliacao-squad.js chega ~3 s DEPOIS do roteador e de avaliacao-produto.js
+ *     (máquina lenta): o módulo se monta sozinho ao carregar e abre a tela do endereço; montar de novo
+ *     (faInitAvaliacaoSquad) devolve a mesma instância, sem listener nem navegação duplicados.
  * Hermético (Firebase falso). */
 const { chromium } = require('playwright');
 const { esperarSessaoAssentada, esperarCondicao } = require('./esperas');
@@ -37,6 +40,8 @@ function av(i, nome) {
 }
 
 async function abrir(browser, viewport, hash, extra) {
+  extra = Object.assign({}, extra || {});
+  const atrasarSquad = extra.atrasarSquad; delete extra.atrasarSquad;
   const aut = {}; aut[chave(EM)] = { email: EM, nome: EM, tipo: 'avaliacao', concedidoPor: 'tatianefdirene@previ.com.br', concedidoEm: '2026-10-01T10:00:00.000Z' };
   const db = { turmas: {}, 'turmas-interesse': {}, 'fa-users': {}, 'fa-admins': {}, 'avaliacoes-produto': {},
     'avaliacoes-squad': { sqA: av(1, 'Plataforma de Benefícios'), sqB: av(2, 'Canal de Atendimento') },
@@ -49,6 +54,12 @@ async function abrir(browser, viewport, hash, extra) {
   await page.route('**/firebasejs/**', (r) => r.fulfill({ status: 200, contentType: 'text/javascript', body: FALSO }));
   await page.route('**fonts.googleapis.com**', (r) => r.fulfill({ status: 200, contentType: 'text/css', body: '' }));
   await page.route('**fonts.gstatic.com**', (r) => r.abort());
+  /* o arquivo da Squad chega atrasado; o resto (roteador, avaliacao-produto.js) carrega normalmente */
+  /* registra, desde o início da carga, se a página #avaliacoes chegou a abrir com Produto/Serviço montado e SEM o módulo da Squad */
+  if (atrasarSquad) await ctx.addInitScript('window.__corridaSquad = false; (function olhar() { var p = document.getElementById("page-avaliacoes"); ' +
+    'if (p && !p.hidden && typeof window.faInitAvaliacaoProduto === "function" && typeof window.faInitAvaliacaoSquad === "undefined") window.__corridaSquad = true; ' +
+    'if (typeof window.faInitAvaliacaoSquad === "undefined") setTimeout(olhar, 50); })();');
+  if (atrasarSquad) await page.route('**/forca-agil/avaliacao-squad.js*', async (r) => { await new Promise((ok) => setTimeout(ok, atrasarSquad)); r.continue(); });
   await page.goto(BASE + '/index.html' + hash, { waitUntil: 'domcontentloaded' });
   await esperarSessaoAssentada(page);
   return { ctx, page, erros };
@@ -137,6 +148,44 @@ const esperarHash = (page, h, descricao) => esperarCondicao(page, (x) => locatio
       const { ctx, page, erros } = await abrir(browser, viewport, '#avaliacoes?sq=naoExiste');
       await esperarCondicao(page, () => /não encontrada/i.test(document.getElementById('avaliacoesSquad').innerText), null, { descricao: 'aviso de não encontrada' });
       afirma(await hash(page) === '#avaliacoes?sq=naoExiste', 'avaliação inexistente: aviso claro e o endereço continua o pedido');
+      afirma(erros.length === 0, 'nenhum erro de JS (' + erros.length + ')');
+      await ctx.close();
+    }
+    {
+      console.log('\n== Link direto com avaliacao-squad.js chegando ~3 s depois (máquina lenta) ==');
+      const { ctx, page, erros } = await abrir(browser, viewport, '#avaliacoes?sq=sqA', { atrasarSquad: 3000 });
+      /* a corrida aconteceu de verdade: a página #avaliacoes já abriu (Produto/Serviço montado) sem o módulo da Squad */
+      await page.waitForFunction(() => typeof window.faInitAvaliacaoSquad === 'function', null, { timeout: 12000 });
+      const corrida = await page.evaluate(() => window.__corridaSquad === true);
+      afirma(corrida, 'reproduz a corrida: #avaliacoes aberta e avaliacao-produto.js carregado ANTES de avaliacao-squad.js');
+      await page.waitForSelector('#avaliacoesSquad #sqVoltarListaResultado', { timeout: 12000 }).catch(() => {});
+      afirma(await squadVisivel(page) && /Plataforma de Benefícios/.test(await page.locator('#avaliacoesSquad').innerText()) && (await page.locator('#avaliacoesSquad #sqVoltarListaResultado').count()) === 1,
+        'quando o arquivo chega, a avaliação pedida (sqA) abre sozinha e o painel de Produto/Serviço fica oculto');
+      afirma(await hash(page) === '#avaliacoes?sq=sqA', 'o endereço continua #avaliacoes?sq=sqA (' + await hash(page) + ')');
+      afirma(await titulo(page) === 'Adequação à Squad', 'o título é "Adequação à Squad" (' + await titulo(page) + ')');
+      /* idempotência: montar de novo não cria outra instância nem duplica a navegação */
+      const mesma = await page.evaluate(() => { const a = window.faAvaliacaoSquad; window.faInitAvaliacaoSquad({ modo: 'operacional' }); window.faInitAvaliacaoSquad({ modo: 'operacional' }); return !!a && window.faAvaliacaoSquad === a; });
+      afirma(mesma, 'faInitAvaliacaoSquad({modo:"operacional"}) chamado de novo devolve a MESMA instância');
+      const antes = await page.evaluate(() => history.length);
+      await page.click('#avaliacoesSquad #sqVoltarListaResultado');
+      await esperarHash(page, '#avaliacoes?sq=lista');
+      await page.waitForSelector('#avaliacoesSquad .sq-act-abrir', { timeout: 8000 });
+      const depois = await page.evaluate(() => history.length);
+      afirma(depois - antes === 1 && (await page.locator('#avaliacoesSquad #sqVoltarArquitetura').count()) === 1, 'depois de montar de novo, "voltar à lista" anda UMA entrada só no histórico e a tela não se duplica (' + (depois - antes) + ')');
+      await page.goBack();
+      await esperarHash(page, '#avaliacoes?sq=sqA', 'o Voltar do navegador voltar à avaliação');
+      await page.waitForSelector('#avaliacoesSquad #sqVoltarListaResultado', { timeout: 8000 });
+      afirma(/Plataforma de Benefícios/.test(await page.locator('#avaliacoesSquad').innerText()), 'Voltar do navegador reabre a avaliação, uma vez só');
+      afirma(erros.length === 0, 'nenhum erro de JS (' + erros.length + ')');
+      await ctx.close();
+    }
+    {
+      console.log('\n== Lista da Squad com avaliacao-squad.js chegando ~3 s depois ==');
+      const { ctx, page, erros } = await abrir(browser, viewport, '#avaliacoes?sq=lista', { atrasarSquad: 3000 });
+      await page.waitForSelector('#avaliacoesSquad .sq-act-abrir', { timeout: 12000 }).catch(() => {});
+      afirma(await squadVisivel(page) && (await page.locator('#avaliacoesSquad .sq-act-abrir').count()) === 2 && await hash(page) === '#avaliacoes?sq=lista' && await titulo(page) === 'Adequação à Squad',
+        'a lista da Squad abre sozinha, no endereço #avaliacoes?sq=lista, com o título "Adequação à Squad"');
+      afirma(await larguraOk(page), 'sem rolagem horizontal');
       afirma(erros.length === 0, 'nenhum erro de JS (' + erros.length + ')');
       await ctx.close();
     }
