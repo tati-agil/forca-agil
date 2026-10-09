@@ -99,6 +99,7 @@ async function abrir(browser, viewport, opts) {
   await page.route('**/firebasejs/**', (r) => r.fulfill({ status: 200, contentType: 'text/javascript', body: FALSO }));
   await page.route('**fonts.googleapis.com**', (r) => r.fulfill({ status: 200, contentType: 'text/css', body: '' }));
   await page.route('**fonts.gstatic.com**', (r) => r.abort());
+  if (opts.atrasarModulo) await page.route('**/avaliacao-posicionamento.js*', async (r) => { await new Promise((ok) => setTimeout(ok, opts.atrasarModulo)); r.continue(); });
   await page.goto(BASE + '/index.html' + (opts.hash || '#avaliacoes'), { waitUntil: 'domcontentloaded' });
   await esperarSessaoAssentada(page);
   return { ctx, page, erros };
@@ -118,7 +119,17 @@ const diagVisiveis = (page) => page.evaluate(() => Array.from(document.querySele
 async function responder(page, q, v) {
   await page.click('#avaliacoesPosicionamento .po-resp[data-q="' + q + '"][data-v="' + v + '"]');
 }
-async function tela(page, id) { await page.waitForSelector('#avaliacoesPosicionamento #' + id, { timeout: 10000 }); }
+async function tela(page, id) {
+  try { await page.waitForSelector('#avaliacoesPosicionamento #' + id, { timeout: 10000 }); }
+  catch (e) {
+    /* diagnóstico: onde a tela parou */
+    console.log('[DIAGNÓSTICO] esperando #' + id + ': ' + await page.evaluate(() => {
+      const w = document.getElementById('avaliacoesPosicionamento');
+      return JSON.stringify({ hash: location.hash, estado: history.state, oculto: w.hidden, texto: w.innerText.slice(0, 200), painel: document.getElementById('avaliacoesPainel').hidden });
+    }).catch(() => '(página indisponível)'));
+    throw e;
+  }
+}
 const modalTexto = (page) => page.evaluate(() => { const m = document.querySelector('.po-modal'); return m ? m.innerText : ''; });
 
 async function fluxoPrincipal(browser, nomeTela, viewport) {
@@ -376,6 +387,15 @@ async function fichaEVoltar(browser, nomeTela, viewport) {
   afirma(erros.length === 0, 'nenhum erro de JS (' + erros.length + ')');
 }
 
+async function moduloAtrasado(browser, nomeTela, viewport) {
+  console.log('\n######## ' + nomeTela + ' — o arquivo do Posicionamento chega depois da página ########');
+  const { ctx, page, erros } = await abrir(browser, viewport, { hash: '#avaliacoes?po=g1', atrasarModulo: 3000 });
+  await tela(page, 'poResultado');
+  afirma(await hash(page) === '#avaliacoes?po=g1' && !(await visivel(page, '#avaliacoesPainel')), 'link direto com avaliacao-posicionamento.js atrasado: abre o resultado mesmo assim');
+  await ctx.close();
+  afirma(erros.length === 0, 'nenhum erro de JS (' + erros.length + ')');
+}
+
 (async () => {
   const browser = await chromium.launch();
   for (const [nome, vp] of [['desktop', DESKTOP], ['celular 375px', CELULAR]]) {
@@ -383,6 +403,7 @@ async function fichaEVoltar(browser, nomeTela, viewport) {
     await perfilAvaliacao(browser, nome, vp);
     await redeLenta(browser, nome, vp);
     await fichaEVoltar(browser, nome, vp);
+    await moduloAtrasado(browser, nome, vp);
   }
   await browser.close();
   console.log('\n============================\n' + (falhas ? falhas + ' FALHA(S)' : 'TUDO OK'));

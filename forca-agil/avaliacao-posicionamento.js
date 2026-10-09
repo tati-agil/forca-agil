@@ -836,4 +836,7 @@
     var api = montar();
     if (api) window.faAvaliacaoPosicionamento = api;
   };
+  /* Carga direta em #avaliacoes?po=… (F5, link, Voltar/Avançar que atravessa um F5): em máquina lenta o roteador
+     pode abrir a página antes de este arquivo carregar, e aí ninguém o monta — monta-se sozinho. */
+  if (/^#avaliacoes\?(.*&)?po=/.test(location.hash || '')) window.faInitAvaliacaoPosicionamento();
 })();
