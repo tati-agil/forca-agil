@@ -225,7 +225,7 @@ async function fluxoPrincipal(browser, nomeTela, viewport) {
   afirma(rc.nomesNaConclusao && rc.nomesNaConclusao.PLATAFORMA && rc.nomesNaConclusao.PLATAFORMA.nome === 'Tx PLATAFORMA' && rc.nomesNaConclusao.PLATAFORMA_CANAIS.contingencia === false, 'nome registrado na conclusão (nível e papéis), sem contingência');
   afirma(rc.diagnosticos.N3.observacao === 'Dois serviços diferentes', 'observação do diagnóstico gravada');
   const res = await texto(page, '#poResultado');
-  afirma(/Posicionamento organizacional recomendado/.test(res) && !/é uma Linha|virou/i.test(res), 'título "Posicionamento organizacional recomendado", sem "o objeto é"');
+  afirma(/Posicionamento organizacional recomendado: A validar — recorte do objeto/.test(res) && !/é uma Linha|virou/i.test(res), '"Posicionamento organizacional recomendado: A validar — recorte do objeto", sem "o objeto é"');
   afirma(/A validar/.test(res) && /recorte/i.test(res), 'A validar — recorte do objeto');
   afirma(/Adequação à Squad \(S1–S8\) pode ser realizada/.test(res) && /não cria nem associa/i.test(res), 'liberaSquad: "a Adequação à Squad (S1–S8) pode ser realizada" — não cria nem associa Squad');
   afirma(/estrutura organizacional concreta/i.test(res), 'explica que a associação à estrutura concreta é etapa posterior');

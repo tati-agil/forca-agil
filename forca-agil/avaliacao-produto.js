@@ -6565,10 +6565,6 @@
       html += '</div>';
       html += '<div class="avp-ficha-acoes" id="avpAcoesFicha">';
       if (pode() && vigente) html += '<button class="btn btn--sm" id="avpReavaliarBtn">Reavaliar</button>';
-      /* Posicionamento Organizacional deste item: só quem grava O1–O9 (Avaliação + Arquitetura, admin geral) */
-      if (modo === 'operacional' && podeDecidir() && vigente && a.status === 'concluido' && a.excluido !== true) {
-        html += '<button class="btn btn--sm" id="avpPosicionarBtn">Posicionamento Organizacional</button>';
-      }
       if (pode()) {
         html += '<button class="btn btn--sm" id="avpGerarPdfBtn"' + (state.exportando ? ' disabled' : '') + '>' +
           (state.exportando === 'pdf' ? 'Gerando arquivo…' : '📄 GERAR PDF') + '</button>';
@@ -6757,9 +6753,13 @@
       html += '</div></div>';
       html += '</section>';
 
-      /* Rodapé: só a navegação. Reavaliar e GERAR PDF são ações do item e ficam no cabeçalho. */
+      /* Rodapé: só a navegação. Reavaliar e GERAR PDF são ações do item e ficam no cabeçalho. O Posicionamento
+         Organizacional deste item é outra avaliação (só quem grava O1–O9: Avaliação + Arquitetura, admin geral). */
       html += '<div class="avp-actions-footer avp-result-actions-footer">';
       html += '<button class="btn" id="avpVoltarListaRodape">' + esc(rotuloVoltar()) + '</button>';
+      if (modo === 'operacional' && podeDecidir() && vigente && a.status === 'concluido' && a.excluido !== true) {
+        html += '<button class="btn" id="avpPosicionarBtn">Posicionamento Organizacional deste item</button>';
+      }
       html += '</div>';
 
       html += '</div>';

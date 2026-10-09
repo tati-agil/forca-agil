@@ -344,6 +344,8 @@
         else { state.pendente = null; abrirChave(po); }
         render();
       } finally { aplicando = false; }
+      /* aberto pela API (botão da lista, ficha): o endereço passa a ser o desta tela; vindo do endereço, já é */
+      sincronizarEndereco();
       reafirmar();
     }
     function autorizacaoResolvida() { return !!(window.faAuth && (!window.faAuth.isAvaliacaoReady || window.faAuth.isAvaliacaoReady())); }
@@ -535,9 +537,8 @@
     function renderResultado() {
       var a = state.atual, ra = resultadoLido(a.resultadoAutomatico);
       var h = '<div class="avp-form-card" id="poResultado"><h3>' + esc(a.itemNome) + ' ' + badge(a.status) + '</h3>';
-      h += '<p class="po-recomendado-rotulo">Posicionamento organizacional recomendado</p>';
       if (ra.codigoResultado === 'A_VALIDAR') {
-        h += '<p class="po-recomendado" id="poRecomendado">A validar — ' + esc(TIPO_TEXTO[ra.tipoAValidar] || ra.tipoAValidar || '') + '</p>';
+        h += '<p class="po-recomendado" id="poRecomendado">Posicionamento organizacional recomendado: A validar — ' + esc(TIPO_TEXTO[ra.tipoAValidar] || ra.tipoAValidar || '') + '</p>';
         if (ra.papeisDetectados.length) h += '<p id="poPapeis">Papéis identificados: ' + ra.papeisDetectados.map(spanNome).join(', ') + '</p>';
         if (ra.nivelConfirmado) h += '<p id="poNivelConfirmado">Nível confirmado: ' + spanNome(ra.nivelConfirmado) + '</p>' + linhaNomes(ra.nivelConfirmado, a);
       } else {

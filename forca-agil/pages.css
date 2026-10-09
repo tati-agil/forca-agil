@@ -2845,8 +2845,7 @@ details.avp-form-card.avp-aut-historico { margin-top: 0; padding: 10px 16px; mar
 .po-item-situacao { font-size: .78rem; color: var(--ink-3); }
 .po-item-escolhido { padding: 12px 0; }
 .po-item-escolhido .po-item-nome { font-size: 1.05rem; font-weight: 600; color: var(--ink); margin: 0 0 4px; }
-.po-recomendado-rotulo { font-size: .78rem; color: var(--ink-3); text-transform: uppercase; letter-spacing: .05em; margin: 12px 0 2px; }
-.po-recomendado { font-size: 1.1rem; font-weight: 600; color: var(--ink); margin: 0 0 8px; overflow-wrap: anywhere; }
+.po-recomendado { font-size: 1.1rem; font-weight: 600; color: var(--ink); margin: 12px 0 8px; overflow-wrap: anywhere; }
 .po-nome-atual, .po-nome-conclusao { font-size: .85rem; color: var(--ink-2); margin: 4px 0; }
 .po-libera { border-left: 3px solid var(--accent-2); padding: 6px 10px; color: var(--ink); margin: 12px 0; }
 .po-respostas-lista { padding-left: 18px; }
