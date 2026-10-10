@@ -36,6 +36,15 @@ const AUDNOVA = (campo) => NOVO(AUD) + ".child($avaliacaoId).child(" + v(campo) 
 const AUDANT = (campo) => "root.child('" + AUD + "').child($avaliacaoId).child(" + v(campo) + ")";
 const P = "root.child('avaliacoes-produto').child(" + v('avaliacaoArquiteturalId') + ")";
 const and = (xs) => xs.join(' && ');
+/* H0 — GATE P1–P16 → O1–O9: a base precisa estar com MOTOR ATUAL (a mesma "atual" de diagnosticoMotor em
+   avaliacao-produto.js): a lógica em código da época = MOTOR_VERSION de hoje (lida do próprio arquivo — mudou lá,
+   este arquivo diverge e teste-regras-posicionamento-tabela.js obriga a remontar) e a versão das regras = a publicada
+   (ausente = 1, como versaoAtual()). "Equivalente" não passa. Que a base seja a PONTA da cadeia (sem reavaliação de
+   P1–P16 em andamento) as regras não conseguem ver — sem índice reverso; isso fica com a tela e com a fronteira
+   confiável do H2. */
+const MOTOR_PRODUTO = (fs.readFileSync(path.join(__dirname, '..', '..', 'forca-agil', 'avaliacao-produto.js'), 'utf8').match(/\n  var MOTOR_VERSION = '([^']+)';/) || [])[1];
+if (!MOTOR_PRODUTO) throw new Error('MOTOR_VERSION não encontrado em avaliacao-produto.js');
+const PUB = "root.child('motor-arquitetura-config/versaoPublicada')";
 const ID = '/^[A-Za-z0-9_-]{1,60}$/';
 const semCampos = (xs) => and(xs.map((x) => '!' + c(x) + '.exists()'));
 const CONCL = ['resultadoAutomatico', 'nomesNaConclusao', 'concluidoPor', 'concluidoEm', 'auditoriaConclusaoId'];
@@ -48,9 +57,16 @@ const ANTID = v('avaliacaoAnteriorId');
 const ANT = "root.child('" + AV + "').child(" + ANTID + ")";
 const VIGRAIZ = "root.child('" + VIG + "').child(" + v('itemId') + ')';
 
-const criar = and([
-  v('status') + " === 'rascunho'", v('revisao') + ' === 1', v('criadoPor/email') + ' === auth.token.email',
+/* a base P1–P16 (a avaliacaoArquiteturalId gravada) tem de estar concluída, fora da Lixeira e com Motor atual — na
+   criação, na reavaliação e de novo na CONCLUSÃO (a base pode ter mudado depois que o rascunho foi aberto) */
+const baseValida = [
   P + ".child('status').val() === 'concluido'", P + ".child('excluido').val() !== true",
+  P + ".child('motorVersion').val() === '" + MOTOR_PRODUTO + "'",
+  P + ".child('motorVersionArquitetura').val() === (" + PUB + '.exists() ? ' + PUB + '.val() : 1)'
+];
+const criar = and([
+  v('status') + " === 'rascunho'", v('revisao') + ' === 1', v('criadoPor/email') + ' === auth.token.email'
+].concat(baseValida).concat([
   '(' + P + ".child('itemId').val() === " + v('itemId') + ' || (!' + P + ".child('itemId').exists() && " + v('avaliacaoArquiteturalId') + ' === ' + v('itemId') + '))',
   /* primeira versão: o item não tem vigente. Reavaliação: versão seguinte da VIGENTE, com motivo. */
   '(' + c('avaliacaoAnteriorId') + '.exists() ? (' + and([
@@ -59,7 +75,7 @@ const criar = and([
     c('motivoReavaliacao') + '.isString()', naoEmBranco(v('motivoReavaliacao'))
   ]) + ') : (' + and(['!' + VIGRAIZ + '.exists()', v('versao') + ' === 1', '!' + c('motivoReavaliacao') + '.exists()']) + '))',
   AUDNOVA('auditoriaCriacaoId') + ".child('tipo').val() === 'criacao'", '!' + AUDANT('auditoriaCriacaoId') + '.exists()'
-]);
+]));
 const fixos = ['itemId', 'itemNome', 'avaliacaoArquiteturalId', 'questionnaireContentVersion', 'versao', 'avaliacaoAnteriorId', 'motivoReavaliacao', 'criadoPor/email', 'criadoPor/name', 'criadoEm', 'auditoriaCriacaoId'];
 const alterar = and(fixos.map((f) => v(f) + ' === ' + d(f)).concat([v('revisao') + ' === ' + d('revisao') + ' + 1']));
 const rascunho = and([NOVO(RES) + '.child(' + v('itemId') + ').val() === $avaliacaoId', semCampos(CONCL), semCampos(DESC)]);
@@ -69,9 +85,8 @@ const concluido = and([
   /* vigente: nasce na primeira versão; numa reavaliação, troca por compare-and-set (só se ainda é a anterior) */
   NOVO(VIG) + '.child(' + v('itemId') + ').val() === $avaliacaoId',
   '(' + c('avaliacaoAnteriorId') + '.exists() ? ' + VIGRAIZ + '.val() === ' + ANTID + ' : !' + VIGRAIZ + '.exists())',
-  AUDNOVA('auditoriaConclusaoId') + ".child('tipo').val() === 'conclusao'", '!' + AUDANT('auditoriaConclusaoId') + '.exists()',
-  T.trechoResultado()
-]);
+  AUDNOVA('auditoriaConclusaoId') + ".child('tipo').val() === 'conclusao'", '!' + AUDANT('auditoriaConclusaoId') + '.exists()'
+].concat(baseValida).concat([T.trechoResultado()]));
 const descartado = and([
   "newData.hasChildren(['" + DESC.join("','") + "'])", v('descartadoPor/email') + ' === auth.token.email', semCampos(CONCL),
   naoEmBranco(v('motivoDescarte')),
@@ -250,7 +265,7 @@ const blocoDec = {
 };
 
 const BLOCOS = { [AV]: blocoAv, [RES]: blocoRes, [VIG]: blocoVig, [AUD]: blocoAud, [DEC]: blocoDec };
-module.exports = { BLOCOS, NOS: [AV, RES, VIG, AUD, DEC] };
+module.exports = { BLOCOS, NOS: [AV, RES, VIG, AUD, DEC], MOTOR_PRODUTO };
 
 if (require.main === module) {
   let s = fs.readFileSync(ARQUIVO, 'utf8');

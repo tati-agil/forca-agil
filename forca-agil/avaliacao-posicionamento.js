@@ -297,7 +297,47 @@
       motivo: reg.motivoReavaliacao, usuario: o.usuario, dataHora: o.agora };
     return p;
   }
+  /* ---- GATE P1–P16 → O1–O9 (puro): iniciar ou reavaliar só sobre a Avaliação de Produto/Serviço que VALE para o
+     item — a ponta da cadeia, concluída e não excluída (faBaseProdutoServico.baseDoItem, a mesma regra da lista de
+     Produto/Serviço) — e com Motor atual (situacaoMotorDe, a mesma de diagnosticoMotor). Só 'atual' libera:
+     'verificando' (o motor ainda não chegou) e 'equivalente' (falta reconciliar) bloqueiam. Nenhuma lógica de
+     Produto/Serviço é repetida aqui. B = faBaseProdutoServico, ctx = o contexto do motor; sem B, bloqueia. */
+  function gateDoItem(itemId, produtos, B, ctx) {
+    if (!B || !ctx) return { libera: false, situacao: 'verificando', chave: null };
+    var base = B.baseDoItem(itemId, produtos);
+    if (base.situacao !== 'valida') return { libera: false, situacao: base.situacao, chave: base.chave || null };
+    var m = B.situacaoMotorDe(base.avaliacao, ctx);
+    var s = m ? m.situacao : 'verificando';
+    return { libera: s === 'atual', situacao: s, chave: base.chave, avaliacao: base.avaliacao, motivo: (m && m.motivo) || null };
+  }
+  var ROTULO_GATE = {
+    verificando: 'Verificando motor…', desatualizado: 'Motor de P1–P16 desatualizado', equivalente: 'P1–P16 a reconciliar',
+    'reavaliacao-em-andamento': 'Reavaliação de P1–P16 em andamento', excluida: 'P1–P16 excluída', 'nao-concluida': 'P1–P16 não concluída',
+    'sem-avaliacao': 'Sem Avaliação de Produto/Serviço', indefinida: 'Versão de P1–P16 não resolvida'
+  };
+  /* acao: 'iniciar' | 'reavaliar' */
+  function textoGate(situacao, acao) {
+    var fim = ' antes de ' + (acao === 'reavaliar' || acao === 'concluir' ? acao : 'iniciar') + ' o Posicionamento Organizacional.';
+    switch (situacao) {
+      case 'verificando': return 'Verificando a versão do motor da Avaliação de Produto/Serviço…';
+      case 'desatualizado': return 'Motor da Avaliação de Produto/Serviço desatualizado. Atualize P1–P16' + fim;
+      case 'equivalente': return 'A Avaliação de Produto/Serviço deste item foi calculada por uma versão anterior do motor, logicamente equivalente à atual, ' +
+        'mas ainda não reconciliada. Reconcilie-a em Produto/Serviço, para que fique formalmente com Motor atual,' + fim;
+      case 'reavaliacao-em-andamento': return 'Existe uma versão mais nova da Avaliação de Produto/Serviço deste item em andamento (reavaliação de P1–P16). ' +
+        'Conclua ou resolva essa versão em Produto/Serviço' + fim;
+      case 'excluida': return 'A versão mais recente da Avaliação de Produto/Serviço deste item está excluída (na Lixeira). Restaure-a ou resolva em Produto/Serviço' + fim;
+      case 'nao-concluida': return 'A Avaliação de Produto/Serviço deste item ainda não foi concluída. Conclua P1–P16' + fim;
+      case 'sem-avaliacao': return 'Este item não tem Avaliação de Produto/Serviço. Avalie P1–P16' + fim;
+      case 'base-mudou': return 'A Avaliação de Produto/Serviço que vale hoje para este item não é a usada neste rascunho (existe uma versão mais nova). ' +
+        'Para não trocar a base em silêncio, este rascunho não pode ser concluído: descarte-o e inicie um novo Posicionamento sobre a versão atual.';
+      case 'indefinida': return 'Não foi possível determinar qual versão da Avaliação de Produto/Serviço deste item é a vigente: há mais de uma versão mais recente. ' +
+        'Resolva em Produto/Serviço' + fim;
+      default: return '';
+    }
+  }
+
   window.faAvaliacaoPosicionamentoNucleo = {
+    gateDoItem: gateDoItem, textoGate: textoGate, ROTULO_GATE: ROTULO_GATE,
     simples: simples, avaliar: avaliar, caminho: caminho, diagnosticoNecessario: diagnosticoNecessario, papeisDoPar: papeisDoPar,
     limparForaDoCaminho: limparForaDoCaminho, falta: falta, snapshotResposta: snapshotResposta, snapshotDiagnostico: snapshotDiagnostico,
     resultadoGravavel: resultadoGravavel, nomesNaConclusao: nomesNaConclusao,
@@ -466,17 +506,30 @@
     }
     function irParaChave(key) { state.pendente = null; abrirChave(key); render(); }
 
-    /* ---- itens que podem ser avaliados: Produto/Serviço concluída e não excluída, a versão mais nova ---- */
-    function itensAvaliaveis() {
-      var por = {};
-      Object.keys(state.produtos).forEach(function (k) {
-        var it = state.produtos[k];
-        if (!it || it.status !== 'concluido' || it.excluido === true) return;
-        var id = it.itemId || k;
-        var atual = por[id];
-        if (!atual || (it.versao || 1) > (atual.versao || 1)) por[id] = { itemId: id, nome: it.nome || id, avaliacaoArquiteturalId: k, versao: it.versao || 1, camada: it.camadaSugerida || null };
-      });
-      return Object.keys(por).map(function (id) { return por[id]; }).sort(function (a, b) { return String(a.nome).localeCompare(String(b.nome), 'pt-BR'); });
+    /* ---- gate P1–P16 → O1–O9: a situação de cada item vem do núcleo puro (gateDoItem), com o motor carregado ---- */
+    function B() { return window.faBaseProdutoServico; }
+    function gateAtual(itemId) { return gateDoItem(itemId, state.produtos, B(), B() ? B().contextoMotorAtual() : null); }
+    /* itens listados para escolher: os que já tiveram alguma Avaliação de Produto/Serviço concluída, menos os que estão
+       na Lixeira de Produto/Serviço (lá também saem da lista); cada um com o seu gate (só 'atual' deixa iniciar) e o
+       motivo quando bloqueia. O nome e a base vêm da versão que vale (a ponta da cadeia). */
+    function itensDoGate() {
+      var ids = {};
+      Object.keys(state.produtos).forEach(function (k) { var it = state.produtos[k]; if (it && it.status === 'concluido') ids[it.itemId || k] = true; });
+      return Object.keys(ids).map(itemDoGate).filter(function (x) { return x.gate.situacao !== 'excluida'; }).sort(function (a, b) { return String(a.nome).localeCompare(String(b.nome), 'pt-BR'); });
+    }
+    /* conclusão de um rascunho já aberto: o gate do item tem de liberar E a base que vale hoje tem de ser exatamente a
+       gravada no rascunho; senão devolve { situacao, texto } (o rascunho não é tocado) */
+    function travaConclusao(a) {
+      if (!a || a.status !== 'rascunho') return null;
+      var g = gateAtual(a.itemId);
+      if (!g.libera) return { situacao: g.situacao, texto: textoGate(g.situacao, 'concluir') };
+      if (g.chave !== a.avaliacaoArquiteturalId) return { situacao: 'base-mudou', texto: textoGate('base-mudou', 'concluir') };
+      return null;
+    }
+    function itemDoGate(itemId) {
+      var g = gateAtual(itemId), ponta = g.chave && state.produtos[g.chave];
+      return { itemId: itemId, nome: (ponta && ponta.nome) || itemId, gate: g, avaliacaoArquiteturalId: g.libera ? g.chave : null,
+        versao: (ponta && ponta.versao) || 1, camada: (ponta && ponta.camadaSugerida) || null };
     }
     function tudoCarregado() { return state.carregou.av && state.carregou.res && state.carregou.vig && state.carregou.prod; }
 
@@ -609,32 +662,41 @@
 
     function renderEscolher() {
       var h = '<div class="avp-form-card" id="poEscolher"><h3>Escolher o item</h3>' +
-        '<p class="avp-intro">Só itens com Avaliação de Produto/Serviço concluída (qualquer classificação). Cada item tem um Posicionamento por vez.</p>';
+        '<p class="avp-intro">Só itens cuja Avaliação de Produto/Serviço vigente está concluída e com Motor atual (qualquer classificação). Cada item tem um Posicionamento por vez.</p>';
       if (!tudoCarregado() || !window.faQuestionarios.configCarregada(QCOD)) return h + '<p class="loading-msg">Carregando…</p></div>';
-      var itens = itensAvaliaveis();
       if (state.itemEscolhido) {
-        var it = itens.filter(function (x) { return x.itemId === state.itemEscolhido; })[0];
-        if (!it) return h + '<p class="avp-error-msg" id="poItemIndisponivel">Este item não tem Avaliação de Produto/Serviço concluída e não pode ser avaliado aqui.</p>' +
+        var it = itemDoGate(state.itemEscolhido);
+        var temPos = state.vigentes[it.itemId] || state.reservas[it.itemId];
+        if (!temPos && it.gate.situacao === 'sem-avaliacao') return h + '<p class="avp-error-msg" id="poItemIndisponivel">Este item não tem Avaliação de Produto/Serviço e não pode ser avaliado aqui.</p>' +
           '<button type="button" class="btn btn--sm" id="poOutroItem">Escolher outro item</button></div>';
         h += '<div class="po-item-escolhido" id="poItemSelecionado"><p class="po-item-nome">' + esc(it.nome) + '</p>' +
           (it.camada ? '<p class="avp-ficha-meta">Avaliação de Produto/Serviço: ' + esc(it.camada.label || it.camada.id) + ' (v' + esc(it.versao) + ')</p>' : '');
+        if (!temPos && !it.gate.libera) h += avisoGate(it.gate, 'iniciar');
         h += acoesDoItem(it, true) + '</div><button type="button" class="btn btn--sm" id="poOutroItem">Escolher outro item</button></div>';
         return h;
       }
+      var itens = itensDoGate();
       h += '<div class="avp-field"><label for="poBusca">Buscar item</label><input type="search" id="poBusca" value="' + esc(state.busca) + '" autocomplete="off"></div>';
       var filtro = state.busca.trim().toLowerCase();
       var filtrados = itens.filter(function (x) { return !filtro || String(x.nome).toLowerCase().indexOf(filtro) !== -1; });
       if (!filtrados.length) h += '<p class="admin-empty">Nenhum item encontrado.</p>';
       h += '<ul class="po-itens">' + filtrados.map(function (x) {
-        return '<li class="po-item-opcao" data-item="' + esc(x.itemId) + '"><span class="po-item-nome">' + esc(x.nome) + '</span> ' + acoesDoItem(x, false) + '</li>';
+        return '<li class="po-item-opcao" data-item="' + esc(x.itemId) + '" data-gate="' + esc(x.gate.situacao) + '"><span class="po-item-nome">' + esc(x.nome) + '</span> ' + acoesDoItem(x, false) + '</li>';
       }).join('') + '</ul>';
       return h + '</div>';
     }
-    /* item com Posicionamento concluído → só "Abrir"; com rascunho → "Continuar"; senão escolher/iniciar */
+    /* o motivo do bloqueio, por extenso; 'verificando' é espera, não erro */
+    function avisoGate(g, acao) {
+      var cls = g.situacao === 'verificando' ? 'loading-msg' : 'avp-error-msg';
+      return '<p class="' + cls + ' po-gate" id="poGate" data-gate="' + esc(g.situacao) + '" role="status">' + esc(textoGate(g.situacao, acao)) + '</p>';
+    }
+    /* item com Posicionamento concluído → só "Abrir"; com rascunho → "Continuar"; bloqueado pelo gate → o motivo
+       (Ver motivo abre o item); senão escolher/iniciar */
     function acoesDoItem(it, escolhido) {
       var vig = state.vigentes[it.itemId], res = state.reservas[it.itemId];
       if (vig) return '<span class="po-item-situacao">Posicionamento concluído</span> <button type="button" class="btn btn--sm po-item-abrir" data-key="' + esc(vig) + '">Abrir</button>';
       if (res) return '<span class="po-item-situacao">Rascunho em andamento</span> <button type="button" class="btn btn--sm po-item-abrir" data-key="' + esc(res) + '">Continuar</button>';
+      if (!it.gate.libera) return escolhido ? '' : '<span class="po-item-situacao po-item-bloqueado">' + esc(ROTULO_GATE[it.gate.situacao] || it.gate.situacao) + '</span> <button type="button" class="btn btn--sm po-item-escolher">Ver motivo</button>';
       if (escolhido) return '<button type="button" class="btn btn--primary" id="poIniciarBtn"' + (state.salvando ? ' disabled' : '') + '>' + (state.salvando ? 'INICIANDO…' : 'Iniciar avaliação') + '</button>';
       return '<button type="button" class="btn btn--sm po-item-escolher">Escolher</button>';
     }
@@ -662,10 +724,12 @@
       });
       h += '</div>';
       if (edita) {
-        var f = falta(a), bloq = !!state.salvando || state.conflito;
+        var f = falta(a), bloq = !!state.salvando || state.conflito, tc = travaConclusao(a);
+        /* a base P1–P16 deixou de valer: o rascunho continua salvável e descartável, só não conclui */
+        if (tc) h += '<p class="' + (tc.situacao === 'verificando' ? 'loading-msg' : 'avp-error-msg') + ' po-gate" id="poGate" data-gate="' + esc(tc.situacao) + '" role="status">' + esc(tc.texto) + '</p>';
         h += '<div class="avp-actions-footer">' +
           '<button type="button" class="btn" id="poSalvarBtn"' + (bloq ? ' disabled' : '') + '>' + (state.salvando === 'rascunho' ? 'SALVANDO…' : 'SALVAR RASCUNHO') + '</button>' +
-          '<button type="button" class="btn btn--primary" id="poConcluirBtn"' + (bloq || f ? ' disabled' : '') + '>' + (state.salvando === 'concluido' ? 'CONCLUINDO…' : f ? esc(f.texto) : 'CONCLUIR') + '</button>' +
+          '<button type="button" class="btn btn--primary" id="poConcluirBtn"' + (bloq || f || tc ? ' disabled' : '') + '>' + (state.salvando === 'concluido' ? 'CONCLUINDO…' : f ? esc(f.texto) : 'CONCLUIR') + '</button>' +
           '<button type="button" class="btn btn--sm btn--danger" id="poDescartarBtn"' + (bloq ? ' disabled' : '') + '>Descartar rascunho</button></div>';
       }
       return h + rodapeVoltar();
@@ -761,8 +825,11 @@
       h += '<section class="po-bloco" id="poBlocoDecisao"><h4 class="po-bloco-titulo">Decisão final</h4>' + renderDecisao(a, key, sit) + '</section>';
       h += '<section class="po-bloco" id="poBlocoHistorico"><h4 class="po-bloco-titulo">Histórico de versões</h4>' + renderHistorico(a, key) + '</section>';
       var podeReav = sit === 'vigente' && podeEscrever() && !resv, prontoPdf = prontoParaExportar();
+      /* reavaliar passa pelo MESMO gate de iniciar: sem a base P1–P16 vigente e com Motor atual, o botão fica travado e diz por quê */
+      var gReav = podeReav ? itemDoGate(a.itemId).gate : null, travaReav = !!(gReav && !gReav.libera);
+      if (travaReav) h += avisoGate(gReav, 'reavaliar');
       h += '<div class="avp-actions-footer po-ficha-acoes">' +
-        (podeReav ? '<button type="button" class="btn" id="poReavaliarBtn"' + (state.salvando ? ' disabled' : '') + '>' + (state.salvando === 'reavaliacao' ? 'INICIANDO…' : 'Reavaliar') + '</button>' : '') +
+        (podeReav ? '<button type="button" class="btn" id="poReavaliarBtn"' + (state.salvando || travaReav ? ' disabled' : '') + '>' + (state.salvando === 'reavaliacao' ? 'INICIANDO…' : 'Reavaliar') + '</button>' : '') +
         '<button type="button" class="btn btn--sm" id="poGerarPdfBtn"' + (!prontoPdf || state.exportando ? ' disabled' : '') + '>' +
         (state.exportando === 'pdf' ? 'Gerando arquivo…' : !prontoPdf && !state.erroDec ? 'Carregando…' : '📄 GERAR PDF') + '</button></div>' + avisoExportacao() + statusExportacao();
       h += '</div>';
@@ -944,10 +1011,12 @@
 
     function iniciar() {
       if (!podeEscrever() || state.salvando) return;
-      var it = itensAvaliaveis().filter(function (x) { return x.itemId === state.itemEscolhido; })[0];
-      if (!it || !window.faQuestionarios.configCarregada(QCOD)) return;
+      if (!state.itemEscolhido || !window.faQuestionarios.configCarregada(QCOD)) return;
+      var it = itemDoGate(state.itemEscolhido);
       if (state.vigentes[it.itemId]) { irParaChave(state.vigentes[it.itemId]); return; }
       if (state.reservas[it.itemId]) { irParaChave(state.reservas[it.itemId]); return; }
+      /* o gate é recalculado no clique: a base pode ter mudado desde que a tela foi desenhada */
+      if (!it.gate.libera) { render(); return; }
       var usuario = sessaoAtual();
       if (!usuario) return;
       var id = novaChave(NODE), audId = novaChave(AUD + '/' + id);
@@ -999,6 +1068,10 @@
       if (!podeEscrever() || state.salvando || state.conflito) return;
       var limpo = limparForaDoCaminho(state.atual).reg;
       if (falta(limpo)) { render(); return; }
+      /* o gate vale também na conclusão: a base P1–P16 pode ter mudado depois que o rascunho foi aberto. Bloqueia sem
+         mexer no rascunho (continua salvo) e nunca troca a base em silêncio */
+      var trava = travaConclusao(state.atual);
+      if (trava) { render(); aviso(trava.texto); return; }
       var usuario = sessaoAtual(); if (!usuario) return;
       var montado = payloadConclusao(state.chave, limpo, usuario, agoraIso(), state.revisaoBase, novaChave(AUD + '/' + state.chave));
       state.salvando = 'concluido'; state.revisaoEmGravacao = state.revisaoBase + 1; render();
@@ -1087,8 +1160,8 @@
       var a = state.atual, key = state.chave;
       if (state.vigentes[a.itemId] !== key) return;
       if (state.reservas[a.itemId]) { irParaChave(state.reservas[a.itemId]); return; }
-      var it = itensAvaliaveis().filter(function (x) { return x.itemId === a.itemId; })[0];
-      if (!it) { aviso('Este item não tem Avaliação de Produto/Serviço concluída: não pode ser reavaliado agora.'); return; }
+      var it = itemDoGate(a.itemId);
+      if (!it.gate.libera) { aviso(textoGate(it.gate.situacao, 'reavaliar')); return; }
       if (!window.faQuestionarios.configCarregada(QCOD)) { aviso('O questionário ainda está carregando. Tente de novo em instantes.'); return; }
       modal('<h4>Reavaliar este posicionamento?</h4><p>Cria a versão ' + esc((a.versao || 1) + 1) + ' como rascunho, com as respostas desta versão já preenchidas (pergunta cuja redação mudou precisa ser respondida de novo).</p>' +
         '<p>Esta versão continua vigente até a nova ser concluída. Descartar a reavaliação não muda nada nela.</p>' +
@@ -1103,6 +1176,10 @@
     }
     function iniciarReavaliacao(it, anteriorId, motivo) {
       var usuario = sessaoAtual(); if (!usuario) return;
+      /* o modal pode ter ficado aberto enquanto a base P1–P16 mudou: o gate é conferido de novo, e a base tem de ser a mesma */
+      var agora = itemDoGate(it.itemId);
+      if (!agora.gate.libera) { render(); aviso(textoGate(agora.gate.situacao, 'reavaliar')); return; }
+      if (agora.avaliacaoArquiteturalId !== it.avaliacaoArquiteturalId) { render(); aviso('A Avaliação de Produto/Serviço deste item mudou enquanto a reavaliação era preparada. Confira e tente de novo.'); return; }
       var id = novaChave(NODE), audId = novaChave(AUD + '/' + id), payload;
       try {
         payload = payloadReavaliacao({ id: id, audId: audId, anteriorId: anteriorId, anterior: clone(state.registros[anteriorId]), itemNome: it.nome,
@@ -1243,6 +1320,9 @@
       ouvir(VIG, 'vig', function (v) { state.vigentes = v; });
       ouvir(PROD, 'prod', function (v) { state.produtos = v; });
       ouvir(DEC, 'dec', function (v) { state.decisoes = v; state.erroDec = false; });
+      /* o gate precisa do motor de Produto/Serviço carregado: este onMudanca liga a leitura (garantirSync) e redesenha
+         quando ela chega — antes disso o gate diz "Verificando…", nunca "atual" nem "desatualizado" */
+      if (window.faMotorArquitetura) window.faMotorArquitetura.onMudanca(function () { if (!wrap.hidden && !state.salvando && !(state.tela === 'checklist' && state.sujo)) render(); });
       if (window.faQuestionarios) window.faQuestionarios.onMudanca(QCOD, function () { if (!wrap.hidden && !(state.tela === 'checklist' && state.sujo)) render(); });
       if (P()) P().onMudanca(function () {
         if (wrap.hidden) return;

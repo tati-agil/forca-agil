@@ -23,6 +23,8 @@ const FALSO = fs.readFileSync(path.join(__dirname, 'persistencia-firebase-real.j
   fs.readFileSync(path.join(__dirname, 'firebase-falso.js'), 'utf8');
 const XLSX = require(path.join(__dirname, '..', '..', 'forca-agil', 'xlsx.mini.min.js'));
 const M = require(path.join(__dirname, '..', '..', 'forca-agil', 'motor-posicionamento.js'));
+/* H0: a Avaliação de Produto/Serviço de base precisa estar com Motor atual (o gate P1–P16 → O1–O9) */
+const MOTOR_PRODUTO = require('./montar-regras-posicionamento.js').MOTOR_PRODUTO;
 const ARQ = 'arquitetura@previ.com.br';
 const AVAL = 'avaliacao@previ.com.br';
 const chave = (e) => e.toLowerCase().replace(/[@.]/g, '_').replace(/[^a-z0-9_]/g, '').slice(0, 64);
@@ -42,7 +44,7 @@ function produto(id, nome, extra) {
   ORDEM_P.forEach((q, i) => { r[q] = { valor: 'sim', justificativaAuto: 'interpretação', codigoPergunta: 'P' + (i + 1), textoPerguntaNaEpoca: 't', tituloNaEpoca: 't', questionnaireContentVersion: 1 }; });
   return Object.assign({ itemId: id, nome, descricao: '', publico: '', necessidade: '', observacoesGerais: '', status: 'concluido', resultadoAutomatico: 'produto', decisaoFinal: 'produto',
     camadaSugerida: { id: 'produto-principal', label: 'Produto/Serviço principal' }, respostas: r, justificativaAutomatica: 'j', criteriosEssenciaisFalhos: [], criteriosAtendidos: 5,
-    motorVersionArquitetura: 1, questionnaireContentVersion: 1, excluido: false, criadoEm: QUANDO, atualizadoEm: QUANDO, versao: 1, responsavel: { name: 'Fulana', email: 'f@previ.com.br' } }, extra || {});
+    motorVersion: MOTOR_PRODUTO, motorVersionArquitetura: 1, questionnaireContentVersion: 1, excluido: false, criadoEm: QUANDO, atualizadoEm: QUANDO, versao: 1, responsavel: { name: 'Fulana', email: 'f@previ.com.br' } }, extra || {});
 }
 const outra = { name: 'Conceição Araújo', email: 'o@previ.com.br' };
 function concluida(itemId, itemNome, versao, respostas, diagnosticos, extra) {

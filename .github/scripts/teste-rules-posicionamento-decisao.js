@@ -26,6 +26,9 @@
    L. Registro do PR E (sem decisão, sem anterior) pode ser decidido e reavaliado.
    M. Multipath: decisão junto com a conclusão, o descarte ou o início de uma reavaliação, na MESMA gravação →
       recusada (vigente e sem reavaliação ANTES e DEPOIS); decisão isolada → aceita.
+   N. H0: a reavaliação também passa pelo gate P1–P16 (base com Motor atual; equivalente não libera).
+   O. Invariante Linha × Squad, com o esperado LITERAL (não lido do motor): AREA_ESPECIALIZADA e COE → liberaSquad
+      false; os 6 firmes do ramo Linha → true, na decisão e na conclusão; o contrário é recusado.
    (E também: a auditoria "decisao" leva justificativa e liberaSquad, conferidos contra a decisão.)
    ═════════════════════════════════════════════════════════════════ */
 const fs = require('fs');
@@ -34,6 +37,8 @@ const vm = require('vm');
 const { initializeTestEnvironment, assertSucceeds, assertFails } = require('@firebase/rules-unit-testing');
 const T = require('./regras-posicionamento-tabela.js');
 const M = require(path.join(__dirname, '..', '..', 'forca-agil', 'motor-posicionamento.js'));
+/* H0: a base P1–P16 precisa estar com Motor atual */
+const MOTOR_OK = { motorVersion: require('./montar-regras-posicionamento.js').MOTOR_PRODUTO, motorVersionArquitetura: 1 };
 
 /* O núcleo da tela (sem DOM), com o critério de reavaliação de Produto/Serviço (avaliacao-produto.js) carregado. */
 function carregarNucleo() {
@@ -102,7 +107,7 @@ async function main() {
       u['fa-admins/' + emailKey(ADMIN)] = { email: ADMIN };
       u['fa-avaliacao-autorizados/' + emailKey(AVAL)] = { email: AVAL, tipo: 'avaliacao' };
       u['fa-avaliacao-autorizados/' + emailKey(ARQ)] = { email: ARQ, tipo: 'avaliacao-arquitetura' };
-      for (let i = 1; i <= (nItens || 12); i++) u['avaliacoes-produto/p' + i] = { itemId: 'p' + i, nome: 'Item p' + i, status: 'concluido', resultadoAutomatico: 'produto', decisaoFinal: 'produto' };
+      for (let i = 1; i <= (nItens || 12); i++) u['avaliacoes-produto/p' + i] = { itemId: 'p' + i, nome: 'Item p' + i, status: 'concluido', resultadoAutomatico: 'produto', decisaoFinal: 'produto', ...MOTOR_OK };
       await a.ref().update(u);
     });
   }
@@ -380,6 +385,48 @@ async function main() {
   await nega('decisão + início de reavaliação na mesma multipath → recusada', up(ARQ, Object.assign({}, rm3.p, decM3)));
   anota('…nada entrou: sem reserva, sem reavaliação, sem decisão', (await ler(RES + '/p3')) === null && (await ler(AV + '/' + rm3.id)) === null && (await ler(DEC + '/' + m3)) === null);
   await pode('decisão isolada, sem reavaliação antes nem depois → aceita', up(ARQ, await decisao(m4, 'COE', 'Justificativa isolada')));
+
+  console.log('\n== N. H0 — a reavaliação também passa pelo gate P1–P16 (Motor atual) ==');
+  await base();
+  const n1 = await vigenteV1('p1', EST_NEG), n2 = await vigenteV1('p2', EST_NEG);
+  await semear((a) => a.ref('avaliacoes-produto/p1/motorVersion').set('2000.01.01-1'));
+  await nega('reavaliar com a base P1–P16 desatualizada (lógica em código antiga) → recusada', up(ARQ, (await iniciarReavaliacao(n1, 'Reavaliação')).p));
+  await semear((a) => a.ref('motor-arquitetura-config/versaoPublicada').set(2));
+  await nega('reavaliar com a base na versão 1 das regras e a publicada 2 (equivalente não libera) → recusada', up(ARQ, (await iniciarReavaliacao(n2, 'Reavaliação')).p));
+  await semear((a) => a.ref('avaliacoes-produto/p2/motorVersionArquitetura').set(2));
+  await pode('reavaliar com a base reconciliada/atualizada (versão 2 = publicada) → aceita', up(ARQ, (await iniciarReavaliacao(n2, 'Reavaliação')).p));
+
+  console.log('\n== O. Invariante Linha × Squad (fixo, literal — não vem do motor) ==');
+  /* Linhas são formadas por Squads; Área Especializada e CoE não. O esperado está ESCRITO aqui, não lido do motor:
+     se o motor (ou as regras montadas dele) mudarem a regra, este bloco falha. */
+  const LINHA_SQUAD = { AREA_ESPECIALIZADA: false, COE: false, ESTRATEGIA_CLIENTES: true, NEGOCIOS: true, PLATAFORMA_CANAIS: true,
+    PLATAFORMA_HABILITADORA_NEGOCIOS: true, PLATAFORMA_HABILITADORA_TECNOLOGIA: true, PLATAFORMA_CORPORATIVA: true };
+  anota('os 8 códigos firmes são exatamente os da tabela literal', JSON.stringify(M.CODIGOS_FIRMES.slice().sort()) === JSON.stringify(Object.keys(LINHA_SQUAD).sort()));
+  const cods = Object.keys(LINHA_SQUAD);
+  await base(2 * cods.length + 2);
+  for (let i = 0; i < cods.length; i++) {
+    const cod = cods[i], esperado = LINHA_SQUAD[cod];
+    /* decisão: liberaSquad contrário ao invariante → recusado; o do invariante → aceito */
+    const id = await vigenteV1('p' + (i + 1), EST_AE);
+    const p = await decisao(id, cod, 'Justificativa ' + cod);
+    await nega('decisão ' + cod + ' com liberaSquad = ' + !esperado + ' (contra o invariante) recusada', up(ARQ, nosDois(js(p), id, (o) => { o.liberaSquad = !esperado; })));
+    await pode('decisão ' + cod + ' com liberaSquad = ' + esperado + ' aceita', up(ARQ, nosDois(js(p), id, (o) => { o.liberaSquad = esperado; })));
+    /* conclusão: resultado firme com liberaSquad contrário ao invariante → recusado */
+    const e = EST.filter((x) => x.res.codigoResultado === cod)[0];
+    if (!e) { anota('há estado concluível com resultado ' + cod, false); continue; }
+    const item = 'p' + (cods.length + i + 1), idc = chave('lq-' + item + '-'), quem = pessoa(ARQ);
+    const pc = N.payloadCriacao({ id: idc, audId: chave('kc'), itemId: item, itemNome: 'Item ' + item, avaliacaoArquiteturalId: item, versao: 1, usuario: quem, agora: QUANDO });
+    await assertSucceeds(up(ARQ, pc));
+    const r = js(pc[AV + '/' + idc]); r.respostas = {};
+    Object.keys(e.est.respostas).forEach((q) => { r.respostas[q] = js(N.snapshotResposta(q, e.est.respostas[q], 1, null, QUANDO)); });
+    Object.keys(e.est.diagnosticos).forEach((n) => { r.diagnosticos = r.diagnosticos || {}; r.diagnosticos[n] = js(N.snapshotDiagnostico(e.est.diagnosticos[n], N.papeisDoPar(r, n), 1, null, QUANDO)); });
+    await assertSucceeds(up(ARQ, N.payloadSalvar(idc, r, quem, QUANDO, 1)));
+    const pz = js(N.payloadConclusao(idc, r, quem, QUANDO, 2, chave('kz')).payload);
+    const comLibera = (x, val) => { const y = js(x); y[AV + '/' + idc].resultadoAutomatico.liberaSquad = val;
+      Object.keys(y).forEach((k) => { if (k.indexOf(AUD + '/' + idc + '/') === 0 && y[k] && y[k].tipo === 'conclusao') y[k].liberaSquad = val; }); return y; };
+    await nega('conclusão ' + cod + ' com liberaSquad = ' + !esperado + ' (contra o invariante) recusada', up(ARQ, comLibera(pz, !esperado)));
+    await pode('conclusão ' + cod + ' com liberaSquad = ' + esperado + ' aceita', up(ARQ, comLibera(pz, esperado)));
+  }
 
   await testEnv.cleanup();
   console.log('\n' + total + ' verificações, ' + falhas + ' falha(s).');
