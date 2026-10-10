@@ -603,6 +603,18 @@
       "sobre": "Digest canônico das 531.441 saídas de avaliar() igual ao do motor antes do PR F (sem depender do histórico Git); liberaSquadParaCodigoFirme(código) = liberaSquad do resultado em todo estado firme (os 8 códigos aparecem); os 8 firmes aceitos; LINHA, PLATAFORMA, A_VALIDAR, desconhecido, vazio, null e undefined recusados; versão do motor continua 1."
     },
     {
+      "arquivo": ".github/scripts/teste-posicionamento-exportacoes.js",
+      "nome": "Posicionamento Organizacional: PDF individual e Excel baixados de verdade (desktop e 375 px)",
+      "duracao": 25,
+      "sobre": "\"Exportar ▾\" na lista (Excel da lista atual, respeitando o filtro, e de todas) e \"📄 GERAR PDF\" na ficha concluída (vigente e histórica; rascunho e descartada sem PDF); o Excel baixado tem Resumo / Respostas O1–O9 / Histórico / Trilha, \"Situação na exportação\", datas como datas e acentos intactos; o PDF tem páginas e nenhuma em branco, a Avaliação de Produto/Serviço EXATA (v1 mesmo com v2 e v3), \"Sem decisão registrada.\", a decisão gravada e a trilha; decisões carregando → desabilitado, recusadas → bloqueado com explicação; auditoria recusada → \"Trilha indisponível\" com o resto completo; perfil Avaliação exporta. Hermético."
+    },
+    {
+      "arquivo": ".github/scripts/teste-posicionamento-exportacao-nucleo.js",
+      "nome": "Posicionamento Organizacional: núcleo puro das exportações (sem navegador)",
+      "duracao": 1,
+      "sobre": "exportacoes-posicionamento.js: sem banco, página, autenticação, motor, rede nem armazenamento (e funciona com o motor armadilhado); NÃO recalcula — recomendação, regra, versão e liberaSquad automático e da decisão saem como gravados, mesmo contrariando o motor atual; Avaliação de Produto/Serviço exatamente a de avaliacaoArquiteturalId (ausente → \"Dados da avaliação vinculada indisponíveis\"); recusa sem as decisões lidas; PDF só de concluída; PR E, confirmação, divergência, resolução do A validar, A validar aberto, vigente × histórica, reavaliação; trilha legível ou \"Trilha indisponível\"; textos da época; abas e Histórico fora do filtro; acentuação pt-BR."
+    },
+    {
       "arquivo": ".github/scripts/teste-checagens-interface.js",
       "nome": "Checagens de interface vindas da antiga aba Testes (desktop e celular)",
       "duracao": 8,
