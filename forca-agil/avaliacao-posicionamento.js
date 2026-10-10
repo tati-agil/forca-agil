@@ -20,8 +20,10 @@
    Banco (regras em database.rules.json; prova em teste-rules-posicionamento.js):
      avaliacoes-posicionamento/<id>              a avaliação (rascunho → concluido | descartado; os dois são finais)
      posicionamento-rascunho-por-item/<itemId>   = <id> enquanto há rascunho aberto do item (um só)
-     posicionamento-vigente-por-item/<itemId>    = <id> do Posicionamento concluído do item (um só; PR F substitui)
-     posicionamento-auditoria/<id>/<push>        criacao | conclusao | descarte (só acréscimo)
+     posicionamento-vigente-por-item/<itemId>    = <id> do Posicionamento concluído e VIGENTE do item (um só; a conclusão de uma
+                                                 reavaliação troca por compare-and-set — só se ainda é a anterior)
+     posicionamento-decisoes/<id>                decisão humana daquela versão (PR F): uma, só da vigente, imutável
+     posicionamento-auditoria/<id>/<push>        criacao | conclusao | descarte | decisao (só acréscimo)
    Cada transição é UMA gravação multipath (ou entra tudo, ou nada). revisao: cada gravação = anterior + 1 — uma
    gravação feita sobre versão antiga é recusada, e a tela avisa e recarrega (nunca sobrescreve).
 
@@ -33,6 +35,14 @@
    ramo descarta (com aviso e confirmação) as respostas, observações e diagnósticos que saíram do caminho — nada
    vira NAO. Concluir só com tudo o que o caminho exige respondido (falta de resposta ou diagnóstico pendente não
    conclui como "A validar").
+
+   PR F — decisão humana e reavaliação (prova: teste-rules-posicionamento-decisao.js, teste-posicionamento-decisao.js):
+   a ficha tem três blocos — Recomendação automática (resultadoAutomatico, nunca reescrito) / Decisão final / Histórico
+   de versões. Decidir: só os 8 CODIGOS_FIRMES; CONFIRMACAO (mesmo código; justificativa opcional), DIVERGENCIA ou
+   RESOLUCAO_A_VALIDAR (justificativa obrigatória); liberaSquad da decisão = liberaSquadParaCodigoFirme. Com
+   reavaliação em andamento, a vigente não recebe decisão. Reavaliar: versão seguinte da vigente, com motivo; as
+   respostas vêm pelo critério de Produto/Serviço (faCriterioReavaliacao — sem ele, nada é montado) e passam por
+   limparForaDoCaminho; a anterior continua vigente até a nova ser concluída; descartar não muda nada nela.
    ============================================================ */
 (function () {
   'use strict';
@@ -348,8 +358,9 @@
 
     function novoEstado() { return {
       tela: 'lista', /* lista | escolher | checklist | resultado | descartado | carregando | nao-encontrada | sem-permissao */
-      registros: {}, reservas: {}, vigentes: {}, produtos: {},
-      carregou: { av: false, res: false, vig: false, prod: false }, erroLeitura: false,
+      registros: {}, reservas: {}, vigentes: {}, produtos: {}, decisoes: {},
+      carregou: { av: false, res: false, vig: false, prod: false, dec: false }, erroLeitura: false, erroDec: false,
+      mostrarHistorico: false, formDecisao: null,
       atual: null, chave: null, revisaoBase: 0, sujo: false, conflito: false, salvando: null, revisaoEmGravacao: null,
       itemEscolhido: null, busca: '', pendente: null, flash: null
     }; }
@@ -442,7 +453,7 @@
       reafirmar();
     }
     function autorizacaoResolvida() { return !!(window.faAuth && (!window.faAuth.isAvaliacaoReady || window.faAuth.isAvaliacaoReady())); }
-    function limparAtual() { state.atual = null; state.chave = null; state.sujo = false; state.conflito = false; state.flash = null; }
+    function limparAtual() { state.atual = null; state.chave = null; state.sujo = false; state.conflito = false; state.flash = null; state.formDecisao = null; }
     function abrirChave(key) {
       var rec = state.registros[key];
       limparAtual();
@@ -471,6 +482,11 @@
     /* ===================== RENDER ===================== */
     function render() {
       if (wrap.hidden) return;
+      /* um ouvinte ao vivo pode redesenhar enquanto a pessoa digita (justificativa, filtro): o foco volta ao campo */
+      var ativo = document.activeElement, foco = null;
+      if (ativo && ativo.id && wrap.contains(ativo) && /^(TEXTAREA|INPUT|SELECT)$/.test(ativo.tagName)) {
+        foco = { id: ativo.id, ini: ativo.selectionStart, fim: ativo.selectionEnd };
+      }
       var h = '';
       if (state.tela === 'lista') h = renderLista();
       else if (state.tela === 'escolher') h = renderEscolher();
@@ -483,6 +499,7 @@
       wrap.innerHTML = '<button type="button" class="avp-voltar-link" id="poVoltar">← Voltar para Avaliações</button>' + h;
       bind();
       if (P()) P().atualizarDom(wrap);
+      if (foco) { var el = byId(foco.id); if (el && !el.disabled) { el.focus(); try { if (foco.ini != null) el.setSelectionRange(foco.ini, foco.fim); } catch (e) { /* select e search sem seleção */ } } }
       sincronizarEndereco();
     }
     function rodapeVoltar() { return '<div class="avp-actions-footer"><button type="button" class="btn btn--sm" id="poVoltarLista">← Voltar para a lista de posicionamentos</button></div>'; }
@@ -496,25 +513,58 @@
       return spanNome(ra.codigoResultado);
     }
 
+    /* situação de uma avaliação na cadeia de versões do item */
+    function situacaoDe(key, r) {
+      if (!r) return null;
+      if (r.status === 'rascunho') return r.avaliacaoAnteriorId ? 'reavaliacao' : 'rascunho';
+      if (r.status === 'descartado') return 'descartado';
+      return state.vigentes[r.itemId] === key ? 'vigente' : 'historica';
+    }
+    var ROTULO_SITUACAO = { vigente: 'Vigente', historica: 'Histórica', rascunho: 'Rascunho', reavaliacao: 'Reavaliação em andamento', descartado: 'Descartada' };
+    function badgeSituacao(sit) { return '<span class="avp-badge po-badge po-badge--' + esc(sit) + '">' + esc(ROTULO_SITUACAO[sit] || sit) + '</span>'; }
+    var ROTULO_TIPO_DECISAO = { CONFIRMACAO: 'Confirmação da recomendação automática', DIVERGENCIA: 'Divergência da recomendação automática', RESOLUCAO_A_VALIDAR: 'Resolução do "A validar"' };
+    /* decisão de uma versão concluída, em texto curto: "Carregando…" enquanto a leitura não chegou (não saber ≠ não ter) */
+    function textoDecisao(key, r) {
+      if (!r || r.status !== 'concluido') return '—';
+      if (state.erroDec) return 'Não foi possível ler';
+      if (!state.carregou.dec) return 'Carregando…';
+      var d = state.decisoes[key];
+      return d ? spanNome(d.codigoFinal) : 'Sem decisão registrada';
+    }
+    function cadeiaDoItem(itemId) {
+      return Object.keys(state.registros).filter(function (k) { return state.registros[k] && state.registros[k].itemId === itemId; })
+        .map(function (k) { return Object.assign({ _key: k }, state.registros[k]); })
+        .sort(function (x, y) { return ((y.versao || 1) - (x.versao || 1)) || (String(y.criadoEm || '') < String(x.criadoEm || '') ? -1 : 1); });
+    }
+
     function renderLista() {
       var h = '<div class="avp-form-card" id="poLista"><h3>Posicionamento Organizacional</h3>' +
         '<p class="avp-intro">Recomenda que tipo de estrutura organizacional deve sustentar a responsabilidade associada a cada item (O1–O9). Não escolhe uma estrutura concreta.</p>';
       if (state.flash) h += '<p class="avp-flash-success" id="poFlash">' + esc(state.flash) + '</p>';
       if (podeEscrever()) h += '<div class="avp-actions-bar"><button type="button" class="btn btn--primary" id="poNovoBtn">+ Avaliar posicionamento de um item</button></div>';
-      if (!state.carregou.av) h += '<p class="loading-msg">Carregando…</p>';
+      /* sem o índice de vigentes, toda concluída pareceria histórica: espera os dois */
+      if (!state.carregou.av || !state.carregou.vig) h += '<p class="loading-msg">Carregando…</p>';
       else if (state.erroLeitura) h += '<p class="avp-error-msg">Não foi possível ler as avaliações agora.</p>';
       else {
-        var lista = Object.keys(state.registros).map(function (k) { return Object.assign({ _key: k }, state.registros[k]); })
+        var todas = Object.keys(state.registros).map(function (k) { return Object.assign({ _key: k, _sit: situacaoDe(k, state.registros[k]) }, state.registros[k]); })
           .sort(function (a, b) { return String(b.atualizadoEm || '') < String(a.atualizadoEm || '') ? -1 : 1; });
-        if (!lista.length) h += '<p class="admin-empty">Nenhuma avaliação de posicionamento ainda.</p>';
+        /* padrão: o que vale hoje (vigente) e o que está em andamento; histórico e descartadas no filtro */
+        var antigas = todas.filter(function (r) { return r._sit === 'historica' || r._sit === 'descartado'; });
+        var lista = state.mostrarHistorico ? todas : todas.filter(function (r) { return r._sit !== 'historica' && r._sit !== 'descartado'; });
+        if (antigas.length) h += '<label class="avp-decisao-option po-filtro-historico"><input type="checkbox" id="poMostrarHistorico"' + (state.mostrarHistorico ? ' checked' : '') + '> ' +
+          'Mostrar versões históricas e descartadas (' + antigas.length + ')</label>';
+        if (!todas.length) h += '<p class="admin-empty">Nenhuma avaliação de posicionamento ainda.</p>';
+        else if (!lista.length) h += '<p class="admin-empty">Nenhuma avaliação vigente ou em andamento.</p>';
         else {
-          h += '<div class="table-scroll-wrap"><table class="admin-table po-tabela"><thead><tr><th>Item</th><th>Situação</th><th>Posicionamento recomendado</th><th>Atualizado em</th><th></th></tr></thead><tbody>';
+          h += '<div class="table-scroll-wrap"><table class="admin-table po-tabela"><thead><tr><th>Item</th><th>Versão</th><th>Situação</th><th>Recomendação automática</th><th>Decisão final</th><th>Atualizado em</th><th></th></tr></thead><tbody>';
           lista.forEach(function (r) {
             var acao = r.status === 'rascunho' && podeEscrever() ? 'Continuar' : 'Abrir';
-            h += '<tr class="po-linha" data-key="' + esc(r._key) + '"><td data-label="Item">' + esc(r.itemNome) + '</td><td data-label="Situação">' + badge(r.status) + '</td>' +
-              '<td data-label="Posicionamento recomendado">' + (r.status === 'concluido' ? rotuloResultado(r.resultadoAutomatico) : '—') + '</td>' +
+            h += '<tr class="po-linha" data-key="' + esc(r._key) + '" data-situacao="' + esc(r._sit) + '"><td data-label="Item">' + esc(r.itemNome) + '</td>' +
+              '<td data-label="Versão">v' + esc(r.versao || 1) + '</td><td data-label="Situação">' + badgeSituacao(r._sit) + '</td>' +
+              '<td data-label="Recomendação automática">' + (r.status === 'concluido' ? rotuloResultado(r.resultadoAutomatico) : '—') + '</td>' +
+              '<td data-label="Decisão final" class="po-col-decisao">' + textoDecisao(r._key, r) + '</td>' +
               '<td data-label="Atualizado em">' + esc(fmtData(r.atualizadoEm)) + '</td>' +
-              '<td><button type="button" class="btn btn--sm po-abrir" data-key="' + esc(r._key) + '">' + acao + '</button></td></tr>';
+              '<td data-label="Ações"><button type="button" class="btn btn--sm po-abrir" data-key="' + esc(r._key) + '">' + acao + '</button></td></tr>';
           });
           h += '</tbody></table></div>';
         }
@@ -563,6 +613,9 @@
       if (state.conflito) h += '<div class="avp-error-msg" id="poConflito" role="alert">Outra pessoa alterou este rascunho depois que você o abriu. Para não sobrescrever o trabalho dela, recarregue antes de continuar. ' +
         '<button type="button" class="btn btn--sm" id="poRecarregarBtn">Recarregar</button></div>';
       if (state.flash) h += '<p class="avp-flash-success" id="poFlash">' + esc(state.flash) + '</p>';
+      if (a.avaliacaoAnteriorId) h += '<div class="po-reavaliacao-info" id="poReavaliacaoInfo"><p><strong>Reavaliação — versão ' + esc(a.versao) + '.</strong> A versão ' + esc((a.versao || 2) - 1) +
+        ' continua vigente até esta ser concluída; descartar esta reavaliação não muda nada nela.</p><p><strong>Motivo:</strong> ' + esc(a.motivoReavaliacao) + '</p>' +
+        '<p class="avp-ficha-meta">As respostas da versão anterior vieram preenchidas; perguntas cuja redação mudou precisam ser respondidas de novo.</p></div>';
       var cam = caminho(a);
       ORDEM_NIVEIS.forEach(function (n) {
         var qs = NIVEIS[n].filter(function (q) { return cam.indexOf(q) !== -1; });
@@ -595,7 +648,7 @@
     function renderPergunta(q, versao, edita) {
       var c = conteudo(q, versao), r = respostaDe(q), v = r && r.resposta;
       var h = '<div class="avp-question po-pergunta" data-q="' + q + '"><div class="avp-question-head"><span class="avp-question-num">' + q + '</span>' +
-        '<p class="avp-question-text"><strong>' + esc(c.titulo || '') + '</strong><br>' + esc(c.texto || '') + '</p></div>' + renderAjuda(c);
+        '<p class="avp-question-text"><strong>' + esc(c.titulo || '') + '</strong><br>' + esc(c.texto || '') + '</p></div>' + avisoHeranca(q, null) + renderAjuda(c);
       h += '<div class="avp-choice-group">' + ['SIM', 'NAO'].map(function (val) {
         return '<button type="button" class="avp-choice-btn avp-choice-btn--' + (val === 'SIM' ? 'sim' : 'nao') + ' po-resp' + (v === val ? ' active ativa' : '') + '" data-q="' + q + '" data-v="' + val + '"' + (edita ? '' : ' disabled') + '>' + (val === 'SIM' ? 'SIM' : 'NÃO') + '</button>';
       }).join('') + '</div>';
@@ -605,12 +658,26 @@
       }
       return h + '</div>';
     }
+    /* reavaliação: o que mudou desde a versão anterior, pelo MESMO critério que decidiu a herança */
+    function avisoHeranca(q, n) {
+      var a = state.atual, ant = a && a.avaliacaoAnteriorId && state.registros[a.avaliacaoAnteriorId];
+      if (!ant) return '';
+      var antes = q ? ant.respostas && ant.respostas[q] : ant.diagnosticos && ant.diagnosticos[n];
+      if (!antes) return '';
+      var agora = q ? respostaDe(q) : a.diagnosticos && a.diagnosticos[n], sit;
+      try { sit = q ? situacaoResposta(antes, q, a.questionnaireContentVersion) : situacaoDiagnostico(antes, papeisDoPar(a, n), a.questionnaireContentVersion); } catch (e) { return ''; }
+      var rotulo = q ? (antes.resposta === 'SIM' ? 'SIM' : 'NÃO') : (antes.rotuloNaEpoca || antes.resposta);
+      if (sit === 'pergunta' && !agora) return '<p class="po-heranca po-heranca--pergunta" data-heranca="pergunta">' + (q ? 'A redação desta pergunta mudou' : 'O diagnóstico mudou (texto, rótulos ou par de papéis)') +
+        ' desde a versão anterior (resposta lá: ' + esc(rotulo) + '). Responda de novo.</p>';
+      if (sit === 'ajuda' && agora) return '<p class="po-heranca" data-heranca="ajuda">A ajuda ' + (q ? 'desta pergunta' : 'deste diagnóstico') + ' mudou desde a versão anterior: confira a resposta trazida.</p>';
+      return '';
+    }
     function renderDiagnostico(n, versao, edita) {
       var c = conteudo(DIAG, versao), d = state.atual.diagnosticos && state.atual.diagnosticos[n], v = d && d.resposta;
       var papeis = papeisDoPar(state.atual, n);
       var h = '<div class="avp-question po-diag" data-nivel="' + n + '"><div class="avp-question-head"><span class="avp-question-num">Diagnóstico</span>' +
         '<p class="avp-question-text"><strong>' + esc(c.titulo || 'Conflito ou recorte') + '</strong><br>' + esc(c.texto || '') + '</p></div>' +
-        '<p class="po-diag-papeis">Papéis: ' + papeis.map(spanNome).join(' e ') + '</p>' + renderAjuda(c);
+        '<p class="po-diag-papeis">Papéis: ' + papeis.map(spanNome).join(' e ') + '</p>' + avisoHeranca(null, n) + renderAjuda(c);
       h += '<div class="avp-choice-group">' + [['mesma', c.rotuloMesma || 'Mesma responsabilidade'], ['distintas', c.rotuloDistintas || 'Responsabilidades distintas']].map(function (o) {
         return '<button type="button" class="avp-choice-btn avp-choice-btn--' + (o[0] === 'mesma' ? 'sim' : 'nao') + ' po-diag-resp' + (v === o[0] ? ' active ativa' : '') + '" data-nivel="' + n + '" data-v="' + o[0] + '"' + (edita ? '' : ' disabled') + '>' + esc(o[1]) + '</button>';
       }).join('') + '</div>';
@@ -628,8 +695,19 @@
       return h;
     }
     function renderResultado() {
-      var a = state.atual, ra = resultadoLido(a.resultadoAutomatico);
-      var h = '<div class="avp-form-card" id="poResultado"><h3>' + esc(a.itemNome) + ' ' + badge(a.status) + '</h3>';
+      var a = state.atual, key = state.chave, ra = resultadoLido(a.resultadoAutomatico), sit = situacaoDe(key, a);
+      var h = '<div class="avp-form-card" id="poResultado"><h3>' + esc(a.itemNome) + ' · v' + esc(a.versao || 1) + ' ' + (state.carregou.vig ? badgeSituacao(sit) : badge(a.status)) + '</h3>';
+      if (state.flash) h += '<p class="avp-flash-success" id="poFlash">' + esc(state.flash) + '</p>';
+      if (state.carregou.vig && sit === 'historica') {
+        var vg = state.vigentes[a.itemId], vgr = vg && state.registros[vg];
+        h += '<p class="avp-decisao-aviso po-aviso-historica" id="poHistorica">Versão histórica: substituída' + (vgr ? ' pela versão ' + esc(vgr.versao || 1) : '') + '. Só consulta — não recebe decisão nem reavaliação.' +
+          (vg ? ' <button type="button" class="btn btn--sm po-abrir" data-key="' + esc(vg) + '">Abrir a vigente</button>' : '') + '</p>';
+      }
+      var resv = sit === 'vigente' && state.reservas[a.itemId], resr = resv && state.registros[resv];
+      if (resv) h += '<div class="po-reavaliacao-info" id="poReavaliacaoAndamento"><p>Há uma reavaliação em andamento' + (resr ? ' (versão ' + esc(resr.versao || '') + ')' : '') +
+        '. Esta versão continua vigente até ela ser concluída.</p><button type="button" class="btn btn--sm po-abrir" data-key="' + esc(resv) + '">' + (podeEscrever() ? 'Continuar a reavaliação' : 'Abrir a reavaliação') + '</button></div>';
+      if (a.avaliacaoAnteriorId) h += '<p class="avp-ficha-meta" id="poMotivoReavaliacao">Reavaliação da versão ' + esc((a.versao || 2) - 1) + ' — motivo: ' + esc(a.motivoReavaliacao) + '</p>';
+      h += '<section class="po-bloco" id="poBlocoRecomendacao"><h4 class="po-bloco-titulo">Recomendação automática</h4>';
       if (ra.codigoResultado === 'A_VALIDAR') {
         h += '<p class="po-recomendado" id="poRecomendado">Posicionamento organizacional recomendado: A validar — ' + esc(TIPO_TEXTO[ra.tipoAValidar] || ra.tipoAValidar || '') + '</p>';
         if (ra.papeisDetectados.length) h += '<p id="poPapeis">Papéis identificados: ' + ra.papeisDetectados.map(spanNome).join(', ') + '</p>';
@@ -644,8 +722,68 @@
         : 'Este resultado não libera a Adequação à Squad (S1–S8).') + '</p>';
       h += '<p class="avp-intro">O1–O9 recomenda o tipo de estrutura que deve sustentar, de forma permanente, a responsabilidade associada ao objeto. A associação a uma estrutura organizacional concreta é uma etapa posterior.</p>';
       h += '<p class="avp-ficha-meta">Concluída em ' + esc(fmtData(a.concluidoEm)) + (a.concluidoPor ? ' por ' + esc(a.concluidoPor.name || a.concluidoPor.email) : '') + ' · regra ' + esc(ra.regra) + ' · motor v' + esc(ra.versaoMotor) + '</p>';
-      h += renderRespostasLidas(a) + '</div>';
+      h += renderRespostasLidas(a) + '</section>';
+      h += '<section class="po-bloco" id="poBlocoDecisao"><h4 class="po-bloco-titulo">Decisão final</h4>' + renderDecisao(a, key, sit) + '</section>';
+      h += '<section class="po-bloco" id="poBlocoHistorico"><h4 class="po-bloco-titulo">Histórico de versões</h4>' + renderHistorico(a, key) + '</section>';
+      if (sit === 'vigente' && podeEscrever() && !resv) {
+        h += '<div class="avp-actions-footer"><button type="button" class="btn" id="poReavaliarBtn"' + (state.salvando ? ' disabled' : '') + '>' + (state.salvando === 'reavaliacao' ? 'INICIANDO…' : 'Reavaliar') + '</button></div>';
+      }
+      h += '</div>';
       return h + rodapeVoltar();
+    }
+    function renderDecisao(a, key, sit) {
+      if (state.erroDec) return '<p class="avp-error-msg" id="poDecisaoErroLeitura">Não foi possível ler a decisão agora.</p>';
+      if (!state.carregou.dec || !state.carregou.vig) return '<p class="loading-msg" id="poDecisaoCarregando">Carregando…</p>';
+      var d = state.decisoes[key], h;
+      if (d) {
+        h = '<p class="po-decisao-final" id="poDecisaoFinal">Posicionamento organizacional decidido: ' + spanNome(d.codigoFinal) + '</p>' +
+          '<p id="poTipoDecisao">' + esc(ROTULO_TIPO_DECISAO[d.tipoDecisao] || d.tipoDecisao) + '</p>';
+        if (d.nomeNaDecisao) h += '<p class="po-nome-conclusao" id="poNomeDecisao">Nome registrado na decisão: ' + esc(d.nomeNaDecisao.nome) + (d.nomeNaDecisao.contingencia ? ' <em>(rótulo de contingência — a Taxonomia não respondeu na hora)</em>' : '') + '</p>';
+        if (d.justificativa) h += '<p id="poJustificativa"><strong>Justificativa:</strong> ' + esc(d.justificativa) + '</p>';
+        h += '<p class="po-libera" id="poLiberaSquadDecisao">' + (d.liberaSquad ? 'Pela decisão final, a Adequação à Squad (S1–S8) pode ser realizada para este item. Isso não cria nem associa Squad.'
+          : 'A decisão final não libera a Adequação à Squad (S1–S8).') + '</p>';
+        return h + '<p class="avp-ficha-meta">Decidida em ' + esc(fmtData(d.decididoEm)) + (d.decididoPor ? ' por ' + esc(d.decididoPor.name || d.decididoPor.email) : '') +
+          ' · a decisão não muda; para corrigir, faça uma reavaliação.</p>';
+      }
+      h = '<p class="po-sem-decisao" id="poSemDecisao">Sem decisão registrada.</p>';
+      if (sit !== 'vigente') return h;
+      if (!podeEscrever()) return h;
+      if (state.reservas[a.itemId]) return h + '<p class="avp-decisao-aviso" id="poDecisaoBloqueada" role="status">Há uma reavaliação em andamento. Conclua ou descarte essa reavaliação antes de registrar uma decisão para esta versão.</p>';
+      var M = motor(), auto = a.resultadoAutomatico && a.resultadoAutomatico.codigoResultado;
+      var f = state.formDecisao || (state.formDecisao = { codigo: M.CODIGOS_FIRMES.indexOf(auto) !== -1 ? auto : '', justificativa: '' });
+      var salvando = state.salvando === 'decisao';
+      h += '<div class="po-decisao-form" id="poDecisaoForm"><div class="avp-field"><label for="poCodigoFinal">Posicionamento final *</label><select id="poCodigoFinal" class="avp-select"' + (salvando ? ' disabled' : '') + '>' +
+        '<option value="">Escolha…</option>' + M.CODIGOS_FIRMES.map(function (c) {
+          return '<option value="' + esc(c) + '"' + (f.codigo === c ? ' selected' : '') + '>' + esc(nomeAtual(c)) + (c === auto ? ' — recomendação automática' : '') + '</option>';
+        }).join('') + '</select></div>' +
+        '<p class="avp-ficha-meta" id="poTipoPrevisto">' + textoTipoPrevisto(auto, f.codigo) + '</p>' +
+        '<div class="avp-field"><label for="poJustificativaInput" id="poJustificativaRotulo">' + rotuloJustificativa(auto, f.codigo) + '</label>' +
+        '<textarea id="poJustificativaInput" class="avp-observacao" rows="3" maxlength="' + MAX_JUSTIFICATIVA + '"' + (salvando ? ' disabled' : '') + '>' + esc(f.justificativa) + '</textarea></div>' +
+        '<p class="avp-error-msg" id="poDecisaoErro"' + (f.erro ? '' : ' hidden') + '>' + esc(f.erro || '') + '</p>' +
+        '<p class="avp-ficha-meta">A decisão não pode ser alterada depois: para corrigir, faça uma reavaliação. Só os posicionamentos firmes podem ser escolhidos (não Linha, Plataforma nem "A validar").</p>' +
+        '<div class="avp-actions-footer"><button type="button" class="btn btn--primary" id="poDecidirBtn"' + (state.salvando ? ' disabled' : '') + '>' + (salvando ? 'REGISTRANDO…' : 'Registrar decisão') + '</button></div></div>';
+      return h;
+    }
+    function textoTipoPrevisto(auto, cod) {
+      if (!cod) return 'Escolha o posicionamento final.';
+      var t = tipoDecisao(auto, cod);
+      return esc(ROTULO_TIPO_DECISAO[t]) + (exigeJustificativa(t) ? ' — justificativa obrigatória.' : ' — justificativa opcional.');
+    }
+    function rotuloJustificativa(auto, cod) { return cod && exigeJustificativa(tipoDecisao(auto, cod)) ? 'Justificativa *' : 'Justificativa (opcional)'; }
+    function renderHistorico(a, key) {
+      var cadeia = cadeiaDoItem(a.itemId);
+      var h = '<details class="avp-dados-item" id="poHistoricoVersoes"><summary>Histórico de versões — ' + cadeia.length + (cadeia.length === 1 ? ' versão' : ' versões') + '</summary><ul class="po-versoes">';
+      cadeia.forEach(function (r) {
+        var sit = situacaoDe(r._key, r);
+        h += '<li class="po-versao' + (r._key === key ? ' po-versao--atual' : '') + '" data-key="' + esc(r._key) + '"><div><strong>v' + esc(r.versao || 1) + '</strong> ' + badgeSituacao(sit) + '</div>' +
+          '<div>Recomendação automática: ' + (r.status === 'concluido' ? rotuloResultado(r.resultadoAutomatico) : '—') + '</div>' +
+          '<div>Decisão final: ' + textoDecisao(r._key, r) + '</div>' +
+          (r.motivoReavaliacao ? '<div class="avp-ficha-meta">Motivo da reavaliação: ' + esc(r.motivoReavaliacao) + '</div>' : '') +
+          (r.motivoDescarte ? '<div class="avp-ficha-meta">Motivo do descarte: ' + esc(r.motivoDescarte) + '</div>' : '') +
+          '<div class="avp-ficha-meta">' + esc(fmtData(r.concluidoEm || r.descartadoEm || r.atualizadoEm)) + '</div>' +
+          (r._key === key ? '<div class="avp-ficha-meta">(esta versão)</div>' : '<button type="button" class="btn btn--sm po-abrir" data-key="' + esc(r._key) + '">Abrir</button>') + '</li>';
+      });
+      return h + '</ul></details>';
     }
     function renderRespostasLidas(a) {
       var h = '<details class="avp-dados-item" id="poRespostas"><summary>Respostas</summary><ul class="po-respostas-lista">';
@@ -664,7 +802,9 @@
       var a = state.atual;
       return '<div class="avp-form-card" id="poDescartado"><h3>' + esc(a.itemNome) + ' ' + badge(a.status) + '</h3>' +
         '<p>Descartada em ' + esc(fmtData(a.descartadoEm)) + (a.descartadoPor ? ' por ' + esc(a.descartadoPor.name || a.descartadoPor.email) : '') + '.</p>' +
-        '<p><strong>Motivo:</strong> ' + esc(a.motivoDescarte) + '</p>' + renderRespostasLidas(a) + '</div>' + rodapeVoltar();
+        '<p><strong>Motivo:</strong> ' + esc(a.motivoDescarte) + '</p>' + renderRespostasLidas(a) +
+        (a.avaliacaoAnteriorId ? '<p class="avp-ficha-meta">Era a reavaliação (versão ' + esc(a.versao) + ') — a versão anterior continua como estava.</p>' : '') +
+        '<section class="po-bloco" id="poBlocoHistorico"><h4 class="po-bloco-titulo">Histórico de versões</h4>' + renderHistorico(a, state.chave) + '</section></div>' + rodapeVoltar();
     }
 
     /* ===================== AÇÕES ===================== */
@@ -697,6 +837,19 @@
       var con = byId('poConcluirBtn'); if (con) con.addEventListener('click', concluir);
       var des = byId('poDescartarBtn'); if (des) des.addEventListener('click', pedirDescarte);
       var rec = byId('poRecarregarBtn'); if (rec) rec.addEventListener('click', recarregar);
+      var hist = byId('poMostrarHistorico'); if (hist) hist.addEventListener('change', function () { state.mostrarHistorico = hist.checked; render(); });
+      var reav = byId('poReavaliarBtn'); if (reav) reav.addEventListener('click', pedirReavaliacao);
+      var cod = byId('poCodigoFinal');
+      if (cod) cod.addEventListener('change', function () {
+        var f = state.formDecisao, auto = state.atual.resultadoAutomatico && state.atual.resultadoAutomatico.codigoResultado;
+        f.codigo = cod.value; f.erro = null;
+        /* atualiza só os textos que dependem do código: a justificativa digitada fica onde está */
+        byId('poTipoPrevisto').innerHTML = textoTipoPrevisto(auto, f.codigo);
+        byId('poJustificativaRotulo').textContent = rotuloJustificativa(auto, f.codigo);
+        byId('poDecisaoErro').hidden = true;
+      });
+      var just = byId('poJustificativaInput'); if (just) just.addEventListener('input', function () { state.formDecisao.justificativa = just.value.slice(0, MAX_JUSTIFICATIVA); });
+      var dec = byId('poDecidirBtn'); if (dec) dec.addEventListener('click', pedirDecisao);
     }
 
     /* Muda uma resposta; se isso fechar um ramo, avisa o que sai (respostas, observações, diagnósticos). */
@@ -850,12 +1003,98 @@
       if (rec) irParaChave(state.chave); else render();
     }
 
+    /* ---- decisão humana: uma por versão, só da vigente, sem reavaliação em andamento ---- */
+    function erroDecisao(msg) { state.formDecisao.erro = msg; var e = byId('poDecisaoErro'); if (e) { e.textContent = msg; e.hidden = false; } }
+    function pedirDecisao() {
+      if (!podeEscrever() || state.salvando || state.tela !== 'resultado') return;
+      var a = state.atual, f = state.formDecisao, auto = a.resultadoAutomatico && a.resultadoAutomatico.codigoResultado;
+      if (!f || !f.codigo) { erroDecisao('Escolha o posicionamento final.'); return; }
+      var tipo = tipoDecisao(auto, f.codigo);
+      if (exigeJustificativa(tipo) && emBranco(f.justificativa)) { erroDecisao('Informe a justificativa: ela é obrigatória para ' + (tipo === 'DIVERGENCIA' ? 'divergir da recomendação automática.' : 'resolver um "A validar".')); return; }
+      if (state.reservas[a.itemId]) { render(); return; }
+      modal('<h4>Registrar a decisão?</h4><p>Posicionamento final: <strong>' + esc(nomeAtual(f.codigo)) + '</strong> (' + esc(ROTULO_TIPO_DECISAO[tipo]) + ').</p>' +
+        '<p>A decisão não pode ser alterada nem apagada depois. Para corrigir, faça uma reavaliação.</p>',
+        { sim: 'Registrar', nao: 'Cancelar', aoSim: function () { decidir(f.codigo, f.justificativa); return null; } });
+    }
+    function decidir(codigo, justificativa) {
+      var usuario = sessaoAtual(); if (!usuario) return;
+      var key = state.chave, a = state.atual, payload;
+      try { payload = payloadDecisao({ id: key, reg: a, codigoFinal: codigo, justificativa: justificativa, usuario: usuario, agora: agoraIso(), audId: novaChave(AUD + '/' + key) }); }
+      catch (e) { erroDecisao('Não foi possível montar a decisão. Confira o posicionamento e a justificativa.'); return; }
+      state.salvando = 'decisao'; render();
+      gravar(payload, function () {
+        state.salvando = null; state.decisoes[key] = payload[DEC + '/' + key]; state.formDecisao = null;
+        state.flash = '✓ Decisão registrada.'; render();
+      }, function (err) {
+        /* por que não entrou? quem chegou antes: outra decisão ou uma reavaliação */
+        Promise.all([db().ref(DEC + '/' + key).once('value'), db().ref(RES + '/' + a.itemId).once('value')]).then(function (r) {
+          state.salvando = null;
+          if (r[0].val()) { state.decisoes[key] = r[0].val(); state.formDecisao = null; render(); aviso('Já havia uma decisão registrada para esta versão: ela foi mantida.'); return; }
+          if (r[1].val()) { state.reservas[a.itemId] = r[1].val(); render(); aviso('Há uma reavaliação em andamento. Conclua ou descarte essa reavaliação antes de registrar uma decisão para esta versão.'); return; }
+          render();
+          aviso(err === 'sem-resposta' ? 'A conexão está demorando e não deu para confirmar a decisão. Confira a ficha antes de tentar de novo.' : 'Não foi possível registrar a decisão. Tente novamente.');
+        }).catch(function () { state.salvando = null; render(); aviso('Não foi possível registrar a decisão. Tente novamente.'); });
+      });
+    }
+    /* ---- reavaliação: versão seguinte da vigente; a vigente fica até a nova ser concluída ---- */
+    function pedirReavaliacao() {
+      if (!podeEscrever() || state.salvando) return;
+      var a = state.atual, key = state.chave;
+      if (state.vigentes[a.itemId] !== key) return;
+      if (state.reservas[a.itemId]) { irParaChave(state.reservas[a.itemId]); return; }
+      var it = itensAvaliaveis().filter(function (x) { return x.itemId === a.itemId; })[0];
+      if (!it) { aviso('Este item não tem Avaliação de Produto/Serviço concluída: não pode ser reavaliado agora.'); return; }
+      if (!window.faQuestionarios.configCarregada(QCOD)) { aviso('O questionário ainda está carregando. Tente de novo em instantes.'); return; }
+      modal('<h4>Reavaliar este posicionamento?</h4><p>Cria a versão ' + esc((a.versao || 1) + 1) + ' como rascunho, com as respostas desta versão já preenchidas (pergunta cuja redação mudou precisa ser respondida de novo).</p>' +
+        '<p>Esta versão continua vigente até a nova ser concluída. Descartar a reavaliação não muda nada nela.</p>' +
+        '<label for="poMotivoReavaliacaoInput">Motivo *</label><textarea id="poMotivoReavaliacaoInput" rows="3" maxlength="' + MAX_MOTIVO + '"></textarea>',
+        { sim: 'Reavaliar', nao: 'Cancelar', aoSim: function (box) {
+          var motivo = String(box.querySelector('#poMotivoReavaliacaoInput').value || '').trim();
+          if (!motivo) return 'Informe o motivo da reavaliação.';
+          if (motivo.length > MAX_MOTIVO) return 'O motivo pode ter até ' + MAX_MOTIVO + ' caracteres.';
+          iniciarReavaliacao(it, key, motivo);
+          return null;
+        } });
+    }
+    function iniciarReavaliacao(it, anteriorId, motivo) {
+      var usuario = sessaoAtual(); if (!usuario) return;
+      var id = novaChave(NODE), audId = novaChave(AUD + '/' + id), payload;
+      try {
+        payload = payloadReavaliacao({ id: id, audId: audId, anteriorId: anteriorId, anterior: clone(state.registros[anteriorId]), itemNome: it.nome,
+          avaliacaoArquiteturalId: it.avaliacaoArquiteturalId, versao: window.faQuestionarios.versaoAtual(QCOD), motivo: motivo, usuario: usuario, agora: agoraIso() });
+      } catch (e) {
+        /* sem o critério de reavaliação não se monta nada (nunca herda resposta sem saber se a pergunta mudou) */
+        aviso('Não foi possível preparar a reavaliação agora. Recarregue a página e tente de novo.'); return;
+      }
+      state.salvando = 'reavaliacao'; render();
+      gravar(payload, function () {
+        state.salvando = null;
+        state.registros[id] = payload[NODE + '/' + id];
+        state.reservas[it.itemId] = id;
+        irParaChave(id);
+        state.flash = 'Reavaliação iniciada. A versão anterior continua vigente até esta ser concluída.'; render();
+      }, function (err) {
+        db().ref(RES + '/' + it.itemId).once('value').then(function (s) {
+          state.salvando = null;
+          var outro = s.val();
+          if (outro && outro !== id) { state.reservas[it.itemId] = outro; render(); aviso('Outra pessoa iniciou uma reavaliação deste item ao mesmo tempo: abra-a pela ficha.'); return; }
+          render();
+          aviso(err === 'sem-resposta' ? 'A conexão está demorando e não deu para confirmar a reavaliação. Confira a ficha antes de tentar de novo.' : 'Não foi possível iniciar a reavaliação. Tente novamente.');
+        }).catch(function () { state.salvando = null; render(); aviso('Não foi possível iniciar a reavaliação. Tente novamente.'); });
+      });
+    }
+
     /* ===================== LEITURAS AO VIVO ===================== */
     var ouvintes = [];
     function ouvir(caminho, chaveCarga, aplicar) {
       var ref = db().ref(caminho);
       var cb = function (snap) { aplicar(snap.val() || {}); state.carregou[chaveCarga] = true; aoChegar(chaveCarga); };
-      var erro = function (e) { console.error('[avaliacao-posicionamento] não foi possível ler ' + caminho + ':', e); state.carregou[chaveCarga] = true; if (chaveCarga === 'av') state.erroLeitura = true; aoChegar(chaveCarga); };
+      var erro = function (e) {
+        console.error('[avaliacao-posicionamento] não foi possível ler ' + caminho + ':', e); state.carregou[chaveCarga] = true;
+        if (chaveCarga === 'av') state.erroLeitura = true;
+        if (chaveCarga === 'dec') state.erroDec = true; /* leitura recusada não é "sem decisão" */
+        aoChegar(chaveCarga);
+      };
       ref.on('value', cb, erro);
       ouvintes.push({ ref: ref, cb: cb });
     }
@@ -882,8 +1121,15 @@
       ouvir(RES, 'res', function (v) { state.reservas = v; });
       ouvir(VIG, 'vig', function (v) { state.vigentes = v; });
       ouvir(PROD, 'prod', function (v) { state.produtos = v; });
+      ouvir(DEC, 'dec', function (v) { state.decisoes = v; state.erroDec = false; });
       if (window.faQuestionarios) window.faQuestionarios.onMudanca(QCOD, function () { if (!wrap.hidden && !(state.tela === 'checklist' && state.sujo)) render(); });
-      if (P()) P().onMudanca(function () { if (!wrap.hidden) P().atualizarDom(wrap); });
+      if (P()) P().onMudanca(function () {
+        if (wrap.hidden) return;
+        P().atualizarDom(wrap);
+        /* as opções do seletor da decisão são texto puro: o nome que chegou da Taxonomia entra nelas no lugar */
+        var sel = byId('poCodigoFinal'), auto = state.atual && state.atual.resultadoAutomatico && state.atual.resultadoAutomatico.codigoResultado;
+        if (sel) Array.prototype.forEach.call(sel.options, function (o) { if (o.value) o.textContent = nomeAtual(o.value) + (o.value === auto ? ' — recomendação automática' : ''); });
+      });
     }
     function desligar() {
       ouvintes.forEach(function (o) { try { o.ref.off('value', o.cb); } catch (e) { /* já cancelada */ } });

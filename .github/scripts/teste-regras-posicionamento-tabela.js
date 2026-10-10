@@ -8,7 +8,7 @@
  *   2. as 25 regras são alcançadas, e os ids da tabela são os do motor;
  *   3. as regras que permitem CONCLUIR são exatamente as de dados completos (nunca falta de resposta, diagnóstico
  *      pendente ou SIM fora do caminho), e os 36 estados concluíveis caem nelas;
- *   4. o trecho que a tabela gera é EXATAMENTE o publicado em database.rules.json (caminho + resultado), os 4 nós
+ *   4. o trecho que a tabela gera é EXATAMENTE o publicado em database.rules.json (caminho + resultado), os 5 nós
  *      publicados são, inteiros, os que montar-regras-posicionamento.js monta, e o banco aceita só a versão 1 do motor.
  * Os 36 estados concluíveis, um a um, e as adulterações são provados no emulador (teste-rules-posicionamento.js). */
 'use strict';

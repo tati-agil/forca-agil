@@ -11,6 +11,7 @@
     ".github/scripts/teste-rules-perfis-avaliacao.js": "regras do banco: roda no emulador real (teste-rules.yml)",
     ".github/scripts/teste-rules-taxonomia-governanca.js": "regras do banco: roda no emulador real (teste-rules.yml)",
     ".github/scripts/teste-rules-posicionamento.js": "regras do banco: roda no emulador real (teste-rules.yml)",
+    ".github/scripts/teste-rules-posicionamento-decisao.js": "regras do banco: roda no emulador real (teste-rules.yml)",
     ".github/scripts/teste-rotulos-doc.js": "ferramenta de auditoria, ainda não portão de CI: sempre sai com 0 até a triagem dos candidatos (ver cabeçalho do arquivo)"
   },
   "testes": [
@@ -569,13 +570,37 @@
       "arquivo": ".github/scripts/teste-regras-posicionamento-tabela.js",
       "nome": "Posicionamento: a tabela das 25 regras é o motor v1, e as regras do banco são as montadas dela",
       "duracao": 8,
-      "sobre": "Sem navegador: nos 531.441 estados de O1–O9 × diagnóstico vale exatamente uma regra de regras-posicionamento-tabela.js e a saída é idêntica, nos 10 campos, à de faMotorPosicionamento.avaliar(); as 25 regras são as do motor e todas alcançadas; só as 18 de dados completos concluem (36 estados concluíveis, cada um respondendo exatamente perguntasDoCaminho); o trecho de caminho e de resultado e os 4 nós do Posicionamento publicados em database.rules.json são EXATAMENTE os montados por montar-regras-posicionamento.js; só versaoMotor 1; tamanho das regras abaixo do limite do Firebase. A tabela não é um segundo motor: se divergir, este teste falha."
+      "sobre": "Sem navegador: nos 531.441 estados de O1–O9 × diagnóstico vale exatamente uma regra de regras-posicionamento-tabela.js e a saída é idêntica, nos 10 campos, à de faMotorPosicionamento.avaliar(); as 25 regras são as do motor e todas alcançadas; só as 18 de dados completos concluem (36 estados concluíveis, cada um respondendo exatamente perguntasDoCaminho); o trecho de caminho e de resultado e os 5 nós do Posicionamento publicados em database.rules.json são EXATAMENTE os montados por montar-regras-posicionamento.js; só versaoMotor 1; tamanho das regras abaixo do limite do Firebase. A tabela não é um segundo motor: se divergir, este teste falha."
     },
     {
       "arquivo": ".github/scripts/teste-avaliacao-posicionamento.js",
       "nome": "Avaliação de Posicionamento Organizacional O1–O9: endereços, caminho, ramo, conclusão, descarte, concorrência e perfis (desktop e 375 px)",
       "duracao": 200,
       "sobre": "#avaliacoes?po=lista → ?po=escolher → ?po=escolher&item=… → ?po=<avaliação>, com F5 e Voltar/Avançar; só itens com Produto/Serviço concluído e não excluído (concluído → \"Abrir\", rascunho → \"Continuar\"); só as perguntas do caminho e o diagnóstico só com 2 SIM no nível completo; mudança de ramo avisa o que sai (respostas, observações, diagnóstico), Cancelar mantém, Continuar limpa e nada vira NAO; Concluir diz o que falta; conclusão grava o resultado do motor, o nome na conclusão, o vigente, libera a reserva e audita; \"Posicionamento organizacional recomendado\", nome atual × registrado, liberaSquad só como \"pode ser realizada\"; descarte com motivo; rascunho alterado por outra pessoa → aviso e recarga; perfil Avaliação só consulta; rede lenta → \"Carregando…\"; Taxonomia recusada → contingência; botão na ficha do Produto/Serviço; ida e volta com a Squad. Hermético; as travas do banco são provadas por teste-rules-posicionamento.js no emulador."
+    },
+    {
+      "arquivo": ".github/scripts/teste-posicionamento-decisao.js",
+      "nome": "Posicionamento Organizacional: decisão humana, reavaliação e histórico de versões (desktop e 375 px)",
+      "duracao": 21,
+      "sobre": "Lista com vigentes e em andamento por padrão (históricas e descartadas no filtro), colunas Versão/Situação/Recomendação automática/Decisão final, cartões em 375 px; ficha em três blocos (Recomendação automática / Decisão final / Histórico de versões recolhido); seletor só com os 8 firmes; CONFIRMACAO sem justificativa, RESOLUCAO_A_VALIDAR exige justificativa; grava decisão + auditoria sem tocar no resultado automático; Reavaliar com motivo cria vN+1 pré-preenchida e a anterior continua vigente; concluir troca o vigente e a anterior vira histórica com a decisão dela; D4: com reavaliação em andamento a vigente não oferece decisão (mensagem exata), descartar devolve o formulário; perfil Avaliação só consulta; decisões lentas → \"Carregando…\", recusadas → \"Não foi possível ler\", nunca \"Sem decisão registrada\". Hermético; as travas do banco são provadas por teste-rules-posicionamento-decisao.js no emulador."
+    },
+    {
+      "arquivo": ".github/scripts/teste-posicionamento-reavaliacao-nucleo.js",
+      "nome": "Posicionamento Organizacional: núcleo da decisão e da reavaliação (sem navegador)",
+      "duracao": 1,
+      "sobre": "Código real em vm: herança de O1–O9 pelo MESMO critério de Produto/Serviço (texto igual herda, texto mudou não herda, só ajuda mudou herda com aviso), snapshot refeito na versão nova com a observação; diagnóstico herdado só com o mesmo par de papéis e texto/rótulos iguais (interpretação → aviso); limparForaDoCaminho depois da herança; versão = anterior + 1, anterior, motivo, auditoria com anterior e motivo; falha fechada sem faCriterioReavaliacao; tipos de decisão, justificativa, só os 8 firmes, liberaSquad do motor, nome na decisão com contingência, resultado automático intocado; conclusão de reavaliação grava vigenteAnterior."
+    },
+    {
+      "arquivo": ".github/scripts/teste-criterio-reavaliacao.js",
+      "nome": "Critério de reavaliação de Produto/Serviço exposto congelado (sem navegador)",
+      "duracao": 1,
+      "sobre": "window.faCriterioReavaliacao (avaliacao-produto.js): objeto e lista de campos congelados; campos comparados titulo/textoAjuda/exemplo/exemplos/ajudaExtra; situacao(): texto ausente ou diferente → 'pergunta', sem prova da ajuda → 'ajuda', ajuda igual (chaves em outra ordem, null/''/ausente) → null, um campo de ajuda mudou → 'ajuda'; as 16 perguntas reais de Produto/Serviço passam pela mesma função."
+    },
+    {
+      "arquivo": ".github/scripts/teste-motor-posicionamento-api.js",
+      "nome": "Motor de Posicionamento: liberaSquadParaCodigoFirme e saída congelada (sem navegador)",
+      "duracao": 3,
+      "sobre": "Digest canônico das 531.441 saídas de avaliar() igual ao do motor antes do PR F (sem depender do histórico Git); liberaSquadParaCodigoFirme(código) = liberaSquad do resultado em todo estado firme (os 8 códigos aparecem); os 8 firmes aceitos; LINHA, PLATAFORMA, A_VALIDAR, desconhecido, vazio, null e undefined recusados; versão do motor continua 1."
     },
     {
       "arquivo": ".github/scripts/teste-checagens-interface.js",
