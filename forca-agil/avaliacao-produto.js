@@ -3902,7 +3902,7 @@
     function renderConteudoMotorNovo(codigo, versaoMotor) {
       var Q = window.faQuestionarios, sit = Q.situacaoConteudoMotor(codigo, versaoMotor), cm = state.config.conteudoMotor || (state.config.conteudoMotor = {});
       var ocupado = !!cm.gravando;
-      var html = '<div class="avp-form-card avp-config-item-card" id="avpConteudoMotor' + versaoMotor + '">';
+      var html = '<div class="avp-form-card avp-config-motor-card" id="avpConteudoMotor' + versaoMotor + '">';
       html += '<h4>Redação para o motor de Posicionamento v' + esc(versaoMotor) + ' (inativo)</h4>';
       html += '<p class="avp-decisao-aviso">O motor v' + esc(versaoMotor) + ' não está em vigor (versão em vigor: ' + esc(window.faMotorPosicionamentoNucleo ? window.faMotorPosicionamentoNucleo.versaoEmVigor() : 1) + '). ' +
         'Esta redação é preparada para ele: não aparece em nenhuma avaliação, não muda a redação em uso e só poderá ser publicada junto com o motor, numa etapa de governança.</p>';
