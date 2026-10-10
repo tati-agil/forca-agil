@@ -57,11 +57,16 @@ const ANTID = v('avaliacaoAnteriorId');
 const ANT = "root.child('" + AV + "').child(" + ANTID + ")";
 const VIGRAIZ = "root.child('" + VIG + "').child(" + v('itemId') + ')';
 
-const criar = and([
-  v('status') + " === 'rascunho'", v('revisao') + ' === 1', v('criadoPor/email') + ' === auth.token.email',
+/* a base P1–P16 (a avaliacaoArquiteturalId gravada) tem de estar concluída, fora da Lixeira e com Motor atual — na
+   criação, na reavaliação e de novo na CONCLUSÃO (a base pode ter mudado depois que o rascunho foi aberto) */
+const baseValida = [
   P + ".child('status').val() === 'concluido'", P + ".child('excluido').val() !== true",
   P + ".child('motorVersion').val() === '" + MOTOR_PRODUTO + "'",
-  P + ".child('motorVersionArquitetura').val() === (" + PUB + '.exists() ? ' + PUB + '.val() : 1)',
+  P + ".child('motorVersionArquitetura').val() === (" + PUB + '.exists() ? ' + PUB + '.val() : 1)'
+];
+const criar = and([
+  v('status') + " === 'rascunho'", v('revisao') + ' === 1', v('criadoPor/email') + ' === auth.token.email'
+].concat(baseValida).concat([
   '(' + P + ".child('itemId').val() === " + v('itemId') + ' || (!' + P + ".child('itemId').exists() && " + v('avaliacaoArquiteturalId') + ' === ' + v('itemId') + '))',
   /* primeira versão: o item não tem vigente. Reavaliação: versão seguinte da VIGENTE, com motivo. */
   '(' + c('avaliacaoAnteriorId') + '.exists() ? (' + and([
@@ -70,7 +75,7 @@ const criar = and([
     c('motivoReavaliacao') + '.isString()', naoEmBranco(v('motivoReavaliacao'))
   ]) + ') : (' + and(['!' + VIGRAIZ + '.exists()', v('versao') + ' === 1', '!' + c('motivoReavaliacao') + '.exists()']) + '))',
   AUDNOVA('auditoriaCriacaoId') + ".child('tipo').val() === 'criacao'", '!' + AUDANT('auditoriaCriacaoId') + '.exists()'
-]);
+]));
 const fixos = ['itemId', 'itemNome', 'avaliacaoArquiteturalId', 'questionnaireContentVersion', 'versao', 'avaliacaoAnteriorId', 'motivoReavaliacao', 'criadoPor/email', 'criadoPor/name', 'criadoEm', 'auditoriaCriacaoId'];
 const alterar = and(fixos.map((f) => v(f) + ' === ' + d(f)).concat([v('revisao') + ' === ' + d('revisao') + ' + 1']));
 const rascunho = and([NOVO(RES) + '.child(' + v('itemId') + ').val() === $avaliacaoId', semCampos(CONCL), semCampos(DESC)]);
@@ -80,9 +85,8 @@ const concluido = and([
   /* vigente: nasce na primeira versão; numa reavaliação, troca por compare-and-set (só se ainda é a anterior) */
   NOVO(VIG) + '.child(' + v('itemId') + ').val() === $avaliacaoId',
   '(' + c('avaliacaoAnteriorId') + '.exists() ? ' + VIGRAIZ + '.val() === ' + ANTID + ' : !' + VIGRAIZ + '.exists())',
-  AUDNOVA('auditoriaConclusaoId') + ".child('tipo').val() === 'conclusao'", '!' + AUDANT('auditoriaConclusaoId') + '.exists()',
-  T.trechoResultado()
-]);
+  AUDNOVA('auditoriaConclusaoId') + ".child('tipo').val() === 'conclusao'", '!' + AUDANT('auditoriaConclusaoId') + '.exists()'
+].concat(baseValida).concat([T.trechoResultado()]));
 const descartado = and([
   "newData.hasChildren(['" + DESC.join("','") + "'])", v('descartadoPor/email') + ' === auth.token.email', semCampos(CONCL),
   naoEmBranco(v('motivoDescarte')),

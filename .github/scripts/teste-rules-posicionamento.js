@@ -9,6 +9,8 @@
    C. Pré-condição: só item com Avaliação de Produto/Serviço concluída e não excluída (qualquer classificação).
       C2 (H0): e com Motor atual — motorVersion = MOTOR_VERSION de avaliacao-produto.js e motorVersionArquitetura =
       a versão publicada (ausente = 1); desatualizada ou equivalente é recusada, para qualquer perfil.
+      C3 (H0): a MESMA conferência na conclusão de um rascunho já aberto (base desatualizada, excluída ou não
+      concluída depois da criação → recusada; o rascunho fica intacto).
    D. Criação atômica: avaliação + reserva (posicionamento-rascunho-por-item) + auditoria "criacao", ou nada;
       um rascunho por item; duas criações simultâneas → uma só entra, sem avaliação órfã.
    E. Rascunho: revisão otimista (anterior + 1); campos fixos; CAMINHO — resposta, observação e diagnóstico só
@@ -229,6 +231,29 @@ async function main() {
   await produto('g8', { motorVersionArquitetura: 3 });
   await pode('versão publicada 3, base com versão 3: Motor atual — cria', up(ARQ, criar('h8', 'g8', 'g8', ARQ)));
   await nega('…e o mesmo vale para o admin geral (base desatualizada)', up(ADMIN, criar('h9', 'g6', 'g6', ADMIN)));
+
+  console.log('\n== C3. H0 — o gate vale de novo na CONCLUSÃO: a base pode ter mudado depois que o rascunho foi aberto ==');
+  await base();
+  const AE = { O1: 'NAO', O2: 'SIM', O3: 'NAO' };
+  /* abre um rascunho sobre a base atual (aceito) e devolve a conclusão montada, para gravar depois que a base mudar */
+  async function rascunhoAberto(id, k) {
+    await produto(k);
+    await assertSucceeds(up(ARQ, criar(id, k, k, ARQ)));
+    return concluir(id, preencher(await ler(AV + '/' + id), AE), ARQ).p;
+  }
+  const cK1 = await rascunhoAberto('k1', 'gk1'), cK2 = await rascunhoAberto('k2', 'gk2'), cK3 = await rascunhoAberto('k3', 'gk3'), cK4 = await rascunhoAberto('k4', 'gk4'), cK5 = await rascunhoAberto('k5', 'gk5');
+  await semear((a) => a.ref('avaliacoes-produto/gk1/motorVersion').set('2000.01.01-1'));
+  await nega('base ficou desatualizada (lógica em código antiga) depois do rascunho → conclusão recusada', up(ARQ, cK1));
+  await semear((a) => a.ref('avaliacoes-produto/gk2').update({ excluido: true }));
+  await nega('base foi para a Lixeira depois do rascunho → conclusão recusada', up(ARQ, cK2));
+  await semear((a) => a.ref('avaliacoes-produto/gk3/status').set('rascunho'));
+  await nega('base deixou de estar concluída → conclusão recusada', up(ARQ, cK3));
+  anota('…e os rascunhos recusados continuam rascunho, intactos', (await ler(AV + '/k1/status')) === 'rascunho' && (await ler(AV + '/k2/status')) === 'rascunho' && (await ler(RES + '/gk1')) === 'k1');
+  await pode('base continua atual → conclui normalmente', up(ARQ, cK4));
+  await semear((a) => a.ref('motor-arquitetura-config/versaoPublicada').set(2));
+  await nega('nova versão das regras de P1–P16 publicada depois do rascunho (base na 1, publicada 2) → conclusão recusada', up(ARQ, cK5));
+  await semear((a) => a.ref('avaliacoes-produto/gk5/motorVersionArquitetura').set(2));
+  await pode('…e, com a base atualizada para a 2, a mesma conclusão entra', up(ARQ, cK5));
 
   console.log('\n== D. Criação atômica e um rascunho por item ==');
   await base();

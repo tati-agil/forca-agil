@@ -170,6 +170,8 @@ anota('desatualizado: texto exato', N.textoGate('desatualizado', 'iniciar') === 
 anota('desatualizado na reavaliação: "antes de reavaliar"', /Atualize P1–P16 antes de reavaliar o Posicionamento Organizacional\.$/.test(N.textoGate('desatualizado', 'reavaliar')));
 anota('equivalente: logicamente equivalente, mas precisa ser reconciliada para ficar formalmente atual', /logicamente equivalente/.test(N.textoGate('equivalente')) && /Reconcilie-a em Produto\/Serviço/.test(N.textoGate('equivalente')) && /formalmente com Motor atual/.test(N.textoGate('equivalente')));
 anota('reavaliação em andamento: versão mais nova a concluir ou resolver', /versão mais nova/.test(N.textoGate('reavaliacao-em-andamento')) && /Conclua ou resolva/.test(N.textoGate('reavaliacao-em-andamento')));
+anota('na conclusão: "antes de concluir"', /Atualize P1–P16 antes de concluir o Posicionamento Organizacional\.$/.test(N.textoGate('desatualizado', 'concluir')));
+anota('base nova e válida no lugar da do rascunho: bloqueia e orienta, sem trocar em silêncio', /não é a usada neste rascunho/.test(N.textoGate('base-mudou', 'concluir')) && /descarte-o e inicie um novo/.test(N.textoGate('base-mudou', 'concluir')));
 anota('toda situação que bloqueia tem mensagem e rótulo curto', ['verificando', 'desatualizado', 'equivalente', 'reavaliacao-em-andamento', 'excluida', 'nao-concluida', 'sem-avaliacao', 'indefinida']
   .every((s) => N.textoGate(s, 'iniciar').length > 20 && !!N.ROTULO_GATE[s]));
 

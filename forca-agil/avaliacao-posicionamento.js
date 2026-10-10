@@ -317,7 +317,7 @@
   };
   /* acao: 'iniciar' | 'reavaliar' */
   function textoGate(situacao, acao) {
-    var fim = ' antes de ' + (acao === 'reavaliar' ? 'reavaliar' : 'iniciar') + ' o Posicionamento Organizacional.';
+    var fim = ' antes de ' + (acao === 'reavaliar' || acao === 'concluir' ? acao : 'iniciar') + ' o Posicionamento Organizacional.';
     switch (situacao) {
       case 'verificando': return 'Verificando a versão do motor da Avaliação de Produto/Serviço…';
       case 'desatualizado': return 'Motor da Avaliação de Produto/Serviço desatualizado. Atualize P1–P16' + fim;
@@ -328,6 +328,8 @@
       case 'excluida': return 'A versão mais recente da Avaliação de Produto/Serviço deste item está excluída (na Lixeira). Restaure-a ou resolva em Produto/Serviço' + fim;
       case 'nao-concluida': return 'A Avaliação de Produto/Serviço deste item ainda não foi concluída. Conclua P1–P16' + fim;
       case 'sem-avaliacao': return 'Este item não tem Avaliação de Produto/Serviço. Avalie P1–P16' + fim;
+      case 'base-mudou': return 'A Avaliação de Produto/Serviço que vale hoje para este item não é a usada neste rascunho (existe uma versão mais nova). ' +
+        'Para não trocar a base em silêncio, este rascunho não pode ser concluído: descarte-o e inicie um novo Posicionamento sobre a versão atual.';
       case 'indefinida': return 'Não foi possível determinar qual versão da Avaliação de Produto/Serviço deste item é a vigente: há mais de uma versão mais recente. ' +
         'Resolva em Produto/Serviço' + fim;
       default: return '';
@@ -514,6 +516,15 @@
       var ids = {};
       Object.keys(state.produtos).forEach(function (k) { var it = state.produtos[k]; if (it && it.status === 'concluido') ids[it.itemId || k] = true; });
       return Object.keys(ids).map(itemDoGate).filter(function (x) { return x.gate.situacao !== 'excluida'; }).sort(function (a, b) { return String(a.nome).localeCompare(String(b.nome), 'pt-BR'); });
+    }
+    /* conclusão de um rascunho já aberto: o gate do item tem de liberar E a base que vale hoje tem de ser exatamente a
+       gravada no rascunho; senão devolve { situacao, texto } (o rascunho não é tocado) */
+    function travaConclusao(a) {
+      if (!a || a.status !== 'rascunho') return null;
+      var g = gateAtual(a.itemId);
+      if (!g.libera) return { situacao: g.situacao, texto: textoGate(g.situacao, 'concluir') };
+      if (g.chave !== a.avaliacaoArquiteturalId) return { situacao: 'base-mudou', texto: textoGate('base-mudou', 'concluir') };
+      return null;
     }
     function itemDoGate(itemId) {
       var g = gateAtual(itemId), ponta = g.chave && state.produtos[g.chave];
@@ -713,10 +724,12 @@
       });
       h += '</div>';
       if (edita) {
-        var f = falta(a), bloq = !!state.salvando || state.conflito;
+        var f = falta(a), bloq = !!state.salvando || state.conflito, tc = travaConclusao(a);
+        /* a base P1–P16 deixou de valer: o rascunho continua salvável e descartável, só não conclui */
+        if (tc) h += '<p class="' + (tc.situacao === 'verificando' ? 'loading-msg' : 'avp-error-msg') + ' po-gate" id="poGate" data-gate="' + esc(tc.situacao) + '" role="status">' + esc(tc.texto) + '</p>';
         h += '<div class="avp-actions-footer">' +
           '<button type="button" class="btn" id="poSalvarBtn"' + (bloq ? ' disabled' : '') + '>' + (state.salvando === 'rascunho' ? 'SALVANDO…' : 'SALVAR RASCUNHO') + '</button>' +
-          '<button type="button" class="btn btn--primary" id="poConcluirBtn"' + (bloq || f ? ' disabled' : '') + '>' + (state.salvando === 'concluido' ? 'CONCLUINDO…' : f ? esc(f.texto) : 'CONCLUIR') + '</button>' +
+          '<button type="button" class="btn btn--primary" id="poConcluirBtn"' + (bloq || f || tc ? ' disabled' : '') + '>' + (state.salvando === 'concluido' ? 'CONCLUINDO…' : f ? esc(f.texto) : 'CONCLUIR') + '</button>' +
           '<button type="button" class="btn btn--sm btn--danger" id="poDescartarBtn"' + (bloq ? ' disabled' : '') + '>Descartar rascunho</button></div>';
       }
       return h + rodapeVoltar();
@@ -1055,6 +1068,10 @@
       if (!podeEscrever() || state.salvando || state.conflito) return;
       var limpo = limparForaDoCaminho(state.atual).reg;
       if (falta(limpo)) { render(); return; }
+      /* o gate vale também na conclusão: a base P1–P16 pode ter mudado depois que o rascunho foi aberto. Bloqueia sem
+         mexer no rascunho (continua salvo) e nunca troca a base em silêncio */
+      var trava = travaConclusao(state.atual);
+      if (trava) { render(); aviso(trava.texto); return; }
       var usuario = sessaoAtual(); if (!usuario) return;
       var montado = payloadConclusao(state.chave, limpo, usuario, agoraIso(), state.revisaoBase, novaChave(AUD + '/' + state.chave));
       state.salvando = 'concluido'; state.revisaoEmGravacao = state.revisaoBase + 1; render();

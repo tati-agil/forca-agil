@@ -12,6 +12,9 @@
  *   6. Reavaliar passa pelo MESMO gate: base desatualizada → aviso e botão travado; base atual → liberado.
  *   7. Perfil "Avaliação": continua sem iniciar nem reavaliar.
  *   8. Sem rolagem horizontal; nenhum erro de JS.
+ *   9. Rascunho já aberto: a base fica desatualizada (mesmo com edição em curso: o clique confere), vai para a
+ *      Lixeira ou é superada por uma reavaliação de P1–P16 → Concluir travado com o motivo, o rascunho intacto e
+ *      ainda salvável; base nova e válida não substitui a do rascunho em silêncio; voltando a ficar atual, conclui.
  * FA_PRINTS_DIR (opcional): salva os prints dos estados. */
 const { chromium } = require('playwright');
 const fs = require('fs');
@@ -67,6 +70,13 @@ function concluida(itemId, itemNome, respostas) {
   Object.keys(respostas).forEach((q) => { reg.respostas[q] = { resposta: respostas[q], codigoPergunta: q, questionnaireContentVersion: 1, dataResposta: QUANDO }; });
   return reg;
 }
+/* rascunho completo (pronto para concluir) aberto sobre a base itemId */
+function rascunhoAberto(itemId, itemNome, respostas) {
+  const reg = { itemId, itemNome, avaliacaoArquiteturalId: itemId, questionarioCodigo: 'POSICIONAMENTO_ORGANIZACIONAL', questionnaireContentVersion: 1, versao: 1, status: 'rascunho', revisao: 1,
+    respostas: {}, criadoPor: outra, criadoEm: QUANDO, atualizadoPor: outra, atualizadoEm: QUANDO, auditoriaCriacaoId: 'ac' + itemId };
+  Object.keys(respostas).forEach((q) => { reg.respostas[q] = { resposta: respostas[q], codigoPergunta: q, questionnaireContentVersion: 1, dataResposta: QUANDO }; });
+  return reg;
+}
 function semente(email) {
   const aut = {}; aut[chave(ARQ)] = { email: ARQ, tipo: 'avaliacao-arquitetura' }; aut[chave(AVAL)] = { email: AVAL, tipo: 'avaliacao' };
   const users = {}; users[chave(email)] = { name: 'Pessoa', email, area: 'INFOR' };
@@ -92,11 +102,14 @@ function semente(email) {
       /* v1 + v2 concluídas: a base é a v2 */
       pC: produto('pC', 'Item Cadeia'), pCv2: produto('pC', 'Item Cadeia', { versao: 2, versaoAnteriorKey: 'pC' }),
       pV: produto('pV', 'Item Vigente'),
-      pW: produto('pW', 'Item Base Velha', { motorVersion: VELHO })
+      pW: produto('pW', 'Item Base Velha', { motorVersion: VELHO }),
+      /* rascunhos de Posicionamento já abertos sobre bases atuais: a base muda durante o teste */
+      pK: produto('pK', 'Item Rascunho K'), pL: produto('pL', 'Item Rascunho L'), pM: produto('pM', 'Item Rascunho M')
     },
-    'avaliacoes-posicionamento': { gV: concluida('pV', 'Item Vigente', AE), gW: concluida('pW', 'Item Base Velha', AE) },
+    'avaliacoes-posicionamento': { gV: concluida('pV', 'Item Vigente', AE), gW: concluida('pW', 'Item Base Velha', AE),
+      rK: rascunhoAberto('pK', 'Item Rascunho K', AE), rL: rascunhoAberto('pL', 'Item Rascunho L', AE), rM: rascunhoAberto('pM', 'Item Rascunho M', AE) },
     'posicionamento-vigente-por-item': { pV: 'gV', pW: 'gW' },
-    'posicionamento-rascunho-por-item': {}, 'posicionamento-decisoes': {}, 'posicionamento-auditoria': {},
+    'posicionamento-rascunho-por-item': { pK: 'rK', pL: 'rL', pM: 'rM' }, 'posicionamento-decisoes': {}, 'posicionamento-auditoria': {},
     taxonomia: { organizacional: { conceitos, fontes } }
   };
 }
@@ -136,10 +149,11 @@ async function esperarGate(page, sit) {
 /* print do pedaço que importa (no celular o cabeçalho ocupa a primeira tela inteira) */
 async function print(page, nome, sufixo, alvo) {
   if (!PRINTS) return;
-  if (alvo === 'ficha') { /* da ficha: o aviso e os botões */
-    await page.locator('#avaliacoesPosicionamento .po-ficha-acoes').scrollIntoViewIfNeeded();
-    const r = await page.evaluate(() => { const a = document.querySelector('#avaliacoesPosicionamento #poGate').getBoundingClientRect(), b = document.querySelector('#avaliacoesPosicionamento .po-ficha-acoes').getBoundingClientRect();
-      const y = Math.max(0, a.top - 60); return { x: 0, y, width: window.innerWidth, height: Math.min(window.innerHeight, b.bottom + 20) - y }; });
+  if (alvo === 'ficha' || alvo === 'rascunho') { /* o aviso e os botões logo abaixo dele */
+    const baixo = alvo === 'ficha' ? '#avaliacoesPosicionamento .po-ficha-acoes' : '#avaliacoesPosicionamento #poDescartarBtn';
+    await page.locator(baixo).scrollIntoViewIfNeeded();
+    const r = await page.evaluate((sb) => { const a = document.querySelector('#avaliacoesPosicionamento #poGate').getBoundingClientRect(), b = document.querySelector(sb).getBoundingClientRect();
+      const y = Math.max(0, a.top - 60); return { x: 0, y, width: window.innerWidth, height: Math.min(window.innerHeight, b.bottom + 20) - y }; }, baixo);
     await page.screenshot({ path: path.join(PRINTS, 'gate-' + nome + '-' + sufixo + '.png'), clip: r });
     return;
   }
@@ -226,6 +240,56 @@ async function fluxo(browser, nomeTela, viewport) {
   await ir(page, '#avaliacoes?po=gV');
   await page.waitForSelector('#avaliacoesPosicionamento #poReavaliarBtn:not([disabled])');
   afirma(!(await gate(page)), 'base com Motor atual: Reavaliar liberado, sem aviso');
+
+  console.log('\n== 9. Rascunho já aberto: o gate vale de novo na conclusão ==');
+  const set = (cam, v) => page.evaluate(([c, x]) => firebase.database().ref(c).set(x), [cam, v]);
+  const statusDe = async (k) => ((await banco(page))['avaliacoes-posicionamento'][k] || {}).status;
+  const concluirTravado = () => page.locator('#poConcluirBtn').isDisabled();
+  /* K — base fica desatualizada ENQUANTO a pessoa edita (a tela não redesenha com edição em curso): o clique confere */
+  await ir(page, '#avaliacoes?po=rK');
+  await page.waitForSelector('#avaliacoesPosicionamento #poConcluirBtn:not([disabled])');
+  afirma(!(await gate(page)), 'base atual: Concluir habilitado, sem aviso');
+  await page.fill('#avaliacoesPosicionamento .po-obs[data-q="O2"]', 'nota em edição');
+  await set('avaliacoes-produto/pK/motorVersion', VELHO);
+  await page.waitForTimeout(400);
+  await page.click('#poConcluirBtn');
+  await page.waitForSelector('.po-modal');
+  afirma(/Atualize P1–P16 antes de concluir o Posicionamento Organizacional\./.test(await texto(page, '.po-modal')), 'clique em Concluir com a base já desatualizada: aviso "antes de concluir"', await texto(page, '.po-modal'));
+  await page.click('.po-modal .po-modal-sim');
+  afirma((await statusDe('rK')) === 'rascunho', '…e nada foi concluído: o rascunho continua salvo');
+  await esperarGate(page, 'desatualizado');
+  afirma(await concluirTravado(), '…o aviso fica na tela e Concluir fica travado');
+  afirma(!(await page.locator('#poSalvarBtn').isDisabled()) && !(await page.locator('#poDescartarBtn').isDisabled()), '…mas salvar e descartar continuam possíveis');
+  await print(page, 'concluir-bloqueado', sufixo, 'rascunho');
+  /* volta a ficar atual → conclui normalmente */
+  await set('avaliacoes-produto/pK/motorVersion', MOTOR_PRODUTO);
+  /* com edição em curso a tela não redesenha sozinha: salvar o rascunho redesenha com a base de agora */
+  await page.click('#poSalvarBtn');
+  await page.waitForSelector('#avaliacoesPosicionamento #poConcluirBtn:not([disabled])');
+  afirma(((await banco(page))['avaliacoes-posicionamento'].rK.respostas.O2 || {}).observacao === 'nota em edição', 'o rascunho salvou a edição (nada se perdeu com o bloqueio)');
+  afirma(!(await gate(page)), 'base atualizada de novo: o aviso some');
+  await page.click('#poConcluirBtn');
+  await page.waitForSelector('#avaliacoesPosicionamento #poResultado');
+  afirma((await statusDe('rK')) === 'concluido', 'tudo atual: conclui normalmente');
+  /* L — a avaliação P1–P16 vinculada vai para a Lixeira */
+  await ir(page, '#avaliacoes?po=rL');
+  await page.waitForSelector('#avaliacoesPosicionamento #poConcluirBtn:not([disabled])');
+  await set('avaliacoes-produto/pL/excluido', true);
+  await esperarGate(page, 'excluida');
+  afirma(await concluirTravado() && (await statusDe('rL')) === 'rascunho', 'base excluída: Concluir travado, rascunho intacto');
+  /* M — a ponta da cadeia muda por reavaliação de P1–P16 */
+  await ir(page, '#avaliacoes?po=rM');
+  await page.waitForSelector('#avaliacoesPosicionamento #poConcluirBtn:not([disabled])');
+  await page.evaluate((p) => firebase.database().ref('avaliacoes-produto/pMv2').set(p), produto('pM', 'Item Rascunho M', { versao: 2, versaoAnteriorKey: 'pM', status: 'rascunho' }));
+  await esperarGate(page, 'reavaliacao-em-andamento');
+  afirma(await concluirTravado(), 'reavaliação de P1–P16 em andamento: Concluir travado');
+  await set('avaliacoes-produto/pMv2/status', 'concluido');
+  await esperarGate(page, 'base-mudou');
+  gt = await gate(page);
+  afirma(/não é a usada neste rascunho/.test(gt.txt) && await concluirTravado(), 'reavaliação de P1–P16 concluída (base nova, válida): bloqueia e orienta, sem trocar a base em silêncio', gt.txt);
+  const rM = (await banco(page))['avaliacoes-posicionamento'].rM;
+  afirma(rM.status === 'rascunho' && rM.avaliacaoArquiteturalId === 'pM', '…o rascunho continua apontando para a base dele (pM)');
+  afirma(await larguraOk(page), 'sem rolagem horizontal (rascunho bloqueado)');
   afirma(!erros.length, 'nenhum erro de JS', erros.join(' | '));
   await ctx.close();
 
