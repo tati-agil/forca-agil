@@ -193,6 +193,9 @@ const confV = Object.assign(concluida({ O1: 'NAO', O2: 'SIM', O3: 'SIM' }, { dia
 const at2 = T.payloadAtualizacaoMotor({ id: 'n2', audId: 'a2', anteriorId: 'g2', anterior: confV, versaoMotorDestino: 2, versaoRedacaoDestino: 1, motivo: 'm', usuario: U, agora: 'x' });
 const nr2 = at2.payload['avaliacoes-posicionamento/n2'];
 afirma(nr2.diagnosticos && nr2.diagnosticos.N1.resposta === 'mesma' && !nr2.predominancias && T.falta(nr2) && T.falta(nr2).predominancia === 'N1', 'conflito v1 → v2: D1 reaproveitada, D2 pedida (nunca herdada)');
+const comLixo = Object.assign(clone(confV), { predominancias: { N1: { resposta: 'EXECUCAO_ESPECIALIZADA', papeis: ['AREA_ESPECIALIZADA', 'COE'] } } });
+const nrL = T.payloadAtualizacaoMotor({ id: 'n9', audId: 'a9', anteriorId: 'g9', anterior: comLixo, versaoMotorDestino: 2, versaoRedacaoDestino: 1, motivo: 'm', usuario: U, agora: 'x' }).payload['avaliacoes-posicionamento/n9'];
+afirma(!nrL.predominancias && T.falta(nrL).predominancia === 'N1', 'mesmo com uma D2 no registro anterior, a atualização não a leva: a D2 é sempre respondida de novo');
 let l2 = false; try { T.payloadAtualizacaoMotor({ id: 'n', audId: 'a', anteriorId: 'g', anterior: vig, versaoMotorDestino: 1, versaoRedacaoDestino: 1, motivo: 'm', usuario: U, agora: 'x' }); } catch (e) { l2 = true; }
 afirma(l2, 'atualizar para uma versão que não é mais nova é recusado');
 const v2reg = Object.assign(clone(v2AE), { itemId: 'i3', itemNome: 'Item 3', versao: 1 });
