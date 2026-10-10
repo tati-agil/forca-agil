@@ -603,6 +603,12 @@
       "sobre": "Digest canônico das 531.441 saídas de avaliar() igual ao do motor antes do PR F (sem depender do histórico Git); liberaSquadParaCodigoFirme(código) = liberaSquad do resultado em todo estado firme (os 8 códigos aparecem); os 8 firmes aceitos; LINHA, PLATAFORMA, A_VALIDAR, desconhecido, vazio, null e undefined recusados; versão do motor continua 1."
     },
     {
+      "arquivo": ".github/scripts/teste-motor-posicionamento-nucleo.js",
+      "nome": "Motor de Posicionamento: núcleo declarativo — a v1 como dados reproduz o motor atual (sem navegador)",
+      "duracao": 12,
+      "sobre": "H1.1: nos 531.441 estados a saída do núcleo com a definição v1 é idêntica à do motor (as 10 chaves) e tem o mesmo digest congelado; perguntasDoCaminho igual à do motor e diagnosticosNecessarios igual ao diagnosticoNecessario da tela em todos os estados; catálogo (níveis, perguntas, papéis, 25 regras, motivos) idêntico; invariante Linha × Squad literal e ausente da definição; casos de 0/1/2/3+ SIM, diagnóstico, incompletude, incoerência e resíduo; versão desconhecida recusada; definição e API congeladas, entradas intactas, sem DOM/Firebase; ainda fora do index.html."
+    },
+    {
       "arquivo": ".github/scripts/teste-posicionamento-exportacoes.js",
       "nome": "Posicionamento Organizacional: PDF individual e Excel baixados de verdade (desktop e 375 px)",
       "duracao": 25,
