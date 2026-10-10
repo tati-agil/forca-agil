@@ -981,6 +981,33 @@
       function (err) { cb(err || null); }
     );
   }
+  /* H2-a: editar o RASCUNHO da redação de uma versão nova do motor — só o texto: a estrutura (códigos, tipos, opções)
+     é refeita pelo contrato do núcleo e o vínculo motorCompativel continua do sistema. Recusa se o rascunho mudou
+     desde que foi aberto (outra pessoa salvou): nunca sobrescreve em silêncio. */
+  function salvarRascunhoConteudoMotor(codigo, versaoMotor, perguntas, usuario, baseAtualizadoEm, cb) {
+    if (!configCarregada(codigo)) { cb('config-nao-carregada'); return; }
+    var atual = rascunhoConteudoMotor(codigo, versaoMotor);
+    if (!atual) { cb('sem-rascunho'); return; }
+    if ((atual.atualizadoEm || null) !== (baseAtualizadoEm || null)) { cb('rascunho-mudou'); return; }
+    var norm = normalizarConteudoMotor(codigo, perguntas, versaoMotor);
+    if (norm.erro) { cb(norm.erro, norm.detalhes); return; }
+    db().ref(NODE_CONFIG + '/' + codigo + '/motores/' + versaoMotor + '/rascunho').set(
+      { perguntas: norm.perguntas, motorCompativel: versaoMotor, origem: atual.origem === 'carga-inicial' ? 'carga-inicial-editada' : (atual.origem || 'edicao'),
+        atualizadoEm: new Date().toISOString(), atualizadoPor: usuario || null },
+      function (err) { cb(err || null); }
+    );
+  }
+  /* versões PUBLICADAS da redação de uma versão de motor (≥ 2), da mais nova para a mais antiga */
+  function versoesPublicadasConteudoMotor(codigo, versaoMotor) {
+    var t = trilha(codigo, versaoMotor), out = [];
+    Object.keys((t && t.versoes) || {}).forEach(function (v) { var x = t.versoes[v]; if (x) out.push({ versao: Number(v), perguntas: x.perguntas || [], motorCompativel: x.motorCompativel, publicadoEm: x.publicadoEm || null, publicadoPor: x.publicadoPor || null }); });
+    return out.sort(function (a, b) { return b.versao - a.versao; });
+  }
+  /* PUBLICAR a redação de um motor novo fica BLOQUEADO nesta fase (H2-a): as regras atuais de questionarios-config não
+     garantem que uma versão publicada não seja alterada nem apagada (escrita livre no nó para os perfis com acesso).
+     Imutabilidade só pela tela não é garantia — a publicação entra com a mudança de regras da fase b. */
+  var PUBLICACAO_CONTEUDO_MOTOR = Object.freeze({ liberada: false,
+    motivo: 'As regras atuais do banco não garantem que uma versão publicada não seja alterada nem apagada; a publicação fica para a fase de ativação segura (H2-b).' });
   function descartarRascunhoConteudoMotor(codigo, versaoMotor, cb) {
     db().ref(NODE_CONFIG + '/' + codigo + '/motores/' + versaoMotor + '/rascunho').remove(function (err) { if (cb) cb(err || null); });
   }
@@ -1002,6 +1029,9 @@
     situacaoConteudoMotor: situacaoConteudoMotor,
     importarConteudoInicial: importarConteudoInicial,
     descartarRascunhoConteudoMotor: descartarRascunhoConteudoMotor,
+    salvarRascunhoConteudoMotor: salvarRascunhoConteudoMotor,
+    versoesPublicadasConteudoMotor: versoesPublicadasConteudoMotor,
+    PUBLICACAO_CONTEUDO_MOTOR: PUBLICACAO_CONTEUDO_MOTOR,
     PADRAO: PADRAO,
     onMudanca: onMudanca,
     versaoAtual: versaoAtual,

@@ -3928,9 +3928,74 @@
         html += '</li>';
       });
       html += '</ul></details>';
-      html += '<div class="avp-actions-footer"><button type="button" class="btn btn--sm btn--danger" id="avpConteudoMotorDescartarBtn" data-versao="' + versaoMotor + '"' + (ocupado ? ' disabled' : '') + '>' +
+      if (cm.editando) html += renderEdicaoConteudoMotor(cm, ocupado);
+      else html += '<div class="avp-actions-footer"><button type="button" class="btn btn--sm" id="avpConteudoMotorEditarBtn"' + (ocupado ? ' disabled' : '') + '>Editar rascunho (só o texto)</button>' +
+        '<button type="button" class="btn btn--sm btn--danger" id="avpConteudoMotorDescartarBtn" data-versao="' + versaoMotor + '"' + (ocupado ? ' disabled' : '') + '>' +
         (cm.gravando === 'descartar' ? 'DESCARTANDO…' : 'Descartar rascunho') + '</button></div>';
+      html += renderPublicadasConteudoMotor(codigo, versaoMotor);
       return html + '</div>';
+    }
+    /* publicação BLOQUEADA nesta fase (as regras atuais não garantem imutabilidade); o histórico mostra o que houver */
+    function renderPublicadasConteudoMotor(codigo, versaoMotor) {
+      var Q = window.faQuestionarios, pubs = Q.versoesPublicadasConteudoMotor(codigo, versaoMotor);
+      var html = '<details class="avp-dados-item" id="avpConteudoMotorPublicadas"><summary>Versões publicadas da redação v' + esc(versaoMotor) + ' — ' + pubs.length + '</summary>';
+      html += pubs.length ? '<ul>' + pubs.map(function (x) { return '<li>Versão ' + esc(x.versao) + (x.publicadoEm ? ' · ' + esc(fmtData(x.publicadoEm)) : '') + (x.publicadoPor ? ' · ' + esc(x.publicadoPor.email || '') : '') + '</li>'; }).join('') + '</ul>'
+        : '<p class="admin-empty">Nenhuma versão publicada.</p>';
+      html += '</details>';
+      if (!Q.PUBLICACAO_CONTEUDO_MOTOR.liberada) html += '<p class="avp-decisao-aviso" id="avpConteudoMotorPublicacaoBloqueada">Publicação bloqueada nesta fase. ' + esc(Q.PUBLICACAO_CONTEUDO_MOTOR.motivo) + '</p>';
+      return html;
+    }
+    /* edição do rascunho: só os campos editoriais; código, tipo e opções aparecem travados */
+    var CAMPOS_EDICAO_MOTOR = {
+      binaria: [['titulo', 'Título'], ['texto', 'Texto da pergunta'], ['textoAjuda.significado', 'Ajuda — o que significa'], ['textoAjuda.quandoSim', 'Ajuda — quando SIM'],
+        ['textoAjuda.quandoNao', 'Ajuda — quando NÃO'], ['justSim', 'Interpretação de SIM'], ['justNao', 'Interpretação de NÃO']],
+      'diagnostico-conflito-recorte': [['titulo', 'Título'], ['texto', 'Texto da pergunta'], ['rotuloMesma', 'Rótulo de "mesma"'], ['interpretacaoMesma', 'Interpretação de "mesma"'],
+        ['rotuloDistintas', 'Rótulo de "distintas"'], ['interpretacaoDistintas', 'Interpretação de "distintas"'], ['textoAjuda.quandoMesma', 'Ajuda — quando "mesma"'], ['textoAjuda.quandoDistintas', 'Ajuda — quando "distintas"']],
+      'diagnostico-predominancia': [['titulo', 'Título'], ['texto', 'Texto da pergunta']]
+    };
+    function lerCampo(p, campo) { var k = campo.split('.'); return k.length === 2 ? (p[k[0]] || {})[k[1]] : p[campo]; }
+    function gravarCampo(p, campo, v) {
+      var k = campo.split('.');
+      if (k.length === 2) { p[k[0]] = p[k[0]] || {}; if (v) p[k[0]][k[1]] = v; else delete p[k[0]][k[1]]; if (!Object.keys(p[k[0]]).length) delete p[k[0]]; }
+      else if (v) p[campo] = v; else delete p[campo];
+    }
+    function renderEdicaoConteudoMotor(cm, ocupado) {
+      var html = '<div class="avp-conteudo-motor-edicao" id="avpConteudoMotorEdicao"><p class="avp-decisao-aviso">Altere a redação, não o significado: o código de cada pergunta e de cada opção tem significado fixo no motor. Mudar o significado exige uma nova definição do motor.</p>';
+      cm.edicao.forEach(function (p, idx) {
+        var tipo = p.tipo || 'binaria';
+        html += '<div class="avp-form-card avp-config-pergunta-card" data-codigo-pergunta="' + esc(p.codigoEstavel) + '"><p class="avp-alt-label">Código: <strong>' + esc(p.codigoEstavel) + '</strong> <span class="avp-config-readonly-tag">(somente leitura)</span></p>';
+        (CAMPOS_EDICAO_MOTOR[tipo] || []).forEach(function (c) {
+          var id = 'avpCmEd' + idx + '_' + c[0].replace('.', '_');
+          html += '<div class="avp-field"><label for="' + id + '">' + esc(c[1]) + '</label><textarea id="' + id + '" class="avp-cm-campo" data-idx="' + idx + '" data-campo="' + esc(c[0]) + '" rows="2">' + esc(lerCampo(p, c[0]) || '') + '</textarea></div>';
+        });
+        (p.opcoes || []).forEach(function (o, oi) {
+          var id = 'avpCmEd' + idx + '_op' + oi;
+          html += '<div class="avp-field"><label for="' + id + '">Rótulo da opção <code>' + esc(o.codigo) + '</code> <span class="avp-config-readonly-tag">(código somente leitura)</span></label>' +
+            '<input type="text" id="' + id + '" class="avp-cm-opcao" data-idx="' + idx + '" data-opcao="' + oi + '" value="' + esc(o.rotulo || '') + '"></div>';
+        });
+        html += '</div>';
+      });
+      if (cm.erroEdicao) html += '<p class="avp-error-msg" id="avpConteudoMotorErroEdicao" role="alert">' + esc(cm.erroEdicao) + '</p>';
+      html += '<div class="avp-actions-footer"><button type="button" class="btn" id="avpConteudoMotorCancelarEdicaoBtn"' + (ocupado ? ' disabled' : '') + '>Cancelar</button>' +
+        '<button type="button" class="btn btn--primary" id="avpConteudoMotorSalvarBtn"' + (ocupado ? ' disabled' : '') + '>' + (cm.gravando === 'salvar' ? 'SALVANDO…' : 'Salvar rascunho') + '</button></div></div>';
+      return html;
+    }
+    function salvarEdicaoConteudoMotor(versaoMotor) {
+      var cm = state.config.conteudoMotor, Q = window.faQuestionarios, codigo = Q.CODIGOS.POSICIONAMENTO_ORGANIZACIONAL;
+      if (!cm || cm.gravando) return;
+      cm.gravando = 'salvar'; cm.erroEdicao = null; render();
+      var respondido = false;
+      var relogio = setTimeout(function () { if (respondido) return; respondido = true; cm.gravando = null; cm.erroEdicao = 'A conexão está demorando e não deu para confirmar. Confira o rascunho antes de tentar de novo.'; render(); }, 15000);
+      Q.salvarRascunhoConteudoMotor(codigo, versaoMotor, cm.edicao, sessaoAtual(), cm.baseAtualizadoEm, function (err) {
+        if (respondido) return;
+        respondido = true; clearTimeout(relogio); cm.gravando = null;
+        if (err) {
+          cm.erroEdicao = err === 'rascunho-mudou' ? 'Outra pessoa salvou este rascunho depois que você começou a editar. Cancele e abra de novo para não sobrescrever o trabalho dela.'
+            : err === 'incompativel' || err === 'estrutura-divergente' ? 'A estrutura não é a que o motor exige: nada foi gravado.' : 'Não foi possível salvar o rascunho. Tente novamente.';
+          render(); return;
+        }
+        cm.editando = false; cm.edicao = null; cm.flash = { erro: false, texto: '✓ Rascunho salvo. Nada mudou nas avaliações nem na redação em uso.' }; render();
+      });
     }
     function gravarConteudoMotor(acao, versaoMotor) {
       var cm = state.config.conteudoMotor || (state.config.conteudoMotor = {}), Q = window.faQuestionarios, codigo = Q.CODIGOS.POSICIONAMENTO_ORGANIZACIONAL;
@@ -4078,6 +4143,22 @@
         avpConfirm('Descartar o rascunho da redação para o motor v' + cmDes.dataset.versao + '? Nada muda nas avaliações nem na redação em uso; a carga inicial pode ser importada de novo.', function () {
           gravarConteudoMotor('descartar', Number(cmDes.dataset.versao));
         });
+      });
+      var cmEd = document.getElementById('avpConteudoMotorEditarBtn');
+      if (cmEd) cmEd.addEventListener('click', function () {
+        var cm = state.config.conteudoMotor || (state.config.conteudoMotor = {}), r = window.faQuestionarios.rascunhoConteudoMotor(window.faQuestionarios.CODIGOS.POSICIONAMENTO_ORGANIZACIONAL, 2);
+        if (!r) return;
+        cm.editando = true; cm.edicao = JSON.parse(JSON.stringify(r.perguntas || [])); cm.baseAtualizadoEm = r.atualizadoEm || null; cm.erroEdicao = null; cm.flash = null; render();
+      });
+      var cmCan = document.getElementById('avpConteudoMotorCancelarEdicaoBtn');
+      if (cmCan) cmCan.addEventListener('click', function () { var cm = state.config.conteudoMotor; cm.editando = false; cm.edicao = null; cm.erroEdicao = null; render(); });
+      var cmSal = document.getElementById('avpConteudoMotorSalvarBtn');
+      if (cmSal) cmSal.addEventListener('click', function () { salvarEdicaoConteudoMotor(2); });
+      wrap.querySelectorAll('.avp-cm-campo').forEach(function (t) {
+        t.addEventListener('input', function () { gravarCampo(state.config.conteudoMotor.edicao[Number(t.dataset.idx)], t.dataset.campo, t.value); });
+      });
+      wrap.querySelectorAll('.avp-cm-opcao').forEach(function (t) {
+        t.addEventListener('input', function () { var o = state.config.conteudoMotor.edicao[Number(t.dataset.idx)].opcoes[Number(t.dataset.opcao)]; if (t.value) o.rotulo = t.value; else delete o.rotulo; });
       });
       var cmVer = document.getElementById('avpConteudoMotorVer');
       if (cmVer) cmVer.addEventListener('toggle', function () { (state.config.conteudoMotor || (state.config.conteudoMotor = {})).aberto = cmVer.open; });
@@ -5599,9 +5680,104 @@
         html += '<p class="admin-empty">Módulo de squad não carregado.</p>';
       }
       html += '</div>';
+      html += renderPainelPosicionamento();
       return html;
     }
+    /* ===== H2-a — Motor de Posicionamento: versões, prontidão e impacto (SÓ CONSULTA) =====
+       Não há ação de ativar: prontidão técnica não é autorização, e a entrada em vigor exige aprovação explícita
+       (dupla, vinculada à versão exata do motor e da redação) e fronteira confiável — fase b. A simulação roda no
+       navegador (núcleo puro); o impacto lê as avaliações uma vez e não grava nada. */
+    var ROTULO_PRONTIDAO = {
+      DEFINICAO_VALIDA: 'Definição do motor válida (regras fixas de domínio)', VERSAO_DIFERENTE_DA_EM_VIGOR: 'Versão diferente da que está em vigor',
+      REDACAO_PUBLICADA_COMPATIVEL: 'Redação publicada e compatível com o motor', SIMULACAO_EXECUTADA: 'Simulação contra a versão em vigor executada',
+      SIMULACAO_SEM_VIOLACAO_LINHA_SQUAD: 'Simulação sem violação de Linha × Squad', IMPACTO_CALCULADO: 'Impacto nos registros calculado',
+      IMPACTO_SEM_VIOLACAO_LINHA_SQUAD: 'Impacto sem violação de Linha × Squad'
+    };
+    var ROTULO_INCOMPARAVEL = {
+      'exige-novas-respostas': 'exige novas respostas na v2', 'resultado-gravado-diverge': 'resultado gravado diverge do motor da versão', 'dados-incompletos': 'dados incompletos',
+      'versao-desconhecida': 'versão de motor desconhecida', 'erro-na-comparacao': 'não foi possível comparar'
+    };
+    function renderPainelPosicionamento() {
+      var N = window.faMotorPosicionamentoNucleo, G = window.faGovernancaPosicionamento, Q = window.faQuestionarios;
+      var html = '<div class="avp-form-card" id="avpMotorPosicionamento"><h4>Motor de Posicionamento Organizacional (O1–O9) — versões</h4>';
+      if (!N || !G) return html + '<p class="admin-empty">Módulo do motor de posicionamento não carregado.</p></div>';
+      var cp = state.configMotores.posicionamento || (state.configMotores.posicionamento = {});
+      var codigo = Q.CODIGOS.POSICIONAMENTO_ORGANIZACIONAL, emVigor = N.versaoEmVigor();
+      html += '<table class="admin-table avp-pos-versoes"><thead><tr><th>Versão</th><th>Situação</th></tr></thead><tbody>' + N.versoes().map(function (v) {
+        return '<tr data-versao="' + v + '"><td data-label="Versão">v' + v + '</td><td data-label="Situação">' + (v === emVigor ? '<strong>Em vigor</strong>' : 'Inativa') + '</td></tr>';
+      }).join('') + '</tbody></table>';
+      var alvo = N.versoes().filter(function (v) { return v > emVigor; }).pop();
+      if (!alvo) return html + '<p>Nenhuma versão nova preparada.</p></div>';
+      var defA = N.definicao(alvo), defV = N.definicao(emVigor);
+      var pubs = Q.versoesPublicadasConteudoMotor(codigo, alvo).map(function (x) { return { publicado: true, versao: x.versao, codigo: codigo, motorCompativel: x.motorCompativel, perguntas: x.perguntas }; });
+      var pr = G.prontidao(N, defA, { emVigor: defV, redacoesPublicadas: pubs, simulacao: cp.simulacao || null, impacto: cp.impacto || null });
+      html += '<h5>Prontidão técnica da v' + alvo + '</h5><ul class="avp-pos-prontidao" id="avpPosProntidao">' + pr.itens.map(function (it) {
+        return '<li data-item="' + esc(it.codigo) + '" data-ok="' + it.ok + '">' + (it.ok ? '✓ ' : '✗ ') + esc(ROTULO_PRONTIDAO[it.codigo] || it.codigo) + (it.detalhe ? ' <em>(' + esc(it.detalhe) + ')</em>' : '') + '</li>';
+      }).join('') +
+        '<li data-item="APROVACAO" data-ok="false">✗ Aprovação explícita registrada (dupla, quem propõe ≠ quem aprova, vinculada à versão exata do motor e da redação) <em>(registro de aprovação: fase b)</em></li>' +
+        '<li data-item="FRONTEIRA" data-ok="false">✗ Fronteira confiável para gravar e ativar <em>(fase b)</em></li></ul>';
+      html += '<p class="avp-decisao-aviso" id="avpPosNaoAutoriza">' + esc(pr.aviso) + ' Nesta fase não há ação de ativar: a v' + alvo + ' continua inativa e a v' + emVigor + ' em vigor.</p>';
+      /* simulação lógica */
+      html += '<div class="avp-actions-footer"><button type="button" class="btn btn--sm" id="avpPosSimularBtn">Simular v' + emVigor + ' × v' + alvo + '</button>' +
+        '<button type="button" class="btn btn--sm" id="avpPosImpactoBtn"' + (cp.lendo ? ' disabled' : '') + '>' + (cp.lendo ? 'Lendo avaliações…' : 'Calcular impacto nos registros') + '</button></div>';
+      if (cp.simulacao) {
+        var sm = cp.simulacao;
+        html += '<div id="avpPosSimulacao"><p><strong>Simulação lógica</strong> — ' + sm.totalEstados + ' estados: ' + sm.mantidos + ' com o mesmo resultado, ' + sm.alterados + ' com resultado diferente, ' +
+          sm.mudancasLiberaSquad + ' com liberaSquad diferente, <strong>' + sm.violacoesLinhaSquad + ' violações de Linha × Squad</strong>.</p></div>';
+      }
+      if (cp.erro) html += '<p class="avp-error-msg" id="avpPosImpactoErro" role="alert">' + esc(cp.erro) + '</p>';
+      if (cp.lendo) html += '<p class="loading-msg">Carregando…</p>';
+      if (cp.impacto) {
+        var im = cp.impacto;
+        html += '<div id="avpPosImpacto"><p><strong>Impacto nas avaliações vigentes concluídas</strong> (' + im.total + ')' + (cp.fonteRedacao ? ' — redação de destino: ' + esc(cp.fonteRedacao) : '') + ':</p><ul>' +
+          '<li data-balde="iguais">Resultado permanece igual: <strong>' + im.iguais.length + '</strong></li>' +
+          '<li data-balde="alterados">Resultado mudaria: <strong>' + im.alterados.length + '</strong>' + (im.alterados.filter(function (x) { return x.comDecisao; }).length ? ' (com decisão registrada: ' + im.alterados.filter(function (x) { return x.comDecisao; }).length + ')' : '') + '</li>' +
+          '<li data-balde="incomparaveis">Não podem ser comparados com segurança: <strong>' + im.incomparaveis.length + '</strong> — não contados como iguais</li>' +
+          '<li data-balde="violacoes">Violações de Linha × Squad: <strong>' + im.violacoes.length + '</strong></li></ul>';
+        var motivos = {};
+        im.incomparaveis.forEach(function (x) { motivos[x.motivo] = (motivos[x.motivo] || 0) + 1; });
+        if (im.incomparaveis.length) html += '<p class="avp-ficha-meta" id="avpPosIncomparaveisMotivos">Motivos: ' + Object.keys(motivos).map(function (m) { return esc(ROTULO_INCOMPARAVEL[m] || m) + ' (' + motivos[m] + ')'; }).join('; ') + '.</p>';
+        html += '<p class="avp-ficha-meta">Quem aprovar a entrada em vigor (fase b) terá de reconhecer explicitamente estes números, inclusive os incomparáveis. Identificador deste cálculo: <code>' + esc(im.digest) + '</code>. Nada foi gravado.</p></div>';
+      }
+      return html + '</div>';
+    }
+    function calcularImpactoPosicionamento() {
+      var cp = state.configMotores.posicionamento, N = window.faMotorPosicionamentoNucleo, G = window.faGovernancaPosicionamento, Q = window.faQuestionarios;
+      if (!cp || cp.lendo) return;
+      var codigo = Q.CODIGOS.POSICIONAMENTO_ORGANIZACIONAL, emVigor = N.versaoEmVigor(), alvo = N.versoes().filter(function (v) { return v > emVigor; }).pop();
+      cp.lendo = true; cp.erro = null; render();
+      var feito = false;
+      var relogio = setTimeout(function () { if (feito) return; feito = true; cp.lendo = false; cp.erro = 'A leitura das avaliações está demorando. Tente de novo em instantes.'; if (state.configMotores && state.configMotores.posicionamento === cp) render(); }, 20000);
+      Promise.all(['avaliacoes-posicionamento', 'posicionamento-vigente-por-item', 'posicionamento-decisoes'].map(function (n) { return db().ref(n).once('value'); })).then(function (snaps) {
+        if (feito) return; feito = true; clearTimeout(relogio);
+        var regs = snaps[0].val() || {}, vig = snaps[1].val() || {}, dec = snaps[2].val() || {};
+        var pub = Q.versoesPublicadasConteudoMotor(codigo, alvo)[0], ras = Q.rascunhoConteudoMotor(codigo, alvo);
+        var destino = pub ? pub.perguntas : ras ? ras.perguntas : null;
+        cp.fonteRedacao = pub ? 'versão publicada ' + pub.versao : ras ? 'RASCUNHO (não publicado)' : 'nenhuma (sem redação, nada pode ser comparado)';
+        var porCodigo = {};
+        (destino || []).forEach(function (p) { porCodigo[p.codigoEstavel] = p; });
+        var lista = Object.keys(vig).map(function (item) { var id = vig[item]; return regs[id] ? { id: id, reg: regs[id], decisao: dec[id] || null } : null; }).filter(Boolean);
+        cp.impacto = G.classificarImpacto(N, { destino: N.definicao(alvo), registros: lista,
+          conteudoOrigem: function (reg, c, v) { var vm = typeof reg.versaoMotor === 'number' ? reg.versaoMotor : 1; return vm === 1 ? Q.conteudoPergunta(codigo, c, v) : Q.conteudoPerguntaMotor(codigo, vm, c, v); },
+          conteudoDestino: function (c) { return destino ? porCodigo[c] || null : null; },
+          mesmoConteudo: window.faCriterioReavaliacao.mesmoConteudo });
+        cp.lendo = false;
+        if (state.configMotores && state.configMotores.posicionamento === cp) render();
+      }).catch(function () {
+        if (feito) return; feito = true; clearTimeout(relogio);
+        cp.lendo = false; cp.erro = 'Não foi possível ler as avaliações agora.';
+        if (state.configMotores && state.configMotores.posicionamento === cp) render();
+      });
+    }
     function bindMotoresPainel() {
+      var posSim = document.getElementById('avpPosSimularBtn');
+      if (posSim) posSim.addEventListener('click', function () {
+        var N = window.faMotorPosicionamentoNucleo, emVigor = N.versaoEmVigor(), alvo = N.versoes().filter(function (v) { return v > emVigor; }).pop();
+        state.configMotores.posicionamento.simulacao = N.simular(N.definicao(emVigor), N.definicao(alvo));
+        render();
+      });
+      var posImp = document.getElementById('avpPosImpactoBtn');
+      if (posImp) posImp.addEventListener('click', calcularImpactoPosicionamento);
       document.getElementById('avpMotorArqEditarBtn').addEventListener('click', function () {
         state.configMotores = {
           sub: 'editar-regras', regras: window.faMotorArquitetura.iniciarOuObterRascunhoRegras(),

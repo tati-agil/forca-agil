@@ -66,6 +66,12 @@
   function nucleo() { return window.faMotorPosicionamentoNucleo; }
   function versaoMotorDo(reg) { return reg && typeof reg.versaoMotor === 'number' ? reg.versaoMotor : 1; }
   function definicaoDo(reg) { return nucleo().definicao(versaoMotorDo(reg)); }
+  /* H3-a: a identificação das versões usadas por uma classificação (motor e redação) — para a ficha, a lista e o
+     histórico; registro sem versaoMotor é v1 (nada é regravado para mostrar isso) */
+  function textoVersoes(reg) {
+    var v = reg && reg.questionnaireContentVersion;
+    return 'motor v' + versaoMotorDo(reg) + ' · redação v' + (typeof v === 'number' ? v : '—');
+  }
   function clone(v) { return v == null ? v : JSON.parse(JSON.stringify(v)); }
   function simples(reg) {
     var r = {}, d = {}, p = {};
@@ -288,25 +294,25 @@
     if (!C || typeof C.situacao !== 'function' || typeof C.mesmoConteudo !== 'function') throw new Error('criterio-indisponivel');
     return C;
   }
-  function situacaoResposta(resp, q, versaoNova) {
+  function situacaoResposta(resp, q, versaoNova, vm) {
     var C = criterio();
     if (!resp || !resp.resposta) return null;
     var vr = resp.questionnaireContentVersion || null;
     if (vr === versaoNova) return null;
-    var antes = vr ? conteudo(q, vr) : null, agora = conteudo(q, versaoNova);
+    var antes = vr ? conteudo(q, vr, vm) : null, agora = conteudo(q, versaoNova, vm);
     return C.situacao(resp.textoPerguntaNaEpoca || (antes && antes.texto) || null, antes, agora);
   }
   /* Diagnóstico: herda só se o par de papéis é o mesmo E texto, rótulo "mesma" e rótulo "distintas" não mudaram;
      mudou só ajuda/interpretação → 'ajuda'. */
   var CAMPOS_DIAG_PERGUNTA = ['texto', 'rotuloMesma', 'rotuloDistintas'];
-  function situacaoDiagnostico(diag, papeisAgora, versaoNova) {
+  function situacaoDiagnostico(diag, papeisAgora, versaoNova, vm) {
     var C = criterio();
     if (!diag || !diag.resposta) return null;
     if (JSON.stringify(diag.papeis || []) !== JSON.stringify(papeisAgora || [])) return 'pergunta';
     var vr = diag.questionnaireContentVersion || null;
     if (vr === versaoNova) return null;
     if (!vr) return 'pergunta';
-    var antes = conteudo(DIAG, vr), agora = conteudo(DIAG, versaoNova);
+    var antes = conteudo(DIAG, vr, vm), agora = conteudo(DIAG, versaoNova, vm);
     if (!diag.textoPerguntaNaEpoca || !C.mesmoConteudo(diag.textoPerguntaNaEpoca, agora.texto)) return 'pergunta';
     if (CAMPOS_DIAG_PERGUNTA.some(function (k) { return !C.mesmoConteudo(antes[k], agora[k]); })) return 'pergunta';
     var ajuda = C.CAMPOS_AJUDA_COMPARADOS.concat(['interpretacaoMesma', 'interpretacaoDistintas']);
@@ -316,23 +322,26 @@
      concluída mais recente do item), versao (questionário vigente agora), motivo, usuario, agora } */
   function payloadReavaliacao(o) {
     criterio();
-    var ant = o.anterior || {}, vn = o.versao, respostas = {}, diagnosticos = {};
+    /* H3-a: reavaliar não troca a versão do motor — um registro v2 reavaliado continua v2 (nunca volta a v1); a D2 nunca
+       é herdada (só respostas e D1), e a decisão humana fica na versão anterior */
+    var ant = o.anterior || {}, vn = o.versao, respostas = {}, diagnosticos = {}, vm = versaoMotorDo(ant);
     Object.keys(ant.respostas || {}).forEach(function (q) {
       var r = ant.respostas[q];
-      if (!r || (r.resposta !== 'SIM' && r.resposta !== 'NAO') || situacaoResposta(r, q, vn) === 'pergunta') return;
-      respostas[q] = snapshotResposta(q, r.resposta, vn, r.observacao, r.dataResposta || o.agora);
+      if (!r || (r.resposta !== 'SIM' && r.resposta !== 'NAO') || situacaoResposta(r, q, vn, vm) === 'pergunta') return;
+      respostas[q] = snapshotResposta(q, r.resposta, vn, r.observacao, r.dataResposta || o.agora, vm);
     });
     var reg = { itemId: ant.itemId, itemNome: String(o.itemNome || ant.itemNome || ant.itemId).slice(0, 200), avaliacaoArquiteturalId: o.avaliacaoArquiteturalId,
       questionarioCodigo: QCOD, questionnaireContentVersion: vn, versao: (ant.versao || 1) + 1, avaliacaoAnteriorId: o.anteriorId,
       motivoReavaliacao: String(o.motivo || '').slice(0, MAX_MOTIVO), status: 'rascunho', revisao: 1, criadoPor: o.usuario, criadoEm: o.agora,
       atualizadoPor: o.usuario, atualizadoEm: o.agora, auditoriaCriacaoId: o.audId };
+    if (vm !== 1) reg.versaoMotor = vm;
     if (Object.keys(respostas).length) reg.respostas = respostas;
     ORDEM_NIVEIS.forEach(function (n) {
       var d = ant.diagnosticos && ant.diagnosticos[n];
       if (!d || !diagnosticoNecessario(reg, n)) return;
       var papeis = papeisDoPar(reg, n);
-      if (situacaoDiagnostico(d, papeis, vn) === 'pergunta') return;
-      diagnosticos[n] = snapshotDiagnostico(d.resposta, papeis, vn, d.observacao, d.dataResposta || o.agora);
+      if (situacaoDiagnostico(d, papeis, vn, vm) === 'pergunta') return;
+      diagnosticos[n] = snapshotDiagnostico(d.resposta, papeis, vn, d.observacao, d.dataResposta || o.agora, vm);
     });
     if (Object.keys(diagnosticos).length) reg.diagnosticos = diagnosticos;
     reg = limparForaDoCaminho(reg).reg;
@@ -342,6 +351,47 @@
     p[AUD + '/' + o.id + '/' + o.audId] = { tipo: 'criacao', itemId: reg.itemId, avaliacaoArquiteturalId: o.avaliacaoArquiteturalId, avaliacaoAnteriorId: o.anteriorId,
       motivo: reg.motivoReavaliacao, usuario: o.usuario, dataHora: o.agora };
     return p;
+  }
+  /* H3-a — "Atualizar com motor atual" (DORMENTE: só é oferecido quando a versão em vigor do motor é maior que a do
+     registro, o que hoje nunca acontece — a v1 está em vigor). Cria a vN+1 no motor de destino, com
+     origemReavaliacao 'motor'. A herança é a da governança (faGovernancaPosicionamento.herdarEntreVersoes): só o que é
+     comprovadamente a mesma pergunta com os mesmos critérios; D1 recalculada no destino; D2 e decisão nunca herdadas.
+     o: { id, audId, anteriorId, anterior, itemNome, avaliacaoArquiteturalId, versaoMotorDestino, versaoRedacaoDestino,
+          motivo, usuario, agora } */
+  function payloadAtualizacaoMotor(o) {
+    var C = criterio(), G = window.faGovernancaPosicionamento;
+    if (!G) throw new Error('governanca-indisponivel');
+    var ant = o.anterior || {}, vo = versaoMotorDo(ant), vd = o.versaoMotorDestino, vr = o.versaoRedacaoDestino;
+    if (!(vd > vo)) throw new Error('destino-nao-e-mais-novo');
+    var defD = nucleo().definicao(vd);
+    var h = G.herdarEntreVersoes(nucleo(), { origem: { def: nucleo().definicao(vo), reg: ant }, destino: { def: defD },
+      conteudoOrigem: function (c, v) { return conteudoMotor(c, v, vo); }, conteudoDestino: function (c) { return conteudoMotor(c, vr, vd); },
+      mesmoConteudo: C.mesmoConteudo });
+    var reg = { itemId: ant.itemId, itemNome: String(o.itemNome || ant.itemNome || ant.itemId).slice(0, 200), avaliacaoArquiteturalId: o.avaliacaoArquiteturalId,
+      questionarioCodigo: QCOD, questionnaireContentVersion: vr, versao: (ant.versao || 1) + 1, avaliacaoAnteriorId: o.anteriorId, origemReavaliacao: 'motor',
+      motivoReavaliacao: String(o.motivo || '').slice(0, MAX_MOTIVO), status: 'rascunho', revisao: 1, criadoPor: o.usuario, criadoEm: o.agora,
+      atualizadoPor: o.usuario, atualizadoEm: o.agora, auditoriaCriacaoId: o.audId };
+    if (vd !== 1) reg.versaoMotor = vd;
+    var respostas = {}, diagnosticos = {};
+    Object.keys(h.respostas).forEach(function (q) { var r = h.respostas[q]; respostas[q] = snapshotResposta(q, r.resposta, vr, r.observacao, r.dataResposta || o.agora, vd); });
+    if (Object.keys(respostas).length) reg.respostas = respostas;
+    Object.keys(h.diagnosticos).forEach(function (n) { var d = h.diagnosticos[n]; diagnosticos[n] = snapshotDiagnostico(d.resposta, papeisDoPar(reg, n), vr, d.observacao, d.dataResposta || o.agora, vd); });
+    if (Object.keys(diagnosticos).length) reg.diagnosticos = diagnosticos;
+    reg = limparForaDoCaminho(reg).reg;
+    var p = {};
+    p[NODE + '/' + o.id] = reg;
+    p[RES + '/' + reg.itemId] = o.id;
+    p[AUD + '/' + o.id + '/' + o.audId] = { tipo: 'criacao', itemId: reg.itemId, avaliacaoArquiteturalId: o.avaliacaoArquiteturalId, avaliacaoAnteriorId: o.anteriorId,
+      motivo: reg.motivoReavaliacao, origemReavaliacao: 'motor', versaoMotorAnterior: vo, versaoMotor: vd, usuario: o.usuario, dataHora: o.agora };
+    return { payload: p, novas: h.novas };
+  }
+  /* a atualização só existe quando há motor em vigor MAIS NOVO que o do registro e a redação publicada dele */
+  function atualizacaoDisponivel(reg) {
+    var vd = nucleo().versaoEmVigor(), vo = versaoMotorDo(reg), Q = window.faQuestionarios;
+    if (!(vd > vo)) return null;
+    var sit = typeof Q.situacaoConteudoMotor === 'function' ? Q.situacaoConteudoMotor(QCOD, vd) : null;
+    if (!sit || !sit.versaoPublicada) return null;
+    return { de: vo, para: vd, versaoRedacao: sit.versaoPublicada };
   }
   /* ---- GATE P1–P16 → O1–O9 (puro): iniciar ou reavaliar só sobre a Avaliação de Produto/Serviço que VALE para o
      item — a ponta da cadeia, concluída e não excluída (faBaseProdutoServico.baseDoItem, a mesma regra da lista de
@@ -385,7 +435,7 @@
   window.faAvaliacaoPosicionamentoNucleo = {
     gateDoItem: gateDoItem, textoGate: textoGate, ROTULO_GATE: ROTULO_GATE,
     simples: simples, avaliar: avaliar, caminho: caminho, diagnosticoNecessario: diagnosticoNecessario, papeisDoPar: papeisDoPar,
-    predominanciaNecessaria: predominanciaNecessaria, versaoMotorDo: versaoMotorDo, redacaoDisponivel: redacaoDisponivel, snapshotPredominancia: snapshotPredominancia,
+    predominanciaNecessaria: predominanciaNecessaria, versaoMotorDo: versaoMotorDo, textoVersoes: textoVersoes, payloadAtualizacaoMotor: payloadAtualizacaoMotor, atualizacaoDisponivel: atualizacaoDisponivel, redacaoDisponivel: redacaoDisponivel, snapshotPredominancia: snapshotPredominancia,
     limparForaDoCaminho: limparForaDoCaminho, falta: falta, snapshotResposta: snapshotResposta, snapshotDiagnostico: snapshotDiagnostico,
     resultadoGravavel: resultadoGravavel, nomesNaConclusao: nomesNaConclusao,
     payloadCriacao: payloadCriacao, payloadSalvar: payloadSalvar, payloadConclusao: payloadConclusao, payloadDescarte: payloadDescarte,
@@ -691,11 +741,11 @@
         if (!todas.length) h += '<p class="admin-empty">Nenhuma avaliação de posicionamento ainda.</p>';
         else if (!lista.length) h += '<p class="admin-empty">Nenhuma avaliação vigente ou em andamento.</p>';
         else {
-          h += '<div class="table-scroll-wrap"><table class="admin-table po-tabela"><thead><tr><th>Item</th><th>Versão</th><th>Situação</th><th>Recomendação automática</th><th>Decisão final</th><th>Atualizado em</th><th></th></tr></thead><tbody>';
+          h += '<div class="table-scroll-wrap"><table class="admin-table po-tabela"><thead><tr><th>Item</th><th>Versão</th><th>Motor e redação</th><th>Situação</th><th>Recomendação automática</th><th>Decisão final</th><th>Atualizado em</th><th></th></tr></thead><tbody>';
           lista.forEach(function (r) {
             var acao = r.status === 'rascunho' && podeEscrever() ? 'Continuar' : 'Abrir';
             h += '<tr class="po-linha" data-key="' + esc(r._key) + '" data-situacao="' + esc(r._sit) + '"><td data-label="Item">' + esc(r.itemNome) + '</td>' +
-              '<td data-label="Versão">v' + esc(r.versao || 1) + '</td><td data-label="Situação">' + badgeSituacao(r._sit) + '</td>' +
+              '<td data-label="Versão">v' + esc(r.versao || 1) + '</td><td data-label="Motor e redação" class="po-versoes-usadas">' + textoVersoes(r) + '</td><td data-label="Situação">' + badgeSituacao(r._sit) + '</td>' +
               '<td data-label="Recomendação automática">' + (r.status === 'concluido' ? rotuloResultado(r.resultadoAutomatico) : '—') + '</td>' +
               '<td data-label="Decisão final" class="po-col-decisao">' + textoDecisao(r._key, r) + '</td>' +
               '<td data-label="Atualizado em">' + esc(fmtData(r.atualizadoEm)) + '</td>' +
@@ -765,6 +815,7 @@
       if (a.avaliacaoAnteriorId) h += '<div class="po-reavaliacao-info" id="poReavaliacaoInfo"><p><strong>Reavaliação — versão ' + esc(a.versao) + '.</strong> A versão ' + esc((a.versao || 2) - 1) +
         ' continua vigente até esta ser concluída; descartar esta reavaliação não muda nada nela.</p><p><strong>Motivo:</strong> ' + esc(a.motivoReavaliacao) + '</p>' +
         '<p class="avp-ficha-meta">As respostas da versão anterior vieram preenchidas; perguntas cuja redação mudou precisam ser respondidas de novo.</p></div>';
+      h += '<p class="avp-ficha-meta" id="poVersoesUsadas">' + textoVersoes(a) + '</p>';
       var cam = caminho(a);
       ORDEM_NIVEIS.forEach(function (n) {
         var qs = NIVEIS[n].filter(function (q) { return cam.indexOf(q) !== -1; });
@@ -818,7 +869,7 @@
       var antes = q ? ant.respostas && ant.respostas[q] : ant.diagnosticos && ant.diagnosticos[n];
       if (!antes) return '';
       var agora = q ? respostaDe(q) : a.diagnosticos && a.diagnosticos[n], sit;
-      try { sit = q ? situacaoResposta(antes, q, a.questionnaireContentVersion) : situacaoDiagnostico(antes, papeisDoPar(a, n), a.questionnaireContentVersion); } catch (e) { return ''; }
+      try { sit = q ? situacaoResposta(antes, q, a.questionnaireContentVersion, versaoMotorDo(a)) : situacaoDiagnostico(antes, papeisDoPar(a, n), a.questionnaireContentVersion, versaoMotorDo(a)); } catch (e) { return ''; }
       var rotulo = q ? (antes.resposta === 'SIM' ? 'SIM' : 'NÃO') : (antes.rotuloNaEpoca || antes.resposta);
       if (sit === 'pergunta' && !agora) return '<p class="po-heranca po-heranca--pergunta" data-heranca="pergunta">' + (q ? 'A redação desta pergunta mudou' : 'O diagnóstico mudou (texto, rótulos ou par de papéis)') +
         ' desde a versão anterior (resposta lá: ' + esc(rotulo) + '). Responda de novo.</p>';
@@ -892,16 +943,19 @@
       h += '<p class="po-libera" id="poLiberaSquad">' + (ra.liberaSquad ? 'Pela recomendação automática, a Adequação à Squad (S1–S8) pode ser realizada para este item. Isso não cria nem associa Squad, e não quer dizer que haverá uma Squad só para este objeto.'
         : 'Pela recomendação automática, este resultado não libera a Adequação à Squad (S1–S8).') + '</p>';
       h += '<p class="avp-intro">O1–O9 recomenda o tipo de estrutura que deve sustentar, de forma permanente, a responsabilidade associada ao objeto. A associação a uma estrutura organizacional concreta é uma etapa posterior.</p>';
-      h += '<p class="avp-ficha-meta">Concluída em ' + esc(fmtData(a.concluidoEm)) + (a.concluidoPor ? ' por ' + esc(a.concluidoPor.name || a.concluidoPor.email) : '') + ' · regra ' + esc(ra.regra) + ' · motor v' + esc(ra.versaoMotor) + '</p>';
+      h += '<p class="avp-ficha-meta">Concluída em ' + esc(fmtData(a.concluidoEm)) + (a.concluidoPor ? ' por ' + esc(a.concluidoPor.name || a.concluidoPor.email) : '') + ' · regra ' + esc(ra.regra) + '</p><p class="avp-ficha-meta" id="poVersoesUsadas">' + textoVersoes(a) + '</p>';
       h += renderRespostasLidas(a) + '</section>';
       h += '<section class="po-bloco" id="poBlocoDecisao"><h4 class="po-bloco-titulo">Decisão final</h4>' + renderDecisao(a, key, sit) + '</section>';
       h += '<section class="po-bloco" id="poBlocoHistorico"><h4 class="po-bloco-titulo">Histórico de versões</h4>' + renderHistorico(a, key) + '</section>';
       var podeReav = sit === 'vigente' && podeEscrever() && !resv, prontoPdf = prontoParaExportar();
+      /* H3-a: dormente — só aparece com um motor em vigor mais novo que o deste registro e a redação publicada dele */
+      var atu = podeReav ? atualizacaoDisponivel(a) : null;
       /* reavaliar passa pelo MESMO gate de iniciar: sem a base P1–P16 vigente e com Motor atual, o botão fica travado e diz por quê */
       var gReav = podeReav ? itemDoGate(a.itemId).gate : null, travaReav = !!(gReav && !gReav.libera);
       if (travaReav) h += avisoGate(gReav, 'reavaliar');
       h += '<div class="avp-actions-footer po-ficha-acoes">' +
         (podeReav ? '<button type="button" class="btn" id="poReavaliarBtn"' + (state.salvando || travaReav ? ' disabled' : '') + '>' + (state.salvando === 'reavaliacao' ? 'INICIANDO…' : 'Reavaliar') + '</button>' : '') +
+        (atu ? '<button type="button" class="btn" id="poAtualizarMotorBtn"' + (state.salvando || travaReav ? ' disabled' : '') + '>Atualizar com motor atual (v' + esc(atu.de) + ' → v' + esc(atu.para) + ')</button>' : '') +
         '<button type="button" class="btn btn--sm" id="poGerarPdfBtn"' + (!prontoPdf || state.exportando ? ' disabled' : '') + '>' +
         (state.exportando === 'pdf' ? 'Gerando arquivo…' : !prontoPdf && !state.erroDec ? 'Carregando…' : '📄 GERAR PDF') + '</button></div>' + avisoExportacao() + statusExportacao();
       h += '</div>';
@@ -955,6 +1009,7 @@
         h += '<li class="po-versao' + (r._key === key ? ' po-versao--atual' : '') + '" data-key="' + esc(r._key) + '"><div><strong>v' + esc(r.versao || 1) + '</strong> ' + badgeSituacao(sit) + '</div>' +
           '<div>Recomendação automática: ' + (r.status === 'concluido' ? rotuloResultado(r.resultadoAutomatico) : '—') + '</div>' +
           '<div>Decisão final: ' + textoDecisao(r._key, r) + '</div>' +
+          '<div class="avp-ficha-meta po-versoes-usadas">' + textoVersoes(r) + '</div>' +
           (r.motivoReavaliacao ? '<div class="avp-ficha-meta">Motivo da reavaliação: ' + esc(r.motivoReavaliacao) + '</div>' : '') +
           (r.motivoDescarte ? '<div class="avp-ficha-meta">Motivo do descarte: ' + esc(r.motivoDescarte) + '</div>' : '') +
           '<div class="avp-ficha-meta">' + esc(fmtData(r.concluidoEm || r.descartadoEm || r.atualizadoEm)) + '</div>' +
@@ -1022,6 +1077,7 @@
       var rec = byId('poRecarregarBtn'); if (rec) rec.addEventListener('click', recarregar);
       var hist = byId('poMostrarHistorico'); if (hist) hist.addEventListener('change', function () { state.mostrarHistorico = hist.checked; render(); });
       var reav = byId('poReavaliarBtn'); if (reav) reav.addEventListener('click', pedirReavaliacao);
+      var atuM = byId('poAtualizarMotorBtn'); if (atuM) atuM.addEventListener('click', pedirAtualizacaoMotor);
       var exp = byId('poExportarBtn'); if (exp) exp.addEventListener('click', function () { state.menuExportarAberto = !state.menuExportarAberto; render(); });
       var exL = byId('poExportarExcelLista'); if (exL) exL.addEventListener('click', function () { exportarExcel('lista'); });
       var exT = byId('poExportarExcelTodas'); if (exT) exT.addEventListener('click', function () { exportarExcel('todas'); });
@@ -1266,7 +1322,25 @@
           return null;
         } });
     }
-    function iniciarReavaliacao(it, anteriorId, motivo) {
+    function pedirAtualizacaoMotor() {
+      if (!podeEscrever() || state.salvando) return;
+      var a = state.atual, key = state.chave, atu = atualizacaoDisponivel(a);
+      if (!atu || state.vigentes[a.itemId] !== key) return;
+      if (state.reservas[a.itemId]) { irParaChave(state.reservas[a.itemId]); return; }
+      var it = itemDoGate(a.itemId);
+      if (!it.gate.libera) { aviso(textoGate(it.gate.situacao, 'reavaliar')); return; }
+      modal('<h4>Atualizar com o motor atual?</h4><p>Cria a versão ' + esc((a.versao || 1) + 1) + ' como rascunho no motor v' + esc(atu.para) + ' (esta foi calculada no motor v' + esc(atu.de) + ').</p>' +
+        '<p>Só vêm preenchidas as respostas cuja pergunta e critérios são comprovadamente os mesmos; as demais precisam ser respondidas de novo. ' +
+        'A decisão final desta versão não é copiada. Esta versão continua vigente até a nova ser concluída.</p>' +
+        '<label for="poMotivoReavaliacaoInput">Motivo *</label><textarea id="poMotivoReavaliacaoInput" rows="3" maxlength="' + MAX_MOTIVO + '">Atualização para o motor v' + esc(atu.para) + '</textarea>',
+        { sim: 'Atualizar', nao: 'Cancelar', aoSim: function (box) {
+          var motivo = String(box.querySelector('#poMotivoReavaliacaoInput').value || '').trim();
+          if (!motivo) return 'Informe o motivo da atualização.';
+          iniciarReavaliacao(it, key, motivo, atu);
+          return null;
+        } });
+    }
+    function iniciarReavaliacao(it, anteriorId, motivo, atualizacao) {
       var usuario = sessaoAtual(); if (!usuario) return;
       /* o modal pode ter ficado aberto enquanto a base P1–P16 mudou: o gate é conferido de novo, e a base tem de ser a mesma */
       var agora = itemDoGate(it.itemId);
@@ -1274,8 +1348,17 @@
       if (agora.avaliacaoArquiteturalId !== it.avaliacaoArquiteturalId) { render(); aviso('A Avaliação de Produto/Serviço deste item mudou enquanto a reavaliação era preparada. Confira e tente de novo.'); return; }
       var id = novaChave(NODE), audId = novaChave(AUD + '/' + id), payload;
       try {
-        payload = payloadReavaliacao({ id: id, audId: audId, anteriorId: anteriorId, anterior: clone(state.registros[anteriorId]), itemNome: it.nome,
-          avaliacaoArquiteturalId: it.avaliacaoArquiteturalId, versao: window.faQuestionarios.versaoAtual(QCOD), motivo: motivo, usuario: usuario, agora: agoraIso() });
+        var ant0 = state.registros[anteriorId], vm0 = versaoMotorDo(ant0);
+        if (atualizacao) {
+          payload = payloadAtualizacaoMotor({ id: id, audId: audId, anteriorId: anteriorId, anterior: clone(ant0), itemNome: it.nome, avaliacaoArquiteturalId: it.avaliacaoArquiteturalId,
+            versaoMotorDestino: atualizacao.para, versaoRedacaoDestino: atualizacao.versaoRedacao, motivo: motivo, usuario: usuario, agora: agoraIso() }).payload;
+        } else {
+          /* a redação da reavaliação é a publicada para o motor DO REGISTRO (v1: o questionário de sempre) */
+          var vRed = vm0 === 1 ? window.faQuestionarios.versaoAtual(QCOD) : (window.faQuestionarios.situacaoConteudoMotor(QCOD, vm0) || {}).versaoPublicada;
+          if (!vRed) throw new Error('sem-redacao');
+          payload = payloadReavaliacao({ id: id, audId: audId, anteriorId: anteriorId, anterior: clone(ant0), itemNome: it.nome,
+            avaliacaoArquiteturalId: it.avaliacaoArquiteturalId, versao: vRed, motivo: motivo, usuario: usuario, agora: agoraIso() });
+        }
       } catch (e) {
         /* sem o critério de reavaliação não se monta nada (nunca herda resposta sem saber se a pergunta mudou) */
         aviso('Não foi possível preparar a reavaliação agora. Recarregue a página e tente de novo.'); return;
