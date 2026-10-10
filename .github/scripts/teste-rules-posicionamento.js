@@ -41,7 +41,7 @@ function carregarNucleo() {
   ctx.window = ctx;
   ctx.firebase = { database: () => ({ ref: () => ({ on() {}, off() {}, once() { return Promise.resolve({ val: () => null }); } }) }) };
   vm.createContext(ctx);
-  for (const f of ['questionarios-config.js', 'motor-posicionamento.js', 'avaliacao-posicionamento.js']) vm.runInContext(fs.readFileSync(path.join(raiz, f), 'utf8'), ctx, { filename: f });
+  for (const f of ['questionarios-config.js', 'motor-posicionamento.js', 'motor-posicionamento-nucleo.js', 'avaliacao-posicionamento.js']) vm.runInContext(fs.readFileSync(path.join(raiz, f), 'utf8'), ctx, { filename: f });
   ctx.faPosicionamentos = { nome: (c) => 'Nome de ' + c, usandoContingencia: () => false };
   return ctx.faAvaliacaoPosicionamentoNucleo;
 }

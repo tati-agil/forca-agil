@@ -3878,8 +3878,89 @@
         html += '<button class="btn btn--sm avp-config-exportar-btn" data-codigo="' + codigo + '"' + (c.exportando ? ' disabled' : '') + '>📊 Exportar Excel</button>';
         html += '</div></div>';
         window.faQuestionarios.listarCorrecoesEditoriais(codigo).forEach(function (corr) { html += renderCorrecaoEditorial(corr.id); });
+        if (codigo === window.faQuestionarios.CODIGOS.POSICIONAMENTO_ORGANIZACIONAL) html += renderConteudoMotorNovo(codigo, 2);
       });
       return html;
+    }
+    /* H1-Final — redação para uma versão NOVA (inativa) do motor de Posicionamento. Trilha separada
+       (questionarios-config/<código>/motores/<v>): nada aqui muda a redação v1 que o site usa nem põe o motor em
+       vigor. Nesta etapa: importar a carga inicial como RASCUNHO, ver (só leitura) e descartar. A estrutura é
+       provada contra o contrato do núcleo e o vínculo motorCompativel é gravado pelo sistema. Editar e publicar o
+       par motor + redação é governança (H2). */
+    var ARQ_CARGA_POSICIONAMENTO = { 2: 'forca-agil/conteudo-inicial-posicionamento-v2.js' };
+    function carregarCargaInicial(versaoMotor, cb) {
+      var C = window.faConteudoInicialPosicionamento;
+      if (C && C[versaoMotor]) { cb(null); return; }
+      var src = ARQ_CARGA_POSICIONAMENTO[versaoMotor];
+      if (!src) { cb('sem-carga-inicial'); return; }
+      var sc = document.createElement('script');
+      sc.src = src;
+      sc.onload = function () { cb(window.faConteudoInicialPosicionamento && window.faConteudoInicialPosicionamento[versaoMotor] ? null : 'sem-carga-inicial'); };
+      sc.onerror = function () { sc.remove(); cb('falha-carga'); };
+      document.head.appendChild(sc);
+    }
+    function renderConteudoMotorNovo(codigo, versaoMotor) {
+      var Q = window.faQuestionarios, sit = Q.situacaoConteudoMotor(codigo, versaoMotor), cm = state.config.conteudoMotor || (state.config.conteudoMotor = {});
+      var ocupado = !!cm.gravando;
+      var html = '<div class="avp-form-card avp-config-item-card" id="avpConteudoMotor' + versaoMotor + '">';
+      html += '<h4>Redação para o motor de Posicionamento v' + esc(versaoMotor) + ' (inativo)</h4>';
+      html += '<p class="avp-decisao-aviso">O motor v' + esc(versaoMotor) + ' não está em vigor (versão em vigor: ' + esc(window.faMotorPosicionamentoNucleo ? window.faMotorPosicionamentoNucleo.versaoEmVigor() : 1) + '). ' +
+        'Esta redação é preparada para ele: não aparece em nenhuma avaliação, não muda a redação em uso e só poderá ser publicada junto com o motor, numa etapa de governança.</p>';
+      if (cm.flash) html += '<p class="' + (cm.flash.erro ? 'avp-error-msg' : 'avp-flash-success') + '" id="avpConteudoMotorFlash" role="status">' + esc(cm.flash.texto) + '</p>';
+      if (!sit.carregada) return html + '<p class="loading-msg" id="avpConteudoMotorCarregando">Carregando…</p></div>';
+      if (!sit.temRascunho) {
+        html += '<p id="avpConteudoMotorSituacao">Situação: sem rascunho.</p>';
+        html += '<div class="avp-actions-footer"><button type="button" class="btn btn--sm" id="avpConteudoMotorImportarBtn" data-versao="' + versaoMotor + '"' + (ocupado ? ' disabled' : '') + '>' +
+          (cm.gravando === 'importar' ? 'IMPORTANDO…' : 'Importar redação inicial como rascunho') + '</button></div>';
+        return html + '</div>';
+      }
+      var r = sit.rascunho;
+      html += '<p id="avpConteudoMotorSituacao">Situação: <strong>rascunho</strong>' + (r.origem === 'carga-inicial' ? ' (carga inicial)' : '') +
+        (r.atualizadoEm ? ' · ' + esc(fmtData(r.atualizadoEm)) : '') + (r.atualizadoPor ? ' · ' + esc(r.atualizadoPor.email || r.atualizadoPor.name || '') : '') + '</p>';
+      html += '<p id="avpConteudoMotorVinculo">Vínculo: motor v' + esc(r.motorCompativel) + ' (definido pelo sistema)</p>';
+      html += sit.compativel ? '<p class="avp-flash-success" id="avpConteudoMotorCompat">Estrutura compatível com o contrato do motor v' + esc(versaoMotor) + ' (' + esc((r.perguntas || []).length) + ' itens).</p>'
+        : '<p class="avp-error-msg" id="avpConteudoMotorCompat">Estrutura incompatível com o motor v' + esc(versaoMotor) + ': ' + esc((sit.erros || []).map(function (e) { return e.codigo + (e.detalhe ? ' (' + e.detalhe + ')' : ''); }).join('; ')) + '</p>';
+      html += '<details class="avp-dados-item" id="avpConteudoMotorVer"' + (cm.aberto ? ' open' : '') + '><summary>Ver redação (só leitura)</summary><ul class="avp-conteudo-motor-lista">';
+      (r.perguntas || []).forEach(function (p) {
+        html += '<li data-codigo-pergunta="' + esc(p.codigoEstavel) + '"><strong>' + esc(p.codigoEstavel) + '</strong> — ' + esc(p.titulo || '') + '<br>' + esc(p.texto || '');
+        if (p.opcoes) html += '<ul>' + p.opcoes.map(function (o) { return '<li><code>' + esc(o.codigo) + '</code> — ' + esc(o.rotulo || '') + '</li>'; }).join('') + '</ul>';
+        if (p.rotuloMesma || p.rotuloDistintas) html += '<ul><li><code>mesma</code> — ' + esc(p.rotuloMesma || '') + '</li><li><code>distintas</code> — ' + esc(p.rotuloDistintas || '') + '</li></ul>';
+        html += '</li>';
+      });
+      html += '</ul></details>';
+      html += '<div class="avp-actions-footer"><button type="button" class="btn btn--sm btn--danger" id="avpConteudoMotorDescartarBtn" data-versao="' + versaoMotor + '"' + (ocupado ? ' disabled' : '') + '>' +
+        (cm.gravando === 'descartar' ? 'DESCARTANDO…' : 'Descartar rascunho') + '</button></div>';
+      return html + '</div>';
+    }
+    function gravarConteudoMotor(acao, versaoMotor) {
+      var cm = state.config.conteudoMotor || (state.config.conteudoMotor = {}), Q = window.faQuestionarios, codigo = Q.CODIGOS.POSICIONAMENTO_ORGANIZACIONAL;
+      if (cm.gravando) return;
+      cm.gravando = acao; cm.flash = null; render();
+      var respondido = false;
+      function fim(flash) {
+        if (respondido) return;
+        respondido = true; clearTimeout(relogio);
+        cm.gravando = null; cm.flash = flash; render();
+      }
+      /* sem resposta não é "falhou" nem "gravou": a tela relê o banco (o listener) e diz para conferir */
+      var relogio = setTimeout(function () { fim({ erro: true, texto: 'A conexão está demorando e não deu para confirmar. Confira a situação acima antes de tentar de novo.' }); }, 15000);
+      var MSG = { 'config-nao-carregada': 'A configuração ainda está carregando. Tente de novo em alguns segundos.',
+        'ja-existe-rascunho': 'Já existe um rascunho desta redação: descarte-o antes de importar de novo.',
+        'sem-carga-inicial': 'A carga inicial desta versão não está disponível.', 'falha-carga': 'Não foi possível carregar o arquivo da carga inicial. Verifique a conexão e tente de novo.',
+        'incompativel': 'A carga inicial não é compatível com o contrato do motor: nada foi gravado.', 'estrutura-divergente': 'A carga inicial não tem a estrutura que o motor exige: nada foi gravado.',
+        'sem-contrato': 'O motor desta versão não está disponível nesta página: nada foi gravado.' };
+      if (acao === 'importar') {
+        carregarCargaInicial(versaoMotor, function (e) {
+          if (e) { fim({ erro: true, texto: MSG[e] || 'Não foi possível importar.' }); return; }
+          Q.importarConteudoInicial(codigo, versaoMotor, sessaoAtual(), function (err) {
+            fim(err ? { erro: true, texto: MSG[err] || 'Não foi possível gravar o rascunho. Tente novamente.' } : { erro: false, texto: '✓ Rascunho da redação v' + versaoMotor + ' importado. Nada mudou nas avaliações nem na redação em uso.' });
+          });
+        });
+        return;
+      }
+      Q.descartarRascunhoConteudoMotor(codigo, versaoMotor, function (err) {
+        fim(err ? { erro: true, texto: 'Não foi possível descartar o rascunho. Tente novamente.' } : { erro: false, texto: 'Rascunho da redação v' + versaoMotor + ' descartado.' });
+      });
     }
     /* Correção editorial entregue pelo código e aplicada pelo MESMO
        mecanismo de qualquer outra edição (vira uma versão nova do
@@ -3990,6 +4071,16 @@
       });
     }
     function bindConfigLista() {
+      var cmImp = document.getElementById('avpConteudoMotorImportarBtn');
+      if (cmImp) cmImp.addEventListener('click', function () { gravarConteudoMotor('importar', Number(cmImp.dataset.versao)); });
+      var cmDes = document.getElementById('avpConteudoMotorDescartarBtn');
+      if (cmDes) cmDes.addEventListener('click', function () {
+        avpConfirm('Descartar o rascunho da redação para o motor v' + cmDes.dataset.versao + '? Nada muda nas avaliações nem na redação em uso; a carga inicial pode ser importada de novo.', function () {
+          gravarConteudoMotor('descartar', Number(cmDes.dataset.versao));
+        });
+      });
+      var cmVer = document.getElementById('avpConteudoMotorVer');
+      if (cmVer) cmVer.addEventListener('toggle', function () { (state.config.conteudoMotor || (state.config.conteudoMotor = {})).aberto = cmVer.open; });
       wrap.querySelectorAll('.avp-correcao-aplicar-btn').forEach(function (btn) {
         btn.addEventListener('click', function () { aplicarCorrecaoEditorialNaTela(btn.dataset.correcao); });
       });

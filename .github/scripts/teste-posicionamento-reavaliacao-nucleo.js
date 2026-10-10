@@ -31,7 +31,7 @@ function carregar(comCriterio) {
   ctx.firebase = { database: () => ({ ref: () => ({ on() {}, off() {}, once() { return Promise.resolve({ val: () => null }); }, update() {}, child() { return this; }, push() { return { key: 'k' }; } }) }) };
   ctx.navigator = {}; ctx.location = { hash: '' }; ctx.localStorage = { getItem() { return null; }, setItem() {} };
   vm.createContext(ctx);
-  const arqs = ['questionarios-config.js', 'motor-arquitetura.js'].concat(comCriterio ? ['avaliacao-produto.js'] : []).concat(['motor-posicionamento.js']);
+  const arqs = ['questionarios-config.js', 'motor-arquitetura.js'].concat(comCriterio ? ['avaliacao-produto.js'] : []).concat(['motor-posicionamento.js', 'motor-posicionamento-nucleo.js']);
   arqs.forEach((f) => vm.runInContext(fs.readFileSync(path.join(RAIZ, f), 'utf8'), ctx, { filename: f }));
   delete ctx.document; /* o núcleo de posicionamento para antes da tela */
   vm.runInContext(fs.readFileSync(path.join(RAIZ, 'avaliacao-posicionamento.js'), 'utf8'), ctx, { filename: 'avaliacao-posicionamento.js' });

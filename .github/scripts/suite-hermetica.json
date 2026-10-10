@@ -615,6 +615,18 @@
       "sobre": "H1-B: validarDefinicao recusa cada violação das regras fixas (significado fixo dos códigos, hierarquia, completude, incoerência, D1/D2, Plataforma só por O6–O9, Linha × Squad e texto fora da definição); enumeração estruturada determinística e completa (confere com força bruta: v1 2127 de 531.441; v2 664); a v2 inativa bate com um oráculo escrito à parte da especificação em todos os estados válidos e de incoerência; Linha × Squad literal; simular(v1, v2) reproduz docs/motor-posicionamento-v1-v2.md; conteudoCompativel exige estrutura exata e vínculo, legado só v1, podeEntrarEmVigor sem fallback."
     },
     {
+      "arquivo": ".github/scripts/teste-conteudo-motor-posicionamento.js",
+      "nome": "Motor de Posicionamento: redação por versão do motor e a tela entendendo v1/v2 (sem navegador)",
+      "duracao": 2,
+      "sobre": "H1-Final: a carga inicial v2 é só dados (códigos/opções do contrato, nenhum campo de lógica, fora do index.html); a trilha questionarios-config/<código>/motores/<v> prova a estrutura contra o contrato do núcleo (faltando, sobrando, duplicado, opção a mais/menos/trocada → recusa; papel/regra/tipo no conteúdo não entram), importa só como rascunho com motorCompativel dado pelo sistema, recusa sem config e com rascunho existente, não tem fallback (rascunho não vale); a trilha principal recusa a estrutura v2; a tela: registro sem versaoMotor = v1, v1 ignora predominâncias, v2 com D1 2+ SIM, D2 com as opções dos papéis com SIM, pendência, limparForaDoCaminho fechando D2 e o ramo que ela abriu, redacaoDisponivel só com redação publicada, snapshots da redação da trilha certa."
+    },
+    {
+      "arquivo": ".github/scripts/teste-posicionamento-v2-tela.js",
+      "nome": "Motor de Posicionamento v2 inativo: cartão do ADMIN e registro v2 na tela (desktop e 375 px)",
+      "duracao": 25,
+      "sobre": "H1-Final: ADMIN › Questionários mostra a redação para o motor v2 como inativa; importar carrega a carga só agora e grava só motores/2/rascunho (motorCompativel = 2), compatível, só leitura; descartar remove só ele; a redação em uso não muda. Registro v2 sem redação publicada → trava sem perguntas nem texto v1; com redação publicada → D1 com 3 SIM, D2 com 4 opções, Concluir só com a predominância, \"distintas\" avisa e tira a D2. Registro v1 sem D2 e com a redação v1. Sem rolagem horizontal nem erro de JS."
+    },
+    {
       "arquivo": ".github/scripts/teste-posicionamento-exportacoes.js",
       "nome": "Posicionamento Organizacional: PDF individual e Excel baixados de verdade (desktop e 375 px)",
       "duracao": 25,
