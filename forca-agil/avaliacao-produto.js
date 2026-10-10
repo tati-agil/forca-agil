@@ -274,11 +274,24 @@
       : (LEGADO_AJUDA_COMPROVADA[def.codigoEstavel] ? conteudoDe(def, VERSAO_LEGADA_COMPROVADA) : null);
     var textoAntes = resposta.textoPerguntaNaEpoca || (versaoResposta && antes && antes.texto) ||
       (function () { var l = conteudoLegado(def); return l.origem === 'reconstruido' ? l.texto : null; })();
+    return situacaoPerguntaHerdada(textoAntes, antes, agora);
+  }
+  /* O núcleo puro do critério de reavaliação: textoAntes = texto da pergunta na época da resposta; antes/agora =
+     conteúdo da pergunta na versão da resposta e na versão da nova avaliação (antes null = não há prova da ajuda
+     da época). É o MESMO critério para P1–P16 e para O1–O9 (avaliacao-posicionamento.js, via faCriterioReavaliacao). */
+  function situacaoPerguntaHerdada(textoAntes, antes, agora) {
     if (!textoAntes || textoAntes !== agora.texto) return 'pergunta';
     if (!antes) return 'ajuda'; /* legada sem prova da ajuda da época — avisa, sem bloquear */
     var mudou = CAMPOS_AJUDA_COMPARADOS.some(function (campo) { return !mesmoConteudo(antes[campo], agora[campo]); });
     return mudou ? 'ajuda' : null;
   }
+  /* Exposto só para leitura (congelado): outro módulo usa o critério, mas não consegue alterar o de Produto/Serviço. */
+  window.faCriterioReavaliacao = Object.freeze({
+    CAMPOS_AJUDA_COMPARADOS: Object.freeze(CAMPOS_AJUDA_COMPARADOS.slice()),
+    conteudoNormalizado: conteudoNormalizado,
+    mesmoConteudo: mesmoConteudo,
+    situacao: situacaoPerguntaHerdada
+  });
   /* Resposta que vale para concluir — o MESMO critério do contador de
      progresso e de primeiraPerguntaFaltando: SIM/NÃO dado à pergunta desta
      versão (a herdada de pergunta cujo texto mudou ainda não vale). */

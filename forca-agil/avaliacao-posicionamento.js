@@ -37,9 +37,9 @@
 (function () {
   'use strict';
   var NODE = 'avaliacoes-posicionamento', RES = 'posicionamento-rascunho-por-item', VIG = 'posicionamento-vigente-por-item';
-  var AUD = 'posicionamento-auditoria', PROD = 'avaliacoes-produto';
+  var AUD = 'posicionamento-auditoria', PROD = 'avaliacoes-produto', DEC = 'posicionamento-decisoes';
   var QCOD = 'POSICIONAMENTO_ORGANIZACIONAL', DIAG = 'DIAG_CONFLITO_RECORTE';
-  var MAX_OBS = 2000, MAX_MOTIVO = 500, TEMPO_GRAVACAO = 12000;
+  var MAX_OBS = 2000, MAX_MOTIVO = 500, MAX_JUSTIFICATIVA = 2000, TEMPO_GRAVACAO = 12000;
   var NIVEIS = { N1: ['O1', 'O2', 'O3'], N2: ['O4', 'O5'], N3: ['O6', 'O7', 'O8', 'O9'] };
   var ORDEM_NIVEIS = ['N1', 'N2', 'N3'];
   var TITULO_NIVEL = { N1: 'Nível 1 — tipo de responsabilidade', N2: 'Nível 2 — Linha confirmada', N3: 'Nível 3 — ramo Plataforma' };
@@ -181,9 +181,10 @@
     var p = {};
     p[NODE + '/' + id] = r;
     p[RES + '/' + r.itemId] = null;
+    /* reavaliação: o banco só aceita a troca se o vigente ainda é a anterior (compare-and-set) */
     p[VIG + '/' + r.itemId] = id;
-    p[AUD + '/' + id + '/' + audId] = { tipo: 'conclusao', itemId: r.itemId, codigoResultado: res.codigoResultado, regra: res.regra, versaoMotor: res.versaoMotor,
-      liberaSquad: res.liberaSquad, usuario: usuario, dataHora: agora };
+    p[AUD + '/' + id + '/' + audId] = semVazios({ tipo: 'conclusao', itemId: r.itemId, codigoResultado: res.codigoResultado, regra: res.regra, versaoMotor: res.versaoMotor,
+      liberaSquad: res.liberaSquad, vigenteAnterior: r.avaliacaoAnteriorId || null, usuario: usuario, dataHora: agora });
     return { payload: p, resultado: res };
   }
   function payloadDescarte(id, reg, usuario, agora, revisaoBase, audId, motivo) {
@@ -195,12 +196,104 @@
     p[AUD + '/' + id + '/' + audId] = { tipo: 'descarte', itemId: r.itemId, motivo: motivo, usuario: usuario, dataHora: agora };
     return p;
   }
+  /* ---- PR F: decisão humana ---- */
+  /* só espaço, tabulação, quebra de linha e retorno — os mesmos que o banco ignora */
+  function emBranco(s) { return typeof s !== 'string' || !s.replace(/[ \t\n\r]/g, '').length; }
+  function tipoDecisao(codAuto, codFinal) {
+    if (codAuto === 'A_VALIDAR') return 'RESOLUCAO_A_VALIDAR';
+    return codAuto === codFinal ? 'CONFIRMACAO' : 'DIVERGENCIA';
+  }
+  function exigeJustificativa(tipo) { return tipo !== 'CONFIRMACAO'; }
+  /* o: { id (a avaliação concluída e vigente), reg, codigoFinal, justificativa, usuario, agora, audId }. O resultado
+     automático não é tocado: a decisão é outro nó. liberaSquad vem do motor (mesma regra do resultado). */
+  function payloadDecisao(o) {
+    var M = motor(), ra = o.reg.resultadoAutomatico || {}, Pz = window.faPosicionamentos;
+    if (M.CODIGOS_FIRMES.indexOf(o.codigoFinal) === -1) throw new Error('codigo-nao-firme');
+    var tipo = tipoDecisao(ra.codigoResultado, o.codigoFinal);
+    var just = emBranco(o.justificativa) ? null : String(o.justificativa).slice(0, MAX_JUSTIFICATIVA);
+    if (exigeJustificativa(tipo) && !just) throw new Error('justificativa-obrigatoria');
+    var dec = semVazios({ itemId: o.reg.itemId, versaoAvaliacao: o.reg.versao, versaoMotor: ra.versaoMotor, codigoAutomatico: ra.codigoResultado,
+      tipoAValidarAutomatico: ra.tipoAValidar || null, codigoFinal: o.codigoFinal, tipoDecisao: tipo, justificativa: just,
+      nomeNaDecisao: { nome: String((Pz && Pz.nome(o.codigoFinal)) || o.codigoFinal).slice(0, 120), contingencia: !!(Pz && Pz.usandoContingencia(o.codigoFinal)) },
+      liberaSquad: M.liberaSquadParaCodigoFirme(o.codigoFinal), decididoPor: o.usuario, decididoEm: o.agora, auditoriaId: o.audId });
+    var p = {};
+    p[DEC + '/' + o.id] = dec;
+    p[AUD + '/' + o.id + '/' + o.audId] = { tipo: 'decisao', itemId: o.reg.itemId, codigoAutomatico: ra.codigoResultado, codigoFinal: o.codigoFinal,
+      tipoDecisao: tipo, versaoAvaliacao: o.reg.versao, usuario: o.usuario, dataHora: o.agora };
+    return p;
+  }
+  /* ---- PR F: reavaliação ----
+     Critério de herança: o MESMO de Produto/Serviço (faCriterioReavaliacao, de avaliacao-produto.js). Sem ele, a
+     reavaliação não é montada (falha fechada: nunca herda resposta sem saber se a pergunta mudou).
+       'pergunta' → não herda (responder de novo); 'ajuda' → herda, com aviso; null → herda. */
+  function criterio() {
+    var C = window.faCriterioReavaliacao;
+    if (!C || typeof C.situacao !== 'function' || typeof C.mesmoConteudo !== 'function') throw new Error('criterio-indisponivel');
+    return C;
+  }
+  function situacaoResposta(resp, q, versaoNova) {
+    var C = criterio();
+    if (!resp || !resp.resposta) return null;
+    var vr = resp.questionnaireContentVersion || null;
+    if (vr === versaoNova) return null;
+    var antes = vr ? conteudo(q, vr) : null, agora = conteudo(q, versaoNova);
+    return C.situacao(resp.textoPerguntaNaEpoca || (antes && antes.texto) || null, antes, agora);
+  }
+  /* Diagnóstico: herda só se o par de papéis é o mesmo E texto, rótulo "mesma" e rótulo "distintas" não mudaram;
+     mudou só ajuda/interpretação → 'ajuda'. */
+  var CAMPOS_DIAG_PERGUNTA = ['texto', 'rotuloMesma', 'rotuloDistintas'];
+  function situacaoDiagnostico(diag, papeisAgora, versaoNova) {
+    var C = criterio();
+    if (!diag || !diag.resposta) return null;
+    if (JSON.stringify(diag.papeis || []) !== JSON.stringify(papeisAgora || [])) return 'pergunta';
+    var vr = diag.questionnaireContentVersion || null;
+    if (vr === versaoNova) return null;
+    if (!vr) return 'pergunta';
+    var antes = conteudo(DIAG, vr), agora = conteudo(DIAG, versaoNova);
+    if (!diag.textoPerguntaNaEpoca || !C.mesmoConteudo(diag.textoPerguntaNaEpoca, agora.texto)) return 'pergunta';
+    if (CAMPOS_DIAG_PERGUNTA.some(function (k) { return !C.mesmoConteudo(antes[k], agora[k]); })) return 'pergunta';
+    var ajuda = C.CAMPOS_AJUDA_COMPARADOS.concat(['interpretacaoMesma', 'interpretacaoDistintas']);
+    return ajuda.some(function (k) { return !C.mesmoConteudo(antes[k], agora[k]); }) ? 'ajuda' : null;
+  }
+  /* o: { id, audId, anteriorId, anterior (registro vigente), itemNome, avaliacaoArquiteturalId (a Avaliação de Produto
+     concluída mais recente do item), versao (questionário vigente agora), motivo, usuario, agora } */
+  function payloadReavaliacao(o) {
+    criterio();
+    var ant = o.anterior || {}, vn = o.versao, respostas = {}, diagnosticos = {};
+    Object.keys(ant.respostas || {}).forEach(function (q) {
+      var r = ant.respostas[q];
+      if (!r || (r.resposta !== 'SIM' && r.resposta !== 'NAO') || situacaoResposta(r, q, vn) === 'pergunta') return;
+      respostas[q] = snapshotResposta(q, r.resposta, vn, r.observacao, r.dataResposta || o.agora);
+    });
+    var reg = { itemId: ant.itemId, itemNome: String(o.itemNome || ant.itemNome || ant.itemId).slice(0, 200), avaliacaoArquiteturalId: o.avaliacaoArquiteturalId,
+      questionarioCodigo: QCOD, questionnaireContentVersion: vn, versao: (ant.versao || 1) + 1, avaliacaoAnteriorId: o.anteriorId,
+      motivoReavaliacao: String(o.motivo || '').slice(0, MAX_MOTIVO), status: 'rascunho', revisao: 1, criadoPor: o.usuario, criadoEm: o.agora,
+      atualizadoPor: o.usuario, atualizadoEm: o.agora, auditoriaCriacaoId: o.audId };
+    if (Object.keys(respostas).length) reg.respostas = respostas;
+    ORDEM_NIVEIS.forEach(function (n) {
+      var d = ant.diagnosticos && ant.diagnosticos[n];
+      if (!d || !diagnosticoNecessario(reg, n)) return;
+      var papeis = papeisDoPar(reg, n);
+      if (situacaoDiagnostico(d, papeis, vn) === 'pergunta') return;
+      diagnosticos[n] = snapshotDiagnostico(d.resposta, papeis, vn, d.observacao, d.dataResposta || o.agora);
+    });
+    if (Object.keys(diagnosticos).length) reg.diagnosticos = diagnosticos;
+    reg = limparForaDoCaminho(reg).reg;
+    var p = {};
+    p[NODE + '/' + o.id] = reg;
+    p[RES + '/' + reg.itemId] = o.id;
+    p[AUD + '/' + o.id + '/' + o.audId] = { tipo: 'criacao', itemId: reg.itemId, avaliacaoArquiteturalId: o.avaliacaoArquiteturalId, avaliacaoAnteriorId: o.anteriorId,
+      motivo: reg.motivoReavaliacao, usuario: o.usuario, dataHora: o.agora };
+    return p;
+  }
   window.faAvaliacaoPosicionamentoNucleo = {
     simples: simples, avaliar: avaliar, caminho: caminho, diagnosticoNecessario: diagnosticoNecessario, papeisDoPar: papeisDoPar,
     limparForaDoCaminho: limparForaDoCaminho, falta: falta, snapshotResposta: snapshotResposta, snapshotDiagnostico: snapshotDiagnostico,
     resultadoGravavel: resultadoGravavel, nomesNaConclusao: nomesNaConclusao,
     payloadCriacao: payloadCriacao, payloadSalvar: payloadSalvar, payloadConclusao: payloadConclusao, payloadDescarte: payloadDescarte,
-    MAX_OBS: MAX_OBS, MAX_MOTIVO: MAX_MOTIVO
+    tipoDecisao: tipoDecisao, exigeJustificativa: exigeJustificativa, emBranco: emBranco, payloadDecisao: payloadDecisao,
+    situacaoResposta: situacaoResposta, situacaoDiagnostico: situacaoDiagnostico, payloadReavaliacao: payloadReavaliacao,
+    MAX_OBS: MAX_OBS, MAX_MOTIVO: MAX_MOTIVO, MAX_JUSTIFICATIVA: MAX_JUSTIFICATIVA
   };
   if (typeof document === 'undefined') return;
 
