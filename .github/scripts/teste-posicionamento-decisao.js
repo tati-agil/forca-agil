@@ -10,7 +10,8 @@
  *      RESOLUCAO_A_VALIDAR exige justificativa (a tela diz e não grava); grava decisão + auditoria; o resultado
  *      automático não muda; F5 mantém; decidida não mostra mais o formulário.
  *   4. Reavaliar: motivo obrigatório; cria vN+1 em rascunho com as respostas pré-preenchidas, apontando para a Avaliação
- *      de Produto/Serviço mais recente do item (D6: v2, nunca a v1 nem a v3 excluída); a anterior continua
+ *      de Produto/Serviço que vale para o item (D6: a ponta da cadeia, v2 — nunca a v1; com a ponta excluída, o gate do
+ *      H0 bloqueia: ver teste-posicionamento-gate.js); a anterior continua
  *      vigente (aviso nos dois lados); concluir troca o vigente; a anterior vira histórica com a decisão dela;
  *      a nova começa "Sem decisão registrada" e pode ser decidida.
  *   5. D4: com reavaliação em andamento, a vigente não oferece decisão (mensagem exata); descartar a reavaliação
@@ -28,6 +29,8 @@ const BASE = process.env.FA_BASE_URL || 'http://127.0.0.1:8811';
 const FALSO = fs.readFileSync(path.join(__dirname, 'persistencia-firebase-real.js'), 'utf8') + '\n' +
   fs.readFileSync(path.join(__dirname, 'firebase-falso.js'), 'utf8');
 const M = require(path.join(__dirname, '..', '..', 'forca-agil', 'motor-posicionamento.js'));
+/* H0: a Avaliação de Produto/Serviço de base precisa estar com Motor atual (o gate P1–P16 → O1–O9) */
+const MOTOR_PRODUTO = require('./montar-regras-posicionamento.js').MOTOR_PRODUTO;
 const ARQ = 'arquitetura@previ.com.br';
 const AVAL = 'avaliacao@previ.com.br';
 const chave = (e) => e.toLowerCase().replace(/[@.]/g, '_').replace(/[^a-z0-9_]/g, '').slice(0, 64);
@@ -48,7 +51,7 @@ function respostasProduto() {
 }
 function produto(id, nome, extra) {
   return Object.assign({ itemId: id, nome, descricao: '', publico: '', necessidade: '', observacoesGerais: '', status: 'concluido', resultadoAutomatico: 'produto', decisaoFinal: 'produto', camadaSugerida: { id: 'produto-principal', label: 'Produto/Serviço principal' },
-    respostas: respostasProduto(), justificativaAutomatica: 'justificativa', criteriosEssenciaisFalhos: [], criteriosAtendidos: 5, motorVersionArquitetura: 1, questionnaireContentVersion: 1,
+    respostas: respostasProduto(), justificativaAutomatica: 'justificativa', criteriosEssenciaisFalhos: [], criteriosAtendidos: 5, motorVersion: MOTOR_PRODUTO, motorVersionArquitetura: 1, questionnaireContentVersion: 1,
     excluido: false, criadoEm: QUANDO, atualizadoEm: QUANDO, versao: 1, responsavel: { name: 'Fulana', email: 'f@previ.com.br' } }, extra || {});
 }
 const outra = { name: 'Outra', email: 'o@previ.com.br' };
@@ -75,8 +78,9 @@ function semente(email) {
     'fa-users': users, 'fa-admins': {}, 'fa-diretores': {}, 'fa-facilitadores': {}, eventos: {}, turmas: {}, 'turmas-interesse': {}, 'turmas-config': {}, 'turmas-publico': {}, 'eventos-publico': {}, 'turmas-equipe': {},
     'fa-avaliacao-autorizados': aut, 'avaliacoes-squad': {}, 'motor-squad-config': {},
     'avaliacoes-produto': { p1: produto('p1', 'Item Alfa'), p2: produto('p2', 'Item Beta'), p3: produto('p3', 'Item Gama'), p4: produto('p4', 'Item Delta'),
-      /* D6: o item p3 tem Produto/Serviço v1 (p3), v2 (p3v2) e uma v3 excluída (p3v3x): a reavaliação usa a v2 */
-      p3v2: produto('p3', 'Item Gama', { versao: 2, versaoAnteriorKey: 'p3' }), p3v3x: produto('p3', 'Item Gama', { versao: 3, versaoAnteriorKey: 'p3v2', excluido: true }) },
+      /* D6: o item p3 tem Produto/Serviço v1 (p3) e v2 (p3v2, a ponta): a reavaliação usa a v2. (Ponta excluída:
+         o gate do H0 bloqueia, sem voltar para uma versão anterior — teste-posicionamento-gate.js.) */
+      p3v2: produto('p3', 'Item Gama', { versao: 2, versaoAnteriorKey: 'p3' }) },
     'avaliacoes-posicionamento': {
       /* PR E: concluída, sem anterior e sem decisão */
       g1: concluida('p3', 'Item Gama', 1, { O1: 'NAO', O2: 'NAO', O3: 'SIM' }),
@@ -241,7 +245,7 @@ async function fluxoDecisao(browser, nomeTela, viewport) {
   const nova = (await hash(page)).split('po=')[1];
   db = await banco(page);
   const rn = db['avaliacoes-posicionamento'][nova];
-  afirma(rn && rn.avaliacaoArquiteturalId === 'p3v2', 'D6: a reavaliação aponta para a Avaliação de Produto/Serviço v2 do item (nem a v1 da anterior, nem a v3 excluída)', rn && rn.avaliacaoArquiteturalId);
+  afirma(rn && rn.avaliacaoArquiteturalId === 'p3v2', 'D6: a reavaliação aponta para a Avaliação de Produto/Serviço v2 do item (a ponta, nunca a v1 da anterior)', rn && rn.avaliacaoArquiteturalId);
   afirma(rn && rn.versao === 2 && rn.avaliacaoAnteriorId === 'g1' && rn.motivoReavaliacao === 'Mudou a estrutura de atendimento' && rn.status === 'rascunho', 'rascunho v2, anterior g1, motivo', JSON.stringify(rn && { v: rn.versao, a: rn.avaliacaoAnteriorId }));
   afirma(db['posicionamento-vigente-por-item'].p3 === 'g1' && db['posicionamento-rascunho-por-item'].p3 === nova, 'a v1 continua vigente; a reserva aponta para a v2');
   afirma((await page.locator('#poChecklist .po-resp.ativa').count()) === 3, 'respostas da v1 pré-preenchidas (O1–O3)');

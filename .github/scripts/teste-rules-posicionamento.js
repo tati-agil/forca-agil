@@ -7,6 +7,8 @@
       tem login, não.
    B. Escrita só de "Avaliação + Arquitetura" e admin geral: "Avaliação" NÃO cria, salva, conclui nem descarta.
    C. Pré-condição: só item com Avaliação de Produto/Serviço concluída e não excluída (qualquer classificação).
+      C2 (H0): e com Motor atual — motorVersion = MOTOR_VERSION de avaliacao-produto.js e motorVersionArquitetura =
+      a versão publicada (ausente = 1); desatualizada ou equivalente é recusada, para qualquer perfil.
    D. Criação atômica: avaliação + reserva (posicionamento-rascunho-por-item) + auditoria "criacao", ou nada;
       um rascunho por item; duas criações simultâneas → uma só entra, sem avaliação órfã.
    E. Rascunho: revisão otimista (anterior + 1); campos fixos; CAMINHO — resposta, observação e diagnóstico só
@@ -27,6 +29,8 @@ const { initializeTestEnvironment, assertSucceeds, assertFails } = require('@fir
 const T = require('./regras-posicionamento-tabela.js');
 const M = require(path.join(__dirname, '..', '..', 'forca-agil', 'motor-posicionamento.js'));
 const vm = require('vm');
+/* H0: a base P1–P16 precisa estar com Motor atual (MOTOR_VERSION de avaliacao-produto.js + versão das regras publicada) */
+const MOTOR_OK = { motorVersion: require('./montar-regras-posicionamento.js').MOTOR_PRODUTO, motorVersionArquitetura: 1 };
 
 /* O núcleo da tela (sem DOM), carregado do arquivo real, com o questionário de fábrica e nomes fixos da Taxonomia. */
 function carregarNucleo() {
@@ -159,11 +163,11 @@ async function main() {
       u['fa-admins/' + emailKey(ADMIN)] = { email: ADMIN };
       u['fa-avaliacao-autorizados/' + emailKey(AVAL)] = { email: AVAL, tipo: 'avaliacao' };
       u['fa-avaliacao-autorizados/' + emailKey(ARQ)] = { email: ARQ, tipo: 'avaliacao-arquitetura' };
-      for (let i = 1; i <= (nItens || 6); i++) u['avaliacoes-produto/p' + i] = { itemId: 'p' + i, nome: 'Item p' + i, status: 'concluido', resultadoAutomatico: 'produto', decisaoFinal: 'produto' };
-      u['avaliacoes-produto/px'] = { itemId: 'px', nome: 'Excluído', status: 'concluido', excluido: true, resultadoAutomatico: 'produto', decisaoFinal: 'produto' };
+      for (let i = 1; i <= (nItens || 6); i++) u['avaliacoes-produto/p' + i] = { itemId: 'p' + i, nome: 'Item p' + i, status: 'concluido', resultadoAutomatico: 'produto', decisaoFinal: 'produto', ...MOTOR_OK };
+      u['avaliacoes-produto/px'] = { itemId: 'px', nome: 'Excluído', status: 'concluido', excluido: true, resultadoAutomatico: 'produto', decisaoFinal: 'produto', ...MOTOR_OK };
       u['avaliacoes-produto/pr'] = { itemId: 'pr', nome: 'Rascunho', status: 'rascunho', resultadoAutomatico: null };
-      u['avaliacoes-produto/pleg'] = { nome: 'Legado sem itemId', status: 'concluido', resultadoAutomatico: 'nao-produto', decisaoFinal: 'nao-produto' };
-      u['avaliacoes-produto/pv2'] = { itemId: 'p1', nome: 'Item p1 v2', status: 'concluido', versao: 2, versaoAnteriorKey: 'p1', resultadoAutomatico: 'produto', decisaoFinal: 'produto' };
+      u['avaliacoes-produto/pleg'] = { nome: 'Legado sem itemId', status: 'concluido', resultadoAutomatico: 'nao-produto', decisaoFinal: 'nao-produto', ...MOTOR_OK };
+      u['avaliacoes-produto/pv2'] = { itemId: 'p1', nome: 'Item p1 v2', status: 'concluido', versao: 2, versaoAnteriorKey: 'p1', resultadoAutomatico: 'produto', decisaoFinal: 'produto', ...MOTOR_OK };
       await a.ref().update(u);
     });
   }
@@ -205,6 +209,26 @@ async function main() {
   await nega('itemId diferente do da avaliação de Produto', up(ARQ, criar('c1', 'p2', 'p1', ARQ)));
   await pode('versão 2 concluída do mesmo item (itemId p1, avaliação pv2)', up(ARQ, criar('c2', 'p1', 'pv2', ARQ)));
   await pode('avaliação de Produto legada sem itemId (itemId = a chave), classificada como não-produto: qualquer classificação serve', up(ARQ, criar('c3', 'pleg', 'pleg', ARQ)));
+
+  console.log('\n== C2. H0 — gate P1–P16 → O1–O9: a base precisa estar com Motor atual ==');
+  await base();
+  const produto = (k, extra) => semear((a) => a.ref('avaliacoes-produto/' + k).set(Object.assign({ itemId: k, nome: 'Item ' + k, status: 'concluido', resultadoAutomatico: 'produto', decisaoFinal: 'produto' }, MOTOR_OK, extra)));
+  await produto('g1', { motorVersion: '2000.01.01-1' });
+  await nega('base com lógica do motor em código antiga (motorVersion diferente): desatualizada', up(ARQ, criar('h1', 'g1', 'g1', ARQ)));
+  await produto('g2', { motorVersion: null });
+  await nega('base sem motorVersion: desatualizada', up(ARQ, criar('h2', 'g2', 'g2', ARQ)));
+  await produto('g3', { motorVersionArquitetura: null });
+  await nega('base sem versão das regras (motorVersionArquitetura): desatualizada', up(ARQ, criar('h3', 'g3', 'g3', ARQ)));
+  await produto('g4', { motorVersionArquitetura: '1' });
+  await nega('versão das regras como texto ("1"): recusada (o motor compara número)', up(ARQ, criar('h4', 'g4', 'g4', ARQ)));
+  await pode('sem versão publicada, base com versão das regras 1: Motor atual — cria', up(ARQ, criar('h5', 'p1', 'p1', ARQ)));
+  await semear((a) => a.ref('motor-arquitetura-config/versaoPublicada').set(3));
+  await produto('g6', { motorVersionArquitetura: 2 });
+  await nega('versão publicada 3, base com versão 2 (equivalente ou desatualizada): recusada — "equivalente" não libera', up(ARQ, criar('h6', 'g6', 'g6', ARQ)));
+  await nega('versão publicada 3, base com versão 1 (a de fábrica): recusada', up(ARQ, criar('h7', 'p2', 'p2', ARQ)));
+  await produto('g8', { motorVersionArquitetura: 3 });
+  await pode('versão publicada 3, base com versão 3: Motor atual — cria', up(ARQ, criar('h8', 'g8', 'g8', ARQ)));
+  await nega('…e o mesmo vale para o admin geral (base desatualizada)', up(ADMIN, criar('h9', 'g6', 'g6', ADMIN)));
 
   console.log('\n== D. Criação atômica e um rascunho por item ==');
   await base();

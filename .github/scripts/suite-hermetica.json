@@ -615,6 +615,24 @@
       "sobre": "exportacoes-posicionamento.js: sem banco, página, autenticação, motor, rede nem armazenamento (e funciona com o motor armadilhado); NÃO recalcula — recomendação, regra, versão e liberaSquad automático e da decisão saem como gravados, mesmo contrariando o motor atual; Avaliação de Produto/Serviço exatamente a de avaliacaoArquiteturalId (ausente → \"Dados da avaliação vinculada indisponíveis\"); recusa sem as decisões lidas; PDF só de concluída; PR E, confirmação, divergência, resolução do A validar, A validar aberto, vigente × histórica, reavaliação; trilha legível ou \"Trilha indisponível\"; textos da época; abas e Histórico fora do filtro; acentuação pt-BR."
     },
     {
+      "arquivo": ".github/scripts/teste-posicionamento-gate.js",
+      "nome": "Gate P1–P16 → O1–O9 (H0): a tela de Escolher item e de Reavaliar (desktop e 375 px)",
+      "duracao": 45,
+      "sobre": "Escolher item: Motor atual → \"Escolher\"; desatualizado, equivalente e reavaliação de P1–P16 em andamento → motivo curto + \"Ver motivo\"; ponta na Lixeira fora da lista; com Posicionamento → \"Abrir\". O motivo por extenso sem botão de iniciar (desatualizado com texto exato, equivalente pede reconciliar, ponta excluída por link direto sem voltar para a v1), F5 mantém; motor lento → \"Verificando a versão do motor…\" sem botão, depois \"Iniciar\"; base que fica desatualizada com a tela aberta tira o botão e nada é gravado; Motor atual inicia sobre a ponta (v2); Reavaliar passa pelo mesmo gate (aviso \"antes de reavaliar\" e botão travado); perfil Avaliação sem iniciar nem reavaliar. Hermético."
+    },
+    {
+      "arquivo": ".github/scripts/teste-gate-posicionamento-nucleo.js",
+      "nome": "Gate P1–P16 → O1–O9 (H0): núcleo puro e regressão da extração de Produto/Serviço (sem navegador)",
+      "duracao": 1,
+      "sobre": "situacaoMotorDe = o diagnosticoMotor de antes do H0 (mesma resposta e mesmas chamadas ao motor, na mesma ordem, numa grade de entradas; diagnosticoMotor só delega); baseDoItem = a linha que a lista de Produto/Serviço mostra (temVersaoMaisNova) em 4.000 cadeias aleatórias; casos do gate: atual libera; desatualizado, equivalente, verificando, v1 + v2 em rascunho, v2 excluída (sem voltar para a v1), excluída, ambígua e sem módulo bloqueiam; v1 + v2 concluídas usam a v2; mensagens exatas; nenhuma lógica de Produto/Serviço repetida no Posicionamento."
+    },
+    {
+      "arquivo": ".github/scripts/teste-invariante-linha-squad.js",
+      "nome": "Invariante Linha × Squad: Área Especializada e CoE nunca liberam Squad (sem navegador)",
+      "duracao": 1,
+      "sobre": "Esperado LITERAL (não lido do motor): AREA_ESPECIALIZADA e COE → liberaSquad false; os 6 firmes do ramo Linha → true — em liberaSquadParaCodigoFirme, nos 531.441 estados de toda versão do motor, na tabela das regras e nas regras publicadas (conclusão e decisão, que não leem nada do banco); a lista do ramo Linha é única e fixa e o registro de versões do motor não a carrega (não configurável por versão)."
+    },
+    {
       "arquivo": ".github/scripts/teste-checagens-interface.js",
       "nome": "Checagens de interface vindas da antiga aba Testes (desktop e celular)",
       "duracao": 8,

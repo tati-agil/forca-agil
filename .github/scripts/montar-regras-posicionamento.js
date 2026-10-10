@@ -36,6 +36,15 @@ const AUDNOVA = (campo) => NOVO(AUD) + ".child($avaliacaoId).child(" + v(campo) 
 const AUDANT = (campo) => "root.child('" + AUD + "').child($avaliacaoId).child(" + v(campo) + ")";
 const P = "root.child('avaliacoes-produto').child(" + v('avaliacaoArquiteturalId') + ")";
 const and = (xs) => xs.join(' && ');
+/* H0 — GATE P1–P16 → O1–O9: a base precisa estar com MOTOR ATUAL (a mesma "atual" de diagnosticoMotor em
+   avaliacao-produto.js): a lógica em código da época = MOTOR_VERSION de hoje (lida do próprio arquivo — mudou lá,
+   este arquivo diverge e teste-regras-posicionamento-tabela.js obriga a remontar) e a versão das regras = a publicada
+   (ausente = 1, como versaoAtual()). "Equivalente" não passa. Que a base seja a PONTA da cadeia (sem reavaliação de
+   P1–P16 em andamento) as regras não conseguem ver — sem índice reverso; isso fica com a tela e com a fronteira
+   confiável do H2. */
+const MOTOR_PRODUTO = (fs.readFileSync(path.join(__dirname, '..', '..', 'forca-agil', 'avaliacao-produto.js'), 'utf8').match(/\n  var MOTOR_VERSION = '([^']+)';/) || [])[1];
+if (!MOTOR_PRODUTO) throw new Error('MOTOR_VERSION não encontrado em avaliacao-produto.js');
+const PUB = "root.child('motor-arquitetura-config/versaoPublicada')";
 const ID = '/^[A-Za-z0-9_-]{1,60}$/';
 const semCampos = (xs) => and(xs.map((x) => '!' + c(x) + '.exists()'));
 const CONCL = ['resultadoAutomatico', 'nomesNaConclusao', 'concluidoPor', 'concluidoEm', 'auditoriaConclusaoId'];
@@ -51,6 +60,8 @@ const VIGRAIZ = "root.child('" + VIG + "').child(" + v('itemId') + ')';
 const criar = and([
   v('status') + " === 'rascunho'", v('revisao') + ' === 1', v('criadoPor/email') + ' === auth.token.email',
   P + ".child('status').val() === 'concluido'", P + ".child('excluido').val() !== true",
+  P + ".child('motorVersion').val() === '" + MOTOR_PRODUTO + "'",
+  P + ".child('motorVersionArquitetura').val() === (" + PUB + '.exists() ? ' + PUB + '.val() : 1)',
   '(' + P + ".child('itemId').val() === " + v('itemId') + ' || (!' + P + ".child('itemId').exists() && " + v('avaliacaoArquiteturalId') + ' === ' + v('itemId') + '))',
   /* primeira versão: o item não tem vigente. Reavaliação: versão seguinte da VIGENTE, com motivo. */
   '(' + c('avaliacaoAnteriorId') + '.exists() ? (' + and([
@@ -250,7 +261,7 @@ const blocoDec = {
 };
 
 const BLOCOS = { [AV]: blocoAv, [RES]: blocoRes, [VIG]: blocoVig, [AUD]: blocoAud, [DEC]: blocoDec };
-module.exports = { BLOCOS, NOS: [AV, RES, VIG, AUD, DEC] };
+module.exports = { BLOCOS, NOS: [AV, RES, VIG, AUD, DEC], MOTOR_PRODUTO };
 
 if (require.main === module) {
   let s = fs.readFileSync(ARQUIVO, 'utf8');

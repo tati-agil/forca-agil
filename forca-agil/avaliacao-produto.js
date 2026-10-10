@@ -1702,6 +1702,63 @@
     }
     return cadeia;
   }
+  /* ===================== BASE P1–P16 DE UM ITEM (PURO) =====================
+     Usado pelo gate do Posicionamento Organizacional (avaliacao-posicionamento.js, via faBaseProdutoServico):
+     sem banco, sem tela, sem sessão — quem chama passa os registros e o contexto do motor.
+
+     situacaoMotorDe(it, ctx): a MESMA classificação de diagnosticoMotor (que agora só a chama com o contexto
+     real) — null (não concluída), verificando, atual, equivalente ou desatualizado (com o motivo).
+     ctx: { motorVersion, configCarregada(), versaoAtual(), equivalencia(a, b) }; as funções só são chamadas
+     quando a decisão precisa delas, na mesma ordem de antes (a prova de equivalência é cara). */
+  function situacaoMotorDe(it, ctx) {
+    if (!it || it.status !== 'concluido') return null;
+    if (!ctx.configCarregada()) return { situacao: 'verificando' };
+    if (it.motorVersion !== ctx.motorVersion) {
+      return { situacao: 'desatualizado', motivo: { tipo: 'codigo', encontrada: it.motorVersion || null, esperada: ctx.motorVersion } };
+    }
+    var vigente = ctx.versaoAtual();
+    if (it.motorVersionArquitetura === vigente) return { situacao: 'atual' };
+    if (typeof it.motorVersionArquitetura !== 'number') return { situacao: 'desatualizado', motivo: { tipo: 'sem-versao', destino: vigente } };
+    var eq = ctx.equivalencia(it.motorVersionArquitetura, vigente);
+    if (eq.equivalentes) return { situacao: 'equivalente', prova: eq };
+    return { situacao: 'desatualizado', motivo: eq.diferencas > 0
+      ? { tipo: 'logica', origem: eq.versaoA, destino: eq.versaoB, diferencas: eq.diferencas, combinacoes: eq.combinacoesAnalisadas }
+      : { tipo: 'sem-prova', origem: eq.versaoA, destino: eq.versaoB, detalhe: eq.motivo || null } };
+  }
+  function contextoMotorAtual() {
+    var M = window.faMotorArquitetura;
+    return { motorVersion: MOTOR_VERSION, configCarregada: M.configCarregada, versaoAtual: M.versaoAtual, equivalencia: M.equivalenciaEntreVersoes };
+  }
+  /* baseDoItem(itemId, registros): qual Avaliação de Produto/Serviço vale para o item. registros = o nó
+     avaliacoes-produto ({ chave: registro }). A regra é a da lista de Produto/Serviço (temVersaoMaisNova): vale
+     a PONTA da cadeia — a versão que nenhuma reavaliação superou —, nunca "a maior versão concluída" nem uma
+     anterior quando a ponta está em andamento ou excluída (a anterior continua superada: na lista o item só
+     aparece pela ponta, ou na Lixeira).
+       { situacao: 'valida', chave, avaliacao } — ponta concluída e não excluída;
+       { situacao: 'sem-avaliacao' }             — nenhum registro do item;
+       { situacao: 'excluida', chave }           — a ponta está na Lixeira;
+       { situacao: 'reavaliacao-em-andamento', chave } — a ponta é uma reavaliação ainda não concluída;
+       { situacao: 'nao-concluida', chave }      — a ponta é a primeira versão, ainda não concluída;
+       { situacao: 'indefinida', chaves }        — mais de uma ponta (duas reavaliações da mesma versão). */
+  function baseDoItem(itemId, registros) {
+    registros = registros || {};
+    var chaves = Object.keys(registros).filter(function (k) { var r = registros[k]; return r && (r.itemId || k) === itemId; });
+    if (!chaves.length) return { situacao: 'sem-avaliacao' };
+    var superadas = {};
+    Object.keys(registros).forEach(function (k) { var r = registros[k]; if (r && r.versaoAnteriorKey) superadas[r.versaoAnteriorKey] = true; });
+    var pontas = chaves.filter(function (k) { return !superadas[k]; });
+    if (pontas.length !== 1) return { situacao: 'indefinida', chaves: pontas };
+    var chave = pontas[0], it = registros[chave];
+    if (it.excluido === true) return { situacao: 'excluida', chave: chave };
+    if (it.status !== 'concluido') return { situacao: it.versaoAnteriorKey ? 'reavaliacao-em-andamento' : 'nao-concluida', chave: chave };
+    return { situacao: 'valida', chave: chave, avaliacao: it };
+  }
+  /* Exposto só para leitura (congelado). contextoMotorAtual é o único pedaço não puro: lê o motor carregado. */
+  window.faBaseProdutoServico = Object.freeze({
+    baseDoItem: baseDoItem,
+    situacaoMotorDe: situacaoMotorDe,
+    contextoMotorAtual: contextoMotorAtual
+  });
   /* Versão criada por reavaliação que ainda não teve decisão registrada: diz o que vale
      (a recomendação do sistema) e onde ficou a decisão manual anterior. '' quando não se aplica. */
   function textoDecisaoPendenteReavaliacao(a, todos) {
@@ -7726,22 +7783,7 @@
          logica    — a versão das regras difere da vigente (diferencas > 0 em
                      combinacoesAnalisadas);
          sem-prova — não foi possível comprovar (versão sem registro). */
-    function diagnosticoMotor(it) {
-      if (!it || it.status !== 'concluido') return null;
-      var M = window.faMotorArquitetura;
-      if (!M.configCarregada()) return { situacao: 'verificando' };
-      if (it.motorVersion !== MOTOR_VERSION) {
-        return { situacao: 'desatualizado', motivo: { tipo: 'codigo', encontrada: it.motorVersion || null, esperada: MOTOR_VERSION } };
-      }
-      var vigente = M.versaoAtual();
-      if (it.motorVersionArquitetura === vigente) return { situacao: 'atual' };
-      if (typeof it.motorVersionArquitetura !== 'number') return { situacao: 'desatualizado', motivo: { tipo: 'sem-versao', destino: vigente } };
-      var eq = M.equivalenciaEntreVersoes(it.motorVersionArquitetura, vigente);
-      if (eq.equivalentes) return { situacao: 'equivalente', prova: eq };
-      return { situacao: 'desatualizado', motivo: eq.diferencas > 0
-        ? { tipo: 'logica', origem: eq.versaoA, destino: eq.versaoB, diferencas: eq.diferencas, combinacoes: eq.combinacoesAnalisadas }
-        : { tipo: 'sem-prova', origem: eq.versaoA, destino: eq.versaoB, detalhe: eq.motivo || null } };
-    }
+    function diagnosticoMotor(it) { return situacaoMotorDe(it, contextoMotorAtual()); }
     function textoMotivoMotor(m) {
       if (!m) return '';
       if (m.tipo === 'codigo') return 'lógica do motor em código diferente (registrada ' + (m.encontrada || '—') + ', atual ' + m.esperada + ')';
