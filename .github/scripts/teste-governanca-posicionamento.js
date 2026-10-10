@@ -200,6 +200,7 @@ Object.keys(v2reg.respostas).forEach((q) => { v2reg.respostas[q].textoPerguntaNa
 const re = T.payloadReavaliacao({ id: 'n3', audId: 'a3', anteriorId: 'g3', anterior: v2reg, itemNome: 'Item 3', avaliacaoArquiteturalId: 'p3', versao: 1, motivo: 'm', usuario: U, agora: 'x' });
 const nr3 = re['avaliacoes-posicionamento/n3'];
 afirma(nr3.versaoMotor === 2 && !nr3.predominancias && Object.keys(nr3.respostas).length === 3, 'reavaliar registro v2: continua v2 (nunca volta a v1); a D2 não é herdada');
+afirma(cy.faQuestionarios.PUBLICACAO_CONTEUDO_MOTOR.liberada === false && Object.isFrozen(cy.faQuestionarios.PUBLICACAO_CONTEUDO_MOTOR), 'publicação da redação de motor novo bloqueada nesta fase (flag congelada)');
 afirma(T.textoVersoes(vig) === 'motor v1 · redação v1' && T.textoVersoes(nr3) === 'motor v2 · redação v1', 'identificação das versões: registro sem campo = motor v1');
 
 console.log('\n' + total + ' verificações, ' + falhas + ' falha(s).');
