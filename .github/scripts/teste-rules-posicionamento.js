@@ -214,7 +214,7 @@ async function main() {
   await nega('reserva apontando para outra avaliação', up(ARQ, Object.assign(criar('d1', 'p1', 'p1', ARQ), { [RES + '/p1']: 'outra' })));
   await nega('criar já concluída', up(ARQ, (() => { const p = criar('d1', 'p1', 'p1', ARQ); p[AV + '/d1'].status = 'concluido'; return p; })()));
   await nega('criar com revisão 2', up(ARQ, (() => { const p = criar('d1', 'p1', 'p1', ARQ); p[AV + '/d1'].revisao = 2; return p; })()));
-  await nega('criar com versão 2 (reavaliação é PR F)', up(ARQ, (() => { const p = criar('d1', 'p1', 'p1', ARQ); p[AV + '/d1'].versao = 2; return p; })()));
+  await nega('criar com versão 2 sem avaliação anterior (reavaliação: teste-rules-posicionamento-decisao.js)', up(ARQ, (() => { const p = criar('d1', 'p1', 'p1', ARQ); p[AV + '/d1'].versao = 2; return p; })()));
   await nega('criar com outro questionário', up(ARQ, (() => { const p = criar('d1', 'p1', 'p1', ARQ); p[AV + '/d1'].questionarioCodigo = 'ADEQUACAO_SQUAD'; return p; })()));
   await nega('criar em nome de outra pessoa', up(ARQ, (() => { const p = criar('d1', 'p1', 'p1', ARQ); p[AV + '/d1'].criadoPor.email = SUPER; return p; })()));
   await nega('criar com campo extra (decisaoFinal)', up(ARQ, (() => { const p = criar('d1', 'p1', 'p1', ARQ); p[AV + '/d1'].decisaoFinal = 'LINHA'; return p; })()));
@@ -422,7 +422,7 @@ async function main() {
   await nega('auditoria NÃO é reescrita', db(ARQ).ref(AUD + '/h1/kd-p1').set({ tipo: 'descarte', itemId: 'p1', motivo: 'outro', usuario: { email: ARQ }, dataHora: QUANDO }));
   await nega('auditoria NÃO é apagada', db(SUPER).ref(AUD + '/h1/kd-p1').remove());
   await nega('auditoria "solta", sem a avaliação apontar para ela', db(ARQ).ref(AUD + '/h1/solta').set({ tipo: 'criacao', itemId: 'p1', usuario: { email: ARQ }, dataHora: QUANDO }));
-  await nega('auditoria com tipo desconhecido', db(ARQ).ref(AUD + '/h2/x').set({ tipo: 'decisao', itemId: 'p1', usuario: { email: ARQ }, dataHora: QUANDO }));
+  await nega('auditoria com tipo desconhecido', db(ARQ).ref(AUD + '/h2/x').set({ tipo: 'outro', itemId: 'p1', usuario: { email: ARQ }, dataHora: QUANDO }));
 
   console.log('\n== J. As gravações montadas pela tela passam nas regras ==');
   const N = carregarNucleo();

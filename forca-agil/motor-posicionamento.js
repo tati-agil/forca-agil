@@ -177,7 +177,14 @@
   /* liberaSquad = a Adequação à Gestão por Squad (S1–S8) PODE ser feita. Nunca cria nem associa uma Squad. */
   function calcularLiberaSquad(r) {
     if (r.codigoResultado === A_VALIDAR) return r.nivelConfirmado === 'LINHA' || r.nivelConfirmado === 'PLATAFORMA';
-    return DE_LINHA.indexOf(r.codigoResultado) !== -1;
+    return liberaSquadParaCodigoFirme(r.codigoResultado);
+  }
+  /* liberaSquad de um posicionamento FIRME — a mesma regra que alimenta resultado.liberaSquad. É a única fonte
+     dessa regra fora do motor (a decisão humana do PR F e as regras do banco usam só ela). Fora dos 8 códigos
+     firmes (LINHA, PLATAFORMA, A_VALIDAR, desconhecido): erro, nunca um valor padrão. */
+  function liberaSquadParaCodigoFirme(codigo) {
+    if (CODIGOS_FIRMES.indexOf(codigo) === -1) throw new Error('Não é um posicionamento firme: ' + codigo);
+    return DE_LINHA.indexOf(codigo) !== -1;
   }
 
   var VERSOES = { 1: { avaliar: avaliarV1, desde: '2026-10-08' } };
@@ -208,6 +215,7 @@
   var api = {
     avaliar: avaliar,
     perguntasDoCaminho: perguntasDoCaminho,
+    liberaSquadParaCodigoFirme: liberaSquadParaCodigoFirme,
     versaoAtual: function () { return versaoEmVigor; },
     versoes: function () { return Object.keys(VERSOES).map(Number); },
     PERGUNTAS: PERGUNTAS.slice(),
