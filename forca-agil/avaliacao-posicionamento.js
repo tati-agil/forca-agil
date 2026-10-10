@@ -228,8 +228,9 @@
       liberaSquad: M.liberaSquadParaCodigoFirme(o.codigoFinal), decididoPor: o.usuario, decididoEm: o.agora, auditoriaId: o.audId });
     var p = {};
     p[DEC + '/' + o.id] = dec;
-    p[AUD + '/' + o.id + '/' + o.audId] = { tipo: 'decisao', itemId: o.reg.itemId, codigoAutomatico: ra.codigoResultado, codigoFinal: o.codigoFinal,
-      tipoDecisao: tipo, versaoAvaliacao: o.reg.versao, usuario: o.usuario, dataHora: o.agora };
+    /* auditoria autocontida: o banco confere cada campo contra a decisão da mesma gravação */
+    p[AUD + '/' + o.id + '/' + o.audId] = semVazios({ tipo: 'decisao', itemId: o.reg.itemId, codigoAutomatico: ra.codigoResultado, codigoFinal: o.codigoFinal,
+      tipoDecisao: tipo, versaoAvaliacao: o.reg.versao, justificativa: just, liberaSquad: dec.liberaSquad, usuario: o.usuario, dataHora: o.agora });
     return p;
   }
   /* ---- PR F: reavaliação ----
@@ -718,8 +719,8 @@
       }
       var cods = [ra.codigoResultado, ra.nivelConfirmado].concat(ra.papeisDetectados).filter(function (c) { return c && c !== 'A_VALIDAR'; });
       if (P()) h += P().avisoHtml(cods, 'poAvisoContingencia');
-      h += '<p class="po-libera" id="poLiberaSquad">' + (ra.liberaSquad ? 'A Adequação à Squad (S1–S8) pode ser realizada para este item. Isso não cria nem associa Squad, e não quer dizer que haverá uma Squad só para este objeto.'
-        : 'Este resultado não libera a Adequação à Squad (S1–S8).') + '</p>';
+      h += '<p class="po-libera" id="poLiberaSquad">' + (ra.liberaSquad ? 'Pela recomendação automática, a Adequação à Squad (S1–S8) pode ser realizada para este item. Isso não cria nem associa Squad, e não quer dizer que haverá uma Squad só para este objeto.'
+        : 'Pela recomendação automática, este resultado não libera a Adequação à Squad (S1–S8).') + '</p>';
       h += '<p class="avp-intro">O1–O9 recomenda o tipo de estrutura que deve sustentar, de forma permanente, a responsabilidade associada ao objeto. A associação a uma estrutura organizacional concreta é uma etapa posterior.</p>';
       h += '<p class="avp-ficha-meta">Concluída em ' + esc(fmtData(a.concluidoEm)) + (a.concluidoPor ? ' por ' + esc(a.concluidoPor.name || a.concluidoPor.email) : '') + ' · regra ' + esc(ra.regra) + ' · motor v' + esc(ra.versaoMotor) + '</p>';
       h += renderRespostasLidas(a) + '</section>';
@@ -741,7 +742,7 @@
         if (d.nomeNaDecisao) h += '<p class="po-nome-conclusao" id="poNomeDecisao">Nome registrado na decisão: ' + esc(d.nomeNaDecisao.nome) + (d.nomeNaDecisao.contingencia ? ' <em>(rótulo de contingência — a Taxonomia não respondeu na hora)</em>' : '') + '</p>';
         if (d.justificativa) h += '<p id="poJustificativa"><strong>Justificativa:</strong> ' + esc(d.justificativa) + '</p>';
         h += '<p class="po-libera" id="poLiberaSquadDecisao">' + (d.liberaSquad ? 'Pela decisão final, a Adequação à Squad (S1–S8) pode ser realizada para este item. Isso não cria nem associa Squad.'
-          : 'A decisão final não libera a Adequação à Squad (S1–S8).') + '</p>';
+          : 'Pela decisão final, a Adequação à Squad (S1–S8) não é liberada para este item.') + '</p>';
         return h + '<p class="avp-ficha-meta">Decidida em ' + esc(fmtData(d.decididoEm)) + (d.decididoPor ? ' por ' + esc(d.decididoPor.name || d.decididoPor.email) : '') +
           ' · a decisão não muda; para corrigir, faça uma reavaliação.</p>';
       }
@@ -752,6 +753,7 @@
       var M = motor(), auto = a.resultadoAutomatico && a.resultadoAutomatico.codigoResultado;
       var f = state.formDecisao || (state.formDecisao = { codigo: M.CODIGOS_FIRMES.indexOf(auto) !== -1 ? auto : '', justificativa: '' });
       var salvando = state.salvando === 'decisao';
+      if (auto === 'A_VALIDAR') h += '<p class="avp-decisao-aviso" id="poOrientacaoAValidar">Se houver elementos suficientes, escolha um posicionamento firme e justifique. Se ainda não houver base para decidir, use Reavaliar.</p>';
       h += '<div class="po-decisao-form" id="poDecisaoForm"><div class="avp-field"><label for="poCodigoFinal">Posicionamento final *</label><select id="poCodigoFinal" class="avp-select"' + (salvando ? ' disabled' : '') + '>' +
         '<option value="">Escolha…</option>' + M.CODIGOS_FIRMES.map(function (c) {
           return '<option value="' + esc(c) + '"' + (f.codigo === c ? ' selected' : '') + '>' + esc(nomeAtual(c)) + (c === auto ? ' — recomendação automática' : '') + '</option>';
@@ -1012,7 +1014,10 @@
       var tipo = tipoDecisao(auto, f.codigo);
       if (exigeJustificativa(tipo) && emBranco(f.justificativa)) { erroDecisao('Informe a justificativa: ela é obrigatória para ' + (tipo === 'DIVERGENCIA' ? 'divergir da recomendação automática.' : 'resolver um "A validar".')); return; }
       if (state.reservas[a.itemId]) { render(); return; }
+      var libera = motor().liberaSquadParaCodigoFirme(f.codigo);
       modal('<h4>Registrar a decisão?</h4><p>Posicionamento final: <strong>' + esc(nomeAtual(f.codigo)) + '</strong> (' + esc(ROTULO_TIPO_DECISAO[tipo]) + ').</p>' +
+        '<p id="poModalLiberaSquad">' + (libera ? 'Pela decisão final, a Adequação à Squad (S1–S8) poderá ser realizada para este item (isso não cria nem associa Squad).'
+          : 'Pela decisão final, a Adequação à Squad (S1–S8) não será liberada para este item.') + '</p>' +
         '<p>A decisão não pode ser alterada nem apagada depois. Para corrigir, faça uma reavaliação.</p>',
         { sim: 'Registrar', nao: 'Cancelar', aoSim: function () { decidir(f.codigo, f.justificativa); return null; } });
     }

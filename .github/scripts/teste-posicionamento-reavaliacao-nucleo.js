@@ -123,6 +123,9 @@ console.log('\n== 1–4. Herança das respostas (cenário A: só a interpretaç�
   afirma(ctx.faMotorPosicionamento.CODIGOS_FIRMES.every((c) => dec(c, 'j')['posicionamento-decisoes/v1'].liberaSquad === ctx.faMotorPosicionamento.liberaSquadParaCodigoFirme(c)), 'os 8 firmes: liberaSquad = liberaSquadParaCodigoFirme');
   const audD = dec('COE', 'x')['posicionamento-auditoria/v1/kd'];
   afirma(audD.tipo === 'decisao' && audD.codigoFinal === 'COE' && audD.tipoDecisao === 'DIVERGENCIA' && audD.versaoAvaliacao === 1, 'auditoria "decisao"');
+  afirma(audD.justificativa === 'x' && audD.liberaSquad === false, 'auditoria autocontida: justificativa e liberaSquad');
+  const audC = dec('AREA_ESPECIALIZADA')['posicionamento-auditoria/v1/kd'];
+  afirma(!('justificativa' in audC) && audC.liberaSquad === false, 'CONFIRMACAO sem justificativa: auditoria sem justificativa, com liberaSquad');
   afirma(JSON.stringify(conc.resultadoAutomatico) === resAntes && !Object.keys(dec('COE', 'x')).some((k) => k.indexOf('avaliacoes-posicionamento') === 0), 'o resultado automático não é tocado (a decisão é outro nó)');
   const av = anterior(N, { O1: 'NAO', O2: 'SIM', O3: 'SIM' }, { N1: 'mesma' });
   const dAv = N.payloadDecisao({ id: 'v1', reg: av, codigoFinal: 'COE', justificativa: 'Reunião', usuario: quem, agora: QUANDO, audId: 'kd' })['posicionamento-decisoes/v1'];

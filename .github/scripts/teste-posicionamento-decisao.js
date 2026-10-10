@@ -9,7 +9,8 @@
  *   3. Decidir: só os 8 firmes no seletor (sem Linha, Plataforma, A validar); CONFIRMACAO sem justificativa;
  *      RESOLUCAO_A_VALIDAR exige justificativa (a tela diz e não grava); grava decisão + auditoria; o resultado
  *      automático não muda; F5 mantém; decidida não mostra mais o formulário.
- *   4. Reavaliar: motivo obrigatório; cria vN+1 em rascunho com as respostas pré-preenchidas; a anterior continua
+ *   4. Reavaliar: motivo obrigatório; cria vN+1 em rascunho com as respostas pré-preenchidas, apontando para a Avaliação
+ *      de Produto/Serviço mais recente do item (D6: v2, nunca a v1 nem a v3 excluída); a anterior continua
  *      vigente (aviso nos dois lados); concluir troca o vigente; a anterior vira histórica com a decisão dela;
  *      a nova começa "Sem decisão registrada" e pode ser decidida.
  *   5. D4: com reavaliação em andamento, a vigente não oferece decisão (mensagem exata); descartar a reavaliação
@@ -45,10 +46,10 @@ function respostasProduto() {
   ORDEM_P.forEach((q, i) => { r[q] = { valor: 'sim', justificativaAuto: 'interpretação', codigoPergunta: 'P' + (i + 1), textoPerguntaNaEpoca: 't', tituloNaEpoca: 't', questionnaireContentVersion: 1 }; });
   return r;
 }
-function produto(id, nome) {
-  return { itemId: id, nome, descricao: '', publico: '', necessidade: '', observacoesGerais: '', status: 'concluido', resultadoAutomatico: 'produto', decisaoFinal: 'produto', camadaSugerida: { id: 'produto-principal', label: 'Produto/Serviço principal' },
+function produto(id, nome, extra) {
+  return Object.assign({ itemId: id, nome, descricao: '', publico: '', necessidade: '', observacoesGerais: '', status: 'concluido', resultadoAutomatico: 'produto', decisaoFinal: 'produto', camadaSugerida: { id: 'produto-principal', label: 'Produto/Serviço principal' },
     respostas: respostasProduto(), justificativaAutomatica: 'justificativa', criteriosEssenciaisFalhos: [], criteriosAtendidos: 5, motorVersionArquitetura: 1, questionnaireContentVersion: 1,
-    excluido: false, criadoEm: QUANDO, atualizadoEm: QUANDO, versao: 1, responsavel: { name: 'Fulana', email: 'f@previ.com.br' } };
+    excluido: false, criadoEm: QUANDO, atualizadoEm: QUANDO, versao: 1, responsavel: { name: 'Fulana', email: 'f@previ.com.br' } }, extra || {});
 }
 const outra = { name: 'Outra', email: 'o@previ.com.br' };
 /* avaliação concluída com o resultado EXATO do motor */
@@ -73,7 +74,9 @@ function semente(email) {
   return {
     'fa-users': users, 'fa-admins': {}, 'fa-diretores': {}, 'fa-facilitadores': {}, eventos: {}, turmas: {}, 'turmas-interesse': {}, 'turmas-config': {}, 'turmas-publico': {}, 'eventos-publico': {}, 'turmas-equipe': {},
     'fa-avaliacao-autorizados': aut, 'avaliacoes-squad': {}, 'motor-squad-config': {},
-    'avaliacoes-produto': { p1: produto('p1', 'Item Alfa'), p2: produto('p2', 'Item Beta'), p3: produto('p3', 'Item Gama'), p4: produto('p4', 'Item Delta') },
+    'avaliacoes-produto': { p1: produto('p1', 'Item Alfa'), p2: produto('p2', 'Item Beta'), p3: produto('p3', 'Item Gama'), p4: produto('p4', 'Item Delta'),
+      /* D6: o item p3 tem Produto/Serviço v1 (p3), v2 (p3v2) e uma v3 excluída (p3v3x): a reavaliação usa a v2 */
+      p3v2: produto('p3', 'Item Gama', { versao: 2, versaoAnteriorKey: 'p3' }), p3v3x: produto('p3', 'Item Gama', { versao: 3, versaoAnteriorKey: 'p3v2', excluido: true }) },
     'avaliacoes-posicionamento': {
       /* PR E: concluída, sem anterior e sem decisão */
       g1: concluida('p3', 'Item Gama', 1, { O1: 'NAO', O2: 'NAO', O3: 'SIM' }),
@@ -168,6 +171,8 @@ async function fluxoDecisao(browser, nomeTela, viewport) {
   await ir(page, '#avaliacoes?po=g1');
   await tela(page, 'poDecisaoForm');
   afirma(await existe(page, '#poBlocoRecomendacao') && await existe(page, '#poBlocoDecisao') && await existe(page, '#poBlocoHistorico'), 'três blocos: Recomendação automática, Decisão final, Histórico de versões');
+  afirma(/^Pela recomendação automática, este resultado não libera/.test((await texto(page, '#poLiberaSquad')).trim()), 'bloco automático: "Pela recomendação automática…" (S1–S8)');
+  afirma(!(await existe(page, '#poOrientacaoAValidar')), 'resultado firme: sem a orientação do "A validar"');
   afirma(/Sem decisão registrada/.test(await texto(page, '#poBlocoDecisao')), '"Sem decisão registrada"');
   afirma(await page.evaluate(() => !document.querySelector('#poHistoricoVersoes').open), 'histórico de versões começa recolhido');
   const opcoes = await page.evaluate(() => Array.from(document.querySelectorAll('#poCodigoFinal option')).map((o) => o.value).filter(Boolean));
@@ -177,8 +182,11 @@ async function fluxoDecisao(browser, nomeTela, viewport) {
     { descricao: 'as opções do seletor com o nome atual da Taxonomia' });
   afirma(/recomendação automática/.test(await page.evaluate(() => document.querySelector('#poCodigoFinal option[value="COE"]').textContent)), 'opções com o nome da Taxonomia; a da recomendação automática marcada');
   await page.click('#poDecidirBtn');
+  await page.waitForSelector('.po-modal #poModalLiberaSquad');
+  afirma(/não será liberada/.test(await texto(page, '#poModalLiberaSquad')), 'modal: mostra que a decisão final (CoE) não libera a Adequação à Squad');
   await confirmarModal(page);
   await tela(page, 'poDecisaoFinal');
+  afirma(/^Pela decisão final, a Adequação à Squad \(S1–S8\) não é liberada/.test((await texto(page, '#poLiberaSquadDecisao')).trim()), 'bloco da decisão: "Pela decisão final…"');
   let db = await banco(page);
   const dg = db['posicionamento-decisoes'] && db['posicionamento-decisoes'].g1;
   afirma(dg && dg.tipoDecisao === 'CONFIRMACAO' && dg.codigoFinal === 'COE' && dg.liberaSquad === false && dg.nomeNaDecisao.nome === 'Tx COE' && !dg.justificativa && dg.decididoPor.email === ARQ,
@@ -188,12 +196,17 @@ async function fluxoDecisao(browser, nomeTela, viewport) {
   afirma(!(await existe(page, '#poDecisaoForm')), 'decidida: o formulário some (a decisão não muda)');
   await f5(page);
   await tela(page, 'poDecisaoFinal');
-  afirma(/Tx COE/.test(await texto(page, '#poDecisaoFinal')) && /Confirmação/.test(await texto(page, '#poTipoDecisao')), 'F5: a decisão continua na ficha');
+  afirma(/Confirmação/.test(await texto(page, '#poTipoDecisao')), 'F5: a decisão continua na ficha');
+  /* o nome vem da Taxonomia, que pode chegar depois da ficha (até lá, rótulo de contingência) */
+  await esperarCondicao(page, () => /Tx COE/.test(document.querySelector('#poDecisaoFinal').innerText), null, { descricao: 'o nome atual da Taxonomia entrar na decisão depois do F5' });
+  afirma(true, '…com o nome atual da Taxonomia quando ela chega');
 
   console.log('\n== 3. RESOLUCAO_A_VALIDAR exige justificativa ==');
   await ir(page, '#avaliacoes?po=a1');
   await tela(page, 'poDecisaoForm');
   afirma((await page.inputValue('#poCodigoFinal')) === '', 'A validar: nada pré-selecionado');
+  afirma((await texto(page, '#poOrientacaoAValidar')).trim() === 'Se houver elementos suficientes, escolha um posicionamento firme e justifique. Se ainda não houver base para decidir, use Reavaliar.',
+    'A validar: orientação explícita (decidir com justificativa ou Reavaliar)');
   await page.selectOption('#poCodigoFinal', 'PLATAFORMA_CANAIS');
   afirma(/Resolução/.test(await texto(page, '#poTipoPrevisto')) && /obrigatória/.test(await texto(page, '#poTipoPrevisto')) && /\*/.test(await texto(page, '#poJustificativaRotulo')), 'tipo previsto: Resolução do "A validar", justificativa obrigatória');
   await page.click('#poDecidirBtn');
@@ -204,6 +217,8 @@ async function fluxoDecisao(browser, nomeTela, viewport) {
   afirma(!(await existe(page, '.po-modal')), 'só espaço também não serve');
   await page.fill('#poJustificativaInput', 'Resolvido com a área em reunião');
   await page.click('#poDecidirBtn');
+  await page.waitForSelector('.po-modal #poModalLiberaSquad');
+  afirma(/poderá ser realizada/.test(await texto(page, '#poModalLiberaSquad')), 'modal: mostra que a decisão final (Plataforma de Canais) libera a Adequação à Squad');
   await confirmarModal(page);
   await tela(page, 'poDecisaoFinal');
   db = await banco(page);
@@ -226,6 +241,7 @@ async function fluxoDecisao(browser, nomeTela, viewport) {
   const nova = (await hash(page)).split('po=')[1];
   db = await banco(page);
   const rn = db['avaliacoes-posicionamento'][nova];
+  afirma(rn && rn.avaliacaoArquiteturalId === 'p3v2', 'D6: a reavaliação aponta para a Avaliação de Produto/Serviço v2 do item (nem a v1 da anterior, nem a v3 excluída)', rn && rn.avaliacaoArquiteturalId);
   afirma(rn && rn.versao === 2 && rn.avaliacaoAnteriorId === 'g1' && rn.motivoReavaliacao === 'Mudou a estrutura de atendimento' && rn.status === 'rascunho', 'rascunho v2, anterior g1, motivo', JSON.stringify(rn && { v: rn.versao, a: rn.avaliacaoAnteriorId }));
   afirma(db['posicionamento-vigente-por-item'].p3 === 'g1' && db['posicionamento-rascunho-por-item'].p3 === nova, 'a v1 continua vigente; a reserva aponta para a v2');
   afirma((await page.locator('#poChecklist .po-resp.ativa').count()) === 3, 'respostas da v1 pré-preenchidas (O1–O3)');

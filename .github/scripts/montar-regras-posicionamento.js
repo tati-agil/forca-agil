@@ -184,14 +184,14 @@ const blocoAud = {
         and(['codigoResultado', 'regra', 'versaoMotor', 'liberaSquad'].map((f) => v(f) + ' === ' + AVNOVA + ".child('resultadoAutomatico/" + f + "').val()")) + ' && ' +
         v('vigenteAnterior') + ' === ' + AVNOVA + ".child('avaliacaoAnteriorId').val()) || (" +
         v('tipo') + " === 'descarte' && " + AVNOVA + ".child('auditoriaDescarteId').val() === $auditoriaId && " + v('motivo') + ' === ' + AVNOVA + ".child('motivoDescarte').val()) || (" +
-        v('tipo') + " === 'decisao' && " + DECNOVA + ".child('auditoriaId').val() === $auditoriaId && " + igual(['codigoAutomatico', 'codigoFinal', 'tipoDecisao', 'versaoAvaliacao'], DECNOVA) + '))'
+        v('tipo') + " === 'decisao' && " + DECNOVA + ".child('auditoriaId').val() === $auditoriaId && " + igual(['codigoAutomatico', 'codigoFinal', 'tipoDecisao', 'versaoAvaliacao', 'justificativa', 'liberaSquad'], DECNOVA) + '))'
       ]),
       tipo: { '.validate': 'newData.isString()' }, itemId: { '.validate': 'newData.isString()' }, avaliacaoArquiteturalId: { '.validate': 'newData.isString()' },
       usuario: pessoa, dataHora: texto(40), codigoResultado: { '.validate': 'newData.isString()' }, regra: { '.validate': 'newData.isString()' },
       versaoMotor: { '.validate': 'newData.isNumber()' }, liberaSquad: { '.validate': 'newData.isBoolean()' }, motivo: texto(500),
       avaliacaoAnteriorId: { '.validate': 'newData.isString()' }, vigenteAnterior: { '.validate': 'newData.isString()' },
       codigoAutomatico: { '.validate': 'newData.isString()' }, codigoFinal: { '.validate': 'newData.isString()' }, tipoDecisao: { '.validate': 'newData.isString()' },
-      versaoAvaliacao: { '.validate': 'newData.isNumber()' },
+      versaoAvaliacao: { '.validate': 'newData.isNumber()' }, justificativa: texto(2000),
       $outro: { '.validate': false }
     }
   }
@@ -212,7 +212,11 @@ const blocoDec = {
       "newData.hasChildren(['itemId','versaoAvaliacao','versaoMotor','codigoAutomatico','codigoFinal','tipoDecisao','nomeNaDecisao','liberaSquad','decididoPor','decididoEm','auditoriaId'])",
       v('decididoPor/email') + ' === auth.token.email',
       REG + ".child('status').val() === 'concluido'", REG + ".child('itemId').val() === " + v('itemId'),
+      /* vigente e sem reavaliação ANTES e DEPOIS da gravação: uma multipath não pode decidir a versão que, na mesma
+         gravação, deixa de ser vigente (conclusão da reavaliação) nem esconder uma reavaliação (início ou descarte) */
       "root.child('" + VIG + "').child(" + v('itemId') + ').val() === $avaliacaoId',
+      NOVODEC(VIG) + '.child(' + v('itemId') + ').val() === $avaliacaoId',
+      "!root.child('" + RES + "').child(" + v('itemId') + ').exists()',
       '!' + NOVODEC(RES) + '.child(' + v('itemId') + ').exists()',
       v('versaoAvaliacao') + ' === ' + REG + ".child('versao').val()",
       v('codigoAutomatico') + ' === ' + RA + ".child('codigoResultado').val()",
