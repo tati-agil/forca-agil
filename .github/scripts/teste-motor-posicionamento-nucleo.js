@@ -92,7 +92,7 @@ afirma(JSON.stringify(V1.respostas) === JSON.stringify(M.RESPOSTAS) && JSON.stri
 afirma(JSON.stringify(N.CODIGOS_FIRMES) === JSON.stringify(M.CODIGOS_FIRMES) && JSON.stringify(N.CODIGOS_INTERMEDIARIOS) === JSON.stringify(M.CODIGOS_INTERMEDIARIOS) && JSON.stringify(N.TIPOS_A_VALIDAR) === JSON.stringify(M.TIPOS_A_VALIDAR), 'códigos firmes, intermediários e tipos de A_VALIDAR');
 afirma(Object.keys(V1.regras).every((k) => regrasVistas[k]) && Object.keys(regrasVistas).every((k) => V1.regras[k]), 'as 25 regras são alcançadas, e nada fora do catálogo é registrado');
 afirma(Object.keys(motivosVistos).every((k) => V1.motivos.indexOf(k) !== -1) && V1.motivos.every((k) => motivosVistos[k]), 'os motivos registrados são exatamente os do catálogo');
-afirma(JSON.stringify(N.versoes()) === JSON.stringify(M.versoes()) && V1.versao === M.versaoAtual(), 'mesmas versões conhecidas (só a 1) e a em vigor do motor é a da definição');
+afirma(JSON.stringify(M.versoes()) === '[1]' && N.versoes().indexOf(1) !== -1 && N.versaoEmVigor() === 1 && V1.versao === M.versaoAtual(), 'a versão em vigor continua a 1 — no motor e no núcleo (a v2 do H1-B existe só no núcleo, inativa)');
 
 console.log('\n== D. Invariante Linha × Squad (literal) ==');
 const LINHA_SQUAD = { AREA_ESPECIALIZADA: false, COE: false, ESTRATEGIA_CLIENTES: true, NEGOCIOS: true, PLATAFORMA_CANAIS: true,
@@ -152,7 +152,7 @@ afirma(JSON.stringify(N.diagnosticosNecessarios(V1, Object.assign({ O6: S, O7: S
 
 console.log('\n== F. Versão desconhecida e definição inválida ==');
 const lanca = (fn) => { try { fn(); return false; } catch (e) { return true; } };
-afirma(lanca(() => N.definicao(2)) && lanca(() => N.definicao(0)) && lanca(() => N.definicao('x')), 'definicao(2/0/"x") recusada');
+afirma(lanca(() => N.definicao(3)) && lanca(() => N.definicao(0)) && lanca(() => N.definicao('x')), 'definicao(3/0/"x") recusada (só existem a 1 e a 2)');
 afirma(lanca(() => N.avaliar(null, {}, {})) && lanca(() => N.avaliar({}, {}, {})) && lanca(() => N.avaliar({ versao: 1 }, {}, {})), 'avaliar sem definição válida recusa (nunca cai num padrão)');
 afirma(lanca(() => M.avaliar({}, {}, { versao: 2 })), '…como o motor atual, que recusa versão desconhecida');
 

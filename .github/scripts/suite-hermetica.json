@@ -609,6 +609,12 @@
       "sobre": "H1.1: nos 531.441 estados a saída do núcleo com a definição v1 é idêntica à do motor (as 10 chaves) e tem o mesmo digest congelado; perguntasDoCaminho igual à do motor e diagnosticosNecessarios igual ao diagnosticoNecessario da tela em todos os estados; catálogo (níveis, perguntas, papéis, 25 regras, motivos) idêntico; invariante Linha × Squad literal e ausente da definição; casos de 0/1/2/3+ SIM, diagnóstico, incompletude, incoerência e resíduo; versão desconhecida recusada; definição e API congeladas, entradas intactas, sem DOM/Firebase; ainda fora do index.html."
     },
     {
+      "arquivo": ".github/scripts/teste-motor-posicionamento-v2.js",
+      "nome": "Motor de Posicionamento: validação de definição, enumeração, simulação, contrato com o questionário e v2 inativa (sem navegador)",
+      "duracao": 14,
+      "sobre": "H1-B: validarDefinicao recusa cada violação das regras fixas (significado fixo dos códigos, hierarquia, completude, incoerência, D1/D2, Plataforma só por O6–O9, Linha × Squad e texto fora da definição); enumeração estruturada determinística e completa (confere com força bruta: v1 2127 de 531.441; v2 664); a v2 inativa bate com um oráculo escrito à parte da especificação em todos os estados válidos e de incoerência; Linha × Squad literal; simular(v1, v2) reproduz docs/motor-posicionamento-v1-v2.md; conteudoCompativel exige estrutura exata e vínculo, legado só v1, podeEntrarEmVigor sem fallback."
+    },
+    {
       "arquivo": ".github/scripts/teste-posicionamento-exportacoes.js",
       "nome": "Posicionamento Organizacional: PDF individual e Excel baixados de verdade (desktop e 375 px)",
       "duracao": 25,
