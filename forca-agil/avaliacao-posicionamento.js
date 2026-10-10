@@ -361,7 +361,7 @@
       tela: 'lista', /* lista | escolher | checklist | resultado | descartado | carregando | nao-encontrada | sem-permissao */
       registros: {}, reservas: {}, vigentes: {}, produtos: {}, decisoes: {},
       carregou: { av: false, res: false, vig: false, prod: false, dec: false }, erroLeitura: false, erroDec: false,
-      mostrarHistorico: false, formDecisao: null,
+      mostrarHistorico: false, formDecisao: null, exportando: null, flashExportacao: null, menuExportarAberto: false,
       atual: null, chave: null, revisaoBase: 0, sujo: false, conflito: false, salvando: null, revisaoEmGravacao: null,
       itemEscolhido: null, busca: '', pendente: null, flash: null
     }; }
@@ -454,7 +454,7 @@
       reafirmar();
     }
     function autorizacaoResolvida() { return !!(window.faAuth && (!window.faAuth.isAvaliacaoReady || window.faAuth.isAvaliacaoReady())); }
-    function limparAtual() { state.atual = null; state.chave = null; state.sujo = false; state.conflito = false; state.flash = null; state.formDecisao = null; }
+    function limparAtual() { state.atual = null; state.chave = null; state.sujo = false; state.conflito = false; state.flash = null; state.formDecisao = null; state.flashExportacao = null; state.menuExportarAberto = false; }
     function abrirChave(key) {
       var rec = state.registros[key];
       limparAtual();
@@ -538,6 +538,43 @@
         .sort(function (x, y) { return ((y.versao || 1) - (x.versao || 1)) || (String(y.criadoEm || '') < String(x.criadoEm || '') ? -1 : 1); });
     }
 
+    /* o que a lista mostra — a mesma conta para a tela e para "Excel — lista atual" */
+    function conjuntosDaLista() {
+      var todas = Object.keys(state.registros).map(function (k) { return Object.assign({ _key: k, _sit: situacaoDe(k, state.registros[k]) }, state.registros[k]); })
+        .sort(function (a, b) { return String(b.atualizadoEm || '') < String(a.atualizadoEm || '') ? -1 : 1; });
+      /* padrão: o que vale hoje (vigente) e o que está em andamento; histórico e descartadas no filtro */
+      var antigas = todas.filter(function (r) { return r._sit === 'historica' || r._sit === 'descartado'; });
+      var lista = state.mostrarHistorico ? todas : todas.filter(function (r) { return r._sit !== 'historica' && r._sit !== 'descartado'; });
+      return { todas: todas, antigas: antigas, lista: lista };
+    }
+    /* ---- exportação (G1): só leitura; o conteúdo vem de exportacoes-posicionamento.js (puro) ---- */
+    /* não saber ≠ não ter: sem as decisões lidas, nenhum arquivo pode dizer "Sem decisão registrada" */
+    function prontoParaExportar() { return state.carregou.av && state.carregou.vig && state.carregou.dec && state.carregou.prod && !state.erroDec && !state.erroLeitura; }
+    function avisoExportacao() {
+      if (state.erroDec) return '<p class="avp-error-msg" id="poExportarBloqueado">Não foi possível ler as decisões agora: a exportação fica indisponível para não registrar "Sem decisão" por engano. Recarregue a página e tente de novo.</p>';
+      return '';
+    }
+    function statusExportacao() {
+      if (!state.flashExportacao) return '';
+      return '<p class="avp-export-status' + (state.flashExportacao.erro ? ' avp-export-status--erro' : '') + '" id="poExportarStatus">' + esc(state.flashExportacao.texto) + '</p>';
+    }
+    function renderExportarLista(conj) {
+      if (!conj.todas.length) return '';
+      var pronto = prontoParaExportar(), ocupado = !!state.exportando;
+      var h = '<div class="avp-actions-bar po-exportar-barra"><div class="avp-exportar-wrap">' +
+        '<button type="button" class="btn btn--sm" id="poExportarBtn"' + (!pronto || ocupado ? ' disabled' : '') + '>' +
+        (ocupado ? 'Gerando arquivo…' : !pronto && !state.erroDec ? 'Carregando…' : 'Exportar ▾') + '</button>';
+      if (state.menuExportarAberto && pronto && !ocupado) {
+        h += '<div class="avp-exportar-menu" id="poExportarMenu">' +
+          '<p class="avp-exportar-escopo">Lista atual: <strong>' + conj.lista.length + '</strong> avaliaç' + (conj.lista.length === 1 ? 'ão' : 'ões') +
+          (state.mostrarHistorico ? ' (com históricas e descartadas)' : ' (vigentes e em andamento)') + '</p>' +
+          '<button type="button" class="btn" id="poExportarExcelLista">📊 Excel — lista atual (' + conj.lista.length + ')</button>' +
+          '<button type="button" class="btn" id="poExportarExcelTodas">📊 Excel — todas as avaliações (' + conj.todas.length + ')</button>' +
+          '<p class="avp-exportar-nota">O Excel traz as abas Resumo, Respostas O1–O9, Histórico e Trilha. O PDF de uma avaliação concluída fica na ficha dela.</p></div>';
+      }
+      return h + '</div></div>' + avisoExportacao() + statusExportacao();
+    }
+
     function renderLista() {
       var h = '<div class="avp-form-card" id="poLista"><h3>Posicionamento Organizacional</h3>' +
         '<p class="avp-intro">Recomenda que tipo de estrutura organizacional deve sustentar a responsabilidade associada a cada item (O1–O9). Não escolhe uma estrutura concreta.</p>';
@@ -547,11 +584,8 @@
       if (!state.carregou.av || !state.carregou.vig) h += '<p class="loading-msg">Carregando…</p>';
       else if (state.erroLeitura) h += '<p class="avp-error-msg">Não foi possível ler as avaliações agora.</p>';
       else {
-        var todas = Object.keys(state.registros).map(function (k) { return Object.assign({ _key: k, _sit: situacaoDe(k, state.registros[k]) }, state.registros[k]); })
-          .sort(function (a, b) { return String(b.atualizadoEm || '') < String(a.atualizadoEm || '') ? -1 : 1; });
-        /* padrão: o que vale hoje (vigente) e o que está em andamento; histórico e descartadas no filtro */
-        var antigas = todas.filter(function (r) { return r._sit === 'historica' || r._sit === 'descartado'; });
-        var lista = state.mostrarHistorico ? todas : todas.filter(function (r) { return r._sit !== 'historica' && r._sit !== 'descartado'; });
+        var conj = conjuntosDaLista(), todas = conj.todas, antigas = conj.antigas, lista = conj.lista;
+        h += renderExportarLista(conj);
         if (antigas.length) h += '<label class="avp-decisao-option po-filtro-historico"><input type="checkbox" id="poMostrarHistorico"' + (state.mostrarHistorico ? ' checked' : '') + '> ' +
           'Mostrar versões históricas e descartadas (' + antigas.length + ')</label>';
         if (!todas.length) h += '<p class="admin-empty">Nenhuma avaliação de posicionamento ainda.</p>';
@@ -726,9 +760,11 @@
       h += renderRespostasLidas(a) + '</section>';
       h += '<section class="po-bloco" id="poBlocoDecisao"><h4 class="po-bloco-titulo">Decisão final</h4>' + renderDecisao(a, key, sit) + '</section>';
       h += '<section class="po-bloco" id="poBlocoHistorico"><h4 class="po-bloco-titulo">Histórico de versões</h4>' + renderHistorico(a, key) + '</section>';
-      if (sit === 'vigente' && podeEscrever() && !resv) {
-        h += '<div class="avp-actions-footer"><button type="button" class="btn" id="poReavaliarBtn"' + (state.salvando ? ' disabled' : '') + '>' + (state.salvando === 'reavaliacao' ? 'INICIANDO…' : 'Reavaliar') + '</button></div>';
-      }
+      var podeReav = sit === 'vigente' && podeEscrever() && !resv, prontoPdf = prontoParaExportar();
+      h += '<div class="avp-actions-footer po-ficha-acoes">' +
+        (podeReav ? '<button type="button" class="btn" id="poReavaliarBtn"' + (state.salvando ? ' disabled' : '') + '>' + (state.salvando === 'reavaliacao' ? 'INICIANDO…' : 'Reavaliar') + '</button>' : '') +
+        '<button type="button" class="btn btn--sm" id="poGerarPdfBtn"' + (!prontoPdf || state.exportando ? ' disabled' : '') + '>' +
+        (state.exportando === 'pdf' ? 'Gerando arquivo…' : !prontoPdf && !state.erroDec ? 'Carregando…' : '📄 GERAR PDF') + '</button></div>' + avisoExportacao() + statusExportacao();
       h += '</div>';
       return h + rodapeVoltar();
     }
@@ -841,6 +877,10 @@
       var rec = byId('poRecarregarBtn'); if (rec) rec.addEventListener('click', recarregar);
       var hist = byId('poMostrarHistorico'); if (hist) hist.addEventListener('change', function () { state.mostrarHistorico = hist.checked; render(); });
       var reav = byId('poReavaliarBtn'); if (reav) reav.addEventListener('click', pedirReavaliacao);
+      var exp = byId('poExportarBtn'); if (exp) exp.addEventListener('click', function () { state.menuExportarAberto = !state.menuExportarAberto; render(); });
+      var exL = byId('poExportarExcelLista'); if (exL) exL.addEventListener('click', function () { exportarExcel('lista'); });
+      var exT = byId('poExportarExcelTodas'); if (exT) exT.addEventListener('click', function () { exportarExcel('todas'); });
+      var pdf = byId('poGerarPdfBtn'); if (pdf) pdf.addEventListener('click', exportarPdf);
       var cod = byId('poCodigoFinal');
       if (cod) cod.addEventListener('change', function () {
         var f = state.formDecisao, auto = state.atual.resultadoAutomatico && state.atual.resultadoAutomatico.codigoResultado;
@@ -1086,6 +1126,82 @@
           render();
           aviso(err === 'sem-resposta' ? 'A conexão está demorando e não deu para confirmar a reavaliação. Confira a ficha antes de tentar de novo.' : 'Não foi possível iniciar a reavaliação. Tente novamente.');
         }).catch(function () { state.salvando = null; render(); aviso('Não foi possível iniciar a reavaliação. Tente novamente.'); });
+      });
+    }
+
+    /* ---- exportação: lê a trilha na hora (com limite), monta pelo módulo puro e baixa ---- */
+    function E() { return window.faExportacoesPosicionamento; }
+    function carregarScript(src, jaDisponivel, cb) {
+      if (jaDisponivel()) { cb(); return; }
+      var existente = document.querySelector('script[data-avp-lib="' + src + '"]');
+      if (existente) { existente.addEventListener('load', function () { cb(); }); existente.addEventListener('error', function () { cb(new Error('Falha ao carregar ' + src)); }); return; }
+      var s = document.createElement('script');
+      s.src = src; s.setAttribute('data-avp-lib', src);
+      s.onload = function () { cb(); };
+      s.onerror = function () { cb(new Error('Falha ao carregar ' + src)); };
+      document.head.appendChild(s);
+    }
+    /* Trilha: falha ou demora (TEMPO_TRILHA) → { ok: false } — o arquivo sai com "Trilha indisponível", nunca "sem eventos" */
+    var TEMPO_TRILHA = 6000;
+    function lerTrilha(caminho, cb) {
+      var feito = false;
+      var relogio = setTimeout(function () { if (feito) return; feito = true; cb({ ok: false }); }, TEMPO_TRILHA);
+      function fim(r) { if (feito) return; feito = true; clearTimeout(relogio); cb(r); }
+      try { db().ref(caminho).once('value').then(function (s) { fim({ ok: true, valor: s.val() || {} }); }, function () { fim({ ok: false }); }); }
+      catch (e) { fim({ ok: false }); }
+    }
+    function nomesAtuais() {
+      var out = {}, M = motor();
+      (M ? M.CODIGOS_INTERMEDIARIOS.concat(M.CODIGOS_FIRMES) : []).forEach(function (c) { out[c] = { nome: nomeAtual(c), contingencia: !!(P() && P().usandoContingencia(c)) }; });
+      return out;
+    }
+    function contextoExportacao(trilha) {
+      return { registros: clone(state.registros), decisoes: clone(state.decisoes), decisoesConhecidas: prontoParaExportar(), vigentes: clone(state.vigentes),
+        produtos: state.produtos, nomesAtuais: nomesAtuais(), trilha: trilha, geradoEm: agoraIso(),
+        textoQuestionario: function (codigo, versao) { return conteudo(codigo, versao); } };
+    }
+    function terminarExportacao(erro, origem) {
+      state.exportando = null;
+      state.flashExportacao = erro ? { erro: true, texto: 'Não foi possível gerar o arquivo. Tente novamente.' } : { erro: false, texto: 'Arquivo gerado com sucesso.' };
+      if (erro) console.error('[avaliacao-posicionamento] erro ao exportar ' + origem + ':', erro);
+      render();
+    }
+    function exportarPdf() {
+      if (state.exportando || !prontoParaExportar() || state.tela !== 'resultado' || !E()) return;
+      var id = state.chave;
+      if (!window.faPdfEmBlocos) { terminarExportacao(new Error('Motor de PDF indisponível.'), 'PDF'); return; }
+      state.exportando = 'pdf'; state.flashExportacao = null; render();
+      lerTrilha(AUD + '/' + id, function (t) {
+        var por = {}; if (t.ok) por[id] = t.valor;
+        var ctx, atomos;
+        try { ctx = contextoExportacao({ ok: t.ok, porAvaliacao: por }); atomos = E().atomosPdf(id, ctx); }
+        catch (e) { terminarExportacao(e, 'PDF'); return; }
+        window.faPdfEmBlocos.gerar({
+          nomeArquivo: E().nomeArquivoPdf(id, ctx, ctx.geradoEm),
+          planejar: function (medidor) { return window.faPdfEmBlocos.planejar([atomos], medidor, function (html) { return E().documentoPdf(html, false); }); },
+          envolver: function (bloco, indice) { return E().documentoPdf(bloco, indice === 0, ctx.geradoEm); }
+        }, function (erro) { terminarExportacao(erro, 'PDF'); });
+      });
+    }
+    function exportarExcel(escopo) {
+      if (state.exportando || !prontoParaExportar() || !E()) return;
+      var conj = conjuntosDaLista(), ids = (escopo === 'todas' ? conj.todas : conj.lista).map(function (r) { return r._key; });
+      state.menuExportarAberto = false; state.exportando = 'excel'; state.flashExportacao = null; render();
+      lerTrilha(AUD, function (t) {
+        carregarScript('forca-agil/xlsx.mini.min.js', function () { return !!window.XLSX; }, function (erroCarga) {
+          if (erroCarga) { terminarExportacao(erroCarga, 'Excel'); return; }
+          try {
+            var X = window.XLSX, ctx = contextoExportacao({ ok: t.ok, porAvaliacao: t.ok ? t.valor : {} }), wb = X.utils.book_new();
+            E().abasExcel(ids, ctx).forEach(function (a) {
+              var ws = X.utils.aoa_to_sheet([a.cabecalho].concat(a.linhas));
+              ws['!cols'] = a.larguras.map(function (w) { return { wch: w }; });
+              ws['!autofilter'] = { ref: X.utils.encode_range({ s: { r: 0, c: 0 }, e: { r: a.linhas.length, c: a.cabecalho.length - 1 } }) };
+              X.utils.book_append_sheet(wb, ws, a.nome);
+            });
+            X.writeFile(wb, E().nomeArquivoExcel(escopo === 'todas' ? 'Todas' : 'Lista_atual', ctx.geradoEm), { cellDates: true });
+            terminarExportacao(null, 'Excel');
+          } catch (e) { terminarExportacao(e, 'Excel'); }
+        });
       });
     }
 

@@ -2868,3 +2868,6 @@ details.avp-form-card.avp-aut-historico { margin-top: 0; padding: 10px 16px; mar
 .po-versao--atual { border-color: var(--accent-2); }
 .po-badge--historica { opacity: .8; }
 .po-badge--reavaliacao { border-color: var(--gold); }
+/* Posicionamento — exportação (PR G1): o botão fica à ESQUERDA da barra, então o menu abre alinhado à esquerda */
+.po-exportar-barra .avp-exportar-menu { left: 0; right: auto; max-width: calc(100vw - 32px); }
+.po-ficha-acoes { flex-wrap: wrap; }
