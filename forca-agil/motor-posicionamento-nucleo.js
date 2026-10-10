@@ -6,7 +6,9 @@
    forca-agil/motor-posicionamento.js nos 531.441 estados (teste-motor-posicionamento-nucleo.js).
    H1-B (H1.2 + H1.3): validarDefinicao, enumeração estruturada, simulação entre versões, o contrato de
    compatibilidade motor × conteúdo do questionário e a definição lógica v2 — INATIVA: a versão em vigor continua
-   a 1 (versaoEmVigor), nenhum consumidor usa este arquivo e ele não está no index.html.
+   a 1 (versaoEmVigor).
+   H1-Final: o index.html carrega este arquivo (antes de questionarios-config.js) e avaliacao-posicionamento.js o
+   usa como motor, com a definição da versão do REGISTRO (versaoMotor; ausente = 1). Nada no site cria registro v2.
 
    SÓ SIGNIFICADO E REGRAS — NENHUM TEXTO HUMANO. Pergunta, ajuda, exemplos, interpretações, D1, D2 e os rótulos
    das opções são CONTEÚDO do questionário (Questionários e versões, editável e versionado no ADMIN). Aqui ficam só
