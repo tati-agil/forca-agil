@@ -37,7 +37,7 @@ function carregar() {
   ctx.firebase = { database: () => ({ ref: () => ({ on() {}, off() {}, once() { return Promise.resolve({ val: () => null }); }, update() {}, child() { return this; }, push() { return { key: 'k' }; } }) }) };
   ctx.navigator = {}; ctx.location = { hash: '' }; ctx.localStorage = { getItem() { return null; }, setItem() {} };
   vm.createContext(ctx);
-  for (const f of ['questionarios-config.js', 'motor-arquitetura.js', 'avaliacao-produto.js', 'motor-posicionamento.js']) vm.runInContext(fs.readFileSync(path.join(RAIZ, f), 'utf8'), ctx, { filename: f });
+  for (const f of ['questionarios-config.js', 'motor-arquitetura.js', 'avaliacao-produto.js', 'motor-posicionamento.js', 'motor-posicionamento-nucleo.js']) vm.runInContext(fs.readFileSync(path.join(RAIZ, f), 'utf8'), ctx, { filename: f });
   delete ctx.document;
   vm.runInContext(fs.readFileSync(path.join(RAIZ, 'avaliacao-posicionamento.js'), 'utf8'), ctx, { filename: 'avaliacao-posicionamento.js' });
   return ctx;

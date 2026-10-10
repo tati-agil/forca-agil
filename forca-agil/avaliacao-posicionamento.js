@@ -58,29 +58,41 @@
     O6: 'PLATAFORMA_CANAIS', O7: 'PLATAFORMA_HABILITADORA_NEGOCIOS', O8: 'PLATAFORMA_HABILITADORA_TECNOLOGIA', O9: 'PLATAFORMA_CORPORATIVA' };
 
   /* ===================== NÚCLEO (sem DOM: o mesmo código monta as gravações na tela e nos testes) ===================== */
-  function motor() { return window.faMotorPosicionamento; }
+  /* H1-Final: o caminho e o resultado vêm do NÚCLEO declarativo (motor-posicionamento-nucleo.js), com a definição
+     da versão do motor DO REGISTRO — reg.versaoMotor; ausente = 1 (todo registro anterior ao campo é v1, e
+     continua v1 mesmo quando outra versão entrar em vigor). A v1 do núcleo é idêntica ao motor legado nos 531.441
+     estados (teste-motor-posicionamento-nucleo.js); a v2 está inativa — nada aqui cria registro v2 (criar e
+     reavaliar gravam sem versaoMotor, e o banco ainda recusa o campo: só o H2 abre essa porta). */
+  function nucleo() { return window.faMotorPosicionamentoNucleo; }
+  function versaoMotorDo(reg) { return reg && typeof reg.versaoMotor === 'number' ? reg.versaoMotor : 1; }
+  function definicaoDo(reg) { return nucleo().definicao(versaoMotorDo(reg)); }
   function clone(v) { return v == null ? v : JSON.parse(JSON.stringify(v)); }
   function simples(reg) {
-    var r = {}, d = {};
+    var r = {}, d = {}, p = {};
     Object.keys((reg && reg.respostas) || {}).forEach(function (q) { var v = reg.respostas[q] && reg.respostas[q].resposta; if (v === 'SIM' || v === 'NAO') r[q] = v; });
     Object.keys((reg && reg.diagnosticos) || {}).forEach(function (n) { var v = reg.diagnosticos[n] && reg.diagnosticos[n].resposta; if (v === 'mesma' || v === 'distintas') d[n] = v; });
-    return { respostas: r, diagnosticos: d };
+    Object.keys((reg && reg.predominancias) || {}).forEach(function (n) { var v = reg.predominancias[n] && reg.predominancias[n].resposta; if (typeof v === 'string' && v) p[n] = v; });
+    return { respostas: r, diagnosticos: d, predominancias: p };
   }
-  function avaliar(reg) { var s = simples(reg); return motor().avaliar(s.respostas, s.diagnosticos); }
-  function caminho(reg) { var s = simples(reg); return motor().perguntasDoCaminho(s.respostas, s.diagnosticos); }
+  function avaliar(reg) { var s = simples(reg); return nucleo().avaliar(definicaoDo(reg), s.respostas, s.diagnosticos, s.predominancias); }
+  function caminho(reg) { var s = simples(reg); return nucleo().perguntasDoCaminho(definicaoDo(reg), s.respostas, s.diagnosticos, s.predominancias); }
   function simsDoNivel(reg, n) { var s = simples(reg).respostas; return NIVEIS[n].filter(function (q) { return s[q] === 'SIM'; }); }
-  /* o diagnóstico do nível n faz parte da avaliação: nível alcançado, completo e com exatamente 2 SIM */
+  /* o diagnóstico do nível n faz parte da avaliação: nível alcançado, completo e com os SIM que a versão do motor
+     exige (v1: exatamente 2; v2: 2 ou mais) */
   function diagnosticoNecessario(reg, n) {
-    var s = simples(reg).respostas, r = avaliar(reg);
-    if (r.niveisAlcancados.indexOf(n) === -1) return false;
-    if (NIVEIS[n].some(function (q) { return !s[q]; })) return false;
-    return simsDoNivel(reg, n).length === 2;
+    var s = simples(reg);
+    return nucleo().diagnosticosNecessarios(definicaoDo(reg), s.respostas, s.diagnosticos, s.predominancias).indexOf(n) !== -1;
+  }
+  /* D2 (só em versão de motor com predominância): o nível e as opções que a tela pode oferecer, ou null */
+  function predominanciaNecessaria(reg, n) {
+    var s = simples(reg);
+    return nucleo().predominanciasNecessarias(definicaoDo(reg), s.respostas, s.diagnosticos, s.predominancias).filter(function (x) { return x.nivel === n; })[0] || null;
   }
   function papeisDoPar(reg, n) { return simsDoNivel(reg, n).map(function (q) { return PAPEL[q]; }); }
   /* Tira da avaliação tudo o que não está no caminho: respostas (com as observações delas) e diagnósticos
      que deixaram de ser exigidos ou cujo par de papéis mudou. Devolve o que saiu, para o aviso. */
   function limparForaDoCaminho(reg) {
-    var novo = clone(reg) || {}, removidas = [], obsRemovidas = [], diagsRemovidos = [];
+    var novo = clone(reg) || {}, removidas = [], obsRemovidas = [], diagsRemovidos = [], predsRemovidas = [];
     for (var volta = 0; volta < 4; volta++) {
       var mudou = false, cam = caminho(novo);
       Object.keys(novo.respostas || {}).forEach(function (q) {
@@ -96,11 +108,19 @@
         if (d && d.observacao) obsRemovidas.push(n);
         delete novo.diagnosticos[n]; mudou = true;
       });
+      Object.keys(novo.predominancias || {}).forEach(function (n) {
+        var p = novo.predominancias[n], pn = predominanciaNecessaria(novo, n);
+        if (pn && pn.opcoes.indexOf(p && p.resposta) !== -1 && JSON.stringify(p.papeis || []) === JSON.stringify(papeisDoPar(novo, n))) return;
+        predsRemovidas.push(n);
+        if (p && p.observacao) obsRemovidas.push(n);
+        delete novo.predominancias[n]; mudou = true;
+      });
       if (!mudou) break;
     }
     if (novo.respostas && !Object.keys(novo.respostas).length) delete novo.respostas;
     if (novo.diagnosticos && !Object.keys(novo.diagnosticos).length) delete novo.diagnosticos;
-    return { reg: novo, removidas: removidas, obsRemovidas: obsRemovidas, diagsRemovidos: diagsRemovidos };
+    if (novo.predominancias && !Object.keys(novo.predominancias).length) delete novo.predominancias;
+    return { reg: novo, removidas: removidas, obsRemovidas: obsRemovidas, diagsRemovidos: diagsRemovidos, predsRemovidas: predsRemovidas };
   }
   /* O que ainda falta para concluir (null = completo). Nunca conclui incompleto: o motor representa a falta
      como A_VALIDAR/EVIDENCIA_INSUFICIENTE, mas isso não é um resultado da avaliação. */
@@ -114,25 +134,50 @@
       var n = r.regra.slice(0, 2);
       return { texto: 'Falta responder o diagnóstico do Nível ' + n.slice(1), diagnostico: n };
     }
+    if (/_PREDOMINANCIA_PENDENTE$/.test(r.regra)) {
+      var np = r.regra.slice(0, 2);
+      return { texto: 'Falta responder a predominância do Nível ' + np.slice(1), predominancia: np };
+    }
     if (r.regra === 'DEF_SIM_FORA_DO_CAMINHO') return { texto: 'Há resposta fora do caminho: revise as respostas' };
     return null;
   }
   function textoLimitado(s, n) { return typeof s === 'string' && s ? s.slice(0, n) : null; }
   function semVazios(o) { Object.keys(o).forEach(function (k) { if (o[k] === null || o[k] === undefined || o[k] === '') delete o[k]; }); return o; }
-  function conteudo(q, versao) { return window.faQuestionarios.conteudoPergunta(QCOD, q, versao) || {}; }
-  function snapshotResposta(q, v, versao, observacao, agora) {
-    var c = conteudo(q, versao);
+  /* a redação de uma pergunta na versão do questionário — da trilha do motor do registro. v1: o questionário de
+     sempre; versão ≥ 2: só a redação publicada para aquele motor, SEM fallback (ausente = null; a tela trava). */
+  function conteudoMotor(q, versao, versaoMotor) {
+    var Q = window.faQuestionarios;
+    if (!versaoMotor || versaoMotor === 1) return Q.conteudoPergunta(QCOD, q, versao) || {};
+    return (typeof Q.conteudoPerguntaMotor === 'function' && Q.conteudoPerguntaMotor(QCOD, versaoMotor, q, versao)) || null;
+  }
+  function conteudo(q, versao, versaoMotor) { return conteudoMotor(q, versao, versaoMotor) || {}; }
+  /* a redação de TUDO o que a versão do motor pede existe? (v1: sempre; v2: o contrato inteiro do núcleo) */
+  function redacaoDisponivel(reg) {
+    var vm = versaoMotorDo(reg);
+    if (vm === 1) return true;
+    return nucleo().contratoDoQuestionario(nucleo().definicao(vm)).itens.every(function (it) { return !!conteudoMotor(it.codigoEstavel, reg.questionnaireContentVersion, vm); });
+  }
+  function snapshotResposta(q, v, versao, observacao, agora, versaoMotor) {
+    var c = conteudo(q, versao, versaoMotor);
     return semVazios({ resposta: v, codigoPergunta: q, tituloNaEpoca: textoLimitado(c.titulo, 400), textoPerguntaNaEpoca: textoLimitado(c.texto, 4000),
       interpretacaoNaEpoca: textoLimitado(v === 'SIM' ? c.justSim : c.justNao, 4000), observacao: textoLimitado(observacao, MAX_OBS),
       questionnaireContentVersion: versao, dataResposta: agora });
   }
-  function snapshotDiagnostico(v, papeis, versao, observacao, agora) {
-    var c = conteudo(DIAG, versao);
+  function snapshotDiagnostico(v, papeis, versao, observacao, agora, versaoMotor) {
+    var c = conteudo(DIAG, versao, versaoMotor);
     return semVazios({ resposta: v, papeis: papeis.slice(), tituloNaEpoca: textoLimitado(c.titulo, 400), textoPerguntaNaEpoca: textoLimitado(c.texto, 4000),
       rotuloNaEpoca: textoLimitado(v === 'mesma' ? c.rotuloMesma : c.rotuloDistintas, 400),
       interpretacaoNaEpoca: textoLimitado(v === 'mesma' ? c.interpretacaoMesma : c.interpretacaoDistintas, 4000),
       observacao: textoLimitado(observacao, MAX_OBS), questionnaireContentVersion: versao, dataResposta: agora });
+  }  /* D2: a resposta é o CÓDIGO da opção (fixo, do núcleo); rótulo e interpretação são a redação da época */
+  function snapshotPredominancia(n, v, papeis, versao, observacao, agora, versaoMotor) {
+    var c = conteudo(nucleo().D2_POR_NIVEL[n], versao, versaoMotor);
+    var op = (c.opcoes || []).filter(function (o) { return o.codigo === v; })[0] || {};
+    return semVazios({ resposta: v, papeis: papeis.slice(), tituloNaEpoca: textoLimitado(c.titulo, 400), textoPerguntaNaEpoca: textoLimitado(c.texto, 4000),
+      rotuloNaEpoca: textoLimitado(op.rotulo, 400), interpretacaoNaEpoca: textoLimitado(op.interpretacao, 4000),
+      observacao: textoLimitado(observacao, MAX_OBS), questionnaireContentVersion: versao, dataResposta: agora });
   }
+
   /* O resultado do motor como o banco guarda (o Firebase não guarda null nem lista vazia). */
   function resultadoGravavel(res) {
     var out = {};
@@ -175,6 +220,7 @@
     r.revisao = revisaoBase + 1; r.atualizadoPor = usuario; r.atualizadoEm = agora;
     if (r.respostas && !Object.keys(r.respostas).length) delete r.respostas;
     if (r.diagnosticos && !Object.keys(r.diagnosticos).length) delete r.diagnosticos;
+    if (r.predominancias && !Object.keys(r.predominancias).length) delete r.predominancias;
     return r;
   }
   function payloadSalvar(id, reg, usuario, agora, revisaoBase) {
@@ -217,7 +263,7 @@
   /* o: { id (a avaliação concluída e vigente), reg, codigoFinal, justificativa, usuario, agora, audId }. O resultado
      automático não é tocado: a decisão é outro nó. liberaSquad vem do motor (mesma regra do resultado). */
   function payloadDecisao(o) {
-    var M = motor(), ra = o.reg.resultadoAutomatico || {}, Pz = window.faPosicionamentos;
+    var M = nucleo(), ra = o.reg.resultadoAutomatico || {}, Pz = window.faPosicionamentos;
     if (M.CODIGOS_FIRMES.indexOf(o.codigoFinal) === -1) throw new Error('codigo-nao-firme');
     var tipo = tipoDecisao(ra.codigoResultado, o.codigoFinal);
     var just = emBranco(o.justificativa) ? null : String(o.justificativa).slice(0, MAX_JUSTIFICATIVA);
@@ -339,6 +385,7 @@
   window.faAvaliacaoPosicionamentoNucleo = {
     gateDoItem: gateDoItem, textoGate: textoGate, ROTULO_GATE: ROTULO_GATE,
     simples: simples, avaliar: avaliar, caminho: caminho, diagnosticoNecessario: diagnosticoNecessario, papeisDoPar: papeisDoPar,
+    predominanciaNecessaria: predominanciaNecessaria, versaoMotorDo: versaoMotorDo, redacaoDisponivel: redacaoDisponivel, snapshotPredominancia: snapshotPredominancia,
     limparForaDoCaminho: limparForaDoCaminho, falta: falta, snapshotResposta: snapshotResposta, snapshotDiagnostico: snapshotDiagnostico,
     resultadoGravavel: resultadoGravavel, nomesNaConclusao: nomesNaConclusao,
     payloadCriacao: payloadCriacao, payloadSalvar: payloadSalvar, payloadConclusao: payloadConclusao, payloadDescarte: payloadDescarte,
@@ -703,9 +750,14 @@
 
     function respostaDe(q) { return state.atual && state.atual.respostas && state.atual.respostas[q]; }
     function renderChecklist() {
-      var a = state.atual, edita = podeEscrever(), versao = a.questionnaireContentVersion;
+      var a = state.atual, edita = podeEscrever(), versao = a.questionnaireContentVersion, vm = versaoMotorDo(a);
       var h = '<div class="avp-form-card" id="poChecklist"><h3>' + esc(a.itemNome) + ' ' + badge(a.status) + '</h3>' +
         '<p class="avp-intro">Responda considerando a responsabilidade organizacional associada a este objeto. As perguntas de cada nível aparecem conforme o caminho.</p>';
+      /* versão de motor sem a redação publicada que ela exige: nada de texto de outra versão nem de fábrica — trava */
+      if (!redacaoDisponivel(a)) {
+        return h + '<p class="avp-error-msg" id="poRedacaoIndisponivel" role="alert">Redação desta versão do motor (v' + esc(vm) + ') indisponível: ' +
+          'as perguntas não podem ser mostradas nem respondidas até a redação compatível ser publicada. Nada foi alterado nesta avaliação.</p></div>' + rodapeVoltar();
+      }
       if (!edita) h += '<p class="avp-decisao-aviso" id="poSomenteLeitura">Somente consulta: responder, salvar e concluir são do perfil Avaliação + Arquitetura.</p>';
       if (state.conflito) h += '<div class="avp-error-msg" id="poConflito" role="alert">Outra pessoa alterou este rascunho depois que você o abriu. Para não sobrescrever o trabalho dela, recarregue antes de continuar. ' +
         '<button type="button" class="btn btn--sm" id="poRecarregarBtn">Recarregar</button></div>';
@@ -718,8 +770,10 @@
         var qs = NIVEIS[n].filter(function (q) { return cam.indexOf(q) !== -1; });
         if (!qs.length) return;
         h += '<section class="po-nivel" data-nivel="' + n + '"><h4 class="po-nivel-titulo">' + esc(TITULO_NIVEL[n]) + '</h4>';
-        qs.forEach(function (q) { h += renderPergunta(q, versao, edita); });
-        if (diagnosticoNecessario(a, n)) h += renderDiagnostico(n, versao, edita);
+        qs.forEach(function (q) { h += renderPergunta(q, versao, edita, vm); });
+        if (diagnosticoNecessario(a, n)) h += renderDiagnostico(n, versao, edita, vm);
+        var pn = predominanciaNecessaria(a, n);
+        if (pn) h += renderPredominancia(n, pn.opcoes, versao, edita, vm);
         h += '</section>';
       });
       h += '</div>';
@@ -744,8 +798,8 @@
       if (c.ajudaExtra) partes.push('<p class="po-ajuda-extra">' + esc(c.ajudaExtra).replace(/\n/g, '<br>') + '</p>');
       return partes.length ? '<details class="avp-ajuda-det"><summary>Ajuda</summary>' + partes.join('') + '</details>' : '';
     }
-    function renderPergunta(q, versao, edita) {
-      var c = conteudo(q, versao), r = respostaDe(q), v = r && r.resposta;
+    function renderPergunta(q, versao, edita, vm) {
+      var c = conteudo(q, versao, vm), r = respostaDe(q), v = r && r.resposta;
       var h = '<div class="avp-question po-pergunta" data-q="' + q + '"><div class="avp-question-head"><span class="avp-question-num">' + q + '</span>' +
         '<p class="avp-question-text"><strong>' + esc(c.titulo || '') + '</strong><br>' + esc(c.texto || '') + '</p></div>' + avisoHeranca(q, null) + renderAjuda(c);
       h += '<div class="avp-choice-group">' + ['SIM', 'NAO'].map(function (val) {
@@ -771,8 +825,8 @@
       if (sit === 'ajuda' && agora) return '<p class="po-heranca" data-heranca="ajuda">A ajuda ' + (q ? 'desta pergunta' : 'deste diagnóstico') + ' mudou desde a versão anterior: confira a resposta trazida.</p>';
       return '';
     }
-    function renderDiagnostico(n, versao, edita) {
-      var c = conteudo(DIAG, versao), d = state.atual.diagnosticos && state.atual.diagnosticos[n], v = d && d.resposta;
+    function renderDiagnostico(n, versao, edita, vm) {
+      var c = conteudo(DIAG, versao, vm), d = state.atual.diagnosticos && state.atual.diagnosticos[n], v = d && d.resposta;
       var papeis = papeisDoPar(state.atual, n);
       var h = '<div class="avp-question po-diag" data-nivel="' + n + '"><div class="avp-question-head"><span class="avp-question-num">Diagnóstico</span>' +
         '<p class="avp-question-text"><strong>' + esc(c.titulo || 'Conflito ou recorte') + '</strong><br>' + esc(c.texto || '') + '</p></div>' +
@@ -783,6 +837,24 @@
       if (v) {
         if (d.interpretacaoNaEpoca) h += '<p class="po-interpretacao">' + esc(d.interpretacaoNaEpoca) + '</p>';
         h += '<label class="po-obs-rotulo" for="poDiagObs' + n + '">Observação (opcional)</label><textarea class="avp-observacao po-diag-obs" id="poDiagObs' + n + '" data-nivel="' + n + '" maxlength="' + MAX_OBS + '" rows="2"' + (edita ? '' : ' disabled') + '>' + esc(d.observacao || '') + '</textarea>';
+      }
+      return h + '</div>';
+    }
+    /* D2 (só em versão de motor com predominância): as opções são as do núcleo para os papéis que receberam SIM,
+       mais "não determinável"; o texto de cada uma é a redação publicada daquela versão */
+    function renderPredominancia(n, opcoes, versao, edita, vm) {
+      var c = conteudo(nucleo().D2_POR_NIVEL[n], versao, vm), d = state.atual.predominancias && state.atual.predominancias[n], v = d && d.resposta;
+      var rot = {};
+      (c.opcoes || []).forEach(function (o) { rot[o.codigo] = o; });
+      var h = '<div class="avp-question po-pred" data-nivel="' + n + '"><div class="avp-question-head"><span class="avp-question-num">Predominância</span>' +
+        '<p class="avp-question-text"><strong>' + esc(c.titulo || '') + '</strong><br>' + esc(c.texto || '') + '</p></div>' +
+        '<p class="po-diag-papeis">Papéis: ' + papeisDoPar(state.atual, n).map(spanNome).join(', ') + '</p>' + renderAjuda(c);
+      h += '<div class="avp-choice-group po-pred-opcoes">' + opcoes.map(function (oc) {
+        return '<button type="button" class="avp-choice-btn po-pred-resp' + (v === oc ? ' active ativa' : '') + '" data-nivel="' + n + '" data-v="' + esc(oc) + '"' + (edita ? '' : ' disabled') + '>' + esc((rot[oc] && rot[oc].rotulo) || oc) + '</button>';
+      }).join('') + '</div>';
+      if (v) {
+        if (d.interpretacaoNaEpoca) h += '<p class="po-interpretacao">' + esc(d.interpretacaoNaEpoca) + '</p>';
+        h += '<label class="po-obs-rotulo" for="poPredObs' + n + '">Observação (opcional)</label><textarea class="avp-observacao po-pred-obs" id="poPredObs' + n + '" data-nivel="' + n + '" maxlength="' + MAX_OBS + '" rows="2"' + (edita ? '' : ' disabled') + '>' + esc(d.observacao || '') + '</textarea>';
       }
       return h + '</div>';
     }
@@ -853,7 +925,7 @@
       if (sit !== 'vigente') return h;
       if (!podeEscrever()) return h;
       if (state.reservas[a.itemId]) return h + '<p class="avp-decisao-aviso" id="poDecisaoBloqueada" role="status">Há uma reavaliação em andamento. Conclua ou descarte essa reavaliação antes de registrar uma decisão para esta versão.</p>';
-      var M = motor(), auto = a.resultadoAutomatico && a.resultadoAutomatico.codigoResultado;
+      var M = nucleo(), auto = a.resultadoAutomatico && a.resultadoAutomatico.codigoResultado;
       var f = state.formDecisao || (state.formDecisao = { codigo: M.CODIGOS_FIRMES.indexOf(auto) !== -1 ? auto : '', justificativa: '' });
       var salvando = state.salvando === 'decisao';
       if (auto === 'A_VALIDAR') h += '<p class="avp-decisao-aviso" id="poOrientacaoAValidar">Se houver elementos suficientes, escolha um posicionamento firme e justifique. Se ainda não houver base para decidir, use Reavaliar.</p>';
@@ -900,6 +972,8 @@
         });
         var d = a.diagnosticos && a.diagnosticos[n];
         if (d) h += '<li><strong>Diagnóstico do Nível ' + n.slice(1) + '</strong>: ' + esc(d.rotuloNaEpoca || d.resposta) + (d.observacao ? '<br><em>' + esc(d.observacao) + '</em>' : '') + '</li>';
+        var pd = a.predominancias && a.predominancias[n];
+        if (pd) h += '<li><strong>Predominância do Nível ' + n.slice(1) + '</strong>: ' + esc(pd.rotuloNaEpoca || pd.resposta) + (pd.observacao ? '<br><em>' + esc(pd.observacao) + '</em>' : '') + '</li>';
       });
       return h + '</ul></details>';
     }
@@ -938,6 +1012,10 @@
       wrap.querySelectorAll('.po-diag-obs').forEach(function (t) {
         t.addEventListener('input', function () { var d = state.atual.diagnosticos[t.dataset.nivel]; if (!d) return; if (t.value) d.observacao = t.value.slice(0, MAX_OBS); else delete d.observacao; state.sujo = true; });
       });
+      wrap.querySelectorAll('.po-pred-resp').forEach(function (b) { b.addEventListener('click', function () { responderPredominancia(b.dataset.nivel, b.dataset.v); }); });
+      wrap.querySelectorAll('.po-pred-obs').forEach(function (t) {
+        t.addEventListener('input', function () { var d = state.atual.predominancias[t.dataset.nivel]; if (!d) return; if (t.value) d.observacao = t.value.slice(0, MAX_OBS); else delete d.observacao; state.sujo = true; });
+      });
       var sal = byId('poSalvarBtn'); if (sal) sal.addEventListener('click', salvar);
       var con = byId('poConcluirBtn'); if (con) con.addEventListener('click', concluir);
       var des = byId('poDescartarBtn'); if (des) des.addEventListener('click', pedirDescarte);
@@ -966,12 +1044,14 @@
       var limpo = limparForaDoCaminho(novo);
       var perde = limpo.removidas.filter(function (q) { return state.atual.respostas && state.atual.respostas[q]; });
       var diags = limpo.diagsRemovidos.filter(function (n) { return state.atual.diagnosticos && state.atual.diagnosticos[n]; });
+      var preds = (limpo.predsRemovidas || []).filter(function (n) { return state.atual.predominancias && state.atual.predominancias[n]; });
       function confirmar() { state.atual = limpo.reg; state.sujo = true; render(); }
-      if (!perde.length && !diags.length) { confirmar(); return; }
+      if (!perde.length && !diags.length && !preds.length) { confirmar(); return; }
       var partes = [];
       if (perde.length) partes.push('as respostas ' + perde.join(', '));
       if (limpo.obsRemovidas.length) partes.push(limpo.obsRemovidas.length === 1 ? '1 observação' : limpo.obsRemovidas.length + ' observações');
       diags.forEach(function (n) { partes.push('o diagnóstico do Nível ' + n.slice(1)); });
+      preds.forEach(function (n) { partes.push('a predominância do Nível ' + n.slice(1)); });
       modal('<h4>Esta mudança fecha um ramo</h4><p>Com esta resposta, ' + esc(partes.join(', ').replace(/, ([^,]*)$/, ' e $1')) +
         ' deixam de fazer parte desta avaliação e serão descartados. Nada é marcado como NÃO.</p><p>Continuar?</p>',
         { sim: 'Continuar', nao: 'Cancelar', aoSim: function () { confirmar(); return null; }, aoNao: function () { render(); } });
@@ -982,7 +1062,7 @@
       if (atual && atual.resposta === v) return;
       var novo = clone(state.atual);
       novo.respostas = novo.respostas || {};
-      novo.respostas[q] = snapshotResposta(q, v, novo.questionnaireContentVersion, atual && atual.observacao, agoraIso());
+      novo.respostas[q] = snapshotResposta(q, v, novo.questionnaireContentVersion, atual && atual.observacao, agoraIso(), versaoMotorDo(novo));
       aplicarMudanca(novo);
     }
     function responderDiagnostico(n, v) {
@@ -991,8 +1071,20 @@
       if (d && d.resposta === v) return;
       var novo = clone(state.atual);
       novo.diagnosticos = novo.diagnosticos || {};
-      novo.diagnosticos[n] = snapshotDiagnostico(v, papeisDoPar(novo, n), novo.questionnaireContentVersion, d && d.observacao, agoraIso());
-      state.atual = novo; state.sujo = true; render();
+      novo.diagnosticos[n] = snapshotDiagnostico(v, papeisDoPar(novo, n), novo.questionnaireContentVersion, d && d.observacao, agoraIso(), versaoMotorDo(novo));
+      /* na v1 o diagnóstico não abre nem fecha ramo (nada sai); na v2, "distintas" fecha a predominância e o que veio depois dela */
+      aplicarMudanca(novo);
+    }
+    function responderPredominancia(n, v) {
+      if (!podeEscrever() || state.salvando || state.conflito) return;
+      var pn = predominanciaNecessaria(state.atual, n);
+      if (!pn || pn.opcoes.indexOf(v) === -1) return;
+      var d = state.atual.predominancias && state.atual.predominancias[n];
+      if (d && d.resposta === v) return;
+      var novo = clone(state.atual);
+      novo.predominancias = novo.predominancias || {};
+      novo.predominancias[n] = snapshotPredominancia(n, v, papeisDoPar(novo, n), novo.questionnaireContentVersion, d && d.observacao, agoraIso(), versaoMotorDo(novo));
+      aplicarMudanca(novo);
     }
 
     /* ---- gravação com prazo: sem resposta não é "falhou" — confere o banco antes de liberar ---- */
@@ -1127,7 +1219,7 @@
       var tipo = tipoDecisao(auto, f.codigo);
       if (exigeJustificativa(tipo) && emBranco(f.justificativa)) { erroDecisao('Informe a justificativa: ela é obrigatória para ' + (tipo === 'DIVERGENCIA' ? 'divergir da recomendação automática.' : 'resolver um "A validar".')); return; }
       if (state.reservas[a.itemId]) { render(); return; }
-      var libera = motor().liberaSquadParaCodigoFirme(f.codigo);
+      var libera = nucleo().liberaSquadParaCodigoFirme(f.codigo);
       modal('<h4>Registrar a decisão?</h4><p>Posicionamento final: <strong>' + esc(nomeAtual(f.codigo)) + '</strong> (' + esc(ROTULO_TIPO_DECISAO[tipo]) + ').</p>' +
         '<p id="poModalLiberaSquad">' + (libera ? 'Pela decisão final, a Adequação à Squad (S1–S8) poderá ser realizada para este item (isso não cria nem associa Squad).'
           : 'Pela decisão final, a Adequação à Squad (S1–S8) não será liberada para este item.') + '</p>' +
@@ -1228,7 +1320,7 @@
       catch (e) { fim({ ok: false }); }
     }
     function nomesAtuais() {
-      var out = {}, M = motor();
+      var out = {}, M = nucleo();
       (M ? M.CODIGOS_INTERMEDIARIOS.concat(M.CODIGOS_FIRMES) : []).forEach(function (c) { out[c] = { nome: nomeAtual(c), contingencia: !!(P() && P().usandoContingencia(c)) }; });
       return out;
     }

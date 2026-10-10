@@ -58,7 +58,7 @@
      está aqui (codigoEstavel, ordem, grupo, obrigatoriedade, o próprio
      código do questionário) é identidade/regra, nunca editorial. */
   var CAMPOS_EDITORIAVEIS = ['titulo', 'texto', 'textoAjuda', 'exemplo', 'exemplos', 'ajudaExtra', 'justSim', 'justNao', 'observacaoAdministrativa',
-    'rotuloMesma', 'interpretacaoMesma', 'rotuloDistintas', 'interpretacaoDistintas'];
+    'rotuloMesma', 'interpretacaoMesma', 'rotuloDistintas', 'interpretacaoDistintas', 'opcoes'];
 
   /* TIPO DE PERGUNTA — estrutural, nunca editorial. Define quais respostas a
      pergunta admite e quais campos editoriais ela tem; não está em
@@ -71,7 +71,12 @@
        SIM/NAO); campos editoriais próprios — rotuloMesma/rotuloDistintas,
        interpretacaoMesma/interpretacaoDistintas, textoAjuda.quandoMesma/
        textoAjuda.quandoDistintas —, nunca justSim/justNao. */
-  var TIPOS_PERGUNTA = Object.freeze({ BINARIA: 'binaria', DIAGNOSTICO_CONFLITO_RECORTE: 'diagnostico-conflito-recorte' });
+  /* - 'diagnostico-predominancia' (D2 do motor de Posicionamento v2, H1-B): respostas = os CÓDIGOS das opções
+       (fixos, do núcleo do motor: OPCOES_PREDOMINANCIA + NAO_DETERMINAVEL); o editorial é o texto da pergunta e,
+       por opção, rotulo/interpretacao (campo opcoes: [{ codigo, rotulo, interpretacao }]). Só existe no conteúdo
+       de uma versão de motor que tem D2 (trilha motores/<v>), nunca no questionário v1. */
+  var TIPOS_PERGUNTA = Object.freeze({ BINARIA: 'binaria', DIAGNOSTICO_CONFLITO_RECORTE: 'diagnostico-conflito-recorte',
+    DIAGNOSTICO_PREDOMINANCIA: 'diagnostico-predominancia' });
   /* Códigos de resposta: regra/identidade (o motor de posicionamento lê
      exatamente 'mesma'/'distintas' — ver RESPOSTAS_DIAGNOSTICO em
      motor-posicionamento.js), nunca conteúdo editorial: vêm do TIPO, não
@@ -79,14 +84,16 @@
   var RESPOSTAS_DIAGNOSTICO = Object.freeze({ MESMA: 'mesma', DISTINTAS: 'distintas' });
   var RESPOSTAS_POR_TIPO = Object.freeze({
     binaria: Object.freeze(['SIM', 'NAO']),
-    'diagnostico-conflito-recorte': Object.freeze([RESPOSTAS_DIAGNOSTICO.MESMA, RESPOSTAS_DIAGNOSTICO.DISTINTAS])
+    'diagnostico-conflito-recorte': Object.freeze([RESPOSTAS_DIAGNOSTICO.MESMA, RESPOSTAS_DIAGNOSTICO.DISTINTAS]),
+    'diagnostico-predominancia': Object.freeze([])   /* as respostas são os códigos das opções da própria pergunta */
   });
   /* Campos editoriais que só fazem sentido num tipo: numa gravação, os do
      OUTRO tipo saem da pergunta (o diagnóstico nunca leva justSim/justNao;
      uma binária nunca leva os rótulos de mesma/distintas). */
   var CAMPOS_SO_DO_TIPO = {
     binaria: { raiz: ['justSim', 'justNao'], ajuda: ['quandoSim', 'quandoNao'] },
-    'diagnostico-conflito-recorte': { raiz: ['rotuloMesma', 'interpretacaoMesma', 'rotuloDistintas', 'interpretacaoDistintas'], ajuda: ['quandoMesma', 'quandoDistintas'] }
+    'diagnostico-conflito-recorte': { raiz: ['rotuloMesma', 'interpretacaoMesma', 'rotuloDistintas', 'interpretacaoDistintas'], ajuda: ['quandoMesma', 'quandoDistintas'] },
+    'diagnostico-predominancia': { raiz: ['opcoes'], ajuda: [] }
   };
 
   var PADRAO = {
@@ -875,6 +882,109 @@
     });
   }
 
+  /* ===================== CONTEÚDO POR VERSÃO DO MOTOR (H1-B) =====================
+     O questionário de cima (versaoPublicada/versoes/rascunho) é o conteúdo do motor EM VIGOR — hoje o v1, com a
+     estrutura de PADRAO. A redação de uma versão NOVA do motor (que muda a estrutura: D2) fica numa trilha à parte,
+     questionarios-config/<codigo>/motores/<versão do motor>/{ rascunho, versoes, versaoPublicada }, para não
+     trocar o texto que o site usa enquanto o motor dele está em vigor.
+       - A estrutura exigida vem do NÚCLEO do motor (contratoDoQuestionario: códigos, tipos e opções exatos); o
+         texto é livre. conteudoCompativel prova o par, e o vínculo motorCompativel é gravado AQUI, pelo sistema,
+         com a versão para a qual o conteúdo foi montado — nunca um campo do editor nem da carga inicial.
+       - Nesta etapa só existe RASCUNHO: importar a carga inicial (arquivo de dados separado, carregado sob
+         demanda; não é lógica e não é fallback), ler e descartar. Publicar o par motor + conteúdo é governança
+         (H2) — nada aqui muda versaoPublicada nem o texto que o site usa.
+       - Sem fallback: conteúdo de uma versão de motor ≥ 2 que não existe é null (nunca o texto v1 ou de fábrica). */
+  function nucleoMotor() { return window.faMotorPosicionamentoNucleo || null; }
+  function trilha(codigo, versaoMotor) {
+    var cfg = cache[codigo];
+    return (cfg && cfg.motores && cfg.motores[versaoMotor]) || null;
+  }
+  function normalizarConteudoMotor(codigo, perguntas, versaoMotor) {
+    var N = nucleoMotor(), def;
+    try { def = N && N.definicao(versaoMotor); } catch (e) { def = null; }
+    if (!def || def.questionario !== codigo) return { erro: 'sem-contrato' };
+    if (!Array.isArray(perguntas)) return { erro: 'estrutura-divergente' };
+    var contrato = N.contratoDoQuestionario(def), porCodigo = {};
+    for (var i = 0; i < perguntas.length; i++) {
+      var c = perguntas[i] && perguntas[i].codigoEstavel;
+      if (!c || porCodigo[c]) return { erro: 'estrutura-divergente' };
+      porCodigo[c] = perguntas[i];
+    }
+    if (perguntas.length !== contrato.itens.length) return { erro: 'estrutura-divergente' };
+    var out = [];
+    for (var j = 0; j < contrato.itens.length; j++) {
+      var it = contrato.itens[j], orig = porCodigo[it.codigoEstavel];
+      if (!orig) return { erro: 'estrutura-divergente' };
+      var p = JSON.parse(JSON.stringify(orig));
+      p.tipo = it.tipo;   /* o tipo vem do contrato, nunca do conteúdo */
+      Object.keys(CAMPOS_SO_DO_TIPO).forEach(function (outro) {
+        if (outro === it.tipo) return;
+        CAMPOS_SO_DO_TIPO[outro].raiz.forEach(function (campo) { delete p[campo]; });
+        if (p.textoAjuda && typeof p.textoAjuda === 'object') {
+          CAMPOS_SO_DO_TIPO[outro].ajuda.forEach(function (campo) { delete p.textoAjuda[campo]; });
+          if (!Object.keys(p.textoAjuda).length) delete p.textoAjuda;
+        }
+      });
+      if (it.opcoes) {
+        var dadas = {};
+        (Array.isArray(p.opcoes) ? p.opcoes : []).forEach(function (o) { if (o && o.codigo) dadas[o.codigo] = o; });
+        if (Object.keys(dadas).length !== it.opcoes.length || it.opcoes.some(function (oc) { return !dadas[oc]; })) return { erro: 'estrutura-divergente' };
+        /* os códigos e a ordem vêm do contrato; de cada opção, só o editorial */
+        p.opcoes = it.opcoes.map(function (oc) {
+          var o = dadas[oc], n = { codigo: oc };
+          if (typeof o.rotulo === 'string') n.rotulo = o.rotulo;
+          if (typeof o.interpretacao === 'string') n.interpretacao = o.interpretacao;
+          return n;
+        });
+      }
+      out.push(p);
+    }
+    var prova = N.conteudoCompativel(def, { codigo: codigo, motorCompativel: versaoMotor, perguntas: out });
+    if (!prova.compativel) return { erro: 'incompativel', detalhes: prova.erros };
+    return { perguntas: out };
+  }
+  function rascunhoConteudoMotor(codigo, versaoMotor) {
+    var t = trilha(codigo, versaoMotor);
+    return (t && t.rascunho) || null;
+  }
+  /* conteúdo PUBLICADO de uma versão de motor (o 1 é o questionário de cima); null quando não existe */
+  function perguntasDoConteudoMotor(codigo, versaoMotor, versaoConteudo) {
+    if (versaoMotor === 1) return perguntasDaVersao(codigo, versaoConteudo);
+    var t = trilha(codigo, versaoMotor);
+    var v = versaoConteudo || (t && t.versaoPublicada);
+    return (t && t.versoes && v && t.versoes[v] && t.versoes[v].perguntas) || null;
+  }
+  function conteudoPerguntaMotor(codigo, versaoMotor, codigoEstavel, versaoConteudo) {
+    if (versaoMotor === 1) return conteudoPergunta(codigo, codigoEstavel, versaoConteudo);
+    var ps = perguntasDoConteudoMotor(codigo, versaoMotor, versaoConteudo);
+    return (ps && ps.filter(function (p) { return p.codigoEstavel === codigoEstavel; })[0]) || null;
+  }
+  function situacaoConteudoMotor(codigo, versaoMotor) {
+    var N = nucleoMotor(), r = rascunhoConteudoMotor(codigo, versaoMotor), t = trilha(codigo, versaoMotor), prova = null;
+    if (r && N) {
+      try { prova = N.conteudoCompativel(N.definicao(versaoMotor), { codigo: codigo, motorCompativel: r.motorCompativel, perguntas: r.perguntas }); } catch (e) { prova = { compativel: false, erros: [{ codigo: 'sem-contrato' }] }; }
+    }
+    return { carregada: configCarregada(codigo), temRascunho: !!r, rascunho: r, compativel: !!(prova && prova.compativel), erros: prova ? prova.erros : [],
+      versaoPublicada: (t && t.versaoPublicada) || null, emVigor: !!(N && N.versaoEmVigor() === versaoMotor) };
+  }
+  /* a carga inicial da redação de uma versão de motor: arquivo de DADOS separado
+     (conteudo-inicial-posicionamento-v<N>.js → window.faConteudoInicialPosicionamento[<N>]) */
+  function importarConteudoInicial(codigo, versaoMotor, usuario, cb) {
+    if (!configCarregada(codigo)) { cb('config-nao-carregada'); return; }
+    if (rascunhoConteudoMotor(codigo, versaoMotor)) { cb('ja-existe-rascunho'); return; }
+    var carga = window.faConteudoInicialPosicionamento && window.faConteudoInicialPosicionamento[versaoMotor];
+    if (!carga || carga.codigo !== codigo || !Array.isArray(carga.perguntas)) { cb('sem-carga-inicial'); return; }
+    var norm = normalizarConteudoMotor(codigo, carga.perguntas, versaoMotor);
+    if (norm.erro) { cb(norm.erro, norm.detalhes); return; }
+    db().ref(NODE_CONFIG + '/' + codigo + '/motores/' + versaoMotor + '/rascunho').set(
+      { perguntas: norm.perguntas, motorCompativel: versaoMotor, origem: 'carga-inicial', atualizadoEm: new Date().toISOString(), atualizadoPor: usuario || null },
+      function (err) { cb(err || null); }
+    );
+  }
+  function descartarRascunhoConteudoMotor(codigo, versaoMotor, cb) {
+    db().ref(NODE_CONFIG + '/' + codigo + '/motores/' + versaoMotor + '/rascunho').remove(function (err) { if (cb) cb(err || null); });
+  }
+
   window.faQuestionarios = {
     CODIGOS: { CLASSIFICACAO_ARQUITETURAL: 'CLASSIFICACAO_ARQUITETURAL', ADEQUACAO_SQUAD: 'ADEQUACAO_SQUAD',
       POSICIONAMENTO_ORGANIZACIONAL: 'POSICIONAMENTO_ORGANIZACIONAL' },
@@ -885,6 +995,13 @@
     tipoExplicito: tipoExplicito,
     respostasDoTipo: respostasDoTipo,
     normalizarPerguntas: normalizarPerguntas,
+    normalizarConteudoMotor: normalizarConteudoMotor,
+    rascunhoConteudoMotor: rascunhoConteudoMotor,
+    perguntasDoConteudoMotor: perguntasDoConteudoMotor,
+    conteudoPerguntaMotor: conteudoPerguntaMotor,
+    situacaoConteudoMotor: situacaoConteudoMotor,
+    importarConteudoInicial: importarConteudoInicial,
+    descartarRascunhoConteudoMotor: descartarRascunhoConteudoMotor,
     PADRAO: PADRAO,
     onMudanca: onMudanca,
     versaoAtual: versaoAtual,

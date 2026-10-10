@@ -70,7 +70,7 @@ const ctx = { console, JSON, Object, Array, String, Math, Number, Date, RegExp, 
 ctx.window = ctx;
 ctx.firebase = { database: () => ({ ref: () => ({ on() {}, off() {}, once() { return Promise.resolve({ val: () => null }); } }) }) };
 vm.createContext(ctx);
-for (const f of ['questionarios-config.js', 'motor-posicionamento.js', 'avaliacao-posicionamento.js']) vm.runInContext(fs.readFileSync(path.join(RAIZ, f), 'utf8'), ctx, { filename: f });
+for (const f of ['questionarios-config.js', 'motor-posicionamento.js', 'motor-posicionamento-nucleo.js', 'avaliacao-posicionamento.js']) vm.runInContext(fs.readFileSync(path.join(RAIZ, f), 'utf8'), ctx, { filename: f });
 const TELA = ctx.faAvaliacaoPosicionamentoNucleo;
 let diagIgual = 0;
 estados((r, g) => {
@@ -92,7 +92,7 @@ afirma(JSON.stringify(V1.respostas) === JSON.stringify(M.RESPOSTAS) && JSON.stri
 afirma(JSON.stringify(N.CODIGOS_FIRMES) === JSON.stringify(M.CODIGOS_FIRMES) && JSON.stringify(N.CODIGOS_INTERMEDIARIOS) === JSON.stringify(M.CODIGOS_INTERMEDIARIOS) && JSON.stringify(N.TIPOS_A_VALIDAR) === JSON.stringify(M.TIPOS_A_VALIDAR), 'códigos firmes, intermediários e tipos de A_VALIDAR');
 afirma(Object.keys(V1.regras).every((k) => regrasVistas[k]) && Object.keys(regrasVistas).every((k) => V1.regras[k]), 'as 25 regras são alcançadas, e nada fora do catálogo é registrado');
 afirma(Object.keys(motivosVistos).every((k) => V1.motivos.indexOf(k) !== -1) && V1.motivos.every((k) => motivosVistos[k]), 'os motivos registrados são exatamente os do catálogo');
-afirma(JSON.stringify(N.versoes()) === JSON.stringify(M.versoes()) && V1.versao === M.versaoAtual(), 'mesmas versões conhecidas (só a 1) e a em vigor do motor é a da definição');
+afirma(JSON.stringify(M.versoes()) === '[1]' && N.versoes().indexOf(1) !== -1 && N.versaoEmVigor() === 1 && V1.versao === M.versaoAtual(), 'a versão em vigor continua a 1 — no motor e no núcleo (a v2 do H1-B existe só no núcleo, inativa)');
 
 console.log('\n== D. Invariante Linha × Squad (literal) ==');
 const LINHA_SQUAD = { AREA_ESPECIALIZADA: false, COE: false, ESTRATEGIA_CLIENTES: true, NEGOCIOS: true, PLATAFORMA_CANAIS: true,
@@ -152,7 +152,7 @@ afirma(JSON.stringify(N.diagnosticosNecessarios(V1, Object.assign({ O6: S, O7: S
 
 console.log('\n== F. Versão desconhecida e definição inválida ==');
 const lanca = (fn) => { try { fn(); return false; } catch (e) { return true; } };
-afirma(lanca(() => N.definicao(2)) && lanca(() => N.definicao(0)) && lanca(() => N.definicao('x')), 'definicao(2/0/"x") recusada');
+afirma(lanca(() => N.definicao(3)) && lanca(() => N.definicao(0)) && lanca(() => N.definicao('x')), 'definicao(3/0/"x") recusada (só existem a 1 e a 2)');
 afirma(lanca(() => N.avaliar(null, {}, {})) && lanca(() => N.avaliar({}, {}, {})) && lanca(() => N.avaliar({ versao: 1 }, {}, {})), 'avaliar sem definição válida recusa (nunca cai num padrão)');
 afirma(lanca(() => M.avaliar({}, {}, { versao: 2 })), '…como o motor atual, que recusa versão desconhecida');
 
@@ -166,7 +166,12 @@ afirma(JSON.stringify([ent, entD]) === copia, 'as entradas não mudam');
 afirma(canon(o1) === canon(o2) && o1 !== o2 && o1.niveisAlcancados !== o2.niveisAlcancados, 'determinístico, e cada saída é um objeto novo (nada compartilhado)');
 const fonte = fs.readFileSync(path.join(RAIZ, 'motor-posicionamento-nucleo.js'), 'utf8').replace(/\/\*[\s\S]*?\*\//g, '');
 afirma(!/firebase|document\.|localStorage|sessionStorage|fetch\(|XMLHttpRequest|faAuth|require\(/.test(fonte), 'o arquivo não usa DOM, Firebase, autenticação, rede, armazenamento nem outros módulos');
-afirma(!/motor-posicionamento-nucleo/.test(fs.readFileSync(path.join(RAIZ, '..', 'index.html'), 'utf8')), 'lado a lado: o núcleo ainda não é carregado pelo site (nenhum consumidor mudou)');
+/* H1-Final: o site carrega o núcleo (a tela de Posicionamento o usa, com a v1 em vigor) antes de quem o consome */
+const html = fs.readFileSync(path.join(RAIZ, '..', 'index.html'), 'utf8');
+const posDe = (f) => html.indexOf('<script src="forca-agil/' + f + '"></script>');
+afirma(posDe('motor-posicionamento-nucleo.js') !== -1 && posDe('motor-posicionamento-nucleo.js') < posDe('questionarios-config.js') &&
+  posDe('motor-posicionamento-nucleo.js') < posDe('avaliacao-posicionamento.js'), 'o site carrega o núcleo antes de questionarios-config.js e avaliacao-posicionamento.js');
+afirma(N.versaoEmVigor() === 1, 'a versão em vigor continua a 1');
 
 console.log('\n' + total + ' verificações, ' + falhas + ' falha(s).');
 process.exit(falhas ? 1 : 0);

@@ -122,7 +122,9 @@ function parte1() {
   afirma(['O2', 'O3', 'O5', 'O6', 'O9'].every((c) => !!O.find((p) => p.codigoEstavel === c).ajudaExtra) &&
     ['O1', 'O4', 'O7', 'O8'].every((c) => !O.find((p) => p.codigoEstavel === c).ajudaExtra), 'orientação adicional (ajudaExtra) em O2, O3, O5, O6 e O9');
   afirma(D.tipo === TIPO_DIAG && fq.tipoPergunta(D) === TIPO_DIAG, 'diagnóstico com tipo "' + TIPO_DIAG + '"');
-  afirma(igual(fq.TIPOS_PERGUNTA, { BINARIA: 'binaria', DIAGNOSTICO_CONFLITO_RECORTE: TIPO_DIAG }) && Object.isFrozen(fq.TIPOS_PERGUNTA), 'catálogo de tipos estável e congelado');
+  afirma(igual(fq.TIPOS_PERGUNTA, { BINARIA: 'binaria', DIAGNOSTICO_CONFLITO_RECORTE: TIPO_DIAG, DIAGNOSTICO_PREDOMINANCIA: 'diagnostico-predominancia' }) && Object.isFrozen(fq.TIPOS_PERGUNTA),
+    'catálogo de tipos estável e congelado (o D2 do motor v2 entrou no H1-Final; o questionário v1 não usa)');
+  afirma(!fq.PADRAO.POSICIONAMENTO_ORGANIZACIONAL.perguntas.some((p) => p.tipo === 'diagnostico-predominancia' || p.opcoes), 'o questionário v1 (PADRAO) não tem D2 nem opções');
   afirma(igual(fq.RESPOSTAS_DIAGNOSTICO, { MESMA: 'mesma', DISTINTAS: 'distintas' }) && Object.isFrozen(fq.RESPOSTAS_DIAGNOSTICO), 'respostas do diagnóstico: mesma / distintas (congeladas)');
   const motor = require(path.join(RAIZ, 'forca-agil', 'motor-posicionamento.js'));
   afirma(igual(Array.from(fq.respostasDoTipo(TIPO_DIAG)), motor.RESPOSTAS_DIAGNOSTICO) && igual(Array.from(fq.respostasDoTipo('binaria')), motor.RESPOSTAS),
