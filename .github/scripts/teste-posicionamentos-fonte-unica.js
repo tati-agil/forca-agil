@@ -255,7 +255,11 @@ async function contingencias(browser) {
     console.log('\n-- ' + nomeTela + ': leitura RECUSADA --');
     r = await abrir(browser, viewport, { fail: ['taxonomia/organizacional'] });
     await P(r.page, () => window.faPosicionamentos.iniciar());
-    await esperarCondicao(r.page, () => window.faPosicionamentos.estado() === 'contingencia', null, { limite: 3000, descricao: 'contingência por recusa (antes do limite)' });
+    /* "contingência" liga com a PRIMEIRA recusa; as dos outros códigos podem ainda estar a caminho. Uma espera só, de 3 s,
+       pelas duas coisas: assim tudo acontece bem antes do limite de demora (6 s), que também levaria a "indisponível". */
+    await esperarCondicao(r.page, () => window.faPosicionamentos.estado() === 'contingencia' &&
+      window.faPosicionamentos.codigos().every((c) => window.faPosicionamentos.estadoDefinicao(c) === 'indisponivel'),
+    null, { limite: 3000, descricao: 'a contingência e as recusas de todos os códigos chegarem antes do limite' });
     afirma(await P(r.page, () => window.faPosicionamentos.nome('AREA_ESPECIALIZADA') === 'Área Especializada' && window.faPosicionamentos.precisaAviso() &&
       window.faPosicionamentos.codigos().every((c) => window.faPosicionamentos.definicao(c) === null && window.faPosicionamentos.estadoDefinicao(c) === 'indisponivel')),
       'recusada: rótulo de fábrica + aviso já, sem esperar o limite; definições "indisponível"');
