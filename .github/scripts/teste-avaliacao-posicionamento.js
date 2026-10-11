@@ -368,6 +368,24 @@ async function redeLenta(browser, nomeTela, viewport) {
   afirma(erros.length === 0, 'nenhum erro de JS (' + erros.length + ')');
 }
 
+/* B1: gravação RECUSADA pelo banco nunca parece concluída — a tela avisa e não mostra o rascunho como criado */
+async function gravacaoRecusada(browser, nomeTela, viewport) {
+  console.log('\n######## ' + nomeTela + ' — gravação recusada ########');
+  const { ctx, page, erros } = await abrir(browser, viewport, { hash: '#avaliacoes?po=escolher&item=p1', fail: ['posicionamento-auditoria'] });
+  await tela(page, 'poIniciarBtn');
+  const antes = await banco(page);
+  await page.click('#poIniciarBtn');
+  await page.waitForSelector('.po-modal');
+  afirma(/Não foi possível iniciar a avaliação/.test(await page.locator('.po-modal').innerText()), 'recusada: avisa "Não foi possível iniciar a avaliação"');
+  const db = await banco(page);
+  afirma(JSON.stringify(db['avaliacoes-posicionamento']) === JSON.stringify(antes['avaliacoes-posicionamento']) && !(db['posicionamento-rascunho-por-item'] || {}).p1,
+    'recusada: nada gravado (nem avaliação, nem reserva) — atômico');
+  await page.click('.po-modal-sim');
+  afirma(await page.locator('#poChecklist').count() === 0 && await page.locator('#poIniciarBtn').count() === 1, 'recusada: a tela não abre um rascunho que não existe; Iniciar continua disponível');
+  await ctx.close();
+  afirma(erros.length === 0, 'nenhum erro de JS (' + erros.length + ')');
+}
+
 async function fichaEVoltar(browser, nomeTela, viewport) {
   console.log('\n######## ' + nomeTela + ' — ficha do Produto/Serviço e volta à área Avaliação ########');
   let { ctx, page, erros } = await abrir(browser, viewport, { hash: '#avaliacoes?avp=p1' });
@@ -411,6 +429,7 @@ async function moduloAtrasado(browser, nomeTela, viewport) {
     await fluxoPrincipal(browser, nome, vp);
     await perfilAvaliacao(browser, nome, vp);
     await redeLenta(browser, nome, vp);
+    await gravacaoRecusada(browser, nome, vp);
     await fichaEVoltar(browser, nome, vp);
     await moduloAtrasado(browser, nome, vp);
   }
