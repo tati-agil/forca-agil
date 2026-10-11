@@ -1,0 +1,45 @@
+name: Fronteira confiável — implantar Cloud Functions (manual)
+
+# B4 do H2-b. SÓ disparo manual e só depois da autorização de infraestrutura (plano Blaze, APIs e papéis — ver
+# o diagnóstico verificar-infra-functions.yml). O deploy da main (firebase-deploy.yml) NÃO publica funções.
+# Implanta apenas as funções de functions/ (--only functions): não mexe no site, nas regras nem no banco, e não
+# habilita API nem faturamento. A ativação da v2 continua DESLIGADA no código (functions/index.js:
+# ATIVACAO_HABILITADA = false); destravar é do H3-b.
+#
+# Segurança: a credencial entra só pela ação oficial de autenticação, nunca interpolada num comando.
+on:
+  workflow_dispatch:
+    inputs:
+      confirmar:
+        description: 'Digite IMPLANTAR para confirmar a implantação das funções da fronteira confiável'
+        required: true
+
+permissions:
+  contents: read
+
+concurrency:
+  group: deploy-functions
+  cancel-in-progress: false
+
+jobs:
+  implantar:
+    if: ${{ github.event.inputs.confirmar == 'IMPLANTAR' && github.ref == 'refs/heads/main' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - name: Autenticar (conta de serviço do CI)
+        uses: google-github-actions/auth@v2
+        with:
+          credentials_json: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_KYBER_AGIL }}
+          create_credentials_file: true
+          export_environment_variables: true
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - name: Instalar dependências das funções (versões travadas no package-lock.json)
+        run: npm ci --prefix functions
+      - name: Implantar só as funções (o predeploy copia os módulos do site para functions/site)
+        run: npx firebase-tools@13 deploy --only functions --project kyber-agil --non-interactive

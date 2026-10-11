@@ -67,6 +67,28 @@ function contexto() {
   afirma(o.caminho === 'y' && o.ev === 'value' && JSON.stringify(vistos) === '[{"n":1},null]' && erros[0] === 'negado', 'ouvir: cada mudança e o erro chegam');
   cancelar();
   afirma(c.log.off.length === 1 && c.log.off[0].cb === o.cb && c.log.off[0].caminho === 'y', 'cancelar desliga exatamente aquele ouvinte');
+  console.log('C. B4 — executar (fronteira confiável)');
+  const chamadas = [];
+  let comportamento = null;
+  c.ctx.firebase.app = () => ({ functions: (regiao) => ({ httpsCallable: (nome, op) => (dados) => { chamadas.push({ regiao, nome, dados, op }); return comportamento(); } }) });
+  const exec = (op, d, prazo) => new Promise((ok) => c.S.executar(op, d, prazo, (e, v) => ok([e, v])));
+  comportamento = () => Promise.resolve({ data: { valida: true } });
+  let x = await exec('validarRedacaoPublicada', { versaoMotor: 2, versaoRedacao: 1 }, 200);
+  afirma(x[0] === null && x[1].valida === true && chamadas[0].regiao === 'us-central1' && chamadas[0].nome === 'validarRedacaoPublicada' && chamadas[0].dados.versaoMotor === 2,
+    'resultado → cb(null, dados), na região das funções, com os dados intactos');
+  comportamento = () => Promise.reject(Object.assign(new Error('negado'), { code: 'functions/permission-denied' }));
+  x = await exec('conferirEntradaEmVigor', { propostaId: 'p' }, 200);
+  afirma(x[0] && x[0].codigo === 'permission-denied', 'recusa do servidor → cb({ codigo })');
+  comportamento = () => Promise.reject(Object.assign(new Error('nao existe'), { code: 'functions/not-found' }));
+  x = await exec('conferirEntradaEmVigor', { propostaId: 'p' }, 200);
+  afirma(x[0] && x[0].codigo === 'indisponivel', 'função não implantada → "indisponivel" (nunca "validado")');
+  comportamento = () => new Promise(() => {});
+  x = await exec('conferirEntradaEmVigor', { propostaId: 'p' }, 30);
+  afirma(x[0] === 'sem-resposta', 'sem resposta no prazo → "sem-resposta"');
+  delete c.ctx.firebase.app;
+  x = await exec('validarRedacaoPublicada', {}, 200);
+  afirma(x[0] && x[0].codigo === 'indisponivel', 'página sem o SDK de functions → "indisponivel"');
+  afirma(/firebase-functions-compat\.js/.test(html) && html.indexOf('firebase-functions-compat.js') < html.indexOf('forca-agil/firebase.js'), 'o SDK de functions (compat) carrega antes de firebase.js');
   console.log('\n' + total + ' verificações, ' + falhas + ' falha(s).');
   process.exit(falhas ? 1 : 0);
 })();

@@ -1,0 +1,13 @@
+{
+  "name": "forca-agil-fronteira-confiavel",
+  "private": true,
+  "description": "B4 — fronteira confiável do motor de Posicionamento (Cloud Functions 2ª geração). Implantação só pelo workflow manual deploy-functions.yml.",
+  "main": "index.js",
+  "engines": {
+    "node": "20"
+  },
+  "dependencies": {
+    "firebase-admin": "13.10.0",
+    "firebase-functions": "6.6.0"
+  }
+}

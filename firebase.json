@@ -5,6 +5,7 @@
       "firebase.json",
       "**/.*",
       "**/node_modules/**",
+      "functions/**",
       "scraps/**",
       "screenshots/**",
       "uploads/**",
@@ -25,14 +26,14 @@
         "source": "/index.html",
         "headers": [
           { "key": "Cache-Control", "value": "no-cache" },
-          { "key": "Content-Security-Policy", "value": "default-src 'self'; script-src 'self' https://www.gstatic.com; style-src 'self' https://fonts.googleapis.com 'unsafe-inline'; font-src https://fonts.gstatic.com; connect-src 'self' https://*.firebaseio.com wss://*.firebaseio.com https://*.googleapis.com; img-src 'self' data:;" }
+          { "key": "Content-Security-Policy", "value": "default-src 'self'; script-src 'self' https://www.gstatic.com; style-src 'self' https://fonts.googleapis.com 'unsafe-inline'; font-src https://fonts.gstatic.com; connect-src 'self' https://*.firebaseio.com wss://*.firebaseio.com https://*.googleapis.com https://*.cloudfunctions.net; img-src 'self' data:;" }
         ]
       },
       {
         "source": "/",
         "headers": [
           { "key": "Cache-Control", "value": "no-cache" },
-          { "key": "Content-Security-Policy", "value": "default-src 'self'; script-src 'self' https://www.gstatic.com; style-src 'self' https://fonts.googleapis.com 'unsafe-inline'; font-src https://fonts.gstatic.com; connect-src 'self' https://*.firebaseio.com wss://*.firebaseio.com https://*.googleapis.com; img-src 'self' data:;" }
+          { "key": "Content-Security-Policy", "value": "default-src 'self'; script-src 'self' https://www.gstatic.com; style-src 'self' https://fonts.googleapis.com 'unsafe-inline'; font-src https://fonts.gstatic.com; connect-src 'self' https://*.firebaseio.com wss://*.firebaseio.com https://*.googleapis.com https://*.cloudfunctions.net; img-src 'self' data:;" }
         ]
       }
     ],
@@ -46,8 +47,16 @@
   "database": {
     "rules": "database.rules.min.json"
   },
+  "functions": {
+    "source": "functions",
+    "runtime": "nodejs20",
+    "ignore": ["node_modules", ".git", "*.log"],
+    "predeploy": ["node .github/scripts/copiar-modulos-fronteira.js"]
+  },
   "emulators": {
     "database": { "port": 9000 },
+    "auth": { "port": 9099 },
+    "functions": { "port": 5001 },
     "ui": { "enabled": false }
   }
 }
