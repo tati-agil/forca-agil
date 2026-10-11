@@ -1000,14 +1000,79 @@
   /* versões PUBLICADAS da redação de uma versão de motor (≥ 2), da mais nova para a mais antiga */
   function versoesPublicadasConteudoMotor(codigo, versaoMotor) {
     var t = trilha(codigo, versaoMotor), out = [];
-    Object.keys((t && t.versoes) || {}).forEach(function (v) { var x = t.versoes[v]; if (x) out.push({ versao: Number(v), perguntas: x.perguntas || [], motorCompativel: x.motorCompativel, publicadoEm: x.publicadoEm || null, publicadoPor: x.publicadoPor || null }); });
+    Object.keys((t && t.versoes) || {}).forEach(function (v) {
+      var x = t.versoes[v];
+      if (x) out.push({ versao: Number(v), perguntas: x.perguntas || [], motorCompativel: x.motorCompativel, publicadoEm: x.publicadoEm || null, publicadoPor: x.publicadoPor || null,
+        digestRedacao: x.digestRedacao || null, auditoriaId: x.auditoriaId || null,
+        /* B2: publicada NÃO é validada — só a fronteira confiável (B4) poderá marcar uma redação como apta a entrar em
+           vigor; as regras do banco não deixam a tela gravar esse campo */
+        validadaParaAtivacao: false });
+    });
     return out.sort(function (a, b) { return b.versao - a.versao; });
   }
-  /* PUBLICAR a redação de um motor novo fica BLOQUEADO nesta fase (H2-a): as regras atuais de questionarios-config não
-     garantem que uma versão publicada não seja alterada nem apagada (escrita livre no nó para os perfis com acesso).
-     Imutabilidade só pela tela não é garantia — a publicação entra com a mudança de regras da fase b. */
-  var PUBLICACAO_CONTEUDO_MOTOR = Object.freeze({ liberada: false,
-    motivo: 'As regras atuais do banco não garantem que uma versão publicada não seja alterada nem apagada; a publicação fica para a fase de ativação segura (H2-b).' });
+  /* B2 — PUBLICAR a redação de um motor novo. A garantia é do BANCO (database.rules.json, provada no emulador em
+     teste-rules-redacao-motor.js), não da tela: versão publicada só é criada (nunca alterada nem apagada), o ponteiro
+     versaoPublicada só avança de 1 em 1 na mesma gravação que cria a versão, a auditoria é obrigatória e só de
+     acréscimo, autoria = UID e e-mail da sessão, horário = o do servidor. Publicar NÃO valida para ativação nem põe o
+     motor em vigor. Em caso de problema, admin geral SUSPENDE novas publicações (publicacaoSuspensa) — o histórico
+     continua protegido; nunca se volta a deixar versão publicada mutável. */
+  var PUBLICACAO_CONTEUDO_MOTOR = Object.freeze({ liberada: true, garantidaPeloBanco: true,
+    aviso: 'A versão publicada não poderá ser alterada nem apagada. Publicar não põe o motor em vigor e não muda nenhuma avaliação; a redação ainda precisará ser validada pela fronteira confiável antes de qualquer ativação.' });
+  var NODE_AUD_MOTOR = 'questionarios-motor-auditoria';
+  function servidorAgora() { return firebase.database.ServerValue.TIMESTAMP; }
+  function identidade(usuario) {
+    var u = null;
+    try { u = firebase.auth().currentUser; } catch (e) { u = null; }
+    if (!u || !u.uid || !u.email) return null;
+    return { uid: u.uid, email: u.email, name: String((usuario && usuario.name) || u.email).slice(0, 200) };
+  }
+  function suspensaoPublicacao(codigo, versaoMotor) {
+    var t = trilha(codigo, versaoMotor), s = t && t.publicacaoSuspensa;
+    return s && s.ativa === true ? s : null;
+  }
+  /* Publica o RASCUNHO como a versão seguinte. Uma gravação só (entra tudo ou nada): a versão, o ponteiro, a
+     auditoria e a remoção do rascunho. cb(null, {versao}) | cb('sem-resposta') — nunca "falhou" nem "publicou":
+     quem chama confere o banco | cb(motivo) */
+  function publicarConteudoMotor(codigo, versaoMotor, usuario, cb, prazoMs) {
+    if (!configCarregada(codigo)) { cb('config-nao-carregada'); return; }
+    if (suspensaoPublicacao(codigo, versaoMotor)) { cb('publicacao-suspensa'); return; }
+    var r = rascunhoConteudoMotor(codigo, versaoMotor);
+    if (!r || !r.perguntas) { cb('sem-rascunho'); return; }
+    var norm = normalizarConteudoMotor(codigo, r.perguntas, versaoMotor);
+    if (norm.erro) { cb(norm.erro, norm.detalhes); return; }
+    var G = window.faGovernancaPosicionamento;
+    if (!G) { cb('governanca-indisponivel'); return; }
+    var quem = identidade(usuario);
+    if (!quem) { cb('sem-sessao'); return; }
+    var t = trilha(codigo, versaoMotor), n = ((t && t.versaoPublicada) || 0) + 1, digest = G.digestRedacao(norm.perguntas);
+    var base = NODE_CONFIG + '/' + codigo + '/motores/' + versaoMotor, audId = db().ref(NODE_AUD_MOTOR + '/' + codigo + '/' + versaoMotor).push().key;
+    var u = {};
+    u[base + '/versoes/' + n] = { perguntas: norm.perguntas, motorCompativel: versaoMotor, publicadoEm: servidorAgora(), publicadoPor: quem, auditoriaId: audId, digestRedacao: digest };
+    u[base + '/versaoPublicada'] = n;
+    u[base + '/rascunho'] = null;
+    u[NODE_AUD_MOTOR + '/' + codigo + '/' + versaoMotor + '/' + audId] = { tipo: 'publicacao', versao: n, digestRedacao: digest, usuario: { uid: quem.uid, email: quem.email }, dataHora: servidorAgora() };
+    gravarComPrazo(u, prazoMs, function (err) { cb(err, err ? undefined : { versao: n, digestRedacao: digest }); });
+  }
+  /* Suspender (ativa = true) ou retomar (false) novas publicações — só admin geral (as regras conferem); motivo obrigatório */
+  function definirSuspensaoPublicacao(codigo, versaoMotor, ativa, motivo, usuario, cb, prazoMs) {
+    if (!configCarregada(codigo)) { cb('config-nao-carregada'); return; }
+    motivo = String(motivo || '').trim();
+    if (!motivo) { cb('sem-motivo'); return; }
+    if (!!suspensaoPublicacao(codigo, versaoMotor) === !!ativa) { cb('sem-mudanca'); return; }
+    var quem = identidade(usuario);
+    if (!quem) { cb('sem-sessao'); return; }
+    var audId = db().ref(NODE_AUD_MOTOR + '/' + codigo + '/' + versaoMotor).push().key, u = {};
+    u[NODE_CONFIG + '/' + codigo + '/motores/' + versaoMotor + '/publicacaoSuspensa'] = { ativa: !!ativa, motivo: motivo.slice(0, 500), por: quem, em: servidorAgora(), auditoriaId: audId };
+    u[NODE_AUD_MOTOR + '/' + codigo + '/' + versaoMotor + '/' + audId] = { tipo: ativa ? 'suspensao' : 'retomada', motivo: motivo.slice(0, 500), usuario: { uid: quem.uid, email: quem.email }, dataHora: servidorAgora() };
+    gravarComPrazo(u, prazoMs, cb);
+  }
+  function gravarComPrazo(payload, prazoMs, cb) {
+    var respondido = false;
+    var relogio = setTimeout(function () { if (respondido) return; respondido = true; cb('sem-resposta'); }, prazoMs || 15000);
+    try {
+      db().ref().update(payload, function (err) { if (respondido) return; respondido = true; clearTimeout(relogio); cb(err || null); });
+    } catch (e) { if (respondido) return; respondido = true; clearTimeout(relogio); cb(e); }
+  }
   function descartarRascunhoConteudoMotor(codigo, versaoMotor, cb) {
     db().ref(NODE_CONFIG + '/' + codigo + '/motores/' + versaoMotor + '/rascunho').remove(function (err) { if (cb) cb(err || null); });
   }
@@ -1032,6 +1097,9 @@
     salvarRascunhoConteudoMotor: salvarRascunhoConteudoMotor,
     versoesPublicadasConteudoMotor: versoesPublicadasConteudoMotor,
     PUBLICACAO_CONTEUDO_MOTOR: PUBLICACAO_CONTEUDO_MOTOR,
+    publicarConteudoMotor: publicarConteudoMotor,
+    definirSuspensaoPublicacao: definirSuspensaoPublicacao,
+    suspensaoPublicacao: suspensaoPublicacao,
     PADRAO: PADRAO,
     onMudanca: onMudanca,
     versaoAtual: versaoAtual,

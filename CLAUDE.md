@@ -36,7 +36,7 @@ Deploys are driven entirely by GitHub Actions (`.github/workflows/`), using `fir
 - push to `v2` → `firebase-preview.yml` deploys to preview channel `v2-preview` (30-day expiry).
 - push to `v3-quiz` → `firebase-preview-v3.yml` deploys to preview channel `v3quiz` and commits the resulting preview URL into `PREVIEW_URL_V3.txt`.
 
-`database.rules.json` (RTDB security rules) deploys alongside hosting on `main`.
+`database.rules.json` (RTDB security rules, the readable source) deploys alongside hosting on `main` **as its compacted artifact `database.rules.min.json`** (B2: `firebase.json` points to it; regenerate with `node .github/scripts/regras-compactas.js --gravar database.rules.min.json` after any edit to the source — `teste-regras-compactas.js` fails in CI if they diverge). Published redação of a new Posicionamento motor (`questionarios-config/<código>/motores/<v>/versoes`) is immutable by the rules (`teste-rules-redacao-motor.js`, structural guard `teste-regras-redacao-imutavel.js`): never reintroduce a `.write` on any ancestor of `versoes/<n>`; to stop publications use the admin-geral-only `publicacaoSuspensa`, never loosen the rules.
 
 ## Working agreements
 

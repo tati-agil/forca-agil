@@ -199,6 +199,7 @@
 
   /* ---------- prontidão técnica (não é autorização) ---------- */
   /* o: { emVigor: def em vigor, redacoesPublicadas: [conteúdos publicados com {publicado, versao, codigo, motorCompativel, perguntas}],
+          redacaoValidada: true só quando a fronteira confiável validou a redação publicada (nunca a tela),
           simulacao?: resultado de N.simular(emVigor, def), impacto?: classificarImpacto(...) } */
   function prontidao(N, def, o) {
     o = o || {};
@@ -210,6 +211,9 @@
     item('VERSAO_DIFERENTE_DA_EM_VIGOR', !emVigor, emVigor ? 'já é a versão em vigor' : null);
     var pv = N.podeEntrarEmVigor(def, o.redacoesPublicadas || []);
     item('REDACAO_PUBLICADA_COMPATIVEL', pv.pode, pv.pode ? 'redação v' + pv.conteudo : pv.motivo);
+    /* B2: publicada não é validada — só a fronteira confiável (fase b, B4) confirma, no servidor, que a redação
+       publicada é íntegra e compatível; sem isso a versão não está apta a entrar em vigor */
+    item('REDACAO_VALIDADA_FRONTEIRA', o.redacaoValidada === true, o.redacaoValidada === true ? null : 'pendente da fronteira confiável');
     var sim = o.simulacao;
     item('SIMULACAO_EXECUTADA', !!sim, sim ? sim.totalEstados + ' estados' : 'não executada');
     item('SIMULACAO_SEM_VIOLACAO_LINHA_SQUAD', !!sim && sim.violacoesLinhaSquad === 0, sim ? String(sim.violacoesLinhaSquad) : null);

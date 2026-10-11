@@ -5,6 +5,7 @@
     "duracao = segundos medidos (regressão sequencial de 05/10/2026, commit 7cdc74b; os testes que mudaram depois — teste-aposta, tela-preta, navegação, taxonomia, acessos, coerência, seleção de turma, rolagem — foram atualizados em 06/10/2026 com as rodadas recentes da suíte). Só serve para equilibrar os grupos e ordenar a fila (mais lentos primeiro); errar o número não muda o que roda."
   ],
   "foraDaSuite": {
+    ".github/scripts/teste-rules-redacao-motor.js": "regras do banco: roda no emulador real (teste-rules.yml)",
     ".github/scripts/teste-rules.js": "regras do banco: roda no emulador real (teste-rules.yml)",
     ".github/scripts/teste-rules-avaliacoes.js": "regras do banco: roda no emulador real (teste-rules.yml)",
     ".github/scripts/teste-rules-taxonomia.js": "regras do banco: roda no emulador real (teste-rules.yml)",
@@ -645,8 +646,14 @@
       "sobre": "B1 do H2-b: avaliacao-posicionamento.js sem firebase/db(); ordem de carga; gravar atômico com o payload intacto, ok/recusa/sem-resposta (resposta atrasada ignorada, cb uma vez)/exceção; novaChave; lerUmaVez (valor, null, recusa rejeita); ouvir e cancelar."
     },
     {
+      "arquivo": ".github/scripts/teste-regras-redacao-imutavel.js",
+      "nome": "Regras do banco: guarda estrutural — a redação publicada de motor novo não volta a ser mutável (sem emulador)",
+      "duracao": 1,
+      "sobre": "B2 do H2-b: nenhum .write nos ancestrais de motores/<v>/versoes/<n>; versão e auditoria só criam; ponteiro nunca apagado, +1, bloqueado pela suspensão; suspensão só admin geral e nunca apagada; lista fechada de campos (a tela não grava \"validada\"), autoria por UID e horário do servidor. A prova de comportamento é teste-rules-redacao-motor.js (emulador)."
+    },
+    {
       "arquivo": ".github/scripts/teste-regras-compactas.js",
-      "nome": "Regras do banco: versão compacta para deploy idêntica ao fonte legível (sem navegador)",
+      "nome": "Regras do banco: o artefato publicado (database.rules.min.json) é exatamente a compactação do fonte legível (sem navegador)",
       "duracao": 1,
       "sobre": "B0 do H2-b: a compacta tem a mesma estrutura, a mesma ordem de chaves e as mesmas expressões do database.rules.json; a conferência recusa diferença de valor, chave ou ordem; o deploy continua com o fonte legível."
     },

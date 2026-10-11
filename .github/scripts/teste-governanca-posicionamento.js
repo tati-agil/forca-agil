@@ -134,7 +134,10 @@ afirma(G.classificarImpacto(N, { destino: V2, registros, conteudoOrigem: (r, c) 
 
 console.log('D. prontidão ≠ autorização');
 const sim = N.simular(V1, V2);
-const pronta = G.prontidao(N, V2, { emVigor: V1, redacoesPublicadas: [{ publicado: true, versao: 1, codigo: QCOD, motorCompativel: 2, perguntas: SEED }], simulacao: sim, impacto: { total: 0, violacoes: [], incomparaveis: [], alterados: [], digest: 'x' } });
+const semValidar = G.prontidao(N, V2, { emVigor: V1, redacoesPublicadas: [{ publicado: true, versao: 1, codigo: QCOD, motorCompativel: 2, perguntas: SEED }], simulacao: sim, impacto: { total: 0, violacoes: [], incomparaveis: [], alterados: [], digest: 'x' } });
+afirma(!semValidar.pronta && semValidar.itens.find((i) => i.codigo === 'REDACAO_VALIDADA_FRONTEIRA').ok === false && semValidar.itens.find((i) => i.codigo === 'REDACAO_PUBLICADA_COMPATIVEL').ok === true,
+  'B2: redação publicada e compatível, mas NÃO validada pela fronteira confiável → não pronta');
+const pronta = G.prontidao(N, V2, { emVigor: V1, redacaoValidada: true, redacoesPublicadas: [{ publicado: true, versao: 1, codigo: QCOD, motorCompativel: 2, perguntas: SEED }], simulacao: sim, impacto: { total: 0, violacoes: [], incomparaveis: [], alterados: [], digest: 'x' } });
 afirma(pronta.pronta === true && pronta.autorizada === false && /não é autorização/.test(pronta.aviso), 'tudo pronto tecnicamente → pronta, mas NÃO autorizada');
 const semRedacao = G.prontidao(N, V2, { emVigor: V1, redacoesPublicadas: [], simulacao: sim, impacto: pronta && { total: 0, violacoes: [], incomparaveis: [], alterados: [], digest: 'x' } });
 afirma(!semRedacao.pronta && semRedacao.itens.find((i) => i.codigo === 'REDACAO_PUBLICADA_COMPATIVEL').ok === false, 'sem redação publicada → não pronta');
@@ -203,7 +206,8 @@ Object.keys(v2reg.respostas).forEach((q) => { v2reg.respostas[q].textoPerguntaNa
 const re = T.payloadReavaliacao({ id: 'n3', audId: 'a3', anteriorId: 'g3', anterior: v2reg, itemNome: 'Item 3', avaliacaoArquiteturalId: 'p3', versao: 1, motivo: 'm', usuario: U, agora: 'x' });
 const nr3 = re['avaliacoes-posicionamento/n3'];
 afirma(nr3.versaoMotor === 2 && !nr3.predominancias && Object.keys(nr3.respostas).length === 3, 'reavaliar registro v2: continua v2 (nunca volta a v1); a D2 não é herdada');
-afirma(cy.faQuestionarios.PUBLICACAO_CONTEUDO_MOTOR.liberada === false && Object.isFrozen(cy.faQuestionarios.PUBLICACAO_CONTEUDO_MOTOR), 'publicação da redação de motor novo bloqueada nesta fase (flag congelada)');
+afirma(cy.faQuestionarios.PUBLICACAO_CONTEUDO_MOTOR.liberada === true && cy.faQuestionarios.PUBLICACAO_CONTEUDO_MOTOR.garantidaPeloBanco === true && Object.isFrozen(cy.faQuestionarios.PUBLICACAO_CONTEUDO_MOTOR) &&
+  /não põe o motor em vigor/.test(cy.faQuestionarios.PUBLICACAO_CONTEUDO_MOTOR.aviso), 'B2: publicação liberada só porque o banco garante a imutabilidade; publicar não põe o motor em vigor');
 afirma(T.textoVersoes(vig) === 'motor v1 · redação v1' && T.textoVersoes(nr3) === 'motor v2 · redação v1', 'identificação das versões: registro sem campo = motor v1');
 
 console.log('\n' + total + ' verificações, ' + falhas + ' falha(s).');

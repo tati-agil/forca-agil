@@ -148,5 +148,75 @@ const sr = T.snapshotResposta('O1', 'SIM', 1, null, 'x', 2);
 afirma(/fluxo de valor ou capacidade em funcionamento/.test(sr.textoPerguntaNaEpoca), 'v2: a resposta guarda a redação da trilha v2, não a v1');
 afirma(T.snapshotResposta('O1', 'SIM', 1, null, 'x').textoPerguntaNaEpoca === cy.faQuestionarios.conteudoPergunta(QCOD, 'O1', 1).texto, 'v1: a resposta guarda a redação v1 de sempre');
 
-console.log('\n' + total + ' verificações, ' + falhas + ' falha(s).');
-process.exit(falhas ? 1 : 0);
+console.log('D. publicar a redação v2 (B2) — a gravação que a tela monta');
+function contextoPub(user) {
+  const updates = [], listeners = {};
+  const ctx = { console, JSON, Object, Array, String, Math, Number, Date, RegExp, Error, Promise, Set, setTimeout, clearTimeout };
+  ctx.window = ctx;
+  let seq = 0;
+  const database = () => ({ ref: (p) => ({
+    on(ev, cb) { listeners[p] = cb; }, off() {}, once() { return Promise.resolve({ val: () => null }); },
+    set(v, cb) { if (cb) cb(null); }, remove(cb) { if (cb) cb(null); },
+    push() { return { key: 'k' + (++seq) }; },
+    update(v, cb) { updates.push(clone(v)); ctx.__resposta(cb); }
+  }) });
+  database.ServerValue = { TIMESTAMP: { '.sv': 'timestamp' } };
+  ctx.firebase = { database, auth: () => ({ currentUser: user }) };
+  ctx.firebase.database.ServerValue = database.ServerValue;
+  ctx.__resposta = (cb) => cb(null);
+  vm.createContext(ctx);
+  ['motor-posicionamento-nucleo.js', 'governanca-posicionamento.js', 'questionarios-config.js'].forEach((f) => vm.runInContext(fs.readFileSync(path.join(RAIZ, f), 'utf8'), ctx, { filename: f }));
+  ctx.faQuestionarios.onMudanca(QCOD, () => {});
+  ctx.__entregar = (valor) => listeners['questionarios-config/' + QCOD]({ val: () => clone(valor) });
+  return { Q: ctx.faQuestionarios, G: ctx.faGovernancaPosicionamento, updates, ctx };
+}
+const USER = { uid: 'u-ana', email: 'ana@previ.com.br' };
+let cp = contextoPub(USER), res = 'nao-chamou';
+cp.Q.publicarConteudoMotor(QCOD, 2, { name: 'Ana' }, (e) => { res = e; });
+afirma(res === 'config-nao-carregada' && !cp.updates.length, 'config ainda carregando → não publica');
+cp.__ = cp.ctx.__entregar({ motores: { 2: {} } });
+cp.Q.publicarConteudoMotor(QCOD, 2, { name: 'Ana' }, (e) => { res = e; });
+afirma(res === 'sem-rascunho' && !cp.updates.length, 'sem rascunho → não publica');
+cp.ctx.__entregar({ motores: { 2: { rascunho: { perguntas: ok.perguntas.slice(1), motorCompativel: 2 } } } });
+cp.Q.publicarConteudoMotor(QCOD, 2, { name: 'Ana' }, (e) => { res = e; });
+afirma(res === 'estrutura-divergente' && !cp.updates.length, 'rascunho incompatível com o contrato → não publica');
+cp.ctx.__entregar({ motores: { 2: { rascunho: { perguntas: ok.perguntas, motorCompativel: 2 }, publicacaoSuspensa: { ativa: true, motivo: 'm' } } } });
+cp.Q.publicarConteudoMotor(QCOD, 2, { name: 'Ana' }, (e) => { res = e; });
+afirma(res === 'publicacao-suspensa' && !cp.updates.length, 'publicação suspensa → não publica');
+cp.ctx.__entregar({ motores: { 2: { rascunho: { perguntas: ok.perguntas, motorCompativel: 2 }, versaoPublicada: 1, versoes: { 1: { perguntas: ok.perguntas } }, publicacaoSuspensa: { ativa: false, motivo: 'm' } } } });
+let info = null;
+cp.Q.publicarConteudoMotor(QCOD, 2, { name: 'Ana' }, (e, i) => { res = e; info = i; });
+const u = cp.updates[0] || {}, base = 'questionarios-config/' + QCOD + '/motores/2';
+const ver = u[base + '/versoes/2'], audK = ver && ver.auditoriaId, aud = u['questionarios-motor-auditoria/' + QCOD + '/2/' + audK];
+afirma(res === null && info.versao === 2 && cp.updates.length === 1, 'publica a versão seguinte (2), numa gravação só');
+afirma(Object.keys(u).sort().join() === [base + '/rascunho', base + '/versaoPublicada', base + '/versoes/2', 'questionarios-motor-auditoria/' + QCOD + '/2/' + audK].sort().join(), 'a gravação é exatamente: versão + ponteiro + rascunho removido + auditoria');
+afirma(u[base + '/versaoPublicada'] === 2 && u[base + '/rascunho'] === null, 'ponteiro = 2; rascunho sai');
+afirma(ver.publicadoPor.uid === 'u-ana' && ver.publicadoPor.email === 'ana@previ.com.br' && ver.publicadoPor.name === 'Ana', 'autoria = UID e e-mail da sessão');
+afirma(JSON.stringify(ver.publicadoEm) === '{".sv":"timestamp"}' && JSON.stringify(aud.dataHora) === '{".sv":"timestamp"}', 'horário = o do servidor (nunca o do aparelho)');
+afirma(ver.motorCompativel === 2 && ver.digestRedacao === cp.G.digestRedacao(ok.perguntas) && aud.digestRedacao === ver.digestRedacao && aud.versao === 2 && aud.tipo === 'publicacao', 'vínculo do sistema, digest da redação e auditoria coerentes');
+afirma(Object.keys(ver).sort().join() === 'auditoriaId,digestRedacao,motorCompativel,perguntas,publicadoEm,publicadoPor' && !('validadaParaAtivacao' in ver), 'a tela não marca a versão como validada');
+afirma(cp.Q.versoesPublicadasConteudoMotor(QCOD, 2).every((x) => x.validadaParaAtivacao === false), 'leitura: publicada sempre "não validada" (só a fronteira confiável muda isso)');
+const semSessao = contextoPub(null);
+semSessao.ctx.__entregar({ motores: { 2: { rascunho: { perguntas: ok.perguntas, motorCompativel: 2 } } } });
+semSessao.Q.publicarConteudoMotor(QCOD, 2, null, (e) => { res = e; });
+afirma(res === 'sem-sessao' && !semSessao.updates.length, 'sem sessão autenticada (sem UID) → não publica');
+const lento = contextoPub(USER);
+lento.ctx.__resposta = () => {}; /* o banco nunca responde */
+lento.ctx.__entregar({ motores: { 2: { rascunho: { perguntas: ok.perguntas, motorCompativel: 2 } } } });
+const esperar = new Promise((fim) => lento.Q.publicarConteudoMotor(QCOD, 2, null, (e) => fim(e), 30));
+esperar.then((e) => {
+  afirma(e === 'sem-resposta', 'sem resposta do banco → "sem-resposta" (nunca "publicado" nem "falhou")');
+  const sp = contextoPub(USER); let r2;
+  sp.ctx.__entregar({ motores: { 2: {} } });
+  sp.Q.definirSuspensaoPublicacao(QCOD, 2, true, '  ', null, (x) => { r2 = x; });
+  afirma(r2 === 'sem-motivo' && !sp.updates.length, 'suspender sem motivo → recusado');
+  sp.Q.definirSuspensaoPublicacao(QCOD, 2, false, 'm', null, (x) => { r2 = x; });
+  afirma(r2 === 'sem-mudanca', 'retomar o que não está suspenso → sem mudança');
+  sp.Q.definirSuspensaoPublicacao(QCOD, 2, true, 'Problema na redação', null, (x) => { r2 = x; });
+  const us = sp.updates[0] || {}, s1 = us['questionarios-config/' + QCOD + '/motores/2/publicacaoSuspensa'];
+  const a1 = s1 && us['questionarios-motor-auditoria/' + QCOD + '/2/' + s1.auditoriaId];
+  afirma(r2 === null && s1.ativa === true && s1.motivo === 'Problema na redação' && s1.por.uid === 'u-ana' && JSON.stringify(s1.em) === '{".sv":"timestamp"}' && a1 && a1.tipo === 'suspensao', 'suspender: estado + auditoria "suspensao", UID e horário do servidor');
+  afirma(Object.keys(us).length === 2 && !Object.keys(us).some((k) => /versoes|versaoPublicada/.test(k)), 'suspender não toca nas versões publicadas nem no ponteiro');
+  console.log('\n' + total + ' verificações, ' + falhas + ' falha(s).');
+  process.exit(falhas ? 1 : 0);
+});

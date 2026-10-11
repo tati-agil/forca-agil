@@ -3912,7 +3912,7 @@
         html += '<p id="avpConteudoMotorSituacao">Situação: sem rascunho.</p>';
         html += '<div class="avp-actions-footer"><button type="button" class="btn btn--sm" id="avpConteudoMotorImportarBtn" data-versao="' + versaoMotor + '"' + (ocupado ? ' disabled' : '') + '>' +
           (cm.gravando === 'importar' ? 'IMPORTANDO…' : 'Importar redação inicial como rascunho') + '</button></div>';
-        return html + '</div>';
+        return html + renderPublicadasConteudoMotor(codigo, versaoMotor) + '</div>';
       }
       var r = sit.rascunho;
       html += '<p id="avpConteudoMotorSituacao">Situação: <strong>rascunho</strong>' + (r.origem === 'carga-inicial' ? ' (carga inicial)' : '') +
@@ -3929,7 +3929,11 @@
       });
       html += '</ul></details>';
       if (cm.editando) html += renderEdicaoConteudoMotor(cm, ocupado);
-      else html += '<div class="avp-actions-footer"><button type="button" class="btn btn--sm" id="avpConteudoMotorEditarBtn"' + (ocupado ? ' disabled' : '') + '>Editar rascunho (só o texto)</button>' +
+      else html += '<div class="avp-actions-footer">' +
+        /* B2: publicar só rascunho compatível e sem suspensão; a garantia de imutabilidade é das regras do banco */
+        (sit.compativel && !Q.suspensaoPublicacao(codigo, versaoMotor) ? '<button type="button" class="btn btn--sm btn--primary" id="avpConteudoMotorPublicarBtn" data-versao="' + versaoMotor + '"' + (ocupado ? ' disabled' : '') + '>' +
+          (cm.gravando === 'publicar' ? 'PUBLICANDO…' : 'Publicar como versão ' + esc(((sit.versaoPublicada || 0) + 1))) + '</button>' : '') +
+        '<button type="button" class="btn btn--sm" id="avpConteudoMotorEditarBtn"' + (ocupado ? ' disabled' : '') + '>Editar rascunho (só o texto)</button>' +
         '<button type="button" class="btn btn--sm btn--danger" id="avpConteudoMotorDescartarBtn" data-versao="' + versaoMotor + '"' + (ocupado ? ' disabled' : '') + '>' +
         (cm.gravando === 'descartar' ? 'DESCARTANDO…' : 'Descartar rascunho') + '</button></div>';
       html += renderPublicadasConteudoMotor(codigo, versaoMotor);
@@ -3938,11 +3942,18 @@
     /* publicação BLOQUEADA nesta fase (as regras atuais não garantem imutabilidade); o histórico mostra o que houver */
     function renderPublicadasConteudoMotor(codigo, versaoMotor) {
       var Q = window.faQuestionarios, pubs = Q.versoesPublicadasConteudoMotor(codigo, versaoMotor);
-      var html = '<details class="avp-dados-item" id="avpConteudoMotorPublicadas"><summary>Versões publicadas da redação v' + esc(versaoMotor) + ' — ' + pubs.length + '</summary>';
-      html += pubs.length ? '<ul>' + pubs.map(function (x) { return '<li>Versão ' + esc(x.versao) + (x.publicadoEm ? ' · ' + esc(fmtData(x.publicadoEm)) : '') + (x.publicadoPor ? ' · ' + esc(x.publicadoPor.email || '') : '') + '</li>'; }).join('') + '</ul>'
-        : '<p class="admin-empty">Nenhuma versão publicada.</p>';
+      var html = '<details class="avp-dados-item" id="avpConteudoMotorPublicadas"' + ((state.config.conteudoMotor || {}).publicadasAberto ? ' open' : '') + '><summary>Versões publicadas da redação v' + esc(versaoMotor) + ' — ' + pubs.length + '</summary>';
+      html += pubs.length ? '<ul class="avp-conteudo-motor-publicadas">' + pubs.map(function (x) {
+        return '<li data-versao="' + esc(x.versao) + '"><strong>Versão ' + esc(x.versao) + '</strong>' + (x.publicadoEm ? ' · ' + esc(fmtData(x.publicadoEm)) : '') +
+          (x.publicadoPor ? ' · ' + esc(x.publicadoPor.name || x.publicadoPor.email || '') : '') + (x.digestRedacao ? ' · <code>' + esc(x.digestRedacao) + '</code>' : '') +
+          '<br><span class="avp-ficha-meta">Não pode ser alterada nem apagada. Validada para ativação: não — pendente da fronteira confiável.</span></li>';
+      }).join('') + '</ul>' : '<p class="admin-empty">Nenhuma versão publicada.</p>';
       html += '</details>';
-      if (!Q.PUBLICACAO_CONTEUDO_MOTOR.liberada) html += '<p class="avp-decisao-aviso" id="avpConteudoMotorPublicacaoBloqueada">Publicação bloqueada nesta fase. ' + esc(Q.PUBLICACAO_CONTEUDO_MOTOR.motivo) + '</p>';
+      var susp = Q.suspensaoPublicacao(codigo, versaoMotor), admGeral = !!(window.faAuth && window.faAuth.getSession() && window.faAuth.isAdmin(window.faAuth.getSession().email));
+      if (susp) html += '<p class="avp-error-msg" id="avpConteudoMotorSuspensa">Novas publicações suspensas' + (susp.por ? ' por ' + esc(susp.por.name || susp.por.email) : '') + (susp.em ? ' em ' + esc(fmtData(susp.em)) : '') + '. Motivo: ' + esc(susp.motivo || '') + ' As versões já publicadas continuam protegidas.</p>';
+      /* só admin geral suspende ou retoma (as regras do banco só deixam ele gravar): quem não pode, não vê o botão */
+      if (admGeral) html += '<div class="avp-actions-footer"><button type="button" class="btn btn--sm' + (susp ? '' : ' btn--danger') + '" id="avpConteudoMotorSuspensaoBtn" data-versao="' + versaoMotor + '" data-ativa="' + (susp ? 'false' : 'true') + '">' +
+        (susp ? 'Retomar publicações' : 'Suspender novas publicações') + '</button></div>';
       return html;
     }
     /* edição do rascunho: só os campos editoriais; código, tipo e opções aparecem travados */
@@ -3997,6 +4008,20 @@
         cm.editando = false; cm.edicao = null; cm.flash = { erro: false, texto: '✓ Rascunho salvo. Nada mudou nas avaliações nem na redação em uso.' }; render();
       });
     }
+    function publicarConteudoMotorNaTela(versaoMotor) {
+      var Q = window.faQuestionarios, codigo = Q.CODIGOS.POSICIONAMENTO_ORGANIZACIONAL, sit = Q.situacaoConteudoMotor(codigo, versaoMotor);
+      avpConfirm('Publicar o rascunho como a versão ' + ((sit.versaoPublicada || 0) + 1) + ' da redação para o motor v' + versaoMotor + '? ' + Q.PUBLICACAO_CONTEUDO_MOTOR.aviso, function () {
+        gravarConteudoMotor('publicar', versaoMotor);
+      }, { sim: 'Publicar' });
+    }
+    function pedirSuspensaoPublicacao(versaoMotor, ativa) {
+      var cm = state.config.conteudoMotor || (state.config.conteudoMotor = {});
+      var motivo = window.prompt(ativa ? 'Motivo para suspender novas publicações da redação v' + versaoMotor + ' (obrigatório; as versões já publicadas continuam protegidas):' : 'Motivo para retomar as publicações (obrigatório):', '');
+      if (motivo === null) return;
+      if (!String(motivo).trim()) { cm.flash = { erro: true, texto: 'Informe o motivo.' }; render(); return; }
+      cm.motivoSuspensao = String(motivo).trim().slice(0, 500);
+      gravarConteudoMotor(ativa ? 'suspender' : 'retomar', versaoMotor);
+    }
     function gravarConteudoMotor(acao, versaoMotor) {
       var cm = state.config.conteudoMotor || (state.config.conteudoMotor = {}), Q = window.faQuestionarios, codigo = Q.CODIGOS.POSICIONAMENTO_ORGANIZACIONAL;
       if (cm.gravando) return;
@@ -4013,7 +4038,25 @@
         'ja-existe-rascunho': 'Já existe um rascunho desta redação: descarte-o antes de importar de novo.',
         'sem-carga-inicial': 'A carga inicial desta versão não está disponível.', 'falha-carga': 'Não foi possível carregar o arquivo da carga inicial. Verifique a conexão e tente de novo.',
         'incompativel': 'A carga inicial não é compatível com o contrato do motor: nada foi gravado.', 'estrutura-divergente': 'A carga inicial não tem a estrutura que o motor exige: nada foi gravado.',
-        'sem-contrato': 'O motor desta versão não está disponível nesta página: nada foi gravado.' };
+        'sem-contrato': 'O motor desta versão não está disponível nesta página: nada foi gravado.',
+        'publicacao-suspensa': 'As publicações desta redação estão suspensas: nada foi publicado.', 'sem-rascunho': 'Não há rascunho para publicar.',
+        'sem-sessao': 'Sua sessão não foi reconhecida. Entre de novo e tente outra vez.', 'governanca-indisponivel': 'O módulo de governança não carregou nesta página: nada foi publicado.',
+        'sem-motivo': 'Informe o motivo.', 'sem-mudanca': 'A situação já é essa: nada foi gravado.' };
+      if (acao === 'publicar') {
+        Q.publicarConteudoMotor(codigo, versaoMotor, sessaoAtual(), function (err, info) {
+          if (err === 'sem-resposta') { fim({ erro: true, texto: 'A conexão está demorando e não deu para confirmar a publicação. Confira o histórico de versões publicadas antes de tentar de novo.' }); return; }
+          fim(err ? { erro: true, texto: MSG[err] || 'Não foi possível publicar (outra pessoa pode ter publicado antes, ou o banco recusou). Nada foi alterado; confira o histórico.' }
+            : { erro: false, texto: '✓ Versão ' + info.versao + ' da redação v' + versaoMotor + ' publicada. O motor v' + versaoMotor + ' continua inativo e nenhuma avaliação mudou.' });
+        }, 14000);
+        return;
+      }
+      if (acao === 'suspender' || acao === 'retomar') {
+        Q.definirSuspensaoPublicacao(codigo, versaoMotor, acao === 'suspender', cm.motivoSuspensao, sessaoAtual(), function (err) {
+          if (err === 'sem-resposta') { fim({ erro: true, texto: 'A conexão está demorando e não deu para confirmar. Confira a situação antes de tentar de novo.' }); return; }
+          fim(err ? { erro: true, texto: MSG[err] || 'Não foi possível gravar (só admin geral suspende ou retoma).' } : { erro: false, texto: acao === 'suspender' ? 'Novas publicações suspensas. As versões já publicadas continuam protegidas.' : 'Publicações retomadas.' });
+        }, 14000);
+        return;
+      }
       if (acao === 'importar') {
         carregarCargaInicial(versaoMotor, function (e) {
           if (e) { fim({ erro: true, texto: MSG[e] || 'Não foi possível importar.' }); return; }
@@ -4144,6 +4187,12 @@
           gravarConteudoMotor('descartar', Number(cmDes.dataset.versao));
         });
       });
+      var cmPub = document.getElementById('avpConteudoMotorPublicarBtn');
+      if (cmPub) cmPub.addEventListener('click', function () { publicarConteudoMotorNaTela(Number(cmPub.dataset.versao)); });
+      var cmSusp = document.getElementById('avpConteudoMotorSuspensaoBtn');
+      if (cmSusp) cmSusp.addEventListener('click', function () { pedirSuspensaoPublicacao(Number(cmSusp.dataset.versao), cmSusp.dataset.ativa === 'true'); });
+      var cmPubs = document.getElementById('avpConteudoMotorPublicadas');
+      if (cmPubs) cmPubs.addEventListener('toggle', function () { (state.config.conteudoMotor || (state.config.conteudoMotor = {})).publicadasAberto = cmPubs.open; });
       var cmEd = document.getElementById('avpConteudoMotorEditarBtn');
       if (cmEd) cmEd.addEventListener('click', function () {
         var cm = state.config.conteudoMotor || (state.config.conteudoMotor = {}), r = window.faQuestionarios.rascunhoConteudoMotor(window.faQuestionarios.CODIGOS.POSICIONAMENTO_ORGANIZACIONAL, 2);
@@ -5690,6 +5739,7 @@
     var ROTULO_PRONTIDAO = {
       DEFINICAO_VALIDA: 'Definição do motor válida (regras fixas de domínio)', VERSAO_DIFERENTE_DA_EM_VIGOR: 'Versão diferente da que está em vigor',
       REDACAO_PUBLICADA_COMPATIVEL: 'Redação publicada e compatível com o motor', SIMULACAO_EXECUTADA: 'Simulação contra a versão em vigor executada',
+      REDACAO_VALIDADA_FRONTEIRA: 'Redação publicada validada pela fronteira confiável (apta a entrar em vigor)',
       SIMULACAO_SEM_VIOLACAO_LINHA_SQUAD: 'Simulação sem violação de Linha × Squad', IMPACTO_CALCULADO: 'Impacto nos registros calculado',
       IMPACTO_SEM_VIOLACAO_LINHA_SQUAD: 'Impacto sem violação de Linha × Squad'
     };

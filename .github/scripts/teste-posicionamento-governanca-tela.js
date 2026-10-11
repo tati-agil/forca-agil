@@ -38,6 +38,7 @@ const REDACAO_V2_SEED = (() => {
 })();
 const TEXTO_V1 = (cod) => REDACAO_V2_SEED.find((p) => p.codigoEstavel === cod).texto;
 const ARQ = 'arquitetura@previ.com.br';
+const ADM = 'tatianefdirene@previ.com.br';
 const chave = (e) => e.toLowerCase().replace(/[@.]/g, '_').replace(/[^a-z0-9_]/g, '').slice(0, 64);
 const DESKTOP = { width: 1280, height: 900 };
 const CELULAR = { width: 375, height: 800 };
@@ -76,7 +77,7 @@ function concluidaReg(itemId, itemNome, respostas, diag) {
 }
 function semente(comRascunho) {
   const aut = {}; aut[chave(ARQ)] = { email: ARQ, tipo: 'avaliacao-arquitetura' };
-  const users = {}; users[chave(ARQ)] = { name: 'Pessoa', email: ARQ, area: 'INFOR' };
+  const users = {}; users[chave(ARQ)] = { name: 'Pessoa', email: ARQ, area: 'INFOR' }; users[chave(ADM)] = { name: 'Admin', email: ADM, area: 'INFOR' };
   const conceitos = {}, fontes = {};
   ['AREA_ESPECIALIZADA', 'COE', 'ESTRATEGIA_CLIENTES', 'NEGOCIOS', 'PLATAFORMA_CANAIS', 'PLATAFORMA_HABILITADORA_NEGOCIOS', 'PLATAFORMA_HABILITADORA_TECNOLOGIA', 'PLATAFORMA_CORPORATIVA', 'LINHA', 'PLATAFORMA'].forEach((c, i) => {
     conceitos[c] = { nome: 'Tx ' + c, ordem: i + 1, ativo: true, situacaoDefinicao: 'registrada', camada: 'A', definicaoVigenteFonteId: 'f1' };
@@ -97,8 +98,9 @@ function semente(comRascunho) {
     taxonomia: { organizacional: { conceitos, fontes } }
   };
 }
-async function abrir(browser, viewport, hash, comRedacaoV2) {
-  const cfg = { db: semente(comRedacaoV2), user: { email: ARQ, emailVerified: true, uid: 'u-' + chave(ARQ) }, delayDefault: 10, persistenciaReal: true, delays: {}, fail: [] };
+async function abrir(browser, viewport, hash, comRedacaoV2, email) {
+  email = email || ARQ;
+  const cfg = { db: semente(comRedacaoV2), user: { email, emailVerified: true, uid: 'u-' + chave(email) }, delayDefault: 10, persistenciaReal: true, delays: {}, fail: [] };
   const ctx = await browser.newContext({ viewport });
   const page = await ctx.newPage();
   page.setDefaultTimeout(10000);
@@ -151,9 +153,9 @@ async function redacao(browser, viewport, rotulo) {
   console.log('[' + rotulo + '] 2. ADMIN › Questionários — editar o rascunho da redação v2');
   const { ctx, page, erros } = await abrir(browser, viewport, '#admin?arq=questionarios', true);
   await page.waitForSelector('#avpConteudoMotorEditarBtn');
-  afirma(/Publicação bloqueada nesta fase/.test(await page.locator('#avpConteudoMotorPublicacaoBloqueada').innerText()) && /não garantem/.test(await page.locator('#avpConteudoMotorPublicacaoBloqueada').innerText()), 'publicação bloqueada, com o motivo (regras atuais)');
   afirma(/— 0/.test(await page.locator('#avpConteudoMotorPublicadas summary').innerText()), 'histórico de versões publicadas: 0');
-  afirma(await page.locator('#avpConteudoMotor2 button').evaluateAll((bs) => bs.every((b) => !/publicar/i.test(b.textContent))), 'nenhum botão de publicar');
+  afirma(/Publicar como versão 1/i.test(await page.locator('#avpConteudoMotorPublicarBtn').innerText()), 'B2: rascunho compatível → "Publicar como versão 1"');
+  afirma(await page.locator('#avpConteudoMotorSuspensaoBtn').count() === 0, 'Avaliação + Arquitetura não vê "Suspender" (só admin geral grava)');
   await page.click('#avpConteudoMotorEditarBtn');
   await page.waitForSelector('#avpConteudoMotorEdicao');
   afirma(await page.locator('#avpConteudoMotorEdicao [data-codigo-pergunta="DIAG_PREDOMINANCIA_N1"] .avp-cm-opcao').count() === 4, 'D2: só os rótulos das opções são editáveis (4 em N1)');
@@ -179,6 +181,59 @@ async function redacao(browser, viewport, rotulo) {
   afirma(!erros.length, 'nenhum erro de JS', erros.join(' | '));
   await ctx.close();
 }
+async function publicar(browser, viewport, rotulo) {
+  console.log('[' + rotulo + '] 2b. B2 — publicar a redação v2 (não ativa nada)');
+  const { ctx, page, erros } = await abrir(browser, viewport, '#admin?arq=questionarios', true);
+  await page.waitForSelector('#avpConteudoMotorPublicarBtn');
+  const antes = await banco(page);
+  await page.click('#avpConteudoMotorPublicarBtn');
+  await page.waitForSelector('.avp-modal-confirm-btn');
+  const aviso = await page.locator('.modal-box', { hasText: 'Publicar o rascunho' }).innerText();
+  afirma(/não poderá ser alterada nem apagada/.test(aviso) && /não põe o motor em vigor/.test(aviso) && /validada pela fronteira confiável/.test(aviso), 'confirmação avisa: imutável, não ativa, ainda precisa de validação');
+  await page.click('.avp-modal-confirm-btn');
+  await page.waitForSelector('#avpConteudoMotorFlash');
+  afirma(/Versão 1 da redação v2 publicada/.test(await page.locator('#avpConteudoMotorFlash').innerText()) && /continua inativo/.test(await page.locator('#avpConteudoMotorFlash').innerText()), 'publicou a versão 1 e diz que o motor v2 continua inativo');
+  const db = await banco(page), m = db['questionarios-config'][QCOD].motores[2], v1 = m.versoes && m.versoes[1];
+  const auds = db['questionarios-motor-auditoria'] && db['questionarios-motor-auditoria'][QCOD] && db['questionarios-motor-auditoria'][QCOD][2];
+  afirma(m.versaoPublicada === 1 && !!v1 && !m.rascunho && v1.motorCompativel === 2 && v1.publicadoPor.email === ARQ && /^[0-9a-f]{16}$/.test(v1.digestRedacao), 'versão 1 gravada (vínculo, autoria, digest), ponteiro 1, rascunho removido');
+  afirma(!!auds && auds[v1.auditoriaId] && auds[v1.auditoriaId].tipo === 'publicacao' && auds[v1.auditoriaId].versao === 1, 'auditoria da publicação na mesma gravação');
+  afirma(!('validadaParaAtivacao' in v1) && !('validacao' in v1), 'a publicação não marca a redação como validada');
+  afirma(JSON.stringify(db['avaliacoes-posicionamento']) === JSON.stringify(antes['avaliacoes-posicionamento']) && JSON.stringify(db['questionarios-config'][QCOD].versaoPublicada) === JSON.stringify(antes['questionarios-config'][QCOD].versaoPublicada),
+    'nenhuma avaliação mudou; a redação v1 em uso não mudou');
+  await page.click('#avpConteudoMotorPublicadas summary');
+  afirma(/Versão 1/.test(await page.locator('#avpConteudoMotorPublicadas').innerText()) && /Validada para ativação: não/.test(await page.locator('#avpConteudoMotorPublicadas').innerText()), 'histórico: versão 1, "Validada para ativação: não"');
+  afirma(await page.locator('#avpConteudoMotorPublicarBtn').count() === 0, 'sem rascunho, não há o que publicar');
+  await page.evaluate(() => { location.hash = '#admin?arq=motores'; });
+  await page.waitForSelector('#avpMotorPosicionamento');
+  const card = page.locator('#avpMotorPosicionamento');
+  afirma(/Inativa/.test(await card.locator('tr[data-versao="2"]').innerText()) && /Em vigor/.test(await card.locator('tr[data-versao="1"]').innerText()), 'depois de publicar: v1 continua em vigor, v2 inativa');
+  afirma(await card.locator('li[data-item="REDACAO_PUBLICADA_COMPATIVEL"]').getAttribute('data-ok') === 'true' && await card.locator('li[data-item="REDACAO_VALIDADA_FRONTEIRA"]').getAttribute('data-ok') === 'false',
+    'prontidão: redação publicada ✓, mas validada pela fronteira confiável ✗');
+  afirma(await page.evaluate(() => window.faMotorPosicionamentoNucleo.versaoEmVigor()) === 1, 'versão em vigor do motor: 1');
+  afirma(await larguraOk(page), 'sem rolagem horizontal');
+  afirma(!erros.length, 'nenhum erro de JS', erros.join(' | '));
+  await ctx.close();
+}
+async function suspensao(browser, viewport, rotulo) {
+  console.log('[' + rotulo + '] 2c. B2 — admin geral suspende e retoma novas publicações');
+  const { ctx, page, erros } = await abrir(browser, viewport, '#admin?arq=questionarios', true, ADM);
+  await page.waitForSelector('#avpConteudoMotorSuspensaoBtn');
+  page.once('dialog', (d) => d.accept('Revisar a redação antes de publicar'));
+  await page.click('#avpConteudoMotorSuspensaoBtn');
+  await page.waitForSelector('#avpConteudoMotorSuspensa');
+  const db = await banco(page), sp = db['questionarios-config'][QCOD].motores[2].publicacaoSuspensa;
+  afirma(sp && sp.ativa === true && sp.motivo === 'Revisar a redação antes de publicar' && sp.por.email === ADM, 'suspensão gravada com motivo e autoria');
+  afirma(/Novas publicações suspensas/.test(await page.locator('#avpConteudoMotorSuspensa').innerText()) && /continuam protegidas/.test(await page.locator('#avpConteudoMotorSuspensa').innerText()), 'a tela mostra a suspensão e que o histórico continua protegido');
+  afirma(await page.locator('#avpConteudoMotorPublicarBtn').count() === 0, 'suspensa: sem botão de publicar');
+  page.once('dialog', (d) => d.accept('Revisão concluída'));
+  await page.click('#avpConteudoMotorSuspensaoBtn');
+  await page.waitForSelector('#avpConteudoMotorPublicarBtn');
+  const db2 = await banco(page);
+  afirma(db2['questionarios-config'][QCOD].motores[2].publicacaoSuspensa.ativa === false, 'retomada gravada (a suspensão não é apagada)');
+  afirma(await larguraOk(page), 'sem rolagem horizontal');
+  afirma(!erros.length, 'nenhum erro de JS', erros.join(' | '));
+  await ctx.close();
+}
 async function versoes(browser, viewport, rotulo) {
   console.log('[' + rotulo + '] 3. Avaliação — identificação das versões');
   let { ctx, page, erros } = await abrir(browser, viewport, '#avaliacoes?po=lista', true);
@@ -197,7 +252,7 @@ async function versoes(browser, viewport, rotulo) {
 (async () => {
   const browser = await chromium.launch();
   try {
-    for (const [vp, r] of [[DESKTOP, 'desktop'], [CELULAR, 'celular 375']]) { await motores(browser, vp, r); await redacao(browser, vp, r); await versoes(browser, vp, r); }
+    for (const [vp, r] of [[DESKTOP, 'desktop'], [CELULAR, 'celular 375']]) { await motores(browser, vp, r); await redacao(browser, vp, r); await publicar(browser, vp, r); await suspensao(browser, vp, r); await versoes(browser, vp, r); }
   } catch (e) { console.log('ERRO', e && e.stack || e); falhas++; }
   await browser.close();
   console.log(falhas ? '\n' + falhas + ' falha(s).' : '\nTudo certo.');
