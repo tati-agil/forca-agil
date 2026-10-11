@@ -81,6 +81,26 @@ Uma substituição gera dois eventos com o mesmo `operacaoId`.
 3. **Eventos gravados com as mudanças**, na mesma unidade de gravação, e nunca alterados nem apagados.
 4. **Nada se apaga.** Encerrar é uma alteração (`situacao: 'encerrada'` + `encerramento`).
 
+### Invariantes que dependem de outros registros
+
+Na integração com qualquer banco, a persistência precisa garantir **atomicamente**, na mesma unidade de gravação, não
+só as revisões das entidades alteradas, mas também os invariantes que dependem de **outros** registros:
+
+- **Um único responsável principal ativo por objeto**, inclusive sob operações concorrentes.
+- **Nenhuma relação ativa duplicada** (mesma origem, tipo e destino).
+- **Nenhum ciclo na composição hierárquica** (`compõe`).
+- **Mudanças e eventos de auditoria gravados juntos**: ou entram todos, ou nenhum.
+
+O controle de revisão de registros individuais, isoladamente, não garante essas condições. Duas operações podem ler
+o mesmo estado, constatar que não há responsável principal (ou relação, ou caminho que forme ciclo) e criar registros
+**diferentes** ao mesmo tempo. Nenhuma das duas altera um registro que a outra também altera, então as revisões não
+conflitam, e as duas seriam confirmadas.
+
+A persistência precisa recusar a segunda gravação, revalidando o invariante dentro da própria gravação ou
+serializando as operações que o afetam. O núcleo valida esses invariantes sobre o estado que recebe; a garantia sob
+concorrência é responsabilidade da persistência. A referência em memória (`aplicar()`) é sequencial e não substitui
+essa garantia.
+
 Leitura: a persistência precisa poder devolver o estado acima (ou o recorte necessário) e os eventos de uma
 entidade, que `historico(eventos, entidade, id)` ordena.
 
