@@ -266,6 +266,7 @@ manda `Cache-Control: no-cache` em JS, CSS, `/index.html` e `/` (com CSP nos doi
 | `aquecer-cache-playwright.yml` | push em `main` que muda o preparo de testes, diariamente e manual | Aquece o cache do Playwright. |
 | `audit-facilitadores-turmas.yml`, `backfill-grupos-resumo.yml`, `diagnostico-execucao-vazamento-grupo.yml` | manual (e push no próprio script) | Ferramentas pontuais da Construção da Aposta. |
 | `taxonomia-indice-filhos.yml` | manual | Construção ÚNICA do índice de conceitos filhos da Taxonomia em produção (conta de serviço; simulação por padrão, grava só com "Confirmar gravação"; recusa rodar de novo). Pré-requisito da troca de camada. |
+| `verificar-infra-functions.yml` | manual | B0 do H2-b: verificação SÓ DE LEITURA, com a conta de serviço do CI, dos requisitos de Cloud Functions — faturamento (Blaze), APIs habilitadas, papéis da conta e região do banco (`.github/scripts/verificar-infra-functions.sh`). Não grava, não habilita, não faz deploy; falta de permissão aparece como "NÃO FOI POSSÍVEL VERIFICAR". |
 
 Não há hook de pre-commit versionado no repositório nem passo de `node --check` no CI: erro de
 sintaxe é pego indiretamente pelos testes herméticos (erro de página).

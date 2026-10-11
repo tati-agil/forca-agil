@@ -645,6 +645,12 @@
       "sobre": "B1 do H2-b: avaliacao-posicionamento.js sem firebase/db(); ordem de carga; gravar atômico com o payload intacto, ok/recusa/sem-resposta (resposta atrasada ignorada, cb uma vez)/exceção; novaChave; lerUmaVez (valor, null, recusa rejeita); ouvir e cancelar."
     },
     {
+      "arquivo": ".github/scripts/teste-regras-compactas.js",
+      "nome": "Regras do banco: versão compacta para deploy idêntica ao fonte legível (sem navegador)",
+      "duracao": 1,
+      "sobre": "B0 do H2-b: a compacta tem a mesma estrutura, a mesma ordem de chaves e as mesmas expressões do database.rules.json; a conferência recusa diferença de valor, chave ou ordem; o deploy continua com o fonte legível."
+    },
+    {
       "arquivo": ".github/scripts/teste-posicionamento-exportacoes.js",
       "nome": "Posicionamento Organizacional: PDF individual e Excel baixados de verdade (desktop e 375 px)",
       "duracao": 25,
