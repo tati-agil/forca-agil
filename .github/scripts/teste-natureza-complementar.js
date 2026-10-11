@@ -595,7 +595,9 @@ async function voltarParaAvaliacoes(page) {
     const corposReproc = REPROCESSAMENTO.map(corpoDaFuncao);
     afirma(corposReproc.every((t) => t && !/natureza/i.test(t)), 'reprocessamento e "Motor desatualizado" não leem a natureza (' + REPROCESSAMENTO.join(', ') + ' — corpo exato de cada uma)');
     const rules = JSON.parse(fs.readFileSync(path.join(RAIZ, '..', 'database.rules.json'), 'utf8')).rules;
-    const admin = rules['questionarios-config']['.write'];
+    /* B2: questionarios-config não tem mais .write no nó (a redação publicada do motor novo é imutável); quem grava a
+       trilha principal dos questionários está em questionarios-config/<código>/<campo> — o mesmo público de antes */
+    const admin = rules['questionarios-config']['$codigo']['$campo']['.write'];
     /* gravação por OPÇÃO (nunca o nó inteiro — nenhuma opção pode ser apagada de uma vez), para o mesmo público de questionarios-config;
        código, campos obrigatórios e codigoEstavel imutável são provados no emulador (teste-rules-avaliacoes.js) */
     const regraOpcao = rules['naturezas-complementares-config']['$codigo'] || {};
