@@ -140,6 +140,8 @@ async function motores(browser, viewport, rotulo) {
   afirma(await balde('iguais') === '1' && await balde('alterados') === '0' && await balde('incomparaveis') === '1' && await balde('violacoes') === '0', 'impacto: 1 igual (AE), 1 incomparável (conflito pede D2), 0 alterados, 0 violações',
     [await balde('iguais'), await balde('alterados'), await balde('incomparaveis'), await balde('violacoes')].join('/'));
   afirma(/não contados como iguais/.test(imp) && /exige novas respostas/.test(await page.locator('#avpPosIncomparaveisMotivos').innerText()), 'incomparáveis com motivo, separados dos iguais');
+  afirma(/não contados como iguais nem como alterados/.test(imp) && /Incomparável não significa resultado diferente/.test(await page.locator('#avpPosIncomparavelExplica').innerText()),
+    'a tela explica que incomparável não significa resultado diferente');
   afirma(JSON.stringify(await banco(page)) === JSON.stringify(antes), 'simular e calcular impacto não gravam nada');
   afirma(await larguraOk(page), 'sem rolagem horizontal');
   afirma(!erros.length, 'nenhum erro de JS', erros.join(' | '));

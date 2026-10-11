@@ -5732,15 +5732,18 @@
         html += '<div id="avpPosImpacto"><p><strong>Impacto nas avaliações vigentes concluídas</strong> (' + im.total + ')' + (cp.fonteRedacao ? ' — redação de destino: ' + esc(cp.fonteRedacao) : '') + ':</p><ul>' +
           '<li data-balde="iguais">Resultado permanece igual: <strong>' + im.iguais.length + '</strong></li>' +
           '<li data-balde="alterados">Resultado mudaria: <strong>' + im.alterados.length + '</strong>' + (im.alterados.filter(function (x) { return x.comDecisao; }).length ? ' (com decisão registrada: ' + im.alterados.filter(function (x) { return x.comDecisao; }).length + ')' : '') + '</li>' +
-          '<li data-balde="incomparaveis">Não podem ser comparados com segurança: <strong>' + im.incomparaveis.length + '</strong> — não contados como iguais</li>' +
+          '<li data-balde="incomparaveis">Não podem ser comparados com segurança: <strong>' + im.incomparaveis.length + '</strong> — não contados como iguais nem como alterados</li>' +
           '<li data-balde="violacoes">Violações de Linha × Squad: <strong>' + im.violacoes.length + '</strong></li></ul>';
         var motivos = {};
         im.incomparaveis.forEach(function (x) { motivos[x.motivo] = (motivos[x.motivo] || 0) + 1; });
+        if (im.incomparaveis.length) html += '<p class="avp-decisao-aviso" id="avpPosIncomparavelExplica">Incomparável não significa resultado diferente: significa que faltam condições para uma comparação segura ' +
+          '(por exemplo, a pergunta mudou de redação ou a v' + esc(N_VERSAO_ALVO(cp)) + ' pede uma resposta que a avaliação não tem). O resultado dessas avaliações na nova versão só se sabe reavaliando.</p>';
         if (im.incomparaveis.length) html += '<p class="avp-ficha-meta" id="avpPosIncomparaveisMotivos">Motivos: ' + Object.keys(motivos).map(function (m) { return esc(ROTULO_INCOMPARAVEL[m] || m) + ' (' + motivos[m] + ')'; }).join('; ') + '.</p>';
         html += '<p class="avp-ficha-meta">Quem aprovar a entrada em vigor (fase b) terá de reconhecer explicitamente estes números, inclusive os incomparáveis. Identificador deste cálculo: <code>' + esc(im.digest) + '</code>. Nada foi gravado.</p></div>';
       }
       return html + '</div>';
     }
+    function N_VERSAO_ALVO() { var N = window.faMotorPosicionamentoNucleo, v = N.versaoEmVigor(); return N.versoes().filter(function (x) { return x > v; }).pop(); }
     function calcularImpactoPosicionamento() {
       var cp = state.configMotores.posicionamento, N = window.faMotorPosicionamentoNucleo, G = window.faGovernancaPosicionamento, Q = window.faQuestionarios;
       if (!cp || cp.lendo) return;
