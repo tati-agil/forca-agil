@@ -38,8 +38,8 @@ const BASE = process.env.FA_BASE_URL || 'http://127.0.0.1:8811';
 const FALSO = fs.readFileSync(path.join(__dirname, 'persistencia-firebase-real.js'), 'utf8') + '\n' +
   fs.readFileSync(path.join(__dirname, 'firebase-falso.js'), 'utf8');
 const RAIZ = path.join(__dirname, '..', '..', 'forca-agil');
-const SRC_AVP = fs.readFileSync(path.join(RAIZ, 'avaliacao-produto.js'), 'utf8');
-const SRC_MOTOR = fs.readFileSync(path.join(RAIZ, 'motor-arquitetura.js'), 'utf8');
+const SRC_AVP = fs.readFileSync(path.join(RAIZ, 'avaliacao-produto.js'), 'utf8').replace(/\r\n/g, '\n');
+const SRC_MOTOR = fs.readFileSync(path.join(RAIZ, 'motor-arquitetura.js'), 'utf8').replace(/\r\n/g, '\n');
 const MOTOR_VERSION = /var MOTOR_VERSION = '([^']+)'/.exec(SRC_AVP)[1];
 const XLSX = require(path.join(RAIZ, 'xlsx.mini.min.js'));
 const EMAIL = 'teste@previ.com.br';
@@ -606,7 +606,7 @@ async function voltarParaAvaliacoes(page) {
        o comportamento exato — quem lê, quem cria, ninguém altera — é provado no emulador (teste-rules-avaliacoes.js) */
     const audNat = rules['naturezas-complementares-auditoria'];
     afirma(audNat['.write'] === undefined && /fa-admins/.test(((audNat.catalogo || {})['$pushKey'] || {})['.write']) && /fa-admins/.test(((audNat['$avaliacaoId'] || {})['$pushKey'] || {})['.write']) && /fa-admins/.test(audNat['.read']), 'regras: auditoria legível/gravável por admin, só por acréscimo de linha (e, na gravação, pelo gestor da avaliação — ver teste de regras no emulador)');
-    const html = fs.readFileSync(path.join(RAIZ, '..', 'index.html'), 'utf8');
+    const html = fs.readFileSync(path.join(RAIZ, '..', 'index.html'), 'utf8').replace(/\r\n/g, '\n');
     afirma(html.indexOf('naturezas-config.js') !== -1 && html.indexOf('naturezas-config.js') < html.indexOf('avaliacao-produto.js'), 'index.html carrega naturezas-config.js antes de avaliacao-produto.js');
   }
 

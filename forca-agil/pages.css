@@ -2871,3 +2871,44 @@ details.avp-form-card.avp-aut-historico { margin-top: 0; padding: 10px 16px; mar
 /* Posicionamento — exportação (PR G1): o botão fica à ESQUERDA da barra, então o menu abre alinhado à esquerda */
 .po-exportar-barra .avp-exportar-menu { left: 0; right: auto; max-width: calc(100vw - 32px); }
 .po-ficha-acoes { flex-wrap: wrap; }
+
+/* Catálogo preparatório do Mapa da Floresta (mapa-floresta.js) — só consulta; cartões em qualquer largura */
+.mf-aviso-estruturas { border-left: 3px solid var(--gold); background: var(--space-1); padding: 10px 14px; margin: 0 0 16px; border-radius: 4px; font-size: .86rem; color: var(--ink-2); overflow-wrap: anywhere; }
+.mf-aviso-estruturas strong { color: var(--ink); }
+.mf-secao { margin-top: 18px; }
+.mf-ajuda { font-size: .82rem; color: var(--ink-3); margin: 0 0 10px; }
+.mf-categorias { list-style: none; padding: 0; margin: 0; display: grid; gap: 10px; grid-template-columns: repeat(auto-fit, minmax(min(260px, 100%), 1fr)); }
+.mf-categoria { min-width: 0; border: 1px solid var(--line-strong); border-radius: 10px; padding: 12px 14px; display: grid; gap: 8px; align-content: start; overflow-wrap: anywhere; }
+.mf-categoria-topo { display: grid; gap: 4px; }
+.mf-categoria-nome { font-weight: 600; color: var(--ink); }
+.mf-squad { font-size: .78rem; color: var(--ink-3); font-family: var(--font-mono); }
+.mf-squad[data-forma-squads="sim"] { color: var(--cyan-soft); }
+.mf-especializacoes { list-style: none; padding: 0 0 0 10px; margin: 0; border-left: 2px solid var(--line-strong); display: grid; gap: 4px; font-size: .85rem; color: var(--ink-2); }
+.mf-contagem { font-size: .76rem; color: var(--ink-3); font-family: var(--font-mono); }
+.mf-categoria-rodape { margin: 0; display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+.mf-filtros { display: grid; gap: 0 14px; grid-template-columns: repeat(auto-fit, minmax(min(220px, 100%), 1fr)); }
+.mf-filtros input[type="search"] { width: 100%; box-sizing: border-box; background: var(--space-1); border: 1px solid var(--line-strong); color: var(--ink); border-radius: 8px; padding: 9px 12px; font-size: .88rem; font-family: inherit; }
+.mf-filtros select { max-width: 100%; }
+.mf-contador-linha { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; margin: 4px 0 12px; }
+.mf-itens { list-style: none; padding: 0; margin: 0; display: grid; gap: 10px; }
+.mf-item { min-width: 0; border: 1px solid var(--line); border-radius: 10px; padding: 12px 14px; display: grid; gap: 8px; overflow-wrap: anywhere; }
+.mf-item-topo { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; justify-content: space-between; }
+.mf-item-nome { font-weight: 600; color: var(--ink); }
+.mf-detalhes { display: grid; grid-template-columns: minmax(120px, max-content) 1fr; gap: 4px 12px; margin: 0; font-size: .85rem; }
+.mf-detalhes dt { color: var(--ink-3); font-family: var(--font-mono); font-size: .76rem; padding-top: 2px; }
+.mf-detalhes dd { margin: 0; color: var(--ink-2); }
+.mf-origem { color: var(--ink-3); }
+.mf-indisponivel { font-style: italic; color: var(--ink-3); }
+.mf-alerta { color: var(--gold-soft); }
+.mf-item-acoes { display: flex; flex-wrap: wrap; gap: 8px; }
+.mf-item-acoes .btn { text-decoration: none; }
+.mf-badge { white-space: normal; text-align: left; border-radius: 10px; }
+.mf-badge--firme { border-color: rgba(24,194,186,.5); color: var(--cyan-soft); background: rgba(24,194,186,.1); }
+.mf-badge--a-validar { border-color: rgba(90,160,238,.5); color: var(--blue-glow); background: rgba(90,160,238,.1); }
+.mf-badge--sem-posicionamento { border-color: rgba(245,197,24,.45); color: var(--gold-soft); background: rgba(245,197,24,.08); }
+.mf-badge--sem-base { border-color: rgba(255,59,48,.5); color: #ffb3ad; background: rgba(255,59,48,.08); }
+.mf-erro { margin: 8px 0; }
+@media (max-width: 480px) {
+  .mf-detalhes { grid-template-columns: 1fr; }
+  .mf-detalhes dd { margin-bottom: 6px; }
+}

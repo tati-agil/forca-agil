@@ -230,7 +230,7 @@ const T = Object.values(sim.transicoes);
 afirma(T.every((t) => t.exemplos.length && t.exemplos.every((x) => { const a = av(V1, x.estado), b = av(V2, x.estado); const l = (o) => o.codigoResultado === 'A_VALIDAR' ? 'A_VALIDAR/' + o.tipoAValidar : o.codigoResultado; return l(a) === t.de && l(b) === t.para; })), 'todo exemplo reproduz a sua transição (origem → destino)');
 afirma(!!sim.transicoes['A_VALIDAR/CONFLITO → A_VALIDAR/EVIDENCIA_INSUFICIENTE'] && !!sim.transicoes['A_VALIDAR/RECORTE → A_VALIDAR/EVIDENCIA_INSUFICIENTE'], 'mudanças esperadas aparecem: "mesma" e 3+ SIM passam a pedir mais diagnóstico');
 const DIFF = require('./diff-motor-posicionamento-v1-v2.js');
-const doc = fs.readFileSync(path.join(__dirname, '..', '..', 'docs', 'motor-posicionamento-v1-v2.md'), 'utf8');
+const doc = fs.readFileSync(path.join(__dirname, '..', '..', 'docs', 'motor-posicionamento-v1-v2.md'), 'utf8').replace(/\r\n/g, '\n');
 afirma(doc === DIFF.relatorio(N), 'docs/motor-posicionamento-v1-v2.md é exatamente o que diff-motor-posicionamento-v1-v2.js gera hoje (reproduzível)');
 
 console.log('\n== H. Contrato motor × conteúdo do questionário ==');

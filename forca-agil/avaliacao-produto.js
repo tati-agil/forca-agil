@@ -2927,6 +2927,7 @@
       var p = paramsDaHash();
       if (p.po) return { t: 'posicionamento', po: p.po, item: p.item || null }; /* Posicionamento Organizacional: o endereço é dele (avaliacao-posicionamento.js) */
       if (p.sq) return { t: 'squad', sq: p.sq }; /* Adequação à Squad: o endereço é dela (avaliacao-squad.js) */
+      if (p.mf) return { t: 'mapa', mf: p.mf }; /* Catálogo preparatório do Mapa da Floresta: o endereço é dele (mapa-floresta.js) */
       if (p.avp) return { t: 'avaliacao', key: p.avp };
       if (p.reavaliar) return { t: 'reavaliar', key: p.reavaliar };
       if (p.editar) return { t: 'editar', key: p.editar };
@@ -3075,6 +3076,19 @@
       function fim() { urlAplicada = location.hash || ''; }
       /* o painel do Posicionamento só fica aberto enquanto o endereço for dele */
       if (d.t !== 'posicionamento' && window.faAvaliacaoPosicionamento) window.faAvaliacaoPosicionamento.fechar();
+      /* idem o Catálogo do Mapa da Floresta — fecha antes de outro painel assumir a página */
+      if (d.t !== 'mapa' && window.faMapaFloresta) window.faMapaFloresta.fechar();
+      if (d.t === 'mapa') {
+        if (state.tela !== 'lista' && state.tela.indexOf('config') !== 0 && state.tela.indexOf('admin') !== 0) {
+          state.atual = null; state.reavaliacaoBase = null; state.snapshotEdicao = null; state.carregandoTravado = false;
+          state.tela = 'lista'; render();
+        }
+        if (window.faAvaliacaoSquad && window.faAvaliacaoSquad.fechar) window.faAvaliacaoSquad.fechar();
+        if (!window.faMapaFloresta && window.faInitCatalogoMapa) window.faInitCatalogoMapa();
+        if (window.faMapaFloresta) window.faMapaFloresta.aplicarEndereco();
+        fim();
+        return;
+      }
       if (d.t === 'posicionamento') {
         if (state.tela !== 'lista' && state.tela.indexOf('config') !== 0 && state.tela.indexOf('admin') !== 0) {
           state.atual = null; state.reavaliacaoBase = null; state.snapshotEdicao = null; state.carregandoTravado = false;
@@ -3276,6 +3290,8 @@
       if (!state.lixeira && pode() && modo === 'operacional') html += '<button class="btn btn--sm" id="avpSquadBtn">Adequação à Squad</button>';
       /* Posicionamento Organizacional (O1–O9): outra avaliação, consultada pelos três perfis; só Avaliação + Arquitetura grava. */
       if (!state.lixeira && pode() && modo === 'operacional') html += '<button class="btn btn--sm" id="avpPosicionamentoBtn">Posicionamento Organizacional</button>';
+      /* Catálogo preparatório do Mapa da Floresta: só consulta, os três perfis (mapa-floresta.js). */
+      if (!state.lixeira && pode() && modo === 'operacional') html += '<button class="btn btn--sm" id="avpMapaFlorestaBtn">Catálogo do Mapa da Floresta</button>';
       if (!state.lixeira && pode()) {
         html += '<div class="avp-exportar-wrap">';
         html += '<button class="btn btn--sm" id="avpExportarBtn"' + (state.exportando ? ' disabled' : '') + '>' +
@@ -3479,6 +3495,12 @@
         if (!window.faAvaliacaoPosicionamento && window.faInitAvaliacaoPosicionamento) window.faInitAvaliacaoPosicionamento();
         if (window.faAvaliacaoPosicionamento) window.faAvaliacaoPosicionamento.abrirLista();
         else avpAlert('O Posicionamento Organizacional não carregou. Recarregue a página e tente de novo.');
+      });
+      var mapaBtn = document.getElementById('avpMapaFlorestaBtn');
+      if (mapaBtn) mapaBtn.addEventListener('click', function () {
+        if (!window.faMapaFloresta && window.faInitCatalogoMapa) window.faInitCatalogoMapa();
+        if (window.faMapaFloresta) window.faMapaFloresta.abrir();
+        else avpAlert('O Catálogo do Mapa da Floresta não carregou. Recarregue a página e tente de novo.');
       });
       var buscaEl = document.getElementById('avpBusca');
       if (buscaEl) {
@@ -9316,6 +9338,8 @@
       if (window.faInitAvaliacaoSquad) window.faInitAvaliacaoSquad({ modo: 'operacional' });
       /* Posicionamento Organizacional (O1–O9): idem (ver avaliacao-posicionamento.js). */
       if (window.faInitAvaliacaoPosicionamento) window.faInitAvaliacaoPosicionamento();
+      /* Catálogo preparatório do Mapa da Floresta: idem (ver mapa-floresta.js). */
+      if (window.faInitCatalogoMapa) window.faInitCatalogoMapa();
     });
   }
 })();
