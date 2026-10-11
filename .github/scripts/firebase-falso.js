@@ -15,8 +15,8 @@
     throw new Error('firebase-falso: persistenciaReal exige persistencia-firebase-real.js carregado antes');
   }
   function lerComoBanco(v) { return REAL ? window.__comoFirebaseReal(v) : v; }
-  /* O site carrega este arquivo 3 vezes (app/database/auth): a cópia
-     normalizada fica em __CFG.__dbReal para as três usarem o MESMO banco
+  /* O site carrega este arquivo 4 vezes (app/database/auth/functions): a cópia
+     normalizada fica em __CFG.__dbReal para as quatro usarem o MESMO banco
      (e para o teste poder inspecioná-lo). */
   if (REAL) {
     if (!CFG.__dbReal) CFG.__dbReal = lerComoBanco(DB) || {};
@@ -436,8 +436,29 @@
         createUserWithEmailAndPassword: function () { return Promise.resolve({ user: currentUser }); }
       };
     },
-    database: function () { return { ref: function (p) { return new Ref(p || ''); }, goOnline: function () {}, goOffline: function () {} }; }
+    database: function () { return { ref: function (p) { return new Ref(p || ''); }, goOnline: function () {}, goOffline: function () {} }; },
+    /* B4 — Cloud Functions chamáveis falsas. CFG.funcoes = { nome: { resultado } | { erro: 'codigo' } | { semResposta: true },
+       com atraso opcional (ms) }; lido a cada chamada (o teste pode trocar no meio). Sem entrada = função não implantada
+       (not-found). Cada chamada fica em CFG.__chamadas. */
+    app: function () { return { functions: function () { return funcoesFalsas(); } }; },
+    functions: function () { return funcoesFalsas(); }
   };
+  function funcoesFalsas() {
+    return { httpsCallable: function (nome) {
+      return function (dados) {
+        (CFG.__chamadas = CFG.__chamadas || []).push({ nome: nome, dados: JSON.parse(JSON.stringify(dados || null)) });
+        var r = (CFG.funcoes || {})[nome];
+        if (r && r.semResposta) return new Promise(function () {});
+        return new Promise(function (ok, falha) {
+          setTimeout(function () {
+            if (!r) { var e = new Error('função não implantada (falso)'); e.code = 'functions/not-found'; falha(e); return; }
+            if (r.erro) { var e2 = new Error(r.mensagem || r.erro); e2.code = 'functions/' + r.erro; falha(e2); return; }
+            ok({ data: JSON.parse(JSON.stringify(r.resultado === undefined ? null : r.resultado)) });
+          }, (r && r.atraso) || 10);
+        });
+      };
+    } };
+  }
   firebase.database.ServerValue = { TIMESTAMP: 1 };
   window.firebase = firebase;
 })();

@@ -40,3 +40,32 @@ jobs:
             --only database \
             --project demo-kyber-agil-rules-test \
             "node .github/scripts/teste-rules.js && node .github/scripts/teste-rules-avaliacoes.js && node .github/scripts/teste-rules-taxonomia.js && node .github/scripts/teste-rules-taxonomia-governanca.js && node .github/scripts/teste-rules-perfis-avaliacao.js && node .github/scripts/teste-rules-posicionamento.js && node .github/scripts/teste-rules-posicionamento-decisao.js && node .github/scripts/teste-rules-redacao-motor.js && node .github/scripts/teste-rules-governanca-motor.js"
+
+  # B4: a fronteira confiável (Cloud Functions) no emulador — banco, autenticação e funções, sem nada real.
+  fronteira:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Instalar firebase-tools e as dependências das funções
+        run: |
+          mkdir -p /tmp/rules-deps
+          cd /tmp/rules-deps
+          npm init -y
+          npm install firebase-tools@13
+          cd "$GITHUB_WORKSPACE"
+          npm ci --prefix functions
+
+      - name: Copiar os módulos do site para functions/site (o mesmo passo do predeploy)
+        run: node .github/scripts/copiar-modulos-fronteira.js
+
+      - name: Rodar a fronteira contra os emuladores (database, auth, functions)
+        run: |
+          /tmp/rules-deps/node_modules/.bin/firebase emulators:exec \
+            --only database,auth,functions \
+            --project demo-kyber-agil-fronteira \
+            "node .github/scripts/teste-fronteira-posicionamento.js"

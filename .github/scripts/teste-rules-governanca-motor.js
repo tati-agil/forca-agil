@@ -13,7 +13,8 @@
  *      não impede uma nova proposta;
  *   E. retirada: só o proponente ou admin geral, com motivo, auditoria e liberação do índice na mesma gravação; final;
  *   F. auditoria: obrigatória, vinculada nos dois sentidos, só acréscimo, autoria pelo UID, horário do servidor;
- *   G. vigência: ninguém grava pelo cliente (reservada à fronteira confiável do B4). */
+ *   G. vigência: ninguém grava pelo cliente (reservada à fronteira confiável do B4);
+ *   H. B4: validação da redação e ativações só a fronteira (Admin SDK) grava; os três perfis leem. */
 'use strict';
 const fs = require('fs');
 const path = require('path');
@@ -217,6 +218,16 @@ const clone = (o) => JSON.parse(JSON.stringify(o));
   total++;
   if ((await ler(N.vigencia)) === null) console.log('  ok    a vigência continua sem registro (v1 em vigor)');
   else { falhas++; console.log('  FALHA a vigência foi gravada'); }
+
+  console.log('H. B4 — registros que só a fronteira confiável (servidor) grava');
+  const VAL = 'posicionamento-motor-redacao-validada', ATV = 'posicionamento-motor-ativacoes';
+  await caso('Avaliação + Arquitetura não grava a validação da redação', db(ARQ).ref(VAL + '/2/1').set({ digestRedacao: DIG }), false);
+  await caso('admin geral não grava a validação da redação', db(ADM).ref(VAL + '/2/1').set({ digestRedacao: DIG }), false);
+  await caso('admin geral não grava uma ativação', db(ADM).ref(ATV + '/p1').set({ seq: 1, versaoMotor: 2 }), false);
+  await caso('nem junto com a vigência numa gravação só', raiz(ADM).update({ [ATV + '/p1']: { seq: 1 }, [N.vigencia + '/versaoEmVigor']: 2 }), false);
+  await caso('Avaliação lê a validação da redação', db(AVAL).ref(VAL).once('value'), true);
+  await caso('Avaliação + Arquitetura lê as ativações', db(ARQ).ref(ATV).once('value'), true);
+  await caso('pessoa sem perfil não lê as ativações', db(OUTRO).ref(ATV).once('value'), false);
 
   await env.cleanup();
   console.log('\n' + (total - falhas) + '/' + total + ' casos.' + (falhas ? ' ' + falhas + ' falha(s).' : ' Tudo certo.'));

@@ -259,6 +259,8 @@ async function versoes(browser, viewport, rotulo) {
   await ctx.close();
 }
 /* ---------- 4. B3: governança persistida ---------- */
+let dbAprovado = null, pidAprovado = null;
+const clone = (v) => JSON.parse(JSON.stringify(v));
 const ARQ2 = 'arq2@previ.com.br', ARQ3 = 'arq3@previ.com.br';
 const G = require(path.join(RAIZ, 'governanca-posicionamento.js'));
 function sementeB3() {
@@ -358,6 +360,7 @@ async function governanca(browser, viewport, rotulo) {
   afirma(await page.locator('li[data-item="APROVACAO"]').getAttribute('data-ok') === 'true' && await page.locator('li[data-item="FRONTEIRA"]').getAttribute('data-ok') === 'false', 'prontidão: aprovação dupla ✓, fronteira confiável ✗');
   afirma(await page.evaluate(() => window.faMotorPosicionamentoNucleo.versaoEmVigor()) === 1 && /Inativa/.test(await textoDe(page, '#avpMotorPosicionamento tr[data-versao="2"]')), 'v1 continua em vigor e v2 inativa');
   afirma(await page.locator('#avpPosProporBtn').count() === 1, 'com o índice livre, uma nova proposta pode ser feita');
+  dbAprovado = clone(db); pidAprovado = pid;
   afirma(await larguraOk(page), 'sem rolagem horizontal');
   afirma(!erros.length, 'nenhum erro de JS', erros.join(' | '));
   await ctx.close();
@@ -399,10 +402,81 @@ async function governanca(browser, viewport, rotulo) {
   afirma(!erros.length, 'nenhum erro de JS', erros.join(' | '));
   await ctx.close();
 }
+/* ---------- 5. B4: fronteira confiável (as funções são falsas: CFG.funcoes) ---------- */
+async function fronteiraTela(browser, viewport, rotulo) {
+  console.log('[' + rotulo + '] 5. B4 — validar redação e conferir entrada em vigor no servidor');
+  let { ctx, page, erros } = await abrirMotores(browser, viewport, ADM, clone(dbAprovado));
+  const antes = await banco(page);
+  await page.waitForSelector('#avpPosValidarRedacaoBtn');
+  afirma(await page.locator('li[data-item="REDACAO_VALIDADA_FRONTEIRA"]').getAttribute('data-ok') === 'false', 'prontidão: redação ainda não validada pela fronteira');
+  await page.click('#avpPosValidarRedacaoBtn');
+  await esperarCondicao(page, () => /indisponível/.test((document.getElementById('avpPosFronteiraFlash') || {}).textContent || ''), undefined, { limite: 8000 });
+  afirma(/Nada foi validado/.test(await textoDe(page, '#avpPosFronteiraFlash')) && await page.locator('#avpPosRedacaoValidada').count() === 0, 'funções não implantadas: "Fronteira confiável indisponível", nada validado');
+  await page.evaluate(() => { window.__CFG.funcoes = { validarRedacaoPublicada: { resultado: { valida: false, motivos: ['REDACAO_ADULTERADA'] } } }; });
+  await page.click('#avpPosValidarRedacaoBtn');
+  await esperarCondicao(page, () => /recusou a redação/.test((document.getElementById('avpPosFronteiraFlash') || {}).textContent || ''), undefined, { limite: 8000 });
+  afirma(/não confere com o seu identificador/.test(await textoDe(page, '#avpPosFronteiraFlash')), 'redação recusada pelo servidor: o motivo por extenso');
+  await page.evaluate(() => { window.__CFG.funcoes = { validarRedacaoPublicada: { resultado: { valida: true, motivos: [] } } }; });
+  await page.click('#avpPosValidarRedacaoBtn');
+  await esperarCondicao(page, () => /Redação validada/.test((document.getElementById('avpPosFronteiraFlash') || {}).textContent || ''), undefined, { limite: 8000 });
+  const ch = await page.evaluate(() => window.__CFG.__chamadas);
+  afirma(ch.length === 3 && ch.every((c) => c.nome === 'validarRedacaoPublicada' && c.dados.versaoMotor === 2 && c.dados.versaoRedacao === 1), 'a tela pede ao servidor validar a redação publicada v1 do motor v2 (só identifica a versão)');
+  afirma(!(await banco(page))['posicionamento-motor-redacao-validada'], 'a tela não grava a validação: quem grava é o servidor');
+  /* o que o servidor gravaria (Admin SDK) — a tela só lê */
+  await page.evaluate((dig) => window.firebase.database().ref('posicionamento-motor-redacao-validada/2/1').set({ digestRedacao: dig, validadoEm: 1760000000000, solicitadoPor: { uid: 'u', email: 'tatianefdirene@previ.com.br' }, auditoriaId: 'a' }),
+    G.digestRedacao(REDACAO_V2_SEED));
+  await page.waitForSelector('#avpPosRedacaoValidada');
+  afirma(await page.locator('li[data-item="REDACAO_VALIDADA_FRONTEIRA"]').getAttribute('data-ok') === 'true' && await page.locator('#avpPosValidarRedacaoBtn').count() === 0,
+    'validação registrada pelo servidor: prontidão ✓ e o botão some');
+  /* conferir (só admin geral, na proposta aprovada) */
+  await page.click('#avpPosPropostasHistorico summary');
+  const conf = page.locator('.avp-pos-conferir-btn[data-proposta="' + pidAprovado + '"]');
+  afirma(await conf.count() === 1, 'admin geral vê "Conferir entrada em vigor no servidor" na proposta aprovada');
+  await page.evaluate(() => { window.__CFG.funcoes = { conferirEntradaEmVigor: { resultado: { apta: false, motivos: ['IMPACTO_DESATUALIZADO', 'PRONTIDAO_SIMULACAO_EXECUTADA'], ativacaoHabilitada: false } } }; });
+  await conf.click();
+  await page.waitForSelector('.avp-pos-conferencia[data-apta="false"]');
+  const naoApta = await textoDe(page, '.avp-pos-conferencia');
+  afirma(/não apta/.test(naoApta) && /o impacto nas avaliações mudou depois da aprovação/.test(naoApta) && /prontidão: simulação contra a versão em vigor executada/i.test(naoApta), 'não apta: os motivos por extenso');
+  await page.evaluate(() => { window.__CFG.funcoes = { conferirEntradaEmVigor: { resultado: { apta: true, motivos: [], ativacaoHabilitada: false } } }; });
+  await page.locator('.avp-pos-conferir-btn[data-proposta="' + pidAprovado + '"]').click();
+  await page.waitForSelector('.avp-pos-conferencia[data-apta="true"]');
+  afirma(/apta para entrar em vigor/.test(await textoDe(page, '.avp-pos-conferencia')) && /A ativação está desabilitada nesta fase \(H3-b\): nada mudou/.test(await textoDe(page, '.avp-pos-conferencia')),
+    'apta: diz que a ativação está desabilitada nesta fase e que nada mudou');
+  const ch2 = (await page.evaluate(() => window.__CFG.__chamadas)).filter((c) => c.nome === 'conferirEntradaEmVigor');
+  afirma(ch2.length === 2 && ch2.every((c) => c.dados.propostaId === pidAprovado && Object.keys(c.dados).length === 1), 'a conferência envia só a proposta (o servidor recalcula o resto)');
+  await page.evaluate(() => { window.__CFG.funcoes = { conferirEntradaEmVigor: { erro: 'permission-denied' } }; });
+  await page.locator('.avp-pos-conferir-btn[data-proposta="' + pidAprovado + '"]').click();
+  await esperarCondicao(page, () => /Sem permissão/.test((document.getElementById('avpPosFronteiraFlash') || {}).textContent || ''), undefined, { limite: 8000 });
+  afirma(true, 'recusa do servidor: "Sem permissão…"');
+  const depois = await banco(page);
+  delete depois['posicionamento-motor-redacao-validada'];
+  afirma(JSON.stringify(depois) === JSON.stringify(antes), 'nada no banco mudou pela tela (avaliações, propostas, vigência)');
+  afirma(await page.locator('#avpMotorPosicionamento button', { hasText: /ativar/i }).count() === 0 && await page.evaluate(() => window.faMotorPosicionamentoNucleo.versaoEmVigor()) === 1, 'nenhum botão de ativar; v1 em vigor');
+  afirma(await larguraOk(page), 'sem rolagem horizontal');
+  afirma(!erros.length, 'nenhum erro de JS', erros.join(' | '));
+  await ctx.close();
+  /* Avaliação + Arquitetura: valida, mas não confere (só admin geral) */
+  ({ ctx, page, erros } = await abrirMotores(browser, viewport, ARQ, clone(dbAprovado)));
+  await page.waitForSelector('#avpPosValidarRedacaoBtn');
+  await page.click('#avpPosPropostasHistorico summary');
+  afirma(await page.locator('.avp-pos-conferir-btn').count() === 0, 'Avaliação + Arquitetura vê "Validar", mas não "Conferir" (só admin geral)');
+  afirma(!erros.length, 'nenhum erro de JS', erros.join(' | '));
+  await ctx.close();
+  /* Questionários: o histórico diz que a versão publicada foi validada */
+  const dbV = clone(dbAprovado);
+  dbV['posicionamento-motor-redacao-validada'] = { 2: { 1: { digestRedacao: G.digestRedacao(REDACAO_V2_SEED), validadoEm: 1760000000000, solicitadoPor: { uid: 'u', email: ADM }, auditoriaId: 'a' } } };
+  ({ ctx, page, erros } = await abrir(browser, viewport, '#admin?arq=questionarios', false, ADM, dbV));
+  await page.waitForSelector('#avpConteudoMotorPublicadas');
+  await page.click('#avpConteudoMotorPublicadas summary');
+  await esperarCondicao(page, () => /Validada para ativação: sim/.test((document.getElementById('avpConteudoMotorPublicadas') || {}).textContent || ''), undefined, { limite: 8000 }).catch(() => {});
+  afirma(/Validada para ativação: sim — pela fronteira confiável/.test(await textoDe(page, '#avpConteudoMotorPublicadas')), 'Questionários: "Validada para ativação: sim — pela fronteira confiável"');
+  afirma(!erros.length, 'nenhum erro de JS', erros.join(' | '));
+  await ctx.close();
+}
 (async () => {
   const browser = await chromium.launch();
   try {
-    for (const [vp, r] of [[DESKTOP, 'desktop'], [CELULAR, 'celular 375']]) { await motores(browser, vp, r); await redacao(browser, vp, r); await publicar(browser, vp, r); await suspensao(browser, vp, r); await versoes(browser, vp, r); await governanca(browser, vp, r); }
+    for (const [vp, r] of [[DESKTOP, 'desktop'], [CELULAR, 'celular 375']]) { await motores(browser, vp, r); await redacao(browser, vp, r); await publicar(browser, vp, r); await suspensao(browser, vp, r); await versoes(browser, vp, r); await governanca(browser, vp, r); await fronteiraTela(browser, vp, r); }
   } catch (e) { console.log('ERRO', e && e.stack || e); falhas++; }
   await browser.close();
   console.log(falhas ? '\n' + falhas + ' falha(s).' : '\nTudo certo.');

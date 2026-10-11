@@ -3941,12 +3941,13 @@
     }
     /* publicação BLOQUEADA nesta fase (as regras atuais não garantem imutabilidade); o histórico mostra o que houver */
     function renderPublicadasConteudoMotor(codigo, versaoMotor) {
+      ouvirRedacoesValidadas();
       var Q = window.faQuestionarios, pubs = Q.versoesPublicadasConteudoMotor(codigo, versaoMotor);
       var html = '<details class="avp-dados-item" id="avpConteudoMotorPublicadas"' + ((state.config.conteudoMotor || {}).publicadasAberto ? ' open' : '') + '><summary>Versões publicadas da redação v' + esc(versaoMotor) + ' — ' + pubs.length + '</summary>';
       html += pubs.length ? '<ul class="avp-conteudo-motor-publicadas">' + pubs.map(function (x) {
         return '<li data-versao="' + esc(x.versao) + '"><strong>Versão ' + esc(x.versao) + '</strong>' + (x.publicadoEm ? ' · ' + esc(fmtData(x.publicadoEm)) : '') +
           (x.publicadoPor ? ' · ' + esc(x.publicadoPor.name || x.publicadoPor.email || '') : '') + (x.digestRedacao ? ' · <code>' + esc(x.digestRedacao) + '</code>' : '') +
-          '<br><span class="avp-ficha-meta">Não pode ser alterada nem apagada. Validada para ativação: não — pendente da fronteira confiável.</span></li>';
+          '<br><span class="avp-ficha-meta">Não pode ser alterada nem apagada. ' + esc(textoValidacaoRedacao(versaoMotor, x)) + '</span></li>';
       }).join('') + '</ul>' : '<p class="admin-empty">Nenhuma versão publicada.</p>';
       html += '</details>';
       var susp = Q.suspensaoPublicacao(codigo, versaoMotor), admGeral = !!(window.faAuth && window.faAuth.getSession() && window.faAuth.isAdmin(window.faAuth.getSession().email));
@@ -5762,7 +5763,7 @@
       if (!alvo) return html + '<p>Nenhuma versão nova preparada.</p></div>';
       var defA = N.definicao(alvo), defV = N.definicao(emVigor);
       var pubs = Q.versoesPublicadasConteudoMotor(codigo, alvo).map(function (x) { return { publicado: true, versao: x.versao, codigo: codigo, motorCompativel: x.motorCompativel, perguntas: x.perguntas }; });
-      var pr = G.prontidao(N, defA, { emVigor: defV, redacoesPublicadas: pubs, simulacao: cp.simulacao || null, impacto: cp.impacto || null });
+      var pr = G.prontidao(N, defA, { emVigor: defV, redacoesPublicadas: pubs, simulacao: cp.simulacao || null, impacto: cp.impacto || null, redacaoValidada: redacaoAtualValidada(codigo, alvo) });
       html += '<h5>Prontidão técnica da v' + alvo + '</h5><ul class="avp-pos-prontidao" id="avpPosProntidao">' + pr.itens.map(function (it) {
         return '<li data-item="' + esc(it.codigo) + '" data-ok="' + it.ok + '">' + (it.ok ? '✓ ' : '✗ ') + esc(ROTULO_PRONTIDAO[it.codigo] || it.codigo) + (it.detalhe ? ' <em>(' + esc(it.detalhe) + ')</em>' : '') + '</li>';
       }).join('') +
@@ -5832,6 +5833,84 @@
       return Object.keys(ps).map(function (id) { return { id: id, p: ps[id] }; }).filter(function (x) { return x.p && x.p.versaoMotor === versaoAlvo; })
         .sort(function (a, b) { return (b.p.propostoEm || 0) - (a.p.propostoEm || 0); });
     }
+    /* ---- B4: fronteira confiável — a validação da redação é gravada SÓ pelo servidor (posicionamento-motor-redacao-validada);
+       a tela lê e mostra, e pede ao servidor validar/conferir pela interface de serviços (executar). ---- */
+    var redacoesValidadas = { estado: 'parado', valor: null };
+    function ouvirRedacoesValidadas() {
+      var S = servicosPos();
+      if (redacoesValidadas.estado !== 'parado') return;
+      if (!S || !window.faGovernancaPosicionamento) { redacoesValidadas = { estado: 'erro', valor: null }; return; }
+      redacoesValidadas = { estado: 'carregando', valor: null };
+      /* a 1ª resposta pode chegar durante uma renderização: a tela se redesenha logo depois */
+      S.ouvir('posicionamento-motor-redacao-validada', function (v) { redacoesValidadas = { estado: 'ok', valor: v || {} }; setTimeout(render, 0); },
+        function () { redacoesValidadas = { estado: 'erro', valor: null }; setTimeout(render, 0); });
+    }
+    /* objeto da validação | null (não validada) | 'carregando' | 'erro' */
+    function validacaoDaRedacao(versaoMotor, versao, digest) {
+      if (redacoesValidadas.estado !== 'ok') return redacoesValidadas.estado === 'parado' ? 'carregando' : redacoesValidadas.estado;
+      var r = ((redacoesValidadas.valor || {})[versaoMotor] || {})[versao];
+      return r && digest && r.digestRedacao === digest ? r : null;
+    }
+    function textoValidacaoRedacao(versaoMotor, x) {
+      var vr = validacaoDaRedacao(versaoMotor, x.versao, x.digestRedacao);
+      if (vr && typeof vr === 'object') return 'Validada para ativação: sim — pela fronteira confiável' + (vr.validadoEm ? ' em ' + fmtData(vr.validadoEm) : '') + '.';
+      if (vr === 'carregando') return 'Validada para ativação: verificando…';
+      if (vr === 'erro') return 'Validada para ativação: não foi possível verificar agora.';
+      return 'Validada para ativação: não — pendente da fronteira confiável.';
+    }
+    function ultimaRedacaoPublicada(codigo, versaoMotor) { return window.faQuestionarios.versoesPublicadasConteudoMotor(codigo, versaoMotor)[0] || null; }
+    function redacaoAtualValidada(codigo, versaoMotor) {
+      ouvirRedacoesValidadas();
+      var p0 = ultimaRedacaoPublicada(codigo, versaoMotor), vr = p0 && validacaoDaRedacao(versaoMotor, p0.versao, p0.digestRedacao);
+      return !!(vr && typeof vr === 'object');
+    }
+    var ROTULO_MOTIVO_FRONTEIRA = {
+      PROPOSTA_INEXISTENTE: 'a proposta não existe', PROPOSTA_NAO_APROVADA: 'a proposta não está aprovada', PROPOSTA_JA_CONSUMIDA: 'a proposta já foi usada numa ativação',
+      VERSAO_JA_EM_VIGOR: 'esta versão já está em vigor', MOTOR_DESCONHECIDO: 'versão do motor desconhecida no servidor', REDACAO_NAO_PUBLICADA: 'a redação não está publicada',
+      REDACAO_ADULTERADA: 'a redação publicada não confere com o seu identificador', MOTOR_INCOMPATIVEL: 'a redação não é desta versão do motor',
+      CONTRATO_INCOMPATIVEL: 'a redação não cumpre o contrato do motor', REDACAO_DIFERENTE_DA_PROPOSTA: 'a redação não é a da proposta',
+      REDACAO_NAO_E_A_PUBLICADA_ATUAL: 'há uma redação publicada mais nova que a da proposta', DEFINICAO_DIFERENTE: 'a definição do motor no servidor não é a aprovada',
+      IMPACTO_DESATUALIZADO: 'o impacto nas avaliações mudou depois da aprovação', IMPACTO_NAO_CALCULADO: 'não foi possível calcular o impacto',
+      APROVACAO_INVALIDA: 'a aprovação dupla não é válida', APROVADOR_SEM_PERFIL: 'quem aprovou não tem mais o perfil', SEM_ADMIN_GERAL_ATUAL: 'nenhum aprovador é admin geral hoje',
+      PRONTIDAO_REDACAO_VALIDADA_FRONTEIRA: 'a redação ainda não foi validada pela fronteira confiável'
+    };
+    function rotuloMotivoFronteira(m) {
+      if (ROTULO_MOTIVO_FRONTEIRA[m]) return ROTULO_MOTIVO_FRONTEIRA[m];
+      if (/^PRONTIDAO_/.test(m)) return 'prontidão: ' + (ROTULO_PRONTIDAO[m.slice(10)] || m.slice(10)).toLowerCase();
+      return m;
+    }
+    function mensagemErroFronteira(err) {
+      if (err === 'sem-resposta') return 'A fronteira confiável não respondeu a tempo. Confira a situação antes de tentar de novo.';
+      var c = err && err.codigo;
+      if (c === 'indisponivel') return 'Fronteira confiável indisponível (as funções ainda não foram implantadas ou não respondem). Nada foi validado.';
+      if (c === 'permission-denied') return 'Sem permissão para esta operação no servidor.';
+      if (c === 'unauthenticated') return 'Sua sessão não foi reconhecida pelo servidor. Entre de novo e tente outra vez.';
+      return 'A fronteira confiável recusou a operação. Nada mudou.';
+    }
+    function renderFronteiraGov(cp, versaoAlvo, usuario) {
+      var g = cp.gov, Q = window.faQuestionarios, codigo = Q.CODIGOS.POSICIONAMENTO_ORGANIZACIONAL, p0 = ultimaRedacaoPublicada(codigo, versaoAlvo);
+      var html = '<div id="avpPosFronteira"><p><strong>Fronteira confiável</strong> — o servidor revalida a redação, a definição, o impacto e a aprovação dupla. A ativação está desabilitada nesta fase.</p>';
+      if (g.fronteiraFlash) html += '<p class="' + (g.fronteiraFlash.erro ? 'avp-error-msg' : 'avp-success-msg') + '" id="avpPosFronteiraFlash" role="' + (g.fronteiraFlash.erro ? 'alert' : 'status') + '">' + esc(g.fronteiraFlash.texto) + '</p>';
+      if (!p0) return html + '<p class="avp-ficha-meta">Sem redação publicada: nada a validar.</p></div>';
+      var vr = validacaoDaRedacao(versaoAlvo, p0.versao, p0.digestRedacao);
+      if (vr && typeof vr === 'object') html += '<p class="avp-ficha-meta" id="avpPosRedacaoValidada">✓ Redação publicada v' + esc(p0.versao) + ' validada pela fronteira confiável' + (vr.validadoEm ? ' em ' + esc(fmtData(vr.validadoEm)) : '') + '.</p>';
+      else if (vr === 'carregando') html += '<p class="loading-msg">Verificando a validação da redação…</p>';
+      else if (vr === 'erro') html += '<p class="avp-error-msg">Não foi possível ler a validação da redação agora.</p>';
+      else if (usuario && usuario.podeGravar) html += '<div class="avp-actions-footer"><button type="button" class="btn btn--sm" id="avpPosValidarRedacaoBtn" data-versao="' + esc(p0.versao) + '"' + (g.executando ? ' disabled' : '') + '>' +
+        (g.executando === 'validar' ? 'VALIDANDO…' : 'Validar redação publicada v' + esc(p0.versao) + ' no servidor') + '</button></div>';
+      else html += '<p class="avp-ficha-meta">Redação publicada v' + esc(p0.versao) + ' ainda não validada pela fronteira confiável.</p>';
+      return html + '</div>';
+    }
+    function renderConferenciaGov(x, usuario) {
+      var g = state.configMotores.posicionamento.gov, c = (g.conferencias || {})[x.id], html = '';
+      if (x.p.situacao !== 'aprovada') return '';
+      if (usuario && usuario.adminGeral) html += '<div class="avp-actions-footer"><button type="button" class="btn btn--sm avp-pos-conferir-btn" data-proposta="' + esc(x.id) + '"' + (g.executando ? ' disabled' : '') + '>' +
+        (g.executando === 'conferir:' + x.id ? 'CONFERINDO…' : 'Conferir entrada em vigor no servidor') + '</button></div>';
+      if (c) html += '<div class="avp-pos-conferencia" data-apta="' + (c.apta ? 'true' : 'false') + '">' + (c.apta
+        ? '<p class="avp-success-msg">Conferência no servidor: apta para entrar em vigor. A ativação está desabilitada nesta fase (H3-b): nada mudou.</p>'
+        : '<p class="avp-error-msg">Conferência no servidor: não apta.</p><ul>' + (c.motivos || []).map(function (m) { return '<li data-motivo="' + esc(m) + '">' + esc(rotuloMotivoFronteira(m)) + '</li>'; }).join('') + '</ul>') + '</div>';
+      return html;
+    }
     function renderItemAprovacaoGov(cp, versaoAlvo) {
       var G = window.faGovernancaPosicionamento, defA = window.faMotorPosicionamentoNucleo.definicao(versaoAlvo), agora = alvoDeAgoraGov(cp, versaoAlvo, defA);
       var aprov = propostasDaVersao(cp, versaoAlvo).filter(function (x) { return x.p.situacao === 'aprovada'; })[0];
@@ -5870,6 +5949,7 @@
       if (st.desatualizada) html += '<p class="avp-decisao-aviso avp-pos-desatualizada">A redação publicada, a definição do motor ou o impacto calculado agora não são os desta proposta: ela não vale para a situação atual.</p>';
       if (p.situacao === 'aprovada' && !st.desatualizada) html += '<p class="avp-decisao-aviso avp-pos-autorizada">' + (st.conferida ? 'Autorizada' : 'Aprovada (calcule o impacto para conferir se continua atual)') +
         ' — a entrada em vigor depende da fronteira confiável (B4). Nada mudou: a v' + esc(window.faMotorPosicionamentoNucleo.versaoEmVigor()) + ' continua em vigor e nenhuma avaliação foi alterada.</p>';
+      html += renderConferenciaGov(x, usuario);
       if (aberta) {
         var pa = G.podeAprovar(p, usuario, agora), pr = G.podeRetirar(p, usuario), ocupado = !!(state.configMotores.posicionamento.gov || {}).gravando;
         if (pa.pode) html += '<label class="avp-pos-reconheco"><input type="checkbox" id="avpPosReconheco"> Reconheço o impacto desta versão: ' + esc(im.alterados) + ' resultado(s) mudariam e ' +
@@ -5889,6 +5969,7 @@
       html += '<p class="avp-ficha-meta" id="avpPosVigenciaRegistrada">Versão em vigor registrada no banco: v' + esc(G.versaoEmVigorRegistrada(g.vigencia)) + (g.vigencia && g.vigencia.versaoEmVigor ? '' : ' (nenhum registro: v1)') + '.</p>';
       if (g.flash) html += '<p class="' + (g.flash.erro ? 'avp-error-msg' : 'avp-success-msg') + '" id="avpPosGovFlash" role="' + (g.flash.erro ? 'alert' : 'status') + '">' + esc(g.flash.texto) + '</p>';
       var usuario = usuarioGov(), agora = alvoDeAgoraGov(cp, versaoAlvo, defA), lista = propostasDaVersao(cp, versaoAlvo);
+      html += renderFronteiraGov(cp, versaoAlvo, usuario);
       var aberta = lista.filter(function (x) { return x.p.situacao === 'aberta'; })[0];
       if (aberta) html += '<div id="avpPosPropostaAberta">' + renderPropostaGov(aberta, G.situacaoProposta(aberta.p, agora), usuario, agora, true) + '</div>';
       else {
@@ -5948,6 +6029,30 @@
         if (!pa.pode) { g.flash = { erro: true, texto: ROTULO_NAO_APROVA[pa.motivo] || pa.motivo }; render(); return; }
         gravarGov(cp, 'aprovar', G.montarAprovacao({ propostaId: id, proposta: p, auditoriaId: S.novaChave(G.NOS.auditoria), usuario: u, adminGeral: u.adminGeral, agora: S.agoraServidor() }),
           pa.posicao === 'a2' ? 'Segunda aprovação registrada: proposta aprovada. A entrada em vigor depende da fronteira confiável (B4); nada mudou.' : 'Primeira aprovação registrada. Falta a aprovação de outra pessoa.');
+      });
+      var valBtn = document.getElementById('avpPosValidarRedacaoBtn');
+      if (valBtn) valBtn.addEventListener('click', function () {
+        if (g.executando) return;
+        g.executando = 'validar'; g.fronteiraFlash = null; render();
+        S.executar('validarRedacaoPublicada', { versaoMotor: versaoAlvo, versaoRedacao: Number(valBtn.dataset.versao) }, 30000, function (err, r) {
+          g.executando = null;
+          g.fronteiraFlash = err ? { erro: true, texto: mensagemErroFronteira(err) } : r && r.valida ? { erro: false, texto: '✓ Redação validada pela fronteira confiável. Nada entrou em vigor.' }
+            : { erro: true, texto: 'A fronteira recusou a redação: ' + listaComE(((r && r.motivos) || []).map(rotuloMotivoFronteira)) + '.' };
+          if (state.configMotores && state.configMotores.posicionamento === cp) render();
+        });
+      });
+      Array.prototype.forEach.call(document.querySelectorAll('.avp-pos-conferir-btn'), function (b) {
+        b.addEventListener('click', function () {
+          var id = b.dataset.proposta;
+          if (g.executando) return;
+          g.executando = 'conferir:' + id; g.fronteiraFlash = null; render();
+          S.executar('conferirEntradaEmVigor', { propostaId: id }, 60000, function (err, r) {
+            g.executando = null;
+            if (err) g.fronteiraFlash = { erro: true, texto: mensagemErroFronteira(err) };
+            else { g.conferencias = g.conferencias || {}; g.conferencias[id] = { apta: !!(r && r.apta), motivos: (r && r.motivos) || [] }; g.historicoAberto = true; }
+            if (state.configMotores && state.configMotores.posicionamento === cp) render();
+          });
+        });
       });
       var ret = document.getElementById('avpPosRetirarBtn');
       if (ret) ret.addEventListener('click', function () {

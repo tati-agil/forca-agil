@@ -78,7 +78,8 @@ console.log('\n== Dicionário do banco ==');
 const nosRegras = Object.keys(regras.rules).filter((k) => !k.startsWith('.') && !k.startsWith('$'));
 const arquivosCodigo = fs.readdirSync(path.join(RAIZ, 'forca-agil'))
   .filter((f) => f.endsWith('.js') && f !== 'manual.js');
-const codigo = arquivosCodigo.map((f) => ler('forca-agil/' + f)).join('\n');
+/* o site e (B4) o código do servidor da fronteira confiável — functions/*.js, sem node_modules nem a cópia em site/ */
+const codigo = arquivosCodigo.map((f) => ler('forca-agil/' + f)).concat(['functions/index.js', 'functions/fronteira.js', 'functions/modulos-site.js'].map(ler)).join('\n');
 /* "Usado" = aparece como caminho ('no' ou 'no/…'), não só como palavra solta. */
 const usado = (n) => codigo.includes("'" + n + "'") || codigo.includes("'" + n + "/") || codigo.includes('"' + n + '/');
 const dicionario = linhasDaTabela(secao('Dicionário do banco'));
