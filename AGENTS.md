@@ -12,8 +12,8 @@ projeto está em `CLAUDE.md`**, que continua sendo a referência; este arquivo n
 - **Núcleo de Avaliação, Taxonomia e Mapa da Floresta**: as regras de negócio puras (`forca-agil/*-nucleo.js` e os
   motores). Cada arquivo é a fonte única das suas regras. Não copie nem reescreva essas regras. Uso atual:
   - os motores e `motor-posicionamento-nucleo.js` são usados pelo site (e este último também pela fronteira em
-    `functions/`); o backend ainda não os usa;
-  - `estruturas-nucleo.js` é usado só pelo backend; o site ainda não o carrega.
+    `functions/`); do motor, o backend só lê os códigos firmes oficiais;
+  - `estruturas-nucleo.js` é usado só pelo backend (módulo de Estruturas Concretas); o site ainda não o carrega.
 
   Quando um módulo do backend precisar de outro núcleo, ele carrega o mesmo arquivo, do mesmo jeito.
 

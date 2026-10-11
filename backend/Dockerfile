@@ -24,8 +24,9 @@ RUN --mount=type=secret,id=ca_corporativa,required=false \
     npm ci --omit=dev --no-audit --no-fund && npm cache clean --force
 COPY --from=build /app/backend/dist ./dist
 COPY backend/migracoes ./migracoes
-# o núcleo de regras é o MESMO arquivo do site (fonte única), no mesmo caminho relativo de backend/
-COPY forca-agil/estruturas-nucleo.js /app/forca-agil/estruturas-nucleo.js
+# os núcleos de regras são os MESMOS arquivos do site (fonte única), no mesmo caminho relativo de backend/:
+# Estruturas Concretas e o motor de Posicionamento (só para ler os códigos firmes oficiais)
+COPY forca-agil/estruturas-nucleo.js forca-agil/motor-posicionamento-nucleo.js /app/forca-agil/
 USER node
 EXPOSE 3000
 CMD ["node", "dist/main.js"]

@@ -14,6 +14,9 @@ export interface ConfiguracaoBanco {
 export interface Configuracao {
   porta: number;
   banco: ConfiguracaoBanco;
+  /* Firebase Authentication — a identidade oficial. Só o ID PÚBLICO do projeto (não é segredo): com ele o backend
+     valida o ID token que o navegador envia. Sem ele, as rotas de negócio recusam tudo (503), nunca liberam. */
+  firebase: { projetoId: string | null };
 }
 
 export class ConfiguracaoInvalidaError extends Error {
@@ -45,6 +48,13 @@ function obrigatoria(env: Ambiente, nome: string, problemas: string[]): string {
   return v;
 }
 
+function opcional(env: Ambiente, nome: string, formato: RegExp, mensagem: string, problemas: string[]): string | null {
+  const v = env[nome];
+  if (v === undefined || v.trim() === '') return null;
+  if (!formato.test(v.trim())) { problemas.push(mensagem); return null; }
+  return v.trim();
+}
+
 export function lerConfiguracao(env: Ambiente = process.env): Configuracao {
   const problemas: string[] = [];
   const configuracao: Configuracao = {
@@ -56,7 +66,8 @@ export function lerConfiguracao(env: Ambiente = process.env): Configuracao {
       usuario: obrigatoria(env, 'POSTGRES_USER', problemas),
       senha: obrigatoria(env, 'POSTGRES_PASSWORD', problemas),
       timeoutMs: inteiro(env, 'BANCO_TIMEOUT_MS', 2000, 100, 60000, problemas)
-    }
+    },
+    firebase: { projetoId: opcional(env, 'FIREBASE_PROJECT_ID', /^[a-z][a-z0-9-]{4,29}$/, 'FIREBASE_PROJECT_ID deve ser o ID de um projeto Firebase', problemas) }
   };
   if (problemas.length) throw new ConfiguracaoInvalidaError(problemas);
   return configuracao;

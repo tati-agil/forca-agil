@@ -279,7 +279,7 @@ manda `Cache-Control: no-cache` em JS, CSS, `/index.html` e `/` (com CSP nos doi
 | `taxonomia-indice-filhos.yml` | manual | Construção ÚNICA do índice de conceitos filhos da Taxonomia em produção (conta de serviço; simulação por padrão, grava só com "Confirmar gravação"; recusa rodar de novo). Pré-requisito da troca de camada. |
 | `verificar-infra-functions.yml` | manual | B0 do H2-b: verificação SÓ DE LEITURA, com a conta de serviço do CI, dos requisitos de Cloud Functions — faturamento (Blaze), APIs habilitadas, papéis da conta e região do banco (`.github/scripts/verificar-infra-functions.sh`). Não grava, não habilita, não faz deploy; falta de permissão aparece como "NÃO FOI POSSÍVEL VERIFICAR". Credencial só pela ação oficial `google-github-actions/auth` (nunca interpolada num comando), gcloud por `setup-gcloud`, e-mail da conta e conta de faturamento mascarados no log (`teste-infra-somente-leitura.js`). |
 | `deploy-functions.yml` | manual (digitar `IMPLANTAR`, só da `main`) | B4: implanta SÓ as Cloud Functions da fronteira confiável (`--only functions`; o predeploy copia os módulos do site). Exige a infraestrutura autorizada antes (Blaze, APIs, papéis — ver o diagnóstico acima). Não mexe no site, nas regras nem no banco; credencial só pela ação oficial de autenticação. O deploy da `main` (`firebase-deploy.yml`) não publica funções. |
-| `backend.yml` | push/PR que muda `backend/**`, `forca-agil/estruturas-nucleo.js` ou o próprio workflow, e manual | Backend local (NestJS + PostgreSQL): tipos, compilação e testes; depois sobe os dois contêineres do `backend/compose.yaml` com senha gerada na hora, roda `verificar:ambiente` e a integração contra o PostgreSQL real, e derruba tudo. Sem segredos, sem Firebase, não publica nada (`teste-backend-isolado.js`). |
+| `backend.yml` | push/PR que muda `backend/**`, `forca-agil/estruturas-nucleo.js`, `forca-agil/motor-posicionamento-nucleo.js` ou o próprio workflow, e manual | Backend local (NestJS + PostgreSQL): tipos, compilação e testes; depois sobe os dois contêineres do `backend/compose.yaml` com senha gerada na hora, roda `verificar:ambiente`, a integração contra o PostgreSQL real (Estruturas Concretas de ponta a ponta, inclusive concorrência) e a demonstração de reinício (`demonstrar:reinicio`), e derruba tudo. Sem segredos, sem Firebase, não publica nada (`teste-backend-isolado.js`). |
 
 Não há hook de pre-commit versionado no repositório nem passo de `node --check` no CI: erro de
 sintaxe é pego indiretamente pelos testes herméticos (erro de página).
@@ -291,7 +291,8 @@ sintaxe é pego indiretamente pelos testes herméticos (erro de página).
   `node .github/scripts/rodar-suite.js` e a raiz servida em `http://127.0.0.1:8811`.
 - **Regras do banco**: `teste-rules*.js` no emulador.
 - **Backend local** (`backend/`, guia em [`backend/README.md`](../backend/README.md)): `npm test` (unitários,
-  API, arquitetura e reaproveitamento do Núcleo) e `npm run test:integracao` contra PostgreSQL real.
+  API, identidade Firebase e perfis, arquitetura e reaproveitamento do Núcleo), `npm run test:integracao` contra
+  PostgreSQL real (Estruturas Concretas de ponta a ponta) e `npm run demonstrar:reinicio`.
   O site não depende dele e o Hosting não o publica.
 - **Smoke** (`.github/scripts/smoke-site-real.js`): o site do PR servido localmente, com o
   Firebase **real** (Auth e banco de produção), login de uma conta admin de teste. Verifica que o

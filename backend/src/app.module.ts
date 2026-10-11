@@ -1,6 +1,8 @@
 import { DynamicModule, Module } from '@nestjs/common';
 import { Configuracao } from './configuracao/configuracao';
+import { AutenticacaoModule } from './compartilhado/autenticacao/autenticacao.module';
 import { ConfiguracaoModule } from './configuracao/configuracao.module';
+import { EstruturasModule } from './modulos/estruturas/estruturas.module';
 import { SaudeModule } from './modulos/saude/saude.module';
 import { PersistenciaModule } from './persistencia/persistencia.module';
 
@@ -11,7 +13,7 @@ export class AppModule {
   static com(configuracao: Configuracao): DynamicModule {
     return {
       module: AppModule,
-      imports: [ConfiguracaoModule.com(configuracao), PersistenciaModule, SaudeModule]
+      imports: [ConfiguracaoModule.com(configuracao), PersistenciaModule, AutenticacaoModule, SaudeModule, EstruturasModule]
     };
   }
 }

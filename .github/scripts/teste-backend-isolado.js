@@ -30,9 +30,10 @@ console.log('C. núcleo como fonte única');
 const ponte = ler('backend/src/nucleo/estruturas.ts');
 afirma(/forca-agil\/estruturas-nucleo\.js/.test(ponte) && /require\(CAMINHO_NUCLEO_ESTRUTURAS\)/.test(ponte), 'o backend carrega forca-agil/estruturas-nucleo.js');
 const copias = execFileSync('git', ['ls-files', 'backend'], { cwd: RAIZ, encoding: 'utf8' }).split('\n').filter(Boolean)
-  .filter((f) => /\.(js|ts)$/.test(f) && /function criarEstrutura\s*\(/.test(ler(f)));
-afirma(copias.length === 0, 'nenhuma cópia do núcleo versionada em backend/', copias.join(', '));
-afirma(/COPY forca-agil\/estruturas-nucleo\.js/.test(ler('backend/Dockerfile')), 'a imagem leva o MESMO arquivo do site');
+  .filter((f) => /\.(js|ts)$/.test(f) && /function criarEstrutura\s*\(|CODIGOS_FIRMES\s*=\s*\[/.test(ler(f)));
+afirma(copias.length === 0, 'nenhuma cópia do núcleo nem da lista de códigos firmes do motor versionada em backend/', copias.join(', '));
+afirma(/require\(CAMINHO_NUCLEO_POSICIONAMENTO\)/.test(ler('backend/src/nucleo/posicionamento.ts')), 'os códigos firmes vêm do motor do site (forca-agil/motor-posicionamento-nucleo.js)');
+afirma(/COPY forca-agil\/estruturas-nucleo\.js forca-agil\/motor-posicionamento-nucleo\.js/.test(ler('backend/Dockerfile')), 'a imagem leva os MESMOS arquivos do site');
 
 console.log('D. segredos');
 const versionados = execFileSync('git', ['ls-files', 'backend'], { cwd: RAIZ, encoding: 'utf8' }).split('\n').filter(Boolean);

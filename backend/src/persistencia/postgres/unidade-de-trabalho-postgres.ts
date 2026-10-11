@@ -13,8 +13,10 @@ const REPETIVEIS = new Set(['40001', '40P01']); /* falha de serialização, dead
 export class UnidadeDeTrabalhoPostgres implements UnidadeDeTrabalho {
   constructor(@Inject(POOL_POSTGRES) private readonly pool: Pool) {}
 
-  async executar<T>(trabalho: (sql: ExecutorSql) => Promise<T>, tentativas = 5): Promise<T> {
+  async executar<T>(trabalho: (sql: ExecutorSql) => Promise<T>, tentativas = 8): Promise<T> {
     for (let tentativa = 1; ; tentativa++) {
+      /* espera curta e aleatória antes de repetir, para as operações concorrentes não colidirem de novo */
+      if (tentativa > 1) await new Promise((r) => setTimeout(r, Math.floor(Math.random() * 20 * tentativa)));
       const cliente = await this.pool.connect();
       try {
         await cliente.query('BEGIN ISOLATION LEVEL SERIALIZABLE');

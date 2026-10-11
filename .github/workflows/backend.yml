@@ -7,11 +7,13 @@ on:
     paths:
       - 'backend/**'
       - 'forca-agil/estruturas-nucleo.js'
+      - 'forca-agil/motor-posicionamento-nucleo.js'
       - '.github/workflows/backend.yml'
   pull_request:
     paths:
       - 'backend/**'
       - 'forca-agil/estruturas-nucleo.js'
+      - 'forca-agil/motor-posicionamento-nucleo.js'
       - '.github/workflows/backend.yml'
   workflow_dispatch: {}
 
@@ -53,13 +55,15 @@ jobs:
         run: docker compose up --build -d
       - name: Verificar o ambiente (saúde, rede interna, banco indisponível, volume, logs)
         run: npm run verificar:ambiente
-      - name: Testes de integração contra o PostgreSQL do Docker
+      - name: Testes de integração contra o PostgreSQL do Docker (inclui Estruturas Concretas de ponta a ponta e concorrência)
         run: |
           npm ci --no-audit --no-fund
           set -a; . ./.env; set +a
           docker run --rm --network forca-agil-local_interna -v "$GITHUB_WORKSPACE":/repo -w /repo/backend \
             -e POSTGRES_HOST=postgres -e POSTGRES_DB -e POSTGRES_USER -e POSTGRES_PASSWORD \
             node:22-alpine npx jest --config jest.integracao.config.js
+      - name: Estruturas Concretas sobrevivem ao reinício dos contêineres (restart e down/up, volume mantido)
+        run: npm run demonstrar:reinicio
       - name: Logs (em caso de falha)
         if: failure()
         run: docker compose logs --no-color

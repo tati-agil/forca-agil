@@ -5,5 +5,5 @@ ainda não foram aplicadas, cada uma em sua transação. Ele registra todas na t
 checksum do arquivo.
 
 - **Não edite uma migração já aplicada.** O checksum muda e o comando recusa rodar. Para corrigir, crie a próxima.
-- **Ainda não há migrações de negócio.** As tabelas de Avaliações, Taxonomia, Estruturas e Mapa entram nas
-  próximas entregas, junto com os seus módulos.
+- **`0001_estruturas_concretas.sql`**: as tabelas das Estruturas Organizacionais Concretas (ver `backend/README.md`).
+  Avaliações, Taxonomia e Mapa continuam no Firebase; as tabelas delas não existem aqui.
