@@ -608,6 +608,12 @@
       "sobre": "window.faCriterioReavaliacao (avaliacao-produto.js): objeto e lista de campos congelados; campos comparados titulo/textoAjuda/exemplo/exemplos/ajudaExtra; situacao(): texto ausente ou diferente → 'pergunta', sem prova da ajuda → 'ajuda', ajuda igual (chaves em outra ordem, null/''/ausente) → null, um campo de ajuda mudou → 'ajuda'; as 16 perguntas reais de Produto/Serviço passam pela mesma função."
     },
     {
+      "arquivo": ".github/scripts/teste-estruturas-nucleo.js",
+      "nome": "Estruturas Organizacionais Concretas: núcleo puro, em memória (sem navegador, sem Firebase)",
+      "duracao": 2,
+      "sobre": "Independência de infraestrutura (o arquivo não cita Firebase, banco, DOM, relógio ou sorteio; roda num contexto vazio; determinístico; não altera o estado). Estruturas: tipos admitidos pela ligação oficial + Squad e Capítulo, tipo imutável, encerrar com motivo sem exclusão/reativação/cascata. Relações: 5 tipos, compatibilidade com a Taxonomia (herança só se oficial), duplicidade, autorrelação, ciclos em compõe, alterar = encerrar + criar, a revisar. Vínculo de responsável principal: único, decisão final × recomendação, A_VALIDAR, ligação oficial, tipo, base, substituir; situações calculadas e mudança de Posicionamento; separação da liberação para Squad (I2); histórico e aplicar() tudo ou nada."
+    },
+    {
       "arquivo": ".github/scripts/teste-motor-posicionamento-api.js",
       "nome": "Motor de Posicionamento: liberaSquadParaCodigoFirme e saída congelada (sem navegador)",
       "duracao": 3,
