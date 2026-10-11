@@ -10,7 +10,12 @@ projeto está em `CLAUDE.md`**, que continua sendo a referência; este arquivo n
 - **Backend local** (`backend/`): NestJS + PostgreSQL em Docker, só para desenvolvimento por enquanto. Guia em
   `backend/README.md`. O site não depende dele.
 - **Núcleo de Avaliação, Taxonomia e Mapa da Floresta**: as regras de negócio puras (`forca-agil/*-nucleo.js` e os
-  motores). São fonte única, usadas pelo site e pelo backend. Não copie nem reescreva essas regras.
+  motores). Cada arquivo é a fonte única das suas regras. Não copie nem reescreva essas regras. Uso atual:
+  - os motores e `motor-posicionamento-nucleo.js` são usados pelo site (e este último também pela fronteira em
+    `functions/`); o backend ainda não os usa;
+  - `estruturas-nucleo.js` é usado só pelo backend; o site ainda não o carrega.
+
+  Quando um módulo do backend precisar de outro núcleo, ele carrega o mesmo arquivo, do mesmo jeito.
 
 ## Comandos (terminal, sem depender de IA)
 
