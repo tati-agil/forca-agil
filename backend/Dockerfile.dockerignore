@@ -1,0 +1,9 @@
+# O contexto de build é a raiz do repositório: entra SÓ o que a imagem precisa (nada de .env, node_modules, site).
+*
+!backend/package.json
+!backend/package-lock.json
+!backend/tsconfig.json
+!backend/tsconfig.build.json
+!backend/src/
+!backend/migracoes/
+!forca-agil/estruturas-nucleo.js

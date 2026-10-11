@@ -6,6 +6,7 @@
       "**/.*",
       "**/node_modules/**",
       "functions/**",
+      "backend/**",
       "scraps/**",
       "screenshots/**",
       "uploads/**",
