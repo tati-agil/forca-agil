@@ -4192,7 +4192,9 @@
       var cmSusp = document.getElementById('avpConteudoMotorSuspensaoBtn');
       if (cmSusp) cmSusp.addEventListener('click', function () { pedirSuspensaoPublicacao(Number(cmSusp.dataset.versao), cmSusp.dataset.ativa === 'true'); });
       var cmPubs = document.getElementById('avpConteudoMotorPublicadas');
-      if (cmPubs) cmPubs.addEventListener('toggle', function () { (state.config.conteudoMotor || (state.config.conteudoMotor = {})).publicadasAberto = cmPubs.open; });
+      /* "toggle" chega DEPOIS (tarefa à parte): se a tela já trocou (state.config = null), grava no estado desta renderização, nunca no global */
+      var cfgDaTela = state.config;
+      if (cmPubs) cmPubs.addEventListener('toggle', function () { (cfgDaTela.conteudoMotor || (cfgDaTela.conteudoMotor = {})).publicadasAberto = cmPubs.open; });
       var cmEd = document.getElementById('avpConteudoMotorEditarBtn');
       if (cmEd) cmEd.addEventListener('click', function () {
         var cm = state.config.conteudoMotor || (state.config.conteudoMotor = {}), r = window.faQuestionarios.rascunhoConteudoMotor(window.faQuestionarios.CODIGOS.POSICIONAMENTO_ORGANIZACIONAL, 2);
@@ -4210,7 +4212,7 @@
         t.addEventListener('input', function () { var o = state.config.conteudoMotor.edicao[Number(t.dataset.idx)].opcoes[Number(t.dataset.opcao)]; if (t.value) o.rotulo = t.value; else delete o.rotulo; });
       });
       var cmVer = document.getElementById('avpConteudoMotorVer');
-      if (cmVer) cmVer.addEventListener('toggle', function () { (state.config.conteudoMotor || (state.config.conteudoMotor = {})).aberto = cmVer.open; });
+      if (cmVer) cmVer.addEventListener('toggle', function () { (cfgDaTela.conteudoMotor || (cfgDaTela.conteudoMotor = {})).aberto = cmVer.open; });
       wrap.querySelectorAll('.avp-correcao-aplicar-btn').forEach(function (btn) {
         btn.addEventListener('click', function () { aplicarCorrecaoEditorialNaTela(btn.dataset.correcao); });
       });

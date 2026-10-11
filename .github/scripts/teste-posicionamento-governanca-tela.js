@@ -203,8 +203,10 @@ async function publicar(browser, viewport, rotulo) {
   await page.click('#avpConteudoMotorPublicadas summary');
   afirma(/Versão 1/.test(await page.locator('#avpConteudoMotorPublicadas').innerText()) && /Validada para ativação: não/.test(await page.locator('#avpConteudoMotorPublicadas').innerText()), 'histórico: versão 1, "Validada para ativação: não"');
   afirma(await page.locator('#avpConteudoMotorPublicarBtn').count() === 0, 'sem rascunho, não há o que publicar');
-  await page.evaluate(() => { location.hash = '#admin?arq=motores'; });
+  await page.evaluate(() => { window.__detAntigo = document.getElementById('avpConteudoMotorPublicadas'); location.hash = '#admin?arq=motores'; });
   await page.waitForSelector('#avpMotorPosicionamento');
+  /* "toggle" é uma tarefa à parte: na máquina lenta chega depois que a tela já trocou (CI, 375 px) */
+  await page.evaluate(() => { window.__detAntigo.dispatchEvent(new Event('toggle')); });
   const card = page.locator('#avpMotorPosicionamento');
   afirma(/Inativa/.test(await card.locator('tr[data-versao="2"]').innerText()) && /Em vigor/.test(await card.locator('tr[data-versao="1"]').innerText()), 'depois de publicar: v1 continua em vigor, v2 inativa');
   afirma(await card.locator('li[data-item="REDACAO_PUBLICADA_COMPATIVEL"]').getAttribute('data-ok') === 'true' && await card.locator('li[data-item="REDACAO_VALIDADA_FRONTEIRA"]').getAttribute('data-ok') === 'false',
