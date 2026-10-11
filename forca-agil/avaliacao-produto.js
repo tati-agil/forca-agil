@@ -3904,7 +3904,8 @@
       var ocupado = !!cm.gravando;
       var html = '<div class="avp-form-card avp-config-motor-card" id="avpConteudoMotor' + versaoMotor + '">';
       html += '<h4>Redação para o motor de Posicionamento v' + esc(versaoMotor) + ' (inativo)</h4>';
-      html += '<p class="avp-decisao-aviso">O motor v' + esc(versaoMotor) + ' não está em vigor (versão em vigor: ' + esc(window.faMotorPosicionamentoNucleo ? window.faMotorPosicionamentoNucleo.versaoEmVigor() : 1) + '). ' +
+      var vigQ = versaoEmVigorPainel();
+      if (vigQ !== versaoMotor) html += '<p class="avp-decisao-aviso">O motor v' + esc(versaoMotor) + ' não está em vigor (versão em vigor: ' + (vigQ === null ? 'verificando…' : 'v' + esc(vigQ)) + '). ' +
         'Esta redação é preparada para ele: não aparece em nenhuma avaliação, não muda a redação em uso e só poderá ser publicada junto com o motor, numa etapa de governança.</p>';
       if (cm.flash) html += '<p class="' + (cm.flash.erro ? 'avp-error-msg' : 'avp-flash-success') + '" id="avpConteudoMotorFlash" role="status">' + esc(cm.flash.texto) + '</p>';
       if (!sit.carregada) return html + '<p class="loading-msg" id="avpConteudoMotorCarregando">Carregando…</p></div>';
@@ -5755,14 +5756,15 @@
       var html = '<div class="avp-form-card" id="avpMotorPosicionamento"><h4>Motor de Posicionamento Organizacional (O1–O9) — versões</h4>';
       if (!N || !G) return html + '<p class="admin-empty">Módulo do motor de posicionamento não carregado.</p></div>';
       var cp = state.configMotores.posicionamento || (state.configMotores.posicionamento = {});
-      var codigo = Q.CODIGOS.POSICIONAMENTO_ORGANIZACIONAL, emVigor = N.versaoEmVigor();
+      var codigo = Q.CODIGOS.POSICIONAMENTO_ORGANIZACIONAL, emVigor = versaoEmVigorPainel();
+      if (emVigor === null) return html + '<p class="loading-msg" id="avpPosVerificandoVigencia" role="status">' + (vigenciaMotorLida.estado === 'erro' ? 'Não foi possível ler a versão em vigor agora.' : 'Verificando a versão em vigor…') + '</p></div>';
       html += '<table class="admin-table avp-pos-versoes"><thead><tr><th>Versão</th><th>Situação</th></tr></thead><tbody>' + N.versoes().map(function (v) {
         return '<tr data-versao="' + v + '"><td data-label="Versão">v' + v + '</td><td data-label="Situação">' + (v === emVigor ? '<strong>Em vigor</strong>' : 'Inativa') + '</td></tr>';
       }).join('') + '</tbody></table>';
-      var alvo = N.versoes().filter(function (v) { return v > emVigor; }).pop();
+      var alvo = alvoDoPainel(emVigor);
       if (!alvo) return html + '<p>Nenhuma versão nova preparada.</p></div>';
       var defA = N.definicao(alvo), defV = N.definicao(emVigor);
-      var pubs = Q.versoesPublicadasConteudoMotor(codigo, alvo).map(function (x) { return { publicado: true, versao: x.versao, codigo: codigo, motorCompativel: x.motorCompativel, perguntas: x.perguntas }; });
+      var pubs = (alvo === 1 ? [ultimaRedacaoPublicada(codigo, 1)] : Q.versoesPublicadasConteudoMotor(codigo, alvo)).map(function (x) { return { publicado: true, versao: x.versao, codigo: codigo, motorCompativel: x.motorCompativel, perguntas: x.perguntas }; });
       var pr = G.prontidao(N, defA, { emVigor: defV, redacoesPublicadas: pubs, simulacao: cp.simulacao || null, impacto: cp.impacto || null, redacaoValidada: redacaoAtualValidada(codigo, alvo) });
       html += '<h5>Prontidão técnica da v' + alvo + '</h5><ul class="avp-pos-prontidao" id="avpPosProntidao">' + pr.itens.map(function (it) {
         return '<li data-item="' + esc(it.codigo) + '" data-ok="' + it.ok + '">' + (it.ok ? '✓ ' : '✗ ') + esc(ROTULO_PRONTIDAO[it.codigo] || it.codigo) + (it.detalhe ? ' <em>(' + esc(it.detalhe) + ')</em>' : '') + '</li>';
@@ -5824,7 +5826,7 @@
       return { uid: id.uid, email: id.email, adminGeral: adm, podeGravar: adm || !!(window.faAuth && window.faAuth.podeArquitetura && window.faAuth.podeArquitetura()) };
     }
     function alvoDeAgoraGov(cp, versaoAlvo, defA) {
-      var Q = window.faQuestionarios, pub = Q.versoesPublicadasConteudoMotor(Q.CODIGOS.POSICIONAMENTO_ORGANIZACIONAL, versaoAlvo)[0];
+      var Q = window.faQuestionarios, pub = ultimaRedacaoPublicada(Q.CODIGOS.POSICIONAMENTO_ORGANIZACIONAL, versaoAlvo);
       if (!pub || !cp.impacto || cp.impactoRedacao !== pub.versao) return null;
       return window.faGovernancaPosicionamento.alvoAtual({ definicao: defA, redacao: pub, impacto: cp.impacto });
     }
@@ -5858,7 +5860,18 @@
       if (vr === 'erro') return 'Validada para ativação: não foi possível verificar agora.';
       return 'Validada para ativação: não — pendente da fronteira confiável.';
     }
-    function ultimaRedacaoPublicada(codigo, versaoMotor) { return window.faQuestionarios.versoesPublicadasConteudoMotor(codigo, versaoMotor)[0] || null; }
+    /* v ≥ 2: a última versão publicada da trilha do motor. v = 1 (retorno): a redação da TRILHA PRINCIPAL, a versão publicada
+       do questionário, com o identificador recalculado (o mesmo cálculo do servidor) */
+    function ultimaRedacaoPublicada(codigo, versaoMotor) {
+      var Q = window.faQuestionarios, G = window.faGovernancaPosicionamento;
+      if (versaoMotor === 1) {
+        if (!G || !G.redacaoDaTrilhaPrincipal) return null;
+        var r = G.redacaoDaTrilhaPrincipal(window.faMotorPosicionamentoNucleo, function (c, v) { return Q.conteudoPergunta(codigo, c, v); }, Q.versaoAtual(codigo));
+        r.digestRedacao = G.digestRedacao(r.perguntas);
+        return r;
+      }
+      return Q.versoesPublicadasConteudoMotor(codigo, versaoMotor)[0] || null;
+    }
     function redacaoAtualValidada(codigo, versaoMotor) {
       ouvirRedacoesValidadas();
       var p0 = ultimaRedacaoPublicada(codigo, versaoMotor), vr = p0 && validacaoDaRedacao(versaoMotor, p0.versao, p0.digestRedacao);
@@ -5872,7 +5885,8 @@
       REDACAO_NAO_E_A_PUBLICADA_ATUAL: 'há uma redação publicada mais nova que a da proposta', DEFINICAO_DIFERENTE: 'a definição do motor no servidor não é a aprovada',
       IMPACTO_DESATUALIZADO: 'o impacto nas avaliações mudou depois da aprovação', IMPACTO_NAO_CALCULADO: 'não foi possível calcular o impacto',
       APROVACAO_INVALIDA: 'a aprovação dupla não é válida', APROVADOR_SEM_PERFIL: 'quem aprovou não tem mais o perfil', SEM_ADMIN_GERAL_ATUAL: 'nenhum aprovador é admin geral hoje',
-      PRONTIDAO_REDACAO_VALIDADA_FRONTEIRA: 'a redação ainda não foi validada pela fronteira confiável'
+      PRONTIDAO_REDACAO_VALIDADA_FRONTEIRA: 'a redação ainda não foi validada pela fronteira confiável',
+      ATIVACAO_DESABILITADA: 'a ativação está desabilitada no servidor', VIGENCIA_MUDOU: 'outra ativação entrou antes (a versão em vigor mudou)'
     };
     function rotuloMotivoFronteira(m) {
       if (ROTULO_MOTIVO_FRONTEIRA[m]) return ROTULO_MOTIVO_FRONTEIRA[m];
@@ -5889,7 +5903,7 @@
     }
     function renderFronteiraGov(cp, versaoAlvo, usuario) {
       var g = cp.gov, Q = window.faQuestionarios, codigo = Q.CODIGOS.POSICIONAMENTO_ORGANIZACIONAL, p0 = ultimaRedacaoPublicada(codigo, versaoAlvo);
-      var html = '<div id="avpPosFronteira"><p><strong>Fronteira confiável</strong> — o servidor revalida a redação, a definição, o impacto e a aprovação dupla. A ativação está desabilitada nesta fase.</p>';
+      var html = '<div id="avpPosFronteira"><p><strong>Fronteira confiável</strong> — o servidor revalida a redação, a definição, o impacto e a aprovação dupla. "Ativar" só aparece quando o servidor informa que a ativação está habilitada.</p>';
       if (g.fronteiraFlash) html += '<p class="' + (g.fronteiraFlash.erro ? 'avp-error-msg' : 'avp-success-msg') + '" id="avpPosFronteiraFlash" role="' + (g.fronteiraFlash.erro ? 'alert' : 'status') + '">' + esc(g.fronteiraFlash.texto) + '</p>';
       if (!p0) return html + '<p class="avp-ficha-meta">Sem redação publicada: nada a validar.</p></div>';
       var vr = validacaoDaRedacao(versaoAlvo, p0.versao, p0.digestRedacao);
@@ -5907,7 +5921,10 @@
       if (usuario && usuario.adminGeral) html += '<div class="avp-actions-footer"><button type="button" class="btn btn--sm avp-pos-conferir-btn" data-proposta="' + esc(x.id) + '"' + (g.executando ? ' disabled' : '') + '>' +
         (g.executando === 'conferir:' + x.id ? 'CONFERINDO…' : 'Conferir entrada em vigor no servidor') + '</button></div>';
       if (c) html += '<div class="avp-pos-conferencia" data-apta="' + (c.apta ? 'true' : 'false') + '">' + (c.apta
-        ? '<p class="avp-success-msg">Conferência no servidor: apta para entrar em vigor. A ativação está desabilitada nesta fase (H3-b): nada mudou.</p>'
+        ? (c.ativacaoHabilitada && usuario && usuario.adminGeral
+          ? '<p class="avp-success-msg">Conferência no servidor: apta para entrar em vigor.</p><div class="avp-actions-footer"><button type="button" class="btn btn--primary btn--sm avp-pos-ativar-btn" data-proposta="' + esc(x.id) + '" data-versao="' + esc(x.p.versaoMotor) + '"' +
+            (g.executando ? ' disabled' : '') + '>' + (g.executando === 'ativar:' + x.id ? 'ATIVANDO…' : 'Ativar a v' + esc(x.p.versaoMotor)) + '</button></div>'
+          : '<p class="avp-success-msg">Conferência no servidor: apta para entrar em vigor. A ativação está desabilitada no servidor: nada mudou.</p>')
         : '<p class="avp-error-msg">Conferência no servidor: não apta.</p><ul>' + (c.motivos || []).map(function (m) { return '<li data-motivo="' + esc(m) + '">' + esc(rotuloMotivoFronteira(m)) + '</li>'; }).join('') + '</ul>') + '</div>';
       return html;
     }
@@ -5948,7 +5965,7 @@
       if (p.retirada) html += '<p class="avp-ficha-meta">Retirada por ' + esc((p.retirada.por || {}).email || '—') + ' em ' + esc(fmtData(p.retirada.em)) + '. Motivo: ' + esc(p.retirada.motivo || '') + '</p>';
       if (st.desatualizada) html += '<p class="avp-decisao-aviso avp-pos-desatualizada">A redação publicada, a definição do motor ou o impacto calculado agora não são os desta proposta: ela não vale para a situação atual.</p>';
       if (p.situacao === 'aprovada' && !st.desatualizada) html += '<p class="avp-decisao-aviso avp-pos-autorizada">' + (st.conferida ? 'Autorizada' : 'Aprovada (calcule o impacto para conferir se continua atual)') +
-        ' — a entrada em vigor depende da fronteira confiável (B4). Nada mudou: a v' + esc(window.faMotorPosicionamentoNucleo.versaoEmVigor()) + ' continua em vigor e nenhuma avaliação foi alterada.</p>';
+        ' — a entrada em vigor depende da fronteira confiável. Nada mudou: a v' + esc(versaoEmVigorPainel()) + ' continua em vigor e nenhuma avaliação foi alterada.</p>';
       html += renderConferenciaGov(x, usuario);
       if (aberta) {
         var pa = G.podeAprovar(p, usuario, agora), pr = G.podeRetirar(p, usuario), ocupado = !!(state.configMotores.posicionamento.gov || {}).gravando;
@@ -5962,7 +5979,8 @@
     }
     function renderGovernancaPosicionamento(cp, versaoAlvo, defA, pr) {
       var G = window.faGovernancaPosicionamento, g = cp.gov;
-      var html = '<div id="avpPosGovernanca"><h5>Entrada em vigor da v' + esc(versaoAlvo) + ' — proposta e aprovação dupla</h5>';
+      var vigAtual = versaoEmVigorPainel();
+      var html = '<div id="avpPosGovernanca"><h5>' + (vigAtual !== null && versaoAlvo < vigAtual ? 'Retorno à v' + esc(versaoAlvo) : 'Entrada em vigor da v' + esc(versaoAlvo)) + ' — proposta e aprovação dupla</h5>';
       if (!g || !servicosPos()) return html + '<p class="admin-empty">Governança indisponível nesta página.</p></div>';
       if (g.erroLeitura) return html + '<p class="avp-error-msg" role="alert">' + esc(g.erroLeitura) + '</p></div>';
       if (!g.lido.propostas || !g.lido.vigencia) return html + '<p class="loading-msg">Carregando…</p></div>';
@@ -6006,7 +6024,7 @@
     function bindGovernancaPosicionamento(cp) {
       var G = window.faGovernancaPosicionamento, S = servicosPos(), N = window.faMotorPosicionamentoNucleo;
       if (!cp || !cp.gov || !S) return;
-      var g = cp.gov, emVigor = N.versaoEmVigor(), versaoAlvo = N.versoes().filter(function (v) { return v > emVigor; }).pop();
+      var g = cp.gov, versaoAlvo = alvoDoPainel(versaoEmVigorPainel());
       var hist = document.getElementById('avpPosPropostasHistorico');
       if (hist) hist.addEventListener('toggle', function () { g.historicoAberto = hist.open; });
       var just = document.getElementById('avpPosJustificativa');
@@ -6049,9 +6067,26 @@
           S.executar('conferirEntradaEmVigor', { propostaId: id }, 60000, function (err, r) {
             g.executando = null;
             if (err) g.fronteiraFlash = { erro: true, texto: mensagemErroFronteira(err) };
-            else { g.conferencias = g.conferencias || {}; g.conferencias[id] = { apta: !!(r && r.apta), motivos: (r && r.motivos) || [] }; g.historicoAberto = true; }
+            else { g.conferencias = g.conferencias || {}; g.conferencias[id] = { apta: !!(r && r.apta), motivos: (r && r.motivos) || [], ativacaoHabilitada: !!(r && r.ativacaoHabilitada === true) }; g.historicoAberto = true; }
             if (state.configMotores && state.configMotores.posicionamento === cp) render();
           });
+        });
+      });
+      /* H3-b: ativar — só aparece quando o SERVIDOR informa que a ativação está habilitada; uma gravação atômica no servidor */
+      Array.prototype.forEach.call(document.querySelectorAll('.avp-pos-ativar-btn'), function (b) {
+        b.addEventListener('click', function () {
+          var id = b.dataset.proposta, v = b.dataset.versao;
+          if (g.executando) return;
+          avpConfirm('Ativar a v' + v + ' do motor de Posicionamento? A partir daí as avaliações NOVAS nascem na v' + v + '; as existentes não mudam. A ativação fica registrada e auditada; para voltar, é preciso uma nova proposta com aprovação dupla.', function () {
+            g.executando = 'ativar:' + id; g.fronteiraFlash = null; render();
+            S.executar('ativarEntradaEmVigor', { propostaId: id }, 60000, function (err, r) {
+              g.executando = null;
+              g.fronteiraFlash = err ? { erro: true, texto: mensagemErroFronteira(err) } : r && r.ativada ? { erro: false, texto: '✓ v' + r.versaoEmVigor + ' em vigor (ativação nº ' + r.seq + '). As avaliações existentes não mudaram.' }
+                : { erro: true, texto: 'O servidor não ativou: ' + listaComE(((r && r.motivos) || []).map(rotuloMotivoFronteira)) + '.' };
+              if (g.conferencias) delete g.conferencias[id];
+              if (state.configMotores && state.configMotores.posicionamento === cp) render();
+            });
+          }, { sim: 'Ativar' });
         });
       });
       var ret = document.getElementById('avpPosRetirarBtn');
@@ -6065,18 +6100,40 @@
           'Proposta retirada. Uma nova proposta pode ser feita.');
       });
     }
-    function N_VERSAO_ALVO() { var N = window.faMotorPosicionamentoNucleo, v = N.versaoEmVigor(); return N.versoes().filter(function (x) { return x > v; }).pop(); }
+    function N_VERSAO_ALVO() { return alvoDoPainel(versaoEmVigorPainel()); }
+    /* H3-b — a versão em vigor LIDA do banco (sem registro = 1; null enquanto não se sabe) e o alvo do painel: com a v1 em
+       vigor, a versão nova mais alta; com outra em vigor, o RETORNO à v1 (mesmo rito de proposta e aprovação dupla) */
+    var vigenciaMotorLida = { estado: 'parado', valor: null };
+    function ouvirVigenciaMotor() {
+      var S = servicosPos();
+      if (vigenciaMotorLida.estado !== 'parado') return;
+      if (!S || !window.faGovernancaPosicionamento) { vigenciaMotorLida = { estado: 'erro', valor: null }; return; }
+      vigenciaMotorLida = { estado: 'carregando', valor: null };
+      S.ouvir('posicionamento-motor-vigencia', function (v) { vigenciaMotorLida = { estado: 'ok', valor: v }; setTimeout(render, 0); },
+        function () { vigenciaMotorLida = { estado: 'erro', valor: null }; setTimeout(render, 0); });
+    }
+    function versaoEmVigorPainel() {
+      ouvirVigenciaMotor();
+      return vigenciaMotorLida.estado === 'ok' ? window.faGovernancaPosicionamento.versaoEmVigorRegistrada(vigenciaMotorLida.valor) : null;
+    }
+    function alvoDoPainel(emVigor) {
+      var N = window.faMotorPosicionamentoNucleo;
+      if (emVigor === null || !N) return null;
+      if (emVigor !== 1) return 1;
+      return N.versoes().filter(function (v) { return v > 1; }).pop() || null;
+    }
     function calcularImpactoPosicionamento() {
       var cp = state.configMotores.posicionamento, N = window.faMotorPosicionamentoNucleo, G = window.faGovernancaPosicionamento, Q = window.faQuestionarios;
       if (!cp || cp.lendo) return;
-      var codigo = Q.CODIGOS.POSICIONAMENTO_ORGANIZACIONAL, emVigor = N.versaoEmVigor(), alvo = N.versoes().filter(function (v) { return v > emVigor; }).pop();
+      var codigo = Q.CODIGOS.POSICIONAMENTO_ORGANIZACIONAL, alvo = alvoDoPainel(versaoEmVigorPainel());
+      if (!alvo) return;
       cp.lendo = true; cp.erro = null; render();
       var feito = false;
       var relogio = setTimeout(function () { if (feito) return; feito = true; cp.lendo = false; cp.erro = 'A leitura das avaliações está demorando. Tente de novo em instantes.'; if (state.configMotores && state.configMotores.posicionamento === cp) render(); }, 20000);
       Promise.all(['avaliacoes-posicionamento', 'posicionamento-vigente-por-item', 'posicionamento-decisoes'].map(function (n) { return db().ref(n).once('value'); })).then(function (snaps) {
         if (feito) return; feito = true; clearTimeout(relogio);
         var regs = snaps[0].val() || {}, vig = snaps[1].val() || {}, dec = snaps[2].val() || {};
-        var pub = Q.versoesPublicadasConteudoMotor(codigo, alvo)[0], ras = Q.rascunhoConteudoMotor(codigo, alvo);
+        var pub = ultimaRedacaoPublicada(codigo, alvo), ras = alvo === 1 ? null : Q.rascunhoConteudoMotor(codigo, alvo);
         var destino = pub ? pub.perguntas : ras ? ras.perguntas : null;
         cp.fonteRedacao = pub ? 'versão publicada ' + pub.versao : ras ? 'RASCUNHO (não publicado)' : 'nenhuma (sem redação, nada pode ser comparado)';
         cp.impactoRedacao = pub ? pub.versao : null;
@@ -6101,7 +6158,8 @@
       bindGovernancaPosicionamento(cpGov);
       var posSim = document.getElementById('avpPosSimularBtn');
       if (posSim) posSim.addEventListener('click', function () {
-        var N = window.faMotorPosicionamentoNucleo, emVigor = N.versaoEmVigor(), alvo = N.versoes().filter(function (v) { return v > emVigor; }).pop();
+        var N = window.faMotorPosicionamentoNucleo, emVigor = versaoEmVigorPainel(), alvo = alvoDoPainel(emVigor);
+        if (!alvo) return;
         state.configMotores.posicionamento.simulacao = N.simular(N.definicao(emVigor), N.definicao(alvo));
         render();
       });

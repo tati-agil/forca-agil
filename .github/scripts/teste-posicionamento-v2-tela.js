@@ -107,7 +107,7 @@ async function admin(browser, viewport, rotulo) {
   await page.waitForSelector('#avpConteudoMotor2');
   const antes = await banco(page);
   const card = page.locator('#avpConteudoMotor2');
-  afirma(/motor de Posicionamento v2 \(inativo\)/.test(await card.innerText()) && /versão em vigor: 1/.test(await card.innerText()), 'cartão diz que o motor v2 está inativo e a versão em vigor é a 1');
+  afirma(/motor de Posicionamento v2 \(inativo\)/.test(await card.innerText()) && /versão em vigor: v1/.test(await card.innerText()), 'cartão diz que o motor v2 está inativo e a versão em vigor é a 1');
   await esperarCondicao(page, () => /sem rascunho/.test(document.querySelector('#avpConteudoMotorSituacao') ? document.querySelector('#avpConteudoMotorSituacao').textContent : ''), 'sem rascunho');
   afirma(await page.evaluate(() => !window.faConteudoInicialPosicionamento), 'a carga inicial não foi carregada até alguém pedir');
   await page.click('#avpConteudoMotorImportarBtn');

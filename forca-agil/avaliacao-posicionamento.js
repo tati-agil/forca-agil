@@ -47,6 +47,7 @@
 (function () {
   'use strict';
   var NODE = 'avaliacoes-posicionamento', RES = 'posicionamento-rascunho-por-item', VIG = 'posicionamento-vigente-por-item';
+  var VIGENCIA = 'posicionamento-motor-vigencia'; /* H3-b: a versão do motor em vigor (só a fronteira confiável grava) */
   var AUD = 'posicionamento-auditoria', PROD = 'avaliacoes-produto', DEC = 'posicionamento-decisoes';
   var QCOD = 'POSICIONAMENTO_ORGANIZACIONAL', DIAG = 'DIAG_CONFLITO_RECORTE';
   var MAX_OBS = 2000, MAX_MOTIVO = 500, MAX_JUSTIFICATIVA = 2000, TEMPO_GRAVACAO = 12000;
@@ -214,6 +215,8 @@
     var reg = { itemId: o.itemId, itemNome: String(o.itemNome || o.itemId).slice(0, 200), avaliacaoArquiteturalId: o.avaliacaoArquiteturalId, questionarioCodigo: QCOD,
       questionnaireContentVersion: o.versao, versao: 1, status: 'rascunho', revisao: 1, criadoPor: o.usuario, criadoEm: o.agora, atualizadoPor: o.usuario, atualizadoEm: o.agora,
       auditoriaCriacaoId: o.audId };
+    /* H3-b: a avaliação nasce no motor EM VIGOR (lido do banco); a v1 não grava o campo */
+    if (typeof o.versaoMotor === 'number' && o.versaoMotor !== 1) reg.versaoMotor = o.versaoMotor;
     var p = {};
     p[NODE + '/' + o.id] = reg;
     p[RES + '/' + o.itemId] = o.id;
@@ -386,8 +389,10 @@
     return { payload: p, novas: h.novas };
   }
   /* a atualização só existe quando há motor em vigor MAIS NOVO que o do registro e a redação publicada dele */
-  function atualizacaoDisponivel(reg) {
-    var vd = nucleo().versaoEmVigor(), vo = versaoMotorDo(reg), Q = window.faQuestionarios;
+  /* vdLido: a versão em vigor LIDA do banco (H3-b); null = ainda não se sabe → nada é oferecido */
+  function atualizacaoDisponivel(reg, vdLido) {
+    if (vdLido === null) return null;
+    var vd = typeof vdLido === 'number' ? vdLido : nucleo().versaoEmVigor(), vo = versaoMotorDo(reg), Q = window.faQuestionarios;
     if (!(vd > vo)) return null;
     var sit = typeof Q.situacaoConteudoMotor === 'function' ? Q.situacaoConteudoMotor(QCOD, vd) : null;
     if (!sit || !sit.versaoPublicada) return null;
@@ -498,7 +503,7 @@
     function novoEstado() { return {
       tela: 'lista', /* lista | escolher | checklist | resultado | descartado | carregando | nao-encontrada | sem-permissao */
       registros: {}, reservas: {}, vigentes: {}, produtos: {}, decisoes: {},
-      carregou: { av: false, res: false, vig: false, prod: false, dec: false }, erroLeitura: false, erroDec: false,
+      carregou: { av: false, res: false, vig: false, prod: false, dec: false, vigm: false }, erroLeitura: false, erroDec: false, vigenciaMotor: null, erroVigencia: false,
       mostrarHistorico: false, formDecisao: null, exportando: null, flashExportacao: null, menuExportarAberto: false,
       atual: null, chave: null, revisaoBase: 0, sujo: false, conflito: false, salvando: null, revisaoEmGravacao: null,
       itemEscolhido: null, busca: '', pendente: null, flash: null
@@ -795,7 +800,11 @@
       if (vig) return '<span class="po-item-situacao">Posicionamento concluído</span> <button type="button" class="btn btn--sm po-item-abrir" data-key="' + esc(vig) + '">Abrir</button>';
       if (res) return '<span class="po-item-situacao">Rascunho em andamento</span> <button type="button" class="btn btn--sm po-item-abrir" data-key="' + esc(res) + '">Continuar</button>';
       if (!it.gate.libera) return escolhido ? '' : '<span class="po-item-situacao po-item-bloqueado">' + esc(ROTULO_GATE[it.gate.situacao] || it.gate.situacao) + '</span> <button type="button" class="btn btn--sm po-item-escolher">Ver motivo</button>';
-      if (escolhido) return '<button type="button" class="btn btn--primary" id="poIniciarBtn"' + (state.salvando ? ' disabled' : '') + '>' + (state.salvando ? 'INICIANDO…' : 'Iniciar avaliação') + '</button>';
+      if (escolhido) {
+        var vmv = versaoEmVigorLida();
+        if (vmv === null) return '<p class="loading-msg" id="poVerificandoMotor" role="status">' + (state.erroVigencia ? 'Não foi possível ler a versão do motor em vigor agora.' : 'Verificando a versão do motor…') + '</p>';
+        return '<p class="avp-ficha-meta" id="poMotorEmVigor">Motor em vigor: v' + esc(vmv) + '</p><button type="button" class="btn btn--primary" id="poIniciarBtn"' + (state.salvando ? ' disabled' : '') + '>' + (state.salvando ? 'INICIANDO…' : 'Iniciar avaliação') + '</button>';
+      }
       return '<button type="button" class="btn btn--sm po-item-escolher">Escolher</button>';
     }
 
@@ -950,7 +959,7 @@
       h += '<section class="po-bloco" id="poBlocoHistorico"><h4 class="po-bloco-titulo">Histórico de versões</h4>' + renderHistorico(a, key) + '</section>';
       var podeReav = sit === 'vigente' && podeEscrever() && !resv, prontoPdf = prontoParaExportar();
       /* H3-a: dormente — só aparece com um motor em vigor mais novo que o deste registro e a redação publicada dele */
-      var atu = podeReav ? atualizacaoDisponivel(a) : null;
+      var atu = podeReav ? atualizacaoDisponivel(a, versaoEmVigorLida()) : null;
       /* reavaliar passa pelo MESMO gate de iniciar: sem a base P1–P16 vigente e com Motor atual, o botão fica travado e diz por quê */
       var gReav = podeReav ? itemDoGate(a.itemId).gate : null, travaReav = !!(gReav && !gReav.libera);
       if (travaReav) h += avisoGate(gReav, 'reavaliar');
@@ -1150,6 +1159,18 @@
     }
     function novaChave(caminho) { return S().novaChave(caminho); }
 
+    /* H3-b: número da versão em vigor, ou null enquanto não se sabe (carregando ou leitura recusada) — nunca "1" por falta */
+    function versaoEmVigorLida() {
+      if (!state.carregou.vigm || state.erroVigencia) return null;
+      return window.faGovernancaPosicionamento ? window.faGovernancaPosicionamento.versaoEmVigorRegistrada(state.vigenciaMotor) : null;
+    }
+    /* a versão da redação em que nasce uma avaliação do motor v: v1 = a do questionário; v ≥ 2 = a publicada da trilha do motor */
+    function versaoRedacaoParaMotor(v) {
+      var Q = window.faQuestionarios;
+      if (v === 1) return Q.versaoAtual(QCOD);
+      var sit = typeof Q.situacaoConteudoMotor === 'function' ? Q.situacaoConteudoMotor(QCOD, v) : null;
+      return sit && sit.versaoPublicada ? sit.versaoPublicada : null;
+    }
     function iniciar() {
       if (!podeEscrever() || state.salvando) return;
       if (!state.itemEscolhido || !window.faQuestionarios.configCarregada(QCOD)) return;
@@ -1160,9 +1181,13 @@
       if (!it.gate.libera) { render(); return; }
       var usuario = sessaoAtual();
       if (!usuario) return;
+      var vm = versaoEmVigorLida();
+      if (vm === null) { render(); return; }
+      var vr = versaoRedacaoParaMotor(vm);
+      if (!vr) { render(); aviso('Redação desta versão do motor indisponível: a avaliação não pode ser iniciada.'); return; }
       var id = novaChave(NODE), audId = novaChave(AUD + '/' + id);
       var payload = payloadCriacao({ id: id, audId: audId, itemId: it.itemId, itemNome: it.nome, avaliacaoArquiteturalId: it.avaliacaoArquiteturalId,
-        versao: window.faQuestionarios.versaoAtual(QCOD), usuario: usuario, agora: agoraIso() });
+        versao: vr, versaoMotor: vm, usuario: usuario, agora: agoraIso() });
       state.salvando = 'criacao'; render();
       gravar(payload, function () {
         state.salvando = null;
@@ -1213,6 +1238,7 @@
       var trava = travaConclusao(state.atual);
       if (trava) { render(); aviso(trava.texto); return; }
       var usuario = sessaoAtual(); if (!usuario) return;
+      if (versaoMotorDo(state.atual) >= 2) { concluirPelaFronteira(limpo, usuario); return; }
       var montado = payloadConclusao(state.chave, limpo, usuario, agoraIso(), state.revisaoBase, novaChave(AUD + '/' + state.chave));
       state.salvando = 'concluido'; state.revisaoEmGravacao = state.revisaoBase + 1; render();
       gravar(montado.payload, function () {
@@ -1228,6 +1254,33 @@
           aposErroDeGravacao(err, 'concluir');
         }).catch(function () { aposErroDeGravacao(err, 'concluir'); });
       });
+    }
+    /* H3-b: a avaliação de motor ≥ 2 é concluída pela FRONTEIRA CONFIÁVEL (o banco não deixa a tela concluí-la): grava o
+       rascunho como está na tela e pede ao servidor concluir exatamente essa revisão; o resultado é o do núcleo do motor */
+    var MOTIVO_CONCLUSAO = {
+      REVISAO_DESATUALIZADA: 'Outra pessoa alterou este rascunho: ele foi recarregado. Confira e conclua de novo.',
+      BASE_MUDOU: textoGate('base-mudou', 'concluir'), FALTAM_RESPOSTAS: 'Faltam respostas para concluir.',
+      NAO_E_RASCUNHO: 'Esta avaliação não está mais em rascunho.', JA_TEM_VIGENTE: 'Este item já tem um Posicionamento concluído. Abra-o pela lista.',
+      AVALIACAO_INEXISTENTE: 'A avaliação não foi encontrada.', RECUSADA_PELAS_REGRAS: 'O banco recusou a conclusão. O rascunho continua salvo.'
+    };
+    function concluirPelaFronteira(limpo, usuario) {
+      var chave = state.chave, payload = payloadSalvar(chave, limpo, usuario, agoraIso(), state.revisaoBase);
+      state.salvando = 'concluido'; state.revisaoEmGravacao = state.revisaoBase + 1; render();
+      gravar(payload, function () {
+        state.revisaoBase = state.revisaoEmGravacao; state.revisaoEmGravacao = null; state.sujo = false;
+        S().executar('concluirAvaliacaoPosicionamento', { avaliacaoId: chave, revisao: state.revisaoBase }, 60000, function (err, r) {
+          state.salvando = null;
+          if (err) {
+            render();
+            aviso(err === 'sem-resposta' ? 'O servidor não respondeu a tempo. O rascunho está salvo; confira a lista antes de tentar de novo.'
+              : err.codigo === 'indisponivel' ? 'Fronteira confiável indisponível: a conclusão desta versão do motor é feita pelo servidor. O rascunho continua salvo.'
+              : 'O servidor recusou a conclusão. O rascunho continua salvo.');
+            return;
+          }
+          if (!r || !r.concluida) { render(); aviso(MOTIVO_CONCLUSAO[(r && r.motivos && r.motivos[0])] || 'Não foi possível concluir. O rascunho continua salvo.'); return; }
+          irParaChave(chave);
+        });
+      }, function (err) { state.revisaoEmGravacao = null; aposErroDeGravacao(err, 'concluir'); });
     }
     function pedirDescarte() {
       if (!podeEscrever() || state.salvando || state.conflito) return;
@@ -1316,7 +1369,7 @@
     }
     function pedirAtualizacaoMotor() {
       if (!podeEscrever() || state.salvando) return;
-      var a = state.atual, key = state.chave, atu = atualizacaoDisponivel(a);
+      var a = state.atual, key = state.chave, atu = atualizacaoDisponivel(a, versaoEmVigorLida());
       if (!atu || state.vigentes[a.itemId] !== key) return;
       if (state.reservas[a.itemId]) { irParaChave(state.reservas[a.itemId]); return; }
       var it = itemDoGate(a.itemId);
@@ -1456,6 +1509,7 @@
         console.error('[avaliacao-posicionamento] não foi possível ler ' + caminho + ':', e); state.carregou[chaveCarga] = true;
         if (chaveCarga === 'av') state.erroLeitura = true;
         if (chaveCarga === 'dec') state.erroDec = true; /* leitura recusada não é "sem decisão" */
+        if (chaveCarga === 'vigm') state.erroVigencia = true; /* leitura recusada não é "v1" */
         aoChegar(chaveCarga);
       };
       ouvintes.push(S().ouvir(caminho, cb, erro));
@@ -1484,6 +1538,8 @@
       ouvir(VIG, 'vig', function (v) { state.vigentes = v; });
       ouvir(PROD, 'prod', function (v) { state.produtos = v; });
       ouvir(DEC, 'dec', function (v) { state.decisoes = v; state.erroDec = false; });
+      /* H3-b: a versão do motor EM VIGOR vem do banco (sem registro = 1); enquanto não chega, nada nasce */
+      ouvir(VIGENCIA, 'vigm', function (v) { state.vigenciaMotor = v; state.erroVigencia = false; });
       /* o gate precisa do motor de Produto/Serviço carregado: este onMudanca liga a leitura (garantirSync) e redesenha
          quando ela chega — antes disso o gate diz "Verificando…", nunca "atual" nem "desatualizado" */
       if (window.faMotorArquitetura) window.faMotorArquitetura.onMudanca(function () { if (!wrap.hidden && !state.salvando && !(state.tela === 'checklist' && state.sujo)) render(); });

@@ -21,7 +21,11 @@ const semComentarios = (t) => t.replace(/\/\*[\s\S]*?\*\//g, '').replace(/^\s*\/
 console.log('A. ativação desligada e região');
 const idx = ler('functions/index.js');
 afirma(/const ATIVACAO_HABILITADA = false;/.test(idx) && !/ATIVACAO_HABILITADA\s*=\s*true/.test(idx) && !/process\.env/.test(semComentarios(idx)), 'ATIVACAO_HABILITADA = false no código (sem variável de ambiente que a ligue)');
-afirma(/habilitada: ATIVACAO_HABILITADA/.test(idx) && (idx.match(/onCall\(/g) || []).length === 3, 'três funções chamáveis; a de ativação recebe a trava');
+afirma((idx.match(/habilitada: ATIVACAO_HABILITADA/g) || []).length === 2 && (idx.match(/onCall\(/g) || []).length === 4, 'quatro funções chamáveis; conferência e ativação recebem a trava');
+/* H3-b: a identidade restrita é EFETIVA — as gravações passam pelas regras (databaseAuthVariableOverride), as leituras pelo admin */
+const { UID_FRONTEIRA } = require(path.join(RAIZ, 'functions', 'fronteira.js'));
+afirma(UID_FRONTEIRA === 'fronteira-confiavel' && /databaseAuthVariableOverride: \{ uid: UID_FRONTEIRA \}/.test(idx) && /ioDoAdmin\(admin\.database\(\), restrito\.database\(\)/.test(idx),
+  'as gravações do servidor usam a instância restrita (uid fronteira-confiavel), não o admin que ignora as regras');
 const regFun = (idx.match(/const REGIAO = '([a-z0-9-]+)'/) || [])[1], regSite = (ler('forca-agil/posicionamento-servicos.js').match(/REGIAO_FRONTEIRA = '([a-z0-9-]+)'/) || [])[1];
 afirma(regFun && regFun === regSite, 'a mesma região nas funções e no site (' + regFun + ')');
 afirma(/kyber-agil-default-rtdb\.firebaseio\.com/.test(ler('forca-agil/firebase.js')) && regFun === 'us-central1', 'a região das funções é a do Realtime Database (default-rtdb = us-central1)');
@@ -67,11 +71,18 @@ afirma(csp.length >= 1 && csp.every((h) => /connect-src[^;]*https:\/\/\*\.cloudf
 const tr = ler('.github/workflows/teste-rules.yml');
 afirma(/--only database,auth,functions/.test(tr) && /teste-fronteira-posicionamento\.js/.test(tr) && /copiar-modulos-fronteira\.js/.test(tr), 'o CI roda a fronteira nos emuladores');
 
-console.log('E. regras: nós do servidor fechados para todo cliente');
+console.log('E. regras: nós do servidor gravados só pela identidade restrita');
 const R = JSON.parse(regras).rules;
+const FRONT = "(auth != null && auth.uid === 'fronteira-confiavel')";
+/* toda .write dentro do nó começa exigindo a identidade restrita — nenhum cliente (nem admin geral) grava ali */
+function writes(no, acc) { Object.keys(no || {}).forEach((k) => { if (k === '.write') acc.push(no[k]); else if (k[0] !== '.' && typeof no[k] === 'object') writes(no[k], acc); }); return acc; }
 ['posicionamento-motor-redacao-validada', 'posicionamento-motor-ativacoes', 'posicionamento-motor-vigencia'].forEach((n) => {
-  afirma(R[n] && R[n]['.write'] === false && Object.keys(R[n]).every((k) => k === '.read' || k === '.write'), n + ': .write false, sem filhos que concedam gravação');
+  const w = writes(R[n], []);
+  afirma(R[n] && w.length >= 1 && w.every((x) => x.indexOf(FRONT + ' && ') === 0), n + ': toda gravação exige a identidade restrita', w.join(' | ').slice(0, 200));
 });
+afirma(writes(R['posicionamento-motor-ativacoes'], []).every((x) => /!data\.exists\(\)/.test(x)) && writes(R['posicionamento-motor-redacao-validada'], []).every((x) => /!data\.exists\(\)/.test(x)),
+  'ativações e redação validada: só criação (nunca reescritas nem apagadas)');
+afirma(/newData\.exists\(\)/.test(R['posicionamento-motor-vigencia']['.write']), 'vigência: nunca apagada');
 
 console.log('\n' + total + ' verificações, ' + falhas + ' falha(s).');
 process.exit(falhas ? 1 : 0);

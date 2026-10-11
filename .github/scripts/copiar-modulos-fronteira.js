@@ -6,7 +6,8 @@
 const fs = require('fs');
 const path = require('path');
 const RAIZ = path.join(__dirname, '..', '..');
-const ARQUIVOS = ['motor-posicionamento-nucleo.js', 'governanca-posicionamento.js', 'questionarios-config.js', 'motor-arquitetura.js', 'avaliacao-produto.js'];
+const ARQUIVOS = ['motor-posicionamento-nucleo.js', 'governanca-posicionamento.js', 'questionarios-config.js', 'motor-arquitetura.js', 'avaliacao-produto.js',
+  'motor-posicionamento.js', 'posicionamentos.js', 'avaliacao-posicionamento.js'];
 const DESTINO = path.join(RAIZ, 'functions', 'site');
 if (require.main === module) {
   const conferir = process.argv.includes('--conferir');
